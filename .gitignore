@@ -4,6 +4,13 @@ dist/
 bin/
 node_modules/
 
+# `go build .` inside a site directory writes an executable named after that
+# directory, which is how a 14MB binary got committed on day one. `make build`
+# uses -o bin/ and avoids this, but the bare command is the one people type.
+/sites/*/isaacbythewood.com
+/sites/*/*.com
+!/sites/*.com/
+
 # Playwright scratch
 .playwright-cli/
 

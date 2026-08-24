@@ -30,6 +30,13 @@ type PageData struct {
 	NavPages []NavPage
 	TopLinks []TopLink
 
+	// The menu panel is in the chrome, so every page carries its ladder.
+	MenuSrc    string
+	MenuSrcset template.Srcset
+
+	HeroSrc    string
+	HeroSrcset template.Srcset
+
 	Words      []AboutWord
 	Projects   []ProjectView
 	Pours      []PourView
@@ -54,16 +61,18 @@ type ProjectView struct {
 	Delay  template.CSS
 }
 
-// PourView is a Pour with both image paths resolved.
+// PourView carries a whole size ladder, not one path.
 //
-// Two sizes exist because next/image used to resize on demand and a plain
-// <img> does not. The archival scans are 3900x3000 at up to 16MB, so serving
-// them straight would have put 87MB on this one page. Cards get the 960w
-// variant, the lightbox gets 2400w.
+// next/image chose a width per viewport, and a plain <img> only matches that
+// with srcset. Shipping a single size instead means a phone rendering a card at
+// 380px still downloads the 960w file, which is most of the difference that
+// remained after the archival scans (3900x3000, up to 16MB each) were dealt
+// with.
 type PourView struct {
 	Pour
-	Src     string
-	CardSrc string
+	CardSrc     string // fallback for browsers without srcset
+	CardSrcset  template.Srcset
+	LightboxSrc string
 }
 
 type site struct {
@@ -123,6 +132,11 @@ func (s *site) page(name, title, description string) PageData {
 		Styles:    s.styles,
 		NavPages:  navPages,
 		TopLinks:  topLinks,
+		// 40vw wide but full height, and object-fit: cover on a 4:3 source
+		// means height drives the scale, so it needs more width than 40vw
+		// suggests.
+		MenuSrc:    pourURL("006", 960),
+		MenuSrcset: pourSrcset("006", 960, 1600),
 	}
 }
 
@@ -139,6 +153,9 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 	data := s.page("index", "Senior Solutions Architect at Craftmaster Furniture", "")
 	// The only page that holds the curtain: it waits on the hero image.
 	data.LoaderWaits = true
+	// Full-bleed 100vw, so it is the one image that earns a 2400w candidate.
+	data.HeroSrc = pourURL("005", 1600)
+	data.HeroSrcset = pourSrcset("005", 960, 1600, 2400)
 	s.renderer.Render(w, http.StatusOK, "index.html", data)
 }
 
@@ -178,14 +195,29 @@ func (s *site) art(w http.ResponseWriter, r *http.Request) {
 	data.Pours = make([]PourView, 0, len(pours))
 	for _, pour := range pours {
 		data.Pours = append(data.Pours, PourView{
-			Pour:    pour,
-			Src:     "/static/images/art/acrylic-pours/" + pour.Number + ".webp",
-			CardSrc: "/static/images/art/acrylic-pours/" + pour.Number + "-card.webp",
+			Pour:        pour,
+			CardSrc:     pourURL(pour.Number, 480),
+			CardSrcset:  pourSrcset(pour.Number, 480, 960),
+			LightboxSrc: pourURL(pour.Number, 1600),
 		})
 	}
 	data.Generative = generative
 
 	s.renderer.Render(w, http.StatusOK, "art.html", data)
+}
+
+func pourURL(number string, width int) string {
+	return fmt.Sprintf("/static/images/art/acrylic-pours/%s-%d.webp", number, width)
+}
+
+// pourSrcset builds the candidate list. template.Srcset exists precisely so
+// html/template will not mangle the comma-separated descriptors.
+func pourSrcset(number string, widths ...int) template.Srcset {
+	parts := make([]string, 0, len(widths))
+	for _, w := range widths {
+		parts = append(parts, fmt.Sprintf("%s %dw", pourURL(number, w), w))
+	}
+	return template.Srcset(strings.Join(parts, ", "))
 }
 
 func (s *site) contact(w http.ResponseWriter, r *http.Request) {

@@ -13,12 +13,16 @@
   {{- range .Pours }}
   <div
     class="art-artItem"
-    data-lightbox="{{ .Src }}"
+    data-lightbox="{{ .LightboxSrc }}"
     data-lightbox-alt="{{ .Title }}"
   >
     <span class="art-cardImage">
       <img
         src="{{ .CardSrc }}"
+        srcset="{{ .CardSrcset }}"
+        {{/* Two columns above 768px inside the centre grid area, one below.
+             Roughly 30vw on a desktop, 40vw on a tablet, 80vw on a phone. */}}
+        sizes="(max-width: 767.98px) 80vw, (max-width: 1023.98px) 40vw, 30vw"
         alt="{{ .Title }}"
         width="960"
         height="540"

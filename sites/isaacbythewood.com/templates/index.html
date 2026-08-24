@@ -3,7 +3,9 @@
   <!-- The hero is the largest thing on the site and the only image worth
        preloading: everything else is below the fold or on another page. -->
   <img
-    src="/static/images/art/acrylic-pours/005.webp"
+    src="{{ .HeroSrc }}"
+    srcset="{{ .HeroSrcset }}"
+    sizes="100vw"
     alt="#005 Nebulas in Triangulum"
     fetchpriority="high"
     decoding="async"

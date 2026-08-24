@@ -110,7 +110,9 @@
                fetches it anyway. That is a megabyte on every single page view
                for a panel most visitors never open. -->
           <img
-            data-src="/static/images/art/acrylic-pours/006.webp"
+            data-src="{{ .MenuSrc }}"
+            data-srcset="{{ .MenuSrcset }}"
+            sizes="(max-width: 767.98px) 100vw, 40vw"
             alt="#006 Molten Copper"
             decoding="async"
           />

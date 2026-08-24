@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -61,16 +63,28 @@ func (c *CommitCache) Get(slug string) (Commit, bool) {
 
 // JSON renders a commit the way the card displays it: pretty-printed, matching
 // the JSON.stringify(commit, null, 2) the React version put in its <pre>.
+//
+// SetEscapeHTML(false) matters and json.MarshalIndent cannot do it. By default
+// encoding/json rewrites <, > and & as \u003c, \u003e and \u0026, on the
+// assumption the output is going somewhere that cannot escape for itself. Here
+// it goes into html/template, which escapes for the HTML context properly, so
+// the only effect was commit messages containing an arrow rendering as
+// literal "\u003e" inside the <pre>.
 func (c *CommitCache) JSON(slug string) string {
 	commit, ok := c.Get(slug)
 	if !ok {
 		return ""
 	}
-	out, err := json.MarshalIndent(commit, "", "  ")
-	if err != nil {
+
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(commit); err != nil {
 		return ""
 	}
-	return string(out)
+	// Encode appends a newline that MarshalIndent does not.
+	return strings.TrimRight(buf.String(), "\n")
 }
 
 // Start does one fetch immediately and then refreshes on a ticker until ctx is

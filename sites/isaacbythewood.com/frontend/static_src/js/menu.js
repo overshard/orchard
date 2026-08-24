@@ -16,6 +16,9 @@ export const initMenu = () => {
   const setOpen = (open) => {
     // First open pays for the panel image; nobody else does.
     if (open && image && !image.src) {
+      // srcset first: setting src alone would let the browser start the
+      // fallback download before it has any candidates to choose from.
+      if (image.dataset.srcset) image.srcset = image.dataset.srcset;
       image.src = image.dataset.src;
     }
     overlay.classList.toggle("is-open", open);
