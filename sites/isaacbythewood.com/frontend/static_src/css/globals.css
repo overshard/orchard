@@ -1,0 +1,60 @@
+:root {
+  --color-primary: #20232e;
+  --color-blue: #0e3ff4;
+  --color-purple: #842bff;
+  --radius-2: 3px;
+  --transition-250: 250ms;
+  --animation-1500: 1500ms;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial,
+    sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  color: white;
+  background-color: var(--color-primary);
+  min-height: 100vh;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  overflow-x: hidden;
+  text-shadow: rgba(0, 0, 0, 0.01) 0 0 1px;
+  text-rendering: optimizeLegibility;
+  user-select: none;
+  cursor: none;
+}
+
+a,
+button {
+  cursor: none;
+}
+
+/* The Next.js version cross-faded two overlapping page trees with
+   react-transition-group, which is why the old rule was position: absolute:
+   during a route change both the outgoing and incoming page were mounted at
+   once and had to occupy the same space.
+   
+   Real navigation only ever has one document, so this is a plain fade-in on
+   load in normal flow. Same effect to the eye, and it fixes a side effect of
+   the old approach: an absolutely positioned wrapper contributes nothing to
+   body height, so the page scrolled only because overflow happened to extend
+   the scroll area. */
+.transition {
+  min-height: 100vh;
+  width: 100%;
+  animation: pageFadeIn var(--transition-250) ease-in-out both;
+}
+
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .transition {
+    animation: none;
+  }
+}

@@ -1,0 +1,30 @@
+{{ define "content" }}
+<div class="contact-background"></div>
+<div class="contact-grid">
+  <div class="contact-gridLeft">
+    <div class="contact-contactWrapper">
+      <h1 class="contact-heading">Contact Me</h1>
+      <h2 class="contact-shoutOut">Shoot me a message.</h2>
+      <h2 class="contact-shoutOut">If it&#39;s interesting, I&#39;ll respond.</h2>
+      <dl class="contact-contactList">
+        {{- range .Methods }}
+        <dt class="contact-contactKey">{{ .Key }}</dt>
+        <dd class="contact-contactValue">
+          <a
+            class="contact-contactLink"
+            href="{{ .Href }}"
+            {{- if .External }} rel="noopener noreferrer" target="_blank"{{ end }}
+          >{{ .Value }}</a>
+        </dd>
+        {{- end }}
+      </dl>
+    </div>
+  </div>
+  <!-- The chat is entirely client-side and starts empty. It is a decorative
+       alternative route to the same contact details listed on the left, so
+       nothing is lost with JS off. -->
+  <div class="contact-gridRight">
+    <div class="contact-chat"></div>
+  </div>
+</div>
+{{ end }}

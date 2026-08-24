@@ -1,0 +1,17 @@
+# Locally-managed tunnel: this file is the source of truth and lives in git,
+# matching how the Caddyfile is hand-maintained rather than clicked together in
+# a dashboard. Only credentials-file is secret, and it never leaves the volume.
+
+tunnel: CHANGEME_TUNNEL_ID
+credentials-file: /etc/cloudflared/credentials.json
+
+# Everything terminates at Caddy, which owns the per-site routing. One rule per
+# hostname, and the catch-all at the end is required by cloudflared.
+ingress:
+  - hostname: next.isaacbythewood.com
+    service: http://caddy:80
+  - service: http_status:404
+
+# Lets the origin be probed from inside the bridge for tunnel health, which
+# distinguishes "my tunnel dropped" from "Cloudflare or DNS is wrong".
+metrics: 0.0.0.0:2000

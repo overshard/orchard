@@ -1,0 +1,202 @@
+@keyframes code-transformRight {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes code-transformLeft {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes code-cardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.code-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: white;
+  z-index: -2;
+}
+
+.code-heading {
+  font-weight: 700;
+  margin-top: 60px;
+  margin-bottom: 20px;
+  font-size: 2.5em;
+  color: black;
+}
+
+.code-heading::before {
+  content: "";
+  display: block;
+  width: 50px;
+  height: 5px;
+  margin-bottom: 20px;
+  background-color: var(--color-blue);
+}
+
+.code-paragraph {
+  font-size: 1.5em;
+  margin-top: 0;
+  margin-bottom: 30px;
+  font-weight: 300;
+  color: black;
+}
+
+.code-paragraph a {
+  color: black;
+  text-decoration: none;
+  position: relative;
+  white-space: nowrap;
+}
+
+.code-paragraph a::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: rgba(0, 0, 0, 1);
+  transform-origin: left;
+  animation: code-transformLeft 300ms normal forwards;
+}
+
+.code-paragraph a::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.code-paragraph a:hover::before {
+  animation: code-transformRight 300ms normal forwards;
+}
+
+.code-projects {
+  display: flex;
+  width: 100%;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding-bottom: 60px;
+}
+
+.code-project {
+  width: calc(50% - 10px);
+  display: flex;
+  flex-direction: column;
+  animation: code-cardEnter 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (max-width: 767.98px) {
+  .code-project {
+    width: 100%;
+  }
+}
+
+.code-projectHeading {
+  font-weight: 700;
+  margin-top: 40px;
+  margin-bottom: 8px;
+  font-size: 2em;
+  color: black;
+}
+
+.code-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.code-tag {
+  display: inline-block;
+  font-size: 0.75em;
+  padding: 2px 8px;
+  background-color: var(--color-blue);
+  border-radius: var(--radius-2);
+  color: white;
+  font-family: monospace;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.code-projectParagraph {
+  font-size: 1.3em;
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-weight: 300;
+  color: black;
+  flex-grow: 1;
+  line-height: 1.5;
+}
+
+.code-projectCommit {
+  font-family: monospace;
+  background: var(--color-primary);
+  color: #00ff00;
+  padding: 16px;
+  overflow-x: hidden;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  font-size: 0.85em;
+  line-height: 1.6;
+  border-radius: var(--radius-2);
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+.code-projectButton {
+  padding: 8px 12px;
+  font-size: 0.9em;
+  text-decoration: none;
+  background-color: black;
+  font-weight: 700;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 2px;
+  color: white;
+  background-image: linear-gradient(
+    to right,
+    var(--color-blue) 0,
+    var(--color-purple) 100%
+  );
+  transform: scale(1);
+  transition-duration: 250ms;
+  transition-property: transform;
+  width: 120px;
+  text-align: center;
+  border-radius: var(--radius-2);
+}
+
+.code-projectButton svg {
+  margin-right: 10px;
+}
+
+.code-projectButton:hover {
+  transform: scale(1.2);
+}

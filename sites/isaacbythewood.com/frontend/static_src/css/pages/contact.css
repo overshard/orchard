@@ -1,0 +1,364 @@
+@keyframes contact-transformRight {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes contact-transformLeft {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes contact-slideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-100vw);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.contact-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: white;
+  z-index: -2;
+}
+
+.contact-grid {
+  display: grid;
+  grid-template-columns: 50vw 1fr;
+  grid-template-rows: auto;
+  grid-template-areas: "left right";
+  margin-left: 60px;
+  width: calc(100vw - 60px);
+  transform: translateX(-100vw);
+  animation: contact-slideUp 750ms 500ms forwards;
+}
+
+@media (max-width: 1023.98px) {
+  .contact-grid {
+    margin-left: 0;
+    width: 100%;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    grid-template-areas:
+      "left"
+      "right";
+    margin-top: 60px;
+  }
+}
+
+.contact-gridLeft {
+  grid-area: left;
+  background-color: rgba(0, 0, 0, 0.9);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+}
+
+@media (max-width: 1023.98px) {
+  .contact-gridLeft {
+    grid-column: 1;
+    grid-row: 1;
+    min-height: auto;
+    align-items: flex-start;
+  }
+}
+
+.contact-gridRight {
+  grid-area: right;
+  height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  overflow-y: auto;
+  background-color: white;
+}
+
+@media (max-width: 1023.98px) {
+  .contact-gridRight {
+    grid-column: 1;
+    grid-row: 2;
+    height: auto;
+    min-height: 50vh;
+    overflow-y: visible;
+    align-items: flex-start;
+    padding-top: 20px;
+    padding-bottom: 30px;
+  }
+}
+
+.contact-contactWrapper {
+  padding-left: 60px;
+}
+
+@media (max-width: 1023.98px) {
+  .contact-contactWrapper {
+    min-height: auto;
+    padding: 10px 20px 30px;
+  }
+}
+
+.contact-heading {
+  font-size: 3em;
+  margin-top: 10px;
+  margin-bottom: 20px;
+}
+
+.contact-heading::before {
+  content: "";
+  display: block;
+  width: 60px;
+  height: 4px;
+  margin-bottom: 10px;
+  background-image: linear-gradient(
+    to right,
+    var(--color-blue) 0,
+    var(--color-purple) 100%
+  );
+}
+
+@media (max-width: 767.98px) {
+  .contact-heading {
+    margin-top: 0;
+    margin-bottom: 10px;
+  }
+}
+
+.contact-shoutOut {
+  text-transform: uppercase;
+  padding: 5px;
+  margin: 0 0 2px 0;
+  float: left;
+  clear: left;
+  font-size: 1.4em;
+  background-image: linear-gradient(
+    to right,
+    var(--color-blue) 0,
+    var(--color-purple) 100%
+  );
+}
+
+@media (max-width: 767.98px) {
+  .contact-shoutOut {
+    font-size: 1.1em;
+  }
+}
+
+.contact-contactList {
+  padding-top: 30px;
+  clear: both;
+}
+
+.contact-contactKey {
+  text-transform: uppercase;
+  font-size: 0.75em;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.4);
+  letter-spacing: 2px;
+  font-family: monospace;
+}
+
+.contact-contactValue {
+  font-size: 1.5em;
+  margin-left: 0;
+  margin-bottom: 30px;
+}
+
+.contact-contactLink {
+  color: white;
+  text-decoration: none;
+  position: relative;
+}
+
+.contact-contactLink::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: rgba(255, 255, 255, 1);
+  transform-origin: left;
+  animation: contact-transformLeft 300ms normal forwards;
+}
+
+.contact-contactLink::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.contact-contactLink:hover::before {
+  animation: contact-transformRight 300ms normal forwards;
+}
+
+.contact-chat {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 30px;
+  width: 100%;
+  min-height: 100%;
+}
+
+@media (max-width: 1023.98px) {
+  .contact-chat {
+    justify-content: flex-start;
+  }
+}
+
+.contact-chatLine {
+  display: flex;
+  margin-bottom: 12px;
+  align-items: flex-start;
+}
+
+.contact-chatLineUser {
+  justify-content: flex-end;
+}
+
+.contact-chatBubble {
+  font-size: 1.1em;
+  padding: 12px 18px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: var(--radius-2);
+  color: black;
+  max-width: 75%;
+  line-height: 1.5;
+}
+
+@media (max-width: 767.98px) {
+  .contact-chatBubble {
+    font-size: 1em;
+  }
+}
+
+.contact-chatBubble span {
+  display: block;
+  font-size: 0.65em;
+  text-transform: uppercase;
+  margin-top: 8px;
+  color: var(--color-blue);
+  letter-spacing: 2px;
+  font-weight: 700;
+  font-family: monospace;
+}
+
+.contact-chatAvatar {
+  margin-right: 16px;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+@media (max-width: 767.98px) {
+  .contact-chatAvatar {
+    margin-right: 10px;
+    width: 36px;
+    height: 36px;
+  }
+}
+
+.contact-chatBubbleUser {
+  background-image: linear-gradient(
+    to right,
+    var(--color-blue) 0,
+    var(--color-purple) 100%
+  );
+  color: white;
+}
+
+.contact-chatBubbleUser span {
+  display: none;
+}
+
+.contact-chatOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+  margin-bottom: 12px;
+  padding-left: 56px;
+}
+
+@media (max-width: 767.98px) {
+  .contact-chatOptions {
+    padding-left: 0;
+  }
+}
+
+.contact-chatOption {
+  padding: 8px 16px;
+  font-size: 0.9em;
+  font-weight: 600;
+  background: none;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: var(--radius-2);
+  color: black;
+  cursor: none;
+  transition: border-color 200ms, background 200ms;
+  font-family: inherit;
+}
+
+.contact-chatOption:hover {
+  border-color: var(--color-blue);
+  background: rgba(14, 63, 244, 0.05);
+}
+
+@keyframes contact-dotPulse {
+  0%, 80%, 100% {
+    opacity: 0.3;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+.contact-typingDots {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.contact-typingDots span {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 50%;
+  animation: contact-dotPulse 1.4s infinite;
+  margin-top: 0;
+  font-size: inherit;
+  letter-spacing: normal;
+  text-transform: none;
+  font-weight: normal;
+  font-family: inherit;
+  color: transparent;
+}
+
+.contact-typingDots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.contact-typingDots span:nth-child(3) {
+  animation-delay: 0.4s;
+}

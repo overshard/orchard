@@ -1,0 +1,239 @@
+@keyframes index-fadeStart {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.index-imageWrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100vh;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.index-imageWrapper img {
+  /* next/image fill mode supplied these inline. */
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+.index-words {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  mix-blend-mode: darken;
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.index-word {
+  opacity: 0.2;
+  font-size: 11vw;
+  text-transform: uppercase;
+  margin: 0;
+  position: absolute;
+}
+
+.index-wordAppear,
+.index-wordEnter {
+  opacity: 0;
+  transform: translateY(-200px);
+}
+
+.index-wordAppearActive,
+.index-wordEnterActive {
+  opacity: 0.2;
+  transform: translateY(0);
+  transition-duration: 1000ms;
+  transition-property: opacity, transform;
+}
+
+.index-wordAppearDone,
+.index-wordEnterDone {
+  opacity: 0.2;
+}
+
+.index-wordExit {
+  transform: translateY(0);
+  opacity: 0.2;
+}
+
+.index-wordExitActive {
+  opacity: 0;
+  transform: translateY(200px);
+  transition-duration: 1000ms;
+  transition-property: opacity, transform;
+}
+
+.index-hero {
+  position: relative;
+  z-index: 20;
+  opacity: 0;
+  animation-name: index-fadeStart;
+  animation-duration: 1500ms;
+  animation-fill-mode: forwards;
+  animation-play-state: paused;
+}
+
+.index-hero::before {
+  content: "";
+  display: block;
+  width: 60px;
+  height: 4px;
+  margin-bottom: 24px;
+  background-image: linear-gradient(
+    to right,
+    var(--color-blue) 0,
+    var(--color-purple) 100%
+  );
+}
+
+.index-name {
+  margin: 0 0 16px 0;
+  line-height: 0.9;
+  overflow: visible;
+}
+
+.index-firstName {
+  display: block;
+  font-size: clamp(2.8em, 6.5vw, 5em);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+}
+
+.index-lastName {
+  display: block;
+  font-size: clamp(2.8em, 6.5vw, 5em);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  background-image: linear-gradient(
+    to right,
+    var(--color-blue) 0,
+    var(--color-purple) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 20px rgba(0, 0, 0, 0.8));
+}
+
+.index-role {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-family: monospace;
+  font-size: 1.5em;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.index-roleTitle {
+  color: white;
+  font-weight: 700;
+}
+
+.index-roleAt {
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: 400;
+}
+
+.index-roleCompany {
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 400;
+}
+
+.index-notice {
+  display: block;
+  margin-top: 32px;
+  padding: 16px 20px;
+  border-left: 3px solid var(--color-purple);
+  background: rgba(0, 0, 0, 0.5);
+  text-decoration: none;
+  transition: background 250ms ease, border-color 250ms ease;
+  max-width: 420px;
+}
+
+.index-notice:hover {
+  background: rgba(0, 0, 0, 0.65);
+  border-color: var(--color-blue);
+}
+
+.index-noticeLabel {
+  display: inline-block;
+  font-family: monospace;
+  font-size: 0.85em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 6px;
+}
+
+.index-noticeTitle {
+  display: block;
+  font-size: 1.3em;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: white;
+  margin-bottom: 4px;
+}
+
+.index-noticeDesc {
+  display: block;
+  font-size: 0.85em;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.7);
+  font-style: italic;
+}
+
+@media (max-width: 767.98px) {
+  .index-firstName,
+  .index-lastName {
+    font-size: 10vw;
+  }
+
+  .index-role {
+    flex-direction: column;
+    gap: 2px;
+    font-size: 0.85em;
+  }
+
+  .index-notice {
+    margin-top: 20px;
+    padding: 10px 14px;
+  }
+
+  .index-noticeLabel {
+    font-size: 0.6em;
+    letter-spacing: 2px;
+  }
+
+  .index-noticeTitle {
+    font-size: 0.9em;
+  }
+
+  .index-noticeDesc {
+    font-size: 0.75em;
+  }
+}

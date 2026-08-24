@@ -1,0 +1,35 @@
+name: orchard-edge
+
+# The shared edge: one tunnel and one Caddy in front of every site in this repo.
+#
+# cloudflared's state (cert.pem, credentials.json, config.yml) lives in a named
+# volume seeded by setup-tunnel.sh rather than a bind mount, for the same
+# host-filesystem reason the Caddyfile is baked into its image.
+
+services:
+  caddy:
+    build: ./caddy
+    container_name: orchard-caddy
+    restart: unless-stopped
+    networks: [edge]
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: orchard-cloudflared
+    restart: unless-stopped
+    command: tunnel --config /etc/cloudflared/config.yml run
+    volumes:
+      - cloudflared:/etc/cloudflared:ro
+    networks: [edge]
+    depends_on: [caddy]
+
+networks:
+  edge:
+    name: orchard-edge
+
+volumes:
+  # Created and populated by setup-tunnel.sh before this stack first runs, so
+  # compose attaches to it rather than owning it.
+  cloudflared:
+    name: orchard-cloudflared
+    external: true

@@ -1,0 +1,49 @@
+# No TLS and no ACME. The Cloudflare edge terminates HTTPS near the visitor and
+# cloudflared hands us plain HTTP on the Docker bridge, so there is nothing here
+# to encrypt and nothing to redirect to.
+#
+# Caddy stays in the path rather than pointing cloudflared straight at the app
+# because it owns the shared concerns: security headers, compression, and the
+# per-site blocks that let one tunnel serve every project in this repo. Adding a
+# site is a block here plus an ingress rule, not a second tunnel.
+{
+	auto_https off
+	admin off
+	servers {
+		# Makes Caddy's own client_ip field resolve the real visitor rather
+		# than cloudflared's bridge address.
+		trusted_proxies static private_ranges
+	}
+}
+
+http://next.isaacbythewood.com {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Frame-Options SAMEORIGIN
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
+	encode zstd gzip
+
+	# Off by default in Caddy 2, which is what left the tunnel test blind to
+	# every request it served. On from the start here.
+	log {
+		output stderr
+		format console
+	}
+
+	reverse_proxy isaacbythewood-next:8000
+}
+
+# Anything arriving without a matching Host did not come through an ingress
+# rule. Say so rather than silently serving a site by accident.
+:80 {
+	log {
+		output stderr
+		format console
+	}
+	header -Server
+	respond "orchard edge: no site block for this host" 404
+}

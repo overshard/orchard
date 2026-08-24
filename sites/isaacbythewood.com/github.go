@@ -1,0 +1,182 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"sync"
+	"time"
+)
+
+// The code page shows the latest commit for each project.
+//
+// Under Next.js this was getStaticProps with revalidate: 3600, which meant the
+// data was fetched at build time and the page could not render at all until
+// GitHub answered. Here it is a background refresh on a ticker: the page is
+// always servable, a GitHub outage degrades it to no commit lines instead of
+// breaking the build, and the first deploy does not sit waiting on nine HTTP
+// calls to a third party.
+//
+// Unauthenticated GitHub allows 60 requests an hour per IP. Nine repos once an
+// hour is comfortably inside that, and there is no token to store, which keeps
+// this site genuinely credential-free.
+
+const (
+	commitRefreshInterval = time.Hour
+	commitFetchTimeout    = 10 * time.Second
+)
+
+// Commit is the subset of a GitHub commit the page shows, and the shape that
+// gets rendered as JSON into the card.
+type Commit struct {
+	SHA     string `json:"sha"`
+	Message string `json:"message"`
+	Date    string `json:"date"`
+	Author  string `json:"author"`
+}
+
+// CommitCache holds the most recent successful fetch per repo.
+type CommitCache struct {
+	mu      sync.RWMutex
+	commits map[string]Commit
+	client  *http.Client
+}
+
+func NewCommitCache() *CommitCache {
+	return &CommitCache{
+		commits: make(map[string]Commit),
+		client:  &http.Client{Timeout: commitFetchTimeout},
+	}
+}
+
+// Get returns the cached commit for a repo, and whether there is one.
+func (c *CommitCache) Get(slug string) (Commit, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	commit, ok := c.commits[slug]
+	return commit, ok
+}
+
+// JSON renders a commit the way the card displays it: pretty-printed, matching
+// the JSON.stringify(commit, null, 2) the React version put in its <pre>.
+func (c *CommitCache) JSON(slug string) string {
+	commit, ok := c.Get(slug)
+	if !ok {
+		return ""
+	}
+	out, err := json.MarshalIndent(commit, "", "  ")
+	if err != nil {
+		return ""
+	}
+	return string(out)
+}
+
+// Start does one fetch immediately and then refreshes on a ticker until ctx is
+// cancelled. It returns straight away: the site must not wait on GitHub to
+// begin serving.
+func (c *CommitCache) Start(ctx context.Context, slugs []string) {
+	go func() {
+		c.refresh(ctx, slugs)
+
+		ticker := time.NewTicker(commitRefreshInterval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				c.refresh(ctx, slugs)
+			}
+		}
+	}()
+}
+
+func (c *CommitCache) refresh(ctx context.Context, slugs []string) {
+	var wg sync.WaitGroup
+	results := make([]struct {
+		slug   string
+		commit Commit
+		ok     bool
+	}, len(slugs))
+
+	for i, slug := range slugs {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			commit, err := c.fetch(ctx, slug)
+			if err != nil {
+				log.Printf("github: %s: %v", slug, err)
+				return
+			}
+			results[i].slug = slug
+			results[i].commit = commit
+			results[i].ok = true
+		}()
+	}
+	wg.Wait()
+
+	// A failed repo keeps its previous value rather than being cleared. A
+	// transient 502 from GitHub should not blank a card that was fine a minute
+	// ago.
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for _, r := range results {
+		if r.ok {
+			c.commits[r.slug] = r.commit
+		}
+	}
+}
+
+func (c *CommitCache) fetch(ctx context.Context, slug string) (Commit, error) {
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/commits?per_page=1", githubUser, slug)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return Commit{}, err
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("User-Agent", "isaacbythewood.com")
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return Commit{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return Commit{}, fmt.Errorf("status %d", resp.StatusCode)
+	}
+
+	var payload []struct {
+		SHA    string `json:"sha"`
+		Commit struct {
+			Message string `json:"message"`
+			Author  struct {
+				Name string `json:"name"`
+				Date string `json:"date"`
+			} `json:"author"`
+		} `json:"commit"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return Commit{}, err
+	}
+	if len(payload) == 0 {
+		return Commit{}, fmt.Errorf("no commits")
+	}
+
+	head := payload[0]
+	sha := head.SHA
+	if len(sha) > 7 {
+		sha = sha[:7]
+	}
+
+	return Commit{
+		SHA:     sha,
+		Message: head.Commit.Message,
+		Date:    head.Commit.Author.Date,
+		Author:  head.Commit.Author.Name,
+	}, nil
+}

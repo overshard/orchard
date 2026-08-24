@@ -1,0 +1,367 @@
+@keyframes art-transformRight {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes art-transformLeft {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes art-lightboxFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes art-lightboxScaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes art-lightboxPulse {
+  0%, 100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.art-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: white;
+  z-index: -2;
+}
+
+.art-heading {
+  font-weight: 700;
+  margin-top: 60px;
+  margin-bottom: 10px;
+  font-size: 2.5em;
+  color: black;
+}
+
+.art-heading::before {
+  content: "";
+  display: block;
+  width: 50px;
+  height: 5px;
+  margin-bottom: 20px;
+  background-image: linear-gradient(
+    to right,
+    var(--color-blue) 0,
+    var(--color-purple) 100%
+  );
+}
+
+.art-paragraph {
+  font-size: 1.3em;
+  margin-top: 0;
+  margin-bottom: 24px;
+  font-weight: 300;
+  color: rgba(0, 0, 0, 0.7);
+  line-height: 1.6;
+}
+
+.art-subheading {
+  font-weight: 700;
+  margin-top: 48px;
+  margin-bottom: 12px;
+  font-size: 1.6em;
+  color: black;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.art-subheading > span {
+  font-family: monospace;
+  font-size: 0.7em;
+  padding: 2px 8px;
+  background-image: linear-gradient(
+    to right,
+    var(--color-blue) 0,
+    var(--color-purple) 100%
+  );
+  color: white;
+  border-radius: var(--radius-2);
+  letter-spacing: 1px;
+}
+
+.art-paragraph a {
+  color: black;
+  text-decoration: none;
+  position: relative;
+  white-space: nowrap;
+}
+
+.art-paragraph a::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: rgba(0, 0, 0, 1);
+  transform-origin: left;
+  animation: art-transformLeft 300ms normal forwards;
+}
+
+.art-paragraph a::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.art-paragraph a:hover::before {
+  animation: art-transformRight 300ms normal forwards;
+}
+
+.art-artGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 767.98px) {
+  .art-artGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.art-artItem {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-2);
+  transition: transform 300ms, box-shadow 300ms;
+}
+
+.art-artItem:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+
+.art-cardImage {
+  display: block;
+  background-color: var(--color-primary);
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+}
+
+.art-cardImage img {
+  object-fit: cover;
+  object-position: center;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  display: block;
+  opacity: 0;
+  transition: opacity 400ms ease-out;
+}
+
+.art-cardImage img.art-imgLoaded {
+  opacity: 1;
+}
+
+.art-artItemHeader {
+  margin: 0;
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 700;
+  font-size: 0.95em;
+  background: black;
+  color: white;
+}
+
+.art-artItemHeader > span {
+  font-family: monospace;
+  font-weight: 400;
+  font-size: 1em;
+  color: rgba(255, 255, 255, 0.8);
+  letter-spacing: 1px;
+}
+
+.art-artItemButton {
+  padding: 8px 14px;
+  font-size: 0.9em;
+  text-decoration: none;
+  font-weight: 700;
+  text-transform: uppercase;
+  display: inline-block;
+  letter-spacing: 2px;
+  color: white;
+  background-image: linear-gradient(
+    to right,
+    var(--color-blue) 0,
+    var(--color-purple) 100%
+  );
+  border-radius: var(--radius-2);
+  transform: scale(1);
+  transition: transform 250ms;
+  margin-bottom: 20px;
+}
+
+.art-artItemButton:hover {
+  transform: scale(1.1);
+}
+
+.art-artContainer {
+  width: 100%;
+  height: 500px;
+  max-height: 100vh;
+  background: black;
+  margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-2);
+}
+
+.art-playButton {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-2);
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  font-size: 20px;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 200ms, background 200ms;
+  z-index: 5;
+}
+
+.art-playButton:hover {
+  border-color: var(--color-blue);
+  background: rgba(14, 63, 244, 0.2);
+}
+
+.art-playButton:active {
+  transform: scale(0.95);
+}
+
+/* Lightbox */
+
+/* The hidden attribute sets display:none from the UA stylesheet, which any
+   author display rule outranks. Without this the lightbox is open on arrival.
+   The React version had no equivalent because it rendered the portal only
+   while an image was selected, so there was nothing to hide. */
+.art-lightboxOverlay[hidden] {
+  display: none;
+}
+
+.art-lightboxOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  animation: art-lightboxFadeIn 300ms ease-out;
+}
+
+.art-lightboxImageWrapper {
+  position: relative;
+  width: 90vw;
+  height: 90vh;
+  animation: art-lightboxScaleIn 400ms cubic-bezier(0.16, 1, 0.3, 1);
+  background: black;
+  border-radius: var(--radius-2);
+  overflow: hidden;
+}
+
+.art-lightboxImage {
+  /* next/image fill mode supplied the absolute positioning inline. */
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 300ms ease-out;
+}
+
+.art-lightboxLoading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--color-blue);
+  font-family: monospace;
+  font-size: 1.2em;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  animation: art-lightboxPulse 1.5s ease-in-out infinite;
+}
+
+.art-show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.art-hide {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.art-lightboxClose {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-2);
+  color: white;
+  font-size: 1.2em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 200ms, background 200ms;
+  z-index: 1;
+}
+
+.art-lightboxClose:hover {
+  border-color: var(--color-blue);
+  background: rgba(14, 63, 244, 0.2);
+}

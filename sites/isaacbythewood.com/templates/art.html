@@ -1,0 +1,69 @@
+{{ define "content" }}
+<div class="art-background"></div>
+
+<h1 class="art-heading">Acrylic Pours</h1>
+<p class="art-paragraph">
+  A bit more traditional than my usual art. Each piece starts as a mix of
+  acrylic paint, water, glue, and silicone oil poured onto canvas, then
+  manipulated with a heat gun to bring out cells and organic patterns. No two
+  pours come out the same and the process is as much about letting go of
+  control as it is about technique.
+</p>
+<div class="art-artGrid">
+  {{- range .Pours }}
+  <div
+    class="art-artItem"
+    data-lightbox="{{ .Src }}"
+    data-lightbox-alt="{{ .Title }}"
+  >
+    <span class="art-cardImage">
+      <img
+        src="{{ .CardSrc }}"
+        alt="{{ .Title }}"
+        width="960"
+        height="540"
+        class="mouse-activate"
+        {{ if .Priority }}fetchpriority="high"{{ else }}loading="lazy"{{ end }}
+        decoding="async"
+      />
+    </span>
+    <h2 class="art-artItemHeader">{{ .Title }} <span>{{ .Number }}</span></h2>
+  </div>
+  {{- end }}
+</div>
+
+<h1 class="art-heading">Emergent Generative Art</h1>
+<p class="art-paragraph">
+  Code as a creative medium. These pieces are built entirely in JavaScript on
+  HTML canvas, each one a small system of simple rules that produces complex,
+  unpredictable behavior. The art emerges from the interaction of autonomous
+  entities rather than being explicitly drawn.
+</p>
+
+{{- range .Generative }}
+<h2 class="art-subheading"><span>{{ .Number }}</span> {{ .Title }}</h2>
+<p class="art-paragraph">{{ .Description }}</p>
+<div class="art-artContainer">
+  <canvas class="canvas" data-art-canvas="{{ .Slug }}"></canvas>
+  <button
+    class="art-playButton"
+    type="button"
+    data-art-toggle="{{ .Slug }}"
+    data-active="false"
+    {{ if .Autoplay }}data-autoplay="true"{{ end }}
+    aria-label="Play or pause {{ .Title }}"
+  >&#9654;</button>
+</div>
+<a class="art-artItemButton" href="{{ .Source }}" rel="noopener noreferrer" target="_blank">See the Code</a>
+{{- end }}
+
+<!-- One lightbox reused by every card, rather than one mounted per open. The
+     React version created and destroyed a portal on each click. -->
+<div class="art-lightboxOverlay" hidden>
+  <span class="art-lightboxImageWrapper">
+    <div class="art-lightboxLoading">Loading...</div>
+    <img class="art-lightboxImage" alt="" />
+    <button class="art-lightboxClose" type="button" aria-label="Close">&#10005;</button>
+  </span>
+</div>
+{{ end }}

@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>{{ .Title }}</title>
+    <meta name="description" content="{{ .Description }}" />
+    <link rel="canonical" href="{{ .Canonical }}" />
+    {{- if .Staging }}
+    <!-- The test hostname must never be indexed: it would compete with the
+         real site as a byte-for-byte duplicate. -->
+    <meta name="robots" content="noindex, nofollow" />
+    {{- end }}
+
+    <meta name="theme-color" content="{{ .ThemeColor }}" />
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="manifest" href="/manifest.json" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="{{ .Title }}" />
+    <meta property="og:description" content="{{ .Description }}" />
+    <meta property="og:url" content="{{ .Canonical }}" />
+
+    {{- range .Styles }}
+    <link rel="stylesheet" href="{{ . }}" />
+    {{- end }}
+    <script type="module" src="{{ .Script }}"></script>
+    {{- if .Analytics }}
+    <script>
+      (function (m, e, t, r, i, c, s) {
+        m.collectorQueue = m.collectorQueue || r;
+        m.collectorServer = c;
+        m.collectorId = s;
+        m.collectorScript = e.createElement(t);
+        m.collectorScript.src = c + i;
+        e.head.appendChild(m.collectorScript);
+      })(window, document, "script", [], "/static/collector.js",
+         "https://analytics.bythewood.me",
+         "30e69c06-9beb-4283-8919-8c7a686ab013");
+    </script>
+    {{- end }}
+  </head>
+
+  <body data-page="{{ .Page }}">
+    <!-- The custom cursor. Hidden under 1024px, where there is no pointer to
+         replace. -->
+    <div class="cursor">
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 16 16"
+        fill="#ff2d2d"
+        fill-opacity="0.9"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <circle cx="8" cy="8" r="8" />
+      </svg>
+    </div>
+    <div class="cursor-circle"></div>
+
+    <div class="loader" {{ if .LoaderWaits }}data-wait="true"{{ end }} aria-hidden="true">
+      <div class="loader-column"></div>
+      <div class="loader-column"></div>
+      <div class="loader-column"></div>
+      <div class="loader-column"></div>
+      <div class="loader-column"></div>
+      <div class="loader-column"></div>
+      <div class="loader-indicator">
+        <span class="loader-dot"></span>
+        <span class="loader-dot"></span>
+        <span class="loader-dot"></span>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <a href="/" class="nav-logo" aria-label="Back to home"><span aria-hidden="true"></span></a>
+      <a href="/contact" class="nav-contact">Get in touch</a>
+      <div class="nav-current">{{ .Num }}</div>
+    </nav>
+
+    <button class="menu-hamburger" aria-label="Menu" aria-expanded="false" type="button">
+      <div class="menu-patty" style="width: 15px"></div>
+      <div class="menu-patty"></div>
+      <div class="menu-patty" style="width: 20px"></div>
+    </button>
+
+    <div class="menu-overlay">
+      <div class="menu-overlayGrid">
+        <div class="menu-overlayGridLeft">
+          <div class="menu-topBar">
+            {{- range .TopLinks }}
+            <a class="menu-topLink" href="{{ .Href }}" target="_blank" rel="noopener noreferrer">{{ .Label }}</a>
+            {{- end }}
+            <div class="menu-bar"></div>
+          </div>
+          {{- range .NavPages }}
+          <a class="menu-overlayLink" href="{{ .Href }}" data-text="{{ .Title }}">{{ .Title }}</a>
+          {{- end }}
+          <div class="menu-bottomBar">
+            <img src="/static/images/avatar.webp" alt="Isaac Bythewood" width="50" height="50" loading="lazy" decoding="async" />
+            <div class="menu-bar"></div>
+          </div>
+        </div>
+        <div class="menu-overlayGridRight">
+          <!-- Loaded on first open, not on page load. loading="lazy" does not
+               help here: the overlay is a full-screen fixed element sitting at
+               z-index -5000, so it intersects the viewport and the browser
+               fetches it anyway. That is a megabyte on every single page view
+               for a panel most visitors never open. -->
+          <img
+            data-src="/static/images/art/acrylic-pours/006.webp"
+            alt="#006 Molten Copper"
+            decoding="async"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div class="transition">
+      <div class="layout-lines" aria-hidden="true">
+        <div class="layout-line" style="grid-column: 1"></div>
+        <div class="layout-line" style="grid-column: 2"></div>
+        <div class="layout-line" style="grid-column: 3"></div>
+        <div class="layout-line" style="grid-column: 4"></div>
+        <div class="layout-line" style="grid-column: 5"></div>
+        <div class="layout-line" style="grid-column: 6"></div>
+      </div>
+      <div class="layout-area">
+        <main class="page-main" style="grid-area: {{ .GridArea }}">
+          {{- template "content" . }}
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

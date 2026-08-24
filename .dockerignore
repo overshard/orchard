@@ -1,0 +1,10 @@
+# Docker reads this, not .gitignore. Without it the frontend stage copies
+# node_modules from the host into the build, which is slow and pointless since
+# the image installs its own from the lockfile.
+**/node_modules
+**/dist
+**/bin
+.git
+.playwright-cli
+**/.env
+**/*.pem
