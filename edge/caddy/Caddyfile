@@ -23,6 +23,9 @@ http://next.isaacbythewood.com {
 		X-Content-Type-Options nosniff
 		Referrer-Policy strict-origin-when-cross-origin
 		-Server
+		# reverse_proxy adds "Via: 1.1 Caddy", which announces the origin stack
+		# and undoes the point of stripping Server just above it.
+		-Via
 	}
 
 	encode zstd gzip

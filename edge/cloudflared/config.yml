@@ -3,7 +3,7 @@
 # a dashboard. Only credentials-file is secret, and it never leaves the volume.
 
 tunnel: CHANGEME_TUNNEL_ID
-credentials-file: /etc/cloudflared/credentials.json
+credentials-file: /etc/cloudflared/CHANGEME_TUNNEL_ID.json
 
 # Everything terminates at Caddy, which owns the per-site routing. One rule per
 # hostname, and the catch-all at the end is required by cloudflared.
