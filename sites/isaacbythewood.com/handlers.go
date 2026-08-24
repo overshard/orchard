@@ -33,6 +33,7 @@ type PageData struct {
 	// The menu panel is in the chrome, so every page carries its ladder.
 	MenuSrc    string
 	MenuSrcset template.Srcset
+	AvatarSrc  string
 
 	HeroSrc    string
 	HeroSrcset template.Srcset
@@ -135,8 +136,9 @@ func (s *site) page(name, title, description string) PageData {
 		// 40vw wide but full height, and object-fit: cover on a 4:3 source
 		// means height drives the scale, so it needs more width than 40vw
 		// suggests.
-		MenuSrc:    pourURL("006", 960),
-		MenuSrcset: pourSrcset("006", 960, 1600),
+		AvatarSrc:  avatarURL(),
+		MenuSrc:    pourURL("006", images.CardWidths[len(images.CardWidths)-1]),
+		MenuSrcset: pourSrcset("006", images.CardWidths[len(images.CardWidths)-1], images.LightboxWidth),
 	}
 }
 
@@ -154,8 +156,9 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 	// The only page that holds the curtain: it waits on the hero image.
 	data.LoaderWaits = true
 	// Full-bleed 100vw, so it is the one image that earns a 2400w candidate.
-	data.HeroSrc = pourURL("005", 1600)
-	data.HeroSrcset = pourSrcset("005", 960, 1600, 2400)
+	data.HeroSrc = pourURL(images.Hero, images.LightboxWidth)
+	data.HeroSrcset = pourSrcset(images.Hero,
+		images.CardWidths[len(images.CardWidths)-1], images.LightboxWidth, images.HeroWidth)
 	s.renderer.Render(w, http.StatusOK, "index.html", data)
 }
 
@@ -196,28 +199,14 @@ func (s *site) art(w http.ResponseWriter, r *http.Request) {
 	for _, pour := range pours {
 		data.Pours = append(data.Pours, PourView{
 			Pour:        pour,
-			CardSrc:     pourURL(pour.Number, 480),
-			CardSrcset:  pourSrcset(pour.Number, 480, 960),
-			LightboxSrc: pourURL(pour.Number, 1600),
+			CardSrc:     pourURL(pour.Number, images.CardWidths[0]),
+			CardSrcset:  pourSrcset(pour.Number, images.CardWidths...),
+			LightboxSrc: pourURL(pour.Number, images.LightboxWidth),
 		})
 	}
 	data.Generative = generative
 
 	s.renderer.Render(w, http.StatusOK, "art.html", data)
-}
-
-func pourURL(number string, width int) string {
-	return fmt.Sprintf("/static/images/art/acrylic-pours/%s-%d.webp", number, width)
-}
-
-// pourSrcset builds the candidate list. template.Srcset exists precisely so
-// html/template will not mangle the comma-separated descriptors.
-func pourSrcset(number string, widths ...int) template.Srcset {
-	parts := make([]string, 0, len(widths))
-	for _, w := range widths {
-		parts = append(parts, fmt.Sprintf("%s %dw", pourURL(number, w), w))
-	}
-	return template.Srcset(strings.Join(parts, ", "))
 }
 
 func (s *site) contact(w http.ResponseWriter, r *http.Request) {

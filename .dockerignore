@@ -4,6 +4,9 @@
 **/node_modules
 **/dist
 **/bin
+# Generated inside the build from frontend/images/. Excluding it stops the
+# later COPY of the whole frontend directory clobbering what was just built.
+**/frontend/public/images
 .git
 .playwright-cli
 **/.env

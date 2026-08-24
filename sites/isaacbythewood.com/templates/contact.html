@@ -24,7 +24,9 @@
        alternative route to the same contact details listed on the left, so
        nothing is lost with JS off. -->
   <div class="contact-gridRight">
-    <div class="contact-chat"></div>
+    <!-- The avatar path comes from the server so the image format is
+         decided in one place, images.json, rather than hardcoded here too. -->
+    <div class="contact-chat" data-avatar="{{ .AvatarSrc }}"></div>
   </div>
 </div>
 {{ end }}

@@ -1,0 +1,15 @@
+{
+  "_comment": "Which image variants exist. Read by both images.go (embedded, for srcset) and frontend/scripts/images.js (for generation), so the widths that get written into the page and the widths that get generated cannot drift apart.",
+
+  "format": "avif",
+  "_formatNote": "AVIF over WebP after measuring these actual images: same size or smaller at matched accuracy, and AOMedia rather than Google. Support is Chrome 85+, Firefox 93+, Safari 16.4+, Edge 121+. JPEG was the other candidate and costs about 45% more bytes here.",
+
+  "hero": "005",
+  "cardWidths": [480, 960],
+  "lightboxWidth": 1600,
+  "heroWidth": 2400,
+
+  "quality": { "480": 65, "960": 65, "1600": 70, "2400": 70 },
+
+  "avatar": { "width": 120, "quality": 70 }
+}

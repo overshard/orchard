@@ -16,13 +16,11 @@ build: frontend
 serve:
 	go run .
 
-# Regenerate the responsive image ladder. Only needed when a pour is added or
-# replaced, which is why it is not part of `build`: the originals are archival
-# masters that do not live in this repo.
-#   make images SRC=~/pictures/acrylic-pours
+# Regenerate the responsive image ladder from frontend/images/. Part of
+# `build`, so it cannot be forgotten; here as its own target for when only the
+# images changed.
 images:
-	@test -n "$(SRC)" || (echo "usage: make images SRC=/path/to/originals" && false)
-	python3 frontend/scripts/generate-images.py "$(SRC)"
+	cd frontend && bun run images
 
 clean:
 	rm -rf dist frontend/node_modules

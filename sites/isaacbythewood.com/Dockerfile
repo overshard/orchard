@@ -7,8 +7,17 @@ FROM oven/bun:1-alpine AS frontend
 WORKDIR /src
 COPY sites/isaacbythewood.com/frontend/package.json sites/isaacbythewood.com/frontend/bun.lock ./
 RUN bun install --frozen-lockfile
+
+# Images are generated in their own layer, before the rest of the frontend is
+# copied in, so editing CSS or JS does not re-encode 22 variants on every
+# deploy. They only regenerate when a source image actually changes.
+COPY sites/isaacbythewood.com/frontend/scripts/ ./scripts/
+COPY sites/isaacbythewood.com/images.json ../images.json
+COPY sites/isaacbythewood.com/frontend/images/ ./images/
+RUN bun run images
+
 COPY sites/isaacbythewood.com/frontend/ ./
-RUN bun run build
+RUN bun run vite
 
 # --- binary -------------------------------------------------------------
 FROM golang:1.27-alpine AS build
@@ -16,6 +25,8 @@ WORKDIR /src
 COPY go.mod ./
 COPY internal/ ./internal/
 COPY sites/isaacbythewood.com/*.go ./sites/isaacbythewood.com/
+# Embedded by images.go, and shared with the frontend image generator.
+COPY sites/isaacbythewood.com/images.json ./sites/isaacbythewood.com/
 COPY sites/isaacbythewood.com/templates/ ./sites/isaacbythewood.com/templates/
 # Static, stripped, reproducible. CGO off is what makes FROM scratch possible.
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" \

@@ -2,10 +2,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite build --watch",
-    "build": "vite build"
+    "images": "bun run scripts/images.js",
+    "vite": "vite build",
+    "build": "bun run images && bun run vite",
+    "dev": "vite build --watch"
   },
   "devDependencies": {
+    "sharp": "^0.35.3",
     "vite": "^6.3.1"
   }
 }

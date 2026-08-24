@@ -77,10 +77,10 @@ const CHAT_TREE = {
   },
 };
 
-const AVATAR = "/static/images/avatar.webp";
-
 export const initContact = () => {
   const chat = document.querySelector(".contact-chat");
+  // Handed over by the server, so the image format lives only in images.json.
+  const AVATAR = chat?.dataset.avatar || "";
   const scroller = document.querySelector(".contact-gridRight");
   if (!chat) return;
 
