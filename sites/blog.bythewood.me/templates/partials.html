@@ -1,0 +1,114 @@
+{{/* Shared fragments. Each takes exactly what it needs as the dot, so a card
+     does not have to know which page it is on. */}}
+
+{{ define "search_form" }}
+<form method="GET" action="/search/" class="position-relative search-form">
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="search-icon" viewBox="0 0 16 16">
+    <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+  </svg>
+  <input type="text" class="form-control search-input" id="id_search" name="q" value="{{ . }}" placeholder="search posts..." autofocus>
+</form>
+{{ end }}
+
+{{/* One post as a card in a grid. The dot is a *Post. */}}
+{{ define "post_card" }}
+<div class="card rounded border-0 h-100 bg-surface">
+  <div class="mb-3 pt-3 px-3">
+    {{- range .TagLinks }}
+    <a href="{{ .URL }}" class="btn btn-tag btn-sm rounded-pill">{{ .Display }}</a>
+    {{- end }}
+  </div>
+  {{- if .CoverImage }}
+  <a href="{{ .URL }}">
+    <img src="{{ .CoverURL }}" class="card-img-top rounded img-fluid px-3" alt="{{ .Title }}" loading="lazy" decoding="async">
+  </a>
+  {{- end }}
+  <div class="card-body d-flex flex-column">
+    <a href="{{ .URL }}" class="text-decoration-none" style="color: #f0f0f5;">
+      <div class="h5 card-title fw-bold">{{ .Title }}</div>
+    </a>
+    <div class="card-text flex-grow-1" style="color: #a09890;">{{ .Description }}</div>
+    <div class="row g-0 mt-3">
+      <div class="col-12 col-xl-8 d-flex align-items-center">
+        <img class="rounded-circle me-2" src="/content/images/avatar.webp" alt="Isaac Bythewood" width="25" height="25" loading="lazy" decoding="async">
+        <strong class="me-2" style="font-size: 0.9em;">Isaac Bythewood</strong>
+      </div>
+      <div class="col-12 col-xl-4 d-flex justify-content-start justify-content-xl-end text-muted" style="font-size: 0.85em;">
+        {{ .Date }}
+      </div>
+    </div>
+  </div>
+</div>
+{{ end }}
+
+{{/* The wide hero treatment for the newest post. The dot is a *Post. */}}
+{{ define "post_latest" }}
+<div class="container mt-5">
+  <div class="row">
+    <div class="col">
+      <div class="section-label mb-2">Latest post</div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-12 col-md-6 col-lg-5 pb-5" style="border-bottom: 1px solid rgba(255,255,255,0.06);">
+      <a href="{{ .URL }}" class="text-decoration-none" style="color: #f0f0f5;">
+        <h2 class="fw-bolder">{{ .Title }}</h2>
+      </a>
+      <div class="mb-3">
+        {{- range .TagLinks }}
+        <a href="{{ .URL }}" class="btn btn-tag btn-sm rounded-pill">{{ .Display }}</a>
+        {{- end }}
+      </div>
+      <p class="h5 text-muted mb-3" style="font-weight: 400;">{{ .Description }}</p>
+      <div class="d-flex align-items-center">
+        <img class="rounded-circle me-3" src="/content/images/avatar.webp" alt="Isaac Bythewood" width="35" height="35">
+        <strong class="me-2">Isaac Bythewood</strong>
+        <div class="d-inline text-muted">{{ .Date }}</div>
+      </div>
+    </div>
+    {{- if .CoverImage }}
+    <div class="col-12 col-md-6 col-lg-7 pb-5" style="border-bottom: 1px solid rgba(255,255,255,0.06);">
+      <a href="{{ .URL }}">
+        <img src="{{ .CoverURL }}" class="img-fluid rounded" alt="{{ .Title }}">
+      </a>
+    </div>
+    {{- end }}
+  </div>
+</div>
+{{ end }}
+
+{{/* A horizontally scrolling strip of cards, used for "random" and "related".
+     The dot is a struct of Label, Blurb and Posts. */}}
+{{ define "post_strip" }}
+<div class="container mt-5 d-print-none">
+  <div class="row">
+    <div class="col">
+      <div class="section-label mb-1">{{ .Label }}</div>
+      <p class="text-muted">{{ .Blurb }}</p>
+    </div>
+  </div>
+  <div class="row d-flex flex-nowrap overflow-auto w-100">
+    {{- range .Posts }}
+    <div class="col-10 col-sm-7 col-md-5 col-lg-4">
+      {{- template "post_card" . }}
+    </div>
+    {{- end }}
+  </div>
+</div>
+{{ end }}
+
+{{/* Bootstrap alert with an icon. The dot is a struct of Kind and Message. */}}
+{{ define "alert" }}
+<div class="alert alert-{{ .Kind }} d-flex align-items-center row g-1">
+  {{- if eq .Kind "warning" }}
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="col-2 col-md-1" viewBox="0 0 16 16">
+    <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
+  </svg>
+  {{- else }}
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="col-2 col-md-1" viewBox="0 0 16 16">
+    <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/>
+  </svg>
+  {{- end }}
+  <div class="col-10 col-md-11">{{ .Message }}</div>
+</div>
+{{ end }}

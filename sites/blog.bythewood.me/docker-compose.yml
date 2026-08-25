@@ -1,0 +1,25 @@
+name: blog
+
+# No bind mounts and no published ports. Public traffic arrives through
+# cloudflared to Caddy on the shared network, and there is no state to persist:
+# posts are files baked into the image, and there is no database and no upload.
+#
+# Bind mounts would not work from the webdev container anyway. The Docker CLI
+# here talks to Docker Desktop on the Windows host, whose daemon resolves paths
+# against its own filesystem, where /home/dev/code does not exist. It fails
+# silently as an empty mount rather than erroring.
+
+services:
+  app:
+    build:
+      # Repo root, so the Go module and internal/web are in scope.
+      context: ../..
+      dockerfile: sites/blog.bythewood.me/Dockerfile
+    container_name: blog-next
+    restart: unless-stopped
+    networks: [edge]
+
+networks:
+  edge:
+    name: orchard-edge
+    external: true

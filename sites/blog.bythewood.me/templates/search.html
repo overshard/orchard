@@ -1,0 +1,53 @@
+{{ define "content" }}
+<div class="container mt-5">
+  <div class="row">
+    <div class="col">
+      <h1>{{ .Heading }}</h1>
+    </div>
+  </div>
+</div>
+<div class="container">
+  <div class="row">
+    <div class="col-sm-6">
+      {{- template "search_form" .Query }}
+    </div>
+  </div>
+</div>
+<div class="container mt-5">
+  <div class="row">
+    {{- if .Posts }}
+    {{- range .Posts }}
+    <div class="col-12 col-sm-6 col-md-4 mb-5">
+      {{- template "post_card" . }}
+    </div>
+    {{- end }}
+    {{- else if .NoResults }}
+    <div class="col">
+      {{- template "alert" dict "Kind" "warning" "Message" "No results found, please try something else." }}
+    </div>
+    {{- else }}
+    <div class="col">
+      {{- template "alert" dict "Kind" "info" "Message" "Submit a query above to see some results." }}
+    </div>
+    {{- end }}
+  </div>
+
+  {{- if .RandomPosts }}
+  <div class="container mt-5 d-print-none">
+    <div class="row">
+      <div class="col">
+        <div class="section-label mb-1">Random posts</div>
+        <p class="text-muted">If you don't know what to search for check out some of these posts.</p>
+      </div>
+    </div>
+    <div class="row">
+      {{- range .RandomPosts }}
+      <div class="col-12 col-sm-6 col-md-4 mb-5">
+        {{- template "post_card" . }}
+      </div>
+      {{- end }}
+    </div>
+  </div>
+  {{- end }}
+</div>
+{{ end }}

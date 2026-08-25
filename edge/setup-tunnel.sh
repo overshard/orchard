@@ -15,7 +15,7 @@ set -e
 VOLUME=orchard-cloudflared
 TUNNEL=orchard
 IMAGE=cloudflare/cloudflared:latest
-HOSTNAMES="next.isaacbythewood.com"
+HOSTNAMES="next.isaacbythewood.com next.blog.bythewood.me"
 
 # cloudflared's image is distroless with no shell, so anything that needs to
 # poke at the volume borrows a plain alpine.
@@ -68,6 +68,17 @@ up)
 	fi
 	echo "tunnel id: $ID"
 
+	# ONE ZONE ONLY. cert.pem carries a single zoneID, chosen in the browser
+	# during `login`, and this command can only write into that zone. Handed a
+	# hostname from a different one it does not fail: it treats the whole thing
+	# as a subdomain and cheerfully creates
+	# "next.blog.bythewood.me.isaacbythewood.com". Found on 2026-08-25 adding
+	# the blog, whose bythewood.me is a separate zone on the same account.
+	#
+	# Routing a second zone means logging in again and picking it, which
+	# replaces cert.pem. That is safe for a running tunnel (it authenticates
+	# with the credentials JSON, not this) but means only one zone can be
+	# managed from here at a time.
 	for host in $HOSTNAMES; do
 		cfd tunnel route dns "$TUNNEL" "$host" || true
 	done

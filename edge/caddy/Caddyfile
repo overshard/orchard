@@ -16,7 +16,7 @@
 	}
 }
 
-http://next.isaacbythewood.com {
+(site) {
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
 		X-Frame-Options SAMEORIGIN
@@ -36,8 +36,16 @@ http://next.isaacbythewood.com {
 		output stderr
 		format console
 	}
+}
 
+http://next.isaacbythewood.com {
+	import site
 	reverse_proxy isaacbythewood-next:8000
+}
+
+http://next.blog.bythewood.me {
+	import site
+	reverse_proxy blog-next:8000
 }
 
 # Anything arriving without a matching Host did not come through an ingress

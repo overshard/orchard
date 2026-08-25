@@ -1,0 +1,66 @@
+{{ define "content" }}
+<div class="container mt-5">
+  <div class="row">
+    <div class="col-sm-6">
+      <h1 class="mb-3 fw-bolder">
+        {{- if .Kicker }}
+        <div class="section-label fs-6 mb-1">{{ .Kicker }}</div>
+        {{- end }}
+        {{ .Heading }}
+      </h1>
+    </div>
+    <div class="col-sm-6">
+      {{- template "search_form" .Query }}
+    </div>
+  </div>
+</div>
+
+<div class="container mt-3">
+  <div class="d-flex flex-wrap align-items-center gap-2">
+    <span class="filter-label">tags</span>
+    {{- range .Tags }}
+    <a href="{{ .URL }}" class="btn btn-sm rounded-pill {{ if eq .Name $.ActiveTag }}btn-filter-active{{ else }}btn-filter{{ end }}">{{ .Display }}</a>
+    {{- end }}
+    <span class="filter-divider"></span>
+    <span class="filter-label">year</span>
+    {{- range .Years }}
+    <a href="/blog/year/{{ . }}/" class="btn btn-sm rounded-pill {{ if eq . $.ActiveYear }}btn-filter-active{{ else }}btn-filter{{ end }}">{{ . }}</a>
+    {{- end }}
+    {{- if or .ActiveTag .ActiveYear }}
+    <span class="filter-divider"></span>
+    <a href="/blog/" class="btn btn-sm rounded-pill btn-filter-clear">clear</a>
+    {{- end }}
+  </div>
+</div>
+
+{{- if .Posts }}
+{{- template "post_latest" index .Posts 0 }}
+{{- end }}
+
+<div class="container mt-5">
+  <div class="row">
+    {{- range $i, $post := .Posts }}
+    {{- if $i }}
+    <div class="col-sm-12 col-md-6 col-lg-4 mb-5">
+      {{- template "post_card" $post }}
+    </div>
+    {{- end }}
+    {{- end }}
+  </div>
+
+  {{- if .ExtraPosts }}
+  <div class="row mb-3">
+    <div class="col">
+      {{- template "alert" dict "Kind" "info" "Message" "I don't have any more posts with this filter at the moment but here are some other posts you might like!" }}
+    </div>
+  </div>
+  <div class="row">
+    {{- range .ExtraPosts }}
+    <div class="col-12 col-md-6 col-lg-4 mb-5">
+      {{- template "post_card" . }}
+    </div>
+    {{- end }}
+  </div>
+  {{- end }}
+</div>
+{{ end }}

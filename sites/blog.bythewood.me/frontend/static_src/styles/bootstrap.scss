@@ -1,0 +1,202 @@
+@use "variables" as *;
+
+@use "bootstrap/scss/bootstrap" with (
+  $font-family-sans-serif: $font-family-sans-serif,
+  $font-family-monospace: $font-family-monospace,
+  $headings-font-family: $headings-font-family,
+  $headings-font-weight: $headings-font-weight,
+  $font-size-base: $font-size-base,
+  $line-height-base: $line-height-base,
+  $headings-line-height: $headings-line-height,
+
+  $white: $white,
+  $gray-100: $gray-100,
+  $gray-200: $gray-200,
+  $gray-300: $gray-300,
+  $gray-400: $gray-400,
+  $gray-500: $gray-500,
+  $gray-600: $gray-600,
+  $gray-700: $gray-700,
+  $gray-800: $gray-800,
+  $gray-900: $gray-900,
+  $black: $black,
+
+  $body-bg: $body-bg,
+  $body-color: $body-color,
+
+  $primary: $primary,
+  $secondary: $secondary,
+  $success: $success,
+  $info: $info,
+  $warning: $warning,
+  $danger: $danger,
+  $light: $light,
+  $dark: $dark,
+
+  $link-color: $link-color,
+  $link-hover-color: $link-hover-color,
+  $link-decoration: $link-decoration,
+  $link-hover-decoration: $link-hover-decoration,
+
+  $border-color: $border-color,
+  $border-radius: $border-radius,
+  $border-radius-sm: $border-radius-sm,
+  $border-radius-lg: $border-radius-lg,
+
+  $card-bg: $card-bg,
+  $card-border-color: $card-border-color,
+  $card-color: $card-color,
+  $card-cap-bg: $card-cap-bg,
+
+  $input-bg: $input-bg,
+  $input-color: $input-color,
+  $input-border-color: $input-border-color,
+  $input-focus-bg: $input-focus-bg,
+  $input-focus-color: $input-focus-color,
+  $input-focus-border-color: $input-focus-border-color,
+  $input-focus-box-shadow: $input-focus-box-shadow,
+  $input-placeholder-color: $input-placeholder-color,
+
+  $navbar-dark-color: $navbar-dark-color,
+  $navbar-dark-hover-color: $navbar-dark-hover-color,
+  $navbar-dark-active-color: $navbar-dark-active-color,
+
+  $list-group-bg: $list-group-bg,
+  $list-group-border-color: $list-group-border-color,
+  $list-group-hover-bg: $list-group-hover-bg,
+  $list-group-action-color: $list-group-action-color,
+  $list-group-action-hover-color: $list-group-action-hover-color,
+  $list-group-action-active-bg: $list-group-action-active-bg,
+  $list-group-action-active-color: $list-group-action-active-color,
+  $list-group-active-bg: $list-group-active-bg,
+  $list-group-active-border-color: $list-group-active-border-color,
+  $list-group-active-color: $list-group-active-color,
+
+  $table-color: $table-color,
+  $table-border-color: $table-border-color,
+  $table-striped-color: $table-striped-color,
+  $table-striped-bg: $table-striped-bg,
+  $table-active-color: $table-active-color,
+  $table-active-bg: $table-active-bg,
+  $table-hover-color: $table-hover-color,
+  $table-hover-bg: $table-hover-bg,
+
+  $breadcrumb-active-color: $breadcrumb-active-color,
+  $breadcrumb-divider-color: $breadcrumb-divider-color,
+
+  $dropdown-bg: $dropdown-bg,
+  $dropdown-border-color: $dropdown-border-color,
+  $dropdown-color: $dropdown-color,
+  $dropdown-link-color: $dropdown-link-color,
+  $dropdown-link-hover-color: $dropdown-link-hover-color,
+  $dropdown-link-hover-bg: $dropdown-link-hover-bg,
+
+  $btn-close-color: $btn-close-color,
+);
+
+
+// ── Custom utilities ──
+
+.bg-surface {
+  background: #13120e !important;
+}
+
+.bg-deep {
+  background: #090806 !important;
+}
+
+.text-muted {
+  color: #9e968a !important;
+}
+
+.link-footer {
+  color: $gray-400;
+  text-decoration: none;
+  transition: color 200ms ease;
+
+  &:hover {
+    color: $white;
+  }
+}
+
+.breadcrumb {
+  display: block;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+
+  .breadcrumb-item {
+    font-size: 0.82em;
+    white-space: nowrap;
+    display: inline-block;
+
+    a {
+      color: $gray-400;
+      text-decoration: none;
+      transition: color 150ms ease;
+
+      &:hover {
+        color: $gray-100;
+      }
+    }
+
+    &.active {
+      color: $gray-200;
+    }
+  }
+}
+
+// Tag pill styling — forest green
+.btn-tag {
+  background: $green-dim;
+  color: $green-bright;
+  border: 1px solid $green-border;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  line-height: 1;
+  padding: 0.35rem 0.65rem;
+  display: inline-flex;
+  align-items: center;
+  transition: all 200ms ease;
+
+  &:hover {
+    background: rgba(107, 158, 120, 0.2);
+    color: #95cca2;
+    border-color: rgba(107, 158, 120, 0.35);
+    box-shadow: 0 0 8px rgba(107, 158, 120, 0.12);
+  }
+}
+
+// Alert overrides for dark
+.alert-info {
+  background: rgba(126, 170, 184, 0.08);
+  border-color: rgba(126, 170, 184, 0.2);
+  color: #9ec5d2;
+}
+
+.alert-warning {
+  background: $amber-dim;
+  border-color: rgba(201, 168, 76, 0.2);
+  color: #ddc06a;
+}
+
+// List group header — amber accent for "old knowledge" feel
+.list-group-header {
+  background: $amber-dim !important;
+  color: $amber !important;
+  font-weight: 600;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.list-group-footer {
+  background: rgba(221, 215, 205, 0.02) !important;
+  color: $gray-400 !important;
+  transition: all 200ms ease;
+
+  &:hover {
+    background: rgba(221, 215, 205, 0.04) !important;
+    color: $gray-200 !important;
+  }
+}

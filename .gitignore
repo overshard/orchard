@@ -14,7 +14,13 @@ node_modules/
 # uses -o bin/ and avoids this, but the bare command is the one people type.
 /sites/*/isaacbythewood.com
 /sites/*/*.com
+/sites/*/*.me
 !/sites/*.com/
+!/sites/*.me/
+
+# Compiled at build time from content/posts by the typst CLI. Nine megabytes of
+# derived artifact, regenerated whenever a post changes.
+/sites/*/pdfs/
 
 # Playwright scratch
 .playwright-cli/
