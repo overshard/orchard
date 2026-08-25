@@ -37,8 +37,18 @@ button {
    load in normal flow. Same effect to the eye, and it fixes a side effect of
    the old approach: an absolutely positioned wrapper contributes nothing to
    body height, so the page scrolled only because overflow happened to extend
-   the scroll area. */
+   the scroll area.
+
+   position: relative is load bearing and was the one thing the old absolute
+   positioning was quietly providing. The full bleed white panels on about,
+   code and art are position: absolute with top/bottom 0, so they size to the
+   nearest positioned ancestor. With nothing positioned between them and the
+   root they fell back to the initial containing block, which is exactly the
+   viewport, so the white stopped dead at 100vh and the dark body colour showed
+   through the moment you scrolled. Making the wrapper the containing block
+   again lets them stretch to the real page height. */
 .transition {
+  position: relative;
   min-height: 100vh;
   width: 100%;
   animation: pageFadeIn var(--transition-250) ease-in-out both;
@@ -53,8 +63,67 @@ button {
   }
 }
 
+@keyframes pageFadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Page to page: fade out to white, then fade in.
+
+   The opening curtain now plays once per visit rather than on every navigation
+   (see loader.css), so everything after it needs a quieter transition of its
+   own. This is a cross document view transition, which means the browser
+   drives it: it holds the outgoing page on screen until the incoming one is
+   ready to paint. That is the reason to use it over the obvious hand rolled
+   version, where JS fades to white, waits a fixed delay and then sets
+   location. That version bets on a fixed guess about latency and loses the bet
+   in both directions, either cutting the fade short or parking the visitor on
+   a blank white screen. Here there is no guess and no added delay.
+
+   Where it is unsupported nothing below applies, navigation is instant, and
+   the pageFadeIn above is still the whole effect. That is an acceptable
+   floor: a gentle fade in with no fade out. */
+@view-transition {
+  navigation: auto;
+}
+
+/* The transition overlay is painted above the real document for its whole
+   duration, so the white has to live here. Anything set on the page
+   underneath would be covered up by the very thing we want it to show
+   through. */
+::view-transition {
+  background-color: white;
+}
+
+/* The default UA style cross fades the two snapshots with plus-lighter, which
+   is correct for an overlapping fade and wrong for a sequential one. These
+   never overlap: the old is gone before the new starts. */
+::view-transition-old(root) {
+  mix-blend-mode: normal;
+  animation: pageFadeOut calc(var(--transition-250) / 2) ease-in both;
+}
+
+::view-transition-new(root) {
+  mix-blend-mode: normal;
+  animation: pageFadeIn calc(var(--transition-250) / 2)
+    calc(var(--transition-250) / 2) ease-out both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .transition {
     animation: none;
+  }
+}
+
+/* Opting out at the source rather than zeroing the animations. Same result to
+   look at, but the browser skips capturing the snapshots at all instead of
+   capturing them and then playing nothing. */
+@media (prefers-reduced-motion: reduce) {
+  @view-transition {
+    navigation: none;
   }
 }

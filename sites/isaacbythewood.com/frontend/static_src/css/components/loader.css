@@ -20,6 +20,16 @@
   }
 }
 
+/* The curtain exists to cover a cold first paint that has to fetch the CSS,
+   the bundle, the fonts and a hero image. A second page load in the same tab
+   has all of that in cache, so replaying it is theatre over nothing and, worse,
+   a full second of delay charged to a navigation the server answers in under a
+   millisecond. The head script decides; this is display: none rather than a
+   skipped animation so the columns never paint at all. */
+html[data-returning] .loader {
+  display: none;
+}
+
 .loader {
   display: grid;
   grid-template-columns: 60px 15% 1fr 1fr 15% 60px;

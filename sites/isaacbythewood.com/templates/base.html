@@ -4,6 +4,27 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
+    <!-- Whether the opening curtain plays has to be known before the first
+         paint, or it flashes on and then vanishes. That rules out the module
+         bundle, which is deferred by definition, so this is the one thing on
+         the page that has to be a blocking inline script. It is four lines and
+         touches no layout, so it costs nothing measurable.
+
+         sessionStorage, not localStorage: opening a new tab, or coming back
+         tomorrow, is "loading the site up" again and earns the full opening.
+         Clicking through to another page in the same tab is not. The try/catch
+         is for private modes and blocked storage, where reading throws; the
+         curtain playing every time is the right thing to fall back to. -->
+    <script>
+      try {
+        if (sessionStorage.getItem("ib.visited")) {
+          document.documentElement.dataset.returning = "true";
+        } else {
+          sessionStorage.setItem("ib.visited", "1");
+        }
+      } catch (e) {}
+    </script>
+
     <title>{{ .Title }}</title>
     <meta name="description" content="{{ .Description }}" />
     <link rel="canonical" href="{{ .Canonical }}" />
