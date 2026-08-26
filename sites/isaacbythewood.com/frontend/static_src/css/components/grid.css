@@ -40,3 +40,24 @@
   border-right: 1px solid rgba(125, 125, 125, 0.2);
   grid-row: 1 / -1;
 }
+
+/* The lines are fixed with no z-index of their own, so on any page that paints
+   a full bleed background after them in the document they are simply covered.
+   About, code and art put their white panels at z-index -2 and keep them, but
+   contact's two columns and the home page's image and word overlay are in
+   normal stacking order and hide them. These two rules lift the lines back
+   over those pages.
+
+   Contact's columns are transformed for their entrance, which makes each one a
+   stacking context, so the lines cannot be slipped underneath the columns and
+   above their backgrounds. They go over the top instead, which is what about
+   and code already look like. */
+[data-page="contact"] .layout-lines {
+  z-index: 1;
+}
+
+/* Home sits under a darkening overlay at z-index 10, so the lines have to
+   clear it, while staying below the hero text at 20. */
+[data-page="index"] .layout-lines {
+  z-index: 15;
+}

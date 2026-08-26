@@ -16,10 +16,56 @@
   }
 }
 
-@keyframes contact-slideUp {
+/* The two halves arrive from opposite edges and meet at the seam, rather than
+   the whole grid sliding in from the left as one sheet. Off screen start is
+   -120% on the left panel and not -100%: the grid is inset by the 60px
+   sidebar, so an exact -100% would park its right edge at x=60 and leave a
+   dark sliver showing behind the sidebar for the length of the animation. */
+@keyframes contact-panelInLeft {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes contact-panelInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* Everything below is the content stagger inside the dark panel, which only
+   starts once the panels have landed. The delays are absolute rather than
+   relative so the whole sequence reads as one timeline from page load. */
+@keyframes contact-ruleDraw {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes contact-riseIn {
   from {
     opacity: 0;
-    transform: translateX(-100vw);
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes contact-barIn {
+  from {
+    opacity: 0;
+    transform: translateX(-28px);
   }
   to {
     opacity: 1;
@@ -39,13 +85,16 @@
 
 .contact-grid {
   display: grid;
-  grid-template-columns: 50vw 1fr;
+  /* Lands the seam on the centre alignment line rather than 60px past it. The
+     line grid is 60px 15% 1fr 1fr 15% 60px, which is symmetric, so its middle
+     border sits at exactly 50vw at any width. This grid is inset by the 60px
+     sidebar, so a plain 50vw column ends at 60px + 50vw and overshoots by the
+     width of that inset. */
+  grid-template-columns: calc(50vw - 60px) 1fr;
   grid-template-rows: auto;
   grid-template-areas: "left right";
   margin-left: 60px;
   width: calc(100vw - 60px);
-  transform: translateX(-100vw);
-  animation: contact-slideUp 750ms 500ms forwards;
 }
 
 @media (max-width: 1023.98px) {
@@ -63,6 +112,7 @@
 
 .contact-gridLeft {
   grid-area: left;
+  animation: contact-panelInLeft 550ms 100ms cubic-bezier(0.16, 1, 0.3, 1) both;
   background-color: rgba(0, 0, 0, 0.9);
   min-height: 100vh;
   display: flex;
@@ -80,6 +130,12 @@
 
 .contact-gridRight {
   grid-area: right;
+  /* Nothing marks this panel's leading edge. A gradient seam and then a soft
+     shadow were both tried here and both rejected as looking wrong, so the
+     white simply arrives over white: the entrance that reads is the dark
+     column plus the staggered content, and the grid lines below stay put
+     through all of it. */
+  animation: contact-panelInRight 550ms 100ms cubic-bezier(0.16, 1, 0.3, 1) both;
   height: 100vh;
   width: 100%;
   display: flex;
@@ -116,6 +172,7 @@
   font-size: 3em;
   margin-top: 10px;
   margin-bottom: 20px;
+  animation: contact-riseIn 400ms 650ms ease-out both;
 }
 
 .contact-heading::before {
@@ -129,6 +186,8 @@
     var(--color-blue) 0,
     var(--color-purple) 100%
   );
+  transform-origin: left;
+  animation: contact-ruleDraw 400ms 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @media (max-width: 767.98px) {
@@ -140,6 +199,7 @@
 
 .contact-shoutOut {
   text-transform: uppercase;
+  animation: contact-barIn 400ms cubic-bezier(0.16, 1, 0.3, 1) both;
   padding: 5px;
   margin: 0 0 2px 0;
   float: left;
@@ -158,9 +218,44 @@
   }
 }
 
+/* The bars and the contact pairs are staggered with nth-of-type and
+   nth-child rather than a per element delay written into the template,
+   because the markup is a plain h2 pair and a dl. The dl buckets are per
+   pair (dt then dd share a delay) and the last bucket is open ended, so
+   adding a fifth contact method degrades to landing with the fourth
+   instead of not animating at all. */
+.contact-shoutOut:nth-of-type(1) {
+  animation-delay: 800ms;
+}
+
+.contact-shoutOut:nth-of-type(2) {
+  animation-delay: 880ms;
+}
+
 .contact-contactList {
   padding-top: 30px;
   clear: both;
+}
+
+.contact-contactList dt,
+.contact-contactList dd {
+  animation: contact-riseIn 400ms ease-out both;
+}
+
+.contact-contactList > :nth-child(-n + 2) {
+  animation-delay: 960ms;
+}
+
+.contact-contactList > :nth-child(n + 3):nth-child(-n + 4) {
+  animation-delay: 1030ms;
+}
+
+.contact-contactList > :nth-child(n + 5):nth-child(-n + 6) {
+  animation-delay: 1100ms;
+}
+
+.contact-contactList > :nth-child(n + 7) {
+  animation-delay: 1170ms;
 }
 
 .contact-contactKey {
@@ -229,6 +324,7 @@
   display: flex;
   margin-bottom: 12px;
   align-items: flex-start;
+  animation: contact-riseIn 300ms ease-out both;
 }
 
 .contact-chatLineUser {
@@ -295,6 +391,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  animation: contact-riseIn 300ms ease-out both;
   margin-top: 4px;
   margin-bottom: 12px;
   padding-left: 56px;
@@ -361,4 +458,21 @@
 
 .contact-typingDots span:nth-child(3) {
   animation-delay: 0.4s;
+}
+
+/* Reduced motion keeps the page and drops the choreography: panels are simply
+   in place, content is simply visible. The hover underline and the typing dots
+   stay, since they are feedback rather than entrance decoration. */
+@media (prefers-reduced-motion: reduce) {
+  .contact-gridLeft,
+  .contact-gridRight,
+  .contact-heading,
+  .contact-heading::before,
+  .contact-shoutOut,
+  .contact-contactList dt,
+  .contact-contactList dd,
+  .contact-chatLine,
+  .contact-chatOptions {
+    animation: none;
+  }
 }

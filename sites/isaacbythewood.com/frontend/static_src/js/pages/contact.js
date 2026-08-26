@@ -199,5 +199,8 @@ export const initContact = () => {
     next();
   };
 
-  window.setTimeout(() => play("start"), 800);
+  // Waits out the panel entrance and the content stagger in contact.css, so
+  // the first typing indicator lands after the left column has finished
+  // arriving rather than on top of it.
+  window.setTimeout(() => play("start"), 1150);
 };
