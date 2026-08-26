@@ -216,6 +216,24 @@ func main() {
 	}
 	mux.HandleFunc("GET /static/collector.js", s.collectorScript)
 
+	// A wrong method on a route that exists is a 405, not a 404.
+	//
+	// Go's mux does this on its own, but only when no other pattern matches,
+	// and the bare "GET /" catch-all below matches every GET path there is. So
+	// without these the answer is the 404 page, which the Rust version did not
+	// do and which tells a caller the endpoint does not exist when it does.
+	// 405 also has to carry Allow, which is why the header is not optional.
+	for path, allow := range map[string]string{
+		"/collect":                "OPTIONS, POST",
+		"/collect/":               "OPTIONS, POST",
+		"/logout":                 "POST",
+		"/properties/{id}/delete": "POST",
+		"/properties/{id}/cards":  "POST",
+		"/properties/{id}/public": "POST",
+	} {
+		mux.HandleFunc("GET "+path, methodNotAllowed(allow))
+	}
+
 	mux.HandleFunc("GET /favicon.ico", favicon)
 	mux.HandleFunc("GET /robots.txt", robots)
 	mux.HandleFunc("GET /sitemap.xml", sitemap)
@@ -251,6 +269,13 @@ func main() {
 	log.Printf("analytics serving %s (staging=%t, proprium=%s)", baseURL, Staging, propriumID)
 	if err := web.Serve(listenAddr, handler); err != nil {
 		log.Fatal(err)
+	}
+}
+
+func methodNotAllowed(allow string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Allow", allow)
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 }
 
