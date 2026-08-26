@@ -9,12 +9,19 @@ import "strings"
 // dotenvy, which was product scaffolding for a deployer who does not exist.
 // This site has no credentials at all, so it needs no .env of any kind.
 //
-// baseURL is next.blog.bythewood.me while the Go rewrite is proved out behind
+// baseURL is next-blog.bythewood.me while the Go rewrite is proved out behind
 // the tunnel, the same way isaacbythewood.com was. It becomes
 // https://blog.bythewood.me at cutover, which is this one line and the flip of
 // Staging below.
+//
+// A hyphen, not "next.blog.bythewood.me". Cloudflare's free Universal SSL
+// issues one certificate per zone covering the apex and a single wildcard
+// level, so *.bythewood.me is signed and *.*.bythewood.me is not. A two-label
+// staging host fails the TLS handshake at the edge before HTTP happens at all,
+// which reads as the tunnel being down rather than as a certificate problem.
+// The real hostname is single label, so this only ever affected staging.
 const (
-	baseURL     = "https://next.blog.bythewood.me"
+	baseURL     = "https://next-blog.bythewood.me"
 	siteName    = "Isaac Bythewood's Blog"
 	siteTagline = "Blog"
 	authorName  = "Isaac Bythewood"

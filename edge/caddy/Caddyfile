@@ -43,7 +43,7 @@ http://next.isaacbythewood.com {
 	reverse_proxy isaacbythewood-next:8000
 }
 
-http://next.blog.bythewood.me {
+http://next-blog.bythewood.me {
 	import site
 	reverse_proxy blog-next:8000
 }

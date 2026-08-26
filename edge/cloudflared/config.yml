@@ -10,7 +10,7 @@ credentials-file: /etc/cloudflared/CHANGEME_TUNNEL_ID.json
 ingress:
   - hostname: next.isaacbythewood.com
     service: http://caddy:80
-  - hostname: next.blog.bythewood.me
+  - hostname: next-blog.bythewood.me
     service: http://caddy:80
   - service: http_status:404
 

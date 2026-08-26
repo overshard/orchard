@@ -15,7 +15,7 @@ set -e
 VOLUME=orchard-cloudflared
 TUNNEL=orchard
 IMAGE=cloudflare/cloudflared:latest
-HOSTNAMES="next.isaacbythewood.com next.blog.bythewood.me"
+HOSTNAMES="next.isaacbythewood.com next-blog.bythewood.me"
 
 # cloudflared's image is distroless with no shell, so anything that needs to
 # poke at the volume borrows a plain alpine.
@@ -74,6 +74,11 @@ up)
 	# as a subdomain and cheerfully creates
 	# "next.blog.bythewood.me.isaacbythewood.com". Found on 2026-08-25 adding
 	# the blog, whose bythewood.me is a separate zone on the same account.
+	#
+	# ONE LABEL ONLY, too. Cloudflare's free Universal SSL signs the apex and a
+	# single wildcard level, so a two-label staging host like
+	# next.blog.bythewood.me has no certificate and fails the TLS handshake at
+	# the edge. Hence next-blog, with a hyphen.
 	#
 	# Routing a second zone means logging in again and picking it, which
 	# replaces cert.pem. That is safe for a running tunnel (it authenticates
