@@ -46,3 +46,7 @@ cert.pem
 # Generated at image build from Natural Earth by `bun run build:maps`. About
 # ten megabytes of derived topojson.
 /sites/*/static_maps/
+
+# Opt-in local port publishing for eyeballing a site before its DNS exists.
+# Machine-specific, never part of a deploy.
+docker-compose.local.yml
