@@ -26,7 +26,7 @@
 
 {{ define "main" }}
 {{ $authed := .Authenticated }}
-{{ $collectorServer := .CollectorServer }}
+{{ $baseURL := .BaseURL }}
 {{ $p := .Property }}
 {{ with .Dash }}
 <div class="bg-deep border-bottom border-subtle py-4">
@@ -257,7 +257,7 @@
 m.collectorServer = c; m.collectorId = s; var script = e.createElement(t);
 script.src = c + i; e.head.appendChild(script);
 })(window,document,'script',[],'/static/collector.js',
-'{{ $collectorServer }}','{{ $p.ID }}');
+'{{ $baseURL }}','{{ $p.ID }}');
 &lt;/script&gt;</textarea>
       </div>
     </div>

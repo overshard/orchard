@@ -294,17 +294,10 @@ func (s *site) page(r *http.Request, title, description string) PageData {
 		Script:        s.baseScript,
 		Styles:        s.baseStyles,
 
-		// Self-tracking, off while this runs on a staging hostname. Pointed at
-		// next-analytics it would file phantom sessions into the same Proprium
-		// property the production dashboard reads.
-		CollectorID:     s.collectorID(),
-		CollectorServer: baseURL,
+		// Self-tracking. The collector posts to whatever origin served the
+		// page, so this works unchanged on localhost, on the staging hostname
+		// and in production.
+		CollectorID:     s.propriumID.String(),
+		CollectorServer: "",
 	}
-}
-
-func (s *site) collectorID() string {
-	if Staging {
-		return ""
-	}
-	return s.propriumID.String()
 }

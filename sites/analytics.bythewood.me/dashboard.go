@@ -247,10 +247,6 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 	}
 	data.Dash = d
 	data.ReportedAt = time.Now().Format("2006-01-02 15:04")
-	// The site tag modal shows the snippet for THIS property, not for the app
-	// tracking itself, so it needs a live origin even on staging where
-	// self-tracking is off.
-	data.CollectorServer = baseURL
 
 	if report, ok := reportFormat(q); ok {
 		s.renderReport(w, r, report, p.Name, data)
