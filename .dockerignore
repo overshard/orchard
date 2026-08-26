@@ -7,6 +7,11 @@
 # Compiled inside the build stage; shipping the host's copy in would only
 # slow the context transfer.
 **/pdfs
+# Runtime state. The GeoIP mmdb alone is 131MB, and sending it in the build
+# context would dominate every single build.
+**/data
+# Generated in its own build stage from Natural Earth.
+**/static_maps
 # Generated inside the build from frontend/images/. Excluding it stops the
 # later COPY of the whole frontend directory clobbering what was just built.
 **/frontend/public/images

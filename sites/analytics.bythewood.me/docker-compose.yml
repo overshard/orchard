@@ -1,0 +1,35 @@
+name: analytics
+
+# No bind mounts and no published ports. Public traffic arrives through
+# cloudflared to Caddy on the shared network.
+#
+# Unlike the other two sites this one has state, so it has a named volume: the
+# SQLite database and the GeoIP mmdb both live in /data and both must survive
+# `docker compose up --build`, which is what every deploy runs.
+
+services:
+  app:
+    build:
+      # Repo root, so the Go module and internal/web are in scope.
+      context: ../..
+      dockerfile: sites/analytics.bythewood.me/Dockerfile
+    container_name: analytics-next
+    restart: unless-stopped
+    environment:
+      # The one genuine secret in the system, and the only environment variable
+      # this app reads. Taken from the deploying shell rather than an .env file
+      # so it is never written next to the repo; :? makes compose refuse to
+      # start rather than bring up a server the app would then refuse to boot.
+      ANALYTICS_PASSWORD: ${ANALYTICS_PASSWORD:?set ANALYTICS_PASSWORD in the deploying shell}
+    volumes:
+      - data:/data
+    networks: [edge]
+
+volumes:
+  data:
+    name: analytics-next-data
+
+networks:
+  edge:
+    name: orchard-edge
+    external: true

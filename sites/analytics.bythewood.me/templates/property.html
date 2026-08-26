@@ -1,0 +1,266 @@
+{{ define "extra_js" }}
+{{/* Chart data as inline JSON blocks, read by properties/index.js. The json
+     helper marshals with HTML escaping on, so a page URL containing
+     "</script>" cannot close the block. */}}
+{{ with .Dash }}
+<script id="chart-total-events-data" type="application/json">{{ json .Graph }}</script>
+<script id="chart-total-events-by-browser-data" type="application/json">{{ json .ByBrowser }}</script>
+<script id="chart-total-events-by-screen-size-data" type="application/json">{{ json .ByScreenSize }}</script>
+<script id="chart-total-events-by-device-data" type="application/json">{{ json .ByDevice }}</script>
+<script id="chart-total-events-by-platform-data" type="application/json">{{ json .ByPlatform }}</script>
+<script id="map-session-starts-by-country" type="application/json">{{ json .SessionsByCountry }}</script>
+<script id="map-session-starts-by-country-region" type="application/json">{{ json .SessionsByCountryRegion }}</script>
+{{ end }}
+<script type="module" src="{{ .PageScript }}"></script>
+{{ end }}
+
+{{ define "breadcrumbs" }}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="/">Home</a></li>
+    <li class="breadcrumb-item"><a href="/properties">Properties</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{ .Title }}</li>
+  </ol>
+</nav>
+{{ end }}
+
+{{ define "main" }}
+{{ $authed := .Authenticated }}
+{{ $collectorServer := .CollectorServer }}
+{{ $p := .Property }}
+{{ with .Dash }}
+<div class="bg-deep border-bottom border-subtle py-4">
+  <div class="container">
+    <div class="row align-items-center g-3">
+      <div class="col-12 col-lg-6">
+        <div class="section-label mb-2">property · <span class="text-green">{{ .LiveUsers }} live</span></div>
+        <h1 class="mb-1 text-white fw-bolder d-flex align-items-center gap-3" style="letter-spacing: -0.01em; min-width: 0;">
+          <span class="text-truncate">{{ $p.Name }}</span>
+          <span class="status-dot status-dot-lg {{ if .LiveUsers }}is-up{{ else }}is-idle{{ end }}" aria-hidden="true"></span>
+        </h1>
+        <div class="text-muted small" style="font-family: var(--bs-font-monospace);">{{ $p.ID }}</div>
+      </div>
+      <div class="col-12 col-lg-6 d-flex flex-wrap gap-2 justify-content-lg-end align-items-center d-print-none">
+        {{ if $authed }}
+        <form id="is-public-form" method="POST" action="/properties/{{ $p.ID }}/public" class="d-inline-flex align-items-center gap-2">
+          <span class="toggle-label" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Public properties are viewable by anyone with the URL — no login required.">Visibility</span>
+          <label class="toggle-pill">
+            <input type="checkbox" name="is_public" id="is-public-switch" {{ if $p.IsPublic }}checked{{ end }}>
+            <span class="toggle-pill-seg toggle-pill-private">Private</span>
+            <span class="toggle-pill-seg toggle-pill-public">Public</span>
+          </label>
+        </form>
+        <button type="button" class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#siteTagModal">
+          Site tag
+        </button>
+        <a href="/{{ $p.ID }}?report" target="_blank" class="btn btn-sm btn-outline-light">Report · pdf</a>
+        <a href="/{{ $p.ID }}?report=md" target="_blank" class="btn btn-sm btn-outline-light">Report · md</a>
+        {{ if not $p.IsProtected }}
+        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#delete-modal-{{ $p.ID }}">
+          Delete
+        </button>
+        <div class="modal fade" id="delete-modal-{{ $p.ID }}" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title text-white">Confirm delete</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                Delete <strong class="text-white">{{ $p.Name }}</strong>? All collected events will be removed.
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Cancel</button>
+                <form method="post" action="/properties/{{ $p.ID }}/delete" class="d-inline">
+                  <button type="submit" class="btn btn-outline-danger">Delete</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+        {{ end }}
+        {{ end }}
+      </div>
+    </div>
+
+    <div class="row mt-3 g-3 align-items-end d-print-none">
+      {{ if .FilterURL }}
+      <div class="col-12">
+        <span class="filter-chip">
+          <span class="section-label" style="letter-spacing: 0.1em;">filter · url</span>
+          <span class="filter-chip-label">{{ .FilterURL }}</span>
+          <button type="button" class="filter-chip-clear btn-filter-clear" data-filter-key="filter_url" data-filter-value="{{ .FilterURL }}" aria-label="Clear filter">✕</button>
+        </span>
+      </div>
+      {{ end }}
+      <div class="col-12 col-lg-8 offset-lg-4">
+        <form method="GET">
+          <div class="date-range-form">
+            <div class="form-floating">
+              <input type="date" name="date_start" id="date-start" class="form-control" value="{{ .DateStart }}" />
+              <label for="date-start">Date start</label>
+            </div>
+            <div class="form-floating">
+              <input type="date" name="date_end" id="date-end" class="form-control" value="{{ .DateEnd }}" />
+              <label for="date-end">Date end</label>
+            </div>
+            <div class="form-floating">
+              <select name="date_range" id="date-range" class="form-select">
+                <option value="custom">Custom</option>
+                {{ $r := .DateRange }}
+                <option value="7" {{ if eq $r 7 }}selected{{ end }}>7 days</option>
+                <option value="14" {{ if eq $r 14 }}selected{{ end }}>14 days</option>
+                <option value="28" {{ if eq $r 28 }}selected{{ end }}>28 days</option>
+                <option value="90" {{ if eq $r 90 }}selected{{ end }}>3 months</option>
+                <option value="180" {{ if eq $r 180 }}selected{{ end }}>6 months</option>
+                <option value="365" {{ if eq $r 365 }}selected{{ end }}>1 year</option>
+              </select>
+              <label for="date-range">Date range</label>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container my-4 position-relative">
+  <div class="d-flex align-items-center justify-content-between mb-2">
+    <div class="section-label">metrics · period vs previous</div>
+    {{ if and $authed .CustomEvents }}
+    <div class="dropdown d-print-none">
+      <button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" id="customCards" data-bs-toggle="dropdown" aria-expanded="false">
+        Custom cards
+      </button>
+      <div class="dropdown-menu dropdown-menu-end p-3" style="width: 300px;" aria-labelledby="customCards">
+        <form id="custom-card-form" method="POST" action="/properties/{{ $p.ID }}/cards">
+          {{ range .CustomEvents }}
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" role="switch" name="{{ .Event }}" id="{{ .Event }}-switch" {{ if .Active }}checked{{ end }}>
+            <label class="form-check-label small" for="{{ .Event }}-switch">{{ .Event }}</label>
+          </div>
+          {{ end }}
+        </form>
+      </div>
+    </div>
+    {{ end }}
+  </div>
+
+  <div class="row g-3">
+    {{ range .EventCards }}
+    <div class="col-6 col-md-4 col-lg-3">
+      <div class="metric-tile">
+        <div class="metric-header">
+          <div class="metric-label text-truncate" {{ if .HelpText }}data-bs-toggle="tooltip" data-bs-placement="bottom" title="{{ .HelpText }}"{{ end }}>
+            {{ .Name }}
+          </div>
+          {{ if eq .PercentChange 0 }}
+          <span class="metric-delta is-flat" title="No change vs previous period">·</span>
+          {{ else if lt .PercentChange 0 }}
+          <span class="metric-delta is-down">{{ .PercentChange }}%</span>
+          {{ else }}
+          <span class="metric-delta is-up">+{{ .PercentChange }}%</span>
+          {{ end }}
+        </div>
+        <div class="metric-value">{{ .Value }}</div>
+      </div>
+    </div>
+    {{ end }}
+  </div>
+</div>
+
+<div class="container my-4">
+  <div class="row g-3">
+    <div class="col-12 col-md-8">
+      <div class="chart-panel mb-3">
+        <div class="chart-panel-header">
+          <span class="chart-panel-title">events over time</span>
+        </div>
+        <div class="chart-panel-body" style="height: 320px;">
+          <canvas id="chart-total-events"></canvas>
+        </div>
+      </div>
+      <div class="chart-panel">
+        <div class="chart-panel-header chart-panel-header-with-action">
+          <span class="chart-panel-title" id="map-title">sessions · world</span>
+          <button type="button" id="map-back" class="chart-panel-action" hidden>← back to world</button>
+        </div>
+        <div class="chart-panel-body">
+          <div id="map" style="min-height: 320px; position: relative;"></div>
+        </div>
+      </div>
+    </div>
+    <div id="doughnut-graphs" class="col-12 col-md-4">
+      <div class="chart-panel mb-3">
+        <div class="chart-panel-header"><span class="chart-panel-title">device</span></div>
+        <div class="chart-panel-body"><canvas id="chart-total-events-by-device"></canvas></div>
+      </div>
+      <div class="chart-panel mb-3">
+        <div class="chart-panel-header"><span class="chart-panel-title">browser</span></div>
+        <div class="chart-panel-body"><canvas id="chart-total-events-by-browser"></canvas></div>
+      </div>
+      <div class="chart-panel mb-3">
+        <div class="chart-panel-header"><span class="chart-panel-title">platform</span></div>
+        <div class="chart-panel-body"><canvas id="chart-total-events-by-platform"></canvas></div>
+      </div>
+      <div class="chart-panel mb-3">
+        <div class="chart-panel-header"><span class="chart-panel-title">screen size</span></div>
+        <div class="chart-panel-body"><canvas id="chart-total-events-by-screen-size"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container my-4">
+  <div class="section-label mb-2">top lists · ranked</div>
+  <div id="top-lists" class="row g-3">
+    {{ template "rankList" dict "title" "top pages · page views" "col" "count" "items" .PageViewsByPageURL "filterFor" $p.ID }}
+    {{ template "rankList" dict "title" "top pages · all events" "col" "count" "items" .ByPageURL "filterFor" $p.ID }}
+    {{ template "rankList" dict "title" "top referrers" "col" "sessions" "items" .SessionsByReferrer "filterFor" "" }}
+    {{ template "rankList" dict "title" "top custom events" "col" "count" "items" .ByCustomEvent "filterFor" "" }}
+    {{ template "rankList" dict "title" "utm medium" "col" "views" "items" .PageViewsByUTMMedium "filterFor" "" }}
+    {{ template "rankList" dict "title" "utm source" "col" "views" "items" .PageViewsByUTMSource "filterFor" "" }}
+    {{ template "rankList" dict "title" "utm campaign" "col" "views" "items" .PageViewsByUTMCampaig "filterFor" "" }}
+  </div>
+</div>
+
+<div class="container my-4">
+  <div class="section-label mb-2">bot traffic · excluded from metrics above</div>
+  {{ if .Bots.Total }}
+  <div class="row g-3">
+    <div class="col-12 col-md-4">
+      <div class="metric-tile">
+        <div class="metric-label">Total bot events</div>
+        <div class="metric-value">{{ .Bots.Total }}</div>
+      </div>
+    </div>
+    {{ template "rankList" dict "title" "top bots" "col" "events" "items" .Bots.TopBots "filterFor" "" }}
+    {{ template "rankList" dict "title" "top pages · bot hits" "col" "events" "items" .Bots.TopPages "filterFor" "" }}
+  </div>
+  {{ else }}
+  <div class="text-muted small">No bot events in this range.</div>
+  {{ end }}
+</div>
+{{ end }}
+
+<div class="modal fade" id="siteTagModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title text-white">Collector site tag</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">Drop this into the <code class="text-amber">&lt;head&gt;</code> of your site. The collector ID below is scoped to <strong class="text-white">{{ $p.Name }}</strong>.</p>
+        <textarea class="codebox" rows="7" readonly>&lt;script&gt;
+(function(m,e,t,r,i,c,s){m.collectorQueue = m.collectorQueue || r;
+m.collectorServer = c; m.collectorId = s; var script = e.createElement(t);
+script.src = c + i; e.head.appendChild(script);
+})(window,document,'script',[],'/static/collector.js',
+'{{ $collectorServer }}','{{ $p.ID }}');
+&lt;/script&gt;</textarea>
+      </div>
+    </div>
+  </div>
+</div>
+{{ end }}

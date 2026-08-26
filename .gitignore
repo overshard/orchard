@@ -18,6 +18,13 @@ node_modules/
 !/sites/*.com/
 !/sites/*.me/
 
+# The same trap sprung from the repo root: `go build ./sites/<name>/` writes
+# the executable into the working directory, not next to its source, so the
+# rules above do not catch it. Found when the analytics port left a 27MB
+# binary here.
+/*.com
+/*.me
+
 # Compiled at build time from content/posts by the typst CLI. Nine megabytes of
 # derived artifact, regenerated whenever a post changes.
 /sites/*/pdfs/
@@ -31,3 +38,11 @@ credentials.json
 cert.pem
 *.pem
 .env
+
+# Runtime state, not source: the SQLite database and the 131MB GeoIP mmdb the
+# server downloads on boot. In production these live in a named Docker volume.
+/sites/*/data/
+
+# Generated at image build from Natural Earth by `bun run build:maps`. About
+# ten megabytes of derived topojson.
+/sites/*/static_maps/

@@ -1,0 +1,148 @@
+{{ define "extra_head" }}{{ template "social" . }}{{ end }}
+{{ define "extra_css" }}{{ range .PageStyles }}<link href="{{ . }}" rel="stylesheet">{{ end }}{{ end }}
+{{ define "breadcrumb_bar" }}{{ end }}
+{{ define "main" }}
+<section class="hero">
+  <div class="container">
+    <div class="row">
+      <div class="col-12 col-lg-7">
+        <span class="hero-eyebrow">
+          <span class="eyebrow-dot" aria-hidden="true"></span>
+          v0.1.0 · alpha · self-hosted
+        </span>
+        <h1 class="hero-title">
+          Website analytics for operators who host their <span class="accent">own pipeline</span>.
+        </h1>
+        <p class="hero-sub">
+          Page views, clicks, scrolls, sessions, and custom events. GeoIP maps,
+          UTM attribution, device and browser breakdowns, period-over-period
+          comparisons, and PDF reports. Collected through a single POST
+          endpoint you control. No third-party script, no hidden trackers,
+          no data leaving your infrastructure.
+        </p>
+        <div class="hero-ctas">
+          <a href="/login" class="btn btn-primary">Access dashboard →</a>
+          <a href="/documentation" class="btn btn-outline-light">Docs</a>
+          <a href="https://github.com/overshard/analytics" target="_blank" class="btn btn-outline-light">View source</a>
+        </div>
+      </div>
+      <div class="col-12 col-lg-5 mt-5 mt-lg-0 d-flex align-items-center">
+        <div class="terminal-block w-100">
+          <span class="t-line"><span class="t-comment"># collector push</span></span>
+          <span class="t-line"><span class="t-prompt">site$</span><span class="t-out">POST /collect/</span></span>
+          <span class="t-line"><span class="t-key">event</span>=<span class="t-val">page_view</span> <span class="t-key">url</span>=<span class="t-val">/pricing</span></span>
+          <span class="t-line"><span class="t-key">referrer</span>=<span class="t-val">bing.com</span></span>
+          <span class="t-line"><span class="t-key">geo</span>=<span class="t-val">US · CA</span> <span class="t-key">ua</span>=<span class="t-val">firefox · linux</span></span>
+          <span class="t-line"><span class="t-prompt">site$</span> <span class="t-cursor"></span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="stat-strip">
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-6 col-md-3">
+        <div class="stat">
+          <div class="stat-label">properties</div>
+          <div class="stat-value">{{ .TotalProperties }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat">
+          <div class="stat-label">events logged</div>
+          <div class="stat-value">{{ .TotalEvents }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat">
+          <div class="stat-label">operators</div>
+          <div class="stat-value">{{ .TotalUsers }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat">
+          <div class="stat-label">collecting since</div>
+          <div class="stat-value" style="font-size: 1.05rem;">
+            {{ if .FirstEventAt }}{{ .FirstEventAt }}{{ else }}—{{ end }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="container my-5 py-4">
+  <div class="row g-4">
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="feature">
+        <div class="feature-label">collection</div>
+        <div class="feature-title">One-line site tag</div>
+        <p class="feature-desc">
+          Drop a tiny async script in your <code>&lt;head&gt;</code>. It posts
+          session_start, page_view, click, scroll, and page_leave to one
+          endpoint. Custom events queue from any frontend code.
+        </p>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="feature">
+        <div class="feature-label">attribution</div>
+        <div class="feature-title">UTM + referrer tracking</div>
+        <p class="feature-desc">
+          Slice traffic by source, medium, and campaign. Top referrers,
+          pages, and custom events rank in the dashboard with
+          period-over-period deltas baked in.
+        </p>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="feature">
+        <div class="feature-label">geo + device</div>
+        <div class="feature-title">Maps, browsers, platforms</div>
+        <p class="feature-desc">
+          A Natural Earth world map with click-through admin-1 drill-down.
+          Doughnut breakdowns for device, browser, platform, and screen
+          size. GeoIP runs locally, IPs never leave your host.
+        </p>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="feature">
+        <div class="feature-label">reports</div>
+        <div class="feature-title">Dashboard + PDF export</div>
+        <p class="feature-desc">
+          Flip any date range to PDF or markdown with one click, rendered
+          in-process via embedded Typst (no chromium subprocess). Custom
+          cards pin bespoke metrics. A public toggle shares without a login.
+        </p>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="feature">
+        <div class="feature-label">schema</div>
+        <div class="feature-title">Typed schema, JSON extras</div>
+        <p class="feature-desc">
+          Hot fields (url, referrer, geo, UA, UTMs) live in typed columns
+          for fast queries. Custom keys land in an <code>extra</code> JSON
+          column, queryable via SQLite JSON1 (json_extract). Bot traffic
+          routes to a separate table at write time so human dashboards
+          never have to filter it.
+        </p>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="feature">
+        <div class="feature-label">stack</div>
+        <div class="feature-title">Built in Rust, ultralight</div>
+        <p class="feature-desc">
+          One statically linked Rust binary plus SQLite, shipped as a tiny
+          Alpine Docker image behind your own reverse proxy. Your domain,
+          your retention policy. No vendor, no pixel, no lock-in.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+{{ end }}

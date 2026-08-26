@@ -48,6 +48,19 @@ http://next-blog.bythewood.me {
 	reverse_proxy blog-next:8000
 }
 
+# The collector endpoint is cross-origin by design and is written to by every
+# tracked site, so it is the one route in this repo an anonymous stranger can
+# POST to. The app caps the body at 16KB itself; this is the second fence.
+http://next-analytics.bythewood.me {
+	import site
+
+	request_body {
+		max_size 16KB
+	}
+
+	reverse_proxy analytics-next:8000
+}
+
 # Anything arriving without a matching Host did not come through an ingress
 # rule. Say so rather than silently serving a site by accident.
 :80 {
