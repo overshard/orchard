@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"math/rand/v2"
 	"net/http"
 	"net/url"
@@ -327,4 +328,52 @@ func pickRandom(posts []*Post, n int) []*Post {
 // leaves "/" alone, which would let a tag containing one invent a route.
 func urlPathEscape(s string) string {
 	return strings.ReplaceAll(url.PathEscape(s), "/", "%2F")
+}
+
+// latestJSON publishes the newest published post as JSON, for other sites in
+// this repo to render a "latest post" card without scraping HTML.
+//
+// It exists because isaacbythewood.com's home page carries one promo slot. It
+// used to be hardcoded to darkfurrow.com, which meant the slot went stale the
+// moment that project did, and it advertised a dead site for a day after the
+// takedown. Pointing it at whatever was published most recently makes the slot
+// maintain itself.
+//
+// Deliberately a tiny hand-written shape rather than the whole Post: the
+// consumer needs four fields, and a full dump would put BodyHTML on the wire
+// and make every future field on Post a public API by accident.
+//
+// The URL is absolute because the reader is a different origin. CORS is not
+// set: the only consumer fetches this server side, and opening it to browsers
+// is a decision to take when something actually needs it.
+func (s *site) latestJSON(w http.ResponseWriter, r *http.Request) {
+	published, _, _ := s.lib.Published()
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	// Short: a new post should reach the other site within the hour rather
+	// than whenever a container happens to restart.
+	w.Header().Set("Cache-Control", "public, max-age=300")
+
+	if len(published) == 0 {
+		_, _ = w.Write([]byte("{}\n"))
+		return
+	}
+
+	p := published[0]
+	enc := json.NewEncoder(w)
+	// The same reason the commit cache turns this off: these strings end up in
+	// another site's HTML through html/template, which escapes properly for
+	// that context, so escaping here only corrupts an ampersand in a title.
+	enc.SetEscapeHTML(false)
+	_ = enc.Encode(struct {
+		Title       string `json:"title"`
+		Description string `json:"description"`
+		URL         string `json:"url"`
+		Date        string `json:"date"`
+	}{
+		Title:       p.Title,
+		Description: p.Description,
+		URL:         baseURL + p.URL(),
+		Date:        p.PublishDate,
+	})
 }

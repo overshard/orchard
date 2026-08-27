@@ -153,6 +153,10 @@ func main() {
 	mux.HandleFunc("GET /search/{$}", s.search)
 	mux.HandleFunc("GET /search/live/{$}", s.searchLive)
 
+	// Read by isaacbythewood.com's home page for its promo slot. See
+	// latestJSON for why it exists and why the shape is hand written.
+	mux.HandleFunc("GET /latest.json", s.latestJSON)
+
 	mux.HandleFunc("GET /og/{name}", s.ogImage)
 	mux.HandleFunc("GET /favicon.ico", favicon)
 	mux.HandleFunc("GET /favicon.svg", favicon)

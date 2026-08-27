@@ -27,18 +27,21 @@
     <span class="index-roleAt">at</span>
     <span class="index-roleCompany">Craftmaster Furniture</span>
   </div>
-  <a
-    href="https://darkfurrow.com"
-    target="_blank"
-    rel="noopener noreferrer"
-    class="index-notice"
-  >
-    <span class="index-noticeLabel">New Project</span>
-    <span class="index-noticeTitle">Dark Furrow</span>
-    <span class="index-noticeDesc">
-      An artistic almanac blending poetry, visual rhythm, and practical wisdom
-      for home gardeners and farmers.
-    </span>
+  {{- /*
+    The promo slot. It was a hardcoded Dark Furrow card, which meant it aged by
+    construction: it kept advertising the site for a day after the takedown and
+    the domain was already gone. It now shows whatever went up on the blog most
+    recently, fetched hourly in the background, so the slot maintains itself.
+
+    Rendered only when there is something cached. A blog outage leaves the hero
+    without a card rather than with an empty one.
+  */ -}}
+  {{- with .Latest }}
+  <a href="{{ .URL }}" class="index-notice">
+    <span class="index-noticeLabel">Latest Post</span>
+    <span class="index-noticeTitle">{{ .Title }}</span>
+    <span class="index-noticeDesc">{{ .Description }}</span>
   </a>
+  {{- end }}
 </div>
 {{ end }}

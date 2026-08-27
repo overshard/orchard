@@ -98,9 +98,15 @@ func main() {
 	}
 	commits.Start(ctx, slugs)
 
+	// The home page's promo slot, kept current from the blog rather than
+	// hardcoded to a project that can be retired out from under it.
+	latest := NewLatestCache(blogLatestURL)
+	latest.Start(ctx)
+
 	s := &site{
 		renderer: renderer,
 		commits:  commits,
+		latest:   latest,
 		script:   assets.Script("index.js"),
 		styles:   assets.Styles("index.js"),
 	}

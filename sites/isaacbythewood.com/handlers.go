@@ -38,6 +38,7 @@ type PageData struct {
 	HeroSrc    string
 	HeroSrcset template.Srcset
 
+	Latest     *LatestPost
 	Words      []AboutWord
 	Projects   []ProjectView
 	Pours      []PourView
@@ -79,6 +80,7 @@ type PourView struct {
 type site struct {
 	renderer *web.Renderer
 	commits  *CommitCache
+	latest   *LatestCache
 	script   string
 	styles   []string
 }
@@ -153,6 +155,11 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := s.page("index", "Senior Solutions Architect at Craftmaster Furniture", "")
+	// The promo slot. Absent rather than stale when the blog cannot be
+	// reached, so the template simply does not render the card.
+	if post, ok := s.latest.Get(); ok {
+		data.Latest = &post
+	}
 	// The only page that holds the curtain: it waits on the hero image.
 	data.LoaderWaits = true
 	// Full-bleed 100vw, so it is the one image that earns a 2400w candidate.
