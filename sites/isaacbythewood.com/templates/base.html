@@ -7,22 +7,46 @@
     <!-- Whether the opening curtain plays has to be known before the first
          paint, or it flashes on and then vanishes. That rules out the module
          bundle, which is deferred by definition, so this is the one thing on
-         the page that has to be a blocking inline script. It is four lines and
-         touches no layout, so it costs nothing measurable.
+         the page that has to be a blocking inline script. It touches no layout,
+         so it costs nothing measurable.
 
-         sessionStorage, not localStorage: opening a new tab, or coming back
-         tomorrow, is "loading the site up" again and earns the full opening.
-         Clicking through to another page in the same tab is not. The try/catch
-         is for private modes and blocked storage, where reading throws; the
-         curtain playing every time is the right thing to fall back to. -->
+         The curtain is cover for a cold first paint: fetching the CSS, the
+         bundle, the fonts and a hero image. So the question it has to answer is
+         "does this browser already have those bytes", and the honest proxy for
+         that is the bundle's own content hash. Every file under /static/ is
+         served immutable for a year, so a browser that has fetched THIS build
+         still has it; a deploy changes the hash, which is exactly when the
+         browser has to download everything again and exactly when the opening
+         is worth watching.
+
+         That is why this is localStorage keyed on the build rather than a
+         sessionStorage "have I been here this tab" flag. A new tab an hour
+         later loads instantly off cache and should not sit through a curtain
+         covering nothing, while a genuinely cold load after a deploy should.
+         The seven day window is for the case the flag cannot see: browsers
+         evict the HTTP cache long before they evict localStorage, so a visit a
+         week later is treated as cold whatever the hash says.
+
+         The try/catch is for private modes and blocked storage, where reading
+         throws. Falling back to playing the curtain is right: a context with no
+         storage is almost always a fresh one with nothing cached either. -->
     <script>
-      try {
-        if (sessionStorage.getItem("ib.visited")) {
-          document.documentElement.dataset.returning = "true";
-        } else {
-          sessionStorage.setItem("ib.visited", "1");
-        }
-      } catch (e) {}
+      (function () {
+        var build = "{{ .Script }}";
+        var week = 7 * 24 * 60 * 60 * 1000;
+        try {
+          var seen = JSON.parse(localStorage.getItem("ib.build") || "null");
+          if (seen && seen.b === build && Date.now() - seen.t < week) {
+            document.documentElement.dataset.returning = "true";
+          }
+          // Stamped on every load, so the window is "a week since you were
+          // last here" rather than "a week since you first arrived".
+          localStorage.setItem(
+            "ib.build",
+            JSON.stringify({ b: build, t: Date.now() }),
+          );
+        } catch (e) {}
+      })();
     </script>
 
     <title>{{ .Title }}</title>

@@ -1,11 +1,13 @@
 // The six columns that fold up off the screen on load.
 //
-// It plays once per visit, not once per page. The rewrite briefly got this
+// It plays once per build, not once per page. The rewrite briefly got this
 // wrong in the other direction: under Next.js the loader mounted once for the
 // whole session, and with real navigation it started running on every document,
 // which looked deliberate but is not what it is for. It is cover for a cold
 // first paint. Once the assets are cached there is nothing left to cover, so
-// the second page onward gets the white fade in globals.css instead.
+// every page after that gets the white fade in globals.css instead. The head
+// script in base.html owns the decision and keys it on the bundle hash, so a
+// deploy is a cold load again and gets the full opening.
 //
 // On the home page it waits for the hero image, because folding away to reveal
 // a blank rectangle is worse than a slightly longer hold. Everywhere else the
