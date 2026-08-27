@@ -1,0 +1,9 @@
+{
+  "name": "status-lighthouse",
+  "private": true,
+  "type": "module",
+  "comment": "Exists only so node_modules/.bin/lighthouse is on disk for the Go binary to exec (see lighthouse.go). Not a frontend dependency; those live in frontend/.",
+  "dependencies": {
+    "lighthouse": "^12.0.0"
+  }
+}

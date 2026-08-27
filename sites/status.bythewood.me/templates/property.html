@@ -1,0 +1,329 @@
+{{ define "extra_js" }}
+{{/* Chart data as inline JSON blocks, which is what the CSP's 'unsafe-inline'
+     in script-src is for. The Rust template also emitted a #property-data
+     block here; it is gone, because nothing read it. property_crawl_status.js
+     mentions it in a comment and then takes the id from
+     #monitoring-status[data-property-id] instead. */}}
+<script id="chart-status-response-times-data" type="application/json">{{ json .ResponseTimes }}</script>
+<script id="chart-status-codes-data" type="application/json">{{ json .StatusCodes }}</script>
+<script id="chart-uptime-data" type="application/json">{{ json .UptimeSlices }}</script>
+{{ end }}
+
+{{ define "breadcrumbs" }}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="/">Home</a></li>
+    {{ if .Authenticated }}<li class="breadcrumb-item"><a href="/properties">Properties</a></li>{{ end }}
+    <li class="breadcrumb-item active" aria-current="page">{{ .Property.Name }}</li>
+  </ol>
+</nav>
+{{ end }}
+
+{{ define "main" }}
+{{ $authed := .Authenticated }}
+{{ with .Property }}
+<div class="bg-deep border-bottom border-subtle py-4">
+  <div class="container">
+    <div class="row align-items-center g-3">
+      <div class="col-12 col-lg-7">
+        <div class="section-label mb-2">property · <span class="{{ if eq .CurrentStatus 200 }}text-green{{ else }}text-terracotta{{ end }}">{{ if eq .CurrentStatus 200 }}online{{ else }}offline{{ end }}</span></div>
+        <h1 class="mb-2 text-white fw-bolder d-flex align-items-center gap-3" style="letter-spacing: -0.01em; min-width: 0;">
+          <span class="text-truncate">{{ .Name }}</span>
+          <span class="status-dot status-dot-lg {{ if eq .CurrentStatus 200 }}is-up{{ else }}is-down{{ end }}" aria-hidden="true"></span>
+        </h1>
+        <a href="{{ .URL }}" target="_blank" rel="noopener" class="property-url-link">
+          <span class="property-url-text">{{ .URL }}</span>
+          <span class="property-url-arrow" aria-hidden="true">↗</span>
+        </a>
+      </div>
+      <div class="col-12 col-lg-5 d-flex flex-wrap gap-2 justify-content-lg-end align-items-center d-print-none">
+        {{ if $authed }}
+          <span id="is-public-form" class="d-inline-flex align-items-center gap-2" data-property-id="{{ .ID }}">
+            <span class="toggle-label" title="Public properties are viewable by anyone with the URL; no login required.">Visibility</span>
+            <label class="toggle-pill">
+              <input type="checkbox" name="is_public" id="is-public-switch"{{ if .IsPublic }} checked{{ end }}>
+              <span class="toggle-pill-seg toggle-pill-private">Private</span>
+              <span class="toggle-pill-seg toggle-pill-public">Public</span>
+            </label>
+          </span>
+          <a href="/{{ .ID }}?report=pdf" target="_blank" class="btn btn-sm btn-outline-light">Report · pdf</a>
+          <a href="/{{ .ID }}?report=md" target="_blank" class="btn btn-sm btn-outline-light">Report · md</a>
+          {{ if not .IsProtected }}
+          <form method="POST" action="/properties/{{ .ID }}/delete" class="d-inline" onsubmit="return confirm('Delete {{ .URL }}?');">
+            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+          </form>
+          {{ end }}
+        {{ end }}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container my-4">
+  <div class="section-label mb-2">live signals</div>
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="metric-tile {{ if eq .CurrentStatus 200 }}metric-accent-green{{ else }}metric-accent-danger{{ end }}">
+        <div class="metric-label">http status</div>
+        <div class="metric-value">{{ .CurrentStatus }}</div>
+        <div class="metric-sub">{{ if eq .CurrentStatus 200 }}OK · all clear{{ else }}failing{{ end }}</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="metric-tile {{ if .InvalidCert }}metric-accent-danger{{ else }}metric-accent-green{{ end }}">
+        <div class="metric-label">tls cert</div>
+        <div class="metric-value" style="font-size: 1.4rem;">{{ if .InvalidCert }}invalid{{ else }}valid{{ end }}</div>
+        <div class="metric-sub">chain + trust</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="metric-tile {{ if .HasSecurityIssue }}metric-accent-amber{{ else }}metric-accent-green{{ end }}">
+        <div class="metric-label">security</div>
+        <div class="metric-value" style="font-size: 1.4rem;">{{ if .HasSecurityIssue }}issues{{ else }}pass{{ end }}</div>
+        <div class="metric-sub">header scan</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="metric-tile {{ if gt .AvgResponseTime 500 }}metric-accent-danger{{ else }}metric-accent-green{{ end }}">
+        <div class="metric-label">response</div>
+        <div class="metric-value">{{ .AvgResponseTime }}<span class="text-muted" style="font-size: 0.9rem;"> ms</span></div>
+        <div class="metric-sub">rolling avg</div>
+      </div>
+    </div>
+  </div>
+
+  {{ with .LighthouseScores }}
+  <div class="section-label mb-2">lighthouse</div>
+  <div class="row g-3 mb-4">
+    {{ range .Pairs }}
+    <div class="col-6 col-md-3">
+      <div class="metric-tile metric-accent-{{ if ge .Score 90 }}green{{ else if ge .Score 50 }}amber{{ else }}danger{{ end }}">
+        <div class="metric-label">{{ .Label }}</div>
+        <div class="metric-value">{{ .Score }}<span class="text-muted" style="font-size: 0.9rem;">%</span></div>
+      </div>
+    </div>
+    {{ end }}
+  </div>
+  {{ end }}
+</div>
+
+<div class="container my-4">
+  <div class="row g-3">
+    <div class="col-12 col-md-8">
+      <div class="chart-panel mb-3">
+        <div class="chart-panel-header">
+          <span class="chart-panel-title">response time · last 31 checks</span>
+        </div>
+        <div style="position: relative; height: 300px;">
+          <canvas id="chart-response-times"></canvas>
+        </div>
+      </div>
+      <div class="row g-3">
+        <div class="col-12 col-md-6">
+          <div class="chart-panel">
+            <div class="chart-panel-header">
+              <span class="chart-panel-title">status codes</span>
+            </div>
+            <canvas id="chart-status-codes"></canvas>
+          </div>
+        </div>
+        <div class="col-12 col-md-6">
+          <div class="chart-panel">
+            <div class="chart-panel-header">
+              <span class="chart-panel-title">uptime split</span>
+            </div>
+            <canvas id="chart-uptime"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-4">
+      <div class="check-list">
+        <div class="check-list-header">security · header scan</div>
+        <div class="check-list-item">
+          <span class="check-name">Use HTTPS</span>
+          <span class="chip {{ if .IsHTTPS }}chip-ok{{ else }}chip-down{{ end }}">{{ if .IsHTTPS }}pass{{ else }}fail{{ end }}</span>
+        </div>
+        <div class="check-list-item">
+          <span class="check-name">Set MIME types</span>
+          <span class="chip {{ if .HasMIMEType }}chip-ok{{ else }}chip-down{{ end }}">{{ if .HasMIMEType }}pass{{ else }}fail{{ end }}</span>
+        </div>
+        <div class="check-list-item">
+          <span class="check-name">Content sniff protection</span>
+          <span class="chip {{ if .HasContentSniffProtection }}chip-ok{{ else }}chip-down{{ end }}">{{ if .HasContentSniffProtection }}pass{{ else }}fail{{ end }}</span>
+        </div>
+        <div class="check-list-item">
+          <span class="check-name">Clickjack protection</span>
+          <span class="chip {{ if .HasClickjackProtection }}chip-ok{{ else }}chip-down{{ end }}">{{ if .HasClickjackProtection }}pass{{ else }}fail{{ end }}</span>
+        </div>
+        <div class="check-list-item">
+          <span class="check-name">Hide server version</span>
+          <span class="chip {{ if .HidesServerVersion }}chip-ok{{ else }}chip-down{{ end }}">{{ if .HidesServerVersion }}pass{{ else }}fail{{ end }}</span>
+        </div>
+        <div class="check-list-item">
+          <span class="check-name">HSTS enabled</span>
+          <span class="chip {{ if .HasHSTS }}chip-ok{{ else }}chip-down{{ end }}">{{ if .HasHSTS }}pass{{ else }}fail{{ end }}</span>
+        </div>
+        <div class="check-list-item">
+          <span class="check-name">HSTS preload</span>
+          <span class="chip {{ if .HasHSTSPreload }}chip-ok{{ else }}chip-down{{ end }}">{{ if .HasHSTSPreload }}pass{{ else }}fail{{ end }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{{ if $authed }}
+<div class="container my-4 d-print-none" id="monitoring-status" data-property-id="{{ .ID }}">
+  <div class="section-label mb-2">scheduled audits</div>
+  <div class="row g-3">
+    <div class="col-12 col-md-6">
+      <div class="monitor-card h-100">
+        <div class="monitor-header">
+          <span class="monitor-title">Crawler</span>
+          <span class="d-flex align-items-center gap-2">
+            <span class="chip chip-muted" data-field="crawler.state_badge">&nbsp;</span>
+            <button type="button" id="recrawl-btn" class="btn btn-sm btn-outline-light monitor-btn" title="Recrawl now">
+              <span class="recrawl-btn-label">Recrawl</span>
+              <span class="recrawl-btn-spinner spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+            </button>
+          </span>
+        </div>
+        <div class="monitor-body">
+          <div class="progress mb-3 d-none" data-field="crawler.progress_wrap" style="height: 4px;">
+            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" data-field="crawler.progress_bar" style="width: 0%"></div>
+          </div>
+          <div class="alert alert-danger py-2 mb-3 d-none small" data-field="crawler.error_box" role="alert">
+            <strong>Last crawl failed:</strong>
+            <code data-field="crawler.error_text"></code>
+          </div>
+          <dl>
+            <dt>Last success</dt>
+            <dd data-field="crawler.last_success">—</dd>
+            <dt>Last attempt</dt>
+            <dd data-field="crawler.last_attempt">—</dd>
+            <dt>Pages crawled</dt>
+            <dd data-field="crawler.pages">—</dd>
+            <dt>Duration</dt>
+            <dd data-field="crawler.duration">—</dd>
+            <dt>Issues found</dt>
+            <dd data-field="crawler.insights">—</dd>
+            <dt>Next run</dt>
+            <dd data-field="crawler.next_run">—</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6">
+      <div class="monitor-card h-100">
+        <div class="monitor-header">
+          <span class="monitor-title">Lighthouse</span>
+          <span class="d-flex align-items-center gap-2">
+            <span class="chip chip-muted" data-field="lighthouse.state_badge">&nbsp;</span>
+            <button type="button" id="rerun-lighthouse-btn" class="btn btn-sm btn-outline-light monitor-btn" title="Rerun Lighthouse now">
+              <span class="rerun-lh-label">Rerun</span>
+              <span class="rerun-lh-spinner spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+            </button>
+          </span>
+        </div>
+        <div class="monitor-body">
+          <div class="alert alert-warning py-2 mb-3 d-none small" data-field="lighthouse.error_box" role="alert">
+            <strong>Last Lighthouse run failed:</strong>
+            <code data-field="lighthouse.error_text"></code>
+          </div>
+          <dl>
+            <dt>Last success</dt>
+            <dd data-field="lighthouse.last_success">—</dd>
+            <dt>Last attempt</dt>
+            <dd data-field="lighthouse.last_attempt">—</dd>
+            <dt>Duration</dt>
+            <dd data-field="lighthouse.duration">—</dd>
+            <dt>Next run</dt>
+            <dd data-field="lighthouse.next_run">—</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{{ end }}
+
+{{ with .LighthouseDetails }}
+<div class="container my-4">
+  <div class="section-label mb-2">performance breakdown</div>
+  <p class="text-muted small mb-3">
+    Lighthouse combines these weighted metrics to produce the Performance score. Opportunities below are the biggest wins; savings are estimated against the audited URL only.
+  </p>
+
+  {{ if .Metrics }}
+  <div class="row g-3 mb-4">
+    {{ range .Metrics }}
+    <div class="col-6 col-md d-flex">
+      <div class="metric-tile w-100 metric-accent-{{ metricClass .Score }}">
+        <div class="metric-label">{{ .Acronym }} · {{ .Weight }}%</div>
+        <div class="metric-value" style="font-size: 1.2rem;">{{ if .DisplayValue }}{{ .DisplayValue }}{{ else }}—{{ end }}</div>
+        <div class="metric-sub" title="{{ .Title }}">{{ .Title }}</div>
+      </div>
+    </div>
+    {{ end }}
+  </div>
+  {{ end }}
+
+  {{ if .Opportunities }}
+  <div class="section-label mb-2">top opportunities</div>
+  <div class="insight-header insight--3col">
+    <span>Audit</span>
+    <span>Detail</span>
+    <span class="text-end">Est. savings</span>
+  </div>
+  {{ range .Opportunities }}
+  <div class="insight-row insight--3col">
+    <span class="insight-col-trunc" title="{{ .Title }}">{{ .Title }}</span>
+    <span class="insight-col-trunc text-muted small" title="{{ .DisplayValue }}">
+      {{ if .DisplayValue }}{{ .DisplayValue }}{{ else }}—{{ end }}
+    </span>
+    <span class="text-end small">
+      {{ $saved := msSavings .SavingsMS }}
+      {{ if $saved }}<strong class="text-amber">{{ $saved }}</strong>{{ else }}<span class="text-muted">—</span>{{ end }}
+    </span>
+  </div>
+  {{ end }}
+  {{ else }}
+  <div class="alert alert-info py-2 small">No actionable opportunities; everything passing at this URL.</div>
+  {{ end }}
+</div>
+{{ end }}
+{{ end }}
+
+{{ if .InsightGroups }}
+<div class="container my-4">
+  {{ range .InsightGroups }}
+  <div class="section-label mb-2">{{ .Type }} · <span class="text-muted">{{ len .Items }}</span></div>
+  <div class="insight-header">
+    <span>Severity</span>
+    <span>URL</span>
+    <span>Issue</span>
+    <span>Item</span>
+  </div>
+  {{ range .Items }}
+  <div class="insight-row">
+    <span>
+      <span class="chip {{ if eq .Severity "error" }}chip-down{{ else if eq .Severity "warning" }}chip-warn{{ else }}chip-info{{ end }}">
+        {{ upper .Severity }}
+      </span>
+    </span>
+    <span class="insight-col-trunc">
+      <a href="{{ .URL }}" target="_blank" rel="noopener" class="text-muted">{{ urlPath .URL }}</a>
+    </span>
+    <span class="insight-col-trunc" title="{{ .Issue }}">{{ .Issue }}</span>
+    <span class="insight-col-trunc text-muted small" title="{{ .Item }}">{{ .Item }}</span>
+  </div>
+  {{ end }}
+  {{ end }}
+</div>
+{{ else if .Property.LastCrawlError }}
+<div class="container my-4">
+  <div class="alert alert-danger py-2 small mb-0">Last crawl failed: <code>{{ .Property.LastCrawlError }}</code></div>
+</div>
+{{ end }}
+{{ end }}

@@ -1,0 +1,121 @@
+{{/* The home page drops the breadcrumb bar entirely: it is the root, so there
+     is no trail to show and an empty bar would leave a stray rule under the
+     navbar. */}}
+{{ define "breadcrumb_bar" }}{{ end }}
+
+{{ define "main" }}
+<section class="hero">
+  <div class="container">
+    <div class="row">
+      <div class="col-12 col-lg-7">
+        <span class="hero-eyebrow">
+          <span class="eyebrow-dot" aria-hidden="true"></span>
+          v0.2.0 · alpha · self-hosted
+        </span>
+        <h1 class="hero-title">
+          Website status monitoring for operators who host their <span class="accent">own stack</span>.
+        </h1>
+        {{/* The Rust copy said "Discord + email alerts". Both channels are gone
+             (see alerts.go), so the sentence is corrected rather than carried
+             across: describing a feature the binary does not have is a bug in
+             the page, not a redesign of it. */}}
+        <p class="hero-sub">
+          HTTP checks every three minutes. Lighthouse audits. Security header analysis.
+          Full-site SEO crawl. ntfy alerts on state transitions. Your data
+          never leaves your infrastructure.
+        </p>
+        <div class="hero-ctas">
+          <a href="/login" class="btn btn-primary">Access dashboard →</a>
+          <a href="{{ .SourceURL }}" target="_blank" rel="noopener" class="btn btn-outline-light">View source</a>
+        </div>
+      </div>
+      <div class="col-12 col-lg-5 mt-5 mt-lg-0 d-flex align-items-center">
+        <div class="terminal-block w-100">
+          <span class="t-line"><span class="t-comment"># probe cycle</span></span>
+          <span class="t-line"><span class="t-prompt">probe$</span><span class="t-out">GET https://bythewood.me</span></span>
+          <span class="t-line"><span class="t-key">status</span>=<span class="t-val">200 OK</span> <span class="t-key">rtt</span>=<span class="t-val">142ms</span></span>
+          <span class="t-line"><span class="t-key">cert</span>=<span class="t-val">valid · 87d</span></span>
+          <span class="t-line"><span class="t-prompt">probe$</span> <span class="t-cursor"></span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="stat-strip">
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-6 col-md-4">
+        <div class="stat">
+          <div class="stat-label">properties</div>
+          <div class="stat-value">{{ intcomma .TotalProperties }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-4">
+        <div class="stat">
+          <div class="stat-label">checks logged</div>
+          <div class="stat-value">{{ intcomma .TotalChecks }}</div>
+        </div>
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="stat">
+          <div class="stat-label">online since</div>
+          <div class="stat-value" style="font-size: 1.05rem;">
+            {{ if .FirstCheckAt }}{{ .FirstCheckAt }}{{ else }}—{{ end }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="container my-5 py-4">
+  <div class="row g-4">
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="feature">
+        <div class="feature-label">uptime</div>
+        <div class="feature-title">Live HTTP probes</div>
+        <p class="feature-desc">Three-minute checks with two-strike debouncing. Alerts fire only on real state transitions, never on flaps.</p>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="feature">
+        <div class="feature-label">performance</div>
+        <div class="feature-title">Lighthouse audits</div>
+        <p class="feature-desc">Daily headless runs scoring performance, accessibility, best practices, and SEO. Top weighted metrics and savings opportunities ranked by impact.</p>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="feature">
+        <div class="feature-label">security</div>
+        <div class="feature-title">Header analysis</div>
+        <p class="feature-desc">HTTPS, HSTS, HSTS preload, content-sniffing protection, clickjack defence, and server-version leak checks on every probe.</p>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="feature">
+        <div class="feature-label">crawler</div>
+        {{/* "38 ranked checks" in the Rust copy, which was already off by one:
+             checks.rs registered 39 and so does crawler_checks.go. */}}
+        <div class="feature-title">Weekly SEO spider</div>
+        <p class="feature-desc">In-process spider runs weekly. 39 ranked checks across SEO, links, sitemap, accessibility, content, performance, and security.</p>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="feature">
+        <div class="feature-label">sharing</div>
+        <div class="feature-title">Public status pages</div>
+        <p class="feature-desc">Flip a property public and share the URL. Customers see live status, response graphs, and uptime at a glance, no account required.</p>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="feature">
+        <div class="feature-label">ownership</div>
+        <div class="feature-title">Single binary, single container</div>
+        {{/* "Rust + axum + SQLite" in the Rust copy, which this binary is not. */}}
+        <p class="feature-desc">Go + SQLite, shipped as one Docker Compose stack. Your data, your ingress, your retention policy. No SaaS lock-in.</p>
+      </div>
+    </div>
+  </div>
+</section>
+{{ end }}

@@ -61,6 +61,11 @@ http://next-analytics.bythewood.me {
 	reverse_proxy analytics-next:8000
 }
 
+http://next-status.bythewood.me {
+	import site
+	reverse_proxy status-next:8000
+}
+
 # Anything arriving without a matching Host did not come through an ingress
 # rule. Say so rather than silently serving a site by accident.
 :80 {

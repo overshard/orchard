@@ -1,0 +1,38 @@
+name: status
+
+# No bind mounts and no published ports. Public traffic arrives through
+# cloudflared to Caddy on the shared network.
+
+services:
+  app:
+    build:
+      # Repo root, so the Go module and internal/web are in scope.
+      context: ../..
+      dockerfile: sites/status.bythewood.me/Dockerfile
+    container_name: status-next
+    restart: unless-stopped
+    # Chromium spawns and reaps a tree of processes for every audit. Without an
+    # init as PID 1 those become zombies that nothing reaps, and a daily audit
+    # accumulates them until the container hits its process limit. The Rust
+    # image needed this for the same reason and so did the Django one before
+    # it; lighthouse.go's process-group kill handles the timeout case, this
+    # handles the ordinary one.
+    init: true
+    environment:
+      # The one genuine secret in the system, and the only environment variable
+      # this app reads. Taken from the deploying shell rather than an .env file
+      # so it is never written next to the repo; :? makes compose refuse to
+      # start rather than bring up a server the app would then refuse to boot.
+      STATUS_PASSWORD: ${STATUS_PASSWORD:?set STATUS_PASSWORD in the deploying shell}
+    volumes:
+      - data:/data
+    networks: [edge]
+
+volumes:
+  data:
+    name: status-next-data
+
+networks:
+  edge:
+    name: orchard-edge
+    external: true
