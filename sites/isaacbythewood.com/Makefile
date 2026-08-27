@@ -1,4 +1,7 @@
-.PHONY: run build frontend serve images clean
+.PHONY: run build frontend serve images resume clean
+
+RESUME_DIR = ../../resume
+RESUME_OUT = frontend/public/pdfs/resume-isaac-bythewood.pdf
 
 # Vite watches and rebuilds dist/ while Go serves it from disk. Templates are
 # embedded, so a template change needs a Go restart; CSS and JS changes only
@@ -10,7 +13,21 @@ run:
 frontend:
 	cd frontend && bun install --frozen-lockfile && bun run build
 
-build: frontend
+# The resume PDF, compiled out of resume/ at the repo root into publicDir so
+# Vite copies it into dist alongside the favicons. Skipped with a warning
+# rather than a failure when typst is absent, which matches how the blog treats
+# its post PDFs: a dev checkout without typst serves a 404 for that one file
+# and everything else works.
+resume:
+	@if command -v typst >/dev/null 2>&1; then \
+	  mkdir -p $(dir $(RESUME_OUT)); \
+	  typst compile --root $(RESUME_DIR) $(RESUME_DIR)/resume.typ $(RESUME_OUT); \
+	  echo "resume -> $(RESUME_OUT)"; \
+	else \
+	  echo "typst not installed, skipping the resume PDF"; \
+	fi
+
+build: resume frontend
 	go build -trimpath -ldflags="-s -w" -o ../../bin/isaacbythewood.com .
 
 serve:

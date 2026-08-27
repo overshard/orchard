@@ -29,6 +29,11 @@ node_modules/
 # derived artifact, regenerated whenever a post changes.
 /sites/*/pdfs/
 
+# Same rule for the resume: resume/content.yml and resume/resume.typ are the
+# source, this is the output. It used to be committed, back when generating it
+# meant running a headless Chromium by hand.
+/sites/*/frontend/public/pdfs/
+
 # Playwright scratch
 .playwright-cli/
 

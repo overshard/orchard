@@ -13,7 +13,7 @@
 SITE ?= isaacbythewood.com
 SITE_DIR = sites/$(SITE)
 
-.PHONY: run build deploy check fmt test edge-up edge-down edge-status sites
+.PHONY: run build deploy check fmt test resume edge-up edge-down edge-status sites
 
 run:
 	$(MAKE) -C $(SITE_DIR) run
@@ -45,3 +45,9 @@ edge-status:
 
 sites:
 	@ls -1 sites/
+
+# The resume PDF, compiled from resume/ into the site's publicDir. Its own
+# target because the resume is a document of its own, not part of any site's
+# frontend; `make build SITE=isaacbythewood.com` runs it too.
+resume:
+	$(MAKE) -C sites/isaacbythewood.com resume
