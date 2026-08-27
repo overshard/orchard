@@ -15,7 +15,7 @@ set -e
 VOLUME=orchard-cloudflared
 TUNNEL=orchard
 IMAGE=cloudflare/cloudflared:latest
-HOSTNAMES="next.isaacbythewood.com next-blog.bythewood.me"
+HOSTNAMES="next.isaacbythewood.com next-blog.bythewood.me next-analytics.bythewood.me next-status.bythewood.me"
 
 # cloudflared's image is distroless with no shell, so anything that needs to
 # poke at the volume borrows a plain alpine.
