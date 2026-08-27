@@ -31,6 +31,7 @@ var templateFuncs = template.FuncMap{
 	"msSavings":       msSavings,
 	"urlPath":         urlPath,
 	"pct":             pct,
+	"pct1":            pct1,
 	"metricClass":     metricClass,
 	"scoreClass":      scoreClass,
 	"uptimeClass":     uptimeClass,
@@ -215,6 +216,19 @@ func pct(count, total int64) int64 {
 		return 0
 	}
 	return count * 100 / total
+}
+
+// pct1 renders a nullable percentage with one decimal place.
+//
+// The decimal is not decoration, it is parity: Rust's f64 Display always emits
+// one, so the Rust dashboard reads "100.0%" where Go's default formatting of
+// the same value reads "100%". Found by diffing the two reports on 2026-08-26.
+// Matching matters because these numbers are compared across the cutover.
+func pct1(v *float64) string {
+	if v == nil {
+		return "—"
+	}
+	return strconv.FormatFloat(*v, 'f', 1, 64)
 }
 
 // seq is a counted loop, which Go templates otherwise have no way to express:

@@ -103,7 +103,7 @@ func fetchPage(ctx context.Context, client *http.Client, rawURL string) FetchRes
 	}
 	defer resp.Body.Close()
 
-	result.URL = resp.Request.URL.String()
+	result.URL = canonicalURL(resp.Request.URL)
 	result.Status = resp.StatusCode
 	// Go follows redirects inside Do and hands back the final response, with
 	// the chain reachable only through resp.Request. Counting hops is what the
@@ -144,6 +144,28 @@ func fetchPage(ctx context.Context, client *http.Client, rawURL string) FetchRes
 
 	result.ElapsedMS = time.Since(started).Milliseconds()
 	return result
+}
+
+// canonicalURL renders a fetched URL with an explicit "/" path.
+//
+// An absolute HTTP URL with an empty path *means* "/", and every other source
+// of URLs in a crawl spells it that way: the sitemap lists
+// "https://example.com/", and so does a link to the site root. Go's
+// url.String() preserves the empty path it was given, so a property registered
+// as "https://example.com" produced a page keyed "https://example.com" that
+// matched neither.
+//
+// Found by diffing this crawler against the Rust one on 2026-08-26. reqwest
+// normalises the path itself, so it never had the problem: five findings
+// differed only by the slash, and a sixth was invented outright, because the
+// root page was reported "not listed in sitemap" when the sitemap listed it.
+func canonicalURL(u *url.URL) string {
+	if u.Path == "" {
+		clone := *u
+		clone.Path = "/"
+		return clone.String()
+	}
+	return u.String()
 }
 
 // headStatus probes an external link.
@@ -296,7 +318,7 @@ func fetchPageAllowingText(ctx context.Context, client *http.Client, rawURL stri
 	}
 	defer resp.Body.Close()
 
-	result.URL = resp.Request.URL.String()
+	result.URL = canonicalURL(resp.Request.URL)
 	result.Status = resp.StatusCode
 	result.Body, _ = io.ReadAll(io.LimitReader(resp.Body, MaxBodyBytes))
 	result.ElapsedMS = time.Since(started).Milliseconds()

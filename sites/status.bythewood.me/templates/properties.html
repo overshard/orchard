@@ -64,7 +64,7 @@
           <div class="pr-meta-cell">
             <span class="pr-meta-k">uptime</span>
             {{ if .RecentUptimePct }}
-              <span class="chip chip-{{ uptimeClass .RecentUptimePct }}">{{ .RecentUptimePct }}%</span>
+              <span class="chip chip-{{ uptimeClass .RecentUptimePct }}">{{ pct1 .RecentUptimePct }}%</span>
             {{ else }}
               <span class="chip chip-muted">—</span>
             {{ end }}

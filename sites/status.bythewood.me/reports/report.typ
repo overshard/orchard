@@ -107,7 +107,7 @@
   rect(width: 100%, stroke: 0.6pt + black, inset: 6pt)[
     #text(size: 7.5pt, tracking: 0.4pt, fill: dim)[UPTIME]
     #v(2pt)
-    #text(size: 14pt, weight: "bold")[{{ if .RecentUptimePct }}{{ .RecentUptimePct }}%{{ else }}—{{ end }}]
+    #text(size: 14pt, weight: "bold")[{{ if .RecentUptimePct }}{{ pct1 .RecentUptimePct }}%{{ else }}—{{ end }}]
   ],
   rect(width: 100%, stroke: 0.6pt + black, inset: 6pt)[
     #text(size: 7.5pt, tracking: 0.4pt, fill: dim)[CHECKS]

@@ -32,6 +32,7 @@ var reportFuncs = texttemplate.FuncMap{
 	"msSavings":   msSavings,
 	"urlPath":     urlPath,
 	"pct":         pct,
+	"pct1":        pct1,
 	"add":         func(a, b int) int { return a + b },
 }
 

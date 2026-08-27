@@ -14,7 +14,7 @@
 
 - Current status: **{{ .CurrentStatus }}**
 - Average response: **{{ .AvgResponseTime }} ms**
-- Recent uptime: {{ if .RecentUptimePct }}**{{ .RecentUptimePct }}%**{{ else }}n/a{{ end }}
+- Recent uptime: {{ if .RecentUptimePct }}**{{ pct1 .RecentUptimePct }}%**{{ else }}n/a{{ end }}
 - Total checks logged: **{{ .TotalChecks }}**
 
 ## Lighthouse
