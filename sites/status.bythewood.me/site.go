@@ -18,16 +18,19 @@ import "strings"
 //
 // What is left in the environment is exactly one value, STATUS_PASSWORD.
 //
-// baseURL is next-status.bythewood.me while the Go rewrite is proved out
-// behind the tunnel, the same as the three sites before it. Cutover is this
-// one line. The hyphen is not a style choice: Cloudflare's free Universal SSL
-// signs the apex and exactly one wildcard level, so next.status.bythewood.me
-// has no certificate and fails the TLS handshake looking like a dead tunnel.
+// baseURL went to the real hostname at cutover on 2026-08-27. Staging below
+// derives from it, so flipping this one line also turned off the noindex, the
+// robots.txt Disallow and the analytics collector.
 const (
-	baseURL    = "https://next-status.bythewood.me"
+	baseURL    = "https://status.bythewood.me"
 	siteName   = "Status"
 	authorName = "Isaac Bythewood"
 	githubUser = "overshard"
+
+	// This site's own property in analytics. It was the one orchard site with
+	// no collector at all, which meant "analytics covers everything I run" was
+	// not true. Created 2026-08-27.
+	analyticsID = "231ffafe-7a96-46d3-8a55-92f460fd98fb"
 )
 
 // Staging keeps the test hostname out of search results.

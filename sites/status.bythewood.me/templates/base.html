@@ -24,6 +24,24 @@
   {{ range .Styles }}<link href="{{ . }}" rel="stylesheet">{{ end }}
   {{ range .PageStyles }}<link href="{{ . }}" rel="stylesheet">{{ end }}
   {{ template "extra_css" . }}
+
+  {{/* This site was the one thing Isaac runs that analytics did not measure,
+       which made "it tracks everything" quietly untrue. Same snippet the blog
+       and isaacbythewood.com carry, and the same gate: off on the staging
+       hostname, on the moment baseURL becomes the real one. */}}
+  {{- if .Analytics }}
+  <script>
+    (function (m, e, t, r, i, c, s) {
+      m.collectorQueue = m.collectorQueue || r;
+      m.collectorServer = c;
+      m.collectorId = s;
+      m.collectorScript = e.createElement(t);
+      m.collectorScript.src = c + i;
+      e.head.appendChild(m.collectorScript);
+    })(window, document, "script", [], "/static/collector.js",
+       "https://analytics.bythewood.me", "{{ .AnalyticsID }}");
+  </script>
+  {{- end }}
 </head>
 
 <body>

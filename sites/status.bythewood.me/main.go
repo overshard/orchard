@@ -65,18 +65,20 @@ func dir(env, fallback string) string {
 // <script type="application/json"> blocks. style-src carries it for
 // Bootstrap's inline style attributes.
 //
-// connect-src is 'self' only, which is what the dashboard's status polling
-// needs and nothing more. There is no third-party origin anywhere in this app:
-// Lighthouse and the crawler both run server-side, so the browser never talks
-// to anything but this origin.
+// analytics.bythewood.me appears in script-src and connect-src because this
+// site now carries the collector, which loads a script from that origin and
+// then posts events back to it. It is the only third-party origin here, it is
+// Isaac's own, and it is listed unconditionally rather than only when the
+// snippet renders: a policy that changes shape between staging and production
+// is a policy that gets tested in one shape and shipped in the other.
 func csp() string {
 	return strings.Join([]string{
 		"default-src 'self'",
-		"script-src 'self' 'unsafe-inline'",
+		"script-src 'self' 'unsafe-inline' https://analytics.bythewood.me",
 		"style-src 'self' 'unsafe-inline'",
 		"img-src 'self' data:",
 		"font-src 'self'",
-		"connect-src 'self'",
+		"connect-src 'self' https://analytics.bythewood.me",
 		"base-uri 'self'",
 		"form-action 'self'",
 		"frame-ancestors 'self'",
@@ -286,11 +288,15 @@ func (s *site) notFound(w http.ResponseWriter, r *http.Request) {
 // page builds the half of PageData every template needs.
 func (s *site) page(r *http.Request, title, description string) PageData {
 	return PageData{
-		Title:         title,
-		Description:   description,
-		Path:          r.URL.Path,
-		Canonical:     baseURL + r.URL.Path,
-		Staging:       Staging,
+		Title:       title,
+		Description: description,
+		Path:        r.URL.Path,
+		Canonical:   baseURL + r.URL.Path,
+		Staging:     Staging,
+		// Off on the staging hostname, on at cutover, the same gate the blog
+		// and isaacbythewood.com use. Nothing to flip by hand.
+		Analytics:     !Staging,
+		AnalyticsID:   analyticsID,
 		Authenticated: isAuthenticated(r, s.cookieKey),
 		Year:          time.Now().Year(),
 		BaseURL:       baseURL,

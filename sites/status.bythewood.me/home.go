@@ -23,6 +23,8 @@ type PageData struct {
 	Path          string
 	Canonical     string
 	Staging       bool
+	Analytics     bool
+	AnalyticsID   string
 	Authenticated bool
 	Year          int
 	BaseURL       string
