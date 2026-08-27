@@ -8,6 +8,29 @@ credentials-file: /etc/cloudflared/CHANGEME_TUNNEL_ID.json
 # Everything terminates at Caddy, which owns the per-site routing. One rule per
 # hostname, and the catch-all at the end is required by cloudflared.
 ingress:
+  # Production hostnames. Listed alongside the staging twins rather than
+  # replacing them, so both answer throughout the cutover and DNS is the only
+  # thing deciding which the public reaches.
+  - hostname: isaacbythewood.com
+    service: http://caddy:80
+  - hostname: www.isaacbythewood.com
+    service: http://caddy:80
+  - hostname: blog.bythewood.me
+    service: http://caddy:80
+  - hostname: analytics.bythewood.me
+    service: http://caddy:80
+  - hostname: status.bythewood.me
+    service: http://caddy:80
+
+  # The apex redirects to the portfolio and has never served a site. It is
+  # here because the Linode's Caddy owns that redirect today and it would
+  # otherwise disappear with the box.
+  - hostname: bythewood.me
+    service: http://caddy:80
+  - hostname: www.bythewood.me
+    service: http://caddy:80
+
+  # Staging.
   - hostname: next.isaacbythewood.com
     service: http://caddy:80
   - hostname: next-blog.bythewood.me
@@ -16,6 +39,7 @@ ingress:
     service: http://caddy:80
   - hostname: next-status.bythewood.me
     service: http://caddy:80
+
   - service: http_status:404
 
 # Lets the origin be probed from inside the bridge for tunnel health, which

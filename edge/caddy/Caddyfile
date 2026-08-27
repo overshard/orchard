@@ -38,6 +38,55 @@
 	}
 }
 
+# The production hostnames, listed alongside their staging twins rather than
+# replacing them. Both answer throughout the cutover, so DNS is the only thing
+# that decides which one the public reaches, and rolling back is a DNS change
+# rather than a redeploy.
+http://isaacbythewood.com {
+	import site
+	reverse_proxy isaacbythewood-next:8000
+}
+
+http://blog.bythewood.me {
+	import site
+	reverse_proxy blog-next:8000
+}
+
+http://analytics.bythewood.me {
+	import site
+
+	request_body {
+		max_size 16KB
+	}
+
+	reverse_proxy analytics-next:8000
+}
+
+http://status.bythewood.me {
+	import site
+	reverse_proxy status-next:8000
+}
+
+# The redirects the Linode's Caddy owns today.
+#
+# They are easy to forget because the `*.bythewood.me` and `*.isaacbythewood.com`
+# wildcards currently answer for www without anything being configured for it.
+# Remove the wildcard at decommission and www stops resolving entirely unless
+# these exist first.
+#
+# bythewood.me itself has never served a site. It redirects to the portfolio,
+# and it is also the zone apex carrying the Google Workspace MX records, so the
+# only thing changing here is where HTTP goes.
+http://www.isaacbythewood.com {
+	import site
+	redir https://isaacbythewood.com{uri} permanent
+}
+
+http://bythewood.me, http://www.bythewood.me {
+	import site
+	redir https://isaacbythewood.com{uri} permanent
+}
+
 http://next.isaacbythewood.com {
 	import site
 	reverse_proxy isaacbythewood-next:8000
