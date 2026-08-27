@@ -9,11 +9,11 @@ import "strings"
 // for a deployer who does not exist, and this site has no credentials at all,
 // so it needs no .env of any kind.
 //
-// baseURL is next.isaacbythewood.com while the Go rewrite is proved out behind
-// the tunnel. It becomes https://isaacbythewood.com at cutover, which is a
-// one-line change and the flip of Staging below.
+// baseURL went to the real hostname at cutover on 2026-08-27. Staging below
+// derives from it, so flipping this one line also turned off the noindex, the
+// robots.txt Disallow and the blog feed the home page reads.
 const (
-	baseURL     = "https://next.isaacbythewood.com"
+	baseURL     = "https://isaacbythewood.com"
 	siteTitle   = "Isaac Bythewood"
 	siteDesc    = "Isaac Bythewood is a Senior Solutions Architect at Craftmaster Furniture located in Elkin, NC."
 	themeColor  = "#20232e"
@@ -29,6 +29,19 @@ const (
 // key off it, because a meta tag alone is useless on a URL robots.txt has
 // already told the crawler not to fetch.
 var Staging = !strings.HasSuffix(baseURL, "//isaacbythewood.com")
+
+// blogLatestURL feeds the home page's promo slot.
+//
+// Derived from Staging rather than being a second constant to remember at
+// cutover: while this site is proved out behind the tunnel it reads the
+// staging blog, which is the instance running the endpoint, and it follows
+// baseURL to the real hostname on its own.
+var blogLatestURL = func() string {
+	if Staging {
+		return "https://next-blog.bythewood.me/latest.json"
+	}
+	return "https://blog.bythewood.me/latest.json"
+}()
 
 // NavPage is one entry in the menu and one value for the sidebar's counter.
 type NavPage struct {

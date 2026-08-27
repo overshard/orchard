@@ -16,13 +16,11 @@ import "strings"
 // and it is a genuine secret. That is the whole point of the exercise: no
 // config-or-credential gray zone left to misjudge.
 //
-// baseURL is next-analytics.bythewood.me while the Go rewrite is proved out
-// behind the tunnel, the same as the two sites before it. Cutover is this one
-// line. The hyphen is not a style choice: Cloudflare's free Universal SSL
-// signs the apex and exactly one wildcard level, so next.analytics.bythewood.me
-// has no certificate and fails the TLS handshake looking like a dead tunnel.
+// baseURL went to the real hostname at cutover on 2026-08-27. Staging below
+// derives from it, so flipping this one line also turned off the noindex, the
+// robots.txt Disallow and the analytics collector.
 const (
-	baseURL    = "https://next-analytics.bythewood.me"
+	baseURL    = "https://analytics.bythewood.me"
 	siteName   = "Analytics"
 	authorName = "Isaac Bythewood"
 	githubUser = "overshard"
