@@ -30,18 +30,28 @@ const (
 // already told the crawler not to fetch.
 var Staging = !strings.HasSuffix(baseURL, "//isaacbythewood.com")
 
-// blogLatestURL feeds the home page's promo slot.
+// blogLatestSources feed the home page's promo slot, in order of preference.
 //
-// Derived from Staging rather than being a second constant to remember at
-// cutover: while this site is proved out behind the tunnel it reads the
-// staging blog, which is the instance running the endpoint, and it follows
-// baseURL to the real hostname on its own.
-var blogLatestURL = func() string {
-	if Staging {
-		return "https://next-blog.bythewood.me/latest.json"
-	}
-	return "https://blog.bythewood.me/latest.json"
-}()
+// The container name comes first, and that ordering is the whole point. The
+// blog is a sibling container on the same Docker network, so reading it over
+// the public hostname means a request leaving the house, crossing Cloudflare,
+// coming back down the tunnel and through Caddy, to reach a process one bridge
+// hop away. That is slower, and it makes an internal data fetch depend on
+// public DNS, the tunnel and the edge all being healthy.
+//
+// The cutover proved the point rather than merely suggesting it. Every
+// container still had blog.bythewood.me cached as the Linode's address for a
+// while after the records moved, so the public URL returned 404 from a server
+// that had never heard of /latest.json, and the card silently vanished. The
+// container name was answering 200 the entire time.
+//
+// The public URL stays as a fallback for `make run`, where there is no Docker
+// network and no sibling container. If neither answers the card is simply not
+// rendered, which is the same graceful degradation the rest of this cache has.
+var blogLatestSources = []string{
+	"http://blog-next:8000/latest.json",
+	"https://blog.bythewood.me/latest.json",
+}
 
 // NavPage is one entry in the menu and one value for the sidebar's counter.
 type NavPage struct {

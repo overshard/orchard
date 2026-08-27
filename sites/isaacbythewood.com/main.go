@@ -100,7 +100,7 @@ func main() {
 
 	// The home page's promo slot, kept current from the blog rather than
 	// hardcoded to a project that can be retired out from under it.
-	latest := NewLatestCache(blogLatestURL)
+	latest := NewLatestCache(blogLatestSources)
 	latest.Start(ctx)
 
 	s := &site{

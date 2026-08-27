@@ -40,17 +40,17 @@ type LatestPost struct {
 
 // LatestCache holds the most recent successful fetch.
 type LatestCache struct {
-	mu     sync.RWMutex
-	post   LatestPost
-	ok     bool
-	url    string
-	client *http.Client
+	mu      sync.RWMutex
+	post    LatestPost
+	ok      bool
+	sources []string
+	client  *http.Client
 }
 
-func NewLatestCache(source string) *LatestCache {
+func NewLatestCache(sources []string) *LatestCache {
 	return &LatestCache{
-		url:    source,
-		client: &http.Client{Timeout: latestFetchTimeout},
+		sources: sources,
+		client:  &http.Client{Timeout: latestFetchTimeout},
 	}
 }
 
@@ -83,11 +83,20 @@ func (c *LatestCache) Start(ctx context.Context) {
 }
 
 func (c *LatestCache) refresh(ctx context.Context) {
-	post, err := c.fetch(ctx)
+	// First source that answers wins. In the image that is the sibling
+	// container; in a local checkout it falls through to the public site.
+	var post LatestPost
+	var err error
+	for _, src := range c.sources {
+		post, err = c.fetch(ctx, src)
+		if err == nil {
+			break
+		}
+		log.Printf("latest post: %s: %v", src, err)
+	}
 	if err != nil {
 		// Keep whatever was there. A transient failure should not blank a card
 		// that was fine an hour ago.
-		log.Printf("latest post: %v", err)
 		return
 	}
 
@@ -97,8 +106,8 @@ func (c *LatestCache) refresh(ctx context.Context) {
 	c.ok = post.Title != "" && post.URL != ""
 }
 
-func (c *LatestCache) fetch(ctx context.Context) (LatestPost, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.url, nil)
+func (c *LatestCache) fetch(ctx context.Context, url string) (LatestPost, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return LatestPost{}, err
 	}
