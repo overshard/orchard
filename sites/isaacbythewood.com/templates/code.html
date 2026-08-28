@@ -8,10 +8,24 @@
   There is plenty more to see on
   <a href="https://github.com/overshard" rel="noopener noreferrer" target="_blank">my GitHub account</a>.
 </p>
+
+{{- /*
+  Two sections rather than one grid. Most of what is below is a read-only
+  snapshot now, and letting those cards sit at full strength beside the one
+  thing still being worked on would overstate all of them. The count uses the
+  same zero padded numbering as the sidebar.
+*/ -}}
+
+{{- with .Active }}
+<div class="code-sectionHead">
+  <h2 class="code-sectionTitle">Active</h2>
+  <span class="code-sectionRule"></span>
+  <span class="code-sectionCount">{{ printf "%03d" (len .) }}</span>
+</div>
 <div class="code-projects">
-  {{- range .Projects }}
+  {{- range . }}
   <div class="code-project" style="{{ .Delay }}">
-    <h2 class="code-projectHeading">{{ .Name }}</h2>
+    <h3 class="code-projectHeading">{{ .Name }}</h3>
     <div class="code-tags">
       {{- range .Tech }}
       <span class="code-tag">{{ . }}</span>
@@ -22,12 +36,47 @@
     <pre class="code-projectCommit">{{ .Commit }}</pre>
     {{- end }}
     <a class="code-projectButton" href="{{ .URL }}" rel="noopener noreferrer" target="_blank">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
-        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
-      </svg>
+      {{ template "githubMark" }}
       GitHub
     </a>
   </div>
   {{- end }}
 </div>
+{{- end }}
+
+{{- with .Archived }}
+<div class="code-sectionHead code-sectionHead-archived">
+  <h2 class="code-sectionTitle">Archived</h2>
+  <span class="code-sectionRule"></span>
+  <span class="code-sectionCount">{{ printf "%03d" (len .) }}</span>
+</div>
+<p class="code-sectionNote">
+  Read-only snapshots. Some of these still run, rebuilt in a language they did
+  not start in; some are switched off for good.
+</p>
+<div class="code-projects code-projects-archived">
+  {{- range . }}
+  <div class="code-project code-project-archived" style="{{ .Delay }}">
+    <h3 class="code-projectHeading">{{ .Name }}</h3>
+    <div class="code-tags">
+      <span class="code-tag code-tag-archived">Archived</span>
+      {{- range .Tech }}
+      <span class="code-tag">{{ . }}</span>
+      {{- end }}
+    </div>
+    <p class="code-projectParagraph">{{ .Description }}</p>
+    <a class="code-projectButton" href="{{ .URL }}" rel="noopener noreferrer" target="_blank">
+      {{ template "githubMark" }}
+      GitHub
+    </a>
+  </div>
+  {{- end }}
+</div>
+{{- end }}
 {{ end }}
+
+{{- define "githubMark" -}}
+<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+  <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
+</svg>
+{{- end -}}

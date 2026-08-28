@@ -92,9 +92,14 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// Only the live projects. Archived repositories do not change, so polling
+	// them every hour would spend GitHub's unauthenticated rate limit to
+	// re-read the same commit forever.
 	slugs := make([]string, 0, len(projects))
 	for _, project := range projects {
-		slugs = append(slugs, project.Slug)
+		if !project.Archived {
+			slugs = append(slugs, project.Slug)
+		}
 	}
 	commits.Start(ctx, slugs)
 

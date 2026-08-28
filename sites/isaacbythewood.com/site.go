@@ -100,65 +100,163 @@ type Project struct {
 	Slug        string
 	Description string
 	Tech        []string
+	// Archived splits the page. Everything here except taproot is a read-only
+	// snapshot on GitHub now, and saying so is more honest than a wall of cards
+	// that all look equally alive. See the archived section in code.html.
+	Archived bool
 }
 
 var projects = []Project{
 	{
-		Name:        "Taproot",
+		Name:        "taproot",
 		Slug:        "taproot",
 		Description: "Dotfiles, containers, and the configs that make a machine mine.",
 		Tech:        []string{"Docker", "Shell"},
 	},
+
+	// Archived, newest first, and named exactly as the repository is named on
+	// GitHub. The implementations were split apart and suffixed by language in
+	// August 2026, so the card title is the thing you would actually search for
+	// rather than a friendly name that resolves to nothing.
+	{
+		Name:        "isaacbythewood.com-nextjs",
+		Slug:        "isaacbythewood.com-nextjs",
+		Description: "The Next.js build of this site: a custom cursor, a page transition loader, and full canvas background animations. Replaced by the Go rebuild you are reading now.",
+		Tech:        []string{"Next.js", "React"},
+		Archived:    true,
+	},
+	{
+		Name:        "blog.bythewood.me-python",
+		Slug:        "blog.bythewood.me-python",
+		Description: "The last handcoded Python build of my blog. Markdown files on disk, no database, rolled back off its Rust rewrite.",
+		Tech:        []string{"Python", "Flask"},
+		Archived:    true,
+	},
+	{
+		Name:        "blog.bythewood.me-rust",
+		Slug:        "blog.bythewood.me-rust",
+		Description: "Single binary markdown blog: no database, live search, Typst PDF export, and great SEO.",
+		Tech:        []string{"Rust", "Axum", "Typst"},
+		Archived:    true,
+	},
 	{
 		Name:        "darkfurrow.com",
 		Slug:        "darkfurrow.com",
-		Description: "A living almanac of seasons, soil, and the quiet knowledge that used to be common.",
+		Description: "A living almanac of seasons, soil, and the quiet knowledge that used to be common. Taken offline, and I no longer own the domain.",
 		Tech:        []string{"Rust", "Axum"},
+		Archived:    true,
 	},
 	{
-		Name:        "Repos",
-		Slug:        "repos",
-		Description: "A minimal self-hosted git browser. Renders bare repos as a website with commits, diffs, syntax-highlighted blobs, and atom feeds, plus clone over HTTPS.",
-		Tech:        []string{"Rust", "Axum"},
+		Name:        "status-django",
+		Slug:        "status-django",
+		Description: "The Django build of my uptime monitor and status page builder, before it was rewritten in Rust.",
+		Tech:        []string{"Python", "Django", "SQLite"},
+		Archived:    true,
 	},
 	{
-		Name:        "Analytics",
-		Slug:        "analytics",
-		Description: "A self-hostable analytics service with a straightforward API to track events from any source.",
+		Name:        "analytics-django",
+		Slug:        "analytics-django",
+		Description: "The Django build of my self-hosted website analytics, before it was rewritten in Rust.",
+		Tech:        []string{"Python", "Django", "SQLite"},
+		Archived:    true,
+	},
+	{
+		Name:        "status-rust",
+		Slug:        "status-rust",
+		Description: "Single binary uptime monitoring and status pages: HTTP probes, Lighthouse audits, an SEO crawler, and PDF reports.",
 		Tech:        []string{"Rust", "Axum", "SQLite"},
+		Archived:    true,
 	},
 	{
-		Name:        "Status",
-		Slug:        "status",
-		Description: "A self-hosted uptime monitor and status page builder, with Lighthouse audits and PDF reports baked in.",
+		Name:        "analytics-rust",
+		Slug:        "analytics-rust",
+		Description: "Single binary website analytics: a collector API, dashboards, a world map, and PDF reports.",
 		Tech:        []string{"Rust", "Axum", "SQLite"},
+		Archived:    true,
 	},
 	{
-		Name:        "Finance",
-		Slug:        "finance",
-		Description: "A self-hosted market watcher for stocks, ETFs, indexes, and futures, with live charts, key stats, fundamentals, and SEC filings.",
-		Tech:        []string{"Rust", "Axum", "SQLite"},
-	},
-	{
-		Name:        "blog.bythewood.me",
-		Slug:        "blog.bythewood.me",
-		Description: "A self-hostable markdown blog for developers, with code blocks, syntax highlighting, live search, great SEO, and a clean customizable UI.",
-		Tech:        []string{"Rust", "Axum"},
-	},
-	{
-		Name:        "Timelite",
+		Name:        "timelite",
 		Slug:        "timelite",
-		Description: "A simple time tracker that keeps everything local in your browser. No accounts, no sync, no server-side state.",
-		Tech:        []string{"Next.js", "JavaScript"},
+		Description: "Time tracking that never leaves your browser. No accounts, no sync, no server side state.",
+		Tech:        []string{"Next.js", "React"},
+		Archived:    true,
 	},
 	{
-		// Updated rather than copied across: describing this page as Next.js
-		// while it is being served by Go would be a plainly false statement on
-		// the page itself.
-		Name:        "isaacbythewood.com",
-		Slug:        "isaacbythewood.com",
-		Description: "The personal website you are looking at right now. Rebuilt from Next.js onto Go, server-rendered with html/template and a Vite-built frontend, served from home behind a Cloudflare Tunnel.",
-		Tech:        []string{"Go", "Vite"},
+		Name:        "repos-rust",
+		Slug:        "repos-rust",
+		Description: "A minimal self-hosted git browser. Bare repos as a website: commits, diffs, syntax highlighted blobs, atom feeds, and clone over HTTPS.",
+		Tech:        []string{"Rust", "Axum", "gix"},
+		Archived:    true,
+	},
+	{
+		Name:        "finance-rust",
+		Slug:        "finance-rust",
+		Description: "A self-hosted market watcher for stocks, ETFs, indexes and futures, with live charts, key stats, fundamentals and SEC filings.",
+		Tech:        []string{"Rust", "Axum", "SQLite"},
+		Archived:    true,
+	},
+	{
+		Name:        "dockerfiles",
+		Slug:        "dockerfiles",
+		Description: "All the Dockerfiles I used for various purposes, each with its usage notes at the top.",
+		Tech:        []string{"Docker"},
+		Archived:    true,
+	},
+	{
+		Name:        "dotfiles",
+		Slug:        "dotfiles",
+		Description: "Config files for setting up a new system the way I like it.",
+		Tech:        []string{"Shell", "Neovim"},
+		Archived:    true,
+	},
+	{
+		Name:        "timestrap",
+		Slug:        "timestrap",
+		Description: "Time tracking you can host anywhere, with full export in several formats and an extensible core.",
+		Tech:        []string{"Python", "Django"},
+		Archived:    true,
+	},
+	{
+		Name:        "alpinefiles",
+		Slug:        "alpinefiles",
+		Description: "The files I ran on my Alpine Linux servers: Caddy, Docker, borg backups, and ufw.",
+		Tech:        []string{"Shell", "Alpine"},
+		Archived:    true,
+	},
+	{
+		Name:        "newtab",
+		Slug:        "newtab",
+		Description: "A clean new tab page extension for Chrome, built to be taken and customized.",
+		Tech:        []string{"JavaScript", "Chrome"},
+		Archived:    true,
+	},
+	{
+		Name:        "ai-art",
+		Slug:        "ai-art",
+		Description: "Art generation with VQGAN and CLIP in docker containers. A simplified, updated and expanded take on the original notebooks.",
+		Tech:        []string{"Python", "PyTorch"},
+		Archived:    true,
+	},
+	{
+		Name:        "docker-teamspeak",
+		Slug:        "docker-teamspeak",
+		Description: "A nice and easy way to get a TeamSpeak server up and running with Docker.",
+		Tech:        []string{"Docker", "Shell"},
+		Archived:    true,
+	},
+	{
+		Name:        "docker-minecraft",
+		Slug:        "docker-minecraft",
+		Description: "An easy way to get a Minecraft server up and running with Docker.",
+		Tech:        []string{"Docker", "Shell"},
+		Archived:    true,
+	},
+	{
+		Name:        "pinry",
+		Slug:        "pinry",
+		Description: "A tiling image board system. Development moved on to pinry/pinry.",
+		Tech:        []string{"Python"},
+		Archived:    true,
 	},
 }
 

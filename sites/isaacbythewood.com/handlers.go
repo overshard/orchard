@@ -40,7 +40,8 @@ type PageData struct {
 
 	Latest     *LatestPost
 	Words      []AboutWord
-	Projects   []ProjectView
+	Active     []ProjectView
+	Archived   []ProjectView
 	Pours      []PourView
 	Generative []Generative
 	Methods    []ContactMethod
@@ -186,14 +187,29 @@ func (s *site) about(w http.ResponseWriter, r *http.Request) {
 func (s *site) code(w http.ResponseWriter, r *http.Request) {
 	data := s.page("code", "Code", "Some of my most recent coding projects.")
 
-	data.Projects = make([]ProjectView, 0, len(projects))
+	// Two lists rather than one with a flag, because the template renders them
+	// as two sections with different chrome and a shared loop would spend more
+	// lines re-deciding which section it was in than this costs.
+	//
+	// The stagger delay counts across both, so the entrance reads as one
+	// sequence down the page rather than restarting at the archived heading.
 	for i, project := range projects {
-		data.Projects = append(data.Projects, ProjectView{
+		view := ProjectView{
 			Project: project,
 			URL:     "https://github.com/" + githubUser + "/" + project.Slug,
-			Commit:  s.commits.JSON(project.Slug),
 			Delay:   template.CSS(fmt.Sprintf("animation-delay: %dms", i*100)),
-		})
+		}
+		// Only live projects carry a commit. On something read-only it would
+		// always be the commit that archived it, which says nothing.
+		if !project.Archived {
+			view.Commit = s.commits.JSON(project.Slug)
+		}
+
+		if project.Archived {
+			data.Archived = append(data.Archived, view)
+		} else {
+			data.Active = append(data.Active, view)
+		}
 	}
 
 	s.renderer.Render(w, http.StatusOK, "code.html", data)

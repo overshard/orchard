@@ -100,6 +100,12 @@
   width: 100%;
   flex-wrap: wrap;
   gap: 20px;
+}
+
+/* Only the last grid on the page needs room under it. When a section follows,
+   that section's own heading margin is the gap, and adding this as well left a
+   void under a short list. */
+.code-projects:last-child {
   padding-bottom: 60px;
 }
 
@@ -199,4 +205,134 @@
 
 .code-projectButton:hover {
   transform: scale(1.2);
+}
+
+/* The active / archived split.
+ *
+ * Most of the page is a read-only snapshot now, so the archived half is
+ * deliberately quieter: the blue tag pills go grey, the gradient button becomes
+ * an outline, and the body text drops to a softer black. It is a separate
+ * palette rather than a filter, because grayscale() would also flatten the
+ * heading and the focus ring, and a card you cannot read is not a card.
+ *
+ * Hovering one brings the colour back. The work is still there if you want it,
+ * which is the whole point of keeping it published. */
+
+.code-sectionHead {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  margin-top: 50px;
+}
+
+.code-sectionTitle {
+  font-weight: 700;
+  font-size: 1.1em;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  color: black;
+  margin: 0;
+}
+
+/* The rule takes the leftover width, so the count always sits at the far edge
+   however long the title is. */
+.code-sectionRule {
+  flex: 1;
+  height: 2px;
+  background-color: var(--color-blue);
+}
+
+.code-sectionCount {
+  font-family: monospace;
+  font-size: 0.85em;
+  letter-spacing: 2px;
+  color: var(--color-blue);
+}
+
+.code-sectionHead-archived .code-sectionRule {
+  background-color: rgba(0, 0, 0, 0.15);
+}
+
+.code-sectionHead-archived .code-sectionCount {
+  color: rgba(0, 0, 0, 0.4);
+}
+
+.code-sectionHead-archived .code-sectionTitle {
+  color: rgba(0, 0, 0, 0.55);
+}
+
+.code-sectionNote {
+  font-size: 1.1em;
+  font-weight: 300;
+  color: rgba(0, 0, 0, 0.55);
+  margin: 12px 0 0;
+  max-width: 46em;
+}
+
+/* The heading margin already spaces the first row of cards. */
+.code-projects-archived .code-projectHeading {
+  margin-top: 30px;
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.code-project-archived .code-projectParagraph {
+  color: rgba(0, 0, 0, 0.55);
+}
+
+.code-project-archived .code-tag {
+  background-color: rgba(0, 0, 0, 0.35);
+}
+
+/* The one pill that stays legible at rest: it is the label doing the work of
+   the whole section. */
+.code-tag-archived {
+  background-color: transparent !important;
+  color: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  padding: 1px 7px;
+}
+
+.code-project-archived .code-projectButton {
+  background-image: none;
+  background-color: transparent;
+  color: rgba(0, 0, 0, 0.6);
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  transition-property: transform, color, border-color, background-color;
+}
+
+.code-project-archived:hover .code-projectHeading,
+.code-project-archived:focus-within .code-projectHeading {
+  color: black;
+}
+
+.code-project-archived:hover .code-projectParagraph,
+.code-project-archived:focus-within .code-projectParagraph {
+  color: black;
+}
+
+.code-project-archived:hover .code-tag,
+.code-project-archived:focus-within .code-tag {
+  background-color: var(--color-blue);
+}
+
+.code-project-archived:hover .code-projectButton,
+.code-project-archived:focus-within .code-projectButton {
+  background-image: linear-gradient(
+    to right,
+    var(--color-blue) 0,
+    var(--color-purple) 100%
+  );
+  border-color: transparent;
+  color: white;
+}
+
+/* The card already animates in; anything that only fires on hover is decoration
+   and should stop when asked. */
+@media (prefers-reduced-motion: reduce) {
+  .code-project,
+  .code-project-archived .code-projectButton {
+    animation: none;
+    transition: none;
+  }
 }
