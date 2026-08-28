@@ -21,7 +21,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"bythewood.me/orchard/internal/web"
+	"blog.bythewood.me/web"
 )
 
 // Templates are source, so they ship inside the binary. dist/ and pdfs/ are
@@ -70,7 +70,9 @@ func main() {
 	// lives on the site binary rather than in a cmd/ of its own so the post
 	// loader and the Typst walker have exactly one copy.
 	pdfsOut := flag.String("pdfs", "", "compile every post to a PDF in this directory, then exit")
+	ogOut := flag.String("og", "", "compile every social card to a PNG in this directory")
 	typstRoot := flag.String("typst-root", ".", "directory Typst resolves absolute paths against")
+	typstFonts := flag.String("typst-fonts", "", "directory of extra font files for Typst")
 	flag.Parse()
 
 	contentDir := dir("SITE_CONTENT", "content")
@@ -81,9 +83,19 @@ func main() {
 	}
 	log.Printf("loaded %d posts from %s", len(lib.All()), contentDir)
 
-	if *pdfsOut != "" {
-		if err := GeneratePDFs(lib, *typstRoot, *pdfsOut); err != nil {
-			log.Fatalf("generate pdfs: %v", err)
+	// The build-time modes. Both take the same Typst root and font path, and
+	// either one on its own ends the process: this binary is the site server
+	// or it is the asset compiler, never both at once.
+	if *pdfsOut != "" || *ogOut != "" {
+		if *pdfsOut != "" {
+			if err := GeneratePDFs(lib, *typstRoot, *typstFonts, *pdfsOut); err != nil {
+				log.Fatalf("generate pdfs: %v", err)
+			}
+		}
+		if *ogOut != "" {
+			if err := GenerateOGCards(lib, *typstRoot, *typstFonts, *ogOut); err != nil {
+				log.Fatalf("generate og cards: %v", err)
+			}
 		}
 		return
 	}
@@ -116,6 +128,7 @@ func main() {
 		lib:      lib,
 		contentD: contentDir,
 		pdfDir:   dir("SITE_PDFS", "pdfs"),
+		ogDir:    dir("SITE_OG", "og"),
 		script:   assets.Script("index.js"),
 		styles:   assets.Styles("index.js"),
 	}
@@ -157,11 +170,19 @@ func main() {
 	// latestJSON for why it exists and why the shape is hand written.
 	mux.HandleFunc("GET /latest.json", s.latestJSON)
 
-	mux.HandleFunc("GET /og/{name}", s.ogImage)
+	// Cards are compiled at build time, so this serves files. A day of cache
+	// is plenty: a card only changes when its post's title or tags do, and the
+	// scrapers that read it re-fetch on their own schedule anyway.
+	mux.Handle("GET /og/", http.StripPrefix("/og/",
+		cacheControl("public, max-age=86400", http.FileServer(http.Dir(s.ogDir)))))
 	mux.HandleFunc("GET /favicon.ico", favicon)
 	mux.HandleFunc("GET /favicon.svg", favicon)
 	mux.HandleFunc("GET /robots.txt", robots)
 	mux.HandleFunc("GET /sitemap.xml", s.sitemap)
+	mux.HandleFunc("GET "+feedPath, s.feed)
+	// The two paths readers guess at when a site does not advertise one.
+	mux.HandleFunc("GET /feed", redirectFeed)
+	mux.HandleFunc("GET /rss.xml", redirectFeed)
 
 	mux.Handle("GET /static/", web.Static(dist, assets))
 
@@ -187,6 +208,18 @@ func main() {
 		web.Recovered,
 		web.Logged,
 		web.SecurityHeaders(csp()),
+		// Five minutes fresh, then a day of serving stale while revalidating
+		// behind the request, then a week of serving stale if the origin is
+		// down.
+		//
+		// Deliberately no s-maxage, which is the trap here: per RFC 9111 it
+		// carries proxy-revalidate semantics, so Cloudflare treats it as
+		// "never serve stale without asking me first" and it silently
+		// disables stale-while-revalidate and stale-if-error both. Splitting
+		// the browser and edge lifetimes is not worth losing the two
+		// directives that are the whole reason this header exists.
+		web.EdgeCache("public, max-age=300, "+
+			"stale-while-revalidate=86400, stale-if-error=604800"),
 	)
 
 	log.Printf("blog.bythewood.me serving %s (staging=%t)", baseURL, Staging)

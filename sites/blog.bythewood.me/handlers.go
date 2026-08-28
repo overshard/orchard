@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"html/template"
 	"math/rand/v2"
 	"net/http"
 	"net/url"
@@ -10,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"bythewood.me/orchard/internal/web"
+	"blog.bythewood.me/web"
 )
 
 // Crumb is one link in the breadcrumb bar. An empty URL is the current page,
@@ -47,6 +48,10 @@ type PageData struct {
 	ShowSocial bool
 	OGImage    string
 
+	// The page's JSON-LD graph, already marshalled. Set to the site graph for
+	// every page and overridden with the article graph on a post.
+	JSONLD template.JS
+
 	FooterProjects []FooterLink
 	FooterLinks    []FooterLink
 	SourceURL      string
@@ -75,6 +80,7 @@ type site struct {
 	lib      *Library
 	contentD string
 	pdfDir   string
+	ogDir    string
 	script   string
 	styles   []string
 }
@@ -96,7 +102,8 @@ func (s *site) page(r *http.Request, title, description string) PageData {
 		FooterProjects: footerProjects,
 		FooterLinks:    footerLinks,
 		SourceURL:      sourceURL,
-		OGImage:        baseURL + "/og/blog.svg",
+		OGImage:        baseURL + "/og/" + ogSiteCard + ".png",
+		JSONLD:         siteGraph(),
 	}
 }
 
@@ -209,6 +216,7 @@ func (s *site) post(w http.ResponseWriter, r *http.Request) {
 	data := s.page(r, post.Title, post.Description)
 	data.ShowSocial = true
 	data.OGImage = post.OGImage()
+	data.JSONLD = postGraph(post)
 	data.Breadcrumbs = []Crumb{{Title: "Home", URL: "/"}, {Title: "Blog", URL: "/blog/"}, {Title: post.Title}}
 	data.Post = post
 	data.Related = related(post, published, 3)

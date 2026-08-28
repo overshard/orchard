@@ -22,11 +22,22 @@
 
 {{ define "social" }}
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="{{ .SiteName }}">
 <meta property="og:title" content="{{ .Title }}">
 <meta property="og:description" content="{{ .Description }}">
-<meta name="twitter:card" content="summary">
+<meta property="og:url" content="{{ .Canonical }}">
+{{/* A PNG, not SVG: every social platform refuses image/svg+xml here, so a
+     vector card is a card nobody sees. Compiled from typst/card.typ at build
+     time and dropped into dist, which is why it needs no route of its own. */}}
+<meta property="og:image" content="{{ .OGImage }}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+{{/* summary_large_image, not summary: the card is 1200x630, and the small
+     variant crops it to a square thumbnail. */}}
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{{ .Title }}">
 <meta name="twitter:description" content="{{ .Description }}">
+<meta name="twitter:image" content="{{ .OGImage }}">
 {{ end }}
 
 {{/* Self-tracking. CollectorID is empty on staging, which renders nothing at

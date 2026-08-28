@@ -40,7 +40,7 @@ type Post struct {
 func (p *Post) URL() string      { return "/posts/" + p.Slug + "/" }
 func (p *Post) PDFURL() string   { return "/posts/" + p.Slug + "/pdf/" }
 func (p *Post) MDURL() string    { return "/posts/" + p.Slug + "/md/" }
-func (p *Post) OGImage() string  { return baseURL + "/og/" + p.Slug + ".svg" }
+func (p *Post) OGImage() string  { return baseURL + "/og/" + p.Slug + ".png" }
 func (p *Post) CoverURL() string { return "/content/images/" + p.CoverImage }
 
 // TagLinks pairs each tag with its filter URL, so the template does not have

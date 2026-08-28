@@ -41,6 +41,10 @@ type PageData struct {
 	SiteName      string
 	AuthorName    string
 
+	// The social card, and the page's JSON-LD graph already marshalled.
+	OGImage string
+	JSONLD  template.JS
+
 	Script string
 	Styles []string
 	// PageScript and PageStyles are the per-page Vite entry, empty on pages

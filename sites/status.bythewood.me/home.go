@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"time"
@@ -31,10 +32,14 @@ type PageData struct {
 	SourceURL     string
 	SiteName      string
 	AuthorName    string
-	Script        string
-	Styles        []string
-	PageScript    string
-	PageStyles    []string
+
+	// The social card, and the page's JSON-LD graph already marshalled.
+	OGImage    string
+	JSONLD     template.JS
+	Script     string
+	Styles     []string
+	PageScript string
+	PageStyles []string
 
 	// Login
 	Next  string
@@ -64,7 +69,13 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data := s.page(r, "Home", "Self-hosted uptime monitoring with status pages.")
+	// "Home" carried no information: the title element is the strongest
+	// on-page signal a search engine has, and "Home · Status" spent all of it
+	// on two words that describe every website ever made. This says what the
+	// h1 already says.
+	data := s.page(r, "Self-hosted uptime monitoring",
+		"Self-hosted uptime monitoring with public status pages, response time history, "+
+			"Lighthouse audits and crawl findings.")
 
 	var firstCheck sql.NullInt64
 	err := s.db.QueryRowContext(r.Context(),

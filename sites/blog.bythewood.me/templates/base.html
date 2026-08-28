@@ -17,6 +17,10 @@
 
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 
+  <!-- Advertised so a reader can find the feed from any page, which is the
+       only way autodiscovery works. -->
+  <link rel="alternate" type="application/atom+xml" title="Isaac Bythewood's Blog" href="/feed.xml">
+
   {{- if .ShowSocial }}
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Isaac Bythewood's Blog">
@@ -31,6 +35,10 @@
   <meta name="twitter:title" content="{{ .Title }}">
   <meta name="twitter:description" content="{{ .Description }}">
   <meta name="twitter:image" content="{{ .OGImage }}">
+  {{- end }}
+
+  {{- if .JSONLD }}
+  <script type="application/ld+json">{{ .JSONLD }}</script>
   {{- end }}
 
   {{- range .Styles }}

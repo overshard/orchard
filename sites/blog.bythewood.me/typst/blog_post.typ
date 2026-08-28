@@ -29,7 +29,7 @@
   )
 
   set text(
-    font: ("Inter", "DejaVu Sans", "Liberation Sans", "Arial"),
+    font: ("Geist", "DejaVu Sans", "Liberation Sans", "Arial"),
     size: 10pt,
     fill: rgb("#1a1a1a"),
   )

@@ -6,91 +6,17 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"text/template"
 )
 
-// The machine-readable half of the site: the OG card, robots.txt and the
-// sitemap.
+// The machine-readable half of the site: robots.txt, the sitemap and the feed.
 //
 // None of these are HTML, so none of them go through html/template. Its
-// contextual escaping is built for HTML and applying it to SVG or XML is
-// guessing; encoding/xml and an explicit escape are exact.
-
-// ogTemplate is text/template because the output is SVG. Values reach it
-// pre-escaped through xmlEscape.
-var ogTemplate = template.Must(template.New("og").Parse(
-	`<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
-  <defs>
-    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#0e3ff4"/>
-      <stop offset="100%" style="stop-color:#842bff"/>
-    </linearGradient>
-  </defs>
-  <rect width="1200" height="630" fill="#0d1117"/>
-  <rect x="80" y="80" width="5" height="160" fill="url(#accent)"/>
-{{- range .Lines }}
-  <text x="110" y="{{ .Y }}" font-family="sans-serif" font-size="54" font-weight="bold" fill="#f0f6fc" letter-spacing="-0.01em">{{ .Text }}</text>
-{{- end }}
-  <line x1="80" y1="490" x2="1120" y2="490" stroke="#30363d" stroke-width="1"/>
-  <text x="80" y="548" font-family="sans-serif" font-size="28" fill="#c9d1d9">Isaac Bythewood</text>
-{{- range .Tags }}
-  <rect x="{{ .X }}" y="520" width="128" height="38" rx="19" fill="#21262d"/>
-  <text x="{{ .LabelX }}" y="545" text-anchor="middle" font-family="sans-serif" font-size="18" fill="#c9d1d9">{{ .Text }}</text>
-{{- end }}
-</svg>
-`))
-
-type ogLine struct {
-	Text string
-	Y    int
-}
-
-type ogTag struct {
-	Text   string
-	X      int
-	LabelX int
-}
-
-// ogImage renders a per-post social card. A slug with no post behind it, which
-// is every non-post page, gets the site's own title rather than a 404: the URL
-// is in a meta tag, and a broken image there is worse than a generic one.
-func (s *site) ogImage(w http.ResponseWriter, r *http.Request) {
-	slug := strings.TrimSuffix(r.PathValue("name"), ".svg")
-
-	title, tags := siteName, []string(nil)
-	if post, ok := s.lib.Lookup(slug); ok {
-		title, tags = post.Title, post.Tags
-	}
-
-	data := struct {
-		Lines []ogLine
-		Tags  []ogTag
-	}{}
-
-	for i, line := range wrapTitle(title, 35, 3) {
-		data.Lines = append(data.Lines, ogLine{Text: xmlEscape(line), Y: 150 + i*64})
-	}
-
-	// Right aligned, so the x of each pill depends on how many there are.
-	shown := tags
-	if len(shown) > 4 {
-		shown = shown[:4]
-	}
-	for i, tag := range shown {
-		x := 1120 - (len(shown)-i)*140
-		data.Tags = append(data.Tags, ogTag{Text: xmlEscape(tag), X: x, LabelX: x + 64})
-	}
-
-	var buf bytes.Buffer
-	if err := ogTemplate.Execute(&buf, data); err != nil {
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "image/svg+xml")
-	w.Header().Set("Cache-Control", "public, max-age=3600")
-	_, _ = buf.WriteTo(w)
-}
+// contextual escaping is built for HTML and applying it to XML is guessing;
+// encoding/xml and an explicit escape are exact.
+//
+// The social card used to live here too, as SVG rendered per request. It is a
+// PNG compiled at build time now (og.go), because no social platform accepts
+// image/svg+xml for og:image.
 
 // wrapTitle greedily breaks a title into at most maxLines lines of about
 // maxChars, which is as much typography as a 1200x630 card needs.

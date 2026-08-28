@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"bythewood.me/orchard/internal/web"
+	"isaacbythewood.com/web"
 )
 
 // PageData is everything base.html and one page template need. One struct for
@@ -18,6 +18,10 @@ type PageData struct {
 	Description string
 	Canonical   string
 	ThemeColor  string
+
+	// The social card, and the page's JSON-LD graph already marshalled.
+	OGImage     string
+	JSONLD      template.JS
 	Page        string
 	Num         string
 	Staging     bool
@@ -111,8 +115,16 @@ func (s *site) page(name, title, description string) PageData {
 	}
 
 	canonical := baseURL
+	// Every page below the root is exactly one level deep, so the breadcrumb
+	// trail is Home then this page, and the home page has none at all.
+	var crumbs []NavPage
 	if href != "/" {
 		canonical = baseURL + href
+		for _, p := range navPages {
+			if p.Href == href {
+				crumbs = append(crumbs, p)
+			}
+		}
 	}
 
 	return PageData{
@@ -142,6 +154,8 @@ func (s *site) page(name, title, description string) PageData {
 		AvatarSrc:  avatarURL(),
 		MenuSrc:    pourURL("006", images.CardWidths[len(images.CardWidths)-1]),
 		MenuSrcset: pourSrcset("006", images.CardWidths[len(images.CardWidths)-1], images.LightboxWidth),
+		OGImage:    baseURL + "/static/og/card.png",
+		JSONLD:     pageGraph(fullTitle, description, canonical, crumbs),
 	}
 }
 

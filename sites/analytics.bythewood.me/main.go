@@ -29,7 +29,7 @@ import (
 	"strings"
 	"time"
 
-	"bythewood.me/orchard/internal/web"
+	"analytics.bythewood.me/web"
 	"github.com/google/uuid"
 )
 
@@ -316,6 +316,8 @@ func (s *site) page(r *http.Request, title, description string) PageData {
 		SourceURL:     sourceURL,
 		SiteName:      siteName,
 		AuthorName:    authorName,
+		OGImage:       baseURL + "/static/og/card.png",
+		JSONLD:        pageGraph(title, description, baseURL+r.URL.Path),
 		Script:        s.baseScript,
 		Styles:        s.baseStyles,
 

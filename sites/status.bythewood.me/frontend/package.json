@@ -10,6 +10,7 @@
     "@popperjs/core": "^2.11.5",
     "bootstrap": "^5.3.3",
     "chart.js": "^4.5.1",
+    "geist": "^1.7.2",
     "js-cookie": "^3.0.1"
   },
   "devDependencies": {

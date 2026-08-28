@@ -64,9 +64,26 @@
     <link rel="manifest" href="/manifest.json" />
 
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Isaac Bythewood" />
     <meta property="og:title" content="{{ .Title }}" />
     <meta property="og:description" content="{{ .Description }}" />
     <meta property="og:url" content="{{ .Canonical }}" />
+    <!-- A PNG, not the SVG favicon: every social platform refuses
+         image/svg+xml here, so a vector card is a card nobody sees. Compiled
+         from og/card.typ at build time, like the resume. -->
+    <meta property="og:image" content="{{ .OGImage }}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Isaac Bythewood, Senior Solutions Architect" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="{{ .Title }}" />
+    <meta name="twitter:description" content="{{ .Description }}" />
+    <meta name="twitter:image" content="{{ .OGImage }}" />
+
+    {{- if .JSONLD }}
+    <script type="application/ld+json">{{ .JSONLD }}</script>
+    {{- end }}
 
     {{- range .Styles }}
     <link rel="stylesheet" href="{{ . }}" />

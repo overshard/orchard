@@ -32,7 +32,7 @@ import (
 // GeneratePDFs compiles one PDF per post into outDir. root is the directory
 // Typst resolves absolute paths against, so /templates/blog_post.typ and
 // /content/images/* both land.
-func GeneratePDFs(lib *Library, root, outDir string) error {
+func GeneratePDFs(lib *Library, root, fontPath, outDir string) error {
 	if _, err := exec.LookPath("typst"); err != nil {
 		return fmt.Errorf("typst not on PATH: %w", err)
 	}
@@ -61,7 +61,7 @@ func GeneratePDFs(lib *Library, root, outDir string) error {
 			defer wg.Done()
 			for post := range queue {
 				out := filepath.Join(outDir, post.Slug+".pdf")
-				if err := compilePDF(typstSource(post), root, out); err != nil {
+				if err := compilePDF(typstSource(post), root, fontPath, out); err != nil {
 					mu.Lock()
 					errs = append(errs, fmt.Sprintf("%s: %v", post.Slug, err))
 					mu.Unlock()
@@ -88,8 +88,13 @@ func GeneratePDFs(lib *Library, root, outDir string) error {
 // Source arrives on stdin rather than through a temporary file: there is
 // nothing to clean up on failure, and nothing to collide when the workers run
 // side by side.
-func compilePDF(source, root, out string) error {
-	cmd := exec.Command("typst", "compile", "--root", root, "-", out)
+func compilePDF(source, root, fontPath, out string) error {
+	args := []string{"compile", "--root", root}
+	if fontPath != "" {
+		args = append(args, "--font-path", fontPath)
+	}
+	args = append(args, "-", out)
+	cmd := exec.Command("typst", args...)
 	cmd.Stdin = strings.NewReader(source)
 
 	// Typst reports compile errors on stderr and exits non-zero. Carrying the

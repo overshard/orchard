@@ -38,8 +38,8 @@ import (
 	"syscall"
 	"time"
 
-	"bythewood.me/orchard/internal/web"
 	"github.com/google/uuid"
+	"status.bythewood.me/web"
 )
 
 // Templates are source, so they ship inside the binary. dist/ is not: it is a
@@ -301,6 +301,8 @@ func (s *site) page(r *http.Request, title, description string) PageData {
 		Year:          time.Now().Year(),
 		BaseURL:       baseURL,
 		SourceURL:     sourceURL,
+		OGImage:       baseURL + "/static/og/card.png",
+		JSONLD:        pageGraph(title, description, baseURL+r.URL.Path),
 		SiteName:      siteName,
 		AuthorName:    authorName,
 		Script:        s.baseScript,

@@ -15,6 +15,7 @@
     "d3-scale": "^4.0.2",
     "d3-selection": "^3.0.0",
     "d3-zoom": "^3.0.0",
+    "geist": "^1.7.2",
     "js-cookie": "^3.0.1",
     "topojson-client": "^3.1.0"
   },

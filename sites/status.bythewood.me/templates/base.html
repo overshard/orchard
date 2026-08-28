@@ -14,6 +14,26 @@
   {{ if .Staging }}<meta name="robots" content="noindex, nofollow">{{ end }}
   <link rel="icon" type="image/svg+xml" href="/favicon.ico">
 
+  {{/* This site shipped with no social meta at all, so every link to it
+       anywhere rendered as a bare URL. The card is a PNG compiled from
+       typst/card.typ at build time and dropped into dist: SVG is refused for
+       og:image by Facebook, X, LinkedIn, Slack, iMessage and Discord alike. */}}
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="{{ .SiteName }}">
+  <meta property="og:title" content="{{ .Title }}">
+  <meta property="og:description" content="{{ .Description }}">
+  <meta property="og:url" content="{{ .Canonical }}">
+  <meta property="og:image" content="{{ .OGImage }}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ .Title }}">
+  <meta name="twitter:description" content="{{ .Description }}">
+  <meta name="twitter:image" content="{{ .OGImage }}">
+
+  {{ if .JSONLD }}<script type="application/ld+json">{{ .JSONLD }}</script>{{ end }}
+
   {{/* The Rust base template emitted <base href="{{ BASE_URL }}"> here. It is
        gone: BASE_URL was read from an environment variable that defaulted to
        empty, and every URL this site emits is now either absolute or

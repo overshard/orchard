@@ -14,6 +14,8 @@
   {{ if .Staging }}<meta name="robots" content="noindex, nofollow">{{ end }}
   <link rel="icon" type="image/svg+xml" href="/favicon.ico">
 
+  {{ if .JSONLD }}<script type="application/ld+json">{{ .JSONLD }}</script>{{ end }}
+
   {{ template "extra_head" . }}
 
   {{ range .Styles }}<link href="{{ . }}" rel="stylesheet">{{ end }}

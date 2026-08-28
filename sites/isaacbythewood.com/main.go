@@ -20,7 +20,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"bythewood.me/orchard/internal/web"
+	"isaacbythewood.com/web"
 )
 
 // Templates are source, so they ship inside the binary. The Vite build output
@@ -147,6 +147,18 @@ func main() {
 		web.Recovered,
 		web.Logged,
 		web.SecurityHeaders(csp()),
+		// Five minutes fresh, then a day of serving stale while revalidating
+		// behind the request, then a week of serving stale if the origin is
+		// down.
+		//
+		// Deliberately no s-maxage, which is the trap here: per RFC 9111 it
+		// carries proxy-revalidate semantics, so Cloudflare treats it as
+		// "never serve stale without asking me first" and it silently
+		// disables stale-while-revalidate and stale-if-error both. Splitting
+		// the browser and edge lifetimes is not worth losing the two
+		// directives that are the whole reason this header exists.
+		web.EdgeCache("public, max-age=300, "+
+			"stale-while-revalidate=86400, stale-if-error=604800"),
 	)
 
 	log.Printf("isaacbythewood.com serving %s (staging=%t)", baseURL, Staging)
