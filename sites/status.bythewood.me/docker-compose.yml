@@ -6,9 +6,10 @@ name: status
 services:
   app:
     build:
-      # Repo root, so the Go module and internal/web are in scope.
-      context: ../..
-      dockerfile: sites/status.bythewood.me/Dockerfile
+      # This directory and nothing above it. The site is its own Go module
+      # with its own copy of web/, so there is no parent to reach for.
+      context: .
+      dockerfile: Dockerfile
     container_name: status-next
     restart: unless-stopped
     # Chromium spawns and reaps a tree of processes for every audit. Without an

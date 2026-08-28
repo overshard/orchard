@@ -1,6 +1,10 @@
-.PHONY: run build frontend serve images resume clean
+.PHONY: run build frontend serve images resume og clean
 
-RESUME_DIR = ../../resume
+# Geist ships .ttf inside the bun package, the only form Typst reads;
+# `make frontend` is what puts it on disk.
+GEIST = frontend/node_modules/geist/dist/fonts/geist-sans
+
+RESUME_DIR = resume
 RESUME_OUT = frontend/public/pdfs/resume-isaac-bythewood.pdf
 
 # Vite watches and rebuilds dist/ while Go serves it from disk. Templates are
@@ -27,7 +31,13 @@ resume:
 	  echo "typst not installed, skipping the resume PDF"; \
 	fi
 
-build: resume frontend
+# The social card, compiled into publicDir so Vite copies it into dist beside
+# the favicons and the resume. Its own target for when only the card changed.
+og:
+	mkdir -p frontend/public/og
+	typst compile --format png --ppi 72 --font-path $(GEIST) typst/card.typ frontend/public/og/card.png
+
+build: resume og frontend
 	go build -trimpath -ldflags="-s -w" -o ../../bin/isaacbythewood.com .
 
 serve:

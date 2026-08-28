@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"bythewood.me/orchard/internal/web"
 	"github.com/google/uuid"
+	"status.bythewood.me/web"
 )
 
 // The tests worth having for a port.

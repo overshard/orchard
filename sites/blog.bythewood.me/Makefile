@@ -1,4 +1,8 @@
-.PHONY: run build frontend pdfs serve clean
+.PHONY: run build frontend pdfs og serve clean
+
+# Geist ships as .ttf inside the bun package, which is the only form Typst can
+# read; `make frontend` is what puts it there.
+GEIST = frontend/node_modules/geist/dist/fonts/geist-sans
 
 # Vite watches and rebuilds dist/ while Go serves it from disk. Templates are
 # embedded, so a template change needs a Go restart; CSS and JS changes only
@@ -30,13 +34,18 @@ frontend:
 # local checkout without it just serves 404 on the PDF route, which is the
 # right thing for a dev server.
 pdfs:
-	go run . -pdfs ./pdfs -typst-root .
+	go run . -pdfs ./pdfs -typst-root . -typst-fonts $(GEIST)
 
-build: frontend pdfs
+# The social cards, one PNG per post plus the site card. Same compiler, same
+# font and the same build time reasoning as the PDFs.
+og:
+	go run . -og ./og -typst-root . -typst-fonts $(GEIST)
+
+build: frontend pdfs og
 	go build -trimpath -ldflags="-s -w" -o ../../bin/blog.bythewood.me .
 
 serve:
 	go run .
 
 clean:
-	rm -rf dist pdfs frontend/node_modules
+	rm -rf dist pdfs og frontend/node_modules

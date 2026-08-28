@@ -28,21 +28,40 @@ RUN apk add --no-cache ttf-liberation fontconfig && fc-cache -f
 COPY resume/ /resume/
 RUN typst compile --root /resume /resume/resume.typ /resume-isaac-bythewood.pdf
 
-# --- frontend -----------------------------------------------------------
-FROM oven/bun:1-alpine AS frontend
+# --- frontend dependencies ----------------------------------------------
+# Its own stage because two later stages need node_modules: the frontend build
+# and the social card, which reads Geist out of it. Without the split the card
+# would have to wait on the whole Vite build, and the frontend build has to
+# wait on the card, which is a cycle.
+FROM oven/bun:1-alpine AS deps
 WORKDIR /src
-COPY sites/isaacbythewood.com/frontend/package.json sites/isaacbythewood.com/frontend/bun.lock ./
+COPY frontend/package.json frontend/bun.lock ./
 RUN bun install --frozen-lockfile
+
+# --- social card --------------------------------------------------------
+# A build artifact like the resume, and a PNG for the same reason the blog's
+# cards are: no social platform accepts image/svg+xml for og:image.
+#
+# Geist comes out of the bun install rather than a second download. @fontsource
+# ships woff2 only and Typst reads TrueType, so the package that works is
+# Vercel's own, which carries the .ttf files.
+FROM typst AS card
+COPY --from=deps /src/node_modules/geist/dist/fonts/geist-sans /fonts/geist-sans
+COPY typst/card.typ /card.typ
+RUN typst compile --format png --ppi 72 --font-path /fonts/geist-sans /card.typ /card.png
+
+# --- frontend -----------------------------------------------------------
+FROM deps AS frontend
 
 # Images are generated in their own layer, before the rest of the frontend is
 # copied in, so editing CSS or JS does not re-encode 22 variants on every
 # deploy. They only regenerate when a source image actually changes.
-COPY sites/isaacbythewood.com/frontend/scripts/ ./scripts/
-COPY sites/isaacbythewood.com/images.json ../images.json
-COPY sites/isaacbythewood.com/frontend/images/ ./images/
+COPY frontend/scripts/ ./scripts/
+COPY images.json ../images.json
+COPY frontend/images/ ./images/
 RUN bun run images
 
-COPY sites/isaacbythewood.com/frontend/ ./
+COPY frontend/ ./
 # After the frontend copy, not before: publicDir is part of that copy, so
 # landing the PDF first would only get it overwritten. `**/pdfs` in
 # .dockerignore keeps the host's stale copy out of the context, which is what
@@ -51,20 +70,26 @@ COPY sites/isaacbythewood.com/frontend/ ./
 # About page's resume link answered 404 on the deployed site while working
 # locally.
 COPY --from=resume /resume-isaac-bythewood.pdf ./public/pdfs/resume-isaac-bythewood.pdf
+# Same reasoning as the resume above, and `**/og` in .dockerignore is what
+# keeps a stale host copy from winning.
+COPY --from=card /card.png ./public/og/card.png
 RUN bun run vite
 
 # --- binary -------------------------------------------------------------
 FROM golang:1.27-alpine AS build
 WORKDIR /src
-COPY go.mod ./
-COPY internal/ ./internal/
-COPY sites/isaacbythewood.com/*.go ./sites/isaacbythewood.com/
+# The bracket glob makes go.sum optional. A module with no third party
+# dependency has none for `go mod tidy` to write, and a plain `COPY go.sum`
+# fails the build outright when the file is absent.
+COPY go.mod go.su[m] ./
+COPY web/ ./web/
+COPY *.go ./
 # Embedded by images.go, and shared with the frontend image generator.
-COPY sites/isaacbythewood.com/images.json ./sites/isaacbythewood.com/
-COPY sites/isaacbythewood.com/templates/ ./sites/isaacbythewood.com/templates/
+COPY images.json ./
+COPY templates/ ./templates/
 # Static, stripped, reproducible. CGO off is what makes FROM scratch possible.
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" \
-    -o /app ./sites/isaacbythewood.com
+    -o /app .
 
 # --- image --------------------------------------------------------------
 FROM scratch

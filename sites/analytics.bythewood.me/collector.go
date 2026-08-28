@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"bythewood.me/orchard/internal/web"
+	"analytics.bythewood.me/web"
 	"github.com/google/uuid"
 )
 

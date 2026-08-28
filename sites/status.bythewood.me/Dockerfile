@@ -28,9 +28,9 @@ RUN apk add --no-cache curl tar xz && \
 # --- frontend -----------------------------------------------------------
 FROM oven/bun:1-alpine AS frontend
 WORKDIR /src
-COPY sites/status.bythewood.me/frontend/package.json sites/status.bythewood.me/frontend/bun.lock ./
+COPY frontend/package.json frontend/bun.lock ./
 RUN bun install --frozen-lockfile
-COPY sites/status.bythewood.me/frontend/ ./
+COPY frontend/ ./
 RUN bun run build
 
 # --- lighthouse ---------------------------------------------------------
@@ -40,23 +40,39 @@ RUN bun run build
 # minutes to each deploy.
 FROM oven/bun:1-alpine AS lighthouse
 WORKDIR /src
-COPY sites/status.bythewood.me/package.json sites/status.bythewood.me/bun.lock ./
+COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 
 # --- binary -------------------------------------------------------------
 FROM golang:1.27-alpine AS build
 WORKDIR /src
 
-COPY go.mod go.sum ./
-COPY internal/ ./internal/
-COPY sites/status.bythewood.me/*.go ./sites/status.bythewood.me/
-COPY sites/status.bythewood.me/templates/ ./sites/status.bythewood.me/templates/
-COPY sites/status.bythewood.me/reports/ ./sites/status.bythewood.me/reports/
+# The bracket glob makes go.sum optional. A module with no third party
+# dependency has none for `go mod tidy` to write, and a plain `COPY go.sum`
+# fails the build outright when the file is absent.
+COPY go.mod go.su[m] ./
+COPY web/ ./web/
+COPY *.go ./
+COPY templates/ ./templates/
+COPY reports/ ./reports/
 # CGO off is what makes modernc.org/sqlite worth having: it is SQLite
 # transpiled to Go rather than bound to it, so the binary is static and needs
 # no libc at runtime.
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" \
-    -o /app ./sites/status.bythewood.me
+    -o /app .
+
+# --- social card --------------------------------------------------------
+# A build artifact: the card cannot change while the process runs, so there is
+# no reason to render it per request. PNG rather than SVG because no social
+# platform accepts image/svg+xml for og:image.
+#
+# Geist comes out of the frontend stage's bun install rather than a second
+# download. @fontsource ships woff2 only and Typst reads TrueType, so the
+# package that works is Vercel's own, which carries the .ttf files.
+FROM typst AS card
+COPY --from=frontend /src/node_modules/geist/dist/fonts/geist-sans /fonts/geist-sans
+COPY typst/card.typ /card.typ
+RUN typst compile --format png --ppi 72 --font-path /fonts/geist-sans /card.typ /card.png
 
 # --- image --------------------------------------------------------------
 FROM alpine:3.23
@@ -80,13 +96,16 @@ COPY --from=oven/bun:1-alpine /usr/local/bin/bun /usr/local/bin/bun
 COPY --from=typst /usr/local/bin/typst /usr/local/bin/typst
 COPY --from=build /app /app
 COPY --from=frontend /dist /dist
+# Served at /static/og/card.png by the same handler that serves the bundle,
+# so the card needs no route of its own.
+COPY --from=card /card.png /dist/og/card.png
 
 # SITE_ROOT is where lighthouse.go looks for node_modules/.bin/lighthouse and
 # where typst resolves absolute paths against, so it doubles as the fence on
 # what a compile is allowed to read.
 WORKDIR /srv
 COPY --from=lighthouse /src/node_modules /srv/node_modules
-COPY sites/status.bythewood.me/reports/ /srv/reports/
+COPY reports/ /srv/reports/
 
 ENV SITE_DIST=/dist
 ENV SITE_DATA=/data

@@ -1,4 +1,5 @@
-# Docker reads this, not .gitignore. Without it the frontend stage copies
+# Docker reads this, not .gitignore. One per site, because each site's build
+# context is its own directory now rather than the repo root. Without it the frontend stage copies
 # node_modules from the host into the build, which is slow and pointless since
 # the image installs its own from the lockfile.
 **/node_modules
@@ -7,6 +8,7 @@
 # Compiled inside the build stage; shipping the host's copy in would only
 # slow the context transfer.
 **/pdfs
+**/og
 # Runtime state. The GeoIP mmdb alone is 131MB, and sending it in the build
 # context would dominate every single build.
 **/data
