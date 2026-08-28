@@ -38,10 +38,10 @@
 	}
 }
 
-# The production hostnames, listed alongside their staging twins rather than
-# replacing them. Both answer throughout the cutover, so DNS is the only thing
-# that decides which one the public reaches, and rolling back is a DNS change
-# rather than a redeploy.
+# The sites. These were added alongside the next-* staging hostnames during the
+# 2026-08-27 cutover so both answered and DNS alone decided which the public
+# reached; the staging records were deleted once the flip was verified, so those
+# blocks are gone with them.
 http://isaacbythewood.com {
 	import site
 	reverse_proxy isaacbythewood-next:8000
@@ -52,6 +52,9 @@ http://blog.bythewood.me {
 	reverse_proxy blog-next:8000
 }
 
+# The collector endpoint is cross-origin by design and is written to by every
+# tracked site, so it is the one route in this repo an anonymous stranger can
+# POST to. The app caps the body at 16KB itself; this is the second fence.
 http://analytics.bythewood.me {
 	import site
 
@@ -85,34 +88,6 @@ http://www.isaacbythewood.com {
 http://bythewood.me, http://www.bythewood.me {
 	import site
 	redir https://isaacbythewood.com{uri} permanent
-}
-
-http://next.isaacbythewood.com {
-	import site
-	reverse_proxy isaacbythewood-next:8000
-}
-
-http://next-blog.bythewood.me {
-	import site
-	reverse_proxy blog-next:8000
-}
-
-# The collector endpoint is cross-origin by design and is written to by every
-# tracked site, so it is the one route in this repo an anonymous stranger can
-# POST to. The app caps the body at 16KB itself; this is the second fence.
-http://next-analytics.bythewood.me {
-	import site
-
-	request_body {
-		max_size 16KB
-	}
-
-	reverse_proxy analytics-next:8000
-}
-
-http://next-status.bythewood.me {
-	import site
-	reverse_proxy status-next:8000
 }
 
 # Anything arriving without a matching Host did not come through an ingress
