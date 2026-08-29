@@ -177,9 +177,14 @@ func (c *CommitCache) fetch(ctx context.Context, slug string) (Commit, error) {
 		sha = sha[:7]
 	}
 
+	// Subject line only. The card is a few lines of JSON in a <pre>, so a
+	// commit with a body would render its whole body as one escaped string
+	// and blow the card out of shape, same reason the SHA is cut to 7.
+	message, _, _ := strings.Cut(head.Commit.Message, "\n")
+
 	return Commit{
 		SHA:     sha,
-		Message: head.Commit.Message,
+		Message: strings.TrimSpace(message),
 		Date:    head.Commit.Author.Date,
 		Author:  head.Commit.Author.Name,
 	}, nil
