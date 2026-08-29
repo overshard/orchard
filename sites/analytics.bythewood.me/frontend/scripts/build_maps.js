@@ -3,8 +3,8 @@
 // Downloads admin-0 (countries) and admin-1 (states / provinces) GeoJSON,
 // converts to TopoJSON with quantization, and writes:
 //
-//   analytics/static_maps/world.json            - all countries, keyed by ISO_A2
-//   analytics/static_maps/admin1/{ISO_A2}.json  - one file per country
+//   analytics/build/static_maps/world.json            - all countries, keyed by ISO_A2
+//   analytics/build/static_maps/admin1/{ISO_A2}.json  - one file per country
 //
 // Source: martynafford/natural-earth-geojson (mirrors Natural Earth public-
 // domain data as GeoJSON). Run at Docker build time so the produced files
@@ -18,7 +18,7 @@ import { fileURLToPath } from "node:url";
 import { topology } from "topojson-server";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const OUT_DIR = resolve(__dirname, "../../static_maps");
+const OUT_DIR = resolve(__dirname, "../../build/static_maps");
 
 // 110m for the always-on world view (small, ~30 KB topojson). 10m for
 // admin-1 because the 50m and 110m bundles only ship four big countries —

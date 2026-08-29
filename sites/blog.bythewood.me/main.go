@@ -19,19 +19,27 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"blog.bythewood.me/web"
 )
 
-// Templates are source, so they ship inside the binary. dist/ and pdfs/ are
-// not: they are build artifacts Docker copies alongside it, which keeps
-// `go build ./...` working on a fresh clone before anyone has run Vite.
+// Templates are source, so they ship inside the binary.
 //
 //go:embed templates
 var templateFS embed.FS
+
+// So are the posts. They are this site's data, they are committed, and they
+// are already parsed once at startup and never re-read, so embedding them
+// costs nothing a dev notices and is what lets the release binary be the whole
+// blog rather than a binary plus a directory of Markdown.
+//
+// `all:` keeps content/images intact: it holds files embed would otherwise
+// skip for starting with a dot.
+//
+//go:embed all:content
+var contentFS embed.FS
 
 const listenAddr = ":8000"
 
@@ -91,14 +99,18 @@ func main() {
 		return
 	}
 
-	contentDir := dir("SITE_CONTENT", "content")
+	content, err := fs.Sub(contentFS, "content")
+	if err != nil {
+		slog.Error("startup failed", slog.Any("err", err))
+		os.Exit(1)
+	}
 
-	lib, err := LoadLibrary(contentDir)
+	lib, err := LoadLibrary(content)
 	if err != nil {
 		slog.Error(fmt.Sprintf("load posts: %v", err))
 		os.Exit(1)
 	}
-	slog.Info(fmt.Sprintf("loaded %d posts from %s", len(lib.All()), contentDir))
+	slog.Info(fmt.Sprintf("loaded %d posts", len(lib.All())))
 
 	// The build-time modes. Both take the same Typst root and font path, and
 	// either one on its own ends the process: this binary is the site server
@@ -119,8 +131,7 @@ func main() {
 		return
 	}
 
-	distDir := dir("SITE_DIST", "dist")
-	dist := os.DirFS(distDir)
+	dist := distFS()
 
 	assets, err := web.LoadAssets(dist)
 	if err != nil {
@@ -148,9 +159,9 @@ func main() {
 	s := &site{
 		renderer: renderer,
 		lib:      lib,
-		contentD: contentDir,
-		pdfDir:   dir("SITE_PDFS", "pdfs"),
-		ogDir:    dir("SITE_OG", "og"),
+		content:  content,
+		pdfs:     pdfsFS(),
+		og:       ogFS(),
 		script:   assets.Script("index.js"),
 		styles:   assets.Styles("index.js"),
 	}
@@ -196,7 +207,7 @@ func main() {
 	// is plenty: a card only changes when its post's title or tags do, and the
 	// scrapers that read it re-fetch on their own schedule anyway.
 	mux.Handle("GET /og/", http.StripPrefix("/og/",
-		cacheControl("public, max-age=86400", http.FileServer(http.Dir(s.ogDir)))))
+		cacheControl("public, max-age=86400", http.FileServer(http.FS(s.og)))))
 	mux.HandleFunc("GET /favicon.ico", favicon)
 	mux.HandleFunc("GET /favicon.svg", favicon)
 	mux.HandleFunc("GET /robots.txt", robots)
@@ -211,9 +222,14 @@ func main() {
 	// Post images keep their real filenames, so they get an hour rather than
 	// the immutable year the hashed bundles get. Replacing an image has to be
 	// visible before 2027.
+	contentImages, err := fs.Sub(content, "images")
+	if err != nil {
+		slog.Error("startup failed", slog.Any("err", err))
+		os.Exit(1)
+	}
 	images := http.StripPrefix("/content/images/",
 		cacheControl("public, max-age=86400",
-			http.FileServer(http.Dir(filepath.Join(contentDir, "images")))))
+			http.FileServer(http.FS(contentImages))))
 	mux.Handle("GET /content/images/", images)
 
 	// Not logged and not behind the security headers: it exists for the

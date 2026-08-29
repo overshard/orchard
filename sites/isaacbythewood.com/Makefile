@@ -7,9 +7,10 @@ GEIST = frontend/node_modules/geist/dist/fonts/geist-sans
 RESUME_DIR = resume
 RESUME_OUT = frontend/public/pdfs/resume-isaac-bythewood.pdf
 
-# Vite watches and rebuilds dist/ while Go serves it from disk. Templates are
-# embedded, so a template change needs a Go restart; CSS and JS changes only
-# need a browser reload.
+# Vite watches and rebuilds build/dist while Go serves it from disk. Templates
+# are embedded, so a template change needs a Go restart; CSS and JS changes only
+# need a browser reload. A dev build never embeds the bundle, which is the
+# whole reason that reload works.
 run:
 	cd frontend && bun run dev & \
 	sleep 2 && go run .
@@ -37,8 +38,13 @@ og:
 	mkdir -p frontend/public/og
 	typst compile --format png --ppi 72 --font-path $(GEIST) typst/card.typ frontend/public/og/card.png
 
+# The release binary. -tags embed swaps assets_disk.go for assets_embed.go, so
+# the Vite bundle is compiled into the executable and ../../bin/<site> is the
+# whole deployable: one file, nothing beside it, no SITE_DIST to set. It
+# depends on `frontend` because the embed directive reads build/dist at compile
+# time, so the order is not a convenience here, it is a requirement.
 build: resume og frontend
-	go build -trimpath -ldflags="-s -w" -o ../../bin/isaacbythewood.com .
+	go build -tags embed -trimpath -ldflags="-s -w" -o ../../bin/isaacbythewood.com .
 
 serve:
 	go run .
@@ -49,5 +55,8 @@ serve:
 images:
 	cd frontend && bun run images
 
+# build/ is everything this site generates; frontend/public/og and
+# frontend/public/pdfs are the exception, and stay where they are because Vite
+# copies publicDir into the bundle and will only look inside frontend/.
 clean:
-	rm -rf dist frontend/node_modules
+	rm -rf build frontend/node_modules frontend/public/og frontend/public/pdfs

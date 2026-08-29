@@ -2,8 +2,8 @@ package main
 
 import (
 	"html/template"
-	"os"
-	"path/filepath"
+	"io/fs"
+	"path"
 	"sort"
 	"strings"
 	"sync"
@@ -82,20 +82,23 @@ type Library struct {
 	years     []string
 }
 
-// LoadLibrary reads every .md file under <contentDir>/posts.
-func LoadLibrary(contentDir string) (*Library, error) {
-	dir := filepath.Join(contentDir, "posts")
-	entries, err := os.ReadDir(dir)
+// LoadLibrary reads every .md file under posts/ in the content filesystem.
+//
+// It takes an fs.FS rather than a path because content ships inside the binary:
+// the posts are this site's data, and a blog whose posts are a separate
+// directory is not one file. os.DirFS gives the same thing back for a test.
+func LoadLibrary(content fs.FS) (*Library, error) {
+	entries, err := fs.ReadDir(content, "posts")
 	if err != nil {
 		return nil, err
 	}
 
 	lib := &Library{bySlug: make(map[string]*Post)}
 	for _, entry := range entries {
-		if entry.IsDir() || filepath.Ext(entry.Name()) != ".md" {
+		if entry.IsDir() || path.Ext(entry.Name()) != ".md" {
 			continue
 		}
-		raw, err := os.ReadFile(filepath.Join(dir, entry.Name()))
+		raw, err := fs.ReadFile(content, path.Join("posts", entry.Name()))
 		if err != nil {
 			return nil, err
 		}

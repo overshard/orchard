@@ -92,8 +92,12 @@ COPY *.go ./
 # Embedded by images.go, and shared with the frontend image generator.
 COPY images.json ./
 COPY templates/ ./templates/
-# Static, stripped, reproducible. CGO off is what makes FROM scratch possible.
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" \
+# The Vite bundle has to be on disk before the compile, not after: -tags embed
+# reads build/dist at compile time and bakes it into the executable.
+COPY --from=frontend /build/dist ./build/dist
+# Static, stripped, reproducible. CGO off is what makes FROM scratch possible,
+# and -tags embed is what makes the image a single file.
+RUN CGO_ENABLED=0 go build -tags embed -trimpath -ldflags="-s -w" \
     -o /app .
 
 # --- image --------------------------------------------------------------
@@ -104,15 +108,14 @@ FROM scratch
 # the cards silently render without commits.
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
+# The whole site. Templates and the Vite bundle are inside the executable, so
+# there is nothing to copy in beside it and no SITE_DIST to point anywhere.
 COPY --from=build /app /app
-COPY --from=frontend /dist /dist
 
-ENV SITE_DIST=/dist
 # Runs as a normal user, not root. There is no /etc/passwd in a scratch image
 # to name one in, so this is the numeric UID:GID that distroless calls
-# "nonroot"; the kernel only needs the numbers. Nothing here writes to disk, so
-# nothing has to be chown'd to match: the binary, the templates and the build
-# output are all read only at runtime.
+# "nonroot"; the kernel only needs the numbers. Nothing here writes to disk and
+# nothing is read from it either.
 USER 65532:65532
 
 # Docker cannot shell out to a health check in an image with no shell, so the

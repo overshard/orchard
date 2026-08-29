@@ -48,24 +48,6 @@ WORKDIR /src
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 
-# --- binary -------------------------------------------------------------
-FROM golang:1.27-alpine@sha256:4c9fe60190a2a3350ddc51de80d0224b8a6698d12bdfc999fee45ea9d6c46dbc AS build
-WORKDIR /src
-
-# The bracket glob makes go.sum optional. A module with no third party
-# dependency has none for `go mod tidy` to write, and a plain `COPY go.sum`
-# fails the build outright when the file is absent.
-COPY go.mod go.su[m] ./
-COPY web/ ./web/
-COPY *.go ./
-COPY templates/ ./templates/
-COPY reports/ ./reports/
-# CGO off is what makes modernc.org/sqlite worth having: it is SQLite
-# transpiled to Go rather than bound to it, so the binary is static and needs
-# no libc at runtime.
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" \
-    -o /app .
-
 # --- social card --------------------------------------------------------
 # A build artifact: the card cannot change while the process runs, so there is
 # no reason to render it per request. PNG rather than SVG because no social
@@ -78,6 +60,30 @@ FROM typst AS card
 COPY --from=frontend /src/node_modules/geist/dist/fonts/geist-sans /fonts/geist-sans
 COPY typst/card.typ /card.typ
 RUN typst compile --format png --ppi 72 --font-path /fonts/geist-sans /card.typ /card.png
+
+# --- binary -------------------------------------------------------------
+FROM golang:1.27-alpine@sha256:4c9fe60190a2a3350ddc51de80d0224b8a6698d12bdfc999fee45ea9d6c46dbc AS build
+WORKDIR /src
+
+# The bracket glob makes go.sum optional. A module with no third party
+# dependency has none for `go mod tidy` to write, and a plain `COPY go.sum`
+# fails the build outright when the file is absent.
+COPY go.mod go.su[m] ./
+COPY web/ ./web/
+COPY *.go ./
+COPY templates/ ./templates/
+COPY reports/ ./reports/
+# The bundle has to be on disk before the compile, not after: -tags embed reads
+# build/dist at compile time and bakes it into the executable. The card lands
+# inside it for the same reason, and is still served at /static/og/card.png by
+# the handler that serves the rest of the bundle.
+COPY --from=frontend /build/dist ./build/dist
+COPY --from=card /card.png ./build/dist/og/card.png
+# CGO off is what makes modernc.org/sqlite worth having: it is SQLite
+# transpiled to Go rather than bound to it, so the binary is static and needs
+# no libc at runtime.
+RUN CGO_ENABLED=0 go build -tags embed -trimpath -ldflags="-s -w" \
+    -o /app .
 
 # --- image --------------------------------------------------------------
 FROM alpine:3.23@sha256:fd791d74b68913cbb027c6546007b3f0d3bc45125f797758156952bc2d6daf40
@@ -99,11 +105,9 @@ RUN apk add --no-cache \
 
 COPY --from=oven/bun:1-alpine /usr/local/bin/bun /usr/local/bin/bun
 COPY --from=typst /usr/local/bin/typst /usr/local/bin/typst
+# Templates and the Vite bundle are inside the executable. Everything below is
+# what genuinely cannot be: programs this binary execs, and the fonts they read.
 COPY --from=build /app /app
-COPY --from=frontend /dist /dist
-# Served at /static/og/card.png by the same handler that serves the bundle,
-# so the card needs no route of its own.
-COPY --from=card /card.png /dist/og/card.png
 
 # SITE_ROOT is where lighthouse.go looks for node_modules/.bin/lighthouse and
 # where typst resolves absolute paths against, so it doubles as the fence on
@@ -112,7 +116,6 @@ WORKDIR /srv
 COPY --from=lighthouse /src/node_modules /srv/node_modules
 COPY reports/ /srv/reports/
 
-ENV SITE_DIST=/dist
 ENV SITE_DATA=/data
 ENV SITE_ROOT=/srv
 # Chromium ships in the image, so there is no need to make findChromium walk

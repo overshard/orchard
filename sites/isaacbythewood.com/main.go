@@ -26,24 +26,14 @@ import (
 	"isaacbythewood.com/web"
 )
 
-// Templates are source, so they ship inside the binary. The Vite build output
-// is not: it is a build artifact that Docker copies alongside the binary, the
-// same split the Rust apps use. Embedding dist as well would mean `go build`
-// failing on a fresh clone until someone had run Vite.
+// Templates are source, so they always ship inside the binary. The Vite bundle
+// is a build artifact and ships inside it too, but only in a release build:
+// see assets_disk.go and assets_embed.go for why that one is a build tag.
 //
 //go:embed templates
 var templateFS embed.FS
 
 const listenAddr = ":8000"
-
-// distDir is where the Vite build lands, resolved relative to this file's
-// directory at build time in dev and set to /dist in the image.
-func distDir() string {
-	if dir := os.Getenv("SITE_DIST"); dir != "" {
-		return dir
-	}
-	return "dist"
-}
 
 // Content-Security-Policy.
 //
@@ -85,7 +75,7 @@ func main() {
 		return
 	}
 
-	dist := os.DirFS(distDir())
+	dist := distFS()
 
 	assets, err := web.LoadAssets(dist)
 	if err != nil {

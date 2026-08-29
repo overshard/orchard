@@ -34,9 +34,10 @@ import (
 	"github.com/google/uuid"
 )
 
-// Templates are source, so they ship inside the binary. dist/ and static_maps/
-// are not: they are build artifacts Docker copies in beside it, which keeps
-// `go build ./...` working on a fresh clone before anyone has run Vite.
+// Templates are source, so they always ship inside the binary. The Vite bundle
+// and the topojson are build artifacts and ship inside it too, but only in a
+// release build: see assets_disk.go and assets_embed.go for why those are a
+// build tag.
 //
 //go:embed templates
 var templateFS embed.FS
@@ -150,8 +151,7 @@ func main() {
 		return
 	}
 
-	distDir := dir("SITE_DIST", "dist")
-	dist := os.DirFS(distDir)
+	dist := distFS()
 
 	assets, err := web.LoadAssets(dist)
 	if err != nil {
@@ -265,10 +265,9 @@ func main() {
 	// Per-country admin-1 topojson, lazy-fetched when the map is clicked.
 	// Generated at image build from Natural Earth, so the names are stable and
 	// a year of caching is right.
-	mapsDir := dir("SITE_MAPS", "static_maps")
 	mux.Handle("GET /static_maps/", http.StripPrefix("/static_maps/",
 		cacheControl("public, max-age=31536000, immutable",
-			http.FileServer(http.Dir(mapsDir)))))
+			http.FileServer(http.FS(mapsFS())))))
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")

@@ -1,6 +1,6 @@
 .PHONY: run build frontend lighthouse serve preview clean
 
-# Vite watches and rebuilds dist/ while Go serves it from disk. Templates are
+# Vite watches and rebuilds build/dist while Go serves it from disk. Templates are
 # embedded, so a template change needs a Go restart; CSS and JS changes only
 # need a browser reload.
 #
@@ -10,7 +10,7 @@
 # Bootstrap SCSS plus Chart.js and the Monaspace font.
 run:
 	cd frontend && bun run dev & \
-	i=0; while [ ! -f dist/.vite/manifest.json ]; do \
+	i=0; while [ ! -f build/dist/.vite/manifest.json ]; do \
 		i=$$((i+1)); \
 		if [ $$i -gt 120 ]; then echo "vite did not produce a manifest in 60s" >&2; exit 1; fi; \
 		sleep 0.5; \
@@ -30,8 +30,12 @@ frontend:
 lighthouse:
 	bun install --frozen-lockfile
 
+# The release binary. -tags embed swaps assets_disk.go for assets_embed.go so
+# the Vite bundle is compiled into the executable. `frontend` is not just
+# ordering here, it is a requirement: the embed directive reads build/dist at
+# compile time and fails the build if it is not there.
 build: frontend
-	go build -trimpath -ldflags="-s -w" -o ../../bin/status.bythewood.me .
+	go build -tags embed -trimpath -ldflags="-s -w" -o ../../bin/status.bythewood.me .
 
 serve:
 	go run .
@@ -44,4 +48,4 @@ preview:
 	go run . -preview-alert recovery
 
 clean:
-	rm -rf dist frontend/node_modules node_modules data
+	rm -rf build frontend/node_modules node_modules data

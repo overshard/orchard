@@ -9,7 +9,7 @@ export default defineConfig({
   base: "/static/",
   publicDir: resolve(__dirname, "public"),
   build: {
-    outDir: resolve(__dirname, "../dist"),
+    outDir: resolve(__dirname, "../build/dist"),
     emptyOutDir: true,
     manifest: true,
     rollupOptions: {

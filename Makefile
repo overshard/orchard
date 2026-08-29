@@ -32,8 +32,13 @@ build:
 deploy:
 	cd $(SITE_DIR) && docker compose up --build --detach
 
+# -o build/ matters. A bare `go build ./...` writes each site's executable into
+# the working directory, which is how a 14MB binary got committed on day one
+# and why .gitignore still carries rules for it. Sending it to the same
+# gitignored build/ the assets live in means running this leaves the source
+# directory exactly as it found it.
 check: fmt vet
-	@for s in $(SITES); do echo "build $$s"; (cd sites/$$s && go build ./...) || exit 1; done
+	@for s in $(SITES); do echo "build $$s"; 		(cd sites/$$s && mkdir -p build && go build -o build/ ./...) || exit 1; done
 
 fmt:
 	gofmt -l -w sites

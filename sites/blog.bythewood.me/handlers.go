@@ -1,13 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"html/template"
+	"io/fs"
 	"math/rand/v2"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
+	"path"
 	"strings"
 	"time"
 
@@ -78,11 +79,14 @@ type PageData struct {
 type site struct {
 	renderer *web.Renderer
 	lib      *Library
-	contentD string
-	pdfDir   string
-	ogDir    string
-	script   string
-	styles   []string
+	// Filesystems rather than paths, because in a release build these are
+	// inside the executable and there is no path to hand out. In a dev build
+	// they are os.DirFS over the same directories and nothing else changes.
+	content fs.FS
+	pdfs    fs.FS
+	og      fs.FS
+	script  string
+	styles  []string
 }
 
 // page builds the shared half of PageData.
@@ -234,18 +238,10 @@ func (s *site) postPDF(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	path := filepath.Join(s.pdfDir, post.Slug+".pdf")
-	file, err := os.Open(path)
+	raw, err := fs.ReadFile(s.pdfs, post.Slug+".pdf")
 	if err != nil {
 		// Only reachable when the build skipped PDF generation, which is the
 		// normal state of a local checkout without typst installed.
-		http.Error(w, "pdf not available", http.StatusNotFound)
-		return
-	}
-	defer file.Close()
-
-	info, err := file.Stat()
-	if err != nil {
 		http.Error(w, "pdf not available", http.StatusNotFound)
 		return
 	}
@@ -253,7 +249,11 @@ func (s *site) postPDF(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/pdf")
 	w.Header().Set("Content-Disposition", `inline; filename="`+post.Slug+`.pdf"`)
 	w.Header().Set("Cache-Control", "public, max-age=3600")
-	http.ServeContent(w, r, post.Slug+".pdf", info.ModTime(), file)
+	// A zero modtime, so no Last-Modified goes out. An embedded file has no
+	// meaningful timestamp, and inventing one would be worse than leaving
+	// revalidation to the hour of Cache-Control above. ServeContent still
+	// handles range requests off the reader.
+	http.ServeContent(w, r, post.Slug+".pdf", time.Time{}, bytes.NewReader(raw))
 }
 
 // postMarkdown hands back the source file, which is the honest version of
@@ -265,7 +265,7 @@ func (s *site) postMarkdown(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	raw, err := os.ReadFile(filepath.Join(s.contentD, "posts", post.Filename))
+	raw, err := fs.ReadFile(s.content, path.Join("posts", post.Filename))
 	if err != nil {
 		http.Error(w, "not found", http.StatusNotFound)
 		return

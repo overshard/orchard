@@ -43,9 +43,9 @@ import (
 	"status.bythewood.me/web"
 )
 
-// Templates are source, so they ship inside the binary. dist/ is not: it is a
-// build artifact Docker copies in beside it, which keeps `go build ./...`
-// working on a fresh clone before anyone has run Vite.
+// Templates are source, so they always ship inside the binary. The Vite bundle
+// is a build artifact and ships inside it too, but only in a release build:
+// see assets_disk.go and assets_embed.go for why that one is a build tag.
 //
 //go:embed templates
 var templateFS embed.FS
@@ -156,8 +156,7 @@ func main() {
 	}
 	defer db.Close()
 
-	distDir := dir("SITE_DIST", "dist")
-	dist := os.DirFS(distDir)
+	dist := distFS()
 
 	assets, err := web.LoadAssets(dist)
 	if err != nil {

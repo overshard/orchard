@@ -3,7 +3,7 @@
 # node_modules from the host into the build, which is slow and pointless since
 # the image installs its own from the lockfile.
 **/node_modules
-**/dist
+**/build
 **/bin
 # Compiled inside the build stage; shipping the host's copy in would only
 # slow the context transfer.

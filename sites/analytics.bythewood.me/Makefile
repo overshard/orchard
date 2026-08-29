@@ -1,6 +1,6 @@
 .PHONY: run build frontend maps seed serve clean
 
-# Vite watches and rebuilds dist/ while Go serves it from disk. Templates are
+# Vite watches and rebuilds build/dist while Go serves it from disk. Templates are
 # embedded, so a template change needs a Go restart; CSS and JS changes only
 # need a browser reload.
 #
@@ -10,7 +10,7 @@
 # in the repo: Bootstrap SCSS plus Chart.js, d3 and topojson.
 run:
 	cd frontend && bun run dev & \
-	i=0; while [ ! -f dist/.vite/manifest.json ]; do \
+	i=0; while [ ! -f build/dist/.vite/manifest.json ]; do \
 		i=$$((i+1)); \
 		if [ $$i -gt 120 ]; then echo "vite did not produce a manifest in 60s" >&2; exit 1; fi; \
 		sleep 0.5; \
@@ -27,8 +27,20 @@ frontend:
 maps:
 	cd frontend && bun run build:maps
 
-build: frontend
-	go build -trimpath -ldflags="-s -w" -o ../../bin/analytics.bythewood.me .
+# The release binary. -tags embed swaps assets_disk.go for assets_embed.go so
+# the Vite bundle and the topojson are compiled into the executable. Both
+# prerequisites are requirements rather than ordering: the embed directives
+# read build/ at compile time and fail the build if it is not there.
+build: frontend build/static_maps
+	go build -tags embed -trimpath -ldflags="-s -w" -o ../../bin/analytics.bythewood.me .
+
+# A directory target, so this runs once and then never again. The maps are
+# embedded now, so a release build cannot proceed without them, but the reason
+# `maps` was never part of `build` still holds: the input is a fixed dataset
+# and regenerating it every time would add a minute and a network fetch for
+# nothing. Existence is the right check.
+build/static_maps:
+	$(MAKE) maps
 
 # Realistic fake traffic in a "Seed Test" property, so the dashboard can be
 # looked at without waiting for a real site to accumulate months of events.
@@ -42,4 +54,4 @@ serve:
 	go run .
 
 clean:
-	rm -rf dist static_maps frontend/node_modules
+	rm -rf build frontend/node_modules
