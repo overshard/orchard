@@ -10,14 +10,10 @@ import (
 	"github.com/yuin/goldmark/util"
 )
 
-// Markdown to Typst, by hand.
+// Markdown to Typst, by hand. There is no off-the-shelf converter, so this
+// walks the same AST the HTML renderer uses and emits Typst markup.
 //
-// There is still no off-the-shelf converter, so this walks the same AST the
-// HTML renderer uses and emits Typst markup. It is a direct port of the
-// comrak-based walker the Rust version carried; the node names changed and the
-// output did not.
-//
-// Raw HTML is dropped rather than passed through. Typst has no equivalent and
+// Raw HTML is dropped rather than passed through: Typst has no equivalent, and
 // the alternative is a compile error taking the whole PDF down over an inline
 // <kbd>.
 func typstFromMarkdown(md string) string {
@@ -279,10 +275,10 @@ func inlineText(node ast.Node, source []byte) string {
 
 // textValue reads a text node the way goldmark's own HTML renderer does.
 //
-// A node inside a code span is raw and means exactly the bytes in the source:
-// a post writing `&#x2f;` in backticks is talking about the entity, and
-// resolving it to "/" changes what the sentence says. Everywhere else the
-// escapes and entities are notation and get resolved.
+// A node inside a code span is raw and means exactly the bytes in the source: a
+// post writing `&#x2f;` in backticks is talking about the entity, and resolving
+// it to "/" changes what the sentence says. Everywhere else, escapes and
+// entities are notation and get resolved.
 func textValue(n *ast.Text, source []byte) string {
 	raw := n.Segment.Value(source)
 	if n.IsRaw() {
@@ -295,14 +291,10 @@ func textValue(n *ast.Text, source []byte) string {
 // stand for.
 //
 // goldmark keeps Markdown's own escapes in the AST and resolves them in the
-// renderer, not the parser: a node covering `reverse\_proxy` in the source
-// reports exactly that, backslash included, and the HTML renderer drops the
-// backslash on its way out. comrak resolved them at parse time, so the Rust
-// walker never had to.
-//
-// Missing this is invisible in twenty-one of twenty-two posts and produces a
-// literal backslash in the PDF of the one that escapes an underscore, because
-// the Typst escaper below then escapes the backslash too.
+// renderer rather than the parser: a node covering `reverse\_proxy` reports
+// exactly that, backslash included, and the HTML renderer drops the backslash
+// on its way out. Without this, the Typst escaper below escapes that leftover
+// backslash and the PDF reads "reverse\_proxy".
 func plainText(raw []byte) string {
 	resolved := util.ResolveEntityNames(util.ResolveNumericReferences(raw))
 	return string(util.UnescapePunctuations(resolved))
@@ -330,8 +322,7 @@ func blockText(node ast.Node, source []byte) string {
 }
 
 // typstSource wraps a post's body in the blog_post.typ template call. Typst
-// string literals use the same escapes Go's %q produces, which is why the
-// hand-rolled str_lit the Rust version needed has no counterpart here.
+// string literals take the same escapes Go's %q produces.
 func typstSource(post *Post) string {
 	var b strings.Builder
 	b.WriteString("#import \"/typst/blog_post.typ\": render\n#render(\n")

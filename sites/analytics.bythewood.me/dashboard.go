@@ -16,18 +16,15 @@ import (
 
 const (
 	dayMS = 24 * 60 * 60 * 1000
-	// The look-back when the request names no range. Four weeks: long enough
-	// to show a trend on a site with a few visitors a day, short enough that
-	// the graph still buckets daily.
+	// The look-back when the request names no range. Four weeks is long
+	// enough to show a trend on a site with a few visitors a day, and short
+	// enough that the graph still buckets daily.
 	defaultRangeDays = 28
 )
 
-// PageData is everything base.html and one page template need.
-//
-// One struct for every page rather than a type each, following the blog port.
-// The shared chrome is most of it, and the page-specific tail is nil for
-// whichever page is not using it, which is what lets one base layout cover
-// seven pages.
+// PageData is everything base.html and one page template need. One struct for
+// every page rather than a type each: the shared chrome is most of it, and the
+// page-specific tail is nil for whichever page is not using it.
 type PageData struct {
 	Title         string
 	Description   string
@@ -135,11 +132,10 @@ type BreakdownTotals struct {
 	ScreenSize int64
 }
 
-// dashboard renders one property.
-//
-// Public properties are readable without a session; everything else redirects
-// to login. A property that does not exist redirects to /properties rather
-// than 404ing, which is the behaviour a stale bookmark wants.
+// dashboard renders one property. Public properties are readable without a
+// session; everything else redirects to login. A property that does not exist
+// redirects to /properties rather than 404ing, which is what a stale bookmark
+// wants.
 func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 	ctx := r.Context()
 
@@ -184,7 +180,7 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 	}
 
 	// The range in days drives both the comparison window and the graph's
-	// bucket width. "custom" (or absent) means derive it from the two dates.
+	// bucket width. "custom" or absent means derive it from the two dates.
 	var rangeDays int64
 	switch v := q.Get("date_range"); v {
 	case "", "custom":
@@ -202,7 +198,7 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 	filterURL := q.Get("filter_url")
 
 	// Anchor the graph to the requested end date, not to today. Stepping back
-	// from today charts any historical range as a row of zeros next to metric
+	// from today charts any historical range as a row of zeros beside metric
 	// cards showing real numbers.
 	graphEnd, err := time.ParseInLocation("2006-01-02", dateEnd, time.Local)
 	if err != nil {
@@ -280,11 +276,10 @@ func reportFormat(q map[string][]string) (string, bool) {
 	return format, true
 }
 
-// fillReportExtras precomputes what the PDF and Markdown reports need.
-//
-// It runs for every dashboard render, not only report ones. The work is
+// fillReportExtras precomputes what the PDF and Markdown reports need. It runs
+// on every dashboard render rather than only report ones: the work is
 // arithmetic over data already in memory, and making it conditional would mean
-// two paths through the same handler for no measurable saving.
+// two paths through one handler for no measurable saving.
 func (d *Dashboard) fillReportExtras() {
 	d.ChartPolyline = chartPolyline(d.Graph)
 
@@ -308,8 +303,8 @@ func (d *Dashboard) fillReportExtras() {
 		ScreenSize: sumCounts(d.ByScreenSize),
 	}
 
-	// The map data is a map, so it has no order. The report has no map, only a
-	// table, so it needs one.
+	// The map data is a Go map and has no order. The report renders a table
+	// rather than a map, so it needs one.
 	countries := make([]LabelCount, 0, len(d.SessionsByCountry))
 	for code, count := range d.SessionsByCountry {
 		countries = append(countries, LabelCount{Label: code, Count: count})
@@ -338,11 +333,11 @@ func sumCounts(items []LabelCount) int64 {
 	return max64(total, 1)
 }
 
-// chartPolyline renders the time series as SVG polyline points.
+// chartPolyline renders the time series as SVG polyline points. The reports
+// have no Chart.js and no browser, so the line is computed here.
 //
 // The geometry matches the viewBox in the report templates: change one and
-// change the other. It exists because the reports have no Chart.js and no
-// browser, so the only way a line gets drawn is by computing it here.
+// change the other.
 func chartPolyline(points []GraphPoint) string {
 	if len(points) == 0 {
 		return ""
@@ -387,12 +382,11 @@ func max64(a, b int64) int64 {
 
 // jsonBlock marshals a value for an inline <script type="application/json">.
 //
-// HTML escaping stays ON here, which is the opposite of what encodeExtra wants
-// and for the opposite reason: this string is about to be embedded in a
-// document, and escaping < to < is what makes it impossible for a page
-// URL containing "</script>" to close the block and turn stored data into
-// markup. template.JS then tells html/template the result is already safe,
-// because it cannot tell on its own inside a non-JavaScript script type.
+// HTML escaping stays on, unlike in encodeExtra: this string is embedded in a
+// document, and escaping "<" is what stops a page URL containing "</script>"
+// from closing the block and turning stored data into markup. template.JS then
+// tells html/template the result is already safe, which it cannot work out on
+// its own inside a non-JavaScript script type.
 func jsonBlock(v any) template.JS {
 	b, err := json.Marshal(v)
 	if err != nil {

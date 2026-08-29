@@ -34,21 +34,14 @@
 
   {{ if .JSONLD }}<script type="application/ld+json">{{ .JSONLD }}</script>{{ end }}
 
-  {{/* The Rust base template emitted <base href="{{ BASE_URL }}"> here. It is
-       gone: BASE_URL was read from an environment variable that defaulted to
-       empty, and every URL this site emits is now either absolute or
-       root-relative, so there is nothing for a document base to resolve. */}}
-
   {{ template "extra_head" . }}
 
   {{ range .Styles }}<link href="{{ . }}" rel="stylesheet">{{ end }}
   {{ range .PageStyles }}<link href="{{ . }}" rel="stylesheet">{{ end }}
   {{ template "extra_css" . }}
 
-  {{/* This site was the one thing Isaac runs that analytics did not measure,
-       which made "it tracks everything" quietly untrue. Same snippet the blog
-       and isaacbythewood.com carry, and the same gate: off on the staging
-       hostname, on the moment baseURL becomes the real one. */}}
+  {{/* The same collector snippet the other sites carry, behind the same gate:
+       off on a staging hostname. */}}
   {{- if .Analytics }}
   <script>
     (function (m, e, t, r, i, c, s) {

@@ -1,27 +1,14 @@
-// status.bythewood.me, rebuilt from Rust onto Go.
+// status.bythewood.me: self-hosted, single-operator uptime monitoring. An
+// in-process scheduler probes every tracked URL every three minutes, audits it
+// with Lighthouse daily and crawls it for SEO weekly, and a dashboard renders
+// the results as charts, an insight list and downloadable reports.
 //
-// Self-hosted, single-operator uptime monitoring: an in-process scheduler
-// probes every tracked URL every three minutes, audits it with Lighthouse
-// daily and crawls it for SEO weekly, and a dashboard renders the results as
-// charts, an insight list and downloadable reports. Fourth site through the
-// cloudflared -> Caddy -> Go path, after isaacbythewood.com,
-// blog.bythewood.me and analytics.bythewood.me, and the fourth step of
-// decisions/0008's move off Rust.
+// This is not primarily a web server. Most of what the binary does happens on a
+// timer with nobody watching, so the scheduler is the centre of it and the HTTP
+// handlers mostly render what it wrote.
 //
-// It is the largest port of the four, 5,303 lines of Rust across 24 files, and
-// the only one of them that is not primarily a web server: most of what this
-// binary does happens on a timer with nobody watching. That shapes everything.
-// The scheduler is the load-bearing part and the HTTP handlers mostly render
-// what it wrote.
-//
-// Two things came out rather than across, both settled before the port began:
-// email, which decisions/0007 established cannot work from a residential
-// address, and the Discord webhook, which Isaac dropped with it on 2026-08-26.
-// Both are replaced by a single ntfy publish. See alerts.go.
-//
-// Identity is hardcoded in site.go. The one thing still read from the
-// environment is STATUS_PASSWORD, because it is the one thing that is actually
-// a secret.
+// Identity is hardcoded in site.go. The one value read from the environment is
+// STATUS_PASSWORD, because it is the one value that is actually a secret.
 package main
 
 import (
@@ -43,9 +30,9 @@ import (
 	"status.bythewood.me/web"
 )
 
-// Templates are source, so they always ship inside the binary. The Vite bundle
-// is a build artifact and ships inside it too, but only in a release build:
-// see assets_disk.go and assets_embed.go for why that one is a build tag.
+// Templates are source, so they ship inside the binary unconditionally. The
+// Vite bundle is build output and ships only in a release build; see
+// assets_disk.go and assets_embed.go.
 //
 //go:embed templates
 var templateFS embed.FS
@@ -61,17 +48,16 @@ func dir(env, fallback string) string {
 
 // Content-Security-Policy.
 //
-// 'unsafe-inline' in script-src is load bearing and cannot be removed without
-// changing the markup: the dashboard ships its chart data as inline
+// script-src needs 'unsafe-inline' and cannot drop it without a markup change:
+// the dashboard ships its chart data as inline
 // <script type="application/json"> blocks. style-src carries it for
 // Bootstrap's inline style attributes.
 //
-// analytics.bythewood.me appears in script-src and connect-src because this
-// site now carries the collector, which loads a script from that origin and
-// then posts events back to it. It is the only third-party origin here, it is
-// Isaac's own, and it is listed unconditionally rather than only when the
-// snippet renders: a policy that changes shape between staging and production
-// is a policy that gets tested in one shape and shipped in the other.
+// analytics.bythewood.me is in script-src and connect-src for the collector,
+// which loads a script from that origin and posts events back to it. It is
+// listed unconditionally rather than only when the snippet renders, because a
+// policy that changes shape between environments gets tested in one shape and
+// shipped in the other.
 func csp() string {
 	return strings.Join([]string{
 		"default-src 'self'",
@@ -106,15 +92,13 @@ type site struct {
 }
 
 func main() {
-	// JSON to stdout, installed before anything else can log.
 	web.SetupLogging()
 
 	previewKind := flag.String("preview-alert", "",
 		"print the ntfy notification for 'down' or 'recovery' and exit")
-	// -healthcheck turns the binary into its own health probe and exits. The
-	// container HEALTHCHECK runs this: two of these images are FROM scratch and
-	// have no shell or curl for a check to shell out to, so the binary has to
-	// be the thing that probes.
+	// The container HEALTHCHECK runs this. Two of these images are FROM
+	// scratch and have no shell for a check to call, so the binary probes
+	// itself.
 	healthcheck := flag.Bool("healthcheck", false, "probe a running server on this host and exit")
 	flag.Parse()
 
@@ -127,8 +111,7 @@ func main() {
 	}
 
 	// Rendering a preview needs neither a database nor a password, so it is
-	// handled before anything else is set up. It replaces the Rust version's
-	// `status preview-email` subcommand.
+	// handled before anything else is set up.
 	if *previewKind != "" {
 		if err := previewAlert(*previewKind); err != nil {
 			slog.Error("startup failed", slog.Any("err", err))
@@ -137,11 +120,9 @@ func main() {
 		return
 	}
 
-	// Fail fast rather than falling back to a default. An internet-facing
-	// dashboard whose password is "admin" because the environment was empty is
-	// the failure mode this refuses to have; it was added to the Rust version
-	// in the 2026-07-21 hardening pass and is the reason the check is here
-	// rather than at first login.
+	// Fail fast rather than defaulting. An internet-facing dashboard whose
+	// password is "admin" because the environment was empty is the failure
+	// mode this refuses to have.
 	password := os.Getenv("STATUS_PASSWORD")
 	if password == "" {
 		slog.Error("STATUS_PASSWORD is unset; refusing to start an internet-facing server without one")
@@ -202,7 +183,7 @@ func main() {
 
 	// The scheduler stops when the process is asked to stop, so a deploy does
 	// not kill a crawl halfway and leave the row wedged for the watchdog to
-	// find. The HTTP server drains on the same signal, in internal/web.Serve.
+	// find. web.Serve drains the HTTP server on the same signal.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
@@ -234,15 +215,10 @@ func main() {
 	mux.HandleFunc("POST /properties/{id}/recrawl", s.requireAuthJSON(s.propertyRecrawl))
 	mux.HandleFunc("POST /properties/{id}/rerun-lighthouse", s.requireAuthJSON(s.propertyRerunLighthouse))
 
-	// A wrong method on a route that exists is a 405, not a 404.
-	//
-	// Go's mux does this on its own, but only when no other pattern matches,
-	// and the bare "GET /" catch-all below matches every GET path there is. So
-	// without these the answer is the 404 page, which tells a caller the
-	// endpoint does not exist when it does. Answering 404 where the Rust
-	// version said 405 was the one real defect analytics' end-to-end sweep
-	// found in its own port, so it is fixed here before it can be found again.
-	// 405 also has to carry Allow, which is why the header is not optional.
+	// A wrong method on a route that exists should answer 405, not 404. The
+	// mux does that on its own only when no other pattern matches, and the
+	// "GET /" catch-all below matches every GET path there is. 405 has to
+	// carry Allow.
 	for path, allow := range map[string]string{
 		"/logout":                           "POST",
 		"/properties/{id}/delete":           "POST",
@@ -264,11 +240,10 @@ func main() {
 		_, _ = w.Write([]byte("ok\n"))
 	})
 
-	// The dashboard's bare-UUID path is the catch-all. Registering it as "/"
-	// rather than "/{id}" is what keeps it from shadowing /login and
-	// /properties: Go's mux prefers a literal segment over a wildcard, but
-	// only among patterns that match, and "/{id}" would also claim
-	// /nonsense-that-should-404.
+	// The dashboard's bare-UUID path is the catch-all. Registered as "/"
+	// rather than "/{id}" so it cannot shadow /login and /properties: the mux
+	// prefers a literal segment over a wildcard, but only among patterns that
+	// match, and "/{id}" would also claim /nonsense-that-should-404.
 	mux.HandleFunc("GET /", s.dashboardOrNotFound)
 
 	handler := web.Chain(mux,
@@ -315,8 +290,7 @@ func (s *site) page(r *http.Request, title, description string) PageData {
 		Path:        r.URL.Path,
 		Canonical:   baseURL + r.URL.Path,
 		Staging:     Staging,
-		// Off on the staging hostname, on at cutover, the same gate the blog
-		// and isaacbythewood.com use. Nothing to flip by hand.
+		// Off on a staging hostname, the same gate the other sites use.
 		Analytics:     !Staging,
 		AnalyticsID:   analyticsID,
 		Authenticated: isAuthenticated(r, s.cookieKey),

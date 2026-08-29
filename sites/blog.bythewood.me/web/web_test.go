@@ -7,10 +7,9 @@ import (
 	"testing/fstest"
 )
 
-// The client IP rule is the one piece of this package that a mistake in would
-// be invisible: it does not error, it just quietly attributes every visitor to
-// the wrong address. decisions/0007 records that analytics did exactly this,
-// so the behaviour is pinned here rather than left to reasoning.
+// A mistake in the client IP rule is invisible: it does not error, it
+// attributes every visitor to the wrong address. Pinned rather than reasoned
+// about.
 func TestClientIP(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -19,9 +18,9 @@ func TestClientIP(t *testing.T) {
 		want    string
 	}{
 		{
-			// The measured case. Behind the tunnel cloudflared sets XFF to the
-			// real client and Caddy appends its own peer, so the last entry is
-			// a bridge address on every single request.
+			// Behind the tunnel, cloudflared sets XFF to the real client
+			// and Caddy appends its own peer, so the last entry is a
+			// bridge address on every request.
 			name: "cloudflare wins over a trailing proxy hop",
 			headers: map[string]string{
 				"X-Forwarded-For":  "203.0.113.7, 172.18.0.4",
@@ -31,9 +30,8 @@ func TestClientIP(t *testing.T) {
 			want:   "203.0.113.7",
 		},
 		{
-			// Without Cloudflare, trusting the last entry is right: it is the
-			// hop that actually connected, and earlier entries are attacker
-			// controlled.
+			// Without Cloudflare the last entry is the hop that actually
+			// connected; earlier entries are attacker controlled.
 			name:    "falls back to the last forwarded entry",
 			headers: map[string]string{"X-Forwarded-For": "203.0.113.7, 198.51.100.2"},
 			remote:  "172.18.0.5:41234",
@@ -46,10 +44,8 @@ func TestClientIP(t *testing.T) {
 			want:    "198.51.100.9",
 		},
 		{
-			// A spoofed XFF on a direct request must not beat the real peer
-			// when Cloudflare is not in the path... except that it does, by
-			// design, because Caddy is always in front in production. Pinned
-			// so the tradeoff is a decision rather than a surprise.
+			// A spoofed XFF does beat the real peer on a direct request.
+			// Accepted, because Caddy is always in front in production.
 			name:    "single forwarded entry is taken at face value",
 			headers: map[string]string{"X-Forwarded-For": "203.0.113.7"},
 			remote:  "172.18.0.5:41234",
@@ -71,9 +67,8 @@ func TestClientIP(t *testing.T) {
 	}
 }
 
-// Caching the wrong file for a year is unrecoverable from the server side:
-// every browser that saw it holds it until the year is up. This checks that
-// only files the manifest names get that treatment.
+// Caching the wrong file for a year cannot be undone from the server side:
+// every browser that saw it holds it until the year is up.
 func TestStaticCachePolicy(t *testing.T) {
 	dist := fstest.MapFS{
 		".vite/manifest.json": &fstest.MapFile{Data: []byte(`{
@@ -102,8 +97,8 @@ func TestStaticCachePolicy(t *testing.T) {
 	}{
 		{"/static/base-AAAA.js", immutable, http.StatusOK},
 		{"/static/base-BBBB.css", immutable, http.StatusOK},
-		// Copied through from publicDir unhashed. A year-long cache here means
-		// an updated resume never reaches anybody.
+		// Copied through from publicDir unhashed, so a year-long cache
+		// would mean an updated resume never reaching anybody.
 		{"/static/pdfs/cv.pdf", short, http.StatusOK},
 		{"/static/images/a.webp", short, http.StatusOK},
 	}
@@ -121,7 +116,7 @@ func TestStaticCachePolicy(t *testing.T) {
 		})
 	}
 
-	// Build metadata: the server reads it, nothing else has any use for it.
+	// Build metadata. The server reads it; nothing else has a use for it.
 	t.Run("manifest is not served", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/static/.vite/manifest.json", nil))

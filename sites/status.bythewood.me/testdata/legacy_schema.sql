@@ -1,8 +1,8 @@
--- The Rust version migrations/0001_initial.sql and 0002_phase_timings.sql,
--- concatenated verbatim. This is the shape of the production database the Go
--- port has to accept without a migration; see TestSchemaAcceptsRustDatabase.
+-- The schema this app inherited: the two original migrations concatenated
+-- verbatim. openDB has to accept a database of this shape without a migration;
+-- see TestSchemaAcceptsLegacyDatabase.
 
--- A "property" is a tracked URL: the unit of monitoring. The original Django
+-- A "property" is a tracked URL: the unit of monitoring. The original
 -- schema had per-user properties; the rust port collapses to single-operator
 -- so user_id is gone, but the rest of the columns line up 1:1 (preserving
 -- UUIDs lets prior public status URLs keep working after migration).

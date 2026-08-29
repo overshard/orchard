@@ -12,10 +12,9 @@ import (
 
 // Post is one Markdown file under content/posts, parsed once at startup.
 //
-// Restart to publish is deliberate and unchanged from the Rust version: the
-// posts are files in the repo, a new one arrives with a deploy, and a deploy
-// restarts the process anyway. Watching the directory would buy nothing and
-// cost a goroutine plus a race with the PDF build.
+// Restart to publish: posts are files in the repo, a new one arrives with a
+// deploy, and a deploy restarts the process anyway. Watching the directory
+// would buy nothing and cost a goroutine plus a race with the PDF build.
 type Post struct {
 	Filename    string
 	Title       string
@@ -27,16 +26,14 @@ type Post struct {
 	CoverImage  string
 	ReadTime    int
 
-	// BodyHTML is rendered once at load. It is template.HTML because it is
-	// generated from the author's own Markdown, which is the same trust
-	// boundary the Rust version drew with minijinja's |safe.
+	// Rendered once at load. template.HTML because it comes from the author's
+	// own Markdown, which is the trust boundary this site draws.
 	BodyHTML  template.HTML
 	BodyTypst string
 }
 
-// URL and friends are computed rather than templated. The Rust version needed
-// a url_for() function in the template environment to keep these in one place;
-// in Go a method on the type is that same thing with the compiler checking it.
+// URL and friends are methods rather than template helpers, so the compiler
+// checks them.
 func (p *Post) URL() string      { return "/posts/" + p.Slug + "/" }
 func (p *Post) PDFURL() string   { return "/posts/" + p.Slug + "/pdf/" }
 func (p *Post) MDURL() string    { return "/posts/" + p.Slug + "/md/" }
@@ -67,10 +64,9 @@ func yearURL(year string) string { return "/blog/year/" + urlPathEscape(year) + 
 
 // Library holds every post and answers the questions the handlers ask.
 //
-// The published set is cached rather than rebuilt per request. A post with a
-// future publish_date becomes visible when the date arrives with no restart,
-// which is why the cache is keyed on the day rather than computed once at
-// startup.
+// The published set is cached rather than rebuilt per request, keyed on the
+// day rather than computed once at startup, so a post with a future
+// publish_date becomes visible when the date arrives without a restart.
 type Library struct {
 	all    []*Post
 	bySlug map[string]*Post
@@ -82,11 +78,9 @@ type Library struct {
 	years     []string
 }
 
-// LoadLibrary reads every .md file under posts/ in the content filesystem.
-//
-// It takes an fs.FS rather than a path because content ships inside the binary:
-// the posts are this site's data, and a blog whose posts are a separate
-// directory is not one file. os.DirFS gives the same thing back for a test.
+// LoadLibrary reads every .md file under posts/ in the content filesystem. It
+// takes an fs.FS rather than a path because content ships inside the binary;
+// os.DirFS gives the same thing back for a test.
 func LoadLibrary(content fs.FS) (*Library, error) {
 	entries, err := fs.ReadDir(content, "posts")
 	if err != nil {
@@ -157,12 +151,12 @@ func parsePost(filename, text string) *Post {
 	return post
 }
 
-// parseFrontmatter reads the leading --- block as flat key: value pairs.
+// parseFrontmatter reads the leading --- block as flat key: value pairs. Not
+// YAML, which is why no YAML library is in the dependency list.
 //
-// It is not YAML and does not pretend to be, which is why a real YAML library
-// is not in the dependency list. The closing delimiter has to start a line: a
-// bare search for "---" stops early on a horizontal rule inside a description
-// or an ISO date range inside a value.
+// The closing delimiter has to start a line: a bare search for "---" stops
+// early on a horizontal rule inside a description, or an ISO date range inside
+// a value.
 func parseFrontmatter(text string) (map[string]string, string) {
 	meta := map[string]string{}
 	if !strings.HasPrefix(text, "---") {
@@ -215,8 +209,8 @@ func (l *Library) Published() ([]*Post, []TagEntry, []string) {
 }
 
 // Lookup finds a post by slug, reporting false for one that is not published
-// yet. A future-dated post is a 404, not a 403: it does not exist to anyone
-// but the author, and saying otherwise leaks the slug.
+// yet. A future-dated post is a 404 rather than a 403, since a 403 leaks the
+// slug.
 func (l *Library) Lookup(slug string) (*Post, bool) {
 	post, ok := l.bySlug[slug]
 	if !ok || post.PublishDate > today() {
@@ -351,10 +345,9 @@ func related(post *Post, posts []*Post, count int) []*Post {
 	return out
 }
 
-// titleCase capitalises each word, which is all Jinja's |title filter was
-// doing to the tag names ("rust" -> "Rust", "dark mode" -> "Dark Mode").
-// strings.Title is deprecated and golang.org/x/text is a dependency for a
-// dozen lowercase ASCII tags, so this is the whole implementation.
+// titleCase capitalises each word of a tag name ("dark mode" -> "Dark Mode").
+// strings.Title is deprecated, and golang.org/x/text is a dependency for a
+// dozen lowercase ASCII tags.
 func titleCase(s string) string {
 	out := []rune(s)
 	upper := true

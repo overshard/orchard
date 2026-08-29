@@ -2,16 +2,12 @@ package main
 
 import "strings"
 
-// Identity, stated once and not made configurable.
+// Identity, stated once and not made configurable: hardcode identity, never
+// hardcode credentials. This site has no credentials at all, so it needs no
+// .env of any kind.
 //
-// decisions/0008 draws the line here: hardcode identity, never hardcode
-// credentials. A BASE_URL environment variable would be product scaffolding
-// for a deployer who does not exist, and this site has no credentials at all,
-// so it needs no .env of any kind.
-//
-// baseURL went to the real hostname at cutover on 2026-08-27. Staging below
-// derives from it, so flipping this one line also turned off the noindex, the
-// robots.txt Disallow and the blog feed the home page reads.
+// Staging below derives from baseURL, so this one line also controls the
+// noindex, the robots.txt Disallow and the blog feed the home page reads.
 const (
 	baseURL     = "https://isaacbythewood.com"
 	siteTitle   = "Isaac Bythewood"
@@ -21,33 +17,23 @@ const (
 	contactMail = "isaac@bythewood.me"
 )
 
-// Staging keeps the test hostname out of search results.
-//
-// Without this, next.isaacbythewood.com would be crawled and indexed as a
-// complete duplicate of the real site, which is the one way a staging host can
-// actually damage the production one. Both robots.txt and a noindex meta tag
-// key off it, because a meta tag alone is useless on a URL robots.txt has
-// already told the crawler not to fetch.
+// Staging keeps a test hostname out of search results, so it is not indexed as
+// a duplicate of the real site. Both robots.txt and a noindex meta tag key off
+// it, because a meta tag alone is useless on a URL robots.txt has already told
+// the crawler not to fetch.
 var Staging = !strings.HasSuffix(baseURL, "//isaacbythewood.com")
 
 // blogLatestSources feed the home page's promo slot, in order of preference.
 //
-// The container name comes first, and that ordering is the whole point. The
-// blog is a sibling container on the same Docker network, so reading it over
-// the public hostname means a request leaving the house, crossing Cloudflare,
-// coming back down the tunnel and through Caddy, to reach a process one bridge
-// hop away. That is slower, and it makes an internal data fetch depend on
+// The container name comes first. The blog is a sibling container on the same
+// Docker network, so reading it over the public hostname would send a request
+// out of the house, across Cloudflare and back down the tunnel to reach a
+// process one bridge hop away, and would make an internal fetch depend on
 // public DNS, the tunnel and the edge all being healthy.
 //
-// The cutover proved the point rather than merely suggesting it. Every
-// container still had blog.bythewood.me cached as the Linode's address for a
-// while after the records moved, so the public URL returned 404 from a server
-// that had never heard of /latest.json, and the card silently vanished. The
-// container name was answering 200 the entire time.
-//
-// The public URL stays as a fallback for `make run`, where there is no Docker
-// network and no sibling container. If neither answers the card is simply not
-// rendered, which is the same graceful degradation the rest of this cache has.
+// The public URL is the fallback for `make run`, where there is no Docker
+// network and no sibling container. If neither answers, the card is not
+// rendered.
 var blogLatestSources = []string{
 	"http://blog-next:8000/latest.json",
 	"https://blog.bythewood.me/latest.json",
@@ -100,9 +86,9 @@ type Project struct {
 	Slug        string
 	Description string
 	Tech        []string
-	// Archived splits the page. Everything here except taproot is a read-only
-	// snapshot on GitHub now, and saying so is more honest than a wall of cards
-	// that all look equally alive. See the archived section in code.html.
+	// Archived splits the page, so a read-only snapshot does not sit in a wall
+	// of cards that all look equally alive. See the archived section in
+	// code.html.
 	Archived bool
 }
 
@@ -115,9 +101,8 @@ var projects = []Project{
 	},
 
 	// Archived, newest first, and named exactly as the repository is named on
-	// GitHub. The implementations were split apart and suffixed by language in
-	// August 2026, so the card title is the thing you would actually search for
-	// rather than a friendly name that resolves to nothing.
+	// GitHub, so a card title is something you can search for rather than a
+	// friendly name that resolves to nothing.
 	{
 		Name:        "isaacbythewood.com-nextjs",
 		Slug:        "isaacbythewood.com-nextjs",
@@ -319,9 +304,7 @@ var generative = []Generative{
 	},
 }
 
-// sourceURL points at the canvas module in this monorepo rather than at the
-// old per-project repo. The em dash in the original slime mold copy is gone
-// too: workspace prose does not use them.
+// sourceURL points at the canvas module for this piece.
 func sourceURL(slug string) string {
 	return "https://github.com/" + githubUser +
 		"/orchard/blob/main/sites/isaacbythewood.com/frontend/static_src/js/canvas/" + slug + ".js"

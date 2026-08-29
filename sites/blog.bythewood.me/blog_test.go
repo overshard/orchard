@@ -6,10 +6,9 @@ import (
 	"time"
 )
 
-// The Markdown to Typst walker is the part of this site a mistake in is
-// invisible: the HTML page still renders, the PDF still compiles, and the
-// output is quietly wrong somewhere on page two. Both cases below were real
-// bugs found by diffing every post's PDF against the Rust version.
+// A mistake in the Markdown to Typst walker is invisible: the HTML page still
+// renders, the PDF still compiles, and the output is wrong somewhere on page
+// two. Both cases below were real bugs, found by diffing every post's PDF.
 func TestTypstEscapes(t *testing.T) {
 	tests := []struct {
 		name string
@@ -18,15 +17,15 @@ func TestTypstEscapes(t *testing.T) {
 	}{
 		{
 			// goldmark keeps Markdown's own escapes in the AST and resolves
-			// them in its renderer, where comrak resolved them at parse time.
-			// Without matching that, the Typst escaper escapes the leftover
-			// backslash and the PDF reads "reverse\_proxy".
+			// them in its renderer. Without matching that, the Typst escaper
+			// escapes the leftover backslash and the PDF reads
+			// "reverse\_proxy".
 			name: "markdown backslash escape is resolved before Typst escaping",
 			md:   `a reverse\_proxy line`,
 			want: `a reverse\_proxy line`,
 		},
 		{
-			// The same resolution must NOT happen inside a code span. A post
+			// The same resolution must not happen inside a code span. A post
 			// writing this in backticks is talking about the entity itself,
 			// and turning it into "/" changes the sentence.
 			name: "entity inside a code span stays literal",

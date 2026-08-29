@@ -13,42 +13,30 @@ import (
 
 // Outage notifications, by publishing to ntfy.
 //
-// Both of the Rust version's channels are gone, and neither was cut for
-// tidiness.
+// Email is not an option from a residential address. Delivering direct to MX
+// fails three independent ways, any one of them fatal: consumer ISPs block
+// outbound port 25, there is no control over the PTR record on a dynamic
+// address, and consumer ranges sit on the Spamhaus PBL by default, so Gmail and
+// Microsoft reject on that alone.
 //
-// **Email could not survive the move home.** alerts.rs delivered direct to MX
-// with lettre: an MX lookup, then SMTP on port 25 with opportunistic STARTTLS
-// and a HELO of bythewood.me. From a residential address that fails three
-// independent ways, any one of them fatal: consumer ISPs block outbound 25,
-// there is no control over the PTR record on a dynamic address, and consumer
-// ranges sit on the Spamhaus PBL by default so Gmail and Microsoft reject on
-// that alone. None are fixable from this side. decisions/0007 settled it.
+// ntfy rather than a hosted webhook, because the one message that has to arrive
+// when this infrastructure is broken should not depend on a third party's
+// servers. It is a self-hosted Go binary, reached over the tailnet by an
+// Android client holding a WebSocket, with no Firebase in the path.
 //
-// **Discord went with it**, which decisions/0007 did not require and Isaac
-// chose on 2026-08-26. It worked, so this is worth being honest about: it is a
-// third party in the path of the one message that has to arrive when his own
-// infrastructure is broken, and the whole migration was about not depending on
-// other people's servers. ntfy is a Go binary he runs, reached over the
-// tailnet by an Android client holding a WebSocket, with no Firebase anywhere
-// in it.
-//
-// The honest limit, accepted in 0007: an alerter running at home cannot tell
-// him the house lost power or its internet. Nothing in this file changes that.
+// The limit this accepts: an alerter running at home cannot report that the
+// house lost power or its internet.
 
 // ntfyURL is where a notification is published: the base, then the topic.
 //
-// ASSUMPTION, and the one line to change when it is settled. The ntfy server
-// does not exist yet; 0007 decided it and nothing has been stood up. This
-// assumes it lands as a container on the same Docker network as this app,
-// reached by its compose service name, which is how every other
-// container-to-container call in this repo works and which keeps the
-// notification off the tunnel exactly as 0007 requires. Tailscale is how his
-// phone reaches ntfy, not how this reaches it.
+// This assumes ntfy runs as a container on the same Docker network, reached by
+// its compose service name, which is how every other container-to-container
+// call in this repo works and keeps the notification off the tunnel. Tailscale
+// is how a phone reaches ntfy, not how this does.
 //
-// Until that container exists every publish fails, which is logged once per
-// transition and changes nothing else. That is the same best-effort contract
-// the Rust version had: an alert that cannot be delivered must never break the
-// check loop that noticed the outage.
+// Until that container exists every publish fails, logged once per transition
+// and changing nothing else: an alert that cannot be delivered must never break
+// the check loop that noticed the outage.
 const (
 	ntfyURL   = "http://ntfy:8000"
 	ntfyTopic = "status"
@@ -67,9 +55,8 @@ type AlertContext struct {
 	AvgResponseMS int64
 }
 
-// Notifier publishes transitions. It holds a client because, unlike the
-// prober, this one wants connection reuse: it is talking to the same host
-// every time and the handshake is not the thing being measured.
+// Notifier publishes transitions. Unlike the prober it holds a client, since it
+// talks to the same host every time and the handshake is not being measured.
 type Notifier struct {
 	client *http.Client
 	base   string
@@ -108,10 +95,8 @@ func renderAlert(kind string, ctx AlertContext) (alertBody, bool) {
 			Message: fmt.Sprintf(
 				"%s\nTwo consecutive checks failed. Latest status: %d.\nRolling average response: %d ms.",
 				ctx.URL, ctx.CurrentStatus, ctx.AvgResponseMS),
-			// high, not urgent. Urgent bypasses the phone's do-not-disturb, and
-			// these are hobby sites whose downtime decisions/0007 explicitly
-			// says does not matter. Reserve the interrupt for something that
-			// deserves waking him up.
+			// high, not urgent. Urgent bypasses the phone's do-not-disturb,
+			// which none of these sites being down is worth.
 			Priority: "high",
 			Tags:     "rotating_light",
 			Click:    click,
@@ -123,8 +108,8 @@ func renderAlert(kind string, ctx AlertContext) (alertBody, bool) {
 			Message: fmt.Sprintf(
 				"%s\nThe latest check returned %d.\nRolling average response: %d ms.",
 				ctx.URL, ctx.CurrentStatus, ctx.AvgResponseMS),
-			// Deliberately quieter than the outage. The recovery is good news
-			// and does not need to interrupt anything.
+			// Quieter than the outage: good news does not need to interrupt
+			// anything.
 			Priority: "default",
 			Tags:     "white_check_mark",
 			Click:    click,
@@ -133,9 +118,8 @@ func renderAlert(kind string, ctx AlertContext) (alertBody, bool) {
 	return alertBody{}, false
 }
 
-// Fire publishes one transition. Errors are logged and swallowed: this is
-// called from a goroutine off the scheduler's path and there is nobody to
-// return an error to.
+// Fire publishes one transition. Errors are logged and swallowed, since this
+// runs in a goroutine off the scheduler's path with nobody to return to.
 func (n *Notifier) Fire(kind string, ctx AlertContext) {
 	body, ok := renderAlert(kind, ctx)
 	if !ok {
@@ -149,11 +133,9 @@ func (n *Notifier) Fire(kind string, ctx AlertContext) {
 	slog.Info(fmt.Sprintf("alert: published %s for %s", kind, ctx.URL))
 }
 
-// publish posts to ntfy.
-//
-// The message is the request body and everything else is a header, which is
-// ntfy's plain-HTTP publishing interface: the same shape as the `curl -d`
-// decisions/0007 wanted to be able to use from any future project.
+// publish posts to ntfy. The message is the request body and everything else is
+// a header, which is ntfy's plain-HTTP publishing interface and the same shape
+// as a `curl -d` from anything else.
 func (n *Notifier) publish(ctx context.Context, body alertBody) error {
 	ctx, cancel := context.WithTimeout(ctx, ntfyTimeout)
 	defer cancel()
@@ -183,11 +165,8 @@ func (n *Notifier) publish(ctx context.Context, body alertBody) error {
 	return nil
 }
 
-// previewAlert prints what would be published, for eyeballing the wording
-// without waiting for something to break.
-//
-// It replaces the Rust version's `status preview-email <down|recovery>`, which
-// existed for exactly the same reason and rendered an HTML mail to stdout.
+// previewAlert prints what would be published, for checking the wording without
+// waiting for something to break.
 func previewAlert(kind string) error {
 	body, ok := renderAlert(kind, AlertContext{
 		ID:            "00000000-0000-0000-0000-000000000000",

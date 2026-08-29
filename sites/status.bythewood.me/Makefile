@@ -5,9 +5,9 @@
 # need a browser reload.
 #
 # Go waits for the manifest rather than sleeping a guessed number of seconds.
-# The server treats a missing manifest as fatal on purpose, which makes the
-# startup order load bearing, and this site's first Vite build is slow:
-# Bootstrap SCSS plus Chart.js and the Monaspace font.
+# The server treats a missing manifest as fatal, so the startup order matters,
+# and this site's first Vite build is slow: Bootstrap SCSS plus Chart.js and
+# the Monaspace font.
 run:
 	cd frontend && bun run dev & \
 	i=0; while [ ! -f build/dist/.vite/manifest.json ]; do \
@@ -21,19 +21,19 @@ frontend:
 	cd frontend && bun install --frozen-lockfile && bun run build
 
 # The lighthouse CLI, installed at the site root rather than in frontend/,
-# because it is not a frontend dependency: it is a program the Go binary
-# execs. lighthouse.go looks for it at ./node_modules/.bin/lighthouse.
+# because it is a program the Go binary execs rather than a frontend dependency.
+# lighthouse.go looks for it at ./node_modules/.bin/lighthouse.
 #
-# Its own target and not part of `build`: it is a large install that changes
-# rarely, and a local checkout that skips it still runs, it just records
-# "lighthouse CLI not installed" against each property.
+# Its own target rather than part of `build`: it is a large install that changes
+# rarely, and a local checkout that skips it still runs, recording "lighthouse
+# CLI not installed" against each property.
 lighthouse:
 	bun install --frozen-lockfile
 
-# The release binary. -tags embed swaps assets_disk.go for assets_embed.go so
-# the Vite bundle is compiled into the executable. `frontend` is not just
-# ordering here, it is a requirement: the embed directive reads build/dist at
-# compile time and fails the build if it is not there.
+# The release binary. -tags embed swaps assets_disk.go for assets_embed.go, so
+# the Vite bundle is compiled into the executable. `frontend` is a requirement
+# rather than ordering: the embed directive reads build/dist at compile time and
+# fails if it is not there.
 build: frontend
 	go build -tags embed -trimpath -ldflags="-s -w" -o ../../bin/status.bythewood.me .
 
@@ -41,7 +41,7 @@ serve:
 	go run .
 
 # Render an ntfy notification to stdout without waiting for something to
-# break. Replaces the Rust version's `status preview-email`.
+# break.
 preview:
 	go run . -preview-alert down
 	@echo

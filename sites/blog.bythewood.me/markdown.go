@@ -15,10 +15,9 @@ import (
 	"github.com/yuin/goldmark/util"
 )
 
-// The Markdown pipeline, matched to what comrak was configured to do: tables,
-// strikethrough, and raw HTML passed through. Nothing else. Autolinks and
-// heading anchors stay off, because comrak had them off and turning them on
-// would silently rewrite twenty-two existing posts.
+// The Markdown pipeline: tables, strikethrough, and raw HTML passed through.
+// Autolinks and heading anchors stay off, because turning them on would
+// silently rewrite twenty-two existing posts.
 var markdownRenderer = goldmark.New(
 	goldmark.WithExtensions(extension.Table, extension.Strikethrough),
 	goldmark.WithRendererOptions(
@@ -36,17 +35,14 @@ func renderMarkdown(md string) template.HTML {
 	return template.HTML(buf.String())
 }
 
-// base16OceanDark reproduces the syntect theme the Rust version highlighted
-// with, so twenty-two posts' worth of code blocks keep the colours they had.
+// base16OceanDark is the theme every existing code block was written under, so
+// it is spelled out here rather than substituted: chroma does not bundle this
+// one, and an approximation is a visible change to every post.
 //
-// It is written out rather than picked from chroma's bundled styles because
-// chroma does not ship this one, and an approximate substitute would be a
-// visible change to every post presented as a port.
-//
-// The palette is the Base16 Ocean scheme, and the token assignments are its
-// documented roles: base08 variables and tags, base09 constants and numbers,
-// base0A classes, base0B strings, base0C escapes and builtins, base0D
-// functions, base0E keywords, base0F deprecated.
+// Token assignments are Base16 Ocean's documented roles: base08 variables and
+// tags, base09 constants and numbers, base0A classes, base0B strings, base0C
+// escapes and builtins, base0D functions, base0E keywords, base0F
+// deprecated.
 var base16OceanDark = chroma.MustNewStyle("base16-ocean-dark", chroma.StyleEntries{
 	chroma.Background:            "#c0c5ce bg:#2b303b",
 	chroma.Comment:               "#65737e",
@@ -97,17 +93,16 @@ var base16OceanDark = chroma.MustNewStyle("base16-ocean-dark", chroma.StyleEntri
 })
 
 // chromaFormatter emits the highlighted spans only. The <pre> and <code>
-// wrapper is written by hand below so the markup keeps the exact shape the
-// stylesheet targets: post.scss styles `article > pre` as a direct child, and
-// chroma's own wrapper div would break that selector on every code block.
+// wrapper is written by hand below, because post.scss styles `article > pre`
+// as a direct child and chroma's own wrapper div would break that selector on
+// every code block.
 var chromaFormatter = chromahtml.New(
 	chromahtml.WithClasses(false),
 	chromahtml.PreventSurroundingPre(true),
 )
 
-// codeRenderer replaces goldmark's code block rendering with syntax
-// highlighted output shaped like comrak's: a <pre> carrying the theme
-// background as an inline style, wrapping a <code class="language-x">.
+// codeRenderer replaces goldmark's code block rendering: a <pre> carrying the
+// theme background as an inline style, wrapping a <code class="language-x">.
 type codeRenderer struct{}
 
 func (r *codeRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
@@ -134,11 +129,10 @@ func (r *codeRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 		code.Write(line.Value(source))
 	}
 
-	// The colour is on the <pre>, not left to the stylesheet. chroma only
-	// wraps tokens it has a rule for, so unstyled code (identifiers,
-	// punctuation, whitespace) inherits, and what it would inherit is
-	// article's warm #c4bdb2 against this cool background. syntect wrapped
-	// every run in an explicit span and never had the question.
+	// The colour is on the <pre> rather than left to the stylesheet. chroma
+	// only wraps tokens it has a rule for, so unstyled code (identifiers,
+	// punctuation, whitespace) would inherit article's warm #c4bdb2 against
+	// this cool background.
 	_, _ = w.WriteString(`<pre style="background-color:#2b303b;color:#c0c5ce;"><code`)
 	if lang != "" {
 		_, _ = w.WriteString(` class="language-`)
@@ -165,8 +159,8 @@ func highlight(w util.BufWriter, code, lang string) error {
 	if lexer == nil {
 		lexer = lexers.Fallback
 	}
-	// Coalesce merges runs of same-type tokens, which is what keeps the output
-	// from being one <span> per character on a plain-text block.
+	// Coalesce merges runs of same-type tokens, which keeps a plain-text block
+	// from becoming one <span> per character.
 	iterator, err := chroma.Coalesce(lexer).Tokenise(nil, code)
 	if err != nil {
 		return err

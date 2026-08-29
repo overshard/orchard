@@ -1,11 +1,11 @@
 # No TLS and no ACME. The Cloudflare edge terminates HTTPS near the visitor and
-# cloudflared hands us plain HTTP on the Docker bridge, so there is nothing here
-# to encrypt and nothing to redirect to.
+# cloudflared hands plain HTTP to the Docker bridge, so there is nothing here to
+# encrypt and nothing to redirect to.
 #
-# Caddy stays in the path rather than pointing cloudflared straight at the app
+# Caddy stays in the path rather than cloudflared pointing straight at each app,
 # because it owns the shared concerns: security headers, compression, and the
-# per-site blocks that let one tunnel serve every project in this repo. Adding a
-# site is a block here plus an ingress rule, not a second tunnel.
+# per-site blocks that let one tunnel serve every project here. Adding a site is
+# a block here plus an ingress rule, not a second tunnel.
 {
 	auto_https off
 	admin off
@@ -23,25 +23,22 @@
 		X-Content-Type-Options nosniff
 		Referrer-Policy strict-origin-when-cross-origin
 		-Server
-		# reverse_proxy adds "Via: 1.1 Caddy", which announces the origin stack
-		# and undoes the point of stripping Server just above it.
+		# reverse_proxy adds "Via: 1.1 Caddy", which announces the origin
+		# stack and undoes the Server header stripped just above.
 		-Via
 	}
 
 	encode zstd gzip
 
-	# Off by default in Caddy 2, which is what left the tunnel test blind to
-	# every request it served. On from the start here.
+	# Access logging is off by default in Caddy 2.
 	log {
 		output stderr
 		format console
 	}
 }
 
-# The sites. These were added alongside the next-* staging hostnames during the
-# 2026-08-27 cutover so both answered and DNS alone decided which the public
-# reached; the staging records were deleted once the flip was verified, so those
-# blocks are gone with them.
+# The sites. One block per hostname, each proxying to a container by name on
+# the shared network.
 http://isaacbythewood.com {
 	import site
 	reverse_proxy isaacbythewood-next:8000
@@ -52,9 +49,9 @@ http://blog.bythewood.me {
 	reverse_proxy blog-next:8000
 }
 
-# The collector endpoint is cross-origin by design and is written to by every
-# tracked site, so it is the one route in this repo an anonymous stranger can
-# POST to. The app caps the body at 16KB itself; this is the second fence.
+# The collector endpoint is cross-origin by design and written to by every
+# tracked site, so it is the one route here an anonymous stranger can POST to.
+# The app caps the body at 16KB itself; this is the second fence.
 http://analytics.bythewood.me {
 	import site
 
@@ -70,16 +67,9 @@ http://status.bythewood.me {
 	reverse_proxy status-next:8000
 }
 
-# The redirects the Linode's Caddy owns today.
-#
-# They are easy to forget because the `*.bythewood.me` and `*.isaacbythewood.com`
-# wildcards currently answer for www without anything being configured for it.
-# Remove the wildcard at decommission and www stops resolving entirely unless
-# these exist first.
-#
-# bythewood.me itself has never served a site. It redirects to the portfolio,
-# and it is also the zone apex carrying the Google Workspace MX records, so the
-# only thing changing here is where HTTP goes.
+# Redirects. bythewood.me has never served a site: it redirects to the
+# portfolio, and it is also the zone apex carrying the MX records, so the only
+# thing decided here is where HTTP goes.
 http://www.isaacbythewood.com {
 	import site
 	redir https://isaacbythewood.com{uri} permanent
@@ -91,7 +81,7 @@ http://bythewood.me, http://www.bythewood.me {
 }
 
 # Anything arriving without a matching Host did not come through an ingress
-# rule. Say so rather than silently serving a site by accident.
+# rule. Say so rather than serving a site by accident.
 :80 {
 	log {
 		output stderr

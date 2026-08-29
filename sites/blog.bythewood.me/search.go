@@ -7,12 +7,10 @@ import (
 )
 
 // Search is a substring scan over titles, descriptions and tags, held in
-// memory. Twenty-two posts do not need an index, and the moment they do the
-// honest answer is a real search engine rather than a hand-rolled one.
+// memory. Twenty-two posts do not need an index.
 //
-// Post bodies are deliberately not searched, which is unchanged from the Rust
-// version: matching body text without highlighting where the match was makes
-// results that look wrong.
+// Post bodies are not searched: matching body text without highlighting where
+// the match was produces results that look wrong.
 func matches(post *Post, needle string) bool {
 	if strings.Contains(strings.ToLower(post.Title), needle) ||
 		strings.Contains(strings.ToLower(post.Description), needle) {
@@ -87,9 +85,9 @@ func (s *site) searchLive(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 
-	// SetEscapeHTML(false) because encoding/json turns <, > and & into <
-	// by default. Nothing here is interpolated into a page (search.js builds
-	// rows from text nodes), so the escaping only corrupts titles.
+	// SetEscapeHTML(false): nothing here is interpolated into a page, since
+	// search.js builds rows from text nodes, so the default escaping only
+	// corrupts titles.
 	encoder := json.NewEncoder(w)
 	encoder.SetEscapeHTML(false)
 	_ = encoder.Encode(out)

@@ -9,20 +9,13 @@ import (
 
 // The Atom feed.
 //
-// The blog had no feed at all, in any of its four implementations: not the
-// Flask one, not the Rust one, and not this rebuild until now. That is a real
-// gap for a blog whose readers are the sort of people who still run a reader,
-// and it is also how aggregators and LLM crawlers discover posts without
-// scraping the index.
+// Atom rather than RSS 2.0. Both are universally supported, and Atom has the
+// tighter specification: RFC3339 dates instead of RSS's underspecified RFC822
+// variants, required explicit entry ids, and an unambiguous content type.
 //
-// Atom rather than RSS 2.0. Both are universally supported, and Atom is the
-// one with an actual specification behind it: dates are RFC3339 instead of
-// RSS's under specified RFC822 variants, entry ids are required and explicit,
-// and the content type is unambiguous.
-//
-// Full content ships in each entry rather than a summary. The posts are mine,
-// there is no ad model that needs the click, and a reader that has the whole
-// article is a reader who does not have to be online to finish it.
+// Each entry carries full content rather than a summary. There is no ad model
+// that needs the click, and a reader with the whole article does not have to be
+// online to finish it.
 
 const feedPath = "/feed.xml"
 
@@ -65,17 +58,17 @@ type atomCategory struct {
 }
 
 // Content is type="html", so the body is escaped into a text node rather than
-// inlined as XHTML. That keeps a post containing raw HTML from being able to
-// produce a malformed feed.
+// inlined as XHTML, and a post containing raw HTML cannot produce a malformed
+// feed.
 type atomContent struct {
 	Type string `xml:"type,attr"`
 	Body string `xml:",chardata"`
 }
 
 // feedTime turns a YYYY-MM-DD front matter date into the RFC3339 stamp Atom
-// requires. Posts carry a day, not a time, so they are dated at midnight UTC;
-// a date that will not parse falls back to the epoch rather than failing the
-// whole feed over one bad file.
+// requires. Posts carry a day rather than a time, so they are dated at midnight
+// UTC. A date that will not parse falls back to the epoch rather than failing
+// the whole feed over one bad file.
 func feedTime(day string) string {
 	t, err := time.Parse("2006-01-02", day)
 	if err != nil {
@@ -99,9 +92,9 @@ func (s *site) feed(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	// Atom's feed level updated is the newest entry's. Published() is already
-	// newest first, so that is the head of the list; an empty blog gets now,
-	// because the element is required.
+	// Atom's feed-level updated is the newest entry's, and Published() is
+	// already newest first. An empty blog gets now, because the element is
+	// required.
 	if len(published) > 0 {
 		feed.Updated = feedTime(published[0].Date)
 	} else {

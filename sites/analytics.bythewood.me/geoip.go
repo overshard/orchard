@@ -18,10 +18,9 @@ import (
 // GeoIP resolves a visitor address to a country, region and city.
 //
 // The database is DB-IP City Lite (CC-BY-4.0, no signup), downloaded on boot
-// and refreshed monthly. It is optional in the strongest sense: a missing or
-// unreadable file disables enrichment and changes nothing else, because the
-// alternative is an analytics server that will not start because a third
-// party's CDN is having a bad morning.
+// and refreshed monthly. A missing or unreadable file disables enrichment and
+// changes nothing else; the alternative is an analytics server that will not
+// start because a third party's CDN is having a bad morning.
 type GeoIP struct {
 	path string
 
@@ -40,7 +39,7 @@ type GeoLookup struct {
 }
 
 // cityRecord is the slice of the GeoIP2-City schema this app uses. v2 of the
-// reader ships no record structs, so the shape is declared here; DB-IP's Lite
+// reader ships no record structs, so the shape is declared here. DB-IP's Lite
 // files follow the same schema as MaxMind's.
 type cityRecord struct {
 	Country struct {
@@ -72,12 +71,10 @@ func LoadGeoIP(path string) *GeoIP {
 	return g
 }
 
-// Reload swaps in a freshly downloaded database.
-//
-// The old reader is closed under the write lock, which is what makes this
-// safe: Open mmaps the file and Lookup reads straight out of that mapping, so
-// closing while a lookup is in flight would unmap memory a live goroutine is
-// reading. Holding the write lock guarantees no reader holds the read lock.
+// Reload swaps in a freshly downloaded database. The old reader is closed
+// under the write lock: Open mmaps the file and Lookup reads out of that
+// mapping, so closing while a lookup is in flight would unmap memory a live
+// goroutine is reading.
 func (g *GeoIP) Reload() bool {
 	r, err := maxminddb.Open(g.path)
 	if err != nil {
@@ -119,8 +116,8 @@ func (g *GeoIP) Lookup(ip netip.Addr) (GeoLookup, bool) {
 	}
 	if len(rec.Subdivisions) > 0 {
 		sub := rec.Subdivisions[0]
-		// The English name is what the map's admin-1 topojson matches on;
-		// the ISO code is a usable fallback but will not join to a shape.
+		// The map's admin-1 topojson matches on the English name. The ISO
+		// code is a fallback but will not join to a shape.
 		if n := sub.Names["en"]; n != "" {
 			out.Region = n
 		} else {
@@ -140,12 +137,12 @@ func (g *GeoIP) Lookup(ip netip.Addr) (GeoLookup, bool) {
 const geoipMaxAge = 30 * 24 * time.Hour
 
 // EnsureGeoIPDB downloads a fresh database when the local one is missing or
-// older than a month. It reports whether a new file was written.
+// older than a month, and reports whether a new file was written.
 //
 // DB-IP rolls each month's file on the first, with a few hours of lag, so a
-// boot early on the first of the month would 404 against a file that does not
-// exist yet. Falling back through the two previous months means that boot gets
-// last month's data rather than none.
+// boot early on the first would 404 against a file that does not exist yet.
+// Falling back through the two previous months gets that boot last month's
+// data rather than none.
 func EnsureGeoIPDB(dest string) (bool, error) {
 	if info, err := os.Stat(dest); err == nil {
 		if time.Since(info.ModTime()) < geoipMaxAge {
@@ -176,11 +173,9 @@ func EnsureGeoIPDB(dest string) (bool, error) {
 // downloadGeoIP fetches, decompresses, validates and atomically installs the
 // database.
 //
-// The validate-then-rename is the fix from the 2026-07-20 hardening pass, and
-// the reason is the freshness check above: a truncated download written
-// straight to dest would have a current mtime, so enrichment would stay broken
-// for a full month before anything tried again. Proving the file opens before
-// it becomes the real one closes that.
+// Validate before rename, because of the freshness check above: a truncated
+// download written straight to dest would carry a current mtime, so enrichment
+// would stay broken for a full month before anything tried again.
 func downloadGeoIP(url, dest string) error {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {

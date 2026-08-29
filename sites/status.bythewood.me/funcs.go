@@ -13,16 +13,9 @@ import (
 
 // Template helpers.
 //
-// Short list on purpose. html/template is contextually aware, so the Rust
-// era's hand-written Jinja2-faithful HTML formatter has no counterpart here:
-// it existed only because minijinja escaped "/" to "&#x2f;" inside URLs, and
-// all five Rust apps shipped a copy of it.
-//
-// The url_for function is gone too. It mapped twelve endpoint names to
-// hardcoded path strings, which is indirection with nothing on the other side
-// of it: the paths are still hardcoded, just one file further away, and a typo
-// in an endpoint name became a runtime error instead of a broken link the
-// reader could see. Templates now write "/properties" and mean it.
+// There is no url_for indirection: templates write "/properties" and mean it. A
+// name-to-path map keeps the paths hardcoded one file further away and turns a
+// typo into a runtime error rather than a broken link the reader can see.
 var templateFuncs = template.FuncMap{
 	"dict":            dict,
 	"json":            jsonBlock,
@@ -43,10 +36,9 @@ var templateFuncs = template.FuncMap{
 	"hasPrefix":       strings.HasPrefix,
 }
 
-// dict lets a partial take more than one value.
-//
-// Go templates have a single dot, so a fragment needing both a label and a
-// list has no way to receive them.
+// dict lets a partial take more than one value. Go templates have a single dot,
+// so a fragment needing both a label and a list has no other way to receive
+// them.
 func dict(pairs ...any) (map[string]any, error) {
 	if len(pairs)%2 != 0 {
 		return nil, fmt.Errorf("dict: odd number of arguments (%d)", len(pairs))
@@ -62,15 +54,12 @@ func dict(pairs ...any) (map[string]any, error) {
 	return out, nil
 }
 
-// jsonBlock renders a value for a <script type="application/json"> block,
-// which is how the chart data reaches Chart.js.
+// jsonBlock renders a value for a <script type="application/json"> block, which
+// is how the chart data reaches Chart.js.
 //
-// SetEscapeHTML(false) plus template.JS is the pair that makes this correct,
-// and getting either half wrong is a bug the browser reports strangely.
-// encoding/json escapes <, > and & into < and friends by default, which
-// is protection against exactly this situation and is also unnecessary here
-// because the value is being placed by html/template, which knows it is inside
-// a script block and escapes for that context itself. Leaving both on produces
+// SetEscapeHTML(false) plus template.JS is the pair that makes this correct.
+// html/template already knows the value is inside a script block and escapes
+// for that context, so leaving encoding/json's own escaping on produces
 // doubly-escaped JSON that parses into corrupted strings.
 func jsonBlock(v any) (template.JS, error) {
 	var buf bytes.Buffer
@@ -82,28 +71,25 @@ func jsonBlock(v any) (template.JS, error) {
 	return template.JS(strings.TrimSpace(buf.String())), nil
 }
 
-// naturalTime renders a timestamp the way Django's humanize filter did, which
-// is what the templates were written against.
-//
-// A nil time renders as "never" rather than as an empty cell, because on this
-// dashboard the difference between "no crawl has ever run" and "the field did
-// not load" matters.
+// naturalTime renders a timestamp as a relative phrase. A nil time renders as
+// "never" rather than an empty cell, because the difference between "no crawl
+// has ever run" and "the field did not load" matters here.
 func naturalTime(t *time.Time) string {
 	if t == nil {
 		return "never"
 	}
 
 	d := time.Since(*t)
-	// Future timestamps are normal here, not an error: next_run_at is one, and
-	// the templates render it with the same filter.
+	// Future timestamps are normal rather than an error: next_run_at is one,
+	// and the templates render it with the same filter.
 	suffix := "ago"
 	if d < 0 {
 		d = -d
 		suffix = "from now"
 	}
 
-	// Rounded, not truncated. A timestamp 48 hours in the future is 47h59m59.9s
-	// away by the time this runs, and truncating that reports "1 day from now".
+	// Rounded, not truncated. A timestamp 48 hours out is 47h59m59.9s away by
+	// the time this runs, and truncating reports "1 day from now".
 	switch secs := int64(math.Round(d.Seconds())); {
 	case secs < 60:
 		if suffix == "ago" {
@@ -166,10 +152,8 @@ func intcomma(v any) string {
 	return b.String()
 }
 
-// msSavings renders a Lighthouse saving as "1.2 s" or "420 ms".
-//
-// Zero renders as the empty string so the template can show a placeholder,
-// which is the Django filter's contract the property template still relies on.
+// msSavings renders a Lighthouse saving as "1.2 s" or "420 ms". Zero renders as
+// the empty string, so the template can show a placeholder instead.
 func msSavings(v any) string {
 	var ms float64
 	switch t := v.(type) {
@@ -218,12 +202,8 @@ func pct(count, total int64) int64 {
 	return count * 100 / total
 }
 
-// pct1 renders a nullable percentage with one decimal place.
-//
-// The decimal is not decoration, it is parity: Rust's f64 Display always emits
-// one, so the Rust dashboard reads "100.0%" where Go's default formatting of
-// the same value reads "100%". Found by diffing the two reports on 2026-08-26.
-// Matching matters because these numbers are compared across the cutover.
+// pct1 renders a nullable percentage with one decimal place, so a value reads
+// "100.0%" rather than "100%" and the column stays aligned.
 func pct1(v *float64) string {
 	if v == nil {
 		return "—"
@@ -238,12 +218,12 @@ func seq(n int) []struct{} { return make([]struct{}, n) }
 
 // uptimeClass bands a recent-uptime percentage. Higher is better.
 //
-// 99 and 95 are the thresholds because they are the ones the operator reacts
-// to: below 99 something happened this week, below 95 something is wrong now.
+// 99 and 95 are the thresholds an operator reacts to: below 99 something
+// happened this week, below 95 something is wrong now.
 //
 // It takes a pointer because the value is nullable and Go templates cannot
-// rebind the dot inside an {{if}}: the template tests the pointer and passes
-// the same pointer here, rather than dereferencing it in the markup.
+// rebind the dot inside an {{if}}, so the template tests the pointer and passes
+// the same pointer here.
 func uptimeClass(pct *float64) string {
 	if pct == nil {
 		return "muted"
@@ -260,10 +240,10 @@ func uptimeClass(pct *float64) string {
 
 // lighthouseClass bands the average of the four Lighthouse scores.
 //
-// The thresholds are 90 and 80, not Lighthouse's own 90 and 50: this is an
-// average of four categories, and a site averaging 60 has something badly
-// wrong even though 60 is "average" for a single category. scoreClass keeps
-// Lighthouse's bands for the individual scores.
+// The thresholds are 90 and 80 rather than Lighthouse's own 90 and 50, because
+// this is an average of four categories and a site averaging 60 has something
+// badly wrong, even though 60 is unremarkable for a single category.
+// scoreClass keeps Lighthouse's bands for the individual scores.
 func lighthouseClass(score *int64) string {
 	if score == nil {
 		return "muted"
@@ -291,10 +271,9 @@ func countClass(n, warnAbove, downAbove int) string {
 	}
 }
 
-// metricClass bands one weighted performance metric's 0-to-1 score.
-//
-// A nil score means Lighthouse could not measure that metric on this page,
-// which is not the same as measuring it as bad, so it renders neutral.
+// metricClass bands one weighted performance metric's 0-to-1 score. A nil score
+// means Lighthouse could not measure it, which is not the same as measuring it
+// as bad, so it renders neutral.
 func metricClass(score *float64) string {
 	switch {
 	case score == nil:

@@ -8,18 +8,14 @@ import (
 // Killing a subprocess tree.
 //
 // exec.CommandContext kills only the process it started. Lighthouse starts
-// Chromium, Chromium starts renderer processes, and none of them are the
-// direct child, so a timeout that killed just the CLI would leave a browser
-// running with nobody holding a reference to it. One leaked Chromium per
-// wedged daily audit is a machine eaten inside a week, on hardware that is
-// also Isaac's desktop.
+// Chromium, Chromium starts renderers, and none of those are the direct child,
+// so a timeout that killed the CLI alone would leave a browser running with
+// nobody holding a reference to it. One leaked Chromium per wedged daily audit
+// eats the machine inside a week.
 //
 // The fix is to put the child in its own process group and signal the group.
-// The Rust version got this for free from tokio's kill_on_drop; Go has no
-// equivalent, so it is spelled out.
 //
-// Linux only, which every environment this runs in is: the webdev container,
-// the Alpine image, and the desktop's Docker.
+// Linux only, which covers every environment this runs in.
 
 func setProcessGroup(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}

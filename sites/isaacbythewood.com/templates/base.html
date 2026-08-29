@@ -11,13 +11,12 @@
          so it costs nothing measurable.
 
          The curtain is cover for a cold first paint: fetching the CSS, the
-         bundle, the fonts and a hero image. So the question it has to answer is
-         "does this browser already have those bytes", and the honest proxy for
-         that is the bundle's own content hash. Every file under /static/ is
-         served immutable for a year, so a browser that has fetched THIS build
-         still has it; a deploy changes the hash, which is exactly when the
-         browser has to download everything again and exactly when the opening
-         is worth watching.
+         bundle, the fonts and a hero image. The question it has to answer is
+         "does this browser already have those bytes", and the bundle's own
+         content hash answers it. Every file under /static/ is served immutable
+         for a year, so a browser that fetched THIS build still has it, and a
+         deploy changes the hash, which is when the browser has to download
+         everything again.
 
          That is why this is localStorage keyed on the build rather than a
          sessionStorage "have I been here this tab" flag. A new tab an hour

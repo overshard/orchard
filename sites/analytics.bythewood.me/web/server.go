@@ -13,23 +13,15 @@ import (
 	"time"
 )
 
-// SetupLogging installs the process-wide structured logger.
-//
-// JSON, because these run in containers and the logs are read by machine
-// before they are read by a person. The one concession to being read by a
-// person is that source positions are off: they are noise in a request log
-// and the message plus the attributes already say where a record came from.
-//
-// Called by every site's main before anything else logs, so the four copies of
-// this package cannot drift into four different log formats.
+// SetupLogging installs the process-wide structured logger. JSON, because these
+// logs are read by machine before they are read by a person. Source positions
+// are off: they are noise in a request log, and the message and attributes
+// already say where a record came from.
 func SetupLogging() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
-		// Timestamps in UTC, which is what the stdlib logger was doing with
-		// log.LUTC before this and is not slog's default. Four containers, a
-		// host on Eastern time and a reader correlating them against
-		// Cloudflare's logs all want one zone, and local time in a container
-		// is a trap: it silently differs from the host's.
+		// UTC, which is not slog's default. Local time in a container
+		// silently differs from the host's.
 		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
 			if a.Key == slog.TimeKey && len(groups) == 0 {
 				a.Value = slog.TimeValue(a.Value.Time().UTC())
@@ -40,13 +32,9 @@ func SetupLogging() {
 }
 
 // Serve runs h on addr until SIGINT or SIGTERM, then drains in-flight requests
-// before returning.
-//
-// Every container in this workspace listens on 8000, in dev and in prod alike,
-// so addr is almost always ":8000". Graceful shutdown matters more than it
-// looks: `docker compose up --build` on every deploy means these processes are
-// killed and restarted constantly, and a half-written response is a visible
-// error to whoever was mid-request.
+// before returning. Every deploy is a `docker compose up --build`, so these
+// processes are killed and restarted often and a half-written response is
+// something somebody sees.
 func Serve(addr string, h http.Handler) error {
 	srv := &http.Server{
 		Addr:              addr,
@@ -79,18 +67,13 @@ func Serve(addr string, h http.Handler) error {
 }
 
 // HealthCheck probes a running server over the loopback and reports whether it
-// answered 200. It exists so the container can check itself.
+// answered 200, so that a container can check itself. Two of these images are
+// FROM scratch: no shell, no curl, nothing a HEALTHCHECK can call except the
+// binary. The Alpine images could use wget, but one behaviour everywhere beats
+// two.
 //
-// Two of these images are FROM scratch: no shell, no curl, no wget, nothing a
-// HEALTHCHECK could shell out to. The binary is the only executable in the
-// image, so it has to be the thing that does the probing, which is the usual
-// answer for scratch and distroless images. The other two images are Alpine and
-// could use wget, but doing it the same way everywhere means one behaviour to
-// reason about rather than two.
-//
-// The timeout is deliberately short. A health check that hangs is worse than
-// one that fails: Docker treats a timed out check as a failure anyway, and a
-// slow check just delays finding out.
+// The timeout is short. Docker treats a timed out check as a failure anyway, so
+// a slow check only delays finding out.
 func HealthCheck(url string, timeout time.Duration) error {
 	client := &http.Client{Timeout: timeout}
 
@@ -98,10 +81,8 @@ func HealthCheck(url string, timeout time.Duration) error {
 	if err != nil {
 		return err
 	}
-	// Drained and closed, not just closed. An undrained body leaks the
-	// connection out of the pool, which does not matter for a process that is
-	// about to exit but is the kind of thing that gets copied somewhere it
-	// does matter.
+	// Drained as well as closed: an undrained body leaks the connection out
+	// of the pool.
 	defer resp.Body.Close()
 	_, _ = io.Copy(io.Discard, resp.Body)
 

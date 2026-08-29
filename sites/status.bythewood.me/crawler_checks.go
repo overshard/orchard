@@ -6,14 +6,11 @@ import (
 	"strings"
 )
 
-// The checks.
+// The checks. Each one reads the whole crawl and returns findings.
 //
-// Each one reads the whole crawl and returns findings. They are a direct port
-// of the Rust version's checks.rs, which was itself a port of the original
-// Django crawler's checks.py, so the wording of every issue string is fixed by
-// two previous generations: the dashboard groups on `type` and sorts on
-// `severity`, and an operator comparing this week's audit to last month's is
-// diffing these strings.
+// The wording of every issue string is fixed by the stored history: the
+// dashboard groups on `type` and sorts on `severity`, and an operator comparing
+// this week's audit to last month's is diffing these strings.
 
 const (
 	typeSEO     = "seo"
@@ -28,11 +25,9 @@ const (
 	sevInfo  = "info"
 )
 
-// Insight is one finding.
-//
-// The JSON names are lowercase and fixed by the existing production data:
-// these are stored as a JSON array in properties.crawler_insights, and the
-// dashboard and the report templates both read them by these names.
+// Insight is one finding. The lowercase JSON names are fixed by the stored
+// data: these live as a JSON array in properties.crawler_insights, and both the
+// dashboard and the report templates read them by these names.
 type Insight struct {
 	URL      string `json:"url"`
 	Issue    string `json:"issue"`
@@ -74,14 +69,14 @@ func normalizeText(s string) string {
 
 // runChecks runs everything and returns the flat list.
 //
-// Order is fixed rather than incidental: the dashboard groups by type but
+// The order is fixed rather than incidental. The dashboard groups by type but
 // preserves order within a group, so a stable list means an operator's eye
-// lands in the same place every week. The Rust version ran these through
-// catch_unwind because a panic in one check would otherwise lose the whole
-// crawl. Go needs no equivalent here: every check below indexes only through
-// bounds-checked helpers and the one real hazard, dereferencing a nil HTML on
-// a non-HTML page, is prevented by htmlPages being built by filter rather than
-// asserted per check. The Rust version asserted, with an `.expect()`.
+// lands in the same place every week.
+//
+// No check can panic the crawl: they index through bounds-checked helpers, and
+// the one real hazard, dereferencing a nil HTML on a non-HTML page, is
+// prevented by htmlPages being built by filter rather than asserted per
+// check.
 func runChecks(result *CrawlResult) []Insight {
 	var htmlPages []*Page
 	statusByURL := make(map[string]int, len(result.Pages))
@@ -153,13 +148,11 @@ func runChecks(result *CrawlResult) []Insight {
 	return out
 }
 
-// groupPages buckets HTML pages by a normalised field, skipping pages where
-// the field is empty. Used by the three duplicate checks.
+// groupPages buckets HTML pages by a normalised field, skipping pages where the
+// field is empty. Used by the three duplicate checks.
 //
-// The returned keys are sorted, which the Rust version's HashMap iteration was
-// not. That is the same class of bug the analytics port found in its custom
-// metric tiles: an unordered container feeding user-visible output means the
-// findings list reshuffles between crawls of an unchanged site.
+// The returned keys are sorted. An unordered map feeding user-visible output
+// makes the findings list reshuffle between crawls of an unchanged site.
 func groupPages(pages []*Page, field func(*Page) string) []([]*Page) {
 	buckets := map[string][]*Page{}
 	for _, p := range pages {
@@ -198,11 +191,9 @@ func checkTitleMissing(ctx *checkCtx) []Insight {
 	return out
 }
 
-// checkTitleLength flags titles outside 30-60 characters, which is roughly
-// what Google renders before truncating.
-//
-// Counted in runes rather than bytes, so a title in a non-Latin script is not
-// reported as three times too long.
+// checkTitleLength flags titles outside 30-60 characters, roughly what Google
+// renders before truncating. Counted in runes rather than bytes, so a title in
+// a non-Latin script is not reported as three times too long.
 func checkTitleLength(ctx *checkCtx) []Insight {
 	var out []Insight
 	for _, p := range ctx.htmlPages {
@@ -330,18 +321,14 @@ func checkDuplicateH1s(ctx *checkCtx) []Insight {
 	return out
 }
 
-// checkHeadingHierarchy flags a document that jumps a heading level, e.g. an
-// h2 followed by an h4 with no h3 between them.
+// checkHeadingHierarchy flags a document that jumps a heading level, such as an
+// h2 followed by an h4 with no h3 between them. It reports the first skip and
+// stops, because a page with a broken outline usually repeats the same break.
 //
-// It reports the first skip and stops, because a page with a broken outline
-// usually has the same break repeated and one finding is the actionable one.
-//
-// Worth knowing: this compares which levels are *present in the document*, not
-// the order they appear in. A page with an h1, an h3 and an h2, in that
-// source order, has all three levels present and passes. That is the Rust
-// behaviour, and the Django behaviour before it, and it is left alone: making
-// it order-sensitive would be a different check, would fire on most real
-// pages, and is not a port decision to make quietly.
+// This compares which levels are *present in the document*, not the order they
+// appear in, so a page with an h1, an h3 and an h2 in that source order passes.
+// Making it order-sensitive would be a different check and would fire on most
+// real pages.
 func checkHeadingHierarchy(ctx *checkCtx) []Insight {
 	var out []Insight
 	for _, p := range ctx.htmlPages {
@@ -384,9 +371,9 @@ func checkCanonicalOffDomain(ctx *checkCtx) []Insight {
 	return out
 }
 
-// checkCanonicalBroken only fires for a canonical the crawl actually visited.
-// An unvisited one is unknown, not broken, and guessing would mean an extra
-// request per page to prove a negative.
+// checkCanonicalBroken only fires for a canonical the crawl visited. An
+// unvisited one is unknown rather than broken, and proving otherwise would mean
+// an extra request per page.
 func checkCanonicalBroken(ctx *checkCtx) []Insight {
 	var out []Insight
 	for _, p := range ctx.htmlPages {
@@ -492,9 +479,9 @@ func checkJSONLDParseError(ctx *checkCtx) []Insight {
 
 // ---------- links ----------
 
-// linkPair keys the per-page deduplication. The same link appearing twice in
-// one page's nav is one finding, but the same broken link on twenty pages is
-// twenty, because each of those pages needs fixing.
+// linkPair keys the per-page deduplication. The same link twice in one page's
+// nav is one finding; the same broken link on twenty pages is twenty, because
+// each of those pages needs fixing.
 type linkPair struct{ from, to string }
 
 func checkBrokenInternalLinks(ctx *checkCtx) []Insight {
@@ -538,9 +525,9 @@ func checkBrokenExternalLinks(ctx *checkCtx) []Insight {
 				continue
 			}
 			reported[key] = true
-			// A warning rather than an error, because the fix is on somebody
-			// else's server and a link that 404s today may be a site that is
-			// merely down this minute.
+			// A warning rather than an error: the fix is on somebody else's
+			// server, and a link that 404s today may be a site that is down
+			// this minute.
 			out = append(out, finding(p.URL,
 				"Broken external link ("+statusLabel(status)+")", typeLinks, sevWarn, link.URL))
 		}
@@ -557,15 +544,9 @@ func statusLabel(status int) string {
 
 // checkRedirectChains flags a URL that took more than one hop to resolve.
 //
-// This check never once fired in the Rust version. fetcher.rs built its
-// redirect_chain as `vec![(status, final_url)]`, a single element, always, and
-// the check tested `len() > 2`, so the condition was unreachable for the life
-// of the feature. Go's http.Client threads the chain onto Response.Request, so
-// counting the hops is a loop rather than a rewrite, and the check now works.
-//
-// The threshold is two hops rather than one: a single redirect is normal and
+// The threshold is two hops rather than one. A single redirect is normal and
 // correct (http to https, apex to www), while two or more is a chain worth
-// collapsing because every hop is a full round trip for the visitor.
+// collapsing, since every hop is a full round trip for the visitor.
 func checkRedirectChains(ctx *checkCtx) []Insight {
 	var out []Insight
 	for _, p := range ctx.pages {
@@ -645,10 +626,9 @@ func checkSitemapBrokenURLs(ctx *checkCtx) []Insight {
 	return out
 }
 
-// checkPagesMissingFromSitemap reports crawled pages the sitemap does not
-// list, skipping any page that asked not to be indexed: a noindex page is
-// correctly absent, and flagging it would be telling the operator to undo a
-// deliberate decision.
+// checkPagesMissingFromSitemap reports crawled pages the sitemap does not list,
+// skipping any page that asked not to be indexed. A noindex page is correctly
+// absent, and flagging it would mean asking the operator to undo a choice.
 func checkPagesMissingFromSitemap(ctx *checkCtx) []Insight {
 	if len(ctx.sitemapURLs) == 0 {
 		return nil
@@ -673,11 +653,9 @@ func checkPagesMissingFromSitemap(ctx *checkCtx) []Insight {
 
 // ---------- accessibility ----------
 
-// checkImagesMissingAlt counts images with no alt attribute at all.
-//
-// alt="" is explicitly not a finding: it is the correct markup for a
-// decorative image, and the parser keeps the distinction with a pointer for
-// exactly this reason.
+// checkImagesMissingAlt counts images with no alt attribute at all. alt="" is
+// not a finding: it is the correct markup for a decorative image, which is why
+// the parser keeps the distinction with a pointer.
 func checkImagesMissingAlt(ctx *checkCtx) []Insight {
 	var out []Insight
 	for _, p := range ctx.htmlPages {
@@ -717,11 +695,9 @@ func checkEmptyAnchorText(ctx *checkCtx) []Insight {
 }
 
 // checkFormInputsUnlabeled reports one finding per page, for the first form on
-// it that has unlabeled inputs.
-//
-// One per page rather than one per form is the Rust and Django behaviour, and
-// it is defensible: a page whose forms are unlabeled almost always has one
-// template generating all of them, so the second report would be the same fix.
+// it with unlabeled inputs. One per page rather than one per form, because a
+// page whose forms are unlabeled almost always has one template generating all
+// of them.
 func checkFormInputsUnlabeled(ctx *checkCtx) []Insight {
 	// Input types that need no label: they carry no user-entered value, or
 	// their own text is the label.
@@ -786,8 +762,8 @@ func checkThinContent(ctx *checkCtx) []Insight {
 // checkDuplicateContent groups pages by the hash of their visible text.
 //
 // Iterated in sorted hash order for the same reason groupPages sorts: an
-// unordered map here means the findings reshuffle between crawls of a site
-// that has not changed.
+// unordered map makes the findings reshuffle between crawls of a site that has
+// not changed.
 func checkDuplicateContent(ctx *checkCtx) []Insight {
 	buckets := map[string][]string{}
 	for _, p := range ctx.htmlPages {
@@ -809,8 +785,8 @@ func checkDuplicateContent(ctx *checkCtx) []Insight {
 			continue
 		}
 		for _, u := range urls {
-			// Name one of the others as the example, so the finding says what
-			// the page is a duplicate *of* rather than just that it is one.
+			// Name one of the others, so the finding says what the page is a
+			// duplicate *of* rather than only that it is one.
 			other := urls[0]
 			if other == u {
 				other = urls[1]
@@ -839,11 +815,9 @@ func checkSlowPages(ctx *checkCtx) []Insight {
 	return out
 }
 
-// checkMissingCompression probes the start URL only.
-//
-// Compression is a server-wide setting in every real deployment, so one probe
-// answers for the site, and probing every page would mean a second request per
-// page to learn the same fact five hundred times.
+// checkMissingCompression probes the start URL only. Compression is a
+// server-wide setting in practice, so one probe answers for the site and
+// probing every page would learn the same fact five hundred times.
 func checkMissingCompression(ctx *checkCtx) []Insight {
 	if ctx.compression != "" {
 		return nil
@@ -853,8 +827,8 @@ func checkMissingCompression(ctx *checkCtx) []Insight {
 }
 
 // checkOversizedPages measures the HTML document alone, not the page weight a
-// browser would report: images and scripts are separate requests and
-// Lighthouse is what covers those.
+// browser would report. Images and scripts are separate requests, and
+// Lighthouse covers those.
 func checkOversizedPages(ctx *checkCtx) []Insight {
 	var out []Insight
 	for _, p := range ctx.pages {

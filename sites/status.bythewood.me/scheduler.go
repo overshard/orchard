@@ -9,21 +9,20 @@ import (
 	"time"
 )
 
-// The scheduler.
+// The scheduler: one goroutine, waking every thirty seconds, deciding what is
+// due and handing it to a worker pool.
 //
-// One goroutine, waking every thirty seconds, deciding what is due and handing
-// it to a worker pool. There is no cron, no queue and no second process: the
-// binary that serves the dashboard is the binary that does the monitoring, and
-// that is the whole reason this app is one file to deploy.
+// No cron, no queue and no second process. The binary that serves the dashboard
+// is the binary that does the monitoring, which is what makes this app one file
+// to deploy.
 
 const (
 	cycleInterval = 30 * time.Second
 
 	// Two pools, so a nine-minute crawl cannot starve a three-minute ping.
-	// This is the single most important structural decision in the file: with
-	// one shared pool, two sites crawling at once would silently stop every
-	// uptime check on every property, and the dashboard would show a flat
-	// green line while nothing was being measured at all.
+	// With one shared pool, two sites crawling at once would stop every uptime
+	// check on every property, and the dashboard would show a flat green line
+	// while nothing was being measured.
 	fastWorkers = 2
 	slowWorkers = 2
 
@@ -34,22 +33,22 @@ const (
 	lighthouseInterval = 24 * time.Hour
 	crawlInterval      = 7 * 24 * time.Hour
 
-	// Watchdog cutoffs. Anything still "running" past these was interrupted:
-	// the process was killed, the machine slept, a subprocess wedged. Without
-	// the reset the row stays running forever and that property is never
-	// audited again.
+	// Watchdog cutoffs. Anything still "running" past these was interrupted by
+	// the process being killed, the machine sleeping, or a subprocess wedging.
+	// Without the reset the row stays running forever and that property is
+	// never audited again.
 	//
-	// Both are comfortably past the work's own deadline (nine minutes for a
-	// crawl, three for Lighthouse) so a slow-but-alive job finishes and
-	// records its own result rather than being declared dead underneath
-	// itself.
+	// Both are past the work's own deadline (nine minutes for a crawl, three
+	// for Lighthouse), so a slow but living job finishes and records its own
+	// result rather than being declared dead underneath itself.
 	crawlWedgeAfter      = 15 * time.Minute
 	lighthouseWedgeAfter = 5 * time.Minute
 
 	cleanupInterval = 24 * time.Hour
 	// Three days of checks, at one every three minutes, is 1,440 rows per
 	// property. The dashboard charts the most recent 31 and the uptime
-	// percentages read the lot, so this is the window the numbers describe.
+	// percentages read all of them, so this is the window the numbers
+	// describe.
 	checkRetention = 3 * 24 * time.Hour
 )
 
@@ -76,12 +75,9 @@ func NewScheduler(db *sql.DB, notifier *Notifier, root string) *Scheduler {
 	}
 }
 
-// ResetOnBoot clears rows left queued or running by a previous process.
-//
-// Nothing survived the restart: the goroutines that owned those rows are gone.
-// Without this every property interrupted by a deploy would be permanently
-// stuck, and deploys here are frequent because every one of them runs
-// `docker compose up --build`.
+// ResetOnBoot clears rows left queued or running by a previous process, whose
+// goroutines are gone. Without this, every property interrupted by a deploy
+// would be stuck permanently.
 func (s *Scheduler) ResetOnBoot(ctx context.Context) error {
 	if _, err := s.db.ExecContext(ctx,
 		"UPDATE properties SET crawl_state = 'idle' WHERE crawl_state IN ('queued', 'running')"); err != nil {
@@ -112,9 +108,8 @@ func (s *Scheduler) Run(ctx context.Context) {
 }
 
 func (s *Scheduler) cycle(ctx context.Context, lastCleanup *time.Time) {
-	// Each step logs and continues rather than returning. A failure enqueuing
-	// Lighthouse must not also skip the uptime checks: those are the thing
-	// this app exists to do.
+	// Each step logs and continues rather than returning, so a failure
+	// enqueuing Lighthouse does not also skip the uptime checks.
 	if err := s.enqueueChecks(ctx); err != nil {
 		slog.Info(fmt.Sprintf("enqueue checks: %v", err), slog.String("component", "scheduler"))
 	}
@@ -152,11 +147,10 @@ func (s *Scheduler) due(ctx context.Context, where string, args ...any) ([]*Prop
 	return out, rows.Err()
 }
 
-// enqueueChecks starts the HTTP probes that are due.
-//
-// The next run time is written *before* the work starts, which is what stops
-// the same property being probed again by the next tick thirty seconds later
-// while the first probe is still in flight.
+// enqueueChecks starts the HTTP probes that are due. The next run time is
+// written *before* the work starts, which stops the next tick from probing the
+// same property thirty seconds later while the first probe is still in
+// flight.
 func (s *Scheduler) enqueueChecks(ctx context.Context) error {
 	now := nowMS()
 	props, err := s.due(ctx,
@@ -259,10 +253,9 @@ func (s *Scheduler) runLighthouseFor(ctx context.Context, p *Property) {
 		fail(err)
 		return
 	}
-	// Details are best effort: the headline scores are the thing, and a
-	// Lighthouse release that reshapes auditRefs should not throw away a
-	// perfectly good audit. "null" is what the Rust version stored and what
-	// the template already tests for.
+	// Details are best effort. The headline scores are what matters, and a
+	// Lighthouse release that reshapes auditRefs should not throw away a good
+	// audit. The template tests for "null".
 	detailsJSON := []byte("null")
 	if details := parseDetails(report); details != nil {
 		if encoded, err := json.Marshal(details); err == nil {
@@ -326,11 +319,10 @@ func (s *Scheduler) runCrawlFor(ctx context.Context, p *Property) {
 	}
 
 	// Progress writes drive the dashboard's progress bar during a crawl that
-	// can legitimately run nine minutes. Synchronous, unlike the Rust version,
-	// which spawned a task per update: at four-way concurrency that was up to
-	// 125 detached writers per crawl, all contending for SQLite's single write
-	// lock to update the same column. This is called once per batch of four
-	// pages, so it is at most 125 quick writes in series.
+	// can legitimately run nine minutes. Synchronous rather than one goroutine
+	// per update, which would put up to 125 detached writers per crawl in
+	// contention for SQLite's single write lock on the same column. Called once
+	// per batch of four pages, so at most 125 quick writes in series.
 	progress := func(pages int) {
 		if _, err := s.db.ExecContext(ctx,
 			"UPDATE properties SET last_crawl_pages_count = ? WHERE id = ?",
@@ -391,11 +383,10 @@ func (s *Scheduler) resetWedged(ctx context.Context) error {
 
 // maybeCleanup deletes checks past the retention window, once a day.
 //
-// The timer is in memory rather than in the meta table, so a process
-// restarting more than once a day never runs it. That is the Rust behaviour
-// and it is fine here because a deploy is not a daily event, but it is the
-// reason this is a delete of everything past the cutoff rather than of one
-// day's worth: whenever it does run, it catches up.
+// The timer is in memory rather than in the meta table, so a process restarting
+// more than once a day never runs it. That is why this deletes everything past
+// the cutoff rather than one day's worth: whenever it does run, it catches
+// up.
 func (s *Scheduler) maybeCleanup(ctx context.Context, last *time.Time) error {
 	if !last.IsZero() && time.Since(*last) < cleanupInterval {
 		return nil

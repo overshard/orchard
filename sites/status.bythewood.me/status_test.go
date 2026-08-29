@@ -18,16 +18,12 @@ import (
 	"status.bythewood.me/web"
 )
 
-// The tests worth having for a port.
-//
-// Not coverage for its own sake. Each of these pins something that either
-// cannot fail loudly on its own, or that was found to be wrong in the Rust
-// version and would be easy to reintroduce:
+// Each of these pins something that cannot fail loudly on its own:
 //
 //   - Templates are parsed and executed at *runtime*, so a bad field name is a
 //     500 on a page nobody may load for a week. Executing every one of them
-//     against realistic data turns that into a compile-time-ish failure.
-//   - The schema has to accept the existing production database untouched.
+//     against realistic data catches that at test time.
+//   - The schema has to accept an existing database untouched.
 //   - The security-header reading, the alert state machine and the crawler
 //     checks all encode judgements that are easy to "simplify" into being
 //     wrong.
@@ -138,7 +134,7 @@ func fullPageData(t *testing.T) PageData {
 		}},
 		ResponseTimes: []ResponseTimePoint{
 			{Label: now.Format(time.RFC3339), Total: 142, DNS: &avg, TCP: &avg, TLS: &avg, TTFB: &avg},
-			// A pre-migration-0002 row: total only, every phase null.
+			// An older row: total only, every phase null.
 			{Label: now.Format(time.RFC3339), Total: 138},
 		},
 		StatusCodes:  []LabelCount{{Label: 200, Count: 1400}, {Label: 526, Count: 40}},
@@ -162,7 +158,7 @@ func emptyPageData() PageData {
 			CurrentStatus: 200,
 			CrawlState:    "idle",
 			// LighthouseScores, LighthouseDetails, RecentUptimePct,
-			// AvgLighthouseScore and every timestamp deliberately left nil.
+			// AvgLighthouseScore and every timestamp left nil.
 		},
 	}
 }
@@ -255,10 +251,8 @@ func TestReportTemplatesExecute(t *testing.T) {
 	}
 }
 
-// TestReportEscapesTypstComment is the one that would have caught the bug the
-// 2026-07-20 hardening pass found: "//" starts a Typst line comment, and a URL
-// is full of them, so an unescaped property URL silently swallowed the rest of
-// its line in the PDF.
+// "//" starts a Typst line comment and a URL is full of them, so an unescaped
+// property URL swallows the rest of its line in the PDF.
 func TestReportEscapesTypstComment(t *testing.T) {
 	data := fullPageData(t)
 	data.Property.URL = "https://example.com/a//b"
@@ -277,15 +271,13 @@ func TestReportEscapesTypstComment(t *testing.T) {
 
 // --- schema --------------------------------------------------------------
 
-// TestSchemaAcceptsRustDatabase is the test the cutover depends on.
-//
-// It builds a database with exactly the Rust migrations' shape, then opens it
-// with openDB and writes through every column. If the Go schema has drifted,
-// this fails here rather than against the real database on deploy day.
-func TestSchemaAcceptsRustDatabase(t *testing.T) {
+// TestSchemaAcceptsLegacyDatabase builds a database with the shape this app
+// inherited, opens it with openDB and writes through every column, so a drifted
+// schema fails here rather than against the real database on deploy day.
+func TestSchemaAcceptsLegacyDatabase(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "db.sqlite3")
 
-	rustSchema, err := os.ReadFile("testdata/rust_schema.sql")
+	legacySchema, err := os.ReadFile("testdata/legacy_schema.sql")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -294,13 +286,12 @@ func TestSchemaAcceptsRustDatabase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := seed.Exec(string(rustSchema)); err != nil {
-		t.Fatalf("applying the Rust schema: %v", err)
+	if _, err := seed.Exec(string(legacySchema)); err != nil {
+		t.Fatalf("applying the legacy schema: %v", err)
 	}
-	// sqlx's own bookkeeping table, which the Go version ignores and must not
-	// trip over. It is deliberately left in place on the real database too:
-	// dropping it would break rollback, since sqlx would then re-run
-	// 0001_initial against tables that already exist.
+	// An older migration tool's bookkeeping table, which this app ignores and
+	// must not trip over. It is left in place on the real database too,
+	// because dropping it would break a rollback.
 	if _, err := seed.Exec(`CREATE TABLE _sqlx_migrations (version BIGINT PRIMARY KEY);
 		INSERT INTO _sqlx_migrations VALUES (1), (2);`); err != nil {
 		t.Fatal(err)
@@ -313,8 +304,7 @@ func TestSchemaAcceptsRustDatabase(t *testing.T) {
 		 VALUES (?, 'https://example.com', 1, 0, 'up', ?, ?)`, id[:], now, now); err != nil {
 		t.Fatal(err)
 	}
-	// A pre-0002 check row: no phase timings at all, which is what most of the
-	// production rows look like.
+	// An older check row, with no phase timings at all.
 	if _, err := seed.Exec(
 		`INSERT INTO checks (property_id, status_code, response_ms, headers, created_at)
 		 VALUES (?, 200, 142, '{}', ?)`, id[:], now); err != nil {
@@ -324,7 +314,7 @@ func TestSchemaAcceptsRustDatabase(t *testing.T) {
 
 	db, err := openDB(path)
 	if err != nil {
-		t.Fatalf("opening a database written by the Rust version: %v", err)
+		t.Fatalf("opening a legacy database: %v", err)
 	}
 	defer db.Close()
 
@@ -358,9 +348,8 @@ func TestSchemaAcceptsRustDatabase(t *testing.T) {
 	if len(checks) != 2 {
 		t.Fatalf("expected 2 checks, got %d", len(checks))
 	}
-	// The pre-0002 row must still read back, with nil phases rather than zeros:
-	// the chart draws a gap for nil and a floor for 0, and they mean different
-	// things.
+	// The older row must still read back with nil phases rather than zeros:
+	// the chart draws a gap for nil and a floor for 0.
 	var legacy *Check
 	for i := range checks {
 		if checks[i].ResponseMS == 142 {
@@ -424,9 +413,9 @@ func TestSecurityPosture(t *testing.T) {
 		v.applySecurityPosture(headers(map[string]string{
 			"strict-transport-security": "max-age=99999999999999999999999",
 		}))
-		// It does not parse as an int64, so it is reported as absent rather
-		// than wrapping to a negative number. Either answer is defensible;
-		// what must not happen is a panic or a nonsense comparison.
+		// It does not parse as an int64, so it reports as absent rather than
+		// wrapping to a negative number. What must not happen is a panic or a
+		// nonsense comparison.
 		_ = v.HasHSTS
 	})
 
@@ -575,7 +564,7 @@ func TestRenderAlert(t *testing.T) {
 		t.Errorf("the down alert links to %q, which is not an absolute dashboard URL", down.Click)
 	}
 	// Priority matters: this is read on a phone, and an outage that does not
-	// stand out from a recovery is an outage that gets missed.
+	// stand out from a recovery gets missed.
 	if down.Priority == "default" {
 		t.Error("the outage alert has the same priority as a recovery")
 	}
@@ -651,7 +640,7 @@ func TestParseHTML(t *testing.T) {
 		t.Errorf("expected 2 crawlable links, got %d: %+v", len(p.Links), p.Links)
 	}
 
-	// The alt distinction is the whole point of the pointer.
+	// The pointer exists to keep the alt distinction.
 	var missing, decorative int
 	for _, img := range p.Images {
 		switch {
@@ -682,8 +671,7 @@ func TestParseHTML(t *testing.T) {
 	}
 }
 
-// TestParseHTMLDecodesEntities pins the difference from the Rust version,
-// which stripped tags with a regex and left "&nbsp;" in the text as a word.
+// Entities must be decoded, or "&nbsp;" counts as a word.
 func TestParseHTMLDecodesEntities(t *testing.T) {
 	p := parsed(t, `<html><body><p>one&nbsp;two&amp;three</p></body></html>`, "https://example.com/")
 	if p.WordCount != 2 {
@@ -760,9 +748,9 @@ func TestChecksFindTheObviousFailures(t *testing.T) {
 		}
 	}
 
-	// And the good page must not be caught for any of them. This direction is
-	// the one that matters: a check that fires on everything is noise, and
-	// noise is what gets a whole audit ignored.
+	// And the good page must not be caught for any of them. This is the
+	// direction that matters: a check that fires on everything is noise, and
+	// noise gets a whole audit ignored.
 	for _, unwanted := range []string{
 		"Page has no title",
 		"Page has no meta description",
@@ -789,9 +777,8 @@ func containsIssue(issues []string, want string) bool {
 	return false
 }
 
-// TestRedirectChainCheckFires is the regression test for the check that never
-// once worked in the Rust version: it recorded a one-element chain and tested
-// for more than two, so the condition was unreachable.
+// TestRedirectChainCheckFires guards a condition that is easy to make
+// unreachable by recording a one-element chain and testing for more than two.
 func TestRedirectChainCheckFires(t *testing.T) {
 	result := &CrawlResult{
 		StartURL: "https://example.com/",
@@ -815,9 +802,8 @@ func TestRedirectChainCheckFires(t *testing.T) {
 	}
 }
 
-// TestDuplicateChecksAreOrdered is the regression test for the unordered-map
-// class of bug: the same crawl must produce the same findings in the same
-// order every time, or a weekly report diffs as changed when nothing did.
+// The same crawl must produce the same findings in the same order every time,
+// or a weekly report diffs as changed when nothing did.
 func TestDuplicateChecksAreOrdered(t *testing.T) {
 	build := func() []*Page {
 		var pages []*Page
@@ -875,9 +861,9 @@ func TestParseScoresRejectsNulls(t *testing.T) {
 		"seo":            map[string]any{"score": 0.91},
 	}}
 
-	// A null score means the category could not be evaluated. Storing it as a
-	// zero would draw a confident red bar claiming the site scored nothing,
-	// which is a much worse claim than "the audit did not complete".
+	// A null score means the category could not be evaluated. Storing it as
+	// zero would draw a red bar claiming the site scored nothing, which is a
+	// much worse claim than "the audit did not complete".
 	if _, err := parseScores(report); err == nil {
 		t.Fatal("a null score was accepted instead of failing the audit")
 	}
@@ -911,8 +897,8 @@ func TestParseDetailsFiltersNonActionableAudits(t *testing.T) {
 		"audits": map[string]any{
 			"lcp":     map[string]any{"score": 0.4, "title": "Largest Contentful Paint", "displayValue": "3.1 s"},
 			"passing": map[string]any{"score": 0.95, "title": "Already fine"},
-			// Kept for compatibility by Lighthouse but no longer scored; must
-			// not appear as a win the site never earned.
+			// Kept for compatibility by Lighthouse but no longer scored, so
+			// it must not appear as a win the site never earned.
 			"hidden-audit": map[string]any{"score": 0.1, "title": "Time to Interactive"},
 			// Scores badly but carries no actionable saving.
 			"diagnostic": map[string]any{"score": 0.1, "title": "Avoid forced reflow"},
@@ -967,8 +953,8 @@ func TestSessionRoundTrip(t *testing.T) {
 		t.Error("a freshly issued session did not authenticate")
 	}
 
-	// Rotating the password must end every outstanding session; that is the
-	// property that makes deriving the key from the password worth doing.
+	// Rotating the password must end every outstanding session, which is why
+	// the key is derived from it.
 	if isAuthenticated(req, sessionKey("hunter3")) {
 		t.Error("a session survived a password change")
 	}
@@ -998,8 +984,7 @@ func TestPasswordMatchesIsExact(t *testing.T) {
 func TestAsciiFilename(t *testing.T) {
 	cases := map[string]string{
 		"example.com": "example.com",
-		// A property named "Café" panicked the Rust version outright: a
-		// non-ASCII byte cannot go into a header value unencoded.
+		// A non-ASCII byte cannot go into a header value unencoded.
 		"Café":     "Caf_",
 		"...":      "report",
 		"  spaced": "spaced",
@@ -1138,9 +1123,8 @@ func TestCrawlProgressStaysBelowComplete(t *testing.T) {
 	}
 }
 
-// TestReportsParse is a compile-time-ish guard: reportTemplates is a package
-// level Must(), so a broken report template panics at init and takes the whole
-// binary down rather than one route.
+// reportTemplates is a package level Must(), so a broken report template panics
+// at init and takes the whole binary down rather than one route.
 func TestReportsParse(t *testing.T) {
 	var names []string
 	for _, tmpl := range reportTemplates.Templates() {

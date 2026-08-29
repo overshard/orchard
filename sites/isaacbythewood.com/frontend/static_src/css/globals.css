@@ -39,14 +39,12 @@ button {
    body height, so the page scrolled only because overflow happened to extend
    the scroll area.
 
-   position: relative is load bearing and was the one thing the old absolute
-   positioning was quietly providing. The full bleed white panels on about,
+   position: relative is required here. The full bleed white panels on about,
    code and art are position: absolute with top/bottom 0, so they size to the
    nearest positioned ancestor. With nothing positioned between them and the
-   root they fell back to the initial containing block, which is exactly the
-   viewport, so the white stopped dead at 100vh and the dark body colour showed
-   through the moment you scrolled. Making the wrapper the containing block
-   again lets them stretch to the real page height. */
+   root they fall back to the initial containing block, which is the viewport,
+   so the white stops at 100vh and the dark body colour shows through on
+   scroll. */
 .transition {
   position: relative;
   min-height: 100vh;

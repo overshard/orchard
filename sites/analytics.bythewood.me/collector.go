@@ -17,8 +17,8 @@ import (
 )
 
 // The public collector. Every tracked site posts here from the browser, so it
-// is the one endpoint that is cross-origin by design and the only one an
-// anonymous stranger can write to.
+// is the one cross-origin endpoint and the only one an anonymous stranger can
+// write to.
 
 const (
 	// Real payloads are a few hundred bytes. The cap is what an abuser can
@@ -41,12 +41,10 @@ type collectRequest struct {
 	Data        json.RawMessage `json:"data"`
 }
 
-// collect records one event.
-//
-// It answers 204 with no body in every non-error case, and does not tell a
-// caller whether enrichment happened or where the event was filed. There is
-// nothing for a browser to do with that, and a bot that could see it was being
-// classified as a bot would have something to tune against.
+// collect records one event. It answers 204 with no body in every non-error
+// case, and never says whether enrichment happened or where the event was
+// filed: a bot that could see it was being classified as one would have
+// something to tune against.
 func (s *site) collect(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxCollectBody))
 	if err != nil || len(body) == 0 {
@@ -102,8 +100,8 @@ func (s *site) collect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// GeoIP runs on session_start only. Every later event in a session comes
-	// from the same address, so looking it up again would cost a lookup per
-	// event to write the same three strings.
+	// from the same address, so a second lookup would write the same three
+	// strings again.
 	if req.Event == "session_start" {
 		s.enrichGeo(r, data)
 	}
@@ -135,14 +133,10 @@ func (s *site) collect(w http.ResponseWriter, r *http.Request) {
 
 // enrichGeo writes country, region, city and coordinates onto a session_start.
 //
-// The address comes from internal/web.ClientIP, which prefers CF-Connecting-IP
-// over the last X-Forwarded-For entry. That ordering is the whole reason this
-// site could not move behind the tunnel before now: the Rust version read the
-// last XFF entry deliberately, because Caddy appends its own peer and the
-// first entry is client controlled. Put cloudflared in front of that and the
-// last entry becomes cloudflared's bridge address on every single request, so
-// every session in the database would resolve to one bogus origin and nothing
-// would error. See the open thread in the analytics note and decisions/0007.
+// The address comes from web.ClientIP, which prefers CF-Connecting-IP over the
+// last X-Forwarded-For entry. Reading the last XFF entry behind the tunnel
+// would resolve every session in the database to cloudflared's bridge address,
+// and nothing would error.
 func (s *site) enrichGeo(r *http.Request, data map[string]any) {
 	addr, err := netip.ParseAddr(web.ClientIP(r))
 	if err != nil || addr.IsLoopback() {
@@ -166,10 +160,8 @@ func putIfNotEmpty(m map[string]any, key, value string) {
 	}
 }
 
-// normalizeReferrer reduces a referrer to a bare hostname.
-//
-// Without this the referrer breakdown is a list of thousands of full URLs with
-// query strings, which answers no question anyone has. "www." goes too, so
+// normalizeReferrer reduces a referrer to a bare hostname, so the breakdown is
+// not thousands of full URLs with query strings. "www." goes too, so
 // news.ycombinator.com and www.news.ycombinator.com are one row.
 func normalizeReferrer(ref string) string {
 	host := ref
@@ -185,8 +177,8 @@ func normalizeReferrer(ref string) string {
 // insertEvent writes a human event, lifting the hot fields out of the payload
 // into typed columns and leaving whatever the site sent of its own in extra.
 func (s *site) insertEvent(ctx context.Context, propertyID uuid.UUID, event, userAgent string, data map[string]any) {
-	// Reads are destructive: each take removes the key, so what survives in
-	// data is exactly the caller's own fields and nothing this app understood.
+	// Each take removes the key, so what survives in data is exactly the
+	// caller's own fields and nothing this app understood.
 	userID := takeString(data, "user_id")
 	url := takeString(data, "url")
 	title := takeString(data, "title")
@@ -225,12 +217,9 @@ func (s *site) insertEvent(ctx context.Context, propertyID uuid.UUID, event, use
 	}
 }
 
-// insertBotEvent writes to the separate bot table.
-//
-// Separate tables rather than an is_bot flag on one, so no human aggregation
-// has to remember to exclude bots. Forgetting that filter once, in one of
-// seventeen queries, would be invisible and would inflate a number nobody
-// could explain.
+// insertBotEvent writes to the separate bot table. Separate tables rather than
+// an is_bot flag, so no human aggregation has to remember to exclude bots:
+// forgetting that filter in one of seventeen queries would be invisible.
 func (s *site) insertBotEvent(ctx context.Context, propertyID uuid.UUID, event, userAgent, botName string, data map[string]any) {
 	_, err := s.db.ExecContext(ctx, `INSERT INTO bot_events (
 	    property_id, event, created_at, bot_name, url, user_agent, country, extra
@@ -243,11 +232,9 @@ func (s *site) insertBotEvent(ctx context.Context, propertyID uuid.UUID, event, 
 	}
 }
 
-// encodeExtra serialises whatever is left of the payload.
-//
-// SetEscapeHTML(false) because encoding/json escapes <, > and & by default and
-// this string is stored, not rendered. Leaving it on would write < into
-// the database for a value that never had one.
+// encodeExtra serialises whatever is left of the payload. SetEscapeHTML(false)
+// because this string is stored rather than rendered, and the default would
+// write \u003c into the database for a value that only ever had "<".
 func encodeExtra(data map[string]any) string {
 	if len(data) == 0 {
 		return "{}"
@@ -261,11 +248,9 @@ func encodeExtra(data map[string]any) string {
 	return strings.TrimRight(sb.String(), "\n")
 }
 
-// takeString removes a key and returns it as a NULL-able string, clamped.
-//
-// A non-string value is stringified rather than dropped: a site sending
-// url: 42 has said something, and losing it silently is worse than storing
-// "42".
+// takeString removes a key and returns it as a NULL-able string, clamped. A
+// non-string value is stringified rather than dropped: a site sending url: 42
+// has said something.
 func takeString(data map[string]any, key string) any {
 	v, ok := data[key]
 	if !ok {
@@ -365,11 +350,11 @@ func (s *site) collectOptions(w http.ResponseWriter, r *http.Request) {
 
 // corsStatus answers with the permissive origin header the collector needs.
 //
-// Wide open, and it has to be: any site may be tracked, so an allowlist would
-// be a second place to register a property. Nothing is read back through this
-// endpoint and no credentials are accepted, so the only thing an arbitrary
-// origin can do is write an event to a property whose id it already knows,
-// which is the id printed in that property's own public page source.
+// Wide open by necessity: any site may be tracked, so an allowlist would be a
+// second place to register a property. Nothing is read back through this
+// endpoint and no credentials are accepted, so an arbitrary origin can only
+// write an event to a property whose id it already knows, and that id is
+// printed in the property's own public page source.
 func corsStatus(w http.ResponseWriter, r *http.Request, status int) {
 	w.Header().Set("Access-Control-Allow-Origin", originOrWildcard(r))
 	w.WriteHeader(status)
@@ -382,16 +367,14 @@ func originOrWildcard(r *http.Request) string {
 	return "*"
 }
 
-// collectorScript serves the embed script at a stable URL.
+// collectorScript serves the embed script at a stable URL. Vite content-hashes
+// the bundle, but every snippet already pasted into a tracked site hardcodes
+// /static/collector.js, so the hash is resolved at request time.
 //
-// Vite content-hashes the bundle, but every snippet already pasted into every
-// tracked site hardcodes /static/collector.js. This resolves the hash at
-// request time so the stable path keeps working across deploys.
-//
-// Five minutes of cache: short enough that a rehashed bundle propagates within
-// a deploy, long enough to absorb the burst of a busy hour. It cannot use the
-// immutable year the hashed assets get, precisely because the name is stable
-// and the bytes behind it are not.
+// Five minutes of cache: long enough to absorb a busy hour, short enough that
+// a rehashed bundle propagates within a deploy. It cannot take the immutable
+// year the hashed assets get, because the name is stable and the bytes are
+// not.
 func (s *site) collectorScript(w http.ResponseWriter, r *http.Request) {
 	name := s.assets.Script("static_src/collector/index.js")
 	if name == "" {

@@ -209,14 +209,11 @@
 
 /* The active / archived split.
  *
- * Most of the page is a read-only snapshot now, so the archived half is
- * deliberately quieter: the blue tag pills go grey, the gradient button becomes
- * an outline, and the body text drops to a softer black. It is a separate
- * palette rather than a filter, because grayscale() would also flatten the
- * heading and the focus ring, and a card you cannot read is not a card.
+ * The archived half is quieter: grey tag pills, an outline button instead of a
+ * gradient, softer body text. A separate palette rather than a filter, because
+ * grayscale() would also flatten the heading and the focus ring.
  *
- * Hovering one brings the colour back. The work is still there if you want it,
- * which is the whole point of keeping it published. */
+ * Hovering one brings the colour back. */
 
 .code-sectionHead {
   display: flex;

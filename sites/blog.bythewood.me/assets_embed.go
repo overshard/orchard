@@ -11,15 +11,15 @@ import (
 
 // The release build carries the Vite bundle, every post PDF and every social
 // card inside the executable. With content embedded unconditionally by main.go,
-// that makes ../../bin/blog.bythewood.me the entire site: one file, nothing
-// beside it, and none of the four SITE_* variables to set.
+// ../../bin/blog.bythewood.me is the entire site: one file, nothing beside it,
+// and none of the four SITE_* variables to set.
 //
-// Built by `make build`, which runs Vite and typst first because the directive
+// Built by `make build`, which runs Vite and typst first, because the directive
 // below reads these directories at compile time.
 //
-// `all:` is load bearing on build/dist. Without it embed skips every entry
-// whose name starts with a dot, and .vite/manifest.json is exactly that, so
-// the server would refuse to start on a manifest it could not find.
+// `all:` is required on build/dist. Without it, embed skips every entry whose
+// name starts with a dot, and .vite/manifest.json is one, so the server would
+// refuse to start on a manifest it could not find.
 //
 //go:embed all:build/dist
 //go:embed build/pdfs

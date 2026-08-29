@@ -12,18 +12,12 @@ import (
 	"time"
 )
 
-// The code page shows the latest commit for each project.
-//
-// Under Next.js this was getStaticProps with revalidate: 3600, which meant the
-// data was fetched at build time and the page could not render at all until
-// GitHub answered. Here it is a background refresh on a ticker: the page is
-// always servable, a GitHub outage degrades it to no commit lines instead of
-// breaking the build, and the first deploy does not sit waiting on nine HTTP
-// calls to a third party.
+// The code page shows the latest commit for each project, refreshed in the
+// background on a ticker. The page is always servable, and a GitHub outage
+// degrades it to no commit lines rather than blocking a render.
 //
 // Unauthenticated GitHub allows 60 requests an hour per IP. Nine repos once an
-// hour is comfortably inside that, and there is no token to store, which keeps
-// this site genuinely credential-free.
+// hour is inside that, and there is no token to store.
 
 const (
 	commitRefreshInterval = time.Hour
@@ -61,15 +55,12 @@ func (c *CommitCache) Get(slug string) (Commit, bool) {
 	return commit, ok
 }
 
-// JSON renders a commit the way the card displays it: pretty-printed, matching
-// the JSON.stringify(commit, null, 2) the React version put in its <pre>.
+// JSON renders a commit the way the card displays it, pretty-printed.
 //
-// SetEscapeHTML(false) matters and json.MarshalIndent cannot do it. By default
-// encoding/json rewrites <, > and & as \u003c, \u003e and \u0026, on the
-// assumption the output is going somewhere that cannot escape for itself. Here
-// it goes into html/template, which escapes for the HTML context properly, so
-// the only effect was commit messages containing an arrow rendering as
-// literal "\u003e" inside the <pre>.
+// SetEscapeHTML(false), which json.MarshalIndent cannot do. The output goes
+// into html/template, which escapes for the HTML context already, so the
+// default only makes a commit message containing an arrow render as a literal
+// "\u003e" inside the <pre>.
 func (c *CommitCache) JSON(slug string) string {
 	commit, ok := c.Get(slug)
 	if !ok {
@@ -88,7 +79,7 @@ func (c *CommitCache) JSON(slug string) string {
 }
 
 // Start does one fetch immediately and then refreshes on a ticker until ctx is
-// cancelled. It returns straight away: the site must not wait on GitHub to
+// cancelled. It returns straight away, so the site does not wait on GitHub to
 // begin serving.
 func (c *CommitCache) Start(ctx context.Context, slugs []string) {
 	go func() {
@@ -132,9 +123,8 @@ func (c *CommitCache) refresh(ctx context.Context, slugs []string) {
 	}
 	wg.Wait()
 
-	// A failed repo keeps its previous value rather than being cleared. A
-	// transient 502 from GitHub should not blank a card that was fine a minute
-	// ago.
+	// A failed repo keeps its previous value, so a transient 502 does not
+	// blank a card that was fine a minute ago.
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for _, r := range results {

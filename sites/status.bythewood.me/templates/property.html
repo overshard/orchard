@@ -1,9 +1,7 @@
 {{ define "extra_js" }}
 {{/* Chart data as inline JSON blocks, which is what the CSP's 'unsafe-inline'
-     in script-src is for. The Rust template also emitted a #property-data
-     block here; it is gone, because nothing read it. property_crawl_status.js
-     mentions it in a comment and then takes the id from
-     #monitoring-status[data-property-id] instead. */}}
+     in script-src is for. property_crawl_status.js takes the property id from
+     #monitoring-status[data-property-id]. */}}
 <script id="chart-status-response-times-data" type="application/json">{{ json .ResponseTimes }}</script>
 <script id="chart-status-codes-data" type="application/json">{{ json .StatusCodes }}</script>
 <script id="chart-uptime-data" type="application/json">{{ json .UptimeSlices }}</script>

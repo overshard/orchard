@@ -16,19 +16,18 @@ import (
 
 // Fetching, for the SEO crawler.
 //
-// Unlike checker.go this one *does* use a pooled http.Client, and the contrast
-// is the point: the checker measures what a cold visitor pays and must not
-// reuse connections, while the crawler makes up to five hundred requests to
-// one host and reusing the connection is both faster and more polite.
+// Unlike checker.go this uses a pooled http.Client. The checker measures what a
+// cold visitor pays and must not reuse connections; the crawler makes up to
+// five hundred requests to one host, where reuse is both faster and more
+// polite.
 
 const (
-	// PageCap bounds one crawl. Five hundred pages is far past any site here
-	// and is the fence against a calendar or a faceted search generating URLs
-	// forever.
+	// PageCap bounds one crawl, as the fence against a calendar or a faceted
+	// search generating URLs forever.
 	PageCap = 500
-	// Concurrency is deliberately low. This is a crawler pointed at somebody's
-	// site, sometimes a small one on shared hosting, and four parallel
-	// requests is the difference between an audit and a load test.
+	// Concurrency is low on purpose. This is pointed at somebody's site,
+	// sometimes a small one on shared hosting, and four parallel requests is
+	// the difference between an audit and a load test.
 	Concurrency = 4
 	// ExternalLinkCap bounds the outbound HEAD probes. A 500-page site can
 	// easily surface thousands of distinct external links, and at four-way
@@ -36,9 +35,9 @@ const (
 	// hours.
 	ExternalLinkCap = 500
 	// CrawlDeadline is nine minutes, against the scheduler's fifteen-minute
-	// wedge reset. The gap is intentional: a crawl that overruns should end
-	// itself and record what it found, not get killed by the watchdog and
-	// recorded as an interruption.
+	// watchdog. The gap means a crawl that overruns ends itself and records
+	// what it found rather than being killed and recorded as an
+	// interruption.
 	CrawlDeadline = 540 * time.Second
 
 	// MaxBodyBytes caps one HTML body. Real pages are well under this;
@@ -49,10 +48,10 @@ const (
 	crawlerRequestTimeout = 15 * time.Second
 	externalLinkTimeout   = 8 * time.Second
 
-	// An honest user agent with a contact URL, unlike the checker's Chrome
-	// impersonation. The checker is measuring what a visitor experiences and
-	// has to look like one; the crawler is a robot and should say so, so an
-	// operator reading their logs knows who to talk to.
+	// A real user agent with a contact URL, unlike the checker's Chrome
+	// impersonation. The checker has to look like a visitor to measure what
+	// one experiences; the crawler is a robot and should say so, so an
+	// operator reading their logs knows who to contact.
 	crawlerUserAgent = "status (+" + baseURL + ")"
 )
 
@@ -107,10 +106,8 @@ func fetchPage(ctx context.Context, client *http.Client, rawURL string) FetchRes
 	result.URL = canonicalURL(resp.Request.URL)
 	result.Status = resp.StatusCode
 	// Go follows redirects inside Do and hands back the final response, with
-	// the chain reachable only through resp.Request. Counting hops is what the
-	// redirect-chain check actually needs, and it is more than the Rust
-	// version had: reqwest exposed nothing, so that check compared a
-	// one-element vector against 2 and could never fire. See checks.go.
+	// the chain reachable only through resp.Request. Counting the hops is what
+	// the redirect-chain check needs.
 	for r := resp.Request; r != nil; r = r.Response.Request {
 		if r.Response == nil {
 			break
@@ -149,17 +146,12 @@ func fetchPage(ctx context.Context, client *http.Client, rawURL string) FetchRes
 
 // canonicalURL renders a fetched URL with an explicit "/" path.
 //
-// An absolute HTTP URL with an empty path *means* "/", and every other source
-// of URLs in a crawl spells it that way: the sitemap lists
-// "https://example.com/", and so does a link to the site root. Go's
-// url.String() preserves the empty path it was given, so a property registered
-// as "https://example.com" produced a page keyed "https://example.com" that
-// matched neither.
-//
-// Found by diffing this crawler against the Rust one on 2026-08-26. reqwest
-// normalises the path itself, so it never had the problem: five findings
-// differed only by the slash, and a sixth was invented outright, because the
-// root page was reported "not listed in sitemap" when the sitemap listed it.
+// An absolute HTTP URL with an empty path means "/", and every other source of
+// URLs in a crawl spells it that way: a sitemap lists "https://example.com/",
+// and so does a link to the site root. url.String() preserves the empty path it
+// was given, so a property registered as "https://example.com" keys a page that
+// matches neither, and the root page gets reported "not listed in sitemap" when
+// the sitemap lists it.
 func canonicalURL(u *url.URL) string {
 	if u.Path == "" {
 		clone := *u
@@ -169,11 +161,10 @@ func canonicalURL(u *url.URL) string {
 	return u.String()
 }
 
-// headStatus probes an external link.
-//
-// A HEAD that comes back 403, 405 or 501 usually means the server refuses the
-// method rather than that the link is broken, so those retry as a GET. Without
-// that, every link to a site with a strict WAF is reported as dead.
+// headStatus probes an external link. A HEAD that comes back 403, 405 or 501
+// usually means the server refuses the method rather than that the link is
+// broken, so those retry as a GET. Otherwise every link to a site with a strict
+// WAF is reported dead.
 func headStatus(ctx context.Context, client *http.Client, rawURL string) int {
 	ctx, cancel := context.WithTimeout(ctx, externalLinkTimeout)
 	defer cancel()
@@ -204,14 +195,10 @@ func headStatus(ctx context.Context, client *http.Client, rawURL string) int {
 // probeCompression reports the server's Content-Encoding for a URL, or "" when
 // the response came back uncompressed.
 //
-// Setting Accept-Encoding explicitly is what makes this work, and it is the
-// whole reason the Rust version's second HTTP client is gone. Go's transport
-// adds `Accept-Encoding: gzip` on its own, transparently decodes the response,
-// and then *removes* Content-Encoding from the headers, so a normal fetch can
-// never tell whether the server compressed anything. Setting the header by
-// hand switches all of that off and leaves the response exactly as sent.
-// reqwest had no such switch, which is why alerts.rs' crawler carried a whole
-// second Client built with gzip and brotli disabled.
+// Setting Accept-Encoding by hand is what makes this work. Go's transport
+// otherwise adds `Accept-Encoding: gzip` itself, transparently decodes the
+// response and then *removes* Content-Encoding from the headers, so a normal
+// fetch can never tell whether the server compressed anything.
 func probeCompression(ctx context.Context, client *http.Client, rawURL string) string {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
@@ -234,11 +221,9 @@ func probeCompression(ctx context.Context, client *http.Client, rawURL string) s
 	return enc
 }
 
-// Robots wraps a parsed robots.txt.
-//
-// A missing or unparseable file allows everything. That is the permissive
-// choice on purpose: this crawls sites Isaac owns, and a typo in a robots.txt
-// should not silently produce an empty audit that looks like a healthy one.
+// Robots wraps a parsed robots.txt. A missing or unparseable file allows
+// everything: this crawls sites its operator owns, and a typo in a robots.txt
+// should not produce an empty audit that looks like a healthy one.
 type Robots struct {
 	group *robotstxt.Group
 }
@@ -296,10 +281,9 @@ func loadRobots(ctx context.Context, client *http.Client, origin string) (*Robot
 	return &Robots{group: data.FindGroup("*")}, out
 }
 
-// fetchPageAllowingText is fetchPage for the two non-HTML documents the
-// crawler genuinely needs the body of: robots.txt and sitemap.xml. fetchPage
-// discards every non-HTML body by design, which is right for pages and wrong
-// for these two.
+// fetchPageAllowingText is fetchPage for the two non-HTML documents the crawler
+// needs the body of: robots.txt and sitemap.xml. fetchPage discards every
+// non-HTML body, which is right for pages and wrong for these two.
 func fetchPageAllowingText(ctx context.Context, client *http.Client, rawURL string) FetchResult {
 	started := time.Now()
 	result := FetchResult{URL: rawURL, RequestedURL: rawURL, Headers: map[string]string{}}
@@ -331,8 +315,8 @@ var locPattern = regexp.MustCompile(`(?is)<loc>\s*([^<]+?)\s*</loc>`)
 // loadSitemap collects the page URLs a site advertises.
 //
 // Sitemaps nest: an index lists other sitemaps, which list pages. The loop
-// follows that, capped at twenty documents, which is enough for any real site
-// and bounded against an index that points at itself.
+// follows that, capped at twenty documents, which is enough for a real site and
+// bounded against an index that points at itself.
 func loadSitemap(ctx context.Context, client *http.Client, origin, robotsText string) []string {
 	var queue []string
 	for _, line := range strings.Split(robotsText, "\n") {
@@ -381,12 +365,10 @@ func loadSitemap(ctx context.Context, client *http.Client, origin, robotsText st
 	return urls
 }
 
-// sameSite decides whether a URL belongs to the site being crawled.
-//
-// The www variant counts as the same site in both directions, because a site
-// that links between its apex and its www host is one site with a redirect,
-// not two, and treating them as separate would report every such link as
-// external and probe it from outside.
+// sameSite decides whether a URL belongs to the site being crawled. The www
+// variant counts as the same site in both directions: a site linking between
+// its apex and its www host is one site with a redirect, and treating them as
+// separate would report every such link as external.
 func sameSite(rawURL, host string) bool {
 	u, err := url.Parse(rawURL)
 	if err != nil {
@@ -403,12 +385,11 @@ func sameSite(rawURL, host string) bool {
 }
 
 // crawlerHostileHosts return 403 or 404 to anything that does not look like a
-// browser, regardless of whether the link actually works.
+// browser, whether or not the link works, so probing them produces only false
+// positives and they are skipped from the external HEAD probe.
 //
-// Probing them produces false positives and nothing else, so they are skipped
-// from the external HEAD probe entirely. The list is short and specific on
-// purpose: this is a suppression of real findings, and every host on it has to
-// have earned its place.
+// The list is kept short and specific: it suppresses real findings, so a host
+// has to earn its place on it.
 var crawlerHostileHosts = map[string]bool{
 	"linkedin.com":     true,
 	"www.linkedin.com": true,

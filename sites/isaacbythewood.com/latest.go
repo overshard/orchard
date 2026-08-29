@@ -10,27 +10,20 @@ import (
 	"time"
 )
 
-// The home page's promo slot, filled from the blog rather than hardcoded.
+// The home page's promo slot, filled from the blog rather than hardcoded to
+// one project, so it cannot go stale when that project is retired.
 //
-// It used to be a literal Dark Furrow card in index.html. That meant the slot
-// aged badly by construction: it went stale the moment the project did, and it
-// kept advertising darkfurrow.com after the site was taken down and the domain
-// given up. Pointing it at whatever was published most recently means the slot
-// maintains itself and the home page always has something current on it.
-//
-// Same shape as the commit cache next door, for the same reasons: a background
-// refresh on a ticker, the page always servable, and a blog outage degrading
-// the slot to absent rather than blocking a render. The card is simply not
-// emitted when there is nothing cached, so the failure mode is a hero with no
-// promo rather than a broken one.
+// Same shape as the commit cache next door: a background refresh on a ticker,
+// the page always servable, and no card emitted when there is nothing cached,
+// so a blog outage leaves a hero with no promo rather than a broken one.
 
 const (
 	latestRefreshInterval = time.Hour
 	latestFetchTimeout    = 10 * time.Second
 )
 
-// LatestPost is the blog's /latest.json, which is a hand written shape on that
-// side precisely so this struct does not have to track its Post type.
+// LatestPost is the blog's /latest.json, a hand written shape on that side so
+// this struct does not have to track its Post type.
 type LatestPost struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
@@ -62,7 +55,7 @@ func (c *LatestCache) Get() (LatestPost, bool) {
 }
 
 // Start does one fetch immediately and then refreshes on a ticker until ctx is
-// cancelled. It returns straight away: the site must not wait on the blog to
+// cancelled. It returns straight away, so the site does not wait on the blog to
 // begin serving.
 func (c *LatestCache) Start(ctx context.Context) {
 	go func() {
@@ -95,8 +88,8 @@ func (c *LatestCache) refresh(ctx context.Context) {
 		slog.Info(fmt.Sprintf("latest post: %s: %v", src, err))
 	}
 	if err != nil {
-		// Keep whatever was there. A transient failure should not blank a card
-		// that was fine an hour ago.
+		// Keep whatever was there, so a transient failure does not blank a
+		// card that was fine an hour ago.
 		return
 	}
 

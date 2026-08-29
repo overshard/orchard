@@ -8,16 +8,11 @@ import (
 
 // Static serves the Vite build output at /static/.
 //
-// Files Vite content-hashed are cached for a year and never revalidated, which
-// is what makes home-hosted bandwidth a non-issue: the origin serves each one
-// once per Cloudflare colo and then stops being asked. A hashed name changes
-// when the bytes change, so nothing ever needs invalidating.
-//
-// Everything else gets an hour. That covers files copied through from
-// publicDir, which keep their original names: caching an unhashed resume PDF
-// for a year would mean an update never reaching anyone. The set comes from
-// the manifest rather than a hand-maintained list, so a public file added
-// later cannot inherit the wrong policy by omission.
+// Content-hashed files are cached for a year and never revalidated: the name
+// changes when the bytes change, so nothing needs invalidating, and the origin
+// serves each one once per Cloudflare colo. Everything else gets an hour, which
+// covers files copied through from publicDir that keep their original names,
+// where a year would mean an updated resume PDF never reaching anyone.
 func Static(dist fs.FS, assets *Assets) http.Handler {
 	server := http.FileServer(http.FS(dist))
 	hashed := assets.Hashed()
@@ -25,8 +20,8 @@ func Static(dist fs.FS, assets *Assets) http.Handler {
 	return http.StripPrefix("/static/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		clean := strings.TrimPrefix(r.URL.Path, "/")
 
-		// .vite/manifest.json maps entry names to hashed files. It is how the
-		// server resolves them, not something a browser has any use for.
+		// The manifest is how the server resolves entry names. A browser
+		// has no use for it.
 		if strings.HasPrefix(clean, ".vite/") {
 			http.NotFound(w, r)
 			return

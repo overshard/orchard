@@ -1,10 +1,9 @@
 import { resolve } from "path";
 import { defineConfig } from "vite";
 
-// Project structure mirrors analytics/blog/darkfurrow:
-// - All entry points live under static_src/{base,pages,properties}
-// - Vite outputs to ../dist/ with content-hashed filenames
-// - The Rust binary reads dist/.vite/manifest.json to resolve hashed names
+// Entry points live under static_src/{base,pages,properties}. Vite writes
+// content-hashed filenames into ../build/dist, and the Go binary reads
+// dist/.vite/manifest.json to resolve them.
 export default defineConfig({
   base: "/static/",
   build: {

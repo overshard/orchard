@@ -1,18 +1,13 @@
 package main
 
-// Dashboard aggregations. A direct port of the Rust queries.rs, which was
-// itself a port of the Django properties/queries.py, all of them talking to
-// the same hot-field schema so most aggregations are a COUNT(*) over a typed
-// column rather than JSON extraction.
+// Dashboard aggregations. The hot fields are typed columns rather than JSON,
+// so most of these are a COUNT(*) over one column. Time arithmetic is in unix
+// milliseconds throughout, matching events.created_at.
 //
-// Time arithmetic is in unix milliseconds throughout, matching
-// events.created_at.
-//
-// Every function here swallows its database error and returns a zero value,
-// which is deliberate and inherited: the dashboard renders seventeen
-// independent panels, and one failing aggregation should leave a blank panel
-// rather than a 500 where the other sixteen would have been. Errors are
-// logged so a persistent failure is still visible.
+// Every function here logs its database error and returns a zero value. The
+// dashboard renders seventeen independent panels, and one failing aggregation
+// should leave a blank panel rather than a 500 where the other sixteen would
+// have been.
 
 import (
 	"context"
@@ -32,9 +27,9 @@ import (
 // custom event, which is how the dashboard discovers them without being told.
 var builtInEvents = []string{"session_start", "page_view", "page_leave", "click", "scroll"}
 
-// Page-leave timings outside this band are not measurements of anything: under
-// a second is a bounce or a double fire, over thirty minutes is a tab left
-// open over lunch. Averaging either in makes the number meaningless.
+// Page-leave timings outside this band measure nothing: under a second is a
+// bounce or a double fire, over thirty minutes is a tab left open over
+// lunch.
 const (
 	timeOnPageMinS = 1.0
 	timeOnPageMaxS = 30.0 * 60.0
@@ -46,17 +41,16 @@ type LabelCount struct {
 	Count int64  `json:"count"`
 }
 
-// GraphPoint is one bucket of the time series. Label is preformatted for the
-// axis because the bucket width varies (day, week, month) and only the query
-// knows which it produced.
+// GraphPoint is one bucket of the time series. Label is preformatted because
+// the bucket width varies and only the query knows which it produced.
 type GraphPoint struct {
 	Label string `json:"label"`
 	Count int64  `json:"count"`
 }
 
-// EventCard is one metric tile. Value is a string because the tiles are not
-// homogeneous: most are counts, two are a percentage and a duration with their
-// units baked in.
+// EventCard is one metric tile. Value is a string because most tiles are
+// counts, while two are a percentage and a duration with their units baked
+// in.
 type EventCard struct {
 	Name          string `json:"name"`
 	Value         string `json:"value"`
@@ -71,8 +65,8 @@ type CustomEventDescriptor struct {
 	Active bool   `json:"active"`
 }
 
-// BotTraffic is the bot panel: bots are stored in their own table so they
-// never contaminate a human aggregation, and are reported separately here.
+// BotTraffic is the bot panel. Bots live in their own table so they cannot
+// contaminate a human aggregation.
 type BotTraffic struct {
 	Total    int64        `json:"total"`
 	TopBots  []LabelCount `json:"top_bots"`
@@ -88,10 +82,8 @@ type EventCounts struct {
 	Total        int64
 }
 
-// pctChange is the period-over-period delta shown on each card.
-//
-// Zero previous returns zero rather than infinity: there is no honest
-// percentage increase from nothing, and rendering one would put "+100%" on
+// pctChange is the period-over-period delta shown on each card. Zero previous
+// returns zero rather than infinity, which would otherwise put "+100%" on
 // every card of a property's first week.
 func pctChange(current, previous float64) int64 {
 	if previous == 0 {
@@ -147,8 +139,8 @@ func eventCounts(ctx context.Context, db *sql.DB, propertyID uuid.UUID, startMS,
 
 	args := append([]any{propertyID[:], startMS, endMS}, extraArgs...)
 
-	// SUM over no rows is NULL, not 0, so every column but the COUNT has to
-	// come back through a nullable.
+	// SUM over no rows is NULL, not 0, so every column but the COUNT comes
+	// back through a nullable.
 	var ss, pv, cl, sc sql.NullInt64
 	var total int64
 	err := db.QueryRowContext(ctx, query, args...).Scan(&ss, &pv, &cl, &sc, &total)
@@ -258,13 +250,9 @@ func standardEventCards(ctx context.Context, db *sql.DB, propertyID uuid.UUID, s
 	return cards
 }
 
-// trimFloat renders a float the way Rust's Display for f64 does, which is how
-// the two non-integer card values were formatted before: shortest form that
-// round-trips, no trailing zeros, no decimal point at all on a whole number.
-//
-// 'f' with precision -1 rather than %v. Both agree across the range these
-// values actually take, but %v is %g underneath and would flip to "1.2e+06" at
-// the top end, which is not a thing to print on a dashboard tile.
+// trimFloat renders the shortest form that round-trips: no trailing zeros, no
+// decimal point on a whole number. 'f' with precision -1 rather than %v, which
+// is %g underneath and would flip to "1.2e+06" at the top of the range.
 func trimFloat(v float64) string {
 	return strconv.FormatFloat(v, 'f', -1, 64)
 }
@@ -273,8 +261,8 @@ func trimFloat(v float64) string {
 // every custom event this property has ever recorded so the picker can list
 // them.
 func customEventCards(ctx context.Context, db *sql.DB, propertyID uuid.UUID, cards []CustomCard, startMS, endMS, prevStartMS, prevEndMS int64, filterURL string) ([]EventCard, []CustomEventDescriptor) {
-	// Every non-built-in event name ever seen, unbounded by the date range:
-	// the picker should still list an event that stopped firing last month.
+	// Unbounded by the date range, so the picker still lists an event that
+	// stopped firing last month.
 	query := `SELECT DISTINCT event FROM events
 	  WHERE property_id = ? AND event NOT IN (` + placeholders(len(builtInEvents)) + `)
 	  ORDER BY event`
@@ -312,8 +300,8 @@ func customEventCards(ctx context.Context, db *sql.DB, propertyID uuid.UUID, car
 		return nil, descriptors
 	}
 
-	// Iterate names, not the active map, so the tiles come out in the same
-	// order the picker lists them rather than in Go's randomised map order.
+	// Iterate names, not the active map, so the tiles come out in the
+	// picker's order rather than Go's randomised map order.
 	activeNames := make([]string, 0, len(active))
 	for _, n := range names {
 		if active[n] {
@@ -372,9 +360,9 @@ func customEventCards(ctx context.Context, db *sql.DB, propertyID uuid.UUID, car
 // eventsGraph is the time series, bucketed by day, week or month depending on
 // how wide the range is, and stepping backwards from endDate.
 //
-// Anchoring to the requested end date rather than to today is the fix from the
-// 2026-07-20 hardening pass: stepping back from today meant any historical
-// range charted as a row of zeros while its metric cards showed real numbers.
+// Anchored to the requested end date rather than to today, since stepping back
+// from today charts any historical range as a row of zeros beside metric cards
+// showing real numbers.
 func eventsGraph(ctx context.Context, db *sql.DB, propertyID uuid.UUID, startMS, endMS int64, filterURL string, endDate time.Time, rangeDays int64) []GraphPoint {
 	extraSQL, extraArgs := filterClause(filterURL)
 	query := `SELECT date(created_at / 1000, 'unixepoch') AS day, COUNT(*)
@@ -441,8 +429,8 @@ func eventsGraph(ctx context.Context, db *sql.DB, propertyID uuid.UUID, startMS,
 	return out
 }
 
-// formatGraphLabel renders "Jan 5", matching chrono's "%b %-d". Go has no
-// no-pad day verb, so the padded form is trimmed.
+// formatGraphLabel renders "Jan 5". Go has no unpadded day verb, so the padded
+// form is trimmed.
 func formatGraphLabel(t time.Time) string {
 	return t.Format("Jan") + " " + strings.TrimPrefix(t.Format("02"), "0")
 }
@@ -451,8 +439,8 @@ func formatGraphLabel(t time.Time) string {
 // order by count, take the top N.
 //
 // column and countExpr are interpolated into the SQL rather than bound, which
-// is safe only because every caller in this file passes a literal. Nothing
-// here takes a column name from a request.
+// is safe only because every caller passes a literal. Nothing here takes a
+// column name from a request.
 func topByColumn(ctx context.Context, db *sql.DB, propertyID uuid.UUID, startMS, endMS int64, filterURL, column, event string, limit int64, distinctUsers bool) []LabelCount {
 	countExpr := "COUNT(*)"
 	if distinctUsers {
@@ -503,8 +491,8 @@ func scanLabelCounts(ctx context.Context, db *sql.DB, what, query string, args .
 //
 // Filtered to page_view rather than session_start, like the three breakdowns
 // below it: the collector's user-id cookie suppresses session_start after a
-// visitor's first visit, so a session_start breakdown reports only new
-// visitors and silently under-counts everyone who came back.
+// visitor's first visit, so a session_start breakdown would count only new
+// visitors.
 func eventsByScreenSize(ctx context.Context, db *sql.DB, propertyID uuid.UUID, startMS, endMS int64, filterURL string, limit int64) []LabelCount {
 	extraSQL, extraArgs := filterClause(filterURL)
 	query := `SELECT screen_width, screen_height, COUNT(DISTINCT user_id) FROM events
@@ -563,8 +551,8 @@ func sessionStartsByReferrer(ctx context.Context, db *sql.DB, id uuid.UUID, s, e
 }
 
 // pageViewsByUTM maps a campaign field name to its column. The map is what
-// keeps a request-supplied field from reaching topByColumn's interpolation:
-// anything not listed returns nothing rather than becoming SQL.
+// keeps a request-supplied field out of topByColumn's interpolation: anything
+// not listed returns nothing rather than becoming SQL.
 func pageViewsByUTM(ctx context.Context, db *sql.DB, id uuid.UUID, s, e int64, f, field string, limit int64) []LabelCount {
 	column, ok := map[string]string{
 		"source":   "utm_source",
@@ -683,9 +671,9 @@ func botTraffic(ctx context.Context, db *sql.DB, propertyID uuid.UUID, startMS, 
 
 // parseDateToMS turns a "YYYY-MM-DD" query parameter into a unix-ms bound.
 //
-// Local time, not UTC. The operator picks dates meaning their own days, and
-// the events they are counting were stamped in UTC; resolving the boundary in
-// the server's zone is what makes "today" mean today.
+// Local time, not UTC. The operator picks dates meaning their own days, so
+// resolving the boundary in the server's zone is what makes "today" mean
+// today.
 func parseDateToMS(date string, endOfDay bool) (int64, bool) {
 	d, err := time.ParseInLocation("2006-01-02", date, time.Local)
 	if err != nil {

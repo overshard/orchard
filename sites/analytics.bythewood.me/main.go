@@ -1,20 +1,9 @@
-// analytics.bythewood.me, rebuilt from Rust onto Go.
+// analytics.bythewood.me: self-hosted, single-operator website analytics. An
+// embedded collector script writes events into SQLite, and a dashboard renders
+// them as metric tiles, charts, a world map and downloadable reports.
 //
-// Self-hosted, single-operator website analytics: an embedded collector script
-// writes events into SQLite, and a dashboard renders them as metric tiles,
-// charts, a world map and downloadable reports. Third site through the
-// cloudflared -> Caddy -> Go path, after isaacbythewood.com and
-// blog.bythewood.me, and the third step of decisions/0008's move off Rust.
-//
-// It is the first of the three with a database, so it is also where
-// modernc.org/sqlite gets proved out. That mattered: decisions/0008 rested the
-// whole Rust-to-Go case partly on the claim that a pure-Go SQLite keeps the
-// static-binary property, and four more apps behind this one need it to be
-// true.
-//
-// Identity is hardcoded in site.go. The one thing still read from the
-// environment is ANALYTICS_PASSWORD, because it is the one thing that is
-// actually a secret.
+// Identity is hardcoded in site.go. The one value read from the environment is
+// ANALYTICS_PASSWORD, because it is the one value that is actually a secret.
 package main
 
 import (
@@ -34,10 +23,9 @@ import (
 	"github.com/google/uuid"
 )
 
-// Templates are source, so they always ship inside the binary. The Vite bundle
-// and the topojson are build artifacts and ship inside it too, but only in a
-// release build: see assets_disk.go and assets_embed.go for why those are a
-// build tag.
+// Templates are source, so they ship inside the binary unconditionally. The
+// Vite bundle and the topojson are build output and ship only in a release
+// build; see assets_disk.go and assets_embed.go.
 //
 //go:embed templates
 var templateFS embed.FS
@@ -53,13 +41,13 @@ func dir(env, fallback string) string {
 
 // Content-Security-Policy.
 //
-// 'unsafe-inline' in script-src is load bearing and cannot be removed without
-// changing the markup: the dashboard ships its chart data as inline
+// script-src needs 'unsafe-inline' and cannot drop it without a markup change:
+// the dashboard ships its chart data as inline
 // <script type="application/json"> blocks and the self-tracking snippet is an
 // inline script. style-src carries it for Bootstrap's inline style attributes.
 //
-// connect-src is 'self' only. Unlike the other two sites this app is its own
-// analytics backend, so there is no third-party origin to allow.
+// connect-src is 'self' only. This app is its own analytics backend, so there
+// is no third-party origin to allow.
 func csp() string {
 	return strings.Join([]string{
 		"default-src 'self'",
@@ -96,16 +84,14 @@ type site struct {
 }
 
 func main() {
-	// JSON to stdout, installed before anything else can log.
 	web.SetupLogging()
 
 	seed := flag.Bool("seed", false, "fill a Seed Test property with realistic fake events, then exit")
 	seedSessions := flag.Int("seed-sessions", 500, "sessions to generate in -seed mode")
 	seedDays := flag.Int("seed-days", 60, "days to spread -seed sessions over")
-	// -healthcheck turns the binary into its own health probe and exits. The
-	// container HEALTHCHECK runs this: two of these images are FROM scratch and
-	// have no shell or curl for a check to shell out to, so the binary has to
-	// be the thing that probes.
+	// The container HEALTHCHECK runs this. Two of these images are FROM
+	// scratch and have no shell for a check to call, so the binary probes
+	// itself.
 	healthcheck := flag.Bool("healthcheck", false, "probe a running server on this host and exit")
 	flag.Parse()
 
@@ -117,11 +103,9 @@ func main() {
 		return
 	}
 
-	// Fail fast rather than falling back to a default. An internet-facing
-	// dashboard whose password is "admin" because the environment was empty is
-	// the failure mode this refuses to have; it was added to the Rust version
-	// in the 2026-07-20 hardening pass and is the reason the check is here
-	// rather than at first login.
+	// Fail fast rather than defaulting. An internet-facing dashboard whose
+	// password is "admin" because the environment was empty is the failure
+	// mode this refuses to have.
 	password := os.Getenv("ANALYTICS_PASSWORD")
 	if password == "" {
 		slog.Error("ANALYTICS_PASSWORD is unset; refusing to start an internet-facing server without one")
@@ -199,10 +183,10 @@ func main() {
 		propsStyles: assets.Styles("static_src/properties/index.js"),
 	}
 
-	// Best effort, in the background, exactly once. The server is already
-	// listening by the time this runs: a 130MB download is not something to
-	// hold a deploy open for, and the only cost of it failing is that
-	// session_start events land without a country until the next boot.
+	// Best effort, in the background, once. The server is already listening
+	// by the time this runs: a 130MB download is not worth holding a deploy
+	// open for, and the cost of failure is that session_start events land
+	// without a country until the next boot.
 	go func() {
 		fresh, err := EnsureGeoIPDB(geoipPath)
 		switch {
@@ -229,22 +213,19 @@ func main() {
 	mux.HandleFunc("POST /properties/{id}/cards", s.requireAuth(s.propertyCards))
 	mux.HandleFunc("POST /properties/{id}/public", s.requireAuth(s.propertyPublic))
 
-	// The public collector. /collect/ is a compatibility alias for embeds that
-	// hardcoded the trailing slash, and it has to stay: those snippets are in
-	// other people's HTML and cannot be edited from here.
+	// /collect/ is a compatibility alias for embeds that hardcoded the
+	// trailing slash. Those snippets are in other people's HTML and cannot be
+	// edited from here.
 	for _, path := range []string{"/collect", "/collect/"} {
 		mux.HandleFunc("POST "+path, s.collect)
 		mux.HandleFunc("OPTIONS "+path, s.collectOptions)
 	}
 	mux.HandleFunc("GET /static/collector.js", s.collectorScript)
 
-	// A wrong method on a route that exists is a 405, not a 404.
-	//
-	// Go's mux does this on its own, but only when no other pattern matches,
-	// and the bare "GET /" catch-all below matches every GET path there is. So
-	// without these the answer is the 404 page, which the Rust version did not
-	// do and which tells a caller the endpoint does not exist when it does.
-	// 405 also has to carry Allow, which is why the header is not optional.
+	// A wrong method on a route that exists should answer 405, not 404. The
+	// mux does that on its own only when no other pattern matches, and the
+	// "GET /" catch-all below matches every GET path there is. 405 has to
+	// carry Allow.
 	for path, allow := range map[string]string{
 		"/collect":                "OPTIONS, POST",
 		"/collect/":               "OPTIONS, POST",
@@ -262,9 +243,9 @@ func main() {
 
 	mux.Handle("GET /static/", web.Static(dist, assets))
 
-	// Per-country admin-1 topojson, lazy-fetched when the map is clicked.
-	// Generated at image build from Natural Earth, so the names are stable and
-	// a year of caching is right.
+	// Per-country admin-1 topojson, fetched when the map is clicked.
+	// Generated at image build from Natural Earth, so the names are stable
+	// and a year of caching is right.
 	mux.Handle("GET /static_maps/", http.StripPrefix("/static_maps/",
 		cacheControl("public, max-age=31536000, immutable",
 			http.FileServer(http.FS(mapsFS())))))
@@ -274,11 +255,10 @@ func main() {
 		_, _ = w.Write([]byte("ok\n"))
 	})
 
-	// The dashboard's bare-UUID path is the catch-all. Registering it as "/"
-	// rather than "/{id}" is what keeps it from shadowing /login and
-	// /properties: Go's mux prefers a literal segment over a wildcard, but
-	// only among patterns that match, and "/{id}" would also claim
-	// /nonsense-that-should-404.
+	// The dashboard's bare-UUID path is the catch-all. Registered as "/"
+	// rather than "/{id}" so it cannot shadow /login and /properties: the mux
+	// prefers a literal segment over a wildcard, but only among patterns that
+	// match, and "/{id}" would also claim /nonsense-that-should-404.
 	mux.HandleFunc("GET /", s.dashboardOrNotFound)
 
 	handler := web.Chain(mux,
@@ -344,8 +324,7 @@ func (s *site) page(r *http.Request, title, description string) PageData {
 		Styles:        s.baseStyles,
 
 		// Self-tracking. The collector posts to whatever origin served the
-		// page, so this works unchanged on localhost, on the staging hostname
-		// and in production.
+		// page, so this works unchanged in dev and in production.
 		CollectorID:     s.propriumID.String(),
 		CollectorServer: "",
 	}

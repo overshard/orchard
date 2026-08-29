@@ -50,10 +50,10 @@ type CrawlResult struct {
 // normalizeURL is the key pages are deduplicated by.
 //
 // The fragment goes because "/a" and "/a#top" are one page, and the trailing
-// slash goes because "/a" and "/a/" almost always are too. That second one is
-// a deliberate over-reach: a server *can* serve different content at those two
-// paths, and if one did, this would crawl only whichever it saw first. No site
-// here does, and the alternative is crawling most sites twice.
+// slash goes because "/a" and "/a/" almost always are too. The second is an
+// over-reach: a server *can* serve different content at those two paths, and
+// this would then crawl only whichever it saw first. The alternative is
+// crawling most sites twice.
 func normalizeURL(raw string) string {
 	u, err := url.Parse(raw)
 	if err != nil {
@@ -120,8 +120,8 @@ func crawl(ctx context.Context, startURL string, progress func(pages int)) (*Cra
 	}
 
 	enqueue(startURL)
-	// The sitemap is a second entry point, not just a checklist: it surfaces
-	// pages nothing links to, which are exactly the ones worth auditing.
+	// The sitemap is a second entry point rather than only a checklist: it
+	// surfaces pages nothing links to, which are the ones worth auditing.
 	for i, u := range sitemapURLs {
 		if i >= PageCap {
 			break
@@ -164,9 +164,9 @@ func crawl(ctx context.Context, startURL string, progress func(pages int)) (*Cra
 		wg.Wait()
 
 		for _, r := range results {
-			// A redirect can land two queued URLs on the same page. The
-			// deduplication is on the *final* URL, which the request-time
-			// check on the queue cannot do because it does not know it yet.
+			// A redirect can land two queued URLs on the same page, so the
+			// deduplication is on the *final* URL, which the queue cannot
+			// check because it does not know it yet.
 			finalKey := normalizeURL(r.URL)
 			if fetched[finalKey] {
 				seen[finalKey] = true
@@ -227,10 +227,10 @@ func crawl(ctx context.Context, startURL string, progress func(pages int)) (*Cra
 
 // probeExternalLinks HEADs every distinct off-site link, capped and sorted.
 //
-// Sorted before truncating so that which links get probed is deterministic
-// across runs of the same site. An unsorted set would report a different
-// arbitrary subset every week, and a finding that appears and disappears on
-// its own is worse than one that is consistently absent.
+// Sorted before truncating, so which links get probed is deterministic across
+// runs. An unsorted set reports a different arbitrary subset every week, and a
+// finding that appears and disappears on its own is worse than one that is
+// consistently absent.
 func probeExternalLinks(ctx context.Context, client *http.Client, pages []*Page, host, startURL string) map[string]int {
 	external := map[string]bool{}
 	for _, p := range pages {
@@ -263,10 +263,10 @@ func probeExternalLinks(ctx context.Context, client *http.Client, pages []*Page,
 
 	var mu sync.Mutex
 	for i := 0; i < len(urls); i += Concurrency {
-		// The page loop respects the deadline and so must this: a slow tail of
-		// external probes would otherwise keep the crawl "running" long past
-		// its budget, until the scheduler's wedge reset killed it and recorded
-		// a successful crawl as an interruption.
+		// The page loop respects the deadline and so must this. A slow tail of
+		// external probes would keep the crawl "running" past its budget until
+		// the watchdog killed it and recorded a successful crawl as an
+		// interruption.
 		if ctx.Err() != nil {
 			slog.Info(fmt.Sprintf("hit deadline during external link probes for %s", startURL), slog.String("component", "crawler"))
 			break

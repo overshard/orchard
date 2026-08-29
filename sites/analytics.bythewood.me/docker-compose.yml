@@ -24,9 +24,9 @@ services:
       ANALYTICS_PASSWORD: ${ANALYTICS_PASSWORD:?set ANALYTICS_PASSWORD in the deploying shell}
     volumes:
       - data:/data
-    # Nothing here has ever needed more than 36MB at rest, but this machine is
-    # also the desktop Isaac works on, so a runaway process is his problem
-    # twice over. Limits are a ceiling to fail against, not a target.
+    # Nothing here has needed more than 36MB at rest, but this machine is also
+    # a workstation, so a runaway process costs twice. A limit is a ceiling to
+    # fail against, not a target.
     deploy:
       resources:
         limits:
@@ -34,9 +34,9 @@ services:
         # and the Typst report renders.
           cpus: "1.00"
           memory: 512M
-    # The binary probes itself: two of these images are FROM scratch and have
-    # no shell or curl for a check to shell out to. restart alone only catches
-    # a process that exits; this is what catches one that is merely wedged.
+    # The binary probes itself, because two of these images are FROM scratch
+    # and have no shell for a check to call. `restart` alone only catches a
+    # process that exits; this catches one that is merely wedged.
     healthcheck:
       test: ["CMD", "/app", "-healthcheck"]
       interval: 30s

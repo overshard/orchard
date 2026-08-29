@@ -14,18 +14,12 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// schema is the Rust version's migrations/0001_initial.sql, byte for byte in
-// intent and column for column in fact.
+// schema matches the database this app inherited, column for column, so that
+// pointing it at an existing file is a no-op rather than a migration. Every
+// statement is IF NOT EXISTS.
 //
-// That is the requirement, not a convenience. There is a production database
-// at /srv/data/analytics/db.sqlite3 with years of events in it, and the whole
-// point of keeping the schema identical is that the cutover is a container
-// swap rather than a data migration. Every statement is IF NOT EXISTS so
-// pointing this at the existing file is a no-op.
-//
-// sqlx's migration table is deliberately absent. It recorded that exactly one
-// migration had ever run, which is not a fact worth a table; if a second
-// schema change ever lands it can be a numbered block here with its own
+// There is no migration table. It would record that exactly one migration had
+// ever run; a second schema change can be a numbered block here with its own
 // guard.
 const schema = `
 CREATE TABLE IF NOT EXISTS properties (
@@ -90,16 +84,14 @@ CREATE TABLE IF NOT EXISTS meta (
 
 // openDB opens the SQLite database and applies the schema.
 //
-// The driver is modernc.org/sqlite, which is SQLite transpiled to Go rather
-// than bound to it. That is what keeps CGO_ENABLED=0 available, and CGO off is
-// what decisions/0008 identified as the property that had to survive the move
-// off Rust: a static binary. It is slower than mattn/go-sqlite3 on a
-// benchmark, and this app writes a few hundred rows a day.
+// The driver is modernc.org/sqlite, SQLite transpiled to Go rather than bound
+// to it, which is what keeps CGO_ENABLED=0 and a static binary available. It
+// benchmarks slower than mattn/go-sqlite3; this app writes a few hundred rows
+// a day.
 //
-// The pragmas are the Rust connect options, restated. They are passed in the
-// DSN because they are per connection, and database/sql opens connections
-// lazily and silently: setting them once after Open would apply them to
-// whichever connection happened to serve that call and to no other.
+// The pragmas go in the DSN because they are per connection, and database/sql
+// opens connections lazily: setting them once after Open would apply them to
+// whichever connection served that call and to no other.
 func openDB(path string) (*sql.DB, error) {
 	if dir := filepath.Dir(path); dir != "" {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -118,9 +110,9 @@ func openDB(path string) (*sql.DB, error) {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
 
-	// SQLite takes a database-wide write lock, so concurrent writers do not
-	// buy throughput, they buy SQLITE_BUSY. Readers are the reason the pool is
-	// larger than one: WAL lets them run while a write is in flight.
+	// SQLite takes a database-wide write lock, so concurrent writers buy
+	// SQLITE_BUSY rather than throughput. The pool is larger than one for
+	// readers, which WAL lets run while a write is in flight.
 	db.SetMaxOpenConns(8)
 	db.SetMaxIdleConns(8)
 	db.SetConnMaxLifetime(time.Hour)
@@ -138,9 +130,9 @@ func openDB(path string) (*sql.DB, error) {
 // creating it on first boot.
 //
 // The id is stored in meta rather than derived, because it is baked into a
-// collector snippet: regenerating it would orphan every event already
-// recorded against the old one. The existence check against properties covers
-// the case where meta survived a database the events did not.
+// collector snippet and regenerating it would orphan every event recorded
+// against the old one. The existence check against properties covers a meta
+// row that outlived its database.
 func ensureProprium(ctx context.Context, db *sql.DB) (uuid.UUID, error) {
 	var stored string
 	err := db.QueryRowContext(ctx, "SELECT value FROM meta WHERE key = 'proprium_id'").Scan(&stored)
@@ -189,9 +181,8 @@ type Property struct {
 	UpdatedAt   int64
 }
 
-// CustomCard is a custom event the operator has pinned to the dashboard as a
-// metric card. Value is the pinned/unpinned flag; the name is historical and
-// is what the stored JSON already uses, so it stays.
+// CustomCard is a custom event pinned to the dashboard as a metric card. Value
+// is the pinned flag; the field name is what the stored JSON already uses.
 type CustomCard struct {
 	Event string `json:"event"`
 	Value bool   `json:"value"`
@@ -199,12 +190,10 @@ type CustomCard struct {
 
 const propertyColumns = `id, name, custom_cards, is_protected, is_public, created_at, updated_at`
 
-// scanProperty reads one row of propertyColumns.
-//
-// Malformed custom_cards JSON degrades to no cards rather than failing the
-// request: it is dashboard decoration written by a form, and a dashboard that
-// refuses to load because one card is corrupt is worse than one missing a
-// card.
+// scanProperty reads one row of propertyColumns. Malformed custom_cards JSON
+// degrades to no cards rather than failing the request: it is decoration
+// written by a form, and a dashboard that will not load is worse than one
+// missing a card.
 func scanProperty(scan func(...any) error) (*Property, error) {
 	var (
 		p     Property

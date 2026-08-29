@@ -9,14 +9,14 @@ import (
 	"time"
 )
 
-// The tests here cover the functions where a mistake is silent: escaping that
-// produces a valid-looking document with the wrong content, auth that lets the
-// wrong request through, and arithmetic that renders a plausible wrong number.
-// Everything a compiler or an obviously broken page would catch is left alone.
+// These cover the functions where a mistake is silent: escaping that produces
+// a valid-looking document with the wrong content, auth that lets the wrong
+// request through, and arithmetic that renders a plausible wrong number.
+// Anything a compiler or an obviously broken page would catch is left alone.
 
-// The "/" case is the one that matters and the one that is not obvious. A page
-// URL is user data, "//" opens a Typst line comment, and the result is a
-// report that silently loses the rest of a line rather than failing.
+// The "/" case is the one that is not obvious: a page URL is user data, "//"
+// opens a Typst line comment, and the report then loses the rest of that line
+// rather than failing.
 func TestTypstMD(t *testing.T) {
 	tests := []struct{ in, want string }{
 		{"/blog/post", `\/blog\/post`},
@@ -51,8 +51,8 @@ func TestTypstStr(t *testing.T) {
 	}
 }
 
-// A property named "Café" panicked the Rust version outright when its report
-// was downloaded, because a non-ASCII byte cannot go into a header value.
+// A non-ASCII byte cannot go into a header value, so a property named "Café"
+// has to survive the trip into Content-Disposition.
 func TestASCIIFilename(t *testing.T) {
 	tests := []struct{ in, want string }{
 		{"Café", "Caf_"},
@@ -77,8 +77,8 @@ func TestASCIIFilename(t *testing.T) {
 	}
 }
 
-// Referrers are grouped by this value, so getting it wrong does not error, it
-// just splits one source into several rows that should have been one.
+// Referrers are grouped by this value, so getting it wrong does not error. It
+// splits one source into several rows that should have been one.
 func TestNormalizeReferrer(t *testing.T) {
 	tests := []struct{ in, want string }{
 		{"https://www.google.com/search?q=x", "google.com"},
@@ -95,7 +95,7 @@ func TestNormalizeReferrer(t *testing.T) {
 }
 
 // "//evil.example" starts with a slash and is still off-site: browsers read it
-// as protocol-relative. A naive prefix check would pass it straight through.
+// as protocol-relative, and a naive prefix check passes it straight through.
 func TestSafeNext(t *testing.T) {
 	tests := []struct{ in, want string }{
 		{"/properties", "/properties"},
@@ -138,8 +138,8 @@ func TestSession(t *testing.T) {
 		for _, c := range w.Result().Cookies() {
 			r.AddCookie(c)
 		}
-		// Rotating the password must invalidate outstanding sessions, which is
-		// the whole reason the key is derived from it rather than configured.
+		// Rotating the password must invalidate outstanding sessions, which
+		// is why the key is derived from it rather than configured.
 		if isAuthenticated(r, sessionKey("different")) {
 			t.Error("a cookie survived the password changing")
 		}
@@ -305,8 +305,8 @@ func isValidUTF8(s string) bool {
 	return true
 }
 
-// encodeExtra must not escape < and > into <: the value is stored, not
-// rendered, and a URL that went in with a "<" has to come back with one.
+// encodeExtra must not escape < and >: the value is stored rather than
+// rendered, so a URL that went in with a "<" has to come back with one.
 func TestEncodeExtra(t *testing.T) {
 	if got := encodeExtra(nil); got != "{}" {
 		t.Errorf("empty extra = %q, want {}", got)
@@ -327,7 +327,7 @@ func TestParseDateToMS(t *testing.T) {
 	if !ok {
 		t.Fatal("a valid end date failed to parse")
 	}
-	// One second short of a full day: 23:59:59, matching the Rust bounds.
+	// One second short of a full day: 23:59:59.
 	if d := end - start; d != 86399*1000 {
 		t.Errorf("end minus start = %dms, want %dms", d, 86399*1000)
 	}

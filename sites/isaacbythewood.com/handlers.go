@@ -11,8 +11,7 @@ import (
 
 // PageData is everything base.html and one page template need. One struct for
 // every page rather than a per-page type: the shared chrome (menu, sidebar,
-// loader, asset URLs) is most of it, and splitting that out would mean
-// embedding a common struct in five places to save nothing.
+// loader, asset URLs) is most of it.
 type PageData struct {
 	Title       string
 	Description string
@@ -52,8 +51,8 @@ type PageData struct {
 }
 
 // AboutWord carries its slot as a ready-made inline style. template.CSS is
-// required: html/template refuses to interpolate an untyped string into a
-// style attribute, and rightly so.
+// required, because html/template refuses to interpolate an untyped string
+// into a style attribute.
 type AboutWord struct {
 	Text  string
 	Style template.CSS
@@ -68,13 +67,9 @@ type ProjectView struct {
 	Delay  template.CSS
 }
 
-// PourView carries a whole size ladder, not one path.
-//
-// next/image chose a width per viewport, and a plain <img> only matches that
-// with srcset. Shipping a single size instead means a phone rendering a card at
-// 380px still downloads the 960w file, which is most of the difference that
-// remained after the archival scans (3900x3000, up to 16MB each) were dealt
-// with.
+// PourView carries a whole size ladder rather than one path, so a phone
+// rendering a card at 380px does not download the 960w file. The sources are
+// archival scans, up to 3900x3000 and 16MB each.
 type PourView struct {
 	Pour
 	CardSrc     string // fallback for browsers without srcset
@@ -94,9 +89,8 @@ type site struct {
 func (s *site) page(name, title, description string) PageData {
 	fullTitle := siteTitle
 	if title != "" {
-		// The separator is an em dash in the original. Prose in this workspace
-		// does not use them, but a <title> is a label rather than prose and
-		// this one is the site's existing visual identity, so it stays.
+		// An em dash separator, which is the site's existing visual
+		// identity.
 		fullTitle = title + " — " + siteTitle
 	}
 	if description == "" {
@@ -115,8 +109,8 @@ func (s *site) page(name, title, description string) PageData {
 	}
 
 	canonical := baseURL
-	// Every page below the root is exactly one level deep, so the breadcrumb
-	// trail is Home then this page, and the home page has none at all.
+	// Every page below the root is one level deep, so the trail is Home then
+	// this page, and the home page has none.
 	var crumbs []NavPage
 	if href != "/" {
 		canonical = baseURL + href
@@ -128,9 +122,9 @@ func (s *site) page(name, title, description string) PageData {
 	}
 
 	return PageData{
-		// Always set, never omitted. The grid defines a named "main" area in
-		// the centre columns; a <main> with no grid-area auto-places into the
-		// first cell instead, which is the 60px sidebar gutter.
+		// Always set. The grid defines a named "main" area in the centre
+		// columns, and a <main> with no grid-area auto-places into the first
+		// cell instead, which is the 60px sidebar gutter.
 		GridArea:    template.CSS("main"),
 		Title:       fullTitle,
 		Description: description,
@@ -139,10 +133,8 @@ func (s *site) page(name, title, description string) PageData {
 		Page:        name,
 		Num:         num,
 		Staging:     Staging,
-		// Deliberately off on the test hostname. Every visit here is Isaac
-		// checking his own rebuild, and letting it report into the real site's
-		// analytics ID would put test traffic in the numbers he actually
-		// reads. Flip when next.isaacbythewood.com becomes the apex.
+		// Off on the test hostname, so its traffic does not report into the
+		// real site's analytics ID.
 		Analytics: !Staging,
 		Script:    s.script,
 		Styles:    s.styles,
@@ -160,10 +152,9 @@ func (s *site) page(name, title, description string) PageData {
 }
 
 func (s *site) home(w http.ResponseWriter, r *http.Request) {
-	// Go's "/" matches everything, so an unmatched path lands here. That is
-	// the exact bug the tunnel test shipped with, where /nope answered 200 and
-	// the rig could not show an error crossing the tunnel. "/{$}" would avoid
-	// it at the mux, but an explicit check also covers the 404 page.
+	// "/" matches everything, so an unmatched path lands here and would
+	// otherwise answer 200. "/{$}" would avoid it at the mux, but an explicit
+	// check also covers the 404 page.
 	if r.URL.Path != "/" {
 		s.notFound(w, r)
 		return
@@ -171,7 +162,7 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 
 	data := s.page("index", "Senior Solutions Architect at Craftmaster Furniture", "")
 	// The promo slot. Absent rather than stale when the blog cannot be
-	// reached, so the template simply does not render the card.
+	// reached, so the template does not render the card.
 	if post, ok := s.latest.Get(); ok {
 		data.Latest = &post
 	}
@@ -201,9 +192,8 @@ func (s *site) about(w http.ResponseWriter, r *http.Request) {
 func (s *site) code(w http.ResponseWriter, r *http.Request) {
 	data := s.page("code", "Code", "Some of my most recent coding projects.")
 
-	// Two lists rather than one with a flag, because the template renders them
-	// as two sections with different chrome and a shared loop would spend more
-	// lines re-deciding which section it was in than this costs.
+	// Two lists rather than one with a flag, because the template renders two
+	// sections with different chrome.
 	//
 	// The stagger delay counts across both, so the entrance reads as one
 	// sequence down the page rather than restarting at the archived heading.
@@ -213,8 +203,8 @@ func (s *site) code(w http.ResponseWriter, r *http.Request) {
 			URL:     "https://github.com/" + githubUser + "/" + project.Slug,
 			Delay:   template.CSS(fmt.Sprintf("animation-delay: %dms", i*100)),
 		}
-		// Only live projects carry a commit. On something read-only it would
-		// always be the commit that archived it, which says nothing.
+		// Only live projects carry a commit. On a read-only repo it would
+		// always be the commit that archived it.
 		if !project.Archived {
 			view.Commit = s.commits.JSON(project.Slug)
 		}
@@ -259,10 +249,9 @@ func (s *site) notFound(w http.ResponseWriter, r *http.Request) {
 	s.renderer.Render(w, http.StatusNotFound, "notfound.html", data)
 }
 
-// robots keeps the staging hostname out of search results entirely.
-//
-// A noindex meta tag is not enough on its own here, because it only works if
-// the crawler fetches the page. Both are set, and they agree.
+// robots keeps a staging hostname out of search results. A noindex meta tag is
+// not enough on its own, because it only works if the crawler fetches the
+// page.
 func (s *site) robots(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	if Staging {

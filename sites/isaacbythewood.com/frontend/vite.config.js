@@ -1,9 +1,8 @@
 import { resolve } from "path";
 import { defineConfig } from "vite";
 
-// Same shape the Rust projects use, so the Go server can read the manifest the
-// same way theirs do. Vite builds a bundle; it never serves anything. Go owns
-// every request, in dev and in prod alike.
+// Vite builds a bundle and never serves anything. Go owns every request, in dev
+// and in prod alike, and reads the manifest to resolve hashed filenames.
 export default defineConfig({
   root: "static_src",
   base: "/static/",

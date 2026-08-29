@@ -1,11 +1,10 @@
-// The four sites are four independent modules. This file exists only so that
-// `go build ./...`, `go vet ./...` and `go test ./...` still work from the
-// repo root, and so an editor opening the monorepo resolves all four at once.
+// Four independent modules. This file exists so `go build ./...`, `go vet ./...`
+// and `go test ./...` work from the repo root and an editor resolves all four
+// at once.
 //
-// Nothing depends on it. Each site builds on its own with `go build` from its
-// own directory, and its Docker build context is that directory alone, which
-// is the whole point of the split: a site can be moved to its own repository
-// by copying the folder, with no parent module to bring along.
+// Nothing depends on it. Each site builds on its own from its own directory,
+// and its Docker build context is that directory alone, so a site can be moved
+// to its own repository by copying the folder.
 go 1.27.0
 
 use (

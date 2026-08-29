@@ -8,8 +8,7 @@ credentials-file: /etc/cloudflared/CHANGEME_TUNNEL_ID.json
 # Everything terminates at Caddy, which owns the per-site routing. One rule per
 # hostname, and the catch-all at the end is required by cloudflared.
 ingress:
-  # The sites. The next-* staging hostnames sat here too until the cutover on
-  # 2026-08-27 was verified, then went with their DNS records.
+  # The sites. One rule per hostname, all of them terminating at Caddy.
   - hostname: isaacbythewood.com
     service: http://caddy:80
   - hostname: www.isaacbythewood.com
@@ -21,9 +20,8 @@ ingress:
   - hostname: status.bythewood.me
     service: http://caddy:80
 
-  # The apex redirects to the portfolio and has never served a site. It is
-  # here because the Linode's Caddy owned that redirect until the cutover, and
-  # it would otherwise have disappeared with the box.
+  # The apex has never served a site; it redirects to the portfolio, and Caddy
+  # owns that redirect.
   - hostname: bythewood.me
     service: http://caddy:80
   - hostname: www.bythewood.me

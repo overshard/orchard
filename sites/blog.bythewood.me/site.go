@@ -2,16 +2,12 @@ package main
 
 import "strings"
 
-// Identity, stated once and not made configurable.
+// Identity, stated once and not made configurable: hardcode identity, never
+// hardcode credentials. This site has no credentials at all, so it needs no
+// .env of any kind.
 //
-// decisions/0008 draws the line: hardcode identity, never hardcode
-// credentials. The Rust version read BLOG_ROOT and PORT from a .env through
-// dotenvy, which was product scaffolding for a deployer who does not exist.
-// This site has no credentials at all, so it needs no .env of any kind.
-//
-// baseURL went to the real hostname at cutover on 2026-08-27. Staging below
-// derives from it, so flipping this one line also turned off the noindex, the
-// robots.txt Disallow and the analytics collector.
+// Staging below derives from baseURL, so this one line also controls the
+// noindex, the robots.txt Disallow and the analytics collector.
 const (
 	baseURL     = "https://blog.bythewood.me"
 	siteName    = "Isaac Bythewood's Blog"
@@ -21,11 +17,8 @@ const (
 	analyticsID = "0d379e18-9ea7-4228-a8bf-82369c25ab84"
 )
 
-// Staging keeps the test hostname out of search results.
-//
-// Without it next.blog.bythewood.me is crawled and indexed as a complete
-// duplicate of the real blog, which is the one way a staging host can actually
-// damage the production one. robots.txt and a noindex meta tag both key off
+// Staging keeps a test hostname out of search results, so it is not indexed as
+// a duplicate of the real blog. robots.txt and a noindex meta tag both key off
 // it, because a meta tag alone is useless on a URL robots.txt has already told
 // the crawler not to fetch.
 var Staging = !strings.HasSuffix(baseURL, "//blog.bythewood.me")
@@ -36,8 +29,7 @@ type FooterLink struct {
 	Href  string
 }
 
-// The footer columns, lifted from the Rust templates where they were hand
-// written twice over. Data here, one loop in the template.
+// The footer columns: data here, one loop in the template.
 var (
 	footerProjects = []FooterLink{
 		{Label: "Taproot", Href: "https://github.com/overshard/taproot"},
@@ -56,6 +48,5 @@ var (
 	}
 )
 
-// sourceURL points at this site inside the monorepo rather than at the old
-// per-project repo, which is where the footer link used to go.
+// sourceURL is where the footer link goes.
 const sourceURL = "https://github.com/" + githubUser + "/orchard/tree/main/sites/blog.bythewood.me"

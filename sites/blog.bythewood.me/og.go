@@ -13,19 +13,13 @@ import (
 
 // Social cards, compiled at build time like the PDFs.
 //
-// These used to be SVG, rendered per request. The design was fine and the
-// format was not: Facebook, X, LinkedIn, Slack, iMessage and Discord all
-// refuse image/svg+xml for og:image, so every share of this blog since the
-// card was written has fallen back to a bare link. PNG is the only format all
-// of them agree on.
+// PNG rather than SVG: Facebook, X, LinkedIn, Slack, iMessage and Discord all
+// refuse image/svg+xml for og:image, so an SVG card falls back to a bare link
+// everywhere it matters.
 //
-// Rendering moves to build time for the same reason the PDFs did. A post's
-// title and tags cannot change while the process runs, so there is nothing to
-// recompute per request, and the runtime image stays typst-free.
-//
-// The design is a straight port of the SVG it replaces, so shares that were
-// already cached keep the same look: dark plate, gradient rule, up to three
-// lines of title, byline and right aligned tag pills.
+// Build time for the same reason as the PDFs. A post's title and tags cannot
+// change while the process runs, so there is nothing to recompute per request
+// and the runtime image stays typst-free.
 
 const (
 	ogWidth  = 1200
@@ -44,15 +38,15 @@ func ogTypstSource(title string, tags []string) string {
 	fmt.Fprintf(&b, "#set page(width: %dpt, height: %dpt, margin: 0pt, fill: rgb(\"#0d1117\"))\n", ogWidth, ogHeight)
 	// Geist, the same face the post PDFs use, reached through --font-path.
 	// Typst embeds only DejaVu Sans Mono and its own serif, so without that
-	// path this silently falls back to a serif on a card meant to be sans.
+	// path this falls back to a serif on a card meant to be sans.
 	b.WriteString("#set text(font: (\"Geist\", \"DejaVu Sans\"), fill: rgb(\"#f0f6fc\"))\n")
 
 	// Accent bar, left of the title block.
 	b.WriteString("#place(dx: 80pt, dy: 80pt, rect(width: 5pt, height: 160pt, " +
 		"fill: gradient.linear(rgb(\"#0e3ff4\"), rgb(\"#842bff\"), angle: 90deg)))\n")
 
-	// One placed line per title line, at the same baselines the SVG used, so
-	// the card does not reflow if a title happens to wrap differently.
+	// One placed line per title line, at fixed baselines, so the card does not
+	// reflow when a title wraps differently.
 	for i, line := range wrapTitle(title, 35, 3) {
 		fmt.Fprintf(&b, "#place(dx: 110pt, dy: %dpt, text(size: 54pt, weight: \"bold\")[#%s])\n",
 			110+i*64, typstString(line))
@@ -144,8 +138,8 @@ func GenerateOGCards(lib *Library, root, fontPath, outDir string) error {
 }
 
 // compilePNG is compilePDF with a raster target. At 72 ppi a Typst point is
-// exactly one pixel, so the page size above is the pixel size Facebook and X
-// are told to expect in og:image:width/height.
+// one pixel, so the page size above is the pixel size og:image:width and
+// og:image:height promise.
 func compilePNG(source, root, fontPath, out string) error {
 	args := []string{"compile", "--format", "png", "--ppi", "72", "--root", root}
 	if fontPath != "" {

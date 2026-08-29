@@ -28,8 +28,7 @@ func (s *site) properties(w http.ResponseWriter, r *http.Request) {
 		view, err := s.buildPropertyView(r.Context(), p)
 		if err != nil {
 			// One property failing to summarise must not blank the list: the
-			// other sites are still being monitored and the operator still
-			// needs to see them.
+			// others are still being monitored.
 			slog.Info(fmt.Sprintf("properties list: building view for %s: %v", p.URL, err))
 			continue
 		}
@@ -41,13 +40,9 @@ func (s *site) properties(w http.ResponseWriter, r *http.Request) {
 	s.renderer.Render(w, http.StatusOK, "properties.html", data)
 }
 
-// propertyCreate adds a tracked URL.
-//
-// https:// is required, and that is not gatekeeping: the checker speaks
-// HTTP/2 over TLS and nothing else, so a property created from an http:// URL
-// could never pass a single check and would sit permanently red. Rejecting it
-// here is the difference between a clear refusal and a site that silently
-// never works.
+// propertyCreate adds a tracked URL. https:// is required because the checker
+// speaks HTTP/2 over TLS and nothing else, so a property created from an
+// http:// URL could never pass a check and would sit permanently red.
 func (s *site) propertyCreate(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
@@ -102,9 +97,8 @@ func (s *site) propertyPublic(w http.ResponseWriter, r *http.Request) {
 		slog.Info(fmt.Sprintf("property public toggle %s: %v", id, err))
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"success": false})
 	case !found:
-		// A 404 rather than a cheerful success carrying a made-up value. The
-		// Rust version returned {"success": false} with no id check at all, so
-		// a toggle on a deleted property reported failure without saying why.
+		// A 404 rather than a success carrying a made-up value, so a toggle on
+		// a deleted property says what went wrong.
 		writeJSON(w, http.StatusNotFound, map[string]any{"success": false, "error": "not_found"})
 	default:
 		writeJSON(w, http.StatusOK, map[string]any{"success": true, "is_public": isPublic})

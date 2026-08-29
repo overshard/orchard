@@ -11,11 +11,10 @@
 #   make test       every site's tests
 #   make edge-up    bring up the shared tunnel and Caddy
 #
-# Each site is its own Go module. There is no module at this level: go.work
-# only exists so these repo-wide targets and an editor can see all four at
-# once, and nothing in any site depends on it. That is why every loop below
-# runs its command inside the site directory rather than reaching across a
-# single module from here.
+# Each site is its own Go module and there is no module at this level, which is
+# why every loop below runs its command inside the site directory rather than
+# reaching across one module from here. go.work exists so these repo-wide
+# targets and an editor can see all four at once; nothing depends on it.
 
 SITE ?= isaacbythewood.com
 SITE_DIR = sites/$(SITE)
@@ -33,10 +32,9 @@ deploy:
 	cd $(SITE_DIR) && docker compose up --build --detach
 
 # -o build/ matters. A bare `go build ./...` writes each site's executable into
-# the working directory, which is how a 14MB binary got committed on day one
-# and why .gitignore still carries rules for it. Sending it to the same
-# gitignored build/ the assets live in means running this leaves the source
-# directory exactly as it found it.
+# the working directory, which is how a 14MB binary once got committed and why
+# .gitignore still carries rules for it. Sending it to the gitignored build/
+# leaves the source directory as it was found.
 check: fmt vet
 	@for s in $(SITES); do echo "build $$s"; 		(cd sites/$$s && mkdir -p build && go build -o build/ ./...) || exit 1; done
 

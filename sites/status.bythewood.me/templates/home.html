@@ -15,10 +15,6 @@
         <h1 class="hero-title">
           Website status monitoring for operators who host their <span class="accent">own stack</span>.
         </h1>
-        {{/* The Rust copy said "Discord + email alerts". Both channels are gone
-             (see alerts.go), so the sentence is corrected rather than carried
-             across: describing a feature the binary does not have is a bug in
-             the page, not a redesign of it. */}}
         <p class="hero-sub">
           HTTP checks every three minutes. Lighthouse audits. Security header analysis.
           Full-site SEO crawl. ntfy alerts on state transitions. Your data
@@ -95,8 +91,7 @@
     <div class="col-12 col-md-6 col-lg-4">
       <div class="feature">
         <div class="feature-label">crawler</div>
-        {{/* "38 ranked checks" in the Rust copy, which was already off by one:
-             checks.rs registered 39 and so does crawler_checks.go. */}}
+        {{/* 39 is the count crawler_checks.go registers. Keep them in step. */}}
         <div class="feature-title">Weekly SEO spider</div>
         <p class="feature-desc">In-process spider runs weekly. 39 ranked checks across SEO, links, sitemap, accessibility, content, performance, and security.</p>
       </div>
@@ -112,7 +107,6 @@
       <div class="feature">
         <div class="feature-label">ownership</div>
         <div class="feature-title">Single binary, single container</div>
-        {{/* "Rust + axum + SQLite" in the Rust copy, which this binary is not. */}}
         <p class="feature-desc">Go + SQLite, shipped as one Docker Compose stack. Your data, your ingress, your retention policy. No SaaS lock-in.</p>
       </div>
     </div>

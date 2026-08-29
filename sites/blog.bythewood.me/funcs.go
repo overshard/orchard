@@ -5,14 +5,9 @@ import (
 	"html/template"
 )
 
-// templateFuncs is one function, and it exists so a partial can take more than
-// one value.
-//
-// Go templates have a single dot, so a fragment needing both a label and a
-// list has no way to receive them. The alternatives are a named struct per
-// fragment, which is three types to save one helper, or repeating the
-// fragment's markup at each call site, which is what the Rust templates did
-// with {% set %} before every include.
+// templateFuncs is one function, so a partial can take more than one value. Go
+// templates have a single dot, so a fragment needing both a label and a list
+// has no other way to receive them.
 var templateFuncs = template.FuncMap{"dict": dict}
 
 func dict(pairs ...any) (map[string]any, error) {

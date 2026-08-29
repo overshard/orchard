@@ -13,21 +13,13 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// schema is the Rust version's migrations/0001_initial.sql plus the columns
-// 0002_phase_timings.sql added, column for column.
+// schema matches the database this app inherited, column for column, so that
+// pointing it at an existing file is a no-op rather than a migration. The
+// property UUIDs in it are the addresses of the public status pages, so they
+// have to keep working. Every statement is IF NOT EXISTS.
 //
-// That is the requirement, not a convenience. There is a production database
-// at /srv/data/status/db.sqlite3 with the property UUIDs the public status
-// pages are addressed by, and those URLs were preserved once already when the
-// Django app was ported to Rust. Keeping the schema identical means the
-// cutover is a container swap rather than a data migration, and the same
-// UUIDs keep working for a third time. Every statement is IF NOT EXISTS so
-// pointing this at the existing file is a no-op.
-//
-// sqlx's migration table is deliberately absent, and deliberately not dropped
-// from an existing database either: leaving it costs nothing and dropping it
-// would break rollback, since sqlx would then re-run 0001_initial against
-// tables that already exist.
+// An older migration table may still be present in an existing database. It is
+// left alone: it costs nothing, and dropping it would break a rollback.
 const schema = `
 CREATE TABLE IF NOT EXISTS properties (
     id                          BLOB PRIMARY KEY,
@@ -87,27 +79,23 @@ CREATE TABLE IF NOT EXISTS meta (
 );
 `
 
-// phaseColumns are the four 0002_phase_timings additions.
+// phaseColumns are the four phase-timing columns.
 //
 // They are inside the CREATE TABLE above so a fresh database gets them, and
-// added by hand below when the table already exists without them. SQLite has
-// no ADD COLUMN IF NOT EXISTS, and CREATE TABLE IF NOT EXISTS on an existing
-// table is a silent no-op that does not reconcile columns, so a database
-// where 0001 ran and 0002 did not would otherwise fail on the first INSERT.
-// That combination should not exist, but the check costs one PRAGMA at boot.
+// added by hand below when the table already exists without them. SQLite has no
+// ADD COLUMN IF NOT EXISTS, and CREATE TABLE IF NOT EXISTS on an existing table
+// is a silent no-op that does not reconcile columns, so an older database would
+// otherwise fail on the first INSERT. The check costs one PRAGMA at boot.
 var phaseColumns = []string{"dns_ms", "tcp_ms", "tls_ms", "ttfb_ms"}
 
 // openDB opens the SQLite database and applies the schema.
 //
-// The driver is modernc.org/sqlite, which is SQLite transpiled to Go rather
-// than bound to it, so CGO_ENABLED=0 still builds a static binary. It was
-// proved out by analytics on 2026-08-26 against a 68,847-event production
-// database; this is the second app behind it.
+// The driver is modernc.org/sqlite, SQLite transpiled to Go rather than bound
+// to it, so CGO_ENABLED=0 still builds a static binary.
 //
-// The pragmas are the Rust connect options, restated. They are passed in the
-// DSN because they are per connection, and database/sql opens connections
-// lazily and silently: setting them once after Open would apply them to
-// whichever connection happened to serve that call and to no other.
+// The pragmas go in the DSN because they are per connection, and database/sql
+// opens connections lazily: setting them once after Open would apply them to
+// whichever connection served that call and to no other.
 func openDB(path string) (*sql.DB, error) {
 	if dir := filepath.Dir(path); dir != "" {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -126,10 +114,10 @@ func openDB(path string) (*sql.DB, error) {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
 
-	// SQLite takes a database-wide write lock, so concurrent writers do not
-	// buy throughput, they buy SQLITE_BUSY. Readers are the reason the pool is
-	// larger than one: WAL lets them run while a write is in flight, and this
-	// app has a scheduler writing check rows while the dashboard reads them.
+	// SQLite takes a database-wide write lock, so concurrent writers buy
+	// SQLITE_BUSY rather than throughput. The pool is larger than one for
+	// readers, which WAL lets run while a write is in flight, and this app has
+	// a scheduler writing check rows while the dashboard reads them.
 	db.SetMaxOpenConns(8)
 	db.SetMaxIdleConns(8)
 	db.SetConnMaxLifetime(time.Hour)
@@ -184,10 +172,9 @@ func ensurePhaseColumns(db *sql.DB) error {
 
 func nowMS() int64 { return time.Now().UnixMilli() }
 
-// Property is one tracked URL: the unit of monitoring.
-//
-// Every nullable column is a pointer rather than a sql.NullInt64 so the
-// templates and the JSON status endpoint can test it with a plain nil check.
+// Property is one tracked URL, the unit of monitoring. Every nullable column is
+// a pointer rather than a sql.NullInt64, so the templates and the JSON status
+// endpoint can test it with a plain nil check.
 type Property struct {
 	ID          uuid.UUID
 	URL         string
@@ -225,13 +212,8 @@ type Property struct {
 }
 
 // Name is the hostname, stripped of a leading www. Used for display, for the
-// report filename and for the alert body.
-//
-// The Rust version split the URL on "/" and took the third field, which is
-// correct for a well-formed absolute URL and gives the whole string back for
-// anything else. Parsing properly is the same length here and does not depend
-// on the string being shaped right, which matters because the value is
-// operator input.
+// report filename and for the alert body. Parsed rather than split on "/",
+// because the value is operator input and need not be well formed.
 func (p *Property) Name() string {
 	u, err := parseHTTPURL(p.URL)
 	if err != nil || u.Hostname() == "" {
@@ -331,17 +313,17 @@ func createProperty(ctx context.Context, db *sql.DB, rawURL string) (uuid.UUID, 
 }
 
 // deleteProperty removes a property and, through the foreign key, its checks.
-// A protected property cannot be deleted, which is enforced in the statement
-// rather than in the handler so no route can miss it.
+// A protected property cannot be deleted, enforced in the statement rather than
+// in the handler so no route can miss it.
 func deleteProperty(ctx context.Context, db *sql.DB, id uuid.UUID) error {
 	_, err := db.ExecContext(ctx,
 		"DELETE FROM properties WHERE id = ? AND is_protected = 0", id[:])
 	return err
 }
 
-// togglePublic flips the public flag and reports the new value. The bool
-// return is false with a nil error when there is no such property, which the
-// handler turns into a 404 rather than a success carrying a made-up value.
+// togglePublic flips the public flag and reports the new value. The bool return
+// is false with a nil error when there is no such property, which the handler
+// turns into a 404 rather than a success carrying a made-up value.
 func togglePublic(ctx context.Context, db *sql.DB, id uuid.UUID) (isPublic, found bool, err error) {
 	var current int64
 	err = db.QueryRowContext(ctx,
@@ -365,11 +347,9 @@ func togglePublic(ctx context.Context, db *sql.DB, id uuid.UUID) (isPublic, foun
 	return next == 1, true, nil
 }
 
-// Check is the result of a single HTTP probe.
-//
-// The four phase timings are nullable because migration 0002 left every
-// pre-existing row NULL, and those rows are still in the production database.
-// The dashboard chart skips nulls; response_ms remains the canonical total.
+// Check is the result of a single HTTP probe. The four phase timings are
+// nullable because rows written before those columns existed have none. The
+// dashboard chart skips nulls; response_ms is the canonical total.
 type Check struct {
 	StatusCode int64
 	ResponseMS int64
@@ -435,12 +415,9 @@ func countChecks(ctx context.Context, db *sql.DB, id uuid.UUID) (int64, error) {
 	return n, err
 }
 
-// countUptime returns the all-time up and down check counts.
-//
-// COALESCE is not decoration: SUM over zero rows is NULL, not 0, so a property
-// that has never been checked would fail the scan. The Rust version papered
-// over that with an unwrap_or((0, 0)) that also swallowed real database
-// errors.
+// countUptime returns the all-time up and down check counts. The COALESCE is
+// required: SUM over zero rows is NULL rather than 0, so a property that has
+// never been checked would fail the scan.
 func countUptime(ctx context.Context, db *sql.DB, id uuid.UUID) (up, down int64, err error) {
 	err = db.QueryRowContext(ctx,
 		`SELECT COALESCE(SUM(CASE WHEN status_code = 200 THEN 1 ELSE 0 END), 0),

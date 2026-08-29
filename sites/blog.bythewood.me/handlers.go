@@ -22,11 +22,9 @@ type Crumb struct {
 	URL   string
 }
 
-// PageData is everything base.html and one page template need.
-//
-// One struct for every page rather than a type each: the shared chrome (nav,
-// breadcrumbs, footer, asset URLs, social meta) is most of it, and splitting
-// that out would mean embedding a common struct in six places to save nothing.
+// PageData is everything base.html and one page template need. One struct for
+// every page rather than a type each: the shared chrome (nav, breadcrumbs,
+// footer, asset URLs, social meta) is most of it.
 type PageData struct {
 	Title       string
 	Description string
@@ -44,8 +42,7 @@ type PageData struct {
 	ActiveTag   string
 	Breadcrumbs []Crumb
 
-	// Social meta is opt in. The home and 404 pages did without it in the
-	// Rust templates and still do.
+	// Social meta is opt in. The home and 404 pages do without it.
 	ShowSocial bool
 	OGImage    string
 
@@ -80,8 +77,8 @@ type site struct {
 	renderer *web.Renderer
 	lib      *Library
 	// Filesystems rather than paths, because in a release build these are
-	// inside the executable and there is no path to hand out. In a dev build
-	// they are os.DirFS over the same directories and nothing else changes.
+	// inside the executable and there is no path to hand out. A dev build
+	// passes os.DirFS over the same directories.
 	content fs.FS
 	pdfs    fs.FS
 	og      fs.FS
@@ -240,8 +237,8 @@ func (s *site) postPDF(w http.ResponseWriter, r *http.Request) {
 
 	raw, err := fs.ReadFile(s.pdfs, post.Slug+".pdf")
 	if err != nil {
-		// Only reachable when the build skipped PDF generation, which is the
-		// normal state of a local checkout without typst installed.
+		// Only reachable when the build skipped PDF generation, the normal
+		// state of a local checkout without typst installed.
 		http.Error(w, "pdf not available", http.StatusNotFound)
 		return
 	}
@@ -249,15 +246,14 @@ func (s *site) postPDF(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/pdf")
 	w.Header().Set("Content-Disposition", `inline; filename="`+post.Slug+`.pdf"`)
 	w.Header().Set("Cache-Control", "public, max-age=3600")
-	// A zero modtime, so no Last-Modified goes out. An embedded file has no
-	// meaningful timestamp, and inventing one would be worse than leaving
-	// revalidation to the hour of Cache-Control above. ServeContent still
-	// handles range requests off the reader.
+	// A zero modtime, so no Last-Modified goes out: an embedded file has no
+	// meaningful timestamp, and revalidation is left to the Cache-Control
+	// above. ServeContent still handles range requests off the reader.
 	http.ServeContent(w, r, post.Slug+".pdf", time.Time{}, bytes.NewReader(raw))
 }
 
-// postMarkdown hands back the source file, which is the honest version of
-// "view source" for a blog whose posts are files.
+// postMarkdown hands back the source file, which is "view source" for a blog
+// whose posts are files.
 func (s *site) postMarkdown(w http.ResponseWriter, r *http.Request) {
 	post, ok := s.lookup(r)
 	if !ok {
@@ -308,8 +304,7 @@ func (s *site) redirectPostFormat(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/posts/"+r.PathValue("slug")+"/"+format+"/", http.StatusMovedPermanently)
 }
 
-// redirectSlash sends /blog to /blog/. The Rust router answered 404 for the
-// slashless form of every route, which is a paper cut nobody chose.
+// redirectSlash sends /blog to /blog/, so the slashless form is not a 404.
 func redirectSlash(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, r.URL.Path+"/", http.StatusMovedPermanently)
 }
@@ -338,28 +333,22 @@ func urlPathEscape(s string) string {
 	return strings.ReplaceAll(url.PathEscape(s), "/", "%2F")
 }
 
-// latestJSON publishes the newest published post as JSON, for other sites in
-// this repo to render a "latest post" card without scraping HTML.
+// latestJSON publishes the newest published post as JSON, so that
+// isaacbythewood.com's promo slot can render a "latest post" card without
+// scraping HTML or being hardcoded to a project that might end.
 //
-// It exists because isaacbythewood.com's home page carries one promo slot. It
-// used to be hardcoded to darkfurrow.com, which meant the slot went stale the
-// moment that project did, and it advertised a dead site for a day after the
-// takedown. Pointing it at whatever was published most recently makes the slot
-// maintain itself.
+// A hand-written shape rather than the whole Post: the consumer needs four
+// fields, and a full dump would put BodyHTML on the wire and make every future
+// field on Post a public API by accident.
 //
-// Deliberately a tiny hand-written shape rather than the whole Post: the
-// consumer needs four fields, and a full dump would put BodyHTML on the wire
-// and make every future field on Post a public API by accident.
-//
-// The URL is absolute because the reader is a different origin. CORS is not
-// set: the only consumer fetches this server side, and opening it to browsers
-// is a decision to take when something actually needs it.
+// The URL is absolute because the reader is a different origin. No CORS: the
+// only consumer fetches this server side.
 func (s *site) latestJSON(w http.ResponseWriter, r *http.Request) {
 	published, _, _ := s.lib.Published()
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	// Short: a new post should reach the other site within the hour rather
-	// than whenever a container happens to restart.
+	// Short, so a new post reaches the other site within the hour rather than
+	// whenever a container happens to restart.
 	w.Header().Set("Cache-Control", "public, max-age=300")
 
 	if len(published) == 0 {
@@ -369,9 +358,9 @@ func (s *site) latestJSON(w http.ResponseWriter, r *http.Request) {
 
 	p := published[0]
 	enc := json.NewEncoder(w)
-	// The same reason the commit cache turns this off: these strings end up in
-	// another site's HTML through html/template, which escapes properly for
-	// that context, so escaping here only corrupts an ampersand in a title.
+	// These strings land in another site's HTML through html/template, which
+	// escapes for that context already, so escaping here only corrupts an
+	// ampersand in a title.
 	enc.SetEscapeHTML(false)
 	_ = enc.Encode(struct {
 		Title       string `json:"title"`

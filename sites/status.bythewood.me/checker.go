@@ -19,18 +19,17 @@ import (
 
 // The HTTP probe.
 //
-// The whole point of this file is that it does not use http.Client. A pooled
-// client measures a warm connection; this measures what a first-time visitor
-// pays, which is DNS, then TCP, then the TLS handshake, then the wait for the
-// first response byte. Those four numbers are the dashboard's phase chart and
-// they only exist because each phase is performed by hand and timed.
+// This deliberately does not use http.Client. A pooled client measures a warm
+// connection; this measures what a first-time visitor pays: DNS, then TCP, then
+// the TLS handshake, then the wait for the first response byte. Those four
+// numbers are the dashboard's phase chart, and they exist only because each
+// phase is performed by hand and timed.
 //
-// From the Rust note, and still true here: **do not "fix" this by hoisting a
-// shared client into the app state.** Pooling would drop mean response time by
-// something like 70% and the number would stop meaning what the dashboard
-// claims it means. If response-time variance looks ugly, look at its cause
-// (handshake jitter, ALPN, DNS, server-side state), do not remove the
-// handshake from the measurement.
+// **Do not "fix" this by hoisting a shared client into the app state.** Pooling
+// would drop mean response time by roughly 70% and the number would stop
+// meaning what the dashboard says it means. If response-time variance looks
+// ugly, look at its cause (handshake jitter, ALPN, DNS, server-side state)
+// rather than removing the handshake from the measurement.
 
 const (
 	// A real Chrome UA. Sites behave differently for something that announces
@@ -67,23 +66,19 @@ type hopResult struct {
 	timings     PhaseTimings
 }
 
-// errPlainHTTP is returned for an http:// URL.
-//
-// The project is HTTP/2-only (see topics/dev-conventions), and h2 over plain
-// TCP with prior knowledge is rare enough in the wild that supporting it would
-// mean measuring something nobody serves. Property creation rejects http://
-// for the same reason, so this is a second fence rather than the only one.
+// errPlainHTTP is returned for an http:// URL. The probe is HTTP/2 only, and h2
+// over plain TCP with prior knowledge is rare enough that supporting it would
+// mean measuring something nobody serves. Property creation rejects http:// for
+// the same reason, so this is a second fence.
 var errPlainHTTP = errors.New("plain HTTP not supported; use https:// (HTTP/2 only)")
 
-// atLeast1ms rounds a duration to whole milliseconds, but reports a sub-ms
-// phase as 1 rather than 0.
+// atLeast1ms rounds a duration to whole milliseconds, reporting a sub-ms phase
+// as 1 rather than 0.
 //
 // The Linux kernel routes traffic destined for the host's own public IP over
-// lo, so when status probes a site sharing its machine the TCP and handshake
-// phases genuinely take 200-500 microseconds, which truncates to zero. A 0 in
-// the chart reads as "this phase did not happen" rather than "this phase was
-// instant", so a phase that ran floors at 1. Total is unaffected: any real
-// probe takes well over a millisecond.
+// lo, so probing a site that shares this machine takes 200-500 microseconds for
+// the TCP and handshake phases, which truncates to zero. A 0 in the chart reads
+// as "this phase did not happen" rather than "this phase was instant".
 func atLeast1ms(d time.Duration) int64 {
 	ms := d.Milliseconds()
 	if ms == 0 && d > 0 {
@@ -113,13 +108,11 @@ func parseHTTPURL(raw string) (*url.URL, error) {
 	return u, nil
 }
 
-// looksLikeTLSError decides between the two failure codes.
-//
-// 526 is Cloudflare's "invalid SSL certificate", which the dashboard renders
-// as a certificate warning; 408 is the generic timeout. Matching on the text
-// of an error is unpleasant, and it is what the Rust version did too, but the
-// alternative is unwrapping a chain of driver-specific types for a value that
-// only picks which of two icons to draw.
+// looksLikeTLSError decides between the two failure codes: 526 for an invalid
+// certificate, which the dashboard renders as a certificate warning, and 408
+// for a generic timeout. Matching on error text is unpleasant, but the
+// alternative is unwrapping a chain of driver-specific types to pick which of
+// two icons to draw.
 func looksLikeTLSError(err error) bool {
 	var certErr *tls.CertificateVerificationError
 	if errors.As(err, &certErr) {
@@ -173,14 +166,13 @@ func runCheck(ctx context.Context, db *sql.DB, p *Property) (int64, error) {
 }
 
 // probeWithRedirects times the first hop in full, then follows up to
-// maxRedirects 3xx hops to discover the final status code.
+// maxRedirects 3xx hops to find the final status code.
 //
 // Following matters because the alert state machine keys on 200: a property
 // using an http-to-https or apex-to-www redirect would otherwise sit
-// permanently "down" at 301. Phase timings deliberately describe the first hop
-// only. That is the latency a fresh visitor pays before being sent elsewhere,
-// and it is the only number that means anything when later hops live on other
-// servers.
+// permanently "down" at 301. Phase timings describe the first hop only, which
+// is the latency a fresh visitor pays before being sent elsewhere, and the only
+// number that means anything when later hops live on other servers.
 func probeWithRedirects(ctx context.Context, rawURL string) (*probeOutcome, error) {
 	current, err := parseHTTPURL(rawURL)
 	if err != nil {
@@ -211,10 +203,10 @@ func probeWithRedirects(ctx context.Context, rawURL string) (*probeOutcome, erro
 		current = next
 		hop, err := phasedHop(ctx, current)
 		if err != nil {
-			// A redirect into something unreachable leaves the last status we
-			// actually observed, which is the 3xx. That is honest: the site
-			// answered, it just pointed somewhere broken, and the redirect
-			// chain check in the crawler is where that gets reported.
+			// A redirect into something unreachable keeps the last status
+			// actually observed, which is the 3xx: the site answered and
+			// pointed somewhere broken. The crawler's redirect chain check is
+			// where that gets reported.
 			break
 		}
 		status = hop.statusCode
@@ -284,8 +276,8 @@ func phasedHop(ctx context.Context, u *url.URL) (*hopResult, error) {
 	// --- TLS ---
 	//
 	// ALPN is pinned to h2 alone, so a server that does not speak HTTP/2 fails
-	// the handshake rather than silently being measured over HTTP/1.1. That
-	// failure maps to 526, which is the same answer the Rust version gave.
+	// the handshake rather than being measured over HTTP/1.1. That failure
+	// maps to 526.
 	tlsStart := time.Now()
 	tlsConn := tls.Client(conn, &tls.Config{
 		ServerName: host,
@@ -322,16 +314,15 @@ func phasedHop(ctx context.Context, u *url.URL) (*hopResult, error) {
 
 // h2Request runs an HTTP/2 GET over an already-established TLS connection.
 //
-// http2.Transport.NewClientConn is the reason this works: the stdlib's own
+// http2.Transport.NewClientConn is what makes this possible: the stdlib's own
 // HTTP/2 support is reachable only through http.Client, which would do its own
-// dialing and handshaking and defeat the entire point of the file. Taking a
-// connection that has already been handshaked is exactly the seam needed.
+// dialing and handshaking and defeat the point of the file. This takes a
+// connection that has already been handshaked.
 //
-// TTFB is measured from the start of the h2 SETTINGS exchange to the arrival
-// of the response HEADERS frame, so it includes protocol setup. That matches
-// what the chart claims it is: everything between "secure connection ready"
-// and "first server byte", which is curl's time_starttransfer minus
-// time_appconnect.
+// TTFB is measured from the start of the h2 SETTINGS exchange to the arrival of
+// the response HEADERS frame, so it includes protocol setup. That is what the
+// chart labels it: everything between "secure connection ready" and "first
+// server byte", or curl's time_starttransfer minus time_appconnect.
 func h2Request(ctx context.Context, conn *tls.Conn, u *url.URL) (
 	status int64, headers map[string]string, headersJSON string, ttfbMS int64, err error,
 ) {
@@ -357,10 +348,10 @@ func h2Request(ctx context.Context, conn *tls.Conn, u *url.URL) (
 	}
 	ttfbMS = atLeast1ms(time.Since(ttfbStart))
 
-	// The body is never read. This measures time to first byte, and the check
-	// only needs the status line and the headers, so draining a megabyte of
-	// HTML would add latency to a number that is supposed to exclude it.
-	// Closing without reading sends RST_STREAM, which is correct and cheap.
+	// The body is never read. This measures time to first byte and only needs
+	// the status line and headers, so draining a megabyte of HTML would add
+	// latency to a number meant to exclude it. Closing without reading sends
+	// RST_STREAM, which is correct and cheap.
 	defer resp.Body.Close()
 
 	headers = make(map[string]string, len(resp.Header))
@@ -372,8 +363,7 @@ func h2Request(ctx context.Context, conn *tls.Conn, u *url.URL) (
 
 	// encoding/json sorts map keys, so the stored blob is byte-stable for a
 	// given response rather than reshuffled by Go's random map iteration on
-	// every probe. That is worth having: these rows are diffed when comparing
-	// this implementation against the Rust one.
+	// every probe, which makes two rows diffable.
 	encoded, err := json.Marshal(headers)
 	if err != nil {
 		encoded = []byte("{}")
@@ -396,12 +386,12 @@ func processCheck(ctx context.Context, db *sql.DB, notifier *Notifier, p *Proper
 //	up   -> down: two consecutive non-200 checks
 //	down -> up:   immediately, on any 200
 //
-// The asymmetry is deliberate. A single failed check is usually a blip, so
-// going down needs corroboration; coming back does not, because a false
-// "recovered" costs nothing and a delayed one is the alert that matters.
+// The asymmetry is the point. A single failed check is usually a blip, so going
+// down needs corroboration; coming back does not, because a false "recovered"
+// costs nothing and a delayed one is the alert that matters.
 //
-// The state is committed in a transaction *before* the notification is sent,
-// so a crash between the two loses an alert rather than repeating one forever.
+// The state is committed in a transaction *before* the notification is sent, so
+// a crash between the two loses an alert rather than repeating one forever.
 func advanceAlertState(ctx context.Context, db *sql.DB, notifier *Notifier, p *Property, statusCode int64) error {
 	isUp := statusCode == 200
 
@@ -503,14 +493,12 @@ func recentAvgResponseMS(ctx context.Context, db *sql.DB, id [16]byte) (int64, e
 	return int64(avg.Float64), nil
 }
 
-// next3MinBoundary returns the next wall-clock time divisible by three
-// minutes.
+// next3MinBoundary returns the next wall-clock time divisible by three minutes.
 //
-// Aligning to a boundary rather than adding three minutes to "now" is
-// inherited from the Django original and worth keeping: it means every
-// property is probed on the same cadence regardless of when it was created,
-// so the response-time charts of two properties line up on the same x-axis
-// instead of drifting apart.
+// Aligning to a boundary rather than adding three minutes to "now" means every
+// property is probed on the same cadence regardless of when it was created, so
+// the response-time charts of two properties line up on one x-axis instead of
+// drifting apart.
 func next3MinBoundary() int64 {
 	now := time.Now().UTC()
 	aligned := now.Truncate(checkInterval)

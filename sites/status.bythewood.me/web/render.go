@@ -8,25 +8,19 @@ import (
 	"net/http"
 )
 
-// Renderer parses a base layout plus one template per page, and renders a page
-// into a buffer before writing it.
+// Renderer parses a base layout plus one template per page, and renders into a
+// buffer before writing.
 //
-// Buffering first is the point. Writing straight to the ResponseWriter means a
-// template error mid-render arrives after the 200 and the first half of the
-// page, producing a broken document that looks like a success. Rendering to a
-// buffer lets a failure still become a clean 500.
-//
-// Worth noting against the Rust era: html/template is contextually aware, so
-// it does not escape "/" to "&#x2f;" inside URLs. All five Rust apps ship a
-// hand-written Jinja2-faithful HTML formatter to work around exactly that.
-// That file has no counterpart here.
+// Buffering is what makes a mid-render template error recoverable. Writing
+// straight to the ResponseWriter would send the 200 and the first half of the
+// page first, producing a broken document that looks like a success.
 type Renderer struct {
 	pages map[string]*template.Template
 }
 
 // NewRenderer parses every page template against the given base layouts.
-// Layouts are parsed into each page's set so a page can both {{define}} blocks
-// and {{template}} the shared chrome.
+// Layouts go into each page's own set, so a page can both {{define}} blocks and
+// {{template}} the shared chrome.
 func NewRenderer(files fs.FS, funcs template.FuncMap, layouts []string, pages []string) (*Renderer, error) {
 	r := &Renderer{pages: make(map[string]*template.Template, len(pages))}
 
@@ -42,8 +36,7 @@ func NewRenderer(files fs.FS, funcs template.FuncMap, layouts []string, pages []
 	return r, nil
 }
 
-// Render writes a page, or a 500 with the failure logged rather than a
-// half-written body.
+// Render writes a page, or a 500 rather than a half-written body.
 func (r *Renderer) Render(w http.ResponseWriter, status int, page string, data any) {
 	t, ok := r.pages[page]
 	if !ok {

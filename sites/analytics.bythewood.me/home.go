@@ -8,10 +8,8 @@ import (
 	"time"
 )
 
-// home is the public front page, and a redirect once you are logged in.
-//
-// It shows totals across every property, which is the honest thing a
-// self-hosted analytics server can say about itself: how much it has actually
+// home is the public front page, and a redirect once you are logged in. It
+// shows totals across every property: what this instance has actually
 // collected, rather than a claim about what it could.
 func (s *site) home(w http.ResponseWriter, r *http.Request) {
 	if isAuthenticated(r, s.cookieKey) {
@@ -59,8 +57,8 @@ func (s *site) documentation(w http.ResponseWriter, r *http.Request) {
 	s.renderer.Render(w, http.StatusOK, "documentation.html", data)
 }
 
-// The favicon is a bar chart drawn inline rather than shipped as a file, so it
-// cannot drift from the logo in the navbar, which is the same markup.
+// The favicon is drawn inline rather than shipped as a file, so it cannot
+// drift from the navbar logo, which is the same markup.
 const faviconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <rect x="6"  y="38" width="10" height="22" rx="1.5" fill="#6b9e78"/>
   <rect x="20" y="28" width="10" height="32" rx="1.5" fill="#6b9e78"/>
@@ -75,12 +73,9 @@ func favicon(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(faviconSVG))
 }
 
-// robots keeps the staging hostname out of search results.
-//
-// Disallow rather than a meta tag, and both rather than either: a noindex meta
-// tag is only read if the crawler fetches the page, and robots.txt is what
-// stops it fetching. Neither alone is enough, which is why base.html carries
-// the meta tag too.
+// robots keeps a staging hostname out of search results. Both this and the
+// noindex meta tag in base.html, because a meta tag is only read if the
+// crawler fetches the page, and robots.txt is what stops it fetching.
 func robots(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	if Staging {
@@ -90,11 +85,9 @@ func robots(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("User-agent: *\nAllow: /\nSitemap: " + baseURL + "/sitemap.xml\n"))
 }
 
-// sitemap lists the three public pages.
-//
-// Dashboards are deliberately absent even when a property is public: a public
-// dashboard is a URL its owner chose to hand out, not one to volunteer to a
-// crawler.
+// sitemap lists the three public pages. Dashboards are absent even when a
+// property is public: that is a URL its owner chose to hand out, not one to
+// volunteer to a crawler.
 func sitemap(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
 

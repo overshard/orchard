@@ -1,15 +1,13 @@
-# Build context is the repo root, because the Go module and internal/web live
-# there. That is the cost of a monorepo and it is a small one: the alternative
-# is a go.mod per site and the shared package copied into each.
+# The build context is this directory. Each site is its own Go module and
+# carries its own copy of web/, so nothing above this folder is needed.
+#
+# Base images are pinned by digest, not only by tag: `oven/bun:1-alpine` floats
+# across an entire major version, so two builds a month apart would not build
+# the same thing. Bump these the same way the typst pin below is bumped.
 
 # --- typst --------------------------------------------------------------
-# The PDF compiler, pinned by version and verified by hash, exactly as
-# blog.bythewood.me and analytics.bythewood.me pin it.
-# Base images are pinned by digest, not just by tag. `oven/bun:1-alpine` in
-# particular floats across an entire major version, so two builds a month apart
-# were not building the same thing. The typst stage below already pinned a
-# version and a sha256 and was the only honest pin in the file; this brings the
-# rest up to it. Bump these deliberately, the same way the typst pin is bumped.
+# The PDF compiler, pinned by version and verified by hash, the same way the
+# other sites pin it.
 FROM alpine:3.23@sha256:fd791d74b68913cbb027c6546007b3f0d3bc45125f797758156952bc2d6daf40 AS typst
 ARG TYPST_VERSION=0.14.0
 ARG TYPST_SHA256=99816d2982de08d2b091bac56b59b2faa523a10e1378ad3cdd68e35b8eb74b3d
@@ -21,31 +19,31 @@ RUN apk add --no-cache curl tar xz && \
     mv /tmp/typst-x86_64-unknown-linux-musl/typst /usr/local/bin/typst
 
 # --- resume -------------------------------------------------------------
-# The resume is a build artifact like the blog's post PDFs: its content is a
-# file in the repo and cannot change while the process runs, so there is no
-# reason for a compiler on the request path or in the runtime image.
+# The resume is build output like the blog's post PDFs: its content is a file in
+# the repo and cannot change while the process runs, so no compiler is needed on
+# the request path or in the runtime image.
 #
-# ttf-liberation is not optional. resume.typ names Liberation Sans because that
-# is the face the Chromium-rendered original actually embedded, so without the
-# package Typst silently falls back and every line breaks somewhere else.
+# ttf-liberation is required. resume.typ names Liberation Sans, and without the
+# package Typst falls back without saying so and every line breaks somewhere
+# else.
 FROM typst AS resume
 RUN apk add --no-cache ttf-liberation fontconfig && fc-cache -f
 COPY resume/ /resume/
 RUN typst compile --root /resume /resume/resume.typ /resume-isaac-bythewood.pdf
 
 # --- frontend dependencies ----------------------------------------------
-# Its own stage because two later stages need node_modules: the frontend build
-# and the social card, which reads Geist out of it. Without the split the card
-# would have to wait on the whole Vite build, and the frontend build has to
-# wait on the card, which is a cycle.
+# Its own stage because two later stages need node_modules: the frontend build,
+# and the social card that reads Geist out of it. Without the split the card
+# would wait on the whole Vite build while the frontend build waits on the card,
+# which is a cycle.
 FROM oven/bun:1-alpine@sha256:07235578f79ef8c6f97d94aee7938e76f5cdba5f21ae5dbfdd3d3d38058437eb AS deps
 WORKDIR /src
 COPY frontend/package.json frontend/bun.lock ./
 RUN bun install --frozen-lockfile
 
 # --- social card --------------------------------------------------------
-# A build artifact like the resume, and a PNG for the same reason the blog's
-# cards are: no social platform accepts image/svg+xml for og:image.
+# Build output like the resume, and a PNG for the same reason the blog's cards
+# are: no social platform accepts image/svg+xml for og:image.
 #
 # Geist comes out of the bun install rather than a second download. @fontsource
 # ships woff2 only and Typst reads TrueType, so the package that works is
@@ -68,12 +66,9 @@ RUN bun run images
 
 COPY frontend/ ./
 # After the frontend copy, not before: publicDir is part of that copy, so
-# landing the PDF first would only get it overwritten. `**/pdfs` in
-# .dockerignore keeps the host's stale copy out of the context, which is what
-# makes this the only source of the file. That exclusion is also why the
-# committed PDF never reached the image before this stage existed, and why the
-# About page's resume link answered 404 on the deployed site while working
-# locally.
+# landing the PDF first would get it overwritten. `**/pdfs` in .dockerignore
+# keeps a stale host copy out of the context, which makes this the only source
+# of the file.
 COPY --from=resume /resume-isaac-bythewood.pdf ./public/pdfs/resume-isaac-bythewood.pdf
 # Same reasoning as the resume above, and `**/og` in .dockerignore is what
 # keeps a stale host copy from winning.
@@ -112,10 +107,9 @@ COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 # there is nothing to copy in beside it and no SITE_DIST to point anywhere.
 COPY --from=build /app /app
 
-# Runs as a normal user, not root. There is no /etc/passwd in a scratch image
-# to name one in, so this is the numeric UID:GID that distroless calls
-# "nonroot"; the kernel only needs the numbers. Nothing here writes to disk and
-# nothing is read from it either.
+# There is no /etc/passwd in a scratch image to name a user in, so this is the
+# numeric UID:GID distroless calls "nonroot"; the kernel only needs the numbers.
+# Nothing here writes to disk, and nothing is read from it either.
 USER 65532:65532
 
 # Docker cannot shell out to a health check in an image with no shell, so the

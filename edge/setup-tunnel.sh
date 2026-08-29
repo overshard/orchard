@@ -34,23 +34,23 @@ cfd() {
 
 ensure_volume() {
 	docker volume inspect "$VOLUME" >/dev/null 2>&1 || docker volume create "$VOLUME" >/dev/null
-	# The image runs as uid 65532 and a fresh volume is root-owned. Skipping
-	# this makes `tunnel login` authenticate successfully, receive the cert,
-	# then die with EACCES writing cert.pem, burning a one-time callback token.
+	# The image runs as uid 65532 and a fresh volume is root-owned. Without this
+	# `tunnel login` authenticates, receives the cert, then dies with EACCES
+	# writing cert.pem, burning a one-time callback token.
 	volume_sh "chown -R 65532:65532 /etc/cloudflared"
 }
 
 case "${1:-}" in
 login)
 	ensure_volume
-	# Mounted at the image's HOME, not /etc/cloudflared, because login ignores
-	# --origincert and writes to $HOME/.cloudflared unconditionally. Mounting
-	# elsewhere means it reports success, writes the cert inside the container
-	# layer, and exits, taking the one-time callback token with it.
+	# Mounted at the image's HOME rather than /etc/cloudflared, because login
+	# ignores --origincert and writes to $HOME/.cloudflared unconditionally.
+	# Mounting elsewhere means it reports success, writes the cert into the
+	# container layer and exits, taking the one-time callback token with it.
 	#
-	# No TTY on purpose either: login only prints a URL and polls the callback,
-	# so `docker run -it` fails with "the input device is not a TTY" when run
-	# from a non-interactive context.
+	# No TTY either: login only prints a URL and polls the callback, so
+	# `docker run -it` fails with "the input device is not a TTY" from a
+	# non-interactive context.
 	docker run --rm -v "$VOLUME:/home/nonroot/.cloudflared" "$IMAGE" tunnel login
 	volume_sh "chown -R 65532:65532 /etc/cloudflared"
 	;;
@@ -70,19 +70,17 @@ up)
 
 	# ONE ZONE ONLY. cert.pem carries a single zoneID, chosen in the browser
 	# during `login`, and this command can only write into that zone. Handed a
-	# hostname from a different one it does not fail: it treats the whole thing
-	# as a subdomain and cheerfully creates
-	# "next.blog.bythewood.me.isaacbythewood.com". Found on 2026-08-25 adding
-	# the blog, whose bythewood.me is a separate zone on the same account.
+	# hostname from another zone it does not fail: it treats the whole string as
+	# a subdomain and creates "blog.bythewood.me.isaacbythewood.com".
 	#
 	# ONE LABEL ONLY, too. Cloudflare's free Universal SSL signs the apex and a
-	# single wildcard level, so a two-label staging host like
-	# next.blog.bythewood.me has no certificate and fails the TLS handshake at
-	# the edge. Hence next-blog, with a hyphen.
+	# single wildcard level, so a two-label host like next.blog.bythewood.me has
+	# no certificate and fails the TLS handshake at the edge. Use a hyphen
+	# instead.
 	#
 	# Routing a second zone means logging in again and picking it, which
-	# replaces cert.pem. That is safe for a running tunnel (it authenticates
-	# with the credentials JSON, not this) but means only one zone can be
+	# replaces cert.pem. That is safe for a running tunnel, which authenticates
+	# with the credentials JSON rather than this, but only one zone can be
 	# managed from here at a time.
 	for host in $HOSTNAMES; do
 		cfd tunnel route dns "$TUNNEL" "$host" || true

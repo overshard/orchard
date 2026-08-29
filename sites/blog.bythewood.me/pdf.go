@@ -13,21 +13,14 @@ import (
 
 // PDF export happens at build time, not per request.
 //
-// The Rust version compiled Typst in process, because there was a crate for
-// it. There is no Go binding, and decisions/0008 left the replacement open
-// with the typst CLI as the recommendation. Shelling out per request would
-// mean a 50MB static binary in the runtime image and a subprocess on the
-// request path, for a document whose inputs cannot change while the process is
-// running: posts load once at startup.
+// A post's inputs cannot change while the process runs, since posts load once
+// at startup, so compiling per request would put a subprocess on the request
+// path and typst in the runtime image for nothing. The PDFs are compiled
+// during `docker build` and the handler serves a file.
 //
-// So the PDFs are compiled during `docker build`, into their own directory
-// beside dist/, and the handler serves a file. That is the same move
-// isaacbythewood.com makes with its responsive images, it deletes the byte
-// cache and its mutex, and the runtime image needs no typst at all.
-//
-// A post published on a schedule still gets its PDF here, because the build
-// renders every post rather than only the visible ones. The handler is what
-// enforces the publish date.
+// The build renders every post rather than only the visible ones, so a
+// scheduled post's PDF is ready when it is. The handler enforces the publish
+// date.
 
 // GeneratePDFs compiles one PDF per post into outDir. root is the directory
 // Typst resolves absolute paths against, so /templates/blog_post.typ and
@@ -42,7 +35,7 @@ func GeneratePDFs(lib *Library, root, fontPath, outDir string) error {
 
 	posts := lib.All()
 	// Typst is single threaded per compile and these are independent, so the
-	// whole set costs about one compile of wall clock on any real machine.
+	// whole set costs about one compile of wall clock.
 	workers := runtime.NumCPU()
 	if workers > len(posts) {
 		workers = len(posts)
@@ -83,11 +76,9 @@ func GeneratePDFs(lib *Library, root, fontPath, outDir string) error {
 	return nil
 }
 
-// compilePDF pipes Typst markup to the compiler and writes a PDF.
-//
-// Source arrives on stdin rather than through a temporary file: there is
-// nothing to clean up on failure, and nothing to collide when the workers run
-// side by side.
+// compilePDF pipes Typst markup to the compiler and writes a PDF. Source
+// arrives on stdin rather than a temporary file, so there is nothing to clean
+// up on failure and nothing to collide when the workers run side by side.
 func compilePDF(source, root, fontPath, out string) error {
 	args := []string{"compile", "--root", root}
 	if fontPath != "" {
@@ -97,9 +88,9 @@ func compilePDF(source, root, fontPath, out string) error {
 	cmd := exec.Command("typst", args...)
 	cmd.Stdin = strings.NewReader(source)
 
-	// Typst reports compile errors on stderr and exits non-zero. Carrying the
-	// message through matters: "expected string, found content at line 40" is
-	// the whole diagnosis, and the exit code alone is not.
+	// Typst reports compile errors on stderr and exits non-zero. The message
+	// is the diagnosis ("expected string, found content at line 40"); the exit
+	// code alone is not.
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
 

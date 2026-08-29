@@ -9,15 +9,12 @@ import (
 	"time"
 )
 
-// TestProbeTiming is a diagnostic, not an assertion, and is skipped unless
-// asked for: it reaches the live internet, so it cannot run in an ordinary
-// `go test`.
+// TestProbeTiming is a diagnostic rather than an assertion, and is skipped
+// unless asked for, since it reaches the live internet.
 //
-// It exists because "the response-time chart changed after the move" is a
-// question that has to be answered by measuring rather than by reasoning, and
-// the only honest way to separate "the prober is wrong" from "the network is
-// different" is to run the real phasedHop against a target and compare it with
-// an independent tool measuring the same phases.
+// It runs the real phasedHop against a target so its numbers can be compared
+// with an independent tool measuring the same phases, which is the only way to
+// separate "the prober is wrong" from "the network is different".
 //
 //	STATUS_PROBE_BENCH=https://blog.bythewood.me go test -run TestProbeTiming -v
 func TestProbeTiming(t *testing.T) {

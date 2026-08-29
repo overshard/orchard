@@ -76,7 +76,7 @@ type InsightGroup struct {
 }
 
 // ResponseTimePoint is one bar of the phase-breakdown chart. The four phases
-// are pointers because rows written before migration 0002 have none.
+// are pointers because rows written before those columns existed have none.
 type ResponseTimePoint struct {
 	Label string `json:"label"`
 	Total int64  `json:"total"`
@@ -115,7 +115,7 @@ func deref(s *string) string {
 //
 // The 100-check window is the unit of "recent" throughout: the uptime
 // percentage, the tick stream and the security posture all read it, so they
-// always describe the same span of time as each other.
+// describe the same span of time as each other.
 func (s *site) buildPropertyView(ctx context.Context, p *Property) (*PropertyView, error) {
 	recent, err := recentChecks(ctx, s.db, p.ID, 100)
 	if err != nil {
@@ -156,15 +156,15 @@ func (s *site) buildPropertyView(ctx context.Context, p *Property) (*PropertyVie
 
 	// A property with no checks yet reads as 200 rather than 0, so a freshly
 	// added site shows as healthy for the three minutes before its first probe
-	// instead of flashing an alarming red zero.
+	// instead of flashing a red zero.
 	v.CurrentStatus = 200
 	if len(recent) > 0 {
 		v.CurrentStatus = recent[0].StatusCode
 	}
 
-	// The rolling average is over 31 checks, not 100: it is meant to describe
-	// the last hour and a half, which is what the operator is looking at when
-	// something is happening right now.
+	// The rolling average is over 31 checks rather than 100, so it describes
+	// the last hour and a half, which is the span that matters while something
+	// is happening.
 	if window := min(len(recent), 31); window > 0 {
 		var sum int64
 		for _, c := range recent[:window] {
@@ -208,10 +208,9 @@ var hstsMaxAge = regexp.MustCompile(`max-age=(\d+)`)
 
 // applySecurityPosture reads the latest response's headers.
 //
-// Everything here is derived from one real response rather than from a
-// separate probe, which is why it costs nothing and why it can be stale by up
-// to three minutes. That tradeoff is right: these are configuration facts that
-// change when somebody deploys, not conditions that flicker.
+// Derived from one real response rather than a separate probe, which is why it
+// costs nothing and can be up to three minutes stale. These are configuration
+// facts that change on a deploy, not conditions that flicker.
 func (v *PropertyView) applySecurityPosture(recent []Check) {
 	headers := map[string]string{}
 	if len(recent) > 0 {
@@ -234,9 +233,9 @@ func (v *PropertyView) applySecurityPosture(recent []Check) {
 		v.HasClickjackProtection = true
 	}
 
-	// Four spellings because all four are used in the wild, and a server
-	// announcing its exact version in any of them is telling an attacker which
-	// CVEs to try.
+	// Four spellings, because all four are used in the wild and a server
+	// announcing its exact version in any of them is naming which CVEs to
+	// try.
 	v.HidesServerVersion = true
 	for _, h := range []string{"server", "x-server", "powered-by", "x-powered-by"} {
 		if _, ok := headers[h]; ok {
@@ -247,13 +246,13 @@ func (v *PropertyView) applySecurityPosture(recent []Check) {
 
 	hsts := headers["strict-transport-security"]
 	if m := hstsMaxAge.FindStringSubmatch(hsts); m != nil {
-		// A year is the threshold because it is what the browser preload
-		// lists require. A shorter max-age is a policy that expires before it
-		// is useful, so it is reported as absent rather than as partial.
+		// A year, because that is what the browser preload lists require. A
+		// shorter max-age expires before it is useful, so it reports as
+		// absent rather than partial.
+		//
 		// ParseInt rather than arithmetic on the digits: a max-age of
 		// 99999999999999999999 is legal text and would overflow a hand-rolled
-		// accumulator into a negative number, reporting a decade-long policy
-		// as absent.
+		// accumulator into a negative number.
 		if seconds, err := strconv.ParseInt(m[1], 10, 64); err == nil {
 			v.HasHSTS = seconds >= 31_536_000
 		}
@@ -269,12 +268,10 @@ func (v *PropertyView) applySecurityPosture(recent []Check) {
 		!v.HasHSTSPreload
 }
 
-// applyStoredJSON decodes the three JSON columns.
-//
-// Each one degrades to empty rather than failing the request. These are
-// audit results written by a background job; a dashboard that refuses to load
-// because last week's crawl wrote something malformed is worse than one
-// showing an empty crawler panel.
+// applyStoredJSON decodes the three JSON columns, each degrading to empty
+// rather than failing the request. These are audit results written by a
+// background job, and a dashboard that will not load because last week's crawl
+// wrote something malformed is worse than an empty crawler panel.
 func (v *PropertyView) applyStoredJSON(p *Property) {
 	if p.CrawlerInsights != nil {
 		if err := json.Unmarshal([]byte(*p.CrawlerInsights), &v.CrawlerInsights); err != nil {
@@ -307,7 +304,7 @@ func (v *PropertyView) applyStoredJSON(p *Property) {
 //
 // Sorted by type name so the panels appear in the same order every time, and
 // SliceStable within a bucket so findings of equal severity keep the order the
-// checks produced rather than being shuffled.
+// checks produced.
 func groupInsights(insights []Insight) []InsightGroup {
 	buckets := map[string][]Insight{}
 	for _, i := range insights {
@@ -360,10 +357,9 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 
 	authed := isAuthenticated(r, s.cookieKey)
 	if !p.IsPublic && !authed {
-		// A redirect to the login page rather than a 404, because the operator
-		// following a bookmark to their own dashboard on a fresh browser
-		// should land somewhere useful. It does leak that the id exists, which
-		// is acceptable: the id is a v4 UUID and is not guessable.
+		// A redirect to login rather than a 404, so an operator following a
+		// bookmark on a fresh browser lands somewhere useful. It leaks that
+		// the id exists, which is acceptable for an unguessable v4 UUID.
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
@@ -379,13 +375,9 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 	data.Property = view
 	data.InsightGroups = groupInsights(view.CrawlerInsights)
 
-	// Report export is operator-only, even for a public property.
-	//
-	// The buttons only render when authenticated, so this is not about hiding
-	// a feature: the PDF path spawns a Typst compile, and an unauthenticated
-	// public status page must not be a free CPU-burning endpoint for anyone
-	// who finds the URL. This was one of the 2026-07-20 hardening fixes and it
-	// carries over unchanged.
+	// Report export is operator-only, even for a public property. The PDF path
+	// spawns a Typst compile, and a public status page must not be a free
+	// CPU-burning endpoint for anyone who finds the URL.
 	if format := r.URL.Query().Get("report"); format != "" {
 		if !authed {
 			http.Redirect(w, r, "/"+view.ID, http.StatusSeeOther)
@@ -444,10 +436,8 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 	s.renderer.Render(w, http.StatusOK, "property.html", data)
 }
 
-// statusPayload is what the dashboard's polling JavaScript reads.
-//
-// It exists so a running crawl or audit updates the page without a reload, and
-// its shape is fixed by the JavaScript in
+// statusPayload is what the dashboard's polling JavaScript reads, so a running
+// crawl or audit updates the page without a reload. Its shape is fixed by
 // frontend/static_src/properties/scripts/property_crawl_status.js.
 type statusPayload struct {
 	Crawler    crawlerStatus    `json:"crawler"`
@@ -499,14 +489,14 @@ func nilIfEmpty(s *string) *string {
 	return s
 }
 
-// crawlProgress estimates how far along a running crawl is.
+// crawlProgress estimates how far along a running crawl is, as a fraction of
+// PageCap.
 //
-// It is a fraction of PageCap, which is an overestimate of the denominator for
-// every real site, so the bar moves slowly and never reaches the end. That is
-// deliberate: capping at 0.9 means it cannot claim to be finished while it is
-// still working, and a bar that sits at 100% for two minutes reads as a hang.
-// The 0.05 floor gives it visible movement the moment a crawl starts, before
-// the first page has been counted.
+// PageCap overestimates the denominator for every real site, so the bar moves
+// slowly and never reaches the end. The 0.9 cap keeps it from claiming to be
+// finished while still working, since a bar sitting at 100% for two minutes
+// reads as a hang. The 0.05 floor gives it visible movement the moment a crawl
+// starts.
 func crawlProgress(p *Property) *float64 {
 	if p.CrawlState != "running" {
 		return nil
@@ -587,9 +577,9 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
 	enc := json.NewEncoder(w)
-	// Go escapes <, > and & in strings by default, which is protection for
-	// embedding JSON in HTML and corruption for a response fetch() parses. The
-	// error strings here come from crawled sites and can contain any of them.
+	// Go escapes <, > and & in strings by default, which protects JSON
+	// embedded in HTML and corrupts a response fetch() parses. The error
+	// strings here come from crawled sites and can contain any of them.
 	enc.SetEscapeHTML(false)
 	if err := enc.Encode(payload); err != nil {
 		slog.Info(fmt.Sprintf("write json: %v", err))
@@ -629,12 +619,10 @@ func (s *site) lookupForJSON(w http.ResponseWriter, r *http.Request) (*Property,
 	return p, true
 }
 
-// requeue is the shared body of the two "run it now" buttons.
-//
-// It does not run anything itself: it moves the due time into the past and
-// clears the last error, and the scheduler picks it up within thirty seconds.
-// That is what keeps there being exactly one path that starts this work, so
-// the semaphores and the state machine cannot be bypassed by a button.
+// requeue is the shared body of the two "run it now" buttons. It runs nothing
+// itself: it moves the due time into the past and clears the last error, and
+// the scheduler picks it up within thirty seconds, so there is one path that
+// starts this work and a button cannot bypass the semaphores.
 func (s *site) requeue(w http.ResponseWriter, r *http.Request, kind string) {
 	p, ok := s.lookupForJSON(w, r)
 	if !ok {

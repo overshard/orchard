@@ -1,12 +1,9 @@
-// isaacbythewood.com, rebuilt from Next.js onto Go.
+// isaacbythewood.com: server-rendered html/template with a Vite-built
+// frontend. One static binary, no database, no framework, and no third party
+// Go dependency.
 //
-// Server-rendered html/template with a Vite-built frontend, one static binary,
-// no database, no framework. It is the first real site through the
-// cloudflared -> Caddy -> Go path proved by taproot's tunnel test on
-// 2026-08-24, and the pilot for decisions/0008's move off Rust.
-//
-// Nothing here is configurable and nothing here is secret. The identity is
-// hardcoded in site.go on purpose; see decisions/0008.
+// Nothing here is configurable and nothing here is secret. Identity is
+// hardcoded in site.go.
 package main
 
 import (
@@ -26,21 +23,18 @@ import (
 	"isaacbythewood.com/web"
 )
 
-// Templates are source, so they always ship inside the binary. The Vite bundle
-// is a build artifact and ships inside it too, but only in a release build:
-// see assets_disk.go and assets_embed.go for why that one is a build tag.
+// Templates are source, so they ship inside the binary unconditionally. The
+// Vite bundle is build output and ships only in a release build; see
+// assets_disk.go and assets_embed.go.
 //
 //go:embed templates
 var templateFS embed.FS
 
 const listenAddr = ":8000"
 
-// Content-Security-Policy.
-//
-// No 'unsafe-eval' anywhere: the Next.js version needed it in dev for its own
-// runtime, and there is no dev runtime any more. 'unsafe-inline' for scripts
-// survives only for the analytics collector loader, which is a literal inline
-// script; it is off on staging anyway, since Analytics is false there.
+// Content-Security-Policy. No 'unsafe-eval' anywhere. 'unsafe-inline' in
+// script-src is only there for the analytics collector loader, which is a
+// literal inline script.
 func csp() string {
 	return strings.Join([]string{
 		"default-src 'self'",
@@ -57,13 +51,11 @@ func csp() string {
 }
 
 func main() {
-	// JSON to stdout, installed before anything else can log.
 	web.SetupLogging()
 
-	// -healthcheck turns the binary into its own health probe and exits. The
-	// container HEALTHCHECK runs this: two of these images are FROM scratch and
-	// have no shell or curl for a check to shell out to, so the binary has to
-	// be the thing that probes.
+	// The container HEALTHCHECK runs this. Two of these images are FROM
+	// scratch and have no shell for a check to call, so the binary probes
+	// itself.
 	healthcheck := flag.Bool("healthcheck", false, "probe a running server on this host and exit")
 	flag.Parse()
 
@@ -105,8 +97,8 @@ func main() {
 	defer cancel()
 
 	// Only the live projects. Archived repositories do not change, so polling
-	// them every hour would spend GitHub's unauthenticated rate limit to
-	// re-read the same commit forever.
+	// them would spend the unauthenticated rate limit re-reading the same
+	// commit forever.
 	slugs := make([]string, 0, len(projects))
 	for _, project := range projects {
 		if !project.Archived {
@@ -115,8 +107,8 @@ func main() {
 	}
 	commits.Start(ctx, slugs)
 
-	// The home page's promo slot, kept current from the blog rather than
-	// hardcoded to a project that can be retired out from under it.
+	// The home page's promo slot, filled from the blog rather than hardcoded
+	// to a project that can be retired out from under it.
 	latest := NewLatestCache(blogLatestSources)
 	latest.Start(ctx)
 
@@ -145,9 +137,8 @@ func main() {
 	mux.Handle("GET /favicon.ico", rootAsset(dist, "favicon.ico"))
 	mux.Handle("GET /favicon.svg", rootAsset(dist, "favicon.svg"))
 
-	// Not logged and not behind the security headers: it exists for the
-	// container health check and for probing the origin from inside the
-	// bridge, and a line per probe would bury the real traffic.
+	// Not logged and not behind the security headers: a line per probe would
+	// bury the real traffic.
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		_, _ = w.Write([]byte("ok\n"))
@@ -163,12 +154,9 @@ func main() {
 		// behind the request, then a week of serving stale if the origin is
 		// down.
 		//
-		// Deliberately no s-maxage, which is the trap here: per RFC 9111 it
-		// carries proxy-revalidate semantics, so Cloudflare treats it as
-		// "never serve stale without asking me first" and it silently
-		// disables stale-while-revalidate and stale-if-error both. Splitting
-		// the browser and edge lifetimes is not worth losing the two
-		// directives that are the whole reason this header exists.
+		// No s-maxage. Per RFC 9111 it carries proxy-revalidate semantics, so
+		// Cloudflare reads it as "never serve stale without asking first" and
+		// disables stale-while-revalidate and stale-if-error both.
 		web.EdgeCache("public, max-age=300, "+
 			"stale-while-revalidate=86400, stale-if-error=604800"),
 	)

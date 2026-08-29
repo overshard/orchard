@@ -11,12 +11,9 @@ import (
 	"strings"
 )
 
-// The image ladder, shared with the generator.
-//
-// images.json is the single source of truth and is read by two things that
-// previously agreed only by hand: this file, which writes srcset attributes,
-// and frontend/scripts/images.js, which produces the files. When those drifted
-// the page referenced a width that was never generated.
+// The image ladder. images.json is read both by this file, which writes srcset
+// attributes, and by frontend/scripts/images.js, which produces the files, so
+// the page cannot reference a width that was never generated.
 //
 //go:embed images.json
 var imagesJSON []byte
@@ -46,7 +43,7 @@ func loadImageSpec() imageSpec {
 		slog.Error("images.json is missing format or cardWidths")
 		os.Exit(1)
 	}
-	// Every width the templates can ask for must have a quality, because the
+	// Every width the templates can ask for needs a quality, because the
 	// generator reads the same map and would otherwise skip it silently.
 	for _, w := range append(append([]int{}, s.CardWidths...), s.LightboxWidth, s.HeroWidth) {
 		if _, ok := s.Quality[strconv.Itoa(w)]; !ok {

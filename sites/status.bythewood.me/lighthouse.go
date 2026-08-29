@@ -13,17 +13,15 @@ import (
 	"time"
 )
 
-// Lighthouse audits, by driving the npm CLI as a subprocess.
+// Lighthouse audits, by driving the npm CLI as a subprocess. It starts a real
+// Chromium and drives it over DevTools for up to three minutes. There is no
+// in-process alternative: Lighthouse is Google's own JavaScript, and
+// reimplementing its scoring would mean chasing a moving target whose numbers
+// are the point.
 //
-// This is the second subprocess in the repo after analytics' typst, and by far
-// the heavier one: it starts a real Chromium and drives it over DevTools for
-// up to three minutes. There is no in-process alternative, in Go or in Rust:
-// Lighthouse is Google's own JavaScript and reimplementing its scoring would
-// mean reimplementing a moving target whose numbers are the entire point.
-//
-// `bun run --bun` is what keeps Node out of the image. It symlinks `node` to
-// bun so the lighthouse shim's `#!/usr/bin/env node` shebang resolves to bun's
-// runtime, which is why nothing in this repo installs nodejs or npm.
+// `bun run --bun` keeps Node out of the image. It symlinks `node` to bun so the
+// lighthouse shim's `#!/usr/bin/env node` shebang resolves to bun's runtime,
+// which is why nothing in this repo installs nodejs or npm.
 
 const (
 	lighthouseTimeout = 180 * time.Second

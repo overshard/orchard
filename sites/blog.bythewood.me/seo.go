@@ -10,13 +10,9 @@ import (
 
 // The machine-readable half of the site: robots.txt, the sitemap and the feed.
 //
-// None of these are HTML, so none of them go through html/template. Its
-// contextual escaping is built for HTML and applying it to XML is guessing;
-// encoding/xml and an explicit escape are exact.
-//
-// The social card used to live here too, as SVG rendered per request. It is a
-// PNG compiled at build time now (og.go), because no social platform accepts
-// image/svg+xml for og:image.
+// None of these are HTML, so none go through html/template: its contextual
+// escaping is built for HTML, while encoding/xml and an explicit escape are
+// exact for XML.
 
 // wrapTitle greedily breaks a title into at most maxLines lines of about
 // maxChars, which is as much typography as a 1200x630 card needs.
@@ -49,8 +45,8 @@ func xmlEscape(s string) string {
 	return buf.String()
 }
 
-// favicon is generated rather than a file, so the two colours in it stay the
-// two colours in the stylesheet.
+// favicon is generated rather than a file, so its two colours stay the two
+// colours in the stylesheet.
 const faviconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 16 16">
   <defs>
     <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
@@ -71,9 +67,9 @@ func favicon(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(faviconSVG))
 }
 
-// robots keeps the staging hostname out of the index entirely. A noindex meta
-// tag on its own does nothing here, because a crawler told not to fetch the
-// page never sees the tag.
+// robots keeps a staging hostname out of the index. A noindex meta tag alone
+// does nothing, because a crawler told not to fetch the page never sees the
+// tag.
 func robots(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	if Staging {
@@ -105,7 +101,7 @@ func (s *site) sitemap(w http.ResponseWriter, r *http.Request) {
 	)
 
 	// A tag or year page is as fresh as its newest post, which is the only
-	// lastmod that means anything for a page that is entirely derived.
+	// lastmod that means anything for a derived page.
 	tagLastMod := map[string]string{}
 	yearLastMod := map[string]string{}
 	for _, post := range published {

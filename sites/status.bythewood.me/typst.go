@@ -15,22 +15,14 @@ import (
 // PDF generation, by handing Typst markup to the typst CLI on stdin and
 // reading a PDF back on stdout.
 //
-// decisions/0008 chose the CLI over a Go PDF library so the .typ templates
-// survive the port unchanged, and blog.bythewood.me then answered "when" with
-// "at build time". That answer does not transfer here, for the same reason it
-// did not transfer to analytics: a blog post's PDF is fully determined before
-// the process boots, because posts are files that cannot change while it runs.
-// A property report describes a live monitoring state that changes every three
-// minutes. There is no finite set to precompile.
-//
-// This is therefore the second app in the repo with a subprocess on the
-// request path. It is also, unlike analytics, not the heaviest subprocess it
-// runs: lighthouse.go starts a whole browser. Both are why this image is not
-// FROM scratch.
+// The blog compiles its Typst at build time. A property report cannot: it
+// describes a live monitoring state that changes every three minutes, so there
+// is no finite set to precompile. That puts a subprocess on a request path, and
+// together with lighthouse.go starting a whole browser it is why this image is
+// not FROM scratch.
 
-// typstTimeout bounds one compile. The Rust version had no bound at all,
-// because an in-process compile could not hang a request in a way that
-// outlived it. A subprocess can.
+// typstTimeout bounds one compile, since a subprocess can hang a request in a
+// way that outlives it.
 const typstTimeout = 30 * time.Second
 
 // Typst runs the CLI, or reports once that it cannot.
@@ -42,11 +34,9 @@ type Typst struct {
 
 func NewTypst() *Typst { return &Typst{} }
 
-// ErrTypstMissing means no typst binary is on PATH.
-//
-// The normal state of a local checkout, and deliberately survivable: the PDF
-// route answers 503 and every other route works, which is the right dev
-// behaviour. In the image the binary is always there.
+// ErrTypstMissing means no typst binary is on PATH, which is the normal state
+// of a local checkout. The PDF route answers 503 and every other route works.
+// In the image the binary is always there.
 var ErrTypstMissing = errors.New("typst binary not found on PATH")
 
 func (t *Typst) resolve() (string, error) {
@@ -103,10 +93,9 @@ func (t *Typst) Render(ctx context.Context, root, source string) ([]byte, error)
 
 // typstMD escapes a string for Typst's markup mode.
 //
-// "/" is in the set, which looks excessive until you notice that a page URL is
-// user data and "//" starts a Typst line comment. Without it, a tracked site
-// with a "//" anywhere in a URL would silently swallow the rest of that line
-// of the report. That was found and fixed in the 2026-07-20 hardening pass.
+// "/" is in the set because a page URL is user data and "//" starts a Typst
+// line comment, so a URL containing one would swallow the rest of that line of
+// the report.
 func typstMD(s string) string {
 	var b strings.Builder
 	b.Grow(len(s))

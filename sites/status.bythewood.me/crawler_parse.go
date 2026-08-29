@@ -14,18 +14,13 @@ import (
 
 // HTML extraction for the SEO crawler.
 //
-// The Rust version used the `scraper` crate and wrote CSS selectors. Go's
-// x/net/html is a tokenizer and a tree, with no selector engine, so this walks
-// the tree once and collects everything in a single pass. That is not a
-// downgrade: one traversal replaces the fourteen separate document queries the
-// selector version ran, and the extraction rules end up written out where they
-// can be read instead of encoded in selector strings.
+// x/net/html is a tokenizer and a tree with no selector engine, so this walks
+// the tree once and collects everything in a single pass rather than running a
+// document query per field.
 
-// ParsedHTML is everything the checks need from one page.
-//
-// The JSON tags matter: this is serialised into properties.crawler_insights'
-// sibling structures and read back by templates that the Rust version wrote,
-// so the names are fixed by the existing data rather than chosen here.
+// ParsedHTML is everything the checks need from one page. The JSON tags are
+// fixed by the stored data these are serialised into and read back from, not
+// chosen here.
 type ParsedHTML struct {
 	Title       string              `json:"title"`
 	Description string              `json:"description"`
@@ -66,10 +61,9 @@ type Link struct {
 	Rel  []string `json:"rel"`
 }
 
-// Image distinguishes an absent alt attribute from an empty one. That is the
-// entire point of the pointer: `alt=""` is the correct, deliberate markup for
-// a decorative image, and flagging it as an accessibility failure would train
-// the operator to ignore the check.
+// Image distinguishes an absent alt attribute from an empty one, which is what
+// the pointer is for: `alt=""` is the correct markup for a decorative image,
+// and flagging it would train the operator to ignore the check.
 type Image struct {
 	Src string  `json:"src"`
 	Alt *string `json:"alt"`
@@ -246,10 +240,9 @@ func parseHTML(body []byte, pageURL string) (*ParsedHTML, error) {
 				if rel == "canonical" && p.Canonical == "" {
 					p.Canonical = resolve(base, href)
 				}
-				// "icon", "shortcut icon", "apple-touch-icon" and friends all
-				// contain "icon", which is the same loose test the Rust
-				// version used and the reason a site with only an
-				// apple-touch-icon does not get flagged.
+				// "icon", "shortcut icon" and "apple-touch-icon" all contain
+				// "icon", so a site with only an apple-touch-icon is not
+				// flagged.
 				if strings.Contains(rel, "icon") && p.Favicon == "" && href != "" {
 					p.Favicon = resolve(base, href)
 				}
@@ -291,20 +284,17 @@ func parseHTML(body []byte, pageURL string) (*ParsedHTML, error) {
 
 		case atom.Script:
 			if strings.EqualFold(attrOr(n, "type", ""), "application/ld+json") {
-				// rawTextOf, not textOf: textOf deliberately skips script
-				// elements, because their contents are not visible page text.
-				// That is right for the word count and wrong here, where the
-				// script's contents are the entire point.
+				// rawTextOf, not textOf. textOf skips script elements
+				// because their contents are not visible page text, which is
+				// right for the word count and wrong here.
 				raw := strings.TrimSpace(rawTextOf(n))
 				if raw != "" {
 					if json.Valid([]byte(raw)) {
 						p.JSONLD = append(p.JSONLD, json.RawMessage(raw))
 					} else {
-						// Counted rather than appended as a null. The Rust
-						// version pushed Value::Null into the list and the
-						// check then looked for nulls, which meant a page with
-						// valid JSON-LD that happened to be the literal `null`
-						// was reported as a parse failure.
+						// Counted rather than appended as a null, so a page
+						// whose valid JSON-LD is the literal `null` is not
+						// reported as a parse failure.
 						p.JSONLDBad++
 					}
 				}
@@ -320,10 +310,9 @@ func parseHTML(body []byte, pageURL string) (*ParsedHTML, error) {
 
 		case atom.Form:
 			p.Forms = append(p.Forms, parseForm(n, base, pageURL))
-			// Forms are collected whole by parseForm, and nested forms are not
-			// legal HTML, so there is nothing below worth descending into for
-			// form purposes. Descend anyway: a form can contain links, images
-			// and headings that the rest of the checks care about.
+			// parseForm collects the form whole, and nested forms are not
+			// legal HTML. Descend anyway, because a form can contain links,
+			// images and headings the other checks want.
 		}
 
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
@@ -332,14 +321,8 @@ func parseHTML(body []byte, pageURL string) (*ParsedHTML, error) {
 	}
 	walk(doc)
 
-	// Visible text, for the thin-content and duplicate-content checks.
-	//
-	// Worth flagging against the Rust version, which stripped tags with a pair
-	// of regexes over the raw source: that left HTML entities as literal text,
-	// so `&nbsp;` counted as a word and `&amp;` counted as another. Parsing
-	// decodes them, so a nav-heavy page's word count drops here. The Go number
-	// is the correct one, and it means the thin-content threshold bites on a
-	// few pages the Rust version let through.
+	// Visible text, for the thin-content and duplicate-content checks. Parsing
+	// decodes HTML entities, so `&nbsp;` does not count as a word.
 	text := textOf(doc)
 	p.WordCount = len(strings.Fields(text))
 	sum := sha256.Sum256([]byte(text))
@@ -374,9 +357,9 @@ func parseForm(form *html.Node, base *url.URL, pageURL string) Form {
 			switch n.DataAtom {
 			case atom.Input, atom.Textarea, atom.Select:
 				f.Inputs = append(f.Inputs, FormInput{
-					// Defaulting to "text" matches the HTML spec: an input
-					// with no type attribute is a text input, and it is also
-					// the case that most needs a label.
+					// Per the HTML spec an input with no type attribute is a
+					// text input, which is also the case that most needs a
+					// label.
 					Type:      strings.ToLower(attrOr(n, "type", "text")),
 					Name:      attrPtr(n, "name"),
 					ID:        attrPtr(n, "id"),
