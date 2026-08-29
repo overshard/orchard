@@ -54,13 +54,42 @@ in one without going through the root.
 ## How a site is put together
 
 Go serves every request. `html/template` renders the pages, Vite builds hashed
-JS and CSS bundles, and the server reads `dist/.vite/manifest.json` to resolve
-those names into the markup. Vite never serves anything; it is a build step. A
-missing manifest is fatal on purpose, because serving a page whose script tag
-points at a file that was never built is worse than refusing to start.
+JS and CSS bundles, and the server reads `build/dist/.vite/manifest.json` to
+resolve those names into the markup. Vite never serves anything; it is a build
+step. A missing manifest is fatal on purpose, because serving a page whose
+script tag points at a file that was never built is worse than refusing to
+start.
 
-Templates are embedded in the binary because they are source. `dist/` is not:
-it is a build artifact copied in beside the binary.
+## Source, build output, and the one-file release
+
+Everything a tool generates lands in `sites/<name>/build/`, and nothing else
+does. That is the Vite bundle for all four, plus the blog's post PDFs and
+social cards and analytics' topojson. The `.go` files sit beside `build/`, not
+mixed in with its contents, so the question "did I write this or did a tool"
+has a directory-shaped answer. `build/` is gitignored; `make clean` is
+`rm -rf build`.
+
+A **development build** reads that directory off disk, which is what lets Vite
+rewrite a stylesheet under a running server.
+
+A **release build** embeds it. `make build` passes `-tags embed`, which swaps
+`assets_disk.go` for `assets_embed.go` and compiles the whole of `build/` into
+the executable with `//go:embed`. For `blog` and `isaacbythewood.com` that
+makes `bin/<site>` the entire site in one file: run it from an empty directory
+and it serves. The blog goes furthest, because its posts are embedded too,
+unconditionally, being source rather than build output.
+
+`analytics` and `status` embed their assets the same way, but their images are
+still more than a binary, and not because of Go: analytics execs `typst` on the
+request path and status execs the Lighthouse CLI under bun with a real
+Chromium. Programs cannot be read out of an `embed.FS`.
+
+The tag is the reason a fresh clone still builds. `//go:embed` resolves at
+compile time and fails outright on a directory that does not exist, so making
+it unconditional would mean `go build ./...` erroring on a clean checkout until
+someone had run Vite. Gitea solves this the same way with its `bindata` tag.
+Templates are embedded unconditionally because they are source and always
+present.
 
 Typst does the typesetting, always at build time where the inputs are known
 before the process boots. That covers every post PDF, the resume, and the
@@ -133,8 +162,10 @@ Three credentials exist in the system and none is a file here. The tunnel's
 lives in a Docker volume that `setup-tunnel.sh` creates. `analytics` and
 `status` each read one password from the environment, and those two are the
 only *secrets* anything here reads. The handful of other variables that exist
-(`SITE_DIST`, `SITE_CONTENT`, `SITE_PDFS`, `SITE_OG`, `CHROMIUM_BIN`) are paths
-set by the Dockerfiles, with working defaults for a local checkout:
+(`SITE_DATA`, `SITE_ROOT`, `CHROMIUM_BIN`) are paths set by the Dockerfiles,
+with working defaults for a local checkout. The `SITE_DIST` family still
+overrides the asset directories in a development build, but no Dockerfile sets
+them any more: a release build carries those assets inside the binary.
 
 ```
 ANALYTICS_PASSWORD=... make deploy SITE=analytics.bythewood.me

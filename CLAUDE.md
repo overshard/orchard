@@ -89,10 +89,20 @@ ReplaceAttr; local time in a container silently differs from the host's.
 does not help. Sites with a password read it from the deploying shell (`compose` refuses to start
 rather than bring up a server with no secret), so it is never written next to the repo.
 
-**Frontends are bun and Vite 8.** Output goes to `dist/` with content hashed filenames; the Go
-binary reads `dist/.vite/manifest.json` to resolve them. A missing manifest is fatal on purpose:
-serving a page whose script tag points at a file that was never built is worse than refusing to
-start.
+**Frontends are bun and Vite 8.** Output goes to `sites/<name>/build/dist/` with content hashed
+filenames; the Go binary reads `build/dist/.vite/manifest.json` to resolve them. A missing
+manifest is fatal on purpose: serving a page whose script tag points at a file that was never
+built is worse than refusing to start.
+
+**`build/` is every generated file and the only one.** Vite output, the blog's PDFs and cards,
+analytics' topojson. It is gitignored and `make clean` deletes it. A dev build reads it off
+disk; `make build` passes **`-tags embed`**, swapping `assets_disk.go` for `assets_embed.go` so
+`//go:embed` compiles the whole directory into the binary. `blog` and `isaacbythewood.com` come
+out as a single self-contained file; `analytics` and `status` still need typst and
+bun/chromium on disk because those are programs, not assets. The tag exists so a fresh clone
+still builds: `//go:embed` fails at compile time on a directory that is not there. It lives
+under `build/` rather than the repo root because a directive cannot reference a path above its
+own package.
 
 Vite 8 bundles with Rolldown, which imports `styleText` from `node:util`. Node 18 does not
 export it, so a build under an old Node dies with a SyntaxError before compiling anything.
