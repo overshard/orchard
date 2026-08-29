@@ -109,7 +109,20 @@ func main() {
 
 	previewKind := flag.String("preview-alert", "",
 		"print the ntfy notification for 'down' or 'recovery' and exit")
+	// -healthcheck turns the binary into its own health probe and exits. The
+	// container HEALTHCHECK runs this: two of these images are FROM scratch and
+	// have no shell or curl for a check to shell out to, so the binary has to
+	// be the thing that probes.
+	healthcheck := flag.Bool("healthcheck", false, "probe a running server on this host and exit")
 	flag.Parse()
+
+	if *healthcheck {
+		if err := web.HealthCheck("http://127.0.0.1:8000/healthz", 3*time.Second); err != nil {
+			log.Printf("healthcheck: %v", err)
+			os.Exit(1)
+		}
+		return
+	}
 
 	// Rendering a preview needs neither a database nor a password, so it is
 	// handled before anything else is set up. It replaces the Rust version's

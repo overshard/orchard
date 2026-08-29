@@ -3,6 +3,8 @@ package web
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -48,4 +50,37 @@ func Serve(addr string, h http.Handler) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	return srv.Shutdown(ctx)
+}
+
+// HealthCheck probes a running server over the loopback and reports whether it
+// answered 200. It exists so the container can check itself.
+//
+// Two of these images are FROM scratch: no shell, no curl, no wget, nothing a
+// HEALTHCHECK could shell out to. The binary is the only executable in the
+// image, so it has to be the thing that does the probing, which is the usual
+// answer for scratch and distroless images. The other two images are Alpine and
+// could use wget, but doing it the same way everywhere means one behaviour to
+// reason about rather than two.
+//
+// The timeout is deliberately short. A health check that hangs is worse than
+// one that fails: Docker treats a timed out check as a failure anyway, and a
+// slow check just delays finding out.
+func HealthCheck(url string, timeout time.Duration) error {
+	client := &http.Client{Timeout: timeout}
+
+	resp, err := client.Get(url)
+	if err != nil {
+		return err
+	}
+	// Drained and closed, not just closed. An undrained body leaks the
+	// connection out of the pool, which does not matter for a process that is
+	// about to exit but is the kind of thing that gets copied somewhere it
+	// does matter.
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("%s: %s", url, resp.Status)
+	}
+	return nil
 }

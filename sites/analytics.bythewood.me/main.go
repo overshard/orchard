@@ -99,7 +99,20 @@ func main() {
 	seed := flag.Bool("seed", false, "fill a Seed Test property with realistic fake events, then exit")
 	seedSessions := flag.Int("seed-sessions", 500, "sessions to generate in -seed mode")
 	seedDays := flag.Int("seed-days", 60, "days to spread -seed sessions over")
+	// -healthcheck turns the binary into its own health probe and exits. The
+	// container HEALTHCHECK runs this: two of these images are FROM scratch and
+	// have no shell or curl for a check to shell out to, so the binary has to
+	// be the thing that probes.
+	healthcheck := flag.Bool("healthcheck", false, "probe a running server on this host and exit")
 	flag.Parse()
+
+	if *healthcheck {
+		if err := web.HealthCheck("http://127.0.0.1:8000/healthz", 3*time.Second); err != nil {
+			log.Printf("healthcheck: %v", err)
+			os.Exit(1)
+		}
+		return
+	}
 
 	// Fail fast rather than falling back to a default. An internet-facing
 	// dashboard whose password is "admin" because the environment was empty is

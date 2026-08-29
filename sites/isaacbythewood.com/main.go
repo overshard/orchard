@@ -12,6 +12,7 @@ package main
 import (
 	"context"
 	"embed"
+	"flag"
 	"io"
 	"io/fs"
 	"log"
@@ -19,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"isaacbythewood.com/web"
 )
@@ -65,6 +67,21 @@ func csp() string {
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.LUTC)
+
+	// -healthcheck turns the binary into its own health probe and exits. The
+	// container HEALTHCHECK runs this: two of these images are FROM scratch and
+	// have no shell or curl for a check to shell out to, so the binary has to
+	// be the thing that probes.
+	healthcheck := flag.Bool("healthcheck", false, "probe a running server on this host and exit")
+	flag.Parse()
+
+	if *healthcheck {
+		if err := web.HealthCheck("http://127.0.0.1:8000/healthz", 3*time.Second); err != nil {
+			log.Printf("healthcheck: %v", err)
+			os.Exit(1)
+		}
+		return
+	}
 
 	dist := os.DirFS(distDir())
 

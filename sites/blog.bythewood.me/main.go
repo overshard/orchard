@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"blog.bythewood.me/web"
 )
@@ -73,7 +74,20 @@ func main() {
 	ogOut := flag.String("og", "", "compile every social card to a PNG in this directory")
 	typstRoot := flag.String("typst-root", ".", "directory Typst resolves absolute paths against")
 	typstFonts := flag.String("typst-fonts", "", "directory of extra font files for Typst")
+	// -healthcheck turns the binary into its own health probe and exits. The
+	// container HEALTHCHECK runs this: two of these images are FROM scratch and
+	// have no shell or curl for a check to shell out to, so the binary has to
+	// be the thing that probes.
+	healthcheck := flag.Bool("healthcheck", false, "probe a running server on this host and exit")
 	flag.Parse()
+
+	if *healthcheck {
+		if err := web.HealthCheck("http://127.0.0.1:8000/healthz", 3*time.Second); err != nil {
+			log.Printf("healthcheck: %v", err)
+			os.Exit(1)
+		}
+		return
+	}
 
 	contentDir := dir("SITE_CONTENT", "content")
 

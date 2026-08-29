@@ -19,6 +19,31 @@ services:
       dockerfile: Dockerfile
     container_name: isaacbythewood-next
     restart: unless-stopped
+    # Nothing here has ever needed more than 36MB at rest, but this machine is
+    # also the desktop Isaac works on, so a runaway process is his problem
+    # twice over. Limits are a ceiling to fail against, not a target.
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 192M
+    # The binary probes itself: two of these images are FROM scratch and have
+    # no shell or curl for a check to shell out to. restart alone only catches
+    # a process that exits; this is what catches one that is merely wedged.
+    healthcheck:
+      test: ["CMD", "/app", "-healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    # Unbounded container logs on a machine that is also a workstation.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks: [edge]
 
 networks:

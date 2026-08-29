@@ -27,6 +27,34 @@ services:
       STATUS_PASSWORD: ${STATUS_PASSWORD:?set STATUS_PASSWORD in the deploying shell}
     volumes:
       - data:/data
+    # Nothing here has ever needed more than 36MB at rest, but this machine is
+    # also the desktop Isaac works on, so a runaway process is his problem
+    # twice over. Limits are a ceiling to fail against, not a target.
+    deploy:
+      resources:
+        limits:
+        # The high ceiling is Chromium: Lighthouse audits are the only thing
+        # in this repo that can spike, and an OOM kill mid audit would leave a
+        # property looking down when it is not.
+          cpus: "2.00"
+          memory: 1536M
+    # The binary probes itself: two of these images are FROM scratch and have
+    # no shell or curl for a check to shell out to. restart alone only catches
+    # a process that exits; this is what catches one that is merely wedged.
+    healthcheck:
+      test: ["CMD", "/app", "-healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    # Unbounded container logs on a machine that is also a workstation.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks: [edge]
 
 volumes:
