@@ -1,4 +1,4 @@
-.PHONY: run build frontend maps seed serve clean
+.PHONY: run build frontend maps seed clean
 
 # Vite watches and rebuilds build/dist while Go serves it from disk. Templates are
 # embedded, so a template change needs a Go restart; CSS and JS changes only
@@ -47,9 +47,6 @@ SESSIONS ?= 500
 DAYS ?= 60
 seed:
 	go run . -seed -seed-sessions $(SESSIONS) -seed-days $(DAYS)
-
-serve:
-	go run .
 
 clean:
 	rm -rf build frontend/node_modules

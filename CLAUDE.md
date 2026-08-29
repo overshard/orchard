@@ -46,17 +46,30 @@ is the thing the split removed.
 From the repo root:
 
 ```sh
-make run SITE=blog.bythewood.me      # vite watch + go run
+make up                              edge, then every site; idempotent, and the repair command
+make deploy SITE=blog.bythewood.me   rebuild one site and replace it
+make doctor                          tunnel, network, containers, and the data volumes
+make down                            stop everything
+
+make run SITE=blog.bythewood.me      vite watch + go run
 make build SITE=blog.bythewood.me
-make deploy SITE=blog.bythewood.me   # docker compose up --build --detach
-make check                           # gofmt, then vet and build every site
-make test                            # every site's tests, including its own web/ copy
-make edge-up                         # the shared tunnel and Caddy
-make sites                           # list them
+make check                           gofmt, then vet and build every site
+make test                            every site's tests, including its own web/ copy
 ```
 
-Each site has the same targets in its own `Makefile` and can be driven from its
-own directory.
+There is no default `SITE`. There used to be, and a bare `make deploy` then
+meant rebuilding and replacing the portfolio, which is a lot to trigger by
+forgetting an argument.
+
+`up` and `deploy` are deliberately different. `up` does not pass `--build`, so
+it starts what is missing and reuses images that exist; that is what makes it
+safe to run against a healthy system and useful against a broken one. `deploy`
+is the only thing that rebuilds.
+
+Each site has `run`, `build` and `clean` in its own `Makefile` and can be driven
+from its own directory. None of them has a `serve` target any more: `go run .`
+with no Vite means no manifest, and the server treats a missing manifest as
+fatal, so it only ever looked like a faster `run`.
 
 ## Conventions that will bite you
 
@@ -64,6 +77,22 @@ own directory.
 and in prod. No host ports are published. `cloudflared` terminates the tunnel
 and hands plain HTTP to Caddy, which reverse proxies to each app by container
 name on the `orchard-edge` network.
+
+**Everything is named `orchard-<first label>`.** `orchard-caddy`,
+`orchard-cloudflared`, `orchard-blog`, `orchard-analytics`, `orchard-status`,
+`orchard-isaacbythewood`, and the volumes `orchard-analytics-data` and
+`orchard-status-data`. One prefix across the repo, so `docker ps --filter
+name=orchard` is the whole system and the Makefile derives a container name from
+a site directory without a lookup table. These carried a `-next` suffix until
+2026-08-29, from the migration that made them the live thing; the suffix stopped
+being true the day the cutover finished.
+
+**Two things reference a container by name, and both bake it in.**
+`edge/caddy/Caddyfile` reverse-proxies to each site, and
+`sites/isaacbythewood.com/site.go` fetches `http://orchard-blog:8000/latest.json`
+for the portfolio's latest-posts panel. Neither reads the name at runtime, so
+renaming a container means rebuilding Caddy *and* the portfolio, not just editing
+a compose file. Nothing in either SQLite database refers to a container name.
 
 **Adding a hostname is three changes, not one.** A Caddy site block, a
 `cloudflared` ingress rule, and a proxied CNAME to
@@ -84,10 +113,15 @@ every main before anything else logs. UTC is not slog's default and is forced
 through `ReplaceAttr`, because local time in a container silently differs from
 the host's.
 
-**Deploys need `sudo`.** The Docker socket is `root:root` mode 660; being in the
-`docker` group does not help. Sites with a password read it from the deploying
-shell, and compose refuses to start without it, so it is never written next to
-the repo.
+**Deploys need `sudo`, and `sudo` then eats the password.** The Docker socket is
+`root:root` mode 660; being in the `docker` group does not help. But sudoers
+here sets `env_reset`, so `ANALYTICS_PASSWORD=... sudo docker compose up` starts
+compose with the variable stripped and the `${VAR:?}` guard aborts, complaining
+about the shell you just set it in. The Makefile forwards each one as a
+sudo-level assignment (`sudo VAR="$VAR" docker compose ...`), which is the form
+that survives. Every docker command in this repo, `edge/setup-tunnel.sh`
+included, goes through a `SUDO` variable so a host that needs no sudo can turn
+it off.
 
 **Frontends are bun and Vite 8.** Output goes to `sites/<name>/build/dist/` with
 content hashed filenames, and the Go binary reads
@@ -125,6 +159,14 @@ cannot read it. A missing face does not error, it falls back to a serif, which
 is how `blog_post.typ` asked for Inter for months and rendered in DejaVu.
 
 ## Rules learned the hard way
+
+**Never put `$(MAKE)` on a recipe line that also does something.** GNU make
+runs any recipe line containing that string even under `-n`, so the sub-make
+can print its own commands. A one-line shell conditional that ends in
+`$(MAKE) doctor` is therefore executed in full by `make -n`, side effects and
+all. This is not hypothetical: it is how a dry run of taproot's `update`
+replaced a running container. Keep `$(MAKE)` on a line of its own.
+
 
 **Never animate a layout property.** Animating `height`, `width`, `top` or
 `left` relays out the page every frame, and the browser scores each of those

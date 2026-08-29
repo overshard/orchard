@@ -41,12 +41,12 @@
 # the shared network.
 http://isaacbythewood.com {
 	import site
-	reverse_proxy isaacbythewood-next:8000
+	reverse_proxy orchard-isaacbythewood:8000
 }
 
 http://blog.bythewood.me {
 	import site
-	reverse_proxy blog-next:8000
+	reverse_proxy orchard-blog:8000
 }
 
 # The collector endpoint is cross-origin by design and written to by every
@@ -59,12 +59,12 @@ http://analytics.bythewood.me {
 		max_size 16KB
 	}
 
-	reverse_proxy analytics-next:8000
+	reverse_proxy orchard-analytics:8000
 }
 
 http://status.bythewood.me {
 	import site
-	reverse_proxy status-next:8000
+	reverse_proxy orchard-status:8000
 }
 
 # Redirects. bythewood.me has never served a site: it redirects to the

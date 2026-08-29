@@ -10,7 +10,17 @@
 # CLI in the webdev container talks to Docker Desktop on the Windows host, whose
 # daemon cannot see this filesystem, and a bind mount silently resolves to an
 # empty directory rather than failing.
+#
+# Every docker command goes through sudo, because the socket in the webdev
+# container is root:root mode 660 and being in the docker group does not help.
+# On a host where docker needs no sudo:  SUDO= sh setup-tunnel.sh up
 set -e
+
+SUDO=${SUDO-sudo}
+DOCKER_BIN=$(command -v docker) || { echo "no docker on PATH" >&2; exit 1; }
+# An absolute path, because `command` is a shell builtin and sudo cannot exec
+# one, and because sudo's secure_path is not this shell's PATH.
+docker() { ${SUDO} "$DOCKER_BIN" "$@"; }
 
 VOLUME=orchard-cloudflared
 TUNNEL=orchard
@@ -97,7 +107,7 @@ up)
 		| docker run --rm -i -v "$VOLUME:/etc/cloudflared" alpine:3 \
 			sh -c 'cat > /etc/cloudflared/config.yml && chown 65532:65532 /etc/cloudflared/config.yml'
 
-	echo "config.yml written. now: docker compose up --build --detach"
+	echo "config.yml written. now, from the repo root: make up"
 	;;
 
 status)
@@ -123,7 +133,7 @@ down)
 	;;
 
 *)
-	sed -n '2,12p' "$0"
+	sed -n '2,8p' "$0"
 	exit 1
 	;;
 esac

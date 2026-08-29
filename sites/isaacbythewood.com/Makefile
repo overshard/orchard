@@ -1,4 +1,4 @@
-.PHONY: run build frontend serve images resume og clean
+.PHONY: run build frontend images resume og clean
 
 # Geist ships .ttf inside the bun package, the only form Typst reads;
 # `make frontend` is what puts it on disk.
@@ -10,9 +10,19 @@ RESUME_OUT = frontend/public/pdfs/resume-isaac-bythewood.pdf
 # Vite watches and rebuilds build/dist while Go serves it from disk. Templates
 # are embedded, so a template change needs a Go restart; CSS and JS changes only
 # need a browser reload, because a dev build never embeds the bundle.
+#
+# Go waits for the manifest rather than sleeping a guessed number of seconds.
+# The server treats a missing manifest as fatal, so the startup order matters,
+# and any fixed sleep short enough to be pleasant loses the race on a cold
+# build/dist.
 run:
 	cd frontend && bun run dev & \
-	sleep 2 && go run .
+	i=0; while [ ! -f build/dist/.vite/manifest.json ]; do \
+		i=$$((i+1)); \
+		if [ $$i -gt 120 ]; then echo "vite did not produce a manifest in 60s" >&2; exit 1; fi; \
+		sleep 0.5; \
+	done; \
+	go run .
 
 frontend:
 	cd frontend && bun install --frozen-lockfile && bun run build
@@ -44,9 +54,6 @@ og:
 # build/dist at compile time.
 build: resume og frontend
 	go build -tags embed -trimpath -ldflags="-s -w" -o ../../bin/isaacbythewood.com .
-
-serve:
-	go run .
 
 # Regenerate the responsive image ladder from frontend/images/. Part of `build`
 # so it cannot be forgotten, and its own target for when only the images

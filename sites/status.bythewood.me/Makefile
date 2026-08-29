@@ -1,4 +1,4 @@
-.PHONY: run build frontend lighthouse serve preview clean
+.PHONY: run build frontend lighthouse preview clean
 
 # Vite watches and rebuilds build/dist while Go serves it from disk. Templates are
 # embedded, so a template change needs a Go restart; CSS and JS changes only
@@ -36,9 +36,6 @@ lighthouse:
 # fails if it is not there.
 build: frontend
 	go build -tags embed -trimpath -ldflags="-s -w" -o ../../bin/status.bythewood.me .
-
-serve:
-	go run .
 
 # Render an ntfy notification to stdout without waiting for something to
 # break.

@@ -1,4 +1,4 @@
-name: status
+name: orchard-status
 
 # No bind mounts and no published ports. Public traffic arrives through
 # cloudflared to Caddy on the shared network.
@@ -10,7 +10,7 @@ services:
       # with its own copy of web/, so there is no parent to reach for.
       context: .
       dockerfile: Dockerfile
-    container_name: status-next
+    container_name: orchard-status
     restart: unless-stopped
     # Chromium spawns a tree of processes for every audit. Without an init as
     # PID 1 those become zombies that nothing reaps, and a daily audit
@@ -58,7 +58,7 @@ services:
 
 volumes:
   data:
-    name: status-next-data
+    name: orchard-status-data
 
 networks:
   edge:

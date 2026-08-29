@@ -35,7 +35,7 @@ var Staging = !strings.HasSuffix(baseURL, "//isaacbythewood.com")
 // network and no sibling container. If neither answers, the card is not
 // rendered.
 var blogLatestSources = []string{
-	"http://blog-next:8000/latest.json",
+	"http://orchard-blog:8000/latest.json",
 	"https://blog.bythewood.me/latest.json",
 }
 

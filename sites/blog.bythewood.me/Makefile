@@ -1,4 +1,4 @@
-.PHONY: run build frontend pdfs og serve clean
+.PHONY: run build frontend pdfs og clean
 
 # Geist ships as .ttf inside the bun package, which is the only form Typst can
 # read; `make frontend` is what puts it there.
@@ -47,9 +47,6 @@ og:
 # directive reads build/ at compile time and fails if it is not there.
 build: frontend pdfs og
 	go build -tags embed -trimpath -ldflags="-s -w" -o ../../bin/blog.bythewood.me .
-
-serve:
-	go run .
 
 clean:
 	rm -rf build frontend/node_modules
