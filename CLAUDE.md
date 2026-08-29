@@ -89,13 +89,15 @@ ReplaceAttr; local time in a container silently differs from the host's.
 does not help. Sites with a password read it from the deploying shell (`compose` refuses to start
 rather than bring up a server with no secret), so it is never written next to the repo.
 
-**Frontends are bun and Vite 8.** Vite 8 bundles with Rolldown, which needs a Node
-newer than 18 or, as here, bun 1.4. That is why the webdev container dropped nodejs.
-
-**Frontends are bun and Vite.** Output goes to `dist/` with content hashed filenames; the Go
+**Frontends are bun and Vite 8.** Output goes to `dist/` with content hashed filenames; the Go
 binary reads `dist/.vite/manifest.json` to resolve them. A missing manifest is fatal on purpose:
 serving a page whose script tag points at a file that was never built is worse than refusing to
 start.
+
+Vite 8 bundles with Rolldown, which imports `styleText` from `node:util`. Node 18 does not
+export it, so a build under an old Node dies with a SyntaxError before compiling anything.
+It needs bun 1.4 or a modern Node; the pinned `oven/bun:1-alpine` in every frontend stage
+is already 1.4.
 
 **Typst runs at build time, not on the request path.** Post PDFs, the resume and every social
 card are compiled during `docker build` and served as files. The blog and the portfolio end at
