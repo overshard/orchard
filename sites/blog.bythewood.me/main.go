@@ -14,8 +14,9 @@ package main
 import (
 	"embed"
 	"flag"
+	"fmt"
 	"io/fs"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -65,7 +66,8 @@ func csp() string {
 }
 
 func main() {
-	log.SetFlags(log.LstdFlags | log.LUTC)
+	// JSON to stdout, installed before anything else can log.
+	web.SetupLogging()
 
 	// -pdfs is the build-time mode: compile every post to PDF and exit. It
 	// lives on the site binary rather than in a cmd/ of its own so the post
@@ -83,7 +85,7 @@ func main() {
 
 	if *healthcheck {
 		if err := web.HealthCheck("http://127.0.0.1:8000/healthz", 3*time.Second); err != nil {
-			log.Printf("healthcheck: %v", err)
+			slog.Info(fmt.Sprintf("healthcheck: %v", err))
 			os.Exit(1)
 		}
 		return
@@ -93,9 +95,10 @@ func main() {
 
 	lib, err := LoadLibrary(contentDir)
 	if err != nil {
-		log.Fatalf("load posts: %v", err)
+		slog.Error(fmt.Sprintf("load posts: %v", err))
+		os.Exit(1)
 	}
-	log.Printf("loaded %d posts from %s", len(lib.All()), contentDir)
+	slog.Info(fmt.Sprintf("loaded %d posts from %s", len(lib.All()), contentDir))
 
 	// The build-time modes. Both take the same Typst root and font path, and
 	// either one on its own ends the process: this binary is the site server
@@ -103,12 +106,14 @@ func main() {
 	if *pdfsOut != "" || *ogOut != "" {
 		if *pdfsOut != "" {
 			if err := GeneratePDFs(lib, *typstRoot, *typstFonts, *pdfsOut); err != nil {
-				log.Fatalf("generate pdfs: %v", err)
+				slog.Error(fmt.Sprintf("generate pdfs: %v", err))
+				os.Exit(1)
 			}
 		}
 		if *ogOut != "" {
 			if err := GenerateOGCards(lib, *typstRoot, *typstFonts, *ogOut); err != nil {
-				log.Fatalf("generate og cards: %v", err)
+				slog.Error(fmt.Sprintf("generate og cards: %v", err))
+				os.Exit(1)
 			}
 		}
 		return
@@ -119,12 +124,14 @@ func main() {
 
 	assets, err := web.LoadAssets(dist)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("startup failed", slog.Any("err", err))
+		os.Exit(1)
 	}
 
 	templates, err := fs.Sub(templateFS, "templates")
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("startup failed", slog.Any("err", err))
+		os.Exit(1)
 	}
 
 	renderer, err := web.NewRenderer(
@@ -134,7 +141,8 @@ func main() {
 		[]string{"home.html", "blog.html", "post.html", "search.html", "notfound.html"},
 	)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("startup failed", slog.Any("err", err))
+		os.Exit(1)
 	}
 
 	s := &site{
@@ -236,9 +244,10 @@ func main() {
 			"stale-while-revalidate=86400, stale-if-error=604800"),
 	)
 
-	log.Printf("blog.bythewood.me serving %s (staging=%t)", baseURL, Staging)
+	slog.Info(fmt.Sprintf("blog.bythewood.me serving %s (staging=%t)", baseURL, Staging))
 	if err := web.Serve(listenAddr, handler); err != nil {
-		log.Fatal(err)
+		slog.Error("startup failed", slog.Any("err", err))
+		os.Exit(1)
 	}
 }
 

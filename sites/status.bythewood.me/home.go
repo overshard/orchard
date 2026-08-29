@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"html/template"
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 )
@@ -86,7 +86,7 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// The page is a marketing page; the numbers on it are decoration. A
 		// database hiccup should render zeros, not a 500.
-		log.Printf("home totals: %v", err)
+		slog.Info(fmt.Sprintf("home totals: %v", err))
 	}
 	if firstCheck.Valid {
 		data.FirstCheckAt = time.UnixMilli(firstCheck.Int64).UTC().Format("Jan 2, 2006")

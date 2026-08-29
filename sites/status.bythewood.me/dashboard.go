@@ -3,7 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"fmt"
+	"log/slog"
 	"math"
 	"net/http"
 	"regexp"
@@ -277,7 +278,7 @@ func (v *PropertyView) applySecurityPosture(recent []Check) {
 func (v *PropertyView) applyStoredJSON(p *Property) {
 	if p.CrawlerInsights != nil {
 		if err := json.Unmarshal([]byte(*p.CrawlerInsights), &v.CrawlerInsights); err != nil {
-			log.Printf("property %s: crawler insights did not decode: %v", v.ID, err)
+			slog.Info(fmt.Sprintf("property %s: crawler insights did not decode: %v", v.ID, err))
 			v.CrawlerInsights = nil
 		}
 	}
@@ -290,7 +291,7 @@ func (v *PropertyView) applyStoredJSON(p *Property) {
 				scores.Performance+scores.Accessibility+scores.BestPractices+scores.SEO) / 4))
 			v.AvgLighthouseScore = &avg
 		} else {
-			log.Printf("property %s: lighthouse scores did not decode: %v", v.ID, err)
+			slog.Info(fmt.Sprintf("property %s: lighthouse scores did not decode: %v", v.ID, err))
 		}
 	}
 
@@ -348,7 +349,7 @@ func groupInsights(insights []Insight) []InsightGroup {
 func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 	p, err := getProperty(r.Context(), s.db, id)
 	if err != nil {
-		log.Printf("dashboard %s: %v", id, err)
+		slog.Info(fmt.Sprintf("dashboard %s: %v", id, err))
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -369,7 +370,7 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 
 	view, err := s.buildPropertyView(r.Context(), p)
 	if err != nil {
-		log.Printf("dashboard %s: %v", id, err)
+		slog.Info(fmt.Sprintf("dashboard %s: %v", id, err))
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -400,7 +401,7 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 
 	recent, err := recentChecks(r.Context(), s.db, id, 31)
 	if err != nil {
-		log.Printf("dashboard %s charts: %v", id, err)
+		slog.Info(fmt.Sprintf("dashboard %s charts: %v", id, err))
 	}
 	// Oldest first: a time axis reads left to right.
 	for i := len(recent) - 1; i >= 0; i-- {
@@ -417,7 +418,7 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 
 	codes, err := countStatusCodes(r.Context(), s.db, id)
 	if err != nil {
-		log.Printf("dashboard %s status codes: %v", id, err)
+		slog.Info(fmt.Sprintf("dashboard %s status codes: %v", id, err))
 	}
 	for _, c := range codes {
 		data.StatusCodes = append(data.StatusCodes, LabelCount{Label: c.Code, Count: c.Count})
@@ -425,7 +426,7 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 
 	up, down, err := countUptime(r.Context(), s.db, id)
 	if err != nil {
-		log.Printf("dashboard %s uptime: %v", id, err)
+		slog.Info(fmt.Sprintf("dashboard %s uptime: %v", id, err))
 	}
 	pct := func(n int64) float64 {
 		if total := up + down; total > 0 {
@@ -591,7 +592,7 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 	// error strings here come from crawled sites and can contain any of them.
 	enc.SetEscapeHTML(false)
 	if err := enc.Encode(payload); err != nil {
-		log.Printf("write json: %v", err)
+		slog.Info(fmt.Sprintf("write json: %v", err))
 	}
 }
 
@@ -617,7 +618,7 @@ func (s *site) lookupForJSON(w http.ResponseWriter, r *http.Request) (*Property,
 	}
 	p, err := getProperty(r.Context(), s.db, id)
 	if err != nil {
-		log.Printf("lookup %s: %v", id, err)
+		slog.Info(fmt.Sprintf("lookup %s: %v", id, err))
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "server_error"})
 		return nil, false
 	}
@@ -661,7 +662,7 @@ func (s *site) requeue(w http.ResponseWriter, r *http.Request, kind string) {
 	if _, err := s.db.ExecContext(r.Context(),
 		"UPDATE properties SET "+dueColumn+" = ?, "+errColumn+" = NULL, updated_at = ? WHERE id = ?",
 		now, now, p.ID[:]); err != nil {
-		log.Printf("requeue %s for %s: %v", kind, p.URL, err)
+		slog.Info(fmt.Sprintf("requeue %s for %s: %v", kind, p.URL, err))
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"ok": false, "error": "server_error"})
 		return
 	}

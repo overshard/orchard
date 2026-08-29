@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"log"
+	"log/slog"
 	"net/http"
 	"sort"
 	"strconv"
@@ -145,7 +145,7 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 
 	p, err := lookupProperty(ctx, s.db, id)
 	if err != nil {
-		log.Printf("dashboard lookup: %v", err)
+		slog.Info(fmt.Sprintf("dashboard lookup: %v", err))
 		http.Error(w, "database error", http.StatusInternalServerError)
 		return
 	}
@@ -396,7 +396,7 @@ func max64(a, b int64) int64 {
 func jsonBlock(v any) template.JS {
 	b, err := json.Marshal(v)
 	if err != nil {
-		log.Printf("json block: %v", err)
+		slog.Info(fmt.Sprintf("json block: %v", err))
 		return template.JS("null")
 	}
 	return template.JS(b)

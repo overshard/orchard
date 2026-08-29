@@ -22,8 +22,9 @@ import (
 	"database/sql"
 	"embed"
 	"flag"
+	"fmt"
 	"io/fs"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -94,7 +95,8 @@ type site struct {
 }
 
 func main() {
-	log.SetFlags(log.LstdFlags | log.LUTC)
+	// JSON to stdout, installed before anything else can log.
+	web.SetupLogging()
 
 	seed := flag.Bool("seed", false, "fill a Seed Test property with realistic fake events, then exit")
 	seedSessions := flag.Int("seed-sessions", 500, "sessions to generate in -seed mode")
@@ -108,7 +110,7 @@ func main() {
 
 	if *healthcheck {
 		if err := web.HealthCheck("http://127.0.0.1:8000/healthz", 3*time.Second); err != nil {
-			log.Printf("healthcheck: %v", err)
+			slog.Info(fmt.Sprintf("healthcheck: %v", err))
 			os.Exit(1)
 		}
 		return
@@ -121,25 +123,29 @@ func main() {
 	// rather than at first login.
 	password := os.Getenv("ANALYTICS_PASSWORD")
 	if password == "" {
-		log.Fatal("ANALYTICS_PASSWORD is unset; refusing to start an internet-facing server without one")
+		slog.Error("ANALYTICS_PASSWORD is unset; refusing to start an internet-facing server without one")
+		os.Exit(1)
 	}
 
 	dataDir := dir("SITE_DATA", "data")
 	db, err := openDB(dataDir + "/db.sqlite3")
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("startup failed", slog.Any("err", err))
+		os.Exit(1)
 	}
 	defer db.Close()
 
 	ctx := context.Background()
 	propriumID, err := ensureProprium(ctx, db)
 	if err != nil {
-		log.Fatalf("proprium property: %v", err)
+		slog.Error(fmt.Sprintf("proprium property: %v", err))
+		os.Exit(1)
 	}
 
 	if *seed {
 		if err := runSeed(ctx, db, *seedSessions, *seedDays); err != nil {
-			log.Fatalf("seed: %v", err)
+			slog.Error(fmt.Sprintf("seed: %v", err))
+			os.Exit(1)
 		}
 		return
 	}
@@ -149,12 +155,14 @@ func main() {
 
 	assets, err := web.LoadAssets(dist)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("startup failed", slog.Any("err", err))
+		os.Exit(1)
 	}
 
 	templates, err := fs.Sub(templateFS, "templates")
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("startup failed", slog.Any("err", err))
+		os.Exit(1)
 	}
 
 	renderer, err := web.NewRenderer(
@@ -167,7 +175,8 @@ func main() {
 		},
 	)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("startup failed", slog.Any("err", err))
+		os.Exit(1)
 	}
 
 	geoipPath := dataDir + "/db.mmdb"
@@ -198,7 +207,7 @@ func main() {
 		fresh, err := EnsureGeoIPDB(geoipPath)
 		switch {
 		case err != nil:
-			log.Printf("geoip refresh skipped: %v", err)
+			slog.Info(fmt.Sprintf("geoip refresh skipped: %v", err))
 		case fresh:
 			s.geoip.Reload()
 		}
@@ -279,9 +288,10 @@ func main() {
 		web.SecurityHeaders(csp()),
 	)
 
-	log.Printf("analytics serving %s (staging=%t, proprium=%s)", baseURL, Staging, propriumID)
+	slog.Info(fmt.Sprintf("analytics serving %s (staging=%t, proprium=%s)", baseURL, Staging, propriumID))
 	if err := web.Serve(listenAddr, handler); err != nil {
-		log.Fatal(err)
+		slog.Error("startup failed", slog.Any("err", err))
+		os.Exit(1)
 	}
 }
 

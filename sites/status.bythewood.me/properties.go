@@ -1,7 +1,8 @@
 package main
 
 import (
-	"log"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -15,7 +16,7 @@ func (s *site) properties(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := listProperties(r.Context(), s.db, query)
 	if err != nil {
-		log.Printf("properties list: %v", err)
+		slog.Info(fmt.Sprintf("properties list: %v", err))
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -29,7 +30,7 @@ func (s *site) properties(w http.ResponseWriter, r *http.Request) {
 			// One property failing to summarise must not blank the list: the
 			// other sites are still being monitored and the operator still
 			// needs to see them.
-			log.Printf("properties list: building view for %s: %v", p.URL, err)
+			slog.Info(fmt.Sprintf("properties list: building view for %s: %v", p.URL, err))
 			continue
 		}
 		data.Properties = append(data.Properties, view)
@@ -67,7 +68,7 @@ func (s *site) propertyCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err := createProperty(r.Context(), s.db, raw); err != nil {
-		log.Printf("property create %s: %v", raw, err)
+		slog.Info(fmt.Sprintf("property create %s: %v", raw, err))
 	}
 	http.Redirect(w, r, "/properties", http.StatusSeeOther)
 }
@@ -79,7 +80,7 @@ func (s *site) propertyDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := deleteProperty(r.Context(), s.db, id); err != nil {
-		log.Printf("property delete %s: %v", id, err)
+		slog.Info(fmt.Sprintf("property delete %s: %v", id, err))
 	}
 	http.Redirect(w, r, "/properties", http.StatusSeeOther)
 }
@@ -98,7 +99,7 @@ func (s *site) propertyPublic(w http.ResponseWriter, r *http.Request) {
 	isPublic, found, err := togglePublic(r.Context(), s.db, id)
 	switch {
 	case err != nil:
-		log.Printf("property public toggle %s: %v", id, err)
+		slog.Info(fmt.Sprintf("property public toggle %s: %v", id, err))
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"success": false})
 	case !found:
 		// A 404 rather than a cheerful success carrying a made-up value. The

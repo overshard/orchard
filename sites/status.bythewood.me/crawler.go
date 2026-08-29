@@ -2,7 +2,8 @@ package main
 
 import (
 	"context"
-	"log"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"sort"
@@ -72,7 +73,7 @@ func normalizeURL(raw string) string {
 // bar moves during a crawl that can legitimately take nine minutes.
 func RunSEOSpider(ctx context.Context, startURL string, progress func(pages int)) ([]Insight, error) {
 	started := time.Now()
-	log.Printf("[crawler] starting %s", startURL)
+	slog.Info(fmt.Sprintf("starting %s", startURL), slog.String("component", "crawler"))
 
 	result, err := crawl(ctx, startURL, progress)
 	if err != nil {
@@ -80,8 +81,8 @@ func RunSEOSpider(ctx context.Context, startURL string, progress func(pages int)
 	}
 	insights := runChecks(result)
 
-	log.Printf("[crawler] done %s: %d pages, %d insights, %.1fs",
-		startURL, len(result.Pages), len(insights), time.Since(started).Seconds())
+	slog.Info(fmt.Sprintf("done %s: %d pages, %d insights, %.1fs",
+		startURL, len(result.Pages), len(insights), time.Since(started).Seconds()), slog.String("component", "crawler"))
 	return insights, nil
 }
 
@@ -190,7 +191,7 @@ func crawl(ctx context.Context, startURL string, progress func(pages int)) (*Cra
 			if page.IsHTML {
 				parsed, err := parseHTML(r.Body, r.URL)
 				if err != nil {
-					log.Printf("[crawler] parse failed for %s: %v", r.URL, err)
+					slog.Error(fmt.Sprintf("parse failed for %s: %v", r.URL, err), slog.String("component", "crawler"))
 					page.IsHTML = false
 				} else {
 					page.HTML = parsed
@@ -210,7 +211,7 @@ func crawl(ctx context.Context, startURL string, progress func(pages int)) (*Cra
 	}
 
 	if hitDeadline || ctx.Err() != nil {
-		log.Printf("[crawler] hit deadline for %s after %d pages", startURL, len(pages))
+		slog.Info(fmt.Sprintf("hit deadline for %s after %d pages", startURL, len(pages)), slog.String("component", "crawler"))
 	}
 
 	return &CrawlResult{
@@ -255,8 +256,8 @@ func probeExternalLinks(ctx context.Context, client *http.Client, pages []*Page,
 	}
 	sort.Strings(urls)
 	if len(urls) > ExternalLinkCap {
-		log.Printf("[crawler] capping external link probes at %d of %d for %s",
-			ExternalLinkCap, len(urls), startURL)
+		slog.Info(fmt.Sprintf("capping external link probes at %d of %d for %s",
+			ExternalLinkCap, len(urls), startURL), slog.String("component", "crawler"))
 		urls = urls[:ExternalLinkCap]
 	}
 
@@ -267,7 +268,7 @@ func probeExternalLinks(ctx context.Context, client *http.Client, pages []*Page,
 		// its budget, until the scheduler's wedge reset killed it and recorded
 		// a successful crawl as an interruption.
 		if ctx.Err() != nil {
-			log.Printf("[crawler] hit deadline during external link probes for %s", startURL)
+			slog.Info(fmt.Sprintf("hit deadline during external link probes for %s", startURL), slog.String("component", "crawler"))
 			break
 		}
 

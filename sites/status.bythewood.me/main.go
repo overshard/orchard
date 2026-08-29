@@ -29,8 +29,9 @@ import (
 	"database/sql"
 	"embed"
 	"flag"
+	"fmt"
 	"io/fs"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -105,7 +106,8 @@ type site struct {
 }
 
 func main() {
-	log.SetFlags(log.LstdFlags | log.LUTC)
+	// JSON to stdout, installed before anything else can log.
+	web.SetupLogging()
 
 	previewKind := flag.String("preview-alert", "",
 		"print the ntfy notification for 'down' or 'recovery' and exit")
@@ -118,7 +120,7 @@ func main() {
 
 	if *healthcheck {
 		if err := web.HealthCheck("http://127.0.0.1:8000/healthz", 3*time.Second); err != nil {
-			log.Printf("healthcheck: %v", err)
+			slog.Info(fmt.Sprintf("healthcheck: %v", err))
 			os.Exit(1)
 		}
 		return
@@ -129,7 +131,8 @@ func main() {
 	// `status preview-email` subcommand.
 	if *previewKind != "" {
 		if err := previewAlert(*previewKind); err != nil {
-			log.Fatal(err)
+			slog.Error("startup failed", slog.Any("err", err))
+			os.Exit(1)
 		}
 		return
 	}
@@ -141,13 +144,15 @@ func main() {
 	// rather than at first login.
 	password := os.Getenv("STATUS_PASSWORD")
 	if password == "" {
-		log.Fatal("STATUS_PASSWORD is unset; refusing to start an internet-facing server without one")
+		slog.Error("STATUS_PASSWORD is unset; refusing to start an internet-facing server without one")
+		os.Exit(1)
 	}
 
 	dataDir := dir("SITE_DATA", "data")
 	db, err := openDB(dataDir + "/db.sqlite3")
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("startup failed", slog.Any("err", err))
+		os.Exit(1)
 	}
 	defer db.Close()
 
@@ -156,12 +161,14 @@ func main() {
 
 	assets, err := web.LoadAssets(dist)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("startup failed", slog.Any("err", err))
+		os.Exit(1)
 	}
 
 	templates, err := fs.Sub(templateFS, "templates")
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("startup failed", slog.Any("err", err))
+		os.Exit(1)
 	}
 
 	renderer, err := web.NewRenderer(
@@ -174,7 +181,8 @@ func main() {
 		},
 	)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("startup failed", slog.Any("err", err))
+		os.Exit(1)
 	}
 
 	s := &site{
@@ -201,7 +209,8 @@ func main() {
 
 	scheduler := NewScheduler(db, NewNotifier(), dir("SITE_ROOT", "."))
 	if err := scheduler.ResetOnBoot(ctx); err != nil {
-		log.Fatalf("reset wedged states: %v", err)
+		slog.Error(fmt.Sprintf("reset wedged states: %v", err))
+		os.Exit(1)
 	}
 	go scheduler.Run(ctx)
 
@@ -269,9 +278,10 @@ func main() {
 		web.SecurityHeaders(csp()),
 	)
 
-	log.Printf("status serving %s (staging=%t)", baseURL, Staging)
+	slog.Info(fmt.Sprintf("status serving %s (staging=%t)", baseURL, Staging))
 	if err := web.Serve(listenAddr, handler); err != nil {
-		log.Fatal(err)
+		slog.Error("startup failed", slog.Any("err", err))
+		os.Exit(1)
 	}
 }
 

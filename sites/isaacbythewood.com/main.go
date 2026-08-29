@@ -13,9 +13,10 @@ import (
 	"context"
 	"embed"
 	"flag"
+	"fmt"
 	"io"
 	"io/fs"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -66,7 +67,8 @@ func csp() string {
 }
 
 func main() {
-	log.SetFlags(log.LstdFlags | log.LUTC)
+	// JSON to stdout, installed before anything else can log.
+	web.SetupLogging()
 
 	// -healthcheck turns the binary into its own health probe and exits. The
 	// container HEALTHCHECK runs this: two of these images are FROM scratch and
@@ -77,7 +79,7 @@ func main() {
 
 	if *healthcheck {
 		if err := web.HealthCheck("http://127.0.0.1:8000/healthz", 3*time.Second); err != nil {
-			log.Printf("healthcheck: %v", err)
+			slog.Info(fmt.Sprintf("healthcheck: %v", err))
 			os.Exit(1)
 		}
 		return
@@ -87,12 +89,14 @@ func main() {
 
 	assets, err := web.LoadAssets(dist)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("startup failed", slog.Any("err", err))
+		os.Exit(1)
 	}
 
 	templates, err := fs.Sub(templateFS, "templates")
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("startup failed", slog.Any("err", err))
+		os.Exit(1)
 	}
 
 	renderer, err := web.NewRenderer(
@@ -102,7 +106,8 @@ func main() {
 		[]string{"index.html", "about.html", "code.html", "art.html", "contact.html", "notfound.html"},
 	)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("startup failed", slog.Any("err", err))
+		os.Exit(1)
 	}
 
 	commits := NewCommitCache()
@@ -178,9 +183,10 @@ func main() {
 			"stale-while-revalidate=86400, stale-if-error=604800"),
 	)
 
-	log.Printf("isaacbythewood.com serving %s (staging=%t)", baseURL, Staging)
+	slog.Info(fmt.Sprintf("isaacbythewood.com serving %s (staging=%t)", baseURL, Staging))
 	if err := web.Serve(listenAddr, handler); err != nil {
-		log.Fatal(err)
+		slog.Error("startup failed", slog.Any("err", err))
+		os.Exit(1)
 	}
 }
 

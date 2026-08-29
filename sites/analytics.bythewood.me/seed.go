@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"math"
 	"math/rand/v2"
 	"time"
@@ -205,8 +205,8 @@ func runSeed(ctx context.Context, db *sql.DB, sessions, days int) error {
 		return err
 	}
 
-	log.Printf("seeded %d sessions (%d events) into %q (%s)", sessions, total, seedPropertyName, id)
-	log.Printf("dashboard: http://localhost:8000/%s", id)
+	slog.Info(fmt.Sprintf("seeded %d sessions (%d events) into %q (%s)", sessions, total, seedPropertyName, id))
+	slog.Info(fmt.Sprintf("dashboard: http://localhost:8000/%s", id))
 	return nil
 }
 

@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -127,7 +127,7 @@ func GenerateOGCards(lib *Library, root, fontPath, outDir string) error {
 					mu.Unlock()
 					continue
 				}
-				log.Printf("og %s", j.name)
+				slog.Info(fmt.Sprintf("og %s", j.name))
 			}
 		}()
 	}

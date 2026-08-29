@@ -1,7 +1,8 @@
 package main
 
 import (
-	"log"
+	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 
@@ -49,7 +50,7 @@ func (u *UAParser) get() *uaparser.Parser {
 	u.once.Do(func() {
 		u.parser, u.err = uaparser.New()
 		if u.err != nil {
-			log.Printf("ua parser build failed, falling back to heuristics: %v", u.err)
+			slog.Error(fmt.Sprintf("ua parser build failed, falling back to heuristics: %v", u.err))
 		}
 	})
 	return u.parser

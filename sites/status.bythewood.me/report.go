@@ -3,7 +3,8 @@ package main
 import (
 	"bytes"
 	"embed"
-	"log"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	texttemplate "text/template"
@@ -54,7 +55,7 @@ func (s *site) renderReport(w http.ResponseWriter, r *http.Request, format, prop
 
 	var buf bytes.Buffer
 	if err := reportTemplates.ExecuteTemplate(&buf, name, data); err != nil {
-		log.Printf("render %s: %v", name, err)
+		slog.Info(fmt.Sprintf("render %s: %v", name, err))
 		http.Error(w, "report error", http.StatusInternalServerError)
 		return
 	}
@@ -73,11 +74,11 @@ func (s *site) renderReport(w http.ResponseWriter, r *http.Request, format, prop
 		// A missing binary is the expected state of a dev checkout, so it is
 		// reported as the service being unavailable rather than as a fault.
 		if err == ErrTypstMissing {
-			log.Printf("pdf report: %v (install typst, or use ?report=md)", err)
+			slog.Info(fmt.Sprintf("pdf report: %v (install typst, or use ?report=md)", err))
 			http.Error(w, "pdf export unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		log.Printf("pdf report: %v", err)
+		slog.Info(fmt.Sprintf("pdf report: %v", err))
 		http.Error(w, "report error", http.StatusInternalServerError)
 		return
 	}

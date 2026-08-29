@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
@@ -174,7 +174,7 @@ func ensureProprium(ctx context.Context, db *sql.DB) (uuid.UUID, error) {
 		id.String()); err != nil {
 		return uuid.Nil, err
 	}
-	log.Printf("created Proprium property %s", id)
+	slog.Info(fmt.Sprintf("created Proprium property %s", id))
 	return id, nil
 }
 

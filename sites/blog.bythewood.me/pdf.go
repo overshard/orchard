@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -67,7 +67,7 @@ func GeneratePDFs(lib *Library, root, fontPath, outDir string) error {
 					mu.Unlock()
 					continue
 				}
-				log.Printf("pdf %s", post.Slug)
+				slog.Info(fmt.Sprintf("pdf %s", post.Slug))
 			}
 		}()
 	}

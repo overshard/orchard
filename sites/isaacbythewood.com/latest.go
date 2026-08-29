@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
@@ -92,7 +92,7 @@ func (c *LatestCache) refresh(ctx context.Context) {
 		if err == nil {
 			break
 		}
-		log.Printf("latest post: %s: %v", src, err)
+		slog.Info(fmt.Sprintf("latest post: %s: %v", src, err))
 	}
 	if err != nil {
 		// Keep whatever was there. A transient failure should not blank a card

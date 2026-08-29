@@ -1,7 +1,7 @@
 package web
 
 import (
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"strings"
@@ -57,9 +57,16 @@ func (w *recorder) Write(b []byte) (int, error) {
 	return n, err
 }
 
-// Logged writes one line per request. The tunnel test shipped without this and
-// was blind to every request it served, so it is on by default here rather
+// Logged writes one record per request. The tunnel test shipped without this
+// and was blind to every request it served, so it is on by default here rather
 // than something a site opts into.
+//
+// Structured, via log/slog, rather than a formatted line. These run in
+// containers whose logs are read with `docker logs` and grep, and the
+// difference between a string and a set of typed fields is the difference
+// between eyeballing and filtering: status>=500, or every request from one IP,
+// or the slow tail, are all one jq away and none of them are a regex over
+// prose.
 func Logged(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -70,13 +77,25 @@ func Logged(next http.Handler) http.Handler {
 		if rec.status == 0 {
 			rec.status = http.StatusOK
 		}
-		via := "direct"
-		if ray := r.Header.Get("CF-Ray"); ray != "" {
-			via = "cloudflare ray=" + ray
+		// Duration in milliseconds as a float, not a formatted Duration
+		// string: "1.042ms" cannot be compared or sorted by a log query and
+		// 1.042 can.
+		attrs := []any{
+			slog.Int("status", rec.status),
+			slog.String("method", r.Method),
+			slog.String("path", r.URL.Path),
+			slog.String("host", r.Host),
+			slog.String("ip", ClientIP(r)),
+			slog.Int("bytes", rec.bytes),
+			slog.Float64("ms", float64(time.Since(start).Microseconds())/1000),
 		}
-		log.Printf("%d %s %s host=%s ip=%s bytes=%d %s %s",
-			rec.status, r.Method, r.URL.Path, r.Host,
-			ClientIP(r), rec.bytes, time.Since(start).Round(time.Microsecond), via)
+		// Present only when the request actually came through the tunnel, so
+		// its absence is the signal that something reached the origin
+		// directly.
+		if ray := r.Header.Get("CF-Ray"); ray != "" {
+			attrs = append(attrs, slog.String("cf_ray", ray))
+		}
+		slog.Info("request", attrs...)
 	})
 }
 
@@ -86,7 +105,11 @@ func Recovered(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
-				log.Printf("panic serving %s %s: %v", r.Method, r.URL.Path, err)
+				slog.Error("panic serving request",
+					slog.String("method", r.Method),
+					slog.String("path", r.URL.Path),
+					slog.Any("panic", err),
+				)
 				http.Error(w, "internal server error", http.StatusInternalServerError)
 			}
 		}()

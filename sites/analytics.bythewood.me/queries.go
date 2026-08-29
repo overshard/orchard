@@ -18,7 +18,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
+	"log/slog"
 	"math"
 	"sort"
 	"strconv"
@@ -117,7 +117,7 @@ func placeholders(n int) string {
 
 func logQuery(what string, err error) {
 	if err != nil && err != sql.ErrNoRows {
-		log.Printf("query %s: %v", what, err)
+		slog.Info(fmt.Sprintf("query %s: %v", what, err))
 	}
 }
 

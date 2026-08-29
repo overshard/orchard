@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 	"sync"
@@ -122,7 +122,7 @@ func (c *CommitCache) refresh(ctx context.Context, slugs []string) {
 			defer wg.Done()
 			commit, err := c.fetch(ctx, slug)
 			if err != nil {
-				log.Printf("github: %s: %v", slug, err)
+				slog.Info(fmt.Sprintf("github: %s: %v", slug, err))
 				return
 			}
 			results[i].slug = slug

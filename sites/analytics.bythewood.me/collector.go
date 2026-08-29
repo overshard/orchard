@@ -4,8 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/netip"
 	"strings"
@@ -84,7 +85,7 @@ func (s *site) collect(w http.ResponseWriter, r *http.Request) {
 		corsStatus(w, r, http.StatusNotFound)
 		return
 	case err != nil:
-		log.Printf("collect: property lookup: %v", err)
+		slog.Info(fmt.Sprintf("collect: property lookup: %v", err))
 		corsStatus(w, r, http.StatusInternalServerError)
 		return
 	}
@@ -220,7 +221,7 @@ func (s *site) insertEvent(ctx context.Context, propertyID uuid.UUID, event, use
 		country, region, city, lat, lon, utmSource, utmMedium, utmCampaign, utmTerm,
 		utmContent, timeOnPage, encodeExtra(data))
 	if err != nil {
-		log.Printf("collect: insert event: %v", err)
+		slog.Info(fmt.Sprintf("collect: insert event: %v", err))
 	}
 }
 
@@ -238,7 +239,7 @@ func (s *site) insertBotEvent(ctx context.Context, propertyID uuid.UUID, event, 
 		nullString(stringField(data, "url")), nullString(userAgent),
 		nullString(stringField(data, "country")), encodeExtra(data))
 	if err != nil {
-		log.Printf("collect: insert bot event: %v", err)
+		slog.Info(fmt.Sprintf("collect: insert bot event: %v", err))
 	}
 }
 
@@ -394,14 +395,14 @@ func originOrWildcard(r *http.Request) string {
 func (s *site) collectorScript(w http.ResponseWriter, r *http.Request) {
 	name := s.assets.Script("static_src/collector/index.js")
 	if name == "" {
-		log.Printf("collector entry missing from vite manifest")
+		slog.Info("collector entry missing from vite manifest")
 		http.Error(w, "collector unavailable", http.StatusServiceUnavailable)
 		return
 	}
 
 	f, err := s.dist.Open(strings.TrimPrefix(name, "/static/"))
 	if err != nil {
-		log.Printf("collector open %s: %v", name, err)
+		slog.Info(fmt.Sprintf("collector open %s: %v", name, err))
 		http.Error(w, "collector unavailable", http.StatusServiceUnavailable)
 		return
 	}
@@ -412,7 +413,7 @@ func (s *site) collectorScript(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(f)
 	if err != nil {
-		log.Printf("collector read %s: %v", name, err)
+		slog.Info(fmt.Sprintf("collector read %s: %v", name, err))
 		http.Error(w, "collector unavailable", http.StatusServiceUnavailable)
 		return
 	}

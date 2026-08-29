@@ -5,7 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"log"
+	"log/slog"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -38,16 +39,19 @@ var images = loadImageSpec()
 func loadImageSpec() imageSpec {
 	var s imageSpec
 	if err := json.Unmarshal(imagesJSON, &s); err != nil {
-		log.Fatalf("parse images.json: %v", err)
+		slog.Error(fmt.Sprintf("parse images.json: %v", err))
+		os.Exit(1)
 	}
 	if s.Format == "" || len(s.CardWidths) == 0 {
-		log.Fatal("images.json is missing format or cardWidths")
+		slog.Error("images.json is missing format or cardWidths")
+		os.Exit(1)
 	}
 	// Every width the templates can ask for must have a quality, because the
 	// generator reads the same map and would otherwise skip it silently.
 	for _, w := range append(append([]int{}, s.CardWidths...), s.LightboxWidth, s.HeroWidth) {
 		if _, ok := s.Quality[strconv.Itoa(w)]; !ok {
-			log.Fatalf("images.json: no quality for width %d", w)
+			slog.Error(fmt.Sprintf("images.json: no quality for width %d", w))
+			os.Exit(1)
 		}
 	}
 	return s

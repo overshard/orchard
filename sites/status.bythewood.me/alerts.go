@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -139,14 +139,14 @@ func renderAlert(kind string, ctx AlertContext) (alertBody, bool) {
 func (n *Notifier) Fire(kind string, ctx AlertContext) {
 	body, ok := renderAlert(kind, ctx)
 	if !ok {
-		log.Printf("alert: unknown kind %q for %s", kind, ctx.URL)
+		slog.Info(fmt.Sprintf("alert: unknown kind %q for %s", kind, ctx.URL))
 		return
 	}
 	if err := n.publish(context.Background(), body); err != nil {
-		log.Printf("alert: publishing %s for %s failed: %v", kind, ctx.URL, err)
+		slog.Error(fmt.Sprintf("alert: publishing %s for %s failed: %v", kind, ctx.URL, err))
 		return
 	}
-	log.Printf("alert: published %s for %s", kind, ctx.URL)
+	slog.Info(fmt.Sprintf("alert: published %s for %s", kind, ctx.URL))
 }
 
 // publish posts to ntfy.

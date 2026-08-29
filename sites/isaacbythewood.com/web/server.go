@@ -5,13 +5,39 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 )
+
+// SetupLogging installs the process-wide structured logger.
+//
+// JSON, because these run in containers and the logs are read by machine
+// before they are read by a person. The one concession to being read by a
+// person is that source positions are off: they are noise in a request log
+// and the message plus the attributes already say where a record came from.
+//
+// Called by every site's main before anything else logs, so the four copies of
+// this package cannot drift into four different log formats.
+func SetupLogging() {
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+		// Timestamps in UTC, which is what the stdlib logger was doing with
+		// log.LUTC before this and is not slog's default. Four containers, a
+		// host on Eastern time and a reader correlating them against
+		// Cloudflare's logs all want one zone, and local time in a container
+		// is a trap: it silently differs from the host's.
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if a.Key == slog.TimeKey && len(groups) == 0 {
+				a.Value = slog.TimeValue(a.Value.Time().UTC())
+			}
+			return a
+		},
+	})))
+}
 
 // Serve runs h on addr until SIGINT or SIGTERM, then drains in-flight requests
 // before returning.
@@ -34,7 +60,7 @@ func Serve(addr string, h http.Handler) error {
 
 	errs := make(chan error, 1)
 	go func() {
-		log.Printf("listening on %s", addr)
+		slog.Info("listening", slog.String("addr", addr))
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errs <- err
 		}
@@ -44,7 +70,7 @@ func Serve(addr string, h http.Handler) error {
 	case err := <-errs:
 		return err
 	case sig := <-stop:
-		log.Printf("%s received, draining", sig)
+		slog.Info("shutting down", slog.String("signal", sig.String()))
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

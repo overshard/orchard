@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -472,7 +472,7 @@ func advanceAlertState(ctx context.Context, db *sql.DB, notifier *Notifier, p *P
 
 	avg, err := recentAvgResponseMS(ctx, db, p.ID)
 	if err != nil {
-		log.Printf("alert: average response time for %s: %v", p.URL, err)
+		slog.Info(fmt.Sprintf("alert: average response time for %s: %v", p.URL, err))
 	}
 
 	// Fire and forget: a slow or unreachable notifier must not hold up the
