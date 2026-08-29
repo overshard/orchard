@@ -109,6 +109,19 @@ down. Note the absence of `s-maxage`: per RFC 9111 it implies
 adding it would quietly undo the whole point. Anything that answers 400 or above
 is given an explicit `no-store`, so an error cannot be pinned at the edge.
 
+## Running as non-root
+
+Every container runs as UID 65532 rather than root, and the base images are pinned by
+digest. The two Alpine images create a real user at that UID; the two `FROM scratch`
+images use the bare number, because there is no `/etc/passwd` to name a user in.
+
+A `/data` volume created root-owned stays root-owned, so an existing one needs a
+one-time `chown -R 65532:65532` before its service can be switched over.
+
+Each service also health-checks itself: `-healthcheck` does a loopback GET against
+`/healthz` and exits 0 or 1. That exists because an image with no shell has nothing for
+a `HEALTHCHECK` to call.
+
 ## Secrets
 
 There are none in this repo, and that is deliberate rather than lucky. Site

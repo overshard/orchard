@@ -72,9 +72,25 @@ which reverse proxies to each app by container name on the `orchard-edge` networ
 rule, and a proxied CNAME to `<tunnel-id>.cfargotunnel.com`. The edge config is baked into the
 images, so both edge components need a rebuild to pick up a change.
 
+**Containers run as UID 65532, not root**, and base images are pinned by digest.
+The two Alpine sites create a real user at that UID; the two scratch ones use the bare
+number, because there is no /etc/passwd to name one in. A `/data` volume created
+root-owned stays root-owned, so a new one has to be chown'd once.
+
+**The binary is its own health check.** `-healthcheck` does a loopback GET against
+`/healthz` and exits 0 or 1. It exists because a `FROM scratch` image has no shell for
+a HEALTHCHECK to shell out to; compose and the Dockerfiles both use it.
+
+**Logging is `log/slog`, JSON to stdout, UTC.** `web.SetupLogging()` is called by every
+main before anything else logs. UTC is not slog's default and is forced through
+ReplaceAttr; local time in a container silently differs from the host's.
+
 **Deploys need `sudo`.** The Docker socket is `root:root` mode 660; being in the `docker` group
 does not help. Sites with a password read it from the deploying shell (`compose` refuses to start
 rather than bring up a server with no secret), so it is never written next to the repo.
+
+**Frontends are bun and Vite 8.** Vite 8 bundles with Rolldown, which needs a Node
+newer than 18 or, as here, bun 1.4. That is why the webdev container dropped nodejs.
 
 **Frontends are bun and Vite.** Output goes to `dist/` with content hashed filenames; the Go
 binary reads `dist/.vite/manifest.json` to resolve them. A missing manifest is fatal on purpose:
