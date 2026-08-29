@@ -157,3 +157,7 @@ becomes an empty directory.
 
 `CLAUDE.md` has the working detail: the rule about `web/`, the conventions that
 bite, and the mistakes that have already been made once.
+
+## License
+
+BSD 2-Clause. See `LICENSE.md`.
