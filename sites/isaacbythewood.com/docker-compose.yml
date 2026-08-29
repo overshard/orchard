@@ -18,6 +18,12 @@ services:
       dockerfile: Dockerfile
     container_name: orchard-isaacbythewood
     restart: unless-stopped
+    # Longer than Docker's 10s default, because shutdown now does real work:
+    # the log shipper drains its queue and the writer commits what it holds.
+    # Both are bounded well inside this, so the grace is headroom rather than
+    # a deadline anything relies on. Without it a slow drain meant SIGKILL and
+    # a skipped db.Close().
+    stop_grace_period: 30s
     # Nothing here has needed more than 36MB at rest, but this machine is also
     # a workstation, so a runaway process costs twice. A limit is a ceiling to
     # fail against, not a target.

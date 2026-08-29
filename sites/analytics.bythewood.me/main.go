@@ -103,6 +103,17 @@ func main() {
 		return
 	}
 
+	// Log shipping. Installed on top of the stdout handler rather than in
+	// place of it: every record still goes where it always went, and a copy
+	// is queued for logging.bythewood.me. Nothing here can block a request,
+	// and a logging site that is down or slow costs some lines on a
+	// dashboard. See web/shipper.go.
+	//
+	// After the healthcheck branch above, so a HEALTHCHECK invocation does
+	// not spin up a queue it will never flush.
+	shipper := web.ShipLogs("analytics", web.HTTPSink())
+	defer shipper.Close()
+
 	// Fail fast rather than defaulting. An internet-facing dashboard whose
 	// password is "admin" because the environment was empty is the failure
 	// mode this refuses to have.

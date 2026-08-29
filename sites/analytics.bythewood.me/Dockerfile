@@ -113,6 +113,14 @@ ENV XDG_CACHE_HOME=/tmp
 # is Docker Desktop on the Windows host and resolves paths against its own
 # filesystem, so a bind mount of a path under /home/dev silently becomes an
 # empty directory.
+# /data is created and chown'd before the VOLUME, and the ordering is the whole
+# point: Docker seeds a fresh volume from the image path it is mounted over and
+# carries that path's ownership with it, so a directory owned by 65532 here
+# produces a volume owned by 65532. Without it the daemon creates the mountpoint
+# root-owned and the first boot dies on "unable to open database file", naming
+# neither permissions nor the volume. This volume already exists and was chown'd
+# by hand once; this is so a rebuild on a new machine needs no such step.
+RUN mkdir -p /data && chown 65532:65532 /data
 VOLUME ["/data"]
 
 # The same UID 65532 the two FROM scratch images use, so every container in this

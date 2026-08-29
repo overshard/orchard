@@ -40,6 +40,7 @@ CONTAINER = orchard-$(firstword $(subst ., ,$(SITE)))
 # These two are forwarded as a sudo-level assignment instead. Make echoes a
 # recipe before the shell expands it, so the value itself is never printed.
 PASSWORD_analytics.bythewood.me = ANALYTICS_PASSWORD
+PASSWORD_logging.bythewood.me   = LOGGING_PASSWORD
 PASSWORD_status.bythewood.me    = STATUS_PASSWORD
 PASSWORD = $(PASSWORD_$(SITE))
 
@@ -142,6 +143,29 @@ doctor:
 	for s in $(SITES); do \
 		probe "orchard-$$(echo $$s | cut -d. -f1)" "-> make deploy SITE=$$s"; \
 	done; \
+	echo ""; \
+	echo "ingest"; \
+	if $(DOCKER) ps --filter "name=^orchard-logging$$" --format '{{.Names}}' 2>/dev/null | grep -q .; then \
+		$(DOCKER) exec orchard-logging /app -healthcheck >/dev/null 2>&1 && \
+		out=$$($(DOCKER) run --rm --network container:orchard-logging curlimages/curl:latest \
+			-s --max-time 5 'http://127.0.0.1:8000/healthz?verbose' 2>/dev/null); \
+		if [ -n "$$out" ]; then \
+			age=$$(echo "$$out" | sed -n 's/.*"newest_record_age_s": *\([0-9]*\).*/\1/p'); \
+			failed=$$(echo "$$out" | sed -n 's/.*"failed": *\([0-9]*\).*/\1/p'); \
+			queued=$$(echo "$$out" | sed -n 's/.*"queued": *\([0-9]*\).*/\1/p'); \
+			if [ "$${failed:-0}" -gt 0 ]; then \
+				printf '  %-22s %-22s %s\n' "writes" "$$failed DISCARDED" "-> docker logs orchard-logging"; \
+			elif [ -n "$$age" ] && [ "$$age" -gt 900 ]; then \
+				printf '  %-22s %-22s %s\n' "freshness" "$${age}s STALE" "-> nothing has shipped in 15 min; check the sites"; \
+			else \
+				printf '  %-22s newest record %ss old, %s queued, 0 discarded\n' "logging" "$${age:-?}" "$${queued:-?}"; \
+			fi; \
+		else \
+			printf '  %-22s %-22s %s\n' "logging" "unreachable" "-> make deploy SITE=logging.bythewood.me"; \
+		fi; \
+	else \
+		printf '  %-22s %-22s %s\n' "logging" "not created" "-> make deploy SITE=logging.bythewood.me"; \
+	fi; \
 	echo ""; \
 	echo "state"; \
 	sizes=$$($(DOCKER) system df -v 2>/dev/null | awk '/^VOLUME NAME/{v=1;next} v && NF==3{print $$1"="$$3}'); \

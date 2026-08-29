@@ -40,7 +40,15 @@ func Serve(addr string, h http.Handler) error {
 		Addr:              addr,
 		Handler:           h,
 		ReadHeaderTimeout: 10 * time.Second,
-		IdleTimeout:       120 * time.Second,
+		// A whole-request read bound, so a slow body cannot hold a
+		// connection open indefinitely.
+		ReadTimeout: 30 * time.Second,
+		// And a write bound. Without one, a handler that takes minutes just
+		// hangs: the client waits, the connection is held, and nothing in the
+		// process ever notices. Generous enough for a Typst report, which has
+		// its own 30 second ceiling.
+		WriteTimeout: 60 * time.Second,
+		IdleTimeout:  120 * time.Second,
 	}
 
 	stop := make(chan os.Signal, 1)

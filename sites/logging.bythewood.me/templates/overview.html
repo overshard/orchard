@@ -1,0 +1,139 @@
+{{ define "extra_css" }}{{ range .PageStyles }}<link href="{{ . }}" rel="stylesheet">{{ end }}{{ end }}
+
+{{ define "extra_js" }}
+{{/* Chart data as inline JSON blocks, read by dashboard/index.js. The json
+     helper marshals with HTML escaping on, so a logged message containing
+     "</script>" cannot close the block. That is not a hypothetical here: the
+     data is arbitrary text written by other programs. */}}
+{{ with .Dash }}
+<script id="chart-volume" type="application/json">{{ json .Graph }}</script>
+<script id="chart-levels" type="application/json">{{ json .ByLevel }}</script>
+<script id="chart-status" type="application/json">{{ json .StatusClasses }}</script>
+{{ end }}
+<script type="module" src="{{ .PageScript }}"></script>
+{{ end }}
+
+{{ define "breadcrumbs" }}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    {{/* / redirects to /overview once authenticated, so a Home crumb on these
+         pages reloads the page you are already on. */}}
+    {{ if not .Authenticated }}<li class="breadcrumb-item"><a href="/">Home</a></li>{{ end }}
+    <li class="breadcrumb-item active" aria-current="page">Overview</li>
+  </ol>
+</nav>
+{{ end }}
+
+{{ define "main" }}
+{{ with .Dash }}
+<div class="bg-deep border-bottom border-subtle py-4">
+  <div class="container-fluid px-4">
+    <div class="row align-items-center g-3">
+      <div class="col-12 col-lg-5">
+        <div class="section-label mb-2">every source · <span class="text-green">{{ .Totals.Sources }} reporting</span></div>
+        <h1 class="mb-1 text-white fw-bolder" style="letter-spacing: -0.01em;">Overview</h1>
+        <div class="text-muted small">{{ .DateStart }} to {{ .DateEnd }} · UTC</div>
+      </div>
+      <div class="col-12 col-lg-7 d-flex flex-wrap gap-2 justify-content-lg-end align-items-center d-print-none">
+        {{ template "rangePicker" dict "options" .RangeOptions "current" .RangeKey "base" "/overview" }}
+        <a href="/overview{{ query "range" .RangeKey "report" "pdf" }}" target="_blank" class="btn btn-sm btn-outline-light">Report · pdf</a>
+        <a href="/overview{{ query "range" .RangeKey "report" "md" }}" target="_blank" class="btn btn-sm btn-outline-light">Report · md</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container-fluid px-4 my-4">
+
+  {{/* The tiles. Records and errors are counts over the window; the two rates
+       are the numbers worth an alert rule, and they are separated on purpose:
+       an ERROR record is a program complaining, a 5xx is a visitor being told
+       no, and conflating them makes both useless. */}}
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-lg-2">{{ template "tile" dict "accent" "green" "label" "records" "value" (num .Totals.Records) "sub" (printf "%s requests" (num .Totals.Requests)) }}</div>
+    <div class="col-6 col-lg-2">{{ template "tile" dict "accent" "terracotta" "quiet" (eq .Totals.Errors 0) "label" "error records" "value" (num .Totals.Errors) "sub" (printf "%s warnings" (num .Totals.Warnings)) }}</div>
+    <div class="col-6 col-lg-2">{{ template "tile" dict "accent" "terracotta" "quiet" (eq .Totals.Server5xx 0) "label" "5xx rate" "value" (printf "%.2f%%" .Totals.ErrorRate) "sub" (printf "%s of %s requests" (num .Totals.Server5xx) (num .Totals.Requests)) }}</div>
+    <div class="col-6 col-lg-2">{{ template "tile" dict "accent" "amber" "label" "p95 latency" "value" (ms .Latency.P95) "sub" (printf "p50 %s · p99 %s" (ms .Latency.P50) (ms .Latency.P99)) }}</div>
+    <div class="col-6 col-lg-2">{{ template "tile" dict "accent" "amber" "quiet" (eq .Totals.Client4xx 0) "label" "4xx" "value" (num .Totals.Client4xx) "sub" "not found, refused, rate limited" }}</div>
+    {{/* cf_ray is absent exactly when a request did not cross the tunnel. The
+         hardening pass instrumented this and nothing read it until this tile. */}}
+    <div class="col-6 col-lg-2">{{ template "tile" dict "accent" "slate" "label" "direct hits" "value" (num .Totals.DirectHits) "sub" "external, no CF-Ray" }}</div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-xl-8">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">volume</span>
+          <span class="panel-note">records per bucket, error band in terracotta</span>
+        </div>
+        <div class="panel-body is-chart"><canvas id="volume-chart" role="img" aria-label="Records per bucket over the selected window, with errors shown as a band"></canvas></div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-2">
+      <div class="panel">
+        <div class="panel-header"><span class="panel-title">levels</span></div>
+        <div class="panel-body is-chart"><canvas id="levels-chart" role="img" aria-label="Record count by log level"></canvas></div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-2">
+      <div class="panel">
+        <div class="panel-header"><span class="panel-title">status</span></div>
+        <div class="panel-body is-chart"><canvas id="status-chart" role="img" aria-label="Request count by HTTP status class"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  {{/* The sources table is the reason this page exists rather than five pages.
+       Counts come from the hourly rollups so they are right over any window;
+       p95 and last-seen come from raw rows, so a source quiet for longer than
+       the retention window shows a dash rather than a wrong number. */}}
+  <div class="panel mb-4">
+    <div class="panel-header">
+      <span class="panel-title">sources</span>
+      <span class="panel-note">counts from rollups · p95 and last seen from raw lines, {{ .Retained }} day window · dot = a record in the last 15 min</span>
+    </div>
+    <div class="table-scroll">
+      <table class="table table-sm data-table mb-0">
+        <thead>
+          <tr>
+            <th>source</th><th class="num">records</th><th class="num">requests</th>
+            <th class="num">4xx</th><th class="num">5xx</th><th class="num">errors</th>
+            <th class="num">5xx rate</th><th class="num">p95</th><th>last seen</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{ $range := .RangeKey }}
+          {{ range .Sources }}
+          <tr>
+            <td>
+              <span class="status-dot {{ if .IsLive }}is-up{{ else }}is-idle{{ end }}"
+                    title="{{ if .IsLive }}A record arrived in the last 15 minutes{{ else }}Nothing in the last 15 minutes{{ end }}"></span>
+              <span class="visually-hidden">{{ if .IsLive }}live{{ else }}quiet{{ end }}</span>
+              <a href="/sources/{{ .Source }}{{ query "range" $range }}">{{ .Source }}</a>
+            </td>
+            <td class="num">{{ num .Records }}</td>
+            <td class="num">{{ num .Requests }}</td>
+            <td class="num {{ if .Client4xx }}text-amber{{ end }}">{{ num .Client4xx }}</td>
+            <td class="num {{ if .Server5xx }}text-terracotta{{ end }}">{{ num .Server5xx }}</td>
+            <td class="num {{ if .Errors }}text-terracotta{{ end }}">{{ num .Errors }}</td>
+            <td class="num">{{ printf "%.2f%%" .ErrorRate }}</td>
+            <td class="num">{{ ms .P95 }}</td>
+            <td class="text-muted">{{ if .LastSeen }}{{ .LastSeen }}{{ else }}—{{ end }}</td>
+          </tr>
+          {{ else }}
+          <tr><td colspan="9" class="text-center text-muted py-4">
+            Nothing has been shipped yet. Deploy a site with the shipper in its
+            <code>web/</code> and it will appear here within five seconds of its first request.
+          </td></tr>
+          {{ end }}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {{ template "dashPanels" . }}
+
+</div>
+{{ end }}
+{{ end }}

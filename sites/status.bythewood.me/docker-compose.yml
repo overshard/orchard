@@ -12,6 +12,12 @@ services:
       dockerfile: Dockerfile
     container_name: orchard-status
     restart: unless-stopped
+    # Longer than Docker's 10s default, because shutdown now does real work:
+    # the log shipper drains its queue and the writer commits what it holds.
+    # Both are bounded well inside this, so the grace is headroom rather than
+    # a deadline anything relies on. Without it a slow drain meant SIGKILL and
+    # a skipped db.Close().
+    stop_grace_period: 30s
     # Chromium spawns a tree of processes for every audit. Without an init as
     # PID 1 those become zombies that nothing reaps, and a daily audit
     # accumulates them until the container hits its process limit.

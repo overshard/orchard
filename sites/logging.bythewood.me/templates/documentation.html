@@ -1,0 +1,158 @@
+{{ define "extra_head" }}{{ template "social" . }}{{ end }}
+{{ define "extra_css" }}{{ range .PageStyles }}<link href="{{ . }}" rel="stylesheet">{{ end }}{{ end }}
+
+{{ define "breadcrumbs" }}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="/">Home</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{ .Title }}</li>
+  </ol>
+</nav>
+{{ end }}
+
+{{ define "main" }}
+<div class="container my-4 doc">
+  <div class="section-label mb-2">operating</div>
+  <h1 class="fw-bolder text-white mb-4" style="letter-spacing: -0.01em;">Documentation</h1>
+
+  <h2>Shipping from a site</h2>
+  <p>
+    Every site in this repo carries its own copy of <code>web/</code>. The
+    shipper lives in <code>web/shipper.go</code>, and turning it on is two lines
+    in that site's <code>main.go</code>, after <code>web.SetupLogging()</code>
+    and before anything else logs:
+  </p>
+  <pre><code>web.SetupLogging()
+
+shipper := web.ShipLogs("blog", web.HTTPSink())
+defer shipper.Close()</code></pre>
+  <p>
+    The first argument is the source name and should be the first label of the
+    site's hostname, which is also how its container is named, so a row on the
+    dashboard and a line in <code>docker ps</code> say the same word.
+  </p>
+  <p>
+    <code>ShipLogs</code> wraps whatever handler is already installed rather
+    than replacing it. Records still go to stdout exactly as before, and a copy
+    goes onto a bounded queue that a goroutine flushes every five seconds or
+    every five hundred records, whichever comes first. Nothing blocks: a full
+    queue drops, a failed POST drops, and a 429 from this site drops. The
+    failure mode is missing lines on a dashboard, never a stalled site.
+  </p>
+  <p>
+    The shipper never calls <code>slog</code> itself. A shipper that logged its
+    own failures would enqueue a record about failing to ship, and a logging
+    site coming back up would be handed a backlog of complaints about itself.
+    It writes one line to stderr when it starts failing and one when it
+    recovers, and nothing in between.
+  </p>
+
+  <h2>The endpoint</h2>
+  <p>
+    <code>POST http://orchard-logging:8000/ingest</code>, by container name on
+    the <code>orchard-edge</code> bridge. Never over the tunnel, and there is no
+    token: the public hostname refuses this path at Caddy, so the only way to
+    reach it is from inside the network, and anything inside the network is
+    already trusted. That is the same reasoning the alert path uses, and it is
+    what keeps the two <code>FROM scratch</code> sites reading zero environment
+    variables.
+  </p>
+  <p>The body is one JSON object:</p>
+  <pre><code>{
+  "source": "blog",
+  "records": [
+    {
+      "t": 1756500000000,
+      "l": "INFO",
+      "m": "request",
+      "a": {"status": 200, "method": "GET", "path": "/", "ms": 0.412,
+            "host": "blog.bythewood.me", "ip": "203.0.113.7",
+            "cf_ray": "9a1f2c88e410-IAD", "bytes": 4211}
+    }
+  ]
+}</code></pre>
+  <p>
+    <code>t</code> is unix milliseconds in UTC, <code>l</code> the level,
+    <code>m</code> the message and <code>a</code> the attributes. Eight
+    attributes get real columns because every dashboard query filters or sorts
+    on them: <code>component</code>, <code>method</code>, <code>path</code>,
+    <code>host</code>, <code>ip</code>, <code>cf_ray</code>,
+    <code>status</code> and <code>ms</code>. Everything else is kept verbatim in
+    a JSON column, so nothing is lost by not being on the list.
+  </p>
+  <p>
+    Answers are <code>202</code> when the batch is queued, <code>204</code> for
+    an empty one, <code>400</code> for a body that will not parse or a missing
+    source, <code>413</code> past two thousand records, and <code>429</code>
+    when the write queue is full. A 429 is a healthy answer from a healthy
+    service: it is this site shedding load rather than holding a request open on
+    a site it is supposed to be watching.
+  </p>
+
+  <h2>What happens to a record</h2>
+  <p>
+    Records go onto one channel and one goroutine drains it, because SQLite
+    takes a database-wide write lock and a second writer buys contention rather
+    than throughput. The flusher commits every quarter second or every five
+    hundred rows, and in the same transaction it upserts the hourly rollup those
+    rows belong to. One transaction for both is what stops a graph from
+    disagreeing with its own search results.
+  </p>
+  <p>
+    Raw lines are deleted after thirty days, in chunks, by a sweeper that runs
+    hourly and once at startup. The hourly rollups are never deleted. That is
+    the whole retention policy, and it is why the volume chart can cover a year
+    while the file stays a few hundred megabytes: a year of counters for five
+    sources is a small table, and a year of raw request logs is not.
+  </p>
+  <p>
+    Because deleting rows in SQLite frees pages onto a freelist rather than
+    returning them to the filesystem, the database is created with
+    <code>auto_vacuum=INCREMENTAL</code> and the sweeper runs
+    <code>PRAGMA incremental_vacuum</code> after a delete. That pragma only
+    takes effect on an empty file, so it had to be right on the first boot.
+  </p>
+
+  <h2>Reading it</h2>
+  <p>
+    Counts and the volume chart read the rollups, so they are correct over any
+    window including one older than the raw retention. Percentiles, the slowest
+    paths, the direct-hit count and the search read raw rows, so they cover the
+    last thirty days and say so rather than quietly returning less.
+  </p>
+  <p>
+    Percentiles are exact rather than interpolated: the count comes from an
+    aggregate that is wanted anyway, and each percentile is one indexed row read
+    at an offset. Paths are ranked by p95 rather than by mean, with a floor of
+    five samples, so one cold start cannot put a path at the top of the table.
+  </p>
+
+  <h2>Running it</h2>
+  <pre><code>make run SITE=logging.bythewood.me     # vite watch + go run, on :8000
+make deploy SITE=logging.bythewood.me # rebuild and replace the container
+
+# a dashboard is unreadable against an empty database, so:
+cd sites/logging.bythewood.me && make seed</code></pre>
+  <p>
+    <code>LOGGING_PASSWORD</code> is the only environment variable this site
+    reads and it has no default: an internet-facing dashboard over every request
+    every site here has served does not get to start without one. The session
+    cookie's signing key is derived from it, so changing the password ends every
+    outstanding session.
+  </p>
+  <p>
+    Seeding writes through the same commit path the ingest endpoint uses,
+    rollups included, so seeded data and real data are indistinguishable
+    downstream and a panel that looks right on one is not lying about the query
+    it will run against the other.
+  </p>
+
+  <h2>What is not covered</h2>
+  <p>
+    Caddy and cloudflared. Neither can carry a Go handler, so neither ships
+    here. Caddy's log output can be pointed at a network address and is probably
+    solvable; cloudflared logs to stdout only, so seeing a tunnel drop in this
+    site is unsolved. Docker's json-file driver still has all of it either way.
+  </p>
+</div>
+{{ end }}

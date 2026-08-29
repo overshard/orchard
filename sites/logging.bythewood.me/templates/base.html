@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ .Title }} · {{ .SiteName }}</title>
+  <meta name="description" content="{{ .Description }}">
+  <link rel="canonical" href="{{ .Canonical }}">
+  {{/* The staging hostname is a complete duplicate of the real site, which is
+       the one way it can damage it. robots.txt refuses the crawl and this
+       refuses the index, because either alone has a hole: a crawler that
+       ignores robots.txt still sees the meta tag, and one that obeys it never
+       fetches the page to read the tag. */}}
+  {{ if .Staging }}<meta name="robots" content="noindex, nofollow">{{ end }}
+  <link rel="icon" type="image/svg+xml" href="/favicon.ico">
+
+  {{ if .JSONLD }}<script type="application/ld+json">{{ .JSONLD }}</script>{{ end }}
+
+  {{ template "extra_head" . }}
+
+  {{ range .Styles }}<link href="{{ . }}" rel="stylesheet">{{ end }}
+  {{ template "extra_css" . }}
+
+  {{- if .Analytics }}
+  <script>
+    (function (m, e, t, r, i, c, s) {
+      m.collectorQueue = m.collectorQueue || r;
+      m.collectorServer = c;
+      m.collectorId = s;
+      m.collectorScript = e.createElement(t);
+      m.collectorScript.src = c + i;
+      e.head.appendChild(m.collectorScript);
+    })(window, document, "script", [], "/static/collector.js",
+       "https://analytics.bythewood.me", "{{ .AnalyticsID }}");
+  </script>
+  {{- end }}
+</head>
+
+<body>
+  {{ template "nav" . }}
+
+  {{ template "breadcrumb_bar" . }}
+
+  <main>
+    {{ template "main" . }}
+  </main>
+
+  {{ template "footer" . }}
+
+  <script type="module" src="{{ .Script }}"></script>
+  {{ template "extra_js" . }}
+</body>
+</html>

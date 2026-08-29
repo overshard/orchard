@@ -1,0 +1,81 @@
+{{ define "extra_css" }}{{ range .PageStyles }}<link href="{{ . }}" rel="stylesheet">{{ end }}{{ end }}
+
+{{ define "extra_js" }}
+{{ with .Dash }}
+<script id="chart-volume" type="application/json">{{ json .Graph }}</script>
+<script id="chart-levels" type="application/json">{{ json .ByLevel }}</script>
+<script id="chart-status" type="application/json">{{ json .StatusClasses }}</script>
+{{ end }}
+<script type="module" src="{{ .PageScript }}"></script>
+{{ end }}
+
+{{ define "breadcrumbs" }}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    {{/* / redirects to /overview once authenticated, so a Home crumb on these
+         pages reloads the page you are already on. */}}
+    {{ if not .Authenticated }}<li class="breadcrumb-item"><a href="/">Home</a></li>{{ end }}
+    <li class="breadcrumb-item"><a href="/overview">Overview</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{ .Title }}</li>
+  </ol>
+</nav>
+{{ end }}
+
+{{ define "main" }}
+{{ with .Dash }}
+<div class="bg-deep border-bottom border-subtle py-4">
+  <div class="container-fluid px-4">
+    <div class="row align-items-center g-3">
+      <div class="col-12 col-lg-5">
+        <div class="section-label mb-2">source</div>
+        <h1 class="mb-1 text-white fw-bolder" style="letter-spacing: -0.01em;">{{ .Source }}</h1>
+        <div class="text-muted small">{{ .DateStart }} to {{ .DateEnd }} · UTC</div>
+      </div>
+      <div class="col-12 col-lg-7 d-flex flex-wrap gap-2 justify-content-lg-end align-items-center d-print-none">
+        {{ template "rangePicker" dict "options" .RangeOptions "current" .RangeKey "base" (printf "/sources/%s" .Source) }}
+        <a href="/search{{ query "source" .Source "range" .RangeKey }}" class="btn btn-sm btn-outline-light">Search this source</a>
+        <a href="/sources/{{ .Source }}{{ query "range" .RangeKey "report" "pdf" }}" target="_blank" class="btn btn-sm btn-outline-light">Report · pdf</a>
+        <a href="/sources/{{ .Source }}{{ query "range" .RangeKey "report" "md" }}" target="_blank" class="btn btn-sm btn-outline-light">Report · md</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container-fluid px-4 my-4">
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-lg-2">{{ template "tile" dict "accent" "green" "label" "records" "value" (num .Totals.Records) "sub" (printf "%s requests" (num .Totals.Requests)) }}</div>
+    <div class="col-6 col-lg-2">{{ template "tile" dict "accent" "terracotta" "quiet" (eq .Totals.Errors 0) "label" "error records" "value" (num .Totals.Errors) "sub" (printf "%s warnings" (num .Totals.Warnings)) }}</div>
+    <div class="col-6 col-lg-2">{{ template "tile" dict "accent" "terracotta" "quiet" (eq .Totals.Server5xx 0) "label" "5xx rate" "value" (printf "%.2f%%" .Totals.ErrorRate) "sub" (printf "%s of %s requests" (num .Totals.Server5xx) (num .Totals.Requests)) }}</div>
+    <div class="col-6 col-lg-2">{{ template "tile" dict "accent" "amber" "label" "p95 latency" "value" (ms .Latency.P95) "sub" (printf "p50 %s · p99 %s" (ms .Latency.P50) (ms .Latency.P99)) }}</div>
+    <div class="col-6 col-lg-2">{{ template "tile" dict "accent" "amber" "quiet" (eq .Totals.Client4xx 0) "label" "4xx" "value" (num .Totals.Client4xx) "sub" "not found, refused, rate limited" }}</div>
+    <div class="col-6 col-lg-2">{{ template "tile" dict "accent" "slate" "label" "direct hits" "value" (num .Totals.DirectHits) "sub" "external, no CF-Ray" }}</div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-xl-8">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">volume</span>
+          <span class="panel-note">records per bucket, error band in terracotta</span>
+        </div>
+        <div class="panel-body is-chart"><canvas id="volume-chart" role="img" aria-label="Records per bucket over the selected window, with errors shown as a band"></canvas></div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-2">
+      <div class="panel">
+        <div class="panel-header"><span class="panel-title">levels</span></div>
+        <div class="panel-body is-chart"><canvas id="levels-chart" role="img" aria-label="Record count by log level"></canvas></div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-2">
+      <div class="panel">
+        <div class="panel-header"><span class="panel-title">status</span></div>
+        <div class="panel-body is-chart"><canvas id="status-chart" role="img" aria-label="Request count by HTTP status class"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  {{ template "dashPanels" . }}
+</div>
+{{ end }}
+{{ end }}

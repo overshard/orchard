@@ -1,0 +1,158 @@
+{{ define "extra_head" }}{{ template "social" . }}{{ end }}
+{{ define "extra_css" }}{{ range .PageStyles }}<link href="{{ . }}" rel="stylesheet">{{ end }}{{ end }}
+{{ define "breadcrumb_bar" }}{{ end }}
+{{ define "main" }}
+<section class="hero">
+  <div class="container">
+    <div class="row">
+      <div class="col-12 col-lg-7">
+        <span class="hero-eyebrow">
+          <span class="eyebrow-dot" aria-hidden="true"></span>
+          v0.1.0 · alpha · self-hosted
+        </span>
+        <h1 class="hero-title">
+          The logs your own machines already wrote, <span class="accent">finally read by something</span>.
+        </h1>
+        <p class="hero-sub">
+          Every site here emits structured records with typed attributes and
+          sends them to Docker's log driver, where they rotate away unread.
+          This is the other end of that: an in-process shipper on each site, one
+          ingest endpoint on the internal bridge, SQLite behind it, and graphs
+          in front. Latency percentiles, status distributions, error rates and
+          full text search over the raw lines, with hourly counters kept after
+          those lines age out.
+        </p>
+        <div class="hero-ctas">
+          <a href="/login" class="btn btn-primary">Access dashboard →</a>
+          <a href="/documentation" class="btn btn-outline-light">Docs</a>
+          <a href="{{ .SourceURL }}" target="_blank" rel="noopener" class="btn btn-outline-light">View source</a>
+        </div>
+      </div>
+      <div class="col-12 col-lg-5 mt-5 mt-lg-0 d-flex align-items-center">
+        <div class="terminal-block w-100">
+          <span class="t-line"><span class="t-comment"># one flush, five seconds of records</span></span>
+          <span class="t-line"><span class="t-prompt">blog$</span><span class="t-out">POST orchard-logging:8000/ingest</span></span>
+          <span class="t-line"><span class="t-key">source</span>=<span class="t-val">blog</span> <span class="t-key">records</span>=<span class="t-val">37</span></span>
+          <span class="t-line"><span class="t-key">msg</span>=<span class="t-val">request</span> <span class="t-key">status</span>=<span class="t-val">200</span> <span class="t-key">ms</span>=<span class="t-val">0.412</span></span>
+          <span class="t-line"><span class="t-key">cf_ray</span>=<span class="t-val">9a1f2c88e410-IAD</span></span>
+          <span class="t-line"><span class="t-prompt">blog$</span> <span class="t-cursor"></span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="stat-strip">
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-6 col-md-3">
+        <div class="stat">
+          <div class="stat-label">records ingested</div>
+          <div class="stat-value">{{ num .Stats.Records }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat">
+          <div class="stat-label">sources</div>
+          <div class="stat-value">{{ .Stats.Sources }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat">
+          <div class="stat-label">raw retention</div>
+          <div class="stat-value">{{ .Stats.RawDays }}d</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat">
+          <div class="stat-label">counting since</div>
+          <div class="stat-value" style="font-size: 1.05rem;">
+            {{ if .Stats.FirstSeen }}{{ .Stats.FirstSeen }}{{ else }}—{{ end }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="container my-5 py-4">
+  <div class="row g-4">
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="feature">
+        <div class="feature-label">shipping</div>
+        <div class="feature-title">A handler, not a sidecar</div>
+        <p class="feature-desc">
+          Each site installs a <code>slog.Handler</code> that tees: stdout is
+          written exactly as before, and a copy goes onto a bounded queue that a
+          background goroutine flushes. Nothing blocks the caller, a full queue
+          drops, and a failed POST drops. stdout stays the source of truth, so
+          the worst outage here costs some lines on a dashboard.
+        </p>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="feature">
+        <div class="feature-label">addressing</div>
+        <div class="feature-title">No token, because no route</div>
+        <p class="feature-desc">
+          Sites post to a container name on the internal bridge, never over the
+          tunnel, and the public hostname refuses <code>/ingest</code> outright.
+          Anything able to reach the endpoint is already inside the network, so
+          there is no shared secret to rotate and no new environment variable on
+          any site.
+        </p>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="feature">
+        <div class="feature-label">storage</div>
+        <div class="feature-title">Raw lines and hourly counters</div>
+        <p class="feature-desc">
+          Records are batched into one writer and committed a few hundred at a
+          time, with the hourly rollup written in the same transaction so the
+          graphs can never disagree with the search. Raw lines expire on a
+          schedule; the counters do not, which is what lets a year-long chart
+          read a few hundred rows.
+        </p>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="feature">
+        <div class="feature-label">reading</div>
+        <div class="feature-title">Percentiles, not averages</div>
+        <p class="feature-desc">
+          p50, p95 and p99 computed from the actual distribution rather than
+          interpolated, and paths ranked by p95 rather than mean, because the
+          endpoint that is fast a thousand times and terrible twice is the one
+          worth finding. Status classes, level mix, busiest paths and per
+          component volume alongside.
+        </p>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="feature">
+        <div class="feature-label">signals</div>
+        <div class="feature-title">The absence of a header</div>
+        <p class="feature-desc">
+          Every request that crosses the tunnel carries a <code>CF-Ray</code>.
+          A request log entry without one reached the origin directly, which is
+          worth knowing and was already being recorded by every site here with
+          nothing reading it. It is a tile on the dashboard.
+        </p>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="feature">
+        <div class="feature-label">stack</div>
+        <div class="feature-title">One Go binary and a file</div>
+        <p class="feature-desc">
+          Go, <code>html/template</code>, SQLite through a pure-Go driver, and a
+          Vite bundle compiled into the executable. Typst renders the PDF report
+          on the request path, which is the only reason the image is Alpine
+          rather than empty. No agent, no collector daemon, no second process.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+{{ end }}

@@ -6,7 +6,7 @@ repository. Start with `README.md`; this file is the working detail behind it.
 ## What this is
 
 One repo for every site Isaac Bythewood runs, plus the shared Cloudflare Tunnel
-and Caddy that front them. Four sites, all Go, all served from a desktop behind
+and Caddy that front them. Five sites, all Go, all served from a desktop behind
 a tunnel rather than a rented server.
 
 | Directory | What it serves |
@@ -15,6 +15,7 @@ a tunnel rather than a rented server.
 | `sites/blog.bythewood.me/` | Markdown blog. A PDF and a social card per post, and an Atom feed |
 | `sites/analytics.bythewood.me/` | Self hosted analytics. SQLite, GeoIP, Typst PDF reports |
 | `sites/status.bythewood.me/` | Self hosted uptime monitoring. SQLite, Lighthouse audits, crawler |
+| `sites/logging.bythewood.me/` | Self hosted log aggregation. Every other site ships its slog records here. SQLite, retention and rollups, Typst PDF reports |
 | `edge/` | The shared `cloudflared` tunnel and the Caddy that reverse proxies to each site |
 
 ## The one structural rule
@@ -22,7 +23,7 @@ a tunnel rather than a rented server.
 **Every site is its own Go module and owns its own copy of `web/`.**
 
 There is no module at the repo root. `go.work` exists so repo wide `make`
-targets and an editor can see all four at once; nothing depends on it. Each site
+targets and an editor can see all five at once; nothing depends on it. Each site
 builds standalone:
 
 ```sh
@@ -34,12 +35,14 @@ liftable into its own repository by copying the folder.
 
 `web/` is the small HTTP layer every site needs: the Vite manifest reader,
 request logging, panic recovery, security headers, the static and edge cache
-policies, and graceful shutdown. It was one shared `internal/web` under a single
-root module before the split.
+policies, graceful shutdown, and `shipper.go`, the tee handler that sends a copy
+of every log record to logging.bythewood.me. It was one shared `internal/web`
+under a single root module before the split.
 
-**A fix in `web/` has to be made four times.** If a change belongs in all four,
-change all four. Do not reintroduce a shared parent module to avoid this; that
-is the thing the split removed.
+**A fix in `web/` has to be made five times.** If a change belongs in all five,
+change all five. Do not reintroduce a shared parent module to avoid this; that
+is the thing the split removed. `shipper.go` in particular must stay
+byte-identical across the five: it is a wire format as much as a file.
 
 ## Commands
 
@@ -80,26 +83,28 @@ name on the `orchard-edge` network.
 
 **Everything is named `orchard-<first label>`.** `orchard-caddy`,
 `orchard-cloudflared`, `orchard-blog`, `orchard-analytics`, `orchard-status`,
-`orchard-isaacbythewood`, and the volumes `orchard-analytics-data` and
-`orchard-status-data`. One prefix across the repo, so `docker ps --filter
-name=orchard` is the whole system and the Makefile derives a container name from
+`orchard-isaacbythewood`, `orchard-logging`, and the volumes
+`orchard-analytics-data`, `orchard-status-data` and `orchard-logging-data`. One
+prefix across the repo, so `docker ps --filter name=orchard` is the whole system and the Makefile derives a container name from
 a site directory without a lookup table. These carried a `-next` suffix until
 2026-08-29, from the migration that made them the live thing; the suffix stopped
 being true the day the cutover finished.
 
-**Two things reference a container by name, and both bake it in.**
-`edge/caddy/Caddyfile` reverse-proxies to each site, and
+**Three things reference a container by name, and all three bake it in.**
+`edge/caddy/Caddyfile` reverse-proxies to each site,
 `sites/isaacbythewood.com/site.go` fetches `http://orchard-blog:8000/latest.json`
-for the portfolio's latest-posts panel. Neither reads the name at runtime, so
-renaming a container means rebuilding Caddy *and* the portfolio, not just editing
-a compose file. Nothing in either SQLite database refers to a container name.
+for the portfolio's latest-posts panel, and `web/shipper.go` in every site posts
+to `http://orchard-logging:8000/ingest`. None of them reads the name at runtime,
+so renaming a container means rebuilding Caddy, the portfolio *and* every site,
+not just editing a compose file. Nothing in any SQLite database refers to a
+container name.
 
 **Adding a hostname is three changes, not one.** A Caddy site block, a
 `cloudflared` ingress rule, and a proxied CNAME to
 `<tunnel-id>.cfargotunnel.com`. The edge config is baked into the images, so
 both edge components need a rebuild to pick up a change.
 
-**Containers run as UID 65532, and base images are pinned by digest.** The two
+**Containers run as UID 65532, and base images are pinned by digest.** The three
 Alpine sites create a real user at that UID; the two scratch ones use the bare
 number, because there is no `/etc/passwd` to name one in. A `/data` volume
 created root-owned stays root-owned, so a new one has to be chown'd once.
@@ -112,6 +117,28 @@ against `/healthz` and exits 0 or 1. A `FROM scratch` image has no shell for
 every main before anything else logs. UTC is not slog's default and is forced
 through `ReplaceAttr`, because local time in a container silently differs from
 the host's.
+
+**And it is teed, never replaced.** `web.ShipLogs(source, web.HTTPSink())` runs
+straight after `SetupLogging`, past the healthcheck branch so a `HEALTHCHECK`
+invocation does not start a queue it will never flush. It wraps whatever handler
+is installed and copies each record onto a bounded channel that a goroutine
+flushes to `orchard-logging`. Nothing on that path blocks a caller: a full queue
+drops, a failed POST drops, a 429 drops. stdout stays the source of truth, so
+the worst a broken logging site can do is lose lines from a dashboard. The
+shipper never calls `slog` itself, because a shipper that logged its own
+failures would enqueue a record about failing to ship; state changes go straight
+to stderr. `logging.bythewood.me` is the one exception and passes a local sink
+instead, since posting to itself would be an ingest request that logs a request
+that becomes an ingest request.
+
+**`Shipper.Close()` is bounded, and the bound is load bearing.** Unbounded, it
+drained the whole 4096-deep queue calling the sink synchronously every 500
+records: nine flushes at the ten second timeout, measured at 100 seconds against
+a wedged logging site. Docker's default stop grace is ten, so one hung container
+would have SIGKILLed every other site on the next `make deploy`, skipping their
+`db.Close()`. Close now waits on a timer, and every compose file sets
+`stop_grace_period: 30s`. The hot path was never the risk: 20,000 log calls
+against a dead sink cost 28ms in total.
 
 **Deploys need `sudo`, and `sudo` then eats the password.** The Docker socket is
 `root:root` mode 660; being in the `docker` group does not help. But sudoers
@@ -148,9 +175,9 @@ own package.
 
 **Typst runs at build time, not on the request path.** Post PDFs, the resume and
 every social card are compiled during `docker build` and served as files. The
-blog and the portfolio end at `FROM scratch` because of it. Analytics and status
-keep Typst in the runtime image because their reports come from live data over
-an arbitrary date range, with no finite set to precompile.
+blog and the portfolio end at `FROM scratch` because of it. Analytics, status and
+logging keep Typst in the runtime image because their reports come from live data
+over an arbitrary date range, with no finite set to precompile.
 
 **Fonts for Typst must be TrueType.** Geist is installed with `bun add geist`
 and reached through `--font-path`. Vercel's package rather than
@@ -159,6 +186,30 @@ cannot read it. A missing face does not error, it falls back to a serif, which
 is how `blog_post.typ` asked for Inter for months and rendered in DejaVu.
 
 ## Rules learned the hard way
+
+**An hourly rollup cannot answer an unaligned window.** `logging`'s `rollups.hour`
+is an hour-floored timestamp, so `hour >= start` against a `now`-relative start
+drops the bucket that *contains* the start, whole. Every tile lost up to an hour
+of data while the raw-backed panels beside them did not, so the two disagreed on
+screen: "Last hour" reported 31 records against a raw window holding 59. Floor
+the start of the window, which makes the rollup sum exactly equal the raw count
+rather than merely closer. **A test using an hour-aligned base with a
+`base-1 .. base+1` window cannot catch this**, which is the shape every original
+test used.
+
+**Percentiles in SQLite want `CUME_DIST`, not `PERCENT_RANK`.** `PERCENT_RANK`
+assigns exactly 1.0 to the largest row of every partition, so `pr <= 0.95` can
+never select the slowest sample: a five-sample path reported its 4th value, the
+80th percentile, under a column headed p95. `CUME_DIST` reaches 1.0 at the
+maximum, so `MIN(CASE WHEN cd >= 0.95 ...)` is the nearest-rank percentile it
+claims to be. It is also one query instead of one per percentile.
+
+**A container health check is not traffic.** Every one is the binary probing
+itself over loopback with no `CF-Ray`, roughly 480 an hour across this repo. In
+`logging` they were 59% of request records and were being counted by the latency
+percentiles and the busiest-paths ranking, which made p50 read 0.042ms against a
+real 0.537ms. They are demoted to a rollup counter rather than dropped, so the
+proof that each site answered its probe survives, forever, without a raw row.
 
 **Never put `$(MAKE)` on a recipe line that also does something.** GNU make
 runs any recipe line containing that string even under `-n`, so the sub-make
@@ -202,7 +253,22 @@ nothing.
 
 ## Tests
 
-`make test` runs every site's suite plus its `web/` copy. There are no linter
-configs; `make check` is gofmt, vet and build. The portfolio has no Go tests of
-its own, being templates and handlers over static data, and is covered by `web/`
-plus browser checks.
+`make test` runs every site's suite plus its `web/` copy, ten packages. There are
+no linter configs; `make check` is gofmt, vet and build. The portfolio has no Go
+tests of its own, being templates and handlers over static data, and is covered
+by `web/` plus browser checks.
+
+**`logging` alone drops `script-src 'unsafe-inline'`.** The allowance in the
+other four is inherited from analytics, whose comment cites an inline
+self-tracking snippet. `logging` has no inline executable script at all: its
+`application/json` and `ld+json` blocks are data and load regardless. It is also
+the one site that renders text written by other programs, so it is the one that
+most needs a second line of defence behind its escaping.
+
+`web/shipper_test.go` is one of the five identical copies and covers the part
+that is easy to get quietly wrong: that a record reaches both the original
+handler and the queue, that `WithAttrs` and `WithGroup` return something that
+still tees, that a full queue drops instead of blocking, and that logging after
+`Close` does not panic. `logging.bythewood.me` additionally renders every page
+against a real seeded database, because a template referencing a field that does
+not exist fails at execute time rather than at parse time.

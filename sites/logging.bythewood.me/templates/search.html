@@ -1,0 +1,116 @@
+{{ define "extra_css" }}{{ range .PageStyles }}<link href="{{ . }}" rel="stylesheet">{{ end }}{{ end }}
+
+{{ define "breadcrumbs" }}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb mb-0">
+    {{/* / redirects to /overview once authenticated, so a Home crumb on these
+         pages reloads the page you are already on. */}}
+    {{ if not .Authenticated }}<li class="breadcrumb-item"><a href="/">Home</a></li>{{ end }}
+    <li class="breadcrumb-item"><a href="/overview">Overview</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Search</li>
+  </ol>
+</nav>
+{{ end }}
+
+{{ define "main" }}
+{{ with .Search }}
+<div class="bg-deep border-bottom border-subtle py-4">
+  <div class="container-fluid px-4">
+    <div class="section-label mb-2">raw lines</div>
+    <h1 class="mb-1 text-white fw-bolder" style="letter-spacing: -0.01em;">Search</h1>
+    <p class="text-muted small mb-3">
+      Every record still inside the {{ .Retained }} day raw window. Older than that,
+      only the hourly counters survive, which the graphs read and this page cannot.
+    </p>
+
+    {{/* One GET form, so a search is a URL somebody can bookmark or paste into
+         a note about an incident. Every control below is a query parameter and
+         nothing here posts. */}}
+    <form method="get" class="search-grid">
+      <div class="form-floating sg-q">
+        <input type="text" class="form-control" name="q" id="q" placeholder="grep" value="{{ .Q }}">
+        <label for="q">Message or path contains</label>
+      </div>
+      <div class="form-floating">
+        <select class="form-select" name="source" id="source">
+          <option value="">any source</option>
+          {{ $s := .Source }}
+          {{ range .Sources }}<option value="{{ . }}" {{ if eq . $s }}selected{{ end }}>{{ . }}</option>{{ end }}
+        </select>
+        <label for="source">Source</label>
+      </div>
+      <div class="form-floating">
+        <select class="form-select" name="level" id="level">
+          <option value="">any level</option>
+          {{ $l := .Level }}
+          {{ range .Levels }}<option value="{{ . }}" {{ if eq . $l }}selected{{ end }}>{{ . }}</option>{{ end }}
+        </select>
+        <label for="level">Level</label>
+      </div>
+      <div class="form-floating">
+        <select class="form-select" name="status" id="status">
+          {{ $c := .StatusClass }}
+          <option value="0">any status</option>
+          <option value="2" {{ if eq $c 2 }}selected{{ end }}>2xx</option>
+          <option value="3" {{ if eq $c 3 }}selected{{ end }}>3xx</option>
+          <option value="4" {{ if eq $c 4 }}selected{{ end }}>4xx</option>
+          <option value="5" {{ if eq $c 5 }}selected{{ end }}>5xx</option>
+        </select>
+        <label for="status">Status</label>
+      </div>
+      <div class="form-floating">
+        <select class="form-select" name="range" id="range">
+          {{/* Only the windows the raw table can actually answer. Offering
+               90d and 1y here was silent: selecting them could never widen the
+               result set, because anything older than the retention exists
+               only as an hourly counter. */}}
+          {{ $r := .RangeKey }}
+          {{ range .RangeOptions }}{{ if .WithinRetention }}<option value="{{ .Key }}" {{ if eq .Key $r }}selected{{ end }}>{{ .Name }}</option>{{ end }}{{ end }}
+        </select>
+        <label for="range">Window</label>
+      </div>
+      <button type="submit" class="btn btn-primary">Search &rarr;</button>
+    </form>
+  </div>
+</div>
+
+<div class="container-fluid px-4 my-4">
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">results</span>
+      <span class="panel-note">
+        {{ if .Results }}page {{ .Page }}, {{ len .Results }} lines{{ else }}no matches{{ end }}
+      </span>
+    </div>
+    <div class="log-body">
+      {{ range .Results }}{{ template "recordRow" . }}{{ else }}
+      <div class="rank-list-empty">
+        {{ if gt .Page 1 }}
+        No more results past page {{ sub .Page 1 }}. Go back, or widen the window.
+        {{ else }}
+        Nothing matched. Widen the window, or drop a filter: the raw window is
+        {{ $.Search.Retained }} days and anything older is only in the rollups.
+        {{ end }}
+      </div>
+      {{ end }}
+    </div>
+  </div>
+
+  {{/* Pagination without a COUNT. The query asks for one row more than a page
+       and reports whether it got it, so "is there a next page" costs a row
+       instead of a scan over everything that matched. The cost is that there
+       is no page count, which is the right trade for a log search. */}}
+  {{ if or (gt .Page 1) .HasMore }}
+  <div class="pager mt-3">
+    {{ if gt .Page 1 }}
+    <a class="btn btn-sm btn-outline-light" href="/search{{ query "q" .Q "source" .Source "level" .Level "status" (printf "%d" .StatusClass) "range" .RangeKey "page" (printf "%d" (sub .Page 1)) }}">&larr; Newer</a>
+    {{ else }}<span></span>{{ end }}
+    <span class="text-muted small">page {{ .Page }}</span>
+    {{ if .HasMore }}
+    <a class="btn btn-sm btn-outline-light" href="/search{{ query "q" .Q "source" .Source "level" .Level "status" (printf "%d" .StatusClass) "range" .RangeKey "page" (printf "%d" (add .Page 1)) }}">Older &rarr;</a>
+    {{ else }}<span></span>{{ end }}
+  </div>
+  {{ end }}
+</div>
+{{ end }}
+{{ end }}

@@ -12,6 +12,7 @@ All of it runs on a desktop at home. Nothing listens on an inbound port.
 | `sites/blog.bythewood.me/` | Markdown blog. A PDF and a social card are built per post |
 | `sites/analytics.bythewood.me/` | Analytics. SQLite, GeoIP, Typst PDF reports |
 | `sites/status.bythewood.me/` | Uptime monitoring. SQLite, Lighthouse audits, crawler |
+| `sites/logging.bythewood.me/` | Log aggregation. Every site ships its own records here; SQLite, retention, Typst PDF reports |
 | `edge/` | The shared `cloudflared` tunnel and the Caddy behind it |
 
 ## Three situations
@@ -23,7 +24,7 @@ all went down at once. The tunnel is a one-time step; everything after it is
 ```sh
 sh edge/setup-tunnel.sh login      # once per machine, opens a browser
 sh edge/setup-tunnel.sh up         # creates the tunnel and its DNS records
-ANALYTICS_PASSWORD=... STATUS_PASSWORD=... make up
+ANALYTICS_PASSWORD=... STATUS_PASSWORD=... LOGGING_PASSWORD=... make up
 ```
 
 `make up` brings up the edge and then every site, and finishes by printing
@@ -36,7 +37,7 @@ already correct.
 make deploy SITE=blog.bythewood.me
 ```
 
-That is the only command that rebuilds. The two sites with a password need it
+That is the only command that rebuilds. The three sites with a password need it
 in the deploying shell, and `make` will tell you which:
 
 ```sh
@@ -50,7 +51,7 @@ make doctor
 ```
 
 Read-only. It prints the tunnel credentials, the `orchard-edge` network, both
-edge containers, all four sites, and the two SQLite volumes with their sizes,
+edge containers, every site, and the three SQLite volumes with their sizes,
 putting the command that fixes it next to anything wrong. A container that is
 stopped or unhealthy usually wants `make up`; one that is serving the wrong
 thing wants `make deploy`.
@@ -77,7 +78,7 @@ make check                           gofmt, then vet and build every site
 make test                            every site's tests
 ```
 
-The four development targets touch no Docker at all. Everything else does, and
+The development targets touch no Docker at all. Everything else does, and
 goes through `sudo`, because the socket in the webdev container is `root:root`
 mode 660. On a host where docker needs no sudo: `make up SUDO=`.
 
@@ -89,7 +90,7 @@ inside one without going through the root. There is no default `SITE`; a bare
 
 Each site is its own Go module and builds on its own. There is no module at the
 repo root; `go.work` exists so repo-wide `make` targets and an editor can see
-all four at once, and nothing depends on it:
+all five at once, and nothing depends on it:
 
 ```sh
 cd sites/blog.bythewood.me && GOWORK=off go build ./...
@@ -97,11 +98,30 @@ cd sites/blog.bythewood.me && GOWORK=off go build ./...
 
 Each site also carries its own copy of `web/`, the small HTTP layer they all
 need: the Vite manifest reader, request logging, panic recovery, security
-headers, cache policy and graceful shutdown. This used to be one shared package
-under a single root module. Splitting it means a site is a directory you can
-lift into its own repository, and its Docker build context is that directory
-instead of the whole monorepo. The cost is that a fix in `web/` has to be made
-four times.
+headers, cache policy, graceful shutdown, and the shipper that tees every log
+record to `logging.bythewood.me`. This used to be one shared package under a
+single root module. Splitting it means a site is a directory you can lift into
+its own repository, and its Docker build context is that directory instead of
+the whole monorepo. The cost is that a fix in `web/` has to be made five times.
+
+## Logging
+
+Every site installs a `slog.Handler` that tees: stdout is written exactly as
+before, and a copy is queued for `logging.bythewood.me`, which a background
+goroutine flushes to `http://orchard-logging:8000/ingest` by container name on
+the internal bridge. Nothing on that path can block a request, and every failure
+drops rather than waits, because stdout stays the source of truth and the worst
+outcome is a gap on a dashboard.
+
+There is no token, because there is no route: the Caddy block for the public
+hostname answers `/ingest` with a 404, so the only way to reach the endpoint is
+from inside the network. Records land in SQLite in batched transactions, with an
+hourly rollup written in the same transaction. Raw lines are swept after thirty
+days; the rollups are kept forever, which is what lets a year-long chart read a
+few hundred rows.
+
+Caddy and cloudflared are the exception and ship nothing: neither can carry a Go
+handler. Docker's json-file driver still has all of it.
 
 ## How a site works
 
@@ -194,7 +214,7 @@ pinned at the edge.
 
 ## Containers
 
-All four run as UID 65532, with base images pinned by digest. The two Alpine
+All five run as UID 65532, with base images pinned by digest. The three Alpine
 images create a real user at that UID; the two `FROM scratch` images use the
 bare number, since there is no `/etc/passwd` to name a user in. A `/data` volume
 created root-owned stays root-owned and needs a one-time
