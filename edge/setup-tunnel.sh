@@ -15,7 +15,11 @@ set -e
 VOLUME=orchard-cloudflared
 TUNNEL=orchard
 IMAGE=cloudflare/cloudflared:latest
-HOSTNAMES="next.isaacbythewood.com next-blog.bythewood.me next-analytics.bythewood.me next-status.bythewood.me"
+# Every hostname the tunnel serves, matching the ingress rules in
+# cloudflared/config.yml. These span two zones, and cert.pem only covers one at
+# a time (see the note in `up`), so routing all of them means logging in once
+# per zone and running `up` again; the per-host failures are tolerated.
+HOSTNAMES="isaacbythewood.com www.isaacbythewood.com bythewood.me www.bythewood.me blog.bythewood.me analytics.bythewood.me status.bythewood.me"
 
 # cloudflared's image is distroless with no shell, so anything that needs to
 # poke at the volume borrows a plain alpine.

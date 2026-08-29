@@ -94,6 +94,12 @@ type Project struct {
 
 var projects = []Project{
 	{
+		Name:        "orchard",
+		Slug:        "orchard",
+		Description: "Every site I run, in one repo, with the shared Cloudflare Tunnel and Caddy that front them. Served from a desktop at home, this site included.",
+		Tech:        []string{"Go", "Vite", "SQLite"},
+	},
+	{
 		Name:        "taproot",
 		Slug:        "taproot",
 		Description: "Dotfiles, containers, and the configs that make a machine mine.",
