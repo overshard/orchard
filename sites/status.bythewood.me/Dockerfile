@@ -15,7 +15,12 @@
 # build, for the same reason as analytics: a property report describes a live
 # monitoring state that changes every three minutes, so unlike a blog post's
 # PDF there is no finite set to precompile. See typst.go.
-FROM alpine:3.23 AS typst
+# Base images are pinned by digest, not just by tag. `oven/bun:1-alpine` in
+# particular floats across an entire major version, so two builds a month apart
+# were not building the same thing. The typst stage below already pinned a
+# version and a sha256 and was the only honest pin in the file; this brings the
+# rest up to it. Bump these deliberately, the same way the typst pin is bumped.
+FROM alpine:3.23@sha256:fd791d74b68913cbb027c6546007b3f0d3bc45125f797758156952bc2d6daf40 AS typst
 ARG TYPST_VERSION=0.14.0
 ARG TYPST_SHA256=99816d2982de08d2b091bac56b59b2faa523a10e1378ad3cdd68e35b8eb74b3d
 RUN apk add --no-cache curl tar xz && \
@@ -26,7 +31,7 @@ RUN apk add --no-cache curl tar xz && \
     mv /tmp/typst-x86_64-unknown-linux-musl/typst /usr/local/bin/typst
 
 # --- frontend -----------------------------------------------------------
-FROM oven/bun:1-alpine AS frontend
+FROM oven/bun:1-alpine@sha256:07235578f79ef8c6f97d94aee7938e76f5cdba5f21ae5dbfdd3d3d38058437eb AS frontend
 WORKDIR /src
 COPY frontend/package.json frontend/bun.lock ./
 RUN bun install --frozen-lockfile
@@ -38,13 +43,13 @@ RUN bun run build
 # cache survives: this installs a large dependency tree that changes only when
 # the Lighthouse version does, and rebuilding it on every CSS tweak would add
 # minutes to each deploy.
-FROM oven/bun:1-alpine AS lighthouse
+FROM oven/bun:1-alpine@sha256:07235578f79ef8c6f97d94aee7938e76f5cdba5f21ae5dbfdd3d3d38058437eb AS lighthouse
 WORKDIR /src
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 
 # --- binary -------------------------------------------------------------
-FROM golang:1.27-alpine AS build
+FROM golang:1.27-alpine@sha256:4c9fe60190a2a3350ddc51de80d0224b8a6698d12bdfc999fee45ea9d6c46dbc AS build
 WORKDIR /src
 
 # The bracket glob makes go.sum optional. A module with no third party
@@ -75,7 +80,7 @@ COPY typst/card.typ /card.typ
 RUN typst compile --format png --ppi 72 --font-path /fonts/geist-sans /card.typ /card.png
 
 # --- image --------------------------------------------------------------
-FROM alpine:3.23
+FROM alpine:3.23@sha256:fd791d74b68913cbb027c6546007b3f0d3bc45125f797758156952bc2d6daf40
 
 # chromium is for Lighthouse and nothing else. PDF is typst, which needs the
 # three font packages rather than a browser; that split is why this image does
@@ -120,6 +125,25 @@ ENV XDG_CACHE_HOME=/tmp
 # Desktop on the Windows host and resolves paths against its own filesystem, so
 # a bind mount of a path under /home/dev silently becomes an empty directory.
 VOLUME ["/data"]
+
+# Runs as a normal user rather than root. The UID is the same 65532 the two
+# FROM scratch images use, so every container in this repo runs as one non-root
+# identity and a /data volume is chown'd to one number.
+#
+# -H because this user owns no home: everything it writes goes to /data (the
+# volume) or /tmp (XDG_CACHE_HOME, where Typst and Chromium scribble).
+#
+# The existing volumes were created root-owned, so they were chown'd to 65532
+# once, out of band, when this landed. A fresh volume inherits ownership from
+# the image and needs nothing.
+RUN addgroup -g 65532 app && adduser -u 65532 -G app -D -H app
+USER 65532:65532
+
+# The binary probes itself rather than shelling out to wget, which this image
+# does have, because the two scratch images cannot and one behaviour across
+# four sites beats two. Compose sets the same check.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD ["/app", "-healthcheck"]
 
 EXPOSE 8000
 ENTRYPOINT ["/app"]

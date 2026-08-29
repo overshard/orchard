@@ -5,7 +5,12 @@
 # --- typst --------------------------------------------------------------
 # The PDF compiler, pinned by version and verified by hash, exactly as
 # blog.bythewood.me and analytics.bythewood.me pin it.
-FROM alpine:3.23 AS typst
+# Base images are pinned by digest, not just by tag. `oven/bun:1-alpine` in
+# particular floats across an entire major version, so two builds a month apart
+# were not building the same thing. The typst stage below already pinned a
+# version and a sha256 and was the only honest pin in the file; this brings the
+# rest up to it. Bump these deliberately, the same way the typst pin is bumped.
+FROM alpine:3.23@sha256:fd791d74b68913cbb027c6546007b3f0d3bc45125f797758156952bc2d6daf40 AS typst
 ARG TYPST_VERSION=0.14.0
 ARG TYPST_SHA256=99816d2982de08d2b091bac56b59b2faa523a10e1378ad3cdd68e35b8eb74b3d
 RUN apk add --no-cache curl tar xz && \
@@ -33,7 +38,7 @@ RUN typst compile --root /resume /resume/resume.typ /resume-isaac-bythewood.pdf
 # and the social card, which reads Geist out of it. Without the split the card
 # would have to wait on the whole Vite build, and the frontend build has to
 # wait on the card, which is a cycle.
-FROM oven/bun:1-alpine AS deps
+FROM oven/bun:1-alpine@sha256:07235578f79ef8c6f97d94aee7938e76f5cdba5f21ae5dbfdd3d3d38058437eb AS deps
 WORKDIR /src
 COPY frontend/package.json frontend/bun.lock ./
 RUN bun install --frozen-lockfile
@@ -76,7 +81,7 @@ COPY --from=card /card.png ./public/og/card.png
 RUN bun run vite
 
 # --- binary -------------------------------------------------------------
-FROM golang:1.27-alpine AS build
+FROM golang:1.27-alpine@sha256:4c9fe60190a2a3350ddc51de80d0224b8a6698d12bdfc999fee45ea9d6c46dbc AS build
 WORKDIR /src
 # The bracket glob makes go.sum optional. A module with no third party
 # dependency has none for `go mod tidy` to write, and a plain `COPY go.sum`
@@ -103,5 +108,18 @@ COPY --from=build /app /app
 COPY --from=frontend /dist /dist
 
 ENV SITE_DIST=/dist
+# Runs as a normal user, not root. There is no /etc/passwd in a scratch image
+# to name one in, so this is the numeric UID:GID that distroless calls
+# "nonroot"; the kernel only needs the numbers. Nothing here writes to disk, so
+# nothing has to be chown'd to match: the binary, the templates and the build
+# output are all read only at runtime.
+USER 65532:65532
+
+# Docker cannot shell out to a health check in an image with no shell, so the
+# binary probes itself. Compose sets the same check; this one makes the image
+# describe its own liveness even when run without compose.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD ["/app", "-healthcheck"]
+
 EXPOSE 8000
 ENTRYPOINT ["/app"]
