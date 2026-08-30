@@ -71,7 +71,9 @@ since `go run .` without Vite leaves no manifest and that is fatal.
 **Port 8000, everywhere.** Every container listens on 8000 internally, in dev
 and in prod, and no host ports are published. `cloudflared` terminates the
 tunnel and hands plain HTTP to Caddy, which reverse proxies to each app by
-container name on the `orchard-edge` network.
+container name on the `orchard-edge` network. The one other port in the repo is
+`orchard-logging:9001`, a plain TCP socket Caddy writes its access log to,
+reachable on the bridge and nowhere else.
 
 **Everything is named `orchard-<first label>`.** `orchard-caddy` and
 `orchard-cloudflared` for the edge, then `orchard-blog`, `orchard-analytics`,
@@ -82,13 +84,14 @@ system and the Makefile derives a container name from a site directory without a
 lookup table.
 
 **Four things reference a container by name, and all four bake it in.**
-`edge/caddy/Caddyfile` reverse-proxies to each site,
-`sites/isaacbythewood.com/site.go` fetches `http://orchard-blog:8000/latest.json`
-for the latest-posts panel, `web/shipper.go` in every site posts to
-`http://orchard-logging:8000/ingest`, and `alerts.go` in status and logging
-posts to `http://orchard-ntfy:8000`. None reads the name at runtime, so renaming
-one means rebuilding Caddy, the portfolio and every site, not just editing a
-compose file. No SQLite database refers to a container name.
+`edge/caddy/Caddyfile` reverse-proxies to each site and writes its access log to
+`tcp/orchard-logging:9001`, `sites/isaacbythewood.com/site.go` fetches
+`http://orchard-blog:8000/latest.json` for the latest-posts panel,
+`web/shipper.go` in every site posts to `http://orchard-logging:8000/ingest`,
+and `alerts.go` in status and logging posts to `http://orchard-ntfy:8000`. None
+reads the name at runtime, so renaming one means rebuilding Caddy, the portfolio
+and every site, not just editing a compose file. No SQLite database refers to a
+container name.
 
 **Alerts leave through ntfy in the edge, and reading them is authenticated.**
 status publishes to the `status` topic and logging to `logging`, both to
@@ -165,6 +168,23 @@ lines from a dashboard. The shipper writes its own state changes to stderr and
 never calls `slog`, which would enqueue a record about failing to ship, and
 `logging.bythewood.me` passes a local sink, because posting to itself would be
 an ingest request that logs a request that becomes an ingest request.
+
+**Caddy ships, cloudflared and ntfy do not.** Caddy can't carry a Go handler, so
+it writes its access log to a socket with its own `net` writer and
+`logging.bythewood.me` listens on 9001 for it, turning each line into the record
+`web.Logged` would have written for the same request. `soft_start` is required
+there, or Caddy refuses to boot whenever the logging site is down, which `make
+up` guarantees since the edge starts first. A second `log console` block keeps
+the same events on stderr so `docker logs orchard-caddy` is unchanged, and only
+the access log ships, never Caddy's runtime log, since that's where a failing
+`net` writer reports itself and shipping it over the failing connection would
+loop. cloudflared and ntfy log to stdout and can't write to a socket, and
+pointing either at a file takes its stdout away, so neither ships.
+
+**A site block with no host matcher gets one logger, not a list.** The `:80`
+catch-all in the Caddyfile becomes the server's `default_logger_name`, which is
+a single string, so naming two loggers there silently keeps one and drops the
+other. It carries the console logger alone for that reason.
 
 **`Shipper.Close()` has to stay bounded.** Draining a 4096 deep
 queue with a synchronous sink call every 500 records runs far past Docker's ten

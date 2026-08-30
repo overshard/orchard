@@ -147,6 +147,13 @@ Adding a hostname takes three changes: a site block in `edge/caddy/Caddyfile`,
 an ingress rule in `edge/cloudflared/config.yml`, and a proxied CNAME to
 `<tunnel-id>.cfargotunnel.com`.
 
+Caddy also writes its access log to `logging.bythewood.me`, over a plain socket
+on port 9001 rather than through the shipper every site uses, since Caddy can't
+carry a Go handler. It keeps writing the same lines to stderr as well, so
+`docker logs orchard-caddy` is unchanged. cloudflared and ntfy don't ship
+anywhere, because neither can write its log to a network address and pointing
+either at a file takes its stdout away.
+
 ntfy runs in the edge and is how anything here reaches a phone. status publishes
 outage transitions and logging publishes silence transitions, both over the
 internal bridge. Reading is over the tunnel with a read-only account.

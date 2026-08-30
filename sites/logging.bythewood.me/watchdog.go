@@ -22,6 +22,11 @@ const (
 	// health check plus the shipper flush, so this is about nine missed beats.
 	silenceAfter = 5 * time.Minute
 
+	// caddy has no self probe, and its heartbeat is status checking the public
+	// hostnames every three minutes. Five minutes there is under two beats, so
+	// one missed cycle during a status deploy would fire.
+	caddySilenceAfter = 15 * time.Minute
+
 	watchInterval = 30 * time.Second
 
 	// Nothing alerts for this long after start. While this site is restarting,
@@ -196,13 +201,14 @@ func (w *Watchdog) checkSilence() {
 	w.mu.Lock()
 	for source, last := range w.seen {
 		gap := now.Sub(last)
+		limit := silenceFor(source)
 		quiet, isQuiet := w.quietSince[source]
 
 		switch {
-		case gap > silenceAfter && !isQuiet:
+		case gap > limit && !isQuiet:
 			w.quietSince[source] = last
 			fire = append(fire, transition{"silence", source, gap})
-		case gap <= silenceAfter && isQuiet:
+		case gap <= limit && isQuiet:
 			delete(w.quietSince, source)
 			fire = append(fire, transition{"resumed", source, last.Sub(quiet)})
 		}
@@ -216,8 +222,18 @@ func (w *Watchdog) checkSilence() {
 	}
 }
 
+// silenceFor is how long a source may go quiet before it is reported, which
+// depends on what its heartbeat is rather than on the source itself.
+func silenceFor(source string) time.Duration {
+	if source == caddySource {
+		return caddySilenceAfter
+	}
+	return silenceAfter
+}
+
 // handleLifecycle applies the restart rule. State lives in meta rather than in
-// memory because the question spans restarts of this process.
+// memory because the question spans restarts of this process. caddy logs
+// neither message, so only the silence rule ever covers the edge.
 func (w *Watchdog) handleLifecycle(ctx context.Context, ev lifecycleEvent) {
 	prevUp, prevAt, known := w.readLifecycle(ctx, ev.source)
 

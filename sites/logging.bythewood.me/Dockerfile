@@ -91,5 +91,6 @@ USER 65532:65532
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD ["/app", "-healthcheck"]
 
-EXPOSE 8000
+# 9001 is the socket Caddy writes its access log to, on the bridge only.
+EXPOSE 8000 9001
 ENTRYPOINT ["/app"]

@@ -187,6 +187,18 @@ func main() {
 	shipper := web.ShipLogs(selfSource, s.LocalSink)
 	defer shipper.Close()
 
+	// Caddy cannot carry the shipper, so it opens a socket here instead and
+	// writes its access log to it. See caddy.go.
+	caddyCtx, stopCaddyLogs := context.WithCancel(context.Background())
+	defer stopCaddyLogs()
+	go func() {
+		if err := s.ServeCaddyLogs(caddyCtx, caddyListenAddr); err != nil {
+			slog.Error("caddy log listener stopped",
+				slog.String("component", "caddy"),
+				slog.Any("err", err))
+		}
+	}()
+
 	// Cancelled on shutdown so a sweep stops between chunks instead of holding
 	// the write lock while everything else drains.
 	sweepCtx, stopSweeping := context.WithCancel(context.Background())

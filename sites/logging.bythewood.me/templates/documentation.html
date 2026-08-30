@@ -147,12 +147,69 @@ cd sites/logging.bythewood.me && make seed</code></pre>
     it will run against the other.
   </p>
 
+  <h2>Shipping from Caddy</h2>
+  <p>
+    Caddy can't carry a Go handler, so it doesn't use the shipper at all. It
+    writes its access log straight to a socket instead, using its own
+    <code>net</code> writer, and this site listens on
+    <code>orchard-logging:9001</code> for it. The lines arrive as newline
+    delimited JSON on one connection Caddy opens and holds, and each one is
+    turned into the same record a site would have posted, with the same
+    attribute names, so a Caddy row is stored, rolled up, swept and watched
+    exactly like everything else. It lands under the source
+    <code>caddy</code>.
+  </p>
+  <pre><code>log ship {
+    output net tcp/orchard-logging:9001 {
+        soft_start
+    }
+    format filter {
+        wrap json
+        fields {
+            request&gt;headers delete
+            request&gt;tls delete
+            resp_headers delete
+        }
+    }
+}</code></pre>
+  <p>
+    <code>soft_start</code> is what keeps Caddy booting when this site is down,
+    and it has to be there, since <code>make up</code> starts the edge before
+    any site. The headers are filtered out because they're most of the bytes on
+    the wire and the sites already record what matters from them, and
+    <code>log_append</code> puts <code>cf_ray</code> back as a field of its
+    own.
+  </p>
+  <p>
+    Caddy keeps a second logger writing the same events to stderr, so
+    <code>docker logs orchard-caddy</code> is unchanged and stdout is still the
+    source of truth here too. Only the access log ships, never Caddy's own
+    runtime log, because the runtime log is where a failing <code>net</code>
+    writer reports itself and shipping that over the connection that's failing
+    would be a loop.
+  </p>
+  <p>
+    The interesting rows are the ones no site can produce. A 502 from a
+    container that's down never reaches an app, so nothing else logs it, and
+    Caddy records it at error level.
+  </p>
+  <p>
+    The silence rule gives <code>caddy</code> fifteen minutes rather than five.
+    It has no self probe, and its heartbeat is status checking the public
+    hostnames every three minutes, so five minutes is under two beats and one
+    missed cycle during a status deploy would fire.
+  </p>
+
   <h2>What is not covered</h2>
   <p>
-    Caddy and cloudflared. Neither can carry a Go handler, so neither ships
-    here. Caddy's log output can be pointed at a network address and is probably
-    solvable; cloudflared logs to stdout only, so seeing a tunnel drop in this
-    site is unsolved. Docker's json-file driver still has all of it either way.
+    cloudflared and ntfy. Both log to stdout and neither can write to a network
+    address, and pointing either at a file takes its stdout away, which would
+    cost <code>docker logs</code> on the two containers where it's the only
+    thing to read. Reading their stdout instead would mean a container holding
+    the Docker socket, and that's root on the host if it's ever compromised, so
+    it isn't worth it for two low volume sources. A tunnel drop still isn't
+    visible here, though Cloudflare emails on every tunnel state change, so it
+    was never invisible, only invisible to this site.
   </p>
 </div>
 {{ end }}

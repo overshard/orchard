@@ -26,11 +26,42 @@
 		-Via
 	}
 
-	# Off by default in Caddy 2.
-	log {
+	# Off by default in Caddy 2. Two loggers carry the same access events:
+	# console is what `docker logs orchard-caddy` shows and stays the source
+	# of truth, and ship is a copy for logging.bythewood.me.
+	log console {
 		output stderr
 		format console
 	}
+
+	# Caddy cannot carry a Go handler, so it ships over its own net writer
+	# rather than web/shipper.go. Only the access logs go, never Caddy's own
+	# runtime log: the runtime log is where a failing net writer reports
+	# itself, and shipping that over the connection that is failing is a
+	# feedback loop. The access log is driven by requests instead.
+	log ship {
+		# soft_start, or Caddy refuses to boot whenever the logging site is
+		# down. `make up` guarantees that case, since the edge starts first.
+		output net tcp/orchard-logging:9001 {
+			soft_start
+		}
+
+		# Headers are most of the bytes on the wire and the record they land
+		# in caps attrs at 8KB anyway. cf_ray is the one worth keeping, and
+		# log_append below puts it back as a field of its own.
+		format filter {
+			wrap json
+			fields {
+				request>headers delete
+				request>tls delete
+				resp_headers delete
+			}
+		}
+	}
+
+	# Read before the filter above drops the headers, so a row here can be
+	# matched to the site's own row for the same request.
+	log_append cf_ray {http.request.header.Cf-Ray}
 }
 
 # Exploit scanners probing software nothing here runs, about a third of all
@@ -223,8 +254,14 @@ http://bythewood.me, http://www.bythewood.me {
 
 # No matching Host means it did not come through an ingress rule. Say so rather
 # than serving a site by accident.
+#
+# Only one logger here, and it has to be the console one. A block with no host
+# matcher becomes the server's default_logger_name, which is a single string
+# rather than a list, so naming two loggers silently keeps one and drops the
+# other. Everything reaching a real hostname is logged both ways above, and
+# these 404s stay where they already were.
 :80 {
-	log {
+	log console {
 		output stderr
 		format console
 	}
