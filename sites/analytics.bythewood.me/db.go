@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
@@ -76,10 +75,6 @@ CREATE TABLE IF NOT EXISTS bot_events (
 );
 CREATE INDEX IF NOT EXISTS bot_events_property_created ON bot_events(property_id, created_at);
 
-CREATE TABLE IF NOT EXISTS meta (
-    key   TEXT PRIMARY KEY,
-    value TEXT NOT NULL
-);
 `
 
 // openDB opens the SQLite database and applies the schema.
@@ -123,52 +118,32 @@ func openDB(path string) (*sql.DB, error) {
 	if _, err := db.Exec(schema); err != nil {
 		return nil, fmt.Errorf("apply schema: %w", err)
 	}
+	if _, err := db.Exec(renameProprium); err != nil {
+		return nil, fmt.Errorf("rename proprium: %w", err)
+	}
 	return db, nil
 }
 
-// ensureProprium returns the id of the property this app uses to track itself,
-// creating it on first boot.
+// renameProprium is a one-time data migration, kept because more than one
+// database has the old row: production, and any dev or staging copy made before
+// 2026-08-30.
 //
-// The id is stored in meta rather than derived, because it is baked into a
-// collector snippet and regenerating it would orphan every event recorded
-// against the old one. The existence check against properties covers a meta
-// row that outlived its database.
-func ensureProprium(ctx context.Context, db *sql.DB) (uuid.UUID, error) {
-	var stored string
-	err := db.QueryRowContext(ctx, "SELECT value FROM meta WHERE key = 'proprium_id'").Scan(&stored)
-	if err != nil && err != sql.ErrNoRows {
-		return uuid.Nil, err
-	}
-	if err == nil {
-		if id, perr := uuid.Parse(stored); perr == nil {
-			var found []byte
-			ferr := db.QueryRowContext(ctx,
-				"SELECT id FROM properties WHERE id = ?", id[:]).Scan(&found)
-			if ferr == nil {
-				return id, nil
-			}
-			if ferr != sql.ErrNoRows {
-				return uuid.Nil, ferr
-			}
-		}
-	}
-
-	id := uuid.New()
-	now := time.Now().UnixMilli()
-	if _, err := db.ExecContext(ctx,
-		`INSERT INTO properties (id, name, custom_cards, is_protected, is_public, created_at, updated_at)
-		 VALUES (?, 'Proprium', '[]', 1, 0, ?, ?)`,
-		id[:], now, now); err != nil {
-		return uuid.Nil, err
-	}
-	if _, err := db.ExecContext(ctx,
-		"INSERT OR REPLACE INTO meta (key, value) VALUES ('proprium_id', ?)",
-		id.String()); err != nil {
-		return uuid.Nil, err
-	}
-	slog.Info(fmt.Sprintf("created Proprium property %s", id))
-	return id, nil
-}
+// The property this site tracks itself under used to be created on first boot
+// and named "Proprium", which made it the only property in the system not named
+// after the hostname it tracks. It is now named like every other one, and its id
+// is hardcoded in site.go rather than generated, so nothing creates it any more.
+// The id is untouched, which is what keeps four years of events attached to it.
+//
+// Idempotent, and matches nothing once it has run. Safe to delete from this file
+// once every database that mattered has started once against this version. The
+// meta table goes with it: it existed only to hold proprium_id.
+const renameProprium = `
+UPDATE properties
+   SET name = 'analytics.bythewood.me',
+       updated_at = CAST(strftime('%s', 'now') AS INTEGER) * 1000
+ WHERE name = 'Proprium';
+DROP TABLE IF EXISTS meta;
+`
 
 // Property is one tracked site.
 type Property struct {

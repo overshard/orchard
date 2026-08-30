@@ -74,7 +74,6 @@ type site struct {
 
 	password    string
 	cookieKey   []byte
-	propriumID  uuid.UUID
 	baseScript  string
 	baseStyles  []string
 	pagesScript string
@@ -132,11 +131,6 @@ func main() {
 	defer db.Close()
 
 	ctx := context.Background()
-	propriumID, err := ensureProprium(ctx, db)
-	if err != nil {
-		slog.Error(fmt.Sprintf("proprium property: %v", err))
-		os.Exit(1)
-	}
 
 	if *seed {
 		if err := runSeed(ctx, db, *seedSessions, *seedDays); err != nil {
@@ -185,7 +179,6 @@ func main() {
 		typst:       NewTypst(),
 		password:    password,
 		cookieKey:   sessionKey(password),
-		propriumID:  propriumID,
 		baseScript:  assets.Script("static_src/base/index.js"),
 		baseStyles:  assets.Styles("static_src/base/index.js"),
 		pagesScript: assets.Script("static_src/pages/index.js"),
@@ -278,7 +271,7 @@ func main() {
 		web.SecurityHeaders(csp()),
 	)
 
-	slog.Info(fmt.Sprintf("analytics serving %s (staging=%t, proprium=%s)", baseURL, Staging, propriumID))
+	slog.Info(fmt.Sprintf("analytics serving %s (staging=%t, property=%s)", baseURL, Staging, analyticsID))
 	if err := web.Serve(listenAddr, handler); err != nil {
 		slog.Error("startup failed", slog.Any("err", err))
 		os.Exit(1)
@@ -335,8 +328,9 @@ func (s *site) page(r *http.Request, title, description string) PageData {
 		Styles:        s.baseStyles,
 
 		// Self-tracking. The collector posts to whatever origin served the
-		// page, so this works unchanged in dev and in production.
-		CollectorID:     s.propriumID.String(),
+		// page, so this works unchanged in dev and in production. Empty on
+		// staging, which renders no snippet at all.
+		CollectorID:     collectorID(),
 		CollectorServer: "",
 	}
 }

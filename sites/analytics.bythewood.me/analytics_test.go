@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // These cover the functions where a mistake is silent: escaping that produces
@@ -354,5 +356,27 @@ func TestTrimFloat(t *testing.T) {
 		if got := trimFloat(tt.in); got != tt.want {
 			t.Errorf("trimFloat(%v) = %q, want %q", tt.in, got, tt.want)
 		}
+	}
+}
+
+// TestSelfTrackingID pins the property this site files its own traffic under.
+// It used to be generated on first boot and stored in meta, so it could not be
+// asserted; hardcoding it is what makes this test possible and is the point of
+// the change. A wrong id here is silent, exactly as it would be on any other
+// site: the dashboard simply shows no traffic for itself.
+func TestSelfTrackingID(t *testing.T) {
+	const want = "580ebab0-3d14-4a20-89da-d57fc3d7d9e8"
+	if analyticsID != want {
+		t.Errorf("analyticsID = %q, want %q", analyticsID, want)
+	}
+	if _, err := uuid.Parse(analyticsID); err != nil {
+		t.Errorf("analyticsID is not a uuid, so collect would reject it: %v", err)
+	}
+	// Staging renders no snippet at all rather than posting an id its own
+	// database has no row for, which is what the template comment promises.
+	if got := collectorID(); Staging && got != "" {
+		t.Errorf("collectorID() = %q on staging, want empty", got)
+	} else if !Staging && got != analyticsID {
+		t.Errorf("collectorID() = %q, want %q", got, analyticsID)
 	}
 }

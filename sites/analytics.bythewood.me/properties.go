@@ -49,7 +49,7 @@ func (s *site) properties(w http.ResponseWriter, r *http.Request) {
 		query += " WHERE name LIKE ?"
 		args = append(args, "%"+search+"%")
 	}
-	// Proprium first, then oldest first. The app's own property is the one
+	// Protected first, then oldest first. This site's own property is the one
 	// most often wanted and would otherwise sit wherever its creation date
 	// put it.
 	query += " ORDER BY is_protected DESC, created_at ASC"
@@ -141,7 +141,7 @@ func (s *site) propertyCreate(w http.ResponseWriter, r *http.Request) {
 
 // propertyDelete removes a property and, by ON DELETE CASCADE, every event
 // recorded against it. The is_protected guard in the WHERE clause is what stops
-// Proprium being deleted, enforced here rather than in the template that hides
+// this site's own property being deleted, enforced here rather than in the template that hides
 // the button, because a hidden button is not a permission.
 func (s *site) propertyDelete(w http.ResponseWriter, r *http.Request) {
 	id, ok := parseIDPath(r)
