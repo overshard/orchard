@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"html/template"
+	"strings"
 
 	"github.com/alecthomas/chroma/v2"
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
@@ -10,8 +11,10 @@ import (
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer"
 	"github.com/yuin/goldmark/renderer/html"
+	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
 )
 
@@ -20,11 +23,45 @@ import (
 // silently rewrite twenty-two existing posts.
 var markdownRenderer = goldmark.New(
 	goldmark.WithExtensions(extension.Table, extension.Strikethrough),
+	goldmark.WithParserOptions(
+		parser.WithASTTransformers(util.Prioritized(&imagePathTransformer{}, 100)),
+	),
 	goldmark.WithRendererOptions(
 		html.WithUnsafe(),
 		renderer.WithNodeRenderers(util.Prioritized(&codeRenderer{}, 100)),
 	),
 )
+
+// imagePathTransformer rewrites a post's relative image reference to the URL
+// the file is actually served at.
+//
+// Posts write "images/foo.webp", which the browser resolves against the post's
+// own URL (/posts/<slug>/) and which therefore 404s. The files live under
+// content/images/ and are served from /content/images/. The Typst renderer has
+// always handled this, in imagePath; the HTML renderer never did, so the PDF
+// export of a post showed its images and the web page did not. That asymmetry
+// is why a text-only PDF parity check could not catch it.
+//
+// Done here rather than by rewriting the posts, so the authoring convention
+// stays "images/foo.webp" in both renderers and a future post cannot
+// reintroduce the bug. Absolute and off-site URLs are left alone.
+type imagePathTransformer struct{}
+
+func (t *imagePathTransformer) Transform(doc *ast.Document, reader text.Reader, pc parser.Context) {
+	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+		img, ok := n.(*ast.Image)
+		if !ok {
+			return ast.WalkContinue, nil
+		}
+		if dest := string(img.Destination); strings.HasPrefix(dest, "images/") {
+			img.Destination = []byte("/content/" + dest)
+		}
+		return ast.WalkContinue, nil
+	})
+}
 
 func renderMarkdown(md string) template.HTML {
 	var buf bytes.Buffer

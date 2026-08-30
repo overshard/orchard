@@ -1142,3 +1142,87 @@ func TestReportsParse(t *testing.T) {
 		}
 	}
 }
+
+// classifyCache is what stops an edge cache answering on behalf of a dead
+// origin from being recorded as "up". The distinction it has to get right is
+// that being cached is normal and is not a failure: only a copy older than a
+// live origin could have left behind is evidence of one.
+func TestClassifyCache(t *testing.T) {
+	const cc = "public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800"
+
+	cases := []struct {
+		name        string
+		headers     map[string]string
+		unreachable bool
+	}{
+		{
+			// The observed healthy steady state: Age cycles up to roughly
+			// max-age plus one probe interval and resets when a background
+			// revalidation succeeds. Measured max over 12 hours was 419.
+			name:        "cached but fresh enough to have been revalidated",
+			headers:     map[string]string{"cf-cache-status": "HIT", "age": "419", "cache-control": cc},
+			unreachable: false,
+		},
+		{
+			name:        "served stale while revalidating, still within tolerance",
+			headers:     map[string]string{"cf-cache-status": "UPDATING", "age": "464", "cache-control": cc},
+			unreachable: false,
+		},
+		{
+			// max-age 300 plus two 3-minute probe intervals is 660. Past that,
+			// a revalidation that would have reset Age has failed twice.
+			name:        "stale far past any successful revalidation",
+			headers:     map[string]string{"cf-cache-status": "UPDATING", "age": "900", "cache-control": cc},
+			unreachable: true,
+		},
+		{
+			// The origin was reached for this response, so Age says nothing
+			// about it and the check must not fire however large it is.
+			name:        "uncached response is always origin truth",
+			headers:     map[string]string{"cf-cache-status": "DYNAMIC", "age": "99999", "cache-control": cc},
+			unreachable: false,
+		},
+		{
+			name:        "no cache headers at all",
+			headers:     map[string]string{},
+			unreachable: false,
+		},
+		{
+			// Without a max-age there is no envelope to compare against, so
+			// the honest answer is to say nothing rather than guess one.
+			name:        "cached with no max-age to calibrate against",
+			headers:     map[string]string{"cf-cache-status": "HIT", "age": "99999"},
+			unreachable: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, _, got := classifyCache(tc.headers)
+			if got != tc.unreachable {
+				t.Fatalf("originUnreachable = %v, want %v", got, tc.unreachable)
+			}
+		})
+	}
+}
+
+// The tolerance must follow the site's own policy rather than a constant, so
+// that changing a cache policy cannot silently turn this into a false alarm.
+func TestMaxAgeOf(t *testing.T) {
+	for _, tc := range []struct {
+		in   string
+		want int64
+		ok   bool
+	}{
+		{"public, max-age=300, stale-if-error=604800", 300, true},
+		{"public, s-maxage=60, max-age=300", 60, true},
+		{"no-store", 0, false},
+		{"public", 0, false},
+		{"max-age=notanumber", 0, false},
+	} {
+		got, ok := maxAgeOf(tc.in)
+		if got != tc.want || ok != tc.ok {
+			t.Fatalf("maxAgeOf(%q) = %d,%v want %d,%v", tc.in, got, ok, tc.want, tc.ok)
+		}
+	}
+}

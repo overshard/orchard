@@ -19,6 +19,18 @@ services:
     container_name: orchard-caddy
     restart: unless-stopped
     networks: [edge]
+    security_opt:
+      - no-new-privileges:true
+    # Caddy access-logs every request for every hostname, and roughly a third of
+    # those are exploit scanners that will never stop arriving. Without this the
+    # container log is the one unbounded thing in the system: every site sets
+    # the same policy and these two edge containers were the only ones missing
+    # it.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # The alert path. status publishes outage transitions to /status and logging
   # publishes silence and unclean-restart transitions to /logging, both by
@@ -60,6 +72,13 @@ services:
       - cloudflared:/etc/cloudflared:ro
     networks: [edge]
     depends_on: [caddy]
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 networks:
   edge:

@@ -58,7 +58,7 @@ COMPOSE      = $(DOCKER) compose
 COMPOSE_DOWN = $(DOCKER) compose
 
 .DEFAULT_GOAL := help
-.PHONY: help up up-one deploy edge doctor down down-one run build check fmt vet test \
+.PHONY: help up up-one deploy edge doctor down down-one run build check fmt fmt-check vet test \
 	require-site require-env require-tunnel
 
 help:
@@ -281,9 +281,19 @@ build: require-site
 # the working directory, which is how a 14MB binary once got committed and why
 # .gitignore still carries rules for it. Sending it to the gitignored build/
 # leaves the source directory as it was found.
-check: fmt vet
+# check reports; it does not repair. It used to depend on fmt, which runs
+# gofmt -w, so a tree that was not formatted was silently formatted and check
+# then passed: it could never answer the question it was being asked. Use
+# `make fmt` to actually rewrite.
+check: fmt-check vet
 	for s in $(SITES); do echo "build $$s"; \
 		(cd sites/$$s && mkdir -p build && go build -o build/ ./...) || exit 1; done
+
+fmt-check:
+	@out=$$(gofmt -l sites); \
+	if [ -n "$$out" ]; then \
+		echo "not gofmt clean, run make fmt:"; echo "$$out"; exit 1; \
+	fi
 
 fmt:
 	gofmt -l -w sites

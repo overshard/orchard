@@ -20,6 +20,10 @@ const (
 	// enough to show a trend on a site with a few visitors a day, and short
 	// enough that the graph still buckets daily.
 	defaultRangeDays = 28
+
+	// Ten years. Far past any real query against a database that starts in
+	// 2022, and small enough that the graph's bucket slice stays trivial.
+	maxRangeDays = 3650
 )
 
 // PageData is everything base.html and one page template need. One struct for
@@ -190,7 +194,12 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 		if err != nil || n < 1 {
 			n = defaultRangeDays
 		}
-		rangeDays = n
+		// Clamped, because rangeDays drives an allocating loop in eventsGraph:
+		// the bucket slice grows linearly with it, so an unbounded value from
+		// the query string is an out-of-memory kill on a container capped well
+		// below what a large one would ask for. Three public properties make
+		// this reachable with no cookie.
+		rangeDays = min64(n, maxRangeDays)
 	}
 
 	prevStartMS := startMS - rangeDays*dayMS
@@ -248,7 +257,15 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 	data.Dash = d
 	data.ReportedAt = time.Now().Format("2006-01-02 15:04")
 
+	// Report export is operator-only, even for a public property, matching the
+	// same gate on status. The PDF path spawns a Typst compile with no
+	// concurrency limit, and a public dashboard must not be a free CPU-burning
+	// endpoint for anyone who finds the URL.
 	if report, ok := reportFormat(q); ok {
+		if !authed {
+			http.Redirect(w, r, "/"+id.String(), http.StatusSeeOther)
+			return
+		}
 		s.renderReport(w, r, report, p.Name, data)
 		return
 	}
@@ -375,6 +392,13 @@ func chartPolyline(points []GraphPoint) string {
 
 func max64(a, b int64) int64 {
 	if a > b {
+		return a
+	}
+	return b
+}
+
+func min64(a, b int64) int64 {
+	if a < b {
 		return a
 	}
 	return b

@@ -79,14 +79,29 @@ CREATE TABLE IF NOT EXISTS meta (
 );
 `
 
-// phaseColumns are the four phase-timing columns.
+// addedColumns are the columns added after the original schema, all INTEGER
+// and all nullable, so an existing database gains them in place.
+//
+// The last two are not timings. cf_cache_status and age record whether a
+// response came from a shared cache and how old it was, because without them a
+// probe cannot tell "the origin answered" from "an edge answered on its behalf
+// while the origin was unreachable". See originUnreachable in checker.go.
 //
 // They are inside the CREATE TABLE above so a fresh database gets them, and
 // added by hand below when the table already exists without them. SQLite has no
 // ADD COLUMN IF NOT EXISTS, and CREATE TABLE IF NOT EXISTS on an existing table
 // is a silent no-op that does not reconcile columns, so an older database would
 // otherwise fail on the first INSERT. The check costs one PRAGMA at boot.
-var phaseColumns = []string{"dns_ms", "tcp_ms", "tls_ms", "ttfb_ms"}
+var phaseColumns = []addedColumn{
+	{"dns_ms", "INTEGER"},
+	{"tcp_ms", "INTEGER"},
+	{"tls_ms", "INTEGER"},
+	{"ttfb_ms", "INTEGER"},
+	{"cf_cache_status", "TEXT"},
+	{"age", "INTEGER"},
+}
+
+type addedColumn struct{ name, typ string }
 
 // openDB opens the SQLite database and applies the schema.
 //
@@ -160,11 +175,11 @@ func ensurePhaseColumns(db *sql.DB) error {
 	}
 
 	for _, col := range phaseColumns {
-		if have[col] {
+		if have[col.name] {
 			continue
 		}
-		if _, err := db.Exec("ALTER TABLE checks ADD COLUMN " + col + " INTEGER"); err != nil {
-			return fmt.Errorf("add checks.%s: %w", col, err)
+		if _, err := db.Exec("ALTER TABLE checks ADD COLUMN " + col.name + " " + col.typ); err != nil {
+			return fmt.Errorf("add checks.%s: %w", col.name, err)
 		}
 	}
 	return nil

@@ -187,3 +187,31 @@ func TestTagURLEscaping(t *testing.T) {
 		t.Errorf("tagURL(a/b) = %q, slash should be encoded", got)
 	}
 }
+
+// The web renderer and the Typst renderer must agree on how a post's relative
+// image reference resolves. They did not for a long time: Typst had imagePath
+// from the start and the HTML path had nothing, so these images 404'd on the
+// page while appearing correctly in the PDF export.
+func TestRelativeImagesResolveToContent(t *testing.T) {
+	got := string(renderMarkdown("![alt](images/foo.webp)"))
+	if !strings.Contains(got, `src="/content/images/foo.webp"`) {
+		t.Fatalf("relative image not rewritten to its served path: %s", got)
+	}
+
+	// Anything already absolute, or off-site, is left alone. A second prefix
+	// would be the obvious way to break this while the test above still passes.
+	for _, md := range []string{
+		"![a](/content/images/x.webp)",
+		"![a](https://example.com/x.webp)",
+	} {
+		if out := string(renderMarkdown(md)); strings.Contains(out, "/content/content/") {
+			t.Fatalf("double-prefixed %q: %s", md, out)
+		}
+	}
+
+	// The Typst side of the same convention, asserted here so a change to one
+	// renderer that forgets the other fails rather than diverging silently.
+	if p := imagePath("images/foo.webp"); p != "/content/images/foo.webp" {
+		t.Fatalf("typst imagePath diverged: %s", p)
+	}
+}

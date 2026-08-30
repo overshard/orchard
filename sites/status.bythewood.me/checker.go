@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -55,6 +56,16 @@ type probeOutcome struct {
 	statusCode  int64
 	headersJSON string
 	timings     PhaseTimings
+
+	// Whether a shared cache answered, and how old its copy was. Recorded
+	// because a 200 from an edge cache says nothing about the origin.
+	cacheStatus string
+	age         *int64
+
+	// originUnreachable is set when the response was served from cache and the
+	// copy is older than a live origin could have left it. See the comment on
+	// classifyCache.
+	originUnreachable bool
 }
 
 // hopResult is one request/response, with enough detail to decide whether to
@@ -154,15 +165,47 @@ func runCheck(ctx context.Context, db *sql.DB, p *Property) (int64, error) {
 
 	_, err = db.ExecContext(ctx,
 		`INSERT INTO checks (property_id, status_code, response_ms, headers,
-		                     dns_ms, tcp_ms, tls_ms, ttfb_ms, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		                     dns_ms, tcp_ms, tls_ms, ttfb_ms,
+		                     cf_cache_status, age, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		p.ID[:], outcome.statusCode, outcome.timings.TotalMS, outcome.headersJSON,
 		outcome.timings.DNSMS, outcome.timings.TCPMS, outcome.timings.TLSMS,
-		outcome.timings.TTFBMS, nowMS())
+		outcome.timings.TTFBMS, nullableString(outcome.cacheStatus), outcome.age,
+		nowMS())
 	if err != nil {
 		return 0, fmt.Errorf("insert check: %w", err)
 	}
+	// A response an edge served from a copy older than a live origin could have
+	// left is not evidence the site is up, whatever its status code says.
+	if outcome.originUnreachable {
+		slog.Info("origin unreachable behind cache",
+			slog.String("component", "checker"),
+			slog.String("url", p.URL),
+			slog.String("cf_cache_status", outcome.cacheStatus),
+			slog.Int64("age", derefAge(outcome.age)),
+		)
+		return statusOriginStale, nil
+	}
 	return outcome.statusCode, nil
+}
+
+// statusOriginStale is reported when a cache answered on behalf of an origin
+// that has stopped answering. It is deliberately not a real HTTP code: nothing
+// sent one, and the alert machine only asks whether it is 200.
+const statusOriginStale = 523
+
+func nullableString(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
+}
+
+func derefAge(age *int64) int64 {
+	if age == nil {
+		return -1
+	}
+	return *age
 }
 
 // probeWithRedirects times the first hop in full, then follows up to
@@ -214,11 +257,90 @@ func probeWithRedirects(ctx context.Context, rawURL string) (*probeOutcome, erro
 		headers = hop.headers
 	}
 
+	cacheStatus, age, unreachable := classifyCache(headers)
 	return &probeOutcome{
-		statusCode:  status,
-		headersJSON: headersJSON,
-		timings:     first.timings,
+		statusCode:        status,
+		headersJSON:       headersJSON,
+		timings:           first.timings,
+		cacheStatus:       cacheStatus,
+		age:               age,
+		originUnreachable: unreachable,
 	}, nil
+}
+
+// classifyCache reads the shared-cache headers and decides whether this
+// response is evidence the origin is alive.
+//
+// It is not, whenever a cache answered. Two of the sites here set
+// "public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800",
+// which is a deliberate and wanted property: a visitor keeps getting the site
+// when the desktop behind the tunnel is down. But the prober reaches those
+// hostnames the same way a visitor does, so it was measuring the cache. On
+// 2026-08-29 01:24:54 the tunnel was down and this recorded 530 for the two
+// uncached sites and 200 for the two cached ones, in the same second.
+//
+// Being cached is not by itself a failure, so a plain HIT cannot mean "down" or
+// those two sites would alert constantly. What distinguishes a live origin is
+// that the copy stays young: every revalidation that succeeds resets Age, so
+// Age stays inside roughly max-age plus one probe interval. A dead origin
+// cannot refresh anything, so Age climbs without bound toward stale-if-error.
+//
+// The tolerance is read from the response's own max-age rather than hardcoded,
+// so changing a site's cache policy cannot silently turn this into a false
+// alarm. Two probe intervals of slack, because one probe is what triggers the
+// background revalidation that resets Age.
+func classifyCache(headers map[string]string) (status string, age *int64, unreachable bool) {
+	status = headers["cf-cache-status"]
+
+	raw, ok := headers["age"]
+	if !ok {
+		return status, nil, false
+	}
+	n, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return status, nil, false
+	}
+	age = &n
+
+	// DYNAMIC and MISS both mean the origin was reached for this response.
+	switch strings.ToUpper(status) {
+	case "HIT", "UPDATING", "STALE", "REVALIDATED":
+	default:
+		return status, age, false
+	}
+
+	maxAge, ok := maxAgeOf(headers["cache-control"])
+	if !ok {
+		return status, age, false
+	}
+	return status, age, n > maxAge+int64(2*checkInterval.Seconds())
+}
+
+// maxAgeOf pulls max-age out of a Cache-Control header. s-maxage wins when
+// present, because that is the one a shared cache obeys.
+func maxAgeOf(cacheControl string) (int64, bool) {
+	var maxAge int64 = -1
+	for _, part := range strings.Split(cacheControl, ",") {
+		part = strings.TrimSpace(part)
+		key, value, found := strings.Cut(part, "=")
+		if !found {
+			continue
+		}
+		n, err := strconv.ParseInt(strings.TrimSpace(value), 10, 64)
+		if err != nil || n < 0 {
+			continue
+		}
+		switch strings.ToLower(strings.TrimSpace(key)) {
+		case "s-maxage":
+			return n, true
+		case "max-age":
+			maxAge = n
+		}
+	}
+	if maxAge < 0 {
+		return 0, false
+	}
+	return maxAge, true
 }
 
 func isRedirect(code int64) bool {

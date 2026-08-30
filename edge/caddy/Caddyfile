@@ -16,7 +16,12 @@
 	}
 }
 
-(site) {
+# The headers and the access log, split out from (site) so that
+# repos.bythewood.me can have them without also taking the blanket `encode`
+# that its git wire must not have. Before the split repos hand-copied this
+# block, which meant every future edit here silently skipped one of the nine
+# site blocks.
+(headers) {
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
 		X-Frame-Options SAMEORIGIN
@@ -28,13 +33,80 @@
 		-Via
 	}
 
-	encode zstd gzip
-
 	# Access logging is off by default in Caddy 2.
 	log {
 		output stderr
 		format console
 	}
+}
+
+# Exploit scanners, probing software nothing here runs: WordPress, PHP, and the
+# usual credential files. Roughly a third of all requests reaching the origin,
+# in bursts of up to 30 a second from one address.
+#
+# This is at the edge because it is a property of the edge and not of any app:
+# one list rather than the same middleware copied into six Go modules. It is
+# also deliberately duplicated with a Cloudflare WAF rule that catches these
+# first and more cheaply. The duplication is the point: this is the copy that
+# lives in git and comes back on a fresh machine, and the dashboard rule is not.
+#
+# `respond 404` rather than `abort`, which closes the connection without a
+# response: Cloudflare reads a closed origin connection as an origin error,
+# returns 502 or 520 to the client, and counts it against its view of origin
+# health. A 404 matches what these paths already returned and tells the edge
+# nothing is wrong.
+#
+# The cost being removed is not CPU. Each of these took about a quarter of a
+# millisecond. It is that the 404 page is a full styled document with the whole
+# JSON-LD graph, roughly 8KB, carrying no-store so the edge never absorbs any of
+# it, and that a third of every log record being hostile noise is what stops a
+# real new 404 after a deploy from being visible at all.
+# The Cloudflare WAF rule this duplicates, kept here because a dashboard rule
+# is not in version control and would not come back on a rebuild from nothing.
+# One custom rule of the five the free plan allows, action Block:
+#
+#   (http.request.uri.path contains "wp-")
+#   or (http.request.uri.path contains "wordpress")
+#   or (http.request.uri.path contains "xmlrpc.php")
+#   or (http.request.uri.path contains "phpmyadmin")
+#   or (http.request.uri.path contains "autodiscover")
+#   or (http.request.uri.path contains "/cgi-bin/")
+#   or (http.request.uri.path contains "/vendor/")
+#   or (http.request.uri.path contains "/.env")
+#   or (http.request.uri.path contains "/.git/")
+#   or (http.request.uri.path contains "/.aws")
+#   or (ends_with(http.request.uri.path, ".php"))
+#
+# Do not turn on Bot Fight Mode to solve this. status probes its own public
+# hostnames with a plain Go client sending a Chrome user agent, which cannot
+# solve a JS challenge, so it would report a permanent false outage on every
+# site here. That is worked out in full in decision 0007.
+#
+(scanners) {
+	# Matched anywhere in the path, not just at the root: most of the volume
+	# arrives nested under a guessed prefix (/blog/wp-json/..., /app/.env), and
+	# anchoring at ^ caught only 63% of it against 84% here. Checked against
+	# every distinct path in 16 hours of logs: zero paths that ever returned a
+	# 2xx on any of the six sites match this. What it deliberately does not
+	# match is the long tail of ordinary 404s (/blog/, /login, /logout,
+	# /apple-touch-icon.png), which are real paths on the wrong host and should
+	# keep answering normally.
+	@hostile path_regexp hostile (?i)(?:^|/)(?:wp-|wordpress|wp/|xmlrpc\.php|phpmyadmin|autodiscover|cgi-bin/|vendor/|\.env|\.git/|\.aws|\.ssh/|\.vscode/)|\.php$
+
+	# Not logged. Moving the noise from one log to another is not the point of
+	# blocking it.
+	log_skip @hostile
+
+	handle @hostile {
+		respond 404
+	}
+}
+
+(site) {
+	import scanners
+	import headers
+
+	encode zstd gzip
 }
 
 # The sites. One block per hostname, each proxying to a container by name on
@@ -124,6 +196,45 @@ http://ntfy.bythewood.me {
 
 	handle {
 		respond "not here" 404
+	}
+}
+
+# repos, the git remote. Two things here are not like the other sites.
+#
+# One: request_body has to be raised. Caddy's own default is unlimited, but a
+# git push is the one request on this edge that is legitimately enormous, and
+# stating a number is what makes the failure legible. 100MB is not chosen, it
+# is Cloudflare's own ceiling on a proxied request body for Free and Pro, which
+# no setting here can raise: a tunnel hostname must stay proxied, because
+# <uuid>.cfargotunnel.com is not publicly routable, so the usual "grey-cloud
+# that record" escape does not exist. Matching the number means an oversized
+# push is refused here with a 413 that names a limit, rather than by Cloudflare
+# with one that does not.
+#
+# Two: no compression on the git wire. Packfiles are already compressed, and
+# gzipping a 90MB pack costs CPU on both ends to make it very slightly larger.
+# The `encode` in the site snippet is why this block does not import it.
+http://repos.bythewood.me {
+	# Not `import site`: the browse UI wants compression and the git wire must
+	# not have it, so `encode` is applied per handle below rather than to the
+	# whole host. The headers and the scanner block are shared.
+	import scanners
+	import headers
+
+	@git path_regexp ^/[^/]+\.git(/.*)?$
+
+	handle @git {
+		request_body {
+			max_size 100MB
+		}
+		reverse_proxy orchard-repos:8000
+	}
+
+	# Everything else is the browse UI, which is ordinary HTML and wants the
+	# compression the wire does not.
+	handle {
+		encode zstd gzip
+		reverse_proxy orchard-repos:8000
 	}
 }
 
