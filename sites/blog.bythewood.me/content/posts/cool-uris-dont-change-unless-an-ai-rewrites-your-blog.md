@@ -4,20 +4,16 @@ slug: cool-uris-dont-change-unless-an-ai-rewrites-your-blog
 date: 2026-04-29
 publish_date: 2026-04-29
 tags: webdev, ai
-description: A short post-mortem on letting an AI port my blog from Django to Flask, and the URL design mistake it cheerfully shipped along the way.
+description: I let an AI port my blog from Django to Flask and it quietly moved every post URL, which I didn't catch for about a week.
 cover_image: cool-uris-w3c.webp
 ---
 
-I let an AI port this blog from Django to Flask. The Flask app came out fine: single file, `app.py`, markdown rendered through Mistune, a few hundred lines, the whole rewrite took an afternoon. I was pleased with myself for about a week.
+I let an AI port this blog from Django to Flask and the app itself came out fine. It's a single `app.py` with markdown rendered through Mistune, a few hundred lines in total, and the whole rewrite took an afternoon. About a week later I noticed a pile of 404s in my [analytics](https://analytics.bythewood.me/).
 
-Then I noticed the 404s in [analytics](https://analytics.bythewood.me/).
+The Django version served posts at `/posts/<slug>/` and the Flask version served them at `/blog/<slug>/`. I never asked for that and it wasn't mentioned anywhere, it just came out that way, probably because the route handler was called `blog_post` or because plenty of Flask blogs in the training data namespace their routes under `/blog/`. Either way every URL on the site changed and I didn't catch it on review because I was reading code instead of clicking links.
 
-The Django version served posts at `/posts/<slug>/`. The Flask version served them at `/blog/<slug>/`. Nobody asked for that. The AI just decided. Probably because the route handler was called `blog_post` and the directory below it was `templates/`, so `/blog/` felt right. Probably because someone, somewhere in the training data, namespaced their Flask blog routes under `/blog/`. I don't really care. The point is it changed every URL on the site without flagging it, and I didn't notice on review because I was looking at code, not links.
+Tim Berners-Lee wrote [Cool URIs don't change](https://www.w3.org/Provider/Style/URI) back in 1998 and it's still worth a read. Any URL you've published to Hacker News, to search engines, or in your own RSS feed is a promise to everyone who linked it, and breaking that because a route function got renamed isn't great.
 
-Tim Berners-Lee wrote [Cool URIs don't change](https://www.w3.org/Provider/Style/URI) in 1998. It is not a long document. The TL;DR is the title. URLs that you publish (to Hacker News, to Reddit, to search engines, to your own RSS feed) are a contract with everyone who linked them. Breaking that contract because your route function got renamed is a small act of vandalism against the open web.
+Fixing it took about five minutes once I knew. I moved the post routes back to `/posts/<slug>/` and 301'd the old `/blog/<slug>/` URLs, but that's still a week of broken inbound links and however many people hit a 404 and left.
 
-The fix was a one-liner once I noticed: move the post routes back to `/posts/<slug>/` and 301 the old `/blog/<slug>/` URLs. Five minutes. The cost was a week of broken inbound links and however many readers bounced off a 404 in the meantime.
-
-The takeaway, for me: AI is great at rewriting *code*. It is much worse at remembering that the code is part of a system with users, search indexes, and twenty years of links pointing into it. When you ask for a port, ask explicitly for URL parity. Diff the route table. Treat URLs as part of the public API, because they are.
-
-The W3C guidance is older than most of the training data. It still didn't make the cut.
+What I took from this is that an AI is good at rewriting code and much worse at remembering the code is part of a system with users, search indexes, and years of links pointing into it. So if you're asking for a port, ask for URL parity up front and diff the route table afterwards. I'd treat URLs as part of the public API from now on because that's basically what they are.

@@ -4,17 +4,17 @@ slug: a-status-line-for-claude-code
 date: 2026-06-13
 publish_date: 2026-06-13
 tags: tooling, claude
-description: A drop-in status line for Claude Code that shows your 5-hour usage quota, context window, working directory with git branch, and the time. One bash file, with a quick breakdown of how it works.
+description: A drop-in status line for Claude Code that shows your 5-hour usage quota, context window, working directory with git branch, and the time, all out of one bash file, plus a quick walk through how it works.
 cover_image: claude-status-line.webp
 ---
 
-Claude Code lets you swap the bar at the bottom of the terminal for any script you want. It pipes a blob of JSON to your script on stdin, and whatever you print becomes the status line. Here is the one I built this week:
+Claude Code lets you swap the bar at the bottom of the terminal out for any script you want, so it pipes a blob of JSON to your script on stdin and whatever you print back becomes the status line. Here's the one I put together this week:
 
 ```
 usg ▓▓▓▓▓░░░░░ 52% · resets 2h 14m | ctx ▓▓░░░░░░░░ 18% | ~/code/finance  main | 3:45 PM ET
 ```
 
-Usage quota, context window, where I am plus the git branch, and the time. One bash file, no API calls, nothing running in the background.
+That's the usage quota, the context window, where I am along with the git branch, and the time, and it's all one bash file with no API calls and nothing running in the background.
 
 ## The file
 
@@ -97,7 +97,7 @@ echo "$line"
 
 ## Hook it up
 
-You need `jq` installed, plus a [Nerd Font](https://www.nerdfonts.com/) in your terminal for the branch glyph. Then add this to `~/.claude/settings.json`:
+You'll need `jq` installed and a [Nerd Font](https://www.nerdfonts.com/) in your terminal for the branch glyph, then you can add this to `~/.claude/settings.json`:
 
 ```json
 "statusLine": {
@@ -106,17 +106,17 @@ You need `jq` installed, plus a [Nerd Font](https://www.nerdfonts.com/) in your 
 }
 ```
 
-That is the whole integration. Claude Code runs the command, feeds it JSON, and renders what you print.
+That's the whole integration, Claude Code runs the command, feeds it JSON, and renders whatever you print.
 
 ## How it works
 
-Every render, Claude Code hands your script a JSON object on stdin. The fields here are pulled with `jq` and every one ends in `// empty`, so a missing field just drops its segment instead of printing `null`. That matters because some fields show up late: context usage appears once a turn has run, and the `rate_limits` block only exists on Pro/Max plans after the first API response.
+On every render Claude Code hands your script a JSON object on stdin. The fields here are pulled out with `jq` and every one of them ends in `// empty` so that a missing field just drops its segment instead of printing `null`, which matters because some of the fields show up late. Context usage only appears once a turn has run, and the `rate_limits` block only exists on Pro/Max plans after the first API response.
 
-The four segments, left to right:
+The four segments, going left to right:
 
-- **`usg`** is the one I actually wanted. `rate_limits.five_hour.used_percentage` is the same number `/usage` shows, with no extra requests on your side. `resets_at` is a Unix timestamp, so the countdown is just `resets_at - now`. The bar goes green, then yellow past 50%, then red past 80%.
-- **`ctx`** is `context_window.used_percentage`, how full the context window is. Plain yellow, since it is informational.
-- **cwd + branch** uses `git symbolic-ref` for the branch name, falling back to a short commit hash on a detached HEAD. The `-c core.fsmonitor=` keeps this constant polling from fighting a real git operation in the same repo over the fsmonitor lock.
-- **clock** is hard-pinned to `America/New_York`, which tracks the EST/EDT switch on its own. One catch: the status line refreshes on Claude Code events, not a timer, so the clock can sit still while idle. Add `"refreshInterval": 10` to the config if you want it ticking.
+- `usg` is the one I actually wanted out of all this. `rate_limits.five_hour.used_percentage` is the same number `/usage` shows and it costs you no extra requests, and `resets_at` is a Unix timestamp so the countdown is just `resets_at - now`. The bar goes green, then yellow past 50%, then red past 80%.
+- `ctx` is `context_window.used_percentage`, which is how full the context window is. I left it plain yellow since it's really just informational.
+- cwd + branch uses `git symbolic-ref` for the branch name and falls back to a short commit hash on a detached HEAD. The `-c core.fsmonitor=` is there to keep this constant polling from fighting a real git operation in the same repo over the fsmonitor lock.
+- clock is hard-pinned to `America/New_York`, which tracks the EST/EDT switch on its own. The one thing to watch out for is that the status line refreshes on Claude Code events rather than on a timer, so the clock can sit still while you're idle. You can add `"refreshInterval": 10` to the config if you want it ticking along.
 
-The full JSON schema, including fields I skipped like session cost, is in the [statusLine docs](https://code.claude.com/docs/en/statusline).
+The full JSON schema, including the fields I skipped over like session cost, is in the [statusLine docs](https://code.claude.com/docs/en/statusline) if you want to add more to yours.

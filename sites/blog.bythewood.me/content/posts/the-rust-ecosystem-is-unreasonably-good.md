@@ -4,17 +4,17 @@ slug: the-rust-ecosystem-is-unreasonably-good
 date: 2026-05-09
 publish_date: 2026-05-09
 tags: rust, webdev, performance
-description: A second pass on the Rust port of my blog. I deleted the chromium PDF subprocess and replaced it with embedded Typst. Notes on axum, comrak, minijinja, and a typesetting compiler that ships as a crate.
+description: A second pass on the Rust port of my blog, where I dropped the chromium PDF subprocess for embedded Typst. Some notes on axum, comrak, minijinja and Typst.
 cover_image: rust-ecosystem-cargo.webp
 ---
 
-A few days ago I [rewrote this blog from Flask to Rust](/posts/rewriting-my-blog-in-rust/). The benchmarks were the headline. What I didn't write up: a day later I deleted `chrome-headless-shell` from the runtime image and replaced it with [Typst](https://typst.app), embedded as a library. The Docker image lost most of a gigabyte. The PDF route stayed the same shape.
+A few days ago I [rewrote this blog from Flask to Rust](/posts/rewriting-my-blog-in-rust/) and wrote up the benchmarks. What I didn't get to was that a day later I deleted `chrome-headless-shell` from the runtime image and replaced it with [Typst](https://typst.app) embedded as a library, which took most of a gigabyte off the Docker image without really changing the PDF route.
 
-This is the follow-up. A closer look at the four crates the blog actually runs on.
+So this is the follow up, a closer look at the four crates the blog actually runs on.
 
 ## axum
 
-[axum](https://docs.rs/axum) is small. A handler is an async function, its arguments are extractors, and its return type implements `IntoResponse`.
+[axum](https://docs.rs/axum) is pretty small. A handler is an async function, its arguments are extractors, and its return type implements `IntoResponse`.
 
 ```rust
 pub async fn show(
@@ -41,7 +41,7 @@ Router::new()
     .with_state(state)
 ```
 
-Middleware is a tower layer, so request logging, cache headers on static files, and the 404 fallback all use the same shape. The whole request logger is twenty lines:
+Middleware is a tower layer, so request logging, cache headers on static files, and the 404 fallback all end up the same shape. The whole request logger is about twenty lines.
 
 ```rust
 pub async fn log_requests(req: Request, next: Next) -> Response {
@@ -62,7 +62,7 @@ I haven't pulled in `tracing` yet and I don't expect to.
 
 ## comrak
 
-[comrak](https://docs.rs/comrak) parses CommonMark + GFM into an AST. Most markdown libraries either render straight to HTML or hand back an event stream, both of which make non-trivial customization annoying. comrak gives you the tree.
+[comrak](https://docs.rs/comrak) parses CommonMark + GFM into an AST. Most markdown libraries either render straight to HTML or hand back an event stream, which makes any non-trivial customization annoying, but comrak gives you the whole tree to walk.
 
 I render every post twice from the same source. Once to HTML for `/posts/<slug>/`, once to Typst markup for `/posts/<slug>/pdf/`. Both walks read the same arena, so a typo in markdown fails both renders identically.
 
@@ -70,16 +70,17 @@ For HTML, comrak's `create_formatter!` macro overrides individual node types and
 
 ## minijinja
 
-I came in expecting to rewrite my templates. I didn't have to. [minijinja](https://docs.rs/minijinja), by Armin Ronacher (who also wrote Jinja2), is faithful enough that the entire `templates/` directory came over with two whitespace tweaks and a parens fix on a ternary.
+I came in expecting to rewrite my templates and didn't have to. [minijinja](https://docs.rs/minijinja), by Armin Ronacher who also wrote Jinja2, is faithful enough that the entire `templates/` directory came over with two whitespace tweaks and a parens fix on a ternary.
 
-Two things to know:
+There are two things worth knowing:
 
-- Jinja2 escapes `/` in URLs to `&#x2f;`. minijinja doesn't, which is technically more correct, but it broke the OG image template and a couple of expected-string snapshots. Thirty lines of formatter to match Jinja2 fixed it.
+- Jinja2 escapes `/` in URLs to `&#x2f;` and minijinja doesn't, which is
+technically more correct but it broke the OG image template and a couple of expected-string snapshots. About thirty lines of formatter to match Jinja2 sorted it out.
 - In debug builds, minijinja re-reads templates from disk on every render. Gate the loader on `cfg(debug_assertions)` and you get template hot-reload without restarting `cargo run`.
 
 ## Typst, embedded
 
-[Typst](https://typst.app) is a typesetting system. The reason I care: the entire compiler is on crates.io. [typst](https://docs.rs/typst), [typst-pdf](https://docs.rs/typst-pdf), and [typst-kit](https://docs.rs/typst-kit) for font discovery. No binary to ship alongside the app, no LaTeX install, no subprocess. You call `typst::compile(&world)` and get back a `PagedDocument`. You call `typst_pdf::pdf(&doc, ...)` and get bytes.
+[Typst](https://typst.app) is a typesetting system, and the part I care about is that the entire compiler is on crates.io as [typst](https://docs.rs/typst), [typst-pdf](https://docs.rs/typst-pdf) and [typst-kit](https://docs.rs/typst-kit) for font discovery. That means there's no binary to ship alongside the app and no subprocess to manage. You call `typst::compile(&world)` and get back a `PagedDocument`, then `typst_pdf::pdf(&doc, ...)` and get bytes.
 
 End to end:
 
@@ -93,24 +94,22 @@ let document = typst::compile::<PagedDocument>(&world).output?;
 let bytes = typst_pdf::pdf(&document, &PdfOptions::default())?;
 ```
 
-The interesting type is `World`. It's the trait Typst uses to ask "give me the source for this file id, give me the bytes for this asset, give me a font by index, give me today's date." You implement it once. Mine resolves Typst paths against the project root, so a snippet like:
+The type that took me a minute was `World`, which is the trait Typst uses to ask for the source of a file id, the bytes of an asset, a font by index, or today's date. You implement it once. Mine resolves Typst paths against the project root, so a snippet like this:
 
 ```typst
 #image("/content/images/cover.webp")
 ```
 
-reads `content/images/cover.webp` from the running binary's working directory. Same on macOS, alpine, and CI. No bind mounts, no file URIs, no temp files.
+reads `content/images/cover.webp` from the running binary's working directory, and it behaves the same on macOS, alpine and CI without any bind mounts or temp files.
 
 Fonts are found once at startup with `typst-kit`'s `FontSearcher`. The runtime alpine image installs `font-jetbrains-mono`, `ttf-dejavu`, and `ttf-liberation` so there's always a sans, mono, and fallback available.
 
-The size delta is what got me. The chromium runtime image was 1.16 GB. The Typst image is a few hundred MB, most of it the font packages themselves. The PDF route used to spawn a process and write a temp file; now it's a function call.
-
-The other PDF tools I've shipped (WeasyPrint, wkhtmltopdf, headless Chromium) all add a binary to the runtime image and a process boundary at request time. Typst doesn't.
+The size difference is what got my attention. The chromium runtime image was 1.16 GB and the Typst image is a few hundred MB, most of which is the font packages. The PDF route used to spawn a process and write a temp file and now it's just a function call. Every other PDF tool I've shipped, WeasyPrint and wkhtmltopdf and headless Chromium, added a binary to the runtime image and a process boundary at request time.
 
 ## What I keep noticing
 
-Coming from [uv](https://docs.astral.sh/uv/) on the Python side, `cargo add` and `Cargo.lock` felt familiar. uv already does the single-tool, single-lockfile thing for Python; on the Rust side it's the same loop. The trade is at build time. A Docker image for this blog takes tens of seconds to build incrementally and a couple of minutes cold, where the Flask + uv version was a few seconds either way. In exchange I get a binary that idles at 24 MB and serves [an order of magnitude more traffic](/posts/rewriting-my-blog-in-rust/). I'll take that.
+Coming from [uv](https://docs.astral.sh/uv/) on the Python side, `cargo add` and `Cargo.lock` felt familiar, since uv already does the single tool and single lockfile thing for Python. What you give up is build time. A Docker image for this blog takes tens of seconds to build incrementally and a couple of minutes cold, where the Flask and uv version was a few seconds either way. What I get back is a binary that idles at 24 MB and serves [an order of magnitude more traffic](/posts/rewriting-my-blog-in-rust/), which seems worth it to me.
 
 Underneath axum, comrak, minijinja, and typst, the project pulls in [tokio](https://tokio.rs) for the runtime, [tower-http](https://docs.rs/tower-http) for middleware and static files, [serde](https://serde.rs) for frontmatter parsing, [chrono](https://docs.rs/chrono) for dates, and [anyhow](https://docs.rs/anyhow) for error handling. The whole `Cargo.toml` fits on a screen.
 
-Every time I've gone looking for something in Rust, the ecosystem has had a good answer ready. So far it hasn't missed.
+Every time I've gone looking for something in Rust so far there's been a decent answer sitting there already, which is more than I expected going in.

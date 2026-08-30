@@ -8,7 +8,7 @@ description: I rewrote this blog from Flask to Rust over an afternoon. The resul
 cover_image: rust-blog-rewrite.webp
 ---
 
-This blog used to be a Wagtail site. Then a Django site. Then a Flask app. As of today it's a single Rust binary, 3.5 MB, that loads every post into memory at startup and serves the whole thing from a tokio runtime. I wrote about [the URL design mistake from the Flask port](/posts/cool-uris-dont-change-unless-an-ai-rewrites-your-blog/) last week. This is the follow-up: what the Rust port actually changed.
+This blog started out as a Wagtail site, then a Django site, then a Flask app, and as of today it's a single 3.5 MB Rust binary that loads every post into memory at startup and serves the whole thing from a tokio runtime. I wrote about [the URL design mistake from the Flask port](/posts/cool-uris-dont-change-unless-an-ai-rewrites-your-blog/) last week, so this one is about what the Rust port actually changed.
 
 ## The stack
 
@@ -19,9 +19,9 @@ The Rust version is roughly 1300 lines split across five files (`main.rs`, `post
 - [axum](https://docs.rs/axum) for HTTP routing. Handlers are plain async functions, no macros.
 - [comrak](https://docs.rs/comrak) for markdown. It has a `create_formatter!` macro that lets you override the HTML for individual node types, which is how I kept the same `div.block-*` wrapping the Mistune custom renderer produced.
 - [minijinja](https://docs.rs/minijinja) for templates. It accepts Jinja2 syntax verbatim, so the `templates/` directory came over without rewrites. Two whitespace tweaks and a parens fix on a ternary, that was it.
-- A `chrome-headless-shell` subprocess for PDF export, replacing WeasyPrint. Same idea, different tool.
+- A `chrome-headless-shell` subprocess for PDF export in place of WeasyPrint, which is the same idea with a different tool.
 
-Posts are read from disk and parsed once at startup. After that every request is a hashmap lookup and a template render. No filesystem traffic on the hot path, no markdown work per request.
+Posts are read from disk and parsed once at startup, so after that every request is just a hashmap lookup and a template render with no filesystem traffic or markdown work involved.
 
 ## Benchmarks
 
@@ -51,11 +51,11 @@ Container-to-container with Caddy in front was less dramatic but still real:
 | `/search/live/` | 3,002 | 8,149 | 29.6 ms | 12.0 ms |
 | `/og/<slug>.svg` | 2,831 | 29,353 | 27.5 ms | 3.9 ms |
 
-The Flask sitemap p99 of 870 ms is a real number, not a typo. Under load there's a long tail you'd feel in production. The Rust version's p99 on the same route is 17.8 ms.
+The Flask sitemap p99 of 870 ms isn't a typo. Under load there's a long tail you'd actually feel in production, where the Rust version comes in at 17.8 ms on the same route.
 
 ## Memory
 
-This is the part I wasn't expecting to be quite so lopsided.
+I wasn't expecting this part to be quite so lopsided.
 
 Idle, post-warmup RSS:
 
@@ -67,24 +67,24 @@ Under 50 concurrent sustained load:
 - Flask: **147 MiB**
 - Rust: **4 MiB**
 
-The Flask number isn't because Python is wasteful in a deep philosophical sense, it's because Gunicorn forks four workers and each one carries its own copy of Flask, Jinja2, Mistune, WeasyPrint, and a few hundred lines of imported modules. That's 80-something MB per worker before the app does any work. Tokio runs everything on one heap with a work-stealing pool, so there's nothing to multiply.
+The Flask number isn't really about Python being wasteful, it's that Gunicorn forks four workers and each one carries its own copy of Flask, Jinja2, Mistune, WeasyPrint, and a few hundred lines of imported modules, which is 80-something MB per worker before the app does any work at all. Tokio runs everything on one heap with a work-stealing pool so there's nothing to multiply.
 
-For a $5 VPS this is the difference between "the blog is a rounding error on the box" and "the blog is a tenant I have to think about." The blog is now a rounding error.
+On a $5 VPS that's the difference between the blog being something you have to budget for and something you can forget about.
 
 ## What didn't get smaller
 
-The container image got bigger, not smaller. The Flask image was 854 MB. The Rust image is 1.16 GB. The whole 800 MB delta is `chromium-headless-shell`, which is required for PDF export. Without PDFs the runtime image would be about 180 MB on alpine, or under 25 MB if I went static-musl on scratch. I want PDFs more than I want a small image, so chromium stays.
+The container image got bigger rather than smaller, going from 854 MB on Flask to 1.16 GB on Rust, and the whole 800 MB of that is `chromium-headless-shell` for PDF export. Without PDFs the runtime image would be about 180 MB on alpine, or under 25 MB if I went static-musl on scratch, but I want PDFs more than I want a small image so chromium stays.
 
-Iteration speed also got worse. Flask reloads on save. Rust is `cargo build` every time, which is two to five seconds for an incremental debug build and around thirty seconds for a release build with LTO. `cargo watch -x run` makes it tolerable, but you don't get the instant-feedback loop you do in Python. I noticed this most while tweaking templates, until I remembered minijinja reloads templates from disk in debug mode without recompiling the binary. That covers most of what I was iterating on anyway.
+Iteration speed also got worse, since Flask reloads on save and Rust is `cargo build` every time, which is two to five seconds for an incremental debug build and around thirty seconds for a release build with LTO. `cargo watch -x run` makes it tolerable but you don't get the instant feedback loop you do in Python. I noticed it most while tweaking templates until I remembered that minijinja reloads templates from disk in debug mode without recompiling the binary, which covers most of what I was iterating on anyway.
 
 ## Why a static-site generator wasn't the answer
 
-The obvious response to "your blog is too slow" is "stop running a server, generate HTML at build time." I considered it. The reason I didn't is the same reason I rewrote rather than retired the app: I have a few endpoints that are dynamic by design. PDF export, server-rendered search, OG image generation per post, redirect handling for the old `/blog/<slug>/` URLs. A static site would need a sidecar for all of that, and the sidecar would itself need a runtime. At which point you have two deploy targets to worry about, not one.
+The obvious answer to a slow blog is to stop running a server and generate HTML at build time, and I did think about it. The reason I didn't is that a few endpoints here are dynamic on purpose, like PDF export, server-rendered search, OG image generation per post, and redirect handling for the old `/blog/<slug>/` URLs. A static site would need a sidecar for all of that and the sidecar needs a runtime of its own, so I'd end up with two deploy targets instead of one.
 
-The Rust binary handles everything in one process, parses every post at boot in single-digit milliseconds, and idles at 24 MB. That's close enough to "static" for me.
+The Rust binary handles all of it in one process, parses every post at boot in single-digit milliseconds, and idles at 24 MB, which is close enough to static for me.
 
 ## Was it worth it
 
-The honest answer is "the speedup is more than I needed." This blog gets nowhere near 1,000 RPS in real traffic. The actual wins were the ones I didn't go in looking for: the memory drop, the disappearance of the long-tail latency on the sitemap, the fact that the binary starts in under fifty milliseconds and refuses to start at all if any post has a malformed frontmatter. The compiler caught two stale fields in old posts I'd forgotten about.
+The speedup is honestly more than I needed, since this blog gets nowhere near 1,000 RPS in real traffic. The things I ended up appreciating were the ones I wasn't looking for, like the memory drop, the long tail on the sitemap going away, and the binary starting in under fifty milliseconds and refusing to start at all if a post has malformed frontmatter. That last one caught two stale fields in old posts I'd forgotten about.
 
-If you've got a small Flask or Django app whose footprint annoys you more than its speed does, axum plus minijinja plus comrak is a surprisingly direct port. The Jinja2 templates carried over almost untouched. The custom Mistune renderer mapped one-to-one onto a comrak formatter. The Dockerfile got shorter. The deploy is the same `git push server master`. The blog is faster than it has any right to be.
+If you've got a small Flask or Django app whose footprint annoys you more than its speed does then axum with minijinja and comrak is a surprisingly direct port. The Jinja2 templates carried over almost untouched, the custom Mistune renderer mapped one to one onto a comrak formatter, and the deploy didn't change at all.
