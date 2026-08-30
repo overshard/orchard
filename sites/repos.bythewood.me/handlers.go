@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -23,6 +24,9 @@ type site struct {
 	backend  string
 	script   string
 	styles   []string
+	// mirror is here only so the settings page can run a sync on demand;
+	// the lane itself is driven by its own ticker.
+	mirror *Mirror
 }
 
 // page is the data every template gets, so base.html can render the chrome
@@ -642,15 +646,32 @@ func (s *site) settings(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	notice := ""
+	if c, err := r.Cookie(mirrorNoticeCookie); err == nil {
+		notice, _ = url.QueryUnescape(c.Value)
+		http.SetCookie(w, &http.Cookie{
+			Name: mirrorNoticeCookie, Value: "", Path: "/settings",
+			Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode, MaxAge: -1,
+		})
+	}
+
 	tokens, err := s.db.Tokens()
 	if err != nil {
 		slog.Error("list tokens", slog.Any("err", err))
 	}
+	sources, err := s.mirrorSources()
+	if err != nil {
+		slog.Error("list mirror sources", slog.Any("err", err))
+	}
 	s.renderer.Render(w, http.StatusOK, "settings.html",
 		s.page(r, "Settings", "", map[string]any{
-			"Tokens":   tokens,
-			"CloneURL": strings.TrimSuffix(baseURL, "/"),
-			"Bridge":   containerName,
+			"Tokens":        tokens,
+			"CloneURL":      strings.TrimSuffix(baseURL, "/"),
+			"Bridge":        containerName,
+			"Sources":       sources,
+			"MirrorEnabled": s.mirrorReady(),
+			"MirrorEvery":   shortDuration(s.cfg.MirrorEvery),
+			"Notice":        notice,
 			// Shown once, immediately after minting, and never again.
 			"NewToken": fresh,
 		}))
@@ -777,4 +798,124 @@ func xmlEscape(s string) string {
 	r := strings.NewReplacer(
 		"&", "&amp;", "<", "&lt;", ">", "&gt;", `"`, "&quot;", "'", "&apos;")
 	return r.Replace(s)
+}
+
+// mirrorNoticeCookie carries the outcome of a settings POST back to the page
+// that renders it, so the form can report a typo'd account name without the
+// message ending up in the URL, the access log and the browser history.
+const mirrorNoticeCookie = "mirror_notice"
+
+func (s *site) setMirrorNotice(w http.ResponseWriter, msg string) {
+	http.SetCookie(w, &http.Cookie{
+		Name: mirrorNoticeCookie, Value: url.QueryEscape(msg), Path: "/settings",
+		Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode, MaxAge: 60,
+	})
+}
+
+// SourceView is one configured source with what it has actually brought in,
+// which is the question the settings page exists to answer.
+type SourceView struct {
+	MirrorSource
+	Repos    int
+	LastSync time.Time
+	Failing  int
+}
+
+// mirrorSources joins the configured sources against the repository rows.
+func (s *site) mirrorSources() ([]SourceView, error) {
+	sources, err := s.db.MirrorSources()
+	if err != nil {
+		return nil, err
+	}
+	repos, err := s.db.AllRepos()
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]SourceView, 0, len(sources))
+	for _, src := range sources {
+		v := SourceView{MirrorSource: src}
+		for _, meta := range repos {
+			if !meta.Mirror || !coveredBySource(meta.Upstream, []MirrorSource{src}) {
+				continue
+			}
+			v.Repos++
+			if meta.LastSyncErr != "" {
+				v.Failing++
+			}
+			if meta.LastSync.After(v.LastSync) {
+				v.LastSync = meta.LastSync
+			}
+		}
+		out = append(out, v)
+	}
+	return out, nil
+}
+
+// addMirrorSource accepts either "owner" or "owner/repo" from one field.
+func (s *site) addMirrorSource(w http.ResponseWriter, r *http.Request) {
+	src, err := ParseMirrorSource(r.FormValue("source"))
+	if err != nil {
+		s.setMirrorNotice(w, err.Error())
+		http.Redirect(w, r, "/settings", http.StatusSeeOther)
+		return
+	}
+	if err := s.db.AddMirrorSource(src); err != nil {
+		slog.Error("add mirror source", slog.Any("err", err))
+		s.setMirrorNotice(w, "could not save that source")
+		http.Redirect(w, r, "/settings", http.StatusSeeOther)
+		return
+	}
+
+	// Sync immediately rather than at the next tick. Adding a source is the
+	// one moment the operator wants to know whether the name was right.
+	msg := "Added " + src.Label() + ". Syncing now."
+	if !s.mirrorReady() {
+		msg = "Added " + src.Label() + ". The mirror lane is disabled, so nothing will sync."
+	} else if !s.mirror.TrySync(context.Background()) {
+		msg = "Added " + src.Label() + ". A sync is already running; it will be picked up next time."
+	}
+	s.setMirrorNotice(w, msg)
+	http.Redirect(w, r, "/settings", http.StatusSeeOther)
+}
+
+// deleteMirrorSource stops watching a source. Nothing on disk is touched: this
+// site is a backup, and a repository is never removed because a setting changed.
+func (s *site) deleteMirrorSource(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.Error(w, "bad source id", http.StatusBadRequest)
+		return
+	}
+	if err := s.db.DeleteMirrorSource(id); err != nil {
+		slog.Error("delete mirror source", slog.Any("err", err))
+		s.setMirrorNotice(w, "could not remove that source")
+	} else {
+		s.setMirrorNotice(w, "Source removed. Everything it mirrored is still on disk.")
+	}
+	http.Redirect(w, r, "/settings", http.StatusSeeOther)
+}
+
+// syncMirrors runs the lane now instead of waiting for the ticker.
+func (s *site) syncMirrors(w http.ResponseWriter, r *http.Request) {
+	switch {
+	case !s.mirrorReady():
+		s.setMirrorNotice(w, "The mirror lane is disabled (REPOS_MIRROR=0).")
+	case s.mirror.TrySync(context.Background()):
+		s.setMirrorNotice(w, "Sync started. Reload in a moment to see it land.")
+	default:
+		s.setMirrorNotice(w, "A sync is already running.")
+	}
+	http.Redirect(w, r, "/settings", http.StatusSeeOther)
+}
+
+func (s *site) mirrorReady() bool { return s.mirror != nil && s.cfg.MirrorEnabled }
+
+// shortDuration trims the zero tail off a Duration, so a six hour interval
+// reads as "6h" rather than "6h0m0s" on the settings page.
+func shortDuration(d time.Duration) string {
+	out := d.String()
+	out = strings.TrimSuffix(out, "0s")
+	out = strings.TrimSuffix(out, "0m")
+	return out
 }

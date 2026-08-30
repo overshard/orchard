@@ -141,8 +141,15 @@ func main() {
 	// sidecar containers: it keeps the site to one image, and lets the index
 	// render its own sync state, which a sidecar cannot do without a side
 	// channel.
+	// The account this site was built for becomes the first source, once. From
+	// then on what gets mirrored is edited on the settings page, not here.
+	if err := db.SeedMirrorSources(githubUser); err != nil {
+		slog.Error("seed mirror sources", slog.Any("err", err))
+	}
+	mirror := NewMirror(store, db)
+	s.mirror = mirror
 	if cfg.MirrorEnabled {
-		go NewMirror(store, db, githubUser).Run(ctx, cfg.MirrorEvery)
+		go mirror.Run(ctx, cfg.MirrorEvery)
 	} else {
 		slog.Info("mirror lane disabled")
 	}
@@ -161,6 +168,9 @@ func main() {
 	mux.HandleFunc("GET /settings", s.requireLogin(s.settings))
 	mux.HandleFunc("POST /settings/tokens", s.requireLogin(s.createToken))
 	mux.HandleFunc("POST /settings/tokens/{id}/revoke", s.requireLogin(s.revokeToken))
+	mux.HandleFunc("POST /settings/mirrors", s.requireLogin(s.addMirrorSource))
+	mux.HandleFunc("POST /settings/mirrors/{id}/delete", s.requireLogin(s.deleteMirrorSource))
+	mux.HandleFunc("POST /settings/mirrors/sync", s.requireLogin(s.syncMirrors))
 
 	// The repository pages. Every one of these is more specific than the
 	// bare /{name} below it, and Go 1.22 ServeMux matches most specific

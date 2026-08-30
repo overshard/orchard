@@ -29,6 +29,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -63,6 +64,10 @@ type GitHubRepo struct {
 type Mirror struct {
 	store *Store
 	db    *DB
+
+	// Set while a manual sync is in flight, so the settings page can decline a
+	// second click instead of parking a goroutine on the mutex below.
+	running atomic.Bool
 
 	// One sync at a time. Two concurrent `git remote update` runs against
 	// the same repository would fight over the lock file, and running every
@@ -106,18 +111,29 @@ func (m *Mirror) Sync(ctx context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	remote, err := m.list(ctx)
+	sources, err := m.db.MirrorSources()
 	if err != nil {
 		return err
 	}
-	slog.Info("mirror sync starting", slog.Int("upstream_repos", len(remote)))
+	if len(sources) == 0 {
+		slog.Info("mirror sync skipped: no sources configured")
+		return nil
+	}
+
+	remote, err := m.list(ctx, sources)
+	if err != nil {
+		return err
+	}
+	slog.Info("mirror sync starting",
+		slog.Int("sources", len(sources)), slog.Int("upstream_repos", len(remote)))
 
 	seen := make(map[string]bool, len(remote))
 	for _, gh := range remote {
-		// Forks are somebody else's code with a pointer to it, and a
-		// private repository cannot be cloned without a token this site
-		// deliberately does not have.
-		if gh.Fork || gh.Private {
+		// A private repository cannot be cloned without a token this site
+		// deliberately does not have. A fork is somebody else's code with a
+		// pointer to it, so an account sweep skips one, but a repository
+		// named outright on the settings page was asked for on purpose.
+		if gh.Private || (gh.Fork && !gh.explicit) {
 			continue
 		}
 		// A pushed repository of the same name wins, and ownership is decided
@@ -148,6 +164,18 @@ func (m *Mirror) Sync(ctx context.Context) error {
 				}
 			}
 		}
+		// Two accounts can both hold a repository called `dotfiles`, and the
+		// directory here is named for the repository alone. First claim wins
+		// and the loser is refused, because the alternative is one mirror
+		// quietly overwriting a backup of something else.
+		if meta, err := m.db.Repo(gh.Name); err == nil && meta.Mirror &&
+			meta.Upstream != "" && meta.Upstream != gh.CloneURL {
+			slog.Warn("name is already mirrored from a different upstream",
+				slog.String("repo", gh.Name),
+				slog.String("mirroring", meta.Upstream),
+				slog.String("refused", gh.CloneURL))
+			continue
+		}
 		seen[gh.Name] = true
 
 		if err := m.syncOne(ctx, gh); err != nil {
@@ -170,6 +198,12 @@ func (m *Mirror) Sync(ctx context.Context) error {
 		if !meta.Mirror {
 			continue
 		}
+		// A repository whose source was removed is not gone from GitHub; it
+		// is merely no longer watched. Leaving the flag alone is the honest
+		// answer, and the copy stays on disk either way.
+		if !coveredBySource(meta.Upstream, sources) {
+			continue
+		}
 		gone := !seen[name]
 		if gone != meta.UpstreamGone {
 			if gone {
@@ -182,50 +216,137 @@ func (m *Mirror) Sync(ctx context.Context) error {
 	return nil
 }
 
-// list reads the account's public repositories. Paginated because the default
-// page is 30 and the account has more than that.
-func (m *Mirror) list(ctx context.Context) ([]GitHubRepo, error) {
+// list reads every configured source. Sources are read fresh on each sync, so
+// a change on the settings page takes effect on the next tick with no restart.
+//
+// One source failing does not fail the sync. A typo'd account or a repository
+// that was renamed upstream should not stop the other sources being backed up,
+// which is the entire job here, so each failure is logged and the rest run.
+func (m *Mirror) list(ctx context.Context, sources []MirrorSource) ([]GitHubRepo, error) {
 	client := &http.Client{Timeout: 30 * time.Second}
 
+	var all []GitHubRepo
+	// Keyed by full_name, because an account sweep and a named repository can
+	// both reach the same one. An explicit entry replaces a swept one so that
+	// naming a fork outright still overrides the fork skip below.
+	seen := make(map[string]int)
+	add := func(gh GitHubRepo) {
+		if i, ok := seen[gh.FullName]; ok {
+			if gh.explicit {
+				all[i] = gh
+			}
+			return
+		}
+		seen[gh.FullName] = len(all)
+		all = append(all, gh)
+	}
+
+	var failed int
+	for _, src := range sources {
+		var err error
+		switch src.Kind {
+		case sourceRepo:
+			var gh GitHubRepo
+			if err = getJSON(ctx, client,
+				fmt.Sprintf("https://api.github.com/repos/%s/%s", src.Owner, src.Name),
+				&gh); err == nil {
+				gh.explicit = true
+				add(gh)
+			}
+		default:
+			var repos []GitHubRepo
+			if repos, err = m.listAccount(ctx, client, src.Owner); err == nil {
+				for _, gh := range repos {
+					add(gh)
+				}
+			}
+		}
+		if err != nil {
+			failed++
+			slog.Error("mirror source failed",
+				slog.String("source", src.Label()), slog.Any("err", err))
+		}
+	}
+
+	// Nothing listed and something went wrong is a real failure worth
+	// reporting; nothing listed because nothing is configured is not.
+	if len(all) == 0 && failed > 0 {
+		return nil, fmt.Errorf("every mirror source failed (%d)", failed)
+	}
+	return all, nil
+}
+
+// listAccount pages through one account's public repositories. Paginated
+// because the default page is 30 and one account here has more than that.
+func (m *Mirror) listAccount(ctx context.Context, client *http.Client, owner string) ([]GitHubRepo, error) {
 	var all []GitHubRepo
 	for page := 1; page <= 10; page++ {
 		url := fmt.Sprintf(
 			"https://api.github.com/users/%s/repos?per_page=100&type=owner&page=%d",
-			m.user, page)
+			owner, page)
 
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-		if err != nil {
+		var got []GitHubRepo
+		if err := getJSON(ctx, client, url, &got); err != nil {
 			return nil, err
 		}
-		req.Header.Set("Accept", "application/vnd.github+json")
-		// Unauthenticated requests are rate limited by IP at 60 an hour.
-		// One sync is a handful of requests and the ticker is hours apart,
-		// so this never approaches it, but the User-Agent is required by
-		// the API and a missing one is a 403 that reads like a ban.
-		req.Header.Set("User-Agent", "repos.bythewood.me")
-
-		resp, err := client.Do(req)
-		if err != nil {
-			return nil, fmt.Errorf("list repos: %w", err)
-		}
-
-		var page_ []GitHubRepo
-		err = json.NewDecoder(resp.Body).Decode(&page_)
-		status := resp.StatusCode
-		resp.Body.Close()
-
-		if status != http.StatusOK {
-			return nil, fmt.Errorf("list repos: github returned %d", status)
-		}
-		if err != nil {
-			return nil, fmt.Errorf("decode repo list: %w", err)
-		}
-		all = append(all, page_...)
-		if len(page_) < 100 {
+		all = append(all, got...)
+		if len(got) < 100 {
 			break
 		}
 	}
 	return all, nil
+}
+
+// getJSON is one unauthenticated GitHub call.
+//
+// Unauthenticated requests are rate limited by IP at 60 an hour. A sync is a
+// handful of calls and the ticker is hours apart, so this never approaches it,
+// but the User-Agent is required by the API and a missing one is a 403 that
+// reads like a ban.
+func getJSON(ctx context.Context, client *http.Client, url string, out any) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("User-Agent", "repos.bythewood.me")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("github returned %d for %s", resp.StatusCode, url)
+	}
+	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+		return fmt.Errorf("decode %s: %w", url, err)
+	}
+	return nil
+}
+
+// coveredBySource reports whether a mirrored repository still belongs to a
+// configured source.
+//
+// It scopes the upstream_gone check. Removing a source must not flag every
+// repository it brought in as vanished from GitHub: those repositories are
+// fine, this site simply stopped watching them.
+func coveredBySource(upstream string, sources []MirrorSource) bool {
+	path := strings.TrimSuffix(strings.TrimPrefix(upstream, "https://github.com/"), ".git")
+	owner, name, ok := strings.Cut(path, "/")
+	if !ok {
+		return false
+	}
+	for _, src := range sources {
+		if !strings.EqualFold(src.Owner, owner) {
+			continue
+		}
+		if src.Kind == sourceAccount || strings.EqualFold(src.Name, name) {
+			return true
+		}
+	}
+	return false
 }
 
 // adopt converts a pushed repository into a mirror of the same GitHub
@@ -462,4 +583,24 @@ func RunGC(ctx context.Context, store *Store, every time.Duration) {
 			}
 		}
 	}
+}
+
+// TrySync runs a sync in the background and reports whether it started one.
+//
+// The settings page needs this: after adding a source, waiting up to six hours
+// to find out whether the name was right is not a usable feedback loop. It
+// declines rather than queues, because two clicks should not mean two syncs,
+// and Sync's own mutex would otherwise leave the second goroutine parked for
+// however long a first clone takes.
+func (m *Mirror) TrySync(ctx context.Context) bool {
+	if !m.running.CompareAndSwap(false, true) {
+		return false
+	}
+	go func() {
+		defer m.running.Store(false)
+		if err := m.Sync(ctx); err != nil {
+			slog.Error("manual mirror sync failed", slog.Any("err", err))
+		}
+	}()
+	return true
 }

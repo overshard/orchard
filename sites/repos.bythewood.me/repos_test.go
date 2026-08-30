@@ -794,7 +794,7 @@ func TestAdopt(t *testing.T) {
 		if !ok {
 			t.Fatalf("store.Open(%q) = false", name)
 		}
-		return NewMirror(store, db, "tester"), repo
+		return NewMirror(store, db), repo
 	}
 
 	head := func(dir string) string {
@@ -890,4 +890,154 @@ func TestAdopt(t *testing.T) {
 			t.Errorf("refs/adopt left behind after refusal: %q", out)
 		}
 	})
+}
+
+// TestParseMirrorSource covers the one field the settings form has. The slash
+// is the entire grammar, so the cases that matter are the ones either side of
+// it and the URL somebody will inevitably paste instead.
+func TestParseMirrorSource(t *testing.T) {
+	ok := []struct {
+		in    string
+		kind  string
+		owner string
+		name  string
+	}{
+		{"overshard", sourceAccount, "overshard", ""},
+		{"  overshard  ", sourceAccount, "overshard", ""},
+		{"overshard/newtab", sourceRepo, "overshard", "newtab"},
+		{"overshard/blog.bythewood.me", sourceRepo, "overshard", "blog.bythewood.me"},
+		// Pasting the URL is the obvious mistake, so it is accepted.
+		{"https://github.com/overshard", sourceAccount, "overshard", ""},
+		{"https://github.com/overshard/newtab", sourceRepo, "overshard", "newtab"},
+		{"https://github.com/overshard/newtab.git", sourceRepo, "overshard", "newtab"},
+		{"github.com/overshard/newtab/", sourceRepo, "overshard", "newtab"},
+		// A trailing slash is what a copied URL carries, so it is forgiven.
+		{"overshard/", sourceAccount, "overshard", ""},
+	}
+	for _, c := range ok {
+		got, err := ParseMirrorSource(c.in)
+		if err != nil {
+			t.Errorf("ParseMirrorSource(%q) errored: %v", c.in, err)
+			continue
+		}
+		if got.Kind != c.kind || got.Owner != c.owner || got.Name != c.name {
+			t.Errorf("ParseMirrorSource(%q) = %+v, want %s %s/%s",
+				c.in, got, c.kind, c.owner, c.name)
+		}
+	}
+
+	bad := []string{
+		"", "   ", "/", "/newtab", "-bad", "over shard",
+		"a/b/c", "over;shard", "overshard/../etc", strings.Repeat("x", 101),
+	}
+	for _, in := range bad {
+		if got, err := ParseMirrorSource(in); err == nil {
+			t.Errorf("ParseMirrorSource(%q) = %+v, want an error", in, got)
+		}
+	}
+}
+
+// TestMirrorSourceLabel checks the round trip a human sees: what they type is
+// what the settings page shows back.
+func TestMirrorSourceLabel(t *testing.T) {
+	for _, in := range []string{"overshard", "overshard/newtab"} {
+		src, err := ParseMirrorSource(in)
+		if err != nil {
+			t.Fatalf("ParseMirrorSource(%q): %v", in, err)
+		}
+		if src.Label() != in {
+			t.Errorf("Label() = %q, want %q", src.Label(), in)
+		}
+		if want := "https://github.com/" + in; src.URL() != want {
+			t.Errorf("URL() = %q, want %q", src.URL(), want)
+		}
+	}
+}
+
+// TestMirrorSources covers the CRUD plus the seed guard, which is the part with
+// a footgun: a setting that comes back after being deleted is worse than one
+// that was never editable.
+func TestMirrorSources(t *testing.T) {
+	dir := t.TempDir()
+	db, err := OpenDB(dir)
+	if err != nil {
+		t.Fatalf("OpenDB: %v", err)
+	}
+	defer db.Close()
+
+	if err := db.SeedMirrorSources("overshard"); err != nil {
+		t.Fatalf("SeedMirrorSources: %v", err)
+	}
+	got, err := db.MirrorSources()
+	if err != nil {
+		t.Fatalf("MirrorSources: %v", err)
+	}
+	if len(got) != 1 || got[0].Owner != "overshard" || got[0].Kind != sourceAccount {
+		t.Fatalf("after seed: %+v, want one account source for overshard", got)
+	}
+
+	// Re-seeding is what a restart does, and it must not duplicate.
+	if err := db.SeedMirrorSources("overshard"); err != nil {
+		t.Fatalf("re-seed: %v", err)
+	}
+	if got, _ = db.MirrorSources(); len(got) != 1 {
+		t.Fatalf("re-seed added a row: %+v", got)
+	}
+
+	// Adding the same source twice is a no-op rather than an error, so a
+	// double submit does not need handling in the form.
+	src := MirrorSource{Kind: sourceRepo, Owner: "other", Name: "thing"}
+	for range 2 {
+		if err := db.AddMirrorSource(src); err != nil {
+			t.Fatalf("AddMirrorSource: %v", err)
+		}
+	}
+	if got, _ = db.MirrorSources(); len(got) != 2 {
+		t.Fatalf("after add: %d sources, want 2: %+v", len(got), got)
+	}
+
+	// Deleting the last source must stay deleted across a restart.
+	for _, s := range got {
+		if err := db.DeleteMirrorSource(s.ID); err != nil {
+			t.Fatalf("DeleteMirrorSource: %v", err)
+		}
+	}
+	if err := db.SeedMirrorSources("overshard"); err != nil {
+		t.Fatalf("seed after delete: %v", err)
+	}
+	if got, _ = db.MirrorSources(); len(got) != 0 {
+		t.Errorf("seed resurrected a deleted source: %+v", got)
+	}
+}
+
+// TestCoveredBySource is what scopes the upstream_gone flag. Getting it wrong
+// means removing a source shouts that every repository it brought in has
+// vanished from GitHub, which would be a false alarm on the one signal here
+// that has to be trusted.
+func TestCoveredBySource(t *testing.T) {
+	sources := []MirrorSource{
+		{Kind: sourceAccount, Owner: "overshard"},
+		{Kind: sourceRepo, Owner: "other", Name: "thing"},
+	}
+	covered := []string{
+		"https://github.com/overshard/orchard.git",
+		"https://github.com/overshard/newtab.git",
+		"https://github.com/OverShard/orchard.git", // GitHub logins are case insensitive
+		"https://github.com/other/thing.git",
+	}
+	for _, u := range covered {
+		if !coveredBySource(u, sources) {
+			t.Errorf("coveredBySource(%q) = false, want true", u)
+		}
+	}
+	notCovered := []string{
+		"https://github.com/other/different.git",
+		"https://github.com/somebodyelse/orchard.git",
+		"", "not-a-url", "https://github.com/overshard",
+	}
+	for _, u := range notCovered {
+		if coveredBySource(u, sources) {
+			t.Errorf("coveredBySource(%q) = true, want false", u)
+		}
+	}
 }

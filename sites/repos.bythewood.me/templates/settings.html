@@ -17,6 +17,53 @@ git push -u origin main</pre>
 </div>
 {{end}}
 
+{{if $d.Notice}}
+<div class="notice">{{$d.Notice}}</div>
+{{end}}
+
+<section>
+  <h2>What gets mirrored</h2>
+  <p class="hint">
+    A source is a whole GitHub account, or one repository on it. Everything
+    public it finds is cloned here and kept in step; forks and private
+    repositories are skipped, though naming a fork outright mirrors it anyway.
+    {{if $d.MirrorEnabled}}Syncs every {{$d.MirrorEvery}}.{{else}}<strong>The mirror lane is disabled.</strong>{{end}}
+  </p>
+
+  <form method="post" action="/settings/mirrors" class="inline">
+    <input type="text" name="source" placeholder="overshard or overshard/newtab" maxlength="201" required>
+    <button type="submit">Add source</button>
+  </form>
+
+  <table class="tokens">
+    <tbody>
+    {{range $d.Sources}}
+      <tr>
+        <td class="name"><a href="{{.URL}}" rel="noreferrer">{{.Label}}</a></td>
+        <td>{{if eq .Kind "account"}}entire account{{else}}single repository{{end}}</td>
+        <td>{{.Repos}} mirrored{{if .Failing}}, <strong>{{.Failing}} failing</strong>{{end}}</td>
+        <td>{{if .LastSync.IsZero}}never synced{{else}}synced {{humanTime .LastSync}}{{end}}</td>
+        <td>
+          <form method="post" action="/settings/mirrors/{{.ID}}/delete" class="inline">
+            <button type="submit" class="danger">Remove</button>
+          </form>
+        </td>
+      </tr>
+    {{else}}
+      <tr><td colspan="5">No sources. Nothing is being mirrored.</td></tr>
+    {{end}}
+    </tbody>
+  </table>
+
+  <form method="post" action="/settings/mirrors/sync" class="inline">
+    <button type="submit">Sync now</button>
+  </form>
+  <p class="hint">
+    Removing a source stops the syncing and leaves every repository it brought
+    in exactly where it is. Nothing here is deleted because a setting changed.
+  </p>
+</section>
+
 <section>
   <h2>Push tokens</h2>
   <p class="hint">

@@ -481,7 +481,9 @@ func ParseMirrorSource(input string) (MirrorSource, error) {
 	// accepted rather than rejected.
 	in = strings.TrimSuffix(strings.TrimPrefix(strings.TrimPrefix(in,
 		"https://github.com/"), "github.com/"), ".git")
-	in = strings.Trim(in, "/")
+	// Only a trailing slash is forgiven, because that is what a copied URL
+	// carries. A leading one means the owner is missing, which is a typo.
+	in = strings.TrimSuffix(in, "/")
 
 	if in == "" {
 		return MirrorSource{}, errors.New("enter an account or an owner/repository")
