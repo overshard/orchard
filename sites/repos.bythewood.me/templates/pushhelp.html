@@ -1,0 +1,58 @@
+{{/*
+  The 100MB guidance, in one place because it belongs on three pages.
+
+  Where it is shown matters more than what it says. The limit bites on the first
+  push of an existing repository, so a warning that lives only on a populated
+  repository page arrives strictly after the moment it was needed. It is shown:
+
+    - on the index, before any repository exists, next to the remote-add command
+    - on an empty repository page, which is exactly the state a failed oversized
+      push leaves behind: info/refs succeeds and creates the repository, then
+      Cloudflare kills the pack upload
+    - on the settings page under a freshly minted token, since minting one is
+      what a person does immediately before their first push
+*/}}
+
+{{define "pushlimit"}}
+<div class="pushlimit">
+  <h4>If the repository is over 100 MB, seed it differently</h4>
+  <p>
+    Cloudflare refuses any single request body over 100 MB, and the tunnel
+    hostname has to stay proxied, so nothing here can raise it. This only affects
+    the <em>first</em> push of an existing repository: every push after that sends
+    new objects only and is kilobytes. Check with
+    <code>git count-objects -vH</code> and look at <code>size-pack</code>.
+  </p>
+
+  <p><strong>1. Seed over the Docker bridge</strong>, from a container on
+  <code>orchard-edge</code>. Cloudflare is not in the path, so no limit applies:</p>
+  <pre class="cmd">git push http://{{.Bridge}}:8000/{{.Name}}.git --all &amp;&amp; git push http://{{.Bridge}}:8000/{{.Name}}.git --tags</pre>
+
+  <p><strong>2. Or push in slices</strong>, which works from anywhere. Each slice
+  is its own request, so none of them approaches the limit:</p>
+  <pre class="cmd">git log --oneline --reverse main | awk 'NR % 500 == 0' | cut -d' ' -f1 \
+  | while read sha; do git push origin +$sha:refs/heads/main; done
+git push origin main</pre>
+  <p class="hint">
+    Halve the step if a slice still fails. Raising
+    <code>http.postBuffer</code> does not help: git's own documentation says it
+    only disables chunked encoding for servers that cannot handle it.
+  </p>
+</div>
+{{end}}
+
+
+{{/* Carries Name as well as Bridge, because it forwards its dot to pushlimit. */}}
+{{define "firstpush"}}
+<details class="firstpush">
+  <summary>Pushing a repository here</summary>
+  <div class="firstpushbody">
+    <p>Any name works, and pushing to one that does not exist creates it. The
+    username is ignored, so anything will do; the password is a push token from
+    <a href="/settings">Settings</a>.</p>
+    <pre class="cmd">git remote add origin {{.CloneURL}}/&lt;name&gt;.git
+git push -u origin main</pre>
+    {{template "pushlimit" .}}
+  </div>
+</details>
+{{end}}

@@ -1,0 +1,1129 @@
+// repos.bythewood.me
+//
+// One hand written stylesheet. The other sites here pull in Bootstrap, which is
+// right for a dashboard of forms and grids; this site is dense text (file trees,
+// diffs, commit lists) and a framework does not help with any of it.
+//
+// **The design is deliberately not a forge.** GitHub, GitLab, Gitea and Forgejo
+// are all dark-with-a-warm-accent, sans-and-mono, industrial in name and in
+// look. An earlier draft of this file landed on cool ink with an ochre accent,
+// which is close enough to Forgejo to read as an imitation of it.
+//
+// So the formula is inverted and the subject is taken at its word. This is not a
+// forge; it is an archive that happens to accept pushes, and for nine
+// repositories it is the only surviving copy. That gives three decisions:
+//
+//   **Warm ground, cool accent.** A graphite biased toward plum rather than
+//   blue, with a periwinkle accent. The exact opposite arrangement to Forgejo's
+//   cool ground and amber accent, and clear of Gitea's green, GitHub's blue and
+//   GitLab's purple-orange.
+//
+//   **A serif carries the display type.** No forge uses one. Newsreader sets the
+//   wordmark and the headings; Plex Sans sets UI and prose; Monaspace Argon sets
+//   anything literally code. Three faces, three jobs.
+//
+//   **One accent family.** Everything interactive is periwinkle. Green and red
+//   are spent only on diff meaning, so they never read as decoration.
+//
+// Committed to dark, deliberately. chroma emits inline styles from a dark theme,
+// so a light mode needs class based output and a second generated stylesheet;
+// that is a follow up rather than half of this file.
+
+// --- tokens -------------------------------------------------------------
+
+:root {
+  // Warm graphite. Biased plum rather than blue, which is what keeps it from
+  // reading as the standard developer-tool near-black.
+  --bg:          #17151a;
+  --surface:     #1e1b21;
+  --raised:      #272229;
+  --sunken:      #151317;
+  --line:        #322c37;
+  --line-strong: #423b48;
+
+  --text:   #e4dfe4;
+  --muted:  #9a92a5;
+  // 4.53:1 on --bg, which clears WCAG AA for the 12 and 13px text this is
+  // actually used for. It was #6f6673 (3.30:1), which failed everywhere it
+  // appeared, and it still sits clearly below --muted so the three-step
+  // hierarchy survives.
+  --faint:  #8b8291;
+
+  // One accent family, used for everything interactive.
+  --accent:      #a99bf5;
+  --accent-lift: #c1b5ff;
+  --accent-dim:  rgba(169, 155, 245, 0.14);
+  --link:        #c9b8f0;
+  --link-lift:   #ded3fb;
+
+  // Semantic, and spent on nothing but diff and status meaning.
+  --add:      #8fbf9f;
+  --add-bg:   rgba(143, 191, 159, 0.10);
+  --del:      #e08a8a;
+  --del-bg:   rgba(224, 138, 138, 0.10);
+  --warn:     #e6c88a;
+  --warn-bg:  rgba(230, 200, 138, 0.07);
+
+  --serif: "Newsreader", ui-serif, Georgia, "Times New Roman", serif;
+  --sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "Monaspace Argon", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  // A type scale, so sizes are chosen from a set rather than invented.
+  --t-xs:  0.75rem;
+  --t-sm:  0.8125rem;
+  --t-base: 0.9375rem;
+  --t-md:  1.0625rem;
+  --t-lg:  1.375rem;
+  --t-xl:  1.75rem;
+
+  --radius: 5px;
+  --wrap:   1140px;
+  --bar:    56px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: var(--t-base);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+code, pre, .mono { font-family: var(--mono); }
+
+// Digits that sit in columns line up: sizes, line numbers, counts.
+.size, .num, .meta time, .count, .tokens td { font-variant-numeric: tabular-nums; }
+
+a {
+  color: var(--link);
+  text-decoration: none;
+  transition: color 0.12s ease;
+}
+a:hover { color: var(--link-lift); text-decoration: underline; }
+
+// One visible focus treatment for everything, rather than per-component.
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+::selection { background: var(--accent-dim); }
+
+h1, h2, h3, h4 {
+  text-wrap: balance;
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 0;
+}
+
+// Page and section titles are the serif; smaller labels stay sans, because a
+// serif at 13px in a table header is just fuzzy.
+.pagetitle, .repohead h1, .commitfull h2, section > h2,
+.emptystate h2, .loginbox h1, .notfound h1, .markdown h1, .markdown h2 {
+  font-family: var(--serif);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.wrap {
+  max-width: var(--wrap);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+// --- chrome -------------------------------------------------------------
+
+// The bar carries identity on the left and context in the middle, which is the
+// job a navbar on a repository host actually has: on any page below the index
+// it says which repository you are inside without you having to look at the
+// content. The previous version carried a wordmark, a static tagline and a
+// sign-in link, which is a header that never tells you anything.
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(23, 21, 26, 0.88);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+
+  .wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    height: var(--bar);
+  }
+
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 1.2rem;
+    color: var(--text);
+    letter-spacing: -0.01em;
+
+    svg { width: 9px; height: 9px; color: var(--accent); flex: none; }
+    &:hover { color: var(--text); text-decoration: none; }
+    &:hover svg { color: var(--accent-lift); }
+  }
+
+  // Where you are, not what the site is called.
+  .context {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+    flex: 1;
+    font-family: var(--mono);
+    font-size: var(--t-sm);
+
+    // Light enough to read as punctuation rather than as a smudge. The first
+    // pass used --line-strong, which is a border colour, and both separators
+    // came out too dim to identify.
+    .sep { color: var(--faint); }
+
+    a { color: var(--muted); &:hover { color: var(--text); } }
+
+    .here {
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    // The revision is a different kind of thing from the repository name, so it
+    // gets a chip rather than another separator and another word.
+    .ref {
+      color: var(--muted);
+      background: var(--raised);
+      border-radius: 3px;
+      padding: 0.05rem 0.4rem;
+      font-size: var(--t-xs);
+      white-space: nowrap;
+    }
+  }
+
+  nav {
+    display: flex;
+    align-items: center;
+    gap: 1.1rem;
+    font-size: var(--t-sm);
+    flex: none;
+    a { color: var(--muted); &:hover { color: var(--text); } }
+  }
+}
+
+main.wrap { padding-top: 2rem; padding-bottom: 3rem; }
+
+// A footer with three columns rather than a row of undifferentiated links: what
+// this is, where else Isaac is, and what this site itself offers. The first
+// column matters most, because a stranger who lands on a repository here has no
+// other way to find out what they are looking at.
+.footer {
+  border-top: 1px solid var(--line);
+  margin-top: 5rem;
+  padding: 2.25rem 0 2.5rem;
+  font-size: var(--t-sm);
+
+  .cols {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+    gap: 2rem;
+  }
+
+  h4 {
+    font-family: var(--sans);
+    font-size: var(--t-xs);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin-bottom: 0.7rem;
+  }
+
+  .about {
+    .mark {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: var(--serif);
+      font-size: var(--t-md);
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+      svg { width: 9px; height: 9px; color: var(--accent); }
+    }
+    p { margin: 0; color: var(--muted); max-width: 46ch; }
+  }
+
+  ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.4rem; }
+  a { color: var(--muted); &:hover { color: var(--text); } }
+
+  .colophon {
+    margin-top: 2.25rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--line);
+    color: var(--faint);
+    font-size: var(--t-xs);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.25rem;
+  }
+}
+
+// --- shared -------------------------------------------------------------
+
+.pagehead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.pagetitle {
+  font-size: var(--t-xl);
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.count {
+  font-family: var(--mono);
+  font-size: var(--t-xs);
+  font-weight: 400;
+  color: var(--muted);
+  background: var(--raised);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+}
+
+.badge {
+  font-size: var(--t-xs);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  padding: 0.1rem 0.45rem;
+  border-radius: 3px;
+  border: 1px solid;
+  white-space: nowrap;
+
+  &.mirror    { color: var(--link);   border-color: rgba(132, 169, 201, 0.4); }
+  &.archived  { color: var(--faint);  border-color: var(--line-strong); }
+  &.empty     { color: var(--faint);  border-color: var(--line-strong); }
+  &.default   { color: var(--add);    border-color: rgba(127, 176, 105, 0.4); }
+  &.annotated { color: var(--muted);  border-color: var(--line-strong); }
+
+  // The one loud badge on the site, and it earns it: upstream is gone and this
+  // copy is the only one left, which is the entire reason the mirror lane
+  // exists.
+  &.gone {
+    color: var(--bg);
+    background: var(--warn);
+    border-color: var(--warn);
+    font-weight: 600;
+  }
+}
+
+.hint  { color: var(--muted); font-size: var(--t-sm); }
+.empty { color: var(--faint); }
+.error { color: var(--del); }
+.warn  { color: var(--warn); }
+
+// A command meant to be copied, not read. Its own element rather than a
+// contextual rule on `code`, because the same prose also mentions commands
+// inline ("check with `git count-objects -vH`") and a selector that catches
+// both turns every such sentence into three stacked blocks.
+pre.cmd {
+  display: block;
+  font-family: var(--mono);
+  font-size: var(--t-sm);
+  line-height: 1.7;
+  background: var(--sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.7rem 0.85rem;
+  margin: 0.6rem 0;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text);
+  user-select: all;
+}
+
+// Inline code: a mention inside a sentence, so it stays on the line.
+p code, li code, .hint code, td code {
+  font-family: var(--mono);
+  font-size: 0.9em;
+  background: var(--raised);
+  border-radius: 3px;
+  padding: 0.05rem 0.3rem;
+  color: var(--text);
+}
+
+.notice {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1rem 1.15rem;
+  margin-bottom: 1.5rem;
+}
+
+.emptystate {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.5rem 1.65rem;
+
+  h2 { font-size: var(--t-md); margin-bottom: 0.4rem; }
+  p  { margin: 0.5rem 0; color: var(--muted); }
+}
+
+button, .btn {
+  font-family: var(--sans);
+  font-size: var(--t-sm);
+  font-weight: 500;
+  background: var(--raised);
+  color: var(--text);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  padding: 0.3rem 0.75rem;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease;
+  white-space: nowrap;
+
+  &:hover { border-color: var(--muted); background: var(--line); text-decoration: none; }
+}
+
+.btn { display: inline-block; color: var(--muted); &:hover { color: var(--text); } }
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #17130c;
+  &:hover { background: var(--accent-lift); border-color: var(--accent-lift); }
+}
+
+button.danger:hover { border-color: var(--del); color: var(--del); background: var(--del-bg); }
+
+button.linkish {
+  background: none;
+  border: none;
+  color: var(--muted);
+  padding: 0;
+  font-size: var(--t-sm);
+  &:hover { color: var(--text); background: none; text-decoration: underline; }
+}
+
+form.inline { display: inline-flex; gap: 0.5rem; align-items: center; }
+
+input[type="text"], input[type="password"], input[type="url"] {
+  font-family: var(--mono);
+  font-size: var(--t-sm);
+  background: var(--sunken);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.65rem;
+  width: 100%;
+  transition: border-color 0.12s ease;
+
+  &:focus { border-color: var(--accent); }
+  &[readonly] { color: var(--muted); cursor: pointer; }
+}
+
+// --- index --------------------------------------------------------------
+
+.repolist { list-style: none; padding: 0; margin: 0; }
+
+.repocard {
+  border-top: 1px solid var(--line);
+  padding: 0.85rem 0;
+  display: grid;
+  gap: 0.25rem;
+
+  &:last-child { border-bottom: 1px solid var(--line); }
+
+  .row { display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap; }
+
+  .name {
+    font-family: var(--mono);
+    font-size: var(--t-md);
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.01em;
+    &:hover { color: var(--accent); text-decoration: none; }
+  }
+
+  .desc { margin: 0; color: var(--muted); max-width: 68ch; }
+
+  // Facts separated by space rather than by middots: fewer marks on the page,
+  // and each span stays one unit when the row wraps.
+  .meta {
+    margin: 0;
+    color: var(--faint);
+    font-size: var(--t-sm);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 1.1rem;
+  }
+
+  .syncerr { color: var(--del); font-size: var(--t-sm); margin: 0; }
+}
+
+.topics { margin: 0; display: flex; flex-wrap: wrap; gap: 0.35rem; }
+
+.topic {
+  font-size: var(--t-xs);
+  color: var(--muted);
+  background: var(--raised);
+  border-radius: 999px;
+  padding: 0.05rem 0.55rem;
+}
+
+// --- repository chrome --------------------------------------------------
+
+.repohead {
+  margin-bottom: 1.25rem;
+
+  .titlerow {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.35rem;
+  }
+
+  h1 {
+    font-family: var(--mono);
+    font-size: var(--t-lg);
+    letter-spacing: -0.02em;
+    a { color: var(--text); &:hover { color: var(--accent); text-decoration: none; } }
+  }
+
+  .desc { margin: 0 0 0.5rem; color: var(--muted); max-width: 68ch; }
+}
+
+// A real tab row: a rule the whole width, and the active tab sitting on it.
+.repotabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 0.9rem;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+
+  a {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.75rem;
+    color: var(--muted);
+    font-size: var(--t-sm);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    white-space: nowrap;
+
+    &:hover { color: var(--text); text-decoration: none; }
+    &[aria-current="page"] {
+      color: var(--text);
+      border-bottom-color: var(--accent);
+      font-weight: 500;
+    }
+  }
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+
+  .stat { color: var(--faint); font-size: var(--t-sm); }
+  .spacer { flex: 1; }
+}
+
+.crumbs .leaf { color: var(--text); }
+
+.crumbs {
+  font-family: var(--mono);
+  font-size: var(--t-sm);
+  color: var(--faint);
+  a { color: var(--link); }
+}
+
+// --- ref switcher -------------------------------------------------------
+
+.refswitch {
+  position: relative;
+
+  summary {
+    cursor: pointer;
+    list-style: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: var(--raised);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    padding: 0.3rem 0.7rem;
+    font-family: var(--mono);
+    font-size: var(--t-sm);
+    color: var(--text);
+
+    &::-webkit-details-marker { display: none; }
+    &::after {
+      content: "";
+      width: 0; height: 0;
+      border-left: 4px solid transparent;
+      border-right: 4px solid transparent;
+      border-top: 5px solid var(--muted);
+    }
+    &:hover { border-color: var(--muted); }
+  }
+
+  .refmenu {
+    position: absolute;
+    z-index: 40;
+    top: calc(100% + 4px);
+    left: 0;
+    min-width: 240px;
+    max-height: 340px;
+    overflow-y: auto;
+    background: var(--raised);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    padding: 0.4rem 0;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+
+    h4 {
+      margin: 0.4rem 0.85rem 0.2rem;
+      font-size: var(--t-xs);
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--faint);
+    }
+    ul { list-style: none; margin: 0; padding: 0; }
+    li a {
+      display: block;
+      padding: 0.25rem 0.85rem;
+      font-family: var(--mono);
+      font-size: var(--t-sm);
+      color: var(--text);
+      &:hover { background: var(--line); text-decoration: none; }
+    }
+  }
+}
+
+// --- file tree ----------------------------------------------------------
+
+.tree {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: var(--t-sm);
+  // A file listing is scanned, not read, so it drops the body line-height. At
+  // 1.6 a forty-file directory does not fit on a screen and every row costs a
+  // saccade it did not need to.
+  line-height: 1.45;
+
+  td {
+    padding: 0.25rem 0.85rem;
+    border-bottom: 1px solid var(--line);
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface); }
+
+  .icon {
+    width: 1.75rem;
+    padding-right: 0;
+    color: var(--faint);
+    svg { display: block; width: 15px; height: 15px; }
+  }
+  // Directories read first, so their icon carries the accent rather than the
+  // row doing it with weight or colour.
+  tr.dir .icon { color: var(--accent); }
+
+  .name a { color: var(--link); }
+  .size { text-align: right; color: var(--faint); white-space: nowrap; }
+  .submodule { color: var(--muted); }
+}
+
+// --- README and prose ---------------------------------------------------
+
+.readme {
+  margin-top: 1.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+
+  .readmehead {
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    padding: 0.5rem 1.15rem;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: var(--t-sm);
+  }
+  .markdown { padding: 1.5rem 1.75rem; }
+}
+
+.markdown {
+  // Prose gets a comfortable measure; the rest of the site is deliberately
+  // wider because tables and diffs need the room.
+  > * { max-width: 72ch; }
+  > pre, > table { max-width: none; }
+
+  h1, h2 { border-bottom: 1px solid var(--line); padding-bottom: 0.3rem; margin: 1.75rem 0 0.85rem; }
+  h1 { font-size: var(--t-lg); }
+  h2 { font-size: var(--t-md); }
+  h3 { font-size: var(--t-base); margin: 1.5rem 0 0.6rem; }
+  > :first-child { margin-top: 0; }
+
+  p, ul, ol { margin: 0.85rem 0; }
+  li { margin: 0.25rem 0; }
+
+  img { max-width: 100%; }
+
+  table { border-collapse: collapse; display: block; overflow-x: auto; }
+  th, td { border: 1px solid var(--line); padding: 0.35rem 0.7rem; text-align: left; }
+  th { background: var(--surface); }
+
+  blockquote {
+    margin: 1rem 0;
+    padding: 0.1rem 0 0.1rem 1rem;
+    border-left: 2px solid var(--line-strong);
+    color: var(--muted);
+  }
+
+  pre {
+    background: var(--sunken);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 0.85rem 1rem;
+    overflow-x: auto;
+    font-size: var(--t-sm);
+  }
+  code {
+    background: var(--raised);
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    font-size: 0.9em;
+  }
+  pre code { background: none; padding: 0; }
+
+  hr { border: none; border-top: 1px solid var(--line); margin: 1.75rem 0; }
+}
+
+// --- blob ---------------------------------------------------------------
+
+.code {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--sunken);
+  overflow-x: auto;
+  font-size: var(--t-sm);
+
+  pre { margin: 0; padding: 0.85rem 0; }
+  &.plain { margin: 0; padding: 0.85rem 1rem; white-space: pre; }
+
+  // chroma emits style="outline:none" inline on every line-number anchor, and
+  // an inline style beats any author selector, so the site's focus ring has to
+  // be restored with !important or those links are keyboard-invisible.
+  a:focus-visible {
+    outline: 2px solid var(--accent) !important;
+    outline-offset: -2px;
+  }
+
+  // chroma's line numbers.
+  .lnt, .ln {
+    color: var(--faint);
+    user-select: none;
+    padding-right: 1rem;
+  }
+}
+
+// --- commits ------------------------------------------------------------
+
+.commits { list-style: none; padding: 0; margin: 0; }
+
+.commit {
+  border-top: 1px solid var(--line);
+  padding: 0.7rem 0;
+  &:last-child { border-bottom: 1px solid var(--line); }
+
+  .subject {
+    display: block;
+    color: var(--text);
+    font-weight: 500;
+    margin-bottom: 0.15rem;
+    &:hover { color: var(--link-lift); }
+  }
+
+  .meta {
+    color: var(--faint);
+    font-size: var(--t-sm);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.85rem;
+  }
+  .meta code { color: var(--accent); font-size: var(--t-xs); }
+}
+
+.commitfull {
+  h2 { font-size: var(--t-md); margin-bottom: 0.6rem; }
+
+  .body {
+    background: var(--surface);
+    border-left: 2px solid var(--line-strong);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 0.8rem 1.1rem;
+    white-space: pre-wrap;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: var(--t-sm);
+    margin: 0 0 1rem;
+  }
+
+  .meta {
+    color: var(--faint);
+    font-size: var(--t-sm);
+    margin: 0.3rem 0;
+    code { font-size: var(--t-xs); color: var(--accent); }
+  }
+
+  .diffstat {
+    margin: 1.5rem 0 0.85rem;
+    font-size: var(--t-sm);
+    color: var(--muted);
+  }
+}
+
+ins { color: var(--add); text-decoration: none; font-weight: 500; }
+del { color: var(--del); text-decoration: none; font-weight: 500; }
+
+.pager {
+  margin-top: 1.5rem;
+  display: flex;
+  gap: 0.75rem;
+}
+
+// --- diffs --------------------------------------------------------------
+
+.difffile {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin-bottom: 1.25rem;
+  // Deliberately not `overflow: hidden`. Clipping here establishes this box as
+  // the containing block for the sticky header below, which then sticks to the
+  // box rather than the viewport and floats over its own hunks. The corners are
+  // squared off on the header instead.
+  overflow: visible;
+
+  .diffhead {
+    // Sticky under the topbar, so the filename stays put while scrolling a long
+    // file's hunks. 52px is the topbar height.
+    position: sticky;
+    top: calc(var(--bar) - 1px);
+    z-index: 10;
+    border-radius: var(--radius) var(--radius) 0 0;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    padding: 0.5rem 0.85rem;
+    display: flex;
+    align-items: center;
+    // A flex item will not shrink below its min-content width, so without the
+    // wrap and the min-width below, a deeply nested file path set the width of
+    // this header, which set the width of the box, which pushed the whole page
+    // into a horizontal scroll.
+    flex-wrap: wrap;
+    gap: 0.7rem;
+    font-size: var(--t-sm);
+
+    code {
+      font-family: var(--mono);
+      color: var(--text);
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+    .counts { margin-left: auto; font-size: var(--t-xs); white-space: nowrap; }
+  }
+
+  .binary { padding: 0.9rem; color: var(--faint); margin: 0; font-size: var(--t-sm); }
+
+  .status {
+    font-size: var(--t-xs);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 0.05rem 0.4rem;
+    border-radius: 3px;
+
+    &.added    { color: var(--add);  background: var(--add-bg); }
+    &.deleted  { color: var(--del);  background: var(--del-bg); }
+    &.renamed  { color: var(--link); background: rgba(132, 169, 201, 0.1); }
+    &.copied   { color: var(--link); background: rgba(132, 169, 201, 0.1); }
+    &.modified { color: var(--warn); background: var(--warn-bg); }
+  }
+}
+
+.hunk {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: var(--t-sm);
+  line-height: 1.55;
+
+  td { padding: 0 0.5rem; }
+
+  .num {
+    width: 1%;
+    min-width: 3.25rem;
+    text-align: right;
+    color: var(--faint);
+    background: var(--sunken);
+    user-select: none;
+    // A wrapped code line must not drag its line numbers down with it.
+    vertical-align: top;
+    border-right: 1px solid var(--line);
+    font-size: var(--t-xs);
+  }
+
+  .code {
+    white-space: pre-wrap;
+    word-break: break-word;
+    border: none;
+    border-radius: 0;
+    background: none;
+  }
+
+  // A marker column in the text itself, so add and delete survive being read
+  // without colour: copy-pasted, printed, or by anyone colour blind.
+  tr.add .code::before,
+  tr.del .code::before,
+  tr.context .code::before {
+    display: inline-block;
+    width: 1ch;
+    margin-right: 0.5ch;
+    color: var(--faint);
+  }
+  tr.add .code::before     { content: "+"; color: var(--add); }
+  tr.del .code::before     { content: "-"; color: var(--del); }
+  tr.context .code::before { content: " "; }
+
+  tr.add td { background: var(--add-bg); }
+  tr.del td { background: var(--del-bg); }
+  tr.add .num { background: rgba(127, 176, 105, 0.14); }
+  tr.del .num { background: rgba(209, 101, 107, 0.14); }
+
+  // The rule separates one hunk from the previous one, so the first hunk in a
+  // file does not get it. `.hunkhead` is the row itself, so the selector has to
+  // be tr.hunkhead rather than a descendant.
+  tr.hunkhead td {
+    background: var(--raised);
+    color: var(--faint);
+    padding: 0.25rem 0.85rem;
+    font-size: var(--t-xs);
+    border-top: 1px solid var(--line);
+  }
+  tr.hunkhead:first-child td { border-top: none; }
+}
+
+// --- ref and token tables -----------------------------------------------
+
+.refs, .tokens {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  font-size: var(--t-sm);
+
+  td { padding: 0.55rem 0.85rem; border-bottom: 1px solid var(--line); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface); }
+
+  .name { font-family: var(--mono); font-weight: 500; }
+  .subject { color: var(--muted); }
+  .when, .dl { color: var(--faint); white-space: nowrap; }
+  .dl { text-align: right; }
+  .dl a { margin-left: 0.75rem; }
+}
+
+// --- clone and push -----------------------------------------------------
+
+.clonebox {
+  margin-top: 2.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 1.15rem 1.35rem;
+
+  h3 {
+    font-size: var(--t-xs);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin-bottom: 0.5rem;
+  }
+  h3 + p, h3 + input { margin-top: 0; }
+  input { margin-bottom: 0.35rem; }
+  > h3:not(:first-child) { margin-top: 1.25rem; }
+}
+
+// The push size meter. This is the site's signature control: the 100MB ceiling
+// Cloudflare puts on one request is invisible until a push fails, and the whole
+// point of showing it is that it can only be acted on beforehand.
+.meter {
+  margin: 0.85rem 0 0;
+  color: var(--faint);
+  font-size: var(--t-xs);
+  display: grid;
+  gap: 0.35rem;
+
+  .bar {
+    display: block;
+    height: 5px;
+    background: var(--sunken);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    overflow: hidden;
+
+    span {
+      display: block;
+      height: 100%;
+      background: var(--add);
+      transition: width 0.3s ease;
+    }
+  }
+
+  // Past about three quarters the number stops being trivia and starts being a
+  // warning, so the bar says so before the text has to.
+  &.warn .bar span { background: var(--warn); }
+  &.over .bar span { background: var(--del); }
+}
+
+.pushlimit {
+  margin-top: 1.25rem;
+  border: 1px solid rgba(224, 164, 88, 0.3);
+  border-radius: var(--radius);
+  background: var(--warn-bg);
+  padding: 1rem 1.15rem;
+
+  h4 {
+    font-size: var(--t-sm);
+    color: var(--warn);
+    margin-bottom: 0.5rem;
+  }
+  p { margin: 0.6rem 0; font-size: var(--t-sm); color: var(--muted); }
+  code { background: var(--sunken); }
+  strong { color: var(--text); }
+}
+
+.firstpush {
+  align-self: flex-start;
+
+  summary {
+    cursor: pointer;
+    list-style: none;
+    font-size: var(--t-sm);
+    color: var(--muted);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    padding: 0.3rem 0.75rem;
+    &::-webkit-details-marker { display: none; }
+    &::before { content: "+ "; color: var(--accent); }
+    &:hover { color: var(--text); border-color: var(--muted); }
+  }
+  &[open] summary::before { content: "\2212 "; }
+
+  .firstpushbody {
+    margin-top: 0.85rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    padding: 1.15rem 1.35rem;
+    p { margin: 0 0 0.5rem; color: var(--muted); font-size: var(--t-sm); }
+  }
+}
+
+// --- login and settings -------------------------------------------------
+
+.loginbox {
+  max-width: 360px;
+  margin: 4rem auto;
+
+  h1 { font-size: var(--t-lg); margin-bottom: 0.5rem; }
+  label { display: block; margin: 1rem 0 0.5rem; font-size: var(--t-sm); color: var(--muted); }
+  button { width: 100%; padding: 0.45rem; margin-top: 0.85rem; }
+}
+
+section { margin-bottom: 2.5rem; }
+section > h2 {
+  font-size: var(--t-md);
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.tokennew {
+  border-color: rgba(217, 154, 78, 0.35);
+  background: var(--accent-dim);
+  input { margin: 0.6rem 0; }
+}
+
+.editbox {
+  margin-top: 1.75rem;
+  summary { cursor: pointer; color: var(--muted); font-size: var(--t-sm); }
+  label { display: block; margin: 0.85rem 0 0.35rem; font-size: var(--t-sm); color: var(--muted); }
+  button { margin-top: 0.85rem; }
+}
+
+.notfound {
+  text-align: center;
+  padding: 5rem 0;
+  h1 { font-family: var(--mono); font-size: 3.5rem; color: var(--line-strong); }
+  p { color: var(--muted); }
+}
+
+// --- narrow -------------------------------------------------------------
+
+@media (max-width: 700px) {
+  :root { --wrap: 100%; }
+
+  .topbar .context .sep:first-child, .topbar .context { font-size: var(--t-xs); }
+  .footer .cols { grid-template-columns: 1fr; gap: 1.75rem; }
+  .wrap { padding: 0 1rem; }
+  main.wrap { padding-top: 1.25rem; }
+
+  .pagehead { flex-direction: column; align-items: stretch; gap: 0.75rem; }
+
+  .hunk .num { min-width: 2.25rem; }
+  .difffile .diffhead { position: static; }
+
+  .repocard .meta { gap: 0.35rem 0.7rem; }
+  .refs .subject, .tokens .subject { display: none; }
+}

@@ -1,0 +1,58 @@
+{{define "content"}}
+{{$d := .Data}}
+
+{{if not $d.HasTokens}}
+<div class="notice">
+  <strong>No push token yet.</strong>
+  {{if $.LoggedIn}}Mint one in <a href="/settings">Settings</a> before your first push.
+  {{else}}<a href="/login">Sign in</a> to mint one.{{end}}
+</div>
+{{end}}
+
+<div class="pagehead">
+  <h1 class="pagetitle">Repositories <span class="count">{{len $d.Repos}}</span></h1>
+  {{if $.LoggedIn}}{{template "firstpush" (dict "CloneURL" $d.CloneURL "Bridge" $d.Bridge "Name" "<name>")}}{{end}}
+</div>
+
+{{if not $d.Repos}}
+<div class="emptystate">
+  <h2>Nothing here yet</h2>
+  <p>Push a repository and it will be created:</p>
+  <pre class="cmd">git remote add origin {{$d.CloneURL}}/&lt;name&gt;.git
+git push -u origin main</pre>
+  {{if $.LoggedIn}}{{template "pushlimit" (dict "Bridge" $d.Bridge "Name" "<name>")}}{{end}}
+</div>
+{{end}}
+
+<ul class="repolist">
+{{range $d.Repos}}
+  <li class="repocard">
+    <div class="row">
+      <a class="name" href="/{{.Name}}">{{.Name}}</a>
+      {{if .Mirror}}<span class="badge mirror">mirror</span>{{end}}
+      {{if .Archived}}<span class="badge archived">archived</span>{{end}}
+      {{if .UpstreamGone}}<span class="badge gone" title="No longer on GitHub. This is the only copy.">only copy</span>{{end}}
+      {{if .Empty}}<span class="badge empty">empty</span>{{end}}
+    </div>
+
+    {{if .Description}}<p class="desc">{{.Description}}</p>{{end}}
+    {{if .Topics}}<p class="topics">{{range .Topics}}<span class="topic">{{.}}</span>{{end}}</p>{{end}}
+
+    {{/*
+      One span per fact, so the flex gap falls between facts rather than
+      inside one. Zero counts are dropped: "0 tags" on every row is noise that
+      makes the real numbers harder to spot.
+    */}}
+    <p class="meta">
+      <span>{{humanBytes .Size}}</span>
+      <span>{{.Branches}} {{pluralize .Branches "branch" "branches"}}</span>
+      {{if .Tags}}<span>{{.Tags}} {{pluralize .Tags "tag" "tags"}}</span>{{end}}
+      <span>updated <time title="{{.LastPush.Format "2006-01-02 15:04:05 MST"}}">{{humanTime .LastPush}}</time></span>
+      {{if .Mirror}}<span>synced {{humanTime .LastSync}}</span>{{end}}
+    </p>
+
+    {{if .LastSyncErr}}<p class="syncerr">Last sync failed: {{.LastSyncErr}}</p>{{end}}
+  </li>
+{{end}}
+</ul>
+{{end}}

@@ -1,0 +1,163 @@
+{{/*
+  The mark: one commit.
+
+  It took three drafts to get here and the first two failed the same way. A
+  branch shape (a stem with something forking off it) reads as a lowercase "h"
+  next to a wordmark, and a three-node graph collapses into a solid triangle
+  once the nodes and edges are only two pixels apart. Both were too much drawing
+  for twenty pixels.
+
+  So: a single filled node, which is what every one of those drawings was made
+  of anyway. It cannot be misread at any size, it holds up as a favicon, and the
+  serif wordmark beside it is doing the identifying regardless. Inline so it
+  inherits currentColor and costs no request.
+*/}}
+{{define "mark"}}<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="7" fill="currentColor"/></svg>{{end}}
+
+{{define "icon-dir"}}<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.5 3.25A1.75 1.75 0 0 1 3.25 1.5h2.94c.46 0 .9.18 1.23.51l.87.87h4.46c.97 0 1.75.78 1.75 1.75v7.62a1.75 1.75 0 0 1-1.75 1.75H3.25a1.75 1.75 0 0 1-1.75-1.75V3.25Z"/></svg>{{end}}
+{{define "icon-file"}}<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M9.2 1.8H4.4a1.6 1.6 0 0 0-1.6 1.6v9.2a1.6 1.6 0 0 0 1.6 1.6h7.2a1.6 1.6 0 0 0 1.6-1.6V5.8Z"/><path d="M9.2 1.8v4h4"/></svg>{{end}}
+{{define "icon-sub"}}<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="4.5" cy="4" r="2"/><circle cx="4.5" cy="12" r="2"/><circle cx="11.5" cy="8" r="2"/><path d="M4.5 6v4M6.4 4h1.7a1.8 1.8 0 0 1 1.8 1.8v.6"/></svg>{{end}}
+{{define "icon-up"}}<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M8 12.5V4M4.5 7.5 8 4l3.5 3.5"/></svg>{{end}}
+
+{{define "repohead"}}
+{{$c := .Ctx}}{{$tab := .Tab}}
+<div class="repohead">
+  <div class="titlerow">
+    <h1><a href="/{{$c.Repo.Name}}">{{$c.Repo.Name}}</a></h1>
+    {{if $c.Meta.Mirror}}<span class="badge mirror" title="Pulled from {{$c.Meta.Upstream}}, read only">mirror</span>{{end}}
+    {{if $c.Meta.Archived}}<span class="badge archived">archived upstream</span>{{end}}
+    {{if $c.Meta.UpstreamGone}}<span class="badge gone" title="No longer on GitHub. This is the only copy.">only copy</span>{{end}}
+    {{if $c.Empty}}<span class="badge empty">empty</span>{{end}}
+  </div>
+
+  {{if $c.Meta.Description}}<p class="desc">{{$c.Meta.Description}}</p>{{end}}
+  {{if $c.Meta.Topics}}
+    <p class="topics">{{range $c.Meta.Topics}}<span class="topic">{{.}}</span>{{end}}</p>
+  {{end}}
+
+  {{/*
+    aria-current marks the active tab for assistive tech and is also what the
+    stylesheet hangs the underline on, so the two cannot drift apart.
+  */}}
+  <nav class="repotabs">
+    <a href="/{{$c.Repo.Name}}"{{if eq $tab "files"}} aria-current="page"{{end}}>Files</a>
+    <a href="/{{$c.Repo.Name}}/log/{{$c.Rev}}"{{if eq $tab "log"}} aria-current="page"{{end}}>Commits</a>
+    <a href="/{{$c.Repo.Name}}/branches"{{if eq $tab "branches"}} aria-current="page"{{end}}>Branches{{if $c.Branches}} <span class="count">{{len $c.Branches}}</span>{{end}}</a>
+    <a href="/{{$c.Repo.Name}}/tags"{{if eq $tab "tags"}} aria-current="page"{{end}}>Tags{{if $c.Tags}} <span class="count">{{len $c.Tags}}</span>{{end}}</a>
+    <a href="/{{$c.Repo.Name}}/atom.xml">Feed</a>
+  </nav>
+</div>
+{{end}}
+
+
+{{define "refswitcher"}}
+{{$c := .Ctx}}
+{{if or $c.Branches $c.Tags}}
+<details class="refswitch">
+  <summary><span class="reflabel">{{$c.Rev}}</span></summary>
+  <div class="refmenu">
+    {{if $c.Branches}}<h4>Branches</h4>
+      <ul>{{range $c.Branches}}<li><a href="/{{$c.Repo.Name}}/tree/{{.Name}}">{{.Name}}</a></li>{{end}}</ul>
+    {{end}}
+    {{if $c.Tags}}<h4>Tags</h4>
+      <ul>{{range $c.Tags}}<li><a href="/{{$c.Repo.Name}}/tree/{{.Name}}">{{.Name}}</a></li>{{end}}</ul>
+    {{end}}
+  </div>
+</details>
+{{end}}
+{{end}}
+
+
+{{define "clonebox"}}
+{{$c := .Ctx}}
+<div class="clonebox">
+  <h3>Clone</h3>
+  <input type="text" readonly value="git clone {{$c.CloneURL}}" onclick="this.select()">
+
+  {{if $c.Meta.Mirror}}
+    <p class="hint">
+      This is a mirror of <a href="{{$c.Meta.Upstream}}">upstream</a> and does not
+      accept pushes. Cloning from it is how a copy is recovered.
+    </p>
+  {{else if $.LoggedIn}}
+    {{/*
+      Push instructions, the size meter and the limit guidance are all for the
+      one person who can push, and the guidance names internal container
+      topology. A visitor gets the clone URL and nothing about how the inside
+      of this is wired.
+    */}}
+    <h3>Push</h3>
+    <p class="hint">Username is ignored; the password is a push token.</p>
+    <input type="text" readonly value="git push {{$c.CloneURL}} main" onclick="this.select()">
+
+    {{/*
+      The meter is shown for every repository rather than only oversized ones,
+      because "how close am I" is the useful question and it can only be asked
+      before the limit is hit. The oversized case gets a sentence about what it
+      means from here rather than a warning about a push that has evidently
+      already happened.
+    */}}
+    <p class="meter{{if $c.OverLimit}} over{{else if ge $c.PushPercent 75}} warn{{end}}"
+       title="{{humanBytes $c.Size}} against the 100 MB Cloudflare allows in one request">
+      <span class="bar"><span style="width: {{$c.PushPercent}}%"></span></span>
+      {{humanBytes $c.Size}} &middot; {{$c.PushPercent}}% of what one request can carry
+    </p>
+
+    {{if $c.OverLimit}}
+      <p class="warn">
+        A full copy of this repository no longer fits in one request, so
+        <strong>re-seeding it from scratch</strong> (a fresh clone pushed to a new
+        name, or restoring it elsewhere) needs the bridge or a sliced push.
+        Ordinary pushes here are unaffected: they carry new objects only.
+      </p>
+      {{template "pushlimit" (dict "Bridge" $c.BridgeContainer "Name" $c.Repo.Name)}}
+    {{end}}
+  {{end}}
+</div>
+{{end}}
+
+
+{{define "commitrow"}}
+<li class="commit">
+  <a class="subject" href="/{{.Repo}}/commit/{{.Commit.SHA}}">{{.Commit.Subject}}</a>
+  <span class="meta">
+    <code>{{shortSHA .Commit.SHA}}</code>
+    {{.Commit.Author}}
+    <time datetime="{{.Commit.When.Format "2006-01-02T15:04:05Z07:00"}}"
+          title="{{.Commit.When.Format "2006-01-02 15:04:05 MST"}}">{{humanTime .Commit.When}}</time>
+  </span>
+</li>
+{{end}}
+
+
+{{define "difffile"}}
+{{$f := .File}}
+<div class="difffile">
+  <div class="diffhead">
+    <span class="status {{$f.Status}}">{{$f.Status}}</span>
+    {{if eq (printf "%s" $f.Status) "renamed"}}
+      <code>{{$f.OldPath}} &rarr; {{$f.NewPath}}</code>
+    {{else}}
+      <code>{{$f.Path}}</code>
+    {{end}}
+    <span class="counts"><ins>+{{$f.Additions}}</ins> <del>-{{$f.Deletions}}</del></span>
+  </div>
+
+  {{if $f.Binary}}
+    <p class="binary">Binary file not shown.</p>
+  {{else}}
+    {{range $f.Hunks}}
+    <table class="hunk">
+      <tr class="hunkhead"><td colspan="3">{{.Header}}</td></tr>
+      {{range .Lines}}
+      <tr class="{{.Kind}}">
+        <td class="num">{{if .OldNum}}{{.OldNum}}{{end}}</td>
+        <td class="num">{{if .NewNum}}{{.NewNum}}{{end}}</td>
+        <td class="code">{{.Text}}</td>
+      </tr>
+      {{end}}
+    </table>
+    {{end}}
+  {{end}}
+</div>
+{{end}}

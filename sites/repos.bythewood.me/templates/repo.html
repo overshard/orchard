@@ -1,0 +1,90 @@
+{{define "content"}}
+{{$d := .Data}}{{$c := $d.Ctx}}
+{{template "repohead" (dict "Ctx" $c "Tab" "files")}}
+
+{{if $c.Empty}}
+  <div class="emptystate">
+    <h2>This repository is empty</h2>
+    <p>Push to it:</p>
+    <pre class="cmd">git remote add origin {{$c.CloneURL}}
+git push -u origin main</pre>
+
+    {{/*
+      An empty repository is very often the wreckage of an oversized push
+      rather than a deliberate creation: the info/refs probe succeeds and
+      creates the repository, then Cloudflare rejects the pack upload. So the
+      limit is explained here, unprompted, because this is the page somebody
+      lands on immediately after that failure.
+    */}}
+    {{if $.LoggedIn}}
+    <p class="warn">
+      <strong>If you just pushed and it failed,</strong> the most likely reason
+      is that the pack was over 100 MB. The repository exists because the
+      handshake succeeded before the upload was rejected.
+    </p>
+    {{template "pushlimit" (dict "Bridge" $c.BridgeContainer "Name" $c.Repo.Name)}}
+    {{end}}
+  </div>
+{{else}}
+  <div class="toolbar">
+    {{template "refswitcher" $d}}
+    <span class="stat">{{$d.CommitCount}} {{pluralize $d.CommitCount "commit" "commits"}}</span>
+    <a class="btn" href="/{{$c.Repo.Name}}/archive/{{$c.Rev}}.tar.gz">Download tar.gz</a>
+  </div>
+
+  <table class="tree">
+    <tbody>
+    {{range $d.Entries}}
+      <tr class="{{if .IsDir}}dir{{else}}file{{end}}">
+        <td class="icon">{{if .IsDir}}{{template "icon-dir"}}{{else if .IsSubmodule}}{{template "icon-sub"}}{{else}}{{template "icon-file"}}{{end}}</td>
+        <td class="name">
+          {{if .IsDir}}
+            <a href="/{{$c.Repo.Name}}/tree/{{$c.Rev}}/{{urlPath .Path}}">{{.Name}}/</a>
+          {{else if .IsSubmodule}}
+            <span class="submodule">{{.Name}} @ {{shortSHA .SHA}}</span>
+          {{else}}
+            <a href="/{{$c.Repo.Name}}/blob/{{$c.Rev}}/{{urlPath .Path}}">{{.Name}}</a>
+          {{end}}
+        </td>
+        <td class="size">{{if not .IsDir}}{{humanBytes .Size}}{{end}}</td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+
+  {{if $d.Readme}}
+    <article class="readme">
+      <div class="readmehead">{{$d.ReadmeName}}</div>
+      <div class="markdown">{{$d.Readme}}</div>
+    </article>
+  {{end}}
+
+  <section class="recent">
+    <h2>Recent commits</h2>
+    <ul class="commits">
+      {{range $d.Commits}}{{template "commitrow" (dict "Repo" $c.Repo.Name "Commit" .)}}{{end}}
+    </ul>
+    <a href="/{{$c.Repo.Name}}/log/{{$c.Rev}}">All commits</a>
+  </section>
+{{end}}
+
+{{template "clonebox" $d}}
+
+{{if and $.LoggedIn (not $c.Meta.Mirror)}}
+<details class="editbox">
+  <summary>Edit description</summary>
+  <form method="post" action="/{{$c.Repo.Name}}/edit">
+    <label>Description
+      <input type="text" name="description" value="{{$c.Meta.Description}}" maxlength="300">
+    </label>
+    <label>Topics (comma separated)
+      <input type="text" name="topics" value="{{range $i, $t := $c.Meta.Topics}}{{if $i}}, {{end}}{{$t}}{{end}}">
+    </label>
+    <label>Homepage
+      <input type="url" name="homepage" value="{{$c.Meta.Homepage}}">
+    </label>
+    <button type="submit">Save</button>
+  </form>
+</details>
+{{end}}
+{{end}}

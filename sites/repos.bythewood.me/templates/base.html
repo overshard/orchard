@@ -1,0 +1,89 @@
+{{define "base.html"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{if .Title}}{{.Title}} &middot; {{end}}{{.SiteName}}</title>
+{{if .Description}}<meta name="description" content="{{.Description}}">{{end}}
+{{if .Staging}}<meta name="robots" content="noindex, nofollow">{{end}}
+<link rel="canonical" href="{{.Canonical}}">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+{{range .Styles}}<link rel="stylesheet" href="{{.}}">{{end}}
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="/">{{template "mark"}} repos</a>
+
+    {{/*
+      Context, not decoration. Below the index this says which repository you
+      are in, so the header answers a question instead of repeating the site
+      name at you.
+    */}}
+    <div class="context">
+      {{if .RepoName}}
+        <span class="sep">/</span>
+        <span class="here"><a href="/{{.RepoName}}">{{.RepoName}}</a></span>
+        {{if .RepoRev}}<span class="ref">{{.RepoRev}}</span>{{end}}
+      {{end}}
+    </div>
+
+    <nav>
+      {{if .LoggedIn}}
+        <a href="/settings">Settings</a>
+        <form method="post" action="/logout" class="inline">
+          <button type="submit" class="linkish">Sign out</button>
+        </form>
+      {{else}}
+        <a href="/login">Sign in</a>
+      {{end}}
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+{{template "content" .}}
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <div class="cols">
+      <div class="about">
+        <span class="mark">{{template "mark"}} repos</span>
+        {{/*
+          Deliberately says what the site is for and nothing about how it is
+          built or where it runs. An earlier version named the stack, the host
+          and the absent features; none of that helps a visitor and all of it
+          narrows an attacker's guesswork.
+        */}}
+        <p>{{.AuthorName}}'s code, kept and served here. Clone anything; browse the history.</p>
+      </div>
+
+      <div>
+        <h4>Elsewhere</h4>
+        <ul>
+          {{range .FooterLinks}}<li><a href="{{.Href}}">{{.Label}}</a></li>{{end}}
+        </ul>
+      </div>
+
+      <div>
+        <h4>This site</h4>
+        <ul>
+          <li><a href="/">All repositories</a></li>
+          {{if .LoggedIn}}<li><a href="/settings">Push tokens</a></li>{{else}}<li><a href="/login">Sign in</a></li>{{end}}
+          <li><a href="{{.SourceURL}}">Source</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="colophon">
+      <span>&copy; {{.AuthorName}}</span>
+    </p>
+  </div>
+</footer>
+
+{{if .Script}}<script type="module" src="{{.Script}}"></script>{{end}}
+</body>
+</html>
+{{end}}

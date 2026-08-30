@@ -1,0 +1,29 @@
+{{define "content"}}
+{{$d := .Data}}{{$c := $d.Ctx}}
+{{template "repohead" (dict "Ctx" $c "Tab" "tags")}}
+
+<h2>Tags <span class="count">{{len $c.Tags}}</span></h2>
+
+{{if not $c.Tags}}
+  <p class="empty">No tags. Push one with <code>git push origin v1.0.0</code>.</p>
+{{end}}
+
+<table class="refs">
+  <tbody>
+  {{range $c.Tags}}
+    <tr>
+      <td class="name">
+        <a href="/{{$c.Repo.Name}}/tree/{{.Name}}">{{.Name}}</a>
+        {{if .Annotated}}<span class="badge annotated">annotated</span>{{end}}
+      </td>
+      <td class="subject">{{.Subject}}</td>
+      <td class="when"><time title="{{.When.Format "2006-01-02 15:04:05 MST"}}">{{humanTime .When}}</time></td>
+      <td class="dl">
+        <a href="/{{$c.Repo.Name}}/archive/{{.Name}}.tar.gz">tar.gz</a>
+        <a href="/{{$c.Repo.Name}}/archive/{{.Name}}.zip">zip</a>
+      </td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+{{end}}

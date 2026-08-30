@@ -1,0 +1,22 @@
+{{define "content"}}
+{{$d := .Data}}{{$c := $d.Ctx}}
+{{template "repohead" (dict "Ctx" $c "Tab" "log")}}
+
+<div class="toolbar">
+  {{template "refswitcher" $d}}
+  {{if $d.Path}}<span class="stat">History of <code>{{$d.Path}}</code></span>{{end}}
+</div>
+
+{{if $c.Empty}}
+  <p class="empty">No commits yet.</p>
+{{else}}
+<ul class="commits">
+  {{range $d.Commits}}{{template "commitrow" (dict "Repo" $c.Repo.Name "Commit" .)}}{{end}}
+</ul>
+
+<nav class="pager">
+  {{if $d.HasPrev}}<a href="?page={{sub $d.Page 1}}">Newer</a>{{end}}
+  {{if $d.HasNext}}<a href="?page={{add $d.Page 1}}">Older</a>{{end}}
+</nav>
+{{end}}
+{{end}}

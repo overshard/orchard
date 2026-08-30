@@ -1,0 +1,42 @@
+{{define "content"}}
+{{$d := .Data}}{{$c := $d.Ctx}}
+{{template "repohead" (dict "Ctx" $c "Tab" "files")}}
+
+<div class="toolbar">
+  {{template "refswitcher" $d}}
+  <nav class="crumbs">
+    <a href="/{{$c.Repo.Name}}/tree/{{$c.Rev}}">{{$c.Repo.Name}}</a>
+    {{range pathSegs $d.Path}} / <a href="/{{$c.Repo.Name}}/tree/{{$c.Rev}}/{{urlPath .Path}}">{{.Name}}</a>{{end}}
+  </nav>
+</div>
+
+<table class="tree">
+  <tbody>
+  {{if $d.Path}}
+  <tr class="dir"><td class="icon">{{template "icon-up"}}</td><td class="name"><a href="/{{$c.Repo.Name}}/tree/{{$c.Rev}}">..</a></td><td></td></tr>
+  {{end}}
+  {{range $d.Entries}}
+    <tr class="{{if .IsDir}}dir{{else}}file{{end}}">
+      <td class="icon">{{if .IsDir}}{{template "icon-dir"}}{{else if .IsSubmodule}}{{template "icon-sub"}}{{else}}{{template "icon-file"}}{{end}}</td>
+      <td class="name">
+        {{if .IsDir}}
+          <a href="/{{$c.Repo.Name}}/tree/{{$c.Rev}}/{{urlPath .Path}}">{{.Name}}/</a>
+        {{else if .IsSubmodule}}
+          <span class="submodule">{{.Name}} @ {{shortSHA .SHA}}</span>
+        {{else}}
+          <a href="/{{$c.Repo.Name}}/blob/{{$c.Rev}}/{{urlPath .Path}}">{{.Name}}</a>
+        {{end}}
+      </td>
+      <td class="size">{{if not .IsDir}}{{humanBytes .Size}}{{end}}</td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+
+{{if $d.Readme}}
+  <article class="readme">
+    <div class="readmehead">{{$d.ReadmeName}}</div>
+    <div class="markdown">{{$d.Readme}}</div>
+  </article>
+{{end}}
+{{end}}

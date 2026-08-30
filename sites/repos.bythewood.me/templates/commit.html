@@ -1,0 +1,33 @@
+{{define "content"}}
+{{$d := .Data}}{{$c := $d.Ctx}}
+{{template "repohead" (dict "Ctx" $c "Tab" "log")}}
+
+<article class="commitfull">
+  <h2>{{$d.Commit.Subject}}</h2>
+  {{if $d.Commit.Body}}<pre class="body">{{$d.Commit.Body}}</pre>{{end}}
+
+  <p class="meta">
+    <code>{{$d.Commit.SHA}}</code>
+    &middot; {{$d.Commit.Author}} &lt;{{$d.Commit.Email}}&gt;
+    &middot; <time title="{{$d.Commit.When.Format "2006-01-02 15:04:05 MST"}}">{{humanTime $d.Commit.When}}</time>
+  </p>
+
+  <p class="meta">
+    {{range $d.Commit.Parents}}
+      parent <a href="/{{$c.Repo.Name}}/commit/{{.}}">{{shortSHA .}}</a>
+    {{end}}
+    &middot; <a href="/{{$c.Repo.Name}}/tree/{{$d.Commit.SHA}}">Browse at this commit</a>
+  </p>
+
+  <p class="diffstat">
+    {{len $d.Diff.Files}} {{pluralize (len $d.Diff.Files) "file" "files"}} changed,
+    <ins>+{{$d.Diff.Additions}}</ins> <del>-{{$d.Diff.Deletions}}</del>
+  </p>
+
+  {{if $d.Diff.Truncated}}
+    <p class="notice">This diff is too large to show in full. The counts above are for the part that was read.</p>
+  {{end}}
+
+  {{range $d.Diff.Files}}{{template "difffile" (dict "File" .)}}{{end}}
+</article>
+{{end}}

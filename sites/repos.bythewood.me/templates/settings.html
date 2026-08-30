@@ -1,0 +1,57 @@
+{{define "content"}}
+{{$d := .Data}}
+<h1 class="pagetitle">Settings</h1>
+
+{{if $d.NewToken}}
+<div class="notice tokennew">
+  <strong>New push token. This is the only time it is shown.</strong>
+  <input type="text" readonly value="{{$d.NewToken}}" onclick="this.select()">
+  <p>Use it as the password. The username is ignored, so type anything:</p>
+  <pre class="cmd">git remote add origin {{$d.CloneURL}}/&lt;name&gt;.git
+git push -u origin main</pre>
+  <p class="hint">
+    To avoid retyping it, let git remember it:
+    <pre class="cmd">git config --global credential.helper store</pre>
+    The token is stored in clear in <code>~/.git-credentials</code>, so treat that file as the secret it is.
+  </p>
+</div>
+{{end}}
+
+<section>
+  <h2>Push tokens</h2>
+  <p class="hint">
+    A token is the password half of an HTTP Basic credential, which is the only
+    scheme git natively stores and replays. It is a random value, not a
+    password, and only its hash is kept here. Revoking one takes effect on the
+    next push.
+  </p>
+
+  <form method="post" action="/settings/tokens" class="inline">
+    <input type="text" name="label" placeholder="laptop, desktop, CI" maxlength="60" required>
+    <button type="submit">Mint token</button>
+  </form>
+
+  <table class="tokens">
+    <tbody>
+    {{range $d.Tokens}}
+      <tr>
+        <td class="name">{{.Label}}</td>
+        <td><code>{{.Prefix}}&hellip;</code></td>
+        <td>created {{humanTime .Created}}</td>
+        <td>{{if .LastUsed.IsZero}}never used{{else}}used {{humanTime .LastUsed}}{{end}}</td>
+        <td>
+          <form method="post" action="/settings/tokens/{{.ID}}/revoke" class="inline">
+            <button type="submit" class="danger">Revoke</button>
+          </form>
+        </td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>Pushing a large repository</h2>
+  {{template "pushlimit" (dict "Bridge" $d.Bridge "Name" "<name>")}}
+</section>
+{{end}}

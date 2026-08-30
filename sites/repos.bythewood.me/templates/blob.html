@@ -1,0 +1,33 @@
+{{define "content"}}
+{{$d := .Data}}{{$c := $d.Ctx}}
+{{template "repohead" (dict "Ctx" $c "Tab" "files")}}
+
+<div class="toolbar">
+  {{/*
+    The leaf is the file itself and is rendered as text, not a link. Linking it
+    to a /tree/ URL, as every other crumb correctly is, produced a 404 on the
+    last crumb of every blob page.
+  */}}
+  <nav class="crumbs">
+    <a href="/{{$c.Repo.Name}}/tree/{{$c.Rev}}">{{$c.Repo.Name}}</a>
+    {{$segs := pathSegs $d.Path}}{{$last := sub (len $segs) 1}}
+    {{range $i, $seg := $segs}} /
+      {{if eq $i $last}}<span class="leaf">{{$seg.Name}}</span>
+      {{else}}<a href="/{{$c.Repo.Name}}/tree/{{$c.Rev}}/{{urlPath $seg.Path}}">{{$seg.Name}}</a>{{end}}
+    {{end}}
+  </nav>
+  <span class="stat">{{humanBytes $d.Size}}{{if $d.Lines}} &middot; {{$d.Lines}} lines{{end}}{{if $d.Language}} &middot; {{$d.Language}}{{end}}</span>
+  <a class="btn" href="/{{$c.Repo.Name}}/raw/{{$c.Rev}}/{{urlPath $d.Path}}">Raw</a>
+  <a class="btn" href="/{{$c.Repo.Name}}/log/{{$c.Rev}}/{{urlPath $d.Path}}">History</a>
+</div>
+
+{{if $d.TooLarge}}
+  <p class="notice">This file is {{humanBytes $d.Size}}, too large to render. Download the raw file instead.</p>
+{{else if $d.Binary}}
+  <p class="notice">Binary file, {{humanBytes $d.Size}}. Download the raw file to inspect it.</p>
+{{else if $d.Highlighted}}
+  <div class="code">{{$d.Highlighted}}</div>
+{{else}}
+  <pre class="code plain">{{$d.Plain}}</pre>
+{{end}}
+{{end}}

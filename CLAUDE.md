@@ -6,7 +6,7 @@ repository. Start with `README.md`; this file is the working detail behind it.
 ## What this is
 
 One repo for every site Isaac Bythewood runs, plus the shared Cloudflare Tunnel
-and Caddy that front them. Five sites, all Go, all served from a desktop behind
+and Caddy that front them. Six sites, all Go, all served from a desktop behind
 a tunnel rather than a rented server.
 
 | Directory | What it serves |
@@ -16,6 +16,7 @@ a tunnel rather than a rented server.
 | `sites/analytics.bythewood.me/` | Self hosted analytics. SQLite, GeoIP, Typst PDF reports |
 | `sites/status.bythewood.me/` | Self hosted uptime monitoring. SQLite, Lighthouse audits, crawler |
 | `sites/logging.bythewood.me/` | Self hosted log aggregation. Every other site ships its slog records here. SQLite, retention and rollups, Typst PDF reports |
+| `sites/repos.bythewood.me/` | Self hosted git remote. Push to it over HTTPS with a token; also mirrors the GitHub account as a backup. Everything git is a subprocess |
 | `edge/` | The shared `cloudflared` tunnel, the Caddy that reverse proxies to each site, and the ntfy every alert is published to |
 
 ## The one structural rule
@@ -39,10 +40,10 @@ policies, graceful shutdown, and `shipper.go`, the tee handler that sends a copy
 of every log record to logging.bythewood.me. It was one shared `internal/web`
 under a single root module before the split.
 
-**A fix in `web/` has to be made five times.** If a change belongs in all five,
-change all five. Do not reintroduce a shared parent module to avoid this; that
+**A fix in `web/` has to be made six times.** If a change belongs in all six,
+change all six. Do not reintroduce a shared parent module to avoid this; that
 is the thing the split removed. `shipper.go` in particular must stay
-byte-identical across the five: it is a wire format as much as a file.
+byte-identical across the six: it is a wire format as much as a file.
 
 ## Commands
 
@@ -83,8 +84,9 @@ name on the `orchard-edge` network.
 
 **Everything is named `orchard-<first label>`.** `orchard-caddy`,
 `orchard-cloudflared`, `orchard-blog`, `orchard-analytics`, `orchard-status`,
-`orchard-isaacbythewood`, `orchard-logging`, and the volumes
-`orchard-analytics-data`, `orchard-status-data` and `orchard-logging-data`. One
+`orchard-isaacbythewood`, `orchard-logging`, `orchard-repos`, and the volumes
+`orchard-analytics-data`, `orchard-status-data`, `orchard-logging-data` and
+`orchard-repos-data`. One
 prefix across the repo, so `docker ps --filter name=orchard` is the whole system and the Makefile derives a container name from
 a site directory without a lookup table. These carried a `-next` suffix until
 2026-08-29, from the migration that made them the live thing; the suffix stopped
@@ -116,6 +118,28 @@ publishes over GET too: `/<topic>/publish`, `/send` and `/trigger` all publish
 with no body, and `POST /` publishes with the topic in a JSON body. All four
 were confirmed against the running container. A rule blocking `POST /<topic>`
 leaks three ways.
+
+**Pushing to repos is bounded by Cloudflare, not by this repo.** Cloudflare
+rejects any proxied request body over 100MB on Free and Pro, and a tunnel
+hostname must stay proxied, because `<uuid>.cfargotunnel.com` is not publicly
+routable and a DNS-only record would resolve to nothing. So there is no setting
+anywhere in this repo that raises it, and `http.postBuffer` does not either: git's
+own documentation says raising it only disables chunked encoding for servers that
+cannot handle it.
+
+Everyday pushes send new objects only and are kilobytes, so this bites exactly
+once per repository, on the first push. Two ways past it, in order of least
+effort:
+
+1. **Seed over the Docker bridge.** From a container on `orchard-edge`, push to
+   `http://orchard-repos:8000/<name>.git`. Cloudflare is not in the path.
+2. **Push in slices,** which works from anywhere:
+   `git log --oneline --reverse main | awk 'NR % 500 == 0' | cut -d' ' -f1 | while read sha; do git push origin +$sha:refs/heads/main; done`
+   then a final `git push origin main`.
+
+The repository page shows each repo's size against the limit as a meter, and
+says which of the two to use once a repo is over it. `orchard` itself packs to
+about 95MB, five under the ceiling, so it is the one to watch.
 
 **Secrets are a `.env` beside each site's compose file.** Compose reads it
 because that directory is the project directory, so nothing is exported in a

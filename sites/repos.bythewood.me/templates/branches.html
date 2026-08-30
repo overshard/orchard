@@ -1,0 +1,21 @@
+{{define "content"}}
+{{$d := .Data}}{{$c := $d.Ctx}}
+{{template "repohead" (dict "Ctx" $c "Tab" "branches")}}
+
+<h2>Branches <span class="count">{{len $c.Branches}}</span></h2>
+<table class="refs">
+  <tbody>
+  {{range $c.Branches}}
+    <tr>
+      <td class="name">
+        <a href="/{{$c.Repo.Name}}/tree/{{.Name}}">{{.Name}}</a>
+        {{if eq .Name $c.Head}}<span class="badge default">default</span>{{end}}
+      </td>
+      <td class="subject"><a href="/{{$c.Repo.Name}}/commit/{{.Target}}">{{.Subject}}</a></td>
+      <td class="when"><time title="{{.When.Format "2006-01-02 15:04:05 MST"}}">{{humanTime .When}}</time></td>
+      <td class="dl"><a href="/{{$c.Repo.Name}}/archive/{{.Name}}.tar.gz">tar.gz</a></td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+{{end}}
