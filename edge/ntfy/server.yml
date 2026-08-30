@@ -2,11 +2,12 @@
 #
 # Publishing is plain HTTP from inside the bridge: status posts outage
 # transitions to /status, logging posts silence and unclean-restart transitions
-# to /logging. Reading is over the tailnet only, through the tailscale sidecar
-# next to this container. Nothing here is ever reachable through the tunnel,
-# which is the whole point: the one message that has to arrive when this
-# infrastructure is broken must not depend on Cloudflare, or on anybody else's
-# servers.
+# to /logging, both over the Docker bridge with a write-only token. Reading is
+# over the tunnel at ntfy.bythewood.me with a separate read-only account.
+#
+# Publishing is fenced to the bridge by Caddy rather than by anything in here,
+# because ntfy has no way to restrict an account by source address. That is the
+# fact to remember before trying to solve it again in this file.
 #
 # This file is baked into the image rather than mounted. The Docker CLI in the
 # webdev container talks to Docker Desktop on the Windows host, whose daemon
@@ -18,14 +19,10 @@
 # is :80.
 listen-http: ":8000"
 
-# The address a phone reaches this at. There are two, and this is the public
-# one: the tunnel hostname is what the Android client is pointed at day to day,
-# and the tailnet name still works as a second path that does not depend on
-# Cloudflare being up. base-url takes one value, and it should be the one a
-# link in a notification has to resolve from anywhere.
-#
-# Hardcoded rather than passed in, because it is identity and not a credential:
-# the same rule every site in this repo follows in its site.go.
+# The address a phone reaches this at, and what a click link in a notification
+# has to resolve to from anywhere. Hardcoded rather than passed in, because it
+# is identity and not a credential: the same rule every site in this repo
+# follows in its site.go.
 base-url: "https://ntfy.bythewood.me"
 
 # Messages survive a restart and a phone that was offline, which is the
@@ -36,7 +33,7 @@ cache-file: "/var/lib/ntfy/cache.db"
 cache-duration: "24h"
 
 # Authentication, because this is reachable from the internet at
-# ntfy.bythewood.me and not only from the bridge and the tailnet.
+# ntfy.bythewood.me and not only from the bridge.
 #
 # deny-all means exactly that: an anonymous request can neither read nor
 # publish, on any topic. Two accounts exist, created by setup-ntfy.sh:
@@ -56,11 +53,21 @@ auth-default-access: "deny-all"
 # Attachments are off (no attachment-cache-dir), so nothing here accepts a file
 # upload. Alerts are a title, a line of text and a click URL.
 
-# X-Forwarded-For is NOT trusted. tailscale serve sets it, but so could a
-# publisher on the bridge, and the only thing it buys is per-IP rate limiting
-# that a five-alerts-a-month system does not need. Everything therefore rate
-# limits against the peer address, which is correct for the bridge and
-# harmlessly shared for tailnet clients.
+# No web app. ntfy serves a full single-page client at / by default, and on a
+# public hostname that is a login form, a service worker and a pile of static
+# assets answering to anyone who finds the name, in front of a service whose
+# only two clients are an Android app and two Go programs. Neither reads any of
+# it: the app talks to /<topic>/ws, /<topic>/json and /<topic>/auth, and the
+# publishers POST to /<topic>. Turning it off removes the whole surface rather
+# than protecting it.
+web-root: "disable"
+
+# X-Forwarded-For is NOT trusted, even though Caddy sets it. Trusting it would
+# let a publisher spoof its own address, and the only thing it buys is per-IP
+# rate limiting that a handful-of-alerts-a-month system does not need. Rate
+# limits therefore count against the peer address, which is the bridge for
+# publishers and Caddy for readers: correct for the first and harmlessly shared
+# for the second.
 behind-proxy: false
 
 # Quieter than the default: this is machine to machine and every publish is

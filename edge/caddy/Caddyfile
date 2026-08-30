@@ -91,38 +91,39 @@ http://logging.bythewood.me {
 # from inside" a fact about the edge rather than a claim about the app, exactly
 # like the /ingest fence above it.
 #
-# It is a denylist over a method restriction rather than a bare "block POST",
-# because ntfy publishes over GET too and a naive rule leaks three ways:
-# /<topic>/publish, /<topic>/send and /<topic>/trigger all publish with no body
-# at all, and a POST to / publishes with the topic inside a JSON body. Both were
-# confirmed against the running container rather than read off a page.
+# It is an allowlist of three routes, and it is an allowlist for two reasons.
 #
-# So: anything that is not a read is refused, and the three GET publish aliases
-# are refused by name. Everything else proxies through, which keeps the whole
-# subscribe surface the Android client uses working (ws, json, sse, raw, and the
-# account endpoints it checks a login against) without enumerating it here and
-# discovering the omissions in a client that just says it failed.
+# One: ntfy publishes over GET as well as POST, so a denylist leaks. /<topic>/publish,
+# /<topic>/send and /<topic>/trigger all publish with no body at all, and a POST
+# to / publishes with the topic inside a JSON body. All four were confirmed
+# against the running container rather than read off a page.
 #
-# ntfy's own auth is the fence that matters and this is the second one: the
+# Two: everything else ntfy serves is surface nobody here needs. The three
+# routes below are the complete set the Android client uses, taken from this
+# proxy's own access log rather than guessed: the WebSocket it holds open, the
+# poll it falls back to, and the endpoint it checks a login against. The web
+# app is separately turned off in server.yml, so this is the second of two
+# answers to the same question.
+#
+# ntfy's own auth is the fence that matters and this is the other one: the
 # server is deny-all, so even a stolen write token cannot publish from out here.
 http://ntfy.bythewood.me {
 	import site
 
-	@publish path_regexp ^/[A-Za-z0-9_,-]+/(publish|send|trigger)$
-	@notread {
-		not method GET HEAD
+	# The topic segment allows commas, because the client subscribes to
+	# "status,logging" as a single path segment rather than opening two
+	# connections.
+	@client {
+		method GET
+		path_regexp ^/[A-Za-z0-9_,-]+/(ws|json|sse|raw|auth)$
 	}
 
-	handle @publish {
-		respond "not here" 404
-	}
-
-	handle @notread {
-		respond "not here" 404
+	handle @client {
+		reverse_proxy orchard-ntfy:8000
 	}
 
 	handle {
-		reverse_proxy orchard-ntfy:8000
+		respond "not here" 404
 	}
 }
 
