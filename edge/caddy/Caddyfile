@@ -76,19 +76,56 @@
 # The same list also exists as a Cloudflare WAF rule, which catches these first
 # and more cheaply. Keeping a copy here is the point, since a dashboard rule is
 # not in version control and does not come back on a rebuild. One custom rule of
-# the five the free plan allows, action Block:
+# the five the free plan allows, named "Exploit scanner paths", action Block,
+# pasted identically into the bythewood.me and isaacbythewood.com zones:
 #
-#   (http.request.uri.path contains "wp-")
-#   or (http.request.uri.path contains "wordpress")
-#   or (http.request.uri.path contains "xmlrpc.php")
-#   or (http.request.uri.path contains "phpmyadmin")
-#   or (http.request.uri.path contains "autodiscover")
-#   or (http.request.uri.path contains "/cgi-bin/")
-#   or (http.request.uri.path contains "/vendor/")
-#   or (http.request.uri.path contains "/.env")
-#   or (http.request.uri.path contains "/.git/")
-#   or (http.request.uri.path contains "/.aws")
-#   or (ends_with(http.request.uri.path, ".php"))
+#   (starts_with(http.request.uri.path, "/."))
+#   or (http.host ne "repos.bythewood.me" and (
+#         lower(http.request.uri.path) contains "wp-"
+#      or lower(http.request.uri.path) contains "wordpress"
+#      or lower(http.request.uri.path) contains "/wp/"
+#      or lower(http.request.uri.path) contains "xmlrpc"
+#      or lower(http.request.uri.path) contains "phpmyadmin"
+#      or lower(http.request.uri.path) contains "autodiscover"
+#      or lower(http.request.uri.path) contains "/cgi-bin/"
+#      or lower(http.request.uri.path) contains "/vendor/"
+#      or lower(http.request.uri.path) contains ".env"
+#      or lower(http.request.uri.path) contains "/.git"
+#      or lower(http.request.uri.path) contains "/.aws"
+#      or lower(http.request.uri.path) contains "/.ssh"
+#      or lower(http.request.uri.path) contains "/.vscode"
+#      or lower(http.request.uri.path) contains ".php"
+#      or lower(http.request.uri.path) contains ".asp"
+#      or lower(http.request.uri.path) contains ".jsp"
+#      or lower(http.request.uri.path) contains ".cgi"
+#      or lower(http.request.uri.path) contains ".axd"
+#      or lower(http.request.uri.path) contains ".sql"
+#      or lower(http.request.uri.path) contains ".bak"
+#      or lower(http.request.uri.path) contains "phpinfo"
+#      or lower(http.request.uri.path) contains "/actuator/"
+#      or lower(http.request.uri.path) contains "/_profiler/"
+#      or lower(http.request.uri.path) contains "/solr/"
+#      or lower(http.request.uri.path) contains "/livewire/"
+#      or lower(http.request.uri.path) contains "/sitecore/"
+#      or lower(http.request.uri.path) contains "telerik"
+#      or lower(http.request.uri.path) contains "id_rsa"
+#      or lower(http.request.uri.path) contains "id_ed25519"
+#      or lower(http.request.uri.path) contains "credentials.json"
+#      or lower(http.request.uri.path) contains "service-account"
+#      or lower(http.request.uri.path) contains "serviceaccount"
+#   ))
+#
+# The first line sits outside the host test so it covers repos as well. Nothing
+# here serves a path starting with a dot and no site registers a .well-known
+# route, so it cannot reach repository content, which is always under
+# /{name}/{blob|raw|tree|commit}/.
+#
+# "/.git" keeps its leading slash, and so do "/.aws", "/.ssh" and "/.vscode". A
+# bare ".git" matches /orchard.git/info/refs and takes clone and push over
+# HTTPS down with it.
+#
+# ".env" is bare on purpose, which is what catches /app.env and /docker.env, and
+# it is only safe because the host test above excludes repos.
 #
 # Do not turn on Bot Fight Mode to solve this. status probes its own public
 # hostnames with a plain Go client, which cannot solve a JS challenge, so every
@@ -102,7 +139,7 @@
 # probe at the root while repository content is always /{name}/{tree|blob|...},
 # so anchoring is what separates them.
 (scanners_root) {
-	@hostile_root path_regexp hostile_root (?i)^/(?:wp-|wordpress|wp/|xmlrpc\.php|phpmyadmin|autodiscover|cgi-bin/|vendor/|\.env|\.git/|\.aws|\.ssh/|\.vscode/)|^/[^/]*\.php$
+	@hostile_root path_regexp hostile_root (?i)^/(?:wp-|wordpress|wp/|xmlrpc|phpmyadmin|autodiscover|cgi-bin/|vendor/|actuator/|_profiler/|solr/|livewire/|sitecore/|telerik|phpinfo|id_rsa|id_ed25519|credentials\.json|service-?account|\.)|^/[^/]*\.(?:php|asp|jsp|cgi|axd|sql|bak)
 
 	log_skip @hostile_root
 
@@ -118,7 +155,7 @@
 	# Matched anywhere in the path rather than at the root, since most of the
 	# volume arrives nested under a guessed prefix (/blog/wp-json/, /app/.env).
 	# Ordinary 404s like /login or /apple-touch-icon.png are left alone.
-	@hostile path_regexp hostile (?i)(?:^|/)(?:wp-|wordpress|wp/|xmlrpc\.php|phpmyadmin|autodiscover|cgi-bin/|vendor/|\.env|\.git/|\.aws|\.ssh/|\.vscode/)|\.php$
+	@hostile path_regexp hostile (?i)(?:^|/)(?:wp-|wordpress|wp/|xmlrpc|phpmyadmin|autodiscover|cgi-bin/|vendor/|actuator/|_profiler/|solr/|livewire/|sitecore/|\.git|\.aws|\.ssh|\.vscode)|telerik|phpinfo|id_rsa|id_ed25519|credentials\.json|service-?account|\.env|\.(?:php|asp|jsp|cgi|axd|sql|bak)
 
 	# Not logged. Moving the noise to another log is not the point.
 	log_skip @hostile
