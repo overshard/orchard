@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -81,6 +82,30 @@ CREATE TABLE IF NOT EXISTS tokens (
 );
 
 CREATE INDEX IF NOT EXISTS tokens_prefix ON tokens(prefix) WHERE revoked = 0;
+
+-- What the mirror lane pulls from. Rows rather than a constant, because which
+-- account or repository to back up is an operational decision that changes, and
+-- changing it should not need a rebuild.
+--
+-- kind is 'account' (everything owned by that login) or 'repo' (one named
+-- repository). name is empty for an account. The unique constraint is what
+-- makes adding the same source twice a no-op rather than a duplicate fetch.
+CREATE TABLE IF NOT EXISTS mirror_sources (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind    TEXT    NOT NULL,
+    owner   TEXT    NOT NULL,
+    name    TEXT    NOT NULL DEFAULT '',
+    created INTEGER NOT NULL,
+    UNIQUE(kind, owner, name)
+);
+
+-- Small key/value store for facts about this installation rather than about a
+-- repository. It exists for the seed marker below and is the right home for the
+-- next flag of that shape.
+CREATE TABLE IF NOT EXISTS settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 `
 
 // DB wraps the connection. One writer, so no pool tuning beyond the pragmas.
@@ -412,4 +437,131 @@ func (d *DB) HasTokens() bool {
 		return false
 	}
 	return n > 0
+}
+
+// MirrorSource is one thing the mirror lane pulls from: a whole GitHub account,
+// or a single repository on one.
+type MirrorSource struct {
+	ID      int64
+	Kind    string // "account" or "repo"
+	Owner   string
+	Name    string // empty for an account
+	Created time.Time
+}
+
+// Label is how the source is written and typed: "overshard" for an account,
+// "overshard/newtab" for a single repository.
+func (m MirrorSource) Label() string {
+	if m.Kind == sourceRepo {
+		return m.Owner + "/" + m.Name
+	}
+	return m.Owner
+}
+
+// URL is where a human goes to look at it.
+func (m MirrorSource) URL() string { return "https://github.com/" + m.Label() }
+
+const (
+	sourceAccount = "account"
+	sourceRepo    = "repo"
+)
+
+// ghNamePart is GitHub's own charset for a login or a repository name. Applied
+// here because these values are interpolated into an API URL, and because a
+// name that cannot exist upstream is a typo worth rejecting at the form rather
+// than turning into a 404 on the next sync.
+var ghNamePart = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
+
+// ParseMirrorSource reads what the settings form accepts: one field holding
+// either "owner" or "owner/repo". The slash is the whole grammar, which is
+// worth the trade of a select box that has to agree with a text field.
+func ParseMirrorSource(input string) (MirrorSource, error) {
+	in := strings.TrimSpace(input)
+	// Pasting the URL of the thing you want is the obvious mistake, so it is
+	// accepted rather than rejected.
+	in = strings.TrimSuffix(strings.TrimPrefix(strings.TrimPrefix(in,
+		"https://github.com/"), "github.com/"), ".git")
+	in = strings.Trim(in, "/")
+
+	if in == "" {
+		return MirrorSource{}, errors.New("enter an account or an owner/repository")
+	}
+	owner, name, hasSlash := strings.Cut(in, "/")
+	if !ghNamePart.MatchString(owner) || len(owner) > 100 {
+		return MirrorSource{}, fmt.Errorf("%q is not a GitHub account name", owner)
+	}
+	if !hasSlash {
+		return MirrorSource{Kind: sourceAccount, Owner: owner}, nil
+	}
+	if !ghNamePart.MatchString(name) || len(name) > 100 || strings.Contains(name, "/") {
+		return MirrorSource{}, fmt.Errorf("%q is not a repository name", name)
+	}
+	return MirrorSource{Kind: sourceRepo, Owner: owner, Name: name}, nil
+}
+
+// MirrorSources lists every configured source, accounts first so the settings
+// page reads from broad to narrow.
+func (d *DB) MirrorSources() ([]MirrorSource, error) {
+	rows, err := d.sql.Query(`
+        SELECT id, kind, owner, name, created FROM mirror_sources
+        ORDER BY kind DESC, owner, name`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []MirrorSource
+	for rows.Next() {
+		var m MirrorSource
+		var created int64
+		if err := rows.Scan(&m.ID, &m.Kind, &m.Owner, &m.Name, &created); err != nil {
+			return nil, err
+		}
+		m.Created = time.Unix(created, 0).UTC()
+		out = append(out, m)
+	}
+	return out, rows.Err()
+}
+
+// AddMirrorSource stores a source. Adding one that is already there succeeds
+// and changes nothing, so a double submit is harmless.
+func (d *DB) AddMirrorSource(m MirrorSource) error {
+	_, err := d.sql.Exec(`
+        INSERT INTO mirror_sources (kind, owner, name, created) VALUES (?, ?, ?, ?)
+        ON CONFLICT(kind, owner, name) DO NOTHING`,
+		m.Kind, m.Owner, m.Name, time.Now().Unix())
+	return err
+}
+
+// DeleteMirrorSource stops syncing a source. The repositories it brought in are
+// deliberately left on disk: this site is a backup, and the whole point is that
+// nothing here is deleted because upstream configuration changed.
+func (d *DB) DeleteMirrorSource(id int64) error {
+	_, err := d.sql.Exec(`DELETE FROM mirror_sources WHERE id = ?`, id)
+	return err
+}
+
+// SeedMirrorSources puts the account this site was built for in the table on
+// first run, so an existing deploy keeps mirroring exactly what it did before
+// sources became editable.
+//
+// Guarded by a marker rather than by the table being empty. Without it,
+// deleting the last source would resurrect it on the next restart, which is a
+// setting that will not stay deleted.
+func (d *DB) SeedMirrorSources(owner string) error {
+	var seeded string
+	err := d.sql.QueryRow(`SELECT value FROM settings WHERE key = 'mirror_sources_seeded'`).Scan(&seeded)
+	if err == nil {
+		return nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	if err := d.AddMirrorSource(MirrorSource{Kind: sourceAccount, Owner: owner}); err != nil {
+		return err
+	}
+	_, err = d.sql.Exec(
+		`INSERT INTO settings (key, value) VALUES ('mirror_sources_seeded', ?)`,
+		time.Now().UTC().Format(time.RFC3339))
+	return err
 }

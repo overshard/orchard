@@ -48,13 +48,21 @@ type GitHubRepo struct {
 	Fork     bool     `json:"fork"`
 	Private  bool     `json:"private"`
 	Size     int      `json:"size"`
+	Owner    struct {
+		Login string `json:"login"`
+	} `json:"owner"`
+
+	// True when a source named this repository outright rather than reaching
+	// it through an account. An account sweep skips forks, because a fork is
+	// somebody else's code with a pointer to it; a repository asked for by
+	// name is asked for on purpose.
+	explicit bool
 }
 
 // Mirror keeps the local copies in step with the account.
 type Mirror struct {
 	store *Store
 	db    *DB
-	user  string
 
 	// One sync at a time. Two concurrent `git remote update` runs against
 	// the same repository would fight over the lock file, and running every
@@ -63,8 +71,8 @@ type Mirror struct {
 	mu sync.Mutex
 }
 
-func NewMirror(store *Store, db *DB, user string) *Mirror {
-	return &Mirror{store: store, db: db, user: user}
+func NewMirror(store *Store, db *DB) *Mirror {
+	return &Mirror{store: store, db: db}
 }
 
 // Run syncs on a ticker until the context is cancelled. In process rather than

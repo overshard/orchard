@@ -244,7 +244,17 @@ func onlyImage(para *ast.Paragraph) (*ast.Image, bool) {
 // imagePath resolves a post's image reference against the Typst root. Posts
 // write them relative ("images/foo.webp") but the compile happens from the
 // site root, where they live under content/.
+//
+// It has to be idempotent, and that is not decoration. This walks the AST
+// produced by markdownRenderer.Parser(), the same parser the HTML path uses,
+// and that parser carries imagePathTransformer, which has already rewritten a
+// relative destination to its served path. Prefixing unconditionally produced
+// "/content/images//content/images/foo.webp" and broke every PDF holding an
+// image. Anything already absolute is left exactly as it is.
 func imagePath(url string) string {
+	if strings.HasPrefix(url, "/") || strings.Contains(url, "://") {
+		return url
+	}
 	return "/content/images/" + strings.TrimPrefix(url, "images/")
 }
 
