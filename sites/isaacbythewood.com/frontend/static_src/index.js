@@ -35,13 +35,27 @@ const PAGES = {
   contact: initContact,
 };
 
+// Each init is isolated, because they are independent and a throw in one used
+// to take the rest with it. initLoader in particular is what lifts the opening
+// curtain, so a failure in initCursor above it left the home page as an opaque
+// full-screen sheet with no content and no recovery.
+const run = (name, fn) => {
+  try {
+    fn();
+  } catch (err) {
+    console.error(name + " failed", err);
+  }
+};
+
 const start = () => {
-  initCursor();
-  initLoader();
-  initMenu();
+  // Loader first: it is the one whose failure is visible as a blank page, so it
+  // should not be downstream of anything else.
+  run("loader", initLoader);
+  run("cursor", initCursor);
+  run("menu", initMenu);
 
   const page = document.body.dataset.page;
-  if (PAGES[page]) PAGES[page]();
+  if (PAGES[page]) run(page, PAGES[page]);
 };
 
 // The bundle is a module, so it is deferred and the DOM is already parsed by

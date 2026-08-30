@@ -40,6 +40,12 @@ export const initAbout = () => {
   words.forEach((el) => el.classList.add("about-wordAppearDone"));
 
   window.setInterval(() => {
+    // Same reason as the word cycle on the home page: the work is deferred
+    // behind requestAnimationFrame, which is suspended while the tab is hidden,
+    // so the queue would otherwise burst on return. Bounded here at nine
+    // elements rather than unbounded, but the burst is the same shape.
+    if (document.hidden) return;
+
     let a = Math.floor(Math.random() * words.length);
     let b = Math.floor(Math.random() * words.length);
     while (a === b) b = Math.floor(Math.random() * words.length);

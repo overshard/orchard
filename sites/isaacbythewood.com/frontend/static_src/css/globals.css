@@ -20,12 +20,22 @@ body {
   text-shadow: rgba(0, 0, 0, 0.01) 0 0 1px;
   text-rendering: optimizeLegibility;
   user-select: none;
-  cursor: none;
 }
 
-a,
-button {
-  cursor: none;
+/* The custom cursor replaces the real one, so hiding the real one is only safe
+   where the replacement exists. It is display:none below 1024px (see
+   components/cursor.css), and it is drawn by a deferred module, so an
+   unconditional rule left a real-pointer visitor with no pointer at all between
+   first paint and hydration, and permanently in any window narrower than
+   1024px: a half-screen desktop window, a 1366px laptop at 125% scaling, an
+   iPad with a trackpad. It also discarded every OS pointer accessibility
+   setting for anyone relying on one. */
+@media (min-width: 1024px) and (pointer: fine) {
+  html[data-js] body,
+  html[data-js] a,
+  html[data-js] button {
+    cursor: none;
+  }
 }
 
 /* The Next.js version cross-faded two overlapping page trees with

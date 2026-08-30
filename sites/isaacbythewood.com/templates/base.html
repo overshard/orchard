@@ -31,6 +31,11 @@
          storage is almost always a fresh one with nothing cached either. -->
     <script>
       (function () {
+        // Set before first paint, so CSS can scope anything that only makes
+        // sense once JS runs. Rules that start an element at opacity 0 and rely
+        // on a script to reveal it must be gated on this, or a throw anywhere in
+        // the module leaves that content permanently invisible.
+        document.documentElement.dataset.js = "true";
         var build = "{{ .Script }}";
         var week = 7 * 24 * 60 * 60 * 1000;
         try {
@@ -141,13 +146,19 @@
       <div class="nav-current">{{ .Num }}</div>
     </nav>
 
-    <button class="menu-hamburger" aria-label="Menu" aria-expanded="false" type="button">
+    <button class="menu-hamburger" aria-label="Menu" aria-expanded="false" aria-controls="menu-overlay" type="button">
       <div class="menu-patty" style="width: 15px"></div>
       <div class="menu-patty"></div>
       <div class="menu-patty" style="width: 20px"></div>
     </button>
 
-    <div class="menu-overlay">
+    <!-- inert while closed. The overlay is hidden by z-index and a transform
+         rather than display or visibility, which keeps it in the tab order: a
+         keyboard user hit nine focusable links to a panel that is off screen,
+         with the focus ring drawn behind the page. inert removes the subtree
+         from the tab order and the accessibility tree without touching the
+         z-index choreography the slide-out depends on. -->
+    <div class="menu-overlay" id="menu-overlay" inert>
       <div class="menu-overlayGrid">
         <div class="menu-overlayGridLeft">
           <div class="menu-topBar">

@@ -181,11 +181,18 @@
   height: auto;
   aspect-ratio: 16 / 9;
   display: block;
-  opacity: 0;
   transition: opacity 400ms ease-out;
 }
 
-.art-cardImage img.art-imgLoaded {
+/* Gated on data-js for the same reason as .index-hero: initCardFades reveals
+   these, so ungated a JS failure renders seven blank boxes where the artwork is. */
+html[data-js] .art-cardImage img {
+  opacity: 0;
+}
+
+/* Matches the specificity of the data-js gate above, which would otherwise
+   outrank this and leave every card stuck at opacity 0. */
+html[data-js] .art-cardImage img.art-imgLoaded {
   opacity: 1;
 }
 

@@ -83,10 +83,18 @@
   transition-property: opacity, transform;
 }
 
+/* Gated on data-js, which the head script sets before first paint. This starts
+   at opacity 0 and is revealed by pages/index.js, so without the gate a throw
+   anywhere in the module leaves the h1, the job title and the latest-post card
+   permanently invisible. A returning visitor gets no curtain to mask it, so the
+   page would render as a dark scrim and nothing else. */
+html[data-js] .index-hero {
+  opacity: 0;
+}
+
 .index-hero {
   position: relative;
   z-index: 20;
-  opacity: 0;
   animation-name: index-fadeStart;
   animation-duration: 1500ms;
   animation-fill-mode: forwards;

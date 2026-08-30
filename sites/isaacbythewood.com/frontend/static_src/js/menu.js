@@ -22,8 +22,14 @@ export const initMenu = () => {
       image.src = image.dataset.src;
     }
     overlay.classList.toggle("is-open", open);
+    // Paired with the inert attribute in the template. The overlay is hidden by
+    // z-index alone, so without this its nine links stay in the tab order while
+    // it is closed.
+    overlay.toggleAttribute("inert", !open);
     button.setAttribute("aria-expanded", open ? "true" : "false");
-    document.body.style.overflowY = open ? "hidden" : "scroll";
+    // Cleared rather than set to "scroll", which would clobber whatever the
+    // stylesheet asks for and force a scrollbar gutter on short pages.
+    document.body.style.overflowY = open ? "hidden" : "";
   };
 
   button.addEventListener("click", () => {

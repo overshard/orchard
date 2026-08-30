@@ -9,7 +9,8 @@
   "lightboxWidth": 1600,
   "heroWidth": 2400,
 
-  "quality": { "480": 65, "960": 65, "1600": 70, "2400": 70 },
+  "quality": { "480": 65, "960": 65, "1600": 70, "2400": 40 },
+  "_qualityNote": "2400 is the hero and only the hero: images.js generates that width for spec.hero alone, and the home page is the only thing that requests it. It renders under .index-words, a full-viewport rgba(0,0,0,0.8) layer in mix-blend-mode darken, so it reaches the eye at roughly a fifth of its luminance and quality 40 is indistinguishable from 70 there while costing 240KB instead of 744KB. That also lifts the opening curtain sooner, since the curtain waits on this exact image. Do not extend the same reasoning to 1600: that width is the lightbox, where the art is shown full size with nothing over it, and fidelity is the entire point.",
 
   "avatar": { "width": 120, "quality": 70 }
 }

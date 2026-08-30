@@ -1,0 +1,10 @@
+# Peer dependencies are not installed here.
+#
+# geist declares next as a peer, and installing it pulled 202MB of Next.js into
+# a site that has no framework at all. Nothing imports geist as a module: the
+# Dockerfile points typst at the font files under node_modules/geist/dist/fonts.
+#
+# sharp is unaffected. It is a direct dependency here, used by
+# scripts/images.js to build the AVIF ladder, and this only skips peers.
+[install]
+peer = false
