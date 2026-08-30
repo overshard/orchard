@@ -16,7 +16,7 @@ a tunnel rather than a rented server.
 | `sites/analytics.bythewood.me/` | Self hosted analytics. SQLite, GeoIP, Typst PDF reports |
 | `sites/status.bythewood.me/` | Self hosted uptime monitoring. SQLite, Lighthouse audits, crawler |
 | `sites/logging.bythewood.me/` | Self hosted log aggregation. Every other site ships its slog records here. SQLite, retention and rollups, Typst PDF reports |
-| `edge/` | The shared `cloudflared` tunnel and the Caddy that reverse proxies to each site |
+| `edge/` | The shared `cloudflared` tunnel, the Caddy that reverse proxies to each site, and the ntfy every alert is published to |
 
 ## The one structural rule
 
@@ -90,14 +90,50 @@ a site directory without a lookup table. These carried a `-next` suffix until
 2026-08-29, from the migration that made them the live thing; the suffix stopped
 being true the day the cutover finished.
 
-**Three things reference a container by name, and all three bake it in.**
+**Four things reference a container by name, and all four bake it in.**
 `edge/caddy/Caddyfile` reverse-proxies to each site,
 `sites/isaacbythewood.com/site.go` fetches `http://orchard-blog:8000/latest.json`
-for the portfolio's latest-posts panel, and `web/shipper.go` in every site posts
-to `http://orchard-logging:8000/ingest`. None of them reads the name at runtime,
-so renaming a container means rebuilding Caddy, the portfolio *and* every site,
-not just editing a compose file. Nothing in any SQLite database refers to a
-container name.
+for the portfolio's latest-posts panel, `web/shipper.go` in every site posts
+to `http://orchard-logging:8000/ingest`, and `alerts.go` in both status and
+logging posts to `http://orchard-ntfy:8000`. None of them reads the name at
+runtime, so renaming a container means rebuilding Caddy, the portfolio *and*
+every site, not just editing a compose file. Nothing in any SQLite database
+refers to a container name.
+
+**Alerts leave through ntfy in the edge, and reading them is authenticated.**
+status publishes to the `status` topic and logging to `logging`, both to
+`http://orchard-ntfy:8000` on the bridge with a write-only token from each
+site's `.env`. Reading is over the tunnel at `ntfy.bythewood.me` with a
+read-only account. Two independent fences: ntfy is `auth-default-access:
+deny-all` and decides *who*, and Caddy refuses every publish route on the public
+hostname and decides *from where*, so publishing is impossible from outside even
+holding the write token. **ntfy has no source-based ACL**, which is why the
+second fence is at the edge and not in its config. `edge/setup-ntfy.sh` creates
+the accounts and mints the token.
+
+**The Caddy publish fence must stay a denylist, not a "block POST".** ntfy
+publishes over GET too: `/<topic>/publish`, `/send` and `/trigger` all publish
+with no body, and `POST /` publishes with the topic in a JSON body. All four
+were confirmed against the running container. A rule blocking `POST /<topic>`
+leaks three ways.
+
+**Secrets are a `.env` beside each site's compose file.** Compose reads it
+because that directory is the project directory, so nothing is exported in a
+shell and nothing is forwarded through the Makefile. This replaced taking
+passwords from the deploying shell, which was correct in principle and cost a
+failed deploy nearly every time: `sudo` runs with `env_reset`, so the exported
+value was stripped before compose saw it, and the `${VAR:?}` guard then
+complained about the shell you had just set it in. **`.env` is gitignored by
+bare name and this repo is public**: verify with `git check-ignore -v` rather
+than trusting it. Every site needing one commits a `.env.example`.
+
+**Editing anything in `edge/` needs `make edge`.** The Caddyfile and ntfy's
+`server.yml` are baked into images and `make up` does not pass `--build`, so an
+edited config that was never rebuilt is a silent no-op. **cloudflared is the
+exception and is worse**: its config lives in a volume, so compose sees no
+change and will not restart it, and the tunnel goes on serving the old ingress
+while a newly added hostname 404s from the Cloudflare edge. `make edge` restarts
+it explicitly for that reason.
 
 **Adding a hostname is three changes, not one.** A Caddy site block, a
 `cloudflared` ingress rule, and a proxied CNAME to

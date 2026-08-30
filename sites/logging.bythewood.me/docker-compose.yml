@@ -27,11 +27,14 @@ services:
     # a skipped db.Close().
     stop_grace_period: 30s
     environment:
-      # The one genuine secret in the system, and the only environment variable
-      # this app reads. Taken from the deploying shell rather than an .env file
-      # so it is never written next to the repo; :? makes compose refuse to
-      # start rather than bring up a server the app would then refuse to boot.
-      LOGGING_PASSWORD: ${LOGGING_PASSWORD:?set LOGGING_PASSWORD in the deploying shell}
+      # Read from .env in this directory, which compose picks up on its own
+      # because that is the project directory; :? makes compose refuse to start
+      # rather than bring up a server the app would then refuse to boot.
+      LOGGING_PASSWORD: ${LOGGING_PASSWORD:?set LOGGING_PASSWORD in this directory's .env; see .env.example}
+      # Write-only ntfy token. Empty is tolerated on purpose: alerting is not
+      # what this site is for, and refusing to start over a missing alert
+      # credential would turn a quiet notification into an outage.
+      NTFY_TOKEN: ${NTFY_TOKEN:-}
     volumes:
       - data:/data
     # A limit is a ceiling to fail against, not a target. Roomier than the two

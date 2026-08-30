@@ -16,6 +16,14 @@
 # On a host where docker needs no sudo:  SUDO= sh setup-tunnel.sh up
 set -e
 
+# Run from this script's own directory, whatever the caller's was. Every path
+# below is relative to edge/, and running it from the repo root used to fail
+# halfway through with "sed: can't read cloudflared/config.yml" and then print
+# "config.yml written" anyway, because the sed sits mid-pipeline and set -e
+# only sees the last command's status. The tunnel then ran on a stale ingress
+# with no sign anything had gone wrong.
+cd "$(dirname "$0")"
+
 SUDO=${SUDO-sudo}
 DOCKER_BIN=$(command -v docker) || { echo "no docker on PATH" >&2; exit 1; }
 # An absolute path, because `command` is a shell builtin and sudo cannot exec
@@ -29,7 +37,7 @@ IMAGE=cloudflare/cloudflared:latest
 # cloudflared/config.yml. These span two zones, and cert.pem only covers one at
 # a time (see the note in `up`), so routing all of them means logging in once
 # per zone and running `up` again; the per-host failures are tolerated.
-HOSTNAMES="isaacbythewood.com www.isaacbythewood.com bythewood.me www.bythewood.me blog.bythewood.me analytics.bythewood.me status.bythewood.me logging.bythewood.me"
+HOSTNAMES="isaacbythewood.com www.isaacbythewood.com bythewood.me www.bythewood.me blog.bythewood.me analytics.bythewood.me status.bythewood.me logging.bythewood.me ntfy.bythewood.me"
 
 # cloudflared's image is distroless with no shell, so anything that needs to
 # poke at the volume borrows a plain alpine.
@@ -103,11 +111,21 @@ up)
 	# Seeded over stdin rather than mounted, same reason as everything else.
 	# The id appears twice in the template, as the tunnel and in the credentials
 	# filename, so this substitution has to be global.
-	sed "s/CHANGEME_TUNNEL_ID/$ID/g" cloudflared/config.yml \
-		| docker run --rm -i -v "$VOLUME:/etc/cloudflared" alpine:3 \
-			sh -c 'cat > /etc/cloudflared/config.yml && chown 65532:65532 /etc/cloudflared/config.yml'
+	# Rendered to a temporary file first rather than piped straight in. A
+	# failure in the sed half of a pipeline does not fail the pipeline, so the
+	# previous version could report success having seeded nothing.
+	rendered=$(mktemp)
+	trap 'rm -f "$rendered"' EXIT
+	sed "s/CHANGEME_TUNNEL_ID/$ID/g" cloudflared/config.yml > "$rendered"
+	grep -q CHANGEME_TUNNEL_ID "$rendered" && {
+		echo "tunnel id was not substituted into config.yml" >&2
+		exit 1
+	}
+	docker run --rm -i -v "$VOLUME:/etc/cloudflared" alpine:3 \
+		sh -c 'cat > /etc/cloudflared/config.yml && chown 65532:65532 /etc/cloudflared/config.yml' \
+		< "$rendered"
 
-	echo "config.yml written. now, from the repo root: make up"
+	echo "config.yml written. now, from the repo root: make edge"
 	;;
 
 status)

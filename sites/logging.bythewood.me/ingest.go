@@ -390,6 +390,11 @@ func (s *site) ingest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// After the enqueue, not before. A batch that was refused is not evidence
+	// the source is healthy, and counting it would mean a site whose records
+	// are all being shed looks perfectly alive to the silence rule.
+	s.watchdog.Observe(source, batch.Records)
+
 	w.WriteHeader(http.StatusAccepted)
 }
 
@@ -620,4 +625,10 @@ func (s *site) LocalSink(source string, records []web.Record) {
 		return
 	}
 	s.writer.enqueue(rows)
+
+	// This site watches itself too. It can only ever fire if the process is
+	// serving while its own logging path has stopped, which is a narrow case
+	// and still one worth hearing about; a wedged process cannot report on
+	// itself and is what status is for.
+	s.watchdog.Observe(selfSource, records)
 }

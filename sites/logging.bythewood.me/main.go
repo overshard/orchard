@@ -85,6 +85,7 @@ type site struct {
 	assets   *web.Assets
 	writer   *Writer
 	typst    *Typst
+	watchdog *Watchdog
 
 	password  string
 	cookieKey []byte
@@ -108,7 +109,18 @@ func main() {
 	// probes itself and there is one behaviour across the repo rather than
 	// two.
 	healthcheck := flag.Bool("healthcheck", false, "probe a running server on this host and exit")
+	// Prints an alert instead of sending one, so the wording can be checked
+	// without waiting for a site to break. Same flag status carries.
+	preview := flag.String("preview-alert", "", "print an example alert ('silence', 'resumed' or 'restart') and exit")
 	flag.Parse()
+
+	if *preview != "" {
+		if err := previewAlert(*preview); err != nil {
+			slog.Error(err.Error())
+			os.Exit(1)
+		}
+		return
+	}
 
 	if *healthcheck {
 		if err := web.HealthCheck("http://127.0.0.1:8000/healthz", 3*time.Second); err != nil {
@@ -191,6 +203,23 @@ func main() {
 		dashScript:  assets.Script("static_src/dashboard/index.js"),
 		dashStyles:  assets.Styles("static_src/dashboard/index.js"),
 	}
+
+	// The alert path. Both rules are evaluated from what arrives at ingest
+	// rather than from a query, for the reason at the top of watchdog.go, so
+	// this has to exist before anything is observed.
+	//
+	// Bootstrap failing is not fatal: it only seeds the source list, and an
+	// unseeded watchdog still notices everything that ships to it from here
+	// on. Starting a logging site is worth more than starting its alerter.
+	s.watchdog = NewWatchdog(db, NewNotifier().Fire)
+	if err := s.watchdog.Bootstrap(context.Background()); err != nil {
+		slog.Error("watchdog bootstrap failed; watching only what ships from now on",
+			slog.String("component", "watchdog"),
+			slog.Any("err", err))
+	}
+	watchCtx, stopWatching := context.WithCancel(context.Background())
+	defer stopWatching()
+	go s.watchdog.Run(watchCtx)
 
 	// This site ships its own logs like every other one, but through a local
 	// sink rather than over HTTP: posting to itself would mean an ingest

@@ -1,0 +1,135 @@
+#!/bin/sh
+# Create and inspect the two ntfy accounts the alert path runs on.
+#
+#   sh setup-ntfy.sh up       create both accounts and their topic access
+#   sh setup-ntfy.sh token    mint the publishers' token, into their .env files
+#   sh setup-ntfy.sh status   what exists right now
+#   sh setup-ntfy.sh passwd   change the reading account's password
+#
+# ntfy is deny-all, so there are exactly two accounts and neither can do the
+# other's job:
+#
+#   isaac    read-only  on status and logging. The phone.
+#   orchard  write-only on status and logging. The sites publishing alerts.
+#
+# ntfy has no way to restrict an account by source address, which is why the
+# publish routes are also refused at Caddy on the public hostname. The token is
+# the credential that says who; the edge is the fence that says from where.
+#
+# All state lives in the orchard-ntfy-data volume, never a bind mount: the
+# Docker CLI in the webdev container talks to Docker Desktop on the Windows
+# host, whose daemon cannot see this filesystem, and a bind mount silently
+# resolves to an empty directory rather than failing.
+#
+# Every docker command goes through sudo, because the socket in the webdev
+# container is root:root mode 660 and being in the docker group does not help.
+# On a host where docker needs no sudo:  SUDO= sh setup-ntfy.sh up
+set -e
+
+# Run from this script's own directory, whatever the caller's was, because the
+# token step writes into ../sites/*/.env and the documented way to invoke this
+# is `sh edge/setup-ntfy.sh` from the repo root. setup-tunnel.sh had exactly
+# this bug and failed halfway through while reporting success.
+cd "$(dirname "$0")"
+
+SUDO=${SUDO-sudo}
+DOCKER_BIN=$(command -v docker) || { echo "no docker on PATH" >&2; exit 1; }
+# An absolute path, because `command` is a shell builtin and sudo cannot exec
+# one, and because sudo's secure_path is not this shell's PATH.
+docker() { ${SUDO} "$DOCKER_BIN" "$@"; }
+
+CONTAINER=orchard-ntfy
+READER=isaac
+WRITER=orchard
+TOPICS="status logging"
+
+# ntfy reads auth-file out of the config baked into the image, so every command
+# here runs inside the container rather than against the volume directly.
+running() {
+	docker ps --filter "name=^${CONTAINER}$" --format '{{.Names}}' 2>/dev/null | grep -q .
+}
+
+require_running() {
+	running || {
+		echo "$CONTAINER is not running. from the repo root:" >&2
+		echo "" >&2
+		echo "  make up" >&2
+		exit 1
+	}
+}
+
+ntfy() { docker exec -i "$CONTAINER" ntfy "$@"; }
+
+case "${1:-}" in
+up)
+	require_running
+	# --ignore-exists so this is safe to re-run, matching every other setup
+	# command in this repo.
+	ntfy user add --ignore-exists "$READER"
+	ntfy user add --ignore-exists "$WRITER"
+
+	for topic in $TOPICS; do
+		ntfy access "$READER" "$topic" read-only
+		ntfy access "$WRITER" "$topic" write-only
+	done
+
+	echo
+	echo "accounts created. now mint the publishers' token:"
+	echo
+	echo "  sh edge/setup-ntfy.sh token"
+	;;
+
+token)
+	require_running
+	# Written straight into the .env files rather than printed for someone to
+	# copy. Pasting a secret between two terminals is where it ends up in a
+	# shell history, and the script already knows exactly which sites alert.
+	token=$(ntfy token add -l "orchard site publishers" "$WRITER" \
+		| grep -o 'tk_[A-Za-z0-9]*' | head -1)
+	if [ -z "$token" ]; then
+		echo "no token came back; is $CONTAINER healthy?" >&2
+		exit 1
+	fi
+
+	for site in ../sites/status.bythewood.me ../sites/logging.bythewood.me; do
+		if [ ! -f "$site/.env" ]; then
+			echo "no $site/.env yet; create it from .env.example first" >&2
+			exit 1
+		fi
+		# Rewrite in place, preserving mode, without ever putting the value on
+		# a command line where `ps` could see it.
+		tmp="$site/.env.tmp"
+		awk -v tok="$token" \
+			'/^NTFY_TOKEN=/ { print "NTFY_TOKEN=" tok; found=1; next } { print }
+			 END { if (!found) print "NTFY_TOKEN=" tok }' \
+			"$site/.env" > "$tmp"
+		chmod 600 "$tmp"
+		mv "$tmp" "$site/.env"
+		echo "wrote NTFY_TOKEN into $(basename "$site")/.env"
+	done
+
+	echo
+	echo "now, from the repo root, to hand it to the running sites:"
+	echo
+	echo "  make up"
+	;;
+
+status)
+	require_running
+	echo "--- access ---"
+	ntfy access
+	echo "--- tokens ---"
+	ntfy token list
+	;;
+
+passwd)
+	require_running
+	ntfy user change-pass "$READER"
+	echo "changed. update the password in the ntfy app on the phone."
+	;;
+
+*)
+	sed -n '2,8p' "$0"
+	exit 1
+	;;
+esac

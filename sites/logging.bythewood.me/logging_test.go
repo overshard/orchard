@@ -1218,3 +1218,295 @@ func TestPagesRender(t *testing.T) {
 		}
 	})
 }
+
+// ------------------------------------------------------------- alerting
+
+// A test watchdog with a clock this test owns, so silence can be simulated
+// without waiting five real minutes, and with a notifier that records instead
+// of publishing.
+type recordedAlert struct {
+	kind string
+	ctx  AlertContext
+}
+
+func testWatchdog(t *testing.T, db *sql.DB, clock *time.Time) (*Watchdog, *[]recordedAlert) {
+	t.Helper()
+	var fired []recordedAlert
+	w := NewWatchdog(db, func(kind string, ctx AlertContext) {
+		fired = append(fired, recordedAlert{kind, ctx})
+	})
+	w.now = func() time.Time { return *clock }
+	// Started long enough ago that the grace window is over. The tests that
+	// care about the grace window set this back themselves.
+	w.startedAt = clock.Add(-time.Hour)
+	return w, &fired
+}
+
+// Every kind renders, and an unknown kind is refused rather than published as
+// an empty notification. The click URL is the piece worth asserting: it is
+// opened from a phone with no idea what the origin is, so a relative path is a
+// dead link.
+func TestRenderAlertKinds(t *testing.T) {
+	for _, kind := range []string{"silence", "resumed", "restart"} {
+		body, ok := renderAlert(kind, AlertContext{Source: "blog", Silent: 7 * time.Minute})
+		if !ok {
+			t.Fatalf("%s: not rendered", kind)
+		}
+		if body.Title == "" || body.Message == "" {
+			t.Errorf("%s: empty title or message", kind)
+		}
+		if !strings.Contains(body.Title, "blog") {
+			t.Errorf("%s: title %q does not name the source", kind, body.Title)
+		}
+		if want := "https://logging.bythewood.me/sources/blog"; body.Click != want {
+			t.Errorf("%s: click = %q, want %q", kind, body.Click, want)
+		}
+	}
+
+	if _, ok := renderAlert("catastrophe", AlertContext{Source: "blog"}); ok {
+		t.Error("an unknown kind rendered; it must be refused rather than published empty")
+	}
+}
+
+// Silence is the loud one and recovery is not, because an alert that
+// interrupts for good news gets muted and takes the bad news with it.
+func TestSilenceIsLouderThanRecovery(t *testing.T) {
+	down, _ := renderAlert("silence", AlertContext{Source: "blog"})
+	up, _ := renderAlert("resumed", AlertContext{Source: "blog"})
+	if down.Priority != "high" {
+		t.Errorf("silence priority = %q, want high", down.Priority)
+	}
+	if up.Priority != "default" {
+		t.Errorf("resumed priority = %q, want default", up.Priority)
+	}
+}
+
+func TestHumanDuration(t *testing.T) {
+	cases := []struct {
+		in   time.Duration
+		want string
+	}{
+		{30 * time.Second, "30 seconds"},
+		{5 * time.Minute, "5 minutes"},
+		{90 * time.Minute, "1h30m"},
+		{2 * time.Hour, "2 hours"},
+	}
+	for _, c := range cases {
+		if got := humanDuration(c.in); got != c.want {
+			t.Errorf("humanDuration(%s) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+// The whole rule, end to end: a source goes quiet, is reported once and not
+// again, then comes back and is reported once.
+//
+// Firing once per transition is the part that matters. A rule that re-fires
+// every thirty seconds through an overnight outage trains its reader to swipe
+// it away, which costs the next alert too.
+func TestWatchdogFiresSilenceOnceThenRecovery(t *testing.T) {
+	db := testDB(t)
+	clock := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)
+	w, fired := testWatchdog(t, db, &clock)
+
+	w.Observe("blog", []web.Record{{Msg: "request"}})
+
+	// Still inside the threshold: nothing has gone wrong yet.
+	clock = clock.Add(silenceAfter - time.Second)
+	w.checkSilence()
+	if len(*fired) != 0 {
+		t.Fatalf("fired %d alerts inside the threshold, want 0", len(*fired))
+	}
+
+	clock = clock.Add(2 * time.Second)
+	w.checkSilence()
+	if len(*fired) != 1 || (*fired)[0].kind != "silence" {
+		t.Fatalf("alerts = %v, want one silence", *fired)
+	}
+	if (*fired)[0].ctx.Source != "blog" {
+		t.Errorf("alerted about %q, want blog", (*fired)[0].ctx.Source)
+	}
+
+	// Still down an hour later, and still one alert.
+	clock = clock.Add(time.Hour)
+	w.checkSilence()
+	w.checkSilence()
+	if len(*fired) != 1 {
+		t.Fatalf("silence re-fired: %d alerts, want 1", len(*fired))
+	}
+
+	// Back, and said so once.
+	w.Observe("blog", []web.Record{{Msg: "request"}})
+	w.checkSilence()
+	if len(*fired) != 2 || (*fired)[1].kind != "resumed" {
+		t.Fatalf("alerts = %v, want a resumed second", *fired)
+	}
+	if got := (*fired)[1].ctx.Silent; got < time.Hour {
+		t.Errorf("recovery reported %s of silence, want at least an hour", got)
+	}
+
+	w.checkSilence()
+	if len(*fired) != 2 {
+		t.Fatalf("recovery re-fired: %d alerts, want 2", len(*fired))
+	}
+}
+
+// Nothing alerts during the grace window after this process starts. When this
+// site restarts, every other site's shipper is dropping into a refused
+// connection, so the record stream has a real hole either side of a deploy and
+// both rules read false inside it.
+func TestWatchdogIsQuietDuringStartupGrace(t *testing.T) {
+	db := testDB(t)
+	clock := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)
+	w, fired := testWatchdog(t, db, &clock)
+	w.startedAt = clock
+
+	w.Observe("blog", []web.Record{{Msg: "request"}})
+	clock = clock.Add(startupGrace - time.Minute)
+	w.checkSilence()
+	if len(*fired) != 0 {
+		t.Fatalf("alerted inside the startup grace: %v", *fired)
+	}
+
+	clock = clock.Add(2 * time.Minute)
+	w.checkSilence()
+	if len(*fired) != 1 {
+		t.Fatalf("alerts after the grace window = %d, want 1", len(*fired))
+	}
+}
+
+// The restart rule, which is the one that reads across restarts of this
+// process and therefore has to persist. A start with a stop before it is a
+// deploy; a start with a start before it is a crash.
+func TestWatchdogDetectsUncleanRestart(t *testing.T) {
+	db := testDB(t)
+	clock := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)
+	w, fired := testWatchdog(t, db, &clock)
+	ctx := context.Background()
+
+	// The first start ever seen has nothing to compare against and says
+	// nothing. Alerting here would mean every new site announcing itself as a
+	// crash.
+	w.handleLifecycle(ctx, lifecycleEvent{source: "blog", up: true, at: clock})
+	if len(*fired) != 0 {
+		t.Fatalf("first listening alerted: %v", *fired)
+	}
+
+	// A clean deploy: stop, then start.
+	clock = clock.Add(time.Hour)
+	w.handleLifecycle(ctx, lifecycleEvent{source: "blog", up: false, at: clock})
+	w.handleLifecycle(ctx, lifecycleEvent{source: "blog", up: true, at: clock.Add(time.Second)})
+	if len(*fired) != 0 {
+		t.Fatalf("a clean restart alerted: %v", *fired)
+	}
+
+	// A crash: a start with no stop before it.
+	clock = clock.Add(time.Hour)
+	w.handleLifecycle(ctx, lifecycleEvent{source: "blog", up: true, at: clock})
+	if len(*fired) != 1 || (*fired)[0].kind != "restart" {
+		t.Fatalf("alerts = %v, want one restart", *fired)
+	}
+	if !strings.Contains((*fired)[0].ctx.Detail, "Previous start") {
+		t.Errorf("detail = %q, want it to say when the previous start was", (*fired)[0].ctx.Detail)
+	}
+}
+
+// Lifecycle state survives a restart of this site, which is the only reason it
+// is in the meta table rather than in memory: a crash noticed only after the
+// next deploy is still a crash.
+func TestWatchdogLifecycleSurvivesRestart(t *testing.T) {
+	db := testDB(t)
+	clock := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)
+	first, _ := testWatchdog(t, db, &clock)
+	ctx := context.Background()
+
+	first.handleLifecycle(ctx, lifecycleEvent{source: "blog", up: true, at: clock})
+
+	// A whole new watchdog over the same database, as after a deploy.
+	clock = clock.Add(time.Hour)
+	second, fired := testWatchdog(t, db, &clock)
+	second.handleLifecycle(ctx, lifecycleEvent{source: "blog", up: true, at: clock})
+
+	if len(*fired) != 1 || (*fired)[0].kind != "restart" {
+		t.Fatalf("alerts = %v, want the crash to be noticed across a restart", *fired)
+	}
+}
+
+// Observe reads the lifecycle messages out of the record stream by exact text,
+// so this asserts the strings it matches are the ones web/server.go actually
+// logs. Renaming either there would silently disable restart detection: no
+// error, no failing test anywhere else, just an alert that never fires again.
+func TestLifecycleMessagesMatchServer(t *testing.T) {
+	src, err := os.ReadFile("web/server.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, msg := range []string{msgListening, msgShutdown} {
+		if !strings.Contains(string(src), `slog.Info("`+msg+`"`) {
+			t.Errorf("web/server.go no longer logs %q; restart detection is now dead code", msg)
+		}
+	}
+}
+
+// A batch the writer refused is not evidence the source is healthy. Counting a
+// 429 as liveness would mean a site whose records are all being shed looks
+// perfectly alive to the silence rule, which is exactly backwards.
+func TestRefusedBatchIsNotLiveness(t *testing.T) {
+	db := testDB(t)
+	clock := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)
+	w, _ := testWatchdog(t, db, &clock)
+
+	writer := &Writer{db: db, ch: make(chan row, 2), quit: make(chan struct{}), done: make(chan struct{})}
+	s := &site{db: db, writer: writer, watchdog: w}
+
+	body := `{"source":"blog","records":[{"m":"a"},{"m":"b"},{"m":"c"}]}`
+	rr := httptest.NewRecorder()
+	s.ingest(rr, httptest.NewRequest(http.MethodPost, "/ingest", strings.NewReader(body)))
+	if rr.Code != http.StatusTooManyRequests {
+		t.Fatalf("status = %d, want 429", rr.Code)
+	}
+
+	w.mu.Lock()
+	_, seen := w.seen["blog"]
+	w.mu.Unlock()
+	if seen {
+		t.Error("a refused batch marked the source as alive")
+	}
+}
+
+// Bootstrap reads rollups rather than records, and that is the whole point:
+// health check lines are demoted to rollup-only, so a site with no public
+// traffic has hours of rollups and no raw rows at all. Reading records would
+// mean a quiet site is not watched.
+func TestWatchdogBootstrapsFromRollups(t *testing.T) {
+	db := testDB(t)
+	clock := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)
+	w, _ := testWatchdog(t, db, &clock)
+
+	recent := hourFloor(clock.Add(-2 * time.Hour).UnixMilli())
+	stale := hourFloor(clock.Add(-72 * time.Hour).UnixMilli())
+	for _, r := range []struct {
+		hour   int64
+		source string
+	}{{recent, "blog"}, {recent, "status"}, {stale, "retired"}} {
+		if _, err := db.Exec(`INSERT INTO rollups (hour, source, level, component, status, count)
+			VALUES (?,?,'INFO','healthz',200,1)`, r.hour, r.source); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := w.Bootstrap(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	for _, want := range []string{"blog", "status"} {
+		if _, ok := w.seen[want]; !ok {
+			t.Errorf("%s was not picked up; a site that is already down when this one starts would never be noticed", want)
+		}
+	}
+	if _, ok := w.seen["retired"]; ok {
+		t.Error("a source last heard from three days ago is still being watched; it would alert forever")
+	}
+}

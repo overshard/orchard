@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -29,16 +30,22 @@ import (
 
 // ntfyURL is where a notification is published: the base, then the topic.
 //
-// This assumes ntfy runs as a container on the same Docker network, reached by
-// its compose service name, which is how every other container-to-container
-// call in this repo works and keeps the notification off the tunnel. Tailscale
-// is how a phone reaches ntfy, not how this does.
+// ntfy runs as a container on the shared orchard-edge network and is reached by
+// container name, which is how every other container-to-container call in this
+// repo works and is what keeps the notification off the tunnel. Tailscale is
+// how a phone reaches ntfy, not how this does: the sidecar next to it shares
+// its network namespace and serves the same port to the tailnet.
 //
-// Until that container exists every publish fails, logged once per transition
+// ntfy is deny-all: this publishes with a write-only token from NTFY_TOKEN, and
+// the account behind that token can publish to the alert topics and read
+// nothing. Caddy separately refuses every publish route on the public hostname,
+// so publishing is reachable only from this bridge even with the token in hand.
+//
+// If the container is missing every publish fails, logged once per transition
 // and changing nothing else: an alert that cannot be delivered must never break
 // the check loop that noticed the outage.
 const (
-	ntfyURL   = "http://ntfy:8000"
+	ntfyURL   = "http://orchard-ntfy:8000"
 	ntfyTopic = "status"
 )
 
@@ -61,13 +68,25 @@ type Notifier struct {
 	client *http.Client
 	base   string
 	topic  string
+	token  string
 }
 
 func NewNotifier() *Notifier {
+	token := os.Getenv("NTFY_TOKEN")
+	if token == "" {
+		// Said once, loudly, at startup. The alternative is a site that looks
+		// healthy and silently cannot tell anyone when it is not, which is the
+		// exact failure this whole path exists to prevent. It is not fatal:
+		// refusing to start over a missing alert credential would turn a
+		// quiet notification into an outage.
+		slog.Warn("NTFY_TOKEN is unset; alerts will be rendered and refused, not delivered",
+			slog.String("component", "alerts"))
+	}
 	return &Notifier{
 		client: &http.Client{Timeout: ntfyTimeout},
 		base:   ntfyURL,
 		topic:  ntfyTopic,
+		token:  token,
 	}
 }
 
@@ -145,6 +164,11 @@ func (n *Notifier) publish(ctx context.Context, body alertBody) error {
 		strings.NewReader(body.Message))
 	if err != nil {
 		return err
+	}
+	// Write-only token, from this site's .env. ntfy is deny-all, so an
+	// unauthenticated publish is refused even from inside the bridge.
+	if n.token != "" {
+		req.Header.Set("Authorization", "Bearer "+n.token)
 	}
 	req.Header.Set("Title", body.Title)
 	req.Header.Set("Priority", body.Priority)

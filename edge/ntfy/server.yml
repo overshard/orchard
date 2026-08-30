@@ -1,0 +1,68 @@
+# ntfy, the alert path for every site in this repo.
+#
+# Publishing is plain HTTP from inside the bridge: status posts outage
+# transitions to /status, logging posts silence and unclean-restart transitions
+# to /logging. Reading is over the tailnet only, through the tailscale sidecar
+# next to this container. Nothing here is ever reachable through the tunnel,
+# which is the whole point: the one message that has to arrive when this
+# infrastructure is broken must not depend on Cloudflare, or on anybody else's
+# servers.
+#
+# This file is baked into the image rather than mounted. The Docker CLI in the
+# webdev container talks to Docker Desktop on the Windows host, whose daemon
+# resolves a bind mount source against its own filesystem, where this directory
+# does not exist. It mounts empty instead of failing. Same reason the Caddyfile
+# is baked in.
+
+# 8000 internally, like every other container in this repo. ntfy's own default
+# is :80.
+listen-http: ":8000"
+
+# The address a phone reaches this at. There are two, and this is the public
+# one: the tunnel hostname is what the Android client is pointed at day to day,
+# and the tailnet name still works as a second path that does not depend on
+# Cloudflare being up. base-url takes one value, and it should be the one a
+# link in a notification has to resolve from anywhere.
+#
+# Hardcoded rather than passed in, because it is identity and not a credential:
+# the same rule every site in this repo follows in its site.go.
+base-url: "https://ntfy.bythewood.me"
+
+# Messages survive a restart and a phone that was offline, which is the
+# difference between an alert path and a coin flip. The default cache duration
+# is 12h; a day covers being away from a signal over a weekend without making
+# this volume grow in any way that matters at a handful of alerts a month.
+cache-file: "/var/lib/ntfy/cache.db"
+cache-duration: "24h"
+
+# Authentication, because this is reachable from the internet at
+# ntfy.bythewood.me and not only from the bridge and the tailnet.
+#
+# deny-all means exactly that: an anonymous request can neither read nor
+# publish, on any topic. Two accounts exist, created by setup-ntfy.sh:
+#
+#   isaac    read-only on status and logging, used by the phone
+#   orchard  write-only on status and logging, used by the sites publishing
+#
+# The publishers authenticate with a token rather than a password, so it can be
+# revoked on its own without changing anything a person types, and it lives in
+# each site's .env rather than in this file.
+#
+# Both halves are credentials now, which is why the volume under this is called
+# data and not cache: a cache is disposable and this is not.
+auth-file: "/var/lib/ntfy/user.db"
+auth-default-access: "deny-all"
+
+# Attachments are off (no attachment-cache-dir), so nothing here accepts a file
+# upload. Alerts are a title, a line of text and a click URL.
+
+# X-Forwarded-For is NOT trusted. tailscale serve sets it, but so could a
+# publisher on the bridge, and the only thing it buys is per-IP rate limiting
+# that a five-alerts-a-month system does not need. Everything therefore rate
+# limits against the peer address, which is correct for the bridge and
+# harmlessly shared for tailnet clients.
+behind-proxy: false
+
+# Quieter than the default: this is machine to machine and every publish is
+# already recorded by the site that made it.
+log-level: "warn"

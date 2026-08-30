@@ -4,6 +4,7 @@
 #
 #   make up                              bring everything up, from nothing or from broken
 #   make deploy SITE=blog.bythewood.me   rebuild one site and replace it
+#   make edge                            rebuild and replace the edge itself
 #   make doctor                          what is running, what is not, what to type
 #
 # And four for development, none of which touch Docker at all:
@@ -34,30 +35,37 @@ SITE_DIR = sites/$(SITE)
 # `docker ps --filter name=orchard` shows the whole system.
 CONTAINER = orchard-$(firstword $(subst ., ,$(SITE)))
 
-# sudo runs with env_reset, so a password exported in the deploying shell is
-# stripped before compose ever sees it, and the ${VAR:?} guard in the compose
-# file then aborts the deploy complaining about the shell you just set it in.
-# These two are forwarded as a sudo-level assignment instead. Make echoes a
-# recipe before the shell expands it, so the value itself is never printed.
-PASSWORD_analytics.bythewood.me = ANALYTICS_PASSWORD
-PASSWORD_logging.bythewood.me   = LOGGING_PASSWORD
-PASSWORD_status.bythewood.me    = STATUS_PASSWORD
-PASSWORD = $(PASSWORD_$(SITE))
+EDGE_COMPOSE = cd edge && $(DOCKER) compose
 
-COMPOSE = $(SUDO) $(if $(PASSWORD),$(PASSWORD)="$$$(PASSWORD)") docker compose
-
-# Compose interpolates ${VAR:?} on every subcommand, `down` included, so
-# stopping a site needs a value even though nothing will ever read it.
-COMPOSE_DOWN = $(SUDO) $(if $(PASSWORD),$(PASSWORD)=unused) docker compose
+# Secrets come from a .env file in the site's own directory, which compose reads
+# by itself because that directory is the project directory. Nothing is
+# forwarded through this Makefile and nothing is read from the deploying shell.
+#
+# That is a reversal of how this repo used to work, and the reason is worth
+# stating. Passwords were taken from the deploying shell so they were never
+# written next to the repo, and the cost was paid on every deploy: sudo runs
+# with env_reset, so an exported password was stripped before compose ever saw
+# it, and the ${VAR:?} guard then aborted the deploy complaining about the shell
+# you had just set it in. The value had to be forwarded as a sudo-level
+# assignment to work around that, and forgetting was the most common way a
+# deploy failed here.
+#
+# .env is in .gitignore by bare name, so it is ignored at any depth. This is a
+# public repository: verify with `git check-ignore -v sites/<name>/.env` rather
+# than trusting it. Each site that needs one commits a .env.example listing the
+# keys with no values.
+COMPOSE      = $(DOCKER) compose
+COMPOSE_DOWN = $(DOCKER) compose
 
 .DEFAULT_GOAL := help
-.PHONY: help up up-one deploy doctor down down-one run build check fmt vet test \
-	require-site require-password require-tunnel
+.PHONY: help up up-one deploy edge doctor down down-one run build check fmt vet test \
+	require-site require-env require-tunnel
 
 help:
 	@echo "running system"
 	@echo "  make up                    bring everything up; safe to re-run, and the repair command"
 	@echo "  make deploy SITE=<site>    rebuild one site and replace it"
+	@echo "  make edge                  rebuild and replace caddy, ntfy and the tunnel"
 	@echo "  make doctor                what is running, what is broken, what to type"
 	@echo "  make down                  stop everything"
 	@echo ""
@@ -81,31 +89,57 @@ help:
 # deliberately does not pass --build, so an image that exists is reused. Use
 # `deploy` when the code changed.
 up: require-tunnel
-	cd edge && $(DOCKER) compose up --detach
+	$(EDGE_COMPOSE) up --detach
 	for s in $(SITES); do \
 		$(MAKE) --no-print-directory up-one SITE=$$s || exit 1; \
 	done
 	@echo ""
 	$(MAKE) --no-print-directory doctor
 
-up-one: require-site require-password
+up-one: require-site require-env
 	cd $(SITE_DIR) && $(COMPOSE) up --detach
 
-deploy: require-site require-password
+deploy: require-site require-env
 	cd $(SITE_DIR) && $(COMPOSE) up --build --detach
 	@echo ""
 	@echo "$(SITE) rebuilt and replaced as $(CONTAINER)"
+
+# The edge equivalent of deploy, and it exists because every config file in
+# edge/ is baked into an image rather than mounted: the Caddyfile, ntfy's
+# server.yml both need a rebuild to take effect, and `make up` deliberately does
+# not pass --build. Editing one of them and running
+# `make up` is the quiet failure this target prevents.
+#
+# cloudflared's config is the exception and is seeded into a volume instead;
+# changing it means `sh edge/setup-tunnel.sh up`.
+# cloudflared is restarted explicitly rather than left to compose. Its config
+# comes from a volume rather than from its image, so compose sees nothing
+# changed and leaves it running on the old ingress: after `setup-tunnel.sh up`
+# adds a hostname, the tunnel keeps serving the previous rule set with no sign
+# anything is stale, and the new hostname 404s from a Cloudflare edge that has
+# nowhere to send it. That is the difference between "rebuilt" and "reloaded".
+edge: require-tunnel
+	$(EDGE_COMPOSE) up --build --detach
+	$(DOCKER) restart orchard-cloudflared
+	@echo ""
+	@echo "edge rebuilt: caddy, ntfy, cloudflared"
 
 down:
 	for s in $(SITES); do \
 		$(MAKE) --no-print-directory down-one SITE=$$s || exit 1; \
 	done
-	cd edge && $(DOCKER) compose down
+	$(EDGE_COMPOSE) down
 
 down-one: require-site
 	cd $(SITE_DIR) && $(COMPOSE_DOWN) down
 
 # Read only. Every line is either fine or carries the command that fixes it.
+# That is why the alerts section reads ntfy's health endpoint rather than
+# publishing a test message: a doctor that sends a notification every time it
+# runs is a doctor nobody runs. To prove the path end to end, on purpose:
+#
+#   sudo docker run --rm --network container:orchard-ntfy curlimages/curl \
+#     -d "test" http://127.0.0.1:8000/status
 # `ps -a` rather than `ps`, so a container that exited reads as stopped rather
 # than vanishing from the report entirely.
 #
@@ -138,6 +172,17 @@ doctor:
 	echo "edge"; \
 	probe orchard-caddy       "-> make up"; \
 	probe orchard-cloudflared "-> make up"; \
+	probe orchard-ntfy        "-> make up"; \
+	echo ""; \
+	echo "alerts"; \
+	if $(DOCKER) ps --filter "name=^orchard-ntfy$$" --format '{{.Names}}' 2>/dev/null | grep -q .; then \
+		if $(DOCKER) run --rm --network container:orchard-ntfy curlimages/curl:latest \
+			-s --max-time 5 http://127.0.0.1:8000/v1/health 2>/dev/null | grep -q '"healthy":true'; then \
+			printf '  %-22s answering, topics status and logging\n' "ntfy"; \
+		else \
+			printf '  %-22s %-22s %s\n' "ntfy" "NOT ANSWERING" "-> docker logs orchard-ntfy"; \
+		fi; \
+	fi; \
 	echo ""; \
 	echo "sites"; \
 	for s in $(SITES); do \
@@ -197,16 +242,18 @@ require-site:
 		exit 1; \
 	}
 
-# Compose would catch this too, but it reports it as a variable the deploying
-# shell did not set, which reads like a bug in the compose file rather than a
-# missing argument.
-require-password:
-	@if [ -n "$(PASSWORD)" ] && [ -z "$${$(PASSWORD)}" ]; then \
-		echo "$(SITE) will not start without $(PASSWORD). it comes from the" >&2; \
-		echo "deploying shell rather than a file, so it is never written next" >&2; \
-		echo "to the repo. the value is in 1Password:" >&2; \
+# A site needs a .env exactly when it ships a .env.example, so adding a secret
+# to a site is one committed example file and nothing here. Compose would catch
+# the missing value too, but it reports it as an unset variable, which reads
+# like a bug in the compose file rather than a file you have not created yet.
+require-env:
+	@if [ -f "$(SITE_DIR)/.env.example" ] && [ ! -f "$(SITE_DIR)/.env" ]; then \
+		echo "$(SITE) has no .env. it is gitignored and machine-local, so a" >&2; \
+		echo "fresh checkout never has one. copy the example and fill it in:" >&2; \
 		echo "" >&2; \
-		echo "  $(PASSWORD)=... make $(firstword $(MAKECMDGOALS)) SITE=$(SITE)" >&2; \
+		echo "  cp $(SITE_DIR)/.env.example $(SITE_DIR)/.env" >&2; \
+		echo "" >&2; \
+		echo "the values are in 1Password." >&2; \
 		exit 1; \
 	fi
 
