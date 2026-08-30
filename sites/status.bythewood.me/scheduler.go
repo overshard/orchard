@@ -9,47 +9,24 @@ import (
 	"time"
 )
 
-// The scheduler: one goroutine, waking every thirty seconds, deciding what is
-// due and handing it to a worker pool.
-//
-// No cron, no queue and no second process. The binary that serves the dashboard
-// is the binary that does the monitoring, which is what makes this app one file
-// to deploy.
-
 const (
 	cycleInterval = 30 * time.Second
 
 	// Two pools, so a nine-minute crawl cannot starve a three-minute ping.
-	// With one shared pool, two sites crawling at once would stop every uptime
-	// check on every property, and the dashboard would show a flat green line
-	// while nothing was being measured.
 	fastWorkers = 2
 	slowWorkers = 2
 
-	// checkInterval is read by next3MinBoundary, which aligns to it rather
-	// than adding it to now, so every property is probed on the same cadence
-	// regardless of when it was created.
 	checkInterval      = 3 * time.Minute
 	lighthouseInterval = 24 * time.Hour
 	crawlInterval      = 7 * 24 * time.Hour
 
-	// Watchdog cutoffs. Anything still "running" past these was interrupted by
-	// the process being killed, the machine sleeping, or a subprocess wedging.
-	// Without the reset the row stays running forever and that property is
-	// never audited again.
-	//
-	// Both are past the work's own deadline (nine minutes for a crawl, three
-	// for Lighthouse), so a slow but living job finishes and records its own
-	// result rather than being declared dead underneath itself.
+	// Watchdog cutoffs, both past the work's own deadline, so a slow but living
+	// job records its own result instead of being declared dead underneath it.
 	crawlWedgeAfter      = 15 * time.Minute
 	lighthouseWedgeAfter = 5 * time.Minute
 
 	cleanupInterval = 24 * time.Hour
-	// Three days of checks, at one every three minutes, is 1,440 rows per
-	// property. The dashboard charts the most recent 31 and the uptime
-	// percentages read all of them, so this is the window the numbers
-	// describe.
-	checkRetention = 3 * 24 * time.Hour
+	checkRetention  = 3 * 24 * time.Hour
 )
 
 // Scheduler owns the background work.
@@ -58,9 +35,8 @@ type Scheduler struct {
 	notifier *Notifier
 	root     string
 
-	// Buffered channels as semaphores. A send takes a slot and a receive
-	// releases it, so a full channel blocks the goroutine that wanted to work
-	// rather than spawning an unbounded number of them.
+	// Buffered channels as semaphores: a full channel blocks the goroutine that
+	// wanted to work rather than spawning an unbounded number of them.
 	fast chan struct{}
 	slow chan struct{}
 }
@@ -76,8 +52,7 @@ func NewScheduler(db *sql.DB, notifier *Notifier, root string) *Scheduler {
 }
 
 // ResetOnBoot clears rows left queued or running by a previous process, whose
-// goroutines are gone. Without this, every property interrupted by a deploy
-// would be stuck permanently.
+// goroutines are gone; without it a property interrupted by a deploy sticks.
 func (s *Scheduler) ResetOnBoot(ctx context.Context) error {
 	if _, err := s.db.ExecContext(ctx,
 		"UPDATE properties SET crawl_state = 'idle' WHERE crawl_state IN ('queued', 'running')"); err != nil {
@@ -148,9 +123,7 @@ func (s *Scheduler) due(ctx context.Context, where string, args ...any) ([]*Prop
 }
 
 // enqueueChecks starts the HTTP probes that are due. The next run time is
-// written *before* the work starts, which stops the next tick from probing the
-// same property thirty seconds later while the first probe is still in
-// flight.
+// written before the work starts, so the next tick does not probe it again.
 func (s *Scheduler) enqueueChecks(ctx context.Context) error {
 	now := nowMS()
 	props, err := s.due(ctx,
@@ -253,9 +226,8 @@ func (s *Scheduler) runLighthouseFor(ctx context.Context, p *Property) {
 		fail(err)
 		return
 	}
-	// Details are best effort. The headline scores are what matters, and a
-	// Lighthouse release that reshapes auditRefs should not throw away a good
-	// audit. The template tests for "null".
+	// Details are best effort: a Lighthouse release that reshapes auditRefs must
+	// not throw away a good audit. The template tests for "null".
 	detailsJSON := []byte("null")
 	if details := parseDetails(report); details != nil {
 		if encoded, err := json.Marshal(details); err == nil {
@@ -318,11 +290,8 @@ func (s *Scheduler) runCrawlFor(ctx context.Context, p *Property) {
 		slog.Info(fmt.Sprintf("mark crawl running for %s: %v", p.URL, err), slog.String("component", "scheduler"))
 	}
 
-	// Progress writes drive the dashboard's progress bar during a crawl that
-	// can legitimately run nine minutes. Synchronous rather than one goroutine
-	// per update, which would put up to 125 detached writers per crawl in
-	// contention for SQLite's single write lock on the same column. Called once
-	// per batch of four pages, so at most 125 quick writes in series.
+	// Synchronous rather than a goroutine per update, which would leave detached
+	// writers contending for SQLite's single write lock on one column.
 	progress := func(pages int) {
 		if _, err := s.db.ExecContext(ctx,
 			"UPDATE properties SET last_crawl_pages_count = ? WHERE id = ?",
@@ -358,8 +327,7 @@ func (s *Scheduler) runCrawlFor(ctx context.Context, p *Property) {
 	}
 }
 
-// resetWedged is the watchdog. See the cutoff constants above for why the
-// thresholds are what they are.
+// resetWedged is the watchdog; the thresholds are the cutoff constants above.
 func (s *Scheduler) resetWedged(ctx context.Context) error {
 	now := nowMS()
 
@@ -381,12 +349,8 @@ func (s *Scheduler) resetWedged(ctx context.Context) error {
 	return err
 }
 
-// maybeCleanup deletes checks past the retention window, once a day.
-//
-// The timer is in memory rather than in the meta table, so a process restarting
-// more than once a day never runs it. That is why this deletes everything past
-// the cutoff rather than one day's worth: whenever it does run, it catches
-// up.
+// maybeCleanup deletes checks past the retention window, once a day. The timer
+// is in memory, so it deletes everything past the cutoff and catches up.
 func (s *Scheduler) maybeCleanup(ctx context.Context, last *time.Time) error {
 	if !last.IsZero() && time.Since(*last) < cleanupInterval {
 		return nil
@@ -405,8 +369,7 @@ func (s *Scheduler) maybeCleanup(ctx context.Context, last *time.Time) error {
 	return nil
 }
 
-// elapsedMS is how long ago something started, in whole milliseconds, which is
-// the unit every *_duration_ms column stores.
+// elapsedMS is in whole milliseconds, the unit every *_duration_ms column uses.
 func elapsedMS(started time.Time) int64 {
 	return time.Since(started).Milliseconds()
 }

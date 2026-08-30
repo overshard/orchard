@@ -1,13 +1,8 @@
 name: orchard-repos
 
-# A volume, not a bind mount. The Docker CLI here talks to Docker Desktop on the
-# Windows host, whose daemon resolves paths against its own filesystem, where
-# /home/dev/code does not exist; a bind mount fails silently as an empty mount
-# rather than erroring.
-#
-# The volume is primary data. It holds the only copy of the repositories that
-# exist nowhere else, so it belongs in the restic run, unlike analytics and
-# status whose volumes are re-derivable.
+# A volume, not a bind mount: the Docker CLI here talks to Docker Desktop, which
+# mounts a /home/dev path empty instead of erroring. It is primary data, holding
+# the only copy of repositories that exist nowhere else, so restic covers it.
 
 services:
   app:
@@ -19,14 +14,13 @@ services:
     env_file: .env
     volumes:
       - data:/data
-    # Longer than Docker's 10s default: a shutdown mid-push should let the
-    # receive-pack subprocess finish writing rather than leave a repository
-    # holding a half-written pack and a stale lock.
+    # Longer than Docker's 10s default, so a shutdown mid-push lets the
+    # receive-pack subprocess finish rather than leave a half-written pack and a
+    # stale lock.
     stop_grace_period: 30s
-    # Roomier than the static sites because a push runs `git index-pack`, which
-    # is the one genuinely memory-hungry thing here, and a mirror clone of a
-    # 130MB repository runs alongside it. A limit is a ceiling to fail against,
-    # not a target.
+    # A ceiling to fail against rather than a target. Roomier than the static
+    # sites because a push runs `git index-pack`, and a mirror clone of a 130MB
+    # repository can run alongside it.
     deploy:
       resources:
         limits:

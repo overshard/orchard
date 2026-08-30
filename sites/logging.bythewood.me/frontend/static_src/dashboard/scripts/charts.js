@@ -1,15 +1,8 @@
 import Chart from "chart.js/auto";
 
 // Three charts, all reading inline <script type="application/json"> blocks the
-// server rendered. Nothing here fetches: the page already has the numbers, and
-// an XHR would only add a round trip and a loading state to data that arrived
-// with the document.
-
-// The palette is the warm-earth SCSS, alpha-blended so adjacent segments stay
-// readable. Green for the ordinary, amber for a warning, terracotta for a
-// failure, slate for the neutral. Level and status colours are keyed by name
-// below rather than taken in order, because a chart where ERROR is whichever
-// colour happened to be fourth is a chart that lies at a glance.
+// server rendered. Level and status colours are keyed by name rather than taken
+// in order, so ERROR is terracotta whatever order the server sent them in.
 const green = "#6b9e78";
 const greenBright = "#7db88c";
 const amber = "#c9a84c";
@@ -53,9 +46,8 @@ const tooltipStyle = {
   cornerRadius: 4,
 };
 
-// read parses one JSON block, or returns null when the page did not render it.
-// Every lookup tolerates a missing element rather than throwing and taking the
-// other charts down with it.
+// read returns null for a missing or unparseable block, so one bad chart does
+// not take the others down with it.
 function read(id) {
   const el = document.getElementById(id);
   if (!el) return null;
@@ -81,11 +73,6 @@ function colorsFor(labels, table) {
   );
 }
 
-// ── Volume ──
-// Records per bucket as a filled area, with the error count as a second series
-// stacked underneath it in terracotta. Stacked rather than overlaid: the
-// question is "how much of this was bad", and two independent lines make the
-// reader do the subtraction.
 const volume = read("chart-volume");
 const volumeCanvas = document.getElementById("volume-chart");
 if (volume && volumeCanvas) {
@@ -124,9 +111,8 @@ if (volume && volumeCanvas) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      // Snapping to the nearest x rather than the nearest point means
-      // hovering anywhere in a column shows both series for that bucket,
-      // which is the comparison the chart exists to make.
+      // Nearest x rather than nearest point, so hovering anywhere in a column
+      // shows both series for that bucket.
       interaction: { mode: "index", intersect: false },
       animation: false,
       plugins: {
@@ -144,8 +130,8 @@ if (volume && volumeCanvas) {
           ticks: {
             maxRotation: 0,
             autoSkip: true,
-            // A bucket label every few columns. autoSkip alone still
-            // crowds them at a year of daily buckets on a phone.
+            // autoSkip alone still crowds the labels at a year of daily
+            // buckets on a phone.
             maxTicksLimit: 10,
           },
         },
@@ -160,10 +146,6 @@ if (volume && volumeCanvas) {
   });
 }
 
-// ── Doughnuts ──
-// Levels and status classes. Rotation animation is off because these re-render
-// on every page load and a spinning chart on a dashboard somebody is scanning
-// is noise.
 function doughnut(canvasId, dataId, table) {
   const data = read(dataId);
   const canvas = document.getElementById(canvasId);
@@ -187,10 +169,8 @@ function doughnut(canvasId, dataId, table) {
     },
     options: {
       responsive: true,
-      // false, so the doughnut fills the fixed-height panel body the CSS
-      // gives it rather than sizing itself from its own width. With an aspect
-      // ratio it ballooned to 485px on a narrow viewport while the volume
-      // chart beside it collapsed to 90, inverting the hierarchy.
+      // false, so the doughnut fills the fixed-height panel body the CSS gives
+      // it rather than ballooning to whatever its own width implies.
       maintainAspectRatio: false,
       cutout: "62%",
       animation: { animateRotate: false },

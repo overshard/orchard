@@ -61,8 +61,7 @@
 <a class="art-artItemButton" href="{{ .Source }}" rel="noopener noreferrer" target="_blank">See the Code</a>
 {{- end }}
 
-<!-- One lightbox reused by every card, rather than one mounted per open. The
-     React version created and destroyed a portal on each click. -->
+<!-- One lightbox, reused by every card. -->
 <div class="art-lightboxOverlay" hidden>
   <span class="art-lightboxImageWrapper">
     <div class="art-lightboxLoading">Loading...</div>

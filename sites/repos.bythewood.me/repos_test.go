@@ -12,8 +12,7 @@ import (
 	"time"
 )
 
-// TestValidName is the traversal fence, so it gets the adversarial cases rather
-// than the happy ones.
+// TestValidName is the traversal fence, so it takes the adversarial cases.
 func TestValidName(t *testing.T) {
 	ok := []string{
 		"orchard", "taproot", "blog.bythewood.me", "a", "with-dash",
@@ -39,8 +38,6 @@ func TestValidName(t *testing.T) {
 	}
 }
 
-// TestRepoNameFromPath covers the clone URL split, which is the one place a
-// request path is turned into a repository name.
 func TestRepoNameFromPath(t *testing.T) {
 	cases := []struct {
 		seg  string
@@ -62,9 +59,7 @@ func TestRepoNameFromPath(t *testing.T) {
 	}
 }
 
-// TestParseDiff is the parser that exists because everything shells out to git.
-// It is the most breakable thing here, so it is tested against a patch carrying
-// every shape the renderer has a branch for.
+// TestParseDiff pins the diff parser against every shape the renderer draws.
 func TestParseDiff(t *testing.T) {
 	patch := `diff --git a/kept.txt b/kept.txt
 index 1111111..2222222 100644
@@ -104,8 +99,6 @@ Binary files a/image.png and b/image.png differ
 	if len(d.Files) != 5 {
 		t.Fatalf("parsed %d files, want 5", len(d.Files))
 	}
-	// Two adds in kept.txt plus one in added.txt; one delete in each of
-	// kept.txt and gone.txt.
 	if d.Additions != 3 || d.Deletions != 2 {
 		t.Errorf("totals = +%d -%d, want +3 -2", d.Additions, d.Deletions)
 	}
@@ -118,8 +111,7 @@ Binary files a/image.png and b/image.png differ
 		t.Fatalf("file 0 has %d hunks, want 1", len(modified.Hunks))
 	}
 
-	// The line numbers are the whole reason the patch is parsed rather than
-	// printed, so they are checked rather than assumed.
+	// The line numbers are why the patch is parsed rather than printed.
 	h := modified.Hunks[0]
 	want := []struct {
 		kind   string
@@ -146,12 +138,10 @@ Binary files a/image.png and b/image.png differ
 	if d.Files[1].Status != Added {
 		t.Errorf("file 1 status = %s, want added", d.Files[1].Status)
 	}
-	// A delete has no new path, so Path must fall back to the old one or the
-	// row renders blank.
+	// A delete has no new path, so Path falls back to the old one.
 	if d.Files[2].Status != Deleted || d.Files[2].Path() != "gone.txt" {
 		t.Errorf("file 2 = %s %s, want deleted gone.txt", d.Files[2].Status, d.Files[2].Path())
 	}
-	// A rename must survive as one entry rather than a delete plus an add.
 	if r := d.Files[3]; r.Status != Renamed || r.OldPath != "old/name.txt" || r.NewPath != "new/name.txt" {
 		t.Errorf("file 3 = %s %s -> %s, want renamed old/name.txt -> new/name.txt",
 			r.Status, r.OldPath, r.NewPath)
@@ -181,8 +171,8 @@ func TestParseHunkHeader(t *testing.T) {
 	}
 }
 
-// TestParseDiffGit covers the header split that core.quotePath=false exists to
-// keep parseable, including a path that contains the separator it splits on.
+// core.quotePath=false is what keeps this header split parseable, including a
+// path holding the separator it splits on.
 func TestParseDiffGit(t *testing.T) {
 	cases := []struct{ line, old, new string }{
 		{"diff --git a/x.txt b/x.txt", "x.txt", "x.txt"},
@@ -213,8 +203,8 @@ func TestHumanBytes(t *testing.T) {
 	}
 }
 
-// TestPercentOf covers the push size meter, whose whole job is to warn before
-// a push hits Cloudflare's limit rather than after.
+// TestPercentOf covers the meter that has to warn before a push hits
+// Cloudflare's limit rather than after.
 func TestPercentOf(t *testing.T) {
 	cases := []struct {
 		n    int64
@@ -249,8 +239,7 @@ func TestURLPath(t *testing.T) {
 }
 
 func TestIsDumbPath(t *testing.T) {
-	// Serving any of these as a static file would hand out loose objects and
-	// bypass the auth on the smart routes.
+	// Serving these as static files hands out loose objects and skips the auth.
 	for _, p := range []string{"objects/ab/cdef", "HEAD", "packed-refs", "refs/heads/main"} {
 		if !isDumbPath(p) {
 			t.Errorf("isDumbPath(%q) = false, want true", p)
@@ -272,9 +261,7 @@ func TestIsBinary(t *testing.T) {
 	}
 }
 
-// TestMarkdownSanitised is the one that matters: a README is arbitrary text
-// from a repository nobody reviewed, and this site renders READMEs from
-// mirrored repositories.
+// A README is arbitrary text out of a mirrored repository nobody reviewed.
 func TestMarkdownSanitised(t *testing.T) {
 	src := []byte("# Title\n\n<script>alert(1)</script>\n\n" +
 		"<img src=x onerror=alert(1)>\n\n[link](https://example.com)\n")
@@ -299,9 +286,7 @@ func TestMarkdownSanitised(t *testing.T) {
 	}
 }
 
-// TestGitRoundTrip drives the plumbing layer against a repository built here,
-// so the parsers are checked against real git output rather than a fixture that
-// can drift from it.
+// TestGitRoundTrip runs the parsers against real git output, not a fixture.
 func TestGitRoundTrip(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not on PATH")
@@ -392,8 +377,8 @@ func TestGitRoundTrip(t *testing.T) {
 	if len(tags) != 1 || tags[0].Name != "v1.0.0" {
 		t.Fatalf("Tags = %+v, want one named v1.0.0", tags)
 	}
-	// An annotated tag is its own object, so Target must be the commit it
-	// points at rather than the tag object, or every tag link 404s.
+	// An annotated tag is its own object, so Target has to be the commit it
+	// points at or every tag link 404s.
 	if !tags[0].Annotated {
 		t.Error("annotated tag not flagged as annotated")
 	}
@@ -420,9 +405,8 @@ func TestGitRoundTrip(t *testing.T) {
 		t.Errorf("Blob size = %d, want %d", size, len(blob))
 	}
 
-	// The long-lived cat-file reader, which is the optimisation the whole
-	// browse path depends on. Read twice: the second read proves the stream
-	// stayed in sync rather than desynchronising after the first payload.
+	// Read twice, since the second read proves the cat-file stream stayed in
+	// sync after the first payload.
 	for i := range 2 {
 		typ, data, err := store.Object(repo, "main:README.md")
 		if err != nil {
@@ -466,8 +450,8 @@ func TestGitRoundTrip(t *testing.T) {
 	}
 }
 
-// TestInitBareConfig locks in the settings that make a pushed repository
-// recoverable and its pushes fast, because both were arrived at the hard way.
+// TestInitBareConfig locks in the settings that keep a pushed repository
+// recoverable and its pushes fast.
 func TestInitBareConfig(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not on PATH")
@@ -496,8 +480,7 @@ func TestInitBareConfig(t *testing.T) {
 		t.Errorf("receive.autogc = %q, want false", got)
 	}
 	// Off by default in a bare repository. With it, a force push leaves the
-	// old tip recoverable, which is what separates a backup from a copy of
-	// today's mistake.
+	// old tip recoverable, so today's mistake is not the only copy left.
 	if got := get("core.logAllRefUpdates"); got != "true" {
 		t.Errorf("core.logAllRefUpdates = %q, want true", got)
 	}
@@ -518,7 +501,6 @@ func TestInitBareConfig(t *testing.T) {
 	}
 }
 
-// TestTokens covers minting, verifying and revoking a push credential.
 func TestTokens(t *testing.T) {
 	db, err := OpenDB(t.TempDir())
 	if err != nil {
@@ -555,8 +537,8 @@ func TestTokens(t *testing.T) {
 	if _, err := db.VerifyToken("short"); err == nil {
 		t.Error("VerifyToken accepted a too-short value")
 	}
-	// A value sharing the stored prefix must still fail, since the prefix is
-	// kept in clear and is not a secret.
+	// A value sharing the stored prefix must still fail, the prefix is kept in
+	// clear and is not a secret.
 	if _, err := db.VerifyToken(token[:8] + strings.Repeat("A", 35)); err == nil {
 		t.Error("VerifyToken accepted a value matching only the prefix")
 	}
@@ -629,7 +611,6 @@ func TestRepoMeta(t *testing.T) {
 			mirror.Mirror, mirror.Archived)
 	}
 
-	// The flag the backup half exists for.
 	if err := db.MarkUpstreamGone("pinry", true); err != nil {
 		t.Fatalf("MarkUpstreamGone: %v", err)
 	}
@@ -646,8 +627,7 @@ func TestRepoMeta(t *testing.T) {
 	}
 }
 
-// TestSessionCookie covers the UI's own authentication, which is entirely
-// separate from the Basic auth the git wire uses.
+// The UI's own authentication, separate from the Basic auth on the git wire.
 func TestSessionCookie(t *testing.T) {
 	const password = "correct horse"
 
@@ -671,13 +651,13 @@ func TestSessionCookie(t *testing.T) {
 	if !validSession(r, password) {
 		t.Error("freshly issued session did not validate")
 	}
-	// The signing key is derived from the password, so changing the password
-	// must invalidate every outstanding session.
+	// The signing key comes from the password, so a change must invalidate
+	// every outstanding session.
 	if validSession(r, "different password") {
 		t.Error("session validated under a different password")
 	}
-	// A tampered payload must not validate, since the expiry inside it is a
-	// number the client would otherwise choose.
+	// A tampered payload must not validate, the expiry inside it is a number
+	// the client would otherwise choose.
 	if validSession(newRequestWithCookie("1:9999999999:forged"), password) {
 		t.Error("forged signature validated")
 	}
@@ -708,9 +688,6 @@ func TestTokenBucket(t *testing.T) {
 	}
 }
 
-// The helpers the session test needs, at the bottom because they are
-// scaffolding rather than subject matter.
-
 type fakeWriter struct {
 	header map[string][]string
 	status int
@@ -726,11 +703,8 @@ func newRequestWithCookie(value string) *http.Request {
 	return r
 }
 
-// TestAdopt covers the conversion of a pushed repository into a mirror, which
-// is the one path that rewrites a repository this site may hold the only copy
-// of. The three cases are the whole contract: identical is adopted, behind is
-// adopted because the fetch fast-forwards it, and ahead is refused and left
-// untouched.
+// TestAdopt covers converting a pushed repository into a mirror, the one path
+// that rewrites a repository this site may hold the only copy of.
 func TestAdopt(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not on PATH")
@@ -776,14 +750,13 @@ func TestAdopt(t *testing.T) {
 	}
 	defer db.Close()
 
-	// setup builds a pushed repository under a fresh store root and returns
-	// the Mirror to drive it with. rev is what the pushed copy sits at.
+	// setup builds a pushed repository at rev under a fresh store root.
 	setup := func(t *testing.T, name, rev string) (*Mirror, Repo) {
 		t.Helper()
 		storeRoot := t.TempDir()
 		bare := filepath.Join(storeRoot, name+".git")
 		git(root, "clone", "-q", "--bare", upstream, bare)
-		// A pushed repository has no origin; the clone gave it one.
+		// A pushed repository has no origin, the clone gave it one.
 		git(bare, "remote", "remove", "origin")
 		if rev != "" {
 			git(bare, "update-ref", "refs/heads/main", rev)
@@ -824,8 +797,7 @@ func TestAdopt(t *testing.T) {
 		if !adopted {
 			t.Fatal("adopted = false, want true")
 		}
-		// The mirror refspec is what makes syncOne rewrite refs rather than
-		// merely add to them, so it is the assertion that matters.
+		// The mirror refspec is what makes syncOne rewrite refs, not add to them.
 		out, err := run(ctx, repo, "config", "--get", "remote.origin.fetch")
 		if err != nil || strings.TrimSpace(string(out)) != "+refs/*:refs/*" {
 			t.Errorf("remote.origin.fetch = %q (err %v), want +refs/*:refs/*", out, err)
@@ -857,8 +829,7 @@ func TestAdopt(t *testing.T) {
 
 	t.Run("ahead of upstream is refused and left untouched", func(t *testing.T) {
 		m, repo := setup(t, "sample", "")
-		// A commit that exists only in the pushed copy, which is exactly the
-		// case the skip in Sync was written to protect.
+		// A commit only in the pushed copy, the case the skip in Sync protects.
 		local := filepath.Join(root, "local")
 		if err := os.MkdirAll(local, 0o755); err != nil {
 			t.Fatal(err)
@@ -878,7 +849,7 @@ func TestAdopt(t *testing.T) {
 		if adopted {
 			t.Fatal("adopted = true, want false: local holds a commit upstream lacks")
 		}
-		// Refusal has to be a no-op, or the guard is worse than no guard.
+		// Refusal has to leave the repository untouched.
 		if got := head(repo.Path); got != onlyHere {
 			t.Errorf("refs moved on refusal: head = %s, want %s", got, onlyHere)
 		}
@@ -892,9 +863,8 @@ func TestAdopt(t *testing.T) {
 	})
 }
 
-// TestParseMirrorSource covers the one field the settings form has. The slash
-// is the entire grammar, so the cases that matter are the ones either side of
-// it and the URL somebody will inevitably paste instead.
+// The slash is the entire grammar of the one field the settings form has, so
+// the cases either side of it are what matter.
 func TestParseMirrorSource(t *testing.T) {
 	ok := []struct {
 		in    string
@@ -937,8 +907,7 @@ func TestParseMirrorSource(t *testing.T) {
 	}
 }
 
-// TestMirrorSourceLabel checks the round trip a human sees: what they type is
-// what the settings page shows back.
+// TestMirrorSourceLabel checks that what somebody types is what comes back.
 func TestMirrorSourceLabel(t *testing.T) {
 	for _, in := range []string{"overshard", "overshard/newtab"} {
 		src, err := ParseMirrorSource(in)
@@ -954,9 +923,8 @@ func TestMirrorSourceLabel(t *testing.T) {
 	}
 }
 
-// TestMirrorSources covers the CRUD plus the seed guard, which is the part with
-// a footgun: a setting that comes back after being deleted is worse than one
-// that was never editable.
+// TestMirrorSources covers the CRUD plus the seed guard, since a setting that
+// comes back after being deleted is worse than one that was never editable.
 func TestMirrorSources(t *testing.T) {
 	dir := t.TempDir()
 	db, err := OpenDB(dir)
@@ -984,8 +952,7 @@ func TestMirrorSources(t *testing.T) {
 		t.Fatalf("re-seed added a row: %+v", got)
 	}
 
-	// Adding the same source twice is a no-op rather than an error, so a
-	// double submit does not need handling in the form.
+	// Adding the same source twice is a no-op, so a double submit is harmless.
 	src := MirrorSource{Kind: sourceRepo, Owner: "other", Name: "thing"}
 	for range 2 {
 		if err := db.AddMirrorSource(src); err != nil {
@@ -1010,10 +977,8 @@ func TestMirrorSources(t *testing.T) {
 	}
 }
 
-// TestCoveredBySource is what scopes the upstream_gone flag. Getting it wrong
-// means removing a source shouts that every repository it brought in has
-// vanished from GitHub, which would be a false alarm on the one signal here
-// that has to be trusted.
+// TestCoveredBySource scopes the upstream_gone flag. Getting it wrong means
+// removing a source claims everything it brought in vanished from GitHub.
 func TestCoveredBySource(t *testing.T) {
 	sources := []MirrorSource{
 		{Kind: sourceAccount, Owner: "overshard"},
@@ -1042,14 +1007,11 @@ func TestCoveredBySource(t *testing.T) {
 	}
 }
 
-// TestAnalyticsWiring guards the four places the collector lives, because they
-// are edited separately and any one of them alone is silent: the property id,
-// the snippet in base.html, the CSP that has to permit it, and the page field
-// that gates it. A site that stops reporting looks exactly like a site with no
-// traffic.
+// TestAnalyticsWiring guards the four places the collector lives, since they
+// are edited separately and any one alone fails silently.
 func TestAnalyticsWiring(t *testing.T) {
-	// The id is identity, not a credential, so asserting the literal is the
-	// point: a typo here files this site's traffic under nothing.
+	// The id is identity and not a credential, and a typo files this site's
+	// traffic under nothing.
 	const want = "49f89ef6-b0b2-4b47-879e-7e252a067d0c"
 	if analyticsID != want {
 		t.Errorf("analyticsID = %q, want %q", analyticsID, want)

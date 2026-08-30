@@ -100,8 +100,6 @@
 );
 
 
-// ── Surface utilities ──
-
 .bg-surface {
   background: #13120e !important;
 }
@@ -111,7 +109,7 @@
 }
 
 .bg-deep {
-  background: #09080626 !important; // very subtle warm black
+  background: #09080626 !important;
 }
 
 .bg-deep,
@@ -174,7 +172,6 @@
   }
 }
 
-// Legacy utility aliases used by existing templates
 .bg-teal-900 { background-color: #090806 !important; }
 .bg-teal-800 { background-color: #0e0d0a !important; }
 
@@ -215,7 +212,6 @@
   }
 }
 
-// Buttons — flat, no glow
 .btn {
   letter-spacing: 0.02em;
   font-weight: 500;
@@ -276,7 +272,6 @@
   color: $green-bright;
 }
 
-// Alerts for dark
 .alert { border-radius: $border-radius; }
 
 .alert-info {
@@ -303,7 +298,6 @@
   color: $green-bright;
 }
 
-// Forms
 .form-control,
 .form-select {
   background-color: $input-bg;
@@ -319,14 +313,12 @@
   color: #665f56;
 }
 
-// Badges
 .badge {
   font-weight: 500;
   letter-spacing: 0.04em;
   padding: 0.35em 0.55em;
 }
 
-// Pagination
 .page-link {
   background: $card-bg;
   border-color: $card-border-color;

@@ -13,43 +13,23 @@ import (
 	"time"
 )
 
-// Lighthouse audits, by driving the npm CLI as a subprocess. It starts a real
-// Chromium and drives it over DevTools for up to three minutes. There is no
-// in-process alternative: Lighthouse is Google's own JavaScript, and
-// reimplementing its scoring would mean chasing a moving target whose numbers
-// are the point.
-//
-// `bun run --bun` keeps Node out of the image. It symlinks `node` to bun so the
-// lighthouse shim's `#!/usr/bin/env node` shebang resolves to bun's runtime,
-// which is why nothing in this repo installs nodejs or npm.
+// `bun run --bun` below keeps Node out of the image: it symlinks `node` to bun,
+// so the lighthouse shim's `#!/usr/bin/env node` shebang resolves to bun.
 
 const (
 	lighthouseTimeout = 180 * time.Second
 	chromeFlags       = "--headless --no-sandbox --disable-dev-shm-usage --disable-gpu"
-	// Enough of stderr to see what went wrong, bounded so a subprocess that
-	// dies noisily cannot write a megabyte into a database column.
+	// Bounded so a subprocess that dies noisily cannot fill a database column.
 	stderrKeep = 500
 )
 
-// ErrLighthouseMissing means node_modules/.bin/lighthouse is not on disk.
-//
-// The normal state of a local checkout that has not run `bun install`, and
-// deliberately survivable: audits are skipped and recorded as an error on the
-// property, and every other part of the app works. In the image it is always
-// there.
+// ErrLighthouseMissing means node_modules/.bin/lighthouse is not on disk, the
+// normal state of a checkout without `bun install`. Audits are skipped.
 var ErrLighthouseMissing = errors.New("lighthouse CLI not installed")
 
-// findChromium locates a browser for Lighthouse to drive.
-//
-// Three sources, in order of how much they were deliberately chosen:
-// CHROMIUM_BIN if the operator set it, then PATH, which is what the production
-// image's `apk add chromium` provides, then a walk of the Playwright browser
-// directory, which is what makes this work inside the webdev container without
-// anyone exporting anything.
-//
-// Lighthouse needs a full Chrome because it drives DevTools; headless-shell is
-// last because it can start and then fail in ways that look like a broken site
-// rather than a broken browser.
+// findChromium tries CHROMIUM_BIN, then PATH, then the Playwright browser
+// directory. Lighthouse drives DevTools and needs a full Chrome, so
+// headless-shell is last: it can fail in ways that look like a broken site.
 func findChromium() string {
 	if p := os.Getenv("CHROMIUM_BIN"); p != "" {
 		if isFile(p) {
@@ -69,9 +49,7 @@ func findChromium() string {
 	if err != nil {
 		return ""
 	}
-	// Sorted so the choice is deterministic when two browser builds are
-	// installed side by side, which is the normal state of that directory
-	// after a Playwright upgrade.
+	// Sorted so the choice is stable when two browser builds sit side by side.
 	names := make([]string, 0, len(entries))
 	for _, e := range entries {
 		names = append(names, e.Name())
@@ -116,17 +94,14 @@ func runLighthouse(ctx context.Context, root, target string) (map[string]any, er
 		"--output-path=stdout",
 		"--quiet",
 	)
-	// A deliberately minimal environment. Lighthouse and Chromium both read a
-	// lot of ambient configuration, and an audit whose numbers depend on the
-	// shell that started the server is not a measurement.
+	// A minimal environment: Lighthouse and Chromium both read a lot of ambient
+	// configuration, and the numbers must not depend on the calling shell.
 	cmd.Env = []string{"PATH=/usr/bin:/bin:/usr/local/bin"}
 	if chromium := findChromium(); chromium != "" {
 		cmd.Env = append(cmd.Env, "CHROME_PATH="+chromium)
 	}
-	// Without this, killing the process on timeout leaves the Chromium it
-	// spawned running forever. CommandContext kills only the direct child, so
-	// the whole group has to go: a wedged audit that leaks a browser every day
-	// eats the machine within a week.
+	// CommandContext kills only the direct child, so a timeout would otherwise
+	// leave the Chromium this spawned running forever.
 	setProcessGroup(cmd)
 
 	var stdout, stderr strings.Builder
@@ -153,8 +128,7 @@ func runLighthouse(ctx context.Context, root, target string) (map[string]any, er
 	return report, nil
 }
 
-// tailString keeps the last n characters, which is where a stack trace puts
-// the actual failure.
+// tailString keeps the last n characters, where a stack trace puts the failure.
 func tailString(s string, n int) string {
 	s = strings.TrimSpace(s)
 	runes := []rune(s)
@@ -164,11 +138,8 @@ func tailString(s string, n int) string {
 	return string(runes[len(runes)-n:])
 }
 
-// Scores are the four category headlines, as whole percentages.
-//
-// The JSON field names are capitalised because they are rendered directly as
-// labels and because they are already in the production database that way. A
-// rename would orphan every stored row.
+// Scores are the four category headlines, as whole percentages. The JSON names
+// are the rendered labels and are stored that way, so renaming one orphans rows.
 type Scores struct {
 	Performance   int64 `json:"Performance"`
 	Accessibility int64 `json:"Accessibility"`
@@ -176,13 +147,9 @@ type Scores struct {
 	SEO           int64 `json:"SEO"`
 }
 
-// parseScores pulls the four category scores.
-//
-// A null score is an error rather than a zero, and that distinction is the
-// whole reason this is not three lines. Lighthouse returns null for a category
-// it could not evaluate, and storing that as 0 would draw a confident red bar
-// claiming the site scored nothing, which is a different and much worse claim
-// than "the audit did not complete".
+// parseScores pulls the four category scores. A null is an error, not a zero:
+// Lighthouse returns null for a category it could not evaluate, and a stored 0
+// would draw a red bar claiming the site scored nothing.
 func parseScores(report map[string]any) (*Scores, error) {
 	cats, ok := report["categories"].(map[string]any)
 	if !ok {
@@ -253,21 +220,9 @@ type Details struct {
 	Opportunities []Opportunity `json:"opportunities"`
 }
 
-// parseDetails extracts the weighted metrics and the top opportunities.
-//
-// The filtering is the substance here. Lighthouse's audit list is mostly noise
-// for this purpose, and four separate rules cut it down:
-//
-//   - group "hidden" covers audits Lighthouse keeps for compatibility but no
-//     longer scores, such as Time to Interactive. Left in, they would appear
-//     as wins the site never earned.
-//   - manual, notApplicable and informative audits have no pass or fail to
-//     report at all.
-//   - anything scoring 0.9 or better already passes.
-//   - what survives must carry at least one actionable signal, some saving in
-//     milliseconds, in bytes, or against a specific metric. Pure diagnostics
-//     like forced-reflow carry none, and would otherwise be listed with a
-//     meaningless 0.
+// parseDetails extracts the weighted metrics and the top opportunities. Group
+// "hidden" is audits Lighthouse keeps but no longer scores, and an opportunity
+// with no saving attached is a diagnostic; both would read as findings.
 func parseDetails(report map[string]any) *Details {
 	cats, ok := report["categories"].(map[string]any)
 	if !ok {
@@ -362,12 +317,8 @@ func parseDetails(report map[string]any) *Details {
 		})
 	}
 
-	// Heaviest metric first, biggest saving first. SliceStable rather than
-	// Slice so equal weights keep Lighthouse's own ordering instead of being
-	// shuffled: two metrics with the same weight swapping places between
-	// audits would look like the page changed when nothing did. That exact
-	// class of bug, a HashSet iterated into the UI, was found in analytics'
-	// Rust version by this port's predecessor.
+	// SliceStable, so equal weights keep Lighthouse's own order: two metrics
+	// swapping places between audits would look like the page had changed.
 	sort.SliceStable(details.Metrics, func(i, j int) bool {
 		return details.Metrics[i].Weight > details.Metrics[j].Weight
 	})
@@ -387,13 +338,8 @@ type ScorePair struct {
 	Score int64
 }
 
-// Pairs returns the four scores in Lighthouse's own report order.
-//
-// A method rather than a map because order matters and a map has none. The
-// Rust version handed minijinja a serde_json object and iterated it, which is
-// the same shape of mistake the analytics port found in its metric tiles: a
-// container with no order feeding user-visible output, so the four tiles could
-// rearrange themselves between page loads.
+// Pairs returns the four scores in Lighthouse's own report order. A slice, not
+// a map, so the tiles cannot rearrange themselves between page loads.
 func (s *Scores) Pairs() []ScorePair {
 	return []ScorePair{
 		{"Performance", s.Performance},

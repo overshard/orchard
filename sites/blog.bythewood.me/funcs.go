@@ -5,9 +5,8 @@ import (
 	"html/template"
 )
 
-// templateFuncs is one function, so a partial can take more than one value. Go
-// templates have a single dot, so a fragment needing both a label and a list
-// has no other way to receive them.
+// dict lets a partial take more than one value, since a Go template has a
+// single dot.
 var templateFuncs = template.FuncMap{"dict": dict}
 
 func dict(pairs ...any) (map[string]any, error) {

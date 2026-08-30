@@ -12,13 +12,6 @@ import (
 	"time"
 )
 
-// The SEO spider.
-//
-// Breadth-first from the property URL, staying on the host, up to PageCap
-// pages at Concurrency at a time, bounded by CrawlDeadline. Everything it
-// collects is handed to the checks in crawler_checks.go, which turn it into
-// the flat insight list the dashboard groups and renders.
-
 // Page is one crawled URL plus, when it was HTML, everything parsed out of it.
 type Page struct {
 	URL          string
@@ -42,18 +35,14 @@ type CrawlResult struct {
 	ExternalLinkStatus map[string]int
 	SitemapURLs        []string
 	Robots             RobotsCtx
-	// Compression is the server's Content-Encoding for the start URL, or ""
-	// when it answered uncompressed.
+	// Compression is the start URL's Content-Encoding, or "" if it answered
+	// uncompressed.
 	Compression string
 }
 
-// normalizeURL is the key pages are deduplicated by.
-//
-// The fragment goes because "/a" and "/a#top" are one page, and the trailing
-// slash goes because "/a" and "/a/" almost always are too. The second is an
-// over-reach: a server *can* serve different content at those two paths, and
-// this would then crawl only whichever it saw first. The alternative is
-// crawling most sites twice.
+// normalizeURL is the key pages are deduplicated by. Dropping the trailing
+// slash can merge two paths a server really does serve differently, but
+// keeping it crawls most sites twice.
 func normalizeURL(raw string) string {
 	u, err := url.Parse(raw)
 	if err != nil {
@@ -67,10 +56,8 @@ func normalizeURL(raw string) string {
 	return s
 }
 
-// RunSEOSpider crawls a site and returns the insights.
-//
-// progress is called with the running page count so the dashboard's progress
-// bar moves during a crawl that can legitimately take nine minutes.
+// RunSEOSpider crawls a site and returns the insights. progress, if non-nil,
+// is called with the running page count after each batch.
 func RunSEOSpider(ctx context.Context, startURL string, progress func(pages int)) ([]Insight, error) {
 	started := time.Now()
 	slog.Info(fmt.Sprintf("starting %s", startURL), slog.String("component", "crawler"))
@@ -120,8 +107,8 @@ func crawl(ctx context.Context, startURL string, progress func(pages int)) (*Cra
 	}
 
 	enqueue(startURL)
-	// The sitemap is a second entry point rather than only a checklist: it
-	// surfaces pages nothing links to, which are the ones worth auditing.
+	// The sitemap is a second entry point and not just a checklist, since it
+	// surfaces pages nothing links to.
 	for i, u := range sitemapURLs {
 		if i >= PageCap {
 			break
@@ -138,7 +125,6 @@ func crawl(ctx context.Context, startURL string, progress func(pages int)) (*Cra
 			break
 		}
 
-		// Take a batch, skipping anything robots.txt disallows.
 		var batch []string
 		for len(queue) > 0 && len(batch) < Concurrency && len(pages)+len(batch) < PageCap {
 			next := queue[0]
@@ -164,9 +150,8 @@ func crawl(ctx context.Context, startURL string, progress func(pages int)) (*Cra
 		wg.Wait()
 
 		for _, r := range results {
-			// A redirect can land two queued URLs on the same page, so the
-			// deduplication is on the *final* URL, which the queue cannot
-			// check because it does not know it yet.
+			// A redirect can land two queued URLs on the same page, so dedupe
+			// on the final URL, which the queue cannot know yet.
 			finalKey := normalizeURL(r.URL)
 			if fetched[finalKey] {
 				seen[finalKey] = true
@@ -225,12 +210,8 @@ func crawl(ctx context.Context, startURL string, progress func(pages int)) (*Cra
 	}, nil
 }
 
-// probeExternalLinks HEADs every distinct off-site link, capped and sorted.
-//
-// Sorted before truncating, so which links get probed is deterministic across
-// runs. An unsorted set reports a different arbitrary subset every week, and a
-// finding that appears and disappears on its own is worse than one that is
-// consistently absent.
+// probeExternalLinks HEADs every distinct off-site link. Sorting before the
+// cap keeps the probed subset the same from one run to the next.
 func probeExternalLinks(ctx context.Context, client *http.Client, pages []*Page, host, startURL string) map[string]int {
 	external := map[string]bool{}
 	for _, p := range pages {
@@ -263,10 +244,8 @@ func probeExternalLinks(ctx context.Context, client *http.Client, pages []*Page,
 
 	var mu sync.Mutex
 	for i := 0; i < len(urls); i += Concurrency {
-		// The page loop respects the deadline and so must this. A slow tail of
-		// external probes would keep the crawl "running" past its budget until
-		// the watchdog killed it and recorded a successful crawl as an
-		// interruption.
+		// Without this a slow tail of probes runs past the crawl budget and the
+		// watchdog records a finished crawl as an interruption.
 		if ctx.Err() != nil {
 			slog.Info(fmt.Sprintf("hit deadline during external link probes for %s", startURL), slog.String("component", "crawler"))
 			break

@@ -24,13 +24,11 @@ type site struct {
 	backend  string
 	script   string
 	styles   []string
-	// mirror is here only so the settings page can run a sync on demand;
-	// the lane itself is driven by its own ticker.
+	// mirror is here only so the settings page can run a sync on demand.
 	mirror *Mirror
 }
 
-// page is the data every template gets, so base.html can render the chrome
-// without each handler assembling it.
+// page is the data every template gets, so base.html can render the chrome.
 type page struct {
 	Title       string
 	Description string
@@ -38,8 +36,8 @@ type page struct {
 	Styles      []string
 	LoggedIn    bool
 	Staging     bool
-	// Analytics gates the collector snippet in base.html, so a staging
-	// hostname never files traffic under the real property.
+	// Analytics gates the collector snippet, so staging never files traffic under
+	// the real property.
 	Analytics   bool
 	AnalyticsID string
 	SiteName    string
@@ -48,9 +46,8 @@ type page struct {
 	SourceURL   string
 	Canonical   string
 	AuthorName  string
-	// RepoName and RepoRev drive the header's context line, so that below the
-	// index the bar says which repository you are in rather than repeating the
-	// site name. Filled by pageForRepo; empty on the index and on settings.
+	// RepoName and RepoRev drive the header's context line. Filled by
+	// pageForRepo, empty on the index and on settings.
 	RepoName string
 	RepoRev  string
 	Data     any
@@ -76,9 +73,7 @@ func (s *site) page(r *http.Request, title, description string, data any) page {
 	}
 }
 
-// pageForRepo is page plus the header context. Separate rather than a flag,
-// because every repository handler already holds the context and no other
-// handler can supply it.
+// pageForRepo is page plus the repository header context.
 func (s *site) pageForRepo(r *http.Request, rc *repoContext, title, description string, data any) page {
 	p := s.page(r, title, description, data)
 	p.RepoName = rc.Repo.Name
@@ -112,10 +107,8 @@ type RepoCard struct {
 	Branches int
 	Tags     int
 	Empty    bool
-	// PushPercent is how much of a single push through the tunnel this
-	// repository would use if it were pushed from scratch today. Shown
-	// because the limit is invisible until it bites, and it bites on the
-	// first push rather than gradually.
+	// PushPercent is how much of one push through the tunnel a from-scratch push
+	// of this repository would use.
 	PushPercent int
 }
 
@@ -155,8 +148,6 @@ func (s *site) index(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	// Most recently pushed first, which is the order that answers "what was
-	// I just working on".
 	sort.SliceStable(cards, func(i, j int) bool {
 		return cards[i].LastPush.After(cards[j].LastPush)
 	})
@@ -169,8 +160,7 @@ func (s *site) index(w http.ResponseWriter, r *http.Request) {
 	}))
 }
 
-// repoContext is the shared header every repository page renders: the name, the
-// current revision, the ref lists for the switcher, and the clone URLs.
+// repoContext is the shared header every repository page renders.
 type repoContext struct {
 	Repo     Repo
 	Meta     RepoMeta
@@ -184,12 +174,11 @@ type repoContext struct {
 
 	CloneURL  string
 	BridgeURL string
-	// BridgeContainer is the container name on its own, because the push help
-	// builds its own commands and wants the host rather than a whole URL.
+	// BridgeContainer is the container name alone, which is what the push help
+	// builds its commands from.
 	BridgeContainer string
-	// OverLimit says a full clone of this repository is larger than a single
-	// push can carry through Cloudflare, so a fresh seed of it has to use
-	// the bridge or a chunked push. Computed rather than configured.
+	// OverLimit says a from-scratch push of this repository is larger than one
+	// request through Cloudflare, so seeding it needs the bridge or slices.
 	OverLimit   bool
 	PushPercent int
 }
@@ -226,10 +215,8 @@ func (s *site) resolveRepo(w http.ResponseWriter, r *http.Request) (*repoContext
 		rc.Tags, _ = s.store.Tags(ctx, repo)
 	}
 
-	// The revision comes from the URL when there is one and from HEAD when
-	// there is not. Either way it is resolved before use, which is the
-	// validation step: anything that does not name a commit is a 404 here
-	// rather than an argument to a later git command.
+	// Either way the revision is resolved before use, so anything that does not
+	// name a commit is a 404 rather than an argument to a later git command.
 	rev := r.PathValue("rev")
 	if rev == "" {
 		rev = rc.Head
@@ -305,8 +292,6 @@ func (s *site) readme(ctx context.Context, repo Repo, rev string, entries []Tree
 			}
 			return want, html, true
 		}
-		// Not Markdown, so it is shown as preformatted text rather than
-		// run through a renderer that would mangle it.
 		return want, template.HTML("<pre>" +
 			template.HTMLEscapeString(string(src)) + "</pre>"), true
 	}
@@ -369,8 +354,7 @@ func (s *site) blob(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case err == errTooLarge:
-		// Not an error page: the file exists and can still be downloaded,
-		// it is only too large to render.
+		// Not an error page: the file exists and is still downloadable.
 		data["TooLarge"] = true
 	case err != nil:
 		s.notFound(w, r)
@@ -391,12 +375,9 @@ func (s *site) blob(w http.ResponseWriter, r *http.Request) {
 		s.pageForRepo(r, rc, rc.Repo.Name+"/"+path, "", data))
 }
 
-// raw streams a file's bytes.
-//
-// Everything here is served as text/plain with nosniff, which is the fix the
-// Rust build's security review made: serving a .html or .svg blob from a
-// repository with its real content type is stored XSS on this origin, and the
-// origin also holds the session cookie.
+// raw streams a file's bytes as text/plain with nosniff. Serving a .html or .svg
+// blob with its real content type would be stored XSS on the origin that also
+// holds the session cookie.
 func (s *site) raw(w http.ResponseWriter, r *http.Request) {
 	rc, ok := s.resolveRepo(w, r)
 	if !ok {
@@ -418,8 +399,7 @@ func (s *site) raw(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	// A blob at a resolved SHA cannot change, so it is immutable. At a
-	// branch name it can, so it is not.
+	// A blob at a resolved SHA cannot change; at a branch name it can.
 	if sha == rc.Rev {
 		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 	} else {
@@ -427,8 +407,7 @@ func (s *site) raw(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.store.StreamBlob(ctx, rc.Repo, rc.Rev, path, w); err != nil {
-		// The header is already written by this point in the failure case
-		// that matters, so there is nothing useful to say to the client.
+		// The header is already written, so there is nothing to say to the client.
 		slog.Info("raw blob failed",
 			slog.String("repo", rc.Repo.Name), slog.String("path", path))
 	}
@@ -473,8 +452,7 @@ func (s *site) log(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// One extra row is fetched rather than counting the whole history, which
-	// on a large repository is a graph walk for a number nobody reads.
+	// One extra row rather than counting the whole history, which is a graph walk.
 	hasNext := len(commits) > perPage
 	if hasNext {
 		commits = commits[:perPage]
@@ -534,8 +512,7 @@ func (s *site) refsPage(templateName string) http.HandlerFunc {
 	}
 }
 
-// archive streams a tarball or zip of a revision, which is the closest thing
-// here to a GitHub release and costs one git command.
+// archive streams a tarball or zip of a revision.
 func (s *site) archive(w http.ResponseWriter, r *http.Request) {
 	rc, ok := s.resolveRepo(w, r)
 	if !ok {
@@ -543,8 +520,7 @@ func (s *site) archive(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx := r.Context()
 
-	// The format is the file extension on the last URL segment, so the
-	// browser and the shell both get a filename they can use.
+	// The format rides as the file extension on the last URL segment.
 	rev, format := rc.Rev, ""
 	switch {
 	case strings.HasSuffix(rev, ".tar.gz"):
@@ -578,8 +554,8 @@ func (s *site) archive(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// login is the UI's own authentication, entirely separate from the Basic auth
-// the git wire uses. A person never sees a browser credential prompt.
+// login is the UI's own authentication, separate from the Basic auth the git wire
+// uses, so a person never sees a browser credential prompt.
 func (s *site) login(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store, private")
 
@@ -597,8 +573,7 @@ func (s *site) login(w http.ResponseWriter, r *http.Request) {
 		s.renderer.Render(w, http.StatusTooManyRequests, "login.html",
 			s.page(r, "Sign in", "", map[string]any{
 				"Error": "Too many attempts. Wait a moment.",
-				// Carried through the failure, or a retry loses the page the
-				// person was trying to reach and dumps them on the index.
+				// Carried through, or a retry loses the page they wanted.
 				"Next": r.FormValue("next"),
 			}))
 		return
@@ -618,8 +593,7 @@ func (s *site) login(w http.ResponseWriter, r *http.Request) {
 	issueSession(w, s.cfg.Password)
 	next := r.FormValue("next")
 	if !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") {
-		// An open redirect is one missing check away, and "next" arrives
-		// from a query string.
+		// "next" arrives from a query string, so this is the open redirect fence.
 		next = "/"
 	}
 	http.Redirect(w, r, next, http.StatusSeeOther)
@@ -630,19 +604,16 @@ func (s *site) logout(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
-// settings is the token page: mint, list and revoke push credentials.
 // newTokenCookie carries a freshly minted token from the POST to the page that
 // shows it, exactly once.
 const newTokenCookie = "new_token"
 
 func (s *site) settings(w http.ResponseWriter, r *http.Request) {
-	// This page can render a live push credential, so it must never be stored
-	// by a shared cache. EdgeCache leaves a handler's own choice alone, and
-	// without this it stamped "public, max-age=60" onto the token page.
+	// This page can render a live push credential, so it must never reach a
+	// shared cache. EdgeCache leaves a handler's own choice alone.
 	w.Header().Set("Cache-Control", "no-store, private")
 
-	// Read once and clear, so a refresh does not show the token again and a
-	// stale cookie cannot resurface it later.
+	// Read once and clear, so a refresh does not show the token again.
 	fresh := ""
 	if c, err := r.Cookie(newTokenCookie); err == nil {
 		fresh = c.Value
@@ -678,8 +649,7 @@ func (s *site) settings(w http.ResponseWriter, r *http.Request) {
 			"MirrorEnabled": s.mirrorReady(),
 			"MirrorEvery":   shortDuration(s.cfg.MirrorEvery),
 			"Notice":        notice,
-			// Shown once, immediately after minting, and never again.
-			"NewToken": fresh,
+			"NewToken":      fresh,
 		}))
 }
 
@@ -690,12 +660,8 @@ func (s *site) createToken(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "could not create token", http.StatusInternalServerError)
 		return
 	}
-	// Handed over in a one-shot cookie rather than a query string. The token
-	// is a bearer credential and a URL is the worst place to put one: it is
-	// recorded in the edge access log, sent as a Referer to anything the page
-	// links to, and kept in browser history. The cookie is read once by
-	// /settings and cleared immediately, and a redirect is still used so a
-	// refresh does not re-post the form.
+	// A one-shot cookie rather than a query string: a bearer credential in a URL
+	// lands in the edge access log, a Referer header and browser history.
 	http.SetCookie(w, &http.Cookie{
 		Name:     newTokenCookie,
 		Value:    token,
@@ -720,8 +686,7 @@ func (s *site) revokeToken(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/settings", http.StatusSeeOther)
 }
 
-// editRepo saves the description and topics, which are the two things git has
-// nowhere to put.
+// editRepo saves the description and topics, which git has nowhere to put.
 func (s *site) editRepo(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
 	if _, ok := s.store.Open(name); !ok {
@@ -729,8 +694,7 @@ func (s *site) editRepo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// A mirror's description belongs to upstream and is overwritten on the
-	// next sync, so offering to edit it here would be a lie.
+	// A mirror's description is overwritten on the next sync, so it is not editable.
 	if meta, err := s.db.Repo(name); err == nil && meta.Mirror {
 		http.Error(w, "this repository is a mirror; its description comes from upstream",
 			http.StatusForbidden)
@@ -751,7 +715,7 @@ func (s *site) editRepo(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/"+name, http.StatusSeeOther)
 }
 
-// atom is the per-repository commit feed, carried over from the Rust build.
+// atom is the per-repository commit feed.
 func (s *site) atom(w http.ResponseWriter, r *http.Request) {
 	rc, ok := s.resolveRepo(w, r)
 	if !ok {
@@ -806,9 +770,8 @@ func xmlEscape(s string) string {
 	return r.Replace(s)
 }
 
-// mirrorNoticeCookie carries the outcome of a settings POST back to the page
-// that renders it, so the form can report a typo'd account name without the
-// message ending up in the URL, the access log and the browser history.
+// mirrorNoticeCookie carries the outcome of a settings POST back to the page that
+// renders it, keeping the message out of the URL and the access log.
 const mirrorNoticeCookie = "mirror_notice"
 
 func (s *site) setMirrorNotice(w http.ResponseWriter, msg string) {
@@ -818,8 +781,7 @@ func (s *site) setMirrorNotice(w http.ResponseWriter, msg string) {
 	})
 }
 
-// SourceView is one configured source with what it has actually brought in,
-// which is the question the settings page exists to answer.
+// SourceView is one configured source with what it has actually brought in.
 type SourceView struct {
 	MirrorSource
 	Repos    int
@@ -873,8 +835,7 @@ func (s *site) addMirrorSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Sync immediately rather than at the next tick. Adding a source is the
-	// one moment the operator wants to know whether the name was right.
+	// Sync now rather than at the next tick, so a typo'd name is reported here.
 	msg := "Added " + src.Label() + ". Syncing now."
 	if !s.mirrorReady() {
 		msg = "Added " + src.Label() + ". The mirror lane is disabled, so nothing will sync."
@@ -885,8 +846,7 @@ func (s *site) addMirrorSource(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/settings", http.StatusSeeOther)
 }
 
-// deleteMirrorSource stops watching a source. Nothing on disk is touched: this
-// site is a backup, and a repository is never removed because a setting changed.
+// deleteMirrorSource stops watching a source; nothing on disk is touched.
 func (s *site) deleteMirrorSource(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
@@ -917,8 +877,7 @@ func (s *site) syncMirrors(w http.ResponseWriter, r *http.Request) {
 
 func (s *site) mirrorReady() bool { return s.mirror != nil && s.cfg.MirrorEnabled }
 
-// shortDuration trims the zero tail off a Duration, so a six hour interval
-// reads as "6h" rather than "6h0m0s" on the settings page.
+// shortDuration trims the zero tail off a Duration, so it reads "6h" not "6h0m0s".
 func shortDuration(d time.Duration) string {
 	out := d.String()
 	out = strings.TrimSuffix(out, "0s")

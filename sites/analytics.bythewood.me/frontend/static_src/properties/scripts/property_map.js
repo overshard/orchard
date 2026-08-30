@@ -1,7 +1,6 @@
-// World choropleth with click-to-drill-down to admin-1 (states / provinces /
-// regions). Replaces the abandoned `datamaps` library with vanilla d3-geo +
-// topojson-client. Country shapes are baked into the image; per-country
-// admin-1 topojson is lazy-fetched on click.
+// World choropleth that drills down to admin-1 on click, on d3-geo and
+// topojson-client. Country shapes are baked into the image and the per-country
+// admin-1 topojson is fetched on click.
 
 import { geoNaturalEarth1, geoMercator, geoAlbersUsa, geoPath } from "d3-geo";
 import { scaleLinear } from "d3-scale";
@@ -30,7 +29,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const tooltip = createTooltip(root);
 
-  // Cache fetched admin-1 topojson per country so re-clicking is instant.
   const admin1Cache = new Map();
   let worldData = null;
 
@@ -116,9 +114,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     drawMap({
       features: regions.features,
-      // geoAlbersUsa insets Alaska + Hawaii so they don't overwhelm the
-      // viewport. geoMercator works fine for most other countries (a bit of
-      // distortion at high latitudes, but readable).
+      // geoAlbersUsa insets Alaska and Hawaii so they don't overwhelm the
+      // viewport. geoMercator reads fine for everywhere else.
       projection: iso === "US" ? geoAlbersUsa() : geoMercator(),
       fillFor: (f) => {
         const count = lookupRegionCount(counts, f.properties);
@@ -132,9 +129,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function drawMap({ features: feats, projection, fillFor, labelFor, countFor, onClick, clickable }) {
-    // Only clear the previous SVG and any fallback message — leave the
-    // tooltip element in place so its event handlers and stable position
-    // survive across redraws.
+    // The tooltip element is left in place, so its handlers and its position
+    // survive a redraw.
     root.querySelectorAll("svg, .map-fallback").forEach((el) => el.remove());
     const { width, height } = root.getBoundingClientRect();
     const w = Math.max(width, 320);
@@ -186,11 +182,9 @@ function readJsonScript(id) {
 }
 
 function lookupRegionCount(counts, props) {
-  // GeoIP backends report region differently across providers and even
-  // across rows: it can be the ISO subdivision code ("CA"), the full
-  // English name ("California" / "Bavaria"), the local-language name
-  // ("Bayern"), or the iso_3166_2 form ("US-CA"). Try each Natural Earth
-  // alias until one matches.
+  // GeoIP backends report a region as a subdivision code ("CA"), an English
+  // name ("California"), a local name ("Bayern") or an iso_3166_2 ("US-CA"),
+  // and vary row to row, so every Natural Earth alias gets a try.
   const tries = [
     props.postal,
     props.iso_3166_2,

@@ -14,48 +14,33 @@ import (
 	"github.com/temoto/robotstxt"
 )
 
-// Fetching, for the SEO crawler.
-//
-// Unlike checker.go this uses a pooled http.Client. The checker measures what a
-// cold visitor pays and must not reuse connections; the crawler makes up to
-// five hundred requests to one host, where reuse is both faster and more
-// polite.
-
 const (
-	// PageCap bounds one crawl, as the fence against a calendar or a faceted
-	// search generating URLs forever.
+	// PageCap is the fence against a calendar or a faceted search that
+	// generates URLs forever.
 	PageCap = 500
-	// Concurrency is low on purpose. This is pointed at somebody's site,
-	// sometimes a small one on shared hosting, and four parallel requests is
-	// the difference between an audit and a load test.
+	// Concurrency stays low because this is pointed at somebody else's site,
+	// sometimes a small one on shared hosting.
 	Concurrency = 4
-	// ExternalLinkCap bounds the outbound HEAD probes. A 500-page site can
-	// easily surface thousands of distinct external links, and at four-way
-	// concurrency with an eight-second timeout an unbounded list runs for
-	// hours.
+	// ExternalLinkCap bounds the outbound HEAD probes, since a large site can
+	// surface thousands of distinct external links.
 	ExternalLinkCap = 500
-	// CrawlDeadline is nine minutes, against the scheduler's fifteen-minute
-	// watchdog. The gap means a crawl that overruns ends itself and records
-	// what it found rather than being killed and recorded as an
-	// interruption.
+	// CrawlDeadline sits under the scheduler's fifteen-minute watchdog, so an
+	// overrunning crawl ends itself and records what it found instead of being
+	// killed.
 	CrawlDeadline = 540 * time.Second
 
-	// MaxBodyBytes caps one HTML body. Real pages are well under this;
-	// anything larger is a mislabeled download, and buffering it whole times
-	// four-way concurrency could exhaust the container.
+	// MaxBodyBytes caps one HTML body, because buffering a mislabeled download
+	// four times over could exhaust the container.
 	MaxBodyBytes = 5 * 1024 * 1024
 
 	crawlerRequestTimeout = 15 * time.Second
 	externalLinkTimeout   = 8 * time.Second
 
 	// A real user agent with a contact URL, unlike the checker's Chrome
-	// impersonation. The checker has to look like a visitor to measure what
-	// one experiences; the crawler is a robot and should say so, so an
-	// operator reading their logs knows who to contact.
+	// impersonation, so an operator reading their logs knows who to reach.
 	crawlerUserAgent = "status (+" + baseURL + ")"
 )
 
-// FetchResult is one fetched URL.
 type FetchResult struct {
 	URL          string
 	RequestedURL string
@@ -80,9 +65,8 @@ func newCrawlClient() *http.Client {
 	}
 }
 
-// fetchPage retrieves one URL. It never returns an error: a failed fetch is a
-// finding, recorded as status 0 with the error text, and the checks report it
-// as an unreachable link rather than aborting the crawl.
+// fetchPage retrieves one URL and never fails. A failed fetch comes back as
+// status 0 with the error text, which reads as an unreachable link.
 func fetchPage(ctx context.Context, client *http.Client, rawURL string) FetchResult {
 	started := time.Now()
 	result := FetchResult{URL: rawURL, RequestedURL: rawURL, Headers: map[string]string{}}
@@ -105,9 +89,8 @@ func fetchPage(ctx context.Context, client *http.Client, rawURL string) FetchRes
 
 	result.URL = canonicalURL(resp.Request.URL)
 	result.Status = resp.StatusCode
-	// Go follows redirects inside Do and hands back the final response, with
-	// the chain reachable only through resp.Request. Counting the hops is what
-	// the redirect-chain check needs.
+	// Go follows redirects inside Do and hands back only the final response,
+	// with the chain reachable through resp.Request.
 	for r := resp.Request; r != nil; r = r.Response.Request {
 		if r.Response == nil {
 			break
@@ -122,9 +105,8 @@ func fetchPage(ctx context.Context, client *http.Client, rawURL string) FetchRes
 	}
 	result.ContentType = strings.ToLower(result.Headers["content-type"])
 
-	// Only HTML bodies are read. Everything else is fetched for its status
-	// code and headers alone, so a linked 200MB video costs one round trip
-	// rather than 200MB of memory.
+	// Only HTML bodies are read, so a linked 200MB video costs a round trip
+	// instead of 200MB of memory.
 	if resp.StatusCode == http.StatusOK && strings.Contains(result.ContentType, "text/html") {
 		body, err := io.ReadAll(io.LimitReader(resp.Body, MaxBodyBytes))
 		if err != nil && len(body) == 0 {
@@ -135,8 +117,8 @@ func fetchPage(ctx context.Context, client *http.Client, rawURL string) FetchRes
 		}
 		result.Body = body
 	} else {
-		// Drained so the connection returns to the pool instead of being
-		// dropped and re-handshaked for the next page.
+		// Drained so the connection goes back to the pool instead of being
+		// dropped and re-handshaked.
 		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64*1024))
 	}
 
@@ -144,14 +126,9 @@ func fetchPage(ctx context.Context, client *http.Client, rawURL string) FetchRes
 	return result
 }
 
-// canonicalURL renders a fetched URL with an explicit "/" path.
-//
-// An absolute HTTP URL with an empty path means "/", and every other source of
-// URLs in a crawl spells it that way: a sitemap lists "https://example.com/",
-// and so does a link to the site root. url.String() preserves the empty path it
-// was given, so a property registered as "https://example.com" keys a page that
-// matches neither, and the root page gets reported "not listed in sitemap" when
-// the sitemap lists it.
+// canonicalURL renders a fetched URL with an explicit "/" path, since
+// url.String() keeps the empty path it was given and nothing else spells it
+// that way.
 func canonicalURL(u *url.URL) string {
 	if u.Path == "" {
 		clone := *u
@@ -161,10 +138,8 @@ func canonicalURL(u *url.URL) string {
 	return u.String()
 }
 
-// headStatus probes an external link. A HEAD that comes back 403, 405 or 501
-// usually means the server refuses the method rather than that the link is
-// broken, so those retry as a GET. Otherwise every link to a site with a strict
-// WAF is reported dead.
+// headStatus probes an external link. A 403, 405 or 501 usually means the
+// server refuses HEAD rather than that the link is broken, so those retry.
 func headStatus(ctx context.Context, client *http.Client, rawURL string) int {
 	ctx, cancel := context.WithTimeout(ctx, externalLinkTimeout)
 	defer cancel()
@@ -193,12 +168,8 @@ func headStatus(ctx context.Context, client *http.Client, rawURL string) int {
 }
 
 // probeCompression reports the server's Content-Encoding for a URL, or "" when
-// the response came back uncompressed.
-//
-// Setting Accept-Encoding by hand is what makes this work. Go's transport
-// otherwise adds `Accept-Encoding: gzip` itself, transparently decodes the
-// response and then *removes* Content-Encoding from the headers, so a normal
-// fetch can never tell whether the server compressed anything.
+// the response came back uncompressed. Accept-Encoding is set by hand because
+// Go's transport otherwise decodes for you and strips the header off.
 func probeCompression(ctx context.Context, client *http.Client, rawURL string) string {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
@@ -222,8 +193,7 @@ func probeCompression(ctx context.Context, client *http.Client, rawURL string) s
 }
 
 // Robots wraps a parsed robots.txt. A missing or unparseable file allows
-// everything: this crawls sites its operator owns, and a typo in a robots.txt
-// should not produce an empty audit that looks like a healthy one.
+// everything, so a typo cannot produce an empty audit that reads as healthy.
 type Robots struct {
 	group *robotstxt.Group
 }
@@ -246,8 +216,6 @@ func (r *Robots) Allowed(rawURL string) bool {
 	return r.group.Test(path)
 }
 
-// RobotsCtx is what the checks see: whether the file exists, its text, and
-// whether it points at a sitemap.
 type RobotsCtx struct {
 	URL               string
 	Exists            bool
@@ -281,9 +249,8 @@ func loadRobots(ctx context.Context, client *http.Client, origin string) (*Robot
 	return &Robots{group: data.FindGroup("*")}, out
 }
 
-// fetchPageAllowingText is fetchPage for the two non-HTML documents the crawler
-// needs the body of: robots.txt and sitemap.xml. fetchPage discards every
-// non-HTML body, which is right for pages and wrong for these two.
+// fetchPageAllowingText is fetchPage for robots.txt and sitemap.xml, whose
+// bodies fetchPage would throw away as non-HTML.
 func fetchPageAllowingText(ctx context.Context, client *http.Client, rawURL string) FetchResult {
 	started := time.Now()
 	result := FetchResult{URL: rawURL, RequestedURL: rawURL, Headers: map[string]string{}}
@@ -312,11 +279,8 @@ func fetchPageAllowingText(ctx context.Context, client *http.Client, rawURL stri
 
 var locPattern = regexp.MustCompile(`(?is)<loc>\s*([^<]+?)\s*</loc>`)
 
-// loadSitemap collects the page URLs a site advertises.
-//
-// Sitemaps nest: an index lists other sitemaps, which list pages. The loop
-// follows that, capped at twenty documents, which is enough for a real site and
-// bounded against an index that points at itself.
+// loadSitemap collects the page URLs a site advertises. Sitemaps nest, so it
+// follows index documents too, capped at twenty against a self-referring one.
 func loadSitemap(ctx context.Context, client *http.Client, origin, robotsText string) []string {
 	var queue []string
 	for _, line := range strings.Split(robotsText, "\n") {
@@ -324,8 +288,8 @@ func loadSitemap(ctx context.Context, client *http.Client, origin, robotsText st
 		if len(trimmed) < 8 || !strings.EqualFold(trimmed[:8], "sitemap:") {
 			continue
 		}
-		// Sliced off the original rather than the lowercased copy, because a
-		// URL path is case sensitive and lowercasing it produces a 404.
+		// Sliced off the original and not the lowercased copy, since a URL path
+		// is case sensitive.
 		if target := strings.TrimSpace(trimmed[8:]); target != "" {
 			queue = append(queue, target)
 		}
@@ -365,10 +329,8 @@ func loadSitemap(ctx context.Context, client *http.Client, origin, robotsText st
 	return urls
 }
 
-// sameSite decides whether a URL belongs to the site being crawled. The www
-// variant counts as the same site in both directions: a site linking between
-// its apex and its www host is one site with a redirect, and treating them as
-// separate would report every such link as external.
+// sameSite counts the www variant as the same site in both directions, or
+// every link between a site's apex and its www host reports as external.
 func sameSite(rawURL, host string) bool {
 	u, err := url.Parse(rawURL)
 	if err != nil {
@@ -384,12 +346,8 @@ func sameSite(rawURL, host string) bool {
 		host == "www."+target
 }
 
-// crawlerHostileHosts return 403 or 404 to anything that does not look like a
-// browser, whether or not the link works, so probing them produces only false
-// positives and they are skipped from the external HEAD probe.
-//
-// The list is kept short and specific: it suppresses real findings, so a host
-// has to earn its place on it.
+// crawlerHostileHosts answer 403 or 404 to anything that is not a browser, so
+// the HEAD probe skips them. Keep the list short, it suppresses real findings.
 var crawlerHostileHosts = map[string]bool{
 	"linkedin.com":     true,
 	"www.linkedin.com": true,

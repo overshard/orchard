@@ -1,16 +1,8 @@
 package main
 
-// README rendering and file highlighting.
-//
-// Two of the three dependencies here are already blog.bythewood.me's, so this
-// is one new one. The Rust build used pulldown-cmark, ammonia and syntect; the
-// Go equivalents are goldmark, bluemonday and chroma.
-//
-// The sanitiser is not optional and not belt-and-braces. A README is arbitrary
-// text written by whoever wrote the repository, goldmark passes raw HTML
-// through by default, and this site renders READMEs from mirrored repositories
-// that were never reviewed. Without bluemonday a README containing a script tag
-// is stored XSS on the repository page.
+// README rendering and file highlighting. The bluemonday pass is not optional:
+// goldmark passes raw HTML through, and this renders READMEs from mirrored
+// repositories nobody here reviewed.
 
 import (
 	"bytes"
@@ -30,13 +22,11 @@ import (
 	goldmarkhtml "github.com/yuin/goldmark/renderer/html"
 )
 
-// maxReadmeSize caps what is rendered on a repository page. A README past this
-// is not a README.
+// maxReadmeSize caps what is rendered on a repository page.
 const maxReadmeSize = 1 << 20
 
-// maxHighlightSize caps syntax highlighting. Past it the file is shown as plain
-// text with a note, because chroma on a multi-megabyte minified bundle is
-// seconds of CPU for a page nobody reads.
+// maxHighlightSize caps syntax highlighting; past it the file is shown as plain
+// text, since chroma on a minified bundle is seconds of CPU.
 const maxHighlightSize = 1 << 20
 
 var (
@@ -47,27 +37,23 @@ var (
 			extension.Typographer,
 		),
 		goldmark.WithRendererOptions(
-			// Unsafe is on and the output is sanitised below. The
-			// alternative, leaving raw HTML escaped, breaks the badge
-			// images and anchor targets that nearly every README uses.
+			// Unsafe is on because escaping raw HTML breaks the badges and
+			// anchors most READMEs use; sanitizer below is what makes it safe.
 			goldmarkhtml.WithUnsafe(),
 		),
 	)
 
-	// The policy. UGCPolicy allows the formatting a README needs and strips
-	// script, style, iframe, object, form and every event handler attribute.
+	// UGCPolicy allows README formatting and strips script, style, iframe,
+	// object, form and every event handler attribute.
 	sanitizer = newSanitizer()
 )
 
 func newSanitizer() *bluemonday.Policy {
 	p := bluemonday.UGCPolicy()
-	// Badges. Nearly every README opens with a row of them, and UGCPolicy
-	// already allows img with src; this adds the sizing attributes that keep
-	// them from rendering at full resolution.
+	// Sizing attributes, so badges do not render at full resolution.
 	p.AllowAttrs("width", "height", "align").OnElements("img")
-	// Anchors on headings, which is what makes a long README navigable.
 	p.AllowAttrs("id").OnElements("h1", "h2", "h3", "h4", "h5", "h6")
-	// The class attribute on code blocks, so chroma's spans survive.
+	// chroma's spans carry their colours on class attributes.
 	p.AllowAttrs("class").OnElements("code", "pre", "span", "div", "table", "td", "th", "tr")
 	p.AllowAttrs("align").OnElements("td", "th", "p", "div")
 	// Task lists render as disabled checkboxes.
@@ -88,16 +74,14 @@ func RenderMarkdown(src []byte) (template.HTML, error) {
 	return template.HTML(sanitizer.SanitizeBytes(buf.Bytes())), nil
 }
 
-// readmeNames is the set looked for on a repository page, in preference order.
-// The plain and .txt forms are included because several of the older archived
-// repositories predate the .md convention.
+// readmeNames is looked at in order. The plain and .txt forms are here because
+// some mirrored repositories are older than the .md convention.
 var readmeNames = []string{
 	"README.md", "readme.md", "README.markdown",
 	"README.rst", "README.txt", "README", "readme",
 }
 
-// IsMarkdown decides whether a README gets goldmark or a <pre>. A .rst or a
-// bare README is not Markdown and rendering it as such mangles it.
+// IsMarkdown decides whether a README gets goldmark or a <pre>.
 func IsMarkdown(name string) bool {
 	switch strings.ToLower(path.Ext(name)) {
 	case ".md", ".markdown", ".mdown":
@@ -106,13 +90,8 @@ func IsMarkdown(name string) bool {
 	return false
 }
 
-// chromaStyle is written for this site rather than borrowed from a theme set.
-//
-// A stock theme (the Rust build used base16-eighties) is a rectangle of somebody
-// else's palette dropped into the middle of the page. These values are the
-// site's own tokens: the warm graphite ground, the periwinkle accent family for
-// anything structural, and a small set of muted hues for literals that stay
-// clear of the green and red the diff view reserves for meaning.
+// chromaStyle uses the site's own tokens, and keeps literals clear of the green
+// and red the diff view reserves for meaning.
 var chromaStyle = chroma.MustNewStyle("repos", chroma.StyleEntries{
 	chroma.Background:          "#e4dfe4 bg:#151317",
 	chroma.Comment:             "italic #8b8291",
@@ -145,13 +124,8 @@ var chromaStyle = chroma.MustNewStyle("repos", chroma.StyleEntries{
 	chroma.Error:               "#e08a8a",
 })
 
-// Highlight renders one file as HTML.
-//
-// The lexer is chosen from the filename and, failing that, from the content.
-// Deliberately not chroma's Match on a full path: the Rust build's review found
-// that syntect's equivalent opened the request-supplied name on the server
-// filesystem. Only the basename is ever passed here, and only to a matcher that
-// looks at the string.
+// Highlight renders one file as HTML. Only the basename reaches the lexer
+// matcher, never a request-supplied path that something might open.
 func Highlight(name string, src []byte) (template.HTML, bool) {
 	if len(src) > maxHighlightSize || !utf8.Valid(src) {
 		return "", false
@@ -190,16 +164,14 @@ func Highlight(name string, src []byte) (template.HTML, bool) {
 	return template.HTML(buf.String()), true
 }
 
-// IsBinary decides whether to offer a file for download instead of rendering
-// it. The NUL test is what git itself uses, and it is right far more often than
-// an extension list.
+// IsBinary decides whether to offer a file for download. The NUL test is what git
+// itself uses.
 func IsBinary(src []byte) bool {
 	limit := min(len(src), 8000)
 	return bytes.IndexByte(src[:limit], 0) >= 0
 }
 
-// languageOf is the label on a blob page, and nothing more: it is chroma's name
-// for the lexer, not a claim about the repository.
+// languageOf is chroma's lexer name, used only as a label on a blob page.
 func languageOf(name string) string {
 	if l := lexers.Match(path.Base(name)); l != nil {
 		return l.Config().Name

@@ -1,6 +1,5 @@
-// Persists which custom-event cards are enabled. The form's `action` attribute
-// holds the correct endpoint (`/properties/{id}/cards`); we use that directly
-// rather than reconstruct the URL from window.location.
+// The form's `action` already holds /properties/{id}/cards, so it is posted to
+// directly rather than rebuilt from window.location.
 document.addEventListener("DOMContentLoaded", function () {
   const form = document.getElementById("custom-card-form");
   if (!form) return;

@@ -6,30 +6,23 @@
 #   sh setup-ntfy.sh status   what exists right now
 #   sh setup-ntfy.sh passwd   change the reading account's password
 #
-# ntfy is deny-all, so there are exactly two accounts and neither can do the
-# other's job:
+# ntfy is deny-all and there are two accounts: isaac reads status and logging
+# from the phone, orchard writes to them from the sites. ntfy cannot restrict
+# an account by source address, so Caddy also refuses the publish routes on the
+# public hostname.
 #
-#   isaac    read-only  on status and logging. The phone.
-#   orchard  write-only on status and logging. The sites publishing alerts.
-#
-# ntfy has no way to restrict an account by source address, which is why the
-# publish routes are also refused at Caddy on the public hostname. The token is
-# the credential that says who; the edge is the fence that says from where.
-#
-# All state lives in the orchard-ntfy-data volume, never a bind mount: the
-# Docker CLI in the webdev container talks to Docker Desktop on the Windows
-# host, whose daemon cannot see this filesystem, and a bind mount silently
-# resolves to an empty directory rather than failing.
+# All ntfy state lives in the orchard-ntfy-data volume, never a bind mount. The
+# Docker CLI here talks to Docker Desktop on the Windows host, whose daemon
+# cannot see this filesystem, so a bind mount silently resolves to an empty
+# directory.
 #
 # Every docker command goes through sudo, because the socket in the webdev
 # container is root:root mode 660 and being in the docker group does not help.
 # On a host where docker needs no sudo:  SUDO= sh setup-ntfy.sh up
 set -e
 
-# Run from this script's own directory, whatever the caller's was, because the
-# token step writes into ../sites/*/.env and the documented way to invoke this
-# is `sh edge/setup-ntfy.sh` from the repo root. setup-tunnel.sh had exactly
-# this bug and failed halfway through while reporting success.
+# Run from this script's own directory, whatever the caller's was, since the
+# token step writes into ../sites/*/.env.
 cd "$(dirname "$0")"
 
 SUDO=${SUDO-sudo}
@@ -63,8 +56,6 @@ ntfy() { docker exec -i "$CONTAINER" ntfy "$@"; }
 case "${1:-}" in
 up)
 	require_running
-	# --ignore-exists so this is safe to re-run, matching every other setup
-	# command in this repo.
 	ntfy user add --ignore-exists "$READER"
 	ntfy user add --ignore-exists "$WRITER"
 
@@ -81,9 +72,8 @@ up)
 
 token)
 	require_running
-	# Written straight into the .env files rather than printed for someone to
-	# copy. Pasting a secret between two terminals is where it ends up in a
-	# shell history, and the script already knows exactly which sites alert.
+	# Written straight into the .env files rather than printed, so the token
+	# never gets pasted between terminals and into a shell history.
 	token=$(ntfy token add -l "orchard site publishers" "$WRITER" \
 		| grep -o 'tk_[A-Za-z0-9]*' | head -1)
 	if [ -z "$token" ]; then
@@ -96,8 +86,8 @@ token)
 			echo "no $site/.env yet; create it from .env.example first" >&2
 			exit 1
 		fi
-		# Rewrite in place, preserving mode, without ever putting the value on
-		# a command line where `ps` could see it.
+		# Passed to awk as a variable, so the token never appears on a
+		# command line where `ps` could read it.
 		tmp="$site/.env.tmp"
 		awk -v tok="$token" \
 			'/^NTFY_TOKEN=/ { print "NTFY_TOKEN=" tok; found=1; next } { print }

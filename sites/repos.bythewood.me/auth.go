@@ -1,17 +1,8 @@
 package main
 
-// Two authentication surfaces, one operator.
-//
-//	the browser UI    a signed session cookie, from a password login form.
-//	                  This file. Same shape as logging.bythewood.me/auth.go,
-//	                  because it is the same problem and one behaviour across
-//	                  the repo beats two.
-//	the git wire      HTTP Basic, carrying a random token. wire.go and db.go.
-//
-// They are separate on purpose. Basic auth exists on the git side only because
-// git's credential subsystem speaks nothing else, and a browser should never be
-// asked for it. Tokens are minted from the logged-in UI, so the password is the
-// root credential and a token is a derived one that can be revoked alone.
+// Two authentication surfaces: a signed session cookie for the browser UI, in
+// this file, and HTTP Basic carrying a token for the git wire, in wire.go and
+// db.go. Basic exists on the wire because git's credential subsystem wants it.
 
 import (
 	"context"
@@ -31,15 +22,11 @@ const (
 	sessionCookie = "session"
 	sessionTTL    = 30 * 24 * time.Hour
 
-	// A flat delay on every failed attempt. It is a speed bump, not the
-	// limit: the sleep is per goroutine, so N concurrent attempts all serve
-	// their 500ms at once.
+	// The sleep is per goroutine, so N concurrent attempts all serve their
+	// 500ms at once. loginBurst below is the real limit.
 	failedLoginDelay = 500 * time.Millisecond
 
-	// The actual limit. One global bucket rather than per-IP state, which
-	// would be a map that grows with every prober and would in any case be
-	// keyed on a header Cloudflare sets. There is exactly one legitimate
-	// user, so a global ceiling costs him nothing and bounds everyone.
+	// One global bucket rather than per-IP state; there is one legitimate user.
 	loginBurst  = 5
 	loginRefill = time.Second
 )
@@ -70,21 +57,15 @@ func (b *tokenBucket) take() bool {
 	return true
 }
 
-// sessionKey derives the cookie signing key from the password rather than
-// taking a second configured secret. Rotating the password then invalidates
-// every outstanding session, which is what rotating a password is usually meant
-// to do.
+// sessionKey derives the cookie signing key from the password, so rotating the
+// password invalidates every outstanding session.
 func sessionKey(password string) []byte {
 	sum := sha512.Sum512(append([]byte("repos-cookie:"), password...))
 	return sum[:]
 }
 
-// issueSession writes the signed cookie. The payload is "1:<unix expiry>",
-// versioned so the format can change later.
-//
-// SameSite=Strict stands in for CSRF tokens. Every state-changing route here is
-// a POST, and Strict means the browser will not attach this cookie to a request
-// another site caused.
+// issueSession writes the signed cookie, payload "1:<unix expiry>". SameSite=Strict
+// stands in for CSRF tokens, and every state-changing route here is a POST.
 func issueSession(w http.ResponseWriter, password string) {
 	expiry := time.Now().Add(sessionTTL).Unix()
 	payload := "1:" + strconv.FormatInt(expiry, 10)
@@ -97,9 +78,8 @@ func issueSession(w http.ResponseWriter, password string) {
 		Name:  sessionCookie,
 		Value: value,
 		Path:  "/",
-		// Secure even though this process speaks plaintext on a bridge:
-		// the browser only ever sees this cookie over the tunnel, where the
-		// connection is HTTPS, and the flag is about that connection.
+		// Secure even though this process speaks plaintext on the bridge: the
+		// browser only ever sees this cookie over the tunnel.
 		Secure:   true,
 		HttpOnly: true,
 		SameSite: http.SameSiteStrictMode,
@@ -120,9 +100,8 @@ func clearSession(w http.ResponseWriter) {
 	})
 }
 
-// validSession verifies the cookie: signature first, then expiry. In that
-// order, because an expiry read off an unverified cookie is a number the client
-// chose.
+// validSession checks the signature before the expiry, since an expiry read off
+// an unverified cookie is a number the client chose.
 func validSession(r *http.Request, password string) bool {
 	c, err := r.Cookie(sessionCookie)
 	if err != nil {
@@ -153,9 +132,7 @@ func validSession(r *http.Request, password string) bool {
 	return time.Now().Unix() < unix
 }
 
-// checkPassword is the login comparison. Constant time, and rate limited by the
-// caller rather than here so the limit applies to the attempt rather than to
-// the comparison.
+// checkPassword compares in constant time; rate limiting is the caller's job.
 func checkPassword(given, want string) bool {
 	return subtle.ConstantTimeCompare([]byte(given), []byte(want)) == 1
 }
@@ -167,15 +144,13 @@ func withUser(ctx context.Context, label string) context.Context {
 	return context.WithValue(ctx, userKey{}, label)
 }
 
-// userFrom reads the token label back out. Empty means the request was not
-// authenticated, which for the wire means it is a read.
+// userFrom reads the token label back out; empty means the request was unauthenticated.
 func userFrom(ctx context.Context) string {
 	label, _ := ctx.Value(userKey{}).(string)
 	return label
 }
 
-// clientIPOf is the same resolution web.ClientIP does, kept here so wire.go can
-// log a failed push without importing the whole middleware chain.
+// clientIPOf duplicates web.ClientIP so the wire can log without the middleware chain.
 func clientIPOf(r *http.Request) string {
 	if ip := r.Header.Get("CF-Connecting-IP"); ip != "" {
 		return ip

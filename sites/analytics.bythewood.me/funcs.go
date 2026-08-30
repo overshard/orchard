@@ -6,7 +6,6 @@ import (
 	"strings"
 )
 
-// Template helpers.
 var templateFuncs = template.FuncMap{
 	"dict":      dict,
 	"json":      jsonBlock,
@@ -15,9 +14,8 @@ var templateFuncs = template.FuncMap{
 	"hasPrefix": strings.HasPrefix,
 }
 
-// dict lets a partial take more than one value. Go templates have a single
-// dot, so a fragment needing both a label and a list has no other way to
-// receive them.
+// dict lets a partial take more than one value, since a Go template has a
+// single dot.
 func dict(pairs ...any) (map[string]any, error) {
 	if len(pairs)%2 != 0 {
 		return nil, fmt.Errorf("dict: odd number of arguments (%d)", len(pairs))
@@ -33,9 +31,8 @@ func dict(pairs ...any) (map[string]any, error) {
 	return out, nil
 }
 
-// pct renders count as a whole-number percentage of total, for the bar widths
-// in the reports. sumCounts already floors total at one, so the guard here is
-// for any other caller.
+// pct renders count as a whole-number percentage of total, and returns 0 rather
+// than dividing by zero.
 func pct(count, total int64) int64 {
 	if total <= 0 {
 		return 0

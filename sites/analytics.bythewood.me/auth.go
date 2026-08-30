@@ -12,37 +12,24 @@ import (
 	"time"
 )
 
-// Single-operator authentication: one password, one signed cookie, no user
-// table.
-
 const (
 	sessionCookie = "session"
 	sessionTTL    = 30 * 24 * time.Hour
-	// A flat delay on every failed attempt keeps online brute force
-	// impractical without tracking per-IP state, which would mean a table or
-	// a map that grows with every prober.
+	// A flat delay on every failed attempt slows brute force without per-IP
+	// state that grows with every prober.
 	failedLoginDelay = 500 * time.Millisecond
 )
 
-// sessionKey derives the cookie signing key from the password, rather than
-// taking a second configured secret. Rotating the password then invalidates
-// every outstanding session, which is what rotating a password is usually
-// meant to do.
+// sessionKey derives the cookie signing key from the password, so rotating the
+// password invalidates every outstanding session.
 func sessionKey(password string) []byte {
 	sum := sha512.Sum512(append([]byte("analytics-cookie:"), password...))
 	return sum[:]
 }
 
-// issueSession writes the signed cookie. The payload is "1:<unix expiry>",
-// versioned so the format can change later.
-//
-// SameSite=Strict stands in for CSRF tokens. Every state-changing route here
-// is a POST, and Strict means the browser will not attach this cookie to a
-// request another site originated, so a forged POST arrives unauthenticated.
-// A reader looking for CSRF tokens will not find any.
-//
-// Secure is safe in dev because browsers exempt localhost, and behind the
-// tunnel every real request is HTTPS at the edge.
+// issueSession writes the signed cookie. SameSite=Strict stands in for CSRF
+// tokens: every state-changing route is a POST, so a forged cross-site one
+// arrives without this cookie. Secure works in dev because localhost is exempt.
 func issueSession(w http.ResponseWriter, key []byte) {
 	exp := time.Now().Add(sessionTTL).Unix()
 	payload := "1:" + strconv.FormatInt(exp, 10)
@@ -76,9 +63,7 @@ func sign(key []byte, payload string) string {
 	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 }
 
-// isAuthenticated reports whether the request carries a valid, unexpired
-// session. The signature is checked before the expiry is parsed, so a forged
-// cookie never reaches the parsing code.
+// isAuthenticated reports whether the request carries a valid, unexpired session.
 func isAuthenticated(r *http.Request, key []byte) bool {
 	c, err := r.Cookie(sessionCookie)
 	if err != nil {
@@ -103,10 +88,8 @@ func isAuthenticated(r *http.Request, key []byte) bool {
 	return time.Now().Unix() < exp
 }
 
-// passwordMatches compares in constant time. Both sides are hashed first so
-// the comparison runs over two fixed 64-byte digests; comparing the raw
-// strings would leak the password's length through timing even under a
-// constant-time compare.
+// passwordMatches compares in constant time. Both sides are hashed first so the
+// compare runs over fixed-length digests and cannot leak the password's length.
 func passwordMatches(supplied, actual string) bool {
 	a := sha512.Sum512([]byte(supplied))
 	b := sha512.Sum512([]byte(actual))
@@ -142,10 +125,8 @@ func (s *site) loginSubmit(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, safeNext(r.PostFormValue("next")), http.StatusSeeOther)
 }
 
-// safeNext keeps the post-login redirect on this site. A bare "starts with /"
-// test is not enough: "//evil.example" also starts with a slash and is a
-// protocol-relative URL browsers follow off-site, as is "/\evil.example" in
-// some browsers.
+// safeNext keeps the post-login redirect on this site. "starts with /" alone is
+// not enough: "//evil.example" and "/\evil.example" are followed off-site.
 func safeNext(next string) string {
 	if strings.HasPrefix(next, "/") &&
 		!strings.HasPrefix(next, "//") &&

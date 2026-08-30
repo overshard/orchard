@@ -9,15 +9,8 @@ import (
 	"os"
 )
 
-// The release build carries the Vite bundle and the ~10MB of per-country
-// topojson inside the executable, so the image has no /dist, no /static_maps,
-// and neither SITE_DIST nor SITE_MAPS to set. It is still not a single-file
-// image: analytics execs typst on the request path, so typst and its fonts have
-// to be on disk beside it.
-//
-// `all:` is required on build/dist. Without it, embed skips every entry whose
-// name starts with a dot, and .vite/manifest.json is one, so the server would
-// refuse to start on a manifest it could not find.
+// `all:` is required on build/dist: without it embed skips dot-prefixed entries,
+// and .vite/manifest.json is one, which the server treats as fatal.
 //
 //go:embed all:build/dist
 //go:embed build/static_maps

@@ -11,9 +11,7 @@ import (
 )
 
 // Assets resolves a Vite entry name to the content-hashed files Vite emitted,
-// by reading dist/.vite/manifest.json. Hashed names are what let /static/* be
-// cached immutably at the edge; the cost is that a template cannot hardcode a
-// filename.
+// by reading dist/.vite/manifest.json.
 type Assets struct {
 	entries map[string]manifestEntry
 	once    sync.Once
@@ -28,8 +26,8 @@ type manifestEntry struct {
 }
 
 // LoadAssets reads the manifest out of a dist filesystem. A missing manifest is
-// an error rather than a warning: serving a page whose script tag points at a
-// file that was never built is worse than refusing to start.
+// an error rather than a warning, because serving a page whose script tag points
+// at a file that was never built is worse than refusing to start.
 func LoadAssets(dist fs.FS) (*Assets, error) {
 	raw, err := fs.ReadFile(dist, ".vite/manifest.json")
 	if err != nil {
@@ -55,11 +53,9 @@ func (a *Assets) Script(entry string) string {
 }
 
 // Hashed reports every file Vite emitted with a content hash in its name, which
-// is the set that is safe to cache for a year. Files copied through from
-// publicDir (images, the resume PDF, favicons) keep their original names, so a
-// year would mean an updated resume never reaching anybody. Reading the set
-// from the manifest rather than a hand-maintained list means a public file
-// added later cannot inherit the wrong policy by omission.
+// is the set safe to cache for a year. Files copied through from publicDir keep
+// their original names and stay out of it, or an updated resume would never
+// reach anybody.
 func (a *Assets) Hashed() map[string]bool {
 	hashed := make(map[string]bool, len(a.entries)*2)
 	for _, e := range a.entries {

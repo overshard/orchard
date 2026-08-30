@@ -5,21 +5,16 @@ import (
 	"html/template"
 )
 
-// Structured data, as one JSON-LD graph per page: what the thing is (a
-// WebApplication), who made it, and that the pages belong to one site.
-//
-// The Person node carries the same @id the portfolio and the blog use, so all
-// four sites describe one person rather than four strangers with one name.
-
+// personID matches the portfolio and the blog, so the sites describe one person
+// rather than several with the same name.
 const (
 	personID  = "https://isaacbythewood.com/#person"
 	websiteID = baseURL + "/#website"
 	appID     = baseURL + "/#app"
 )
 
-// jsonLD marshals a graph for the script tag. template.JS is safe here because
-// encoding/json escapes <, > and & by default, so nothing in the graph can
-// close the element early.
+// jsonLD marshals a graph for the script tag. template.JS is safe because
+// encoding/json escapes <, > and &, so no value can close the element early.
 func jsonLD(nodes ...map[string]any) template.JS {
 	buf, err := json.MarshalIndent(map[string]any{
 		"@context": "https://schema.org",
@@ -56,8 +51,7 @@ func pageGraph(title, description, canonical string) template.JS {
 			"author":              map[string]any{"@id": personID},
 			"publisher":           map[string]any{"@id": personID},
 			"image":               baseURL + "/static/og/card.png",
-			// A zero price is how schema.org says "free". Omitting offers
-			// entirely reads as "unknown" instead.
+			// A zero price is how schema.org says "free"; no offers means unknown.
 			"offers": map[string]any{
 				"@type":         "Offer",
 				"price":         "0",

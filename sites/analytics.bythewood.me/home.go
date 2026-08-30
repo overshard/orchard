@@ -8,9 +8,7 @@ import (
 	"time"
 )
 
-// home is the public front page, and a redirect once you are logged in. It
-// shows totals across every property: what this instance has actually
-// collected, rather than a claim about what it could.
+// home is the public front page, and a redirect to /properties once logged in.
 func (s *site) home(w http.ResponseWriter, r *http.Request) {
 	if isAuthenticated(r, s.cookieKey) {
 		http.Redirect(w, r, "/properties", http.StatusSeeOther)
@@ -24,7 +22,7 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 	    (SELECT COUNT(*) FROM events),
 	    (SELECT MIN(created_at) FROM events)`).Scan(&properties, &events, &first)
 	if err != nil {
-		// A blank set of totals is a worse home page, not a broken one.
+		// Missing totals still render a usable page, so this is not fatal.
 		slog.Info(fmt.Sprintf("home totals: %v", err))
 	}
 
@@ -34,7 +32,7 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 	data.PageStyles = s.pagesStyles
 	data.TotalProperties = properties
 	data.TotalEvents = events
-	// One operator, by construction: there is no user table to count.
+	// There is no user table to count; this instance has one operator.
 	data.TotalUsers = 1
 	if first.Valid {
 		data.FirstEventAt = time.UnixMilli(first.Int64).Format("Jan 2, 2006")
@@ -57,8 +55,8 @@ func (s *site) documentation(w http.ResponseWriter, r *http.Request) {
 	s.renderer.Render(w, http.StatusOK, "documentation.html", data)
 }
 
-// The favicon is drawn inline rather than shipped as a file, so it cannot
-// drift from the navbar logo, which is the same markup.
+// Inline rather than a file so it cannot drift from the navbar logo, which is
+// this same markup.
 const faviconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <rect x="6"  y="38" width="10" height="22" rx="1.5" fill="#6b9e78"/>
   <rect x="20" y="28" width="10" height="32" rx="1.5" fill="#6b9e78"/>
@@ -73,9 +71,8 @@ func favicon(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(faviconSVG))
 }
 
-// robots keeps a staging hostname out of search results. Both this and the
-// noindex meta tag in base.html, because a meta tag is only read if the
-// crawler fetches the page, and robots.txt is what stops it fetching.
+// robots keeps a staging hostname out of search results. It duplicates the
+// noindex in base.html because a meta tag is only read if the page is fetched.
 func robots(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	if Staging {
@@ -85,9 +82,8 @@ func robots(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("User-agent: *\nAllow: /\nSitemap: " + baseURL + "/sitemap.xml\n"))
 }
 
-// sitemap lists the three public pages. Dashboards are absent even when a
-// property is public: that is a URL its owner chose to hand out, not one to
-// volunteer to a crawler.
+// sitemap lists the public pages. Dashboards stay out even when public, since
+// that URL is one an owner chose to hand out.
 func sitemap(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
 

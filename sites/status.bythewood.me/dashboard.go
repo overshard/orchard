@@ -16,10 +16,8 @@ import (
 	"github.com/google/uuid"
 )
 
-// The property dashboard: the page this app exists to render.
-
 // PropertyView is one property, with everything the templates need already
-// computed. The handlers do the work; the templates only lay it out.
+// computed.
 type PropertyView struct {
 	ID          string
 	URL         string
@@ -68,8 +66,6 @@ type PropertyView struct {
 	HasSecurityIssue          bool
 }
 
-// InsightGroup is one crawler-insight type, with its findings ordered by
-// severity.
 type InsightGroup struct {
 	Type  string
 	Items []Insight
@@ -111,11 +107,8 @@ func deref(s *string) string {
 	return *s
 }
 
-// buildPropertyView computes everything the dashboard shows for one property.
-//
-// The 100-check window is the unit of "recent" throughout: the uptime
-// percentage, the tick stream and the security posture all read it, so they
-// describe the same span of time as each other.
+// buildPropertyView computes everything the dashboard shows for one property,
+// over one 100-check window so every figure on it covers the same span.
 func (s *site) buildPropertyView(ctx context.Context, p *Property) (*PropertyView, error) {
 	recent, err := recentChecks(ctx, s.db, p.ID, 100)
 	if err != nil {
@@ -155,16 +148,14 @@ func (s *site) buildPropertyView(ctx context.Context, p *Property) (*PropertyVie
 	}
 
 	// A property with no checks yet reads as 200 rather than 0, so a freshly
-	// added site shows as healthy for the three minutes before its first probe
-	// instead of flashing a red zero.
+	// added site is not a red zero until its first probe.
 	v.CurrentStatus = 200
 	if len(recent) > 0 {
 		v.CurrentStatus = recent[0].StatusCode
 	}
 
-	// The rolling average is over 31 checks rather than 100, so it describes
-	// the last hour and a half, which is the span that matters while something
-	// is happening.
+	// The rolling average covers 31 checks and not 100, so it describes the
+	// last hour and a half.
 	if window := min(len(recent), 31); window > 0 {
 		var sum int64
 		for _, c := range recent[:window] {
@@ -206,11 +197,8 @@ func (s *site) buildPropertyView(ctx context.Context, p *Property) (*PropertyVie
 
 var hstsMaxAge = regexp.MustCompile(`max-age=(\d+)`)
 
-// applySecurityPosture reads the latest response's headers.
-//
-// Derived from one real response rather than a separate probe, which is why it
-// costs nothing and can be up to three minutes stale. These are configuration
-// facts that change on a deploy, not conditions that flicker.
+// applySecurityPosture reads the latest response's headers rather than probing
+// again, so it costs nothing and can be up to three minutes stale.
 func (v *PropertyView) applySecurityPosture(recent []Check) {
 	headers := map[string]string{}
 	if len(recent) > 0 {
@@ -233,9 +221,8 @@ func (v *PropertyView) applySecurityPosture(recent []Check) {
 		v.HasClickjackProtection = true
 	}
 
-	// Four spellings, because all four are used in the wild and a server
-	// announcing its exact version in any of them is naming which CVEs to
-	// try.
+	// Four spellings, because all four turn up in the wild and a server
+	// announcing its exact version is naming which CVEs to try.
 	v.HidesServerVersion = true
 	for _, h := range []string{"server", "x-server", "powered-by", "x-powered-by"} {
 		if _, ok := headers[h]; ok {
@@ -246,13 +233,9 @@ func (v *PropertyView) applySecurityPosture(recent []Check) {
 
 	hsts := headers["strict-transport-security"]
 	if m := hstsMaxAge.FindStringSubmatch(hsts); m != nil {
-		// A year, because that is what the browser preload lists require. A
-		// shorter max-age expires before it is useful, so it reports as
-		// absent rather than partial.
-		//
-		// ParseInt rather than arithmetic on the digits: a max-age of
-		// 99999999999999999999 is legal text and would overflow a hand-rolled
-		// accumulator into a negative number.
+		// A year is what the browser preload lists require, and anything
+		// shorter reports as absent. ParseInt because a twenty digit max-age
+		// is legal text that would overflow a hand-rolled accumulator.
 		if seconds, err := strconv.ParseInt(m[1], 10, 64); err == nil {
 			v.HasHSTS = seconds >= 31_536_000
 		}
@@ -269,9 +252,7 @@ func (v *PropertyView) applySecurityPosture(recent []Check) {
 }
 
 // applyStoredJSON decodes the three JSON columns, each degrading to empty
-// rather than failing the request. These are audit results written by a
-// background job, and a dashboard that will not load because last week's crawl
-// wrote something malformed is worse than an empty crawler panel.
+// rather than failing the request, so a malformed result costs one panel.
 func (v *PropertyView) applyStoredJSON(p *Property) {
 	if p.CrawlerInsights != nil {
 		if err := json.Unmarshal([]byte(*p.CrawlerInsights), &v.CrawlerInsights); err != nil {
@@ -301,10 +282,7 @@ func (v *PropertyView) applyStoredJSON(p *Property) {
 }
 
 // groupInsights buckets findings by type and orders each bucket errors first.
-//
-// Sorted by type name so the panels appear in the same order every time, and
-// SliceStable within a bucket so findings of equal severity keep the order the
-// checks produced.
+// Types are sorted and the inner sort is stable, so the order holds.
 func groupInsights(insights []Insight) []InsightGroup {
 	buckets := map[string][]Insight{}
 	for _, i := range insights {
@@ -342,7 +320,6 @@ func groupInsights(insights []Insight) []InsightGroup {
 	return groups
 }
 
-// dashboard renders one property.
 func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 	p, err := getProperty(r.Context(), s.db, id)
 	if err != nil {
@@ -357,9 +334,8 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 
 	authed := isAuthenticated(r, s.cookieKey)
 	if !p.IsPublic && !authed {
-		// A redirect to login rather than a 404, so an operator following a
-		// bookmark on a fresh browser lands somewhere useful. It leaks that
-		// the id exists, which is acceptable for an unguessable v4 UUID.
+		// A redirect to login rather than a 404, so a bookmark lands somewhere
+		// useful. It leaks that the id exists, which is fine for a v4 UUID.
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
@@ -375,9 +351,8 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 	data.Property = view
 	data.InsightGroups = groupInsights(view.CrawlerInsights)
 
-	// Report export is operator-only, even for a public property. The PDF path
-	// spawns a Typst compile, and a public status page must not be a free
-	// CPU-burning endpoint for anyone who finds the URL.
+	// Report export is operator-only even for a public property, since the PDF
+	// path spawns a Typst compile for anyone who finds the URL.
 	if format := r.URL.Query().Get("report"); format != "" {
 		if !authed {
 			http.Redirect(w, r, "/"+view.ID, http.StatusSeeOther)
@@ -395,7 +370,7 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 	if err != nil {
 		slog.Info(fmt.Sprintf("dashboard %s charts: %v", id, err))
 	}
-	// Oldest first: a time axis reads left to right.
+	// Oldest first, so the time axis reads left to right.
 	for i := len(recent) - 1; i >= 0; i-- {
 		c := recent[i]
 		data.ResponseTimes = append(data.ResponseTimes, ResponseTimePoint{
@@ -436,9 +411,8 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 	s.renderer.Render(w, http.StatusOK, "property.html", data)
 }
 
-// statusPayload is what the dashboard's polling JavaScript reads, so a running
-// crawl or audit updates the page without a reload. Its shape is fixed by
-// frontend/static_src/properties/scripts/property_crawl_status.js.
+// statusPayload is what the dashboard's polling JavaScript reads. Its shape is
+// fixed by frontend/static_src/properties/scripts/property_crawl_status.js.
 type statusPayload struct {
 	Crawler    crawlerStatus    `json:"crawler"`
 	Lighthouse lighthouseStatus `json:"lighthouse"`
@@ -489,14 +463,8 @@ func nilIfEmpty(s *string) *string {
 	return s
 }
 
-// crawlProgress estimates how far along a running crawl is, as a fraction of
-// PageCap.
-//
-// PageCap overestimates the denominator for every real site, so the bar moves
-// slowly and never reaches the end. The 0.9 cap keeps it from claiming to be
-// finished while still working, since a bar sitting at 100% for two minutes
-// reads as a hang. The 0.05 floor gives it visible movement the moment a crawl
-// starts.
+// crawlProgress estimates a running crawl against PageCap, capped at 0.9 so
+// the bar never claims to be finished while it is still working.
 func crawlProgress(p *Property) *float64 {
 	if p.CrawlState != "running" {
 		return nil
@@ -577,16 +545,14 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
 	enc := json.NewEncoder(w)
-	// Go escapes <, > and & in strings by default, which protects JSON
-	// embedded in HTML and corrupts a response fetch() parses. The error
-	// strings here come from crawled sites and can contain any of them.
+	// Go escapes <, > and & by default, which corrupts a response fetch()
+	// parses, and these error strings come from crawled sites.
 	enc.SetEscapeHTML(false)
 	if err := enc.Encode(payload); err != nil {
 		slog.Info(fmt.Sprintf("write json: %v", err))
 	}
 }
 
-// propertyStatus is polled by the dashboard while work is in flight.
 func (s *site) propertyStatus(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.lookupForJSON(w, r)
 	if !ok {
@@ -620,9 +586,7 @@ func (s *site) lookupForJSON(w http.ResponseWriter, r *http.Request) (*Property,
 }
 
 // requeue is the shared body of the two "run it now" buttons. It runs nothing
-// itself: it moves the due time into the past and clears the last error, and
-// the scheduler picks it up within thirty seconds, so there is one path that
-// starts this work and a button cannot bypass the semaphores.
+// itself, it moves the due time into the past for the scheduler to pick up.
 func (s *site) requeue(w http.ResponseWriter, r *http.Request, kind string) {
 	p, ok := s.lookupForJSON(w, r)
 	if !ok {

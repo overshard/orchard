@@ -1,9 +1,6 @@
 // Entry point. Vite bundles this into one hashed .js and one hashed .css, and
-// the Go server resolves both names out of dist/.vite/manifest.json.
-//
-// There is no router and no hydration. Each page is a real document served by
-// Go, so this file's only job is to attach the behaviour that page needs,
-// chosen by the data-page attribute Go writes onto <body>.
+// the Go server resolves both names out of dist/.vite/manifest.json. Every page
+// is a real document, so all this does is dispatch on <body data-page>.
 
 import "./css/globals.css";
 import "./css/components/page.css";
@@ -35,10 +32,8 @@ const PAGES = {
   contact: initContact,
 };
 
-// Each init is isolated, because they are independent and a throw in one used
-// to take the rest with it. initLoader in particular is what lifts the opening
-// curtain, so a failure in initCursor above it left the home page as an opaque
-// full-screen sheet with no content and no recovery.
+// Each init is isolated. initLoader is what lifts the opening curtain, so a
+// throw anywhere else would leave the page under an opaque full-screen sheet.
 const run = (name, fn) => {
   try {
     fn();
@@ -48,8 +43,7 @@ const run = (name, fn) => {
 };
 
 const start = () => {
-  // Loader first: it is the one whose failure is visible as a blank page, so it
-  // should not be downstream of anything else.
+  // Loader first, since it is the one whose failure shows as a blank page.
   run("loader", initLoader);
   run("cursor", initCursor);
   run("menu", initMenu);

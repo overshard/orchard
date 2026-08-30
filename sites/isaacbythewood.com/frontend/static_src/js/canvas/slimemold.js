@@ -1,10 +1,6 @@
-// Physarum. Thousands of agents wander a grid, each sensing three points ahead
-// (left, forward, right), steering toward the strongest trail and depositing
-// its own. Blur and decay every frame. Sense, turn, deposit: that is the whole
-// rule set, and networks fall out of it.
-//
-// The grid runs at half resolution and is upscaled on draw, which is the only
-// reason 6000 agents hold a frame rate.
+// Physarum. Each agent senses three points ahead, steers toward the strongest
+// trail and deposits its own, and the grid is blurred and decayed every frame.
+// It runs at half resolution and upscales on draw, or 6000 agents drop frames.
 
 export const slimemold = (cvs, { numAgents = 6000 } = {}) => {
   const ctx = cvs.getContext("2d");
@@ -50,8 +46,6 @@ export const slimemold = (cvs, { numAgents = 6000 } = {}) => {
     return trail[sy * tw + sx];
   };
 
-  // Trail strength to colour: black through the site's blue and purple to
-  // white at saturation.
   const stops = [
     [0.0, 0, 0, 0],
     [0.35, 14, 63, 244],

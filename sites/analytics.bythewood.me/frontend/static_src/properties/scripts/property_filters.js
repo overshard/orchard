@@ -1,7 +1,3 @@
-/**
- * When clicking a .btn-filter-clear button, get the data-filter-key and the
- * data-filter-value and remove the filter from the URL then reload the page.
- */
 
 document.addEventListener("DOMContentLoaded", function () {
   var filterClearButtons = document.querySelectorAll(".btn-filter-clear");

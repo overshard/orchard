@@ -1,8 +1,6 @@
-// The contact page chat: a scripted branching conversation with typing delays.
-//
-// The tree stays in JS rather than moving into Go with the rest of the site
-// copy, because none of it is ever rendered server-side. Shipping it as a JSON
-// blob in the HTML would cost bytes on every visit to save nothing.
+// The contact page chat, a scripted branching conversation with typing delays.
+// The tree stays in JS rather than in Go with the rest of the copy, since none
+// of it is ever rendered server-side.
 
 const CHAT_TREE = {
   start: {
@@ -169,9 +167,8 @@ export const initContact = () => {
     scrollToEnd();
   };
 
-  // Messages arrive one at a time behind a typing indicator whose dwell scales
-  // with message length, so a long reply visibly takes longer to write than a
-  // short one.
+  // The typing indicator's dwell scales with message length, so a long reply
+  // visibly takes longer to write than a short one.
   const play = (key) => {
     const node = CHAT_TREE[key];
     if (!node) return;
@@ -199,8 +196,7 @@ export const initContact = () => {
     next();
   };
 
-  // Waits out the panel entrance and the content stagger in contact.css, so
-  // the first typing indicator lands after the left column has finished
-  // arriving rather than on top of it.
+  // Waits out the panel entrance and content stagger in contact.css, so the
+  // first typing indicator does not land on top of the left column arriving.
   window.setTimeout(() => play("start"), 1150);
 };

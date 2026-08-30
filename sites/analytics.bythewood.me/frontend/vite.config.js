@@ -1,11 +1,8 @@
 import { resolve } from "path";
 import { defineConfig } from "vite";
 
-// Vite output goes to ../dist; Rust serves it at /static/.
-// Manifest is read at runtime so templates resolve hashed asset names.
-// Four entry points mirror the original Django split: base (shared shell),
-// pages (marketing static pages), properties (dashboard charts/map), and
-// collector (the public embed script).
+// Four entry points, so the public collector embed and the dashboard's charts
+// and map are separate downloads from the shell every page loads.
 
 export default defineConfig({
   base: "/static/",
@@ -21,7 +18,6 @@ export default defineConfig({
         collector: resolve(__dirname, "static_src/collector/index.js"),
       },
       output: {
-        // Hashed asset filenames so we can cache them aggressively.
         entryFileNames: "assets/[name]-[hash].js",
         chunkFileNames: "assets/[name]-[hash].js",
         assetFileNames: (assetInfo) => {

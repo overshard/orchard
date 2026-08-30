@@ -13,13 +13,9 @@ import (
 	"github.com/google/uuid"
 )
 
-// Dev tooling: fills a "Seed Test" property with plausible fake traffic, so the
-// dashboard can be looked at without waiting for a real site to accumulate
-// months of events.
-//
-// A flag on the site binary rather than a cmd/ of its own, because it needs the
-// schema, the connection settings and the column list, and one copy of those is
-// the point.
+// Dev tooling: fills a "Seed Test" property with fake traffic so the dashboard
+// has something to render. It is a flag on the site binary rather than its own
+// cmd/, since it needs the schema, connection settings and column list.
 
 const seedPropertyName = "Seed Test"
 
@@ -49,8 +45,8 @@ type weightedString struct {
 	Weight int
 }
 
-// The empty referrer is the heaviest entry, because most real traffic to a
-// small site is direct or has its referrer stripped.
+// The empty referrer is the heaviest entry; most real traffic is direct or has
+// its referrer stripped.
 var seedReferrers = []weightedString{
 	{"", 50}, {"google.com", 20}, {"twitter.com", 5}, {"news.ycombinator.com", 3},
 	{"github.com", 3}, {"reddit.com", 4}, {"duckduckgo.com", 3}, {"bing.com", 3},
@@ -101,8 +97,7 @@ type seedGeo struct {
 	Weight  int
 }
 
-// Region names are the English forms the admin-1 topojson joins on, so the
-// map's drill-down lights up rather than showing an empty country.
+// Region names are the English forms the admin-1 topojson joins on.
 var seedGeos = []seedGeo{
 	{"US", "New York", "New York", 40.7128, -74.0060, 15},
 	{"US", "California", "Los Angeles", 34.0522, -118.2437, 10},
@@ -141,8 +136,7 @@ var (
 	seedUTMCampaigns   = []string{"launch-2026", "spring-promo", "blog-feature", "rebrand", "retarget"}
 )
 
-// Demo custom events, with a per-session probability each, so the custom-card
-// picker has something in it.
+// Demo custom events, each with a per-session probability.
 var seedCustomEvents = []struct {
 	Name        string
 	Probability float64
@@ -168,8 +162,8 @@ func weightedPick[T any](items []T, weight func(T) int) T {
 	return items[len(items)-1]
 }
 
-// runSeed wipes and refills the Seed Test property. Re-runs reuse it rather
-// than making a new one, so the dashboard URL stays stable across seeds.
+// runSeed wipes and refills the Seed Test property, reusing it so the dashboard
+// URL stays stable across seeds.
 func runSeed(ctx context.Context, db *sql.DB, sessions, days int) error {
 	id, err := ensureSeedProperty(ctx, db)
 	if err != nil {
@@ -225,9 +219,8 @@ func ensureSeedProperty(ctx context.Context, db *sql.DB) (uuid.UUID, error) {
 }
 
 func generateSeed(ctx context.Context, db *sql.DB, id uuid.UUID, sessions, days int) (int64, error) {
-	// One transaction for the whole run. Otherwise every insert is its own
-	// commit, and a few hundred thousand fsyncs turn a two-second job into a
-	// several-minute one.
+	// One transaction for the whole run; otherwise every insert is its own
+	// commit and its own fsync.
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
@@ -263,9 +256,8 @@ func generateSeed(ctx context.Context, db *sql.DB, id uuid.UUID, sessions, days 
 
 		userID := fmt.Sprintf("%d", 100_000_000+rand.Int64N(899_999_999))
 
-		// Bias toward recent days. A uniform spread makes the default 28-day
-		// window compare a full period against a nearly empty one, showing
-		// +1000% on every card.
+		// Bias toward recent days, or the default window compares a full
+		// period against a nearly empty one and shows +1000% everywhere.
 		offset := int64(math.Pow(rand.Float64(), 1.15) * float64(windowMS))
 		sessionStart := now - offset
 
@@ -326,8 +318,7 @@ func generateSeed(ctx context.Context, db *sql.DB, id uuid.UUID, sessions, days 
 		for page := 0; page < pageCount; page++ {
 			timeOnPage := 2_000 + rand.Int64N(118_000)
 
-			// Only the first page view of a session carries the referrer,
-			// matching what a real collector sends.
+			// Only the first page view of a session carries the referrer.
 			var pvRef any
 			if page == 0 {
 				pvRef = sessionRef

@@ -16,19 +16,14 @@ import (
 
 const (
 	dayMS = 24 * 60 * 60 * 1000
-	// The look-back when the request names no range. Four weeks is long
-	// enough to show a trend on a site with a few visitors a day, and short
-	// enough that the graph still buckets daily.
+	// Long enough to show a trend, short enough that the graph buckets daily.
 	defaultRangeDays = 28
 
-	// Ten years. Far past any real query against a database that starts in
-	// 2022, and small enough that the graph's bucket slice stays trivial.
 	maxRangeDays = 3650
 )
 
-// PageData is everything base.html and one page template need. One struct for
-// every page rather than a type each: the shared chrome is most of it, and the
-// page-specific tail is nil for whichever page is not using it.
+// PageData is everything base.html and one page template need; the fields for
+// pages other than the one rendering are zero.
 type PageData struct {
 	Title         string
 	Description   string
@@ -42,37 +37,31 @@ type PageData struct {
 	SiteName      string
 	AuthorName    string
 
-	// The social card, and the page's JSON-LD graph already marshalled.
 	OGImage string
 	JSONLD  template.JS
 
 	Script string
 	Styles []string
-	// PageScript and PageStyles are the per-page Vite entry, empty on pages
-	// that only need the shared bundle.
+	// The per-page Vite entry, empty on pages that only need the shared bundle.
 	PageScript string
 	PageStyles []string
 
-	// The self-tracking snippet. Empty CollectorID renders nothing.
+	// Empty CollectorID renders no self-tracking snippet.
 	CollectorID     string
 	CollectorServer string
 
-	// Login.
 	Error string
 	Next  string
 
-	// Marketing home.
 	TotalProperties int64
 	TotalEvents     int64
 	TotalUsers      int
 	FirstEventAt    string
 
-	// Property list.
 	Properties []PropertyRow
 	Totals     PropertyTotals
 	Query      string
 
-	// Dashboard.
 	Property   *DashProperty
 	Dash       *Dashboard
 	ReportedAt string
@@ -116,8 +105,7 @@ type Dashboard struct {
 	Bots BotTraffic
 
 	// Precomputed for the report templates, which have no charting engine and
-	// no JavaScript: an SVG polyline, the axis labels, the peak, and the
-	// denominators each breakdown's percentages divide by.
+	// no JavaScript to compute this themselves.
 	ChartPolyline   string
 	ChartLabelStart string
 	ChartLabelEnd   string
@@ -127,8 +115,8 @@ type Dashboard struct {
 	TopCountries    []LabelCount
 }
 
-// BreakdownTotals holds each breakdown's sum, floored at one so a report
-// template can divide by it without guarding every row.
+// BreakdownTotals holds each breakdown's sum, floored at one so a template can
+// divide by it unguarded.
 type BreakdownTotals struct {
 	Device     int64
 	Browser    int64
@@ -137,9 +125,7 @@ type BreakdownTotals struct {
 }
 
 // dashboard renders one property. Public properties are readable without a
-// session; everything else redirects to login. A property that does not exist
-// redirects to /properties rather than 404ing, which is what a stale bookmark
-// wants.
+// session; everything else, including a missing property, redirects.
 func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 	ctx := r.Context()
 
@@ -183,8 +169,7 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 		return
 	}
 
-	// The range in days drives both the comparison window and the graph's
-	// bucket width. "custom" or absent means derive it from the two dates.
+	// "custom" or absent means derive the range from the two dates.
 	var rangeDays int64
 	switch v := q.Get("date_range"); v {
 	case "", "custom":
@@ -197,21 +182,13 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 		rangeDays = n
 	}
 
-	// Clamped here rather than inside one arm of the switch, which is the
-	// mistake the first version of this made: date_range=N was bounded and the
-	// custom branch was not, so ?date_start=0001-01-01&date_end=9999-12-31 still
-	// produced a range of 3.6 million days.
-	//
-	// rangeDays drives an allocating loop in eventsGraph whose bucket slice
-	// grows linearly with it, and every bucket is then serialised into an inline
-	// JSON block in the page. Unbounded that is a multi-megabyte response and an
-	// out-of-memory kill on a container capped at 512MB. Three properties are
-	// public and their UUIDs are committed to a public repository, so this is
-	// reachable with no cookie.
+	// Clamped outside the switch, so both arms are bounded. rangeDays sizes an
+	// allocating bucket slice that is then inlined into the page, and a public
+	// property makes this reachable with no cookie.
 	rangeDays = min64(max64(rangeDays, 1), maxRangeDays)
 
-	// And the window itself, so a start date far in the past cannot widen the
-	// graph behind the clamp above.
+	// The window too, so an ancient start date cannot widen the graph behind
+	// the clamp above.
 	if startMS < endMS-maxRangeDays*dayMS {
 		startMS = endMS - maxRangeDays*dayMS
 	}
@@ -220,9 +197,8 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 	prevEndMS := endMS - rangeDays*dayMS
 	filterURL := q.Get("filter_url")
 
-	// Anchor the graph to the requested end date, not to today. Stepping back
-	// from today charts any historical range as a row of zeros beside metric
-	// cards showing real numbers.
+	// Anchor the graph to the requested end date; stepping back from today
+	// charts a historical range as zeros beside real metric cards.
 	graphEnd, err := time.ParseInLocation("2006-01-02", dateEnd, time.Local)
 	if err != nil {
 		graphEnd = today
@@ -271,10 +247,8 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 	data.Dash = d
 	data.ReportedAt = time.Now().Format("2006-01-02 15:04")
 
-	// Report export is operator-only, even for a public property, matching the
-	// same gate on status. The PDF path spawns a Typst compile with no
-	// concurrency limit, and a public dashboard must not be a free CPU-burning
-	// endpoint for anyone who finds the URL.
+	// Report export is operator-only even for a public property: the PDF path
+	// spawns an unthrottled Typst compile.
 	if report, ok := reportFormat(q); ok {
 		if !authed {
 			http.Redirect(w, r, "/"+id.String(), http.StatusSeeOther)
@@ -287,8 +261,7 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 	s.renderer.Render(w, http.StatusOK, "property.html", data)
 }
 
-// reportFormat reads ?report. A bare "?report" means pdf, which is the form
-// the dashboard's own button uses.
+// reportFormat reads ?report; a bare "?report" means pdf.
 func reportFormat(q map[string][]string) (string, bool) {
 	values, present := q["report"]
 	if !present {
@@ -308,9 +281,7 @@ func reportFormat(q map[string][]string) (string, bool) {
 }
 
 // fillReportExtras precomputes what the PDF and Markdown reports need. It runs
-// on every dashboard render rather than only report ones: the work is
-// arithmetic over data already in memory, and making it conditional would mean
-// two paths through one handler for no measurable saving.
+// on every dashboard render, being arithmetic over data already in memory.
 func (d *Dashboard) fillReportExtras() {
 	d.ChartPolyline = chartPolyline(d.Graph)
 
@@ -334,8 +305,7 @@ func (d *Dashboard) fillReportExtras() {
 		ScreenSize: sumCounts(d.ByScreenSize),
 	}
 
-	// The map data is a Go map and has no order. The report renders a table
-	// rather than a map, so it needs one.
+	// The report renders a table, which needs an order a Go map does not have.
 	countries := make([]LabelCount, 0, len(d.SessionsByCountry))
 	for code, count := range d.SessionsByCountry {
 		countries = append(countries, LabelCount{Label: code, Count: count})
@@ -344,7 +314,7 @@ func (d *Dashboard) fillReportExtras() {
 		if countries[i].Count != countries[j].Count {
 			return countries[i].Count > countries[j].Count
 		}
-		// Ties broken by name so the report is reproducible run to run.
+		// Ties break by name so the report is reproducible.
 		return countries[i].Label < countries[j].Label
 	})
 	if len(countries) > 10 {
@@ -354,8 +324,7 @@ func (d *Dashboard) fillReportExtras() {
 }
 
 // sumCounts is a breakdown's denominator, floored at one so a template can
-// divide by it unguarded. A zero total means every numerator is zero too, so
-// the floor changes no displayed percentage.
+// divide by it unguarded.
 func sumCounts(items []LabelCount) int64 {
 	var total int64
 	for _, i := range items {
@@ -364,11 +333,8 @@ func sumCounts(items []LabelCount) int64 {
 	return max64(total, 1)
 }
 
-// chartPolyline renders the time series as SVG polyline points. The reports
-// have no Chart.js and no browser, so the line is computed here.
-//
-// The geometry matches the viewBox in the report templates: change one and
-// change the other.
+// chartPolyline renders the time series as SVG polyline points, for reports that
+// have no browser. The geometry matches the viewBox in the report templates.
 func chartPolyline(points []GraphPoint) string {
 	if len(points) == 0 {
 		return ""
@@ -388,8 +354,7 @@ func chartPolyline(points []GraphPoint) string {
 		}
 	}
 
-	// A single bucket has no horizontal span to distribute across, so it is
-	// drawn at the midpoint rather than dividing by zero.
+	// A single bucket has no horizontal span to divide by.
 	if len(points) == 1 {
 		y := height - padding - float64(points[0].Count)/float64(maxCount)*usableH
 		return fmt.Sprintf("%.1f,%.1f", width/2, y)
@@ -419,12 +384,8 @@ func min64(a, b int64) int64 {
 }
 
 // jsonBlock marshals a value for an inline <script type="application/json">.
-//
-// HTML escaping stays on, unlike in encodeExtra: this string is embedded in a
-// document, and escaping "<" is what stops a page URL containing "</script>"
-// from closing the block and turning stored data into markup. template.JS then
-// tells html/template the result is already safe, which it cannot work out on
-// its own inside a non-JavaScript script type.
+// HTML escaping stays on so a value containing "</script>" cannot close the
+// block; html/template cannot work that out inside a non-JavaScript script type.
 func jsonBlock(v any) template.JS {
 	b, err := json.Marshal(v)
 	if err != nil {

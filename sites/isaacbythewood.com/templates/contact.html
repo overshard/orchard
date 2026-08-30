@@ -20,12 +20,11 @@
       </dl>
     </div>
   </div>
-  <!-- The chat is entirely client-side and starts empty. It is a decorative
-       alternative route to the same contact details listed on the left, so
-       nothing is lost with JS off. -->
+  <!-- The chat is client-side and starts empty. It only repeats the contact
+       details on the left, so nothing is lost with JS off. -->
   <div class="contact-gridRight">
-    <!-- The avatar path comes from the server so the image format is
-         decided in one place, images.json, rather than hardcoded here too. -->
+    <!-- The avatar path comes from the server, so images.json is the only
+         place the image format is decided. -->
     <div class="contact-chat" data-avatar="{{ .AvatarSrc }}"></div>
   </div>
 </div>

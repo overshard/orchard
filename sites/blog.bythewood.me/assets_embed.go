@@ -9,17 +9,9 @@ import (
 	"os"
 )
 
-// The release build carries the Vite bundle, every post PDF and every social
-// card inside the executable. With content embedded unconditionally by main.go,
-// ../../bin/blog.bythewood.me is the entire site: one file, nothing beside it,
-// and none of the four SITE_* variables to set.
-//
-// Built by `make build`, which runs Vite and typst first, because the directive
-// below reads these directories at compile time.
-//
-// `all:` is required on build/dist. Without it, embed skips every entry whose
-// name starts with a dot, and .vite/manifest.json is one, so the server would
-// refuse to start on a manifest it could not find.
+// A release build is one file with no SITE_* variables to set. `make build` runs
+// Vite and typst first, since the directives below read those directories at
+// compile time; `all:` is needed or embed skips .vite/manifest.json.
 //
 //go:embed all:build/dist
 //go:embed build/pdfs

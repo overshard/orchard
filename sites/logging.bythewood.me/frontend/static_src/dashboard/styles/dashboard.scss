@@ -1,14 +1,5 @@
 @use "../../base/styles/variables" as *;
 
-// The dashboard's own vocabulary: a panel, a log line, a data table, a window
-// picker and the ingest strip. Loaded only on the three pages behind the login,
-// because the public half of this site never renders any of it.
-
-// ── Panel ──
-// The container everything on a dashboard page sits in. A header strip with a
-// title and an optional note, then a body that either holds a chart, a table or
-// a stack of log lines.
-
 .panel {
   background: $card-bg;
   border: 1px solid $card-border-color;
@@ -38,15 +29,10 @@
     white-space: nowrap;
   }
 
-  // The note carries the caveat: which table a number came from, what a
-  // ranking is sorted by. It truncates rather than wrapping, because a header
-  // that grows a second line on one panel misaligns it against the panel
-  // beside it.
+  // Truncates rather than wrapping, since a header that grows a second line on
+  // one panel misaligns it against the panel beside it.
   .panel-note {
     font-size: 0.68rem;
-    // The notes carry every caveat on this dashboard ("counts from rollups",
-    // "by p95, at least 5 samples"), so they were the least readable text on
-    // the page and the text that most needed reading.
     color: #9e968a;
     text-align: right;
     min-width: 0;
@@ -61,13 +47,9 @@
     min-height: 0;
   }
 
-  // Chart bodies get an explicit height, and that is the fix for a real
-  // inversion. The volume chart sat in a col-xl-8 whose height came from
-  // stretching against a taller sibling; below the xl breakpoint the columns
-  // stacked, the stretch vanished, and the canvas fell back to its height="90"
-  // attribute, leaving about 25px of plot once the axis and legend were drawn.
-  // Meanwhile a two-category doughnut expanded to 485px. Across the whole
-  // 992-1199 band the least informative chart was the largest.
+  // An explicit height. Once the columns stack the stretch that sized this goes
+  // away and the canvas falls back to its height="90" attribute, which is not
+  // enough room to plot anything once the axis and legend are drawn.
   .panel-body.is-chart {
     height: 17rem;
 
@@ -77,10 +59,6 @@
     }
   }
 }
-
-// ── Data table ──
-// Dense, monospace numerals, and horizontally scrollable inside its own box so
-// a wide table never makes the page itself scroll sideways on a phone.
 
 .table-scroll {
   overflow-x: auto;
@@ -119,9 +97,6 @@
     &:hover { color: $green-bright; text-decoration: underline; }
   }
 
-  // Numbers right-aligned and tabular, so columns of them line up on the
-  // digit rather than on the glyph. Without font-variant-numeric a
-  // proportional 1 is narrower than a 0 and a column of counts looks ragged.
   .num {
     text-align: right;
     font-family: $font-family-monospace;
@@ -138,11 +113,6 @@
     white-space: nowrap;
   }
 }
-
-// ── Log lines ──
-// One row per record, laid out as a grid so the time, level and source columns
-// align down the whole list and the eye can scan one column at a time. That
-// alignment is the entire reason this is not a <pre>.
 
 .log-body {
   max-height: 40rem;
@@ -163,15 +133,10 @@
   &:last-child { border-bottom: none; }
   &:hover { background: rgba(107, 158, 120, 0.03); }
 
-  // A left edge in the level's colour. A tinted background for every error
-  // row was tried first and made a page with many errors unreadable; a 2px
-  // rule carries the same information and stays out of the way.
   &.lv-error { box-shadow: inset 2px 0 0 #c47055; }
   &.lv-warn { box-shadow: inset 2px 0 0 $amber; }
 
   .log-time {
-    // Lifted from #665f56 (2.9:1) to clear 4.5:1. This is the column the eye
-    // scans down when reading a log, so it was the wrong place to be dimmest.
     color: #9e968a;
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
@@ -236,8 +201,7 @@
 
   .log-text { color: $gray-200; }
 
-  // The flag for a request that carried no CF-Ray, which means it never
-  // crossed the tunnel.
+  // Flags a request that carried no CF-Ray, so it never crossed the tunnel.
   .log-flag {
     color: #9ec5d2;
     border: 1px solid rgba(126, 170, 184, 0.3);
@@ -248,13 +212,8 @@
     text-transform: uppercase;
   }
 
-  // The leftover attributes, as the JSON they are stored as. Dimmed and
-  // clipped: they are there for the one time somebody needs them and should
-  // not compete with the message the rest of the time.
   .log-attrs {
     grid-column: 4;
-    // #4a443c measured 1.95:1, which is not dim, it is invisible. Still the
-    // quietest thing in the row, but now legible when looked for.
     color: #847c72;
     font-size: 0.7rem;
     overflow: hidden;
@@ -263,16 +222,9 @@
   }
 }
 
-// Three fixed columns plus padding come to about 340px, which is exactly a
-// 390px phone's content box, so the message column computed to 0px and every
-// row became ~290px of blank space showing only a timestamp. Below the
-// breakpoint the message and the attrs each get their own full-width row.
-//
-// This block sits AFTER the .log-row rules above on purpose. A media query adds
-// no specificity, so when it was placed before them its grid-template-columns
-// and its .log-attrs grid-column were both silently beaten on source order, and
-// the collapsed column simply moved one place right: the attrs blob measured
-// 0px wide at 390 and stayed unreadable below about 480.
+// Three fixed columns plus padding fill a 390px phone's content box, so the
+// message column computes to 0px. This has to sit after the .log-row rules: a
+// media query adds no specificity, so before them it loses on source order.
 @media (max-width: 760px) {
   .log-row {
     grid-template-columns: auto auto minmax(0, 1fr);
@@ -289,13 +241,8 @@
   }
 }
 
-// ── Window picker ──
-// Links rather than a select and a submit, because every other control on these
-// pages is already in the query string.
-
-// overflow-x: auto, never hidden. Clipping it meant the last three options
-// ("Last 30 days", "Last 90 days", "Last year") were simply unreachable on a
-// phone: no window longer than seven days could be selected at all.
+// overflow-x stays auto and never hidden. Clipping it puts the longest windows
+// (30 days, 90 days, a year) out of reach on a phone.
 .range-picker {
   display: inline-flex;
   max-width: 100%;
@@ -330,11 +277,6 @@
   }
 }
 
-// ── Search form ──
-// A grid rather than a row of columns, so the free-text field takes the space
-// left over and the five selects stay their own natural width instead of each
-// claiming a twelfth of the page.
-
 .search-grid {
   display: grid;
   grid-template-columns: minmax(12rem, 2fr) repeat(4, minmax(8rem, 1fr)) auto;
@@ -354,9 +296,6 @@
   justify-content: space-between;
   align-items: center;
 }
-
-// ── Ingest strip ──
-// The site's own health, on the page rather than in a log nobody reads.
 
 .ingest-strip {
   display: flex;

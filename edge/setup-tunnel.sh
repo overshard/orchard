@@ -6,22 +6,17 @@
 #   sh setup-tunnel.sh status   what exists right now
 #   sh setup-tunnel.sh down     delete the tunnel and its volume
 #
-# All cloudflared state lives in a named volume, never a bind mount: the Docker
-# CLI in the webdev container talks to Docker Desktop on the Windows host, whose
-# daemon cannot see this filesystem, and a bind mount silently resolves to an
-# empty directory rather than failing.
+# All cloudflared state lives in a named volume, never a bind mount. The Docker
+# CLI here talks to Docker Desktop on the Windows host, whose daemon cannot see
+# this filesystem, so a bind mount silently resolves to an empty directory.
 #
 # Every docker command goes through sudo, because the socket in the webdev
 # container is root:root mode 660 and being in the docker group does not help.
 # On a host where docker needs no sudo:  SUDO= sh setup-tunnel.sh up
 set -e
 
-# Run from this script's own directory, whatever the caller's was. Every path
-# below is relative to edge/, and running it from the repo root used to fail
-# halfway through with "sed: can't read cloudflared/config.yml" and then print
-# "config.yml written" anyway, because the sed sits mid-pipeline and set -e
-# only sees the last command's status. The tunnel then ran on a stale ingress
-# with no sign anything had gone wrong.
+# Run from this script's own directory, whatever the caller's was, since every
+# path below is relative to edge/.
 cd "$(dirname "$0")"
 
 SUDO=${SUDO-sudo}
@@ -34,9 +29,9 @@ VOLUME=orchard-cloudflared
 TUNNEL=orchard
 IMAGE=cloudflare/cloudflared:latest
 # Every hostname the tunnel serves, matching the ingress rules in
-# cloudflared/config.yml. These span two zones, and cert.pem only covers one at
-# a time (see the note in `up`), so routing all of them means logging in once
-# per zone and running `up` again; the per-host failures are tolerated.
+# cloudflared/config.yml. These span two zones and cert.pem covers one at a time,
+# so routing all of them means logging in once per zone and running `up` again.
+# The per-host failures in between are expected.
 HOSTNAMES="isaacbythewood.com www.isaacbythewood.com bythewood.me www.bythewood.me blog.bythewood.me analytics.bythewood.me status.bythewood.me logging.bythewood.me ntfy.bythewood.me repos.bythewood.me"
 
 # cloudflared's image is distroless with no shell, so anything that needs to
@@ -45,10 +40,9 @@ volume_sh() {
 	docker run --rm -v "$VOLUME:/etc/cloudflared" alpine:3 sh -c "$1"
 }
 
-# Every command except login has to be told where the origin cert is. Its
-# default is $HOME/.cloudflared, and the volume lives at /etc/cloudflared for
-# everything else, so without this they report "cert.pem not found" and suggest
-# logging in again on a machine that already has.
+# Every command except login has to be told where the origin cert is, or it
+# looks in $HOME/.cloudflared, reports "cert.pem not found" and tells you to log
+# in again on a machine that already has.
 cfd() {
 	docker run --rm -v "$VOLUME:/etc/cloudflared" "$IMAGE" \
 		--origincert /etc/cloudflared/cert.pem "$@"
@@ -57,8 +51,8 @@ cfd() {
 ensure_volume() {
 	docker volume inspect "$VOLUME" >/dev/null 2>&1 || docker volume create "$VOLUME" >/dev/null
 	# The image runs as uid 65532 and a fresh volume is root-owned. Without this
-	# `tunnel login` authenticates, receives the cert, then dies with EACCES
-	# writing cert.pem, burning a one-time callback token.
+	# `tunnel login` authenticates and then dies with EACCES writing cert.pem,
+	# burning a one-time callback token.
 	volume_sh "chown -R 65532:65532 /etc/cloudflared"
 }
 
@@ -67,12 +61,10 @@ login)
 	ensure_volume
 	# Mounted at the image's HOME rather than /etc/cloudflared, because login
 	# ignores --origincert and writes to $HOME/.cloudflared unconditionally.
-	# Mounting elsewhere means it reports success, writes the cert into the
-	# container layer and exits, taking the one-time callback token with it.
+	# Mount it elsewhere and it reports success while writing the cert into the
+	# container layer, taking the one-time callback token with it.
 	#
-	# No TTY either: login only prints a URL and polls the callback, so
-	# `docker run -it` fails with "the input device is not a TTY" from a
-	# non-interactive context.
+	# No TTY either, since login only prints a URL and polls the callback.
 	docker run --rm -v "$VOLUME:/home/nonroot/.cloudflared" "$IMAGE" tunnel login
 	volume_sh "chown -R 65532:65532 /etc/cloudflared"
 	;;
@@ -81,8 +73,8 @@ up)
 	ensure_volume
 	cfd tunnel create "$TUNNEL" || true
 
-	# The credentials file is named after the tunnel id, so the id can be read
-	# straight off the volume instead of parsing JSON out of `tunnel list`.
+	# The credentials file is named after the tunnel id, so the id reads straight
+	# off the volume instead of out of `tunnel list`.
 	ID=$(volume_sh "ls /etc/cloudflared" | grep -E '^[0-9a-f-]{36}\.json$' | head -1 | sed 's/\.json$//')
 	if [ -z "$ID" ]; then
 		echo "could not determine tunnel id; run '$0 status'" >&2
@@ -90,30 +82,24 @@ up)
 	fi
 	echo "tunnel id: $ID"
 
-	# ONE ZONE ONLY. cert.pem carries a single zoneID, chosen in the browser
-	# during `login`, and this command can only write into that zone. Handed a
-	# hostname from another zone it does not fail: it treats the whole string as
-	# a subdomain and creates "blog.bythewood.me.isaacbythewood.com".
+	# ONE ZONE ONLY. cert.pem carries a single zoneID picked in the browser
+	# during `login`. Handed a hostname from another zone this does not fail, it
+	# treats the whole string as a subdomain and creates
+	# "blog.bythewood.me.isaacbythewood.com". Routing a second zone means logging
+	# in again to replace cert.pem, which is safe for a running tunnel since that
+	# authenticates with the credentials JSON instead.
 	#
-	# ONE LABEL ONLY, too. Cloudflare's free Universal SSL signs the apex and a
-	# single wildcard level, so a two-label host like next.blog.bythewood.me has
-	# no certificate and fails the TLS handshake at the edge. Use a hyphen
-	# instead.
-	#
-	# Routing a second zone means logging in again and picking it, which
-	# replaces cert.pem. That is safe for a running tunnel, which authenticates
-	# with the credentials JSON rather than this, but only one zone can be
-	# managed from here at a time.
+	# ONE LABEL ONLY. Cloudflare's free Universal SSL signs the apex and a single
+	# wildcard level, so a two-label host like next.blog.bythewood.me has no
+	# certificate and fails the TLS handshake. Use a hyphen instead.
 	for host in $HOSTNAMES; do
 		cfd tunnel route dns "$TUNNEL" "$host" || true
 	done
 
-	# Seeded over stdin rather than mounted, same reason as everything else.
-	# The id appears twice in the template, as the tunnel and in the credentials
-	# filename, so this substitution has to be global.
-	# Rendered to a temporary file first rather than piped straight in. A
-	# failure in the sed half of a pipeline does not fail the pipeline, so the
-	# previous version could report success having seeded nothing.
+	# Seeded over stdin rather than mounted, for the same reason as everything
+	# else here. The id appears twice in the template so the substitution is
+	# global, and it renders to a temp file first because a sed failure in the
+	# middle of a pipeline does not fail the pipeline.
 	rendered=$(mktemp)
 	trap 'rm -f "$rendered"' EXIT
 	sed "s/CHANGEME_TUNNEL_ID/$ID/g" cloudflared/config.yml > "$rendered"
@@ -141,10 +127,9 @@ down)
 	docker compose down --remove-orphans || true
 	cfd tunnel delete -f "$TUNNEL" || true
 	docker volume rm "$VOLUME" || true
-	# `tunnel route dns` creates records but cloudflared has no delete
+	# `tunnel route dns` creates records and cloudflared has no delete
 	# counterpart, so the CNAME outlives the tunnel and has to go from the
-	# dashboard. Until it does, the hostname answers 530 (error 1033), which
-	# is the signature of a disconnected tunnel.
+	# dashboard. Until it does the hostname answers 530, error 1033.
 	echo
 	echo "NOTE: the CNAME for $HOSTNAMES still exists and must be deleted"
 	echo "in the Cloudflare dashboard. Until then it returns 530."

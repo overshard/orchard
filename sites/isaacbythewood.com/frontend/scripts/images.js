@@ -1,21 +1,8 @@
-// Turn frontend/images/ (sources, committed) into frontend/public/images/
-// (generated, gitignored), which Vite then copies into dist/.
+// Turns frontend/images/ (committed sources) into frontend/public/images/
+// (generated, gitignored), which Vite copies into dist/. Go has no next/image,
+// so every width a browser might pick has to exist as a real file.
 //
-// Go has no next/image, so every width a browser might pick has to exist as a
-// real file. This makes them at build time. Nothing here is dynamic: the pages,
-// the images, and the sizes they render at are all known, so there is nothing
-// an on-demand resizer could work out that this cannot work out first.
-//
-// Why sharp and not a Go tool: Go can encode AVIF without CGO now
-// (gen2brain/avif embeds libavif as WebAssembly), and it was tried. It works,
-// and it is about 10% less accurate than libvips at the same file size. The
-// deciding factor was not quality but adoption: that package has under a
-// hundred stars and one maintainer, against sharp's tens of thousands and
-// ~89M downloads a week, and it would sit in the build path for artifacts that
-// have to stay reproducible. Go projects generally do not do in-process image
-// work at all; they reach for imgproxy or a CDN.
-//
-// The ladder itself lives in ../../images.json so this and images.go read the
+// The width ladder lives in ../../images.json so this and images.go read the
 // same numbers.
 
 import { mkdir, readdir, rm, copyFile, stat, readFile } from "node:fs/promises";
@@ -29,8 +16,8 @@ const DST = join(HERE, "public/images");
 
 const spec = JSON.parse(await readFile(resolve(HERE, "..", "images.json"), "utf8"));
 
-// libvips effort, 0 to 9. Higher is slower and slightly smaller; 4 keeps a
-// full regeneration to a couple of minutes and the returns above it are thin.
+// libvips effort, 0 to 9. Higher is slower for very little extra saving, and 4
+// keeps a full regeneration down to a couple of minutes.
 const EFFORT = 4;
 
 const widthsFor = (name) => {
@@ -45,8 +32,6 @@ const qualityFor = (width) => {
   return q;
 };
 
-// One encoder entry point, so adding a format is a case here plus a change in
-// images.json rather than edits scattered through the file.
 const encode = (pipeline, quality) => {
   switch (spec.format) {
     case "avif":
@@ -65,8 +50,8 @@ const kb = (n) => `${(n / 1000).toFixed(0)}kB`.padStart(7);
 const poursSrc = join(SRC, "art/acrylic-pours");
 const poursDst = join(DST, "art/acrylic-pours");
 
-// Clear stale output first, so a source that was removed cannot leave an orphan
-// behind that a template still happily links to.
+// Cleared first, so a source that was deleted cannot leave an orphan behind
+// that a template still links to.
 await rm(poursDst, { recursive: true, force: true });
 await mkdir(poursDst, { recursive: true });
 
@@ -82,8 +67,8 @@ for (const file of originals) {
   let line = `  ${file.padEnd(10)}`;
   for (const width of widthsFor(name)) {
     const dest = join(poursDst, `${name}-${width}.${spec.format}`);
-    // withoutEnlargement so a source smaller than the target passes through
-    // rather than being upscaled into a bigger, blurrier file.
+    // withoutEnlargement, or a source smaller than the target is upscaled into
+    // a bigger and blurrier file.
     const { size } = await encode(
       sharp(join(poursSrc, file)).resize({ width, withoutEnlargement: true }),
       qualityFor(width),

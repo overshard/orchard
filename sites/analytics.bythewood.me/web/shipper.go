@@ -14,64 +14,36 @@ import (
 )
 
 // Log shipping: a slog.Handler that tees every record to logging.bythewood.me
-// while leaving the existing stdout handler untouched.
-//
-// Tee rather than replace is the whole design. stdout stays the source of
-// truth, Docker's json-file driver keeps rotating it, and the worst thing a
-// broken logging site can do is lose lines from a dashboard. Nothing here ever
-// blocks the caller: a full queue drops, and a failed POST drops. A logging
-// site that can stall the sites it watches is worse than no logging site.
-//
-// Shipping is per site rather than a sidecar reading Docker's json files,
-// because a sidecar needs the Docker socket (root-equivalent on the host) and
-// because it would mean serializing typed attributes to JSON, letting Docker
-// wrap that in a second JSON envelope, and parsing both back out. A handler
-// here sees the records directly, attributes intact.
-//
-// See code/memory/decisions/0015-logging-site-and-per-site-shipping.md.
+// on top of the existing stdout handler. stdout stays the source of truth, so
+// nothing here ever blocks the caller. A full queue drops and a failed POST
+// drops.
 
 // ShipEndpoint is a container name on the orchard-edge bridge, never the public
-// hostname. The same reasoning the ntfy alert path uses: anything able to reach
-// this address is already inside the network, so there is no token and no new
-// environment variable, and the two FROM scratch sites keep reading zero of
-// them.
+// hostname. Anything that can reach it is already inside the network, so there
+// is no token to configure.
 const ShipEndpoint = "http://orchard-logging:8000/ingest"
 
 const (
-	// A bounded queue is what makes dropping the failure mode rather than
-	// blocking. 4096 records is a couple of minutes of traffic on the
-	// busiest site here and about a megabyte of memory.
+	// Bounded, so the failure mode is dropping rather than blocking.
 	shipQueue = 4096
-	// Flush on whichever comes first. Five seconds rather than sub-second
-	// because each flush is one POST that the logging site itself logs, and
-	// a quarter-second cadence across five sites would make the ingest path
-	// the loudest thing in the database.
+	// Whichever comes first. Each flush is one POST that the logging site
+	// itself logs, so a faster cadence would make ingest the loudest thing
+	// in the database.
 	shipBatch   = 500
 	shipEvery   = 5 * time.Second
 	shipTimeout = 10 * time.Second
 
-	// The hard ceiling on Close, and the number that keeps a broken logging
-	// site from reaching the sites it watches.
-	//
-	// The drain flushes the queue in batches, so a wedged sink (one that
-	// accepts the connection and never answers) costs shipTimeout per flush:
-	// a full 4096-deep queue is nine flushes, which measured at 100 seconds.
-	// Docker's default stop grace is 10 seconds, so every site would burn its
-	// whole grace here and take a SIGKILL, skipping its own deferred
-	// db.Close(). One hung container would cause an unclean shutdown of four
-	// healthy ones, which is precisely what this design promises cannot
-	// happen.
-	//
-	// Waiting on a timer rather than on the drain bounds the bad case without
-	// spoiling the good one: a healthy sink drains in milliseconds and Close
-	// returns immediately. If the timer wins, the goroutine is abandoned and
-	// the process exits anyway; those records were already on stdout.
+	// The hard ceiling on Close, and what keeps a wedged logging site from
+	// reaching the sites it watches. A sink that accepts the connection and
+	// never answers costs shipTimeout per flush, which unbounded runs past
+	// Docker's stop grace and turns one hung container into a SIGKILL for
+	// every other site, skipping their db.Close(). A healthy sink drains in
+	// milliseconds and Close returns immediately either way.
 	closeTimeout = 2 * time.Second
 )
 
 // Record is one slog record on the wire, and the shape the ingest endpoint
-// parses. Short keys because this is machine to machine and the volume is the
-// point.
+// parses. Short keys because this is machine to machine at volume.
 type Record struct {
 	// Unix milliseconds, UTC.
 	Time  int64          `json:"t"`
@@ -86,9 +58,8 @@ type Batch struct {
 	Records []Record `json:"records"`
 }
 
-// Sink consumes a flush. HTTPSink posts to the logging site; the logging site
-// passes its own database writer instead, so it never posts to itself and no
-// amount of ingest traffic can feed itself.
+// Sink consumes a flush. HTTPSink posts to the logging site, which passes its
+// own database writer instead so it never posts to itself.
 type Sink func(source string, records []Record)
 
 // Shipper owns the queue and the goroutine that drains it.
@@ -104,9 +75,7 @@ type Shipper struct {
 
 // ShipLogs installs the tee on top of whatever slog.Default() already is, so
 // SetupLogging must have run first. The returned Shipper flushes what it holds
-// when Close is called, which is worth doing on shutdown: a deploy kills these
-// processes constantly and the last few seconds of records are the ones that
-// say why.
+// on Close.
 func ShipLogs(source string, sink Sink) *Shipper {
 	s := &Shipper{
 		source: source,
@@ -120,14 +89,12 @@ func ShipLogs(source string, sink Sink) *Shipper {
 	return s
 }
 
-// enqueue never blocks. A full queue means the sink is down or the process is
-// producing faster than it can ship, and in both cases the record is already
-// safely on stdout.
+// enqueue never blocks. A full queue means the record is already safely on
+// stdout either way.
 //
-// The channel is deliberately never closed. Handle can run after Close, on a
-// shutdown path where something logs from a later defer, and a send on a closed
-// channel panics: the one way a log shipper could take a site down with it.
-// After Close the buffer simply fills and every record drops.
+// The channel is never closed. Handle can still run after Close, from a later
+// defer, and a send on a closed channel panics, which is the one way a log
+// shipper could take a site down with it.
 func (s *Shipper) enqueue(r Record) {
 	select {
 	case s.ch <- r:
@@ -160,9 +127,8 @@ func (s *Shipper) run() {
 		case <-tick.C:
 			flush()
 		case <-s.quit:
-			// Drain what is already queued, then flush once. Anything
-			// enqueued after this point is dropped, which is the same
-			// answer this gives to a full queue.
+			// Drain what is queued, then flush once. Anything enqueued
+			// after this drops.
 			for {
 				select {
 				case r := <-s.ch:
@@ -181,9 +147,8 @@ func (s *Shipper) run() {
 	}
 }
 
-// Close drains what is queued and waits for the last flush, but never for
-// longer than closeTimeout. See that constant for why the bound is the load
-// bearing part.
+// Close drains what is queued and waits for the last flush, but never longer
+// than closeTimeout.
 func (s *Shipper) Close() {
 	s.stop.Do(func() { close(s.quit) })
 
@@ -192,31 +157,22 @@ func (s *Shipper) Close() {
 	select {
 	case <-s.done:
 	case <-t.C:
-		// The sink is not answering. The records it still holds are on
-		// stdout, and the process is on its way out.
+		// Sink is not answering. Those records are on stdout anyway.
 		fmt.Fprintf(os.Stderr, "log shipping: gave up draining after %s\n", closeTimeout)
 	}
 }
 
-// teeHandler writes through to the real handler and copies to the queue.
-//
-// It cannot embed the next handler: WithAttrs and WithGroup have to return
-// something that still tees, and an embedded handler's versions return the
-// inner handler and silently lose it. Nothing in this repo calls either today;
-// they are implemented properly anyway, because the failure mode of getting
-// this wrong is logs that quietly stop being shipped.
+// teeHandler writes through to the real handler and copies to the queue. It
+// cannot embed the next handler, because an embedded WithAttrs or WithGroup
+// returns the inner handler and silently stops teeing.
 type teeHandler struct {
 	next slog.Handler
 	ship *Shipper
-	// Attributes are stored with the group prefix that was in force when they
-	// were added, not with the current one. Keeping a flat []slog.Attr and
-	// applying today's prefix to all of it retroactively re-prefixes
-	// attributes attached before a later WithGroup: .With(component=crawler)
-	// followed by .WithGroup("http") would ship "http.component", which slog
-	// says must stay "component". The ingest side matches hot keys by exact
-	// name, so that record would land with an empty component and a zero
-	// status, and its hourly rollup would be keyed wrong, while stdout showed
-	// it correctly. Two views of one line, disagreeing.
+	// Each attribute keeps the group prefix in force when it was added, not
+	// the current one. A flat []slog.Attr would retroactively re-prefix
+	// anything attached before a later WithGroup, so .With(component=crawler)
+	// then .WithGroup("http") would ship "http.component" where slog says it
+	// must stay "component", and the ingest side matches keys by exact name.
 	attrs []groupedAttr
 	group string
 }
@@ -241,8 +197,8 @@ func (h *teeHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 }
 
 func (h *teeHandler) WithGroup(name string) slog.Handler {
-	// An empty name is a no-op, matching slog.Logger.WithGroup. Without this
-	// the prefix becomes "group." and every key under it gains a double dot.
+	// An empty name is a no-op, matching slog.Logger.WithGroup. Without it
+	// every key under the group gains a double dot.
 	if name == "" {
 		return h
 	}
@@ -256,8 +212,7 @@ func (h *teeHandler) WithGroup(name string) slog.Handler {
 }
 
 func (h *teeHandler) Handle(ctx context.Context, r slog.Record) error {
-	// stdout first and unconditionally. Whatever happens after this, the
-	// record has been written where it has always been written.
+	// stdout first and unconditionally.
 	err := h.next.Handle(ctx, r)
 
 	out := Record{
@@ -282,8 +237,7 @@ func (h *teeHandler) Handle(ctx context.Context, r slog.Record) error {
 }
 
 // flatten writes one attribute into the map, resolving LogValuer and turning a
-// group into dotted keys. JSON has no notion of a slog group, and a nested
-// object would mean the ingest side could not pull "status" out with one
+// group into dotted keys, so the ingest side can pull "status" out with one
 // lookup.
 func flatten(dst map[string]any, prefix string, a slog.Attr) {
 	a.Value = a.Value.Resolve()
@@ -312,20 +266,15 @@ func flatten(dst map[string]any, prefix string, a slog.Attr) {
 	case slog.KindString:
 		dst[key] = a.Value.String()
 	default:
-		// Any and errors. Formatted rather than marshalled, because an
-		// arbitrary value can fail to marshal and one bad attribute must
-		// not cost the whole batch.
+		// Formatted rather than marshalled, because an arbitrary value can
+		// fail to marshal and one bad attribute must not cost the batch.
 		dst[key] = fmt.Sprint(a.Value.Any())
 	}
 }
 
-// HTTPSink posts batches to the logging site.
-//
-// It never calls slog. A shipper that logged its own failures would enqueue a
-// record about failing to ship, and a logging site that had just come back
-// would then be handed a backlog of complaints about itself. State changes go
-// straight to stderr instead, one line each, which is where a person looking at
-// `docker logs` will see them.
+// HTTPSink posts batches to the logging site. It never calls slog, because a
+// shipper that logged its own failures would enqueue a record about failing to
+// ship. State changes go straight to stderr instead.
 func HTTPSink() Sink {
 	client := &http.Client{Timeout: shipTimeout}
 	var (
@@ -376,14 +325,12 @@ func HTTPSink() Sink {
 			return
 		}
 		defer resp.Body.Close()
-		// Drained as well as closed: an undrained body leaks the
-		// connection out of the pool, and this one is reused every
-		// five seconds forever.
+		// Drained as well as closed, or the connection leaks out of the
+		// pool, and this one is reused every five seconds forever.
 		_, _ = io.Copy(io.Discard, resp.Body)
 
-		// 429 is the logging site shedding load on purpose. It is a
-		// healthy answer from a healthy service, so it drops the batch
-		// without claiming the sink is down.
+		// 429 is the logging site shedding load, a healthy answer, so
+		// drop the batch without marking the sink down.
 		if resp.StatusCode == http.StatusTooManyRequests {
 			return
 		}

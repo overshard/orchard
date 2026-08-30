@@ -5,12 +5,6 @@ import (
 	"html/template"
 )
 
-// Structured data for the portfolio, as one JSON-LD graph per page. For a
-// personal site the useful statement is the person: a job title, an employer
-// and a set of profiles elsewhere, so a search engine can connect this page to
-// the blog and the GitHub account instead of reading five hostnames as five
-// unrelated strangers.
-//
 // The Person node uses the same @id the blog's graph references, so the two
 // sites describe one entity rather than two people with the same name.
 
@@ -19,9 +13,8 @@ const (
 	websiteID = baseURL + "/#website"
 )
 
-// jsonLD marshals a graph for the script tag. template.JS is safe here because
-// encoding/json escapes <, > and & by default, so no string in the graph can
-// close the element early.
+// jsonLD marshals a graph for the script tag. template.JS is safe because
+// encoding/json escapes <, > and & by default.
 func jsonLD(nodes ...map[string]any) template.JS {
 	buf, err := json.MarshalIndent(map[string]any{
 		"@context": "https://schema.org",
@@ -59,8 +52,6 @@ func personNode() map[string]any {
 	}
 }
 
-// pageGraph is the graph for one page: the person, the site, and the page
-// itself pointing at both.
 func pageGraph(title, description, canonical string, crumbs []NavPage) template.JS {
 	nodes := []map[string]any{
 		personNode(),
@@ -85,8 +76,8 @@ func pageGraph(title, description, canonical string, crumbs []NavPage) template.
 		},
 	}
 
-	// A breadcrumb is only meaningful below the root. On the home page the
-	// trail would be one item pointing at itself.
+	// Below the root only. On the home page the trail would be one item
+	// pointing at itself.
 	if len(crumbs) > 0 {
 		items := []map[string]any{
 			{"@type": "ListItem", "position": 1, "name": "Home", "item": baseURL + "/"},

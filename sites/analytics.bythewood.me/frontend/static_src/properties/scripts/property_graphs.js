@@ -1,8 +1,5 @@
 import Chart from "chart.js/auto";
 
-// Palette matches the warm-earth SCSS: mossy green primary, amber secondary,
-// terracotta accent, plus neutral earth tones for the longer tails of the
-// doughnut charts. Alpha-blended so adjacent segments stay readable.
 const palette = [
   "rgba(107, 158, 120, 0.75)", // green
   "rgba(201, 168, 76, 0.75)",  // amber
@@ -20,7 +17,6 @@ const paletteBorders = palette.map((c) => c.replace(/0?\.\d+\)/, "1)"));
 
 const fontStack = "'Monaspace Argon', ui-monospace, 'Cascadia Code', Consolas, monospace";
 
-// Common axis / grid styling for the dark theme.
 Chart.defaults.color = "rgba(221, 215, 205, 0.55)";
 Chart.defaults.borderColor = "rgba(107, 158, 120, 0.08)";
 Chart.defaults.font.family = fontStack;
@@ -38,8 +34,8 @@ const tooltipStyle = {
   cornerRadius: 4,
 };
 
-// Normalize label widths across the four doughnut charts so their legends line
-// up in the sidebar. Pad with non-breaking spaces so monospace widths match.
+// Labels are padded to a common width so the four doughnut legends line up in
+// the sidebar, which only works because the legend font is monospace.
 let maxLabelLength = 0;
 if (document.getElementById("chart-total-events-by-browser-data")) {
   const browserData = JSON.parse(document.getElementById("chart-total-events-by-browser-data").innerHTML);
@@ -81,9 +77,8 @@ const doughnutOptions = {
   },
 };
 
-// Replace the canvas with a centered "no data yet" placeholder. Keeps the
-// card's visual footprint roughly the same so the layout doesn't reflow
-// when one chart has data and another doesn't.
+// The placeholder keeps the card's footprint about the same, so a chart with no
+// data does not reflow the ones beside it.
 function renderEmpty(canvas) {
   const placeholder = document.createElement("div");
   placeholder.className = "chart-empty";
@@ -145,8 +140,6 @@ document.addEventListener("DOMContentLoaded", function () {
   }
   const ctx = canvas.getContext("2d");
 
-  // Build a subtle vertical gradient fill so the line chart feels lit from
-  // below without washing out the dark surface.
   const gradient = ctx.createLinearGradient(0, 0, 0, 320);
   gradient.addColorStop(0, "rgba(107, 158, 120, 0.35)");
   gradient.addColorStop(1, "rgba(107, 158, 120, 0.01)");

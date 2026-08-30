@@ -18,21 +18,8 @@ import (
 	"status.bythewood.me/web"
 )
 
-// Each of these pins something that cannot fail loudly on its own:
-//
-//   - Templates are parsed and executed at *runtime*, so a bad field name is a
-//     500 on a page nobody may load for a week. Executing every one of them
-//     against realistic data catches that at test time.
-//   - The schema has to accept an existing database untouched.
-//   - The security-header reading, the alert state machine and the crawler
-//     checks all encode judgements that are easy to "simplify" into being
-//     wrong.
-
-// --- templates -----------------------------------------------------------
-
-// fullPageData is a PageData with every field populated, so executing a
-// template against it exercises every branch that reads a value rather than
-// only the nil paths.
+// fullPageData populates every field, so a render hits every branch that reads
+// a value and not only the nil paths.
 func fullPageData(t *testing.T) PageData {
 	t.Helper()
 
@@ -134,7 +121,6 @@ func fullPageData(t *testing.T) PageData {
 		}},
 		ResponseTimes: []ResponseTimePoint{
 			{Label: now.Format(time.RFC3339), Total: 142, DNS: &avg, TCP: &avg, TLS: &avg, TTFB: &avg},
-			// An older row: total only, every phase null.
 			{Label: now.Format(time.RFC3339), Total: 138},
 		},
 		StatusCodes:  []LabelCount{{Label: 200, Count: 1400}, {Label: 526, Count: 40}},
@@ -142,9 +128,8 @@ func fullPageData(t *testing.T) PageData {
 	}
 }
 
-// emptyPageData is the other half of the matrix: a property that has just been
-// created and has no checks, no crawl and no audit. Every nullable field is
-// nil, which is the state a template is most likely to blow up on.
+// emptyPageData is the nil-everywhere state a template is most likely to break
+// on.
 func emptyPageData() PageData {
 	return PageData{
 		Title:    "Example",
@@ -157,8 +142,6 @@ func emptyPageData() PageData {
 			Name:          "example.com",
 			CurrentStatus: 200,
 			CrawlState:    "idle",
-			// LighthouseScores, LighthouseDetails, RecentUptimePct,
-			// AvgLighthouseScore and every timestamp left nil.
 		},
 	}
 }
@@ -189,9 +172,8 @@ func TestTemplatesExecute(t *testing.T) {
 	for _, page := range pages {
 		for name, data := range map[string]PageData{"full": full, "empty": empty} {
 			t.Run(page+"/"+name, func(t *testing.T) {
-				// Render through a recorder rather than calling Execute
-				// directly, because Renderer.Render panics on a template
-				// error and the panic is the failure being tested for.
+				// Render through a recorder, since Renderer.Render panics on a
+				// template error and that panic is the failure being tested for.
 				rec := httptest.NewRecorder()
 				defer func() {
 					if r := recover(); r != nil {
@@ -211,8 +193,7 @@ func TestTemplatesExecute(t *testing.T) {
 	}
 }
 
-// TestPropertiesListWithNoProperties covers the {{else}} arm of the range,
-// which neither of the fixtures above reaches because both supply one.
+// Covers the {{else}} arm of the range, which neither fixture above reaches.
 func TestPropertiesListWithNoProperties(t *testing.T) {
 	templates, _ := fs.Sub(templateFS, "templates")
 	renderer, err := web.NewRenderer(templates, templateFuncs,
@@ -269,11 +250,8 @@ func TestReportEscapesTypstComment(t *testing.T) {
 	}
 }
 
-// --- schema --------------------------------------------------------------
-
-// TestSchemaAcceptsLegacyDatabase builds a database with the shape this app
-// inherited, opens it with openDB and writes through every column, so a drifted
-// schema fails here rather than against the real database on deploy day.
+// TestSchemaAcceptsLegacyDatabase writes through every column of an inherited
+// database, so schema drift fails here and not on deploy day.
 func TestSchemaAcceptsLegacyDatabase(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "db.sqlite3")
 
@@ -290,8 +268,7 @@ func TestSchemaAcceptsLegacyDatabase(t *testing.T) {
 		t.Fatalf("applying the legacy schema: %v", err)
 	}
 	// An older migration tool's bookkeeping table, which this app ignores and
-	// must not trip over. It is left in place on the real database too,
-	// because dropping it would break a rollback.
+	// must not trip over. Dropping it for real would break a rollback.
 	if _, err := seed.Exec(`CREATE TABLE _sqlx_migrations (version BIGINT PRIMARY KEY);
 		INSERT INTO _sqlx_migrations VALUES (1), (2);`); err != nil {
 		t.Fatal(err)
@@ -304,7 +281,6 @@ func TestSchemaAcceptsLegacyDatabase(t *testing.T) {
 		 VALUES (?, 'https://example.com', 1, 0, 'up', ?, ?)`, id[:], now, now); err != nil {
 		t.Fatal(err)
 	}
-	// An older check row, with no phase timings at all.
 	if _, err := seed.Exec(
 		`INSERT INTO checks (property_id, status_code, response_ms, headers, created_at)
 		 VALUES (?, 200, 142, '{}', ?)`, id[:], now); err != nil {
@@ -331,7 +307,6 @@ func TestSchemaAcceptsLegacyDatabase(t *testing.T) {
 		t.Errorf("property read back wrong: %+v", p)
 	}
 
-	// Writing a new check must work, including the four phase columns.
 	dns, tcp, tls, ttfb := int64(3), int64(11), int64(29), int64(64)
 	if _, err := db.ExecContext(ctx,
 		`INSERT INTO checks (property_id, status_code, response_ms, headers,
@@ -348,8 +323,8 @@ func TestSchemaAcceptsLegacyDatabase(t *testing.T) {
 	if len(checks) != 2 {
 		t.Fatalf("expected 2 checks, got %d", len(checks))
 	}
-	// The older row must still read back with nil phases rather than zeros:
-	// the chart draws a gap for nil and a floor for 0.
+	// The older row must read back with nil phases and not zeros, since the
+	// chart draws a gap for nil and a floor for 0.
 	var legacy *Check
 	for i := range checks {
 		if checks[i].ResponseMS == 142 {
@@ -364,8 +339,8 @@ func TestSchemaAcceptsLegacyDatabase(t *testing.T) {
 	}
 }
 
-// TestSchemaIsIdempotent covers the ordinary restart: openDB runs on every
-// boot and must be a no-op against a database it already created.
+// TestSchemaIsIdempotent covers the ordinary restart, where openDB has to be a
+// no-op against a database it already created.
 func TestSchemaIsIdempotent(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "db.sqlite3")
 	for i := range 3 {
@@ -376,8 +351,6 @@ func TestSchemaIsIdempotent(t *testing.T) {
 		db.Close()
 	}
 }
-
-// --- security posture ----------------------------------------------------
 
 func TestSecurityPosture(t *testing.T) {
 	headers := func(m map[string]string) []Check {
@@ -413,9 +386,8 @@ func TestSecurityPosture(t *testing.T) {
 		v.applySecurityPosture(headers(map[string]string{
 			"strict-transport-security": "max-age=99999999999999999999999",
 		}))
-		// It does not parse as an int64, so it reports as absent rather than
-		// wrapping to a negative number. What must not happen is a panic or a
-		// nonsense comparison.
+		// It does not parse as an int64, so it reports absent rather than wrapping
+		// negative. A panic here is the failure.
 		_ = v.HasHSTS
 	})
 
@@ -446,10 +418,8 @@ func TestSecurityPosture(t *testing.T) {
 	})
 }
 
-// --- alert state machine -------------------------------------------------
-
-// TestAlertStateMachine pins the asymmetry that makes the alerting usable: two
-// strikes to go down, one success to come back.
+// TestAlertStateMachine pins the asymmetry in the alerting, two strikes to go
+// down and one success to come back.
 func TestAlertStateMachine(t *testing.T) {
 	db, id := freshDB(t)
 	ctx := context.Background()
@@ -498,17 +468,16 @@ func TestAlertStateMachine(t *testing.T) {
 	}
 }
 
-// TestAlertStateIgnoresNonConsecutiveFailures is the flapping case the
-// debounce exists for: fail, recover, fail must not fire an outage.
+// TestAlertStateIgnoresNonConsecutiveFailures is the flapping case, where
+// fail, recover, fail must not fire an outage.
 func TestAlertStateIgnoresNonConsecutiveFailures(t *testing.T) {
 	db, id := freshDB(t)
 	ctx := context.Background()
 	notifier := &Notifier{client: http.DefaultClient, base: "http://127.0.0.1:1", topic: "test"}
 	p, _ := getProperty(ctx, db, id)
 
-	// created_at is set explicitly and increasing, because the state machine
-	// orders by it and three rows written in the same millisecond would order
-	// arbitrarily.
+	// created_at is explicit and increasing, since the state machine orders by
+	// it and same-millisecond rows would order arbitrarily.
 	base := nowMS()
 	for i, code := range []int64{503, 200, 503} {
 		if _, err := db.Exec(
@@ -545,8 +514,6 @@ func freshDB(t *testing.T) (*sql.DB, uuid.UUID) {
 	return db, id
 }
 
-// --- alerts --------------------------------------------------------------
-
 func TestRenderAlert(t *testing.T) {
 	ctx := AlertContext{
 		ID: "abc", Name: "example.com", URL: "https://example.com",
@@ -563,8 +530,7 @@ func TestRenderAlert(t *testing.T) {
 	if down.Click != baseURL+"/abc" {
 		t.Errorf("the down alert links to %q, which is not an absolute dashboard URL", down.Click)
 	}
-	// Priority matters: this is read on a phone, and an outage that does not
-	// stand out from a recovery gets missed.
+	// Read on a phone, where an outage that looks like a recovery gets missed.
 	if down.Priority == "default" {
 		t.Error("the outage alert has the same priority as a recovery")
 	}
@@ -573,8 +539,6 @@ func TestRenderAlert(t *testing.T) {
 		t.Error("an unknown alert kind rendered instead of being refused")
 	}
 }
-
-// --- crawler checks ------------------------------------------------------
 
 func page(url string, html *ParsedHTML) *Page {
 	return &Page{URL: url, Status: 200, IsHTML: true, HTML: html, ContentType: "text/html"}
@@ -640,7 +604,6 @@ func TestParseHTML(t *testing.T) {
 		t.Errorf("expected 2 crawlable links, got %d: %+v", len(p.Links), p.Links)
 	}
 
-	// The pointer exists to keep the alt distinction.
 	var missing, decorative int
 	for _, img := range p.Images {
 		switch {
@@ -661,8 +624,8 @@ func TestParseHTML(t *testing.T) {
 		t.Errorf("form parsed as %+v", p.Forms[0])
 	}
 
-	// Script and style text must not reach the word count, or every page with
-	// a big inline bundle would pass the thin-content check on its JavaScript.
+	// Script text must not reach the word count, or a page with a big inline
+	// bundle passes the thin-content check on its JavaScript.
 	scripty := parsed(t,
 		`<html><body><p>one two</p><script>var lorem = "ipsum dolor sit amet";</script></body></html>`,
 		"https://example.com/")
@@ -688,8 +651,7 @@ func TestSameSite(t *testing.T) {
 		{"https://www.example.com/a", "example.com", true},
 		{"https://example.com/a", "www.example.com", true},
 		{"https://other.example/a", "example.com", false},
-		// A subdomain is a different site: it can have its own robots.txt and
-		// its own sitemap, and crawling into it would silently widen the audit.
+		// A subdomain is a different site with its own robots.txt and sitemap.
 		{"https://blog.example.com/a", "example.com", false},
 		{"not a url", "example.com", false},
 	}
@@ -733,7 +695,6 @@ func TestChecksFindTheObviousFailures(t *testing.T) {
 		byURL[i.URL] = append(byURL[i.URL], i.Issue)
 	}
 
-	// The bad page must be caught for all of these.
 	for _, want := range []string{
 		"Page has no meta description",
 		"Page has no h1",
@@ -748,9 +709,8 @@ func TestChecksFindTheObviousFailures(t *testing.T) {
 		}
 	}
 
-	// And the good page must not be caught for any of them. This is the
-	// direction that matters: a check that fires on everything is noise, and
-	// noise gets a whole audit ignored.
+	// And the good page must not be caught for any of them, since a check that
+	// fires on everything gets the audit ignored.
 	for _, unwanted := range []string{
 		"Page has no title",
 		"Page has no meta description",
@@ -778,7 +738,7 @@ func containsIssue(issues []string, want string) bool {
 }
 
 // TestRedirectChainCheckFires guards a condition that is easy to make
-// unreachable by recording a one-element chain and testing for more than two.
+// unreachable by recording one hop and testing for more than two.
 func TestRedirectChainCheckFires(t *testing.T) {
 	result := &CrawlResult{
 		StartURL: "https://example.com/",
@@ -803,7 +763,7 @@ func TestRedirectChainCheckFires(t *testing.T) {
 }
 
 // The same crawl must produce the same findings in the same order every time,
-// or a weekly report diffs as changed when nothing did.
+// or a weekly report diffs as changed when nothing has.
 func TestDuplicateChecksAreOrdered(t *testing.T) {
 	build := func() []*Page {
 		var pages []*Page
@@ -851,8 +811,6 @@ func TestLighthouseScorePairsAreOrdered(t *testing.T) {
 	}
 }
 
-// --- lighthouse parsing --------------------------------------------------
-
 func TestParseScoresRejectsNulls(t *testing.T) {
 	report := map[string]any{"categories": map[string]any{
 		"performance":    map[string]any{"score": 0.98},
@@ -861,9 +819,8 @@ func TestParseScoresRejectsNulls(t *testing.T) {
 		"seo":            map[string]any{"score": 0.91},
 	}}
 
-	// A null score means the category could not be evaluated. Storing it as
-	// zero would draw a red bar claiming the site scored nothing, which is a
-	// much worse claim than "the audit did not complete".
+	// A null score means the category could not be evaluated, so storing zero
+	// would claim the site scored nothing.
 	if _, err := parseScores(report); err == nil {
 		t.Fatal("a null score was accepted instead of failing the audit")
 	}
@@ -897,8 +854,8 @@ func TestParseDetailsFiltersNonActionableAudits(t *testing.T) {
 		"audits": map[string]any{
 			"lcp":     map[string]any{"score": 0.4, "title": "Largest Contentful Paint", "displayValue": "3.1 s"},
 			"passing": map[string]any{"score": 0.95, "title": "Already fine"},
-			// Kept for compatibility by Lighthouse but no longer scored, so
-			// it must not appear as a win the site never earned.
+			// Kept by Lighthouse but no longer scored, so it must not show up
+			// as a win the site never earned.
 			"hidden-audit": map[string]any{"score": 0.1, "title": "Time to Interactive"},
 			// Scores badly but carries no actionable saving.
 			"diagnostic": map[string]any{"score": 0.1, "title": "Avoid forced reflow"},
@@ -920,8 +877,6 @@ func TestParseDetailsFiltersNonActionableAudits(t *testing.T) {
 		t.Errorf("opportunities = %+v; only the one with a real saving should survive", d.Opportunities)
 	}
 }
-
-// --- helpers -------------------------------------------------------------
 
 func TestSafeNext(t *testing.T) {
 	cases := map[string]string{
@@ -953,8 +908,7 @@ func TestSessionRoundTrip(t *testing.T) {
 		t.Error("a freshly issued session did not authenticate")
 	}
 
-	// Rotating the password must end every outstanding session, which is why
-	// the key is derived from it.
+	// The key comes from the password, so rotating it must end every session.
 	if isAuthenticated(req, sessionKey("hunter3")) {
 		t.Error("a session survived a password change")
 	}
@@ -1002,8 +956,7 @@ func TestPropertyName(t *testing.T) {
 		"https://www.example.com/path": "example.com",
 		"https://example.com":          "example.com",
 		"https://example.com:8443/":    "example.com",
-		// Not a URL at all: the whole string, rather than a panic or an empty
-		// name that would render as a blank row.
+		// Not a URL at all, so the whole string, rather than a blank row.
 		"nonsense": "nonsense",
 	}
 	for in, want := range cases {
@@ -1071,8 +1024,8 @@ func TestJSONBlockDoesNotDoubleEscape(t *testing.T) {
 	}
 }
 
-// TestStatusPayloadShape pins the field names the dashboard JavaScript reads.
-// Renaming any of them silently breaks the live panel with no server error.
+// TestStatusPayloadShape pins the field names the dashboard JavaScript reads,
+// where a rename breaks the live panel with no server error.
 func TestStatusPayloadShape(t *testing.T) {
 	pages := int64(12)
 	p := &Property{
@@ -1123,8 +1076,8 @@ func TestCrawlProgressStaysBelowComplete(t *testing.T) {
 	}
 }
 
-// reportTemplates is a package level Must(), so a broken report template panics
-// at init and takes the whole binary down rather than one route.
+// reportTemplates is a package level Must(), so a broken report template takes
+// the whole binary down at init rather than one route.
 func TestReportsParse(t *testing.T) {
 	var names []string
 	for _, tmpl := range reportTemplates.Templates() {
@@ -1143,10 +1096,9 @@ func TestReportsParse(t *testing.T) {
 	}
 }
 
-// classifyCache is what stops an edge cache answering on behalf of a dead
-// origin from being recorded as "up". The distinction it has to get right is
-// that being cached is normal and is not a failure: only a copy older than a
-// live origin could have left behind is evidence of one.
+// classifyCache stops an edge cache answering for a dead origin from reading
+// as "up". Being cached is normal, so only a copy older than a live origin
+// could have left behind is evidence of a failure.
 func TestClassifyCache(t *testing.T) {
 	const cc = "public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800"
 
@@ -1156,9 +1108,8 @@ func TestClassifyCache(t *testing.T) {
 		unreachable bool
 	}{
 		{
-			// The observed healthy steady state: Age cycles up to roughly
-			// max-age plus one probe interval and resets when a background
-			// revalidation succeeds. Measured max over 12 hours was 419.
+			// The healthy steady state, Age climbing to about max-age plus one
+			// probe interval before a revalidation resets it.
 			name:        "cached but fresh enough to have been revalidated",
 			headers:     map[string]string{"cf-cache-status": "HIT", "age": "419", "cache-control": cc},
 			unreachable: false,
@@ -1176,8 +1127,8 @@ func TestClassifyCache(t *testing.T) {
 			unreachable: true,
 		},
 		{
-			// The origin was reached for this response, so Age says nothing
-			// about it and the check must not fire however large it is.
+			// The origin was reached here, so Age says nothing about it and the
+			// check must not fire however large it is.
 			name:        "uncached response is always origin truth",
 			headers:     map[string]string{"cf-cache-status": "DYNAMIC", "age": "99999", "cache-control": cc},
 			unreachable: false,
@@ -1188,8 +1139,8 @@ func TestClassifyCache(t *testing.T) {
 			unreachable: false,
 		},
 		{
-			// Without a max-age there is no envelope to compare against, so
-			// the honest answer is to say nothing rather than guess one.
+			// Without a max-age there is no envelope, so it says nothing rather
+			// than guessing one.
 			name:        "cached with no max-age to calibrate against",
 			headers:     map[string]string{"cf-cache-status": "HIT", "age": "99999"},
 			unreachable: false,
@@ -1206,8 +1157,8 @@ func TestClassifyCache(t *testing.T) {
 	}
 }
 
-// The tolerance must follow the site's own policy rather than a constant, so
-// that changing a cache policy cannot silently turn this into a false alarm.
+// The tolerance follows the site's own policy, so changing a cache policy
+// cannot quietly turn this into a false alarm.
 func TestMaxAgeOf(t *testing.T) {
 	for _, tc := range []struct {
 		in   string
@@ -1227,13 +1178,9 @@ func TestMaxAgeOf(t *testing.T) {
 	}
 }
 
-// The conclusion has to reach the database, not just the caller.
-//
-// The first version of this fix returned 523 from runCheck while inserting the
-// edge's 200, and advanceAlertState looks for a second consecutive failure by
-// re-reading status_code out of checks. Row zero was the row just written, it
-// said 200, and the down transition could therefore never fire: the fix
-// compiled, logged, and did nothing at all.
+// The conclusion has to reach the database and not just the caller, since
+// advanceAlertState re-reads status_code out of checks and would otherwise see
+// the edge's 200 in the row that was just written.
 func TestOriginStaleIsPersistedNotJustReturned(t *testing.T) {
 	const cc = "public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800"
 
@@ -1246,9 +1193,8 @@ func TestOriginStaleIsPersistedNotJustReturned(t *testing.T) {
 		t.Fatal("precondition: this response should read as origin-unreachable")
 	}
 
-	// runCheck writes `effective`, so the constant it writes must be the same
-	// one the alert machine treats as not-up. Asserting the relationship rather
-	// than the number, since the number is arbitrary.
+	// runCheck writes `effective`, so it has to write something the alert
+	// machine treats as not-up. The number itself is arbitrary.
 	if statusOriginStale == 200 {
 		t.Fatal("statusOriginStale must not be 200, or every stale check reads as up")
 	}

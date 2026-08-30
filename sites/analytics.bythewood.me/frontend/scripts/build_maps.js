@@ -1,16 +1,6 @@
-// Build static map assets from Natural Earth.
-//
-// Downloads admin-0 (countries) and admin-1 (states / provinces) GeoJSON,
-// converts to TopoJSON with quantization, and writes:
-//
-//   analytics/build/static_maps/world.json            - all countries, keyed by ISO_A2
-//   analytics/build/static_maps/admin1/{ISO_A2}.json  - one file per country
-//
-// Source: martynafford/natural-earth-geojson (mirrors Natural Earth public-
-// domain data as GeoJSON). Run at Docker build time so the produced files
-// are baked into the image — no runtime third-party calls.
-//
-// Run with `bun run build:maps`.
+// Builds the map data from Natural Earth, via martynafford/natural-earth-geojson.
+// Writes build/static_maps/world.json keyed by ISO_A2, plus one
+// build/static_maps/admin1/{ISO_A2}.json per country. `bun run build:maps`.
 
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve, dirname } from "node:path";
@@ -20,15 +10,14 @@ import { topology } from "topojson-server";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = resolve(__dirname, "../../build/static_maps");
 
-// 110m for the always-on world view (small, ~30 KB topojson). 10m for
-// admin-1 because the 50m and 110m bundles only ship four big countries —
-// 10m is the only Natural Earth tier with full per-country admin-1 coverage.
+// 110m is plenty for the world view. admin-1 has to be 10m, since it is the
+// only Natural Earth tier with full per-country coverage.
 const BASE = "https://raw.githubusercontent.com/martynafford/natural-earth-geojson/master";
 const ADMIN0_URL = `${BASE}/110m/cultural/ne_110m_admin_0_countries.json`;
 const ADMIN1_URL = `${BASE}/10m/cultural/ne_10m_admin_1_states_provinces.json`;
 
-// 1e5 keeps coastlines smooth at typical screen sizes while still cutting
-// file size by ~70% versus raw GeoJSON. d3-geo handles the dequantization.
+// 1e5 keeps coastlines smooth at screen sizes and still cuts the file size a
+// long way against raw GeoJSON. d3-geo handles the dequantization.
 const QUANTIZATION = 1e5;
 
 async function fetchJson(url) {
@@ -38,10 +27,9 @@ async function fetchJson(url) {
   return res.json();
 }
 
-// Natural Earth has a long-running bug where France ("FRA") and Norway
-// ("NOR") get ISO_A2 = "-99" because of an EU/Schengen dispute baked into
-// the source. Map them back from ISO_A3 — every other country with a real
-// ISO_A2 ships it cleanly.
+// Natural Earth has a long-running bug where France and Norway get
+// ISO_A2 = "-99", from an EU/Schengen dispute baked into the source. They are
+// the only two, so map them back from ISO_A3.
 const A3_TO_A2_OVERRIDES = {
   FRA: "FR",
   NOR: "NO",
@@ -60,8 +48,8 @@ function normalizeCountryCode(props) {
 }
 
 function trimCountryProps(feature) {
-  // World-map features only need a name and ISO code on the client; drop
-  // the other ~80 Natural Earth fields to keep the payload small.
+  // The client only needs a name and an ISO code, so the other Natural Earth
+  // fields are dropped to keep the payload down.
   const p = feature.properties || {};
   const iso = normalizeCountryCode(p);
   return {
@@ -76,9 +64,8 @@ function trimCountryProps(feature) {
 
 function trimAdmin1Props(feature) {
   const p = feature.properties || {};
-  // Natural Earth's `name` is the local-language form (e.g. "Bayern"),
-  // while DB-IP / MaxMind return the English form ("Bavaria"). Keep both
-  // so the runtime lookup can match either.
+  // Natural Earth's `name` is the local form ("Bayern") and DB-IP returns the
+  // English one ("Bavaria"), so both are kept and the lookup can match either.
   return {
     ...feature,
     properties: {

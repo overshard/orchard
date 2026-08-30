@@ -9,11 +9,9 @@ import (
 )
 
 // Renderer parses a base layout plus one template per page, and renders into a
-// buffer before writing.
-//
-// Buffering is what makes a mid-render template error recoverable. Writing
-// straight to the ResponseWriter would send the 200 and the first half of the
-// page first, producing a broken document that looks like a success.
+// buffer before writing. Buffering is what makes a mid-render template error
+// recoverable: writing straight to the ResponseWriter would send the 200 and
+// half a page before anything failed.
 type Renderer struct {
 	pages map[string]*template.Template
 }

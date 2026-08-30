@@ -4,31 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <!-- Whether the opening curtain plays has to be known before the first
-         paint, or it flashes on and then vanishes. That rules out the module
-         bundle, which is deferred by definition, so this is the one thing on
-         the page that has to be a blocking inline script. It touches no layout,
-         so it costs nothing measurable.
-
-         The curtain is cover for a cold first paint: fetching the CSS, the
-         bundle, the fonts and a hero image. The question it has to answer is
-         "does this browser already have those bytes", and the bundle's own
-         content hash answers it. Every file under /static/ is served immutable
-         for a year, so a browser that fetched THIS build still has it, and a
-         deploy changes the hash, which is when the browser has to download
-         everything again.
-
-         That is why this is localStorage keyed on the build rather than a
-         sessionStorage "have I been here this tab" flag. A new tab an hour
-         later loads instantly off cache and should not sit through a curtain
-         covering nothing, while a genuinely cold load after a deploy should.
-         The seven day window is for the case the flag cannot see: browsers
-         evict the HTTP cache long before they evict localStorage, so a visit a
-         week later is treated as cold whatever the hash says.
-
-         The try/catch is for private modes and blocked storage, where reading
-         throws. Falling back to playing the curtain is right: a context with no
-         storage is almost always a fresh one with nothing cached either. -->
+    <!-- Blocking and inline, since whether the curtain plays has to be settled
+         before the first paint. Keyed on the build hash, which is what says
+         whether this browser still has this build's bytes in its cache. -->
     <script>
       (function () {
         // Set before first paint, so CSS can scope anything that only makes
@@ -72,9 +50,8 @@
     <meta property="og:title" content="{{ .Title }}" />
     <meta property="og:description" content="{{ .Description }}" />
     <meta property="og:url" content="{{ .Canonical }}" />
-    <!-- A PNG, not the SVG favicon: every social platform refuses
-         image/svg+xml here, so a vector card is a card nobody sees. Compiled
-         from og/card.typ at build time, like the resume. -->
+    <!-- A PNG, not the SVG favicon. Every social platform refuses
+         image/svg+xml here, so a vector card is a card nobody sees. -->
     <meta property="og:image" content="{{ .OGImage }}" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
@@ -152,12 +129,9 @@
       <div class="menu-patty" style="width: 20px"></div>
     </button>
 
-    <!-- inert while closed. The overlay is hidden by z-index and a transform
-         rather than display or visibility, which keeps it in the tab order: a
-         keyboard user hit nine focusable links to a panel that is off screen,
-         with the focus ring drawn behind the page. inert removes the subtree
-         from the tab order and the accessibility tree without touching the
-         z-index choreography the slide-out depends on. -->
+    <!-- The overlay is hidden by z-index and a transform rather than display
+         or visibility, so its links stay in the tab order. inert takes them out
+         without disturbing the z-index the slide-out depends on. -->
     <div class="menu-overlay" id="menu-overlay" inert>
       <div class="menu-overlayGrid">
         <div class="menu-overlayGridLeft">
@@ -176,11 +150,9 @@
           </div>
         </div>
         <div class="menu-overlayGridRight">
-          <!-- Loaded on first open, not on page load. loading="lazy" does not
-               help here: the overlay is a full-screen fixed element sitting at
-               z-index -5000, so it intersects the viewport and the browser
-               fetches it anyway. That is a megabyte on every single page view
-               for a panel most visitors never open. -->
+          <!-- Loaded on first open. loading="lazy" does not help, because the
+               overlay is a full-screen fixed element that intersects the
+               viewport, so the browser fetches the image anyway. -->
           <img
             data-src="{{ .MenuSrc }}"
             data-srcset="{{ .MenuSrcset }}"

@@ -11,13 +11,8 @@ import (
 	"time"
 )
 
-// Report export: the dashboard's data as a PDF, or as Markdown.
-
-// Report templates are text, so they are parsed with text/template.
-// html/template would escape a Typst "#" or a Markdown "*" into an HTML entity
-// and produce a document full of &amp;. Escaping still happens, through typstMD
-// and typstStr below, which know what is dangerous in Typst rather than in
-// HTML.
+// Report templates are text: html/template would escape a Typst "#" or a
+// Markdown "*" into an entity. typstMD and typstStr do the escaping instead.
 //
 //go:embed reports
 var reportFS embed.FS
@@ -38,12 +33,11 @@ var reportFuncs = texttemplate.FuncMap{
 var reportTemplates = texttemplate.Must(
 	texttemplate.New("reports").Funcs(reportFuncs).ParseFS(reportFS, "reports/*"))
 
-// typstRoot is the directory Typst resolves absolute paths against, and the
-// boundary of what a compile is allowed to read.
+// typstRoot is the directory Typst resolves absolute paths against, bounding
+// what a compile is allowed to read.
 func typstRoot() string { return dir("SITE_ROOT", ".") }
 
 func (s *site) renderReport(w http.ResponseWriter, r *http.Request, format, propertyName string, data PageData) {
-	// The PDF path renders Typst source, so its template is report.typ.
 	name := "report.typ"
 	if format == "md" {
 		name = "report.md"
@@ -67,8 +61,7 @@ func (s *site) renderReport(w http.ResponseWriter, r *http.Request, format, prop
 
 	pdf, err := s.typst.Render(r.Context(), typstRoot(), buf.String())
 	if err != nil {
-		// A missing binary is the normal state of a dev checkout, so it
-		// reports as unavailable rather than as a fault.
+		// A missing binary is the normal state of a dev checkout, not a fault.
 		if err == ErrTypstMissing {
 			slog.Info(fmt.Sprintf("pdf report: %v (install typst, or use ?report=md)", err))
 			http.Error(w, "pdf export unavailable", http.StatusServiceUnavailable)
@@ -84,10 +77,8 @@ func (s *site) renderReport(w http.ResponseWriter, r *http.Request, format, prop
 	_, _ = w.Write(pdf)
 }
 
-// asciiFilename reduces a property name to something a Content-Disposition
-// header can carry literally. A non-ASCII byte cannot go into a header value
-// unencoded, and Go will send a header the client silently ignores rather than
-// complaining.
+// asciiFilename reduces a property name to bytes a Content-Disposition value can
+// carry literally; Go will send a non-ASCII one the client silently ignores.
 func asciiFilename(name string) string {
 	var b strings.Builder
 	b.Grow(len(name))
@@ -101,8 +92,7 @@ func asciiFilename(name string) string {
 			b.WriteByte('_')
 		}
 	}
-	// A leading or trailing dot makes a hidden or extensionless file on some
-	// systems, and a name of pure punctuation is no name at all.
+	// A leading or trailing dot makes a hidden or extensionless file.
 	out := strings.Trim(strings.TrimSpace(b.String()), ".")
 	if out == "" {
 		return "report"

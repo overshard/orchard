@@ -1,75 +1,41 @@
-# ntfy, the alert path for every site in this repo.
-#
-# Publishing is plain HTTP from inside the bridge: status posts outage
-# transitions to /status, logging posts silence and unclean-restart transitions
-# to /logging, both over the Docker bridge with a write-only token. Reading is
-# over the tunnel at ntfy.bythewood.me with a separate read-only account.
+# ntfy, the alert path for every site in this repo. status and logging publish
+# over the bridge with a write-only token, and a phone reads over the tunnel at
+# ntfy.bythewood.me with a separate read-only account.
 #
 # Publishing is fenced to the bridge by Caddy rather than by anything in here,
 # because ntfy has no way to restrict an account by source address. That is the
 # fact to remember before trying to solve it again in this file.
-#
-# This file is baked into the image rather than mounted. The Docker CLI in the
-# webdev container talks to Docker Desktop on the Windows host, whose daemon
-# resolves a bind mount source against its own filesystem, where this directory
-# does not exist. It mounts empty instead of failing. Same reason the Caddyfile
-# is baked in.
 
-# 8000 internally, like every other container in this repo. ntfy's own default
-# is :80.
+# 8000 like every other container in this repo. ntfy's own default is :80.
 listen-http: ":8000"
 
-# The address a phone reaches this at, and what a click link in a notification
-# has to resolve to from anywhere. Hardcoded rather than passed in, because it
-# is identity and not a credential: the same rule every site in this repo
-# follows in its site.go.
+# What a click link in a notification has to resolve to from anywhere.
 base-url: "https://ntfy.bythewood.me"
 
-# Messages survive a restart and a phone that was offline, which is the
-# difference between an alert path and a coin flip. The default cache duration
-# is 12h; a day covers being away from a signal over a weekend without making
-# this volume grow in any way that matters at a handful of alerts a month.
+# So messages survive a restart and a phone that was offline. The default is 12h,
+# and a day covers a weekend away from signal at a handful of alerts a month.
 cache-file: "/var/lib/ntfy/cache.db"
 cache-duration: "24h"
 
-# Authentication, because this is reachable from the internet at
-# ntfy.bythewood.me and not only from the bridge.
-#
-# deny-all means exactly that: an anonymous request can neither read nor
-# publish, on any topic. Two accounts exist, created by setup-ntfy.sh:
-#
-#   isaac    read-only on status and logging, used by the phone
-#   orchard  write-only on status and logging, used by the sites publishing
-#
-# The publishers authenticate with a token rather than a password, so it can be
-# revoked on its own without changing anything a person types, and it lives in
-# each site's .env rather than in this file.
-#
-# Both halves are credentials now, which is why the volume under this is called
-# data and not cache: a cache is disposable and this is not.
+# deny-all means an anonymous request can neither read nor publish, on any topic.
+# Two accounts exist, created by setup-ntfy.sh: isaac reads status and logging,
+# orchard writes them with a token that lives in each site's .env.
 auth-file: "/var/lib/ntfy/user.db"
 auth-default-access: "deny-all"
 
 # Attachments are off (no attachment-cache-dir), so nothing here accepts a file
-# upload. Alerts are a title, a line of text and a click URL.
+# upload.
 
-# No web app. ntfy serves a full single-page client at / by default, and on a
-# public hostname that is a login form, a service worker and a pile of static
-# assets answering to anyone who finds the name, in front of a service whose
-# only two clients are an Android app and two Go programs. Neither reads any of
-# it: the app talks to /<topic>/ws, /<topic>/json and /<topic>/auth, and the
-# publishers POST to /<topic>. Turning it off removes the whole surface rather
-# than protecting it.
+# No web app. ntfy serves a full single-page client at / by default, and the only
+# clients here are an Android app and two Go programs, neither of which reads any
+# of it.
 web-root: "disable"
 
-# X-Forwarded-For is NOT trusted, even though Caddy sets it. Trusting it would
-# let a publisher spoof its own address, and the only thing it buys is per-IP
-# rate limiting that a handful-of-alerts-a-month system does not need. Rate
-# limits therefore count against the peer address, which is the bridge for
-# publishers and Caddy for readers: correct for the first and harmlessly shared
-# for the second.
+# X-Forwarded-For is NOT trusted, even though Caddy sets it, since trusting it
+# would let a publisher spoof its own address. Rate limits count against the peer
+# address instead, the bridge for publishers and Caddy for readers.
 behind-proxy: false
 
-# Quieter than the default: this is machine to machine and every publish is
-# already recorded by the site that made it.
+# Machine to machine, and every publish is already recorded by the site that made
+# it.
 log-level: "warn"

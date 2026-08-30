@@ -32,29 +32,18 @@ func SetupLogging() {
 }
 
 // Serve runs h on addr until SIGINT or SIGTERM, then drains in-flight requests
-// before returning. Every deploy is a `docker compose up --build`, so these
-// processes are killed and restarted often and a half-written response is
-// something somebody sees.
+// before returning.
 func Serve(addr string, h http.Handler) error {
 	srv := &http.Server{
 		Addr:    addr,
 		Handler: h,
-		// This is the one place this file diverges from the copy in the other
-		// five sites, and the divergence is the point rather than drift.
-		//
-		// Those sites serve HTML and a Typst render, so a 30s read bound and a
-		// 60s write bound are generous. This one serves the git wire, where a
-		// single request legitimately carries a 100MB packfile up or a whole
-		// repository down. Go's ReadTimeout covers reading the entire body and
-		// WriteTimeout the entire response, so those numbers do not slow a
-		// large push down, they make it fail: a clone of anything substantial
-		// is cut off mid-stream at sixty seconds.
-		//
-		// ReadHeaderTimeout is kept, and it is the bound that actually matters
-		// for denial of service: it is what closes a connection that opens and
-		// then dribbles headers forever. The body bounds are handled where the
-		// size is known instead, by the 100MB spool cap in wire.go and by
-		// Cloudflare refusing anything larger at the edge.
+		// No body timeouts here, unlike the copy in the other five sites. This
+		// one serves the git wire, where one request carries a whole packfile,
+		// and Go's ReadTimeout and WriteTimeout bound the entire body and the
+		// entire response, so a 60s write bound cuts a large clone off
+		// mid-stream. ReadHeaderTimeout still closes a connection that dribbles
+		// headers forever, and body size is bounded by the spool cap in wire.go
+		// and by Cloudflare at the edge.
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       0,
 		WriteTimeout:      0,

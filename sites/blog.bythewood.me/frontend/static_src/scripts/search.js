@@ -1,11 +1,5 @@
-/**
- * Search.js
- *
- * Provides live search for any "id_search" field using the URL
- * /search/live/?q=<query>
- *
- * Arrow keys navigate results, Enter follows the selected link.
- */
+// Live search for any "id_search" field, against /search/live/?q=<query>.
+// Arrow keys navigate the results and Enter follows the selected link.
 
 document.addEventListener("DOMContentLoaded", function () {
   const searchEl = document.getElementById("id_search");
@@ -53,7 +47,6 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   searchEl.addEventListener("keyup", function (e) {
-    // Ignore navigation keys
     if (["ArrowDown", "ArrowUp", "Enter"].includes(e.key)) return;
 
     const query = searchEl.value;
@@ -81,9 +74,8 @@ document.addEventListener("DOMContentLoaded", function () {
         resultsDiv.style.border = "1px solid rgba(107,158,120,0.15)";
         resultsEl.appendChild(resultsDiv);
 
-        // Build result rows from text nodes: a query with regex
-        // metacharacters (e.g. "c++") must not throw, and post text must
-        // never be parsed as HTML.
+        // Rows are built from text nodes, so a query with regex metacharacters
+        // ("c++") cannot throw and post text is never parsed as HTML.
         const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         const appendHighlighted = (parent, text, strongClass) => {
           const re = new RegExp(escapeRegExp(query), "gi");

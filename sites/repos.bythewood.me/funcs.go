@@ -22,8 +22,7 @@ var templateFuncs = template.FuncMap{
 	"sub":        func(a, b int) int { return a - b },
 }
 
-// dict lets a partial take more than one value, since Go templates have a
-// single dot.
+// dict lets a partial take more than one value, since a template has one dot.
 func dict(pairs ...any) (map[string]any, error) {
 	if len(pairs)%2 != 0 {
 		return nil, fmt.Errorf("dict: odd number of arguments (%d)", len(pairs))
@@ -52,8 +51,7 @@ func humanBytes(n int64) string {
 	return fmt.Sprintf("%.1f %cB", float64(n)/float64(div), "KMGTPE"[exp])
 }
 
-// humanTime is the relative form a repository list wants. Absolute dates below
-// are still in the title attribute, so hovering gives the real one.
+// humanTime is the relative form; templates keep the absolute date in a title attribute.
 func humanTime(t time.Time) string {
 	if t.IsZero() {
 		return "never"
@@ -75,8 +73,6 @@ func humanTime(t time.Time) string {
 	}
 }
 
-// ago formats one relative unit. Its own function so that "1 minute ago" is not
-// "1 minutes ago" in five separate places.
 func ago(n int, unit string) string {
 	if n == 1 {
 		return "1 " + unit + " ago"
@@ -113,12 +109,8 @@ func pathSegs(p string) []Crumb {
 	return out
 }
 
-// urlPath percent-encodes a path for use in an href, segment by segment so the
-// separators survive.
-//
-// The Rust build needed this as a filter for the same reason and added it in
-// review: a path containing a "?" or a "#" otherwise truncates the link, and a
-// path containing a space breaks it outright.
+// urlPath percent-encodes a path for an href segment by segment, so separators
+// survive and a "?", "#" or space does not break the link.
 func urlPath(p string) string {
 	segs := strings.Split(p, "/")
 	for i, s := range segs {
@@ -141,8 +133,7 @@ func pluralize(n int, one, many string) string {
 	return many
 }
 
-// percentOf is the push size meter on a repository page: how close this
-// repository's pack is to the limit a single push through the tunnel can carry.
+// percentOf drives the push size meter, clamped to 100.
 func percentOf(n, total int64) int {
 	if total <= 0 {
 		return 0

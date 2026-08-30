@@ -1,9 +1,6 @@
 import { resolve } from "path";
 import { defineConfig } from "vite";
 
-// Entry points live under static_src/{base,pages,properties}. Vite writes
-// content-hashed filenames into ../build/dist, and the Go binary reads
-// dist/.vite/manifest.json to resolve them.
 export default defineConfig({
   base: "/static/",
   build: {

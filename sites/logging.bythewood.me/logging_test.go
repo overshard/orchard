@@ -17,7 +17,7 @@ import (
 
 // A temporary database per test, through the real openDB, so the schema and the
 // pragmas under test are the ones that ship. An in-memory DSN would not be:
-// auto_vacuum behaves differently and the whole point of these tests is the
+// auto_vacuum behaves differently and these tests are about the
 // storage behaviour.
 func testDB(t *testing.T) *sql.DB {
 	t.Helper()
@@ -47,8 +47,6 @@ func testSite(t *testing.T, db *sql.DB) *site {
 	t.Cleanup(w.Close)
 	return &site{db: db, writer: w}
 }
-
-// ---------------------------------------------------------------- toRow
 
 // The hot attributes are lifted into columns and everything else stays in the
 // JSON bag. Getting this wrong is invisible: no error, just a dashboard where
@@ -111,8 +109,6 @@ func TestToRowDefaults(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------- source
-
 func TestNormalizeSource(t *testing.T) {
 	tests := map[string]string{
 		"blog":               "blog",
@@ -136,8 +132,6 @@ func TestNormalizeSource(t *testing.T) {
 		}
 	}
 }
-
-// ---------------------------------------------------------------- ingest
 
 func TestIngestWritesRecordsAndRollups(t *testing.T) {
 	db := testDB(t)
@@ -250,7 +244,7 @@ func TestIngestRejectsBadInput(t *testing.T) {
 // site. The whole batch is refused rather than half-written.
 func TestIngestSheds429WhenFull(t *testing.T) {
 	db := testDB(t)
-	// A writer with no goroutine draining it, so the queue genuinely fills.
+	// A writer with no goroutine draining it, so the queue fills.
 	w := &Writer{db: db, ch: make(chan row, 2), quit: make(chan struct{}), done: make(chan struct{})}
 	s := &site{db: db, writer: w}
 
@@ -307,7 +301,7 @@ func TestLocalSinkDropsSelfChatter(t *testing.T) {
 	}
 
 	// The health check left no raw row but must still be counted, forever,
-	// under its own component. That is the whole point of demoting rather
+	// under its own component, which is why they are demoted rather
 	// than dropping.
 	var healthz int64
 	if err := db.QueryRow(
@@ -376,8 +370,6 @@ func TestHealthChecksAreRollupOnly(t *testing.T) {
 		t.Errorf("healthz rollup count = %d, want 20", healthz)
 	}
 }
-
-// ---------------------------------------------------------------- queries
 
 func seedRows(t *testing.T, db *sql.DB, rows []row) {
 	t.Helper()
@@ -600,8 +592,6 @@ func TestSlowestPathsP95IncludesTheSlowestSample(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------- retention
-
 func TestSweepDeletesRawButKeepsRollups(t *testing.T) {
 	db := testDB(t)
 	now := time.Now().UTC()
@@ -648,7 +638,7 @@ func TestSweepDeletesRawButKeepsRollups(t *testing.T) {
 //
 // Every other test here uses an hour-aligned base with a base-1..base+1 window,
 // which is the one shape where the floor and the bound coincide, which is
-// exactly why none of them caught it. This one deliberately does not.
+// which is why none of them caught it. This one does not.
 func TestRollupsAndRawAgreeOverNamedWindows(t *testing.T) {
 	db := testDB(t)
 
@@ -800,8 +790,6 @@ func TestSweepReclaimsDiskSpace(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------- windows
-
 func TestResolveWindow(t *testing.T) {
 	key, _, start, end := resolveWindow(map[string][]string{"range": {"7d"}})
 	if key != "7d" {
@@ -844,8 +832,6 @@ func TestHourFloor(t *testing.T) {
 		t.Errorf("hourFloor = %d, want %d", got, want)
 	}
 }
-
-// ---------------------------------------------------------------- formatting
 
 func TestFormatMS(t *testing.T) {
 	tests := map[float64]string{
@@ -1005,8 +991,6 @@ func TestAnalyticsSnippetIsRendered(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------- auth
-
 func TestSessionRoundTrip(t *testing.T) {
 	key := sessionKey("hunter2")
 
@@ -1119,8 +1103,6 @@ func TestReportFormat(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------- rendering
-
 // Every page renders against a real database, because a template that
 // references a field that does not exist fails at execute time rather than at
 // parse time and would otherwise only be found by loading the page.
@@ -1218,8 +1200,6 @@ func TestPagesRender(t *testing.T) {
 		}
 	})
 }
-
-// ------------------------------------------------------------- alerting
 
 // A test watchdog with a clock this test owns, so silence can be simulated
 // without waiting five real minutes, and with a notifier that records instead
@@ -1474,10 +1454,9 @@ func TestRefusedBatchIsNotLiveness(t *testing.T) {
 	}
 }
 
-// Bootstrap reads rollups rather than records, and that is the whole point:
-// health check lines are demoted to rollup-only, so a site with no public
-// traffic has hours of rollups and no raw rows at all. Reading records would
-// mean a quiet site is not watched.
+// Bootstrap reads rollups rather than records. Health check lines are demoted
+// to rollup-only, so a site with no public traffic has hours of rollups and no
+// raw rows at all, and reading records would leave a quiet site unwatched.
 func TestWatchdogBootstrapsFromRollups(t *testing.T) {
 	db := testDB(t)
 	clock := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)

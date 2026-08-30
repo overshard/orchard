@@ -7,30 +7,15 @@ import (
 	"strings"
 )
 
-// Structured data, as one JSON-LD graph per page: what a page is, who wrote it,
-// when it was published, and what it is about. It is the input to article rich
-// results, and costs about a kilobyte.
-//
-// JSON-LD rather than microdata or RDFa, because it is the only format Google
-// recommends and it keeps the markup out of the templates.
-//
-// One @graph rather than several sibling <script> blocks, so the nodes can
-// reference each other by @id: an article points at its author, and the author
-// is stated once rather than repeated on every page.
-
 // jsonLD marshals a graph into the bytes that go inside the script tag.
-//
-// template.JS tells html/template this is already script content and must not
-// be escaped again. That is safe because encoding/json escapes <, > and & by
-// default, so a post description containing "</script>" cannot close the
-// element. Marshal rather than an Encoder, which would need SetEscapeHTML(true)
-// restating that default.
+// template.JS skips html/template's escaping, which is safe because
+// encoding/json escapes <, > and & and so cannot close the element.
 func jsonLD(nodes ...map[string]any) template.JS {
 	graph := map[string]any{
 		"@context": "https://schema.org",
 		"@graph":   nodes,
 	}
-	// Indented for whoever reads view-source. gzip removes the difference.
+	// Indented for view-source; gzip removes the difference.
 	buf, err := json.MarshalIndent(graph, "", "  ")
 	if err != nil {
 		return ""

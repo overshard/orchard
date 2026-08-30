@@ -1,17 +1,8 @@
 name: orchard-edge
 
 # The shared edge: one tunnel and one Caddy in front of every site in this repo,
-# plus the alert path every site publishes to.
-#
-# Alerts leave through ntfy, which is on this bridge for the sites to publish to
-# and behind the same tunnel as everything else for a phone to read. The two
-# directions are separated at Caddy rather than by network: the public hostname
-# allows the subscribe routes and refuses every publish route, so publishing is
-# reachable only from this bridge while reading works from anywhere.
-#
-# cloudflared's state (cert.pem, credentials.json, config.yml) lives in a named
-# volume seeded by setup-tunnel.sh rather than a bind mount, for the same
-# host-filesystem reason the Caddyfile is baked into its image.
+# plus the ntfy every alert is published to. cloudflared's state lives in a named
+# volume seeded by setup-tunnel.sh rather than a bind mount off the host.
 
 services:
   caddy:
@@ -21,22 +12,17 @@ services:
     networks: [edge]
     security_opt:
       - no-new-privileges:true
-    # Caddy access-logs every request for every hostname, and roughly a third of
-    # those are exploit scanners that will never stop arriving. Without this the
-    # container log is the one unbounded thing in the system: every site sets
-    # the same policy and these two edge containers were the only ones missing
-    # it.
+    # Caddy access-logs every request for every hostname, so without this the
+    # container log is the one unbounded thing in the system.
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
 
-  # The alert path. status publishes outage transitions to /status and logging
-  # publishes silence and unclean-restart transitions to /logging, both by
-  # container name on this bridge and both with a write-only token. Reading is
-  # over the tunnel with a separate read-only account. Config is baked into the
-  # image; see ntfy/server.yml, and setup-ntfy.sh creates the two accounts.
+  # The alert path. status and logging publish by container name on this bridge
+  # with a write-only token, and a phone reads over the tunnel with a read-only
+  # account. setup-ntfy.sh creates both, and the config is in ntfy/server.yml.
   ntfy:
     build: ./ntfy
     container_name: orchard-ntfy
@@ -44,10 +30,8 @@ services:
     command: serve
     volumes:
       - ntfy:/var/lib/ntfy
-    # No published port, exactly like every site here. Publishers reach it by
-    # container name on this bridge; a phone reaches it through the tunnel at
-    # ntfy.bythewood.me, where Caddy allows the subscribe routes and refuses
-    # every publish route. Both sides are authenticated by ntfy itself.
+    # No published port, like every site here. Caddy allows the subscribe routes
+    # on the public hostname and refuses every publish route.
     networks: [edge]
     security_opt:
       - no-new-privileges:true
@@ -91,10 +75,8 @@ volumes:
     name: orchard-cloudflared
     external: true
 
-  # Two things, and the second is why this is called data rather than cache.
-  # cache.db holds alerts already delivered, so a phone that was offline catches
-  # up rather than missing the outage. user.db holds the two accounts, which are
-  # credentials and are not disposable: lose this volume and setup-ntfy.sh has
-  # to run again and both publishers need their new token.
+  # Data rather than cache: cache.db holds alerts already delivered so an
+  # offline phone catches up, and user.db holds the two accounts. Lose this and
+  # setup-ntfy.sh has to run again and both publishers need a new token.
   ntfy:
     name: orchard-ntfy-data

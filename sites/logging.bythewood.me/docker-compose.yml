@@ -1,55 +1,41 @@
 name: orchard-logging
 
-# No bind mounts and no published ports. Public traffic arrives through
-# cloudflared to Caddy on the shared network, and the ingest endpoint is
-# reachable only by container name on that same network, which is the whole
-# reason it needs no token.
-#
-# This site has state, so it has a named volume: the SQLite database lives in
-# /data and must survive `docker compose up --build`, which is what every deploy
-# runs. It is also the fastest-growing of the three volumes in this repo, which
-# is why retention is enforced by the process itself rather than by anybody
-# remembering to prune it.
+# No published ports, and /ingest is reachable only by container name on the
+# shared network, which is why it needs no token. The volume is the fastest
+# growing one here, so retention is enforced by the process itself.
 
 services:
   app:
     build:
-      # This directory and nothing above it. The site is its own Go module with
-      # its own copy of web/, so there is no parent to reach for.
       context: .
       dockerfile: Dockerfile
     container_name: orchard-logging
     restart: unless-stopped
-    # Longer than Docker's 10s default, because shutdown now does real work:
-    # the log shipper drains its queue and the writer commits what it holds.
-    # Both are bounded well inside this, so the grace is headroom rather than
-    # a deadline anything relies on. Without it a slow drain meant SIGKILL and
-    # a skipped db.Close().
+    # Longer than Docker's 10s default, because shutdown drains the log shipper
+    # queue and commits what the writer holds. Without it a slow drain means
+    # SIGKILL and a skipped db.Close().
     stop_grace_period: 30s
     environment:
-      # Read from .env in this directory, which compose picks up on its own
-      # because that is the project directory; :? makes compose refuse to start
-      # rather than bring up a server the app would then refuse to boot.
+      # Read from .env in this directory, which compose picks up as the project
+      # directory. :? makes compose refuse to start rather than bring up a
+      # server the app would then refuse to boot.
       LOGGING_PASSWORD: ${LOGGING_PASSWORD:?set LOGGING_PASSWORD in this directory's .env; see .env.example}
-      # Write-only ntfy token. Empty is tolerated on purpose: alerting is not
-      # what this site is for, and refusing to start over a missing alert
-      # credential would turn a quiet notification into an outage.
+      # Write-only ntfy token, and an empty one is tolerated: refusing to start
+      # over a missing alert credential would turn a quiet notification into an
+      # outage.
       NTFY_TOKEN: ${NTFY_TOKEN:-}
     volumes:
       - data:/data
-    # A limit is a ceiling to fail against, not a target. Roomier than the two
-    # static sites because this one holds a write queue of up to 16,384 records
-    # and compiles Typst reports, and because a wedged writer that is being
-    # OOM-killed instead of shedding load would take the ingest path down for
-    # every site at once.
+    # A ceiling to fail against rather than a target, since this machine is also
+    # a workstation. Roomier than the static sites because this one holds a write
+    # queue of up to 16,384 records and compiles Typst reports.
     deploy:
       resources:
         limits:
           cpus: "1.00"
           memory: 512M
-    # The binary probes itself, because the scratch images in this repo have no
-    # shell for a check to call. `restart` alone only catches a process that
-    # exits; this catches one that is merely wedged.
+    # The binary probes itself, since the scratch images here have no shell for a
+    # check to call, and `restart` only catches a process that has exited.
     healthcheck:
       test: ["CMD", "/app", "-healthcheck"]
       interval: 30s
@@ -58,9 +44,8 @@ services:
       start_period: 10s
     security_opt:
       - no-new-privileges:true
-    # Unbounded container logs on a machine that is also a workstation. Worth
-    # saying plainly: this site does not replace the json-file driver, it reads
-    # a copy. stdout stays the source of truth and stays rotated.
+    # This site does not replace the json-file driver, it reads a copy, so stdout
+    # stays the source of truth and stays rotated.
     logging:
       driver: json-file
       options:

@@ -1,14 +1,6 @@
-// status.bythewood.me: self-hosted, single-operator uptime monitoring. An
-// in-process scheduler probes every tracked URL every three minutes, audits it
-// with Lighthouse daily and crawls it for SEO weekly, and a dashboard renders
-// the results as charts, an insight list and downloadable reports.
-//
-// This is not primarily a web server. Most of what the binary does happens on a
-// timer with nobody watching, so the scheduler is the centre of it and the HTTP
-// handlers mostly render what it wrote.
-//
-// Identity is hardcoded in site.go. The one value read from the environment is
-// STATUS_PASSWORD, because it is the one value that is actually a secret.
+// status.bythewood.me is single-operator uptime monitoring. An in-process
+// scheduler probes every tracked URL, audits it with Lighthouse and crawls it
+// for SEO; the handlers mostly render what the scheduler wrote.
 package main
 
 import (
@@ -30,9 +22,8 @@ import (
 	"status.bythewood.me/web"
 )
 
-// Templates are source, so they ship inside the binary unconditionally. The
-// Vite bundle is build output and ships only in a release build; see
-// assets_disk.go and assets_embed.go.
+// Templates are source and ship in the binary unconditionally; the Vite bundle
+// is build output and ships only in a release build.
 //
 //go:embed templates
 var templateFS embed.FS
@@ -46,18 +37,9 @@ func dir(env, fallback string) string {
 	return fallback
 }
 
-// Content-Security-Policy.
-//
-// script-src needs 'unsafe-inline' and cannot drop it without a markup change:
-// the dashboard ships its chart data as inline
-// <script type="application/json"> blocks. style-src carries it for
+// script-src needs 'unsafe-inline' because the dashboard ships its chart data as
+// inline <script type="application/json"> blocks, and style-src carries it for
 // Bootstrap's inline style attributes.
-//
-// analytics.bythewood.me is in script-src and connect-src for the collector,
-// which loads a script from that origin and posts events back to it. It is
-// listed unconditionally rather than only when the snippet renders, because a
-// policy that changes shape between environments gets tested in one shape and
-// shipped in the other.
 func csp() string {
 	return strings.Join([]string{
 		"default-src 'self'",
@@ -96,9 +78,7 @@ func main() {
 
 	previewKind := flag.String("preview-alert", "",
 		"print the ntfy notification for 'down' or 'recovery' and exit")
-	// The container HEALTHCHECK runs this. Two of these images are FROM
-	// scratch and have no shell for a check to call, so the binary probes
-	// itself.
+	// The container HEALTHCHECK runs this, since a scratch image has no shell.
 	healthcheck := flag.Bool("healthcheck", false, "probe a running server on this host and exit")
 	flag.Parse()
 
@@ -110,19 +90,11 @@ func main() {
 		return
 	}
 
-	// Log shipping. Installed on top of the stdout handler rather than in
-	// place of it: every record still goes where it always went, and a copy
-	// is queued for logging.bythewood.me. Nothing here can block a request,
-	// and a logging site that is down or slow costs some lines on a
-	// dashboard. See web/shipper.go.
-	//
-	// After the healthcheck branch above, so a HEALTHCHECK invocation does
-	// not spin up a queue it will never flush.
+	// Tees onto the stdout handler rather than replacing it. Kept after the
+	// healthcheck branch, so a HEALTHCHECK never starts a queue it cannot flush.
 	shipper := web.ShipLogs("status", web.HTTPSink())
 	defer shipper.Close()
 
-	// Rendering a preview needs neither a database nor a password, so it is
-	// handled before anything else is set up.
 	if *previewKind != "" {
 		if err := previewAlert(*previewKind); err != nil {
 			slog.Error("startup failed", slog.Any("err", err))
@@ -131,9 +103,6 @@ func main() {
 		return
 	}
 
-	// Fail fast rather than defaulting. An internet-facing dashboard whose
-	// password is "admin" because the environment was empty is the failure
-	// mode this refuses to have.
 	password := os.Getenv("STATUS_PASSWORD")
 	if password == "" {
 		slog.Error("STATUS_PASSWORD is unset; refusing to start an internet-facing server without one")
@@ -192,9 +161,8 @@ func main() {
 		propsStyles: assets.Styles("static_src/properties/index.js"),
 	}
 
-	// The scheduler stops when the process is asked to stop, so a deploy does
-	// not kill a crawl halfway and leave the row wedged for the watchdog to
-	// find. web.Serve drains the HTTP server on the same signal.
+	// The scheduler stops with the process, so a deploy does not kill a crawl
+	// halfway and leave the row wedged for the watchdog to find.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
@@ -219,17 +187,14 @@ func main() {
 	mux.HandleFunc("POST /properties/{id}/delete", s.requireAuth(s.propertyDelete))
 	mux.HandleFunc("POST /properties/{id}/public", s.requireAuthJSON(s.propertyPublic))
 
-	// Polled by the dashboard, so it is reachable for a public property
-	// without a session. The handler does that check itself, because it needs
-	// the property row to know whether it is public.
+	// Reachable without a session for a public property; the handler does that
+	// check itself, because it needs the property row to know.
 	mux.HandleFunc("GET /properties/{id}/status", s.propertyStatus)
 	mux.HandleFunc("POST /properties/{id}/recrawl", s.requireAuthJSON(s.propertyRecrawl))
 	mux.HandleFunc("POST /properties/{id}/rerun-lighthouse", s.requireAuthJSON(s.propertyRerunLighthouse))
 
-	// A wrong method on a route that exists should answer 405, not 404. The
-	// mux does that on its own only when no other pattern matches, and the
-	// "GET /" catch-all below matches every GET path there is. 405 has to
-	// carry Allow.
+	// A wrong method on an existing route should be 405 with Allow. The mux only
+	// does that when nothing else matches, and "GET /" below always matches.
 	for path, allow := range map[string]string{
 		"/logout":                           "POST",
 		"/properties/{id}/delete":           "POST",
@@ -251,10 +216,8 @@ func main() {
 		_, _ = w.Write([]byte("ok\n"))
 	})
 
-	// The dashboard's bare-UUID path is the catch-all. Registered as "/"
-	// rather than "/{id}" so it cannot shadow /login and /properties: the mux
-	// prefers a literal segment over a wildcard, but only among patterns that
-	// match, and "/{id}" would also claim /nonsense-that-should-404.
+	// Registered as "/" rather than "/{id}" so it cannot shadow /login and
+	// /properties; "/{id}" would also claim /nonsense-that-should-404.
 	mux.HandleFunc("GET /", s.dashboardOrNotFound)
 
 	handler := web.Chain(mux,
@@ -296,12 +259,11 @@ func (s *site) notFound(w http.ResponseWriter, r *http.Request) {
 // page builds the half of PageData every template needs.
 func (s *site) page(r *http.Request, title, description string) PageData {
 	return PageData{
-		Title:       title,
-		Description: description,
-		Path:        r.URL.Path,
-		Canonical:   baseURL + r.URL.Path,
-		Staging:     Staging,
-		// Off on a staging hostname, the same gate the other sites use.
+		Title:         title,
+		Description:   description,
+		Path:          r.URL.Path,
+		Canonical:     baseURL + r.URL.Path,
+		Staging:       Staging,
 		Analytics:     !Staging,
 		AnalyticsID:   analyticsID,
 		Authenticated: isAuthenticated(r, s.cookieKey),

@@ -1,9 +1,8 @@
 {{ define "content" }}
 <div class="about-background"></div>
 
-<!-- Rendered server-side, unlike the home page's single rotating word: these
-     nine are the page's layout, and having them pop in after JS would reflow
-     the column in front of the visitor. -->
+<!-- Rendered server-side, since these nine words are the page's layout and
+     having them pop in after JS would reflow the column. -->
 <div class="about-words">
   {{- range .Words }}
   <h2 class="about-word" style="{{ .Style }}"><span class="about-wordText">{{ .Text }}</span></h2>

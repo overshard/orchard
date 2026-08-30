@@ -7,16 +7,6 @@ import (
 	"time"
 )
 
-// The Atom feed.
-//
-// Atom rather than RSS 2.0. Both are universally supported, and Atom has the
-// tighter specification: RFC3339 dates instead of RSS's underspecified RFC822
-// variants, required explicit entry ids, and an unambiguous content type.
-//
-// Each entry carries full content rather than a summary. There is no ad model
-// that needs the click, and a reader with the whole article does not have to be
-// online to finish it.
-
 const feedPath = "/feed.xml"
 
 type atomFeed struct {
@@ -57,18 +47,16 @@ type atomCategory struct {
 	Term string `xml:"term,attr"`
 }
 
-// Content is type="html", so the body is escaped into a text node rather than
-// inlined as XHTML, and a post containing raw HTML cannot produce a malformed
-// feed.
+// atomContent is type="html", so a post's raw HTML is escaped into a text node
+// rather than inlined as XHTML, where it could produce a malformed feed.
 type atomContent struct {
 	Type string `xml:"type,attr"`
 	Body string `xml:",chardata"`
 }
 
-// feedTime turns a YYYY-MM-DD front matter date into the RFC3339 stamp Atom
-// requires. Posts carry a day rather than a time, so they are dated at midnight
-// UTC. A date that will not parse falls back to the epoch rather than failing
-// the whole feed over one bad file.
+// feedTime turns a YYYY-MM-DD front matter date into Atom's RFC3339 stamp. A
+// date that will not parse falls back to the epoch, so one bad file does not
+// fail the whole feed.
 func feedTime(day string) string {
 	t, err := time.Parse("2006-01-02", day)
 	if err != nil {
@@ -92,9 +80,8 @@ func (s *site) feed(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	// Atom's feed-level updated is the newest entry's, and Published() is
-	// already newest first. An empty blog gets now, because the element is
-	// required.
+	// Published() is already newest first, and an empty blog gets now, since
+	// the element is required.
 	if len(published) > 0 {
 		feed.Updated = feedTime(published[0].Date)
 	} else {
@@ -132,7 +119,6 @@ func (s *site) feed(w http.ResponseWriter, r *http.Request) {
 }
 
 // redirectFeed points the names a reader is likely to try at the real one.
-// Permanent, because the canonical path is not going to move.
 func redirectFeed(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, feedPath, http.StatusMovedPermanently)
 }

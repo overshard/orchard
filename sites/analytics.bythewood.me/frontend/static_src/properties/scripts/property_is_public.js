@@ -1,5 +1,3 @@
-// Toggles the property's public flag. The form's `action` attribute holds the
-// correct endpoint (`/properties/{id}/public`).
 document.addEventListener("DOMContentLoaded", function () {
   const form = document.getElementById("is-public-form");
   if (!form) return;

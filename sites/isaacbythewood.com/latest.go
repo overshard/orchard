@@ -10,20 +10,13 @@ import (
 	"time"
 )
 
-// The home page's promo slot, filled from the blog rather than hardcoded to
-// one project, so it cannot go stale when that project is retired.
-//
-// Same shape as the commit cache next door: a background refresh on a ticker,
-// the page always servable, and no card emitted when there is nothing cached,
-// so a blog outage leaves a hero with no promo rather than a broken one.
-
 const (
 	latestRefreshInterval = time.Hour
 	latestFetchTimeout    = 10 * time.Second
 )
 
-// LatestPost is the blog's /latest.json, a hand written shape on that side so
-// this struct does not have to track its Post type.
+// LatestPost is the blog's /latest.json, hand written on that side so this does
+// not have to track its Post type.
 type LatestPost struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
@@ -31,7 +24,8 @@ type LatestPost struct {
 	Date        string `json:"date"`
 }
 
-// LatestCache holds the most recent successful fetch.
+// LatestCache holds the most recent successful fetch and is safe for
+// concurrent use.
 type LatestCache struct {
 	mu      sync.RWMutex
 	post    LatestPost
@@ -47,16 +41,14 @@ func NewLatestCache(sources []string) *LatestCache {
 	}
 }
 
-// Get returns the cached post, and whether there is one worth rendering.
 func (c *LatestCache) Get() (LatestPost, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.post, c.ok
 }
 
-// Start does one fetch immediately and then refreshes on a ticker until ctx is
-// cancelled. It returns straight away, so the site does not wait on the blog to
-// begin serving.
+// Start returns straight away, fetches once, then refreshes on a ticker until
+// ctx is cancelled, so the site never waits on the blog to begin serving.
 func (c *LatestCache) Start(ctx context.Context) {
 	go func() {
 		c.refresh(ctx)
@@ -76,8 +68,8 @@ func (c *LatestCache) Start(ctx context.Context) {
 }
 
 func (c *LatestCache) refresh(ctx context.Context) {
-	// First source that answers wins. In the image that is the sibling
-	// container; in a local checkout it falls through to the public site.
+	// First source that answers wins: the sibling container in the image, the
+	// public site in a local checkout.
 	var post LatestPost
 	var err error
 	for _, src := range c.sources {
@@ -88,8 +80,7 @@ func (c *LatestCache) refresh(ctx context.Context) {
 		slog.Info(fmt.Sprintf("latest post: %s: %v", src, err))
 	}
 	if err != nil {
-		// Keep whatever was there, so a transient failure does not blank a
-		// card that was fine an hour ago.
+		// Keep whatever was there, so a failure does not blank the card.
 		return
 	}
 

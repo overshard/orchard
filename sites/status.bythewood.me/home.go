@@ -9,14 +9,8 @@ import (
 	"time"
 )
 
-// The marketing pages, the SEO endpoints and the 404.
-
-// PageData is everything every template needs, plus the page-specific fields.
-//
-// A struct rather than a map, because html/template reports a missing struct
-// field as an error at render time while a missing map key silently renders
-// nothing. A whole section can go unrendered for the life of a feature that
-// way.
+// PageData is everything every template needs. A struct rather than a map:
+// html/template errors on a missing field but renders nothing for a missing key.
 type PageData struct {
 	Title         string
 	Description   string
@@ -32,7 +26,6 @@ type PageData struct {
 	SiteName      string
 	AuthorName    string
 
-	// The social card, and the page's JSON-LD graph already marshalled.
 	OGImage    string
 	JSONLD     template.JS
 	Script     string
@@ -61,15 +54,11 @@ type PageData struct {
 }
 
 func (s *site) home(w http.ResponseWriter, r *http.Request) {
-	// The operator has no use for the marketing page, and anyone else has no
-	// use for the dashboard.
 	if isAuthenticated(r, s.cookieKey) {
 		http.Redirect(w, r, "/properties", http.StatusSeeOther)
 		return
 	}
 
-	// The title element is the strongest on-page signal a search engine has,
-	// so it says what the h1 says rather than "Home".
 	data := s.page(r, "Self-hosted uptime monitoring",
 		"Self-hosted uptime monitoring with public status pages, response time history, "+
 			"Lighthouse audits and crawl findings.")
@@ -81,8 +70,7 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 		        (SELECT MIN(created_at) FROM checks)`).
 		Scan(&data.TotalChecks, &data.TotalProperties, &firstCheck)
 	if err != nil {
-		// The numbers on a marketing page are decoration, so a database
-		// hiccup renders zeros rather than a 500.
+		// These numbers are decoration, so an error renders zeros rather than a 500.
 		slog.Info(fmt.Sprintf("home totals: %v", err))
 	}
 	if firstCheck.Valid {
@@ -102,8 +90,6 @@ func (s *site) changelog(w http.ResponseWriter, r *http.Request) {
 	s.renderer.Render(w, http.StatusOK, "changelog.html", data)
 }
 
-// favicon is served inline rather than from disk: 300 bytes that never change,
-// against a build step and a cache policy for a file.
 func favicon(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "image/svg+xml")
 	w.Header().Set("Cache-Control", "public, max-age=86400")
@@ -115,12 +101,8 @@ const faviconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
 <circle cx="30" cy="14" r="3.5" fill="#c9a84c"/>
 </svg>`
 
-// robots refuses the crawl on staging, where the hostname serves a complete
-// duplicate of the real site.
-//
-// This and the noindex meta tag in base.html are both needed, because either
-// alone has a hole: a crawler that ignores robots.txt still reads the meta tag,
-// and one that obeys robots.txt never fetches the page to find it.
+// robots refuses the crawl on staging. Both this and the noindex meta tag in
+// base.html are needed: a crawler obeying robots.txt never fetches the tag.
 func robots(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	if Staging {
@@ -130,9 +112,8 @@ func robots(w http.ResponseWriter, r *http.Request) {
 	_, _ = fmt.Fprintf(w, "User-agent: *\nAllow: /\nSitemap: %s/sitemap.xml\n", baseURL)
 }
 
-// sitemap lists the two public pages. Property dashboards are absent even when
-// public: a status page is something the operator hands somebody, not something
-// that should turn up in a search for the site it monitors.
+// sitemap lists the two public pages. Property dashboards stay out even when
+// public: a status page is handed to somebody, not searched for.
 func sitemap(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
 	today := time.Now().UTC().Format("2006-01-02")

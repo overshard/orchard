@@ -1,18 +1,6 @@
-// logging.bythewood.me: the consumer for logs every other site here was already
-// producing and nothing was reading.
-//
-// Each site ships its own slog records in process over the Docker bridge (see
-// web/shipper.go); this one batches them into SQLite, ages the raw lines out at
-// thirty days while keeping hourly rollups forever, and renders the result as
-// graphs behind one password.
-//
-// It is the third seat of three. status probes from outside and answers whether
-// a site is up as seen from the internet. analytics observes from the visitor's
-// browser and answers who came and from where. Neither can say what the origin
-// itself actually did, and that is this.
-//
-// Identity is hardcoded in site.go. The one value read from the environment is
-// LOGGING_PASSWORD, because it is the one value that is actually a secret.
+// Command logging aggregates the slog records the other sites in this repo ship
+// over the Docker bridge (web/shipper.go), batching them into SQLite, ageing raw
+// lines out while keeping hourly rollups forever, and serving them behind a login.
 package main
 
 import (
@@ -32,9 +20,8 @@ import (
 	"logging.bythewood.me/web"
 )
 
-// Templates are source, so they ship inside the binary unconditionally. The
-// Vite bundle is build output and ships only in a release build; see
-// assets_disk.go and assets_embed.go.
+// Templates are source, so they ship in the binary unconditionally; the Vite
+// bundle is build output and only embeds in a release build.
 //
 //go:embed templates
 var templateFS embed.FS
@@ -48,21 +35,8 @@ func dir(env, fallback string) string {
 	return fallback
 }
 
-// Content-Security-Policy.
-//
-// script-src carries 'unsafe-inline' and https://analytics.bythewood.me, which
-// matches the other four sites exactly. It was briefly dropped here on the
-// grounds that this site had no inline executable script and, uniquely, renders
-// text written by other programs. Adding the analytics collector brought it
-// back: the collector is an inline snippet by design, and Isaac's call was
-// parity with the rest of the repo over a second line of defence on one site.
-//
-// The first line of defence is unaffected and is the one that is tested: every
-// log field is escaped for HTML, for Typst and for Markdown, and there are
-// tests for all three, including one asserting that a message containing
-// </script> cannot close the inline JSON blocks the charts read.
-//
-// style-src carries it for Bootstrap's inline style attributes.
+// csp allows 'unsafe-inline' for the analytics collector snippet and for
+// Bootstrap's inline style attributes.
 func csp() string {
 	return strings.Join([]string{
 		"default-src 'self'",
@@ -77,7 +51,6 @@ func csp() string {
 	}, "; ")
 }
 
-// site is everything the handlers share.
 type site struct {
 	renderer *web.Renderer
 	db       *sql.DB
@@ -104,13 +77,9 @@ func main() {
 	seed := flag.Bool("seed", false, "fill the database with realistic fake records, then exit")
 	seedRecords := flag.Int("seed-records", 40000, "records to generate in -seed mode")
 	seedDays := flag.Int("seed-days", 14, "days to spread -seed records over")
-	// The container HEALTHCHECK runs this. Three of the images in this repo
-	// are FROM scratch and have no shell for a check to call, so every binary
-	// probes itself and there is one behaviour across the repo rather than
-	// two.
+	// The container HEALTHCHECK runs this: a FROM scratch image has no shell
+	// for a check to call, so every binary probes itself.
 	healthcheck := flag.Bool("healthcheck", false, "probe a running server on this host and exit")
-	// Prints an alert instead of sending one, so the wording can be checked
-	// without waiting for a site to break. Same flag status carries.
 	preview := flag.String("preview-alert", "", "print an example alert ('silence', 'resumed' or 'restart') and exit")
 	flag.Parse()
 
@@ -146,10 +115,6 @@ func main() {
 		return
 	}
 
-	// Fail fast rather than defaulting. An internet-facing dashboard over
-	// every request every site here has served, whose password is "admin"
-	// because the environment was empty, is the failure mode this refuses to
-	// have.
 	password := os.Getenv("LOGGING_PASSWORD")
 	if password == "" {
 		slog.Error("LOGGING_PASSWORD is unset; refusing to start an internet-facing server without one")
@@ -204,13 +169,8 @@ func main() {
 		dashStyles:  assets.Styles("static_src/dashboard/index.js"),
 	}
 
-	// The alert path. Both rules are evaluated from what arrives at ingest
-	// rather than from a query, for the reason at the top of watchdog.go, so
-	// this has to exist before anything is observed.
-	//
-	// Bootstrap failing is not fatal: it only seeds the source list, and an
-	// unseeded watchdog still notices everything that ships to it from here
-	// on. Starting a logging site is worth more than starting its alerter.
+	// Must exist before anything is observed: the watchdog is fed from ingest,
+	// not from a query. A failed bootstrap only loses the seeded source list.
 	s.watchdog = NewWatchdog(db, NewNotifier().Fire)
 	if err := s.watchdog.Bootstrap(context.Background()); err != nil {
 		slog.Error("watchdog bootstrap failed; watching only what ships from now on",
@@ -221,17 +181,14 @@ func main() {
 	defer stopWatching()
 	go s.watchdog.Run(watchCtx)
 
-	// This site ships its own logs like every other one, but through a local
-	// sink rather than over HTTP: posting to itself would mean an ingest
-	// request that logs a request that becomes an ingest request. Registered
-	// after the writer exists and closed before it, so the last records in
-	// the queue are committed rather than dropped.
+	// Local sink rather than HTTP: posting to itself would mean an ingest
+	// request that logs a request that becomes an ingest request. Must close
+	// before the writer so the last queued records are committed.
 	shipper := web.ShipLogs(selfSource, s.LocalSink)
 	defer shipper.Close()
 
-	// Retention runs for the life of the process. Cancelled on shutdown so a
-	// sweep in progress stops between chunks instead of holding the write
-	// lock while everything else is trying to drain.
+	// Cancelled on shutdown so a sweep stops between chunks instead of holding
+	// the write lock while everything else drains.
 	sweepCtx, stopSweeping := context.WithCancel(context.Background())
 	defer stopSweeping()
 	go NewSweeper(db).Run(sweepCtx)
@@ -245,26 +202,18 @@ func main() {
 	mux.HandleFunc("POST /login", s.loginSubmit)
 	mux.HandleFunc("POST /logout", s.logout)
 
-	// Everything behind the login is no-store. Nothing caches these today
-	// (Cloudflare will not hold HTML on a free plan without a Cache Rule), but
-	// that is a dashboard setting rather than a contract, and a zone-wide rule
-	// added later for the other four sites would silently make these eligible.
-	// These pages carry request paths, IP addresses and CF-Ray values; they are
-	// the last thing that should sit in a shared cache.
+	// These carry request paths, IP addresses and CF-Ray values, and a
+	// zone-wide Cloudflare Cache Rule added later would make them eligible.
 	mux.HandleFunc("GET /overview", noStore(s.requireAuth(s.overview)))
 	mux.HandleFunc("GET /sources/{source}", noStore(s.requireAuth(s.sourceDetail)))
 	mux.HandleFunc("GET /search", noStore(s.requireAuth(s.search)))
 
-	// The one route another program talks to. It is unauthenticated on
-	// purpose and unreachable from outside on purpose: Caddy refuses /ingest
-	// on the public hostname, so the only address that answers is the
-	// container name on the orchard-edge bridge. See ingest.go.
+	// Unauthenticated, and reachable only over the bridge: Caddy refuses
+	// /ingest on the public hostname.
 	mux.HandleFunc("POST /ingest", s.ingest)
 
-	// A wrong method on a route that exists should answer 405, not 404. The
-	// mux does that on its own only when no other pattern matches, and the
-	// "GET /" catch-all below matches every GET path there is. 405 has to
-	// carry Allow.
+	// The mux only answers 405 itself when nothing else matches, and the
+	// "GET /" catch-all below matches every GET path there is.
 	for path, allow := range map[string]string{
 		"/ingest": "POST",
 		"/logout": "POST",
@@ -296,7 +245,6 @@ func main() {
 	}
 }
 
-// noStore marks a response as private and uncacheable, at every layer.
 func noStore(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store, private")
@@ -316,7 +264,6 @@ func (s *site) notFound(w http.ResponseWriter, r *http.Request) {
 	s.renderer.Render(w, http.StatusNotFound, "notfound.html", data)
 }
 
-// page builds the half of PageData every template needs.
 func (s *site) page(r *http.Request, title, description string) PageData {
 	return PageData{
 		Title:         title,
@@ -335,28 +282,14 @@ func (s *site) page(r *http.Request, title, description string) PageData {
 		Script:        s.baseScript,
 		Styles:        s.baseStyles,
 
-		// Off on staging, for the reason on the field itself.
 		Analytics:   !Staging,
 		AnalyticsID: analyticsID,
 	}
 }
 
-// healthz is the container's liveness probe, and deliberately shallow: it
-// answers 200 whenever the process is serving.
-//
-// It does NOT fail when the writer is failing, and that is a decision rather
-// than an omission. Docker restarts a container whose health check fails, and
-// the things that break ingest (a full disk, a corrupt database) are not fixed
-// by restarting; failing here would turn a degraded site into a crash loop and
-// lose the very stderr line that says what is wrong.
-//
-// What ingest health needs is a readiness signal for a person, so `?verbose`
-// returns the writer's counters and the age of the newest record. Record
-// freshness is the single best signal, because "the newest record is twenty
-// minutes old" catches every silent failure at once: a wedged flusher, a full
-// disk, commits failing every batch. It is served only to loopback, so
-// `make doctor` and the health check can read it while the public hostname
-// cannot: the counts are operational detail nobody outside needs.
+// healthz answers 200 whenever the process is serving; it stays shallow because
+// a full disk or a corrupt database is not fixed by the restart a failing check
+// would trigger. ?verbose adds writer counters and is served to loopback only.
 func (s *site) healthz(w http.ResponseWriter, r *http.Request) {
 	if !r.URL.Query().Has("verbose") || !isLoopback(web.ClientIP(r)) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")

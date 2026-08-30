@@ -8,14 +8,11 @@ import (
 	"strings"
 )
 
-// The machine-readable half of the site: robots.txt, the sitemap and the feed.
-//
-// None of these are HTML, so none go through html/template: its contextual
-// escaping is built for HTML, while encoding/xml and an explicit escape are
-// exact for XML.
+// robots.txt, the sitemap and the feed. None of these are HTML, so they use
+// encoding/xml and an explicit escape rather than html/template.
 
 // wrapTitle greedily breaks a title into at most maxLines lines of about
-// maxChars, which is as much typography as a 1200x630 card needs.
+// maxChars.
 func wrapTitle(title string, maxChars, maxLines int) []string {
 	var lines []string
 	current := ""
@@ -45,8 +42,7 @@ func xmlEscape(s string) string {
 	return buf.String()
 }
 
-// favicon is generated rather than a file, so its two colours stay the two
-// colours in the stylesheet.
+// Generated rather than a file, so its two colours stay the stylesheet's two.
 const faviconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 16 16">
   <defs>
     <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
@@ -67,9 +63,8 @@ func favicon(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(faviconSVG))
 }
 
-// robots keeps a staging hostname out of the index. A noindex meta tag alone
-// does nothing, because a crawler told not to fetch the page never sees the
-// tag.
+// robots keeps a staging hostname out of the index. It duplicates the noindex
+// meta tag, which a crawler told not to fetch the page never sees.
 func robots(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	if Staging {
@@ -100,8 +95,7 @@ func (s *site) sitemap(w http.ResponseWriter, r *http.Request) {
 		urlEntry{Loc: baseURL + "/blog/", ChangeFreq: "weekly"},
 	)
 
-	// A tag or year page is as fresh as its newest post, which is the only
-	// lastmod that means anything for a derived page.
+	// A tag or year page is as fresh as its newest post.
 	tagLastMod := map[string]string{}
 	yearLastMod := map[string]string{}
 	for _, post := range published {

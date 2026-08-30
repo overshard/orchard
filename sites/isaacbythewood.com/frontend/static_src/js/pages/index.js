@@ -61,12 +61,9 @@ export const initHome = () => {
   enter(current, CLASSES.appear, TRANSITION_MS);
 
   window.setInterval(() => {
-    // setInterval keeps firing in a hidden tab; requestAnimationFrame does not,
-    // and both enter() and exit() defer all their work behind it. So in a
-    // backgrounded tab a word was appended every cycle and none was ever
-    // removed, roughly 1,800 orphaned nodes an hour, and the whole queue then
-    // fired in one frame on return. Middle-clicking a link into a background
-    // tab is ordinary, so this is reachable by real visitors.
+    // setInterval keeps firing in a hidden tab and requestAnimationFrame does
+    // not, and enter() and exit() both defer their work behind it, so without
+    // this a backgrounded tab piles up words and bursts them all on return.
     if (document.hidden) return;
 
     const outgoing = current;

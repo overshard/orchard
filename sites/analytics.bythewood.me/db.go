@@ -13,13 +13,8 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// schema matches the database this app inherited, column for column, so that
-// pointing it at an existing file is a no-op rather than a migration. Every
-// statement is IF NOT EXISTS.
-//
-// There is no migration table. It would record that exactly one migration had
-// ever run; a second schema change can be a numbered block here with its own
-// guard.
+// There is no migration table. Every statement is IF NOT EXISTS, so this runs
+// against an existing database as a no-op; a schema change is a new guarded block.
 const schema = `
 CREATE TABLE IF NOT EXISTS properties (
     id            BLOB PRIMARY KEY,
@@ -77,16 +72,9 @@ CREATE INDEX IF NOT EXISTS bot_events_property_created ON bot_events(property_id
 
 `
 
-// openDB opens the SQLite database and applies the schema.
-//
-// The driver is modernc.org/sqlite, SQLite transpiled to Go rather than bound
-// to it, which is what keeps CGO_ENABLED=0 and a static binary available. It
-// benchmarks slower than mattn/go-sqlite3; this app writes a few hundred rows
-// a day.
-//
-// The pragmas go in the DSN because they are per connection, and database/sql
-// opens connections lazily: setting them once after Open would apply them to
-// whichever connection served that call and to no other.
+// openDB opens the SQLite database and applies the schema. modernc.org/sqlite is
+// pure Go, which keeps CGO_ENABLED=0. Pragmas go in the DSN because they are per
+// connection and database/sql opens connections lazily.
 func openDB(path string) (*sql.DB, error) {
 	if dir := filepath.Dir(path); dir != "" {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -105,9 +93,8 @@ func openDB(path string) (*sql.DB, error) {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
 
-	// SQLite takes a database-wide write lock, so concurrent writers buy
-	// SQLITE_BUSY rather than throughput. The pool is larger than one for
-	// readers, which WAL lets run while a write is in flight.
+	// SQLite writes under a database-wide lock; the pool is sized for the
+	// readers WAL lets run alongside a write.
 	db.SetMaxOpenConns(8)
 	db.SetMaxIdleConns(8)
 	db.SetConnMaxLifetime(time.Hour)
@@ -124,19 +111,8 @@ func openDB(path string) (*sql.DB, error) {
 	return db, nil
 }
 
-// renameProprium is a one-time data migration, kept because more than one
-// database has the old row: production, and any dev or staging copy made before
-// 2026-08-30.
-//
-// The property this site tracks itself under used to be created on first boot
-// and named "Proprium", which made it the only property in the system not named
-// after the hostname it tracks. It is now named like every other one, and its id
-// is hardcoded in site.go rather than generated, so nothing creates it any more.
-// The id is untouched, which is what keeps four years of events attached to it.
-//
-// Idempotent, and matches nothing once it has run. Safe to delete from this file
-// once every database that mattered has started once against this version. The
-// meta table goes with it: it existed only to hold proprium_id.
+// renameProprium is a one-time data migration. It is idempotent and matches
+// nothing once it has run, so it can be deleted once every database has.
 const renameProprium = `
 UPDATE properties
    SET name = 'analytics.bythewood.me',
@@ -157,7 +133,7 @@ type Property struct {
 }
 
 // CustomCard is a custom event pinned to the dashboard as a metric card. Value
-// is the pinned flag; the field name is what the stored JSON already uses.
+// is the pinned flag, named for what the stored JSON already calls it.
 type CustomCard struct {
 	Event string `json:"event"`
 	Value bool   `json:"value"`
@@ -166,9 +142,7 @@ type CustomCard struct {
 const propertyColumns = `id, name, custom_cards, is_protected, is_public, created_at, updated_at`
 
 // scanProperty reads one row of propertyColumns. Malformed custom_cards JSON
-// degrades to no cards rather than failing the request: it is decoration
-// written by a form, and a dashboard that will not load is worse than one
-// missing a card.
+// degrades to no cards rather than failing the request.
 func scanProperty(scan func(...any) error) (*Property, error) {
 	var (
 		p     Property

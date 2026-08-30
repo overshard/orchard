@@ -10,11 +10,8 @@ import (
 	"time"
 )
 
-// Post is one Markdown file under content/posts, parsed once at startup.
-//
-// Restart to publish: posts are files in the repo, a new one arrives with a
-// deploy, and a deploy restarts the process anyway. Watching the directory
-// would buy nothing and cost a goroutine plus a race with the PDF build.
+// Post is one Markdown file under content/posts, parsed once at startup. A new
+// post arrives with a deploy, and a deploy restarts the process.
 type Post struct {
 	Filename    string
 	Title       string
@@ -26,22 +23,20 @@ type Post struct {
 	CoverImage  string
 	ReadTime    int
 
-	// Rendered once at load. template.HTML because it comes from the author's
-	// own Markdown, which is the trust boundary this site draws.
+	// template.HTML because the Markdown is the author's own, which is where
+	// this site draws its trust boundary.
 	BodyHTML  template.HTML
 	BodyTypst string
 }
 
-// URL and friends are methods rather than template helpers, so the compiler
-// checks them.
+// Methods rather than template helpers, so the compiler checks them.
 func (p *Post) URL() string      { return "/posts/" + p.Slug + "/" }
 func (p *Post) PDFURL() string   { return "/posts/" + p.Slug + "/pdf/" }
 func (p *Post) MDURL() string    { return "/posts/" + p.Slug + "/md/" }
 func (p *Post) OGImage() string  { return baseURL + "/og/" + p.Slug + ".png" }
 func (p *Post) CoverURL() string { return "/content/images/" + p.CoverImage }
 
-// TagLinks pairs each tag with its filter URL, so the template does not have
-// to build one.
+// TagLinks pairs each tag with its filter URL.
 func (p *Post) TagLinks() []TagEntry {
 	out := make([]TagEntry, 0, len(p.Tags))
 	for _, t := range p.Tags {
@@ -50,8 +45,8 @@ func (p *Post) TagLinks() []TagEntry {
 	return out
 }
 
-// TagEntry is one tag, everywhere a tag is shown: the nav, the filter row, a
-// post's own pills. Count is zero where it is not being used as a facet.
+// TagEntry is one tag wherever a tag is shown. Count is zero where the tag is
+// not being used as a facet.
 type TagEntry struct {
 	Name    string
 	Display string
@@ -62,11 +57,8 @@ type TagEntry struct {
 func tagURL(tag string) string   { return "/blog/tag/" + urlPathEscape(tag) + "/" }
 func yearURL(year string) string { return "/blog/year/" + urlPathEscape(year) + "/" }
 
-// Library holds every post and answers the questions the handlers ask.
-//
-// The published set is cached rather than rebuilt per request, keyed on the
-// day rather than computed once at startup, so a post with a future
-// publish_date becomes visible when the date arrives without a restart.
+// Library holds every post. The published set is cached per day, not computed
+// once, so a future publish_date becomes visible without a restart.
 type Library struct {
 	all    []*Post
 	bySlug map[string]*Post
@@ -78,9 +70,8 @@ type Library struct {
 	years     []string
 }
 
-// LoadLibrary reads every .md file under posts/ in the content filesystem. It
-// takes an fs.FS rather than a path because content ships inside the binary;
-// os.DirFS gives the same thing back for a test.
+// LoadLibrary reads every .md file under posts/. It takes an fs.FS rather than a
+// path because the content ships inside the binary.
 func LoadLibrary(content fs.FS) (*Library, error) {
 	entries, err := fs.ReadDir(content, "posts")
 	if err != nil {
@@ -101,8 +92,8 @@ func LoadLibrary(content fs.FS) (*Library, error) {
 		lib.bySlug[post.Slug] = post
 	}
 
-	// Newest first, and stable on the filename so two posts sharing a date do
-	// not swap places between builds.
+	// Newest first, tie-broken on filename so two posts sharing a date do not
+	// swap places between builds.
 	sort.SliceStable(lib.all, func(i, j int) bool {
 		if lib.all[i].Date != lib.all[j].Date {
 			return lib.all[i].Date > lib.all[j].Date
@@ -151,12 +142,9 @@ func parsePost(filename, text string) *Post {
 	return post
 }
 
-// parseFrontmatter reads the leading --- block as flat key: value pairs. Not
-// YAML, which is why no YAML library is in the dependency list.
-//
-// The closing delimiter has to start a line: a bare search for "---" stops
-// early on a horizontal rule inside a description, or an ISO date range inside
-// a value.
+// parseFrontmatter reads the leading --- block as flat key: value pairs, which
+// is not YAML. The closing delimiter has to start a line, or a horizontal rule
+// inside a description ends the block early.
 func parseFrontmatter(text string) (map[string]string, string) {
 	meta := map[string]string{}
 	if !strings.HasPrefix(text, "---") {
@@ -180,7 +168,7 @@ func parseFrontmatter(text string) (map[string]string, string) {
 	return meta, body
 }
 
-// today is the local calendar date, which is what publish_date is written in.
+// today is local, which is the zone publish_date is written in.
 func today() string { return time.Now().Format("2006-01-02") }
 
 // Published returns the visible posts, newest first, along with the tag and
@@ -208,9 +196,8 @@ func (l *Library) Published() ([]*Post, []TagEntry, []string) {
 	return l.published, l.tags, l.years
 }
 
-// Lookup finds a post by slug, reporting false for one that is not published
-// yet. A future-dated post is a 404 rather than a 403, since a 403 leaks the
-// slug.
+// Lookup finds a post by slug, reporting false for an unpublished one. A caller
+// should 404 rather than 403, since a 403 confirms the slug.
 func (l *Library) Lookup(slug string) (*Post, bool) {
 	post, ok := l.bySlug[slug]
 	if !ok || post.PublishDate > today() {
@@ -219,8 +206,8 @@ func (l *Library) Lookup(slug string) (*Post, bool) {
 	return post, true
 }
 
-// All returns every post regardless of publish date. The PDF build uses it, so
-// a scheduled post's PDF is ready the moment the post itself becomes visible.
+// All returns every post regardless of publish date, so the PDF build has a
+// scheduled post's PDF ready before it is visible.
 func (l *Library) All() []*Post { return l.all }
 
 func collectTags(posts []*Post) []TagEntry {
@@ -259,7 +246,6 @@ func collectYears(posts []*Post) []string {
 	return out
 }
 
-// byTag and byYear filter the published set.
 func byTag(posts []*Post, tag string) (matched, others []*Post) {
 	for _, p := range posts {
 		if containsFold(p.Tags, tag) {
@@ -291,8 +277,7 @@ func containsFold(haystack []string, needle string) bool {
 	return false
 }
 
-// related picks posts sharing the most tags, topped up with recent posts when
-// there are not enough. A post with no tags at all just gets the latest.
+// related picks posts sharing the most tags, topped up with recent ones.
 func related(post *Post, posts []*Post, count int) []*Post {
 	tags := map[string]bool{}
 	for _, t := range post.Tags {
@@ -318,8 +303,7 @@ func related(post *Post, posts []*Post, count int) []*Post {
 			candidates = append(candidates, scored{p, overlap})
 		}
 	}
-	// Stable so equal-overlap posts keep their newest-first order rather than
-	// shuffling between requests.
+	// Stable, so equal-overlap posts keep their newest-first order.
 	sort.SliceStable(candidates, func(i, j int) bool {
 		return candidates[i].overlap > candidates[j].overlap
 	})
@@ -345,9 +329,8 @@ func related(post *Post, posts []*Post, count int) []*Post {
 	return out
 }
 
-// titleCase capitalises each word of a tag name ("dark mode" -> "Dark Mode").
-// strings.Title is deprecated, and golang.org/x/text is a dependency for a
-// dozen lowercase ASCII tags.
+// titleCase capitalises each word of a tag name. strings.Title is deprecated and
+// golang.org/x/text is a dependency, for a dozen lowercase ASCII tags.
 func titleCase(s string) string {
 	out := []rune(s)
 	upper := true

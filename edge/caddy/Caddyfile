@@ -1,26 +1,20 @@
-# No TLS and no ACME. The Cloudflare edge terminates HTTPS near the visitor and
-# cloudflared hands plain HTTP to the Docker bridge, so there is nothing here to
-# encrypt and nothing to redirect to.
+# No TLS and no ACME. Cloudflare terminates HTTPS and cloudflared hands plain
+# HTTP to the Docker bridge, so there is nothing here to encrypt.
 #
-# Caddy stays in the path rather than cloudflared pointing straight at each app,
-# because it owns the shared concerns: security headers, compression, and the
-# per-site blocks that let one tunnel serve every project here. Adding a site is
-# a block here plus an ingress rule, not a second tunnel.
+# Caddy sits between cloudflared and the apps so headers, compression and
+# per-host routing live in one place. Adding a site is a block here plus an
+# ingress rule.
 {
 	auto_https off
 	admin off
 	servers {
-		# Makes Caddy's own client_ip field resolve the real visitor rather
-		# than cloudflared's bridge address.
+		# Or client_ip resolves to cloudflared's bridge address.
 		trusted_proxies static private_ranges
 	}
 }
 
-# The headers and the access log, split out from (site) so that
-# repos.bythewood.me can have them without also taking the blanket `encode`
-# that its git wire must not have. Before the split repos hand-copied this
-# block, which meant every future edit here silently skipped one of the nine
-# site blocks.
+# Split out from (site) so repos can import these without the blanket `encode`
+# that its git wire must not have.
 (headers) {
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
@@ -28,42 +22,30 @@
 		X-Content-Type-Options nosniff
 		Referrer-Policy strict-origin-when-cross-origin
 		-Server
-		# reverse_proxy adds "Via: 1.1 Caddy", which announces the origin
-		# stack and undoes the Server header stripped just above.
+		# reverse_proxy adds "Via: 1.1 Caddy", which undoes the line above.
 		-Via
 	}
 
-	# Access logging is off by default in Caddy 2.
+	# Off by default in Caddy 2.
 	log {
 		output stderr
 		format console
 	}
 }
 
-# Exploit scanners, probing software nothing here runs: WordPress, PHP, and the
-# usual credential files. Roughly a third of all requests reaching the origin,
-# in bursts of up to 30 a second from one address.
+# Exploit scanners probing software nothing here runs, about a third of all
+# requests. Blocked at the edge because it is a property of the edge, not of any
+# app, and because a third of every log record being hostile noise is what stops
+# a real new 404 after a deploy from being visible at all.
 #
-# This is at the edge because it is a property of the edge and not of any app:
-# one list rather than the same middleware copied into six Go modules. It is
-# also deliberately duplicated with a Cloudflare WAF rule that catches these
-# first and more cheaply. The duplication is the point: this is the copy that
-# lives in git and comes back on a fresh machine, and the dashboard rule is not.
+# `respond 404` rather than `abort`: Cloudflare reads a closed origin connection
+# as an origin error and counts it against origin health. A 404 is what these
+# paths already returned.
 #
-# `respond 404` rather than `abort`, which closes the connection without a
-# response: Cloudflare reads a closed origin connection as an origin error,
-# returns 502 or 520 to the client, and counts it against its view of origin
-# health. A 404 matches what these paths already returned and tells the edge
-# nothing is wrong.
-#
-# The cost being removed is not CPU. Each of these took about a quarter of a
-# millisecond. It is that the 404 page is a full styled document with the whole
-# JSON-LD graph, roughly 8KB, carrying no-store so the edge never absorbs any of
-# it, and that a third of every log record being hostile noise is what stops a
-# real new 404 after a deploy from being visible at all.
-# The Cloudflare WAF rule this duplicates, kept here because a dashboard rule
-# is not in version control and would not come back on a rebuild from nothing.
-# One custom rule of the five the free plan allows, action Block:
+# The same list also exists as a Cloudflare WAF rule, which catches these first
+# and more cheaply. Keeping a copy here is the point, since a dashboard rule is
+# not in version control and does not come back on a rebuild. One custom rule of
+# the five the free plan allows, action Block:
 #
 #   (http.request.uri.path contains "wp-")
 #   or (http.request.uri.path contains "wordpress")
@@ -78,49 +60,36 @@
 #   or (ends_with(http.request.uri.path, ".php"))
 #
 # Do not turn on Bot Fight Mode to solve this. status probes its own public
-# hostnames with a plain Go client sending a Chrome user agent, which cannot
-# solve a JS challenge, so it would report a permanent false outage on every
-# site here. That is worked out in full in decision 0007.
-#
-# The same list anchored at the root, for repos.bythewood.me only.
-#
-# repos serves arbitrary file paths out of arbitrary repositories, so any rule
-# that matches on path *content* collides with real files: the anywhere-matching
-# version below took /orchard/blob/main/sites/analytics.bythewood.me/.env.example
-# off the file browser, and every site here is required to commit a .env.example.
-# A mirrored repository can equally contain vendor/, .vscode/ or a .php file.
-#
-# Scanners always probe at the root (/wp-admin/, /.env, /index.php) while
-# repository content is always /{name}/{tree|blob|raw|...}/..., so anchoring is
-# what separates them. The .php rule is restricted to a single path segment for
-# the same reason.
+# hostnames with a plain Go client, which cannot solve a JS challenge, so every
+# site here would report a permanent false outage.
+
+# The same list anchored at the root, for repos.bythewood.me only. repos serves
+# arbitrary paths out of arbitrary repositories, so a rule matching on path
+# content collides with real files: the anywhere version below took
+# /orchard/blob/main/sites/analytics.bythewood.me/.env.example off the file
+# browser, and every site here has to commit a .env.example. Scanners always
+# probe at the root while repository content is always /{name}/{tree|blob|...},
+# so anchoring is what separates them.
 (scanners_root) {
 	@hostile_root path_regexp hostile_root (?i)^/(?:wp-|wordpress|wp/|xmlrpc\.php|phpmyadmin|autodiscover|cgi-bin/|vendor/|\.env|\.git/|\.aws|\.ssh/|\.vscode/)|^/[^/]*\.php$
 
 	log_skip @hostile_root
 
 	handle @hostile_root {
-		# no-store because a header-less response lets Cloudflare stamp its own
-		# browser TTL and hold a 404 at the edge, which this repo has a standing
-		# rule against.
+		# A header-less response lets Cloudflare stamp its own TTL and hold
+		# the 404 at the edge.
 		header Cache-Control "no-store"
 		respond 404
 	}
 }
 
 (scanners) {
-	# Matched anywhere in the path, not just at the root: most of the volume
-	# arrives nested under a guessed prefix (/blog/wp-json/..., /app/.env), and
-	# anchoring at ^ caught only 63% of it against 84% here. Checked against
-	# every distinct path in 16 hours of logs: zero paths that ever returned a
-	# 2xx on any of the six sites match this. What it deliberately does not
-	# match is the long tail of ordinary 404s (/blog/, /login, /logout,
-	# /apple-touch-icon.png), which are real paths on the wrong host and should
-	# keep answering normally.
+	# Matched anywhere in the path rather than at the root, since most of the
+	# volume arrives nested under a guessed prefix (/blog/wp-json/, /app/.env).
+	# Ordinary 404s like /login or /apple-touch-icon.png are left alone.
 	@hostile path_regexp hostile (?i)(?:^|/)(?:wp-|wordpress|wp/|xmlrpc\.php|phpmyadmin|autodiscover|cgi-bin/|vendor/|\.env|\.git/|\.aws|\.ssh/|\.vscode/)|\.php$
 
-	# Not logged. Moving the noise from one log to another is not the point of
-	# blocking it.
+	# Not logged. Moving the noise to another log is not the point.
 	log_skip @hostile
 
 	handle @hostile {
@@ -136,8 +105,7 @@
 	encode zstd gzip
 }
 
-# The sites. One block per hostname, each proxying to a container by name on
-# the shared network.
+# One block per hostname, each proxying to a container by name.
 http://isaacbythewood.com {
 	import site
 	reverse_proxy orchard-isaacbythewood:8000
@@ -148,9 +116,8 @@ http://blog.bythewood.me {
 	reverse_proxy orchard-blog:8000
 }
 
-# The collector endpoint is cross-origin by design and written to by every
-# tracked site, so it is the one route here an anonymous stranger can POST to.
-# The app caps the body at 16KB itself; this is the second fence.
+# The collector is the one route here an anonymous stranger can POST to. The app
+# caps the body at 16KB itself, and this is the second fence.
 http://analytics.bythewood.me {
 	import site
 
@@ -166,17 +133,14 @@ http://status.bythewood.me {
 	reverse_proxy orchard-status:8000
 }
 
-# The logging dashboard. /ingest is answered here rather than proxied, which is
-# what makes "anything able to reach the endpoint is already inside the network"
-# a fact about the edge rather than a claim about the app. Every site posts to
-# orchard-logging:8000 by container name on this same bridge and never comes
-# through Caddy at all, so nothing legitimate is being turned away.
+# /ingest is answered here rather than proxied, so reaching it really does mean
+# being inside the network. Every site posts to orchard-logging:8000 by
+# container name and never comes through Caddy at all.
 http://logging.bythewood.me {
 	import site
 
-	# Two handle blocks rather than a matcher plus a bare reverse_proxy, so
-	# the order is stated rather than inherited from Caddy's directive
-	# ordering. The wildcard catches /ingest/ as well as /ingest.
+	# Two handle blocks so the order is stated rather than inherited from
+	# Caddy's directive ordering. The wildcard catches /ingest/ too.
 	handle /ingest* {
 		respond "not here" 404
 	}
@@ -186,32 +150,24 @@ http://logging.bythewood.me {
 	}
 }
 
-# ntfy, the alert path. This block is what makes "publishing is reachable only
-# from inside" a fact about the edge rather than a claim about the app, exactly
-# like the /ingest fence above it.
+# ntfy, the alert path. An allowlist of three routes, for two reasons.
 #
-# It is an allowlist of three routes, and it is an allowlist for two reasons.
+# ntfy publishes over GET as well as POST, so a denylist leaks: /<topic>/publish,
+# /<topic>/send and /<topic>/trigger all publish with no body, and a POST to /
+# publishes with the topic in a JSON body. All four were confirmed against the
+# running container.
 #
-# One: ntfy publishes over GET as well as POST, so a denylist leaks. /<topic>/publish,
-# /<topic>/send and /<topic>/trigger all publish with no body at all, and a POST
-# to / publishes with the topic inside a JSON body. All four were confirmed
-# against the running container rather than read off a page.
+# And everything else ntfy serves is surface nothing here needs. The three below
+# are the complete set the Android client uses, read off this proxy's own access
+# log. The web app is separately off in server.yml.
 #
-# Two: everything else ntfy serves is surface nobody here needs. The three
-# routes below are the complete set the Android client uses, taken from this
-# proxy's own access log rather than guessed: the WebSocket it holds open, the
-# poll it falls back to, and the endpoint it checks a login against. The web
-# app is separately turned off in server.yml, so this is the second of two
-# answers to the same question.
-#
-# ntfy's own auth is the fence that matters and this is the other one: the
-# server is deny-all, so even a stolen write token cannot publish from out here.
+# ntfy's own deny-all auth is the fence that matters. This is the second one, so
+# even a stolen write token cannot publish from out here.
 http://ntfy.bythewood.me {
 	import site
 
-	# The topic segment allows commas, because the client subscribes to
-	# "status,logging" as a single path segment rather than opening two
-	# connections.
+	# Commas allowed, since the client subscribes to "status,logging" as one
+	# path segment rather than opening two connections.
 	@client {
 		method GET
 		path_regexp ^/[A-Za-z0-9_,-]+/(ws|json|sse|raw|auth)$
@@ -226,25 +182,14 @@ http://ntfy.bythewood.me {
 	}
 }
 
-# repos, the git remote. Two things here are not like the other sites.
-#
-# One: request_body has to be raised. Caddy's own default is unlimited, but a
-# git push is the one request on this edge that is legitimately enormous, and
-# stating a number is what makes the failure legible. 100MB is not chosen, it
-# is Cloudflare's own ceiling on a proxied request body for Free and Pro, which
-# no setting here can raise: a tunnel hostname must stay proxied, because
-# <uuid>.cfargotunnel.com is not publicly routable, so the usual "grey-cloud
-# that record" escape does not exist. Matching the number means an oversized
-# push is refused here with a 413 that names a limit, rather than by Cloudflare
-# with one that does not.
-#
-# Two: no compression on the git wire. Packfiles are already compressed, and
-# gzipping a 90MB pack costs CPU on both ends to make it very slightly larger.
-# The `encode` in the site snippet is why this block does not import it.
+# repos, the git remote. 100MB is Cloudflare's own ceiling on a proxied request
+# body for Free and Pro, which nothing here can raise, because a tunnel hostname
+# must stay proxied. Stating it means an oversized push is refused here with a
+# 413 that names the limit rather than by Cloudflare with one that does not.
 http://repos.bythewood.me {
-	# Not `import site`: the browse UI wants compression and the git wire must
-	# not have it, so `encode` is applied per handle below rather than to the
-	# whole host. The headers and the scanner block are shared.
+	# Not `import site`, because packfiles are already compressed and gzipping
+	# one costs CPU on both ends to make it slightly larger. `encode` goes on
+	# the browse handle instead.
 	import scanners_root
 	import headers
 
@@ -257,17 +202,15 @@ http://repos.bythewood.me {
 		reverse_proxy orchard-repos:8000
 	}
 
-	# Everything else is the browse UI, which is ordinary HTML and wants the
-	# compression the wire does not.
+	# The browse UI is ordinary HTML and does want compression.
 	handle {
 		encode zstd gzip
 		reverse_proxy orchard-repos:8000
 	}
 }
 
-# Redirects. bythewood.me has never served a site: it redirects to the
-# portfolio, and it is also the zone apex carrying the MX records, so the only
-# thing decided here is where HTTP goes.
+# bythewood.me has never served a site. It is the zone apex carrying the MX
+# records, so all that is decided here is where HTTP goes.
 http://www.isaacbythewood.com {
 	import site
 	redir https://isaacbythewood.com{uri} permanent
@@ -278,8 +221,8 @@ http://bythewood.me, http://www.bythewood.me {
 	redir https://isaacbythewood.com{uri} permanent
 }
 
-# Anything arriving without a matching Host did not come through an ingress
-# rule. Say so rather than serving a site by accident.
+# No matching Host means it did not come through an ingress rule. Say so rather
+# than serving a site by accident.
 :80 {
 	log {
 		output stderr

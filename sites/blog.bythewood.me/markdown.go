@@ -18,9 +18,8 @@ import (
 	"github.com/yuin/goldmark/util"
 )
 
-// The Markdown pipeline: tables, strikethrough, and raw HTML passed through.
-// Autolinks and heading anchors stay off, because turning them on would
-// silently rewrite twenty-two existing posts.
+// Autolinks and heading anchors stay off, since turning them on would silently
+// rewrite every existing post.
 var markdownRenderer = goldmark.New(
 	goldmark.WithExtensions(extension.Table, extension.Strikethrough),
 	goldmark.WithParserOptions(
@@ -32,19 +31,9 @@ var markdownRenderer = goldmark.New(
 	),
 )
 
-// imagePathTransformer rewrites a post's relative image reference to the URL
-// the file is actually served at.
-//
-// Posts write "images/foo.webp", which the browser resolves against the post's
-// own URL (/posts/<slug>/) and which therefore 404s. The files live under
-// content/images/ and are served from /content/images/. The Typst renderer has
-// always handled this, in imagePath; the HTML renderer never did, so the PDF
-// export of a post showed its images and the web page did not. That asymmetry
-// is why a text-only PDF parity check could not catch it.
-//
-// Done here rather than by rewriting the posts, so the authoring convention
-// stays "images/foo.webp" in both renderers and a future post cannot
-// reintroduce the bug. Absolute and off-site URLs are left alone.
+// imagePathTransformer rewrites a post's relative "images/foo.webp", which a
+// browser would resolve against /posts/<slug>/ and 404, to the /content/images/
+// path it is served at. Absolute and off-site URLs are left alone.
 type imagePathTransformer struct{}
 
 func (t *imagePathTransformer) Transform(doc *ast.Document, reader text.Reader, pc parser.Context) {
@@ -72,14 +61,8 @@ func renderMarkdown(md string) template.HTML {
 	return template.HTML(buf.String())
 }
 
-// base16OceanDark is the theme every existing code block was written under, so
-// it is spelled out here rather than substituted: chroma does not bundle this
-// one, and an approximation is a visible change to every post.
-//
-// Token assignments are Base16 Ocean's documented roles: base08 variables and
-// tags, base09 constants and numbers, base0A classes, base0B strings, base0C
-// escapes and builtins, base0D functions, base0E keywords, base0F
-// deprecated.
+// base16OceanDark is spelled out because chroma does not bundle it, and every
+// existing code block was written under it.
 var base16OceanDark = chroma.MustNewStyle("base16-ocean-dark", chroma.StyleEntries{
 	chroma.Background:            "#c0c5ce bg:#2b303b",
 	chroma.Comment:               "#65737e",
@@ -129,17 +112,14 @@ var base16OceanDark = chroma.MustNewStyle("base16-ocean-dark", chroma.StyleEntri
 	chroma.Error:                 "#ab7967",
 })
 
-// chromaFormatter emits the highlighted spans only. The <pre> and <code>
-// wrapper is written by hand below, because post.scss styles `article > pre`
-// as a direct child and chroma's own wrapper div would break that selector on
-// every code block.
+// Spans only. post.scss styles `article > pre` as a direct child, and chroma's
+// own wrapper div would break that selector on every code block.
 var chromaFormatter = chromahtml.New(
 	chromahtml.WithClasses(false),
 	chromahtml.PreventSurroundingPre(true),
 )
 
-// codeRenderer replaces goldmark's code block rendering: a <pre> carrying the
-// theme background as an inline style, wrapping a <code class="language-x">.
+// codeRenderer replaces goldmark's code block rendering.
 type codeRenderer struct{}
 
 func (r *codeRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
@@ -154,8 +134,7 @@ func (r *codeRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 
 	var lang string
 	if fenced, ok := node.(*ast.FencedCodeBlock); ok && fenced.Info != nil {
-		// The info string can carry more than the language ("go title=x"), and
-		// only the first word names a lexer.
+		// The info string can carry more than the language ("go title=x").
 		lang = string(firstWord(fenced.Info.Segment.Value(source)))
 	}
 
@@ -166,10 +145,8 @@ func (r *codeRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 		code.Write(line.Value(source))
 	}
 
-	// The colour is on the <pre> rather than left to the stylesheet. chroma
-	// only wraps tokens it has a rule for, so unstyled code (identifiers,
-	// punctuation, whitespace) would inherit article's warm #c4bdb2 against
-	// this cool background.
+	// The colour is on the <pre>, since chroma only wraps tokens it has a rule
+	// for and the rest would inherit article's warm foreground.
 	_, _ = w.WriteString(`<pre style="background-color:#2b303b;color:#c0c5ce;"><code`)
 	if lang != "" {
 		_, _ = w.WriteString(` class="language-`)
@@ -179,8 +156,7 @@ func (r *codeRenderer) render(w util.BufWriter, source []byte, node ast.Node, en
 	_, _ = w.WriteString(`>`)
 
 	if err := highlight(w, code.String(), lang); err != nil {
-		// An unhighlightable block is still a readable block, so fall back to
-		// the escaped source rather than failing the whole page.
+		// An unhighlightable block is still readable.
 		template.HTMLEscape(w, code.Bytes())
 	}
 
@@ -196,8 +172,8 @@ func highlight(w util.BufWriter, code, lang string) error {
 	if lexer == nil {
 		lexer = lexers.Fallback
 	}
-	// Coalesce merges runs of same-type tokens, which keeps a plain-text block
-	// from becoming one <span> per character.
+	// Coalesce merges runs of same-type tokens, or a plain-text block becomes
+	// one <span> per character.
 	iterator, err := chroma.Coalesce(lexer).Tokenise(nil, code)
 	if err != nil {
 		return err

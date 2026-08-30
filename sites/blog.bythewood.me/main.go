@@ -1,8 +1,5 @@
 // blog.bythewood.me: a Markdown blog with no database. Posts are files under
 // content/posts, parsed once at startup and served from memory.
-//
-// Nothing here is configurable and nothing here is secret. Identity is
-// hardcoded in site.go, so there is no .env of any kind.
 package main
 
 import (
@@ -19,25 +16,21 @@ import (
 	"blog.bythewood.me/web"
 )
 
-// Templates are source, so they ship inside the binary.
+// Templates are source, so they always ship inside the binary.
 //
 //go:embed templates
 var templateFS embed.FS
 
-// So are the posts. They are committed data, parsed once at startup and never
-// re-read, so embedding them is what makes the release binary the whole blog
-// rather than a binary plus a directory of Markdown.
-//
-// `all:` keeps content/images intact, since it holds files embed would
-// otherwise skip for starting with a dot.
+// The posts too, which is what makes the release binary the whole blog. `all:`
+// keeps dot-prefixed files under content/images, which embed would skip.
 //
 //go:embed all:content
 var contentFS embed.FS
 
 const listenAddr = ":8000"
 
-// dirs resolve relative to the working directory in dev and are set to
-// absolute paths in the image.
+// Paths resolve against the working directory in dev, and are absolute in the
+// image.
 func dir(env, fallback string) string {
 	if v := os.Getenv(env); v != "" {
 		return v
@@ -45,12 +38,9 @@ func dir(env, fallback string) string {
 	return fallback
 }
 
-// Content-Security-Policy.
-//
-// 'unsafe-inline' is needed in both script-src and style-src: the analytics
-// collector is a literal inline script, and the Bootstrap templates carry
-// inline style attributes on a dozen elements. Dropping either means changing
-// the markup.
+// 'unsafe-inline' is needed in script-src for the inline analytics snippet and
+// in style-src for Bootstrap's style attributes. Neither can drop it without a
+// markup change.
 func csp() string {
 	return strings.Join([]string{
 		"default-src 'self'",
@@ -68,16 +58,14 @@ func csp() string {
 func main() {
 	web.SetupLogging()
 
-	// -pdfs compiles every post to PDF and exits. On the site binary rather
-	// than in a cmd/ of its own, so the post loader and the Typst walker have
-	// one copy.
+	// The build-time modes live on the site binary so the post loader and the
+	// Typst walker have one copy.
 	pdfsOut := flag.String("pdfs", "", "compile every post to a PDF in this directory, then exit")
 	ogOut := flag.String("og", "", "compile every social card to a PNG in this directory")
 	typstRoot := flag.String("typst-root", ".", "directory Typst resolves absolute paths against")
 	typstFonts := flag.String("typst-fonts", "", "directory of extra font files for Typst")
-	// The container HEALTHCHECK runs this. Two of these images are FROM
-	// scratch and have no shell for a check to call, so the binary probes
-	// itself.
+	// The container HEALTHCHECK runs this: a FROM scratch image has no shell
+	// for a check to call, so the binary probes itself.
 	healthcheck := flag.Bool("healthcheck", false, "probe a running server on this host and exit")
 	flag.Parse()
 
@@ -89,14 +77,9 @@ func main() {
 		return
 	}
 
-	// Log shipping. Installed on top of the stdout handler rather than in
-	// place of it: every record still goes where it always went, and a copy
-	// is queued for logging.bythewood.me. Nothing here can block a request,
-	// and a logging site that is down or slow costs some lines on a
-	// dashboard. See web/shipper.go.
-	//
-	// After the healthcheck branch above, so a HEALTHCHECK invocation does
-	// not spin up a queue it will never flush.
+	// Tees stdout records to logging.bythewood.me; see web/shipper.go. It goes
+	// after the healthcheck branch so a HEALTHCHECK does not start a queue it
+	// will never flush.
 	shipper := web.ShipLogs("blog", web.HTTPSink())
 	defer shipper.Close()
 
@@ -113,9 +96,8 @@ func main() {
 	}
 	slog.Info(fmt.Sprintf("loaded %d posts", len(lib.All())))
 
-	// The build-time modes. Both take the same Typst root and font path, and
-	// either one ends the process: this binary is the site server or the
-	// asset compiler, never both at once.
+	// Either mode ends the process: this binary serves the site or compiles
+	// assets, never both.
 	if *pdfsOut != "" || *ogOut != "" {
 		if *pdfsOut != "" {
 			if err := GeneratePDFs(lib, *typstRoot, *typstFonts, *pdfsOut); err != nil {
@@ -178,31 +160,24 @@ func main() {
 	mux.HandleFunc("GET /posts/{slug}/pdf/{$}", s.postPDF)
 	mux.HandleFunc("GET /posts/{slug}/md/{$}", s.postMarkdown)
 
-	// The pre-2026 URLs, kept alive because one of the posts they serve is
-	// about not breaking URLs.
-	//
-	// The export forms are one pattern rather than two: "GET /blog/{slug}/pdf/{$}"
-	// and "GET /blog/tag/{tag}/{$}" overlap on /blog/tag/pdf/ with neither more
-	// specific, and the mux panics at registration rather than picking one. A
-	// single {slug}/{format} pattern is less specific than the literal
-	// /blog/tag/ and /blog/year/ routes, so those keep winning.
+	// The export forms are one {slug}/{format} pattern because "/blog/{slug}/pdf/"
+	// and "/blog/tag/{tag}/" overlap with neither more specific, which the mux
+	// panics on at registration.
 	mux.HandleFunc("GET /blog/{slug}/{$}", s.redirectPost)
 	mux.HandleFunc("GET /blog/{slug}/{format}/{$}", s.redirectPostFormat)
 
-	// Every route above ends in a slash. These two cover the slashless forms
-	// a person actually types.
+	// Every route above ends in a slash; these cover the slashless forms.
 	mux.HandleFunc("GET /blog", redirectSlash)
 	mux.HandleFunc("GET /search", redirectSlash)
 
 	mux.HandleFunc("GET /search/{$}", s.search)
 	mux.HandleFunc("GET /search/live/{$}", s.searchLive)
 
-	// Read by isaacbythewood.com's home page for its promo slot. See
-	// latestJSON for the shape.
+	// Read by isaacbythewood.com's home page for its promo slot.
 	mux.HandleFunc("GET /latest.json", s.latestJSON)
 
-	// Cards are compiled at build time, so this serves files. A day of cache
-	// is plenty: a card changes only when its post's title or tags do.
+	// Cards are compiled at build time, and change only with a post's title
+	// or tags.
 	mux.Handle("GET /og/", http.StripPrefix("/og/",
 		cacheControl("public, max-age=86400", http.FileServer(http.FS(s.og)))))
 	mux.HandleFunc("GET /favicon.ico", favicon)
@@ -210,15 +185,14 @@ func main() {
 	mux.HandleFunc("GET /robots.txt", robots)
 	mux.HandleFunc("GET /sitemap.xml", s.sitemap)
 	mux.HandleFunc("GET "+feedPath, s.feed)
-	// The two paths readers guess at when a site does not advertise one.
+	// The two paths readers guess at.
 	mux.HandleFunc("GET /feed", redirectFeed)
 	mux.HandleFunc("GET /rss.xml", redirectFeed)
 
 	mux.Handle("GET /static/", web.Static(dist, assets))
 
-	// Post images keep their real filenames, so they get an hour rather than
-	// the immutable year the hashed bundles get. Replacing an image has to be
-	// visible before 2027.
+	// Post images keep their real filenames, so replacing one has to become
+	// visible without a hash change; no immutable year here.
 	contentImages, err := fs.Sub(content, "images")
 	if err != nil {
 		slog.Error("startup failed", slog.Any("err", err))
@@ -229,27 +203,21 @@ func main() {
 			http.FileServer(http.FS(contentImages))))
 	mux.Handle("GET /content/images/", images)
 
-	// Not logged and not behind the security headers: a line per probe would
-	// bury real traffic.
+	// Not logged: a line per probe would bury real traffic.
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		_, _ = w.Write([]byte("ok\n"))
 	})
 
-	// Anything unmatched. "/" with no {$} is Go's catch-all.
+	// "/" with no {$} is Go's catch-all.
 	mux.HandleFunc("GET /", s.notFound)
 
 	handler := web.Chain(mux,
 		web.Recovered,
 		web.Logged,
 		web.SecurityHeaders(csp()),
-		// Five minutes fresh, then a day of serving stale while revalidating
-		// behind the request, then a week of serving stale if the origin is
-		// down.
-		//
-		// No s-maxage. Per RFC 9111 it carries proxy-revalidate semantics, so
-		// Cloudflare reads it as "never serve stale without asking first" and
-		// disables stale-while-revalidate and stale-if-error both.
+		// No s-maxage: per RFC 9111 it carries proxy-revalidate semantics, so
+		// Cloudflare disables stale-while-revalidate and stale-if-error both.
 		web.EdgeCache("public, max-age=300, "+
 			"stale-while-revalidate=86400, stale-if-error=604800"),
 	)

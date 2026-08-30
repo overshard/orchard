@@ -12,20 +12,14 @@ import (
 	"time"
 )
 
-// The code page shows the latest commit for each project, refreshed in the
-// background on a ticker. The page is always servable, and a GitHub outage
-// degrades it to no commit lines rather than blocking a render.
-//
-// Unauthenticated GitHub allows 60 requests an hour per IP. Nine repos once an
-// hour is inside that, and there is no token to store.
+// Unauthenticated GitHub allows 60 requests an hour per IP, so nine repos on an
+// hourly ticker fits inside it with no token to store.
 
 const (
 	commitRefreshInterval = time.Hour
 	commitFetchTimeout    = 10 * time.Second
 )
 
-// Commit is the subset of a GitHub commit the page shows, and the shape that
-// gets rendered as JSON into the card.
 type Commit struct {
 	SHA     string `json:"sha"`
 	Message string `json:"message"`
@@ -33,7 +27,8 @@ type Commit struct {
 	Author  string `json:"author"`
 }
 
-// CommitCache holds the most recent successful fetch per repo.
+// CommitCache holds the most recent successful fetch per repo and is safe for
+// concurrent use.
 type CommitCache struct {
 	mu      sync.RWMutex
 	commits map[string]Commit
@@ -47,7 +42,6 @@ func NewCommitCache() *CommitCache {
 	}
 }
 
-// Get returns the cached commit for a repo, and whether there is one.
 func (c *CommitCache) Get(slug string) (Commit, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -55,12 +49,9 @@ func (c *CommitCache) Get(slug string) (Commit, bool) {
 	return commit, ok
 }
 
-// JSON renders a commit the way the card displays it, pretty-printed.
-//
-// SetEscapeHTML(false), which json.MarshalIndent cannot do. The output goes
-// into html/template, which escapes for the HTML context already, so the
-// default only makes a commit message containing an arrow render as a literal
-// "\u003e" inside the <pre>.
+// JSON renders a commit the way the card displays it. SetEscapeHTML(false),
+// which MarshalIndent cannot do, because html/template escapes already and the
+// default renders an arrow in a message as a literal "\u003e" in the <pre>.
 func (c *CommitCache) JSON(slug string) string {
 	commit, ok := c.Get(slug)
 	if !ok {
@@ -78,9 +69,8 @@ func (c *CommitCache) JSON(slug string) string {
 	return strings.TrimRight(buf.String(), "\n")
 }
 
-// Start does one fetch immediately and then refreshes on a ticker until ctx is
-// cancelled. It returns straight away, so the site does not wait on GitHub to
-// begin serving.
+// Start returns straight away, fetches once, then refreshes on a ticker until
+// ctx is cancelled, so the site never waits on GitHub to begin serving.
 func (c *CommitCache) Start(ctx context.Context, slugs []string) {
 	go func() {
 		c.refresh(ctx, slugs)
@@ -123,8 +113,7 @@ func (c *CommitCache) refresh(ctx context.Context, slugs []string) {
 	}
 	wg.Wait()
 
-	// A failed repo keeps its previous value, so a transient 502 does not
-	// blank a card that was fine a minute ago.
+	// A failed repo keeps its previous value, so a 502 does not blank a card.
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for _, r := range results {
@@ -177,9 +166,8 @@ func (c *CommitCache) fetch(ctx context.Context, slug string) (Commit, error) {
 		sha = sha[:7]
 	}
 
-	// Subject line only. The card is a few lines of JSON in a <pre>, so a
-	// commit with a body would render its whole body as one escaped string
-	// and blow the card out of shape, same reason the SHA is cut to 7.
+	// Subject line only. The card is a few lines of JSON in a <pre>, and a
+	// commit body would render as one escaped string and blow it out of shape.
 	message, _, _ := strings.Cut(head.Commit.Message, "\n")
 
 	return Commit{

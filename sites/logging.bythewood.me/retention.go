@@ -8,57 +8,37 @@ import (
 	"time"
 )
 
-// Retention: the half of this site that keeps it from becoming the problem it
-// was built to watch.
-//
-// Raw records age out, hourly rollups do not. That is the whole policy, and it
-// is why the graphs can cover a year while the database stays a fixed size: a
-// year of rollups for five sources is on the order of a hundred thousand rows,
-// and a year of raw request logs is tens of millions.
+// Raw records age out, hourly rollups do not, which is what lets a graph cover
+// a year while the database stays a fixed size.
 
 const (
-	// Thirty days of raw lines. Long enough that "what happened last month"
-	// is answerable and short enough that the file stays small: at the
-	// measured shape of this traffic, a few tens of thousands of records a
-	// day at roughly 250 bytes a row, thirty days is a few hundred megabytes
-	// including indexes.
-	//
-	// This is the number to change if it turns out to be wrong, and changing
-	// it costs nothing: the next sweep enforces whatever it says.
+	// Changing this costs nothing: the next sweep enforces whatever it says.
 	rawRetention = 30 * 24 * time.Hour
 
-	// How often the sweeper wakes. Hourly rather than daily so a deletion is
-	// always small, and so a machine that is asleep most of the day still
-	// gets one in.
+	// Hourly rather than daily, so a deletion is always small and a machine
+	// asleep most of the day still gets one in.
 	sweepInterval = time.Hour
 
-	// Rows per DELETE. SQLite takes a database-wide write lock for the whole
-	// statement, so one unbounded delete of a month's backlog would stall
-	// every ingest behind it for as long as it took. Chunks give the writer
-	// its turn between them.
+	// Rows per DELETE. SQLite holds a database-wide write lock for the whole
+	// statement, so an unbounded delete would stall every ingest behind it.
 	sweepChunk = 5000
 
-	// A ceiling on one sweep, so a very large backlog is worked off over
-	// several hours instead of monopolizing the lock for one long one.
+	// A ceiling on one sweep, so a large backlog is worked off over hours.
 	sweepMaxChunks = 200
 
-	// Reclaiming is paced the same way, and for the same reason. 1000 pages is
-	// about 4MB per step at the default page size.
+	// Reclaiming is paced the same way; 1000 pages is about 4MB per step.
 	vacuumPages    = 1000
 	vacuumMaxSteps = 200
 )
 
-// Sweeper runs the retention pass.
 type Sweeper struct {
 	db *sql.DB
 }
 
 func NewSweeper(db *sql.DB) *Sweeper { return &Sweeper{db: db} }
 
-// Run sweeps on a ticker until the context is cancelled. It sweeps once at
-// startup too: a process that is restarted more often than the interval would
-// otherwise never sweep at all, which is exactly the shape of a site that is
-// deployed several times a day.
+// Run sweeps on a ticker until ctx is cancelled, and once at startup, since a
+// process restarted more often than the interval would otherwise never sweep.
 func (s *Sweeper) Run(ctx context.Context) {
 	s.sweep(ctx)
 
@@ -89,22 +69,10 @@ func (s *Sweeper) sweep(ctx context.Context) {
 		return
 	}
 
-	// Reclaiming is a separate step, and without it the row count is bounded
-	// while the file on disk is not: SQLite frees pages onto a freelist and
-	// reuses them, but only auto_vacuum hands them back to the filesystem.
-	// INCREMENTAL is set in the DSN, which means it has to have been set when
-	// the file was created; this is the call that acts on it.
-	//
-	// In pages, in a paced loop, for the same reason the deletes above are
-	// chunked. A bare `PRAGMA incremental_vacuum` frees the entire freelist
-	// under one database-wide write lock: measured at 1.3 seconds to reclaim
-	// 160MB, five times longer than any delete chunk, and it scales with the
-	// backlog. Freeing a gigabyte would exceed busy_timeout(5000) and make the
-	// writer discard a batch, which is a strange way for a retention pass to
-	// lose today's logs.
-	//
-	// The page count is formatted in rather than bound: SQLite does not accept
-	// a parameter in a PRAGMA. It is a constant in this file, never input.
+	// Without this the row count is bounded but the file is not: only
+	// auto_vacuum hands freed pages back. Paced, because a bare
+	// incremental_vacuum frees the whole freelist under the write lock.
+	// The page count is formatted in because SQLite takes no PRAGMA parameter.
 	reclaimed := "reclaimed"
 	for i := 0; i < vacuumMaxSteps; i++ {
 		if _, err := s.db.ExecContext(ctx,
@@ -137,13 +105,9 @@ func (s *Sweeper) sweep(ctx context.Context) {
 		slog.Float64("ms", float64(time.Since(start).Microseconds())/1000))
 }
 
-// deleteOlderThan removes aged rows in bounded chunks, stopping when a chunk
-// comes back short.
-//
-// The subselect on id rather than a plain `DELETE ... WHERE ts < ?` is what
-// makes the chunking honest: SQLite's LIMIT on DELETE is a compile-time option
-// and is not enabled in every build, so relying on it would work here and fail
-// on someone else's.
+// deleteOlderThan removes aged rows in bounded chunks. The subselect on id is
+// there because LIMIT on DELETE is a SQLite compile-time option not enabled in
+// every build.
 func (s *Sweeper) deleteOlderThan(ctx context.Context, cutoff int64) (int64, error) {
 	var total int64
 	for i := 0; i < sweepMaxChunks; i++ {
@@ -163,8 +127,7 @@ func (s *Sweeper) deleteOlderThan(ctx context.Context, cutoff int64) (int64, err
 			return total, nil
 		}
 
-		// Yield between chunks. The writer holds the only other write path
-		// and a tight loop here would starve it for the length of the sweep.
+		// Yield, or a tight loop starves the writer for the whole sweep.
 		select {
 		case <-ctx.Done():
 			return total, ctx.Err()

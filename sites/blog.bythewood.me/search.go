@@ -6,11 +6,8 @@ import (
 	"strings"
 )
 
-// Search is a substring scan over titles, descriptions and tags, held in
-// memory. Twenty-two posts do not need an index.
-//
-// Post bodies are not searched: matching body text without highlighting where
-// the match was produces results that look wrong.
+// matches is a substring scan over title, description and tags. Bodies are not
+// searched, since a match nothing highlights looks like a wrong result.
 func matches(post *Post, needle string) bool {
 	if strings.Contains(strings.ToLower(post.Title), needle) ||
 		strings.Contains(strings.ToLower(post.Description), needle) {
@@ -53,8 +50,7 @@ func (s *site) search(w http.ResponseWriter, r *http.Request) {
 	data.Breadcrumbs = []Crumb{{Title: "Home", URL: "/"}, {Title: "Search"}}
 
 	if strings.TrimSpace(query) == "" {
-		// No query is not a failed search, so the page offers somewhere to go
-		// instead of an empty result list.
+		// An empty query offers somewhere to go rather than no results.
 		data.RandomPosts = pickRandom(published, 6)
 	} else {
 		data.Posts = search(published, query, 0)
@@ -64,8 +60,7 @@ func (s *site) search(w http.ResponseWriter, r *http.Request) {
 	s.renderer.Render(w, http.StatusOK, "search.html", data)
 }
 
-// searchLive backs the type-ahead in search.js. Five results, because it
-// renders into a dropdown under the input.
+// searchLive backs the type-ahead in search.js, which renders a short dropdown.
 func (s *site) searchLive(w http.ResponseWriter, r *http.Request) {
 	published, _, _ := s.lib.Published()
 
@@ -75,8 +70,7 @@ func (s *site) searchLive(w http.ResponseWriter, r *http.Request) {
 		URL         string `json:"url"`
 	}
 
-	// An empty array, never null: search.js does data.length on the response
-	// and null has no length.
+	// An empty array, never null: search.js reads data.length.
 	out := []result{}
 	for _, post := range search(published, r.URL.Query().Get("q"), 5) {
 		out = append(out, result{post.Title, post.Description, post.URL()})
@@ -85,9 +79,8 @@ func (s *site) searchLive(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 
-	// SetEscapeHTML(false): nothing here is interpolated into a page, since
-	// search.js builds rows from text nodes, so the default escaping only
-	// corrupts titles.
+	// search.js builds rows from text nodes, so the default escaping would only
+	// corrupt titles.
 	encoder := json.NewEncoder(w)
 	encoder.SetEscapeHTML(false)
 	_ = encoder.Encode(out)

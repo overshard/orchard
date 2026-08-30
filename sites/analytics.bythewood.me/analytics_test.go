@@ -11,14 +11,8 @@ import (
 	"github.com/google/uuid"
 )
 
-// These cover the functions where a mistake is silent: escaping that produces
-// a valid-looking document with the wrong content, auth that lets the wrong
-// request through, and arithmetic that renders a plausible wrong number.
-// Anything a compiler or an obviously broken page would catch is left alone.
-
-// The "/" case is the one that is not obvious: a page URL is user data, "//"
-// opens a Typst line comment, and the report then loses the rest of that line
-// rather than failing.
+// The "/" case is the one that is not obvious: "//" opens a Typst line comment,
+// so a page URL swallows the rest of the line rather than failing.
 func TestTypstMD(t *testing.T) {
 	tests := []struct{ in, want string }{
 		{"/blog/post", `\/blog\/post`},
@@ -42,8 +36,8 @@ func TestTypstStr(t *testing.T) {
 		{`say "hi"`, `say \"hi\"`},
 		{`back\slash`, `back\\slash`},
 		{"line\nbreak", `line\nbreak`},
-		// Markup metacharacters are harmless inside a string literal, so
-		// escaping them here would put visible backslashes in the PDF.
+		// Markup metacharacters are harmless in a string literal; escaping
+		// them here would put visible backslashes in the PDF.
 		{"a/b#c", "a/b#c"},
 	}
 	for _, tt := range tests {
@@ -53,13 +47,13 @@ func TestTypstStr(t *testing.T) {
 	}
 }
 
-// A non-ASCII byte cannot go into a header value, so a property named "Café"
-// has to survive the trip into Content-Disposition.
+// A non-ASCII byte cannot go into a header value, so "Café" has to survive the
+// trip into Content-Disposition.
 func TestASCIIFilename(t *testing.T) {
 	tests := []struct{ in, want string }{
 		{"Café", "Caf_"},
 		{"my site.com", "my site.com"},
-		// Leading dots are stripped, so this cannot become a hidden file.
+		// Leading dots are stripped, so this is not a hidden file.
 		{"../../etc/passwd", "_.._etc_passwd"},
 		{`quote"inject`, "quote_inject"},
 		{"...", "report"},
@@ -79,8 +73,7 @@ func TestASCIIFilename(t *testing.T) {
 	}
 }
 
-// Referrers are grouped by this value, so getting it wrong does not error. It
-// splits one source into several rows that should have been one.
+// Getting this wrong does not error, it splits one referrer into several rows.
 func TestNormalizeReferrer(t *testing.T) {
 	tests := []struct{ in, want string }{
 		{"https://www.google.com/search?q=x", "google.com"},
@@ -97,7 +90,7 @@ func TestNormalizeReferrer(t *testing.T) {
 }
 
 // "//evil.example" starts with a slash and is still off-site: browsers read it
-// as protocol-relative, and a naive prefix check passes it straight through.
+// as protocol-relative.
 func TestSafeNext(t *testing.T) {
 	tests := []struct{ in, want string }{
 		{"/properties", "/properties"},
@@ -114,8 +107,7 @@ func TestSafeNext(t *testing.T) {
 	}
 }
 
-// The session cookie is the entire authentication system, so its failure modes
-// are pinned rather than reasoned about.
+// The session cookie is the entire authentication system.
 func TestSession(t *testing.T) {
 	key := sessionKey("correct horse")
 
@@ -191,8 +183,7 @@ func TestPasswordMatches(t *testing.T) {
 	}
 }
 
-// Zero previous must not become an infinite or 100% increase, which would put
-// a delta on every card of a property's first week.
+// A zero previous must not become an infinite or 100% increase.
 func TestPctChange(t *testing.T) {
 	tests := []struct {
 		cur, prev float64
@@ -240,8 +231,8 @@ func TestChartPolyline(t *testing.T) {
 	}
 }
 
-// A bot counted as a human inflates every metric on the dashboard, and nothing
-// about the number looks wrong afterwards.
+// A bot counted as a human inflates every metric, and the number still looks
+// plausible.
 func TestBotClassification(t *testing.T) {
 	bots := []string{
 		"Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
@@ -283,8 +274,7 @@ func TestClassifyDevice(t *testing.T) {
 	}
 }
 
-// Truncating on a byte boundary would cut a multi-byte character in half and
-// store invalid UTF-8.
+// Truncating on a byte boundary would store invalid UTF-8.
 func TestClampRunes(t *testing.T) {
 	if got := clampRunes("hello", 10); got != "hello" {
 		t.Errorf("short string was altered: %q", got)
@@ -307,8 +297,7 @@ func isValidUTF8(s string) bool {
 	return true
 }
 
-// encodeExtra must not escape < and >: the value is stored rather than
-// rendered, so a URL that went in with a "<" has to come back with one.
+// encodeExtra stores rather than renders, so a "<" that went in comes back out.
 func TestEncodeExtra(t *testing.T) {
 	if got := encodeExtra(nil); got != "{}" {
 		t.Errorf("empty extra = %q, want {}", got)
@@ -319,7 +308,6 @@ func TestEncodeExtra(t *testing.T) {
 	}
 }
 
-// The date bounds decide which events a dashboard counts.
 func TestParseDateToMS(t *testing.T) {
 	start, ok := parseDateToMS("2026-05-09", false)
 	if !ok {
@@ -340,8 +328,7 @@ func TestParseDateToMS(t *testing.T) {
 	}
 }
 
-// The two non-integer card values are formatted through this, and %v would
-// flip to scientific notation at the top of the range.
+// %v would flip to scientific notation at the top of the range.
 func TestTrimFloat(t *testing.T) {
 	tests := []struct {
 		in   float64
@@ -359,11 +346,7 @@ func TestTrimFloat(t *testing.T) {
 	}
 }
 
-// TestSelfTrackingID pins the property this site files its own traffic under.
-// It used to be generated on first boot and stored in meta, so it could not be
-// asserted; hardcoding it is what makes this test possible and is the point of
-// the change. A wrong id here is silent, exactly as it would be on any other
-// site: the dashboard simply shows no traffic for itself.
+// A wrong id here is silent: the dashboard just shows no traffic for itself.
 func TestSelfTrackingID(t *testing.T) {
 	const want = "580ebab0-3d14-4a20-89da-d57fc3d7d9e8"
 	if analyticsID != want {
@@ -372,8 +355,7 @@ func TestSelfTrackingID(t *testing.T) {
 	if _, err := uuid.Parse(analyticsID); err != nil {
 		t.Errorf("analyticsID is not a uuid, so collect would reject it: %v", err)
 	}
-	// Staging renders no snippet at all rather than posting an id its own
-	// database has no row for, which is what the template comment promises.
+	// Staging renders no snippet rather than posting an id it has no row for.
 	if got := collectorID(); Staging && got != "" {
 		t.Errorf("collectorID() = %q on staging, want empty", got)
 	} else if !Staging && got != analyticsID {

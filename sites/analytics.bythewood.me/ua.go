@@ -9,12 +9,8 @@ import (
 	"github.com/ua-parser/uap-go/uaparser"
 )
 
-// UAParser turns a User-Agent string into a platform, browser, device class,
-// and a verdict on whether the sender is a robot.
-//
-// uap-core's regexes are compiled into the uap-go package rather than fetched
-// at boot, so a cold start with no network still names browsers. The substring
-// heuristic below is an addition to those regexes, never a replacement.
+// UAParser turns a User-Agent string into a platform, browser, device class and
+// a verdict on whether the sender is a robot.
 type UAParser struct {
 	once   sync.Once
 	parser *uaparser.Parser
@@ -30,9 +26,8 @@ type ParsedUA struct {
 	BotName  string
 }
 
-// NewUAParser builds a parser lazily. Compiling the full uap-core regex set is
-// the most expensive thing this process would do at startup, and nothing needs
-// it until the first collector hit.
+// NewUAParser builds a parser lazily; compiling the uap-core regex set is the
+// most expensive thing this process would do at startup.
 func NewUAParser() *UAParser { return &UAParser{} }
 
 func (u *UAParser) get() *uaparser.Parser {
@@ -45,8 +40,7 @@ func (u *UAParser) get() *uaparser.Parser {
 	return u.parser
 }
 
-// uap-core reports a crawler as one of these device families, which is what
-// gets a bot named rather than merely flagged.
+// uap-core reports a crawler as one of these device families.
 var spiderFamilies = map[string]bool{
 	"Spider":            true,
 	"Spider Desktop":    true,
@@ -69,17 +63,13 @@ func (u *UAParser) Parse(ua string) ParsedUA {
 
 	client := parser.Parse(ua)
 
-	// uap-core writes the literal string "Other" when nothing matched, which
-	// would become a dashboard row labelled "Other" beside real browser
-	// names.
+	// uap-core writes the literal string "Other" when nothing matched.
 	platform := notOther(client.Os.Family)
 	browser := notOther(client.UserAgent.Family)
 	deviceFamily := client.Device.Family
 
-	// Two independent signals. uap-core knows the crawlers that declare
-	// themselves; the needle list catches the preview fetchers and uptime
-	// probes it reads as ordinary browsers, which is most of what hits a
-	// small site.
+	// uap-core knows the crawlers that declare themselves; the needle list
+	// catches preview fetchers and uptime probes it reads as browsers.
 	isBot := spiderFamilies[deviceFamily] || looksLikeBot(ua)
 
 	out := ParsedUA{Platform: platform, Browser: browser, IsBot: isBot}
@@ -98,12 +88,9 @@ func notOther(family string) string {
 	return family
 }
 
-// looksLikeBot is the substring pass over the raw User-Agent.
-//
-// Broad on purpose: a false positive lands in bot_events, a table nobody makes
-// decisions from, while a missed bot inflates every human metric on the
-// dashboard. "monitor" and "headlesschrome" are here for that reason and would
-// be too aggressive under any other goal.
+// looksLikeBot is the substring pass over the raw User-Agent. It is broad,
+// since a false positive only lands in bot_events while a missed bot inflates
+// every human metric.
 var botNeedles = []string{
 	"bot", "crawl", "spider", "slurp", "facebookexternalhit", "ahrefs", "semrush",
 	"petalbot", "yandex", "bingpreview", "duckduckgo", "discordbot", "whatsapp",
@@ -121,10 +108,9 @@ func looksLikeBot(ua string) bool {
 	return false
 }
 
-// classifyDevice collapses uap-core's device families into the three buckets
-// the dashboard charts. Tablet is tested before mobile because an iPad's
-// User-Agent contains neither "mobile" nor "iphone", while an Android
-// tablet's contains "mobile".
+// classifyDevice collapses uap-core's device families into the three buckets the
+// dashboard charts. Tablet is tested first: an iPad's User-Agent says neither
+// "mobile" nor "iphone", and an Android tablet's says "mobile".
 func classifyDevice(ua, family string) string {
 	lower := strings.ToLower(ua)
 

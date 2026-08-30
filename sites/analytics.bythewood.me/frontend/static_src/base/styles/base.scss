@@ -1,6 +1,5 @@
 @use "variables" as *;
 
-// ── CSS variable overrides ──
 // Bootstrap 5.3 writes defaults into `:root,[data-bs-theme=light]`. Use
 // `html:root` so we outrank the default block and enforce the dark palette.
 html:root {
@@ -17,8 +16,6 @@ html:root {
   --bs-heading-color: #{$white};
 }
 
-// ── Global ──
-
 body {
   min-height: 100vh;
   display: flex;
@@ -34,10 +31,6 @@ main { flex: 1; }
 
 .vh-100 { height: 100vh; }
 
-// ── Logo (rising-bars mark) ──
-// An ascending bar-chart silhouette — evokes growth / aggregate counts, which
-// is what Analytics is actually for. Rendered inline as SVG so it scales
-// cleanly and matches the favicon exactly.
 
 .logo {
   display: inline-flex;
@@ -64,11 +57,8 @@ main { flex: 1; }
   }
 }
 
-// ── Navbar ──
-// `min-height` (not `height`) so the bar grows when the mobile collapse opens.
-// A fixed `height: 52px` clipped the open menu — items rendered into the
-// space below the bar but later siblings (breadcrumb-bar, main) painted on
-// top of them, so they read as completely invisible on phones.
+// `min-height` rather than `height`, so the bar grows when the mobile collapse
+// opens. At a fixed height the open menu is painted over by the siblings below.
 
 .navbar {
   min-height: 52px;
@@ -137,12 +127,6 @@ main { flex: 1; }
     &.active::after { transform: scaleX(1); }
   }
 
-  // ── Mobile (under 768px): stacked drawer ──
-  // Bootstrap's collapse drops the menu to a second flex row inside the
-  // navbar at this breakpoint. Style it as a tray under the brand row:
-  // top-rule separator, full-width tap targets, left-accent for the active
-  // item (instead of the desktop underline, which reads weird on stacked
-  // left-aligned items).
   @media (max-width: 767.98px) {
     .navbar-collapse {
       width: 100%;
@@ -192,16 +176,12 @@ main { flex: 1; }
   }
 }
 
-// ── Breadcrumb bar ──
-
 .breadcrumb-bar {
   background: rgba(107, 158, 120, 0.02);
   border-bottom: 1px solid rgba(107, 158, 120, 0.04);
 
   .breadcrumb { font-family: $font-family-monospace; }
 }
-
-// ── Section labels — amber caps, no prompt glyph ──
 
 .section-label {
   font-size: 0.7rem;
@@ -212,8 +192,6 @@ main { flex: 1; }
   font-family: $font-family-monospace;
 }
 
-// ── Cards (base) ──
-
 .card {
   background: $card-bg;
   border: 1px solid $card-border-color;
@@ -221,8 +199,6 @@ main { flex: 1; }
 
   &:hover { border-color: rgba(107, 158, 120, 0.2); }
 }
-
-// ── Status dot ──
 
 .status-dot {
   display: inline-block;
@@ -242,8 +218,6 @@ main { flex: 1; }
   &.is-warn { background: $amber; box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.12); }
   &.is-idle { background: #4a443c; }
 }
-
-// ── Visibility toggle (segmented pill) ──
 
 .toggle-label {
   font-family: $font-family-monospace;
@@ -304,8 +278,6 @@ main { flex: 1; }
   }
 }
 
-// ── Metric tile ──
-
 .metric-tile {
   background: $card-bg;
   border: 1px solid $card-border-color;
@@ -315,8 +287,6 @@ main { flex: 1; }
   display: flex;
   flex-direction: column;
 
-  // Label + delta chip share the top row; label flex-grows and truncates,
-  // chip stays its natural width on the right.
   .metric-header {
     display: flex;
     align-items: center;
@@ -394,8 +364,6 @@ main { flex: 1; }
   }
 }
 
-// ── Chips (inline status/score) ──
-
 .chip {
   display: inline-flex;
   align-items: center;
@@ -436,8 +404,6 @@ main { flex: 1; }
     border-color: rgba(221, 215, 205, 0.08);
   }
 }
-
-// ── Footer ──
 
 footer {
   padding-top: 4rem;
@@ -491,8 +457,6 @@ footer {
   }
 }
 
-// ── Terminal-style block ──
-
 .terminal-block {
   background: rgba(9, 8, 6, 0.7);
   border: 1px solid rgba(107, 158, 120, 0.15);
@@ -520,8 +484,6 @@ footer {
   0%, 50% { opacity: 1; }
   51%, 100% { opacity: 0; }
 }
-
-// ── Property row (dashboard listing) ──
 
 .property-row {
   display: grid;
@@ -647,8 +609,6 @@ footer {
   }
 }
 
-// ── Search form ──
-
 .search-form {
   position: relative;
 
@@ -683,8 +643,6 @@ footer {
   }
 }
 
-// ── Dashboard toolbar ──
-
 .dashboard-toolbar {
   display: flex;
   gap: 0.5rem;
@@ -703,8 +661,6 @@ footer {
     white-space: nowrap;
   }
 }
-
-// ── Chart panel ──
 
 .chart-panel {
   background: $card-bg;
@@ -734,9 +690,6 @@ footer {
   }
 }
 
-// ── Insight / top-list table ──
-// Used for "top pages", "referrers", "UTM source" etc. — compact grid rows
-// that read like a ranked terminal listing rather than a Bootstrap card.
 
 .rank-list {
   background: $card-bg;
@@ -825,8 +778,6 @@ footer {
   }
 }
 
-// ── Filter chip (active query filter indicator) ──
-
 .filter-chip {
   display: inline-flex;
   align-items: center;
@@ -860,8 +811,6 @@ footer {
   }
 }
 
-// ── Date range form (property dashboard) ──
-
 .date-range-form {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -880,8 +829,6 @@ footer {
     font-size: 0.85rem;
   }
 }
-
-// ── Auth split view ──
 
 .auth-shell {
   min-height: calc(100vh - 52px);
@@ -914,8 +861,6 @@ footer {
   }
 }
 
-// ── Site-tag codebox (for the collector snippet modal) ──
-
 .codebox {
   background: #090806;
   border: 1px solid rgba(107, 158, 120, 0.15);
@@ -938,7 +883,6 @@ footer {
   }
 }
 
-// ── World map ──
 // d3-geo renders an SVG inside #map. Tooltip styling lives inline in
 // property_map.js since it needs runtime positioning anyway.
 

@@ -1,16 +1,7 @@
 package main
 
-// The unified diff parser.
-//
-// This file is the price of shelling out to git for everything. An in-process
-// library would hand back hunks as structs; git hands back the text format, so
-// the text format gets parsed once here and every template downstream works
-// with the same structs a library would have given.
-//
-// It is worth the fifteen minutes it costs, because the parsed form is what
-// makes the diff view better than a coloured <pre>: line numbers on both sides,
-// per-file counts, collapsible hunks, and a rename shown as a rename rather
-// than as a delete next to an add.
+// The unified diff parser: git hands back the text format, and this turns it into
+// the structs every template downstream works with.
 
 import (
 	"bufio"
@@ -20,10 +11,8 @@ import (
 	"strings"
 )
 
-// maxDiffSize caps what is parsed. Past this the page shows counts and a link
-// to the raw patch instead. A generated lockfile or a vendored dependency drop
-// is a legitimate multi-megabyte diff, and rendering one as HTML is a page
-// nobody can read and a lot of memory to build it with.
+// maxDiffSize caps what is parsed; past it the page shows counts and a link to
+// the raw patch.
 const maxDiffSize = 2 << 20
 
 // Change is the kind of thing that happened to one file.
@@ -46,14 +35,12 @@ type FileDiff struct {
 	Additions int
 	Deletions int
 	Hunks     []Hunk
-	// Mode is set only when it changed, because a mode change with no
-	// content change is otherwise an entry with nothing in it.
+	// Mode is set only when it changed.
 	OldMode string
 	NewMode string
 }
 
-// Path is what the UI labels the file with: the new name, except for a delete,
-// where the new name does not exist.
+// Path is the new name, or the old one for a delete.
 func (f FileDiff) Path() string {
 	if f.Status == Deleted {
 		return f.OldPath
@@ -71,9 +58,8 @@ type Hunk struct {
 	Lines    []DiffLine
 }
 
-// DiffLine carries both line numbers, which is what a side by side or a
-// gutter-numbered unified view needs and what the raw text does not have.
-// A zero number means the line does not exist on that side.
+// DiffLine carries both line numbers; a zero means the line does not exist on
+// that side.
 type DiffLine struct {
 	Kind   string // "context", "add", "del"
 	OldNum int
@@ -86,19 +72,13 @@ type CommitDiff struct {
 	Files     []FileDiff
 	Additions int
 	Deletions int
-	// Truncated is set when the patch was larger than maxDiffSize, so the
-	// template can say so rather than silently showing a partial commit as
-	// if it were the whole thing.
+	// Truncated is set when the patch was larger than maxDiffSize.
 	Truncated bool
 }
 
-// Diff reads and parses one commit's patch.
-//
-// -r recurses into subdirectories, without which a change inside a directory is
-// reported as one opaque tree change. -M detects renames, which is what turns a
-// delete and an add of an identical file into a single rename row. --root makes
-// the very first commit in a repository produce a diff against the empty tree
-// instead of nothing at all.
+// Diff reads and parses one commit's patch. -r recurses, -M detects renames, and
+// --root makes the first commit in a repository diff against the empty tree
+// rather than produce nothing.
 func (s *Store) Diff(ctx context.Context, repo Repo, sha string) (CommitDiff, error) {
 	out, err := run(ctx, repo, "diff-tree", "-p", "-r", "-M", "--root",
 		"--no-color", "--patch-with-raw", "--format=", sha)
@@ -108,7 +88,7 @@ func (s *Store) Diff(ctx context.Context, repo Repo, sha string) (CommitDiff, er
 	return parseDiff(out), nil
 }
 
-// DiffRange is the same for two revisions, which is what a compare view uses.
+// DiffRange is Diff between two revisions.
 func (s *Store) DiffRange(ctx context.Context, repo Repo, from, to string) (CommitDiff, error) {
 	out, err := run(ctx, repo, "diff", "-p", "-M", "--no-color", from, to, "--")
 	if err != nil {
@@ -126,9 +106,8 @@ func parseDiff(patch []byte) CommitDiff {
 	}
 
 	sc := bufio.NewScanner(bytes.NewReader(patch))
-	// A single line of a minified bundle can be megabytes, and the default
-	// 64KB token limit would end the scan mid-file with no error the caller
-	// can see.
+	// A minified bundle can hold a megabyte-long line, and the default 64KB token
+	// limit would end the scan mid-file with no error the caller can see.
 	sc.Buffer(make([]byte, 0, 64<<10), maxDiffSize)
 
 	var cur *FileDiff
@@ -161,8 +140,7 @@ func parseDiff(patch []byte) CommitDiff {
 			cur = &FileDiff{OldPath: old, NewPath: new, Status: Modified}
 
 		case cur == nil:
-			// The raw section --patch-with-raw emits before the first
-			// file, and anything else ahead of the first header.
+			// The raw section --patch-with-raw emits ahead of the first header.
 			continue
 
 		case strings.HasPrefix(line, "old mode "):
@@ -192,8 +170,7 @@ func parseDiff(patch []byte) CommitDiff {
 
 		case strings.HasPrefix(line, "Binary files "),
 			strings.HasPrefix(line, "GIT binary patch"):
-			// No hunks follow, and the bytes are not text. The file still
-			// belongs in the list so the commit shows that it changed.
+			// No hunks follow, but the file still belongs in the list.
 			cur.Binary = true
 
 		case strings.HasPrefix(line, "@@"):
@@ -221,15 +198,13 @@ func parseDiff(patch []byte) CommitDiff {
 			cur.Deletions++
 
 		case strings.HasPrefix(line, "\\"):
-			// "\ No newline at end of file". It annotates the line above
-			// rather than being one, and numbering it shifts every line
-			// after it by one.
+			// "\ No newline at end of file" annotates the line above rather
+			// than being one; numbering it shifts everything after it.
 			continue
 
 		case strings.HasPrefix(line, " "), line == "":
-			// An empty context line arrives as a bare "" rather than as a
-			// single space, because some tools strip trailing whitespace
-			// from the patch on the way through.
+			// An empty context line can arrive as a bare "" rather than a single
+			// space, since some tools strip trailing whitespace from a patch.
 			text := ""
 			if line != "" {
 				text = line[1:]
@@ -246,20 +221,9 @@ func parseDiff(patch []byte) CommitDiff {
 	return d
 }
 
-// parseDiffGit pulls the two paths out of a "diff --git a/x b/y" line.
-//
-// This is the line that needs core.quotePath=false to be readable at all: with
-// quoting on, a path with a non-ASCII byte arrives wrapped in quotes with octal
-// escapes inside, and the a/ b/ split below finds the wrong boundary. gitCmd
-// sets the flag; this function assumes it.
-//
-// The split is genuinely ambiguous: a path may itself contain " b/", and the
-// header gives nothing to disambiguate on. So rather than guess with one index,
-// every candidate separator is tried and the one whose two halves are equal
-// wins. That is correct for every case except a rename, and a rename also emits
-// "rename from" and "rename to" lines, which the caller parses and which
-// overwrite whatever this returned. Falling back to the last candidate keeps
-// the old behaviour for anything that matches nothing.
+// parseDiffGit pulls the two paths out of "diff --git a/x b/y". The split is
+// ambiguous because a path may contain " b/", so every candidate is tried and the
+// one whose halves match wins; a rename is corrected by its own header lines.
 func parseDiffGit(line string) (old, new string) {
 	rest := strings.TrimPrefix(line, "diff --git ")
 
@@ -286,7 +250,6 @@ func parseDiffGit(line string) (old, new string) {
 func parseHunkHeader(line string) Hunk {
 	h := Hunk{Header: line, OldLines: 1, NewLines: 1}
 
-	// Everything between the two @@ markers.
 	body := line
 	if i := strings.Index(line[2:], "@@"); i >= 0 {
 		body = line[2 : 2+i]

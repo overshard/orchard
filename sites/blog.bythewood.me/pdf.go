@@ -11,16 +11,9 @@ import (
 	"sync"
 )
 
-// PDF export happens at build time, not per request.
-//
-// A post's inputs cannot change while the process runs, since posts load once
-// at startup, so compiling per request would put a subprocess on the request
-// path and typst in the runtime image for nothing. The PDFs are compiled
-// during `docker build` and the handler serves a file.
-//
-// The build renders every post rather than only the visible ones, so a
-// scheduled post's PDF is ready when it is. The handler enforces the publish
-// date.
+// PDFs are compiled during `docker build` and the handler serves a file, so no
+// subprocess sits on the request path. Every post is rendered, scheduled ones
+// included, and the handler is what enforces the publish date.
 
 // GeneratePDFs compiles one PDF per post into outDir. root is the directory
 // Typst resolves absolute paths against, so /templates/blog_post.typ and
@@ -34,8 +27,7 @@ func GeneratePDFs(lib *Library, root, fontPath, outDir string) error {
 	}
 
 	posts := lib.All()
-	// Typst is single threaded per compile and these are independent, so the
-	// whole set costs about one compile of wall clock.
+	// Typst is single threaded per compile, and these are independent.
 	workers := runtime.NumCPU()
 	if workers > len(posts) {
 		workers = len(posts)
@@ -76,9 +68,8 @@ func GeneratePDFs(lib *Library, root, fontPath, outDir string) error {
 	return nil
 }
 
-// compilePDF pipes Typst markup to the compiler and writes a PDF. Source
-// arrives on stdin rather than a temporary file, so there is nothing to clean
-// up on failure and nothing to collide when the workers run side by side.
+// compilePDF pipes Typst markup to the compiler on stdin, so there is nothing
+// to clean up on failure and nothing for parallel workers to collide over.
 func compilePDF(source, root, fontPath, out string) error {
 	args := []string{"compile", "--root", root}
 	if fontPath != "" {
@@ -88,9 +79,8 @@ func compilePDF(source, root, fontPath, out string) error {
 	cmd := exec.Command("typst", args...)
 	cmd.Stdin = strings.NewReader(source)
 
-	// Typst reports compile errors on stderr and exits non-zero. The message
-	// is the diagnosis ("expected string, found content at line 40"); the exit
-	// code alone is not.
+	// Typst reports compile errors on stderr and exits non-zero, so the exit
+	// code alone is not the diagnosis.
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
 

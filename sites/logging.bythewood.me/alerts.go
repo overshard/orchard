@@ -12,32 +12,9 @@ import (
 	"time"
 )
 
-// Notifications, by publishing to ntfy.
-//
-// This is the second publisher in the repo and a deliberate copy of status'
-// rather than a shared package. The 2026-08-28 split gave every site its own
-// module and its own copy of web/, and the whole argument for shipping logs per
-// site rather than from a sidecar was that a shared component is the thing this
-// repo keeps deleting. Forty lines of HTTP is a smaller cost than the coupling.
-//
-// What differs from status' copy is the whole point of having two: status
-// answers "is the site reachable from the internet", checked from outside on a
-// timer. This answers "is the site still telling me what it is doing", which is
-// a different failure and one status cannot see. A container that is up,
-// answering probes, and has silently stopped logging looks perfect from
-// outside.
-
-// ntfyURL is the base; the topic is appended.
-//
-// A separate topic from status' on purpose. ntfy subscribes and mutes per
-// topic, so two topics mean an outage alert and a "blog went quiet" alert can
-// be treated differently on the phone without a rule engine.
-//
-// Container name on the orchard-edge bridge, never the public hostname. ntfy is
-// deny-all, so this publishes with a write-only token from NTFY_TOKEN; that
-// account can publish to the alert topics and read nothing. Caddy separately
-// refuses every publish route on ntfy.bythewood.me, so publishing is reachable
-// only from this bridge even with the token in hand.
+// The container name on the orchard-edge bridge, never the public hostname:
+// Caddy refuses every publish route on ntfy.bythewood.me, so publishing is
+// reachable only from the bridge even holding the write token.
 const (
 	ntfyURL   = "http://orchard-ntfy:8000"
 	ntfyTopic = "logging"
@@ -45,19 +22,15 @@ const (
 
 const ntfyTimeout = 5 * time.Second
 
-// AlertContext is the snapshot as of the moment the alert fired, so the numbers
-// in the notification are the ones that triggered it rather than whatever is
-// true by the time it is read.
+// AlertContext is the snapshot as of the moment the alert fired.
 type AlertContext struct {
 	Source string
-	// Silent is how long the source had been quiet. Zero for kinds where it
-	// means nothing.
+	// Silent is how long the source had been quiet, zero where it means nothing.
 	Silent time.Duration
 	// Detail is one extra clause, already phrased, for kinds that have one.
 	Detail string
 }
 
-// Notifier publishes transitions.
 type Notifier struct {
 	client *http.Client
 	base   string
@@ -68,11 +41,8 @@ type Notifier struct {
 func NewNotifier() *Notifier {
 	token := os.Getenv("NTFY_TOKEN")
 	if token == "" {
-		// Said once, loudly, at startup. The alternative is a site that looks
-		// healthy and silently cannot tell anyone when it is not, which is the
-		// exact failure this whole path exists to prevent. It is not fatal:
-		// refusing to start over a missing alert credential would turn a
-		// quiet notification into an outage.
+		// Not fatal: refusing to start over a missing alert credential would
+		// turn a quiet notification into an outage.
 		slog.Warn("NTFY_TOKEN is unset; alerts will be rendered and refused, not delivered",
 			slog.String("component", "alerts"))
 	}
@@ -84,8 +54,7 @@ func NewNotifier() *Notifier {
 	}
 }
 
-// alertBody is what gets published, split out so it can be rendered without
-// being sent (see the -preview-alert flag).
+// alertBody is split out so -preview-alert can render one without sending it.
 type alertBody struct {
 	Title    string
 	Message  string
@@ -94,12 +63,10 @@ type alertBody struct {
 	Click    string
 }
 
-// renderAlert builds the notification for a transition. Returns false for an
-// unknown kind rather than inventing one.
+// renderAlert builds the notification for a transition, reporting false for an
+// unknown kind.
 func renderAlert(kind string, ctx AlertContext) (alertBody, bool) {
-	// Absolute, because it is opened from a phone that has no idea what the
-	// origin is. Deep link to the source rather than the overview: the alert
-	// already named which one, and the next question is always "doing what".
+	// Absolute: it is opened from a phone that has no idea what the origin is.
 	click := baseURL + "/sources/" + ctx.Source
 
 	switch kind {
@@ -109,8 +76,7 @@ func renderAlert(kind string, ctx AlertContext) (alertBody, bool) {
 			Message: fmt.Sprintf(
 				"No records for %s.\nThe container may be down, wedged, or unable to reach ingest. Its own stdout is still the source of truth: docker logs orchard-%s",
 				humanDuration(ctx.Silent), ctx.Source),
-			// high, not urgent. Urgent bypasses do-not-disturb, which none of
-			// these sites is worth. Same call status made.
+			// Not urgent: that bypasses do-not-disturb.
 			Priority: "high",
 			Tags:     "mute",
 			Click:    click,
@@ -122,7 +88,6 @@ func renderAlert(kind string, ctx AlertContext) (alertBody, bool) {
 			Message: fmt.Sprintf(
 				"Records are arriving after %s of silence.",
 				humanDuration(ctx.Silent)),
-			// Quieter than the alert: good news does not need to interrupt.
 			Priority: "default",
 			Tags:     "white_check_mark",
 			Click:    click,
@@ -134,8 +99,7 @@ func renderAlert(kind string, ctx AlertContext) (alertBody, bool) {
 			Message: fmt.Sprintf(
 				"It started listening with no shutting-down record before it, so the previous process did not exit on a signal.\n%s",
 				ctx.Detail),
-			// Worth knowing, not worth waking up for. A crash that repeats
-			// will also trip the silence rule, which is the loud one.
+			// A crash that repeats also trips the silence rule, which is loud.
 			Priority: "default",
 			Tags:     "warning",
 			Click:    click,
@@ -144,9 +108,7 @@ func renderAlert(kind string, ctx AlertContext) (alertBody, bool) {
 	return alertBody{}, false
 }
 
-// humanDuration renders a gap the way a person reads one. Minutes are the unit
-// that matters here: nothing fires under the silence threshold, and past an
-// hour the exact figure stops changing the response.
+// humanDuration renders a gap for a person to read.
 func humanDuration(d time.Duration) string {
 	switch {
 	case d < time.Minute:
@@ -163,14 +125,8 @@ func humanDuration(d time.Duration) string {
 	}
 }
 
-// Fire publishes one transition. Errors are logged and swallowed: this runs off
-// the watchdog's timer with nobody to return to, and an alert that cannot be
-// delivered must never break the loop that noticed the problem.
-//
-// It logs through slog, which means the record about a failed alert is itself
-// shipped into this site's own database. That is intentional and is not a loop:
-// LocalSink writes it to the queue, it never becomes an HTTP request, and
-// nothing here alerts on it.
+// Fire publishes one transition. Errors are logged and swallowed: it runs off
+// the watchdog's timer with nobody to return to.
 func (n *Notifier) Fire(kind string, ctx AlertContext) {
 	body, ok := renderAlert(kind, ctx)
 	if !ok {
@@ -187,9 +143,7 @@ func (n *Notifier) Fire(kind string, ctx AlertContext) {
 		slog.String("component", "alerts"))
 }
 
-// publish posts to ntfy. The message is the request body and everything else is
-// a header, which is ntfy's plain-HTTP publishing interface and the same shape
-// as a `curl -d` from anything else.
+// publish posts to ntfy: the message is the body and everything else a header.
 func (n *Notifier) publish(ctx context.Context, body alertBody) error {
 	ctx, cancel := context.WithTimeout(ctx, ntfyTimeout)
 	defer cancel()
@@ -200,8 +154,8 @@ func (n *Notifier) publish(ctx context.Context, body alertBody) error {
 	if err != nil {
 		return err
 	}
-	// Write-only token, from this site's .env. ntfy is deny-all, so an
-	// unauthenticated publish is refused even from inside the bridge.
+	// ntfy is deny-all, so an unauthenticated publish is refused even from
+	// inside the bridge.
 	if n.token != "" {
 		req.Header.Set("Authorization", "Bearer "+n.token)
 	}
@@ -224,8 +178,7 @@ func (n *Notifier) publish(ctx context.Context, body alertBody) error {
 	return nil
 }
 
-// previewAlert prints what would be published, for checking the wording without
-// waiting for something to break.
+// previewAlert prints what would be published, without sending it.
 func previewAlert(kind string) error {
 	body, ok := renderAlert(kind, AlertContext{
 		Source: "blog",

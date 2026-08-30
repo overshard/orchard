@@ -9,16 +9,14 @@
   <meta name="description" content="{{ .Description }}">
   <link rel="canonical" href="{{ .Canonical }}">
   {{- if .Staging }}
-  <!-- The test hostname must never be indexed: it would compete with the real
-       blog as a byte-for-byte duplicate. robots.txt says the same thing, and
-       has to, because a crawler that obeys it never reads this tag. -->
+  <!-- The test hostname must never be indexed, or it competes with the real
+       blog as a duplicate. robots.txt has to say it too, since a crawler that
+       obeys robots.txt never reads this tag. -->
   <meta name="robots" content="noindex, nofollow">
   {{- end }}
 
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 
-  <!-- Advertised so a reader can find the feed from any page, which is the
-       only way autodiscovery works. -->
   <link rel="alternate" type="application/atom+xml" title="Isaac Bythewood's Blog" href="/feed.xml">
 
   {{- if .ShowSocial }}

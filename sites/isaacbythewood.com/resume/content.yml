@@ -6,7 +6,7 @@
 # the structure below removes: a role, its dates and its bullets are named
 # fields, so the template never has to infer them from how a line is written.
 #
-# Em dashes are kept here on purpose. Workspace prose does not use them, but
+# Em dashes are kept in this file. Workspace prose does not use them, but
 # this file is not prose, it is a published document whose typography is being
 # reproduced exactly.
 

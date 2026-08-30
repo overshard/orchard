@@ -16,9 +16,8 @@ const initCanvases = () => {
   let active = null;
 
   const instanceFor = (name, cvs) => {
-    // Built on first play rather than on load. Slime mold alone allocates two
-    // Float32Arrays over the whole grid and 6000 agents, and a visitor who
-    // never presses play should not pay for that.
+    // Built on first play, since slime mold alone allocates two Float32Arrays
+    // over the whole grid plus 6000 agents.
     if (!running.has(name)) running.set(name, FACTORIES[name](cvs));
     return running.get(name);
   };
@@ -61,7 +60,6 @@ const initCanvases = () => {
       else play();
     });
 
-    // Constellations runs on arrival, matching the old default state.
     if (button.dataset.autoplay === "true") play();
   });
 };
@@ -90,9 +88,8 @@ const initLightbox = () => {
     overlay.hidden = false;
     document.body.style.overflowY = "hidden";
 
-    // A cached image can already be complete before the load listener attaches,
-    // in which case the event never fires and the spinner would sit there over
-    // a fully decoded picture.
+    // A cached image can be complete before the load listener attaches, and
+    // then the event never fires and the spinner sits over a decoded picture.
     if (image.complete && image.naturalWidth > 0) revealed();
   };
 
@@ -125,8 +122,8 @@ const initLightbox = () => {
 };
 
 const initCardFades = () => {
-  // The cards fade in as their image decodes. Anything already cached is
-  // marked immediately so it does not sit invisible.
+  // Anything already cached is marked at once, or it sits invisible waiting for
+  // a load event that will not fire.
   document.querySelectorAll(".art-cardImage img").forEach((img) => {
     if (img.complete && img.naturalWidth > 0) {
       img.classList.add("art-imgLoaded");

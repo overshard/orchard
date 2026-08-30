@@ -22,9 +22,8 @@ type Crumb struct {
 	URL   string
 }
 
-// PageData is everything base.html and one page template need. One struct for
-// every page rather than a type each: the shared chrome (nav, breadcrumbs,
-// footer, asset URLs, social meta) is most of it.
+// PageData is everything base.html and one page template need; the fields for
+// pages other than the one rendering are zero.
 type PageData struct {
 	Title       string
 	Description string
@@ -37,17 +36,15 @@ type PageData struct {
 	Script string
 	Styles []string
 
-	// The navbar lists every tag, and highlights one when a tag page is open.
 	NavTags     []TagEntry
 	ActiveTag   string
 	Breadcrumbs []Crumb
 
-	// Social meta is opt in. The home and 404 pages do without it.
+	// Social meta is opt in; the home and 404 pages do without it.
 	ShowSocial bool
 	OGImage    string
 
-	// The page's JSON-LD graph, already marshalled. Set to the site graph for
-	// every page and overridden with the article graph on a post.
+	// The site graph by default, overridden with the article graph on a post.
 	JSONLD template.JS
 
 	FooterProjects []FooterLink
@@ -57,8 +54,7 @@ type PageData struct {
 	// Search box contents, so a query survives the round trip.
 	Query string
 
-	// Page specific. A nil slice renders nothing, which is what lets one
-	// template set cover six pages.
+	// Page specific; a nil slice renders nothing.
 	Latest      *Post
 	Posts       []*Post
 	ExtraPosts  []*Post
@@ -76,9 +72,8 @@ type PageData struct {
 type site struct {
 	renderer *web.Renderer
 	lib      *Library
-	// Filesystems rather than paths, because in a release build these are
-	// inside the executable and there is no path to hand out. A dev build
-	// passes os.DirFS over the same directories.
+	// Filesystems rather than paths: in a release build these live inside the
+	// executable and there is no path to hand out.
 	content fs.FS
 	pdfs    fs.FS
 	og      fs.FS
@@ -167,8 +162,7 @@ func (s *site) blogByTag(w http.ResponseWriter, r *http.Request) {
 	data.Years = years
 	data.ActiveTag = tag
 
-	// A thin filter page is mostly empty space, so it offers a few posts from
-	// outside the filter rather than stopping at one card.
+	// A thin filter page offers a few posts from outside the filter.
 	if len(matched) < 5 {
 		data.ExtraPosts = take(others, 4)
 	}
@@ -225,9 +219,8 @@ func (s *site) post(w http.ResponseWriter, r *http.Request) {
 	s.renderer.Render(w, http.StatusOK, "post.html", data)
 }
 
-// postPDF serves the PDF built during the image build. It is a handler rather
-// than a static mount so an unpublished post stays a 404 and the filename is
-// the slug rather than whatever is on disk.
+// postPDF serves the PDF built during the image build. It is a handler and not
+// a static mount so an unpublished post stays a 404.
 func (s *site) postPDF(w http.ResponseWriter, r *http.Request) {
 	post, ok := s.lookup(r)
 	if !ok {
@@ -237,8 +230,8 @@ func (s *site) postPDF(w http.ResponseWriter, r *http.Request) {
 
 	raw, err := fs.ReadFile(s.pdfs, post.Slug+".pdf")
 	if err != nil {
-		// Only reachable when the build skipped PDF generation, the normal
-		// state of a local checkout without typst installed.
+		// Reachable when the build skipped PDF generation, the normal state
+		// of a checkout without typst.
 		http.Error(w, "pdf not available", http.StatusNotFound)
 		return
 	}
@@ -246,14 +239,12 @@ func (s *site) postPDF(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/pdf")
 	w.Header().Set("Content-Disposition", `inline; filename="`+post.Slug+`.pdf"`)
 	w.Header().Set("Cache-Control", "public, max-age=3600")
-	// A zero modtime, so no Last-Modified goes out: an embedded file has no
-	// meaningful timestamp, and revalidation is left to the Cache-Control
-	// above. ServeContent still handles range requests off the reader.
+	// A zero modtime sends no Last-Modified, since an embedded file has no
+	// meaningful timestamp. ServeContent still serves ranges.
 	http.ServeContent(w, r, post.Slug+".pdf", time.Time{}, bytes.NewReader(raw))
 }
 
-// postMarkdown hands back the source file, which is "view source" for a blog
-// whose posts are files.
+// postMarkdown hands back the source file.
 func (s *site) postMarkdown(w http.ResponseWriter, r *http.Request) {
 	post, ok := s.lookup(r)
 	if !ok {
@@ -286,15 +277,13 @@ func (s *site) notFound(w http.ResponseWriter, r *http.Request) {
 	s.renderer.Render(w, http.StatusNotFound, "notfound.html", data)
 }
 
-// redirectPost keeps the pre-2026 /blog/<slug>/ URLs alive. Cool URIs do not
-// change, and one of the posts these serve says so.
+// redirectPost keeps the old /blog/<slug>/ URLs alive.
 func (s *site) redirectPost(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/posts/"+r.PathValue("slug")+"/", http.StatusMovedPermanently)
 }
 
-// redirectPostFormat handles the old export URLs. Only pdf and md ever
-// existed, and anything else under a post is a 404 rather than a redirect to
-// a URL that will 404 anyway.
+// redirectPostFormat handles the old export URLs. Only pdf and md exist, so
+// anything else 404s here rather than redirecting to a 404.
 func (s *site) redirectPostFormat(w http.ResponseWriter, r *http.Request) {
 	format := r.PathValue("format")
 	if format != "pdf" && format != "md" {
@@ -327,28 +316,20 @@ func pickRandom(posts []*Post, n int) []*Post {
 	return take(shuffled, n)
 }
 
-// urlPathEscape encodes a tag or year for a URL path segment. url.PathEscape
-// leaves "/" alone, which would let a tag containing one invent a route.
+// urlPathEscape encodes a tag or year for a path segment. url.PathEscape leaves
+// "/" alone, which would let a tag containing one invent a route.
 func urlPathEscape(s string) string {
 	return strings.ReplaceAll(url.PathEscape(s), "/", "%2F")
 }
 
-// latestJSON publishes the newest published post as JSON, so that
-// isaacbythewood.com's promo slot can render a "latest post" card without
-// scraping HTML or being hardcoded to a project that might end.
-//
-// A hand-written shape rather than the whole Post: the consumer needs four
-// fields, and a full dump would put BodyHTML on the wire and make every future
-// field on Post a public API by accident.
-//
-// The URL is absolute because the reader is a different origin. No CORS: the
-// only consumer fetches this server side.
+// latestJSON publishes the newest post for isaacbythewood.com's promo slot. The
+// shape is hand-written so a new field on Post does not become a public API by
+// accident, and there is no CORS because the only consumer fetches server side.
 func (s *site) latestJSON(w http.ResponseWriter, r *http.Request) {
 	published, _, _ := s.lib.Published()
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	// Short, so a new post reaches the other site within the hour rather than
-	// whenever a container happens to restart.
+	// Short, so a new post reaches the other site without a restart.
 	w.Header().Set("Cache-Control", "public, max-age=300")
 
 	if len(published) == 0 {
@@ -358,9 +339,8 @@ func (s *site) latestJSON(w http.ResponseWriter, r *http.Request) {
 
 	p := published[0]
 	enc := json.NewEncoder(w)
-	// These strings land in another site's HTML through html/template, which
-	// escapes for that context already, so escaping here only corrupts an
-	// ampersand in a title.
+	// The consumer renders these through html/template, which escapes for that
+	// context already; escaping here only corrupts an ampersand in a title.
 	enc.SetEscapeHTML(false)
 	_ = enc.Encode(struct {
 		Title       string `json:"title"`

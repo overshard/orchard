@@ -11,42 +11,32 @@ import (
 	"sync"
 )
 
-// Social cards, compiled at build time like the PDFs.
-//
-// PNG rather than SVG: Facebook, X, LinkedIn, Slack, iMessage and Discord all
-// refuse image/svg+xml for og:image, so an SVG card falls back to a bare link
-// everywhere it matters.
-//
-// Build time for the same reason as the PDFs. A post's title and tags cannot
-// change while the process runs, so there is nothing to recompute per request
-// and the runtime image stays typst-free.
+// Social cards, compiled at build time like the PDFs. PNG rather than SVG:
+// Facebook, X, LinkedIn, Slack, iMessage and Discord all refuse image/svg+xml
+// for og:image.
 
 const (
 	ogWidth  = 1200
 	ogHeight = 630
 
-	// The card every page that is not a post points at, named so it cannot
-	// collide with a post slug.
+	// Named so it cannot collide with a post slug.
 	ogSiteCard = "blog"
 )
 
-// ogTypstSource renders one card. Text reaches Typst as string literals rather
-// than markup, so a title containing #, $, @ or * is drawn rather than parsed.
+// ogTypstSource renders one card. Text reaches Typst as string literals, so a
+// title containing #, $, @ or * is drawn rather than parsed.
 func ogTypstSource(title string, tags []string) string {
 	var b strings.Builder
 
 	fmt.Fprintf(&b, "#set page(width: %dpt, height: %dpt, margin: 0pt, fill: rgb(\"#0d1117\"))\n", ogWidth, ogHeight)
-	// Geist, the same face the post PDFs use, reached through --font-path.
-	// Typst embeds only DejaVu Sans Mono and its own serif, so without that
-	// path this falls back to a serif on a card meant to be sans.
+	// Geist comes in through --font-path. Typst embeds only DejaVu Sans Mono
+	// and its own serif, and a missing face falls back rather than erroring.
 	b.WriteString("#set text(font: (\"Geist\", \"DejaVu Sans\"), fill: rgb(\"#f0f6fc\"))\n")
 
-	// Accent bar, left of the title block.
 	b.WriteString("#place(dx: 80pt, dy: 80pt, rect(width: 5pt, height: 160pt, " +
 		"fill: gradient.linear(rgb(\"#0e3ff4\"), rgb(\"#842bff\"), angle: 90deg)))\n")
 
-	// One placed line per title line, at fixed baselines, so the card does not
-	// reflow when a title wraps differently.
+	// Fixed baselines, so the card does not reflow on a different wrap.
 	for i, line := range wrapTitle(title, 35, 3) {
 		fmt.Fprintf(&b, "#place(dx: 110pt, dy: %dpt, text(size: 54pt, weight: \"bold\")[#%s])\n",
 			110+i*64, typstString(line))
@@ -71,15 +61,13 @@ func ogTypstSource(title string, tags []string) string {
 }
 
 // typstString quotes a Go string as a Typst string literal. Only the backslash
-// and the quote can end the literal early; everything else, markup characters
-// included, is inert inside one.
+// and the quote can end one early, markup characters included.
 func typstString(s string) string {
 	r := strings.NewReplacer(`\`, `\\`, `"`, `\"`)
 	return `"` + r.Replace(s) + `"`
 }
 
-// GenerateOGCards compiles one PNG per post into outDir, plus the site card
-// every non-post page points at.
+// GenerateOGCards compiles one PNG per post into outDir, plus the site card.
 func GenerateOGCards(lib *Library, root, fontPath, outDir string) error {
 	if _, err := exec.LookPath("typst"); err != nil {
 		return fmt.Errorf("typst not on PATH: %w", err)
@@ -137,9 +125,8 @@ func GenerateOGCards(lib *Library, root, fontPath, outDir string) error {
 	return nil
 }
 
-// compilePNG is compilePDF with a raster target. At 72 ppi a Typst point is
-// one pixel, so the page size above is the pixel size og:image:width and
-// og:image:height promise.
+// compilePNG is compilePDF with a raster target. At 72 ppi a Typst point is one
+// pixel, so the page size above is the pixel size og:image:width promises.
 func compilePNG(source, root, fontPath, out string) error {
 	args := []string{"compile", "--format", "png", "--ppi", "72", "--root", root}
 	if fontPath != "" {

@@ -12,38 +12,9 @@ import (
 	"time"
 )
 
-// Outage notifications, by publishing to ntfy.
-//
-// Email is not an option from a residential address. Delivering direct to MX
-// fails three independent ways, any one of them fatal: consumer ISPs block
-// outbound port 25, there is no control over the PTR record on a dynamic
-// address, and consumer ranges sit on the Spamhaus PBL by default, so Gmail and
-// Microsoft reject on that alone.
-//
-// ntfy rather than a hosted webhook, because the one message that has to arrive
-// when this infrastructure is broken should not depend on a third party's
-// servers. It is a self-hosted Go binary, reached over the tailnet by an
-// Android client holding a WebSocket, with no Firebase in the path.
-//
-// The limit this accepts: an alerter running at home cannot report that the
-// house lost power or its internet.
-
-// ntfyURL is where a notification is published: the base, then the topic.
-//
-// ntfy runs as a container on the shared orchard-edge network and is reached by
-// container name, which is how every other container-to-container call in this
-// repo works and is what keeps the notification off the tunnel. Tailscale is
-// how a phone reaches ntfy, not how this does: the sidecar next to it shares
-// its network namespace and serves the same port to the tailnet.
-//
-// ntfy is deny-all: this publishes with a write-only token from NTFY_TOKEN, and
-// the account behind that token can publish to the alert topics and read
-// nothing. Caddy separately refuses every publish route on the public hostname,
-// so publishing is reachable only from this bridge even with the token in hand.
-//
-// If the container is missing every publish fails, logged once per transition
-// and changing nothing else: an alert that cannot be delivered must never break
-// the check loop that noticed the outage.
+// ntfy runs on the shared orchard-edge network and is reached by container name,
+// which keeps the notification off the tunnel. It is deny-all, so publishing
+// needs the write-only token in NTFY_TOKEN.
 const (
 	ntfyURL   = "http://orchard-ntfy:8000"
 	ntfyTopic = "status"
@@ -51,9 +22,8 @@ const (
 
 const ntfyTimeout = 5 * time.Second
 
-// AlertContext is the property snapshot as of the moment the alert fired, so
-// the numbers in the notification are the ones that triggered it rather than
-// whatever the next probe finds.
+// AlertContext is the property snapshot as of the moment the alert fired, so the
+// numbers in the notification are the ones that triggered it.
 type AlertContext struct {
 	ID            string
 	Name          string
@@ -62,8 +32,8 @@ type AlertContext struct {
 	AvgResponseMS int64
 }
 
-// Notifier publishes transitions. Unlike the prober it holds a client, since it
-// talks to the same host every time and the handshake is not being measured.
+// Notifier publishes transitions. It holds a client, unlike the prober, since it
+// talks to one host and is not measuring the handshake.
 type Notifier struct {
 	client *http.Client
 	base   string
@@ -74,11 +44,8 @@ type Notifier struct {
 func NewNotifier() *Notifier {
 	token := os.Getenv("NTFY_TOKEN")
 	if token == "" {
-		// Said once, loudly, at startup. The alternative is a site that looks
-		// healthy and silently cannot tell anyone when it is not, which is the
-		// exact failure this whole path exists to prevent. It is not fatal:
-		// refusing to start over a missing alert credential would turn a
-		// quiet notification into an outage.
+		// Not fatal: refusing to start over a missing alert credential would
+		// turn a missed notification into an outage.
 		slog.Warn("NTFY_TOKEN is unset; alerts will be rendered and refused, not delivered",
 			slog.String("component", "alerts"))
 	}
@@ -90,8 +57,8 @@ func NewNotifier() *Notifier {
 	}
 }
 
-// alertBody is what gets published, split out so it can be rendered without
-// being sent (see the -preview-alert flag).
+// alertBody is split out so it can be rendered without being sent, for
+// -preview-alert.
 type alertBody struct {
 	Title    string
 	Message  string
@@ -100,11 +67,10 @@ type alertBody struct {
 	Click    string
 }
 
-// render builds the notification for a transition. Returns false for an
-// unknown kind rather than inventing one.
+// renderAlert builds the notification for a transition, false for an unknown
+// kind.
 func renderAlert(kind string, ctx AlertContext) (alertBody, bool) {
-	// The link goes to the property dashboard, absolute, because it is opened
-	// from a phone that has no idea what the origin is.
+	// Absolute, because it is opened from a phone with no idea of the origin.
 	click := baseURL + "/" + ctx.ID
 
 	switch kind {
@@ -114,8 +80,7 @@ func renderAlert(kind string, ctx AlertContext) (alertBody, bool) {
 			Message: fmt.Sprintf(
 				"%s\nTwo consecutive checks failed. Latest status: %d.\nRolling average response: %d ms.",
 				ctx.URL, ctx.CurrentStatus, ctx.AvgResponseMS),
-			// high, not urgent. Urgent bypasses the phone's do-not-disturb,
-			// which none of these sites being down is worth.
+			// high, not urgent: urgent bypasses do-not-disturb.
 			Priority: "high",
 			Tags:     "rotating_light",
 			Click:    click,
@@ -127,8 +92,6 @@ func renderAlert(kind string, ctx AlertContext) (alertBody, bool) {
 			Message: fmt.Sprintf(
 				"%s\nThe latest check returned %d.\nRolling average response: %d ms.",
 				ctx.URL, ctx.CurrentStatus, ctx.AvgResponseMS),
-			// Quieter than the outage: good news does not need to interrupt
-			// anything.
 			Priority: "default",
 			Tags:     "white_check_mark",
 			Click:    click,
@@ -137,8 +100,8 @@ func renderAlert(kind string, ctx AlertContext) (alertBody, bool) {
 	return alertBody{}, false
 }
 
-// Fire publishes one transition. Errors are logged and swallowed, since this
-// runs in a goroutine off the scheduler's path with nobody to return to.
+// Fire publishes one transition. Errors are logged and swallowed: it runs in a
+// goroutine off the scheduler's path with nobody to return to.
 func (n *Notifier) Fire(kind string, ctx AlertContext) {
 	body, ok := renderAlert(kind, ctx)
 	if !ok {
@@ -152,9 +115,8 @@ func (n *Notifier) Fire(kind string, ctx AlertContext) {
 	slog.Info(fmt.Sprintf("alert: published %s for %s", kind, ctx.URL))
 }
 
-// publish posts to ntfy. The message is the request body and everything else is
-// a header, which is ntfy's plain-HTTP publishing interface and the same shape
-// as a `curl -d` from anything else.
+// publish posts to ntfy, whose interface is the message as the body and
+// everything else as a header.
 func (n *Notifier) publish(ctx context.Context, body alertBody) error {
 	ctx, cancel := context.WithTimeout(ctx, ntfyTimeout)
 	defer cancel()
@@ -165,8 +127,7 @@ func (n *Notifier) publish(ctx context.Context, body alertBody) error {
 	if err != nil {
 		return err
 	}
-	// Write-only token, from this site's .env. ntfy is deny-all, so an
-	// unauthenticated publish is refused even from inside the bridge.
+	// ntfy is deny-all, so an unauthenticated publish is refused on the bridge too.
 	if n.token != "" {
 		req.Header.Set("Authorization", "Bearer "+n.token)
 	}
@@ -180,7 +141,7 @@ func (n *Notifier) publish(ctx context.Context, body alertBody) error {
 		return err
 	}
 	defer resp.Body.Close()
-	// Drain so the connection can be reused rather than abandoned.
+	// Drain so the connection can be reused.
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
@@ -189,8 +150,7 @@ func (n *Notifier) publish(ctx context.Context, body alertBody) error {
 	return nil
 }
 
-// previewAlert prints what would be published, for checking the wording without
-// waiting for something to break.
+// previewAlert prints what would be published, for checking the wording.
 func previewAlert(kind string) error {
 	body, ok := renderAlert(kind, AlertContext{
 		ID:            "00000000-0000-0000-0000-000000000000",

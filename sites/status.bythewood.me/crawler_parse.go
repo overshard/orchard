@@ -12,15 +12,8 @@ import (
 	"golang.org/x/net/html/atom"
 )
 
-// HTML extraction for the SEO crawler.
-//
-// x/net/html is a tokenizer and a tree with no selector engine, so this walks
-// the tree once and collects everything in a single pass rather than running a
-// document query per field.
-
-// ParsedHTML is everything the checks need from one page. The JSON tags are
-// fixed by the stored data these are serialised into and read back from, not
-// chosen here.
+// ParsedHTML is everything the checks need from one page. The JSON tags match
+// stored data read back from older crawls, so renaming one is a migration.
 type ParsedHTML struct {
 	Title       string              `json:"title"`
 	Description string              `json:"description"`
@@ -61,9 +54,8 @@ type Link struct {
 	Rel  []string `json:"rel"`
 }
 
-// Image distinguishes an absent alt attribute from an empty one, which is what
-// the pointer is for: `alt=""` is the correct markup for a decorative image,
-// and flagging it would train the operator to ignore the check.
+// Image keeps a missing alt attribute distinct from an empty one, since
+// `alt=""` is the right markup for a decorative image.
 type Image struct {
 	Src string  `json:"src"`
 	Alt *string `json:"alt"`
@@ -105,14 +97,12 @@ func attrPtr(n *html.Node, name string) *string {
 	return nil
 }
 
-// collapse normalises whitespace the way every comparison in checks.go
-// assumes: runs of any whitespace become one space, ends trimmed.
+// collapse squeezes any run of whitespace down to one space, which is what
+// every comparison in the checks assumes it has been given.
 func collapse(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
 
-// textOf returns the visible text of a subtree, with script, style and
-// noscript contents dropped.
 func textOf(n *html.Node) string {
 	var b strings.Builder
 	var walk func(*html.Node)
@@ -137,9 +127,8 @@ func textOf(n *html.Node) string {
 	return collapse(b.String())
 }
 
-// rawTextOf concatenates a node's direct text children, without textOf's
-// skip list. Used for <script type="application/ld+json">, whose contents are
-// data rather than prose.
+// rawTextOf concatenates a node's direct text children without textOf's skip
+// list, for <script type="application/ld+json"> whose contents are data.
 func rawTextOf(n *html.Node) string {
 	var b strings.Builder
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
@@ -150,7 +139,6 @@ func rawTextOf(n *html.Node) string {
 	return b.String()
 }
 
-// resolve turns a possibly-relative href into an absolute URL.
 func resolve(base *url.URL, ref string) string {
 	ref = strings.TrimSpace(ref)
 	if ref == "" {
@@ -163,7 +151,6 @@ func resolve(base *url.URL, ref string) string {
 	return u.String()
 }
 
-// parseHTML walks a document once and pulls out everything the checks need.
 func parseHTML(body []byte, pageURL string) (*ParsedHTML, error) {
 	doc, err := html.Parse(bytes.NewReader(body))
 	if err != nil {
@@ -207,7 +194,7 @@ func parseHTML(body []byte, pageURL string) (*ParsedHTML, error) {
 		case atom.Meta:
 			content := strings.TrimSpace(attrOr(n, "content", ""))
 			// Both spellings, because og: uses property= and twitter: uses
-			// name=, and plenty of real pages get that backwards.
+			// name=, and plenty of real pages have those backwards.
 			switch strings.ToLower(attrOr(n, "name", "")) {
 			case "description":
 				setIfEmpty(&p.Description, content)
@@ -241,8 +228,7 @@ func parseHTML(body []byte, pageURL string) (*ParsedHTML, error) {
 					p.Canonical = resolve(base, href)
 				}
 				// "icon", "shortcut icon" and "apple-touch-icon" all contain
-				// "icon", so a site with only an apple-touch-icon is not
-				// flagged.
+				// "icon", so an apple-touch-icon alone is not flagged.
 				if strings.Contains(rel, "icon") && p.Favicon == "" && href != "" {
 					p.Favicon = resolve(base, href)
 				}
@@ -258,8 +244,6 @@ func parseHTML(body []byte, pageURL string) (*ParsedHTML, error) {
 		case atom.A:
 			if href, ok := attr(n, "href"); ok {
 				href = strings.TrimSpace(href)
-				// Fragments, mailto, tel and javascript are not pages and
-				// probing them would produce nothing but noise.
 				if href != "" &&
 					!strings.HasPrefix(href, "#") &&
 					!strings.HasPrefix(strings.ToLower(href), "javascript:") &&
@@ -284,17 +268,15 @@ func parseHTML(body []byte, pageURL string) (*ParsedHTML, error) {
 
 		case atom.Script:
 			if strings.EqualFold(attrOr(n, "type", ""), "application/ld+json") {
-				// rawTextOf, not textOf. textOf skips script elements
-				// because their contents are not visible page text, which is
-				// right for the word count and wrong here.
+				// rawTextOf and not textOf, since textOf skips script elements
+				// entirely, which is right for the word count and wrong here.
 				raw := strings.TrimSpace(rawTextOf(n))
 				if raw != "" {
 					if json.Valid([]byte(raw)) {
 						p.JSONLD = append(p.JSONLD, json.RawMessage(raw))
 					} else {
-						// Counted rather than appended as a null, so a page
-						// whose valid JSON-LD is the literal `null` is not
-						// reported as a parse failure.
+						// Counted, not appended as a null, so a page whose
+						// valid JSON-LD is `null` is not a parse failure.
 						p.JSONLDBad++
 					}
 				}
@@ -310,9 +292,8 @@ func parseHTML(body []byte, pageURL string) (*ParsedHTML, error) {
 
 		case atom.Form:
 			p.Forms = append(p.Forms, parseForm(n, base, pageURL))
-			// parseForm collects the form whole, and nested forms are not
-			// legal HTML. Descend anyway, because a form can contain links,
-			// images and headings the other checks want.
+			// Descend anyway, since a form can contain links, images and
+			// headings the other checks want.
 		}
 
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
@@ -321,8 +302,8 @@ func parseHTML(body []byte, pageURL string) (*ParsedHTML, error) {
 	}
 	walk(doc)
 
-	// Visible text, for the thin-content and duplicate-content checks. Parsing
-	// decodes HTML entities, so `&nbsp;` does not count as a word.
+	// Parsing has decoded HTML entities by here, so `&nbsp;` does not count as
+	// a word.
 	text := textOf(doc)
 	p.WordCount = len(strings.Fields(text))
 	sum := sha256.Sum256([]byte(text))
@@ -337,14 +318,12 @@ func setIfEmpty(dst *string, v string) {
 	}
 }
 
-// parseForm collects a form's inputs and the ids its labels point at.
 func parseForm(form *html.Node, base *url.URL, pageURL string) Form {
 	f := Form{Inputs: []FormInput{}, LabelFors: []string{}}
 
 	action, ok := attr(form, "action")
 	if !ok || strings.TrimSpace(action) == "" {
-		// An empty or absent action submits to the current page, which is what
-		// the check reports as the form's identity.
+		// An empty or absent action submits to the current page.
 		f.Action = pageURL
 	} else {
 		f.Action = resolve(base, action)
@@ -358,8 +337,7 @@ func parseForm(form *html.Node, base *url.URL, pageURL string) Form {
 			case atom.Input, atom.Textarea, atom.Select:
 				f.Inputs = append(f.Inputs, FormInput{
 					// Per the HTML spec an input with no type attribute is a
-					// text input, which is also the case that most needs a
-					// label.
+					// text input, which is also the one that most needs a label.
 					Type:      strings.ToLower(attrOr(n, "type", "text")),
 					Name:      attrPtr(n, "name"),
 					ID:        attrPtr(n, "id"),

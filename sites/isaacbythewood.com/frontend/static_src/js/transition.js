@@ -1,14 +1,10 @@
-// A minimal stand-in for react-transition-group's CSSTransition.
-//
-// Two pages animate words in and out using the enter / enter-active /
+// Two pages animate words in and out through the enter / enter-active /
 // enter-done / exit / exit-active class sequence, and their CSS is written
-// against exactly those states. Reproducing the state machine keeps the
-// stylesheets working unchanged; hand-rolling the animations instead would
-// have meant rewriting both pages' CSS as well as their JS.
+// against exactly those state names.
 //
-// The forced reflow is not superstition. Adding the "from" class and the
-// "active" class in the same frame means the browser only ever computes the
-// end state, and no transition runs at all.
+// The forced reflow matters. Adding the "from" class and the "active" class in
+// the same frame means the browser only ever computes the end state, and no
+// transition runs at all.
 
 const nextFrame = (fn) => requestAnimationFrame(() => requestAnimationFrame(fn));
 

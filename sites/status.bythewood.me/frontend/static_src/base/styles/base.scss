@@ -1,6 +1,5 @@
 @use "variables" as *;
 
-// ── CSS variable overrides ──
 // Bootstrap 5.3 writes defaults into `:root,[data-bs-theme=light]`. Use
 // `html:root` so we outrank the default block and enforce the dark palette.
 html:root {
@@ -17,8 +16,6 @@ html:root {
   --bs-heading-color: #{$white};
 }
 
-// ── Global ──
-
 body {
   min-height: 100vh;
   display: flex;
@@ -33,10 +30,6 @@ body {
 main { flex: 1; }
 
 .vh-100 { height: 100vh; }
-
-// ── Logo (uptime-bars mark) ──
-// Rendered as an inline SVG in the template so it scales cleanly. Matches the
-// favicon exactly.
 
 .logo {
   display: inline-flex;
@@ -63,11 +56,8 @@ main { flex: 1; }
   }
 }
 
-// ── Navbar ──
-// `min-height` (not `height`) so the bar grows when the mobile collapse opens.
-// A fixed `height: 52px` clipped the open menu — items rendered into the
-// space below the bar but later siblings (breadcrumb-bar, main) painted on
-// top of them, so they read as completely invisible on phones.
+// `min-height` rather than `height`, so the bar grows when the mobile collapse
+// opens. At a fixed height the open menu is painted over by the siblings below.
 
 .navbar {
   min-height: 52px;
@@ -136,12 +126,6 @@ main { flex: 1; }
     &.active::after { transform: scaleX(1); }
   }
 
-  // ── Mobile (under 768px): stacked drawer ──
-  // Bootstrap's collapse drops the menu to a second flex row inside the
-  // navbar at this breakpoint. Style it as a tray under the brand row:
-  // top-rule separator, full-width tap targets, left-accent for the active
-  // item (instead of the desktop underline, which reads weird on stacked
-  // left-aligned items).
   @media (max-width: 767.98px) {
     .navbar-collapse {
       width: 100%;
@@ -191,16 +175,12 @@ main { flex: 1; }
   }
 }
 
-// ── Breadcrumb bar ──
-
 .breadcrumb-bar {
   background: rgba(107, 158, 120, 0.02);
   border-bottom: 1px solid rgba(107, 158, 120, 0.04);
 
   .breadcrumb { font-family: $font-family-monospace; }
 }
-
-// ── Section labels — amber caps, no prompt glyph ──
 
 .section-label {
   font-size: 0.7rem;
@@ -211,8 +191,6 @@ main { flex: 1; }
   font-family: $font-family-monospace;
 }
 
-// ── Cards (base) ──
-
 .card {
   background: $card-bg;
   border: 1px solid $card-border-color;
@@ -220,8 +198,6 @@ main { flex: 1; }
 
   &:hover { border-color: rgba(107, 158, 120, 0.2); }
 }
-
-// ── Status dot ──
 
 .status-dot {
   display: inline-block;
@@ -241,10 +217,6 @@ main { flex: 1; }
   &.is-warn { background: $amber; box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.12); }
   &.is-idle { background: #4a443c; }
 }
-
-// ── Visibility toggle (segmented pill) ──
-// Replaces the Bootstrap form-switch which was near-invisible on the dark
-// theme. Clear two-state UI — active half highlighted, inactive half dim.
 
 .toggle-label {
   font-family: $font-family-monospace;
@@ -286,13 +258,11 @@ main { flex: 1; }
     transition: background 180ms ease, color 180ms ease;
   }
 
-  // Default (unchecked) = Private is active
   input ~ .toggle-pill-private {
     background: rgba(201, 168, 76, 0.12);
     color: #ddc06a;
   }
 
-  // Checked = Public is active
   input:checked ~ .toggle-pill-private {
     background: transparent;
     color: #665f56;
@@ -306,10 +276,6 @@ main { flex: 1; }
     border-color: rgba(107, 158, 120, 0.35);
   }
 }
-
-// ── Metric tile ──
-// Every tile fills its grid cell so a row of them all share one height, even
-// when content length varies (e.g. one tile has a sub-line, others don't).
 
 .metric-tile {
   background: $card-bg;
@@ -359,8 +325,6 @@ main { flex: 1; }
   }
 }
 
-// ── Chips (inline status/score) ──
-
 .chip {
   display: inline-flex;
   align-items: center;
@@ -401,8 +365,6 @@ main { flex: 1; }
     border-color: rgba(221, 215, 205, 0.08);
   }
 }
-
-// ── Footer ──
 
 footer {
   padding-top: 4rem;
@@ -456,8 +418,6 @@ footer {
   }
 }
 
-// ── Uptime strip ──
-
 .uptime-strip {
   display: flex;
   gap: 2px;
@@ -477,8 +437,6 @@ footer {
     &.is-none { background: #18160f; }
   }
 }
-
-// ── Terminal-style block ──
 
 .terminal-block {
   background: rgba(9, 8, 6, 0.7);
@@ -507,8 +465,6 @@ footer {
   0%, 50% { opacity: 1; }
   51%, 100% { opacity: 0; }
 }
-
-// ── Property row ──
 
 .property-row {
   display: grid;
@@ -568,8 +524,6 @@ footer {
     min-height: 68px; // Matches the left column's natural height so actions pin to bottom
   }
 
-  // Uniform stat grid — each cell is label-over-chip so every column aligns
-  // vertically regardless of whether the value is a pill or a number.
   .pr-meta {
     display: flex;
     gap: 0.85rem;
@@ -617,8 +571,6 @@ footer {
   }
 }
 
-// ── Search form ──
-
 .search-form {
   position: relative;
 
@@ -653,9 +605,7 @@ footer {
   }
 }
 
-// ── Dashboard toolbar ──
-// Input + button sharing one visual line — both get the same height (38px)
-// so the CTA doesn't read as a different size from the field next to it.
+// Input and button share one visual line, so both take the same 38px height.
 
 .dashboard-toolbar {
   display: flex;
@@ -675,8 +625,6 @@ footer {
     white-space: nowrap;
   }
 }
-
-// ── Chart panel ──
 
 .chart-panel {
   background: $card-bg;
@@ -700,8 +648,6 @@ footer {
     font-family: $font-family-monospace;
   }
 }
-
-// ── Security list ──
 
 .check-list {
   background: $card-bg;
@@ -739,11 +685,6 @@ footer {
     }
   }
 }
-
-// ── Monitor card ──
-// When used inside a flex/grid row, `h-100` class stretches the card to its
-// cell height. The body grows to fill any extra space so the two cards next
-// to each other stay visually balanced even with different dl row counts.
 
 .monitor-card {
   background: $card-bg;
@@ -800,10 +741,8 @@ footer {
   }
 }
 
-// ── Monitor card buttons ──
-// Inline flex so the spinner sits centered next to the label instead of
-// floating off the baseline. Slightly thicker spinner border for visibility
-// against the muted button outline.
+// Inline flex so the spinner sits centred beside the label instead of dropping
+// off the baseline.
 
 .monitor-btn {
   display: inline-flex;
@@ -824,8 +763,6 @@ footer {
     opacity: 0.85;  // Bootstrap's default 0.65 makes the spinner nearly invisible
   }
 }
-
-// ── Insight row (lighthouse opportunities / crawler issues) ──
 
 .insight-header {
   display: grid;
@@ -877,8 +814,6 @@ footer {
     gap: 0.4rem;
   }
 }
-
-// ── Auth split view ──
 
 .auth-shell {
   min-height: calc(100vh - 52px);

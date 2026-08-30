@@ -10,12 +10,9 @@ import (
 	"github.com/yuin/goldmark/util"
 )
 
-// Markdown to Typst, by hand. There is no off-the-shelf converter, so this
-// walks the same AST the HTML renderer uses and emits Typst markup.
-//
-// Raw HTML is dropped rather than passed through: Typst has no equivalent, and
-// the alternative is a compile error taking the whole PDF down over an inline
-// <kbd>.
+// typstFromMarkdown walks the same AST the HTML renderer uses and emits Typst
+// markup. Raw HTML is dropped, since Typst has no equivalent and passing it
+// through takes the whole PDF down over an inline <kbd>.
 func typstFromMarkdown(md string) string {
 	source := []byte(md)
 	doc := markdownRenderer.Parser().Parse(text.NewReader(source))
@@ -35,9 +32,6 @@ func writeBlocks(b *strings.Builder, node ast.Node, source []byte) {
 func writeBlock(b *strings.Builder, node ast.Node, source []byte) {
 	switch n := node.(type) {
 	case *ast.Paragraph:
-		// A paragraph holding nothing but an image is a figure, and gets the
-		// centred full-width treatment rather than being inlined into a line
-		// of prose.
 		if img, ok := onlyImage(n); ok {
 			writeBlockImage(b, img, source)
 			return
@@ -76,7 +70,7 @@ func writeBlock(b *strings.Builder, node ast.Node, source []byte) {
 		writeCodeBlock(b, blockText(n, source), "")
 
 	case *ast.HTMLBlock:
-		// Dropped: see the note on the package function.
+		// Dropped, see typstFromMarkdown.
 
 	case *east.Table:
 		writeTable(b, n, source)
@@ -105,8 +99,7 @@ func writeListItem(b *strings.Builder, item ast.Node, source []byte, ordered boo
 		case *ast.TextBlock, *ast.Paragraph:
 			writeInlines(b, child, source)
 		case *ast.List:
-			// Typst nests by indentation, so a sublist is two spaces in front
-			// of each of its own markers.
+			// Typst nests by indentation, so a sublist indents each marker.
 			b.WriteByte('\n')
 			for sub := c.FirstChild(); sub != nil; sub = sub.NextSibling() {
 				b.WriteString("  ")
@@ -141,9 +134,8 @@ func writeTable(b *strings.Builder, table *east.Table, source []byte) {
 	}
 	b.WriteString("),\n")
 
-	// The header is a child of the table; the body rows are wrapped in a
-	// TableBody in some documents and direct children in others, so both are
-	// walked the same way.
+	// Body rows are wrapped in a TableBody in some documents and are direct
+	// children in others, so both are walked the same way.
 	var writeRows func(node ast.Node)
 	writeRows = func(node ast.Node) {
 		for row := node.FirstChild(); row != nil; row = row.NextSibling() {
@@ -210,7 +202,7 @@ func writeInline(b *strings.Builder, node ast.Node, source []byte) {
 		fmt.Fprintf(b, "#image(%q)", imagePath(string(n.Destination)))
 
 	case *ast.RawHTML:
-		// Dropped: see the note on typstFromMarkdown.
+		// Dropped, see typstFromMarkdown.
 
 	default:
 		writeInlines(b, node, source)
@@ -231,7 +223,6 @@ func writeBlockImage(b *strings.Builder, img *ast.Image, source []byte) {
 	b.WriteString(")]\n\n")
 }
 
-// onlyImage reports whether a paragraph is a single image and nothing else.
 func onlyImage(para *ast.Paragraph) (*ast.Image, bool) {
 	first := para.FirstChild()
 	if first == nil || first.NextSibling() != nil {
@@ -241,16 +232,9 @@ func onlyImage(para *ast.Paragraph) (*ast.Image, bool) {
 	return img, ok
 }
 
-// imagePath resolves a post's image reference against the Typst root. Posts
-// write them relative ("images/foo.webp") but the compile happens from the
-// site root, where they live under content/.
-//
-// It has to be idempotent, and that is not decoration. This walks the AST
-// produced by markdownRenderer.Parser(), the same parser the HTML path uses,
-// and that parser carries imagePathTransformer, which has already rewritten a
-// relative destination to its served path. Prefixing unconditionally produced
-// "/content/images//content/images/foo.webp" and broke every PDF holding an
-// image. Anything already absolute is left exactly as it is.
+// imagePath resolves a post's relative image reference against the Typst root,
+// and has to stay idempotent, since this walks the AST from
+// markdownRenderer.Parser() whose transformer may have rewritten it already.
 func imagePath(url string) string {
 	if strings.HasPrefix(url, "/") || strings.Contains(url, "://") {
 		return url
@@ -258,8 +242,7 @@ func imagePath(url string) string {
 	return "/content/images/" + strings.TrimPrefix(url, "images/")
 }
 
-// inlineText flattens a node to its plain text, for alt text and code spans
-// where Typst wants a string rather than markup.
+// inlineText flattens a node to the plain text Typst wants for alt text.
 func inlineText(node ast.Node, source []byte) string {
 	var b strings.Builder
 	var walk func(ast.Node)
@@ -283,12 +266,9 @@ func inlineText(node ast.Node, source []byte) string {
 	return b.String()
 }
 
-// textValue reads a text node the way goldmark's own HTML renderer does.
-//
-// A node inside a code span is raw and means exactly the bytes in the source: a
-// post writing `&#x2f;` in backticks is talking about the entity, and resolving
-// it to "/" changes what the sentence says. Everywhere else, escapes and
-// entities are notation and get resolved.
+// textValue reads a text node the way goldmark's own HTML renderer does. A node
+// inside a code span is raw and means the exact source bytes, so a post writing
+// `&#x2f;` in backticks keeps the entity. Everywhere else they are resolved.
 func textValue(n *ast.Text, source []byte) string {
 	raw := n.Segment.Value(source)
 	if n.IsRaw() {
@@ -297,22 +277,16 @@ func textValue(n *ast.Text, source []byte) string {
 	return plainText(raw)
 }
 
-// plainText turns a Text node's raw source bytes into the characters they
-// stand for.
-//
-// goldmark keeps Markdown's own escapes in the AST and resolves them in the
-// renderer rather than the parser: a node covering `reverse\_proxy` reports
-// exactly that, backslash included, and the HTML renderer drops the backslash
-// on its way out. Without this, the Typst escaper below escapes that leftover
-// backslash and the PDF reads "reverse\_proxy".
+// plainText resolves the Markdown escapes and entities goldmark leaves in the
+// AST for a renderer to handle. Without it the Typst escaper escapes the
+// leftover backslash and the PDF reads "reverse\_proxy".
 func plainText(raw []byte) string {
 	resolved := util.ResolveEntityNames(util.ResolveNumericReferences(raw))
 	return string(util.UnescapePunctuations(resolved))
 }
 
-// escapeMarkup backslash-escapes the characters that mean something in Typst
-// markup mode. Without it a post mentioning #hashtags or an @handle compiles
-// into a label reference and fails.
+// markupEscaper covers the characters that mean something in Typst markup, so a
+// post mentioning #hashtags or an @handle does not compile into a reference.
 var markupEscaper = strings.NewReplacer(
 	`\`, `\\`, `[`, `\[`, `]`, `\]`, `*`, `\*`, `_`, `\_`,
 	"`", "\\`", `#`, `\#`, `$`, `\$`, `<`, `\<`, `@`, `\@`, `~`, `\~`,
@@ -320,7 +294,6 @@ var markupEscaper = strings.NewReplacer(
 
 func escapeMarkup(s string) string { return markupEscaper.Replace(s) }
 
-// blockText concatenates a code block's raw lines.
 func blockText(node ast.Node, source []byte) string {
 	var b strings.Builder
 	lines := node.Lines()
@@ -332,7 +305,7 @@ func blockText(node ast.Node, source []byte) string {
 }
 
 // typstSource wraps a post's body in the blog_post.typ template call. Typst
-// string literals take the same escapes Go's %q produces.
+// string literals take the same escapes %q produces.
 func typstSource(post *Post) string {
 	var b strings.Builder
 	b.WriteString("#import \"/typst/blog_post.typ\": render\n#render(\n")
@@ -348,7 +321,7 @@ func typstSource(post *Post) string {
 		fmt.Fprintf(&b, "%q", tag)
 	}
 	// A one-element Typst array needs the trailing comma or it is just a
-	// parenthesised string, and `for tag in tags` then iterates its characters.
+	// parenthesised string, and `for tag in tags` iterates its characters.
 	if len(post.Tags) == 1 {
 		b.WriteByte(',')
 	}

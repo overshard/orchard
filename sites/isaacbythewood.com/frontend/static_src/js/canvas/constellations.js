@@ -1,9 +1,5 @@
-// Drifting points that draw a line to every neighbour within 150px, the line
-// brighter the closer they are. Constellations build and dissolve on their own.
-//
-// The maths is unchanged from the React version. All that is gone is the
-// component wrapper: the simulation never needed React, it only ever ran
-// inside a useEffect that React could not see into anyway.
+// Drifting points that draw a line to every neighbour within 150px, brighter
+// the closer they are, so constellations build and dissolve on their own.
 
 export const constellations = (cvs, { numStars = 50 } = {}) => {
   const ctx = cvs.getContext("2d");

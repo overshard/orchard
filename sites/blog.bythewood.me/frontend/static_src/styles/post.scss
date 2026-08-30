@@ -1,12 +1,11 @@
-// Styles the <article> body of a blog post. Comrak emits standard HTML
-// (<p>, <h2>, <pre><code>, <img>, etc.) — no custom block wrappers.
+// The <article> body of a post. Comrak emits plain HTML with no wrapper
+// elements of its own, so everything here selects the tags directly.
 
 article {
   font-size: 1.05em;
   line-height: 1.9;
   color: #c4bdb2;
 
-  // Text content stays in a 600px reading column.
   > p,
   > ul,
   > ol,
@@ -18,7 +17,6 @@ article {
     margin-right: auto;
   }
 
-  // Code blocks, tables, and image-only paragraphs break wider.
   > pre,
   > table,
   > p:has(> img:only-child) {
@@ -53,7 +51,6 @@ article {
     color: #ddd7cd;
   }
 
-  // Inline code (the `:not(pre)` rules out the <code> inside a <pre>).
   :not(pre) > code {
     background: rgba(107, 158, 120, 0.1);
     color: #8dc49c;
@@ -66,7 +63,7 @@ article {
     border-color: rgba(107, 158, 120, 0.08);
   }
 
-  // Block-level code (background-color comes from the syntect inline style).
+  // chroma emits the background colour inline, so none is set here.
   pre {
     margin: 2rem auto;
     padding: 1rem 1.25rem;
@@ -110,7 +107,6 @@ article {
     border-radius: 0.25rem;
   }
 
-  // Center an image-only paragraph and add vertical breathing room.
   p:has(> img:only-child) {
     margin: 2rem auto;
     text-align: center;

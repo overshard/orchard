@@ -1,7 +1,5 @@
 @use "../../base/styles/variables" as *;
 
-// ── Home hero ──
-
 .hero {
   position: relative;
   background: #090806;
@@ -62,8 +60,6 @@
   }
 }
 
-// ── Feature tiles ──
-
 .feature {
   background: #13120e;
   border: 1px solid rgba(107, 158, 120, 0.08);
@@ -99,8 +95,6 @@
   }
 }
 
-// ── Stat strip ──
-
 .stat-strip {
   background: #0e0d0a;
   border-top: 1px solid rgba(107, 158, 120, 0.06);
@@ -127,8 +121,6 @@
     margin-top: 0.2rem;
   }
 }
-
-// ── Changelog ──
 
 .changelog-entry {
   display: grid;
@@ -160,8 +152,6 @@
     font-size: 0.85em;
   }
 }
-
-// ── Docs (accordion + copy blocks) ──
 
 .docs-lead {
   color: #a09890;

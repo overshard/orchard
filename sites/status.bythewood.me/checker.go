@@ -18,32 +18,21 @@ import (
 	"golang.org/x/net/http2"
 )
 
-// The HTTP probe.
-//
-// This deliberately does not use http.Client. A pooled client measures a warm
-// connection; this measures what a first-time visitor pays: DNS, then TCP, then
-// the TLS handshake, then the wait for the first response byte. Those four
-// numbers are the dashboard's phase chart, and they exist only because each
-// phase is performed by hand and timed.
-//
-// **Do not "fix" this by hoisting a shared client into the app state.** Pooling
-// would drop mean response time by roughly 70% and the number would stop
-// meaning what the dashboard says it means. If response-time variance looks
-// ugly, look at its cause (handshake jitter, ALPN, DNS, server-side state)
-// rather than removing the handshake from the measurement.
+// This probe measures what a first-time visitor pays: DNS, TCP, the TLS
+// handshake and the wait for the first byte, each timed by hand. Do not swap it
+// for a pooled http.Client; the phase chart exists because nothing is reused.
 
 const (
-	// A real Chrome UA. Sites behave differently for something that announces
-	// itself as a monitor, and the number wanted here is what a visitor gets.
+	// A real Chrome UA: sites behave differently for something announcing
+	// itself as a monitor.
 	probeUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
 		"(KHTML, like Gecko) Chrome/102.0.5005.115 Safari/537.36 Status/2.0.0"
 	probeTimeout = 10 * time.Second
 	maxRedirects = 5
 )
 
-// PhaseTimings is one probe's breakdown. A nil phase did not run, because the
-// probe failed before reaching it. TotalMS is wall-clock for the first hop and
-// is what goes into checks.response_ms.
+// PhaseTimings is one probe's breakdown. A nil phase never ran. TotalMS is wall
+// clock for the first hop and is what goes into checks.response_ms.
 type PhaseTimings struct {
 	DNSMS   *int64
 	TCPMS   *int64
@@ -57,19 +46,16 @@ type probeOutcome struct {
 	headersJSON string
 	timings     PhaseTimings
 
-	// Whether a shared cache answered, and how old its copy was. Recorded
-	// because a 200 from an edge cache says nothing about the origin.
+	// A 200 from an edge cache says nothing about the origin.
 	cacheStatus string
 	age         *int64
 
-	// originUnreachable is set when the response was served from cache and the
-	// copy is older than a live origin could have left it. See the comment on
-	// classifyCache.
+	// originUnreachable is set when a cache answered with a copy older than a
+	// live origin could have left it; see classifyCache.
 	originUnreachable bool
 }
 
-// hopResult is one request/response, with enough detail to decide whether to
-// follow a redirect.
+// hopResult is one request and response, with enough detail to follow a redirect.
 type hopResult struct {
 	statusCode  int64
 	headers     map[string]string
@@ -77,19 +63,13 @@ type hopResult struct {
 	timings     PhaseTimings
 }
 
-// errPlainHTTP is returned for an http:// URL. The probe is HTTP/2 only, and h2
-// over plain TCP with prior knowledge is rare enough that supporting it would
-// mean measuring something nobody serves. Property creation rejects http:// for
-// the same reason, so this is a second fence.
+// errPlainHTTP is returned for an http:// URL: the probe is HTTP/2 over TLS
+// only. Property creation rejects http:// too, so this is the second fence.
 var errPlainHTTP = errors.New("plain HTTP not supported; use https:// (HTTP/2 only)")
 
-// atLeast1ms rounds a duration to whole milliseconds, reporting a sub-ms phase
-// as 1 rather than 0.
-//
-// The Linux kernel routes traffic destined for the host's own public IP over
-// lo, so probing a site that shares this machine takes 200-500 microseconds for
-// the TCP and handshake phases, which truncates to zero. A 0 in the chart reads
-// as "this phase did not happen" rather than "this phase was instant".
+// atLeast1ms reports a sub-millisecond phase as 1 rather than 0. Probing a site
+// that shares this machine goes over lo and truncates to zero, which reads on
+// the chart as a phase that never happened.
 func atLeast1ms(d time.Duration) int64 {
 	ms := d.Milliseconds()
 	if ms == 0 && d > 0 {
@@ -100,11 +80,8 @@ func atLeast1ms(d time.Duration) int64 {
 
 func ptr(v int64) *int64 { return &v }
 
-// parseHTTPURL parses a URL and insists it is absolute and http(s).
-//
-// url.Parse accepts almost anything, including "example.com", which it reads
-// as a relative path with no host. A property created from that string would
-// probe forever and fail forever with a confusing error.
+// parseHTTPURL parses a URL and insists it is absolute and http(s). url.Parse
+// reads "example.com" as a relative path with no host and returns no error.
 func parseHTTPURL(raw string) (*url.URL, error) {
 	u, err := url.Parse(strings.TrimSpace(raw))
 	if err != nil {
@@ -119,11 +96,8 @@ func parseHTTPURL(raw string) (*url.URL, error) {
 	return u, nil
 }
 
-// looksLikeTLSError decides between the two failure codes: 526 for an invalid
-// certificate, which the dashboard renders as a certificate warning, and 408
-// for a generic timeout. Matching on error text is unpleasant, but the
-// alternative is unwrapping a chain of driver-specific types to pick which of
-// two icons to draw.
+// looksLikeTLSError picks between 526 for a certificate problem and 408 for a
+// generic timeout. Matching on error text, to avoid unwrapping driver types.
 func looksLikeTLSError(err error) bool {
 	var certErr *tls.CertificateVerificationError
 	if errors.As(err, &certErr) {
@@ -153,9 +127,8 @@ func runCheck(ctx context.Context, db *sql.DB, p *Property) (int64, error) {
 		if looksLikeTLSError(err) {
 			code = 526
 		}
-		// Record how long the failure actually took. An NXDOMAIN or a refused
-		// connection fails in milliseconds, and charting either as the full
-		// 10-second timeout would poison the response-time average.
+		// Record how long the failure took. An NXDOMAIN fails in milliseconds
+		// and charting it as the full timeout would poison the average.
 		outcome = &probeOutcome{
 			statusCode:  code,
 			headersJSON: "{}",
@@ -163,19 +136,9 @@ func runCheck(ctx context.Context, db *sql.DB, p *Property) (int64, error) {
 		}
 	}
 
-	// The code that gets stored is the one the monitor concluded, not the one
-	// the edge sent.
-	//
-	// This has to be persisted rather than only returned, and that is not a
-	// style choice: advanceAlertState looks for a second consecutive failure by
-	// re-reading status_code out of checks, and row zero is the row written
-	// here. Returning 523 while storing 200 meant the down transition could
-	// never fire, so the fix silently did nothing. Storing it also keeps the
-	// uptime tile and countUptime honest, which would otherwise score a
-	// stale-served page as a successful check.
-	//
-	// Nothing is lost by not storing the edge's 200: cf_cache_status and age are
-	// stored beside it and say exactly why the conclusion differs.
+	// The stored code is what the monitor concluded, not what the edge sent.
+	// advanceAlertState looks for a second failure by re-reading status_code out
+	// of checks, so a code that is only returned can never trigger a down.
 	effective := outcome.statusCode
 	if outcome.originUnreachable {
 		effective = statusOriginStale
@@ -203,13 +166,11 @@ func runCheck(ctx context.Context, db *sql.DB, p *Property) (int64, error) {
 	return effective, nil
 }
 
-// statusOriginStale is reported when a cache answered on behalf of an origin
-// that has stopped answering. It is deliberately not a real HTTP code: nothing
-// sent one, and the alert machine only asks whether it is 200.
+// statusOriginStale is reported when a cache answered for an origin that has
+// stopped. It is not a real HTTP code; nothing sent one.
 const statusOriginStale = 523
 
-// minCacheTolerance floors the freshness window this compares against. See
-// classifyCache.
+// minCacheTolerance floors the freshness window; see classifyCache.
 const minCacheTolerance = 300
 
 func nullableString(s string) any {
@@ -227,13 +188,8 @@ func derefAge(age *int64) int64 {
 }
 
 // probeWithRedirects times the first hop in full, then follows up to
-// maxRedirects 3xx hops to find the final status code.
-//
-// Following matters because the alert state machine keys on 200: a property
-// using an http-to-https or apex-to-www redirect would otherwise sit
-// permanently "down" at 301. Phase timings describe the first hop only, which
-// is the latency a fresh visitor pays before being sent elsewhere, and the only
-// number that means anything when later hops live on other servers.
+// maxRedirects 3xx hops for the final status code, since the alert machine keys
+// on 200 and an apex-to-www property would otherwise sit at 301 forever.
 func probeWithRedirects(ctx context.Context, rawURL string) (*probeOutcome, error) {
 	current, err := parseHTTPURL(rawURL)
 	if err != nil {
@@ -264,10 +220,8 @@ func probeWithRedirects(ctx context.Context, rawURL string) (*probeOutcome, erro
 		current = next
 		hop, err := phasedHop(ctx, current)
 		if err != nil {
-			// A redirect into something unreachable keeps the last status
-			// actually observed, which is the 3xx: the site answered and
-			// pointed somewhere broken. The crawler's redirect chain check is
-			// where that gets reported.
+			// Keep the 3xx actually observed: the site answered and pointed
+			// somewhere broken.
 			break
 		}
 		status = hop.statusCode
@@ -286,27 +240,9 @@ func probeWithRedirects(ctx context.Context, rawURL string) (*probeOutcome, erro
 	}, nil
 }
 
-// classifyCache reads the shared-cache headers and decides whether this
-// response is evidence the origin is alive.
-//
-// It is not, whenever a cache answered. Two of the sites here set
-// "public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800",
-// which is a deliberate and wanted property: a visitor keeps getting the site
-// when the desktop behind the tunnel is down. But the prober reaches those
-// hostnames the same way a visitor does, so it was measuring the cache. On
-// 2026-08-29 01:24:54 the tunnel was down and this recorded 530 for the two
-// uncached sites and 200 for the two cached ones, in the same second.
-//
-// Being cached is not by itself a failure, so a plain HIT cannot mean "down" or
-// those two sites would alert constantly. What distinguishes a live origin is
-// that the copy stays young: every revalidation that succeeds resets Age, so
-// Age stays inside roughly max-age plus one probe interval. A dead origin
-// cannot refresh anything, so Age climbs without bound toward stale-if-error.
-//
-// The tolerance is read from the response's own max-age rather than hardcoded,
-// so changing a site's cache policy cannot silently turn this into a false
-// alarm. Two probe intervals of slack, because one probe is what triggers the
-// background revalidation that resets Age.
+// classifyCache decides whether a response is evidence the origin is alive. A
+// cache hit alone is not: what marks a live origin is that Age stays young,
+// since a successful revalidation resets it and a dead origin cannot refresh.
 func classifyCache(headers map[string]string) (status string, age *int64, unreachable bool) {
 	status = headers["cf-cache-status"]
 
@@ -331,17 +267,9 @@ func classifyCache(headers map[string]string) (status string, age *int64, unreac
 	if !ok {
 		return status, age, false
 	}
-	// Floored, because the margin has to stay wider than the healthy ceiling.
-	// A healthy Age peaks near max-age plus a probe interval, so for a small
-	// max-age the tolerance and the healthy peak converge and leave the
-	// two-consecutive debounce nothing to absorb. A site stamping max-age=60
-	// would otherwise sit on the boundary from its first check.
-	//
-	// This still cannot see an edge-side TTL override: a Cache Rule sets what
-	// the shared cache actually holds while the origin's own header is what
-	// arrives here, so a long edge TTL yields a large steady Age on a healthy
-	// site. If a property is ever configured that way, this needs its floor
-	// raised for that property rather than globally.
+	// Floored, since a small max-age puts the tolerance and a healthy peak Age
+	// on top of each other. This cannot see an edge-side TTL override, where a
+	// Cache Rule holds a copy longer than the origin's own header claims.
 	if maxAge < minCacheTolerance {
 		maxAge = minCacheTolerance
 	}
@@ -397,7 +325,6 @@ func phasedHop(ctx context.Context, u *url.URL) (*hopResult, error) {
 
 	totalStart := time.Now()
 
-	// --- DNS ---
 	dnsStart := time.Now()
 	addrs, err := net.DefaultResolver.LookupIPAddr(ctx, host)
 	if err != nil {
@@ -408,7 +335,6 @@ func phasedHop(ctx context.Context, u *url.URL) (*hopResult, error) {
 	}
 	dnsMS := atLeast1ms(time.Since(dnsStart))
 
-	// --- TCP ---
 	tcpStart := time.Now()
 	var dialer net.Dialer
 	conn, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort(addrs[0].IP.String(), port))
@@ -417,8 +343,7 @@ func phasedHop(ctx context.Context, u *url.URL) (*hopResult, error) {
 	}
 	defer conn.Close()
 	if tcpConn, ok := conn.(*net.TCPConn); ok {
-		// Nagle batches small writes, which would fold the request write into
-		// the measurement of the wait for the response.
+		// Nagle would fold the request write into the wait being measured.
 		_ = tcpConn.SetNoDelay(true)
 	}
 	tcpMS := atLeast1ms(time.Since(tcpStart))
@@ -427,11 +352,8 @@ func phasedHop(ctx context.Context, u *url.URL) (*hopResult, error) {
 		return nil, errPlainHTTP
 	}
 
-	// --- TLS ---
-	//
 	// ALPN is pinned to h2 alone, so a server that does not speak HTTP/2 fails
-	// the handshake rather than being measured over HTTP/1.1. That failure
-	// maps to 526.
+	// the handshake rather than being measured over HTTP/1.1.
 	tlsStart := time.Now()
 	tlsConn := tls.Client(conn, &tls.Config{
 		ServerName: host,
@@ -446,7 +368,6 @@ func phasedHop(ctx context.Context, u *url.URL) (*hopResult, error) {
 	}
 	tlsMS := atLeast1ms(time.Since(tlsStart))
 
-	// --- request, and the wait for the first byte ---
 	status, headers, headersJSON, ttfbMS, err := h2Request(ctx, tlsConn, u)
 	if err != nil {
 		return nil, err
@@ -466,17 +387,9 @@ func phasedHop(ctx context.Context, u *url.URL) (*hopResult, error) {
 	}, nil
 }
 
-// h2Request runs an HTTP/2 GET over an already-established TLS connection.
-//
-// http2.Transport.NewClientConn is what makes this possible: the stdlib's own
-// HTTP/2 support is reachable only through http.Client, which would do its own
-// dialing and handshaking and defeat the point of the file. This takes a
-// connection that has already been handshaked.
-//
-// TTFB is measured from the start of the h2 SETTINGS exchange to the arrival of
-// the response HEADERS frame, so it includes protocol setup. That is what the
-// chart labels it: everything between "secure connection ready" and "first
-// server byte", or curl's time_starttransfer minus time_appconnect.
+// h2Request runs an HTTP/2 GET over an already-handshaked TLS connection, which
+// http.Client cannot do without dialing itself. TTFB runs from the h2 SETTINGS
+// exchange to the response HEADERS frame, so it includes protocol setup.
 func h2Request(ctx context.Context, conn *tls.Conn, u *url.URL) (
 	status int64, headers map[string]string, headersJSON string, ttfbMS int64, err error,
 ) {
@@ -502,10 +415,8 @@ func h2Request(ctx context.Context, conn *tls.Conn, u *url.URL) (
 	}
 	ttfbMS = atLeast1ms(time.Since(ttfbStart))
 
-	// The body is never read. This measures time to first byte and only needs
-	// the status line and headers, so draining a megabyte of HTML would add
-	// latency to a number meant to exclude it. Closing without reading sends
-	// RST_STREAM, which is correct and cheap.
+	// The body is never read: this measures time to first byte. Closing without
+	// reading sends RST_STREAM, which is correct and cheap.
 	defer resp.Body.Close()
 
 	headers = make(map[string]string, len(resp.Header))
@@ -515,9 +426,8 @@ func h2Request(ctx context.Context, conn *tls.Conn, u *url.URL) (
 		}
 	}
 
-	// encoding/json sorts map keys, so the stored blob is byte-stable for a
-	// given response rather than reshuffled by Go's random map iteration on
-	// every probe, which makes two rows diffable.
+	// encoding/json sorts map keys, so the stored blob is byte-stable across
+	// probes rather than reshuffled by map iteration order.
 	encoded, err := json.Marshal(headers)
 	if err != nil {
 		encoded = []byte("{}")
@@ -540,12 +450,8 @@ func processCheck(ctx context.Context, db *sql.DB, notifier *Notifier, p *Proper
 //	up   -> down: two consecutive non-200 checks
 //	down -> up:   immediately, on any 200
 //
-// The asymmetry is the point. A single failed check is usually a blip, so going
-// down needs corroboration; coming back does not, because a false "recovered"
-// costs nothing and a delayed one is the alert that matters.
-//
-// The state is committed in a transaction *before* the notification is sent, so
-// a crash between the two loses an alert rather than repeating one forever.
+// The state commits before the notification is sent, so a crash between the two
+// loses an alert rather than repeating one forever.
 func advanceAlertState(ctx context.Context, db *sql.DB, notifier *Notifier, p *Property, statusCode int64) error {
 	isUp := statusCode == 200
 
@@ -619,8 +525,7 @@ func advanceAlertState(ctx context.Context, db *sql.DB, notifier *Notifier, p *P
 		slog.Info(fmt.Sprintf("alert: average response time for %s: %v", p.URL, err))
 	}
 
-	// Fire and forget: a slow or unreachable notifier must not hold up the
-	// scheduler tick that produced this transition.
+	// Fire and forget: a slow notifier must not hold up the scheduler tick.
 	go notifier.Fire(transition, AlertContext{
 		ID:            p.ID.String(),
 		Name:          p.Name(),
@@ -632,8 +537,7 @@ func advanceAlertState(ctx context.Context, db *sql.DB, notifier *Notifier, p *P
 }
 
 // recentAvgResponseMS averages the most recent 31 checks, mirroring the
-// dashboard's rolling-average tile so the alert quotes the number the operator
-// will see when they open the page it links to.
+// dashboard tile so the alert quotes the number the operator will see.
 func recentAvgResponseMS(ctx context.Context, db *sql.DB, id [16]byte) (int64, error) {
 	var avg sql.NullFloat64
 	err := db.QueryRowContext(ctx,
@@ -647,12 +551,8 @@ func recentAvgResponseMS(ctx context.Context, db *sql.DB, id [16]byte) (int64, e
 	return int64(avg.Float64), nil
 }
 
-// next3MinBoundary returns the next wall-clock time divisible by three minutes.
-//
-// Aligning to a boundary rather than adding three minutes to "now" means every
-// property is probed on the same cadence regardless of when it was created, so
-// the response-time charts of two properties line up on one x-axis instead of
-// drifting apart.
+// next3MinBoundary returns the next wall-clock time divisible by three minutes,
+// so every property shares one cadence and two charts line up on one x-axis.
 func next3MinBoundary() int64 {
 	now := time.Now().UTC()
 	aligned := now.Truncate(checkInterval)

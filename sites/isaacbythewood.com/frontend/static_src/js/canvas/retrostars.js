@@ -1,6 +1,5 @@
 // Three star fields at different depths, offset against the pointer for
-// parallax, twinkling on a four-step cycle. Pixel-art sized: everything is a
-// 5px square, nothing is anti-aliased.
+// parallax and twinkling on a four-step cycle. Everything is a 5px square.
 
 const COLORS = ["white", "yellow", "red", "green", "blue"];
 
@@ -14,9 +13,6 @@ export const retrostars = (cvs, { numStars = 50 } = {}) => {
   resize();
   window.addEventListener("resize", resize);
 
-  // Never React state, even in the original: the draw loop reads these
-  // directly, and storing them in state would have re-rendered the component
-  // on every single mousemove.
   const mouse = { x: 640, y: 400 };
   let starSize = 0;
 
@@ -55,8 +51,7 @@ export const retrostars = (cvs, { numStars = 50 } = {}) => {
     ctx.closePath();
   };
 
-  // A plus sign of 5px squares: the "twinkling" state for medium and large
-  // stars.
+  // A plus sign of 5px squares, the twinkling state for medium and large stars.
   const plus = (color, x, y, arm = 5) => {
     square(color, x, y);
     square(color, x - arm, y);
@@ -95,8 +90,8 @@ export const retrostars = (cvs, { numStars = 50 } = {}) => {
       } else if (starSize === 1 || starSize === 3) {
         plus(color, x, y);
       } else {
-        // Peak twinkle: a filled block with arms and a hole punched out of the
-        // middle, which reads as a bright flare rather than a bigger dot.
+        // Peak twinkle. The hole punched out of the middle is what makes it
+        // read as a flare instead of just a bigger dot.
         square(color, x - 5, y - 5, 15, 15);
         square(color, x - 10, y);
         square(color, x, y - 10);

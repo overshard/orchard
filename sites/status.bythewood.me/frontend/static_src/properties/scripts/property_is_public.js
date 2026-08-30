@@ -1,5 +1,5 @@
-// Visibility toggle pill. Posts to /properties/<id>/public on every change,
-// then reloads so the rest of the dashboard re-renders against the new state.
+// Reloads after the post, so the rest of the dashboard re-renders against the
+// new visibility.
 document.addEventListener("DOMContentLoaded", function () {
   const wrap = document.getElementById("is-public-form");
   if (!wrap) return;

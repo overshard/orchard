@@ -7,8 +7,6 @@ body {
   letter-spacing: 0.01em;
 }
 
-// ── Logo ──
-
 .logo {
   content: "";
   display: flex;
@@ -47,8 +45,6 @@ body {
     box-shadow: 0 0 14px rgba(107, 158, 120, 0.3);
   }
 }
-
-// ── Navbar ──
 
 .navbar {
   border-bottom: 1px solid rgba(107, 158, 120, 0.06);
@@ -89,11 +85,6 @@ body {
     }
   }
 
-  // ── Mobile (under 768px): stacked drawer ──
-  // The blog navbar shows tag links (ai, coding, databases, …); on phones
-  // they need to stack as a clean drawer beneath the brand row, not float
-  // dim-on-dim into the page content. Top-rule separator, full-width tap
-  // targets, left accent for active.
   @media (max-width: 767.98px) {
     .navbar-collapse {
       width: 100%;
@@ -129,14 +120,10 @@ body {
   }
 }
 
-// ── Breadcrumb bar ──
-
 .breadcrumb-bar {
   background: rgba(107, 158, 120, 0.02);
   border-bottom: 1px solid rgba(107, 158, 120, 0.04);
 }
-
-// ── Footer ──
 
 footer {
   padding-top: 4rem;
@@ -175,8 +162,6 @@ footer {
   }
 }
 
-// ── Footer bar (sosumi) ──
-
 .footer-bar {
   background: #070605;
   border-top: 1px solid rgba(107, 158, 120, 0.05);
@@ -200,8 +185,6 @@ footer {
     }
   }
 }
-
-// ── Footer animated plane ──
 
 .footer-plane {
   position: relative;
@@ -250,8 +233,6 @@ footer {
   }
 }
 
-// ── Section labels — terminal-prompt style with amber ──
-
 .section-label {
   font-size: 0.72rem;
   font-weight: 600;
@@ -265,8 +246,6 @@ footer {
   }
 }
 
-// ── Card hover effects ──
-
 .card {
   transition: border-color 250ms ease, box-shadow 250ms ease;
 
@@ -275,8 +254,6 @@ footer {
     box-shadow: 0 0 20px rgba(107, 158, 120, 0.04);
   }
 }
-
-// ── Search form — terminal style ──
 
 .search-form {
   .search-icon {
@@ -311,8 +288,6 @@ footer {
   }
 }
 
-// ── Live search results ──
-
 #id_search_results .list-group-item {
   color: #ddd7cd;
   border-color: rgba(107, 158, 120, 0.08);
@@ -331,8 +306,6 @@ footer {
     background: rgba(107, 158, 120, 0.08);
   }
 }
-
-// ── Blog index filter pills ──
 
 .filter-label {
   font-size: 0.68rem;
@@ -396,8 +369,6 @@ footer {
     border-color: rgba(196, 112, 85, 0.35);
   }
 }
-
-// ── Vertical rule override ──
 
 .vr {
   background-color: rgba(107, 158, 120, 0.12);

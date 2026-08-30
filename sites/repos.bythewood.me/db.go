@@ -1,19 +1,8 @@
 package main
 
-// The database, and it holds only what git cannot.
-//
-// Everything a repository knows about itself lives in the repository: refs,
-// commits, trees, sizes, dates. None of it is copied here, because a cache of
-// something git can answer in a millisecond is a second source of truth waiting
-// to go stale, and the Rust build's "no DB by design" was right about that.
-//
-// Three things genuinely have nowhere else to live:
-//
-//   - Push tokens. There is no file in a bare repository for "who may write".
-//   - Description and topics. git has a `description` file, which is a single
-//     unstructured line nothing else reads, and no place at all for topics.
-//   - Mirror state. When a mirror last synced, and whether upstream has gone
-//     away, is a fact about this system rather than about the repository.
+// The database holds only what git cannot: push tokens, description and topics,
+// and mirror state. Refs, commits, trees, sizes and dates are never copied here,
+// since a cache of something git can answer is a second source of truth.
 
 import (
 	"crypto/rand"
@@ -120,9 +109,8 @@ func OpenDB(dir string) (*DB, error) {
 	}
 	path := filepath.Join(dir, "repos.db")
 
-	// WAL because a mirror sync writing sync state must not block a page
-	// read. busy_timeout because two writers here is rare but not
-	// impossible: a push-to-create and a sync tick can land together.
+	// WAL so a mirror sync writing state does not block a page read, and a
+	// busy_timeout because a push-to-create and a sync tick can land together.
 	dsn := path + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)"
 
 	conn, err := sql.Open("sqlite", dsn)
@@ -156,9 +144,8 @@ type RepoMeta struct {
 	Hidden       bool
 }
 
-// Repo reads one row. A repository with no row is not an error: it is a
-// repository that was pushed and never described, which is the normal state
-// right after a push-to-create.
+// Repo reads one row. No row is not an error; it is a repository pushed and
+// never described.
 func (d *DB) Repo(name string) (RepoMeta, error) {
 	row := d.sql.QueryRow(`
         SELECT name, description, topics, homepage, mirror, upstream,
@@ -195,8 +182,8 @@ func scanRepo(row scanner) (RepoMeta, error) {
 	return m, nil
 }
 
-// AllRepos reads every row, keyed by name, so the index can join against the
-// on-disk list in one pass rather than one query per repository.
+// AllRepos reads every row keyed by name, so the index joins against the on-disk
+// list in one pass.
 func (d *DB) AllRepos() (map[string]RepoMeta, error) {
 	rows, err := d.sql.Query(`
         SELECT name, description, topics, homepage, mirror, upstream,
@@ -218,8 +205,7 @@ func (d *DB) AllRepos() (map[string]RepoMeta, error) {
 	return out, rows.Err()
 }
 
-// EnsureRepo creates the metadata row if it is missing, which is what a
-// push-to-create calls.
+// EnsureRepo creates the metadata row if it is missing.
 func (d *DB) EnsureRepo(name string) error {
 	_, err := d.sql.Exec(`
         INSERT INTO repos (name, created) VALUES (?, ?)
@@ -227,9 +213,8 @@ func (d *DB) EnsureRepo(name string) error {
 	return err
 }
 
-// SetDescription updates what the UI can edit. Topics are stored as a JSON
-// array rather than a join table: there is one operator, the list is short, and
-// nothing queries across topics that a LIKE cannot answer.
+// SetDescription updates what the UI can edit. Topics are a JSON array, not a
+// join table; nothing queries across them that a LIKE cannot answer.
 func (d *DB) SetDescription(name, description string, topics []string, homepage string) error {
 	if err := d.EnsureRepo(name); err != nil {
 		return err
@@ -244,8 +229,7 @@ func (d *DB) SetDescription(name, description string, topics []string, homepage 
 	return err
 }
 
-// SetHidden keeps a repository on disk but off the index. The escape hatch for
-// something pushed by accident, since there is no delete in this UI.
+// SetHidden keeps a repository on disk but off the index. There is no delete here.
 func (d *DB) SetHidden(name string, hidden bool) error {
 	if err := d.EnsureRepo(name); err != nil {
 		return err
@@ -285,8 +269,8 @@ func (d *DB) RecordSync(name string, err error) error {
 	return dberr
 }
 
-// MarkUpstreamGone is the flag the index shouts about: the repository is not on
-// GitHub any more and this is the only copy left.
+// MarkUpstreamGone marks a repository whose upstream is gone, so the index can
+// say this is the only copy left.
 func (d *DB) MarkUpstreamGone(name string, gone bool) error {
 	v := 0
 	if gone {
@@ -305,24 +289,21 @@ type Token struct {
 	LastUsed time.Time
 }
 
-// Argon2id parameters. Deliberately modest: this runs on every push, a push
-// happens a few times an hour at most, and the thing being hashed is a 256 bit
-// random value rather than a human password. The attack these parameters defend
-// against, offline brute force of a stolen hash, is already impossible against
-// that much entropy; the hash is here so a leaked database is not a credential.
+// Argon2id parameters, modest because what is hashed is a 256 bit random value
+// rather than a human password. The hash is here so a leaked database is not a
+// credential, not to withstand a dictionary attack.
 const (
 	argonTime    = 1
 	argonMemory  = 64 * 1024
 	argonThreads = 4
 	argonKeyLen  = 32
 	saltLen      = 16
-	// tokenBytes is 32, so the base64url form is 43 characters. Long enough
-	// that the prefix stored in clear gives nothing away.
+	// 32 bytes is 43 base64url characters, so the 8 stored in clear give nothing away.
 	tokenBytes = 32
 )
 
-// CreateToken mints a push credential and returns it exactly once. There is no
-// way to read it back, which is the point: the database holds a hash.
+// CreateToken mints a push credential and returns it once; the database keeps
+// only a hash, so there is no way to read it back.
 func (d *DB) CreateToken(label string) (string, error) {
 	label = strings.TrimSpace(label)
 	if label == "" {
@@ -353,11 +334,8 @@ func (d *DB) CreateToken(label string) (string, error) {
 
 var errNoToken = errors.New("no such token")
 
-// VerifyToken checks a credential and returns its label.
-//
-// The prefix index narrows the scan to one row in practice, but the comparison
-// is still constant time and every candidate is checked, so a token whose
-// prefix collides with another cannot be distinguished by timing.
+// VerifyToken checks a credential and returns its label. Every prefix candidate
+// is compared in constant time, so a colliding prefix gives nothing away by timing.
 func (d *DB) VerifyToken(token string) (string, error) {
 	if len(token) < 8 {
 		return "", errNoToken
@@ -383,8 +361,7 @@ func (d *DB) VerifyToken(token string) (string, error) {
 		candidate := argon2.IDKey([]byte(token), salt,
 			argonTime, argonMemory, argonThreads, argonKeyLen)
 		if subtle.ConstantTimeCompare(candidate, hash) == 1 {
-			// Best effort: a push should not fail because the bookkeeping
-			// write did.
+			// Best effort: a push must not fail because this write did.
 			_, _ = d.sql.Exec(`UPDATE tokens SET last_used = ? WHERE id = ?`,
 				time.Now().Unix(), id)
 			return label, nil
@@ -421,16 +398,14 @@ func (d *DB) Tokens() ([]Token, error) {
 	return out, rows.Err()
 }
 
-// RevokeToken is the whole of revocation: one UPDATE, effective on the next
-// request. This is the property that made an HTTPS token store preferable to
-// an authorized_keys file, which has to be rewritten and reloaded.
+// RevokeToken is one UPDATE, effective on the next request.
 func (d *DB) RevokeToken(id int64) error {
 	_, err := d.sql.Exec(`UPDATE tokens SET revoked = 1 WHERE id = ?`, id)
 	return err
 }
 
-// HasTokens reports whether any credential exists, so the UI can tell a fresh
-// install that it needs to mint one before it can push.
+// HasTokens reports whether any credential exists, so a fresh install can be told
+// to mint one.
 func (d *DB) HasTokens() bool {
 	var n int
 	if err := d.sql.QueryRow(`SELECT COUNT(*) FROM tokens WHERE revoked = 0`).Scan(&n); err != nil {
@@ -449,8 +424,7 @@ type MirrorSource struct {
 	Created time.Time
 }
 
-// Label is how the source is written and typed: "overshard" for an account,
-// "overshard/newtab" for a single repository.
+// Label is "owner" for an account and "owner/name" for a single repository.
 func (m MirrorSource) Label() string {
 	if m.Kind == sourceRepo {
 		return m.Owner + "/" + m.Name
@@ -458,7 +432,6 @@ func (m MirrorSource) Label() string {
 	return m.Owner
 }
 
-// URL is where a human goes to look at it.
 func (m MirrorSource) URL() string { return "https://github.com/" + m.Label() }
 
 const (
@@ -466,23 +439,17 @@ const (
 	sourceRepo    = "repo"
 )
 
-// ghNamePart is GitHub's own charset for a login or a repository name. Applied
-// here because these values are interpolated into an API URL, and because a
-// name that cannot exist upstream is a typo worth rejecting at the form rather
-// than turning into a 404 on the next sync.
+// ghNamePart is GitHub's charset for a login or repository name. These values are
+// interpolated into an API URL, so they are checked at the form.
 var ghNamePart = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 
-// ParseMirrorSource reads what the settings form accepts: one field holding
-// either "owner" or "owner/repo". The slash is the whole grammar, which is
-// worth the trade of a select box that has to agree with a text field.
+// ParseMirrorSource accepts "owner" or "owner/repo"; the slash is the whole grammar.
 func ParseMirrorSource(input string) (MirrorSource, error) {
 	in := strings.TrimSpace(input)
-	// Pasting the URL of the thing you want is the obvious mistake, so it is
-	// accepted rather than rejected.
+	// A pasted GitHub URL is accepted rather than rejected.
 	in = strings.TrimSuffix(strings.TrimPrefix(strings.TrimPrefix(in,
 		"https://github.com/"), "github.com/"), ".git")
-	// Only a trailing slash is forgiven, because that is what a copied URL
-	// carries. A leading one means the owner is missing, which is a typo.
+	// Only a trailing slash is forgiven; a leading one means the owner is missing.
 	in = strings.TrimSuffix(in, "/")
 
 	if in == "" {
@@ -501,8 +468,7 @@ func ParseMirrorSource(input string) (MirrorSource, error) {
 	return MirrorSource{Kind: sourceRepo, Owner: owner, Name: name}, nil
 }
 
-// MirrorSources lists every configured source, accounts first so the settings
-// page reads from broad to narrow.
+// MirrorSources lists every configured source, accounts first.
 func (d *DB) MirrorSources() ([]MirrorSource, error) {
 	rows, err := d.sql.Query(`
         SELECT id, kind, owner, name, created FROM mirror_sources
@@ -525,8 +491,7 @@ func (d *DB) MirrorSources() ([]MirrorSource, error) {
 	return out, rows.Err()
 }
 
-// AddMirrorSource stores a source. Adding one that is already there succeeds
-// and changes nothing, so a double submit is harmless.
+// AddMirrorSource stores a source. Adding one twice succeeds and changes nothing.
 func (d *DB) AddMirrorSource(m MirrorSource) error {
 	_, err := d.sql.Exec(`
         INSERT INTO mirror_sources (kind, owner, name, created) VALUES (?, ?, ?, ?)
@@ -535,21 +500,15 @@ func (d *DB) AddMirrorSource(m MirrorSource) error {
 	return err
 }
 
-// DeleteMirrorSource stops syncing a source. The repositories it brought in are
-// deliberately left on disk: this site is a backup, and the whole point is that
-// nothing here is deleted because upstream configuration changed.
+// DeleteMirrorSource stops syncing a source. The repositories it brought in stay
+// on disk; this site is a backup.
 func (d *DB) DeleteMirrorSource(id int64) error {
 	_, err := d.sql.Exec(`DELETE FROM mirror_sources WHERE id = ?`, id)
 	return err
 }
 
-// SeedMirrorSources puts the account this site was built for in the table on
-// first run, so an existing deploy keeps mirroring exactly what it did before
-// sources became editable.
-//
-// Guarded by a marker rather than by the table being empty. Without it,
-// deleting the last source would resurrect it on the next restart, which is a
-// setting that will not stay deleted.
+// SeedMirrorSources adds owner as a source on first run. Guarded by a marker
+// rather than by an empty table, so deleting the last source keeps it deleted.
 func (d *DB) SeedMirrorSources(owner string) error {
 	var seeded string
 	err := d.sql.QueryRow(`SELECT value FROM settings WHERE key = 'mirror_sources_seeded'`).Scan(&seeded)

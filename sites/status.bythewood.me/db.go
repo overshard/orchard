@@ -13,13 +13,9 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// schema matches the database this app inherited, column for column, so that
-// pointing it at an existing file is a no-op rather than a migration. The
-// property UUIDs in it are the addresses of the public status pages, so they
-// have to keep working. Every statement is IF NOT EXISTS.
-//
-// An older migration table may still be present in an existing database. It is
-// left alone: it costs nothing, and dropping it would break a rollback.
+// schema is IF NOT EXISTS throughout: pointing this at an existing database has
+// to be a no-op, since the property UUIDs in it are the addresses of live public
+// status pages.
 const schema = `
 CREATE TABLE IF NOT EXISTS properties (
     id                          BLOB PRIMARY KEY,
@@ -79,19 +75,9 @@ CREATE TABLE IF NOT EXISTS meta (
 );
 `
 
-// addedColumns are the columns added after the original schema, all INTEGER
-// and all nullable, so an existing database gains them in place.
-//
-// The last two are not timings. cf_cache_status and age record whether a
-// response came from a shared cache and how old it was, because without them a
-// probe cannot tell "the origin answered" from "an edge answered on its behalf
-// while the origin was unreachable". See originUnreachable in checker.go.
-//
-// They are inside the CREATE TABLE above so a fresh database gets them, and
-// added by hand below when the table already exists without them. SQLite has no
-// ADD COLUMN IF NOT EXISTS, and CREATE TABLE IF NOT EXISTS on an existing table
-// is a silent no-op that does not reconcile columns, so an older database would
-// otherwise fail on the first INSERT. The check costs one PRAGMA at boot.
+// phaseColumns are in the CREATE TABLE above as well. SQLite has no ADD COLUMN
+// IF NOT EXISTS, and CREATE TABLE IF NOT EXISTS does not reconcile columns on a
+// table that already exists, so ensurePhaseColumns adds them by hand.
 var phaseColumns = []addedColumn{
 	{"dns_ms", "INTEGER"},
 	{"tcp_ms", "INTEGER"},
@@ -103,14 +89,9 @@ var phaseColumns = []addedColumn{
 
 type addedColumn struct{ name, typ string }
 
-// openDB opens the SQLite database and applies the schema.
-//
-// The driver is modernc.org/sqlite, SQLite transpiled to Go rather than bound
-// to it, so CGO_ENABLED=0 still builds a static binary.
-//
-// The pragmas go in the DSN because they are per connection, and database/sql
-// opens connections lazily: setting them once after Open would apply them to
-// whichever connection served that call and to no other.
+// openDB opens the SQLite database and applies the schema. The pragmas go in the
+// DSN because they are per connection and database/sql opens connections lazily,
+// so setting them once after Open would reach only one of them.
 func openDB(path string) (*sql.DB, error) {
 	if dir := filepath.Dir(path); dir != "" {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -129,10 +110,8 @@ func openDB(path string) (*sql.DB, error) {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
 
-	// SQLite takes a database-wide write lock, so concurrent writers buy
-	// SQLITE_BUSY rather than throughput. The pool is larger than one for
-	// readers, which WAL lets run while a write is in flight, and this app has
-	// a scheduler writing check rows while the dashboard reads them.
+	// SQLite takes a database-wide write lock, so a pool larger than one buys
+	// nothing for writers. It is for readers, which WAL runs during a write.
 	db.SetMaxOpenConns(8)
 	db.SetMaxIdleConns(8)
 	db.SetConnMaxLifetime(time.Hour)
@@ -187,9 +166,8 @@ func ensurePhaseColumns(db *sql.DB) error {
 
 func nowMS() int64 { return time.Now().UnixMilli() }
 
-// Property is one tracked URL, the unit of monitoring. Every nullable column is
-// a pointer rather than a sql.NullInt64, so the templates and the JSON status
-// endpoint can test it with a plain nil check.
+// Property is one tracked URL. Every nullable column is a pointer rather than a
+// sql.NullInt64, so templates and JSON can test it with a plain nil check.
 type Property struct {
 	ID          uuid.UUID
 	URL         string
@@ -226,9 +204,8 @@ type Property struct {
 	UpdatedAt int64
 }
 
-// Name is the hostname, stripped of a leading www. Used for display, for the
-// report filename and for the alert body. Parsed rather than split on "/",
-// because the value is operator input and need not be well formed.
+// Name is the hostname without a leading www. Parsed rather than split on "/",
+// because the URL is operator input and need not be well formed.
 func (p *Property) Name() string {
 	u, err := parseHTTPURL(p.URL)
 	if err != nil || u.Hostname() == "" {
@@ -327,18 +304,16 @@ func createProperty(ctx context.Context, db *sql.DB, rawURL string) (uuid.UUID, 
 	return id, err
 }
 
-// deleteProperty removes a property and, through the foreign key, its checks.
-// A protected property cannot be deleted, enforced in the statement rather than
-// in the handler so no route can miss it.
+// deleteProperty removes a property and, by foreign key, its checks. Protected
+// properties are excluded in the statement itself, so no route can miss it.
 func deleteProperty(ctx context.Context, db *sql.DB, id uuid.UUID) error {
 	_, err := db.ExecContext(ctx,
 		"DELETE FROM properties WHERE id = ? AND is_protected = 0", id[:])
 	return err
 }
 
-// togglePublic flips the public flag and reports the new value. The bool return
-// is false with a nil error when there is no such property, which the handler
-// turns into a 404 rather than a success carrying a made-up value.
+// togglePublic flips the public flag and reports the new value. found is false
+// with a nil error when there is no such property.
 func togglePublic(ctx context.Context, db *sql.DB, id uuid.UUID) (isPublic, found bool, err error) {
 	var current int64
 	err = db.QueryRowContext(ctx,
@@ -362,9 +337,8 @@ func togglePublic(ctx context.Context, db *sql.DB, id uuid.UUID) (isPublic, foun
 	return next == 1, true, nil
 }
 
-// Check is the result of a single HTTP probe. The four phase timings are
-// nullable because rows written before those columns existed have none. The
-// dashboard chart skips nulls; response_ms is the canonical total.
+// Check is one HTTP probe. The four phase timings are nullable, so the chart
+// skips nulls; response_ms is the canonical total.
 type Check struct {
 	StatusCode int64
 	ResponseMS int64
@@ -430,9 +404,8 @@ func countChecks(ctx context.Context, db *sql.DB, id uuid.UUID) (int64, error) {
 	return n, err
 }
 
-// countUptime returns the all-time up and down check counts. The COALESCE is
-// required: SUM over zero rows is NULL rather than 0, so a property that has
-// never been checked would fail the scan.
+// countUptime returns the all-time up and down counts. The COALESCE is required:
+// SUM over zero rows is NULL, so a never-checked property would fail the scan.
 func countUptime(ctx context.Context, db *sql.DB, id uuid.UUID) (up, down int64, err error) {
 	err = db.QueryRowContext(ctx,
 		`SELECT COALESCE(SUM(CASE WHEN status_code = 200 THEN 1 ELSE 0 END), 0),

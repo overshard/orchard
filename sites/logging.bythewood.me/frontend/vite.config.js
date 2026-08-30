@@ -1,14 +1,9 @@
 import { resolve } from "path";
 import { defineConfig } from "vite";
 
-// Vite output goes to ../build/dist and Go serves it at /static/. The manifest
-// is read at runtime so templates resolve the content-hashed names, which is
-// what lets everything under /static/ be cached for a year at the edge.
-//
-// Three entry points, matching what each page actually needs: base is the shell
-// every page loads, pages is the public marketing half, and dashboard is the
-// charts and the log-line styling that only the three authenticated pages use.
-// A visitor who never logs in never downloads Chart.js.
+// Three entry points, so a visitor who never logs in never downloads Chart.js.
+// base is the shell every page loads, pages is the public half, and dashboard
+// is the charts and log-line styling only the authenticated pages need.
 
 export default defineConfig({
   base: "/static/",

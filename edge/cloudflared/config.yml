@@ -1,14 +1,12 @@
-# Locally-managed tunnel: this file is the source of truth and lives in git,
-# matching how the Caddyfile is hand-maintained rather than clicked together in
-# a dashboard. Only credentials-file is secret, and it never leaves the volume.
+# Locally-managed tunnel, so this file is the source of truth rather than a
+# dashboard. Only credentials-file is secret, and it never leaves the volume.
 
 tunnel: CHANGEME_TUNNEL_ID
 credentials-file: /etc/cloudflared/CHANGEME_TUNNEL_ID.json
 
-# Everything terminates at Caddy, which owns the per-site routing. One rule per
-# hostname, and the catch-all at the end is required by cloudflared.
+# One rule per hostname, all terminating at Caddy, which owns the per-site
+# routing. The catch-all at the end is required by cloudflared.
 ingress:
-  # The sites. One rule per hostname, all of them terminating at Caddy.
   - hostname: isaacbythewood.com
     service: http://caddy:80
   - hostname: www.isaacbythewood.com
@@ -26,8 +24,7 @@ ingress:
   - hostname: repos.bythewood.me
     service: http://caddy:80
 
-  # The apex has never served a site; it redirects to the portfolio, and Caddy
-  # owns that redirect.
+  # The apex has never served a site. Caddy owns the redirect to the portfolio.
   - hostname: bythewood.me
     service: http://caddy:80
   - hostname: www.bythewood.me
@@ -35,6 +32,6 @@ ingress:
 
   - service: http_status:404
 
-# Lets the origin be probed from inside the bridge for tunnel health, which
-# distinguishes "my tunnel dropped" from "Cloudflare or DNS is wrong".
+# Lets the origin be probed from inside the bridge, which separates "my tunnel
+# dropped" from "Cloudflare or DNS is wrong".
 metrics: 0.0.0.0:2000

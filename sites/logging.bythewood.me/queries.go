@@ -9,32 +9,25 @@ import (
 	"time"
 )
 
-// The read path.
-//
-// Two sources of truth, used deliberately. `rollups` answers "how many, over
-// time" for any range, because it is hourly counters kept forever. `records`
-// answers "which ones, and how slow", and only inside rawRetention, because
-// that is how long the raw lines live. Every query below says which one it is
-// reading and why, since asking the wrong table is the one way to get an answer
-// that is quietly wrong rather than obviously missing.
+// Two tables answer different questions. rollups answers "how many, over time"
+// for any range; records answers "which ones, and how slow", and only inside
+// rawRetention. Reading the wrong one gives a quietly wrong answer.
 
-// LabelCount is one row of a breakdown.
 type LabelCount struct {
 	Label string `json:"label"`
 	Count int64  `json:"count"`
 }
 
-// GraphPoint is one bucket of the volume chart. Errors is carried alongside so
-// the chart can show the error band without a second query.
+// GraphPoint is one bucket of the volume chart; Errors rides along so the error
+// band needs no second query.
 type GraphPoint struct {
 	Label  string `json:"label"`
 	Count  int64  `json:"count"`
 	Errors int64  `json:"errors"`
 }
 
-// Latency is the request duration distribution over a window. Percentiles come
-// from raw rows, so they are exact rather than interpolated, and they are only
-// available inside rawRetention.
+// Latency is the request duration distribution. Percentiles come from raw rows,
+// so they are exact and only available inside rawRetention.
 type Latency struct {
 	Count int64
 	Mean  float64
@@ -44,7 +37,6 @@ type Latency struct {
 	Max   float64
 }
 
-// RecordRow is one raw line, for the search results and the error feed.
 type RecordRow struct {
 	ID         int64
 	Source     string
@@ -63,7 +55,6 @@ type RecordRow struct {
 	Attrs      string
 }
 
-// SourceRow is one line of the sources table.
 type SourceRow struct {
 	Source    string
 	Records   int64
@@ -77,7 +68,6 @@ type SourceRow struct {
 	IsLive    bool
 }
 
-// PathRow is one row of the slowest-paths table.
 type PathRow struct {
 	Path   string
 	Count  int64
@@ -87,38 +77,23 @@ type PathRow struct {
 	Errors int64
 }
 
-// filter is the shared WHERE clause behind every query here. Zero values mean
-// "no constraint", so one struct covers the overview, a single source's page
-// and a search.
+// filter is the shared WHERE clause behind every query here; a zero field means
+// no constraint.
 type filter struct {
 	StartMS int64
 	EndMS   int64
 	Source  string
 	Level   string
-	// Component, Method and Status narrow the search page. Status is a class
-	// (2, 3, 4, 5) rather than a code, because that is what anybody actually
-	// filters by.
+	// StatusClass is a class (2, 3, 4, 5), not a code.
 	Component   string
 	StatusClass int
-	// Q matches the message or the path. A substring rather than a token
-	// search: these are short strings and the set is already bounded by time,
-	// so the index that would make this fast is not worth carrying.
+	// Q is a substring match on the message or the path.
 	Q string
 }
 
-// where builds the clause and its arguments. Every value is a placeholder;
-// nothing here interpolates a string into SQL.
-//
-// The start bound is floored when the column is `hour`, and that is not a
-// nicety. `rollups.hour` holds an hour-floored timestamp, so `hour >= start`
-// against an unaligned start silently drops the bucket that *contains* the
-// start, whole: every rollup-backed number loses everything from the start to
-// the top of the next hour, while the raw panels beside them use exact `ts`
-// bounds and do not. resolveWindow already aligns the windows it hands out, so
-// in production this is a no-op; it lives here as well because the mistake is
-// invisible, and every caller that builds a filter by hand (sources(), and
-// every test) would otherwise have to remember it independently. Belt and
-// braces on a bug with no symptom.
+// where builds the clause and its arguments, all as placeholders. The start is
+// floored for the hour column: rollups.hour is hour-floored, so an unaligned
+// start would silently drop the bucket containing it, whole.
 func (f filter) where(tsColumn string) (string, []any) {
 	start := f.StartMS
 	if tsColumn == "hour" {
@@ -158,10 +133,8 @@ func escapeLike(s string) string {
 	return r.Replace(s)
 }
 
-// queryFailed centralises what a broken read does: report it and hand the page
-// a zero value. A dashboard panel that is empty because a query failed is worse
-// than one that is empty because there is no data, so it is logged either way,
-// but a single bad panel does not cost the whole page.
+// queryFailed logs a broken read so one dead panel does not cost the page. A
+// nil error and sql.ErrNoRows are both no-ops.
 func queryFailed(what string, err error) {
 	if err == nil || err == sql.ErrNoRows {
 		return
@@ -169,8 +142,6 @@ func queryFailed(what string, err error) {
 	slog.Error("query failed", slog.String("component", "query"),
 		slog.String("query", what), slog.Any("err", err))
 }
-
-// ---------------------------------------------------------------- totals
 
 // Totals is the metric tile row.
 type Totals struct {
@@ -181,29 +152,21 @@ type Totals struct {
 	Server5xx int64
 	Client4xx int64
 	Sources   int64
-	// ErrorRate is 5xx over requests, as a percentage. Deliberately not
-	// "error records over all records", which mixes a scheduler complaining
-	// with a visitor seeing a 500.
+	// ErrorRate is 5xx over requests, not error records over all records,
+	// which would mix a subsystem complaining with a visitor seeing a 500.
 	ErrorRate float64
-	// DirectHits are request records with no cf_ray, which means something
-	// reached the origin without crossing the tunnel. The hardening pass
-	// instrumented this and nothing has ever read it until now.
+	// DirectHits are request records with no cf_ray: something reached the
+	// origin without crossing the tunnel.
 	DirectHits int64
 }
 
-// totals reads rollups, so it is correct over any range including ones older
-// than the raw retention. DirectHits is the exception and is noted below.
+// totals reads rollups, so it is correct over any range. DirectHits is the one
+// exception and reads raw rows.
 func totals(ctx context.Context, db *sql.DB, f filter) Totals {
 	var t Totals
 
-	// Health checks are excluded from every number here, which is what makes
-	// the tiles describe the same population as the raw panels beside them.
-	// They are the process probing itself over loopback every thirty seconds,
-	// roughly 480 an hour across the fleet, and counting them made the p50 read
-	// 0.042ms against a real 0.537ms and put /healthz at the top of the busiest
-	// paths. They are still counted, under component 'healthz', and still
-	// visible in the components breakdown, where "the probe is running" is
-	// genuine information.
+	// Health checks are excluded so the tiles describe the same population as
+	// the raw panels beside them. They stay visible under component 'healthz'.
 	w, args := f.where("hour")
 	err := db.QueryRowContext(ctx, `
 		SELECT
@@ -222,25 +185,10 @@ func totals(ctx context.Context, db *sql.DB, f filter) Totals {
 		t.ErrorRate = float64(t.Server5xx) * 100 / float64(t.Requests)
 	}
 
-	// cf_ray is not a rollup dimension: adding it would multiply the key
-	// space by one column that is unique per request, which is the one thing
-	// a rollup must never key on. So this reads raw rows and is therefore
-	// only meaningful inside rawRetention, which is the window anybody would
-	// investigate an unexpected direct hit in anyway.
-	//
-	// Loopback is excluded, and that exclusion is the difference between this
-	// tile meaning something and meaning nothing. Every container health check
-	// is the binary probing itself over 127.0.0.1, which carries no CF-Ray
-	// because it never left the container, let alone crossed the tunnel. At
-	// one every thirty seconds per site that is roughly 480 an hour, which
-	// buried the real signal within an hour of going live and is exactly how
-	// this was found. A loopback request cannot be the thing this tile is
-	// looking for, by construction.
-	//
-	// Only loopback. A request record carrying no IP at all is odd rather than
-	// exempt, and this counts it: the tile's job is to surface something
-	// unexpected, so it fails toward showing a strange record rather than
-	// hiding one.
+	// cf_ray cannot be a rollup dimension, being unique per request, so this
+	// reads raw rows and only means anything inside rawRetention. Loopback is
+	// excluded: a self-probe never crossed the tunnel and never carries a
+	// CF-Ray. A record with no IP at all is still counted.
 	rw, rargs := f.where("ts")
 	err = db.QueryRowContext(ctx, `
 		SELECT COUNT(*) FROM records
@@ -251,14 +199,9 @@ func totals(ctx context.Context, db *sql.DB, f filter) Totals {
 	return t
 }
 
-// ---------------------------------------------------------------- graph
-
-// volumeGraph buckets the record count over time, from rollups.
-//
-// The bucket width follows the range rather than being fixed: hourly up to
-// three days, six-hourly up to two weeks, daily beyond. A year of hourly
-// buckets is 8,760 points, which is more pixels than a chart has and more
-// numbers than a page should carry.
+// volumeGraph buckets the record count over time, from rollups. The bucket
+// width follows the range: hourly up to three days, six-hourly up to two weeks,
+// daily beyond.
 func volumeGraph(ctx context.Context, db *sql.DB, f filter) []GraphPoint {
 	span := f.EndMS - f.StartMS
 	const hourMS = int64(60 * 60 * 1000)
@@ -266,8 +209,7 @@ func volumeGraph(ctx context.Context, db *sql.DB, f filter) []GraphPoint {
 	bucket := hourMS
 	layout := "Jan 2 15:04"
 	switch {
-	// Past about ten months the first and last labels are the same day of the
-	// same month in different years, and read identically without one.
+	// Past about ten months the first and last labels collide without a year.
 	case span > 300*24*hourMS:
 		bucket = 24 * hourMS
 		layout = "Jan 2 2006"
@@ -294,9 +236,8 @@ func volumeGraph(ctx context.Context, db *sql.DB, f filter) []GraphPoint {
 	}
 	defer rows.Close()
 
-	// Buckets with no records return no row, and a chart that simply skips
-	// them draws a quiet hour as a straight line between its neighbours. The
-	// gap is the information, so the series is filled.
+	// Empty buckets return no row, and skipping them would draw a quiet hour
+	// as a straight line between its neighbours, so the series is filled.
 	seen := make(map[int64]GraphPoint)
 	for rows.Next() {
 		var at, count, errs int64
@@ -318,13 +259,10 @@ func volumeGraph(ctx context.Context, db *sql.DB, f filter) []GraphPoint {
 	return out
 }
 
-// ---------------------------------------------------------------- breakdowns
-
 // breakdown is the shape every "top N by X" panel shares, over rollups.
 func breakdown(ctx context.Context, db *sql.DB, f filter, column string, limit int) []LabelCount {
-	// column is chosen from a fixed set by the caller and never from a
-	// request. Named explicitly so a future caller cannot pass a query
-	// parameter through by accident.
+	// column is interpolated into the SQL, so it is allowlisted here rather
+	// than trusted from a caller.
 	switch column {
 	case "source", "level", "component":
 	default:
@@ -361,9 +299,8 @@ func statusClasses(ctx context.Context, db *sql.DB, f filter) []LabelCount {
 	return scanLabelCounts(rows, "status classes")
 }
 
-// topPaths reads raw rows, because path is not a rollup dimension: a path is
-// close enough to unbounded that keying rollups on it would make the rollup
-// table grow like the raw one, which is the thing it exists to avoid.
+// topPaths reads raw rows: path is unbounded enough that keying rollups on it
+// would make that table grow like the raw one.
 func topPaths(ctx context.Context, db *sql.DB, f filter, limit int) []LabelCount {
 	w, args := f.where("ts")
 	args = append(args, limit)
@@ -393,25 +330,9 @@ func scanLabelCounts(rows *sql.Rows, what string) []LabelCount {
 	return out
 }
 
-// ---------------------------------------------------------------- latency
-
-// latency computes the duration distribution in a single pass.
-//
-// It used to run four queries: one aggregate plus one
-// `ORDER BY duration_ms LIMIT 1 OFFSET ?` per percentile. There is no index on
-// duration_ms, so each of those was a full sort of the window, and sources()
-// calls this once per source on top of the global call. Measured on 200,000
-// records over 30 days: 3.1 seconds for this function alone, inside a ~4.8
-// second page render that is invisible today and arrives gradually as the
-// database fills.
-//
-// One CUME_DIST pass is one sort for all three percentiles. CUME_DIST rather
-// than PERCENT_RANK because they disagree at exactly the point that matters:
-// PERCENT_RANK gives the largest row of a set the value 1.0, so `pr <= 0.95`
-// can never select the slowest sample and a five-sample set reports its 4th
-// value as "p95". CUME_DIST is the fraction of rows at or below the current
-// one, so the smallest value whose CUME_DIST reaches p is the nearest-rank
-// pth percentile, which is what these numbers claim to be.
+// latency computes the whole distribution in one CUME_DIST pass, so all three
+// percentiles cost one sort. Not PERCENT_RANK: it gives the largest row 1.0, so
+// a threshold test can never select the slowest sample.
 func latency(ctx context.Context, db *sql.DB, f filter) Latency {
 	var l Latency
 	w, args := f.where("ts")
@@ -439,14 +360,8 @@ func latency(ctx context.Context, db *sql.DB, f filter) Latency {
 	return l
 }
 
-// slowestPaths ranks by p95 rather than by mean, because a mean hides the
-// endpoint that is fast a thousand times and terrible twice, which is the one
-// worth finding.
-//
-// CUME_DIST, not PERCENT_RANK, for the reason spelled out in latency:
-// PERCENT_RANK gives the slowest sample of every path the value 1.0, so
-// `pr <= 0.95` could never select it and a path at the five-sample floor
-// reported its 4th value, the 80th percentile, under a column headed p95.
+// slowestPaths ranks by p95, not mean, so an endpoint that is fast a thousand
+// times and terrible twice still surfaces. CUME_DIST for the reason in latency.
 func slowestPaths(ctx context.Context, db *sql.DB, f filter, limit int) []PathRow {
 	w, args := f.where("ts")
 	args = append(args, minPathSamples, limit)
@@ -483,9 +398,8 @@ func slowestPaths(ctx context.Context, db *sql.DB, f filter, limit int) []PathRo
 			queryFailed("slowest paths scan", err)
 			return out
 		}
-		// Under CUME_DIST every partition has a row reaching 1.0, so this is
-		// defensive rather than expected: a NULL would mean the group was
-		// empty, which HAVING already excludes.
+		// Every CUME_DIST partition has a row reaching 1.0, so a NULL here
+		// would mean an empty group, which HAVING already excludes.
 		p.P95 = p95.Float64
 		if !p95.Valid {
 			p.P95 = p.Max
@@ -496,19 +410,13 @@ func slowestPaths(ctx context.Context, db *sql.DB, f filter, limit int) []PathRo
 	return out
 }
 
-// minPathSamples keeps a path that was hit once from topping a latency ranking
-// on the strength of a single cold start.
+// minPathSamples keeps a path hit once from topping a latency ranking on one
+// cold start.
 const minPathSamples = 5
 
-// ---------------------------------------------------------------- sources
-
-// sources is the table on the overview: one line per site, its volume, its
-// error rate and whether anything has arrived from it recently.
-//
-// Counts come from rollups so the numbers are right over any range; p95 and
-// last-seen come from raw rows, so both are blank for a source that has been
-// quiet longer than the retention window. That is the correct answer rather
-// than a missing one.
+// sources is one line per site for the overview. Counts come from rollups, so
+// they are right over any range; p95 and last-seen come from raw rows and are
+// blank for a source quiet longer than the retention window.
 func sources(ctx context.Context, db *sql.DB, f filter) []SourceRow {
 	w, args := f.where("hour")
 	rows, err := db.QueryContext(ctx, `
@@ -540,12 +448,8 @@ func sources(ctx context.Context, db *sql.DB, f filter) []SourceRow {
 	}
 	queryFailed("sources rows", rows.Err())
 
-	// Last seen and p95 per source, from raw rows. A second pass rather than
-	// a join, because the two tables cover different windows and a join would
-	// silently drop any source whose raw rows have aged out. Health checks
-	// have no raw row at all now, so a source that did nothing but answer its
-	// probe shows a real record count and a blank last-seen, which is the
-	// honest reading of "it is alive and served nobody".
+	// A second pass rather than a join: the two tables cover different
+	// windows, and a join would drop any source whose raw rows have aged out.
 	liveCutoff := time.Now().Add(-15 * time.Minute).UnixMilli()
 	for i := range out {
 		sf := f
@@ -565,13 +469,8 @@ func sources(ctx context.Context, db *sql.DB, f filter) []SourceRow {
 	return out
 }
 
-// ---------------------------------------------------------------- raw lines
-
-// recentRecords is the search results and the error feed, both of which are the
-// same query with a different filter.
-//
-// The limit is applied in SQL and the caller decides it, because the one way to
-// make this page slow is to render fifty thousand rows into a template.
+// recentRecords backs the search results. The limit is applied in SQL, because
+// the one way to make this page slow is to render every row into a template.
 func recentRecords(ctx context.Context, db *sql.DB, f filter, limit, offset int) []RecordRow {
 	w, args := f.where("ts")
 	args = append(args, limit, offset)
@@ -602,9 +501,8 @@ func recentRecords(ctx context.Context, db *sql.DB, f filter, limit, offset int)
 	return out
 }
 
-// errorFeed is the newest problems, wherever they came from. Level and status
-// are OR'd rather than filtered separately because a 500 logged at INFO and an
-// ERROR with no status are both things worth seeing on the same list.
+// errorFeed ORs level and status, so a 500 logged at INFO and an ERROR with no
+// status both land on the same list.
 func errorFeed(ctx context.Context, db *sql.DB, f filter, limit int) []RecordRow {
 	w, args := f.where("ts")
 	args = append(args, limit)
@@ -635,11 +533,8 @@ func errorFeed(ctx context.Context, db *sql.DB, f filter, limit int) []RecordRow
 	return out
 }
 
-// ---------------------------------------------------------------- site stats
-
-// SiteStats is what the public home page shows, and the only numbers on this
-// site that are visible without a session. Counts and a start date, nothing
-// about what any of it says.
+// SiteStats is the only data on this site visible without a session: counts and
+// a start date, nothing about what any record says.
 type SiteStats struct {
 	Records   int64
 	Sources   int64
@@ -661,10 +556,8 @@ func siteStats(ctx context.Context, db *sql.DB) SiteStats {
 	return s
 }
 
-// sourceExists reports whether anything has ever been shipped under this name.
-// It reads rollups rather than records, so a source that stopped reporting a
-// year ago still resolves: its history is real even though its raw lines are
-// long gone.
+// sourceExists reads rollups, so a source whose raw lines have aged out still
+// resolves.
 func sourceExists(ctx context.Context, db *sql.DB, source string) bool {
 	var n int
 	err := db.QueryRowContext(ctx,
@@ -673,15 +566,13 @@ func sourceExists(ctx context.Context, db *sql.DB, source string) bool {
 		return false
 	}
 	queryFailed("source exists", err)
-	// Anything other than a clean "no such row" resolves to "exists", so a
-	// broken database shows an empty dashboard rather than telling the
-	// operator a real source was never real.
+	// Anything but a clean "no such row" resolves to "exists", so a broken
+	// database shows an empty dashboard rather than a 404 on a real source.
 	return true
 }
 
-// knownSources is the filter dropdown on the search page. It reads rollups so
-// a source that stopped reporting last year is still offered, which is what
-// somebody searching history wants.
+// knownSources reads rollups, so a source that stopped reporting long ago is
+// still offered in the filter.
 func knownSources(ctx context.Context, db *sql.DB) []string {
 	rows, err := db.QueryContext(ctx, `SELECT DISTINCT source FROM rollups ORDER BY source`)
 	if err != nil {

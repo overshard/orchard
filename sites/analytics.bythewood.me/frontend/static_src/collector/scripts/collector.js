@@ -1,22 +1,8 @@
-/**
- * colector.js
- *
- * Our basic collector script that is added to all pages we want to collect.
- * This sends back the following basic events:
- *
- * - session_start
- * - page_view
- * - click
- * - scroll
- *
- * This will also send back custom events that are triggered by pushing data to
- * the collectorQueue with an event name and then event data that are key-value
- * pairs.
- */
+// The snippet embedded on every tracked page. It sends session_start,
+// page_view, click, scroll and page_leave, plus anything pushed onto
+// window.collectorQueue as an {event, data} pair.
 
 (function() {
-  // get the collector cookie as user_id, if it doesn't exist, create it
-  // set a collector cookie with a random value and set it to expire in a year
   function set_cookie(name, value, expires) {
     var d = new Date();
     d.setTime(d.getTime() + (expires * 24 * 60 * 60 * 1000));
@@ -91,7 +77,6 @@
     },
   };
 
-  // parse querystring into an object
   function parse_querystring(querystring) {
     var query = {};
     var pairs = querystring.split("&");
@@ -123,7 +108,6 @@
     },
   });
 
-  // send click and auxclick events
   document.addEventListener("click", function (event) {
     window.collectorQueue.push({
       collectorId: window.collectorId,
@@ -141,7 +125,6 @@
     });
   });
 
-  // send scroll events, but only one per second
   var last_scroll_event = 0;
   window.addEventListener("scroll", function () {
     if (new Date().getTime() - last_scroll_event > 1000) {
@@ -158,10 +141,8 @@
     }
   });
 
-  // send page_leave events
-  // Track only *visible* time so idle/background tabs don't inflate the metric.
-  // Accumulate elapsed time in chunks bounded by visibilitychange, then flush
-  // on pagehide (more reliable than beforeunload on Safari/mobile).
+  // Only visible time counts, so a backgrounded tab does not inflate it. Flushed
+  // on pagehide, which is more reliable than beforeunload on Safari and mobile.
   var visible_since = document.visibilityState === "visible" ? new Date().getTime() : null;
   var visible_accumulated = 0;
   var page_leave_sent = false;

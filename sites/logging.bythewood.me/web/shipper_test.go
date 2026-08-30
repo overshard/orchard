@@ -194,7 +194,7 @@ func TestWithGroupDoesNotRePrefixEarlierAttrs(t *testing.T) {
 	if a["component"] != "crawler" {
 		t.Errorf("component = %#v, want \"crawler\" unprefixed; got attrs %#v", a["component"], a)
 	}
-	// The record's own attribute genuinely is inside the group, so it
+	// The record's own attribute is inside the group, so it
 	// correctly gains the prefix. Only the earlier one must not.
 	if a["http.status"] != int64(503) {
 		t.Errorf("http.status = %#v, want int64(503); got attrs %#v", a["http.status"], a)

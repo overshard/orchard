@@ -11,9 +11,8 @@ import (
 	"strings"
 )
 
-// The image ladder. images.json is read both by this file, which writes srcset
-// attributes, and by frontend/scripts/images.js, which produces the files, so
-// the page cannot reference a width that was never generated.
+// images.json is read here and by frontend/scripts/images.js, which generates
+// the files, so the page cannot reference a width that was never built.
 //
 //go:embed images.json
 var imagesJSON []byte
@@ -43,8 +42,8 @@ func loadImageSpec() imageSpec {
 		slog.Error("images.json is missing format or cardWidths")
 		os.Exit(1)
 	}
-	// Every width the templates can ask for needs a quality, because the
-	// generator reads the same map and would otherwise skip it silently.
+	// Every width the templates can ask for needs a quality, since the
+	// generator reads the same map and would skip it silently.
 	for _, w := range append(append([]int{}, s.CardWidths...), s.LightboxWidth, s.HeroWidth) {
 		if _, ok := s.Quality[strconv.Itoa(w)]; !ok {
 			slog.Error(fmt.Sprintf("images.json: no quality for width %d", w))
@@ -54,7 +53,6 @@ func loadImageSpec() imageSpec {
 	return s
 }
 
-// pourURL is the public path of one generated variant.
 func pourURL(number string, width int) string {
 	return fmt.Sprintf("/static/images/art/acrylic-pours/%s-%d.%s", number, width, images.Format)
 }

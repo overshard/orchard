@@ -11,9 +11,8 @@ import (
 	"time"
 )
 
-// PageData is everything base.html and one page template need. One struct for
-// every page rather than a type each: the shared chrome is most of it, and the
-// page-specific tail is nil for whichever page is not using it.
+// PageData is everything base.html and one page template need; the page
+// specific fields are nil on whichever page is not using them.
 type PageData struct {
 	Title         string
 	Description   string
@@ -30,9 +29,8 @@ type PageData struct {
 	OGImage string
 	JSONLD  template.JS
 
-	// The analytics collector. Empty renders nothing at all, which is what a
-	// staging hostname wants: phantom sessions filed against the property the
-	// production dashboard reads are worse than no tracking.
+	// Off on staging, so phantom sessions are not filed against the real
+	// analytics property.
 	Analytics   bool
 	AnalyticsID string
 
@@ -69,8 +67,7 @@ type Dashboard struct {
 	StartMS   int64
 	EndMS     int64
 
-	// Empty means every source. When set, every panel below is scoped to it
-	// and the page is the source detail page.
+	// Empty means every source; set scopes every panel below to it.
 	Source string
 
 	Totals   Totals
@@ -89,8 +86,7 @@ type Dashboard struct {
 	Slowest []PathRow
 	Errors  []RecordRow
 
-	// Precomputed for the report templates, which have no charting engine and
-	// no JavaScript.
+	// Precomputed for the report templates, which have no charting engine.
 	ChartPolyline   string
 	ChartLabelStart string
 	ChartLabelEnd   string
@@ -98,7 +94,6 @@ type Dashboard struct {
 	ChartPeakLabel  string
 }
 
-// rangeOption is one entry of the window picker.
 type rangeOption struct {
 	Key  string
 	Name string
@@ -106,14 +101,11 @@ type rangeOption struct {
 }
 
 // WithinRetention reports whether the raw records table can answer this window.
-// The search page offers only these, because a longer one could never widen a
-// result set: past the retention only the hourly counters survive, and those
-// hold no individual lines to match.
+// The search page offers only these: past retention there are no lines to match.
 func (o rangeOption) WithinRetention() bool { return o.Dur <= rawRetention }
 
-// The windows offered. Anything past rawRetention still charts correctly,
-// because the volume graph and every count read hourly rollups; what thins out
-// beyond it is the raw detail, which the page says rather than hides.
+// Anything past rawRetention still charts correctly from the hourly rollups;
+// what thins out beyond it is the raw detail.
 var rangeOptions = []rangeOption{
 	{"1h", "Last hour", time.Hour},
 	{"24h", "Last 24 hours", 24 * time.Hour},
@@ -125,42 +117,17 @@ var rangeOptions = []rangeOption{
 
 const defaultRange = "24h"
 
-// RangeOptions is what the picker iterates. A method rather than a package
-// variable in the template's dot, so the page does not have to carry it.
+// RangeOptions is what the picker iterates, as a method so the page data does
+// not have to carry it.
 func (d *Dashboard) RangeOptions() []rangeOption { return rangeOptions }
 
-// maxWindow bounds a custom range.
-//
-// Without it `?start=0001-01-01&end=9999-12-31` is a span of 315 billion
-// seconds, and volumeGraph fills one bucket per day across it: 3.6 million
-// GraphPoints, each with a formatted label, then joined into an SVG polyline
-// and marshalled into the page. That is an out-of-memory kill from one
-// authenticated GET, or from a mistyped year.
-//
-// Five years is past anything the rollups will hold for a long while and still
-// only ~1,800 daily buckets.
+// maxWindow bounds a custom range: volumeGraph fills one bucket per day across
+// whatever it is given, so a mistyped year is an out-of-memory kill.
 const maxWindow = 5 * 365 * 24 * time.Hour
 
-// resolveWindow reads the range out of the query string.
-//
-// A named window is relative to now, which is what a log dashboard almost
-// always wants. Explicit start and end are honoured when both are present, for
-// the case a named window cannot express: going back to a specific incident.
-//
-// **The start is floored to the hour, and that is load bearing.** `rollups.hour`
-// is an hour-floored timestamp, so a clause of `hour >= start` against a
-// now-relative start drops the bucket that *contains* the start, whole. Every
-// rollup-backed number on the page loses everything from the start to the top
-// of the next hour, while the raw-backed panels beside them use exact `ts`
-// bounds and do not, so the two disagree on screen. Measured before the fix:
-// "Last hour" reported 31 records where the raw window held 59, and at one
-// minute past the hour it reported one minute of data.
-//
-// Flooring the start makes the two exactly equal rather than merely closer: the
-// first bucket is then fully inside the window (its floor is the start), and the
-// last bucket holds nothing after now because nothing is logged in the future.
-// The cost is that "Last hour" means "since the top of the previous hour", so
-// the resolved range is displayed rather than the label being trusted.
+// resolveWindow reads the range out of the query string. The start is floored to
+// the hour so rollup-backed and raw-backed panels cover the same span; the cost
+// is that "Last hour" means since the top of the previous hour.
 func resolveWindow(q map[string][]string) (key, name string, startMS, endMS int64) {
 	now := time.Now().UTC()
 
@@ -174,9 +141,8 @@ func resolveWindow(q map[string][]string) (key, name string, startMS, endMS int6
 	if s, e := first("start"), first("end"); s != "" && e != "" {
 		st, okS := parseDateToMS(s, false)
 		en, okE := parseDateToMS(e, true)
-		// Both are midnight and therefore already hour-aligned. The span is
-		// clamped, and an end in the future is pulled back to now rather than
-		// rejected, so a range typed with a lazy end date still works.
+		// Both are midnight and so already hour-aligned. An end in the future
+		// is pulled back to now rather than rejected.
 		if okS && okE && en > st {
 			if en > now.UnixMilli() {
 				en = now.UnixMilli()
@@ -206,9 +172,8 @@ func resolveWindow(q map[string][]string) (key, name string, startMS, endMS int6
 	return named(rangeOptions[1])
 }
 
-// parseDateToMS turns a YYYY-MM-DD into unix milliseconds, at the start of that
-// day or at the start of the next one. UTC, because every timestamp stored here
-// is UTC and mixing the two would shift a whole day's numbers by the offset.
+// parseDateToMS turns a YYYY-MM-DD into unix milliseconds. UTC, because every
+// stored timestamp is UTC and mixing the two shifts a day's numbers.
 func parseDateToMS(value string, endOfDay bool) (int64, bool) {
 	t, err := time.ParseInLocation("2006-01-02", value, time.UTC)
 	if err != nil {
@@ -220,8 +185,6 @@ func parseDateToMS(value string, endOfDay bool) (int64, bool) {
 	return t.UnixMilli(), true
 }
 
-// overview is the whole system at a glance. sourceDetail is the same page
-// narrowed to one site, which is why both go through here.
 func (s *site) overview(w http.ResponseWriter, r *http.Request) {
 	s.renderDashboard(w, r, "")
 }
@@ -232,10 +195,8 @@ func (s *site) sourceDetail(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/overview", http.StatusSeeOther)
 		return
 	}
-	// A source nobody has ever shipped from gets a 404 rather than a fully
-	// rendered dashboard of zeros, which is indistinguishable from a real
-	// source that has gone quiet. That distinction is the whole point of the
-	// page: "silent" and "does not exist" must not look the same.
+	// 404 rather than a dashboard of zeros: "silent" and "does not exist" must
+	// not look the same.
 	if !sourceExists(r.Context(), s.db, source) {
 		s.notFound(w, r)
 		return
@@ -253,10 +214,8 @@ func (s *site) renderDashboard(w http.ResponseWriter, r *http.Request, source st
 	d := &Dashboard{
 		RangeKey:  key,
 		RangeName: name,
-		// To the hour, not the day. The named windows floor their start to
-		// the hour so the rollups can be exact, which means the label
-		// ("Last hour") and the actual span are not the same thing. Showing
-		// the resolved range is what keeps that honest rather than hidden.
+		// To the hour, since the label and the resolved span differ once the
+		// start is floored.
 		DateStart: time.UnixMilli(startMS).UTC().Format("2006-01-02 15:04"),
 		DateEnd:   time.UnixMilli(endMS).UTC().Format("2006-01-02 15:04"),
 		StartMS:   startMS,
@@ -308,8 +267,7 @@ func (s *site) renderDashboard(w http.ResponseWriter, r *http.Request, source st
 	s.renderer.Render(w, http.StatusOK, page, data)
 }
 
-// reportFormat reads ?report. A bare "?report" means pdf, which is the form the
-// dashboard's own button uses.
+// reportFormat reads ?report; a bare "?report" means pdf.
 func reportFormat(q map[string][]string) (string, bool) {
 	values, present := q["report"]
 	if !present {
@@ -328,9 +286,7 @@ func reportFormat(q map[string][]string) (string, bool) {
 	return format, true
 }
 
-// fillReportExtras precomputes what the PDF and Markdown reports need: an SVG
-// polyline, its axis labels and its peak. Arithmetic over data already in
-// memory, so it runs on every render rather than making one handler two.
+// fillReportExtras precomputes the polyline, labels and peak the reports need.
 func (d *Dashboard) fillReportExtras() {
 	d.ChartPolyline = chartPolyline(d.Graph)
 	if len(d.Graph) == 0 {
@@ -348,11 +304,8 @@ func (d *Dashboard) fillReportExtras() {
 	d.ChartPeakLabel = peak.Label
 }
 
-// chartPolyline renders the time series as SVG polyline points, because the
-// reports have no Chart.js and no browser.
-//
-// The geometry matches the viewBox in the report templates: change one and
-// change the other.
+// chartPolyline renders the series as SVG polyline points for the reports,
+// which have no browser. The geometry must match the viewBox in report.typ.
 func chartPolyline(points []GraphPoint) string {
 	if len(points) == 0 {
 		return ""
@@ -372,8 +325,7 @@ func chartPolyline(points []GraphPoint) string {
 		}
 	}
 
-	// A single bucket has no horizontal span to distribute across, so it is
-	// drawn at the midpoint rather than dividing by zero.
+	// A single bucket has no span to distribute across.
 	if len(points) == 1 {
 		y := height - padding - float64(points[0].Count)/float64(maxCount)*usableH
 		return fmt.Sprintf("%.1f,%.1f", width/2, y)
@@ -388,10 +340,8 @@ func chartPolyline(points []GraphPoint) string {
 	return strings.Join(parts, " ")
 }
 
-// ---------------------------------------------------------------- search
-
-// SearchView is the raw line search: the form's own state, the page of results,
-// and enough to render pagination without a count over the whole table.
+// SearchView is the form state, one page of results, and enough to paginate
+// without a count over the whole table.
 type SearchView struct {
 	Q           string
 	Source      string
@@ -413,8 +363,7 @@ type SearchView struct {
 
 const searchPerPage = 100
 
-// RangeOptions mirrors the dashboard's picker so the two pages offer the same
-// windows.
+// RangeOptions mirrors the dashboard's picker.
 func (v *SearchView) RangeOptions() []rangeOption { return rangeOptions }
 
 func (s *site) search(w http.ResponseWriter, r *http.Request) {
@@ -446,8 +395,8 @@ func (s *site) search(w http.ResponseWriter, r *http.Request) {
 		Q:           strings.TrimSpace(q.Get("q")),
 	}
 
-	// One row more than a page is asked for, so "is there a next page" costs
-	// a row rather than a COUNT(*) over a filtered scan of everything.
+	// One row more than a page, so "is there a next page" costs a row rather
+	// than a COUNT(*) over a filtered scan.
 	rows := recentRecords(ctx, s.db, f, searchPerPage+1, (page-1)*searchPerPage)
 	hasMore := len(rows) > searchPerPage
 	if hasMore {
@@ -479,11 +428,7 @@ func (s *site) search(w http.ResponseWriter, r *http.Request) {
 }
 
 // jsonBlock marshals a value for an inline <script type="application/json">.
-//
-// HTML escaping stays on: this string is embedded in a document, and escaping
-// "<" is what stops a logged message containing "</script>" from closing the
-// block and turning a log line into markup. That is not hypothetical here, where
-// the data is arbitrary text written by other programs.
+// HTML escaping stays on, so a logged "</script>" cannot close the block.
 func jsonBlock(v any) template.JS {
 	b, err := json.Marshal(v)
 	if err != nil {

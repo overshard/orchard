@@ -1,9 +1,6 @@
-// The custom cursor: a small red dot that tracks the pointer exactly, and a
-// larger ring that grows when the pointer is over something interactive.
-//
-// Positions are written inside a requestAnimationFrame loop rather than in the
-// mousemove handler, so a burst of pointer events cannot cause more than one
-// layout per frame.
+// The custom cursor, a dot tracking the pointer and a ring that grows over
+// anything interactive. Positions are written in a requestAnimationFrame loop
+// rather than in the mousemove handler, so a burst costs one layout per frame.
 
 export const initCursor = () => {
   const dot = document.querySelector(".cursor");

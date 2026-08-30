@@ -1,8 +1,6 @@
-// Polls the crawl/lighthouse status endpoint and updates the monitoring panel
-// in-place. Fast (2s) while a job is active, slow (30s) while idle. Mirrors
-// the original Django version closely; the property id is read from the
-// #property-data JSON script (not a Django {% url %} data-attribute), and there
-// is no CSRF token since auth is a SameSite=Strict cookie.
+// Polls the crawl and lighthouse status endpoint and updates the monitoring
+// panel in place, every 2s while a job runs and every 30s while idle. No CSRF
+// token, since auth here is a SameSite=Strict cookie.
 
 const FAST_POLL_MS = 2000;
 const SLOW_POLL_MS = 30000;
@@ -272,9 +270,8 @@ document.addEventListener("DOMContentLoaded", function () {
     updateRecrawlButton(data);
     updateRerunLighthouseButton(data);
 
-    // If either subsystem just went idle after being active, refresh the page
-    // so server-rendered tables (insights, lighthouse scores, opportunities)
-    // pick up the new data.
+    // A subsystem that just went idle means new data, and the tables around
+    // this panel are server rendered, so the page has to reload to show it.
     const crawlerFinished =
       prevCrawlState && prevCrawlState !== "idle" && data.crawler.state === "idle";
     const lhFinished =

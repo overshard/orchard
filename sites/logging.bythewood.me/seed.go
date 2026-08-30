@@ -11,28 +11,17 @@ import (
 	"time"
 )
 
-// Seeding: realistic fake records, so the dashboard can be looked at and judged
-// before five real sites have accumulated a fortnight of traffic.
-//
-// A logging site is the worst of all of them to build against an empty
-// database, because every panel on it is a distribution and a distribution of
-// nothing is a blank rectangle. Every layout decision here was made against
-// this data.
-//
-// It writes through the same commit path the ingest endpoint uses, rollups
-// included, rather than a second insert that could drift from it. That is the
-// point of doing it this way: seeded data and real data are indistinguishable
-// downstream, so a panel that looks right on seeded data is not lying about the
-// query it will run in production.
+// Fake records for looking at the dashboard before real traffic exists. They go
+// through the same commit path ingest uses, rollups included, so seeded and real
+// data are indistinguishable downstream.
 
 type seedSource struct {
 	name      string
 	weight    int
 	paths     []string
 	component []string
-	// slow is the multiplier on the base latency, so the site that shells out
-	// to typst reads as slower than the one serving a static page, the way
-	// the real ones do.
+	// slow multiplies the base latency, so a site that shells out to typst
+	// reads slower than one serving a static page.
 	slow float64
 }
 
@@ -131,9 +120,7 @@ func runSeed(ctx context.Context, db *sql.DB, count, days int) error {
 func seedRow(rng *rand.Rand, src seedSource, start time.Time, span time.Duration) row {
 	at := seedTimestamp(rng, start, span)
 
-	// One in twelve records is a subsystem message rather than a request, for
-	// the sources that have subsystems. That ratio is roughly what the real
-	// scheduler produces against the real request log.
+	// Roughly the ratio of subsystem messages to requests the real sites show.
 	if len(src.component) > 0 && rng.Intn(12) == 0 {
 		component := src.component[rng.Intn(len(src.component))]
 		msgs := seedComponentMessages[component]
@@ -165,18 +152,15 @@ func seedRow(rng *rand.Rand, src seedSource, start time.Time, span time.Duration
 		level = "ERROR"
 	}
 
-	// Lognormal, so most requests are quick and a long tail is genuinely
-	// long. A normal distribution here would make every percentile land on
-	// top of the mean and every latency panel look pointless.
+	// Lognormal, so the percentiles do not all land on top of the mean.
 	ms := math.Exp(rng.NormFloat64()*0.9+0.2) * src.slow
 	if status >= 500 {
 		ms *= 4
 	}
 
 	cfRay := ""
-	// One request in sixty arrives without a CF-Ray, which is the signal the
-	// hardening pass instrumented: something reached the origin without
-	// crossing the tunnel.
+	// A missing CF-Ray means something reached the origin without crossing
+	// the tunnel.
 	if rng.Intn(60) != 0 {
 		cfRay = fmt.Sprintf("%012x-%s", rng.Int63n(1<<48), "IAD")
 	}
@@ -197,15 +181,12 @@ func seedRow(rng *rand.Rand, src seedSource, start time.Time, span time.Duration
 	}
 }
 
-// seedTimestamp puts a record somewhere in the window, with a daily rhythm.
-//
-// Uniform noise would give every hour the same height and make the volume chart
-// a flat bar, which is exactly the thing a volume chart exists to disprove.
+// seedTimestamp puts a record somewhere in the window, with a daily rhythm, so
+// the volume chart is not a flat bar.
 func seedTimestamp(rng *rand.Rand, start time.Time, span time.Duration) time.Time {
 	for {
 		at := start.Add(time.Duration(rng.Int63n(int64(span))))
-		// A cosine over the day, peaking mid-afternoon UTC, accepted by
-		// rejection sampling. Cheap, and it needs no inverse.
+		// A cosine over the day, by rejection sampling, so no inverse is needed.
 		hour := float64(at.Hour()) + float64(at.Minute())/60
 		p := 0.35 + 0.65*(0.5+0.5*math.Cos((hour-15)/24*2*math.Pi))
 		if rng.Float64() < p {
@@ -224,9 +205,7 @@ func seedMethod(rng *rand.Rand, path string) string {
 	return "GET"
 }
 
-// seedStatus weights the codes the way a small site actually sees them: mostly
-// 200, a steady trickle of 404 from scanners, and 500 rare enough that finding
-// one is worth a click.
+// seedStatus weights the codes the way a small site sees them.
 func seedStatus(rng *rand.Rand) int64 {
 	switch n := rng.Intn(1000); {
 	case n < 860:

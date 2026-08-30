@@ -58,9 +58,6 @@ document.addEventListener("DOMContentLoaded", function () {
   );
   const ctx = canvas.getContext("2d");
 
-  // Total stays the loud green line so old-eye muscle memory still works.
-  // The four phase lines are thinner and more muted so they read as
-  // breakdown, not as five equal-weight series.
   const series = [
     { key: "total", label: "Total",   color: accent.green,      width: 2,   tension: 0.25 },
     { key: "dns",   label: "DNS",     color: accent.terracotta, width: 1.5, tension: 0.2  },
@@ -78,8 +75,8 @@ document.addEventListener("DOMContentLoaded", function () {
       }),
       datasets: series.map((s) => ({
         label: s.label,
-        // Older rows (pre-migration-0002) have null phase timings — chart.js
-        // treats null as a gap in the line, which is exactly what we want.
+        // Older rows have null phase timings, and chart.js draws a null as a
+        // gap in the line, which is what we want here.
         data: data.map((d) => (d[s.key] == null ? null : d[s.key])),
         borderColor: s.color,
         backgroundColor: s.color,
@@ -145,8 +142,8 @@ function buildDoughnut(canvasId, dataId) {
   const data = JSON.parse(document.getElementById(dataId).innerHTML);
   const ctx = canvas.getContext("2d");
 
-  // Color rule: status 200 / Uptime = moss green, non-200 / Downtime =
-  // terracotta, everything else pulls from the earthy palette in order.
+  // Keyed by name, so 200 and Uptime are always green and a failure is always
+  // terracotta whatever order the server sent the rows in.
   const paint = (label) => {
     const name = String(label || "").toLowerCase();
     if (name === "uptime" || name === "200") return [accent.greenFill, "rgba(107, 158, 120, 0.95)"];

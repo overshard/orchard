@@ -1,40 +1,28 @@
 name: orchard-isaacbythewood
 
-# No bind mounts and no published ports. Public traffic arrives through
-# cloudflared to Caddy on the shared network, and there is no state to persist:
-# this site has no database, no uploads and no secrets.
-#
-# Bind mounts would not work from the webdev container anyway. The Docker CLI
-# here talks to Docker Desktop on the Windows host, whose daemon resolves paths
-# against its own filesystem, where /home/dev/code does not exist. It fails
-# silently as an empty mount rather than erroring.
+# No published ports and no state. Bind mounts would not work here anyway: the
+# Docker CLI talks to Docker Desktop, which mounts a /home/dev path empty
+# instead of erroring.
 
 services:
   app:
     build:
-      # This directory and nothing above it. The site is its own Go module
-      # with its own copy of web/, so there is no parent to reach for.
       context: .
       dockerfile: Dockerfile
     container_name: orchard-isaacbythewood
     restart: unless-stopped
-    # Longer than Docker's 10s default, because shutdown now does real work:
-    # the log shipper drains its queue and the writer commits what it holds.
-    # Both are bounded well inside this, so the grace is headroom rather than
-    # a deadline anything relies on. Without it a slow drain meant SIGKILL and
-    # a skipped db.Close().
+    # Longer than Docker's 10s default, because shutdown drains the log shipper
+    # queue. Without it a slow drain means SIGKILL.
     stop_grace_period: 30s
-    # Nothing here has needed more than 36MB at rest, but this machine is also
-    # a workstation, so a runaway process costs twice. A limit is a ceiling to
-    # fail against, not a target.
+    # A ceiling to fail against rather than a target, since this machine is also
+    # a workstation.
     deploy:
       resources:
         limits:
           cpus: "0.50"
           memory: 192M
-    # The binary probes itself, because two of these images are FROM scratch
-    # and have no shell for a check to call. `restart` alone only catches a
-    # process that exits; this catches one that is merely wedged.
+    # The binary probes itself, since the scratch images here have no shell for a
+    # check to call, and `restart` only catches a process that has exited.
     healthcheck:
       test: ["CMD", "/app", "-healthcheck"]
       interval: 30s
@@ -43,7 +31,7 @@ services:
       start_period: 10s
     security_opt:
       - no-new-privileges:true
-    # Unbounded container logs on a machine that is also a workstation.
+    # Otherwise container logs grow unbounded on a workstation.
     logging:
       driver: json-file
       options:

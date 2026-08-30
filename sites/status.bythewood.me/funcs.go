@@ -11,11 +11,6 @@ import (
 	"time"
 )
 
-// Template helpers.
-//
-// There is no url_for indirection: templates write "/properties" and mean it. A
-// name-to-path map keeps the paths hardcoded one file further away and turns a
-// typo into a runtime error rather than a broken link the reader can see.
 var templateFuncs = template.FuncMap{
 	"dict":            dict,
 	"json":            jsonBlock,
@@ -36,9 +31,7 @@ var templateFuncs = template.FuncMap{
 	"hasPrefix":       strings.HasPrefix,
 }
 
-// dict lets a partial take more than one value. Go templates have a single dot,
-// so a fragment needing both a label and a list has no other way to receive
-// them.
+// dict lets a partial take more than one value; a template has a single dot.
 func dict(pairs ...any) (map[string]any, error) {
 	if len(pairs)%2 != 0 {
 		return nil, fmt.Errorf("dict: odd number of arguments (%d)", len(pairs))
@@ -54,13 +47,9 @@ func dict(pairs ...any) (map[string]any, error) {
 	return out, nil
 }
 
-// jsonBlock renders a value for a <script type="application/json"> block, which
-// is how the chart data reaches Chart.js.
-//
-// SetEscapeHTML(false) plus template.JS is the pair that makes this correct.
-// html/template already knows the value is inside a script block and escapes
-// for that context, so leaving encoding/json's own escaping on produces
-// doubly-escaped JSON that parses into corrupted strings.
+// jsonBlock renders a value for a <script type="application/json"> block.
+// SetEscapeHTML(false) because html/template already escapes for that context,
+// and leaving both on produces doubly-escaped JSON.
 func jsonBlock(v any) (template.JS, error) {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
@@ -71,25 +60,22 @@ func jsonBlock(v any) (template.JS, error) {
 	return template.JS(strings.TrimSpace(buf.String())), nil
 }
 
-// naturalTime renders a timestamp as a relative phrase. A nil time renders as
-// "never" rather than an empty cell, because the difference between "no crawl
-// has ever run" and "the field did not load" matters here.
+// naturalTime renders a timestamp as a relative phrase. A nil time is "never",
+// which reads differently from a field that failed to load.
 func naturalTime(t *time.Time) string {
 	if t == nil {
 		return "never"
 	}
 
 	d := time.Since(*t)
-	// Future timestamps are normal rather than an error: next_run_at is one,
-	// and the templates render it with the same filter.
+	// Future timestamps are normal here: next_run_at is one.
 	suffix := "ago"
 	if d < 0 {
 		d = -d
 		suffix = "from now"
 	}
 
-	// Rounded, not truncated. A timestamp 48 hours out is 47h59m59.9s away by
-	// the time this runs, and truncating reports "1 day from now".
+	// Rounded, not truncated: 47h59m59.9s truncates to "1 day from now".
 	switch secs := int64(math.Round(d.Seconds())); {
 	case secs < 60:
 		if suffix == "ago" {
@@ -177,8 +163,7 @@ func msSavings(v any) string {
 	}
 }
 
-// urlPath reduces an absolute URL to its path, so the crawler insight table
-// can list twenty findings without twenty copies of the same origin.
+// urlPath reduces an absolute URL to its path and query.
 func urlPath(raw string) string {
 	u, err := parseHTTPURL(raw)
 	if err != nil {
@@ -202,8 +187,7 @@ func pct(count, total int64) int64 {
 	return count * 100 / total
 }
 
-// pct1 renders a nullable percentage with one decimal place, so a value reads
-// "100.0%" rather than "100%" and the column stays aligned.
+// pct1 renders a nullable percentage with one decimal, keeping the column aligned.
 func pct1(v *float64) string {
 	if v == nil {
 		return "—"
@@ -211,19 +195,13 @@ func pct1(v *float64) string {
 	return strconv.FormatFloat(*v, 'f', 1, 64)
 }
 
-// seq is a counted loop, which Go templates otherwise have no way to express:
-// range needs something to range over. Used only to draw placeholder ticks for
-// a property that has never been probed.
+// seq is a counted loop, which templates otherwise cannot express: range needs
+// something to range over.
 func seq(n int) []struct{} { return make([]struct{}, n) }
 
-// uptimeClass bands a recent-uptime percentage. Higher is better.
-//
-// 99 and 95 are the thresholds an operator reacts to: below 99 something
-// happened this week, below 95 something is wrong now.
-//
-// It takes a pointer because the value is nullable and Go templates cannot
-// rebind the dot inside an {{if}}, so the template tests the pointer and passes
-// the same pointer here.
+// uptimeClass bands a recent-uptime percentage; higher is better. It takes a
+// pointer because the value is nullable and a template cannot rebind the dot
+// inside an {{if}}.
 func uptimeClass(pct *float64) string {
 	if pct == nil {
 		return "muted"
@@ -238,12 +216,9 @@ func uptimeClass(pct *float64) string {
 	}
 }
 
-// lighthouseClass bands the average of the four Lighthouse scores.
-//
-// The thresholds are 90 and 80 rather than Lighthouse's own 90 and 50, because
-// this is an average of four categories and a site averaging 60 has something
-// badly wrong, even though 60 is unremarkable for a single category.
-// scoreClass keeps Lighthouse's bands for the individual scores.
+// lighthouseClass bands the average of the four Lighthouse scores. 90 and 80,
+// not Lighthouse's 90 and 50, because an average of 60 across four categories is
+// worse than 60 in one; scoreClass keeps Lighthouse's bands.
 func lighthouseClass(score *int64) string {
 	if score == nil {
 		return "muted"
@@ -258,8 +233,8 @@ func lighthouseClass(score *int64) string {
 	}
 }
 
-// countClass bands a finding count. Lower is better, which is why the
-// comparisons run the opposite way to uptimeClass.
+// countClass bands a finding count. Lower is better, so the comparisons run the
+// opposite way to uptimeClass.
 func countClass(n, warnAbove, downAbove int) string {
 	switch {
 	case n > downAbove:
@@ -271,9 +246,8 @@ func countClass(n, warnAbove, downAbove int) string {
 	}
 }
 
-// metricClass bands one weighted performance metric's 0-to-1 score. A nil score
-// means Lighthouse could not measure it, which is not the same as measuring it
-// as bad, so it renders neutral.
+// metricClass bands one weighted metric's 0-to-1 score. A nil score means
+// Lighthouse could not measure it, which is not the same as measuring it bad.
 func metricClass(score *float64) string {
 	switch {
 	case score == nil:
@@ -288,8 +262,7 @@ func metricClass(score *float64) string {
 }
 
 // scoreClass maps a Lighthouse score to Lighthouse's own three bands, so the
-// colours on the dashboard match the colours in the tool the numbers came
-// from.
+// dashboard colours match the tool the numbers came from.
 func scoreClass(score int64) string {
 	switch {
 	case score >= 90:

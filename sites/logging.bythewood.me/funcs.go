@@ -7,7 +7,6 @@ import (
 	"strings"
 )
 
-// Template helpers.
 var templateFuncs = template.FuncMap{
 	"dict":        dict,
 	"json":        jsonBlock,
@@ -24,10 +23,8 @@ var templateFuncs = template.FuncMap{
 	"isLoopback":  isLoopback,
 }
 
-// topCount is the denominator the rank-list bars are drawn against: the largest
-// value in the list rather than the sum. A list where one entry holds ninety
-// percent would otherwise render every other bar as an invisible sliver, and
-// the shape of the tail is the part worth seeing.
+// topCount is the denominator for the rank-list bars: the largest value rather
+// than the sum, so a dominant entry does not flatten the tail into slivers.
 func topCount(items []LabelCount) int64 {
 	var top int64
 	for _, i := range items {
@@ -41,9 +38,7 @@ func topCount(items []LabelCount) int64 {
 	return top
 }
 
-// dict lets a partial take more than one value. Go templates have a single dot,
-// so a fragment needing both a label and a list has no other way to receive
-// them.
+// dict lets a partial take more than one value, which a single dot cannot.
 func dict(pairs ...any) (map[string]any, error) {
 	if len(pairs)%2 != 0 {
 		return nil, fmt.Errorf("dict: odd number of arguments (%d)", len(pairs))
@@ -59,7 +54,7 @@ func dict(pairs ...any) (map[string]any, error) {
 	return out, nil
 }
 
-// pct renders count as a whole-number percentage of total, for the bar widths.
+// pct renders count as a whole-number percentage of total.
 func pct(count, total int64) int64 {
 	if total <= 0 {
 		return 0
@@ -67,9 +62,8 @@ func pct(count, total int64) int64 {
 	return count * 100 / total
 }
 
-// formatMS renders a duration the way somebody reads it rather than the way it
-// is stored. Sub-millisecond work is most of what these sites do, and rendering
-// 0.42ms as "0ms" would make every panel claim the server is instant.
+// formatMS keeps two decimals under a millisecond, since most work here is
+// sub-millisecond and would otherwise all render as "0ms".
 func formatMS(v float64) string {
 	switch {
 	case v <= 0:
@@ -83,8 +77,7 @@ func formatMS(v float64) string {
 	}
 }
 
-// formatNum groups thousands. Log counts get large enough that 1284339 and
-// 128433 look the same at a glance, which is the failure this avoids.
+// formatNum groups thousands.
 func formatNum(v int64) string {
 	s := strconv.FormatInt(v, 10)
 	neg := strings.HasPrefix(s, "-")
@@ -104,8 +97,7 @@ func formatNum(v int64) string {
 	return b.String()
 }
 
-// levelClass maps a slog level onto the palette: green for the ordinary, amber
-// for a warning, terracotta for an error. One function so the level chip, the
+// levelClass maps a slog level onto the palette, in one place so the chip, the
 // row tint and the chart legend cannot disagree.
 func levelClass(level string) string {
 	switch strings.ToUpper(level) {
@@ -120,8 +112,8 @@ func levelClass(level string) string {
 	}
 }
 
-// statusClass does the same for an HTTP status. Zero means the record is not a
-// request at all, which reads as no chip rather than as a 0xx.
+// statusClass does the same for an HTTP status; zero means not a request, and
+// renders as no chip.
 func statusClass(status int64) string {
 	switch {
 	case status == 0:
@@ -138,11 +130,8 @@ func statusClass(status int64) string {
 }
 
 // queryString builds a link that keeps the current window while changing one
-// thing, so a range picked on the overview survives a click into a source.
-//
-// It returns template.URL rather than a string because the value is assembled
-// here and correctly escaped here; leaving it a string makes html/template
-// escape the "&" separators into entities inside an href.
+// thing. It returns template.URL because html/template would otherwise escape
+// the "&" separators into entities inside an href.
 func queryString(pairs ...string) template.URL {
 	if len(pairs)%2 != 0 {
 		return template.URL("")
@@ -160,10 +149,8 @@ func queryString(pairs ...string) template.URL {
 	return template.URL("?" + strings.Join(parts, "&"))
 }
 
-// urlEscape percent-encodes everything that is not unreserved. Written out
-// rather than calling url.QueryEscape because that encodes a space as "+",
-// which is right for a form body and wrong inside a query value a person will
-// read in the address bar.
+// urlEscape percent-encodes everything that is not unreserved. Not
+// url.QueryEscape, which encodes a space as "+".
 func urlEscape(s string) string {
 	var b strings.Builder
 	for i := 0; i < len(s); i++ {

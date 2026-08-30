@@ -15,35 +15,26 @@ import (
 	"logging.bythewood.me/web"
 )
 
-// The write path.
-//
 // Every record arrives on one channel and one goroutine drains it into batched
-// transactions. That is the whole concurrency story, and it is deliberate:
-// SQLite takes a database-wide write lock, so a second writer buys SQLITE_BUSY
-// rather than throughput. One writer means the lock is never contended and a
-// batch of five hundred rows costs one fsync instead of five hundred.
+// transactions: SQLite takes a database-wide write lock, so a second writer buys
+// SQLITE_BUSY rather than throughput.
 
 const (
-	// Queue depth between the HTTP handlers and the flusher. Deep enough to
-	// absorb five sites flushing at the same instant, shallow enough that a
-	// wedged writer is noticed in seconds rather than after eating a
-	// gigabyte.
+	// Queue depth between the HTTP handlers and the flusher.
 	writeQueue = 16384
 
-	// Flush on whichever comes first. A quarter second is short enough that
-	// the dashboard is never visibly behind and long enough that a busy
-	// second is a handful of transactions.
+	// Flush on whichever comes first.
 	writeBatch = 500
 	writeEvery = 250 * time.Millisecond
 
-	// Caps on one request. maxBody is the second fence behind Caddy's own;
-	// maxRecords stops a single well-formed body from claiming the whole
-	// queue.
+	// maxBody is the second fence behind Caddy's own; maxRecords stops one
+	// well-formed body from claiming the whole queue.
 	maxBody    = 4 << 20
 	maxRecords = 2000
 )
 
-// Writer owns the queue and the goroutine that drains it.
+// Writer owns the ingest queue and the goroutine that drains it. Safe for
+// concurrent use; Close may be called more than once.
 type Writer struct {
 	db *sql.DB
 	ch chan row
@@ -52,17 +43,13 @@ type Writer struct {
 	done chan struct{}
 	stop sync.Once
 
-	// Counters for the dashboard's own health tiles. Written by the flusher
-	// and the handlers, read by a page render, so they take the mutex rather
-	// than being racy ints that mostly work.
+	// Written by the flusher and the handlers, read by a page render.
 	mu       sync.Mutex
 	written  int64
 	rejected int64
 	failed   int64
 }
 
-// row is one record flattened into the columns it will be stored in. The split
-// happens once, on the way in, rather than in every query later.
 type row struct {
 	source     string
 	ts         int64
@@ -78,12 +65,8 @@ type row struct {
 	cfRay      string
 	attrs      string
 	// rollupOnly writes the hourly counter but not the raw line. Set for the
-	// container health check, which is the binary probing itself over loopback
-	// every thirty seconds: roughly 11,500 records a day per fleet that say
-	// only "still running", and which were being counted as real traffic by
-	// the latency percentiles and the busiest-paths ranking. The counter still
-	// proves each site answered its probe, with count, sum and max duration,
-	// and it proves it forever rather than for thirty days.
+	// container health check, so self-probes stay out of the latency
+	// percentiles and the busiest-paths ranking.
 	rollupOnly bool
 }
 
@@ -98,9 +81,7 @@ func NewWriter(db *sql.DB) *Writer {
 	return w
 }
 
-// Stats is what the dashboard reports about the ingest path itself. A logging
-// site that cannot say whether it is dropping records is asking to be trusted
-// on the one thing it should be able to prove.
+// Stats is what the dashboard reports about the ingest path itself.
 type Stats struct {
 	Queued   int
 	Capacity int
@@ -121,19 +102,9 @@ func (w *Writer) Stats() Stats {
 	}
 }
 
-// enqueue takes a whole batch or none of it, and reports whether it did.
-//
-// All-or-nothing rather than filling until full, because a half-written batch
-// is a gap in the middle of one site's history with nothing marking it, while a
-// refused one is a 429 the shipper counts.
-//
-// The capacity check and the sends cannot be made atomic without a lock on the
-// hot path, so two callers can both see room and only one can have it. What
-// matters is that the loser says so: it used to fall through to a non-blocking
-// send, drop, and still return true, which answered 202 Accepted for records
-// that were never queued. The sender then counted the batch as delivered and
-// never retried. Now any drop makes the whole call report failure, so the
-// answer is a 429 the shipper can see.
+// enqueue takes a whole batch or none of it, and reports whether it did. The
+// capacity check is not atomic with the sends, so two callers can both see room;
+// any drop must still report failure so the caller answers 429 and not 202.
 func (w *Writer) enqueue(rows []row) bool {
 	if len(rows) > cap(w.ch)-len(w.ch) {
 		w.mu.Lock()
@@ -171,19 +142,16 @@ func (w *Writer) run() {
 		}
 		err := w.commit(batch)
 		if err != nil && isBusy(err) {
-			// One retry, because the common cause is transient: a long read
-			// on the dashboard, or the retention pass holding the write lock.
-			// Discarding 500 records the first time a reader was slow is a
-			// poor trade for the one line of code this costs.
+			// The common cause is transient: a long dashboard read, or the
+			// retention pass holding the write lock.
 			select {
 			case <-time.After(250 * time.Millisecond):
 			}
 			err = w.commit(batch)
 		}
 		if err != nil {
-			// Straight to the stdout handler. Logging this through slog
-			// would enqueue a record about a failing writer onto the
-			// queue that writer drains.
+			// Straight to stderr: logging this through slog would enqueue a
+			// record about a failing writer onto the queue it drains.
 			w.mu.Lock()
 			w.failed += int64(len(batch))
 			w.mu.Unlock()
@@ -224,18 +192,14 @@ func (w *Writer) run() {
 	}
 }
 
-// Close drains the queue and commits what is left, so a deploy does not throw
-// away the last quarter second of every site's logs.
+// Close drains the queue and commits what is left.
 func (w *Writer) Close() {
 	w.stop.Do(func() { close(w.quit) })
 	<-w.done
 }
 
-// commit writes one batch and its rollup deltas in a single transaction.
-//
-// One transaction for both is what keeps them consistent: a rollup that
-// counted rows the insert then rolled back would be a graph that disagrees
-// with its own search results forever, with nothing to reconcile it against.
+// commit writes one batch and its rollup deltas in a single transaction, so a
+// rolled-back insert cannot leave a counter that nothing can reconcile.
 func (w *Writer) commit(batch []row) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -255,8 +219,8 @@ func (w *Writer) commit(batch []row) error {
 	}
 	defer insert.Close()
 
-	// Aggregated in memory first so a batch of five hundred request logs from
-	// one site in one hour is one upsert rather than five hundred.
+	// Aggregated in memory first so a batch from one site in one hour is one
+	// upsert rather than one per record.
 	deltas := make(map[rollupKey]*rollupDelta, 16)
 
 	for _, r := range batch {
@@ -281,9 +245,8 @@ func (w *Writer) commit(batch []row) error {
 			deltas[k] = d
 		}
 		d.count++
-		// A record with no duration is a subsystem message rather than a
-		// request. Counting it as a zero would drag every mean toward zero
-		// and make the busiest site look like the fastest.
+		// A record with no duration is a subsystem message, not a request;
+		// counting it as zero would drag every mean down.
 		if r.durationMS > 0 {
 			d.durCount++
 			d.durSum += r.durationMS
@@ -317,9 +280,8 @@ func (w *Writer) commit(batch []row) error {
 	return tx.Commit()
 }
 
-// isBusy reports whether an error is SQLite's lock contention, which is worth
-// retrying, rather than a schema or disk error, which is not. Matched on the
-// message because the driver does not export a typed error for it.
+// isBusy reports whether an error is SQLite lock contention, matched on the
+// message because the driver exports no typed error for it.
 func isBusy(err error) bool {
 	if err == nil {
 		return false
@@ -343,14 +305,9 @@ type rollupDelta struct {
 	durMax   float64
 }
 
-// ingest is the endpoint every other site posts to.
-//
-// There is no token, because there is no public path to it: Caddy refuses
-// /ingest on logging.bythewood.me and the only address that answers is the
-// container name on the orchard-edge bridge. Anything able to reach it is
-// already inside the network. That is the same reasoning the ntfy alert path
-// uses, and it is what keeps the two FROM scratch sites reading zero
-// environment variables.
+// ingest is the endpoint every other site posts to. There is no token because
+// Caddy refuses /ingest on the public hostname, so the only address that answers
+// is the container name on the orchard-edge bridge.
 func (s *site) ingest(w http.ResponseWriter, r *http.Request) {
 	body := http.MaxBytesReader(w, r.Body, maxBody)
 	defer body.Close()
@@ -380,27 +337,22 @@ func (s *site) ingest(w http.ResponseWriter, r *http.Request) {
 		rows = append(rows, toRow(source, rec))
 	}
 
-	// Backpressure as a real answer rather than a stall. The shipper drops a
-	// 429'd batch and carries on, and the records are still on that site's
-	// stdout. Blocking here would mean the logging site could hold a request
-	// open on every site it watches.
+	// Backpressure rather than a stall: blocking here would let this site hold
+	// a request open on every site it watches.
 	if !s.writer.enqueue(rows) {
 		w.Header().Set("Retry-After", "5")
 		http.Error(w, "ingest queue is full", http.StatusTooManyRequests)
 		return
 	}
 
-	// After the enqueue, not before. A batch that was refused is not evidence
-	// the source is healthy, and counting it would mean a site whose records
-	// are all being shed looks perfectly alive to the silence rule.
+	// After the enqueue: a refused batch is not evidence the source is healthy.
 	s.watchdog.Observe(source, batch.Records)
 
 	w.WriteHeader(http.StatusAccepted)
 }
 
-// normalizeSource keeps the source a short, safe label. It is rendered in URLs
-// and used as a query filter, and it comes from another process rather than
-// from a person, so it is constrained rather than trusted.
+// normalizeSource constrains the source to a short label; it arrives from
+// another process and is rendered in URLs.
 func normalizeSource(s string) string {
 	s = strings.ToLower(strings.TrimSpace(s))
 	if len(s) > 40 {
@@ -412,21 +364,15 @@ func normalizeSource(s string) string {
 		case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '-', r == '_':
 			b.WriteRune(r)
 		case r == '.':
-			// Sites name themselves by first label, but a caller passing a
-			// hostname should land in the same bucket rather than a second
-			// one nobody looks at.
+			// A caller passing a full hostname lands in the first-label bucket.
 			return b.String()
 		}
 	}
 	return b.String()
 }
 
-// toRow lifts the attributes that earn a column out of the JSON bag and leaves
-// the rest in it.
-//
-// The hot set is exactly what web.Logged already emits, so nothing here asks
-// the sites to log anything new: the hardening pass that converted 129 calls to
-// slog is the reason this is nearly free.
+// toRow lifts the attributes that get a column out of the JSON bag and leaves
+// the rest in it. The hot set is what web.Logged already emits.
 func toRow(source string, rec web.Record) row {
 	out := row{
 		source: source,
@@ -465,10 +411,8 @@ func toRow(source string, rec web.Record) row {
 		}
 	}
 
-	// The container health check, recognised and demoted to a counter. It is
-	// the only request in the system that is the process talking to itself, so
-	// it is the only one that can be identified without guessing: loopback
-	// client, and the path the healthcheck flag probes.
+	// The container health check: the one request that is the process talking
+	// to itself, so it can be recognised without guessing.
 	if out.msg == "request" && out.path == "/healthz" && (isLoopback(out.ip) || isLoopbackHost(out.host)) {
 		out.component = "healthz"
 		out.rollupOnly = true
@@ -480,9 +424,7 @@ func isLoopback(ip string) bool {
 	return ip == "127.0.0.1" || ip == "::1"
 }
 
-// isLoopbackHost matches the Host header the self-probe sends, which is
-// "127.0.0.1:8000" because that is the URL the -healthcheck flag requests. Both
-// are checked because a record is identified by whichever the site recorded.
+// isLoopbackHost matches the Host header the -healthcheck probe sends.
 func isLoopbackHost(host string) bool {
 	h, _, found := strings.Cut(host, ":")
 	if !found {
@@ -492,8 +434,7 @@ func isLoopbackHost(host string) bool {
 }
 
 const (
-	// Caps on the two free-text fields. A single 4MB message is a legal body
-	// today and would be one 4MB row forever.
+	// Caps on the free-text fields: a legal 4MB message would be a 4MB row forever.
 	maxFieldLen = 4096
 	maxAttrsLen = 8192
 )
@@ -509,11 +450,8 @@ func truncate(s string, max int) string {
 	return s[:max]
 }
 
-// normalizeLevel constrains the level to the four slog uses.
-//
-// It is a rollups primary key column, and the search page already allowlists it
-// on the way out. Anything reaching ingest with a novel level would mint rollup
-// rows nobody can ever filter for, in a table that is never swept.
+// normalizeLevel constrains the level to the four slog uses. It is a rollups
+// key column, so a novel level would mint permanent rows nobody can filter for.
 func normalizeLevel(level string) string {
 	switch strings.ToUpper(strings.TrimSpace(level)) {
 	case "DEBUG":
@@ -527,8 +465,7 @@ func normalizeLevel(level string) string {
 	}
 }
 
-// normalizeKey constrains component, which is the other free-text rollups key
-// column. Same reasoning as the level, plus it is rendered in the UI.
+// normalizeKey constrains component, the other free-text rollups key column.
 func normalizeKey(s string) string {
 	s = strings.ToLower(strings.TrimSpace(s))
 	if len(s) > 40 {
@@ -544,8 +481,8 @@ func normalizeKey(s string) string {
 	return b.String()
 }
 
-// saneStatus keeps the status inside the range HTTP defines. It is a rollups
-// key column, so an arbitrary int64 is an arbitrary number of permanent rows.
+// saneStatus keeps the status in range; it is a rollups key column, so an
+// arbitrary int64 is an arbitrary number of permanent rows.
 func saneStatus(v float64) int64 {
 	n := int64(v)
 	if n < 0 || n > 599 {
@@ -554,18 +491,12 @@ func saneStatus(v float64) int64 {
 	return n
 }
 
-// sanetimestampSkew is how far ahead of now a record may claim to be.
-//
-// The retention sweep deletes `ts < cutoff`, so a record dated in the future is
-// never reclaimed: not by the sweep, not ever. That is reachable without an
-// attacker, by one peer container with a skewed clock. Anything beyond the
-// allowance is stamped with arrival time instead, which is the same thing
-// already done for a record carrying no timestamp at all.
+// sanetimestampSkew bounds how far ahead of now a record may claim to be. The
+// sweep deletes ts < cutoff, so a future-dated row would never be reclaimed.
 const sanetimestampSkew = 5 * time.Minute
 
-// sanetimestampFloor rejects timestamps from before this project existed. It
-// exists mostly to catch a unit mistake: seconds sent where milliseconds were
-// meant lands in 1970 and would be swept immediately and silently.
+// sanetimestampFloor catches a unit mistake: seconds sent where milliseconds
+// were meant lands in 1970 and would be swept immediately and silently.
 var sanetimestampFloor = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
 
 func saneTimestamp(ts int64) int64 {
@@ -587,8 +518,7 @@ func asString(v any) string {
 	}
 }
 
-// asFloat exists because these values arrive through JSON, where every number
-// is a float64 no matter how it was logged.
+// asFloat handles JSON's float64-only numbers alongside the native types.
 func asFloat(v any) float64 {
 	switch t := v.(type) {
 	case float64:
@@ -605,14 +535,9 @@ func asFloat(v any) float64 {
 	}
 }
 
-// LocalSink is how this site records its own logs: straight onto the writer's
-// queue, with no HTTP hop to itself.
-//
-// It drops its own ingest request lines. Every flush from every site is one
-// POST here, so keeping them would mean this site's loudest source being itself
-// describing the act of being written to. Health checks need no special case
-// any more: toRow demotes them to rollup-only for every source alike, including
-// this one. Both are still on stdout.
+// LocalSink records this site's own logs straight onto the writer's queue. It
+// drops its /ingest request lines: every flush from every site is one POST here,
+// so keeping them would make this site's loudest source itself.
 func (s *site) LocalSink(source string, records []web.Record) {
 	rows := make([]row, 0, len(records))
 	for _, rec := range records {
@@ -626,9 +551,5 @@ func (s *site) LocalSink(source string, records []web.Record) {
 	}
 	s.writer.enqueue(rows)
 
-	// This site watches itself too. It can only ever fire if the process is
-	// serving while its own logging path has stopped, which is a narrow case
-	// and still one worth hearing about; a wedged process cannot report on
-	// itself and is what status is for.
 	s.watchdog.Observe(selfSource, records)
 }

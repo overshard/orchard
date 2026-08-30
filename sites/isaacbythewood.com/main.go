@@ -1,9 +1,5 @@
-// isaacbythewood.com: server-rendered html/template with a Vite-built
-// frontend. One static binary, no database, no framework, and no third party
-// Go dependency.
-//
-// Nothing here is configurable and nothing here is secret. Identity is
-// hardcoded in site.go.
+// isaacbythewood.com: server-rendered html/template with a Vite-built frontend,
+// one static binary, no database and no third party Go dependency.
 package main
 
 import (
@@ -23,18 +19,16 @@ import (
 	"isaacbythewood.com/web"
 )
 
-// Templates are source, so they ship inside the binary unconditionally. The
-// Vite bundle is build output and ships only in a release build; see
-// assets_disk.go and assets_embed.go.
+// Templates are source and ship in the binary unconditionally. The Vite bundle
+// is build output, so it ships only in a release build, see assets_embed.go.
 //
 //go:embed templates
 var templateFS embed.FS
 
 const listenAddr = ":8000"
 
-// Content-Security-Policy. No 'unsafe-eval' anywhere. 'unsafe-inline' in
-// script-src is only there for the analytics collector loader, which is a
-// literal inline script.
+// 'unsafe-inline' in script-src is there for the analytics collector loader,
+// which is a literal inline script. No 'unsafe-eval' anywhere.
 func csp() string {
 	return strings.Join([]string{
 		"default-src 'self'",
@@ -53,9 +47,8 @@ func csp() string {
 func main() {
 	web.SetupLogging()
 
-	// The container HEALTHCHECK runs this. Two of these images are FROM
-	// scratch and have no shell for a check to call, so the binary probes
-	// itself.
+	// The container HEALTHCHECK runs this: a FROM scratch image has no shell
+	// for a check to call, so the binary probes itself.
 	healthcheck := flag.Bool("healthcheck", false, "probe a running server on this host and exit")
 	flag.Parse()
 
@@ -67,14 +60,8 @@ func main() {
 		return
 	}
 
-	// Log shipping. Installed on top of the stdout handler rather than in
-	// place of it: every record still goes where it always went, and a copy
-	// is queued for logging.bythewood.me. Nothing here can block a request,
-	// and a logging site that is down or slow costs some lines on a
-	// dashboard. See web/shipper.go.
-	//
-	// After the healthcheck branch above, so a HEALTHCHECK invocation does
-	// not spin up a queue it will never flush.
+	// Below the healthcheck branch, so a HEALTHCHECK invocation does not start
+	// a queue it will never flush.
 	shipper := web.ShipLogs("isaacbythewood", web.HTTPSink())
 	defer shipper.Close()
 
@@ -107,9 +94,8 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Only the live projects. Archived repositories do not change, so polling
-	// them would spend the unauthenticated rate limit re-reading the same
-	// commit forever.
+	// Live projects only. An archived repo does not change, so polling it
+	// spends the rate limit re-reading the same commit.
 	slugs := make([]string, 0, len(projects))
 	for _, project := range projects {
 		if !project.Archived {
@@ -118,8 +104,6 @@ func main() {
 	}
 	commits.Start(ctx, slugs)
 
-	// The home page's promo slot, filled from the blog rather than hardcoded
-	// to a project that can be retired out from under it.
 	latest := NewLatestCache(blogLatestSources)
 	latest.Start(ctx)
 
@@ -142,14 +126,10 @@ func main() {
 	mux.HandleFunc("GET /sitemap.xml", s.sitemap)
 	mux.HandleFunc("GET /manifest.json", s.manifest)
 
-	// Browsers ask for /favicon.ico at the root whatever the markup says, so
-	// it is served from both places rather than logging a 404 on every fresh
-	// visit.
 	mux.Handle("GET /favicon.ico", rootAsset(dist, "favicon.ico"))
 	mux.Handle("GET /favicon.svg", rootAsset(dist, "favicon.svg"))
 
-	// Not logged and not behind the security headers: a line per probe would
-	// bury the real traffic.
+	// Not logged, or a line per probe would bury the real traffic.
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		_, _ = w.Write([]byte("ok\n"))
@@ -161,10 +141,6 @@ func main() {
 		web.Recovered,
 		web.Logged,
 		web.SecurityHeaders(csp()),
-		// Five minutes fresh, then a day of serving stale while revalidating
-		// behind the request, then a week of serving stale if the origin is
-		// down.
-		//
 		// No s-maxage. Per RFC 9111 it carries proxy-revalidate semantics, so
 		// Cloudflare reads it as "never serve stale without asking first" and
 		// disables stale-while-revalidate and stale-if-error both.
@@ -179,7 +155,6 @@ func main() {
 	}
 }
 
-// rootAsset serves one file out of dist at a root path.
 func rootAsset(dist fs.FS, name string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		f, err := dist.Open(name)

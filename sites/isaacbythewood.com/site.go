@@ -2,12 +2,8 @@ package main
 
 import "strings"
 
-// Identity, stated once and not made configurable: hardcode identity, never
-// hardcode credentials. This site has no credentials at all, so it needs no
-// .env of any kind.
-//
-// Staging below derives from baseURL, so this one line also controls the
-// noindex, the robots.txt Disallow and the blog feed the home page reads.
+// Identity is hardcoded, never configured. Staging derives from baseURL, so
+// that one line also drives the noindex and the robots.txt Disallow.
 const (
 	baseURL     = "https://isaacbythewood.com"
 	siteTitle   = "Isaac Bythewood"
@@ -17,23 +13,13 @@ const (
 	contactMail = "isaac@bythewood.me"
 )
 
-// Staging keeps a test hostname out of search results, so it is not indexed as
-// a duplicate of the real site. Both robots.txt and a noindex meta tag key off
-// it, because a meta tag alone is useless on a URL robots.txt has already told
-// the crawler not to fetch.
+// Staging drives both robots.txt and the noindex meta tag, since a meta tag
+// alone is useless on a URL robots.txt told the crawler not to fetch.
 var Staging = !strings.HasSuffix(baseURL, "//isaacbythewood.com")
 
-// blogLatestSources feed the home page's promo slot, in order of preference.
-//
-// The container name comes first. The blog is a sibling container on the same
-// Docker network, so reading it over the public hostname would send a request
-// out of the house, across Cloudflare and back down the tunnel to reach a
-// process one bridge hop away, and would make an internal fetch depend on
-// public DNS, the tunnel and the edge all being healthy.
-//
-// The public URL is the fallback for `make run`, where there is no Docker
-// network and no sibling container. If neither answers, the card is not
-// rendered.
+// The container name first, since the blog is a sibling on the same bridge and
+// the public hostname would route out through Cloudflare and back down the
+// tunnel. The public URL is the fallback for `make run`.
 var blogLatestSources = []string{
 	"http://orchard-blog:8000/latest.json",
 	"https://blog.bythewood.me/latest.json",
@@ -54,7 +40,6 @@ var navPages = []NavPage{
 	{Num: "004", Href: "/contact", Title: "Contact"},
 }
 
-// TopLink is one of the small monospace links across the top of the menu.
 type TopLink struct {
 	Label string
 	Href  string
@@ -67,7 +52,6 @@ var topLinks = []TopLink{
 	{Label: "GitHub", Href: "https://github.com/overshard"},
 }
 
-// Word is one entry in an animated word list.
 type Word struct {
 	Text string
 	Slot int
@@ -87,8 +71,7 @@ type Project struct {
 	Description string
 	Tech        []string
 	// Archived splits the page, so a read-only snapshot does not sit in a wall
-	// of cards that all look equally alive. See the archived section in
-	// code.html.
+	// of cards that all look equally alive.
 	Archived bool
 }
 
@@ -106,9 +89,8 @@ var projects = []Project{
 		Tech:        []string{"Docker", "Shell"},
 	},
 
-	// Archived, newest first, and named exactly as the repository is named on
-	// GitHub, so a card title is something you can search for rather than a
-	// friendly name that resolves to nothing.
+	// Archived, newest first, and named exactly as the repository is on GitHub,
+	// so a card title is something you can search for.
 	{
 		Name:        "isaacbythewood.com-nextjs",
 		Slug:        "isaacbythewood.com-nextjs",
@@ -317,13 +299,11 @@ var generative = []Generative{
 	},
 }
 
-// sourceURL points at the canvas module for this piece.
 func sourceURL(slug string) string {
 	return "https://github.com/" + githubUser +
 		"/orchard/blob/main/sites/isaacbythewood.com/frontend/static_src/js/canvas/" + slug + ".js"
 }
 
-// ContactMethod is one row of the contact page's definition list.
 type ContactMethod struct {
 	Key      string
 	Value    string

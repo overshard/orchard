@@ -19,9 +19,8 @@
 # On a host where docker needs no sudo, turn it off:  make up SUDO=
 #
 # Each site is its own Go module and there is no module at this level, which is
-# why every loop below runs its command inside the site directory rather than
-# reaching across one module from here. go.work exists so these repo-wide
-# targets and an editor can see all four at once; nothing depends on it.
+# why every loop below runs its command inside the site directory. go.work
+# exists so these repo-wide targets and an editor can see all six at once.
 
 SUDO   ?= sudo
 DOCKER ?= $(SUDO) docker
@@ -30,8 +29,7 @@ SITES    = $(notdir $(wildcard sites/*))
 SITE_DIR = sites/$(SITE)
 
 # orchard-blog, orchard-analytics, and so on. Every compose file names its
-# container after the site's first label, prefixed to match the edge's
-# orchard-caddy and orchard-cloudflared, so the mapping needs no table and
+# container after the site's first label, so the mapping needs no table and
 # `docker ps --filter name=orchard` shows the whole system.
 CONTAINER = orchard-$(firstword $(subst ., ,$(SITE)))
 
@@ -39,21 +37,13 @@ EDGE_COMPOSE = cd edge && $(DOCKER) compose
 
 # Secrets come from a .env file in the site's own directory, which compose reads
 # by itself because that directory is the project directory. Nothing is
-# forwarded through this Makefile and nothing is read from the deploying shell.
-#
-# That is a reversal of how this repo used to work, and the reason is worth
-# stating. Passwords were taken from the deploying shell so they were never
-# written next to the repo, and the cost was paid on every deploy: sudo runs
-# with env_reset, so an exported password was stripped before compose ever saw
-# it, and the ${VAR:?} guard then aborted the deploy complaining about the shell
-# you had just set it in. The value had to be forwarded as a sudo-level
-# assignment to work around that, and forgetting was the most common way a
-# deploy failed here.
+# forwarded through this Makefile and nothing is read from the deploying shell,
+# because sudo runs with env_reset and strips an exported password before
+# compose ever sees it.
 #
 # .env is in .gitignore by bare name, so it is ignored at any depth. This is a
-# public repository: verify with `git check-ignore -v sites/<name>/.env` rather
-# than trusting it. Each site that needs one commits a .env.example listing the
-# keys with no values.
+# public repository, so verify with `git check-ignore -v sites/<name>/.env`
+# rather than trusting it. Each site that needs one commits a .env.example.
 COMPOSE      = $(DOCKER) compose
 COMPOSE_DOWN = $(DOCKER) compose
 
@@ -84,10 +74,8 @@ help:
 
 # ---------------------------------------------------------------- the system
 
-# Idempotent, and the repair command as much as the first-run command: compose
-# starts whatever is missing and leaves whatever is already correct alone. It
-# deliberately does not pass --build, so an image that exists is reused. Use
-# `deploy` when the code changed.
+# Idempotent, so it repairs as readily as it installs. It does not pass --build,
+# so an image that already exists is reused. Use `deploy` when code changed.
 up: require-tunnel
 	$(EDGE_COMPOSE) up --detach
 	for s in $(SITES); do \
@@ -104,20 +92,14 @@ deploy: require-site require-env
 	@echo ""
 	@echo "$(SITE) rebuilt and replaced as $(CONTAINER)"
 
-# The edge equivalent of deploy, and it exists because every config file in
-# edge/ is baked into an image rather than mounted: the Caddyfile, ntfy's
-# server.yml both need a rebuild to take effect, and `make up` deliberately does
-# not pass --build. Editing one of them and running
-# `make up` is the quiet failure this target prevents.
+# The edge equivalent of deploy. The Caddyfile and ntfy's server.yml are baked
+# into images and `make up` does not pass --build, so editing one and running
+# `make up` is a quiet no-op.
 #
-# cloudflared's config is the exception and is seeded into a volume instead;
-# changing it means `sh edge/setup-tunnel.sh up`.
-# cloudflared is restarted explicitly rather than left to compose. Its config
-# comes from a volume rather than from its image, so compose sees nothing
-# changed and leaves it running on the old ingress: after `setup-tunnel.sh up`
-# adds a hostname, the tunnel keeps serving the previous rule set with no sign
-# anything is stale, and the new hostname 404s from a Cloudflare edge that has
-# nowhere to send it. That is the difference between "rebuilt" and "reloaded".
+# cloudflared is the exception and is restarted explicitly. Its config comes
+# from a volume rather than its image, so compose sees nothing changed and would
+# leave the tunnel serving the old ingress, where a newly added hostname 404s
+# with nothing to say why. Changing that config means `sh edge/setup-tunnel.sh up`.
 edge: require-tunnel
 	$(EDGE_COMPOSE) up --build --detach
 	$(DOCKER) restart orchard-cloudflared
@@ -134,20 +116,18 @@ down-one: require-site
 	cd $(SITE_DIR) && $(COMPOSE_DOWN) down
 
 # Read only. Every line is either fine or carries the command that fixes it.
-# That is why the alerts section reads ntfy's health endpoint rather than
-# publishing a test message: a doctor that sends a notification every time it
-# runs is a doctor nobody runs. To prove the path end to end, on purpose:
+# The alerts section reads ntfy's health endpoint rather than publishing, since
+# nobody runs a doctor that pushes a notification every time. To test the path
+# end to end:
 #
 #   sudo docker run --rm --network container:orchard-ntfy curlimages/curl \
 #     -d "test" http://127.0.0.1:8000/status
-# `ps -a` rather than `ps`, so a container that exited reads as stopped rather
-# than vanishing from the report entirely.
 #
-# The state section covers the two SQLite volumes, which hold the only thing in
-# this repo that cannot be rebuilt from source. A doctor that skipped them would
-# call a system healthy while its data was gone. The names are read out of the
-# compose files rather than listed here, so a site that gains state gets picked
-# up without anyone remembering to edit this.
+# `ps -a` rather than `ps`, so a container that exited reads as stopped rather
+# than vanishing from the report.
+#
+# Volume names are read out of the compose files rather than listed here, so a
+# site that gains state is picked up without editing this.
 doctor:
 	@probe() { \
 		st=$$($(DOCKER) ps -a --filter "name=^$$1$$" --format '{{.Status}}' 2>/dev/null | head -1); \
@@ -227,9 +207,8 @@ doctor:
 
 # ----------------------------------------------------------------- the guards
 
-# There is no default SITE. There used to be, and a bare `make deploy` then
-# meant rebuilding and replacing the portfolio, which is a lot to trigger by
-# forgetting an argument.
+# No default SITE, so a bare `make deploy` asks rather than rebuilding and
+# replacing whichever site happened to be first.
 require-site:
 	@test -n "$(SITE)" || { \
 		echo "SITE is not set. one of:" >&2; \
@@ -243,9 +222,8 @@ require-site:
 	}
 
 # A site needs a .env exactly when it ships a .env.example, so adding a secret
-# to a site is one committed example file and nothing here. Compose would catch
-# the missing value too, but it reports it as an unset variable, which reads
-# like a bug in the compose file rather than a file you have not created yet.
+# is one committed example file and no change here. Compose would catch it too,
+# but it reports an unset variable, which reads like a bug in the compose file.
 require-env:
 	@if [ -f "$(SITE_DIR)/.env.example" ] && [ ! -f "$(SITE_DIR)/.env" ]; then \
 		echo "$(SITE) has no .env. it is gitignored and machine-local, so a" >&2; \
@@ -258,8 +236,8 @@ require-env:
 	fi
 
 # The tunnel's credentials live in a named volume that setup-tunnel.sh creates.
-# Without it compose fails with "external volume not found", which is true and
-# does not say what to do about it.
+# Without it compose fails with "external volume not found", which does not say
+# what to do about it.
 require-tunnel:
 	@$(DOCKER) volume inspect orchard-cloudflared >/dev/null 2>&1 || { \
 		echo "the tunnel is not set up on this machine yet. once, in order:" >&2; \
@@ -277,14 +255,10 @@ run: require-site
 build: require-site
 	$(MAKE) -C $(SITE_DIR) build
 
-# -o build/ matters. A bare `go build ./...` writes each site's executable into
-# the working directory, which is how a 14MB binary once got committed and why
-# .gitignore still carries rules for it. Sending it to the gitignored build/
-# leaves the source directory as it was found.
-# check reports; it does not repair. It used to depend on fmt, which runs
-# gofmt -w, so a tree that was not formatted was silently formatted and check
-# then passed: it could never answer the question it was being asked. Use
-# `make fmt` to actually rewrite.
+# -o build/ matters. A bare `go build ./...` drops each site's executable into
+# the working directory, and build/ is gitignored.
+# check reports and does not repair, so it must not depend on fmt, which runs
+# gofmt -w and would make the answer yes by rewriting. Use `make fmt` for that.
 check: fmt-check vet
 	for s in $(SITES); do echo "build $$s"; \
 		(cd sites/$$s && mkdir -p build && go build -o build/ ./...) || exit 1; done

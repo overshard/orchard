@@ -11,9 +11,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// The property list: create, delete, pin cards, toggle public. Everything here
-// is behind requireAuth.
-
 // PropertyRow is one row of the list, with its counts already gathered.
 type PropertyRow struct {
 	ID                 string
@@ -35,8 +32,7 @@ type PropertyTotals struct {
 }
 
 // activeWindow is how recently a property must have seen an event to show as
-// live. A week, because a personal site can go quiet for a few days without
-// being broken.
+// live. A week, since a personal site can go quiet for days without being broken.
 const activeWindow = 7 * 24 * time.Hour
 
 func (s *site) properties(w http.ResponseWriter, r *http.Request) {
@@ -49,9 +45,7 @@ func (s *site) properties(w http.ResponseWriter, r *http.Request) {
 		query += " WHERE name LIKE ?"
 		args = append(args, "%"+search+"%")
 	}
-	// Protected first, then oldest first. This site's own property is the one
-	// most often wanted and would otherwise sit wherever its creation date
-	// put it.
+	// Protected first, so this site's own property leads the list.
 	query += " ORDER BY is_protected DESC, created_at ASC"
 
 	rows, err := s.db.QueryContext(ctx, query, args...)
@@ -78,9 +72,8 @@ func (s *site) properties(w http.ResponseWriter, r *http.Request) {
 
 	for _, p := range props {
 		var total, pv, ss, active int64
-		// One statement with four correlated subqueries rather than four
-		// round trips per property. Still N+1 across the list, which is fine
-		// at this scale and would not be at a thousand properties.
+		// Four correlated subqueries rather than four round trips. Still N+1
+		// across the list, which is fine at this scale.
 		err := s.db.QueryRowContext(ctx, `SELECT
 		    (SELECT COUNT(*) FROM events WHERE property_id = ?1),
 		    (SELECT COUNT(*) FROM events WHERE property_id = ?1 AND event = 'page_view'),
@@ -139,10 +132,9 @@ func (s *site) propertyCreate(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/properties", http.StatusSeeOther)
 }
 
-// propertyDelete removes a property and, by ON DELETE CASCADE, every event
-// recorded against it. The is_protected guard in the WHERE clause is what stops
-// this site's own property being deleted, enforced here rather than in the template that hides
-// the button, because a hidden button is not a permission.
+// propertyDelete removes a property and, by ON DELETE CASCADE, its events. The
+// is_protected guard is in the WHERE clause because a hidden button in the
+// template is not a permission.
 func (s *site) propertyDelete(w http.ResponseWriter, r *http.Request) {
 	id, ok := parseIDPath(r)
 	if !ok {
@@ -157,9 +149,7 @@ func (s *site) propertyDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 // propertyCards stores which custom events are pinned as dashboard tiles. The
-// body is re-encoded rather than stored as received, so the column holds JSON
-// of a known shape and no later read has to defend against a malformed
-// array.
+// body is re-encoded, so the column always holds JSON of a known shape.
 func (s *site) propertyCards(w http.ResponseWriter, r *http.Request) {
 	id, ok := parseIDPath(r)
 	if !ok {

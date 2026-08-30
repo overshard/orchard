@@ -8,15 +8,9 @@ import (
 	"time"
 )
 
-// ClientIP resolves the real client address.
-//
-// CF-Connecting-IP wins over X-Forwarded-For, which is not the usual ordering.
-// Behind the tunnel the last XFF entry is always the cloudflared container's
-// bridge address, because cloudflared sets XFF to the real client and Caddy
-// then appends its own peer. CF-Connecting-IP is written by Cloudflare's edge,
-// and there is no inbound path to this process that bypasses the tunnel, so it
-// cannot be spoofed. XFF is the fallback for requests that never crossed the
-// edge.
+// ClientIP resolves the real client address. CF-Connecting-IP wins over
+// X-Forwarded-For, which is not the usual ordering: behind the tunnel the last
+// XFF entry is always cloudflared's own bridge address.
 func ClientIP(r *http.Request) string {
 	if ip := r.Header.Get("CF-Connecting-IP"); ip != "" {
 		return ip
@@ -54,11 +48,9 @@ func (w *recorder) Write(b []byte) (int, error) {
 	return n, err
 }
 
-// Logged writes one structured record per request, so that status, IP and the
-// slow tail are all one jq filter away rather than a regex over prose.
-//
-// Duration is milliseconds as a float rather than a formatted Duration, because
-// "1.042ms" cannot be sorted or compared by a log query and 1.042 can.
+// Logged writes one structured record per request. Duration is a float in
+// milliseconds rather than a formatted Duration, because "1.042ms" cannot be
+// sorted or compared by a log query and 1.042 can.
 func Logged(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -78,8 +70,7 @@ func Logged(next http.Handler) http.Handler {
 			slog.Int("bytes", rec.bytes),
 			slog.Float64("ms", float64(time.Since(start).Microseconds())/1000),
 		}
-		// Present only when the request came through the tunnel, so its
-		// absence means something reached the origin directly.
+		// Absent means the request never crossed the tunnel.
 		if ray := r.Header.Get("CF-Ray"); ray != "" {
 			attrs = append(attrs, slog.String("cf_ray", ray))
 		}
@@ -106,9 +97,8 @@ func Recovered(next http.Handler) http.Handler {
 }
 
 // SecurityHeaders applies the headers that belong to the app rather than the
-// edge. HSTS is absent because Caddy sets it: this process only ever speaks
-// plaintext HTTP on a Docker bridge and cannot see the connection it would be
-// making a claim about.
+// edge. No HSTS: Caddy sets it, and this process only ever speaks plaintext on
+// a Docker bridge.
 func SecurityHeaders(csp string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -133,25 +123,14 @@ func Chain(h http.Handler, mw ...func(http.Handler) http.Handler) http.Handler {
 	return h
 }
 
-// EdgeCache sets a shared cache policy on successful GET responses that have
-// not already chosen one. The origin is a desktop at the end of a Cloudflare
-// Tunnel, so the policy is written around the tunnel being down:
+// EdgeCache sets a shared cache policy on 200 GETs that have not already chosen
+// one; 400 and above get no-store, and a handler's own Cache-Control is left
+// alone.
 //
-//	max-age                 how long a copy is fresh, for browser and edge
-//	                        alike. Never s-maxage: it carries proxy-revalidate
-//	                        semantics, which makes Cloudflare disable both
-//	                        directives below.
-//	stale-while-revalidate  a stale hit is served immediately and refreshed
-//	                        behind the request.
-//	stale-if-error          the edge keeps serving the last good copy instead
-//	                        of a 530. Cloudflare ignores this when Always
-//	                        Online is on, so Always Online has to stay off.
-//
-// Cloudflare will not cache HTML on a free plan without a Cache Rule, which
-// lives in the dashboard rather than here.
-//
-// Handlers that set their own Cache-Control keep it. Only 200s get the policy;
-// 400 and above get an explicit no-store.
+// Never use s-maxage here. It carries proxy-revalidate semantics, which makes
+// Cloudflare disable stale-while-revalidate and stale-if-error, and
+// stale-if-error is what keeps the last good copy served when the tunnel drops.
+// Cloudflare also ignores it with Always Online on, so that has to stay off.
 func EdgeCache(policy string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -164,7 +143,7 @@ func EdgeCache(policy string) func(http.Handler) http.Handler {
 	}
 }
 
-// edgeCacheWriter defers the decision to WriteHeader, the only point at which
+// edgeCacheWriter defers the decision to WriteHeader, the first point at which
 // both the status code and the handler's own choice are known.
 type edgeCacheWriter struct {
 	http.ResponseWriter
@@ -180,9 +159,8 @@ func (w *edgeCacheWriter) WriteHeader(code int) {
 			case code == http.StatusOK:
 				w.Header().Set("Cache-Control", w.policy)
 			case code >= 400:
-				// Explicit rather than silent. Once a Cache Rule marks
-				// the zone eligible, Cloudflare stamps its own TTL on a
-				// header-less response and will hold a 404 at the edge.
+				// Cloudflare stamps its own TTL on a header-less
+				// response and will hold a 404 at the edge.
 				w.Header().Set("Cache-Control", "no-store")
 			}
 		}
