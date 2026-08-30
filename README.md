@@ -254,13 +254,24 @@ and is what the phone uses. `orchard` is write-only on the same two and is what
 the sites use, authenticating with a token rather than a password so it can be
 revoked on its own.
 
-*From where*, in Caddy: the public hostname refuses every publish route, so
-publishing works only from the bridge **even with the write token in hand**. It
-is a denylist over a method restriction rather than a bare "block POST", because
-ntfy publishes over GET as well: `/<topic>/publish`, `/send` and `/trigger` all
-publish with no body, and a `POST /` publishes with the topic in a JSON body. A
-rule blocking `POST /<topic>` would leak three ways. All four were confirmed
-against the running container.
+*From where*, in Caddy: the public hostname allows exactly three routes and
+404s everything else, so publishing works only from the bridge **even with the
+write token in hand**. The three are `/<topic>/ws`, `/<topic>/json` and
+`/<topic>/auth`, which is the complete set the Android client uses, read off
+this proxy's own access log rather than guessed.
+
+An allowlist rather than a denylist, for two reasons. ntfy publishes over GET as
+well as POST, so a denylist has to enumerate `/<topic>/publish`, `/send` and
+`/trigger`, and a `POST /` that carries the topic in a JSON body; miss one and
+it leaks. And everything else ntfy serves is surface nothing here needs.
+
+**The web app is off** (`web-root: disable`). ntfy serves a full single-page
+client at `/` by default, which on a public hostname is a login form, a service
+worker and a pile of static assets answering to anyone who finds the name. It
+never exposed a message, since every topic route is deny-all, but it was a front
+door nothing needed. Note that Cloudflare caches static assets: after turning it
+off, purge the cache or those files answer from the edge for up to four hours
+while the origin correctly 404s.
 
 ntfy has no way to restrict an account by source address, which is why the
 second fence is at the edge and not in its config.
