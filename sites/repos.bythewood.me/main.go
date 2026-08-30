@@ -37,14 +37,20 @@ const listenAddr = ":8000"
 // class-based output and shipping a stylesheet per theme. img-src allows https:
 // because READMEs are full of badge images from shields.io and friends, and a
 // README that renders with broken images is worse than one that loads a badge.
+//
+// analytics.bythewood.me is in script-src and connect-src for the collector,
+// which base.html injects as a script tag and which then posts events back;
+// 'unsafe-inline' is in script-src for the same reason, since the loader in
+// base.html is an inline snippet. The same three additions the other sites
+// carrying the collector make.
 func csp() string {
 	return strings.Join([]string{
 		"default-src 'self'",
-		"script-src 'self'",
+		"script-src 'self' 'unsafe-inline' https://analytics.bythewood.me",
 		"style-src 'self' 'unsafe-inline'",
 		"img-src 'self' data: https:",
 		"font-src 'self'",
-		"connect-src 'self'",
+		"connect-src 'self' https://analytics.bythewood.me",
 		"base-uri 'self'",
 		"form-action 'self'",
 		"frame-ancestors 'self'",

@@ -38,6 +38,10 @@ type page struct {
 	Styles      []string
 	LoggedIn    bool
 	Staging     bool
+	// Analytics gates the collector snippet in base.html, so a staging
+	// hostname never files traffic under the real property.
+	Analytics   bool
+	AnalyticsID string
 	SiteName    string
 	SiteTagline string
 	FooterLinks []FooterLink
@@ -60,6 +64,8 @@ func (s *site) page(r *http.Request, title, description string, data any) page {
 		Styles:      s.styles,
 		LoggedIn:    validSession(r, s.cfg.Password),
 		Staging:     Staging,
+		Analytics:   !Staging,
+		AnalyticsID: analyticsID,
 		SiteName:    siteName,
 		SiteTagline: siteTagline,
 		FooterLinks: footerLinks,

@@ -9,6 +9,19 @@
 <link rel="canonical" href="{{.Canonical}}">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 {{range .Styles}}<link rel="stylesheet" href="{{.}}">{{end}}
+{{- if .Analytics}}
+<script>
+  (function (m, e, t, r, i, c, s) {
+    m.collectorQueue = m.collectorQueue || r;
+    m.collectorServer = c;
+    m.collectorId = s;
+    m.collectorScript = e.createElement(t);
+    m.collectorScript.src = c + i;
+    e.head.appendChild(m.collectorScript);
+  })(window, document, "script", [], "/static/collector.js",
+     "https://analytics.bythewood.me", "{{.AnalyticsID}}");
+</script>
+{{- end}}
 </head>
 <body>
 

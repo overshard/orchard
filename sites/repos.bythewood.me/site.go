@@ -15,7 +15,11 @@ const (
 	siteTagline = "Isaac Bythewood's source code"
 	authorName  = "Isaac Bythewood"
 	githubUser  = "overshard"
-	analyticsID = ""
+
+	// The analytics property this site is tracked under, hardcoded exactly as
+	// the other five sites hardcode theirs. Identity, not a credential: the id
+	// is in the page source of every site here by design.
+	analyticsID = "49f89ef6-b0b2-4b47-879e-7e252a067d0c"
 
 	// The container name this site answers to on the Docker bridge. Shown on
 	// every repository page as the seeding URL, because the moment somebody

@@ -1041,3 +1041,44 @@ func TestCoveredBySource(t *testing.T) {
 		}
 	}
 }
+
+// TestAnalyticsWiring guards the four places the collector lives, because they
+// are edited separately and any one of them alone is silent: the property id,
+// the snippet in base.html, the CSP that has to permit it, and the page field
+// that gates it. A site that stops reporting looks exactly like a site with no
+// traffic.
+func TestAnalyticsWiring(t *testing.T) {
+	// The id is identity, not a credential, so asserting the literal is the
+	// point: a typo here files this site's traffic under nothing.
+	const want = "49f89ef6-b0b2-4b47-879e-7e252a067d0c"
+	if analyticsID != want {
+		t.Errorf("analyticsID = %q, want %q", analyticsID, want)
+	}
+
+	base, err := templateFS.ReadFile("templates/base.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, need := range []string{"collectorId", ".AnalyticsID",
+		"https://analytics.bythewood.me"} {
+		if !strings.Contains(string(base), need) {
+			t.Errorf("base.html is missing %q, so nothing is collected", need)
+		}
+	}
+
+	policy := csp()
+	for _, need := range []string{"'unsafe-inline'", "https://analytics.bythewood.me"} {
+		if !strings.Contains(policy, need) {
+			t.Errorf("CSP is missing %s, so the collector would be blocked: %s",
+				need, policy)
+		}
+	}
+
+	p := (&site{}).page(httptest.NewRequest(http.MethodGet, "/", nil), "t", "d", nil)
+	if !p.Analytics {
+		t.Error("page.Analytics is false on the real hostname, so the snippet never renders")
+	}
+	if p.AnalyticsID != analyticsID {
+		t.Errorf("page.AnalyticsID = %q, want %q", p.AnalyticsID, analyticsID)
+	}
+}
