@@ -194,12 +194,26 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 		if err != nil || n < 1 {
 			n = defaultRangeDays
 		}
-		// Clamped, because rangeDays drives an allocating loop in eventsGraph:
-		// the bucket slice grows linearly with it, so an unbounded value from
-		// the query string is an out-of-memory kill on a container capped well
-		// below what a large one would ask for. Three public properties make
-		// this reachable with no cookie.
-		rangeDays = min64(n, maxRangeDays)
+		rangeDays = n
+	}
+
+	// Clamped here rather than inside one arm of the switch, which is the
+	// mistake the first version of this made: date_range=N was bounded and the
+	// custom branch was not, so ?date_start=0001-01-01&date_end=9999-12-31 still
+	// produced a range of 3.6 million days.
+	//
+	// rangeDays drives an allocating loop in eventsGraph whose bucket slice
+	// grows linearly with it, and every bucket is then serialised into an inline
+	// JSON block in the page. Unbounded that is a multi-megabyte response and an
+	// out-of-memory kill on a container capped at 512MB. Three properties are
+	// public and their UUIDs are committed to a public repository, so this is
+	// reachable with no cookie.
+	rangeDays = min64(max64(rangeDays, 1), maxRangeDays)
+
+	// And the window itself, so a start date far in the past cannot widen the
+	// graph behind the clamp above.
+	if startMS < endMS-maxRangeDays*dayMS {
+		startMS = endMS - maxRangeDays*dayMS
 	}
 
 	prevStartMS := startMS - rangeDays*dayMS

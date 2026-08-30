@@ -163,36 +163,54 @@ func runCheck(ctx context.Context, db *sql.DB, p *Property) (int64, error) {
 		}
 	}
 
+	// The code that gets stored is the one the monitor concluded, not the one
+	// the edge sent.
+	//
+	// This has to be persisted rather than only returned, and that is not a
+	// style choice: advanceAlertState looks for a second consecutive failure by
+	// re-reading status_code out of checks, and row zero is the row written
+	// here. Returning 523 while storing 200 meant the down transition could
+	// never fire, so the fix silently did nothing. Storing it also keeps the
+	// uptime tile and countUptime honest, which would otherwise score a
+	// stale-served page as a successful check.
+	//
+	// Nothing is lost by not storing the edge's 200: cf_cache_status and age are
+	// stored beside it and say exactly why the conclusion differs.
+	effective := outcome.statusCode
+	if outcome.originUnreachable {
+		effective = statusOriginStale
+		slog.Info("origin unreachable behind cache",
+			slog.String("component", "checker"),
+			slog.String("url", p.URL),
+			slog.String("cf_cache_status", outcome.cacheStatus),
+			slog.Int64("age", derefAge(outcome.age)),
+			slog.Int64("edge_status", outcome.statusCode),
+		)
+	}
+
 	_, err = db.ExecContext(ctx,
 		`INSERT INTO checks (property_id, status_code, response_ms, headers,
 		                     dns_ms, tcp_ms, tls_ms, ttfb_ms,
 		                     cf_cache_status, age, created_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		p.ID[:], outcome.statusCode, outcome.timings.TotalMS, outcome.headersJSON,
+		p.ID[:], effective, outcome.timings.TotalMS, outcome.headersJSON,
 		outcome.timings.DNSMS, outcome.timings.TCPMS, outcome.timings.TLSMS,
 		outcome.timings.TTFBMS, nullableString(outcome.cacheStatus), outcome.age,
 		nowMS())
 	if err != nil {
 		return 0, fmt.Errorf("insert check: %w", err)
 	}
-	// A response an edge served from a copy older than a live origin could have
-	// left is not evidence the site is up, whatever its status code says.
-	if outcome.originUnreachable {
-		slog.Info("origin unreachable behind cache",
-			slog.String("component", "checker"),
-			slog.String("url", p.URL),
-			slog.String("cf_cache_status", outcome.cacheStatus),
-			slog.Int64("age", derefAge(outcome.age)),
-		)
-		return statusOriginStale, nil
-	}
-	return outcome.statusCode, nil
+	return effective, nil
 }
 
 // statusOriginStale is reported when a cache answered on behalf of an origin
 // that has stopped answering. It is deliberately not a real HTTP code: nothing
 // sent one, and the alert machine only asks whether it is 200.
 const statusOriginStale = 523
+
+// minCacheTolerance floors the freshness window this compares against. See
+// classifyCache.
+const minCacheTolerance = 300
 
 func nullableString(s string) any {
 	if s == "" {
@@ -304,7 +322,7 @@ func classifyCache(headers map[string]string) (status string, age *int64, unreac
 
 	// DYNAMIC and MISS both mean the origin was reached for this response.
 	switch strings.ToUpper(status) {
-	case "HIT", "UPDATING", "STALE", "REVALIDATED":
+	case "HIT", "UPDATING", "STALE":
 	default:
 		return status, age, false
 	}
@@ -312,6 +330,20 @@ func classifyCache(headers map[string]string) (status string, age *int64, unreac
 	maxAge, ok := maxAgeOf(headers["cache-control"])
 	if !ok {
 		return status, age, false
+	}
+	// Floored, because the margin has to stay wider than the healthy ceiling.
+	// A healthy Age peaks near max-age plus a probe interval, so for a small
+	// max-age the tolerance and the healthy peak converge and leave the
+	// two-consecutive debounce nothing to absorb. A site stamping max-age=60
+	// would otherwise sit on the boundary from its first check.
+	//
+	// This still cannot see an edge-side TTL override: a Cache Rule sets what
+	// the shared cache actually holds while the origin's own header is what
+	// arrives here, so a long edge TTL yields a large steady Age on a healthy
+	// site. If a property is ever configured that way, this needs its floor
+	// raised for that property rather than globally.
+	if maxAge < minCacheTolerance {
+		maxAge = minCacheTolerance
 	}
 	return status, age, n > maxAge+int64(2*checkInterval.Seconds())
 }

@@ -82,6 +82,32 @@
 # solve a JS challenge, so it would report a permanent false outage on every
 # site here. That is worked out in full in decision 0007.
 #
+# The same list anchored at the root, for repos.bythewood.me only.
+#
+# repos serves arbitrary file paths out of arbitrary repositories, so any rule
+# that matches on path *content* collides with real files: the anywhere-matching
+# version below took /orchard/blob/main/sites/analytics.bythewood.me/.env.example
+# off the file browser, and every site here is required to commit a .env.example.
+# A mirrored repository can equally contain vendor/, .vscode/ or a .php file.
+#
+# Scanners always probe at the root (/wp-admin/, /.env, /index.php) while
+# repository content is always /{name}/{tree|blob|raw|...}/..., so anchoring is
+# what separates them. The .php rule is restricted to a single path segment for
+# the same reason.
+(scanners_root) {
+	@hostile_root path_regexp hostile_root (?i)^/(?:wp-|wordpress|wp/|xmlrpc\.php|phpmyadmin|autodiscover|cgi-bin/|vendor/|\.env|\.git/|\.aws|\.ssh/|\.vscode/)|^/[^/]*\.php$
+
+	log_skip @hostile_root
+
+	handle @hostile_root {
+		# no-store because a header-less response lets Cloudflare stamp its own
+		# browser TTL and hold a 404 at the edge, which this repo has a standing
+		# rule against.
+		header Cache-Control "no-store"
+		respond 404
+	}
+}
+
 (scanners) {
 	# Matched anywhere in the path, not just at the root: most of the volume
 	# arrives nested under a guessed prefix (/blog/wp-json/..., /app/.env), and
@@ -98,6 +124,7 @@
 	log_skip @hostile
 
 	handle @hostile {
+		header Cache-Control "no-store"
 		respond 404
 	}
 }
@@ -218,7 +245,7 @@ http://repos.bythewood.me {
 	# Not `import site`: the browse UI wants compression and the git wire must
 	# not have it, so `encode` is applied per handle below rather than to the
 	# whole host. The headers and the scanner block are shared.
-	import scanners
+	import scanners_root
 	import headers
 
 	@git path_regexp ^/[^/]+\.git(/.*)?$

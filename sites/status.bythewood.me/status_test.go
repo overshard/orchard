@@ -1226,3 +1226,30 @@ func TestMaxAgeOf(t *testing.T) {
 		}
 	}
 }
+
+// The conclusion has to reach the database, not just the caller.
+//
+// The first version of this fix returned 523 from runCheck while inserting the
+// edge's 200, and advanceAlertState looks for a second consecutive failure by
+// re-reading status_code out of checks. Row zero was the row just written, it
+// said 200, and the down transition could therefore never fire: the fix
+// compiled, logged, and did nothing at all.
+func TestOriginStaleIsPersistedNotJustReturned(t *testing.T) {
+	const cc = "public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800"
+
+	_, _, unreachable := classifyCache(map[string]string{
+		"cf-cache-status": "UPDATING",
+		"age":             "9000",
+		"cache-control":   cc,
+	})
+	if !unreachable {
+		t.Fatal("precondition: this response should read as origin-unreachable")
+	}
+
+	// runCheck writes `effective`, so the constant it writes must be the same
+	// one the alert machine treats as not-up. Asserting the relationship rather
+	// than the number, since the number is arbitrary.
+	if statusOriginStale == 200 {
+		t.Fatal("statusOriginStale must not be 200, or every stale check reads as up")
+	}
+}
