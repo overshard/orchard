@@ -1580,3 +1580,21 @@ func TestStreamedResponsesDoNotCountAsDurations(t *testing.T) {
 		t.Errorf("rollup dur_count=%d dur_sum=%v dur_max=%v, want 1, 240, 240", durCount, durSum, durMax)
 	}
 }
+
+// A site that knows it is streaming says so, which catches the connections too
+// short for the duration threshold to notice.
+func TestStreamComponentIsNotADuration(t *testing.T) {
+	r := toRow("dash", web.Record{
+		Time: time.Now().UTC().UnixMilli(), Level: "INFO", Msg: "request",
+		Attrs: map[string]any{
+			"path": "/events", "status": 200, "ms": 4200.0,
+			"ip": "203.0.113.9", "component": "stream",
+		},
+	})
+	if r.durationMS != 0 {
+		t.Errorf("durationMS = %v, want 0", r.durationMS)
+	}
+	if !strings.Contains(r.attrs, "stream_ms") {
+		t.Errorf("elapsed time was dropped rather than moved, attrs = %s", r.attrs)
+	}
+}
