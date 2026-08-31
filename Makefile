@@ -106,10 +106,37 @@ up: require-tunnel
 up-one: require-site require-env
 	cd $(SITE_DIR) && $(COMPOSE) up --detach
 
+# --force-recreate because compose will otherwise leave the old container in
+# place and still report success, which it did on 2026-08-31: the image built,
+# nothing was replaced, and the deploy read as done. The checks after it are
+# there because a deploy that says it worked and did not is worse than one that
+# fails loudly.
 deploy: require-site require-env
-	cd $(SITE_DIR) && $(COMPOSE) up --build --detach
+	cd $(SITE_DIR) && $(COMPOSE) up --build --force-recreate --detach
 	@echo ""
-	@echo "$(SITE) rebuilt and replaced as $(CONTAINER)"
+	@running=$$($(DOCKER) inspect $(CONTAINER) --format '{{.Image}}' 2>/dev/null); \
+	built=$$($(DOCKER) image inspect $(CONTAINER)-app --format '{{.Id}}' 2>/dev/null); \
+	if [ -z "$$running" ]; then \
+		echo "$(SITE): $(CONTAINER) is not there after the deploy" >&2; \
+		exit 1; \
+	fi; \
+	if [ -n "$$built" ] && [ "$$running" != "$$built" ]; then \
+		echo "$(SITE): $(CONTAINER) is still on the image it had, so the deploy did not take" >&2; \
+		exit 1; \
+	fi; \
+	st=none; \
+	i=0; \
+	while [ $$i -lt 45 ]; do \
+		st=$$($(DOCKER) inspect $(CONTAINER) --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' 2>/dev/null); \
+		case "$$st" in healthy|none) break ;; esac; \
+		i=$$((i + 1)); \
+		sleep 2; \
+	done; \
+	if [ "$$st" != "healthy" ] && [ "$$st" != "none" ]; then \
+		echo "$(SITE): $(CONTAINER) came up $$st" >&2; \
+		exit 1; \
+	fi; \
+	echo "$(SITE) rebuilt and replaced as $(CONTAINER), $$st"
 
 # The edge equivalent of deploy. The Caddyfile and ntfy's server.yml are baked
 # into images and `make up` does not pass --build, so editing one and running
