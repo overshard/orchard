@@ -408,7 +408,7 @@ func toRow(source string, rec web.Record) row {
 	// A response the server held open is a connection lifetime, not a request
 	// duration, and averaging the two together makes every mean meaningless.
 	// The elapsed time moves to the bag rather than being thrown away.
-	if out.msg == "request" && (out.status == 101 || out.durationMS > streamingAfterMS) {
+	if out.msg == "request" && (out.status == 101 || out.component == "stream" || out.durationMS > streamingAfterMS) {
 		rest["stream_ms"] = out.durationMS
 		out.durationMS = 0
 	}
@@ -440,6 +440,9 @@ const (
 
 	// streamingAfterMS is web's own WriteTimeout. Nothing here can serve an
 	// ordinary request for longer, so anything past it was held open on purpose.
+	// It is the backstop for sources that cannot say so themselves, Caddy above
+	// all. A site that knows it is streaming says component=stream instead, and
+	// that catches the short connections this threshold cannot see.
 	streamingAfterMS = 60_000
 )
 
