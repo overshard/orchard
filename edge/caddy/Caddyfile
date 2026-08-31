@@ -201,21 +201,40 @@ http://status.bythewood.me {
 	reverse_proxy orchard-status:8000
 }
 
-# /ingest is answered here rather than proxied, so reaching it really does mean
-# being inside the network. Every site posts to orchard-logging:8000 by
-# container name and never comes through Caddy at all.
+# /ingest and /aggregate are answered here rather than proxied, so reaching
+# either really does mean being inside the network. Every site posts to
+# orchard-logging:8000 by container name and never comes through Caddy at all,
+# and dash reads /aggregate the same way.
 http://logging.bythewood.me {
 	import site
 
 	# Two handle blocks so the order is stated rather than inherited from
-	# Caddy's directive ordering. The wildcard catches /ingest/ too.
+	# Caddy's directive ordering. The wildcards catch /ingest/ too.
 	handle /ingest* {
+		respond "not here" 404
+	}
+
+	handle /aggregate* {
 		respond "not here" 404
 	}
 
 	handle {
 		reverse_proxy orchard-logging:8000
 	}
+}
+
+# The live panels arrive over server-sent events, which must not be buffered or
+# compressed on the way out, so this imports the two halves of (site) directly
+# and gives encode a matcher instead of taking the blanket one.
+http://dash.bythewood.me {
+	import scanners
+	import headers
+
+	@compressible not path /events
+
+	encode @compressible zstd gzip
+
+	reverse_proxy orchard-dash:8000
 }
 
 # ntfy, the alert path. An allowlist of three routes, for two reasons.

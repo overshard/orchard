@@ -12,13 +12,22 @@ import (
 	"time"
 )
 
-// Unauthenticated GitHub allows 60 requests an hour per IP, so nine repos on an
+// Unauthenticated GitHub allows 60 requests an hour per IP, so nine cards on an
 // hourly ticker fits inside it with no token to store.
 
 const (
 	commitRefreshInterval = time.Hour
 	commitFetchTimeout    = 10 * time.Second
 )
+
+// CommitTarget is the feed behind one card. Path is empty for a whole
+// repository, and set to a subdirectory for the sites in orchard, which all
+// share one repo and would otherwise show the same commit nine times.
+type CommitTarget struct {
+	Key  string
+	Repo string
+	Path string
+}
 
 type Commit struct {
 	SHA     string `json:"sha"`
@@ -27,7 +36,7 @@ type Commit struct {
 	Author  string `json:"author"`
 }
 
-// CommitCache holds the most recent successful fetch per repo and is safe for
+// CommitCache holds the most recent successful fetch per target and is safe for
 // concurrent use.
 type CommitCache struct {
 	mu      sync.RWMutex
@@ -42,18 +51,18 @@ func NewCommitCache() *CommitCache {
 	}
 }
 
-func (c *CommitCache) Get(slug string) (Commit, bool) {
+func (c *CommitCache) Get(key string) (Commit, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	commit, ok := c.commits[slug]
+	commit, ok := c.commits[key]
 	return commit, ok
 }
 
 // JSON renders a commit the way the card displays it. SetEscapeHTML(false),
 // which MarshalIndent cannot do, because html/template escapes already and the
 // default renders an arrow in a message as a literal "\u003e" in the <pre>.
-func (c *CommitCache) JSON(slug string) string {
-	commit, ok := c.Get(slug)
+func (c *CommitCache) JSON(key string) string {
+	commit, ok := c.Get(key)
 	if !ok {
 		return ""
 	}
@@ -71,9 +80,9 @@ func (c *CommitCache) JSON(slug string) string {
 
 // Start returns straight away, fetches once, then refreshes on a ticker until
 // ctx is cancelled, so the site never waits on GitHub to begin serving.
-func (c *CommitCache) Start(ctx context.Context, slugs []string) {
+func (c *CommitCache) Start(ctx context.Context, targets []CommitTarget) {
 	go func() {
-		c.refresh(ctx, slugs)
+		c.refresh(ctx, targets)
 
 		ticker := time.NewTicker(commitRefreshInterval)
 		defer ticker.Stop()
@@ -83,30 +92,30 @@ func (c *CommitCache) Start(ctx context.Context, slugs []string) {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				c.refresh(ctx, slugs)
+				c.refresh(ctx, targets)
 			}
 		}
 	}()
 }
 
-func (c *CommitCache) refresh(ctx context.Context, slugs []string) {
+func (c *CommitCache) refresh(ctx context.Context, targets []CommitTarget) {
 	var wg sync.WaitGroup
 	results := make([]struct {
-		slug   string
+		key    string
 		commit Commit
 		ok     bool
-	}, len(slugs))
+	}, len(targets))
 
-	for i, slug := range slugs {
+	for i, target := range targets {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			commit, err := c.fetch(ctx, slug)
+			commit, err := c.fetch(ctx, target)
 			if err != nil {
-				slog.Info(fmt.Sprintf("github: %s: %v", slug, err))
+				slog.Info(fmt.Sprintf("github: %s: %v", target.Key, err))
 				return
 			}
-			results[i].slug = slug
+			results[i].key = target.Key
 			results[i].commit = commit
 			results[i].ok = true
 		}()
@@ -118,13 +127,16 @@ func (c *CommitCache) refresh(ctx context.Context, slugs []string) {
 	defer c.mu.Unlock()
 	for _, r := range results {
 		if r.ok {
-			c.commits[r.slug] = r.commit
+			c.commits[r.key] = r.commit
 		}
 	}
 }
 
-func (c *CommitCache) fetch(ctx context.Context, slug string) (Commit, error) {
-	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/commits?per_page=1", githubUser, slug)
+func (c *CommitCache) fetch(ctx context.Context, target CommitTarget) (Commit, error) {
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/commits?per_page=1", githubUser, target.Repo)
+	if target.Path != "" {
+		url += "&path=" + target.Path
+	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {

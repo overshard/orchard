@@ -39,6 +39,7 @@ type PageData struct {
 
 	Latest     *LatestPost
 	Words      []AboutWord
+	Live       []SiteView
 	Active     []ProjectView
 	Archived   []ProjectView
 	Pours      []PourView
@@ -51,6 +52,13 @@ type PageData struct {
 type AboutWord struct {
 	Text  string
 	Style template.CSS
+}
+
+type SiteView struct {
+	Site
+	Source string
+	Commit string
+	Delay  template.CSS
 }
 
 type ProjectView struct {
@@ -174,14 +182,31 @@ func (s *site) about(w http.ResponseWriter, r *http.Request) {
 func (s *site) code(w http.ResponseWriter, r *http.Request) {
 	data := s.page("code", "Code", "Some of my most recent coding projects.")
 
-	// Two lists, because the template renders two sections with different
-	// chrome. The delay counts across both, so the entrance reads as one
-	// sequence rather than restarting at the archived heading.
-	for i, project := range projects {
+	// Three lists, because the template renders three sections with different
+	// chrome. The delay counts across all of them, so the entrance reads as one
+	// sequence rather than restarting at each heading.
+	delay := 0
+	nextDelay := func() template.CSS {
+		style := template.CSS(fmt.Sprintf("animation-delay: %dms", delay*100))
+		delay++
+		return style
+	}
+
+	data.Live = make([]SiteView, 0, len(sites))
+	for _, live := range sites {
+		data.Live = append(data.Live, SiteView{
+			Site:   live,
+			Source: "https://github.com/" + githubUser + "/" + monorepo + "/tree/main/" + live.SourcePath(),
+			Commit: s.commits.JSON(live.SourcePath()),
+			Delay:  nextDelay(),
+		})
+	}
+
+	for _, project := range projects {
 		view := ProjectView{
 			Project: project,
 			URL:     "https://github.com/" + githubUser + "/" + project.Slug,
-			Delay:   template.CSS(fmt.Sprintf("animation-delay: %dms", i*100)),
+			Delay:   nextDelay(),
 		}
 		// On a read-only repo it is always the commit that archived it.
 		if !project.Archived {

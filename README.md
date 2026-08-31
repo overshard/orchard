@@ -12,6 +12,7 @@ inbound port.
 | `sites/status.bythewood.me/` | Uptime monitoring. SQLite, Lighthouse audits, crawler |
 | `sites/logging.bythewood.me/` | Log aggregation. Every site ships its records here |
 | `sites/repos.bythewood.me/` | Git remote you push to over HTTPS. Also mirrors GitHub |
+| `sites/dash.bythewood.me/` | Dashboard. Markets, news, weather and the health of the rest, live over SSE |
 | `edge/` | The shared cloudflared tunnel, the Caddy behind it, and ntfy for alerts |
 
 ## Requirements
@@ -115,7 +116,7 @@ inside one without going through the root. There is no default `SITE`.
 
 Each site is its own Go module and builds on its own. There is no module at the
 repo root, and `go.work` only exists so repo-wide `make` targets and an editor
-can see all six at once:
+can see all seven at once:
 
 ```sh
 cd sites/blog.bythewood.me && GOWORK=off go build ./...
@@ -124,7 +125,7 @@ cd sites/blog.bythewood.me && GOWORK=off go build ./...
 Each site also carries its own copy of `web/`, the small HTTP layer they all
 need. That means a site is a directory you can lift into its own repository, and
 its Docker build context is that directory instead of the whole monorepo. The
-cost is that a fix in `web/` has to be made six times.
+cost is that a fix in `web/` has to be made seven times.
 
 Go serves every request and `html/template` renders the pages. Vite is a build
 step and never a server: it writes content-hashed JS and CSS into `build/dist/`,

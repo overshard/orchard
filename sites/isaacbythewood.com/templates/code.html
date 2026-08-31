@@ -10,11 +10,51 @@
 </p>
 
 {{- /*
-  Two sections rather than one grid. Most of what is below is a read-only
-  snapshot now, and letting those cards sit at full strength beside the one
-  thing still being worked on would overstate all of them. The count uses the
-  same zero padded numbering as the sidebar.
+  Three sections rather than one grid. Most of what is below is a read-only
+  snapshot now, and letting those cards sit at full strength beside the things
+  actually running would overstate all of them. The count uses the same zero
+  padded numbering as the sidebar.
 */ -}}
+
+{{- with .Live }}
+<div class="code-sectionHead">
+  <h2 class="code-sectionTitle">Live</h2>
+  <span class="code-sectionRule"></span>
+  <span class="code-sectionCount">{{ printf "%03d" (len .) }}</span>
+</div>
+<p class="code-sectionNote code-sectionNote-live">
+  Seven sites, one repo, one desktop at home. Every one of these is answering
+  requests right now.
+</p>
+<div class="code-projects">
+  {{- range . }}
+  <div class="code-project code-project-live" style="{{ .Delay }}">
+    <h3 class="code-projectHeading">{{ .Name }}</h3>
+    <div class="code-tags">
+      {{- if not .Visit }}
+      <span class="code-tag code-tag-private">Private</span>
+      {{- end }}
+      {{- range .Tech }}
+      <span class="code-tag">{{ . }}</span>
+      {{- end }}
+    </div>
+    <p class="code-projectParagraph">{{ .Description }}</p>
+    {{- if .Commit }}
+    <pre class="code-projectCommit">{{ .Commit }}</pre>
+    {{- end }}
+    <div class="code-projectButtons">
+      {{- if .Visit }}
+      <a class="code-projectButton" href="{{ .Visit }}" rel="noopener noreferrer" target="_blank">Visit</a>
+      {{- end }}
+      <a class="code-projectButton code-projectButton-secondary" href="{{ .Source }}" rel="noopener noreferrer" target="_blank">
+        {{ template "githubMark" }}
+        Source
+      </a>
+    </div>
+  </div>
+  {{- end }}
+</div>
+{{- end }}
 
 {{- with .Active }}
 <div class="code-sectionHead">
@@ -52,7 +92,7 @@
 </div>
 <p class="code-sectionNote">
   Read-only snapshots. Some of these still run, rebuilt in a language they did
-  not start in; some are switched off for good.
+  not start in, and some are switched off for good.
 </p>
 <div class="code-projects code-projects-archived">
   {{- range . }}
