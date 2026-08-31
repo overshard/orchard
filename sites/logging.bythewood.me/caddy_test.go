@@ -236,3 +236,30 @@ func TestCaddySilenceThresholdIsLonger(t *testing.T) {
 // What status waits between probes of one hostname, and so how often caddy is
 // guaranteed to see a request with nobody visiting.
 const checkCadence = 3 * time.Minute
+
+// Every app names the kind of route it served. An edge row that named nothing
+// left a hole in the one dimension the rollups group by.
+func TestCaddyRowsCarryAComponent(t *testing.T) {
+	const line = `{"level":"info","ts":1788220000.5,"status":200,"size":4058,"duration":0.0016,
+	  "cf_ray":"a33f-IAD","component":"edge",
+	  "request":{"method":"GET","host":"repos.bythewood.me","uri":"/","client_ip":"203.0.113.7"}}`
+
+	rec, ok := parseCaddyLine([]byte(line))
+	if !ok {
+		t.Fatal("did not parse")
+	}
+	if got := rec.Attrs["component"]; got != "edge" {
+		t.Errorf("component = %v, want edge", got)
+	}
+
+	// A Caddy that has not picked up the log_append yet still lands somewhere.
+	const bare = `{"level":"info","ts":1788220000.5,"status":200,"size":10,"duration":0.001,
+	  "request":{"method":"GET","host":"blog.bythewood.me","uri":"/","client_ip":"203.0.113.7"}}`
+	rec, ok = parseCaddyLine([]byte(bare))
+	if !ok {
+		t.Fatal("did not parse")
+	}
+	if got := rec.Attrs["component"]; got != "edge" {
+		t.Errorf("component = %v, want edge by default", got)
+	}
+}
