@@ -94,15 +94,18 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Live projects only. An archived repo does not change, so polling it
-	// spends the rate limit re-reading the same commit.
-	slugs := make([]string, 0, len(projects))
+	// Live cards only. An archived repo does not change, so polling it spends
+	// the rate limit re-reading the same commit.
+	targets := make([]CommitTarget, 0, len(sites)+len(projects))
+	for _, live := range sites {
+		targets = append(targets, live.CommitTarget())
+	}
 	for _, project := range projects {
 		if !project.Archived {
-			slugs = append(slugs, project.Slug)
+			targets = append(targets, CommitTarget{Key: project.Slug, Repo: project.Slug})
 		}
 	}
-	commits.Start(ctx, slugs)
+	commits.Start(ctx, targets)
 
 	latest := NewLatestCache(blogLatestSources)
 	latest.Start(ctx)
@@ -132,6 +135,11 @@ func main() {
 	// Not logged, or a line per probe would bury the real traffic.
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		// EdgeCache fills in the site policy whenever a handler sets no
+		// Cache-Control of its own, so saying nothing here means the edge
+		// answers a liveness check out of cache long after this process has
+		// stopped serving.
+		w.Header().Set("Cache-Control", "no-store")
 		_, _ = w.Write([]byte("ok\n"))
 	})
 

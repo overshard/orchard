@@ -125,3 +125,62 @@ func TestStaticCachePolicy(t *testing.T) {
 		}
 	})
 }
+
+// EdgeCache fills in the site policy for a handler that sets no Cache-Control,
+// which is what makes a silent handler cacheable. A handler that has an opinion
+// keeps it, and every /healthz in this repo relies on that to say no-store:
+// without it the edge answers a liveness check out of cache long after the
+// origin has stopped serving, which is exactly what blog.bythewood.me did.
+func TestEdgeCacheYieldsToTheHandler(t *testing.T) {
+	const policy = "public, max-age=14400"
+
+	tests := []struct {
+		name    string
+		handler http.HandlerFunc
+		want    string
+	}{
+		{
+			name: "silent handler takes the site policy",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				_, _ = w.Write([]byte("ok"))
+			},
+			want: policy,
+		},
+		{
+			name: "no-store survives",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Cache-Control", "no-store")
+				_, _ = w.Write([]byte("ok"))
+			},
+			want: "no-store",
+		},
+		{
+			name: "an explicit policy survives",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Cache-Control", "private, max-age=30")
+				w.WriteHeader(http.StatusOK)
+			},
+			want: "private, max-age=30",
+		},
+		{
+			// Cloudflare stamps its own TTL on a header-less response, so an
+			// error has to say no-store or a 404 is held at the edge.
+			name: "an error is never cacheable",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusNotFound)
+			},
+			want: "no-store",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			EdgeCache(policy)(tt.handler).ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+
+			if got := w.Header().Get("Cache-Control"); got != tt.want {
+				t.Errorf("Cache-Control = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}

@@ -224,6 +224,11 @@ func main() {
 	// /ingest on the public hostname.
 	mux.HandleFunc("POST /ingest", s.ingest)
 
+	// Counts per source for the dash health strip, fenced the same way and for
+	// a second reason: dash is public, so this returns numbers and never a
+	// message, a path or an address. See aggregate.go.
+	mux.HandleFunc("GET /aggregate", s.aggregate)
+
 	// The mux only answers 405 itself when nothing else matches, and the
 	// "GET /" catch-all below matches every GET path there is.
 	for path, allow := range map[string]string{
@@ -305,6 +310,11 @@ func (s *site) page(r *http.Request, title, description string) PageData {
 func (s *site) healthz(w http.ResponseWriter, r *http.Request) {
 	if !r.URL.Query().Has("verbose") || !isLoopback(web.ClientIP(r)) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		// EdgeCache fills in the site policy whenever a handler sets no
+		// Cache-Control of its own, so saying nothing here means the edge
+		// answers a liveness check out of cache long after this process has
+		// stopped serving.
+		w.Header().Set("Cache-Control", "no-store")
 		_, _ = w.Write([]byte("ok\n"))
 		return
 	}
