@@ -1489,3 +1489,94 @@ func TestWatchdogBootstrapsFromRollups(t *testing.T) {
 		t.Error("a source last heard from three days ago is still being watched; it would alert forever")
 	}
 }
+
+// A peer container polling /healthz across the bridge is still a health check.
+// This was keyed on the caller being loopback, so dash polling every site put
+// thousands of probes into the raw table and into every site's request count.
+func TestHealthChecksFromAPeerAreRollupOnly(t *testing.T) {
+	db := testDB(t)
+	base := time.Now().UTC().Add(-time.Minute).UnixMilli()
+
+	bridge := toRow("blog", web.Record{
+		Time: base, Level: "INFO", Msg: "request",
+		Attrs: map[string]any{
+			"path": "/healthz", "status": 200, "ms": 0.4,
+			"ip": "172.18.0.11", "host": "orchard-blog:8000",
+		},
+	})
+	public := toRow("blog", web.Record{
+		Time: base, Level: "INFO", Msg: "request",
+		Attrs: map[string]any{
+			"path": "/healthz", "status": 200, "ms": 0.4,
+			"ip": "71.71.122.88", "host": "blog.bythewood.me", "cf_ray": "a33f-IAD",
+		},
+	})
+	for name, r := range map[string]row{"bridge": bridge, "public": public} {
+		if !r.rollupOnly || r.component != "healthz" {
+			t.Errorf("%s probe: rollupOnly=%v component=%q, want true and healthz",
+				name, r.rollupOnly, r.component)
+		}
+	}
+
+	real := toRow("blog", web.Record{
+		Time: base, Level: "INFO", Msg: "request",
+		Attrs: map[string]any{"path": "/", "status": 200, "ms": 5.0, "ip": "203.0.113.7"},
+	})
+	seedRows(t, db, []row{bridge, public, real})
+
+	f := filter{StartMS: base - 1000, EndMS: base + 1000}
+	if got := totals(context.Background(), db, f); got.Requests != 1 {
+		t.Errorf("Requests = %d, want 1: probes are counted as traffic", got.Requests)
+	}
+}
+
+// A held-open response is a connection lifetime. Recorded as a duration it
+// drags the mean and the max somewhere they can never come back from, and the
+// rollup carrying it is never swept.
+func TestStreamedResponsesDoNotCountAsDurations(t *testing.T) {
+	db := testDB(t)
+	base := time.Now().UTC().Truncate(time.Hour).Add(30 * time.Minute).UnixMilli()
+
+	sse := toRow("dash", web.Record{
+		Time: base, Level: "INFO", Msg: "request",
+		Attrs: map[string]any{"path": "/events", "status": 200, "ms": 22854322.0, "ip": "203.0.113.9"},
+	})
+	ws := toRow("caddy", web.Record{
+		Time: base, Level: "INFO", Msg: "request",
+		Attrs: map[string]any{"path": "/status/ws", "status": 101, "ms": 19366600.0, "ip": "203.0.113.10"},
+	})
+	for name, r := range map[string]row{"sse": sse, "websocket": ws} {
+		if r.durationMS != 0 {
+			t.Errorf("%s: durationMS = %v, want 0", name, r.durationMS)
+		}
+		if !strings.Contains(r.attrs, "stream_ms") {
+			t.Errorf("%s: elapsed time was dropped rather than moved, attrs = %s", name, r.attrs)
+		}
+	}
+
+	// A slow request that the server could actually have served stays a duration.
+	slow := toRow("repos", web.Record{
+		Time: base, Level: "INFO", Msg: "request",
+		Attrs: map[string]any{"path": "/", "status": 200, "ms": 240.0, "ip": "203.0.113.11"},
+	})
+	if slow.durationMS != 240 {
+		t.Errorf("slow request durationMS = %v, want 240", slow.durationMS)
+	}
+	seedRows(t, db, []row{sse, ws, slow})
+
+	f := filter{StartMS: base - time.Hour.Milliseconds(), EndMS: base + time.Hour.Milliseconds()}
+	if got := latency(context.Background(), db, f); got.Max != 240 || got.Mean != 240 {
+		t.Errorf("latency mean=%v max=%v, want 240 and 240", got.Mean, got.Max)
+	}
+	// The rollup is the half that is never swept, so it has to be right too.
+	var durCount int64
+	var durSum, durMax float64
+	if err := db.QueryRow(
+		`SELECT COALESCE(SUM(dur_count),0), COALESCE(SUM(dur_sum),0), COALESCE(MAX(dur_max),0) FROM rollups`,
+	).Scan(&durCount, &durSum, &durMax); err != nil {
+		t.Fatal(err)
+	}
+	if durCount != 1 || durSum != 240 || durMax != 240 {
+		t.Errorf("rollup dur_count=%d dur_sum=%v dur_max=%v, want 1, 240, 240", durCount, durSum, durMax)
+	}
+}
