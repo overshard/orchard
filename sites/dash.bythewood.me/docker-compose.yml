@@ -1,0 +1,50 @@
+name: orchard-dash
+
+# No published ports and no secrets. Everything this site shows is public: free
+# market data, two public feeds, the weather, and whether Isaac's own sites are
+# answering. The volume holds one JSON file, the upstream guard's state, which
+# has to survive a restart or the circuit breaker is not one.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: orchard-dash
+    restart: unless-stopped
+    # Longer than Docker's 10s default, because shutdown drains the log shipper
+    # queue and flushes the guard state.
+    stop_grace_period: 30s
+    volumes:
+      - data:/data
+    # A ceiling to fail against rather than a target. This process holds one
+    # state snapshot and a handful of open SSE connections, so it is the
+    # lightest site here.
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "/app", "-healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks: [edge]
+
+volumes:
+  data:
+    name: orchard-dash-data
+
+networks:
+  edge:
+    name: orchard-edge
+    external: true
