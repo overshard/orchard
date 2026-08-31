@@ -81,8 +81,10 @@ type site struct {
 	renderer *web.Renderer
 	commits  *CommitCache
 	latest   *LatestCache
-	script   string
-	styles   []string
+	// Resolves Next.js era /_next/image requests onto the built files.
+	nextImages *nextImageIndex
+	script     string
+	styles     []string
 }
 
 func (s *site) page(name, title, description string) PageData {
