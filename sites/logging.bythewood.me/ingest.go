@@ -405,15 +405,24 @@ func toRow(source string, rec web.Record) row {
 			rest[k] = v
 		}
 	}
+	// A response the server held open is a connection lifetime, not a request
+	// duration, and averaging the two together makes every mean meaningless.
+	// The elapsed time moves to the bag rather than being thrown away.
+	if out.msg == "request" && (out.status == 101 || out.durationMS > streamingAfterMS) {
+		rest["stream_ms"] = out.durationMS
+		out.durationMS = 0
+	}
+
 	if len(rest) > 0 {
 		if buf, err := json.Marshal(rest); err == nil {
 			out.attrs = truncate(string(buf), maxAttrsLen)
 		}
 	}
 
-	// The container health check: the one request that is the process talking
-	// to itself, so it can be recognised without guessing.
-	if out.msg == "request" && out.path == "/healthz" && (isLoopback(out.ip) || isLoopbackHost(out.host)) {
+	// A health check is a health check whoever asked. Keying this on the caller
+	// only held while each container was the sole prober of itself, and it
+	// stopped holding the moment anything else polled across the bridge.
+	if out.msg == "request" && out.path == "/healthz" {
 		out.component = "healthz"
 		out.rollupOnly = true
 	}
@@ -424,19 +433,14 @@ func isLoopback(ip string) bool {
 	return ip == "127.0.0.1" || ip == "::1"
 }
 
-// isLoopbackHost matches the Host header the -healthcheck probe sends.
-func isLoopbackHost(host string) bool {
-	h, _, found := strings.Cut(host, ":")
-	if !found {
-		h = host
-	}
-	return h == "127.0.0.1" || h == "localhost" || h == "[::1]" || h == "::1"
-}
-
 const (
 	// Caps on the free-text fields: a legal 4MB message would be a 4MB row forever.
 	maxFieldLen = 4096
 	maxAttrsLen = 8192
+
+	// streamingAfterMS is web's own WriteTimeout. Nothing here can serve an
+	// ordinary request for longer, so anything past it was held open on purpose.
+	streamingAfterMS = 60_000
 )
 
 func truncate(s string, max int) string {
