@@ -203,6 +203,10 @@ func main() {
 			http.FileServer(http.FS(contentImages))))
 	mux.Handle("GET /content/images/", images)
 
+	// Wagtail rendition URLs, still arriving from feeds and search indexes.
+	s.mediaIdx = newMediaIndex(contentImages)
+	mux.HandleFunc("GET /media/", s.media)
+
 	// Not logged: a line per probe would bury real traffic.
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")

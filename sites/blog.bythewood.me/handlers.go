@@ -77,8 +77,10 @@ type site struct {
 	content fs.FS
 	pdfs    fs.FS
 	og      fs.FS
-	script  string
-	styles  []string
+	// Resolves Wagtail era /media/ URLs onto the files that serve them now.
+	mediaIdx *mediaIndex
+	script   string
+	styles   []string
 }
 
 // page builds the shared half of PageData.
