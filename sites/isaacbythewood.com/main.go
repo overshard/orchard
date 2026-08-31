@@ -145,6 +145,10 @@ func main() {
 
 	mux.Handle("GET /static/", web.Static(dist, assets))
 
+	// Next.js image optimiser URLs, still arriving from search indexes.
+	s.nextImages = newNextImageIndex(dist)
+	mux.HandleFunc("GET /_next/image", s.nextImage)
+
 	handler := web.Chain(mux,
 		web.Recovered,
 		web.Logged,
