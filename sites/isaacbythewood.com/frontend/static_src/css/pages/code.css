@@ -235,15 +235,6 @@
   border-color: var(--color-blue);
 }
 
-/* The one site with nothing a stranger can open. An outline pill rather than a
-   filled one, so it reads as an absence next to the filled tech tags. */
-.code-tag-private {
-  background-color: transparent;
-  color: rgba(0, 0, 0, 0.55);
-  border: 1px solid rgba(0, 0, 0, 0.25);
-  padding: 1px 7px;
-}
-
 .code-sectionNote-live {
   color: black;
 }

@@ -31,9 +31,6 @@
   <div class="code-project code-project-live" style="{{ .Delay }}">
     <h3 class="code-projectHeading">{{ .Name }}</h3>
     <div class="code-tags">
-      {{- if not .Visit }}
-      <span class="code-tag code-tag-private">Private</span>
-      {{- end }}
       {{- range .Tech }}
       <span class="code-tag">{{ . }}</span>
       {{- end }}
@@ -43,9 +40,7 @@
     <pre class="code-projectCommit">{{ .Commit }}</pre>
     {{- end }}
     <div class="code-projectButtons">
-      {{- if .Visit }}
       <a class="code-projectButton" href="{{ .Visit }}" rel="noopener noreferrer" target="_blank">Visit</a>
-      {{- end }}
       <a class="code-projectButton code-projectButton-secondary" href="{{ .Source }}" rel="noopener noreferrer" target="_blank">
         {{ template "githubMark" }}
         Source
