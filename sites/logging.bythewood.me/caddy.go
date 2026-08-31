@@ -152,9 +152,11 @@ type caddyEntry struct {
 	Status   int     `json:"status"`
 	Size     int64   `json:"size"`
 	Duration float64 `json:"duration"`
-	// Appended by log_append, since the filter drops the headers it comes from.
-	CFRay   string `json:"cf_ray"`
-	Request *struct {
+	// Both appended by log_append, since the filter drops the headers CFRay
+	// comes from and Caddy has no notion of the other.
+	CFRay     string `json:"cf_ray"`
+	Component string `json:"component"`
+	Request   *struct {
 		Method   string `json:"method"`
 		Host     string `json:"host"`
 		URI      string `json:"uri"`
@@ -196,6 +198,13 @@ func parseCaddyLine(line []byte) (web.Record, bool) {
 	// Absent means the request never crossed the tunnel, same as everywhere else.
 	if e.CFRay != "" {
 		attrs["cf_ray"] = e.CFRay
+	}
+	// An edge row is its own kind of route, and defaulting here means a Caddy
+	// that has not been reconfigured yet still lands in the same bucket rather
+	// than in the empty one.
+	attrs["component"] = "edge"
+	if e.Component != "" {
+		attrs["component"] = e.Component
 	}
 
 	return web.Record{
