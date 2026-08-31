@@ -328,12 +328,22 @@ http://repos.bythewood.me {
 # records, so all that is decided here is where HTTP goes.
 http://www.isaacbythewood.com {
 	import site
-	redir https://isaacbythewood.com{uri} permanent
+
+	# Wrapped in a handle so it is ordered against the scanner block rather
+	# than ahead of it. Caddy sorts redir before handle, so a bare redir here
+	# answers a scanner with a 301 and the block above never runs.
+	handle {
+		redir https://isaacbythewood.com{uri} permanent
+	}
 }
 
 http://bythewood.me, http://www.bythewood.me {
 	import site
-	redir https://isaacbythewood.com{uri} permanent
+
+	# See www.isaacbythewood.com above.
+	handle {
+		redir https://isaacbythewood.com{uri} permanent
+	}
 }
 
 # No matching Host means it did not come through an ingress rule. Say so rather
