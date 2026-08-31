@@ -81,7 +81,8 @@
 #
 #   (starts_with(http.request.uri.path, "/."))
 #   or (http.host ne "repos.bythewood.me" and (
-#         lower(http.request.uri.path) contains "wp-"
+#         lower(http.request.uri.path) in {"/env" "/_environment"}
+#      or lower(http.request.uri.path) contains "wp-"
 #      or lower(http.request.uri.path) contains "wordpress"
 #      or lower(http.request.uri.path) contains "/wp/"
 #      or lower(http.request.uri.path) contains "xmlrpc"
@@ -113,6 +114,24 @@
 #      or lower(http.request.uri.path) contains "credentials.json"
 #      or lower(http.request.uri.path) contains "service-account"
 #      or lower(http.request.uri.path) contains "serviceaccount"
+#      or lower(http.request.uri.path) contains "keyfile.json"
+#      or lower(http.request.uri.path) contains "adminsdk"
+#      or lower(http.request.uri.path) contains "-key.json"
+#      or lower(http.request.uri.path) contains "-sa.json"
+#      or lower(http.request.uri.path) contains "/sa.json"
+#      or lower(http.request.uri.path) contains "/key.json"
+#      or lower(http.request.uri.path) contains "/_ignition/"
+#      or lower(http.request.uri.path) contains "/storage/logs/"
+#      or lower(http.request.uri.path) contains "/webinterface/"
+#      or lower(http.request.uri.path) contains "/zabbix/"
+#      or lower(http.request.uri.path) contains "/owa/"
+#      or lower(http.request.uri.path) contains "/boaform/"
+#      or lower(http.request.uri.path) contains "/jenkins/"
+#      or lower(http.request.uri.path) contains "/hudson/"
+#      or lower(http.request.uri.path) contains "sugar_version.json"
+#      or lower(http.request.uri.path) contains "com_pagebuilderck"
+#      or lower(http.request.uri.path) contains "/login.do"
+#      or lower(http.request.uri.path) contains "/showlogin.cc"
 #   ))
 #
 # The first line sits outside the host test so it covers repos as well. Nothing
@@ -131,19 +150,28 @@
 # hostnames with a plain Go client, which cannot solve a JS challenge, so every
 # site here would report a permanent false outage.
 
-# The same list anchored at the root, for repos.bythewood.me only. repos serves
-# arbitrary paths out of arbitrary repositories, so a rule matching on path
-# content collides with real files: the anywhere version below took
+# repos.bythewood.me serves arbitrary paths out of arbitrary repositories, so
+# matching on path content collides with real files: it took
 # /orchard/blob/main/sites/analytics.bythewood.me/.env.example off the file
-# browser, and every site here has to commit a .env.example. Scanners always
-# probe at the root while repository content is always /{name}/{tree|blob|...},
-# so anchoring is what separates them.
-(scanners_root) {
-	@hostile_root path_regexp hostile_root (?i)^/(?:wp-|wordpress|wp/|xmlrpc|phpmyadmin|autodiscover|cgi-bin/|vendor/|actuator/|_profiler/|solr/|livewire/|sitecore/|telerik|phpinfo|id_rsa|id_ed25519|credentials\.json|service-?account|\.)|^/[^/]*\.(?:php|asp|jsp|cgi|axd|sql|bak)
+# browser, and every site here has to commit a .env.example.
+#
+# Depth is the wrong separator for that. Anchoring at the root gave up
+# everything below the first slash, and scanners walk /var/www/.git/config and
+# /api/.env/.git/config all day. Repository content always carries a verb as its
+# second segment, so exempting that shape and applying the full list everywhere
+# else keeps the browser working and still catches the nested probes.
+#
+# /orchard.git/info/refs is not exempt and must not match, which is why every
+# dotfile clause keeps its leading slash. Clone and push over HTTPS depend on it.
+(scanners_repos) {
+	@hostile_repos {
+		not path_regexp repo_content ^/[^/]+/(?:blob|raw|tree|commit|log|archive|branches|tags)(?:/|$)
+		path_regexp hostile_repos (?i)(?:^|/)(?:wp-|wordpress|wp/|xmlrpc|phpmyadmin|autodiscover|cgi-bin/|vendor/|actuator/|_profiler/|solr/|livewire/|sitecore/|_ignition/|storage/logs/|webinterface/|zabbix/|owa/|boaform/|jenkins/|hudson/|sa\.json|key\.json|\.git|\.aws|\.ssh|\.vscode)|telerik|phpinfo|id_rsa|id_ed25519|credentials\.json|keyfile\.json|adminsdk|-key\.json|-sa\.json|sugar_version\.json|com_pagebuilderck|login\.do|showlogin\.cc|service-?account|\.env|\.(?:php|asp|jsp|cgi|axd|sql|bak)|^/(?:env|_environment)$
+	}
 
-	log_skip @hostile_root
+	log_skip @hostile_repos
 
-	handle @hostile_root {
+	handle @hostile_repos {
 		# A header-less response lets Cloudflare stamp its own TTL and hold
 		# the 404 at the edge.
 		header Cache-Control "no-store"
@@ -155,7 +183,7 @@
 	# Matched anywhere in the path rather than at the root, since most of the
 	# volume arrives nested under a guessed prefix (/blog/wp-json/, /app/.env).
 	# Ordinary 404s like /login or /apple-touch-icon.png are left alone.
-	@hostile path_regexp hostile (?i)(?:^|/)(?:wp-|wordpress|wp/|xmlrpc|phpmyadmin|autodiscover|cgi-bin/|vendor/|actuator/|_profiler/|solr/|livewire/|sitecore/|\.git|\.aws|\.ssh|\.vscode)|telerik|phpinfo|id_rsa|id_ed25519|credentials\.json|service-?account|\.env|\.(?:php|asp|jsp|cgi|axd|sql|bak)
+	@hostile path_regexp hostile (?i)(?:^|/)(?:wp-|wordpress|wp/|xmlrpc|phpmyadmin|autodiscover|cgi-bin/|vendor/|actuator/|_profiler/|solr/|livewire/|sitecore/|_ignition/|storage/logs/|webinterface/|zabbix/|owa/|boaform/|jenkins/|hudson/|sa\.json|key\.json|\.git|\.aws|\.ssh|\.vscode)|telerik|phpinfo|id_rsa|id_ed25519|credentials\.json|keyfile\.json|adminsdk|-key\.json|-sa\.json|sugar_version\.json|com_pagebuilderck|login\.do|showlogin\.cc|service-?account|\.env|\.(?:php|asp|jsp|cgi|axd|sql|bak)|^/(?:env|_environment)$
 
 	# Not logged. Moving the noise to another log is not the point.
 	log_skip @hostile
@@ -277,7 +305,7 @@ http://repos.bythewood.me {
 	# Not `import site`, because packfiles are already compressed and gzipping
 	# one costs CPU on both ends to make it slightly larger. `encode` goes on
 	# the browse handle instead.
-	import scanners_root
+	import scanners_repos
 	import headers
 
 	@git path_regexp ^/[^/]+\.git(/.*)?$
