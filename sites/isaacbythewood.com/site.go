@@ -10,6 +10,7 @@ const (
 	siteDesc    = "Isaac Bythewood is a Senior Solutions Architect at Craftmaster Furniture located in Elkin, NC."
 	themeColor  = "#20232e"
 	githubUser  = "overshard"
+	monorepo    = "orchard"
 	contactMail = "isaac@bythewood.me"
 )
 
@@ -62,6 +63,81 @@ var heroWords = []string{"AI Agents", "Automation", "DevOps", "Architecture"}
 var aboutWords = []string{
 	"AI Agents", "DevOps", "Full-Stack", "Testing", "Cloud",
 	"Security", "Developer", "Automation", "Architecture",
+}
+
+// Site is one card in the live section: something in orchard that is running
+// right now, as opposed to a repository you can only read.
+type Site struct {
+	Name        string
+	Dir         string
+	Description string
+	Tech        []string
+	// Empty when there is nothing a stranger can open. Logging is the only one,
+	// and its card says so rather than linking at a login form.
+	Visit string
+}
+
+// Newest first, same as the archived list, which puts the three built from
+// scratch above the four that were ports.
+var sites = []Site{
+	{
+		Name:        "dash",
+		Dir:         "dash.bythewood.me",
+		Description: "One page of markets, news, the weather, and the health of everything else here, all of it pushing itself over server sent events.",
+		Tech:        []string{"Go", "SSE", "Vite"},
+		Visit:       "https://dash.bythewood.me",
+	},
+	{
+		Name:        "repos",
+		Dir:         "repos.bythewood.me",
+		Description: "A git remote I push to over HTTPS, with a browser on top: commits, diffs, blobs and atom feeds. It mirrors my GitHub account too.",
+		Tech:        []string{"Go", "Git", "SQLite"},
+		Visit:       "https://repos.bythewood.me",
+	},
+	{
+		Name:        "logging",
+		Dir:         "logging.bythewood.me",
+		Description: "Every site here ships its structured logs to this one, so a request I want to find is in one place instead of seven docker logs.",
+		Tech:        []string{"Go", "SQLite", "Typst"},
+	},
+	{
+		Name:        "status",
+		Dir:         "status.bythewood.me",
+		Description: "Uptime monitoring and public status pages, with Lighthouse audits and an SEO crawler on a timer and PDF reports out the other end.",
+		Tech:        []string{"Go", "SQLite", "Lighthouse"},
+		Visit:       "https://status.bythewood.me/a40ff31d-18b0-49c3-9a36-deb02c909204",
+	},
+	{
+		Name:        "analytics",
+		Dir:         "analytics.bythewood.me",
+		Description: "Self-hosted website analytics: a collector, dashboards you can share without a login, a world map, and Typst PDF reports.",
+		Tech:        []string{"Go", "SQLite", "GeoIP"},
+		Visit:       "https://analytics.bythewood.me/30e69c06-9beb-4283-8919-8c7a686ab013",
+	},
+	{
+		Name:        "blog",
+		Dir:         "blog.bythewood.me",
+		Description: "Markdown files on disk and no database behind them, with live search, and a PDF and a social card built for every post.",
+		Tech:        []string{"Go", "Typst", "Vite"},
+		Visit:       "https://blog.bythewood.me",
+	},
+	{
+		Name:        "isaacbythewood.com",
+		Dir:         "isaacbythewood.com",
+		Description: "The site you are reading. Go and Vite with no third party Go dependencies at all, canvas animations included.",
+		Tech:        []string{"Go", "Vite", "Canvas"},
+		Visit:       "https://isaacbythewood.com",
+	},
+}
+
+// SourcePath is the site's directory inside the monorepo, which is both the
+// GitHub path filter for its commits and the tail of its source link.
+func (s Site) SourcePath() string {
+	return "sites/" + s.Dir
+}
+
+func (s Site) CommitTarget() CommitTarget {
+	return CommitTarget{Key: s.SourcePath(), Repo: monorepo, Path: s.SourcePath()}
 }
 
 // Project is one card on the code page.

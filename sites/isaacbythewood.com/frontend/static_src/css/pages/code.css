@@ -207,6 +207,47 @@
   transform: scale(1.2);
 }
 
+/* The live cards carry two buttons instead of one. The gap is wider than it
+   looks like it needs to be because the buttons scale to 1.2 on hover and a
+   tighter gap put one on top of its neighbour. */
+.code-projectButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.code-project-live .code-projectButton {
+  width: auto;
+  min-width: 120px;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+.code-projectButton-secondary {
+  background-image: none;
+  background-color: transparent;
+  color: black;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  transition-property: transform, border-color;
+}
+
+.code-projectButton-secondary:hover {
+  border-color: var(--color-blue);
+}
+
+/* The one site with nothing a stranger can open. An outline pill rather than a
+   filled one, so it reads as an absence next to the filled tech tags. */
+.code-tag-private {
+  background-color: transparent;
+  color: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  padding: 1px 7px;
+}
+
+.code-sectionNote-live {
+  color: black;
+}
+
 /* The active / archived split.
  *
  * The archived half is quieter: grey tag pills, an outline button instead of a

@@ -17,6 +17,7 @@ tunnel rather than a rented server.
 | `sites/status.bythewood.me/` | Self hosted uptime monitoring. SQLite, Lighthouse audits, crawler |
 | `sites/logging.bythewood.me/` | Self hosted log aggregation. Every other site ships its slog records here. SQLite, retention and rollups, Typst PDF reports |
 | `sites/repos.bythewood.me/` | Self hosted git remote. Push to it over HTTPS with a token, and it mirrors the GitHub account as a backup. Everything git is a subprocess |
+| `sites/dash.bythewood.me/` | Dashboard. Markets off Yahoo, Hacker News and Lobsters, the weather, and whether the other six are answering. One poller, server sent events out, no database |
 | `edge/` | The shared `cloudflared` tunnel, the Caddy that reverse proxies to each site, and the ntfy every alert is published to |
 
 ## The one structural rule
@@ -24,7 +25,7 @@ tunnel rather than a rented server.
 **Every site is its own Go module and owns its own copy of `web/`.**
 
 There is no module at the repo root. `go.work` exists so repo wide `make`
-targets and an editor can see all six at once, and nothing depends on it. Each
+targets and an editor can see all seven at once, and nothing depends on it. Each
 site builds standalone:
 
 ```sh
@@ -39,8 +40,8 @@ request logging, panic recovery, security headers, the static and edge cache
 policies, graceful shutdown, and `shipper.go`, the tee handler that copies every
 log record to logging.bythewood.me.
 
-**A fix in `web/` has to be made six times.** Do not add a shared parent module
-to avoid it, and keep `shipper.go` byte identical across the six, since it is a
+**A fix in `web/` has to be made seven times.** Do not add a shared parent module
+to avoid it, and keep `shipper.go` byte identical across the seven, since it is a
 wire format as much as a file.
 
 ## Commands
@@ -77,20 +78,22 @@ reachable on the bridge and nowhere else.
 
 **Everything is named `orchard-<first label>`.** `orchard-caddy` and
 `orchard-cloudflared` for the edge, then `orchard-blog`, `orchard-analytics`,
-`orchard-status`, `orchard-isaacbythewood`, `orchard-logging` and
-`orchard-repos`, plus an `orchard-<label>-data` volume for each of the four
+`orchard-status`, `orchard-isaacbythewood`, `orchard-logging`, `orchard-repos`
+and `orchard-dash`, plus an `orchard-<label>-data` volume for each of the four
 sites with SQLite. One prefix, so `docker ps --filter name=orchard` is the whole
 system and the Makefile derives a container name from a site directory without a
 lookup table.
 
-**Four things reference a container by name, and all four bake it in.**
+**Five things reference a container by name, and all five bake it in.**
 `edge/caddy/Caddyfile` reverse-proxies to each site and writes its access log to
 `tcp/orchard-logging:9001`, `sites/isaacbythewood.com/site.go` fetches
 `http://orchard-blog:8000/latest.json` for the latest-posts panel,
 `web/shipper.go` in every site posts to `http://orchard-logging:8000/ingest`,
-and `alerts.go` in status and logging posts to `http://orchard-ntfy:8000`. None
-reads the name at runtime, so renaming one means rebuilding Caddy, the portfolio
-and every site, not just editing a compose file. No SQLite database refers to a
+`alerts.go` in status and logging posts to `http://orchard-ntfy:8000`, and
+`sites/dash.bythewood.me/systems.go` reads `http://orchard-logging:8000/aggregate`
+and probes every other site at `http://orchard-<label>:8000/healthz`. None reads
+the name at runtime, so renaming one means rebuilding Caddy, the portfolio and
+every site, not just editing a compose file. No SQLite database refers to a
 container name.
 
 **Alerts leave through ntfy in the edge, and reading them is authenticated.**
@@ -139,9 +142,17 @@ instead of assuming. Every site needing one commits a `.env.example`.
 edited config that was never rebuilt is a silent no-op. cloudflared is worse
 again, its config lives in a volume so compose sees no change and will not
 restart it, and the tunnel serves the old ingress while a newly added hostname
-404s from the Cloudflare edge. `make edge` restarts it explicitly. Adding a
-hostname is three changes, a Caddy site block, a `cloudflared` ingress rule, and
-a proxied CNAME to `<tunnel-id>.cfargotunnel.com`.
+404s from the Cloudflare edge. `make edge` restarts it explicitly, but a restart alone
+still serves the old ingress, because the config it reads is the copy in the
+volume and nothing has replaced it.
+
+Adding a hostname is five changes: a Caddy site block, a `cloudflared` ingress
+rule, the name in `HOSTNAMES` in `edge/setup-tunnel.sh`, a proxied CNAME to
+`<tunnel-id>.cfargotunnel.com`, and then `sh setup-tunnel.sh up` to reseed the
+volume before `make edge`. Skip the reseed and the container is healthy, Caddy
+is right, and the hostname still 404s from the Cloudflare edge. The DNS route
+calls in that script fail with an authentication error unless `cert.pem` covers
+that zone, which does not matter when the CNAME already exists.
 
 **Containers run as UID 65532, and base images are pinned by digest.** The four
 Alpine sites create a real user at that UID and the two scratch ones use the
@@ -233,6 +244,67 @@ package and not `@fontsource/geist`, which ships woff2 only, and Typst reaches
 it through `--font-path`. A missing face does not error, it falls back to a
 serif, which is how `blog_post.typ` asked for Inter and rendered in DejaVu.
 
+## dash.bythewood.me
+
+The seventh site, built 2026-08-30. Markets, Hacker News, Lobsters, the weather
+and a health strip for the other six, all on one page that updates itself. It is
+public and has no login, which is the constraint everything below follows from.
+
+**Yahoo's `v7/finance/quote` is gone.** It answers 401 Unauthorized to anything
+that has not carried a cookie and a crumb through their handshake, and it is the
+endpoint every tutorial still points at. `v7/finance/spark` and
+`v8/finance/chart` both still answer with no session at all, and spark takes the
+whole symbol list in one request and returns the same meta block plus the
+intraday closes, so the entire markets panel costs one call per poll. It needs a
+browser-like User-Agent or the response is a block page, and Yahoo's edge sends
+`cache-control: max-age=10`, so polling faster than that returns bytes you
+already have.
+
+**Hacker News comes from Algolia, not from the official API.** The Firebase API
+hands back 500 bare story ids and charges one request per story to resolve each
+one. `hn.algolia.com/api/v1/search?tags=front_page` returns all thirty with
+titles, scores and comment counts in a single response.
+
+**Futures replace the cash indexes outside the session**, driven by a New York
+clock in `market.go` rather than by a holiday calendar. There is no calendar on
+purpose, and the case it would catch is caught instead by the age of the S&P's
+own quote: a cash index that has not printed in half an hour during what the
+clock calls regular hours means the clock is wrong.
+
+**The health strip asks the bridge first and the public hostname only as a
+fallback.** Cloudflare will serve a cached 200 for `/healthz` long after the
+origin behind it has stopped answering, and two of these sites do exactly that
+right now, so a public probe is not evidence a site is up. A row built from the
+fallback says `cached` rather than `up`.
+
+**What logging hands over is counts and nothing else.** `/aggregate` returns a
+record, error and 5xx count per source plus the watchdog's up flag, never a
+message, a path, a status code or an address, because dash publishes it to the
+internet. Caddy refuses the path on the public hostname the same way it refuses
+`/ingest`, and a test on each side asserts the field list rather than trusting
+the handler to stay honest.
+
+**Everything is fetched once and pushed to every browser.** One poller per
+source writes into a store and the store broadcasts the whole state as JSON over
+`/events`, so ten open tabs still cost one request upstream. The markets poll
+drops from 30 seconds to 5 minutes when nobody is connected, which keeps the
+page warm for the first visitor without polling Yahoo all night for no one.
+
+**`web/server.go` here sets `WriteTimeout: 0`,** the third version of that file
+in this repo. Go's write bound covers the whole response, so any value at all is
+a ceiling on how long a stream may stay open. An idle stream is held up by a
+comment frame every 25 seconds instead, which is inside Cloudflare's 100 second
+idle drop.
+
+**Caddy's `encode` takes a matcher in this site's block** rather than the
+blanket one in `(site)`, because a compressed `text/event-stream` buffers.
+
+**Yahoo will return two closes for a symbol that had 287 a minute earlier.**
+Seen on BTC-USD. `carrySparks` keeps the previous shape when a poll comes back
+with fewer than five points and the last one had more, within one symbol and one
+trading day so a card never shows yesterday's chart or the other instrument's.
+Only the shape is held back, the price and the percent are always fresh.
+
 ## Rules learned the hard way
 
 **An hourly rollup cannot answer an unaligned window.** `logging`'s
@@ -262,6 +334,18 @@ any recipe line containing that string even under `-n`, so a one-line shell
 conditional ending in `$(MAKE) doctor` is executed in full by a dry run, side
 effects and all, which is enough to replace a running container. Keep `$(MAKE)`
 on a line of its own.
+
+**Do not let a poller that probes this process start before the listener.**
+dash's health strip asks itself over loopback, and starting the pollers before
+`web.Serve` has bound the socket makes the dashboard report the site it is
+running on as down or unknown until the next round, which is every deploy. Split
+the synchronous first fetch from the loops and gate the loops on a health check.
+
+**A middleware that wraps the ResponseWriter has to implement `Unwrap`.** Both
+wrappers in `web/middleware.go` do now. Without it `http.ResponseController`
+cannot reach the real writer, so a server-sent events handler behind `Logged`
+cannot flush and dash's `/events` answered 500 for every request. Assert on
+`http.Flusher` and you get the wrapper, not the connection.
 
 **Never animate a layout property.** Animating `height`, `width`, `top` or
 `left` relays out the page every frame, and the browser scores each frame as a
@@ -296,12 +380,12 @@ does nothing.
 
 ## Tests
 
-`make test` runs every site's suite plus its `web/` copy, eleven packages. There
+`make test` runs every site's suite plus its `web/` copy, fourteen packages. There
 are no linter configs, and `make check` is gofmt, vet and build. The portfolio
 has no Go tests of its own, being templates and handlers over static data, and
 is covered by its `web/` package plus browser checks.
 
-`web/shipper_test.go` is one of the six identical copies and covers the parts
+`web/shipper_test.go` is one of the seven identical copies and covers the parts
 easy to get quietly wrong: that a record reaches both the original handler and
 the queue, that `WithAttrs` and `WithGroup` still tee, that a full queue drops
 instead of blocking, and that logging after `Close` does not panic.
