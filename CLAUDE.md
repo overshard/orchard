@@ -49,6 +49,7 @@ wire format as much as a file.
 From the repo root:
 
 ```sh
+make install                         once per machine: tunnel, secrets, containers, alerts
 make up                              edge, then every site; idempotent, and the repair command
 make deploy SITE=blog.bythewood.me   rebuild one site and replace it
 make doctor                          tunnel, network, containers, and the data volumes
@@ -104,7 +105,7 @@ read-only account. Two fences hold, ntfy runs `auth-default-access: deny-all`
 and decides who may publish, and Caddy refuses every publish route on the public
 hostname, so the write token on its own gets an outsider nowhere. ntfy has no
 source-based ACL, which is why that second fence has to live at the edge.
-`edge/setup-ntfy.sh` creates the accounts and mints the token.
+`make ntfy` creates the accounts and `make ntfy-token` mints the token.
 
 **The Caddy publish fence has to stay a denylist.** Blocking `POST` is not
 enough, because ntfy publishes over GET too: `/<topic>/publish`, `/send` and
@@ -135,7 +136,11 @@ to watch.
 because that directory is the project directory, so nothing is exported in a
 shell and nothing is forwarded through the Makefile. `.env` is gitignored by
 bare name and this repo is public, so check it with `git check-ignore -v`
-instead of assuming. Every site needing one commits a `.env.example`.
+instead of assuming. Every site needing one commits a `.env.example`, and
+`make env` turns each example into a `.env` with a generated value for every
+empty `*_PASSWORD`, printing them once. It skips a site that already has one,
+because rewriting `repos`' password signs every open session out and rewriting
+either of the other two loses the ntfy token with it.
 
 **Editing anything in `edge/` needs `make edge`.** The Caddyfile and ntfy's
 `server.yml` are baked into images and `make up` does not pass `--build`, so an
@@ -148,7 +153,7 @@ volume and nothing has replaced it.
 
 Adding a hostname is five changes: a Caddy site block, a `cloudflared` ingress
 rule, the name in `HOSTNAMES` in `edge/setup-tunnel.sh`, a proxied CNAME to
-`<tunnel-id>.cfargotunnel.com`, and then `sh setup-tunnel.sh up` to reseed the
+`<tunnel-id>.cfargotunnel.com`, and then `make tunnel` to reseed the
 volume before `make edge`. Skip the reseed and the container is healthy, Caddy
 is right, and the hostname still 404s from the Cloudflare edge. The DNS route
 calls in that script fail with an authentication error unless `cert.pem` covers
