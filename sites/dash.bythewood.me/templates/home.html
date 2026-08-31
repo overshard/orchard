@@ -1,0 +1,310 @@
+{{define "content"}}
+<div class="alerts" data-alerts>
+  {{range .State.Alerts}}
+  <div class="alert" data-severity="{{.Severity}}">
+    <span class="ev">{{.Event}}</span>
+    <span class="hl">{{.Headline}}</span>
+    {{if .Until}}<span class="til">UNTIL {{.Until}}</span>{{end}}
+  </div>
+  {{end}}
+</div>
+
+<section class="panel markets" data-panel="markets">
+  <div class="bracket tl"></div><div class="bracket tr"></div>
+  <div class="bracket bl"></div><div class="bracket br"></div>
+
+  <header class="panel-head">
+    <span class="idx">01</span>
+    <h2>MARKETS</h2>
+    <span class="rule"></span>
+    <span class="session" data-session="{{.State.Market.Session}}">
+      <span class="pip"></span>
+      <span class="badge" data-market-session>{{.State.Market.Session}}</span>
+      <span class="phase" data-market-phase>{{.State.Market.Phase}}</span>
+    </span>
+    <span class="drawdown">
+      <span class="k">SPX / 52W HIGH</span>
+      <span class="v" data-market-drawdown>{{if .State.Market.Drawdown}}{{.State.Market.Drawdown}}{{else}}&mdash;{{end}}</span>
+    </span>
+  </header>
+
+  <div class="cards" data-market-cards>
+    {{range .State.Market.Cards}}{{template "card" .}}{{end}}
+  </div>
+</section>
+
+<div class="band market-band">
+
+  <section class="panel rates" data-panel="rates">
+    <div class="bracket tl"></div><div class="bracket tr"></div>
+    <div class="bracket bl"></div><div class="bracket br"></div>
+    <header class="panel-head">
+      <span class="idx">02</span>
+      <h2>RATES</h2>
+      <span class="rule"></span>
+      <span class="panel-meta">TREASURY</span>
+    </header>
+    <ul class="rate-rows" data-rates>
+      {{range .State.Rates.Rows}}
+      <li data-dir="{{.Direction}}">
+        <span class="k">{{.Label}}</span>
+        <span class="v">{{if .Unavailable}}&mdash;{{else}}{{.Yield}}{{end}}</span>
+        <span class="d">{{.Change}}</span>
+      </li>
+      {{end}}
+    </ul>
+    <p class="curve" data-curve-state="{{.State.Rates.CurveState}}">
+      <span class="k">10Y &minus; 3M</span>
+      <span class="v" data-curve>{{if .State.Rates.Curve}}{{.State.Rates.Curve}}{{else}}&mdash;{{end}}</span>
+    </p>
+  </section>
+
+
+  <section class="panel sectors" data-panel="sectors">
+    <div class="bracket tl"></div><div class="bracket tr"></div>
+    <div class="bracket bl"></div><div class="bracket br"></div>
+    <header class="panel-head">
+      <span class="idx">03</span>
+      <h2>SECTORS</h2>
+      <span class="rule"></span>
+      <span class="panel-meta">BEST TO WORST</span>
+    </header>
+    <div class="heat" data-sectors>
+      {{range .State.Sectors}}
+      <div class="cell" data-dir="{{.Direction}}" data-heat="{{.Heat}}"{{if .Benchmark}} data-benchmark="yes"{{end}}>
+        <span class="s">{{.Label}}</span>
+        <span class="p">{{if .Unavailable}}&mdash;{{else}}{{.Percent}}{{end}}</span>
+      </div>
+      {{end}}
+    </div>
+  </section>
+
+  <section class="panel conditions" data-panel="conditions">
+    <div class="bracket tl"></div><div class="bracket tr"></div>
+    <div class="bracket bl"></div><div class="bracket br"></div>
+    <header class="panel-head">
+      <span class="idx">04</span>
+      <h2>CONDITIONS</h2>
+      <span class="rule"></span>
+      <span class="panel-meta">S&amp;P 500</span>
+    </header>
+    <div data-signal>
+      <p class="verdict" data-level="{{.State.Signal.Level}}" data-signal-headline>{{.State.Signal.Headline}}</p>
+      <ul class="conditions" data-conditions>
+        {{range .State.Signal.Conditions}}{{template "condition" .}}{{end}}
+      </ul>
+    </div>
+    <p class="footnote">A READOUT, NOT A FORECAST. NOBODY CALLS THE BOTTOM.</p>
+  </section>
+
+
+  <section class="panel earnings" data-panel="earnings">
+  <div class="bracket tl"></div><div class="bracket tr"></div>
+  <div class="bracket bl"></div><div class="bracket br"></div>
+  <header class="panel-head">
+    <span class="idx">05</span>
+    <h2>EARNINGS</h2>
+    <span class="rule"></span>
+    <span class="panel-meta">OVER $10B, NEXT 5 SESSIONS</span>
+  </header>
+  <ul class="earning-rows" data-earnings>
+    {{range .State.Earnings}}{{template "earning" .}}{{else}}<li class="empty">NOTHING MAJOR SCHEDULED</li>{{end}}
+  </ul>
+  </section>
+
+</div>
+
+<div class="band local-band">
+    <section class="panel weather" data-panel="weather">
+      <div class="bracket tl"></div><div class="bracket tr"></div>
+      <div class="bracket bl"></div><div class="bracket br"></div>
+      <header class="panel-head">
+        <span class="idx">06</span>
+        <h2>ATMOS</h2>
+        <span class="rule"></span>
+        <span class="panel-meta">{{.State.Weather.Place}}</span>
+      </header>
+      <div class="weather-body" data-weather>
+        {{if .State.Weather.Unavailable}}
+          <p class="dim">NO SIGNAL</p>
+        {{else}}
+          <div class="temp-row">
+            <span class="temp">{{.State.Weather.Temperature}}<span class="deg">&deg;</span></span>
+            <span class="cond">
+              <span class="cond-label">{{.State.Weather.Condition}}</span>
+              <span class="cond-feels">FEELS {{.State.Weather.Feels}}&deg;</span>
+            </span>
+          </div>
+          <dl class="grid-readout">
+            <div><dt>HIGH</dt><dd>{{.State.Weather.High}}&deg;</dd></div>
+            <div><dt>LOW</dt><dd>{{.State.Weather.Low}}&deg;</dd></div>
+            <div><dt>RAIN</dt><dd>{{.State.Weather.Rain}}</dd></div>
+            <div><dt>WIND</dt><dd>{{.State.Weather.Wind}}</dd></div>
+          </dl>
+          <div class="daylight">
+            <span class="t">{{.State.Weather.Sunrise}}</span>
+            <span class="track"><i style="width:{{.State.Weather.DayPercent}}%"></i></span>
+            <span class="t">{{.State.Weather.Sunset}}</span>
+          </div>
+        {{end}}
+      </div>
+
+      {{/*
+        Outside data-weather on purpose. The two are patched by different
+        renderers on different polls, and nesting them meant the weather frame
+        replaced this one out of existence on first load.
+      */}}
+      <dl class="grid-readout air" data-air>
+        <div><dt>UV</dt><dd>{{.State.Weather.UV}} <span class="sub">{{.State.Weather.UVState}}</span></dd></div>
+        <div><dt>AQI</dt><dd>{{if .State.Air.Known}}{{.State.Air.AQI}} <span class="sub">{{.State.Air.AQIState}}</span>{{else}}&mdash;{{end}}</dd></div>
+        <div class="wide"><dt>POLLEN</dt><dd>{{if .State.Air.PollenKnown}}{{.State.Air.Pollen}} <span class="sub">{{.State.Air.PollenState}}{{if .State.Air.PollenTop}} · {{.State.Air.PollenTop}}{{end}}</span>{{else}}&mdash;{{end}}</dd></div>
+      </dl>
+    </section>
+
+
+    <section class="panel outdoors" data-panel="outdoors">
+      <div class="bracket tl"></div><div class="bracket tr"></div>
+      <div class="bracket bl"></div><div class="bracket br"></div>
+      <header class="panel-head">
+        <span class="idx">07</span>
+        <h2>OUT</h2>
+        <span class="rule"></span>
+        <span class="panel-meta">WEEKEND</span>
+      </header>
+      <ul class="outlook" data-outlook>
+        {{range .State.Outlook.Days}}{{template "outlook" .}}{{else}}<li class="empty">AWAITING FORECAST</li>{{end}}
+      </ul>
+    </section>
+
+
+    <section class="panel steam" data-panel="steam">
+      <div class="bracket tl"></div><div class="bracket tr"></div>
+      <div class="bracket bl"></div><div class="bracket br"></div>
+      <header class="panel-head">
+        <span class="idx">08</span>
+        <h2>STEAM</h2>
+        <span class="rule"></span>
+        <span class="panel-meta">TOP SELLERS</span>
+      </header>
+      <ol class="games" data-steam>
+        {{range .State.Steam}}
+        <li>
+          <a href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{.Name}}</a>
+          <span class="pr">{{if gt .Discount 0}}<span class="disc">-{{.Discount}}%</span> {{end}}{{.Price}}</span>
+          <span class="meta">
+            {{range .Tags}}<span class="tag">{{.}}</span>{{end}}
+            {{if .Players}}<span class="players">{{.Players}} PLAYING</span>{{end}}
+          </span>
+        </li>
+        {{else}}<li class="empty">AWAITING STORE</li>{{end}}
+      </ol>
+    </section>
+
+    <section class="panel streaming" data-panel="streaming">
+      <div class="bracket tl"></div><div class="bracket tr"></div>
+      <div class="bracket bl"></div><div class="bracket br"></div>
+      <header class="panel-head">
+        <span class="idx">09</span>
+        <h2>STREAMING</h2>
+        <span class="rule"></span>
+        <span class="panel-meta">TRENDING</span>
+      </header>
+      <ol class="titles" data-streaming>
+        {{range .State.Streaming}}{{template "title" .}}{{else}}<li class="empty">AWAITING LISTINGS</li>{{end}}
+      </ol>
+    </section>
+
+
+    <section class="panel systems" data-panel="systems">
+      <div class="bracket tl"></div><div class="bracket tr"></div>
+      <div class="bracket bl"></div><div class="bracket br"></div>
+      <header class="panel-head">
+        <span class="idx">10</span>
+        <h2>SYSTEMS</h2>
+        <span class="rule"></span>
+        <span class="panel-meta" data-systems-summary>{{.State.Systems.Up}}/{{.State.Systems.Total}} UP</span>
+      </header>
+      <ul class="rows" data-systems>
+        {{range .State.Systems.Rows}}
+        <li data-state="{{.State}}">
+          <span class="pip"></span>
+          {{if .URL}}<a class="name" href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{.Label}}</a>{{else}}<span class="name">{{.Label}}</span>{{end}}
+          <span class="traffic" data-level="{{.Level}}" data-trend="{{.Trend}}" title="{{.Requests}} requests">
+            <i></i><i></i><i></i><i></i>
+          </span>
+          <span class="bar"></span>
+          <span class="latency">{{if .Latency}}{{.Latency}}{{else}}&mdash;{{end}}</span>
+          <span class="errors" data-any="{{if gt .Errors 0}}yes{{else}}no{{end}}">{{if .KnowError}}{{.Errors}}E{{else}}&mdash;{{end}}</span>
+        </li>
+        {{end}}
+      </ul>
+      <p class="footnote" data-systems-note>{{if .State.Systems.Window}}{{.State.Systems.Requests}} REQ / {{.State.Systems.Errors}} ERR / LAST {{.State.Systems.Window}}H{{end}}</p>
+    </section>
+
+
+    <section class="panel uplink" data-panel="uplink">
+      <div class="bracket tl"></div><div class="bracket tr"></div>
+      <div class="bracket bl"></div><div class="bracket br"></div>
+      <header class="panel-head">
+        <span class="idx">11</span>
+        <h2>UPLINK</h2>
+        <span class="rule"></span>
+        <span class="panel-meta">UPSTREAM</span>
+      </header>
+      <ul class="rows" data-feeds>
+        {{range .State.Feeds}}
+        <li data-state="{{.State}}">
+          <span class="pip"></span>
+          <span class="name">{{.Name}}</span>
+          <span class="bar"></span>
+          <span class="age">{{.Age}}</span>
+          <span class="load" data-hot="{{if ge .Load 50}}yes{{else}}no{{end}}">{{.Used}}/{{.Budget}}</span>
+        </li>
+        {{end}}
+      </ul>
+      <p class="footnote">CALLS THIS HOUR / HOURLY CEILING</p>
+    </section>
+
+</div>
+
+<div class="band news-band">
+  <section class="panel wire" data-panel="wire">
+    <div class="bracket tl"></div><div class="bracket tr"></div>
+    <div class="bracket bl"></div><div class="bracket br"></div>
+    <header class="panel-head">
+    <span class="idx">12</span>
+    <h2>WIRE</h2>
+      <span class="rule"></span>
+      <span class="panel-meta">CNBC</span>
+    </header>
+    <ol class="headlines" data-wire>
+      {{range .State.Wire}}{{template "headline" .}}{{else}}<li class="empty">AWAITING WIRE</li>{{end}}
+  </ol>
+  </section>
+
+  <section class="panel feed" data-panel="hn">
+    <div class="bracket tl"></div><div class="bracket tr"></div>
+    <div class="bracket bl"></div><div class="bracket br"></div>
+    <header class="panel-head">
+      <span class="idx">13</span>
+      <h2>HACKER NEWS</h2>
+      <span class="rule"></span>
+      <a class="panel-meta" href="https://news.ycombinator.com" rel="noopener noreferrer" target="_blank">NEWS.YCOMBINATOR.COM</a>
+    </header>
+    <div data-hn>{{template "stories" .State.HN}}</div>
+  </section>
+
+  <section class="panel feed" data-panel="lobsters">
+    <div class="bracket tl"></div><div class="bracket tr"></div>
+    <div class="bracket bl"></div><div class="bracket br"></div>
+    <header class="panel-head">
+      <span class="idx">14</span>
+      <h2>LOBSTERS</h2>
+      <span class="rule"></span>
+      <a class="panel-meta" href="https://lobste.rs" rel="noopener noreferrer" target="_blank">LOBSTE.RS</a>
+    </header>
+    <div data-lobsters>{{template "stories" .State.Lobsters}}</div>
+  </section>
+
+</div>
+{{end}}

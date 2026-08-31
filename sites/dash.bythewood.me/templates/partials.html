@@ -1,0 +1,115 @@
+{{define "panel-open"}}
+<section class="panel" data-panel="{{.Slug}}">
+  <div class="bracket tl"></div><div class="bracket tr"></div>
+  <div class="bracket bl"></div><div class="bracket br"></div>
+  <header class="panel-head">
+    <span class="idx">{{.Index}}</span>
+    <h2>{{.Title}}</h2>
+    <span class="rule"></span>
+    {{if .Meta}}<span class="panel-meta">{{.Meta}}</span>{{end}}
+  </header>
+{{end}}
+
+{{define "card"}}
+<article class="card" data-dir="{{.Direction}}" data-key="{{.Key}}">
+  <header>
+    <h3>{{.Label}}</h3>
+    <span class="sym">{{if .Note}}{{.Note}}{{else}}{{.Symbol}}{{end}}</span>
+  </header>
+  {{if .Unavailable}}
+    <p class="price dim">NO SIGNAL</p>
+    <p class="move"><span class="pts">&mdash;</span></p>
+  {{else}}
+    <p class="price" data-price>{{.Price}}</p>
+    <p class="move">
+      <span class="glyph"></span>
+      <span class="pts">{{.Change}}</span>
+      <span class="pct">{{.Percent}}</span>
+    </p>
+  {{end}}
+  {{template "spark" .Spark}}
+</article>
+{{end}}
+
+{{define "spark"}}
+<svg class="spark" viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+  {{if .Line}}
+  <path class="spark-area" d="{{path .Area}}"></path>
+  {{if .HasBase}}<line class="spark-base" x1="0" x2="100" y1="{{.Baseline}}" y2="{{.Baseline}}"></line>{{end}}
+  <path class="spark-line" d="{{path .Line}}"></path>
+  {{end}}
+</svg>
+{{end}}
+
+{{define "stories"}}
+<ol class="stories">
+  {{range $i, $s := .}}
+  <li>
+    <span class="rank">{{printf "%02d" (inc $i)}}</span>
+    <div class="body">
+      <a class="title" href="{{$s.URL}}" rel="noopener noreferrer" target="_blank">{{$s.Title}}</a>
+      <div class="meta">
+        {{if $s.Host}}<span class="host">{{$s.Host}}</span>{{end}}
+        <span class="pts">{{$s.Points}}<span class="unit">PTS</span></span>
+        <a class="cmt" href="{{$s.Comments}}" rel="noopener noreferrer" target="_blank">{{$s.Count}}<span class="unit">CMT</span></a>
+        {{if $s.Age}}<span class="age">{{$s.Age}}</span>{{end}}
+      </div>
+    </div>
+  </li>
+  {{else}}
+  <li class="empty"><span class="rank">--</span><div class="body">AWAITING FEED</div></li>
+  {{end}}
+</ol>
+{{end}}
+
+{{define "headline"}}
+<li>
+  <span class="tag">{{.Source}}</span>
+  <a href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{.Title}}</a>
+  <span class="age">{{.Age}}</span>
+</li>
+{{end}}
+
+{{define "condition"}}
+<li data-state="{{.State}}">
+  <span class="k">{{.Label}}</span>
+  <span class="v">{{.Value}}</span>
+  <span class="n">{{.Note}}</span>
+</li>
+{{end}}
+
+{{define "earning"}}
+<li>
+  <span class="tkr">{{.Symbol}}</span>
+  <span class="co">{{.Name}}</span>
+  <span class="cap">{{.Cap}}</span>
+  <span class="day">{{.Day}}{{if .When}} <span class="when">{{.When}}</span>{{end}}</span>
+</li>
+{{end}}
+
+{{define "outlook"}}
+<li data-verdict="{{.Verdict}}">
+  <div class="head">
+    <span class="d">{{.Day}} {{.Date}}</span>
+    <span class="v">{{.Verdict}}</span>
+  </div>
+  <div class="facts">
+    <span class="t">{{.High}}&deg;/{{.Low}}&deg; {{.Temp}}</span>
+    <span>{{.Rain}}</span>
+    <span>{{.Ground}}</span>
+    <span>{{.Wind}}</span>
+  </div>
+</li>
+{{end}}
+
+{{define "title"}}
+<li{{if .Hot}} data-hot="yes"{{end}}>
+  {{if .URL}}<a class="name" href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{.Name}}</a>{{else}}<span class="name">{{.Name}}</span>{{end}}
+  <span class="svc">{{.Provider}}</span>
+  <span class="meta">
+    <span class="kind">{{.Kind}}{{if .Year}} {{.Year}}{{end}}</span>
+    <span class="score imdb">IMDB {{.IMDb}}</span>
+    {{if .Tomato}}<span class="score rt">RT {{.Tomato}}</span>{{end}}
+  </span>
+</li>
+{{end}}

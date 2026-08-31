@@ -1,0 +1,1400 @@
+// Cassette futurism, held to instrument-panel discipline rather than costume.
+// The reference points are the Nostromo's MU/TH/UR terminals, the LAPD consoles
+// in Blade Runner 2049 and Lumon's basement, and what they share is not neon,
+// it is typographic restraint over a visible structural grid.
+//
+// Three rules the rest of this file follows:
+//
+//   1. Warm dark, never pure black. Phosphor sat on warm glass and #000 reads
+//      as a hole in the page rather than a screen.
+//   2. Amber is the instrument, not the data. Chrome, labels and brackets are
+//      amber. The only saturated colour on the page is a market direction,
+//      which is the one thing worth looking at first.
+//   3. Every texture is drawn in CSS. No bitmap overlays, so the grain scales
+//      to any viewport and costs no request.
+
+:root {
+  // Warm near-black, five steps.
+  --void: #0a0908;
+  --bg: #0d0b09;
+  --panel: #12100d;
+  --panel-2: #171410;
+  --line: #2f2820;
+  --line-hot: #47392a;
+
+  // Warm off-white through to dim, all carrying the same amber cast so nothing
+  // on the page looks like it came from a different machine.
+  --text: #ece5d8;
+  --muted: #bcaf99;
+  --dim: #9c8f79;
+  --faint: #7b7060;
+
+  // P3 amber, the phosphor this whole thing is pretending to be.
+  --amber: #ffb000;
+  --amber-dim: #b37b00;
+  --amber-glow: rgba(255, 176, 0, 0.16);
+
+  // Direction. Desaturated enough to live in a warm world and still read
+  // instantly at a glance across eight cards.
+  --up: #5ddc82;
+  --up-soft: rgba(93, 220, 130, 0.085);
+  --down: #ff5f4d;
+  --down-soft: rgba(255, 95, 77, 0.085);
+  --flat: #8a8172;
+
+  --warn: #ffb000;
+
+  --gap: 12px;
+  --pad: 14px;
+
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --grotesk: "Space Grotesk", var(--mono);
+
+  // One tracking value, used everywhere a label is set in caps.
+  --track: 0.14em;
+}
+
+* { box-sizing: border-box; }
+
+html {
+  color-scheme: dark;
+  // The page is a screen, so the scrollbar should not be a bright OS artifact
+  // sitting on top of it.
+  scrollbar-color: var(--line-hot) var(--void);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+
+  // The structural grid, faint enough to read as texture rather than as a
+  // table. 32px so it lines up with the panel padding rhythm.
+  background-image:
+    linear-gradient(rgba(255, 176, 0, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 176, 0, 0.022) 1px, transparent 1px);
+  background-size: 32px 32px;
+  background-position: center top;
+}
+
+a { color: var(--amber); text-decoration: none; }
+a:hover { color: #ffc84d; }
+
+.dim { color: var(--dim); }
+
+// CRT overlays ---------------------------------------------------------------
+
+// Scanlines at 3px so they read as structure at any zoom. The opacity is low
+// on purpose: at anything stronger this stops being a dashboard and starts
+// being a screensaver, which is the failure mode of the whole genre.
+.crt {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.16) 0px,
+    rgba(0, 0, 0, 0.16) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: multiply;
+}
+
+// Corner falloff, so the panel edges sit in glass rather than running flat to
+// the browser chrome.
+.vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 9001;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 120% 100% at 50% 45%,
+    transparent 55%,
+    rgba(0, 0, 0, 0.16) 90%,
+    rgba(0, 0, 0, 0.3) 100%
+  );
+}
+
+// Status rail ----------------------------------------------------------------
+
+.rail {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: stretch;
+  gap: var(--gap);
+  padding: 0 var(--pad);
+  height: 42px;
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+  border-bottom: 1px solid var(--line-hot);
+}
+
+.rail-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+
+  .mark {
+    color: var(--amber);
+    font-size: 13px;
+    // The one place a glow is worth the cost, because it is the only mark on
+    // the page and it is what sells the phosphor.
+    text-shadow: 0 0 10px var(--amber-glow);
+  }
+
+  .wordmark {
+    font-family: var(--grotesk);
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.2em;
+    color: var(--text);
+  }
+
+  .rail-sub {
+    font-size: 10px;
+    letter-spacing: var(--track);
+    color: var(--faint);
+    border-left: 1px solid var(--line);
+    padding-left: 9px;
+  }
+}
+
+.rail-readouts {
+  margin-left: auto;
+  display: flex;
+  align-items: stretch;
+}
+
+.readout {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  padding: 0 12px;
+  border-left: 1px solid var(--line);
+  min-width: 92px;
+
+  .readout-key {
+    font-size: 10px;
+    letter-spacing: var(--track);
+    color: var(--faint);
+  }
+
+  .readout-val {
+    font-size: 12px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+}
+
+// The link pip is the one animated thing in the chrome, and it breathes rather
+// than blinks so a page left open on a second monitor is not movement in the
+// corner of an eye.
+.pip {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  background: var(--dim);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.readout.link {
+  &[data-state="live"] {
+    .readout-val { color: var(--up); }
+    .pip { background: var(--up); animation: breathe 2.6s ease-in-out infinite; }
+  }
+  &[data-state="down"] {
+    .readout-val { color: var(--down); }
+    .pip { background: var(--down); }
+  }
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+// Layout ---------------------------------------------------------------------
+
+main {
+  // flex: 1 is what pushes the status line to the bottom of a short viewport.
+  flex: 1;
+  padding: var(--gap);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  max-width: 1760px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+// Two bands rather than a stack of full width strips. A headline set across
+// 1900px is unreadable no matter how good the type is, and a row of panels that
+// all end at the same line reads as an instrument where a ragged one reads as a
+// page.
+.band {
+  display: grid;
+  gap: var(--gap);
+  align-items: stretch;
+
+  > .panel { display: flex; flex-direction: column; }
+}
+
+// The feeds hold ten rows each and are naturally close in height, so they are
+// not forced level the way the short readouts above them are.
+.news-band { align-items: start; }
+
+// Four short readouts, weighted by how much each carries rather than equal:
+// the curve is four rows, conditions and earnings are the wide ones.
+.market-band {
+  grid-template-columns: 0.8fr 1.05fr 1.15fr 1.4fr;
+}
+
+// The five readouts, all figures rather than prose, so they take equal width.
+.local-band {
+  grid-template-columns: repeat(6, 1fr);
+}
+
+// The three feeds on a row of their own. Equal thirds puts a headline on about
+// sixty characters, which is where prose stops being a chore to scan.
+.news-band {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr 340px;
+  gap: var(--gap);
+  align-items: start;
+}
+
+.stack { display: flex; flex-direction: column; gap: var(--gap); }
+
+// Panels ---------------------------------------------------------------------
+
+// Bordered, never floating. No drop shadows anywhere in this file: a panel that
+// hovers reads as a web card, and this is meant to read as an inset instrument.
+.panel {
+  position: relative;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: var(--pad);
+}
+
+// Corner brackets, drawn rather than imaged. They are what make a plain
+// rectangle read as a framed readout.
+.bracket {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border: 1px solid var(--amber-dim);
+  pointer-events: none;
+
+  &.tl { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
+  &.tr { top: -1px; right: -1px; border-left: 0; border-bottom: 0; }
+  &.bl { bottom: -1px; left: -1px; border-right: 0; border-top: 0; }
+  &.br { bottom: -1px; right: -1px; border-left: 0; border-top: 0; }
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+
+  .idx {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--void);
+    background: var(--amber-dim);
+    padding: 2px 5px;
+    line-height: 1;
+  }
+
+  h2 {
+    margin: 0;
+    font-family: var(--grotesk);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: var(--track);
+    color: var(--amber);
+    white-space: nowrap;
+  }
+
+  // The rule fills whatever is left, which is what keeps a header reading as
+  // one continuous instrument label rather than as floating words.
+  .rule {
+    flex: 1;
+    height: 1px;
+    min-width: 12px;
+    background: repeating-linear-gradient(
+      90deg,
+      var(--line-hot) 0 2px,
+      transparent 2px 4px
+    );
+  }
+
+  .panel-meta {
+    font-size: 10px;
+    letter-spacing: var(--track);
+    color: var(--dim);
+    white-space: nowrap;
+  }
+  a.panel-meta:hover { color: var(--amber); }
+}
+
+// Markets --------------------------------------------------------------------
+
+.markets .panel-head {
+  .session {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+
+    .badge {
+      font-size: 10px;
+      letter-spacing: var(--track);
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .phase {
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      color: var(--dim);
+      white-space: nowrap;
+    }
+
+    &[data-session="regular"] { .pip { background: var(--up); } .badge { color: var(--up); } }
+    &[data-session="pre"],
+    &[data-session="post"] { .pip { background: var(--warn); } .badge { color: var(--warn); } }
+  }
+
+  .drawdown {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    padding-left: 12px;
+    border-left: 1px solid var(--line);
+    white-space: nowrap;
+
+    .k { font-size: 10px; letter-spacing: var(--track); color: var(--dim); }
+    .v { font-size: 13px; color: var(--text); }
+  }
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+
+// One hairline between cards instead of eight separate boxes, so the strip
+// reads as a single instrument with eight channels.
+.card {
+  position: relative;
+  background: var(--panel-2);
+  padding: 9px 10px 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  header {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-height: 26px;
+  }
+
+  h3 {
+    margin: 0;
+    font-family: var(--grotesk);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .sym {
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .price {
+    margin: 7px 0 0;
+    font-size: 20px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    line-height: 1.1;
+  }
+
+  .move {
+    margin: 2px 0 7px;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+
+    .glyph {
+      width: 0;
+      height: 0;
+      border-left: 3px solid transparent;
+      border-right: 3px solid transparent;
+    }
+    .pct { color: var(--muted); }
+  }
+
+  // Direction colours the move and the trace, and leaves the price white. The
+  // price is the figure being read, the move is the judgement about it, and
+  // colouring both makes eight cards shout at once.
+  &[data-dir="up"] {
+    .pts, .glyph { color: var(--up); }
+    .glyph { border-bottom: 4px solid var(--up); }
+    .spark-line { stroke: var(--up); }
+    .spark-area { fill: var(--up-soft); }
+  }
+  &[data-dir="down"] {
+    .pts, .glyph { color: var(--down); }
+    .glyph { border-top: 4px solid var(--down); }
+    .spark-line { stroke: var(--down); }
+    .spark-area { fill: var(--down-soft); }
+  }
+  &[data-dir="flat"] {
+    .pts { color: var(--flat); }
+    .spark-line { stroke: var(--flat); }
+    .spark-area { fill: rgba(138, 129, 114, 0.07); }
+  }
+
+  // A value that just changed flashes once. This is the only place motion is
+  // tied to data, and it is what makes "live" something you can see rather
+  // than something the corner of the page claims.
+  .price.tick { animation: tick 620ms ease-out; }
+}
+
+@keyframes tick {
+  0% { background: var(--amber-glow); color: var(--amber); }
+  100% { background: transparent; color: var(--text); }
+}
+
+.spark {
+  display: block;
+  width: calc(100% + 20px);
+  margin: 0 -10px;
+  height: 40px;
+
+  // vector-effect keeps the stroke one pixel after the viewBox is stretched to
+  // the card width, which would otherwise scale it into a smear.
+  .spark-line {
+    fill: none;
+    stroke-width: 1.25;
+    vector-effect: non-scaling-stroke;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+
+  .spark-base {
+    stroke: var(--faint);
+    stroke-width: 1;
+    stroke-dasharray: 1 4;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .spark-area { stroke: none; }
+}
+
+// Feeds ----------------------------------------------------------------------
+
+.stories {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li {
+    display: flex;
+    gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--line);
+    &:last-child { border-bottom: 0; }
+  }
+
+  .rank {
+    font-size: 11px;
+    color: var(--faint);
+    padding-top: 2px;
+    flex: none;
+    width: 18px;
+  }
+
+  .body { min-width: 0; }
+
+  .title {
+    display: block;
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.35;
+  }
+  .title:hover { color: var(--amber); }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 11px;
+    margin-top: 3px;
+    font-size: 11px;
+    color: var(--dim);
+
+    .host { color: var(--muted); }
+    .unit { margin-left: 3px; color: var(--faint); }
+    .pts { color: var(--muted); }
+    a.cmt { color: var(--muted); }
+    a.cmt:hover { color: var(--amber); }
+  }
+
+  li.empty .body { color: var(--dim); font-size: 11px; letter-spacing: var(--track); }
+}
+
+// Atmos ----------------------------------------------------------------------
+
+.weather-body {
+  .temp-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .temp {
+    font-size: 40px;
+    line-height: 1;
+    color: var(--amber);
+    text-shadow: 0 0 18px var(--amber-glow);
+
+    .deg { font-size: 22px; color: var(--amber-dim); }
+  }
+
+  .cond {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    .cond-label { font-size: 12px; letter-spacing: 0.06em; color: var(--text); text-transform: uppercase; }
+    .cond-feels { font-size: 10px; letter-spacing: var(--track); color: var(--dim); }
+  }
+}
+
+// Four cells, hairline separated, so the secondary numbers read as a bank of
+// gauges rather than a sentence.
+.grid-readout {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  margin: 12px 0 0;
+  background: var(--line);
+  border: 1px solid var(--line);
+
+  > div {
+    background: var(--panel-2);
+    padding: 6px 7px;
+  }
+
+  dt { font-size: 10px; letter-spacing: var(--track); color: var(--dim); }
+  dd { margin: 2px 0 0; font-size: 14px; color: var(--text); }
+}
+
+// Systems --------------------------------------------------------------------
+
+.systems {
+  .rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+
+    li {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 0;
+      font-size: 12px;
+    }
+
+    .name {
+      color: var(--text);
+      white-space: nowrap;
+      letter-spacing: 0.04em;
+    }
+    a.name:hover { color: var(--amber); }
+
+    // A dotted leader between the name and its numbers, the way a real readout
+    // ties a label to a value across a gap.
+    .bar {
+      flex: 1;
+      height: 1px;
+      min-width: 8px;
+      background: repeating-linear-gradient(
+        90deg,
+        var(--line-hot) 0 1px,
+        transparent 1px 4px
+      );
+    }
+
+    .latency { font-size: 11px; color: var(--muted); min-width: 46px; text-align: right; }
+    .errors { font-size: 11px; color: var(--dim); min-width: 34px; text-align: right; }
+    .errors[data-any="yes"] { color: var(--warn); }
+
+    li[data-state="up"] .pip { background: var(--up); }
+    li[data-state="cached"] .pip { background: var(--warn); }
+    li[data-state="down"] .pip { background: var(--down); }
+    li[data-state="down"] .name { color: var(--down); }
+    li[data-state="unknown"] .name { color: var(--dim); }
+  }
+
+  .footnote {
+    margin: 11px 0 0;
+    font-size: 9px;
+    letter-spacing: var(--track);
+    color: var(--dim);
+  }
+}
+
+.uplink {
+  .rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+
+    li {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 0;
+      font-size: 11px;
+    }
+
+    .name { color: var(--muted); letter-spacing: 0.08em; white-space: nowrap; }
+
+    .bar {
+      flex: 1;
+      height: 1px;
+      min-width: 8px;
+      background: repeating-linear-gradient(
+        90deg,
+        var(--line-hot) 0 1px,
+        transparent 1px 4px
+      );
+    }
+
+    .age { font-size: 11px; color: var(--dim); min-width: 30px; text-align: right; }
+
+    // Calls out of this hour's budget. Amber only past half, since anything
+    // under that is not a number worth looking at.
+    .load {
+      font-size: 10px;
+      color: var(--faint);
+      min-width: 52px;
+      text-align: right;
+    }
+    .load[data-hot="yes"] { color: var(--warn); }
+
+    li[data-state="ok"] .pip { background: var(--up); }
+    li[data-state="degraded"] .pip { background: var(--warn); }
+    li[data-state="open"] { .pip { background: var(--down); } .name { color: var(--down); } }
+    li[data-state="idle"] .pip { background: var(--faint); }
+  }
+
+  .footnote {
+    margin: 10px 0 0;
+    font-size: 9px;
+    letter-spacing: var(--track);
+    color: var(--dim);
+  }
+}
+
+// Alerts ---------------------------------------------------------------------
+
+// Above everything, and absent entirely when there is nothing active, because a
+// permanent "no warnings" row trains you to stop seeing the space it occupies.
+.alerts:empty { display: none; }
+
+.alert {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 9px 12px;
+  border: 1px solid var(--warn);
+  background: rgba(210, 153, 34, 0.09);
+  margin-bottom: var(--gap);
+
+  .ev {
+    font-family: var(--grotesk);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: var(--track);
+    color: var(--warn);
+    white-space: nowrap;
+  }
+  .hl { flex: 1; font-size: 12px; color: var(--text); }
+  .til { font-size: 10px; letter-spacing: var(--track); color: var(--dim); white-space: nowrap; }
+
+  &[data-severity="severe"],
+  &[data-severity="extreme"] {
+    border-color: var(--down);
+    background: rgba(255, 95, 77, 0.11);
+    .ev { color: var(--down); }
+  }
+}
+
+// Conditions -------------------------------------------------------------------
+
+.market-row {
+  grid-template-columns: 1.15fr 0.75fr 1.1fr;
+}
+
+.conditions {
+  > div[data-signal] {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .verdict {
+    margin: 0 0 11px;
+    font-family: var(--grotesk);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    line-height: 1.45;
+    padding: 8px 10px;
+    border-left: 2px solid var(--flat);
+    background: rgba(255, 255, 255, 0.015);
+    color: var(--muted);
+
+    &[data-level="dip"] { border-left-color: var(--warn); color: var(--text); }
+    &[data-level="stress"] { border-left-color: var(--amber); color: var(--amber); }
+    &[data-level="deep"] { border-left-color: var(--up); color: var(--up); }
+  }
+
+  .conditions-list,
+  ul.conditions {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+
+    li {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      align-items: baseline;
+      gap: 10px;
+      padding: 5px 0;
+      border-bottom: 1px solid var(--line);
+      &:last-child { border-bottom: 0; }
+    }
+
+    .k { font-size: 10px; letter-spacing: var(--track); color: var(--dim); }
+    .v { font-size: 14px; color: var(--text); }
+    .n { font-size: 9px; letter-spacing: var(--track); color: var(--faint); min-width: 92px; text-align: right; }
+
+    li[data-state="dip"] .v { color: var(--warn); }
+    li[data-state="stress"] .v { color: var(--amber); }
+    li[data-state="deep"] .v { color: var(--up); }
+  }
+
+  .footnote {
+    margin: 11px 0 0;
+    font-size: 9px;
+    letter-spacing: var(--track);
+    color: var(--faint);
+  }
+}
+
+// Rates ------------------------------------------------------------------------
+
+.rates {
+  .rate-rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+
+    li {
+      display: grid;
+      grid-template-columns: 44px 1fr auto;
+      align-items: center;
+      gap: 8px;
+      // The rows share the panel equally, so four of them read as one stepped
+      // scale rather than as four items with gaps between them.
+      flex: 1;
+      border-bottom: 1px solid var(--line);
+      &:last-child { border-bottom: 0; }
+    }
+
+    .k { font-size: 11px; letter-spacing: var(--track); color: var(--dim); }
+    .v { font-size: 15px; color: var(--text); }
+    .d { font-size: 11px; color: var(--flat); }
+
+    li[data-dir="up"] .d { color: var(--down); }
+    li[data-dir="down"] .d { color: var(--up); }
+  }
+
+  // Yields up is bad for anything already held, so the colours are inverted
+  // against the equity cards on purpose. A falling yield is a rising bond.
+
+  .curve {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin: auto 0 0;
+    padding-top: 9px;
+    border-top: 1px solid var(--line-hot);
+
+    .k { font-size: 10px; letter-spacing: var(--track); color: var(--dim); }
+    .v { font-size: 14px; color: var(--text); }
+
+    &[data-curve-state="inverted"] .v { color: var(--down); }
+  }
+}
+
+// Sector board -----------------------------------------------------------------
+
+.heat {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+
+.heat .cell {
+  background: var(--panel-2);
+  padding: 7px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+
+  .s { font-size: 9px; letter-spacing: var(--track); color: var(--muted); }
+  .p { font-size: 13px; color: var(--text); }
+
+  // Four steps either side of flat, so the board reads as a gradient rather
+  // than as two colours.
+  &[data-dir="up"][data-heat="1"] { background: rgba(93, 220, 130, 0.07); }
+  &[data-dir="up"][data-heat="2"] { background: rgba(93, 220, 130, 0.14); }
+  &[data-dir="up"][data-heat="3"] { background: rgba(93, 220, 130, 0.24); }
+  &[data-dir="up"][data-heat="4"] { background: rgba(93, 220, 130, 0.36); }
+  &[data-dir="up"] .p { color: var(--up); }
+
+  &[data-dir="down"][data-heat="1"] { background: rgba(255, 95, 77, 0.07); }
+  &[data-dir="down"][data-heat="2"] { background: rgba(255, 95, 77, 0.14); }
+  &[data-dir="down"][data-heat="3"] { background: rgba(255, 95, 77, 0.24); }
+  &[data-dir="down"][data-heat="4"] { background: rgba(255, 95, 77, 0.36); }
+  &[data-dir="down"] .p { color: var(--down); }
+
+  // The index is the line the rest are being read against, so it is marked
+  // rather than left to be picked out of eleven lookalike cells.
+  &[data-benchmark="yes"] {
+    outline: 1px solid var(--amber-dim);
+    outline-offset: -1px;
+    .s { color: var(--amber); }
+  }
+}
+
+// Earnings ---------------------------------------------------------------------
+
+.earning-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  li {
+    display: grid;
+    grid-template-columns: 52px 1fr auto;
+    align-items: baseline;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .tkr { font-family: var(--grotesk); font-weight: 700; font-size: 12px; color: var(--amber); letter-spacing: 0.06em; }
+  .co { font-size: 12px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  // The cap earned its place on a full width row and does not on a narrow one,
+  // where the ticker and the day are what get read.
+  .cap { display: none; }
+  .day { font-size: 10px; letter-spacing: var(--track); color: var(--muted); white-space: nowrap; }
+  .when { color: var(--faint); }
+
+  li.empty {
+    grid-column: 1 / -1;
+    display: block;
+    font-size: 11px;
+    letter-spacing: var(--track);
+    color: var(--dim);
+    border-bottom: 0;
+  }
+}
+
+// Daylight and air -------------------------------------------------------------
+
+.daylight {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 11px;
+
+  .t { font-size: 10px; color: var(--dim); white-space: nowrap; }
+
+  .track {
+    flex: 1;
+    height: 3px;
+    background: var(--line-hot);
+    position: relative;
+
+    i {
+      display: block;
+      height: 100%;
+      background: linear-gradient(90deg, var(--amber-dim), var(--amber));
+    }
+  }
+}
+
+.grid-readout.air {
+  grid-template-columns: repeat(2, 1fr);
+  margin-top: 1px;
+
+  .wide { grid-column: 1 / -1; }
+  .sub { font-size: 9px; letter-spacing: var(--track); color: var(--dim); }
+  dd { font-size: 13px; }
+}
+
+// Outdoors ---------------------------------------------------------------------
+
+.outlook {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+
+  li {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--line);
+    &:last-child { border-bottom: 0; }
+  }
+
+  .head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  .d {
+    font-family: var(--grotesk);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    color: var(--text);
+  }
+
+  .v { font-size: 11px; letter-spacing: var(--track); color: var(--muted); }
+
+  .facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: var(--dim);
+
+    .t { color: var(--muted); }
+  }
+
+  li[data-verdict="OPTIMAL"] .v { color: var(--up); }
+  li[data-verdict="GOOD"] .v { color: var(--text); }
+  li[data-verdict="MARGINAL"] .v { color: var(--warn); }
+  li[data-verdict="POOR"] .v { color: var(--down); }
+
+  li.empty { color: var(--dim); font-size: 11px; letter-spacing: var(--track); }
+}
+
+// Steam ------------------------------------------------------------------------
+
+.games {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+
+  li {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    column-gap: 10px;
+    row-gap: 2px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--line);
+    &:last-child { border-bottom: 0; }
+  }
+
+  a {
+    color: var(--text);
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  a:hover { color: var(--amber); }
+
+  .pr { font-size: 11px; color: var(--dim); white-space: nowrap; text-align: right; }
+  .disc { color: var(--up); }
+
+  .meta {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    font-size: 9px;
+    letter-spacing: 0.06em;
+    color: var(--faint);
+  }
+  .tag { color: var(--dim); }
+  .players { color: var(--up); }
+
+  li.empty { display: block; color: var(--dim); font-size: 11px; letter-spacing: var(--track); }
+}
+
+// Streaming ---------------------------------------------------------------------
+
+.titles {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+
+  li {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-content: center;
+    column-gap: 10px;
+    row-gap: 2px;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--line);
+    &:last-child { border-bottom: 0; }
+  }
+
+  .name {
+    font-size: 12px;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  a.name:hover { color: var(--amber); }
+
+  .svc {
+    font-size: 9px;
+    letter-spacing: var(--track);
+    color: var(--amber-dim);
+    white-space: nowrap;
+  }
+
+  .meta {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    font-size: 9px;
+    letter-spacing: 0.06em;
+    color: var(--faint);
+  }
+
+  .score { color: var(--dim); }
+
+  // Both numbers agreeing is the signal, since either one alone is regularly
+  // wrong in a way the other is not.
+  li[data-hot="yes"] {
+    .name { color: var(--amber); }
+    a.name:hover { color: #ffc84d; }
+    .score { color: var(--up); }
+  }
+
+  li.empty {
+    display: block;
+    color: var(--dim);
+    font-size: 11px;
+    letter-spacing: var(--track);
+  }
+}
+
+// Wire -----------------------------------------------------------------------
+
+.headlines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "title age" "tag age";
+    align-items: baseline;
+    column-gap: 10px;
+    row-gap: 2px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--line);
+    &:last-child { border-bottom: 0; }
+  }
+
+  a { grid-area: title; }
+  .tag { grid-area: tag; justify-self: start; }
+  .age { grid-area: age; }
+
+  .tag {
+    font-size: 9px;
+    letter-spacing: var(--track);
+    color: var(--amber-dim);
+    border: 1px solid var(--line-hot);
+    padding: 2px 5px;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  a { color: var(--text); font-size: 13px; line-height: 1.35; }
+  a:hover { color: var(--amber); }
+
+  .age { font-size: 11px; color: var(--dim); white-space: nowrap; }
+
+  li.empty {
+    display: block;
+    color: var(--dim);
+    font-size: 11px;
+    letter-spacing: var(--track);
+  }
+}
+
+// Traffic meter --------------------------------------------------------------
+
+// Four bars against the busiest site on this machine, because busy is only
+// meaningful relative to what this particular set of sites does.
+.traffic {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 10px;
+  flex: none;
+
+  i {
+    display: block;
+    width: 3px;
+    background: var(--line-hot);
+  }
+  i:nth-child(1) { height: 3px; }
+  i:nth-child(2) { height: 5px; }
+  i:nth-child(3) { height: 7px; }
+  i:nth-child(4) { height: 10px; }
+
+  &[data-level="1"] i:nth-child(-n + 1),
+  &[data-level="2"] i:nth-child(-n + 2),
+  &[data-level="3"] i:nth-child(-n + 3),
+  &[data-level="4"] i:nth-child(-n + 4) { background: var(--amber-dim); }
+
+  // Against this site's own preceding week, so an unusual day reads as unusual
+  // for that site rather than for the internet.
+  &[data-trend="up"] i:nth-child(-n + 4) { background: var(--amber); }
+  &[data-trend="down"] i { background: var(--line-hot); }
+  &[data-trend="down"] i:nth-child(-n + 1) { background: var(--dim); }
+}
+
+// Status line ----------------------------------------------------------------
+
+.statusline {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  height: 26px;
+  padding: 0 var(--pad);
+  border-top: 1px solid var(--line-hot);
+  background: var(--panel);
+  font-size: 10px;
+  letter-spacing: var(--track);
+  color: var(--dim);
+
+  .seg {
+    padding: 0 12px;
+    border-right: 1px solid var(--line);
+    white-space: nowrap;
+    &:first-child { padding-left: 0; }
+    &:last-child { border-right: 0; }
+  }
+  .grow { flex: 1; border-right: 0; }
+  a { color: var(--dim); }
+  a:hover { color: var(--amber); }
+}
+
+.notfound {
+  text-align: center;
+  padding: 70px 20px;
+
+  .code {
+    margin: 0;
+    font-size: 56px;
+    color: var(--amber);
+    text-shadow: 0 0 22px var(--amber-glow);
+  }
+  .msg {
+    margin: 6px 0 18px;
+    font-size: 11px;
+    letter-spacing: var(--track);
+    color: var(--muted);
+  }
+  a { font-size: 11px; letter-spacing: var(--track); }
+}
+
+// Responsive -----------------------------------------------------------------
+//
+// Four sizes, each a real machine rather than a round number: a large desktop
+// where the third column can breathe, a laptop where the market strip has to
+// wrap, a tablet where the three columns become one, and a phone where the
+// status rail has more in it than fits.
+
+// Large desktop. The strip is the only thing that benefits from more width, so
+// it is the only thing that gets it.
+@media (min-width: 1900px) {
+  main { max-width: 2100px; }
+  .columns { grid-template-columns: 1fr 1fr 400px; }
+  .card .price { font-size: 22px; }
+}
+
+// Laptop. Eight cards across stops being readable well before the layout
+// breaks, so they go to two rows of four first.
+@media (max-width: 1700px) {
+  .local-band { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 1560px) {
+  .cards { grid-template-columns: repeat(4, 1fr); }
+  .market-band { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 1340px) {
+  .columns { grid-template-columns: 1fr 1fr; }
+  .local-band { grid-template-columns: repeat(2, 1fr); }
+  .news-band { grid-template-columns: 1fr 1fr; }
+}
+
+// Tablet.
+@media (max-width: 1024px) {
+  .columns,
+  .band { grid-template-columns: 1fr; }
+  .heat { grid-template-columns: repeat(3, 1fr); }
+
+  .rail { height: auto; flex-wrap: wrap; padding: 8px var(--pad); }
+  .rail-readouts { margin-left: auto; }
+  .readout { min-width: 78px; padding: 0 9px; }
+
+}
+
+@media (max-width: 820px) {
+  .cards { grid-template-columns: repeat(2, 1fr); }
+
+  // The drawdown readout is the first thing to go: it is a nice to have and
+  // the session state is not.
+  .markets .panel-head .drawdown { display: none; }
+}
+
+// Phone. The rail keeps the clock and the link state, since those are the two
+// things worth knowing before scrolling, and drops the rest.
+@media (max-width: 620px) {
+  :root { --gap: 8px; --pad: 10px; }
+
+  main { padding: var(--gap); }
+  .panel { padding: 11px; }
+
+  .rail-brand .rail-sub { display: none; }
+  .readout[data-readout="utc"],
+  .readout[data-readout="date"] { display: none; }
+  .readout { min-width: 0; padding: 0 8px; }
+
+  .cards { grid-template-columns: repeat(2, 1fr); }
+  .card { padding: 9px 9px 0; }
+  .card .price { font-size: 17px; }
+  .card h3 { font-size: 10px; }
+  .card .sym { font-size: 9px; }
+  .card .move { font-size: 10px; }
+  .spark { height: 30px; }
+
+  .markets .panel-head {
+    flex-wrap: wrap;
+    .rule { display: none; }
+  }
+
+  .headlines li { grid-template-columns: 1fr; row-gap: 3px; }
+  .headlines .tag { justify-self: start; }
+
+  .grid-readout { grid-template-columns: repeat(2, 1fr); }
+  .heat { grid-template-columns: repeat(2, 1fr); }
+  .earning-rows li { grid-template-columns: 54px 1fr auto; .cap { display: none; } }
+  .conditions ul.conditions li { grid-template-columns: 1fr auto; .n { display: none; } }
+  .alert { flex-wrap: wrap; row-gap: 4px; }
+
+  .statusline {
+    height: auto;
+    flex-wrap: wrap;
+    padding: 8px var(--pad);
+    row-gap: 4px;
+    .seg { padding: 0 8px; }
+    .grow { display: none; }
+  }
+}
+
+// Anything that moves here is decoration on top of a page that already works,
+// so all of it comes off rather than being slowed down.
+@media (prefers-reduced-motion: reduce) {
+  .pip,
+  .price.tick { animation: none !important; }
+}

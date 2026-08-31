@@ -1,0 +1,80 @@
+{{define "base.html"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0d0b09">
+<title>{{if .Title}}{{.Title}} &middot; {{end}}{{.SiteName}}</title>
+{{if .Description}}<meta name="description" content="{{.Description}}">{{end}}
+{{if .Staging}}<meta name="robots" content="noindex, nofollow">{{end}}
+<link rel="canonical" href="{{.Canonical}}">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+{{range .Styles}}<link rel="stylesheet" href="{{.}}">{{end}}
+{{- if .Analytics}}
+<script>
+  (function (m, e, t, r, i, c, s) {
+    m.collectorQueue = m.collectorQueue || r;
+    m.collectorServer = c;
+    m.collectorId = s;
+    m.collectorScript = e.createElement(t);
+    m.collectorScript.src = c + i;
+    e.head.appendChild(m.collectorScript);
+  })(window, document, "script", [], "/static/collector.js",
+     "https://analytics.bythewood.me", "{{.AnalyticsID}}");
+</script>
+{{- end}}
+</head>
+<body>
+
+{{/*
+  The CRT layer. Two fixed overlays that never take a pointer event: scanlines
+  and grain, then a vignette. All three are drawn in CSS rather than loaded as
+  images, so they cost no request and scale to any viewport.
+*/}}
+<div class="crt" aria-hidden="true"></div>
+<div class="vignette" aria-hidden="true"></div>
+
+<header class="rail">
+  <div class="rail-brand">
+    <span class="mark">◤</span>
+    <span class="wordmark">DASH</span>
+    <span class="rail-sub">BYTHEWOOD&nbsp;/&nbsp;ORCHARD</span>
+  </div>
+
+  <div class="rail-readouts">
+    <div class="readout" data-readout="utc">
+      <span class="readout-key">UTC</span>
+      <span class="readout-val" data-clock-utc>--:--:--</span>
+    </div>
+    <div class="readout" data-readout="local">
+      <span class="readout-key" data-clock-zone>LOCAL</span>
+      <span class="readout-val" data-clock-local>--:--:--</span>
+    </div>
+    <div class="readout" data-readout="date">
+      <span class="readout-key">DATE</span>
+      <span class="readout-val" data-clock-date>----</span>
+    </div>
+    <div class="readout link" data-live data-state="connecting">
+      <span class="readout-key">LINK</span>
+      <span class="readout-val"><span class="pip"></span><span data-live-label>INIT</span></span>
+    </div>
+  </div>
+</header>
+
+<main>
+{{template "content" .}}
+</main>
+
+<footer class="statusline">
+  <span class="seg">SRC YAHOO&nbsp;·&nbsp;CNBC&nbsp;·&nbsp;HN&nbsp;·&nbsp;LOBSTERS&nbsp;·&nbsp;OPEN-METEO</span>
+  <span class="seg" data-guard-line></span>
+  <span class="seg grow"></span>
+  <span class="seg"><a href="{{.SourceURL}}">SOURCE</a></span>
+  <span class="seg">&copy;&nbsp;{{.Year}}&nbsp;{{.AuthorName}}</span>
+</footer>
+
+{{if .Script}}<script type="module" src="{{.Script}}"></script>{{end}}
+</body>
+</html>
+{{end}}
