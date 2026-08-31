@@ -50,7 +50,7 @@ type probeOutcome struct {
 	cacheStatus string
 	age         *int64
 
-	// originUnreachable is set when a cache answered with a copy older than a
+	// originUnreachable is set when a cache answered and a direct probe of the
 	// live origin could have left it; see classifyCache.
 	originUnreachable bool
 }
@@ -170,9 +170,6 @@ func runCheck(ctx context.Context, db *sql.DB, p *Property) (int64, error) {
 // stopped. It is not a real HTTP code; nothing sent one.
 const statusOriginStale = 523
 
-// minCacheTolerance floors the freshness window; see classifyCache.
-const minCacheTolerance = 300
-
 func nullableString(s string) any {
 	if s == "" {
 		return nil
@@ -229,7 +226,14 @@ func probeWithRedirects(ctx context.Context, rawURL string) (*probeOutcome, erro
 		headers = hop.headers
 	}
 
-	cacheStatus, age, unreachable := classifyCache(headers)
+	// Only pay for the extra request when the edge answered by itself, which is
+	// the one case where this response says nothing about the origin.
+	cacheStatus, age, cached := classifyCache(headers)
+	unreachable := false
+	if cached {
+		alive, known := originAnswered(ctx, current)
+		unreachable = known && !alive
+	}
 	return &probeOutcome{
 		statusCode:        status,
 		headersJSON:       headersJSON,
@@ -240,67 +244,47 @@ func probeWithRedirects(ctx context.Context, rawURL string) (*probeOutcome, erro
 	}, nil
 }
 
-// classifyCache decides whether a response is evidence the origin is alive. A
-// cache hit alone is not: what marks a live origin is that Age stays young,
-// since a successful revalidation resets it and a dead origin cannot refresh.
-func classifyCache(headers map[string]string) (status string, age *int64, unreachable bool) {
+// classifyCache reports whether the edge answered out of its own copy. A hit is
+// not evidence either way about the origin, and Age cannot stand in for one: the
+// Edge TTL comes from a Cache Rule the origin never sees, so Age climbs past the
+// origin's own max-age on a site that is perfectly healthy.
+func classifyCache(headers map[string]string) (status string, age *int64, cached bool) {
 	status = headers["cf-cache-status"]
 
-	raw, ok := headers["age"]
-	if !ok {
-		return status, nil, false
+	if raw, ok := headers["age"]; ok {
+		if n, err := strconv.ParseInt(raw, 10, 64); err == nil {
+			age = &n
+		}
 	}
-	n, err := strconv.ParseInt(raw, 10, 64)
-	if err != nil {
-		return status, nil, false
-	}
-	age = &n
 
-	// DYNAMIC and MISS both mean the origin was reached for this response.
 	switch strings.ToUpper(status) {
 	case "HIT", "UPDATING", "STALE":
-	default:
-		return status, age, false
+		return status, age, true
 	}
-
-	maxAge, ok := maxAgeOf(headers["cache-control"])
-	if !ok {
-		return status, age, false
-	}
-	// Floored, since a small max-age puts the tolerance and a healthy peak Age
-	// on top of each other. This cannot see an edge-side TTL override, where a
-	// Cache Rule holds a copy longer than the origin's own header claims.
-	if maxAge < minCacheTolerance {
-		maxAge = minCacheTolerance
-	}
-	return status, age, n > maxAge+int64(2*checkInterval.Seconds())
+	return status, age, false
 }
 
-// maxAgeOf pulls max-age out of a Cache-Control header. s-maxage wins when
-// present, because that is the one a shared cache obeys.
-func maxAgeOf(cacheControl string) (int64, bool) {
-	var maxAge int64 = -1
-	for _, part := range strings.Split(cacheControl, ",") {
-		part = strings.TrimSpace(part)
-		key, value, found := strings.Cut(part, "=")
-		if !found {
-			continue
-		}
-		n, err := strconv.ParseInt(strings.TrimSpace(value), 10, 64)
-		if err != nil || n < 0 {
-			continue
-		}
-		switch strings.ToLower(strings.TrimSpace(key)) {
-		case "s-maxage":
-			return n, true
-		case "max-age":
-			maxAge = n
-		}
+// originAnswered asks the origin directly, with a query string nothing has
+// cached and against the one path every site here serves no-store. It reports
+// whether the origin answered and whether the question could be asked at all,
+// so a property with no health endpoint gets no opinion rather than a permanent
+// alarm.
+func originAnswered(ctx context.Context, u *url.URL) (alive, known bool) {
+	probe := *u
+	probe.Path = "/healthz"
+	probe.RawQuery = "cb=" + strconv.FormatInt(time.Now().UnixNano(), 36)
+
+	hop, err := phasedHop(ctx, &probe)
+	if err != nil {
+		return false, true
 	}
-	if maxAge < 0 {
-		return 0, false
+	switch hop.statusCode {
+	case http.StatusOK:
+		return true, true
+	case http.StatusNotFound:
+		return false, false
 	}
-	return maxAge, true
+	return false, true
 }
 
 func isRedirect(code int64) bool {

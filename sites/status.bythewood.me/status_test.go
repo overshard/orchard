@@ -1096,85 +1096,63 @@ func TestReportsParse(t *testing.T) {
 	}
 }
 
-// classifyCache stops an edge cache answering for a dead origin from reading
-// as "up". Being cached is normal, so only a copy older than a live origin
-// could have left behind is evidence of a failure.
+// classifyCache answers one question, whether the edge served this itself. It
+// used to infer origin health from Age, which called a healthy origin dead six
+// times in an afternoon because Cloudflare's Edge TTL is set by a Cache Rule the
+// origin never sees.
 func TestClassifyCache(t *testing.T) {
 	const cc = "public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800"
 
 	cases := []struct {
-		name        string
-		headers     map[string]string
-		unreachable bool
+		name    string
+		headers map[string]string
+		cached  bool
+		age     int64
 	}{
 		{
-			// The healthy steady state, Age climbing to about max-age plus one
-			// probe interval before a revalidation resets it.
-			name:        "cached but fresh enough to have been revalidated",
-			headers:     map[string]string{"cf-cache-status": "HIT", "age": "419", "cache-control": cc},
-			unreachable: false,
+			name:    "hit is the edge answering by itself",
+			headers: map[string]string{"cf-cache-status": "HIT", "age": "419", "cache-control": cc},
+			cached:  true, age: 419,
 		},
 		{
-			name:        "served stale while revalidating, still within tolerance",
-			headers:     map[string]string{"cf-cache-status": "UPDATING", "age": "464", "cache-control": cc},
-			unreachable: false,
+			name:    "served stale while revalidating is still the edge answering",
+			headers: map[string]string{"cf-cache-status": "UPDATING", "age": "464", "cache-control": cc},
+			cached:  true, age: 464,
 		},
 		{
-			// max-age 300 plus two 3-minute probe intervals is 660. Past that,
-			// a revalidation that would have reset Age has failed twice.
-			name:        "stale far past any successful revalidation",
-			headers:     map[string]string{"cf-cache-status": "UPDATING", "age": "900", "cache-control": cc},
-			unreachable: true,
+			// The case that used to fire. A Cache Rule holding a copy for longer
+			// than the origin asked for is not an outage.
+			name:    "very old copy is still only a cache hit",
+			headers: map[string]string{"cf-cache-status": "UPDATING", "age": "61854", "cache-control": cc},
+			cached:  true, age: 61854,
 		},
 		{
-			// The origin was reached here, so Age says nothing about it and the
-			// check must not fire however large it is.
-			name:        "uncached response is always origin truth",
-			headers:     map[string]string{"cf-cache-status": "DYNAMIC", "age": "99999", "cache-control": cc},
-			unreachable: false,
+			name:    "dynamic means the origin was reached",
+			headers: map[string]string{"cf-cache-status": "DYNAMIC", "age": "99999", "cache-control": cc},
+			cached:  false, age: 99999,
 		},
 		{
-			name:        "no cache headers at all",
-			headers:     map[string]string{},
-			unreachable: false,
+			name:    "miss means the origin was reached",
+			headers: map[string]string{"cf-cache-status": "MISS", "cache-control": cc},
+			cached:  false, age: -1,
 		},
 		{
-			// Without a max-age there is no envelope, so it says nothing rather
-			// than guessing one.
-			name:        "cached with no max-age to calibrate against",
-			headers:     map[string]string{"cf-cache-status": "HIT", "age": "99999"},
-			unreachable: false,
+			name:    "no cache headers at all",
+			headers: map[string]string{},
+			cached:  false, age: -1,
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, _, got := classifyCache(tc.headers)
-			if got != tc.unreachable {
-				t.Fatalf("originUnreachable = %v, want %v", got, tc.unreachable)
+			_, age, cached := classifyCache(tc.headers)
+			if cached != tc.cached {
+				t.Fatalf("cached = %v, want %v", cached, tc.cached)
+			}
+			if got := derefAge(age); got != tc.age {
+				t.Fatalf("age = %d, want %d", got, tc.age)
 			}
 		})
-	}
-}
-
-// The tolerance follows the site's own policy, so changing a cache policy
-// cannot quietly turn this into a false alarm.
-func TestMaxAgeOf(t *testing.T) {
-	for _, tc := range []struct {
-		in   string
-		want int64
-		ok   bool
-	}{
-		{"public, max-age=300, stale-if-error=604800", 300, true},
-		{"public, s-maxage=60, max-age=300", 60, true},
-		{"no-store", 0, false},
-		{"public", 0, false},
-		{"max-age=notanumber", 0, false},
-	} {
-		got, ok := maxAgeOf(tc.in)
-		if got != tc.want || ok != tc.ok {
-			t.Fatalf("maxAgeOf(%q) = %d,%v want %d,%v", tc.in, got, ok, tc.want, tc.ok)
-		}
 	}
 }
 
@@ -1184,13 +1162,13 @@ func TestMaxAgeOf(t *testing.T) {
 func TestOriginStaleIsPersistedNotJustReturned(t *testing.T) {
 	const cc = "public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800"
 
-	_, _, unreachable := classifyCache(map[string]string{
+	_, _, cached := classifyCache(map[string]string{
 		"cf-cache-status": "UPDATING",
 		"age":             "9000",
 		"cache-control":   cc,
 	})
-	if !unreachable {
-		t.Fatal("precondition: this response should read as origin-unreachable")
+	if !cached {
+		t.Fatal("precondition: this response should read as served from cache")
 	}
 
 	// runCheck writes `effective`, so it has to write something the alert
