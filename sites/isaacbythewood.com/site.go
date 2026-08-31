@@ -72,8 +72,9 @@ type Site struct {
 	Dir         string
 	Description string
 	Tech        []string
-	// Empty when there is nothing a stranger can open. Logging is the only one,
-	// and its card says so rather than linking at a login form.
+	// The site's own front door, which every one of these has. The dashboards
+	// behind analytics, status and logging want a login, the landing pages do
+	// not.
 	Visit string
 }
 
@@ -99,20 +100,21 @@ var sites = []Site{
 		Dir:         "logging.bythewood.me",
 		Description: "Every site here ships its structured logs to this one, so a request I want to find is in one place instead of seven docker logs.",
 		Tech:        []string{"Go", "SQLite", "Typst"},
+		Visit:       "https://logging.bythewood.me",
 	},
 	{
 		Name:        "status",
 		Dir:         "status.bythewood.me",
 		Description: "Uptime monitoring and public status pages, with Lighthouse audits and an SEO crawler on a timer and PDF reports out the other end.",
 		Tech:        []string{"Go", "SQLite", "Lighthouse"},
-		Visit:       "https://status.bythewood.me/a40ff31d-18b0-49c3-9a36-deb02c909204",
+		Visit:       "https://status.bythewood.me",
 	},
 	{
 		Name:        "analytics",
 		Dir:         "analytics.bythewood.me",
 		Description: "Self-hosted website analytics: a collector, dashboards you can share without a login, a world map, and Typst PDF reports.",
 		Tech:        []string{"Go", "SQLite", "GeoIP"},
-		Visit:       "https://analytics.bythewood.me/30e69c06-9beb-4283-8919-8c7a686ab013",
+		Visit:       "https://analytics.bythewood.me",
 	},
 	{
 		Name:        "blog",
