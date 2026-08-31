@@ -1,6 +1,11 @@
 # orchard
 #
-# Three commands cover the running system:
+# Everything is a make target, including the once-per-machine setup, so there is
+# nothing here to invoke by hand. A machine that has never run this wants:
+#
+#   make install                         tunnel, secrets, containers, alerts
+#
+# Three cover the running system after that:
 #
 #   make up                              bring everything up, from nothing or from broken
 #   make deploy SITE=blog.bythewood.me   rebuild one site and replace it
@@ -13,6 +18,10 @@
 #   make build SITE=blog.bythewood.me    release binary into bin/
 #   make check                           gofmt, then vet and build every site
 #   make test                            every site's tests
+#
+# `make help` lists the setup targets. Nothing below may contain $$(MAKE) inside
+# a recipe that must not run under `make -n`, since GNU make runs any recipe
+# line carrying that string even on a dry run.
 #
 # Every docker command goes through sudo, because the socket in the webdev
 # container is root:root mode 660 and being in the docker group does not help.
@@ -48,7 +57,8 @@ COMPOSE      = $(DOCKER) compose
 COMPOSE_DOWN = $(DOCKER) compose
 
 .DEFAULT_GOAL := help
-.PHONY: help up up-one deploy edge doctor down down-one run build check fmt fmt-check vet test \
+.PHONY: help install up up-one deploy edge doctor down down-one run build check fmt fmt-check vet test \
+	env password tunnel tunnel-login tunnel-status ntfy ntfy-token ntfy-status ntfy-passwd \
 	require-site require-env require-tunnel
 
 help:
@@ -65,9 +75,18 @@ help:
 	@echo "  make check                 gofmt, then vet and build every site"
 	@echo "  make test                  every site's tests"
 	@echo ""
-	@echo "once per machine, before the first up"
-	@echo "  sh edge/setup-tunnel.sh login"
-	@echo "  sh edge/setup-tunnel.sh up"
+	@echo "once per machine"
+	@echo "  make install               all of the below, in order, from nothing"
+	@echo "  make tunnel-login          browser auth for one Cloudflare zone"
+	@echo "  make tunnel                create the tunnel, route DNS, write config"
+	@echo "  make env                   write every missing .env, passwords filled in"
+	@echo "  make ntfy                  create the two alert accounts"
+	@echo "  make ntfy-token            mint the publishers' token into the .env files"
+	@echo ""
+	@echo "  make password              print a suggested password, writing nothing"
+	@echo "  make tunnel-status         what the tunnel has right now"
+	@echo "  make ntfy-status           accounts, access and tokens"
+	@echo "  make ntfy-passwd           change the reading account's password"
 	@echo ""
 	@echo "sites"
 	@for s in $(SITES); do echo "  $$s"; done
@@ -99,7 +118,7 @@ deploy: require-site require-env
 # cloudflared is the exception and is restarted explicitly. Its config comes
 # from a volume rather than its image, so compose sees nothing changed and would
 # leave the tunnel serving the old ingress, where a newly added hostname 404s
-# with nothing to say why. Changing that config means `sh edge/setup-tunnel.sh up`.
+# with nothing to say why. Changing that config means `make tunnel` first.
 edge: require-tunnel
 	$(EDGE_COMPOSE) up --build --detach
 	$(DOCKER) restart orchard-cloudflared
@@ -141,7 +160,7 @@ doctor:
 	if $(DOCKER) volume inspect orchard-cloudflared >/dev/null 2>&1; then \
 		echo "tunnel   credentials present"; \
 	else \
-		echo "tunnel   NOT SET UP           -> sh edge/setup-tunnel.sh login, then up"; \
+		echo "tunnel   NOT SET UP           -> make tunnel-login, then make tunnel"; \
 	fi; \
 	if $(DOCKER) network inspect orchard-edge >/dev/null 2>&1; then \
 		echo "network  orchard-edge up"; \
@@ -205,6 +224,82 @@ doctor:
 		done; \
 	done
 
+# ------------------------------------------------------------------ the setup
+
+# Once per machine, in this order. Each step is also its own target, so a run
+# that stopped halfway wants the one that failed rather than all of it again.
+#
+# `up` has to come before `ntfy`, since the accounts are created inside a
+# running container, and the second `up` is what hands the freshly minted token
+# to the two sites that publish with it.
+install: tunnel-login tunnel env
+	$(MAKE) --no-print-directory up
+	$(MAKE) --no-print-directory ntfy
+	$(MAKE) --no-print-directory ntfy-token
+	$(MAKE) --no-print-directory up
+	@echo ""
+	@echo "point the ntfy app at https://ntfy.bythewood.me with the reading"
+	@echo "account above, and subscribe to status and logging."
+
+# A password out of /dev/urandom, in groups of eight so it can be read back off
+# a screen. Nothing is written, it is a suggestion to paste into 1Password.
+GEN_PASSWORD = LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 32 | sed 's/.\{8\}/&-/g; s/-$$//'
+
+password:
+	@$(GEN_PASSWORD); echo ""
+
+# A site needs a .env exactly when it ships a .env.example, and the passwords in
+# one are machine-local and never committed, so they are generated here rather
+# than invented. Only an empty *_PASSWORD is filled, which leaves NTFY_TOKEN for
+# `make ntfy-token` and REPOS_MIRROR unset, where unset means on.
+#
+# An existing .env is never touched. Rewriting one would sign every open session
+# out of repos and take the ntfy token with it.
+env:
+	@for ex in sites/*/.env.example; do \
+		d=$$(dirname "$$ex"); \
+		if [ -f "$$d/.env" ]; then \
+			echo "$$(basename $$d) has a .env already, left alone"; \
+			continue; \
+		fi; \
+		cp "$$ex" "$$d/.env"; \
+		chmod 600 "$$d/.env"; \
+		echo "$$(basename $$d)"; \
+		for var in $$(sed -n 's/^\([A-Z_]*_PASSWORD\)=$$/\1/p' "$$d/.env"); do \
+			pw=$$($(GEN_PASSWORD)); \
+			sed -i "s|^$$var=|$$var=$$pw|" "$$d/.env"; \
+			printf '  %-20s %s\n' "$$var" "$$pw"; \
+		done; \
+	done
+	@echo ""
+	@echo "those are the only copies, so put them in 1Password now."
+
+# The browser step, and it covers one Cloudflare zone at a time because cert.pem
+# carries a single zone. Two zones means running this again for the second and
+# then `make tunnel` again.
+tunnel-login:
+	@SUDO="$(SUDO)" sh edge/setup-tunnel.sh login
+
+tunnel:
+	@SUDO="$(SUDO)" sh edge/setup-tunnel.sh up
+
+tunnel-status:
+	@SUDO="$(SUDO)" sh edge/setup-tunnel.sh status
+
+# Both accounts, with generated passwords printed once. Needs orchard-ntfy
+# running, so it comes after `make up`.
+ntfy:
+	@SUDO="$(SUDO)" sh edge/setup-ntfy.sh up
+
+ntfy-token:
+	@SUDO="$(SUDO)" sh edge/setup-ntfy.sh token
+
+ntfy-status:
+	@SUDO="$(SUDO)" sh edge/setup-ntfy.sh status
+
+ntfy-passwd:
+	@SUDO="$(SUDO)" sh edge/setup-ntfy.sh passwd
+
 # ----------------------------------------------------------------- the guards
 
 # No default SITE, so a bare `make deploy` asks rather than rebuilding and
@@ -227,11 +322,14 @@ require-site:
 require-env:
 	@if [ -f "$(SITE_DIR)/.env.example" ] && [ ! -f "$(SITE_DIR)/.env" ]; then \
 		echo "$(SITE) has no .env. it is gitignored and machine-local, so a" >&2; \
-		echo "fresh checkout never has one. copy the example and fill it in:" >&2; \
+		echo "fresh checkout never has one:" >&2; \
 		echo "" >&2; \
-		echo "  cp $(SITE_DIR)/.env.example $(SITE_DIR)/.env" >&2; \
+		echo "  make env" >&2; \
 		echo "" >&2; \
-		echo "the values are in 1Password." >&2; \
+		echo "that writes one for every site that is missing it, with a" >&2; \
+		echo "generated password in each, and prints them. if this machine is" >&2; \
+		echo "rejoining something that already exists, the old values are in" >&2; \
+		echo "1Password and go in by hand instead." >&2; \
 		exit 1; \
 	fi
 
@@ -242,8 +340,8 @@ require-tunnel:
 	@$(DOCKER) volume inspect orchard-cloudflared >/dev/null 2>&1 || { \
 		echo "the tunnel is not set up on this machine yet. once, in order:" >&2; \
 		echo "" >&2; \
-		echo "  sh edge/setup-tunnel.sh login" >&2; \
-		echo "  sh edge/setup-tunnel.sh up" >&2; \
+		echo "  make tunnel-login" >&2; \
+		echo "  make tunnel" >&2; \
 		exit 1; \
 	}
 

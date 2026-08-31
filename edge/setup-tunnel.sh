@@ -1,10 +1,14 @@
 #!/bin/sh
-# Create, inspect and tear down the Cloudflare Tunnel that fronts this repo.
+# Create, inspect and tear down the Cloudflare Tunnel that fronts this repo. Run
+# these from the repo root, where the first three are make targets:
 #
-#   sh setup-tunnel.sh login    once per machine: browser auth, writes cert.pem
-#   sh setup-tunnel.sh up       create the tunnel, route DNS, write config.yml
-#   sh setup-tunnel.sh status   what exists right now
-#   sh setup-tunnel.sh down     delete the tunnel and its volume
+#   make tunnel-login           once per zone: browser auth, writes cert.pem
+#   make tunnel                 create the tunnel, route DNS, write config.yml
+#   make tunnel-status          what exists right now
+#   sh edge/setup-tunnel.sh down    delete the tunnel and its volume
+#
+# `down` has no target on purpose, since deleting the tunnel is not something to
+# have one keystroke away from `make doctor`.
 #
 # All cloudflared state lives in a named volume, never a bind mount. The Docker
 # CLI here talks to Docker Desktop on the Windows host, whose daemon cannot see
@@ -12,8 +16,12 @@
 #
 # Every docker command goes through sudo, because the socket in the webdev
 # container is root:root mode 660 and being in the docker group does not help.
-# On a host where docker needs no sudo:  SUDO= sh setup-tunnel.sh up
+# On a host where docker needs no sudo:  make tunnel SUDO=
 set -e
+
+# Resolved before the cd below, since $0 is relative to the caller's
+# directory and stops resolving the moment we leave it.
+SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 
 # Run from this script's own directory, whatever the caller's was, since every
 # path below is relative to edge/.
@@ -77,7 +85,7 @@ up)
 	# off the volume instead of out of `tunnel list`.
 	ID=$(volume_sh "ls /etc/cloudflared" | grep -E '^[0-9a-f-]{36}\.json$' | head -1 | sed 's/\.json$//')
 	if [ -z "$ID" ]; then
-		echo "could not determine tunnel id; run '$0 status'" >&2
+		echo "could not determine tunnel id, run: make tunnel-status" >&2
 		exit 1
 	fi
 	echo "tunnel id: $ID"
@@ -136,7 +144,7 @@ down)
 	;;
 
 *)
-	sed -n '2,8p' "$0"
+	awk 'NR>1 && /^#/ { sub(/^#[ ]?/, ""); print; next } NR>1 { exit }' "$SELF"
 	exit 1
 	;;
 esac

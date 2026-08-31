@@ -26,44 +26,48 @@ Dockerfiles.
 ### From nothing
 
 A fresh clone on a machine where none of this exists, or a machine where it all
-went down at once. Seven steps, in this order:
+went down at once:
 
 ```sh
-# 1. The tunnel. Once per machine; opens a browser to pick a zone.
-sh edge/setup-tunnel.sh login
-sh edge/setup-tunnel.sh up
-
-# 2. Secrets. Copy each example and fill in a password of your choosing.
-#    Leave NTFY_TOKEN empty; step 5 writes it.
-cp sites/analytics.bythewood.me/.env.example sites/analytics.bythewood.me/.env
-cp sites/status.bythewood.me/.env.example    sites/status.bythewood.me/.env
-cp sites/logging.bythewood.me/.env.example   sites/logging.bythewood.me/.env
-cp sites/repos.bythewood.me/.env.example     sites/repos.bythewood.me/.env
-
-# 3. Everything up. Ends by printing doctor.
-make up
-
-# 4. The two ntfy accounts. Prompts for a password for each.
-sh edge/setup-ntfy.sh up
-
-# 5. The publishers' token, written into both sites' .env for you.
-sh edge/setup-ntfy.sh token
-
-# 6. Hand the token to the running sites.
-make up
-
-# 7. Confirm.
-make doctor
+make install
 ```
 
+That opens a browser to authorise a Cloudflare zone, creates the tunnel and
+routes every hostname to it, writes a `.env` for each site that needs one,
+brings the edge and all seven sites up, creates the two ntfy accounts, mints the
+publishers' token into the two `.env` files that use it, hands it to the running
+sites, and ends on `doctor`.
+
+Nothing asks you to invent a password. Every one it needs is generated and
+printed as it goes, and those are the only copies, so put them in 1Password
+while they are on screen. `make password` prints another whenever you want one.
+
+`cert.pem` covers a single Cloudflare zone, and the hostnames here span two, so
+the DNS routes for the second zone fail the first time through. Run
+`make tunnel-login` and `make tunnel` again, pick the other zone in the browser,
+and the rest are created.
+
 Then point the ntfy Android client at `https://ntfy.bythewood.me` with the
-reading account from step 4 and subscribe to `status` and `logging`.
+reading account it printed, and subscribe to `status` and `logging`.
 
-Step 3 has to come before step 4, since `setup-ntfy.sh` talks to a running
-container. Everything else is safe to re-run at any time.
+Each step is a target of its own, for a run that stopped halfway:
 
-A different domain means editing three things before step 1: the `HOSTNAMES`
-line in `edge/setup-tunnel.sh`, the ingress rules in
+```sh
+make tunnel-login   # browser auth, one Cloudflare zone at a time
+make tunnel         # create the tunnel, route DNS, write config.yml
+make env            # a .env per site, passwords generated and printed
+make up             # the edge, then every site, ending in doctor
+make ntfy           # the two alert accounts
+make ntfy-token     # the publishers' token, into the two .env files
+make up             # hand the token to the sites that publish with it
+```
+
+`up` has to come before `ntfy`, since the accounts are created inside a running
+container. Everything else is safe to re-run at any time, and `make env` never
+touches a `.env` that already exists.
+
+A different domain means editing three things before the tunnel step: the
+`HOSTNAMES` line in `edge/setup-tunnel.sh`, the ingress rules in
 `edge/cloudflared/config.yml`, and the site blocks in `edge/caddy/Caddyfile`.
 Each site's own hostname is a constant in its `site.go`.
 
@@ -93,11 +97,22 @@ usually wants `make up`; one serving the wrong thing wants `make deploy`.
 ## Commands
 
 ```sh
+make install                         a machine that has never run this
 make up                              everything, from nothing or from broken
 make deploy SITE=blog.bythewood.me   rebuild one site and replace it
 make edge                            rebuild the edge after editing edge/
 make doctor                          tunnel, network, containers, data volumes
 make down                            stop everything
+
+make tunnel-login                    browser auth for one Cloudflare zone
+make tunnel                          create the tunnel, route DNS, write config
+make tunnel-status                   what the tunnel has right now
+make env                             a .env per site, passwords generated
+make password                        print a suggested password, writing nothing
+make ntfy                            create the two alert accounts
+make ntfy-token                      mint the publishers' token into the .env files
+make ntfy-status                     accounts, access and tokens
+make ntfy-passwd                     change the reading account's password
 
 make run SITE=blog.bythewood.me      vite watch + go run, on :8000
 make build SITE=blog.bythewood.me    frontend, then a release binary in bin/
