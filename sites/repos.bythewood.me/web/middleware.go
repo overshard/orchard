@@ -48,6 +48,11 @@ func (w *recorder) Write(b []byte) (int, error) {
 	return n, err
 }
 
+// Unwrap is what http.ResponseController follows to reach the real writer.
+// Without it a wrapped handler cannot flush, so a server-sent events endpoint
+// behind this middleware buffers until the connection closes.
+func (w *recorder) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+
 // Logged writes one structured record per request. Duration is a float in
 // milliseconds rather than a formatted Duration, because "1.042ms" cannot be
 // sorted or compared by a log query and 1.042 can.
@@ -174,3 +179,5 @@ func (w *edgeCacheWriter) Write(b []byte) (int, error) {
 	}
 	return w.ResponseWriter.Write(b)
 }
+
+func (w *edgeCacheWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
