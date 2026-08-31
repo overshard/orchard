@@ -62,6 +62,10 @@
 	# Read before the filter above drops the headers, so a row here can be
 	# matched to the site's own row for the same request.
 	log_append cf_ray {http.request.header.Cf-Ray}
+
+	# Every app names the kind of route it served, and an edge row is its own
+	# kind, so the log store can group by this without a hole where Caddy is.
+	log_append component edge
 }
 
 # Exploit scanners probing software nothing here runs, about a third of all
