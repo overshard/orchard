@@ -74,6 +74,7 @@ func Logged(next http.Handler) http.Handler {
 			slog.String("ip", ClientIP(r)),
 			slog.Int("bytes", rec.bytes),
 			slog.Float64("ms", float64(time.Since(start).Microseconds())/1000),
+			slog.String("component", routeClass(rec, r.URL.Path)),
 		}
 		// Absent means the request never crossed the tunnel.
 		if ray := r.Header.Get("CF-Ray"); ray != "" {
@@ -81,6 +82,31 @@ func Logged(next http.Handler) http.Handler {
 		}
 		slog.Info("request", attrs...)
 	})
+}
+
+// routeClass buckets a request into something the log store can group by. It
+// has to stay small: this is a rollup dimension there, and one that grew with
+// the URL space would make that table grow like the raw one it exists to avoid.
+//
+// A stream is named because its elapsed time measures the visit rather than any
+// work done, so nothing downstream should average it in with real requests.
+func routeClass(w *recorder, path string) string {
+	if strings.HasPrefix(w.Header().Get("Content-Type"), "text/event-stream") {
+		return "stream"
+	}
+	switch path {
+	case "/healthz":
+		return "healthz"
+	case "/favicon.ico", "/favicon.svg", "/robots.txt", "/sitemap.xml",
+		"/manifest.json", "/latest.json", "/rss.xml", "/feed":
+		return "asset"
+	}
+	for _, prefix := range []string{"/static/", "/static_maps/", "/content/", "/og/", "/media/", "/_next/"} {
+		if strings.HasPrefix(path, prefix) {
+			return "static"
+		}
+	}
+	return "page"
 }
 
 // Recovered turns a panic in a handler into a 500 rather than killing the

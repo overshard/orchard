@@ -184,3 +184,46 @@ func TestEdgeCacheYieldsToTheHandler(t *testing.T) {
 		})
 	}
 }
+
+// component is a rollup dimension in the log store, so this set has to stay
+// small and every request has to land in it. An empty component was why the
+// dashboard could group requests by status but never by what kind of route
+// served them.
+func TestRouteClassIsBoundedAndTotal(t *testing.T) {
+	seen := map[string]bool{}
+
+	for _, tc := range []struct {
+		path        string
+		contentType string
+		want        string
+	}{
+		{"/", "text/html", "page"},
+		{"/posts/some-slug/", "text/html", "page"},
+		{"/orchard/blob/main/go.mod", "text/html", "page"},
+		{"/login", "text/html", "page"},
+		{"/static/base-abc123.js", "text/javascript", "static"},
+		{"/content/images/avatar.webp", "image/webp", "static"},
+		{"/og/post.png", "image/png", "static"},
+		{"/media/images/old.webp", "text/html", "static"},
+		{"/_next/image", "text/html", "static"},
+		{"/robots.txt", "text/plain", "asset"},
+		{"/sitemap.xml", "application/xml", "asset"},
+		{"/favicon.ico", "image/x-icon", "asset"},
+		{"/healthz", "text/plain", "healthz"},
+		{"/events", "text/event-stream", "stream"},
+		// Content type wins: a stream is a stream whatever it is served from.
+		{"/api/live", "text/event-stream; charset=utf-8", "stream"},
+	} {
+		rec := &recorder{ResponseWriter: httptest.NewRecorder()}
+		rec.Header().Set("Content-Type", tc.contentType)
+		got := routeClass(rec, tc.path)
+		if got != tc.want {
+			t.Errorf("routeClass(%q, %q) = %q, want %q", tc.path, tc.contentType, got, tc.want)
+		}
+		seen[got] = true
+	}
+
+	if len(seen) > 5 {
+		t.Errorf("routeClass produced %d values, and it is a rollup key: %v", len(seen), seen)
+	}
+}
