@@ -377,6 +377,7 @@ func (s *Store) refreshAir(ctx context.Context, g *Guard) {
 		air.PollenState = pollenBand(index)
 		air.PollenTop = top
 		air.PollenKnown = true
+		air.PollenFill, air.PollenLevel = gauge(index, 9.7, 2.5, 4.9, 7.3)
 	}
 
 	s.update(func(st *State) { st.Air = air })
