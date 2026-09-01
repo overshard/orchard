@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -126,12 +127,29 @@ func (a *Authenticator) RequireAuthJSON(next http.HandlerFunc) http.HandlerFunc 
 
 // LoginURL is where a signed out visitor goes, carrying an absolute return
 // address because the login is on another host.
+//
+// The return address is never this site's own /login. That path is itself a
+// redirect to auth, so handing it back as the destination is an infinite loop:
+// auth sends you there, the stub sends you to auth, auth sees a live session and
+// sends you there again. An explicit ?next= on the stub is honoured instead, and
+// the site root is the fallback.
 func LoginURL(r *http.Request) string {
 	scheme := "https"
 	if r.TLS == nil && r.Header.Get("X-Forwarded-Proto") == "http" {
 		scheme = "http"
 	}
-	back := scheme + "://" + r.Host + r.URL.RequestURI()
+
+	target := r.URL.RequestURI()
+	if r.URL.Path == "/login" {
+		target = "/"
+		if n := r.URL.Query().Get("next"); strings.HasPrefix(n, "/") &&
+			!strings.HasPrefix(n, "//") && !strings.HasPrefix(n, "/\\") &&
+			n != "/login" {
+			target = n
+		}
+	}
+
+	back := scheme + "://" + r.Host + target
 	return authLoginURL + "?next=" + url.QueryEscape(back)
 }
 

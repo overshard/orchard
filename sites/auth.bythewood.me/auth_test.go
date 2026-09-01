@@ -463,3 +463,23 @@ func TestSudoExpires(t *testing.T) {
 		t.Fatal("sudo outlived its window")
 	}
 }
+
+// A site's own /login is a redirect to auth, so handing it back as the return
+// address is the infinite loop it caused on logging.bythewood.me: auth sends you
+// there, the stub sends you to auth, auth sees a session and sends you there.
+func TestLoginURLNeverReturnsToALoginStub(t *testing.T) {
+	for path, want := range map[string]string{
+		"/login":                "https://logging.bythewood.me/",
+		"/login?next=/overview": "https://logging.bythewood.me/overview",
+		"/login?next=//evil":    "https://logging.bythewood.me/",
+		"/login?next=/login":    "https://logging.bythewood.me/",
+		"/overview":             "https://logging.bythewood.me/overview",
+	} {
+		r := httptest.NewRequest(http.MethodGet, path, nil)
+		r.Host = "logging.bythewood.me"
+		got := web.LoginURL(r)
+		if !strings.HasSuffix(got, url.QueryEscape(want)) {
+			t.Errorf("LoginURL(%q) = %q, want it to return to %q", path, got, want)
+		}
+	}
+}

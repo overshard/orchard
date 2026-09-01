@@ -14,7 +14,7 @@
   </div>
   <div class="auth-actions">
     <button type="submit" class="btn btn-primary">Sign in →</button>
-    <a href="/login" class="small link-footer">Back</a>
+    <a href="/login?next={{ .Next | urlquery }}" class="small link-footer">Back</a>
   </div>
 </form>
 {{ end }}
