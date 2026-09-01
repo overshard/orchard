@@ -445,8 +445,85 @@ func TestGitRoundTrip(t *testing.T) {
 	if store.Size(ctx, repo) <= 0 {
 		t.Error("Size returned nothing for a repository with content")
 	}
-	if store.LastCommitTime(ctx, repo).IsZero() {
-		t.Error("LastCommitTime returned zero")
+
+	// Overview answers the whole listing card from one ref walk, so it has to
+	// agree with the four calls it replaced.
+	o := store.Overview(ctx, repo)
+	if o.Branches != len(branches) || o.Tags != len(tags) {
+		t.Errorf("Overview = %d branches and %d tags, want %d and %d",
+			o.Branches, o.Tags, len(branches), len(tags))
+	}
+	if want := store.Size(ctx, repo); o.Size != want {
+		t.Errorf("Overview size = %d, want %d", o.Size, want)
+	}
+	if o.LastPush.IsZero() {
+		t.Error("Overview LastPush is zero")
+	}
+	if o.Empty {
+		t.Error("repository with two commits reported empty by Overview")
+	}
+}
+
+// TestOverviewCache proves the listing card is cached and that invalidating is
+// what makes a push visible, since a stale card is the failure mode the cache
+// introduces.
+func TestOverviewCache(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not on PATH")
+	}
+
+	root := t.TempDir()
+	bare := filepath.Join(root, "sample.git")
+
+	git := func(dir string, args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(),
+			"GIT_AUTHOR_NAME=Test", "GIT_AUTHOR_EMAIL=t@example.com",
+			"GIT_COMMITTER_NAME=Test", "GIT_COMMITTER_EMAIL=t@example.com",
+			"GIT_CONFIG_NOSYSTEM=1", "HOME="+root)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %s: %v: %s", strings.Join(args, " "), err, out)
+		}
+	}
+
+	work := filepath.Join(root, "work")
+	if err := os.MkdirAll(work, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	git(work, "init", "-q", "-b", "main")
+	if err := os.WriteFile(filepath.Join(work, "a.txt"), []byte("a\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git(work, "add", "-A")
+	git(work, "commit", "-qm", "first")
+	git(root, "clone", "-q", "--bare", work, bare)
+
+	store := NewStore(root)
+	defer store.Close()
+	ctx := context.Background()
+
+	repo, ok := store.Open("sample")
+	if !ok {
+		t.Fatal("Open(sample) failed")
+	}
+
+	if n := store.Overview(ctx, repo).Branches; n != 1 {
+		t.Fatalf("Overview branches = %d, want 1", n)
+	}
+
+	// A second branch appears on disk with nothing told to the store.
+	git(bare, "branch", "topic", "main")
+
+	if n := store.Overview(ctx, repo).Branches; n != 1 {
+		t.Errorf("Overview branches = %d after an uninvalidated write, want the cached 1", n)
+	}
+
+	store.InvalidateOverview("sample")
+
+	if n := store.Overview(ctx, repo).Branches; n != 2 {
+		t.Errorf("Overview branches = %d after invalidating, want 2", n)
 	}
 }
 
