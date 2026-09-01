@@ -25,6 +25,9 @@ const (
 
 	// baselineWindow sits immediately before it and is what "normal" means.
 	baselineWindow = 7 * 24 * time.Hour
+
+	// Past this a response was being held open rather than worked on.
+	heldOpenMS = 60_000
 )
 
 type aggregateSource struct {
@@ -40,6 +43,11 @@ type aggregateSource struct {
 	// today is busy for this site rather than busy in the abstract. A site
 	// with no history yet reports zero and the caller shows no comparison.
 	BaselineDaily float64 `json:"baseline_daily"`
+
+	// The slow end of how long this site takes to answer a real request. A
+	// duration is not a path or a message, so it clears the same fence
+	// everything else here does.
+	P95MS float64 `json:"p95_ms"`
 }
 
 func (s *site) aggregate(w http.ResponseWriter, r *http.Request) {
@@ -79,6 +87,7 @@ func (s *site) aggregate(w http.ResponseWriter, r *http.Request) {
 		out[i].Up, out[i].UpKnown = lifecycleState(ctx, s.db, out[i].Source)
 	}
 	baselines(ctx, s.db, out)
+	responseTimes(ctx, s.db, out)
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
@@ -156,5 +165,57 @@ func baselines(ctx context.Context, db *sql.DB, out []aggregateSource) {
 			continue
 		}
 		out[i].BaselineDaily = float64(sp.requests) / days
+	}
+}
+
+// responseTimes fills in the 95th percentile request duration per source. It
+// reads raw rows rather than the rollups because a percentile needs the
+// distribution and the rollups only carry a sum, a count and a max.
+//
+// The mean is what the rollups could answer cheaply and it is the wrong number
+// here: dash holds an events stream open for as long as a tab is on it, so one
+// six hour visit dragged its mean to seventy seconds while it was answering
+// pages in one. Both of the components excluded below are requests whose
+// duration measures something other than work: healthz is the container
+// talking to itself, and stream is a connection deliberately left open.
+//
+// The ceiling is there for the streams that cannot be named. Caddy proxies
+// every one of them and writes its own access log, so it has no handler to tag
+// them in, and nothing this machine serves takes a minute to answer.
+func responseTimes(ctx context.Context, db *sql.DB, out []aggregateSource) {
+	since := time.Now().Add(-aggregateWindow).UnixMilli()
+
+	rows, err := db.QueryContext(ctx, `
+		WITH d AS (
+		  SELECT source, duration_ms,
+		         CUME_DIST() OVER (PARTITION BY source ORDER BY duration_ms) cd
+		  FROM records
+		  WHERE ts >= ? AND duration_ms > 0 AND duration_ms <= ?
+		    AND component NOT IN ('healthz', 'stream')
+		)
+		SELECT source, MIN(CASE WHEN cd >= 0.95 THEN duration_ms END)
+		FROM d GROUP BY source`, since, heldOpenMS)
+	if err != nil {
+		queryFailed("aggregate p95", err)
+		return
+	}
+	defer rows.Close()
+
+	p95 := map[string]float64{}
+	for rows.Next() {
+		var source string
+		var v sql.NullFloat64
+		if err := rows.Scan(&source, &v); err != nil {
+			queryFailed("aggregate p95 scan", err)
+			break
+		}
+		if v.Valid {
+			p95[source] = v.Float64
+		}
+	}
+	queryFailed("aggregate p95 rows", rows.Err())
+
+	for i := range out {
+		out[i].P95MS = p95[out[i].Source]
 	}
 }
