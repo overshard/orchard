@@ -33,10 +33,21 @@ type OutlookDay struct {
 	High string `json:"high"`
 	Low  string `json:"low"`
 
-	Temp   string `json:"temp"`
-	Rain   string `json:"rain"`
-	Ground string `json:"ground"`
-	Wind   string `json:"wind"`
+	// The four things being graded, each with the word and the nought to three
+	// it scored. The word alone said what the weather was doing and left which
+	// of the four ruined the day to be worked out by comparing four adjectives.
+	Factors []Factor `json:"factors"`
+}
+
+type Factor struct {
+	Label string `json:"label"`
+	Value string `json:"value"`
+	Score int    `json:"score"`
+
+	// The reading the word came from. FIRM and MUDDY are a judgement about
+	// three days of rain and the judgement is the useful part, but the number
+	// behind it is what says whether a call was close.
+	Detail string `json:"detail"`
 }
 
 type Outlook struct {
@@ -144,7 +155,12 @@ func scoreDay(day time.Time, high, low, precip float64, pop int, gust, groundRai
 	groundScore, groundWord := gradeGround(groundRain)
 	windScore, windWord := gradeWind(gust)
 
-	o.Temp, o.Rain, o.Ground, o.Wind = tempWord, rainWord, groundWord, windWord
+	o.Factors = []Factor{
+		{"TEMP", tempWord, tempScore, fmt.Sprintf("%.0f°", high)},
+		{"RAIN", rainWord, rainScore, fmt.Sprintf("%d%%", pop)},
+		{"GRND", groundWord, groundScore, fmt.Sprintf("%.1f\"", groundRain)},
+		{"WIND", windWord, windScore, fmt.Sprintf("%.0fmph", gust)},
+	}
 	o.Score = tempScore + rainScore + groundScore + windScore
 
 	switch {

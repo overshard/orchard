@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"math"
 	"net/url"
 	"time"
 )
@@ -25,6 +26,13 @@ type Condition struct {
 	Note  string `json:"note"`
 	State string `json:"state"`
 	Known bool   `json:"known"`
+
+	// Where this reading sits along its own scale, and where the three band
+	// edges fall on it. A state word says which band a number landed in and
+	// nothing about how close it is to the next one, which is the question
+	// anyone watching a drawdown is actually asking.
+	Fill  float64   `json:"fill"`
+	Ticks []float64 `json:"ticks"`
 }
 
 type Signal struct {
@@ -99,9 +107,11 @@ func buildSignal(h *history, quotes map[string]Quote) Signal {
 		dd := (price - h.high52) / h.high52 * 100
 		state, rank := band(dd, -20, -10, -5)
 		worst = max(worst, rank)
+		fill, ticks := meter(dd, 0, -25, -5, -10, -20)
 		s.Conditions = append(s.Conditions, Condition{
 			Label: "OFF 52W HIGH", Value: fmt.Sprintf("%.1f%%", dd),
 			Note: "DRAWDOWN", State: state, Known: true,
+			Fill: fill, Ticks: ticks,
 		})
 	}
 
@@ -113,9 +123,11 @@ func buildSignal(h *history, quotes map[string]Quote) Signal {
 			five := (price - ref) / ref * 100
 			state, rank := band(five, -8, -5, -3)
 			worst = max(worst, rank)
+			fill, ticks := meter(five, 3, -10, -3, -5, -8)
 			s.Conditions = append(s.Conditions, Condition{
 				Label: "5 DAY", Value: signed(five, 1) + "%",
 				Note: "SHORT SHOCK", State: state, Known: true,
+				Fill: fill, Ticks: ticks,
 			})
 		}
 	}
@@ -125,9 +137,11 @@ func buildSignal(h *history, quotes map[string]Quote) Signal {
 	if vix, ok := quotes["^VIX"]; ok && vix.Price > 0 {
 		state, rank := band(-vix.Price, -35, -28, -22)
 		worst = max(worst, rank)
+		fill, ticks := meter(vix.Price, 10, 40, 22, 28, 35)
 		s.Conditions = append(s.Conditions, Condition{
 			Label: "VIX", Value: fmt.Sprintf("%.1f", vix.Price),
 			Note: vixNote(vix.Price), State: state, Known: true,
+			Fill: fill, Ticks: ticks,
 		})
 	}
 
@@ -142,14 +156,41 @@ func buildSignal(h *history, quotes map[string]Quote) Signal {
 		if gap < 0 {
 			state, note = "watch", "BELOW 200DMA"
 		}
+		// Above the average is the calm end, so the scale runs down from it and
+		// a longer bar means further below, the same as the three rows above.
+		fill, ticks := meter(gap, 15, -15)
 		s.Conditions = append(s.Conditions, Condition{
 			Label: "TREND", Value: fmt.Sprintf("%+.1f%%", gap),
 			Note: note, State: state, Known: true,
+			Fill: fill, Ticks: ticks,
 		})
 	}
 
 	s.Level, s.Headline = verdict(worst)
 	return s
+}
+
+// meter turns a reading into a percentage across a fixed scale, plus where the
+// thresholds sit on that same scale. calm and worst are the two ends, and the
+// scale runs from one to the other in whichever direction the numbers go, so a
+// falling drawdown and a rising VIX both fill from the left as things get worse.
+//
+// A tick of zero is dropped, which is how the trend row gets a bar with no band
+// edges on it: above or below the average is the whole of what it says.
+func meter(v, calm, worst float64, edges ...float64) (float64, []float64) {
+	at := func(x float64) float64 {
+		frac := (x - calm) / (worst - calm) * 100
+		return math.Round(math.Min(100, math.Max(0, frac))*10) / 10
+	}
+
+	ticks := make([]float64, 0, len(edges))
+	for _, e := range edges {
+		if e == 0 {
+			continue
+		}
+		ticks = append(ticks, at(e))
+	}
+	return at(v), ticks
 }
 
 // band grades a value against three increasingly bad thresholds, all of which

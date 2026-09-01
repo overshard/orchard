@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"math"
+	"strings"
 	"time"
 )
 
@@ -33,10 +35,19 @@ type RateRow struct {
 	Change      string `json:"change"`
 	Direction   string `json:"direction"`
 	Unavailable bool   `json:"unavailable"`
+
+	// How long this row's bar is. Four numbers in a column say what each
+	// maturity pays and nothing about the shape they make together, and the
+	// shape is the only reason anyone looks at a curve. Reading the bars down
+	// the panel gives the ladder without spending a block on a chart.
+	Fill float64 `json:"fill"`
 }
 
 type Rates struct {
 	Rows []RateRow `json:"rows"`
+
+	// The shape in a word, which is the read the spread is there to give.
+	Shape string `json:"shape"`
 
 	// Curve is the ten year less the three month. It is the spread with the
 	// better record as a recession signal than the two year version everyone
@@ -88,15 +99,47 @@ func buildRates(quotes map[string]Quote) Rates {
 		if three, ok := yields["m3"]; ok {
 			spread := (ten - three) * 100
 			r.Curve = signed(spread, 0) + "bp"
-			if spread < 0 {
+			switch {
+			case spread < 0:
 				r.CurveState = "inverted"
-			} else {
+			// Under a quarter point across seven and a half years of maturity
+			// is not a slope anyone would trade on.
+			case spread < 25:
+				r.CurveState = "flat"
+			default:
 				r.CurveState = "normal"
 			}
+			r.Shape = strings.ToUpper(r.CurveState)
 		}
 	}
 
+	scaleRates(&r, yields)
 	return r
+}
+
+// scaleRates sets each row's bar length. The scale runs from zero to the top of
+// the range rounded up, so a bar is proportional to the yield it draws and the
+// four together read as the ladder. A relative scale between the lowest and the
+// highest would turn a quarter point of spread into a cliff.
+func scaleRates(r *Rates, yields map[string]float64) {
+	var hi float64
+	for _, y := range yields {
+		hi = math.Max(hi, y)
+	}
+	if hi <= 0 {
+		return
+	}
+	// Up to the next half point, so the longest bar stops short of the end and
+	// has somewhere to grow.
+	top := math.Ceil(hi*2) / 2
+
+	for i := range r.Rows {
+		y, ok := yields[rates[i].Key]
+		if !ok {
+			continue
+		}
+		r.Rows[i].Fill = math.Round(y/top*1000) / 10
+	}
 }
 
 // Sector is one of the eleven SPDR funds the S&P is cut into. Together they are

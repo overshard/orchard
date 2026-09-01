@@ -7,8 +7,12 @@ import "strings"
 // either public market data, a public feed, or the up/down state of a site
 // that is already on the public internet.
 const (
-	baseURL    = "https://dash.bythewood.me"
-	siteName   = "Dash"
+	baseURL  = "https://dash.bythewood.me"
+	siteName = "Dash"
+
+	// What the browser tab reads. siteName stays "Dash" for the structured data
+	// and the feed, since this is the tab's own wording and not the site's name.
+	titleBase  = "DASH · BYTHEWOOD.ME"
 	authorName = "Isaac Bythewood"
 	githubUser = "overshard"
 

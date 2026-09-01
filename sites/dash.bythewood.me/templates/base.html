@@ -5,11 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#0d0b09">
-<title>{{if .Title}}{{.Title}} &middot; {{end}}{{.SiteName}}</title>
+{{/*
+  The market leads, so a tab left open in another window still says what it is
+  doing. live.js rewrites this on every frame and reads the base off the body,
+  rather than keeping its own copy of the wording.
+*/}}
+<title>{{if .Title}}{{.Title}} &middot; {{end}}{{if .State.Market.Ticker}}{{.State.Market.Ticker}} &middot; {{end}}{{.TitleBase}}</title>
 {{if .Description}}<meta name="description" content="{{.Description}}">{{end}}
 {{if .Staging}}<meta name="robots" content="noindex, nofollow">{{end}}
 <link rel="canonical" href="{{.Canonical}}">
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="{{.Favicon}}" type="image/svg+xml">
 {{range .Styles}}<link rel="stylesheet" href="{{.}}">{{end}}
 {{- if .Analytics}}
 <script>
@@ -25,7 +30,7 @@
 </script>
 {{- end}}
 </head>
-<body>
+<body data-title-base="{{.TitleBase}}">
 
 {{/*
   The CRT layer. Two fixed overlays that never take a pointer event: scanlines
@@ -67,10 +72,10 @@
 </main>
 
 <footer class="statusline">
-  <span class="seg">SRC YAHOO&nbsp;·&nbsp;CNBC&nbsp;·&nbsp;HN&nbsp;·&nbsp;LOBSTERS&nbsp;·&nbsp;OPEN-METEO</span>
+  <span class="seg srcs">SRC {{range $i, $s := .Sources}}{{if $i}}<i>·</i>{{end}}{{$s}}{{end}}</span>
   <span class="seg" data-guard-line></span>
   <span class="seg grow"></span>
-  <span class="seg"><a href="{{.SourceURL}}">SOURCE</a></span>
+  <span class="seg"><a href="{{.SourceURL}}" rel="noopener noreferrer" target="_blank">SOURCE</a></span>
   <span class="seg">&copy;&nbsp;{{.Year}}&nbsp;{{.AuthorName}}</span>
 </footer>
 

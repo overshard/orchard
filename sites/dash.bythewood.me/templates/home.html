@@ -49,6 +49,7 @@
       <li data-dir="{{.Direction}}">
         <span class="k">{{.Label}}</span>
         <span class="v">{{if .Unavailable}}&mdash;{{else}}{{.Yield}}{{end}}</span>
+        <span class="scale"><i style="width:{{.Fill}}%"></i></span>
         <span class="d">{{.Change}}</span>
       </li>
       {{end}}
@@ -56,6 +57,7 @@
     <p class="curve" data-curve-state="{{.State.Rates.CurveState}}">
       <span class="k">10Y &minus; 3M</span>
       <span class="v" data-curve>{{if .State.Rates.Curve}}{{.State.Rates.Curve}}{{else}}&mdash;{{end}}</span>
+      <span class="shape" data-curve-shape>{{.State.Rates.Shape}}</span>
     </p>
   </section>
 
@@ -134,31 +136,49 @@
               <span class="cond-label">{{.State.Weather.Condition}}</span>
               <span class="cond-feels">FEELS {{.State.Weather.Feels}}&deg;</span>
             </span>
+            <span class="range">
+              <span class="hi">{{.State.Weather.High}}&deg;</span>
+              <span class="lo">{{.State.Weather.Low}}&deg;</span>
+            </span>
           </div>
-          <dl class="grid-readout">
-            <div><dt>HIGH</dt><dd>{{.State.Weather.High}}&deg;</dd></div>
-            <div><dt>LOW</dt><dd>{{.State.Weather.Low}}&deg;</dd></div>
-            <div><dt>RAIN</dt><dd>{{.State.Weather.Rain}}</dd></div>
-            <div><dt>WIND</dt><dd>{{.State.Weather.Wind}}</dd></div>
-          </dl>
-          <div class="daylight">
-            <span class="t">{{.State.Weather.Sunrise}}</span>
-            <span class="track"><i style="width:{{.State.Weather.DayPercent}}%"></i></span>
-            <span class="t">{{.State.Weather.Sunset}}</span>
+          <div class="now-row">
+            <span><b>RAIN</b> {{.State.Weather.Rain}}</span>
+            <span><b>WIND</b> {{.State.Weather.Wind}}</span>
           </div>
         {{end}}
       </div>
 
       {{/*
-        Outside data-weather on purpose. The two are patched by different
-        renderers on different polls, and nesting them meant the weather frame
-        replaced this one out of existence on first load.
+        Siblings of data-weather, not children. Each is patched by its own
+        renderer on its own poll, and nesting them meant the weather frame
+        replaced them out of existence on the first update.
       */}}
-      <dl class="grid-readout air" data-air>
-        <div><dt>UV</dt><dd>{{.State.Weather.UV}} <span class="sub">{{.State.Weather.UVState}}</span></dd></div>
-        <div><dt>AQI</dt><dd>{{if .State.Air.Known}}{{.State.Air.AQI}} <span class="sub">{{.State.Air.AQIState}}</span>{{else}}&mdash;{{end}}</dd></div>
-        <div class="wide"><dt>POLLEN</dt><dd>{{if .State.Air.PollenKnown}}{{.State.Air.Pollen}} <span class="sub">{{.State.Air.PollenState}}{{if .State.Air.PollenTop}} · {{.State.Air.PollenTop}}{{end}}</span>{{else}}&mdash;{{end}}</dd></div>
-      </dl>
+      <div class="gauges" data-air>
+        {{template "gauge" dict "Key" "UV" "Value" .State.Weather.UV "Band" .State.Weather.UVState "Fill" .State.Weather.UVFill "Level" .State.Weather.UVLevel "Known" true}}
+        {{template "gauge" dict "Key" "AQI" "Value" .State.Air.AQI "Band" .State.Air.AQIState "Fill" .State.Air.AQIFill "Level" .State.Air.AQILevel "Known" .State.Air.Known}}
+        {{template "gauge" dict "Key" "POLLEN" "Value" .State.Air.Pollen "Band" .State.Air.PollenState "Fill" .State.Air.PollenFill "Level" .State.Air.PollenLevel "Known" .State.Air.PollenKnown}}
+      </div>
+
+      <div class="hours" data-hours>
+        <div class="hours-head">
+          <span class="k">NEXT {{len .State.Weather.Hours}} HOURS</span>
+          <span class="v">CHANCE OF RAIN</span>
+        </div>
+        <div class="hour-plot">
+          {{range .State.Weather.Hours}}
+          <span class="hbar" data-wet="{{if ge .Rain 50}}yes{{else}}no{{end}}"><i style="height:{{.Rain}}%"></i></span>
+          {{end}}
+        </div>
+        <div class="hour-cols">
+          {{range .State.Weather.Hours}}{{template "hour" .}}{{end}}
+        </div>
+      </div>
+
+      <div class="daylight" data-daylight>
+        <span class="t">{{.State.Weather.Sunrise}}</span>
+        <span class="track"><i style="width:{{.State.Weather.DayPercent}}%"></i></span>
+        <span class="t">{{.State.Weather.Sunset}}</span>
+      </div>
     </section>
 
 
@@ -187,16 +207,7 @@
         <span class="panel-meta">TOP SELLERS</span>
       </header>
       <ol class="games" data-steam>
-        {{range .State.Steam}}
-        <li>
-          <a href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{.Name}}</a>
-          <span class="pr">{{if gt .Discount 0}}<span class="disc">-{{.Discount}}%</span> {{end}}{{.Price}}</span>
-          <span class="meta">
-            {{range .Tags}}<span class="tag">{{.}}</span>{{end}}
-            {{if .Players}}<span class="players">{{.Players}} PLAYING</span>{{end}}
-          </span>
-        </li>
-        {{else}}<li class="empty">AWAITING STORE</li>{{end}}
+        {{range .State.Steam}}{{template "game" .}}{{else}}<li class="empty">AWAITING STORE</li>{{end}}
       </ol>
     </section>
 
@@ -212,6 +223,7 @@
       <ol class="titles" data-streaming>
         {{range .State.Streaming}}{{template "title" .}}{{else}}<li class="empty">AWAITING LISTINGS</li>{{end}}
       </ol>
+
     </section>
 
 
@@ -233,12 +245,12 @@
             <i></i><i></i><i></i><i></i>
           </span>
           <span class="bar"></span>
-          <span class="latency">{{if .Latency}}{{.Latency}}{{else}}&mdash;{{end}}</span>
+          <span class="latency" title="95th percentile server handling time over 24h, network excluded">{{if .Response}}{{.Response}}{{else}}&mdash;{{end}}</span>
           <span class="errors" data-any="{{if gt .Errors 0}}yes{{else}}no{{end}}">{{if .KnowError}}{{.Errors}}E{{else}}&mdash;{{end}}</span>
         </li>
         {{end}}
       </ul>
-      <p class="footnote" data-systems-note>{{if .State.Systems.Window}}{{.State.Systems.Requests}} REQ / {{.State.Systems.Errors}} ERR / LAST {{.State.Systems.Window}}H{{end}}</p>
+      <p class="footnote" data-systems-note>{{if .State.Systems.Window}}{{.State.Systems.Requests}} REQ / {{.State.Systems.Errors}} ERR / P95 / LAST {{.State.Systems.Window}}H{{end}}</p>
     </section>
 
 
@@ -275,7 +287,7 @@
     <span class="idx">12</span>
     <h2>WIRE</h2>
       <span class="rule"></span>
-      <span class="panel-meta">CNBC</span>
+      <span class="panel-meta">CNBC / BBC / SA / FED</span>
     </header>
     <ol class="headlines" data-wire>
       {{range .State.Wire}}{{template "headline" .}}{{else}}<li class="empty">AWAITING WIRE</li>{{end}}

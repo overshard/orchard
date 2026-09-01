@@ -5,11 +5,12 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestBuildSparkNeedsTwoPoints(t *testing.T) {
 	for _, closes := range [][]float64{nil, {}, {1}} {
-		if s := buildSpark(closes, 1); s.Line != "" {
+		if s := buildSpark(closes, nil, 1, tradingAxis{}); s.Line != "" {
 			t.Errorf("%v drew a line, want nothing to draw", closes)
 		}
 	}
@@ -18,7 +19,7 @@ func TestBuildSparkNeedsTwoPoints(t *testing.T) {
 func TestBuildSparkKeepsEverythingInsideTheViewBox(t *testing.T) {
 	// A previous close well outside the day's range is the case that puts the
 	// baseline off the top of the box when it is not scaled in.
-	s := buildSpark([]float64{10, 12, 11, 14}, 5)
+	s := buildSpark([]float64{10, 12, 11, 14}, nil, 5, tradingAxis{})
 	if !s.HasBase {
 		t.Fatal("a previous close should give the card a baseline")
 	}
@@ -34,7 +35,7 @@ func TestBuildSparkKeepsEverythingInsideTheViewBox(t *testing.T) {
 }
 
 func TestBuildSparkHandlesAFlatDay(t *testing.T) {
-	s := buildSpark([]float64{7, 7, 7, 7}, 7)
+	s := buildSpark([]float64{7, 7, 7, 7}, nil, 7, tradingAxis{})
 	if s.Line == "" {
 		t.Fatal("a flat day still has a line")
 	}
@@ -54,7 +55,7 @@ func TestBuildSparkHandlesAFlatDay(t *testing.T) {
 }
 
 func TestBuildSparkAreaClosesBackToTheFloor(t *testing.T) {
-	s := buildSpark([]float64{1, 2, 3}, 1)
+	s := buildSpark([]float64{1, 2, 3}, nil, 1, tradingAxis{})
 	if !strings.HasSuffix(s.Area, "Z") {
 		t.Errorf("area path %q does not close", s.Area)
 	}
@@ -131,5 +132,63 @@ func TestDirection(t *testing.T) {
 		if got := direction(in); got != want {
 			t.Errorf("direction(%v) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+// The whole session is the axis, so a line drawn an hour into a six and a half
+// hour day covers about a sixth of the card. Spacing the points evenly instead
+// is what made a card at 9:35 look like a finished day.
+func TestBuildSparkDrawsAgainstTheWholeSession(t *testing.T) {
+	et := easternTime()
+	open := time.Date(2026, 8, 31, 9, 30, 0, 0, et)
+
+	var closes []float64
+	var times []int64
+	for i := range 13 {
+		closes = append(closes, float64(100+i))
+		times = append(times, open.Add(time.Duration(i)*5*time.Minute).Unix())
+	}
+
+	s := buildSpark(closes, times, 100, axisFor("^GSPC", times))
+	if !s.Partial {
+		t.Error("an hour into the session is a partial day")
+	}
+	// One hour of a 390 minute session, so a bit over 15%.
+	if s.Span < 14 || s.Span > 17 {
+		t.Errorf("span = %v, want about 15 across the card", s.Span)
+	}
+}
+
+func TestBuildSparkFillsTheCardOnAFinishedSession(t *testing.T) {
+	et := easternTime()
+	open := time.Date(2026, 8, 31, 9, 30, 0, 0, et)
+
+	var closes []float64
+	var times []int64
+	for i := range 79 {
+		closes = append(closes, float64(100+i%7))
+		times = append(times, open.Add(time.Duration(i)*5*time.Minute).Unix())
+	}
+
+	s := buildSpark(closes, times, 100, axisFor("^GSPC", times))
+	if s.Partial {
+		t.Errorf("a full session should fill the card, span = %v", s.Span)
+	}
+}
+
+// Yahoo returns a calendar day for a futures symbol rather than a CME session,
+// so there is no window to lay those bars over and they take the full width.
+func TestAxisForFuturesHasNoSession(t *testing.T) {
+	et := easternTime()
+	morning := time.Date(2026, 8, 31, 9, 0, 0, 0, et)
+	if axisFor("ES=F", []int64{morning.Unix()}).ok {
+		t.Error("ES=F should draw across the full width")
+	}
+}
+
+// Crypto never closes, so there is no session to leave room for.
+func TestAxisForCryptoHasNoSession(t *testing.T) {
+	if axisFor("BTC-USD", []int64{time.Now().Unix()}).ok {
+		t.Error("BTC-USD should draw across the full width")
 	}
 }

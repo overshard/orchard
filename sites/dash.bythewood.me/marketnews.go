@@ -6,27 +6,43 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
 )
 
 // The day's macro headlines, which is the half of the news Isaac reads markets
-// for. Two CNBC feeds merged: Markets is the freshest and Economy carries the
-// rate and inflation stories that actually move a quarterly position.
+// for. Four outlets rather than one, because CNBC alone leans hard on the stock
+// pick listicle and a panel of nothing but those is a worse read than a panel
+// with an outlet name on every row.
 //
-// MarketWatch was the obvious first choice and is not usable. Its top stories
-// feed is mostly personal finance advice columns, and both of its markets feeds
-// are abandoned: the newest item in mw_marketpulse is from July 2025. A stale
-// feed is worse than no feed, because nothing about the page would say so.
-var marketFeeds = []struct{ name, url string }{
-	{"MARKETS", "https://www.cnbc.com/id/15839069/device/rss/rss.html"},
-	{"ECONOMY", "https://www.cnbc.com/id/10000664/device/rss/rss.html"},
+// The endpoint is the guard bucket, so one outlet going down or answering 429
+// costs its own headlines and leaves the other three their budgets.
+//
+// MarketWatch and Yahoo were both tried and neither is usable. MarketWatch's
+// top stories feed is personal finance advice columns, and Yahoo's rssindex has
+// not published since November 2024. Checking the newest pubDate before
+// trusting a feed is worth doing every time, since nothing about a stale feed
+// announces itself.
+var marketFeeds = []struct{ name, endpoint, url string }{
+	{"CNBC", "cnbc", "https://www.cnbc.com/id/15839069/device/rss/rss.html"},
+	{"CNBC", "cnbc", "https://www.cnbc.com/id/10000664/device/rss/rss.html"},
+	{"BBC", "bbc", "https://feeds.bbci.co.uk/news/business/rss.xml"},
+	{"SA", "seekingalpha", "https://seekingalpha.com/market_currents.xml"},
+	{"FED", "fed", "https://www.federalreserve.gov/feeds/press_all.xml"},
 }
 
 const (
 	marketNewsEvery = 10 * time.Minute
-	marketNewsShown = 7
+	marketNewsShown = 8
+
+	// At most this many rows from any one outlet. BBC publishes forty business
+	// stories a day and CNBC publishes thirty, so sorting the merged list by
+	// time alone hands the whole panel to whoever posted most recently and the
+	// other three never appear.
+	marketNewsPerSource = 3
 
 	// CNBC's feeds mix the day's stories with ones three weeks old, so this is
 	// wide enough to fill the panel and the age on every row is what says how
@@ -62,7 +78,7 @@ func fetchMarketNews(ctx context.Context, g *Guard, now time.Time) ([]Headline, 
 	var all []dated
 
 	for _, feed := range marketFeeds {
-		items, err := fetchRSS(ctx, g, feed.url)
+		items, err := fetchRSS(ctx, g, feed.endpoint, feed.url)
 		if err != nil {
 			// One dead feed costs its own headlines and not the panel.
 			continue
@@ -73,17 +89,21 @@ func fetchMarketNews(ctx context.Context, g *Guard, now time.Time) ([]Headline, 
 			if title == "" || it.Link == "" {
 				continue
 			}
+			if promotional(title) {
+				continue
+			}
 
 			key := it.GUID
 			if key == "" {
 				key = it.Link
 			}
-			// The two feeds overlap by design, so the same story arrives twice
-			// and the first feed listed wins.
-			if seen[key] {
+			// The two CNBC feeds overlap by design, and the same story reaches
+			// two outlets under headlines that differ by a word, so the title
+			// is deduped as well as the identifier.
+			if seen[key] || seen[titleKey(title)] {
 				continue
 			}
-			seen[key] = true
+			seen[key], seen[titleKey(title)] = true, true
 
 			at, err := parseRSSTime(it.PubDate)
 			if err != nil || now.Sub(at) > marketNewsMaxAge {
@@ -109,22 +129,102 @@ func fetchMarketNews(ctx context.Context, g *Guard, now time.Time) ([]Headline, 
 	sort.SliceStable(all, func(i, j int) bool { return all[i].at.After(all[j].at) })
 
 	out := make([]Headline, 0, marketNewsShown)
+	perSource := map[string]int{}
 	for _, d := range all {
 		if len(out) == marketNewsShown {
 			break
 		}
+		if perSource[d.Source] == marketNewsPerSource {
+			continue
+		}
+		perSource[d.Source]++
+		out = append(out, d.Headline)
+	}
+
+	// The cap can leave the panel short on a quiet morning when only one outlet
+	// has posted, so anything still missing is filled from what was passed over.
+	for _, d := range all {
+		if len(out) == marketNewsShown {
+			break
+		}
+		if perSource[d.Source] > marketNewsPerSource {
+			continue
+		}
+		if slices.ContainsFunc(out, func(h Headline) bool { return h.URL == d.URL }) {
+			continue
+		}
+		perSource[d.Source]++
 		out = append(out, d.Headline)
 	}
 	return out, nil
 }
 
+// promoted is the genre Isaac asked to keep off the panel: the stock pick
+// listicle and the affiliate placement, which read as news in a feed and are
+// advertising with a byline. Matching on the headline is the only lever
+// available, since CNBC serves these off the same /2026/ path as real
+// reporting and marks them nowhere in the item.
+var promoted = []string{
+	"top wall street analysts",
+	"analysts suggest these",
+	"analysts believe in",
+	"stocks to buy",
+	"best stocks",
+	"top picks",
+	"top stock picks",
+	"buy these",
+	"these dividend stocks",
+	"here are hedge funds",
+	"our top",
+	"promo code",
+	"sponsored",
+	"deal of the day",
+	"prime day",
+	"black friday",
+	"% off",
+	"sign up for",
+	"subscribe to",
+	"newsletter",
+}
+
+// "these 3 stocks", "these 5 names", and the rest of the same shape.
+var pickList = regexp.MustCompile(`(?i)these \d+ (stocks|names|picks|companies|funds)`)
+
+func promotional(title string) bool {
+	lower := strings.ToLower(title)
+	for _, p := range promoted {
+		if strings.Contains(lower, p) {
+			return true
+		}
+	}
+	return pickList.MatchString(lower)
+}
+
+// titleKey reduces a headline to what two outlets covering one story share, so
+// punctuation and a trailing outlet name do not defeat the dedupe.
+func titleKey(title string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(title) {
+		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' {
+			b.WriteRune(r)
+		}
+	}
+	key := b.String()
+	// Long enough to be the story and short enough that a differing tail does
+	// not make two copies of it look like two stories.
+	if len(key) > 60 {
+		key = key[:60]
+	}
+	return key
+}
+
 // fetchRSS is the XML twin of getJSON, guarded the same way. It is separate
 // rather than a flag on that function because the decode differs and nothing
 // else about the two is worth sharing.
-func fetchRSS(ctx context.Context, g *Guard, url string) (*rssFeed, error) {
-	// Two feeds back to back, so this has to wait out the pace between them
-	// rather than lose the second one.
-	if err := g.Reserve(ctx, "cnbc"); err != nil {
+func fetchRSS(ctx context.Context, g *Guard, endpoint, url string) (*rssFeed, error) {
+	// Feeds are fetched back to back, so this has to wait out the pace between
+	// two on the same endpoint rather than lose the second one.
+	if err := g.Reserve(ctx, endpoint); err != nil {
 		return nil, err
 	}
 
@@ -137,23 +237,23 @@ func fetchRSS(ctx context.Context, g *Guard, url string) (*rssFeed, error) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		g.Fail("cnbc", 0, 0)
+		g.Fail(endpoint, 0, 0)
 		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		g.Fail("cnbc", resp.StatusCode, parseRetryAfter(resp.Header.Get("Retry-After")))
-		return nil, fmt.Errorf("cnbc: http %d", resp.StatusCode)
+		g.Fail(endpoint, resp.StatusCode, parseRetryAfter(resp.Header.Get("Retry-After")))
+		return nil, fmt.Errorf("%s: http %d", endpoint, resp.StatusCode)
 	}
 
 	var feed rssFeed
 	if err := xml.NewDecoder(io.LimitReader(resp.Body, maxBody)).Decode(&feed); err != nil {
-		g.Fail("cnbc", resp.StatusCode, 0)
-		return nil, fmt.Errorf("cnbc: %w", err)
+		g.Fail(endpoint, resp.StatusCode, 0)
+		return nil, fmt.Errorf("%s: %w", endpoint, err)
 	}
 
-	g.Succeed("cnbc")
+	g.Succeed(endpoint)
 	return &feed, nil
 }
 

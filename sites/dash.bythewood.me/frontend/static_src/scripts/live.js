@@ -89,6 +89,11 @@ function sparkNode(spark) {
     );
   }
   root.append(svg("path", { class: "spark-line", d: spark.line }));
+  if (spark.partial) {
+    root.append(
+      svg("line", { class: "spark-now", x1: spark.span, x2: spark.span, y1: 0, y2: 32 }),
+    );
+  }
   return root;
 }
 
@@ -157,6 +162,21 @@ function patchCard(card, data) {
     setAttr(base, "y1", spark.baseline);
     setAttr(base, "y2", spark.baseline);
   }
+
+  // The cursor appears when a session opens and goes when it fills the card, so
+  // it has to be added and removed rather than only moved.
+  const svgRoot = card.querySelector(".spark");
+  let now = card.querySelector(".spark-now");
+  if (spark.partial && svgRoot) {
+    if (!now) {
+      now = svg("line", { class: "spark-now", y1: 0, y2: 32 });
+      svgRoot.append(now);
+    }
+    setAttr(now, "x1", spark.span);
+    setAttr(now, "x2", spark.span);
+  } else if (now) {
+    now.remove();
+  }
 }
 
 // The cards are only rebuilt when the set of them changes, which happens at a
@@ -177,8 +197,20 @@ function patchCards(container, cards) {
   });
 }
 
+// The tab carries the market, so a dash left open in another window still says
+// what it is doing. The base wording comes off the body rather than being kept
+// here as a second copy of a string the server already renders.
+function setTabTitle(ticker) {
+  const base = document.body.dataset.titleBase;
+  if (!base) return;
+  const next = ticker ? `${ticker} · ${base}` : base;
+  if (document.title !== next) document.title = next;
+}
+
 function renderMarket(market) {
   if (!market) return;
+
+  setTabTitle(market.ticker);
 
   const cards = document.querySelector("[data-market-cards]");
   if (cards && market.cards) patchCards(cards, market.cards);
@@ -237,13 +269,6 @@ function renderStories(selector, stories) {
   host.replaceChildren(list);
 }
 
-function readoutCell(key, value) {
-  const cell = el("div");
-  cell.append(el("dt", null, key));
-  cell.append(el("dd", null, value));
-  return cell;
-}
-
 function renderWeather(weather) {
   const host = document.querySelector("[data-weather]");
   if (!host || !weather) return;
@@ -263,31 +288,88 @@ function renderWeather(weather) {
   const row = el("div", "temp-row");
   row.append(temp, cond);
 
-  const grid = el("dl", "grid-readout");
-  grid.append(
-    readoutCell("HIGH", `${weather.high}°`),
-    readoutCell("LOW", `${weather.low}°`),
-    readoutCell("RAIN", weather.rain),
-    readoutCell("WIND", weather.wind),
-  );
+  const range = el("span", "range");
+  range.append(el("span", "hi", `${weather.high}°`));
+  range.append(el("span", "lo", `${weather.low}°`));
+  row.append(range);
 
-  const children = [row, grid];
+  const now = el("div", "now-row");
+  now.append(labelled("RAIN", weather.rain));
+  now.append(labelled("WIND", weather.wind));
 
-  if (weather.sunrise && weather.sunset) {
-    const bar = el("div", "daylight");
-    bar.append(el("span", "t", weather.sunrise));
+  host.replaceChildren(row, now);
+  renderHours(weather);
+  renderDaylight(weather);
+}
 
-    const track = el("span", "track");
-    const fill = el("i");
-    fill.style.width = `${weather.day_percent || 0}%`;
-    track.append(fill);
-    bar.append(track);
+// The next eight hours, which is the half of a forecast anyone acts on and the
+// content that stops this panel padding four numbers out to fill its band.
+function labelled(key, value) {
+  const span = el("span");
+  span.append(el("b", null, key));
+  span.append(document.createTextNode(` ${value ?? "—"}`));
+  return span;
+}
 
-    bar.append(el("span", "t", weather.sunset));
-    children.push(bar);
+// The next eight hours, each showing the chance of rain as a bar and again in
+// figures. A curve was tried and is the wrong shape for a value that sits near
+// zero most days: it drew a flat line under an empty box, and nothing on it said
+// what was being measured.
+function renderHours(weather) {
+  const host = document.querySelector("[data-hours]");
+  if (!host) return;
+
+  const hours = weather.hours;
+  if (!hours || hours.length === 0) {
+    host.replaceChildren();
+    return;
   }
 
-  host.replaceChildren(...children);
+  const head = el("div", "hours-head");
+  head.append(el("span", "k", `NEXT ${hours.length} HOURS`));
+  head.append(el("span", "v", "CHANCE OF RAIN"));
+
+  // The bars share one plot so they share a floor and a half way rule. Eight
+  // separate boxes gave eight nine pixel ticks and nothing to read against.
+  const plot = el("div", "hour-plot");
+  const cols = el("div", "hour-cols");
+
+  for (const h of hours) {
+    const wet = (h.rain || 0) >= 50 ? "yes" : "no";
+
+    const bar = el("span", "hbar");
+    bar.dataset.wet = wet;
+    const fill = el("i");
+    fill.style.height = `${h.rain || 0}%`;
+    bar.append(fill);
+    plot.append(bar);
+
+    const col = el("div", "hour");
+    col.dataset.warm = String(h.warm || 0);
+    col.dataset.wet = wet;
+    col.append(el("span", "hp", `${h.rain || 0}%`));
+    col.append(el("span", "hv", `${h.temp}°`));
+    col.append(el("span", "ht", h.label));
+    cols.append(col);
+  }
+
+  host.replaceChildren(head, plot, cols);
+}
+
+function renderDaylight(weather) {
+  const host = document.querySelector("[data-daylight]");
+  if (!host) return;
+
+  const known = Boolean(weather.sunrise && weather.sunset);
+  host.hidden = !known;
+  if (!known) return;
+
+  const ends = host.querySelectorAll(".t");
+  setText(ends[0], weather.sunrise);
+  setText(ends[1], weather.sunset);
+
+  const fill = host.querySelector(".track i");
+  if (fill) fill.style.width = `${weather.day_percent || 0}%`;
 }
 
 // The air readout lives beside the weather but comes from its own polls, so it
@@ -296,29 +378,38 @@ function renderAir(weather, air) {
   const host = document.querySelector("[data-air]");
   if (!host) return;
 
-  const cell = (key, value, sub) => {
-    const div = el("div");
-    div.append(el("dt", null, key));
-    const dd = el("dd", null, value);
-    if (sub) {
-      dd.append(document.createTextNode(" "));
-      dd.append(el("span", "sub", sub));
+  const gauge = (key, value, band, fill, level, known, note) => {
+    const box = el("div", "gauge");
+    box.dataset.level = String(level || 0);
+    box.append(el("span", "gk", key));
+
+    if (!known) {
+      box.append(el("span", "gv dim", "—"));
+      box.append(el("span", "gbar"));
+      box.append(el("span", "gb", "NO SIGNAL"));
+      return box;
     }
-    div.append(dd);
-    return div;
+
+    box.append(el("span", "gv", String(value)));
+    const bar = el("span", "gbar");
+    const inner = el("i");
+    inner.style.width = `${fill || 0}%`;
+    bar.append(inner);
+    box.append(bar);
+    box.append(el("span", "gb", band || ""));
+    if (note) box.append(el("span", "gn", note));
+    return box;
   };
 
-  const uv = cell("UV", (weather && weather.uv) || "—", weather && weather.uv_state);
-  const aqi = air && air.known
-    ? cell("AQI", String(air.aqi), air.aqi_state)
-    : cell("AQI", "—");
-
-  const pollen = air && air.pollen_known
-    ? cell("POLLEN", air.pollen, [air.pollen_state, air.pollen_top].filter(Boolean).join(" · "))
-    : cell("POLLEN", "—");
-  pollen.className = "wide";
-
-  host.replaceChildren(uv, aqi, pollen);
+  host.replaceChildren(
+    gauge("UV", (weather && weather.uv) || "—", weather && weather.uv_state,
+      weather && weather.uv_fill, weather && weather.uv_level, Boolean(weather)),
+    gauge("AQI", air && air.aqi, air && air.aqi_state,
+      air && air.aqi_fill, air && air.aqi_level, Boolean(air && air.known)),
+    gauge("POLLEN", air && air.pollen, air && air.pollen_state,
+      air && air.pollen_fill, air && air.pollen_level,
+      Boolean(air && air.pollen_known)),
+  );
 }
 
 function renderSystems(systems) {
@@ -334,7 +425,7 @@ function renderSystems(systems) {
     systems.rows.forEach((r, i) => {
       const li = existing[i];
       li.dataset.state = r.state;
-      setText(li.querySelector(".latency"), r.latency || "—");
+      setText(li.querySelector(".latency"), r.response || "—");
 
       const traffic = li.querySelector(".traffic");
       if (traffic) {
@@ -370,7 +461,9 @@ function renderSystems(systems) {
       li.append(traffic);
 
       li.append(el("span", "bar"));
-      li.append(el("span", "latency", row.latency || "—"));
+      const response = el("span", "latency", row.response || "—");
+      response.title = "95th percentile response time over 24h";
+      li.append(response);
 
       const errors = el("span", "errors", row.know_error ? `${row.errors}E` : "—");
       errors.dataset.any = row.know_error && row.errors > 0 ? "yes" : "no";
@@ -390,7 +483,7 @@ function renderSystemsSummary(systems) {
   setText(
     document.querySelector("[data-systems-note]"),
     systems.window
-      ? `${systems.requests} REQ / ${systems.errors} ERR / LAST ${systems.window}H`
+      ? `${systems.requests} REQ / ${systems.errors} ERR / P95 / LAST ${systems.window}H`
       : "",
   );
 }
@@ -486,6 +579,17 @@ function renderConditions(signal) {
       li.append(el("span", "k", c.label));
       li.append(el("span", "v", c.value));
       li.append(el("span", "n", c.note));
+
+      const meter = el("span", "meter");
+      const fill = el("i", "fill");
+      fill.style.width = `${c.fill || 0}%`;
+      meter.append(fill);
+      for (const at of c.ticks || []) {
+        const tick = el("i", "tick");
+        tick.style.left = `${at}%`;
+        meter.append(tick);
+      }
+      li.append(meter);
       return li;
     }),
   );
@@ -501,6 +605,13 @@ function renderRates(rates) {
       li.dataset.dir = r.direction || "flat";
       li.append(el("span", "k", r.label));
       li.append(el("span", "v", r.unavailable ? "—" : r.yield));
+
+      const scale = el("span", "scale");
+      const fill = el("i");
+      fill.style.width = `${r.fill || 0}%`;
+      scale.append(fill);
+      li.append(scale);
+
       li.append(el("span", "d", r.change || ""));
       return li;
     }),
@@ -512,6 +623,7 @@ function renderRates(rates) {
     const wrap = curve.closest("[data-curve-state]");
     if (wrap) wrap.dataset.curveState = rates.curve_state || "";
   }
+  setText(document.querySelector("[data-curve-shape]"), rates.shape || "");
 }
 
 function renderSectors(sectors) {
@@ -603,6 +715,20 @@ function renderSteam(games) {
       price.append(document.createTextNode(g.price));
       li.append(price);
 
+      if (g.reviewed) {
+        const rating = el("span", "rating");
+        rating.dataset.band = reviewBand(g.rating);
+        rating.title = g.verdict || "";
+        rating.append(el("span", "pct", `${g.rating}%`));
+        const track = el("span", "track");
+        const bar = el("i");
+        bar.style.width = `${g.rating}%`;
+        track.append(bar);
+        rating.append(track);
+        rating.append(el("span", "n", g.reviews || ""));
+        li.append(rating);
+      }
+
       const meta = el("span", "meta");
       for (const tag of g.tags || []) meta.append(el("span", "tag", tag));
       if (g.players) meta.append(el("span", "players", `${g.players} PLAYING`));
@@ -611,6 +737,15 @@ function renderSteam(games) {
       return li;
     }),
   );
+}
+
+// Valve's own review bands, kept in step with the band function the server
+// template uses so a row rendered here and a row rendered there match.
+function reviewBand(pct) {
+  if (pct >= 80) return "good";
+  if (pct >= 70) return "mixed";
+  if (pct >= 40) return "poor";
+  return "bad";
 }
 
 function renderOutlook(outlook) {
@@ -630,15 +765,26 @@ function renderOutlook(outlook) {
 
       const head = el("div", "head");
       head.append(el("span", "d", `${d.day} ${d.date}`));
+
+      const temps = el("span", "temps");
+      temps.append(document.createTextNode(`${d.high}°`));
+      temps.append(el("i", null, "/"));
+      temps.append(document.createTextNode(`${d.low}°`));
+      head.append(temps);
+
       head.append(el("span", "v", d.verdict));
       li.append(head);
 
-      const facts = el("div", "facts");
-      facts.append(el("span", "t", `${d.high}°/${d.low}° ${d.temp}`));
-      facts.append(el("span", null, d.rain));
-      facts.append(el("span", null, d.ground));
-      facts.append(el("span", null, d.wind));
-      li.append(facts);
+      const factors = el("div", "factors");
+      for (const f of d.factors || []) {
+        const factor = el("div", "factor");
+        factor.dataset.score = String(f.score);
+        factor.append(el("span", "fk", f.label));
+        factor.append(el("span", "fbar"));
+        factor.append(el("span", "fv", f.value));
+        factors.append(factor);
+      }
+      li.append(factors);
 
       return li;
     }),
@@ -663,8 +809,17 @@ function renderStreaming(titles) {
 
       const meta = el("span", "meta");
       meta.append(el("span", "kind", t.year ? `${t.kind} ${t.year}` : t.kind));
-      meta.append(el("span", "score imdb", `IMDB ${t.imdb}`));
-      if (t.tomato) meta.append(el("span", "score rt", `RT ${t.tomato}`));
+
+      const imdb = el("span", "score imdb", `IMDB ${t.imdb}`);
+      imdb.dataset.grade = t.imdb_state || "";
+      meta.append(imdb);
+
+      if (t.tomato) {
+        const rt = el("span", "score rt", `RT ${t.tomato}`);
+        rt.dataset.grade = t.tomato_state || "";
+        meta.append(rt);
+      }
+      if (t.badge) meta.append(el("span", "badge", t.badge));
       li.append(meta);
 
       return li;
@@ -672,23 +827,30 @@ function renderStreaming(titles) {
   );
 }
 
+// Every frame carries the whole state, so without the changed() gate a market
+// poll every thirty seconds rebuilds the weather, the earnings and the store
+// listings too, and a panel that is rebuilt collapses to no height for a moment
+// before it refills. Each renderer is handed only its own slice, so comparing
+// that slice is enough to know whether the panel can be left alone.
 function render(state) {
-  renderMarket(state.market);
-  renderConditions(state.signal);
-  renderRates(state.rates);
-  renderSectors(state.sectors);
-  renderEarnings(state.earnings);
-  renderAlerts(state.alerts);
-  renderOutlook(state.outlook);
-  renderSteam(state.steam);
-  renderWire(state.wire);
-  renderFeeds(state.feeds);
-  renderStories("[data-hn]", state.hn);
-  renderStories("[data-lobsters]", state.lobsters);
-  renderWeather(state.weather);
-  renderAir(state.weather, state.air);
-  renderSystems(state.systems);
-  renderGuard(state.guarded);
+  if (changed("market", state.market)) renderMarket(state.market);
+  if (changed("signal", state.signal)) renderConditions(state.signal);
+  if (changed("rates", state.rates)) renderRates(state.rates);
+  if (changed("sectors", state.sectors)) renderSectors(state.sectors);
+  if (changed("earnings", state.earnings)) renderEarnings(state.earnings);
+  if (changed("alerts", state.alerts)) renderAlerts(state.alerts);
+  if (changed("outlook", state.outlook)) renderOutlook(state.outlook);
+  if (changed("steam", state.steam)) renderSteam(state.steam);
+  if (changed("wire", state.wire)) renderWire(state.wire);
+  if (changed("feeds", state.feeds)) renderFeeds(state.feeds);
+  if (changed("hn", state.hn)) renderStories("[data-hn]", state.hn);
+  if (changed("lobsters", state.lobsters)) renderStories("[data-lobsters]", state.lobsters);
+  if (changed("weather", state.weather)) renderWeather(state.weather);
+  // Two figures in this bank come from the weather poll and three from the air
+  // poll, so it has to redraw when either moves.
+  if (changed("air", [state.weather, state.air])) renderAir(state.weather, state.air);
+  if (changed("systems", state.systems)) renderSystems(state.systems);
+  if (changed("guarded", state.guarded)) renderGuard(state.guarded);
 }
 
 // EventSource reconnects on its own, but only for a clean disconnect. An error

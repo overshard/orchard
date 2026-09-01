@@ -31,12 +31,19 @@
 </article>
 {{end}}
 
+{{/*
+  The baseline runs the full width and the line only as far as the session has
+  got, so the empty right hand side is the rest of the day rather than missing
+  data. preserveAspectRatio is none, so a circle would come out an ellipse and
+  the cursor at the live end has to be a vertical rule.
+*/}}
 {{define "spark"}}
 <svg class="spark" viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true" focusable="false">
   {{if .Line}}
   <path class="spark-area" d="{{path .Area}}"></path>
   {{if .HasBase}}<line class="spark-base" x1="0" x2="100" y1="{{.Baseline}}" y2="{{.Baseline}}"></line>{{end}}
   <path class="spark-line" d="{{path .Line}}"></path>
+  {{if .Partial}}<line class="spark-now" x1="{{.Span}}" x2="{{.Span}}" y1="0" y2="32"></line>{{end}}
   {{end}}
 </svg>
 {{end}}
@@ -75,6 +82,10 @@
   <span class="k">{{.Label}}</span>
   <span class="v">{{.Value}}</span>
   <span class="n">{{.Note}}</span>
+  <span class="meter">
+    <i class="fill" style="width:{{.Fill}}%"></i>
+    {{range .Ticks}}<i class="tick" style="left:{{.}}%"></i>{{end}}
+  </span>
 </li>
 {{end}}
 
@@ -91,13 +102,18 @@
 <li data-verdict="{{.Verdict}}">
   <div class="head">
     <span class="d">{{.Day}} {{.Date}}</span>
+    <span class="temps">{{.High}}&deg;<i>/</i>{{.Low}}&deg;</span>
     <span class="v">{{.Verdict}}</span>
   </div>
-  <div class="facts">
-    <span class="t">{{.High}}&deg;/{{.Low}}&deg; {{.Temp}}</span>
-    <span>{{.Rain}}</span>
-    <span>{{.Ground}}</span>
-    <span>{{.Wind}}</span>
+  <div class="factors">
+    {{range .Factors}}
+    <div class="factor" data-score="{{.Score}}">
+      <span class="fk">{{.Label}}</span>
+      <span class="fbar"></span>
+      <span class="fv">{{.Value}}</span>
+      <span class="fd">{{.Detail}}</span>
+    </div>
+    {{end}}
   </div>
 </li>
 {{end}}
@@ -108,8 +124,61 @@
   <span class="svc">{{.Provider}}</span>
   <span class="meta">
     <span class="kind">{{.Kind}}{{if .Year}} {{.Year}}{{end}}</span>
-    <span class="score imdb">IMDB {{.IMDb}}</span>
-    {{if .Tomato}}<span class="score rt">RT {{.Tomato}}</span>{{end}}
+    <span class="score imdb" data-grade="{{.IMDbState}}">IMDB {{.IMDb}}</span>
+    {{if .Tomato}}<span class="score rt" data-grade="{{.TomatoState}}">RT {{.Tomato}}</span>{{end}}
+    {{if .Badge}}<span class="badge">{{.Badge}}</span>{{end}}
   </span>
 </li>
+{{end}}
+
+{{/*
+  The review line is Valve's own verdict and the count behind it, since a
+  percentage on its own says nothing about whether nine people or four hundred
+  thousand produced it.
+*/}}
+{{define "game"}}
+<li>
+  <a href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{.Name}}</a>
+  <span class="pr">{{if gt .Discount 0}}<span class="disc">-{{.Discount}}%</span> {{end}}{{.Price}}</span>
+  {{if .Reviewed}}
+  <span class="rating" data-band="{{band .Rating}}" title="{{.Verdict}}">
+    <span class="pct">{{.Rating}}%</span>
+    <span class="track"><i style="width:{{.Rating}}%"></i></span>
+    <span class="n">{{.Reviews}}</span>
+  </span>
+  {{end}}
+  <span class="meta">
+    {{range .Tags}}<span class="tag">{{.}}</span>{{end}}
+    {{if .Players}}<span class="players">{{.Players}} PLAYING</span>{{end}}
+  </span>
+</li>
+{{end}}
+
+{{/*
+  The figures under one hour of the plot. The bar itself lives in the plot above
+  so that all eight can share a floor and a half way rule, which is what makes a
+  tall one readable rather than only comparable to its neighbours.
+*/}}
+{{define "hour"}}
+<div class="hour" data-warm="{{.Warm}}" data-wet="{{if ge .Rain 50}}yes{{else}}no{{end}}">
+  <span class="hp">{{.Rain}}%</span>
+  <span class="hv">{{.Temp}}&deg;</span>
+  <span class="ht">{{.Label}}</span>
+</div>
+{{end}}
+
+{{define "gauge"}}
+<div class="gauge" data-level="{{.Level}}">
+  <span class="gk">{{.Key}}</span>
+  {{if .Known}}
+    <span class="gv">{{.Value}}</span>
+    <span class="gbar"><i style="width:{{.Fill}}%"></i></span>
+    <span class="gb">{{.Band}}</span>
+    {{if .Note}}<span class="gn">{{.Note}}</span>{{end}}
+  {{else}}
+    <span class="gv dim">&mdash;</span>
+    <span class="gbar"></span>
+    <span class="gb">NO SIGNAL</span>
+  {{end}}
+</div>
 {{end}}

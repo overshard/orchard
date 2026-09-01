@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"math"
 	"net/url"
 	"sort"
 	"strings"
@@ -112,6 +113,29 @@ type Air struct {
 	PollenState string `json:"pollen_state"`
 	PollenTop   string `json:"pollen_top"`
 	PollenKnown bool   `json:"pollen_known"`
+
+	// Each reading placed on its own scale, so UV, air quality and pollen read
+	// as three of the same instrument rather than as three unrelated numbers
+	// that happen to sit beside each other. Level is the severity step the
+	// colour comes from.
+	AQIFill     float64 `json:"aqi_fill"`
+	AQILevel    int     `json:"aqi_level"`
+	PollenFill  float64 `json:"pollen_fill"`
+	PollenLevel int     `json:"pollen_level"`
+}
+
+// gauge places a reading on a scale that ends where the scale's own top band
+// begins, and buckets it into four steps for colour.
+func gauge(v, top float64, edges ...float64) (float64, int) {
+	fill := math.Round(math.Min(100, math.Max(0, v/top*100))*10) / 10
+
+	level := 0
+	for _, e := range edges {
+		if v >= e {
+			level++
+		}
+	}
+	return fill, level
 }
 
 type airPayload struct {
@@ -134,12 +158,17 @@ func fetchAir(ctx context.Context, g *Guard) (Air, error) {
 	}
 
 	aqi := int(payload.Current.USAQI)
-	return Air{
+	air := Air{
 		AQI:      aqi,
 		AQIState: aqiBand(aqi),
 		PM25:     fmt.Sprintf("%.1f", payload.Current.PM25),
 		Known:    true,
-	}, nil
+	}
+	// Scaled to 200 rather than to the 500 the index runs to, since anything
+	// over 200 here would be smoke from a fire two states away and the bar has
+	// to say something on an ordinary day.
+	air.AQIFill, air.AQILevel = gauge(float64(aqi), 200, 50, 100, 150)
+	return air, nil
 }
 
 // aqiBand is the EPA's own scale, which is what the number means and what every
@@ -188,9 +217,11 @@ func fetchPollen(ctx context.Context, g *Guard) (index float64, top string, err 
 		if !strings.EqualFold(p.Type, "Today") {
 			continue
 		}
-		names := make([]string, 0, 3)
+		// Two, because a third wraps the cell onto a second line and the panel
+		// is a readout rather than a list of what is in the air.
+		names := make([]string, 0, 2)
 		for _, t := range p.Triggers {
-			if len(names) == 3 {
+			if len(names) == 2 {
 				break
 			}
 			names = append(names, strings.ToUpper(t.Name))
