@@ -57,16 +57,12 @@ type Title struct {
 	Year     int    `json:"year"`
 	IMDb     string `json:"imdb"`
 	Tomato   string `json:"tomato"`
-	Hot      bool   `json:"hot"`
 	Provider string `json:"provider"`
 
 	// Each score graded on its own, so a good number reads as good without
-	// having to be compared against the other five rows. The highlight on Hot
-	// says both critics and the crowd rated it well, and it went unread as a
-	// white row among orange ones until it was given a word.
+	// having to be compared against the other five rows.
 	IMDbState   string `json:"imdb_state"`
 	TomatoState string `json:"tomato_state"`
-	Badge       string `json:"badge"`
 
 	// The two scores averaged onto one bar, since the pair of them is what
 	// anyone actually reads and a bar is quicker to scan down a column than two
@@ -169,13 +165,6 @@ func fetchStreaming(ctx context.Context, g *Guard) ([]Title, error) {
 		t.Score, t.ScoreFrom = combineScores(c.Scoring.IMDb, c.Scoring.Tomato)
 		t.ScoreBand = gradeScore(t.Score)
 
-		// Worth stopping on. Both numbers agreeing is the signal, since either
-		// one alone is regularly wrong in a way the other is not.
-		t.Hot = c.Scoring.IMDb >= imdbGood && c.Scoring.Tomato >= tomatoGood
-		if t.Hot {
-			t.Badge = "BOTH AGREE"
-		}
-
 		out = append(out, t)
 	}
 
@@ -185,9 +174,9 @@ func fetchStreaming(ctx context.Context, g *Guard) ([]Title, error) {
 	return out, nil
 }
 
-// The two lines a title has to clear to be highlighted. IMDb runs about a point
-// higher than a tomatometer for the same film, which is why they are not the
-// same number.
+// Where each score stops being fair and starts being good. IMDb runs about a
+// point higher than a tomatometer for the same film, which is why they are not
+// the same number.
 const (
 	imdbGood   = 7.5
 	tomatoGood = 85

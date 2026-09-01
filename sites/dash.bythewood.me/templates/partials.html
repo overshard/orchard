@@ -124,7 +124,7 @@
   down a column than a pair of figures is. Both figures stay underneath it.
 */}}
 {{define "title"}}
-<li{{if .Hot}} data-hot="yes"{{end}}>
+<li>
   {{if .URL}}<a class="name" href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{.Name}}</a>{{else}}<span class="name">{{.Name}}</span>{{end}}
   <span class="svc">{{.Provider}}</span>
   <span class="rating" data-band="{{.ScoreBand}}">
@@ -136,7 +136,6 @@
     <span class="kind">{{.Kind}}{{if .Year}} {{.Year}}{{end}}</span>
     <span class="score imdb" data-grade="{{.IMDbState}}">IMDB {{.IMDb}}</span>
     {{if .Tomato}}<span class="score rt" data-grade="{{.TomatoState}}">RT {{.Tomato}}</span>{{end}}
-    {{if .Badge}}<span class="badge">{{.Badge}}</span>{{end}}
   </span>
 </li>
 {{end}}
