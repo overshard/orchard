@@ -59,7 +59,7 @@ COMPOSE_DOWN = $(DOCKER) compose
 .DEFAULT_GOAL := help
 .PHONY: help install up up-one deploy edge doctor down down-one run build check fmt fmt-check vet test \
 	env password tunnel tunnel-login tunnel-status ntfy ntfy-token ntfy-status ntfy-passwd \
-	auth-init require-site require-env require-tunnel
+	auth-init auth-recovery require-site require-env require-tunnel
 
 help:
 	@echo "running system"
@@ -83,6 +83,7 @@ help:
 	@echo "  make ntfy                  create the two alert accounts"
 	@echo "  make ntfy-token            mint the publishers' tokens into the .env files"
 	@echo "  make auth-init             create the login account, printing its recovery codes"
+	@echo "  make auth-recovery         replace the recovery codes when locked out"
 	@echo ""
 	@echo "  make password              print a suggested password, writing nothing"
 	@echo "  make tunnel-status         what the tunnel has right now"
@@ -359,6 +360,13 @@ auth-init:
 		exit 1; \
 	}
 	@$(DOCKER) exec orchard-auth /app -init
+
+# The way back in when there are no recovery codes left and ntfy or the tunnel
+# is down, so the browser cannot reach a sign in. It needs the Docker socket,
+# which is the point: nothing about this account has to be written down, because
+# every credential in it can be replaced from the machine.
+auth-recovery:
+	@$(DOCKER) exec orchard-auth /app -recovery
 
 # ----------------------------------------------------------------- the guards
 

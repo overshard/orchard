@@ -74,3 +74,30 @@ func runCheck(db *sql.DB) error {
 	fmt.Printf("initialized as %s, %d recovery codes left\n", user.Username, remaining)
 	return nil
 }
+
+// runRecovery replaces the recovery codes from the command line, for the case
+// that has no other way out: no codes left and ntfy or the tunnel down, so the
+// browser cannot reach a sign in and the security page is unreachable.
+//
+// It needs host access to the Docker socket, which is the point. That is the
+// bottom of the ladder and it is why nothing about this account has to be kept
+// anywhere: every credential here can be replaced from the machine.
+func runRecovery(db *sql.DB) error {
+	if _, err := loadUser(db); errors.Is(err, errNoUser) {
+		return fmt.Errorf("not initialized yet, run -init instead")
+	} else if err != nil {
+		return err
+	}
+
+	codes, err := regenerateRecoveryCodes(db)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("\nevery previous recovery code stopped working just now. the new set:\n\n")
+	for _, code := range codes {
+		fmt.Printf("  %s\n", code)
+	}
+	fmt.Printf("\neach one works once, at %s/recovery.\n", baseURL)
+	return nil
+}

@@ -78,6 +78,7 @@ func main() {
 
 	initialize := flag.Bool("init", false, "seed the account and print its recovery codes, then exit")
 	check := flag.Bool("check", false, "report whether the account exists and how many recovery codes are left, then exit")
+	recovery := flag.Bool("recovery", false, "replace the recovery codes and print them, then exit")
 	// The container HEALTHCHECK runs this: a FROM scratch image has no shell
 	// for a check to call, so the binary probes itself.
 	healthcheck := flag.Bool("healthcheck", false, "probe a running server on this host and exit")
@@ -102,6 +103,14 @@ func main() {
 	if *initialize {
 		if err := runInit(db); err != nil {
 			slog.Error(fmt.Sprintf("init: %v", err))
+			os.Exit(1)
+		}
+		return
+	}
+
+	if *recovery {
+		if err := runRecovery(db); err != nil {
+			slog.Error(fmt.Sprintf("recovery: %v", err))
 			os.Exit(1)
 		}
 		return
