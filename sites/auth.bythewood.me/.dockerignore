@@ -1,0 +1,17 @@
+# Docker reads this, not .gitignore. One per site, because each site's build
+# context is its own directory rather than the repo root. Without it the
+# frontend stage copies node_modules from the host into the build, which is slow
+# and pointless since the image installs its own from the lockfile.
+**/node_modules
+**/build
+**/bin
+# Compiled inside the build stage; shipping the host's copy in would only
+# slow the context transfer.
+**/og
+# Runtime state. The log database is the fastest-growing file in this repo and
+# sending it in the build context would dominate every single build.
+**/data
+.git
+.playwright-cli
+**/.env
+**/*.pem

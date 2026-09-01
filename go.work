@@ -1,5 +1,5 @@
-// Seven independent modules. This file exists so `go build ./...`, `go vet ./...`
-// and `go test ./...` work from the repo root and an editor resolves all seven
+// Eight independent modules. This file exists so `go build ./...`, `go vet ./...`
+// and `go test ./...` work from the repo root and an editor resolves all eight
 // at once.
 //
 // Nothing depends on it. Each site builds on its own from its own directory,
@@ -9,6 +9,7 @@ go 1.27.0
 
 use (
 	./sites/analytics.bythewood.me
+	./sites/auth.bythewood.me
 	./sites/blog.bythewood.me
 	./sites/dash.bythewood.me
 	./sites/isaacbythewood.com

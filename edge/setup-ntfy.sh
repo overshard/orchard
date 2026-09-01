@@ -7,10 +7,13 @@
 #   make ntfy-status   what exists right now
 #   make ntfy-passwd   change the reading account's password
 #
-# ntfy is deny-all and there are two accounts: isaac reads status and logging
-# from the phone, orchard writes to them from the sites. ntfy cannot restrict
-# an account by source address, so Caddy also refuses the publish routes on the
-# public hostname.
+# ntfy is deny-all and there are three accounts: isaac reads every topic from
+# the phone, orchard writes the alert topics from status and logging, and
+# orchard-auth writes the auth topic and nothing else. That third one is
+# separate because the token in status' and logging' .env files can publish to
+# their topics, and sharing it would let a copy of either mint its own login
+# codes. ntfy cannot restrict an account by source address, so Caddy also
+# refuses the publish routes on the public hostname.
 #
 # All ntfy state lives in the orchard-ntfy-data volume, never a bind mount. The
 # Docker CLI here talks to Docker Desktop on the Windows host, whose daemon
@@ -39,7 +42,10 @@ docker() { ${SUDO} "$DOCKER_BIN" "$@"; }
 CONTAINER=orchard-ntfy
 READER=isaac
 WRITER=orchard
-TOPICS="status logging"
+AUTH_WRITER=orchard-auth
+ALERT_TOPICS="status logging"
+AUTH_TOPIC="auth"
+TOPICS="$ALERT_TOPICS $AUTH_TOPIC"
 
 # ntfy reads auth-file out of the config baked into the image, so every command
 # here runs inside the container rather than against the volume directly.
@@ -80,7 +86,7 @@ up)
 	# has, because ntfy will not hand a password back and printing a new one
 	# that was never applied is worse than printing nothing.
 	made=""
-	for user in "$READER" "$WRITER"; do
+	for user in "$READER" "$WRITER" "$AUTH_WRITER"; do
 		if user_exists "$user"; then
 			echo "$user exists already, and its password is untouched"
 			continue
@@ -94,10 +100,15 @@ up)
 "
 	done
 
+	# isaac reads everything from the phone. The two writers are scoped to
+	# their own topics and cannot read any of them back.
 	for topic in $TOPICS; do
 		ntfy access "$READER" "$topic" read-only
+	done
+	for topic in $ALERT_TOPICS; do
 		ntfy access "$WRITER" "$topic" write-only
 	done
+	ntfy access "$AUTH_WRITER" "$AUTH_TOPIC" write-only
 
 	if [ -n "$made" ]; then
 		echo
@@ -118,16 +129,27 @@ up)
 
 token)
 	require_running
-	# Written straight into the .env files rather than printed, so the token
+
+	# Written straight into the .env files rather than printed, so a token
 	# never gets pasted between terminals and into a shell history.
-	token=$(ntfy token add -l "orchard site publishers" "$WRITER" \
-		| grep -o 'tk_[A-Za-z0-9]*' | head -1)
-	if [ -z "$token" ]; then
+	mint() {
+		ntfy token add -l "$2" "$1" | grep -o 'tk_[A-Za-z0-9]*' | head -1
+	}
+
+	# Two tokens, because the auth topic has its own writer. Sharing the
+	# publishers' token would mean a copy of status' or logging' .env could
+	# publish a login code.
+	token=$(mint "$WRITER" "orchard site publishers")
+	auth_token=$(mint "$AUTH_WRITER" "orchard auth publisher")
+	if [ -z "$token" ] || [ -z "$auth_token" ]; then
 		echo "no token came back; is $CONTAINER healthy?" >&2
 		exit 1
 	fi
 
-	for site in ../sites/status.bythewood.me ../sites/logging.bythewood.me; do
+	write_var() {
+		site=$1
+		var=$2
+		value=$3
 		if [ ! -f "$site/.env" ]; then
 			echo "no $site/.env yet; create it from .env.example first" >&2
 			exit 1
@@ -135,14 +157,18 @@ token)
 		# Passed to awk as a variable, so the token never appears on a
 		# command line where `ps` could read it.
 		tmp="$site/.env.tmp"
-		awk -v tok="$token" \
-			'/^NTFY_TOKEN=/ { print "NTFY_TOKEN=" tok; found=1; next } { print }
-			 END { if (!found) print "NTFY_TOKEN=" tok }' \
+		awk -v name="$var" -v tok="$value" \
+			'$0 ~ "^" name "=" { print name "=" tok; found=1; next } { print }
+			 END { if (!found) print name "=" tok }' \
 			"$site/.env" > "$tmp"
 		chmod 600 "$tmp"
 		mv "$tmp" "$site/.env"
-		echo "wrote NTFY_TOKEN into $(basename "$site")/.env"
-	done
+		echo "wrote $var into $(basename "$site")/.env"
+	}
+
+	write_var ../sites/status.bythewood.me NTFY_TOKEN "$token"
+	write_var ../sites/logging.bythewood.me NTFY_TOKEN "$token"
+	write_var ../sites/auth.bythewood.me AUTH_NTFY_TOKEN "$auth_token"
 
 	echo
 	echo "now, from the repo root, to hand it to the running sites:"

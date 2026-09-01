@@ -1,0 +1,10 @@
+# Peer dependencies are not installed here.
+#
+# The only peer in this tree is next, declared by geist, and nothing in this
+# project imports geist as a module: the Dockerfile points typst at the font
+# files under node_modules/geist/dist/fonts. Installing that peer pulled all of
+# Next.js and, through it, sharp and the whole @img/sharp-libvips platform set,
+# roughly half a gigabyte of native binaries downloaded on every image build to
+# satisfy a framework this site does not use.
+[install]
+peer = false

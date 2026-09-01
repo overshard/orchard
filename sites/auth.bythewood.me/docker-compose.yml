@@ -1,0 +1,58 @@
+name: orchard-auth
+
+# No published ports. /verify is reachable by container name on the shared
+# network and Caddy refuses it on the public hostname, which is what makes the
+# cookie in the request the only credential the other sites need to forward.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: orchard-auth
+    restart: unless-stopped
+    # Longer than Docker's 10s default, because shutdown drains the log shipper
+    # queue. Without it a slow drain means SIGKILL and a skipped db.Close().
+    stop_grace_period: 30s
+    environment:
+      # Read from .env in this directory, which compose picks up as the project
+      # directory. Empty is tolerated and logged: refusing to start without it
+      # would mean a bad ntfy token locks the operator out of everything at
+      # once, and recovery codes still work.
+      AUTH_NTFY_TOKEN: ${AUTH_NTFY_TOKEN:-}
+      # What makes one login cover every bythewood.me host. Set to the parent
+      # domain in production and left empty in development, since a cookie
+      # scoped to .bythewood.me is never sent to localhost.
+      SESSION_DOMAIN: ${SESSION_DOMAIN:-.bythewood.me}
+    volumes:
+      - data:/data
+    # Small: this site serves forms and reads a database that holds tens of
+    # rows. Argon2id at 64MB is the one thing here that wants memory.
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "/app", "-healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks: [edge]
+
+volumes:
+  data:
+    name: orchard-auth-data
+
+networks:
+  edge:
+    name: orchard-edge
+    external: true

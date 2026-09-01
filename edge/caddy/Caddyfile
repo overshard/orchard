@@ -228,6 +228,27 @@ http://analytics.bythewood.me {
 	reverse_proxy orchard-analytics:8000
 }
 
+# /verify is answered here rather than proxied, so reaching it really does mean
+# being inside the network. The other sites call orchard-auth:8000/verify by
+# container name and never come through Caddy at all.
+#
+# The login form is the one page here a stranger can reach. What bounds the abuse
+# is in the app: one outstanding code at a time and a per account ceiling that
+# ignores the source address, since a per-IP limit is bypassed by sending one
+# request from each of a thousand proxies.
+http://auth.bythewood.me {
+	import site
+
+	# The wildcard catches /verify/ too.
+	handle /verify* {
+		respond "not here" 404
+	}
+
+	handle {
+		reverse_proxy orchard-auth:8000
+	}
+}
+
 http://status.bythewood.me {
 	import site
 	reverse_proxy orchard-status:8000

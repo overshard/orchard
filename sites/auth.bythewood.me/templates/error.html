@@ -1,0 +1,8 @@
+{{ define "form" }}
+<div class="section-label mb-2">error</div>
+<h1 class="fw-bolder text-white" style="letter-spacing: -0.01em; font-size: 1.9rem;">{{ .Title }}</h1>
+{{ template "alerts" . }}
+<a href="/" class="btn btn-primary mt-3">Start again →</a>
+{{ end }}
+
+{{ define "main" }}{{ template "authShell" . }}{{ end }}

@@ -59,7 +59,7 @@ COMPOSE_DOWN = $(DOCKER) compose
 .DEFAULT_GOAL := help
 .PHONY: help install up up-one deploy edge doctor down down-one run build check fmt fmt-check vet test \
 	env password tunnel tunnel-login tunnel-status ntfy ntfy-token ntfy-status ntfy-passwd \
-	require-site require-env require-tunnel
+	auth-init require-site require-env require-tunnel
 
 help:
 	@echo "running system"
@@ -81,7 +81,8 @@ help:
 	@echo "  make tunnel                create the tunnel, route DNS, write config"
 	@echo "  make env                   write every missing .env, passwords filled in"
 	@echo "  make ntfy                  create the two alert accounts"
-	@echo "  make ntfy-token            mint the publishers' token into the .env files"
+	@echo "  make ntfy-token            mint the publishers' tokens into the .env files"
+	@echo "  make auth-init             create the login account, printing its recovery codes"
 	@echo ""
 	@echo "  make password              print a suggested password, writing nothing"
 	@echo "  make tunnel-status         what the tunnel has right now"
@@ -204,7 +205,7 @@ doctor:
 	if $(DOCKER) ps --filter "name=^orchard-ntfy$$" --format '{{.Names}}' 2>/dev/null | grep -q .; then \
 		if $(DOCKER) run --rm --network container:orchard-ntfy curlimages/curl:latest \
 			-s --max-time 5 http://127.0.0.1:8000/v1/health 2>/dev/null | grep -q '"healthy":true'; then \
-			printf '  %-22s answering, topics status and logging\n' "ntfy"; \
+			printf '  %-22s answering, topics status, logging and auth\n' "ntfy"; \
 		else \
 			printf '  %-22s %-22s %s\n' "ntfy" "NOT ANSWERING" "-> docker logs orchard-ntfy"; \
 		fi; \
@@ -238,6 +239,20 @@ doctor:
 		printf '  %-22s %-22s %s\n' "logging" "not created" "-> make deploy SITE=logging.bythewood.me"; \
 	fi; \
 	echo ""; \
+	echo "login"; \
+	if $(DOCKER) ps --filter "name=^orchard-auth$$" --format '{{.Names}}' 2>/dev/null | grep -q .; then \
+		out=$$($(DOCKER) exec orchard-auth /app -check 2>/dev/null); \
+		case "$$out" in \
+		"not initialized") printf '  %-22s %-22s %s\n' "auth" "NOT INITIALIZED" "-> make auth-init" ;; \
+		*", 0 recovery"*|*", 1 recovery"*|*", 2 recovery"*) \
+			printf '  %-22s %-22s %s\n' "auth" "$$out" "-> nearly out; replace them on /security" ;; \
+		"")                printf '  %-22s %-22s %s\n' "auth" "unreachable" "-> docker logs orchard-auth" ;; \
+		*)                 printf '  %-22s %s\n' "auth" "$$out" ;; \
+		esac; \
+	else \
+		printf '  %-22s %-22s %s\n' "auth" "not created" "-> make deploy SITE=auth.bythewood.me"; \
+	fi; \
+	echo ""; \
 	echo "state"; \
 	sizes=$$($(DOCKER) system df -v 2>/dev/null | awk '/^VOLUME NAME/{v=1;next} v && NF==3{print $$1"="$$3}'); \
 	for s in $(SITES); do \
@@ -264,9 +279,10 @@ install: tunnel-login tunnel env
 	$(MAKE) --no-print-directory ntfy
 	$(MAKE) --no-print-directory ntfy-token
 	$(MAKE) --no-print-directory up
+	$(MAKE) --no-print-directory auth-init
 	@echo ""
 	@echo "point the ntfy app at https://ntfy.bythewood.me with the reading"
-	@echo "account above, and subscribe to status and logging."
+	@echo "account above, and subscribe to status, logging and auth."
 
 # A password out of /dev/urandom, in groups of eight so it can be read back off
 # a screen. Nothing is written, it is a suggestion to paste into 1Password.
@@ -326,6 +342,23 @@ ntfy-status:
 
 ntfy-passwd:
 	@SUDO="$(SUDO)" sh edge/setup-ntfy.sh passwd
+
+# The login account, and the recovery codes that are what the first sign in
+# uses. It needs orchard-auth running, so it comes after `make up`, and it is
+# idempotent: an account that already exists keeps the codes somebody wrote
+# down rather than being handed a fresh set that was never applied.
+#
+# The binary generates them rather than this file, because only it can write the
+# Argon2id hashes, and they must never be generated at boot and printed to
+# stdout, since container stdout ships to logging.bythewood.me.
+auth-init:
+	@$(DOCKER) ps --filter "name=^orchard-auth$$" --format '{{.Names}}' 2>/dev/null | grep -q . || { \
+		echo "orchard-auth is not running:" >&2; \
+		echo "" >&2; \
+		echo "  make up" >&2; \
+		exit 1; \
+	}
+	@$(DOCKER) exec orchard-auth /app -init
 
 # ----------------------------------------------------------------- the guards
 

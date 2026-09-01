@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ .Title }} · {{ .SiteName }}</title>
+  <meta name="description" content="{{ .Description }}">
+  {{/* Nothing here is worth indexing and every page but the form is behind a
+       session, so the tag is unconditional rather than staging-only. */}}
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/favicon.ico">
+
+  {{ range .Styles }}<link href="{{ . }}" rel="stylesheet">{{ end }}
+</head>
+
+<body>
+  {{ template "nav" . }}
+
+  <main>
+    {{ template "main" . }}
+  </main>
+
+  {{ template "footer" . }}
+
+  <script type="module" src="{{ .Script }}"></script>
+</body>
+</html>
