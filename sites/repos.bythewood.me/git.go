@@ -68,16 +68,25 @@ func validName(name string) bool {
 	return true
 }
 
-// Store owns the repository root and the cat-file readers keyed by repository.
+// Store owns the repository root, the cat-file readers keyed by repository, and
+// the listing cards keyed the same way.
 type Store struct {
 	Root string
 
 	mu      sync.Mutex
 	batches map[string]*catFile
+
+	// A separate lock from mu so reading a card never waits on a cat-file open.
+	overviewMu sync.Mutex
+	overviews  map[string]overviewEntry
 }
 
 func NewStore(root string) *Store {
-	return &Store{Root: root, batches: make(map[string]*catFile)}
+	return &Store{
+		Root:      root,
+		batches:   make(map[string]*catFile),
+		overviews: make(map[string]overviewEntry),
+	}
 }
 
 // Open resolves a name to a repository. Invalid or missing is (Repo{}, false),
@@ -478,14 +487,89 @@ func (s *Store) Size(ctx context.Context, repo Repo) int64 {
 	return total
 }
 
-// LastCommitTime is the timestamp the index sorts on.
-func (s *Store) LastCommitTime(ctx context.Context, repo Repo) time.Time {
-	out, err := run(ctx, repo, "for-each-ref", "--sort=-committerdate",
-		"--format=%(committerdate:iso-strict)", "--count=1", "refs/heads/")
-	if err != nil {
-		return time.Time{}
+// Overview is one repository's listing card. The index renders one per
+// repository and push-to-create means that count only grows, so this read is
+// the one whose cost scales with the site.
+type Overview struct {
+	Size     int64
+	Branches int
+	Tags     int
+	LastPush time.Time
+	Empty    bool
+}
+
+type overviewEntry struct {
+	value Overview
+	at    time.Time
+}
+
+// overviewTTL is a backstop. Every path in this process that writes to a
+// repository invalidates it, so the TTL only covers a change made to the volume
+// from outside, which means a repository seeded by hand.
+const overviewTTL = 10 * time.Minute
+
+// overviewFormat is the ref name and the date of the commit under it.
+// committerdate is empty on an annotated tag object, which is why only
+// refs/heads/ feeds LastPush.
+const overviewFormat = "%(refname)%00%(committerdate:iso-strict)"
+
+// Overview answers from cache when it can. A miss costs two subprocesses, and a
+// concurrent miss on one repository may pay that twice rather than hold a lock
+// across a fork.
+func (s *Store) Overview(ctx context.Context, repo Repo) Overview {
+	s.overviewMu.Lock()
+	entry, ok := s.overviews[repo.Name]
+	s.overviewMu.Unlock()
+	if ok && time.Since(entry.at) < overviewTTL {
+		return entry.value
 	}
-	return parseISO(strings.TrimSpace(string(out)))
+
+	fresh := s.readOverview(ctx, repo)
+
+	s.overviewMu.Lock()
+	s.overviews[repo.Name] = overviewEntry{value: fresh, at: time.Now()}
+	s.overviewMu.Unlock()
+	return fresh
+}
+
+// InvalidateOverview drops one repository's card, and is called from every write
+// path here so a push that has landed is never listed as if it had not.
+func (s *Store) InvalidateOverview(name string) {
+	s.overviewMu.Lock()
+	delete(s.overviews, name)
+	s.overviewMu.Unlock()
+}
+
+// readOverview walks both ref namespaces once, because the branch count, the
+// tag count and the newest commit date all come out of the same walk.
+func (s *Store) readOverview(ctx context.Context, repo Repo) Overview {
+	o := Overview{Size: s.Size(ctx, repo)}
+
+	// A card that cannot be read renders empty rather than failing the page,
+	// which is how the listing treats every other per-repository error.
+	out, _ := run(ctx, repo, "for-each-ref",
+		"--format="+overviewFormat, "refs/heads/", "refs/tags/")
+
+	for _, line := range strings.Split(string(out), "\n") {
+		name, date, ok := strings.Cut(line, "\x00")
+		if !ok {
+			continue
+		}
+		switch {
+		case strings.HasPrefix(name, "refs/heads/"):
+			o.Branches++
+			if when := parseISO(date); when.After(o.LastPush) {
+				o.LastPush = when
+			}
+		case strings.HasPrefix(name, "refs/tags/"):
+			o.Tags++
+		}
+	}
+
+	// No refs of either kind is a repository push-to-create made with nothing
+	// landed in it yet. The repository page asks git itself through IsEmpty.
+	o.Empty = o.Branches == 0 && o.Tags == 0
+	return o
 }
 
 // Archive streams a tarball or zip of a revision. The prefix gives it a top level
@@ -552,6 +636,8 @@ func (s *Store) GC(ctx context.Context, repo Repo) error {
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("gc %s: %w: %s", repo.Name, err, strings.TrimSpace(stderr.String()))
 	}
+	// Repacking is the other thing that moves a card, since it moves the size.
+	s.InvalidateOverview(repo.Name)
 	return nil
 }
 

@@ -435,6 +435,8 @@ func (m *Mirror) syncOne(ctx context.Context, gh GitHubRepo) error {
 		}
 	}
 
+	m.store.InvalidateOverview(gh.Name)
+
 	if err := m.db.MarkMirror(gh.Name, gh.CloneURL, gh.Archived); err != nil {
 		return err
 	}

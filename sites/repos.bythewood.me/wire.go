@@ -183,6 +183,12 @@ func (wr *wire) serveBackend(w http.ResponseWriter, r *http.Request, repo Repo, 
 	}
 
 	h.ServeHTTP(w, r2)
+
+	// http-backend has written the refs by now, so the listing card for this
+	// repository is stale the moment a push finishes.
+	if writing {
+		wr.store.InvalidateOverview(name)
+	}
 }
 
 // spoolBody reads a chunked body to a temporary file, unlinked at creation so it

@@ -134,17 +134,15 @@ func (s *site) index(w http.ResponseWriter, r *http.Request) {
 		if m.Hidden {
 			continue
 		}
-		size := s.store.Size(ctx, repo)
-		branches, _ := s.store.Branches(ctx, repo)
-		tags, _ := s.store.Tags(ctx, repo)
+		o := s.store.Overview(ctx, repo)
 		cards = append(cards, RepoCard{
 			RepoMeta:    m,
-			Size:        size,
-			LastPush:    s.store.LastCommitTime(ctx, repo),
-			Branches:    len(branches),
-			Tags:        len(tags),
-			Empty:       s.store.IsEmpty(ctx, repo),
-			PushPercent: percentOf(size, cloudflareBodyLimit),
+			Size:        o.Size,
+			LastPush:    o.LastPush,
+			Branches:    o.Branches,
+			Tags:        o.Tags,
+			Empty:       o.Empty,
+			PushPercent: percentOf(o.Size, cloudflareBodyLimit),
 		})
 	}
 
