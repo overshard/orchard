@@ -14,7 +14,7 @@
   </div>
   <div class="auth-actions">
     <button type="submit" class="btn btn-primary">Continue →</button>
-    <a href="/recovery" class="small link-footer">Recovery code</a>
+    <a href="/recovery?next={{ .Next | urlquery }}" class="small link-footer">Recovery code</a>
   </div>
 </form>
 {{ end }}
