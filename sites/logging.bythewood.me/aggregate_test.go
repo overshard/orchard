@@ -52,7 +52,7 @@ func TestAggregatePublishesCountsAndNothingElse(t *testing.T) {
 	allowed := map[string]bool{
 		"source": true, "records": true, "errors": true,
 		"requests": true, "server_5xx": true, "up": true, "up_known": true,
-		"baseline_daily": true,
+		"baseline_daily": true, "p95_ms": true,
 	}
 	for _, src := range payload.Sources {
 		for k := range src {
