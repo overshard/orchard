@@ -86,6 +86,10 @@ func openDB(path string) (*sql.DB, error) {
 		"?_pragma=journal_mode(WAL)" +
 		"&_pragma=synchronous(NORMAL)" +
 		"&_pragma=busy_timeout(5000)" +
+		// Lets the retention sweep hand freed pages back. It only takes effect
+		// on an empty file, so a database made before this keeps auto_vacuum
+		// NONE and needs a one-off VACUUM to convert.
+		"&_pragma=auto_vacuum(INCREMENTAL)" +
 		"&_pragma=foreign_keys(ON)"
 
 	db, err := sql.Open("sqlite", dsn)
