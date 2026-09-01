@@ -22,6 +22,10 @@
   display: flex;
   align-items: center;
   padding: 3rem 1.75rem;
+  // The field runs under the form on a narrow screen rather than being dropped,
+  // so the form needs a ground of its own or the text is read against drifting
+  // stars, which falls apart under a bright light.
+  background: rgba(14, 13, 10, 0.86);
 
   @media (min-width: 62em) {
     padding: 4rem 4.5rem;
@@ -29,8 +33,9 @@
     // form rather than stopping at a line.
     background: linear-gradient(
       100deg,
-      rgba(14, 13, 10, 0.94) 0%,
-      rgba(14, 13, 10, 0.82) 55%,
+      rgba(14, 13, 10, 0.97) 0%,
+      rgba(14, 13, 10, 0.93) 52%,
+      rgba(14, 13, 10, 0.6) 78%,
       rgba(14, 13, 10, 0) 100%
     );
   }
@@ -94,13 +99,13 @@
     position: absolute;
     inset: 0;
     border-radius: 50%;
-    border: 1px dashed rgba(107, 158, 120, 0.4);
+    border: 1px dashed rgba(107, 158, 120, 0.55);
     animation: auth-spin 150s linear infinite;
   }
 
   &::after {
     inset: 17%;
-    border-color: rgba(126, 170, 184, 0.3);
+    border-color: rgba(126, 170, 184, 0.45);
     animation-duration: 96s;
     animation-direction: reverse;
   }
@@ -152,7 +157,7 @@
 
 .auth-hint {
   font-size: 0.82rem;
-  color: $gray-400;
+  color: $gray-300;
   margin-top: 1.5rem;
 }
 
@@ -219,7 +224,7 @@
 
 .panel {
   position: relative;
-  background: linear-gradient(180deg, rgba(30, 28, 22, 0.55), rgba(19, 18, 14, 0.75));
+  background: linear-gradient(180deg, #262319, #1a1813);
   border: 1px solid $card-border-color;
   border-radius: 0.6rem;
   padding: 1.5rem;
@@ -235,7 +240,7 @@
     background: linear-gradient(
       90deg,
       transparent,
-      rgba(125, 184, 140, 0.35),
+      rgba(125, 184, 140, 0.6),
       transparent
     );
   }
@@ -259,7 +264,7 @@
     justify-content: space-between;
     gap: 1rem;
     padding-bottom: 0.7rem;
-    border-bottom: 1px solid rgba(221, 215, 205, 0.05);
+    border-bottom: 1px solid rgba(221, 215, 205, 0.16);
   }
 
   > div:last-child {
@@ -293,7 +298,7 @@
   height: 0.42rem;
   flex: 1;
   border-radius: 999px;
-  background: rgba(221, 215, 205, 0.08);
+  background: rgba(221, 215, 205, 0.18);
 
   &.is-lit {
     background: $green;
@@ -325,7 +330,7 @@
   align-items: center;
   gap: 1rem;
   padding: 1rem 0;
-  border-bottom: 1px solid rgba(221, 215, 205, 0.05);
+  border-bottom: 1px solid rgba(221, 215, 205, 0.16);
   flex-wrap: wrap;
 
   &:last-child {
@@ -337,12 +342,12 @@
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 50%;
-  background: $gray-500;
+  background: $gray-400;
   flex: none;
 
   &.is-current {
     background: $green;
-    box-shadow: 0 0 0 3px rgba(107, 158, 120, 0.15);
+    box-shadow: 0 0 0 3px rgba(107, 158, 120, 0.3);
   }
 }
 
@@ -389,7 +394,7 @@
     top: 0.4rem;
     bottom: 0.4rem;
     width: 1px;
-    background: rgba(221, 215, 205, 0.07);
+    background: rgba(221, 215, 205, 0.18);
   }
 }
 
@@ -409,7 +414,7 @@
     width: 0.42rem;
     height: 0.42rem;
     border-radius: 50%;
-    background: $gray-500;
+    background: $gray-400;
   }
 
   &.is-note::before {
@@ -449,7 +454,7 @@
   font-size: 1rem;
   letter-spacing: 0.06em;
   color: $green-bright;
-  background: rgba(107, 158, 120, 0.07);
+  background: rgba(107, 158, 120, 0.14);
   border: 1px solid $green-border;
   border-radius: 0.35rem;
   padding: 0.7rem 0.5rem;
@@ -494,7 +499,7 @@
   &:focus {
     outline: none;
     border-color: $green;
-    box-shadow: 0 0 0 2px rgba(107, 158, 120, 0.18);
+    box-shadow: 0 0 0 2px rgba(107, 158, 120, 0.3);
     background: $input-focus-bg;
   }
 
@@ -529,15 +534,15 @@
   display: block;
   padding: 1rem 1.1rem;
   border-radius: 0.5rem;
-  border: 1px solid rgba(221, 215, 205, 0.07);
-  background: rgba(221, 215, 205, 0.02);
+  border: 1px solid rgba(221, 215, 205, 0.18);
+  background: rgba(221, 215, 205, 0.05);
   text-decoration: none !important;
   transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
 
   &:hover,
   &:focus-visible {
     border-color: $green-border;
-    background: rgba(107, 158, 120, 0.06);
+    background: rgba(107, 158, 120, 0.14);
     transform: translateY(-2px);
   }
 

@@ -100,7 +100,7 @@ export function starfield(canvas) {
         const d = Math.hypot(dx, dy);
         if (d > NEAR) continue;
         links++;
-        const fade = (1 - d / NEAR) * 0.42 * placed[i].s.z;
+        const fade = (1 - d / NEAR) * 0.55 * (0.5 + placed[i].s.z * 0.5);
         ctx.strokeStyle = `rgba(125, 184, 140, ${fade.toFixed(3)})`;
         ctx.beginPath();
         ctx.moveTo(placed[i].x, placed[i].y);
@@ -111,8 +111,11 @@ export function starfield(canvas) {
 
     for (const p of placed) {
       const twinkle = animate ? 0.78 + Math.sin(p.s.tw) * 0.22 : 1;
-      ctx.globalAlpha = Math.min(1, p.s.z * twinkle);
-      ctx.fillStyle = p.s.z > 0.8 ? "#e6f2e9" : "#9fb7a6";
+      // Depth is halved into the alpha rather than driving it outright. A far
+      // star at its own z disappears entirely under a bright light, and radius
+      // and speed still carry the parallax on their own.
+      ctx.globalAlpha = Math.min(1, (0.5 + p.s.z * 0.5) * twinkle);
+      ctx.fillStyle = p.s.z > 0.8 ? "#e6f2e9" : "#c2d3c7";
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.s.r * p.s.z, 0, Math.PI * 2);
       ctx.fill();
@@ -128,7 +131,7 @@ export function starfield(canvas) {
       const x = shooting.x + t * shooting.len * 1.7;
       const y = shooting.y + t * shooting.len;
       // Fades in and back out rather than popping, so it reads as a streak.
-      const alpha = Math.sin(Math.PI * t) * 0.55;
+      const alpha = Math.sin(Math.PI * t) * 0.7;
       const grad = ctx.createLinearGradient(x, y, x - 46, y - 27);
       grad.addColorStop(0, `rgba(219, 234, 223, ${alpha.toFixed(3)})`);
       grad.addColorStop(1, "rgba(219, 234, 223, 0)");
