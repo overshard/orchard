@@ -407,7 +407,11 @@ func (s *Store) refreshSteam(ctx context.Context, g *Guard) {
 		slog.Warn("steam poll failed", slog.String("component", "steam"), slog.Any("err", err))
 		return
 	}
-	s.update(func(st *State) { st.Steam = games })
+	s.update(func(st *State) {
+		if keepSteam(games, st.Steam) {
+			st.Steam = games
+		}
+	})
 }
 
 func (s *Store) refreshWire(ctx context.Context, g *Guard) {

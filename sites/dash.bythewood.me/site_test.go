@@ -782,3 +782,63 @@ func TestIMDbURL(t *testing.T) {
 		}
 	}
 }
+
+func TestSteamAppIDComesOffTheCapsuleURL(t *testing.T) {
+	for _, tc := range []struct{ logo, want string }{
+		{"https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3751260/abc/capsule_sm_120.jpg?t=1", "3751260"},
+		{"https://cdn.akamai.steamstatic.com/steam/apps/730/capsule_sm_120.jpg", "730"},
+		{"https://example.invalid/nothing.jpg", ""},
+	} {
+		got := ""
+		if m := steamAppID.FindStringSubmatch(tc.logo); m != nil {
+			got = m[1]
+		}
+		if got != tc.want {
+			t.Errorf("%s gave %q, want %q", tc.logo, got, tc.want)
+		}
+	}
+}
+
+func TestSteamPriceCoversFreeAndUnreleased(t *testing.T) {
+	free := &appDetails{}
+	free.Data.IsFree = true
+	if got := steamPrice(free); got != "FREE" {
+		t.Errorf("a free game priced %q", got)
+	}
+
+	// A preorder carries no price_overview at all, and the top sellers chart
+	// is full of them.
+	if got := steamPrice(&appDetails{}); got != "TBA" {
+		t.Errorf("an unreleased game priced %q", got)
+	}
+
+	paid := &appDetails{}
+	paid.Data.Price = &struct {
+		Final           int `json:"final"`
+		DiscountPercent int `json:"discount_percent"`
+	}{Final: 1674, DiscountPercent: 33}
+	if got := steamPrice(paid); got != "$16.74" {
+		t.Errorf("priced %q, want $16.74", got)
+	}
+	if got := discount(paid); got != 33 {
+		t.Errorf("discount %d, want 33", got)
+	}
+}
+
+func TestKeepSteamWillNotShrinkAFullPanel(t *testing.T) {
+	full := make([]Game, steamShown)
+	for _, tc := range []struct {
+		name         string
+		fresh, shown []Game
+		want         bool
+	}{
+		{"a full poll always lands", full, full, true},
+		{"two rows do not replace six", make([]Game, 2), full, false},
+		{"two rows do replace one", make([]Game, 2), make([]Game, 1), true},
+		{"the first poll lands short", make([]Game, 2), nil, true},
+	} {
+		if got := keepSteam(tc.fresh, tc.shown); got != tc.want {
+			t.Errorf("%s: got %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
