@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -66,6 +67,15 @@ type Title struct {
 	IMDbState   string `json:"imdb_state"`
 	TomatoState string `json:"tomato_state"`
 	Badge       string `json:"badge"`
+
+	// The two scores averaged onto one bar, since the pair of them is what
+	// anyone actually reads and a bar is quicker to scan down a column than two
+	// numbers are. IMDb is out of ten so it is multiplied up first. Source says
+	// which numbers went into it, because an average of one is not the same
+	// claim as an average of two.
+	Score     int    `json:"score"`
+	ScoreBand string `json:"score_band"`
+	ScoreFrom string `json:"score_from"`
 }
 
 type justwatchPayload struct {
@@ -156,6 +166,9 @@ func fetchStreaming(ctx context.Context, g *Guard) ([]Title, error) {
 			t.Tomato = fmt.Sprintf("%d%%", c.Scoring.Tomato)
 			t.TomatoState = gradeTomato(c.Scoring.Tomato)
 		}
+		t.Score, t.ScoreFrom = combineScores(c.Scoring.IMDb, c.Scoring.Tomato)
+		t.ScoreBand = gradeScore(t.Score)
+
 		// Worth stopping on. Both numbers agreeing is the signal, since either
 		// one alone is regularly wrong in a way the other is not.
 		t.Hot = c.Scoring.IMDb >= imdbGood && c.Scoring.Tomato >= tomatoGood
@@ -187,6 +200,33 @@ func gradeIMDb(v float64) string {
 	case v >= imdbGood:
 		return "good"
 	case v >= 6.5:
+		return "fair"
+	default:
+		return "poor"
+	}
+}
+
+// combineScores puts both ratings on the same nought to a hundred scale and
+// averages them. A title with no tomatometer is its IMDb score alone rather
+// than half of one, which would read as terrible for a film nobody reviewed.
+func combineScores(imdb float64, tomato int) (int, string) {
+	pct := imdb * 10
+	from := "IMDB ONLY"
+	if tomato > 0 {
+		pct = (pct + float64(tomato)) / 2
+		from = "IMDB+RT"
+	}
+	return int(math.Round(pct)), from
+}
+
+// The combined bar gets its own lines rather than either source's. Eighty is
+// where the two good lines above average out, and sixty five sits between IMDb
+// being fair at 6.5 and the tomatometer being fresh at 60.
+func gradeScore(pct int) string {
+	switch {
+	case pct >= 80:
+		return "good"
+	case pct >= 65:
 		return "fair"
 	default:
 		return "poor"

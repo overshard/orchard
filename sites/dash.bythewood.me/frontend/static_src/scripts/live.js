@@ -807,6 +807,17 @@ function renderStreaming(titles) {
       li.append(t.url ? link(t.url, "name", t.name) : el("span", "name", t.name));
       li.append(el("span", "svc", t.provider));
 
+      const rating = el("span", "rating");
+      rating.dataset.band = t.score_band || "";
+      rating.append(el("span", "pct", `${t.score}%`));
+      const track = el("span", "track");
+      const bar = el("i");
+      bar.style.width = `${t.score}%`;
+      track.append(bar);
+      rating.append(track);
+      rating.append(el("span", "n", t.score_from || ""));
+      li.append(rating);
+
       const meta = el("span", "meta");
       meta.append(el("span", "kind", t.year ? `${t.kind} ${t.year}` : t.kind));
 
