@@ -21,7 +21,7 @@ import (
 // properly and a strip of dots is what a dashboard wants.
 
 // probeEvery is the strip's cadence. Slower than the markets panel because a
-// site that has been up for eight hours is not news, and the seven probes are
+// site that has been up for eight hours is not news, and the eight probes are
 // against Isaac's own machine rather than someone else's endpoint.
 const probeEvery = 60 * time.Second
 
@@ -53,6 +53,7 @@ var monitored = []Monitored{
 	{Label: "Portfolio", Source: "isaacbythewood", Host: "isaacbythewood.com"},
 	{Label: "Blog", Source: "blog", Host: "blog.bythewood.me"},
 	{Label: "Analytics", Source: "analytics", Host: "analytics.bythewood.me"},
+	{Label: "Auth", Source: "auth", Host: "auth.bythewood.me"},
 	{Label: "Status", Source: "status", Host: "status.bythewood.me"},
 	{Label: "Logging", Source: "logging", Host: "logging.bythewood.me"},
 	{Label: "Repos", Source: "repos", Host: "repos.bythewood.me"},
@@ -116,9 +117,9 @@ var probeClient = &http.Client{
 }
 
 // probeResult separates the three things a probe attempt can mean. Collapsing
-// them was a real bug: seven goroutines start at once, the guard paced six of
+// them was a real bug: the goroutines start at once, the guard paced all but one of
 // them, and a paced probe read as an unreachable site, so the strip reported
-// six sites down while every one of them was serving.
+// every other site down while every one of them was serving.
 type probeResult int
 
 const (

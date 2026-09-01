@@ -13,6 +13,17 @@ var templateFuncs = template.FuncMap{
 	"eventLabel": eventLabel,
 	"eventClass": eventClass,
 	"browser":    browser,
+	"pips":       pips,
+}
+
+// pips renders the recovery code meter as ten lit or unlit marks, because eight
+// of ten is read at a glance and the number 8 is not.
+func pips(remaining int) []bool {
+	out := make([]bool, recoveryCount)
+	for i := range out {
+		out[i] = i < remaining
+	}
+	return out
 }
 
 // when is the one timestamp format on this site. Everything here is UTC,

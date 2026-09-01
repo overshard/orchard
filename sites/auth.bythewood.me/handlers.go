@@ -25,6 +25,10 @@ type PageData struct {
 	AuthorName  string
 	Script      string
 	Styles      []string
+	PageScript  string
+	PageStyles  []string
+	Analytics   bool
+	AnalyticsID string
 
 	Authenticated bool
 	Username      string
@@ -65,6 +69,10 @@ func (s *site) page(r *http.Request, title, description string) PageData {
 		AuthorName:    authorName,
 		Script:        s.baseScript,
 		Styles:        s.baseStyles,
+		PageScript:    s.pagesScript,
+		PageStyles:    s.pagesStyles,
+		Analytics:     !Staging,
+		AnalyticsID:   analyticsID,
 	}
 }
 

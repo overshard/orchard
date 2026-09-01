@@ -8,9 +8,25 @@
   {{/* Nothing here is worth indexing and every page but the form is behind a
        session, so the tag is unconditional rather than staging-only. */}}
   <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#0e0d0a">
   <link rel="icon" type="image/svg+xml" href="/favicon.ico">
 
   {{ range .Styles }}<link href="{{ . }}" rel="stylesheet">{{ end }}
+  {{ range .PageStyles }}<link href="{{ . }}" rel="stylesheet">{{ end }}
+
+  {{- if .Analytics }}
+  <script>
+    (function (m, e, t, r, i, c, s) {
+      m.collectorQueue = m.collectorQueue || r;
+      m.collectorServer = c;
+      m.collectorId = s;
+      m.collectorScript = e.createElement(t);
+      m.collectorScript.src = c + i;
+      e.head.appendChild(m.collectorScript);
+    })(window, document, "script", [], "/static/collector.js",
+       "https://analytics.bythewood.me", "{{ .AnalyticsID }}");
+  </script>
+  {{- end }}
 </head>
 
 <body>
@@ -23,5 +39,6 @@
   {{ template "footer" . }}
 
   <script type="module" src="{{ .Script }}"></script>
+  <script type="module" src="{{ .PageScript }}"></script>
 </body>
 </html>
