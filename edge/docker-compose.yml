@@ -48,7 +48,7 @@ services:
         max-file: "3"
 
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    image: cloudflare/cloudflared:2026.8.3@sha256:9be48e4b4e996da851bf78f7782bfab150dd4d8889e469d004802e7d7afb63b1
     container_name: orchard-cloudflared
     restart: unless-stopped
     command: tunnel --config /etc/cloudflared/config.yml run
