@@ -75,7 +75,7 @@ RUN apk add --no-cache \
       fontconfig && \
     fc-cache -f
 
-COPY --from=oven/bun:1-alpine /usr/local/bin/bun /usr/local/bin/bun
+COPY --from=oven/bun:1-alpine@sha256:07235578f79ef8c6f97d94aee7938e76f5cdba5f21ae5dbfdd3d3d38058437eb /usr/local/bin/bun /usr/local/bin/bun
 COPY --from=typst /usr/local/bin/typst /usr/local/bin/typst
 COPY --from=build /app /app
 
