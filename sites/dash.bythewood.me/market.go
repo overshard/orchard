@@ -119,6 +119,10 @@ type Quote struct {
 	High52   float64
 	Low52    float64
 	Closes   []float64
+
+	// Unix seconds for each close, so the sparkline can place a bar at the time
+	// it printed rather than at its position in the list.
+	Times []int64
 }
 
 func (q Quote) change() float64 {
@@ -201,10 +205,18 @@ func fetchQuoteBatch(ctx context.Context, g *Guard, symbols []string) (map[strin
 		}
 
 		var closes []float64
+		var times []int64
 		if len(s.Indicators.Quote) > 0 {
-			for _, c := range s.Indicators.Quote[0].Close {
-				if c != nil && !math.IsNaN(*c) {
-					closes = append(closes, *c)
+			for i, c := range s.Indicators.Quote[0].Close {
+				if c == nil || math.IsNaN(*c) {
+					continue
+				}
+				closes = append(closes, *c)
+				// A null close drops its bar, so the two slices have to be
+				// filled together or every point after the first gap is drawn
+				// at the wrong time.
+				if i < len(s.Timestamp) {
+					times = append(times, s.Timestamp[i])
 				}
 			}
 		}
@@ -218,6 +230,7 @@ func fetchQuoteBatch(ctx context.Context, g *Guard, symbols []string) (map[strin
 			High52:   m.FiftyTwoWeekHigh,
 			Low52:    m.FiftyTwoWeekLow,
 			Closes:   closes,
+			Times:    times,
 		}
 	}
 	return out, nil
@@ -251,6 +264,11 @@ type Market struct {
 	DrawdownPct float64 `json:"drawdown_pct"`
 	Updated     string  `json:"updated"`
 	Stale       bool    `json:"stale"`
+
+	// The one figure the browser tab carries, so a backgrounded tab still says
+	// what the market is doing. The S&P while the session is open and bitcoin
+	// once it shuts, since bitcoin is the one on this page that never stops.
+	Ticker string `json:"ticker"`
 }
 
 // buildMarket turns a quote map into the panel. now is a parameter so the
@@ -303,10 +321,12 @@ func buildMarket(quotes map[string]Quote, now time.Time) Market {
 			Percent:   signed(pct, 2) + "%",
 			Direction: direction(change),
 			Note:      note,
-			Spark:     buildSpark(q.Closes, q.Previous),
+			Spark:     buildSpark(q.Closes, q.Times, q.Previous, axisFor(symbol, q.Times)),
 			asOf:      q.AsOf,
 		})
 	}
+
+	m.Ticker = tabTicker(m)
 
 	// Drawdown from the 52 week high, which is the number Isaac acts on. It is
 	// the 52 week high and not the all time high because that is what the same
@@ -427,4 +447,59 @@ func until(from, to int) string {
 		return fmt.Sprintf("in %dh %dm", h, d%60)
 	}
 	return fmt.Sprintf("in %dm", d)
+}
+
+// tradingAxis is the session a sparkline is drawn against, in unix seconds.
+type tradingAxis struct {
+	start, end int64
+	ok         bool
+}
+
+// axisFor works out which session a symbol's intraday series belongs to, so the
+// line can be laid out against the whole day instead of against however many
+// bars have printed. The window comes from the clock rather than from the data,
+// because a late first print would otherwise shift the whole axis.
+//
+// Only a cash index gets one. Yahoo's 1d range for a futures symbol hands back
+// the calendar day and not the CME session, so laying those bars over an 18:00
+// to 17:00 window left a quarter of the card empty on the left with the line
+// jammed against the right edge. Measured off the rendered paths: the first bar
+// sat 23.8% into that axis, which is midnight and not the evening open.
+func axisFor(symbol string, times []int64) tradingAxis {
+	if len(times) == 0 || !strings.HasPrefix(symbol, "^") {
+		return tradingAxis{}
+	}
+
+	et := easternTime()
+	first := time.Unix(times[0], 0).In(et)
+	y, m, d := first.Date()
+	midnight := time.Date(y, m, d, 0, 0, 0, 0, et)
+
+	// A cash index prints on the exchange's own hours and has no pre or post
+	// bars at all, so includePrePost buys these nothing and the axis is the
+	// regular session.
+	start := midnight.Add(9*time.Hour + 30*time.Minute)
+	axis := tradingAxis{start: start.Unix(), end: midnight.Add(16 * time.Hour).Unix(), ok: true}
+
+	// A session that ran long, or an index that keeps printing past its own
+	// close, extends the axis rather than piling every late bar on the edge.
+	if last := times[len(times)-1]; last > axis.end {
+		axis.end = last
+	}
+	return axis
+}
+
+// tabTicker picks the figure the browser tab leads with. Labels are short
+// because a tab truncates and this sits in front of the site's own name.
+func tabTicker(m Market) string {
+	key, label := "bitcoin", "BTC"
+	if m.Session == "regular" {
+		key, label = "sp500", "S&P"
+	}
+	for _, c := range m.Cards {
+		if c.Key == key && !c.Unavailable {
+			return label + " " + c.Percent
+		}
+	}
+	return ""
 }

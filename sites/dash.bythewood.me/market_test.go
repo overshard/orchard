@@ -324,3 +324,33 @@ func TestSectorBoardCarriesTheBenchmark(t *testing.T) {
 		t.Errorf("%s is on the board but never fetched", benchmark.Symbol)
 	}
 }
+
+// The tab leads with whatever is still moving: the S&P while the session is
+// open, and bitcoin once it shuts, which is the one on this page that never
+// stops. Worth a test because the closed branch is the only one visible for
+// most of the day and the open one would otherwise ship unread.
+func TestTabTickerFollowsTheSession(t *testing.T) {
+	cards := []Card{
+		{Key: "sp500", Percent: "+0.42%"},
+		{Key: "bitcoin", Percent: "+1.10%"},
+	}
+
+	for _, c := range []struct{ session, want string }{
+		{"regular", "S&P +0.42%"},
+		{"pre", "BTC +1.10%"},
+		{"post", "BTC +1.10%"},
+		{"closed", "BTC +1.10%"},
+	} {
+		if got := tabTicker(Market{Session: c.session, Cards: cards}); got != c.want {
+			t.Errorf("session %q gave %q, want %q", c.session, got, c.want)
+		}
+	}
+}
+
+// A card with no price must not put a bare label in the tab.
+func TestTabTickerSkipsAnUnavailableCard(t *testing.T) {
+	m := Market{Session: "closed", Cards: []Card{{Key: "bitcoin", Unavailable: true}}}
+	if got := tabTicker(m); got != "" {
+		t.Errorf("tabTicker = %q, want nothing", got)
+	}
+}

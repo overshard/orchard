@@ -37,16 +37,19 @@ type budget struct {
 }
 
 var budgets = map[string]budget{
-	"yahoo":     {perHour: 900, pace: 2 * time.Second},
-	"algolia":   {perHour: 120, pace: 2 * time.Second},
-	"lobsters":  {perHour: 120, pace: 2 * time.Second},
-	"openmeteo": {perHour: 120, pace: 2 * time.Second},
-	"cnbc":      {perHour: 120, pace: 2 * time.Second},
-	"nasdaq":    {perHour: 120, pace: 2 * time.Second},
-	"nws":       {perHour: 120, pace: 2 * time.Second},
-	"pollen":    {perHour: 60, pace: 2 * time.Second},
-	"steam":     {perHour: 240, pace: time.Second},
-	"justwatch": {perHour: 60, pace: 2 * time.Second},
+	"yahoo":        {perHour: 900, pace: 2 * time.Second},
+	"algolia":      {perHour: 120, pace: 2 * time.Second},
+	"lobsters":     {perHour: 120, pace: 2 * time.Second},
+	"openmeteo":    {perHour: 120, pace: 2 * time.Second},
+	"cnbc":         {perHour: 120, pace: 2 * time.Second},
+	"bbc":          {perHour: 60, pace: 2 * time.Second},
+	"seekingalpha": {perHour: 60, pace: 2 * time.Second},
+	"fed":          {perHour: 60, pace: 2 * time.Second},
+	"nasdaq":       {perHour: 120, pace: 2 * time.Second},
+	"nws":          {perHour: 120, pace: 2 * time.Second},
+	"pollen":       {perHour: 60, pace: 2 * time.Second},
+	"steam":        {perHour: 240, pace: time.Second},
+	"justwatch":    {perHour: 60, pace: 2 * time.Second},
 	// No pacing on these two. They go to Isaac's own machine rather than to a
 	// stranger's endpoint, and the strip fires all seven probes at once, so a
 	// pause between them would only refuse six of the seven.
@@ -294,6 +297,9 @@ var feedOrder = []struct{ key, label string }{
 	{"algolia", "HN"},
 	{"lobsters", "LOBSTERS"},
 	{"cnbc", "CNBC"},
+	{"bbc", "BBC"},
+	{"seekingalpha", "SEEKING ALPHA"},
+	{"fed", "FED"},
 	{"nasdaq", "NASDAQ"},
 	{"openmeteo", "OPEN-METEO"},
 	{"nws", "NWS"},

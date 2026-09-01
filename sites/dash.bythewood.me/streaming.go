@@ -58,6 +58,14 @@ type Title struct {
 	Tomato   string `json:"tomato"`
 	Hot      bool   `json:"hot"`
 	Provider string `json:"provider"`
+
+	// Each score graded on its own, so a good number reads as good without
+	// having to be compared against the other five rows. The highlight on Hot
+	// says both critics and the crowd rated it well, and it went unread as a
+	// white row among orange ones until it was given a word.
+	IMDbState   string `json:"imdb_state"`
+	TomatoState string `json:"tomato_state"`
+	Badge       string `json:"badge"`
 }
 
 type justwatchPayload struct {
@@ -143,12 +151,17 @@ func fetchStreaming(ctx context.Context, g *Guard) ([]Title, error) {
 			t.Kind = "TV"
 		}
 		t.URL = imdbURL(c.ExternalIDs.IMDbID)
+		t.IMDbState = gradeIMDb(c.Scoring.IMDb)
 		if c.Scoring.Tomato > 0 {
 			t.Tomato = fmt.Sprintf("%d%%", c.Scoring.Tomato)
+			t.TomatoState = gradeTomato(c.Scoring.Tomato)
 		}
 		// Worth stopping on. Both numbers agreeing is the signal, since either
 		// one alone is regularly wrong in a way the other is not.
-		t.Hot = c.Scoring.IMDb >= 7.5 && c.Scoring.Tomato >= 85
+		t.Hot = c.Scoring.IMDb >= imdbGood && c.Scoring.Tomato >= tomatoGood
+		if t.Hot {
+			t.Badge = "BOTH AGREE"
+		}
 
 		out = append(out, t)
 	}
@@ -157,6 +170,39 @@ func fetchStreaming(ctx context.Context, g *Guard) ([]Title, error) {
 		return nil, fmt.Errorf("justwatch: nothing streaming with a score")
 	}
 	return out, nil
+}
+
+// The two lines a title has to clear to be highlighted. IMDb runs about a point
+// higher than a tomatometer for the same film, which is why they are not the
+// same number.
+const (
+	imdbGood   = 7.5
+	tomatoGood = 85
+)
+
+func gradeIMDb(v float64) string {
+	switch {
+	case v == 0:
+		return ""
+	case v >= imdbGood:
+		return "good"
+	case v >= 6.5:
+		return "fair"
+	default:
+		return "poor"
+	}
+}
+
+func gradeTomato(v int) string {
+	switch {
+	case v >= tomatoGood:
+		return "good"
+	// Sixty is Rotten Tomatoes' own line between fresh and rotten.
+	case v >= 60:
+		return "fair"
+	default:
+		return "poor"
+	}
 }
 
 // services is the subscription list in the order a title should be attributed

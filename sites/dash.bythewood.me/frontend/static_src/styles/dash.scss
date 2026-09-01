@@ -274,15 +274,6 @@ main {
   grid-template-columns: repeat(3, 1fr);
 }
 
-.columns {
-  display: grid;
-  grid-template-columns: 1fr 1fr 340px;
-  gap: var(--gap);
-  align-items: start;
-}
-
-.stack { display: flex; flex-direction: column; gap: var(--gap); }
-
 // Panels ---------------------------------------------------------------------
 
 // Bordered, never floating. No drop shadows anywhere in this file: a panel that
@@ -522,6 +513,17 @@ main {
   }
 
   .spark-area { stroke: none; }
+
+  // The live end of a session that has not finished. The card is the whole
+  // trading day, so this is where the day has got to and everything right of
+  // it has not happened yet.
+  .spark-now {
+    stroke: var(--amber);
+    stroke-width: 1;
+    stroke-dasharray: 2 3;
+    opacity: 0.5;
+    vector-effect: non-scaling-stroke;
+  }
 }
 
 // Feeds ----------------------------------------------------------------------
@@ -577,6 +579,7 @@ main {
 
 // Atmos ----------------------------------------------------------------------
 
+// ATMOS reads top to bottom as now, today, next, and the length of the day.
 .weather-body {
   .temp-row {
     display: flex;
@@ -600,25 +603,214 @@ main {
     .cond-label { font-size: 12px; letter-spacing: 0.06em; color: var(--text); text-transform: uppercase; }
     .cond-feels { font-size: 10px; letter-spacing: var(--track); color: var(--dim); }
   }
-}
 
-// Four cells, hairline separated, so the secondary numbers read as a bank of
-// gauges rather than a sentence.
-.grid-readout {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1px;
-  margin: 12px 0 0;
-  background: var(--line);
-  border: 1px solid var(--line);
+  // The day's range, pushed to the far edge so the header has two anchors
+  // rather than one and a stretch of empty panel.
+  .range {
+    margin-left: auto;
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 12px;
 
-  > div {
-    background: var(--panel-2);
-    padding: 6px 7px;
+    .hi { color: var(--text); }
+    .lo { color: var(--dim); }
   }
 
-  dt { font-size: 10px; letter-spacing: var(--track); color: var(--dim); }
-  dd { margin: 2px 0 0; font-size: 14px; color: var(--text); }
+  // Rain and wind are plain figures with no band behind them, so they read as
+  // a line of text here rather than pretending to be gauges like the three
+  // below.
+  .now-row {
+    display: flex;
+    gap: 18px;
+    margin-top: 11px;
+    font-size: 11px;
+    color: var(--text);
+
+    b {
+      font-weight: 400;
+      letter-spacing: var(--track);
+      color: var(--dim);
+    }
+  }
+}
+
+// UV, air quality and pollen are three readings on three unrelated scales, and
+// drawing each as the same gauge is what makes them comparable at a glance.
+// Pollen used to be a full width cell under two half ones, which is what made
+// this corner look assembled rather than designed.
+.gauges {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  margin-top: 12px;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+
+.gauge {
+  background: var(--panel-2);
+  padding: 8px 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+
+  .gk { font-size: 9px; letter-spacing: var(--track); color: var(--dim); }
+  .gv { font-size: 17px; line-height: 1; color: var(--text); }
+
+  .gbar {
+    height: 4px;
+    background: var(--void);
+    border: 1px solid var(--line-hot);
+    overflow: hidden;
+
+    i {
+      display: block;
+      height: 100%;
+      background: var(--flat);
+      transition: width 0.4s ease;
+    }
+  }
+
+  .gb {
+    font-size: 9px;
+    letter-spacing: var(--track);
+    color: var(--dim);
+  }
+
+  // The allergens behind a pollen reading, which is the one of the three that
+  // has anything to name.
+  .gn {
+    font-size: 9px;
+    letter-spacing: 0.04em;
+    color: var(--faint);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  // Only the bottom band is green. A moderate reading drawn in the same colour
+  // as a good one is the panel agreeing with itself about nothing.
+  &[data-level="0"] .gbar i { background: var(--up); }
+  &[data-level="1"] { .gv { color: var(--text); } .gbar i { background: var(--muted); } }
+  &[data-level="2"] { .gv { color: var(--warn); } .gbar i { background: var(--warn); } }
+  &[data-level="3"] { .gv { color: var(--down); } .gbar i { background: var(--down); } }
+}
+
+// The next eight hours. Each hour shows the chance of rain twice, as a bar and
+// as a figure, because the bar alone is unreadable on a dry day and the figure
+// alone gives no shape across the evening.
+.hours {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  margin-top: 14px;
+
+  .hours-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6px;
+
+    .k { font-size: 9px; letter-spacing: var(--track); color: var(--dim); }
+    .v { font-size: 9px; letter-spacing: var(--track); color: var(--faint); }
+  }
+
+  // The bars share one plot, so they share a floor and a half way rule. Giving
+  // each bar its own eleven pixel border drew eight ticks instead of a baseline,
+  // and holding the plot to a fixed height left it floating at the top of a
+  // panel the band had stretched. It takes the slack now and the bars stand on
+  // the bottom of it.
+  .hour-plot {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    align-items: end;
+    flex: 1;
+    min-height: 46px;
+    border-bottom: 1px solid var(--line-hot);
+
+    &::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      border-top: 1px dashed var(--line-hot);
+      pointer-events: none;
+    }
+  }
+
+  .hbar {
+    width: 11px;
+    justify-self: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    height: 100%;
+
+    i {
+      display: block;
+      width: 100%;
+      // A chance that rounds to nothing still draws, so a dry hour reads as dry
+      // rather than as a column that failed to load.
+      min-height: 1px;
+      background: var(--amber-dim);
+    }
+
+    // Worth taking a coat for.
+    &[data-wet="yes"] i { background: var(--amber); }
+  }
+
+  .hour-cols {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    margin-top: 4px;
+  }
+}
+
+.hour {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 0;
+
+  .hp { font-size: 9px; color: var(--dim); }
+  .hv { font-size: 11px; color: var(--text); }
+  .ht { font-size: 8px; letter-spacing: 0.04em; color: var(--faint); }
+
+  &[data-wet="yes"] .hp { color: var(--amber); }
+
+  // Warm to cool across the strip's own range, so an even evening still shows a
+  // gradient rather than eight identical numbers.
+  &[data-warm="3"] .hv { color: var(--amber); }
+  &[data-warm="2"] .hv { color: var(--text); }
+  &[data-warm="1"] .hv { color: var(--muted); }
+  &[data-warm="0"] .hv { color: var(--dim); }
+}
+
+.daylight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+
+  .t { font-size: 10px; color: var(--dim); white-space: nowrap; }
+
+  .track {
+    flex: 1;
+    height: 3px;
+    background: var(--line-hot);
+    position: relative;
+
+    i {
+      display: block;
+      height: 100%;
+      background: linear-gradient(90deg, var(--amber-dim), var(--amber));
+    }
+  }
 }
 
 // Systems --------------------------------------------------------------------
@@ -773,10 +965,6 @@ main {
 
 // Conditions -------------------------------------------------------------------
 
-.market-row {
-  grid-template-columns: 1.15fr 0.75fr 1.1fr;
-}
-
 .conditions {
   > div[data-signal] {
     flex: 1;
@@ -801,7 +989,6 @@ main {
     &[data-level="deep"] { border-left-color: var(--up); color: var(--up); }
   }
 
-  .conditions-list,
   ul.conditions {
     list-style: none;
     margin: 0;
@@ -814,20 +1001,56 @@ main {
     li {
       display: grid;
       grid-template-columns: 1fr auto auto;
+      grid-template-areas: "k v n" "meter meter meter";
       align-items: baseline;
-      gap: 10px;
-      padding: 5px 0;
+      gap: 5px 10px;
+      padding: 6px 0;
       border-bottom: 1px solid var(--line);
       &:last-child { border-bottom: 0; }
     }
 
-    .k { font-size: 10px; letter-spacing: var(--track); color: var(--dim); }
-    .v { font-size: 14px; color: var(--text); }
-    .n { font-size: 9px; letter-spacing: var(--track); color: var(--faint); min-width: 92px; text-align: right; }
+    .k { grid-area: k; font-size: 10px; letter-spacing: var(--track); color: var(--dim); }
+    .v { grid-area: v; font-size: 14px; color: var(--text); }
+    .n { grid-area: n; font-size: 9px; letter-spacing: var(--track); color: var(--faint); min-width: 92px; text-align: right; }
 
-    li[data-state="dip"] .v { color: var(--warn); }
-    li[data-state="stress"] .v { color: var(--amber); }
-    li[data-state="deep"] .v { color: var(--up); }
+    // Where the reading sits between calm and the worst end of its own scale,
+    // with the thresholds ruled across it. A state word says which band a
+    // number landed in and nothing about how close it is to the next one.
+    .meter {
+      grid-area: meter;
+      position: relative;
+      display: block;
+      height: 6px;
+      background: var(--void);
+      border: 1px solid var(--line-hot);
+      overflow: hidden;
+
+      .fill {
+        position: absolute;
+        inset: 0 auto 0 0;
+        background: var(--flat);
+        // A reading barely off the calm end still has to draw something, or a
+        // quiet market looks like a panel that failed to load.
+        min-width: 2px;
+        transition: width 0.4s ease;
+      }
+
+      // The band edges, so the bar says how far it is to the next threshold
+      // rather than only which side of one it is on. Light enough to read over
+      // the empty track and over a filled bar both.
+      .tick {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 1px;
+        background: var(--dim);
+        opacity: 0.55;
+      }
+    }
+
+    li[data-state="dip"] { .v { color: var(--warn); } .fill { background: var(--warn); } }
+    li[data-state="stress"] { .v { color: var(--amber); } .fill { background: var(--amber); } }
+    li[data-state="deep"] { .v { color: var(--up); } .fill { background: var(--up); } }
   }
 
   .footnote {
@@ -845,25 +1068,45 @@ main {
     list-style: none;
     margin: 0;
     padding: 0;
-    flex: 1;
     display: flex;
     flex-direction: column;
 
+    // The rows share the panel equally, so four of them read as one stepped
+    // scale rather than as four items with gaps between them.
+    flex: 1;
+
     li {
       display: grid;
-      grid-template-columns: 44px 1fr auto;
+      grid-template-columns: 34px auto 1fr auto;
       align-items: center;
-      gap: 8px;
-      // The rows share the panel equally, so four of them read as one stepped
-      // scale rather than as four items with gaps between them.
+      gap: 10px;
       flex: 1;
+      padding: 6px 0;
       border-bottom: 1px solid var(--line);
       &:last-child { border-bottom: 0; }
     }
 
     .k { font-size: 11px; letter-spacing: var(--track); color: var(--dim); }
-    .v { font-size: 15px; color: var(--text); }
-    .d { font-size: 11px; color: var(--flat); }
+    .v { font-size: 16px; color: var(--text); min-width: 62px; }
+    .d { font-size: 11px; color: var(--flat); min-width: 40px; text-align: right; }
+
+    // Reading the four bars down the panel gives the shape of the curve, which
+    // four numbers in a column do not. The scale runs from zero, so a bar is
+    // proportional to the yield and not to the gap between the smallest and the
+    // largest, which would turn a quarter point of spread into a cliff.
+    .scale {
+      height: 5px;
+      background: var(--void);
+      border: 1px solid var(--line-hot);
+      overflow: hidden;
+
+      i {
+        display: block;
+        height: 100%;
+        background: linear-gradient(90deg, var(--amber-dim), var(--amber));
+        transition: width 0.4s ease;
+      }
+    }
 
     li[data-dir="up"] .d { color: var(--down); }
     li[data-dir="down"] .d { color: var(--up); }
@@ -881,9 +1124,15 @@ main {
     border-top: 1px solid var(--line-hot);
 
     .k { font-size: 10px; letter-spacing: var(--track); color: var(--dim); }
-    .v { font-size: 14px; color: var(--text); }
+    .v { font-size: 14px; color: var(--text); margin-left: auto; margin-right: 9px; }
 
-    &[data-curve-state="inverted"] .v { color: var(--down); }
+    .shape { font-size: 9px; letter-spacing: var(--track); color: var(--faint); }
+
+    &[data-curve-state="inverted"] {
+      .v,
+      .shape { color: var(--down); }
+    }
+    &[data-curve-state="flat"] .shape { color: var(--warn); }
   }
 }
 
@@ -892,6 +1141,10 @@ main {
 .heat {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  // Four equal rows taking whatever height the band settled on, so the board
+  // ends level with the panels beside it instead of stopping short.
+  grid-template-rows: repeat(4, 1fr);
+  flex: 1;
   gap: 1px;
   background: var(--line);
   border: 1px solid var(--line);
@@ -902,7 +1155,8 @@ main {
   padding: 7px 8px;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  justify-content: center;
+  gap: 2px;
 
   .s { font-size: 9px; letter-spacing: var(--track); color: var(--muted); }
   .p { font-size: 13px; color: var(--text); }
@@ -969,36 +1223,7 @@ main {
 
 // Daylight and air -------------------------------------------------------------
 
-.daylight {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  margin-top: 11px;
-
-  .t { font-size: 10px; color: var(--dim); white-space: nowrap; }
-
-  .track {
-    flex: 1;
-    height: 3px;
-    background: var(--line-hot);
-    position: relative;
-
-    i {
-      display: block;
-      height: 100%;
-      background: linear-gradient(90deg, var(--amber-dim), var(--amber));
-    }
-  }
-}
-
-.grid-readout.air {
-  grid-template-columns: repeat(2, 1fr);
-  margin-top: 1px;
-
-  .wide { grid-column: 1 / -1; }
-  .sub { font-size: 9px; letter-spacing: var(--track); color: var(--dim); }
-  dd { font-size: 13px; }
-}
+// Pinned to the bottom of the panel, so ATMOS ends on its one bar instead of
 
 // Outdoors ---------------------------------------------------------------------
 
@@ -1010,15 +1235,20 @@ main {
   display: flex;
   flex-direction: column;
 
+  // The three days share the panel, and each one now carries a reading under
+  // every word, so growing them fills the band with forecast rather than with
+  // the gaps between days that made this too airy the first time.
+  gap: 10px;
+
   li {
     flex: 1;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 3px;
-    padding: 6px 0;
+    gap: 6px;
+    padding: 0 0 10px;
     border-bottom: 1px solid var(--line);
-    &:last-child { border-bottom: 0; }
+    &:last-child { border-bottom: 0; padding-bottom: 0; }
   }
 
   .head {
@@ -1038,15 +1268,65 @@ main {
 
   .v { font-size: 11px; letter-spacing: var(--track); color: var(--muted); }
 
-  .facts {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px 10px;
-    font-size: 10px;
-    letter-spacing: 0.06em;
-    color: var(--dim);
+  .temps {
+    font-size: 11px;
+    color: var(--muted);
+    margin-left: auto;
+    margin-right: 10px;
+    white-space: nowrap;
 
-    .t { color: var(--muted); }
+    i { font-style: normal; color: var(--faint); }
+  }
+
+  // One column per thing being graded, each with its own bar. The verdict is a
+  // sum of four scores, so a day that reads MARGINAL should say which of the
+  // four made it that rather than leaving four adjectives to be compared.
+  .factors {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-top: 2px;
+  }
+
+  .factor {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+
+    .fk {
+      font-size: 9px;
+      letter-spacing: var(--track);
+      color: var(--faint);
+    }
+
+    .fbar {
+      height: 4px;
+      background: var(--up);
+    }
+
+    .fv {
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      color: var(--dim);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    // The reading the word was graded from, so a call that was close is
+    // visible as a number rather than only as an adjective.
+    .fd {
+      font-size: 9px;
+      letter-spacing: 0.04em;
+      color: var(--faint);
+    }
+
+    // Nought is the good end here, since the score is how much this factor
+    // costs the day.
+    &[data-score="1"] { .fbar { background: var(--text); } }
+    &[data-score="2"] { .fbar { background: var(--warn); } .fv { color: var(--muted); } }
+    &[data-score="3"] { .fbar { background: var(--down); } .fv { color: var(--down); } }
   }
 
   li[data-verdict="OPTIMAL"] .v { color: var(--up); }
@@ -1089,6 +1369,39 @@ main {
 
   .pr { font-size: 11px; color: var(--dim); white-space: nowrap; text-align: right; }
   .disc { color: var(--up); }
+
+  // Steam's own review percentage, its bar, and how many reviews are behind it.
+  // The count matters as much as the number, since 94% of four hundred thousand
+  // and 94% of eleven are not the same claim.
+  .rating {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 34px 1fr auto;
+    align-items: center;
+    gap: 7px;
+    margin-top: 1px;
+
+    .pct { font-size: 10px; color: var(--muted); }
+    .n { font-size: 9px; letter-spacing: 0.06em; color: var(--faint); }
+
+    .track {
+      height: 3px;
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      overflow: hidden;
+
+      i {
+        display: block;
+        height: 100%;
+        background: var(--flat);
+      }
+    }
+
+    &[data-band="good"] { .pct { color: var(--up); } .track i { background: var(--up); } }
+    &[data-band="mixed"] { .pct { color: var(--warn); } .track i { background: var(--warn); } }
+    &[data-band="poor"],
+    &[data-band="bad"] { .pct { color: var(--down); } .track i { background: var(--down); } }
+  }
 
   .meta {
     grid-column: 1 / -1;
@@ -1153,14 +1466,27 @@ main {
     color: var(--faint);
   }
 
+  // Each score graded on its own, so a good number reads as good without
+  // having to be compared against the other five rows.
   .score { color: var(--dim); }
+  .score[data-grade="good"] { color: var(--up); }
+  .score[data-grade="fair"] { color: var(--muted); }
+  .score[data-grade="poor"] { color: var(--down); }
 
   // Both numbers agreeing is the signal, since either one alone is regularly
-  // wrong in a way the other is not.
+  // wrong in a way the other is not. The row was highlighted for that before
+  // and said so nowhere, which read as an arbitrary white row among orange.
+  .badge {
+    padding: 0 4px;
+    border: 1px solid var(--amber-dim);
+    color: var(--amber);
+    letter-spacing: var(--track);
+    white-space: nowrap;
+  }
+
   li[data-hot="yes"] {
     .name { color: var(--amber); }
     a.name:hover { color: #ffc84d; }
-    .score { color: var(--up); }
   }
 
   li.empty {
@@ -1173,6 +1499,9 @@ main {
 
 // Wire -----------------------------------------------------------------------
 
+// Source, headline, age, on one line. The boxed pill on a line of its own under
+// each headline gave every row a different height and read as a stack of cards
+// rather than a wire. Same three column shape the earnings and story rows use.
 .headlines {
   list-style: none;
   margin: 0;
@@ -1180,31 +1509,22 @@ main {
 
   li {
     display: grid;
-    grid-template-columns: 1fr auto;
-    grid-template-areas: "title age" "tag age";
+    grid-template-columns: 38px 1fr auto;
     align-items: baseline;
     column-gap: 10px;
-    row-gap: 2px;
     padding: 7px 0;
     border-bottom: 1px solid var(--line);
     &:last-child { border-bottom: 0; }
   }
 
-  a { grid-area: title; }
-  .tag { grid-area: tag; justify-self: start; }
-  .age { grid-area: age; }
-
   .tag {
     font-size: 9px;
     letter-spacing: var(--track);
     color: var(--amber-dim);
-    border: 1px solid var(--line-hot);
-    padding: 2px 5px;
-    line-height: 1;
     white-space: nowrap;
   }
 
-  a { color: var(--text); font-size: 13px; line-height: 1.35; }
+  a { color: var(--text); font-size: 13px; line-height: 1.4; }
   a:hover { color: var(--amber); }
 
   .age { font-size: 11px; color: var(--dim); white-space: nowrap; }
@@ -1271,6 +1591,21 @@ main {
     &:first-child { padding-left: 0; }
     &:last-child { border-right: 0; }
   }
+
+  // Every upstream the page reads, generated from the same list the UPLINK
+  // panel uses. It is the one segment allowed to be cut short, since the
+  // panel names them all anyway.
+  .srcs {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    i {
+      font-style: normal;
+      padding: 0 5px;
+      color: var(--line-hot);
+    }
+  }
   .grow { flex: 1; border-right: 0; }
   a { color: var(--dim); }
   a:hover { color: var(--amber); }
@@ -1306,7 +1641,6 @@ main {
 // it is the only thing that gets it.
 @media (min-width: 1900px) {
   main { max-width: 2100px; }
-  .columns { grid-template-columns: 1fr 1fr 400px; }
   .card .price { font-size: 22px; }
 }
 
@@ -1322,14 +1656,12 @@ main {
 }
 
 @media (max-width: 1340px) {
-  .columns { grid-template-columns: 1fr 1fr; }
   .local-band { grid-template-columns: repeat(2, 1fr); }
   .news-band { grid-template-columns: 1fr 1fr; }
 }
 
 // Tablet.
 @media (max-width: 1024px) {
-  .columns,
   .band { grid-template-columns: 1fr; }
   .heat { grid-template-columns: repeat(3, 1fr); }
 
@@ -1373,10 +1705,14 @@ main {
     .rule { display: none; }
   }
 
-  .headlines li { grid-template-columns: 1fr; row-gap: 3px; }
-  .headlines .tag { justify-self: start; }
+  // The wire keeps its three columns down here, the source is four characters
+  // and stacking it above the headline is what made these rows look like cards.
+  .headlines li { grid-template-columns: 32px 1fr auto; column-gap: 8px; }
 
-  .grid-readout { grid-template-columns: repeat(2, 1fr); }
+  // Three gauges still fit at this width, but a band like SENSITIVE GROUPS has
+  // to be allowed onto a second line rather than pushing the cell wider.
+  .gauges { grid-template-columns: repeat(3, 1fr); }
+  .gauge .gb { overflow-wrap: anywhere; }
   .heat { grid-template-columns: repeat(2, 1fr); }
   .earning-rows li { grid-template-columns: 54px 1fr auto; .cap { display: none; } }
   .conditions ul.conditions li { grid-template-columns: 1fr auto; .n { display: none; } }

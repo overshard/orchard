@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"math"
+	"strings"
 	"time"
 )
 
@@ -12,20 +14,36 @@ import (
 const weatherURL = "https://api.open-meteo.com/v1/forecast"
 
 type Weather struct {
-	Place       string `json:"place"`
-	Temperature string `json:"temperature"`
-	Feels       string `json:"feels"`
-	High        string `json:"high"`
-	Low         string `json:"low"`
-	Rain        string `json:"rain"`
-	Condition   string `json:"condition"`
-	Wind        string `json:"wind"`
-	Sunrise     string `json:"sunrise"`
-	Sunset      string `json:"sunset"`
-	UV          string `json:"uv"`
-	UVState     string `json:"uv_state"`
-	DayPercent  int    `json:"day_percent"`
-	Unavailable bool   `json:"unavailable"`
+	Place       string  `json:"place"`
+	Temperature string  `json:"temperature"`
+	Feels       string  `json:"feels"`
+	High        string  `json:"high"`
+	Low         string  `json:"low"`
+	Rain        string  `json:"rain"`
+	Condition   string  `json:"condition"`
+	Wind        string  `json:"wind"`
+	Sunrise     string  `json:"sunrise"`
+	Sunset      string  `json:"sunset"`
+	UV          string  `json:"uv"`
+	UVState     string  `json:"uv_state"`
+	UVFill      float64 `json:"uv_fill"`
+	UVLevel     int     `json:"uv_level"`
+	DayPercent  int     `json:"day_percent"`
+	Unavailable bool    `json:"unavailable"`
+
+	// The next several hours, which is the half of a forecast anyone actually
+	// acts on. It comes out of the same request the rest of this panel already
+	// makes, so it costs nothing.
+	Hours []Hour `json:"hours"`
+}
+
+// Hour is one column of the strip. Rain is a percentage rather than a depth
+// because a chance is what decides whether to take a coat.
+type Hour struct {
+	Label string `json:"label"`
+	Temp  string `json:"temp"`
+	Rain  int    `json:"rain"`
+	Warm  int    `json:"warm"`
 }
 
 type weatherPayload struct {
@@ -35,6 +53,11 @@ type weatherPayload struct {
 		Wind        float64 `json:"wind_speed_10m"`
 		Code        int     `json:"weather_code"`
 	} `json:"current"`
+	Hourly struct {
+		Time         []string  `json:"time"`
+		Temperature  []float64 `json:"temperature_2m"`
+		PrecipChance []int     `json:"precipitation_probability"`
+	} `json:"hourly"`
 	Daily struct {
 		Max          []float64 `json:"temperature_2m_max"`
 		Min          []float64 `json:"temperature_2m_min"`
@@ -49,9 +72,12 @@ func fetchWeather(ctx context.Context, g *Guard) (Weather, error) {
 	url := fmt.Sprintf(
 		"%s?latitude=%.2f&longitude=%.2f"+
 			"&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m"+
+			"&hourly=temperature_2m,precipitation_probability"+
 			"&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset,uv_index_max"+
 			"&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch"+
-			"&timezone=America%%2FNew_York&forecast_days=1",
+			// Two days, because the strip runs past midnight for most of the
+			// evening and one day of hours would run out at 11pm.
+			"&timezone=America%%2FNew_York&forecast_days=2",
 		weatherURL, weatherLat, weatherLon)
 
 	var payload weatherPayload
@@ -77,8 +103,12 @@ func fetchWeather(ctx context.Context, g *Guard) (Weather, error) {
 		w.Rain = fmt.Sprintf("%d%%", payload.Daily.PrecipChance[0])
 	}
 	if len(payload.Daily.UVMax) > 0 {
-		w.UV = fmt.Sprintf("%.0f", payload.Daily.UVMax[0])
-		w.UVState = uvBand(payload.Daily.UVMax[0])
+		uv := payload.Daily.UVMax[0]
+		w.UV = fmt.Sprintf("%.0f", uv)
+		w.UVState = uvBand(uv)
+		// Eleven is where the WHO scale stops naming steps and starts saying
+		// extreme, so it is the top of the bar.
+		w.UVFill, w.UVLevel = gauge(uv, 11, 3, 6, 8)
 	}
 
 	// open-meteo returns these as local wall clock with no offset, which is
@@ -93,7 +123,71 @@ func fetchWeather(ctx context.Context, g *Guard) (Weather, error) {
 			w.DayPercent = dayProgress(time.Now(), rise, set)
 		}
 	}
+	w.Hours = buildHours(payload, time.Now())
 	return w, nil
+}
+
+// hoursShown is how far ahead the strip looks. Eight covers the rest of an
+// evening or a working day, and more than that stops being a forecast anyone
+// reads off a dashboard.
+const hoursShown = 8
+
+// buildHours takes the hourly series from the hour containing now. open-meteo
+// returns whole days from midnight, so most of what comes back is already past.
+func buildHours(p weatherPayload, now time.Time) []Hour {
+	h := p.Hourly
+	if len(h.Time) == 0 {
+		return nil
+	}
+
+	start := -1
+	cutoff := now.In(easternTime()).Truncate(time.Hour)
+	for i, at := range h.Time {
+		t, err := time.ParseInLocation("2006-01-02T15:04", at, easternTime())
+		if err != nil || t.Before(cutoff) {
+			continue
+		}
+		start = i
+		break
+	}
+	if start < 0 {
+		return nil
+	}
+
+	// The strip colours its temperatures against its own range, so a mild
+	// evening still shows a gradient instead of eight identical cells.
+	lo, hi := math.Inf(1), math.Inf(-1)
+	for i := start; i < len(h.Temperature) && i < start+hoursShown; i++ {
+		lo, hi = math.Min(lo, h.Temperature[i]), math.Max(hi, h.Temperature[i])
+	}
+
+	out := make([]Hour, 0, hoursShown)
+	for i := start; i < len(h.Time) && len(out) < hoursShown; i++ {
+		t, err := time.ParseInLocation("2006-01-02T15:04", h.Time[i], easternTime())
+		if err != nil || i >= len(h.Temperature) {
+			continue
+		}
+
+		cell := Hour{
+			Label: strings.ToUpper(t.Format("3PM")),
+			Temp:  fmt.Sprintf("%.0f", h.Temperature[i]),
+			Warm:  warmStep(h.Temperature[i], lo, hi),
+		}
+		if i < len(h.PrecipChance) {
+			cell.Rain = h.PrecipChance[i]
+		}
+		out = append(out, cell)
+	}
+	return out
+}
+
+// warmStep buckets a temperature into four steps across the strip's own range,
+// so the row reads as a gradient rather than as eight numbers.
+func warmStep(v, lo, hi float64) int {
+	if hi-lo < 1 {
+		return 1
+	}
+	return int(math.Min(3, math.Max(0, (v-lo)/(hi-lo)*4)))
 }
 
 // dayProgress is how far through the daylight hours it is, clamped at both

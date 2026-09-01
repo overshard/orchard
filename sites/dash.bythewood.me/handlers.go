@@ -23,8 +23,19 @@ type PageData struct {
 	AuthorName  string
 	Script      string
 	Styles      []string
+	Favicon     string
 	Analytics   bool
 	AnalyticsID string
+
+	// Every upstream the page reads, for the footer. Built from the same list
+	// the UPLINK panel is built from, since the hand written version of this
+	// named five of the thirteen and there was nothing to notice the other
+	// eight arriving.
+	Sources []string
+
+	// The tab's own wording, handed to the page so the script that keeps the
+	// title live does not carry a second copy of it.
+	TitleBase string
 
 	State State
 }
@@ -42,8 +53,11 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 		AuthorName:  authorName,
 		Script:      s.script,
 		Styles:      s.styles,
+		Favicon:     faviconHref,
 		Analytics:   !Staging,
 		AnalyticsID: analyticsID,
+		Sources:     sourceNames(),
+		TitleBase:   titleBase,
 		State:       s.store.Snapshot(),
 	}
 	s.renderer.Render(w, http.StatusOK, "home.html", data)
@@ -166,8 +180,11 @@ func (s *site) notFound(w http.ResponseWriter, r *http.Request) {
 		AuthorName:  authorName,
 		Script:      s.script,
 		Styles:      s.styles,
+		Favicon:     faviconHref,
 		Analytics:   !Staging,
 		AnalyticsID: analyticsID,
+		Sources:     sourceNames(),
+		TitleBase:   titleBase,
 	}
 	s.renderer.Render(w, http.StatusNotFound, "notfound.html", data)
 }
@@ -191,4 +208,22 @@ func sitemap(w http.ResponseWriter, r *http.Request) {
   <url><loc>%s/</loc></url>
 </urlset>
 `, baseURL)
+}
+
+// faviconHref carries the content hash, so replacing the icon replaces the URL.
+var faviconHref = "/favicon.svg?v=" + faviconVersion
+
+// sourceNames is the footer's credit line. Reading it off feedOrder is what
+// keeps it honest, since the two are the same list and a source added to one
+// has to appear in the other.
+func sourceNames() []string {
+	out := make([]string, 0, len(feedOrder))
+	for _, f := range feedOrder {
+		// Isaac's own logging site, which is not an outside source to credit.
+		if f.key == "logging" {
+			continue
+		}
+		out = append(out, f.label)
+	}
+	return out
 }

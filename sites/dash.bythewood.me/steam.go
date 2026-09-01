@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -21,6 +22,11 @@ const (
 	detailsURL = "https://store.steampowered.com/api/appdetails?cc=us&l=en&appids="
 	playersURL = "https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid="
 
+	// The store's own review summary. num_per_page=0 asks for the counts
+	// without the reviews themselves, which is the whole of what a row needs
+	// and a fraction of the response.
+	reviewsURL = "https://store.steampowered.com/appreviews/%d?json=1&language=all&purchase_type=all&num_per_page=0"
+
 	// How far down the chart to look for six games, since hardware and the odd
 	// bundle push real entries down it.
 	steamCandidates = 12
@@ -33,6 +39,16 @@ type Game struct {
 	Discount int      `json:"discount"`
 	Tags     []string `json:"tags"`
 	Players  string   `json:"players"`
+
+	// What Steam's own users make of it. Rating is the percentage positive and
+	// Verdict is Valve's word for that percentage, which is the label anyone
+	// who uses the store already reads. Reviews is how much it rests on, since
+	// 100% of nine reviews and 94% of four hundred thousand are different
+	// claims.
+	Rating   int    `json:"rating"`
+	Verdict  string `json:"verdict"`
+	Reviews  string `json:"reviews"`
+	Reviewed bool   `json:"reviewed"`
 }
 
 type steamPayload struct {
@@ -57,6 +73,16 @@ type appDetails struct {
 			Description string `json:"description"`
 		} `json:"genres"`
 	} `json:"data"`
+}
+
+type reviewSummary struct {
+	Success int `json:"success"`
+	Summary struct {
+		Score    int    `json:"review_score"`
+		Desc     string `json:"review_score_desc"`
+		Positive int    `json:"total_positive"`
+		Total    int    `json:"total_reviews"`
+	} `json:"query_summary"`
 }
 
 type playerCount struct {
@@ -93,14 +119,16 @@ func fetchSteam(ctx context.Context, g *Guard) ([]Game, error) {
 			continue
 		}
 
-		out = append(out, Game{
+		game := Game{
 			Name:     it.Name,
 			URL:      fmt.Sprintf("https://store.steampowered.com/app/%d/", it.ID),
 			Price:    steamPrice(it.FinalPrice),
 			Discount: it.DiscountPercent,
 			Tags:     tags,
 			Players:  playersOnline(ctx, g, it.ID),
-		})
+		}
+		rating(ctx, g, it.ID, &game)
+		out = append(out, game)
 	}
 
 	if len(out) == 0 {
@@ -132,6 +160,27 @@ func gameTags(ctx context.Context, g *Guard, id int) ([]string, bool) {
 		tags = append(tags, strings.ToUpper(genre.Description))
 	}
 	return tags, true
+}
+
+// rating fills in the review summary, and leaves the row alone if it cannot.
+// A game with almost no reviews gets none: Valve does not call a percentage a
+// verdict under ten of them either, and "100% POSITIVE" off three reviews is
+// the most misleading thing this panel could print.
+func rating(ctx context.Context, g *Guard, id int, game *Game) {
+	var payload reviewSummary
+	if err := getJSON(ctx, g, "steam", fmt.Sprintf(reviewsURL, id), &payload); err != nil {
+		return
+	}
+
+	q := payload.Summary
+	if payload.Success != 1 || q.Total < 10 {
+		return
+	}
+
+	game.Rating = int(math.Round(float64(q.Positive) / float64(q.Total) * 100))
+	game.Verdict = strings.ToUpper(q.Desc)
+	game.Reviews = compactCount(q.Total)
+	game.Reviewed = true
 }
 
 // playersOnline is a nice to have, so a failure costs the number and not the

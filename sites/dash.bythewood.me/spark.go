@@ -30,12 +30,25 @@ type Spark struct {
 	Baseline float64 `json:"baseline"`
 	HasBase  bool    `json:"has_base"`
 	Points   int     `json:"points"`
+
+	// How far across the box the data reaches, and whether that is short of the
+	// end. The axis is the whole session rather than the bars that have printed
+	// so far, so ten minutes after the open the line covers a fortieth of the
+	// card instead of all of it. Yahoo and every other intraday sparkline draw
+	// it this way, and stretching five bars across a full card is a lie about
+	// how much of the day has happened.
+	Span    float64 `json:"span"`
+	Partial bool    `json:"partial"`
 }
 
 // buildSpark scales closes into the viewBox. previous is included in the range
 // so the baseline is always drawn inside the box rather than off the top of a
 // day that only went up.
-func buildSpark(closes []float64, previous float64) Spark {
+//
+// times are the unix seconds of each close and axis is the session they are
+// drawn against. Either being absent falls back to spacing the points evenly
+// across the full width, which is right for anything that never closes.
+func buildSpark(closes []float64, times []int64, previous float64, axis tradingAxis) Spark {
 	if len(closes) < 2 {
 		return Spark{}
 	}
@@ -61,7 +74,7 @@ func buildSpark(closes []float64, previous float64) Spark {
 		return sparkPad + (1-frac)*(sparkHeight-2*sparkPad)
 	}
 
-	stepX := sparkWidth / float64(len(closes)-1)
+	xs := scaleX(closes, times, axis)
 
 	var line strings.Builder
 	for i, c := range closes {
@@ -70,7 +83,7 @@ func buildSpark(closes []float64, previous float64) Spark {
 		} else {
 			line.WriteString("L")
 		}
-		line.WriteString(num(float64(i) * stepX))
+		line.WriteString(num(xs[i]))
 		line.WriteString(",")
 		line.WriteString(num(scaleY(c)))
 		if i < len(closes)-1 {
@@ -82,15 +95,46 @@ func buildSpark(closes []float64, previous float64) Spark {
 	// shape Yahoo uses. Filling to the baseline instead would need two clipped
 	// halves to colour the above and below parts differently, and at 32 units
 	// tall that reads as noise.
+	first, last := xs[0], xs[len(xs)-1]
 	area := line.String() +
-		fmt.Sprintf(" L%s,%s L0,%s Z", num(sparkWidth), num(sparkHeight), num(sparkHeight))
+		fmt.Sprintf(" L%s,%s L%s,%s Z", num(last), num(sparkHeight), num(first), num(sparkHeight))
 
-	s := Spark{Line: line.String(), Area: area, Points: len(closes)}
+	s := Spark{
+		Line:   line.String(),
+		Area:   area,
+		Points: len(closes),
+		Span:   round2(last),
+		// A hair short of the end still counts as finished, since the last bar
+		// of a session prints at its start and never at its close.
+		Partial: last < sparkWidth-1,
+	}
 	if hasBase {
 		s.Baseline = round2(scaleY(previous))
 		s.HasBase = true
 	}
 	return s
+}
+
+// scaleX places each close along the session rather than along the list. A
+// point outside the axis is clamped rather than dropped, since an extended
+// hours bar is still a price and pushing it off the box would lose it.
+func scaleX(closes []float64, times []int64, axis tradingAxis) []float64 {
+	xs := make([]float64, len(closes))
+
+	span := axis.end - axis.start
+	if !axis.ok || span <= 0 || len(times) != len(closes) {
+		step := sparkWidth / float64(len(closes)-1)
+		for i := range closes {
+			xs[i] = float64(i) * step
+		}
+		return xs
+	}
+
+	for i, t := range times {
+		frac := float64(t-axis.start) / float64(span)
+		xs[i] = math.Min(sparkWidth, math.Max(0, frac*sparkWidth))
+	}
+	return xs
 }
 
 // num keeps the path short. Two decimals in a 100 by 32 box is well under a

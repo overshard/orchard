@@ -160,7 +160,7 @@ func TestHomeRendersAFullState(t *testing.T) {
 		st.HN = []Story{{Title: "A story", URL: "https://example.com/a", Host: "example.com", Comments: "https://news.ycombinator.com/item?id=1", Points: 10, Count: 2, Age: "1h"}}
 		st.Lobsters = []Story{{Title: "Another", URL: "https://example.com/b", Host: "example.com", Comments: "https://lobste.rs/s/x", Points: 5, Count: 1, Age: "2h"}}
 		st.Weather = Weather{Place: "Yadkin Valley, NC", Temperature: "81", Feels: "86", High: "86", Low: "70", Rain: "3%", Condition: "Clear", Wind: "4 mph"}
-		st.Systems = Systems{Rows: []SystemRow{{Label: "Blog", State: "up", Latency: "12ms", Errors: 3, KnowError: true}}, Up: 1, Total: 1, Window: 24}
+		st.Systems = Systems{Rows: []SystemRow{{Label: "Blog", State: "up", Response: "12ms", Errors: 3, KnowError: true}}, Up: 1, Total: 1, Window: 24}
 	})
 
 	rec := httptest.NewRecorder()
@@ -193,7 +193,7 @@ func TestNotFoundRenders(t *testing.T) {
 func TestStateJSONCarriesNoInternalDetail(t *testing.T) {
 	s := newTestSite(t)
 	s.store.update(func(st *State) {
-		st.Systems = Systems{Rows: []SystemRow{{Label: "Blog", Host: "blog.bythewood.me", State: "up", Latency: "12ms", Errors: 3, KnowError: true}}}
+		st.Systems = Systems{Rows: []SystemRow{{Label: "Blog", Host: "blog.bythewood.me", State: "up", Response: "12ms", Errors: 3, KnowError: true}}}
 	})
 
 	rec := httptest.NewRecorder()
@@ -211,14 +211,14 @@ func TestStateJSONCarriesNoInternalDetail(t *testing.T) {
 	row = body.Systems.Rows[0]
 
 	// Each of these was looked at before being added. label, host and url are
-	// public hostnames that are already links on the page. state, latency,
+	// public hostnames that are already links on the page. state, response,
 	// errors and the traffic figures are counts about sites that are on the
 	// internet, and Isaac asked for them on a page with no login. The baseline
-	// logging computes the trend from is deliberately not among them: the
-	// derived direction is published and the underlying week is not.
+	// logging computes the trend from is not among them: the derived direction
+	// is published and the underlying week is not.
 	allowed := map[string]bool{
 		"label": true, "host": true, "url": true, "state": true,
-		"latency": true, "errors": true, "know_error": true,
+		"response": true, "errors": true, "know_error": true,
 		"requests": true, "know_traf": true, "level": true, "trend": true,
 	}
 	for k := range row {

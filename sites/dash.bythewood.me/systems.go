@@ -70,9 +70,14 @@ type SystemRow struct {
 	Host      string `json:"host"`
 	URL       string `json:"url"`
 	State     string `json:"state"`
-	Latency   string `json:"latency"`
 	Errors    int64  `json:"errors"`
 	KnowError bool   `json:"know_error"`
+
+	// How long this site takes to answer at the slow end of a day, read off
+	// its own access log rather than measured here. The probe runs over the
+	// Docker bridge, so timing it reported the bridge: every site came back
+	// between one and two milliseconds whatever it was actually doing.
+	Response string `json:"response"`
 
 	// Traffic over the same window as Errors, plus where it sits against this
 	// site's own preceding week. Busy is relative here or it is meaningless:
@@ -162,10 +167,10 @@ func probe(ctx context.Context, g *Guard, m Monitored) SystemRow {
 	}
 
 	for _, attempt := range attempts {
-		state, took, result := hit(ctx, g, attempt.url, attempt.public, m.AnyStatus)
+		state, result := hit(ctx, g, attempt.url, attempt.public, m.AnyStatus)
 		switch result {
 		case probeAnswered:
-			row.State, row.Latency = state, took
+			row.State = state
 			return row
 		case probeSkipped:
 			// Nothing was measured, so the row stays unknown rather than
@@ -179,29 +184,26 @@ func probe(ctx context.Context, g *Guard, m Monitored) SystemRow {
 
 // hit runs one request. public marks a request that went over the internet, so
 // an edge cache hit can be reported as what it is.
-func hit(ctx context.Context, g *Guard, url string, public, anyStatus bool) (state, latency string, result probeResult) {
+func hit(ctx context.Context, g *Guard, url string, public, anyStatus bool) (state string, result probeResult) {
 	if err := g.Allow("uptime"); err != nil {
-		return "", "", probeSkipped
+		return "", probeSkipped
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return "", "", probeSkipped
+		return "", probeSkipped
 	}
 	req.Header.Set("User-Agent", "dash.bythewood.me health strip")
 	req.Header.Set("Cache-Control", "no-cache")
 
-	start := time.Now()
 	resp, err := probeClient.Do(req)
-	took := time.Since(start)
-
 	if err != nil {
 		var dns *net.DNSError
 		if errors.As(err, &dns) {
-			return "", "", probeNoRoute
+			return "", probeNoRoute
 		}
 		g.Fail("uptime", 0, 0)
-		return "down", "", probeAnswered
+		return "down", probeAnswered
 	}
 	defer resp.Body.Close()
 
@@ -214,7 +216,28 @@ func hit(ctx context.Context, g *Guard, url string, public, anyStatus bool) (sta
 			state = "cached"
 		}
 	}
-	return state, fmt.Sprintf("%dms", took.Milliseconds()), probeAnswered
+	return state, probeAnswered
+}
+
+// humanMS keeps a response time to six characters. These sites answer an
+// embedded page in a fraction of a millisecond and repos answers a git pack in a
+// fifth of a second, so the column has to carry four orders of magnitude without
+// going ragged. Anything under a millisecond is still printed rather than
+// rounded to "<1ms", or half the strip reads as the same number when the sites
+// are a factor of ten apart.
+func humanMS(ms float64) string {
+	switch {
+	case ms <= 0:
+		return ""
+	case ms >= 1000:
+		return fmt.Sprintf("%.1fs", ms/1000)
+	case ms >= 10:
+		return fmt.Sprintf("%.0fms", ms)
+	case ms >= 1:
+		return fmt.Sprintf("%.1fms", ms)
+	default:
+		return fmt.Sprintf("%.2fms", ms)
+	}
 }
 
 func cacheHit(status string) bool {
@@ -232,6 +255,7 @@ type aggregatePayload struct {
 		Errors        int64   `json:"errors"`
 		Requests      int64   `json:"requests"`
 		BaselineDaily float64 `json:"baseline_daily"`
+		P95MS         float64 `json:"p95_ms"`
 	} `json:"sources"`
 }
 
@@ -257,12 +281,12 @@ func buildSystems(ctx context.Context, g *Guard, now time.Time) Systems {
 	if err := getJSON(ctx, g, "logging", aggregateURL, &payload); err == nil {
 		type counts struct {
 			errors, requests int64
-			baseline         float64
+			baseline, p95    float64
 		}
 		by := map[string]counts{}
 		var busiest int64
 		for _, src := range payload.Sources {
-			by[src.Source] = counts{src.Errors, src.Requests, src.BaselineDaily}
+			by[src.Source] = counts{src.Errors, src.Requests, src.BaselineDaily, src.P95MS}
 			busiest = max(busiest, src.Requests)
 		}
 
@@ -276,6 +300,7 @@ func buildSystems(ctx context.Context, g *Guard, now time.Time) Systems {
 			rows[i].Requests, rows[i].KnowTraf = c.requests, true
 			rows[i].Level = trafficLevel(c.requests, busiest)
 			rows[i].Trend = trafficTrend(c.requests, c.baseline)
+			rows[i].Response = humanMS(c.p95)
 			s.Errors += c.errors
 			s.Requests += c.requests
 		}
