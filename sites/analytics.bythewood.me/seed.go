@@ -35,7 +35,7 @@ var seedURLs = []weightedURL{
 	{"/blog/whats-new-in-v2", "What's New in v2", 4},
 	{"/blog/case-studies", "Case Studies", 3},
 	{"/contact", "Contact", 4},
-	{"/login", "Log In", 4},
+	{"/login", "Sign In", 4},
 	{"/signup", "Sign Up", 4},
 	{"/dashboard", "Dashboard", 5},
 }

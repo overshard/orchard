@@ -20,10 +20,7 @@ services:
     init: true
     environment:
       # Read from .env in this directory, which compose picks up as the project
-      # directory. :? makes compose refuse to start rather than bring up a
-      # server the app would then refuse to boot.
-      STATUS_PASSWORD: ${STATUS_PASSWORD:?set STATUS_PASSWORD in this directory's .env; see .env.example}
-      # Write-only ntfy token, and an empty one is tolerated: refusing to start
+      # directory. Write-only ntfy token, and an empty one is tolerated: refusing to start
       # over a missing alert credential would turn a quiet notification into an
       # outage.
       NTFY_TOKEN: ${NTFY_TOKEN:-}

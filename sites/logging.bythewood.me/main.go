@@ -60,8 +60,7 @@ type site struct {
 	typst    *Typst
 	watchdog *Watchdog
 
-	password  string
-	cookieKey []byte
+	auth *web.Authenticator
 
 	baseScript  string
 	baseStyles  []string
@@ -70,6 +69,17 @@ type site struct {
 	dashScript  string
 	dashStyles  []string
 }
+
+// The template sets, shared with the tests, which parse them for real. A page
+// listed here with no file behind it parses at boot and not at build, so
+// nothing but doing it catches a template that was deleted and left listed.
+var (
+	layoutTemplates = []string{"base.html", "partials.html"}
+	pageTemplates   = []string{
+		"home.html", "documentation.html",
+		"overview.html", "source.html", "search.html", "notfound.html",
+	}
+)
 
 func main() {
 	web.SetupLogging()
@@ -115,12 +125,6 @@ func main() {
 		return
 	}
 
-	password := os.Getenv("LOGGING_PASSWORD")
-	if password == "" {
-		slog.Error("LOGGING_PASSWORD is unset; refusing to start an internet-facing server without one")
-		os.Exit(1)
-	}
-
 	dist := distFS()
 
 	assets, err := web.LoadAssets(dist)
@@ -135,15 +139,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	renderer, err := web.NewRenderer(
-		templates,
-		templateFuncs,
-		[]string{"base.html", "partials.html"},
-		[]string{
-			"home.html", "documentation.html", "login.html",
-			"overview.html", "source.html", "search.html", "notfound.html",
-		},
-	)
+	renderer, err := web.NewRenderer(templates, templateFuncs, layoutTemplates, pageTemplates)
 	if err != nil {
 		slog.Error("startup failed", slog.Any("err", err))
 		os.Exit(1)
@@ -159,8 +155,7 @@ func main() {
 		assets:      assets,
 		writer:      writer,
 		typst:       NewTypst(),
-		password:    password,
-		cookieKey:   sessionKey(password),
+		auth:        web.NewAuthenticator(),
 		baseScript:  assets.Script("static_src/base/index.js"),
 		baseStyles:  assets.Styles("static_src/base/index.js"),
 		pagesScript: assets.Script("static_src/pages/index.js"),
@@ -210,15 +205,17 @@ func main() {
 	mux.HandleFunc("GET /{$}", s.home)
 	mux.HandleFunc("GET /documentation", s.documentation)
 
-	mux.HandleFunc("GET /login", s.loginForm)
-	mux.HandleFunc("POST /login", s.loginSubmit)
-	mux.HandleFunc("POST /logout", s.logout)
+	// Signing in happens on auth.bythewood.me. This stays so an old bookmark
+	// and the "access dashboard" button both land somewhere useful.
+	mux.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, web.LoginURL(r), http.StatusSeeOther)
+	})
 
 	// These carry request paths, IP addresses and CF-Ray values, and a
 	// zone-wide Cloudflare Cache Rule added later would make them eligible.
-	mux.HandleFunc("GET /overview", noStore(s.requireAuth(s.overview)))
-	mux.HandleFunc("GET /sources/{source}", noStore(s.requireAuth(s.sourceDetail)))
-	mux.HandleFunc("GET /search", noStore(s.requireAuth(s.search)))
+	mux.HandleFunc("GET /overview", noStore(s.auth.RequireAuth(s.overview)))
+	mux.HandleFunc("GET /sources/{source}", noStore(s.auth.RequireAuth(s.sourceDetail)))
+	mux.HandleFunc("GET /search", noStore(s.auth.RequireAuth(s.search)))
 
 	// Unauthenticated, and reachable only over the bridge: Caddy refuses
 	// /ingest on the public hostname.
@@ -233,7 +230,6 @@ func main() {
 	// "GET /" catch-all below matches every GET path there is.
 	for path, allow := range map[string]string{
 		"/ingest": "POST",
-		"/logout": "POST",
 	} {
 		mux.HandleFunc("GET "+path, methodNotAllowed(allow))
 	}
@@ -288,7 +284,7 @@ func (s *site) page(r *http.Request, title, description string) PageData {
 		Path:          r.URL.Path,
 		Canonical:     baseURL + r.URL.Path,
 		Staging:       Staging,
-		Authenticated: isAuthenticated(r, s.cookieKey),
+		Authenticated: s.auth.Authenticated(r),
 		Year:          time.Now().Year(),
 		BaseURL:       baseURL,
 		SourceURL:     sourceURL,

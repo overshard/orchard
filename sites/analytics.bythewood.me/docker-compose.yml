@@ -15,11 +15,6 @@ services:
     # queue and commits what the writer holds. Without it a slow drain means
     # SIGKILL and a skipped db.Close().
     stop_grace_period: 30s
-    environment:
-      # Read from .env in this directory, which compose picks up as the project
-      # directory. :? makes compose refuse to start rather than bring up a
-      # server the app would then refuse to boot.
-      ANALYTICS_PASSWORD: ${ANALYTICS_PASSWORD:?set ANALYTICS_PASSWORD in this directory's .env; see .env.example}
     volumes:
       - data:/data
     # A ceiling to fail against rather than a target, since this machine is also

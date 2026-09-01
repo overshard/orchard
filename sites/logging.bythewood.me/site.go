@@ -2,8 +2,8 @@ package main
 
 import "strings"
 
-// Identity is hardcoded; LOGGING_PASSWORD is the only environment variable
-// this app reads, because it is the only value that is a secret.
+// Identity is hardcoded. Signing in happens on auth.bythewood.me, so the only
+// environment variable this app reads is the ntfy token its alerts publish with.
 const (
 	baseURL    = "https://logging.bythewood.me"
 	siteName   = "Logging"

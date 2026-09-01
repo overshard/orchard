@@ -134,11 +134,12 @@ make deploy SITE=logging.bythewood.me # rebuild and replace the container
 # a dashboard is unreadable against an empty database, so:
 cd sites/logging.bythewood.me && make seed</code></pre>
   <p>
-    <code>LOGGING_PASSWORD</code> is the only environment variable this site
-    reads and it has no default: an internet-facing dashboard over every request
-    every site here has served does not get to start without one. The session
-    cookie's signing key is derived from it, so changing the password ends every
-    outstanding session.
+    There is no password to set. Signing in happens on
+    <a href="https://auth.bythewood.me/">auth.bythewood.me</a>, which pushes a
+    six digit code to a phone, and this site asks that one over the internal
+    bridge whether the cookie on a request is a live session. It asks on every
+    request rather than caching the answer, so revoking a session there takes
+    effect here immediately.
   </p>
   <p>
     Seeding writes through the same commit path the ingest endpoint uses,

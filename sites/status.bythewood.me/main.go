@@ -62,8 +62,7 @@ type site struct {
 	assets   *web.Assets
 	typst    *Typst
 
-	password  string
-	cookieKey []byte
+	auth *web.Authenticator
 
 	baseScript  string
 	baseStyles  []string
@@ -72,6 +71,17 @@ type site struct {
 	propsScript string
 	propsStyles []string
 }
+
+// The template sets, shared with the tests, which parse them for real. A page
+// listed here with no file behind it parses at boot and not at build, so
+// nothing but doing it catches a template that was deleted and left listed.
+var (
+	layoutTemplates = []string{"base.html", "partials.html"}
+	pageTemplates   = []string{
+		"home.html", "changelog.html",
+		"properties.html", "property.html", "notfound.html",
+	}
+)
 
 func main() {
 	web.SetupLogging()
@@ -103,12 +113,6 @@ func main() {
 		return
 	}
 
-	password := os.Getenv("STATUS_PASSWORD")
-	if password == "" {
-		slog.Error("STATUS_PASSWORD is unset; refusing to start an internet-facing server without one")
-		os.Exit(1)
-	}
-
 	dataDir := dir("SITE_DATA", "data")
 	db, err := openDB(dataDir + "/db.sqlite3")
 	if err != nil {
@@ -131,15 +135,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	renderer, err := web.NewRenderer(
-		templates,
-		templateFuncs,
-		[]string{"base.html", "partials.html"},
-		[]string{
-			"home.html", "changelog.html", "login.html",
-			"properties.html", "property.html", "notfound.html",
-		},
-	)
+	renderer, err := web.NewRenderer(templates, templateFuncs, layoutTemplates, pageTemplates)
 	if err != nil {
 		slog.Error("startup failed", slog.Any("err", err))
 		os.Exit(1)
@@ -151,8 +147,7 @@ func main() {
 		dist:        dist,
 		assets:      assets,
 		typst:       NewTypst(),
-		password:    password,
-		cookieKey:   sessionKey(password),
+		auth:        web.NewAuthenticator(),
 		baseScript:  assets.Script("static_src/base/index.js"),
 		baseStyles:  assets.Styles("static_src/base/index.js"),
 		pagesScript: assets.Script("static_src/pages/index.js"),
@@ -178,25 +173,26 @@ func main() {
 	mux.HandleFunc("GET /{$}", s.home)
 	mux.HandleFunc("GET /changelog", s.changelog)
 
-	mux.HandleFunc("GET /login", s.loginForm)
-	mux.HandleFunc("POST /login", s.loginSubmit)
-	mux.HandleFunc("POST /logout", s.logout)
+	// Signing in happens on auth.bythewood.me. This stays so an old bookmark
+	// and the "access dashboard" button both land somewhere useful.
+	mux.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, web.LoginURL(r), http.StatusSeeOther)
+	})
 
-	mux.HandleFunc("GET /properties", s.requireAuth(s.properties))
-	mux.HandleFunc("POST /properties", s.requireAuth(s.propertyCreate))
-	mux.HandleFunc("POST /properties/{id}/delete", s.requireAuth(s.propertyDelete))
-	mux.HandleFunc("POST /properties/{id}/public", s.requireAuthJSON(s.propertyPublic))
+	mux.HandleFunc("GET /properties", s.auth.RequireAuth(s.properties))
+	mux.HandleFunc("POST /properties", s.auth.RequireAuth(s.propertyCreate))
+	mux.HandleFunc("POST /properties/{id}/delete", s.auth.RequireAuth(s.propertyDelete))
+	mux.HandleFunc("POST /properties/{id}/public", s.auth.RequireAuthJSON(s.propertyPublic))
 
 	// Reachable without a session for a public property; the handler does that
 	// check itself, because it needs the property row to know.
 	mux.HandleFunc("GET /properties/{id}/status", s.propertyStatus)
-	mux.HandleFunc("POST /properties/{id}/recrawl", s.requireAuthJSON(s.propertyRecrawl))
-	mux.HandleFunc("POST /properties/{id}/rerun-lighthouse", s.requireAuthJSON(s.propertyRerunLighthouse))
+	mux.HandleFunc("POST /properties/{id}/recrawl", s.auth.RequireAuthJSON(s.propertyRecrawl))
+	mux.HandleFunc("POST /properties/{id}/rerun-lighthouse", s.auth.RequireAuthJSON(s.propertyRerunLighthouse))
 
 	// A wrong method on an existing route should be 405 with Allow. The mux only
 	// does that when nothing else matches, and "GET /" below always matches.
 	for path, allow := range map[string]string{
-		"/logout":                           "POST",
 		"/properties/{id}/delete":           "POST",
 		"/properties/{id}/public":           "POST",
 		"/properties/{id}/recrawl":          "POST",
@@ -271,7 +267,7 @@ func (s *site) page(r *http.Request, title, description string) PageData {
 		Staging:       Staging,
 		Analytics:     !Staging,
 		AnalyticsID:   analyticsID,
-		Authenticated: isAuthenticated(r, s.cookieKey),
+		Authenticated: s.auth.Authenticated(r),
 		Year:          time.Now().Year(),
 		BaseURL:       baseURL,
 		SourceURL:     sourceURL,

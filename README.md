@@ -13,6 +13,7 @@ inbound port.
 | `sites/logging.bythewood.me/` | Log aggregation. Every site ships its records here |
 | `sites/repos.bythewood.me/` | Git remote you push to over HTTPS. Also mirrors GitHub |
 | `sites/dash.bythewood.me/` | Dashboard. Markets, news, weather and the health of the rest, live over SSE |
+| `sites/auth.bythewood.me/` | The front door. One account, a code pushed to a phone, one session for every site |
 | `edge/` | The shared cloudflared tunnel, the Caddy behind it, and ntfy for alerts |
 
 ## Requirements
@@ -34,13 +35,20 @@ make install
 
 That opens a browser to authorise a Cloudflare zone, creates the tunnel and
 routes every hostname to it, writes a `.env` for each site that needs one,
-brings the edge and all seven sites up, creates the two ntfy accounts, mints the
-publishers' token into the two `.env` files that use it, hands it to the running
-sites, and ends on `doctor`.
+brings the edge and all eight sites up, creates the three ntfy accounts, mints
+the publishers' tokens into the `.env` files that use them, hands them to the
+running sites, creates the login account and prints its recovery codes, and ends
+on `doctor`.
 
 Nothing asks you to invent a password. Every one it needs is generated and
-printed as it goes, and those are the only copies, so put them in 1Password
-while they are on screen. `make password` prints another whenever you want one.
+printed as it goes, and so are the ten recovery codes the first sign in uses.
+Those are the only copies, so put them in 1Password while they are on screen.
+`make password` prints another whenever you want one.
+
+Signing in is on `auth.bythewood.me`: a username, then a six digit code pushed
+to a phone over ntfy. The other sites hold no password of their own and ask it
+whether the cookie on a request is a live session, so a session revoked there is
+gone everywhere on the next request.
 
 `cert.pem` covers a single Cloudflare zone, and the hostnames here span two, so
 the DNS routes for the second zone fail the first time through. Run
@@ -131,7 +139,7 @@ inside one without going through the root. There is no default `SITE`.
 
 Each site is its own Go module and builds on its own. There is no module at the
 repo root, and `go.work` only exists so repo-wide `make` targets and an editor
-can see all seven at once:
+can see all eight at once:
 
 ```sh
 cd sites/blog.bythewood.me && GOWORK=off go build ./...
@@ -140,7 +148,7 @@ cd sites/blog.bythewood.me && GOWORK=off go build ./...
 Each site also carries its own copy of `web/`, the small HTTP layer they all
 need. That means a site is a directory you can lift into its own repository, and
 its Docker build context is that directory instead of the whole monorepo. The
-cost is that a fix in `web/` has to be made seven times.
+cost is that a fix in `web/` has to be made eight times.
 
 Go serves every request and `html/template` renders the pages. Vite is a build
 step and never a server: it writes content-hashed JS and CSS into `build/dist/`,

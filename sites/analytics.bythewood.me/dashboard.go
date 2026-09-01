@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"analytics.bythewood.me/web"
 )
 
 const (
@@ -140,9 +142,9 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 		return
 	}
 
-	authed := isAuthenticated(r, s.cookieKey)
+	authed := s.auth.Authenticated(r)
 	if !p.IsPublic && !authed {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		http.Redirect(w, r, web.LoginURL(r), http.StatusSeeOther)
 		return
 	}
 

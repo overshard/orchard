@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -9,7 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
+
+	"repos.bythewood.me/web"
 )
 
 // TestValidName is the traversal fence, so it takes the adversarial cases.
@@ -704,82 +706,6 @@ func TestRepoMeta(t *testing.T) {
 	}
 }
 
-// The UI's own authentication, separate from the Basic auth on the git wire.
-func TestSessionCookie(t *testing.T) {
-	const password = "correct horse"
-
-	rec := &fakeWriter{header: make(map[string][]string)}
-	issueSession(rec, password)
-
-	cookie := rec.header["Set-Cookie"]
-	if len(cookie) != 1 {
-		t.Fatalf("issueSession set %d cookies, want 1", len(cookie))
-	}
-	raw := cookie[0]
-	for _, want := range []string{"HttpOnly", "Secure", "SameSite=Strict"} {
-		if !strings.Contains(raw, want) {
-			t.Errorf("cookie missing %s: %s", want, raw)
-		}
-	}
-
-	value := strings.SplitN(strings.TrimPrefix(raw, sessionCookie+"="), ";", 2)[0]
-
-	r := newRequestWithCookie(value)
-	if !validSession(r, password) {
-		t.Error("freshly issued session did not validate")
-	}
-	// The signing key comes from the password, so a change must invalidate
-	// every outstanding session.
-	if validSession(r, "different password") {
-		t.Error("session validated under a different password")
-	}
-	// A tampered payload must not validate, the expiry inside it is a number
-	// the client would otherwise choose.
-	if validSession(newRequestWithCookie("1:9999999999:forged"), password) {
-		t.Error("forged signature validated")
-	}
-	if validSession(newRequestWithCookie("garbage"), password) {
-		t.Error("malformed cookie validated")
-	}
-}
-
-func TestCheckPassword(t *testing.T) {
-	if !checkPassword("secret", "secret") {
-		t.Error("matching passwords rejected")
-	}
-	if checkPassword("secret", "secrez") {
-		t.Error("differing passwords accepted")
-	}
-	if checkPassword("", "secret") {
-		t.Error("empty password accepted")
-	}
-}
-
-func TestTokenBucket(t *testing.T) {
-	b := &tokenBucket{tokens: 2, last: time.Now()}
-	if !b.take() || !b.take() {
-		t.Fatal("bucket refused the tokens it was given")
-	}
-	if b.take() {
-		t.Error("bucket handed out a token it did not have")
-	}
-}
-
-type fakeWriter struct {
-	header map[string][]string
-	status int
-}
-
-func (f *fakeWriter) Header() http.Header         { return http.Header(f.header) }
-func (f *fakeWriter) Write(b []byte) (int, error) { return len(b), nil }
-func (f *fakeWriter) WriteHeader(code int)        { f.status = code }
-
-func newRequestWithCookie(value string) *http.Request {
-	r := httptest.NewRequest(http.MethodGet, "/", nil)
-	r.AddCookie(&http.Cookie{Name: sessionCookie, Value: value})
-	return r
-}
-
 // TestAdopt covers converting a pushed repository into a mirror, the one path
 // that rewrites a repository this site may hold the only copy of.
 func TestAdopt(t *testing.T) {
@@ -1119,5 +1045,19 @@ func TestAnalyticsWiring(t *testing.T) {
 	}
 	if p.AnalyticsID != analyticsID {
 		t.Errorf("page.AnalyticsID = %q, want %q", p.AnalyticsID, analyticsID)
+	}
+}
+
+// Every template the server asks for has to exist. NewRenderer resolves the
+// list at boot rather than at build, so a page left listed after its file was
+// deleted compiles, ships, and then crash-loops the container on startup, which
+// is how it was found.
+func TestEveryListedTemplateParses(t *testing.T) {
+	templates, err := fs.Sub(templateFS, "templates")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := web.NewRenderer(templates, templateFuncs, layoutTemplates, pageTemplates); err != nil {
+		t.Fatalf("the template set does not parse: %v", err)
 	}
 }

@@ -26,6 +26,7 @@ type site struct {
 	styles   []string
 	// mirror is here only so the settings page can run a sync on demand.
 	mirror *Mirror
+	auth   *web.Authenticator
 }
 
 // page is the data every template gets, so base.html can render the chrome.
@@ -59,7 +60,7 @@ func (s *site) page(r *http.Request, title, description string, data any) page {
 		Description: description,
 		Script:      s.script,
 		Styles:      s.styles,
-		LoggedIn:    validSession(r, s.cfg.Password),
+		LoggedIn:    s.auth.Authenticated(r),
 		Staging:     Staging,
 		Analytics:   !Staging,
 		AnalyticsID: analyticsID,
@@ -91,8 +92,8 @@ func (s *site) notFound(w http.ResponseWriter, r *http.Request) {
 // requireLogin gates the routes that change something.
 func (s *site) requireLogin(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !validSession(r, s.cfg.Password) {
-			http.Redirect(w, r, "/login?next="+r.URL.Path, http.StatusSeeOther)
+		if !s.auth.Authenticated(r) {
+			http.Redirect(w, r, web.LoginURL(r), http.StatusSeeOther)
 			return
 		}
 		next(w, r)
@@ -550,56 +551,6 @@ func (s *site) archive(w http.ResponseWriter, r *http.Request) {
 		slog.Error("archive failed",
 			slog.String("repo", rc.Repo.Name), slog.Any("err", err))
 	}
-}
-
-// login is the UI's own authentication, separate from the Basic auth the git wire
-// uses, so a person never sees a browser credential prompt.
-func (s *site) login(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Cache-Control", "no-store, private")
-
-	if r.Method == http.MethodGet {
-		if validSession(r, s.cfg.Password) {
-			http.Redirect(w, r, "/", http.StatusSeeOther)
-			return
-		}
-		s.renderer.Render(w, http.StatusOK, "login.html",
-			s.page(r, "Sign in", "", map[string]any{"Next": r.URL.Query().Get("next")}))
-		return
-	}
-
-	if !loginBucket.take() {
-		s.renderer.Render(w, http.StatusTooManyRequests, "login.html",
-			s.page(r, "Sign in", "", map[string]any{
-				"Error": "Too many attempts. Wait a moment.",
-				// Carried through, or a retry loses the page they wanted.
-				"Next": r.FormValue("next"),
-			}))
-		return
-	}
-
-	if !checkPassword(r.FormValue("password"), s.cfg.Password) {
-		time.Sleep(failedLoginDelay)
-		slog.Info("failed login", slog.String("ip", web.ClientIP(r)))
-		s.renderer.Render(w, http.StatusUnauthorized, "login.html",
-			s.page(r, "Sign in", "", map[string]any{
-				"Error": "Wrong password.",
-				"Next":  r.FormValue("next"),
-			}))
-		return
-	}
-
-	issueSession(w, s.cfg.Password)
-	next := r.FormValue("next")
-	if !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") {
-		// "next" arrives from a query string, so this is the open redirect fence.
-		next = "/"
-	}
-	http.Redirect(w, r, next, http.StatusSeeOther)
-}
-
-func (s *site) logout(w http.ResponseWriter, r *http.Request) {
-	clearSession(w)
-	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 // newTokenCookie carries a freshly minted token from the POST to the page that

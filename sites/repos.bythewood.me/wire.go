@@ -5,6 +5,7 @@ package main
 // scheme; the password field carries a random token. The browser UI is in auth.go.
 
 import (
+	"context"
 	"io"
 	"log/slog"
 	"net/http"
@@ -14,6 +15,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"repos.bythewood.me/web"
 )
 
 // gitHTTPBackend finds git's own CGI, which is not on PATH and moves between
@@ -238,7 +241,7 @@ func (wr *wire) authenticate(r *http.Request) (string, bool) {
 	if err != nil {
 		// Never log the credential that failed.
 		slog.Info("push authentication failed",
-			slog.String("ip", clientIPOf(r)))
+			slog.String("ip", web.ClientIP(r)))
 		return "", false
 	}
 	return label, true
@@ -286,4 +289,18 @@ func bridgeCloneURL(container, name string) string {
 func archiveName(repo, ref string) string {
 	ref = strings.ReplaceAll(ref, "/", "-")
 	return filepath.Base(repo) + "-" + ref
+}
+
+// userKey is the context key for the token label a push authenticated as.
+type userKey struct{}
+
+func withUser(ctx context.Context, label string) context.Context {
+	return context.WithValue(ctx, userKey{}, label)
+}
+
+// userFrom reads the token label back out; empty means the request was
+// unauthenticated.
+func userFrom(ctx context.Context) string {
+	label, _ := ctx.Value(userKey{}).(string)
+	return label
 }
