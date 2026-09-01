@@ -783,6 +783,46 @@ func TestIMDbURL(t *testing.T) {
 	}
 }
 
+// A missing tomatometer has to leave the IMDb score alone rather than average
+// it against nothing, which would read as terrible for a film nobody reviewed.
+func TestCombineScores(t *testing.T) {
+	for _, tc := range []struct {
+		imdb   float64
+		tomato int
+		want   int
+		from   string
+	}{
+		{8.2, 96, 89, "IMDB+RT"},
+		{7.5, 85, 80, "IMDB+RT"},
+		{6.1, 43, 52, "IMDB+RT"},
+		{8.4, 0, 84, "IMDB ONLY"},
+		{5.0, 0, 50, "IMDB ONLY"},
+	} {
+		got, from := combineScores(tc.imdb, tc.tomato)
+		if got != tc.want || from != tc.from {
+			t.Errorf("combineScores(%v, %d) = %d %q, want %d %q", tc.imdb, tc.tomato, got, from, tc.want, tc.from)
+		}
+	}
+}
+
+func TestGradeScore(t *testing.T) {
+	for _, tc := range []struct {
+		pct  int
+		want string
+	}{
+		{100, "good"},
+		{80, "good"},
+		{79, "fair"},
+		{65, "fair"},
+		{64, "poor"},
+		{0, "poor"},
+	} {
+		if got := gradeScore(tc.pct); got != tc.want {
+			t.Errorf("gradeScore(%d) = %q, want %q", tc.pct, got, tc.want)
+		}
+	}
+}
+
 func TestSteamAppIDComesOffTheCapsuleURL(t *testing.T) {
 	for _, tc := range []struct{ logo, want string }{
 		{"https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/3751260/abc/capsule_sm_120.jpg?t=1", "3751260"},

@@ -118,10 +118,20 @@
 </li>
 {{end}}
 
+{{/*
+  The bar is the IMDb score and the tomatometer averaged onto one scale, since
+  the two numbers together are what anyone reads and a bar is quicker to compare
+  down a column than a pair of figures is. Both figures stay underneath it.
+*/}}
 {{define "title"}}
 <li{{if .Hot}} data-hot="yes"{{end}}>
   {{if .URL}}<a class="name" href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{.Name}}</a>{{else}}<span class="name">{{.Name}}</span>{{end}}
   <span class="svc">{{.Provider}}</span>
+  <span class="rating" data-band="{{.ScoreBand}}">
+    <span class="pct">{{.Score}}%</span>
+    <span class="track"><i style="width:{{.Score}}%"></i></span>
+    <span class="n">{{.ScoreFrom}}</span>
+  </span>
   <span class="meta">
     <span class="kind">{{.Kind}}{{if .Year}} {{.Year}}{{end}}</span>
     <span class="score imdb" data-grade="{{.IMDbState}}">IMDB {{.IMDb}}</span>

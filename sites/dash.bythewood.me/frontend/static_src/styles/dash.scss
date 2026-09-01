@@ -1456,6 +1456,39 @@ main {
     white-space: nowrap;
   }
 
+  // The IMDb score and the tomatometer averaged onto one bar, drawn the way the
+  // Steam ratings are so the two panels beside each other read the same way.
+  // The label on the right says which numbers went into it, since an average of
+  // one is not the same claim as an average of two.
+  .rating {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 34px 1fr auto;
+    align-items: center;
+    gap: 7px;
+    margin-top: 1px;
+
+    .pct { font-size: 10px; color: var(--muted); }
+    .n { font-size: 9px; letter-spacing: 0.06em; color: var(--faint); }
+
+    .track {
+      height: 3px;
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      overflow: hidden;
+
+      i {
+        display: block;
+        height: 100%;
+        background: var(--flat);
+      }
+    }
+
+    &[data-band="good"] { .pct { color: var(--up); } .track i { background: var(--up); } }
+    &[data-band="fair"] { .pct { color: var(--warn); } .track i { background: var(--warn); } }
+    &[data-band="poor"] { .pct { color: var(--down); } .track i { background: var(--down); } }
+  }
+
   .meta {
     grid-column: 1 / -1;
     display: flex;
