@@ -1010,17 +1010,31 @@ func TestIntcomma(t *testing.T) {
 	}
 }
 
-func TestJSONBlockDoesNotDoubleEscape(t *testing.T) {
-	// The values here are what a crawled site can put in an error string.
-	out, err := jsonBlock(map[string]string{"issue": `a <b> & "c"`})
+func TestJSONBlockCannotCloseTheScriptElement(t *testing.T) {
+	// The values here are what a crawled site can put in an error string, and
+	// they land in a <script type="application/json"> block. html/template does
+	// not escape inside that script type and template.JS turns its escaping off
+	// regardless, so encoding/json is the only thing holding the element shut.
+	in := map[string]string{"issue": `a <b> & "c" </script><img src=x onerror=alert(1)>`}
+	out, err := jsonBlock(in)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(out), `\u003c`) {
-		t.Errorf("JSON was HTML-escaped before html/template saw it: %s", out)
+
+	for _, bad := range []string{"<", ">", "&"} {
+		if strings.Contains(string(out), bad) {
+			t.Errorf("%q reached the block unescaped, which can close it: %s", bad, out)
+		}
 	}
-	if !strings.Contains(string(out), "<b>") {
-		t.Errorf("the angle brackets did not survive verbatim: %s", out)
+
+	// Escaping is transparent to the consumer: JSON.parse gives the browser the
+	// original string back, so nothing downstream has to know this happened.
+	var round map[string]string
+	if err := json.Unmarshal([]byte(out), &round); err != nil {
+		t.Fatalf("output is not valid JSON: %v", err)
+	}
+	if round["issue"] != in["issue"] {
+		t.Errorf("value did not round-trip: got %q, want %q", round["issue"], in["issue"])
 	}
 }
 

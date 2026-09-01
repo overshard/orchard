@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -48,16 +47,16 @@ func dict(pairs ...any) (map[string]any, error) {
 }
 
 // jsonBlock renders a value for a <script type="application/json"> block.
-// SetEscapeHTML(false) because html/template already escapes for that context,
-// and leaving both on produces doubly-escaped JSON.
+// HTML escaping stays on so a value containing "</script>" cannot close the
+// block. html/template cannot work that out inside a non-JavaScript script
+// type, and template.JS turns its escaping off anyway, so this is the only
+// thing standing between a stored string and the end of the element.
 func jsonBlock(v any) (template.JS, error) {
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(v); err != nil {
+	buf, err := json.Marshal(v)
+	if err != nil {
 		return "", err
 	}
-	return template.JS(strings.TrimSpace(buf.String())), nil
+	return template.JS(buf), nil
 }
 
 // naturalTime renders a timestamp as a relative phrase. A nil time is "never",
