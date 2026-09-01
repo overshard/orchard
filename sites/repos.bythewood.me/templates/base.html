@@ -45,9 +45,7 @@
     <nav>
       {{if .LoggedIn}}
         <a href="/settings">Settings</a>
-        <form method="post" action="/logout" class="inline">
-          <button type="submit" class="linkish">Sign out</button>
-        </form>
+        <a href="https://auth.bythewood.me/">Account</a>
       {{else}}
         <a href="/login">Sign in</a>
       {{end}}

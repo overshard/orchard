@@ -153,7 +153,7 @@ func TestTemplatesExecute(t *testing.T) {
 	}
 
 	pages := []string{
-		"home.html", "changelog.html", "login.html",
+		"home.html", "changelog.html",
 		"properties.html", "property.html", "notfound.html",
 	}
 
@@ -878,63 +878,6 @@ func TestParseDetailsFiltersNonActionableAudits(t *testing.T) {
 	}
 }
 
-func TestSafeNext(t *testing.T) {
-	cases := map[string]string{
-		"/properties": "/properties",
-		"/a/b?c=d":    "/a/b?c=d",
-		// Protocol-relative and backslash forms both leave the site.
-		"//evil.example":       "/properties",
-		"/\\evil.example":      "/properties",
-		"https://evil.example": "/properties",
-		"":                     "/properties",
-	}
-	for in, want := range cases {
-		if got := safeNext(in); got != want {
-			t.Errorf("safeNext(%q) = %q, want %q", in, got, want)
-		}
-	}
-}
-
-func TestSessionRoundTrip(t *testing.T) {
-	key := sessionKey("hunter2")
-
-	rec := httptest.NewRecorder()
-	issueSession(rec, key)
-	cookie := rec.Result().Cookies()[0]
-
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.AddCookie(cookie)
-	if !isAuthenticated(req, key) {
-		t.Error("a freshly issued session did not authenticate")
-	}
-
-	// The key comes from the password, so rotating it must end every session.
-	if isAuthenticated(req, sessionKey("hunter3")) {
-		t.Error("a session survived a password change")
-	}
-
-	// A tampered payload must not authenticate.
-	tampered := httptest.NewRequest(http.MethodGet, "/", nil)
-	tampered.AddCookie(&http.Cookie{
-		Name:  sessionCookie,
-		Value: "1:9999999999." + strings.Repeat("A", 43),
-	})
-	if isAuthenticated(tampered, key) {
-		t.Error("a forged cookie authenticated")
-	}
-}
-
-func TestPasswordMatchesIsExact(t *testing.T) {
-	if !passwordMatches("hunter2", "hunter2") {
-		t.Error("the correct password was rejected")
-	}
-	for _, wrong := range []string{"hunter", "hunter22", "Hunter2", ""} {
-		if passwordMatches(wrong, "hunter2") {
-			t.Errorf("%q was accepted", wrong)
-		}
-	}
-}
-
 func TestAsciiFilename(t *testing.T) {
 	cases := map[string]string{
 		"example.com": "example.com",
@@ -1189,5 +1132,19 @@ func TestOriginStaleIsPersistedNotJustReturned(t *testing.T) {
 	// machine treats as not-up. The number itself is arbitrary.
 	if statusOriginStale == 200 {
 		t.Fatal("statusOriginStale must not be 200, or every stale check reads as up")
+	}
+}
+
+// Every template the server asks for has to exist. NewRenderer resolves the
+// list at boot rather than at build, so a page left listed after its file was
+// deleted compiles, ships, and then crash-loops the container on startup, which
+// is how it was found on repos.
+func TestEveryListedTemplateParses(t *testing.T) {
+	templates, err := fs.Sub(templateFS, "templates")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := web.NewRenderer(templates, templateFuncs, layoutTemplates, pageTemplates); err != nil {
+		t.Fatalf("the template set does not parse: %v", err)
 	}
 }

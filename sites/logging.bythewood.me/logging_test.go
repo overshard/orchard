@@ -45,7 +45,23 @@ func testSite(t *testing.T, db *sql.DB) *site {
 	t.Helper()
 	w := NewWriter(db)
 	t.Cleanup(w.Close)
-	return &site{db: db, writer: w}
+	return &site{db: db, writer: w, auth: stubAuth(t, true)}
+}
+
+// stubAuth stands in for auth.bythewood.me, which the real Authenticator asks
+// on every request. Signing in itself is that site's to test.
+func stubAuth(t *testing.T, signedIn bool) *web.Authenticator {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !signedIn {
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"ok":false}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"ok":true,"username":"isaac"}`))
+	}))
+	t.Cleanup(srv.Close)
+	return web.NewAuthenticatorAt(srv.URL)
 }
 
 // The hot attributes are lifted into columns and everything else stays in the
@@ -912,12 +928,11 @@ func TestMarkdownReportEscapesLogText(t *testing.T) {
 	var err error
 	s.renderer, err = web.NewRenderer(mustTemplates(t), templateFuncs,
 		[]string{"base.html", "partials.html"},
-		[]string{"home.html", "documentation.html", "login.html",
+		[]string{"home.html", "documentation.html",
 			"overview.html", "source.html", "search.html", "notfound.html"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	s.cookieKey = sessionKey("x")
 
 	rr := httptest.NewRecorder()
 	s.overview(rr, httptest.NewRequest(http.MethodGet, "/overview?range=24h&report=md", nil))
@@ -958,12 +973,11 @@ func TestAnalyticsSnippetIsRendered(t *testing.T) {
 	var err error
 	s.renderer, err = web.NewRenderer(mustTemplates(t), templateFuncs,
 		[]string{"base.html", "partials.html"},
-		[]string{"home.html", "documentation.html", "login.html",
+		[]string{"home.html", "documentation.html",
 			"overview.html", "source.html", "search.html", "notfound.html"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	s.cookieKey = sessionKey("x")
 
 	rr := httptest.NewRecorder()
 	s.home(rr, httptest.NewRequest(http.MethodGet, "/", nil))
@@ -987,99 +1001,6 @@ func TestAnalyticsSnippetIsRendered(t *testing.T) {
 	for _, need := range []string{"'unsafe-inline'", "https://analytics.bythewood.me"} {
 		if !strings.Contains(policy, need) {
 			t.Errorf("CSP is missing %s, so the collector would be blocked: %s", need, policy)
-		}
-	}
-}
-
-func TestSessionRoundTrip(t *testing.T) {
-	key := sessionKey("hunter2")
-
-	rr := httptest.NewRecorder()
-	issueSession(rr, key)
-	cookie := rr.Result().Cookies()[0]
-
-	r := httptest.NewRequest(http.MethodGet, "/overview", nil)
-	r.AddCookie(cookie)
-	if !isAuthenticated(r, key) {
-		t.Fatal("a freshly issued session did not authenticate")
-	}
-
-	// Rotating the password ends every outstanding session, because the
-	// signing key is derived from it rather than configured separately.
-	if isAuthenticated(r, sessionKey("hunter3")) {
-		t.Error("a session survived a password change")
-	}
-
-	tampered := &http.Cookie{Name: cookie.Name, Value: "1:99999999999.forged"}
-	r2 := httptest.NewRequest(http.MethodGet, "/overview", nil)
-	r2.AddCookie(tampered)
-	if isAuthenticated(r2, key) {
-		t.Error("a forged signature authenticated")
-	}
-}
-
-// The 500ms delay is per goroutine, so concurrent attempts all serve it at
-// once: 200 wrong passwords completed in 509ms before this, which is 392
-// guesses a second against the one thing protecting every log line.
-func TestLoginIsRateLimited(t *testing.T) {
-	db := testDB(t)
-	s := testSite(t, db)
-	var err error
-	s.renderer, err = web.NewRenderer(mustTemplates(t), templateFuncs,
-		[]string{"base.html", "partials.html"},
-		[]string{"home.html", "documentation.html", "login.html",
-			"overview.html", "source.html", "search.html", "notfound.html"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	s.password = "correct horse"
-	s.cookieKey = sessionKey(s.password)
-
-	// A full bucket, so the test measures the ceiling rather than whatever
-	// earlier tests left behind.
-	loginBucket = &tokenBucket{tokens: loginBurst, last: time.Now()}
-
-	var limited int
-	for i := 0; i < loginBurst*4; i++ {
-		rr := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, "/login",
-			strings.NewReader("password=wrong&next=/overview"))
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		s.loginSubmit(rr, req)
-		if rr.Code == http.StatusTooManyRequests {
-			limited++
-		}
-	}
-	if limited == 0 {
-		t.Error("no attempt was rate limited; the bucket is not doing anything")
-	}
-
-	// And the real password still works once the bucket has a token.
-	loginBucket = &tokenBucket{tokens: loginBurst, last: time.Now()}
-	rr := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/login",
-		strings.NewReader("password=correct+horse&next=/overview"))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	s.loginSubmit(rr, req)
-	if rr.Code != http.StatusSeeOther {
-		t.Errorf("correct password got %d, want 303", rr.Code)
-	}
-}
-
-// "//evil.example" also starts with a slash and is a protocol-relative URL that
-// browsers follow off-site, which is what a bare prefix check would miss.
-func TestSafeNext(t *testing.T) {
-	tests := map[string]string{
-		"/search":            "/search",
-		"/overview?range=7d": "/overview?range=7d",
-		"//evil.example":     "/overview",
-		"/\\evil.example":    "/overview",
-		"https://evil":       "/overview",
-		"":                   "/overview",
-	}
-	for in, want := range tests {
-		if got := safeNext(in); got != want {
-			t.Errorf("safeNext(%q) = %q, want %q", in, got, want)
 		}
 	}
 }
@@ -1120,14 +1041,12 @@ func TestPagesRender(t *testing.T) {
 	s.renderer, err = web.NewRenderer(
 		mustTemplates(t), templateFuncs,
 		[]string{"base.html", "partials.html"},
-		[]string{"home.html", "documentation.html", "login.html",
+		[]string{"home.html", "documentation.html",
 			"overview.html", "source.html", "search.html", "notfound.html"},
 	)
 	if err != nil {
 		t.Fatalf("templates: %v", err)
 	}
-	s.cookieKey = sessionKey("hunter2")
-	s.password = "hunter2"
 
 	pages := []struct {
 		name    string
@@ -1137,7 +1056,6 @@ func TestPagesRender(t *testing.T) {
 	}{
 		{"home", "/", http.StatusOK, s.home},
 		{"documentation", "/documentation", http.StatusOK, s.documentation},
-		{"login", "/login", http.StatusOK, s.loginForm},
 		{"overview", "/overview?range=24h", http.StatusOK, s.overview},
 		{"search", "/search?q=boom", http.StatusOK, s.search},
 		// The 404 page is a rendered page that happens to answer 404, and
@@ -1596,5 +1514,19 @@ func TestStreamComponentIsNotADuration(t *testing.T) {
 	}
 	if !strings.Contains(r.attrs, "stream_ms") {
 		t.Errorf("elapsed time was dropped rather than moved, attrs = %s", r.attrs)
+	}
+}
+
+// Every template the server asks for has to exist. NewRenderer resolves the
+// list at boot rather than at build, so a page left listed after its file was
+// deleted compiles, ships, and then crash-loops the container on startup, which
+// is how it was found on repos.
+func TestEveryListedTemplateParses(t *testing.T) {
+	templates, err := fs.Sub(templateFS, "templates")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := web.NewRenderer(templates, templateFuncs, layoutTemplates, pageTemplates); err != nil {
+		t.Fatalf("the template set does not parse: %v", err)
 	}
 }

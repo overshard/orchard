@@ -9,7 +9,7 @@ import (
 // shows counts only: log lines carry request paths and IP addresses, so there
 // is no public dashboard here and no toggle to make one.
 func (s *site) home(w http.ResponseWriter, r *http.Request) {
-	if isAuthenticated(r, s.cookieKey) {
+	if s.auth.Authenticated(r) {
 		http.Redirect(w, r, "/overview", http.StatusSeeOther)
 		return
 	}

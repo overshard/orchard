@@ -52,13 +52,13 @@
       <ul class="navbar-nav ms-auto">
         {{ if .Authenticated }}
         <li class="nav-item d-flex align-items-center">
-          <form method="post" action="/logout" class="d-inline">
-            <button type="submit" class="btn btn-sm btn-outline-light">Logout</button>
-          </form>
+          {{/* Signing out ends the session for every site at once, which is the
+               only sensible meaning of it when one cookie covers all of them. */}}
+          <a href="https://auth.bythewood.me/" class="btn btn-sm btn-outline-light">Account</a>
         </li>
         {{ else }}
         <li class="nav-item d-flex align-items-center">
-          <a href="/login" class="btn btn-sm btn-outline-light">Login</a>
+          <a href="/login" class="btn btn-sm btn-outline-light">Sign in</a>
         </li>
         {{ end }}
       </ul>
@@ -91,12 +91,10 @@
           {{ if .Authenticated }}
           <li class="mb-2"><a href="/properties" class="link-footer">Properties</a></li>
           <li class="mb-2">
-            <form method="post" action="/logout" class="d-inline">
-              <button type="submit" class="btn btn-link link-footer p-0 align-baseline text-start">Logout</button>
-            </form>
+            <a href="https://auth.bythewood.me/" class="link-footer">Account</a>
           </li>
           {{ else }}
-          <li class="mb-2"><a href="/login" class="link-footer">Login</a></li>
+          <li class="mb-2"><a href="/login" class="link-footer">Sign in</a></li>
           {{ end }}
         </ul>
       </div>

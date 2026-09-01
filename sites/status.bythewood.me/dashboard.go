@@ -332,7 +332,7 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 		return
 	}
 
-	authed := isAuthenticated(r, s.cookieKey)
+	authed := s.auth.Authenticated(r)
 	if !p.IsPublic && !authed {
 		// A redirect to login rather than a 404, so a bookmark lands somewhere
 		// useful. It leaks that the id exists, which is fine for a v4 UUID.
@@ -558,7 +558,7 @@ func (s *site) propertyStatus(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if !p.IsPublic && !isAuthenticated(r, s.cookieKey) {
+	if !p.IsPublic && !s.auth.Authenticated(r) {
 		writeJSON(w, http.StatusForbidden, map[string]any{"error": "forbidden"})
 		return
 	}

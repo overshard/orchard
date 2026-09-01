@@ -6,7 +6,7 @@ repository. Start with `README.md`, this file is the working detail behind it.
 ## What this is
 
 One repo for every site Isaac Bythewood runs, plus the shared Cloudflare Tunnel
-and Caddy that front them. Six sites, all Go, all served from a desktop behind a
+and Caddy that front them. Eight sites, all Go, all served from a desktop behind a
 tunnel rather than a rented server.
 
 | Directory | What it serves |
@@ -18,6 +18,7 @@ tunnel rather than a rented server.
 | `sites/logging.bythewood.me/` | Self hosted log aggregation. Every other site ships its slog records here. SQLite, retention and rollups, Typst PDF reports |
 | `sites/repos.bythewood.me/` | Self hosted git remote. Push to it over HTTPS with a token, and it mirrors the GitHub account as a backup. Everything git is a subprocess |
 | `sites/dash.bythewood.me/` | Dashboard. Markets off Yahoo, Hacker News and Lobsters, the weather, and whether the other six are answering. One poller, server sent events out, no database |
+| `sites/auth.bythewood.me/` | The front door. One account, a six digit code pushed over ntfy, and an opaque session every other site checks against it |
 | `edge/` | The shared `cloudflared` tunnel, the Caddy that reverse proxies to each site, and the ntfy every alert is published to |
 
 ## The one structural rule
@@ -25,7 +26,7 @@ tunnel rather than a rented server.
 **Every site is its own Go module and owns its own copy of `web/`.**
 
 There is no module at the repo root. `go.work` exists so repo wide `make`
-targets and an editor can see all seven at once, and nothing depends on it. Each
+targets and an editor can see all eight at once, and nothing depends on it. Each
 site builds standalone:
 
 ```sh
@@ -37,12 +38,13 @@ can copy into its own repository.
 
 `web/` is the small HTTP layer every site needs: the Vite manifest reader,
 request logging, panic recovery, security headers, the static and edge cache
-policies, graceful shutdown, and `shipper.go`, the tee handler that copies every
-log record to logging.bythewood.me.
+policies, graceful shutdown, `shipper.go`, the tee handler that copies every log
+record to logging.bythewood.me, and `session.go`, which asks auth.bythewood.me
+whether the cookie on a request is a live session.
 
-**A fix in `web/` has to be made seven times.** Do not add a shared parent module
-to avoid it, and keep `shipper.go` byte identical across the seven, since it is a
-wire format as much as a file.
+**A fix in `web/` has to be made eight times.** Do not add a shared parent module
+to avoid it, and keep `shipper.go` and `session.go` byte identical across the
+eight, since both are wire formats as much as files.
 
 ## Commands
 
@@ -85,23 +87,27 @@ sites with SQLite. One prefix, so `docker ps --filter name=orchard` is the whole
 system and the Makefile derives a container name from a site directory without a
 lookup table.
 
-**Five things reference a container by name, and all five bake it in.**
+**Six things reference a container by name, and all six bake it in.**
 `edge/caddy/Caddyfile` reverse-proxies to each site and writes its access log to
 `tcp/orchard-logging:9001`, `sites/isaacbythewood.com/site.go` fetches
 `http://orchard-blog:8000/latest.json` for the latest-posts panel,
 `web/shipper.go` in every site posts to `http://orchard-logging:8000/ingest`,
 `alerts.go` in status and logging posts to `http://orchard-ntfy:8000`, and
 `sites/dash.bythewood.me/systems.go` reads `http://orchard-logging:8000/aggregate`
-and probes every other site at `http://orchard-<label>:8000/healthz`. None reads
+and probes every other site at `http://orchard-<label>:8000/healthz`, and
+`web/session.go` in every site asks `http://orchard-auth:8000/verify`. None reads
 the name at runtime, so renaming one means rebuilding Caddy, the portfolio and
 every site, not just editing a compose file. No SQLite database refers to a
 container name.
 
 **Alerts leave through ntfy in the edge, and reading them is authenticated.**
-status publishes to the `status` topic and logging to `logging`, both to
-`http://orchard-ntfy:8000` on the bridge with a write-only token from each
-site's `.env`, and reading is over the tunnel at `ntfy.bythewood.me` with a
-read-only account. Two fences hold, ntfy runs `auth-default-access: deny-all`
+status publishes to the `status` topic, logging to `logging` and auth to `auth`,
+all to `http://orchard-ntfy:8000` on the bridge with a write-only token from
+each site's `.env`, and reading is over the tunnel at `ntfy.bythewood.me` with a
+read-only account. There are three accounts, not two: `orchard-auth` writes the
+auth topic and nothing else, because the token in status' and logging' `.env`
+files can publish to their topics and sharing it would let a copy of either mint
+its own login codes. Two fences hold, ntfy runs `auth-default-access: deny-all`
 and decides who may publish, and Caddy refuses every publish route on the public
 hostname, so the write token on its own gets an outsider nowhere. ntfy has no
 source-based ACL, which is why that second fence has to live at the edge.
@@ -310,6 +316,55 @@ with fewer than five points and the last one had more, within one symbol and one
 trading day so a card never shows yesterday's chart or the other instrument's.
 Only the shape is held back, the price and the percent are always fresh.
 
+## Signing in
+
+**One account, and it lives on auth.bythewood.me.** analytics, status, logging
+and repos each carried a near identical `auth.go` with its own password until
+2026-08-31. They now have none: signing in is a username and a six digit code
+pushed to a phone over the `auth` ntfy topic, and the four sites ask
+`orchard-auth:8000/verify` whether the cookie on a request is live.
+
+**The session cookie is opaque and checked on every request.** It is 32 random
+bytes on `.bythewood.me`, stored here only as a SHA-256, and a site cannot
+validate it alone. That is what revocation needs: a signed cookie stays valid
+until it expires whatever the issuer says, so signing a device out would mean
+rotating a key and ending every other session with it. Nothing caches the
+answer, because a cache is a window in which a revoked session still works.
+
+**With orchard-auth down, all four dashboards are unreachable.** That is
+inherent, and it is why the break-glass is ten Argon2id recovery codes rather
+than a password, and why `make auth-init` prints the first set. ntfy is behind
+the same tunnel as the sites it gates, so a bad tunnel takes the code path with
+it.
+
+**What bounds abuse is a per account ceiling, not a per IP one.** The username is
+in this public repository, so anyone can post it to `/login`. One code is
+outstanding at a time and a repeat request publishes nothing, and at most five
+notifications go out per hour whatever address they are asked from. A per IP
+limit is bypassed by sending one request from each of a thousand proxies. Codes
+publish at ntfy priority `low` so a flood is silent, and only a session that
+actually opened is `high`.
+
+**A code is bound to the browser that asked for it** by a second short lived
+cookie, so a code visible on a lock screen cannot be typed into somebody else's
+session.
+
+**Cloudflare's location headers are only trustworthy because of the tunnel.**
+`CF-IPCountry` and the visitor location transform feed the session list and the
+notification that says where a login came from. Nothing publishes a host port,
+so nothing reaches an app without passing cloudflared and Caddy. The day one is
+directly reachable a client can set its own country.
+
+**auth cannot change other containers, and must not learn how.** It does not hold
+the ntfy account password, which ntfy stores hashed and will not hand back, and
+it does not hold a Cloudflare token that could write WAF rules. Both would make
+an internet facing container into the thing that owns the machine. `make
+ntfy-passwd` changes the ntfy password.
+
+**repos keeps its own push tokens.** git cannot answer a code prompt, so the
+Argon2id credentials on the wire stay in repos' database and are unaffected by
+any of this. Only its browser UI moved.
+
 ## Rules learned the hard way
 
 **An hourly rollup cannot answer an unaligned window.** `logging`'s
@@ -326,6 +381,12 @@ selects the slowest sample and a path with few samples reports a value well
 below the percentile its column claims. `CUME_DIST` reaches 1.0 at the maximum,
 so `MIN(CASE WHEN cd >= 0.95 ...)` is the nearest-rank percentile it says it is,
 in one query instead of one per percentile.
+
+**A template listed with no file behind it ships and then crash-loops.**
+`web.NewRenderer` resolves its page list at boot, not at build, so deleting
+`login.html` while leaving it listed compiled, passed every test, built an image
+and then failed at startup with `pattern matches no files`. Every site now keeps
+`layoutTemplates` and `pageTemplates` as package vars and a test parses them.
 
 **A container health check is not traffic.** Every one is the binary probing
 itself over loopback with no `CF-Ray`, and in `logging` they outnumbered real
@@ -385,12 +446,12 @@ does nothing.
 
 ## Tests
 
-`make test` runs every site's suite plus its `web/` copy, fourteen packages. There
+`make test` runs every site's suite plus its `web/` copy, sixteen packages. There
 are no linter configs, and `make check` is gofmt, vet and build. The portfolio
 has no Go tests of its own, being templates and handlers over static data, and
 is covered by its `web/` package plus browser checks.
 
-`web/shipper_test.go` is one of the seven identical copies and covers the parts
+`web/shipper_test.go` is one of the eight identical copies and covers the parts
 easy to get quietly wrong: that a record reaches both the original handler and
 the queue, that `WithAttrs` and `WithGroup` still tee, that a full queue drops
 instead of blocking, and that logging after `Close` does not panic.

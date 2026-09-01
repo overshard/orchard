@@ -3,8 +3,8 @@ package main
 import "strings"
 
 // Identity is hardcoded, never configured: an empty BASE_URL would ship a site
-// whose own tracking silently did nothing. ANALYTICS_PASSWORD is the only
-// environment variable, because it is the only real secret.
+// whose own tracking silently did nothing. There are no environment variables
+// left at all now that signing in happens on auth.bythewood.me.
 const (
 	baseURL    = "https://analytics.bythewood.me"
 	siteName   = "Analytics"

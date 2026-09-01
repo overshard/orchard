@@ -31,8 +31,6 @@ var Staging = !strings.HasSuffix(baseURL, "//repos.bythewood.me")
 
 // Config is everything the environment sets.
 type Config struct {
-	// Password gates the UI. The site refuses to start without it.
-	Password string
 	// RepoRoot holds the bare repositories.
 	RepoRoot string
 	// DataDir holds repos.db.
@@ -48,7 +46,6 @@ type Config struct {
 
 func LoadConfig() Config {
 	c := Config{
-		Password:      os.Getenv("REPOS_PASSWORD"),
 		RepoRoot:      env("REPOS_ROOT", "./build/repos"),
 		DataDir:       env("REPOS_DATA", "./build/data"),
 		MirrorEvery:   6 * time.Hour,

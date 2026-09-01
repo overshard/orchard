@@ -1,14 +1,13 @@
 package main
 
 import (
-	"net/http"
-	"net/http/httptest"
-	"strconv"
+	"io/fs"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
+
+	"analytics.bythewood.me/web"
 )
 
 // The "/" case is the one that is not obvious: "//" opens a Typst line comment,
@@ -85,100 +84,6 @@ func TestNormalizeReferrer(t *testing.T) {
 	for _, tt := range tests {
 		if got := normalizeReferrer(tt.in); got != tt.want {
 			t.Errorf("normalizeReferrer(%q) = %q, want %q", tt.in, got, tt.want)
-		}
-	}
-}
-
-// "//evil.example" starts with a slash and is still off-site: browsers read it
-// as protocol-relative.
-func TestSafeNext(t *testing.T) {
-	tests := []struct{ in, want string }{
-		{"/properties", "/properties"},
-		{"/86ee87e3-f1f2-46da-8a3e-d719fbece1b9", "/86ee87e3-f1f2-46da-8a3e-d719fbece1b9"},
-		{"//evil.example", "/properties"},
-		{`/\evil.example`, "/properties"},
-		{"https://evil.example", "/properties"},
-		{"", "/properties"},
-	}
-	for _, tt := range tests {
-		if got := safeNext(tt.in); got != tt.want {
-			t.Errorf("safeNext(%q) = %q, want %q", tt.in, got, tt.want)
-		}
-	}
-}
-
-// The session cookie is the entire authentication system.
-func TestSession(t *testing.T) {
-	key := sessionKey("correct horse")
-
-	t.Run("round trips", func(t *testing.T) {
-		w := httptest.NewRecorder()
-		issueSession(w, key)
-
-		r := httptest.NewRequest(http.MethodGet, "/", nil)
-		for _, c := range w.Result().Cookies() {
-			r.AddCookie(c)
-		}
-		if !isAuthenticated(r, key) {
-			t.Error("a freshly issued cookie did not authenticate")
-		}
-	})
-
-	t.Run("a different password rejects it", func(t *testing.T) {
-		w := httptest.NewRecorder()
-		issueSession(w, key)
-
-		r := httptest.NewRequest(http.MethodGet, "/", nil)
-		for _, c := range w.Result().Cookies() {
-			r.AddCookie(c)
-		}
-		// Rotating the password must invalidate outstanding sessions, which
-		// is why the key is derived from it rather than configured.
-		if isAuthenticated(r, sessionKey("different")) {
-			t.Error("a cookie survived the password changing")
-		}
-	})
-
-	t.Run("a tampered expiry is rejected", func(t *testing.T) {
-		// The forgery a signature exists to stop: take a valid payload and
-		// push the expiry out, keeping the old signature.
-		far := time.Now().Add(999 * time.Hour).Unix()
-		payload := "1:" + strconv.FormatInt(far, 10)
-
-		r := httptest.NewRequest(http.MethodGet, "/", nil)
-		r.AddCookie(&http.Cookie{Name: sessionCookie, Value: payload + "." + sign(sessionKey("wrong"), payload)})
-		if isAuthenticated(r, key) {
-			t.Error("a cookie signed with the wrong key authenticated")
-		}
-	})
-
-	t.Run("an expired cookie is rejected", func(t *testing.T) {
-		payload := "1:" + strconv.FormatInt(time.Now().Add(-time.Hour).Unix(), 10)
-		r := httptest.NewRequest(http.MethodGet, "/", nil)
-		r.AddCookie(&http.Cookie{Name: sessionCookie, Value: payload + "." + sign(key, payload)})
-		if isAuthenticated(r, key) {
-			t.Error("an expired cookie authenticated")
-		}
-	})
-
-	t.Run("garbage is rejected", func(t *testing.T) {
-		for _, value := range []string{"", "nonsense", "1:999999999999", "1:abc.sig", "."} {
-			r := httptest.NewRequest(http.MethodGet, "/", nil)
-			r.AddCookie(&http.Cookie{Name: sessionCookie, Value: value})
-			if isAuthenticated(r, key) {
-				t.Errorf("cookie value %q authenticated", value)
-			}
-		}
-	})
-}
-
-func TestPasswordMatches(t *testing.T) {
-	if !passwordMatches("hunter2", "hunter2") {
-		t.Error("the correct password did not match")
-	}
-	for _, wrong := range []string{"hunter", "hunter22", "", "HUNTER2"} {
-		if passwordMatches(wrong, "hunter2") {
-			t.Errorf("%q matched", wrong)
 		}
 	}
 }
@@ -360,5 +265,19 @@ func TestSelfTrackingID(t *testing.T) {
 		t.Errorf("collectorID() = %q on staging, want empty", got)
 	} else if !Staging && got != analyticsID {
 		t.Errorf("collectorID() = %q, want %q", got, analyticsID)
+	}
+}
+
+// Every template the server asks for has to exist. NewRenderer resolves the
+// list at boot rather than at build, so a page left listed after its file was
+// deleted compiles, ships, and then crash-loops the container on startup, which
+// is how it was found on repos.
+func TestEveryListedTemplateParses(t *testing.T) {
+	templates, err := fs.Sub(templateFS, "templates")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := web.NewRenderer(templates, templateFuncs, layoutTemplates, pageTemplates); err != nil {
+		t.Fatalf("the template set does not parse: %v", err)
 	}
 }

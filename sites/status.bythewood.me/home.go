@@ -54,7 +54,7 @@ type PageData struct {
 }
 
 func (s *site) home(w http.ResponseWriter, r *http.Request) {
-	if isAuthenticated(r, s.cookieKey) {
+	if s.auth.Authenticated(r) {
 		http.Redirect(w, r, "/properties", http.StatusSeeOther)
 		return
 	}

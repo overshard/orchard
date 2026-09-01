@@ -40,6 +40,18 @@ func csp() string {
 	}, "; ")
 }
 
+// The template sets, shared with the tests, which parse them for real. A page
+// listed here with no file behind it parses at boot and not at build, so
+// nothing but doing it catches a template that was deleted and left listed.
+var (
+	layoutTemplates = []string{"base.html", "partials.html", "pushhelp.html"}
+	pageTemplates   = []string{
+		"index.html", "repo.html", "tree.html", "blob.html",
+		"log.html", "commit.html", "branches.html", "tags.html",
+		"settings.html", "notfound.html",
+	}
+)
+
 func main() {
 	web.SetupLogging()
 
@@ -58,10 +70,6 @@ func main() {
 	defer shipper.Close()
 
 	cfg := LoadConfig()
-	if cfg.Password == "" {
-		slog.Error("REPOS_PASSWORD is not set; refusing to start with an unguessable-by-luck UI")
-		os.Exit(1)
-	}
 	if err := os.MkdirAll(cfg.RepoRoot, 0o755); err != nil {
 		slog.Error("startup failed", slog.Any("err", err))
 		os.Exit(1)
@@ -96,16 +104,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	renderer, err := web.NewRenderer(
-		templates,
-		templateFuncs,
-		[]string{"base.html", "partials.html", "pushhelp.html"},
-		[]string{
-			"index.html", "repo.html", "tree.html", "blob.html",
-			"log.html", "commit.html", "branches.html", "tags.html",
-			"login.html", "settings.html", "notfound.html",
-		},
-	)
+	renderer, err := web.NewRenderer(templates, templateFuncs, layoutTemplates, pageTemplates)
 	if err != nil {
 		slog.Error("startup failed", slog.Any("err", err))
 		os.Exit(1)
@@ -119,6 +118,7 @@ func main() {
 		backend:  backend,
 		script:   assets.Script("index.js"),
 		styles:   assets.Styles("index.js"),
+		auth:     web.NewAuthenticator(),
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -143,9 +143,11 @@ func main() {
 
 	mux.HandleFunc("GET /{$}", s.index)
 
-	mux.HandleFunc("GET /login", s.login)
-	mux.HandleFunc("POST /login", s.login)
-	mux.HandleFunc("POST /logout", s.logout)
+	// Signing in happens on auth.bythewood.me. This stays so an old bookmark
+	// and every "sign in" link in the templates land somewhere useful.
+	mux.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, web.LoginURL(r), http.StatusSeeOther)
+	})
 
 	mux.HandleFunc("GET /settings", s.requireLogin(s.settings))
 	mux.HandleFunc("POST /settings/tokens", s.requireLogin(s.createToken))
@@ -202,7 +204,7 @@ func main() {
 		web.SecurityHeaders(csp()),
 		// Browse pages branch on LoggedIn and the logged-in half names internal
 		// container topology, so an operator response must never be shared-cacheable.
-		privateWhenLoggedIn(cfg.Password),
+		privateWhenSignedIn,
 		// Short, because a repository page changes the moment something is pushed.
 		// The wire is exempt: git's responses carry no-cache and EdgeCache only
 		// fills in a policy where a handler chose none.
@@ -218,17 +220,19 @@ func main() {
 	}
 }
 
-// privateWhenLoggedIn stamps no-store on any response to a request carrying a
-// valid session, so EdgeCache leaves it alone.
-func privateWhenLoggedIn(password string) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if validSession(r, password) {
-				w.Header().Set("Cache-Control", "private, no-store")
-			}
-			next.ServeHTTP(w, r)
-		})
-	}
+// privateWhenSignedIn stamps no-store on any response to a request carrying a
+// session cookie, so EdgeCache leaves it alone.
+//
+// It tests for the cookie rather than for a live session, which is both cheaper
+// and safer: whether the cookie is still valid is a question for auth, and a
+// response to somebody holding an expired one still must not be shared cached.
+func privateWhenSignedIn(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if c, err := r.Cookie(web.SessionCookie); err == nil && c.Value != "" {
+			w.Header().Set("Cache-Control", "private, no-store")
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // staticRouter claims /static/ before the browse mux can see it.
