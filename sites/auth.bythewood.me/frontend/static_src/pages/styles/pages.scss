@@ -466,3 +466,53 @@
   flex-wrap: wrap;
   gap: 0.5rem;
 }
+
+// The six digit code, one box per character. Wide enough to be tapped on a
+// phone without zooming, which is the whole reason the single field was hard.
+.otp {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.otp-box {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  min-height: 3.2rem;
+  text-align: center;
+  font-size: 1.5rem;
+  font-family: inherit;
+  color: $white;
+  background: $input-bg;
+  border: 1px solid $input-border-color;
+  border-radius: 0.4rem;
+  padding: 0;
+  caret-color: $green;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+
+  &:focus {
+    outline: none;
+    border-color: $green;
+    box-shadow: 0 0 0 2px rgba(107, 158, 120, 0.18);
+    background: $input-focus-bg;
+  }
+
+  // A filled box reads as done at a glance, which is what makes six of these
+  // better than one field.
+  &:not(:placeholder-shown),
+  &:valid:not(:focus) {
+    border-color: $green-border;
+  }
+}
+
+@media (max-width: 24em) {
+  .otp {
+    gap: 0.35rem;
+  }
+
+  .otp-box {
+    min-height: 2.7rem;
+    font-size: 1.25rem;
+  }
+}

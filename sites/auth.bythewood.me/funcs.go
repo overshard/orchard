@@ -126,11 +126,20 @@ func browser(ua string) string {
 }
 
 // Inline rather than a file so it cannot drift from the navbar logo, which is
-// the same markup. A closed padlock, since that is what this site is.
+// the same markup. A north star with three companions, which is the same
+// language as the field behind the sign in form and still reads at 16px, where
+// a full constellation turns to mush.
 const faviconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <path d="M20 28V20a12 12 0 0 1 24 0v8" fill="none" stroke="#6b9e78" stroke-width="7" stroke-linecap="round"/>
-  <rect x="12" y="28" width="40" height="28" rx="4" fill="#6b9e78"/>
-  <rect x="29" y="37" width="6" height="11" rx="3" fill="#1b1d1c"/>
+  <g stroke="#6b9e78" stroke-width="1.6" opacity="0.55" stroke-linecap="round">
+    <path d="M46 15 L34 28"/>
+    <path d="M18 47 L29 36"/>
+    <path d="M46 15 L52 40"/>
+  </g>
+  <path d="M32 4 L36.4 26.2 L58 32 L36.4 37.8 L32 60 L27.6 37.8 L6 32 L27.6 26.2 Z"
+        fill="#6b9e78"/>
+  <circle cx="46" cy="15" r="3.4" fill="#c9d9cb"/>
+  <circle cx="18" cy="47" r="2.6" fill="#7eaab8"/>
+  <circle cx="52" cy="40" r="2.2" fill="#c9a84c"/>
 </svg>`
 
 func favicon(w http.ResponseWriter, r *http.Request) {

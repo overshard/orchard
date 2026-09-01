@@ -73,7 +73,11 @@ main { flex: 1; }
   .navbar-brand {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
+    gap: 0.55rem;
+    // Without this the text item is as tall as the inherited 1.7 line-height,
+    // and centring a 21px box against a 22px mark is what left them looking a
+    // pixel out from each other.
+    line-height: 1;
     color: $white;
     font-weight: 600;
     letter-spacing: 0.1em;
@@ -81,11 +85,27 @@ main { flex: 1; }
     font-size: 0.78rem;
     text-decoration: none;
 
-    .brand-text { color: $white; }
+    .logo {
+      width: 22px;
+      height: 22px;
+    }
+
+    .brand-text {
+      display: block;
+      color: $white;
+      // All caps has no descenders, so the glyphs sit above the middle of
+      // their own box. Nudging the text rather than the marks keeps the star
+      // and the dot on the true centre line.
+      transform: translateY(0.055em);
+    }
+
     .brand-dot {
-      display: inline-block;
-      width: 6px; height: 6px; border-radius: 50%;
+      display: block;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
       background: $green;
+      flex: none;
     }
   }
 
