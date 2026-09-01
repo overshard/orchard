@@ -143,6 +143,19 @@ func TestEveryPageRenders(t *testing.T) {
 				t.Fatalf("error: %d", rec.Code)
 			}
 		},
+		"codes": func() {
+			// Rendered by the rotate handler rather than a GET route, so
+			// nothing else here would catch a bad field on it.
+			rec := httptest.NewRecorder()
+			data := s.page(httptest.NewRequest(http.MethodGet, "/security", nil),
+				"Recovery codes", "")
+			data.NewCodes = []string{"aaaa-bbbb-cccc", "dddd-eeee-ffff"}
+			data.Remaining = 2
+			s.renderer.Render(rec, http.StatusOK, "codes.html", data)
+			if rec.Code != http.StatusOK || rec.Body.Len() < 500 {
+				t.Fatalf("codes: %d, %d bytes", rec.Code, rec.Body.Len())
+			}
+		},
 		"code": func() {
 			rec := httptest.NewRecorder()
 			s.codePage(rec, httptest.NewRequest(http.MethodGet, "/code", nil), "", "", http.StatusOK)

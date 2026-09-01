@@ -51,8 +51,8 @@ var budgets = map[string]budget{
 	"steam":        {perHour: 240, pace: time.Second},
 	"justwatch":    {perHour: 60, pace: 2 * time.Second},
 	// No pacing on these two. They go to Isaac's own machine rather than to a
-	// stranger's endpoint, and the strip fires all seven probes at once, so a
-	// pause between them would only refuse six of the seven.
+	// stranger's endpoint, and the strip fires every probe at once, so a
+	// pause between them would only refuse all but the first.
 	"uptime":  {perHour: 900},
 	"logging": {perHour: 900},
 }

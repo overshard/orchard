@@ -4,68 +4,67 @@
 
 {{ define "form" }}{{ end }}
 
+{{ define "logo" }}
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <path d="M20 28V20a12 12 0 0 1 24 0v8" fill="none" stroke="#6b9e78" stroke-width="7" stroke-linecap="round"/>
+  <rect x="12" y="28" width="40" height="28" rx="4" fill="#6b9e78"/>
+  <rect x="29" y="37" width="6" height="11" rx="3" fill="#0e0d0a"/>
+</svg>
+{{ end }}
+
 {{ define "nav" }}
 <nav class="navbar navbar-dark navbar-expand-md">
   <div class="container-fluid px-4">
-    <a class="navbar-brand" href="/">
+    <a class="navbar-brand" href="{{ if .Authenticated }}/account{{ else }}/{{ end }}">
       <span class="logo" aria-hidden="true">{{ template "logo" . }}</span>
       <span class="brand-text">{{ .SiteName }}</span>
       <span class="brand-dot" aria-hidden="true"></span>
     </a>
+    {{ if .Authenticated }}
     <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navMain" aria-controls="navMain" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
     <div class="collapse navbar-collapse" id="navMain">
-      {{ if .Authenticated }}
       <ul class="navbar-nav ms-3">
         <li class="nav-item"><a class="nav-link {{ if eq .Path "/account" }}active{{ end }}" href="/account">Account</a></li>
         <li class="nav-item"><a class="nav-link {{ if eq .Path "/sessions" }}active{{ end }}" href="/sessions">Sessions</a></li>
         <li class="nav-item"><a class="nav-link {{ if eq .Path "/security" }}active{{ end }}" href="/security">Security</a></li>
         <li class="nav-item"><a class="nav-link {{ if eq .Path "/activity" }}active{{ end }}" href="/activity">Activity</a></li>
       </ul>
-      {{ end }}
       <ul class="navbar-nav ms-auto">
-        {{ if .Authenticated }}
         <li class="nav-item d-flex align-items-center">
           <form method="post" action="/logout" class="d-inline">
             <button type="submit" class="btn btn-sm btn-outline-light">Sign out</button>
           </form>
         </li>
-        {{ end }}
       </ul>
     </div>
+    {{ end }}
   </div>
 </nav>
 {{ end }}
 
-{{ define "logo" }}
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <path d="M20 28V20a12 12 0 0 1 24 0v8" fill="none" stroke="#6b9e78" stroke-width="7" stroke-linecap="round"/>
-  <rect x="12" y="28" width="40" height="28" rx="4" fill="#6b9e78"/>
-  <rect x="29" y="37" width="6" height="11" rx="3" fill="#1b1d1c"/>
-</svg>
-{{ end }}
-
 {{ define "alerts" }}
-{{ if .Error }}<div class="alert alert-danger py-2 small" role="alert">{{ .Error }}</div>{{ end }}
-{{ if .Notice }}<div class="alert alert-info py-2 small" role="status">{{ .Notice }}</div>{{ end }}
+{{ if .Error }}<div class="auth-alert is-error" role="alert">{{ .Error }}</div>{{ end }}
+{{ if .Notice }}<div class="auth-alert is-notice" role="status">{{ .Notice }}</div>{{ end }}
 {{ end }}
 
-{{/* The two column shell every unauthenticated page uses, so the form pages
-     cannot drift apart from each other. */}}
+{{/* The shell every signed-out page uses, so the four of them cannot drift.
+     Everything in the right hand half is decoration and carries aria-hidden:
+     it is a star field, and there is nothing in it to read. */}}
 {{ define "authShell" }}
-<div class="auth-shell">
-  <div class="auth-form-col">
-    <div class="auth-form-wrap">
-      {{ template "form" . }}
-    </div>
+<div class="auth-stage">
+  <div class="auth-sky" aria-hidden="true">
+    <div class="auth-nebula"></div>
+    <canvas class="auth-stars" data-starfield></canvas>
+    <div class="auth-orbits"></div>
+    <div class="auth-vignette"></div>
   </div>
-  <div class="auth-visual-col">
-    <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding: 2rem; z-index: 3;">
-      <div class="terminal-block" style="max-width: 400px; width: 100%;">
-        <span class="t-line"><span class="t-comment"># bythewood.me</span></span>
-        <span class="t-line"><span class="t-prompt">operator$</span><span class="t-out">sign-in</span> <span class="t-cursor"></span></span>
-      </div>
+
+  <div class="auth-panel">
+    <div class="auth-form">
+      <div class="auth-mark" aria-hidden="true">{{ template "logo" . }}</div>
+      {{ template "form" . }}
     </div>
   </div>
 </div>

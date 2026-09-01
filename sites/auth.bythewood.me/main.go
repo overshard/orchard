@@ -45,17 +45,16 @@ func dir(env, fallback string) string {
 	return fallback
 }
 
-// csp is tighter than the other sites here because this one has no analytics
-// snippet and loads nothing from anywhere else. 'unsafe-inline' stays for
-// Bootstrap's inline style attributes and covers styles alone.
+// csp allows 'unsafe-inline' for the analytics collector snippet and for
+// Bootstrap's inline style attributes.
 func csp() string {
 	return strings.Join([]string{
 		"default-src 'self'",
-		"script-src 'self'",
+		"script-src 'self' 'unsafe-inline' https://analytics.bythewood.me",
 		"style-src 'self' 'unsafe-inline'",
 		"img-src 'self' data:",
 		"font-src 'self'",
-		"connect-src 'self'",
+		"connect-src 'self' https://analytics.bythewood.me",
 		"base-uri 'self'",
 		"form-action 'self'",
 		"frame-ancestors 'none'",
@@ -69,8 +68,10 @@ type site struct {
 	assets   *web.Assets
 	notifier *Notifier
 
-	baseScript string
-	baseStyles []string
+	baseScript  string
+	baseStyles  []string
+	pagesScript string
+	pagesStyles []string
 }
 
 func main() {
@@ -146,13 +147,15 @@ func main() {
 	}
 
 	s := &site{
-		renderer:   renderer,
-		db:         db,
-		dist:       dist,
-		assets:     assets,
-		notifier:   NewNotifier(),
-		baseScript: assets.Script("static_src/base/index.js"),
-		baseStyles: assets.Styles("static_src/base/index.js"),
+		renderer:    renderer,
+		db:          db,
+		dist:        dist,
+		assets:      assets,
+		notifier:    NewNotifier(),
+		baseScript:  assets.Script("static_src/base/index.js"),
+		baseStyles:  assets.Styles("static_src/base/index.js"),
+		pagesScript: assets.Script("static_src/pages/index.js"),
+		pagesStyles: assets.Styles("static_src/pages/index.js"),
 	}
 
 	shipper := web.ShipLogs(selfSource, web.HTTPSink())

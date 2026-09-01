@@ -1,232 +1,468 @@
 @use "../../base/styles/variables" as *;
 
-.hero {
+// The sign in stage. Form on the left, star field on the right, and on a narrow
+// screen the field slides behind the form rather than being dropped, because it
+// is the only thing on the page worth looking at.
+.auth-stage {
   position: relative;
-  background: #090806;
-  border-bottom: 1px solid rgba(107, 158, 120, 0.08);
-  padding: 4rem 0 4rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: calc(100vh - 3.5rem);
+  isolation: isolate;
+  overflow: hidden;
 
-  .hero-eyebrow {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.55rem;
-    font-family: $font-family-monospace;
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: rgba(201, 168, 76, 0.85);
-    background: rgba(201, 168, 76, 0.06);
-    border: 1px solid $amber-border;
-    padding: 0.35rem 0.75rem;
-    border-radius: 999px;
-
-    .eyebrow-dot {
-      width: 6px; height: 6px; border-radius: 50%;
-      background: $green;
-    }
-  }
-
-  .hero-title {
-    font-size: clamp(2rem, 5vw, 3.2rem);
-    font-weight: 700;
-    line-height: 1.1;
-    color: $white;
-    letter-spacing: -0.01em;
-    margin-top: 1.5rem;
-
-    .accent { color: $green-bright; }
-  }
-
-  .hero-sub {
-    color: #a09890;
-    font-size: 1rem;
-    line-height: 1.7;
-    margin-top: 1.25rem;
-    max-width: 620px;
-  }
-
-  .hero-ctas {
-    display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-    margin-top: 1.75rem;
-
-    .btn {
-      font-size: 0.82rem;
-      letter-spacing: 0.04em;
-      padding: 0.6rem 1.1rem;
-    }
+  @media (min-width: 62em) {
+    grid-template-columns: minmax(28rem, 44%) minmax(0, 1fr);
   }
 }
 
-.feature {
-  background: #13120e;
-  border: 1px solid rgba(107, 158, 120, 0.08);
+.auth-panel {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  padding: 3rem 1.75rem;
+
+  @media (min-width: 62em) {
+    padding: 4rem 4.5rem;
+    // A soft edge instead of a rule, so the field appears to bleed under the
+    // form rather than stopping at a line.
+    background: linear-gradient(
+      100deg,
+      rgba(14, 13, 10, 0.94) 0%,
+      rgba(14, 13, 10, 0.82) 55%,
+      rgba(14, 13, 10, 0) 100%
+    );
+  }
+}
+
+.auth-form {
+  width: 100%;
+  max-width: 24rem;
+}
+
+.auth-sky {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.auth-stars {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+// Two colour washes behind the stars. Fixed positions rather than an animation,
+// since a moving gradient this large is a full-viewport repaint every frame.
+.auth-nebula {
+  position: absolute;
+  inset: -20%;
+  background:
+    radial-gradient(40rem 32rem at 70% 26%, rgba(107, 158, 120, 0.3), transparent 66%),
+    radial-gradient(32rem 28rem at 40% 80%, rgba(126, 170, 184, 0.2), transparent 68%),
+    radial-gradient(24rem 24rem at 88% 74%, rgba(201, 168, 76, 0.1), transparent 70%);
+  pointer-events: none;
+}
+
+// A dark edge all the way round, so the field reads as depth rather than as a
+// rectangle that stops.
+.auth-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 100% at 60% 45%, transparent 38%, rgba(8, 7, 5, 0.85) 100%);
+  pointer-events: none;
+}
+
+// Two dashed rings, slowly counter-rotating. This is the part that reads as
+// orbit rather than as noise.
+.auth-orbits {
+  position: absolute;
+  top: 50%;
+  left: 62%;
+  width: min(46rem, 74vw);
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  pointer-events: none;
+  opacity: 1;
+
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 1px dashed rgba(107, 158, 120, 0.4);
+    animation: auth-spin 150s linear infinite;
+  }
+
+  &::after {
+    inset: 17%;
+    border-color: rgba(126, 170, 184, 0.3);
+    animation-duration: 96s;
+    animation-direction: reverse;
+  }
+}
+
+@keyframes auth-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
+// A field of streaking points is exactly the motion that makes some people
+// unwell, so everything that moves stops here. The canvas draws one static
+// frame of its own accord.
+@media (prefers-reduced-motion: reduce) {
+  .auth-orbits::before,
+  .auth-orbits::after {
+    animation: none;
+  }
+}
+
+.auth-mark {
+  width: 2.25rem;
+  height: 2.25rem;
+  margin-bottom: 1.5rem;
+
+  svg {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 0 14px rgba(107, 158, 120, 0.4));
+  }
+}
+
+.auth-eyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: $green;
+  margin-bottom: 0.6rem;
+}
+
+.auth-title {
+  font-size: clamp(1.7rem, 1.2rem + 1.6vw, 2.3rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: $white;
+  margin-bottom: 1.75rem;
+}
+
+.auth-hint {
+  font-size: 0.82rem;
+  color: $gray-400;
+  margin-top: 1.5rem;
+}
+
+.auth-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.75rem;
+}
+
+// The six digit field. Wide tracking and a big face, because this is the one
+// input on the site where a transposed character is the whole failure.
+.code-input {
+  font-size: 1.65rem !important;
+  letter-spacing: 0.5em;
+  text-indent: 0.5em;
+  text-align: center;
+  padding: 1.1rem 0.75rem !important;
+  height: auto !important;
+}
+
+.auth-alert {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  font-size: 0.82rem;
+  padding: 0.7rem 0.85rem;
   border-radius: $border-radius;
+  margin-bottom: 1.25rem;
+  border: 1px solid transparent;
+
+  &.is-error {
+    color: #e0a48d;
+    background: $terracotta-dim;
+    border-color: $terracotta-border;
+  }
+
+  &.is-notice {
+    color: #a8cbb3;
+    background: $green-dim;
+    border-color: $green-border;
+  }
+}
+
+// ---------------------------------------------------------------- signed in
+
+.page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.page-title {
+  font-size: clamp(1.5rem, 1.2rem + 1vw, 2rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: $white;
+  margin: 0;
+}
+
+.panel {
+  position: relative;
+  background: linear-gradient(180deg, rgba(30, 28, 22, 0.55), rgba(19, 18, 14, 0.75));
+  border: 1px solid $card-border-color;
+  border-radius: 0.6rem;
   padding: 1.5rem;
   height: 100%;
-  transition: border-color 250ms ease;
 
-  &:hover { border-color: rgba(107, 158, 120, 0.22); }
-
-  .feature-label {
-    font-family: $font-family-monospace;
-    font-size: 0.68rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: rgba(201, 168, 76, 0.75);
-  }
-
-  .feature-title {
-    color: $white;
-    font-size: 1.05rem;
-    font-weight: 600;
-    margin-top: 0.5rem;
-  }
-
-  .feature-desc {
-    color: #a09890;
-    font-size: 0.88rem;
-    line-height: 1.65;
-    margin-top: 0.6rem;
-    margin-bottom: 0;
+  // A one pixel highlight along the top edge, which is what stops a flat card
+  // from reading as a grey rectangle on a dark ground.
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(125, 184, 140, 0.35),
+      transparent
+    );
   }
 }
 
-.stat-strip {
-  background: #0e0d0a;
-  border-top: 1px solid rgba(107, 158, 120, 0.06);
-  border-bottom: 1px solid rgba(107, 158, 120, 0.06);
-  padding: 1.5rem 0;
-
-  .stat { text-align: center; padding: 0 1rem; }
-
-  .stat-label {
-    font-family: $font-family-monospace;
-    font-size: 0.66rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: #665f56;
-  }
-
-  .stat-value {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: $green-bright;
-    letter-spacing: -0.01em;
-    line-height: 1.2;
-    margin-top: 0.2rem;
-  }
+.panel-title {
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: $gray-400;
+  margin-bottom: 1.1rem;
 }
 
-.changelog-entry {
+.field-list {
   display: grid;
-  grid-template-columns: 140px 1fr;
-  gap: 1.5rem;
-  padding: 1rem 0;
-  border-bottom: 1px solid rgba(107, 158, 120, 0.06);
+  gap: 0.7rem;
+  font-size: 0.85rem;
 
-  @media (max-width: 575px) {
-    grid-template-columns: 1fr;
-    gap: 0.4rem;
+  > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-bottom: 0.7rem;
+    border-bottom: 1px solid rgba(221, 215, 205, 0.05);
   }
 
-  .changelog-date {
-    font-family: $font-family-monospace;
-    font-size: 0.78rem;
-    color: rgba(201, 168, 76, 0.75);
-    letter-spacing: 0.04em;
+  > div:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
   }
 
-  ul { margin: 0; padding-left: 1.1rem; color: $gray-200; font-size: 0.9rem; }
-  li { margin-bottom: 0.3rem; }
-
-  code {
-    background: rgba(107, 158, 120, 0.08);
-    color: $green-bright;
-    padding: 0.05rem 0.35rem;
-    border-radius: 2px;
-    font-size: 0.85em;
-  }
-}
-
-.docs-lead {
-  color: #a09890;
-  font-size: 0.95rem;
-  line-height: 1.75;
-  max-width: 720px;
-}
-
-.docs-accordion {
-  .accordion-item {
-    background: #13120e;
-    border: 1px solid rgba(107, 158, 120, 0.12);
-    margin-bottom: 0.5rem;
-    border-radius: $border-radius !important;
-    overflow: hidden;
+  dt,
+  .k {
+    color: $gray-400;
   }
 
-  .accordion-button {
-    background: #13120e;
-    font-family: $font-family-monospace;
-    font-size: 0.85rem;
-    letter-spacing: 0.02em;
-    color: $gray-200;
-
-    &::before {
-      content: '$ ';
-      color: $amber;
-      margin-right: 0.4rem;
-    }
-
-    &:not(.collapsed) {
-      background: rgba(107, 158, 120, 0.06);
-      color: $green-bright;
-      box-shadow: inset 0 -1px 0 rgba(107, 158, 120, 0.12);
-    }
-
-    &:focus {
-      box-shadow: 0 0 0 2px rgba(107, 158, 120, 0.15);
-    }
-  }
-}
-
-.doc {
-  max-width: 52rem;
-
-  h2 {
-    font-size: 1.05rem;
+  dd,
+  .v {
     color: $white;
-    margin-top: 2.25rem;
-    margin-bottom: 0.75rem;
-    padding-bottom: 0.35rem;
-    border-bottom: 1px solid rgba(107, 158, 120, 0.12);
+    margin: 0;
+    text-align: right;
+    word-break: break-word;
+  }
+}
+
+// The recovery code meter. Ten pips beat a number, because the number needs
+// reading and eight lit pips out of ten does not.
+.pips {
+  display: flex;
+  gap: 0.3rem;
+  margin: 0.85rem 0 1.1rem;
+}
+
+.pip {
+  height: 0.42rem;
+  flex: 1;
+  border-radius: 999px;
+  background: rgba(221, 215, 205, 0.08);
+
+  &.is-lit {
+    background: $green;
+    box-shadow: 0 0 10px rgba(107, 158, 120, 0.45);
   }
 
-  p { color: $gray-300; }
+  &.is-low {
+    background: $terracotta;
+    box-shadow: 0 0 10px rgba(196, 112, 85, 0.45);
+  }
+}
 
-  code {
-    color: $green-bright;
-    background: rgba(107, 158, 120, 0.07);
-    padding: 0.1rem 0.3rem;
-    border-radius: 2px;
+.stat {
+  font-size: 2.6rem;
+  font-weight: 700;
+  line-height: 1;
+  color: $white;
+  letter-spacing: -0.03em;
+
+  &.is-low {
+    color: $terracotta;
+  }
+}
+
+// One session, as a row. A list rather than a table, so the phone gets a
+// readable stack instead of a sideways scroll.
+.session {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid rgba(221, 215, 205, 0.05);
+  flex-wrap: wrap;
+
+  &:last-child {
+    border-bottom: 0;
+  }
+}
+
+.session-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: $gray-500;
+  flex: none;
+
+  &.is-current {
+    background: $green;
+    box-shadow: 0 0 0 3px rgba(107, 158, 120, 0.15);
+  }
+}
+
+.session-main {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.session-where {
+  color: $white;
+  font-size: 0.92rem;
+}
+
+.session-meta {
+  color: $gray-400;
+  font-size: 0.78rem;
+  margin-top: 0.15rem;
+}
+
+.tag {
+  display: inline-block;
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.45rem;
+  border-radius: 0.25rem;
+  color: $green-bright;
+  background: $green-dim;
+  border: 1px solid $green-border;
+  vertical-align: middle;
+  margin-left: 0.4rem;
+}
+
+// The activity feed, as a timeline. The rail is what turns a list of rows into
+// something you read top down.
+.feed {
+  position: relative;
+  padding-left: 1.35rem;
+
+  &::before {
+    content: "";
+    position: absolute;
+    left: 0.28rem;
+    top: 0.4rem;
+    bottom: 0.4rem;
+    width: 1px;
+    background: rgba(221, 215, 205, 0.07);
+  }
+}
+
+.event {
+  position: relative;
+  padding: 0.6rem 0;
+  font-size: 0.85rem;
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+
+  &::before {
+    content: "";
+    position: absolute;
+    left: -1.35rem;
+    top: 1rem;
+    width: 0.42rem;
+    height: 0.42rem;
+    border-radius: 50%;
+    background: $gray-500;
   }
 
-  pre {
-    background: #090806;
-    border: 1px solid rgba(107, 158, 120, 0.12);
-    border-radius: $border-radius;
-    padding: 0.9rem 1rem;
-    overflow-x: auto;
-
-    code {
-      background: none;
-      padding: 0;
-      color: $gray-100;
-      font-size: 0.8rem;
-    }
+  &.is-note::before {
+    background: $green;
   }
+
+  &.is-warn::before {
+    background: $amber;
+  }
+}
+
+.event-what {
+  color: $white;
+  flex: 1 1 11rem;
+}
+
+.event-when {
+  color: $gray-500;
+  font-size: 0.78rem;
+  flex: none;
+}
+
+.event-where {
+  color: $gray-400;
+  font-size: 0.78rem;
+}
+
+// The recovery codes, once. Big, spaced, and selectable in one go.
+.codes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0.55rem;
+  margin: 1.25rem 0;
+}
+
+.code-chip {
+  font-size: 1rem;
+  letter-spacing: 0.06em;
+  color: $green-bright;
+  background: rgba(107, 158, 120, 0.07);
+  border: 1px solid $green-border;
+  border-radius: 0.35rem;
+  padding: 0.7rem 0.5rem;
+  text-align: center;
+}
+
+.btn.is-done {
+  color: $green-bright;
+  border-color: $green-border;
+}
+
+.link-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }

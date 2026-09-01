@@ -12,6 +12,9 @@ const (
 
 	// Must match the first hostname label, like every other source label.
 	selfSource = "auth"
+
+	// Identity, not a credential: this id is in the page source by design.
+	analyticsID = "75a24b68-7734-4337-bb7a-9265f219f397"
 )
 
 // Staging is true on any hostname but the real one, and keeps it out of search results.

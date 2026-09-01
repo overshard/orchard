@@ -1,31 +1,42 @@
 {{ define "main" }}
 <div class="container-fluid px-4 py-4">
-  <div class="section-label mb-2">account</div>
-  <h1 class="fw-bolder text-white mb-4" style="letter-spacing: -0.01em; font-size: 1.9rem;">{{ .User.Username }}</h1>
+  <div class="page-head">
+    <div>
+      <div class="auth-eyebrow">account</div>
+      <h1 class="page-title">{{ .User.Username }}</h1>
+    </div>
+  </div>
 
   {{ template "alerts" . }}
 
-  <div class="row g-3 mb-4">
-    <div class="col-12 col-lg-6">
-      <div class="panel p-4">
-        <div class="panel-title mb-3">this account</div>
-        <table class="table table-sm data-table mb-0">
-          <tbody>
-            <tr><td>username</td><td class="text-end">{{ .User.Username }}</td></tr>
-            <tr><td>ntfy account</td><td class="text-end">{{ .User.NtfyAccount }}</td></tr>
-            <tr><td>created</td><td class="text-end">{{ when .User.Created }}</td></tr>
-            <tr><td>recovery codes left</td>
-              <td class="text-end {{ if lt .Remaining 3 }}text-terracotta{{ end }}">{{ .Remaining }}</td></tr>
-          </tbody>
-        </table>
-        <p class="text-muted small mt-3 mb-0">The ntfy account is a separate namespace and ntfy cannot rename one,
+  <div class="row g-3">
+    <div class="col-12 col-lg-5">
+      <div class="panel">
+        <div class="panel-title">identity</div>
+        <dl class="field-list">
+          <div><dt>username</dt><dd>{{ .User.Username }}</dd></div>
+          <div><dt>ntfy account</dt><dd>{{ .User.NtfyAccount }}</dd></div>
+          <div><dt>created</dt><dd>{{ when .User.Created }}</dd></div>
+        </dl>
+        <p class="auth-hint">The ntfy account is a separate namespace and ntfy cannot rename one,
           so changing the username here leaves it alone.</p>
       </div>
     </div>
 
-    <div class="col-12 col-lg-6">
-      <div class="panel p-4">
-        <div class="panel-title mb-3">change the username</div>
+    <div class="col-12 col-lg-4">
+      <div class="panel">
+        <div class="panel-title">recovery codes</div>
+        <div class="stat {{ if lt .Remaining 3 }}is-low{{ end }}">{{ .Remaining }}</div>
+        <div class="pips" aria-hidden="true">
+          {{ range pips .Remaining }}<span class="pip {{ if . }}is-lit{{ end }}"></span>{{ end }}
+        </div>
+        <a href="/security" class="btn btn-sm btn-outline-light">Manage →</a>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-3">
+      <div class="panel">
+        <div class="panel-title">rename</div>
         {{ if .InSudo }}
         <form method="POST" action="/account/username">
           <div class="form-floating mb-3">
@@ -34,26 +45,28 @@
                    autocapitalize="none" spellcheck="false">
             <label for="id_new_username">Username</label>
           </div>
-          <button type="submit" class="btn btn-primary">Save</button>
+          <button type="submit" class="btn btn-primary btn-sm">Save</button>
         </form>
         {{ else }}
-        <p class="text-muted small mb-3">This needs a sign in from the last few minutes.</p>
-        <a href="/login?next=/account" class="btn btn-outline-light btn-sm">Sign in again</a>
+        <p class="auth-hint mt-0">Needs a sign in from the last few minutes.</p>
+        <a href="/login?next=/account" class="btn btn-sm btn-outline-light">Sign in again</a>
         {{ end }}
       </div>
     </div>
-  </div>
 
-  <div class="panel p-4">
-    <div class="panel-title mb-3">the sites behind this login</div>
-    <div class="d-flex flex-wrap gap-2">
-      <a class="btn btn-outline-light btn-sm" href="https://analytics.bythewood.me/">analytics</a>
-      <a class="btn btn-outline-light btn-sm" href="https://status.bythewood.me/">status</a>
-      <a class="btn btn-outline-light btn-sm" href="https://logging.bythewood.me/">logging</a>
-      <a class="btn btn-outline-light btn-sm" href="https://repos.bythewood.me/">repos</a>
+    <div class="col-12">
+      <div class="panel">
+        <div class="panel-title">behind this login</div>
+        <div class="link-list">
+          <a class="btn btn-outline-light btn-sm" href="https://analytics.bythewood.me/">analytics</a>
+          <a class="btn btn-outline-light btn-sm" href="https://status.bythewood.me/">status</a>
+          <a class="btn btn-outline-light btn-sm" href="https://logging.bythewood.me/">logging</a>
+          <a class="btn btn-outline-light btn-sm" href="https://repos.bythewood.me/">repos</a>
+        </div>
+        <p class="auth-hint">Push tokens for repos stay in repos, since they are its credentials and
+          not this site's. That page is behind this session now.</p>
+      </div>
     </div>
-    <p class="text-muted small mt-3 mb-0">Push tokens for repos stay in repos, since they are its credentials
-      and not this site's. That page is behind this session now.</p>
   </div>
 </div>
 {{ end }}
