@@ -1,0 +1,16 @@
+{{ define "main" }}
+<div class="container-fluid px-4 py-4">
+  <div class="section-label mb-2">write these down</div>
+  <h1 class="fw-bolder text-white mb-3" style="letter-spacing: -0.01em; font-size: 1.9rem;">{{ .Title }}</h1>
+  <p class="text-muted small mb-4">These are the only copies. Put them in 1Password now, because leaving this
+    page is the last time they exist anywhere readable. Every previous code stopped working just now.</p>
+
+  <div class="panel p-4 mb-4" style="max-width: 32rem;">
+    <div class="terminal-block">
+      {{ range .NewCodes }}<span class="t-line"><span class="t-out">{{ . }}</span></span>{{ end }}
+    </div>
+  </div>
+
+  <a href="/security" class="btn btn-primary">I have saved them →</a>
+</div>
+{{ end }}

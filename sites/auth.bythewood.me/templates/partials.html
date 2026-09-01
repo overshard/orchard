@@ -1,0 +1,87 @@
+{{/* Go requires every {{template}} target to exist, so the optional ones are
+     defined empty here and overridden by whichever page wants them: layouts are
+     parsed before the page, and a later definition of the same name wins. */}}
+
+{{ define "form" }}{{ end }}
+
+{{ define "nav" }}
+<nav class="navbar navbar-dark navbar-expand-md">
+  <div class="container-fluid px-4">
+    <a class="navbar-brand" href="/">
+      <span class="logo" aria-hidden="true">{{ template "logo" . }}</span>
+      <span class="brand-text">{{ .SiteName }}</span>
+      <span class="brand-dot" aria-hidden="true"></span>
+    </a>
+    <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navMain" aria-controls="navMain" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navMain">
+      {{ if .Authenticated }}
+      <ul class="navbar-nav ms-3">
+        <li class="nav-item"><a class="nav-link {{ if eq .Path "/account" }}active{{ end }}" href="/account">Account</a></li>
+        <li class="nav-item"><a class="nav-link {{ if eq .Path "/sessions" }}active{{ end }}" href="/sessions">Sessions</a></li>
+        <li class="nav-item"><a class="nav-link {{ if eq .Path "/security" }}active{{ end }}" href="/security">Security</a></li>
+        <li class="nav-item"><a class="nav-link {{ if eq .Path "/activity" }}active{{ end }}" href="/activity">Activity</a></li>
+      </ul>
+      {{ end }}
+      <ul class="navbar-nav ms-auto">
+        {{ if .Authenticated }}
+        <li class="nav-item d-flex align-items-center">
+          <form method="post" action="/logout" class="d-inline">
+            <button type="submit" class="btn btn-sm btn-outline-light">Sign out</button>
+          </form>
+        </li>
+        {{ end }}
+      </ul>
+    </div>
+  </div>
+</nav>
+{{ end }}
+
+{{ define "logo" }}
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <path d="M20 28V20a12 12 0 0 1 24 0v8" fill="none" stroke="#6b9e78" stroke-width="7" stroke-linecap="round"/>
+  <rect x="12" y="28" width="40" height="28" rx="4" fill="#6b9e78"/>
+  <rect x="29" y="37" width="6" height="11" rx="3" fill="#1b1d1c"/>
+</svg>
+{{ end }}
+
+{{ define "alerts" }}
+{{ if .Error }}<div class="alert alert-danger py-2 small" role="alert">{{ .Error }}</div>{{ end }}
+{{ if .Notice }}<div class="alert alert-info py-2 small" role="status">{{ .Notice }}</div>{{ end }}
+{{ end }}
+
+{{/* The two column shell every unauthenticated page uses, so the form pages
+     cannot drift apart from each other. */}}
+{{ define "authShell" }}
+<div class="auth-shell">
+  <div class="auth-form-col">
+    <div class="auth-form-wrap">
+      {{ template "form" . }}
+    </div>
+  </div>
+  <div class="auth-visual-col">
+    <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding: 2rem; z-index: 3;">
+      <div class="terminal-block" style="max-width: 400px; width: 100%;">
+        <span class="t-line"><span class="t-comment"># bythewood.me</span></span>
+        <span class="t-line"><span class="t-prompt">operator$</span><span class="t-out">sign-in</span> <span class="t-cursor"></span></span>
+      </div>
+    </div>
+  </div>
+</div>
+{{ end }}
+
+{{ define "footer" }}
+<div class="footer-bar">
+  <div class="container-fluid px-4">
+    <div class="row align-items-center">
+      <div class="col-sm-6 d-flex align-items-center justify-content-center justify-content-sm-start order-1 order-sm-0">
+        <small>&copy; {{ .Year }} {{ .AuthorName }} · All times UTC</small>
+      </div>
+      <div class="col-sm-6 d-flex justify-content-center justify-content-sm-end py-3 py-sm-0">
+        <a href="{{ .SourceURL }}" target="_blank" rel="noopener" class="footer-bar-link">Source</a>
+      </div>
+    </div>
+  </div>
+</div>
+{{ end }}

@@ -1,4 +1,4 @@
-This package is blog.bythewood.me's own copy of the small HTTP layer every
+This package is auth.bythewood.me's own copy of the small HTTP layer every
 site here needs: the Vite manifest reader, request logging, panic recovery,
 security headers, the static cache policy, graceful shutdown, and the log
 shipper.

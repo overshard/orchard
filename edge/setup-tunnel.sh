@@ -40,7 +40,7 @@ IMAGE=cloudflare/cloudflared:latest
 # cloudflared/config.yml. These span two zones and cert.pem covers one at a time,
 # so routing all of them means logging in once per zone and running `up` again.
 # The per-host failures in between are expected.
-HOSTNAMES="isaacbythewood.com www.isaacbythewood.com bythewood.me www.bythewood.me blog.bythewood.me analytics.bythewood.me status.bythewood.me logging.bythewood.me ntfy.bythewood.me repos.bythewood.me dash.bythewood.me"
+HOSTNAMES="isaacbythewood.com www.isaacbythewood.com bythewood.me www.bythewood.me blog.bythewood.me analytics.bythewood.me auth.bythewood.me status.bythewood.me logging.bythewood.me ntfy.bythewood.me repos.bythewood.me dash.bythewood.me"
 
 # cloudflared's image is distroless with no shell, so anything that needs to
 # poke at the volume borrows a plain alpine.

@@ -1,0 +1,136 @@
+package main
+
+import (
+	"html/template"
+	"net/http"
+	"strings"
+	"time"
+)
+
+var templateFuncs = template.FuncMap{
+	"ago":        ago,
+	"when":       when,
+	"eventLabel": eventLabel,
+	"eventClass": eventClass,
+	"browser":    browser,
+}
+
+// when is the one timestamp format on this site. Everything here is UTC,
+// because a container's local time silently differs from the host's.
+func when(t time.Time) string { return t.UTC().Format("2006-01-02 15:04 UTC") }
+
+func ago(t time.Time) string {
+	d := time.Since(t)
+	switch {
+	case d < time.Minute:
+		return "just now"
+	case d < time.Hour:
+		return itoa(int(d.Minutes())) + "m ago"
+	case d < 24*time.Hour:
+		return itoa(int(d.Hours())) + "h ago"
+	default:
+		return itoa(int(d.Hours()/24)) + "d ago"
+	}
+}
+
+func itoa(n int) string {
+	if n == 0 {
+		return "0"
+	}
+	var b [20]byte
+	i := len(b)
+	for n > 0 {
+		i--
+		b[i] = byte('0' + n%10)
+		n /= 10
+	}
+	return string(b[i:])
+}
+
+// eventLabel turns a stored kind into something readable without changing the
+// stored value, which stays machine-facing so a query written today still runs.
+func eventLabel(kind string) string {
+	switch kind {
+	case evCodeRequested:
+		return "code requested"
+	case evCodeSent:
+		return "code sent"
+	case evCodeFailed:
+		return "wrong code"
+	case evCodeExpired:
+		return "code expired"
+	case evLogin:
+		return "signed in"
+	case evLogout:
+		return "signed out"
+	case evSessionRevoked:
+		return "session revoked"
+	case evRecoveryUsed:
+		return "recovery code used"
+	case evRecoveryFailed:
+		return "wrong recovery code"
+	case evRecoveryRotated:
+		return "recovery codes replaced"
+	case evRateLimited:
+		return "rate limited"
+	case evCeilingHit:
+		return "send ceiling hit"
+	case evUsernameChanged:
+		return "username changed"
+	}
+	return strings.ReplaceAll(kind, "_", " ")
+}
+
+// eventClass colours the ones worth noticing on the activity page.
+func eventClass(kind string) string {
+	switch kind {
+	case evCodeFailed, evRecoveryFailed, evRateLimited, evCeilingHit:
+		return "is-warn"
+	case evLogin, evRecoveryUsed, evRecoveryRotated, evUsernameChanged:
+		return "is-note"
+	}
+	return ""
+}
+
+// browser reduces a user agent to something that fits in a table cell. It is
+// display only and guesses, so it never claims more than the family.
+func browser(ua string) string {
+	switch {
+	case ua == "":
+		return "unknown"
+	case strings.Contains(ua, "Firefox/"):
+		return "Firefox"
+	case strings.Contains(ua, "Edg/"):
+		return "Edge"
+	case strings.Contains(ua, "OPR/"):
+		return "Opera"
+	case strings.Contains(ua, "Chrome/"):
+		return "Chrome"
+	case strings.Contains(ua, "Safari/"):
+		return "Safari"
+	case strings.Contains(ua, "curl/"):
+		return "curl"
+	}
+	return "other"
+}
+
+// Inline rather than a file so it cannot drift from the navbar logo, which is
+// the same markup. A closed padlock, since that is what this site is.
+const faviconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <path d="M20 28V20a12 12 0 0 1 24 0v8" fill="none" stroke="#6b9e78" stroke-width="7" stroke-linecap="round"/>
+  <rect x="12" y="28" width="40" height="28" rx="4" fill="#6b9e78"/>
+  <rect x="29" y="37" width="6" height="11" rx="3" fill="#1b1d1c"/>
+</svg>`
+
+func favicon(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "image/svg+xml")
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+	_, _ = w.Write([]byte(faviconSVG))
+}
+
+// robots refuses the whole site. There is nothing here worth indexing and the
+// login form is the only page a stranger can reach at all.
+func robots(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	_, _ = w.Write([]byte("User-agent: *\nDisallow: /\n"))
+}

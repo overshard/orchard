@@ -1,0 +1,46 @@
+{{ define "main" }}
+<div class="container-fluid px-4 py-4">
+  <div class="section-label mb-2">security</div>
+  <h1 class="fw-bolder text-white mb-4" style="letter-spacing: -0.01em; font-size: 1.9rem;">{{ .Title }}</h1>
+
+  {{ template "alerts" . }}
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-6">
+      <div class="panel p-4">
+        <div class="panel-title mb-3">recovery codes</div>
+        <p class="mb-3">
+          <span class="metric-value {{ if lt .Remaining 3 }}text-terracotta{{ end }}">{{ .Remaining }}</span>
+          <span class="text-muted small">left of ten</span>
+        </p>
+        <p class="text-muted small">Each one works once. Replacing the set invalidates every old code,
+          and the new ones are shown once and never again.</p>
+        {{ if .InSudo }}
+        <form method="POST" action="/security/recovery">
+          <button type="submit" class="btn btn-primary">Generate a new set</button>
+        </form>
+        {{ else }}
+        <a href="/login?next=/security" class="btn btn-outline-light btn-sm">Sign in again to replace them</a>
+        {{ end }}
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+      <div class="panel p-4">
+        <div class="panel-title mb-3">the phone</div>
+        <table class="table table-sm data-table mb-3">
+          <tbody>
+            <tr><td>server</td><td class="text-end">{{ .NtfyHost }}</td></tr>
+            <tr><td>account</td><td class="text-end">{{ .NtfyUser }}</td></tr>
+            <tr><td>topic</td><td class="text-end">{{ .NtfyTopic }}</td></tr>
+          </tbody>
+        </table>
+        <p class="text-muted small mb-0">The ntfy password is not here and cannot be. ntfy stores it hashed
+          and will not hand one back, and the two ways around that are keeping a second reversible copy on an
+          internet facing box or giving this container the Docker socket. Change it with
+          <code>make ntfy-passwd</code> on the machine.</p>
+      </div>
+    </div>
+  </div>
+</div>
+{{ end }}
