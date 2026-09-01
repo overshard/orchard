@@ -249,14 +249,21 @@ func robots(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("User-agent: *\nDisallow: /\n"))
 		return
 	}
-	// A crawler walking every blob at every revision is one git subprocess per request.
-	_, _ = fmt.Fprintf(w, "User-agent: *\n"+
-		"Disallow: /raw/\n"+
-		"Disallow: /archive/\n"+
+	// A crawler walking every blob at every revision is one git subprocess per
+	// request, and a repository page already costs about eleven. Every route
+	// below the repository name carries the name as its first segment, so these
+	// need the wildcard: a bare "/raw/" matches nothing this site serves.
+	//
+	// tree and blob stay open, since the browse UI is the point of the site.
+	// raw, archive, commit and log are the expensive ones nobody searches for.
+	_, _ = fmt.Fprint(w, "User-agent: *\n"+
+		"Disallow: /*/raw/\n"+
+		"Disallow: /*/archive/\n"+
+		"Disallow: /*/commit/\n"+
+		"Disallow: /*/log\n"+
 		"Disallow: /settings\n"+
 		"Disallow: /login\n"+
-		"Crawl-delay: 10\n\n"+
-		"Sitemap: %s/robots.txt\n", baseURL)
+		"Crawl-delay: 10\n")
 }
 
 func favicon(w http.ResponseWriter, r *http.Request) {
