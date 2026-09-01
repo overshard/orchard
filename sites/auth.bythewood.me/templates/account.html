@@ -57,11 +57,11 @@
     <div class="col-12">
       <div class="panel">
         <div class="panel-title">behind this login</div>
-        <div class="link-list">
-          <a class="btn btn-outline-light btn-sm" href="https://analytics.bythewood.me/">analytics</a>
-          <a class="btn btn-outline-light btn-sm" href="https://status.bythewood.me/">status</a>
-          <a class="btn btn-outline-light btn-sm" href="https://logging.bythewood.me/">logging</a>
-          <a class="btn btn-outline-light btn-sm" href="https://repos.bythewood.me/">repos</a>
+        <div class="site-grid">
+          {{ template "siteCard" dict "host" "analytics.bythewood.me" "name" "Analytics" "desc" "Traffic, referrers and where visitors are" }}
+          {{ template "siteCard" dict "host" "status.bythewood.me" "name" "Status" "desc" "Uptime checks, Lighthouse audits and crawls" }}
+          {{ template "siteCard" dict "host" "logging.bythewood.me" "name" "Logging" "desc" "Every site's records, searchable" }}
+          {{ template "siteCard" dict "host" "repos.bythewood.me" "name" "Repos" "desc" "Git remote, mirrors and push tokens" }}
         </div>
         <p class="auth-hint">Push tokens for repos stay in repos, since they are its credentials and
           not this site's. That page is behind this session now.</p>

@@ -51,6 +51,20 @@
 </nav>
 {{ end }}
 
+{{/* One of the other sites. The whole card is the link, so the hit area is the
+     card rather than the word inside it. */}}
+{{ define "siteCard" }}
+<a class="site-card" href="https://{{ .host }}/">
+  <span class="site-card-name">
+    <span class="site-card-dot" aria-hidden="true"></span>
+    {{ .name }}
+    <span class="site-card-go" aria-hidden="true">→</span>
+  </span>
+  <span class="site-card-desc d-block">{{ .desc }}</span>
+  <span class="site-card-host d-block">{{ .host }}</span>
+</a>
+{{ end }}
+
 {{ define "alerts" }}
 {{ if .Error }}<div class="auth-alert is-error" role="alert">{{ .Error }}</div>{{ end }}
 {{ if .Notice }}<div class="auth-alert is-notice" role="status">{{ .Notice }}</div>{{ end }}
