@@ -4,14 +4,27 @@
 
 {{ template "alerts" . }}
 
-<form method="POST" action="/code">
+<form method="POST" action="/code" data-otp-form>
   <input type="hidden" name="next" value="{{ .Next }}">
-  {{/* inputmode and autocomplete together are what make a phone offer the code
-       straight from the notification instead of opening a keyboard. */}}
+
+  {{/* Hidden until the script swaps them in, so a browser with no JavaScript
+       keeps the single field below and a working sign in. */}}
+  <div class="otp" data-otp hidden>
+    <input class="otp-box" inputmode="numeric" pattern="[0-9]*" maxlength="1"
+           autocomplete="one-time-code" aria-label="Digit 1">
+    <input class="otp-box" inputmode="numeric" pattern="[0-9]*" maxlength="1" aria-label="Digit 2">
+    <input class="otp-box" inputmode="numeric" pattern="[0-9]*" maxlength="1" aria-label="Digit 3">
+    <input class="otp-box" inputmode="numeric" pattern="[0-9]*" maxlength="1" aria-label="Digit 4">
+    <input class="otp-box" inputmode="numeric" pattern="[0-9]*" maxlength="1" aria-label="Digit 5">
+    <input class="otp-box" inputmode="numeric" pattern="[0-9]*" maxlength="1" aria-label="Digit 6">
+  </div>
+
   <input type="text" class="form-control code-input" name="code" id="id_code"
-         placeholder="000000" required autofocus aria-label="Six digit code"
+         data-otp-fallback placeholder="000000" required autofocus
+         aria-label="Six digit code"
          inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
          autocomplete="one-time-code" spellcheck="false">
+
   <div class="auth-actions">
     <button type="submit" class="btn btn-primary">Sign in →</button>
     <a href="/recovery" class="small link-footer">Recovery code</a>
