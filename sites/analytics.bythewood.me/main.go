@@ -181,6 +181,12 @@ func main() {
 		}
 	}()
 
+	// Cancelled on shutdown so a sweep stops between chunks instead of holding
+	// the write lock while everything else drains.
+	sweepCtx, stopSweeping := context.WithCancel(context.Background())
+	defer stopSweeping()
+	go NewSweeper(db).Run(sweepCtx)
+
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /{$}", s.home)
