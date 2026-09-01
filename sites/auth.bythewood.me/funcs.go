@@ -14,6 +14,21 @@ var templateFuncs = template.FuncMap{
 	"eventClass": eventClass,
 	"browser":    browser,
 	"pips":       pips,
+	"dict":       dict,
+}
+
+// dict builds a map inline, so a partial can take named arguments rather than
+// one positional value.
+func dict(pairs ...any) map[string]any {
+	out := make(map[string]any, len(pairs)/2)
+	for i := 0; i+1 < len(pairs); i += 2 {
+		key, ok := pairs[i].(string)
+		if !ok {
+			continue
+		}
+		out[key] = pairs[i+1]
+	}
+	return out
 }
 
 // pips renders the recovery code meter as ten lit or unlit marks, because eight

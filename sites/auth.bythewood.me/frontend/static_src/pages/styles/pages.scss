@@ -516,3 +516,83 @@
     font-size: 1.25rem;
   }
 }
+
+// The other sites, as cards rather than a row of buttons. Each one is the whole
+// link, so the hit area is the card and not the four words inside it.
+.site-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0.75rem;
+}
+
+.site-card {
+  display: block;
+  padding: 1rem 1.1rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(221, 215, 205, 0.07);
+  background: rgba(221, 215, 205, 0.02);
+  text-decoration: none !important;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+
+  &:hover,
+  &:focus-visible {
+    border-color: $green-border;
+    background: rgba(107, 158, 120, 0.06);
+    transform: translateY(-2px);
+  }
+
+  &:hover .site-card-go,
+  &:focus-visible .site-card-go {
+    opacity: 1;
+    translate: 2px 0;
+  }
+}
+
+.site-card-name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: $white;
+  font-size: 0.95rem;
+}
+
+.site-card-dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: $green;
+  flex: none;
+  box-shadow: 0 0 8px rgba(107, 158, 120, 0.6);
+}
+
+.site-card-go {
+  margin-left: auto;
+  color: $green-bright;
+  opacity: 0;
+  transition: opacity 0.15s ease, translate 0.15s ease;
+}
+
+.site-card-desc {
+  color: $gray-400;
+  font-size: 0.78rem;
+  margin-top: 0.4rem;
+}
+
+.site-card-host {
+  color: $gray-500;
+  font-size: 0.7rem;
+  margin-top: 0.55rem;
+  letter-spacing: 0.04em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-card,
+  .site-card-go {
+    transition: none;
+  }
+
+  .site-card:hover,
+  .site-card:focus-visible {
+    transform: none;
+  }
+}
