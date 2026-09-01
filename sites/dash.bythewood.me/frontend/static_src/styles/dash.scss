@@ -1384,8 +1384,11 @@ main {
     .pct { font-size: 10px; color: var(--muted); }
     .n { font-size: 9px; letter-spacing: 0.06em; color: var(--faint); }
 
+    // Four, because border-box means the 1px border top and bottom leaves a 3px
+    // track only 1px of fill, and rows land on fractional pixels here, which
+    // antialiased that hairline away to nothing on some of them.
     .track {
-      height: 3px;
+      height: 4px;
       background: var(--panel-2);
       border: 1px solid var(--line);
       overflow: hidden;
@@ -1471,8 +1474,11 @@ main {
     .pct { font-size: 10px; color: var(--muted); }
     .n { font-size: 9px; letter-spacing: 0.06em; color: var(--faint); }
 
+    // Four, because border-box means the 1px border top and bottom leaves a 3px
+    // track only 1px of fill, and rows land on fractional pixels here, which
+    // antialiased that hairline away to nothing on some of them.
     .track {
-      height: 3px;
+      height: 4px;
       background: var(--panel-2);
       border: 1px solid var(--line);
       overflow: hidden;
