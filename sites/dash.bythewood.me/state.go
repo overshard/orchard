@@ -236,7 +236,7 @@ func (s *Store) Run(ctx context.Context, g *Guard) {
 func (s *Store) loop(ctx context.Context, name string, every func() time.Duration, work func()) {
 	fixed := map[string]time.Duration{
 		"news":      newsEvery,
-		"wire":      marketNewsEvery,
+		"wire":      wireEvery,
 		"signal":    signalEvery,
 		"board":     boardEvery,
 		"earnings":  earningsEvery,
@@ -415,9 +415,9 @@ func (s *Store) refreshSteam(ctx context.Context, g *Guard) {
 }
 
 func (s *Store) refreshWire(ctx context.Context, g *Guard) {
-	wire, err := fetchMarketNews(ctx, g, time.Now())
+	wire, err := fetchWire(ctx, g, time.Now())
 	if err != nil {
-		slog.Warn("market news poll failed", slog.String("component", "wire"), slog.Any("err", err))
+		slog.Warn("wire poll failed", slog.String("component", "wire"), slog.Any("err", err))
 		return
 	}
 	s.update(func(st *State) { st.Wire = wire })
