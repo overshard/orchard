@@ -1506,22 +1506,6 @@ main {
   .score[data-grade="fair"] { color: var(--muted); }
   .score[data-grade="poor"] { color: var(--down); }
 
-  // Both numbers agreeing is the signal, since either one alone is regularly
-  // wrong in a way the other is not. The row was highlighted for that before
-  // and said so nowhere, which read as an arbitrary white row among orange.
-  .badge {
-    padding: 0 4px;
-    border: 1px solid var(--amber-dim);
-    color: var(--amber);
-    letter-spacing: var(--track);
-    white-space: nowrap;
-  }
-
-  li[data-hot="yes"] {
-    .name { color: var(--amber); }
-    a.name:hover { color: #ffc84d; }
-  }
-
   li.empty {
     display: block;
     color: var(--dim);

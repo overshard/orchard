@@ -803,7 +803,6 @@ function renderStreaming(titles) {
   host.replaceChildren(
     ...titles.map((t) => {
       const li = el("li");
-      if (t.hot) li.dataset.hot = "yes";
       li.append(t.url ? link(t.url, "name", t.name) : el("span", "name", t.name));
       li.append(el("span", "svc", t.provider));
 
@@ -830,7 +829,6 @@ function renderStreaming(titles) {
         rt.dataset.grade = t.tomato_state || "";
         meta.append(rt);
       }
-      if (t.badge) meta.append(el("span", "badge", t.badge));
       li.append(meta);
 
       return li;
