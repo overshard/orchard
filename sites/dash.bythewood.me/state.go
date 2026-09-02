@@ -288,7 +288,7 @@ func (s *Store) loop(ctx context.Context, name string, every func() time.Duratio
 }
 
 func (s *Store) refreshMarket(ctx context.Context, g *Guard) {
-	quotes, err := fetchQuotes(ctx, g, sparkSymbols())
+	quotes, err := fetchStrip(ctx, g)
 	if err != nil {
 		slog.Warn("market poll failed", slog.String("component", "market"), slog.Any("err", err))
 		// The previous cards stay up rather than being blanked, and the panel
@@ -316,7 +316,7 @@ func (s *Store) refreshMarket(ctx context.Context, g *Guard) {
 // market strip does, and riding the fast poll cost a third of every Yahoo
 // request this site makes for numbers that had not changed.
 func (s *Store) refreshBoard(ctx context.Context, g *Guard) {
-	quotes, err := fetchQuotes(ctx, g, rateAndSectorSymbols())
+	quotes, err := fetchQuotes(ctx, g, rateAndSectorSymbols(), sessionRange)
 	if err != nil {
 		slog.Warn("board poll failed", slog.String("component", "board"), slog.Any("err", err))
 		return
