@@ -1,3 +1,17 @@
+// The palette every site here shares. Kept byte identical across analytics,
+// auth, logging and status the same way shipper.go and session.go are, since a
+// colour that drifts between two of them is visible and a drifted helper is not.
+//
+// Green is the primary on all four. Amber is chrome only, so caps labels, the
+// hero eyebrow and warnings, and it is never the primary anywhere except on
+// dash, which is a different machine. Terracotta is the only red.
+//
+// The alpha floors on the borders are not arbitrary. Every border on the site
+// measured between 1.04 and 1.36 to 1 before 2026-09-01 and vanished under a
+// bright light, because glare adds light to every pixel and the bottom of a
+// dark palette has nowhere left to go. The floor came up rather than the
+// design changing.
+
 $font-family-sans-serif: 'Monaspace Argon', ui-monospace, 'Cascadia Code', Consolas, 'SF Mono', Menlo, monospace;
 $font-family-monospace: 'Monaspace Argon', ui-monospace, 'Cascadia Code', Consolas, 'SF Mono', Menlo, monospace;
 $headings-font-family: null;

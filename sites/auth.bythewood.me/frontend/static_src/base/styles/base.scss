@@ -25,9 +25,31 @@ body {
   letter-spacing: 0.01em;
   background-color: $body-bg !important;
   color: $body-color;
+
+  // The structural grid the whole estate sits on. 32px because that is the
+  // padding rhythm the panels already use, and low enough alpha that it reads
+  // as texture rather than as a table. Green here where dash is amber, and a
+  // touch more alpha to match, since green at this value reads fainter.
+  background-image:
+    linear-gradient(rgba(107, 158, 120, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(107, 158, 120, 0.028) 1px, transparent 1px);
+  background-size: 32px 32px;
+  background-position: center top;
 }
 
 main { flex: 1; }
+
+// The keyboard focus ring, and the selection colour. repos has had both since
+// it was written and the other four had neither, so a tab through a form here
+// depended on whatever Bootstrap happened to do per component.
+:focus-visible {
+  outline: 2px solid $green;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+::selection { background: rgba(107, 158, 120, 0.3); }
+
 
 .vh-100 { height: 100vh; }
 
@@ -475,7 +497,7 @@ footer {
     &:focus {
       border-color: rgba(107, 158, 120, 0.4);
       box-shadow: 0 0 0 2px rgba(107, 158, 120, 0.1);
-      background: #13120e;
+      background: $card-bg;
     }
   }
 }
@@ -613,7 +635,7 @@ footer {
 // .log-body, which a nested selector never reaches.
 .rank-list-empty {
   padding: 1.25rem 1rem;
-  color: #9e968a;
+  color: $gray-300;
   font-size: 0.82rem;
   text-align: center;
 }
