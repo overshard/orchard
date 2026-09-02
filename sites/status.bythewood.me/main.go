@@ -78,7 +78,7 @@ type site struct {
 var (
 	layoutTemplates = []string{"base.html", "partials.html"}
 	pageTemplates   = []string{
-		"home.html", "changelog.html",
+		"home.html",
 		"properties.html", "property.html", "notfound.html",
 	}
 )
@@ -171,7 +171,6 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /{$}", s.home)
-	mux.HandleFunc("GET /changelog", s.changelog)
 
 	// Signing in happens on auth.bythewood.me. This stays so an old bookmark
 	// and the "access dashboard" button both land somewhere useful.

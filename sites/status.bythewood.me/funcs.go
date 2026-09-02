@@ -14,7 +14,7 @@ var templateFuncs = template.FuncMap{
 	"dict":            dict,
 	"json":            jsonBlock,
 	"naturaltime":     naturalTime,
-	"intcomma":        intcomma,
+	"num":             formatNum,
 	"msSavings":       msSavings,
 	"urlPath":         urlPath,
 	"pct":             pct,
@@ -101,8 +101,8 @@ func plural(n int64, unit, suffix string) string {
 	return fmt.Sprintf("%d %ss %s", n, unit, suffix)
 }
 
-// intcomma groups thousands with commas.
-func intcomma(v any) string {
+// formatNum groups thousands with commas.
+func formatNum(v any) string {
 	var n int64
 	switch t := v.(type) {
 	case int:

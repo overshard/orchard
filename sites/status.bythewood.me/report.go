@@ -22,7 +22,7 @@ var reportFuncs = texttemplate.FuncMap{
 	"typstStr":    typstStr,
 	"upper":       strings.ToUpper,
 	"naturaltime": naturalTime,
-	"intcomma":    intcomma,
+	"num":         formatNum,
 	"msSavings":   msSavings,
 	"urlPath":     urlPath,
 	"pct":         pct,
