@@ -8,9 +8,9 @@ html:root {
   --bs-body-bg-rgb: 14, 13, 10;
   --bs-body-color-rgb: 221, 215, 205;
   --bs-emphasis-color: #{$white};
-  --bs-secondary-bg: #13120e;
+  --bs-secondary-bg: #{$card-bg};
   --bs-tertiary-bg: #18160f;
-  --bs-border-color: rgba(107, 158, 120, 0.12);
+  --bs-border-color: rgba(107, 158, 120, 0.3);
   --bs-link-color-rgb: 125, 184, 140;
   --bs-link-hover-color-rgb: 149, 204, 162;
   --bs-heading-color: #{$white};
@@ -25,9 +25,31 @@ body {
   letter-spacing: 0.01em;
   background-color: $body-bg !important;
   color: $body-color;
+
+  // The structural grid the whole estate sits on. 32px because that is the
+  // padding rhythm the panels already use, and low enough alpha that it reads
+  // as texture rather than as a table. Green here where dash is amber, and a
+  // touch more alpha to match, since green at this value reads fainter.
+  background-image:
+    linear-gradient(rgba(107, 158, 120, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(107, 158, 120, 0.028) 1px, transparent 1px);
+  background-size: 32px 32px;
+  background-position: center top;
 }
 
 main { flex: 1; }
+
+// The keyboard focus ring, and the selection colour. repos has had both since
+// it was written and the other four had neither, so a tab through a form here
+// depended on whatever Bootstrap happened to do per component.
+:focus-visible {
+  outline: 2px solid $green;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+::selection { background: rgba(107, 158, 120, 0.3); }
+
 
 .vh-100 { height: 100vh; }
 
@@ -63,7 +85,7 @@ main { flex: 1; }
   min-height: 52px;
   padding: 0;
   background: #090806 !important;
-  border-bottom: 1px solid rgba(107, 158, 120, 0.06);
+  border-bottom: 1px solid rgba(107, 158, 120, 0.3);
 
   > .container {
     min-height: 52px;
@@ -129,7 +151,7 @@ main { flex: 1; }
   @media (max-width: 767.98px) {
     .navbar-collapse {
       width: 100%;
-      border-top: 1px solid rgba(107, 158, 120, 0.08);
+      border-top: 1px solid rgba(107, 158, 120, 0.3);
       margin-top: 0.25rem;
       padding: 0.4rem 0 0.6rem;
     }
@@ -162,7 +184,7 @@ main { flex: 1; }
     .navbar-nav.ms-auto {
       margin-top: 0.5rem;
       padding-top: 0.6rem;
-      border-top: 1px solid rgba(107, 158, 120, 0.06);
+      border-top: 1px solid rgba(107, 158, 120, 0.3);
 
       .nav-item { width: 100%; }
 
@@ -177,7 +199,7 @@ main { flex: 1; }
 
 .breadcrumb-bar {
   background: rgba(107, 158, 120, 0.02);
-  border-bottom: 1px solid rgba(107, 158, 120, 0.04);
+  border-bottom: 1px solid rgba(107, 158, 120, 0.2);
 
   .breadcrumb { font-family: $font-family-monospace; }
 }
@@ -187,7 +209,7 @@ main { flex: 1; }
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(201, 168, 76, 0.75);
+  color: $amber;
   font-family: $font-family-monospace;
 }
 
@@ -224,7 +246,7 @@ main { flex: 1; }
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #847c72;
+  color: $gray-400;
   cursor: help;
 }
 
@@ -254,7 +276,7 @@ main { flex: 1; }
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: #665f56;
+    color: $gray-500;
     transition: background 180ms ease, color 180ms ease;
   }
 
@@ -265,7 +287,7 @@ main { flex: 1; }
 
   input:checked ~ .toggle-pill-private {
     background: transparent;
-    color: #665f56;
+    color: $gray-500;
   }
   input:checked ~ .toggle-pill-public {
     background: $green-dim;
@@ -291,7 +313,7 @@ main { flex: 1; }
     font-weight: 600;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: #847c72;
+    color: $gray-400;
   }
 
   .metric-value {
@@ -305,7 +327,7 @@ main { flex: 1; }
 
   .metric-sub {
     font-size: 0.72rem;
-    color: #847c72;
+    color: $gray-400;
     margin-top: auto;  // Pins sub to the bottom so all tiles baseline-align
     padding-top: 0.35rem;
     letter-spacing: 0.02em;
@@ -361,7 +383,7 @@ main { flex: 1; }
   }
   &.chip-muted {
     background: rgba(221, 215, 205, 0.04);
-    color: #847c72;
+    color: $gray-400;
     border-color: rgba(221, 215, 205, 0.08);
   }
 }
@@ -371,13 +393,13 @@ footer {
   padding-bottom: 3rem;
   position: relative;
   background: #090806;
-  border-top: 1px solid rgba(107, 158, 120, 0.06);
+  border-top: 1px solid rgba(107, 158, 120, 0.3);
 
   .h5 {
     font-size: 0.7rem;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: rgba(201, 168, 76, 0.55);
+    color: $amber;
     font-weight: 600;
   }
 
@@ -403,7 +425,7 @@ footer {
 
 .footer-bar {
   background: #050403;
-  border-top: 1px solid rgba(107, 158, 120, 0.04);
+  border-top: 1px solid rgba(107, 158, 120, 0.2);
   padding: 0.8rem 0;
   color: rgba(221, 215, 205, 0.3);
   font-size: 0.78rem;
@@ -451,7 +473,7 @@ footer {
   .t-line { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .t-prompt { color: $amber; margin-right: 0.4rem; }
   .t-out { color: $gray-200; }
-  .t-comment { color: #665f56; }
+  .t-comment { color: $gray-500; }
   .t-key { color: $amber; }
   .t-val { color: $green-bright; }
   .t-cursor {
@@ -509,7 +531,7 @@ footer {
 
   .pr-url {
     font-size: 0.73rem;
-    color: #847c72;
+    color: $gray-400;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -539,7 +561,7 @@ footer {
     }
 
     .pr-meta-k {
-      color: #665f56;
+      color: $gray-500;
       text-transform: uppercase;
       font-size: 0.6rem;
       letter-spacing: 0.1em;
@@ -579,7 +601,7 @@ footer {
     left: 0.9rem;
     top: 50%;
     transform: translateY(-50%);
-    color: #665f56;
+    color: $gray-500;
     pointer-events: none;
     z-index: 2;
   }
@@ -593,14 +615,14 @@ footer {
     transition: border-color 200ms ease;
 
     &::placeholder {
-      color: #665f56;
+      color: $gray-500;
       font-style: normal;
     }
 
     &:focus {
       border-color: rgba(107, 158, 120, 0.4);
       box-shadow: 0 0 0 2px rgba(107, 158, 120, 0.1);
-      background: #13120e;
+      background: $card-bg;
     }
   }
 }
@@ -644,7 +666,7 @@ footer {
     font-weight: 600;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: rgba(201, 168, 76, 0.75);
+    color: $amber;
     font-family: $font-family-monospace;
   }
 }
@@ -662,7 +684,7 @@ footer {
     font-weight: 600;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: rgba(201, 168, 76, 0.75);
+    color: $amber;
     font-family: $font-family-monospace;
     border-bottom: 1px solid rgba(107, 158, 120, 0.1);
   }
@@ -673,7 +695,7 @@ footer {
     align-items: center;
     padding: 0.55rem 1rem;
     font-size: 0.85rem;
-    border-bottom: 1px solid rgba(107, 158, 120, 0.04);
+    border-bottom: 1px solid rgba(107, 158, 120, 0.2);
 
     &:last-child { border-bottom: none; }
 
@@ -700,7 +722,7 @@ footer {
     align-items: center;
     padding: 0.7rem 1rem;
     background: rgba(107, 158, 120, 0.04);
-    border-bottom: 1px solid rgba(107, 158, 120, 0.08);
+    border-bottom: 1px solid rgba(107, 158, 120, 0.3);
     flex-shrink: 0;
 
     .monitor-title {
@@ -728,7 +750,7 @@ footer {
       font-size: 0.7rem;
       letter-spacing: 0.06em;
       text-transform: uppercase;
-      color: #665f56;
+      color: $gray-500;
       font-weight: 500;
     }
 
@@ -770,13 +792,13 @@ footer {
   gap: 1rem;
   padding: 0.55rem 1rem;
   background: rgba(107, 158, 120, 0.04);
-  border: 1px solid rgba(107, 158, 120, 0.08);
+  border: 1px solid rgba(107, 158, 120, 0.3);
   border-radius: $border-radius;
   font-family: $font-family-monospace;
   font-size: 0.68rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(201, 168, 76, 0.75);
+  color: $amber;
   margin-bottom: 0.6rem;
 }
 
@@ -834,8 +856,8 @@ footer {
   .auth-visual-col {
     position: relative;
     overflow: hidden;
-    background: linear-gradient(145deg, #090806 0%, #0e0d0a 60%, #13120e 100%);
-    border-left: 1px solid rgba(107, 158, 120, 0.08);
+    background: linear-gradient(145deg, #090806 0%, #0e0d0a 60%, $card-bg 100%);
+    border-left: 1px solid rgba(107, 158, 120, 0.3);
 
     @media (max-width: 991px) { display: none; }
   }

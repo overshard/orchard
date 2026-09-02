@@ -101,7 +101,7 @@
 
 
 .bg-surface {
-  background: #13120e !important;
+  background: $card-bg !important;
 }
 
 .bg-surface-2 {
@@ -122,7 +122,7 @@
 }
 
 .text-muted {
-  color: #9e968a !important;
+  color: $gray-300 !important;
 }
 
 .text-green {
@@ -172,8 +172,6 @@
   }
 }
 
-.bg-teal-900 { background-color: #090806 !important; }
-.bg-teal-800 { background-color: #0e0d0a !important; }
 
 .link-footer {
   color: $gray-400;
@@ -245,8 +243,8 @@
 }
 
 .btn-outline-light {
-  border-color: rgba(221, 215, 205, 0.18);
-  color: $gray-200;
+  border-color: rgba(221, 215, 205, 0.28);
+  color: $gray-100;
 
   &:hover,
   &:focus {
@@ -310,7 +308,7 @@
 }
 
 .form-floating > label {
-  color: #665f56;
+  color: $gray-500;
 }
 
 .badge {
