@@ -43,7 +43,8 @@ type page struct {
 	AnalyticsID string
 	SiteName    string
 	SiteTagline string
-	FooterLinks []FooterLink
+	Crumb       string
+	Year        int
 	SourceURL   string
 	Canonical   string
 	AuthorName  string
@@ -66,7 +67,7 @@ func (s *site) page(r *http.Request, title, description string, data any) page {
 		AnalyticsID: analyticsID,
 		SiteName:    siteName,
 		SiteTagline: siteTagline,
-		FooterLinks: footerLinks,
+		Year:        time.Now().UTC().Year(),
 		SourceURL:   sourceURL,
 		Canonical:   baseURL + r.URL.Path,
 		AuthorName:  authorName,
@@ -85,8 +86,9 @@ func (s *site) pageForRepo(r *http.Request, rc *repoContext, title, description 
 }
 
 func (s *site) notFound(w http.ResponseWriter, r *http.Request) {
-	s.renderer.Render(w, http.StatusNotFound, "notfound.html",
-		s.page(r, "Not found", "", nil))
+	p := s.page(r, "404", "That page does not exist.", nil)
+	p.Crumb = "404"
+	s.renderer.Render(w, http.StatusNotFound, "notfound.html", p)
 }
 
 // requireLogin gates the routes that change something.
@@ -151,11 +153,27 @@ func (s *site) index(w http.ResponseWriter, r *http.Request) {
 		return cards[i].LastPush.After(cards[j].LastPush)
 	})
 
+	var totalSize int64
+	var mirrors int
+	var newest time.Time
+	for _, c := range cards {
+		totalSize += c.Size
+		if c.Mirror {
+			mirrors++
+		}
+		if c.LastPush.After(newest) {
+			newest = c.LastPush
+		}
+	}
+
 	s.renderer.Render(w, http.StatusOK, "index.html", s.page(r, "", siteTagline, map[string]any{
 		"Repos":     cards,
 		"HasTokens": s.db.HasTokens(),
 		"CloneURL":  strings.TrimSuffix(baseURL, "/"),
 		"Bridge":    containerName,
+		"TotalSize": totalSize,
+		"Mirrors":   mirrors,
+		"LastPush":  newest,
 	}))
 }
 
