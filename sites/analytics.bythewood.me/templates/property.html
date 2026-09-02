@@ -43,7 +43,7 @@
       <div class="col-12 col-lg-6 d-flex flex-wrap gap-2 justify-content-lg-end align-items-center d-print-none">
         {{ if $authed }}
         <form id="is-public-form" method="POST" action="/properties/{{ $p.ID }}/public" class="d-inline-flex align-items-center gap-2">
-          <span class="toggle-label" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Public properties are viewable by anyone with the URL — no login required.">Visibility</span>
+          <span class="toggle-label" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Anyone with the URL can view a public property, and no login is needed.">Visibility</span>
           <label class="toggle-pill">
             <input type="checkbox" name="is_public" id="is-public-switch" {{ if $p.IsPublic }}checked{{ end }}>
             <span class="toggle-pill-seg toggle-pill-private">Private</span>

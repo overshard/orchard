@@ -12,7 +12,7 @@
   serif wordmark beside it is doing the identifying regardless. Inline so it
   inherits currentColor and costs no request.
 */}}
-{{define "mark"}}<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="7" fill="currentColor"/></svg>{{end}}
+{{define "mark"}}<svg viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"><path d="M9 9v14"/><path d="M9 14h9a5 5 0 0 1 5 5v2"/><circle cx="9" cy="6" r="4.5" fill="currentColor" stroke="none"/><circle cx="9" cy="26" r="4.5" fill="currentColor" stroke="none"/><circle cx="23" cy="26" r="4.5" fill="currentColor" stroke="none"/></svg>{{end}}
 
 {{define "icon-dir"}}<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1.5 3.25A1.75 1.75 0 0 1 3.25 1.5h2.94c.46 0 .9.18 1.23.51l.87.87h4.46c.97 0 1.75.78 1.75 1.75v7.62a1.75 1.75 0 0 1-1.75 1.75H3.25a1.75 1.75 0 0 1-1.75-1.75V3.25Z"/></svg>{{end}}
 {{define "icon-file"}}<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M9.2 1.8H4.4a1.6 1.6 0 0 0-1.6 1.6v9.2a1.6 1.6 0 0 0 1.6 1.6h7.2a1.6 1.6 0 0 0 1.6-1.6V5.8Z"/><path d="M9.2 1.8v4h4"/></svg>{{end}}

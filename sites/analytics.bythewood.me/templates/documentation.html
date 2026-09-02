@@ -17,7 +17,7 @@
       <p class="docs-lead">
         All events are sent as JSON to a single <code>POST /collect/</code>
         endpoint. The site tag pushes page_view, click, scroll, and page_leave
-        automatically — everything else is a one-liner on
+        automatically, and everything else is a one-liner on
         <code>collectorQueue</code>, or a raw HTTP call from any language.
       </p>
     </div>
@@ -83,7 +83,7 @@
           </h2>
           <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour" data-bs-parent="#docsAccordion">
             <div class="accordion-body">
-              <p>The collector endpoint is plain JSON — any HTTP client
+              <p>The collector endpoint is plain JSON, so any HTTP client
                 will do. Include a valid <code>collector_id</code>,
                 <code>event</code>, and optional <code>data</code>.</p>
               <textarea class="codebox" rows="4" readonly>curl -X POST -H 'Content-Type: application/json' \

@@ -1,15 +1,66 @@
+{{define "hero"}}
+{{$d := .Data}}
+{{if not $.LoggedIn}}
+{{/*
+  The signed out view of this page is an advert for running the thing yourself,
+  so it opens the way the other sites here open. Signed in it is a working repo
+  list and the hero would be in the way every single visit.
+*/}}
+<section class="hero">
+  <div class="wrap">
+  <span class="hero-eyebrow">
+    <span class="eyebrow-dot" aria-hidden="true"></span>
+    {{len $d.Repos}} repositories &middot; self-hosted
+  </span>
+  <h1 class="hero-title">
+    A git remote for operators who host their <span class="accent">own code</span>.
+  </h1>
+  <p class="hero-sub">
+    Push over HTTPS with a token and a repository is created on arrival. Browse
+    branches, tags, files, diffs, and an Atom feed. Your data never leaves your
+    infrastructure.
+  </p>
+  <div class="hero-ctas">
+    <a href="#repositories" class="btn btn-primary">Browse repositories</a>
+    <a href="{{$.SourceURL}}" target="_blank" rel="noopener" class="btn btn-ghost">View source</a>
+  </div>
+  </div>
+</section>
+
+<section class="stat-strip">
+  <div class="wrap stat-row">
+  <div class="stat">
+    <div class="stat-label">repositories</div>
+    <div class="stat-value">{{len $d.Repos}}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">mirrored</div>
+    <div class="stat-value">{{$d.Mirrors}}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">total size</div>
+    <div class="stat-value">{{humanBytes $d.TotalSize}}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">last push</div>
+    <div class="stat-value stat-value-sm">{{humanTime $d.LastPush}}</div>
+  </div>
+  </div>
+</section>
+{{end}}
+{{end}}
+
 {{define "content"}}
 {{$d := .Data}}
 
-{{if not $d.HasTokens}}
+{{if and $.LoggedIn (not $d.HasTokens)}}
 <div class="notice">
   <strong>No push token yet.</strong>
-  {{if $.LoggedIn}}Mint one in <a href="/settings">Settings</a> before your first push.
-  {{else}}<a href="/login">Sign in</a> to mint one.{{end}}
+  Mint one in <a href="/settings">Settings</a> before your first push.
 </div>
 {{end}}
 
-<div class="pagehead">
+<div class="pagehead" id="repositories">
   <h1 class="pagetitle">Repositories <span class="count">{{len $d.Repos}}</span></h1>
   {{if $.LoggedIn}}{{template "firstpush" (dict "CloneURL" $d.CloneURL "Bridge" $d.Bridge "Name" "<name>")}}{{end}}
 </div>

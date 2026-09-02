@@ -15,15 +15,13 @@
         </h1>
         <p class="hero-sub">
           Page views, clicks, scrolls, sessions, and custom events. GeoIP maps,
-          UTM attribution, device and browser breakdowns, period-over-period
-          comparisons, and PDF reports. Collected through a single POST
-          endpoint you control. No third-party script, no hidden trackers,
-          no data leaving your infrastructure.
+          UTM attribution, device and browser breakdowns, and PDF reports. One
+          POST endpoint you run. Your data never leaves your infrastructure.
         </p>
         <div class="hero-ctas">
           <a href="/login" class="btn btn-primary">Access dashboard →</a>
           <a href="/documentation" class="btn btn-outline-light">Docs</a>
-          <a href="https://github.com/overshard/analytics" target="_blank" class="btn btn-outline-light">View source</a>
+          <a href="{{ .SourceURL }}" target="_blank" rel="noopener" class="btn btn-outline-light">View source</a>
         </div>
       </div>
       <div class="col-12 col-lg-5 mt-5 mt-lg-0 d-flex align-items-center">
@@ -46,19 +44,19 @@
       <div class="col-6 col-md-3">
         <div class="stat">
           <div class="stat-label">properties</div>
-          <div class="stat-value">{{ .TotalProperties }}</div>
+          <div class="stat-value">{{ num .TotalProperties }}</div>
         </div>
       </div>
       <div class="col-6 col-md-3">
         <div class="stat">
           <div class="stat-label">events logged</div>
-          <div class="stat-value">{{ .TotalEvents }}</div>
+          <div class="stat-value">{{ num .TotalEvents }}</div>
         </div>
       </div>
       <div class="col-6 col-md-3">
         <div class="stat">
           <div class="stat-label">operators</div>
-          <div class="stat-value">{{ .TotalUsers }}</div>
+          <div class="stat-value">{{ num .TotalUsers }}</div>
         </div>
       </div>
       <div class="col-6 col-md-3">
@@ -80,9 +78,9 @@
         <div class="feature-label">collection</div>
         <div class="feature-title">One-line site tag</div>
         <p class="feature-desc">
-          Drop a tiny async script in your <code>&lt;head&gt;</code>. It posts
-          session_start, page_view, click, scroll, and page_leave to one
-          endpoint. Custom events queue from any frontend code.
+          Drop a small async script in your <code>&lt;head&gt;</code>. It posts
+          page views, clicks, scrolls, sessions, and custom events to one
+          endpoint.
         </p>
       </div>
     </div>
@@ -91,9 +89,8 @@
         <div class="feature-label">attribution</div>
         <div class="feature-title">UTM + referrer tracking</div>
         <p class="feature-desc">
-          Slice traffic by source, medium, and campaign. Top referrers,
-          pages, and custom events rank in the dashboard with
-          period-over-period deltas baked in.
+          Slice traffic by source, medium, and campaign. Referrers, pages, and
+          custom events rank with period-over-period deltas.
         </p>
       </div>
     </div>
@@ -102,9 +99,9 @@
         <div class="feature-label">geo + device</div>
         <div class="feature-title">Maps, browsers, platforms</div>
         <p class="feature-desc">
-          A Natural Earth world map with click-through admin-1 drill-down.
-          Doughnut breakdowns for device, browser, platform, and screen
-          size. GeoIP runs locally, IPs never leave your host.
+          A Natural Earth world map with admin-1 drill-down, plus device,
+          browser, and platform breakdowns. GeoIP runs locally so addresses
+          stay on your host.
         </p>
       </div>
     </div>
@@ -113,9 +110,8 @@
         <div class="feature-label">reports</div>
         <div class="feature-title">Dashboard + PDF export</div>
         <p class="feature-desc">
-          Flip any date range to PDF or markdown with one click, rendered
-          in-process via embedded Typst (no chromium subprocess). Custom
-          cards pin bespoke metrics. A public toggle shares without a login.
+          Flip any date range to PDF or markdown in one click, rendered in
+          process by Typst. Custom cards pin whatever metric you want.
         </p>
       </div>
     </div>
@@ -124,22 +120,19 @@
         <div class="feature-label">schema</div>
         <div class="feature-title">Typed schema, JSON extras</div>
         <p class="feature-desc">
-          Hot fields (url, referrer, geo, UA, UTMs) live in typed columns
-          for fast queries. Custom keys land in an <code>extra</code> JSON
-          column, queryable via SQLite JSON1 (json_extract). Bot traffic
-          routes to a separate table at write time so human dashboards
-          never have to filter it.
+          Hot fields live in typed columns for fast queries, and custom keys
+          land in an <code>extra</code> JSON column. Bot traffic routes to its
+          own table at write time.
         </p>
       </div>
     </div>
     <div class="col-12 col-md-6 col-lg-4">
       <div class="feature">
         <div class="feature-label">stack</div>
-        <div class="feature-title">Built in Rust, ultralight</div>
+        <div class="feature-title">One Go binary and a file</div>
         <p class="feature-desc">
-          One statically linked Rust binary plus SQLite, shipped as a tiny
-          Alpine Docker image behind your own reverse proxy. Your domain,
-          your retention policy. No vendor, no pixel, no lock-in.
+          Go and SQLite, shipped as one small Alpine image behind your own
+          reverse proxy. Your domain, your retention policy.
         </p>
       </div>
     </div>
