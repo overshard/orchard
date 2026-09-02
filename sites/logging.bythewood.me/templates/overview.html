@@ -45,10 +45,10 @@
 
 <div class="container-fluid px-4 my-4">
 
-  {{/* The tiles. Records and errors are counts over the window; the two rates
-       are the numbers worth an alert rule, and they are separated on purpose:
-       an ERROR record is a program complaining, a 5xx is a visitor being told
-       no, and conflating them makes both useless. */}}
+  {{/* Records and errors are counts over the window, and the two rates are the
+       numbers worth an alert rule. They stay separate because an ERROR record
+       is a program complaining and a 5xx is a visitor being told no, and
+       conflating them makes both useless. */}}
   <div class="row g-3 mb-4">
     <div class="col-6 col-lg-2">{{ template "tile" dict "accent" "green" "label" "records" "value" (num .Totals.Records) "sub" (printf "%s requests" (num .Totals.Requests)) }}</div>
     <div class="col-6 col-lg-2">{{ template "tile" dict "accent" "terracotta" "quiet" (eq .Totals.Errors 0) "label" "error records" "value" (num .Totals.Errors) "sub" (printf "%s warnings" (num .Totals.Warnings)) }}</div>

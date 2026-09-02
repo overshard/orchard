@@ -14,7 +14,7 @@
      navbar with nothing in it. */}}
 {{ define "breadcrumb_bar" }}
 <div class="breadcrumb-bar py-2 overflow-auto d-print-none">
-  <div class="container-fluid px-4">
+  <div class="container">
     {{ template "breadcrumbs" . }}
   </div>
 </div>
@@ -52,7 +52,7 @@
 
 {{ define "nav" }}
 <nav class="navbar navbar-dark navbar-expand-md d-print-none">
-  <div class="container-fluid px-4">
+  <div class="container">
     <a class="navbar-brand" href="/">
       <span class="logo" aria-hidden="true">{{ template "logo" . }}</span>
       <span class="brand-text">{{ .SiteName }}</span>
@@ -92,16 +92,23 @@
 
 {{ define "footer" }}
 <footer class="d-print-none">
-  <div class="container-fluid px-4">
+  <div class="container">
     <div class="row links">
       <div class="col-12 col-lg-6 mb-4 mb-lg-0">
         <div class="h5 mb-3">// {{ .SiteName }}</div>
         <p>Self-hosted log aggregation by <a href="https://isaacbythewood.com/">{{ .AuthorName }}</a>.
-          Every site here ships its own structured records in process, over the
-          internal bridge and never over the tunnel. They land in SQLite, age
-          out on a schedule, and leave hourly counters behind.</p>
+          Every site here ships its own records over the internal bridge. They
+          land in SQLite, age out on a schedule, and leave counters behind.</p>
       </div>
-      <div class="col-6 col-lg-2 offset-lg-2">
+      <div class="col-6 col-lg-2">
+        <div class="h5 mb-3">// Elsewhere</div>
+        <ul class="list-unstyled">
+          <li class="mb-2"><a href="https://isaacbythewood.com/" class="link-footer">Portfolio</a></li>
+          <li class="mb-2"><a href="https://blog.bythewood.me/" class="link-footer">Blog</a></li>
+          <li class="mb-2"><a href="https://github.com/overshard" class="link-footer" target="_blank" rel="noopener">GitHub</a></li>
+        </ul>
+      </div>
+      <div class="col-6 col-lg-2">
         <div class="h5 mb-3">// Pages</div>
         <ul class="list-unstyled">
           <li class="mb-2"><a href="/" class="link-footer">Home</a></li>
@@ -126,7 +133,7 @@
 </footer>
 
 <div class="footer-bar d-print-none">
-  <div class="container-fluid px-4">
+  <div class="container">
     <div class="row align-items-center">
       <div class="col-sm-6 d-flex align-items-center justify-content-center justify-content-sm-start order-1 order-sm-0">
         <small>&copy; {{ .Year }} {{ .AuthorName }} · Some rights reserved · All times UTC</small>

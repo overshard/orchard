@@ -39,6 +39,9 @@
         <span class="sep">/</span>
         <span class="here"><a href="/{{.RepoName}}">{{.RepoName}}</a></span>
         {{if .RepoRev}}<span class="ref">{{.RepoRev}}</span>{{end}}
+      {{else if .Crumb}}
+        <span class="sep">/</span>
+        <span class="here">{{.Crumb}}</span>
       {{end}}
     </div>
 
@@ -53,6 +56,8 @@
   </div>
 </header>
 
+{{block "hero" .}}{{end}}
+
 <main class="wrap">
 {{template "content" .}}
 </main>
@@ -61,38 +66,57 @@
   <div class="wrap">
     <div class="cols">
       <div class="about">
-        <span class="mark">{{template "mark"}} repos</span>
+        <div class="h5">// {{.SiteName}}</div>
         {{/*
-          Deliberately says what the site is for and nothing about how it is
-          built or where it runs. An earlier version named the stack, the host
-          and the absent features; none of that helps a visitor and all of it
-          narrows an attacker's guesswork.
+          Says what the site is for and nothing about how it is built or where
+          it runs. None of that helps a visitor and all of it narrows an
+          attacker's guesswork.
         */}}
-        <p>{{.AuthorName}}'s code, kept and served here. Clone anything; browse the history.</p>
+        <p>{{.AuthorName}}'s code, kept and served here. Clone anything, browse the history.</p>
       </div>
 
       <div>
-        <h4>Elsewhere</h4>
+        <div class="h5">// Elsewhere</div>
         <ul>
-          {{range .FooterLinks}}<li><a href="{{.Href}}">{{.Label}}</a></li>{{end}}
+          <li><a href="https://isaacbythewood.com/">Portfolio</a></li>
+          <li><a href="https://blog.bythewood.me/">Blog</a></li>
+          <li><a href="https://github.com/overshard" target="_blank" rel="noopener">GitHub</a></li>
         </ul>
       </div>
 
       <div>
-        <h4>This site</h4>
+        <div class="h5">// Pages</div>
         <ul>
           <li><a href="/">All repositories</a></li>
-          {{if .LoggedIn}}<li><a href="/settings">Push tokens</a></li>{{else}}<li><a href="/login">Sign in</a></li>{{end}}
-          <li><a href="{{.SourceURL}}">Source</a></li>
+          <li><a href="{{.SourceURL}}" target="_blank" rel="noopener">Source</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <div class="h5">// Operator</div>
+        <ul>
+          {{if .LoggedIn}}
+          <li><a href="/settings">Push tokens</a></li>
+          <li><a href="https://auth.bythewood.me/">Account</a></li>
+          {{else}}
+          <li><a href="/login">Sign in</a></li>
+          {{end}}
         </ul>
       </div>
     </div>
-
-    <p class="colophon">
-      <span>&copy; {{.AuthorName}}</span>
-    </p>
   </div>
 </footer>
+
+<div class="footer-bar">
+  <div class="wrap">
+    <small>&copy; {{.Year}} {{.AuthorName}} &middot; Some rights reserved</small>
+    <a href="{{.SourceURL}}" target="_blank" rel="noopener" class="footer-bar-link" aria-label="GitHub">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+      </svg>
+    </a>
+  </div>
+</div>
 
 {{if .Script}}<script type="module" src="{{.Script}}"></script>{{end}}
 </body>

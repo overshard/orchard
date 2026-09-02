@@ -46,7 +46,6 @@
         <li class="nav-item"><a class="nav-link {{ if eq .Path "/properties" }}active{{ end }}" href="/properties">Properties</a></li>
         {{ else }}
         <li class="nav-item"><a class="nav-link {{ if eq .Path "/" }}active{{ end }}" href="/">Home</a></li>
-        <li class="nav-item"><a class="nav-link {{ if eq .Path "/changelog" }}active{{ end }}" href="/changelog">Changelog</a></li>
         {{ end }}
       </ul>
       <ul class="navbar-nav ms-auto">
@@ -74,14 +73,21 @@
       <div class="col-12 col-lg-6 mb-4 mb-lg-0">
         <div class="h5 mb-3">// {{ .SiteName }}</div>
         <p>Self-hosted website monitoring by <a href="https://isaacbythewood.com/">{{ .AuthorName }}</a>.
-          HTTP checks every three minutes, Lighthouse audits, SEO crawler,
-          security header analysis. Alerts by ntfy. Own your uptime.</p>
+          HTTP checks every three minutes, with Lighthouse audits, an SEO
+          crawler, and security header analysis. Alerts go out over ntfy.</p>
       </div>
-      <div class="col-6 col-lg-2 offset-lg-2">
+      <div class="col-6 col-lg-2">
+        <div class="h5 mb-3">// Elsewhere</div>
+        <ul class="list-unstyled">
+          <li class="mb-2"><a href="https://isaacbythewood.com/" class="link-footer">Portfolio</a></li>
+          <li class="mb-2"><a href="https://blog.bythewood.me/" class="link-footer">Blog</a></li>
+          <li class="mb-2"><a href="https://github.com/overshard" class="link-footer" target="_blank" rel="noopener">GitHub</a></li>
+        </ul>
+      </div>
+      <div class="col-6 col-lg-2">
         <div class="h5 mb-3">// Pages</div>
         <ul class="list-unstyled">
           <li class="mb-2"><a href="/" class="link-footer">Home</a></li>
-          <li class="mb-2"><a href="/changelog" class="link-footer">Changelog</a></li>
           <li class="mb-2"><a href="{{ .SourceURL }}" class="link-footer" target="_blank" rel="noopener">Source</a></li>
         </ul>
       </div>
