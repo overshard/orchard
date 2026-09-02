@@ -321,12 +321,14 @@ next.
 **A card whose market shut gets its dead stretch marked.** The VIX stops at the
 bell and the seven cards beside it keep trading, so it ends its line about 60%
 across an evening card, and an empty right hand third on one of eight reads as a
-broken card rather than a closed market. The empty part takes a recessed scrim and
-a faint dashed rule at the last print, and the amber cursor is dropped, since on
-every other card that cursor means here is now and it would be saying the opposite
-thing in the same place. A card only counts as shut once it is more than half an
-hour behind the latest bar anywhere on the strip, because the futures normally
-trail bitcoin by about ten minutes without either having stopped.
+broken card rather than a closed market. It takes a faint dashed rule at the last
+print and the amber cursor is dropped, since on every other card that cursor means
+here is now and it would be saying the opposite thing in the same place. The space
+right of the rule is left alone, because the dotted baseline already runs the width
+of the card and a filled block there shouted over everything else on the page. A
+card only counts as shut once it is more than half an hour behind the latest bar
+anywhere on the strip, because the futures normally trail bitcoin by about ten
+minutes without either having stopped.
 
 **The previous close comes off the bars for anything that trades around the
 clock.** Yahoo dates bitcoin's day by UTC and a future's by its contract, so

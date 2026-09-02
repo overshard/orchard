@@ -525,18 +525,12 @@ main {
     vector-effect: non-scaling-stroke;
   }
 
-  // Hours this card's market was shut while the rest of the strip kept trading,
-  // which is every night for the VIX. It is deliberately not amber, because the
-  // amber rule above means the opposite thing and the two sit at the same place
-  // on the card.
-  .spark-dead {
-    fill: var(--void);
-    opacity: 0.75;
-    stroke: none;
-  }
-
-  // Same dashed rule as the live cursor so it reads as a deliberate variant, in
-  // faint rather than amber because it means the opposite thing.
+  // Where this card's market shut while the rest of the strip kept trading, which
+  // is every night for the VIX. Same dashed rule as the live cursor so it reads
+  // as a deliberate variant, in faint rather than amber because it means the
+  // opposite thing. The space right of it is left alone, since the dotted
+  // baseline already runs the width of the card and a filled block there shouted
+  // over everything else on the page.
   .spark-shut {
     stroke: var(--faint);
     stroke-width: 1;
