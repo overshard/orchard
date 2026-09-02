@@ -287,9 +287,83 @@ func TestTheFastPollCarriesOnlyTheStrip(t *testing.T) {
 
 	// Two batches at thirty seconds is 240 requests an hour, and the budget
 	// has to leave room for the slower polls beside it.
-	batches := (len(sparkSymbols()) + sparkBatch - 1) / sparkBatch
+	session, extended := splitStrip()
+	batches := (len(session)+sparkBatch-1)/sparkBatch + (len(extended)+sparkBatch-1)/sparkBatch
 	if perHour := batches * 120; perHour > budgets["yahoo"].perHour/2 {
 		t.Errorf("the fast poll alone would spend %d of a %d budget", perHour, budgets["yahoo"].perHour)
+	}
+}
+
+// The strip goes out as two requests now, and each half still has to fit the
+// endpoint's symbol limit or it answers 400 rather than truncating.
+func TestSplitStripCoversTheWholeStripInAcceptableBatches(t *testing.T) {
+	session, extended := splitStrip()
+
+	seen := map[string]bool{}
+	for _, half := range [][]string{session, extended} {
+		if len(half) > sparkBatch {
+			t.Errorf("half of %d symbols needs batching past the limit of %d", len(half), sparkBatch)
+		}
+		for _, s := range half {
+			seen[s] = true
+		}
+	}
+
+	for _, s := range sparkSymbols() {
+		if !seen[s] {
+			t.Errorf("%s is in neither half of the strip fetch", s)
+		}
+	}
+	for _, s := range session {
+		if roundClock(s) {
+			t.Errorf("%s trades around the clock and needs the wider range", s)
+		}
+	}
+}
+
+// A cash index keeps Yahoo's own previous close, which is already the 4pm one
+// and is what every other site quotes. Only the symbols Yahoo dates by UTC or by
+// contract get the close read off their bars.
+func TestBuildMarketOnlyRecomputesThePreviousCloseForRoundTheClockSymbols(t *testing.T) {
+	et := easternTime()
+	open := time.Date(2026, 8, 31, 9, 30, 0, 0, et)
+	now := open.Add(2 * time.Hour)
+
+	series := func(from time.Time, n int, price float64) ([]float64, []int64) {
+		var closes []float64
+		var times []int64
+		for i := range n {
+			closes = append(closes, price)
+			times = append(times, from.Add(time.Duration(i)*30*time.Minute).Unix())
+		}
+		return closes, times
+	}
+
+	// A day of bars before the open at 50, then the session itself at 100.
+	oldCloses, oldTimes := series(open.AddDate(0, 0, -1), 20, 50)
+	newCloses, newTimes := series(open, 4, 100)
+
+	quotes := map[string]Quote{
+		"^GSPC": {
+			Symbol: "^GSPC", Price: 100, Previous: 80, AsOf: now,
+			Closes: append(oldCloses, newCloses...), Times: append(oldTimes, newTimes...),
+		},
+		"BTC-USD": {
+			Symbol: "BTC-USD", Price: 100, Previous: 80, AsOf: now,
+			Closes: append(oldCloses, newCloses...), Times: append(oldTimes, newTimes...),
+		},
+	}
+
+	cards := map[string]Card{}
+	for _, c := range buildMarket(quotes, now).Cards {
+		cards[c.Key] = c
+	}
+
+	if got := cards["sp500"].Percent; got != "+25.00%" {
+		t.Errorf("the S&P measured %s, want +25.00%% off Yahoo's own 80", got)
+	}
+	if got := cards["bitcoin"].Percent; got != "+100.00%" {
+		t.Errorf("bitcoin measured %s, want +100.00%% off 4pm yesterday's 50", got)
 	}
 }
 
@@ -352,5 +426,69 @@ func TestTabTickerSkipsAnUnavailableCard(t *testing.T) {
 	m := Market{Session: "closed", Cards: []Card{{Key: "bitcoin", Unavailable: true}}}
 	if got := tabTicker(m); got != "" {
 		t.Errorf("tabTicker = %q, want nothing", got)
+	}
+}
+
+// The eight cards are read across, so the right edge of one has to mean the same
+// hour as the right edge of the next. Bitcoin trades through the evening and the
+// VIX stops at the bell, and without a shared end both would fill their card.
+func TestStripAxisSharesOneWindowAndLeavesAFrozenCardShort(t *testing.T) {
+	et := easternTime()
+	open := time.Date(2026, 8, 31, 9, 30, 0, 0, et)
+	now := open.Add(11 * time.Hour)
+
+	series := func(until time.Time) ([]float64, []int64) {
+		var closes []float64
+		var times []int64
+		for at := open.AddDate(0, 0, -1); !at.After(until); at = at.Add(15 * time.Minute) {
+			closes = append(closes, 100)
+			times = append(times, at.Unix())
+		}
+		return closes, times
+	}
+
+	vixCloses, vixTimes := series(open.Add(regularHours))
+	btcCloses, btcTimes := series(now)
+
+	quotes := map[string]Quote{
+		"^VIX":    {Symbol: "^VIX", Price: 100, Previous: 100, AsOf: now, Closes: vixCloses, Times: vixTimes},
+		"BTC-USD": {Symbol: "BTC-USD", Price: 100, Previous: 100, AsOf: now, Closes: btcCloses, Times: btcTimes},
+	}
+
+	cards := map[string]Card{}
+	for _, c := range buildMarket(quotes, now).Cards {
+		cards[c.Key] = c
+	}
+
+	if got := cards["bitcoin"].Spark.Span; got < 99 {
+		t.Errorf("bitcoin is still printing and spans %v, want the full card", got)
+	}
+	if got := cards["vix"].Spark.Span; got < 55 || got > 65 {
+		t.Errorf("the VIX stopped at 4pm of an 11 hour window and spans %v, want about 59", got)
+	}
+	if !cards["vix"].Spark.Partial {
+		t.Error("a card that stopped short needs its cursor")
+	}
+}
+
+// A card whose last session is a different day from the rest keeps its own
+// window, or a VIX frozen on Friday would be stretched across the weekend.
+func TestStripAxisLeavesAStaleCardOnItsOwnSession(t *testing.T) {
+	et := easternTime()
+	friday := time.Date(2026, 8, 28, 9, 30, 0, 0, et)
+	monday := time.Date(2026, 8, 31, 9, 30, 0, 0, et)
+
+	stale := tradingAxis{start: friday.Unix(), end: friday.Add(regularHours).Unix(), ok: true}
+	live := tradingAxis{start: monday.Unix(), end: monday.Add(8 * time.Hour).Unix(), ok: true}
+
+	strip := stripAxis([]stripRow{{axis: stale}, {axis: live}})
+	if strip.start != live.start || strip.end != live.end {
+		t.Fatalf("strip window is %v, want Monday's", strip)
+	}
+	if got := (stripRow{axis: stale}).axisOr(strip); got != stale {
+		t.Errorf("the stale card took the strip's window, want its own Friday")
+	}
+	if got := (stripRow{axis: live}).axisOr(strip); got != strip {
+		t.Errorf("a card on the current session should take the shared window")
 	}
 }

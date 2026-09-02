@@ -310,11 +310,35 @@ idle drop.
 **Caddy's `encode` takes a matcher in this site's block** rather than the
 blanket one in `(site)`, because a compressed `text/event-stream` buffers.
 
-**Yahoo will return two closes for a symbol that had 287 a minute earlier.**
-Seen on BTC-USD. `carrySparks` keeps the previous shape when a poll comes back
-with fewer than five points and the last one had more, within one symbol and one
-trading day so a card never shows yesterday's chart or the other instrument's.
-Only the shape is held back, the price and the percent are always fresh.
+**Every card on the strip is drawn against one New York trading day.** It runs
+9:30 to 16:00 and rolls at the open rather than at midnight, weekends included,
+so gold and crude and bitcoin reset in the morning with the exchanges instead of
+whenever Yahoo thinks their day starts. Bars before the open are dropped and
+whatever prints after the close stretches the window, and the eight cards share
+one window so the right edge of one means the same hour as the right edge of the
+next. A card that stopped early keeps its cursor short, which is what the VIX
+does every night.
+
+**The previous close comes off the bars for anything that trades around the
+clock.** Yahoo dates bitcoin's day by UTC and a future's by its contract, so
+their own `chartPreviousClose` measures from a different moment than the S&P's
+and the eight cards disagree about what day it is. The four cash indexes and the
+VIX keep Yahoo's number, since theirs is already the 4pm one and it is what every
+other site quotes.
+
+**The strip goes out as two requests, at two ranges.** The cash indexes only need
+the day they are in, and everything else needs enough history to find 4pm
+yesterday, which over a weekend is three days back. `1d` and `5d`, and it is
+still two batches because the split lands under the ten symbol limit either way.
+
+**`range=1d` for BTC-USD is the UTC day and not the last 24 hours.** It rolls at
+8pm New York, so a poll at 8:05pm came back with six bars and drew a straight
+line across the card. That is what `carrySparks` was written for, and the wider
+range fixes it at the source, but it stays as a guard against Yahoo genuinely
+having a moment. It keeps the previous shape when a poll returns fewer than five
+points and the last one had more, within one symbol and one trading day so a card
+never shows yesterday's chart or the other instrument's. Only the shape is held
+back, the price and the percent are always fresh.
 
 ## Signing in
 

@@ -149,7 +149,7 @@ func TestBuildSparkDrawsAgainstTheWholeSession(t *testing.T) {
 		times = append(times, open.Add(time.Duration(i)*5*time.Minute).Unix())
 	}
 
-	s := buildSpark(closes, times, 100, axisFor("^GSPC", times))
+	s := buildSpark(closes, times, 100, sessionAxis(times))
 	if !s.Partial {
 		t.Error("an hour into the session is a partial day")
 	}
@@ -170,25 +170,134 @@ func TestBuildSparkFillsTheCardOnAFinishedSession(t *testing.T) {
 		times = append(times, open.Add(time.Duration(i)*5*time.Minute).Unix())
 	}
 
-	s := buildSpark(closes, times, 100, axisFor("^GSPC", times))
+	s := buildSpark(closes, times, 100, sessionAxis(times))
 	if s.Partial {
 		t.Errorf("a full session should fill the card, span = %v", s.Span)
 	}
 }
 
-// Yahoo returns a calendar day for a futures symbol rather than a CME session,
-// so there is no window to lay those bars over and they take the full width.
-func TestAxisForFuturesHasNoSession(t *testing.T) {
+// Every card is on the New York trading day now, so a future and bitcoin lay
+// their bars over the same 9:30 to 16:00 window a cash index does. They used to
+// take the full width, which made an hour of bitcoin look like a whole day
+// beside an hour of the S&P.
+func TestSessionAxisIsTheSameForEveryInstrument(t *testing.T) {
 	et := easternTime()
-	morning := time.Date(2026, 8, 31, 9, 0, 0, 0, et)
-	if axisFor("ES=F", []int64{morning.Unix()}).ok {
-		t.Error("ES=F should draw across the full width")
+	open := time.Date(2026, 8, 31, 9, 30, 0, 0, et)
+
+	var times []int64
+	for i := range 13 {
+		times = append(times, open.Add(time.Duration(i)*5*time.Minute).Unix())
+	}
+
+	axis := sessionAxis(times)
+	if !axis.ok {
+		t.Fatal("a morning of bars should have a session to draw against")
+	}
+	if got := time.Unix(axis.start, 0).In(et); !got.Equal(open) {
+		t.Errorf("axis opens at %v, want %v", got, open)
+	}
+	if got := time.Unix(axis.end, 0).In(et); !got.Equal(open.Add(regularHours)) {
+		t.Errorf("axis shuts at %v, want 16:00", got)
 	}
 }
 
-// Crypto never closes, so there is no session to leave room for.
-func TestAxisForCryptoHasNoSession(t *testing.T) {
-	if axisFor("BTC-USD", []int64{time.Now().Unix()}).ok {
-		t.Error("BTC-USD should draw across the full width")
+// The trading day rolls at the open and not at midnight, so a bar printed at 2am
+// belongs to the session that started the morning before.
+func TestSessionStartRollsAtTheOpen(t *testing.T) {
+	et := easternTime()
+	cases := []struct{ at, want string }{
+		{"2026-08-31 09:29", "2026-08-30 09:30"},
+		{"2026-08-31 09:30", "2026-08-31 09:30"},
+		{"2026-08-31 23:59", "2026-08-31 09:30"},
+		{"2026-09-01 02:00", "2026-08-31 09:30"},
+	}
+	for _, c := range cases {
+		in, err := time.ParseInLocation("2006-01-02 15:04", c.at, et)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := sessionStart(in).Format("2006-01-02 15:04"); got != c.want {
+			t.Errorf("%s belongs to session %s, want %s", c.at, got, c.want)
+		}
+	}
+}
+
+// The VIX prints from 3:15am and those bars used to be clamped onto x=0, which
+// drew a vertical smear up the left of the card instead of a line.
+func TestSessionBarsDropsAnythingBeforeTheOpen(t *testing.T) {
+	et := easternTime()
+	open := time.Date(2026, 8, 31, 9, 30, 0, 0, et)
+
+	var closes []float64
+	var times []int64
+	for i := range 10 {
+		closes = append(closes, float64(i))
+		times = append(times, open.Add(time.Duration(i-5)*30*time.Minute).Unix())
+	}
+
+	kept, kepts, axis := sessionBars(closes, times, sessionAxis(times))
+	if !axis.ok {
+		t.Fatal("bars inside the session should keep the window")
+	}
+	if len(kept) != 5 || len(kepts) != 5 {
+		t.Fatalf("kept %d bars, want the 5 from the open on", len(kept))
+	}
+	if kepts[0] != open.Unix() {
+		t.Errorf("first kept bar is %v, want the open", time.Unix(kepts[0], 0).In(et))
+	}
+}
+
+// Futures reopen at 6pm Sunday, hours before the Monday open their session
+// belongs to, so there is nothing to lay over Sunday's window and they take the
+// full width the way everything used to.
+func TestSessionBarsFallsBackWhenNothingPrintedInTheSession(t *testing.T) {
+	et := easternTime()
+	// 2026-08-30 is a Sunday.
+	reopen := time.Date(2026, 8, 30, 18, 0, 0, 0, et)
+
+	var closes []float64
+	var times []int64
+	for i := range 12 {
+		closes = append(closes, float64(i))
+		times = append(times, reopen.Add(time.Duration(i)*5*time.Minute).Unix())
+	}
+
+	if _, _, axis := sessionBars(closes, times, sessionAxis(times)); axis.ok {
+		t.Error("an evening reopen has no session box, so it should draw full width")
+	}
+}
+
+// Yahoo dates bitcoin's day by UTC and a future's by its contract, so the close
+// each card measures from has to come off the bars instead.
+func TestPreviousSessionCloseIsFourPMTheDayBefore(t *testing.T) {
+	et := easternTime()
+	open := time.Date(2026, 8, 31, 9, 30, 0, 0, et)
+	prevClose := time.Date(2026, 8, 30, 16, 0, 0, 0, et)
+
+	var closes []float64
+	var times []int64
+	// Every half hour across the previous day and into the session.
+	for at := prevClose.Add(-3 * time.Hour); at.Before(open.Add(time.Hour)); at = at.Add(30 * time.Minute) {
+		closes = append(closes, float64(at.Unix()))
+		times = append(times, at.Unix())
+	}
+
+	got, found := previousSessionClose(closes, times, open)
+	if !found {
+		t.Fatal("a full previous day should have a close in it")
+	}
+	if int64(got) != prevClose.Unix() {
+		t.Errorf("previous close taken from %v, want %v",
+			time.Unix(int64(got), 0).In(et), prevClose)
+	}
+}
+
+func TestPreviousSessionCloseMissingIsReported(t *testing.T) {
+	et := easternTime()
+	open := time.Date(2026, 8, 31, 9, 30, 0, 0, et)
+	times := []int64{open.Unix(), open.Add(time.Hour).Unix()}
+
+	if _, found := previousSessionClose([]float64{1, 2}, times, open); found {
+		t.Error("bars that all fall inside the session carry no previous close")
 	}
 }
