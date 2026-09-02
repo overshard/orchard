@@ -316,8 +316,17 @@ so gold and crude and bitcoin reset in the morning with the exchanges instead of
 whenever Yahoo thinks their day starts. Bars before the open are dropped and
 whatever prints after the close stretches the window, and the eight cards share
 one window so the right edge of one means the same hour as the right edge of the
-next. A card that stopped early keeps its cursor short, which is what the VIX
-does every night.
+next.
+
+**A card whose market shut gets its dead stretch marked.** The VIX stops at the
+bell and the seven cards beside it keep trading, so it ends its line about 60%
+across an evening card, and an empty right hand third on one of eight reads as a
+broken card rather than a closed market. The empty part takes a recessed scrim and
+a faint dashed rule at the last print, and the amber cursor is dropped, since on
+every other card that cursor means here is now and it would be saying the opposite
+thing in the same place. A card only counts as shut once it is more than half an
+hour behind the latest bar anywhere on the strip, because the futures normally
+trail bitcoin by about ten minutes without either having stopped.
 
 **The previous close comes off the bars for anything that trades around the
 clock.** Yahoo dates bitcoin's day by UTC and a future's by its contract, so

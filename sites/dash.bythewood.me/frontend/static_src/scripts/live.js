@@ -89,7 +89,12 @@ function sparkNode(spark) {
     );
   }
   root.append(svg("path", { class: "spark-line", d: spark.line }));
-  if (spark.partial) {
+  if (spark.closed) {
+    root.append(
+      svg("rect", { class: "spark-dead", x: spark.span, y: 0, width: spark.dead_width, height: 32 }),
+      svg("line", { class: "spark-shut", x1: spark.span, x2: spark.span, y1: 0, y2: 32 }),
+    );
+  } else if (spark.partial) {
     root.append(
       svg("line", { class: "spark-now", x1: spark.span, x2: spark.span, y1: 0, y2: 32 }),
     );
@@ -163,19 +168,50 @@ function patchCard(card, data) {
     setAttr(base, "y2", spark.baseline);
   }
 
-  // The cursor appears when a session opens and goes when it fills the card, so
-  // it has to be added and removed rather than only moved.
+  // The cursor appears when a session opens and goes when it fills the card, and
+  // it swaps for the closed marking when that card's market shuts while the rest
+  // of the strip keeps going, so all three have to be added and removed rather
+  // than only moved.
   const svgRoot = card.querySelector(".spark");
-  let now = card.querySelector(".spark-now");
-  if (spark.partial && svgRoot) {
-    if (!now) {
-      now = svg("line", { class: "spark-now", y1: 0, y2: 32 });
-      svgRoot.append(now);
+  if (!svgRoot) return;
+
+  const marker = (cls, make) => {
+    let node = card.querySelector("." + cls);
+    if (!node) {
+      node = make();
+      svgRoot.append(node);
     }
+    return node;
+  };
+  const drop = (cls) => card.querySelector("." + cls)?.remove();
+
+  if (spark.closed) {
+    drop("spark-now");
+    const dead = marker("spark-dead", () =>
+      svg("rect", { class: "spark-dead", y: 0, height: 32 }),
+    );
+    setAttr(dead, "x", spark.span);
+    setAttr(dead, "width", spark.dead_width);
+
+    const shut = marker("spark-shut", () =>
+      svg("line", { class: "spark-shut", y1: 0, y2: 32 }),
+    );
+    setAttr(shut, "x1", spark.span);
+    setAttr(shut, "x2", spark.span);
+    return;
+  }
+
+  drop("spark-dead");
+  drop("spark-shut");
+
+  if (spark.partial) {
+    const now = marker("spark-now", () =>
+      svg("line", { class: "spark-now", y1: 0, y2: 32 }),
+    );
     setAttr(now, "x1", spark.span);
     setAttr(now, "x2", spark.span);
-  } else if (now) {
-    now.remove();
+  } else {
+    drop("spark-now");
   }
 }
 

@@ -43,7 +43,8 @@
   <path class="spark-area" d="{{path .Area}}"></path>
   {{if .HasBase}}<line class="spark-base" x1="0" x2="100" y1="{{.Baseline}}" y2="{{.Baseline}}"></line>{{end}}
   <path class="spark-line" d="{{path .Line}}"></path>
-  {{if .Partial}}<line class="spark-now" x1="{{.Span}}" x2="{{.Span}}" y1="0" y2="32"></line>{{end}}
+  {{if .Closed}}<rect class="spark-dead" x="{{.Span}}" y="0" width="{{.DeadWidth}}" height="32"></rect><line class="spark-shut" x1="{{.Span}}" x2="{{.Span}}" y1="0" y2="32"></line>
+  {{else if .Partial}}<line class="spark-now" x1="{{.Span}}" x2="{{.Span}}" y1="0" y2="32"></line>{{end}}
   {{end}}
 </svg>
 {{end}}

@@ -415,6 +415,33 @@ func stripAxis(rows []stripRow) tradingAxis {
 	return strip
 }
 
+// stripLive is the most recent bar anywhere on the strip, which is the edge a
+// card has to reach to count as still trading. The axis end cannot stand in for
+// it, since through the session that is the scheduled 16:00 and every card is
+// short of it without any of them having stopped.
+func stripLive(rows []stripRow) int64 {
+	var live int64
+	for _, r := range rows {
+		if n := len(r.times); n > 0 && r.times[n-1] > live {
+			live = r.times[n-1]
+		}
+	}
+	return live
+}
+
+// Bars are five minutes apart and the symbols do not all print on the same tick,
+// so a card counts as shut only once it is further behind than that spread. Half
+// an hour clears the ten minutes the futures usually trail bitcoin by.
+const shutAfter = 30 * time.Minute
+
+func (r stripRow) shutBy(live int64) bool {
+	n := len(r.times)
+	if live == 0 || n == 0 {
+		return false
+	}
+	return live-r.times[n-1] > int64(shutAfter/time.Second)
+}
+
 // buildMarket turns a quote map into the panel. now is a parameter so the
 // session boundaries are testable without waiting for one.
 func buildMarket(quotes map[string]Quote, now time.Time) Market {
@@ -436,6 +463,7 @@ func buildMarket(quotes map[string]Quote, now time.Time) Market {
 
 	rows := resolveRows(quotes, useFutures)
 	axis := stripAxis(rows)
+	live := stripLive(rows)
 
 	m := Market{Session: session, Phase: phase}
 	for _, r := range rows {
@@ -447,6 +475,12 @@ func buildMarket(quotes map[string]Quote, now time.Time) Market {
 		}
 
 		q := r.quote
+		spark := buildSpark(r.closes, r.times, q.Previous, r.axisOr(axis))
+		if r.shutBy(live) && spark.Span < sparkWidth {
+			spark.Closed = true
+			spark.DeadWidth = round2(sparkWidth - spark.Span)
+		}
+
 		change, pct := q.change(), q.percent()
 		m.Cards = append(m.Cards, Card{
 			Key:       r.in.Key,
@@ -457,7 +491,7 @@ func buildMarket(quotes map[string]Quote, now time.Time) Market {
 			Percent:   signed(pct, 2) + "%",
 			Direction: direction(change),
 			Note:      r.note,
-			Spark:     buildSpark(r.closes, r.times, q.Previous, r.axisOr(axis)),
+			Spark:     spark,
 			asOf:      q.AsOf,
 		})
 	}
