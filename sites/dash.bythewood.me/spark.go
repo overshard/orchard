@@ -39,6 +39,13 @@ type Spark struct {
 	// how much of the day has happened.
 	Span    float64 `json:"span"`
 	Partial bool    `json:"partial"`
+
+	// A card whose market shut while the rest of the strip kept trading, and how
+	// much of the box that leaves empty. The VIX stops at the bell every night
+	// with seven cards beside it still moving, and an empty right hand third on
+	// one of eight reads as a broken card unless something says otherwise.
+	Closed    bool    `json:"closed"`
+	DeadWidth float64 `json:"dead_width"`
 }
 
 // buildSpark scales closes into the viewBox. previous is included in the range

@@ -524,6 +524,25 @@ main {
     opacity: 0.5;
     vector-effect: non-scaling-stroke;
   }
+
+  // Hours this card's market was shut while the rest of the strip kept trading,
+  // which is every night for the VIX. It is deliberately not amber, because the
+  // amber rule above means the opposite thing and the two sit at the same place
+  // on the card.
+  .spark-dead {
+    fill: var(--void);
+    opacity: 0.75;
+    stroke: none;
+  }
+
+  // Same dashed rule as the live cursor so it reads as a deliberate variant, in
+  // faint rather than amber because it means the opposite thing.
+  .spark-shut {
+    stroke: var(--faint);
+    stroke-width: 1;
+    stroke-dasharray: 2 3;
+    vector-effect: non-scaling-stroke;
+  }
 }
 
 // Feeds ----------------------------------------------------------------------

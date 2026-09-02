@@ -466,8 +466,35 @@ func TestStripAxisSharesOneWindowAndLeavesAFrozenCardShort(t *testing.T) {
 	if got := cards["vix"].Spark.Span; got < 55 || got > 65 {
 		t.Errorf("the VIX stopped at 4pm of an 11 hour window and spans %v, want about 59", got)
 	}
-	if !cards["vix"].Spark.Partial {
-		t.Error("a card that stopped short needs its cursor")
+	if !cards["vix"].Spark.Closed {
+		t.Error("the VIX shut at the bell and its dead stretch has to be marked")
+	}
+	if got := cards["vix"].Spark.DeadWidth; got < 35 || got > 45 {
+		t.Errorf("dead stretch is %v wide, want about 41", got)
+	}
+	if cards["bitcoin"].Spark.Closed {
+		t.Error("bitcoin is still printing and must not be marked shut")
+	}
+}
+
+// The symbols do not print on the same tick, and the futures normally trail
+// bitcoin by about ten minutes, so a card is only shut once it is further behind
+// than that spread.
+func TestShutByIgnoresTheNormalSpreadBetweenSymbols(t *testing.T) {
+	live := time.Date(2026, 8, 31, 20, 30, 0, 0, easternTime()).Unix()
+
+	behind := func(d time.Duration) stripRow {
+		return stripRow{times: []int64{live - int64(d/time.Second)}}
+	}
+
+	if behind(10 * time.Minute).shutBy(live) {
+		t.Error("ten minutes behind is the usual spread, not a shut market")
+	}
+	if !behind(4 * time.Hour).shutBy(live) {
+		t.Error("four hours behind is a market that shut")
+	}
+	if (stripRow{}).shutBy(live) {
+		t.Error("a card with no bars cannot be judged shut")
 	}
 }
 
