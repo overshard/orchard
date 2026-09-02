@@ -1,11 +1,8 @@
-// Three faces, three jobs. Newsreader sets the wordmark and headings, IBM Plex
-// Sans sets UI and prose, and Monaspace Argon sets anything literally code:
-// paths, SHAs, refs, commands and diffs.
-import "@fontsource/newsreader/400.css";
+// Two faces, two jobs. Monaspace Argon sets everything, the same face the other
+// sites here use, and Newsreader is kept for repository names alone, which is
+// the one place on this site a serif earns its keep.
+import "@fontsource/monaspace-argon";
 import "@fontsource/newsreader/600.css";
-import "@fontsource/ibm-plex-sans/400.css";
-import "@fontsource/ibm-plex-sans/500.css";
-import "@fontsource/monaspace-argon/400.css";
 import "./styles/base.scss";
 
 import "./scripts/refswitch.js";

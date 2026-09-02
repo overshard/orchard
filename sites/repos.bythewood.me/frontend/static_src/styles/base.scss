@@ -1,47 +1,58 @@
 // repos.bythewood.me. One hand written stylesheet rather than Bootstrap, since
 // this site is dense text (file trees, diffs, commit lists) and a framework
 // does not help with any of it.
+//
+// The palette is the one analytics, auth, logging and status share, written as
+// custom properties here because there is no Sass variable file to import from
+// a separate module. When a colour changes there it has to change here too.
 
 :root {
-  --bg:          #17151a;
-  --surface:     #1e1b21;
-  --raised:      #272229;
-  --sunken:      #151317;
-  --line:        #322c37;
-  --line-strong: #423b48;
+  --bg:          #0e0d0a;
+  --surface:     #1c1a15;
+  --raised:      #24211a;
+  --sunken:      #090806;
+  --line:        rgba(107, 158, 120, 0.34);
+  --line-strong: rgba(107, 158, 120, 0.45);
 
-  --text:   #e4dfe4;
-  --muted:  #9a92a5;
-  // 4.53:1 on --bg, which clears WCAG AA at the 12 and 13px this is used for.
-  --faint:  #8b8291;
+  --bright: #ede8e0;
+  --text:   #ddd7cd;
+  --muted:  #b3aba2;
+  --faint:  #8a8279;
 
-  --accent:      #a99bf5;
-  --accent-lift: #c1b5ff;
-  --accent-dim:  rgba(169, 155, 245, 0.14);
-  --link:        #c9b8f0;
-  --link-lift:   #ded3fb;
+  --accent:      #6b9e78;
+  --accent-lift: #7db88c;
+  --accent-dim:  rgba(107, 158, 120, 0.16);
+  --link:        #7db88c;
+  --link-lift:   #95cca2;
 
-  --add:      #8fbf9f;
-  --add-bg:   rgba(143, 191, 159, 0.10);
-  --del:      #e08a8a;
-  --del-bg:   rgba(224, 138, 138, 0.10);
-  --warn:     #e6c88a;
-  --warn-bg:  rgba(230, 200, 138, 0.07);
+  --add:      #7db88c;
+  --add-bg:   rgba(125, 184, 140, 0.12);
+  --del:      #c47055;
+  --del-bg:   rgba(196, 112, 85, 0.12);
+  --warn:     #c9a84c;
+  --warn-bg:  rgba(201, 168, 76, 0.10);
 
+  // Newsreader is kept for repository names alone. Everything else is the one
+  // face the rest of the estate sets, so --sans and --mono are the same family
+  // here the way they are in the shared Bootstrap variables.
   --serif: "Newsreader", ui-serif, Georgia, "Times New Roman", serif;
-  --sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --mono: "Monaspace Argon", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sans: "Monaspace Argon", ui-monospace, "Cascadia Code", Consolas, "SF Mono", Menlo, monospace;
+  --mono: var(--sans);
 
   --t-xs:  0.75rem;
   --t-sm:  0.8125rem;
-  --t-base: 0.9375rem;
+  --t-base: 0.92rem;
   --t-md:  1.0625rem;
   --t-lg:  1.375rem;
   --t-xl:  1.75rem;
 
-  --radius: 5px;
+  --radius: 0.25rem;
+  --radius-sm: 0.2rem;
   --wrap:   1140px;
-  --bar:    56px;
+  --bar:    52px;
+
+  // One tracking value, used everywhere a label is set in caps.
+  --track: 0.1em;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -54,8 +65,15 @@ body {
   color: var(--text);
   font-family: var(--sans);
   font-size: var(--t-base);
-  line-height: 1.6;
+  line-height: 1.7;
+  letter-spacing: 0.01em;
   -webkit-font-smoothing: antialiased;
+
+  background-image:
+    linear-gradient(rgba(107, 158, 120, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(107, 158, 120, 0.028) 1px, transparent 1px);
+  background-size: 32px 32px;
+  background-position: center top;
 }
 
 code, pre, .mono { font-family: var(--mono); }
@@ -84,8 +102,14 @@ h1, h2, h3, h4 {
   margin: 0;
 }
 
-.pagetitle, .repohead h1, .commitfull h2, section > h2,
+.pagetitle, .commitfull h2, section > h2,
 .emptystate h2, .loginbox h1, .notfound h1, .markdown h1, .markdown h2 {
+  font-family: var(--sans);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.repohead h1, .repocard .name {
   font-family: var(--serif);
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -108,9 +132,8 @@ h1, h2, h3, h4 {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(23, 21, 26, 0.88);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--line);
+  background: var(--sunken);
+  border-bottom: 1px solid rgba(107, 158, 120, 0.3);
 
   .wrap {
     display: flex;
@@ -119,19 +142,30 @@ h1, h2, h3, h4 {
     height: var(--bar);
   }
 
+  // The wordmark the other four sites set: caps, tracked, with the identity
+  // dot after it. The serif is kept for repository names and nothing else.
   .brand {
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
-    font-family: var(--serif);
+    gap: 0.6rem;
+    font-family: var(--sans);
     font-weight: 600;
-    font-size: 1.2rem;
-    color: var(--text);
-    letter-spacing: -0.01em;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: var(--track);
+    color: #ede8e0;
 
-    svg { width: 9px; height: 9px; color: var(--accent); flex: none; }
-    &:hover { color: var(--text); text-decoration: none; }
+    svg { width: 16px; height: 16px; color: var(--accent); flex: none; }
+    &:hover { color: #ede8e0; text-decoration: none; }
     &:hover svg { color: var(--accent-lift); }
+
+    &::after {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
   }
 
   .context {
@@ -167,10 +201,27 @@ h1, h2, h3, h4 {
   nav {
     display: flex;
     align-items: center;
-    gap: 1.1rem;
-    font-size: var(--t-sm);
+    gap: 0.4rem;
+    font-size: 0.8rem;
     flex: none;
-    a { color: var(--muted); &:hover { color: var(--text); } }
+
+    a {
+      padding: 0.3rem 0.7rem;
+      color: rgba(221, 215, 205, 0.8);
+      text-transform: lowercase;
+      letter-spacing: 0.05em;
+      &:hover { color: #ede8e0; text-decoration: none; }
+    }
+
+    // The sign in and account links read as the button the other four put in
+    // the same corner.
+    a:last-child {
+      border: 1px solid rgba(221, 215, 205, 0.28);
+      border-radius: var(--radius);
+      text-transform: none;
+      letter-spacing: 0.01em;
+      &:hover { border-color: rgba(221, 215, 205, 0.5); }
+    }
   }
 }
 
@@ -184,47 +235,47 @@ main.wrap { padding-top: 2rem; padding-bottom: 3rem; }
 
   .cols {
     display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr));
     gap: 2rem;
   }
 
-  h4 {
+  // The `// Section` heading the other four sites set in their footers.
+  .h5 {
     font-family: var(--sans);
-    font-size: var(--t-xs);
+    font-size: 0.7rem;
     font-weight: 600;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--faint);
+    color: var(--warn);
     margin-bottom: 0.7rem;
   }
 
-  .about {
-    .mark {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-family: var(--serif);
-      font-size: var(--t-md);
-      font-weight: 600;
-      color: var(--text);
-      margin-bottom: 0.5rem;
-      svg { width: 9px; height: 9px; color: var(--accent); }
-    }
-    p { margin: 0; color: var(--muted); max-width: 46ch; }
-  }
+  .about p { margin: 0; color: var(--muted); max-width: 46ch; }
 
   ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.4rem; }
   a { color: var(--muted); &:hover { color: var(--text); } }
 
-  .colophon {
-    margin-top: 2.25rem;
-    padding-top: 1.25rem;
-    border-top: 1px solid var(--line);
-    color: var(--faint);
-    font-size: var(--t-xs);
+}
+
+// The strip under the footer, matching the one the other four sites close on.
+.footer-bar {
+  border-top: 1px solid rgba(107, 158, 120, 0.2);
+  padding: 1rem 0;
+
+  .wrap {
     display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
     flex-wrap: wrap;
-    gap: 0.5rem 1.25rem;
+  }
+
+  small { color: var(--faint); font-size: var(--t-xs); }
+
+  .footer-bar-link {
+    display: inline-flex;
+    color: var(--faint);
+    &:hover { color: var(--accent-lift); }
   }
 }
 
@@ -345,7 +396,40 @@ button, .btn {
   &:hover { border-color: var(--muted); background: var(--line); text-decoration: none; }
 }
 
-.btn { display: inline-block; color: var(--muted); &:hover { color: var(--text); } }
+.btn {
+  display: inline-block;
+  padding: 0.6rem 1.1rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: none;
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  &:hover { text-decoration: none; }
+}
+
+.btn-primary {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent-lift);
+  &:hover { background: rgba(107, 158, 120, 0.26); border-color: var(--accent); }
+}
+
+// Matches Bootstrap's .btn-sm as the other four resolve it, since a button
+// beside body text should be the same object on every site here.
+.btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.805rem;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.02em;
+}
+
+.btn-ghost {
+  border-color: rgba(221, 215, 205, 0.28);
+  color: var(--text);
+  &:hover { border-color: rgba(221, 215, 205, 0.5); background: rgba(221, 215, 205, 0.05); color: var(--text); }
+}
 
 button.primary {
   background: var(--accent);
@@ -395,9 +479,9 @@ input[type="text"], input[type="password"], input[type="url"] {
   .row { display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap; }
 
   .name {
-    font-family: var(--mono);
-    font-size: var(--t-md);
-    font-weight: 700;
+    font-family: var(--serif);
+    font-size: var(--t-lg);
+    font-weight: 600;
     color: var(--text);
     letter-spacing: -0.01em;
     &:hover { color: var(--accent); text-decoration: none; }
@@ -979,7 +1063,10 @@ del { color: var(--del); text-decoration: none; font-weight: 500; }
   button { width: 100%; padding: 0.45rem; margin-top: 0.85rem; }
 }
 
-section { margin-bottom: 2.5rem; }
+// Top and bottom, so a section following a panel like the README gets the same
+// air as one following another section. Adjacent margins collapse, so two
+// sections in a row still sit 2.5rem apart rather than 5.
+section { margin: 2.5rem 0; }
 section > h2 {
   font-size: var(--t-md);
   border-bottom: 1px solid var(--line);
@@ -1000,11 +1087,34 @@ section > h2 {
   button { margin-top: 0.85rem; }
 }
 
+// The same shape the other four sites use for a 404: an amber caps label, a
+// plain heading, the description the handler set, and a way back. Left aligned
+// like every other page here rather than centred on its own.
+.section-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--warn);
+}
+
 .notfound {
-  text-align: center;
-  padding: 5rem 0;
-  h1 { font-family: var(--mono); font-size: 3.5rem; color: var(--line-strong); }
-  p { color: var(--muted); }
+  padding: 3rem 0 5rem;
+
+  h1 {
+    font-family: var(--sans);
+    font-size: 2.3rem;
+    font-weight: 700;
+    color: var(--bright);
+    letter-spacing: -0.01em;
+    margin: 0.6rem 0 0.75rem;
+  }
+
+  p { color: var(--muted); margin: 0 0 1.5rem; }
+}
+
+@media (min-width: 1400px) {
+  :root { --wrap: 1320px; }
 }
 
 @media (max-width: 700px) {
@@ -1022,4 +1132,101 @@ section > h2 {
 
   .repocard .meta { gap: 0.35rem 0.7rem; }
   .refs .subject, .tokens .subject { display: none; }
+}
+
+// Home hero -----------------------------------------------------------------
+//
+// The same shape analytics, logging and status open with. Values are matched to
+// their pages.scss rather than reinvented, since the point is that the four
+// look like one suite.
+
+.hero {
+  background: var(--sunken);
+  border-bottom: 1px solid rgba(107, 158, 120, 0.3);
+  padding: 4rem 0;
+
+  .hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--warn);
+    background: rgba(201, 168, 76, 0.16);
+    border: 1px solid rgba(201, 168, 76, 0.5);
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+  }
+
+  .eyebrow-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .hero-title {
+    font-family: var(--sans);
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    font-weight: 700;
+    line-height: 1.1;
+    color: #ede8e0;
+    letter-spacing: -0.01em;
+    margin-top: 1.5rem;
+
+    .accent { color: var(--accent-lift); }
+  }
+
+  .hero-sub {
+    color: var(--muted);
+    font-size: 1rem;
+    line-height: 1.7;
+    margin: 1.25rem 0 0;
+    max-width: 620px;
+  }
+
+  .hero-ctas {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: 1.75rem;
+
+  }
+}
+
+.stat-strip {
+  padding: 1.5rem 0;
+  border-bottom: 1px solid rgba(107, 158, 120, 0.3);
+
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .stat { text-align: center; }
+
+  .stat-label {
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  .stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--accent-lift);
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+    margin-top: 0.2rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  // A date is a longer string than a count and would otherwise set the row
+  // height for the three tiles beside it.
+  .stat-value-sm { font-size: 1.05rem; }
 }

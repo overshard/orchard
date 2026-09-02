@@ -72,17 +72,4 @@ func env(key, fallback string) string {
 	return fallback
 }
 
-// FooterLink is one entry in the footer.
-type FooterLink struct {
-	Label string
-	Href  string
-}
-
-var footerLinks = []FooterLink{
-	{Label: "Portfolio", Href: "https://isaacbythewood.com/"},
-	{Label: "Blog", Href: "https://blog.bythewood.me/"},
-	{Label: "GitHub", Href: "https://github.com/" + githubUser},
-	{Label: "Status", Href: "https://status.bythewood.me/"},
-}
-
 const sourceURL = "https://github.com/" + githubUser + "/orchard/tree/main/sites/repos.bythewood.me"
