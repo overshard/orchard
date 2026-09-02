@@ -1,54 +1,44 @@
 import Chart from "chart.js/auto";
+import {
+  applyDefaults,
+  fontStack,
+  ink,
+  palette,
+  series,
+  status,
+  tooltipStyle,
+} from "./chart_theme.js";
 
 const accent = {
-  green: "#6b9e78",
-  greenBright: "#7db88c",
-  greenFill: "rgba(107, 158, 120, 0.35)",
-  amber: "#c9a84c",
-  amberFill: "rgba(201, 168, 76, 0.35)",
-  terracotta: "#c47055",
-  terracottaFill: "rgba(196, 112, 85, 0.35)",
-  slate: "#7eaab8",
-  slateFill: "rgba(126, 170, 184, 0.3)",
-  grid: "rgba(107, 158, 120, 0.08)",
-  ticks: "#847c72",
+  green: status.good,
+  greenBright: series[0],
+  greenFill: "rgba(87, 179, 120, 0.35)",
+  amber: status.warn,
+  amberFill: "rgba(216, 168, 62, 0.35)",
+  terracotta: status.bad,
+  terracottaFill: "rgba(220, 106, 75, 0.35)",
+  slate: status.info,
+  slateFill: "rgba(99, 169, 201, 0.3)",
+  grid: ink.grid,
+  ticks: ink.ticks,
 };
 
+// Fills for the ranked bars, in the validated order, with the neutral last for
+// anything folded into "other".
 const backgroundColors = [
   accent.greenFill,
-  accent.terracottaFill,
   accent.amberFill,
+  accent.terracottaFill,
   accent.slateFill,
-  "rgba(221, 215, 205, 0.18)",
-  "rgba(160, 152, 144, 0.3)",
-  "rgba(107, 158, 120, 0.55)",
-  "rgba(196, 112, 85, 0.55)",
-  "rgba(201, 168, 76, 0.55)",
-  "rgba(126, 170, 184, 0.55)",
+  "rgba(125, 116, 105, 0.35)",
 ];
 
-const borderColors = [
-  "rgba(107, 158, 120, 0.9)",
-  "rgba(196, 112, 85, 0.9)",
-  "rgba(201, 168, 76, 0.9)",
-  "rgba(126, 170, 184, 0.9)",
-  "rgba(221, 215, 205, 0.5)",
-  "rgba(160, 152, 144, 0.7)",
-  "rgba(107, 158, 120, 1)",
-  "rgba(196, 112, 85, 1)",
-  "rgba(201, 168, 76, 1)",
-  "rgba(126, 170, 184, 1)",
-];
+const borderColors = palette;
 
-const fontStack = '"Monaspace Argon", Consolas, "Liberation Mono", Monaco, "Courier New", monospace';
-
-Chart.defaults.color = accent.ticks;
-Chart.defaults.borderColor = accent.grid;
-Chart.defaults.font.family = fontStack;
-Chart.defaults.font.size = 11;
+applyDefaults(Chart);
 
 const tickFont = { size: 11, family: fontStack };
-const legendLabel = { boxWidth: 10, boxHeight: 10, font: tickFont, color: "#d1d8d4" };
+const legendLabel = { boxWidth: 10, boxHeight: 10, font: tickFont, color: ink.legend };
 
 document.addEventListener("DOMContentLoaded", function () {
   const canvas = document.getElementById("chart-response-times");
@@ -63,7 +53,7 @@ document.addEventListener("DOMContentLoaded", function () {
     { key: "dns",   label: "DNS",     color: accent.terracotta, width: 1.5, tension: 0.2  },
     { key: "tcp",   label: "TCP",     color: accent.amber,      width: 1.5, tension: 0.2  },
     { key: "tls",   label: "TLS",     color: accent.slate,      width: 1.5, tension: 0.2  },
-    { key: "ttfb",  label: "TTFB",    color: "#a09890",         width: 1.5, tension: 0.2  },
+    { key: "ttfb",  label: "TTFB",    color: "#7d7469",         width: 1.5, tension: 0.2  },
   ];
 
   const chart = new Chart(ctx, {
@@ -96,14 +86,9 @@ document.addEventListener("DOMContentLoaded", function () {
       interaction: { mode: "index", intersect: false },
       plugins: {
         tooltip: {
+          ...tooltipStyle,
           mode: "index",
           intersect: false,
-          backgroundColor: "rgba(9, 8, 6, 0.95)",
-          titleColor: "#ede8e0",
-          bodyColor: "#ddd7cd",
-          borderColor: "rgba(107, 158, 120, 0.2)",
-          borderWidth: 1,
-          padding: 10,
           titleFont: tickFont,
           bodyFont: tickFont,
           callbacks: {
@@ -146,8 +131,8 @@ function buildDoughnut(canvasId, dataId) {
   // terracotta whatever order the server sent the rows in.
   const paint = (label) => {
     const name = String(label || "").toLowerCase();
-    if (name === "uptime" || name === "200") return [accent.greenFill, "rgba(107, 158, 120, 0.95)"];
-    if (name === "downtime") return [accent.terracottaFill, "rgba(196, 112, 85, 0.95)"];
+    if (name === "uptime" || name === "200") return [accent.greenFill, accent.green];
+    if (name === "downtime") return [accent.terracottaFill, accent.terracotta];
     return null;
   };
 
@@ -178,17 +163,13 @@ function buildDoughnut(canvasId, dataId) {
       aspectRatio: 2,
       animation: { animateRotate: false },
       cutout: "62%",
+      // Bottom rather than right: these two panels are a third of a row wide,
+      // and a right hand legend leaves so little room that Chart.js truncates
+      // "Downtime" to "Downt".
       plugins: {
-        legend: { position: "right", labels: legendLabel },
+        legend: { position: "bottom", labels: legendLabel },
         tooltip: {
-          backgroundColor: "rgba(9, 8, 6, 0.95)",
-          titleColor: "#ede8e0",
-          bodyColor: "#ddd7cd",
-          borderColor: "rgba(107, 158, 120, 0.2)",
-          borderWidth: 1,
-          padding: 10,
-          titleFont: tickFont,
-          bodyFont: tickFont,
+          ...tooltipStyle,
         },
       },
     },

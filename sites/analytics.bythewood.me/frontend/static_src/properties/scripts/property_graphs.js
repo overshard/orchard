@@ -1,38 +1,18 @@
 import Chart from "chart.js/auto";
+import {
+  applyDefaults,
+  fontStack,
+  foldToPalette,
+  ink,
+  palette,
+  series,
+  status,
+  tooltipStyle,
+} from "./chart_theme.js";
 
-const palette = [
-  "rgba(107, 158, 120, 0.75)", // green
-  "rgba(201, 168, 76, 0.75)",  // amber
-  "rgba(196, 112, 85, 0.75)",  // terracotta
-  "rgba(126, 170, 184, 0.75)", // info blue-slate
-  "rgba(160, 152, 144, 0.75)", // warm grey
-  "rgba(125, 184, 140, 0.75)", // green bright
-  "rgba(221, 192, 106, 0.7)",  // amber bright
-  "rgba(216, 136, 112, 0.7)",  // terracotta bright
-  "rgba(132, 124, 114, 0.7)",  // gray-400
-  "rgba(196, 189, 178, 0.7)",  // gray-200
-];
+const paletteBorders = palette;
 
-const paletteBorders = palette.map((c) => c.replace(/0?\.\d+\)/, "1)"));
-
-const fontStack = "'Monaspace Argon', ui-monospace, 'Cascadia Code', Consolas, monospace";
-
-Chart.defaults.color = "rgba(221, 215, 205, 0.55)";
-Chart.defaults.borderColor = "rgba(107, 158, 120, 0.08)";
-Chart.defaults.font.family = fontStack;
-Chart.defaults.font.size = 11;
-
-const tooltipStyle = {
-  backgroundColor: "rgba(9, 8, 6, 0.95)",
-  borderColor: "rgba(107, 158, 120, 0.3)",
-  borderWidth: 1,
-  titleColor: "#ede8e0",
-  bodyColor: "#ddd7cd",
-  padding: 10,
-  titleFont: { family: fontStack, size: 12 },
-  bodyFont: { family: fontStack, size: 11 },
-  cornerRadius: 4,
-};
+applyDefaults(Chart);
 
 // Labels are padded to a common width so the four doughnut legends line up in
 // the sidebar, which only works because the legend font is monospace.
@@ -70,7 +50,7 @@ const doughnutOptions = {
         boxWidth: 8,
         boxHeight: 8,
         padding: 8,
-        color: "rgba(221, 215, 205, 0.7)",
+        color: ink.legend,
         font: { family: fontStack, size: 11 },
       },
     },
@@ -89,7 +69,7 @@ function renderEmpty(canvas) {
     justifyContent: "center",
     height: "100%",
     minHeight: "120px",
-    color: "rgba(132, 124, 114, 0.6)",
+    color: ink.ticks,
     fontFamily: fontStack,
     fontSize: "11px",
     letterSpacing: "0.05em",
@@ -111,7 +91,7 @@ function renderDoughnut(canvasId, dataId) {
       renderEmpty(canvas);
       return;
     }
-    const data = padLabels(raw);
+    const data = padLabels(foldToPalette(raw));
     new Chart(canvas.getContext("2d"), {
       type: "doughnut",
       data: {
@@ -141,8 +121,8 @@ document.addEventListener("DOMContentLoaded", function () {
   const ctx = canvas.getContext("2d");
 
   const gradient = ctx.createLinearGradient(0, 0, 0, 320);
-  gradient.addColorStop(0, "rgba(107, 158, 120, 0.35)");
-  gradient.addColorStop(1, "rgba(107, 158, 120, 0.01)");
+  gradient.addColorStop(0, "rgba(87, 179, 120, 0.35)");
+  gradient.addColorStop(1, "rgba(87, 179, 120, 0.01)");
 
   new Chart(ctx, {
     type: "line",
@@ -153,8 +133,8 @@ document.addEventListener("DOMContentLoaded", function () {
           label: "events",
           data: data.map((d) => d.count),
           backgroundColor: gradient,
-          borderColor: "rgba(125, 184, 140, 0.95)",
-          pointBackgroundColor: "rgba(125, 184, 140, 1)",
+          borderColor: series[0],
+          pointBackgroundColor: series[0],
           pointBorderColor: "rgba(14, 13, 10, 1)",
           pointRadius: 3,
           pointHoverRadius: 5,
@@ -180,19 +160,19 @@ document.addEventListener("DOMContentLoaded", function () {
             autoSkip: true,
             maxTicksLimit: 10,
             maxRotation: 0,
-            color: "rgba(132, 124, 114, 0.85)",
+            color: ink.ticks,
             font: { family: fontStack, size: 10 },
           },
-          grid: { color: "rgba(107, 158, 120, 0.04)", drawTicks: false },
-          border: { color: "rgba(107, 158, 120, 0.12)" },
+          grid: { color: ink.grid, drawTicks: false },
+          border: { color: ink.border },
         },
         y: {
           beginAtZero: true,
           ticks: {
-            color: "rgba(132, 124, 114, 0.85)",
+            color: ink.ticks,
             font: { family: fontStack, size: 10 },
           },
-          grid: { color: "rgba(107, 158, 120, 0.06)", drawTicks: false },
+          grid: { color: ink.grid, drawTicks: false },
           border: { display: false },
         },
       },
