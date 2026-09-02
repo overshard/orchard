@@ -153,7 +153,7 @@ func TestTemplatesExecute(t *testing.T) {
 	}
 
 	pages := []string{
-		"home.html", "changelog.html",
+		"home.html",
 		"properties.html", "property.html", "notfound.html",
 	}
 
@@ -947,8 +947,8 @@ func TestIntcomma(t *testing.T) {
 		1234567: "1,234,567", -4321: "-4,321",
 	}
 	for in, want := range cases {
-		if got := intcomma(in); got != want {
-			t.Errorf("intcomma(%d) = %q, want %q", in, got, want)
+		if got := formatNum(in); got != want {
+			t.Errorf("formatNum(%d) = %q, want %q", in, got, want)
 		}
 	}
 }

@@ -41,13 +41,6 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 	s.renderer.Render(w, http.StatusOK, "home.html", data)
 }
 
-func (s *site) changelog(w http.ResponseWriter, r *http.Request) {
-	data := s.page(r, "Changelog", "What's new in Analytics.")
-	data.PageScript = s.pagesScript
-	data.PageStyles = s.pagesStyles
-	s.renderer.Render(w, http.StatusOK, "changelog.html", data)
-}
-
 func (s *site) documentation(w http.ResponseWriter, r *http.Request) {
 	data := s.page(r, "Documentation", "How to embed and operate Analytics.")
 	data.PageScript = s.pagesScript
@@ -91,7 +84,7 @@ func sitemap(w http.ResponseWriter, r *http.Request) {
 	var b []byte
 	b = append(b, `<?xml version="1.0" encoding="UTF-8"?>`+"\n"...)
 	b = append(b, `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`+"\n"...)
-	for _, path := range []string{"/", "/documentation", "/changelog"} {
+	for _, path := range []string{"/", "/documentation"} {
 		b = append(b, "  <url><loc>"+baseURL+path+"</loc><lastmod>"+now+"</lastmod></url>\n"...)
 	}
 	b = append(b, "</urlset>\n"...)

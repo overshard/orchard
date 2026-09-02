@@ -82,14 +82,6 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 	s.renderer.Render(w, http.StatusOK, "home.html", data)
 }
 
-func (s *site) changelog(w http.ResponseWriter, r *http.Request) {
-	data := s.page(r, "Changelog",
-		"An ongoing changelog and upcoming list of features for Status.")
-	data.PageScript = s.pagesScript
-	data.PageStyles = s.pagesStyles
-	s.renderer.Render(w, http.StatusOK, "changelog.html", data)
-}
-
 func favicon(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "image/svg+xml")
 	w.Header().Set("Cache-Control", "public, max-age=86400")
@@ -112,7 +104,7 @@ func robots(w http.ResponseWriter, r *http.Request) {
 	_, _ = fmt.Fprintf(w, "User-agent: *\nAllow: /\nSitemap: %s/sitemap.xml\n", baseURL)
 }
 
-// sitemap lists the two public pages. Property dashboards stay out even when
+// sitemap lists the one public page. Property dashboards stay out even when
 // public: a status page is handed to somebody, not searched for.
 func sitemap(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
@@ -120,7 +112,6 @@ func sitemap(w http.ResponseWriter, r *http.Request) {
 	_, _ = fmt.Fprintf(w, `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>%s/</loc><lastmod>%s</lastmod></url>
-  <url><loc>%s/changelog</loc><lastmod>%s</lastmod></url>
 </urlset>
-`, baseURL, today, baseURL, today)
+`, baseURL, today)
 }

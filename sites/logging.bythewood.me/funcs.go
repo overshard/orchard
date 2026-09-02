@@ -77,21 +77,37 @@ func formatMS(v float64) string {
 	}
 }
 
-// formatNum groups thousands.
-func formatNum(v int64) string {
-	s := strconv.FormatInt(v, 10)
-	neg := strings.HasPrefix(s, "-")
-	if neg {
-		s = s[1:]
+// formatNum groups thousands with commas.
+func formatNum(v any) string {
+	var n int64
+	switch t := v.(type) {
+	case int:
+		n = int64(t)
+	case int64:
+		n = t
+	case *int64:
+		if t == nil {
+			return "0"
+		}
+		n = *t
+	case float64:
+		n = int64(t)
+	default:
+		return fmt.Sprint(v)
 	}
+
+	s := strconv.FormatInt(n, 10)
+	negative := strings.HasPrefix(s, "-")
+	s = strings.TrimPrefix(s, "-")
+
 	var b strings.Builder
-	for i, r := range s {
+	for i, digit := range s {
 		if i > 0 && (len(s)-i)%3 == 0 {
 			b.WriteByte(',')
 		}
-		b.WriteRune(r)
+		b.WriteRune(digit)
 	}
-	if neg {
+	if negative {
 		return "-" + b.String()
 	}
 	return b.String()

@@ -77,7 +77,7 @@ type site struct {
 var (
 	layoutTemplates = []string{"base.html", "partials.html"}
 	pageTemplates   = []string{
-		"home.html", "changelog.html", "documentation.html",
+		"home.html", "documentation.html",
 		"properties.html", "property.html", "notfound.html",
 	}
 )
@@ -184,7 +184,6 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /{$}", s.home)
-	mux.HandleFunc("GET /changelog", s.changelog)
 	mux.HandleFunc("GET /documentation", s.documentation)
 
 	// Signing in happens on auth.bythewood.me. This stays so an old bookmark

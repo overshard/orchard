@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"html/template"
+	"strconv"
 	"strings"
 )
 
@@ -10,6 +11,7 @@ var templateFuncs = template.FuncMap{
 	"dict":      dict,
 	"json":      jsonBlock,
 	"pct":       pct,
+	"num":       formatNum,
 	"add":       func(a, b int) int { return a + b },
 	"hasPrefix": strings.HasPrefix,
 }
@@ -38,4 +40,40 @@ func pct(count, total int64) int64 {
 		return 0
 	}
 	return count * 100 / total
+}
+
+// formatNum groups thousands with commas.
+func formatNum(v any) string {
+	var n int64
+	switch t := v.(type) {
+	case int:
+		n = int64(t)
+	case int64:
+		n = t
+	case *int64:
+		if t == nil {
+			return "0"
+		}
+		n = *t
+	case float64:
+		n = int64(t)
+	default:
+		return fmt.Sprint(v)
+	}
+
+	s := strconv.FormatInt(n, 10)
+	negative := strings.HasPrefix(s, "-")
+	s = strings.TrimPrefix(s, "-")
+
+	var b strings.Builder
+	for i, digit := range s {
+		if i > 0 && (len(s)-i)%3 == 0 {
+			b.WriteByte(',')
+		}
+		b.WriteRune(digit)
+	}
+	if negative {
+		return "-" + b.String()
+	}
+	return b.String()
 }
