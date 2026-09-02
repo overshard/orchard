@@ -476,10 +476,7 @@ func buildMarket(quotes map[string]Quote, now time.Time) Market {
 
 		q := r.quote
 		spark := buildSpark(r.closes, r.times, q.Previous, r.axisOr(axis))
-		if r.shutBy(live) && spark.Span < sparkWidth {
-			spark.Closed = true
-			spark.DeadWidth = round2(sparkWidth - spark.Span)
-		}
+		spark.Closed = r.shutBy(live) && spark.Span < sparkWidth
 
 		change, pct := q.change(), q.percent()
 		m.Cards = append(m.Cards, Card{

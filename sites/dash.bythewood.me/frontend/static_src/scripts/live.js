@@ -91,7 +91,6 @@ function sparkNode(spark) {
   root.append(svg("path", { class: "spark-line", d: spark.line }));
   if (spark.closed) {
     root.append(
-      svg("rect", { class: "spark-dead", x: spark.span, y: 0, width: spark.dead_width, height: 32 }),
       svg("line", { class: "spark-shut", x1: spark.span, x2: spark.span, y1: 0, y2: 32 }),
     );
   } else if (spark.partial) {
@@ -169,9 +168,9 @@ function patchCard(card, data) {
   }
 
   // The cursor appears when a session opens and goes when it fills the card, and
-  // it swaps for the closed marking when that card's market shuts while the rest
-  // of the strip keeps going, so all three have to be added and removed rather
-  // than only moved.
+  // it swaps for the closed rule when that card's market shuts while the rest of
+  // the strip keeps going, so both have to be added and removed rather than only
+  // moved.
   const svgRoot = card.querySelector(".spark");
   if (!svgRoot) return;
 
@@ -187,12 +186,6 @@ function patchCard(card, data) {
 
   if (spark.closed) {
     drop("spark-now");
-    const dead = marker("spark-dead", () =>
-      svg("rect", { class: "spark-dead", y: 0, height: 32 }),
-    );
-    setAttr(dead, "x", spark.span);
-    setAttr(dead, "width", spark.dead_width);
-
     const shut = marker("spark-shut", () =>
       svg("line", { class: "spark-shut", y1: 0, y2: 32 }),
     );
@@ -201,7 +194,6 @@ function patchCard(card, data) {
     return;
   }
 
-  drop("spark-dead");
   drop("spark-shut");
 
   if (spark.partial) {

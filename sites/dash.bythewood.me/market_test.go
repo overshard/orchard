@@ -469,9 +469,6 @@ func TestStripAxisSharesOneWindowAndLeavesAFrozenCardShort(t *testing.T) {
 	if !cards["vix"].Spark.Closed {
 		t.Error("the VIX shut at the bell and its dead stretch has to be marked")
 	}
-	if got := cards["vix"].Spark.DeadWidth; got < 35 || got > 45 {
-		t.Errorf("dead stretch is %v wide, want about 41", got)
-	}
 	if cards["bitcoin"].Spark.Closed {
 		t.Error("bitcoin is still printing and must not be marked shut")
 	}
