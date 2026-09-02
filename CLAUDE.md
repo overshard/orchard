@@ -3,6 +3,13 @@
 Guidance for Claude Code (claude.ai/code) and for anyone else working in this
 repository. Start with `README.md`, this file is the working detail behind it.
 
+**Anything visual is in `DESIGN.md`, and that file is the authority.** The
+palette, the type, the grid, the home page skeleton and its word budget, and the
+rules that are easy to get wrong all live there. Read it before touching a
+template or a stylesheet, and update it in the same commit when a design
+decision changes. There is no shared stylesheet here on purpose, so five sites
+looking alike is something a person keeps true by following that file.
+
 ## What this is
 
 One repo for every site Isaac Bythewood runs, plus the shared Cloudflare Tunnel
