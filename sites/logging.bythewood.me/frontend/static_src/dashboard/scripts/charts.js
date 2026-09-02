@@ -1,50 +1,34 @@
 import Chart from "chart.js/auto";
+import {
+  applyDefaults,
+  fontStack,
+  ink,
+  palette,
+  status,
+  tooltipStyle,
+} from "./chart_theme.js";
 
 // Three charts, all reading inline <script type="application/json"> blocks the
 // server rendered. Level and status colours are keyed by name rather than taken
-// in order, so ERROR is terracotta whatever order the server sent them in.
-const green = "#6b9e78";
-const greenBright = "#7db88c";
-const amber = "#c9a84c";
-const terracotta = "#c47055";
-const slate = "#7eaab8";
-const grey = "#847c72";
-
+// in order, so ERROR is red whatever order the server sent them in.
 const levelColors = {
-  ERROR: terracotta,
-  WARN: amber,
-  INFO: green,
-  DEBUG: grey,
+  ERROR: status.bad,
+  WARN: status.warn,
+  INFO: status.good,
+  DEBUG: status.muted,
 };
 
 const statusColors = {
-  "2xx": green,
-  "3xx": slate,
-  "4xx": amber,
-  "5xx": terracotta,
+  "2xx": status.good,
+  "3xx": status.info,
+  "4xx": status.warn,
+  "5xx": status.bad,
 };
 
-const fallback = [green, amber, terracotta, slate, grey, greenBright];
+const fallback = palette;
 
-const fontStack =
-  "'Monaspace Argon', ui-monospace, 'Cascadia Code', Consolas, monospace";
+applyDefaults(Chart);
 
-Chart.defaults.color = "rgba(221, 215, 205, 0.55)";
-Chart.defaults.borderColor = "rgba(107, 158, 120, 0.08)";
-Chart.defaults.font.family = fontStack;
-Chart.defaults.font.size = 11;
-
-const tooltipStyle = {
-  backgroundColor: "rgba(9, 8, 6, 0.95)",
-  borderColor: "rgba(107, 158, 120, 0.3)",
-  borderWidth: 1,
-  titleColor: "#ede8e0",
-  bodyColor: "#ddd7cd",
-  padding: 10,
-  titleFont: { family: fontStack, size: 12 },
-  bodyFont: { family: fontStack, size: 11 },
-  cornerRadius: 4,
-};
 
 // read returns null for a missing or unparseable block, so one bad chart does
 // not take the others down with it.
@@ -138,7 +122,7 @@ if (volume && volumeCanvas) {
         y: {
           stacked: true,
           beginAtZero: true,
-          grid: { color: "rgba(107, 158, 120, 0.06)" },
+          grid: { color: ink.grid },
           ticks: { precision: 0 },
         },
       },
@@ -182,7 +166,7 @@ function doughnut(canvasId, dataId, table) {
             boxWidth: 8,
             boxHeight: 8,
             padding: 8,
-            color: "rgba(221, 215, 205, 0.7)",
+            color: ink.legend,
             font: { family: fontStack, size: 10 },
           },
         },

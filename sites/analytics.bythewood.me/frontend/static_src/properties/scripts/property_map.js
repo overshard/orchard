@@ -11,12 +11,18 @@ const STATIC_BASE = "/static_maps";
 const WORLD_URL = `${STATIC_BASE}/world.json`;
 const ADMIN1_URL = (iso) => `${STATIC_BASE}/admin1/${iso}.json`;
 
-const FILL_LOW = "rgba(107, 158, 120, 0.12)";
-const FILL_HIGH = "rgba(125, 184, 140, 0.95)";
-const FILL_DEFAULT = "rgba(107, 158, 120, 0.06)";
-const STROKE = "rgba(107, 158, 120, 0.18)";
-const STROKE_HIGHLIGHT = "rgba(201, 168, 76, 0.6)";
-const FILL_HIGHLIGHT = "#c9a84c";
+// A sequential ramp, so one hue from light to dark and no second colour in it.
+// The floor is where it is because a country with one session still has to be
+// distinguishable from a country with none.
+const FILL_LOW = "rgba(87, 179, 120, 0.22)";
+const FILL_HIGH = "rgba(87, 179, 120, 0.95)";
+const FILL_DEFAULT = "rgba(107, 158, 120, 0.10)";
+const STROKE = "rgba(107, 158, 120, 0.32)";
+
+// Selection is a status, not a step on the ramp, which is why it is the one
+// warm colour on the map.
+const STROKE_HIGHLIGHT = "rgba(216, 168, 62, 0.75)";
+const FILL_HIGHLIGHT = "#d8a83e";
 
 document.addEventListener("DOMContentLoaded", () => {
   const root = document.getElementById("map");
@@ -207,8 +213,8 @@ function createTooltip(root) {
   Object.assign(el.style, {
     position: "absolute",
     pointerEvents: "none",
-    background: "#13120e",
-    border: "1px solid rgba(107, 158, 120, 0.3)",
+    background: "#1c1a15",
+    border: "1px solid rgba(107, 158, 120, 0.5)",
     borderRadius: "4px",
     padding: "6px 10px",
     fontFamily: "'Monaspace Argon', ui-monospace, monospace",
