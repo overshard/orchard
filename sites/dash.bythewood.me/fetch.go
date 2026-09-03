@@ -16,10 +16,10 @@ import (
 // upstreams are friendlier about it but no worse for having one.
 const userAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 
-// The RSS feeds want the opposite, and PBS is why. It sits behind AWS WAF bot
-// control, which challenges the string above for claiming to be Chrome while
-// carrying none of the headers Chrome sends, and answers 202 with an empty body
-// and "x-amzn-waf-action: challenge". Naming the program passes every feed here.
+// The RSS feeds want the opposite. An outlet behind AWS WAF bot control
+// challenges the string above for claiming to be Chrome while carrying none of
+// the headers Chrome sends, and answers 202 with an empty body and
+// "x-amzn-waf-action: challenge". Naming the program passes every feed here.
 const feedAgent = "dash.bythewood.me (+https://dash.bythewood.me)"
 
 // One client for every upstream. These are all plain JSON GETs over TLS to
