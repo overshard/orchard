@@ -69,6 +69,15 @@ type Answer struct {
 	Warnings   []string
 	Retried    bool
 	Support    float64
+
+	// Skill names the handler that answered, when something other than a web
+	// search did. Empty means the normal pipeline.
+	Skill string
+
+	// Links are checked URLs for the things the answer named, which the source
+	// list does not cover: sources say where the research came from, not where
+	// the subject lives.
+	Links []EntityLink
 }
 
 // Progress reports pipeline steps to whoever is watching. The web handler wires
@@ -100,6 +109,22 @@ func (e *Engine) Run(ctx context.Context, question string, history []Turn, pr Pr
 
 	// The model loads while the search and the fetches are in flight.
 	go e.llm.Warm(ctx)
+
+	// Arithmetic is answered here rather than on the web. Nothing about "30*27"
+	// is improved by fetching five pages, and the evaluator is a better
+	// authority on it than any page would be.
+	if calc, ok := TryCalculate(question); ok {
+		pr.send("calc", "working it out")
+		return &Answer{
+			Query: question, Standalone: question, Skill: "calculator",
+			Shape: ShapeFactual,
+			Text:  fmt.Sprintf("**%s**\n\n`%s = %s`", calc.Pretty, calc.Expression, calc.Pretty),
+			HTML: renderMarkdown(fmt.Sprintf("**%s**\n\n`%s = %s`",
+				calc.Pretty, calc.Expression, calc.Pretty)),
+			Elapsed: time.Since(start).Round(time.Millisecond).String(),
+			Support: 1,
+		}, nil
+	}
 
 	standalone := question
 	if len(history) > 0 {
@@ -153,7 +178,7 @@ func (e *Engine) round(ctx context.Context, ans *Answer, plan Plan, contract Con
 	}
 
 	pr.send("fetch", fmt.Sprintf("reading %d pages", min(len(results), maxSources*2)))
-	sources, passages := e.collect(ctx, results, ans.Standalone, contract, pr)
+	sources, passages, links := e.collect(ctx, results, ans.Standalone, contract, pr)
 	if len(passages) == 0 {
 		return fmt.Errorf("nothing readable found for that question")
 	}
@@ -166,9 +191,24 @@ func (e *Engine) round(ctx context.Context, ans *Answer, plan Plan, contract Con
 	}
 	ans.Text = text
 
+	// Linking runs alongside validation rather than after it. Neither needs the
+	// other's result and both are several model or network calls.
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		ans.Links = e.linkEntities(ctx, ans.Standalone, text, links)
+	}()
+
 	pr.send("check", "checking every sentence against its source")
 	ans.Citations = e.validate(ctx, text, passages)
 	ans.Support = supportRate(ans.Citations)
+
+	wg.Wait()
+	if len(ans.Links) > 0 {
+		pr.send("check", fmt.Sprintf("found %d verified link%s", len(ans.Links),
+			map[bool]string{true: "", false: "s"}[len(ans.Links) == 1]))
+	}
 	return nil
 }
 
@@ -332,7 +372,7 @@ func (e *Engine) gather(ctx context.Context, queries []string, ans *Answer, pr P
 
 // collect fetches pages in parallel, then picks the chunks that answer the
 // question rather than the ones that happen to come first.
-func (e *Engine) collect(ctx context.Context, results []Result, question string, contract Contract, pr Progress) ([]Source, []Passage) {
+func (e *Engine) collect(ctx context.Context, results []Result, question string, contract Contract, pr Progress) ([]Source, []Passage, []Link) {
 	if len(results) > maxSources*2 {
 		results = results[:maxSources*2]
 	}
@@ -391,8 +431,10 @@ func (e *Engine) collect(ctx context.Context, results []Result, question string,
 
 	var sources []Source
 	var passages []Passage
+	var links []Link
 	for i, f := range got {
 		n := i + 1
+		links = append(links, e.store.PageLinks(f.id)...)
 		sources = append(sources, Source{
 			N: n, URL: f.page.URL, Title: f.page.Title,
 			Site: f.page.Site, Published: f.page.Published, FromCache: f.cached,
@@ -411,7 +453,7 @@ func (e *Engine) collect(ctx context.Context, results []Result, question string,
 	if len(passages) > contract.MaxPassages {
 		passages = passages[:contract.MaxPassages]
 	}
-	return sources, passages
+	return sources, passages, links
 }
 
 func (e *Engine) synthesize(ctx context.Context, question string, passages []Passage, contract Contract) (string, error) {

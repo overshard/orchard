@@ -56,6 +56,16 @@ CREATE TRIGGER IF NOT EXISTS passages_ad AFTER DELETE ON passages BEGIN
   INSERT INTO passages_fts(passages_fts, rowid, text) VALUES('delete', old.id, old.text);
 END;
 
+-- Outbound links found in a page's article body, so a cache hit still has the
+-- candidates an entity link is resolved from.
+CREATE TABLE IF NOT EXISTS links (
+  id      INTEGER PRIMARY KEY,
+  page_id INTEGER NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+  url     TEXT NOT NULL,
+  text    TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS links_page ON links(page_id);
+
 -- key is HMAC(secret, normalized query). The query text itself is never here.
 CREATE TABLE IF NOT EXISTS serp (
   key        TEXT PRIMARY KEY,
@@ -172,12 +182,37 @@ func (s *Store) PutPage(p *Page) (int64, error) {
 	if _, err := tx.Exec(`DELETE FROM passages WHERE page_id = ?`, id); err != nil {
 		return 0, err
 	}
+	if _, err := tx.Exec(`DELETE FROM links WHERE page_id = ?`, id); err != nil {
+		return 0, err
+	}
+	for _, l := range p.Links {
+		if _, err := tx.Exec(`INSERT INTO links(page_id, url, text) VALUES(?,?,?)`, id, l.URL, l.Text); err != nil {
+			return 0, err
+		}
+	}
 	for i, text := range Chunk(p.Markdown) {
 		if _, err := tx.Exec(`INSERT INTO passages(page_id, ord, text) VALUES(?,?,?)`, id, i, text); err != nil {
 			return 0, err
 		}
 	}
 	return id, tx.Commit()
+}
+
+// PageLinks returns the outbound links stored for a page.
+func (s *Store) PageLinks(pageID int64) []Link {
+	rows, err := s.db.Query(`SELECT url, text FROM links WHERE page_id = ?`, pageID)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	var out []Link
+	for rows.Next() {
+		var l Link
+		if rows.Scan(&l.URL, &l.Text) == nil {
+			out = append(out, l)
+		}
+	}
+	return out
 }
 
 // LocalHit is a passage found in the archive rather than on the web.

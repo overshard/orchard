@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	neturl "net/url"
 	"strings"
 	"time"
 
@@ -20,6 +21,18 @@ type Page struct {
 	Site      string
 	Published string // ISO date, empty when the page carries none
 	Markdown  string
+	Links     []Link
+}
+
+// Link is an outbound link found in a page's article body, with the words that
+// were linked.
+//
+// These are harvested rather than searched for. A page that answers "the most
+// popular Go project" almost always links to the project it names, so the
+// canonical URL is already in hand and costs no extra search.
+type Link struct {
+	URL  string
+	Text string
 }
 
 // chrome are the elements that never carry article text. Dropping them and then
@@ -70,6 +83,7 @@ func Fetch(client *http.Client, target string) (*Page, error) {
 	}
 
 	content := stripAndPick(doc)
+	p.Links = harvestLinks(content, target)
 	md, err := htmltomarkdown.ConvertString(renderNode(content))
 	if err != nil {
 		return nil, err
@@ -122,6 +136,94 @@ func stripAndPick(root *html.Node) *html.Node {
 		return best
 	}
 	return root
+}
+
+// harvestLinks pulls the outbound links out of an article body. Same-host links
+// are dropped because they are navigation, and so is anything whose anchor text
+// is too short or too long to name a thing.
+func harvestLinks(root *html.Node, pageURL string) []Link {
+	base, err := neturl.Parse(pageURL)
+	if err != nil {
+		return nil
+	}
+	seen := map[string]bool{}
+	var out []Link
+
+	var walk func(*html.Node)
+	walk = func(n *html.Node) {
+		if n.Type == html.ElementNode && n.DataAtom == atom.A {
+			href := ""
+			for _, a := range n.Attr {
+				if a.Key == "href" {
+					href = a.Val
+				}
+			}
+			if u, err := neturl.Parse(href); err == nil && href != "" {
+				abs := base.ResolveReference(u)
+				text := strings.Join(strings.Fields(textContent(n)), " ")
+				if keepLink(abs, base, text) && !seen[abs.String()] {
+					seen[abs.String()] = true
+					out = append(out, Link{URL: abs.String(), Text: text})
+				}
+			}
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			walk(c)
+		}
+	}
+	walk(root)
+	return out
+}
+
+func keepLink(u, base *neturl.URL, text string) bool {
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return false
+	}
+	if u.Host == "" || sameSite(u.Host, base.Host) {
+		return false
+	}
+	if len(text) < 2 || len(text) > 80 {
+		return false
+	}
+	// Sharing widgets and the sites every article links to regardless of what
+	// it is about.
+	for _, junk := range []string{
+		"facebook.com", "twitter.com", "x.com", "instagram.com", "pinterest.com",
+		"linkedin.com", "reddit.com/submit", "t.me/share", "whatsapp.com",
+		"doubleclick", "googletagmanager", "amazon-adsystem",
+	} {
+		if strings.Contains(u.Host+u.Path, junk) {
+			return false
+		}
+	}
+	return true
+}
+
+func sameSite(a, b string) bool {
+	return registrable(a) == registrable(b)
+}
+
+// registrable is a rough eTLD+1. It only has to tell one publisher from
+// another, so the two label rule is enough and a public suffix list would be a
+// dependency for nothing.
+func registrable(host string) string {
+	host = strings.TrimPrefix(strings.ToLower(host), "www.")
+	parts := strings.Split(host, ".")
+	if len(parts) <= 2 {
+		return host
+	}
+	return strings.Join(parts[len(parts)-2:], ".")
+}
+
+func textContent(n *html.Node) string {
+	if n.Type == html.TextNode {
+		return n.Data
+	}
+	var b strings.Builder
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		b.WriteString(textContent(c))
+	}
+	return b.String()
 }
 
 func textLen(n *html.Node) int {
