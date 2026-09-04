@@ -56,51 +56,18 @@ services:
         max-file: "3"
     networks: [edge, model]
 
-  # llama.cpp with the GPU attached. The image is the one taproot already builds
-  # for the local AI container, which carries a llama-server built from source,
-  # so there is nothing to build here.
+  # llama.cpp behind llama-swap, with the GPU attached. Its own image, built
+  # from llm/, because this site is an independent entity like every other one
+  # here and was previously borrowing taproot's development container.
+  #
+  # llama-swap is what makes the model on demand: it starts llama.cpp when a
+  # request names the model and unloads it after the ttl in llm/config.yaml.
   llm:
-    image: overshard/aiagent:latest
+    build:
+      context: ./llm
+      dockerfile: Dockerfile
     container_name: orchard-search-llm
     restart: unless-stopped
-    entrypoint: ["llama-server"]
-    command:
-      - "-hf"
-      - "unsloth/Qwen3.5-4B-GGUF:Q4_K_M"
-      - "--host"
-      - "0.0.0.0"
-      - "--port"
-      - "8091"
-      # Full GPU residency. Anything that spills layers to system RAM loses
-      # about 70% of throughput on this card.
-      - "--n-gpu-layers"
-      - "999"
-      # Required for a quantized KV cache on CUDA.
-      - "--flash-attn"
-      - "on"
-      # Qwen3.5's hybrid attention corrupts context checkpoints under multi-slot
-      # load, and one slot avoids it while keeping prompt caching.
-      - "--parallel"
-      - "1"
-      # The chat template carries tool-call and thinking formatting.
-      - "--jinja"
-      # Qwen3.5 is natively multimodal, so -hf pulls a vision projector unless
-      # told not to. It costs VRAM and disables prompt caching outright.
-      - "--no-mmproj"
-      - "--ctx-size"
-      - "32768"
-      - "--cache-type-k"
-      - "q8_0"
-      - "--cache-type-v"
-      - "q8_0"
-      - "--ubatch-size"
-      - "256"
-    environment:
-      # The image bakes LLAMA_ARG_OFFLINE=1 for privacy, which also blocks
-      # resolving a model from Hugging Face. It has to be off for the first
-      # download, and after that the weights come off the volume.
-      LLAMA_ARG_OFFLINE: "0"
-      LLAMA_CACHE: /models
     volumes:
       - models:/models
     deploy:
@@ -110,14 +77,14 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+    # /v1/models answers from the config without loading anything, so the check
+    # never keeps the model awake and defeats the ttl.
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8091/health"]
-      interval: 15s
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8091/v1/models"]
+      interval: 30s
       timeout: 5s
-      retries: 5
-      # Generous: a cold start downloads several GB the first time, and even
-      # warm it reads the weights off disk before it answers.
-      start_period: 300s
+      retries: 3
+      start_period: 20s
     security_opt:
       - no-new-privileges:true
     logging:

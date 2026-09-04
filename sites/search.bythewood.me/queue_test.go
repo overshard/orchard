@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -121,4 +123,23 @@ func TestQueueReportsPosition(t *testing.T) {
 		t.Fatal("no position was reported")
 	}
 	release()
+}
+
+// TestLLMConfigMatchesClient guards the two things in llm/config.yaml that the
+// Go side depends on and nothing else would catch: the model name the client
+// sends, and the ttl that makes the model unload at all.
+func TestLLMConfigMatchesClient(t *testing.T) {
+	b, err := os.ReadFile("llm/config.yaml")
+	if err != nil {
+		t.Skip("no llm config here")
+	}
+	cfg := string(b)
+
+	if !strings.Contains(cfg, `"`+NewLLM("").Model+`":`) {
+		t.Errorf("llm/config.yaml has no model named %q, which is what the client asks for",
+			NewLLM("").Model)
+	}
+	if !strings.Contains(cfg, "ttl:") {
+		t.Error("no ttl in llm/config.yaml, so the model would never unload")
+	}
 }

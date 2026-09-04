@@ -1,0 +1,34 @@
+# llama-swap: one model, started on demand and unloaded when idle.
+#
+# The point of this file is the ttl. Without it the weights sit on the card
+# forever, and this machine is also a workstation. Ten minutes is long enough
+# that a run of questions never pays a reload, and short enough that the card is
+# free by the time anyone wants it for something else.
+
+healthCheckTimeout: 600
+logLevel: info
+
+# llama-server binds this, on loopback inside the container. Nothing but
+# llama-swap can reach it, so it needs no key of its own.
+startPort: 10001
+
+models:
+  # The site asks for "local", so this name is the contract between the two.
+  "local":
+    name: "Qwen3.5 4B"
+    # Measured on a 3070: about 5.1GB of 8GB at this context with a q8_0 cache,
+    # and roughly three seconds to load once the weights are in page cache.
+    ttl: 600
+    cmd: >
+      llama-server
+      --host 127.0.0.1 --port ${PORT}
+      -hf unsloth/Qwen3.5-4B-GGUF:Q4_K_M
+      --n-gpu-layers 999
+      --flash-attn on
+      --parallel 1
+      --jinja
+      --no-mmproj
+      --ctx-size 32768
+      --cache-type-k q8_0
+      --cache-type-v q8_0
+      --ubatch-size 256
