@@ -15,6 +15,7 @@ llm:
 	-$(SUDO) docker volume create search-models 2>/dev/null
 	-$(SUDO) docker rm -f $(LLM_NAME) 2>/dev/null
 	$(SUDO) docker run -d --name $(LLM_NAME) --gpus all \
+		--restart unless-stopped \
 		--network $(LLM_NET) \
 		-v search-models:/models \
 		-e LLAMA_ARG_OFFLINE=0 -e LLAMA_CACHE=/models \
