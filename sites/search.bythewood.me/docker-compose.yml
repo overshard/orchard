@@ -1,7 +1,20 @@
 name: orchard-search
 
-# No published ports. Caddy reaches this by container name on orchard-edge, and
-# this reaches the model by container name on search-llm-net.
+# Two services, because this site is the only one here that needs a GPU.
+#
+# They are one project rather than two so the whole site is `make deploy
+# SITE=search.bythewood.me`, `make doctor` sees both, and `make down` takes both
+# with it. The model was run by hand at first and that was a mistake: it sat
+# outside every make target, on a network nothing else knew about, and doctor
+# reported the site healthy while the thing that answers questions was invisible.
+#
+# The cost of folding it in is that a deploy recreates the model container too,
+# which reloads the weights. Measured at about three seconds from page cache, so
+# it is not worth a second project to avoid.
+#
+# No published ports. Caddy reaches the app by container name on orchard-edge,
+# and the app reaches the model by container name on the private network below,
+# which nothing else joins.
 
 services:
   app:
@@ -14,11 +27,12 @@ services:
     # database closes cleanly rather than being killed mid-write.
     stop_grace_period: 30s
     environment:
-      # The model container, which is not part of this project because it needs
-      # the GPU and a different lifecycle. See the llm target in the Makefile.
-      LLM_URL: ${LLM_URL:-http://search-llm:8091}
+      LLM_URL: http://llm:8091
     volumes:
       - data:/data
+    depends_on:
+      llm:
+        condition: service_healthy
     # Roomier than the static sites: this one holds a page archive with a full
     # text index and parses HTML on the request path. Still a ceiling to fail
     # against rather than a target, since this machine is also a workstation.
@@ -40,17 +54,91 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    networks: [edge, llm]
+    networks: [edge, model]
+
+  # llama.cpp with the GPU attached. The image is the one taproot already builds
+  # for the local AI container, which carries a llama-server built from source,
+  # so there is nothing to build here.
+  llm:
+    image: overshard/aiagent:latest
+    container_name: orchard-search-llm
+    restart: unless-stopped
+    entrypoint: ["llama-server"]
+    command:
+      - "-hf"
+      - "unsloth/Qwen3.5-4B-GGUF:Q4_K_M"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8091"
+      # Full GPU residency. Anything that spills layers to system RAM loses
+      # about 70% of throughput on this card.
+      - "--n-gpu-layers"
+      - "999"
+      # Required for a quantized KV cache on CUDA.
+      - "--flash-attn"
+      - "on"
+      # Qwen3.5's hybrid attention corrupts context checkpoints under multi-slot
+      # load, and one slot avoids it while keeping prompt caching.
+      - "--parallel"
+      - "1"
+      # The chat template carries tool-call and thinking formatting.
+      - "--jinja"
+      # Qwen3.5 is natively multimodal, so -hf pulls a vision projector unless
+      # told not to. It costs VRAM and disables prompt caching outright.
+      - "--no-mmproj"
+      - "--ctx-size"
+      - "32768"
+      - "--cache-type-k"
+      - "q8_0"
+      - "--cache-type-v"
+      - "q8_0"
+      - "--ubatch-size"
+      - "256"
+    environment:
+      # The image bakes LLAMA_ARG_OFFLINE=1 for privacy, which also blocks
+      # resolving a model from Hugging Face. It has to be off for the first
+      # download, and after that the weights come off the volume.
+      LLAMA_ARG_OFFLINE: "0"
+      LLAMA_CACHE: /models
+    volumes:
+      - models:/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8091/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      # Generous: a cold start downloads several GB the first time, and even
+      # warm it reads the weights off disk before it answers.
+      start_period: 300s
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks: [model]
 
 volumes:
   data:
     name: orchard-search-data
+  # The weights, kept out of the image so a rebuild does not re-download them.
+  models:
+    name: orchard-search-models
 
 networks:
   edge:
     name: orchard-edge
     external: true
-  # Created by `make llm` in this directory alongside the model container.
-  llm:
-    name: search-net
-    external: true
+  # Private to this project. The model has no business being reachable from
+  # anywhere else, and it has no authentication of its own.
+  model:
+    name: orchard-search-model
