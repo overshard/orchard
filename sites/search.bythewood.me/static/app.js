@@ -95,9 +95,12 @@ function scrollToBottom() {
 }
 
 function scrollToTurn(turn) {
-  const headerH = document.querySelector(".bar").offsetHeight;
-  const top = window.scrollY + turn.getBoundingClientRect().top - headerH - 16;
-  window.scrollTo({ top, behavior: "smooth" });
+  // The header and the field are both pinned, so a turn scrolled to the top of
+  // the viewport would sit behind them.
+  const bar = document.querySelector(".bar").offsetHeight;
+  const askH = document.querySelector(".askwrap").offsetHeight;
+  const top = window.scrollY + turn.getBoundingClientRect().top - bar - askH - 12;
+  window.scrollTo({ top: Math.max(top, 0), behavior: "smooth" });
 }
 
 form.addEventListener("submit", (e) => {
@@ -404,7 +407,7 @@ function renderAnswer(d) {
     following = true;
     setMode();
     input.focus();
-    input.scrollIntoView({ block: "center", behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   });
   const nq = el("button", "act", "New question");
   nq.addEventListener("click", newQuestion);

@@ -37,6 +37,11 @@ const (
 // TrySkill answers a question from a live source when one clearly applies.
 func (e *Engine) TrySkill(ctx context.Context, question string, pr Progress) (*Answer, bool) {
 	switch {
+	case looksLikeSport(question):
+		pr.send("skill", "checking the scoreboard")
+		if a, ok := e.TrySports(ctx, question, pr); ok {
+			return a, true
+		}
 	case looksLikeWeather(question):
 		pr.send("skill", "reading the forecast")
 		if a, ok := e.weatherAnswer(ctx, question); ok {
