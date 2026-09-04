@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>search</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body data-session="{{.SessionID}}">
+<div class="crt"></div>
+<div class="vignette"></div>
+
+<header class="bar">
+  <a class="brand" href="/">search</a>
+  <span class="spacer"></span>
+  <span class="stat" id="archive">{{.Pages}} pages &middot; {{.Chunks}} passages</span>
+  <span class="gauge" id="gauge" title="How much searching is left before it paces itself">
+    <span class="segs" id="segs"></span>
+    <span class="gtext" id="gtext">ready</span>
+  </span>
+  <button class="ghost" id="reset" title="Start a new conversation">new</button>
+  <span class="dot {{if .LLMUp}}up{{end}}" id="modeldot" title="model"></span>
+</header>
+
+<main>
+  <div id="transcript">
+    <div class="intro">
+      <p class="introline">Ask a question. It searches the web, reads what it finds, and writes an
+      answer where every sentence is checked against the passage it cites.</p>
+      <p class="ambient">{{.Ambient}}</p>
+    </div>
+  </div>
+
+  <div class="askwrap">
+    <form class="ask" id="ask">
+      <input type="text" id="q" placeholder="Ask a question" autocomplete="off" autofocus>
+      <button type="submit" id="go">Search</button>
+    </form>
+    <p class="faint hint" id="followhint" hidden>Following on from the last answer. Use <strong>New question</strong> to start fresh.</p>
+    <p class="hint capnote" id="capnote" hidden></p>
+  </div>
+</main>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

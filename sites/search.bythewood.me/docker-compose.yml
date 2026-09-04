@@ -1,0 +1,56 @@
+name: orchard-search
+
+# No published ports. Caddy reaches this by container name on orchard-edge, and
+# this reaches the model by container name on search-llm-net.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: orchard-search
+    restart: unless-stopped
+    # Longer than Docker's 10s default so an answer in flight finishes and the
+    # database closes cleanly rather than being killed mid-write.
+    stop_grace_period: 30s
+    environment:
+      # The model container, which is not part of this project because it needs
+      # the GPU and a different lifecycle. See the llm target in the Makefile.
+      LLM_URL: ${LLM_URL:-http://search-llm:8091}
+    volumes:
+      - data:/data
+    # Roomier than the static sites: this one holds a page archive with a full
+    # text index and parses HTML on the request path. Still a ceiling to fail
+    # against rather than a target, since this machine is also a workstation.
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "/app", "-healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks: [edge, llm]
+
+volumes:
+  data:
+    name: orchard-search-data
+
+networks:
+  edge:
+    name: orchard-edge
+    external: true
+  # Created by `make llm` in this directory alongside the model container.
+  llm:
+    name: search-net
+    external: true

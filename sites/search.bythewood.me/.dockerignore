@@ -1,0 +1,11 @@
+# Docker reads this, not .gitignore. One per site, because each site's build
+# context is its own directory rather than the repo root.
+**/build
+**/bin
+# Runtime state. The page archive grows without bound and sending it in the
+# build context would dominate every build.
+**/data
+.git
+.playwright-cli
+**/.env
+**/*.pem

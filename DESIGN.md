@@ -16,8 +16,8 @@ that is the split the estate runs on.
 
 - **dash is amber.** It is the only public page with no login, it is glanced at
   rather than read, and it is the one site allowed to be a costume.
-- **analytics, auth, logging, repos and status are green.** They are tools you
-  read numbers off for minutes at a time. Green is the primary, and amber is
+- **analytics, auth, logging, repos, search and status are green.** They are
+  tools you read for minutes at a time. Green is the primary, and amber is
   chrome only, so caps labels, the hero eyebrow, and warnings. Amber is never
   the primary on any of them.
 
@@ -93,6 +93,16 @@ background-position: center top;
 
 32px because that is the padding rhythm the panels already use, so the grid
 lines up with the layout rather than cutting across it.
+
+**search borrows dash's texture and keeps green.** It is the one green site with
+the scanlines and the vignette, which contradicts the line below and is
+deliberate: it is a page you sit and read answers on rather than a table of
+numbers, so the screen feel earns its place, while the phosphor stays green
+because the reading is sustained. Its palette is its own five step warm dark
+(`--void` through `--line-hot`) rather than the four role names in the table
+above, since it was built to dash's structure with green swapped in for amber.
+It has no Sass, so the tokens are custom properties at the top of
+`static/app.css`.
 
 **Scanlines and the vignette stay on dash.** They are a `multiply` blend over
 the whole page, which darkens body text, and these sites are read rather than
