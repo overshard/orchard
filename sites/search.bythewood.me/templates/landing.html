@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>search &middot; bythewood.me</title>
+<meta name="description" content="A self-hosted AI search that reads the web and checks every sentence against the source it cites. Runs a small model on local hardware, on demand.">
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<div class="crt"></div>
+<div class="vignette"></div>
+
+<header class="bar">
+  <a class="brand" href="/">search</a>
+  <span class="spacer"></span>
+  <a class="ghost" href="{{ .SourceURL }}" target="_blank" rel="noopener">source</a>
+  <a class="ghost" href="/search">{{ if .Authenticated }}open{{ else }}sign in{{ end }}</a>
+</header>
+
+<main class="landing">
+  <section class="hero">
+    <span class="eyebrow">self-hosted &middot; local model &middot; cited</span>
+    <h1>Search that shows its <span class="accent">working</span>.</h1>
+    <p class="lede">
+      Ask a question. It searches the web, reads the pages it finds, and writes an
+      answer where every sentence carries the passage it came from. Then it checks
+      each one against that passage and tells you which held up.
+    </p>
+    <div class="ctas">
+      <a href="/search" class="act primary">{{ if .Authenticated }}Open search{{ else }}Sign in{{ end }}</a>
+      <a href="{{ .SourceURL }}" target="_blank" rel="noopener" class="act">View source</a>
+    </div>
+  </section>
+
+  <section class="grid">
+    <div class="card">
+      <span class="label">verified, not asserted</span>
+      <p>Every claim is checked against the passage it cites, one at a time. Anything
+      the sources do not actually state is marked unsupported rather than quietly
+      left in.</p>
+    </div>
+    <div class="card">
+      <span class="label">nothing leaves the house</span>
+      <p>The model runs on local hardware and starts only while a question is in
+      flight. No prompt reaches a third party, and no question is written to disk.</p>
+    </div>
+    <div class="card">
+      <span class="label">it reads, then remembers</span>
+      <p>Pages are cleaned to text and kept, so a later question can reuse what an
+      earlier one fetched even when the two share no words.</p>
+    </div>
+    <div class="card">
+      <span class="label">it corrects itself</span>
+      <p>When most of an answer fails its own check, that means the search missed.
+      It re-plans and looks again rather than handing over something it cannot back.</p>
+    </div>
+  </section>
+
+  <section class="strip">
+    <div class="stat"><span class="statv">{{ .Pages }}</span><span class="statl">pages read</span></div>
+    <div class="stat"><span class="statv">{{ .Chunks }}</span><span class="statl">passages indexed</span></div>
+    <div class="stat"><span class="statv">Go</span><span class="statl">stdlib, SQLite, one binary</span></div>
+  </section>
+
+  <footer class="foot">
+    <p class="faint">
+      One of the sites in <a href="https://github.com/overshard/orchard" target="_blank" rel="noopener">orchard</a>,
+      served from a desktop behind a Cloudflare Tunnel. Access needs an account.
+    </p>
+  </footer>
+</main>
+</body>
+</html>

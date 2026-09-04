@@ -1,0 +1,727 @@
+/* Cassette futurism, borrowed from dash and held to the same rule: the texture
+   is structure, not costume. Where dash is amber because it is a public page
+   glanced at, this is green, because DESIGN.md reserves green for the tools
+   that get read for minutes at a time and this is one of those.
+
+   Everything here is drawn in CSS. No bitmaps, so the grain scales and costs
+   no request. */
+
+:root {
+  /* Warm near-black, five steps. Never pure black: phosphor sat on warm glass
+     and #000 reads as a hole in the page rather than a screen. */
+  --void: #0a0908;
+  --bg: #0e0d0a;
+  --panel: #12100d;
+  --panel-2: #171410;
+  --line: #2a2c26;
+  --line-hot: #3c4a3c;
+
+  --text: #ece5d8;
+  --muted: #bcaf99;
+  --dim: #9c8f79;
+  --faint: #7b7060;
+
+  /* P1 green, the phosphor this is pretending to be. */
+  --green: #6b9e78;
+  --green-bright: #7db88c;
+  --green-hot: #95cca2;
+  --green-glow: rgba(107, 158, 120, 0.16);
+
+  /* Amber is the instrument, not the data. Labels, brackets and warnings. */
+  --amber: #c9a84c;
+  --amber-hot: #ffb000;
+  --terracotta: #c47055;
+
+  --mono: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+  --track: 0.14em;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+* { box-sizing: border-box; }
+
+html {
+  color-scheme: dark;
+  scrollbar-color: var(--line-hot) var(--void);
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13.5px;
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  padding-bottom: 7rem;
+
+  /* The structural grid. 32px so it lines up with the panel padding rhythm
+     rather than cutting across it. */
+  background-image:
+    linear-gradient(rgba(107, 158, 120, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(107, 158, 120, 0.028) 1px, transparent 1px);
+  background-size: 32px 32px;
+  background-position: center top;
+}
+
+/* --- CRT overlays ------------------------------------------------------- */
+
+/* Scanlines at 3px so they read as structure at any zoom. The opacity is low
+   on purpose: stronger than this and it stops being a tool. */
+.crt {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.14) 0px,
+    rgba(0, 0, 0, 0.14) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: multiply;
+}
+
+.vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 9001;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.45) 100%);
+}
+
+/* --- header ------------------------------------------------------------- */
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--void);
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.brand {
+  color: var(--green-bright);
+  text-decoration: none;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.brand::before { content: "▍"; color: var(--green); margin-right: 0.35rem; }
+
+.spacer { flex: 1; }
+
+.label {
+  text-transform: uppercase;
+  letter-spacing: var(--track);
+  font-weight: 600;
+  font-size: 0.68rem;
+  color: var(--amber);
+}
+.faint { color: var(--faint); font-size: 0.82rem; }
+.dim { color: var(--dim); }
+
+.stat { font-size: 0.68rem; letter-spacing: 0.08em; color: var(--faint); text-transform: uppercase; }
+
+.ghost {
+  background: transparent;
+  border: 1px solid var(--line-hot);
+  color: var(--dim);
+  font: inherit;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: var(--track);
+  padding: 0.2rem 0.7rem;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.2s var(--ease);
+}
+.ghost:hover { border-color: var(--green); color: var(--green-bright); background: var(--green-glow); }
+
+.dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--terracotta);
+  box-shadow: 0 0 6px currentColor;
+}
+.dot.up { background: var(--green); color: var(--green); }
+
+/* --- capacity meter, segmented like a level gauge ----------------------- */
+
+.gauge { display: flex; align-items: center; gap: 0.5rem; }
+.segs { display: flex; gap: 2px; }
+.seg {
+  width: 4px; height: 10px;
+  background: var(--line);
+  border-radius: 1px;
+  transition: background 0.35s var(--ease);
+}
+.seg.on { background: var(--green); }
+.gauge.low .seg.on { background: var(--amber-hot); }
+.gauge.out .seg.on { background: var(--terracotta); }
+.gtext {
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  color: var(--faint);
+  text-transform: uppercase;
+  min-width: 5.5rem;
+}
+.gauge.low .gtext { color: var(--amber-hot); }
+.gauge.out .gtext { color: var(--terracotta); }
+
+/* --- layout ------------------------------------------------------------- */
+
+main { max-width: 56rem; margin: 0 auto; padding: 2.5rem 1.5rem 0; }
+
+.intro { margin-bottom: 2.5rem; animation: rise 0.5s var(--ease) both; }
+.introline {
+  color: var(--muted);
+  border-left: 2px solid var(--line-hot);
+  padding-left: 1rem;
+  margin: 0 0 1rem;
+}
+.ambient {
+  font-size: 0.78rem;
+  color: var(--faint);
+  border-left: 2px solid var(--line);
+  padding-left: 1rem;
+  margin: 0;
+}
+
+/* --- the ask box, button inside the field ------------------------------- */
+
+.askwrap {
+  position: sticky;
+  bottom: 1.25rem;
+  z-index: 15;
+  margin-top: 2rem;
+  padding-top: 0.5rem;
+  background: linear-gradient(to bottom, transparent, var(--bg) 22%);
+}
+
+.ask {
+  position: relative;
+  display: block;
+}
+
+/* The bracket corners are the whole cassette-futurism trick: a frame that
+   reads as an instrument bezel rather than a form control. */
+.ask::before,
+.ask::after {
+  content: "";
+  position: absolute;
+  width: 10px; height: 10px;
+  border: 1px solid var(--green);
+  opacity: 0.6;
+  transition: opacity 0.25s var(--ease);
+  pointer-events: none;
+}
+.ask::before { top: -3px; left: -3px; border-right: 0; border-bottom: 0; }
+.ask::after { bottom: -3px; right: -3px; border-left: 0; border-top: 0; }
+.ask:focus-within::before,
+.ask:focus-within::after { opacity: 1; }
+
+.ask input {
+  width: 100%;
+  /* The right padding clears the button plus its inset, so text never runs
+     under it. */
+  padding: 1rem 8rem 1rem 1.1rem;
+  background: var(--panel);
+  border: 1px solid var(--line-hot);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.95rem;
+  border-radius: 2px;
+  transition: border-color 0.25s var(--ease), box-shadow 0.25s var(--ease);
+}
+.ask input:focus {
+  outline: none;
+  border-color: var(--green);
+  box-shadow: 0 0 0 1px var(--green-glow), 0 0 24px -8px var(--green);
+}
+.ask input::placeholder { color: var(--faint); }
+.ask input:disabled { opacity: 0.55; }
+
+/* Pinned to three edges rather than centred on one, so the gap around it is the
+   same 6px on top, right and bottom. Centring vertically and insetting
+   horizontally gives two different gaps, which is what made it look crooked. */
+.ask button {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 1.3rem;
+  background: var(--green);
+  border: none;
+  color: var(--void);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: var(--track);
+  text-indent: var(--track); /* balances the trailing letter-space */
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background 0.2s var(--ease), opacity 0.2s var(--ease);
+}
+.ask button:hover:not(:disabled) { background: var(--green-hot); }
+.ask button:disabled { opacity: 0.35; cursor: default; }
+
+/* The choice at the end of an answer. Following on is the common next move, so
+   it is the filled button, and starting over sits beside it rather than in a
+   corner. */
+.turnfoot {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  margin-top: 1.6rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--line);
+}
+.act {
+  font: inherit;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: var(--track);
+  padding: 0.5rem 1.1rem;
+  border-radius: 2px;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--line-hot);
+  color: var(--dim);
+  transition: all 0.2s var(--ease);
+}
+.act:hover { border-color: var(--green); color: var(--green-bright); background: var(--green-glow); }
+.act.primary {
+  background: var(--green);
+  border-color: var(--green);
+  color: var(--void);
+  font-weight: 700;
+}
+.act.primary:hover { background: var(--green-hot); border-color: var(--green-hot); color: var(--void); }
+
+/* A rule marking where the model stopped carrying the conversation. */
+.brk {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin: 0 0 2.5rem;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: var(--track);
+  color: var(--faint);
+}
+.brk::before, .brk::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+/* In follow-up mode the field is marked, so it is never a surprise that the
+   next question is measured against the last answer. */
+.ask.followon input { border-color: var(--green); }
+.ask.followon::before, .ask.followon::after { opacity: 1; }
+
+.hint { margin: 0.5rem 0 0; font-size: 0.76rem; }
+.capnote { color: var(--amber-hot); }
+
+/* --- a turn ------------------------------------------------------------- */
+
+.turn { margin-bottom: 3rem; animation: rise 0.4s var(--ease) both; }
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+.question {
+  font-size: 1.08rem;
+  color: var(--green-bright);
+  border-left: 2px solid var(--green);
+  padding-left: 1rem;
+  margin-bottom: 1.2rem;
+}
+.question::before {
+  content: "ASK";
+  display: block;
+  font-size: 0.62rem;
+  letter-spacing: var(--track);
+  color: var(--amber);
+  margin-bottom: 0.15rem;
+}
+
+/* --- live status -------------------------------------------------------- */
+
+.status {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 1rem 1.2rem;
+  position: relative;
+  overflow: hidden;
+}
+
+/* A sweep along the top edge, so the panel reads as working rather than as a
+   static box with a spinner glued to it. */
+.status::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0;
+  height: 1px; width: 35%;
+  background: linear-gradient(90deg, transparent, var(--green-hot), transparent);
+  animation: sweep 1.8s linear infinite;
+}
+@keyframes sweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(390%); }
+}
+
+.stephead { display: flex; align-items: center; gap: 0.6rem; }
+.spinner {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+  animation: pulse 1.2s ease-in-out infinite;
+  flex: none;
+}
+@keyframes pulse { 0%, 100% { opacity: 0.25; transform: scale(0.85); } 50% { opacity: 1; transform: scale(1); } }
+
+.steptext { color: var(--green-bright); flex: 1; }
+.clock { color: var(--faint); font-size: 0.76rem; font-variant-numeric: tabular-nums; }
+
+.why {
+  color: var(--faint);
+  font-size: 0.76rem;
+  margin: 0.35rem 0 0 1.3rem;
+  min-height: 1.2em;
+  transition: opacity 0.3s var(--ease);
+}
+
+.trail { list-style: none; margin: 0.5rem 0 0; padding: 0 0 0 1.3rem; }
+.trail li {
+  color: var(--faint);
+  font-size: 0.78rem;
+  line-height: 1.6;
+  animation: slidein 0.3s var(--ease) both;
+}
+.trail li::before { content: "› "; color: var(--green); }
+@keyframes slidein {
+  from { opacity: 0; transform: translateX(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* --- answer ------------------------------------------------------------- */
+
+.answerwrap { animation: rise 0.45s var(--ease) both; }
+
+.meta { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
+.chip {
+  font-size: 0.68rem;
+  color: var(--dim);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  padding: 0.1rem 0.5rem;
+  border-radius: 2px;
+}
+.flag {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: var(--track);
+  color: var(--amber-hot);
+  border: 1px solid var(--amber-hot);
+  padding: 0 0.4rem;
+  border-radius: 2px;
+}
+
+.answer {
+  background: var(--panel);
+  border: 1px solid var(--line-hot);
+  border-radius: 2px;
+  padding: 0.5rem 1.5rem 1.3rem;
+  position: relative;
+}
+/* A hairline of phosphor down the left edge, the way a lit panel would sit. */
+.answer::before {
+  content: "";
+  position: absolute;
+  left: -1px; top: 0; bottom: 0;
+  width: 2px;
+  background: linear-gradient(180deg, var(--green), transparent);
+}
+
+.prose > *:first-child { margin-top: 1rem; }
+.prose h1, .prose h2, .prose h3 {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: var(--track);
+  color: var(--amber);
+  margin: 1.6rem 0 0.6rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--line);
+}
+.prose p { margin: 0.85rem 0; }
+.prose ul, .prose ol { margin: 0.85rem 0; padding-left: 1.4rem; }
+.prose li { margin: 0.3rem 0; }
+.prose li::marker { color: var(--green); }
+.prose strong { color: var(--green-hot); font-weight: 700; }
+.prose code {
+  background: var(--panel-2);
+  padding: 0.1rem 0.35rem;
+  border-radius: 2px;
+  color: var(--green-bright);
+  font-size: 0.92em;
+}
+.prose pre {
+  background: var(--void);
+  border: 1px solid var(--line);
+  padding: 0.9rem;
+  overflow-x: auto;
+  border-radius: 2px;
+}
+.prose table { border-collapse: collapse; width: 100%; display: block; overflow-x: auto; }
+.prose th, .prose td { border: 1px solid var(--line); padding: 0.35rem 0.7rem; text-align: left; }
+.prose th { color: var(--amber); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; }
+.prose a { color: var(--green-bright); }
+.prose blockquote {
+  border-left: 2px solid var(--line-hot);
+  margin: 0.85rem 0;
+  padding-left: 1rem;
+  color: var(--muted);
+}
+
+a.cite {
+  color: var(--green-hot);
+  text-decoration: none;
+  font-size: 0.8em;
+  vertical-align: super;
+  padding: 0 0.08em;
+  transition: color 0.15s var(--ease);
+}
+a.cite:hover { color: var(--amber-hot); }
+
+/* --- validation --------------------------------------------------------- */
+
+section { margin-bottom: 1.8rem; }
+.validation { margin-top: 1.8rem; }
+.vhead { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; }
+
+/* A verification bar, filled by the share that held up. */
+.vbar {
+  flex: 1;
+  min-width: 6rem;
+  height: 4px;
+  background: var(--line);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.vfill {
+  display: block;
+  height: 100%;
+  background: var(--green);
+  width: 0;
+  transition: width 0.8s var(--ease);
+}
+.vbar.bad .vfill { background: var(--amber-hot); }
+.score { font-size: 0.76rem; color: var(--green-bright); }
+.score.bad { color: var(--amber-hot); }
+
+.explain { margin: 0.6rem 0 0.9rem; max-width: 48rem; line-height: 1.65; }
+
+.checks { list-style: none; padding: 0; margin: 0.7rem 0 0; }
+.checks li {
+  display: flex;
+  gap: 0.8rem;
+  align-items: baseline;
+  padding: 0.55rem 0.8rem;
+  border-left: 2px solid var(--green);
+  background: var(--panel);
+  margin-bottom: 3px;
+  transition: background 0.2s var(--ease);
+}
+.checks li:hover { background: var(--panel-2); }
+.checks li.bad { border-left-color: var(--terracotta); }
+.verdict {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--green-bright);
+  flex: 0 0 5.5rem;
+}
+.checks li.bad .verdict { color: var(--terracotta); }
+.sentence { color: var(--muted); font-size: 0.84rem; }
+.note { display: block; color: var(--faint); font-size: 0.74rem; font-style: italic; }
+
+/* --- sources ------------------------------------------------------------ */
+
+.sources { list-style: none; padding: 0; margin: 0.7rem 0 0; counter-reset: src; }
+.sources li {
+  counter-increment: src;
+  margin-bottom: 0.8rem;
+  padding-left: 2.2rem;
+  position: relative;
+}
+.sources li::before {
+  content: "[" counter(src) "]";
+  position: absolute;
+  left: 0;
+  color: var(--green);
+  font-size: 0.78rem;
+}
+.sources a { color: var(--green-bright); text-decoration: none; }
+.sources a:hover { color: var(--green-hot); text-decoration: underline; }
+.cached { color: var(--amber); }
+
+details.passages { margin-top: 1.2rem; border-top: 1px solid var(--line); padding-top: 0.9rem; }
+summary { cursor: pointer; list-style: none; }
+summary::-webkit-details-marker { display: none; }
+summary::before { content: "▸ "; color: var(--green); }
+details[open] > summary::before { content: "▾ "; }
+.passage {
+  border-left: 2px solid var(--line-hot);
+  padding: 0.5rem 0 0.5rem 0.9rem;
+  margin: 0.9rem 0;
+  scroll-margin-top: 5rem;
+  transition: border-color 0.3s var(--ease), background 0.3s var(--ease);
+}
+.passage:target { border-left-color: var(--green-hot); background: var(--panel-2); }
+.phead { display: flex; gap: 0.6rem; align-items: baseline; }
+.passage p { color: var(--muted); font-size: 0.82rem; margin: 0.35rem 0 0; white-space: pre-wrap; }
+
+.error { color: var(--terracotta); }
+.warn { color: var(--amber-hot); font-size: 0.8rem; margin: 0.4rem 0 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  html { scroll-behavior: auto; }
+}
+
+/* --- the public landing ------------------------------------------------- */
+
+.landing { max-width: 60rem; padding-bottom: 4rem; }
+
+.hero { margin: 4rem 0 5rem; }
+.eyebrow {
+  display: block;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: var(--track);
+  color: var(--amber);
+  margin-bottom: 1.2rem;
+}
+.hero h1 {
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  margin: 0 0 1.4rem;
+}
+.hero h1 .accent { color: var(--green-bright); }
+.lede { color: var(--muted); max-width: 44rem; margin: 0 0 2rem; font-size: 0.95rem; }
+.ctas { display: flex; gap: 0.7rem; flex-wrap: wrap; }
+.ctas .act { text-decoration: none; display: inline-flex; align-items: center; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  margin-bottom: 3rem;
+}
+.card { background: var(--panel); padding: 1.3rem 1.4rem; }
+.card p { color: var(--muted); font-size: 0.84rem; margin: 0.5rem 0 0; }
+
+.strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2.5rem;
+  padding: 1.5rem 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 2.5rem;
+}
+.stat { display: flex; flex-direction: column; }
+.statv { font-size: 1.5rem; color: var(--green-bright); font-weight: 700; }
+.statl {
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: var(--track);
+  color: var(--faint);
+}
+
+.foot p { margin: 0; }
+.foot a { color: var(--green-bright); }
+a.ghost { text-decoration: none; display: inline-flex; align-items: center; }
+
+/* --- narrow screens ------------------------------------------------------
+   This gets read on a phone as much as a desktop. Three things drive the
+   layout here: the header has five things in it and only two of them matter
+   small, the validation rows are a two column table that has to become one,
+   and the sticky ask box must not eat the viewport when a keyboard opens. */
+
+@media (max-width: 46rem) {
+  body { font-size: 13px; padding-bottom: 5rem; }
+
+  .bar { gap: 0.7rem; padding: 0.7rem 1rem; }
+  /* The archive count is context, not something to act on, so it goes first. */
+  #archive { display: none; }
+  .gtext { min-width: 0; }
+
+  main { padding: 1.5rem 1rem 0; }
+
+  .question { font-size: 1rem; }
+
+  .ask input { padding: 0.9rem 6.5rem 0.9rem 0.9rem; font-size: 16px; }
+  .ask button { padding: 0 0.9rem; font-size: 0.66rem; letter-spacing: 0.1em; }
+  .askwrap { bottom: 0.5rem; }
+
+  .answer { padding: 0.4rem 1rem 1.1rem; }
+  .prose ul, .prose ol { padding-left: 1.2rem; }
+
+  /* One column: a 5.5rem verdict beside wrapping text leaves about eight
+     characters a line on a phone. */
+  .checks li { flex-direction: column; gap: 0.2rem; padding: 0.6rem 0.7rem; }
+  .verdict { flex: none; }
+  .sentence { font-size: 0.86rem; }
+
+  .turnfoot { flex-direction: column; align-items: stretch; }
+  .act { text-align: center; justify-content: center; }
+
+  .meta { gap: 0.4rem; }
+  .chip { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .sources li { padding-left: 1.9rem; }
+
+  .hero { margin: 2.5rem 0 3rem; }
+  .strip { gap: 1.5rem; }
+  .passage { padding-left: 0.7rem; }
+}
+
+/* The header loses its label text before it wraps. */
+@media (max-width: 30rem) {
+  .gtext { display: none; }
+  .bar { gap: 0.55rem; }
+  .ask input { padding-right: 3.4rem; }
+  /* An icon-sized button, since "search" does not fit beside a question. */
+  .ask button { padding: 0 0.7rem; font-size: 0; }
+  .ask button::after { content: "\2192"; font-size: 1.1rem; line-height: 1; }
+  .statv { font-size: 1.25rem; }
+}
+
+/* A phone keyboard shrinks the viewport rather than scrolling the page, so a
+   sticky element measured against vh ends up above the fold. */
+@supports (height: 100dvh) {
+  body { min-height: 100dvh; }
+}
