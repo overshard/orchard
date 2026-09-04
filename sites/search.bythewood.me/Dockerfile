@@ -28,9 +28,8 @@ COPY --from=build /usr/local/go/lib/time/zoneinfo.zip /zoneinfo.zip
 ENV ZONEINFO=/zoneinfo.zip
 
 ENV SITE_DATA=/data
-# The model is not in this compose project. It runs in its own container with
-# the GPU attached, on a network this one joins.
-ENV LLM_URL=http://search-llm:8091
+# The model, which is the other service in this project's compose file.
+ENV LLM_URL=http://llm:8091
 
 # 65532 like the other scratch images here, so one number owns every /data
 # volume. There is no adduser on scratch, so the numeric id is set directly and

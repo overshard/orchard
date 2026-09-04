@@ -174,8 +174,9 @@ down-one: require-site
 # `ps -a` rather than `ps`, so a container that exited reads as stopped rather
 # than vanishing from the report.
 #
-# Volume names are read out of the compose files rather than listed here, so a
-# site that gains state is picked up without editing this.
+# Volume and container names are both read out of the compose files rather than
+# listed here, so a site that gains state, or a second service, is picked up
+# without editing this. search has two containers for that reason.
 doctor:
 	@probe() { \
 		st=$$($(DOCKER) ps -a --filter "name=^$$1$$" --format '{{.Status}}' 2>/dev/null | head -1); \
@@ -214,7 +215,9 @@ doctor:
 	echo ""; \
 	echo "sites"; \
 	for s in $(SITES); do \
-		probe "orchard-$$(echo $$s | cut -d. -f1)" "-> make deploy SITE=$$s"; \
+		for c in $$(awk '/^ *container_name:/{print $$2}' sites/$$s/docker-compose.yml); do \
+			probe "$$c" "-> make deploy SITE=$$s"; \
+		done; \
 	done; \
 	echo ""; \
 	echo "ingest"; \
