@@ -755,36 +755,64 @@ a.ghost { text-decoration: none; display: inline-flex; align-items: center; }
 .entname:hover { text-decoration: underline; }
 .entname::after { content: " \2197"; font-weight: 400; font-size: 0.85em; }
 
-/* --- what it is good at, on the empty state ----------------------------- */
 
-.skills { margin: 1.6rem 0; }
-.skillrow {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-  gap: 1px;
-  background: var(--line);
-  border: 1px solid var(--line);
-  margin-top: 0.6rem;
-}
+/* --- the try panel, an instrument list rather than a wrapping grid ------- */
+
+.skills { margin: 1.8rem 0; }
+.skhead { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.5rem; }
+.skrule { flex: 1; height: 1px; background: var(--line); }
+
+.skillrow { list-style: none; margin: 0; padding: 0; }
+.skillrow li + li { border-top: 1px solid var(--line); }
+
 .skill {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: 7rem 1fr auto;
+  align-items: baseline;
+  gap: 1rem;
+  width: 100%;
   text-align: left;
-  background: var(--panel);
-  border: none;
-  padding: 0.8rem 1rem;
+  background: transparent;
+  border: 0;
+  border-left: 2px solid transparent;
+  padding: 0.5rem 0.7rem;
   font: inherit;
   cursor: pointer;
-  transition: background 0.2s var(--ease);
+  transition: border-color 0.18s var(--ease), background 0.18s var(--ease);
 }
-.skill:hover { background: var(--raised, var(--panel-2)); }
+.skill:hover, .skill:focus-visible {
+  background: var(--panel);
+  border-left-color: var(--green);
+  outline: none;
+}
+
 .skname {
-  font-size: 0.66rem;
+  font-size: 0.64rem;
   text-transform: uppercase;
   letter-spacing: var(--track);
   color: var(--amber);
 }
-.skex { color: var(--muted); font-size: 0.82rem; line-height: 1.4; }
+.skex { color: var(--dim); font-size: 0.84rem; }
 .skill:hover .skex { color: var(--green-bright); }
+
+.sktag {
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--faint);
+  border: 1px solid var(--line-hot);
+  padding: 0 0.35rem;
+  border-radius: 2px;
+}
+.skill:hover .sktag { color: var(--green); border-color: var(--green); }
+
+@media (max-width: 46rem) {
+  .skill { grid-template-columns: 1fr auto; gap: 0.2rem 0.6rem; padding: 0.6rem 0.7rem; }
+  .skname { grid-column: 1 / -1; }
+}
+
+/* --- waiting for the people ahead --------------------------------------- */
+
+.status.waiting::after { animation-duration: 3.2s; opacity: 0.55; }
+.status.waiting .spinner { background: var(--amber-hot); box-shadow: 0 0 8px var(--amber-hot); }
+.status.waiting .steptext { color: var(--amber-hot); }

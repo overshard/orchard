@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>search</title>
-<link rel="stylesheet" href="/static/app.css">
+<title>Ask &middot; search</title>
+<link rel="stylesheet" href="{{ asset "static/app.css" }}">
 </head>
 <body data-session="{{.SessionID}}">
 <div class="crt"></div>
@@ -29,33 +29,43 @@
       answer where every sentence is checked against the passage it cites.</p>
 
       <div class="skills">
-        <span class="label">try</span>
-        <div class="skillrow">
-          <button class="skill" data-q="how do i make a breakfast burrito">
-            <span class="skname">Recipes</span>
-            <span class="skex">how do i make a breakfast burrito</span>
-          </button>
-          <button class="skill" data-q="how do i set up wireguard on debian">
-            <span class="skname">How-to</span>
-            <span class="skex">how do i set up wireguard on debian</span>
-          </button>
-          <button class="skill" data-q="sqlite vs postgres for a small site">
-            <span class="skname">Comparisons</span>
-            <span class="skex">sqlite vs postgres for a small site</span>
-          </button>
-          <button class="skill" data-q="what is the most popular tool for running LLMs locally">
-            <span class="skname">Finding things</span>
-            <span class="skex">most popular tool for running LLMs locally</span>
-          </button>
-          <button class="skill" data-q="30 * 27">
-            <span class="skname">Maths</span>
-            <span class="skex">30 * 27, answered here, no searching</span>
-          </button>
-          <button class="skill" data-q="what is sqlite wal mode">
-            <span class="skname">Then follow up</span>
-            <span class="skex">ask again and it keeps the last answer in mind</span>
-          </button>
+        <div class="skhead">
+          <span class="label">try</span>
+          <span class="skrule"></span>
         </div>
+        <ul class="skillrow">
+          <li><button class="skill" data-q="how do i make a breakfast burrito">
+            <span class="skname">recipe</span>
+            <span class="skex">how do i make a breakfast burrito</span>
+          </button></li>
+          <li><button class="skill" data-q="how do i set up wireguard on debian">
+            <span class="skname">how&#8209;to</span>
+            <span class="skex">how do i set up wireguard on debian</span>
+          </button></li>
+          <li><button class="skill" data-q="sqlite vs postgres for a small site">
+            <span class="skname">compare</span>
+            <span class="skex">sqlite vs postgres for a small site</span>
+          </button></li>
+          <li><button class="skill" data-q="what is the most popular tool for running LLMs locally">
+            <span class="skname">find</span>
+            <span class="skex">most popular tool for running LLMs locally</span>
+          </button></li>
+          <li><button class="skill" data-q="what is the weather this weekend">
+            <span class="skname">weather</span>
+            <span class="skex">what is the weather this weekend</span>
+            <span class="sktag">live</span>
+          </button></li>
+          <li><button class="skill" data-q="what is the S&amp;P 500 right now">
+            <span class="skname">markets</span>
+            <span class="skex">what is the S&amp;P 500 right now</span>
+            <span class="sktag">live</span>
+          </button></li>
+          <li><button class="skill" data-q="30 * 27">
+            <span class="skname">maths</span>
+            <span class="skex">30 * 27</span>
+            <span class="sktag">instant</span>
+          </button></li>
+        </ul>
       </div>
 
       <p class="ambient">{{.Ambient}}</p>
@@ -72,6 +82,6 @@
   </div>
 </main>
 
-<script src="/static/app.js"></script>
+<script src="{{ asset "static/app.js" }}"></script>
 </body>
 </html>
