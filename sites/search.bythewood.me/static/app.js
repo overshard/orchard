@@ -29,6 +29,7 @@ const STEPS = {
   write: "Writing the answer",
   check: "Checking every sentence",
   retry: "That did not hold up, searching again",
+  calc: "Working it out",
 };
 
 // Why each step takes the time it does. A pause with no explanation reads as a
@@ -106,6 +107,15 @@ form.addEventListener("submit", (e) => {
 
 document.getElementById("reset").addEventListener("click", () => newQuestion(true));
 
+// The example buttons on the empty state. People cannot use capabilities they
+// do not know are there, and a blank box tells them nothing.
+document.querySelectorAll(".skill").forEach((b) => {
+  b.addEventListener("click", () => {
+    if (stream) return;
+    ask(b.dataset.q);
+  });
+});
+
 // newQuestion drops the conversation the model carries, but leaves what is on
 // screen alone. Clearing the page would throw away answers worth keeping just
 // to change what the next question is measured against.
@@ -133,6 +143,10 @@ function ask(q) {
   input.value = "";
   go.disabled = true;
   input.disabled = true;
+
+  // The examples are for an empty box, so they go once anything is asked.
+  const intro = transcript.querySelector(".intro .skills");
+  if (intro) intro.remove();
 
   const turn = el("article", "turn");
   turn.appendChild(el("div", "question", q));
@@ -226,7 +240,7 @@ function renderAnswer(d) {
   const wrap = el("div", "answerwrap");
 
   const meta = el("div", "meta");
-  meta.appendChild(el("span", "label", d.shape));
+  meta.appendChild(el("span", "label", d.skill || d.shape));
   meta.appendChild(el("span", "faint", d.elapsed));
   if (d.retried) meta.appendChild(el("span", "flag", "retried"));
   if (d.standalone && d.standalone !== d.question) {
@@ -235,7 +249,7 @@ function renderAnswer(d) {
   (d.queries || []).forEach((q) => meta.appendChild(el("span", "chip", q)));
   wrap.appendChild(meta);
 
-  const body = el("div", "answer prose");
+  const body = el("div", d.skill === "calculator" ? "answer prose calc" : "answer prose");
   body.innerHTML = d.html;
   wrap.appendChild(body);
 
@@ -280,6 +294,31 @@ function renderAnswer(d) {
     });
     v.appendChild(list);
     wrap.appendChild(v);
+  }
+
+  // What the answer named, checked. Above the sources, because this is what a
+  // reader was going to go looking for next.
+  if ((d.links || []).length) {
+    const sec = el("section", "linkset");
+    const h = el("div", "vhead");
+    h.appendChild(el("span", "label", "links"));
+    h.appendChild(el("span", "faint", "checked to be the thing named"));
+    sec.appendChild(h);
+    const ul = el("ul", "entlinks");
+    d.links.forEach((l) => {
+      const li = el("li");
+      const a = el("a", "entname", l.Name);
+      a.href = l.URL;
+      a.target = "_blank";
+      a.rel = "noreferrer noopener";
+      li.appendChild(a);
+      const sub = el("div", "faint");
+      sub.textContent = l.Host + (l.Title ? ` · ${l.Title}` : "");
+      li.appendChild(sub);
+      ul.appendChild(li);
+    });
+    sec.appendChild(ul);
+    wrap.appendChild(sec);
   }
 
   if ((d.sources || []).length) {
