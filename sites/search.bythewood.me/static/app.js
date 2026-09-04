@@ -107,31 +107,35 @@ form.addEventListener("submit", (e) => {
   ask(q);
 });
 
-document.getElementById("reset").addEventListener("click", () => newQuestion(true));
+// The empty state is kept so "new" can put it back. Starting over should look
+// like arriving, not like a blank page with the examples gone until a reload.
+const introHTML = transcript.innerHTML;
 
-// The example buttons on the empty state. People cannot use capabilities they
-// do not know are there, and a blank box tells them nothing.
-document.querySelectorAll(".skill").forEach((b) => {
-  b.addEventListener("click", () => {
-    if (stream) return;
-    ask(b.dataset.q);
-  });
+document.getElementById("reset").addEventListener("click", newQuestion);
+
+// The example buttons. People cannot use capabilities they do not know are
+// there, and a blank box tells them nothing. Bound by delegation so they keep
+// working after the empty state is restored.
+transcript.addEventListener("click", (e) => {
+  const b = e.target.closest(".skill");
+  if (!b || stream) return;
+  ask(b.dataset.q);
 });
 
-// newQuestion drops the conversation the model carries, but leaves what is on
-// screen alone. Clearing the page would throw away answers worth keeping just
-// to change what the next question is measured against.
-async function newQuestion(clearScreen) {
+// newQuestion returns the page to how it looked on arrival: the blurb, the
+// examples, today's context, and an empty focused field. Both the control in
+// the header and the one under an answer do this, because they mean the same
+// thing and behaving differently was only confusing.
+async function newQuestion() {
+  if (stream) return;
   await fetch(`/reset?sid=${sid}`, { method: "POST" });
   following = false;
-  if (clearScreen) {
-    transcript.innerHTML = "";
-    turns = 0;
-    document.title = "Ask \u00b7 search";
-  } else if (turns > 0) {
-    transcript.appendChild(el("div", "brk", "new question"));
-  }
+  turns = 0;
+  transcript.innerHTML = introHTML;
+  document.title = "Ask \u00b7 search";
+  input.value = "";
   setMode();
+  window.scrollTo({ top: 0, behavior: "smooth" });
   input.focus();
 }
 
@@ -403,10 +407,7 @@ function renderAnswer(d) {
     input.scrollIntoView({ block: "center", behavior: "smooth" });
   });
   const nq = el("button", "act", "New question");
-  nq.addEventListener("click", () => {
-    newQuestion(false);
-    input.scrollIntoView({ block: "center", behavior: "smooth" });
-  });
+  nq.addEventListener("click", newQuestion);
   foot.append(fu, nq);
   wrap.appendChild(foot);
 

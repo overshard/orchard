@@ -310,24 +310,6 @@ main { max-width: 56rem; margin: 0 auto; padding: 2.5rem 1.5rem 0; }
 }
 .act.primary:hover { background: var(--green-hot); border-color: var(--green-hot); color: var(--void); }
 
-/* A rule marking where the model stopped carrying the conversation. */
-.brk {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  margin: 0 0 2.5rem;
-  font-size: 0.62rem;
-  text-transform: uppercase;
-  letter-spacing: var(--track);
-  color: var(--faint);
-}
-.brk::before, .brk::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: var(--line);
-}
-
 /* In follow-up mode the field is marked, so it is never a surprise that the
    next question is measured against the last answer. */
 .ask.followon input { border-color: var(--green); }
