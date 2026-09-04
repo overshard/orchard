@@ -14,6 +14,7 @@ const (
 	ShapeHowTo      Shape = "howto"
 	ShapeComparison Shape = "comparison"
 	ShapeNews       Shape = "news"
+	ShapeStatus     Shape = "status"
 )
 
 // Contract is the format instruction handed to the synthesis step, and the
@@ -80,6 +81,23 @@ var contracts = map[Shape]Contract{
 		}, " "),
 		MaxPassages: 14, PerSource: 4, MaxTokens: 900,
 	},
+	// "What is the status of the Lindsay Clancy case" is not the same question
+	// as "what happened". It asks where something stands now, which means the
+	// newest source is the one that matters and an old one is misleading rather
+	// than merely incomplete.
+	ShapeStatus: {
+		Shape: ShapeStatus,
+		Instruction: strings.Join([]string{
+			"Open with one sentence saying where this stands as of the most recent passage, and give that passage's date.",
+			"Then a markdown bullet list of what has happened, oldest first, each with its date.",
+			"Bold the dates and the outcomes.",
+			"If the newest passage is more than a few weeks old, say so plainly in the first sentence, because a stale answer to a status question reads as current and is worse than no answer.",
+			"Do not present a scheduled or expected step as though it has happened.",
+			"Say what is outstanding or next if the passages give it.",
+		}, " "),
+		MaxPassages: 16, PerSource: 4, MaxTokens: 1100,
+	},
+
 	ShapeNews: {
 		Shape: ShapeNews,
 		Instruction: strings.Join([]string{
@@ -115,6 +133,10 @@ func guessShape(q string) Shape {
 		return ShapeComparison
 	case containsAny(l, "how do i", "how to", "how can i", "steps to", "set up", "install", "configure"):
 		return ShapeHowTo
+	case containsAny(l, "status of", "what happened to", "where does", "latest on",
+		"any update", "how did it end", "is it over", "still going on", "outcome of",
+		"verdict", "trial", "case against", "investigation into"):
+		return ShapeStatus
 	case containsAny(l, "latest", "news", "happened", "announced", "released", "update on",
 		"most recent", "last ", "who won", "score", "result of", "this week", "yesterday"):
 		return ShapeNews

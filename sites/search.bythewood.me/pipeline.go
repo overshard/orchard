@@ -272,7 +272,7 @@ func (e *Engine) plan(ctx context.Context, question, hint string) Plan {
 			},
 			"shape": map[string]any{
 				"type": "string",
-				"enum": []string{"factual", "recipe", "howto", "comparison", "news"},
+				"enum": []string{"factual", "recipe", "howto", "comparison", "news", "status"},
 			},
 		},
 		"required":             []string{"queries", "shape"},
@@ -285,6 +285,7 @@ func (e *Engine) plan(ctx context.Context, question, hint string) Plan {
 		"news: something that already happened, including sports results and recent events.",
 		"factual: everything else.",
 		"For news, write queries that would find what happened, using words like result, final score, or the current month and year, not words like schedule, fixtures or upcoming.",
+		"status: the user wants to know where an ongoing thing stands now, such as a court case, an investigation or a rollout. Write queries carrying the current month and year so the newest coverage is found rather than the first report.",
 		"No sentences, no quotes, no search operators.",
 	}, " ")
 	user := question
@@ -432,7 +433,15 @@ func (e *Engine) collect(ctx context.Context, results []Result, question string,
 	}
 	wg.Wait()
 
-	sort.Slice(got, func(a, b int) bool { return got[a].idx < got[b].idx })
+	// Search order normally, but a status question is answered by whichever
+	// source is newest, so a dated page outranks a well ranked stale one.
+	if contract.Shape == ShapeStatus {
+		sort.SliceStable(got, func(a, b int) bool {
+			return got[a].page.Published > got[b].page.Published
+		})
+	} else {
+		sort.Slice(got, func(a, b int) bool { return got[a].idx < got[b].idx })
+	}
 	if len(got) > maxSources {
 		got = got[:maxSources]
 	}

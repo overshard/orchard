@@ -23,6 +23,15 @@
 </header>
 
 <main>
+  <div class="askwrap">
+    <form class="ask" id="ask">
+      <input type="text" id="q" placeholder="Ask a question" autocomplete="off" autofocus>
+      <button type="submit" id="go">Search</button>
+    </form>
+    <p class="faint hint" id="followhint" hidden>Following on from the last answer. Use <strong>New question</strong> to start fresh.</p>
+    <p class="hint capnote" id="capnote" hidden></p>
+  </div>
+
   <div id="transcript">
     <div class="intro">
       <p class="introline">Ask a question. It searches the web, reads what it finds, and writes an
@@ -50,6 +59,15 @@
             <span class="skname">find</span>
             <span class="skex">most popular tool for running LLMs locally</span>
           </button></li>
+          <li><button class="skill" data-q="did Liverpool win their last match">
+            <span class="skname">scores</span>
+            <span class="skex">did Liverpool win their last match</span>
+            <span class="sktag">live</span>
+          </button></li>
+          <li><button class="skill" data-q="what is the status of the Lindsay Clancy case">
+            <span class="skname">status</span>
+            <span class="skex">where an ongoing story stands now</span>
+          </button></li>
           <li><button class="skill" data-q="what is the weather this weekend">
             <span class="skname">weather</span>
             <span class="skex">what is the weather this weekend</span>
@@ -70,15 +88,6 @@
 
       <p class="ambient">{{.Ambient}}</p>
     </div>
-  </div>
-
-  <div class="askwrap">
-    <form class="ask" id="ask">
-      <input type="text" id="q" placeholder="Ask a question" autocomplete="off" autofocus>
-      <button type="submit" id="go">Search</button>
-    </form>
-    <p class="faint hint" id="followhint" hidden>Following on from the last answer. Use <strong>New question</strong> to start fresh.</p>
-    <p class="hint capnote" id="capnote" hidden></p>
   </div>
 </main>
 
