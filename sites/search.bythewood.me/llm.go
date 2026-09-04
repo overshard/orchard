@@ -151,10 +151,15 @@ func (l *LLM) Warm(ctx context.Context) {
 	l.call(ctx, "", "hi", 1, nil)
 }
 
+// Healthy asks whether the model server is up, without waking the model.
+//
+// /v1/models answers from llama-swap's config and loads nothing. Asking /health
+// would risk pulling the weights back onto the card every time somebody opens
+// the page, which would quietly defeat the idle unload.
 func (l *LLM) Healthy(ctx context.Context) bool {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, "GET", l.BaseURL+"/health", nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", l.BaseURL+"/v1/models", nil)
 	if err != nil {
 		return false
 	}

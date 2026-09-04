@@ -79,6 +79,16 @@ async function refreshBudget() {
 setInterval(refreshBudget, 5000);
 refreshBudget();
 
+// Focus is a desktop convenience and a mobile annoyance: on a phone it opens the
+// keyboard immediately and takes half the screen, and tapping the box is no
+// hardship. A coarse pointer with no hover is the honest test for that, rather
+// than a width, since a narrow desktop window still wants the focus.
+const wantsFocus = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+
+function focusInput() {
+  if (wantsFocus) input.focus({ preventScroll: true });
+}
+
 function el(tag, cls, text) {
   const n = document.createElement(tag);
   if (cls) n.className = cls;
@@ -139,7 +149,7 @@ async function newQuestion() {
   input.value = "";
   setMode();
   window.scrollTo({ top: 0, behavior: "smooth" });
-  input.focus();
+  focusInput();
 }
 
 // setMode keeps the input honest about what the next question will do.
@@ -266,7 +276,7 @@ function ask(q) {
     turns++;
     following = true;
     setMode();
-    input.focus({ preventScroll: true });
+    focusInput();
     scrollToTurn(turn);
   }
 }
@@ -406,7 +416,7 @@ function renderAnswer(d) {
   fu.addEventListener("click", () => {
     following = true;
     setMode();
-    input.focus();
+    focusInput();
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
   const nq = el("button", "act", "New question");

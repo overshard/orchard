@@ -1,16 +1,17 @@
 .PHONY: run build clean
 
-# The model is a service in docker-compose.yml, not something started here, so
-# `make deploy SITE=search.bythewood.me` from the repo root brings up both.
+# Two services, both in docker-compose.yml, so `make deploy SITE=search.bythewood.me`
+# from the repo root builds and brings up the site and its model together.
 #
-# For running the site outside Docker against the deployed model:
+# The model image is llm/, built here rather than borrowed: llama.cpp compiled
+# for this card behind llama-swap, which starts the model on demand and unloads
+# it after the ttl in llm/config.yaml. The first build compiles CUDA kernels and
+# takes a while; after that it is cached.
 #
-#   sudo docker run --rm -d --name search-llm-dev --gpus all \
-#     --network orchard-search-model -v orchard-search-models:/models \
-#     -e LLAMA_ARG_OFFLINE=0 -e LLAMA_CACHE=/models \
-#     --entrypoint llama-server overshard/aiagent:latest -hf unsloth/Qwen3.5-4B-GGUF:Q4_K_M \
-#     --host 0.0.0.0 --port 8091 --n-gpu-layers 999 --flash-attn on --parallel 1 \
-#     --jinja --no-mmproj --ctx-size 32768
+# To run the site outside Docker against the deployed model, join its network:
+#
+#   sudo docker network connect orchard-search-model bythewood-webdev
+#   make run
 
 # SEARCH_DEV_NOAUTH skips the auth check, which only works in a build without
 # -tags embed. See devOpen in main.go.
