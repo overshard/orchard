@@ -38,4 +38,8 @@ const (
 	weatherLat   = 36.1
 	weatherLon   = -80.6
 	weatherPlace = "Yadkin Valley, NC"
+
+	// A severe weather alert covers a dozen counties and lists them
+	// alphabetically, so this is what pulls the one worth reading to the front.
+	homeCounty = "YADKIN"
 )

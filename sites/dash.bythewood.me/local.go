@@ -34,24 +34,92 @@ const (
 
 // Alert is one active NWS warning.
 type Alert struct {
-	Event    string `json:"event"`
-	Severity string `json:"severity"`
-	Urgency  string `json:"urgency"`
-	Headline string `json:"headline"`
-	Until    string `json:"until"`
+	Event     string `json:"event"`
+	Severity  string `json:"severity"`
+	Urgency   string `json:"urgency"`
+	Area      string `json:"area"`
+	Office    string `json:"office"`
+	Headline  string `json:"headline"`
+	Starts    string `json:"starts"`
+	Until     string `json:"until"`
+	UntilUnix int64  `json:"until_unix"`
 }
 
 type alertPayload struct {
 	Features []struct {
 		Properties struct {
-			Event    string `json:"event"`
-			Severity string `json:"severity"`
-			Urgency  string `json:"urgency"`
-			Headline string `json:"headline"`
-			Ends     string `json:"ends"`
-			Expires  string `json:"expires"`
+			Event     string `json:"event"`
+			Severity  string `json:"severity"`
+			Urgency   string `json:"urgency"`
+			Headline  string `json:"headline"`
+			AreaDesc  string `json:"areaDesc"`
+			Onset     string `json:"onset"`
+			Effective string `json:"effective"`
+			Ends      string `json:"ends"`
+			Expires   string `json:"expires"`
 		} `json:"properties"`
 	} `json:"features"`
+}
+
+// The NWS writes every headline off one template, "<event> issued <time> until
+// <time> by <office>", so beside a row that already carries the event and the
+// end time it is the same sentence a third time. The office is the only part
+// of it that is not already on the row.
+func alertOffice(headline string) string {
+	i := strings.LastIndex(headline, " by ")
+	if i < 0 {
+		return ""
+	}
+	return strings.ToUpper(strings.TrimPrefix(strings.TrimSpace(headline[i+4:]), "NWS "))
+}
+
+// Empty for the generated template, which every watch and warning gets, and the
+// text itself for the rare one where a forecaster wrote something.
+func alertHeadline(event, headline string) string {
+	h := strings.TrimSpace(headline)
+	if h == "" || strings.HasPrefix(strings.ToUpper(h), strings.ToUpper(strings.TrimSpace(event))) {
+		return ""
+	}
+	if i := strings.LastIndex(h, " by "); i > 0 {
+		h = strings.TrimSpace(h[:i])
+	}
+	return h
+}
+
+// areaDesc is a semicolon separated list of every county an alert covers, which
+// runs to nine names on a watch and will not fit on a phone. The home county
+// leads when it is in the list, since the row is read to find out whether the
+// thing is overhead, and the rest becomes a count.
+func alertArea(desc string) string {
+	seen := make(map[string]bool)
+	names := make([]string, 0, 8)
+	for _, part := range strings.Split(desc, ";") {
+		n := strings.TrimSpace(part)
+		if i := strings.LastIndex(n, ","); i > 0 {
+			n = strings.TrimSpace(n[:i])
+		}
+		n = strings.ToUpper(n)
+		if n == "" || seen[n] {
+			continue
+		}
+		seen[n] = true
+		names = append(names, n)
+	}
+	if len(names) == 0 {
+		return ""
+	}
+
+	lead := names[0]
+	for _, n := range names {
+		if n == homeCounty {
+			lead = n
+			break
+		}
+	}
+	if len(names) == 1 {
+		return lead
+	}
+	return fmt.Sprintf("%s +%d", lead, len(names)-1)
 }
 
 func fetchAlerts(ctx context.Context, g *Guard) ([]Alert, error) {
@@ -68,21 +136,37 @@ func fetchAlerts(ctx context.Context, g *Guard) ([]Alert, error) {
 	}
 
 	alerts := make([]Alert, 0, len(payload.Features))
+	now := time.Now()
 	for _, f := range payload.Features {
 		p := f.Properties
 		a := Alert{
 			Event:    strings.ToUpper(p.Event),
 			Severity: strings.ToLower(p.Severity),
 			Urgency:  strings.ToLower(p.Urgency),
-			Headline: p.Headline,
+			Area:     alertArea(p.AreaDesc),
+			Office:   alertOffice(p.Headline),
+			Headline: alertHeadline(p.Event, p.Headline),
 		}
+
 		ends := p.Ends
 		if ends == "" {
 			ends = p.Expires
 		}
 		if t, err := time.Parse(time.RFC3339, ends); err == nil {
-			a.Until = t.In(easternTime()).Format("Mon 3:04pm")
+			a.Until = strings.ToUpper(t.In(easternTime()).Format("Mon 3:04pm"))
+			a.UntilUnix = t.Unix()
 		}
+
+		// A watch for this evening and one already overhead are different rows,
+		// and the start time is the only thing that says which.
+		onset := p.Onset
+		if onset == "" {
+			onset = p.Effective
+		}
+		if t, err := time.Parse(time.RFC3339, onset); err == nil && t.After(now) {
+			a.Starts = strings.ToUpper(t.In(easternTime()).Format("Mon 3:04pm"))
+		}
+
 		alerts = append(alerts, a)
 	}
 

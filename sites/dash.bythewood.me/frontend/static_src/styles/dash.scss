@@ -946,33 +946,128 @@ main {
 
 // Above everything, and absent entirely when there is nothing active, because a
 // permanent "no warnings" row trains you to stop seeing the space it occupies.
+.alerts {
+  display: grid;
+  gap: var(--gap);
+}
 .alerts:empty { display: none; }
 
+// A stack of short rows rather than one long line. The event name runs to four
+// words on its own, so anything that sets it beside the rest of the row is one
+// narrow viewport away from wrapping into a paragraph.
 .alert {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  padding: 9px 12px;
-  border: 1px solid var(--warn);
-  background: rgba(210, 153, 34, 0.09);
-  margin-bottom: var(--gap);
+  padding: 10px 12px 10px 14px;
+  border: 1px solid var(--line-hot);
+
+  // Severity is in the stripe as well as the colour, so it survives being read
+  // on a phone in sunlight and by anyone who cannot tell amber from red.
+  border-left: 3px solid var(--warn);
+  background-color: var(--panel);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 176, 0, 0.08),
+    rgba(255, 176, 0, 0.022) 30%,
+    rgba(255, 176, 0, 0.014)
+  );
+
+  // Inline flow rather than a flex row, so a name long enough to wrap cannot
+  // leave the pip stranded on a line of its own and the chip follows the last
+  // word instead of dropping below it.
+  .alert-head { line-height: 1.35; }
+
+  .pip {
+    display: inline-block;
+    vertical-align: 0.15em;
+    margin-right: 8px;
+    background: var(--warn);
+  }
 
   .ev {
     font-family: var(--grotesk);
     font-weight: 700;
-    font-size: 12px;
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    color: var(--warn);
+    // EXCESSIVE HEAT WARNING is three long words and has to break somewhere.
+    overflow-wrap: anywhere;
+  }
+
+  // Beside the event name rather than out at the right edge, since it qualifies
+  // the name and lines up with nothing over there.
+  .sev {
+    display: inline-block;
+    vertical-align: 0.1em;
+    margin-left: 9px;
+    padding: 2px 6px;
+    border: 1px solid rgba(255, 176, 0, 0.4);
+    font-size: 9px;
     letter-spacing: var(--track);
+    text-transform: uppercase;
     color: var(--warn);
     white-space: nowrap;
   }
-  .hl { flex: 1; font-size: 12px; color: var(--text); }
-  .til { font-size: 10px; letter-spacing: var(--track); color: var(--dim); white-space: nowrap; }
+
+  // Only present when a forecaster wrote something the template did not.
+  .hl {
+    margin: 7px 0 0;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--muted);
+  }
+
+  .alert-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 3px 16px;
+    margin-top: 7px;
+
+    .m { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+    .m[hidden] { display: none; }
+    .k { font-size: 9px; letter-spacing: var(--track); color: var(--faint); }
+    .v { font-size: 11px; letter-spacing: 0.04em; color: var(--text); }
+    .left .v { color: var(--warn); }
+  }
 
   &[data-severity="severe"],
   &[data-severity="extreme"] {
-    border-color: var(--down);
-    background: rgba(255, 95, 77, 0.11);
+    border-left-color: var(--down);
+    background-image: linear-gradient(
+      90deg,
+      rgba(255, 95, 77, 0.1),
+      rgba(255, 95, 77, 0.028) 30%,
+      rgba(255, 95, 77, 0.016)
+    );
+
+    .pip { background: var(--down); }
     .ev { color: var(--down); }
+    .sev { color: var(--down); border-color: rgba(255, 95, 77, 0.45); }
+    .alert-meta .left .v { color: var(--down); }
+  }
+
+  // Immediate is the NWS saying to act now rather than to keep an eye out, and
+  // it is the one thing here allowed to move.
+  &[data-urgency="immediate"] .pip { animation: breathe 1.6s ease-in-out infinite; }
+}
+
+// Desktop has the width to put the whole row on one line, and three stacked
+// rows across 1700px above the markets is a lot of page for two facts. The meta
+// falls back to its own line on its own when it stops fitting.
+@media (min-width: 1025px) {
+  .alert {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+
+    .alert-meta { margin-top: 0; margin-left: auto; justify-content: flex-end; }
+  }
+
+  // A written headline is a third line whatever the width, and pinning the meta
+  // to the right of it leaves the row split across an empty middle.
+  .alert:has(.hl) {
+    display: block;
+    .alert-meta { margin-top: 7px; margin-left: 0; justify-content: flex-start; }
   }
 }
 
@@ -1752,7 +1847,11 @@ main {
   .heat { grid-template-columns: repeat(2, 1fr); }
   .earning-rows li { grid-template-columns: 54px 1fr auto; .cap { display: none; } }
   .conditions ul.conditions li { grid-template-columns: 1fr auto; .n { display: none; } }
-  .alert { flex-wrap: wrap; row-gap: 4px; }
+  .alert {
+    padding: 9px 10px 9px 12px;
+    .ev { font-size: 12px; letter-spacing: 0.07em; }
+    .alert-meta { gap: 3px 12px; }
+  }
 
   .statusline {
     height: auto;

@@ -698,6 +698,33 @@ function renderEarnings(rows) {
   );
 }
 
+function alertMeta(key, value, className) {
+  const m = el("span", className ? `m ${className}` : "m");
+  m.append(el("span", "k", key));
+  m.append(el("span", "v", value));
+  return m;
+}
+
+// How long is left is the figure a person actually wants off a warning, and a
+// server polling the NWS every ten minutes cannot say it without being ten
+// minutes wrong, so it is computed here and nowhere else.
+function tickAlerts() {
+  const now = Date.now() / 1000;
+  document.querySelectorAll("[data-alert-left]").forEach((node) => {
+    const ends = Number(node.dataset.ends);
+    const val = node.querySelector(".v");
+    const secs = ends - now;
+    if (!ends || !val || secs <= 0) {
+      node.hidden = true;
+      return;
+    }
+    const hours = Math.floor(secs / 3600);
+    const mins = Math.floor((secs % 3600) / 60);
+    setText(val, hours > 0 ? `${hours}H ${mins}M` : `${mins}M`);
+    node.hidden = false;
+  });
+}
+
 // Absent entirely when nothing is active, because a permanent "all clear" row
 // trains you to stop seeing the space it sits in.
 function renderAlerts(alerts) {
@@ -713,12 +740,35 @@ function renderAlerts(alerts) {
     ...alerts.map((a) => {
       const div = el("div", "alert");
       div.dataset.severity = a.severity || "";
-      div.append(el("span", "ev", a.event));
-      div.append(el("span", "hl", a.headline || ""));
-      if (a.until) div.append(el("span", "til", `UNTIL ${a.until}`));
+      div.dataset.urgency = a.urgency || "";
+
+      const head = el("div", "alert-head");
+      head.append(el("span", "pip"));
+      head.append(el("span", "ev", a.event));
+      if (a.severity) head.append(el("span", "sev", a.severity));
+      div.append(head);
+
+      if (a.headline) div.append(el("p", "hl", a.headline));
+
+      const meta = el("div", "alert-meta");
+      if (a.area) meta.append(alertMeta("AREA", a.area));
+      if (a.starts) meta.append(alertMeta("FROM", a.starts));
+      if (a.until) meta.append(alertMeta("UNTIL", a.until));
+      if (a.until_unix) {
+        const left = alertMeta("LEFT", "", "left");
+        left.dataset.alertLeft = "";
+        left.dataset.ends = a.until_unix;
+        left.hidden = true;
+        meta.append(left);
+      }
+      if (a.office) meta.append(alertMeta("NWS", a.office));
+      div.append(meta);
+
       return div;
     }),
   );
+
+  tickAlerts();
 }
 
 function renderSteam(games) {
@@ -924,3 +974,8 @@ function connect() {
 }
 
 connect();
+
+// The server renders the first frame, so the countdown has to start without
+// waiting on the stream.
+tickAlerts();
+setInterval(tickAlerts, 30000);
