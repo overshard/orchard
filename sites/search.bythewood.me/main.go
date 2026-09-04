@@ -34,6 +34,8 @@ type site struct {
 	llm      *LLM
 	sessions *Sessions
 	budget   *Budget
+	queue    *Queue
+	assets   *Assets
 	auth     *web.Authenticator
 
 	// devOpen skips the auth check so the UI can be worked on without a
@@ -84,13 +86,10 @@ func main() {
 
 	llm := NewLLM(env("LLM_URL", "http://127.0.0.1:8091"))
 
-	if _, err := loadTemplates(); err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
-	}
-
 	budget := NewBudget()
 	s := &site{
+		queue:    NewQueue(),
+		assets:   NewAssets(assets()),
 		auth:     web.NewAuthenticator(),
 		devOpen:  devOpen(),
 		budget:   budget,
@@ -103,6 +102,11 @@ func main() {
 	// Everything here is behind auth. This site spends Isaac's GPU and searches
 	// from his address on every question, so an open one would be a stranger's
 	// search engine running on his hardware.
+	if _, err := s.loadTemplates(); err != nil {
+		slog.Error("startup failed", slog.Any("err", err))
+		os.Exit(1)
+	}
+
 	mux := http.NewServeMux()
 	// The root is public and explains what this is, the way every other gated
 	// site here does. The tool itself is behind auth, because it spends a GPU
@@ -123,7 +127,7 @@ func main() {
 	// bridge, and Caddy refuses it from outside.
 	mux.HandleFunc("GET /healthz", s.healthz)
 
-	mux.Handle("GET /static/", http.FileServer(http.FS(assets())))
+	mux.Handle("GET /static/", s.assets.Handler())
 
 	slog.Info("search serving",
 		slog.String("addr", listenAddr),
@@ -147,13 +151,15 @@ func main() {
 // loadTemplates parses from whichever source this build uses. In development
 // that is the disk, so a template edit shows on reload rather than at the next
 // rebuild.
-func loadTemplates() (*template.Template, error) {
-	return template.New("").Funcs(template.FuncMap{"hostname": hostname}).
-		ParseFS(assets(), "templates/*.html")
+func (s *site) loadTemplates() (*template.Template, error) {
+	return template.New("").Funcs(template.FuncMap{
+		"hostname": hostname,
+		"asset":    s.assets.URL,
+	}).ParseFS(assets(), "templates/*.html")
 }
 
 func (s *site) render(w http.ResponseWriter, name string, data any) {
-	tmpl, err := loadTemplates()
+	tmpl, err := s.loadTemplates()
 	if err != nil {
 		slog.Error("template parse failed", slog.Any("err", err))
 		http.Error(w, "template error", http.StatusInternalServerError)
@@ -240,8 +246,20 @@ func (s *site) ask(w http.ResponseWriter, r *http.Request) {
 		flusher.Flush()
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 6*time.Minute)
+	// Longer than one question needs, because it now covers waiting for the
+	// people ahead as well as answering.
+	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Minute)
 	defer cancel()
+
+	// One question runs at a time, since there is one GPU and the model server
+	// holds a single slot. Waiting is shown rather than hidden.
+	release, ok := s.queue.Enter(ctx, func(q QueueState) {
+		send("queued", q)
+	})
+	if !ok {
+		return // the client went away while waiting
+	}
+	defer release()
 
 	progress := Progress(func(step, detail string) {
 		send("status", map[string]string{"step": step, "detail": detail})

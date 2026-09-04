@@ -126,6 +126,14 @@ func (e *Engine) Run(ctx context.Context, question string, history []Turn, pr Pr
 		}, nil
 	}
 
+	// A live source beats a web search whenever one covers the question, since
+	// searching for a number produces a paraphrase of a page that was reading
+	// the same number, only slower and a day stale.
+	if a, ok := e.TrySkill(ctx, question, pr); ok {
+		a.Elapsed = time.Since(start).Round(10 * time.Millisecond).String()
+		return a, nil
+	}
+
 	standalone := question
 	if len(history) > 0 {
 		pr.send("followup", "reading the previous answer")

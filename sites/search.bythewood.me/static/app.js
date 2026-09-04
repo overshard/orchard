@@ -30,6 +30,7 @@ const STEPS = {
   check: "Checking every sentence",
   retry: "That did not hold up, searching again",
   calc: "Working it out",
+  skill: "Reading a live source",
 };
 
 // Why each step takes the time it does. A pause with no explanation reads as a
@@ -39,6 +40,7 @@ const WHY = {
   fetch: "Each page is downloaded and stripped down to its article text.",
   write: "The model is running locally on the GPU.",
   check: "Every sentence is checked against the passage it cites, which is one model call each.",
+  skill: "This one has a live source, so it does not need a web search.",
   retry: "Most of that answer was not backed by the pages found, so it is trying different searches.",
 };
 
@@ -125,6 +127,7 @@ async function newQuestion(clearScreen) {
   if (clearScreen) {
     transcript.innerHTML = "";
     turns = 0;
+    document.title = "Ask \u00b7 search";
   } else if (turns > 0) {
     transcript.appendChild(el("div", "brk", "new question"));
   }
@@ -139,7 +142,15 @@ function setMode() {
   followhint.hidden = !following;
 }
 
+// The tab title carries the question, so two open on a phone are tellable
+// apart and the browser history reads as a list of what was asked.
+function setTitle(q, state) {
+  const short = q.length > 52 ? q.slice(0, 52).trimEnd() + "\u2026" : q;
+  document.title = state ? `${state} ${short}` : `${short} \u00b7 search`;
+}
+
 function ask(q) {
+  setTitle(q, "\u25cf");
   input.value = "";
   go.disabled = true;
   input.disabled = true;
@@ -175,7 +186,23 @@ function ask(q) {
   stream = new EventSource(`/stream?q=${encodeURIComponent(q)}&sid=${sid}`);
   let lastStep = "";
 
+  // Waiting for the people ahead. One question runs at a time, and a page that
+  // sits silent for ninety seconds looks broken rather than patient.
+  stream.addEventListener("queued", (ev) => {
+    const q = JSON.parse(ev.data);
+    status.classList.add("waiting");
+    label.textContent = q.ahead === 0
+      ? "Next in line"
+      : `Waiting, ${q.ahead} question${q.ahead === 1 ? "" : "s"} ahead`;
+    why.textContent =
+      "One question runs at a time, because they share a single graphics card. This starts as soon as the one ahead finishes.";
+    trail.innerHTML = "";
+    const li = el("li", null, `position ${q.position} of ${q.total}`);
+    trail.appendChild(li);
+  });
+
   stream.addEventListener("status", (ev) => {
+    status.classList.remove("waiting");
     const d = JSON.parse(ev.data);
     label.textContent = STEPS[d.step] || d.step;
     why.textContent = WHY[d.step] || "";
@@ -223,6 +250,7 @@ function ask(q) {
   };
 
   function finish(turn) {
+    setTitle(q, "");
     clearInterval(ticking);
     if (stream) stream.close();
     stream = null;
