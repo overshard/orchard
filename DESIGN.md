@@ -296,6 +296,19 @@ start with `pattern matches no files`.
 than the bar above it. All four use `container` now, and only logging's
 dashboard pages go full width inside it.
 
+**A row of unequal strings is a stack, not a flex line.** dash's severe weather
+alerts were an event name that could not wrap, an NWS headline of 114 characters
+and an end time, all on one line, and on a phone that came out as five wrapped
+lines with the time dangling underneath. They are a card now, the event and a
+severity chip, then a row of labelled values that wrap as pairs, and the stripe
+down the left carries the severity as well as the colour does, since amber
+against red is one distinction a reader may not be able to make.
+
+**Say a thing once.** That NWS headline was the event name and the end time
+again in a sentence, so the longest string on the page was mostly a repeat of
+the two short ones beside it. The row shows what is not already there instead,
+which is the counties, the forecast office and how long is left.
+
 **Do not cite this file, or anything under `code/memory`, from a comment.** This
 repository is public and the vault is not.
 

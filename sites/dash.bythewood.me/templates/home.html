@@ -1,10 +1,20 @@
 {{define "content"}}
-<div class="alerts" data-alerts>
+<div class="alerts" data-alerts aria-live="polite">
   {{range .State.Alerts}}
-  <div class="alert" data-severity="{{.Severity}}">
-    <span class="ev">{{.Event}}</span>
-    <span class="hl">{{.Headline}}</span>
-    {{if .Until}}<span class="til">UNTIL {{.Until}}</span>{{end}}
+  <div class="alert" data-severity="{{.Severity}}" data-urgency="{{.Urgency}}">
+    <div class="alert-head">
+      <span class="pip"></span>
+      <span class="ev">{{.Event}}</span>
+      {{if .Severity}}<span class="sev">{{.Severity}}</span>{{end}}
+    </div>
+    {{if .Headline}}<p class="hl">{{.Headline}}</p>{{end}}
+    <div class="alert-meta">
+      {{if .Area}}<span class="m"><span class="k">AREA</span><span class="v">{{.Area}}</span></span>{{end}}
+      {{if .Starts}}<span class="m"><span class="k">FROM</span><span class="v">{{.Starts}}</span></span>{{end}}
+      {{if .Until}}<span class="m"><span class="k">UNTIL</span><span class="v">{{.Until}}</span></span>{{end}}
+      {{if .UntilUnix}}<span class="m left" data-alert-left data-ends="{{.UntilUnix}}" hidden><span class="k">LEFT</span><span class="v"></span></span>{{end}}
+      {{if .Office}}<span class="m"><span class="k">NWS</span><span class="v">{{.Office}}</span></span>{{end}}
+    </div>
   </div>
   {{end}}
 </div>
