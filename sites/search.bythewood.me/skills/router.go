@@ -22,7 +22,7 @@ type Model interface {
 // concludes. Both halves constrained means the second is conditioned on a token
 // the model actually committed to rather than on prose it can contradict.
 const (
-	WantsValue = "a current value, price, score or reading"
+	WantsValue = "a current value, price, reading, or the score or result of a match"
 	WantsFact  = "a fact, definition, explanation, opinion or set of instructions"
 )
 
@@ -47,16 +47,12 @@ func (r *Registry) Decide(ctx context.Context, m Model, question string) Route {
 	schema := map[string]any{
 		"type": "object",
 		"properties": map[string]any{
-			// Capped, because an uncapped reason on a 4B turns into a
-			// paragraph that argues its way to one answer and then emits
-			// another. Both routing failures in the eval set looked exactly
-			// like that: a reason ending "therefore none" beside a skill.
-			"why":   map[string]any{"type": "string", "maxLength": 160},
+			"wants": map[string]any{"type": "string", "enum": []string{WantsValue, WantsFact}},
 			"skill": map[string]any{"type": "string", "enum": names},
 		},
-		// why first, so the model commits to a reason before the enum rather
-		// than justifying a value it has already emitted.
-		"required":             []string{"why", "skill"},
+		// wants first, so the model commits to what the question is before the
+		// handler names are in front of it.
+		"required":             []string{"wants", "skill"},
 		"additionalProperties": false,
 	}
 

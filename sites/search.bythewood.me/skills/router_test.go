@@ -66,6 +66,15 @@ var routes = []struct {
 	{"when do liverpool play next", None},
 	{"explain the offside rule", None},
 
+	// code, which is the web's job and reaches for two skills on the way past:
+	// a script that converts something is not a conversion, and a query that
+	// counts rows is not arithmetic.
+	{"write me a python script for restic backups i can run from cron", None},
+	{"build me a dockerfile that runs ollama on docker desktop", None},
+	{"write a script to convert a csv to json", None},
+	{"sql query to sum the order totals per customer", None},
+	{"what is the best way to export a database to a csv on an as/400", None},
+
 	// the long tail, all of which is the web's job
 	{"how do i set up wireguard on debian", None},
 	{"sqlite vs postgres for a small site", None},
@@ -111,6 +120,8 @@ func TestOfflineMatch(t *testing.T) {
 		"sqlite vs postgres for a small site",
 		"who is the ceo of anthropic",
 		"how do hurricanes form",
+		"write me a python script for restic backups i can run from cron",
+		"build me a dockerfile that runs ollama on docker desktop",
 	} {
 		if got := r.match(q); got != None {
 			t.Errorf("offline matcher claimed %q for %s, should be %s", q, got, None)
