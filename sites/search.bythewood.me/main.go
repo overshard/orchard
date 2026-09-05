@@ -241,16 +241,24 @@ func (s *site) ask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	flusher, ok := w.(http.Flusher)
-	if !ok {
+	// ResponseController rather than a type assertion for http.Flusher, because
+	// the request logger wraps the writer and an assertion would see the
+	// wrapper. It follows Unwrap down to the real one.
+	rc := http.NewResponseController(w)
+
+	// web/server.go sets no write bound for this site, and this clears any
+	// per-connection deadline anyway, so an answer that takes minutes is never
+	// cut mid-frame. It doubles as the check that this writer can be flushed.
+	if err := rc.SetWriteDeadline(time.Time{}); err != nil {
 		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
 		return
 	}
+
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
-	flusher.Flush()
+	rc.Flush()
 
 	send := func(event string, payload any) {
 		blob, err := json.Marshal(payload)
@@ -258,7 +266,7 @@ func (s *site) ask(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event, blob)
-		flusher.Flush()
+		rc.Flush()
 	}
 
 	// Longer than one question needs, because it now covers waiting for the
