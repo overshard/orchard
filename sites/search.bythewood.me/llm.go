@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -18,6 +19,13 @@ type LLM struct {
 	BaseURL string
 	Model   string
 	client  *http.Client
+
+	// served is the model string llama.cpp answers with, which is the real
+	// repository and quant rather than the "local" alias this asks for. It is
+	// read off a response instead of configured, so a stamp on a logged answer
+	// says what actually produced it even when the config changed underneath.
+	mu     sync.Mutex
+	served string
 }
 
 func NewLLM(baseURL string) *LLM {
@@ -96,6 +104,7 @@ type schemaWrapper struct {
 }
 
 type chatResponse struct {
+	Model   string `json:"model"`
 	Choices []struct {
 		Message struct {
 			Content   string `json:"content"`
@@ -177,6 +186,11 @@ func (l *LLM) call(ctx context.Context, system, user string, maxTokens int, form
 	if out.Error != nil {
 		return "", fmt.Errorf("llm: %s", out.Error.Message)
 	}
+	if out.Model != "" {
+		l.mu.Lock()
+		l.served = out.Model
+		l.mu.Unlock()
+	}
 	if len(out.Choices) == 0 {
 		return "", fmt.Errorf("llm: no choices")
 	}
@@ -194,6 +208,13 @@ func (l *LLM) Warm(ctx context.Context) {
 	ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
 	l.call(ctx, "", "hi", 1, nil, exact)
+}
+
+// Served is the model that answered last, empty until one has.
+func (l *LLM) Served() string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.served
 }
 
 // Healthy asks whether the model server is up, without waking the model.

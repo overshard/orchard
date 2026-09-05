@@ -39,6 +39,7 @@ const (
 type site struct {
 	engine   *Engine
 	store    *Store
+	hist     *History
 	llm      *LLM
 	sessions *Sessions
 	budget   *Budget
@@ -91,7 +92,8 @@ func main() {
 	shipper := web.ShipLogs(selfSource, web.HTTPSink())
 	defer shipper.Close()
 
-	store, err := OpenStore(env("SITE_DATA", "build/data"))
+	dataDir := env("SITE_DATA", "build/data")
+	store, err := OpenStore(dataDir)
 	if err != nil {
 		slog.Error("startup failed", slog.Any("err", err))
 		os.Exit(1)
@@ -101,8 +103,16 @@ func main() {
 	llm := NewLLM(env("LLM_URL", "http://127.0.0.1:8091"))
 
 	budget := NewBudget()
+	hist, err := OpenHistory(dataDir)
+	if err != nil {
+		slog.Error("history open failed", slog.Any("err", err))
+		os.Exit(1)
+	}
+	defer hist.Close()
+
 	s := &site{
 		queue:    NewQueue(),
+		hist:     hist,
 		assets:   NewAssets(assets()),
 		auth:     web.NewAuthenticator(),
 		devOpen:  devOpen(),
@@ -130,6 +140,12 @@ func main() {
 	mux.HandleFunc("GET /stream", s.gate(s.ask))
 	mux.HandleFunc("POST /reset", s.gateJSON(s.reset))
 	mux.HandleFunc("GET /budget", s.gateJSON(s.budgetState))
+
+	// The history of what was asked, which is the one thing the cache does not
+	// hold and the only page here that can delete anything.
+	mux.HandleFunc("GET /history", s.gate(s.historyPage))
+	mux.HandleFunc("POST /rate", s.gateJSON(s.rate))
+	mux.HandleFunc("POST /forget", s.gateJSON(s.forget))
 
 	// Signing in happens on auth.bythewood.me. This stays so an old bookmark
 	// or a typed /login still lands somewhere sensible.
@@ -165,6 +181,7 @@ func (s *site) loadTemplates() (*template.Template, error) {
 		"hostname": hostname,
 		"asset":    s.assets.URL,
 		"num":      formatNum,
+		"reason":   reasonText,
 	}).ParseFS(assets(), "templates/*.html")
 }
 
@@ -236,6 +253,7 @@ func (s *site) reset(w http.ResponseWriter, r *http.Request) {
 func (s *site) ask(w http.ResponseWriter, r *http.Request) {
 	question := strings.TrimSpace(r.URL.Query().Get("q"))
 	sid := r.URL.Query().Get("sid")
+	incognito := r.URL.Query().Get("incognito") == "1"
 	if question == "" {
 		http.Error(w, "no question", http.StatusBadRequest)
 		return
@@ -302,8 +320,24 @@ func (s *site) ask(w http.ResponseWriter, r *http.Request) {
 	if sid != "" {
 		s.sessions.Append(sid, Turn{Question: question, Answer: ans.Text})
 	}
+
+	// Incognito skips this and only this. The pages fetched on the way still
+	// go in the archive, which Isaac decided is fine: it is public articles
+	// with no question attached, so nothing there reads back as what was
+	// asked. The row is what would.
+	var logged int64
+	if !incognito {
+		id, err := s.hist.Log(ans, s.stamp())
+		if err != nil {
+			slog.Warn("history write", slog.Any("err", err))
+		}
+		logged = id
+	}
+
 	pages, chunks, _ := s.store.Stats()
 	send("answer", map[string]any{
+		"id":         logged,
+		"incognito":  incognito,
 		"budget":     s.budget.State(),
 		"question":   ans.Query,
 		"standalone": ans.Standalone,
@@ -343,4 +377,107 @@ func hostname(raw string) string {
 		raw = raw[:i]
 	}
 	return strings.TrimPrefix(raw, "www.")
+}
+
+// stamp says what produced an answer. The model comes off the last response
+// rather than the config, so it names the repository and quant actually loaded.
+func (s *site) stamp() Stamp {
+	return Stamp{
+		Model:    s.llm.Served(),
+		Prompts:  promptVersion(),
+		Sampling: samplingVersion(),
+		Build:    map[bool]string{true: "dev", false: "release"}[Reloaded],
+	}
+}
+
+func (s *site) historyPage(w http.ResponseWriter, r *http.Request) {
+	only := r.URL.Query().Get("only")
+	entries, err := s.hist.List(200, 0, only)
+	if err != nil {
+		slog.Error("history read", slog.Any("err", err))
+		http.Error(w, "history unavailable", http.StatusInternalServerError)
+		return
+	}
+	total, rated := s.hist.Count()
+	s.render(w, "history.html", map[string]any{
+		"Entries": entries,
+		"Only":    only,
+		"Total":   total,
+		"Rated":   rated,
+	})
+}
+
+// rate takes the thumb. The reason is a short enum rather than free text
+// because a bare thumb cannot say which step went wrong, and which step went
+// wrong is the entire value of collecting it.
+func (s *site) rate(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		ID      int64  `json:"id"`
+		Verdict int    `json:"verdict"`
+		Reason  string `json:"reason"`
+		Note    string `json:"note"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.ID == 0 {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	if !validReason(in.Reason) {
+		in.Reason = ""
+	}
+	if err := s.hist.Rate(in.ID, in.Verdict, in.Reason, truncate(in.Note, 500)); err != nil {
+		slog.Warn("rate failed", slog.Any("err", err))
+		http.Error(w, "could not save that", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	fmt.Fprint(w, `{"ok":true}`)
+}
+
+// The reasons map onto the steps of the pipeline, so a month of them says
+// where to spend the effort rather than only how often it was wrong.
+// The wording matches the buttons on the answer, so a row on the history page
+// reads back as the thing that was actually clicked.
+var reasons = map[string]string{
+	"wrong":   "it is wrong",             // synthesis or validation
+	"stale":   "already happened",        // shape and planning
+	"missed":  "answered something else", // routing and shape
+	"sources": "bad sources",             // retrieval
+}
+
+func validReason(r string) bool { _, ok := reasons[r]; return ok }
+
+// reasonText is what the history page shows on a row. The stored value is the
+// key, so the wording can change without rewriting what was already collected.
+func reasonText(key string) string {
+	if text, ok := reasons[key]; ok {
+		return text
+	}
+	return key
+}
+
+func (s *site) forget(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		ID  int64 `json:"id"`
+		All bool  `json:"all"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	var err error
+	if in.All {
+		err = s.hist.DeleteAll()
+	} else if in.ID > 0 {
+		err = s.hist.Delete(in.ID)
+	} else {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	if err != nil {
+		slog.Warn("forget failed", slog.Any("err", err))
+		http.Error(w, "could not delete that", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	fmt.Fprint(w, `{"ok":true}`)
 }

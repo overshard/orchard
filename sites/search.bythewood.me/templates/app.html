@@ -36,6 +36,9 @@
       <span class="segs" id="segs"></span>
       <span class="gtext" id="gtext">ready</span>
     </span>
+    <button class="ghost incogbtn" id="incog" aria-pressed="false"
+            title="Ask without keeping the question or the answer">incognito</button>
+    <a class="ghost" href="/history" title="What has been asked, and what was thumbed">history</a>
     <button class="ghost" id="reset" title="Start a new conversation">new</button>
     <span class="dot {{if .LLMUp}}up{{end}}" id="modeldot" title="model"></span>
   </div>
@@ -47,6 +50,12 @@
       <input type="text" id="q" placeholder="Ask a question" autocomplete="off">
       <button type="submit" id="go">Search</button>
     </form>
+    <p class="incognote" id="incognote" hidden>
+      <span class="label">incognito</span>
+      Nothing about this question is written down. Pages it reads still go in the
+      archive, which holds public articles and no question, so it cannot be read
+      back as what you asked.
+    </p>
     <p class="faint hint" id="followhint" hidden>Following on from the last answer. Use <strong>New question</strong> to start fresh.</p>
     <p class="hint capnote" id="capnote" hidden></p>
   </div>

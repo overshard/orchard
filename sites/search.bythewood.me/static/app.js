@@ -184,6 +184,39 @@ function setTitle(q, state) {
   document.title = state ? `${state} ${short}` : `${short} \u00b7 search`;
 }
 
+const incogBtn = document.getElementById("incog");
+const incogNote = document.getElementById("incognote");
+let incognito = false;
+try {
+  incognito = localStorage.getItem("incognito") === "1";
+} catch (e) {
+  incognito = false;
+}
+
+// Incognito is a mode rather than a per-question checkbox, so it has to be
+// visible without looking for it. The whole page carries it: the toggle lights
+// up, the note under the box says what is and is not kept, and every answer
+// asked in it is tagged and dashed.
+function paintIncognito() {
+  document.body.classList.toggle("incognito", incognito);
+  if (incogBtn) incogBtn.setAttribute("aria-pressed", incognito ? "true" : "false");
+  if (incogNote) incogNote.hidden = !incognito;
+  try {
+    localStorage.setItem("incognito", incognito ? "1" : "0");
+  } catch (e) {
+    /* a private window is exactly where this would throw, and losing the
+       setting there is the safe direction to fail */
+  }
+}
+if (incogBtn) {
+  incogBtn.addEventListener("click", () => {
+    incognito = !incognito;
+    paintIncognito();
+    focusInput();
+  });
+}
+paintIncognito();
+
 function ask(q) {
   setTitle(q, "\u25cf");
   input.value = "";
@@ -195,6 +228,7 @@ function ask(q) {
   if (intro) intro.remove();
 
   const turn = el("article", "turn");
+  if (incognito) turn.classList.add("incog");
   turn.appendChild(el("div", "question", q));
 
   const status = el("div", "status");
@@ -218,7 +252,8 @@ function ask(q) {
   transcript.appendChild(turn);
   scrollToTurn(turn);
 
-  stream = new EventSource(`/stream?q=${encodeURIComponent(q)}&sid=${sid}`);
+  stream = new EventSource(
+    `/stream?q=${encodeURIComponent(q)}&sid=${sid}${incognito ? "&incognito=1" : ""}`);
   let lastStep = "";
 
   // Waiting for the people ahead. One question runs at a time, and a page that
@@ -413,6 +448,7 @@ function renderAnswer(d) {
   meta.appendChild(el("span", "label", d.skill || d.shape));
   meta.appendChild(el("span", "faint", d.elapsed));
   if (d.retried) meta.appendChild(el("span", "flag", "retried"));
+  if (d.incognito) meta.appendChild(el("span", "flag", "incognito, not saved"));
   if (d.standalone && d.standalone !== d.question) {
     meta.appendChild(el("span", "chip", d.standalone));
   }
@@ -425,6 +461,8 @@ function renderAnswer(d) {
   wrap.appendChild(body);
 
   (d.warnings || []).forEach((wtext) => wrap.appendChild(el("p", "warn", wtext)));
+
+  if (d.id) wrap.appendChild(renderRating(d.id));
 
   const codePanel = renderCodeChecks(d.checks || [], d.deps || []);
   if (codePanel) wrap.appendChild(codePanel);
@@ -562,6 +600,60 @@ function renderAnswer(d) {
   });
 
   return wrap;
+}
+
+const REASONS = [
+  ["wrong", "it is wrong"],
+  ["stale", "already happened"],
+  ["missed", "answered something else"],
+  ["sources", "bad sources"],
+];
+
+// A thumb on its own cannot say which step went wrong, and which step went
+// wrong is the whole reason for collecting it, so a down thumb asks once.
+function renderRating(id) {
+  const strip = el("div", "rating");
+  strip.appendChild(el("span", "label", "was this right"));
+
+  const up = el("button", "thumb up", "\u25b2 yes");
+  const down = el("button", "thumb down", "\u25bc no");
+  const why = el("div", "why-not");
+  why.hidden = true;
+
+  const said = (text) => {
+    strip.innerHTML = "";
+    strip.appendChild(el("span", "label", "thanks"));
+    strip.appendChild(el("span", "faint", text));
+  };
+
+  const send = (verdict, reason) =>
+    fetch("/rate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, verdict, reason: reason || "" }),
+    });
+
+  up.addEventListener("click", () => {
+    send(1);
+    said("kept as a good one");
+  });
+  down.addEventListener("click", () => {
+    up.disabled = true;
+    down.disabled = true;
+    why.hidden = false;
+  });
+
+  REASONS.forEach(([key, text]) => {
+    const b = el("button", "thumb", text);
+    b.addEventListener("click", () => {
+      send(-1, key);
+      said("noted, and this one is kept to work from");
+    });
+    why.appendChild(b);
+  });
+
+  strip.append(up, down, why);
+  return strip;
 }
 
 function host(u) {
