@@ -121,9 +121,9 @@ func (e *Engine) skillDeps() skills.Deps {
 // skillAnswer converts a skill result into the answer the rest of the site
 // expects. Rendering happens here rather than in the skill, since the template
 // and its renderer belong to this package.
-func skillAnswer(question string, r *skills.Result, start time.Time) *Answer {
+func skillAnswer(question, standalone string, r *skills.Result, start time.Time) *Answer {
 	a := &Answer{
-		Query: question, Standalone: question, Skill: r.Skill,
+		Query: question, Standalone: standalone, Skill: r.Skill,
 		Shape: Shape(r.Shape), Text: r.Text, HTML: renderMarkdown(r.Text),
 		Support: 1,
 		Elapsed: time.Since(start).Round(10 * time.Millisecond).String(),
@@ -147,26 +147,31 @@ func (e *Engine) Run(ctx context.Context, question string, history []Turn, pr Pr
 	// The model loads while the search and the fetches are in flight.
 	go e.llm.Warm(ctx)
 
-	// Routing is the first model call, and it is the one classification a 4B is
-	// reliably good at. The skill names are an enum in the grammar rather than
-	// an instruction in the prompt, so the model cannot name a handler that
-	// does not exist, and every card carries the near misses that should not
-	// fire it as well as the phrasings that should.
+	// A follow-up is resolved before anything else reads it, the router
+	// included. "odds on the match" names no event, no team and no date, so a
+	// router shown those words can only answer none, and a follow-up could
+	// never reach a skill however plainly it asked for one. The rewrite is what
+	// turns it into a question a card can match.
+	standalone := question
+	if len(history) > 0 {
+		pr.send("followup", "reading the previous answer")
+		standalone = e.rewriteFollowup(ctx, question, history)
+	}
+
+	// Routing is the classification a 4B is reliably good at. The skill names
+	// are an enum in the grammar rather than an instruction in the prompt, so
+	// the model cannot name a handler that does not exist, and every card
+	// carries the near misses that should not fire it as well as the phrasings
+	// that should.
 	//
 	// A keyword matcher used to do this and it was wrong in both directions,
 	// claiming "what is the S&P 500" for the quote skill and missing "do i need
 	// a jacket today" entirely. The matcher survives inside the registry as the
 	// fallback for when the model is unreachable.
 	pr.send("route", "working out what kind of question this is")
-	if res, name := e.skills.Run(ctx, e.llm, question, e.skillDeps()); res != nil {
+	if res, name := e.skills.Run(ctx, e.llm, standalone, e.skillDeps()); res != nil {
 		pr.send("skill", "answered from "+name)
-		return skillAnswer(question, res, start), nil
-	}
-
-	standalone := question
-	if len(history) > 0 {
-		pr.send("followup", "reading the previous answer")
-		standalone = e.rewriteFollowup(ctx, question, history)
+		return skillAnswer(question, standalone, res, start), nil
 	}
 
 	ans := &Answer{Query: question, Standalone: standalone}
@@ -194,11 +199,22 @@ func (e *Engine) Run(ctx context.Context, question string, history []Turn, pr Pr
 	if ans.Shape == ShapeCode {
 		badCode = codeFailed(ans.Checks, ans.Deps)
 	}
-	if badCode || (ans.Shape != ShapeCode && ans.Support < retryBelowSupport && len(ans.Citations) > 0) {
+	// The support rate cannot see this one. Every sentence about a match that
+	// was already played is true and cited and holds up, and the answer is
+	// still not the one that was asked for, so the second search is triggered
+	// by the dates rather than by the validator.
+	var lookedBack bool
+	if ans.Shape == ShapeUpcoming {
+		lookedBack = noFutureDate(ans.Text, localNow())
+	}
+	if badCode || lookedBack || (ans.Shape != ShapeCode && ans.Support < retryBelowSupport && len(ans.Citations) > 0) {
 		hint := e.failureHint(ans)
 		if badCode {
 			pr.send("retry", "the code did not hold up, searching again")
 			hint = codeHint(ans.Checks, ans.Deps)
+		} else if lookedBack {
+			pr.send("retry", "that only found things that have already happened, searching again")
+			hint = upcomingHint()
 		} else {
 			pr.send("retry", fmt.Sprintf("only %.0f%% of that held up, searching again", ans.Support*100))
 		}
@@ -208,9 +224,11 @@ func (e *Engine) Run(ctx context.Context, question string, history []Turn, pr Pr
 		// contract that was right for it.
 		retryPlan.Shape = ans.Shape
 		retry := &Answer{Query: question, Standalone: standalone, Shape: retryPlan.Shape, Queries: retryPlan.Queries, Retried: true}
-		if err := e.round(ctx, retry, retryPlan, contractFor(retryPlan.Shape), pr); err == nil && betterAnswer(retry, ans, badCode) {
+		if err := e.round(ctx, retry, retryPlan, contractFor(retryPlan.Shape), pr); err == nil && betterAnswer(retry, ans, badCode, lookedBack) {
 			if badCode {
 				retry.Warnings = append(retry.Warnings, "the first attempt was thrown away because its code did not check out")
+			} else if lookedBack {
+				retry.Warnings = append(retry.Warnings, "the first attempt only found things that had already happened, so it was searched again")
 			} else {
 				retry.Warnings = append(retry.Warnings,
 					fmt.Sprintf("first attempt was rejected, %.0f%% of its sentences were unsupported", (1-ans.Support)*100))
@@ -267,10 +285,14 @@ func (e *Engine) round(ctx context.Context, ans *Answer, plan Plan, contract Con
 	}
 	// Only the time sensitive shapes, since "scheduled for April 2026" in a
 	// recipe is not a claim about now.
-	if contract.Shape == ShapeStatus || contract.Shape == ShapeNews {
+	if contract.Shape == ShapeStatus || contract.Shape == ShapeNews || contract.Shape == ShapeUpcoming {
 		now := localNow()
 		ans.Warnings = append(ans.Warnings, staleFutures(ans.Text, now)...)
 		ans.Warnings = append(ans.Warnings, staleNow(ans.Text, now)...)
+		if contract.Shape == ShapeUpcoming {
+			ans.Warnings = append(ans.Warnings, pastOnly(ans.Text, now)...)
+			ans.Warnings = append(ans.Warnings, scheduleAge(ans.Sources, now)...)
+		}
 	}
 
 	// Linking runs alongside validation rather than after it. Neither needs the
@@ -320,9 +342,12 @@ func (e *Engine) round(ctx context.Context, ans *Answer, plan Plan, contract Con
 // betterAnswer decides whether the second attempt replaces the first. For code
 // that is whether it fixed what was broken, and for everything else whether
 // more of it held up.
-func betterAnswer(retry, first *Answer, wasCode bool) bool {
-	if wasCode {
+func betterAnswer(retry, first *Answer, wasCode, lookedBack bool) bool {
+	switch {
+	case wasCode:
 		return !codeFailed(retry.Checks, retry.Deps) && len(retry.Checks) > 0
+	case lookedBack:
+		return !noFutureDate(retry.Text, localNow())
 	}
 	return retry.Support > first.Support
 }
@@ -391,7 +416,7 @@ func (e *Engine) plan(ctx context.Context, question, hint string) Plan {
 			},
 			"shape": map[string]any{
 				"type": "string",
-				"enum": []string{"factual", "recipe", "howto", "comparison", "news", "status", "code"},
+				"enum": shapeNames(),
 			},
 		},
 		"required":             []string{"queries", "shape"},
@@ -405,8 +430,10 @@ func (e *Engine) plan(ctx context.Context, question, hint string) Plan {
 		"Write code queries naming the language, the library, the platform and the version, and prefer official documentation over roundups.",
 		"howto: ordered steps a person carries out in an interface or on hardware, where nothing gets typed into a file.",
 		"news: something that already happened, including sports results and recent events.",
+		"upcoming: the user wants the date or time of something that has not happened yet, such as the next match, a launch, a release or when a thing starts. Anything asking when the next one is, or what is coming up, is this rather than news.",
 		"factual: everything else.",
 		"For news, write queries that would find what happened, using words like result, final score, or the current month and year, not words like schedule, fixtures or upcoming.",
+		"For upcoming, write the opposite: queries carrying schedule, fixtures, upcoming or next along with the current month and year, since a query about a result finds the match before the one being asked about.",
 		"status: the user wants to know where an ongoing thing stands now, such as a court case, an investigation or a rollout. Write queries carrying the current month and year so the newest coverage is found rather than the first report.",
 		"No sentences, no quotes, no search operators.",
 	}, " ")
@@ -560,7 +587,9 @@ func (e *Engine) collect(ctx context.Context, results []Result, question string,
 	switch {
 	// A status question is answered by whichever source is newest, so a dated
 	// page outranks a well ranked stale one.
-	case contract.Shape == ShapeStatus:
+	// A schedule is the same, since an old page lists a fixture that has since
+	// moved and a new one lists the one being asked about.
+	case contract.Shape == ShapeStatus || contract.Shape == ShapeUpcoming:
 		sort.SliceStable(got, func(a, b int) bool {
 			return got[a].page.Published > got[b].page.Published
 		})

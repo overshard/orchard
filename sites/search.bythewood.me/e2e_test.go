@@ -206,6 +206,13 @@ func TestShapeEval(t *testing.T) {
 		{"sqlite vs postgres for a small site", ShapeComparison},
 		{"what is the status of the artemis program", ShapeStatus},
 		{"what is sqlite fts5", ShapeFactual},
+		{"when is the next liverpool game", ShapeUpcoming},
+		{"when do the panthers play next", ShapeUpcoming},
+		{"when is the next spacex launch", ShapeUpcoming},
+		{"what are the upcoming premier league fixtures this weekend", ShapeUpcoming},
+		{"when does the new elder scrolls come out", ShapeUpcoming},
+		// The other half of the same fixture list, which has to stay news.
+		{"did liverpool win their last match", ShapeNews},
 	}
 	only := os.Getenv("SEARCH_EVAL_ONLY")
 	var wrong, ran int
@@ -270,5 +277,73 @@ func TestCodeAnswerLive(t *testing.T) {
 	}
 	if strings.Contains(ans.HTML, "<pre") && !strings.Contains(ans.HTML, "<code") {
 		t.Error("code did not render as a code block")
+	}
+}
+
+// A follow-up names nothing a router can match. "odds on the match" carries no
+// team, no competition and no date, so routing it before the rewrite meant a
+// follow-up could never reach a skill, whatever it asked for.
+func TestFollowupReachesASkill(t *testing.T) {
+	e := liveEngine(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+
+	history := []Turn{{
+		Question: "what is the s&p 500 at",
+		Answer:   "The S&P 500 is at 6,502, up 0.4% on the day.",
+	}}
+	ans, err := e.Run(ctx, "what about the nasdaq", history, nil)
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	t.Logf("skill=%q standalone=%q", ans.Skill, ans.Standalone)
+	t.Logf("\n%s", ans.Text)
+	if ans.Skill != "markets" {
+		t.Errorf("a follow-up asking for a quote answered from %q, not the markets skill", ans.Skill)
+	}
+	if !strings.Contains(strings.ToLower(ans.Standalone), "nasdaq") {
+		t.Errorf("the router should have seen the resolved question, got %q", ans.Standalone)
+	}
+}
+
+// The question that started this, end to end. It spends real searches, so it is
+// behind SEARCH_LIVE like the rest, and what it checks is the one thing the
+// support rate cannot see: whether the answer names a date that has not passed.
+func TestUpcomingAnswerLive(t *testing.T) {
+	e := liveEngine(t)
+	q := os.Getenv("SEARCH_Q")
+	if q == "" {
+		q = "when is the next liverpool game"
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Minute)
+	defer cancel()
+
+	var steps []string
+	ans, err := e.Run(ctx, q, nil, Progress(func(step, detail string) {
+		steps = append(steps, step+": "+detail)
+	}))
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	for _, s := range steps {
+		t.Logf("  %s", s)
+	}
+	t.Logf("shape=%s elapsed=%s support=%.0f%% retried=%v", ans.Shape, ans.Elapsed, ans.Support*100, ans.Retried)
+	for _, w := range ans.Warnings {
+		t.Logf("  warn  %s", w)
+	}
+	for _, c := range ans.Citations {
+		t.Logf("  cite  checked=%v supported=%v [%d] %s", c.Checked, c.Supported, c.PassageID, truncate(c.Sentence, 90))
+	}
+	for _, s := range ans.Sources {
+		t.Logf("  src   [%d] %s %s", s.N, s.Published, s.URL)
+	}
+	t.Logf("\n%s", ans.Text)
+
+	if ans.Shape != ShapeUpcoming {
+		t.Errorf("shape was %s, so the upcoming contract never ran", ans.Shape)
+	}
+	if noFutureDate(ans.Text, localNow()) {
+		t.Error("the answer names no date today or later, which is the whole question")
 	}
 }
