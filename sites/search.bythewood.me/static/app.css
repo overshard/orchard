@@ -981,3 +981,106 @@ a.ghost { text-decoration: none; display: inline-flex; align-items: center; }
   .deps li { flex-wrap: wrap; gap: 0.3rem 0.6rem; }
   .depstate { margin-left: 0; width: 100%; }
 }
+
+/* Incognito. Amber because that is what amber is for on this site, the
+   instrument rather than the data, and because a mode that is easy to forget
+   you left on has to be impossible to miss. It lives in the bar rather than in
+   the ask row, since it is a mode rather than a per question checkbox, and
+   because every button in the ask row is absolutely positioned on top of the
+   same corner.
+
+   Four things carry it: the toggle fills, the bar takes an amber rule, the ask
+   box goes amber with a note under it, and every answer asked in it is tagged
+   and dashed. */
+.incogbtn[aria-pressed="true"] {
+  border-color: var(--amber-hot);
+  color: var(--void);
+  background: var(--amber-hot);
+}
+.incogbtn[aria-pressed="true"]:hover {
+  border-color: var(--amber-hot);
+  color: var(--void);
+  background: var(--amber);
+}
+
+body.incognito .bar { border-bottom: 1px solid var(--amber-hot); }
+body.incognito .askwrap {
+  border-left: 2px dashed var(--amber-hot);
+  padding-left: 0.7rem;
+}
+body.incognito .ask input { border-color: var(--amber); }
+body.incognito .ask input:focus {
+  border-color: var(--amber-hot);
+  box-shadow: 0 0 0 1px rgba(255, 176, 0, 0.16), 0 0 24px -8px var(--amber-hot);
+}
+body.incognito .ask::before,
+body.incognito .ask::after { border-color: var(--amber-hot); }
+.incognote {
+  font-size: 0.78rem;
+  color: var(--dim);
+  margin: 0.45rem 0 0;
+  line-height: 1.5;
+}
+.incognote .label { margin-right: 0.5rem; color: var(--amber-hot); }
+
+.turn.incog { border-left: 2px dashed var(--amber-hot); padding-left: 0.7rem; }
+
+/* The thumb. It sits under the answer rather than in the meta row, because it
+   is asked after reading rather than before. */
+.rating {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--line);
+}
+.thumb {
+  background: transparent;
+  border: 1px solid var(--line-hot);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.7rem;
+  padding: 0.15rem 0.6rem;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.thumb:hover { border-color: var(--green); color: var(--green-bright); background: var(--green-glow); }
+.thumb:disabled { opacity: 0.4; cursor: default; }
+.thumb.down:hover { border-color: var(--amber-hot); color: var(--amber-hot); background: rgba(255, 176, 0, 0.08); }
+.why-not { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+/* A display rule beats the hidden attribute, so the reasons would sit there
+   before anyone said the answer was wrong. */
+.why-not[hidden] { display: none; }
+
+/* The history page. One row per question, opened to see the answer it gave. */
+.hist { list-style: none; padding: 0; margin: 1rem 0 0; }
+.hrow { border-bottom: 1px solid var(--line); padding: 0.7rem 0; }
+.hrow summary { cursor: pointer; display: flex; gap: 0.6rem; align-items: baseline; flex-wrap: wrap; }
+.hrow summary::-webkit-details-marker { display: none; }
+.hq { color: var(--text); flex: 1 1 20rem; }
+.hwhen { color: var(--faint); font-size: 0.75rem; }
+.verdict { white-space: nowrap; font-size: 0.62rem; text-transform: uppercase; letter-spacing: var(--track); padding: 0 0.4rem; border-radius: 2px; }
+.verdict.up { color: var(--green-hot); border: 1px solid var(--green); }
+.verdict.down { color: var(--amber-hot); border: 1px solid var(--amber-hot); }
+.hbody { padding: 0.8rem 0 0.2rem; }
+.hbody .answer { border-left: 1px solid var(--line); padding-left: 0.8rem; }
+.hmeta { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.6rem; align-items: center; }
+.stamp { font-size: 0.68rem; color: var(--faint); font-family: var(--mono); }
+.danger {
+  background: transparent;
+  border: 1px solid var(--terracotta);
+  color: var(--terracotta);
+  font: inherit;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: var(--track);
+  padding: 0.2rem 0.7rem;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.danger:hover { background: rgba(196, 112, 85, 0.12); }
+.filters { display: flex; gap: 0.5rem; margin-top: 0.8rem; flex-wrap: wrap; align-items: center; }
+.filters a { color: var(--dim); text-decoration: none; font-size: 0.7rem; text-transform: uppercase; letter-spacing: var(--track); border: 1px solid var(--line); padding: 0.15rem 0.6rem; border-radius: 2px; }
+.filters a.on { color: var(--green-bright); border-color: var(--green); }

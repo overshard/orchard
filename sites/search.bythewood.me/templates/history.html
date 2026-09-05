@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>History &middot; search</title>
+<link rel="stylesheet" href="{{ asset "static/app.css" }}">
+</head>
+<body>
+<div class="crt"></div>
+<div class="vignette"></div>
+
+<header class="bar">
+  <div class="barin">
+    <a class="brand" href="/">
+      <span class="key"><span class="cursor"></span></span>
+      <span>search</span>
+    </a>
+    <span class="where">History</span>
+    <span class="spacer"></span>
+    <span class="counts"><b>{{ num .Total }}</b> kept &middot; <b>{{ num .Rated }}</b> rated</span>
+    <a class="ghost" href="/search">ask</a>
+  </div>
+</header>
+
+<main>
+  <p class="introline">Every question that was not asked in incognito, with what it
+  answered and how it was rated. This is the only thing here that holds a question,
+  and it is the only page that can delete one.</p>
+
+  <div class="filters">
+    <a href="/history" class="{{ if eq .Only "" }}on{{ end }}">all</a>
+    <a href="/history?only=down" class="{{ if eq .Only "down" }}on{{ end }}">thumbed down</a>
+    <a href="/history?only=up" class="{{ if eq .Only "up" }}on{{ end }}">thumbed up</a>
+    <a href="/history?only=unrated" class="{{ if eq .Only "unrated" }}on{{ end }}">unrated</a>
+    <span class="spacer"></span>
+    <button class="danger" id="forgetall">delete everything</button>
+  </div>
+
+  {{ if not .Entries }}
+    <p class="faint" style="margin-top:1.4rem">Nothing here yet.</p>
+  {{ end }}
+
+  <ul class="hist">
+    {{ range .Entries }}
+    <li class="hrow" data-id="{{ .ID }}">
+      <details>
+        <summary>
+          <span class="hq">{{ .Question }}</span>
+          {{ if .Good }}<span class="verdict up">good</span>{{ end }}
+          {{ if .Bad }}<span class="verdict down">{{ if .Reason }}{{ reason .Reason }}{{ else }}bad{{ end }}</span>{{ end }}
+          <span class="label">{{ if .Skill }}{{ .Skill }}{{ else }}{{ .Shape }}{{ end }}</span>
+          <span class="hwhen">{{ .Asked.Format "2 Jan, 3:04 PM" }}</span>
+        </summary>
+        <div class="hbody">
+          <div class="answer prose">{{ .Body }}</div>
+
+          {{ if .Sources }}
+          <div class="hmeta">
+            <span class="label">sources</span>
+            {{ range .Sources }}<a class="chip" href="{{ .URL }}" rel="noreferrer">{{ hostname .URL }}</a>{{ end }}
+          </div>
+          {{ end }}
+
+          {{ if .Queries }}
+          <div class="hmeta">
+            <span class="label">searched</span>
+            {{ range .Queries }}<span class="chip">{{ . }}</span>{{ end }}
+          </div>
+          {{ end }}
+
+          <div class="hmeta">
+            <span class="stamp">{{ .Elapsed }} &middot; {{ .Checked }} checked &middot; {{ .Model }} &middot; prompts {{ .Prompts }}</span>
+            <span class="spacer"></span>
+            <button class="danger forget">delete</button>
+          </div>
+        </div>
+      </details>
+    </li>
+    {{ end }}
+  </ul>
+</main>
+
+<script>
+// Deleting is the point of the page, so it asks once and then actually removes
+// the row rather than leaving it there looking deleted.
+async function forget(body) {
+  const res = await fetch("/forget", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return res.ok;
+}
+
+document.querySelectorAll(".forget").forEach((b) => {
+  b.addEventListener("click", async () => {
+    const row = b.closest(".hrow");
+    if (!confirm("Delete this question and its answer?")) return;
+    if (await forget({ id: Number(row.dataset.id) })) row.remove();
+  });
+});
+
+document.getElementById("forgetall").addEventListener("click", async () => {
+  if (!confirm("Delete every question and answer kept here? This cannot be undone.")) return;
+  if (await forget({ all: true })) location.reload();
+});
+</script>
+</body>
+</html>
