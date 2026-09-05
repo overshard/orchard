@@ -52,6 +52,12 @@ alongside them.
 dash keeps its own set, and amber `#ffb000` there is the primary rather than a
 label colour.
 
+**search's `--faint` is not the estate's `Faint`.** It was `#7b7060` and read 4.0
+to 1 against the ground before the overlays touched it, which is under the floor
+for the small text it carries. The warm neutrals there are `--muted` `#c6b9a3`,
+`--dim` `#ab9c86` and `--faint` `#9c8e7a`, and its lines are `--line` `#414e41`
+and `--line-hot` `#5c725c`. Nothing in that bar gets the faint step.
+
 **The border alphas are a floor, not a preference.** Every border on the estate
 measured between 1.04 and 1.36 to 1 before 2026-09-01, and the panels themselves
 sat at 1.04, which is invisible under a bright light because glare adds light to
@@ -95,14 +101,36 @@ background-position: center top;
 lines up with the layout rather than cutting across it.
 
 **search borrows dash's texture and keeps green.** It is the one green site with
-the scanlines and the vignette, which contradicts the line below and is
-deliberate: it is a page you sit and read answers on rather than a table of
+the scanlines and the vignette, which contradicts the line below and is a
+choice: it is a page you sit and read answers on rather than a table of
 numbers, so the screen feel earns its place, while the phosphor stays green
-because the reading is sustained. Its palette is its own five step warm dark
-(`--void` through `--line-hot`) rather than the four role names in the table
-above, since it was built to dash's structure with green swapped in for amber.
-It has no Sass, so the tokens are custom properties at the top of
+because the reading is sustained. Its palette is its own six step warm dark
+(`--void` through `--line-hot`, plus `--bar`) rather than the four role names in
+the table above, since it was built to dash's structure with green swapped in
+for amber. It has no Sass, so the tokens are custom properties at the top of
 `static/app.css`.
+
+**A multiply overlay costs more contrast than any colour choice does.** search
+shipped with the scanlines at `0.14` and the vignette at `0.45`, and measured
+against the ground under both at a page corner its body text came out at 3.9 to
+1 where the nominal number is 15.5. The navbar was the worst of it, because the
+vignette is darkest in the corners and the corners are where a bar keeps its
+smallest text, so the archive counts measured 1.7 to 1 on screen. Three things
+fixed it and the order matters, since the first two are worth more than the
+third:
+
+1. **The header renders above the vignette.** The vignette sits at `z-index: 5`
+   and the bar at `20`, so an opaque bar is never darkened by it.
+2. **The overlays came down**, scanlines `0.14` to `0.08` and the vignette
+   `0.45` to `0.22` starting at 62% rather than 55%.
+3. **Chrome is a step lighter than the ground, not darker.** The bar was
+   `--void`, below the body colour, which reads as a hole in the page and leaves
+   everything sat on it nowhere to go. It is `--bar` at `#201d16` now, and its
+   bottom border is `--line-hot` rather than `--line`.
+
+Body text now measures 13.1 to 1 in the reading column and 8.0 at a corner, and
+nothing in the bar is below 5.5. **Re-measure with the overlays applied when
+changing any of these**, because the nominal ratio is not what a reader gets.
 
 **Scanlines and the vignette stay on dash.** They are a `multiply` blend over
 the whole page, which darkens body text, and these sites are read rather than
@@ -271,6 +299,30 @@ bare `404` with an inline link.
 
 ## Rules that are easy to get wrong
 
+**Nothing says where it runs.** search's landing page footer named the
+repository, the machine and the tunnel in one sentence, which is three facts a
+visitor cannot use and a stranger can. The footer rule above already said a site
+says nothing about how it is built or where it runs, and it applies to the meta
+description, the hero copy and the stat strip too, not only the footer. A stat
+strip carries numbers, so `Go / stdlib, SQLite, one binary` was not a stat, it
+was a stack disclosure sat in the slot where a number goes. The source link
+stays, since a self-hosted thing that will not show its source is not one.
+
+**`auto-fit` with four cards leaves a hole.** search's landing grid was
+`repeat(auto-fit, minmax(15rem, 1fr))`, which at the container width resolved to
+three columns and put the fourth card alone beside an empty half row. Four cards
+is `repeat(2, 1fr)` and one column on a phone. Count the cards before reaching
+for `auto-fit`.
+
+**A wordmark is not a logo.** search's brand was the word `search` at body size
+with a `▍` in front of it, which is smaller than the text beside it in the bar.
+It is a bordered key carrying a cursor block and the name at `0.95rem` now.
+The block does not blink, since a logo that moves pulls the eye away from the page
+every second and a bar is the one thing on screen that should sit still.
+The cursor is a drawn block rather than a glyph, since a block character renders
+at a different width in every monospace face and came out as a hairline in some,
+which is an empty box where the mark should be.
+
 **No changelog.** analytics and status each had one and both are gone as of
 2026-09-01. The newest entry was four months old, the oldest was from 2022 and
 described a Django build that no longer exists, and neither was maintained. The
@@ -284,7 +336,8 @@ reads their own marketing copy. When a stack changes, grep the templates.
 **`num` is the thousands separator, on every site.** It takes `any`, because a
 template handing an `int` to a function declared `int64` fails at render time
 with `wrong type for value`, which compiles, passes every test, and 500s the
-home page. status called it `intcomma` until 2026-09-01.
+home page. status called it `intcomma` until 2026-09-01, and search had no such
+helper at all until 2026-09-04, so its landing page printed `6020`.
 
 **A template listed with no file behind it crash-loops.** Deleting a page means
 deleting it from `pageTemplates` in the same commit. `web.NewRenderer` resolves
@@ -321,5 +374,6 @@ repository is public and the vault is not.
 | `logging` | green | Bootstrap. Dashboards run full width inside the container |
 | `auth` | green | Bootstrap. Carries the starfield on `/login`, which the grid sits under |
 | `repos` | green | Hand written CSS, no Bootstrap, since it is dense text. Newsreader on repository names |
+| `search` | green | Hand written CSS, no Bootstrap. The one green site with dash's scanlines and vignette, both toned down. Its bar is `--bar`, a step above the ground, and sits over the vignette |
 | `dash` | amber | Hand written CSS. Scanlines, vignette, JetBrains Mono and Space Grotesk |
 | `blog`, `isaacbythewood.com` | neither | Separate identities. Nothing here applies to them |

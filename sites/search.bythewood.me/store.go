@@ -274,9 +274,10 @@ var stopword = map[string]bool{
 	"you": true, "with": true, "from": true, "that": true, "this": true, "has": true,
 }
 
-func (s *Store) Stats() (pages, passages int) {
+func (s *Store) Stats() (pages, passages, sites int) {
 	s.db.QueryRow(`SELECT count(*) FROM pages`).Scan(&pages)
 	s.db.QueryRow(`SELECT count(*) FROM passages`).Scan(&passages)
+	s.db.QueryRow(`SELECT count(DISTINCT site) FROM pages WHERE site != ''`).Scan(&sites)
 	return
 }
 

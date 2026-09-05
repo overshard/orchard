@@ -3,6 +3,22 @@ const form = document.getElementById("ask");
 const input = document.getElementById("q");
 const go = document.getElementById("go");
 const archive = document.getElementById("archive");
+
+// Rebuilt rather than assigned as text, since the counts carry their own
+// element so the number reads brighter than the word beside it.
+const group = (n) => n.toLocaleString("en-US");
+function paintArchive(pages, chunks) {
+  archive.replaceChildren();
+  const put = (tag, text) => {
+    const el = document.createElement(tag);
+    el.textContent = text;
+    archive.appendChild(el);
+  };
+  put("b", group(pages));
+  archive.append(" pages \u00b7 ");
+  put("b", group(chunks));
+  archive.append(" passages");
+}
 const followhint = document.getElementById("followhint");
 const sid = document.body.dataset.session;
 const gauge = document.getElementById("gauge");
@@ -244,7 +260,7 @@ function ask(q) {
     status.remove();
     turn.appendChild(renderAnswer(d));
     if (d.pages !== undefined) {
-      archive.textContent = `${d.pages} pages \u00b7 ${d.chunks} passages`;
+      paintArchive(d.pages, d.chunks);
     }
     paintBudget(d.budget);
     finish(turn);
