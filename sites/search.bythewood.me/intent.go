@@ -15,6 +15,7 @@ const (
 	ShapeComparison Shape = "comparison"
 	ShapeNews       Shape = "news"
 	ShapeStatus     Shape = "status"
+	ShapeCode       Shape = "code"
 )
 
 // Contract is the format instruction handed to the synthesis step, and the
@@ -45,6 +46,7 @@ type Contract struct {
 // passages". The reader is not in the room with the pipeline and does not know
 // what a passage is.
 const houseStyle = "Put at most one citation at the end of a sentence or a list item, never in the middle of one and never more than one. " +
+	"Never refer to the answer itself, so no \"this response\", \"this answer\" or \"below you will find\". Write the thing rather than describing it. " +
 	"Write for someone who cannot see your sources and does not know how you work. " +
 	"Never mention passages, sources, context, or what you were given, and never write that something was not specified. " +
 	"If a detail is missing, leave the line out entirely rather than writing a line saying it is missing. "
@@ -139,6 +141,40 @@ var contracts = map[Shape]Contract{
 		MaxPassages: 16, PerSource: 4, MaxTokens: 1100,
 	},
 
+	// A code answer is the one shape where the reader does not read the
+	// answer, they paste it. So the prose is the part that gets cut and the
+	// file is the part that has to be whole: a snippet with a comment saying
+	// the rest goes here is worth nothing to someone who wanted a working
+	// thing, and it is the failure a small model reaches for when the passages
+	// only show fragments.
+	ShapeCode: {
+		Shape: ShapeCode,
+		Instruction: strings.Join([]string{
+			houseStyle,
+			"Open with one sentence saying what this does and what it needs installed, and cite it. Then the code.",
+			"Put every file in its own fenced code block, with the language after the opening fence, and the file name in bold on the line above it.",
+			"Name each file for what it does rather than app.py or script.py, and use the name the tool requires when there is one, like Dockerfile or docker-compose.yml.",
+			"Give whole files that run as they are. Every import, every function it calls, and the entry point.",
+			"Never write an ellipsis, a comment saying the rest of the code goes here, or a placeholder for something you did not write.",
+			"A value the reader has to supply is a named constant at the top with a real default, not a gap in the middle.",
+			"Never put a citation inside a code block, since it is pasted into a file and it would break it. Cite on the sentences around the code.",
+			"Comment only what is not obvious from the code, and never annotate a line with what it plainly does.",
+			"Never write a comment about what you were reading, what it did or did not say, or what you could not find. A comment reasoning about that leaves working looking code that does nothing.",
+			"If you cannot find how a part of it is done, write the simplest version that really works, using the plainest tool available, and say what is left under Watch out for.",
+			"After the code, a `## Run it` heading with the exact commands in order, one per line in a single shell block, starting from a clean machine: what to install, then how it is actually started.",
+			"That is the only place an install or a run command appears. Never put one between the files, and never write the same command twice.",
+			"End that block with the way the question said it would be used. A question about cron ends on the crontab line, one about Docker ends on the docker command, one about a web page ends on the URL to open.",
+			"Then `## Watch out for` with at most three lines, each citing where it came from, and only for something that will actually bite: a version that matters, a rate limit, a platform difference. Leave the heading out when there is nothing.",
+			"Never explain the code line by line and never restate what the file already says.",
+			"If the answer is one command rather than a program, give the command on its own in a shell block and stop.",
+			"Never wrap a command in a program that only prints it, and never write a file whose comments say it is conceptual, illustrative, or what would happen in a real environment. Everything you write has to actually run.",
+		}, " "),
+		// A single page app is one file and one file is the whole answer, so
+		// this is nearly double the next largest shape. Under it the model
+		// stops mid-tag, which is worth nothing to anybody.
+		MaxPassages: 16, PerSource: 4, MaxTokens: 3400,
+	},
+
 	ShapeNews: {
 		Shape: ShapeNews,
 		Instruction: strings.Join([]string{
@@ -174,6 +210,10 @@ func guessShape(q string) Shape {
 		return ShapeRecipe
 	case containsAny(l, " vs ", "versus", "compare", "difference between", "better than"):
 		return ShapeComparison
+	case containsAny(l, "write me a", "write a script", "build me a", "give me a", "example code",
+		"code for", "dockerfile", "docker compose", "regex for", "sql query", "bash script",
+		"python script", "shell script", "one liner", "snippet"):
+		return ShapeCode
 	case containsAny(l, "how do i", "how to", "how can i", "steps to", "set up", "install", "configure"):
 		return ShapeHowTo
 	case containsAny(l, "status of", "what happened to", "where does", "latest on",

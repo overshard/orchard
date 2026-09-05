@@ -155,3 +155,120 @@ func TestDevBypassCannotShipEnabled(t *testing.T) {
 		t.Fatal("the bypass should work in a development build")
 	}
 }
+
+// liveEngine is the real thing against the real model, with a throwaway store.
+func liveEngine(t *testing.T) *Engine {
+	t.Helper()
+	if os.Getenv("SEARCH_LIVE") == "" {
+		t.Skip("set SEARCH_LIVE=1 to spend real searches")
+	}
+	url := os.Getenv("LLM_URL")
+	if url == "" {
+		url = "http://search-llm:8091"
+	}
+	llm := NewLLM(url)
+	if !llm.Healthy(context.Background()) {
+		t.Skip("model not up")
+	}
+	dir := os.Getenv("SEARCH_STORE")
+	if dir == "" {
+		var err error
+		if dir, err = os.MkdirTemp("", "search-e2e"); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { os.RemoveAll(dir) })
+	}
+	store, err := OpenStore(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { store.Close() })
+	return NewEngine(store, llm, NewBudget())
+}
+
+// The shape decides the contract, so a coding question read as a how-to gets
+// prose with a snippet in it rather than a file. This costs one model call per
+// case and no searches.
+func TestShapeEval(t *testing.T) {
+	e := liveEngine(t)
+	cases := []struct {
+		q    string
+		want Shape
+	}{
+		{"build me a dockerfile that will run ollama on a windows system running docker desktop", ShapeCode},
+		{"give me a mini flask site that serves a cached frontend api for yahoo finance", ShapeCode},
+		{"write a simple html page with a map of the world showing how hot it is in every country", ShapeCode},
+		{"write me a python script i can add to my daily cron to do regular restic backups", ShapeCode},
+		{"what is the best way to export a database to a csv file on an as/400", ShapeCode},
+		{"regex to match an email address in javascript", ShapeCode},
+		{"how do i set up wireguard on debian", ShapeHowTo},
+		{"how do i make a breakfast burrito", ShapeRecipe},
+		{"sqlite vs postgres for a small site", ShapeComparison},
+		{"what is the status of the artemis program", ShapeStatus},
+		{"what is sqlite fts5", ShapeFactual},
+	}
+	only := os.Getenv("SEARCH_EVAL_ONLY")
+	var wrong, ran int
+	for _, c := range cases {
+		if only != "" && !strings.Contains(c.q, only) {
+			continue
+		}
+		ran++
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		got := e.plan(ctx, c.q, "")
+		cancel()
+		if got.Shape != c.want {
+			wrong++
+			t.Errorf("%-72q got %-10s want %s", c.q, got.Shape, c.want)
+		}
+	}
+	t.Logf("%d of %d shaped correctly", ran-wrong, ran)
+}
+
+// TestCodeAnswerLive runs one real coding question end to end and prints what
+// came back, which is the only way to judge whether the answer is pasteable.
+// SEARCH_Q overrides the question while iterating.
+func TestCodeAnswerLive(t *testing.T) {
+	e := liveEngine(t)
+	q := os.Getenv("SEARCH_Q")
+	if q == "" {
+		q = "write me a python script i can add to my daily cron to do regular restic backups"
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Minute)
+	defer cancel()
+
+	var steps []string
+	ans, err := e.Run(ctx, q, nil, Progress(func(step, detail string) {
+		steps = append(steps, step+": "+detail)
+	}))
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	for _, s := range steps {
+		t.Logf("  %s", s)
+	}
+	t.Logf("shape=%s elapsed=%s support=%.0f%%", ans.Shape, ans.Elapsed, ans.Support*100)
+	for _, c := range ans.Checks {
+		t.Logf("  check %-24s %-10s %d lines  ok=%v  %s", c.File, c.Lang, c.Lines, c.OK, c.Note)
+	}
+	for _, d := range ans.Deps {
+		t.Logf("  dep   %-30s %-8s checked=%v found=%v", d.Name, d.Eco, d.Checked, d.Found)
+	}
+	for _, w := range ans.Warnings {
+		t.Logf("  warn  %s", w)
+	}
+	for _, s := range ans.Sources {
+		t.Logf("  src   [%d] %s", s.N, s.URL)
+	}
+	t.Logf("\n%s", ans.Text)
+
+	if ans.Shape != ShapeCode {
+		t.Errorf("shape was %s, so the code contract never ran", ans.Shape)
+	}
+	if len(codeBlocks(ans.Text)) == 0 {
+		t.Error("a code question came back with no code in it")
+	}
+	if strings.Contains(ans.HTML, "<pre") && !strings.Contains(ans.HTML, "<code") {
+		t.Error("code did not render as a code block")
+	}
+}

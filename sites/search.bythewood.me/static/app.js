@@ -47,6 +47,7 @@ const STEPS = {
   retry: "That did not hold up, searching again",
   calc: "Working it out",
   skill: "Reading a live source",
+  code: "Checking the code",
 };
 
 // Why each step takes the time it does. A pause with no explanation reads as a
@@ -58,6 +59,7 @@ const WHY = {
   check: "Every sentence is checked against the passage it cites, which is one model call each.",
   skill: "This one has a live source, so it does not need a web search.",
   retry: "Most of that answer was not backed by the pages found, so it is trying different searches.",
+  code: "Every file is parsed and every package it imports is looked up in its registry.",
 };
 
 // Search capacity is shown before it runs out, because hitting a wall with no
@@ -297,6 +299,113 @@ function ask(q) {
   }
 }
 
+// A code answer is pasted rather than read, so every block gets a header
+// carrying what it is and a button that copies it. The file name the model
+// wrote above the block moves into that header, since leaving it in the prose
+// says the same thing twice.
+function decorateCode(body, checks) {
+  body.querySelectorAll("pre").forEach((pre, i) => {
+    const code = pre.querySelector("code");
+    const cls = code ? [...code.classList].find((c) => c.startsWith("language-")) : null;
+    const lang = cls ? cls.slice(9) : "";
+
+    // The blocks come back in the order they were checked, so the name the
+    // server read off the block is the name for this one.
+    let name = (checks[i] && checks[i].File) || "";
+    const above = pre.previousElementSibling;
+    if (above && above.tagName === "P" && above.children.length === 1 && above.firstElementChild.tagName === "STRONG") {
+      const text = above.textContent.trim();
+      const bare = text.replace(/^(?:file|filename)\s*:\s*/i, "");
+      if (/^[\w./-]+\.[A-Za-z0-9]{1,10}$|^(Dockerfile|Makefile|docker-compose\.ya?ml|\.env)$/.test(bare)) {
+        name = bare;
+        above.remove();
+      }
+    }
+
+    const box = el("div", "codeblock");
+    pre.parentNode.insertBefore(box, pre);
+    const head = el("div", "codehead");
+    head.appendChild(el("span", "codename", name || lang || "code"));
+    if (name && lang) head.appendChild(el("span", "codelang", lang));
+    head.appendChild(el("span", "spacer"));
+
+    const copy = el("button", "copy", "copy");
+    copy.addEventListener("click", async () => {
+      const text = (code || pre).textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        // Clipboard access needs a secure context, and a selection is the
+        // fallback that works everywhere: the reader still gets one keystroke.
+        const range = document.createRange();
+        range.selectNodeContents(code || pre);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+      copy.textContent = "copied";
+      copy.classList.add("done");
+      setTimeout(() => {
+        copy.textContent = "copy";
+        copy.classList.remove("done");
+      }, 1400);
+    });
+    head.appendChild(copy);
+    box.appendChild(head);
+    box.appendChild(pre);
+  });
+}
+
+// What was actually done to the code, said plainly. Parsing a file and looking
+// a package up in its registry are the two checks worth anything here, and
+// neither of them is running it, so the panel says which is which.
+function renderCodeChecks(checks, deps) {
+  if (!checks.length && !deps.length) return null;
+  const sec = el("section", "codecheck");
+  const head = el("div", "vhead");
+  head.appendChild(el("span", "label", "code"));
+  const bad = checks.filter((c) => !c.OK).length;
+  const missing = deps.filter((d) => d.Checked && !d.Found).length;
+  const parts = [];
+  if (checks.length) parts.push(`${checks.length - bad}/${checks.length} block${checks.length === 1 ? "" : "s"} read cleanly`);
+  if (deps.length) parts.push(`${deps.filter((d) => d.Found).length}/${deps.length} package${deps.length === 1 ? "" : "s"} exist`);
+  head.appendChild(el("span", bad || missing ? "score bad" : "score", parts.join(" \u00b7 ")));
+  sec.appendChild(head);
+
+  if (checks.length) {
+    const ul = el("ul", "checks");
+    checks.forEach((c) => {
+      const li = el("li", c.OK ? "ok" : "bad");
+      li.appendChild(el("span", "verdict", c.OK ? "checked" : "broken"));
+      const s = el("span", "sentence");
+      s.appendChild(el("span", "stext", `${c.File || c.Lang} \u00b7 ${c.Lines} line${c.Lines === 1 ? "" : "s"}`));
+      s.appendChild(el("span", "note", c.Note));
+      li.appendChild(s);
+      ul.appendChild(li);
+    });
+    sec.appendChild(ul);
+  }
+
+  if (deps.length) {
+    const ul = el("ul", "deps");
+    deps.forEach((d) => {
+      const li = el("li", d.Checked ? (d.Found ? "ok" : "bad") : "unknown");
+      li.appendChild(el("span", "depname", d.Name));
+      li.appendChild(el("span", "depeco", ECOS[d.Eco] || d.Eco));
+      li.appendChild(el("span", "depstate", !d.Checked ? "not reached" : d.Found ? "exists" : "no such package"));
+      ul.appendChild(li);
+    });
+    sec.appendChild(ul);
+    if (missing) {
+      sec.appendChild(el("p", "faint explain",
+        "A package that is not in its registry is one the model invented, so the install line will fail whatever else the code does."));
+    }
+  }
+  return sec;
+}
+
+const ECOS = { pypi: "PyPI", npm: "npm", go: "Go modules", docker: "Docker Hub" };
+
 function renderAnswer(d) {
   const wrap = el("div", "answerwrap");
 
@@ -312,9 +421,13 @@ function renderAnswer(d) {
 
   const body = el("div", d.skill === "calculator" ? "answer prose calc" : "answer prose");
   body.innerHTML = d.html;
+  decorateCode(body, d.checks || []);
   wrap.appendChild(body);
 
   (d.warnings || []).forEach((wtext) => wrap.appendChild(el("p", "warn", wtext)));
+
+  const codePanel = renderCodeChecks(d.checks || [], d.deps || []);
+  if (codePanel) wrap.appendChild(codePanel);
 
   const cites = d.citations || [];
   const checked = cites.filter((c) => c.Checked);

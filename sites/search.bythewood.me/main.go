@@ -292,6 +292,8 @@ func (s *site) ask(w http.ResponseWriter, r *http.Request) {
 		"sources":    ans.Sources,
 		"links":      ans.Links,
 		"citations":  ans.Citations,
+		"checks":     ans.Checks,
+		"deps":       ans.Deps,
 		"passages":   ans.Passages,
 		"queries":    ans.Queries,
 		"elapsed":    ans.Elapsed,

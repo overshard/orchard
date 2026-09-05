@@ -45,6 +45,10 @@ func renderMarkdown(src string) string {
 // because goldmark drops raw HTML written into the markdown. It substitutes
 // only in text, never inside a tag, so an attribute holding digits in brackets
 // is left alone.
+//
+// Code is left alone too. `rows[0]` is an index and not a citation, and turning
+// it into a link puts an anchor in the middle of something a reader is about to
+// copy.
 func linkCitations(h string) string {
 	var out strings.Builder
 	out.Grow(len(h) + 64)
@@ -60,10 +64,30 @@ func linkCitations(h string) string {
 			out.WriteString(h[open:])
 			break
 		}
-		out.WriteString(h[open : open+shut+1])
+		tag := h[open : open+shut+1]
+		out.WriteString(tag)
 		h = h[open+shut+1:]
+		if name, ok := verbatimTag(tag); ok {
+			end := strings.Index(h, "</"+name)
+			if end < 0 {
+				out.WriteString(h)
+				break
+			}
+			out.WriteString(h[:end])
+			h = h[end:]
+		}
 	}
 	return out.String()
+}
+
+// verbatimTag names the elements whose contents are copied straight through.
+func verbatimTag(tag string) (string, bool) {
+	for _, name := range []string{"pre", "code"} {
+		if strings.HasPrefix(tag, "<"+name+" ") || tag == "<"+name+">" {
+			return name, true
+		}
+	}
+	return "", false
 }
 
 func escapeHTML(s string) string {
@@ -82,7 +106,17 @@ func escapeHTML(s string) string {
 // different evidence.
 func tidyCitations(text string) string {
 	lines := strings.Split(text, "\n")
+	fenced := false
 	for i, line := range lines {
+		// Collapsing repeats inside a code block would move an array index to
+		// the end of the line, which is a working file turned into a broken one.
+		if fenceOpen.MatchString(line) && !fenced {
+			fenced = true
+			continue
+		} else if fenced {
+			fenced = !fenceShut.MatchString(line)
+			continue
+		}
 		found := citation.FindAllString(line, -1)
 		if len(found) < 2 {
 			continue
