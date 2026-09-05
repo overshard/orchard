@@ -34,13 +34,43 @@ type chatMessage struct {
 }
 
 type chatRequest struct {
-	Model          string          `json:"model"`
-	Messages       []chatMessage   `json:"messages"`
-	Temperature    float64         `json:"temperature"`
-	MaxTokens      int             `json:"max_tokens"`
-	Stream         bool            `json:"stream"`
-	ResponseFormat *responseFormat `json:"response_format,omitempty"`
-	TemplateKwargs map[string]any  `json:"chat_template_kwargs,omitempty"`
+	Model           string          `json:"model"`
+	Messages        []chatMessage   `json:"messages"`
+	Temperature     float64         `json:"temperature"`
+	TopP            float64         `json:"top_p"`
+	TopK            int             `json:"top_k"`
+	MinP            float64         `json:"min_p"`
+	PresencePenalty float64         `json:"presence_penalty"`
+	MaxTokens       int             `json:"max_tokens"`
+	Stream          bool            `json:"stream"`
+	ResponseFormat  *responseFormat `json:"response_format,omitempty"`
+	TemplateKwargs  map[string]any  `json:"chat_template_kwargs,omitempty"`
+}
+
+// Qwen publishes sampling numbers per mode on the model card, and this pipeline
+// needs two of them rather than one setting for everything.
+//
+// A step handing over a JSON schema wants the likeliest token inside the
+// grammar, since the schema is doing the deciding and creativity there is only
+// a way to pick the wrong enum. Synthesis is the one step writing prose, and
+// there the model card's own non-thinking numbers apply. The presence penalty
+// matters most: Qwen names it as the fix for the model repeating itself, which
+// is exactly the failure this site keeps hitting, a closing paragraph that says
+// the bullet list again in weaker words.
+//
+// Before this everything ran at temperature 0.2 with llama.cpp's defaults for
+// the rest, so prose was sampled almost greedily with nothing discouraging
+// repetition.
+var (
+	exact = sampling{Temperature: 0.2, TopP: 0.8, TopK: 20}
+	prose = sampling{Temperature: 0.7, TopP: 0.8, TopK: 20, PresencePenalty: 1.5}
+)
+
+type sampling struct {
+	Temperature     float64
+	TopP            float64
+	TopK            int
+	PresencePenalty float64
 }
 
 type responseFormat struct {
@@ -68,7 +98,7 @@ type chatResponse struct {
 
 // Complete runs a free-form completion. Used only for the synthesis step.
 func (l *LLM) Complete(ctx context.Context, system, user string, maxTokens int) (string, error) {
-	return l.call(ctx, system, user, maxTokens, nil)
+	return l.call(ctx, system, user, maxTokens, nil, prose)
 }
 
 // Structured constrains the model to a JSON schema. llama.cpp turns the schema
@@ -83,7 +113,7 @@ func (l *LLM) Structured(ctx context.Context, system, user string, maxTokens int
 		Type:       "json_schema",
 		JSONSchema: &schemaWrapper{Name: "response", Strict: true, Schema: raw},
 	}
-	text, err := l.call(ctx, system, user, maxTokens, format)
+	text, err := l.call(ctx, system, user, maxTokens, format, exact)
 	if err != nil {
 		return err
 	}
@@ -94,12 +124,15 @@ func (l *LLM) Structured(ctx context.Context, system, user string, maxTokens int
 	return json.Unmarshal([]byte(text), out)
 }
 
-func (l *LLM) call(ctx context.Context, system, user string, maxTokens int, format *responseFormat) (string, error) {
+func (l *LLM) call(ctx context.Context, system, user string, maxTokens int, format *responseFormat, s sampling) (string, error) {
 	body, err := json.Marshal(chatRequest{
-		Model:          l.Model,
-		Temperature:    0.2,
-		MaxTokens:      maxTokens,
-		ResponseFormat: format,
+		Model:           l.Model,
+		Temperature:     s.Temperature,
+		TopP:            s.TopP,
+		TopK:            s.TopK,
+		PresencePenalty: s.PresencePenalty,
+		MaxTokens:       maxTokens,
+		ResponseFormat:  format,
 		// Qwen3.5 is a thinking model and llama.cpp puts the chain of thought in
 		// reasoning_content, leaving content empty until the budget runs out.
 		// Every step here is either schema constrained or wants prose directly,
@@ -148,7 +181,7 @@ func (l *LLM) call(ctx context.Context, system, user string, maxTokens int, form
 func (l *LLM) Warm(ctx context.Context) {
 	ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
-	l.call(ctx, "", "hi", 1, nil)
+	l.call(ctx, "", "hi", 1, nil, exact)
 }
 
 // Healthy asks whether the model server is up, without waking the model.

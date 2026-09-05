@@ -37,6 +37,13 @@ type Contract struct {
 	MaxPassages int
 	PerSource   int
 	MaxTokens   int
+
+	// Reminder is the one rule that has to survive to the end, repeated after
+	// the passages rather than left in the system prompt. A model reads the
+	// beginning and the end of what it was given and is worst in the middle,
+	// and by the time this one is generating, the instruction it needs most is
+	// several thousand tokens behind it.
+	Reminder string
 }
 
 // answerFirst is prepended to every shape. The rule Isaac stated: answer the
@@ -194,6 +201,7 @@ var contracts = map[Shape]Contract{
 		// this is nearly double the next largest shape. Under it the model
 		// stops mid-tag, which is worth nothing to anybody.
 		MaxPassages: 16, PerSource: 4, MaxTokens: 3400,
+		Reminder: "Whole files that run as they are. No ellipsis, no placeholder, no comment standing in for code you did not write.",
 	},
 
 	// "When is the next Liverpool game" and "who did Liverpool play last night"
@@ -213,6 +221,7 @@ var contracts = map[Shape]Contract{
 			"Never comment on how old the passages are or when they were written. Whether the schedule has moved since is worked out elsewhere.",
 		}, " "),
 		MaxPassages: 14, PerSource: 3, MaxTokens: 800,
+		Reminder: "Only a date today or later can answer this. Anything earlier has already happened.",
 	},
 
 	ShapeNews: {
@@ -230,6 +239,7 @@ var contracts = map[Shape]Contract{
 			"Say plainly if the passages disagree or if the newest one is older than the question implies.",
 		}, " "),
 		MaxPassages: 14, PerSource: 3, MaxTokens: 900,
+		Reminder: "This asks what already happened. A passage about something upcoming does not answer it.",
 	},
 }
 

@@ -669,6 +669,9 @@ func (e *Engine) synthesize(ctx context.Context, question string, passages []Pas
 		contract.Instruction,
 	}, " ")
 	user := fmt.Sprintf("Passages:\n\n%s\nQuestion: %s", b.String(), question)
+	if contract.Reminder != "" {
+		user += "\n\n" + contract.Reminder
+	}
 	return e.llm.Complete(ctx, system, user, contract.MaxTokens)
 }
 
