@@ -82,6 +82,10 @@ func Fetch(client *http.Client, target string) (*Page, error) {
 		p.Published = t.Format("2006-01-02")
 	}
 
+	// Before stripAndPick, which removes script tags in place and takes the
+	// structured data with them.
+	recipe, hasRecipe := recipeFromJSONLD(doc)
+
 	content := stripAndPick(doc)
 	p.Links = harvestLinks(content, target)
 	md, err := htmltomarkdown.ConvertString(renderNode(content))
@@ -91,6 +95,12 @@ func Fetch(client *http.Client, target string) (*Page, error) {
 	p.Markdown = tidyMarkdown(md)
 	if len(strings.Fields(p.Markdown)) < 40 {
 		return nil, fmt.Errorf("%s: too little text", target)
+	}
+	// A recipe page publishes its ingredients with quantities as data and then
+	// describes them without quantities in the prose, so the structured copy
+	// goes first where the passage ranking will find it.
+	if hasRecipe {
+		p.Markdown = recipe.Markdown() + "\n\n" + p.Markdown
 	}
 	return p, nil
 }
@@ -490,4 +500,11 @@ func parseDate(s string) (time.Time, bool) {
 		}
 	}
 	return time.Time{}, false
+}
+
+func abs(v float64) float64 {
+	if v < 0 {
+		return -v
+	}
+	return v
 }

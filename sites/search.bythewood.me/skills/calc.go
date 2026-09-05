@@ -1,10 +1,12 @@
-package main
+package skills
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 )
 
@@ -320,4 +322,44 @@ func group(intPart string) string {
 		return "-" + string(out)
 	}
 	return string(out)
+}
+
+// Calculator is the skill wrapper. The parser above is the whole of it, so
+// this never touches the network and never fails slowly.
+type Calculator struct{}
+
+func (Calculator) Card() Card {
+	return Card{
+		Name: "maths",
+		Does: "evaluates an arithmetic expression the user has written out, and returns the number.",
+		Fires: []string{
+			"30 * 27",
+			"what is 15% of 240",
+			"(1200 + 450) / 3",
+			"2^10",
+			"how much is 45.99 times 3",
+		},
+		NotFor: []string{
+			"how does compound interest work",
+			"what is the average house price in london",
+			"how many calories in a banana",
+			"convert 30 celsius to fahrenheit",
+			"what is the square root of the population of france",
+		},
+		Keywords: nil, // the parser is the matcher, and it is exact
+	}
+}
+
+func (Calculator) Run(ctx context.Context, question string, d Deps) (*Result, error) {
+	start := d.now()
+	calc, ok := TryCalculate(question)
+	if !ok {
+		return nil, nil
+	}
+	return &Result{
+		Skill:   "maths",
+		Shape:   "factual",
+		Text:    fmt.Sprintf("**%s**\n\n`%s = %s`", calc.Pretty, calc.Expression, calc.Pretty),
+		Elapsed: d.now().Sub(start).Round(time.Millisecond).String(),
+	}, nil
 }
