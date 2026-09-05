@@ -26,6 +26,14 @@ const (
 	// The public repository this site lives in. Every gated site here links to
 	// its own source from its landing page.
 	sourceURL = "https://github.com/overshard/orchard/tree/main/sites/search.bythewood.me"
+
+	// Must match the first hostname label, like every other source label.
+	selfSource = "search"
+
+	// analyticsID is in the page source of every site; it is identity, not a
+	// credential. Its own property, since a copied one silently files this
+	// site's traffic under whichever site it was copied from.
+	analyticsID = "5782ea95-0169-4095-b94a-0b2b420440ed"
 )
 
 type site struct {
@@ -67,15 +75,21 @@ func main() {
 	healthcheck := flag.Bool("healthcheck", false, "probe a running server on this host and exit")
 	flag.Parse()
 
-	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
+	web.SetupLogging()
 
 	if *healthcheck {
-		resp, err := http.Get("http://127.0.0.1:8000/healthz")
-		if err != nil || resp.StatusCode != http.StatusOK {
+		if err := web.HealthCheck("http://127.0.0.1:8000/healthz", 3*time.Second); err != nil {
+			slog.Info(fmt.Sprintf("healthcheck: %v", err))
 			os.Exit(1)
 		}
 		return
 	}
+
+	// Tees stdout records to logging.bythewood.me; see web/shipper.go. It goes
+	// after the healthcheck branch so a HEALTHCHECK does not start a queue it
+	// will never flush.
+	shipper := web.ShipLogs(selfSource, web.HTTPSink())
+	defer shipper.Close()
 
 	store, err := OpenStore(env("SITE_DATA", "build/data"))
 	if err != nil {
@@ -133,16 +147,11 @@ func main() {
 		slog.String("addr", listenAddr),
 		slog.String("llm", llm.BaseURL),
 		slog.Bool("assets_from_disk", Reloaded))
-	server := &http.Server{
-		Addr:        listenAddr,
-		Handler:     mux,
-		ReadTimeout: 15 * time.Second,
-		// Go's write bound covers the whole response, so any value at all is a
-		// ceiling on how long an event stream may stay open. Same reason dash
-		// sets it to zero.
-		WriteTimeout: 0,
-	}
-	if err := server.ListenAndServe(); err != nil {
+	// Recovered is outermost so a panic in the pipeline becomes a 500 rather
+	// than taking the process and every question in flight with it.
+	handler := web.Chain(mux, web.Recovered, web.Logged)
+
+	if err := web.Serve(listenAddr, handler); err != nil {
 		slog.Error("server stopped", slog.Any("err", err))
 		os.Exit(1)
 	}
@@ -196,19 +205,23 @@ func (s *site) landing(w http.ResponseWriter, r *http.Request) {
 		"Sites":         sites,
 		"SourceURL":     sourceURL,
 		"Authenticated": s.devOpen || s.auth.Authenticated(r),
+		"Analytics":     !Reloaded,
+		"AnalyticsID":   analyticsID,
 	})
 }
 
 func (s *site) app(w http.ResponseWriter, r *http.Request) {
 	pages, chunks, _ := s.store.Stats()
 	s.render(w, "app.html", map[string]any{
-		"Pages":     pages,
-		"Chunks":    chunks,
-		"LLMUp":     s.llm.Healthy(r.Context()),
-		"SessionID": NewSessionID(),
-		"Budget":    s.budget.State(),
-		"Ambient":   AmbientFacts(),
-		"SourceURL": sourceURL,
+		"Pages":       pages,
+		"Chunks":      chunks,
+		"LLMUp":       s.llm.Healthy(r.Context()),
+		"SessionID":   NewSessionID(),
+		"Budget":      s.budget.State(),
+		"Ambient":     AmbientFacts(),
+		"SourceURL":   sourceURL,
+		"Analytics":   !Reloaded,
+		"AnalyticsID": analyticsID,
 	})
 }
 

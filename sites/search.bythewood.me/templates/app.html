@@ -5,6 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ask &middot; search</title>
 <link rel="stylesheet" href="{{ asset "static/app.css" }}">
+{{- if .Analytics }}
+<script>
+  (function (m, e, t, r, i, c, s) {
+    m.collectorQueue = m.collectorQueue || r;
+    m.collectorServer = c;
+    m.collectorId = s;
+    m.collectorScript = e.createElement(t);
+    m.collectorScript.src = c + i;
+    e.head.appendChild(m.collectorScript);
+  })(window, document, "script", [], "/static/collector.js",
+     "https://analytics.bythewood.me", "{{ .AnalyticsID }}");
+</script>
+{{- end }}
 </head>
 <body data-session="{{.SessionID}}">
 <div class="crt"></div>
