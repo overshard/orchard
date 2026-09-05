@@ -10,6 +10,12 @@
 	servers {
 		# Or client_ip resolves to cloudflared's bridge address.
 		trusted_proxies static private_ranges
+
+		# Only Cloudflare can set this one. Without it client_ip comes out of
+		# X-Forwarded-For, which the client sends, so a scanner claiming to be
+		# 127.0.0.1 is logged as 127.0.0.1 and hides from the direct-hits panel
+		# on logging that exists to catch requests which skipped Cloudflare.
+		client_ip_headers Cf-Connecting-Ip
 	}
 }
 
@@ -77,78 +83,159 @@
 # as an origin error and counts it against origin health. A 404 is what these
 # paths already returned.
 #
-# The same list also exists as a Cloudflare WAF rule, which catches these first
-# and more cheaply. Keeping a copy here is the point, since a dashboard rule is
-# not in version control and does not come back on a rebuild. One custom rule of
-# the five the free plan allows, named "Exploit scanner paths", action Block,
-# pasted identically into the bythewood.me and isaacbythewood.com zones:
+# The same list also exists at Cloudflare, which catches these first and more
+# cheaply, since a blocked request never crosses the tunnel. Keeping a copy here
+# is the point, because a dashboard rule is not in version control and does not
+# come back on a rebuild.
+#
+# Two custom rules rather than one, of the five the free plan allows. Together
+# they come to more than the 4,096 character cap on a single expression, and
+# splitting is free. Both are action Block, pasted identically into the
+# bythewood.me and isaacbythewood.com zones.
+#
+# Rule 1, "Exploit scanner paths":
 #
 #   (starts_with(http.request.uri.path, "/."))
-#   or (http.host ne "repos.bythewood.me" and (
-#         lower(http.request.uri.path) in {"/env" "/_environment"}
-#      or lower(http.request.uri.path) contains "wp-"
-#      or lower(http.request.uri.path) contains "wordpress"
-#      or lower(http.request.uri.path) contains "/wp/"
-#      or lower(http.request.uri.path) contains "xmlrpc"
-#      or lower(http.request.uri.path) contains "phpmyadmin"
-#      or lower(http.request.uri.path) contains "autodiscover"
-#      or lower(http.request.uri.path) contains "/cgi-bin/"
-#      or lower(http.request.uri.path) contains "/vendor/"
-#      or lower(http.request.uri.path) contains ".env"
-#      or lower(http.request.uri.path) contains "/.git"
-#      or lower(http.request.uri.path) contains "/.aws"
-#      or lower(http.request.uri.path) contains "/.ssh"
-#      or lower(http.request.uri.path) contains "/.vscode"
-#      or lower(http.request.uri.path) contains ".php"
-#      or lower(http.request.uri.path) contains ".asp"
-#      or lower(http.request.uri.path) contains ".jsp"
-#      or lower(http.request.uri.path) contains ".cgi"
-#      or lower(http.request.uri.path) contains ".axd"
-#      or lower(http.request.uri.path) contains ".sql"
-#      or lower(http.request.uri.path) contains ".bak"
-#      or lower(http.request.uri.path) contains "phpinfo"
-#      or lower(http.request.uri.path) contains "/actuator/"
-#      or lower(http.request.uri.path) contains "/_profiler/"
-#      or lower(http.request.uri.path) contains "/solr/"
-#      or lower(http.request.uri.path) contains "/livewire/"
-#      or lower(http.request.uri.path) contains "/sitecore/"
-#      or lower(http.request.uri.path) contains "telerik"
-#      or lower(http.request.uri.path) contains "id_rsa"
-#      or lower(http.request.uri.path) contains "id_ed25519"
-#      or lower(http.request.uri.path) contains "credentials.json"
-#      or lower(http.request.uri.path) contains "service-account"
-#      or lower(http.request.uri.path) contains "serviceaccount"
-#      or lower(http.request.uri.path) contains "keyfile.json"
-#      or lower(http.request.uri.path) contains "adminsdk"
-#      or lower(http.request.uri.path) contains "-key.json"
-#      or lower(http.request.uri.path) contains "-sa.json"
-#      or lower(http.request.uri.path) contains "/sa.json"
-#      or lower(http.request.uri.path) contains "/key.json"
-#      or lower(http.request.uri.path) contains "/_ignition/"
-#      or lower(http.request.uri.path) contains "/storage/logs/"
-#      or lower(http.request.uri.path) contains "/webinterface/"
-#      or lower(http.request.uri.path) contains "/zabbix/"
-#      or lower(http.request.uri.path) contains "/owa/"
-#      or lower(http.request.uri.path) contains "/boaform/"
-#      or lower(http.request.uri.path) contains "/jenkins/"
-#      or lower(http.request.uri.path) contains "/hudson/"
-#      or lower(http.request.uri.path) contains "sugar_version.json"
-#      or lower(http.request.uri.path) contains "com_pagebuilderck"
-#      or lower(http.request.uri.path) contains "/login.do"
-#      or lower(http.request.uri.path) contains "/showlogin.cc"
-#   ))
+#   or (
+#        not (
+#          http.host eq "repos.bythewood.me"
+#          and (
+#              lower(http.request.uri.path) contains "/blob/"
+#              or lower(http.request.uri.path) contains "/raw/"
+#              or lower(http.request.uri.path) contains "/tree/"
+#              or lower(http.request.uri.path) contains "/commit/"
+#              or lower(http.request.uri.path) contains "/log/"
+#              or lower(http.request.uri.path) contains "/archive/"
+#              or lower(http.request.uri.path) contains "/branches"
+#              or lower(http.request.uri.path) contains "/tags"
+#          )
+#        )
+#        and (
+#            lower(http.request.uri.path) in {"/env" "/_environment"}
+#         or lower(http.request.uri.path) contains "wp-"
+#         or lower(http.request.uri.path) contains "wordpress"
+#         or lower(http.request.uri.path) contains "/wp/"
+#         or lower(http.request.uri.path) contains "xmlrpc"
+#         or lower(http.request.uri.path) contains "phpmyadmin"
+#         or lower(http.request.uri.path) contains "autodiscover"
+#         or lower(http.request.uri.path) contains "/cgi-bin/"
+#         or lower(http.request.uri.path) contains "/vendor/"
+#         or lower(http.request.uri.path) contains ".env"
+#         or lower(http.request.uri.path) contains "/.git"
+#         or lower(http.request.uri.path) contains "/.aws"
+#         or lower(http.request.uri.path) contains "/.ssh"
+#         or lower(http.request.uri.path) contains "/.vscode"
+#         or lower(http.request.uri.path) contains ".php"
+#         or lower(http.request.uri.path) contains ".asp"
+#         or lower(http.request.uri.path) contains ".jsp"
+#         or lower(http.request.uri.path) contains ".cgi"
+#         or lower(http.request.uri.path) contains ".axd"
+#         or lower(http.request.uri.path) contains ".sql"
+#         or lower(http.request.uri.path) contains ".bak"
+#         or lower(http.request.uri.path) contains "phpinfo"
+#         or lower(http.request.uri.path) contains "/actuator/"
+#         or lower(http.request.uri.path) contains "/_profiler/"
+#         or lower(http.request.uri.path) contains "/solr/"
+#         or lower(http.request.uri.path) contains "/livewire/"
+#         or lower(http.request.uri.path) contains "/sitecore/"
+#         or lower(http.request.uri.path) contains "telerik"
+#         or lower(http.request.uri.path) contains "id_rsa"
+#         or lower(http.request.uri.path) contains "id_ed25519"
+#         or lower(http.request.uri.path) contains "credentials.json"
+#         or lower(http.request.uri.path) contains "service-account"
+#         or lower(http.request.uri.path) contains "serviceaccount"
+#         or lower(http.request.uri.path) contains "keyfile.json"
+#         or lower(http.request.uri.path) contains "adminsdk"
+#         or lower(http.request.uri.path) contains "-key.json"
+#         or lower(http.request.uri.path) contains "-sa.json"
+#         or lower(http.request.uri.path) contains "/sa.json"
+#         or lower(http.request.uri.path) contains "/key.json"
+#         or lower(http.request.uri.path) contains "/_ignition/"
+#         or lower(http.request.uri.path) contains "/storage/logs/"
+#         or lower(http.request.uri.path) contains "/webinterface/"
+#         or lower(http.request.uri.path) contains "/zabbix/"
+#         or lower(http.request.uri.path) contains "/owa/"
+#         or lower(http.request.uri.path) contains "/boaform/"
+#         or lower(http.request.uri.path) contains "/jenkins/"
+#         or lower(http.request.uri.path) contains "/hudson/"
+#         or lower(http.request.uri.path) contains "sugar_version.json"
+#         or lower(http.request.uri.path) contains "com_pagebuilderck"
+#         or lower(http.request.uri.path) contains "/login.do"
+#         or lower(http.request.uri.path) contains "/showlogin.cc"
+#        )
+#      )
 #
-# The first line sits outside the host test so it covers repos as well. Nothing
+# Rule 2, "Exploit scanner paths 2":
+#
+#   http.host ne "repos.bythewood.me"
+#   and (
+#       lower(http.request.uri.path) contains "/remote/fgt_lang"
+#       or lower(http.request.uri.path) contains "/remote/login"
+#       or lower(http.request.uri.path) contains "/global-protect/"
+#       or lower(http.request.uri.path) contains "/ssl-vpn/"
+#       or lower(http.request.uri.path) contains "/app/rest/"
+#       or lower(http.request.uri.path) contains "/blade-auth/"
+#       or lower(http.request.uri.path) contains "/blade-system/"
+#       or lower(http.request.uri.path) contains "/pimcore-studio/"
+#       or lower(http.request.uri.path) contains "/php-cgi/"
+#       or lower(http.request.uri.path) contains "/administrator/"
+#       or lower(http.request.uri.path) contains "/language/en-gb/"
+#       or lower(http.request.uri.path) contains "/media/system/"
+#       or lower(http.request.uri.path) contains "/api/v1/totp/"
+#       or lower(http.request.uri.path) contains "joomla"
+#       or lower(http.request.uri.path) contains "keys-status"
+#       or lower(http.request.uri.path) contains ".esp"
+#       or lower(http.request.uri.path) contains ".action"
+#       or lower(http.request.uri.path) contains "/_cat/"
+#       or lower(http.request.uri.path) contains "/_cluster/"
+#       or lower(http.request.uri.path) contains "/_watcher/"
+#       or lower(http.request.uri.path) contains "/_snapshot/"
+#       or lower(http.request.uri.path) contains "/_nodes"
+#       or lower(http.request.uri.path) contains "/api/datasources"
+#       or lower(http.request.uri.path) contains "/api/alert-notifications"
+#       or lower(http.request.uri.path) contains "/api/v1/provisioning/"
+#       or lower(http.request.uri.path) contains "/api/org"
+#       or lower(http.request.uri.path) contains "/api/dashboards"
+#       or lower(http.request.uri.path) contains "/api/2.0/mlflow/"
+#       or lower(http.request.uri.path) contains "/containers/json"
+#       or lower(http.request.uri.path) contains "/v1.24/"
+#       or lower(http.request.uri.path) contains "/images/json"
+#       or lower(http.request.uri.path) contains "/v2/keys/"
+#       or lower(http.request.uri.path) contains "/api/contents"
+#       or lower(http.request.uri.path) contains "/auth/v1/"
+#       or lower(http.request.uri.path) contains "/rest/v1/"
+#       or lower(http.request.uri.path) contains "/api/v1/validate/code"
+#       or lower(http.request.uri.path) contains "/api/v1/auto_login"
+#       or lower(http.request.uri.path) contains "/druid/"
+#       or lower(http.request.uri.path) contains "/hazelcast/"
+#       or lower(http.request.uri.path) contains "/geoserver/"
+#       or lower(http.request.uri.path) contains "/ws/v1/cluster"
+#      )
+#
+# Rule 1's first line sits outside the guard so it covers repos as well. Nothing
 # here serves a path starting with a dot and no site registers a .well-known
-# route, so it cannot reach repository content, which is always under
-# /{name}/{blob|raw|tree|commit}/.
+# route, so it cannot reach repository content.
+#
+# Rule 1 guards on the repository content shape and rule 2 on the host, because
+# the families in rule 2 never collide with a file in a repository and Caddy
+# covers repos exactly anyway. The free plan has no regex operator, so the shape
+# test there is `contains "/blob/"` where the matcher below anchors the verb to
+# the second segment. Cloudflare is the loose layer and Caddy the exact one, and
+# that asymmetry is the two layers working rather than a hole.
 #
 # "/.git" keeps its leading slash, and so do "/.aws", "/.ssh" and "/.vscode". A
 # bare ".git" matches /orchard.git/info/refs and takes clone and push over
 # HTTPS down with it.
 #
 # ".env" is bare on purpose, which is what catches /app.env and /docker.env, and
-# it is only safe because the host test above excludes repos.
+# it is only safe because repos is excluded above.
+#
+# "/media/system/" has to carry the system segment. blog serves /media/images/
+# and /media/avatar_images/ for real, so a bare "/media/" takes them down.
+#
+# Everything generic stays out. /info, /console, /new/, /old/ and /backup/ are
+# all plausible routes here one day and each is worth a cheap 404, and /code is
+# already a real route on isaacbythewood.com.
 #
 # Do not turn on Bot Fight Mode to solve this. status probes its own public
 # hostnames with a plain Go client, which cannot solve a JS challenge, so every
@@ -170,7 +257,7 @@
 (scanners_repos) {
 	@hostile_repos {
 		not path_regexp repo_content ^/[^/]+/(?:blob|raw|tree|commit|log|archive|branches|tags)(?:/|$)
-		path_regexp hostile_repos (?i)(?:^|/)(?:wp-|wordpress|wp/|xmlrpc|phpmyadmin|autodiscover|cgi-bin/|vendor/|actuator/|_profiler/|solr/|livewire/|sitecore/|_ignition/|storage/logs/|webinterface/|zabbix/|owa/|boaform/|jenkins/|hudson/|sa\.json|key\.json|\.git|\.aws|\.ssh|\.vscode)|telerik|phpinfo|id_rsa|id_ed25519|credentials\.json|keyfile\.json|adminsdk|-key\.json|-sa\.json|sugar_version\.json|com_pagebuilderck|login\.do|showlogin\.cc|service-?account|\.env|\.(?:php|asp|jsp|cgi|axd|sql|bak)|^/(?:env|_environment)$
+		path_regexp hostile_repos (?i)(?:^|/)(?:wp-|wordpress|wp/|xmlrpc|phpmyadmin|autodiscover|cgi-bin/|vendor/|actuator/|_profiler/|solr/|livewire/|sitecore/|_ignition/|storage/logs/|webinterface/|zabbix/|owa/|boaform/|jenkins/|hudson/|sa\.json|key\.json|\.git|\.aws|\.ssh|\.vscode|remote/fgt_lang|remote/login|global-protect/|ssl-vpn/|app/rest/|blade-auth/|blade-system/|pimcore-studio/|php-cgi/|administrator/|language/en-gb/|media/system/|api/v1/totp/|_cat/|_cluster/|_watcher/|_snapshot/|_nodes|api/datasources|api/alert-notifications|api/v1/provisioning/|api/org|api/dashboards|api/2\.0/mlflow/|containers/json|v1\.24/|images/json|v2/keys/|api/contents|auth/v1/|rest/v1/|api/v1/validate/code|api/v1/auto_login|druid/|hazelcast/|geoserver/|ws/v1/cluster)|telerik|phpinfo|id_rsa|id_ed25519|credentials\.json|keyfile\.json|adminsdk|-key\.json|-sa\.json|sugar_version\.json|com_pagebuilderck|login\.do|showlogin\.cc|service-?account|\.env|joomla|keys-status|\.(?:php|asp|jsp|cgi|axd|sql|bak|esp|action)|^/(?:env|_environment)$
 	}
 
 	log_skip @hostile_repos
@@ -187,7 +274,7 @@
 	# Matched anywhere in the path rather than at the root, since most of the
 	# volume arrives nested under a guessed prefix (/blog/wp-json/, /app/.env).
 	# Ordinary 404s like /login or /apple-touch-icon.png are left alone.
-	@hostile path_regexp hostile (?i)(?:^|/)(?:wp-|wordpress|wp/|xmlrpc|phpmyadmin|autodiscover|cgi-bin/|vendor/|actuator/|_profiler/|solr/|livewire/|sitecore/|_ignition/|storage/logs/|webinterface/|zabbix/|owa/|boaform/|jenkins/|hudson/|sa\.json|key\.json|\.git|\.aws|\.ssh|\.vscode)|telerik|phpinfo|id_rsa|id_ed25519|credentials\.json|keyfile\.json|adminsdk|-key\.json|-sa\.json|sugar_version\.json|com_pagebuilderck|login\.do|showlogin\.cc|service-?account|\.env|\.(?:php|asp|jsp|cgi|axd|sql|bak)|^/(?:env|_environment)$
+	@hostile path_regexp hostile (?i)(?:^|/)(?:wp-|wordpress|wp/|xmlrpc|phpmyadmin|autodiscover|cgi-bin/|vendor/|actuator/|_profiler/|solr/|livewire/|sitecore/|_ignition/|storage/logs/|webinterface/|zabbix/|owa/|boaform/|jenkins/|hudson/|sa\.json|key\.json|\.git|\.aws|\.ssh|\.vscode|remote/fgt_lang|remote/login|global-protect/|ssl-vpn/|app/rest/|blade-auth/|blade-system/|pimcore-studio/|php-cgi/|administrator/|language/en-gb/|media/system/|api/v1/totp/|_cat/|_cluster/|_watcher/|_snapshot/|_nodes|api/datasources|api/alert-notifications|api/v1/provisioning/|api/org|api/dashboards|api/2\.0/mlflow/|containers/json|v1\.24/|images/json|v2/keys/|api/contents|auth/v1/|rest/v1/|api/v1/validate/code|api/v1/auto_login|druid/|hazelcast/|geoserver/|ws/v1/cluster)|telerik|phpinfo|id_rsa|id_ed25519|credentials\.json|keyfile\.json|adminsdk|-key\.json|-sa\.json|sugar_version\.json|com_pagebuilderck|login\.do|showlogin\.cc|service-?account|\.env|joomla|keys-status|\.(?:php|asp|jsp|cgi|axd|sql|bak|esp|action)|^/(?:env|_environment)$
 
 	# Not logged. Moving the noise to another log is not the point.
 	log_skip @hostile
