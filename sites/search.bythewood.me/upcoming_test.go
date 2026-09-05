@@ -130,6 +130,54 @@ func TestEveryShapeHasAContract(t *testing.T) {
 	}
 }
 
+// A fixture list writes the month short, and the page that carries the cup tie
+// is not always the page the answer came off.
+func TestSoonerAcrossPassages(t *testing.T) {
+	now := day(2026, time.September, 5)
+	passages := []Passage{
+		{ID: 1, Text: "Next match\n\n12 Sept 2026, 14:00/Liverpool FC vs Fulham FC"},
+		{ID: 2, Text: "## Upcoming fixtures\n- Liverpool vs Atleti Wed, 9 Sept 2026 - 19:00 - Champions League"},
+	}
+	answer := "The next Liverpool game is on **12 September 2026** against Fulham FC at Anfield [1]."
+	got := sooner(answer, passages, now)
+	if len(got) != 1 || !strings.Contains(got[0], "9 September") {
+		t.Fatalf("want a warning naming the earlier date, got %q", got)
+	}
+	if got := sooner("The next one is 9 September 2026 [2].", passages, now); len(got) != 0 {
+		t.Errorf("leading with the soonest needs no warning, got %q", got)
+	}
+	// Nothing sooner in the passages, so nothing to say.
+	if got := sooner(answer, passages[:1], now); len(got) != 0 {
+		t.Errorf("got %q", got)
+	}
+	// A page stamping itself with today is not a match today.
+	stamped := []Passage{{ID: 1, Text: "**Last updated:** Sep 5, 2026\n\n- 12 Sept 2026, 14:00/Liverpool FC vs Fulham FC"}}
+	if got := sooner(answer, stamped, now); len(got) != 0 {
+		t.Errorf("a page stamp is not a fixture, got %q", got)
+	}
+}
+
+func TestShortMonths(t *testing.T) {
+	now := day(2026, time.September, 5)
+	for text, want := range map[string]string{
+		"Wed, 9 Sept 2026 - 19:00":     "2026-09-09",
+		"12 Sept 2026, 14:00":          "2026-09-12",
+		"Sat Nov 28, 2026 at Goodison": "2026-11-28",
+		"31 Feb 2027 is not a day":     "",
+	} {
+		got, ok := latestDate(text, now)
+		if want == "" {
+			if ok {
+				t.Errorf("%q: read %s off a date that does not exist", text, got.Format("2006-01-02"))
+			}
+			continue
+		}
+		if !ok || got.Format("2006-01-02") != want {
+			t.Errorf("%q: got %s ok=%v, want %s", text, got.Format("2006-01-02"), ok, want)
+		}
+	}
+}
+
 func TestScheduleAge(t *testing.T) {
 	now := day(2026, time.September, 5)
 	fresh := []Source{{Published: "2026-06-19"}, {Published: "2026-09-02"}}

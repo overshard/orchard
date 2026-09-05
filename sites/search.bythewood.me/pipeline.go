@@ -291,6 +291,7 @@ func (e *Engine) round(ctx context.Context, ans *Answer, plan Plan, contract Con
 		ans.Warnings = append(ans.Warnings, staleNow(ans.Text, now)...)
 		if contract.Shape == ShapeUpcoming {
 			ans.Warnings = append(ans.Warnings, pastOnly(ans.Text, now)...)
+			ans.Warnings = append(ans.Warnings, sooner(ans.Text, passages, now)...)
 			ans.Warnings = append(ans.Warnings, scheduleAge(ans.Sources, now)...)
 		}
 	}
@@ -434,6 +435,7 @@ func (e *Engine) plan(ctx context.Context, question, hint string) Plan {
 		"factual: everything else.",
 		"For news, write queries that would find what happened, using words like result, final score, or the current month and year, not words like schedule, fixtures or upcoming.",
 		"For upcoming, write the opposite: queries carrying schedule, fixtures, upcoming or next along with the current month and year, since a query about a result finds the match before the one being asked about.",
+		"A team plays in more than one competition, so one of those queries asks for the next fixture in any competition rather than naming a league, since a league schedule leaves the cup out and calls its own next match the next match.",
 		"status: the user wants to know where an ongoing thing stands now, such as a court case, an investigation or a rollout. Write queries carrying the current month and year so the newest coverage is found rather than the first report.",
 		"No sentences, no quotes, no search operators.",
 	}, " ")
@@ -711,6 +713,29 @@ func (e *Engine) validate(ctx context.Context, text string, passages []Passage) 
 				} else {
 					c.Note = "no fetched passage states this"
 				}
+			}
+			out = append(out, c)
+		}
+	}
+	// An answer that cited nothing at all falls straight through the loop
+	// above and renders as an answer nobody checked, which on this site reads
+	// the same as an answer nothing was wrong with. A short answer is where
+	// this happens, since one sentence carries every citation the model was
+	// going to write and sometimes it writes none, so each claim gets a pass
+	// through findSupport instead. The note says the citation was found rather
+	// than written, because the difference matters.
+	if len(out) == 0 {
+		for _, sentence := range splitClaims(text) {
+			claim := stripCitations(sentence)
+			if len(contentWords(claim)) < 3 {
+				continue
+			}
+			c := Citation{Sentence: plainText(sentence), Checked: true}
+			if id := e.findSupport(ctx, claim, passages, 0); id > 0 {
+				c.PassageID, c.Source, c.Supported, c.Repaired = id, byID[id].Source, true, id
+				c.Note = fmt.Sprintf("no citation was written, [%d] is what states it", id)
+			} else {
+				c.Note = "no citation was written and no passage states this"
 			}
 			out = append(out, c)
 		}
