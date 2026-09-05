@@ -11,15 +11,21 @@
 <div class="vignette"></div>
 
 <header class="bar">
-  <a class="brand" href="/">search</a>
-  <span class="spacer"></span>
-  <span class="stat" id="archive">{{.Pages}} pages &middot; {{.Chunks}} passages</span>
-  <span class="gauge" id="gauge" title="How much searching is left before it paces itself">
-    <span class="segs" id="segs"></span>
-    <span class="gtext" id="gtext">ready</span>
-  </span>
-  <button class="ghost" id="reset" title="Start a new conversation">new</button>
-  <span class="dot {{if .LLMUp}}up{{end}}" id="modeldot" title="model"></span>
+  <div class="barin">
+    <a class="brand" href="/">
+      <span class="key"><span class="cursor"></span></span>
+      <span>search</span>
+    </a>
+    <span class="where">Ask</span>
+    <span class="spacer"></span>
+    <span class="counts" id="archive"><b>{{ num .Pages }}</b> pages &middot; <b>{{ num .Chunks }}</b> passages</span>
+    <span class="gauge" id="gauge" title="How much searching is left before it paces itself">
+      <span class="segs" id="segs"></span>
+      <span class="gtext" id="gtext">ready</span>
+    </span>
+    <button class="ghost" id="reset" title="Start a new conversation">new</button>
+    <span class="dot {{if .LLMUp}}up{{end}}" id="modeldot" title="model"></span>
+  </div>
 </header>
 
 <main>
@@ -77,6 +83,20 @@
             <span class="skname">markets</span>
             <span class="skex">what is the S&amp;P 500 right now</span>
             <span class="sktag">live</span>
+          </button></li>
+          <li><button class="skill" data-q="what are the odds on the us open">
+            <span class="skname">odds</span>
+            <span class="skex">what are the odds on the us open</span>
+            <span class="sktag">live</span>
+          </button></li>
+          <li><button class="skill" data-q="100 usd in eur">
+            <span class="skname">convert</span>
+            <span class="skex">100 usd in eur</span>
+          </button></li>
+          <li><button class="skill" data-q="what time is it in tokyo">
+            <span class="skname">time</span>
+            <span class="skex">what time is it in tokyo</span>
+            <span class="sktag">instant</span>
           </button></li>
           <li><button class="skill" data-q="30 * 27">
             <span class="skname">maths</span>

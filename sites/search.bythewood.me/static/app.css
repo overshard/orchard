@@ -7,19 +7,25 @@
    no request. */
 
 :root {
-  /* Warm near-black, five steps. Never pure black: phosphor sat on warm glass
-     and #000 reads as a hole in the page rather than a screen. */
+  /* Warm near-black, six steps. Never pure black: phosphor sat on warm glass
+     and #000 reads as a hole in the page rather than a screen.
+
+     Every value below is measured against the ground with the CRT overlays
+     applied, since a multiply blend over the whole page costs more contrast
+     than any colour choice does. Do not darken one to make something look
+     softer without re-measuring what sits on it. */
   --void: #0a0908;
   --bg: #0e0d0a;
-  --panel: #12100d;
-  --panel-2: #171410;
-  --line: #2a2c26;
-  --line-hot: #3c4a3c;
+  --panel: #1e1b16;
+  --panel-2: #29251e;
+  --bar: #201d16;
+  --line: #414e41;
+  --line-hot: #5c725c;
 
   --text: #ece5d8;
-  --muted: #bcaf99;
-  --dim: #9c8f79;
-  --faint: #7b7060;
+  --muted: #c6b9a3;
+  --dim: #ab9c86;
+  --faint: #9c8e7a;
 
   /* P1 green, the phosphor this is pretending to be. */
   --green: #6b9e78;
@@ -28,13 +34,21 @@
   --green-glow: rgba(107, 158, 120, 0.16);
 
   /* Amber is the instrument, not the data. Labels, brackets and warnings. */
-  --amber: #c9a84c;
+  --amber: #d4b45a;
   --amber-hot: #ffb000;
   --terracotta: #c47055;
 
   --mono: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
   --track: 0.14em;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* One number for the reading column, so the bar and the content line up
+     rather than the bar running edge to edge over a centred page. */
+  --col: 56rem;
+
+  /* The ask box sticks directly under the bar, so both read this rather than
+     each carrying its own number and drifting a few pixels apart. */
+  --barh: 2.9rem;
 }
 
 * { box-sizing: border-box; }
@@ -68,8 +82,13 @@ body {
 
 /* --- CRT overlays ------------------------------------------------------- */
 
-/* Scanlines at 3px so they read as structure at any zoom. The opacity is low
-   on purpose: stronger than this and it stops being a tool. */
+/* Both of these are multiply blends over the whole page, so they cost contrast
+   everywhere rather than only where you can see them. Body text measured 15.5
+   to 1 nominally and 3.9 to 1 under the pair of them at a page corner, which is
+   below the floor for text a person actually reads. The values here are what is
+   left after measuring rather than what looked good. */
+
+/* Scanlines at 3px so they read as structure at any zoom. */
 .crt {
   position: fixed;
   inset: 0;
@@ -77,43 +96,105 @@ body {
   pointer-events: none;
   background: repeating-linear-gradient(
     180deg,
-    rgba(0, 0, 0, 0.14) 0px,
-    rgba(0, 0, 0, 0.14) 1px,
+    rgba(0, 0, 0, 0.08) 0px,
+    rgba(0, 0, 0, 0.08) 1px,
     transparent 1px,
     transparent 3px
   );
   mix-blend-mode: multiply;
 }
 
+/* Under the header rather than over it, because the corner is where this bites
+   hardest and the corner is where the bar keeps its smallest text. */
 .vignette {
   position: fixed;
   inset: 0;
-  z-index: 9001;
+  z-index: 5;
   pointer-events: none;
-  background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.45) 100%);
+  background: radial-gradient(ellipse at center, transparent 62%, rgba(0, 0, 0, 0.22) 100%);
 }
 
 /* --- header ------------------------------------------------------------- */
 
+/* Chrome is a plane above the page, so it is a step lighter than the ground
+   rather than a step darker. A bar painted below the body colour reads as a
+   hole in the page and gives everything sat on it nowhere to go. */
 .bar {
-  display: flex;
-  align-items: center;
-  gap: 1.1rem;
-  padding: 0.75rem 1.5rem;
-  background: var(--void);
-  border-bottom: 1px solid var(--line);
+  height: var(--barh);
+  background: var(--bar);
+  border-bottom: 1px solid var(--line-hot);
   position: sticky;
   top: 0;
   z-index: 20;
 }
 
+/* The bar runs the full width and its contents do not, so the brand lines up
+   with the first character of the page under it. */
+.barin {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  height: 100%;
+  max-width: var(--col);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+.landingbar .barin { max-width: 60rem; }
+
+/* The mark is a lit key rather than a word with a character in front of it: a
+   bordered tile carrying the caret, then the name. It is the only place on the
+   site that gets to be a logo. */
 .brand {
-  color: var(--green-bright);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--text);
   text-decoration: none;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
 }
-.brand::before { content: "▍"; color: var(--green); margin-right: 0.35rem; }
+.brand .key {
+  display: inline-grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid var(--green);
+  border-radius: 2px;
+  background: var(--green-glow);
+  box-shadow: inset 0 0 10px -4px var(--green);
+  transition: background 0.2s var(--ease), border-color 0.2s var(--ease);
+}
+/* The cursor is drawn rather than typed. A block glyph renders at a different
+   width in every monospace face and came out as a hairline in some, which is an
+   empty box where the mark should be. */
+.brand .cursor {
+  display: block;
+  width: 0.42rem;
+  height: 0.85rem;
+  background: var(--green-hot);
+  box-shadow: 0 0 6px -1px var(--green-hot);
+}
+.brand:hover .key { background: var(--green); border-color: var(--green-hot); }
+.brand:hover .cursor { background: var(--void); box-shadow: none; }
+
+/* What page you are on, beside the mark and behind a rule, so the bar says
+   something rather than only carrying controls. */
+.where {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: var(--track);
+  color: var(--amber);
+}
+.where::before {
+  content: "";
+  width: 1px;
+  height: 0.95rem;
+  background: var(--line-hot);
+}
 
 .spacer { flex: 1; }
 
@@ -127,12 +208,15 @@ body {
 .faint { color: var(--faint); font-size: 0.82rem; }
 .dim { color: var(--dim); }
 
-.stat { font-size: 0.68rem; letter-spacing: 0.08em; color: var(--faint); text-transform: uppercase; }
+/* The archive counts and the gauge label sit in the top corner, which is the
+   hardest place on the page to read, so neither gets the faint step. */
+.counts { font-size: 0.68rem; letter-spacing: 0.08em; color: var(--dim); text-transform: uppercase; }
+.counts b { color: var(--text); font-weight: 700; }
 
 .ghost {
   background: transparent;
   border: 1px solid var(--line-hot);
-  color: var(--dim);
+  color: var(--muted);
   font: inherit;
   font-size: 0.68rem;
   text-transform: uppercase;
@@ -144,13 +228,16 @@ body {
 }
 .ghost:hover { border-color: var(--green); color: var(--green-bright); background: var(--green-glow); }
 
+/* Seven pixels of colour is not a state, so the ring carries it too: hollow
+   when the model is down and filled when it is up. */
 .dot {
-  width: 7px; height: 7px;
+  width: 9px; height: 9px;
   border-radius: 50%;
-  background: var(--terracotta);
-  box-shadow: 0 0 6px currentColor;
+  border: 1px solid var(--terracotta);
+  background: transparent;
+  color: var(--terracotta);
 }
-.dot.up { background: var(--green); color: var(--green); }
+.dot.up { background: var(--green); border-color: var(--green); color: var(--green); box-shadow: 0 0 7px var(--green); }
 
 /* --- capacity meter, segmented like a level gauge ----------------------- */
 
@@ -158,7 +245,7 @@ body {
 .segs { display: flex; gap: 2px; }
 .seg {
   width: 4px; height: 10px;
-  background: var(--line);
+  background: var(--line-hot);
   border-radius: 1px;
   transition: background 0.35s var(--ease);
 }
@@ -168,7 +255,7 @@ body {
 .gtext {
   font-size: 0.66rem;
   letter-spacing: 0.08em;
-  color: var(--faint);
+  color: var(--dim);
   text-transform: uppercase;
   min-width: 5.5rem;
 }
@@ -177,7 +264,7 @@ body {
 
 /* --- layout ------------------------------------------------------------- */
 
-main { max-width: 56rem; margin: 0 auto; padding: 1.5rem 1.5rem 0; }
+main { max-width: var(--col); margin: 0 auto; padding: 1.5rem 1.5rem 0; }
 
 .intro { margin-bottom: 2.5rem; animation: rise 0.5s var(--ease) both; }
 .introline {
@@ -202,7 +289,7 @@ main { max-width: 56rem; margin: 0 auto; padding: 1.5rem 1.5rem 0; }
    is empty or holds an hour of conversation. */
 .askwrap {
   position: sticky;
-  top: 3.2rem;
+  top: var(--barh);
   z-index: 15;
   margin-bottom: 2rem;
   padding: 0.9rem 0;
@@ -619,15 +706,17 @@ details[open] > summary::before { content: "▾ "; }
 .ctas { display: flex; gap: 0.7rem; flex-wrap: wrap; }
 .ctas .act { text-decoration: none; display: inline-flex; align-items: center; }
 
+/* Four cards, so two columns. auto-fit gave three at this width and left the
+   fourth alone beside an empty half row. */
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 1px;
   background: var(--line);
   border: 1px solid var(--line);
   margin-bottom: 3rem;
 }
-.card { background: var(--panel); padding: 1.3rem 1.4rem; }
+.card { background: var(--panel); padding: 1.4rem 1.5rem; }
 .card p { color: var(--muted); font-size: 0.84rem; margin: 0.5rem 0 0; }
 
 .strip {
@@ -645,7 +734,7 @@ details[open] > summary::before { content: "▾ "; }
   font-size: 0.64rem;
   text-transform: uppercase;
   letter-spacing: var(--track);
-  color: var(--faint);
+  color: var(--dim);
 }
 
 .foot p { margin: 0; }
@@ -661,9 +750,10 @@ a.ghost { text-decoration: none; display: inline-flex; align-items: center; }
 @media (max-width: 46rem) {
   body { font-size: 13px; padding-bottom: 5rem; }
 
-  .bar { gap: 0.7rem; padding: 0.7rem 1rem; }
+  .barin { gap: 0.7rem; padding: 0 1rem; }
   /* The archive count is context, not something to act on, so it goes first. */
   #archive { display: none; }
+  .where { display: none; }
   .gtext { min-width: 0; }
 
   main { padding: 1.5rem 1rem 0; }
@@ -672,7 +762,6 @@ a.ghost { text-decoration: none; display: inline-flex; align-items: center; }
 
   .ask input { padding: 0.9rem 6.5rem 0.9rem 0.9rem; font-size: 16px; }
   .ask button { padding: 0 0.9rem; font-size: 0.66rem; letter-spacing: 0.1em; }
-  .askwrap { top: 2.9rem; }
 
   .answer { padding: 0.4rem 1rem 1.1rem; }
   .prose ul, .prose ol { padding-left: 1.2rem; }
@@ -691,6 +780,7 @@ a.ghost { text-decoration: none; display: inline-flex; align-items: center; }
 
   .sources li { padding-left: 1.9rem; }
 
+  .grid { grid-template-columns: 1fr; }
   .hero { margin: 2.5rem 0 3rem; }
   .strip { gap: 1.5rem; }
   .passage { padding-left: 0.7rem; }
@@ -699,7 +789,8 @@ a.ghost { text-decoration: none; display: inline-flex; align-items: center; }
 /* The header loses its label text before it wraps. */
 @media (max-width: 30rem) {
   .gtext { display: none; }
-  .bar { gap: 0.55rem; }
+  .barin { gap: 0.55rem; }
+  .brand { font-size: 0.88rem; }
   .ask input { padding-right: 3.4rem; }
   /* An icon-sized button, since "search" does not fit beside a question. */
   .ask button { padding: 0 0.7rem; font-size: 0; }

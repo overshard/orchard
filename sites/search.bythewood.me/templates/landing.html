@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>search &middot; cited answers, read off the web</title>
-<meta name="description" content="A self-hosted AI search that reads the web and checks every sentence against the source it cites. Runs a small model on local hardware, on demand.">
+<meta name="description" content="A search that reads the web and checks every sentence of its answer against the source it cites.">
 <meta name="robots" content="noindex">
 <link rel="stylesheet" href="{{ asset "static/app.css" }}">
 </head>
@@ -12,11 +12,16 @@
 <div class="crt"></div>
 <div class="vignette"></div>
 
-<header class="bar">
-  <a class="brand" href="/">search</a>
-  <span class="spacer"></span>
-  <a class="ghost" href="{{ .SourceURL }}" target="_blank" rel="noopener">source</a>
-  <a class="ghost" href="/search">{{ if .Authenticated }}open{{ else }}sign in{{ end }}</a>
+<header class="bar landingbar">
+  <div class="barin">
+    <a class="brand" href="/">
+      <span class="key"><span class="cursor"></span></span>
+      <span>search</span>
+    </a>
+    <span class="spacer"></span>
+    <a class="ghost" href="{{ .SourceURL }}" target="_blank" rel="noopener">source</a>
+    <a class="ghost" href="/search">{{ if .Authenticated }}open{{ else }}sign in{{ end }}</a>
+  </div>
 </header>
 
 <main class="landing">
@@ -43,8 +48,8 @@
     </div>
     <div class="card">
       <span class="label">nothing leaves the house</span>
-      <p>The model runs on local hardware and starts only while a question is in
-      flight. No prompt reaches a third party, and no question is written to disk.</p>
+      <p>The model runs here and starts only while a question is in flight. No
+      prompt reaches a third party, and no question is written to disk.</p>
     </div>
     <div class="card">
       <span class="label">it reads, then remembers</span>
@@ -59,16 +64,13 @@
   </section>
 
   <section class="strip">
-    <div class="stat"><span class="statv">{{ .Pages }}</span><span class="statl">pages read</span></div>
-    <div class="stat"><span class="statv">{{ .Chunks }}</span><span class="statl">passages indexed</span></div>
-    <div class="stat"><span class="statv">Go</span><span class="statl">stdlib, SQLite, one binary</span></div>
+    <div class="stat"><span class="statv">{{ num .Pages }}</span><span class="statl">pages read</span></div>
+    <div class="stat"><span class="statv">{{ num .Chunks }}</span><span class="statl">passages indexed</span></div>
+    <div class="stat"><span class="statv">{{ num .Sites }}</span><span class="statl">sites drawn from</span></div>
   </section>
 
   <footer class="foot">
-    <p class="faint">
-      One of the sites in <a href="https://github.com/overshard/orchard" target="_blank" rel="noopener">orchard</a>,
-      served from a desktop behind a Cloudflare Tunnel. Access needs an account.
-    </p>
+    <p class="faint">Access needs an account.</p>
   </footer>
 </main>
 </body>

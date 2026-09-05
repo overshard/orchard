@@ -155,6 +155,7 @@ func (s *site) loadTemplates() (*template.Template, error) {
 	return template.New("").Funcs(template.FuncMap{
 		"hostname": hostname,
 		"asset":    s.assets.URL,
+		"num":      formatNum,
 	}).ParseFS(assets(), "templates/*.html")
 }
 
@@ -188,17 +189,18 @@ func (s *site) gateJSON(next http.HandlerFunc) http.HandlerFunc {
 // landing is what a signed out visitor sees. It says what this is and where the
 // source is, and nothing about what has been asked.
 func (s *site) landing(w http.ResponseWriter, r *http.Request) {
-	pages, chunks := s.store.Stats()
+	pages, chunks, sites := s.store.Stats()
 	s.render(w, "landing.html", map[string]any{
 		"Pages":         pages,
 		"Chunks":        chunks,
+		"Sites":         sites,
 		"SourceURL":     sourceURL,
 		"Authenticated": s.devOpen || s.auth.Authenticated(r),
 	})
 }
 
 func (s *site) app(w http.ResponseWriter, r *http.Request) {
-	pages, chunks := s.store.Stats()
+	pages, chunks, _ := s.store.Stats()
 	s.render(w, "app.html", map[string]any{
 		"Pages":     pages,
 		"Chunks":    chunks,
@@ -279,7 +281,7 @@ func (s *site) ask(w http.ResponseWriter, r *http.Request) {
 	if sid != "" {
 		s.sessions.Append(sid, Turn{Question: question, Answer: ans.Text})
 	}
-	pages, chunks := s.store.Stats()
+	pages, chunks, _ := s.store.Stats()
 	send("answer", map[string]any{
 		"budget":     s.budget.State(),
 		"question":   ans.Query,
