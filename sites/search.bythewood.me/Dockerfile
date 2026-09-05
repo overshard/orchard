@@ -7,6 +7,9 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY web/ ./web/
+# skills/ is its own package, and `COPY *.go` only takes the top level, so a
+# local build succeeds and the image fails to compile without this line.
+COPY skills/ ./skills/
 COPY *.go ./
 COPY templates/ ./templates/
 COPY static/ ./static/
