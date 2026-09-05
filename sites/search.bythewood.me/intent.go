@@ -16,7 +16,17 @@ const (
 	ShapeNews       Shape = "news"
 	ShapeStatus     Shape = "status"
 	ShapeCode       Shape = "code"
+	ShapeUpcoming   Shape = "upcoming"
 )
+
+// shapeEnum is what the plan step offers the model, and every entry has a
+// contract below. A shape the planner can pick and the contract map does not
+// hold falls back to prose, which is the wrong format quietly rather than
+// loudly, so a test walks this list.
+var shapeEnum = []Shape{
+	ShapeFactual, ShapeRecipe, ShapeHowTo, ShapeComparison,
+	ShapeNews, ShapeStatus, ShapeCode, ShapeUpcoming,
+}
 
 // Contract is the format instruction handed to the synthesis step, and the
 // passage budget the shape needs. A recipe needs more of the page than a
@@ -61,6 +71,17 @@ const datesArePast = "Today's date is given above, so check every date you write
 	"Never describe a past date as a future one. " +
 	"The same goes for tense: a passage saying something is happening now, is currently underway, or is in progress means when that passage was written, not today. " +
 	"If that was weeks or months ago, say what it was doing then and give the date, rather than saying it is doing it now. "
+
+// The mirror of datesArePast, and the half that was missing. Every shape above
+// describes the past or a standing fact, so "when is the next Liverpool game"
+// was classified news, whose contract opens by saying the question is about
+// what already happened, and the answer was four fixtures that had been played
+// followed by a line admitting it did not have the next one.
+const datesAreFuture = "The question asks about something that has not happened yet, so only a date that is today or later can answer it. " +
+	"Today's date is given above. Check every date you are about to write against it. " +
+	"A match, launch, release or meeting dated before today has already happened and is not the answer, whatever tense the passage uses. " +
+	"If nothing in the passages is dated today or later, say in the first sentence that you do not have it, and stop. " +
+	"Listing what has already happened does not answer a question about what is next, so do not do it. "
 
 const answerFirst = houseStyle +
 	"Answer the question directly in the first sentence, before anything else. " +
@@ -175,6 +196,23 @@ var contracts = map[Shape]Contract{
 		MaxPassages: 16, PerSource: 4, MaxTokens: 3400,
 	},
 
+	// "When is the next Liverpool game" and "who did Liverpool play last night"
+	// want opposite halves of the same fixture list, and the plan step had six
+	// pasts and a present to choose between until this existed.
+	ShapeUpcoming: {
+		Shape: ShapeUpcoming,
+		Instruction: strings.Join([]string{
+			houseStyle,
+			datesAreFuture,
+			"Open with one sentence giving the next one: what it is, its date, and the time and the place when the passages carry them.",
+			"Then the three after it at most, as a markdown bullet list, soonest first, each with its date. Leave the list out when there is only the one, and never write out a whole season.",
+			"Bold the dates and the times.",
+			"Every date and time comes from a passage. Never work one out yourself, never write a day of the week a passage did not give, and never convert a kick off time into another time zone.",
+			"Never comment on how old the passages are or when they were written. Whether the schedule has moved since is worked out elsewhere.",
+		}, " "),
+		MaxPassages: 14, PerSource: 3, MaxTokens: 800,
+	},
+
 	ShapeNews: {
 		Shape: ShapeNews,
 		Instruction: strings.Join([]string{
@@ -191,6 +229,15 @@ var contracts = map[Shape]Contract{
 		}, " "),
 		MaxPassages: 14, PerSource: 3, MaxTokens: 900,
 	},
+}
+
+// shapeNames is the enum handed to the plan step's grammar.
+func shapeNames() []string {
+	out := make([]string, len(shapeEnum))
+	for i, s := range shapeEnum {
+		out[i] = string(s)
+	}
+	return out
 }
 
 func contractFor(s Shape) Contract {
@@ -216,6 +263,11 @@ func guessShape(q string) Shape {
 		return ShapeCode
 	case containsAny(l, "how do i", "how to", "how can i", "steps to", "set up", "install", "configure"):
 		return ShapeHowTo
+	case containsAny(l, "when is the next", "when's the next", "when do ", "when does ",
+		"when are ", "when will", "next game", "next match", "next fixture", "next launch",
+		"upcoming", "fixtures", "schedule for", "release date", "kick off", "kickoff",
+		"coming up", "who do they play next"):
+		return ShapeUpcoming
 	case containsAny(l, "status of", "what happened to", "where does", "latest on",
 		"any update", "how did it end", "is it over", "still going on", "outcome of",
 		"verdict", "trial", "case against", "investigation into"):
