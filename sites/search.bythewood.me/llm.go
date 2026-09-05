@@ -61,15 +61,26 @@ type chatRequest struct {
 // Before this everything ran at temperature 0.2 with llama.cpp's defaults for
 // the rest, so prose was sampled almost greedily with nothing discouraging
 // repetition.
+// The min_p on the prose set is the one number here that is about the quant
+// rather than the model. Quantization damages the tail of the distribution
+// first, since that is where the least of the model's confidence lives, and a
+// floor cuts exactly that tail. Qwen say 0.0 because they are describing the
+// full precision weights. Unsloth say 0.01 on a quantized one.
+//
+// The constrained set leaves it at zero and takes no penalty at all. The
+// grammar is already refusing every token that would not parse, and a presence
+// penalty on JSON pushes against the braces and quotes that have to repeat for
+// the output to be valid.
 var (
 	exact = sampling{Temperature: 0.2, TopP: 0.8, TopK: 20}
-	prose = sampling{Temperature: 0.7, TopP: 0.8, TopK: 20, PresencePenalty: 1.5}
+	prose = sampling{Temperature: 0.7, TopP: 0.8, TopK: 20, MinP: 0.01, PresencePenalty: 1.5}
 )
 
 type sampling struct {
 	Temperature     float64
 	TopP            float64
 	TopK            int
+	MinP            float64
 	PresencePenalty float64
 }
 
@@ -130,6 +141,7 @@ func (l *LLM) call(ctx context.Context, system, user string, maxTokens int, form
 		Temperature:     s.Temperature,
 		TopP:            s.TopP,
 		TopK:            s.TopK,
+		MinP:            s.MinP,
 		PresencePenalty: s.PresencePenalty,
 		MaxTokens:       maxTokens,
 		ResponseFormat:  format,
