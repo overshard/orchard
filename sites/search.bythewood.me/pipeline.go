@@ -80,6 +80,12 @@ type Answer struct {
 	// list does not cover: sources say where the research came from, not where
 	// the subject lives.
 	Links []EntityLink
+
+	// Checks and Deps are the code shape's own verification, since a file that
+	// does not parse and a package that does not exist are what go wrong in an
+	// answer somebody is going to paste.
+	Checks []CodeCheck
+	Deps   []Dependency
 }
 
 // Progress reports pipeline steps to whoever is watching. The web handler wires
@@ -179,14 +185,36 @@ func (e *Engine) Run(ctx context.Context, question string, history []Turn, pr Pr
 	// One self-correction round. A mostly-unsupported answer is evidence the
 	// search missed, so the retry re-plans with the failure described rather
 	// than rewording the same evidence.
-	if ans.Support < retryBelowSupport && len(ans.Citations) > 0 {
-		pr.send("retry", fmt.Sprintf("only %.0f%% of that held up, searching again", ans.Support*100))
+	//
+	// A code answer is judged on the code. Its prose is three caveats, so one
+	// mis-cited caveat drops the support rate under the floor and would throw
+	// away a file that parsed, and a file that did not parse is worth a second
+	// search however well the caveats held up.
+	var badCode bool
+	if ans.Shape == ShapeCode {
+		badCode = codeFailed(ans.Checks, ans.Deps)
+	}
+	if badCode || (ans.Shape != ShapeCode && ans.Support < retryBelowSupport && len(ans.Citations) > 0) {
 		hint := e.failureHint(ans)
+		if badCode {
+			pr.send("retry", "the code did not hold up, searching again")
+			hint = codeHint(ans.Checks, ans.Deps)
+		} else {
+			pr.send("retry", fmt.Sprintf("only %.0f%% of that held up, searching again", ans.Support*100))
+		}
 		retryPlan := e.plan(ctx, standalone, hint)
+		// The retry keeps the first plan's shape, since the failure was in the
+		// answer and re-classifying can only move a code question off the
+		// contract that was right for it.
+		retryPlan.Shape = ans.Shape
 		retry := &Answer{Query: question, Standalone: standalone, Shape: retryPlan.Shape, Queries: retryPlan.Queries, Retried: true}
-		if err := e.round(ctx, retry, retryPlan, contractFor(retryPlan.Shape), pr); err == nil && retry.Support > ans.Support {
-			retry.Warnings = append(retry.Warnings,
-				fmt.Sprintf("first attempt was rejected, %.0f%% of its sentences were unsupported", (1-ans.Support)*100))
+		if err := e.round(ctx, retry, retryPlan, contractFor(retryPlan.Shape), pr); err == nil && betterAnswer(retry, ans, badCode) {
+			if badCode {
+				retry.Warnings = append(retry.Warnings, "the first attempt was thrown away because its code did not check out")
+			} else {
+				retry.Warnings = append(retry.Warnings,
+					fmt.Sprintf("first attempt was rejected, %.0f%% of its sentences were unsupported", (1-ans.Support)*100))
+			}
 			ans = retry
 		}
 	}
@@ -220,7 +248,23 @@ func (e *Engine) round(ctx context.Context, ans *Answer, plan Plan, contract Con
 	if err != nil {
 		return err
 	}
-	ans.Text = tidyCitations(text)
+	ans.Text = strings.TrimSpace(dropMeta(dropMissingFields(tidyCitations(text))))
+	if contract.Shape == ShapeCode {
+		pr.send("code", "parsing every file and looking up what it imports")
+		// Before anything reads the answer, since a marker left in a file is
+		// pasted into it and the fix has to happen once, at the source.
+		ans.Text = stripCodeCitations(ans.Text)
+		blocks := codeBlocks(ans.Text)
+		// After the blocks are read, since that is where the file name comes
+		// from when the model wrote it as a comment.
+		ans.Text = liftFileComments(ans.Text)
+		ans.Checks = checkCode(blocks)
+		ans.Warnings = append(ans.Warnings, codeWarnings(ans.Checks)...)
+		ans.Warnings = append(ans.Warnings, unusedConstants(blocks)...)
+		if len(blocks) == 0 {
+			ans.Warnings = append(ans.Warnings, "this came back with no code in it, so it is an explanation rather than something to paste")
+		}
+	}
 	// Only the time sensitive shapes, since "scheduled for April 2026" in a
 	// recipe is not a claim about now.
 	if contract.Shape == ShapeStatus || contract.Shape == ShapeNews {
@@ -237,25 +281,50 @@ func (e *Engine) round(ctx context.Context, ans *Answer, plan Plan, contract Con
 		defer wg.Done()
 		ans.Links = e.linkEntities(ctx, ans.Standalone, text, links)
 	}()
+	if contract.Shape == ShapeCode {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			ans.Deps = verifyDeps(ctx, e.client, codeBlocks(ans.Text))
+		}()
+	}
 
 	pr.send("check", "checking every sentence against its source")
-	ans.Citations = e.validate(ctx, text, passages)
+	// The prose only, because a line of code is not a claim: entailing it costs
+	// a model call that can only fail, and `rows[0]` reads as a citation.
+	ans.Citations = e.validate(ctx, proseOnly(ans.Text), passages)
 	ans.Support = supportRate(ans.Citations)
 	// An answer with nothing to check renders without the verification panel,
 	// which looks the same as an answer that had nothing wrong with it. On a
 	// site whose claim is that every sentence is checked, silence is the
 	// misleading option, so it says so instead.
 	if countChecked(ans.Citations) == 0 && strings.TrimSpace(ans.Text) != "" {
-		ans.Warnings = append(ans.Warnings,
-			"nothing in this answer carries a citation, so none of it was checked against a source")
+		note := "nothing in this answer carries a citation, so none of it was checked against a source"
+		if contract.Shape == ShapeCode {
+			// The code itself was parsed and its packages looked up, so saying
+			// nothing was checked would be wrong in the other direction.
+			note = "the writing around the code carries no citation, so only the code itself was checked"
+		}
+		ans.Warnings = append(ans.Warnings, note)
 	}
 
 	wg.Wait()
+	ans.Warnings = append(ans.Warnings, depWarnings(ans.Deps)...)
 	if len(ans.Links) > 0 {
 		pr.send("check", fmt.Sprintf("found %d verified link%s", len(ans.Links),
 			map[bool]string{true: "", false: "s"}[len(ans.Links) == 1]))
 	}
 	return nil
+}
+
+// betterAnswer decides whether the second attempt replaces the first. For code
+// that is whether it fixed what was broken, and for everything else whether
+// more of it held up.
+func betterAnswer(retry, first *Answer, wasCode bool) bool {
+	if wasCode {
+		return !codeFailed(retry.Checks, retry.Deps) && len(retry.Checks) > 0
+	}
+	return retry.Support > first.Support
 }
 
 func countChecked(cs []Citation) int {
@@ -322,7 +391,7 @@ func (e *Engine) plan(ctx context.Context, question, hint string) Plan {
 			},
 			"shape": map[string]any{
 				"type": "string",
-				"enum": []string{"factual", "recipe", "howto", "comparison", "news", "status"},
+				"enum": []string{"factual", "recipe", "howto", "comparison", "news", "status", "code"},
 			},
 		},
 		"required":             []string{"queries", "shape"},
@@ -331,7 +400,10 @@ func (e *Engine) plan(ctx context.Context, question, hint string) Plan {
 	system := strings.Join([]string{
 		AmbientContext(),
 		"You plan a web search. Return short keyword queries that would find pages answering the question, and the shape of answer it wants.",
-		"recipe: the user wants something they can cook from. howto: ordered steps. comparison: two or more options weighed.",
+		"recipe: the user wants something they can cook from. comparison: two or more options weighed.",
+		"code: the user wants something they can paste into a file and run, such as a script, a program, a config file, a query or a command. Anything asking to write, build or give code is this. So is a question about how or where to do something on a computer whose answer is a command, a query or a config, even when it is worded as the best way to do it, because what that reader wants is the command.",
+		"Write code queries naming the language, the library, the platform and the version, and prefer official documentation over roundups.",
+		"howto: ordered steps a person carries out in an interface or on hardware, where nothing gets typed into a file.",
 		"news: something that already happened, including sports results and recent events.",
 		"factual: everything else.",
 		"For news, write queries that would find what happened, using words like result, final score, or the current month and year, not words like schedule, fixtures or upcoming.",
@@ -497,6 +569,17 @@ func (e *Engine) collect(ctx context.Context, results []Result, question string,
 	// recipes and giving the quantities for none. A page publishing a
 	// schema.org Recipe is an actual recipe, and it is the only place the
 	// quantities exist, so it goes first whatever the search engine thought.
+	// A page with no code on it cannot show how the code is written, whatever
+	// it ranks for, and the first page of results for anything with a language
+	// name in it is content marketing.
+	case contract.Shape == ShapeCode:
+		sort.SliceStable(got, func(a, b int) bool {
+			ca, cb := codeWeight(got[a].page), codeWeight(got[b].page)
+			if ca != cb {
+				return ca > cb
+			}
+			return got[a].idx < got[b].idx
+		})
 	case contract.Shape == ShapeRecipe:
 		sort.SliceStable(got, func(a, b int) bool {
 			ra, rb := hasStructuredRecipe(got[a].page), hasStructuredRecipe(got[b].page)
@@ -846,20 +929,18 @@ func splitSentences(text string) []string {
 // them anyway, and "Total Time: Not specified" is noise in a recipe rather than
 // an answer.
 func dropMissingFields(text string) string {
-	var kept []string
-	for _, line := range strings.Split(text, "\n") {
+	return strings.TrimSpace(eachProseLine(text, func(line string) (string, bool) {
 		l := strings.ToLower(plainText(line))
 		if strings.Contains(l, "not specified") || strings.Contains(l, "not mentioned") ||
 			strings.Contains(l, "not provided") || strings.Contains(l, "not given") {
 			// Only when the line is a field, not when it is a real sentence
 			// saying the sources fall short of the question.
 			if len(l) < 90 && strings.Count(l, " ") < 12 {
-				continue
+				return "", false
 			}
 		}
-		kept = append(kept, line)
-	}
-	return strings.TrimSpace(strings.Join(kept, "\n"))
+		return line, true
+	}))
 }
 
 // plainText strips the markdown emphasis so a claim reads as a sentence in the

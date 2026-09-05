@@ -894,3 +894,90 @@ a.ghost { text-decoration: none; display: inline-flex; align-items: center; }
 .status.waiting::after { animation-duration: 3.2s; opacity: 0.55; }
 .status.waiting .spinner { background: var(--amber-hot); box-shadow: 0 0 8px var(--amber-hot); }
 .status.waiting .steptext { color: var(--amber-hot); }
+
+/* --- code --------------------------------------------------------------- */
+
+/* A code answer is copied, not read, so the block is a thing with a lid rather
+   than a paragraph in a box: what it is on the left, the button on the right. */
+.codeblock {
+  margin: 0.85rem 0;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--void);
+}
+.codehead {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.35rem 0.6rem;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+.codename {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--green-bright);
+}
+.codelang {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: var(--track);
+  color: var(--faint);
+}
+.codehead .spacer { flex: 1; }
+
+.copy {
+  font: inherit;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: var(--track);
+  color: var(--amber);
+  background: transparent;
+  border: 1px solid var(--line-hot);
+  border-radius: 2px;
+  padding: 0.15rem 0.55rem;
+  cursor: pointer;
+  transition: color 0.15s var(--ease), border-color 0.15s var(--ease);
+}
+.copy:hover { color: var(--amber-hot); border-color: var(--amber); }
+.copy.done { color: var(--green-hot); border-color: var(--green); }
+
+.codeblock pre {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.codeblock pre code { background: transparent; padding: 0; color: var(--text); font-size: 0.82rem; }
+/* Long lines scroll inside the block. Wrapping a command over three lines is
+   how a pasted command ends up missing an argument. */
+.codeblock pre { white-space: pre; }
+
+.deps { list-style: none; padding: 0; margin: 0.7rem 0 0; }
+.deps li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.35rem 0.7rem;
+  border-left: 2px solid var(--green);
+  background: var(--panel);
+  margin-bottom: 2px;
+}
+.deps li.bad { border-left-color: var(--terracotta); }
+.deps li.unknown { border-left-color: var(--line-hot); }
+.depname { color: var(--text); font-size: 0.82rem; }
+.depeco {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: var(--track);
+  color: var(--faint);
+}
+.depstate { margin-left: auto; font-size: 0.72rem; color: var(--green); }
+.deps li.bad .depstate { color: var(--terracotta); }
+.deps li.unknown .depstate { color: var(--faint); }
+
+@media (max-width: 620px) {
+  .deps li { flex-wrap: wrap; gap: 0.3rem 0.6rem; }
+  .depstate { margin-left: 0; width: 100%; }
+}
