@@ -18,11 +18,17 @@ models:
     name: "Qwen3.5 4B"
     # Measured on a 3070: about 5.1GB of 8GB at this context with a q8_0 cache,
     # and roughly three seconds to load once the weights are in page cache.
+    #
+    # UD is Unsloth's dynamic quant, which calibrates on real text and picks
+    # which tensors to upcast per model rather than applying one preset to
+    # every architecture. It is 2.91GB against 2.74GB for the plain Q4_K_M and
+    # measures closer to the full precision weights, which is what a pipeline
+    # deciding between enum tokens actually depends on.
     ttl: 600
     cmd: >
       llama-server
       --host 127.0.0.1 --port ${PORT}
-      -hf unsloth/Qwen3.5-4B-GGUF:Q4_K_M
+      -hf unsloth/Qwen3.5-4B-GGUF:UD-Q4_K_XL
       --n-gpu-layers 999
       --flash-attn on
       --parallel 1
