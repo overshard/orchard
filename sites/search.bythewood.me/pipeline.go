@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"search.bythewood.me/skills"
 )
 
 const (
@@ -96,10 +98,39 @@ type Engine struct {
 	llm    *LLM
 	client *http.Client
 	budget *Budget
+	skills *skills.Registry
 }
 
 func NewEngine(store *Store, llm *LLM, budget *Budget) *Engine {
-	return &Engine{store: store, llm: llm, client: newHTTPClient(), budget: budget}
+	return &Engine{
+		store: store, llm: llm, client: newHTTPClient(),
+		budget: budget, skills: skills.Default(),
+	}
+}
+
+func (e *Engine) skillDeps() skills.Deps {
+	return skills.Deps{HTTP: e.client, UA: browserUA, Now: localNow}
+}
+
+// skillAnswer converts a skill result into the answer the rest of the site
+// expects. Rendering happens here rather than in the skill, since the template
+// and its renderer belong to this package.
+func skillAnswer(question string, r *skills.Result, start time.Time) *Answer {
+	a := &Answer{
+		Query: question, Standalone: question, Skill: r.Skill,
+		Shape: Shape(r.Shape), Text: r.Text, HTML: renderMarkdown(r.Text),
+		Support: 1,
+		Elapsed: time.Since(start).Round(10 * time.Millisecond).String(),
+	}
+	if a.Shape == "" {
+		a.Shape = ShapeFactual
+	}
+	for i, src := range r.Sources {
+		a.Sources = append(a.Sources, Source{
+			N: i + 1, URL: src.URL, Title: src.Title, Site: src.Site,
+		})
+	}
+	return a
 }
 
 // Run executes the pipeline: plan, gather, select, synthesize, validate, and
@@ -110,28 +141,20 @@ func (e *Engine) Run(ctx context.Context, question string, history []Turn, pr Pr
 	// The model loads while the search and the fetches are in flight.
 	go e.llm.Warm(ctx)
 
-	// Arithmetic is answered here rather than on the web. Nothing about "30*27"
-	// is improved by fetching five pages, and the evaluator is a better
-	// authority on it than any page would be.
-	if calc, ok := TryCalculate(question); ok {
-		pr.send("calc", "working it out")
-		return &Answer{
-			Query: question, Standalone: question, Skill: "calculator",
-			Shape: ShapeFactual,
-			Text:  fmt.Sprintf("**%s**\n\n`%s = %s`", calc.Pretty, calc.Expression, calc.Pretty),
-			HTML: renderMarkdown(fmt.Sprintf("**%s**\n\n`%s = %s`",
-				calc.Pretty, calc.Expression, calc.Pretty)),
-			Elapsed: time.Since(start).Round(time.Millisecond).String(),
-			Support: 1,
-		}, nil
-	}
-
-	// A live source beats a web search whenever one covers the question, since
-	// searching for a number produces a paraphrase of a page that was reading
-	// the same number, only slower and a day stale.
-	if a, ok := e.TrySkill(ctx, question, pr); ok {
-		a.Elapsed = time.Since(start).Round(10 * time.Millisecond).String()
-		return a, nil
+	// Routing is the first model call, and it is the one classification a 4B is
+	// reliably good at. The skill names are an enum in the grammar rather than
+	// an instruction in the prompt, so the model cannot name a handler that
+	// does not exist, and every card carries the near misses that should not
+	// fire it as well as the phrasings that should.
+	//
+	// A keyword matcher used to do this and it was wrong in both directions,
+	// claiming "what is the S&P 500" for the quote skill and missing "do i need
+	// a jacket today" entirely. The matcher survives inside the registry as the
+	// fallback for when the model is unreachable.
+	pr.send("route", "working out what kind of question this is")
+	if res, name := e.skills.Run(ctx, e.llm, question, e.skillDeps()); res != nil {
+		pr.send("skill", "answered from "+name)
+		return skillAnswer(question, res, start), nil
 	}
 
 	standalone := question
@@ -197,7 +220,14 @@ func (e *Engine) round(ctx context.Context, ans *Answer, plan Plan, contract Con
 	if err != nil {
 		return err
 	}
-	ans.Text = text
+	ans.Text = tidyCitations(text)
+	// Only the time sensitive shapes, since "scheduled for April 2026" in a
+	// recipe is not a claim about now.
+	if contract.Shape == ShapeStatus || contract.Shape == ShapeNews {
+		now := localNow()
+		ans.Warnings = append(ans.Warnings, staleFutures(ans.Text, now)...)
+		ans.Warnings = append(ans.Warnings, staleNow(ans.Text, now)...)
+	}
 
 	// Linking runs alongside validation rather than after it. Neither needs the
 	// other's result and both are several model or network calls.
@@ -211,6 +241,14 @@ func (e *Engine) round(ctx context.Context, ans *Answer, plan Plan, contract Con
 	pr.send("check", "checking every sentence against its source")
 	ans.Citations = e.validate(ctx, text, passages)
 	ans.Support = supportRate(ans.Citations)
+	// An answer with nothing to check renders without the verification panel,
+	// which looks the same as an answer that had nothing wrong with it. On a
+	// site whose claim is that every sentence is checked, silence is the
+	// misleading option, so it says so instead.
+	if countChecked(ans.Citations) == 0 && strings.TrimSpace(ans.Text) != "" {
+		ans.Warnings = append(ans.Warnings,
+			"nothing in this answer carries a citation, so none of it was checked against a source")
+	}
 
 	wg.Wait()
 	if len(ans.Links) > 0 {
@@ -218,6 +256,16 @@ func (e *Engine) round(ctx context.Context, ans *Answer, plan Plan, contract Con
 			map[bool]string{true: "", false: "s"}[len(ans.Links) == 1]))
 	}
 	return nil
+}
+
+func countChecked(cs []Citation) int {
+	n := 0
+	for _, c := range cs {
+		if c.Checked {
+			n++
+		}
+	}
+	return n
 }
 
 func supportRate(cs []Citation) float64 {
@@ -231,6 +279,8 @@ func supportRate(cs []Citation) float64 {
 			ok++
 		}
 	}
+	// Nothing checked is not the same as nothing wrong, but the caller warns
+	// about that case rather than reading a rate that has no denominator.
 	if checked == 0 {
 		return 1
 	}
@@ -433,13 +483,29 @@ func (e *Engine) collect(ctx context.Context, results []Result, question string,
 	}
 	wg.Wait()
 
-	// Search order normally, but a status question is answered by whichever
-	// source is newest, so a dated page outranks a well ranked stale one.
-	if contract.Shape == ShapeStatus {
+	// Search order normally, but two shapes have a better ordering than the
+	// search engine's.
+	switch {
+	// A status question is answered by whichever source is newest, so a dated
+	// page outranks a well ranked stale one.
+	case contract.Shape == ShapeStatus:
 		sort.SliceStable(got, func(a, b int) bool {
 			return got[a].page.Published > got[b].page.Published
 		})
-	} else {
+	// "breakfast burrito recipe" is the exact phrase every roundup is written
+	// to rank for, so the first page of results is listicles naming twelve
+	// recipes and giving the quantities for none. A page publishing a
+	// schema.org Recipe is an actual recipe, and it is the only place the
+	// quantities exist, so it goes first whatever the search engine thought.
+	case contract.Shape == ShapeRecipe:
+		sort.SliceStable(got, func(a, b int) bool {
+			ra, rb := hasStructuredRecipe(got[a].page), hasStructuredRecipe(got[b].page)
+			if ra != rb {
+				return ra
+			}
+			return got[a].idx < got[b].idx
+		})
+	default:
 		sort.Slice(got, func(a, b int) bool { return got[a].idx < got[b].idx })
 	}
 	if len(got) > maxSources {

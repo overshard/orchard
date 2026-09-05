@@ -23,6 +23,11 @@ var md = goldmark.New(
 
 var citation = regexp.MustCompile(`\[(\d{1,3})\]`)
 
+var (
+	doubleSpace      = regexp.MustCompile(`[ \t]{2,}`)
+	spaceBeforePunct = regexp.MustCompile(` +([,.;:!?])`)
+)
+
 const citeAnchor = `<a class="cite" href="#p$1" data-passage="$1">[$1]</a>`
 
 func renderMarkdown(src string) string {
@@ -65,4 +70,47 @@ func escapeHTML(s string) string {
 	return strings.NewReplacer(
 		"&", "&amp;", "<", "&lt;", ">", "&gt;", `"`, "&#34;", "'", "&#39;",
 	).Replace(s)
+}
+
+// tidyCitations collapses a line that cites the same passage over and over.
+//
+// The recipe shape produced "adding the cooked bacon [14], sausage [14], eggs
+// [14], and hash browns [14] [14]" from an instruction to cite what each part
+// came from. Repeating one ID inside a sentence adds nothing a reader can use,
+// and the prompt alone does not hold on a 4B, so the duplicates are removed
+// here instead. Distinct IDs on one line are kept, since those really are
+// different evidence.
+func tidyCitations(text string) string {
+	lines := strings.Split(text, "\n")
+	for i, line := range lines {
+		found := citation.FindAllString(line, -1)
+		if len(found) < 2 {
+			continue
+		}
+		seen := map[string]bool{}
+		var order []string
+		for _, c := range found {
+			if !seen[c] {
+				seen[c] = true
+				order = append(order, c)
+			}
+		}
+		if len(order) == len(found) {
+			continue // every citation on the line is a different one
+		}
+		// Removing a marker from the middle of a sentence leaves a double
+		// space behind it and a space in front of the punctuation after it.
+		stripped := citation.ReplaceAllString(line, "")
+		stripped = doubleSpace.ReplaceAllString(stripped, " ")
+		stripped = spaceBeforePunct.ReplaceAllString(stripped, "$1")
+		stripped = strings.TrimRight(stripped, " ")
+
+		tail := strings.Join(order, "")
+		if strings.HasSuffix(stripped, ".") {
+			lines[i] = strings.TrimSuffix(stripped, ".") + " " + tail + "."
+		} else {
+			lines[i] = stripped + " " + tail
+		}
+	}
+	return strings.Join(lines, "\n")
 }

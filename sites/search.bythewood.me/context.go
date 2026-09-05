@@ -24,7 +24,8 @@ const (
 func AmbientContext() string {
 	return AmbientFacts() + " " + strings.Join([]string{
 		"Use this only when the question depends on it, such as anything asking what is recent, current, nearby, in season, or open.",
-		"Never state it as a fact from a source.",
+		"Never state it as a fact from a source, and never repeat it back in an answer.",
+		"The location in particular is for questions about here, and has no place in an answer about anything else.",
 	}, " ")
 }
 

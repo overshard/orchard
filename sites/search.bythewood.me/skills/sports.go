@@ -1,7 +1,8 @@
-package main
+package skills
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -36,11 +37,13 @@ const (
 // The soccer list is long on purpose. It is the sport most likely to come up in
 // conversation with people outside the US, and a European league missing from
 // this list is a question that falls through to a web search.
-var leagues = []struct {
+type league struct {
 	path   string
 	name   string
 	soccer bool
-}{
+}
+
+var leagues = []league{
 	{"nfl", "NFL", false},
 	{"college-football", "college football", false},
 	{"nba", "NBA", false},
@@ -111,6 +114,34 @@ type gameResult struct {
 	Link      string
 }
 
+// Sports reads a scoreboard. It answers what already happened, so a question
+// about a fixture that has not been played yet has no result to give and falls
+// through to the web.
+type Sports struct{}
+
+func (Sports) Card() Card {
+	return Card{
+		Name: "sports",
+		Does: "reports the score and result of a recent match for a named team, from the scoreboard.",
+		Fires: []string{
+			"did Liverpool win their last match",
+			"what was the score in the chiefs game",
+			"who won the arsenal match",
+			"did the yankees win last night",
+			"final score of the lakers game",
+		},
+		NotFor: []string{
+			"when do liverpool play next",
+			"who is the best premier league team",
+			"how many super bowls have the patriots won",
+			"what are the odds on the us open",
+			"explain the offside rule",
+		},
+		Keywords: []string{"did the ", "who won", "final score", "score in the",
+			"win last night", "won last night", "match result", "did they win"},
+	}
+}
+
 func looksLikeSport(q string) bool {
 	l := strings.ToLower(q)
 	return containsAny(l,
@@ -123,62 +154,84 @@ func looksLikeSport(q string) bool {
 		"how did ", " draw ", "nil nil", "full time")
 }
 
-// TrySports answers a question about a team when one can be matched.
-func (e *Engine) TrySports(ctx context.Context, question string, pr Progress) (*Answer, bool) {
-	if !looksLikeSport(question) {
-		return nil, false
-	}
-	start := time.Now()
+func (Sports) Run(ctx context.Context, question string, d Deps) (*Result, error) {
+	start := d.now()
 
 	// A date-oriented league needs to be asked for the right day. Week-oriented
 	// ones (the NFL) ignore it and return the current week, which is what a
 	// question about last night wants anyway.
-	when := targetDate(question)
+	when := targetDate(question, d)
 
 	var (
-		mu   sync.Mutex
-		all  []gameResult
-		wg   sync.WaitGroup
-		team = teamWords(question)
+		mu        sync.Mutex
+		all       []gameResult
+		throttled bool
+		wg        sync.WaitGroup
+		team      = teamWords(question)
 	)
 	if len(team) == 0 {
-		return nil, false
+		return nil, nil
 	}
 
-	// Bounded, because this is a dozen requests of most of a megabyte each and
-	// they only ever run for a question that looks like sport.
-	sema := make(chan struct{}, 6)
-	for _, lg := range leagues {
-		wg.Add(1)
-		go func(path, name string, soccer bool) {
-			defer wg.Done()
-			sema <- struct{}{}
-			defer func() { <-sema }()
+	// One question used to fetch every league at once, seventeen requests of
+	// about a megabyte, and ESPN answered the lot with 202 and an empty body.
+	// It reads as an empty scoreboard rather than as a refusal, so the skill
+	// looked like it simply had no game to report.
+	//
+	// So the sweep is ordered and stops early. A question naming its
+	// competition goes straight to it, and otherwise the leagues are tried a
+	// few at a time, most likely first, until one has the team in it.
+	order := leagueOrder(question)
+	for i := 0; i < len(order); i += 3 {
+		wave := order[i:min(i+3, len(order))]
+		for _, lg := range wave {
+			wg.Add(1)
+			go func(path, name string, soccer bool) {
+				defer wg.Done()
 
-			url := fmt.Sprintf(espnLeagueURL, path)
-			if soccer {
-				url = fmt.Sprintf(espnSoccerURL, path)
-			}
-			if !when.IsZero() {
-				url += "&dates=" + when.Format("20060102")
-			}
-			var p espnPayload
-			if err := getJSON(ctx, e.client, url, &p); err != nil {
-				return
-			}
-			for _, ev := range p.Content.SBData.Events {
-				if g, ok := matchTeam(ev, team, name); ok {
-					mu.Lock()
-					all = append(all, g)
-					mu.Unlock()
+				url := fmt.Sprintf(espnLeagueURL, path)
+				if soccer {
+					url = fmt.Sprintf(espnSoccerURL, path)
 				}
-			}
-		}(lg.path, lg.name, lg.soccer)
+				if !when.IsZero() {
+					url += "&dates=" + when.Format("20060102")
+				}
+				var p espnPayload
+				if err := getJSONCached(ctx, d, "espn.com", url, &p); err != nil {
+					if errors.Is(err, errThrottled) {
+						mu.Lock()
+						throttled = true
+						mu.Unlock()
+					}
+					return
+				}
+				for _, ev := range p.Content.SBData.Events {
+					if g, ok := matchTeam(ev, team, name); ok {
+						mu.Lock()
+						all = append(all, g)
+						mu.Unlock()
+					}
+				}
+			}(lg.path, lg.name, lg.soccer)
+		}
+		wg.Wait()
+		// A team in two leagues is nearly always in two of the same wave, so
+		// stopping here still catches the case the answer mentions.
+		mu.Lock()
+		done := len(all) > 0
+		mu.Unlock()
+		if done {
+			break
+		}
 	}
-	wg.Wait()
-
+	// A throttled upstream and a team with no fixture both come back empty, and
+	// telling them apart matters: the first is worth retrying and worth seeing
+	// in a log, and the second is a real answer the web can give instead.
 	if len(all) == 0 {
-		return nil, false
+		if throttled {
+			return nil, errThrottled
+		}
+		return nil, nil
 	}
 	// Most recent first, and a finished game beats a scheduled one, because
 	// "did they win" is a question about something that already happened.
@@ -190,14 +243,14 @@ func (e *Engine) TrySports(ctx context.Context, question string, pr Progress) (*
 	// different question, so say which one it is.
 	if asksAboutPast(question) && !head.Completed {
 		fmt.Fprintf(&b, "**No game has been played yet.** %s\n\n",
-			strings.TrimPrefix(headline(head), "Not played yet. "))
+			strings.TrimPrefix(headline(head, d), "Not played yet. "))
 	} else {
-		b.WriteString(headline(head) + "\n\n")
+		b.WriteString(headline(head, d) + "\n\n")
 	}
 	for _, g := range all {
 		line := fmt.Sprintf("- **%s %s, %s %s** (%s), %s, %s",
 			g.Away, g.AwayScore, g.Home, g.HomeScore, g.League,
-			g.Detail, g.Date.In(localNow().Location()).Format("Mon 2 Jan"))
+			g.Detail, g.Date.In(d.now().Location()).Format("Mon 2 Jan"))
 		if !g.Completed {
 			line = fmt.Sprintf("- **%s at %s** (%s), %s", g.Away, g.Home, g.League, g.Detail)
 		}
@@ -206,7 +259,7 @@ func (e *Engine) TrySports(ctx context.Context, question string, pr Progress) (*
 	if len(distinctLeagues(all)) > 1 {
 		b.WriteString("\nThat name belongs to a team in more than one league, so every match is listed.\n")
 	}
-	fmt.Fprintf(&b, "\nFrom ESPN, read %s.", time.Now().Format("3:04 PM on 2 January"))
+	fmt.Fprintf(&b, "\nFrom ESPN, read %s.", d.now().Format("3:04 PM on 2 January"))
 
 	text := b.String()
 	var sources []Source
@@ -215,23 +268,22 @@ func (e *Engine) TrySports(ctx context.Context, question string, pr Progress) (*
 			continue
 		}
 		sources = append(sources, Source{
-			N: len(sources) + 1, URL: g.Link,
+			URL:   g.Link,
 			Title: fmt.Sprintf("%s at %s", g.Away, g.Home), Site: "espn.com",
 		})
 	}
 
-	return &Answer{
-		Query: question, Standalone: question, Skill: "sports", Shape: ShapeNews,
-		Text: text, HTML: renderMarkdown(text), Support: 1, Sources: sources,
-		Elapsed: time.Since(start).Round(10 * time.Millisecond).String(),
-	}, true
+	return &Result{
+		Skill: "sports", Shape: "news", Text: text, Sources: sources,
+		Elapsed: d.now().Sub(start).Round(10 * time.Millisecond).String(),
+	}, nil
 }
 
 // targetDate reads the day a question is about. Zero means today, which is what
 // the scoreboard returns without a date.
-func targetDate(q string) time.Time {
+func targetDate(q string, d Deps) time.Time {
 	l := strings.ToLower(q)
-	now := localNow()
+	now := d.now()
 	switch {
 	case containsAny(l, "last night", "yesterday"):
 		return now.AddDate(0, 0, -1)
@@ -327,8 +379,8 @@ func asksAboutPast(q string) bool {
 		"who won", "final score", "was the score", "did we")
 }
 
-func headline(g gameResult) string {
-	when := g.Date.In(localNow().Location()).Format("Monday 2 January")
+func headline(g gameResult, d Deps) string {
+	when := g.Date.In(d.now().Location()).Format("Monday 2 January")
 
 	if !g.Completed {
 		if g.Detail != "" {
@@ -376,4 +428,50 @@ func distinctLeagues(g []gameResult) []string {
 		}
 	}
 	return out
+}
+
+// leagueOrder puts the league a question names first, and otherwise sorts by
+// how often a team gets asked about. The sweep stops at the first wave with a
+// hit, so the order is what decides how many requests a question costs.
+func leagueOrder(question string) []league {
+	l := strings.ToLower(question)
+	named := map[string]string{
+		"premier league": "eng.1", "epl": "eng.1",
+		"la liga": "esp.1", "serie a": "ita.1", "bundesliga": "ger.1",
+		"ligue 1": "fra.1", "eredivisie": "ned.1", "primeira": "por.1",
+		"championship": "eng.2", "mls": "usa.1",
+		"champions league": "uefa.champions", "europa league": "uefa.europa",
+		"world cup": "fifa.world",
+		"nfl":       "nfl", "nba": "nba", "mlb": "mlb", "nhl": "nhl",
+		"college football": "college-football",
+	}
+	var first string
+	for word, path := range named {
+		if strings.Contains(l, word) && len(word) > len(firstWord(named, first)) {
+			first = path
+		}
+	}
+	out := make([]league, 0, len(leagues))
+	if first != "" {
+		for _, lg := range leagues {
+			if lg.path == first {
+				out = append(out, lg)
+			}
+		}
+	}
+	for _, lg := range leagues {
+		if lg.path != first {
+			out = append(out, lg)
+		}
+	}
+	return out
+}
+
+func firstWord(m map[string]string, path string) string {
+	for w, p := range m {
+		if p == path {
+			return w
+		}
+	}
+	return ""
 }
