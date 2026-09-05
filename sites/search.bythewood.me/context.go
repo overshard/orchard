@@ -35,7 +35,11 @@ func AmbientFacts() string {
 	now := localNow()
 	parts := []string{
 		fmt.Sprintf("Today is %s.", now.Format("Monday, 2 January 2006")),
-		fmt.Sprintf("The local time is %s.", now.Format("3:04 PM MST")),
+		// To the hour, not the minute. llama-server caches the prompt prefix
+		// it has already processed and every system prompt here opens with
+		// this block, so a clock that changes every minute means no call ever
+		// reuses another's work. Nothing asked here turns on the minute.
+		fmt.Sprintf("The local time is around %s.", now.Format("3 PM MST")),
 		fmt.Sprintf("The user is in %s.", placeName),
 		fmt.Sprintf("It is %s.", season(now)),
 	}
