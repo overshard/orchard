@@ -21,8 +21,8 @@ import (
 // properly and a strip of dots is what a dashboard wants.
 
 // probeEvery is the strip's cadence. Slower than the markets panel because a
-// site that has been up for eight hours is not news, and the eight probes are
-// against Isaac's own machine rather than someone else's endpoint.
+// site that has been up for eight hours is not news, and every probe is against
+// Isaac's own machine rather than someone else's endpoint.
 const probeEvery = 60 * time.Second
 
 // aggregateURL is a container name on the orchard-edge bridge, never the public
@@ -57,6 +57,7 @@ var monitored = []Monitored{
 	{Label: "Status", Source: "status", Host: "status.bythewood.me"},
 	{Label: "Logging", Source: "logging", Host: "logging.bythewood.me"},
 	{Label: "Repos", Source: "repos", Host: "repos.bythewood.me"},
+	{Label: "Search", Source: "search", Host: "search.bythewood.me"},
 	{Label: "Dash", Source: "dash", Host: "dash.bythewood.me"},
 
 	// The edge itself, and the only part of it on this strip: Caddy is the one
