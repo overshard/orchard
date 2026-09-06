@@ -13,7 +13,18 @@ import (
 
 // Polymarket's Gamma API is public, keyless and needs no wallet. Only order
 // placement is authenticated, and nothing here places one.
-const gammaSearchURL = "https://gamma-api.polymarket.com/public-search"
+const (
+	gammaSearchURL = "https://gamma-api.polymarket.com/public-search"
+
+	// Polymarket lists a novelty market beside a real one, and "how many
+	// Chipotle BOGOs will be given out during the 2026 US Open" is a real
+	// market with real prices that answers nothing anybody asked. Volume is
+	// what separates them, since the tournament winner traded $20m and the
+	// BOGO market $204. The floor is low enough to leave a thin but real
+	// market alone, because declining sends the question to a web search that
+	// is worse at odds than any market is.
+	minOddsVolume = 10000
+)
 
 // Odds answers "what are the chances" from a prediction market.
 //
@@ -40,6 +51,8 @@ func (Odds) Card() Card {
 		},
 		NotFor: []string{
 			"who won the us open",
+			"how is the us open going",
+			"what's the score in the us open",
 			"what are the rules of the us open",
 			"when is the election",
 			"what happened in the last election",
@@ -80,6 +93,14 @@ type contender struct {
 func (Odds) Run(ctx context.Context, question string, d Deps) (*Result, error) {
 	start := d.now()
 
+	// The router sends this questions that merely name something it deals in,
+	// and a skill that trusts the router has no way of declining. "How is the
+	// us open going" wants the state of a tournament, and a price is not an
+	// answer to it.
+	if !wantsProbability(question) {
+		return nil, nil
+	}
+
 	q := oddsQuery(question)
 	if q == "" {
 		return nil, nil
@@ -87,14 +108,20 @@ func (Odds) Run(ctx context.Context, question string, d Deps) (*Result, error) {
 
 	// events_status=active drops the settled markets, which is what made a
 	// search for a tournament return last year's.
-	u := fmt.Sprintf("%s?q=%s&limit_per_type=4&events_status=active",
+	u := fmt.Sprintf("%s?q=%s&limit_per_type=10&events_status=active",
 		gammaSearchURL, url.QueryEscape(q))
 	var s gammaSearch
 	if err := getJSON(ctx, d, u, &s); err != nil {
 		return nil, err
 	}
 
+	// Search order is relevance, which is the right order: sorting by volume
+	// instead answers a question about the women's draw from the men's market
+	// because more money is on it.
 	for _, ev := range s.Events {
+		if ev.Volume < minOddsVolume {
+			continue
+		}
 		if ev.Closed || len(ev.Markets) == 0 {
 			continue
 		}
@@ -189,6 +216,24 @@ func oddsText(title, slug, end string, volume float64, live []contender, d Deps)
 	return b.String()
 }
 
+// wantsProbability is the guard on the router. A question has to actually ask
+// how likely something is, since naming a tournament is not asking for a price
+// on it.
+func wantsProbability(question string) bool {
+	l := strings.ToLower(question)
+	for _, w := range []string{
+		"odds", "chance", "chances", "probability", "likely", "likelihood",
+		"favourite", "favorite", "favoured", "favored", "predicted", "expected to win",
+		"who will win", "who wins", "going to win", "will he win", "will she win",
+		"will they win", "bet", "betting", "market says",
+	} {
+		if strings.Contains(l, w) {
+			return true
+		}
+	}
+	return false
+}
+
 // oddsQuery strips the asking words so the search sees the subject. Sending the
 // whole question matches on "what" and "the" and returns whatever is busiest.
 func oddsQuery(question string) string {
@@ -207,8 +252,9 @@ func oddsQuery(question string) string {
 		w = strings.Trim(w, "?.,!'\"")
 		switch w {
 		case "", "the", "a", "an", "of", "on", "in", "for", "to", "is", "are",
-			"be", "will", "what", "who", "odds", "chance", "chances", "probability",
-			"likely", "favourite", "favorite", "win", "wins", "winning", "this", "that":
+			"be", "will", "what", "who", "how", "odds", "chance", "chances", "probability",
+			"likely", "favourite", "favorite", "win", "wins", "winning", "this", "that",
+			"going", "now", "currently", "still", "right", "today", "tonight":
 			continue
 		}
 		keep = append(keep, w)
