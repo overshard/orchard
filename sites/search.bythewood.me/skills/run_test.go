@@ -82,6 +82,8 @@ func TestSkillsDecline(t *testing.T) {
 		{Weather{}, "what is the weather in tokyo"},
 		{Markets{}, "should i buy a house"},
 		{Odds{}, "the"},
+		{Odds{}, "how is the us open going"},
+		{Odds{}, "what's the score in the us open"},
 	}
 	for _, c := range cases {
 		t.Run(c.skill.Card().Name+"/"+c.q, func(t *testing.T) {
