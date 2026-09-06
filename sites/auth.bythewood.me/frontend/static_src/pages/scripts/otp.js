@@ -26,17 +26,45 @@ export function otp() {
   fallback.required = false;
   wrap.hidden = false;
 
+  const button = form.querySelector("[type=submit]");
+  const label = button ? button.textContent : "";
   let submitted = false;
 
   const value = () => boxes.map((b) => b.value).join("");
 
   function maybeSubmit() {
     if (submitted || value().length !== LEN) return;
-    submitted = true;
     fallback.value = value();
     for (const b of boxes) b.blur();
     form.requestSubmit();
   }
+
+  // The sixth digit submits on its own, but the request takes long enough that
+  // people reach for the button anyway, and the second POST carries a code the
+  // first one already burned, so they get an error for signing in correctly.
+  form.addEventListener("submit", (e) => {
+    if (submitted) {
+      e.preventDefault();
+      return;
+    }
+    submitted = true;
+    if (button) {
+      button.disabled = true;
+      button.textContent = "Signing in…";
+    }
+  });
+
+  // Coming back to this page from the history cache restores it exactly as it
+  // was left, disabled button and all, so a second attempt would have nothing
+  // to press.
+  window.addEventListener("pageshow", (e) => {
+    if (!e.persisted) return;
+    submitted = false;
+    if (button) {
+      button.disabled = false;
+      button.textContent = label;
+    }
+  });
 
   function fill(from, digits) {
     let i = from;
