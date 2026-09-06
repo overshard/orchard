@@ -1342,17 +1342,10 @@ main {
   li[data-dir="down"] .move { color: var(--down); }
   li[data-dir="flat"] .move { color: var(--muted); }
 
-  // The two halves of the panel, so a row reporting tonight is not read as a
-  // result that already landed.
-  li.group {
-    display: block;
-    padding: 0 0 3px;
-    border-bottom: 0;
-    font-size: 9px;
-    letter-spacing: 0.18em;
-    color: var(--faint);
-  }
-  li.group + li { border-top: 1px solid var(--line); padding-top: 6px; }
+  // Where the results stop and the calendar starts. A reported row carries a
+  // verdict and a move and an upcoming one carries an estimate, so the two
+  // halves need marking and do not need naming.
+  li.done + li.next { border-top: 1px solid var(--line-hot); padding-top: 9px; }
 
   li.empty {
     grid-column: 1 / -1;

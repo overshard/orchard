@@ -678,21 +678,16 @@ function renderEarnings(earnings) {
   const reported = (earnings && earnings.reported) || [];
   const upcoming = (earnings && earnings.upcoming) || [];
 
-  host.replaceChildren(
-    el("li", "group", "REPORTED"),
-    ...section(reported, reportedRow, "NOTHING RECENT"),
-    el("li", "group", "UPCOMING"),
-    ...section(upcoming, upcomingRow, "NOTHING SCHEDULED"),
-  );
-}
+  if (reported.length === 0 && upcoming.length === 0) {
+    host.replaceChildren(el("li", "empty", "NOTHING MAJOR SCHEDULED"));
+    return;
+  }
 
-function section(rows, build, blank) {
-  if (rows.length === 0) return [el("li", "empty", blank)];
-  return rows.map(build);
+  host.replaceChildren(...reported.map(reportedRow), ...upcoming.map(upcomingRow));
 }
 
 function reportedRow(r) {
-  const li = el("li");
+  const li = el("li", "done");
   if (r.dir) li.dataset.dir = r.dir;
   li.append(el("span", "tkr", r.symbol));
   li.append(el("span", "co", r.name));
@@ -710,7 +705,7 @@ function reportedRow(r) {
 }
 
 function upcomingRow(r) {
-  const li = el("li");
+  const li = el("li", "next");
   li.append(el("span", "tkr", r.symbol));
   li.append(el("span", "co", r.name));
 

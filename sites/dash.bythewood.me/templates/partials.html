@@ -91,7 +91,7 @@
 {{end}}
 
 {{define "earning-reported"}}
-<li data-dir="{{.Dir}}">
+<li class="done" data-dir="{{.Dir}}">
   <span class="tkr">{{.Symbol}}</span>
   <span class="co">{{.Name}}</span>
   <span class="move">{{.Move}}</span>
@@ -105,7 +105,7 @@
 {{end}}
 
 {{define "earning-upcoming"}}
-<li>
+<li class="next">
   <span class="tkr">{{.Symbol}}</span>
   <span class="co">{{.Name}}</span>
   <span class="day">{{.Day}}{{if .When}} <span class="when">{{.When}}</span>{{end}}</span>
