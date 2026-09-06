@@ -90,12 +90,29 @@
 </li>
 {{end}}
 
-{{define "earning"}}
+{{define "earning-reported"}}
+<li data-dir="{{.Dir}}">
+  <span class="tkr">{{.Symbol}}</span>
+  <span class="co">{{.Name}}</span>
+  <span class="move">{{.Move}}</span>
+  <span class="detail">
+    <b data-verdict="{{.Verdict}}">{{.Verdict}}</b>
+    <span class="figs">{{.Actual}} v {{.Forecast}}</span>
+    <span class="on">{{.Day}}</span>
+    {{if .Note}}<span class="note">{{.Note}}</span>{{end}}
+  </span>
+</li>
+{{end}}
+
+{{define "earning-upcoming"}}
 <li>
   <span class="tkr">{{.Symbol}}</span>
   <span class="co">{{.Name}}</span>
-  <span class="cap">{{.Cap}}</span>
   <span class="day">{{.Day}}{{if .When}} <span class="when">{{.When}}</span>{{end}}</span>
+  <span class="detail">
+    <span class="figs">EST {{.Est}}</span>
+    {{if .Ests}}<span class="on">{{.Ests}} ESTS</span>{{end}}
+  </span>
 </li>
 {{end}}
 

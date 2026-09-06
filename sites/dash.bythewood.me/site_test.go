@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"io/fs"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -652,8 +653,11 @@ func TestEarningsHelpers(t *testing.T) {
 	if got := parseMoney("N/A"); got != 0 {
 		t.Errorf("parseMoney(N/A) = %v, want 0", got)
 	}
-	if got := shortMoney(1767631360000); got != "1.8T" {
-		t.Errorf("shortMoney = %q, want 1.8T", got)
+	if got, ok := parseEPS("($0.35)"); !ok || got != -0.35 {
+		t.Errorf("parseEPS(loss) = %v %v, want -0.35 true", got, ok)
+	}
+	if _, ok := parseEPS(""); ok {
+		t.Error("an unreported quarter should not parse")
 	}
 	if got := trimCompany("Broadcom Inc."); got != "Broadcom" {
 		t.Errorf("trimCompany = %q", got)
@@ -879,6 +883,117 @@ func TestKeepSteamWillNotShrinkAFullPanel(t *testing.T) {
 	} {
 		if got := keepSteam(tc.fresh, tc.shown); got != tc.want {
 			t.Errorf("%s: got %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+// The two sessions around a report, and Nasdaq no longer says which one carried
+// it, so the one that moved is the one that heard the news.
+func TestReactionPicksTheSessionThatMoved(t *testing.T) {
+	report := time.Date(2026, 9, 3, 0, 0, 0, 0, time.UTC)
+	days := []dailyClose{
+		{"2026-09-02", 120.07},
+		{"2026-09-03", 121.77},
+		{"2026-09-04", 100.61},
+	}
+
+	pct, ok := reaction(days, report)
+	if !ok {
+		t.Fatal("no reaction from three closes")
+	}
+	if pct > -17 || pct < -18 {
+		t.Errorf("after hours print = %.2f%%, want about -17.4", pct)
+	}
+
+	// The same shape with the move on the report day itself, which is a company
+	// that reported before the bell.
+	pct, ok = reaction([]dailyClose{
+		{"2026-09-02", 354.16},
+		{"2026-09-03", 317.46},
+		{"2026-09-04", 321.00},
+	}, report)
+	if !ok {
+		t.Fatal("no reaction from three closes")
+	}
+	if pct > -10 || pct < -11 {
+		t.Errorf("pre-market print = %.2f%%, want about -10.4", pct)
+	}
+}
+
+// A company that reported this morning has no session after it yet, so the
+// window is the one that is still open.
+func TestReactionOnAnUnfinishedSession(t *testing.T) {
+	report := time.Date(2026, 9, 4, 0, 0, 0, 0, time.UTC)
+	pct, ok := reaction([]dailyClose{{"2026-09-03", 100}, {"2026-09-04", 105}}, report)
+	if !ok || math.Abs(pct-5) > 0.001 {
+		t.Errorf("reaction = %v %v, want 5 true", pct, ok)
+	}
+	if _, ok := reaction([]dailyClose{{"2026-09-04", 105}}, report); ok {
+		t.Error("one close cannot be a reaction")
+	}
+}
+
+// A beat the market sold is the only thing this panel can honestly say about
+// guidance, so it has to fire on that shape and not on an ordinary result.
+func TestEarningsNote(t *testing.T) {
+	if got := earningsNote("BEAT", -9.3); got != "SOLD THE BEAT" {
+		t.Errorf("beat sold off = %q", got)
+	}
+	if got := earningsNote("MISS", 4.1); got != "BOUGHT THE MISS" {
+		t.Errorf("miss bought = %q", got)
+	}
+	if got := earningsNote("BEAT", 15.8); got != "" {
+		t.Errorf("beat and rallied = %q, want nothing", got)
+	}
+	if got := earningsNote("BEAT", -0.4); got != "" {
+		t.Errorf("beat and drifted = %q, want nothing", got)
+	}
+}
+
+// A penny estimate makes the percentage wild either way, so the band is what
+// keeps a two cent difference from reading as a blowout.
+func TestEPSVerdict(t *testing.T) {
+	if got := epsVerdict(2.06, 1.79, "15.08"); got != "BEAT" {
+		t.Errorf("beat = %q", got)
+	}
+	if got := epsVerdict(0.36, 0.44, "-18.18"); got != "MISS" {
+		t.Errorf("miss = %q", got)
+	}
+	if got := epsVerdict(1.33, 1.32, "0.76"); got != "MET" {
+		t.Errorf("inline = %q", got)
+	}
+	// No surprise figure, which Nasdaq returns when last year had no estimate.
+	if got := epsVerdict(1.20, 1.00, "N/A"); got != "BEAT" {
+		t.Errorf("computed surprise = %q", got)
+	}
+}
+
+// The panel is the top of the index and not the top of the market, which is the
+// whole reason the membership list is carried at all.
+func TestIndexMembership(t *testing.T) {
+	for _, in := range []string{"AAPL", "aapl", "BRK/B", "BRK.B"} {
+		if !inIndex(in) {
+			t.Errorf("%q should be in the index", in)
+		}
+	}
+	for _, out := range []string{"TSM", "ASML", "ARM", "PLTR-NOT-REAL"} {
+		if inIndex(out) {
+			t.Errorf("%q is not in the S&P 500", out)
+		}
+	}
+	if len(sp500Symbols) < 490 || len(sp500Symbols) > 515 {
+		t.Errorf("the index list holds %d names", len(sp500Symbols))
+	}
+}
+
+// reportDate has to turn every label the walk can produce back into a date, or
+// a row silently loses its reaction.
+func TestReportDateRoundTrips(t *testing.T) {
+	today := time.Date(2026, 9, 5, 12, 0, 0, 0, time.UTC)
+	for i := -earningsBackDays; i <= 0; i++ {
+		day := today.AddDate(0, 0, i)
+		if got := reportDate(dayLabel(day, today), today); got != day.Format("2006-01-02") {
+			t.Errorf("%d days back round tripped to %q", i, got)
 		}
 	}
 }

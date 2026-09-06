@@ -117,10 +117,13 @@
     <span class="idx">05</span>
     <h2>EARNINGS</h2>
     <span class="rule"></span>
-    <span class="panel-meta">OVER $10B, NEXT 5 SESSIONS</span>
+    <span class="panel-meta">TOP 100 OF THE S&amp;P 500</span>
   </header>
   <ul class="earning-rows" data-earnings>
-    {{range .State.Earnings}}{{template "earning" .}}{{else}}<li class="empty">NOTHING MAJOR SCHEDULED</li>{{end}}
+    <li class="group">REPORTED</li>
+    {{range .State.Earnings.Reported}}{{template "earning-reported" .}}{{else}}<li class="empty">NOTHING RECENT</li>{{end}}
+    <li class="group">UPCOMING</li>
+    {{range .State.Earnings.Upcoming}}{{template "earning-upcoming" .}}{{else}}<li class="empty">NOTHING SCHEDULED</li>{{end}}
   </ul>
   </section>
 

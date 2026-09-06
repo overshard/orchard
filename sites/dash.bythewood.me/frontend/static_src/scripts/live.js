@@ -671,31 +671,61 @@ function renderSectors(sectors) {
   );
 }
 
-function renderEarnings(rows) {
+function renderEarnings(earnings) {
   const host = document.querySelector("[data-earnings]");
   if (!host) return;
 
-  if (!rows || rows.length === 0) {
-    host.replaceChildren(el("li", "empty", "NOTHING MAJOR SCHEDULED"));
-    return;
-  }
+  const reported = (earnings && earnings.reported) || [];
+  const upcoming = (earnings && earnings.upcoming) || [];
 
   host.replaceChildren(
-    ...rows.map((r) => {
-      const li = el("li");
-      li.append(el("span", "tkr", r.symbol));
-      li.append(el("span", "co", r.name));
-      li.append(el("span", "cap", r.cap));
-
-      const day = el("span", "day", r.day);
-      if (r.when) {
-        day.append(document.createTextNode(" "));
-        day.append(el("span", "when", r.when));
-      }
-      li.append(day);
-      return li;
-    }),
+    el("li", "group", "REPORTED"),
+    ...section(reported, reportedRow, "NOTHING RECENT"),
+    el("li", "group", "UPCOMING"),
+    ...section(upcoming, upcomingRow, "NOTHING SCHEDULED"),
   );
+}
+
+function section(rows, build, blank) {
+  if (rows.length === 0) return [el("li", "empty", blank)];
+  return rows.map(build);
+}
+
+function reportedRow(r) {
+  const li = el("li");
+  if (r.dir) li.dataset.dir = r.dir;
+  li.append(el("span", "tkr", r.symbol));
+  li.append(el("span", "co", r.name));
+  li.append(el("span", "move", r.move));
+
+  const detail = el("span", "detail");
+  const call = el("b", null, r.verdict);
+  call.dataset.verdict = r.verdict;
+  detail.append(call);
+  detail.append(el("span", "figs", `${r.actual} v ${r.forecast}`));
+  detail.append(el("span", "on", r.day));
+  if (r.note) detail.append(el("span", "note", r.note));
+  li.append(detail);
+  return li;
+}
+
+function upcomingRow(r) {
+  const li = el("li");
+  li.append(el("span", "tkr", r.symbol));
+  li.append(el("span", "co", r.name));
+
+  const day = el("span", "day", r.day);
+  if (r.when) {
+    day.append(document.createTextNode(" "));
+    day.append(el("span", "when", r.when));
+  }
+  li.append(day);
+
+  const detail = el("span", "detail");
+  detail.append(el("span", "figs", `EST ${r.est}`));
+  if (r.ests) detail.append(el("span", "on", `${r.ests} ESTS`));
+  li.append(detail);
+  return li;
 }
 
 function alertMeta(key, value, className) {

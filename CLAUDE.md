@@ -349,6 +349,27 @@ the day they are in, and everything else needs enough history to find 4pm
 yesterday, which over a weekend is three days back. `1d` and `5d`, and it is
 still two batches because the split lands under the ten symbol limit either way.
 
+**The earnings panel is the top hundred of the S&P 500, and that takes two
+sources.** Nasdaq's screener answers every US listing sorted by market cap in one
+call, and `sp500.go` holds the index membership, because a cap floor on its own
+fills the panel with ASML, TSM and ARM. The hundredth name is worth about $120B
+right now, so the old $10B floor was twelve times too loose and the panel was
+showing companies nobody has heard of.
+
+**Nasdaq drops the time of day once a date is in the past.** An upcoming row says
+`time-pre-market` or `time-after-hours` and the same row a week later says
+`time-not-supplied`, so which of the two sessions around a report carried it is
+not knowable from the calendar. The reaction takes the one that moved, which is
+right for both cases and does not matter when neither moved. The presence of an
+actual EPS is also what sorts a row into reported or upcoming, rather than
+comparing its date to today, so a company that reported before the bell this
+morning reads correctly.
+
+**Nothing free publishes guidance.** A beat the market sold is the closest this
+gets, so a row where the result and the move disagree by more than 1.5% is
+tagged `SOLD THE BEAT` or `BOUGHT THE MISS` and the panel says nothing else about
+the outlook.
+
 **`range=1d` for BTC-USD is the UTC day and not the last 24 hours.** It rolls at
 8pm New York, so a poll at 8:05pm came back with six bars and drew a straight
 line across the card. That is what `carrySparks` was written for, and the wider
