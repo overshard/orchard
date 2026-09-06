@@ -26,6 +26,14 @@ const (
 	WantsFact  = "a fact, definition, explanation, opinion or set of instructions"
 )
 
+// Claimer is a skill that decides for itself, before any model call. A question
+// carrying a web address is not a judgment call, and a handler that can only
+// fire on one is noise in the routing prompt of every question that has none,
+// so a claiming skill is kept out of the prompt and the enum entirely.
+type Claimer interface {
+	Claims(question string) bool
+}
+
 // Route is the router's verdict.
 type Route struct {
 	Wants string `json:"wants"`
@@ -43,7 +51,13 @@ func (r Route) Why() string { return r.Wants }
 // exist. What it can still do is pick the wrong one, which is what the
 // negative triggers on each card are for.
 func (r *Registry) Decide(ctx context.Context, m Model, question string) Route {
-	names := append(r.Names(), None)
+	for _, s := range r.skills {
+		if c, ok := s.(Claimer); ok && c.Claims(question) {
+			return Route{Skill: s.Card().Name, Wants: "the question says which page to read"}
+		}
+	}
+
+	names := append(r.routable(), None)
 	schema := map[string]any{
 		"type": "object",
 		"properties": map[string]any{
@@ -80,6 +94,9 @@ func (r *Registry) systemPrompt() string {
 	b.WriteString("You route a question to the one handler that answers it from a live source, or to none.\n\n")
 	b.WriteString("Handlers:\n\n")
 	for _, s := range r.skills {
+		if _, ok := s.(Claimer); ok {
+			continue
+		}
 		c := s.Card()
 		fmt.Fprintf(&b, "%s: %s\n", c.Name, c.Does)
 		if len(c.Fires) > 0 {
@@ -111,12 +128,28 @@ func quoteAll(in []string) []string {
 	return out
 }
 
+// routable is the enum the model chooses from, which is every skill that needs
+// a judgment call to fire.
+func (r *Registry) routable() []string {
+	out := make([]string, 0, len(r.skills))
+	for _, s := range r.skills {
+		if _, ok := s.(Claimer); ok {
+			continue
+		}
+		out = append(out, s.Card().Name)
+	}
+	return out
+}
+
 // match is the offline fallback. It runs when the model is unreachable, and
 // being blunt is the point: a wrong skill here is recoverable because every
 // skill still verifies it can actually answer before claiming the question.
 func (r *Registry) match(question string) string {
 	l := strings.ToLower(question)
 	for _, s := range r.skills {
+		if cl, ok := s.(Claimer); ok && cl.Claims(question) {
+			return s.Card().Name
+		}
 		c := s.Card()
 		for _, k := range c.Keywords {
 			if strings.Contains(l, k) {

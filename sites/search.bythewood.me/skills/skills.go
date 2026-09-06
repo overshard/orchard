@@ -1,9 +1,12 @@
-// Package skills holds the handlers that answer a question from a live source
-// instead of from the web.
+// Package skills holds the handlers that claim a question a plain web search
+// answers worse.
 //
 // Some questions have a right answer sitting behind an API, and searching for
-// them is strictly worse: slower, and it produces a paraphrase of a page that
-// was itself reading the same number. A skill claims those and nothing else.
+// them is slower and produces a paraphrase of a page that was itself reading
+// the same number. Others name the page to read, and searching for words
+// scraped off the question finds different pages and answers from those. Both
+// are skills, and the web is not the dividing line, since Page fetches a URL
+// off the open web and Markets reads a quote.
 //
 // The rule the whole package follows: a skill that guesses wrong is worse than
 // a web search that takes ten seconds. Anything ambiguous falls through.
@@ -33,6 +36,12 @@ type Result struct {
 	// writes its own prose, so this only decides how the answer is presented.
 	Shape   string
 	Elapsed string
+
+	// URLs are pages the caller should read instead of searching, for a skill
+	// that knows where the answer is rather than what it says. A result
+	// carrying them has no Text, since the answer gets written from the pages
+	// once they are fetched and checked sentence by sentence like any other.
+	URLs []string
 }
 
 // Deps is everything a skill is allowed to reach. Nothing here is a global, so
@@ -98,15 +107,6 @@ func NewRegistry(list ...Skill) *Registry {
 // All returns the registered skills in registration order.
 func (r *Registry) All() []Skill { return r.skills }
 
-// Names are the enum the router is constrained to, plus the caller's "none".
-func (r *Registry) Names() []string {
-	out := make([]string, 0, len(r.skills))
-	for _, s := range r.skills {
-		out = append(out, s.Card().Name)
-	}
-	return out
-}
-
 // Get returns a skill by name, or nil when the name is not one of ours.
 func (r *Registry) Get(name string) Skill { return r.byName[name] }
 
@@ -115,6 +115,7 @@ func (r *Registry) Get(name string) Skill { return r.byName[name] }
 // this returns.
 func Default() *Registry {
 	return NewRegistry(
+		Page{},
 		Calculator{},
 		Convert{},
 		Time{},

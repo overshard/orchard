@@ -156,6 +156,7 @@ func (e *Engine) Run(ctx context.Context, question string, history []Turn, pr Pr
 	if len(history) > 0 {
 		pr.send("followup", "reading the previous answer")
 		standalone = e.rewriteFollowup(ctx, question, history)
+		standalone = keepURLs(question, standalone)
 	}
 
 	// Routing is the classification a 4B is reliably good at. The skill names
@@ -170,11 +171,57 @@ func (e *Engine) Run(ctx context.Context, question string, history []Turn, pr Pr
 	// fallback for when the model is unreachable.
 	pr.send("route", "working out what kind of question this is")
 	if res, name := e.skills.Run(ctx, e.llm, standalone, e.skillDeps()); res != nil {
+		// A skill that returns addresses found where the answer is rather than
+		// what it says, so the rest of the pipeline runs over those pages
+		// instead of over a search.
+		if len(res.URLs) > 0 {
+			pr.send("skill", "reading "+listHosts(res.URLs))
+			a, err := e.readGiven(ctx, question, standalone, res, start, pr)
+			if err == nil {
+				return a, nil
+			}
+			// A page behind a login or a wall is common enough that falling
+			// back to a search beats an error, and the warning says which
+			// happened.
+			slog.Warn("given page unreadable, searching instead", slog.Any("err", err))
+			pr.send("skill", "could not read that page, searching instead")
+			ans := &Answer{Query: question, Standalone: standalone}
+			ans.Warnings = append(ans.Warnings, fmt.Sprintf(
+				"%s could not be read, so this answers from a search rather than from the page you gave", listHosts(res.URLs)))
+			return e.search(ctx, ans, start, pr)
+		}
 		pr.send("skill", "answered from "+name)
 		return skillAnswer(question, standalone, res, start), nil
 	}
 
-	ans := &Answer{Query: question, Standalone: standalone}
+	return e.search(ctx, &Answer{Query: question, Standalone: standalone}, start, pr)
+}
+
+// readGiven answers from the pages the question named. Everything after the
+// gathering is the normal pipeline, so the answer is written to a contract,
+// every sentence is checked against the passage it cites, and the page is
+// fetched through the same cache and the same browser headers a search result
+// is.
+func (e *Engine) readGiven(ctx context.Context, question, standalone string, res *skills.Result, start time.Time, pr Progress) (*Answer, error) {
+	ans := &Answer{Query: question, Standalone: standalone, Shape: ShapeSummary, Skill: res.Skill}
+	given := make([]Result, 0, len(res.URLs))
+	for _, u := range res.URLs {
+		given = append(given, Result{URL: u, Title: u})
+	}
+	if err := e.answerFrom(ctx, ans, given, contractFor(ShapeSummary), pr); err != nil {
+		return nil, err
+	}
+	ans.HTML = renderMarkdown(ans.Text)
+	ans.Elapsed = time.Since(start).Round(100 * time.Millisecond).String()
+	return ans, nil
+}
+
+// search is the pipeline proper: plan, gather, and one self-correction round.
+func (e *Engine) search(ctx context.Context, ans *Answer, start time.Time, pr Progress) (*Answer, error) {
+	question, standalone := ans.Query, ans.Standalone
+	// A warning raised before the search, such as the page the question named
+	// being unreadable, has to survive a retry throwing this answer away.
+	carried := append([]string(nil), ans.Warnings...)
 
 	pr.send("plan", "working out what to search for")
 	plan := e.plan(ctx, standalone, "")
@@ -223,7 +270,8 @@ func (e *Engine) Run(ctx context.Context, question string, history []Turn, pr Pr
 		// answer and re-classifying can only move a code question off the
 		// contract that was right for it.
 		retryPlan.Shape = ans.Shape
-		retry := &Answer{Query: question, Standalone: standalone, Shape: retryPlan.Shape, Queries: retryPlan.Queries, Retried: true}
+		retry := &Answer{Query: question, Standalone: standalone, Shape: retryPlan.Shape,
+			Queries: retryPlan.Queries, Retried: true, Warnings: carried}
 		if err := e.round(ctx, retry, retryPlan, contractFor(retryPlan.Shape), pr); err == nil && betterAnswer(retry, ans, badCode, lookedBack) {
 			if badCode {
 				retry.Warnings = append(retry.Warnings, "the first attempt was thrown away because its code did not check out")
@@ -253,7 +301,13 @@ func (e *Engine) round(ctx context.Context, ans *Answer, plan Plan, contract Con
 		}
 		return fmt.Errorf("no search results for that question")
 	}
+	return e.answerFrom(ctx, ans, results, contract, pr)
+}
 
+// answerFrom is everything after the evidence is chosen: fetch, select,
+// synthesize, validate, repair. It does not care whether the pages came from a
+// search or from the question.
+func (e *Engine) answerFrom(ctx context.Context, ans *Answer, results []Result, contract Contract, pr Progress) error {
 	pr.send("fetch", fmt.Sprintf("reading %d pages", min(len(results), maxSources*2)))
 	sources, passages, links := e.collect(ctx, results, ans.Standalone, contract, pr)
 	if len(passages) == 0 {
@@ -639,8 +693,13 @@ func (e *Engine) collect(ctx context.Context, results []Result, question string,
 
 		// Relevance first, document order as the fallback when the question's
 		// words do not appear (which happens on pages that answer it anyway).
-		chunks := e.store.RankPassages(f.id, question, contract.PerSource)
-		if len(chunks) == 0 {
+		// A summary is the exception: it follows the page from the top, and
+		// ranking it against "summary of this" plus an address would shuffle
+		// the page into the order of words that are not about anything.
+		var chunks []string
+		if contract.Shape == ShapeSummary {
+			chunks = e.store.PageChunks(f.id, contract.PerSource)
+		} else if chunks = e.store.RankPassages(f.id, question, contract.PerSource); len(chunks) == 0 {
 			chunks = e.store.PageChunks(f.id, contract.PerSource)
 		}
 		for _, text := range chunks {
@@ -1014,4 +1073,25 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return s[:n] + "..."
+}
+
+// keepURLs puts back any address the follow-up rewrite dropped. The rewrite is
+// a model call and an address is the one thing in a question that cannot
+// survive being paraphrased, since a character of it changes what gets read.
+func keepURLs(question, standalone string) string {
+	for _, u := range skills.URLsIn(question) {
+		if !strings.Contains(standalone, u) {
+			standalone += " " + u
+		}
+	}
+	return standalone
+}
+
+// listHosts names the pages being read the way a person would say them.
+func listHosts(urls []string) string {
+	out := make([]string, 0, len(urls))
+	for _, u := range urls {
+		out = append(out, hostname(u))
+	}
+	return strings.Join(out, ", ")
 }

@@ -125,8 +125,15 @@ func TestEveryShapeHasAContract(t *testing.T) {
 			t.Errorf("%s has an incomplete contract: %+v", s, c)
 		}
 	}
-	if len(shapeEnum) != len(contracts) {
-		t.Errorf("%d shapes in the enum against %d contracts", len(shapeEnum), len(contracts))
+	// The shapes the planner is never offered still need a contract, since
+	// something else picks them.
+	for _, s := range offEnum {
+		if _, ok := contracts[s]; !ok {
+			t.Errorf("%s has no contract", s)
+		}
+	}
+	if want := len(shapeEnum) + len(offEnum); want != len(contracts) {
+		t.Errorf("%d shapes against %d contracts, so one of them is unreachable", want, len(contracts))
 	}
 }
 
