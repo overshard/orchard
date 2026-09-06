@@ -53,11 +53,16 @@ var routes = []struct {
 	{"why did the market drop", None},
 	{"should i buy bitcoin", None},
 
+	// page, which is claimed before the model is asked
+	{"summary of this https://cloudinabottle.org/blog/launch-post", "page"},
+	{"what does https://go.dev/blog/go1.24 say about generics", "page"},
+
 	// odds
 	{"what are the odds on the us open", "odds"},
 	{"who is favoured to win the election", "odds"},
 	{"what are the chances the fed cuts rates", "odds"},
 	{"who won the us open", None},
+	{"how is the us open going", None},
 	{"how do betting odds work", None},
 
 	// sports
@@ -128,6 +133,7 @@ func TestOfflineMatch(t *testing.T) {
 		}
 	}
 	for _, c := range []struct{ q, want string }{
+		{"summary of this https://example.com/post", "page"},
 		{"what is the weather this weekend", "weather"},
 		{"bitcoin price", "markets"},
 		{"what are the odds on the us open", "odds"},
@@ -146,6 +152,16 @@ func TestCardsAreRoutable(t *testing.T) {
 	seen := map[string]bool{}
 	for _, s := range Default().All() {
 		c := s.Card()
+		// A claiming skill never reaches the model, so negative triggers on it
+		// would be prose nothing reads. Its Claims method is the guard the
+		// others use NotFor for.
+		if _, ok := s.(Claimer); ok {
+			if c.Name == "" || c.Does == "" {
+				t.Errorf("%q is an incomplete card", c.Name)
+			}
+			seen[c.Name] = true
+			continue
+		}
 		switch {
 		case c.Name == "" || strings.ContainsAny(c.Name, " \t"):
 			t.Errorf("%q is not usable as an enum value", c.Name)

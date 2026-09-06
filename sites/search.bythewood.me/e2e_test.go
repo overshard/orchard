@@ -59,6 +59,65 @@ func TestPipelineLive(t *testing.T) {
 	}
 }
 
+// TestGivenPageLive is the other half of the pipeline: a question that names
+// the page to read never plans a search, and the answer comes off that page
+// and nothing else.
+func TestGivenPageLive(t *testing.T) {
+	url := os.Getenv("LLM_URL")
+	if url == "" {
+		url = "http://search-llm:8091"
+	}
+	if os.Getenv("SEARCH_LIVE") == "" {
+		t.Skip("set SEARCH_LIVE=1 to fetch a real page")
+	}
+	llm := NewLLM(url)
+	if !llm.Healthy(context.Background()) {
+		t.Skip("model not up")
+	}
+
+	dir, _ := os.MkdirTemp("", "search-page")
+	defer os.RemoveAll(dir)
+	store, err := OpenStore(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	e := NewEngine(store, llm, NewBudget())
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+
+	const page = "https://go.dev/blog/go1.24"
+	var steps []string
+	pr := Progress(func(step, detail string) { steps = append(steps, step+": "+detail) })
+
+	ans, err := e.Run(ctx, "summary of this "+page, nil, pr)
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	for _, s := range steps {
+		t.Logf("  %s", s)
+	}
+	t.Logf("shape=%s skill=%s elapsed=%s support=%.0f%%", ans.Shape, ans.Skill, ans.Elapsed, ans.Support*100)
+	t.Logf("\n%s", ans.Text)
+
+	if ans.Skill != "page" {
+		t.Errorf("skill is %q, want page", ans.Skill)
+	}
+	if ans.Shape != ShapeSummary {
+		t.Errorf("shape is %s, want summary", ans.Shape)
+	}
+	if len(ans.Queries) != 0 {
+		t.Errorf("it searched anyway: %v", ans.Queries)
+	}
+	if len(ans.Sources) != 1 || ans.Sources[0].URL != page {
+		t.Errorf("sources are %+v, want only the page it was given", ans.Sources)
+	}
+	if ans.Text == "" {
+		t.Fatal("empty answer")
+	}
+}
+
 func TestSplitClaims(t *testing.T) {
 	in := strings.Join([]string{
 		"Here is the intro sentence about the thing [1].",

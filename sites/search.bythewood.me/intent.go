@@ -17,6 +17,7 @@ const (
 	ShapeStatus     Shape = "status"
 	ShapeCode       Shape = "code"
 	ShapeUpcoming   Shape = "upcoming"
+	ShapeSummary    Shape = "summary"
 )
 
 // shapeEnum is what the plan step offers the model, and every entry has a
@@ -27,6 +28,11 @@ var shapeEnum = []Shape{
 	ShapeFactual, ShapeRecipe, ShapeHowTo, ShapeComparison,
 	ShapeNews, ShapeStatus, ShapeCode, ShapeUpcoming,
 }
+
+// offEnum are the shapes the planner is never offered, because they are not a
+// reading of the question. A summary happens when the question carried the
+// address of the page to read, which is known before any planning.
+var offEnum = []Shape{ShapeSummary}
 
 // Contract is the format instruction handed to the synthesis step, and the
 // passage budget the shape needs. A recipe needs more of the page than a
@@ -222,6 +228,24 @@ var contracts = map[Shape]Contract{
 		}, " "),
 		MaxPassages: 14, PerSource: 3, MaxTokens: 800,
 		Reminder: "Only a date today or later can answer this. Anything earlier has already happened.",
+	},
+
+	// The reader picked the source, so this answers from one page rather than
+	// from whatever a search turned up, and it is the one shape whose evidence
+	// is not chosen by the pipeline.
+	ShapeSummary: {
+		Shape: ShapeSummary,
+		Instruction: strings.Join([]string{
+			houseStyle,
+			"The reader handed you this page and wants it read, so use the passages from it and nothing you know about the subject from elsewhere.",
+			"If the question asks something specific about the page, answer that in the first sentence and then give the lines that bear on it.",
+			"If it only asks what the page says, open with one sentence naming what the page is and who published it, then three to six markdown bullets carrying the points it makes, in the order it makes them.",
+			"Bold the names, numbers and dates, and keep every price, date and version exactly as it is written.",
+			"A page announcing or selling something is stating its own claim, so write that it says so rather than repeating it as fact.",
+			"If the page does not cover what was asked, say that in the first sentence and then say what it does cover.",
+			"Stop there, and never close with what it all means.",
+		}, " "),
+		MaxPassages: 16, PerSource: 16, MaxTokens: 900,
 	},
 
 	ShapeNews: {
