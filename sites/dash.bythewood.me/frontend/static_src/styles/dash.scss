@@ -1302,22 +1302,57 @@ main {
   display: flex;
   flex-direction: column;
   justify-content: space-around;
+
   li {
     display: grid;
     grid-template-columns: 52px 1fr auto;
     align-items: baseline;
-    gap: 10px;
-    padding: 6px 0;
+    gap: 2px 10px;
+    padding: 5px 0;
     border-bottom: 1px solid var(--line);
   }
 
   .tkr { font-family: var(--grotesk); font-weight: 700; font-size: 12px; color: var(--amber); letter-spacing: 0.06em; }
   .co { font-size: 12px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  // The cap earned its place on a full width row and does not on a narrow one,
-  // where the ticker and the day are what get read.
-  .cap { display: none; }
   .day { font-size: 10px; letter-spacing: var(--track); color: var(--muted); white-space: nowrap; }
   .when { color: var(--faint); }
+  .move { font-family: var(--grotesk); font-size: 12px; font-weight: 700; white-space: nowrap; }
+
+  // The second line of every row: the numbers behind the word, under the name
+  // rather than beside it, since the panel is a third of the page wide.
+  .detail {
+    grid-column: 2 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 3px 8px;
+    font-size: 10px;
+    letter-spacing: var(--track);
+    color: var(--dim);
+  }
+  .detail b { font-weight: 700; font-family: var(--grotesk); }
+  .detail .figs { color: var(--muted); letter-spacing: 0.04em; }
+  .detail .note { color: var(--amber); }
+
+  b[data-verdict="BEAT"] { color: var(--up); }
+  b[data-verdict="MISS"] { color: var(--down); }
+  b[data-verdict="MET"] { color: var(--muted); }
+
+  li[data-dir="up"] .move { color: var(--up); }
+  li[data-dir="down"] .move { color: var(--down); }
+  li[data-dir="flat"] .move { color: var(--muted); }
+
+  // The two halves of the panel, so a row reporting tonight is not read as a
+  // result that already landed.
+  li.group {
+    display: block;
+    padding: 0 0 3px;
+    border-bottom: 0;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    color: var(--faint);
+  }
+  li.group + li { border-top: 1px solid var(--line); padding-top: 6px; }
 
   li.empty {
     grid-column: 1 / -1;
@@ -1845,7 +1880,7 @@ main {
   .gauges { grid-template-columns: repeat(3, 1fr); }
   .gauge .gb { overflow-wrap: anywhere; }
   .heat { grid-template-columns: repeat(2, 1fr); }
-  .earning-rows li { grid-template-columns: 54px 1fr auto; .cap { display: none; } }
+  .earning-rows li { grid-template-columns: 48px 1fr auto; }
   .conditions ul.conditions li { grid-template-columns: 1fr auto; .n { display: none; } }
   .alert {
     padding: 9px 10px 9px 12px;

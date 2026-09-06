@@ -18,7 +18,7 @@ type State struct {
 	Rates     Rates        `json:"rates"`
 	Sectors   []SectorCell `json:"sectors"`
 	Signal    Signal       `json:"signal"`
-	Earnings  []Earning    `json:"earnings"`
+	Earnings  Earnings     `json:"earnings"`
 	Wire      []Headline   `json:"wire"`
 	HN        []Story      `json:"hn"`
 	Lobsters  []Story      `json:"lobsters"`
