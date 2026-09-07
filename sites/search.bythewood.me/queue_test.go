@@ -135,9 +135,9 @@ func TestLLMConfigMatchesClient(t *testing.T) {
 	}
 	cfg := string(b)
 
-	if !strings.Contains(cfg, `"`+NewLLM("").Model+`":`) {
+	if !strings.Contains(cfg, `"`+NewLLM("", "").Model+`":`) {
 		t.Errorf("llm/config.yaml has no model named %q, which is what the client asks for",
-			NewLLM("").Model)
+			NewLLM("", "").Model)
 	}
 	if !strings.Contains(cfg, "ttl:") {
 		t.Error("no ttl in llm/config.yaml, so the model would never unload")

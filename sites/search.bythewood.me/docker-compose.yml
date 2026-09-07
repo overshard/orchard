@@ -1,20 +1,11 @@
 name: orchard-search
 
-# Two services, because this site is the only one here that needs a GPU.
+# One service. The model lives behind llm.bythewood.me now, so this site holds
+# no weights and asks for no GPU, and the key in .env is what lets it through
+# that gateway. Two services here meant a second copy of the weights on an 8GB
+# card, so whichever of search and chat you used last evicted the other.
 #
-# They are one project rather than two so the whole site is `make deploy
-# SITE=search.bythewood.me`, `make doctor` sees both, and `make down` takes both
-# with it. The model was run by hand at first and that was a mistake: it sat
-# outside every make target, on a network nothing else knew about, and doctor
-# reported the site healthy while the thing that answers questions was invisible.
-#
-# The cost of folding it in is that a deploy recreates the model container too,
-# which reloads the weights. Measured at about three seconds from page cache, so
-# it is not worth a second project to avoid.
-#
-# No published ports. Caddy reaches the app by container name on orchard-edge,
-# and the app reaches the model by container name on the private network below,
-# which nothing else joins.
+# No published ports. Caddy reaches the app by container name on orchard-edge.
 
 services:
   app:
@@ -27,12 +18,10 @@ services:
     # database closes cleanly rather than being killed mid-write.
     stop_grace_period: 30s
     environment:
-      LLM_URL: http://llm:8091
+      LLM_URL: http://orchard-llm:8000
+      LLM_KEY: ${LLM_KEY:?create a key at llm.bythewood.me and put it in .env}
     volumes:
       - data:/data
-    depends_on:
-      llm:
-        condition: service_healthy
     # Roomier than the static sites: this one holds a page archive with a full
     # text index and parses HTML on the request path. Still a ceiling to fail
     # against rather than a target, since this machine is also a workstation.
@@ -54,58 +43,13 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    networks: [edge, model]
-
-  # llama.cpp behind llama-swap, with the GPU attached. Its own image, built
-  # from llm/, because this site is an independent entity like every other one
-  # here and was previously borrowing taproot's development container.
-  #
-  # llama-swap is what makes the model on demand: it starts llama.cpp when a
-  # request names the model and unloads it after the ttl in llm/config.yaml.
-  llm:
-    build:
-      context: ./llm
-      dockerfile: Dockerfile
-    container_name: orchard-search-llm
-    restart: unless-stopped
-    volumes:
-      - models:/models
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-    # /v1/models answers from the config without loading anything, so the check
-    # never keeps the model awake and defeats the ttl.
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8091/v1/models"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 20s
-    security_opt:
-      - no-new-privileges:true
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-    networks: [model]
+    networks: [edge]
 
 volumes:
   data:
     name: orchard-search-data
-  # The weights, kept out of the image so a rebuild does not re-download them.
-  models:
-    name: orchard-search-models
 
 networks:
   edge:
     name: orchard-edge
     external: true
-  # Private to this project. The model has no business being reachable from
-  # anywhere else, and it has no authentication of its own.
-  model:
-    name: orchard-search-model
