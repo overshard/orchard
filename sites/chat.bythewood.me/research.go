@@ -61,6 +61,61 @@ func isDeferral(reply string) bool {
 	return false
 }
 
+// A refusal is not a deferral and the head and length rules above do not reach
+// it. This one is matched anywhere in a reply of any length, which is only safe
+// because it says outright that the reply is not answering the question.
+var refusal = regexp.MustCompile(`(?i)\b(i|we) (cannot|can'?t|could not|couldn'?t) answer (this|that|it|your question)\b.{0,60}\bfrom (the )?tool results\b`)
+
+// The tool results die with the turn and only the answers survive, so a model
+// reading its own earlier answer treats it as evidence it still holds and
+// writes it out again. That is not a deferral and the patterns above miss it.
+//
+// Six word shingles against every earlier answer put the rehashes already in
+// this site's history at 0.34, 0.40 and 0.59, and every real follow-up at 0.08.
+const (
+	repeatShingle = 6
+	repeatOverlap = 0.30
+	// Below this a draft is too short for the overlap to mean anything. A one
+	// line answer to "why?" shares its whole vocabulary with what came before.
+	repeatMinShingles = 20
+)
+
+var wordish = regexp.MustCompile(`[a-z0-9]+`)
+
+// repeatsAnswered reports whether most of the draft is already in what this
+// conversation has answered.
+func repeatsAnswered(draft string, previous []string) bool {
+	d := shingles(draft)
+	if len(d) < repeatMinShingles {
+		return false
+	}
+	seen := map[string]bool{}
+	for _, p := range previous {
+		for s := range shingles(p) {
+			seen[s] = true
+		}
+	}
+	if len(seen) == 0 {
+		return false
+	}
+	hit := 0
+	for s := range d {
+		if seen[s] {
+			hit++
+		}
+	}
+	return float64(hit)/float64(len(d)) >= repeatOverlap
+}
+
+func shingles(s string) map[string]bool {
+	w := wordish.FindAllString(strings.ToLower(s), -1)
+	out := make(map[string]bool, len(w))
+	for i := 0; i+repeatShingle <= len(w); i++ {
+		out[strings.Join(w[i:i+repeatShingle], " ")] = true
+	}
+	return out
+}
+
 // The gate. It runs when the model stops calling tools and wants to answer,
 // which is the only moment where both "is this actually an answer" and "is
 // there enough behind it" can be asked at once.
@@ -90,24 +145,36 @@ var verdictSchema = map[string]any{
 
 const gateSystem = `You are checking a draft answer before it is sent. Answer only with the JSON object you were given a schema for.
 
-"answered" means the draft answers the question with real specifics and every fact in it either came from the tool results or is something no tool could change, like arithmetic, code, or an opinion asked for.
+"answered" means the draft answers the question with real specifics and every fact in it either came from the tool results, or was established earlier in this conversation, or is something no tool could change, like arithmetic, code, or an opinion asked for.
 
 "research" means the draft is not ready to send. Choose it when any of these are true:
 - The draft offers to look something up, says it will check, or asks whether it should.
-- The draft says it does not know, has no access, or has nothing to report.
+- The draft says it does not know, has no access, has nothing to report, or cannot answer from what it has.
 - The draft states a name, title, date, number, price or event that no tool result above supports.
 - The question asks about something current, local, priced, scheduled or newsworthy and no tool was called.
 - The draft answers part of the question and leaves the rest.
+- The draft repeats an earlier answer in this conversation instead of addressing what the new question adds to it.
+- The draft quotes a page or credits a figure to a source that is not in the tool results above. Pages read in earlier turns are gone and cannot be quoted from memory.
 
 When the verdict is "research", query is the single web search that would close the biggest gap, written as a person would type it. When the verdict is "answered", query is an empty string.`
 
 // enough asks whether the draft can be sent. Anything that goes wrong is a yes,
 // because a gate that fails closed would turn a working turn into a loop over a
 // model that is not answering the gate either.
-func (e *Engine) enough(ctx context.Context, question, draft string, results []string) (verdict, Stats) {
+func (e *Engine) enough(ctx context.Context, question, draft string, results, previous []string) (verdict, Stats) {
 	var b strings.Builder
 	b.WriteString("Question:\n")
 	b.WriteString(strings.TrimSpace(question))
+	if len(previous) > 0 {
+		// Without this the gate cannot tell a fresh answer from the last one
+		// written out again, which is the whole failure on a follow-up.
+		b.WriteString("\n\nAnswers already given earlier in this conversation:\n")
+		for _, p := range previous {
+			b.WriteString("- ")
+			b.WriteString(trimLine(p, 600))
+			b.WriteByte('\n')
+		}
+	}
 	b.WriteString("\n\nTool results in this turn:\n")
 	if len(results) == 0 {
 		b.WriteString("(none, no tool was called)")
@@ -145,24 +212,41 @@ func researchNudge(query string) string {
 		"Do not offer to look something up and do not say what you would do next, there is nobody to answer you."
 }
 
+// What a rehash is told, which has to say why rather than just no. A model sent
+// back with the generic nudge writes the same answer a third time, since as far
+// as it can see it already has the material.
+func repeatNudge() string {
+	return "That is the answer you already gave, and it does not address what this question adds. " +
+		"The tool results from the earlier turns are gone and the pages behind them are not in front of you, so nothing there can be quoted or checked. " +
+		"Call a tool now and get what this question needs."
+}
+
 // Quoted so a multi word query is not read as part of the sentence around it.
 func quoted(s string) string { return "\"" + strings.ReplaceAll(s, "\"", "") + "\"" }
 
-// gate is the whole check: the free pattern first, then the model only when the
-// pattern found nothing. A turn that already looks like a deferral does not
-// need a second opinion, and skipping the call there is a second saved on every
-// one of the failures this exists for.
-func (e *Engine) gate(ctx context.Context, question, draft string, used []tools.Result, emit func(Event)) (verdict, Stats) {
+// gate is the whole check, and it returns the nudge to send the turn back with
+// or an empty string to let the draft stand. The two free checks run first and
+// the model is only asked when neither fired, which is a second saved on every
+// one of the failures this exists for. previous is what this conversation has
+// already answered, most recent last.
+func (e *Engine) gate(ctx context.Context, question, draft string, previous []string, used []tools.Result, emit func(Event)) (string, Stats) {
 	// Sending a turn back to research when the search endpoint is in the
 	// penalty box is a guaranteed loop: it cannot succeed, and every pass costs
 	// a model call and another failed request against a host that is already
 	// refusing. The honest answer there is the one it has.
 	if _, down := e.SearchDown(); down {
-		return verdict{Verdict: "answered"}, Stats{}
+		return "", Stats{}
 	}
-	if isDeferral(draft) {
+	if isDeferral(draft) || refusal.MatchString(draft) {
 		emit(Event{Kind: "status", Text: "looking it up"})
-		return verdict{Verdict: "research"}, Stats{}
+		return researchNudge(""), Stats{}
+	}
+	// Only when nothing was fetched. A turn that did the work and then restated
+	// some of what it said before has answered, and taking it away would cost
+	// the tool calls it already spent.
+	if len(used) == 0 && repeatsAnswered(draft, previous) {
+		emit(Event{Kind: "status", Text: "looking it up"})
+		return repeatNudge(), Stats{}
 	}
 	emit(Event{Kind: "status", Text: "checking the answer"})
 	results := make([]string, 0, len(used))
@@ -174,9 +258,10 @@ func (e *Engine) gate(ctx context.Context, question, draft string, used []tools.
 		body, _ := json.Marshal(r.Content)
 		results = append(results, r.Name+": "+string(body))
 	}
-	v, st := e.enough(ctx, question, draft, results)
-	if v.Verdict == "research" {
-		emit(Event{Kind: "status", Text: "looking it up"})
+	v, st := e.enough(ctx, question, draft, results, previous)
+	if v.Verdict != "research" {
+		return "", st
 	}
-	return v, st
+	emit(Event{Kind: "status", Text: "looking it up"})
+	return researchNudge(v.Query), st
 }
