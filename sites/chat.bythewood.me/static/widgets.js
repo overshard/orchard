@@ -13,6 +13,20 @@
     String(s == null ? "" : s).replace(/[&<>"']/g, (c) =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+  // A widget endpoint that fails answers with plain text, not json, and
+  // r.json() on that throws a SyntaxError which then shows up as the widget's
+  // own message. This reads the body once and turns anything unparseable into
+  // something worth reading.
+  async function readJSON(r) {
+    const text = await r.text();
+    let d = null;
+    try { d = JSON.parse(text); } catch {}
+    if (!r.ok || !d || d.error) {
+      throw new Error((d && d.error) || (r.ok ? "no data" : "no data (" + r.status + ")"));
+    }
+    return d;
+  }
+
   const RANGES = [
     { key: "1d", label: "1D" },
     { key: "1w", label: "1W" },
@@ -110,8 +124,7 @@
       try {
         const r = await fetch(
           `/api/widget/ticker?symbol=${encodeURIComponent(spec.symbol)}&range=${range}`);
-        const d = await r.json();
-        if (!r.ok || d.error) throw new Error(d.error || "no data");
+        const d = await readJSON(r);
         cache.set(range, d);
         paint(d);
       } catch (e) {
@@ -311,11 +324,7 @@
     });
 
     fetch("/api/widget/weather?" + q)
-      .then(async (r) => {
-        const d = await r.json();
-        if (!r.ok || d.error) throw new Error(d.error || "no data");
-        return d;
-      })
+      .then(readJSON)
       .then((d) => paint(root, d))
       .catch((e) => { root.innerHTML = `<p class="wdg-msg">${esc(e.message || String(e))}</p>`; });
 

@@ -52,6 +52,7 @@ type site struct {
 	engine  *Engine
 	store   *Store
 	runs    *Runs
+	queue   *Queue
 	comp    *Compactor
 	tpl     *template.Template
 	md      goldmark.Markdown
@@ -113,7 +114,7 @@ func main() {
 		auth: auth,
 		llm:  llm, engine: NewEngine(llm, *label), store: store, label: *label,
 		comp: NewCompactor(llm, *ctxSize), ctxSize: *ctxSize, dev: Reloaded,
-		runs: NewRuns(),
+		runs: NewRuns(), queue: NewQueue(),
 		md: goldmark.New(goldmark.WithExtensions(extension.GFM),
 			goldmark.WithRendererOptions()),
 	}
@@ -436,6 +437,20 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 	prompt := composeTurn(req.Message, parts)
 	emit := func(e Event) { rn.Emit(e) }
 	tr := NewTrace(emit)
+
+	// One turn at a time. There is one card behind this and llama.cpp runs it
+	// with a single slot, so two turns at once interleave and both take longer
+	// than they would have taken in order. The waiting is shown rather than
+	// hidden, since a tab sat on "thinking" because another is ahead looks
+	// broken and one that says it is second in line looks like a queue.
+	release, ok := s.queue.Enter(ctx, func(q QueueState) {
+		emit(Event{Kind: "status", Text: waitingLabel(q)})
+	})
+	if !ok {
+		emit(Event{Kind: "error", Text: "that turn was stopped before it started"})
+		return
+	}
+	defer release()
 	// Every model call this turn makes hangs off this context, including the
 	// ones the tools start, so marking it here is what keeps the gateway from
 	// writing down what the local database is not writing down either.
@@ -578,6 +593,19 @@ func (s *site) attach(w http.ResponseWriter, r *http.Request) {
 // stop the work, so this is the only thing that is.
 func (s *site) stop(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"stopped": s.runs.Cancel(r.PathValue("id"))})
+}
+
+// waitingLabel says where in the queue a turn is, in words rather than a
+// number on its own, since "2" beside a spinner reads as an error code.
+func waitingLabel(q QueueState) string {
+	switch {
+	case q.Ahead <= 0:
+		return "waiting for the card"
+	case q.Ahead == 1:
+		return "waiting, one turn ahead"
+	default:
+		return "waiting, " + itoa(q.Ahead) + " turns ahead"
+	}
 }
 
 // render turns the model's markdown into HTML on the server, so the browser

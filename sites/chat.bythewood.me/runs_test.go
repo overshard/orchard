@@ -177,3 +177,65 @@ func TestASlowReaderDoesNotBlockTheTurn(t *testing.T) {
 		t.Fatal("the turn blocked on a reader that was not reading")
 	}
 }
+
+// Two turns at once take the card in order rather than interleaving, and the
+// one waiting is told where it is rather than sitting on a spinner.
+func TestASecondTurnWaitsAndIsToldSo(t *testing.T) {
+	q := NewQueue()
+	first, ok := q.Enter(context.Background(), func(QueueState) {})
+	if !ok {
+		t.Fatal("the first turn did not get the card")
+	}
+
+	waits := make(chan QueueState, 8)
+	got := make(chan struct{})
+	go func() {
+		release, ok := q.Enter(context.Background(), func(s QueueState) { waits <- s })
+		if ok {
+			release()
+		}
+		close(got)
+	}()
+
+	select {
+	case s := <-waits:
+		// Ahead counts the others queued in front, so the first waiter behind a
+		// running turn is position 1 with none ahead of it.
+		if s.Position < 1 {
+			t.Errorf("the waiting turn was given position %d", s.Position)
+		}
+		if label := waitingLabel(s); label == "" {
+			t.Error("no label for a waiting turn")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("the second turn was never told it was waiting")
+	}
+
+	select {
+	case <-got:
+		t.Fatal("the second turn ran while the first still held the card")
+	case <-time.After(200 * time.Millisecond):
+	}
+
+	first()
+	select {
+	case <-got:
+	case <-time.After(2 * time.Second):
+		t.Fatal("the second turn never got the card after the first let go")
+	}
+}
+
+func TestWaitingLabelReadsAsWords(t *testing.T) {
+	for _, tc := range []struct {
+		ahead int
+		want  string
+	}{
+		{0, "waiting for the card"},
+		{1, "waiting, one turn ahead"},
+		{3, "waiting, 3 turns ahead"},
+	} {
+		if got := waitingLabel(QueueState{Ahead: tc.ahead}); got != tc.want {
+			t.Errorf("ahead=%d gave %q, want %q", tc.ahead, got, tc.want)
+		}
+	}
+}
