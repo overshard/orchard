@@ -62,9 +62,10 @@ type Deps struct {
 	HTTP *http.Client
 	// Public refuses to connect to this machine or its network, and is what
 	// every tool that takes a url from the model goes through.
-	Public *http.Client
-	Now    func() time.Time
-	Guard  *Guard
+	Public  *http.Client
+	Now     func() time.Time
+	Guard   *Guard
+	Budgets *Budgets
 
 	// The session of whoever is chatting, forwarded by the orchard tools so
 	// each site does its own check. It is per turn rather than per process,
@@ -91,6 +92,10 @@ func NewDeps() *Deps {
 		// letting it expire. See the DuckDuckGo and ESPN bans this was written
 		// after.
 		Guard: NewGuard(10 * time.Minute),
+		// What we allow ourselves, as opposed to what a host has told us. A gap
+		// bounds the rate and this bounds the total, and only the second one
+		// stops a long turn spending a day's searches on one question.
+		Budgets: NewBudgets(),
 	}
 }
 
@@ -114,27 +119,12 @@ type Guard struct {
 	trips map[string]int
 	cool  time.Duration
 	store PenaltyStore
-	// pace is the minimum gap between two calls to the same host. This is the
-	// cheap half of not getting blocked and it costs nothing worth having,
-	// since a person asking one question does not notice a second of spacing
-	// and a loop hammering an endpoint is what gets an address banned.
-	pace map[string]time.Duration
-	def  time.Duration
 }
 
 func NewGuard(cool time.Duration) *Guard {
 	return &Guard{
 		till: map[string]time.Time{}, last: map[string]time.Time{},
 		trips: map[string]int{}, cool: cool,
-		def: 400 * time.Millisecond,
-		pace: map[string]time.Duration{
-			// The two that have actually banned this address.
-			"html.duckduckgo.com": 6 * time.Second,
-			"cdn.espn.com":        3 * time.Second,
-			// Yahoo rate limits a home address hard even at a low rate.
-			"query1.finance.yahoo.com": 3 * time.Second,
-			"api.coingecko.com":        2 * time.Second,
-		},
 	}
 }
 
@@ -144,10 +134,7 @@ func NewGuard(cool time.Duration) *Guard {
 func (g *Guard) Wait(host string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	gap, ok := g.pace[host]
-	if !ok {
-		gap = g.def
-	}
+	gap := budgetFor(host).gap
 	if t, seen := g.last[host]; seen {
 		if d := gap - time.Since(t); d > 0 {
 			time.Sleep(d)
@@ -166,28 +153,26 @@ func (g *Guard) Blocked(host string) (bool, time.Duration) {
 	return true, time.Until(t)
 }
 
-// The ceiling on a backoff. Long enough that a genuine ban is left alone for an
-// afternoon, short enough that a blip clears without a deploy.
-const maxCool = 4 * time.Hour
+// How long a host that refused is left completely alone.
+//
+// Long and flat rather than short and escalating. A ten minute box means asking
+// again six times an hour, and every one of those is a request to an endpoint
+// that has already said no, which is how a soft limit turns into a hard one.
+// There is no signal that a ban has lifted other than a call, so the only safe
+// policy is to wait out a period long enough that the question is settled and
+// let a person's next real question be the one that finds out.
+const refusalCool = 6 * time.Hour
 
 func (g *Guard) Trip(host string) {
 	g.mu.Lock()
-	till, trips, store := g.trip(host)
+	g.trips[host]++
+	till := time.Now().Add(refusalCool)
+	g.till[host] = till
+	trips, store := g.trips[host], g.store
 	g.mu.Unlock()
 	if store != nil {
 		store.SavePenalty(host, till, trips)
 	}
-}
-
-func (g *Guard) trip(host string) (time.Time, int, PenaltyStore) {
-	g.trips[host]++
-	wait := g.cool << min(g.trips[host]-1, 8)
-	if wait > maxCool || wait <= 0 {
-		wait = maxCool
-	}
-	till := time.Now().Add(wait)
-	g.till[host] = till
-	return till, g.trips[host], g.store
 }
 
 // Restore puts back the boxes that outlived the last process and takes the
@@ -238,7 +223,12 @@ const SearchHost = "html.duckduckgo.com"
 func get(ctx context.Context, d *Deps, url string, accept string) ([]byte, error) {
 	host := hostOf(url)
 	if blocked, left := d.Guard.Blocked(host); blocked {
-		return nil, fmt.Errorf("%s is rate limiting us, trying again in %s", host, left.Round(time.Second))
+		return nil, fmt.Errorf("%s refused us and is being left alone for another %s, "+
+			"so nothing can be looked up there until then", host, round(left))
+	}
+	// The spend ceiling, checked before the gap so a spent pool costs no wait.
+	if err := d.Budgets.Take(host); err != nil {
+		return nil, err
 	}
 	d.Guard.Wait(host)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)

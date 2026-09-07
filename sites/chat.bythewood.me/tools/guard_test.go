@@ -18,25 +18,23 @@ func (f *fakeStore) SavePenalty(host string, till time.Time, trips int) {
 }
 func (f *fakeStore) ClearPenalty(host string) { f.cleared = append(f.cleared, host) }
 
-// Asking again the moment a ten minute box empties is what renews a ban rather
-// than letting it expire, so each repeat doubles the wait.
-func TestGuardBacksOffOnRepeatTrips(t *testing.T) {
+// A host that refuses is left alone for hours and not for ten minutes, because
+// a short box means asking again six times an hour and every one of those is a
+// request to something that already said no.
+func TestGuardLeavesARefusingHostAlone(t *testing.T) {
 	g := NewGuard(10 * time.Minute)
-	var last time.Duration
-	for i := 1; i <= 4; i++ {
-		g.Trip("example.com")
-		_, left := g.Blocked("example.com")
-		if left <= last {
-			t.Fatalf("trip %d waited %s, no longer than the %s before it", i, left, last)
-		}
-		last = left
+	g.Trip("example.com")
+	blocked, left := g.Blocked("example.com")
+	if !blocked {
+		t.Fatal("a host that refused is not boxed")
 	}
-	// And it stops somewhere, rather than doubling into next week.
-	for i := 0; i < 20; i++ {
-		g.Trip("example.com")
+	if left < refusalCool-time.Minute {
+		t.Errorf("boxed for only %s, want about %s", left, refusalCool)
 	}
-	if _, left := g.Blocked("example.com"); left > maxCool {
-		t.Errorf("backoff ran to %s, past the %s ceiling", left, maxCool)
+	// Flat rather than escalating, so nothing has to be poked to find the step.
+	g.Trip("example.com")
+	if _, again := g.Blocked("example.com"); again > refusalCool+time.Minute {
+		t.Errorf("a second refusal stretched the box to %s", again)
 	}
 }
 
@@ -54,12 +52,6 @@ func TestGuardOKResetsTheStreak(t *testing.T) {
 		t.Errorf("a host that answered was not cleared: %v", store.cleared)
 	}
 
-	// Back to the first step rather than continuing to double.
-	g.Trip("example.com")
-	_, left := g.Blocked("example.com")
-	if left > 10*time.Minute+time.Second {
-		t.Errorf("after a good call the next trip waited %s, want the base cool", left)
-	}
 }
 
 // A deploy used to empty the penalty box, so the next turn asked a host that
@@ -84,11 +76,6 @@ func TestGuardSurvivesARestart(t *testing.T) {
 	}
 	if left < 25*time.Minute {
 		t.Errorf("restored box has %s left, want about 30 minutes", left)
-	}
-	// The streak came back too, so the next trip keeps escalating.
-	fresh.Trip(SearchHost)
-	if _, l := fresh.Blocked(SearchHost); l < time.Hour {
-		t.Errorf("the trip count did not survive, next wait was only %s", l)
 	}
 }
 

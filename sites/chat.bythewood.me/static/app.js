@@ -792,10 +792,25 @@
       if (s.ctx) { ctxSize = s.ctx; meterCap.textContent = kfmt(s.ctx); }
       modelDot.classList.toggle("on", !!s.up);
       modelDot.title = s.up ? "The model answering" : "The model server is not answering";
-      searchDown.hidden = !s.search_down;
-      if (s.search_down && s.search_back_in) {
-        searchDown.title = "Search is rate limiting this address. Trying again in " +
-          s.search_back_in + ", and nothing can be looked up until then.";
+      const left = s.search_left || {};
+      // Down means a host refused us. Spent means we stopped ourselves. They
+      // read the same to a reader mid conversation, so the flag covers both and
+      // the tooltip says which.
+      const spent = left.day <= 0 || left.hour <= 0 || left.minute <= 0;
+      searchDown.hidden = !(s.search_down || spent);
+      if (s.search_down) {
+        searchDown.textContent = "NO SEARCH";
+        searchDown.title = "Search refused this address and is being left alone for another " +
+          (s.search_back_in || "while") + ". Nothing can be looked up until then.";
+      } else if (spent) {
+        searchDown.textContent = "SEARCH PAUSED";
+        searchDown.title = "The search budget is spent for now, so searching is paused " +
+          "rather than pushed. It frees up on its own.";
+      } else if (left.day !== undefined) {
+        searchDown.title = "";
+        // Not a warning until it is low, just something the bar can answer.
+        $("model-dot").title = (s.up ? "The model answering" : "The model server is not answering") +
+          "\nSearches left today: " + left.day;
       }
     } catch { /* leave the bar as it was */ }
   }
