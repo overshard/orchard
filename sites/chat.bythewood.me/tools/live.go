@@ -218,17 +218,6 @@ var Markets = Tool{
 				break
 			}
 		}
-		// A chart each for the first few. Eight symbols is a legitimate ask and
-		// eight charts is a wall, and the answer under them still names all of
-		// them. Symbols are already in Yahoo's form here, indexes and futures
-		// and crypto pairs alike, which is what the chart endpoint wants.
-		for i, sym := range want {
-			if i >= 3 {
-				break
-			}
-			d.Widgets.Add(Widget{Kind: "ticker", Symbol: sym})
-		}
-
 		out := make([]Quote, 0, len(want))
 		var coins, rest []string
 		for _, s := range want {
@@ -320,6 +309,21 @@ var Markets = Tool{
 					}
 				}
 			}
+		}
+		// A chart each for the first few that actually resolved. Charting a
+		// symbol whose quote came back empty draws an axis with nothing on it,
+		// which is what "energy,util" did: neither is a ticker, both were
+		// uppercased into one, and two empty panels went out above the answer.
+		charts := 0
+		for _, q := range out {
+			if charts >= 3 {
+				break
+			}
+			if q.Err != "" || q.Price == 0 {
+				continue
+			}
+			d.Widgets.Add(Widget{Kind: "ticker", Symbol: q.Symbol})
+			charts++
 		}
 		return map[string]any{"quotes": out}, nil
 	},
