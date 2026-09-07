@@ -72,15 +72,42 @@ type Site struct {
 	Dir         string
 	Description string
 	Tech        []string
-	// The site's own front door, which every one of these has. The dashboards
-	// behind analytics, status and logging want a login, the landing pages do
-	// not.
+	// The site's own front door, which every one of these has. Most of the
+	// dashboards want a login, the landing pages do not.
 	Visit string
 }
 
-// Newest first, same as the archived list, which puts the three built from
+// Newest first, same as the archived list, which puts the seven built from
 // scratch above the four that were ports.
 var sites = []Site{
+	{
+		Name:        "chat",
+		Dir:         "chat.bythewood.me",
+		Description: "A conversation with a small model running on the card in my desktop, with tools for whatever it cannot know and an incognito mode that writes nothing down.",
+		Tech:        []string{"Go", "SQLite", "llama.cpp"},
+		Visit:       "https://chat.bythewood.me",
+	},
+	{
+		Name:        "llm",
+		Dir:         "llm.bythewood.me",
+		Description: "One set of weights on one card in front of every service here that wants one, with a key per caller and every prompt and completion written down.",
+		Tech:        []string{"Go", "SQLite", "llama-swap"},
+		Visit:       "https://llm.bythewood.me",
+	},
+	{
+		Name:        "search",
+		Dir:         "search.bythewood.me",
+		Description: "Ask it a question and it searches the web, reads the pages it finds, and writes an answer whose every sentence is checked against the passage it cites.",
+		Tech:        []string{"Go", "SQLite", "FTS5"},
+		Visit:       "https://search.bythewood.me",
+	},
+	{
+		Name:        "auth",
+		Dir:         "auth.bythewood.me",
+		Description: "The front door to the rest of these. One account, a six digit code pushed to my phone over ntfy, and a session the other sites check against this one.",
+		Tech:        []string{"Go", "SQLite", "Argon2"},
+		Visit:       "https://auth.bythewood.me",
+	},
 	{
 		Name:        "dash",
 		Dir:         "dash.bythewood.me",
@@ -98,7 +125,7 @@ var sites = []Site{
 	{
 		Name:        "logging",
 		Dir:         "logging.bythewood.me",
-		Description: "Every site here ships its structured logs to this one, so a request I want to find is in one place instead of seven docker logs.",
+		Description: "Every site here ships its structured logs to this one, so a request I want to find is in one place instead of eleven docker logs.",
 		Tech:        []string{"Go", "SQLite", "Typst"},
 		Visit:       "https://logging.bythewood.me",
 	},
