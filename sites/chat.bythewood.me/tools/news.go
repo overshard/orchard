@@ -33,7 +33,7 @@ const (
 
 // newsWindows are the phrasings Isaac actually uses. Each resolves against a
 // New York clock, since "today" means the day he is having and not UTC's.
-var newsWindows = []string{"today", "yesterday", "weekend", "week", "month"}
+var newsWindows = []string{"today", "yesterday", "weekend", "weekend-and-today", "week", "month"}
 
 var News = Tool{
 	Name: "news",
@@ -43,8 +43,10 @@ var News = Tool{
 		"For one named story that is already known, use web_search instead.",
 	Schema: obj(map[string]any{
 		"window": map[string]any{"type": "string",
-			"description": "the period the question asked for, taken literally: today means today",
-			"enum":        newsWindows},
+			"description": "the period the question asked for, taken literally. today means today, " +
+				"weekend means Saturday and Sunday only, and weekend-and-today is for a question " +
+				"that asks for both, like over the weekend including today",
+			"enum": newsWindows},
 		"topic": map[string]any{"type": "string",
 			"description": "the subject asked for, or general when the question named none",
 			"enum": []string{"general", "world", "us", "tech", "ai", "politics",
@@ -81,7 +83,9 @@ var News = Tool{
 			"topic":    topic,
 			"sections": sections,
 			"sources":  sectionSources(sections),
-			"note": "Answer in exactly this shape and nothing else:\n\n" +
+			"count":    countItems(sections),
+			"note": itemBudget(sections) +
+				"Answer in exactly this shape and nothing else:\n\n" +
 				"### <section name>\n" +
 				"- **<the fact>** rest of the plain sentence. (Publisher: \"their headline\")\n" +
 				"- **<the fact>** rest of the plain sentence. (Publisher: \"their headline\")\n\n" +
@@ -92,8 +96,12 @@ var News = Tool{
 				"(NPR: \"5 dead after crash at Miami Airport\")\n\n" +
 				"Rules:\n" +
 				"- One heading per section above, in the order given, keeping its name.\n" +
-				"- Every item gets a bullet. This is a rundown, so do not pick one and write it " +
-				"up, and do not collapse the list into a paragraph.\n" +
+				"- Every item gets a bullet, including the sections further down. Dropping a " +
+				"whole section is the failure to avoid here. This is a rundown, so do not pick " +
+				"one and write it up, and do not collapse the list into a paragraph.\n" +
+				"- One bullet per item and no more. The counts above are what is in the list, " +
+				"so never split one story into two bullets or repeat one across sections to " +
+				"reach a number. Every headline above is already distinct.\n" +
 				"- Bold only the few words carrying the news, the number, the name, the place or " +
 				"what changed, so it can be skimmed. Never bold a whole sentence.\n" +
 				"- The publisher's headline goes after your sentence, word for word, in quotes. " +
@@ -105,6 +113,29 @@ var News = Tool{
 				"- Do not research any of these. The rundown is the answer.",
 		}, nil
 	},
+}
+
+func countItems(sections []NewsSection) int {
+	n := 0
+	for _, sec := range sections {
+		n += len(sec.Items)
+	}
+	return n
+}
+
+// itemBudget opens the note with the arithmetic, because "every item gets a
+// bullet" on its own got four of twenty one and two sections of four. A model
+// told it owes twenty one bullets under four headings can count what it wrote.
+func itemBudget(sections []NewsSection) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "There are %d items here across %d sections. Your answer has to carry all %d, "+
+		"as %d bullets under %d headings:\n", countItems(sections), len(sections),
+		countItems(sections), countItems(sections), len(sections))
+	for _, sec := range sections {
+		fmt.Fprintf(&b, "  %s: %d bullets\n", sec.Name, len(sec.Items))
+	}
+	b.WriteString("\n")
+	return b.String()
 }
 
 // sectionSources says which publishers are in the answer, so a reader can see
@@ -146,6 +177,14 @@ func resolveWindow(now time.Time, window string) (time.Time, time.Time, string) 
 	case "yesterday":
 		start := midnight.AddDate(0, 0, -1)
 		return start, midnight, "yesterday, " + day(start)
+	case "weekend-and-today":
+		// "over the weekend including today" has no answer in either of the
+		// other two, and asked on a Monday the plain weekend window excludes
+		// today by definition, which quietly dropped the day he asked about.
+		back := (int(now.Weekday()) + 1) % 7
+		sat := midnight.AddDate(0, 0, -back)
+		return sat, now, "the weekend of " + day(sat) + " and " + day(sat.AddDate(0, 0, 1)) +
+			", plus today, " + day(now)
 	case "weekend":
 		// The most recent Saturday and Sunday. Asked on one of them it means
 		// the one being had, and asked on a Wednesday it means the one just
