@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-// Unauthenticated GitHub allows 60 requests an hour per IP, so nine cards on an
+// Unauthenticated GitHub allows 60 requests an hour per IP, so thirteen cards on an
 // hourly ticker fits inside it with no token to store.
 
 const (
@@ -22,7 +22,7 @@ const (
 
 // CommitTarget is the feed behind one card. Path is empty for a whole
 // repository, and set to a subdirectory for the sites in orchard, which all
-// share one repo and would otherwise show the same commit nine times.
+// share one repo and would otherwise show the same commit eleven times.
 type CommitTarget struct {
 	Key  string
 	Repo string
