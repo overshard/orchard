@@ -76,6 +76,18 @@ type chatReq struct {
 	StreamOptions   map[string]any   `json:"stream_options,omitempty"`
 	TimingsPerToken bool             `json:"timings_per_token,omitempty"`
 	Kwargs          map[string]any   `json:"chat_template_kwargs,omitempty"`
+	ResponseFormat  *responseFormat  `json:"response_format,omitempty"`
+}
+
+type responseFormat struct {
+	Type       string         `json:"type"`
+	JSONSchema *schemaWrapper `json:"json_schema,omitempty"`
+}
+
+type schemaWrapper struct {
+	Name   string          `json:"name"`
+	Strict bool            `json:"strict"`
+	Schema json.RawMessage `json:"schema"`
 }
 
 type chatResp struct {
@@ -169,6 +181,37 @@ func (l *LLM) CompleteStats(ctx context.Context, msgs []Message, schemas []map[s
 		return Message{}, st, fmt.Errorf("the model returned only reasoning and no answer")
 	}
 	return Message{Role: RoleAssistant, Content: c.Content, ToolCalls: c.ToolCalls}, st, nil
+}
+
+// Structured constrains an answer to a JSON schema, which llama.cpp compiles to
+// a GBNF grammar and samples against, so a field declared as an enum cannot come
+// back as anything else. Temperature is low because these steps are decisions
+// rather than prose.
+func (l *LLM) Structured(ctx context.Context, msgs []Message, maxTok int, schema, out any) (Stats, error) {
+	raw, err := json.Marshal(schema)
+	if err != nil {
+		return Stats{}, err
+	}
+	req := l.base(msgs, maxTok)
+	req.Temperature = 0.2
+	req.ResponseFormat = &responseFormat{Type: "json_schema",
+		JSONSchema: &schemaWrapper{Name: "response", Strict: true, Schema: raw}}
+
+	var resp chatResp
+	if err := l.post(ctx, req, &resp); err != nil {
+		return Stats{}, err
+	}
+	if len(resp.Choices) == 0 {
+		return Stats{}, fmt.Errorf("the model returned no choices")
+	}
+	st := statsOf(resp)
+	text := strings.TrimSpace(resp.Choices[0].Message.Content)
+	// A model that opens with a word before the object is still constrained to
+	// emit one, so find it rather than failing the whole step.
+	if i := strings.Index(text, "{"); i > 0 {
+		text = text[i:]
+	}
+	return st, json.Unmarshal([]byte(text), out)
 }
 
 func statsOf(r chatResp) Stats {
