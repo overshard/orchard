@@ -153,6 +153,13 @@ func quoted(s string) string { return "\"" + strings.ReplaceAll(s, "\"", "") + "
 // need a second opinion, and skipping the call there is a second saved on every
 // one of the failures this exists for.
 func (e *Engine) gate(ctx context.Context, question, draft string, used []tools.Result, emit func(Event)) (verdict, Stats) {
+	// Sending a turn back to research when the search endpoint is in the
+	// penalty box is a guaranteed loop: it cannot succeed, and every pass costs
+	// a model call and another failed request against a host that is already
+	// refusing. The honest answer there is the one it has.
+	if _, down := e.SearchDown(); down {
+		return verdict{Verdict: "answered"}, Stats{}
+	}
 	if isDeferral(draft) {
 		emit(Event{Kind: "status", Text: "looking it up"})
 		return verdict{Verdict: "research"}, Stats{}

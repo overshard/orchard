@@ -97,11 +97,23 @@ func NewDeps() *Deps {
 // Guard is a per host circuit breaker. Anything that answers with a refusal
 // puts its host in the penalty box, and every call to that host fails locally
 // until the box empties.
+// Store is however the caller persists the penalty box. It is an interface so
+// this package stays a leaf and does not import the database.
+type PenaltyStore interface {
+	SavePenalty(host string, till time.Time, trips int)
+	ClearPenalty(host string)
+}
+
 type Guard struct {
 	mu   sync.Mutex
 	till map[string]time.Time
 	last map[string]time.Time
-	cool time.Duration
+	// How many times in a row a host has refused. Asking again the moment a
+	// ten minute box empties is what keeps a rate limit alive, so each repeat
+	// doubles the wait instead of poking the same endpoint six times an hour.
+	trips map[string]int
+	cool  time.Duration
+	store PenaltyStore
 	// pace is the minimum gap between two calls to the same host. This is the
 	// cheap half of not getting blocked and it costs nothing worth having,
 	// since a person asking one question does not notice a second of spacing
@@ -112,7 +124,8 @@ type Guard struct {
 
 func NewGuard(cool time.Duration) *Guard {
 	return &Guard{
-		till: map[string]time.Time{}, last: map[string]time.Time{}, cool: cool,
+		till: map[string]time.Time{}, last: map[string]time.Time{},
+		trips: map[string]int{}, cool: cool,
 		def: 400 * time.Millisecond,
 		pace: map[string]time.Duration{
 			// The two that have actually banned this address.
@@ -153,11 +166,73 @@ func (g *Guard) Blocked(host string) (bool, time.Duration) {
 	return true, time.Until(t)
 }
 
+// The ceiling on a backoff. Long enough that a genuine ban is left alone for an
+// afternoon, short enough that a blip clears without a deploy.
+const maxCool = 4 * time.Hour
+
 func (g *Guard) Trip(host string) {
 	g.mu.Lock()
-	defer g.mu.Unlock()
-	g.till[host] = time.Now().Add(g.cool)
+	till, trips, store := g.trip(host)
+	g.mu.Unlock()
+	if store != nil {
+		store.SavePenalty(host, till, trips)
+	}
 }
+
+func (g *Guard) trip(host string) (time.Time, int, PenaltyStore) {
+	g.trips[host]++
+	wait := g.cool << min(g.trips[host]-1, 8)
+	if wait > maxCool || wait <= 0 {
+		wait = maxCool
+	}
+	till := time.Now().Add(wait)
+	g.till[host] = till
+	return till, g.trips[host], g.store
+}
+
+// Restore puts back the boxes that outlived the last process and takes the
+// store to write future ones to.
+func (g *Guard) Restore(store PenaltyStore, saved map[string][2]int64) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.store = store
+	for host, v := range saved {
+		g.till[host] = time.UnixMilli(v[0])
+		g.trips[host] = int(v[1])
+	}
+}
+
+// Cleared on a call that worked, so one bad afternoon does not leave a host on
+// a four hour backoff for the rest of the process.
+func (g *Guard) OK(host string) {
+	g.mu.Lock()
+	_, had := g.trips[host]
+	delete(g.trips, host)
+	store := g.store
+	g.mu.Unlock()
+	if had && store != nil {
+		store.ClearPenalty(host)
+	}
+}
+
+// Down is every host currently in the penalty box, so the page can say search
+// is unavailable rather than letting each turn discover it again.
+func (g *Guard) Down() map[string]time.Duration {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	out := map[string]time.Duration{}
+	now := time.Now()
+	for host, till := range g.till {
+		if till.After(now) {
+			out[host] = time.Until(till).Round(time.Second)
+		}
+	}
+	return out
+}
+
+// SearchHost is the one whose loss the page reports, since a turn without it
+// cannot look anything up and every other tool is narrower.
+const SearchHost = "html.duckduckgo.com"
 
 // get fetches a URL through the breaker and returns the body.
 func get(ctx context.Context, d *Deps, url string, accept string) ([]byte, error) {
@@ -208,6 +283,7 @@ func get(ctx context.Context, d *Deps, url string, accept string) ([]byte, error
 	if resp.StatusCode >= 400 {
 		return nil, fmt.Errorf("%s answered %d", host, resp.StatusCode)
 	}
+	d.Guard.OK(host)
 	return body, nil
 }
 
