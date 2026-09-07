@@ -45,13 +45,17 @@ const (
 // formatting appear as it is settled instead of reading plain text and then
 // having the whole message reflow under them when the turn ends.
 type Event struct {
-	Kind string `json:"kind"` // status, tool, tool_done, block, tail, done, error
+	Kind string `json:"kind"` // status, tool, tool_done, widget, block, tail, done, error
 	Text string `json:"text,omitempty"`
 	HTML string `json:"html,omitempty"`
 	Tool string `json:"tool,omitempty"`
 	Args string `json:"args,omitempty"`
 	MS   int64  `json:"ms,omitempty"`
 	OK   bool   `json:"ok,omitempty"`
+
+	// The subject of a chart, sent as soon as the tool that named it returns so
+	// the panel is drawing while the answer is still being written.
+	Widget *tools.Widget `json:"widget,omitempty"`
 }
 
 type Engine struct {
@@ -70,6 +74,11 @@ type Engine struct {
 	place     string
 	tz        string
 }
+
+// Deps is the shared dependency set, which the widget endpoints borrow so their
+// calls go through the same breaker and the same spend ceiling a tool's would.
+// They pass no session, since neither endpoint reads anything of Isaac's.
+func (e *Engine) Deps() *tools.Deps { return e.deps }
 
 func NewEngine(llm *LLM, modelName string) *Engine {
 	return &Engine{
@@ -121,6 +130,7 @@ Tools:
 - Search once per thing you are comparing. One search rarely covers a comparison or a build.
 - Use calc for totals rather than adding in your head.
 - If a tool errors or is rate limited, say so plainly and answer with what you have. Never treat a missing tool as a reason not to answer.
+- markets and weather draw a chart above your answer, so the reader can already see the price against its range, or the week with its rain and pollen. Say what it means rather than reading it out: the direction and why it matters, the day the rain arrives, whether the pollen is worth staying in for. Listing seven days of numbers underneath the panel that shows them is the one thing not to do.
 - The orchard_ tools read Isaac's own infrastructure: his logs, uptime monitoring, analytics, git repositories and dashboard. Use them for any question about his own sites rather than guessing or searching the web, and say which one you read. They only read, so nothing you do with them can change anything.
 
 Follow-ups:
@@ -195,8 +205,11 @@ func (e *Engine) SearchDown() (time.Duration, bool) {
 // Run drives one user turn. The session is the caller's own, forwarded to the
 // orchard tools so each site checks it rather than this one holding a
 // credential of its own.
-func (e *Engine) Run(ctx context.Context, history []Message, user, session, memory string, emit func(Event)) (Message, []tools.Result, []Source, Stats, error) {
+func (e *Engine) Run(ctx context.Context, history []Message, user, session, memory string, emit func(Event)) (Message, []tools.Result, []Source, []tools.Widget, Stats, error) {
 	deps := e.deps.WithSession(session)
+	// Which widgets have already gone out, since the sink holds every one the
+	// turn has produced and each round would otherwise resend the earlier ones.
+	sentWidgets := map[string]bool{}
 	msgs := append([]Message{e.systemWith(memory)}, history...)
 	msgs = append(msgs, Message{Role: RoleUser, Content: user})
 
@@ -263,7 +276,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 			}
 		}
 		if err != nil {
-			return Message{}, used, nil, stats, err
+			return Message{}, used, nil, deps.Widgets.List(), stats, err
 		}
 		if len(reply.ToolCalls) == 0 {
 			// A model sometimes writes its tool call syntax as ordinary text,
@@ -327,6 +340,12 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 			seen[key] = res
 			used = append(used, res)
 			emit(Event{Kind: "tool_done", Tool: res.Name, MS: res.Elapsed.Milliseconds(), OK: res.Err == ""})
+			// Straight after the tool that named it, so the chart is drawing
+			// while the answer is still being written rather than appearing
+			// under a finished one.
+			for _, wdg := range drained(deps.Widgets, sentWidgets) {
+				emit(Event{Kind: "widget", Widget: &wdg})
+			}
 			body, _ := json.Marshal(res.Content)
 			if len(body) > 14000 {
 				body = append(body[:14000], []byte(`","truncated":true}`)...)
@@ -362,14 +381,14 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	w.flush()
 	stats.merge(st)
 	if err != nil && sb.Len() == 0 {
-		return Message{}, used, nil, stats, err
+		return Message{}, used, nil, deps.Widgets.List(), stats, err
 	}
 	text = prepare(text, srcs)
 	if strings.TrimSpace(text) == "" {
 		text = "I could not produce an answer for that. The model returned nothing."
 		emit(Event{Kind: "block", HTML: e.Render(text)})
 	}
-	return Message{Role: RoleAssistant, Content: text}, used, cited(text, srcs), stats, nil
+	return Message{Role: RoleAssistant, Content: text}, used, cited(text, srcs), deps.Widgets.List(), stats, nil
 }
 
 // prepare is everything done to the model's markdown before it is rendered or
@@ -529,4 +548,20 @@ func isTruncatedToolCall(err error) bool {
 	}
 	m := strings.ToLower(err.Error())
 	return strings.Contains(m, "tool call") && strings.Contains(m, "parse")
+}
+
+// drained returns the widgets a sink has gained since it was last read. The
+// sink keeps the whole turn's list because that is what gets stored on the
+// message, so emitting has to track what it already sent.
+func drained(sink *tools.Sink, sent map[string]bool) []tools.Widget {
+	var out []tools.Widget
+	for _, w := range sink.List() {
+		k := w.Kind + "\x00" + w.Symbol + "\x00" + w.Place
+		if sent[k] {
+			continue
+		}
+		sent[k] = true
+		out = append(out, w)
+	}
+	return out
 }

@@ -71,14 +71,20 @@ type Deps struct {
 	// each site does its own check. It is per turn rather than per process,
 	// so it is set on a copy and never on the shared Deps.
 	Session string
+
+	// Where a tool hangs a chart or a forecast for the page to draw. Per turn
+	// and on the copy, for the same reason the session is.
+	Widgets *Sink
 }
 
-// WithSession returns a copy carrying one turn's session. A copy because Deps
-// is shared across every turn and writing the cookie onto it would hand one
-// person's session to the next request.
+// WithSession returns a copy carrying one turn's session and its own widget
+// sink. A copy because Deps is shared across every turn, and writing either of
+// those onto it would hand one person's session, and one turn's charts, to the
+// next request.
 func (d *Deps) WithSession(session string) *Deps {
 	c := *d
 	c.Session = session
+	c.Widgets = NewSink()
 	return &c
 }
 
@@ -221,6 +227,13 @@ const SearchHost = "html.duckduckgo.com"
 
 // get fetches a URL through the breaker and returns the body.
 func get(ctx context.Context, d *Deps, url string, accept string) ([]byte, error) {
+	return getWith(ctx, d, url, accept, nil)
+}
+
+// getWith is get plus per host headers, which exists because pollen.com refuses
+// a request that arrives without a Referer naming the page its own front end
+// would have been on.
+func getWith(ctx context.Context, d *Deps, url string, accept string, extra map[string]string) ([]byte, error) {
 	host := hostOf(url)
 	if blocked, left := d.Guard.Blocked(host); blocked {
 		return nil, fmt.Errorf("%s refused us and is being left alone for another %s, "+
@@ -242,6 +255,9 @@ func get(ctx context.Context, d *Deps, url string, accept string) ([]byte, error
 	req.Header.Set("Sec-Ch-Ua-Platform", clientHintPlatform)
 	if accept != "" {
 		req.Header.Set("Accept", accept)
+	}
+	for k, v := range extra {
+		req.Header.Set(k, v)
 	}
 	client := d.Public
 	if client == nil {
@@ -278,7 +294,11 @@ func get(ctx context.Context, d *Deps, url string, accept string) ([]byte, error
 }
 
 func getJSON(ctx context.Context, d *Deps, url string, into any) error {
-	b, err := get(ctx, d, url, "application/json")
+	return getJSONHeaders(ctx, d, url, nil, into)
+}
+
+func getJSONHeaders(ctx context.Context, d *Deps, url string, extra map[string]string, into any) error {
+	b, err := getWith(ctx, d, url, "application/json", extra)
 	if err != nil {
 		return err
 	}

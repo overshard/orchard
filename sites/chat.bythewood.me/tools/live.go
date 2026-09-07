@@ -25,7 +25,7 @@ var trailingState = regexp.MustCompile(`^(.*?)[,\s]+([A-Za-z]{2})$`)
 // place name and a model passes whatever the user typed, so "Yadkin Valley NC"
 // misses where "Yadkin Valley, North Carolina" hits. That one missing comma was
 // a real wrong answer during the bakeoff.
-func geocode(ctx context.Context, d *Deps, place string) (lat, lon float64, name string, err error) {
+func geocode(ctx context.Context, d *Deps, place string) (g geo, err error) {
 	cands := []string{place}
 	if m := trailingState.FindStringSubmatch(place); m != nil {
 		if full, ok := stateNames[strings.ToLower(m[2])]; ok {
@@ -44,10 +44,12 @@ func geocode(ctx context.Context, d *Deps, place string) (lat, lon float64, name
 		seen[strings.ToLower(c)] = true
 		var out struct {
 			Results []struct {
-				Latitude  float64 `json:"latitude"`
-				Longitude float64 `json:"longitude"`
-				Name      string  `json:"name"`
-				Admin1    string  `json:"admin1"`
+				Latitude  float64  `json:"latitude"`
+				Longitude float64  `json:"longitude"`
+				Name      string   `json:"name"`
+				Admin1    string   `json:"admin1"`
+				Country   string   `json:"country_code"`
+				Postcodes []string `json:"postcodes"`
 			} `json:"results"`
 		}
 		u := "https://geocoding-api.open-meteo.com/v1/search?count=1&language=en&name=" + url.QueryEscape(c)
@@ -57,10 +59,27 @@ func geocode(ctx context.Context, d *Deps, place string) (lat, lon float64, name
 		}
 		if len(out.Results) > 0 {
 			r := out.Results[0]
-			return r.Latitude, r.Longitude, strings.TrimSuffix(r.Name+", "+r.Admin1, ", "), nil
+			g = geo{Lat: r.Latitude, Lon: r.Longitude,
+				Name:    strings.TrimSuffix(r.Name+", "+r.Admin1, ", "),
+				Country: strings.ToUpper(r.Country)}
+			if len(r.Postcodes) > 0 {
+				g.Zip = r.Postcodes[0]
+			}
+			return g, nil
 		}
 	}
-	return 0, 0, "", fmt.Errorf("could not find a place called %q", place)
+	return geo{}, fmt.Errorf("could not find a place called %q", place)
+}
+
+// geo is what one lookup settles. The postcode is carried because pollen.com is
+// keyed on a US zip and this is the only call that ever knows one, and the
+// country because that is what says whether asking for pollen is worth a
+// request at all.
+type geo struct {
+	Lat, Lon float64
+	Name     string
+	Zip      string
+	Country  string
 }
 
 var Weather = Tool{
@@ -71,10 +90,13 @@ var Weather = Tool{
 		"days":     integer("how many days ahead, 1 to 14, default 7"),
 	}, "location"),
 	Run: func(ctx context.Context, d *Deps, a map[string]any) (any, error) {
-		lat, lon, name, err := geocode(ctx, d, argStr(a, "location"))
+		g, err := geocode(ctx, d, argStr(a, "location"))
 		if err != nil {
 			return nil, err
 		}
+		lat, lon, name := g.Lat, g.Lon, g.Name
+		d.Widgets.Add(Widget{Kind: "weather", Place: name, Lat: lat, Lon: lon,
+			Zip: g.Zip, Country: g.Country})
 		days := int(argNum(a, "days", 7))
 		if days < 1 || days > 14 {
 			days = 7
@@ -196,6 +218,17 @@ var Markets = Tool{
 				break
 			}
 		}
+		// A chart each for the first few. Eight symbols is a legitimate ask and
+		// eight charts is a wall, and the answer under them still names all of
+		// them. Symbols are already in Yahoo's form here, indexes and futures
+		// and crypto pairs alike, which is what the chart endpoint wants.
+		for i, sym := range want {
+			if i >= 3 {
+				break
+			}
+			d.Widgets.Add(Widget{Kind: "ticker", Symbol: sym})
+		}
+
 		out := make([]Quote, 0, len(want))
 		var coins, rest []string
 		for _, s := range want {

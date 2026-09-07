@@ -227,6 +227,37 @@ why it is the one warm colour on the map.
 is not enough room beside a doughnut, and Chart.js silently truncates the labels
 to fit, which is how "Downtime" rendered as "Downt".
 
+### Direction, on a price or a reading
+
+`dash` and `chat` both draw a line whose colour says which way a number went,
+which is a different job from telling four series apart and does not use the
+palette above. Two colours and a neutral, defined per site so each sits on its
+own ground:
+
+| Slot | dash | chat | Job |
+|---|---|---|---|
+| up | `#5ddc82` | `#7fc98f` | gained, or a reading inside its good band |
+| down | `#ff5f4d` | `#d98063` | lost, or a reading past it |
+| flat | `#8a8172` | `#9c8e7a` | no move worth colouring |
+
+**Direction colours the move and the trace, never the figure itself.** The price
+stays `--text`, because it is the number being read and the move is the
+judgement about it. A chart that coloured both would have the reader chasing the
+same information twice.
+
+**The fill under the line is the same hue at about 9% alpha**, which reads as
+the line having weight rather than as a second series.
+
+**A dotted rule across the box is what the move is measured from.** Intraday
+that is the previous close, so the shape means something on its own, and over
+any longer span there is no rule because the first bar drawn is the baseline and
+the left edge already says so.
+
+**An svg stretched to the column width cannot carry a dot.** `preserveAspectRatio`
+is `none` on these, so a circle comes out an ellipse and a cursor has to be a
+vertical rule. Anything that has to stay round is an HTML element positioned
+over the top.
+
 ## Components
 
 These are measured values, not approximations. `repos` writes its CSS by hand
@@ -382,7 +413,7 @@ repository is public and the vault is not.
 | `logging` | green | Bootstrap. Dashboards run full width inside the container |
 | `auth` | green | Bootstrap. Carries the starfield on `/login`, which the grid sits under |
 | `repos` | green | Hand written CSS, no Bootstrap, since it is dense text. Newsreader on repository names |
-| `chat` | green | Hand written CSS, no Bootstrap. A conversation, so it reads at the longest length on the estate. Citation pills and a source row under each answer |
+| `chat` | green | Hand written CSS, no Bootstrap. A conversation, so it reads at the longest length on the estate. Citation pills and a source row under each answer, and widget panels above one when a ticker or a forecast was looked up |
 | `search` | green | Hand written CSS, no Bootstrap. The one green site with dash's scanlines and vignette, both toned down. Its bar is `--bar`, a step above the ground, and sits over the vignette |
 | `dash` | amber | Hand written CSS. Scanlines, vignette, JetBrains Mono and Space Grotesk |
 | `blog`, `isaacbythewood.com` | neither | Separate identities. Nothing here applies to them |
