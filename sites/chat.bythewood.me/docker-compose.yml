@@ -1,8 +1,9 @@
 name: orchard-chat
 
-# One service. The model lives behind llm.bythewood.me now, so this site holds
+# Two services. The model lives behind llm.bythewood.me now, so this site holds
 # no weights and asks for no GPU, and the key in .env is what lets it through
-# that gateway.
+# that gateway. Beside it sits an offline Wikipedia, which is data rather than
+# code and is the one image here built by somebody else.
 
 services:
   app:
@@ -19,6 +20,7 @@ services:
       LLM_KEY: ${LLM_KEY:?create a key at llm.bythewood.me and put it in .env}
       LLM_CTX: "65536"
       CHAT_DB: /data/chat.db
+      WIKI_URL: http://orchard-wiki:8000
     volumes:
       - data:/data
     deploy:
@@ -35,9 +37,42 @@ services:
         max-file: "3"
     networks: [edge]
 
+  # Every article's opening section, which is the half that answers what and who
+  # and when and the half that fits a small context window. The ZIM is 12.5GB
+  # and `make wiki` from the repo root is what puts it in the volume, since
+  # nothing here can build a file that large.
+  wiki:
+    image: ghcr.io/kiwix/kiwix-serve:3.8.2@sha256:de4d451d9d9e3e2d37c1a7b5a861698c67cc4c52c364c2a593ba554cddd6ce03
+    container_name: orchard-wiki
+    restart: unless-stopped
+    # kiwix names a book after its file, and tools/wikipedia.go asks for
+    # "wikipedia", so renaming this file breaks every lookup with a 400.
+    command: /data/wikipedia.zim
+    environment:
+      PORT: "8000"
+    volumes:
+      - wiki:/data:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          # It mmaps the ZIM rather than reading it, so this bounds the working
+          # set and not the file. It idles at about 4MB.
+          memory: 1G
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks: [edge]
+
 volumes:
   data:
     name: orchard-chat-data
+  wiki:
+    name: orchard-wiki-data
 
 networks:
   edge:
