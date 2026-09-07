@@ -18,6 +18,8 @@ import (
 	"log/slog"
 	"sort"
 	"strings"
+
+	"chat.bythewood.me/tools"
 	"time"
 	"unicode"
 )
@@ -464,3 +466,24 @@ func memoryBlock(facts []Fact) string {
 	sb.WriteString("Use one only if it actually helps. Do not list them back at him or mention remembering.")
 	return sb.String()
 }
+
+// memoryStore hands the fact store to the remember tool. The tools package
+// cannot see Store, and the names differ either side because Store has other
+// kinds of row to keep straight and the tool has only the one.
+type memoryStore struct{ s *Store }
+
+func (m memoryStore) Facts() ([]tools.MemoryFact, error) {
+	all, err := m.s.Facts()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]tools.MemoryFact, 0, len(all))
+	for _, f := range all {
+		out = append(out, tools.MemoryFact{ID: f.ID, Text: f.Text})
+	}
+	return out, nil
+}
+
+func (m memoryStore) Add(text string) (int64, error)      { return m.s.AddFact(text) }
+func (m memoryStore) Replace(id int64, text string) error { return m.s.ReplaceFact(id, text) }
+func (m memoryStore) Delete(id int64) error               { return m.s.DeleteFact(id) }

@@ -140,6 +140,7 @@ Tools:
 - If a tool errors or is rate limited, say so plainly and answer with what you have. Never treat a missing tool as a reason not to answer.
 - A search that finds nothing for what you assumed the question meant, and one clear hit for something else, has told you the assumption was wrong. Take the hit and answer about that, rather than reporting that the thing you invented could not be found.
 - markets and weather draw a chart above your answer, so the reader can already see the price against its range, or the week with its rain and pollen. Say what it means rather than reading it out: the direction and why it matters, the day the rain arrives, whether the pollen is worth staying in for. Listing seven days of numbers underneath the panel that shows them is the one thing not to do.
+- remember is long term memory, kept between conversations. Call it when he asks you to remember, note or forget something, and when he states a preference, a plan or something about himself worth keeping. Saying you will remember it does not remember it, the call does. List first when you need an id to correct or drop one, and keep each fact to one plain sentence about him.
 - The orchard_ tools read Isaac's own infrastructure: his logs, uptime monitoring, analytics, git repositories and dashboard. Use them for any question about his own sites rather than guessing or searching the web, and say which one you read. They only read, so nothing you do with them can change anything.
 
 Follow-ups:
@@ -257,6 +258,9 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	}
 
 	var usedDeepSearch bool
+	// news reads every feed on the list, so a second call re-reads all of them
+	// for a rundown the turn already has. One is the whole answer.
+	var usedNews bool
 	var stats Stats
 	schemas := e.reg.Schemas()
 
@@ -289,6 +293,9 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		// waiting. The prompt asks for one, and this is what makes it one.
 		if usedDeepSearch {
 			offer = tools.Without(offer, tools.DeepSearch.Name)
+		}
+		if usedNews {
+			offer = tools.Without(offer, tools.News.Name)
 		}
 		if repeats >= 2 {
 			// It is going in circles. Take the tools away and make it answer
@@ -394,6 +401,9 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 			emit(Event{Kind: "tool", Tool: tc.Function.Name, Args: shortArgs(tc.Function.Arguments)})
 			if tc.Function.Name == tools.DeepSearch.Name {
 				usedDeepSearch = true
+			}
+			if tc.Function.Name == tools.News.Name {
+				usedNews = true
 			}
 			res := e.reg.Call(ctx, deps, tc.Function.Name, json.RawMessage(tc.Function.Arguments))
 			seen[key] = res

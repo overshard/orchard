@@ -307,6 +307,13 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 	if searchDown {
 		return e.gateOffline(ctx, question, draft, used, emit)
 	}
+	// A news rundown is finished when it arrives. The gate's own rules read a
+	// list of twenty stories as an answer that covers part of the question and
+	// leaves the rest, so left to itself it sends the turn back to research one
+	// of them and the rundown becomes a single story write up.
+	if calledNews(used) {
+		return "", Stats{}
+	}
 	// Asked of the question and before anything reads the draft, since the
 	// failure this catches is a draft that sounds like an answer. A turn that
 	// already fetched something is left alone, because the question needing
@@ -382,4 +389,13 @@ func (e *Engine) gateOffline(ctx context.Context, question, draft string, used [
 	}
 	emit(Event{Kind: "status", Text: "looking it up"})
 	return wikiNudge(subjectOf(question)), st
+}
+
+func calledNews(used []tools.Result) bool {
+	for _, r := range used {
+		if r.Name == tools.News.Name && r.Err == "" {
+			return true
+		}
+	}
+	return false
 }
