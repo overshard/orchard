@@ -15,13 +15,16 @@ import (
 )
 
 const (
-	// Six rounds is enough for a comparison that searches per thing and then
-	// fetches the best page. Past that a model is usually looping rather than
-	// gathering.
-	// Four is enough for a comparison that searches per thing and then reads
-	// the best page. It used to be six, which on a page that gave the model
-	// nothing was six fetches of the same url before it gave up.
-	maxToolRounds = 4
+	// Enough for a comparison that searches per thing, reads the best page, and
+	// then goes back for whatever the gate says is missing. The repeat ledger
+	// below is what stops a model spending these on the same call over and
+	// over, which is why this can be more than the four it used to be.
+	maxToolRounds = 6
+
+	// How many times a reply that is not an answer gets sent back. Two, because
+	// a model that has ignored the instruction twice is not going to take it on
+	// the third go and the turn still owes the user something.
+	maxGates = 2
 
 	// Budgets. The answer gets the big one because it is the only step whose
 	// output the user reads.
@@ -30,6 +33,8 @@ const (
 	// being cut off mid string.
 	toolTurnTokens = 1600
 	answerTokens   = 2400
+	// The gate emits an enum and a search query and nothing else.
+	gateTokens = 120
 )
 
 // Event is what the browser is told while a turn runs.
@@ -108,6 +113,8 @@ Search before answering a question about a named person, company, product, game,
 
 Tools:
 - Call a tool rather than describing what one would return.
+- Never offer to look something up and never ask whether you should. There is nobody to answer you, so an offer ends the turn with nothing in it. If a tool would help, call it now.
+- Never answer a question about the world from memory when a tool could check it. Your training data is old and this is what the tools are for.
 - web_search gives titles, urls and snippets. Call web_fetch on a url when you need what the page actually says.
 - web_search and web_fetch are the ordinary way to look something up and are what you should reach for. deep_search is the exception: it reads the pages properly and checks every sentence against what it cites, and it takes a minute or more during which nothing else can run. Use it when being wrong would matter, when Isaac asks you to check or verify or source something, or when a claim is disputed. Never use it for a quick fact, a score, a price or the weather, and never more than once in a turn.
 - An attached file is already in this conversation in full. There is no url or path for it, so never try to fetch one, and never guess where it might be on a disk.
@@ -120,6 +127,8 @@ Answers:
 - Lead with the answer. No preamble, no restating the question, no closing offer of more help.
 - Put the url next to a fact that came from a page.
 - Say plainly when you are unsure or when sources disagree. A short honest answer beats a confident wrong one.
+- Every name, title, date, number and price you write has to come from a tool result or from what the user told you. If you did not read it in this turn, do not write it.
+- This is the only reply the user gets, so put everything you found in it.
 - Never invent a product, a song, a part number, a price or a source. Check it or say you are not sure.
 - Follow the format and constraints asked for exactly. Given a budget, a word count or a unit, hit it and show the total.
 - Markdown for structure. Bold only for labels, never mid sentence for emphasis.
@@ -164,6 +173,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	// enough repeats the tools come off the table entirely.
 	seen := map[string]tools.Result{}
 	repeats := 0
+	gates := 0
 
 	for round := 0; round < maxToolRounds; round++ {
 		last := round == maxToolRounds-1
@@ -219,6 +229,21 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 				reply.Content = cleaned
 				reply.ToolCalls = salvaged
 			} else {
+				// It stopped calling tools, which is not the same as having
+				// answered. A reply that offers to go and check, or that
+				// asserts things nothing in this turn checked, goes back with
+				// the tools still on rather than becoming the answer.
+				if gates < maxGates && round < maxToolRounds-1 {
+					v, gst := e.gate(ctx, user, reply.Content, used, emit)
+					stats.merge(gst)
+					if v.Verdict == "research" {
+						gates++
+						// The deferral itself is never appended. A model handed
+						// its own text back writes it again.
+						msgs = append(msgs, Message{Role: RoleUser, Content: researchNudge(v.Query)})
+						continue
+					}
+				}
 				// It answered without tools. Stream it properly rather than
 				// handing back a block of text that appeared all at once.
 				break
@@ -369,7 +394,11 @@ func looksLikeCall(s string) bool {
 	return strings.Contains(s, "<tool_call") || strings.Contains(s, "<function=")
 }
 
-const finalTurn = `Write the full answer now. You have no tools left for this turn, so do not say you are about to look something up, and do not describe what you would do next. Answer with what you have, and if something is missing say which part and move on.`
+const finalTurn = `Write the full answer now. You have no tools left for this turn, so do not say you are about to look something up, do not offer to check anything, and do not describe what you would do next. There is nobody to answer an offer.
+
+Use the tool results above. Every name, title, date, number and price in your answer has to appear in one of them, and a fact you cannot point at is one to leave out. Do not attach a title to the wrong person or a place to the wrong country, which is the mistake to check for before you write a name.
+
+Give the whole answer in one go, with the specifics and the urls. If a part is still missing, say which part in one line and answer the rest.`
 
 func thinkingLabel(round int) string {
 	if round == 0 {
