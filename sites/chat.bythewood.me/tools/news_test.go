@@ -25,6 +25,9 @@ func TestNewsWindowsAreTakenLiterally(t *testing.T) {
 		{"today", "2026-09-07 00:00", "2026-09-07 16:20"},
 		{"yesterday", "2026-09-06 00:00", "2026-09-07 00:00"},
 		{"weekend", "2026-09-05 00:00", "2026-09-07 00:00"},
+		// "over the weekend including today" has no answer in either of the
+		// other two, and the plain weekend window excludes today by definition.
+		{"weekend-and-today", "2026-09-05 00:00", "2026-09-07 16:20"},
 		{"week", "2026-09-01 00:00", "2026-09-07 16:20"},
 		{"month", "2026-08-09 00:00", "2026-09-07 16:20"},
 	} {
