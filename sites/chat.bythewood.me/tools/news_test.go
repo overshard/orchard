@@ -120,3 +120,59 @@ func TestWhatLeadsDependsOnTheTopic(t *testing.T) {
 		t.Errorf("tech led with %q", tech[0].Source)
 	}
 }
+
+// The bug that started this: a flat cap over everything, sorted desks first,
+// took 28 of 45 items and left all fourteen Hacker News stories and both
+// Lobsters ones on the floor. A section holding both has to split its slots.
+func TestASectionHoldingBothGivesTheAggregatorsSlots(t *testing.T) {
+	// A plain taker, so this tests the sharing and not the sorting.
+	take := func(items []NewsItem, slots int, _ bool) []NewsItem {
+		if len(items) > slots {
+			return items[:slots]
+		}
+		return items
+	}
+	desks := make([]NewsItem, 12)
+	for i := range desks {
+		desks[i] = NewsItem{Source: "BBC"}
+	}
+	scored := make([]NewsItem, 14)
+	for i := range scored {
+		scored[i] = NewsItem{Source: "Hacker News", Points: 400}
+	}
+
+	got := fillSection(section{slots: 9, aggregators: true,
+		feeds: []feed{{"BBC", "u"}}}, desks, scored, take)
+	if len(got) != 9 {
+		t.Fatalf("filled %d of 9 slots", len(got))
+	}
+	counts := map[string]int{}
+	for _, it := range got {
+		counts[it.Source]++
+	}
+	if counts["Hacker News"] == 0 {
+		t.Errorf("the aggregators were starved again: %v", counts)
+	}
+	if counts["BBC"] == 0 {
+		t.Errorf("the newsrooms were starved: %v", counts)
+	}
+}
+
+// A section with nothing from one side still fills up from the other rather
+// than coming back half empty.
+func TestASectionFillsUpWhenOneSideIsEmpty(t *testing.T) {
+	take := func(items []NewsItem, slots int, _ bool) []NewsItem {
+		if len(items) > slots {
+			return items[:slots]
+		}
+		return items
+	}
+	scored := make([]NewsItem, 10)
+	for i := range scored {
+		scored[i] = NewsItem{Source: "Hacker News", Points: 300}
+	}
+	got := fillSection(section{slots: 6, aggregators: true, feeds: []feed{{"BBC", "u"}}}, nil, scored, take)
+	if len(got) != 6 {
+		t.Errorf("filled %d of 6 slots with only aggregators available", len(got))
+	}
+}

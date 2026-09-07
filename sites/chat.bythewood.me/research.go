@@ -314,6 +314,13 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 	if calledNews(used) {
 		return "", Stats{}
 	}
+	// Same for a turn that was told to remember something and did. There is no
+	// question under it to research, and the gate reading it as one sent the
+	// turn off to look up the film again and answer with where to stream it,
+	// having stored nothing.
+	if calledTool(used, tools.Remember.Name) {
+		return "", Stats{}
+	}
 	// Asked of the question and before anything reads the draft, since the
 	// failure this catches is a draft that sounds like an answer. A turn that
 	// already fetched something is left alone, because the question needing
@@ -391,9 +398,11 @@ func (e *Engine) gateOffline(ctx context.Context, question, draft string, used [
 	return wikiNudge(subjectOf(question)), st
 }
 
-func calledNews(used []tools.Result) bool {
+func calledNews(used []tools.Result) bool { return calledTool(used, tools.News.Name) }
+
+func calledTool(used []tools.Result, name string) bool {
 	for _, r := range used {
-		if r.Name == tools.News.Name && r.Err == "" {
+		if r.Name == name && r.Err == "" {
 			return true
 		}
 	}

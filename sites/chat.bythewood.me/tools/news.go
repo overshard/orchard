@@ -29,9 +29,6 @@ const (
 	lobstersMinPoints = 25
 	// How far down a newsroom feed still counts as the front page.
 	deskDepth = 12
-	// The ceiling on what comes back, since the model has to read all of it and
-	// a hundred headlines crowd out the answer.
-	maxNewsItems = 28
 )
 
 // newsWindows are the phrasings Isaac actually uses. Each resolves against a
@@ -66,47 +63,65 @@ var News = Tool{
 		now := d.Now().In(newYork())
 		since, until, label := resolveWindow(now, window)
 
-		items, tried, failed := gatherNews(ctx, d, topic, since, until)
-		if len(items) == 0 {
+		sections, tried, failed := gatherNews(ctx, d, topic, since, until)
+		if len(sections) == 0 {
 			if failed >= tried && tried > 0 {
 				return nil, fmt.Errorf("none of the %d news sources answered", tried)
 			}
 			return map[string]any{
-				"window": label, "topic": topic, "items": []any{},
+				"window": label, "topic": topic, "sections": []any{},
 				"note": "Nothing was published in that window by any of the sources read. " +
 					"Say so plainly rather than widening the window on your own or " +
 					"answering from memory.",
 			}, nil
 		}
 
-		sortNews(items, topic == "tech" || topic == "ai")
-		if len(items) > maxNewsItems {
-			items = items[:maxNewsItems]
-		}
 		return map[string]any{
-			"window":  label,
-			"topic":   topic,
-			"sources": sourcesOf(items),
-			"items":   items,
-			"note": "This is a rundown and not one story. Answer with the whole list, every item " +
-				"above, as a short bullet each, and do not pick one and write it up. Where several " +
-				"publishers carried the same story, merge them into one bullet and say who ran it, " +
-				"so the list is by story rather than by publisher. Order it as it arrived here, " +
-				"since that is already what led.\n\n" +
-				"Each bullet is one plain sentence of your own saying who did what, and then, on " +
-				"the same bullet, the publisher's headline word for word in quotes with the " +
-				"publisher after it, like: Five died when a cargo plane overran the runway at " +
-				"Miami. (NPR: \"Investigators seek answers after Amazon cargo plane crash kills " +
-				"five at Miami airport\"). Never drop that second half, it is what lets him see " +
-				"how it was sold to him. Strip the loaded verbs, " +
-				"the outrage framing and the party line, and put back the specifics they were " +
-				"hiding, so \"SLAMS\" becomes what was actually said and a tariff story names the " +
-				"rate and the goods. Take no side of your own, and invent no detail that is not in " +
-				"the headline or the summary.\n\n" +
-				"Do not go and research any of these. The rundown is the answer, and he will ask " +
-				"if he wants one of them followed up.",
+			"window":   label,
+			"topic":    topic,
+			"sections": sections,
+			"sources":  sectionSources(sections),
+			"note": "Answer in exactly this shape and nothing else:\n\n" +
+				"### <section name>\n" +
+				"- **<the fact>** rest of the plain sentence. (Publisher: \"their headline\")\n" +
+				"- **<the fact>** rest of the plain sentence. (Publisher: \"their headline\")\n\n" +
+				"### <next section name>\n" +
+				"- ...\n\n" +
+				"Worked example of one bullet:\n" +
+				"- **Five died** when a cargo plane overran the runway at **Miami International**. " +
+				"(NPR: \"5 dead after crash at Miami Airport\")\n\n" +
+				"Rules:\n" +
+				"- One heading per section above, in the order given, keeping its name.\n" +
+				"- Every item gets a bullet. This is a rundown, so do not pick one and write it " +
+				"up, and do not collapse the list into a paragraph.\n" +
+				"- Bold only the few words carrying the news, the number, the name, the place or " +
+				"what changed, so it can be skimmed. Never bold a whole sentence.\n" +
+				"- The publisher's headline goes after your sentence, word for word, in quotes. " +
+				"Never drop it, it is what shows how the story was sold.\n" +
+				"- Merge a story two publishers ran into one bullet and name both.\n" +
+				"- Strip the loaded verbs and the party line, and put back the specifics they " +
+				"hid, so \"SLAMS\" becomes what was actually said and a tariff names the rate " +
+				"and the goods. Take no side and invent no detail.\n" +
+				"- Do not research any of these. The rundown is the answer.",
 		}, nil
 	},
+}
+
+// sectionSources says which publishers are in the answer, so a reader can see
+// at a glance whether a source they expected was reachable.
+func sectionSources(sections []NewsSection) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, sec := range sections {
+		for _, it := range sec.Items {
+			if !seen[it.Source] {
+				seen[it.Source] = true
+				out = append(out, it.Source)
+			}
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // newYork is the clock every window is resolved against. A fixed offset would
@@ -176,98 +191,205 @@ type feed struct {
 	name, url string
 }
 
-// newsFeeds is the whole source list, by topic. Reuters and AP are missing
-// because both retired their public feeds: every documented Reuters path is
-// dead and apnews.com answers 401 or 404 to all of them.
-var newsFeeds = map[string][]feed{
+// section is one heading in the answer. Each keeps its own slots, which is what
+// stops the newsrooms crowding the aggregators out: a flat cap over everything
+// sorted desks first took 28 of 45 items and left all fourteen Hacker News
+// stories and both Lobsters ones on the floor.
+type section struct {
+	name        string
+	feeds       []feed
+	aggregators bool
+	slots       int
+}
+
+var (
+	nprNews     = feed{"NPR", "https://feeds.npr.org/1001/rss.xml"}
+	nprWorld    = feed{"NPR World", "https://feeds.npr.org/1004/rss.xml"}
+	nprBusiness = feed{"NPR Business", "https://feeds.npr.org/1006/rss.xml"}
+	nprScience  = feed{"NPR Science", "https://feeds.npr.org/1007/rss.xml"}
+	nprPolitics = feed{"NPR Politics", "https://feeds.npr.org/1014/rss.xml"}
+	nprTech     = feed{"NPR Technology", "https://feeds.npr.org/1019/rss.xml"}
+
+	bbcNews     = feed{"BBC", "https://feeds.bbci.co.uk/news/rss.xml"}
+	bbcWorld    = feed{"BBC World", "https://feeds.bbci.co.uk/news/world/rss.xml"}
+	bbcTech     = feed{"BBC Technology", "https://feeds.bbci.co.uk/news/technology/rss.xml"}
+	bbcBusiness = feed{"BBC Business", "https://feeds.bbci.co.uk/news/business/rss.xml"}
+	bbcScience  = feed{"BBC Science", "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml"}
+
+	ars        = feed{"Ars Technica", "https://feeds.arstechnica.com/arstechnica/index"}
+	techcrunch = feed{"TechCrunch", "https://techcrunch.com/feed/"}
+	marketch   = feed{"MarketWatch", "https://feeds.content.dowjones.io/public/rss/mw_topstories"}
+)
+
+// newsSections is the whole source list. Reuters and AP are missing because
+// both retired their public feeds: every documented Reuters path is dead at the
+// connection and apnews.com answers 401 or 404 to all of theirs. Reddit is
+// missing because old.reddit.com redirects every logged out request to a login
+// page and www.reddit.com rate limits its rss after a handful of calls, and
+// carries no score, so there is no way to ask it what got big numbers.
+var newsSections = map[string][]section{
 	"general": {
-		{"NPR", "https://feeds.npr.org/1001/rss.xml"},
-		{"BBC", "https://feeds.bbci.co.uk/news/rss.xml"},
-		{"BBC World", "https://feeds.bbci.co.uk/news/world/rss.xml"},
-	},
-	"world": {
-		{"NPR World", "https://feeds.npr.org/1004/rss.xml"},
-		{"BBC World", "https://feeds.bbci.co.uk/news/world/rss.xml"},
+		{name: "Top stories", feeds: []feed{nprNews, bbcNews}, slots: 10},
+		{name: "World", feeds: []feed{nprWorld, bbcWorld}, slots: 7},
+		{name: "Business", feeds: []feed{nprBusiness, bbcBusiness}, slots: 4},
+		{name: "Tech and what the forums are reading",
+			feeds: []feed{bbcTech, ars, techcrunch}, aggregators: true, slots: 9},
 	},
 	"us": {
-		{"NPR", "https://feeds.npr.org/1001/rss.xml"},
-		{"NPR Politics", "https://feeds.npr.org/1014/rss.xml"},
+		{name: "Top stories", feeds: []feed{nprNews, bbcNews}, slots: 12},
+		{name: "Politics", feeds: []feed{nprPolitics}, slots: 8},
+	},
+	"world": {
+		{name: "World", feeds: []feed{nprWorld, bbcWorld}, slots: 20},
 	},
 	"politics": {
-		{"NPR Politics", "https://feeds.npr.org/1014/rss.xml"},
-		{"BBC", "https://feeds.bbci.co.uk/news/rss.xml"},
+		{name: "Politics", feeds: []feed{nprPolitics, bbcNews}, slots: 20},
 	},
 	"business": {
-		{"NPR Business", "https://feeds.npr.org/1006/rss.xml"},
-		{"BBC Business", "https://feeds.bbci.co.uk/news/business/rss.xml"},
-		{"MarketWatch", "https://feeds.content.dowjones.io/public/rss/mw_topstories"},
+		{name: "Business", feeds: []feed{nprBusiness, bbcBusiness, marketch}, slots: 20},
 	},
 	"science": {
-		{"NPR Science", "https://feeds.npr.org/1007/rss.xml"},
-		{"BBC Science", "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml"},
+		{name: "Science", feeds: []feed{nprScience, bbcScience}, slots: 20},
 	},
 	"tech": {
-		{"BBC Technology", "https://feeds.bbci.co.uk/news/technology/rss.xml"},
-		{"NPR Technology", "https://feeds.npr.org/1019/rss.xml"},
-		{"Ars Technica", "https://feeds.arstechnica.com/arstechnica/index"},
-		{"TechCrunch", "https://techcrunch.com/feed/"},
+		{name: "What the forums are reading", aggregators: true, slots: 12},
+		{name: "Tech press", feeds: []feed{bbcTech, nprTech, ars, techcrunch}, slots: 10},
 	},
 }
 
-// Whether the aggregators are worth reading for a topic. They are where a
-// story breaks first on anything technical, and they are noise on politics.
-func wantsAggregators(topic string) bool {
-	switch topic {
-	case "tech", "ai", "general":
-		return true
-	}
-	return false
+// NewsSection is one heading and what belongs under it.
+type NewsSection struct {
+	Name  string     `json:"section"`
+	Items []NewsItem `json:"items"`
 }
 
 // gatherNews reads every source for a topic at once and keeps what landed in
 // the window. A source that fails is counted and skipped rather than failing
 // the tool, because eight publishers answering out of nine is still the news.
-func gatherNews(ctx context.Context, d *Deps, topic string, since, until time.Time) ([]NewsItem, int, int) {
-	feeds := newsFeeds[topic]
+//
+// The aggregators are fetched once however many sections asked for them, since
+// two sections both wanting Hacker News is not a reason to fetch it twice.
+func gatherNews(ctx context.Context, d *Deps, topic string, since, until time.Time) ([]NewsSection, int, int) {
+	sections := newsSections[topic]
 	if topic == "ai" {
-		feeds = newsFeeds["tech"]
+		sections = newsSections["tech"]
 	}
-	if len(feeds) == 0 {
-		feeds = newsFeeds["general"]
+	if len(sections) == 0 {
+		sections = newsSections["general"]
 	}
 
 	var (
 		mu     sync.Mutex
-		out    []NewsItem
 		tried  int
 		failed int
 		wg     sync.WaitGroup
+		byFeed = map[string][]NewsItem{}
+		scored []NewsItem
 	)
-	collect := func(got []NewsItem, err error) {
-		mu.Lock()
-		defer mu.Unlock()
+	note := func(err error) {
 		tried++
 		if err != nil {
 			failed++
-			return
 		}
-		out = append(out, got...)
 	}
 
-	for _, f := range feeds {
-		wg.Add(1)
-		go func(f feed) {
-			defer wg.Done()
-			collect(readFeed(ctx, d, f, since, until))
-		}(f)
+	wantAgg := false
+	seenFeed := map[string]bool{}
+	for _, sec := range sections {
+		if sec.aggregators {
+			wantAgg = true
+		}
+		for _, f := range sec.feeds {
+			if seenFeed[f.url] {
+				continue
+			}
+			seenFeed[f.url] = true
+			wg.Add(1)
+			go func(f feed) {
+				defer wg.Done()
+				got, err := readFeed(ctx, d, f, since, until)
+				mu.Lock()
+				defer mu.Unlock()
+				note(err)
+				byFeed[f.url] = got
+			}(f)
+		}
 	}
-	if wantsAggregators(topic) {
+	if wantAgg {
 		wg.Add(2)
-		go func() { defer wg.Done(); collect(readHackerNews(ctx, d, since, until)) }()
-		go func() { defer wg.Done(); collect(readLobsters(ctx, d, since, until)) }()
+		go func() {
+			defer wg.Done()
+			got, err := readHackerNews(ctx, d, since, until)
+			mu.Lock()
+			defer mu.Unlock()
+			note(err)
+			scored = append(scored, got...)
+		}()
+		go func() {
+			defer wg.Done()
+			got, err := readLobsters(ctx, d, since, until)
+			mu.Lock()
+			defer mu.Unlock()
+			note(err)
+			scored = append(scored, got...)
+		}()
 	}
 	wg.Wait()
-	return dedupeNews(out), tried, failed
+
+	// One story reaching two sections reads as the tool repeating itself, so a
+	// headline is placed in the first section that wanted it and nowhere else.
+	placed := map[string]bool{}
+	take := func(items []NewsItem, slots int, scoredFirst bool) []NewsItem {
+		items = dedupeNews(items)
+		sortNews(items, scoredFirst)
+		out := make([]NewsItem, 0, slots)
+		for _, it := range items {
+			if len(out) >= slots {
+				break
+			}
+			key := strings.ToLower(strings.TrimSpace(it.Headline))
+			if it.URL != "" {
+				key = it.URL
+			}
+			if placed[key] {
+				continue
+			}
+			placed[key] = true
+			out = append(out, it)
+		}
+		return out
+	}
+
+	out := make([]NewsSection, 0, len(sections))
+	for _, sec := range sections {
+		var desks []NewsItem
+		for _, f := range sec.feeds {
+			desks = append(desks, byFeed[f.url]...)
+		}
+		if got := fillSection(sec, desks, scored, take); len(got) > 0 {
+			out = append(out, NewsSection{Name: sec.name, Items: got})
+		}
+	}
+	return out, tried, failed
+}
+
+// fillSection shares one section's slots out between the newsrooms and the
+// aggregators. A section holding both has to split them, or the desks sort
+// first and eat every one, which is the same starvation the per section slots
+// were added to stop. Whatever one side does not use, the other takes.
+func fillSection(sec section, desks, scored []NewsItem, take func([]NewsItem, int, bool) []NewsItem) []NewsItem {
+	switch {
+	case !sec.aggregators:
+		return take(desks, sec.slots, false)
+	case len(sec.feeds) == 0:
+		return take(scored, sec.slots, true)
+	}
+	got := take(scored, sec.slots/2, true)
+	got = append(got, take(desks, sec.slots-len(got), false)...)
+	if short := sec.slots - len(got); short > 0 {
+		got = append(got, take(scored, short, true)...)
+	}
+	return got
 }
 
 // rssFeed covers RSS 2.0 and Atom in one shape, since BBC and NPR publish the
@@ -495,17 +617,4 @@ func sortNews(items []NewsItem, scoredFirst bool) {
 		}
 		return a.at.After(b.at)
 	})
-}
-
-func sourcesOf(items []NewsItem) []string {
-	seen := map[string]bool{}
-	var out []string
-	for _, it := range items {
-		if !seen[it.Source] {
-			seen[it.Source] = true
-			out = append(out, it.Source)
-		}
-	}
-	sort.Strings(out)
-	return out
 }
