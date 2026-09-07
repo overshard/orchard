@@ -48,6 +48,15 @@ CREATE TABLE IF NOT EXISTS messages (
   at      INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS messages_conv ON messages(conv_id, id);
+
+-- The rate limit penalty box, kept here so a deploy does not clear it. An
+-- in-process map meant every restart asked a host that was already refusing,
+-- which is the surest way to keep a ban alive.
+CREATE TABLE IF NOT EXISTS penalties (
+  host  TEXT PRIMARY KEY,
+  till  INTEGER NOT NULL,
+  trips INTEGER NOT NULL DEFAULT 1
+);
 `
 
 func OpenStore(path string) (*Store, error) {
@@ -282,4 +291,39 @@ func fmtWhen(t time.Time) string {
 	default:
 		return t.Format("2 Jan")
 	}
+}
+
+// Penalties reads back the rate limit boxes that outlived the last process.
+// Anything already expired is left behind rather than deleted here, since the
+// next Trip overwrites it and a read should not write.
+func (s *Store) Penalties() map[string][2]int64 {
+	out := map[string][2]int64{}
+	rows, err := s.db.Query(`SELECT host, till, trips FROM penalties WHERE till > ?`,
+		time.Now().UnixMilli())
+	if err != nil {
+		return out
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var host string
+		var till, trips int64
+		if err := rows.Scan(&host, &till, &trips); err != nil {
+			return out
+		}
+		out[host] = [2]int64{till, trips}
+	}
+	return out
+}
+
+// SavePenalty records one host's box so it survives a restart.
+func (s *Store) SavePenalty(host string, till time.Time, trips int) {
+	_, _ = s.db.Exec(`INSERT INTO penalties (host, till, trips) VALUES (?,?,?)
+		ON CONFLICT(host) DO UPDATE SET till = excluded.till, trips = excluded.trips`,
+		host, till.UnixMilli(), trips)
+}
+
+// ClearPenalty forgets a host that answered, so one bad afternoon does not
+// leave it on a long backoff for good.
+func (s *Store) ClearPenalty(host string) {
+	_, _ = s.db.Exec(`DELETE FROM penalties WHERE host = ?`, host)
 }

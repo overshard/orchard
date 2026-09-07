@@ -152,6 +152,19 @@ func (e *Engine) system() Message {
 		Content: fmt.Sprintf(identity, name) + e.ambient() + "\n\n" + contract}
 }
 
+// RestoreGuard hands the guard its persistence and whatever the last process
+// left behind.
+func (e *Engine) RestoreGuard(store tools.PenaltyStore, saved map[string][2]int64) {
+	e.deps.Guard.Restore(store, saved)
+}
+
+// SearchDown reports whether the search endpoint is in the penalty box and for
+// how much longer, so the page can say so before a turn discovers it.
+func (e *Engine) SearchDown() (time.Duration, bool) {
+	left, ok := e.deps.Guard.Down()[tools.SearchHost]
+	return left, ok
+}
+
 // Run drives one user turn and emits events as it goes.
 // Run drives one user turn. The session is the caller's own, forwarded to the
 // orchard tools so each site checks it rather than this one holding a

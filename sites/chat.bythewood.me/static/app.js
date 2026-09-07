@@ -481,6 +481,9 @@
       inflight = null;
       busy(false);
       sizeSpacer();
+      // A turn is when search finds out it has been rate limited, so the bar
+      // learns about it here rather than on the next reload.
+      refreshStatus();
     }
   }
 
@@ -779,16 +782,24 @@
     if (m) openConversation(Number(m[1])); else $("new-chat").click();
   });
 
-  // Is the model server up? The dot says so, and asking /api/status never
-  // wakes the weights.
-  (async () => {
+  // Is the model server up, and can anything be looked up? Asking /api/status
+  // never wakes the weights. It runs again after every turn, since a turn is
+  // when search discovers it has been rate limited.
+  const searchDown = $("search-down");
+  async function refreshStatus() {
     try {
       const s = await (await fetch("/api/status")).json();
       if (s.ctx) { ctxSize = s.ctx; meterCap.textContent = kfmt(s.ctx); }
       modelDot.classList.toggle("on", !!s.up);
-      if (!s.up) modelDot.title = "The model server is not answering";
-    } catch { /* leave the dot dark */ }
-  })();
+      modelDot.title = s.up ? "The model answering" : "The model server is not answering";
+      searchDown.hidden = !s.search_down;
+      if (s.search_down && s.search_back_in) {
+        searchDown.title = "Search is rate limiting this address. Trying again in " +
+          s.search_back_in + ", and nothing can be looked up until then.";
+      }
+    } catch { /* leave the bar as it was */ }
+  }
+  refreshStatus();
 
   // ---------------------------------------------------------------- viewport
   //

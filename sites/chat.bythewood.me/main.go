@@ -113,6 +113,10 @@ func main() {
 			goldmark.WithRendererOptions()),
 	}
 	s.engine.Render = s.render
+	// The rate limit boxes survive a restart. Without this every deploy asked a
+	// host that was already refusing, which is how a ban gets renewed rather
+	// than expiring.
+	s.engine.RestoreGuard(store, store.Penalties())
 	if err := s.loadTemplates(); err != nil {
 		slog.Error("templates", "err", err)
 		os.Exit(1)
@@ -497,10 +501,18 @@ func (s *site) deleteAll(w http.ResponseWriter, r *http.Request) {
 
 func (s *site) status(w http.ResponseWriter, r *http.Request) {
 	nConv, nMsg := s.store.Count()
-	writeJSON(w, map[string]any{
+	out := map[string]any{
 		"model": s.label, "up": s.llm.Healthy(r.Context()), "ctx": s.ctxSize,
 		"tools": tools.Default().Names(), "conversations": nConv, "messages": nMsg,
-	})
+	}
+	// Search being unavailable is the one tool failure worth saying out loud,
+	// because a turn without it answers from memory and reads like an ordinary
+	// answer. Everything else is narrow enough to report itself in the turn.
+	if left, down := s.engine.SearchDown(); down {
+		out["search_down"] = true
+		out["search_back_in"] = left.String()
+	}
+	writeJSON(w, out)
 }
 
 func writeJSON(w http.ResponseWriter, v any) {
