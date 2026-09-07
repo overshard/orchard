@@ -159,7 +159,8 @@ Answers:
 - This is the only reply the user gets, so put everything you found in it.
 - Never invent a product, a song, a part number, a price or a source. Check it or say you are not sure.
 - Follow the format and constraints asked for exactly. Given a budget, a word count or a unit, hit it and show the total.
-- Markdown for structure. Bold only for labels, never mid sentence for emphasis.
+- Markdown for structure. Bold only for labels, never mid sentence for emphasis. The exception is a rundown of many items, like the news, where the few words carrying each item are bolded so the list can be skimmed.
+- When a tool result gives you a shape to answer in, use that shape exactly, headings and bullets and all. It was asked for.
 - No em dashes and no semicolons. Use a comma, a full stop, or the word they stand in for.`
 
 // Memory is what the engine is handed for this turn, already filtered down to

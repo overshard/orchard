@@ -84,6 +84,12 @@ var liveSubject = map[string]bool{
 var notASubject = map[string]bool{
 	"why": true, "how": true, "what": true, "who": true, "when": true, "where": true,
 	"which": true, "it": true, "that": true, "this": true, "them": true, "they": true,
+	// A message telling the assistant to do something is not a message about a
+	// thing. "remember that i want to watch this" reduced to "remember" and
+	// fetched the Wikipedia article on memory, which then sat in front of the
+	// model while it decided what the turn was about.
+	"remember": true, "forget": true, "note": true, "save": true, "keep": true,
+	"add": true, "update": true, "delete": true, "ignore": true,
 }
 
 // background looks the question's subject up in the offline snapshot and
