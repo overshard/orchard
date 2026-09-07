@@ -15,9 +15,18 @@
   const NARROW = 832;
   const isNarrow = () => window.innerWidth <= NARROW;
 
+  // Focusing the box summons the on screen keyboard, so on a phone every
+  // automatic focus costs half the screen and the reader did not ask for it.
+  // A real keyboard is what a fine pointer and hover imply, and pressing a
+  // shortcut proves one either way, so those focus unconditionally.
+  const hasKeyboard = () => matchMedia("(hover: hover) and (pointer: fine)").matches;
+  const refocus = () => { if (hasKeyboard()) input.focus(); };
+
   function showSide(open) {
     side.classList.toggle("closed", !open);
     scrim.hidden = !(open && isNarrow());
+    // A drawer that opens behind an open keyboard is half a drawer.
+    if (open && isNarrow()) document.activeElement?.blur();
   }
   const meter = $("meter"), meterNum = $("meter-num"), meterFill = $("meter-fill"),
         meterCap = $("meter-cap"), tps = $("tps");
@@ -183,7 +192,7 @@
     send.hidden = on; stop.hidden = !on; input.disabled = on;
     modelDot.classList.toggle("busy", on);
     modelDot.classList.toggle("on", !on);
-    if (!on) input.focus();
+    if (!on) refocus();
   }
 
   // ----------------------------------------------------------- attachments
@@ -222,7 +231,7 @@
       x.textContent = "\u2715";
       x.title = "Remove";
       x.setAttribute("aria-label", `Remove ${f.name}`);
-      x.addEventListener("click", () => { staged.splice(i, 1); renderTray(); input.focus(); });
+      x.addEventListener("click", () => { staged.splice(i, 1); renderTray(); refocus(); });
       el.appendChild(x);
       tray.appendChild(el);
     });
@@ -268,7 +277,7 @@
     dragDepth = 0;
     drop.hidden = true;
     addFiles(e.dataTransfer.files);
-    input.focus();
+    refocus();
   });
 
   input.addEventListener("paste", (e) => {
@@ -339,9 +348,9 @@
     if (show) {
       memShow({ facts: [] });
       memShow(await memCall("GET", "/api/memory"));
-      memSaid.focus();
+      if (hasKeyboard()) memSaid.focus();
     } else {
-      input.focus();
+      refocus();
     }
   }
 
@@ -365,7 +374,7 @@
     memSend.textContent = "Tell it";
     if (!view.problem) memSaid.value = "";
     memShow(view);
-    memSaid.focus();
+    if (hasKeyboard()) memSaid.focus();
   });
 
   memSaid.addEventListener("keydown", (e) => {
@@ -641,7 +650,7 @@
     renderTray();
     history.pushState({}, "", "/");
     document.querySelectorAll(".conv").forEach((el) => el.classList.remove("active"));
-    input.focus();
+    refocus();
   });
 
   convs.addEventListener("click", async (e) => {
@@ -685,7 +694,7 @@
 
   function toggleSheet(on) {
     sheet.hidden = on === undefined ? !sheet.hidden : !on;
-    if (!sheet.hidden) $("keys-close").focus(); else input.focus();
+    if (!sheet.hidden) $("keys-close").focus(); else refocus();
   }
 
   function toggleFilter(on) {
@@ -781,6 +790,56 @@
     } catch { /* leave the dot dark */ }
   })();
 
+  // ---------------------------------------------------------------- viewport
+  //
+  // An open keyboard shrinks the visual viewport and leaves the layout one
+  // alone, so a shell sized in dvh keeps its composer under the keyboard. The
+  // meta tag handles this where interactive-widget is supported and this
+  // covers the rest, iOS included.
+  const vv = window.visualViewport;
+  if (vv) {
+    const fit = () => {
+      document.documentElement.style.setProperty("--app-h", vv.height + "px");
+      // Safari scrolls the window to reveal a focused field even when there is
+      // nothing to scroll, which leaves the page sitting above its own top.
+      if (window.scrollY !== 0) window.scrollTo(0, 0);
+      sizeSpacer();
+    };
+    vv.addEventListener("resize", fit);
+    vv.addEventListener("scroll", fit);
+    fit();
+  }
+
+  // Dragging a drawer shut is how a phone expects to close one, and the button
+  // that opens it is at the far end of the screen from a thumb.
+  let swipe = null;
+  side.addEventListener("touchstart", (e) => {
+    if (!isNarrow() || side.classList.contains("closed") || e.touches.length !== 1) return;
+    swipe = { x: e.touches[0].clientX, y: e.touches[0].clientY, live: false };
+  }, { passive: true });
+  side.addEventListener("touchmove", (e) => {
+    if (!swipe) return;
+    const dx = e.touches[0].clientX - swipe.x, dy = e.touches[0].clientY - swipe.y;
+    // Only once the gesture is clearly sideways, or every scroll of the list
+    // drags the drawer with it.
+    if (!swipe.live) {
+      if (Math.abs(dx) < 12 || Math.abs(dx) < Math.abs(dy)) return;
+      swipe.live = true;
+      side.style.transition = "none";
+    }
+    side.style.transform = "translateX(" + Math.min(0, dx) + "px)";
+  }, { passive: true });
+  const swipeEnd = (e) => {
+    if (!swipe) return;
+    const moved = swipe.live ? e.changedTouches[0].clientX - swipe.x : 0;
+    swipe = null;
+    side.style.transition = "";
+    side.style.transform = "";
+    if (moved < -side.offsetWidth / 3) showSide(false);
+  };
+  side.addEventListener("touchend", swipeEnd, { passive: true });
+  side.addEventListener("touchcancel", swipeEnd, { passive: true });
+
   // Before anything else paints. The stylesheet makes the sidebar an overlay
   // under 52em, and open is the wrong default for an overlay: it covers the
   // conversation on every phone.
@@ -788,5 +847,5 @@
 
   const first = location.pathname.match(/^\/c\/(\d+)/);
   if (first) openConversation(Number(first[1]));
-  input.focus();
+  refocus();
 })();
