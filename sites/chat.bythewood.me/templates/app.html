@@ -2,7 +2,9 @@
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- interactive-widget makes the on screen keyboard shrink the layout viewport
+     rather than sit on top of it, which is what keeps the composer visible. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
 <title>chat</title>
 <meta name="description" content="A conversation with a small model running on hardware you own.">
 <link rel="stylesheet" href="{{asset "static/app.css"}}">
@@ -25,9 +27,9 @@
 <div class="scan" aria-hidden="true"></div>
 <div class="vignette" aria-hidden="true"></div>
 
-<div class="scrim" id="scrim" hidden></div>
-
 <div class="shell">
+  <div class="scrim" id="scrim" hidden></div>
+
   <aside class="side" id="side">
     <div class="side-head">
       <a class="brand" href="/">

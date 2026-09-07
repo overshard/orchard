@@ -80,7 +80,9 @@ body {
 
 /* ------------------------------------------------------------------ shell */
 
-.shell { display: flex; height: 100vh; height: 100dvh; position: relative; z-index: 10; }
+/* --app-h is the visual viewport in pixels once the browser reports one, since
+   an open keyboard shrinks that and leaves every viewport unit unchanged. */
+.shell { display: flex; height: 100vh; height: var(--app-h, 100dvh); position: relative; z-index: 10; }
 
 /* ------------------------------------------------------------------ side */
 
@@ -146,7 +148,8 @@ body {
   font-size: 0.66rem; font-weight: 600; letter-spacing: var(--track); text-transform: uppercase;
 }
 
-.convs { flex: 1 1 auto; overflow-y: auto; padding: 0 0.45rem 0.5rem; min-height: 0; }
+.convs { flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain;
+  padding: 0 0.45rem 0.5rem; min-height: 0; }
 .conv {
   display: grid;
   grid-template-columns: 1fr auto auto;
@@ -165,6 +168,7 @@ body {
   font-size: 0.66rem; padding: 0 0.15rem; opacity: 0; line-height: 1;
 }
 .conv:hover .conv-del { opacity: 1; }
+@media (hover: none) { .conv-del { opacity: 1; } }
 .conv-del:hover { color: var(--terracotta); }
 .empty { color: var(--faint); font-size: 0.78rem; padding: 0.3rem 0.5rem; margin: 0; }
 
@@ -267,7 +271,8 @@ body {
 .dot.busy { background: var(--amber); border-color: var(--amber); animation: pulse 1s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: 0.35; } }
 
-.thread { flex: 1 1 auto; overflow-y: auto; padding: 1.6rem 1rem 1rem; min-height: 0; }
+.thread { flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain;
+  padding: 1.6rem 1rem 1rem; min-height: 0; }
 
 /* ------------------------------------------------------------------ welcome */
 
@@ -661,8 +666,24 @@ kbd {
     position: fixed; inset: 0 auto 0 0; z-index: 40;
     width: var(--side); flex-basis: var(--side);
     box-shadow: 0 0 40px rgba(0,0,0,0.6);
+    margin-left: 0;
+    transition: transform 0.2s var(--ease);
   }
-  .side.closed { margin-left: calc(var(--side) * -1); }
+  /* Off screen by transform rather than by margin, since a margin animation
+     relays out the page every frame and scores as a layout shift. */
+  .side.closed { margin-left: 0; transform: translateX(-100%); }
+
+  /* Two rows, because a title and a timestamp side by side on a phone leaves
+     the title about twelve characters. It also makes the row a thumb high. */
+  .conv {
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "title del" "when del";
+    row-gap: 0.05rem;
+    padding: 0.5rem;
+  }
+  .conv-title { grid-area: title; }
+  .conv-when { grid-area: when; }
+  .conv-del { grid-area: del; align-self: center; }
   .thread { padding: 1.2rem 0.8rem 0.8rem; }
   .welcome { margin-top: 3vh; }
 
@@ -687,6 +708,8 @@ kbd {
   .chip { padding: 0.5rem 0.7rem; }
   .fact .fx { padding: 0.4rem 0.5rem; }
   .conv-del { padding: 0.4rem 0.5rem; }
+  .tray .chip button { padding: 0.35rem 0.45rem; }
+  .incog { padding: 0.4rem 0; }
 
   /* The bar is the tightest row on the page, so it gives up its padding first
      and the model name stops wrapping to a second line. */
@@ -695,16 +718,22 @@ kbd {
   .bar-title { font-size: 0.76rem; }
 
   /* Dimming what is behind it is what says the sidebar is a layer rather than
-     part of the page, and tapping it is how a phone expects to close one. */
+     part of the page, and tapping it is how a phone expects to close one. It
+     has to be inside .shell, which carries a z-index of its own and so makes a
+     stacking context the sidebar cannot climb out of. */
   .scrim {
     position: fixed; inset: 0; z-index: 35;
     background: rgba(10, 9, 8, 0.6);
   }
   .scrim[hidden] { display: none; }
 
+  /* A tap is a click here and never a double tap to zoom, so the browser has
+     no reason to hold the gesture for 300ms first. */
+  button, .conv, .chip, a { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+
   .sheet { padding: 0.5rem; align-items: flex-start; padding-top: 3vh; }
   .sheet-card { padding: 0.8rem 0.85rem; }
-  .mem-card { max-height: 88vh; }
+  .mem-card { max-height: calc(var(--app-h, 100dvh) - 2.5rem); }
   .teach { flex-direction: column; align-items: stretch; }
   .teach button { width: 100%; padding: 0.6rem; }
 }
