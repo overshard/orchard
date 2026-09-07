@@ -123,11 +123,16 @@ Tools:
 - If a tool errors or is rate limited, say so plainly and answer with what you have. Never treat a missing tool as a reason not to answer.
 - The orchard_ tools read Isaac's own infrastructure: his logs, uptime monitoring, analytics, git repositories and dashboard. Use them for any question about his own sites rather than guessing or searching the web, and say which one you read. They only read, so nothing you do with them can change anything.
 
+Follow-ups:
+- A follow-up is a new question. What you answered before covers what it says and nothing more, so anything this question adds needs a tool call before you answer it.
+- Tool results do not survive the turn that fetched them. Your earlier answers are still here and the pages behind them are not, so never quote a page or credit a figure to a source you read in an earlier turn. Fetch it again if you need what it said.
+- When the user pushes back, corrects you, or asks why, go and look. Rewriting the answer you already gave tells him nothing he does not have, and a correction usually means the first search missed the thing he is asking about.
+
 Answers:
 - Lead with the answer. No preamble, no restating the question, no closing offer of more help.
 - Put the url next to a fact that came from a page.
 - Say plainly when you are unsure or when sources disagree. A short honest answer beats a confident wrong one.
-- Every name, title, date, number and price you write has to come from a tool result or from what the user told you. If you did not read it in this turn, do not write it.
+- Every name, title, date, number and price you write has to come from a tool result in this turn, from an answer you already gave in this conversation, or from what the user told you. Anything else needs a tool call before you write it.
 - This is the only reply the user gets, so put everything you found in it.
 - Never invent a product, a song, a part number, a price or a source. Check it or say you are not sure.
 - Follow the format and constraints asked for exactly. Given a budget, a word count or a unit, hit it and show the total.
@@ -193,6 +198,16 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	deps := e.deps.WithSession(session)
 	msgs := append([]Message{e.systemWith(memory)}, history...)
 	msgs = append(msgs, Message{Role: RoleUser, Content: user})
+
+	// What this conversation has already answered. A follow-up is where the loop
+	// goes wrong, since the results behind those answers are gone and the
+	// answers are not, so the model rewrites one instead of fetching anything.
+	var answered []string
+	for _, m := range history {
+		if m.Role == RoleAssistant && strings.TrimSpace(m.Content) != "" {
+			answered = append(answered, m.Content)
+		}
+	}
 
 	var used []tools.Result
 	var usedDeepSearch bool
@@ -267,13 +282,13 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 				// asserts things nothing in this turn checked, goes back with
 				// the tools still on rather than becoming the answer.
 				if gates < maxGates && round < maxToolRounds-1 {
-					v, gst := e.gate(ctx, user, reply.Content, used, emit)
+					nudge, gst := e.gate(ctx, user, reply.Content, answered, used, emit)
 					stats.merge(gst)
-					if v.Verdict == "research" {
+					if nudge != "" {
 						gates++
-						// The deferral itself is never appended. A model handed
+						// The draft itself is never appended. A model handed
 						// its own text back writes it again.
-						msgs = append(msgs, Message{Role: RoleUser, Content: researchNudge(v.Query)})
+						msgs = append(msgs, Message{Role: RoleUser, Content: nudge})
 						continue
 					}
 				}
@@ -429,7 +444,7 @@ func looksLikeCall(s string) bool {
 
 const finalTurn = `Write the full answer now. You have no tools left for this turn, so do not say you are about to look something up, do not offer to check anything, and do not describe what you would do next. There is nobody to answer an offer.
 
-Use the tool results above. Every name, title, date, number and price in your answer has to appear in one of them, and a fact you cannot point at is one to leave out. Do not attach a title to the wrong person or a place to the wrong country, which is the mistake to check for before you write a name.
+Use the tool results above and what this conversation has already established. Every name, title, date, number and price in your answer has to come from one of those two, and a fact you cannot point at is one to leave out. Do not quote a page you read in an earlier turn, since it is not in front of you now. Do not attach a title to the wrong person or a place to the wrong country, which is the mistake to check for before you write a name.
 
 Give the whole answer in one go, with the specifics and the urls. If a part is still missing, say which part in one line and answer the rest.`
 
