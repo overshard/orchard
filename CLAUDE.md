@@ -28,7 +28,7 @@ tunnel rather than a rented server.
 | `sites/auth.bythewood.me/` | The front door. One account, a six digit code pushed over ntfy, and an opaque session every other site checks against it |
 | `sites/search.bythewood.me/` | Answers a question against the web, checking every sentence it writes against the passage it cites |
 | `sites/chat.bythewood.me/` | A conversation with a local model, with tools, attachments, history in SQLite and an incognito mode that writes nothing |
-| `sites/llm.bythewood.me/` | The model gateway. One set of weights on one card behind an API key, with every prompt and completion logged |
+| `sites/llm.bythewood.me/` | The model gateway. One set of weights on one card behind an API key, with every prompt and completion logged unless the caller marks the call incognito |
 | `edge/` | The shared `cloudflared` tunnel, the Caddy that reverse proxies to each site, and the ntfy every alert is published to |
 
 ## The one structural rule

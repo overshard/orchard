@@ -45,11 +45,7 @@ var DeepSearch = Tool{
 			return nil, fmt.Errorf("this needs you to be signed in, and the turn carried no session")
 		}
 
-		// incognito, always. Chat keeps this conversation already, and search
-		// logging a second copy of the question under its own history is a
-		// record Isaac did not ask for and would have to delete twice.
-		u := searchBase + "/stream?incognito=1&q=" + url.QueryEscape(q)
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, deepSearchURL(q, d.Incognito), nil)
 		if err != nil {
 			return nil, err
 		}
@@ -70,6 +66,19 @@ var DeepSearch = Tool{
 		}
 		return readSearchStream(resp.Body)
 	},
+}
+
+// deepSearchURL asks search to skip its history row on every question, since
+// chat keeps this conversation already and a second copy under search's own
+// history is a record Isaac did not ask for and would have to delete twice.
+// Full incognito, which also stops the gateway writing the prompts down, is
+// only for a chat turn that is itself incognito.
+func deepSearchURL(q string, incognito bool) string {
+	u := searchBase + "/stream?nohistory=1&q=" + url.QueryEscape(q)
+	if incognito {
+		u += "&incognito=1"
+	}
+	return u
 }
 
 // readSearchStream follows the event stream to its answer. Only two events

@@ -254,6 +254,10 @@ func (s *site) ask(w http.ResponseWriter, r *http.Request) {
 	question := strings.TrimSpace(r.URL.Query().Get("q"))
 	sid := r.URL.Query().Get("sid")
 	incognito := r.URL.Query().Get("incognito") == "1"
+	// chat's deep_search wants the history row skipped on every question it
+	// asks, since chat is already keeping that conversation, without claiming
+	// the turn was incognito when it was not.
+	nohistory := incognito || r.URL.Query().Get("nohistory") == "1"
 	if question == "" {
 		http.Error(w, "no question", http.StatusBadRequest)
 		return
@@ -291,6 +295,12 @@ func (s *site) ask(w http.ResponseWriter, r *http.Request) {
 	// people ahead as well as answering.
 	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Minute)
 	defer cancel()
+	// Every model call the pipeline makes hangs off this, so marking it here is
+	// what keeps the gateway from writing down a question this site is not
+	// writing down either.
+	if incognito {
+		ctx = WithIncognito(ctx)
+	}
 
 	// One question runs at a time, since there is one GPU and the model server
 	// holds a single slot. Waiting is shown rather than hidden.
@@ -321,12 +331,12 @@ func (s *site) ask(w http.ResponseWriter, r *http.Request) {
 		s.sessions.Append(sid, Turn{Question: question, Answer: ans.Text})
 	}
 
-	// Incognito skips this and only this. The pages fetched on the way still
-	// go in the archive, which Isaac decided is fine: it is public articles
-	// with no question attached, so nothing there reads back as what was
-	// asked. The row is what would.
+	// Incognito skips this row and the gateway's copy of the prompts, and
+	// nothing else. The pages fetched on the way still go in the archive, which
+	// Isaac decided is fine: it is public articles with no question attached,
+	// so nothing there reads back as what was asked. The row is what would.
 	var logged int64
-	if !incognito {
+	if !nohistory {
 		id, err := s.hist.Log(ans, s.stamp())
 		if err != nil {
 			slog.Warn("history write", slog.Any("err", err))

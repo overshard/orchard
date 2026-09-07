@@ -341,6 +341,12 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 12*time.Minute)
 	defer cancel()
+	// Every model call this turn makes hangs off this context, including the
+	// ones the tools start, so marking it here is what keeps the gateway from
+	// writing down what the local database is not writing down either.
+	if req.Incognito {
+		ctx = WithIncognito(ctx)
+	}
 
 	// Load the conversation and build the window before anything else, since
 	// compaction may need a model call of its own.

@@ -207,6 +207,9 @@ func (e *Engine) SearchDown() (time.Duration, bool) {
 // credential of its own.
 func (e *Engine) Run(ctx context.Context, history []Message, user, session, memory string, emit func(Event)) (Message, []tools.Result, []Source, []tools.Widget, Stats, error) {
 	deps := e.deps.WithSession(session)
+	// deep_search asks another service to run a model, so the flag has to travel
+	// with the call rather than only with this process's own requests.
+	deps.Incognito = IsIncognito(ctx)
 	// Which widgets have already gone out, since the sink holds every one the
 	// turn has produced and each round would otherwise resend the earlier ones.
 	sentWidgets := map[string]bool{}
