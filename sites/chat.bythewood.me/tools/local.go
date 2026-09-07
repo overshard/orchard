@@ -15,7 +15,10 @@ var MusicLookup = Tool{
 	Name: "music_lookup",
 	Description: "Check that a song or artist actually exists and get its album and year, from the " +
 		"iTunes catalogue. Use it before listing songs you are not certain about, since an invented " +
-		"track is the one mistake in a playlist a reader cannot see.",
+		"track is the one mistake in a playlist a reader cannot see. " +
+		"Only for a question that is already about music. It searches a music catalogue and cannot " +
+		"say what an unfamiliar name refers to, so never reach for it to identify a person, a " +
+		"channel or a company because the name sounds like a band.",
 	Schema: obj(map[string]any{
 		"artist": str("the artist"),
 		"track":  str("the song title, optional"),
