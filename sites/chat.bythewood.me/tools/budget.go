@@ -40,6 +40,15 @@ var budgets = map[string]budget{
 	"cdn.espn.com":             {gap: 3 * time.Second, minute: 15, hour: 120, day: 900},
 	"query1.finance.yahoo.com": {gap: 3 * time.Second, minute: 15, hour: 120, day: 900},
 	"api.coingecko.com":        {gap: 2 * time.Second, minute: 20, hour: 200, day: 1500},
+	// The widget hosts. A chart the reader flips between four ranges is four
+	// calls in a few seconds, so the gap here is small and the ceiling is what
+	// stops a page left open from becoming a poller.
+	"query2.finance.yahoo.com":       {gap: 3 * time.Second, minute: 15, hour: 120, day: 900},
+	"api.open-meteo.com":             {gap: 500 * time.Millisecond, minute: 40, hour: 400, day: 3000},
+	"air-quality-api.open-meteo.com": {gap: 500 * time.Millisecond, minute: 40, hour: 400, day: 3000},
+	// Unofficial and the only pollen there is, so it is paced well under what
+	// dash already asks of it rather than at a limit nobody published.
+	"www.pollen.com": {gap: 2 * time.Second, minute: 10, hour: 60, day: 400},
 }
 
 var defaultBudget = budget{gap: 400 * time.Millisecond, minute: 60, hour: 900, day: 8000}

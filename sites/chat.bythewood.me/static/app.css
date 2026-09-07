@@ -776,3 +776,267 @@ kbd {
 @media (max-width: 52em) {
   .scrim:not([hidden]) { display: block; }
 }
+
+/* Widgets ------------------------------------------------------------------
+
+   The panel a ticker or a forecast draws above the answer. The language is
+   dash's, since that is where these readings already live here and a second
+   visual grammar for the same numbers would be worse than a familiar one, but
+   the palette is this site's green rather than dash's amber. Direction is the
+   one place a colour means something, so up and down are defined here and used
+   nowhere else. */
+
+:root {
+  --up: #7fc98f;
+  --up-soft: rgba(127, 201, 143, 0.09);
+  --down: #d98063;
+  --down-soft: rgba(217, 128, 99, 0.09);
+  --flat: #9c8e7a;
+}
+
+/* The hidden attribute is a UA rule of one specificity, so any display set
+   below beats it, and on an svg child it is not honoured at all. Both the
+   readout and the cursor lines are toggled with it, so it is restated here. */
+.wdg [hidden] { display: none !important; }
+
+.widgets {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin: 0 0 0.9rem;
+}
+
+.wdg {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  font-size: 0.82rem;
+}
+
+.wdg-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0.75rem 0.5rem;
+}
+
+.wdg-id { min-width: 0; }
+
+.wdg-sym {
+  display: block;
+  font-size: 0.9rem;
+  letter-spacing: 0.06em;
+  color: var(--text);
+}
+
+.wdg-name {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 22rem;
+}
+
+.wdg-quote { text-align: right; white-space: nowrap; }
+
+.wdg-price {
+  display: block;
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.wdg-move { display: block; font-size: 0.75rem; }
+.wdg-chg { color: var(--dim); }
+.wdg-pct { margin-left: 0.45rem; color: var(--dim); }
+
+.wdg[data-dir="up"] .wdg-pct, .wdg[data-dir="up"] .wdg-chg { color: var(--up); }
+.wdg[data-dir="down"] .wdg-pct, .wdg[data-dir="down"] .wdg-chg { color: var(--down); }
+.wdg[data-dir="flat"] .wdg-pct, .wdg[data-dir="flat"] .wdg-chg { color: var(--flat); }
+
+.wdg-ranges {
+  display: flex;
+  gap: 1px;
+  padding: 0 0.75rem 0.55rem;
+}
+
+.wdg-ranges button {
+  font: inherit;
+  font-size: 0.7rem;
+  letter-spacing: var(--track);
+  padding: 0.2rem 0.55rem;
+  color: var(--faint);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.wdg-ranges button:hover { color: var(--text); }
+
+.wdg-ranges button.on {
+  color: var(--green-hot);
+  border-color: var(--line-hot);
+  background: var(--panel-2);
+}
+
+/* The plot is the positioning context for the cursor dot and the readout,
+   which are HTML over the top of the svg. The box is stretched to the column
+   width, so a circle drawn inside it would come out an ellipse. */
+.wdg-plot { position: relative; }
+
+.wdg-plot svg {
+  display: block;
+  width: 100%;
+  height: 8.5rem;
+  touch-action: pan-y;
+  cursor: crosshair;
+}
+
+.wdg-line {
+  fill: none;
+  stroke: var(--flat);
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.wdg-area { stroke: none; fill: rgba(156, 142, 122, 0.07); }
+
+.wdg[data-dir="up"] .wdg-line { stroke: var(--up); }
+.wdg[data-dir="up"] .wdg-area { fill: var(--up-soft); }
+.wdg[data-dir="down"] .wdg-line { stroke: var(--down); }
+.wdg[data-dir="down"] .wdg-area { fill: var(--down-soft); }
+
+/* Yesterday's close, which is what the intraday chart is measured against and
+   what makes its shape mean anything on its own. */
+.wdg-base {
+  stroke: var(--faint);
+  stroke-width: 1;
+  stroke-dasharray: 1 4;
+  vector-effect: non-scaling-stroke;
+}
+
+.wdg-cursor, .wdg-anchor {
+  stroke: var(--green-hot);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.wdg-anchor { stroke-dasharray: 2 3; opacity: 0.7; }
+.wdg-band { fill: var(--green-glow); }
+
+.wdg-dot {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  border-radius: 50%;
+  background: var(--text);
+  pointer-events: none;
+}
+
+.wdg-dot-a { background: var(--faint); }
+
+.wdg-read {
+  position: absolute;
+  top: 0.3rem;
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  padding: 0.25rem 0.5rem;
+  background: var(--bar);
+  border: 1px solid var(--line-hot);
+  font-size: 0.72rem;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.wdg-read[data-side="right"] { transform: translateX(0.5rem); }
+.wdg-read[data-side="left"] { transform: translateX(calc(-100% - 0.5rem)); }
+.wdg-read-pct[data-dir="up"] { color: var(--up); }
+.wdg-read-pct[data-dir="down"] { color: var(--down); }
+.wdg-read-pct[data-dir="flat"] { color: var(--flat); }
+.wdg-read-at { color: var(--faint); }
+
+.wdg-msg {
+  margin: 0;
+  padding: 1.6rem 0.75rem;
+  text-align: center;
+  color: var(--faint);
+  font-size: 0.75rem;
+}
+
+.wdg-plot .wdg-msg:empty { display: none; }
+.wdg.loading { opacity: 0.65; }
+
+.wdg-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.4rem 0.75rem 0.5rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  color: var(--faint);
+}
+
+/* Weather ------------------------------------------------------------------ */
+
+.wdg-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.wdg-tile {
+  background: var(--panel-2);
+  padding: 0.45rem 0.6rem 0.5rem;
+}
+
+.wdg-tile-k {
+  display: block;
+  font-size: 0.62rem;
+  letter-spacing: var(--track);
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.wdg-tile-v { display: block; font-size: 1rem; color: var(--text); }
+.wdg-tile-n { display: block; font-size: 0.66rem; color: var(--dim); }
+.wdg-tile[data-dir="up"] .wdg-tile-v { color: var(--up); }
+.wdg-tile[data-dir="down"] .wdg-tile-v { color: var(--down); }
+
+.wdg-days { list-style: none; margin: 0; padding: 0; }
+
+.wdg-day {
+  display: grid;
+  grid-template-columns: 4.2rem 3.2rem 6rem 1fr;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.32rem 0.75rem;
+  border-top: 1px solid var(--line);
+}
+
+.wdg-day:first-child { border-top: none; }
+.wdg-day-k { color: var(--muted); font-size: 0.75rem; }
+.wdg-day-rain { font-size: 0.72rem; color: var(--faint); text-align: right; }
+.wdg-day-rain[data-wet="yes"] { color: var(--green-hot); }
+.wdg-day-t b { color: var(--text); }
+.wdg-day-t i { color: var(--faint); font-style: normal; margin-left: 0.5rem; }
+
+.wdg-day-feels {
+  font-size: 0.72rem;
+  color: var(--faint);
+}
+
+@media (max-width: 34rem) {
+  .wdg-name { max-width: 11rem; }
+  .wdg-day { grid-template-columns: 3.4rem 2.8rem 1fr; }
+  .wdg-day-feels { display: none; }
+}

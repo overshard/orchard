@@ -427,6 +427,7 @@
     const body = reply.querySelector(".body");
     const toolbar = reply.querySelector(".tools");
     const srcbox = reply.querySelector(".sources");
+    const wdgbox = reply.querySelector(".widgets");
     body.classList.add("typing");
     makeRoom(mine);
 
@@ -486,7 +487,8 @@
           if (!line) continue;
           let ev;
           try { ev = JSON.parse(line.slice(5).trim()); } catch { continue; }
-          handle(ev, { body, toolbar, srcbox, blocks, tail, files: mine.querySelector(".files") });
+          handle(ev, { body, toolbar, srcbox, blocks, tail, widgets: wdgbox,
+                       files: mine.querySelector(".files") });
         }
       }
     } catch (e) {
@@ -530,6 +532,12 @@
         }
         break;
       }
+      case "widget":
+        // Straight in, rather than waiting for the answer, so the chart is on
+        // screen while the prose about it is still being written.
+        if (ev.widget) window.Widgets.add(ui.widgets, ev.widget);
+        keepPinned();
+        break;
       case "block":
         clearStatus();
         // Append rather than replace, so nothing already on screen moves.
@@ -631,6 +639,7 @@
         tb.hidden = false;
         tb.replaceChildren(...m.tools.map(toolChip));
       }
+      window.Widgets.render(node.querySelector(".widgets"), m.widgets);
       showSources(node.querySelector(".sources"), m.sources);
     }
     document.querySelectorAll(".conv").forEach((el) =>

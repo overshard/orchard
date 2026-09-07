@@ -159,6 +159,10 @@ func main() {
 	mux.HandleFunc("DELETE /api/conversation/{id}", s.auth.RequireAuthJSON(s.deleteConversation))
 	mux.HandleFunc("DELETE /api/conversations", s.auth.RequireAuthJSON(s.deleteAll))
 	mux.HandleFunc("GET /api/status", s.auth.RequireAuthJSON(s.status))
+	// The readings behind a chart. Gated like everything else here, and read
+	// only: both go out to a public source and neither touches this estate.
+	mux.HandleFunc("GET /api/widget/ticker", s.auth.RequireAuthJSON(s.widgetTicker))
+	mux.HandleFunc("GET /api/widget/weather", s.auth.RequireAuthJSON(s.widgetWeather))
 
 	slog.Info("chat listening", "addr", *addr, "llm", *llmURL, "model", *label,
 		"db", *dbPath, "reloaded", Reloaded)
@@ -366,7 +370,7 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 	// Retrieval is against what the user typed, not the composed prompt, since
 	// the text of an attachment would swamp the scoring with its own words.
 	recalled := s.store.Relevant(req.Message, factsPerTurn)
-	reply, used, srcs, stats, err := s.engine.Run(ctx, history, prompt, session, memoryBlock(recalled), emit)
+	reply, used, srcs, widgets, stats, err := s.engine.Run(ctx, history, prompt, session, memoryBlock(recalled), emit)
 	// Whether the turn worked or not, whatever it spent has been spent, and a
 	// failed turn is exactly when the counts matter most.
 	s.engine.SaveSpend(s.store.SaveSpend)
@@ -399,7 +403,8 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 				user.Display, user.Files = req.Message, attachments(parts)
 			}
 			_ = s.store.Append(convID, user)
-			_ = s.store.Append(convID, Stored{Role: RoleAssistant, Content: reply.Content, Tools: summaries, Sources: srcs})
+			_ = s.store.Append(convID, Stored{Role: RoleAssistant, Content: reply.Content,
+				Tools: summaries, Sources: srcs, Widgets: widgets})
 			if len(stored) == 0 {
 				if t := s.comp.Title(context.WithoutCancel(ctx), titleSeed(req.Message, parts)); t != "" {
 					_ = s.store.SetTitle(convID, t)
@@ -482,10 +487,12 @@ func (s *site) getConversation(w http.ResponseWriter, r *http.Request) {
 		Files   []Attachment  `json:"files,omitempty"`
 		Tools   []ToolSummary `json:"tools,omitempty"`
 		Sources []Source      `json:"sources,omitempty"`
+		Widgets []Widget      `json:"widgets,omitempty"`
 	}
 	rendered := make([]out, 0, len(msgs))
 	for _, m := range msgs {
-		o := out{Role: m.Role, Text: m.Shown(), Files: m.Files, Tools: m.Tools, Sources: m.Sources}
+		o := out{Role: m.Role, Text: m.Shown(), Files: m.Files, Tools: m.Tools,
+			Sources: m.Sources, Widgets: m.Widgets}
 		if m.Role == RoleAssistant {
 			o.HTML = s.renderCited(m.Content, m.Sources)
 		}
