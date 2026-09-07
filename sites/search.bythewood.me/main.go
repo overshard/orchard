@@ -100,7 +100,7 @@ func main() {
 	}
 	defer store.Close()
 
-	llm := NewLLM(env("LLM_URL", "http://127.0.0.1:8091"))
+	llm := NewLLM(env("LLM_URL", "http://orchard-llm:8000"), os.Getenv("LLM_KEY"))
 
 	budget := NewBudget()
 	hist, err := OpenHistory(dataDir)
@@ -343,6 +343,7 @@ func (s *site) ask(w http.ResponseWriter, r *http.Request) {
 		"standalone": ans.Standalone,
 		"shape":      ans.Shape,
 		"skill":      ans.Skill,
+		"text":       ans.Text,
 		"html":       ans.HTML,
 		"sources":    ans.Sources,
 		"links":      ans.Links,

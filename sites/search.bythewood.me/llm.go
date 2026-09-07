@@ -18,6 +18,7 @@ import (
 type LLM struct {
 	BaseURL string
 	Model   string
+	Key     string
 	client  *http.Client
 
 	// served is the model string llama.cpp answers with, which is the real
@@ -28,11 +29,20 @@ type LLM struct {
 	served string
 }
 
-func NewLLM(baseURL string) *LLM {
+func NewLLM(baseURL, key string) *LLM {
 	return &LLM{
 		BaseURL: strings.TrimRight(baseURL, "/"),
 		Model:   "local",
+		Key:     key,
 		client:  &http.Client{Timeout: 4 * time.Minute},
+	}
+}
+
+// sign puts the gateway key on a request. Empty means talking straight to a
+// llama-swap with no gateway in front, which is what a bare development run is.
+func (l *LLM) sign(r *http.Request) {
+	if l.Key != "" {
+		r.Header.Set("Authorization", "Bearer "+l.Key)
 	}
 }
 
@@ -55,8 +65,11 @@ type chatRequest struct {
 	TemplateKwargs  map[string]any  `json:"chat_template_kwargs,omitempty"`
 }
 
-// Qwen publishes sampling numbers per mode on the model card, and this pipeline
-// needs two of them rather than one setting for everything.
+// These numbers came off Qwen's model card and were kept when the model behind
+// this became Ornith 1.5 9B, since they are the same recipe its publisher gives
+// and the reasoning below is about the shape of each step rather than about any
+// one model. This pipeline needs two of them rather than one setting for
+// everything.
 //
 // A step handing over a JSON schema wants the likeliest token inside the
 // grammar, since the schema is doing the deciding and creativity there is only
@@ -154,10 +167,10 @@ func (l *LLM) call(ctx context.Context, system, user string, maxTokens int, form
 		PresencePenalty: s.PresencePenalty,
 		MaxTokens:       maxTokens,
 		ResponseFormat:  format,
-		// Qwen3.5 is a thinking model and llama.cpp puts the chain of thought in
-		// reasoning_content, leaving content empty until the budget runs out.
-		// Every step here is either schema constrained or wants prose directly,
-		// so thinking only burns tokens.
+		// The model behind this is a thinking one and llama.cpp puts the chain
+		// of thought in reasoning_content, leaving content empty until the
+		// budget runs out. Every step here is either schema constrained or
+		// wants prose directly, so thinking only burns tokens.
 		TemplateKwargs: map[string]any{"enable_thinking": false},
 		Messages: []chatMessage{
 			{Role: "system", Content: system},
@@ -172,6 +185,7 @@ func (l *LLM) call(ctx context.Context, system, user string, maxTokens int, form
 		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	l.sign(req)
 
 	resp, err := l.client.Do(req)
 	if err != nil {

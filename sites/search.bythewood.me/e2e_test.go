@@ -19,7 +19,7 @@ func TestPipelineLive(t *testing.T) {
 	if os.Getenv("SEARCH_LIVE") == "" {
 		t.Skip("set SEARCH_LIVE=1 to spend real searches")
 	}
-	llm := NewLLM(url)
+	llm := NewLLM(url, "")
 	if !llm.Healthy(context.Background()) {
 		t.Skip("model not up")
 	}
@@ -70,7 +70,7 @@ func TestGivenPageLive(t *testing.T) {
 	if os.Getenv("SEARCH_LIVE") == "" {
 		t.Skip("set SEARCH_LIVE=1 to fetch a real page")
 	}
-	llm := NewLLM(url)
+	llm := NewLLM(url, "")
 	if !llm.Healthy(context.Background()) {
 		t.Skip("model not up")
 	}
@@ -225,7 +225,7 @@ func liveEngine(t *testing.T) *Engine {
 	if url == "" {
 		url = "http://search-llm:8091"
 	}
-	llm := NewLLM(url)
+	llm := NewLLM(url, "")
 	if !llm.Healthy(context.Background()) {
 		t.Skip("model not up")
 	}
