@@ -1058,7 +1058,7 @@ kbd {
 .work-k {
   color: var(--amber); font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase;
 }
-.work-sum { color: var(--faint); font-size: 0.68rem; }
+.work-sum { color: var(--faint); font-size: 0.75rem; }
 .work-head .chev {
   width: 0; height: 0; flex: none;
   border-left: 4px solid var(--faint);
@@ -1077,8 +1077,8 @@ kbd {
 .step { position: relative; }
 .step-head {
   display: flex; align-items: baseline; gap: 0.45rem; width: 100%;
-  background: none; border: 0; padding: 0.16rem 0; cursor: pointer;
-  color: var(--dim); font: inherit; font-size: 0.68rem; text-align: left;
+  background: none; border: 0; padding: 0.24rem 0; cursor: pointer;
+  color: var(--dim); font: inherit; font-size: 0.8rem; text-align: left;
 }
 .step-head[disabled] { cursor: default; }
 /* The dot sits on the rule the list hangs from, so the steps read as one run
@@ -1093,26 +1093,53 @@ kbd {
 .step.bad .dot { background: var(--terracotta); }
 .step .k {
   flex: none; color: var(--green-bright);
-  letter-spacing: 0.1em; text-transform: uppercase; font-size: 0.62rem;
+  letter-spacing: 0.12em; text-transform: uppercase; font-size: 0.7rem;
 }
 .step[data-kind="wikipedia"] .k, .step[data-kind="gate"] .k { color: var(--amber); }
 .step.bad .k { color: var(--terracotta); }
-.step .l { flex: 1 1 auto; color: var(--dim); }
-.step .ms { flex: none; color: var(--faint); }
+/* Both the label and the detail give way on a narrow screen rather than
+   pushing the time off the edge, and the detail goes first because the label
+   is what names the step. */
+.step .l {
+  flex: 0 1 auto; min-width: 0; color: var(--dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* The glance at what a step actually did. It takes whatever width is left and
+   is the only part of the row that truncates, so the kind, the label and the
+   time never move as one arrives. */
+.step .d {
+  /* Capped so a long url can never squeeze the tool name beside it, which is
+     the one word on the row worth reading. */
+  flex: 1 1 auto; min-width: 0; max-width: 52%;
+  color: var(--faint); opacity: 0.72; margin-left: 0.15rem;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.step-head:hover .d { color: var(--dim); opacity: 1; }
+
+/* A phone has room for the kind, the label and the time and not for the
+   argument as well, and a row truncated to "web_sea…" has lost the one word
+   that made it worth reading. The glance is a wide screen affordance, and the
+   step still opens on a tap. */
+@media (max-width: 34rem) {
+  .step .d { display: none; }
+}
+/* Pushed right by the margin rather than by whatever is beside it, so the
+   times line up as a column whether or not a row carries a detail. */
+.step .ms { flex: none; margin-left: auto; padding-left: 0.5rem; color: var(--faint); }
 .step-head:hover .l { color: var(--text); }
 
 .step-body { margin: 0.1rem 0 0.45rem 0.55rem; }
 .step-body[hidden] { display: none; }
-.step-meta { color: var(--faint); font-size: 0.64rem; margin-bottom: 0.3rem; }
+.step-meta { color: var(--faint); font-size: 0.72rem; margin-bottom: 0.3rem; }
 .io { display: flex; gap: 0.45rem; margin-bottom: 0.3rem; }
 .io-k {
-  flex: none; width: 1.8rem; color: var(--amber);
-  font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; padding-top: 0.15rem;
+  flex: none; width: 2rem; color: var(--amber);
+  font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; padding-top: 0.15rem;
 }
 .io pre {
   flex: 1 1 auto; margin: 0; max-height: 13rem; overflow: auto;
   border: 1px solid rgba(65, 78, 65, 0.42); background: var(--panel);
   padding: 0.35rem 0.45rem; border-radius: 2px;
-  color: var(--dim); font-size: 0.64rem; line-height: 1.5;
+  color: var(--dim); font-size: 0.75rem; line-height: 1.6;
   white-space: pre-wrap; overflow-wrap: anywhere;
 }

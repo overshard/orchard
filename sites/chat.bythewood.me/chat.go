@@ -262,6 +262,10 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	seen := map[string]tools.Result{}
 	repeats := 0
 	gates := 0
+	// Set when the gate has sent the turn back, so the round that follows a
+	// nudge cannot answer with prose again. The nudge still carries the query,
+	// and this is what makes it an instruction rather than a request.
+	forceTools := false
 
 	for round := 0; round < maxToolRounds; round++ {
 		last := round == maxToolRounds-1
@@ -287,10 +291,23 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		}
 		emit(Event{Kind: "status", Text: thinkingLabel(round)})
 		roundStart := time.Now()
-		reply, st, err := e.llm.CompleteStats(ctx, msgs, offer, toolTurnTokens)
+		var reply Message
+		var st Stats
+		var err error
+		if forceTools && len(offer) > 0 {
+			reply, st, err = e.llm.CompleteRequiringTool(ctx, msgs, offer, toolTurnTokens)
+		} else {
+			reply, st, err = e.llm.CompleteStats(ctx, msgs, offer, toolTurnTokens)
+		}
+		forcedThisRound := forceTools
+		forceTools = false
 		stats.merge(st)
+		on := "the conversation so far, plus " + itoa(len(offer)) + " tools on the table"
+		if forcedThisRound {
+			on += ", and it was made to call one"
+		}
 		tr.Add(Step{Kind: "model", Label: "round " + itoa(round+1) + ", decide",
-			In:  "the conversation so far, plus " + itoa(len(offer)) + " tools on the table",
+			In:  on,
 			Out: decision(reply), MS: time.Since(roundStart).Milliseconds(), Bad: err != nil,
 			Meta: itoa(st.Prompt) + " tokens in, " + itoa(st.Completion) + " out"})
 		// A tool call cut off by the token budget arrives as unparseable JSON
@@ -338,6 +355,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 						// The draft itself is never appended. A model handed
 						// its own text back writes it again.
 						msgs = append(msgs, Message{Role: RoleUser, Content: nudge})
+						forceTools = true
 						continue
 					}
 				}

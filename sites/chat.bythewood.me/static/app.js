@@ -139,17 +139,28 @@
     return box;
   }
 
+  // What a row shows without being opened. A collapsed "TOOL web_fetch 613ms"
+  // says nothing about which page, so every kind offers up the one field worth
+  // a glance: what a tool was asked for, and what a model or the gate decided.
+  function stepDetail(s) {
+    const pick = s.kind === "model" || s.kind === "gate" ? s.out : s.in;
+    return (pick || "").replace(/\s+/g, " ").trim();
+  }
+
   function stepRow(s) {
     const li = document.createElement("li");
     li.className = "step" + (s.bad ? " bad" : "");
     li.dataset.kind = STEP_KINDS[s.kind] || "model";
     const ms = s.ms ? `<span class="ms">${fmtMs(s.ms)}</span>` : "";
     const io = (s.in || s.out || s.meta);
+    const detail = stepDetail(s);
     li.innerHTML =
       `<button class="step-head" type="button" aria-expanded="false"${io ? "" : " disabled"}>` +
       `<span class="dot" aria-hidden="true"></span>` +
       `<span class="k">${esc(s.kind)}</span>` +
-      `<span class="l">${esc(s.label || "")}</span>${ms}</button>` +
+      `<span class="l">${esc(s.label || "")}</span>` +
+      (detail ? `<span class="d" title="${esc(detail)}">${esc(detail)}</span>` : "") +
+      `${ms}</button>` +
       (io ? `<div class="step-body" hidden>` +
         (s.meta ? `<div class="step-meta">${esc(s.meta)}</div>` : "") +
         (s.in ? `<div class="io"><span class="io-k">in</span><pre>${esc(s.in)}</pre></div>` : "") +

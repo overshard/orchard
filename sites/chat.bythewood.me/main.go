@@ -427,7 +427,7 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 			if len(stored) == 0 {
 				seed := titleSeed(req.Message, parts)
 				titleStart := time.Now()
-				if t := s.comp.Title(context.WithoutCancel(ctx), seed); t != "" {
+				if t := s.comp.Title(context.WithoutCancel(ctx), seed, reply.Content); t != "" {
 					_ = s.store.SetTitle(convID, t)
 					tr.Add(Step{Kind: "title", Label: "named the conversation",
 						In: seed, Out: t, MS: time.Since(titleStart).Milliseconds()})
