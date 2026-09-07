@@ -588,9 +588,6 @@ kbd {
 .landing .btn.ghost { background: none; color: var(--dim); border-color: var(--line); }
 .landing .btn.ghost:hover { color: var(--green-bright); border-color: var(--line-hot); }
 
-.landing .foot-line { color: var(--faint); font-size: 0.72rem; }
-.landing .foot-line a { color: var(--faint); }
-.landing .foot-line a:hover { color: var(--green-bright); }
 
 /* ------------------------------------------------------- memory overlay */
 

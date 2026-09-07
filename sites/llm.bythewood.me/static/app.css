@@ -204,7 +204,6 @@ button.danger { background: var(--terracotta); }
 .landing .btn.ghost { background: none; color: var(--faint); border-color: var(--line); }
 .landing .btn.ghost:hover { color: var(--green-bright); }
 
-.landing .foot-line { color: var(--faint); font-size: 0.72rem; }
 
 /* ------------------------------------------------------------------ narrow */
 
