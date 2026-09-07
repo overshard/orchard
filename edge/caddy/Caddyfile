@@ -210,6 +210,14 @@
 #       or lower(http.request.uri.path) contains "/hazelcast/"
 #       or lower(http.request.uri.path) contains "/geoserver/"
 #       or lower(http.request.uri.path) contains "/ws/v1/cluster"
+#       or lower(http.request.uri.path) contains "editor/filemanager/"
+#       or lower(http.request.uri.path) contains "/plugins/editors/"
+#       or lower(http.request.uri.path) contains "/media/jui/"
+#       or ends_with(lower(http.request.uri.path), ".zip")
+#       or ends_with(lower(http.request.uri.path), ".rar")
+#       or ends_with(lower(http.request.uri.path), ".7z")
+#       or ends_with(lower(http.request.uri.path), ".tgz")
+#       or ends_with(lower(http.request.uri.path), ".tar.gz")
 #      )
 #
 # Rule 1's first line sits outside the guard so it covers repos as well. Nothing
@@ -232,6 +240,11 @@
 #
 # "/media/system/" has to carry the system segment. blog serves /media/images/
 # and /media/avatar_images/ for real, so a bare "/media/" takes them down.
+#
+# The archive extensions are end-anchored and repos is excluded from them, since
+# repos serves /{name}/archive/{rev}.tar.gz for real and that is a genuine
+# download. Caddy exempts it by the repository content shape and the Cloudflare
+# rule by host, which is the same asymmetry as everything else in rule 2.
 #
 # Everything generic stays out. /info, /console, /new/, /old/ and /backup/ are
 # all plausible routes here one day and each is worth a cheap 404, and /code is
@@ -257,7 +270,7 @@
 (scanners_repos) {
 	@hostile_repos {
 		not path_regexp repo_content ^/[^/]+/(?:blob|raw|tree|commit|log|archive|branches|tags)(?:/|$)
-		path_regexp hostile_repos (?i)(?:^|/)(?:wp-|wordpress|wp/|xmlrpc|phpmyadmin|autodiscover|cgi-bin/|vendor/|actuator/|_profiler/|solr/|livewire/|sitecore/|_ignition/|storage/logs/|webinterface/|zabbix/|owa/|boaform/|jenkins/|hudson/|sa\.json|key\.json|\.git|\.aws|\.ssh|\.vscode|remote/fgt_lang|remote/login|global-protect/|ssl-vpn/|app/rest/|blade-auth/|blade-system/|pimcore-studio/|php-cgi/|administrator/|language/en-gb/|media/system/|api/v1/totp/|_cat/|_cluster/|_watcher/|_snapshot/|_nodes|api/datasources|api/alert-notifications|api/v1/provisioning/|api/org|api/dashboards|api/2\.0/mlflow/|containers/json|v1\.24/|images/json|v2/keys/|api/contents|auth/v1/|rest/v1/|api/v1/validate/code|api/v1/auto_login|druid/|hazelcast/|geoserver/|ws/v1/cluster)|telerik|phpinfo|id_rsa|id_ed25519|credentials\.json|keyfile\.json|adminsdk|-key\.json|-sa\.json|sugar_version\.json|com_pagebuilderck|login\.do|showlogin\.cc|service-?account|\.env|joomla|keys-status|\.(?:php|asp|jsp|cgi|axd|sql|bak|esp|action)|^/(?:env|_environment)$
+		path_regexp hostile_repos (?i)(?:^|/)(?:wp-|wordpress|wp/|xmlrpc|phpmyadmin|autodiscover|cgi-bin/|vendor/|actuator/|_profiler/|solr/|livewire/|sitecore/|_ignition/|storage/logs/|webinterface/|zabbix/|owa/|boaform/|jenkins/|hudson/|sa\.json|key\.json|\.git|\.aws|\.ssh|\.vscode|remote/fgt_lang|remote/login|global-protect/|ssl-vpn/|app/rest/|blade-auth/|blade-system/|pimcore-studio/|php-cgi/|administrator/|language/en-gb/|media/system/|api/v1/totp/|_cat/|_cluster/|_watcher/|_snapshot/|_nodes|api/datasources|api/alert-notifications|api/v1/provisioning/|api/org|api/dashboards|api/2\.0/mlflow/|containers/json|v1\.24/|images/json|v2/keys/|api/contents|auth/v1/|rest/v1/|api/v1/validate/code|api/v1/auto_login|druid/|hazelcast/|geoserver/|ws/v1/cluster|editor/filemanager/|plugins/editors/|media/jui/)|telerik|phpinfo|id_rsa|id_ed25519|credentials\.json|keyfile\.json|adminsdk|-key\.json|-sa\.json|sugar_version\.json|com_pagebuilderck|login\.do|showlogin\.cc|service-?account|\.env|joomla|keys-status|\.(?:php|asp|jsp|cgi|axd|sql|bak|esp|action)|\.(?:zip|rar|7z|tgz|tar\.gz)$|^/(?:env|_environment)$
 	}
 
 	log_skip @hostile_repos
@@ -274,7 +287,7 @@
 	# Matched anywhere in the path rather than at the root, since most of the
 	# volume arrives nested under a guessed prefix (/blog/wp-json/, /app/.env).
 	# Ordinary 404s like /login or /apple-touch-icon.png are left alone.
-	@hostile path_regexp hostile (?i)(?:^|/)(?:wp-|wordpress|wp/|xmlrpc|phpmyadmin|autodiscover|cgi-bin/|vendor/|actuator/|_profiler/|solr/|livewire/|sitecore/|_ignition/|storage/logs/|webinterface/|zabbix/|owa/|boaform/|jenkins/|hudson/|sa\.json|key\.json|\.git|\.aws|\.ssh|\.vscode|remote/fgt_lang|remote/login|global-protect/|ssl-vpn/|app/rest/|blade-auth/|blade-system/|pimcore-studio/|php-cgi/|administrator/|language/en-gb/|media/system/|api/v1/totp/|_cat/|_cluster/|_watcher/|_snapshot/|_nodes|api/datasources|api/alert-notifications|api/v1/provisioning/|api/org|api/dashboards|api/2\.0/mlflow/|containers/json|v1\.24/|images/json|v2/keys/|api/contents|auth/v1/|rest/v1/|api/v1/validate/code|api/v1/auto_login|druid/|hazelcast/|geoserver/|ws/v1/cluster)|telerik|phpinfo|id_rsa|id_ed25519|credentials\.json|keyfile\.json|adminsdk|-key\.json|-sa\.json|sugar_version\.json|com_pagebuilderck|login\.do|showlogin\.cc|service-?account|\.env|joomla|keys-status|\.(?:php|asp|jsp|cgi|axd|sql|bak|esp|action)|^/(?:env|_environment)$
+	@hostile path_regexp hostile (?i)(?:^|/)(?:wp-|wordpress|wp/|xmlrpc|phpmyadmin|autodiscover|cgi-bin/|vendor/|actuator/|_profiler/|solr/|livewire/|sitecore/|_ignition/|storage/logs/|webinterface/|zabbix/|owa/|boaform/|jenkins/|hudson/|sa\.json|key\.json|\.git|\.aws|\.ssh|\.vscode|remote/fgt_lang|remote/login|global-protect/|ssl-vpn/|app/rest/|blade-auth/|blade-system/|pimcore-studio/|php-cgi/|administrator/|language/en-gb/|media/system/|api/v1/totp/|_cat/|_cluster/|_watcher/|_snapshot/|_nodes|api/datasources|api/alert-notifications|api/v1/provisioning/|api/org|api/dashboards|api/2\.0/mlflow/|containers/json|v1\.24/|images/json|v2/keys/|api/contents|auth/v1/|rest/v1/|api/v1/validate/code|api/v1/auto_login|druid/|hazelcast/|geoserver/|ws/v1/cluster|editor/filemanager/|plugins/editors/|media/jui/)|telerik|phpinfo|id_rsa|id_ed25519|credentials\.json|keyfile\.json|adminsdk|-key\.json|-sa\.json|sugar_version\.json|com_pagebuilderck|login\.do|showlogin\.cc|service-?account|\.env|joomla|keys-status|\.(?:php|asp|jsp|cgi|axd|sql|bak|esp|action)|\.(?:zip|rar|7z|tgz|tar\.gz)$|^/(?:env|_environment)$
 
 	# Not logged. Moving the noise to another log is not the point.
 	log_skip @hostile
