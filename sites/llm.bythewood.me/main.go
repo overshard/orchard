@@ -4,7 +4,8 @@
 // chat and search each carried their own llama-swap and their own copy of the
 // weights, which on an 8GB card means whichever one you used last evicted the
 // other. This holds the model, hands out API keys, and writes down every prompt
-// and every completion that passes through it.
+// and every completion that passes through it, apart from the calls a caller
+// marks incognito, which are forwarded and never recorded.
 //
 // The web half is behind auth.bythewood.me like the other dashboards. The API
 // half is behind a key, because the callers are containers with no browser.

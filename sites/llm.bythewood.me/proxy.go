@@ -25,6 +25,11 @@ import (
 // long way under it.
 const maxRequestBytes = 32 << 20
 
+// incognitoHeader is a caller saying this turn is not to be written down. Chat
+// and search set it when the user is in incognito, and it is taken at its word
+// because every caller here holds a key that was handed out by hand.
+const incognitoHeader = "X-Incognito"
+
 type upstreamReq struct {
 	Model    string            `json:"model"`
 	Stream   bool              `json:"stream"`
@@ -75,14 +80,22 @@ func (s *site) completions(w http.ResponseWriter, r *http.Request, k Key) {
 	var req upstreamReq
 	_ = json.Unmarshal(body, &req)
 
-	call := Call{
-		KeyID: k.ID, Caller: k.Name, Model: req.Model,
-		Messages: string(mustJSON(req.Messages)),
-	}
-	if len(req.Tools) > 0 {
-		call.Tools = fmt.Sprintf("%d offered", len(req.Tools))
+	// A row with its text blanked would still say who asked something and when,
+	// so incognito writes no row at all and the prompt is never copied out of
+	// the body it arrived in.
+	keep := r.Header.Get(incognitoHeader) != "1"
+
+	call := Call{KeyID: k.ID, Caller: k.Name, Model: req.Model}
+	if keep {
+		call.Messages = string(mustJSON(req.Messages))
+		if len(req.Tools) > 0 {
+			call.Tools = fmt.Sprintf("%d offered", len(req.Tools))
+		}
 	}
 	defer func() {
+		if !keep {
+			return
+		}
 		call.MS = time.Since(started).Milliseconds()
 		s.store.LogCall(call)
 	}()

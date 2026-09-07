@@ -75,6 +75,10 @@ type Deps struct {
 	// Where a tool hangs a chart or a forecast for the page to draw. Per turn
 	// and on the copy, for the same reason the session is.
 	Widgets *Sink
+
+	// Whether this turn is incognito, which a tool that reaches a service with
+	// a model behind it has to pass along. Per turn and on the copy too.
+	Incognito bool
 }
 
 // WithSession returns a copy carrying one turn's session and its own widget

@@ -205,6 +205,38 @@ func TestAKeyedCallIsForwardedAndWrittenDown(t *testing.T) {
 	}
 }
 
+// Incognito is the one case where a call runs and leaves nothing behind, so the
+// test is that the answer still arrives and the log is still empty.
+func TestAnIncognitoCallIsForwardedAndNotWrittenDown(t *testing.T) {
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"choices":[{"message":{"content":"the answer"}}]}`)
+	}))
+	defer up.Close()
+
+	store := testStore(t)
+	secret, _, _ := store.NewKey("chat")
+	s := &site{store: store, upstream: up.URL, client: up.Client()}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/v1/chat/completions",
+		strings.NewReader(`{"model":"local","messages":[{"role":"user","content":"a secret"}]}`))
+	req.Header.Set("Authorization", "Bearer "+secret)
+	req.Header.Set(incognitoHeader, "1")
+	s.requireKey(s.completions)(rec, req)
+
+	if rec.Code != 200 {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "the answer") {
+		t.Errorf("the caller did not get the upstream body: %s", rec.Body.String())
+	}
+	calls, _ := store.Calls("", 5)
+	if len(calls) != 0 {
+		t.Fatalf("an incognito call was logged: %+v", calls)
+	}
+}
+
 // A streamed answer is the one worth recording and the one easiest to lose,
 // since the text only exists as deltas passing through.
 func TestAStreamedCallIsReassembledForTheLog(t *testing.T) {

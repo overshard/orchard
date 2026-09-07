@@ -38,12 +38,34 @@ func NewLLM(baseURL, key string) *LLM {
 	}
 }
 
-// sign puts the gateway key on a request. Empty means talking straight to a
-// llama-swap with no gateway in front, which is what a bare development run is.
+// sign puts the gateway key on a request, and the incognito header when the
+// question is one. An empty key means talking straight to a llama-swap with no
+// gateway in front, which is what a bare development run is.
 func (l *LLM) sign(r *http.Request) {
 	if l.Key != "" {
 		r.Header.Set("Authorization", "Bearer "+l.Key)
 	}
+	if IsIncognito(r.Context()) {
+		r.Header.Set(incognitoHeader, "1")
+	}
+}
+
+// The gateway writes down every prompt and completion it forwards, so a
+// question that leaves no history row here has to say so there as well.
+const incognitoHeader = "X-Incognito"
+
+type incognitoKey struct{}
+
+// WithIncognito marks a context as belonging to an incognito question. It rides
+// the context rather than the client because the client is shared by every
+// question, and every step of the pipeline already carries the context.
+func WithIncognito(ctx context.Context) context.Context {
+	return context.WithValue(ctx, incognitoKey{}, true)
+}
+
+func IsIncognito(ctx context.Context) bool {
+	on, _ := ctx.Value(incognitoKey{}).(bool)
+	return on
 }
 
 type chatMessage struct {
