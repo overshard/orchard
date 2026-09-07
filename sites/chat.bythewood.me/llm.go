@@ -162,9 +162,21 @@ func (l *LLM) Complete(ctx context.Context, msgs []Message, schemas []map[string
 
 // CompleteStats is Complete plus what the call cost.
 func (l *LLM) CompleteStats(ctx context.Context, msgs []Message, schemas []map[string]any, maxTok int) (Message, Stats, error) {
+	return l.complete(ctx, msgs, schemas, "auto", maxTok)
+}
+
+// CompleteRequiringTool is the same call with the model given no say in whether
+// it calls something. It is what a nudge turns into once the turn has already
+// asked politely: a model that has written a deferral will write another one,
+// and asking a third time spends the turn instead of answering it.
+func (l *LLM) CompleteRequiringTool(ctx context.Context, msgs []Message, schemas []map[string]any, maxTok int) (Message, Stats, error) {
+	return l.complete(ctx, msgs, schemas, "required", maxTok)
+}
+
+func (l *LLM) complete(ctx context.Context, msgs []Message, schemas []map[string]any, choice string, maxTok int) (Message, Stats, error) {
 	req := l.base(msgs, maxTok)
 	if len(schemas) > 0 {
-		req.Tools, req.ToolChoice = schemas, "auto"
+		req.Tools, req.ToolChoice = schemas, choice
 	}
 	var out chatResp
 	if err := l.post(ctx, req, &out); err != nil {

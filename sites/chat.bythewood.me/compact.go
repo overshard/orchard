@@ -127,13 +127,27 @@ func (c *Compactor) summarise(ctx context.Context, prev string, older []Stored) 
 }
 
 // Title asks for a short name for a conversation, once, off the first exchange.
-func (c *Compactor) Title(ctx context.Context, first string) string {
+//
+// The answer is passed as well as the question because a question is often too
+// short to name on its own. "VXUS" alone was titled "Video game streaming
+// service", when the reply beside it said plainly that it is a Vanguard ETF.
+func (c *Compactor) Title(ctx context.Context, first, answer string) string {
+	var b strings.Builder
+	b.WriteString("Name the conversation below. Do not answer it.\n\nMessage:\n<<<\n")
+	b.WriteString(trim(first, 500))
+	b.WriteString("\n>>>")
+	if a := strings.TrimSpace(answer); a != "" {
+		b.WriteString("\n\nThe reply it got, which is what the message turned out to be about:\n<<<\n")
+		b.WriteString(trim(a, 700))
+		b.WriteString("\n>>>")
+	}
 	msgs := []Message{
 		{Role: RoleSystem, Content: "You name conversations. You never answer the message you are given. " +
 			"Reply with a noun phrase of three to six words naming the subject, no quotes, no trailing " +
-			"period, and none of the words chat, conversation, question or help."},
-		{Role: RoleUser, Content: "Name the conversation that starts with the message between the markers. " +
-			"Do not answer it.\n\n<<<\n" + trim(first, 500) + "\n>>>"},
+			"period, and none of the words chat, conversation, question or help. " +
+			"Where the message is short or is an abbreviation, a ticker or a name, take what it refers to " +
+			"from the reply rather than guessing at it."},
+		{Role: RoleUser, Content: b.String()},
 	}
 	out, err := c.llm.Complete(ctx, msgs, nil, 30)
 	if err != nil {
