@@ -186,6 +186,9 @@ func main() {
 	// Reachable without a session for a public property; the handler does that
 	// check itself, because it needs the property row to know.
 	mux.HandleFunc("GET /properties/{id}/status", s.propertyStatus)
+	// Every property in one answer, for chat.bythewood.me's tools. Behind the
+	// session, since it does not filter out the private ones.
+	mux.HandleFunc("GET /api/properties", s.auth.RequireAuthJSON(s.apiProperties))
 	mux.HandleFunc("POST /properties/{id}/recrawl", s.auth.RequireAuthJSON(s.propertyRecrawl))
 	mux.HandleFunc("POST /properties/{id}/rerun-lighthouse", s.auth.RequireAuthJSON(s.propertyRerunLighthouse))
 

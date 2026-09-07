@@ -193,6 +193,9 @@ func main() {
 	})
 
 	mux.HandleFunc("GET /properties", s.auth.RequireAuth(s.properties))
+	// The read only view chat.bythewood.me's tools call, behind the session
+	// because it does not filter out the private properties.
+	mux.HandleFunc("GET /api/summary", s.auth.RequireAuthJSON(s.apiSummary))
 	mux.HandleFunc("POST /properties", s.auth.RequireAuth(s.propertyCreate))
 	mux.HandleFunc("POST /properties/{id}/delete", s.auth.RequireAuth(s.propertyDelete))
 	mux.HandleFunc("POST /properties/{id}/cards", s.auth.RequireAuth(s.propertyCards))
