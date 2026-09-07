@@ -117,6 +117,7 @@ func main() {
 	// host that was already refusing, which is how a ban gets renewed rather
 	// than expiring.
 	s.engine.RestoreGuard(store, store.Penalties())
+	s.engine.RestoreSpend(store.Spend(tools.SearchHost))
 	if err := s.loadTemplates(); err != nil {
 		slog.Error("templates", "err", err)
 		os.Exit(1)
@@ -366,6 +367,9 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 	// the text of an attachment would swamp the scoring with its own words.
 	recalled := s.store.Relevant(req.Message, factsPerTurn)
 	reply, used, stats, err := s.engine.Run(ctx, history, prompt, session, memoryBlock(recalled), emit)
+	// Whether the turn worked or not, whatever it spent has been spent, and a
+	// failed turn is exactly when the counts matter most.
+	s.engine.SaveSpend(s.store.SaveSpend)
 	if err != nil {
 		emit(Event{Kind: "error", Text: err.Error()})
 		return
@@ -512,6 +516,8 @@ func (s *site) status(w http.ResponseWriter, r *http.Request) {
 		out["search_down"] = true
 		out["search_back_in"] = left.String()
 	}
+	minute, hour, day := s.engine.SearchSpend()
+	out["search_left"] = map[string]int{"minute": minute, "hour": hour, "day": day}
 	writeJSON(w, out)
 }
 

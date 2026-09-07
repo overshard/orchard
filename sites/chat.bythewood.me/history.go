@@ -57,6 +57,14 @@ CREATE TABLE IF NOT EXISTS penalties (
   till  INTEGER NOT NULL,
   trips INTEGER NOT NULL DEFAULT 1
 );
+
+-- One row per outbound call to a budgeted host, so a deploy does not hand the
+-- model a fresh day's allowance. Nothing older than a day is kept.
+CREATE TABLE IF NOT EXISTS spend (
+  host TEXT    NOT NULL,
+  at   INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS spend_host_at ON spend(host, at);
 `
 
 func OpenStore(path string) (*Store, error) {
@@ -326,4 +334,44 @@ func (s *Store) SavePenalty(host string, till time.Time, trips int) {
 // leave it on a long backoff for good.
 func (s *Store) ClearPenalty(host string) {
 	_, _ = s.db.Exec(`DELETE FROM penalties WHERE host = ?`, host)
+}
+
+// Spend reads back a host's calls from the last day.
+func (s *Store) Spend(host string) []time.Time {
+	rows, err := s.db.Query(`SELECT at FROM spend WHERE host = ? AND at > ? ORDER BY at`,
+		host, time.Now().Add(-24*time.Hour).UnixMilli())
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	var out []time.Time
+	for rows.Next() {
+		var at int64
+		if err := rows.Scan(&at); err != nil {
+			return out
+		}
+		out = append(out, time.UnixMilli(at))
+	}
+	return out
+}
+
+// SaveSpend replaces a host's record with what the budget currently holds, and
+// drops what has aged out in the same statement. Called after a turn rather
+// than per request, since losing the last turn's counts to a hard kill costs
+// less than a write on the request path.
+func (s *Store) SaveSpend(host string, at []time.Time) {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.Exec(`DELETE FROM spend WHERE host = ?`, host); err != nil {
+		return
+	}
+	for _, t := range at {
+		if _, err := tx.Exec(`INSERT INTO spend (host, at) VALUES (?, ?)`, host, t.UnixMilli()); err != nil {
+			return
+		}
+	}
+	_ = tx.Commit()
 }
