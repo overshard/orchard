@@ -129,8 +129,9 @@ Follow-ups:
 - When the user pushes back, corrects you, or asks why, go and look. Rewriting the answer you already gave tells him nothing he does not have, and a correction usually means the first search missed the thing he is asking about.
 
 Answers:
+- Not every message is a question. When he is chatting, agreeing, joking or thinking out loud, answer like a person would in a line or two and call nothing. Never tell him you do not know what he is asking.
 - Lead with the answer. No preamble, no restating the question, no closing offer of more help.
-- Put the url next to a fact that came from a page.
+- Never write a web address. When you are given a numbered list of sources, end the sentence with the number it came from, like [2].
 - Say plainly when you are unsure or when sources disagree. A short honest answer beats a confident wrong one.
 - Every name, title, date, number and price you write has to come from a tool result in this turn, from an answer you already gave in this conversation, or from what the user told you. Anything else needs a tool call before you write it.
 - This is the only reply the user gets, so put everything you found in it.
@@ -194,7 +195,7 @@ func (e *Engine) SearchDown() (time.Duration, bool) {
 // Run drives one user turn. The session is the caller's own, forwarded to the
 // orchard tools so each site checks it rather than this one holding a
 // credential of its own.
-func (e *Engine) Run(ctx context.Context, history []Message, user, session, memory string, emit func(Event)) (Message, []tools.Result, Stats, error) {
+func (e *Engine) Run(ctx context.Context, history []Message, user, session, memory string, emit func(Event)) (Message, []tools.Result, []Source, Stats, error) {
 	deps := e.deps.WithSession(session)
 	msgs := append([]Message{e.systemWith(memory)}, history...)
 	msgs = append(msgs, Message{Role: RoleUser, Content: user})
@@ -262,7 +263,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 			}
 		}
 		if err != nil {
-			return Message{}, used, stats, err
+			return Message{}, used, nil, stats, err
 		}
 		if len(reply.ToolCalls) == 0 {
 			// A model sometimes writes its tool call syntax as ordinary text,
@@ -338,16 +339,22 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		}
 	}
 
+	// Everything the turn read, numbered. The model is handed the numbers and
+	// never an address, so a link under this answer is one a tool fetched.
+	srcs := collectSources(used)
+
 	// The answer is generated fresh here rather than reusing whatever the last
 	// tool round produced, because that one was written under a small budget
 	// with tools still on the table. Without saying so, a model writes the
 	// sentence it would have written before calling another tool, which reads
 	// as "Let me check that" and then stops.
-	msgs = append(msgs, Message{Role: RoleUser, Content: finalTurn})
+	msgs = append(msgs, Message{Role: RoleUser, Content: finalTurn + sourcePrompt(srcs)})
 
 	emit(Event{Kind: "status", Text: "writing"})
 	var sb strings.Builder
-	w := &blockWriter{emit: emit, render: e.Render}
+	w := &blockWriter{emit: emit, render: func(md string) string {
+		return linkCitations(e.Render(prepare(md, srcs)), srcs)
+	}}
 	text, st, err := e.llm.Stream(ctx, msgs, answerTokens, func(d string) {
 		sb.WriteString(d)
 		w.write(d)
@@ -355,13 +362,23 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	w.flush()
 	stats.merge(st)
 	if err != nil && sb.Len() == 0 {
-		return Message{}, used, stats, err
+		return Message{}, used, nil, stats, err
 	}
+	text = prepare(text, srcs)
 	if strings.TrimSpace(text) == "" {
 		text = "I could not produce an answer for that. The model returned nothing."
 		emit(Event{Kind: "block", HTML: e.Render(text)})
 	}
-	return Message{Role: RoleAssistant, Content: text}, used, stats, nil
+	return Message{Role: RoleAssistant, Content: text}, used, cited(text, srcs), stats, nil
+}
+
+// prepare is everything done to the model's markdown before it is rendered or
+// stored: the address dump at the end goes, a schemeless address becomes a
+// link, and the citations are repaired. It runs on each finished block as it
+// streams and on the whole answer at the end, and agrees with itself because
+// every step works a line at a time.
+func prepare(md string, srcs []Source) string {
+	return attach(linkBareAddresses(dropSourceList(md)), srcs)
 }
 
 // blockWriter turns a token stream into finished markdown blocks. It only ever
@@ -387,8 +404,10 @@ func (w *blockWriter) write(d string) {
 		rest := s[cut:]
 		w.buf.Reset()
 		w.buf.WriteString(rest)
-		if strings.TrimSpace(block) != "" {
-			w.emit(Event{Kind: "block", HTML: w.render(block)})
+		// An empty render is a block the cleanup took out, which is the
+		// address list the model still writes at the end sometimes.
+		if h := w.render(block); strings.TrimSpace(block) != "" && strings.TrimSpace(h) != "" {
+			w.emit(Event{Kind: "block", HTML: h})
 		}
 		w.lastTail = ""
 	}
@@ -429,8 +448,8 @@ func (w *blockWriter) flush() {
 	rest, _ := salvageCalls(w.buf.String(), func(string) bool { return false })
 	rest = strings.TrimSpace(rest)
 	w.buf.Reset()
-	if rest != "" {
-		w.emit(Event{Kind: "block", HTML: w.render(rest)})
+	if h := w.render(rest); rest != "" && strings.TrimSpace(h) != "" {
+		w.emit(Event{Kind: "block", HTML: h})
 	}
 	w.emit(Event{Kind: "tail", Text: ""})
 }
@@ -442,11 +461,11 @@ func looksLikeCall(s string) bool {
 	return strings.Contains(s, "<tool_call") || strings.Contains(s, "<function=")
 }
 
-const finalTurn = `Write the full answer now. You have no tools left for this turn, so do not say you are about to look something up, do not offer to check anything, and do not describe what you would do next. There is nobody to answer an offer.
+const finalTurn = `Write your reply now. You have no tools left for this turn, so do not say you are about to look something up, do not offer to check anything, and do not describe what you would do next. There is nobody to answer an offer.
 
 Use the tool results above and what this conversation has already established. Every name, title, date, number and price in your answer has to come from one of those two, and a fact you cannot point at is one to leave out. Do not quote a page you read in an earlier turn, since it is not in front of you now. Do not attach a title to the wrong person or a place to the wrong country, which is the mistake to check for before you write a name.
 
-Give the whole answer in one go, with the specifics and the urls. If a part is still missing, say which part in one line and answer the rest.`
+Give the whole answer in one go, with the specifics. If a part is still missing, say which part in one line and answer the rest. If the last message was not a question, just reply to it, a line or two is the whole job.`
 
 func thinkingLabel(round int) string {
 	if round == 0 {

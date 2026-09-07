@@ -264,7 +264,7 @@ func (s *site) page(w http.ResponseWriter, r *http.Request) {
 
 type sendReq struct {
 	Message   string `json:"message"`
-	ConvID    int64  `json:"conversation_id"`
+	ConvID    string `json:"conversation_id"`
 	Incognito bool   `json:"incognito"`
 }
 
@@ -293,7 +293,7 @@ func readSend(w http.ResponseWriter, r *http.Request) (sendReq, []filePart, erro
 	defer func() { _ = r.MultipartForm.RemoveAll() }()
 
 	req.Message = strings.TrimSpace(r.FormValue("message"))
-	req.ConvID, _ = strconv.ParseInt(r.FormValue("conversation_id"), 10, 64)
+	req.ConvID = strings.TrimSpace(r.FormValue("conversation_id"))
 	req.Incognito = r.FormValue("incognito") == "true"
 	var headers []*multipart.FileHeader
 	if r.MultipartForm != nil {
@@ -343,7 +343,7 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 	var history []Message
 	var conv Conversation
 	var stored []Stored
-	if !req.Incognito && req.ConvID > 0 {
+	if !req.Incognito && req.ConvID != "" {
 		conv, _ = s.store.Get(req.ConvID)
 		stored, _ = s.store.Messages(req.ConvID)
 		var summary string
@@ -366,7 +366,7 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 	// Retrieval is against what the user typed, not the composed prompt, since
 	// the text of an attachment would swamp the scoring with its own words.
 	recalled := s.store.Relevant(req.Message, factsPerTurn)
-	reply, used, stats, err := s.engine.Run(ctx, history, prompt, session, memoryBlock(recalled), emit)
+	reply, used, srcs, stats, err := s.engine.Run(ctx, history, prompt, session, memoryBlock(recalled), emit)
 	// Whether the turn worked or not, whatever it spent has been spent, and a
 	// failed turn is exactly when the counts matter most.
 	s.engine.SaveSpend(s.store.SaveSpend)
@@ -388,18 +388,18 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 
 	convID := req.ConvID
 	if !req.Incognito {
-		if convID == 0 {
+		if convID == "" {
 			if id, e := s.store.NewConversation(""); e == nil {
 				convID = id
 			}
 		}
-		if convID > 0 {
+		if convID != "" {
 			user := Stored{Role: RoleUser, Content: prompt}
 			if len(parts) > 0 {
 				user.Display, user.Files = req.Message, attachments(parts)
 			}
 			_ = s.store.Append(convID, user)
-			_ = s.store.Append(convID, Stored{Role: RoleAssistant, Content: reply.Content, Tools: summaries})
+			_ = s.store.Append(convID, Stored{Role: RoleAssistant, Content: reply.Content, Tools: summaries, Sources: srcs})
 			if len(stored) == 0 {
 				if t := s.comp.Title(context.WithoutCancel(ctx), titleSeed(req.Message, parts)); t != "" {
 					_ = s.store.SetTitle(convID, t)
@@ -429,8 +429,9 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 	}
 
 	done := map[string]any{"kind": "done", "conversation_id": convID,
-		"tools": summaries, "html": s.render(reply.Content), "incognito": req.Incognito,
-		"files": attachments(parts),
+		"tools": summaries, "html": s.renderCited(reply.Content, srcs), "incognito": req.Incognito,
+		"sources": srcs,
+		"files":   attachments(parts),
 		"stats": map[string]any{
 			"prompt_tokens": stats.Prompt, "completion_tokens": stats.Completion,
 			"decode_tps": round1(stats.Decode), "prefill_tps": round1(stats.Prefill),
@@ -451,6 +452,13 @@ func (s *site) render(md string) string {
 	return sb.String()
 }
 
+// renderCited is the same render with the citation numbers turned into links.
+// The markdown is stored with its numbers rather than its anchors, so a change
+// to how a pill looks does not need every old message rewritten.
+func (s *site) renderCited(md string, srcs []Source) string {
+	return linkCitations(s.render(md), srcs)
+}
+
 func (s *site) listConversations(w http.ResponseWriter, r *http.Request) {
 	convs, err := s.store.List(60)
 	if err != nil {
@@ -461,24 +469,25 @@ func (s *site) listConversations(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *site) getConversation(w http.ResponseWriter, r *http.Request) {
-	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	id := r.PathValue("id")
 	msgs, err := s.store.Messages(id)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
 	}
 	type out struct {
-		Role  Role          `json:"role"`
-		HTML  string        `json:"html"`
-		Text  string        `json:"text"`
-		Files []Attachment  `json:"files,omitempty"`
-		Tools []ToolSummary `json:"tools,omitempty"`
+		Role    Role          `json:"role"`
+		HTML    string        `json:"html"`
+		Text    string        `json:"text"`
+		Files   []Attachment  `json:"files,omitempty"`
+		Tools   []ToolSummary `json:"tools,omitempty"`
+		Sources []Source      `json:"sources,omitempty"`
 	}
 	rendered := make([]out, 0, len(msgs))
 	for _, m := range msgs {
-		o := out{Role: m.Role, Text: m.Shown(), Files: m.Files, Tools: m.Tools}
+		o := out{Role: m.Role, Text: m.Shown(), Files: m.Files, Tools: m.Tools, Sources: m.Sources}
 		if m.Role == RoleAssistant {
-			o.HTML = s.render(m.Content)
+			o.HTML = s.renderCited(m.Content, m.Sources)
 		}
 		rendered = append(rendered, o)
 	}
@@ -487,7 +496,7 @@ func (s *site) getConversation(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *site) deleteConversation(w http.ResponseWriter, r *http.Request) {
-	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	id := r.PathValue("id")
 	if err := s.store.Delete(id); err != nil {
 		http.Error(w, err.Error(), 500)
 		return

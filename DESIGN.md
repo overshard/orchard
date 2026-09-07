@@ -261,6 +261,14 @@ offset, and `::selection` is `rgba(107, 158, 120, 0.3)`. Only `repos` had either
 until 2026-09-01, so tabbing through a form on the other four got whatever
 Bootstrap did per component.
 
+**Citations take two forms and that is on purpose.** `search` writes a bare
+superscript `[3]` in `#95cca2` beside a sentence, because the passage it points
+at is on the same page and the number is a jump. `chat` boxes the number on its
+own, 1px `rgba(65, 78, 65, 0.55)` on `--panel` at `0.62rem`, raised `0.32em`,
+because it points off the site and a reader has to see it is a link worth
+tapping. Both sit at the end of the sentence they belong to and never mid
+clause.
+
 **Content width** is Bootstrap's container scale, so 1140px and then 1320px past
 a 1400px viewport. `repos` matches it with a media query rather than sitting
 narrower on a wide screen.
@@ -374,6 +382,7 @@ repository is public and the vault is not.
 | `logging` | green | Bootstrap. Dashboards run full width inside the container |
 | `auth` | green | Bootstrap. Carries the starfield on `/login`, which the grid sits under |
 | `repos` | green | Hand written CSS, no Bootstrap, since it is dense text. Newsreader on repository names |
+| `chat` | green | Hand written CSS, no Bootstrap. A conversation, so it reads at the longest length on the estate. Citation pills and a source row under each answer |
 | `search` | green | Hand written CSS, no Bootstrap. The one green site with dash's scanlines and vignette, both toned down. Its bar is `--bar`, a step above the ground, and sits over the vignette |
 | `dash` | amber | Hand written CSS. Scanlines, vignette, JetBrains Mono and Space Grotesk |
 | `blog`, `isaacbythewood.com` | neither | Separate identities. Nothing here applies to them |
