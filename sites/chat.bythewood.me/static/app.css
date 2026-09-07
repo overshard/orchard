@@ -389,6 +389,31 @@ body {
 .tool.bad b { color: var(--terracotta); }
 .tool.run b { color: var(--amber); }
 
+/* The number after a sentence, linking to the page it came from. Raised rather
+   than superscripted, since a real <sup> at this size loses a pixel of the
+   digit and the tap target with it. */
+.cite {
+  display: inline-block; min-width: 1.05rem; text-align: center;
+  margin-left: 0.18rem; padding: 0 0.18rem;
+  border: 1px solid rgba(65, 78, 65, 0.55); border-radius: 2px;
+  background: var(--panel); color: var(--green-bright);
+  font-size: 0.62rem; line-height: 1.25; vertical-align: 0.32em;
+  text-decoration: none; font-variant-numeric: tabular-nums;
+}
+.cite:hover, .cite:focus-visible { border-color: var(--green-bright); background: var(--green-glow); color: var(--green-hot); }
+
+.sources { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.7rem; }
+.sources[hidden] { display: none; }
+.src {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  border: 1px solid rgba(65, 78, 65, 0.42); background: var(--panel);
+  color: var(--dim); font-size: 0.68rem; padding: 0.15rem 0.45rem; border-radius: 2px;
+  text-decoration: none;
+}
+.src b { color: var(--green-bright); font-weight: 600; }
+.src:hover, .src:focus-visible { border-color: var(--green-bright); color: var(--text); }
+
 /* Room under the newest exchange so its question can sit at the top of the
    viewport. It shrinks to nothing once the answer is long enough to fill the
    screen by itself. */

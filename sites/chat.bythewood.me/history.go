@@ -8,6 +8,7 @@
 package main
 
 import (
+	"crypto/rand"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -24,7 +25,9 @@ type Store struct{ db *sql.DB }
 
 const schema = `
 CREATE TABLE IF NOT EXISTS conversations (
-  id         INTEGER PRIMARY KEY,
+  -- A uuid rather than a counter, so an address carries no ordering and says
+  -- nothing about how many conversations there are.
+  id         TEXT PRIMARY KEY,
   title      TEXT NOT NULL DEFAULT '',
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
@@ -37,7 +40,7 @@ CREATE TABLE IF NOT EXISTS conversations (
 );
 CREATE TABLE IF NOT EXISTS messages (
   id      INTEGER PRIMARY KEY,
-  conv_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  conv_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
   role    TEXT NOT NULL,
   content TEXT NOT NULL,
   tools   TEXT NOT NULL DEFAULT '[]',
@@ -45,6 +48,9 @@ CREATE TABLE IF NOT EXISTS messages (
   -- attachments. Empty when the two are the same.
   display TEXT NOT NULL DEFAULT '',
   files   TEXT NOT NULL DEFAULT '[]',
+  -- The numbered pages an answer cites, so a reload links the same way the
+  -- turn did. The page text they were matched against is not kept.
+  sources TEXT NOT NULL DEFAULT '[]',
   at      INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS messages_conv ON messages(conv_id, id);
@@ -82,6 +88,7 @@ func OpenStore(path string) (*Store, error) {
 		return nil, err
 	}
 	migrate(db)
+	migrateIDs(db)
 	st := &Store{db: db}
 	if err := st.initFacts(); err != nil {
 		return nil, err
@@ -96,11 +103,121 @@ func migrate(db *sql.DB) {
 	for _, stmt := range []string{
 		`ALTER TABLE messages ADD COLUMN display TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE messages ADD COLUMN files TEXT NOT NULL DEFAULT '[]'`,
+		`ALTER TABLE messages ADD COLUMN sources TEXT NOT NULL DEFAULT '[]'`,
 	} {
 		if _, err := db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column") {
 			slog.Warn("migrate", "stmt", stmt, "err", err)
 		}
 	}
+}
+
+// migrateIDs rebuilds both tables when the conversation id is still a counter.
+// SQLite cannot change a column's type, and the ids have to be handed out
+// before anything can point at them, so it is a copy rather than an update. The
+// old addresses stop resolving, which was accepted when the change was asked
+// for.
+func migrateIDs(db *sql.DB) {
+	rows, err := db.Query(`PRAGMA table_info(conversations)`)
+	if err != nil {
+		return
+	}
+	kind := ""
+	for rows.Next() {
+		var cid int
+		var name, typ, dflt any
+		var notnull, pk int
+		if rows.Scan(&cid, &name, &typ, &notnull, &dflt, &pk) == nil && name == "id" {
+			kind, _ = typ.(string)
+		}
+	}
+	rows.Close()
+	if !strings.EqualFold(kind, "INTEGER") {
+		return
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		slog.Error("could not start the id migration", "err", err)
+		return
+	}
+	defer tx.Rollback()
+
+	fail := func(step string, err error) bool {
+		if err == nil {
+			return false
+		}
+		slog.Error("the id migration stopped", "step", step, "err", err)
+		return true
+	}
+
+	var old []int64
+	ids, err := tx.Query(`SELECT id FROM conversations ORDER BY id`)
+	if fail("reading the conversations", err) {
+		return
+	}
+	for ids.Next() {
+		var id int64
+		if ids.Scan(&id) == nil {
+			old = append(old, id)
+		}
+	}
+	ids.Close()
+
+	for _, stmt := range []string{
+		`CREATE TABLE conversations_new (
+		  id TEXT PRIMARY KEY, title TEXT NOT NULL DEFAULT '',
+		  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+		  summary TEXT NOT NULL DEFAULT '', summarized INTEGER NOT NULL DEFAULT 0)`,
+		`CREATE TABLE messages_new (
+		  id INTEGER PRIMARY KEY,
+		  conv_id TEXT NOT NULL REFERENCES conversations_new(id) ON DELETE CASCADE,
+		  role TEXT NOT NULL, content TEXT NOT NULL,
+		  tools TEXT NOT NULL DEFAULT '[]', display TEXT NOT NULL DEFAULT '',
+		  files TEXT NOT NULL DEFAULT '[]', sources TEXT NOT NULL DEFAULT '[]',
+		  at INTEGER NOT NULL)`,
+	} {
+		if fail("creating the new tables", run(tx, stmt)) {
+			return
+		}
+	}
+
+	for _, o := range old {
+		id := newID()
+		if fail("copying a conversation", run(tx,
+			`INSERT INTO conversations_new SELECT ?, title, created_at, updated_at, summary, summarized FROM conversations WHERE id=?`,
+			id, o)) {
+			return
+		}
+		if fail("copying its messages", run(tx,
+			`INSERT INTO messages_new(conv_id, role, content, tools, display, files, sources, at)
+			 SELECT ?, role, content, tools, display, files, sources, at FROM messages WHERE conv_id=? ORDER BY id`,
+			id, o)) {
+			return
+		}
+	}
+
+	// The child goes first, so dropping the parent never fires a cascade over
+	// rows that are still the only copy.
+	for _, stmt := range []string{
+		`DROP TABLE messages`,
+		`DROP TABLE conversations`,
+		`ALTER TABLE conversations_new RENAME TO conversations`,
+		`ALTER TABLE messages_new RENAME TO messages`,
+		`CREATE INDEX IF NOT EXISTS messages_conv ON messages(conv_id, id)`,
+	} {
+		if fail("swapping the tables", run(tx, stmt)) {
+			return
+		}
+	}
+	if fail("committing", tx.Commit()) {
+		return
+	}
+	slog.Info("conversation ids are uuids now", "conversations", len(old))
+}
+
+func run(tx *sql.Tx, stmt string, args ...any) error {
+	_, err := tx.Exec(stmt, args...)
+	return err
 }
 
 // Close checkpoints the write ahead log into the database file before closing.
@@ -123,7 +240,7 @@ func (s *Store) Checkpoint() {
 }
 
 type Conversation struct {
-	ID        int64     `json:"id"`
+	ID        string    `json:"id"`
 	Title     string    `json:"title"`
 	Updated   time.Time `json:"updated"`
 	Preview   string    `json:"preview,omitempty"`
@@ -137,6 +254,7 @@ type Stored struct {
 	Display string        `json:"display,omitempty"`
 	Files   []Attachment  `json:"files,omitempty"`
 	Tools   []ToolSummary `json:"tools,omitempty"`
+	Sources []Source      `json:"sources,omitempty"`
 	At      time.Time     `json:"at"`
 }
 
@@ -159,29 +277,45 @@ type ToolSummary struct {
 	Err  string `json:"err,omitempty"`
 }
 
-func (s *Store) NewConversation(title string) (int64, error) {
+func (s *Store) NewConversation(title string) (string, error) {
 	now := time.Now().Unix()
-	r, err := s.db.Exec(`INSERT INTO conversations(title, created_at, updated_at) VALUES(?,?,?)`,
-		title, now, now)
-	if err != nil {
-		return 0, err
+	id := newID()
+	if _, err := s.db.Exec(`INSERT INTO conversations(id, title, created_at, updated_at) VALUES(?,?,?,?)`,
+		id, title, now, now); err != nil {
+		return "", err
 	}
-	return r.LastInsertId()
+	return id, nil
 }
 
-func (s *Store) Append(convID int64, m Stored) error {
+// newID is a version 4 uuid. Nothing in the repo needed one before this, and a
+// dependency for sixteen random bytes and a format string is not a trade worth
+// making.
+func newID() string {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		// The only way this fails is a broken kernel, and carrying on with a
+		// predictable id would be worse than saying so.
+		panic("no randomness for a conversation id: " + err.Error())
+	}
+	b[6] = b[6]&0x0f | 0x40
+	b[8] = b[8]&0x3f | 0x80
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
+}
+
+func (s *Store) Append(convID string, m Stored) error {
 	b, _ := json.Marshal(m.Tools)
 	f, _ := json.Marshal(m.Files)
-	if _, err := s.db.Exec(`INSERT INTO messages(conv_id, role, content, tools, display, files, at) VALUES(?,?,?,?,?,?,?)`,
-		convID, string(m.Role), m.Content, string(b), m.Display, string(f), time.Now().Unix()); err != nil {
+	src, _ := json.Marshal(m.Sources)
+	if _, err := s.db.Exec(`INSERT INTO messages(conv_id, role, content, tools, display, files, sources, at) VALUES(?,?,?,?,?,?,?,?)`,
+		convID, string(m.Role), m.Content, string(b), m.Display, string(f), string(src), time.Now().Unix()); err != nil {
 		return err
 	}
 	_, err := s.db.Exec(`UPDATE conversations SET updated_at=? WHERE id=?`, time.Now().Unix(), convID)
 	return err
 }
 
-func (s *Store) Messages(convID int64) ([]Stored, error) {
-	rows, err := s.db.Query(`SELECT role, content, tools, display, files, at FROM messages WHERE conv_id=? ORDER BY id`, convID)
+func (s *Store) Messages(convID string) ([]Stored, error) {
+	rows, err := s.db.Query(`SELECT role, content, tools, display, files, sources, at FROM messages WHERE conv_id=? ORDER BY id`, convID)
 	if err != nil {
 		return nil, err
 	}
@@ -189,14 +323,15 @@ func (s *Store) Messages(convID int64) ([]Stored, error) {
 	var out []Stored
 	for rows.Next() {
 		var m Stored
-		var role, tools, files string
+		var role, tools, files, sources string
 		var at int64
-		if err := rows.Scan(&role, &m.Content, &tools, &m.Display, &files, &at); err != nil {
+		if err := rows.Scan(&role, &m.Content, &tools, &m.Display, &files, &sources, &at); err != nil {
 			return nil, err
 		}
 		m.Role, m.At = Role(role), time.Unix(at, 0)
 		_ = json.Unmarshal([]byte(tools), &m.Tools)
 		_ = json.Unmarshal([]byte(files), &m.Files)
+		_ = json.Unmarshal([]byte(sources), &m.Sources)
 		out = append(out, m)
 	}
 	return out, rows.Err()
@@ -231,7 +366,7 @@ func (s *Store) List(limit int) ([]Conversation, error) {
 	return out, rows.Err()
 }
 
-func (s *Store) Get(convID int64) (Conversation, error) {
+func (s *Store) Get(convID string) (Conversation, error) {
 	var c Conversation
 	var up int64
 	err := s.db.QueryRow(`SELECT id, title, updated_at, summary, summarized FROM conversations WHERE id=?`,
@@ -240,17 +375,17 @@ func (s *Store) Get(convID int64) (Conversation, error) {
 	return c, err
 }
 
-func (s *Store) SetSummary(convID int64, summary string, covered int) error {
+func (s *Store) SetSummary(convID string, summary string, covered int) error {
 	_, err := s.db.Exec(`UPDATE conversations SET summary=?, summarized=? WHERE id=?`, summary, covered, convID)
 	return err
 }
 
-func (s *Store) SetTitle(convID int64, title string) error {
+func (s *Store) SetTitle(convID string, title string) error {
 	_, err := s.db.Exec(`UPDATE conversations SET title=? WHERE id=? AND title=''`, title, convID)
 	return err
 }
 
-func (s *Store) Delete(convID int64) error {
+func (s *Store) Delete(convID string) error {
 	_, err := s.db.Exec(`DELETE FROM conversations WHERE id=?`, convID)
 	return err
 }

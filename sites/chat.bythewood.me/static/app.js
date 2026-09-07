@@ -35,7 +35,7 @@
 
   const MAX_FILES = 10, MAX_BYTES = 20 * 1024 * 1024;
 
-  let convID = 0;
+  let convID = "";
   let inflight = null;
   // Files chosen but not sent yet. They stay File objects until the turn goes,
   // so nothing is uploaded until there is a message to attach them to.
@@ -107,6 +107,23 @@
     el.innerHTML = `<b>${esc(t.name)}</b>${t.args ? " " + esc(t.args) : ""}${ms}`;
     if (t.err) el.title = t.err;
     return el;
+  }
+
+  function sourceChip(s) {
+    const el = document.createElement("a");
+    el.className = "src";
+    el.href = s.url;
+    el.target = "_blank";
+    el.rel = "noopener noreferrer";
+    el.title = s.title || s.site;
+    el.innerHTML = `<b>${s.n}</b>${esc(s.site || s.url)}`;
+    return el;
+  }
+
+  function showSources(box, list) {
+    if (!box || !Array.isArray(list) || !list.length) return;
+    box.hidden = false;
+    box.replaceChildren(...list.map(sourceChip));
   }
 
   // A tool that answers instantly has no ms field at all, since the server
@@ -409,6 +426,7 @@
     const reply = bubble("bot");
     const body = reply.querySelector(".body");
     const toolbar = reply.querySelector(".tools");
+    const srcbox = reply.querySelector(".sources");
     body.classList.add("typing");
     makeRoom(mine);
 
@@ -426,7 +444,7 @@
     statusLine("thinking");
 
     try {
-      const convFor = incognito.checked ? 0 : convID;
+      const convFor = incognito.checked ? "" : convID;
       // A form rather than JSON once there are files, and JSON when there are
       // none so the ordinary turn does not pay for multipart framing.
       let init;
@@ -468,7 +486,7 @@
           if (!line) continue;
           let ev;
           try { ev = JSON.parse(line.slice(5).trim()); } catch { continue; }
-          handle(ev, { body, toolbar, blocks, tail, files: mine.querySelector(".files") });
+          handle(ev, { body, toolbar, srcbox, blocks, tail, files: mine.querySelector(".files") });
         }
       }
     } catch (e) {
@@ -533,7 +551,7 @@
         showStats(ev.stats);
         ui.tail.remove();
         if (ev.conversation_id) {
-          const isNew = convID === 0;
+          const isNew = !convID;
           convID = ev.conversation_id;
           if (isNew) refreshConversations();
         }
@@ -541,6 +559,7 @@
           ui.toolbar.hidden = false;
           ui.toolbar.replaceChildren(...ev.tools.map(toolChip));
         }
+        showSources(ui.srcbox, ev.sources);
         if (Array.isArray(ev.files) && ev.files.length && ui.files) {
           ui.files.hidden = false;
           ui.files.replaceChildren(...ev.files.map(fileChip));
@@ -612,9 +631,10 @@
         tb.hidden = false;
         tb.replaceChildren(...m.tools.map(toolChip));
       }
+      showSources(node.querySelector(".sources"), m.sources);
     }
     document.querySelectorAll(".conv").forEach((el) =>
-      el.classList.toggle("active", Number(el.dataset.id) === id));
+      el.classList.toggle("active", el.dataset.id === id));
     history.pushState({ id }, "", "/c/" + id);
     toBottom(true);
     if (isNarrow()) showSide(false);
@@ -644,7 +664,7 @@
     c.addEventListener("click", () => ask(c.dataset.ask)));
 
   $("new-chat").addEventListener("click", () => {
-    convID = 0;
+    convID = "";
     thread.replaceChildren();
     spacer = null; anchor = null;
     barTitle.textContent = "New conversation";
@@ -661,12 +681,12 @@
     if (del) {
       e.preventDefault(); e.stopPropagation();
       await fetch("/api/conversation/" + del.dataset.del, { method: "DELETE" });
-      if (Number(del.dataset.del) === convID) $("new-chat").click();
+      if (del.dataset.del === convID) $("new-chat").click();
       refreshConversations();
       return;
     }
     const a = e.target.closest(".conv");
-    if (a) { e.preventDefault(); openConversation(Number(a.dataset.id)); }
+    if (a) { e.preventDefault(); openConversation(a.dataset.id); }
   });
 
   $("wipe").addEventListener("click", async () => {
@@ -778,8 +798,8 @@
   });
 
   window.addEventListener("popstate", () => {
-    const m = location.pathname.match(/^\/c\/(\d+)/);
-    if (m) openConversation(Number(m[1])); else $("new-chat").click();
+    const m = location.pathname.match(/^\/c\/([\w-]+)/);
+    if (m) openConversation(m[1]); else $("new-chat").click();
   });
 
   // Is the model server up, and can anything be looked up? Asking /api/status
@@ -871,7 +891,7 @@
   // conversation on every phone.
   if (isNarrow()) showSide(false);
 
-  const first = location.pathname.match(/^\/c\/(\d+)/);
-  if (first) openConversation(Number(first[1]));
+  const first = location.pathname.match(/^\/c\/([\w-]+)/);
+  if (first) openConversation(first[1]);
   refocus();
 })();
