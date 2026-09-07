@@ -225,6 +225,9 @@ func main() {
 	// a second reason: dash is public, so this returns numbers and never a
 	// message, a path or an address. See aggregate.go.
 	mux.HandleFunc("GET /aggregate", s.aggregate)
+	// The read only view chat.bythewood.me's tools call. Behind the session
+	// rather than public like /aggregate, because it carries messages.
+	mux.HandleFunc("GET /api/summary", noStore(s.auth.RequireAuthJSON(s.apiSummary)))
 
 	// The mux only answers 405 itself when nothing else matches, and the
 	// "GET /" catch-all below matches every GET path there is.
