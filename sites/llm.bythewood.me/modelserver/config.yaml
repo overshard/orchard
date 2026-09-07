@@ -1,0 +1,40 @@
+# llama-swap: one model, started on demand and unloaded when idle.
+#
+# The ttl is the point of this file. Without it the weights sit on the card
+# forever and this machine is also a workstation. Three minutes is short
+# because a cold start measured 2.7 seconds, so the cost of being wrong is
+# small and the card comes back quickly when nobody is chatting.
+
+healthCheckTimeout: 600
+logLevel: info
+startPort: 10001
+
+models:
+  # Every caller asks for "local", so this name is the contract across the
+  # whole estate and swapping the weights underneath is one line here.
+  "local":
+    name: "Ornith 1.5 9B"
+    ttl: 180
+    # Measured on a 3070 with a live desktop: 7307 MiB of 8192 at this context
+    # with a q4_0 cache, 885 MiB free, and 62 tok/s. A q8_0 cache costs 271 MiB
+    # more for no measured speed, and 128k leaves only 452 MiB, which is inside
+    # the noise of the desktop's own usage.
+    #
+    # Q4_K_M because it is the smallest quant this model's publisher ships.
+    # There is no Unsloth dynamic build for 1.5, and Q5_K_M is 820 MiB heavier,
+    # which would cap context near 16k.
+    #
+    # A path on the volume rather than -hf, so the one service every other one
+    # depends on does not need HuggingFace to be reachable to start.
+    cmd: >
+      llama-server
+      --host 127.0.0.1 --port ${PORT}
+      -m /models/ornith/Ornith-1.5-9B-Q4_K_M.gguf
+      --n-gpu-layers 999
+      --flash-attn on
+      --parallel 1
+      --jinja
+      --ctx-size 65536
+      --cache-type-k q4_0
+      --cache-type-v q4_0
+      --ubatch-size 256

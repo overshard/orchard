@@ -1,0 +1,717 @@
+/* Cassette futurism, held to the same rule as dash and search: the texture is
+   structure, not costume. Green because DESIGN.md reserves green for the tools
+   read for minutes at a time, and a conversation is the longest read here.
+
+   The layout is deliberately a familiar chat: history on the left, thread in
+   the middle, composer pinned at the bottom. The costume is in the palette and
+   the chrome, not in where things are, because a chat you have to learn is
+   worse than one that looks like every other chat.
+
+   Every value is measured against the ground with the overlays applied. A
+   multiply blend over the page costs more contrast than any colour choice, so
+   do not darken one of these to soften something without re-measuring. */
+
+:root {
+  --void: #0a0908;
+  --bg: #0e0d0a;
+  --panel: #1e1b16;
+  --panel-2: #29251e;
+  --bar: #201d16;
+  --line: #414e41;
+  --line-hot: #5c725c;
+
+  --text: #ece5d8;
+  --muted: #c6b9a3;
+  --dim: #ab9c86;
+  --faint: #9c8e7a;
+
+  --green: #6b9e78;
+  --green-bright: #7db88c;
+  --green-hot: #95cca2;
+  --green-glow: rgba(107, 158, 120, 0.16);
+
+  --amber: #d4b45a;
+  --terracotta: #c47055;
+
+  --mono: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+  --track: 0.14em;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  --col: 46rem;      /* the reading column for a message */
+  --side: 16.5rem;
+  --barh: 3.1rem;
+}
+
+* { box-sizing: border-box; }
+
+html {
+  color-scheme: dark;
+  scrollbar-color: var(--line-hot) var(--void);
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 400 0.92rem/1.7 var(--mono);
+  /* The 32px grid every site here draws, in two gradients and nothing else. */
+  background-image:
+    linear-gradient(rgba(107, 158, 120, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(107, 158, 120, 0.028) 1px, transparent 1px);
+  background-size: 32px 32px;
+  background-position: center top;
+  overflow: hidden;
+}
+
+/* The two overlays. Both are well below where search shipped them, because
+   measured with a multiply blend applied the body copy there came out at 3.9
+   to 1 against a nominal 15.5. */
+.scan, .vignette { position: fixed; inset: 0; pointer-events: none; }
+.scan {
+  z-index: 4;
+  background: repeating-linear-gradient(
+    to bottom, rgba(0,0,0,0.08) 0 1px, transparent 1px 3px);
+  mix-blend-mode: multiply;
+}
+.vignette {
+  z-index: 5;
+  background: radial-gradient(ellipse at center, transparent 62%, rgba(0,0,0,0.22) 100%);
+}
+
+/* ------------------------------------------------------------------ shell */
+
+.shell { display: flex; height: 100vh; height: 100dvh; position: relative; z-index: 10; }
+
+/* ------------------------------------------------------------------ side */
+
+.side {
+  width: var(--side);
+  flex: 0 0 var(--side);
+  background: var(--void);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  transition: margin-left 0.2s var(--ease);
+}
+.side[hidden], .side.closed { margin-left: calc(var(--side) * -1); }
+
+.side-head {
+  height: var(--barh);
+  flex: 0 0 var(--barh);
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0 0.55rem 0 0.7rem;
+  border-bottom: 1px solid var(--line);
+}
+.brand { display: flex; align-items: center; gap: 0.5rem; text-decoration: none; margin-right: auto; }
+.key {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.35rem; height: 1.35rem;
+  border: 1px solid var(--line-hot);
+  color: var(--green-bright);
+  font-size: 0.72rem; font-weight: 700;
+  position: relative;
+}
+/* The cursor is drawn rather than typed, since a block glyph renders as a
+   hairline in some faces. */
+.cur {
+  position: absolute; right: 2px; bottom: 3px;
+  width: 3px; height: 7px; background: var(--green-hot);
+}
+@keyframes blink { 50% { opacity: 0; } }
+.brand-name { color: var(--text); font-weight: 700; letter-spacing: 0.02em; }
+
+.icon-btn {
+  background: none; border: 1px solid transparent; color: var(--dim);
+  font: inherit; font-size: 0.8rem; cursor: pointer; padding: 0.2rem 0.4rem;
+  border-radius: 2px;
+}
+.icon-btn:hover { color: var(--green-hot); border-color: var(--line); background: var(--panel); }
+
+.new-chat {
+  margin: 0.65rem 0.7rem 0.2rem;
+  padding: 0.5rem 0.7rem;
+  background: var(--panel);
+  border: 1px solid rgba(92, 114, 92, 0.5);
+  color: var(--text);
+  font: inherit; text-align: left; cursor: pointer; border-radius: 2px;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.new-chat:hover { background: var(--panel-2); border-color: var(--green); color: var(--green-hot); }
+.plus { color: var(--green-bright); font-weight: 700; }
+
+.side-label {
+  padding: 0.9rem 0.85rem 0.35rem;
+  color: var(--amber);
+  font-size: 0.66rem; font-weight: 600; letter-spacing: var(--track); text-transform: uppercase;
+}
+
+.convs { flex: 1 1 auto; overflow-y: auto; padding: 0 0.45rem 0.5rem; min-height: 0; }
+.conv {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center; gap: 0.4rem;
+  padding: 0.4rem 0.5rem;
+  color: var(--muted); text-decoration: none;
+  border: 1px solid transparent; border-radius: 2px;
+  font-size: 0.8rem;
+}
+.conv:hover { background: var(--panel); border-color: rgba(65, 78, 65, 0.42); color: var(--text); }
+.conv.active { background: var(--panel); border-color: var(--line-hot); color: var(--green-hot); }
+.conv-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conv-when { color: var(--faint); font-size: 0.68rem; }
+.conv-del {
+  background: none; border: 0; color: var(--faint); cursor: pointer;
+  font-size: 0.66rem; padding: 0 0.15rem; opacity: 0; line-height: 1;
+}
+.conv:hover .conv-del { opacity: 1; }
+.conv-del:hover { color: var(--terracotta); }
+.empty { color: var(--faint); font-size: 0.78rem; padding: 0.3rem 0.5rem; margin: 0; }
+
+.side-foot { border-top: 1px solid var(--line); padding: 0 0.7rem 0.75rem; flex: 0 0 auto; }
+
+.incog { display: flex; gap: 0.55rem; align-items: flex-start; cursor: pointer; padding: 0.15rem 0; }
+.incog input { position: absolute; opacity: 0; width: 0; height: 0; }
+.incog-box {
+  width: 0.95rem; height: 0.95rem; margin-top: 0.28rem; flex: 0 0 auto;
+  border: 1px solid var(--line-hot); border-radius: 2px; position: relative;
+}
+.incog input:checked + .incog-box { border-color: var(--amber); }
+.incog input:checked + .incog-box::after {
+  content: ""; position: absolute; inset: 2px; background: var(--amber);
+}
+.incog input:focus-visible + .incog-box { outline: 2px solid var(--green-hot); outline-offset: 2px; }
+.incog-text { font-size: 0.76rem; line-height: 1.45; }
+.incog-text b { color: var(--text); font-weight: 600; }
+.incog-text small { display: block; color: var(--faint); font-size: 0.68rem; }
+
+.side-stats {
+  display: flex; gap: 0.8rem; padding: 0.6rem 0 0.5rem;
+  color: var(--faint); font-size: 0.68rem;
+}
+.side-stats b { color: var(--green-bright); font-weight: 600; }
+
+.wipe {
+  width: 100%; background: none; border: 1px solid rgba(196, 112, 85, 0.4);
+  color: var(--terracotta); font: inherit; font-size: 0.72rem;
+  padding: 0.3rem; cursor: pointer; border-radius: 2px;
+}
+.wipe:hover { background: rgba(196, 112, 85, 0.12); border-color: var(--terracotta); }
+
+/* ------------------------------------------------------------------ main */
+
+.main { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+
+/* Chrome sits a step above the ground, never below it. A bar darker than the
+   page reads as a hole and leaves the small text on it nowhere to go. */
+.bar {
+  height: var(--barh); flex: 0 0 var(--barh);
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0 0.9rem;
+  background: var(--bar);
+  border-bottom: 1px solid var(--line-hot);
+  position: relative; z-index: 20;
+}
+.bar-title {
+  color: var(--muted); font-size: 0.82rem;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  margin-right: auto;
+}
+.bar-right { display: flex; align-items: center; gap: 0.7rem; }
+.incog-flag {
+  color: var(--amber); font-size: 0.64rem; font-weight: 600;
+  letter-spacing: var(--track); border: 1px solid rgba(212, 180, 90, 0.5);
+  padding: 0.1rem 0.4rem; border-radius: 2px;
+}
+.model { color: var(--dim); font-size: 0.72rem; display: flex; align-items: center; gap: 0.4rem; }
+
+/* The context meter. A number beside a bar rather than a percentage, because
+   how many tokens are left is the thing being decided and a percentage of a
+   window whose size varies by model is not. */
+.meter { display: flex; align-items: center; gap: 0.4rem; font-size: 0.68rem; color: var(--faint); }
+/* A display rule beats the hidden attribute, so anything here that sets
+   display has to say so itself or it shows through hidden. */
+.meter[hidden], .tps[hidden], .incog-flag[hidden] { display: none; }
+.meter-num { color: var(--dim); font-variant-numeric: tabular-nums; }
+.meter-cap { font-variant-numeric: tabular-nums; }
+.meter-track {
+  width: 4.5rem; height: 0.4rem;
+  border: 1px solid var(--line); border-radius: 1px;
+  background: var(--void); overflow: hidden;
+}
+.meter-fill {
+  display: block; height: 100%; width: 0;
+  background: var(--green); transition: width 0.3s var(--ease);
+}
+/* Over half the window is where compaction starts, so the bar says so before
+   it happens rather than after. */
+.meter.warm .meter-fill { background: var(--amber); }
+.meter.warm .meter-num { color: var(--amber); }
+.meter.hot .meter-fill { background: var(--terracotta); }
+.meter.hot .meter-num { color: var(--terracotta); }
+
+.tps { color: var(--faint); font-size: 0.68rem; font-variant-numeric: tabular-nums; }
+.tps b { color: var(--green-bright); font-weight: 600; }
+
+@media (max-width: 60em) {
+  .meter-track, .meter-cap { display: none; }
+}
+
+/* State is a ring that fills, not colour alone. */
+.dot {
+  width: 0.5rem; height: 0.5rem; border-radius: 50%;
+  border: 1px solid var(--line-hot); background: transparent;
+  display: inline-block; flex: 0 0 auto;
+}
+.dot.on { background: var(--green-bright); border-color: var(--green-bright); box-shadow: 0 0 6px var(--green-glow); }
+.dot.busy { background: var(--amber); border-color: var(--amber); animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.35; } }
+
+.thread { flex: 1 1 auto; overflow-y: auto; padding: 1.6rem 1rem 1rem; min-height: 0; }
+
+/* ------------------------------------------------------------------ welcome */
+
+.welcome { max-width: var(--col); margin: 6vh auto 0; }
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  border: 1px solid var(--line); border-radius: 999px;
+  padding: 0.18rem 0.65rem; margin-bottom: 1.1rem;
+  color: var(--dim); font-size: 0.68rem; letter-spacing: 0.04em;
+}
+.eyebrow .sep { color: var(--faint); }
+.welcome h1 {
+  font-size: clamp(1.5rem, 3.4vw, 2.1rem); line-height: 1.3;
+  font-weight: 700; letter-spacing: -0.01em; margin: 0 0 0.8rem;
+}
+.welcome h1 .hl { color: var(--green-bright); }
+.welcome p { color: var(--muted); margin: 0 0 1.4rem; max-width: 42rem; }
+
+.welcome-hint { color: var(--faint); font-size: 0.72rem; margin: -0.6rem 0 1.1rem; }
+.welcome-hint kbd { margin-right: 0.15rem; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.chip {
+  background: var(--panel); border: 1px solid rgba(65, 78, 65, 0.42);
+  color: var(--muted); font: inherit; font-size: 0.78rem;
+  padding: 0.4rem 0.7rem; border-radius: 2px; cursor: pointer; text-align: left;
+}
+.chip:hover { background: var(--panel-2); border-color: var(--green); color: var(--green-hot); }
+
+/* ------------------------------------------------------------------ messages */
+
+.msg { max-width: var(--col); margin: 0 auto 1.6rem; }
+.who {
+  color: var(--amber); font-size: 0.64rem; font-weight: 600;
+  letter-spacing: var(--track); text-transform: uppercase; margin-bottom: 0.4rem;
+}
+.msg.user .who { color: var(--faint); }
+.msg.user .body {
+  background: var(--panel);
+  border: 1px solid rgba(65, 78, 65, 0.42);
+  border-left: 2px solid var(--line-hot);
+  padding: 0.7rem 0.9rem; border-radius: 2px;
+  color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.msg.bot .body { color: var(--text); }
+.body > *:first-child { margin-top: 0; }
+.body > *:last-child { margin-bottom: 0; }
+.body p { margin: 0 0 0.85rem; }
+.body h1, .body h2, .body h3, .body h4 {
+  font-size: 1rem; font-weight: 700; letter-spacing: -0.01em;
+  margin: 1.4rem 0 0.5rem; color: var(--text);
+}
+.body h1 { font-size: 1.15rem; }
+.body strong { color: var(--green-bright); font-weight: 600; }
+.body a { color: var(--green-bright); text-decoration: underline; text-underline-offset: 2px; }
+.body a:hover { color: var(--green-hot); }
+.body ul, .body ol { margin: 0 0 0.9rem; padding-left: 1.2rem; }
+.body li { margin-bottom: 0.3rem; }
+.body li::marker { color: var(--green); }
+.body blockquote {
+  margin: 0 0 0.9rem; padding: 0.1rem 0 0.1rem 0.8rem;
+  border-left: 2px solid var(--line-hot); color: var(--muted);
+}
+.body code {
+  background: var(--panel); border: 1px solid rgba(65, 78, 65, 0.42);
+  padding: 0.05rem 0.3rem; border-radius: 2px; font-size: 0.86em; color: var(--green-hot);
+}
+.body pre {
+  background: var(--void); border: 1px solid var(--line);
+  border-left: 2px solid var(--green); border-radius: 2px;
+  padding: 0.8rem 0.9rem; overflow-x: auto; margin: 0 0 0.9rem;
+}
+.body pre code { background: none; border: 0; padding: 0; color: var(--text); font-size: 0.84rem; }
+.body table { border-collapse: collapse; width: 100%; margin: 0 0 0.9rem; font-size: 0.84rem; display: block; overflow-x: auto; }
+.body th, .body td { border: 1px solid rgba(65, 78, 65, 0.42); padding: 0.35rem 0.55rem; text-align: left; }
+.body th { color: var(--amber); font-weight: 600; letter-spacing: 0.03em; background: var(--panel); }
+.body hr { border: 0; border-top: 1px solid var(--line); margin: 1.2rem 0; }
+
+/* The unfinished paragraph. It is styled exactly like a rendered one so that
+   the moment it becomes a block nothing visibly moves. */
+.body .tail { margin: 0 0 0.85rem; white-space: pre-wrap; }
+.body .tail:empty { display: none; }
+
+/* The cursor while text is streaming in. */
+.body.typing .tail::after {
+  content: ""; display: inline-block; width: 0.45rem; height: 0.9rem;
+  background: var(--green-hot); margin-left: 2px; vertical-align: -0.12rem;
+  animation: blink 1.1s steps(1) infinite;
+}
+.body.typing .tail:empty { display: inline-block; min-height: 0.9rem; }
+
+/* ------------------------------------------------------------------ tools */
+
+.tools { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.7rem; }
+.tools[hidden] { display: none; }
+.tool {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  border: 1px solid rgba(65, 78, 65, 0.42); background: var(--panel);
+  color: var(--dim); font-size: 0.68rem; padding: 0.15rem 0.45rem; border-radius: 2px;
+}
+.tool b { color: var(--green-bright); font-weight: 600; }
+.tool .ms { color: var(--faint); }
+.tool.bad { border-color: rgba(196, 112, 85, 0.5); }
+.tool.bad b { color: var(--terracotta); }
+.tool.run b { color: var(--amber); }
+
+/* Room under the newest exchange so its question can sit at the top of the
+   viewport. It shrinks to nothing once the answer is long enough to fill the
+   screen by itself. */
+.spacer { height: 0; flex: 0 0 auto; }
+
+.status {
+  max-width: var(--col); margin: 0 auto 1.2rem;
+  color: var(--dim); font-size: 0.76rem;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.status .dots::after {
+  content: ""; animation: dots 1.4s steps(4, end) infinite;
+}
+@keyframes dots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
+
+.err {
+  max-width: var(--col); margin: 0 auto 1.4rem;
+  border: 1px solid rgba(196, 112, 85, 0.5); border-left: 2px solid var(--terracotta);
+  background: rgba(196, 112, 85, 0.08); color: var(--muted);
+  padding: 0.6rem 0.8rem; border-radius: 2px; font-size: 0.82rem;
+}
+
+/* ------------------------------------------------------------------ composer */
+
+.composer {
+  flex: 0 0 auto; padding: 0.5rem 1rem 0.7rem;
+  border-top: 1px solid var(--line);
+  background: linear-gradient(to top, var(--bg) 70%, transparent);
+}
+.ask {
+  max-width: var(--col); margin: 0 auto;
+  display: flex; align-items: flex-end; gap: 0.5rem;
+  background: var(--panel);
+  border: 1px solid rgba(92, 114, 92, 0.5);
+  border-radius: 3px; padding: 0.4rem 0.4rem 0.4rem 0.7rem;
+}
+.ask:focus-within { border-color: var(--green); box-shadow: 0 0 0 3px var(--green-glow); }
+.ask textarea {
+  flex: 1 1 auto; background: none; border: 0; resize: none;
+  color: var(--text); font: inherit; line-height: 1.6;
+  max-height: 11rem; padding: 0.25rem 0; outline: none;
+}
+.ask textarea::placeholder { color: var(--faint); }
+.ask button {
+  flex: 0 0 auto; width: 2rem; height: 2rem;
+  background: var(--green); border: 0; border-radius: 2px;
+  color: var(--void); font-size: 0.72rem; cursor: pointer;
+}
+.ask button:hover { background: var(--green-hot); }
+.ask button:disabled { background: var(--panel-2); color: var(--faint); cursor: not-allowed; }
+#stop { background: var(--terracotta); color: var(--void); }
+
+/* ------------------------------------------------------------- attachments */
+
+/* The attach button is the one control in the composer that is not the send
+   action, so it reads as chrome rather than taking the green. */
+.ask .attach {
+  background: none; border: 1px solid rgba(92, 114, 92, 0.5);
+  color: var(--dim); font-size: 1rem; line-height: 1;
+}
+.ask .attach:hover { background: var(--panel-2); color: var(--green-bright); border-color: var(--line-hot); }
+
+.tray {
+  max-width: var(--col); margin: 0 auto 0.4rem;
+  display: flex; flex-wrap: wrap; gap: 0.35rem;
+}
+.tray[hidden] { display: none; }
+.chip {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  border: 1px solid rgba(92, 114, 92, 0.5); background: var(--panel);
+  color: var(--muted); font-size: 0.7rem; padding: 0.2rem 0.25rem 0.2rem 0.5rem;
+  border-radius: 2px; max-width: 18rem;
+}
+.chip .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip .sz { color: var(--faint); }
+.chip.bad { border-color: rgba(196, 112, 85, 0.5); color: var(--terracotta); }
+.chip button {
+  background: none; border: 0; color: var(--faint); cursor: pointer;
+  font-size: 0.7rem; line-height: 1; padding: 0.15rem 0.2rem;
+}
+.chip button:hover { color: var(--terracotta); }
+
+/* Attachment chips on a sent message. Same shape as the tool chips above them
+   and not interactive, since the file itself was never kept. */
+.files { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.7rem; }
+.files[hidden] { display: none; }
+
+/* The drop target is the whole window, because a file dragged out of a file
+   manager is released wherever the pointer is rather than over the composer. */
+.drop {
+  position: fixed; inset: 0; z-index: 40;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(10, 9, 8, 0.82); backdrop-filter: blur(2px);
+  border: 2px dashed var(--green); pointer-events: none;
+}
+.drop[hidden] { display: none; }
+.drop span {
+  color: var(--green-hot); font-size: 0.8rem; font-weight: 700;
+  letter-spacing: var(--track); text-transform: uppercase;
+}
+
+.foot-note {
+  max-width: var(--col); margin: 0.4rem auto 0;
+  display: flex; justify-content: space-between; gap: 1rem;
+  color: var(--faint); font-size: 0.68rem;
+}
+.foot-note a { color: var(--faint); text-decoration: none; }
+.foot-note a:hover { color: var(--green-bright); text-decoration: underline; }
+
+/* ------------------------------------------------------------------ keys */
+
+.filter {
+  margin: 0 0.45rem 0.4rem; width: calc(100% - 0.9rem);
+  background: var(--panel); border: 1px solid rgba(92, 114, 92, 0.5);
+  color: var(--text); font: inherit; font-size: 0.78rem;
+  padding: 0.25rem 0.45rem; border-radius: 2px;
+}
+.filter[hidden] { display: none; }
+.filter:focus { outline: none; border-color: var(--green); }
+
+.sheet {
+  position: fixed; inset: 0; z-index: 60;
+  background: rgba(10, 9, 8, 0.72);
+  display: flex; align-items: center; justify-content: center; padding: 1rem;
+}
+.sheet[hidden] { display: none; }
+.sheet-card {
+  background: var(--panel); border: 1px solid var(--line-hot); border-radius: 3px;
+  padding: 1rem 1.1rem; width: min(30rem, 100%);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+}
+.sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
+
+.keys { display: grid; grid-template-columns: auto 1fr; gap: 0.4rem 0.9rem; margin: 0; align-items: center; }
+.keys dt { display: flex; gap: 0.2rem; }
+.keys dd { margin: 0; color: var(--muted); font-size: 0.8rem; }
+kbd {
+  background: var(--void); border: 1px solid var(--line-hot);
+  border-bottom-width: 2px; border-radius: 2px;
+  padding: 0.05rem 0.32rem; font: inherit; font-size: 0.7rem; color: var(--green-bright);
+}
+.keys-note { color: var(--faint); font-size: 0.7rem; margin: 0.9rem 0 0; line-height: 1.6; }
+.keys-note kbd { font-size: 0.66rem; }
+
+.foot-right { display: flex; gap: 0.8rem; align-items: center; }
+.linkish {
+  background: none; border: 0; color: var(--faint); font: inherit; font-size: 0.68rem;
+  cursor: pointer; padding: 0; text-decoration: none;
+}
+.linkish:hover { color: var(--green-bright); text-decoration: underline; }
+.keys-hint { display: inline-flex; align-items: center; gap: 0.2rem; }
+.keys-hint kbd { font-size: 0.62rem; padding: 0 0.25rem; border-bottom-width: 1px; }
+.keys-hint:hover { text-decoration: none; }
+.keys-hint:hover kbd { border-color: var(--green); color: var(--green-hot); }
+
+
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+
+/* ---------------------------------------------------------------- landing */
+
+/* The one page a signed out visitor sees. It reuses the palette and the brand
+   mark and nothing else, since the app's layout is a three pane shell and this
+   is a single column of prose. */
+
+.landing-body { display: block; overflow-y: auto; }
+
+.landing {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 4rem 1.4rem 5rem;
+}
+.landing .brand { display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none; }
+.landing .brand:hover { text-decoration: none; }
+
+.landing .eyebrow {
+  color: var(--amber); font-size: 0.64rem; font-weight: 600;
+  letter-spacing: var(--track); text-transform: uppercase;
+  margin: 1.6rem 0 0.6rem;
+}
+.landing h1 {
+  font-size: 1.7rem; line-height: 1.3; font-weight: 700;
+  letter-spacing: -0.01em; margin: 0 0 1rem; color: var(--text);
+}
+.landing h1 .accent { color: var(--green-bright); }
+.landing .lede { color: var(--muted); font-size: 0.92rem; margin: 0 0 1.6rem; }
+
+.landing .points { list-style: none; padding: 0; margin: 0 0 2rem; }
+.landing .points li {
+  color: var(--dim); font-size: 0.82rem;
+  padding: 0.5rem 0 0.5rem 1rem;
+  border-left: 1px solid var(--line);
+  margin-bottom: 0.3rem;
+}
+.landing .points b { color: var(--green-bright); font-weight: 700; }
+
+.landing .ctas { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 2.4rem; }
+.landing .btn {
+  display: inline-block; background: var(--green); color: var(--void);
+  border: 1px solid var(--green); border-radius: 2px;
+  font-size: 0.78rem; font-weight: 700; padding: 0.45rem 0.9rem;
+  text-decoration: none;
+}
+.landing .btn:hover { background: var(--green-hot); border-color: var(--green-hot); text-decoration: none; }
+.landing .btn.ghost { background: none; color: var(--dim); border-color: var(--line); }
+.landing .btn.ghost:hover { color: var(--green-bright); border-color: var(--line-hot); }
+
+.landing .foot-line { color: var(--faint); font-size: 0.72rem; }
+.landing .foot-line a { color: var(--faint); }
+.landing .foot-line a:hover { color: var(--green-bright); }
+
+/* ------------------------------------------------------- memory overlay */
+
+/* Taller than the shortcuts sheet because the list grows, and scrolling
+   inside the card rather than the page so the conversation behind it does
+   not move while you read. */
+.mem-card { width: min(38rem, 100%); max-height: min(80vh, 42rem); display: flex; flex-direction: column; }
+.mem-lede { color: var(--dim); font-size: 0.74rem; margin: 0 0 0.7rem; }
+
+.mem-msg {
+  border-left: 2px solid var(--green); background: var(--void);
+  padding: 0.4rem 0.6rem; margin-bottom: 0.7rem;
+  font-size: 0.76rem; color: var(--muted);
+}
+.mem-msg[hidden] { display: none; }
+.mem-msg.bad { border-left-color: var(--terracotta); color: var(--terracotta); }
+
+.teach { display: flex; gap: 0.5rem; align-items: flex-end; margin-bottom: 0.8rem; }
+.teach textarea {
+  flex: 1 1 auto; background: var(--void); color: var(--text);
+  border: 1px solid rgba(92, 114, 92, 0.5); border-radius: 3px;
+  font: inherit; font-size: 0.82rem; line-height: 1.5;
+  padding: 0.4rem 0.55rem; resize: vertical; max-height: 8rem;
+}
+.teach textarea:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px var(--green-glow); }
+.teach textarea::placeholder { color: var(--faint); }
+.teach button {
+  flex: 0 0 auto; background: var(--green); color: var(--void); border: 0;
+  border-radius: 2px; font: inherit; font-size: 0.74rem; font-weight: 700;
+  padding: 0.45rem 0.75rem; cursor: pointer;
+}
+.teach button:hover { background: var(--green-hot); }
+.teach button:disabled { background: var(--panel-2); color: var(--faint); cursor: not-allowed; }
+
+.mem-list { flex: 1 1 auto; overflow-y: auto; min-height: 3rem; }
+.fact {
+  display: flex; align-items: baseline; gap: 0.6rem;
+  padding: 0.45rem 0; border-bottom: 1px solid rgba(65, 78, 65, 0.45);
+}
+.fact:last-child { border-bottom: 0; }
+.fact .ft { flex: 1 1 auto; color: var(--text); font-size: 0.82rem; }
+.fact .fu { flex: 0 0 auto; color: var(--faint); font-size: 0.64rem; white-space: nowrap; }
+.fact .fx {
+  flex: 0 0 auto; background: none; border: 0; color: var(--faint);
+  cursor: pointer; font-size: 0.68rem; padding: 0.1rem 0.2rem;
+}
+.fact .fx:hover { color: var(--terracotta); }
+.fact.going { opacity: 0.35; }
+
+.mem-empty { color: var(--faint); font-size: 0.78rem; padding: 0.6rem 0; }
+
+.mem-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; margin-top: 0.8rem; padding-top: 0.6rem;
+  border-top: 1px solid var(--line);
+  color: var(--faint); font-size: 0.68rem;
+}
+.mem-foot .danger {
+  background: none; border: 1px solid rgba(196, 112, 85, 0.5);
+  color: var(--terracotta); border-radius: 2px;
+  font: inherit; font-size: 0.68rem; padding: 0.25rem 0.5rem; cursor: pointer;
+}
+.mem-foot .danger:hover { background: rgba(196, 112, 85, 0.12); }
+
+/* ------------------------------------------------------------------ narrow */
+
+@media (max-width: 52em) {
+  /* Wider than the desktop rail, because a conversation title has to be
+     readable and 264px of a phone truncates most of them. It stays short of
+     the full width so the dimmed strip says there is a page behind it. */
+  .side {
+    --side: min(85vw, 20rem);
+    position: fixed; inset: 0 auto 0 0; z-index: 40;
+    width: var(--side); flex-basis: var(--side);
+    box-shadow: 0 0 40px rgba(0,0,0,0.6);
+  }
+  .side.closed { margin-left: calc(var(--side) * -1); }
+  .thread { padding: 1.2rem 0.8rem 0.8rem; }
+  .welcome { margin-top: 3vh; }
+
+  /* Everything about a keyboard, on a device without one. */
+  .welcome-hint, #foot-state, .keys-hint { display: none; }
+
+  /* What is left is two links, and they fit on one line once the keyboard
+     advice above is gone. */
+  .foot-note { justify-content: flex-end; font-size: 0.72rem; }
+  .foot-right { gap: 0.9rem; }
+  .foot-note a, .foot-note .linkish { white-space: nowrap; }
+
+  /* iOS zooms the whole page when a field it focuses is under 16px, and then
+     leaves it zoomed, which is the single worst thing that happens on a phone
+     here. The value is in px because it is about the browser's rule and not
+     about this page's type scale. */
+  .ask textarea, .teach textarea, .filter { font-size: 16px; }
+
+  /* Touch targets. 32px is comfortable with a mouse and small with a thumb. */
+  .ask button { width: 2.75rem; height: 2.75rem; font-size: 0.9rem; }
+  .icon-btn { min-width: 2.5rem; min-height: 2.5rem; padding: 0.4rem 0.5rem; }
+  .chip { padding: 0.5rem 0.7rem; }
+  .fact .fx { padding: 0.4rem 0.5rem; }
+  .conv-del { padding: 0.4rem 0.5rem; }
+
+  /* The bar is the tightest row on the page, so it gives up its padding first
+     and the model name stops wrapping to a second line. */
+  .bar { gap: 0.45rem; padding: 0 0.55rem; }
+  .model { font-size: 0.66rem; white-space: nowrap; }
+  .bar-title { font-size: 0.76rem; }
+
+  /* Dimming what is behind it is what says the sidebar is a layer rather than
+     part of the page, and tapping it is how a phone expects to close one. */
+  .scrim {
+    position: fixed; inset: 0; z-index: 35;
+    background: rgba(10, 9, 8, 0.6);
+  }
+  .scrim[hidden] { display: none; }
+
+  .sheet { padding: 0.5rem; align-items: flex-start; padding-top: 3vh; }
+  .sheet-card { padding: 0.8rem 0.85rem; }
+  .mem-card { max-height: 88vh; }
+  .teach { flex-direction: column; align-items: stretch; }
+  .teach button { width: 100%; padding: 0.6rem; }
+}
+
+/* The sidebar is a layer at every width where it overlays, and the scrim only
+   ever exists there. */
+.scrim { display: none; }
+@media (max-width: 52em) {
+  .scrim:not([hidden]) { display: block; }
+}

@@ -1,0 +1,436 @@
+// The conversation loop. A turn is not one big generation: the model decides
+// what it needs, tools fetch it, and only then does it write. That is the same
+// insight search rests on and it is what makes a 4B usable here.
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"sort"
+	"strings"
+	"time"
+
+	"chat.bythewood.me/tools"
+)
+
+const (
+	// Six rounds is enough for a comparison that searches per thing and then
+	// fetches the best page. Past that a model is usually looping rather than
+	// gathering.
+	// Four is enough for a comparison that searches per thing and then reads
+	// the best page. It used to be six, which on a page that gave the model
+	// nothing was six fetches of the same url before it gave up.
+	maxToolRounds = 4
+
+	// Budgets. The answer gets the big one because it is the only step whose
+	// output the user reads.
+	// Enough for several tool calls in one round. It was 900, which a model
+	// asked to total a bank statement spent on one arithmetic expression before
+	// being cut off mid string.
+	toolTurnTokens = 1600
+	answerTokens   = 2400
+)
+
+// Event is what the browser is told while a turn runs.
+//
+// The answer arrives as `block` and `tail` rather than raw text. A block is a
+// finished piece of markdown already rendered to HTML, and the tail is the
+// unfinished paragraph after it, as plain text. That way the reader sees
+// formatting appear as it is settled instead of reading plain text and then
+// having the whole message reflow under them when the turn ends.
+type Event struct {
+	Kind string `json:"kind"` // status, tool, tool_done, block, tail, done, error
+	Text string `json:"text,omitempty"`
+	HTML string `json:"html,omitempty"`
+	Tool string `json:"tool,omitempty"`
+	Args string `json:"args,omitempty"`
+	MS   int64  `json:"ms,omitempty"`
+	OK   bool   `json:"ok,omitempty"`
+}
+
+type Engine struct {
+	// Render is the same markdown renderer the finished message uses, so what
+	// streams in and what is stored cannot disagree.
+	Render func(string) string
+
+	llm  *LLM
+	reg  *tools.Registry
+	deps *tools.Deps
+	now  func() time.Time
+	// modelName is what the model is told it is. It is the readable name
+	// rather than llama-swap's "local" alias, which is a routing key and means
+	// nothing to a reader.
+	modelName string
+	place     string
+	tz        string
+}
+
+func NewEngine(llm *LLM, modelName string) *Engine {
+	return &Engine{
+		llm: llm, reg: tools.Default(), deps: tools.NewDeps(), now: time.Now,
+		modelName: modelName,
+		place:     "Yadkin Valley, North Carolina", tz: "America/New_York",
+	}
+}
+
+// ambient is what a person sitting here would know without being told. Without
+// the date the model cannot tell what "this weekend" means, and without the
+// place it answers a question about the weather as though it were nowhere.
+//
+// The time is stated to the hour rather than the minute on purpose: every
+// system prompt opens with this block and llama.cpp caches the prompt prefix it
+// has already processed, so a clock that ticks every minute means no turn ever
+// reuses another's work.
+func (e *Engine) ambient() string {
+	loc, err := time.LoadLocation(e.tz)
+	if err != nil {
+		loc = time.UTC
+	}
+	t := e.now().In(loc)
+	return fmt.Sprintf("Today is %s. It is around %s. The user is in %s.",
+		t.Format("Monday, 2 January 2006"), t.Format("3 PM MST"), e.place)
+}
+
+// identity is first in the prompt because a small model asked what it is will
+// otherwise answer with whatever name dominated its training data, and several
+// of them say Claude. It is a training artifact rather than a jailbreak, and
+// the only fix is telling it what it actually is.
+const identity = `You are %s, an open weights model running through llama.cpp on Isaac's own RTX 3070, in a chat application he wrote. You are not Claude, ChatGPT, Gemini, or any hosted assistant, and you were not made by Anthropic, OpenAI or Google. If you are asked what you are, say which model you are and that you run locally on his hardware. Do not claim to be anything else, and do not apologise for what you are.
+
+`
+
+const contract = `You are Isaac's assistant. He is a software engineer who self hosts everything he runs, has a family, camps and hikes, and asks direct questions and wants direct answers.
+
+Use a tool whenever the answer depends on something you cannot know from memory: anything current, local, priced, scheduled, on a page, or checkable against a real record. Do not guess a fact a tool can give you, and do not tell the user to go look it up themselves.
+
+Search before answering a question about a named person, company, product, game, film or event, including "who is X" and "what is X". Being sure you know is not evidence, and a real name or a date you half remember is the part most likely to be wrong.
+
+Tools:
+- Call a tool rather than describing what one would return.
+- web_search gives titles, urls and snippets. Call web_fetch on a url when you need what the page actually says.
+- web_search and web_fetch are the ordinary way to look something up and are what you should reach for. deep_search is the exception: it reads the pages properly and checks every sentence against what it cites, and it takes a minute or more during which nothing else can run. Use it when being wrong would matter, when Isaac asks you to check or verify or source something, or when a claim is disputed. Never use it for a quick fact, a score, a price or the weather, and never more than once in a turn.
+- An attached file is already in this conversation in full. There is no url or path for it, so never try to fetch one, and never guess where it might be on a disk.
+- Search once per thing you are comparing. One search rarely covers a comparison or a build.
+- Use calc for totals rather than adding in your head.
+- If a tool errors or is rate limited, say so plainly and answer with what you have. Never treat a missing tool as a reason not to answer.
+- The orchard_ tools read Isaac's own infrastructure: his logs, uptime monitoring, analytics, git repositories and dashboard. Use them for any question about his own sites rather than guessing or searching the web, and say which one you read. They only read, so nothing you do with them can change anything.
+
+Answers:
+- Lead with the answer. No preamble, no restating the question, no closing offer of more help.
+- Put the url next to a fact that came from a page.
+- Say plainly when you are unsure or when sources disagree. A short honest answer beats a confident wrong one.
+- Never invent a product, a song, a part number, a price or a source. Check it or say you are not sure.
+- Follow the format and constraints asked for exactly. Given a budget, a word count or a unit, hit it and show the total.
+- Markdown for structure. Bold only for labels, never mid sentence for emphasis.
+- No em dashes and no semicolons. Use a comma, a full stop, or the word they stand in for.`
+
+// Memory is what the engine is handed for this turn, already filtered down to
+// what the question touched. The engine does no retrieval of its own, so the
+// same turn can be run in a test with a fixed set of facts.
+func (e *Engine) systemWith(memory string) Message {
+	m := e.system()
+	m.Content += memory
+	return m
+}
+
+func (e *Engine) system() Message {
+	name := e.modelName
+	if name == "" {
+		name = "a small local model"
+	}
+	return Message{Role: RoleSystem,
+		Content: fmt.Sprintf(identity, name) + e.ambient() + "\n\n" + contract}
+}
+
+// Run drives one user turn and emits events as it goes.
+// Run drives one user turn. The session is the caller's own, forwarded to the
+// orchard tools so each site checks it rather than this one holding a
+// credential of its own.
+func (e *Engine) Run(ctx context.Context, history []Message, user, session, memory string, emit func(Event)) (Message, []tools.Result, Stats, error) {
+	deps := e.deps.WithSession(session)
+	msgs := append([]Message{e.systemWith(memory)}, history...)
+	msgs = append(msgs, Message{Role: RoleUser, Content: user})
+
+	var used []tools.Result
+	var usedDeepSearch bool
+	var stats Stats
+	schemas := e.reg.Schemas()
+
+	// A model that gets a thin or failed result will ask for the very same
+	// thing again, and again, until the round budget runs out. Nothing in the
+	// prompt reliably stops it, so the harness does: an identical call is
+	// answered from the ledger with a line telling it not to repeat, and after
+	// enough repeats the tools come off the table entirely.
+	seen := map[string]tools.Result{}
+	repeats := 0
+
+	for round := 0; round < maxToolRounds; round++ {
+		last := round == maxToolRounds-1
+		if last {
+			// Out of tool budget. Taking the tools away is what forces an
+			// answer; leaving them on lets a model spend every round calling
+			// something and hand back an empty turn.
+			msgs = append(msgs, Message{Role: RoleUser,
+				Content: "You have used your tool budget for this turn. Answer now with what you have, and say plainly if something is missing."})
+			break
+		}
+		offer := schemas
+		// deep_search runs a whole pipeline on the same single GPU slot this
+		// turn is using, so a second call is a second minute of everything else
+		// waiting. The prompt asks for one, and this is what makes it one.
+		if usedDeepSearch {
+			offer = tools.Without(offer, tools.DeepSearch.Name)
+		}
+		if repeats >= 2 {
+			// It is going in circles. Take the tools away and make it answer
+			// with what it has rather than spending the rest of the budget.
+			offer = nil
+		}
+		emit(Event{Kind: "status", Text: thinkingLabel(round)})
+		reply, st, err := e.llm.CompleteStats(ctx, msgs, offer, toolTurnTokens)
+		stats.merge(st)
+		// A tool call cut off by the token budget arrives as unparseable JSON
+		// and llama.cpp refuses the whole request, which would otherwise lose an
+		// answer the model was most of the way through. Asking again with the
+		// tools off is always answerable, since by then it has whatever the
+		// earlier rounds fetched.
+		if err != nil && isTruncatedToolCall(err) {
+			emit(Event{Kind: "status", Text: "answering"})
+			reply, st, err = e.llm.CompleteStats(ctx, msgs, nil, toolTurnTokens)
+			stats.merge(st)
+			if err == nil {
+				break
+			}
+		}
+		if err != nil {
+			return Message{}, used, stats, err
+		}
+		if len(reply.ToolCalls) == 0 {
+			// A model sometimes writes its tool call syntax as ordinary text,
+			// which llama.cpp cannot parse and hands back as content. Recover
+			// the call so the turn is not wasted, and strip the markup either
+			// way so it never reaches the page.
+			cleaned, salvaged := salvageCalls(reply.Content, func(n string) bool {
+				_, ok := e.reg.Get(n)
+				return ok
+			})
+			if len(salvaged) > 0 {
+				reply.Content = cleaned
+				reply.ToolCalls = salvaged
+			} else {
+				// It answered without tools. Stream it properly rather than
+				// handing back a block of text that appeared all at once.
+				break
+			}
+		}
+		msgs = append(msgs, reply)
+		for _, tc := range reply.ToolCalls {
+			key := tc.Function.Name + "\x00" + canonArgs(tc.Function.Arguments)
+			if prev, done := seen[key]; done {
+				repeats++
+				emit(Event{Kind: "tool", Tool: tc.Function.Name, Args: shortArgs(tc.Function.Arguments)})
+				emit(Event{Kind: "tool_done", Tool: prev.Name, MS: 0, OK: prev.Err == ""})
+				body, _ := json.Marshal(map[string]any{
+					"repeat": true,
+					"note": "You already called this tool with these exact arguments in this turn. " +
+						"The result is below and it will not change. Do not call it again. " +
+						"Use what you have, or try different arguments, or answer and say what is missing.",
+					"result": prev.Content,
+				})
+				id := tc.ID
+				if id == "" {
+					id = tc.Function.Name
+				}
+				msgs = append(msgs, Message{Role: RoleTool, ToolCallID: id, Name: prev.Name, Content: string(body)})
+				continue
+			}
+			emit(Event{Kind: "tool", Tool: tc.Function.Name, Args: shortArgs(tc.Function.Arguments)})
+			if tc.Function.Name == tools.DeepSearch.Name {
+				usedDeepSearch = true
+			}
+			res := e.reg.Call(ctx, deps, tc.Function.Name, json.RawMessage(tc.Function.Arguments))
+			seen[key] = res
+			used = append(used, res)
+			emit(Event{Kind: "tool_done", Tool: res.Name, MS: res.Elapsed.Milliseconds(), OK: res.Err == ""})
+			body, _ := json.Marshal(res.Content)
+			if len(body) > 14000 {
+				body = append(body[:14000], []byte(`","truncated":true}`)...)
+			}
+			id := tc.ID
+			if id == "" {
+				id = tc.Function.Name
+			}
+			msgs = append(msgs, Message{Role: RoleTool, ToolCallID: id, Name: res.Name, Content: string(body)})
+		}
+	}
+
+	// The answer is generated fresh here rather than reusing whatever the last
+	// tool round produced, because that one was written under a small budget
+	// with tools still on the table. Without saying so, a model writes the
+	// sentence it would have written before calling another tool, which reads
+	// as "Let me check that" and then stops.
+	msgs = append(msgs, Message{Role: RoleUser, Content: finalTurn})
+
+	emit(Event{Kind: "status", Text: "writing"})
+	var sb strings.Builder
+	w := &blockWriter{emit: emit, render: e.Render}
+	text, st, err := e.llm.Stream(ctx, msgs, answerTokens, func(d string) {
+		sb.WriteString(d)
+		w.write(d)
+	})
+	w.flush()
+	stats.merge(st)
+	if err != nil && sb.Len() == 0 {
+		return Message{}, used, stats, err
+	}
+	if strings.TrimSpace(text) == "" {
+		text = "I could not produce an answer for that. The model returned nothing."
+		emit(Event{Kind: "block", HTML: e.Render(text)})
+	}
+	return Message{Role: RoleAssistant, Content: text}, used, stats, nil
+}
+
+// blockWriter turns a token stream into finished markdown blocks. It only ever
+// closes a block on a blank line that is not inside a fenced code block, since
+// a fence is full of blank lines and cutting one in half renders as garbage.
+type blockWriter struct {
+	emit     func(Event)
+	render   func(string) string
+	buf      strings.Builder
+	fenced   bool
+	lastTail string
+}
+
+func (w *blockWriter) write(d string) {
+	w.buf.WriteString(d)
+	for {
+		cut, ok := w.boundary(w.buf.String())
+		if !ok {
+			break
+		}
+		s := w.buf.String()
+		block := strings.TrimRight(s[:cut], "\n")
+		rest := s[cut:]
+		w.buf.Reset()
+		w.buf.WriteString(rest)
+		if strings.TrimSpace(block) != "" {
+			w.emit(Event{Kind: "block", HTML: w.render(block)})
+		}
+		w.lastTail = ""
+	}
+	tail := w.buf.String()
+	if looksLikeCall(tail) {
+		// Hold it back rather than showing markup that is about to be removed.
+		return
+	}
+	if tail != w.lastTail {
+		w.lastTail = tail
+		w.emit(Event{Kind: "tail", Text: tail})
+	}
+}
+
+// boundary finds the end of the first complete block in s, tracking fences so
+// a blank line inside one is not treated as the end of anything.
+func (w *blockWriter) boundary(s string) (int, bool) {
+	fenced := w.fenced
+	at := 0
+	lines := strings.SplitAfter(s, "\n")
+	for i, ln := range lines {
+		trimmed := strings.TrimSpace(ln)
+		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
+			fenced = !fenced
+		}
+		at += len(ln)
+		// A blank line outside a fence ends a block, and the last line is not
+		// a boundary because more of it may still be coming.
+		if !fenced && trimmed == "" && i < len(lines)-1 && at > 0 {
+			w.fenced = false
+			return at, true
+		}
+	}
+	return 0, false
+}
+
+func (w *blockWriter) flush() {
+	rest, _ := salvageCalls(w.buf.String(), func(string) bool { return false })
+	rest = strings.TrimSpace(rest)
+	w.buf.Reset()
+	if rest != "" {
+		w.emit(Event{Kind: "block", HTML: w.render(rest)})
+	}
+	w.emit(Event{Kind: "tail", Text: ""})
+}
+
+// looksLikeCall reports whether a chunk is the start of a tool call written as
+// prose. The tail is held back once this is true, so half a tag is never shown
+// on its way to being stripped.
+func looksLikeCall(s string) bool {
+	return strings.Contains(s, "<tool_call") || strings.Contains(s, "<function=")
+}
+
+const finalTurn = `Write the full answer now. You have no tools left for this turn, so do not say you are about to look something up, and do not describe what you would do next. Answer with what you have, and if something is missing say which part and move on.`
+
+func thinkingLabel(round int) string {
+	if round == 0 {
+		return "thinking"
+	}
+	return "checking"
+}
+
+// sizeArgs say how much to return rather than what to fetch. They are left out
+// of the repeat key, because asking for the same page again with a bigger limit
+// is the same call and it is exactly how a model talks itself into a loop.
+var sizeArgs = map[string]bool{"n": true, "max_chars": true, "top": true, "limit": true, "days": true}
+
+// canonArgs is a stable key for a set of arguments, so the same call written
+// with the keys in a different order is still recognised as the same call.
+func canonArgs(raw string) string {
+	var m map[string]any
+	if json.Unmarshal([]byte(raw), &m) != nil {
+		return strings.TrimSpace(raw)
+	}
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		if sizeArgs[k] {
+			continue
+		}
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var b strings.Builder
+	for _, k := range keys {
+		fmt.Fprintf(&b, "%s=%v;", k, m[k])
+	}
+	return strings.ToLower(b.String())
+}
+
+// shortArgs is what the UI shows beside a tool chip. The whole argument object
+// is noise in a status line.
+func shortArgs(raw string) string {
+	var m map[string]any
+	if json.Unmarshal([]byte(raw), &m) != nil {
+		return ""
+	}
+	for _, k := range []string{"query", "location", "symbols", "url", "expression", "artist", "league"} {
+		if v, ok := m[k]; ok {
+			s := fmt.Sprint(v)
+			if len(s) > 60 {
+				s = s[:57] + "..."
+			}
+			return s
+		}
+	}
+	return ""
+}
+
+// isTruncatedToolCall spots the refusal llama.cpp returns when the arguments of
+// a tool call did not parse. It is matched on the message because the status is
+// a plain 500 that says nothing else.
+func isTruncatedToolCall(err error) bool {
+	if err == nil {
+		return false
+	}
+	m := strings.ToLower(err.Error())
+	return strings.Contains(m, "tool call") && strings.Contains(m, "parse")
+}

@@ -1,0 +1,35 @@
+{{template "head" .}}
+
+<h2>
+  Calls
+  {{if .Caller}}<span class="filter">from {{.Caller}} <a href="/calls">clear</a></span>{{end}}
+</h2>
+
+{{if .Calls}}
+<p class="note">Newest {{len .Calls}} of the last {{.Limit}} asked for. Every prompt and every completion is here in full.</p>
+{{range .Calls}}
+<article class="call {{if .Err}}bad{{end}}">
+  <header>
+    <span class="who">{{if .Caller}}{{.Caller}}{{else}}unknown{{end}}</span>
+    <span class="faint">{{when .At}}</span>
+    <span class="faint">{{comma .PromptTok}} in, {{comma .OutputTok}} out</span>
+    {{if .DecodeTPS}}<span class="faint">{{printf "%.1f" .DecodeTPS}} tok/s</span>{{end}}
+    <span class="faint">{{.MS}} ms</span>
+    {{if .Tools}}<span class="tag">{{.Tools}}</span>{{end}}
+    {{if .Err}}<span class="tag bad">{{.Err}}</span>{{end}}
+  </header>
+  <details>
+    <summary>Prompt</summary>
+    <pre>{{.Messages}}</pre>
+  </details>
+  <details open>
+    <summary>Completion</summary>
+    <pre>{{.Completion}}</pre>
+  </details>
+</article>
+{{end}}
+{{else}}
+<p class="empty">Nothing logged{{if .Caller}} from {{.Caller}}{{end}} yet.</p>
+{{end}}
+
+{{template "foot" .}}

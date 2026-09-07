@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>llm &middot; one model, one card, every service</title>
+<link rel="stylesheet" href="{{asset "static/app.css"}}">
+  <!-- Analytics, first party and on this estate. The id is identity rather than
+       a credential, so it is a constant here like every other site's. -->
+  <script>
+    (function (m, e, t, r, i, c, s) {
+      m.collectorQueue = m.collectorQueue || r;
+      m.collectorServer = c;
+      m.collectorId = s;
+      m.collectorScript = e.createElement(t);
+      m.collectorScript.src = c + i;
+      e.head.appendChild(m.collectorScript);
+    })(window, document, "script", [], "/static/collector.js",
+       "https://analytics.bythewood.me", "e432c02b-1537-4703-bc5a-6aa2e8573613");
+  </script>
+</head>
+<body>
+<main class="landing">
+  <a class="brand" href="/"><span class="key">L</span><span class="brand-name">llm</span></a>
+
+  <p class="eyebrow">Self hosted &middot; {{.Model}} &middot; api key required</p>
+
+  <h1>One set of weights on one card, in front of <span class="accent">every service</span>.</h1>
+
+  <p class="lede">
+    An OpenAI shaped endpoint over llama.cpp. Before this each site carried its own
+    model server, which on an 8GB card meant whichever one you used last evicted the
+    other. This holds the model, hands out keys, and writes down every prompt and
+    every completion that passes through.
+  </p>
+
+  <ul class="points">
+    <li><b>A proxy, not a library.</b> Anything that already speaks chat completions needs a base url and a header, not a rewrite.</li>
+    <li><b>Keys per caller</b>, so usage is attributable and revoking one stops it on the next request.</li>
+    <li><b>Every call logged</b> in full, prompt and completion, with tokens and throughput, aged out on a retention window.</li>
+    <li><b>Loaded on demand</b> and unloaded after three idle minutes, so a desktop that is also a workstation gets its card back.</li>
+  </ul>
+
+  <div class="ctas">
+    <a class="btn" href="/login">Open dashboard &rarr;</a>
+    <a class="btn ghost" href="{{.Source}}" target="_blank" rel="noopener">View source</a>
+  </div>
+
+  <p class="foot-line">One account, behind <a href="https://auth.bythewood.me/">auth.bythewood.me</a>.</p>
+</main>
+</body>
+</html>

@@ -1,0 +1,94 @@
+{{template "head" .}}
+
+{{if .Fresh}}
+<section class="fresh">
+  <p class="label">Copy this now</p>
+  <code class="secret">{{.Fresh}}</code>
+  <p class="note">Nothing here can show it again. It is stored as a SHA-256 and the plaintext was never written down.</p>
+</section>
+{{end}}
+
+<section class="stats">
+  <div class="stat"><span class="num">{{.NKeys}}</span><span class="label">Live keys</span></div>
+  <div class="stat"><span class="num">{{comma .NCalls}}</span><span class="label">Calls logged</span></div>
+  <div class="stat"><span class="num">{{.Retain}}</span><span class="label">Retention</span></div>
+</section>
+
+<h2>Last 24 hours</h2>
+{{if .Usage}}
+<table>
+  <thead><tr><th>Caller</th><th class="n">Calls</th><th class="n">Prompt</th><th class="n">Output</th><th class="n">Errors</th><th class="n">tok/s</th></tr></thead>
+  <tbody>
+  {{range .Usage}}
+    <tr>
+      <td><a href="/calls?caller={{.Caller}}">{{if .Caller}}{{.Caller}}{{else}}unknown{{end}}</a></td>
+      <td class="n">{{comma .Calls}}</td>
+      <td class="n">{{comma .PromptTok}}</td>
+      <td class="n">{{comma .OutputTok}}</td>
+      <td class="n {{if .Errors}}bad{{end}}">{{.Errors}}</td>
+      <td class="n">{{printf "%.1f" .AvgTPS}}</td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}
+<p class="empty">Nothing has called through yet.</p>
+{{end}}
+
+<h2>API keys</h2>
+<form class="newkey" method="post" action="/keys">
+  <input type="text" name="name" placeholder="What will use it, like chat or aiagent" required maxlength="60">
+  <button type="submit">Create key</button>
+</form>
+
+{{if .Keys}}
+<table>
+  <thead><tr><th>Name</th><th>Key</th><th>Created</th><th>Last used</th><th></th></tr></thead>
+  <tbody>
+  {{range .Keys}}
+    <tr {{if .Revoked}}class="off"{{end}}>
+      <td>{{.Name}}</td>
+      <td><code>{{.Prefix}}&hellip;</code></td>
+      <td class="faint">{{when .Created}}</td>
+      <td class="faint">{{when .Used}}</td>
+      <td class="act">
+        {{if .Revoked}}
+          <span class="tag">revoked</span>
+          <form method="post" action="/keys/{{.ID}}/delete"><button type="submit" class="danger">Delete</button></form>
+        {{else}}
+          <form method="post" action="/keys/{{.ID}}/revoke"><button type="submit">Revoke</button></form>
+        {{end}}
+      </td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}
+<p class="empty">No keys yet. Nothing can call the gateway until there is one.</p>
+{{end}}
+
+<h2>Recent calls</h2>
+{{if .Recent}}
+<table>
+  <thead><tr><th>When</th><th>Caller</th><th>Prompt</th><th class="n">Tokens</th><th class="n">ms</th></tr></thead>
+  <tbody>
+  {{range .Recent}}
+    <tr>
+      <td class="faint">{{when .At}}</td>
+      <td>{{.Caller}}</td>
+      <td class="msg">{{short .Messages 90}}</td>
+      <td class="n">{{comma .OutputTok}}</td>
+      <td class="n {{if .Err}}bad{{end}}">{{.MS}}</td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+<p class="more"><a href="/calls">Every call</a></p>
+{{else}}
+<p class="empty">No calls yet.</p>
+{{end}}
+
+<h2>Using it</h2>
+<p class="how">Point any OpenAI shaped client at <code>http://orchard-llm:8000/v1</code> on the bridge, or <code>https://llm.bythewood.me/v1</code> from anywhere else, and send the key as <code>Authorization: Bearer orch-&hellip;</code>. Ask for the model named <code>{{.Model}}</code>. Upstream is <code>{{.Upstream}}</code>.</p>
+
+{{template "foot" .}}

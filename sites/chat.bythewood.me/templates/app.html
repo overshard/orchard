@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>chat</title>
+<meta name="description" content="A conversation with a small model running on hardware you own.">
+<link rel="stylesheet" href="{{asset "static/app.css"}}">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%230e0d0a'/><rect x='3' y='7' width='7' height='2' fill='%236b9e78'/></svg>">
+  <!-- Analytics, first party and on this estate. The id is identity rather than
+       a credential, so it is a constant here like every other site's. -->
+  <script>
+    (function (m, e, t, r, i, c, s) {
+      m.collectorQueue = m.collectorQueue || r;
+      m.collectorServer = c;
+      m.collectorId = s;
+      m.collectorScript = e.createElement(t);
+      m.collectorScript.src = c + i;
+      e.head.appendChild(m.collectorScript);
+    })(window, document, "script", [], "/static/collector.js",
+       "https://analytics.bythewood.me", "73f89553-a3fa-4c4a-b567-9a9a0550240b");
+  </script>
+</head>
+<body>
+<div class="scan" aria-hidden="true"></div>
+<div class="vignette" aria-hidden="true"></div>
+
+<div class="scrim" id="scrim" hidden></div>
+
+<div class="shell">
+  <aside class="side" id="side">
+    <div class="side-head">
+      <a class="brand" href="/">
+        <span class="key">C<i class="cur"></i></span>
+        <span class="brand-name">chat</span>
+      </a>
+      <button class="icon-btn" id="side-close" title="Hide history" aria-label="Hide history">&#10005;</button>
+    </div>
+
+    <button class="new-chat" id="new-chat">
+      <span class="plus">+</span> New conversation
+    </button>
+
+    <div class="side-label">// History</div>
+    <input class="filter" id="filter" type="search" placeholder="Filter" aria-label="Filter history" hidden>
+    <nav class="convs" id="convs">
+      {{range .Conversations}}
+      <a class="conv" data-id="{{.ID}}" href="/c/{{.ID}}">
+        <span class="conv-title">{{.Title}}</span>
+        <span class="conv-when">{{when .Updated}}</span>
+        <button class="conv-del" data-del="{{.ID}}" title="Delete" aria-label="Delete conversation">&#10005;</button>
+      </a>
+      {{else}}
+      <p class="empty">Nothing yet. Ask something.</p>
+      {{end}}
+    </nav>
+
+    <div class="side-foot">
+      <div class="side-label">// Session</div>
+      <label class="incog" for="incognito">
+        <input type="checkbox" id="incognito">
+        <span class="incog-box" aria-hidden="true"></span>
+        <span class="incog-text">
+          <b>Incognito</b>
+          <small>Nothing is written to disk</small>
+        </span>
+      </label>
+      <div class="side-stats">
+        <span><b id="stat-convs">{{.Stats.Conversations}}</b> saved</span>
+        <span><b id="stat-msgs">{{.Stats.Messages}}</b> messages</span>
+      </div>
+      <button class="wipe" id="wipe">Delete all history</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="bar">
+      <button class="icon-btn" id="side-open" title="Show history" aria-label="Show history">&#9776;</button>
+      <div class="bar-title" id="bar-title">New conversation</div>
+      <div class="bar-right">
+        <span class="incog-flag" id="incog-flag" hidden>INCOGNITO</span>
+        <span class="meter" id="meter" title="Context used by the last turn" hidden>
+          <span class="meter-num" id="meter-num">0</span>
+          <span class="meter-track"><i class="meter-fill" id="meter-fill"></i></span>
+          <span class="meter-cap" id="meter-cap">{{.Ctx}}</span>
+        </span>
+        <span class="tps" id="tps" title="Generation speed of the last turn" hidden></span>
+        <span class="model" title="The model answering">
+          <i class="dot" id="model-dot"></i>{{.Model}}
+        </span>
+      </div>
+    </header>
+
+    <div class="thread" id="thread">
+      <section class="welcome" id="welcome">
+        <div class="eyebrow"><i class="dot on"></i> on this machine <span class="sep">/</span> self-hosted <span class="sep">/</span> no telemetry</div>
+        <h1>A conversation with a model on <span class="hl">hardware you own</span>.</h1>
+        <p>It searches the web, reads pages, checks the weather and the markets, looks up scores and odds, and verifies a song exists before it names one. Nothing leaves this machine except the pages it fetches for you.</p>
+        <p class="welcome-hint">Press <kbd>Ctrl</kbd><kbd>/</kbd> for keyboard shortcuts.</p>
+        <div class="chips">
+          <button class="chip" data-ask="What is the weather looking like this weekend, and how should I pack for camping in it?">Weather this weekend</button>
+          <button class="chip" data-ask="Give me a read on the market right now: the S&amp;P, the Nasdaq, gold and bitcoin.">Market read</button>
+          <button class="chip" data-ask="Build me a 10 song playlist off Turnstile - Blackout, and check every song is real.">Build a playlist</button>
+          <button class="chip" data-ask="Write a Go function that wraps an http.Handler and logs each request as one JSON line, keeping http.Flusher working.">Write some Go</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="composer">
+      <div class="tray" id="tray" hidden></div>
+      <form class="ask" id="ask">
+        <button type="button" class="attach" id="attach" title="Attach files" aria-label="Attach files">&#43;</button>
+        <textarea id="input" rows="1" placeholder="Ask anything" autocomplete="off" spellcheck="true"></textarea>
+        <button type="submit" id="send" title="Send" aria-label="Send">&#9654;</button>
+        <button type="button" id="stop" title="Stop" aria-label="Stop" hidden>&#9632;</button>
+      </form>
+      <input type="file" id="picker" multiple hidden>
+      <p class="foot-note">
+        <span id="foot-state">Enter to send, shift and enter for a new line.</span>
+        <span class="foot-right">
+          <button type="button" class="linkish keys-hint" id="keys-open" title="Keyboard shortcuts">
+            Shortcuts <kbd>Ctrl</kbd><kbd>/</kbd>
+          </button>
+          <button type="button" class="linkish" id="mem-open" title="What it remembers about you">Memory</button>
+          <a href="{{.Source}}" target="_blank" rel="noopener">View source</a>
+        </span>
+      </p>
+    </div>
+  </main>
+</div>
+
+<div class="sheet" id="mem-sheet" hidden>
+  <div class="sheet-card mem-card" role="dialog" aria-modal="true" aria-labelledby="mem-title">
+    <div class="sheet-head">
+      <span class="side-label" id="mem-title" style="padding:0">// Memory</span>
+      <button class="icon-btn" id="mem-close" aria-label="Close">&#10005;</button>
+    </div>
+
+    <p class="mem-lede">One sentence each, carried into a turn only when your question touches
+      them. It picks things up as you talk. Deleting is yours, writing goes through the model.</p>
+
+    <div class="mem-msg" id="mem-msg" hidden></div>
+
+    <form class="teach" id="mem-form">
+      <textarea id="mem-said" rows="2" placeholder="Remember that&hellip; or forget that&hellip;"></textarea>
+      <button type="submit" id="mem-send">Tell it</button>
+    </form>
+
+    <div class="mem-list" id="mem-list"></div>
+
+    <div class="mem-foot">
+      <span id="mem-count"></span>
+      <button type="button" class="danger" id="mem-forget">Forget everything</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet" id="keys-sheet" hidden>
+  <div class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="keys-title">
+    <div class="sheet-head">
+      <span class="side-label" id="keys-title" style="padding:0">// Keyboard</span>
+      <button class="icon-btn" id="keys-close" aria-label="Close">&#10005;</button>
+    </div>
+    <dl class="keys">
+      <dt><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>O</kbd></dt><dd>New conversation</dd>
+      <dt><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>I</kbd></dt><dd>Toggle incognito</dd>
+      <dt><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>S</kbd></dt><dd>Show or hide history</dd>
+      <dt><kbd>Ctrl</kbd><kbd>K</kbd></dt><dd>Filter history</dd>
+      <dt><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>&#9003;</kbd></dt><dd>Delete this conversation</dd>
+      <dt><kbd>Shift</kbd><kbd>Esc</kbd></dt><dd>Focus the message box</dd>
+      <dt><kbd>Esc</kbd></dt><dd>Stop generating</dd>
+      <dt><kbd>Enter</kbd></dt><dd>Send</dd>
+      <dt><kbd>Shift</kbd><kbd>Enter</kbd></dt><dd>New line</dd>
+      <dt><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>M</kbd></dt><dd>What it remembers</dd>
+      <dt><kbd>Ctrl</kbd><kbd>/</kbd></dt><dd>This list</dd>
+    </dl>
+    <p class="keys-note">On a Mac use <kbd>&#8984;</kbd> in place of <kbd>Ctrl</kbd>. Chrome keeps <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>I</kbd> for its developer tools, so incognito is also on <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>P</kbd>.</p>
+  </div>
+</div>
+
+<div class="drop" id="drop" hidden><span>Drop files to attach</span></div>
+
+<template id="tpl-msg">
+  <article class="msg">
+    <div class="who"></div>
+    <div class="tools" hidden></div>
+    <div class="files" hidden></div>
+    <div class="body"></div>
+  </article>
+</template>
+
+<script src="{{asset "static/app.js"}}" defer></script>
+</body>
+</html>
