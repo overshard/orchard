@@ -6,7 +6,7 @@ package tools
 func Default() *Registry {
 	r := &Registry{}
 	for _, t := range []Tool{
-		WebSearch, WebFetch, News, Weather, Markets, SportsScores, Odds, MusicLookup, Convert, Calc, Now,
+		WebSearch, WebFetch, News, Remember, Weather, Markets, SportsScores, Odds, MusicLookup, Convert, Calc, Now,
 		Wikipedia,
 		OrchardLogs, OrchardStatus, OrchardAnalytics, OrchardRepos, OrchardDash,
 		DeepSearch,

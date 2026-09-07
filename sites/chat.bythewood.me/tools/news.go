@@ -88,14 +88,23 @@ var News = Tool{
 			"topic":   topic,
 			"sources": sourcesOf(items),
 			"items":   items,
-			"note": "Every headline here is the publisher's own wording. Write each one again " +
-				"plainly, saying who did what, and keep the publisher's headline beside it so the " +
-				"reader can see both. Strip the loaded verbs, the outrage framing and the party " +
-				"line, and put back the specifics they were hiding, so \"SLAMS\" becomes what was " +
-				"actually said and a tariff story names the rate and the goods. Do not take a side " +
-				"of your own while doing it, and do not invent a detail that is not in the headline " +
-				"or the summary. Group the answer by story, not by publisher, and where several " +
-				"publishers carried the same story say so.",
+			"note": "This is a rundown and not one story. Answer with the whole list, every item " +
+				"above, as a short bullet each, and do not pick one and write it up. Where several " +
+				"publishers carried the same story, merge them into one bullet and say who ran it, " +
+				"so the list is by story rather than by publisher. Order it as it arrived here, " +
+				"since that is already what led.\n\n" +
+				"Each bullet is one plain sentence of your own saying who did what, and then, on " +
+				"the same bullet, the publisher's headline word for word in quotes with the " +
+				"publisher after it, like: Five died when a cargo plane overran the runway at " +
+				"Miami. (NPR: \"Investigators seek answers after Amazon cargo plane crash kills " +
+				"five at Miami airport\"). Never drop that second half, it is what lets him see " +
+				"how it was sold to him. Strip the loaded verbs, " +
+				"the outrage framing and the party line, and put back the specifics they were " +
+				"hiding, so \"SLAMS\" becomes what was actually said and a tariff story names the " +
+				"rate and the goods. Take no side of your own, and invent no detail that is not in " +
+				"the headline or the summary.\n\n" +
+				"Do not go and research any of these. The rundown is the answer, and he will ask " +
+				"if he wants one of them followed up.",
 		}, nil
 	},
 }

@@ -76,6 +76,9 @@ type Deps struct {
 	// and on the copy, for the same reason the session is.
 	Widgets *Sink
 
+	// Memory is the site's own fact store, so the remember tool can write to
+	// the database this process owns rather than to a service over http.
+	Memory Memory
 	// Whether this turn is incognito, which a tool that reaches a service with
 	// a model behind it has to pass along. Per turn and on the copy too.
 	Incognito bool

@@ -116,6 +116,9 @@ func main() {
 			goldmark.WithRendererOptions()),
 	}
 	s.engine.Render = s.render
+	// The remember tool writes to this process's own database rather than to a
+	// service, so it is handed the store rather than a url.
+	s.engine.Deps().Memory = memoryStore{store}
 	// The rate limit boxes survive a restart. Without this every deploy asked a
 	// host that was already refusing, which is how a ban gets renewed rather
 	// than expiring.
