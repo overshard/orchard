@@ -45,7 +45,7 @@ const (
 // formatting appear as it is settled instead of reading plain text and then
 // having the whole message reflow under them when the turn ends.
 type Event struct {
-	Kind string `json:"kind"` // status, tool, tool_done, widget, block, tail, done, error
+	Kind string `json:"kind"` // status, tool, tool_done, widget, step, block, tail, done, error
 	Text string `json:"text,omitempty"`
 	HTML string `json:"html,omitempty"`
 	Tool string `json:"tool,omitempty"`
@@ -56,6 +56,10 @@ type Event struct {
 	// The subject of a chart, sent as soon as the tool that named it returns so
 	// the panel is drawing while the answer is still being written.
 	Widget *tools.Widget `json:"widget,omitempty"`
+
+	// One entry in the record of what this turn did, sent as it happens so the
+	// list fills in rather than appearing all at once at the end.
+	Step *Step `json:"step,omitempty"`
 }
 
 type Engine struct {
@@ -206,7 +210,7 @@ func (e *Engine) SearchDown() (time.Duration, bool) {
 // Run drives one user turn. The session is the caller's own, forwarded to the
 // orchard tools so each site checks it rather than this one holding a
 // credential of its own.
-func (e *Engine) Run(ctx context.Context, history []Message, user, session, memory string, emit func(Event)) (Message, []tools.Result, []Source, []tools.Widget, Stats, error) {
+func (e *Engine) Run(ctx context.Context, history []Message, user, session, memory string, tr *Trace, emit func(Event)) (Message, []tools.Result, []Source, []tools.Widget, Stats, error) {
 	deps := e.deps.WithSession(session)
 	// deep_search asks another service to run a model, so the flag has to travel
 	// with the call rather than only with this process's own requests.
@@ -214,8 +218,12 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	// Which widgets have already gone out, since the sink holds every one the
 	// turn has produced and each round would otherwise resend the earlier ones.
 	sentWidgets := map[string]bool{}
-	msgs := append([]Message{e.systemWith(memory)}, history...)
+	sys := e.systemWith(memory)
+	msgs := append([]Message{sys}, history...)
 	msgs = append(msgs, Message{Role: RoleUser, Content: user})
+	tr.Add(Step{Kind: "prompt", Label: "system prompt built",
+		In: user, Out: sys.Content,
+		Meta: itoa(len(sys.Content)) + " characters, " + itoa(len(history)) + " earlier messages in the window"})
 
 	var used []tools.Result
 	// The first move on any question naming a thing, since the snapshot is on
@@ -227,6 +235,9 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		emit(Event{Kind: "tool_done", Tool: res.Name, MS: res.Elapsed.Milliseconds(), OK: true})
 		msgs = append(msgs, msg)
 		used = append(used, res)
+		tr.Add(Step{Kind: "wikipedia", Label: "looked the subject up before answering",
+			In: subjectOf(user), Out: msg.Content, MS: res.Elapsed.Milliseconds(),
+			Meta: "local snapshot, no web request"})
 	}
 
 	// What this conversation has already answered. A follow-up is where the loop
@@ -275,8 +286,13 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 			offer = nil
 		}
 		emit(Event{Kind: "status", Text: thinkingLabel(round)})
+		roundStart := time.Now()
 		reply, st, err := e.llm.CompleteStats(ctx, msgs, offer, toolTurnTokens)
 		stats.merge(st)
+		tr.Add(Step{Kind: "model", Label: "round " + itoa(round+1) + ", decide",
+			In:  "the conversation so far, plus " + itoa(len(offer)) + " tools on the table",
+			Out: decision(reply), MS: time.Since(roundStart).Milliseconds(), Bad: err != nil,
+			Meta: itoa(st.Prompt) + " tokens in, " + itoa(st.Completion) + " out"})
 		// A tool call cut off by the token budget arrives as unparseable JSON
 		// and llama.cpp refuses the whole request, which would otherwise lose an
 		// answer the model was most of the way through. Asking again with the
@@ -311,8 +327,12 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 				// asserts things nothing in this turn checked, goes back with
 				// the tools still on rather than becoming the answer.
 				if gates < maxGates && round < maxToolRounds-1 {
+					gateStart := time.Now()
 					nudge, gst := e.gate(ctx, user, reply.Content, answered, used, emit)
 					stats.merge(gst)
+					tr.Add(Step{Kind: "gate", Label: "checked the draft before sending it",
+						In: reply.Content, Out: gateOutcome(nudge),
+						MS: time.Since(gateStart).Milliseconds(), Bad: nudge != ""})
 					if nudge != "" {
 						gates++
 						// The draft itself is never appended. A model handed
@@ -354,6 +374,9 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 			res := e.reg.Call(ctx, deps, tc.Function.Name, json.RawMessage(tc.Function.Arguments))
 			seen[key] = res
 			used = append(used, res)
+			tr.Add(Step{Kind: "tool", Label: res.Name, In: tc.Function.Arguments,
+				Out: resultText(res), MS: res.Elapsed.Milliseconds(), Bad: res.Err != "",
+				Meta: snapshotMeta(res.Content)})
 			emit(Event{Kind: "tool_done", Tool: res.Name, MS: res.Elapsed.Milliseconds(), OK: res.Err == ""})
 			// Straight after the tool that named it, so the chart is drawing
 			// while the answer is still being written rather than appearing
@@ -385,6 +408,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	msgs = append(msgs, Message{Role: RoleUser, Content: finalTurn + sourcePrompt(srcs)})
 
 	emit(Event{Kind: "status", Text: "writing"})
+	answerStart := time.Now()
 	var sb strings.Builder
 	w := &blockWriter{emit: emit, render: func(md string) string {
 		return linkCitations(e.Render(prepare(md, srcs)), srcs)
@@ -395,6 +419,9 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	})
 	w.flush()
 	stats.merge(st)
+	tr.Add(Step{Kind: "answer", Label: "wrote the reply", MS: time.Since(answerStart).Milliseconds(),
+		Out: sb.String(), Bad: err != nil && sb.Len() == 0,
+		Meta: itoa(st.Prompt) + " tokens in, " + itoa(st.Completion) + " out"})
 	if err != nil && sb.Len() == 0 {
 		return Message{}, used, nil, deps.Widgets.List(), stats, err
 	}
@@ -579,4 +606,44 @@ func drained(sink *tools.Sink, sent map[string]bool) []tools.Widget {
 		out = append(out, w)
 	}
 	return out
+}
+
+// decision says what a round chose, which is the part of a reply worth showing
+// when the reply itself is a tool call rather than prose.
+func decision(m Message) string {
+	if len(m.ToolCalls) == 0 {
+		return "answered without calling anything"
+	}
+	var names []string
+	for _, tc := range m.ToolCalls {
+		names = append(names, tc.Function.Name+"("+shortArgs(tc.Function.Arguments)+")")
+	}
+	return "called " + strings.Join(names, ", ")
+}
+
+func gateOutcome(nudge string) string {
+	if nudge == "" {
+		return "let it through"
+	}
+	return "sent it back: " + nudge
+}
+
+func resultText(r tools.Result) string {
+	if r.Err != "" {
+		return r.Err
+	}
+	b, err := json.Marshal(r.Content)
+	if err != nil {
+		return ""
+	}
+	return string(b)
+}
+
+// snapshotMeta says how old a tool's data is, for the tools that read something
+// dated rather than the live thing.
+func snapshotMeta(content any) string {
+	if d := snapshotAge(content); d != "" {
+		return "snapshot taken " + d
+	}
+	return ""
 }

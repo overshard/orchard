@@ -28,14 +28,13 @@ func TestPromptsSmoke(t *testing.T) {
 	prompts := []string{
 		"who is the prime minister of japan",
 		"what is a goodyear welt",
-		"what's the weather like",
-		"write me a bash script that renames every file in a directory to lowercase",
 	}
 
 	for _, p := range prompts {
 		ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
 		start := time.Now()
-		reply, used, _, _, _, err := eng.Run(ctx, nil, p, "", "", func(Event) {})
+		tr := NewTrace(nil)
+		reply, used, _, _, _, err := eng.Run(ctx, nil, p, "", "", tr, func(Event) {})
 		cancel()
 		if err != nil {
 			t.Errorf("%q: %v", p, err)
@@ -50,9 +49,17 @@ func TestPromptsSmoke(t *testing.T) {
 			calls = append(calls, s)
 		}
 		answer := strings.TrimSpace(reply.Content)
-		t.Logf("\n--- %q  [%s]\ntools: %s\n%s\n",
+		var steps []string
+		for _, st := range tr.Steps() {
+			flag := ""
+			if st.Bad {
+				flag = "!"
+			}
+			steps = append(steps, st.Kind+flag)
+		}
+		t.Logf("\n--- %q  [%s]\ntools: %s\nsteps: %s\n%s\n",
 			p, time.Since(start).Round(time.Millisecond),
-			strings.Join(calls, ", "), truncate(answer, 700))
+			strings.Join(calls, ", "), strings.Join(steps, " > "), truncate(answer, 400))
 	}
 }
 

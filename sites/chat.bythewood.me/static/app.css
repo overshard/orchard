@@ -1043,3 +1043,76 @@ kbd {
   .wdg-day { grid-template-columns: 3.4rem 2.8rem 1fr; }
   .wdg-day-feels { display: none; }
 }
+
+/* The record of what a turn did. Open while it runs and collapsed after, since
+   the answer is what the reader came for and the work is what they check. The
+   caps label and the amber are DESIGN.md's, and the kind of a step is the only
+   thing here that carries colour, so the list reads as one object. */
+.work { margin: 0.15rem 0 0.7rem; }
+.work[hidden] { display: none; }
+.work-head {
+  display: flex; align-items: center; gap: 0.5rem; width: 100%;
+  background: none; border: 0; padding: 0.2rem 0; cursor: pointer;
+  color: var(--dim); font: inherit; text-align: left;
+}
+.work-k {
+  color: var(--amber); font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase;
+}
+.work-sum { color: var(--faint); font-size: 0.68rem; }
+.work-head .chev {
+  width: 0; height: 0; flex: none;
+  border-left: 4px solid var(--faint);
+  border-top: 3.5px solid transparent; border-bottom: 3.5px solid transparent;
+  transition: transform 120ms ease;
+}
+.work-head[aria-expanded="true"] .chev { transform: rotate(90deg); }
+.work-head:hover .work-sum, .work-head:hover .chev { color: var(--green-bright); }
+
+.work-steps {
+  list-style: none; margin: 0.3rem 0 0; padding: 0 0 0 0.42rem;
+  border-left: 1px solid rgba(65, 78, 65, 0.42);
+}
+.work-steps[hidden] { display: none; }
+
+.step { position: relative; }
+.step-head {
+  display: flex; align-items: baseline; gap: 0.45rem; width: 100%;
+  background: none; border: 0; padding: 0.16rem 0; cursor: pointer;
+  color: var(--dim); font: inherit; font-size: 0.68rem; text-align: left;
+}
+.step-head[disabled] { cursor: default; }
+/* The dot sits on the rule the list hangs from, so the steps read as one run
+   down the page rather than as separate rows. */
+.step .dot {
+  flex: none; width: 5px; height: 5px; border-radius: 50%;
+  margin-left: -0.42rem; transform: translateX(-50%);
+  background: var(--green-bright);
+}
+.step[data-kind="wikipedia"] .dot { background: var(--amber); }
+.step[data-kind="gate"] .dot { background: var(--amber); }
+.step.bad .dot { background: var(--terracotta); }
+.step .k {
+  flex: none; color: var(--green-bright);
+  letter-spacing: 0.1em; text-transform: uppercase; font-size: 0.62rem;
+}
+.step[data-kind="wikipedia"] .k, .step[data-kind="gate"] .k { color: var(--amber); }
+.step.bad .k { color: var(--terracotta); }
+.step .l { flex: 1 1 auto; color: var(--dim); }
+.step .ms { flex: none; color: var(--faint); }
+.step-head:hover .l { color: var(--text); }
+
+.step-body { margin: 0.1rem 0 0.45rem 0.55rem; }
+.step-body[hidden] { display: none; }
+.step-meta { color: var(--faint); font-size: 0.64rem; margin-bottom: 0.3rem; }
+.io { display: flex; gap: 0.45rem; margin-bottom: 0.3rem; }
+.io-k {
+  flex: none; width: 1.8rem; color: var(--amber);
+  font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; padding-top: 0.15rem;
+}
+.io pre {
+  flex: 1 1 auto; margin: 0; max-height: 13rem; overflow: auto;
+  border: 1px solid rgba(65, 78, 65, 0.42); background: var(--panel);
+  padding: 0.35rem 0.45rem; border-radius: 2px;
+  color: var(--dim); font-size: 0.64rem; line-height: 1.5;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
