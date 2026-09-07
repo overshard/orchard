@@ -70,6 +70,7 @@ func main() {
 		model   = flag.String("model", env("LLM_MODEL", "local"), "model name the server answers to")
 		label   = flag.String("model-name", env("LLM_NAME", "Ornith 1.5 9B"), "readable model name, shown in the UI and told to the model")
 		dbPath  = flag.String("db", env("CHAT_DB", "data/chat.db"), "conversation database")
+		wikiURL = flag.String("wiki", env("WIKI_URL", "http://orchard-wiki:8000"), "offline wikipedia base url")
 		ctxSize = flag.Int("ctx", envInt("LLM_CTX", 32768), "model context window in tokens")
 		health  = flag.Bool("healthcheck", false, "probe the local server and exit")
 	)
@@ -94,6 +95,8 @@ func main() {
 		os.Exit(1)
 	}
 	defer store.Close()
+
+	tools.WikiBase = *wikiURL
 
 	llm := NewLLM(*llmURL, *model, *llmKey)
 	// The verifier can only be moved in a development build. Reloaded is false

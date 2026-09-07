@@ -27,7 +27,7 @@ tunnel rather than a rented server.
 | `sites/dash.bythewood.me/` | Dashboard. Markets off Yahoo, Hacker News and Lobsters, the weather, and whether the other sites are answering. One poller, server sent events out, no database |
 | `sites/auth.bythewood.me/` | The front door. One account, a six digit code pushed over ntfy, and an opaque session every other site checks against it |
 | `sites/search.bythewood.me/` | Answers a question against the web, checking every sentence it writes against the passage it cites |
-| `sites/chat.bythewood.me/` | A conversation with a local model, with tools, attachments, history in SQLite and an incognito mode that writes nothing |
+| `sites/chat.bythewood.me/` | A conversation with a local model, with tools, attachments, history in SQLite and an incognito mode that writes nothing. Beside it an offline Wikipedia, served by kiwix off a 12.5GB ZIM |
 | `sites/llm.bythewood.me/` | The model gateway. One set of weights on one card behind an API key, with every prompt and completion logged unless the caller marks the call incognito |
 | `edge/` | The shared `cloudflared` tunnel, the Caddy that reverse proxies to each site, and the ntfy every alert is published to |
 
@@ -65,6 +65,7 @@ make install                         once per machine: tunnel, secrets, containe
 make up                              edge, then every site; idempotent, and the repair command
 make deploy SITE=blog.bythewood.me   rebuild one site and replace it
 make doctor                          tunnel, network, containers, and the data volumes
+make wiki                            download the offline wikipedia into its volume, 12.5GB
 make down                            stop everything
 
 make run SITE=blog.bythewood.me      vite watch + go run
@@ -109,6 +110,11 @@ and probes every other site at `http://orchard-<label>:8000/healthz`, and
 the name at runtime, so renaming one means rebuilding Caddy, the portfolio and
 every site, not just editing a compose file. No SQLite database refers to a
 container name.
+
+**The seventh is the one exception.** `sites/chat.bythewood.me/tools/wikipedia.go`
+reaches `http://orchard-wiki:8000` through `WIKI_URL`, which compose sets and
+which falls back to that name, so it is the only one of these a dev run can
+point somewhere else without a rebuild.
 
 **Alerts leave through ntfy in the edge, and reading them is authenticated.**
 status publishes to the `status` topic, logging to `logging` and auth to `auth`,
