@@ -75,12 +75,17 @@ func estateGet(ctx context.Context, d *Deps, rawURL string, into any) error {
 var OrchardLogs = Tool{
 	Name: "orchard_logs",
 	Description: "Read Isaac's own log aggregation at logging.bythewood.me: how many records and " +
-		"errors each of his sites produced, the most recent error messages with their paths, and the " +
+		"errors each of his sites produced, every kind of error with the reason it gives, and the " +
 		"busiest paths with their p95 latency. Use it for anything about whether his sites are " +
-		"misbehaving, what is erroring, or what is slow. Read only.",
+		"misbehaving, what is erroring, or what is slow. Each error comes back grouped, so count " +
+		"and first_seen say how big it is and how long it has run, and the details field carries " +
+		"the reason, which is where the actual cause is rather than in the message. Call it a " +
+		"second time with source or contains to narrow down on one thing. Read only.",
 	Schema: obj(map[string]any{
-		"hours":  num("how far back to look, default 24, up to 720"),
-		"errors": num("how many recent error messages to return, default 20"),
+		"hours":    num("how far back to look, default 24, up to 720"),
+		"errors":   num("how many kinds of error to return, default 20"),
+		"source":   str("one site by name, optional, such as search or repos or chat"),
+		"contains": str("only errors whose message, reason or path contains this, optional"),
 	}),
 	Run: func(ctx context.Context, d *Deps, a map[string]any) (any, error) {
 		q := url.Values{}
@@ -89,6 +94,12 @@ var OrchardLogs = Tool{
 		}
 		if e := int(argNum(a, "errors", 0)); e > 0 {
 			q.Set("errors", strconv.Itoa(e))
+		}
+		if v := strings.TrimSpace(argStr(a, "source")); v != "" {
+			q.Set("source", v)
+		}
+		if v := strings.TrimSpace(argStr(a, "contains")); v != "" {
+			q.Set("contains", v)
 		}
 		var out any
 		err := estateGet(ctx, d, loggingBase+"/api/summary?"+q.Encode(), &out)
