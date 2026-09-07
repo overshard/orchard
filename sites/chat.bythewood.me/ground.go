@@ -32,7 +32,7 @@ import (
 var questionHead = regexp.MustCompile(`(?i)^\s*(what|who|which|where|when|why|how)('?s| is| are| was| were| do| does| did)?\s+|^\s*(tell me about|explain|describe|define)\s+`)
 
 // Trailing filler left behind once the head is gone, as in "kubernetes for".
-var questionTail = regexp.MustCompile(`(?i)\s+(for|about|like|used for|good for|mean|means|work|works)\s*[?.!]*\s*$`)
+var questionTail = regexp.MustCompile(`(?i)\s+((is|are|was|were)\s+(it|this|that|they|there)|for|about|like|used for|good for|mean|means|work|works)\s*[?.!]*\s*$`)
 
 // A subject runs to the first clause break. "a b-tree and why do databases use
 // them" is one question about one thing.
@@ -63,10 +63,22 @@ func subjectOf(question string) string {
 	}
 	// A bare question word survives the head pattern, which needs a word after
 	// it to strip anything, so "why" comes through as its own subject.
-	if notASubject[strings.ToLower(s)] {
+	l := strings.ToLower(s)
+	if notASubject[l] || liveSubject[l] {
 		return ""
 	}
 	return s
+}
+
+// Things the snapshot has an article about and can never answer a question
+// about, since what is being asked is today's value and not what the thing is.
+// "what's the weather like" reduces to "weather" and would otherwise spend a
+// lookup and a page of context on the meteorology article.
+var liveSubject = map[string]bool{
+	"weather": true, "forecast": true, "temperature": true, "time": true, "date": true,
+	"news": true, "score": true, "scores": true, "price": true, "prices": true,
+	"stock": true, "stocks": true, "market": true, "markets": true, "traffic": true,
+	"pollen": true, "aqi": true, "air quality": true, "exchange rate": true,
 }
 
 var notASubject = map[string]bool{
@@ -112,4 +124,54 @@ func (e *Engine) background(ctx context.Context, question string) string {
 	// sends a correct answer back to be broken.
 	return "wikipedia on " + title + ", from an offline snapshot taken " + date +
 		", looked up here rather than by the model: " + trimLine(summary, 1500)
+}
+
+// opening looks the question's subject up before the model decides anything.
+//
+// The snapshot is local, so this costs a call on the bridge and no web request,
+// and it is current in a way the weights are not: the model had Fumio Kishida
+// as prime minister of Japan and the snapshot has Sanae Takaichi. Handing it
+// over first means the common question is answered from something checkable
+// rather than from training, and the model can still go further from there.
+//
+// It returns the result to record and the message to put in front of the model,
+// or a zero result when there is nothing worth adding.
+func (e *Engine) opening(ctx context.Context, question string) (tools.Result, Message, bool) {
+	subject := subjectOf(question)
+	if subject == "" {
+		return tools.Result{}, Message{}, false
+	}
+	args, err := json.Marshal(map[string]string{"query": subject})
+	if err != nil {
+		return tools.Result{}, Message{}, false
+	}
+	res := e.reg.Call(ctx, e.deps, tools.Wikipedia.Name, args)
+	if res.Err != "" {
+		return tools.Result{}, Message{}, false
+	}
+	m, ok := res.Content.(map[string]any)
+	if !ok {
+		return tools.Result{}, Message{}, false
+	}
+	if found, _ := m["found"].(bool); !found {
+		return tools.Result{}, Message{}, false
+	}
+	title, _ := m["title"].(string)
+	summary, _ := m["summary"].(string)
+	date, _ := m["snapshot_date"].(string)
+	if strings.TrimSpace(summary) == "" {
+		return tools.Result{}, Message{}, false
+	}
+	if date == "" {
+		date = "an unknown date"
+	}
+	msg := Message{Role: RoleUser, Content: "Before you answer, here is the opening section of the " +
+		title + " article from the offline Wikipedia on this machine, looked up for you. It was taken " +
+		date + ", so it is newer than your training and still older than today.\n\n" +
+		summary +
+		"\n\nUse it where it answers the question, and say what it says rather than what you remember, " +
+		"since your memory of a name, a date or who currently holds an office is the part most likely to " +
+		"be out of date. Call another tool if the question needs more than this covers, and use " +
+		"web_search for anything that could have changed since " + date + "."}
+	return res, msg, true
 }

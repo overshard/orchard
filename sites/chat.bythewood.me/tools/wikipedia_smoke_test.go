@@ -17,7 +17,7 @@ func TestWikipediaSmoke(t *testing.T) {
 		t.Skip("set WIKI_SMOKE to a kiwix base url")
 	}
 	d := &Deps{HTTP: &http.Client{Timeout: 10 * time.Second}, Now: time.Now, Guard: NewGuard(time.Minute)}
-	for _, q := range []string{"North Korea", "France", "Kim Jong-un", "yadkin valley"} {
+	for _, q := range []string{"Prime Minister of Japan", "Kim Jong-un", "PostgreSQL", "Photosynthesis"} {
 		start := time.Now()
 		out, err := wikiLookup(context.Background(), d, base, q)
 		if err != nil {

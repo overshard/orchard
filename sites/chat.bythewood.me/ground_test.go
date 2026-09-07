@@ -29,6 +29,12 @@ func TestSubjectOf(t *testing.T) {
 
 		// Nothing worth looking up, so the gate is left as it was.
 		{"", ""},
+		// The snapshot has an article on each of these and none of them answers
+		// what is being asked, which is today's value.
+		{"what's the weather like", ""},
+		{"what is the weather", ""},
+		{"what time is it", ""},
+		{"what's the price", ""},
 		{"why", ""},
 		{"can you write me a bash script that renames every file in a directory", ""},
 		{"what do you think about the way i structured the makefile in that repo", ""},
@@ -236,5 +242,21 @@ func TestABoxedSearchWithNoBackgroundLetsTheDraftStand(t *testing.T) {
 		"I think it is a kind of bird.", nil, nil, func(Event) {})
 	if nudge != "" {
 		t.Errorf("the turn was sent back with nowhere to go: %s", nudge)
+	}
+}
+
+// The chip has to say how old a snapshot answer is, since it otherwise looks
+// exactly like one read off the live web.
+func TestSnapshotAgeReachesTheToolSummary(t *testing.T) {
+	got := snapshotAge(map[string]any{"found": true, "snapshot_date": "June 2026"})
+	if got != "June 2026" {
+		t.Errorf("snapshotAge = %q, want %q", got, "June 2026")
+	}
+	// A tool that reads the live thing has no age and must not grow one.
+	if got := snapshotAge(map[string]any{"temperature": 71}); got != "" {
+		t.Errorf("snapshotAge = %q, want empty for a live tool", got)
+	}
+	if got := snapshotAge("not a map"); got != "" {
+		t.Errorf("snapshotAge = %q, want empty", got)
 	}
 }

@@ -104,7 +104,10 @@
     const el = document.createElement("span");
     el.className = "tool" + (t.ok === false ? " bad" : t.running ? " run" : "");
     const ms = t.running ? "" : `<span class="ms">${fmtMs(t.ms)}</span>`;
-    el.innerHTML = `<b>${esc(t.name)}</b>${t.args ? " " + esc(t.args) : ""}${ms}`;
+    // A local snapshot answers as fast as anything and is as old as its file,
+    // so the chip says when it was taken.
+    const age = t.age ? `<span class="age" title="this data was taken ${esc(t.age)}">${esc(t.age)}</span>` : "";
+    el.innerHTML = `<b>${esc(t.name)}</b>${t.args ? " " + esc(t.args) : ""}${age}${ms}`;
     if (t.err) el.title = t.err;
     return el;
   }

@@ -282,6 +282,10 @@ type ToolSummary struct {
 	MS   int64  `json:"ms"`
 	OK   bool   `json:"ok"`
 	Err  string `json:"err,omitempty"`
+	// How old the data behind this call is, for a tool that reads a snapshot
+	// rather than the live thing. Shown on the chip, because an answer off a
+	// local corpus looks exactly like one off the web otherwise.
+	Age string `json:"age,omitempty"`
 }
 
 func (s *Store) NewConversation(title string) (string, error) {

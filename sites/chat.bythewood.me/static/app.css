@@ -385,6 +385,9 @@ body {
 }
 .tool b { color: var(--green-bright); font-weight: 600; }
 .tool .ms { color: var(--faint); }
+/* Amber per DESIGN.md, where it is the warning on a green site. The age of a
+   snapshot is the one thing on a chip a reader has to weigh. */
+.tool .age { color: var(--amber); }
 .tool.bad { border-color: rgba(196, 112, 85, 0.5); }
 .tool.bad b { color: var(--terracotta); }
 .tool.run b { color: var(--amber); }
