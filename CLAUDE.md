@@ -13,7 +13,7 @@ looking alike is something a person keeps true by following that file.
 ## What this is
 
 One repo for every site Isaac Bythewood runs, plus the shared Cloudflare Tunnel
-and Caddy that front them. Eight sites, all Go, all served from a desktop behind a
+and Caddy that front them. Eleven sites, all Go, all served from a desktop behind a
 tunnel rather than a rented server.
 
 | Directory | What it serves |
@@ -24,8 +24,11 @@ tunnel rather than a rented server.
 | `sites/status.bythewood.me/` | Self hosted uptime monitoring. SQLite, Lighthouse audits, crawler |
 | `sites/logging.bythewood.me/` | Self hosted log aggregation. Every other site ships its slog records here. SQLite, retention and rollups, Typst PDF reports |
 | `sites/repos.bythewood.me/` | Self hosted git remote. Push to it over HTTPS with a token, and it mirrors the GitHub account as a backup. Everything git is a subprocess |
-| `sites/dash.bythewood.me/` | Dashboard. Markets off Yahoo, Hacker News and Lobsters, the weather, and whether the other six are answering. One poller, server sent events out, no database |
+| `sites/dash.bythewood.me/` | Dashboard. Markets off Yahoo, Hacker News and Lobsters, the weather, and whether the other sites are answering. One poller, server sent events out, no database |
 | `sites/auth.bythewood.me/` | The front door. One account, a six digit code pushed over ntfy, and an opaque session every other site checks against it |
+| `sites/search.bythewood.me/` | Answers a question against the web, checking every sentence it writes against the passage it cites |
+| `sites/chat.bythewood.me/` | A conversation with a local model, with tools, attachments, history in SQLite and an incognito mode that writes nothing |
+| `sites/llm.bythewood.me/` | The model gateway. One set of weights on one card behind an API key, with every prompt and completion logged |
 | `edge/` | The shared `cloudflared` tunnel, the Caddy that reverse proxies to each site, and the ntfy every alert is published to |
 
 ## The one structural rule
@@ -33,7 +36,7 @@ tunnel rather than a rented server.
 **Every site is its own Go module and owns its own copy of `web/`.**
 
 There is no module at the repo root. `go.work` exists so repo wide `make`
-targets and an editor can see all eight at once, and nothing depends on it. Each
+targets and an editor can see all eleven at once, and nothing depends on it. Each
 site builds standalone:
 
 ```sh
@@ -49,9 +52,9 @@ policies, graceful shutdown, `shipper.go`, the tee handler that copies every log
 record to logging.bythewood.me, and `session.go`, which asks auth.bythewood.me
 whether the cookie on a request is a live session.
 
-**A fix in `web/` has to be made eight times.** Do not add a shared parent module
+**A fix in `web/` has to be made eleven times.** Do not add a shared parent module
 to avoid it, and keep `shipper.go` and `session.go` byte identical across the
-eight, since both are wire formats as much as files.
+eleven, since both are wire formats as much as files.
 
 ## Commands
 
@@ -509,12 +512,12 @@ does nothing.
 
 ## Tests
 
-`make test` runs every site's suite plus its `web/` copy, sixteen packages. There
+`make test` runs every site's suite plus its `web/` copy. There
 are no linter configs, and `make check` is gofmt, vet and build. The portfolio
 has no Go tests of its own, being templates and handlers over static data, and
 is covered by its `web/` package plus browser checks.
 
-`web/shipper_test.go` is one of the eight identical copies and covers the parts
+`web/shipper_test.go` is one of the eleven identical copies and covers the parts
 easy to get quietly wrong: that a record reaches both the original handler and
 the queue, that `WithAttrs` and `WithGroup` still tee, that a full queue drops
 instead of blocking, and that logging after `Close` does not panic.

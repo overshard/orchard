@@ -59,7 +59,7 @@ COMPOSE_DOWN = $(DOCKER) compose
 .DEFAULT_GOAL := help
 .PHONY: help install up up-one deploy edge doctor down down-one run build check fmt fmt-check vet test \
 	env password tunnel tunnel-login tunnel-status ntfy ntfy-token ntfy-status ntfy-passwd \
-	auth-init auth-recovery require-site require-env require-tunnel
+	auth-init auth-recovery llm-key require-site require-env require-tunnel
 
 help:
 	@echo "running system"
@@ -83,6 +83,7 @@ help:
 	@echo "  make ntfy                  create the two alert accounts"
 	@echo "  make ntfy-token            mint the publishers' tokens into the .env files"
 	@echo "  make auth-init             create the login account, printing its recovery codes"
+	@echo "  make llm-key NAME=chat     mint an api key for the model gateway, printed once"
 	@echo "  make auth-recovery         replace the recovery codes when locked out"
 	@echo ""
 	@echo "  make password              print a suggested password, writing nothing"
@@ -363,6 +364,25 @@ auth-init:
 		exit 1; \
 	}
 	@$(DOCKER) exec orchard-auth /app -init
+
+# The first key for a service, before there is a browser session to make one in.
+# llm.bythewood.me's own UI is behind auth, which is reached over the tunnel this
+# gateway feeds, so there has to be a way in that does not need any of that
+# working yet. The plaintext is printed once and nothing keeps it.
+llm-key:
+	@test -n "$(NAME)" || { \
+		echo "which service is the key for?" >&2; \
+		echo "" >&2; \
+		echo "  make llm-key NAME=chat" >&2; \
+		exit 1; \
+	}
+	@$(DOCKER) ps --filter "name=^orchard-llm$$" --format '{{.Names}}' 2>/dev/null | grep -q . || { \
+		echo "orchard-llm is not running:" >&2; \
+		echo "" >&2; \
+		echo "  make up" >&2; \
+		exit 1; \
+	}
+	@$(DOCKER) exec orchard-llm /app -newkey "$(NAME)"
 
 # The way back in when there are no recovery codes left and ntfy or the tunnel
 # is down, so the browser cannot reach a sign in. It needs the Docker socket,

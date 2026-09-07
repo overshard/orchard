@@ -380,6 +380,46 @@ http://dash.bythewood.me {
 # The answer arrives over server-sent events, which must not be buffered or
 # compressed, so this block imports scanners and headers directly rather than
 # taking (site) with its blanket encode. Same reason dash does.
+# Streams its answers and runs a local model, so the same shape as search: no
+# blanket encode over the event stream and timeouts that outlast a slow turn.
+http://chat.bythewood.me {
+	import scanners
+	import headers
+
+	@compressible not path /api/send
+
+	encode @compressible zstd gzip
+
+	# A turn can call tools for several rounds before it answers, and the whole
+	# of it is one held open response.
+	reverse_proxy orchard-chat:8000 {
+		flush_interval -1
+		transport http {
+			response_header_timeout 15m
+			read_timeout 16m
+		}
+	}
+}
+
+# The model gateway. Every other site reaches it by container name on the
+# bridge, so this hostname exists for the machines that are not on it.
+http://llm.bythewood.me {
+	import scanners
+	import headers
+
+	@compressible not path /v1/chat/completions
+
+	encode @compressible zstd gzip
+
+	reverse_proxy orchard-llm:8000 {
+		flush_interval -1
+		transport http {
+			response_header_timeout 15m
+			read_timeout 16m
+		}
+	}
+}
+
 http://search.bythewood.me {
 	import scanners
 	import headers

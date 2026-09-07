@@ -1,0 +1,87 @@
+name: orchard-llm
+
+# Two services. The gateway is on the edge network so Caddy and every other site
+# can reach it, and the model server is on a private one that nothing else
+# joins, since it has no authentication of its own and the gateway is what
+# supplies that.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: orchard-llm
+    restart: unless-stopped
+    # Longer than Docker's ten second default so a generation in flight finishes
+    # and the call log closes cleanly rather than being killed mid write.
+    stop_grace_period: 30s
+    environment:
+      LLM_UPSTREAM: http://swap:8091
+      LLM_MODEL: local
+      LLM_DB: /data/llm.db
+    volumes:
+      - data:/data
+    depends_on:
+      swap:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 512M
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks: [edge, model]
+
+  # llama.cpp behind llama-swap with the card attached. Ornith 1.5 9B at Q4_K_M,
+  # 64k of context with a q4_0 KV cache, unloaded after three idle minutes so a
+  # desktop that is also a workstation gets its card back.
+  swap:
+    build:
+      context: ./modelserver
+      dockerfile: Dockerfile
+    container_name: orchard-llm-swap
+    restart: unless-stopped
+    volumes:
+      - models:/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    # /v1/models answers from llama-swap's own config and loads nothing, so this
+    # never keeps the model awake and defeats the idle unload.
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8091/v1/models"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks: [model]
+
+volumes:
+  data:
+    name: orchard-llm-data
+  models:
+    name: orchard-llm-models
+
+networks:
+  edge:
+    name: orchard-edge
+    external: true
+  model:
+    name: orchard-llm-model

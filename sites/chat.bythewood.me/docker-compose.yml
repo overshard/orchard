@@ -1,0 +1,45 @@
+name: orchard-chat
+
+# One service. The model lives behind llm.bythewood.me now, so this site holds
+# no weights and asks for no GPU, and the key in .env is what lets it through
+# that gateway.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: orchard-chat
+    restart: unless-stopped
+    # Longer than Docker's 10s default so a turn in flight finishes and the
+    # database closes cleanly rather than being killed mid write.
+    stop_grace_period: 30s
+    environment:
+      LLM_URL: http://orchard-llm:8000
+      LLM_KEY: ${LLM_KEY:?create a key at llm.bythewood.me and put it in .env}
+      LLM_CTX: "65536"
+      CHAT_DB: /data/chat.db
+    volumes:
+      - data:/data
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 512M
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks: [edge]
+
+volumes:
+  data:
+    name: orchard-chat-data
+
+networks:
+  edge:
+    name: orchard-edge
+    external: true

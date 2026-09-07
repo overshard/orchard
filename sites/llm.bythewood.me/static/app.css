@@ -1,0 +1,241 @@
+/* llm.bythewood.me. Green primary with amber for caps labels only, per
+   DESIGN.md, because this is a page you read rather than glance at. */
+
+:root {
+  --ground: #0e0d0a;
+  --sunken: #090806;
+  --panel: #1c1a15;
+  --raised: #24211a;
+
+  --text: #ddd7cd;
+  --muted: #b3aba2;
+  --faint: #8a8279;
+
+  --green: #6b9e78;
+  --green-bright: #7db88c;
+  --green-hot: #95cca2;
+  --amber: #c9a84c;
+  --terracotta: #c47055;
+
+  --line: rgba(107, 158, 120, 0.28);
+  --mono: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+  --track: 0.14em;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--text);
+  font: 14px/1.6 var(--mono);
+}
+
+a { color: var(--green-bright); text-decoration: none; }
+a:hover { color: var(--green-hot); text-decoration: underline; }
+
+.bar {
+  display: flex; align-items: center; gap: 1.2rem;
+  padding: 0.6rem 1.2rem;
+  background: var(--sunken);
+  border-bottom: 1px solid var(--line);
+}
+.brand { display: flex; align-items: center; gap: 0.45rem; color: var(--text); }
+.brand:hover { text-decoration: none; }
+.key {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.35rem; height: 1.35rem;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 2px;
+  color: var(--green-hot); font-size: 0.72rem; font-weight: 700;
+}
+.brand-name { font-weight: 700; letter-spacing: 0.02em; }
+.nav { display: flex; gap: 1rem; flex: 1 1 auto; }
+.nav a { color: var(--faint); font-size: 0.78rem; }
+.nav a.on { color: var(--green-bright); }
+.model { color: var(--faint); font-size: 0.72rem; }
+
+.wrap { max-width: 62rem; margin: 0 auto; padding: 1.4rem 1.2rem 3rem; }
+
+h2 {
+  font-size: 0.72rem; font-weight: 700;
+  letter-spacing: var(--track); text-transform: uppercase;
+  color: var(--amber);
+  margin: 2rem 0 0.7rem;
+}
+h2:first-of-type { margin-top: 0.4rem; }
+
+.label {
+  color: var(--amber); font-size: 0.64rem; font-weight: 600;
+  letter-spacing: var(--track); text-transform: uppercase;
+  margin: 0 0 0.3rem;
+}
+
+/* A key is visible exactly once, so it gets the loudest treatment on the page
+   and says plainly that there is no second chance. */
+.fresh {
+  background: var(--panel); border: 1px solid var(--green);
+  border-left: 3px solid var(--green-hot);
+  border-radius: 2px; padding: 0.8rem 1rem; margin-bottom: 1.4rem;
+}
+.secret {
+  display: block; margin: 0.2rem 0 0.5rem;
+  color: var(--green-hot); font-size: 0.9rem; word-break: break-all;
+  user-select: all;
+}
+.note { color: var(--muted); font-size: 0.74rem; margin: 0; }
+
+.stats { display: flex; flex-wrap: wrap; gap: 0.8rem; }
+.stat {
+  flex: 1 1 8rem; background: var(--panel);
+  border: 1px solid var(--line); border-radius: 2px; padding: 0.7rem 0.9rem;
+}
+.stat .num { display: block; color: var(--green-bright); font-size: 1.3rem; font-weight: 700; }
+.stat .label { margin: 0.2rem 0 0; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+th {
+  text-align: left; color: var(--amber); font-size: 0.62rem; font-weight: 600;
+  letter-spacing: var(--track); text-transform: uppercase;
+  padding: 0.35rem 0.6rem; border-bottom: 1px solid var(--line);
+}
+td { padding: 0.4rem 0.6rem; border-bottom: 1px solid rgba(107, 158, 120, 0.12); }
+th.n, td.n { text-align: right; }
+td.faint { color: var(--faint); }
+td.bad, .bad { color: var(--terracotta); }
+tr.off td { color: var(--faint); }
+td.msg { color: var(--muted); max-width: 26rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+td.act { text-align: right; white-space: nowrap; }
+td.act form { display: inline; }
+
+code {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 2px; padding: 0.05rem 0.3rem; color: var(--green-bright);
+  font-size: 0.92em;
+}
+
+input[type="text"] {
+  flex: 1 1 20rem; background: var(--panel); color: var(--text);
+  border: 1px solid var(--line); border-radius: 2px;
+  font: inherit; font-size: 0.8rem; padding: 0.35rem 0.5rem;
+}
+input[type="text"]:focus { outline: none; border-color: var(--green); }
+input::placeholder { color: var(--faint); }
+
+button {
+  background: var(--green); color: var(--sunken); border: 0; border-radius: 2px;
+  font: inherit; font-size: 0.74rem; font-weight: 700;
+  padding: 0.35rem 0.7rem; cursor: pointer;
+}
+button:hover { background: var(--green-hot); }
+button.danger { background: var(--terracotta); }
+
+.newkey { display: flex; gap: 0.5rem; margin-bottom: 0.9rem; }
+
+.tag {
+  display: inline-block; border: 1px solid var(--line); border-radius: 2px;
+  color: var(--faint); font-size: 0.64rem; padding: 0.05rem 0.35rem;
+  margin-right: 0.35rem;
+}
+.tag.bad { border-color: rgba(196, 112, 85, 0.5); color: var(--terracotta); }
+
+.empty { color: var(--faint); font-size: 0.8rem; }
+.more { font-size: 0.78rem; }
+.how { color: var(--muted); font-size: 0.8rem; }
+.filter { color: var(--faint); font-size: 0.68rem; text-transform: none; letter-spacing: 0; }
+
+.call {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 2px; padding: 0.6rem 0.8rem; margin-bottom: 0.7rem;
+}
+.call.bad { border-color: rgba(196, 112, 85, 0.45); }
+.call header { display: flex; flex-wrap: wrap; gap: 0.7rem; align-items: center; font-size: 0.72rem; margin-bottom: 0.4rem; }
+.call .who { color: var(--green-bright); font-weight: 700; }
+.call .faint { color: var(--faint); }
+.call summary { color: var(--amber); font-size: 0.62rem; letter-spacing: var(--track); text-transform: uppercase; cursor: pointer; }
+.call pre {
+  background: var(--sunken); border: 1px solid rgba(107, 158, 120, 0.14);
+  border-radius: 2px; padding: 0.5rem 0.6rem; margin: 0.4rem 0 0.6rem;
+  color: var(--muted); font-size: 0.74rem;
+  white-space: pre-wrap; overflow-wrap: anywhere; max-height: 26rem; overflow: auto;
+}
+
+.foot {
+  display: flex; justify-content: space-between; gap: 1rem;
+  max-width: 62rem; margin: 0 auto; padding: 0 1.2rem 1.4rem;
+  color: var(--faint); font-size: 0.7rem;
+}
+
+/* ---------------------------------------------------------------- landing */
+
+/* The one page a signed out visitor sees. Single column of prose, so it takes
+   the palette and the brand mark and none of the dashboard's table layout. */
+
+.landing { max-width: 42rem; margin: 0 auto; padding: 4rem 1.4rem 5rem; }
+.landing .brand { display: inline-flex; align-items: center; gap: 0.5rem; }
+
+.landing .eyebrow {
+  color: var(--amber); font-size: 0.64rem; font-weight: 600;
+  letter-spacing: var(--track); text-transform: uppercase;
+  margin: 1.6rem 0 0.6rem;
+}
+.landing h1 {
+  font-size: 1.7rem; line-height: 1.3; font-weight: 700;
+  letter-spacing: -0.01em; margin: 0 0 1rem; color: var(--text);
+}
+.landing h1 .accent { color: var(--green-bright); }
+.landing .lede { color: var(--muted); font-size: 0.92rem; margin: 0 0 1.6rem; }
+
+.landing .points { list-style: none; padding: 0; margin: 0 0 2rem; }
+.landing .points li {
+  color: var(--muted); font-size: 0.82rem;
+  padding: 0.5rem 0 0.5rem 1rem;
+  border-left: 1px solid var(--line);
+  margin-bottom: 0.3rem;
+}
+.landing .points b { color: var(--green-bright); font-weight: 700; }
+
+.landing .ctas { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 2.4rem; }
+.landing .btn {
+  display: inline-block; background: var(--green); color: var(--sunken);
+  border: 1px solid var(--green); border-radius: 2px;
+  font-size: 0.78rem; font-weight: 700; padding: 0.45rem 0.9rem;
+}
+.landing .btn:hover { background: var(--green-hot); border-color: var(--green-hot); text-decoration: none; }
+.landing .btn.ghost { background: none; color: var(--faint); border-color: var(--line); }
+.landing .btn.ghost:hover { color: var(--green-bright); }
+
+.landing .foot-line { color: var(--faint); font-size: 0.72rem; }
+
+/* ------------------------------------------------------------------ narrow */
+
+@media (max-width: 52em) {
+  .wrap, .foot { padding-left: 0.7rem; padding-right: 0.7rem; }
+
+  /* A table of six columns does not fit a phone and must not widen the page.
+     display:block turns it into its own scroll container, which is the same
+     trick the markdown tables in chat use. */
+  table { display: block; overflow-x: auto; white-space: nowrap; }
+  td.msg { max-width: 14rem; }
+
+  /* The key form is a field and a button, and side by side leaves neither
+     usable at this width. */
+  .newkey { flex-direction: column; align-items: stretch; }
+  .newkey button { width: 100%; padding: 0.6rem; }
+
+  /* iOS zooms the page when it focuses a field under 16px and leaves it
+     zoomed, which is worse than the field looking slightly large. */
+  input[type="text"] { font-size: 16px; }
+
+  button { padding: 0.5rem 0.8rem; }
+  td.act form { display: block; margin-top: 0.2rem; }
+
+  .bar { flex-wrap: wrap; gap: 0.5rem 0.9rem; padding: 0.5rem 0.7rem; }
+  .nav { flex: 1 1 100%; order: 3; }
+  .model { font-size: 0.66rem; }
+
+  .call pre { font-size: 0.7rem; max-height: 18rem; }
+  .call header { gap: 0.4rem 0.7rem; font-size: 0.66rem; }
+
+  .stats { gap: 0.5rem; }
+  .stat { flex: 1 1 6rem; padding: 0.55rem 0.7rem; }
+}

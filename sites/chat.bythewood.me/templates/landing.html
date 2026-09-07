@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>chat &middot; a conversation with a model on hardware you own</title>
+<link rel="stylesheet" href="{{asset "static/app.css"}}">
+  <!-- Analytics, first party and on this estate. The id is identity rather than
+       a credential, so it is a constant here like every other site's. -->
+  <script>
+    (function (m, e, t, r, i, c, s) {
+      m.collectorQueue = m.collectorQueue || r;
+      m.collectorServer = c;
+      m.collectorId = s;
+      m.collectorScript = e.createElement(t);
+      m.collectorScript.src = c + i;
+      e.head.appendChild(m.collectorScript);
+    })(window, document, "script", [], "/static/collector.js",
+       "https://analytics.bythewood.me", "73f89553-a3fa-4c4a-b567-9a9a0550240b");
+  </script>
+</head>
+<body class="landing-body">
+<main class="landing">
+  <a class="brand" href="/">
+    <span class="key">C<i class="cur"></i></span>
+    <span class="brand-name">chat</span>
+  </a>
+
+  <p class="eyebrow">Self hosted &middot; {{.Model}} &middot; {{.Ctx}} token window</p>
+
+  <h1>A conversation with a model running on <span class="accent">hardware you own</span>.</h1>
+
+  <p class="lede">
+    No API key, no third party, and nothing leaving the house. It reaches for a tool
+    when the answer depends on something it cannot know, reads the files you give it,
+    and keeps the thread in a database you can delete.
+  </p>
+
+  <ul class="points">
+    <li><b>Ten tools</b>, all keyless: search, page fetching, weather, markets, scores, odds, music, conversion and arithmetic.</li>
+    <li><b>Attachments</b> by drag and drop or picker. PDFs, spreadsheets, documents, code and logs, read into the turn and never stored.</li>
+    <li><b>Incognito</b> writes nothing down, verified by counting rows either side of a turn.</li>
+    <li><b>Compaction</b> summarises the oldest exchanges once the window fills, so a long thread keeps working.</li>
+  </ul>
+
+  <div class="ctas">
+    <a class="btn" href="/login">Open chat &rarr;</a>
+    <a class="btn ghost" href="{{.Source}}" target="_blank" rel="noopener">View source</a>
+  </div>
+
+  <p class="foot-line">One account, behind <a href="https://auth.bythewood.me/">auth.bythewood.me</a>.</p>
+</main>
+</body>
+</html>

@@ -16,7 +16,7 @@ that is the split the estate runs on.
 
 - **dash is amber.** It is the only public page with no login, it is glanced at
   rather than read, and it is the one site allowed to be a costume.
-- **analytics, auth, logging, repos, search and status are green.** They are
+- **analytics, auth, chat, llm, logging, repos, search and status are green.** They are
   tools you read for minutes at a time. Green is the primary, and amber is
   chrome only, so caps labels, the hero eyebrow, and warnings. Amber is never
   the primary on any of them.
