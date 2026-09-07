@@ -36,6 +36,9 @@
   const MAX_FILES = 10, MAX_BYTES = 20 * 1024 * 1024;
 
   let convID = "";
+  // The key a turn on a brand new conversation runs under, until the server
+  // hands back the real conversation id.
+  let runID = "";
   let inflight = null;
   // Files chosen but not sent yet. They stay File objects until the turn goes,
   // so nothing is uploaded until there is a message to attach them to.
@@ -501,6 +504,30 @@
 
   // ---------------------------------------------------------------- sending
 
+  // The stream is read the same way whether it came from starting a turn or
+  // from attaching to one already running, so both go through here.
+  async function consume(resp, ui) {
+    const reader = resp.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      // Server sent events are separated by a blank line, and a chunk can
+      // split one in half, so anything after the last separator is kept.
+      const parts = buf.split("\n\n");
+      buf = parts.pop();
+      for (const part of parts) {
+        const line = part.split("\n").find((l) => l.startsWith("data:"));
+        if (!line) continue;
+        let ev;
+        try { ev = JSON.parse(line.slice(5).trim()); } catch { continue; }
+        handle(ev, ui);
+      }
+    }
+  }
+
   async function ask(text) {
     // A turn made only of files is a real question, so an empty box is only
     // empty when nothing is attached either.
@@ -543,6 +570,9 @@
 
     try {
       const convFor = incognito.checked ? "" : convID;
+      // A conversation with no id yet still needs a key the run can be found
+      // under, or a turn started on a new chat is lost the moment the tab goes.
+      const runFor = convFor || (runID = crypto.randomUUID());
       // A form rather than JSON once there are files, and JSON when there are
       // none so the ordinary turn does not pay for multipart framing.
       let init;
@@ -550,6 +580,7 @@
         const fd = new FormData();
         fd.append("message", text);
         fd.append("conversation_id", String(convFor));
+        fd.append("run_id", runFor);
         fd.append("incognito", String(incognito.checked));
         for (const f of sending) fd.append("files", f, f.name);
         init = { method: "POST", body: fd, signal: ctl.signal };
@@ -560,6 +591,7 @@
           body: JSON.stringify({
             message: text,
             conversation_id: convFor,
+            run_id: runFor,
             incognito: incognito.checked,
           }),
           signal: ctl.signal,
@@ -568,26 +600,8 @@
       const resp = await fetch("/api/send", init);
       if (!resp.ok || !resp.body) throw new Error("the server refused that (" + resp.status + ")");
 
-      const reader = resp.body.getReader();
-      const dec = new TextDecoder();
-      let buf = "";
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-        // Server sent events are separated by a blank line, and a chunk can
-        // split one in half, so anything after the last separator is kept.
-        const parts = buf.split("\n\n");
-        buf = parts.pop();
-        for (const part of parts) {
-          const line = part.split("\n").find((l) => l.startsWith("data:"));
-          if (!line) continue;
-          let ev;
-          try { ev = JSON.parse(line.slice(5).trim()); } catch { continue; }
-          handle(ev, { body, toolbar, srcbox, blocks, tail, widgets: wdgbox,
-                       work: workbox, files: mine.querySelector(".files") });
-        }
-      }
+      await consume(resp, { body, toolbar, srcbox, blocks, tail, widgets: wdgbox,
+                            work: workbox, files: mine.querySelector(".files") });
     } catch (e) {
       if (e.name !== "AbortError") errorLine(e.message || String(e));
     } finally {
@@ -749,6 +763,51 @@
     history.pushState({ id }, "", "/c/" + id);
     toBottom(true);
     if (isNarrow()) showSide(false);
+    // A turn is still writing into this one. Put an empty reply back on screen
+    // and follow it, which is what makes closing the tab mid answer survivable.
+    if (d.running) follow(id);
+  }
+
+  // follow attaches to a turn already running and renders the rest of it. The
+  // server replays what the turn has produced so far, so this draws the whole
+  // answer and not only the part that arrives after we asked.
+  async function follow(id) {
+    if (inflight) return;
+    const reply = bubble("bot");
+    const body = reply.querySelector(".body");
+    const blocks = document.createElement("div");
+    const tail = document.createElement("p");
+    tail.className = "tail";
+    body.append(blocks, tail);
+    body.classList.add("typing");
+
+    const ctl = new AbortController();
+    inflight = ctl;
+    busy(true);
+    statusLine("still working");
+    try {
+      const resp = await fetch("/api/attach/" + id, { signal: ctl.signal });
+      if (resp.status === 404) { reply.remove(); return; }
+      if (!resp.ok || !resp.body) throw new Error("could not follow that turn");
+      await consume(resp, {
+        body, blocks, tail,
+        toolbar: reply.querySelector(".tools"),
+        srcbox: reply.querySelector(".sources"),
+        widgets: reply.querySelector(".widgets"),
+        work: reply.querySelector(".work"),
+        files: null,
+      });
+    } catch (e) {
+      if (e.name !== "AbortError") errorLine(e.message || String(e));
+    } finally {
+      clearStatus();
+      body.classList.remove("typing");
+      if (tail.isConnected && !tail.textContent.trim()) tail.remove();
+      if (!body.textContent.trim()) reply.remove();
+      inflight = null;
+      busy(false);
+      sizeSpacer();
+    }
   }
 
   // ---------------------------------------------------------------- wiring
@@ -769,7 +828,16 @@
     input.style.height = Math.min(input.scrollHeight, 176) + "px";
   });
 
-  stop.addEventListener("click", () => inflight?.abort());
+  // Aborting the fetch only drops this reader now, since the turn runs on the
+  // server without one. Stopping has to say so.
+  async function stopTurn() {
+    const key = convID || runID;
+    inflight?.abort();
+    if (key) {
+      try { await fetch("/api/stop/" + key, { method: "POST" }); } catch {}
+    }
+  }
+  stop.addEventListener("click", stopTurn);
 
   document.querySelectorAll(".chip").forEach((c) =>
     c.addEventListener("click", () => ask(c.dataset.ask)));
@@ -870,7 +938,7 @@
       if (isNarrow() && !side.classList.contains("closed")) { e.preventDefault(); showSide(false); return; }
       if (!sheet.hidden) { e.preventDefault(); toggleSheet(false); return; }
       if (e.shiftKey) { e.preventDefault(); input.focus(); return; }
-      if (inflight) { e.preventDefault(); inflight.abort(); return; }
+      if (inflight) { e.preventDefault(); stopTurn(); return; }
       return;
     }
     if (!mod) return;

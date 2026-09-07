@@ -51,6 +51,7 @@ type site struct {
 	llm     *LLM
 	engine  *Engine
 	store   *Store
+	runs    *Runs
 	comp    *Compactor
 	tpl     *template.Template
 	md      goldmark.Markdown
@@ -112,6 +113,7 @@ func main() {
 		auth: auth,
 		llm:  llm, engine: NewEngine(llm, *label), store: store, label: *label,
 		comp: NewCompactor(llm, *ctxSize), ctxSize: *ctxSize, dev: Reloaded,
+		runs: NewRuns(),
 		md: goldmark.New(goldmark.WithExtensions(extension.GFM),
 			goldmark.WithRendererOptions()),
 	}
@@ -124,6 +126,13 @@ func main() {
 	// than expiring.
 	s.engine.RestoreGuard(store, store.Penalties())
 	s.engine.RestoreSpend(store.Spend(tools.SearchHost))
+	// Finished runs are kept a while so a tab coming back can still read one,
+	// and swept after that rather than held until the process restarts.
+	go func() {
+		for range time.Tick(5 * time.Minute) {
+			s.runs.Sweep(time.Now())
+		}
+	}()
 	if err := s.loadTemplates(); err != nil {
 		slog.Error("templates", "err", err)
 		os.Exit(1)
@@ -160,6 +169,8 @@ func main() {
 		fmt.Fprintln(w, "ok")
 	})
 	mux.HandleFunc("POST /api/send", s.auth.RequireAuthJSON(s.send))
+	mux.HandleFunc("GET /api/attach/{id}", s.auth.RequireAuthJSON(s.attach))
+	mux.HandleFunc("POST /api/stop/{id}", s.auth.RequireAuthJSON(s.stop))
 	mux.HandleFunc("GET /api/conversations", s.auth.RequireAuthJSON(s.listConversations))
 	mux.HandleFunc("GET /api/conversation/{id}", s.auth.RequireAuthJSON(s.getConversation))
 	mux.HandleFunc("DELETE /api/conversation/{id}", s.auth.RequireAuthJSON(s.deleteConversation))
@@ -273,8 +284,12 @@ func (s *site) page(w http.ResponseWriter, r *http.Request) {
 }
 
 type sendReq struct {
-	Message   string `json:"message"`
-	ConvID    string `json:"conversation_id"`
+	Message string `json:"message"`
+	ConvID  string `json:"conversation_id"`
+	// The id the browser made up for a conversation that does not exist yet, so
+	// a turn started before the first row is written is still findable if the
+	// tab goes away in the middle of it.
+	RunID     string `json:"run_id"`
 	Incognito bool   `json:"incognito"`
 }
 
@@ -304,6 +319,7 @@ func readSend(w http.ResponseWriter, r *http.Request) (sendReq, []filePart, erro
 
 	req.Message = strings.TrimSpace(r.FormValue("message"))
 	req.ConvID = strings.TrimSpace(r.FormValue("conversation_id"))
+	req.RunID = strings.TrimSpace(r.FormValue("run_id"))
 	req.Incognito = r.FormValue("incognito") == "true"
 	var headers []*multipart.FileHeader
 	if r.MultipartForm != nil {
@@ -312,8 +328,11 @@ func readSend(w http.ResponseWriter, r *http.Request) (sendReq, []filePart, erro
 	return req, readFiles(headers), nil
 }
 
-// send runs one turn and streams it. Server sent events rather than a
+// send starts one turn and streams it. Server sent events rather than a
 // websocket because the traffic is one way and this survives a proxy.
+//
+// The turn itself runs detached, so the browser is a reader and not the thing
+// the work depends on. Closing the tab drops the reader and the turn carries on.
 func (s *site) send(w http.ResponseWriter, r *http.Request) {
 	req, parts, err := readSend(w, r)
 	if err != nil {
@@ -325,8 +344,47 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "empty message", 400)
 		return
 	}
-	prompt := composeTurn(req.Message, parts)
 
+	// A new conversation has no id until its first turn is stored, so the
+	// browser sends one it made up and the run is keyed by that until the store
+	// hands over the real one.
+	key := req.ConvID
+	if key == "" {
+		key = req.RunID
+	}
+	if key == "" {
+		http.Error(w, "no conversation or run id", 400)
+		return
+	}
+
+	var session string
+	if c, err := r.Cookie(web.SessionCookie); err == nil {
+		session = c.Value
+	}
+
+	rn := s.runs.Start(key)
+	// Detached on purpose. r.Context() dies with the tab, and a turn that has
+	// spent two minutes fetching should not be thrown away because a phone
+	// locked.
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 12*time.Minute)
+	rn.setCancel(cancel)
+	go func() {
+		defer cancel()
+		defer rn.Finish()
+		defer func() {
+			if p := recover(); p != nil {
+				slog.Error("a turn panicked", "err", p)
+				rn.Emit(Event{Kind: "error", Text: "that turn failed"})
+			}
+		}()
+		s.turn(ctx, rn, key, req, parts, session)
+	}()
+	s.streamRun(w, r, rn)
+}
+
+// streamRun writes a run to one browser: everything it has already produced,
+// then whatever comes next until the turn ends or this reader goes away.
+func (s *site) streamRun(w http.ResponseWriter, r *http.Request, tr *turnRun) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Accel-Buffering", "no")
@@ -334,21 +392,50 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 	// which wraps the writer in a recorder that only promotes three methods.
 	// ResponseController follows Unwrap and works through it.
 	rc := http.NewResponseController(w)
+	// No write bound, since a turn runs for minutes and any deadline here is a
+	// ceiling on how long the stream may stay open.
+	_ = rc.SetWriteDeadline(time.Time{})
 
-	var mu = make(chan struct{}, 1)
-	mu <- struct{}{}
-	emit := func(e Event) {
-		<-mu
-		defer func() { mu <- struct{}{} }()
-		b, _ := json.Marshal(e)
-		fmt.Fprintf(w, "data: %s\n\n", b)
-		_ = rc.Flush()
+	backlog, ch, live := tr.Follow()
+	write := func(b []byte) bool {
+		if _, err := fmt.Fprintf(w, "data: %s\n\n", b); err != nil {
+			return false
+		}
+		return rc.Flush() == nil
 	}
+	for _, b := range backlog {
+		if !write(b) {
+			if live {
+				tr.Unfollow(ch)
+			}
+			return
+		}
+	}
+	if !live {
+		return
+	}
+	defer tr.Unfollow(ch)
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case b, ok := <-ch:
+			if !ok {
+				return
+			}
+			if !write(b) {
+				return
+			}
+		}
+	}
+}
 
+// turn is the work, with no http in it. It writes into the run rather than to a
+// response, which is what lets it outlive the request that started it.
+func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, parts []filePart, session string) {
+	prompt := composeTurn(req.Message, parts)
+	emit := func(e Event) { rn.Emit(e) }
 	tr := NewTrace(emit)
-
-	ctx, cancel := context.WithTimeout(r.Context(), 12*time.Minute)
-	defer cancel()
 	// Every model call this turn makes hangs off this context, including the
 	// ones the tools start, so marking it here is what keeps the gateway from
 	// writing down what the local database is not writing down either.
@@ -379,10 +466,6 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 	// Warm the weights while the window is being built rather than after.
 	go s.llm.Warm(context.WithoutCancel(ctx))
 
-	var session string
-	if c, err := r.Cookie(web.SessionCookie); err == nil {
-		session = c.Value
-	}
 	// Retrieval is against what the user typed, not the composed prompt, since
 	// the text of an attachment would swamp the scoring with its own words.
 	recalled := s.store.Relevant(req.Message, factsPerTurn)
@@ -417,6 +500,10 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 		if convID == "" {
 			if id, e := s.store.NewConversation(""); e == nil {
 				convID = id
+				// The run was keyed by the id the browser made up. Move it, so
+				// a tab reopening this conversation by its real id finds the
+				// turn that is still writing into it.
+				s.runs.Rekey(key, convID)
 			}
 		}
 		if convID != "" {
@@ -469,9 +556,28 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 			"decode_tps": round1(stats.Decode), "prefill_tps": round1(stats.Prefill),
 			"ctx": s.ctxSize,
 		}}
-	b, _ := json.Marshal(done)
-	fmt.Fprintf(w, "data: %s\n\n", b)
-	_ = rc.Flush()
+	rn.Emit(done)
+}
+
+// attach lets a tab that went away pick a turn back up. It is the same stream
+// send writes, from the beginning, so a browser that missed the first half sees
+// it replayed and then follows the rest.
+func (s *site) attach(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	rn, ok := s.runs.Get(id)
+	if !ok {
+		// Nothing running and nothing kept. The conversation endpoint has the
+		// messages, so this is not an error, there is just nothing to follow.
+		http.Error(w, "no turn to attach to", http.StatusNotFound)
+		return
+	}
+	s.streamRun(w, r, rn)
+}
+
+// stop cancels a turn. A browser that has stopped listening is not a reason to
+// stop the work, so this is the only thing that is.
+func (s *site) stop(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, map[string]any{"stopped": s.runs.Cancel(r.PathValue("id"))})
 }
 
 // render turns the model's markdown into HTML on the server, so the browser
@@ -527,7 +633,15 @@ func (s *site) getConversation(w http.ResponseWriter, r *http.Request) {
 		rendered = append(rendered, o)
 	}
 	conv, _ := s.store.Get(id)
-	writeJSON(w, map[string]any{"id": id, "title": conv.Title, "messages": rendered})
+	// Whether a turn is still writing into this conversation, so a tab that
+	// comes back knows to attach and follow rather than render what is stored
+	// and stop, which is how a half finished turn looked like a lost one.
+	running := false
+	if rn, ok := s.runs.Get(id); ok {
+		running = rn.Running()
+	}
+	writeJSON(w, map[string]any{"id": id, "title": conv.Title,
+		"messages": rendered, "running": running})
 }
 
 func (s *site) deleteConversation(w http.ResponseWriter, r *http.Request) {
