@@ -15,6 +15,7 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
+	"html"
 	"io"
 	"net/http"
 	"net/url"
@@ -62,9 +63,14 @@ func wikiLookup(ctx context.Context, d *Deps, base, q string) (any, error) {
 	// An exact title beats the ranker. A one word lookup is nearly always the
 	// article's own name, and full text search on it can rank a page that
 	// merely mentions the word above the page about it.
-	if title, link, ok := wikiExact(ctx, d, base, q); ok {
-		text, err := wikiArticle(ctx, d, base, link)
+	if guess, link, ok := wikiExact(ctx, d, base, q); ok {
+		title, text, err := wikiArticle(ctx, d, base, link)
 		if err == nil {
+			// The page knows its own capitalisation and the guessed path does
+			// not, so a lookup for "postgresql" comes back as PostgreSQL.
+			if title == "" {
+				title = guess
+			}
 			return wikiResult(ctx, d, base, title, text, nil), nil
 		}
 	}
@@ -93,7 +99,7 @@ func wikiLookup(ctx context.Context, d *Deps, base, q string) (any, error) {
 		return wikiMiss(append([]string{top.Title}, also...)), nil
 	}
 
-	text, err := wikiArticle(ctx, d, base, top.Link)
+	_, text, err := wikiArticle(ctx, d, base, top.Link)
 	if err != nil {
 		return nil, err
 	}
@@ -102,12 +108,16 @@ func wikiLookup(ctx context.Context, d *Deps, base, q string) (any, error) {
 }
 
 func wikiResult(ctx context.Context, d *Deps, base, title, text string, also []string) map[string]any {
+	date := wikiDate(ctx, d, base)
 	out := map[string]any{
 		"found":   true,
 		"title":   title,
 		"summary": text,
 		"url":     "https://en.wikipedia.org/wiki/" + strings.ReplaceAll(title, " ", "_"),
-		"note": "This is the opening section only, from an offline snapshot taken " + wikiDate(ctx, d, base) +
+		// Its own field as well as the sentence below, since anything reading
+		// this programmatically has to weigh the age without parsing prose.
+		"snapshot_date": date,
+		"note": "This is the opening section only, from an offline snapshot taken " + date +
 			". Anything after that date is not in it. For the rest of the article, or for anything " +
 			"current, call web_fetch on the url above or use web_search.",
 	}
@@ -217,6 +227,7 @@ var (
 	// kiwix appends the Creative Commons notice to every article, so without
 	// this every single summary ends on the same two sentences of licence.
 	wikiFooter = regexp.MustCompile(`(?is)<div[^>]*class="[^"]*zim-footer[^"]*"`)
+	wikiTitle  = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title\s*>`)
 	// The infobox. Flattened to text it reads as a run of labels with no
 	// sentence in it, which is noise a small model has to wade through to reach
 	// the prose underneath.
@@ -239,15 +250,18 @@ func stripTables(h string) string {
 // wikiArticle returns the lead section as plain text. The mini snapshot has no
 // sections below the lead, and cutting at the first heading anyway means this
 // still returns a lead if the ZIM is ever swapped for a full flavour.
-func wikiArticle(ctx context.Context, d *Deps, base, link string) (string, error) {
+func wikiArticle(ctx context.Context, d *Deps, base, link string) (title, text string, err error) {
 	if !strings.HasPrefix(link, "/") {
 		link = "/" + link
 	}
 	body, err := wikiGet(ctx, d, base+link)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	h := string(body)
+	if m := wikiTitle.FindStringSubmatch(h); m != nil {
+		title = strings.TrimSpace(html.UnescapeString(m[1]))
+	}
 	h = wikiHead.ReplaceAllString(h, " ")
 	if loc := wikiCutHead.FindStringIndex(h); loc != nil {
 		h = h[:loc[0]]
@@ -258,7 +272,7 @@ func wikiArticle(ctx context.Context, d *Deps, base, link string) (string, error
 	}
 	h = stripTables(h)
 
-	text := strings.TrimSpace(Text(h))
+	text = strings.TrimSpace(Text(h))
 	if len(text) > wikiMaxChars {
 		// Cut on a sentence so the model is not handed half a clause.
 		cut := text[:wikiMaxChars]
@@ -268,9 +282,9 @@ func wikiArticle(ctx context.Context, d *Deps, base, link string) (string, error
 		text = cut
 	}
 	if text == "" {
-		return "", fmt.Errorf("that article is in the snapshot but its opening section is empty")
+		return "", "", fmt.Errorf("that article is in the snapshot but its opening section is empty")
 	}
-	return text, nil
+	return title, text, nil
 }
 
 // wikiGet does not go through get(). The Guard and the budgets exist for third

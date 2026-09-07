@@ -145,9 +145,10 @@ var verdictSchema = map[string]any{
 
 const gateSystem = `You are checking a draft answer before it is sent. Answer only with the JSON object you were given a schema for.
 
-"answered" means the draft answers the question with real specifics and every fact in it either came from the tool results, or was established earlier in this conversation, or is something no tool could change, like arithmetic, code, or an opinion asked for.
+"answered" means the draft answers the question with real specifics and every fact in it either came from the tool results, or was established earlier in this conversation, or is something no tool could change, like arithmetic, code, or an opinion asked for. A draft that disagrees with the background section is never "answered", whatever else is true of it.
 
 "research" means the draft is not ready to send. Choose it when any of these are true:
+- A background section is present and the draft disagrees with it. Compare them claim by claim before anything else. The background is the opening section of a Wikipedia article, so on a definition, a name, a date, an origin or who did something it is right and a draft that says otherwise is wrong, however confident the draft sounds. Two limits: the background does not cover everything, so a fact it is simply silent on is not a disagreement, and it was taken on the date it states, so a difference about something that could have changed since then means the background is old rather than the draft wrong, and that is "answered".
 - The draft offers to look something up, says it will check, or asks whether it should.
 - The draft says it does not know, has no access, has nothing to report, or cannot answer from what it has.
 - The draft states a name, title, date, number, price or event that no tool result above supports.
@@ -161,7 +162,7 @@ When the verdict is "research", query is the single web search that would close 
 // enough asks whether the draft can be sent. Anything that goes wrong is a yes,
 // because a gate that fails closed would turn a working turn into a loop over a
 // model that is not answering the gate either.
-func (e *Engine) enough(ctx context.Context, question, draft string, results, previous []string) (verdict, Stats) {
+func (e *Engine) enough(ctx context.Context, question, draft, background string, results, previous []string) (verdict, Stats) {
 	var b strings.Builder
 	b.WriteString("Question:\n")
 	b.WriteString(strings.TrimSpace(question))
@@ -184,6 +185,11 @@ func (e *Engine) enough(ctx context.Context, question, draft string, results, pr
 			b.WriteString(trimLine(r, 600))
 			b.WriteByte('\n')
 		}
+	}
+	if background != "" {
+		b.WriteString("\n\nBackground, looked up locally rather than by the model:\n")
+		b.WriteString(background)
+		b.WriteByte('\n')
 	}
 	b.WriteString("\n\nDraft answer:\n")
 	b.WriteString(trimLine(strings.TrimSpace(draft), 2000))
@@ -212,6 +218,18 @@ func researchNudge(query string) string {
 		"Do not offer to look something up and do not say what you would do next, there is nobody to answer you."
 }
 
+// What a draft contradicted by the snapshot is told. It names the tool and the
+// subject, since a model sent back without both goes and searches the web for
+// what is already on this machine.
+func wikiNudge(subject string) string {
+	s := strings.TrimSpace(subject)
+	if s == "" {
+		return "Part of that does not match what the offline Wikipedia says. Call wikipedia now, read it, and correct the answer."
+	}
+	return "Part of that does not match what the offline Wikipedia says about " + quoted(s) + ". " +
+		"Call wikipedia with " + quoted(s) + " now, read the article, and correct the answer rather than repeating it."
+}
+
 // What a rehash is told, which has to say why rather than just no. A model sent
 // back with the generic nudge writes the same answer a third time, since as far
 // as it can see it already has the material.
@@ -233,9 +251,12 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 	// Sending a turn back to research when the search endpoint is in the
 	// penalty box is a guaranteed loop: it cannot succeed, and every pass costs
 	// a model call and another failed request against a host that is already
-	// refusing. The honest answer there is the one it has.
-	if _, down := e.SearchDown(); down {
-		return "", Stats{}
+	// refusing. Every nudge below that names a search is held back for that
+	// reason, and the local snapshot is not, since correcting a draft against a
+	// container on the bridge needs nothing that is refusing us.
+	_, searchDown := e.SearchDown()
+	if searchDown {
+		return e.gateOffline(ctx, question, draft, used, emit)
 	}
 	if isDeferral(draft) || refusal.MatchString(draft) {
 		emit(Event{Kind: "status", Text: "looking it up"})
@@ -249,6 +270,13 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 		return repeatNudge(), Stats{}
 	}
 	emit(Event{Kind: "status", Text: "checking the answer"})
+	// Only when the turn fetched nothing, since that is the case the gate has
+	// no evidence for. A turn that called tools already gave it something to
+	// work with, and a second opinion there would argue with what was fetched.
+	var background string
+	if len(used) == 0 {
+		background = e.background(ctx, question)
+	}
 	results := make([]string, 0, len(used))
 	for _, r := range used {
 		if r.Err != "" {
@@ -258,10 +286,37 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 		body, _ := json.Marshal(r.Content)
 		results = append(results, r.Name+": "+string(body))
 	}
-	v, st := e.enough(ctx, question, draft, results, previous)
+	v, st := e.enough(ctx, question, draft, background, results, previous)
 	if v.Verdict != "research" {
 		return "", st
 	}
 	emit(Event{Kind: "status", Text: "looking it up"})
+	// The snapshot already has the article, so sending it to a web search for
+	// something a local call answers in milliseconds is the slower way to be
+	// right.
+	if background != "" {
+		return wikiNudge(subjectOf(question)), st
+	}
 	return researchNudge(v.Query), st
+}
+
+// gateOffline is the gate with the search host refusing us. The only thing that
+// can be acted on is a draft the local snapshot disagrees with, so that is the
+// only thing checked, and anything else is let through as the honest answer the
+// turn managed.
+func (e *Engine) gateOffline(ctx context.Context, question, draft string, used []tools.Result, emit func(Event)) (string, Stats) {
+	if len(used) > 0 {
+		return "", Stats{}
+	}
+	background := e.background(ctx, question)
+	if background == "" {
+		return "", Stats{}
+	}
+	emit(Event{Kind: "status", Text: "checking the answer"})
+	v, st := e.enough(ctx, question, draft, background, nil, nil)
+	if v.Verdict != "research" {
+		return "", st
+	}
+	emit(Event{Kind: "status", Text: "looking it up"})
+	return wikiNudge(subjectOf(question)), st
 }
