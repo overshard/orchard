@@ -247,6 +247,90 @@ func stripTables(h string) string {
 	return h
 }
 
+var (
+	wikiRow  = regexp.MustCompile(`(?is)<tr[^>]*>(.*?)</tr\s*>`)
+	wikiCell = regexp.MustCompile(`(?is)<t([hd])[^>]*>(.*?)</t[hd]\s*>`)
+	wikiCSS  = regexp.MustCompile(`(?is)<style[^>]*>.*?</style\s*>`)
+)
+
+// What the fact block is allowed to cost, since an infobox can run to forty
+// rows of styling and footnotes and the prose is what the reader came for.
+const (
+	wikiMaxFacts    = 8
+	wikiMaxFactLen  = 160
+	wikiMaxFactsLen = 600
+)
+
+// wikiInfobox pulls the labelled rows out of the first table.
+//
+// The whole table used to be thrown away, which read better and lost the one
+// line that answers who currently holds an office: "Prime Minister of Japan"
+// describes the office in its lead and names the incumbent only here. A row is
+// kept as "Label: value", and a row with no label is kept on its own, since
+// that is the shape the incumbent row comes in.
+// Captions on the images an infobox opens with. They are the only unlabelled
+// rows that are not facts, so they are named rather than guessed at.
+var captionStart = []string{"emblem of", "standard of", "flag of", "seal of", "logo of",
+	"coat of arms", "portrait of", "official portrait", "map of", "photograph of"}
+
+func wikiCaption(v string) bool {
+	l := strings.ToLower(strings.TrimSpace(v))
+	for _, p := range captionStart {
+		if strings.HasPrefix(l, p) {
+			return true
+		}
+	}
+	return false
+}
+
+func wikiInfobox(h string) []string {
+	m := wikiTable.FindString(h)
+	if m == "" {
+		return nil
+	}
+	var out []string
+	total := 0
+	for _, r := range wikiRow.FindAllStringSubmatch(m, -1) {
+		var label, value string
+		for _, c := range wikiCell.FindAllStringSubmatch(r[1], -1) {
+			t := strings.TrimSpace(Text(wikiCSS.ReplaceAllString(c[2], " ")))
+			t = strings.ReplaceAll(t, "\n", " ")
+			if c[1] == "h" && label == "" {
+				label = t
+				continue
+			}
+			if value == "" {
+				value = t
+			}
+		}
+		// A stylesheet that survived, which is what the class rules in a cell
+		// flatten to, and it is never a fact.
+		if strings.Contains(value, "mw-parser-output") || strings.Contains(label, "mw-parser-output") {
+			continue
+		}
+		// An unlabelled row is usually the caption under a picture, and the few
+		// that are not are the office rows worth keeping.
+		if label == "" && wikiCaption(value) {
+			continue
+		}
+		line := strings.TrimSpace(value)
+		if label != "" && value != "" {
+			line = label + ": " + value
+		} else if label != "" && value == "" {
+			continue
+		}
+		if line == "" || len(line) > wikiMaxFactLen {
+			continue
+		}
+		out = append(out, line)
+		total += len(line)
+		if len(out) >= wikiMaxFacts || total >= wikiMaxFactsLen {
+			break
+		}
+	}
+	return out
+}
+
 // wikiArticle returns the lead section as plain text. The mini snapshot has no
 // sections below the lead, and cutting at the first heading anyway means this
 // still returns a lead if the ZIM is ever swapped for a full flavour.
@@ -270,9 +354,13 @@ func wikiArticle(ctx context.Context, d *Deps, base, link string) (title, text s
 	if loc := wikiFooter.FindStringIndex(h); loc != nil {
 		h = h[:loc[0]]
 	}
+	facts := wikiInfobox(h)
 	h = stripTables(h)
 
 	text = strings.TrimSpace(Text(h))
+	if len(facts) > 0 {
+		text = strings.Join(facts, "\n") + "\n\n" + text
+	}
 	if len(text) > wikiMaxChars {
 		// Cut on a sentence so the model is not handed half a clause.
 		cut := text[:wikiMaxChars]

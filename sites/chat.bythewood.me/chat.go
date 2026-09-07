@@ -217,6 +217,18 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	msgs := append([]Message{e.systemWith(memory)}, history...)
 	msgs = append(msgs, Message{Role: RoleUser, Content: user})
 
+	var used []tools.Result
+	// The first move on any question naming a thing, since the snapshot is on
+	// this machine and is newer than the weights. It goes in after the history
+	// so the cached prompt prefix survives, and it is recorded as a tool call
+	// because that is what it is and the reader should see its age.
+	if res, msg, ok := e.opening(ctx, user); ok {
+		emit(Event{Kind: "tool", Tool: res.Name, Args: shortArgs(string(res.Args))})
+		emit(Event{Kind: "tool_done", Tool: res.Name, MS: res.Elapsed.Milliseconds(), OK: true})
+		msgs = append(msgs, msg)
+		used = append(used, res)
+	}
+
 	// What this conversation has already answered. A follow-up is where the loop
 	// goes wrong, since the results behind those answers are gone and the
 	// answers are not, so the model rewrites one instead of fetching anything.
@@ -227,7 +239,6 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		}
 	}
 
-	var used []tools.Result
 	var usedDeepSearch bool
 	var stats Stats
 	schemas := e.reg.Schemas()

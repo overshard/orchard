@@ -396,6 +396,7 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 		summaries = append(summaries, ToolSummary{
 			Name: u.Name, Args: shortArgs(string(u.Args)),
 			MS: u.Elapsed.Milliseconds(), OK: u.Err == "", Err: u.Err,
+			Age: snapshotAge(u.Content),
 		})
 	}
 
@@ -558,4 +559,16 @@ func kfmt(n int) string {
 		return strconv.Itoa(n)
 	}
 	return strconv.Itoa(n/1024) + "k"
+}
+
+// snapshotAge reads the date a tool's data was taken, when it has one. Any tool
+// answering from a snapshot rather than the live source reports it the same
+// way, so the chip needs no per tool knowledge.
+func snapshotAge(content any) string {
+	m, ok := content.(map[string]any)
+	if !ok {
+		return ""
+	}
+	s, _ := m["snapshot_date"].(string)
+	return s
 }

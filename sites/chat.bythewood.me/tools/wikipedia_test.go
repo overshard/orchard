@@ -173,24 +173,88 @@ func TestTheLicenceFooterIsStripped(t *testing.T) {
 	}
 }
 
-// An infobox flattens into a run of labels with no sentence in it, which is
-// most of what a lead section weighs on a page that has one.
-func TestTheInfoboxIsStripped(t *testing.T) {
+// The infobox is kept as labelled lines rather than flattened into the prose.
+// Throwing it away read better and lost the row that answers who holds an
+// office, which is the only place a lead names an incumbent.
+func TestTheInfoboxBecomesLabelledLines(t *testing.T) {
 	article := `<h1>Sourdough</h1>
 	<table class="infobox"><tr><th>Type</th><td>Bread</td></tr>
+	<tr><td>Emblem of the loaf</td></tr>
 	<tr><td><table><tr><td>Nested junk</td></tr></table></td></tr></table>
 	<p>Sourdough bread is made by fermentation.</p>`
 	srv, _ := fakeKiwix(t, map[string]string{"Sourdough": article}, nil)
 
 	got := lookup(t, srv.URL, "Sourdough")
 	sum, _ := got["summary"].(string)
-	for _, junk := range []string{"Nested junk", "Bread"} {
-		if strings.Contains(sum, junk) {
-			t.Errorf("summary still carries table content %q: %s", junk, sum)
-		}
+	if !strings.Contains(sum, "Type: Bread") {
+		t.Errorf("the labelled row was lost: %s", sum)
+	}
+	if strings.Contains(sum, "Emblem of the loaf") {
+		t.Errorf("a picture caption was kept as a fact: %s", sum)
 	}
 	if !strings.Contains(sum, "fermentation") {
 		t.Errorf("summary lost the prose: %s", sum)
+	}
+}
+
+// The failure this was written for. "Prime Minister of Japan" describes the
+// office in its lead and names the current holder only in the infobox, so
+// dropping the table meant the snapshot could not answer who it is.
+func TestTheIncumbentRowSurvives(t *testing.T) {
+	article := `<table class="infobox">
+	<tr><td>Standard of the prime minister</td></tr>
+	<tr><td>Incumbent Sanae Takaichi since 21 October 2025</td></tr>
+	<tr><th>Seat</th><td>Tokyo</td></tr></table>
+	<p>The prime minister of Japan is the head of government.</p>`
+	srv, _ := fakeKiwix(t, map[string]string{"Prime_Minister_of_Japan": article}, nil)
+
+	got := lookup(t, srv.URL, "Prime Minister of Japan")
+	sum, _ := got["summary"].(string)
+	if !strings.Contains(sum, "Sanae Takaichi") {
+		t.Errorf("the incumbent is missing, which is the whole point: %s", sum)
+	}
+	if !strings.Contains(sum, "head of government") {
+		t.Errorf("the prose was lost: %s", sum)
+	}
+	if strings.Contains(sum, "Standard of the prime minister") {
+		t.Errorf("a picture caption was kept as a fact: %s", sum)
+	}
+}
+
+// An infobox carries its own stylesheet in a cell, which flattens into a run of
+// class rules and is never a fact.
+func TestInfoboxStylesheetsAreNotFacts(t *testing.T) {
+	article := `<table class="infobox">
+	<tr><th>Type</th><td>.mw-parser-output .plainlist ol{margin:0}</td></tr>
+	<tr><th>Seat</th><td>Tokyo</td></tr></table><p>Prose.</p>`
+	srv, _ := fakeKiwix(t, map[string]string{"Thing": article}, nil)
+
+	got := lookup(t, srv.URL, "Thing")
+	sum, _ := got["summary"].(string)
+	if strings.Contains(sum, "mw-parser-output") {
+		t.Errorf("a stylesheet came back as a fact: %s", sum)
+	}
+	if !strings.Contains(sum, "Seat: Tokyo") {
+		t.Errorf("the real row was lost with it: %s", sum)
+	}
+}
+
+// A long infobox must not crowd out the prose the reader came for.
+func TestTheInfoboxIsCapped(t *testing.T) {
+	var rows strings.Builder
+	for i := 0; i < 40; i++ {
+		fmt.Fprintf(&rows, "<tr><th>Label%d</th><td>Value%d</td></tr>", i, i)
+	}
+	article := "<table class=\"infobox\">" + rows.String() + "</table><p>Prose.</p>"
+	srv, _ := fakeKiwix(t, map[string]string{"Thing": article}, nil)
+
+	got := lookup(t, srv.URL, "Thing")
+	sum, _ := got["summary"].(string)
+	if strings.Count(sum, "Label") > wikiMaxFacts {
+		t.Errorf("more than %d rows came back: %s", wikiMaxFacts, sum)
+	}
+	if !strings.Contains(sum, "Prose.") {
+		t.Errorf("the prose was crowded out: %s", sum)
 	}
 }
 

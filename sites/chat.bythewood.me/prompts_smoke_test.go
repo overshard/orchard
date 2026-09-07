@@ -26,11 +26,10 @@ func TestPromptsSmoke(t *testing.T) {
 	eng.Render = func(md string) string { return md }
 
 	prompts := []string{
+		"who is the prime minister of japan",
 		"what is a goodyear welt",
-		"what is kubernetes for",
-		"tell me about photosynthesis",
-		"what is postgresql",
-		"who is kim jong un",
+		"what's the weather like",
+		"write me a bash script that renames every file in a directory to lowercase",
 	}
 
 	for _, p := range prompts {
