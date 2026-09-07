@@ -342,6 +342,8 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 		_ = rc.Flush()
 	}
 
+	tr := NewTrace(emit)
+
 	ctx, cancel := context.WithTimeout(r.Context(), 12*time.Minute)
 	defer cancel()
 	// Every model call this turn makes hangs off this context, including the
@@ -366,6 +368,8 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 		if changed {
 			emit(Event{Kind: "status", Text: "compacting"})
 			_ = s.store.SetSummary(req.ConvID, summary, covered)
+			tr.Add(Step{Kind: "compact", Label: "rewrote the older history as a summary",
+				Out: summary, Meta: itoa(covered) + " earlier messages replaced"})
 		}
 	}
 
@@ -379,7 +383,12 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 	// Retrieval is against what the user typed, not the composed prompt, since
 	// the text of an attachment would swamp the scoring with its own words.
 	recalled := s.store.Relevant(req.Message, factsPerTurn)
-	reply, used, srcs, widgets, stats, err := s.engine.Run(ctx, history, prompt, session, memoryBlock(recalled), emit)
+	if len(recalled) > 0 {
+		tr.Add(Step{Kind: "memory", Label: "recalled what it knows about Isaac",
+			In: req.Message, Out: memoryBlock(recalled),
+			Meta: itoa(len(recalled)) + " of the stored facts scored against this question"})
+	}
+	reply, used, srcs, widgets, stats, err := s.engine.Run(ctx, history, prompt, session, memoryBlock(recalled), tr, emit)
 	// Whether the turn worked or not, whatever it spent has been spent, and a
 	// failed turn is exactly when the counts matter most.
 	s.engine.SaveSpend(s.store.SaveSpend)
@@ -414,10 +423,14 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 			}
 			_ = s.store.Append(convID, user)
 			_ = s.store.Append(convID, Stored{Role: RoleAssistant, Content: reply.Content,
-				Tools: summaries, Sources: srcs, Widgets: widgets})
+				Tools: summaries, Sources: srcs, Widgets: widgets, Steps: tr.Steps()})
 			if len(stored) == 0 {
-				if t := s.comp.Title(context.WithoutCancel(ctx), titleSeed(req.Message, parts)); t != "" {
+				seed := titleSeed(req.Message, parts)
+				titleStart := time.Now()
+				if t := s.comp.Title(context.WithoutCancel(ctx), seed); t != "" {
 					_ = s.store.SetTitle(convID, t)
+					tr.Add(Step{Kind: "title", Label: "named the conversation",
+						In: seed, Out: t, MS: time.Since(titleStart).Milliseconds()})
 				}
 			}
 			s.store.Checkpoint()
@@ -445,6 +458,7 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 
 	done := map[string]any{"kind": "done", "conversation_id": convID,
 		"tools": summaries, "html": s.renderCited(reply.Content, srcs), "incognito": req.Incognito,
+		"steps":   tr.Steps(),
 		"sources": srcs,
 		"files":   attachments(parts),
 		"stats": map[string]any{
@@ -498,11 +512,12 @@ func (s *site) getConversation(w http.ResponseWriter, r *http.Request) {
 		Tools   []ToolSummary `json:"tools,omitempty"`
 		Sources []Source      `json:"sources,omitempty"`
 		Widgets []Widget      `json:"widgets,omitempty"`
+		Steps   []Step        `json:"steps,omitempty"`
 	}
 	rendered := make([]out, 0, len(msgs))
 	for _, m := range msgs {
 		o := out{Role: m.Role, Text: m.Shown(), Files: m.Files, Tools: m.Tools,
-			Sources: m.Sources, Widgets: m.Widgets}
+			Sources: m.Sources, Widgets: m.Widgets, Steps: m.Steps}
 		if m.Role == RoleAssistant {
 			o.HTML = s.renderCited(m.Content, m.Sources)
 		}

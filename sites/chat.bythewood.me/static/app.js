@@ -112,6 +112,88 @@
     return el;
   }
 
+  // The record of what a turn did. It is open while the turn runs, so the work
+  // is visible as it happens, and collapses to one line once the answer lands.
+  // Nothing here is decoration: an answer off a local snapshot and one off the
+  // model's memory look identical without it.
+  const STEP_KINDS = {
+    prompt: "prompt", memory: "memory", wikipedia: "wikipedia", model: "model",
+    tool: "tool", gate: "gate", answer: "answer", title: "title", compact: "compact",
+  };
+
+  function workPanel(box) {
+    if (box.dataset.built) return box;
+    box.dataset.built = "1";
+    box.innerHTML =
+      `<button class="work-head" type="button" aria-expanded="true">` +
+      `<span class="chev" aria-hidden="true"></span>` +
+      `<span class="work-k">// WORK</span>` +
+      `<span class="work-sum"></span></button>` +
+      `<ol class="work-steps"></ol>`;
+    const head = box.querySelector(".work-head");
+    head.addEventListener("click", () => {
+      const open = head.getAttribute("aria-expanded") === "true";
+      head.setAttribute("aria-expanded", String(!open));
+      box.querySelector(".work-steps").hidden = open;
+    });
+    return box;
+  }
+
+  function stepRow(s) {
+    const li = document.createElement("li");
+    li.className = "step" + (s.bad ? " bad" : "");
+    li.dataset.kind = STEP_KINDS[s.kind] || "model";
+    const ms = s.ms ? `<span class="ms">${fmtMs(s.ms)}</span>` : "";
+    const io = (s.in || s.out || s.meta);
+    li.innerHTML =
+      `<button class="step-head" type="button" aria-expanded="false"${io ? "" : " disabled"}>` +
+      `<span class="dot" aria-hidden="true"></span>` +
+      `<span class="k">${esc(s.kind)}</span>` +
+      `<span class="l">${esc(s.label || "")}</span>${ms}</button>` +
+      (io ? `<div class="step-body" hidden>` +
+        (s.meta ? `<div class="step-meta">${esc(s.meta)}</div>` : "") +
+        (s.in ? `<div class="io"><span class="io-k">in</span><pre>${esc(s.in)}</pre></div>` : "") +
+        (s.out ? `<div class="io"><span class="io-k">out</span><pre>${esc(s.out)}</pre></div>` : "") +
+        `</div>` : "");
+    if (io) {
+      const head = li.querySelector(".step-head");
+      head.addEventListener("click", () => {
+        const open = head.getAttribute("aria-expanded") === "true";
+        head.setAttribute("aria-expanded", String(!open));
+        li.querySelector(".step-body").hidden = open;
+      });
+    }
+    return li;
+  }
+
+  function addStep(box, s) {
+    if (!box || !s) return;
+    workPanel(box).hidden = false;
+    box.querySelector(".work-steps").appendChild(stepRow(s));
+    countWork(box);
+  }
+
+  function countWork(box) {
+    const n = box.querySelectorAll(".step").length;
+    box.querySelector(".work-sum").textContent = n + (n === 1 ? " step" : " steps");
+  }
+
+  // Collapsed once the answer is there, since by then the reader wants the
+  // answer and the work is something to open if they care.
+  function finishWork(box, steps) {
+    if (!box) return;
+    if (Array.isArray(steps) && steps.length) {
+      workPanel(box).hidden = false;
+      const list = box.querySelector(".work-steps");
+      if (!list.children.length) list.replaceChildren(...steps.map(stepRow));
+      countWork(box);
+    }
+    if (box.hidden || !box.dataset.built) return;
+    const head = box.querySelector(".work-head");
+    head.setAttribute("aria-expanded", "false");
+    box.querySelector(".work-steps").hidden = true;
+  }
+
   function sourceChip(s) {
     const el = document.createElement("a");
     el.className = "src";
@@ -429,6 +511,7 @@
     const reply = bubble("bot");
     const body = reply.querySelector(".body");
     const toolbar = reply.querySelector(".tools");
+    const workbox = reply.querySelector(".work");
     const srcbox = reply.querySelector(".sources");
     const wdgbox = reply.querySelector(".widgets");
     body.classList.add("typing");
@@ -491,7 +574,7 @@
           let ev;
           try { ev = JSON.parse(line.slice(5).trim()); } catch { continue; }
           handle(ev, { body, toolbar, srcbox, blocks, tail, widgets: wdgbox,
-                       files: mine.querySelector(".files") });
+                       work: workbox, files: mine.querySelector(".files") });
         }
       }
     } catch (e) {
@@ -553,6 +636,9 @@
         ui.tail.textContent = ev.text || "";
         keepPinned();
         break;
+      case "step":
+        addStep(ui.work, ev.step);
+        break;
       case "error":
         clearStatus();
         errorLine(ev.text);
@@ -570,6 +656,7 @@
           ui.toolbar.hidden = false;
           ui.toolbar.replaceChildren(...ev.tools.map(toolChip));
         }
+        finishWork(ui.work, ev.steps);
         showSources(ui.srcbox, ev.sources);
         if (Array.isArray(ev.files) && ev.files.length && ui.files) {
           ui.files.hidden = false;
@@ -643,6 +730,7 @@
         tb.replaceChildren(...m.tools.map(toolChip));
       }
       window.Widgets.render(node.querySelector(".widgets"), m.widgets);
+      if (m.steps && m.steps.length) finishWork(node.querySelector(".work"), m.steps);
       showSources(node.querySelector(".sources"), m.sources);
     }
     document.querySelectorAll(".conv").forEach((el) =>

@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS messages (
   -- reopening a conversation fetches today's numbers rather than replaying old
   -- ones.
   widgets TEXT NOT NULL DEFAULT '[]',
+  steps TEXT NOT NULL DEFAULT '[]',
   at      INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS messages_conv ON messages(conv_id, id);
@@ -109,6 +110,7 @@ func migrate(db *sql.DB) {
 		`ALTER TABLE messages ADD COLUMN files TEXT NOT NULL DEFAULT '[]'`,
 		`ALTER TABLE messages ADD COLUMN sources TEXT NOT NULL DEFAULT '[]'`,
 		`ALTER TABLE messages ADD COLUMN widgets TEXT NOT NULL DEFAULT '[]'`,
+		`ALTER TABLE messages ADD COLUMN steps TEXT NOT NULL DEFAULT '[]'`,
 	} {
 		if _, err := db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column") {
 			slog.Warn("migrate", "stmt", stmt, "err", err)
@@ -180,6 +182,7 @@ func migrateIDs(db *sql.DB) {
 		  tools TEXT NOT NULL DEFAULT '[]', display TEXT NOT NULL DEFAULT '',
 		  files TEXT NOT NULL DEFAULT '[]', sources TEXT NOT NULL DEFAULT '[]',
 		  widgets TEXT NOT NULL DEFAULT '[]',
+		  steps TEXT NOT NULL DEFAULT '[]',
 		  at INTEGER NOT NULL)`,
 	} {
 		if fail("creating the new tables", run(tx, stmt)) {
@@ -195,8 +198,8 @@ func migrateIDs(db *sql.DB) {
 			return
 		}
 		if fail("copying its messages", run(tx,
-			`INSERT INTO messages_new(conv_id, role, content, tools, display, files, sources, widgets, at)
-			 SELECT ?, role, content, tools, display, files, sources, widgets, at FROM messages WHERE conv_id=? ORDER BY id`,
+			`INSERT INTO messages_new(conv_id, role, content, tools, display, files, sources, widgets, steps, at)
+			 SELECT ?, role, content, tools, display, files, sources, widgets, steps, at FROM messages WHERE conv_id=? ORDER BY id`,
 			id, o)) {
 			return
 		}
@@ -262,6 +265,7 @@ type Stored struct {
 	Tools   []ToolSummary `json:"tools,omitempty"`
 	Sources []Source      `json:"sources,omitempty"`
 	Widgets []Widget      `json:"widgets,omitempty"`
+	Steps   []Step        `json:"steps,omitempty"`
 	At      time.Time     `json:"at"`
 }
 
@@ -318,8 +322,9 @@ func (s *Store) Append(convID string, m Stored) error {
 	f, _ := json.Marshal(m.Files)
 	src, _ := json.Marshal(m.Sources)
 	wid, _ := json.Marshal(m.Widgets)
-	if _, err := s.db.Exec(`INSERT INTO messages(conv_id, role, content, tools, display, files, sources, widgets, at) VALUES(?,?,?,?,?,?,?,?,?)`,
-		convID, string(m.Role), m.Content, string(b), m.Display, string(f), string(src), string(wid), time.Now().Unix()); err != nil {
+	stp, _ := json.Marshal(m.Steps)
+	if _, err := s.db.Exec(`INSERT INTO messages(conv_id, role, content, tools, display, files, sources, widgets, steps, at) VALUES(?,?,?,?,?,?,?,?,?,?)`,
+		convID, string(m.Role), m.Content, string(b), m.Display, string(f), string(src), string(wid), string(stp), time.Now().Unix()); err != nil {
 		return err
 	}
 	_, err := s.db.Exec(`UPDATE conversations SET updated_at=? WHERE id=?`, time.Now().Unix(), convID)
@@ -327,7 +332,7 @@ func (s *Store) Append(convID string, m Stored) error {
 }
 
 func (s *Store) Messages(convID string) ([]Stored, error) {
-	rows, err := s.db.Query(`SELECT role, content, tools, display, files, sources, widgets, at FROM messages WHERE conv_id=? ORDER BY id`, convID)
+	rows, err := s.db.Query(`SELECT role, content, tools, display, files, sources, widgets, steps, at FROM messages WHERE conv_id=? ORDER BY id`, convID)
 	if err != nil {
 		return nil, err
 	}
@@ -335,9 +340,9 @@ func (s *Store) Messages(convID string) ([]Stored, error) {
 	var out []Stored
 	for rows.Next() {
 		var m Stored
-		var role, tools, files, sources, widgets string
+		var role, tools, files, sources, widgets, steps string
 		var at int64
-		if err := rows.Scan(&role, &m.Content, &tools, &m.Display, &files, &sources, &widgets, &at); err != nil {
+		if err := rows.Scan(&role, &m.Content, &tools, &m.Display, &files, &sources, &widgets, &steps, &at); err != nil {
 			return nil, err
 		}
 		m.Role, m.At = Role(role), time.Unix(at, 0)
@@ -345,6 +350,7 @@ func (s *Store) Messages(convID string) ([]Stored, error) {
 		_ = json.Unmarshal([]byte(files), &m.Files)
 		_ = json.Unmarshal([]byte(sources), &m.Sources)
 		_ = json.Unmarshal([]byte(widgets), &m.Widgets)
+		_ = json.Unmarshal([]byte(steps), &m.Steps)
 		out = append(out, m)
 	}
 	return out, rows.Err()
