@@ -300,6 +300,14 @@ because it points off the site and a reader has to see it is a link worth
 tapping. Both sit at the end of the sentence they belong to and never mid
 clause.
 
+**An unread answer is a dot, never a count.** `chat` marks a conversation whose
+turn finished while the reader was somewhere else with a `0.4rem` circle in
+`--green-bright` after the title, and the same dot at `0.35rem` on the button
+that opens the sidebar, since on a phone the list it marks is off screen. A
+number would be answering a question nobody asks: how many replies are waiting
+does not change what you do about them, and the row already says which
+conversation it was.
+
 **Content width** is Bootstrap's container scale, so 1140px and then 1320px past
 a 1400px viewport. `repos` matches it with a media query rather than sitting
 narrower on a wide screen.
@@ -337,6 +345,15 @@ a different sentence and a filled button until 2026-09-01, and `repos` had a
 bare `404` with an inline link.
 
 ## Rules that are easy to get wrong
+
+**A flex row gives up the label, never the reading.** `chat`'s bar holds a
+title, then the flags, the context meter, the tokens a second and the model. The
+title is the only one that can lose width and still mean something, so
+`.bar-right` is `flex-shrink: 0` and the title ellipses. Without that the
+`NO SEARCH` flag appearing took its width out of the readings, and the tokens a
+second wrapped a character at a time into a vertical column. Anything narrow
+enough to wrap in that row needs `white-space: nowrap` of its own, which
+`.model` had and `.tps` and `.meter` did not.
 
 **Nothing says where it runs.** search's landing page footer named the
 repository, the machine and the tunnel in one sentence, which is three facts a
@@ -413,7 +430,7 @@ repository is public and the vault is not.
 | `logging` | green | Bootstrap. Dashboards run full width inside the container |
 | `auth` | green | Bootstrap. Carries the starfield on `/login`, which the grid sits under |
 | `repos` | green | Hand written CSS, no Bootstrap, since it is dense text. Newsreader on repository names |
-| `chat` | green | Hand written CSS, no Bootstrap. A conversation, so it reads at the longest length on the estate. Citation pills and a source row under each answer, and widget panels above one when a ticker or a forecast was looked up |
+| `chat` | green | Hand written CSS, no Bootstrap. A conversation, so it reads at the longest length on the estate. Citation pills and a source row under each answer, and widget panels above one when a ticker or a forecast was looked up. An unread dot on a conversation that finished a turn off screen |
 | `search` | green | Hand written CSS, no Bootstrap. The one green site with dash's scanlines and vignette, both toned down. Its bar is `--bar`, a step above the ground, and sits over the vignette |
 | `dash` | amber | Hand written CSS. Scanlines, vignette, JetBrains Mono and Space Grotesk |
 | `blog`, `isaacbythewood.com` | neither | Separate identities. Nothing here applies to them |

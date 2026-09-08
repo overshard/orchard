@@ -53,6 +53,7 @@ type site struct {
 	store   *Store
 	runs    *Runs
 	queue   *Queue
+	hub     *Hub
 	comp    *Compactor
 	tpl     *template.Template
 	md      goldmark.Markdown
@@ -114,7 +115,7 @@ func main() {
 		auth: auth,
 		llm:  llm, engine: NewEngine(llm, *label), store: store, label: *label,
 		comp: NewCompactor(llm, *ctxSize), ctxSize: *ctxSize, dev: Reloaded,
-		runs: NewRuns(), queue: NewQueue(),
+		runs: NewRuns(), queue: NewQueue(), hub: NewHub(),
 		md: goldmark.New(goldmark.WithExtensions(extension.GFM),
 			goldmark.WithRendererOptions()),
 	}
@@ -122,6 +123,7 @@ func main() {
 	// The remember tool writes to this process's own database rather than to a
 	// service, so it is handed the store rather than a url.
 	s.engine.Deps().Memory = memoryStore{store}
+	s.engine.Deps().History = historyStore{store}
 	// The rate limit boxes survive a restart. Without this every deploy asked a
 	// host that was already refusing, which is how a ban gets renewed rather
 	// than expiring.
@@ -177,6 +179,7 @@ func main() {
 	mux.HandleFunc("DELETE /api/conversation/{id}", s.auth.RequireAuthJSON(s.deleteConversation))
 	mux.HandleFunc("DELETE /api/conversations", s.auth.RequireAuthJSON(s.deleteAll))
 	mux.HandleFunc("GET /api/status", s.auth.RequireAuthJSON(s.status))
+	mux.HandleFunc("GET /api/events", s.auth.RequireAuthJSON(s.events))
 	// The readings behind a chart. Gated like everything else here, and read
 	// only: both go out to a public source and neither touches this estate.
 	mux.HandleFunc("GET /api/widget/ticker", s.auth.RequireAuthJSON(s.widgetTicker))
@@ -364,6 +367,11 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rn := s.runs.Start(key)
+	// Incognito is left out of every one of these. A mode that writes nothing
+	// down must not announce itself to a tab on another device either.
+	if !req.Incognito {
+		s.hub.Publish(HubEvent{Kind: "started", ConvID: key})
+	}
 	// Detached on purpose. r.Context() dies with the tab, and a turn that has
 	// spent two minutes fetching should not be thrown away because a phone
 	// locked.
@@ -385,6 +393,56 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 
 // streamRun writes a run to one browser: everything it has already produced,
 // then whatever comes next until the turn ends or this reader goes away.
+// events is the meta stream every open tab holds, so a turn started anywhere is
+// known everywhere. It carries which conversation changed and never what was
+// said: a tab is told to go and read, and the run is still the only place an
+// answer is assembled.
+func (s *site) events(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Accel-Buffering", "no")
+	rc := http.NewResponseController(w)
+	_ = rc.SetWriteDeadline(time.Time{})
+
+	ch, cancel := s.hub.Subscribe()
+	defer cancel()
+
+	// An immediate frame, so a proxy that buffers until it sees output lets the
+	// stream through rather than holding it until the first real event.
+	if _, err := fmt.Fprint(w, ": open\n\n"); err != nil || rc.Flush() != nil {
+		return
+	}
+	// A comment every half minute keeps the connection through Cloudflare and
+	// Caddy, neither of which will hold an idle stream open indefinitely.
+	beat := time.NewTicker(30 * time.Second)
+	defer beat.Stop()
+
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case ev, ok := <-ch:
+			if !ok {
+				return
+			}
+			b := ev.frame()
+			if b == nil {
+				continue
+			}
+			if _, err := fmt.Fprintf(w, "data: %s\n\n", b); err != nil {
+				return
+			}
+			if rc.Flush() != nil {
+				return
+			}
+		case <-beat.C:
+			if _, err := fmt.Fprint(w, ": beat\n\n"); err != nil || rc.Flush() != nil {
+				return
+			}
+		}
+	}
+}
+
 func (s *site) streamRun(w http.ResponseWriter, r *http.Request, tr *turnRun) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-store")
@@ -511,6 +569,9 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 	}
 
 	convID := req.ConvID
+	// The bar shows this. Without it a conversation named on its first turn
+	// keeps saying "New conversation" until the tab navigates away and back.
+	title := ""
 	if !req.Incognito {
 		if convID == "" {
 			if id, e := s.store.NewConversation(""); e == nil {
@@ -519,6 +580,9 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 				// a tab reopening this conversation by its real id finds the
 				// turn that is still writing into it.
 				s.runs.Rekey(key, convID)
+				// The browser made the old key up, so a tab that was told a
+				// turn had started under it needs the real id to follow.
+				s.hub.Publish(HubEvent{Kind: "started", ConvID: convID})
 			}
 		}
 		if convID != "" {
@@ -533,6 +597,7 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 				seed := titleSeed(req.Message, parts)
 				titleStart := time.Now()
 				if t := s.comp.Title(context.WithoutCancel(ctx), seed, reply.Content); t != "" {
+					title = t
 					_ = s.store.SetTitle(convID, t)
 					tr.Add(Step{Kind: "title", Label: "named the conversation",
 						In: seed, Out: t, MS: time.Since(titleStart).Milliseconds()})
@@ -561,7 +626,7 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 		}()
 	}
 
-	done := map[string]any{"kind": "done", "conversation_id": convID,
+	done := map[string]any{"kind": "done", "conversation_id": convID, "title": title,
 		"tools": summaries, "html": s.renderCited(reply.Content, srcs), "incognito": req.Incognito,
 		"steps":   tr.Steps(),
 		"sources": srcs,
@@ -572,6 +637,9 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 			"ctx": s.ctxSize,
 		}}
 	rn.Emit(done)
+	if !req.Incognito && convID != "" {
+		s.hub.Publish(HubEvent{Kind: "finished", ConvID: convID, Title: title})
+	}
 }
 
 // attach lets a tab that went away pick a turn back up. It is the same stream
@@ -678,6 +746,7 @@ func (s *site) deleteConversation(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 500)
 		return
 	}
+	s.hub.Publish(HubEvent{Kind: "changed", ConvID: id})
 	writeJSON(w, map[string]any{"deleted": id})
 }
 
@@ -686,6 +755,7 @@ func (s *site) deleteAll(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 500)
 		return
 	}
+	s.hub.Publish(HubEvent{Kind: "changed"})
 	writeJSON(w, map[string]any{"deleted": "all"})
 }
 

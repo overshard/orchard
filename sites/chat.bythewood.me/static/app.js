@@ -9,6 +9,11 @@
   const barTitle = $("bar-title"), modelDot = $("model-dot"), footState = $("foot-state");
   const side = $("side"), convs = $("convs"), scrim = $("scrim");
 
+  // Conversations that finished a turn while the reader was somewhere else.
+  // Declared up here because refreshConversations paints from it and runs
+  // before the live stream is wired.
+  const unread = new Set();
+
   // The width the stylesheet switches the sidebar to an overlay at. Kept in one
   // place because the two have to agree: a sidebar that is an overlay in CSS and
   // open by default in JS covers the conversation on every phone.
@@ -675,7 +680,25 @@
         if (ev.conversation_id) {
           const isNew = !convID;
           convID = ev.conversation_id;
-          if (isNew) refreshConversations();
+          if (isNew) {
+            // The address has to catch up with the conversation that now
+            // exists, or a reload lands back on an empty page.
+            history.replaceState({ id: convID }, "", "/c/" + convID);
+            refreshConversations();
+          }
+        }
+        if (ev.title) barTitle.textContent = ev.title;
+        // The streamed blocks and the stored answer can differ, since some of
+        // the repair only makes sense once the whole thing has arrived. Swap
+        // only when they actually differ, because replacing identical html
+        // still makes the message jump.
+        if (ev.html && ui.blocks) {
+          const now = ui.blocks.textContent.replace(/\s+/g, " ").trim();
+          const settled = document.createElement("div");
+          settled.innerHTML = ev.html;
+          if (settled.textContent.replace(/\s+/g, " ").trim() !== now) {
+            ui.blocks.replaceChildren(...settled.childNodes);
+          }
         }
         if (Array.isArray(ev.tools) && ev.tools.length) {
           ui.toolbar.hidden = false;
@@ -714,6 +737,7 @@
         }
       }
       if (!filter.hidden) applyFilter();
+      paintUnread();
       const s = await (await fetch("/api/status")).json();
       $("stat-convs").textContent = s.conversations;
       $("stat-msgs").textContent = s.messages;
@@ -734,6 +758,7 @@
     if (!r.ok) return;
     const d = await r.json();
     convID = id;
+    unread.delete(id);
     thread.replaceChildren();
     spacer = null; anchor = null;
     barTitle.textContent = d.title || "Conversation";
@@ -975,6 +1000,55 @@
     if (!isNarrow()) scrim.hidden = true;
     else scrim.hidden = side.classList.contains("closed");
   });
+
+  // ------------------------------------------------------------ live meta
+  //
+  // A turn already outlives the tab that started it and nothing told the other
+  // tabs. So a question asked on the desktop never reached the phone without a
+  // reload, and switching conversations mid answer meant refreshing to find out
+  // it had finished. This stream carries which conversation changed and never
+  // what was said, so a tab knows what to go and read.
+  function markUnread(id) {
+    unread.add(id);
+    paintUnread();
+  }
+
+  function paintUnread() {
+    document.querySelectorAll(".conv").forEach((el) =>
+      el.classList.toggle("done", unread.has(el.dataset.id)));
+    const n = unread.size;
+    $("side-open").classList.toggle("dot-on", n > 0);
+  }
+
+  function liveMeta() {
+    const es = new EventSource("/api/events");
+    es.addEventListener("message", async (m) => {
+      let ev;
+      try { ev = JSON.parse(m.data); } catch { return; }
+      if (ev.kind === "changed") { refreshConversations().then(paintUnread); return; }
+
+      if (ev.kind === "started") {
+        // Another tab, or another device, asked this conversation something.
+        // Follow it if it is the one on screen and nothing here is streaming.
+        if (ev.conversation_id === convID && !inflight) follow(convID);
+        return;
+      }
+      if (ev.kind === "finished") {
+        if (ev.conversation_id === convID) {
+          // Only when this tab was not the one writing it. The turn we ran has
+          // already drawn itself and re-opening would replay the whole thread.
+          if (!inflight) await openConversation(convID);
+        } else {
+          markUnread(ev.conversation_id);
+        }
+        refreshConversations().then(paintUnread);
+      }
+    });
+    // EventSource reconnects on its own, and a reconnect after the server
+    // restarted is the case that matters, so the list is re-read on open.
+    es.addEventListener("open", () => refreshConversations().then(paintUnread));
+  }
+  liveMeta();
 
   window.addEventListener("popstate", () => {
     const m = location.pathname.match(/^\/c\/([\w-]+)/);
