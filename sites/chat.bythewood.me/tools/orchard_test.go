@@ -140,81 +140,30 @@ func TestCalcRefusesAnExpressionTooLongToBeWhole(t *testing.T) {
 	}
 }
 
-// deep_search costs a minute of the one GPU slot, so the harness has to be able
-// to take it off the table rather than asking the model nicely.
-func TestSchemasCanHaveOneToolRemoved(t *testing.T) {
-	all := Default().Schemas()
-	trimmed := Without(all, DeepSearch.Name)
-	if len(trimmed) != len(all)-1 {
-		t.Fatalf("removed %d schemas, want 1", len(all)-len(trimmed))
+// news reads every feed on the list, so a second call in one turn re-reads all
+// of them for a rundown the turn already has. The prompt asks for one and this
+// is what makes it one, so the harness has to be able to take a tool off the
+// table mid turn.
+func TestWithoutTakesAToolOffTheTable(t *testing.T) {
+	all := []map[string]any{
+		{"type": "function", "function": map[string]any{"name": News.Name}},
+		{"type": "function", "function": map[string]any{"name": WebSearch.Name}},
 	}
-	for _, s := range trimmed {
-		fn := s["function"].(map[string]any)
-		if fn["name"] == DeepSearch.Name {
-			t.Error("deep_search survived being removed")
+	trimmed := Without(all, News.Name)
+	if len(trimmed) != 1 {
+		t.Fatalf("%d schemas left, want 1", len(trimmed))
+	}
+	for _, sc := range trimmed {
+		fn, _ := sc["function"].(map[string]any)
+		if fn["name"] == News.Name {
+			t.Error("news survived being removed")
 		}
 	}
-	// Everything else is still offered.
-	if len(trimmed) == 0 {
-		t.Error("removing one tool emptied the offer")
+	if len(all) != 2 {
+		t.Error("the original list was modified")
 	}
 }
 
-func TestDeepSearchNeedsASessionAndAQuestion(t *testing.T) {
-	if _, err := DeepSearch.Run(context.Background(), testDeps("").WithSession("live"), map[string]any{}); err == nil {
-		t.Error("an empty question was accepted")
-	}
-	if _, err := DeepSearch.Run(context.Background(), testDeps(""), map[string]any{"question": "is it true"}); err == nil {
-		t.Error("a turn with no session was accepted")
-	}
-}
-
-func TestSearchAnswerCarriesSourcesAndSupport(t *testing.T) {
-	got, err := searchAnswer(`{"text":"The bridge opened in 1937.","support":0.92,"elapsed":"71s",
-		"sources":[{"title":"Golden Gate","url":"https://example.org/gg"}]}`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	m := got.(map[string]any)
-	if m["answer"] != "The bridge opened in 1937." {
-		t.Errorf("answer = %v", m["answer"])
-	}
-	if m["support"] != 0.92 {
-		t.Errorf("support = %v", m["support"])
-	}
-	srcs := m["sources"].([]map[string]string)
-	if len(srcs) != 1 || srcs[0]["url"] != "https://example.org/gg" {
-		t.Errorf("sources = %v", srcs)
-	}
-}
-
-// A thinly supported answer must not be handed over as if it were settled.
-func TestALowSupportAnswerSaysSo(t *testing.T) {
-	got, _ := searchAnswer(`{"text":"Maybe.","support":0.3,"sources":[]}`)
-	note := got.(map[string]any)["note"].(string)
-	if !strings.Contains(note, "uncertain") {
-		t.Errorf("note = %q, want it to flag the weak support", note)
-	}
-}
-
-func TestAFailedSearchIsReportedNotSwallowed(t *testing.T) {
-	stream := "event: status\ndata: {\"step\":\"routing\"}\n\nevent: failed\ndata: {\"error\":\"every source refused\"}\n\n"
-	_, err := readSearchStream(strings.NewReader(stream))
-	if err == nil || !strings.Contains(err.Error(), "every source refused") {
-		t.Errorf("err = %v, want search's own reason", err)
-	}
-}
-
-func TestAStreamThatEndsEarlyIsAnError(t *testing.T) {
-	_, err := readSearchStream(strings.NewReader("event: status\ndata: {\"step\":\"reading\"}\n\n"))
-	if err == nil || !strings.Contains(err.Error(), "without answering") {
-		t.Errorf("err = %v", err)
-	}
-}
-
-// orchard_code exists because the model could list Isaac's repositories and
-// read nothing inside them, so it guessed raw addresses on repos and github and
-// collected 404s. It has to walk down to a file the way a person does.
 func TestOrchardCodeReadsAFileAndListsADirectory(t *testing.T) {
 	var asked []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

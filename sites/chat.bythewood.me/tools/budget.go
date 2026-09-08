@@ -40,7 +40,8 @@ var budgets = map[string]budget{
 	// Lowered from 45 an hour and 300 a day after 2026-09-08, when DuckDuckGo
 	// blocked this address at roughly 130 requests over five hours. Neither
 	// ceiling was ever reached, so neither was protecting anything: sustained
-	// volume is what it objects to, not a burst.
+	// volume is what it objects to, not a burst. Every search this site makes
+	// now goes through this count, so the ceiling is the whole of what leaves.
 	SearchHost:                 {gap: 6 * time.Second, minute: 8, hour: 30, day: 200},
 	"cdn.espn.com":             {gap: 3 * time.Second, minute: 15, hour: 120, day: 900},
 	"query1.finance.yahoo.com": {gap: 3 * time.Second, minute: 15, hour: 120, day: 900},
@@ -152,18 +153,9 @@ func (b *Budgets) get(host string) *spend {
 // no reason reads like a bug.
 // A nil Budgets allows everything, so a Deps built by hand in a test does not
 // panic in the one place every outbound call goes through.
-func (b *Budgets) Take(host string) error { return b.TakeN(host, 1) }
-
-// TakeN charges n calls at once, for a tool that will make several requests to
-// a host without going through this package. Charging the whole cost before any
-// of it leaves means a spent pool refuses the tool rather than stopping it
-// halfway, which would spend the budget and return nothing.
-func (b *Budgets) TakeN(host string, n int) error {
+func (b *Budgets) Take(host string) error {
 	if b == nil {
 		return nil
-	}
-	if n < 1 {
-		n = 1
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -173,27 +165,18 @@ func (b *Budgets) TakeN(host string, n int) error {
 	s.trim(now)
 
 	minute, hour, day, free := s.left(now, bud)
-	// free is only set once a pool is actually empty, so a call that asks for
-	// more than is left reports what is left instead of "frees up in 0s".
-	short := func(window string, cap, remaining int) error {
-		if remaining <= 0 {
-			return fmt.Errorf("the %s search budget for %s is spent (%d), and it frees up in %s",
-				window, host, cap, round(free))
-		}
-		return fmt.Errorf("this needs %d searches and only %d of the %s budget for %s is left",
-			n, remaining, window, host)
-	}
 	switch {
-	case day-n < 0:
-		return short("daily", bud.day, day)
-	case hour-n < 0:
-		return short("hourly", bud.hour, hour)
-	case minute-n < 0:
-		return short("per minute", bud.minute, minute)
+	case day <= 0:
+		return fmt.Errorf("the daily search budget for %s is spent (%d), and it frees up in %s",
+			host, bud.day, round(free))
+	case hour <= 0:
+		return fmt.Errorf("the hourly search budget for %s is spent (%d), and it frees up in %s",
+			host, bud.hour, round(free))
+	case minute <= 0:
+		return fmt.Errorf("this minute's search budget for %s is spent (%d), and it frees up in %s",
+			host, bud.minute, round(free))
 	}
-	for i := 0; i < n; i++ {
-		s.at = append(s.at, now)
-	}
+	s.at = append(s.at, now)
 	return nil
 }
 
