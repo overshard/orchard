@@ -260,3 +260,28 @@ func TestSnapshotAgeReachesTheToolSummary(t *testing.T) {
 		t.Errorf("snapshotAge = %q, want empty", got)
 	}
 }
+
+// "Big news today" reduces to "Big news", which was in neither map, and the
+// snapshot answered it with the founding date of Universe Today. The head noun
+// is what a phrase is really about.
+func TestSubjectOfSkipsALiveHeadNoun(t *testing.T) {
+	for _, q := range []string{
+		"Big news today",
+		"any big news today",
+		"what are the latest headlines",
+		"whats the current gas price",
+	} {
+		if got := subjectOf(q); got != "" {
+			t.Errorf("subjectOf(%q) = %q, want it skipped", q, got)
+		}
+	}
+	// And a real subject whose name merely contains one of those words survives.
+	for _, q := range []string{
+		"what is News Corporation",
+		"who is Rick Springfield",
+	} {
+		if subjectOf(q) == "" {
+			t.Errorf("subjectOf(%q) was skipped, want it looked up", q)
+		}
+	}
+}

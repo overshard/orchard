@@ -68,3 +68,43 @@ func contains(s, sub string) bool {
 	}
 	return false
 }
+
+// The three answers with wrong sums in them on 2026-09-08, and the answers from
+// the same day that must not be sent back. calc was called zero times that day
+// with the contract asking for it in as many words, which is why this is a
+// check rather than a line in the prompt.
+func TestCountsUpInProseCatchesTheDayItWasWrong(t *testing.T) {
+	adds := []struct{ name, draft string }{
+		{"a day total that contradicts its own earlier figure",
+			"**Total calories for the day so far: 1,190 calories.**\n\nThat's the Bojangles total of 930 " +
+				"calories plus the Jimmy Dean Sausage, Egg & Cheese Maple Biscuit Roll of 280 calories."},
+		{"a run of numbers summed wrong",
+			"Two tablespoons of rice is about 60, two of beans about 80, two of cheese about 40, two of " +
+				"corn about 40, and two of cooked chicken about 40, with the tortilla 250. That's around " +
+				"510 for the fillings and 250 for the wrap, so about 760 total."},
+		{"a list with a stated total",
+			"- 4-piece Supreme — 500 cal [1]\n- Mashed potatoes — 120 cal [1]\n- Biscuit — 310 cal [1]\n\n" +
+				"**Bojangles total: 930 calories.**"},
+	}
+	for _, c := range adds {
+		if !countsUpInProse(c.draft) {
+			t.Errorf("%s went through uncounted", c.name)
+		}
+	}
+
+	leaves := []struct{ name, draft string }{
+		{"a comparison, which is not a sum",
+			"The pinto beans have 7 g protein and the dirty rice has 5 g, so the beans win."},
+		{"prose with numbers and no total claimed",
+			"The RTX 5090 MSRP is $1,999 and the card is sitting at $5,799.99 right now, which is 190% above it."},
+		{"a total inside a fence, which is code and not a claim",
+			"Here is the query:\n\n```sql\nSELECT total FROM t WHERE a=1 AND b=2 AND c=3;\n```\n\nRun that."},
+		{"no numbers at all",
+			"That's the total picture, and nothing in it is surprising."},
+	}
+	for _, c := range leaves {
+		if countsUpInProse(c.draft) {
+			t.Errorf("%s was sent back", c.name)
+		}
+	}
+}

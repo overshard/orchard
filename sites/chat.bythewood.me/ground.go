@@ -34,6 +34,11 @@ var questionHead = regexp.MustCompile(`(?i)^\s*(what|who|which|where|when|why|ho
 // Trailing filler left behind once the head is gone, as in "kubernetes for".
 var questionTail = regexp.MustCompile(`(?i)\s+((is|are|was|were)\s+(it|this|that|they|there)|for|about|like|used for|good for|mean|means|work|works)\s*[?.!]*\s*$`)
 
+// A trailing time phrase. It is stripped rather than used as a signal on its
+// own, because the question it is attached to may still name a real subject:
+// "what is the RTX 5090 going for today" is about the card.
+var timeTail = regexp.MustCompile(`(?i)\s+(right\s+now|now|today|tonight|yesterday|currently|lately|so\s+far|this\s+(morning|afternoon|evening|week|weekend|month|year)|last\s+(night|week|weekend|month|year))\s*[?.!]*\s*$`)
+
 // A subject runs to the first clause break. "a b-tree and why do databases use
 // them" is one question about one thing.
 var clauseBreak = regexp.MustCompile(`(?i)\s+(and|but|or|so|because|since|which|that|vs\.?|versus)\s+`)
@@ -54,6 +59,10 @@ func subjectOf(question string) string {
 		s = s[:loc[0]]
 	}
 	s = questionTail.ReplaceAllString(s, "")
+	// A time word on the end is never part of a name, and leaving it there hid
+	// the head noun: "Big news today" ended in "today" and so read as an
+	// ordinary subject.
+	s = timeTail.ReplaceAllString(s, "")
 	s = strings.Trim(s, " \t?.!,:;")
 	// Leading article, which is never part of a title.
 	s = regexp.MustCompile(`(?i)^(a|an|the)\s+`).ReplaceAllString(s, "")
@@ -65,6 +74,14 @@ func subjectOf(question string) string {
 	// it to strip anything, so "why" comes through as its own subject.
 	l := strings.ToLower(s)
 	if notASubject[l] || liveSubject[l] {
+		return ""
+	}
+	// The whole phrase is not always the giveaway. "Big news today" reduces to
+	// "Big news", which is in neither map, and the snapshot answered it with
+	// the founding date of Universe Today. The head noun is what the phrase is
+	// really about, and "News Corporation" still survives because its head is
+	// the corporation.
+	if f := strings.Fields(l); len(f) > 1 && liveSubject[f[len(f)-1]] {
 		return ""
 	}
 	return s
@@ -79,6 +96,7 @@ var liveSubject = map[string]bool{
 	"news": true, "score": true, "scores": true, "price": true, "prices": true,
 	"stock": true, "stocks": true, "market": true, "markets": true, "traffic": true,
 	"pollen": true, "aqi": true, "air quality": true, "exchange rate": true,
+	"headline": true, "headlines": true, "story": true, "stories": true,
 }
 
 var notASubject = map[string]bool{

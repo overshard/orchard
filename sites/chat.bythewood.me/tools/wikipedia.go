@@ -55,8 +55,37 @@ var Wikipedia = Tool{
 		if q == "" {
 			return nil, fmt.Errorf("query is required")
 		}
+		if to := liveInstead(q); to != "" {
+			return nil, fmt.Errorf("the snapshot cannot answer that, it holds background and not "+
+				"what is happening. Call %s instead", to)
+		}
 		return wikiLookup(ctx, d, WikiBase, q)
 	},
+}
+
+// A subject whose head noun is something that changes by the hour, and the tool
+// that does answer it. Asked for "Big news today" the snapshot returned the
+// founding date of Universe Today, which is a real article and a useless answer,
+// and the contract telling the model not to do this did not stop it.
+//
+// The head noun rather than any word in the phrase, so "News Corporation" and
+// "Marketplace" still look up as the things they are.
+func liveInstead(q string) string {
+	f := strings.Fields(strings.ToLower(strings.Trim(q, " \t?.!,:;")))
+	if len(f) == 0 {
+		return ""
+	}
+	return liveHeadNoun[f[len(f)-1]]
+}
+
+var liveHeadNoun = map[string]string{
+	"news": News.Name, "headline": News.Name, "headlines": News.Name,
+	"stories": News.Name, "story": News.Name, "events": News.Name,
+	"weather": Weather.Name, "forecast": Weather.Name, "temperature": Weather.Name,
+	"price": Markets.Name, "prices": Markets.Name, "stock": Markets.Name,
+	"stocks": Markets.Name, "market": Markets.Name, "markets": Markets.Name,
+	"score": SportsScores.Name, "scores": SportsScores.Name,
+	"time": Now.Name, "date": Now.Name,
 }
 
 func wikiLookup(ctx context.Context, d *Deps, base, q string) (any, error) {
