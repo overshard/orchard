@@ -885,6 +885,7 @@ function renderOutlook(outlook) {
         factor.append(el("span", "fk", f.label));
         factor.append(el("span", "fbar"));
         factor.append(el("span", "fv", f.value));
+        factor.append(el("span", "fd", f.detail));
         factors.append(factor);
       }
       li.append(factors);
