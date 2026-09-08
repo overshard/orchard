@@ -192,6 +192,58 @@ false when the answer is a definition, an explanation, how something works, hist
 
 When needs_fresh is true, query is the single web search that would answer it, written as a person would type it. When it is false, query is an empty string.`
 
+// The second narrow question, asked of a draft that fetched nothing and passed
+// the freshness check.
+//
+// Nineteen of sixty four turns on 2026-09-08 called no tool, and the wrong ones
+// were not about anything current: they were specifics written from memory. The
+// dirty rice with 23g of protein, the Marlin 195 and the Howa 158 that are not
+// real rifles, CDX described as what Common Crawl uses under the hood. The
+// contract has said to look a subject up since it was written.
+//
+// Asked of the draft rather than the question, because the question is often
+// vague and the draft is where the invented specifics actually are.
+type grounding struct {
+	NeedsCheck bool   `json:"needs_check"`
+	Query      string `json:"query"`
+}
+
+var groundingSchema = map[string]any{
+	"type": "object",
+	"properties": map[string]any{
+		"needs_check": map[string]any{"type": "boolean"},
+		"query":       map[string]any{"type": "string"},
+	},
+	"required":             []string{"needs_check", "query"},
+	"additionalProperties": false,
+}
+
+const groundingSystem = `A draft answer was written without looking anything up. Decide whether it states specifics that ought to have been checked.
+
+true when the draft names a product, model number, part number, version, company, person, book, film or song.
+true when it gives a figure presented as fact: a price, a measurement, a nutrition number, a count, a capacity, a date.
+true when it describes what a named tool, service, format or standard does or is used for.
+
+false when the draft is explanation, reasoning, opinion, code the user asked to be written, arithmetic on figures the user supplied, or ordinary conversation.
+false when every specific in it came from what the user said in the question.
+
+When needs_check is true, query is the single web search that would check the most load bearing specific, written as a person would type it. When it is false, query is an empty string.`
+
+// needsChecking reports whether a draft written from memory states specifics.
+// A failure is a no, for the same reason every other gate fails open.
+func (e *Engine) needsChecking(ctx context.Context, draft string) (grounding, Stats) {
+	msgs := []Message{
+		{Role: RoleSystem, Content: groundingSystem},
+		{Role: RoleUser, Content: "Draft:\n" + trim(strings.TrimSpace(draft), 1800)},
+	}
+	var g grounding
+	st, err := e.llm.Structured(ctx, msgs, gateTokens, groundingSchema, &g)
+	if err != nil {
+		return grounding{}, st
+	}
+	return g, st
+}
+
 // needsFresh reports whether the question wants current information. A failure
 // is a no, for the same reason the draft check fails open: a turn that cannot
 // reach the model to ask is not a turn to send round again.
@@ -257,6 +309,61 @@ func (e *Engine) enough(ctx context.Context, question, draft, background string,
 
 // The nudge that goes back into the conversation. The draft itself is never
 // appended, because a model handed its own deferral writes it again.
+// Arithmetic.
+//
+// The contract has asked for calc since the tool existed and it was called zero
+// times on 2026-09-08, across a day of adding up calories. Three answers had
+// wrong sums in them, one of them contradicting a total the same conversation
+// had already given. Asking was never going to work, for the same reason it did
+// not work for tool calls generally, so a draft that adds up in prose is sent
+// back to do it with the tool.
+//
+// Deterministic and free, and deliberately not an attempt to check the sum
+// here. Working out which numbers in a sentence are the addends is the part
+// that goes wrong, and calc gets it right by construction.
+var (
+	totalWord = regexp.MustCompile(`(?i)\b(total|totals|totalling|altogether|all together|adds up to|comes to|sums? to|in total|grand total)\b`)
+	// A citation marker is a number to a regex and is not one to a reader.
+	citeNum = regexp.MustCompile(`\[\d{1,3}\]`)
+	numeral = regexp.MustCompile(`\d[\d,]*(?:\.\d+)?`)
+)
+
+// countsUpInProse is true for a draft that states a total over several numbers
+// it worked out itself. Three is the floor: two numbers and a total is usually
+// a comparison, and one is a quantity rather than a sum.
+func countsUpInProse(draft string) bool {
+	clean := citeNum.ReplaceAllString(draft, " ")
+	if !totalWord.MatchString(clean) {
+		return false
+	}
+	// Inside a fence the numbers belong to code somebody is about to run.
+	clean = strings.Join(outsideFences(clean), "\n")
+	return len(numeral.FindAllString(clean, -1)) >= 3 && totalWord.MatchString(clean)
+}
+
+// outsideFences drops fenced code, since arithmetic in an example is not a
+// claim about a total.
+func outsideFences(s string) []string {
+	var out []string
+	fenced := false
+	for _, line := range strings.Split(s, "\n") {
+		t := strings.TrimSpace(line)
+		if strings.HasPrefix(t, "```") || strings.HasPrefix(t, "~~~") {
+			fenced = !fenced
+			continue
+		}
+		if !fenced {
+			out = append(out, line)
+		}
+	}
+	return out
+}
+
+func calcNudge() string {
+	return "You added those up yourself. Call calc with the figures and write the total it gives you, " +
+		"rather than the one you worked out. If some of the figures are missing, say which."
+}
+
 func researchNudge(query string) string {
 	q := strings.TrimSpace(query)
 	if q == "" {
@@ -344,6 +451,24 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 	if len(used) == 0 && repeatsAnswered(draft, previous) {
 		emit(Event{Kind: "status", Text: "looking it up"})
 		return repeatNudge(), st
+	}
+	// Before the model check, since it costs nothing and the model check has
+	// never once objected to a wrong sum.
+	if !calledTool(used, tools.Calc.Name) && countsUpInProse(draft) {
+		emit(Event{Kind: "status", Text: "adding it up"})
+		return calcNudge(), st
+	}
+	// A draft written from memory that states specifics. The freshness check
+	// above only catches what changes over time, and the specifics that were
+	// wrong were mostly things that do not: a rifle that does not exist, a
+	// protein figure off by eighteen grams.
+	if len(used) == 0 {
+		g, gst := e.needsChecking(ctx, draft)
+		st.merge(gst)
+		if g.NeedsCheck {
+			emit(Event{Kind: "status", Text: "checking it"})
+			return researchNudge(g.Query), st
+		}
 	}
 	emit(Event{Kind: "status", Text: "checking the answer"})
 	// Only when the turn fetched nothing, since that is the case the gate has

@@ -134,7 +134,10 @@ func firstNonEmpty(s ...string) string {
 var Odds = Tool{
 	Name: "odds",
 	Description: "What a real betting market implies about an event, as a percentage. " +
-		"This is a price people are paying, not a forecast, and it should be said that way.",
+		"This is a price people are paying, not a forecast, and it should be said that way. " +
+		"Only for things people bet on: an election, a match, a nomination, a rate decision. " +
+		"It is not a price check and knows nothing about what a product costs, so use " +
+		"web_search for anything on sale.",
 	Schema: obj(map[string]any{
 		"query": str("the event, like \"US Open winner\" or \"government shutdown\""),
 	}, "query"),
