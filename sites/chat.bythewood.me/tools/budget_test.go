@@ -125,3 +125,41 @@ func TestSearchIsTheStrictestBudget(t *testing.T) {
 		t.Errorf("gap of %s is under the 2s that library recommends", s.gap)
 	}
 }
+
+// A tool that makes several requests to a host on its own has to charge for all
+// of them before it starts. deep_search is the case: search.bythewood.me runs
+// its queries from this address out of a budget of its own, so before this was
+// charged here two containers were spending one address's allowance and only
+// one of them was counting.
+func TestTakeNChargesTheWholeCostUpFront(t *testing.T) {
+	now := time.Now()
+	b := NewBudgets()
+	atTime(b, &now)
+
+	if err := b.TakeN(SearchHost, 3); err != nil {
+		t.Fatalf("three searches refused on an empty pool: %v", err)
+	}
+	if got, want := len(b.Spent(SearchHost)), 3; got != want {
+		t.Fatalf("charged %d calls, want %d", got, want)
+	}
+
+	// The minute pool is 8. Five are left, so a question needing three still
+	// goes and the one after it does not.
+	if err := b.TakeN(SearchHost, 3); err != nil {
+		t.Fatalf("the second question was refused with room for it: %v", err)
+	}
+	err := b.TakeN(SearchHost, 3)
+	if err == nil {
+		t.Fatal("a question was allowed to overdraw the minute pool")
+	}
+	// Two are left, so the refusal is about the shortfall rather than an empty
+	// pool, and saying "frees up in 0s" there would read as a bug.
+	if !strings.Contains(err.Error(), "only 2") {
+		t.Errorf("the refusal does not say what is left: %v", err)
+	}
+
+	// Nothing was charged for the refused call.
+	if got, want := len(b.Spent(SearchHost)), 6; got != want {
+		t.Errorf("a refused call charged the pool: %d, want %d", got, want)
+	}
+}

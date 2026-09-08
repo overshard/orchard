@@ -25,6 +25,17 @@ import (
 
 const searchBase = "http://orchard-search:8000"
 
+// What one question costs search in DuckDuckGo requests. search plans one to
+// three queries a question and can run the plan a second time when the first
+// answer does not hold up, so the floor is its own perQuestion figure.
+//
+// This is the whole reason to charge anything here. search makes those requests
+// from this address, out of its own budget, and knows nothing about this one, so
+// two containers were spending one address's allowance and only one of them was
+// counting. That is what got DuckDuckGo to block us on 2026-09-08 with the pool
+// here reading barely a third spent.
+const deepSearchQueries = 3
+
 var DeepSearch = Tool{
 	Name: "deep_search",
 	Description: "Ask search.bythewood.me, which reads the pages properly and checks every sentence " +
@@ -43,6 +54,12 @@ var DeepSearch = Tool{
 		}
 		if d.Session == "" {
 			return nil, fmt.Errorf("this needs you to be signed in, and the turn carried no session")
+		}
+		// Charged before the call, since a pool that cannot cover the question
+		// should refuse it rather than let search spend the address's allowance
+		// and find out afterwards.
+		if err := d.Budgets.TakeN(SearchHost, deepSearchQueries); err != nil {
+			return nil, err
 		}
 
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, deepSearchURL(q, d.Incognito), nil)
@@ -64,7 +81,19 @@ var DeepSearch = Tool{
 		case resp.StatusCode >= 400:
 			return nil, fmt.Errorf("search answered %d", resp.StatusCode)
 		}
-		return readSearchStream(resp.Body)
+		out, err := readSearchStream(resp.Body)
+		if err == nil {
+			if m, ok := out.(map[string]any); ok {
+				if n, ok := m["queries"].(int); ok && n > deepSearchQueries {
+					// A retry runs the plan again. The pool is already past the
+					// estimate by then, so this only keeps the count honest for
+					// the next call rather than refusing this one.
+					_ = d.Budgets.TakeN(SearchHost, n-deepSearchQueries)
+				}
+				delete(m, "queries")
+			}
+		}
+		return out, err
 	},
 }
 
@@ -122,6 +151,7 @@ func searchAnswer(data string) (any, error) {
 		Text     string   `json:"text"`
 		Support  float64  `json:"support"`
 		Elapsed  string   `json:"elapsed"`
+		Queries  []string `json:"queries"`
 		Warnings []string `json:"warnings"`
 		Sources  []struct {
 			Title string `json:"title"`
@@ -143,6 +173,9 @@ func searchAnswer(data string) (any, error) {
 		"answer":  a.Text,
 		"sources": srcs,
 		"elapsed": a.Elapsed,
+		// Stripped before the model sees it, in Run. It is here only so the
+		// caller can charge what search actually spent.
+		"queries": len(a.Queries),
 		// The fraction of the answer's sentences that a cited passage actually
 		// supports. It is the reason for calling this rather than reading pages,
 		// so it is passed on rather than kept.
