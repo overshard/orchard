@@ -13,6 +13,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 const (
@@ -165,7 +167,31 @@ func (c *Compactor) Title(ctx context.Context, first, answer string) string {
 	if t == "" {
 		return ""
 	}
-	return trim(titleWords(t), 48)
+	return trim(sentenceCase(titleWords(t)), 48)
+}
+
+// sentenceCase lifts the first letter and leaves every other one alone. The
+// model answers in whatever case it feels like, so the sidebar held "Biopharma
+// Selloff" next to "nix config file sharing", and a list of conversations reads
+// as a list when they agree. Only the first letter moves, because VXUS, Lp(a)
+// and iPhone are all cased the way they are for a reason.
+func sentenceCase(t string) string {
+	first := t
+	if i := strings.IndexByte(t, ' '); i > 0 {
+		first = t[:i]
+	}
+	// iPhone and eBay carry their capital in the middle, so a word holding one
+	// anywhere is already cased the way somebody meant it.
+	if strings.IndexFunc(first, unicode.IsUpper) >= 0 {
+		return t
+	}
+	for i, r := range t {
+		if !unicode.IsLetter(r) {
+			continue
+		}
+		return t[:i] + string(unicode.ToUpper(r)) + t[i+utf8.RuneLen(r):]
+	}
+	return t
 }
 
 // titleWords caps a title at six words. A model that answered the question
