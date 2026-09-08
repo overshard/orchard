@@ -75,12 +75,27 @@ func (s *Store) Facts() ([]Fact, error) {
 	return out, rows.Err()
 }
 
-// AddFact is idempotent on the text, so the model proposing the same fact twice
-// touches the timestamp rather than filling the table with duplicates.
+// AddFact is idempotent on the subject rather than on the exact text.
+//
+// The unique index only ever caught a fact proposed back word for word, and
+// nothing else did, so on 2026-09-08 one turn wrote two nearly identical facts
+// about X post search and left a third standing that contradicted both. The
+// model is asked to replace rather than add and cannot be relied on to, and
+// both the automatic pass and the remember tool land here, so this is the one
+// place that can hold the line for both.
 func (s *Store) AddFact(text string) (int64, error) {
 	text = tidyFact(text)
 	if text == "" {
 		return 0, fmt.Errorf("an empty fact")
+	}
+	if id, keep := s.sameSubject(text); id != 0 {
+		if !keep {
+			// The new wording says nothing the stored one does not, so the
+			// stored one stands and only its timestamp moves.
+			s.touchFact(id)
+			return id, nil
+		}
+		return id, s.ReplaceFact(id, text)
 	}
 	now := time.Now().Unix()
 	r, err := s.db.Exec(`
@@ -90,6 +105,51 @@ func (s *Store) AddFact(text string) (int64, error) {
 		return 0, err
 	}
 	return r.LastInsertId()
+}
+
+// sameSubject finds a stored fact this one is really a rewording of, and says
+// whether the new text should take its place. A zero id means it is new.
+func (s *Store) sameSubject(text string) (id int64, replace bool) {
+	all, err := s.Facts()
+	if err != nil {
+		return 0, false
+	}
+	fresh := terms(text)
+	var best float64
+	for _, f := range all {
+		held := terms(f.Text)
+		shared := overlap(fresh, held)
+		// Three shared words is the floor. Below it "Isaac has a young son" and
+		// "Isaac likes pizza" start to look related because they share a name.
+		if shared < minSharedTerms {
+			continue
+		}
+		inHeld := float64(shared) / float64(len(fresh))
+		inFresh := float64(shared) / float64(len(held))
+		score := max(inHeld, inFresh)
+		if score < sameSubjectAt || score < best {
+			continue
+		}
+		best, id = score, f.ID
+		// When the new wording is the one wholly contained in the old, it adds
+		// nothing: "Isaac has a young son" against a fact that already says so
+		// and names where he lives.
+		replace = inHeld < inFresh
+	}
+	return id, replace
+}
+
+// How alike two facts have to be before they are treated as one. Measured
+// against the duplicates the database actually accumulated: the pair about X
+// post search scores 0.75, "Isaac has a young son" inside the longer fact that
+// already says it scores 1.0, and no unrelated pair in the table reaches 0.5.
+const (
+	sameSubjectAt  = 0.7
+	minSharedTerms = 3
+)
+
+func (s *Store) touchFact(id int64) {
+	_, _ = s.db.Exec(`UPDATE facts SET updated_at=? WHERE id=?`, time.Now().Unix(), id)
 }
 
 func (s *Store) ReplaceFact(id int64, text string) error {
@@ -480,6 +540,24 @@ func (m memoryStore) Facts() ([]tools.MemoryFact, error) {
 	out := make([]tools.MemoryFact, 0, len(all))
 	for _, f := range all {
 		out = append(out, tools.MemoryFact{ID: f.ID, Text: f.Text})
+	}
+	return out, nil
+}
+
+// historyStore hands the conversation store to the chat_history tool. Separate
+// from memoryStore because the two answer different questions and a tool that
+// reads facts has no business reaching messages.
+type historyStore struct{ s *Store }
+
+func (h historyStore) SearchPast(query string, limit int) ([]tools.PastExchange, error) {
+	hits, err := h.s.SearchHistory(query, limit)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]tools.PastExchange, 0, len(hits))
+	for _, x := range hits {
+		out = append(out, tools.PastExchange{ConvID: x.ConvID, Title: x.Title,
+			When: x.When, Question: x.Question, Answer: x.Answer})
 	}
 	return out, nil
 }

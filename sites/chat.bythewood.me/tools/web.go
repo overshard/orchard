@@ -86,32 +86,39 @@ var WebSearch = Tool{
 		if err != nil {
 			return nil, err
 		}
-		var hits []SearchHit
-		for _, m := range ddgResult.FindAllStringSubmatch(string(body), -1) {
-			href := m[1]
-			// DuckDuckGo wraps results in its own redirector, and the real
-			// address is the uddg parameter inside it.
-			if strings.HasPrefix(href, "//duckduckgo.com/l/") {
-				if u, e := url.Parse("https:" + href); e == nil {
-					if real := u.Query().Get("uddg"); real != "" {
-						href = real
-					}
-				}
-			}
-			hits = append(hits, SearchHit{
-				Title:   strings.TrimSpace(Text(m[2])),
-				URL:     href,
-				Snippet: strings.TrimSpace(Text(m[3])),
-			})
-			if len(hits) >= n {
-				break
-			}
-		}
+		hits := parseDDG(string(body), n)
 		if len(hits) == 0 {
 			return nil, fmt.Errorf("the search engine returned nothing, which usually means it is refusing us")
 		}
 		return map[string]any{"query": q, "results": hits}, nil
 	},
+}
+
+// parseDDG pulls the results out of a DuckDuckGo HTML page. A limit of zero
+// means every one, which is what a caller filtering them itself needs.
+func parseDDG(body string, limit int) []SearchHit {
+	var hits []SearchHit
+	for _, m := range ddgResult.FindAllStringSubmatch(body, -1) {
+		href := m[1]
+		// DuckDuckGo wraps results in its own redirector, and the real address
+		// is the uddg parameter inside it.
+		if strings.HasPrefix(href, "//duckduckgo.com/l/") {
+			if u, e := url.Parse("https:" + href); e == nil {
+				if real := u.Query().Get("uddg"); real != "" {
+					href = real
+				}
+			}
+		}
+		hits = append(hits, SearchHit{
+			Title:   strings.TrimSpace(Text(m[2])),
+			URL:     href,
+			Snippet: strings.TrimSpace(Text(m[3])),
+		})
+		if limit > 0 && len(hits) >= limit {
+			break
+		}
+	}
+	return hits
 }
 
 var WebFetch = Tool{

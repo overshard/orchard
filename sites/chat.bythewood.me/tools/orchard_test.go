@@ -211,3 +211,74 @@ func TestAStreamThatEndsEarlyIsAnError(t *testing.T) {
 		t.Errorf("err = %v", err)
 	}
 }
+
+// orchard_code exists because the model could list Isaac's repositories and
+// read nothing inside them, so it guessed raw addresses on repos and github and
+// collected 404s. It has to walk down to a file the way a person does.
+func TestOrchardCodeReadsAFileAndListsADirectory(t *testing.T) {
+	var asked []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		asked = append(asked, r.URL.Path)
+		switch r.URL.Path {
+		case "/api/repos/orchard/file/HEAD/sites/chat.bythewood.me/tools/web.go":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"repo": "orchard", "path": "tools/web.go", "text": "package tools", "lines": 1})
+		case "/api/repos/orchard/tree/HEAD/sites":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"repo": "orchard", "path": "sites", "count": 1,
+				"entries": []map[string]any{{"name": "chat.bythewood.me", "type": "tree"}}})
+		default:
+			http.Error(w, `{"error":"no such path"}`, http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	old := reposBase
+	reposBase = srv.URL
+	defer func() { reposBase = old }()
+	d := testDeps(srv.URL).WithSession("a-live-session")
+
+	got, err := OrchardCode.Run(context.Background(), d,
+		map[string]any{"repo": "orchard", "path": "sites/chat.bythewood.me/tools/web.go"})
+	if err != nil {
+		t.Fatalf("reading a file failed: %v", err)
+	}
+	if m, ok := got.(map[string]any); !ok || m["text"] != "package tools" {
+		t.Fatalf("the file came back as %#v", got)
+	}
+
+	// A directory is not a file, and the 404 on the file read has to fall
+	// through to the listing rather than being reported as a missing path.
+	got, err = OrchardCode.Run(context.Background(), d,
+		map[string]any{"repo": "orchard", "path": "sites"})
+	if err != nil {
+		t.Fatalf("listing a directory failed: %v", err)
+	}
+	if m, ok := got.(map[string]any); !ok || m["count"] != float64(1) {
+		t.Fatalf("the listing came back as %#v", got)
+	}
+
+	// A path that is neither says so, and says what to do about it, rather
+	// than handing back an empty listing that reads as an empty directory.
+	_, err = OrchardCode.Run(context.Background(), d,
+		map[string]any{"repo": "orchard", "path": "sites/nope/nothing.go"})
+	if err == nil {
+		t.Fatal("a path that does not exist came back as a result")
+	}
+	if !strings.Contains(err.Error(), "list the level above") {
+		t.Errorf("err = %q, want it to say what to do next", err)
+	}
+	_ = asked
+}
+
+// A path is one wildcard on the other side, so escaping it whole would turn
+// every separator into %2F and nothing would ever resolve.
+func TestOrchardCodeKeepsPathSeparators(t *testing.T) {
+	if got, want := escapePath("sites/chat.bythewood.me/tools/web.go"),
+		"sites/chat.bythewood.me/tools/web.go"; got != want {
+		t.Errorf("escapePath = %q, want %q", got, want)
+	}
+	if got := escapePath("a dir/a file.go"); got != "a%20dir/a%20file.go" {
+		t.Errorf("escapePath left a space unescaped: %q", got)
+	}
+}

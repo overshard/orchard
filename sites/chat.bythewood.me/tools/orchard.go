@@ -15,6 +15,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -30,13 +31,19 @@ const SessionCookie = "bw_session"
 // Site names resolve on the bridge, so these never leave the machine and never
 // pass through Cloudflare. A public hostname would work and would be slower,
 // cached, and a lie about where the data went.
-const (
+// Vars rather than constants so a test can stand a real server up in front of
+// one, which is the only way to check that a tool walks a repository correctly.
+var (
 	loggingBase   = "http://orchard-logging:8000"
 	statusBase    = "http://orchard-status:8000"
 	analyticsBase = "http://orchard-analytics:8000"
 	reposBase     = "http://orchard-repos:8000"
 	dashBase      = "http://orchard-dash:8000"
 )
+
+// errEstateMissing is a 404 from one of the sites, which for a tool walking a
+// repository is a path that is not there rather than a failure.
+var errEstateMissing = fmt.Errorf("no such path")
 
 // estateGet fetches one of the sites with the caller's session on it. It does
 // not go through get(): the Guard exists for third party endpoints that rate
@@ -66,6 +73,8 @@ func estateGet(ctx context.Context, d *Deps, rawURL string, into any) error {
 		// A redirect here is the login page, which means the same thing as a
 		// 401 and would otherwise be decoded as malformed JSON.
 		return fmt.Errorf("%s wants a sign in", hostOf(rawURL))
+	case resp.StatusCode == http.StatusNotFound:
+		return errEstateMissing
 	case resp.StatusCode >= 400:
 		return fmt.Errorf("%s answered %d", hostOf(rawURL), resp.StatusCode)
 	}
@@ -154,6 +163,80 @@ var OrchardRepos = Tool{
 		err := estateGet(ctx, d, reposBase+"/api/repos", &out)
 		return out, err
 	},
+}
+
+// OrchardCode is the other half of orchard_repos: the listing says what exists
+// and this says what is in it. Without it every question about Isaac's own code
+// ended the same way, with the model guessing raw addresses on repos and
+// github, collecting 404s, and eventually writing a file it said it had read.
+// Nine of the seventeen failed fetches on 2026-09-08 were that.
+var OrchardCode = Tool{
+	Name: "orchard_code",
+	Description: "Read the actual source of one of Isaac's repositories on repos.bythewood.me. " +
+		"Leave path empty to list the top of the repository, give a directory to list it, or give " +
+		"a file to read it. Use this for any question about how his own code works, and walk down " +
+		"to the file rather than guessing a path. Never guess a url for his code and never fetch " +
+		"one, this is the only way in. Read only.",
+	Schema: obj(map[string]any{
+		"repo": str("the repository name, as orchard_repos lists it"),
+		"path": str("a directory to list or a file to read, empty for the top level"),
+		"rev":  str("a branch, tag or commit, optional, defaults to the default branch"),
+	}, "repo"),
+	Run: func(ctx context.Context, d *Deps, a map[string]any) (any, error) {
+		repo := strings.Trim(strings.TrimSpace(argStr(a, "repo")), "/")
+		if repo == "" {
+			return nil, fmt.Errorf("repo is required, and orchard_repos lists the names")
+		}
+		rev := strings.TrimSpace(argStr(a, "rev"))
+		if rev == "" {
+			rev = "HEAD"
+		}
+		path := strings.Trim(strings.TrimSpace(argStr(a, "path")), "/")
+
+		// A path with no dot in its last segment is a directory far more often
+		// than not, but guessing wrong either way costs a call, so the file
+		// read is tried first and a miss falls through to the listing. That way
+		// an extensionless file still reads and a directory still lists.
+		base := reposBase + "/api/repos/" + url.PathEscape(repo)
+		if path != "" {
+			var file map[string]any
+			err := estateGet(ctx, d, base+"/file/"+url.PathEscape(rev)+"/"+escapePath(path), &file)
+			if err == nil {
+				return file, nil
+			}
+			// Only a missing file falls through. A refused session or a binary
+			// file is the answer, and listing the directory would bury it.
+			if !errors.Is(err, errEstateMissing) {
+				return nil, err
+			}
+		}
+		treeURL := base + "/tree/" + url.PathEscape(rev)
+		if path != "" {
+			treeURL += "/" + escapePath(path)
+		}
+		var tree map[string]any
+		if err := estateGet(ctx, d, treeURL, &tree); err != nil {
+			if path == "" {
+				return nil, err
+			}
+			return nil, fmt.Errorf("%s has no file or directory at %q, so list the level above it first", repo, path)
+		}
+		return tree, nil
+	},
+}
+
+// escapePath escapes each segment and keeps the separators, since the whole
+// path is one wildcard on the other side and escaping it whole would turn every
+// slash into %2F.
+func escapePath(p string) string {
+	if p == "" {
+		return ""
+	}
+	parts := strings.Split(p, "/")
+	for i, seg := range parts {
+		parts[i] = url.PathEscape(seg)
+	}
+	return strings.Join(parts, "/")
 }
 
 var OrchardDash = Tool{
