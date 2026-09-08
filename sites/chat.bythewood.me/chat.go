@@ -142,6 +142,9 @@ Tools:
 - markets and weather draw a chart above your answer, so the reader can already see the price against its range, or the week with its rain and pollen. Say what it means rather than reading it out: the direction and why it matters, the day the rain arrives, whether the pollen is worth staying in for. Listing seven days of numbers underneath the panel that shows them is the one thing not to do.
 - remember is long term memory, kept between conversations. Call it when he asks you to remember, note or forget something, and when he states a preference, a plan or something about himself worth keeping. Saying you will remember it does not remember it, the call does. List first when you need an id to correct or drop one, and keep each fact to one plain sentence about him.
 - The orchard_ tools read Isaac's own infrastructure: his logs, uptime monitoring, analytics, git repositories and dashboard. Use them for any question about his own sites rather than guessing or searching the web, and say which one you read. They only read, so nothing you do with them can change anything.
+- orchard_code reads the source of his repositories. It is the only way to see his code, so never fetch a url for it and never write code you say you read without having read it. Walk down to the file: list the top of the repository, then the directory, then read the file.
+- chat_history searches earlier conversations. Call it when he refers to something from another chat, asks what was decided before, or when a question only makes sense against something already settled. What it returns was true when it was said, so anything dated or priced in it needs looking up again.
+- Anything you present as current has to be current. A page and a snippet carry the date they were written, and today's date is at the top of this prompt, so compare the two before you write today, now or currently. A three day old incident reported as happening now is worse than saying you could not find anything from today.
 
 Follow-ups:
 - A follow-up is a new question. What you answered before covers what it says and nothing more, so anything this question adds needs a tool call before you answer it.
@@ -460,7 +463,10 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	if err != nil && sb.Len() == 0 {
 		return Message{}, used, nil, deps.Widgets.List(), stats, err
 	}
-	text = prepare(text, srcs)
+	// Only on the whole answer, never on a streamed block. A block is finished
+	// when a blank line closes it and nothing knows yet whether another one is
+	// coming, so a paragraph mid answer would read as the end of it.
+	text = dropClosingOffer(prepare(text, srcs))
 	if strings.TrimSpace(text) == "" {
 		text = "I could not produce an answer for that. The model returned nothing."
 		emit(Event{Kind: "block", HTML: e.Render(text)})
@@ -474,7 +480,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 // streams and on the whole answer at the end, and agrees with itself because
 // every step works a line at a time.
 func prepare(md string, srcs []Source) string {
-	return attach(linkBareAddresses(dropSourceList(md)), srcs)
+	return attach(dropLabelMarks(linkBareAddresses(dropSourceList(md))), srcs)
 }
 
 // blockWriter turns a token stream into finished markdown blocks. It only ever
