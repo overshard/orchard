@@ -133,7 +133,6 @@ Tools:
 - wikipedia is an offline snapshot on this machine. It answers instantly, it cannot be rate limited, and it carries each article's opening section only, so it is the cheapest way to get the background right before deciding whether anything needs searching. It knows nothing after its snapshot date, so never use it for news, prices, scores or anything that changed recently.
 - web_search gives titles, urls and snippets. Call web_fetch on a url when you need what the page actually says.
 - news reads a fixed list of publishers and is what to call for any question about what is happening or what happened over a period, rather than searching. Pass the window the question actually used, so today means today and this weekend means the weekend just gone, and pass the topic only when one was named. It hands back each publisher's own headline for you to rewrite plainly.
-- web_search and web_fetch are the ordinary way to look something up and are what you should reach for. deep_search is the exception: it reads the pages properly and checks every sentence against what it cites, and it takes a minute or more during which nothing else can run. Use it when being wrong would matter, when Isaac asks you to check or verify or source something, or when a claim is disputed. Never use it for a quick fact, a score, a price or the weather, and never more than once in a turn.
 - An attached file is already in this conversation in full. There is no url or path for it, so never try to fetch one, and never guess where it might be on a disk.
 - Search once per thing you are comparing. One search rarely covers a comparison or a build.
 - Use calc for totals rather than adding in your head.
@@ -223,8 +222,8 @@ func (e *Engine) SearchDown() (time.Duration, bool) {
 // credential of its own.
 func (e *Engine) Run(ctx context.Context, history []Message, user, session, memory string, tr *Trace, emit func(Event)) (Message, []tools.Result, []Source, []tools.Widget, Stats, error) {
 	deps := e.deps.WithSession(session)
-	// deep_search asks another service to run a model, so the flag has to travel
-	// with the call rather than only with this process's own requests.
+	// A tool decides for itself what incognito means for it, so the flag rides
+	// on the per turn copy rather than only on this process's own requests.
 	deps.Incognito = IsIncognito(ctx)
 	// Which widgets have already gone out, since the sink holds every one the
 	// turn has produced and each round would otherwise resend the earlier ones.
@@ -261,7 +260,6 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		}
 	}
 
-	var usedDeepSearch bool
 	// news reads every feed on the list, so a second call re-reads all of them
 	// for a rundown the turn already has. One is the whole answer.
 	var usedNews bool
@@ -292,12 +290,6 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 			break
 		}
 		offer := schemas
-		// deep_search runs a whole pipeline on the same single GPU slot this
-		// turn is using, so a second call is a second minute of everything else
-		// waiting. The prompt asks for one, and this is what makes it one.
-		if usedDeepSearch {
-			offer = tools.Without(offer, tools.DeepSearch.Name)
-		}
 		if usedNews {
 			offer = tools.Without(offer, tools.News.Name)
 		}
@@ -403,9 +395,6 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 				continue
 			}
 			emit(Event{Kind: "tool", Tool: tc.Function.Name, Args: shortArgs(tc.Function.Arguments)})
-			if tc.Function.Name == tools.DeepSearch.Name {
-				usedDeepSearch = true
-			}
 			if tc.Function.Name == tools.News.Name {
 				usedNews = true
 			}

@@ -83,12 +83,6 @@ func collectSources(used []tools.Result) []Source {
 			for _, h := range hits {
 				add(h.URL, h.Title, h.Title+" "+h.Snippet, false)
 			}
-		case tools.DeepSearch.Name:
-			answer := asString(m["answer"])
-			srcs, _ := m["sources"].([]map[string]string)
-			for _, s := range srcs {
-				add(s["url"], s["title"], answer, false)
-			}
 		case tools.News.Name:
 			// A rundown named its publishers in the prose and linked none of
 			// them, so the one answer most worth clicking through was the one
