@@ -8,7 +8,8 @@ func Default() *Registry {
 	for _, t := range []Tool{
 		WebSearch, WebFetch, News, Remember, Weather, Markets, SportsScores, Odds, MusicLookup, Convert, Calc, Now,
 		Wikipedia,
-		OrchardLogs, OrchardStatus, OrchardAnalytics, OrchardRepos, OrchardDash,
+		OrchardLogs, OrchardStatus, OrchardAnalytics, OrchardRepos, OrchardCode, OrchardDash,
+		ChatHistory, XSearch,
 		DeepSearch,
 	} {
 		r.Add(t)

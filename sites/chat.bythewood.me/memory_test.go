@@ -198,3 +198,63 @@ func TestTidyFactCapsLength(t *testing.T) {
 		t.Errorf("got %q", got)
 	}
 }
+
+// The unique index only ever caught a fact proposed back word for word. On
+// 2026-09-08 one turn wrote two nearly identical facts about X post search and
+// left a third standing that contradicted both, because the model is asked to
+// replace rather than add and did not.
+func TestAddFactMergesARewording(t *testing.T) {
+	s := memStore(t)
+
+	first, err := s.AddFact("Isaac wants to build XCancel into the chat tooling in some way.")
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := s.AddFact("Isaac is still looking for a way to integrate X post search into the chat tooling, " +
+		"but xcancel and Nitter are not the solutions since xcancel has no API.")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second != first {
+		t.Errorf("a rewording was stored as a new fact (%d then %d)", first, second)
+	}
+	facts, _ := s.Facts()
+	if len(facts) != 1 {
+		t.Fatalf("the table holds %d facts, want the one", len(facts))
+	}
+	// The newer wording is the one that stands, since it is the correction.
+	if !strings.Contains(facts[0].Text, "not the solutions") {
+		t.Errorf("the stored fact is the old wording: %q", facts[0].Text)
+	}
+}
+
+// A fact wholly contained in one already stored adds nothing, and replacing the
+// longer with the shorter would throw away what it knew.
+func TestAddFactKeepsTheFullerWording(t *testing.T) {
+	s := memStore(t)
+	full, _ := s.AddFact("Isaac camps and hikes in Yadkin Valley, North Carolina.")
+	again, err := s.AddFact("Isaac camps and hikes.")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again != full {
+		t.Errorf("the shorter fact was stored separately (%d then %d)", full, again)
+	}
+	facts, _ := s.Facts()
+	if len(facts) != 1 || !strings.Contains(facts[0].Text, "Yadkin") {
+		t.Errorf("the fuller wording was lost: %#v", facts)
+	}
+}
+
+// Two facts sharing only a name are not the same fact, and merging them would
+// lose one of them for good.
+func TestAddFactKeepsUnrelatedFactsApart(t *testing.T) {
+	s := memStore(t)
+	_, _ = s.AddFact("Isaac likes buttered chicken pizza.")
+	_, _ = s.AddFact("Isaac eats sausages but avoids ones containing nitrates or nitrites.")
+	_, _ = s.AddFact("Isaac regularly cooks sheet-pan meals of broccoli and potatoes with a single roasted protein.")
+	facts, _ := s.Facts()
+	if len(facts) != 3 {
+		t.Errorf("three unrelated facts collapsed to %d: %#v", len(facts), facts)
+	}
+}
