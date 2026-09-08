@@ -91,3 +91,38 @@ func TestGuardDownListsOnlyLiveBoxes(t *testing.T) {
 		t.Error("a host that was never tripped is reported down")
 	}
 }
+
+// A slow page is not a ban. Before this split, one timeout put a host in the
+// same six hour box DuckDuckGo gets, which on 2026-09-08 took
+// developer.android.com, mirrors.wikimedia.org and hacker-news.firebaseio.com
+// out of reach for the afternoon.
+func TestAStumbleIsBoxedBrieflyAndARefusalIsNot(t *testing.T) {
+	g := NewGuard(time.Minute)
+	g.Stumble("developer.android.com")
+	blocked, left := g.Blocked("developer.android.com")
+	if !blocked {
+		t.Fatal("a host that timed out was not held off at all")
+	}
+	if left > stumbleCool {
+		t.Errorf("a timeout was boxed for %s, want no more than %s", left, stumbleCool)
+	}
+
+	g.Trip("html.duckduckgo.com")
+	_, banned := g.Blocked("html.duckduckgo.com")
+	if banned <= stumbleCool {
+		t.Errorf("an outright refusal was boxed for %s, want the full %s", banned, refusalCool)
+	}
+}
+
+// A page timing out on a host that already refused us must not shorten the box
+// it is in, which is what would happen if the later, smaller deadline won.
+func TestAStumbleDoesNotCutShortARefusal(t *testing.T) {
+	g := NewGuard(time.Minute)
+	g.Trip("html.duckduckgo.com")
+	_, before := g.Blocked("html.duckduckgo.com")
+	g.Stumble("html.duckduckgo.com")
+	_, after := g.Blocked("html.duckduckgo.com")
+	if after < before-time.Minute {
+		t.Errorf("a stumble cut the refusal from %s to %s", before, after)
+	}
+}

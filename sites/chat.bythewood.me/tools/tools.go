@@ -79,6 +79,8 @@ type Deps struct {
 	// Memory is the site's own fact store, so the remember tool can write to
 	// the database this process owns rather than to a service over http.
 	Memory Memory
+	// History is the site's own conversation store, for the same reason.
+	History History
 	// Whether this turn is incognito, which a tool that reaches a service with
 	// a model behind it has to pass along. Per turn and on the copy too.
 	Incognito bool
@@ -176,10 +178,30 @@ func (g *Guard) Blocked(host string) (bool, time.Duration) {
 // let a person's next real question be the one that finds out.
 const refusalCool = 6 * time.Hour
 
-func (g *Guard) Trip(host string) {
+// A page that timed out or redirected somewhere that failed is not a host
+// refusing us, and boxing it for six hours reads as a ban that never happened.
+// On 2026-09-08 that put developer.android.com, mirrors.wikimedia.org and
+// hacker-news.firebaseio.com out of reach for the afternoon over one slow
+// request each. Long enough to stop a turn hammering the same dead address,
+// short enough that the next question can try again.
+const stumbleCool = 5 * time.Minute
+
+// Trip is for a host that said no in as many words, a 202 or a 429. That is the
+// case the long box was written for.
+func (g *Guard) Trip(host string) { g.box(host, refusalCool) }
+
+// Stumble is for a request that failed without the host refusing anything: a
+// timeout, a dead name, a redirect to somewhere that would not answer.
+func (g *Guard) Stumble(host string) { g.box(host, stumbleCool) }
+
+func (g *Guard) box(host string, cool time.Duration) {
 	g.mu.Lock()
 	g.trips[host]++
-	till := time.Now().Add(refusalCool)
+	till := time.Now().Add(cool)
+	// A stumble never shortens a refusal already in force.
+	if old, ok := g.till[host]; ok && old.After(till) {
+		till = old
+	}
 	g.till[host] = till
 	trips, store := g.trips[host], g.store
 	g.mu.Unlock()
@@ -277,24 +299,28 @@ func getWith(ctx context.Context, d *Deps, url string, accept string, extra map[
 		if strings.Contains(err.Error(), "refusing") {
 			return nil, fmt.Errorf("%s is not a public address", host)
 		}
-		d.Guard.Trip(host)
-		return nil, fmt.Errorf("%s did not answer: %w", host, err)
+		d.Guard.Stumble(host)
+		return nil, fmt.Errorf("%s did not answer, so try a different source: %s", host, transportReason(err))
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
 	if err != nil {
 		return nil, err
 	}
-	// 202 with an empty body is how both DuckDuckGo and ESPN say no. It reads
-	// as an empty result rather than a refusal, which is worse than an error,
-	// so it is turned into one here.
-	if resp.StatusCode == http.StatusAccepted || resp.StatusCode == http.StatusTooManyRequests ||
-		(resp.StatusCode == 200 && len(strings.TrimSpace(string(body))) == 0) {
+	// 202 is how both DuckDuckGo and ESPN say no. It reads as an empty result
+	// rather than a refusal, which is worse than an error, so it is turned into
+	// one here. This and a 429 are the only two the long box is for.
+	if resp.StatusCode == http.StatusAccepted || resp.StatusCode == http.StatusTooManyRequests {
 		d.Guard.Trip(host)
 		return nil, fmt.Errorf("%s is rate limiting us (status %d)", host, resp.StatusCode)
 	}
+	// An empty 200 from a page is a page with nothing on it, not a ban.
+	if resp.StatusCode == 200 && len(strings.TrimSpace(string(body))) == 0 {
+		d.Guard.Stumble(host)
+		return nil, fmt.Errorf("%s returned an empty page, so try a different source", host)
+	}
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("%s answered %d", host, resp.StatusCode)
+		return nil, fmt.Errorf("%s answered %d. %s", host, resp.StatusCode, statusAdvice(resp.StatusCode))
 	}
 	d.Guard.OK(host)
 	return body, nil
@@ -310,6 +336,47 @@ func getJSONHeaders(ctx context.Context, d *Deps, url string, extra map[string]s
 		return err
 	}
 	return json.Unmarshal(b, into)
+}
+
+// statusAdvice tells the model what to do next, since a bare status code reads
+// as "the tool is broken" and the answer that follows says nothing could be
+// found. A wall and a wrong address need opposite responses.
+func statusAdvice(code int) string {
+	switch code {
+	case http.StatusForbidden, http.StatusUnauthorized:
+		return "That site blocks automated readers, and asking again will not change it. Use a different source."
+	case http.StatusNotFound:
+		return "There is no page at that address. Do not guess another one, search for the page and fetch the url the search returns."
+	case http.StatusPaymentRequired, http.StatusGone:
+		return "That page is not readable without paying or is gone. Use a different source."
+	}
+	if code >= 500 {
+		return "That site is having trouble of its own. Use a different source."
+	}
+	return "Use a different source."
+}
+
+// transportReason keeps the useful half of a transport error. The full text is
+// the whole request line, and when a fetch follows a redirect the address in it
+// is wherever it ended up, which reads as the wrong host having failed.
+func transportReason(err error) string {
+	s := err.Error()
+	switch {
+	case strings.Contains(s, "context deadline exceeded"), strings.Contains(s, "Client.Timeout"):
+		return "it took too long to answer"
+	case strings.Contains(s, "no such host"):
+		return "that name does not resolve"
+	case strings.Contains(s, "connection refused"):
+		return "nothing is listening there"
+	case strings.Contains(s, "certificate"):
+		return "its certificate did not check out"
+	}
+	// A redirect chain names the address it ended on, which is not the one that
+	// was asked for, so the bare url is dropped rather than reported as a host.
+	if i := strings.Index(s, ": "); i > 0 && strings.HasPrefix(s, "Get \"") {
+		return strings.TrimSpace(s[i+2:])
+	}
+	return s
 }
 
 func hostOf(url string) string {
