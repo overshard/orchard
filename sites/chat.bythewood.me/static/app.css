@@ -126,7 +126,7 @@ body {
 .icon-btn {
   background: none; border: 1px solid transparent; color: var(--dim);
   font: inherit; font-size: 0.8rem; cursor: pointer; padding: 0.2rem 0.4rem;
-  border-radius: 2px;
+  border-radius: 2px; position: relative;
 }
 .icon-btn:hover { color: var(--green-hot); border-color: var(--line); background: var(--panel); }
 
@@ -161,6 +161,25 @@ body {
 }
 .conv:hover { background: var(--panel); border-color: rgba(65, 78, 65, 0.42); color: var(--text); }
 .conv.active { background: var(--panel); border-color: var(--line-hot); color: var(--green-hot); }
+
+/* A turn that finished while the reader was somewhere else. A dot rather than a
+   count, because the number of answers waiting is not a thing anybody acts on,
+   and the row already says which conversation it was. */
+.conv.done { position: relative; }
+.conv.done .conv-title::after {
+  content: "";
+  display: inline-block; width: 0.4rem; height: 0.4rem;
+  margin-left: 0.4rem; vertical-align: middle;
+  border-radius: 50%; background: var(--green-bright);
+}
+/* The same signal on the button that opens the drawer, since on a phone the
+   list it marks is off screen. */
+.icon-btn.dot-on::after {
+  content: "";
+  position: absolute; top: 0.3rem; right: 0.3rem;
+  width: 0.35rem; height: 0.35rem;
+  border-radius: 50%; background: var(--green-bright);
+}
 .conv-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .conv-when { color: var(--faint); font-size: 0.68rem; }
 .conv-del {
@@ -219,9 +238,9 @@ body {
 .bar-title {
   color: var(--muted); font-size: 0.82rem;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  margin-right: auto;
+  margin-right: auto; min-width: 0;
 }
-.bar-right { display: flex; align-items: center; gap: 0.7rem; }
+.bar-right { display: flex; align-items: center; gap: 0.7rem; flex-shrink: 0; }
 .incog-flag {
   color: var(--amber); font-size: 0.64rem; font-weight: 600;
   letter-spacing: var(--track); border: 1px solid rgba(212, 180, 90, 0.5);
@@ -237,12 +256,12 @@ body {
 }
 .warn-flag[hidden] { display: none; }
 
-.model { color: var(--dim); font-size: 0.72rem; display: flex; align-items: center; gap: 0.4rem; }
+.model { color: var(--dim); font-size: 0.72rem; display: flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
 
 /* The context meter. A number beside a bar rather than a percentage, because
    how many tokens are left is the thing being decided and a percentage of a
    window whose size varies by model is not. */
-.meter { display: flex; align-items: center; gap: 0.4rem; font-size: 0.68rem; color: var(--faint); }
+.meter { display: flex; align-items: center; gap: 0.4rem; font-size: 0.68rem; color: var(--faint); white-space: nowrap; }
 /* A display rule beats the hidden attribute, so anything here that sets
    display has to say so itself or it shows through hidden. */
 .meter[hidden], .tps[hidden], .incog-flag[hidden] { display: none; }
@@ -264,7 +283,7 @@ body {
 .meter.hot .meter-fill { background: var(--terracotta); }
 .meter.hot .meter-num { color: var(--terracotta); }
 
-.tps { color: var(--faint); font-size: 0.68rem; font-variant-numeric: tabular-nums; }
+.tps { color: var(--faint); font-size: 0.68rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .tps b { color: var(--green-bright); font-weight: 600; }
 
 @media (max-width: 60em) {
