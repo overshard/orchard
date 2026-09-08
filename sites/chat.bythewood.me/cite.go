@@ -21,7 +21,10 @@ import (
 
 // How many sources the model is offered. Pages it fetched go in first, since
 // those are what it actually read, and search hits fill the rest.
-const maxSources = 14
+const (
+	maxSources     = 14
+	maxNewsSources = 32
+)
 
 // Source is one page this turn retrieved. Text never leaves the process, it is
 // only what a sentence is matched against.
@@ -86,13 +89,34 @@ func collectSources(used []tools.Result) []Source {
 			for _, s := range srcs {
 				add(s["url"], s["title"], answer, false)
 			}
+		case tools.News.Name:
+			// A rundown named its publishers in the prose and linked none of
+			// them, so the one answer most worth clicking through was the one
+			// with nothing to click. Each headline is a page that was read.
+			sections, _ := m["sections"].([]tools.NewsSection)
+			for _, sec := range sections {
+				for _, it := range sec.Items {
+					add(it.URL, it.Headline, it.Headline+" "+it.Summary, false)
+				}
+			}
+		}
+	}
+
+	// A rundown is twenty to thirty items and every one of them is a page worth
+	// a link, where an ordinary turn reads a handful. Capping both the same way
+	// left most of the news with nothing to click.
+	cap := maxSources
+	for _, r := range used {
+		if r.Name == tools.News.Name && r.Err == "" {
+			cap = maxNewsSources
+			break
 		}
 	}
 
 	var out []Source
 	for _, want := range []bool{true, false} {
 		for _, e := range order {
-			if e.fetched != want || len(out) >= maxSources {
+			if e.fetched != want || len(out) >= cap {
 				continue
 			}
 			s := Source{

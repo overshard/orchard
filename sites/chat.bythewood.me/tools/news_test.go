@@ -179,3 +179,42 @@ func TestASectionFillsUpWhenOneSideIsEmpty(t *testing.T) {
 		t.Errorf("filled %d of 6 slots with only aggregators available", len(got))
 	}
 }
+
+// The rundown carried the same NPR story twice on 2026-09-08 because the two
+// copies came off different feeds with different tracking parameters, and the
+// url was the only key that got looked at.
+func TestDedupeNewsIgnoresTrackingParameters(t *testing.T) {
+	in := []NewsItem{
+		{Source: "NPR Technology", Headline: "Voters are fed up with data centers", URL: "https://www.npr.org/2026/09/08/data-centers"},
+		{Source: "NPR Technology", Headline: "Voters are fed up with data centers", URL: "https://npr.org/2026/09/08/data-centers/?utm_source=rss"},
+		{Source: "BBC Technology", Headline: "Voters are fed up with data centers", URL: "https://bbc.co.uk/news/tech-1"},
+	}
+	out := dedupeNews(in)
+	if len(out) != 2 {
+		t.Fatalf("dedupe left %d items, want the NPR pair collapsed and the BBC one kept", len(out))
+	}
+	// Two publishers carrying one story is worth knowing, so the BBC copy stays.
+	if out[1].Source != "BBC Technology" {
+		t.Errorf("the second publisher was dropped: %#v", out)
+	}
+}
+
+// One story written up under two headlines is still one story, which an exact
+// key cannot see. The Navier-Stokes paper led the tech section twice.
+func TestSameStoryCatchesARewrittenHeadline(t *testing.T) {
+	a := headlineWords("On the Navier-Stokes Millennium Prize Problem")
+	b := headlineWords("Navier-Stokes Millennium Prize Problem, by Tristan Buckmaster")
+	if !sameStory(a, b) {
+		t.Error("two headlines about one paper were treated as two stories")
+	}
+
+	// And two genuinely different stories are not merged, which would lose one.
+	c := headlineWords("Mistral raises 3B euros for sovereign open-weight AI")
+	if sameStory(a, c) {
+		t.Error("two unrelated stories were merged")
+	}
+	// A short headline has too little in it to judge, so it is left alone.
+	if sameStory(headlineWords("Keep Our Servers Running"), headlineWords("Servers Running Hot")) {
+		t.Error("two short headlines were merged on a couple of shared words")
+	}
+}

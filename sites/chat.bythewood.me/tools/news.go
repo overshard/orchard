@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 )
 
 // The news reader. A question like "any big news today?" used to go to
@@ -40,7 +41,10 @@ var News = Tool{
 	Description: "Read the news from a fixed list of publishers rather than searching the web. " +
 		"Use this for any question asking what is happening or what happened over a period, " +
 		"like news today, big stories this weekend, what did I miss this week, or any tech or AI news. " +
-		"For one named story that is already known, use web_search instead.",
+		"For one named story that is already known, use web_search instead. " +
+		"It reads publisher front pages and nothing else, so it cannot tell you whether people are " +
+		"complaining about something, whether a service is degraded, or what is being said about a " +
+		"company outside the newsroom. Those are web_search.",
 	Schema: obj(map[string]any{
 		"window": map[string]any{"type": "string",
 			"description": "the period the question asked for, taken literally. today means today, " +
@@ -378,6 +382,10 @@ func gatherNews(ctx context.Context, d *Deps, topic string, since, until time.Ti
 	// One story reaching two sections reads as the tool repeating itself, so a
 	// headline is placed in the first section that wanted it and nowhere else.
 	placed := map[string]bool{}
+	// The headlines already taken, for the case two publishers write one story
+	// up under different words. An exact key cannot see that, and on
+	// 2026-09-08 the same Navier-Stokes paper led the tech section twice.
+	var placedWords []map[string]bool
 	take := func(items []NewsItem, slots int, scoredFirst bool) []NewsItem {
 		items = dedupeNews(items)
 		sortNews(items, scoredFirst)
@@ -387,13 +395,18 @@ func gatherNews(ctx context.Context, d *Deps, topic string, since, until time.Ti
 				break
 			}
 			key := strings.ToLower(strings.TrimSpace(it.Headline))
-			if it.URL != "" {
-				key = it.URL
+			if u := canonicalNewsURL(it.URL); u != "" {
+				key = u
 			}
 			if placed[key] {
 				continue
 			}
+			words := headlineWords(it.Headline)
+			if anySameStory(placedWords, words) {
+				continue
+			}
 			placed[key] = true
+			placedWords = append(placedWords, words)
 			out = append(out, it)
 		}
 		return out
@@ -621,21 +634,99 @@ func readLobsters(ctx context.Context, d *Deps, since, until time.Time) ([]NewsI
 // Two publishers carrying one story is worth knowing and two copies of one
 // publisher's own item is not, so this drops by url and by headline and leaves
 // the rest alone.
+//
+// Both keys are checked rather than one or the other. Keying on the url alone
+// let the same NPR story through twice on 2026-09-08, because the two copies
+// came off different feeds with different tracking parameters on them, and the
+// rundown carried it as two stories in the same section.
 func dedupeNews(in []NewsItem) []NewsItem {
-	seen := make(map[string]bool, len(in))
+	seenURL := make(map[string]bool, len(in))
+	seenHead := make(map[string]bool, len(in))
 	out := in[:0]
 	for _, it := range in {
-		key := it.Source + "\x00" + strings.ToLower(strings.TrimSpace(it.Headline))
-		if it.URL != "" {
-			key = it.Source + "\x00" + it.URL
-		}
-		if seen[key] {
+		u := canonicalNewsURL(it.URL)
+		h := it.Source + "\x00" + strings.ToLower(strings.TrimSpace(it.Headline))
+		if (u != "" && seenURL[u]) || seenHead[h] {
 			continue
 		}
-		seen[key] = true
+		if u != "" {
+			seenURL[u] = true
+		}
+		seenHead[h] = true
 		out = append(out, it)
 	}
 	return out
+}
+
+// canonicalNewsURL is the address without the parts that vary between two feeds
+// carrying the same page: the scheme, a www, the query, the fragment and a
+// trailing slash.
+func canonicalNewsURL(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	u, err := neturl.Parse(raw)
+	if err != nil || u.Host == "" {
+		return strings.ToLower(strings.TrimSpace(raw))
+	}
+	host := strings.TrimPrefix(strings.ToLower(u.Host), "www.")
+	return host + strings.TrimSuffix(u.EscapedPath(), "/")
+}
+
+// headlineWords is the distinctive half of a headline, for deciding whether two
+// items are the same story written up twice. Not a real tokeniser and does not
+// need to be: it only ever compares two headlines from the same rundown.
+func headlineWords(h string) map[string]bool {
+	out := map[string]bool{}
+	for _, w := range strings.FieldsFunc(strings.ToLower(h), func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+	}) {
+		if len(w) < 4 || newsStopwords[w] {
+			continue
+		}
+		out[w] = true
+	}
+	return out
+}
+
+var newsStopwords = map[string]bool{
+	"after": true, "against": true, "amid": true, "about": true, "been": true,
+	"could": true, "from": true, "have": true, "into": true, "more": true,
+	"most": true, "over": true, "said": true, "says": true, "than": true,
+	"that": true, "them": true, "they": true, "this": true, "will": true,
+	"with": true, "what": true, "when": true, "were": true, "your": true,
+}
+
+func anySameStory(seen []map[string]bool, words map[string]bool) bool {
+	for _, prev := range seen {
+		if sameStory(prev, words) {
+			return true
+		}
+	}
+	return false
+}
+
+// sameStory is true for two headlines that are one story. The threshold is
+// containment of the shorter in the longer, since a follow up headline is
+// usually the first one with more on the end.
+func sameStory(a, b map[string]bool) bool {
+	if len(a) < 3 || len(b) < 3 {
+		return false
+	}
+	shared := 0
+	for w := range a {
+		if b[w] {
+			shared++
+		}
+	}
+	if shared < 3 {
+		return false
+	}
+	small := len(a)
+	if len(b) < small {
+		small = len(b)
+	}
+	return float64(shared)/float64(small) >= 0.75
 }
 
 // What leads depends on the topic. On tech the aggregators are the story and a
