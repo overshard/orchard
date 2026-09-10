@@ -997,3 +997,57 @@ func TestReportDateRoundTrips(t *testing.T) {
 		}
 	}
 }
+
+// Oracle reports tonight and Nasdaq has no figure for it until the date is
+// past, so the row carries no verdict all day. The forward walk used to start
+// on tomorrow, which left the biggest name of the week in neither half.
+func TestUpcomingIncludesTonight(t *testing.T) {
+	today := time.Date(2026, 9, 10, 12, 0, 0, 0, easternTime())
+	days := map[string][]Earning{
+		"2026-09-10": {{Symbol: "ORCL", Name: "Oracle", Day: "TODAY", When: "POST", Est: "$1.39"}},
+		"2026-09-24": {{Symbol: "COST", Name: "Costco Wholesale", Day: "THU 24 SEP", When: "POST"}},
+	}
+	day := func(d time.Time) ([]Earning, bool) { return days[d.Format("2006-01-02")], true }
+
+	up := walkEarnings(day, today, 1, earningsNextDays, upcomingRow)
+	if len(up) != 2 || up[0].Symbol != "ORCL" {
+		t.Fatalf("upcoming = %v, want tonight's print first", up)
+	}
+	if got := walkEarnings(day, today, -1, earningsBackDays, reportedRow); len(got) != 0 {
+		t.Errorf("reported = %v, want nothing until the figure lands", got)
+	}
+}
+
+// The same name the morning after, once Nasdaq has filled the actual in. It
+// moves to the other half rather than showing up in both.
+func TestReportedTakesOverOnceTheFigureLands(t *testing.T) {
+	today := time.Date(2026, 9, 11, 12, 0, 0, 0, easternTime())
+	printed := Earning{Symbol: "ORCL", Name: "Oracle", Day: "YESTERDAY", Verdict: "BEAT", Actual: "$1.47", Forecast: "$1.39"}
+	day := func(d time.Time) ([]Earning, bool) {
+		if d.Format("2006-01-02") == "2026-09-10" {
+			return []Earning{printed}, true
+		}
+		return nil, true
+	}
+
+	if got := walkEarnings(day, today, -1, earningsBackDays, reportedRow); len(got) != 1 || got[0].Symbol != "ORCL" {
+		t.Fatalf("reported = %v, want the print", got)
+	}
+	if got := walkEarnings(day, today, 1, earningsNextDays, upcomingRow); len(got) != 0 {
+		t.Errorf("upcoming = %v, want nothing", got)
+	}
+}
+
+// A day that will not fetch costs its own rows and not the panel.
+func TestWalkSkipsADayThatFails(t *testing.T) {
+	today := time.Date(2026, 9, 10, 12, 0, 0, 0, easternTime())
+	day := func(d time.Time) ([]Earning, bool) {
+		if d.Format("2006-01-02") == "2026-09-10" {
+			return nil, false
+		}
+		return []Earning{{Symbol: "COST"}}, true
+	}
+	if got := walkEarnings(day, today, 1, earningsNextDays, upcomingRow); len(got) != earningsShown {
+		t.Errorf("upcoming = %d rows, want %d", len(got), earningsShown)
+	}
+}
