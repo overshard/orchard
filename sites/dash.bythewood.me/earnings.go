@@ -30,9 +30,10 @@ const (
 	// row carries a result.
 	earningsShown = 3
 
-	// How far to walk for those three. Reporting season is four bursts a year,
-	// so off season the forward walk runs its whole length and finds nothing,
-	// which is the correct answer rather than a failure.
+	// How far each walk goes for those three, counting today in both. Reporting
+	// season is four bursts a year, so off season the forward walk runs its
+	// whole length and finds nothing, which is the correct answer rather than a
+	// failure.
 	earningsBackDays = 21
 	earningsNextDays = 28
 
@@ -115,43 +116,13 @@ func fetchEarnings(ctx context.Context, g *Guard, now time.Time) (Earnings, erro
 	var out Earnings
 	today := now.In(easternTime())
 
-	// Backwards from today, because a company that reported before the bell this
-	// morning belongs under what has printed and one reporting tonight does not.
-	// Nasdaq stops supplying the time of day once a date is in the past, so the
-	// presence of an actual EPS is what sorts a row into one half or the other.
-	for i := 0; i < earningsBackDays && len(out.Reported) < earningsShown; i++ {
-		day := today.AddDate(0, 0, -i)
-		rows, ok := earningsDay(ctx, g, day, today, caps)
-		if !ok {
-			continue
-		}
-		for _, r := range rows {
-			if r.Verdict == "" {
-				continue
-			}
-			out.Reported = append(out.Reported, r)
-			if len(out.Reported) == earningsShown {
-				break
-			}
-		}
-	}
-
-	for i := 1; i <= earningsNextDays && len(out.Upcoming) < earningsShown; i++ {
-		day := today.AddDate(0, 0, i)
-		rows, ok := earningsDay(ctx, g, day, today, caps)
-		if !ok {
-			continue
-		}
-		for _, r := range rows {
-			if r.Verdict != "" {
-				continue
-			}
-			out.Upcoming = append(out.Upcoming, r)
-			if len(out.Upcoming) == earningsShown {
-				break
-			}
-		}
-	}
+	// Both walks start on today. Nasdaq stops supplying the time of day once a
+	// date is in the past and only fills in the actual EPS then too, so the
+	// presence of that figure is what sorts a row into one half or the other,
+	// and a company reporting tonight is upcoming until its number lands.
+	day := func(d time.Time) ([]Earning, bool) { return earningsDay(ctx, g, d, today, caps) }
+	out.Reported = walkEarnings(day, today, -1, earningsBackDays, reportedRow)
+	out.Upcoming = walkEarnings(day, today, 1, earningsNextDays, upcomingRow)
 
 	// Today's pre-market names land in Reported ahead of yesterday's, and the
 	// walk visits days newest first, so the halves are already in the order they
@@ -162,6 +133,32 @@ func fetchEarnings(ctx context.Context, g *Guard, now time.Time) (Earnings, erro
 		return Earnings{}, fmt.Errorf("nasdaq: no top %d name reports in the window", earningsRank)
 	}
 	return out, nil
+}
+
+func reportedRow(e Earning) bool { return e.Verdict != "" }
+func upcomingRow(e Earning) bool { return e.Verdict == "" }
+
+// walkEarnings takes rows a day at a time until it has earningsShown of them,
+// stepping forward or back from today. A day that will not fetch costs its own
+// rows and the walk carries on.
+func walkEarnings(day func(time.Time) ([]Earning, bool), today time.Time, step, days int, want func(Earning) bool) []Earning {
+	var out []Earning
+	for i := 0; i < days && len(out) < earningsShown; i++ {
+		rows, ok := day(today.AddDate(0, 0, i*step))
+		if !ok {
+			continue
+		}
+		for _, r := range rows {
+			if !want(r) {
+				continue
+			}
+			out = append(out, r)
+			if len(out) == earningsShown {
+				break
+			}
+		}
+	}
+	return out
 }
 
 // earningsDay is one calendar day filtered to the index names, largest first.
