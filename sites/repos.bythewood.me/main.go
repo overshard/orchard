@@ -170,18 +170,23 @@ func main() {
 	mux.HandleFunc("GET /{name}/tree/{rev}", s.tree)
 	mux.HandleFunc("GET /{name}/tree/{rev}/{path...}", s.tree)
 	mux.HandleFunc("GET /{name}/blob/{rev}/{path...}", s.blob)
-	mux.HandleFunc("GET /{name}/raw/{rev}/{path...}", s.raw)
 
-	mux.HandleFunc("GET /{name}/log", s.log)
-	mux.HandleFunc("GET /{name}/log/{rev}", s.log)
-	mux.HandleFunc("GET /{name}/log/{rev}/{path...}", s.log)
+	// raw, log, commit and archive are the four robots.txt disallows, and they
+	// are rate limited for anyone not signed in. See throttle.go for why.
+	pages, archives := newThrottle(pageLimit), newThrottle(archiveLimit)
 
-	mux.HandleFunc("GET /{name}/commit/{sha}", s.commit)
+	mux.HandleFunc("GET /{name}/raw/{rev}/{path...}", s.limited(pages, s.raw))
+
+	mux.HandleFunc("GET /{name}/log", s.limited(pages, s.log))
+	mux.HandleFunc("GET /{name}/log/{rev}", s.limited(pages, s.log))
+	mux.HandleFunc("GET /{name}/log/{rev}/{path...}", s.limited(pages, s.log))
+
+	mux.HandleFunc("GET /{name}/commit/{sha}", s.limited(pages, s.commit))
 	mux.HandleFunc("GET /{name}/branches", s.refsPage("branches.html"))
 	mux.HandleFunc("GET /{name}/tags", s.refsPage("tags.html"))
 	// The format rides as a file extension so a browser and a shell both get a
 	// usable filename.
-	mux.HandleFunc("GET /{name}/archive/{rev}", s.archive)
+	mux.HandleFunc("GET /{name}/archive/{rev}", s.limited(archives, s.archive))
 	mux.HandleFunc("GET /{name}/atom.xml", s.atom)
 
 	mux.HandleFunc("GET /favicon.ico", favicon)
