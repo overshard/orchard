@@ -79,6 +79,17 @@ func Logged(next http.Handler) http.Handler {
 		// Absent means the request never crossed the tunnel.
 		if ray := r.Header.Get("CF-Ray"); ray != "" {
 			attrs = append(attrs, slog.String("cf_ray", ray))
+			// Only for a request that came in from outside, since the internal
+			// probes and the container to container calls are a third of the
+			// rows and none of them are anybody worth naming.
+			//
+			// A crawler that says who it is can be looked up in a log query. One
+			// that does not leaves only its address, which is how identifying
+			// the crawler that took 200MB off repos on 2026-09-10 came down to
+			// an RDAP lookup on a Dutch hosting range.
+			if ua := r.Header.Get("User-Agent"); ua != "" {
+				attrs = append(attrs, slog.String("ua", truncateUA(ua)))
+			}
 		}
 		slog.Info("request", attrs...)
 	})
@@ -207,3 +218,15 @@ func (w *edgeCacheWriter) Write(b []byte) (int, error) {
 }
 
 func (w *edgeCacheWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+
+// uaMaxLen keeps a user agent to the part that names the client. A browser sends
+// 120 characters of version soup and a crawler puts its name and its url first,
+// and this is stored on every request for the retention window.
+const uaMaxLen = 120
+
+func truncateUA(ua string) string {
+	if len(ua) <= uaMaxLen {
+		return ua
+	}
+	return ua[:uaMaxLen]
+}

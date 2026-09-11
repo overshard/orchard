@@ -1,8 +1,12 @@
 package web
 
 import (
+	"bytes"
+	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"testing/fstest"
 )
@@ -225,5 +229,54 @@ func TestRouteClassIsBoundedAndTotal(t *testing.T) {
 
 	if len(seen) > 5 {
 		t.Errorf("routeClass produced %d values, and it is a rollup key: %v", len(seen), seen)
+	}
+}
+
+// A crawler that names itself can be found with a log query. One that does not
+// leaves only an address, which is what identifying the crawler that took 200MB
+// off repos on 2026-09-10 came down to.
+func TestLoggedRecordsTheUserAgent(t *testing.T) {
+	var rec map[string]any
+	old := slog.Default()
+	defer slog.SetDefault(old)
+
+	var buf bytes.Buffer
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
+
+	h := Logged(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+
+	r := httptest.NewRequest(http.MethodGet, "/orchard", nil)
+	r.Header.Set("CF-Ray", "a391fa8f88bb86ef-IAD")
+	r.Header.Set("User-Agent", "SomeCrawler/1.0 (+https://example.com/bot)")
+	h.ServeHTTP(httptest.NewRecorder(), r)
+	if err := json.Unmarshal(buf.Bytes(), &rec); err != nil {
+		t.Fatalf("log line did not parse: %v", err)
+	}
+	if rec["ua"] != "SomeCrawler/1.0 (+https://example.com/bot)" {
+		t.Errorf("ua = %v", rec["ua"])
+	}
+
+	// A request that never crossed the tunnel is the healthz probe or another
+	// container, and those are a third of the rows and nobody worth naming.
+	buf.Reset()
+	inside := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	inside.Header.Set("User-Agent", "Go-http-client/1.1")
+	h.ServeHTTP(httptest.NewRecorder(), inside)
+	rec = nil
+	_ = json.Unmarshal(buf.Bytes(), &rec)
+	if _, ok := rec["ua"]; ok {
+		t.Errorf("an internal request logged a user agent: %v", rec["ua"])
+	}
+}
+
+// A browser sends a paragraph of version soup and this is stored on every
+// request for the retention window.
+func TestUserAgentIsTruncated(t *testing.T) {
+	long := strings.Repeat("x", uaMaxLen+50)
+	if got := truncateUA(long); len(got) != uaMaxLen {
+		t.Errorf("truncateUA kept %d characters, want %d", len(got), uaMaxLen)
+	}
+	if got := truncateUA("curl/8.5.0"); got != "curl/8.5.0" {
+		t.Errorf("a short agent was changed to %q", got)
 	}
 }
