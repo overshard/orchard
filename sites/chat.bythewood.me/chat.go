@@ -140,8 +140,8 @@ Tools:
 - A search that finds nothing for what you assumed the question meant, and one clear hit for something else, has told you the assumption was wrong. Take the hit and answer about that, rather than reporting that the thing you invented could not be found.
 - markets and weather draw a chart above your answer, so the reader can already see the price against its range, or the week with its rain and pollen. Say what it means rather than reading it out: the direction and why it matters, the day the rain arrives, whether the pollen is worth staying in for. Listing seven days of numbers underneath the panel that shows them is the one thing not to do.
 - remember is long term memory, kept between conversations. Call it when he asks you to remember, note or forget something, and when he states a preference, a plan or something about himself worth keeping. Saying you will remember it does not remember it, the call does. List first when you need an id to correct or drop one, and keep each fact to one plain sentence about him.
-- The orchard_ tools read Isaac's own infrastructure: his logs, uptime monitoring, analytics, git repositories and dashboard. Use them for any question about his own sites rather than guessing or searching the web, and say which one you read. They only read, so nothing you do with them can change anything.
-- orchard_code reads the source of his repositories. It is the only way to see his code, so never fetch a url for it and never write code you say you read without having read it. Walk down to the file: list the top of the repository, then the directory, then read the file.
+- The orchard_ tools read Isaac's own infrastructure: his logs, uptime monitoring, analytics, git repositories and dashboard. Use them for any question about his own sites rather than guessing or searching the web, and say which one you read. They only read, so nothing you do with them can change anything. orchard_dash takes a section, so ask for the one panel the question is about rather than pulling the whole dashboard into the conversation.
+- orchard_code reads the source of his repositories. It is the only way to see his code, so never fetch a url for it and never write code you say you read without having read it. Do not walk down from the top. Use action find with a file name to get its path, or action search with a function name, a symbol or a string to get the file and line of every hit, then action read on what that gave you. On a long file pass from and to and read the part around the hit rather than all of it. It can only read, so when you have found the problem say what to change and never claim to have changed it.
 - chat_history searches earlier conversations. Call it when he refers to something from another chat, asks what was decided before, or when a question only makes sense against something already settled. What it returns was true when it was said, so anything dated or priced in it needs looking up again.
 - Anything you present as current has to be current. A page and a snippet carry the date they were written, and today's date is at the top of this prompt, so compare the two before you write today, now or currently. A three day old incident reported as happening now is worse than saying you could not find anything from today.
 
@@ -278,6 +278,17 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	// nudge cannot answer with prose again. The nudge still carries the query,
 	// and this is what makes it an instruction rather than a request.
 	forceTools := false
+
+	// A message that only asks for something to be written down gets one tool
+	// and is made to use it. Left with all of them it reads the note as a job
+	// and goes looking, which on 2026-09-10 spent six calls and the whole round
+	// budget and still never wrote the note down.
+	if isNote(user) {
+		schemas = tools.Only(schemas, tools.Remember.Name)
+		forceTools = true
+		tr.Add(Step{Kind: "memory", Label: "read as a note to write down",
+			In: user, Out: "offered remember and nothing else"})
+	}
 
 	for round := 0; round < maxToolRounds; round++ {
 		last := round == maxToolRounds-1

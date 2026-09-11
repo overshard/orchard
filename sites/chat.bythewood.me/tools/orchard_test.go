@@ -209,13 +209,17 @@ func TestOrchardCodeReadsAFileAndListsADirectory(t *testing.T) {
 
 	// A path that is neither says so, and says what to do about it, rather
 	// than handing back an empty listing that reads as an empty directory.
+	// Dropping a directory off the front is the commonest mistake here, so the
+	// way out is find with the file name rather than the level above.
 	_, err = OrchardCode.Run(context.Background(), d,
 		map[string]any{"repo": "orchard", "path": "sites/nope/nothing.go"})
 	if err == nil {
 		t.Fatal("a path that does not exist came back as a result")
 	}
-	if !strings.Contains(err.Error(), "list the level above") {
-		t.Errorf("err = %q, want it to say what to do next", err)
+	for _, want := range []string{"action find", "nothing.go"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("err = %q, want it to name %q", err, want)
+		}
 	}
 	_ = asked
 }
@@ -229,5 +233,134 @@ func TestOrchardCodeKeepsPathSeparators(t *testing.T) {
 	}
 	if got := escapePath("a dir/a file.go"); got != "a%20dir/a%20file.go" {
 		t.Errorf("escapePath left a space unescaped: %q", got)
+	}
+}
+
+// The whole dashboard is about six thousand tokens and a question about
+// earnings wants one panel of it, which then sits in the conversation for the
+// rest of it.
+func TestDashSectionTakesOnePanel(t *testing.T) {
+	state := map[string]any{
+		"earnings": map[string]any{"reported": []any{"AVGO"}},
+		"weather":  map[string]any{"temperature": 88},
+		"air":      map[string]any{"aqi": 49},
+	}
+
+	got, err := dashSection(state, "earnings")
+	if err != nil {
+		t.Fatalf("earnings: %v", err)
+	}
+	m, ok := got.(map[string]any)
+	if !ok || m["earnings"] == nil {
+		t.Fatalf("earnings section = %#v", got)
+	}
+	if m["weather"] != nil || m["air"] != nil {
+		t.Error("the other panels came with it")
+	}
+
+	// Empty is the whole thing, which is what it always was.
+	whole, err := dashSection(state, "")
+	if err != nil || len(whole.(map[string]any)) != 3 {
+		t.Errorf("no section = %#v, %v", whole, err)
+	}
+}
+
+// A name that is not there has to say what is, or the next call is another
+// guess at a panel name.
+func TestDashSectionNamesThePanels(t *testing.T) {
+	_, err := dashSection(map[string]any{"earnings": 1, "weather": 2}, "stonks")
+	if err == nil {
+		t.Fatal("a missing panel should be an error")
+	}
+	for _, want := range []string{"earnings", "weather"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q does not name %q", err, want)
+		}
+	}
+}
+
+// find and search are what stop the walk. The Oracle turn listed the
+// repository, listed sites, guessed a path without its prefix and ran out of
+// rounds, so the point of these two is that the first call lands on the file.
+func TestOrchardCodeFindsAndSearches(t *testing.T) {
+	var asked []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		asked = append(asked, r.URL.RequestURI())
+		switch r.URL.Path {
+		case "/api/repos/orchard/find/HEAD":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"paths": []string{"sites/dash.bythewood.me/earnings.go"}, "count": 1})
+		case "/api/repos/orchard/grep/HEAD":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"hits": []map[string]any{{
+					"path": "sites/dash.bythewood.me/earnings.go", "line": 31,
+					"text": "\tearningsShown = 3"}}, "count": 1})
+		default:
+			http.Error(w, `{"error":"no such path"}`, http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+
+	old := reposBase
+	reposBase = srv.URL
+	defer func() { reposBase = old }()
+	d := testDeps(srv.URL).WithSession("a-live-session")
+
+	got, err := OrchardCode.Run(context.Background(), d,
+		map[string]any{"repo": "orchard", "action": "find", "query": "earnings.go"})
+	if err != nil {
+		t.Fatalf("find failed: %v", err)
+	}
+	if m, _ := got.(map[string]any); m["count"] != float64(1) {
+		t.Fatalf("find came back as %#v", got)
+	}
+
+	got, err = OrchardCode.Run(context.Background(), d, map[string]any{
+		"repo": "orchard", "action": "search", "query": "earningsShown", "path": "sites/dash.bythewood.me"})
+	if err != nil {
+		t.Fatalf("search failed: %v", err)
+	}
+	if m, _ := got.(map[string]any); m["count"] != float64(1) {
+		t.Fatalf("search came back as %#v", got)
+	}
+	if !strings.Contains(asked[1], "path=sites") {
+		t.Errorf("the pathspec did not reach the server: %q", asked[1])
+	}
+
+	// A query with no action is a search, since a model that fills the argument
+	// and forgets the verb has still said what it wants.
+	if _, err := OrchardCode.Run(context.Background(), d,
+		map[string]any{"repo": "orchard", "query": "earningsShown"}); err != nil {
+		t.Errorf("a bare query should search: %v", err)
+	}
+	if len(asked) != 3 || !strings.HasPrefix(asked[2], "/api/repos/orchard/grep/") {
+		t.Errorf("a bare query went to %q", asked[len(asked)-1])
+	}
+}
+
+// A long file read whole is context the window pays for until the conversation
+// ends, so the line range has to reach the server.
+func TestOrchardCodeReadsALineRange(t *testing.T) {
+	var asked string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		asked = r.URL.RequestURI()
+		_ = json.NewEncoder(w).Encode(map[string]any{"text": "func walkEarnings(", "from": 140, "to": 160})
+	}))
+	defer srv.Close()
+
+	old := reposBase
+	reposBase = srv.URL
+	defer func() { reposBase = old }()
+	d := testDeps(srv.URL).WithSession("a-live-session")
+
+	if _, err := OrchardCode.Run(context.Background(), d, map[string]any{
+		"repo": "orchard", "action": "read",
+		"path": "sites/dash.bythewood.me/earnings.go", "from": 140, "to": 160}); err != nil {
+		t.Fatalf("range read failed: %v", err)
+	}
+	for _, want := range []string{"from=140", "to=160"} {
+		if !strings.Contains(asked, want) {
+			t.Errorf("asked %q, want %s", asked, want)
+		}
 	}
 }
