@@ -285,3 +285,56 @@ func TestSubjectOfSkipsALiveHeadNoun(t *testing.T) {
 		}
 	}
 }
+
+// A remark is not a subject. The word cap was the only thing between the two,
+// and every one of these is short enough to clear it, so each one reached the
+// snapshot and came back with whatever happened to rank. "That's a crazy high
+// number" fetched the country song "Barefoot and Crazy" and the answer that
+// shipped was about the song.
+func TestSubjectOfSkipsSomebodyTalking(t *testing.T) {
+	for _, q := range []string{
+		"That's a crazy high number",
+		"sorry i wanted total calories",
+		"is there no service that exposes a search for X posts?",
+		"oh it needs redis to run?",
+		"tl;dr https://rmondello.com/2026/09/07/switching-password-managers-2026/",
+		"okay that works",
+		"I think it is wrong",
+		"wow this is a lot",
+	} {
+		if got := subjectOf(q); got != "" {
+			t.Errorf("subjectOf(%q) = %q, want nothing to look up", q, got)
+		}
+	}
+}
+
+// The tightening has to leave a real subject alone, including the three the
+// snapshot is known to resolve and the shapes the head strip handles.
+func TestSubjectOfKeepsARealSubject(t *testing.T) {
+	for q, want := range map[string]string{
+		"what is Nim":                        "Nim",
+		"what is scvmm":                      "scvmm",
+		"what is a b-tree":                   "b-tree",
+		"tell me about PostgreSQL":           "PostgreSQL",
+		"North Korea":                        "North Korea",
+		"yadkin valley":                      "yadkin valley",
+		"what is the capital of france":      "capital of france",
+		"who is the prime minister of japan": "prime minister of japan",
+	} {
+		if got := subjectOf(q); got != want {
+			t.Errorf("subjectOf(%q) = %q, want %q", q, got, want)
+		}
+	}
+}
+
+// "how much" and "how many" carry their own verb, so stripping "how" alone left
+// "much is a keystone crickett" behind, which then tripped the verb check and
+// lost a lookup that should have happened.
+func TestSubjectOfHandlesHowMuch(t *testing.T) {
+	if got := subjectOf("how much is a keystone crickett"); got != "keystone crickett" {
+		t.Errorf("subjectOf = %q, want the rifle", got)
+	}
+	if got := subjectOf("how many people live in Tokyo"); got != "people live in Tokyo" && got != "" {
+		t.Logf("how many reduced to %q", got)
+	}
+}

@@ -29,7 +29,11 @@ import (
 
 // The shapes a question opens with. Stripping one leaves the subject, which is
 // what the wikipedia tool takes, since it refuses a question outright.
-var questionHead = regexp.MustCompile(`(?i)^\s*(what|who|which|where|when|why|how)('?s| is| are| was| were| do| does| did)?\s+|^\s*(tell me about|explain|describe|define)\s+`)
+//
+// "how much" and "how many" carry their own verb, so they are listed ahead of
+// the bare question words or "how" strips alone and leaves "much is a keystone
+// crickett" behind.
+var questionHead = regexp.MustCompile(`(?i)^\s*how\s+(much|many)\s+(is|are|was|were|do|does|did|would|will)?\s*|^\s*(what|who|which|where|when|why|how)('?s| is| are| was| were| do| does| did)?\s+|^\s*(tell me about|explain|describe|define)\s+`)
 
 // Trailing filler left behind once the head is gone, as in "kubernetes for".
 var questionTail = regexp.MustCompile(`(?i)\s+((is|are|was|were)\s+(it|this|that|they|there)|for|about|like|used for|good for|mean|means|work|works)\s*[?.!]*\s*$`)
@@ -46,6 +50,36 @@ var clauseBreak = regexp.MustCompile(`(?i)\s+(and|but|or|so|because|since|which|
 // Past this it is a sentence rather than the name of something, and looking it
 // up returns whatever happened to rank.
 const subjectMaxWords = 5
+
+// A subject is the name of a thing, so a clause is not one however short it is.
+// The word cap was the only thing standing between a remark and a lookup, and a
+// remark under five words sailed through it: "That's a crazy high number" is
+// four once the head strip runs and it fetched the country song "Barefoot and
+// Crazy", which then sat in front of the model and took the whole answer with
+// it. These three say the string is somebody talking rather than a title.
+
+// A pronoun is the giveaway, since a title almost never contains one and a
+// sentence about something almost always does.
+var subjectPronoun = regexp.MustCompile(`(?i)(^|\s)(i|i'?m|i'?ve|you|you'?re|we|we'?re|they|they'?re|he|she|it|it'?s|me|my|your|our|their|its|us|him|her|this|that|that'?s|these|those|thats)($|[\s',.!?])`)
+
+// A finite verb, which makes the string a statement or a question about a thing
+// rather than the thing. "is there no service", "oh it needs redis to run",
+// "sorry i wanted total calories".
+var subjectVerb = regexp.MustCompile(`(?i)(^|\s)(is|are|was|were|be|been|am|do|does|did|has|have|had|can|could|should|would|will|want|wants|wanted|need|needs|needed|think|thinks|thought|said|says|got|get|gets|goes|went|make|makes|made|take|takes|took|seems|looks|feels|means|works|runs|sounds)($|[\s',.!?])`)
+
+// A pasted address, which reduces to itself and is never a title.
+var subjectURL = regexp.MustCompile(`(?i)(^|\s)(https?://|www\.)`)
+
+// What a message opens with when it is a reply rather than a question. The rest
+// of it is a remark about what was just said, so there is no subject in it to
+// find. "tl;dr <url>" is here because the subject of that turn is the page.
+var openingFiller = map[string]bool{
+	"oh": true, "ok": true, "okay": true, "sorry": true, "thanks": true, "thank": true,
+	"yeah": true, "yea": true, "yep": true, "yes": true, "no": true, "nope": true,
+	"hmm": true, "huh": true, "wow": true, "lol": true, "haha": true, "well": true,
+	"also": true, "actually": true, "wait": true, "hey": true, "hi": true, "hello": true,
+	"please": true, "tldr": true, "tl;dr": true, "btw": true, "anyway": true, "right": true,
+}
 
 // subjectOf pulls the thing a question is about out of it, or returns empty
 // when there is not one worth looking up.
@@ -82,6 +116,14 @@ func subjectOf(question string) string {
 	// really about, and "News Corporation" still survives because its head is
 	// the corporation.
 	if f := strings.Fields(l); len(f) > 1 && liveSubject[f[len(f)-1]] {
+		return ""
+	}
+	// Somebody talking rather than the name of a thing. Checked after the maps
+	// so a real one word subject still costs one map lookup and nothing else.
+	if subjectURL.MatchString(s) || subjectPronoun.MatchString(s) || subjectVerb.MatchString(s) {
+		return ""
+	}
+	if f := strings.Fields(l); len(f) > 0 && openingFiller[strings.Trim(f[0], ",.!?:;")] {
 		return ""
 	}
 	return s
