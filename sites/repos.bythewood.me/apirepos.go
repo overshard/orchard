@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -135,10 +136,118 @@ func (s *site) apiFile(w http.ResponseWriter, r *http.Request) {
 		apiError(w, http.StatusUnsupportedMediaType, "that file is binary")
 		return
 	}
-	writeJSON(w, map[string]any{
+
+	lines := strings.Split(string(src), "\n")
+	// A file ending in a newline splits with an empty element after it, which
+	// is not a line. Left in, the count is one too many and a range past the
+	// end clamps onto it and returns nothing.
+	if n := len(lines); n > 1 && lines[n-1] == "" {
+		lines = lines[:n-1]
+	}
+	total := len(lines)
+	from, to := lineRange(r, total)
+	text := strings.Join(lines[from-1:to], "\n")
+	// The trailing newline was split off above so it would not count as a line.
+	// A read that runs to the end of the file gets it back, since a whole file
+	// read has to hand over the file as it is.
+	if to == total && strings.HasSuffix(string(src), "\n") {
+		text += "\n"
+	}
+	body := map[string]any{
 		"repo": repo.Name, "rev": rev, "path": path,
-		"size": size, "lines": strings.Count(string(src), "\n") + 1,
-		"language": languageOf(path), "text": string(src),
+		"size": size, "lines": total,
+		"language": languageOf(path), "text": text,
+	}
+	// Only when a slice was actually taken, so an ordinary whole file read is
+	// the same shape it always was.
+	if from != 1 || to != total {
+		body["from"], body["to"], body["partial"] = from, to, true
+	}
+	writeJSON(w, body)
+}
+
+// lineRange reads from and to off the query, clamped to the file. A reader that
+// wants one function out of a thousand line file should not have to take the
+// thousand lines to get it, and on the other end of this the whole file is
+// context that a small window pays for.
+func lineRange(r *http.Request, total int) (int, int) {
+	from := queryInt(r, "from", 1)
+	to := queryInt(r, "to", total)
+	if from < 1 {
+		from = 1
+	}
+	if to > total || to < 1 {
+		to = total
+	}
+	if from > total {
+		from = total
+	}
+	if to < from {
+		to = from
+	}
+	return from, to
+}
+
+func queryInt(r *http.Request, key string, fallback int) int {
+	v := strings.TrimSpace(r.URL.Query().Get(key))
+	if v == "" {
+		return fallback
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return fallback
+	}
+	return n
+}
+
+// apiGrep searches file contents. The pathspec is how a question about one site
+// stays inside it rather than reading the other ten.
+func (s *site) apiGrep(w http.ResponseWriter, r *http.Request) {
+	repo, rev, ok := s.apiResolve(w, r)
+	if !ok {
+		return
+	}
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	if q == "" {
+		apiError(w, http.StatusBadRequest, "q is required")
+		return
+	}
+	hits, more, err := s.store.Grep(r.Context(), repo, rev, q,
+		r.URL.Query().Get("path"), queryInt(r, "max", 0))
+	if err != nil {
+		slog.Error("grep repo", slog.String("repo", repo.Name), slog.Any("err", err))
+		apiError(w, http.StatusInternalServerError, "that search could not run")
+		return
+	}
+	if hits == nil {
+		hits = []GrepHit{}
+	}
+	writeJSON(w, map[string]any{
+		"repo": repo.Name, "rev": rev, "query": q,
+		"hits": hits, "count": len(hits), "truncated": more,
+	})
+}
+
+// apiFind matches on the path rather than the contents, which is the call that
+// turns a file name into a full path without walking a single directory.
+func (s *site) apiFind(w http.ResponseWriter, r *http.Request) {
+	repo, rev, ok := s.apiResolve(w, r)
+	if !ok {
+		return
+	}
+	paths, more, err := s.store.FindPaths(r.Context(), repo, rev,
+		r.URL.Query().Get("q"), queryInt(r, "max", 0))
+	if err != nil {
+		slog.Error("find paths", slog.String("repo", repo.Name), slog.Any("err", err))
+		apiError(w, http.StatusInternalServerError, "that listing could not run")
+		return
+	}
+	if paths == nil {
+		paths = []string{}
+	}
+	writeJSON(w, map[string]any{
+		"repo": repo.Name, "rev": rev, "query": strings.TrimSpace(r.URL.Query().Get("q")),
+		"paths": paths, "count": len(paths), "truncated": more,
 	})
 }
 

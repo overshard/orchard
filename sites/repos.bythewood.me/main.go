@@ -155,6 +155,8 @@ func main() {
 	mux.HandleFunc("GET /api/repos/{name}/tree/{rev}", s.auth.RequireAuthJSON(s.apiTree))
 	mux.HandleFunc("GET /api/repos/{name}/tree/{rev}/{path...}", s.auth.RequireAuthJSON(s.apiTree))
 	mux.HandleFunc("GET /api/repos/{name}/file/{rev}/{path...}", s.auth.RequireAuthJSON(s.apiFile))
+	mux.HandleFunc("GET /api/repos/{name}/grep/{rev}", s.auth.RequireAuthJSON(s.apiGrep))
+	mux.HandleFunc("GET /api/repos/{name}/find/{rev}", s.auth.RequireAuthJSON(s.apiFind))
 	mux.HandleFunc("POST /settings/tokens", s.requireLogin(s.createToken))
 	mux.HandleFunc("POST /settings/tokens/{id}/revoke", s.requireLogin(s.revokeToken))
 	mux.HandleFunc("POST /settings/mirrors", s.requireLogin(s.addMirrorSource))
