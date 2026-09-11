@@ -20,6 +20,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -170,17 +171,33 @@ var OrchardRepos = Tool{
 // ended the same way, with the model guessing raw addresses on repos and
 // github, collecting 404s, and eventually writing a file it said it had read.
 // Nine of the seventeen failed fetches on 2026-09-08 were that.
+//
+// Listing and reading alone were not enough either. Asked on 2026-09-10 why dash
+// was not showing Oracle, it listed the repository, listed sites, guessed
+// "dash.bythewood.me" without the prefix, ran out of rounds on the error and
+// answered with a guess that was wrong. Four rounds of walking never reached a
+// line of code. find and search are there so the first call lands on the file.
 var OrchardCode = Tool{
 	Name: "orchard_code",
-	Description: "Read the actual source of one of Isaac's repositories on repos.bythewood.me. " +
-		"Leave path empty to list the top of the repository, give a directory to list it, or give " +
-		"a file to read it. Use this for any question about how his own code works, and walk down " +
-		"to the file rather than guessing a path. Never guess a url for his code and never fetch " +
-		"one, this is the only way in. Read only.",
+	Description: "Read the source of one of Isaac's repositories on repos.bythewood.me, read only, " +
+		"and it can never change anything. Four actions: find locates a file by name anywhere in " +
+		"the repository, search finds a string inside the files and gives the path and line of each " +
+		"hit, read returns one file, list shows one directory. Start with find or search rather " +
+		"than walking down from the top, since a name or a symbol gets there in one call. On a long " +
+		"file read the lines around a hit with from and to instead of the whole thing. Never guess " +
+		"a url for his code and never fetch one, this is the only way in.",
 	Schema: obj(map[string]any{
 		"repo": str("the repository name, as orchard_repos lists it"),
-		"path": str("a directory to list or a file to read, empty for the top level"),
-		"rev":  str("a branch, tag or commit, optional, defaults to the default branch"),
+		"action": map[string]any{
+			"type":        "string",
+			"enum":        []string{"find", "search", "read", "list"},
+			"description": "find a file by name, search file contents, read a file, or list a directory",
+		},
+		"query": str("for find, part of a file name such as earnings.go; for search, the exact text to look for such as a function name"),
+		"path":  str("for read and list, the full path; for find and search, an optional directory to stay inside"),
+		"from":  integer("for read, the first line to return, optional"),
+		"to":    integer("for read, the last line to return, optional"),
+		"rev":   str("a branch, tag or commit, optional, defaults to the default branch"),
 	}, "repo"),
 	Run: func(ctx context.Context, d *Deps, a map[string]any) (any, error) {
 		repo := strings.Trim(strings.TrimSpace(argStr(a, "repo")), "/")
@@ -192,37 +209,92 @@ var OrchardCode = Tool{
 			rev = "HEAD"
 		}
 		path := strings.Trim(strings.TrimSpace(argStr(a, "path")), "/")
-
-		// A path with no dot in its last segment is a directory far more often
-		// than not, but guessing wrong either way costs a call, so the file
-		// read is tried first and a miss falls through to the listing. That way
-		// an extensionless file still reads and a directory still lists.
+		query := strings.TrimSpace(argStr(a, "query"))
 		base := reposBase + "/api/repos/" + url.PathEscape(repo)
-		if path != "" {
-			var file map[string]any
-			err := estateGet(ctx, d, base+"/file/"+url.PathEscape(rev)+"/"+escapePath(path), &file)
-			if err == nil {
-				return file, nil
+
+		// The action is what the model said it wants, but a call naming one
+		// thing and asking for another is common enough that the arguments
+		// decide when they disagree. A query with no action is a search.
+		switch action := strings.ToLower(strings.TrimSpace(argStr(a, "action"))); {
+		case action == "find":
+			q := url.Values{}
+			q.Set("q", query)
+			var out map[string]any
+			err := estateGet(ctx, d, base+"/find/"+url.PathEscape(rev)+"?"+q.Encode(), &out)
+			return out, err
+
+		case action == "search" || (action == "" && query != ""):
+			if query == "" {
+				return nil, fmt.Errorf("search needs a query, which is the text to look for")
 			}
-			// Only a missing file falls through. A refused session or a binary
-			// file is the answer, and listing the directory would bury it.
-			if !errors.Is(err, errEstateMissing) {
-				return nil, err
+			q := url.Values{}
+			q.Set("q", query)
+			if path != "" {
+				q.Set("path", path)
 			}
+			var out map[string]any
+			err := estateGet(ctx, d, base+"/grep/"+url.PathEscape(rev)+"?"+q.Encode(), &out)
+			return out, err
 		}
-		treeURL := base + "/tree/" + url.PathEscape(rev)
-		if path != "" {
-			treeURL += "/" + escapePath(path)
-		}
-		var tree map[string]any
-		if err := estateGet(ctx, d, treeURL, &tree); err != nil {
-			if path == "" {
-				return nil, err
-			}
-			return nil, fmt.Errorf("%s has no file or directory at %q, so list the level above it first", repo, path)
-		}
-		return tree, nil
+
+		return orchardWalk(ctx, d, base, repo, rev, path, a)
 	},
+}
+
+// orchardWalk is read and list, which are one call because a path with no dot in
+// its last segment is a directory far more often than not and guessing wrong
+// either way costs a round. The file read is tried first and a miss falls
+// through to the listing, so an extensionless file still reads and a directory
+// still lists.
+func orchardWalk(ctx context.Context, d *Deps, base, repo, rev, path string, a map[string]any) (any, error) {
+	if path != "" {
+		q := url.Values{}
+		if from := int(argNum(a, "from", 0)); from > 0 {
+			q.Set("from", strconv.Itoa(from))
+		}
+		if to := int(argNum(a, "to", 0)); to > 0 {
+			q.Set("to", strconv.Itoa(to))
+		}
+		fileURL := base + "/file/" + url.PathEscape(rev) + "/" + escapePath(path)
+		if len(q) > 0 {
+			fileURL += "?" + q.Encode()
+		}
+		var file map[string]any
+		err := estateGet(ctx, d, fileURL, &file)
+		if err == nil {
+			return file, nil
+		}
+		// Only a missing file falls through. A refused session or a binary
+		// file is the answer, and listing the directory would bury it.
+		if !errors.Is(err, errEstateMissing) {
+			return nil, err
+		}
+	}
+	treeURL := base + "/tree/" + url.PathEscape(rev)
+	if path != "" {
+		treeURL += "/" + escapePath(path)
+	}
+	var tree map[string]any
+	if err := estateGet(ctx, d, treeURL, &tree); err != nil {
+		if path == "" {
+			return nil, err
+		}
+		// A wrong path used to end the turn. It is the commonest mistake there
+		// is here, the model drops a directory from the front, so the error
+		// carries the way out rather than the level above.
+		return nil, fmt.Errorf("%s has no file or directory at %q. Call again with "+
+			"action find and query %q to get its real path", repo, path, lastSegment(path))
+	}
+	return tree, nil
+}
+
+// lastSegment is what to hand find when a path was wrong, since the file name is
+// the part the model usually has right.
+func lastSegment(p string) string {
+	if i := strings.LastIndexByte(p, '/'); i >= 0 && i+1 < len(p) {
+		return p[i+1:]
+	}
+	return p
 }
 
 // escapePath escapes each segment and keeps the separators, since the whole
@@ -241,10 +313,13 @@ func escapePath(p string) string {
 
 var OrchardDash = Tool{
 	Name: "orchard_dash",
-	Description: "Read Isaac's dashboard at dash.bythewood.me in one call: markets, Hacker News, " +
-		"Lobsters, the weather, upcoming earnings, and whether each of his sites is answering. Use it " +
-		"when a question spans several of those rather than calling each tool separately. Read only.",
-	Schema: obj(map[string]any{}),
+	Description: "Read Isaac's dashboard at dash.bythewood.me: markets, Hacker News, Lobsters, the " +
+		"weather, earnings, and whether each of his sites is answering. Pass section to get one " +
+		"panel, which is almost always what a question wants, and leave it empty only when the " +
+		"question really does span most of the dashboard. Read only.",
+	Schema: obj(map[string]any{
+		"section": str("one panel, such as earnings, markets or weather. Call once with it empty to see the names"),
+	}),
 	Run: func(ctx context.Context, d *Deps, a map[string]any) (any, error) {
 		var out any
 		// dash publishes this without a session, since the page it feeds has no
@@ -261,7 +336,35 @@ var OrchardDash = Tool{
 		if resp.StatusCode >= 400 {
 			return nil, fmt.Errorf("dash answered %d", resp.StatusCode)
 		}
-		err = json.NewDecoder(io.LimitReader(resp.Body, 8<<20)).Decode(&out)
-		return out, err
+		if err := json.NewDecoder(io.LimitReader(resp.Body, 8<<20)).Decode(&out); err != nil {
+			return nil, err
+		}
+		return dashSection(out, argStr(a, "section"))
 	},
+}
+
+// dashSection picks one panel out of the state. The whole thing is about six
+// thousand tokens of a sixty four thousand token window, and a question about
+// earnings was paying for the air quality, the alerts, the store listings and
+// everything else to sit in the context for the rest of the conversation.
+//
+// A name that is not there returns the list rather than an error, since the
+// names are the state's own keys and nothing here should have to keep a copy of
+// them in step.
+func dashSection(state any, section string) (any, error) {
+	section = strings.ToLower(strings.TrimSpace(section))
+	m, ok := state.(map[string]any)
+	if section == "" || !ok {
+		return state, nil
+	}
+	if v, ok := m[section]; ok {
+		return map[string]any{"section": section, section: v}, nil
+	}
+	names := make([]string, 0, len(m))
+	for k := range m {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	return nil, fmt.Errorf("dash has no %q panel. The panels are: %s",
+		section, strings.Join(names, ", "))
 }

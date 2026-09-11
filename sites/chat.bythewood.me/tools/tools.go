@@ -512,3 +512,17 @@ func num(desc string) map[string]any { return map[string]any{"type": "number", "
 func integer(desc string) map[string]any {
 	return map[string]any{"type": "integer", "description": desc}
 }
+
+// Only narrows an offer to one tool. Without drops the one thing a turn must
+// not do again; this is the other end of it, for a turn where there is exactly
+// one thing to do and every other tool is a way to get lost.
+func Only(schemas []map[string]any, name string) []map[string]any {
+	for _, s := range schemas {
+		if fn, ok := s["function"].(map[string]any); ok {
+			if n, _ := fn["name"].(string); n == name {
+				return []map[string]any{s}
+			}
+		}
+	}
+	return nil
+}
