@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{if .Title}}{{.Title}} &middot; {{end}}{{.SiteName}}</title>
 {{if .Description}}<meta name="description" content="{{.Description}}">{{end}}
-{{if .Staging}}<meta name="robots" content="noindex, nofollow">{{end}}
+<!-- Not a public site. Unconditional, not staging only: a search engine
+     holding a copy of this is a thing nobody asked for. -->
+<meta name="robots" content="noindex, nofollow">
 <link rel="canonical" href="{{.Canonical}}">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 {{range .Styles}}<link rel="stylesheet" href="{{.}}">{{end}}

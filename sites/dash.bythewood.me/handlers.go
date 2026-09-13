@@ -191,14 +191,9 @@ func (s *site) notFound(w http.ResponseWriter, r *http.Request) {
 
 func robots(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	body := "User-agent: *\nDisallow: /\n"
-	if !Staging {
-		// /events is a connection a crawler would hold open until it timed out,
-		// and /api/state is the same page as JSON.
-		body = "User-agent: *\nDisallow: /events\nDisallow: /api/\nAllow: /\n" +
-			"Sitemap: " + baseURL + "/sitemap.xml\n"
-	}
-	_, _ = w.Write([]byte(body))
+	// Public in the sense that it has no login, and not in the sense that it is
+	// for anybody else. Nothing on it wants to be in a search result.
+	_, _ = w.Write([]byte("User-agent: *\nDisallow: /\n"))
 }
 
 func sitemap(w http.ResponseWriter, r *http.Request) {
