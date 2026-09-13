@@ -1,0 +1,23 @@
+{
+  "//": "Crime and the settled neighbourhood measures, which are the two scored area factors. Population and the published composition are fetched live from the census and do not go here. Copy this to data/area.json and fill it in, or leave it out and those two factors will say they have no figures rather than invent one. Keyed by county, lowercase.",
+
+  "//crime": "Reported offences per thousand residents per year. Violent and property are kept apart because they weigh differently to a family: one is whether you are safe and the other is whether the shed gets emptied. Sources worth using are the FBI Crime Data Explorer county tables and the NC SBI annual report.",
+
+  "//community": "From the census. Owner occupied share, share of homes sitting empty, and share of households with children under 18 in them.",
+
+  "alexander": {
+    "name": "Alexander County",
+    "level": "county",
+    "source": "fill in where these came from and when",
+    "violent_per_1k": 0,
+    "property_per_1k": 0,
+    "crime_source": "",
+    "crime_year": 0,
+    "owner_occupied_pct": 0,
+    "vacancy_pct": 0,
+    "with_children_pct": 0,
+    "median_income": 0,
+    "median_age": 0,
+    "religion": []
+  }
+}

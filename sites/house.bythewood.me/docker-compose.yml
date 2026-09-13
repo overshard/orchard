@@ -1,0 +1,49 @@
+name: orchard-house
+
+# No published ports. Traffic arrives through cloudflared to Caddy on the shared
+# network. State is a named volume, not a bind mount: the Docker CLI here talks to
+# Docker Desktop, which mounts a /home/dev path empty instead of erroring.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: orchard-house
+    restart: unless-stopped
+    # Longer than Docker's 10s default, because shutdown drains the log shipper
+    # queue and commits what the writer holds.
+    stop_grace_period: 30s
+    env_file: .env
+    volumes:
+      - data:/data
+    # A ceiling to fail against rather than a target, since this machine is also a
+    # workstation. The cached photo set is the only thing here that grows.
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 384M
+    healthcheck:
+      test: ["CMD", "/app", "-healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks: [edge]
+
+volumes:
+  data:
+    name: orchard-house-data
+
+networks:
+  edge:
+    name: orchard-edge
+    external: true

@@ -43,7 +43,7 @@ CONTAINER=orchard-ntfy
 READER=isaac
 WRITER=orchard
 AUTH_WRITER=orchard-auth
-ALERT_TOPICS="status logging"
+ALERT_TOPICS="status logging house"
 AUTH_TOPIC="auth"
 TOPICS="$ALERT_TOPICS $AUTH_TOPIC"
 

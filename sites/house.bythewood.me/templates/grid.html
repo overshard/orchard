@@ -1,0 +1,79 @@
+{{define "content"}}
+{{$cfg := .Config}}
+
+<section class="ask">
+  <h1>What about this one?</h1>
+  <p class="sub">
+    Paste an address from anywhere, add what they are asking, and we will work out
+    what it would actually mean for us.
+  </p>
+
+  <form method="post" action="/check">
+    <div class="row">
+      <label class="field">Address
+        <input type="text" name="address" required autocomplete="off"
+               placeholder="118 Marchbank Rd, Taylorsville NC">
+      </label>
+      <label class="field">Asking price
+        <input type="text" name="price" inputmode="numeric" placeholder="$250,000">
+      </label>
+      <button class="btn primary" type="submit">Check it</button>
+    </div>
+
+    <details class="more">
+      <summary>Add what the listing says (all optional)</summary>
+      <div class="fields">
+        <label class="field">Beds<input type="text" name="beds" inputmode="decimal"></label>
+        <label class="field">Baths<input type="text" name="baths" inputmode="decimal"></label>
+        <label class="field">Sq ft<input type="text" name="sqft" inputmode="numeric"></label>
+        <label class="field">Year built<input type="text" name="year" inputmode="numeric"></label>
+        <label class="field">Acres<input type="text" name="acres" inputmode="decimal"></label>
+        <label class="field">Style<input type="text" name="style" placeholder="Ranch"></label>
+        <label class="field">Link<input type="text" name="url" placeholder="https://"></label>
+        <label class="field">Notes from the listing<input type="text" name="remarks"></label>
+      </div>
+    </details>
+  </form>
+
+  <p class="hint">
+    The county fills in the lot size and what it is valued at, so acres is only worth
+    typing if you disagree with them. Everything else we work out ourselves.
+  </p>
+</section>
+
+<nav class="tabs">
+  {{range .Views}}
+    <a href="/?view={{.Key}}" class="tab{{if .On}} on{{end}}">
+      {{.Label}}{{if .Count}} <span class="n">{{num .Count}}</span>{{end}}
+    </a>
+  {{end}}
+</nav>
+
+{{if .Cards}}
+  <div class="gridbar">
+    <p class="tally">
+      {{num .Summary.Shown}} {{if eq .Summary.Shown 1}}house{{else}}houses{{end}} here{{if .Summary.NewToday}}, {{num .Summary.NewToday}} new today{{end}}{{if .Summary.BestScore}}, best scores {{round .Summary.BestScore}}{{end}}{{if .Summary.UnderTarget}}, {{num .Summary.UnderTarget}} inside what we want to pay{{end}}.
+    </p>
+    {{if gt (len .Sorts) 1}}
+    <form class="sortbar" method="get" action="/">
+      <input type="hidden" name="view" value="{{.View}}">
+      <label class="field">Order
+        <select name="sort" onchange="this.form.submit()">
+          {{range .Sorts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}
+        </select>
+      </label>
+      <noscript><button class="btn btn-sm" type="submit">Sort</button></noscript>
+    </form>
+    {{end}}
+  </div>
+
+  <div class="grid">
+    {{range .Cards}}{{template "card" (cardCtx $cfg .)}}{{end}}
+  </div>
+{{else}}
+  <div class="empty">
+    <p>Nothing here yet.</p>
+    <p class="faint">Paste an address up top and it will show up in this list.</p>
+  </div>
+{{end}}
+{{end}}
