@@ -415,9 +415,22 @@ jitter, keeps a hard per-window budget, honours 429 and 503 and both formats of
 Retry-After, and trips a breaker whose state is a row in SQLite rather than
 memory, so a restart does not hand a struggling service a fresh round. The backoff
 doubles on each reopen from ten minutes to a ceiling of eight hours, and one clean
-answer forgives the history. The footer shows the state of all of them, and the
-refresh button has a five minute cooldown because every answer a run collects is
-cached anyway.
+answer forgives the history. The footer names all of them in plain words and says
+which are resting.
+
+**There is no refresh button, and that is deliberate.** The instinct when a page
+looks wrong is to press it again, which is how a home user gets their IP blocked
+by somebody's free service. A report that came up short finishes itself instead: a
+background mender walks the listings with gaps every few minutes, skips any whose
+guard is still resting, and re-runs the assessment, and everything already
+answered comes out of the cache so only the missing part costs a request.
+
+**A lookup that failed must never lower a score.** A failed lookup says nothing
+about the house, so the factor is marked unknown, left out of the total, and the
+report says what fraction of the house it was scored on. Getting this wrong is
+easy and silent: a distance of "not found" reads as nothing nearby, a zero-valued
+struct reads as standing in a creek, and a half mark reads as average. All three
+have happened here.
 
 **The front door is an address box, not a listing feed.** Paste an address and an
 asking price and everything else comes from public records: NC OneMap's statewide
