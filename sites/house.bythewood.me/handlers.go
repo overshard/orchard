@@ -70,12 +70,16 @@ type gridSummary struct {
 
 type detailPage struct {
 	PageData
-	Card    Card
-	DPA     Monthly
-	Base    Monthly
-	Groups  []factorGroup
-	Running bool
-	Missing []SourceState
+	// Whether the reader is the household or somebody who was handed a link. The
+	// controls are the difference, and the page has to know before it renders
+	// them rather than letting a button 401 on the way out.
+	SignedIn bool
+	Card     Card
+	DPA      Monthly
+	Base     Monthly
+	Groups   []factorGroup
+	Running  bool
+	Missing  []SourceState
 }
 
 // factorGroup is the band a set of factors renders under, so the report says
@@ -174,7 +178,10 @@ func (s *site) page(r *http.Request, title, description string) PageData {
 		Counties: counties,
 		LastRun:  run,
 		HaveRun:  haveRun,
-		Guards:   guards,
+		// Which of somebody else's servers are answering is the household's
+		// business, not a visitor's. A shared report shows the house and nothing
+		// about the machinery behind it.
+		Guards: guardsFor(s.auth.Authenticated(r), guards),
 	}
 }
 
@@ -267,7 +274,7 @@ func viewTitle(view string) string {
 }
 
 func (s *site) detail(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	id, err := listingIDFor(r.Context(), s.db, r.PathValue("id"))
 	if err != nil {
 		s.notFound(w, r)
 		return
@@ -291,10 +298,11 @@ func (s *site) detail(w http.ResponseWriter, r *http.Request) {
 		// The same inputs the card's figure was computed from, or the tile and the
 		// table below it disagree by whatever the listing's own tax bill differs
 		// from the county rate.
-		Base:    s.cfg.Money.Estimate(card.Price, card.TaxAnnual, card.HOAMonthly, card.County, card.City, false),
-		DPA:     s.cfg.Money.Estimate(card.Price, card.TaxAnnual, card.HOAMonthly, card.County, card.City, true),
-		Groups:  groupFactors(s.cfg, card.Breakdown),
-		Running: s.refresher.Running(id),
+		Base:     s.cfg.Money.Estimate(card.Price, card.TaxAnnual, card.HOAMonthly, card.County, card.City, false),
+		DPA:      s.cfg.Money.Estimate(card.Price, card.TaxAnnual, card.HOAMonthly, card.County, card.City, true),
+		Groups:   groupFactors(s.cfg, card.Breakdown),
+		Running:  s.refresher.Running(id),
+		SignedIn: s.auth.Authenticated(r),
 	}
 	// A run can finish with a source that never answered, and saying so beats a
 	// report that quietly scores a missing fact as a middling one.
@@ -354,9 +362,9 @@ func (s *site) check(w http.ResponseWriter, r *http.Request) {
 // verdict records a thumbs up or down and a note. It answers JSON because the
 // card does it without leaving the grid, which matters on a phone.
 func (s *site) verdict(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	id, err := listingIDFor(r.Context(), s.db, r.PathValue("id"))
 	if err != nil {
-		http.Error(w, "bad id", http.StatusBadRequest)
+		http.Error(w, "no such listing", http.StatusNotFound)
 		return
 	}
 	if err := r.ParseForm(); err != nil {
@@ -389,9 +397,9 @@ func (s *site) verdict(w http.ResponseWriter, r *http.Request) {
 // a trace. Every table keyed to the listing cascades, and the cached photo files
 // are not in the database so they are swept separately.
 func (s *site) remove(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	id, err := listingIDFor(r.Context(), s.db, r.PathValue("id"))
 	if err != nil {
-		http.Error(w, "bad id", http.StatusBadRequest)
+		http.Error(w, "no such listing", http.StatusNotFound)
 		return
 	}
 
@@ -419,9 +427,9 @@ func (s *site) remove(w http.ResponseWriter, r *http.Request) {
 // already on disk, because a spinner that says nothing for a minute reads as
 // broken.
 func (s *site) status(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	id, err := listingIDFor(r.Context(), s.db, r.PathValue("id"))
 	if err != nil {
-		http.Error(w, "bad id", http.StatusBadRequest)
+		http.Error(w, "no such listing", http.StatusNotFound)
 		return
 	}
 
@@ -455,7 +463,7 @@ func (s *site) status(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *site) photo(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	id, err := listingIDFor(r.Context(), s.db, r.PathValue("id"))
 	if err != nil {
 		http.NotFound(w, r)
 		return
@@ -496,4 +504,11 @@ func firstOf(v, fallback string) string {
 		return fallback
 	}
 	return v
+}
+
+func guardsFor(signedIn bool, g []GuardStatus) []GuardStatus {
+	if !signedIn {
+		return nil
+	}
+	return g
 }

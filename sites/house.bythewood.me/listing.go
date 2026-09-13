@@ -116,16 +116,20 @@ func Upsert(ctx context.Context, db *sql.DB, l Listing, now time.Time) (id int64
 	}
 
 	if id == 0 {
+		pid, err := newPublicID()
+		if err != nil {
+			return 0, false, false, err
+		}
 		res, err := db.ExecContext(ctx, `
 			INSERT INTO listings (mls, source, address, city, state, zip, county, lat, lon,
 				price, beds, baths, sqft, acres, year_built, style, property_type,
 				hoa_monthly, tax_annual, days_on_market, status, listing_url, remarks,
-				first_seen, last_seen)
-			VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+				first_seen, last_seen, public_id)
+			VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 			l.MLS, l.Source, l.Address, l.City, l.State, l.Zip, l.County, nullF(l.Lat), nullF(l.Lon),
 			l.Price, nullF(l.Beds), nullF(l.Baths), nullI(l.SqFt), nullF(l.Acres), nullI(l.YearBuilt),
 			l.Style, l.PropertyType, l.HOAMonthly, l.TaxAnnual, l.DaysOnMarket, l.Status, l.URL, l.Remarks,
-			ts, ts)
+			ts, ts, pid)
 		if err != nil {
 			return 0, false, false, fmt.Errorf("insert listing: %w", err)
 		}

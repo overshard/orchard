@@ -1,7 +1,9 @@
 package main
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -45,7 +47,12 @@ CREATE TABLE IF NOT EXISTS listings (
     remarks       TEXT,
     first_seen    INTEGER NOT NULL,
     last_seen     INTEGER NOT NULL,
-    gone_at       INTEGER
+    gone_at       INTEGER,
+    -- What a URL says. The row id stays the integer every foreign key here
+    -- points at, and this is the only thing a link ever carries, so a report can
+    -- be handed to somebody without also handing them every other report by
+    -- counting up from one.
+    public_id     TEXT
 );
 CREATE UNIQUE INDEX IF NOT EXISTS listings_mls ON listings(mls) WHERE mls IS NOT NULL AND mls != '';
 CREATE INDEX IF NOT EXISTS listings_addr ON listings(address, zip);
@@ -257,6 +264,16 @@ func openDB(path string) (*sql.DB, error) {
 	if err := addMissingColumns(db); err != nil {
 		return nil, err
 	}
+	// The index is created here rather than in the schema above, because that block
+	// runs before the column migration and an existing database has no such column
+	// yet, which fails the whole apply.
+	if _, err := db.Exec(
+		`CREATE UNIQUE INDEX IF NOT EXISTS listings_public ON listings(public_id) WHERE public_id IS NOT NULL`); err != nil {
+		return nil, err
+	}
+	if err := fillPublicIDs(db); err != nil {
+		return nil, err
+	}
 	return db, nil
 }
 
@@ -297,6 +314,7 @@ var addedColumns = []struct{ table, column, decl string }{
 	{"facts", "land_value", "REAL"},
 	{"facts", "acres_from", "TEXT"},
 	{"facts", "parcel_address", "TEXT"},
+	{"listings", "public_id", "TEXT"},
 	{"facts", "value_json", "TEXT"},
 	{"facts", "parcel_lat", "REAL"},
 	{"facts", "parcel_lon", "REAL"},
@@ -336,4 +354,53 @@ func hasColumn(db *sql.DB, table, column string) (bool, error) {
 		}
 	}
 	return false, rows.Err()
+}
+
+// newPublicID is the token a shared link carries. Sixteen random bytes as hex,
+// laid out like a UUID so it reads as an opaque identifier rather than something
+// worth editing. Guessing one is not a thing anybody is going to do.
+func newPublicID() (string, error) {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return "", err
+	}
+	// Version and variant bits, so it is a well formed v4 rather than something
+	// that merely looks like one.
+	b[6] = (b[6] & 0x0f) | 0x40
+	b[8] = (b[8] & 0x3f) | 0x80
+	h := hex.EncodeToString(b[:])
+	return h[0:8] + "-" + h[8:12] + "-" + h[12:16] + "-" + h[16:20] + "-" + h[20:], nil
+}
+
+// fillPublicIDs gives a token to every row that predates the column, so an
+// existing database keeps working and its links stop being a row number.
+func fillPublicIDs(db *sql.DB) error {
+	rows, err := db.Query(`SELECT id FROM listings WHERE public_id IS NULL OR public_id = ''`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	for _, id := range ids {
+		pid, err := newPublicID()
+		if err != nil {
+			return err
+		}
+		if _, err := db.Exec(`UPDATE listings SET public_id = ? WHERE id = ?`, pid, id); err != nil {
+			return err
+		}
+	}
+	return nil
 }
