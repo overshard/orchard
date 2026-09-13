@@ -49,11 +49,10 @@ func favicon(w http.ResponseWriter, r *http.Request) {
 // noindex tag too, since a meta tag is only read if the crawler fetches at all.
 func robots(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	if Staging {
-		_, _ = w.Write([]byte("User-agent: *\nDisallow: /\n"))
-		return
-	}
-	_, _ = w.Write([]byte("User-agent: *\nAllow: /\nDisallow: /overview\nDisallow: /sources/\nDisallow: /search\nSitemap: " + baseURL + "/sitemap.xml\n"))
+	// Nothing here is for a stranger, so the crawl is refused in production as
+	// well as on staging. Both this and the noindex meta tag are needed: a crawler
+	// that obeys robots.txt never fetches the page to see the tag.
+	_, _ = w.Write([]byte("User-agent: *\nDisallow: /\n"))
 }
 
 // sitemap lists the two public pages; everything behind the login is absent.

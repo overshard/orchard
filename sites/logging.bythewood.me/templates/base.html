@@ -11,7 +11,9 @@
        refuses the index, because either alone has a hole: a crawler that
        ignores robots.txt still sees the meta tag, and one that obeys it never
        fetches the page to read the tag. */}}
-  {{ if .Staging }}<meta name="robots" content="noindex, nofollow">{{ end }}
+  <!-- Not a public site. Unconditional, not staging only: a search engine
+       holding a copy of this is a thing nobody asked for. -->
+  <meta name="robots" content="noindex, nofollow">
   <link rel="icon" type="image/svg+xml" href="/favicon.ico">
 
   {{ if .JSONLD }}<script type="application/ld+json">{{ .JSONLD }}</script>{{ end }}

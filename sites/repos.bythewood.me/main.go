@@ -261,25 +261,10 @@ func staticRouter(dist fs.FS, assets *web.Assets, next http.Handler) http.Handle
 
 func robots(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	if Staging {
-		_, _ = w.Write([]byte("User-agent: *\nDisallow: /\n"))
-		return
-	}
-	// A crawler walking every blob at every revision is one git subprocess per
-	// request, and a repository page already costs about eleven. Every route
-	// below the repository name carries the name as its first segment, so these
-	// need the wildcard: a bare "/raw/" matches nothing this site serves.
-	//
-	// tree and blob stay open, since the browse UI is the point of the site.
-	// raw, archive, commit and log are the expensive ones nobody searches for.
-	_, _ = fmt.Fprint(w, "User-agent: *\n"+
-		"Disallow: /*/raw/\n"+
-		"Disallow: /*/archive/\n"+
-		"Disallow: /*/commit/\n"+
-		"Disallow: /*/log\n"+
-		"Disallow: /settings\n"+
-		"Disallow: /login\n"+
-		"Crawl-delay: 10\n")
+	// A mirror of a GitHub account, for one person. There is nothing here a search
+	// engine should hold a copy of, and a crawler walking every blob at every
+	// revision is one git subprocess per request.
+	_, _ = w.Write([]byte("User-agent: *\nDisallow: /\n"))
 }
 
 func favicon(w http.ResponseWriter, r *http.Request) {
