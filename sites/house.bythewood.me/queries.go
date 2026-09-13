@@ -12,15 +12,17 @@ import (
 // The read side. One row type feeds the grid, the detail view and the filtered
 // out drawer, so a number cannot read one way on a card and another way behind it.
 type Card struct {
-	ID      int64
-	MLS     string
-	Address string
-	City    string
-	State   string
-	Zip     string
-	County  string
-	Lat     float64
-	Lon     float64
+	ID int64
+	// What a link carries. The row id never leaves the process.
+	PublicID string
+	MLS      string
+	Address  string
+	City     string
+	State    string
+	Zip      string
+	County   string
+	Lat      float64
+	Lon      float64
 
 	Price      int
 	Beds       float64
@@ -227,7 +229,7 @@ type Query struct {
 }
 
 const cardColumns = `
-	l.id, COALESCE(l.mls,''), l.address, COALESCE(l.city,''),
+	l.id, COALESCE(l.public_id,''), COALESCE(l.mls,''), l.address, COALESCE(l.city,''),
 	COALESCE(l.state,''), COALESCE(l.zip,''), COALESCE(l.county,''),
 	COALESCE(l.lat,0), COALESCE(l.lon,0),
 	l.price, COALESCE(l.beds,0), COALESCE(l.baths,0), COALESCE(l.sqft,0), COALESCE(l.acres,0),
@@ -266,7 +268,7 @@ func scanCard(rows *sql.Rows) (Card, error) {
 	var c Card
 	var breakdown, reasons, areaJSON, valueJSON, outingsJSON, streetJSON string
 	err := rows.Scan(
-		&c.ID, &c.MLS, &c.Address, &c.City, &c.State, &c.Zip, &c.County, &c.Lat, &c.Lon,
+		&c.ID, &c.PublicID, &c.MLS, &c.Address, &c.City, &c.State, &c.Zip, &c.County, &c.Lat, &c.Lon,
 		&c.Price, &c.Beds, &c.Baths, &c.SqFt, &c.Acres, &c.YearBuilt, &c.Style, &c.Status, &c.TaxAnnual, &c.HOAMonthly,
 		&c.URL, &c.Remarks, &c.FirstSeen, &c.LastSeen,
 		&c.ComputedAt, &c.Score, &breakdown,
@@ -651,4 +653,13 @@ func (c Card) bestAndWorst() (string, string) {
 		w = strings.ToLower(worst.Label) + ": " + worst.Why
 	}
 	return b, w
+}
+
+// listingIDFor turns the token a link carries into the row id everything here
+// actually keys on. Nothing outside this function should ever see the integer.
+func listingIDFor(ctx context.Context, db *sql.DB, publicID string) (int64, error) {
+	var id int64
+	err := db.QueryRowContext(ctx,
+		`SELECT id FROM listings WHERE public_id = ?`, publicID).Scan(&id)
+	return id, err
 }

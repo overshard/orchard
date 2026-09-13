@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"io/fs"
 	"math"
@@ -1923,5 +1924,93 @@ func TestARoutingOutageDoesNotExcludeAnything(t *testing.T) {
 	north.Bearing = 200
 	if _, out := outsideBand(cfg, north); !out {
 		t.Error("a house north of the cap is out whether or not it routed")
+	}
+}
+
+// A link is shareable and the row number is not. Two things have to hold: the
+// token is what a URL carries, and it is not derivable from the order rows were
+// created in.
+func TestPublicIDsAreOpaqueAndUnique(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	db, err := openDB(filepath.Join(dir, "test.sqlite3"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	seen := map[string]bool{}
+	for i := 0; i < 5; i++ {
+		l := Listing{
+			Source: "checked", Address: fmt.Sprintf("%d Marchbank Rd", 100+i*2),
+			Zip: "28600", Price: 200000, Lat: 35.42 + float64(i)*0.05, Lon: -80.68,
+		}
+		id, _, _, err := Upsert(ctx, db, l, time.Now())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var pid string
+		if err := db.QueryRowContext(ctx, `SELECT public_id FROM listings WHERE id = ?`, id).Scan(&pid); err != nil {
+			t.Fatal(err)
+		}
+		if len(pid) != 36 {
+			t.Errorf("want a 36 character token, got %q", pid)
+		}
+		if strings.Contains(pid, fmt.Sprint(id)) && len(fmt.Sprint(id)) > 2 {
+			t.Errorf("the token should not carry the row id: %q", pid)
+		}
+		if seen[pid] {
+			t.Fatalf("token %q handed out twice", pid)
+		}
+		seen[pid] = true
+
+		// And it resolves back to the row it came from.
+		got, err := listingIDFor(ctx, db, pid)
+		if err != nil || got != id {
+			t.Errorf("token did not resolve: got %d want %d, err %v", got, id, err)
+		}
+	}
+
+	// A token nobody issued is not a listing.
+	if _, err := listingIDFor(ctx, db, "00000000-0000-4000-8000-000000000000"); err == nil {
+		t.Error("an unissued token should not resolve")
+	}
+}
+
+// A database that predates the column has to come out the other side with every
+// row addressable, or existing links break on deploy.
+func TestExistingRowsGetATokenOnOpen(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test.sqlite3")
+
+	db, err := openDB(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, _, _, err := Upsert(context.Background(), db, Listing{
+		Source: "checked", Address: "118 Marchbank Rd", Zip: "28600", Price: 200000,
+	}, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Put it back the way a pre-column database looked.
+	if _, err := db.Exec(`UPDATE listings SET public_id = NULL WHERE id = ?`, id); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+
+	db2, err := openDB(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db2.Close()
+
+	var pid string
+	if err := db2.QueryRow(`SELECT COALESCE(public_id,'') FROM listings WHERE id = ?`, id).Scan(&pid); err != nil {
+		t.Fatal(err)
+	}
+	if pid == "" {
+		t.Error("opening the database should have given the old row a token")
 	}
 }

@@ -1,7 +1,7 @@
 {{define "content"}}
 {{$c := .Card}}{{$cfg := .Config}}
 
-<a class="back" href="/">&larr; All the houses</a>
+{{if .SignedIn}}<a class="back" href="/">&larr; All the houses</a>{{end}}
 
 <div class="report-head">
   {{template "dial" dial $c.Score "5.5rem" $c.Excluded $c.Pending}}
@@ -26,7 +26,7 @@
 </section>
 
 {{if or $c.Pending .Running}}
-<section class="panel working" data-id="{{$c.ID}}" aria-live="polite">
+<section class="panel working" data-id="{{$c.PublicID}}" aria-live="polite">
   <h2 class="label">Working it out</h2>
   <p class="display" id="working-head">Asking around</p>
   <p class="muted" id="working-sub">
@@ -41,7 +41,7 @@
 {{if $c.HasPhotos}}
 <div class="gallery">
   {{range $i, $p := $c.Photos}}
-    <img src="/photo/{{$c.ID}}/{{$i}}" alt="Photo {{add1 $i}} of {{$c.Address}}"
+    <img src="/photo/{{$c.PublicID}}/{{$i}}" alt="Photo {{add1 $i}} of {{$c.Address}}"
          loading="{{if eq $i 0}}eager{{else}}lazy{{end}}" decoding="async">
   {{end}}
 </div>
@@ -367,8 +367,9 @@
 </section>
 {{end}}
 
+{{if .SignedIn}}
 <section class="panel">
-  <div class="verdict-form" data-id="{{$c.ID}}">
+  <div class="verdict-form" data-id="{{$c.PublicID}}">
     <div class="thumbs">
       <button type="button" class="thumb up{{if gt $c.Rating 0}} on{{end}}" data-rating="1">{{template "icon-up"}} Keep looking at it</button>
       <button type="button" class="thumb down{{if lt $c.Rating 0}} on{{end}}" data-rating="-1">{{template "icon-down"}} Not this one</button>
@@ -380,6 +381,7 @@
     </p>
   </div>
 </section>
+{{end}}
 
 {{if and $c.Value.Found (not $c.ParcelMismatch)}}
 <section class="panel">
