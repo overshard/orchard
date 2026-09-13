@@ -12,7 +12,9 @@
 */}}
 <title>{{if .Title}}{{.Title}} &middot; {{end}}{{if .State.Market.Ticker}}{{.State.Market.Ticker}} &middot; {{end}}{{.TitleBase}}</title>
 {{if .Description}}<meta name="description" content="{{.Description}}">{{end}}
-{{if .Staging}}<meta name="robots" content="noindex, nofollow">{{end}}
+<!-- Not a public site. Unconditional, not staging only: a search engine
+     holding a copy of this is a thing nobody asked for. -->
+<meta name="robots" content="noindex, nofollow">
 <link rel="canonical" href="{{.Canonical}}">
 <link rel="icon" href="{{.Favicon}}" type="image/svg+xml">
 {{range .Styles}}<link rel="stylesheet" href="{{.}}">{{end}}

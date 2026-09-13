@@ -97,11 +97,10 @@ const faviconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
 // base.html are needed: a crawler obeying robots.txt never fetches the tag.
 func robots(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	if Staging {
-		_, _ = w.Write([]byte("User-agent: *\nDisallow: /\n"))
-		return
-	}
-	_, _ = fmt.Fprintf(w, "User-agent: *\nAllow: /\nSitemap: %s/sitemap.xml\n", baseURL)
+	// Nothing here is for a stranger, so the crawl is refused in production as
+	// well as on staging. Both this and the noindex meta tag are needed: a crawler
+	// that obeys robots.txt never fetches the page to see the tag.
+	_, _ = w.Write([]byte("User-agent: *\nDisallow: /\n"))
 }
 
 // sitemap lists the one public page. Property dashboards stay out even when

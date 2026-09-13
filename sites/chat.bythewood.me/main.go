@@ -167,6 +167,14 @@ func main() {
 	})
 	// Not gated, because the container's own health check calls it over
 	// loopback with no cookie and it says nothing.
+	// None of this is for a stranger, and without a robots.txt of our own the edge
+	// serves a default that restricts nothing. Both this and the noindex meta tag
+	// are needed, since a crawler obeying robots.txt never fetches the page.
+	mux.HandleFunc("GET /robots.txt", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		_, _ = w.Write([]byte("User-agent: *\nDisallow: /\n"))
+	})
+
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		fmt.Fprintln(w, "ok")

@@ -155,6 +155,14 @@ func main() {
 
 	// Unauthenticated on purpose: the health strip on dash probes this over the
 	// bridge, and Caddy refuses it from outside.
+	// None of this is for a stranger, and without a robots.txt of our own the edge
+	// serves a default that restricts nothing. Both this and the noindex meta tag
+	// are needed, since a crawler obeying robots.txt never fetches the page.
+	mux.HandleFunc("GET /robots.txt", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		_, _ = w.Write([]byte("User-agent: *\nDisallow: /\n"))
+	})
+
 	mux.HandleFunc("GET /healthz", s.healthz)
 
 	mux.Handle("GET /static/", s.assets.Handler())
