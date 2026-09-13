@@ -354,6 +354,13 @@ http://status.bythewood.me {
 	reverse_proxy orchard-status:8000
 }
 
+# Nothing here is public, so the site answers the login redirect itself and there
+# is no path to carve out at the edge the way logging and auth need.
+http://house.bythewood.me {
+	import site
+	reverse_proxy orchard-house:8000
+}
+
 # /ingest and /aggregate are answered here rather than proxied, so reaching
 # either really does mean being inside the network. Every site posts to
 # orchard-logging:8000 by container name and never comes through Caddy at all,
