@@ -191,6 +191,9 @@ func (s *site) notFound(w http.ResponseWriter, r *http.Request) {
 
 func robots(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	// Explicit, because Cloudflare stamps its own TTL on a header-less response
+	// and a stale robots.txt at the edge is four hours of the wrong answer.
+	w.Header().Set("Cache-Control", "public, max-age=300")
 	// Public in the sense that it has no login, and not in the sense that it is
 	// for anybody else. Nothing on it wants to be in a search result.
 	_, _ = w.Write([]byte("User-agent: *\nDisallow: /\n"))

@@ -261,6 +261,9 @@ func staticRouter(dist fs.FS, assets *web.Assets, next http.Handler) http.Handle
 
 func robots(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	// Explicit, because Cloudflare stamps its own TTL on a header-less response
+	// and a stale robots.txt at the edge is four hours of the wrong answer.
+	w.Header().Set("Cache-Control", "public, max-age=300")
 	// A mirror of a GitHub account, for one person. There is nothing here a search
 	// engine should hold a copy of, and a crawler walking every blob at every
 	// revision is one git subprocess per request.
