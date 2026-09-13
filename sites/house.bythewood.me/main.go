@@ -224,13 +224,20 @@ func main() {
 
 	// Every page, behind the session. There is no signed out view of anything
 	// here except the redirect to auth.
+	// One report is shareable and everything else is not. A link carries an opaque
+	// token rather than a row number, so handing somebody a house to look at does
+	// not hand them the list, the budget behind the list, or a way to count up
+	// from one and read the rest.
+	//
+	// Reading one report, its photographs and its progress needs no session. The
+	// list, checking a new address, the thumbs and the delete all do.
 	mux.HandleFunc("GET /{$}", s.auth.RequireAuth(s.grid))
-	mux.HandleFunc("GET /listing/{id}", s.auth.RequireAuth(s.detail))
-	mux.HandleFunc("GET /photo/{id}/{idx}", s.auth.RequireAuth(s.photo))
+	mux.HandleFunc("GET /listing/{id}", s.detail)
+	mux.HandleFunc("GET /photo/{id}/{idx}", s.photo)
+	mux.HandleFunc("GET /listing/{id}/status", s.status)
 	mux.HandleFunc("POST /listing/{id}/verdict", s.auth.RequireAuthJSON(s.verdict))
 	mux.HandleFunc("POST /listing/{id}/delete", s.auth.RequireAuthJSON(s.remove))
 	mux.HandleFunc("POST /check", s.auth.RequireAuth(s.check))
-	mux.HandleFunc("GET /listing/{id}/status", s.auth.RequireAuthJSON(s.status))
 
 	mux.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, web.LoginURL(r), http.StatusSeeOther)

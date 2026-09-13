@@ -39,13 +39,13 @@
 
 {{define "card"}}
 {{$c := .Card}}{{$cfg := .Config}}
-<article class="card{{if $c.Excluded}} out{{end}}" data-id="{{$c.ID}}">
+<article class="card{{if $c.Excluded}} out{{end}}" data-id="{{$c.PublicID}}">
 
   <div class="shot{{if not $c.HasPhotos}} bare{{end}}">
     {{if $c.HasPhotos}}
       <div class="frames" data-count="{{len $c.Photos}}">
         {{range $i, $p := $c.Photos}}
-          <img src="/photo/{{$c.ID}}/{{$i}}" alt=""
+          <img src="/photo/{{$c.PublicID}}/{{$i}}" alt=""
                loading="{{if eq $i 0}}eager{{else}}lazy{{end}}"
                decoding="async" {{if ne $i 0}}hidden{{end}}>
         {{end}}
@@ -63,7 +63,7 @@
     </div>
   </div>
 
-  <a class="cover" href="/listing/{{$c.ID}}" aria-label="{{$c.Address}}"></a>
+  <a class="cover" href="/listing/{{$c.PublicID}}" aria-label="{{$c.Address}}"></a>
 
   <div class="body">
     <div class="headrow">
@@ -117,7 +117,7 @@
 
     <div class="foot">
       <span>{{ago $c.FirstSeen}}</span>
-      <span class="verdict" data-id="{{$c.ID}}">
+      <span class="verdict" data-id="{{$c.PublicID}}">
         <button type="button" class="thumb up{{if gt $c.Rating 0}} on{{end}}" data-rating="1" aria-label="keep">{{template "icon-up"}}</button>
         <button type="button" class="thumb down{{if lt $c.Rating 0}} on{{end}}" data-rating="-1" aria-label="pass">{{template "icon-down"}}</button>
         <button type="button" class="thumb bin" data-delete aria-label="delete this one for good">{{template "icon-bin"}}</button>
