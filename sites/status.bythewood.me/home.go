@@ -97,6 +97,9 @@ const faviconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
 // base.html are needed: a crawler obeying robots.txt never fetches the tag.
 func robots(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	// Explicit, because Cloudflare stamps its own TTL on a header-less response
+	// and a stale robots.txt at the edge is four hours of the wrong answer.
+	w.Header().Set("Cache-Control", "public, max-age=300")
 	// Nothing here is for a stranger, so the crawl is refused in production as
 	// well as on staging. Both this and the noindex meta tag are needed: a crawler
 	// that obeys robots.txt never fetches the page to see the tag.
