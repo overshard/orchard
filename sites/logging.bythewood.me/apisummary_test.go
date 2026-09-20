@@ -8,11 +8,10 @@ import (
 	"time"
 )
 
-// The reason an error happened lives in the attrs bag, because a slog call
-// names the operation in the message and puts the error itself in an attribute.
-// The dashboard has always rendered that bag and this endpoint used to drop it,
-// so chat could say a site was erroring and never say what went wrong. That is
-// what this pins.
+// The reason an error happened lives in the attrs bag, because a slog call names
+// the operation in the message and puts the error itself in an attribute.
+// Dropping that bag lets chat say a site is erroring and never say what went
+// wrong.
 func TestAPIErrorsCarryTheReason(t *testing.T) {
 	db := testDB(t)
 	now := time.Now()

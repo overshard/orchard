@@ -176,10 +176,9 @@ func TestBuildSparkFillsTheCardOnAFinishedSession(t *testing.T) {
 	}
 }
 
-// Every card is on the New York trading day now, so a future and bitcoin lay
-// their bars over the same 9:30 to 16:00 window a cash index does. They used to
-// take the full width, which made an hour of bitcoin look like a whole day
-// beside an hour of the S&P.
+// Every card is on the New York trading day, so a future and bitcoin lay their
+// bars over the same 9:30 to 16:00 window a cash index does. Taking the full
+// width made an hour of bitcoin look like a whole day beside an hour of the S&P.
 func TestSessionAxisIsTheSameForEveryInstrument(t *testing.T) {
 	et := easternTime()
 	open := time.Date(2026, 8, 31, 9, 30, 0, 0, et)
@@ -222,8 +221,8 @@ func TestSessionStartRollsAtTheOpen(t *testing.T) {
 	}
 }
 
-// The VIX prints from 3:15am and those bars used to be clamped onto x=0, which
-// drew a vertical smear up the left of the card instead of a line.
+// The VIX prints from 3:15am, and clamping those bars onto x=0 draws a vertical
+// smear up the left of the card instead of a line.
 func TestSessionBarsDropsAnythingBeforeTheOpen(t *testing.T) {
 	et := easternTime()
 	open := time.Date(2026, 8, 31, 9, 30, 0, 0, et)
@@ -249,7 +248,7 @@ func TestSessionBarsDropsAnythingBeforeTheOpen(t *testing.T) {
 
 // Futures reopen at 6pm Sunday, hours before the Monday open their session
 // belongs to, so there is nothing to lay over Sunday's window and they take the
-// full width the way everything used to.
+// full width instead.
 func TestSessionBarsFallsBackWhenNothingPrintedInTheSession(t *testing.T) {
 	et := easternTime()
 	// 2026-08-30 is a Sunday.

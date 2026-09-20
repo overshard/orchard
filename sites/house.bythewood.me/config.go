@@ -154,12 +154,9 @@ type Config struct {
 // the child first, then safety, then the partner's work and study, then the money
 // the whole household lives inside, and the commute last.
 //
-// That order is a decision rather than an arrangement. The first version of this
-// put the drop-off detour at 25 and the commute at 10, because that is what the
-// original brief asked for. It got re-weighted on request: the point of moving is
-// a family that is happy and safe, so what serves them outranks what is
-// convenient for the driver, and the two factors that are purely about his time
-// sit at the bottom.
+// That order is chosen rather than arbitrary. Moving is for a family that is
+// happy and safe, so what serves them outranks what is convenient for the
+// driver, and the two factors that are purely about his time sit at the bottom.
 var defaultWeights = map[string]float64{
 	"schools":      18,
 	"outings":      8,
@@ -244,7 +241,7 @@ func defaultConfig() Config {
 		Label: "defaults, no data/config.json",
 		Geography: Geography{
 			OriginName: "Office",
-			// Deliberately empty. A fake origin would compute a whole dashboard
+			// Left empty, since a fake origin would compute a whole dashboard
 			// of drive times to the wrong place and look like it worked.
 			IdealMinutes:   25,
 			MaxMinutes:     45,

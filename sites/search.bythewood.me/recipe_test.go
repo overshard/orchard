@@ -77,9 +77,8 @@ func TestRecipeIgnoresNonRecipe(t *testing.T) {
 }
 
 // TestFetchKeepsRecipe goes through the whole of Fetch rather than calling the
-// parser directly, because the first version of this worked in isolation and
-// did nothing in production: stripAndPick removes script tags in place, so
-// reading the structured data after it ran found an empty document.
+// parser directly, since stripAndPick removes script tags in place and reading
+// the structured data after it ran finds an empty document.
 func TestFetchKeepsRecipe(t *testing.T) {
 	page := `<html><head>
 <script type="application/ld+json">

@@ -12,9 +12,9 @@ import (
 // What is being watched, where it is streaming, and whether it is any good.
 //
 // JustWatch's own front end talks to this GraphQL endpoint and it answers
-// without a key, which is the only reason this panel exists: TMDB and Trakt
-// both want one, and Rotten Tomatoes has had no public API since Fandango shut
-// it down. This one hands over the tomatometer and the IMDb score together.
+// without a key. TMDB and Trakt both want one, and Rotten Tomatoes has had no
+// public API since Fandango shut it down. This one hands over the tomatometer
+// and the IMDb score together.
 //
 // It is unofficial, so it is the second most likely thing here to break after
 // the pollen source, and its failure costs this panel and nothing else.

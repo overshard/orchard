@@ -30,9 +30,9 @@ const (
 	// Must match the first hostname label, like every other source label.
 	selfSource = "search"
 
-	// analyticsID is in the page source of every site; it is identity, not a
-	// credential. Its own property, since a copied one silently files this
-	// site's traffic under whichever site it was copied from.
+	// analyticsID is in the page source of every site, so it names a site rather
+	// than authorising anything. Its own property, since a copied one silently
+	// files this site's traffic under whichever site it was copied from.
 	analyticsID = "5782ea95-0169-4095-b94a-0b2b420440ed"
 )
 
@@ -86,7 +86,7 @@ func main() {
 		return
 	}
 
-	// Tees stdout records to logging.bythewood.me; see web/shipper.go. It goes
+	// Tees stdout records to logging.bythewood.me, see web/shipper.go. It goes
 	// after the healthcheck branch so a HEALTHCHECK does not start a queue it
 	// will never flush.
 	shipper := web.ShipLogs(selfSource, web.HTTPSink())
@@ -153,7 +153,7 @@ func main() {
 		http.Redirect(w, r, web.LoginURL(r), http.StatusSeeOther)
 	})
 
-	// Unauthenticated on purpose: the health strip on dash probes this over the
+	// Unauthenticated, since the health strip on dash probes this over the
 	// bridge, and Caddy refuses it from outside.
 	// None of this is for a stranger, and without a robots.txt of our own the edge
 	// serves a default that restricts nothing. Both this and the noindex meta tag
@@ -340,10 +340,9 @@ func (s *site) ask(w http.ResponseWriter, r *http.Request) {
 		s.sessions.Append(sid, Turn{Question: question, Answer: ans.Text})
 	}
 
-	// Incognito skips this row and the gateway's copy of the prompts, and
-	// nothing else. The pages fetched on the way still go in the archive, which
-	// Isaac decided is fine: it is public articles with no question attached,
-	// so nothing there reads back as what was asked. The row is what would.
+	// Incognito skips this row and the gateway's copy of the prompts, and nothing
+	// else. The pages fetched on the way still go in the archive, which is public
+	// articles with no question attached.
 	var logged int64
 	if !nohistory {
 		id, err := s.hist.Log(ans, s.stamp())

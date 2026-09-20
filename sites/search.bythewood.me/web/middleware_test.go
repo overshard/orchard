@@ -48,7 +48,7 @@ func TestChainKeepsTheWriterFlushable(t *testing.T) {
 		t.Fatalf("status %d, want 200: the writer lost its flusher", resp.StatusCode)
 	}
 
-	// Reading a frame before the handler returns is the whole point, since a
+	// Reading a frame before the handler returns is what this checks, since a
 	// buffered response would arrive only at close.
 	line, err := bufio.NewReader(resp.Body).ReadString('\n')
 	if err != nil {

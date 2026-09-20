@@ -175,13 +175,13 @@ func baselines(ctx context.Context, db *sql.DB, out []aggregateSource) {
 // The mean is what the rollups could answer cheaply and it is the wrong number
 // here: dash holds an events stream open for as long as a tab is on it, so one
 // six hour visit dragged its mean to seventy seconds while it was answering
-// pages in one. Both of the components excluded below are requests whose
-// duration measures something other than work: healthz is the container
-// talking to itself, and stream is a connection deliberately left open.
+// pages in one. The two components excluded below measure something other than
+// work, healthz being the container talking to itself and stream a connection
+// left open.
 //
-// The ceiling is there for the streams that cannot be named. Caddy proxies
-// every one of them and writes its own access log, so it has no handler to tag
-// them in, and nothing this machine serves takes a minute to answer.
+// The ceiling is for the streams that cannot be named. Caddy proxies every one
+// of them and has no handler to tag them in, and nothing this machine serves
+// takes a minute to answer.
 func responseTimes(ctx context.Context, db *sql.DB, out []aggregateSource) {
 	since := time.Now().Add(-aggregateWindow).UnixMilli()
 

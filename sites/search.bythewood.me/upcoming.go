@@ -10,13 +10,12 @@ import (
 
 // A question about what is next is answered by a date, so whether an answer
 // answered it is arithmetic and belongs here rather than in a prompt. The
-// contract tells the model which dates can answer and a 4B still writes the
-// ones its passages gave it, which for a team that played on Friday is Friday.
+// contract tells the model which dates can answer and a 4B still writes the ones
+// its passages gave it, which for a team that played on Friday is Friday.
 //
-// The test is deliberately weak. One date anywhere in the answer that is today
-// or later leaves it alone, because a fixture list names the last result as
-// background and that is fine. Nothing at all dated today or later means the
-// answer cannot contain the thing that was asked for, whatever else it holds.
+// The test is kept weak, so one date anywhere in the answer that is today or later
+// leaves it alone, since a fixture list names the last result as background.
+// Nothing dated today or later means the answer cannot contain what was asked.
 
 // Abbreviations included, since a fixture list writes "9 Sept 2026" far more
 // often than it writes the month out.
@@ -200,12 +199,9 @@ func pastOnly(text string, now time.Time) []string {
 	return nil
 }
 
-// scheduleAge warns when the freshest page behind a schedule is old enough
-// that the fixture has probably moved. The model was asked to say this itself
-// for one round and wrote that its sources were published in late September on
-// the fifth of September, which is the same lesson stale.go opens with: a 4B
-// does not compare dates in prose, so the comparison happens in Go and the
-// answer says nothing about it.
+// scheduleAge warns when the freshest page behind a schedule is old enough that
+// the fixture has probably moved. A 4B does not compare dates in prose, so the
+// comparison happens in Go and the answer says nothing about it.
 func scheduleAge(sources []Source, now time.Time) []string {
 	var newest time.Time
 	for _, s := range sources {

@@ -15,8 +15,7 @@ import (
 // The guaranteed path. Neither Zillow nor Realtor.com has a free sanctioned
 // listing API, and scraping either gets blocked and breaks their terms, so the
 // first adapter is a file a buyer's agent exports from the MLS and drops in.
-// Everything downstream works the same whether the rows came from here or from a
-// feed, which is the point of normalizing at the edge.
+// Everything downstream works the same whichever way the rows arrived.
 type CSVAdapter struct {
 	dir string
 }
@@ -29,11 +28,10 @@ func (a *CSVAdapter) Name() string { return "csv" }
 // spellings. Matching is on a squashed lowercase form, which makes "List Price",
 // "list_price" and "ListPrice" the same header.
 //
-// Redfin's own Download All export is in here alongside the MLS ones, because it
-// is the shortest path to real listings: it is a button on a search page, it needs
-// no account and no key, and it carries a coordinate, an MLS number and a link
-// back to the listing. Its own spellings are odd enough to be worth naming, in
-// particular "ZIP OR POSTAL CODE", "HOA/MONTH" and a URL column whose header
+// Redfin's own Download All export is in here alongside the MLS ones, since it is
+// a button on a search page that needs no account and carries a coordinate, an
+// MLS number and a link back to the listing. Its spellings are odd enough to be
+// worth naming: "ZIP OR POSTAL CODE", "HOA/MONTH" and a URL column whose header
 // carries a sentence of explanation after it.
 var csvFields = map[string][]string{
 	"mls":     {"mls", "mlsnumber", "mlsid", "listingid", "listid", "mls#"},
@@ -118,9 +116,8 @@ func (a *CSVAdapter) readFile(path string) ([]Listing, error) {
 	}
 
 	// column name -> index, resolved once per file. Exact match first across the
-	// whole header, then a prefix pass for the one export that writes a sentence
-	// into a column name: Redfin's URL header carries a note about pricing after
-	// the word URL.
+	// whole header, then a prefix pass for Redfin's URL header, which carries a
+	// note about pricing after the word URL.
 	index := map[string]int{}
 	for _, exact := range []bool{true, false} {
 		for i, h := range header {

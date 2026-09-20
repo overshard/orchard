@@ -9,9 +9,8 @@ import (
 	"house.bythewood.me/web"
 )
 
-// A release build compiles the Vite bundle in, which is what makes the binary the
-// whole server. The directive cannot reference a path above its own package, so
-// build/ lives inside the site.
+// A release build compiles the Vite bundle in. The directive cannot reference a
+// path above its own package, so build/ lives inside the site.
 //
 //go:embed all:build/dist
 var distEmbed embed.FS

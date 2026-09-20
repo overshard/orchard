@@ -13,8 +13,8 @@ import (
 	"time"
 )
 
-// SetupLogging installs the process-wide structured logger. JSON, because these
-// logs are read by machine before they are read by a person.
+// SetupLogging installs the process-wide structured logger, in JSON since these
+// logs are read by machine first.
 func SetupLogging() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
@@ -36,12 +36,9 @@ func Serve(addr string, h http.Handler) error {
 		Addr:              addr,
 		Handler:           h,
 		ReadHeaderTimeout: 10 * time.Second,
-		// No write bound here, unlike the copy in the sites that only serve
-		// pages. This one serves an event stream, where a connection is meant
-		// to stay open for as long as the browser is on the page, and Go's
-		// WriteTimeout bounds the whole response, so any value at all is the
-		// length of the longest session anyone gets. The read side is still
-		// bounded.
+		// No write bound. This one serves an event stream and Go's WriteTimeout
+		// bounds the whole response, so any value at all cuts the browser off
+		// mid-session. The read side is still bounded.
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 0,
 		IdleTimeout:  120 * time.Second,

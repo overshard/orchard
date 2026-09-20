@@ -144,10 +144,10 @@ func TestParseRetryAfter(t *testing.T) {
 	}
 }
 
-// Pacing is a timing concern, not a breaker, so a poller waits it out. Three
-// pollers share the Yahoo endpoint and fire together at boot; refusing two of
-// them left their panels empty until their next tick, an hour and six hours
-// later.
+// Pacing is a timing concern rather than a breaker, so a poller waits it out.
+// Three pollers share the Yahoo endpoint and fire together at boot, and refusing
+// two of them leaves their panels empty until their next tick, which for two of
+// them is hours away.
 func TestGuardReserveWaitsOutThePace(t *testing.T) {
 	g := NewGuard(t.TempDir())
 

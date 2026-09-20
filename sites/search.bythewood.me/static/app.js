@@ -155,8 +155,8 @@ transcript.addEventListener("click", (e) => {
 
 // newQuestion returns the page to how it looked on arrival: the blurb, the
 // examples, today's context, and an empty focused field. Both the control in
-// the header and the one under an answer do this, because they mean the same
-// thing and behaving differently was only confusing.
+// the header and the one under an answer do this, since they mean the same
+// thing.
 async function newQuestion() {
   if (stream) return;
   await fetch(`/reset?sid=${sid}`, { method: "POST" });

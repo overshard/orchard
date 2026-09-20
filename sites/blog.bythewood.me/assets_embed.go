@@ -11,7 +11,7 @@ import (
 
 // A release build is one file with no SITE_* variables to set. `make build` runs
 // Vite and typst first, since the directives below read those directories at
-// compile time; `all:` is needed or embed skips .vite/manifest.json.
+// compile time, and `all:` is needed or embed skips .vite/manifest.json.
 //
 //go:embed all:build/dist
 //go:embed build/pdfs

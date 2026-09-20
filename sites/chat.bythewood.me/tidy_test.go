@@ -23,7 +23,7 @@ func TestDropClosingOffer(t *testing.T) {
 		}
 	}
 
-	// A question the turn genuinely needs answered is not an offer, and neither
+	// A question the turn really needs answered is not an offer, and neither
 	// is a question that is the answer.
 	keep := []string{
 		"Which of the two branches did you mean?",

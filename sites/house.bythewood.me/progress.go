@@ -9,11 +9,10 @@ import (
 
 // What the report is waiting on, source by source. A spinner says something is
 // happening and this says what, who is being asked, and which answers were
-// already on disk, which is the difference between a page that looks stuck and
-// one that is visibly working.
+// already on disk.
 //
-// It is also the honest answer to how much of this is cached: most of it, most of
-// the time, because none of these facts change between one Tuesday and the next.
+// It also says how much of this is cached, which is most of it, since none of
+// these facts change between one Tuesday and the next.
 type SourceState struct {
 	Key    string // the lookups row this fact lands in
 	Name   string // what it answers, in plain words
@@ -101,8 +100,8 @@ func Progress(ctx context.Context, db *sql.DB, lat, lon float64, since int64) ([
 	return out, nil
 }
 
-// Which guard feeds which fact. A rough mapping on purpose: it only drives a
-// sentence on a progress panel.
+// Which guard feeds which fact, roughly, since it only drives a sentence on a
+// progress panel.
 func guardServes(endpoint, kind string) bool {
 	switch kind {
 	case "parcel3", "street":

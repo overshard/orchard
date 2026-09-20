@@ -79,7 +79,7 @@ Iteration speed also got worse, since Flask reloads on save and Rust is `cargo b
 
 ## Why a static-site generator wasn't the answer
 
-The obvious answer to a slow blog is to stop running a server and generate HTML at build time, and I did think about it. The reason I didn't is that a few endpoints here are dynamic on purpose, like PDF export, server-rendered search, OG image generation per post, and redirect handling for the old `/blog/<slug>/` URLs. A static site would need a sidecar for all of that and the sidecar needs a runtime of its own, so I'd end up with two deploy targets instead of one.
+The obvious answer to a slow blog is to stop running a server and generate HTML at build time, and I did think about it. The reason I didn't is that a few endpoints here have to be dynamic, like PDF export, server-rendered search, OG image generation per post, and redirect handling for the old `/blog/<slug>/` URLs. A static site would need a sidecar for all of that and the sidecar needs a runtime of its own, so I'd end up with two deploy targets instead of one.
 
 The Rust binary handles all of it in one process, parses every post at boot in single-digit milliseconds, and idles at 24 MB, which is close enough to static for me.
 

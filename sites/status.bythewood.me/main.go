@@ -1,6 +1,6 @@
 // status.bythewood.me is single-operator uptime monitoring. An in-process
 // scheduler probes every tracked URL, audits it with Lighthouse and crawls it
-// for SEO; the handlers mostly render what the scheduler wrote.
+// for SEO, the handlers mostly render what the scheduler wrote.
 package main
 
 import (
@@ -22,7 +22,7 @@ import (
 	"status.bythewood.me/web"
 )
 
-// Templates are source and ship in the binary unconditionally; the Vite bundle
+// Templates are source and ship in the binary unconditionally, the Vite bundle
 // is build output and ships only in a release build.
 //
 //go:embed templates
@@ -183,7 +183,7 @@ func main() {
 	mux.HandleFunc("POST /properties/{id}/delete", s.auth.RequireAuth(s.propertyDelete))
 	mux.HandleFunc("POST /properties/{id}/public", s.auth.RequireAuthJSON(s.propertyPublic))
 
-	// Reachable without a session for a public property; the handler does that
+	// Reachable without a session for a public property, the handler does that
 	// check itself, because it needs the property row to know.
 	mux.HandleFunc("GET /properties/{id}/status", s.propertyStatus)
 	// Every property in one answer, for chat.bythewood.me's tools. Behind the
@@ -220,7 +220,7 @@ func main() {
 	})
 
 	// Registered as "/" rather than "/{id}" so it cannot shadow /login and
-	// /properties; "/{id}" would also claim /nonsense-that-should-404.
+	// /properties, "/{id}" would also claim /nonsense-that-should-404.
 	mux.HandleFunc("GET /", s.dashboardOrNotFound)
 
 	handler := web.Chain(mux,

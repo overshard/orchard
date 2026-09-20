@@ -340,8 +340,8 @@ func TestCodeAnswerLive(t *testing.T) {
 }
 
 // A follow-up names nothing a router can match. "odds on the match" carries no
-// team, no competition and no date, so routing it before the rewrite meant a
-// follow-up could never reach a skill, whatever it asked for.
+// team, no competition and no date, so routing it unrewritten means a follow-up
+// can never reach a skill, whatever it asked for.
 func TestFollowupReachesASkill(t *testing.T) {
 	e := liveEngine(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)

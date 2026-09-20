@@ -1029,11 +1029,9 @@
 
   // ------------------------------------------------------------ live meta
   //
-  // A turn already outlives the tab that started it and nothing told the other
-  // tabs. So a question asked on the desktop never reached the phone without a
-  // reload, and switching conversations mid answer meant refreshing to find out
-  // it had finished. This stream carries which conversation changed and never
-  // what was said, so a tab knows what to go and read.
+  // A turn outlives the tab that started it, so a question asked on the desktop
+  // has to reach the phone without a reload. This stream carries which
+  // conversation changed and never what was said, so a tab knows what to read.
   function markUnread(id) {
     unread.add(id);
     paintUnread();

@@ -12,7 +12,7 @@ import (
 // and the negative half matters more than the positive half: the routes that
 // go wrong are the ones sitting just outside a skill rather than far from every
 // skill, so "who won the us open" and "what are the odds on the us open" are
-// both here on purpose.
+// both here.
 var routes = []struct {
 	q    string
 	want string

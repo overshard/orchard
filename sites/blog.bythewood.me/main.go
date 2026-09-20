@@ -77,7 +77,7 @@ func main() {
 		return
 	}
 
-	// Tees stdout records to logging.bythewood.me; see web/shipper.go. It goes
+	// Tees stdout records to logging.bythewood.me, see web/shipper.go. It goes
 	// after the healthcheck branch so a HEALTHCHECK does not start a queue it
 	// will never flush.
 	shipper := web.ShipLogs("blog", web.HTTPSink())
@@ -166,7 +166,7 @@ func main() {
 	mux.HandleFunc("GET /blog/{slug}/{$}", s.redirectPost)
 	mux.HandleFunc("GET /blog/{slug}/{format}/{$}", s.redirectPostFormat)
 
-	// Every route above ends in a slash; these cover the slashless forms.
+	// Every route above ends in a slash, these cover the slashless forms.
 	mux.HandleFunc("GET /blog", redirectSlash)
 	mux.HandleFunc("GET /search", redirectSlash)
 
@@ -192,7 +192,7 @@ func main() {
 	mux.Handle("GET /static/", web.Static(dist, assets))
 
 	// Post images keep their real filenames, so replacing one has to become
-	// visible without a hash change; no immutable year here.
+	// visible without a hash change, no immutable year here.
 	contentImages, err := fs.Sub(content, "images")
 	if err != nil {
 		slog.Error("startup failed", slog.Any("err", err))

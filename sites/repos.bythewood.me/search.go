@@ -1,12 +1,9 @@
 // Finding a file and finding a string in one, which is the half of reading a
 // repository that walking a tree one directory at a time cannot do.
 //
-// chat.bythewood.me could list a directory and read a file it already knew the
-// path of, so every question about Isaac's own code spent its tool rounds
-// walking down from the root guessing. Asked why dash was not showing Oracle it
-// listed the repository, listed sites, guessed "dash.bythewood.me" without the
-// prefix, ran out of rounds and answered with a guess that was wrong. One grep
-// would have landed on the file.
+// A caller that can only list a directory and read a path it already knows
+// spends its whole budget walking down from the root guessing. One grep lands
+// on the file instead.
 package main
 
 import (

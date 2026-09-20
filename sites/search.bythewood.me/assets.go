@@ -13,14 +13,13 @@ import (
 // Static assets are served under a URL carrying a hash of their contents.
 //
 // Without it a deploy ships a new stylesheet and script that browsers do not
-// fetch, because the embedded filesystem has zero modification times, so
+// fetch, since the embedded filesystem has zero modification times, so
 // http.FileServer sends no Last-Modified and no ETag and a browser is free to
-// reuse what it has. That is exactly what happened: the try buttons were live
-// and did nothing, because the page was running the previous app.js.
+// reuse what it has.
 //
-// The other sites solve this with Vite's content-hashed filenames. This one has
-// no build step, so the hash goes in a query parameter and the answer is marked
-// immutable, which is safe precisely because the URL changes when the bytes do.
+// The other sites get content-hashed filenames from Vite. This one has no build
+// step, so the hash goes in a query parameter and the answer is marked
+// immutable, which is safe because the URL changes when the bytes do.
 type Assets struct {
 	fsys fs.FS
 	mu   sync.RWMutex

@@ -1,12 +1,9 @@
 // Compaction. A small model degrades on a long conversation, so the old turns
 // become a summary and the recent ones stay verbatim.
 //
-// The rule that shapes this: llama.cpp caches the prompt prefix it has already
-// processed, and a rewrite of the history throws that away. Measured on this
-// stack a repeated 7,661 token prefix reprocessed 4 tokens instead of all of
-// them, 68ms against 2,535ms. So compaction happens at a threshold and not
-// every turn, and the summary sits at the front where it stays put between
-// compactions rather than moving every message.
+// llama.cpp caches the prompt prefix it has already processed and a rewrite of
+// the history throws that away, so compaction happens at a threshold rather
+// than every turn and the summary sits at the front where it stays put.
 package main
 
 import (
@@ -89,9 +86,7 @@ func (c *Compactor) Window(ctx context.Context, conv Conversation, stored []Stor
 }
 
 // summarise rewrites the whole summary rather than appending to it, so it stops
-// growing without bound. What it is told to keep is what a follow-up actually
-// needs: decisions, facts established, and anything the user asked for that has
-// not been delivered yet.
+// growing without bound.
 func (c *Compactor) summarise(ctx context.Context, prev string, older []Stored) (string, error) {
 	var b strings.Builder
 	if strings.TrimSpace(prev) != "" {
@@ -129,10 +124,8 @@ func (c *Compactor) summarise(ctx context.Context, prev string, older []Stored) 
 }
 
 // Title asks for a short name for a conversation, once, off the first exchange.
-//
-// The answer is passed as well as the question because a question is often too
-// short to name on its own. "VXUS" alone was titled "Video game streaming
-// service", when the reply beside it said plainly that it is a Vanguard ETF.
+// The answer is passed as well as the question, since a question is often too
+// short to name on its own.
 func (c *Compactor) Title(ctx context.Context, first, answer string) string {
 	var b strings.Builder
 	b.WriteString("Name the conversation below. Do not answer it.\n\nMessage:\n<<<\n")
@@ -170,11 +163,8 @@ func (c *Compactor) Title(ctx context.Context, first, answer string) string {
 	return trim(sentenceCase(titleWords(t)), 48)
 }
 
-// sentenceCase lifts the first letter and leaves every other one alone. The
-// model answers in whatever case it feels like, so the sidebar held "Biopharma
-// Selloff" next to "nix config file sharing", and a list of conversations reads
-// as a list when they agree. Only the first letter moves, because VXUS, Lp(a)
-// and iPhone are all cased the way they are for a reason.
+// sentenceCase lifts the first letter and leaves every other one alone, since
+// VXUS, Lp(a) and iPhone are all cased the way they are for a reason.
 func sentenceCase(t string) string {
 	first := t
 	if i := strings.IndexByte(t, ' '); i > 0 {

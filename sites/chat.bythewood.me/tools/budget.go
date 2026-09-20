@@ -8,23 +8,19 @@ import (
 
 // A spend limit on the hosts that ban an address for asking too often.
 //
-// The gap between two calls was never the thing that got this address blocked.
-// Six seconds of spacing was already in place and DuckDuckGo blocked it anyway,
-// because a gap bounds the rate and nothing bounded the total. A model given
-// six tool rounds and a nudge to keep going can spend an afternoon's worth of
-// searches on one question and still honour every gap.
+// A gap between calls bounds the rate and nothing bounded the total. Six seconds
+// of spacing was already in place and DuckDuckGo blocked the address anyway,
+// since a model given six tool rounds can spend an afternoon's worth of searches
+// on one question and still honour every gap.
 //
 // So there are three ceilings and a call has to clear all of them. When one is
-// spent, searching stops and says so, which is the honest answer and the one
-// that lets the limit expire instead of renewing it.
+// spent, searching stops and says so, which lets the limit expire instead of
+// renewing it.
 //
-// The numbers come from what the duckduckgo_search library and the people
-// running into this recommend, held well under their ceiling rather than at it:
-// that library asks for two seconds between calls and says to wait fifteen
-// after an error, and the figure repeated for an address is to stay under
-// thirty requests a minute. Nothing official is published, since scraping the
-// HTML endpoint is against their terms in the first place, so the right posture
-// is to be a light user rather than to find the edge.
+// The numbers are held well under what the duckduckgo_search library and the
+// people running into this recommend, which is two seconds between calls,
+// fifteen after an error and under thirty requests a minute. Nothing official
+// is published.
 type budget struct {
 	gap    time.Duration
 	minute int
@@ -33,15 +29,12 @@ type budget struct {
 }
 
 var budgets = map[string]budget{
-	// Six seconds is already stricter than the two that library asks for, and
-	// it is kept because a person asking one question does not notice it. The
-	// pools below are the part that was missing.
+	// Six seconds is stricter than the two that library asks for and a person
+	// asking one question does not notice it, but a gap only bounds the rate.
 	//
-	// Lowered from 45 an hour and 300 a day after 2026-09-08, when DuckDuckGo
-	// blocked this address at roughly 130 requests over five hours. Neither
-	// ceiling was ever reached, so neither was protecting anything: sustained
-	// volume is what it objects to, not a burst. Every search this site makes
-	// now goes through this count, so the ceiling is the whole of what leaves.
+	// DuckDuckGo blocked this address for sustained volume rather than for a
+	// burst, so the ceilings are on the total and not only on the gap. Every
+	// search this site makes goes through this count.
 	SearchHost:                 {gap: 6 * time.Second, minute: 8, hour: 30, day: 200},
 	"cdn.espn.com":             {gap: 3 * time.Second, minute: 15, hour: 120, day: 900},
 	"query1.finance.yahoo.com": {gap: 3 * time.Second, minute: 15, hour: 120, day: 900},
@@ -68,7 +61,7 @@ func budgetFor(host string) budget {
 
 // spend is one host's running count, kept as plain timestamps because a few
 // hundred a day is nothing to hold and an exact window beats a decaying
-// approximation when the whole point is not to go over.
+// approximation when the job is not to go over.
 type spend struct {
 	at []time.Time
 }

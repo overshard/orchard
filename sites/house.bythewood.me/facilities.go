@@ -11,15 +11,12 @@ import (
 
 // Where a nurse can work, as points on a map rather than as addresses to place.
 //
-// The first version of this downloaded the DHSR roster and geocoded every row,
-// which fails on the ones listed at a PO box, and Caldwell Memorial is one of
-// them. A house in Lenoir a mile from the county hospital therefore came back
-// with no nursing work anywhere near it.
+// NC OneMap publishes the DHSR licensing data already located, so there is
+// nothing to geocode and nothing to fail. Downloading the roster and geocoding
+// every row fails on the ones listed at a PO box, and Caldwell Memorial is one.
 //
-// NC OneMap publishes the same facilities already located, from the same DHSR
-// licensing data, so there is nothing to geocode and nothing to fail. Two layers:
-// hospitals, and the nursing and assisted living homes. Queried around the house
-// rather than by county, because a county line is not a commute.
+// Two layers, hospitals and the nursing and assisted living homes, queried
+// around the house rather than by county, since a county line is not a commute.
 const ncHealth = "https://services.nconemap.gov/secure/rest/services/NC1Map_Health/MapServer"
 
 type healthLayer struct {
@@ -28,8 +25,7 @@ type healthLayer struct {
 	label string
 	// The name column, which differs between the two layers. Asking for a field a
 	// layer does not have fails the whole query with "Failed to execute query" and
-	// no clue which field was wrong, which is how the nursing homes came back
-	// empty while the hospitals worked.
+	// no clue which field was wrong.
 	nameField string
 }
 
@@ -140,9 +136,8 @@ func (f *Facilities) Around(ctx context.Context, lat, lon float64) ([]Facility, 
 }
 
 // Nearest is the n closest by straight line, which only decides which are worth
-// routing. The routes themselves go through OSRM, and a hospital is always kept
-// alongside the homes: they are different jobs and the nearest three homes in one
-// town would otherwise hide the hospital in the next.
+// routing. A hospital is always kept alongside the homes, since the nearest
+// three homes in one town would otherwise hide the hospital in the next.
 func (f *Facilities) Nearest(ctx context.Context, lat, lon float64, n int) ([]Facility, error) {
 	all, err := f.Around(ctx, lat, lon)
 	if err != nil {

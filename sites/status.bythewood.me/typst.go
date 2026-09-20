@@ -26,7 +26,7 @@ type Typst struct {
 func NewTypst() *Typst { return &Typst{} }
 
 // ErrTypstMissing means no typst binary is on PATH, the normal state of a local
-// checkout. The PDF route answers 503; every other route still works.
+// checkout. The PDF route answers 503, every other route still works.
 var ErrTypstMissing = errors.New("typst binary not found on PATH")
 
 func (t *Typst) resolve() (string, error) {

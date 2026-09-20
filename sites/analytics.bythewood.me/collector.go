@@ -24,7 +24,7 @@ const (
 	// Each distinct name becomes a dashboard card, so an oversized one is
 	// rejected rather than truncated into a collision with a real event.
 	maxEventNameLen = 200
-	// The clamp on every stored string field; these columns are indexed and
+	// The clamp on every stored string field, these columns are indexed and
 	// rendered into breakdown tables.
 	maxFieldLen = 2048
 )
@@ -82,7 +82,7 @@ func (s *site) collect(w http.ResponseWriter, r *http.Request) {
 
 	data := map[string]any{}
 	if len(req.Data) > 0 {
-		// A non-object data field is ignored; the event is still worth recording.
+		// A non-object data field is ignored, the event is still worth recording.
 		_ = json.Unmarshal(req.Data, &data)
 	}
 
@@ -121,7 +121,7 @@ func (s *site) collect(w http.ResponseWriter, r *http.Request) {
 }
 
 // enrichGeo writes country, region, city and coordinates onto a session_start.
-// web.ClientIP prefers CF-Connecting-IP; the last X-Forwarded-For entry behind
+// web.ClientIP prefers CF-Connecting-IP, the last X-Forwarded-For entry behind
 // the tunnel is cloudflared's own bridge address, and resolves without erroring.
 func (s *site) enrichGeo(r *http.Request, data map[string]any) {
 	addr, err := netip.ParseAddr(web.ClientIP(r))
@@ -217,7 +217,7 @@ func (s *site) insertBotEvent(ctx context.Context, propertyID uuid.UUID, event, 
 }
 
 // encodeExtra serialises whatever is left of the payload. SetEscapeHTML(false)
-// because this is stored, not rendered; the default writes \u003c for a "<".
+// because this is stored, not rendered, the default writes \u003c for a "<".
 func encodeExtra(data map[string]any) string {
 	if len(data) == 0 {
 		return "{}"
@@ -330,7 +330,7 @@ func (s *site) collectOptions(w http.ResponseWriter, r *http.Request) {
 }
 
 // corsStatus answers with the permissive origin header the collector needs. Any
-// site may be tracked, so there is no allowlist; nothing is read back here and
+// site may be tracked, so there is no allowlist, nothing is read back here and
 // no credentials are accepted.
 func corsStatus(w http.ResponseWriter, r *http.Request, status int) {
 	w.Header().Set("Access-Control-Allow-Origin", originOrWildcard(r))

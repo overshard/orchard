@@ -32,7 +32,7 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 	data.PageStyles = s.pagesStyles
 	data.TotalProperties = properties
 	data.TotalEvents = events
-	// There is no user table to count; this instance has one operator.
+	// There is no user table to count, this instance has one operator.
 	data.TotalUsers = 1
 	if first.Valid {
 		data.FirstEventAt = time.UnixMilli(first.Int64).Format("Jan 2, 2006")

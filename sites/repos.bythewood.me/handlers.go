@@ -416,7 +416,7 @@ func (s *site) raw(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	// A blob at a resolved SHA cannot change; at a branch name it can.
+	// A blob at a resolved SHA cannot change, at a branch name it can.
 	if sha == rc.Rev {
 		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 	} else {
@@ -813,7 +813,7 @@ func (s *site) addMirrorSource(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/settings", http.StatusSeeOther)
 }
 
-// deleteMirrorSource stops watching a source; nothing on disk is touched.
+// deleteMirrorSource stops watching a source, nothing on disk is touched.
 func (s *site) deleteMirrorSource(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {

@@ -12,18 +12,13 @@ import (
 // What stops a turn ending on "I could look that up for you".
 //
 // The turn loop breaks the moment the model replies without a tool call, which
-// treats every reply as an answer. Two of them are not: a reply that offers to
-// go and check, and a reply that states facts about the world nothing in the
-// turn checked. Both read as an answer to the loop and neither is one, so the
-// model gets one more pass with the tools still on the table rather than the
-// turn ending there.
+// treats every reply as an answer. A reply that offers to go and check, or one
+// that states facts nothing in the turn checked, gets another pass with the
+// tools still on the table instead.
 
-// A deferral in the shapes a small model actually writes them. It is checked
-// first because it is free and catches the common case without a model call.
-//
-// Every pattern needs a first person subject, since "you can search for it on
-// their site" is advice and not a deferral, and an answer that mentions
-// searching in passing must not be thrown away.
+// The shapes a small model writes a deferral in, checked first since they are
+// free. Every pattern needs a first person subject, because "you can search for
+// it on their site" is advice rather than a deferral.
 var deferrals = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)\b(i|we)\s+(can|could|will|shall|am able to)\s+(now\s+)?(go\s+)?(and\s+)?(search|look|check|find|fetch|pull|dig|research|browse|see)\b`),
 	regexp.MustCompile(`(?i)\b(let me|i'?ll|i will|i'?m going to|i am going to)\s+(go\s+)?(and\s+)?(search|look|check|find|fetch|pull|dig|research|browse|see|grab|get)\b`),
@@ -37,10 +32,9 @@ var deferrals = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)\b(i|we) (do not|don'?t) have (anything|any information|any details|much) (to report|on that|about that)\b`),
 }
 
-// Where a deferral has to start to count. A reply that puts the work off says
-// so at the top, and one that answers and then offers to dig further has
-// answered. Without the position an answer ending on "if you want I can check
-// the other two" is thrown away and the whole turn is spent again.
+// Where a deferral has to start to count. Without the position, an answer ending
+// on "if you want I can check the other two" is thrown away and the whole turn
+// is spent again.
 const deferralHead = 240
 
 // The length past which even an early hedge is not a deferral, since a model
@@ -67,11 +61,9 @@ func isDeferral(reply string) bool {
 var refusal = regexp.MustCompile(`(?i)\b(i|we) (cannot|can'?t|could not|couldn'?t) answer (this|that|it|your question)\b.{0,60}\bfrom (the )?tool results\b`)
 
 // The tool results die with the turn and only the answers survive, so a model
-// reading its own earlier answer treats it as evidence it still holds and
-// writes it out again. That is not a deferral and the patterns above miss it.
-//
-// Six word shingles against every earlier answer put the rehashes already in
-// this site's history at 0.34, 0.40 and 0.59, and every real follow-up at 0.08.
+// reading its own earlier answer treats it as evidence and writes it out again.
+// Six word shingles against every earlier answer catch that, and the floor sits
+// between what a rehash scores and what a real follow-up does.
 const (
 	repeatShingle = 6
 	repeatOverlap = 0.30
@@ -116,15 +108,11 @@ func shingles(s string) map[string]bool {
 	return out
 }
 
-// The gate. It runs when the model stops calling tools and wants to answer,
-// which is the only moment where both "is this actually an answer" and "is
-// there enough behind it" can be asked at once.
+// The gate runs when the model stops calling tools and wants to answer.
 //
-// Two fields and one of them an enum, because a 4B handed a free reasoning
-// field beside a constrained one writes the reasoning and then contradicts it.
-// The query is what makes a verdict actionable: a step that says more research
-// is needed without saying what to look for sends the model back to the search
-// it already ran.
+// Two fields and one of them an enum, since a 4B handed a free reasoning field
+// beside a constrained one writes the reasoning and then contradicts it. A
+// verdict without a query sends the model back to the search it already ran.
 type verdict struct {
 	Verdict string `json:"verdict"`
 	Query   string `json:"query"`
@@ -159,10 +147,9 @@ const gateSystem = `You are checking a draft answer before it is sent. Answer on
 
 When the verdict is "research", query is the single web search that would close the biggest gap, written as a person would type it. When the verdict is "answered", query is an empty string.`
 
-// Whether the question needs something the weights cannot hold. This is asked
-// of the question and never of the draft, because a draft that invents an
-// answer reads exactly like one that knows it, and the eight rule check below
-// let "no big news today" through on a Monday afternoon for that reason.
+// Whether the question needs something the weights cannot hold. Asked of the
+// question and never of the draft, since a draft that invents an answer reads
+// exactly like one that knows it.
 type freshness struct {
 	NeedsFresh bool   `json:"needs_fresh"`
 	Query      string `json:"query"`
@@ -179,9 +166,7 @@ var freshnessSchema = map[string]any{
 }
 
 // One question rather than the eight the draft check weighs at once, since a 9B
-// asked for a single judgement gets it right far more often. Measured over
-// thirty two of Isaac's own questions this reached sixteen of eighteen held
-// out, against a draft check that missed "any big news today?" outright.
+// asked for a single judgement gets it right far more often.
 const freshnessSystem = `Decide whether answering the user's question correctly needs information you could not have from training alone, because it changes over time or has happened since.
 
 true when the question touches news, current events, prices, markets, scores, odds, fixtures, schedules, opening or closing, weather, or what is happening now.
@@ -193,16 +178,8 @@ false when the answer is a definition, an explanation, how something works, hist
 When needs_fresh is true, query is the single web search that would answer it, written as a person would type it. When it is false, query is an empty string.`
 
 // The second narrow question, asked of a draft that fetched nothing and passed
-// the freshness check.
-//
-// Nineteen of sixty four turns on 2026-09-08 called no tool, and the wrong ones
-// were not about anything current: they were specifics written from memory. The
-// dirty rice with 23g of protein, the Marlin 195 and the Howa 158 that are not
-// real rifles, CDX described as what Common Crawl uses under the hood. The
-// contract has said to look a subject up since it was written.
-//
-// Asked of the draft rather than the question, because the question is often
-// vague and the draft is where the invented specifics actually are.
+// the freshness check. What goes wrong there is specifics written from memory,
+// so it is asked of the draft rather than of the question, which is often vague.
 type grounding struct {
 	NeedsCheck bool   `json:"needs_check"`
 	Query      string `json:"query"`
@@ -307,20 +284,9 @@ func (e *Engine) enough(ctx context.Context, question, draft, background string,
 	return v, st
 }
 
-// The nudge that goes back into the conversation. The draft itself is never
-// appended, because a model handed its own deferral writes it again.
-// Arithmetic.
-//
-// The contract has asked for calc since the tool existed and it was called zero
-// times on 2026-09-08, across a day of adding up calories. Three answers had
-// wrong sums in them, one of them contradicting a total the same conversation
-// had already given. Asking was never going to work, for the same reason it did
-// not work for tool calls generally, so a draft that adds up in prose is sent
-// back to do it with the tool.
-//
-// Deterministic and free, and deliberately not an attempt to check the sum
-// here. Working out which numbers in a sentence are the addends is the part
-// that goes wrong, and calc gets it right by construction.
+// A draft that totals numbers in prose is sent back to add them up with calc.
+// Working out which numbers in a sentence are the addends is the part that goes
+// wrong, and calc gets it right by construction.
 var (
 	totalWord = regexp.MustCompile(`(?i)\b(total|totals|totalling|altogether|all together|adds up to|comes to|sums? to|in total|grand total)\b`)
 	// A citation marker is a number to a regex and is not one to a reader.
@@ -398,40 +364,33 @@ func repeatNudge() string {
 // Quoted so a multi word query is not read as part of the sentence around it.
 func quoted(s string) string { return "\"" + strings.ReplaceAll(s, "\"", "") + "\"" }
 
-// gate is the whole check, and it returns the nudge to send the turn back with
-// or an empty string to let the draft stand. The two free checks run first and
-// the model is only asked when neither fired, which is a second saved on every
-// one of the failures this exists for. previous is what this conversation has
+// gate is the whole check. It returns the nudge to send the turn back with, or
+// an empty string to let the draft stand. The two free checks run first and the
+// model is only asked when neither fired. previous is what this conversation has
 // already answered, most recent last.
 func (e *Engine) gate(ctx context.Context, question, draft string, previous []string, used []tools.Result, emit func(Event)) (string, Stats) {
-	// Sending a turn back to research when the search endpoint is in the
-	// penalty box is a guaranteed loop: it cannot succeed, and every pass costs
-	// a model call and another failed request against a host that is already
-	// refusing. Every nudge below that names a search is held back for that
-	// reason, and the local snapshot is not, since correcting a draft against a
-	// container on the bridge needs nothing that is refusing us.
+	// Sending a turn back to research while the search endpoint is in the penalty
+	// box is a loop that cannot succeed, so every nudge below that names a search
+	// is held back. The local snapshot is not, since it is a container on the
+	// bridge and nothing there is refusing us.
 	_, searchDown := e.SearchDown()
 	if searchDown {
 		return e.gateOffline(ctx, question, draft, used, emit)
 	}
-	// A news rundown is finished when it arrives. The gate's own rules read a
-	// list of twenty stories as an answer that covers part of the question and
-	// leaves the rest, so left to itself it sends the turn back to research one
-	// of them and the rundown becomes a single story write up.
+	// A news rundown is finished when it arrives. The gate reads a list of twenty
+	// stories as an answer that covers part of the question, so left alone it
+	// sends the turn back and the rundown becomes a single story write up.
 	if calledNews(used) {
 		return "", Stats{}
 	}
 	// Same for a turn that was told to remember something and did. There is no
-	// question under it to research, and the gate reading it as one sent the
-	// turn off to look up the film again and answer with where to stream it,
-	// having stored nothing.
+	// question under it to research.
 	if calledTool(used, tools.Remember.Name) {
 		return "", Stats{}
 	}
-	// Asked of the question and before anything reads the draft, since the
-	// failure this catches is a draft that sounds like an answer. A turn that
-	// already fetched something is left alone, because the question needing
-	// current information is only a problem when nothing went and got it.
+	// Asked of the question and before anything reads the draft, since the failure
+	// this catches is a draft that sounds like an answer. A turn that already
+	// fetched something is left alone.
 	var st Stats
 	if len(used) == 0 {
 		f, fst := e.needsFresh(ctx, question)
@@ -458,10 +417,9 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 		emit(Event{Kind: "status", Text: "adding it up"})
 		return calcNudge(), st
 	}
-	// A draft written from memory that states specifics. The freshness check
-	// above only catches what changes over time, and the specifics that were
-	// wrong were mostly things that do not: a rifle that does not exist, a
-	// protein figure off by eighteen grams.
+	// A draft written from memory that states specifics. The freshness check above
+	// only catches what changes over time, and the specifics that were wrong were
+	// mostly things that do not.
 	if len(used) == 0 {
 		g, gst := e.needsChecking(ctx, draft)
 		st.merge(gst)
@@ -503,9 +461,8 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 }
 
 // gateOffline is the gate with the search host refusing us. The only thing that
-// can be acted on is a draft the local snapshot disagrees with, so that is the
-// only thing checked, and anything else is let through as the honest answer the
-// turn managed.
+// can be acted on is a draft the local snapshot disagrees with, so anything else
+// is let through.
 func (e *Engine) gateOffline(ctx context.Context, question, draft string, used []tools.Result, emit func(Event)) (string, Stats) {
 	if len(used) > 0 {
 		return "", Stats{}

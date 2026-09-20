@@ -40,7 +40,7 @@ type GitHubRepo struct {
 	} `json:"owner"`
 
 	// explicit is true when a source named this repository outright. An account
-	// sweep skips forks; a repository asked for by name is not skipped.
+	// sweep skips forks, a repository asked for by name is not skipped.
 	explicit bool
 }
 

@@ -30,7 +30,7 @@ var templateFuncs = template.FuncMap{
 	"hasPrefix":       strings.HasPrefix,
 }
 
-// dict lets a partial take more than one value; a template has a single dot.
+// dict lets a partial take more than one value, a template has a single dot.
 func dict(pairs ...any) (map[string]any, error) {
 	if len(pairs)%2 != 0 {
 		return nil, fmt.Errorf("dict: odd number of arguments (%d)", len(pairs))
@@ -198,7 +198,7 @@ func pct1(v *float64) string {
 // something to range over.
 func seq(n int) []struct{} { return make([]struct{}, n) }
 
-// uptimeClass bands a recent-uptime percentage; higher is better. It takes a
+// uptimeClass bands a recent-uptime percentage, higher is better. It takes a
 // pointer because the value is nullable and a template cannot rebind the dot
 // inside an {{if}}.
 func uptimeClass(pct *float64) string {
@@ -217,7 +217,7 @@ func uptimeClass(pct *float64) string {
 
 // lighthouseClass bands the average of the four Lighthouse scores. 90 and 80,
 // not Lighthouse's 90 and 50, because an average of 60 across four categories is
-// worse than 60 in one; scoreClass keeps Lighthouse's bands.
+// worse than 60 in one, scoreClass keeps Lighthouse's bands.
 func lighthouseClass(score *int64) string {
 	if score == nil {
 		return "muted"

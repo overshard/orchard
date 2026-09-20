@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-// maxDiffSize caps what is parsed; past it the page shows counts and a link to
+// maxDiffSize caps what is parsed, past it the page shows counts and a link to
 // the raw patch.
 const maxDiffSize = 2 << 20
 
@@ -58,7 +58,7 @@ type Hunk struct {
 	Lines    []DiffLine
 }
 
-// DiffLine carries both line numbers; a zero means the line does not exist on
+// DiffLine carries both line numbers, a zero means the line does not exist on
 // that side.
 type DiffLine struct {
 	Kind   string // "context", "add", "del"
@@ -199,7 +199,7 @@ func parseDiff(patch []byte) CommitDiff {
 
 		case strings.HasPrefix(line, "\\"):
 			// "\ No newline at end of file" annotates the line above rather
-			// than being one; numbering it shifts everything after it.
+			// than being one, numbering it shifts everything after it.
 			continue
 
 		case strings.HasPrefix(line, " "), line == "":
@@ -223,7 +223,7 @@ func parseDiff(patch []byte) CommitDiff {
 
 // parseDiffGit pulls the two paths out of "diff --git a/x b/y". The split is
 // ambiguous because a path may contain " b/", so every candidate is tried and the
-// one whose halves match wins; a rename is corrected by its own header lines.
+// one whose halves match wins, a rename is corrected by its own header lines.
 func parseDiffGit(line string) (old, new string) {
 	rest := strings.TrimPrefix(line, "diff --git ")
 

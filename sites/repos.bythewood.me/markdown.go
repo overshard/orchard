@@ -25,7 +25,7 @@ import (
 // maxReadmeSize caps what is rendered on a repository page.
 const maxReadmeSize = 1 << 20
 
-// maxHighlightSize caps syntax highlighting; past it the file is shown as plain
+// maxHighlightSize caps syntax highlighting, past it the file is shown as plain
 // text, since chroma on a minified bundle is seconds of CPU.
 const maxHighlightSize = 1 << 20
 
@@ -38,7 +38,7 @@ var (
 		),
 		goldmark.WithRendererOptions(
 			// Unsafe is on because escaping raw HTML breaks the badges and
-			// anchors most READMEs use; sanitizer below is what makes it safe.
+			// anchors most READMEs use, sanitizer below is what makes it safe.
 			goldmarkhtml.WithUnsafe(),
 		),
 	)

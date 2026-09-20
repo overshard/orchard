@@ -12,14 +12,12 @@ import (
 )
 
 // School zoning, from actual attendance boundaries and never from "nearest
-// school". Getting this wrong invalidates the whole dashboard, because the
-// drop-off detour is the number that ranks this dashboard and it is measured to
-// whichever school the house is assigned to.
+// school". The drop-off detour is the number that ranks this dashboard and it is
+// measured to whichever school the house is assigned to.
 //
 // Two of the four counties publish the boundaries as a live ArcGIS layer and two
 // do not. A listing in a county with no layer is marked unverified rather than
-// guessed, and the grid says so on the card, because a made-up zone is worse
-// than a blank one.
+// guessed, since a made-up zone is worse than a blank one.
 type zoneLayer struct {
 	url   string
 	field string
@@ -82,8 +80,8 @@ var unzonedCounties = map[string]string{
 
 // Every public school in the state as a point, with its grade range and its DPI
 // school code. This is the fallback for the counties that publish no attendance
-// boundary, which is most of them: the nearest school of each level is not the
-// same claim as the zoned one and it is a great deal more use than a blank.
+// boundary, and the nearest school of each level is not the same claim as the
+// zoned one.
 const ncSchools = "https://services.nconemap.gov/secure/rest/services/NC1Map_Education/MapServer/3/query"
 
 // How far to look for a school. Rural districts are wide and a child can be bused
@@ -362,10 +360,9 @@ func (s *Schools) queryCounty(ctx context.Context, ck string, src countyZones, l
 	// position of the nearest school of that level.
 	if z.ElementaryLat == 0 || z.MiddleLat == 0 || z.HighLat == 0 {
 		if near, err := s.nearestSchools(ctx, lat, lon); err == nil {
-			// Borrowing a position means the detour is measured to whichever school
-			// is closest, which is not necessarily the one the child is zoned to.
-			// README says outright that guessing this is worse than leaving it
-			// blank, so the page has to stop claiming the zoning is confirmed.
+			// Borrowing a position means the detour is measured to whichever
+			// school is closest, which is not necessarily the zoned one, so the
+			// page has to stop claiming the zoning is confirmed.
 			z.Borrowed = true
 			if z.ElementaryLat == 0 {
 				z.ElementaryLat, z.ElementaryLon = near.ElementaryLat, near.ElementaryLon
@@ -407,8 +404,8 @@ func (z *SchoolZones) fillMiles(lat, lon float64) {
 
 // SchoolsRaw scores the schools on how close they are, which is real information
 // whether or not the county publishes an attendance boundary. Three of the five
-// counties here publish none, and scoring those houses at a quarter was docking
-// them for their county's filing habits rather than for anything about the house.
+// counties here publish none, and scoring those houses at a quarter docks them
+// for their county's filing habits.
 func (z SchoolZones) SchoolsRaw() (float64, bool) {
 	var sum, n float64
 	for _, miles := range []float64{z.ElemMiles, z.MiddleMiles, z.HighMiles} {

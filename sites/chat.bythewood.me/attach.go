@@ -1,10 +1,9 @@
 // Files a turn can carry.
 //
-// Nothing is kept. A file arrives with the turn, is read into text, and the
-// bytes are dropped, so there is no upload directory to age out and incognito
-// stays true to its name. What persists is the extracted text, which is already
-// in the conversation, so a follow up question about a file works without the
-// file being sent again.
+// Nothing is kept. A file arrives with the turn, is read into text and the bytes
+// are dropped, so there is no upload directory to age out and incognito stays
+// true to its name. The extracted text is already in the conversation, so a
+// follow up about a file works without the file being sent again.
 package main
 
 import (
@@ -117,12 +116,9 @@ func extract(h *multipart.FileHeader) (string, string, error) {
 
 // pdfText tries poppler first and the pure Go reader second.
 //
-// pdftotext is here because the Go reader fails on the pdfs that matter most. A
-// bank statement is normally encrypted with an empty owner password, which it
-// will not open at all, and even when it does open one it returns the words in
-// object order with no column alignment, so a statement comes out as a list of
-// numbers with nothing saying which row they belonged to. -layout keeps the
-// columns, which is the difference between a table and a pile of figures.
+// A bank statement is normally encrypted with an empty owner password, which the
+// Go reader will not open at all, and what it does open comes back in object
+// order with no column alignment. pdftotext -layout keeps the columns.
 func pdfText(raw []byte) (string, error) {
 	if out, err := popplerText(raw); err == nil {
 		return out, nil

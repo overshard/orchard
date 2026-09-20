@@ -2,17 +2,14 @@
 // leave alone.
 //
 // A git browser has no bounded URL space: every commit times every file times
-// every tree, across every repository here including the archived ones. robots.txt
-// is the only thing between a crawler and all of it, so a crawler that ignores
-// robots.txt walks forever. One did on 2026-09-10, 1,912 requests over two and a
-// half hours from a Dutch hosting range, 1,077 of them to disallowed paths, and
-// 201MB served of which 104MB was tarballs. The slowest single request was 25.6
-// seconds of git archiving.
+// every tree, across every repository here including the archived ones.
+// robots.txt is the only thing between a crawler and all of it, so a crawler
+// that ignores robots.txt walks forever, and one of them walked a couple of
+// hundred megabytes of it in an afternoon.
 //
-// This is the second layer the note about the edge asks for, and the one that is
-// version controlled. It is in Go rather than in Caddy because the edge image is
-// stock caddy:2-alpine and a rate limit there means an xcaddy build of the whole
-// edge for one site.
+// It is in Go rather than in Caddy because the edge image is stock
+// caddy:2-alpine, and a rate limit there means an xcaddy build of the whole edge
+// for one site.
 package main
 
 import (

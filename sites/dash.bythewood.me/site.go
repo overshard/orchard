@@ -19,8 +19,8 @@ const (
 	// Must match the first hostname label, like every other source label.
 	selfSource = "dash"
 
-	// analyticsID is in the page source of every site; it is identity, not a
-	// credential. Its own property, since a copied one silently files this
+	// analyticsID is in the page source of every site, so it names a site rather
+	// than authorising anything. Its own property, since a copied one silently files this
 	// site's traffic under whichever site it was copied from.
 	analyticsID = "0b09f0d1-3016-411c-a003-f15ea72b20fa"
 )

@@ -20,7 +20,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// Templates are source and always ship in the binary; the Vite bundle and the
+// Templates are source and always ship in the binary, the Vite bundle and the
 // topojson are build output and only ship in a release build.
 //
 //go:embed templates
@@ -101,7 +101,7 @@ func main() {
 		return
 	}
 
-	// Tees stdout records to logging.bythewood.me; see web/shipper.go. It goes
+	// Tees stdout records to logging.bythewood.me, see web/shipper.go. It goes
 	// after the healthcheck branch so a HEALTHCHECK does not start a queue it
 	// will never flush.
 	shipper := web.ShipLogs("analytics", web.HTTPSink())
@@ -201,7 +201,7 @@ func main() {
 	mux.HandleFunc("POST /properties/{id}/cards", s.auth.RequireAuth(s.propertyCards))
 	mux.HandleFunc("POST /properties/{id}/public", s.auth.RequireAuth(s.propertyPublic))
 
-	// /collect/ is an alias for embeds that hardcoded the trailing slash; those
+	// /collect/ is an alias for embeds that hardcoded the trailing slash, those
 	// snippets live in other people's HTML.
 	for _, path := range []string{"/collect", "/collect/"} {
 		mux.HandleFunc("POST "+path, s.collect)

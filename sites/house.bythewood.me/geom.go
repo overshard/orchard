@@ -5,10 +5,9 @@ import "math"
 // Just enough geometry to answer "how far is this house from that" without a
 // dependency. Every distance comes back in feet.
 //
-// The projection is a local equirectangular one: x scaled by cos(latitude),
-// y left alone, both multiplied by feet per degree. Over the few thousand feet
-// these questions cover the error is well under a foot, and the alternative is
-// pulling in a projection library to be wrong in a different way.
+// The projection is a local equirectangular one: x scaled by cos(latitude), y
+// left alone, both multiplied by feet per degree. Over the few thousand feet
+// these questions cover the error is well under a foot.
 const (
 	feetPerDegLat = 364000.0 // 1 degree of latitude, near enough at this latitude
 	sqFtPerAcre   = 43560.0
@@ -106,7 +105,7 @@ func ringDistance(p point, ring [][]float64) float64 {
 // size of a house lot and meaningless at the size of a state.
 //
 // Rings after the first are holes and are subtracted, since an ArcGIS polygon
-// winds them the other way and a right of way through a lot is not lot.
+// winds them the other way.
 func (g esriGeometry) acres(around point) float64 {
 	fx, fy := feetPerDegLon(around.lat), feetPerDegLat
 

@@ -2,7 +2,7 @@ package main
 
 // The git smart HTTP wire: clone, fetch and push, over net/http/cgi. Basic auth
 // because git's credential subsystem natively fills, stores and replays no other
-// scheme; the password field carries a random token. The browser UI is in auth.go.
+// scheme, the password field carries a random token. The browser UI is in auth.go.
 
 import (
 	"context"
@@ -129,7 +129,7 @@ func (wr *wire) serveBackend(w http.ResponseWriter, r *http.Request, repo Repo, 
 
 	env := []string{
 		// GIT_PROJECT_ROOT plus PATH_INFO is how http-backend is told which
-		// repository to serve; GIT_DIR does not support the /info/refs form.
+		// repository to serve, GIT_DIR does not support the /info/refs form.
 		"GIT_PROJECT_ROOT=" + wr.store.Root,
 		// Without this each repository needs a git-daemon-export-ok file.
 		"GIT_HTTP_EXPORT_ALL=1",
@@ -203,7 +203,7 @@ func spoolBody(body io.ReadCloser, limit int64) (*spooledFile, int64, error) {
 	if err != nil {
 		return nil, 0, err
 	}
-	// Unlink now; the open handle keeps it alive.
+	// Unlink now, the open handle keeps it alive.
 	_ = os.Remove(f.Name())
 
 	size, err := io.Copy(f, http.MaxBytesReader(nil, body, limit))
@@ -298,7 +298,7 @@ func withUser(ctx context.Context, label string) context.Context {
 	return context.WithValue(ctx, userKey{}, label)
 }
 
-// userFrom reads the token label back out; empty means the request was
+// userFrom reads the token label back out, empty means the request was
 // unauthenticated.
 func userFrom(ctx context.Context) string {
 	label, _ := ctx.Value(userKey{}).(string)

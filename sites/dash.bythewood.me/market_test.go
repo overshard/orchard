@@ -155,7 +155,7 @@ func TestCarrySparksHoldsTheLastGoodShape(t *testing.T) {
 	if got.Cards[0].Spark.Points != 6 {
 		t.Errorf("kept %d points, want the previous 6", got.Cards[0].Spark.Points)
 	}
-	// The figures are still the fresh ones; only the shape is held back.
+	// The figures are still the fresh ones, only the shape is held back.
 	if got.Cards[0].Price != "105.00" {
 		t.Errorf("price %q, want the fresh 105.00", got.Cards[0].Price)
 	}

@@ -9,14 +9,13 @@ import (
 	"strings"
 )
 
-// The code shape is the one where the reader does not read the answer, they
-// paste it, so the things worth checking are different. A sentence can be a
-// little vague and still be useful. A file that does not parse is worth
-// nothing, and neither is one with a hole in the middle where the model ran
-// out of passages.
+// The code shape is the one where the reader pastes the answer rather than reads
+// it, so the things worth checking are different. A sentence can be a little
+// vague and still be useful, while a file that does not parse is worth nothing,
+// and neither is one with a hole where the model ran out of passages.
 //
-// Everything here is static and runs in process, because the image is FROM
-// scratch and there is no interpreter in it to run anything against.
+// Everything here is static and runs in process, since the image is FROM scratch
+// and there is no interpreter in it to run anything against.
 
 // CodeBlock is one fenced block lifted out of an answer.
 type CodeBlock struct {
@@ -208,9 +207,8 @@ func dropMeta(text string) string {
 
 // stripCodeCitations removes citation markers from inside code blocks.
 //
-// The prompt says not to put them there and a 4B does it anyway, and unlike a
-// stray marker in prose this one is pasted into a file and stops it running.
-// Prose keeps its markers, which is the whole point of them.
+// The prompt says not to put them there and a 4B does it anyway, and a marker
+// pasted into a file stops it running, while prose keeps its markers.
 func stripCodeCitations(md string) string {
 	lines := strings.Split(md, "\n")
 	in := false
@@ -233,7 +231,7 @@ func stripCodeCitations(md string) string {
 	return strings.Join(lines, "\n")
 }
 
-// commentAt is where a line comment starts, or -1. Rough on purpose: it is
+// commentAt is where a line comment starts, or -1. Rough, since it is
 // used to decide whether a citation on this line is prose, and a "#" inside a
 // string is not worth a lexer.
 func commentAt(line string) int {
@@ -430,9 +428,9 @@ func goSyntax(src string) string {
 }
 
 // A model that cannot find how a library works argues with itself in a comment
-// and then writes a stand-in value, which is the worst thing a code answer can
-// do: it is complete, it runs, and it does nothing. Worth failing the block
-// over, since the reader would have to read every comment to notice.
+// and then writes a stand-in value, which is complete, runs, and does nothing.
+// Worth failing the block over, since the reader would have to read every
+// comment to notice.
 var metaComment = regexp.MustCompile(`(?i)(provided (?:text|passage|context|basic usage)|the passages?\b|in the (?:provided|given) \w+|based on the (?:provided|given)|not explicitly (?:defined|mentioned|in)|for the purpose of (?:the|this) demo|placeholder for)`)
 
 func metaInCode(code string) string {

@@ -11,14 +11,12 @@ import (
 	"time"
 )
 
-// Being first to see a new listing is most of what a dashboard like this is
-// worth, and a dashboard only tells you when you open it. So a new listing that
-// clears the filters and scores well pushes to a phone through the ntfy that
-// already sits in the edge, the same way status and logging publish outages.
+// A dashboard only tells you when you open it, so a new listing that clears the
+// filters and scores well pushes to a phone through the ntfy already in the edge.
 //
 // The token is write only and comes from .env. Unset means alerts are logged and
-// never delivered, and the refresh still runs: an alerter that cannot deliver
-// must never stop the thing that noticed.
+// never delivered, and the refresh still runs, since an alerter that cannot
+// deliver must not stop the thing that noticed.
 const (
 	ntfyURL   = "http://orchard-ntfy:8000"
 	ntfyTopic = "house"
@@ -98,7 +96,7 @@ func (a *Alerter) NewListing(ctx context.Context, l Listing, score float64, m Mo
 	a.Publish(ctx, title, body, "high", baseURL+"/")
 }
 
-// PriceDrop is low priority on purpose. A drop is worth knowing and is not worth
+// PriceDrop is low priority. A drop is worth knowing and is not worth
 // a buzz at 6am.
 func (a *Alerter) PriceDrop(ctx context.Context, l Listing, from, to int) {
 	title := "Price drop: " + l.Address

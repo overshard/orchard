@@ -21,7 +21,7 @@ const (
 	// The ceiling that actually bounds the damage, because it counts published
 	// notifications for the account and ignores where the request came from.
 	// Per-IP limiting is bypassed by sending one request from each of a
-	// thousand proxies; this is what still holds when that happens.
+	// thousand proxies, this is what still holds when that happens.
 	sendCeiling = 5
 	sendWindow  = time.Hour
 

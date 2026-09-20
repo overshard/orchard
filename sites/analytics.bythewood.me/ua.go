@@ -26,7 +26,7 @@ type ParsedUA struct {
 	BotName  string
 }
 
-// NewUAParser builds a parser lazily; compiling the uap-core regex set is the
+// NewUAParser builds a parser lazily, compiling the uap-core regex set is the
 // most expensive thing this process would do at startup.
 func NewUAParser() *UAParser { return &UAParser{} }
 
@@ -68,7 +68,7 @@ func (u *UAParser) Parse(ua string) ParsedUA {
 	browser := notOther(client.UserAgent.Family)
 	deviceFamily := client.Device.Family
 
-	// uap-core knows the crawlers that declare themselves; the needle list
+	// uap-core knows the crawlers that declare themselves, the needle list
 	// catches preview fetchers and uptime probes it reads as browsers.
 	isBot := spiderFamilies[deviceFamily] || looksLikeBot(ua)
 

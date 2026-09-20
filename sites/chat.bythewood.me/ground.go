@@ -12,16 +12,10 @@ import (
 // Checking a draft that called no tools against the local Wikipedia.
 //
 // The gate asks whether every fact in a draft is supported by a tool result,
-// and when the model answered straight from memory there are no tool results,
-// so there is nothing for it to check and the draft goes out. That is how an
-// answer crediting the Goodyear welt to the tyre company rather than to Charles
-// Goodyear Jr. reached the page, which the article's own opening section gets
-// right.
-//
-// So when nothing was fetched, the subject of the question is looked up in the
-// offline snapshot and handed to the gate as background. It costs one call to a
-// container on the bridge and no model call, since the gate was going to run
-// anyway.
+// and a draft written straight from memory has none, so there is nothing to
+// check and it goes out as it stands. When nothing was fetched, the subject of
+// the question is looked up in the offline snapshot and handed to the gate as
+// background. That costs one call on the bridge and no model call.
 
 // Only when the turn fetched nothing. A turn that called tools has results for
 // the gate to work with, and a question whose subject is not a thing an article
@@ -52,11 +46,9 @@ var clauseBreak = regexp.MustCompile(`(?i)\s+(and|but|or|so|because|since|which|
 const subjectMaxWords = 5
 
 // A subject is the name of a thing, so a clause is not one however short it is.
-// The word cap was the only thing standing between a remark and a lookup, and a
-// remark under five words sailed through it: "That's a crazy high number" is
-// four once the head strip runs and it fetched the country song "Barefoot and
-// Crazy", which then sat in front of the model and took the whole answer with
-// it. These three say the string is somebody talking rather than a title.
+// The word cap alone let a remark through, since "That's a crazy high number" is
+// four words once the head strip runs. These three say the string is somebody
+// talking rather than a title.
 
 // A pronoun is the giveaway, since a title almost never contains one and a
 // sentence about something almost always does.
@@ -111,10 +103,9 @@ func subjectOf(question string) string {
 		return ""
 	}
 	// The whole phrase is not always the giveaway. "Big news today" reduces to
-	// "Big news", which is in neither map, and the snapshot answered it with
-	// the founding date of Universe Today. The head noun is what the phrase is
-	// really about, and "News Corporation" still survives because its head is
-	// the corporation.
+	// "Big news", which is in neither map. The head noun is what the phrase is
+	// really about, and "News Corporation" survives because its head is the
+	// corporation.
 	if f := strings.Fields(l); len(f) > 1 && liveSubject[f[len(f)-1]] {
 		return ""
 	}
@@ -130,9 +121,8 @@ func subjectOf(question string) string {
 }
 
 // Things the snapshot has an article about and can never answer a question
-// about, since what is being asked is today's value and not what the thing is.
-// "what's the weather like" reduces to "weather" and would otherwise spend a
-// lookup and a page of context on the meteorology article.
+// about, since what is being asked is today's value. "what's the weather like"
+// reduces to "weather" and would spend a lookup on the meteorology article.
 var liveSubject = map[string]bool{
 	"weather": true, "forecast": true, "temperature": true, "time": true, "date": true,
 	"news": true, "score": true, "scores": true, "price": true, "prices": true,
@@ -146,16 +136,14 @@ var notASubject = map[string]bool{
 	"which": true, "it": true, "that": true, "this": true, "them": true, "they": true,
 	// A message telling the assistant to do something is not a message about a
 	// thing. "remember that i want to watch this" reduced to "remember" and
-	// fetched the Wikipedia article on memory, which then sat in front of the
-	// model while it decided what the turn was about.
+	// fetched the Wikipedia article on memory.
 	"remember": true, "forget": true, "note": true, "save": true, "keep": true,
 	"add": true, "update": true, "delete": true, "ignore": true,
 }
 
-// background looks the question's subject up in the offline snapshot and
-// returns a line for the gate, or empty when there is nothing to add. Anything
-// that goes wrong returns empty, since this only ever adds evidence and a
-// failure here must not change a verdict.
+// background looks the question's subject up in the offline snapshot and returns
+// a line for the gate, or empty when there is nothing to add. Anything that goes
+// wrong returns empty, since a failure here must not change a verdict.
 func (e *Engine) background(ctx context.Context, question string) string {
 	subject := subjectOf(question)
 	if subject == "" {
@@ -195,10 +183,8 @@ func (e *Engine) background(ctx context.Context, question string) string {
 // opening looks the question's subject up before the model decides anything.
 //
 // The snapshot is local, so this costs a call on the bridge and no web request,
-// and it is current in a way the weights are not: the model had Fumio Kishida
-// as prime minister of Japan and the snapshot has Sanae Takaichi. Handing it
-// over first means the common question is answered from something checkable
-// rather than from training, and the model can still go further from there.
+// and it is current in a way the weights are not. Answering the common question
+// from something checkable leaves the model free to go further from there.
 //
 // It returns the result to record and the message to put in front of the model,
 // or a zero result when there is nothing worth adding.

@@ -9,11 +9,10 @@ import (
 
 // Finishing reports that came up short, without anybody pressing anything.
 //
-// A lookup fails for one of two reasons here and neither is the reader's fault:
-// somebody else's server had a bad minute, or our own guard is resting after one.
-// Both fix themselves given time, so the answer is to come back later rather than
-// to put a button on the page. A button is also the thing that gets a home user
-// blocked, since the instinct when a page looks wrong is to press it again.
+// A lookup fails here because somebody else's server had a bad minute or our own
+// guard is resting after one, and both fix themselves given time. A button is
+// also what gets a home user blocked, since the instinct when a page looks wrong
+// is to press it again.
 type Mender struct {
 	db    *sql.DB
 	ref   *Refresher

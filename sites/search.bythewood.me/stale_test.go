@@ -21,7 +21,7 @@ func TestStaleFutures(t *testing.T) {
 	}
 
 	clean := []string{
-		// Genuinely ahead.
+		// Ahead.
 		"Artemis IV is scheduled for early 2028.",
 		"The next launch is planned for December 2026.",
 		// This month is not past.

@@ -1,15 +1,13 @@
 // Recovering a tool call the model wrote as prose.
 //
-// llama.cpp parses the tool call syntax its template defines and hands back a
-// structured tool_calls array. When a model emits a malformed version of that
-// syntax, the parser does not match and the whole thing arrives as ordinary
-// content, which then renders to the user as markup. Ornith does this
-// occasionally, in this shape and with no closing tags:
+// llama.cpp parses the tool call syntax its template defines. A malformed
+// version does not match, so the whole thing arrives as ordinary content and
+// renders to the user as markup. Ornith does this occasionally, with no
+// closing tags:
 //
 //	<tool_call> <function=web_fetch> <parameter=url> https://example.com </tool_call>
 //
-// Two things have to happen. The markup must never reach the page, and the
-// call it describes should still run, because the turn is otherwise wasted.
+// The markup must never reach the page, and the call it describes should run.
 package main
 
 import (

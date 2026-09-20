@@ -54,8 +54,8 @@ func TestGuardOKResetsTheStreak(t *testing.T) {
 
 }
 
-// A deploy used to empty the penalty box, so the next turn asked a host that
-// was still refusing. That is the surest way to keep a rate limit alive.
+// A deploy that empties the penalty box has the next turn ask a host that is
+// still refusing, which is the surest way to keep a rate limit alive.
 func TestGuardSurvivesARestart(t *testing.T) {
 	store := &fakeStore{}
 	g := NewGuard(10 * time.Minute)
@@ -92,9 +92,8 @@ func TestGuardDownListsOnlyLiveBoxes(t *testing.T) {
 	}
 }
 
-// A slow page is not a ban. Before this split, one timeout put a host in the
-// same six hour box DuckDuckGo gets, which on 2026-09-08 took
-// developer.android.com, mirrors.wikimedia.org and hacker-news.firebaseio.com
+// A slow page is not a ban. Without the split, one timeout puts a host in the
+// same six hour box DuckDuckGo gets, which takes an ordinary documentation site
 // out of reach for the afternoon.
 func TestAStumbleIsBoxedBrieflyAndARefusalIsNot(t *testing.T) {
 	g := NewGuard(time.Minute)

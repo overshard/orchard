@@ -1,9 +1,8 @@
 // docx, xlsx and pptx.
 //
 // All three are a zip of xml, so they need no dependency and no subprocess. The
-// parsing is deliberately shallow: what a model wants out of a spreadsheet is
-// the values in row and column order, not the formatting, and everything these
-// formats carry beyond that is noise it would have to read past.
+// parsing is shallow since what a model wants out of a spreadsheet is the values
+// in row and column order, and the rest is noise it would have to read past.
 package main
 
 import (

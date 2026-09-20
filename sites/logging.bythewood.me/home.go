@@ -58,7 +58,7 @@ func robots(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("User-agent: *\nDisallow: /\n"))
 }
 
-// sitemap lists the two public pages; everything behind the login is absent.
+// sitemap lists the two public pages, everything behind the login is absent.
 func sitemap(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
 

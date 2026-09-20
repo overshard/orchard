@@ -10,10 +10,9 @@ import (
 	"strings"
 )
 
-// The functions calc understands. A mortgage payment needs a power and nothing
-// here has one, so before this existed the model wrote the amortization formula
-// with `^`, got told it was not arithmetic, and put a made up number in the
-// table instead.
+// The functions calc understands. A mortgage payment needs a power, and without
+// one the model writes the amortization formula with `^`, is told it is not
+// arithmetic, and puts a made up number in the table instead.
 var exprFuncs = map[string]struct {
 	args int
 	fn   func([]float64) (float64, error)
@@ -38,8 +37,8 @@ var exprFuncs = map[string]struct {
 // value of the last one is the answer.
 //
 // Naming the parts is how anybody writes a mortgage payment, and a model asked
-// for one reaches for `r = 0.05/12` before anything else. Without it the call
-// is refused for a reason the model cannot act on, and it guesses instead.
+// for one reaches for `r = 0.05/12` first. Without it the call is refused for a
+// reason the model cannot act on, and it guesses instead.
 func evalExpr(s string) (float64, error) {
 	env := map[string]float64{}
 	var last float64

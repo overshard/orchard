@@ -1443,7 +1443,7 @@ table.sheet {
 
 // The report while the background assessment is still running. A soft pulse
 // rather than a spinner, because a spinner says something is stuck and this is
-// just slow on purpose.
+// only slow.
 .working {
   border-color: rgba(201, 143, 51, 0.4);
   background: rgba(201, 143, 51, 0.06);

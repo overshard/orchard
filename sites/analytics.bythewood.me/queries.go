@@ -18,7 +18,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// The events the collector emits on its own; everything else is a custom event.
+// The events the collector emits on its own, everything else is a custom event.
 var builtInEvents = []string{"session_start", "page_view", "page_leave", "click", "scroll"}
 
 // Page-leave timings outside this band are a double fire or a tab left open.
@@ -411,7 +411,7 @@ func eventsGraph(ctx context.Context, db *sql.DB, propertyID uuid.UUID, startMS,
 	return out
 }
 
-// formatGraphLabel renders "Jan 5"; Go has no unpadded day verb, so the padded
+// formatGraphLabel renders "Jan 5", Go has no unpadded day verb, so the padded
 // form is trimmed.
 func formatGraphLabel(t time.Time) string {
 	return t.Format("Jan") + " " + strings.TrimPrefix(t.Format("02"), "0")
@@ -419,7 +419,7 @@ func formatGraphLabel(t time.Time) string {
 
 // topByColumn groups by one column and takes the top N. column and countExpr are
 // interpolated into the SQL, which is safe only while every caller passes a
-// literal; never pass one from a request.
+// literal, never pass one from a request.
 func topByColumn(ctx context.Context, db *sql.DB, propertyID uuid.UUID, startMS, endMS int64, filterURL, column, event string, limit int64, distinctUsers bool) []LabelCount {
 	countExpr := "COUNT(*)"
 	if distinctUsers {

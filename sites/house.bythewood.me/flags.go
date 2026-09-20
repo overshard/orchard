@@ -7,10 +7,9 @@ import (
 
 // Every rule produces a Flag rather than a yes or no, and the flag's severity is
 // a config value. Five of these are stated dealbreakers, so they exclude. The
-// rest are wants: a corner lot or an old doublewide does not sink an otherwise
-// perfect house, it is points off and a chip on the card saying why.
+// rest are points off and a chip on the card saying why.
 //
-// Flipping any rule between the two is one word in config, because which of them
+// Flipping any rule between the two is one word in config, since which of them
 // is a dealbreaker is the reader's call and it moves as they see houses.
 type Flag struct {
 	Key     string  `json:"key"`
@@ -34,7 +33,7 @@ const (
 )
 
 // The defaults. Exclude for the five stated dealbreakers, points off for the
-// wants, and the sizes are rough on purpose: a doublewide sinking twenty points
+// wants, and the sizes are rough, since a doublewide sinking twenty points
 // is meant to put it below every site-built house without hiding it.
 var defaultSeverity = map[string]string{
 	ruleOverPrice:     "exclude",
@@ -221,8 +220,7 @@ func manufacturedKind(l Listing, f Filters) (string, bool) {
 
 // frontsMainRoad is the frontage test, and distance is what makes it a frontage
 // test rather than a proximity one. Off a small road that leads to a main road is
-// the arrangement wanted, so a primary road four hundred feet away says nothing
-// about this driveway.
+// the arrangement wanted, so a primary road four hundred feet away says nothing.
 func frontsMainRoad(cfg Config, r RoadResult) (string, bool) {
 	cutoff := cfg.Filters.AADTCutoff
 	radius := cfg.Filters.AADTRadiusFt
@@ -257,9 +255,9 @@ func frontsMainRoad(cfg Config, r RoadResult) (string, bool) {
 }
 
 // outsideBand is the geography test: a drive-time band from the office, plus the
-// stated north bound, plus an arc of the compass. Not a lat/lon box, because the
-// roads here do not run straight, so a box includes places you cannot reach in the
-// time and excludes places you can.
+// stated north bound, plus an arc of the compass. The roads here do not run
+// straight, so a lat/lon box includes places you cannot reach in the time and
+// excludes places you can.
 func outsideBand(cfg Config, a *Assessment) (string, bool) {
 	g := cfg.Geography
 
@@ -273,8 +271,7 @@ func outsideBand(cfg Config, a *Assessment) (string, bool) {
 	// A routing outage must not rule a house out. The latitude and the bearing are
 	// arithmetic on a coordinate we already have, so they still apply, but with no
 	// drive time there is nothing to compare against the band. Excluding here put
-	// every house in the drawer the moment the routing service had a bad hour,
-	// which is a failed lookup hiding a house rather than merely scoring it.
+	// every house in the drawer the moment the routing service had a bad hour.
 	mins := a.Morning.Commute.Minutes
 	if mins == 0 {
 		return "", false

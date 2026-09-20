@@ -1,10 +1,9 @@
 // Conversations on disk, and the mode that keeps them off it.
 //
-// This is a second database rather than more tables next to anything else, for
-// the reason search's history is: deleting every conversation has to be
-// possible without touching whatever else the site caches, and a separate file
-// is one line to exclude from a backup. Deletion is forward only, so the honest
-// way to keep something out of a backup is never to have put it in one.
+// A second database rather than more tables beside anything else, so deleting
+// every conversation is possible without touching whatever else the site caches
+// and a separate file is one line to exclude from a backup. Deletion is forward
+// only, so the way to keep something out of a backup is never to put it in one.
 package main
 
 import (
@@ -119,10 +118,8 @@ func migrate(db *sql.DB) {
 }
 
 // migrateIDs rebuilds both tables when the conversation id is still a counter.
-// SQLite cannot change a column's type, and the ids have to be handed out
-// before anything can point at them, so it is a copy rather than an update. The
-// old addresses stop resolving, which was accepted when the change was asked
-// for.
+// SQLite cannot change a column's type and the ids have to be handed out before
+// anything can point at them, so it is a copy rather than an update.
 func migrateIDs(db *sql.DB) {
 	rows, err := db.Query(`PRAGMA table_info(conversations)`)
 	if err != nil {
@@ -302,9 +299,8 @@ func (s *Store) NewConversation(title string) (string, error) {
 	return id, nil
 }
 
-// newID is a version 4 uuid. Nothing in the repo needed one before this, and a
-// dependency for sixteen random bytes and a format string is not a trade worth
-// making.
+// newID is a version 4 uuid. A dependency for sixteen random bytes and a format
+// string is not worth taking on.
 func newID() string {
 	var b [16]byte
 	if _, err := rand.Read(b[:]); err != nil {

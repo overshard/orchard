@@ -17,7 +17,7 @@ func Static(dist fs.FS, assets *Assets) http.Handler {
 	return http.StripPrefix("/static/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		clean := strings.TrimPrefix(r.URL.Path, "/")
 
-		// Server-side only; a browser has no use for it.
+		// Server-side only, a browser has no use for it.
 		if strings.HasPrefix(clean, ".vite/") {
 			http.NotFound(w, r)
 			return

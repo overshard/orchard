@@ -12,12 +12,11 @@ import (
 )
 
 // Whether there is flat ground to put raised beds and a chicken run on. Acreage
-// on its own does not answer it: two acres on the side of a ridge is not two acres
-// you can use, and that is the common shape of a cheap lot in these counties.
+// on its own does not answer it, since two acres on the side of a ridge is not
+// two acres you can use.
 //
-// USGS 3DEP answers it at one metre resolution and samples many points in one
-// request, so a grid around the house costs one call and gives a real relief
-// figure rather than a guess from the contour lines on a listing photo.
+// USGS 3DEP answers at one metre resolution and samples many points in one
+// request, so a grid around the house costs one call.
 const (
 	elevationSamples = "https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer/getSamples"
 
@@ -177,11 +176,9 @@ func computeTerrain(grid []float64, step float64) TerrainResult {
 	out.ReliefFeet = hi - lo
 
 	// Slope between each sample and the one to its right and the one below it.
-	//
-	// Only cells that have both neighbours count toward the flat share. An edge
-	// cell has one, and judging it on that alone reported a uniform hillside as
-	// one sixth flat, because the bottom row's only comparison runs along the
-	// contour where there is no fall at all.
+	// Only cells with both neighbours count toward the flat share, since an edge
+	// cell's only comparison can run along the contour where there is no fall at
+	// all, which reads a uniform hillside as mostly flat.
 	var sum float64
 	var pairs, flat, cells int
 	for row := 0; row < terrainGrid-1; row++ {

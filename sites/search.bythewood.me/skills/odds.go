@@ -16,13 +16,11 @@ import (
 const (
 	gammaSearchURL = "https://gamma-api.polymarket.com/public-search"
 
-	// Polymarket lists a novelty market beside a real one, and "how many
-	// Chipotle BOGOs will be given out during the 2026 US Open" is a real
-	// market with real prices that answers nothing anybody asked. Volume is
-	// what separates them, since the tournament winner traded $20m and the
-	// BOGO market $204. The floor is low enough to leave a thin but real
-	// market alone, because declining sends the question to a web search that
-	// is worse at odds than any market is.
+	// Polymarket lists a novelty market beside a real one, and "how many Chipotle
+	// BOGOs will be given out during the 2026 US Open" is a real market with real
+	// prices that answers nothing anybody asked. Volume tells them apart, since
+	// the tournament winner traded $20m and the BOGO market $204. The floor is
+	// low enough to leave a thin but real market alone.
 	minOddsVolume = 10000
 )
 
