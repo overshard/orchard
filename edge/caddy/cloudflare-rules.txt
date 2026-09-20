@@ -1,0 +1,229 @@
+The four Cloudflare custom rules, kept here because a dashboard rule is not in
+version control and does not come back on a rebuild. Nothing reads this file.
+
+All four are action Block, pasted identically into the bythewood.me and
+isaacbythewood.com zones. Four rather than one, of the five the free plan
+allows, since together they exceed the 4,096 character cap on a single
+expression. A clause landing in one zone and not the other has happened three
+times, so probe both after an edit.
+
+Cloudflare is the loose layer and Caddy the exact one. The free plan has no
+regex operator, so rule 1 guards on the repository content shape with
+`contains "/blob/"` where the Caddyfile anchors the verb to the second segment.
+Rule 2 guards on the host instead, because the families in it never collide with
+a file in a repository and Caddy covers repos exactly anyway.
+
+Rule 1, "Exploit scanner paths":
+
+  (starts_with(http.request.uri.path, "/."))
+  or (
+       not (
+         http.host eq "repos.bythewood.me"
+         and (
+             lower(http.request.uri.path) contains "/blob/"
+             or lower(http.request.uri.path) contains "/raw/"
+             or lower(http.request.uri.path) contains "/tree/"
+             or lower(http.request.uri.path) contains "/commit/"
+             or lower(http.request.uri.path) contains "/log/"
+             or lower(http.request.uri.path) contains "/archive/"
+             or lower(http.request.uri.path) contains "/branches"
+             or lower(http.request.uri.path) contains "/tags"
+         )
+       )
+       and (
+           lower(http.request.uri.path) in {"/env" "/_environment"}
+        or lower(http.request.uri.path) contains "wp-"
+        or lower(http.request.uri.path) contains "wordpress"
+        or lower(http.request.uri.path) contains "/wp/"
+        or lower(http.request.uri.path) contains "xmlrpc"
+        or lower(http.request.uri.path) contains "phpmyadmin"
+        or lower(http.request.uri.path) contains "autodiscover"
+        or lower(http.request.uri.path) contains "/cgi-bin/"
+        or lower(http.request.uri.path) contains "/vendor/"
+        or lower(http.request.uri.path) contains ".env"
+        or lower(http.request.uri.path) contains "/.git"
+        or lower(http.request.uri.path) contains "/.aws"
+        or lower(http.request.uri.path) contains "/.ssh"
+        or lower(http.request.uri.path) contains "/.vscode"
+        or lower(http.request.uri.path) contains ".php"
+        or lower(http.request.uri.path) contains ".asp"
+        or lower(http.request.uri.path) contains ".jsp"
+        or lower(http.request.uri.path) contains ".cgi"
+        or lower(http.request.uri.path) contains ".axd"
+        or lower(http.request.uri.path) contains ".sql"
+        or lower(http.request.uri.path) contains ".bak"
+        or lower(http.request.uri.path) contains "phpinfo"
+        or lower(http.request.uri.path) contains "/actuator/"
+        or lower(http.request.uri.path) contains "/_profiler/"
+        or lower(http.request.uri.path) contains "/solr/"
+        or lower(http.request.uri.path) contains "/livewire/"
+        or lower(http.request.uri.path) contains "/sitecore/"
+        or lower(http.request.uri.path) contains "telerik"
+        or lower(http.request.uri.path) contains "id_rsa"
+        or lower(http.request.uri.path) contains "id_ed25519"
+        or lower(http.request.uri.path) contains "credentials.json"
+        or lower(http.request.uri.path) contains "service-account"
+        or lower(http.request.uri.path) contains "serviceaccount"
+        or lower(http.request.uri.path) contains "keyfile.json"
+        or lower(http.request.uri.path) contains "adminsdk"
+        or lower(http.request.uri.path) contains "-key.json"
+        or lower(http.request.uri.path) contains "-sa.json"
+        or lower(http.request.uri.path) contains "/sa.json"
+        or lower(http.request.uri.path) contains "/key.json"
+        or lower(http.request.uri.path) contains "/_ignition/"
+        or lower(http.request.uri.path) contains "/storage/logs/"
+        or lower(http.request.uri.path) contains "/webinterface/"
+        or lower(http.request.uri.path) contains "/zabbix/"
+        or lower(http.request.uri.path) contains "/owa/"
+        or lower(http.request.uri.path) contains "/boaform/"
+        or lower(http.request.uri.path) contains "/jenkins/"
+        or lower(http.request.uri.path) contains "/hudson/"
+        or lower(http.request.uri.path) contains "sugar_version.json"
+        or lower(http.request.uri.path) contains "com_pagebuilderck"
+        or lower(http.request.uri.path) contains "/login.do"
+        or lower(http.request.uri.path) contains "/showlogin.cc"
+       )
+     )
+
+Rule 2, "Exploit scanner paths 2":
+
+  http.host ne "repos.bythewood.me"
+  and (
+      lower(http.request.uri.path) contains "/remote/fgt_lang"
+      or lower(http.request.uri.path) contains "/remote/login"
+      or lower(http.request.uri.path) contains "/global-protect/"
+      or lower(http.request.uri.path) contains "/ssl-vpn/"
+      or lower(http.request.uri.path) contains "/app/rest/"
+      or lower(http.request.uri.path) contains "/blade-auth/"
+      or lower(http.request.uri.path) contains "/blade-system/"
+      or lower(http.request.uri.path) contains "/pimcore-studio/"
+      or lower(http.request.uri.path) contains "/php-cgi/"
+      or lower(http.request.uri.path) contains "/administrator/"
+      or lower(http.request.uri.path) contains "/language/en-gb/"
+      or lower(http.request.uri.path) contains "/media/system/"
+      or lower(http.request.uri.path) contains "/api/v1/totp/"
+      or lower(http.request.uri.path) contains "joomla"
+      or lower(http.request.uri.path) contains "keys-status"
+      or lower(http.request.uri.path) contains ".esp"
+      or lower(http.request.uri.path) contains ".action"
+      or lower(http.request.uri.path) contains "/_cat/"
+      or lower(http.request.uri.path) contains "/_cluster/"
+      or lower(http.request.uri.path) contains "/_watcher/"
+      or lower(http.request.uri.path) contains "/_snapshot/"
+      or lower(http.request.uri.path) contains "/_nodes"
+      or lower(http.request.uri.path) contains "/api/datasources"
+      or lower(http.request.uri.path) contains "/api/alert-notifications"
+      or lower(http.request.uri.path) contains "/api/v1/provisioning/"
+      or lower(http.request.uri.path) contains "/api/org"
+      or lower(http.request.uri.path) contains "/api/dashboards"
+      or lower(http.request.uri.path) contains "/api/2.0/mlflow/"
+      or lower(http.request.uri.path) contains "/containers/json"
+      or lower(http.request.uri.path) contains "/v1.24/"
+      or lower(http.request.uri.path) contains "/images/json"
+      or lower(http.request.uri.path) contains "/v2/keys/"
+      or lower(http.request.uri.path) contains "/api/contents"
+      or lower(http.request.uri.path) contains "/auth/v1/"
+      or lower(http.request.uri.path) contains "/rest/v1/"
+      or lower(http.request.uri.path) contains "/api/v1/validate/code"
+      or lower(http.request.uri.path) contains "/api/v1/auto_login"
+      or lower(http.request.uri.path) contains "/druid/"
+      or lower(http.request.uri.path) contains "/hazelcast/"
+      or lower(http.request.uri.path) contains "/geoserver/"
+      or lower(http.request.uri.path) contains "/ws/v1/cluster"
+      or lower(http.request.uri.path) contains "editor/filemanager/"
+      or lower(http.request.uri.path) contains "/plugins/editors/"
+      or lower(http.request.uri.path) contains "/media/jui/"
+      or ends_with(lower(http.request.uri.path), ".zip")
+      or ends_with(lower(http.request.uri.path), ".rar")
+      or ends_with(lower(http.request.uri.path), ".7z")
+      or ends_with(lower(http.request.uri.path), ".tgz")
+      or ends_with(lower(http.request.uri.path), ".tar.gz")
+     )
+
+Rule 3, "Exploit scanner paths 3":
+
+  http.host ne "repos.bythewood.me"
+  and (
+      lower(http.request.uri.path) in {"/ip" "/null" "/proxy" "/fetch" "/redirect" "/request" "/url" "/webhook" "/load" "/out" "/api/proxy" "/api/fetch" "/api/redirect" "/api/request" "/api/url" "/api/webhook" "/credentials" "/s3/credentials" "/api/session/properties" "/api/postman.json"}
+   or starts_with(lower(http.request.uri.path), "/config/")
+   or lower(http.request.uri.path) contains "/@fs/"
+   or lower(http.request.uri.path) contains "__vite_rsc_"
+   or lower(http.request.uri.path) contains "/@vite/"
+   or lower(http.request.uri.path) contains "/proc/self/"
+   or lower(http.request.uri.path) contains "/userfiles"
+   or lower(http.request.uri.path) contains "/read-document"
+   or lower(http.request.uri.path) contains "/inngest"
+   or lower(http.request.uri.path) contains "/api/fs/exec"
+   or lower(http.request.uri.path) contains "/api/exec"
+   or lower(http.request.uri.path) contains "/api/designer/"
+   or lower(http.request.uri.path) contains "/api/templates/preview"
+   or lower(http.request.uri.path) contains "/_debugbar/"
+   or lower(http.request.uri.path) contains "/_debug_toolbar/"
+   or lower(http.request.uri.path) contains "/__debug__/"
+   or lower(http.request.uri.path) contains "/debug/pprof"
+   or lower(http.request.uri.path) contains "/debug/vars"
+   or lower(http.request.uri.path) contains "/debug-kit"
+   or lower(http.request.uri.path) contains "/telescope/requests"
+   or lower(http.request.uri.path) contains "/server-status"
+   or lower(http.request.uri.path) contains "/server-info"
+   or lower(http.request.uri.path) contains "/nginx_status"
+   or lower(http.request.uri.path) contains "graphql"
+   or lower(http.request.uri.path) contains "/actuator"
+   or lower(http.request.uri.path) contains "swagger"
+   or lower(http.request.uri.path) contains "openapi.json"
+   or lower(http.request.uri.path) contains "_payload.json"
+   or lower(http.request.uri.path) contains "/app/etc/local.xml"
+   or lower(http.request.uri.path) contains "/_darcs/"
+   or lower(http.request.uri.path) contains "/cvs/root"
+   or lower(http.request.uri.path) contains "stripe"
+   or lower(http.request.uri.path) contains "firebase"
+   or lower(http.request.uri.path) contains "amplifyconfiguration"
+   or lower(http.request.uri.path) contains "amplify_outputs"
+   or lower(http.request.uri.path) contains "awsconfiguration"
+   or lower(http.request.uri.path) contains "aws-exports"
+   or lower(http.request.uri.path) contains "aws_credentials"
+   or lower(http.request.uri.path) contains "google-services"
+   or lower(http.request.uri.path) contains "gc-service"
+   or lower(http.request.uri.path) contains "gcp-service"
+     )
+
+Rule 4, "Exploit scanner paths 4":
+
+  http.host ne "repos.bythewood.me"
+  and (
+      lower(http.request.uri.path) contains "client_secret"
+   or lower(http.request.uri.path) contains "terraform.tf"
+   or lower(http.request.uri.path) contains "serverless.ym"
+   or lower(http.request.uri.path) contains "sam-template"
+   or lower(http.request.uri.path) contains "vercel.json"
+   or lower(http.request.uri.path) contains "netlify.toml"
+   or lower(http.request.uri.path) contains "docker-compose."
+   or lower(http.request.uri.path) contains "rclone.conf"
+   or lower(http.request.uri.path) contains "web.config"
+   or lower(http.request.uri.path) contains "gradle.properties"
+   or lower(http.request.uri.path) contains "application.properties"
+   or lower(http.request.uri.path) contains "appsettings"
+   or lower(http.request.uri.path) contains "settings.py"
+   or lower(http.request.uri.path) contains "secret_token"
+   or lower(http.request.uri.path) contains "master.key"
+   or lower(http.request.uri.path) contains "schema.prisma"
+   or lower(http.request.uri.path) contains "composer.json"
+   or lower(http.request.uri.path) contains "composer.lock"
+   or lower(http.request.uri.path) contains "/api/config"
+   or lower(http.request.uri.path) contains "/api/settings"
+   or lower(http.request.uri.path) contains "/api/v1/config"
+   or lower(http.request.uri.path) contains "/api/v2/config"
+   or lower(http.request.uri.path) contains "/api/v1/settings"
+   or lower(http.request.uri.path) contains "/api/v2/settings"
+   or lower(http.request.uri.path) contains "/api/v1/keys"
+   or lower(http.request.uri.path) contains "/api/env"
+   or lower(http.request.uri.path) contains "/api/v1/env"
+   or ends_with(lower(http.request.uri.path), "/dockerfile")
+   or ends_with(lower(http.request.uri.path), ".pem")
+   or ends_with(lower(http.request.uri.path), ".key")
+   or ends_with(lower(http.request.uri.path), ".p12")
+   or ends_with(lower(http.request.uri.path), ".pfx")
+   or ends_with(lower(http.request.uri.path), ".jks")
+   or ends_with(lower(http.request.uri.path), ".astro.mjs.map")
+     )
+
