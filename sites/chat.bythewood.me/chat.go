@@ -290,14 +290,18 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 			In: user, Out: "offered remember and nothing else"})
 	}
 
-	for round := 0; round < maxToolRounds; round++ {
-		last := round == maxToolRounds-1
+	// A round whose calls all failed teaches the model how to call the tool and
+	// leaves it no budget to act on that, so it answers from nothing. One extra
+	// round buys the retry, and only one, so a tool that fails every time
+	// cannot spin the turn out.
+	budget, grace := maxToolRounds, 1
+	for round := 0; round < budget; round++ {
+		last := round == budget-1
 		if last {
 			// Out of tool budget. Taking the tools away is what forces an
 			// answer; leaving them on lets a model spend every round calling
 			// something and hand back an empty turn.
-			msgs = append(msgs, Message{Role: RoleUser,
-				Content: "You have used your tool budget for this turn. Answer now with what you have, and say plainly if something is missing."})
+			msgs = append(msgs, Message{Role: RoleUser, Content: budgetNote(used)})
 			break
 		}
 		offer := schemas
@@ -385,6 +389,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 			}
 		}
 		msgs = append(msgs, reply)
+		ran, failed := 0, 0
 		for _, tc := range reply.ToolCalls {
 			key := tc.Function.Name + "\x00" + canonArgs(tc.Function.Arguments)
 			if prev, done := seen[key]; done {
@@ -412,6 +417,10 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 			res := e.reg.Call(ctx, deps, tc.Function.Name, json.RawMessage(tc.Function.Arguments))
 			seen[key] = res
 			used = append(used, res)
+			ran++
+			if res.Err != "" {
+				failed++
+			}
 			tr.Add(Step{Kind: "tool", Label: res.Name, In: tc.Function.Arguments,
 				Out: resultText(res), MS: res.Elapsed.Milliseconds(), Bad: res.Err != "",
 				Meta: snapshotMeta(res.Content)})
@@ -432,6 +441,10 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 			}
 			msgs = append(msgs, Message{Role: RoleTool, ToolCallID: id, Name: res.Name, Content: string(body)})
 		}
+		if ran > 0 && failed == ran && grace > 0 {
+			grace--
+			budget++
+		}
 	}
 
 	// Everything the turn read, numbered. The model is handed the numbers and
@@ -443,7 +456,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	// with tools still on the table. Without saying so, a model writes the
 	// sentence it would have written before calling another tool, which reads
 	// as "Let me check that" and then stops.
-	msgs = append(msgs, Message{Role: RoleUser, Content: finalTurn + sourcePrompt(srcs)})
+	msgs = append(msgs, Message{Role: RoleUser, Content: finalTurn + failedToolNote(used) + sourcePrompt(srcs)})
 
 	emit(Event{Kind: "status", Text: "writing"})
 	answerStart := time.Now()
@@ -474,11 +487,49 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	return Message{Role: RoleAssistant, Content: text}, used, cited(text, srcs), deps.Widgets.List(), stats, nil
 }
 
+// failedToolNote names a tool that never once worked in the turn, so the model
+// is told what it could not find out rather than filling the hole. A model that
+// could not compute something otherwise writes an estimate in the same voice as
+// a checked figure. A tool that failed and later succeeded is left out, since a
+// retried fetch is not a gap.
+func failedToolNote(used []tools.Result) string {
+	failed, worked := map[string]string{}, map[string]bool{}
+	for _, r := range used {
+		if r.Err != "" {
+			if _, ok := failed[r.Name]; !ok {
+				failed[r.Name] = r.Err
+			}
+			continue
+		}
+		worked[r.Name] = true
+	}
+	var names []string
+	for name := range failed {
+		if !worked[name] {
+			names = append(names, name+" ("+failed[name]+")")
+		}
+	}
+	if len(names) == 0 {
+		return ""
+	}
+	sort.Strings(names)
+	return "\n\nThese tools never worked in this turn: " + strings.Join(names, "; ") +
+		". Do not write down a number you could not work out. Where one is missing, say so and say " +
+		"why, rather than estimating it and presenting it like the rest."
+}
+
+// budgetNote is the nudge the last decide round gets when the tools come off.
+func budgetNote(used []tools.Result) string {
+	return "You have used your tool budget for this turn. Answer now with what you have, " +
+		"and say plainly if something is missing." + failedToolNote(used)
+}
+
 // prepare is everything done to the model's markdown before it is rendered or
 // stored: the address dump at the end goes, a schemeless address becomes a
 // link, and the citations are repaired. It runs on each finished block as it
 // streams and on the whole answer at the end, and agrees with itself because
 // every step works a line at a time.
+
 func prepare(md string, srcs []Source) string {
 	return attach(dropLabelMarks(linkBareAddresses(dropSourceList(md))), srcs)
 }
