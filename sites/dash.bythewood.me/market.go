@@ -340,6 +340,10 @@ type stripRow struct {
 	times   []int64
 	axis    tradingAxis
 	missing bool
+
+	// Price known, close it is measured from not known. Different from missing,
+	// which is no price at all.
+	nobase bool
 }
 
 // axisOr takes the strip's shared window when this card belongs to the same
@@ -379,9 +383,14 @@ func resolveRows(quotes map[string]Quote, useFutures bool) []stripRow {
 		}
 
 		axis := sessionAxis(q.Times)
-		if axis.ok && roundClock(r.symbol) {
-			if prev, found := previousSessionClose(q.Closes, q.Times, time.Unix(axis.start, 0)); found {
-				q.Previous = prev
+		if n := len(q.Times); n > 0 && roundClock(r.symbol) {
+			// Yahoo's own previous close is a five day old one on this batch,
+			// since it is relative to the range asked for. There is no falling
+			// back to it, so a card with no 4pm in its bars says it has no
+			// baseline rather than measuring from last week.
+			q.Previous, r.nobase = 0, true
+			if prev, found := previousSessionClose(q.Closes, q.Times, time.Unix(q.Times[n-1], 0)); found {
+				q.Previous, r.nobase = prev, false
 			}
 		}
 
@@ -479,13 +488,21 @@ func buildMarket(quotes map[string]Quote, now time.Time) Market {
 		spark.Closed = r.shutBy(live) && spark.Span < sparkWidth
 
 		change, pct := q.change(), q.percent()
+		pts, percent := signed(change, r.in.Decimals), signed(pct, 2)+"%"
+		// The price is real and the close it would be measured from is not, so
+		// the card prints the one and withholds the other. It would otherwise
+		// read +0.00%, which is a number rather than an absence.
+		if r.nobase {
+			pts, percent = "\u2014", ""
+		}
+
 		m.Cards = append(m.Cards, Card{
 			Key:       r.in.Key,
 			Label:     r.in.Label,
 			Symbol:    r.symbol,
 			Price:     formatNumber(q.Price, r.in.Decimals),
-			Change:    signed(change, r.in.Decimals),
-			Percent:   signed(pct, 2) + "%",
+			Change:    pts,
+			Percent:   percent,
 			Direction: direction(change),
 			Note:      r.note,
 			Spark:     spark,
@@ -697,14 +714,32 @@ func sessionBars(closes []float64, times []int64, axis tradingAxis) ([]float64, 
 	return keptCloses, keptTimes, axis
 }
 
-// previousSessionClose is the last print at or before 4pm the day before the
-// open, which is what "yesterday's close" has to mean once every card is on one
-// clock. Yahoo dates bitcoin's day by UTC and a future's by its contract, so
-// their own previous close measures from a different moment than the S&P's and
-// the eight cards disagree about what day it is. Reading it off the bars puts
-// them all on the same 4pm.
-func previousSessionClose(closes []float64, times []int64, open time.Time) (float64, bool) {
-	cut := open.AddDate(0, 0, -1).Add(regularHours).Unix()
+// lastBell is the most recent 4pm New York strictly before t. It is built from
+// the open rather than from a 16 so the two stay in step, and in Eastern so it
+// lands on 4pm across a daylight saving change instead of 3 or 5.
+func lastBell(t time.Time) time.Time {
+	et := easternTime()
+	y, m, d := t.In(et).Date()
+	bell := time.Date(y, m, d, sessionOpenHour, sessionOpenMin, 0, 0, et).Add(regularHours)
+	if !t.After(bell) {
+		bell = bell.AddDate(0, 0, -1)
+	}
+	return bell
+}
+
+// previousSessionClose is the last print at or before the most recent 4pm, which
+// is what "the close" has to mean once every card is on one clock. Yahoo dates
+// bitcoin's day by UTC and a future's by its contract, so their own previous
+// close measures from a different moment than the S&P's and the eight cards
+// disagree about what day it is. Reading it off the bars puts them all on the
+// same 4pm.
+//
+// last is the newest bar and not the session open, because the trading day rolls
+// at 9:30 and the close does not. Anchoring on the open left every round the
+// clock card between midnight and 9:30 measuring from the close two sessions
+// back, so a 7am glance at the futures carried all of yesterday inside it.
+func previousSessionClose(closes []float64, times []int64, last time.Time) (float64, bool) {
+	cut := lastBell(last).Unix()
 
 	var prev float64
 	var found bool

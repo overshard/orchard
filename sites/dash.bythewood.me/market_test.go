@@ -367,6 +367,47 @@ func TestBuildMarketOnlyRecomputesThePreviousCloseForRoundTheClockSymbols(t *tes
 	}
 }
 
+// Yahoo's own previous close is relative to the range asked for, so on the five
+// day batch it is a five day old number. A card with no 4pm in its bars has to
+// say it has no baseline rather than quietly measure from last week.
+func TestRoundTheClockCardWithNoBellWithholdsTheChange(t *testing.T) {
+	et := easternTime()
+	open := time.Date(2026, 8, 31, 9, 30, 0, 0, et)
+	now := open.Add(2 * time.Hour)
+
+	// Bars start after the open, so there is no previous 4pm anywhere in them.
+	var closes []float64
+	var times []int64
+	for i := range 4 {
+		closes = append(closes, 100)
+		times = append(times, open.Add(time.Duration(i)*30*time.Minute).Unix())
+	}
+
+	quotes := map[string]Quote{
+		"BTC-USD": {
+			Symbol: "BTC-USD", Price: 100, Previous: 80, AsOf: now,
+			Closes: closes, Times: times,
+		},
+	}
+
+	var card Card
+	for _, c := range buildMarket(quotes, now).Cards {
+		if c.Key == "bitcoin" {
+			card = c
+		}
+	}
+
+	if card.Unavailable {
+		t.Fatal("the price is known, so the card is not a NO SIGNAL")
+	}
+	if card.Percent != "" {
+		t.Errorf("percent is %q, want it withheld rather than measured from Yahoo's stale 80", card.Percent)
+	}
+	if card.Spark.HasBase {
+		t.Error("a card with no baseline should not rule a line across")
+	}
+}
+
 // The board is the eleven sectors plus the index they are read against, which
 // is also what makes it a complete three by four grid.
 func TestSectorBoardCarriesTheBenchmark(t *testing.T) {
