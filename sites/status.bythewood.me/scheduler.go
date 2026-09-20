@@ -52,7 +52,7 @@ func NewScheduler(db *sql.DB, notifier *Notifier, root string) *Scheduler {
 }
 
 // ResetOnBoot clears rows left queued or running by a previous process, whose
-// goroutines are gone; without it a property interrupted by a deploy sticks.
+// goroutines are gone, without it a property interrupted by a deploy sticks.
 func (s *Scheduler) ResetOnBoot(ctx context.Context) error {
 	if _, err := s.db.ExecContext(ctx,
 		"UPDATE properties SET crawl_state = 'idle' WHERE crawl_state IN ('queued', 'running')"); err != nil {
@@ -327,7 +327,7 @@ func (s *Scheduler) runCrawlFor(ctx context.Context, p *Property) {
 	}
 }
 
-// resetWedged is the watchdog; the thresholds are the cutoff constants above.
+// resetWedged is the watchdog, the thresholds are the cutoff constants above.
 func (s *Scheduler) resetWedged(ctx context.Context) error {
 	now := nowMS()
 

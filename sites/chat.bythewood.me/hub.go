@@ -2,17 +2,9 @@ package main
 
 // What every open tab is told, whichever one asked for it.
 //
-// A turn already outlives the tab that started it, but nothing told the other
-// tabs about it. So a question asked on the desktop never reached the phone
-// without a reload, and switching to another conversation and back was the only
-// way to see an answer that had finished while you were elsewhere. Isaac asked
-// for a notification, a queue and cross device history, and the queue was the
-// only one of the three that already existed.
-//
-// This is the meta channel and deliberately not a second copy of the answer
-// stream. It carries which conversation changed and nothing about what was
-// said, so a tab knows what to go and read. The answer itself still comes from
-// the run, which is the one place it is assembled.
+// This is the meta channel and not a second copy of the answer stream. It
+// carries which conversation changed and nothing about what was said, so a tab
+// knows what to go and read and the answer still comes from the run itself.
 
 import (
 	"encoding/json"

@@ -143,9 +143,9 @@ func (s *Stats) merge(o Stats) {
 }
 
 // sampling is Qwen's published non-thinking recipe, which the other models here
-// are close enough to. Thinking is off because llama.cpp puts a chain of
-// thought in reasoning_content and leaves content empty, which does not look
-// like an error: a 200, well formed JSON, and nothing to show the user.
+// are close enough to. Thinking is off because llama.cpp puts the chain of
+// thought in reasoning_content and leaves content empty, which arrives as a 200
+// with nothing to show the user.
 func (l *LLM) base(msgs []Message, maxTok int) chatReq {
 	return chatReq{
 		Model: l.Model, Messages: msgs, Temperature: 0.7, TopP: 0.8, TopK: 20,
@@ -166,9 +166,8 @@ func (l *LLM) CompleteStats(ctx context.Context, msgs []Message, schemas []map[s
 }
 
 // CompleteRequiringTool is the same call with the model given no say in whether
-// it calls something. It is what a nudge turns into once the turn has already
-// asked politely: a model that has written a deferral will write another one,
-// and asking a third time spends the turn instead of answering it.
+// it calls something. A model that has written a deferral will write another
+// one, so asking a third time spends the turn instead of answering it.
 func (l *LLM) CompleteRequiringTool(ctx context.Context, msgs []Message, schemas []map[string]any, maxTok int) (Message, Stats, error) {
 	return l.complete(ctx, msgs, schemas, "required", maxTok)
 }
@@ -197,8 +196,7 @@ func (l *LLM) complete(ctx context.Context, msgs []Message, schemas []map[string
 
 // Structured constrains an answer to a JSON schema, which llama.cpp compiles to
 // a GBNF grammar and samples against, so a field declared as an enum cannot come
-// back as anything else. Temperature is low because these steps are decisions
-// rather than prose.
+// back as anything else. Temperature is low since these steps are decisions.
 func (l *LLM) Structured(ctx context.Context, msgs []Message, maxTok int, schema, out any) (Stats, error) {
 	raw, err := json.Marshal(schema)
 	if err != nil {
@@ -239,7 +237,7 @@ func statsOf(r chatResp) Stats {
 }
 
 // Stream asks for the final answer and calls onDelta as text arrives. Tools are
-// deliberately not offered here: by this point the turn is answering.
+// not offered here, since by this point the turn is answering.
 func (l *LLM) Stream(ctx context.Context, msgs []Message, maxTok int, onDelta func(string)) (string, Stats, error) {
 	req := l.base(msgs, maxTok)
 	req.Stream = true
@@ -365,10 +363,9 @@ func (l *LLM) Warm(ctx context.Context) {
 }
 
 // Loaded asks whether the weights are on the card and whether the gateway
-// answered at all, which is one call because a server that answers this is up
-// by definition. It reads llama-swap's process table and starts nothing, so
-// polling it is free. Never point this at /health, which would load the model
-// and defeat the idle unload.
+// answered at all. It reads llama-swap's process table and starts nothing, so
+// polling is free. Never point this at /health, which would load the model and
+// defeat the idle unload.
 func (l *LLM) Loaded(ctx context.Context) (loaded, up bool) {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()

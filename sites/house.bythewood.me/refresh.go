@@ -51,9 +51,8 @@ func (r *Refresher) Running(id int64) bool {
 }
 
 // claim marks a listing as being worked on and reports whether the caller got it.
-// Checking and then setting left a window where a check from the page and the
-// mender both started on the same listing, which doubled every external request
-// and had whichever finished first tell the page it was done.
+// Checking and then setting leaves a window where the page and the mender both
+// start on the same listing, which doubles every external request.
 func (r *Refresher) claim(id int64) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -285,9 +284,8 @@ func (r *Refresher) CheckAddress(ctx context.Context, addr string, price int, ex
 	}
 
 	// The geocode is quick and everything after it is a dozen paced calls to other
-	// people's servers, which took a minute and a half and then died on the write
-	// timeout with somebody watching a blank tab. So the row goes in now, the
-	// reader goes straight to the report, and the rest fills in behind them.
+	// people's servers, which ran past the write timeout with somebody watching a
+	// blank tab. So the row goes in now and the rest fills in behind the reader.
 	if !r.claim(id) {
 		// Already being worked on, and the page polls, so the reader sees the same
 		// run finish either way.
@@ -393,9 +391,8 @@ func (r *Refresher) assess(ctx context.Context, id int64, l Listing) (*Assessmen
 	}
 
 	// Five different services with five separate guards, so they run at the same
-	// time. Each still paces itself against its own upstream, and doing them one
-	// after another made checking a single address take the best part of two
-	// minutes while somebody stood there waiting for it.
+	// time. Each still paces itself against its own upstream, and one after
+	// another made checking a single address take the best part of two minutes.
 	var wg sync.WaitGroup
 	logFail := func(what string, err error) {
 		if err != nil {
@@ -464,9 +461,8 @@ func (r *Refresher) assess(ctx context.Context, id int64, l Listing) (*Assessmen
 
 	a.Fence = FenceNote(l)
 	// The deeded acreage beats anything typed in, and it has to land on the
-	// listing row rather than only in memory: acres lives there, the land factor
-	// reads it back off the card, and without this the county's answer was fetched
-	// and then thrown away.
+	// listing row rather than only in memory, since the land factor reads acres
+	// back off the card.
 	if a.Listing.Acres == 0 && a.Parcel.Acres > 0 {
 		a.Listing.Acres = a.Parcel.Acres
 		if _, err := r.db.ExecContext(ctx,
@@ -477,9 +473,9 @@ func (r *Refresher) assess(ctx context.Context, id int64, l Listing) (*Assessmen
 	}
 
 	// The county the parcel sits in beats the one on the address, which is often
-	// blank: the geocoder returns a street address and no county at all, so an
-	// address typed into the box has nothing to key the area figures on until the
-	// parcel lookup says where it is.
+	// blank. The geocoder returns a street address and no county, so an address
+	// typed into the box has nothing to key the area figures on until the parcel
+	// lookup says where it is.
 	county := firstNonEmpty(a.Parcel.County, l.County, a.Zones.County)
 	if county != "" && l.County == "" {
 		if _, err := r.db.ExecContext(ctx, `UPDATE listings SET county = ? WHERE id = ?`, county, id); err != nil {
@@ -594,9 +590,8 @@ func loadGrades(ctx context.Context, db *sql.DB, z SchoolZones) SchoolGrades {
 	}
 	// A zone name is tidied down to a word or two, so an exact match is tried
 	// first and a prefix match only when it picks out exactly one school. Range
-	// order over a map is random, so returning the first prefix hit gave
-	// "Taylorsville" whichever of the elementary, middle and high school came up,
-	// and a different one on the next run.
+	// order over a map is random, so returning the first prefix hit gives a
+	// different school on every run.
 	lookup := func(name string) string {
 		if name == "" {
 			return ""

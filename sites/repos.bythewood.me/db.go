@@ -144,8 +144,8 @@ type RepoMeta struct {
 	Hidden       bool
 }
 
-// Repo reads one row. No row is not an error; it is a repository pushed and
-// never described.
+// Repo reads one row. No row means a repository that was pushed and never
+// described, rather than an error.
 func (d *DB) Repo(name string) (RepoMeta, error) {
 	row := d.sql.QueryRow(`
         SELECT name, description, topics, homepage, mirror, upstream,
@@ -214,7 +214,7 @@ func (d *DB) EnsureRepo(name string) error {
 }
 
 // SetDescription updates what the UI can edit. Topics are a JSON array, not a
-// join table; nothing queries across them that a LIKE cannot answer.
+// join table, nothing queries across them that a LIKE cannot answer.
 func (d *DB) SetDescription(name, description string, topics []string, homepage string) error {
 	if err := d.EnsureRepo(name); err != nil {
 		return err
@@ -302,7 +302,7 @@ const (
 	tokenBytes = 32
 )
 
-// CreateToken mints a push credential and returns it once; the database keeps
+// CreateToken mints a push credential and returns it once, the database keeps
 // only a hash, so there is no way to read it back.
 func (d *DB) CreateToken(label string) (string, error) {
 	label = strings.TrimSpace(label)
@@ -443,13 +443,14 @@ const (
 // interpolated into an API URL, so they are checked at the form.
 var ghNamePart = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 
-// ParseMirrorSource accepts "owner" or "owner/repo"; the slash is the whole grammar.
+// ParseMirrorSource accepts "owner" or "owner/repo", so the slash is all the
+// syntax there is.
 func ParseMirrorSource(input string) (MirrorSource, error) {
 	in := strings.TrimSpace(input)
 	// A pasted GitHub URL is accepted rather than rejected.
 	in = strings.TrimSuffix(strings.TrimPrefix(strings.TrimPrefix(in,
 		"https://github.com/"), "github.com/"), ".git")
-	// Only a trailing slash is forgiven; a leading one means the owner is missing.
+	// Only a trailing slash is forgiven, a leading one means the owner is missing.
 	in = strings.TrimSuffix(in, "/")
 
 	if in == "" {
@@ -501,7 +502,7 @@ func (d *DB) AddMirrorSource(m MirrorSource) error {
 }
 
 // DeleteMirrorSource stops syncing a source. The repositories it brought in stay
-// on disk; this site is a backup.
+// on disk, this site is a backup.
 func (d *DB) DeleteMirrorSource(id int64) error {
 	_, err := d.sql.Exec(`DELETE FROM mirror_sources WHERE id = ?`, id)
 	return err

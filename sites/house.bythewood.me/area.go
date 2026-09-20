@@ -15,16 +15,11 @@ import (
 // What the area around a house is like, which after schools is the thing that
 // decides whether a family is happy where they land.
 //
-// Two of these numbers are scored and the rest are shown. Crime and the settled
-// neighbourhood measures are scored, because they are about what happens on the
-// street and they are things a buyer can weigh. The published race, ethnicity and
-// religion figures are shown and are not scored, and that is a deliberate line: a
-// tool that ranks houses by who lives nearby is a redlining machine whatever it
-// was built for, and the number it produced would not tell you anything about
-// whether your family would be safe or happy there. The measures that do bear on
-// that, and that are in the score, are crime, how many neighbours own their homes
-// rather than pass through, how many houses sit empty, and how many households
-// have children in them.
+// Crime and the settled neighbourhood measures are scored: how many neighbours
+// own their homes rather than pass through, how many houses sit empty, and how
+// many households have children in them. The published race, ethnicity and
+// religion figures are shown and never scored, since a tool that ranks houses
+// by who lives nearby is a redlining machine whatever it was built for.
 type AreaProfile struct {
 	Name   string `json:"name"`   // what this describes, a county or a tract
 	Level  string `json:"level"`  // county or tract
@@ -168,13 +163,11 @@ func (t AreaTable) For(county string) AreaProfile {
 
 // The census figures that are still published without a key, through the ArcGIS
 // services the Census and Esri put the ACS tables on. The Census Bureau's own API
-// started refusing keyless requests, and this is the same data from the same
-// survey by another road.
+// started refusing keyless requests, and this is the same data by another road.
 //
-// Only population and composition come from here. The measures that are actually
-// scored, crime and the settled neighbourhood ones, are not on this service and
-// come out of data/area.json, which is why they say so plainly when it is empty
-// rather than guessing.
+// Only population and composition come from here. Crime and the settled
+// neighbourhood measures are not on this service and come out of data/area.json,
+// which is why they say so plainly when it is empty.
 const acsRaceCounties = "https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/" +
 	"ACS_Population_by_Race_and_Hispanic_Origin_Boundaries/FeatureServer/1/query"
 

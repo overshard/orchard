@@ -13,9 +13,6 @@ import (
 )
 
 // The day's major headlines from NPR and BBC, newest first, and nothing else.
-// It was a market news panel before and then a four bucket balance across six
-// outlets, and Isaac's read on both was that they were confusing to look at,
-// so this reads like a wire and is sorted the way a wire is.
 //
 // These three feeds are the editor picked ones rather than a topic list, since
 // what lands on a front page is the closest thing an RSS feed has to a signal
@@ -24,7 +21,7 @@ import (
 // reader's version of it.
 //
 // The endpoint is the guard bucket, so one outlet going down or answering 429
-// costs its own headlines and leaves the other its budget.
+// costs its own headlines and leaves the others their budget.
 var wireFeeds = []struct{ name, endpoint, url string }{
 	{"NPR", "npr", "https://feeds.npr.org/1001/rss.xml"},
 	{"BBC", "bbc", "https://feeds.bbci.co.uk/news/world/us_and_canada/rss.xml"},

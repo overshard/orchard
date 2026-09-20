@@ -11,13 +11,11 @@ import (
 
 // Looking like a browser is not about the User-Agent alone. A request carrying
 // one browser header and nothing else is a more obvious scraper than one
-// carrying none, because no real browser has ever sent that combination. So
-// this sends the whole set Chrome sends, in Chrome's order, keeps cookies
-// across requests the way a browser does, and asks for compression it can
-// actually decode.
+// carrying none, so this sends the whole set Chrome sends, in Chrome's order,
+// keeps cookies across requests the way a browser does, and asks for
+// compression it can actually decode.
 //
-// Keep the version current. An outdated Chrome is itself a fingerprint, and
-// this was found advertising Chrome 131 in September 2026, nearly a year stale.
+// Keep the version current, since an outdated Chrome is itself a fingerprint.
 const (
 	chromeMajor = "152"
 	browserUA   = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) " +

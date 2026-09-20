@@ -9,18 +9,17 @@ import (
 // None is the routing answer meaning no skill claims this, go and search.
 const None = "none"
 
-// Model is the slice of the LLM the router needs. Narrow on purpose, so the
+// Model is the slice of the LLM the router needs. Narrow, so the
 // package does not depend on the client and a test can hand over a stub.
 type Model interface {
 	Structured(ctx context.Context, system, user string, maxTokens int, schema any, out any) error
 }
 
-// The two things a question can want. This is the first half of the decision
-// and it is an enum rather than free text, which is the whole trick: a 4B asked
-// to write its reasoning writes a paragraph that argues its way to one answer
-// and then emits another, and capping the paragraph only truncates it before it
-// concludes. Both halves constrained means the second is conditioned on a token
-// the model actually committed to rather than on prose it can contradict.
+// The two things a question can want. This is the first half of the decision and
+// it is an enum rather than free text, since a 4B asked to write its reasoning
+// writes a paragraph that argues its way to one answer and then emits another.
+// Both halves constrained means the second is conditioned on a token the model
+// committed to rather than on prose it can contradict.
 const (
 	WantsValue = "a current value, price, reading, or the score or result of a match"
 	WantsFact  = "a fact, definition, explanation, opinion or set of instructions"
@@ -45,11 +44,10 @@ func (r Route) Why() string { return r.Wants }
 
 // Decide picks the skill for a question, or None.
 //
-// This is the first model call in the pipeline. Classification is the thing a
-// 4B is genuinely good at, and the enum is enforced in the grammar rather than
-// asked for in the prompt, so the model cannot name a skill that does not
-// exist. What it can still do is pick the wrong one, which is what the
-// negative triggers on each card are for.
+// This is the first model call in the pipeline. Classification is what a 4B is
+// good at, and the enum is enforced in the grammar rather than asked for in the
+// prompt, so the model cannot name a skill that does not exist. It can still
+// pick the wrong one, which is what the negative triggers on each card are for.
 func (r *Registry) Decide(ctx context.Context, m Model, question string) Route {
 	for _, s := range r.skills {
 		if c, ok := s.(Claimer); ok && c.Claims(question) {
@@ -162,11 +160,10 @@ func (r *Registry) match(question string) string {
 
 // Run routes and then executes, and reports which skill answered.
 //
-// A skill returning no result is not an error, it is a skill declining, and
-// the caller falls through to the web. That happens when the router was right
-// about the subject and the upstream had nothing, which is common enough that
-// treating it as a failure would show an error for a question the pipeline can
-// still answer.
+// A skill returning no result is declining rather than failing, and the caller
+// falls through to the web. That happens when the router was right about the
+// subject and the upstream had nothing, which is common enough that treating it
+// as a failure would show an error for a question the pipeline can answer.
 func (r *Registry) Run(ctx context.Context, m Model, question string, d Deps) (*Result, string) {
 	route := r.Decide(ctx, m, question)
 	if route.Skill == None || route.Skill == "" {

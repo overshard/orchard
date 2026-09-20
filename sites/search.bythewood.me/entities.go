@@ -13,13 +13,11 @@ import (
 
 // The sources answer where the research came from, which is not the same as
 // where the thing itself lives. Asked for the most popular Go project and told
-// "Ollama", a reader wants a link to Ollama, not only to the listicle that said
-// so.
+// "Ollama", a reader wants a link to Ollama and not only to the listicle.
 //
 // Candidates come from the links already harvested off the fetched pages, so
-// finding one costs no extra search: a page that names a project nearly always
-// links to it. Each candidate is then fetched and checked to actually be the
-// thing before it is shown, because a wrong link is worse than none.
+// finding one costs no extra search. Each is fetched and checked to be the thing
+// before it is shown, since a wrong link is worse than none.
 
 // EntityLink is a verified link to something an answer named.
 type EntityLink struct {

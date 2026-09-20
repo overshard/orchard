@@ -14,14 +14,13 @@ import (
 // Reported crime, from the FBI's Crime Data Explorer.
 //
 // This is the one fact on a report with no keyless route to it. The NC SBI
-// publishes county crime as a PDF once a year and the FBI publishes it through an
-// API that wants a key, which is free and instant at api.data.gov and lives in
-// .env. Without one the crime factor says it has no figures rather than guessing.
+// publishes county crime as a PDF once a year and the FBI wants a key, which is
+// free and instant at api.data.gov and lives in .env. Without one the crime
+// factor says it has no figures rather than guessing.
 //
-// There is no county endpoint, so a county is the sum of the agencies that police
-// it: the sheriff's office plus each town's department. The API hands back both
-// the offence counts and the population each agency covers, which is the
-// denominator, so the rate is worked out here rather than taken on trust.
+// There is no county endpoint, so a county is the sum of the agencies that
+// police it. The API hands back the offence counts and the population each
+// agency covers, so the rate is worked out here rather than taken on trust.
 const (
 	cdeAgencies   = "https://api.usa.gov/crime/fbi/cde/agency/byStateAbbr/NC"
 	cdeSummarized = "https://api.usa.gov/crime/fbi/cde/summarized/agency"

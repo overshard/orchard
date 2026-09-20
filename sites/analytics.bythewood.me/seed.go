@@ -45,7 +45,7 @@ type weightedString struct {
 	Weight int
 }
 
-// The empty referrer is the heaviest entry; most real traffic is direct or has
+// The empty referrer is the heaviest entry, most real traffic is direct or has
 // its referrer stripped.
 var seedReferrers = []weightedString{
 	{"", 50}, {"google.com", 20}, {"twitter.com", 5}, {"news.ycombinator.com", 3},
@@ -219,7 +219,7 @@ func ensureSeedProperty(ctx context.Context, db *sql.DB) (uuid.UUID, error) {
 }
 
 func generateSeed(ctx context.Context, db *sql.DB, id uuid.UUID, sessions, days int) (int64, error) {
-	// One transaction for the whole run; otherwise every insert is its own
+	// One transaction for the whole run, otherwise every insert is its own
 	// commit and its own fsync.
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {

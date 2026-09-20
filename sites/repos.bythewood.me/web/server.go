@@ -13,10 +13,9 @@ import (
 	"time"
 )
 
-// SetupLogging installs the process-wide structured logger. JSON, because these
-// logs are read by machine before they are read by a person. Source positions
-// are off: they are noise in a request log, and the message and attributes
-// already say where a record came from.
+// SetupLogging installs the process-wide structured logger, in JSON since these
+// logs are read by machine first. Source positions are off because the message
+// and attributes already say where a record came from.
 func SetupLogging() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
@@ -37,13 +36,11 @@ func Serve(addr string, h http.Handler) error {
 	srv := &http.Server{
 		Addr:    addr,
 		Handler: h,
-		// No body timeouts here, unlike the copy in the other five sites. This
-		// one serves the git wire, where one request carries a whole packfile,
-		// and Go's ReadTimeout and WriteTimeout bound the entire body and the
-		// entire response, so a 60s write bound cuts a large clone off
-		// mid-stream. ReadHeaderTimeout still closes a connection that dribbles
-		// headers forever, and body size is bounded by the spool cap in wire.go
-		// and by Cloudflare at the edge.
+		// No body timeouts. This one serves the git wire, where one request
+		// carries a whole packfile, and Go's Read and WriteTimeout bound the
+		// entire body, so a 60s write bound cuts a large clone off mid-stream.
+		// ReadHeaderTimeout still closes a connection that dribbles headers, and
+		// body size is bounded by the spool cap in wire.go and by Cloudflare.
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       0,
 		WriteTimeout:      0,
@@ -69,22 +66,16 @@ func Serve(addr string, h http.Handler) error {
 	}
 
 	// Inside the 30s stop_grace_period the compose file asks for, so a
-	// receive-pack in flight at deploy time finishes writing its pack instead
-	// of being cut off and leaving a stale lock. Ten seconds, the value the
-	// other five sites use, silently defeated that grace period.
+	// receive-pack in flight at deploy time finishes writing its pack instead of
+	// being cut off and leaving a stale lock.
 	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 	defer cancel()
 	return srv.Shutdown(ctx)
 }
 
 // HealthCheck probes a running server over the loopback and reports whether it
-// answered 200, so that a container can check itself. Two of these images are
-// FROM scratch: no shell, no curl, nothing a HEALTHCHECK can call except the
-// binary. The Alpine images could use wget, but one behaviour everywhere beats
-// two.
-//
-// The timeout is short. Docker treats a timed out check as a failure anyway, so
-// a slow check only delays finding out.
+// answered 200, so a container can check itself. Two of these images are FROM
+// scratch, with no shell and no curl for HEALTHCHECK to call.
 func HealthCheck(url string, timeout time.Duration) error {
 	client := &http.Client{Timeout: timeout}
 

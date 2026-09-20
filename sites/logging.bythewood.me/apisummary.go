@@ -1,9 +1,8 @@
 // The read only JSON view of this site, for chat.bythewood.me's tools.
 //
-// This is not /aggregate. That one is public, feeds dash, and returns counts
-// and nothing else because it is published to the internet. This one is behind
-// the same session as the dashboard and carries the messages and paths with it,
-// which is the whole reason for asking.
+// /aggregate is the public one, which feeds dash and returns counts and nothing
+// else, while this sits behind the same session as the dashboard and carries the
+// messages and paths with it.
 package main
 
 import (
@@ -31,9 +30,7 @@ type apiSource struct {
 //
 // Details is the attrs bag, which is where the reason lives. A slog call is
 // `slog.Error("shipping a batch failed", "err", err)`, so the message names the
-// operation and the error itself is an attribute. Without this the reader is
-// told something failed and never what went wrong, which is what the dashboard
-// has always shown and this endpoint did not.
+// operation and the error itself is an attribute.
 type apiError struct {
 	Message   string `json:"message"`
 	Source    string `json:"source"`
@@ -55,14 +52,12 @@ type apiPath struct {
 	Errors int     `json:"errors"`
 }
 
-// What the edge turned away, which is the half of "is anything suspicious"
-// that errors cannot answer. Asked that question on 2026-09-11 the summary
-// said nothing was wrong, and it was right about errors and wrong about the
-// day: the edge was refusing thousands of scanner probes an hour and none of
-// them is an ERROR anywhere.
+// What the edge turned away, which is the half of "is anything suspicious" that
+// errors cannot answer. The edge refuses thousands of scanner probes an hour and
+// none of them is an ERROR anywhere.
 //
-// Blocked requests are deliberately absent. The scanner block carries log_skip,
-// so what shows up here is what got past it, which is the number worth seeing.
+// Blocked requests are absent. The scanner block carries log_skip, so what shows
+// up here is what got past it, which is the number worth seeing.
 type apiRefused struct {
 	Client4xx  int          `json:"client_4xx"`
 	Server5xx  int          `json:"server_5xx"`
@@ -260,12 +255,10 @@ func clamp(raw string, def, max int) int {
 // privateIP is the SQL for an address that is this machine talking to itself,
 // either over loopback or across the docker bridge.
 //
-// The dashboard tile excludes loopback alone, on the reasoning that it should
-// fail toward showing a strange record. A peer container is not strange: dash
-// polls /aggregate here 1,381 times a day from 172.18.0.4, which was 97% of
-// what this field counted on the first day it existed. A number that is
-// almost entirely one known caller cannot report the request that skipped
-// Cloudflare, which is the only thing it is for.
+// The dashboard tile excludes loopback alone, so that it fails toward showing a
+// strange record. A peer container is ordinary here, since dash polls /aggregate
+// off the bridge all day, and a number that is almost entirely one known caller
+// cannot report the request that skipped Cloudflare.
 const privateIP = `(ip = '' OR ip = '127.0.0.1' OR ip = '::1'
 	OR ip LIKE '10.%' OR ip LIKE '127.%' OR ip LIKE '192.168.%' OR ip LIKE '169.254.%'
 	OR ip GLOB '172.1[6-9].*' OR ip GLOB '172.2[0-9].*' OR ip GLOB '172.3[01].*'

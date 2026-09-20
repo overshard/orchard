@@ -2,15 +2,13 @@ package tools
 
 // The estate's own sites, read only.
 //
-// These are the one group of tools that reach something private, so they work
-// differently from the rest. Each one forwards the session cookie of whoever is
-// chatting, and the site on the other end does its own check against
-// auth.bythewood.me. Nothing here holds a credential of its own, which means
-// this chat cannot read anything the person using it could not already open in
-// a browser, and signing that session out stops these tools on the next call.
+// These are the one group of tools that reach something private. Each forwards
+// the session cookie of whoever is chatting and the site on the other end does
+// its own check against auth.bythewood.me, so this chat cannot read anything
+// the person using it could not already open in a browser.
 //
-// Every one is a GET against an endpoint that only reads. There is no tool here
-// that can change anything, and there is deliberately not going to be one.
+// Every one is a GET against an endpoint that only reads, and there is not
+// going to be one here that changes anything.
 
 import (
 	"context"
@@ -30,10 +28,9 @@ import (
 const SessionCookie = "bw_session"
 
 // Site names resolve on the bridge, so these never leave the machine and never
-// pass through Cloudflare. A public hostname would work and would be slower,
-// cached, and a lie about where the data went.
+// pass through Cloudflare.
 // Vars rather than constants so a test can stand a real server up in front of
-// one, which is the only way to check that a tool walks a repository correctly.
+// one.
 var (
 	loggingBase   = "http://orchard-logging:8000"
 	statusBase    = "http://orchard-status:8000"
@@ -171,16 +168,10 @@ var OrchardRepos = Tool{
 }
 
 // OrchardCode is the other half of orchard_repos: the listing says what exists
-// and this says what is in it. Without it every question about Isaac's own code
-// ended the same way, with the model guessing raw addresses on repos and
-// github, collecting 404s, and eventually writing a file it said it had read.
-// Nine of the seventeen failed fetches on 2026-09-08 were that.
-//
-// Listing and reading alone were not enough either. Asked on 2026-09-10 why dash
-// was not showing Oracle, it listed the repository, listed sites, guessed
-// "dash.bythewood.me" without the prefix, ran out of rounds on the error and
-// answered with a guess that was wrong. Four rounds of walking never reached a
-// line of code. find and search are there so the first call lands on the file.
+// and this says what is in it. Without it a question about Isaac's own code ends
+// with the model guessing raw addresses, collecting 404s, and writing a file it
+// said it had read. find and search are there so the first call lands on the
+// file rather than spending four rounds walking to it.
 var OrchardCode = Tool{
 	Name: "orchard_code",
 	Description: "Read the source of one of Isaac's repositories on repos.bythewood.me, read only, " +
@@ -245,11 +236,10 @@ var OrchardCode = Tool{
 	},
 }
 
-// orchardWalk is read and list, which are one call because a path with no dot in
-// its last segment is a directory far more often than not and guessing wrong
-// either way costs a round. The file read is tried first and a miss falls
-// through to the listing, so an extensionless file still reads and a directory
-// still lists.
+// orchardWalk is read and list in one call, since a path with no dot in its last
+// segment is a directory more often than not and guessing wrong costs a round.
+// The read is tried first and a miss falls through to the listing, so an
+// extensionless file still reads and a directory still lists.
 func orchardWalk(ctx context.Context, d *Deps, base, repo, rev, path string, a map[string]any) (any, error) {
 	if path != "" {
 		q := url.Values{}
@@ -283,9 +273,9 @@ func orchardWalk(ctx context.Context, d *Deps, base, repo, rev, path string, a m
 		if path == "" {
 			return nil, err
 		}
-		// A wrong path used to end the turn. It is the commonest mistake there
-		// is here, the model drops a directory from the front, so the error
-		// carries the way out rather than the level above.
+		// A wrong path is the commonest mistake here, since the model drops a
+		// directory from the front, so the error carries the way out rather than
+		// the level above.
 		return nil, fmt.Errorf("%s has no file or directory at %q. Call again with "+
 			"action find and query %q to get its real path", repo, path, lastSegment(path))
 	}
@@ -348,13 +338,12 @@ var OrchardDash = Tool{
 }
 
 // dashSection picks one panel out of the state. The whole thing is about six
-// thousand tokens of a sixty four thousand token window, and a question about
-// earnings was paying for the air quality, the alerts, the store listings and
-// everything else to sit in the context for the rest of the conversation.
+// thousand tokens of a sixty four thousand token window, so a question about
+// earnings was paying for the air quality and the alerts to sit in the context
+// for the rest of the conversation.
 //
 // A name that is not there returns the list rather than an error, since the
-// names are the state's own keys and nothing here should have to keep a copy of
-// them in step.
+// names are the state's own keys.
 func dashSection(state any, section string) (any, error) {
 	section = strings.ToLower(strings.TrimSpace(section))
 	m, ok := state.(map[string]any)

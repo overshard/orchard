@@ -15,8 +15,7 @@ import (
 
 // Log shipping: a slog.Handler that tees every record to logging.bythewood.me
 // on top of the existing stdout handler. stdout stays the source of truth, so
-// nothing here ever blocks the caller. A full queue drops and a failed POST
-// drops.
+// nothing here ever blocks the caller and a full queue or a failed POST drops.
 
 // ShipEndpoint is a container name on the orchard-edge bridge, never the public
 // hostname. Anything that can reach it is already inside the network, so there
@@ -33,12 +32,10 @@ const (
 	shipEvery   = 5 * time.Second
 	shipTimeout = 10 * time.Second
 
-	// The hard ceiling on Close, and what keeps a wedged logging site from
-	// reaching the sites it watches. A sink that accepts the connection and
+	// This is the hard ceiling on Close. A sink that accepts the connection and
 	// never answers costs shipTimeout per flush, which unbounded runs past
-	// Docker's stop grace and turns one hung container into a SIGKILL for
-	// every other site, skipping their db.Close(). A healthy sink drains in
-	// milliseconds and Close returns immediately either way.
+	// Docker's stop grace and turns one hung container into a SIGKILL for every
+	// other site, skipping their db.Close().
 	closeTimeout = 2 * time.Second
 )
 
@@ -93,8 +90,7 @@ func ShipLogs(source string, sink Sink) *Shipper {
 // stdout either way.
 //
 // The channel is never closed. Handle can still run after Close, from a later
-// defer, and a send on a closed channel panics, which is the one way a log
-// shipper could take a site down with it.
+// defer, and a send on a closed channel panics.
 func (s *Shipper) enqueue(r Record) {
 	select {
 	case s.ch <- r:
@@ -168,11 +164,9 @@ func (s *Shipper) Close() {
 type teeHandler struct {
 	next slog.Handler
 	ship *Shipper
-	// Each attribute keeps the group prefix in force when it was added, not
-	// the current one. A flat []slog.Attr would retroactively re-prefix
-	// anything attached before a later WithGroup, so .With(component=crawler)
-	// then .WithGroup("http") would ship "http.component" where slog says it
-	// must stay "component", and the ingest side matches keys by exact name.
+	// Each attribute keeps the group prefix in force when it was added. A flat
+	// []slog.Attr would re-prefix anything attached before a later WithGroup, and
+	// the ingest side matches keys by exact name.
 	attrs []groupedAttr
 	group string
 }
@@ -272,9 +266,9 @@ func flatten(dst map[string]any, prefix string, a slog.Attr) {
 	}
 }
 
-// HTTPSink posts batches to the logging site. It never calls slog, because a
+// HTTPSink posts batches to the logging site. It never calls slog, since a
 // shipper that logged its own failures would enqueue a record about failing to
-// ship. State changes go straight to stderr instead.
+// ship. State changes go to stderr instead.
 func HTTPSink() Sink {
 	client := &http.Client{Timeout: shipTimeout}
 	var (
@@ -325,8 +319,7 @@ func HTTPSink() Sink {
 			return
 		}
 		defer resp.Body.Close()
-		// Drained as well as closed, or the connection leaks out of the
-		// pool, and this one is reused every five seconds forever.
+		// Drained as well as closed, or the connection leaks out of the pool.
 		_, _ = io.Copy(io.Discard, resp.Body)
 
 		// 429 is the logging site shedding load, a healthy answer, so

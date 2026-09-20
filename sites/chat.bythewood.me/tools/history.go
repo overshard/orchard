@@ -2,10 +2,9 @@ package tools
 
 // Searching earlier conversations.
 //
-// The other half of memory. Memory keeps one sentence facts about Isaac, this
-// reaches what was actually said, which matters because a tool result dies with
-// the turn that fetched it and only the answer survives. Without it a question
-// about something settled last week had nothing to reach for.
+// The other half of memory. Memory keeps one sentence facts about Isaac and this
+// reaches what was actually said, since a tool result dies with the turn that
+// fetched it and only the answer survives.
 
 import (
 	"context"

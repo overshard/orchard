@@ -10,7 +10,7 @@ import (
 )
 
 // Two tables answer different questions. rollups answers "how many, over time"
-// for any range; records answers "which ones, and how slow", and only inside
+// for any range, records answers "which ones, and how slow", and only inside
 // rawRetention. Reading the wrong one gives a quietly wrong answer.
 
 type LabelCount struct {
@@ -18,7 +18,7 @@ type LabelCount struct {
 	Count int64  `json:"count"`
 }
 
-// GraphPoint is one bucket of the volume chart; Errors rides along so the error
+// GraphPoint is one bucket of the volume chart, Errors rides along so the error
 // band needs no second query.
 type GraphPoint struct {
 	Label  string `json:"label"`
@@ -77,7 +77,7 @@ type PathRow struct {
 	Errors int64
 }
 
-// filter is the shared WHERE clause behind every query here; a zero field means
+// filter is the shared WHERE clause behind every query here, a zero field means
 // no constraint.
 type filter struct {
 	StartMS int64
@@ -415,7 +415,7 @@ func slowestPaths(ctx context.Context, db *sql.DB, f filter, limit int) []PathRo
 const minPathSamples = 5
 
 // sources is one line per site for the overview. Counts come from rollups, so
-// they are right over any range; p95 and last-seen come from raw rows and are
+// they are right over any range, p95 and last-seen come from raw rows and are
 // blank for a source quiet longer than the retention window.
 func sources(ctx context.Context, db *sql.DB, f filter) []SourceRow {
 	w, args := f.where("hour")

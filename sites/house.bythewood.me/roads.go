@@ -40,19 +40,16 @@ const (
 )
 
 // Overpass, for road class, the corner test and where the nearest interstate ramp
-// is. The public instances ask for light use and mean it, so this is one query per
-// listing behind the slowest guard here.
+// is. The public instances ask for light use and mean it, so this is one query
+// per listing behind the slowest guard here.
 //
-// More than one, because the main instance answers 504 under load often enough
-// that a single endpoint means no road data at all for a whole run. Each has its
-// own guard, so a mirror that is down gets its own breaker and the next one is
-// tried rather than the run losing the answer.
+// More than one instance, because the main one answers 504 under load often
+// enough that a single endpoint means no road data for a whole run. Each has its
+// own guard, so a mirror that is down gets its own breaker.
 //
-// Every one of these is checked to hold data for North Carolina. Several public
-// instances are regional extracts and overpass.osm.ch is Switzerland only: it
-// answered 200 with an empty element list for every address here, which reads as
-// a house with no road anywhere near it. That is what emptyIsNotAnAnswer below
-// exists to catch.
+// Every one is checked to hold data for North Carolina. Several public instances
+// are regional extracts and overpass.osm.ch is Switzerland only, which answered
+// 200 with an empty element list for every address here.
 var overpassMirrors = []string{
 	"https://overpass-api.de/api/interpreter",
 	"https://z.overpass-api.de/api/interpreter",
@@ -75,9 +72,7 @@ type RoadResult struct {
 
 	// Two different questions about the same road. The pavement is the noise and
 	// the safety one, since what nobody wants is an interstate at the bottom of
-	// the garden. The ramp is the getting-places one, and it matters far less: a
-	// few minutes either way to reach a slip road is nothing next to living
-	// beside six lanes.
+	// the garden. The ramp is the getting-places one and it matters far less.
 	HighwayFeet float64
 	HighwayName string
 	RampFeet    float64
@@ -164,22 +159,19 @@ func hostOf(raw string) string {
 	return u.Host
 }
 
-// emptyIsNotAnAnswer. Every address this runs against is a house somebody lives
-// in, so there is a road within six hundred feet of it. An empty element list
-// therefore means the mirror has no data for this part of the world rather than
-// that the house has no road, and treating it as an answer would cache a blank
-// and score the listing as having no frontage at all.
+// emptyIsNotAnAnswer is returned when a mirror answers with nothing. Every
+// address this runs against is a house somebody lives in, so there is a road within six hundred feet of it. An empty element list
+// means the mirror has no data for this part of the world, and caching it would
+// score the listing as having no frontage at all.
 var emptyIsNotAnAnswer = fmt.Errorf("mirror returned no elements, so it has no data for here")
 
-// The whole mirror loop, not each attempt. Five mirrors at a forty second timeout
-// each is over three minutes of waiting for an answer that is not coming, and on
-// a bad Overpass day two of these run at once and hold up the entire assessment.
-// The road and outing factors both degrade honestly when this runs out, which is
-// a far better outcome than a report that never arrives.
-// Four mirrors inside this, so the per mirror timeout below has to divide into it
-// or the first one to hang eats the lot and the other three never get asked. That
-// is what was happening: a 40s timeout inside a 45s budget is one attempt wearing
-// a retry loop's clothes.
+// This bounds the whole mirror loop rather than each attempt. Five mirrors at a
+// forty second timeout each is over three minutes of waiting for an answer that
+// is not coming, and on a bad Overpass day two of these run at once. The road
+// and outing factors both degrade honestly when it runs out.
+// Five mirrors have to fit inside it, so the per mirror timeout below has to
+// divide into it or the first one to hang eats the lot and the rest are never
+// asked.
 const overpassBudget = 90 * time.Second
 
 // What one mirror gets before we move on. It is also written into the query as
@@ -187,11 +179,10 @@ const overpassBudget = 90 * time.Second
 // does rather than carrying on with work nobody is waiting for.
 const overpassAttempt = 25 * time.Second
 
-// Overpass publishes its own limit and it is two concurrent queries per address,
-// which /api/status will tell you. An assessment asks it for the roads and for
-// the outings at the same time and each of those walks four mirrors, so the two
-// overlap and the answer is 429 for both. One at a time, everywhere, keeps us
-// inside a limit they were good enough to document.
+// Overpass publishes its own limit of two concurrent queries per address, which
+// /api/status will tell you. An assessment asks for the roads and the outings at
+// once and each of those walks four mirrors, so the two overlap and the answer is
+// 429 for both. One at a time, everywhere, keeps us inside it.
 var overpassSlot sync.Mutex
 
 // overpassQuery tries each mirror in turn and returns the first real answer. A

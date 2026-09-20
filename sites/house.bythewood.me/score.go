@@ -18,10 +18,9 @@ type FactorScore struct {
 	Points float64 `json:"points"`
 	Why    string  `json:"why"`
 
-	// Nothing answered, so this is not a low score, it is no score. Three
-	// different things used to happen here: a missing lookup scored half marks and
-	// read as average, a missing detour scored zero and read as terrible, and the
-	// page claimed both counted as unknown. Now they all say so.
+	// Nothing answered, so this is no score rather than a low one. A missing
+	// lookup scored at half marks reads as an average place and scored at zero
+	// reads as a bad one, and neither is a claim anybody made.
 	Unknown bool `json:"unknown"`
 }
 
@@ -70,8 +69,8 @@ type Breakdown struct {
 }
 
 // band maps a value onto 0..1 where best is the value scoring 1 and worst the
-// value scoring 0, clamped at both ends. It reads the same whichever direction is
-// better, which is why every factor below uses it rather than its own arithmetic.
+// value scoring 0, clamped at both ends. It reads the same whichever direction
+// is better, so every factor below uses it rather than its own arithmetic.
 // gradesRaw averages whatever DPI letters are published for the three schools.
 func gradesRaw(g SchoolGrades) float64 {
 	var sum, n float64
@@ -135,10 +134,9 @@ func band(v, best, worst float64) float64 {
 }
 
 // comfortBand scores a cost that is fine up to a figure and hurts more and more
-// past it. A straight line from target to ceiling treated ten dollars over and a
-// thousand over as points on the same slope, and they are not the same thing to
-// somebody paying it. Anything at or under the target is full marks and the score
-// halves for every (ceiling - target) over.
+// past it. A straight line from target to ceiling treats ten dollars over and a
+// thousand over as points on the same slope. Anything at or under the target is
+// full marks and the score halves for every (ceiling - target) over.
 func comfortBand(v, target, ceiling float64) float64 {
 	if v <= target {
 		return 1
@@ -234,13 +232,10 @@ func Score(cfg Config, a Assessment) Breakdown {
 
 	// ---- Little Bear ----
 
-	// Schools, the heaviest factor, and it scores whatever is actually known
-	// rather than how forthcoming the county was. State grades are the best signal
-	// when they exist. Failing that it is how close the schools are, which is real
-	// whether or not there is a published attendance boundary, since three of the
-	// five counties here publish none and docking those houses a quarter was
-	// marking them down for their county's filing habits. Nothing at all is
-	// unknown rather than bad.
+	// Schools, the heaviest factor, scored on whatever is actually known rather
+	// than on how forthcoming the county was. State grades are the best signal
+	// where they exist, and failing that it is how close the schools are. Nothing
+	// at all is unknown rather than bad.
 	nearRaw, haveNear := a.Zones.SchoolsRaw()
 	switch {
 	case a.Grades.Have && gradesRaw(a.Grades) > 0:
@@ -283,8 +278,8 @@ func Score(cfg Config, a Assessment) Breakdown {
 
 	// ---- safe and sound ----
 
-	// The heaviest of the safety factors, and with no figures it used to score half
-	// marks and read as an average place, which is a claim nobody made.
+	// The heaviest of the safety factors. With no figures, scoring half marks
+	// reads as an average place, which is a claim nobody made.
 	if a.Area.Found && a.Area.CrimeSource != "" {
 		add("crime", a.Area.CrimeRaw(), a.Area.CrimeWhy())
 	} else {
@@ -324,8 +319,7 @@ func Score(cfg Config, a Assessment) Breakdown {
 
 	// Distance from the interstate, which is a noise and a safety question rather
 	// than an access one. Being able to reach a slip road is worth a few minutes
-	// either way and living beside six lanes is not, so this scores the pavement
-	// and barely looks at the ramp.
+	// either way and living beside six lanes is not.
 	if a.Road.Partial {
 		unknown("highway", "we could not check for an interstate nearby, we will try again")
 	} else {
@@ -397,14 +391,11 @@ func Score(cfg Config, a Assessment) Breakdown {
 		unknown("commute", "we could not work out the drive to work")
 	}
 
-	// A factor nothing would answer for is left out of the denominator entirely, so
-	// a county server having a bad morning cannot lower a house's score. A failed
-	// lookup says nothing about the house, and scoring it as though it did was
-	// marking houses down for somebody else's downtime.
+	// A factor nothing would answer for is left out of the denominator entirely,
+	// so a county server having a bad morning cannot lower a house's score.
 	//
-	// What that costs is that a house with gaps is scored on less, so the page
-	// says how much it was measured on rather than hiding it, and the gaps get
-	// retried on their own until they fill in.
+	// A house with gaps is scored on less, so the page says how much it was
+	// measured on and the gaps get retried on their own until they fill in.
 	b.Total = cfg.WeightTotal()
 	if measured := b.Measured(); measured > 0 {
 		b.Gross = b.Score / measured * 100
@@ -564,11 +555,9 @@ func landWhy(h Household, a Assessment) string {
 	return strings.Join(parts, ", ")
 }
 
-// highwayRaw scores the distance from the pavement, not from the slip road. Under
-// the close figure is near enough to hear it and to worry about it, past the
-// comfortable one it stops mattering, and there is no extra credit for being
-// further still: a house eight miles from the interstate is not better than one
-// two miles from it, it is just further from everywhere.
+// highwayRaw scores the distance from the pavement, not from the slip road.
+// Under the close figure is near enough to hear it, past the comfortable one it
+// stops mattering, and there is no extra credit for being further still.
 func highwayRaw(f Filters, r RoadResult) float64 {
 	if !r.Measured {
 		return 0.5

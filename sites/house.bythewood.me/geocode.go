@@ -10,12 +10,11 @@ import (
 )
 
 // The Census geocoder, because it needs no key, covers every US address, and is
-// run by the people who assign the address ranges in the first place. It answers
-// with a parcel-accurate point on a matched street range rather than a rooftop,
-// which is inside the tolerance everything here cares about: a 300ft water buffer
-// and a drive time do not turn on thirty feet.
+// run by the people who assign the address ranges. It answers with a point on a
+// matched street range rather than a rooftop, which is inside the tolerance here,
+// since a 300ft water buffer and a drive time do not turn on thirty feet.
 //
-// Nominatim is not used. Its terms cap bulk geocoding and OSM's own coverage of
+// Nominatim is not used. Its terms cap bulk geocoding and OSM's coverage of
 // rural NC address points is thinner than TIGER's.
 const censusGeocodeURL = "https://geocoding.geo.census.gov/geocoder/locations/onelineaddress"
 

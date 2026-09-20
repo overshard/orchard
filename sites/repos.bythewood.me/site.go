@@ -14,7 +14,8 @@ const (
 	authorName  = "Isaac Bythewood"
 	githubUser  = "overshard"
 
-	// analyticsID is in the page source of every site; it is identity, not a credential.
+	// analyticsID is in the page source of every site, so it names a site rather
+	// than authorising anything.
 	analyticsID = "49f89ef6-b0b2-4b47-879e-7e252a067d0c"
 
 	// containerName is baked in, not read at runtime. Repository pages show it

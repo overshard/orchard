@@ -51,7 +51,7 @@ func pageGraph(title, description, canonical string) template.JS {
 			"author":              map[string]any{"@id": personID},
 			"publisher":           map[string]any{"@id": personID},
 			"image":               baseURL + "/static/og/card.png",
-			// A zero price is how schema.org says "free"; no offers means unknown.
+			// A zero price is how schema.org says "free", no offers means unknown.
 			"offers": map[string]any{
 				"@type":         "Offer",
 				"price":         "0",

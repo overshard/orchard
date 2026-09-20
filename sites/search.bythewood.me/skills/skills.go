@@ -2,14 +2,12 @@
 // answers worse.
 //
 // Some questions have a right answer sitting behind an API, and searching for
-// them is slower and produces a paraphrase of a page that was itself reading
-// the same number. Others name the page to read, and searching for words
-// scraped off the question finds different pages and answers from those. Both
-// are skills, and the web is not the dividing line, since Page fetches a URL
-// off the open web and Markets reads a quote.
+// them is slower and produces a paraphrase of a page that was itself reading the
+// same number. Others name the page to read. The web is not the dividing line,
+// since Page fetches a URL off the open web and Markets reads a quote.
 //
-// The rule the whole package follows: a skill that guesses wrong is worse than
-// a web search that takes ten seconds. Anything ambiguous falls through.
+// A skill that guesses wrong is worse than a web search that takes ten seconds,
+// so anything ambiguous falls through.
 package skills
 
 import (
@@ -65,11 +63,9 @@ func (d Deps) now() time.Time {
 // Card is the routing metadata for one skill, and it is the only thing the
 // router shows the model.
 //
-// Written for routing rather than for a reader: what the skill does in the
-// third person, the phrasings that should fire it, and the near misses that
-// should not. The negative half matters as much as the positive half, because
-// the questions a router gets wrong are the ones that sit just outside a
-// skill rather than far away from every skill.
+// Written for routing rather than for a reader, so it carries what the skill
+// does in the third person, the phrasings that should fire it, and the near
+// misses that should not.
 type Card struct {
 	Name   string
 	Does   string

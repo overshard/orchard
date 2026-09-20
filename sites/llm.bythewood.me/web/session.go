@@ -12,27 +12,21 @@ import (
 
 // Single sign-on for every bythewood.me site, against auth.bythewood.me.
 //
-// The cookie is opaque, so a site cannot check it for itself and has to ask.
-// That is the point: a signed cookie is valid until it expires no matter what
-// the issuer says, and asking is what makes revoking a session take effect
-// everywhere on the next request rather than whenever the signature ages out.
+// The cookie is opaque, so a site has to ask auth about it on every request.
+// That is what makes revoking a session take effect everywhere right away
+// instead of whenever a signature ages out. The answer is never cached, since a
+// cache puts a window on revocation, which is the thing this exists for.
 //
-// The answer is not cached. A call to another container on the bridge is well
-// under a millisecond and these are dashboards one person reads, so a cache
-// would buy nothing and would put a window on revocation, which is the feature
-// this exists for.
-//
-// The cost is real and worth stating: with orchard-auth down, every site behind
-// this is unreachable. That is why auth.bythewood.me has recovery codes and why
-// nothing public is behind it.
+// With orchard-auth down, every site behind this is unreachable, which is why
+// auth.bythewood.me has recovery codes and why nothing public is behind it.
 const (
 	SessionCookie = "bw_session"
 
 	authVerifyURL = "http://orchard-auth:8000/verify"
 	authLoginURL  = "https://auth.bythewood.me/login"
 
-	// Short. A dashboard that hangs because auth is slow is worse than one
-	// that says you are signed out.
+	// A dashboard that hangs because auth is slow is worse than one that says
+	// you are signed out.
 	authTimeout = 3 * time.Second
 )
 
@@ -50,8 +44,8 @@ func NewAuthenticatorAt(verify string) *Authenticator {
 	return &Authenticator{
 		client: &http.Client{
 			Timeout: authTimeout,
-			// A verify call must never follow a redirect: the answer is the
-			// status code, and a 302 to somewhere else is not an answer.
+			// A verify call must never follow a redirect, since the answer is
+			// the status code and a 302 to somewhere else is not one.
 			CheckRedirect: func(*http.Request, []*http.Request) error {
 				return http.ErrUseLastResponse
 			},
@@ -63,8 +57,8 @@ func NewAuthenticatorAt(verify string) *Authenticator {
 // Authenticated reports whether the caller is signed in. Every failure is a no,
 // including auth being unreachable, because the alternative is failing open.
 func (a *Authenticator) Authenticated(r *http.Request) bool {
-	// A site built without one is signed out rather than a panic, which matters
-	// because this is called from the page data every template renders.
+	// A site built without one is signed out rather than a panic, since this is
+	// called from the page data every template renders.
 	if a == nil || a.client == nil {
 		return false
 	}
@@ -128,11 +122,9 @@ func (a *Authenticator) RequireAuthJSON(next http.HandlerFunc) http.HandlerFunc 
 // LoginURL is where a signed out visitor goes, carrying an absolute return
 // address because the login is on another host.
 //
-// The return address is never this site's own /login. That path is itself a
-// redirect to auth, so handing it back as the destination is an infinite loop:
-// auth sends you there, the stub sends you to auth, auth sees a live session and
-// sends you there again. An explicit ?next= on the stub is honoured instead, and
-// the site root is the fallback.
+// The return address is never this site's own /login. That path redirects to
+// auth, so handing it back as the destination loops forever. An explicit
+// ?next= on the stub is honoured instead, and the site root is the fallback.
 func LoginURL(r *http.Request) string {
 	scheme := "https"
 	if r.TLS == nil && r.Header.Get("X-Forwarded-Proto") == "http" {
@@ -153,6 +145,6 @@ func LoginURL(r *http.Request) string {
 	return authLoginURL + "?next=" + url.QueryEscape(back)
 }
 
-// LogoutURL ends the session for every site at once, which is the only sensible
-// meaning of signing out when one cookie covers all of them.
+// LogoutURL ends the session for every site at once, since one cookie covers
+// all of them.
 func LogoutURL() string { return "https://auth.bythewood.me/" }

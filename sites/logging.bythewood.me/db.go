@@ -10,7 +10,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// records holds raw lines, kept for rawRetention and searchable; rollups holds
+// records holds raw lines, kept for rawRetention and searchable, rollups holds
 // hourly counters kept forever, so a year-long graph is a few hundred row reads
 // rather than a scan. Hot attributes get columns, the rest lands in attrs JSON.
 const schema = `

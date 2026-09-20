@@ -89,7 +89,7 @@ type Answer struct {
 }
 
 // Progress reports pipeline steps to whoever is watching. The web handler wires
-// it to an SSE stream; tests leave it nil.
+// it to an SSE stream, tests leave it nil.
 type Progress func(step, detail string)
 
 func (p Progress) send(step, detail string) {
@@ -165,10 +165,10 @@ func (e *Engine) Run(ctx context.Context, question string, history []Turn, pr Pr
 	// carries the near misses that should not fire it as well as the phrasings
 	// that should.
 	//
-	// A keyword matcher used to do this and it was wrong in both directions,
-	// claiming "what is the S&P 500" for the quote skill and missing "do i need
-	// a jacket today" entirely. The matcher survives inside the registry as the
-	// fallback for when the model is unreachable.
+	// A keyword matcher gets this wrong in both directions, claiming "what is
+	// the S&P 500" for the quote skill and missing "do i need a jacket today"
+	// entirely. It survives in the registry as the fallback for when the model
+	// is unreachable.
 	pr.send("route", "working out what kind of question this is")
 	if res, name := e.skills.Run(ctx, e.llm, standalone, e.skillDeps()); res != nil {
 		// A skill that returns addresses found where the answer is rather than
@@ -1017,7 +1017,7 @@ func listItem(t string) (text string, ordered bool, ok bool) {
 	return "", false, false
 }
 
-// splitSentences is deliberately crude. It only has to find units small enough
+// splitSentences is crude, since it only has to find units small enough
 // to check individually, so a split inside an abbreviation costs nothing.
 func splitSentences(text string) []string {
 	var out []string

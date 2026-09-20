@@ -3,15 +3,14 @@ package tools
 // The fence between the open web and this machine.
 //
 // Every public tool here takes a url or a query from a model, and a model will
-// happily be talked into fetching whatever it is handed. This site now sits on
+// happily be talked into fetching whatever it is handed. This site sits on
 // orchard-edge, so an unguarded fetch of http://orchard-auth:8000 or
-// http://127.0.0.1 reaches the estate from inside, past Caddy and past the
-// tunnel, which is the one place nothing is expecting an untrusted caller.
+// http://127.0.0.1 reaches the estate from inside, past Caddy and the tunnel.
 //
 // The check is on the address actually dialled rather than on the string, so a
 // redirect to an internal host and a name that resolves to one are both caught.
-// The orchard_ tools deliberately do not go through this: they are the sanctioned
-// way in, they name their host, and they carry the caller's own session.
+// The orchard_ tools do not go through this, since they name their host and
+// carry the caller's own session.
 
 import (
 	"fmt"

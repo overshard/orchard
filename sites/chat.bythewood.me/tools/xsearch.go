@@ -2,20 +2,15 @@ package tools
 
 // Searching X posts without an X account, an API key, or a mirror.
 //
-// Isaac has asked for this twice. The two obvious routes are both closed:
-// xcancel has no API of its own and was served a cease and desist by X Corp on
-// 24 August 2026, and Nitter is the thing xcancel is built on, needs Redis and
-// a server of your own, and is under the same letter. The official Posts Search
-// API is real and works and is a paid tier with a key.
+// The two obvious routes are closed. xcancel has no API of its own and was
+// served a cease and desist by X Corp on 24 August 2026, and Nitter is what it
+// is built on, needs Redis and a server of your own, and is under the same
+// letter. The official Posts Search API is a paid tier with a key.
 //
 // What is left is the search engines, which index public post pages like any
-// other page. That is what this does, and it is worth being plain about the
-// limits rather than presenting it as X search: only public posts are indexed,
-// only some of those, and a search engine's copy can be older than the post.
-// The description says so, so an answer built on it can say so too.
-//
-// It costs a DuckDuckGo call out of the same pool everything else uses, which
-// is the point of building it here rather than reaching for another host.
+// other page. Only public posts are indexed, only some of those, and a search
+// engine's copy can be older than the post. The description says so, so an
+// answer built on it can say so too.
 
 import (
 	"context"

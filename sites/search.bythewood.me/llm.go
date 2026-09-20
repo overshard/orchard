@@ -21,10 +21,9 @@ type LLM struct {
 	Key     string
 	client  *http.Client
 
-	// served is the model string llama.cpp answers with, which is the real
-	// repository and quant rather than the "local" alias this asks for. It is
-	// read off a response instead of configured, so a stamp on a logged answer
-	// says what actually produced it even when the config changed underneath.
+	// served is the model string llama.cpp answers with, the real repository and
+	// quant rather than the "local" alias this asks for. It is read off a response
+	// so a stamp on a logged answer says what actually produced it.
 	mu     sync.Mutex
 	served string
 }
@@ -87,33 +86,22 @@ type chatRequest struct {
 	TemplateKwargs  map[string]any  `json:"chat_template_kwargs,omitempty"`
 }
 
-// These numbers came off Qwen's model card and were kept when the model behind
-// this became Ornith 1.5 9B, since they are the same recipe its publisher gives
-// and the reasoning below is about the shape of each step rather than about any
-// one model. This pipeline needs two of them rather than one setting for
-// everything.
+// Two sampling sets rather than one. The numbers are the publisher's own recipe
+// and the reasoning is about the shape of each step rather than any one model.
 //
-// A step handing over a JSON schema wants the likeliest token inside the
-// grammar, since the schema is doing the deciding and creativity there is only
-// a way to pick the wrong enum. Synthesis is the one step writing prose, and
-// there the model card's own non-thinking numbers apply. The presence penalty
-// matters most: Qwen names it as the fix for the model repeating itself, which
-// is exactly the failure this site keeps hitting, a closing paragraph that says
-// the bullet list again in weaker words.
+// A step handing over a JSON schema wants the likeliest token inside the grammar,
+// since the schema is doing the deciding. Synthesis is the one step writing
+// prose, and the presence penalty is the fix for the model repeating itself,
+// which here is a closing paragraph saying the bullet list again in weaker words.
 //
-// Before this everything ran at temperature 0.2 with llama.cpp's defaults for
-// the rest, so prose was sampled almost greedily with nothing discouraging
-// repetition.
-// The min_p on the prose set is the one number here that is about the quant
-// rather than the model. Quantization damages the tail of the distribution
-// first, since that is where the least of the model's confidence lives, and a
-// floor cuts exactly that tail. Qwen say 0.0 because they are describing the
-// full precision weights. Unsloth say 0.01 on a quantized one.
+// The min_p on the prose set is about the quant rather than the model.
+// Quantization damages the tail of the distribution first and a floor cuts that
+// tail. Qwen say 0.0 for the full precision weights and Unsloth say 0.01 for a
+// quantized one.
 //
-// The constrained set leaves it at zero and takes no penalty at all. The
-// grammar is already refusing every token that would not parse, and a presence
-// penalty on JSON pushes against the braces and quotes that have to repeat for
-// the output to be valid.
+// The constrained set leaves it at zero and takes no penalty, since the grammar
+// already refuses every token that would not parse and a presence penalty on
+// JSON pushes against the braces and quotes that have to repeat.
 var (
 	exact = sampling{Temperature: 0.2, TopP: 0.8, TopK: 20}
 	prose = sampling{Temperature: 0.7, TopP: 0.8, TopK: 20, MinP: 0.01, PresencePenalty: 1.5}

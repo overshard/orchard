@@ -9,21 +9,19 @@ import (
 	"time"
 )
 
-// Drive times, from a real routing engine. Straight line distance is worthless
-// here: the roads run around ridges and along the river, so two houses the same
-// distance from the office can be fifteen minutes apart.
+// Drive times, from a real routing engine. The roads run around ridges and along
+// the river, so two houses the same distance from the office can be fifteen
+// minutes apart.
 //
 // OSRM's public demo server is the default and it asks for light use, so every
-// route is cached forever. A road layout does not change between refreshes, and
-// a refresh only routes listings it has never routed.
+// route is cached forever and a refresh only routes listings it has not seen.
 const (
 	osrmBase = "https://router.project-osrm.org"
 
-	// OSRM's demo profile is car with no traffic model. A night shift drive is
-	// off peak so an untimed route is close to right for it, and the morning
-	// school run is the one this understates. The detour is a difference of two
-	// routes over the same roads at the same hour, so the understatement largely
-	// cancels out of the number that ranks this dashboard.
+	// OSRM's demo profile is car with no traffic model, so a night shift drive is
+	// close to right and the morning school run is the one this understates. The
+	// detour is a difference of two routes over the same roads at the same hour,
+	// so the understatement largely cancels out.
 	osrmProfile = "/route/v1/driving/"
 )
 
@@ -68,10 +66,9 @@ type osrmResponse struct {
 	} `json:"routes"`
 }
 
-// Route is one or more waypoints in order, so home to school to work is one
-// call and one cache entry rather than two legs added together. Adding two legs
-// would be wrong anyway: OSRM routes the whole trip, and a stop changes which
-// way it leaves the first point.
+// Route is one or more waypoints in order, so home to school to work is one call
+// and one cache entry rather than two legs added together. Adding legs would be
+// wrong anyway, since a stop changes which way the route leaves the first point.
 func (r *Router) Route(ctx context.Context, pts ...point) (Leg, error) {
 	if len(pts) < 2 {
 		return Leg{}, fmt.Errorf("a route needs two points")
@@ -126,10 +123,9 @@ func (r *Router) Route(ctx context.Context, pts ...point) (Leg, error) {
 	}, nil
 }
 
-// Morning is the whole school run question in one struct. The baseline is the
-// commute with no child in the car, the dropoff leg is the commute
-// actually driven, and the detour is the difference, which is the cost of the
-// drop-off and the number that ranks this dashboard.
+// Morning holds the three numbers the school run turns on, the commute with no
+// child in the car, the commute actually driven, and the difference between
+// them, which is the cost of the drop-off and what ranks this dashboard.
 type Morning struct {
 	Commute        Leg
 	WithElementary Leg

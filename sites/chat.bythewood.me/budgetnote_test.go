@@ -7,8 +7,8 @@ import (
 	"chat.bythewood.me/tools"
 )
 
-// The answer step used to be told only that the budget was gone, so a turn
-// whose sums never ran still produced a table of figures in a confident voice.
+// An answer step told only that the budget was gone still produces a table of
+// figures in a confident voice off sums that never ran.
 func TestBudgetNoteNamesAToolThatNeverWorked(t *testing.T) {
 	used := []tools.Result{
 		{Name: "web_search", Content: "fine"},

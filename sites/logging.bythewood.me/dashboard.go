@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// PageData is everything base.html and one page template need; the page
+// PageData is everything base.html and one page template need, the page
 // specific fields are nil on whichever page is not using them.
 type PageData struct {
 	Title         string
@@ -67,7 +67,7 @@ type Dashboard struct {
 	StartMS   int64
 	EndMS     int64
 
-	// Empty means every source; set scopes every panel below to it.
+	// Empty means every source, set scopes every panel below to it.
 	Source string
 
 	Totals   Totals
@@ -126,7 +126,7 @@ func (d *Dashboard) RangeOptions() []rangeOption { return rangeOptions }
 const maxWindow = 5 * 365 * 24 * time.Hour
 
 // resolveWindow reads the range out of the query string. The start is floored to
-// the hour so rollup-backed and raw-backed panels cover the same span; the cost
+// the hour so rollup-backed and raw-backed panels cover the same span, the cost
 // is that "Last hour" means since the top of the previous hour.
 func resolveWindow(q map[string][]string) (key, name string, startMS, endMS int64) {
 	now := time.Now().UTC()
@@ -267,7 +267,7 @@ func (s *site) renderDashboard(w http.ResponseWriter, r *http.Request, source st
 	s.renderer.Render(w, http.StatusOK, page, data)
 }
 
-// reportFormat reads ?report; a bare "?report" means pdf.
+// reportFormat reads ?report, a bare "?report" means pdf.
 func reportFormat(q map[string][]string) (string, bool) {
 	values, present := q["report"]
 	if !present {

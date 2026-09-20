@@ -128,7 +128,7 @@ func levelClass(level string) string {
 	}
 }
 
-// statusClass does the same for an HTTP status; zero means not a request, and
+// statusClass does the same for an HTTP status, zero means not a request, and
 // renders as no chip.
 func statusClass(status int64) string {
 	switch {

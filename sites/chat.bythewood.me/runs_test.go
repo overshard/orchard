@@ -24,7 +24,7 @@ func drain(t *testing.T, ch <-chan json.RawMessage, want int) []json.RawMessage 
 	return got
 }
 
-// The whole point: a reader going away does not stop the turn, and the next
+// A reader going away does not stop the turn, and the next
 // reader is handed everything it missed.
 func TestAReaderLeavingDoesNotStopTheRun(t *testing.T) {
 	rs := NewRuns()

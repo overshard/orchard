@@ -20,7 +20,7 @@ import (
 
 // This probe measures what a first-time visitor pays: DNS, TCP, the TLS
 // handshake and the wait for the first byte, each timed by hand. Do not swap it
-// for a pooled http.Client; the phase chart exists because nothing is reused.
+// for a pooled http.Client, the phase chart exists because nothing is reused.
 
 const (
 	// A real Chrome UA: sites behave differently for something announcing
@@ -51,7 +51,7 @@ type probeOutcome struct {
 	age         *int64
 
 	// originUnreachable is set when a cache answered and a direct probe of the
-	// live origin could have left it; see classifyCache.
+	// live origin could have left it, see classifyCache.
 	originUnreachable bool
 }
 
@@ -167,7 +167,7 @@ func runCheck(ctx context.Context, db *sql.DB, p *Property) (int64, error) {
 }
 
 // statusOriginStale is reported when a cache answered for an origin that has
-// stopped. It is not a real HTTP code; nothing sent one.
+// stopped. It is not a real HTTP code, nothing sent one.
 const statusOriginStale = 523
 
 func nullableString(s string) any {
@@ -461,7 +461,7 @@ func advanceAlertState(ctx context.Context, db *sql.DB, notifier *Notifier, p *P
 	case isUp && currentState == "down":
 		transition = "recovery"
 	case !isUp && currentState == "up":
-		// The check just inserted is one of the two; look for a second.
+		// The check just inserted is one of the two, look for a second.
 		rows, err := tx.QueryContext(ctx,
 			"SELECT status_code FROM checks WHERE property_id = ? ORDER BY created_at DESC LIMIT 2",
 			p.ID[:])

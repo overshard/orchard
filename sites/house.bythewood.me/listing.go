@@ -105,8 +105,7 @@ const dedupeFeet = 150
 
 // Upsert writes a listing and returns its id, whether it is new, and whether the
 // price moved. Dedupe runs MLS number, then normalized address, then proximity,
-// in that order: the same house arriving three times from three sources is a
-// failure state, not a result.
+// since the same house arriving three times from three sources is a failure.
 func Upsert(ctx context.Context, db *sql.DB, l Listing, now time.Time) (id int64, isNew bool, priceMoved bool, err error) {
 	ts := now.Unix()
 
@@ -145,15 +144,13 @@ func Upsert(ctx context.Context, db *sql.DB, l Listing, now time.Time) (id int64
 		priceMoved = oldPrice != l.Price
 
 		// A refresh updates what a listing reports and never touches first_seen,
-		// which is the only thing here that says how long a house has actually
-		// been sitting.
+		// which is the only thing here that says how long a house has been
+		// sitting.
 		//
 		// A field the incoming row does not carry keeps what is already there.
-		// Two sources describe the same house and neither has everything: the
-		// API has no photographs or remarks and an agent's export has no
+		// The API has no photographs or remarks and an agent's export has no
 		// coordinate, so a blank from one must not wipe a real value from the
-		// other. Price, status and days on market are the exceptions, since a
-		// stale one of those is worse than none.
+		// other. Price, status and days on market are the exceptions.
 		if _, err := db.ExecContext(ctx, `
 			UPDATE listings SET
 				mls = COALESCE(NULLIF(?, ''), mls),

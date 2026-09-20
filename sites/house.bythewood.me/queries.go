@@ -131,7 +131,7 @@ type DriveRow struct {
 }
 
 // IsNew is what the NEW badge reads. Anything first seen inside this window is
-// new, which is deliberately generous: being a day late to a listing in this
+// new, which is generous, since being a day late to a listing in this
 // price band is how you lose it.
 const newWindow = 7 * 24 * time.Hour
 
@@ -156,12 +156,12 @@ func (c Card) DropPercent() float64 {
 func (c Card) Pending() bool { return c.ComputedAt == 0 }
 
 // ValueGapNote compares the asking price with what the county has the place down
-// as, which is the closest thing to an appraisal that can be had for free. It is
-// a blunt instrument and says so: an assessment is from the last revaluation and
-// counties here revalue every four years, so it lags a rising market badly.
+// as, which is the closest thing to a free appraisal. An assessment is from the
+// last revaluation and counties here revalue every four years, so it lags a
+// rising market badly.
 // ParcelMismatch reports that the parcel we matched is not the address that was
 // typed. The geocoder puts the point in the road and the nearest parcel is
-// sometimes next door, so the figures are worth a squint when this is set.
+// sometimes next door.
 func (c Card) ParcelMismatch() bool {
 	if c.ParcelAddress == "" {
 		return false

@@ -100,10 +100,8 @@ func escapeHTML(s string) string {
 //
 // The recipe shape produced "adding the cooked bacon [14], sausage [14], eggs
 // [14], and hash browns [14] [14]" from an instruction to cite what each part
-// came from. Repeating one ID inside a sentence adds nothing a reader can use,
-// and the prompt alone does not hold on a 4B, so the duplicates are removed
-// here instead. Distinct IDs on one line are kept, since those really are
-// different evidence.
+// came from. Repeating one ID inside a sentence adds nothing a reader can use.
+// Distinct IDs on one line are kept, since those really are different evidence.
 func tidyCitations(text string) string {
 	lines := strings.Split(text, "\n")
 	fenced := false

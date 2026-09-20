@@ -35,7 +35,7 @@ func TestClientIP(t *testing.T) {
 		},
 		{
 			// Without Cloudflare the last entry is the hop that actually
-			// connected; earlier entries are attacker controlled.
+			// connected, earlier entries are attacker controlled.
 			name:    "falls back to the last forwarded entry",
 			headers: map[string]string{"X-Forwarded-For": "203.0.113.7, 198.51.100.2"},
 			remote:  "172.18.0.5:41234",
@@ -120,7 +120,7 @@ func TestStaticCachePolicy(t *testing.T) {
 		})
 	}
 
-	// Build metadata. The server reads it; nothing else has a use for it.
+	// Build metadata. The server reads it, nothing else has a use for it.
 	t.Run("manifest is not served", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/static/.vite/manifest.json", nil))

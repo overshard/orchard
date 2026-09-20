@@ -31,7 +31,7 @@ var reportFuncs = texttemplate.FuncMap{
 
 // markdownCell escapes a value for a Markdown table cell. path is attacker
 // controlled and Go percent-decodes it, so an unescaped newline and pipe forge
-// table rows; HTML characters go too, since Markdown passes raw HTML through.
+// table rows, HTML characters go too, since Markdown passes raw HTML through.
 func markdownCell(v any) string {
 	s := fmt.Sprint(v)
 	s = strings.NewReplacer("\r\n", " ", "\n", " ", "\r", " ", "\t", " ").Replace(s)
@@ -95,7 +95,7 @@ func (s *site) renderReport(w http.ResponseWriter, r *http.Request, format, subj
 }
 
 // asciiFilename reduces a subject to what a Content-Disposition value can carry
-// literally; Go sends a header with a non-ASCII byte rather than complaining.
+// literally, Go sends a header with a non-ASCII byte rather than complaining.
 func asciiFilename(name string) string {
 	var b strings.Builder
 	b.Grow(len(name))

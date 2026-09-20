@@ -14,14 +14,12 @@ import (
 // and then thrown away by reading the prose.
 //
 // Asking a model to pull ingredients out of an article gives a list with no
-// quantities, because the quantities live in a table the markdown conversion
-// flattens and the surrounding prose says "add the eggs" rather than "add
-// eight eggs". Nearly every recipe site publishes a schema.org Recipe in a
-// script tag with `recipeIngredient` as exact strings and `recipeInstructions`
-// in order, so the numbers are right there.
+// quantities, since they live in a table the markdown conversion flattens and
+// the prose says "add the eggs". Nearly every recipe site publishes a schema.org
+// Recipe with recipeIngredient as exact strings and recipeInstructions in order.
 //
-// The block this renders is prepended to the page markdown, which puts it in
-// the first passage and makes it the piece most likely to be selected.
+// The block this renders is prepended to the page markdown, which makes it the
+// piece most likely to be selected.
 
 type recipeData struct {
 	Name        string
@@ -179,7 +177,7 @@ func flattenSteps(v any) []string {
 
 func str(v any) string {
 	s, _ := v.(string)
-	// These arrive HTML escaped, so "1 &amp; 1/2 pounds bacon" reaches the
+	// These arrive HTML escaped, so "1 &amp, 1/2 pounds bacon" reaches the
 	// answer verbatim unless it is unescaped here.
 	return strings.TrimSpace(stdhtml.UnescapeString(s))
 }

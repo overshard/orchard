@@ -27,14 +27,14 @@ const (
 	writeBatch = 500
 	writeEvery = 250 * time.Millisecond
 
-	// maxBody is the second fence behind Caddy's own; maxRecords stops one
+	// maxBody is the second fence behind Caddy's own, maxRecords stops one
 	// well-formed body from claiming the whole queue.
 	maxBody    = 4 << 20
 	maxRecords = 2000
 )
 
 // Writer owns the ingest queue and the goroutine that drains it. Safe for
-// concurrent use; Close may be called more than once.
+// concurrent use, Close may be called more than once.
 type Writer struct {
 	db *sql.DB
 	ch chan row
@@ -351,7 +351,7 @@ func (s *site) ingest(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
-// normalizeSource constrains the source to a short label; it arrives from
+// normalizeSource constrains the source to a short label, it arrives from
 // another process and is rendered in URLs.
 func normalizeSource(s string) string {
 	s = strings.ToLower(strings.TrimSpace(s))
@@ -439,10 +439,10 @@ const (
 	maxAttrsLen = 8192
 
 	// streamingAfterMS is web's own WriteTimeout. Nothing here can serve an
-	// ordinary request for longer, so anything past it was held open on purpose.
+	// ordinary request for longer, so anything past it was held open to stream.
 	// It is the backstop for sources that cannot say so themselves, Caddy above
-	// all. A site that knows it is streaming says component=stream instead, and
-	// that catches the short connections this threshold cannot see.
+	// all. A site that knows it is streaming says component=stream instead, which
+	// catches the short connections this threshold cannot see.
 	streamingAfterMS = 60_000
 )
 
@@ -488,7 +488,7 @@ func normalizeKey(s string) string {
 	return b.String()
 }
 
-// saneStatus keeps the status in range; it is a rollups key column, so an
+// saneStatus keeps the status in range, it is a rollups key column, so an
 // arbitrary int64 is an arbitrary number of permanent rows.
 func saneStatus(v float64) int64 {
 	n := int64(v)

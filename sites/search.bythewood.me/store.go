@@ -17,10 +17,10 @@ import (
 
 // Store holds the page archive and the search result cache.
 //
-// It deliberately never stores a question. Pages and passages are an archive of
-// public articles, so they are kept in full and indexed for search, while the
-// only thing that has to persist per query is a lookup key, and that is an HMAC
-// so the database cannot be read back as a history of what was asked.
+// It never stores a question. Pages and passages are an archive of public
+// articles, so they are kept in full and indexed for search, while the only
+// thing that has to persist per query is a lookup key, and that is an HMAC so
+// the database cannot be read back as a history of what was asked.
 type Store struct {
 	db     *sql.DB
 	secret []byte

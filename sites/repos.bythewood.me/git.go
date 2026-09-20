@@ -29,7 +29,7 @@ const gitTimeout = 20 * time.Second
 const maxBlobSize = 25 << 20
 
 // Repo is one bare repository on disk. Name is the URL segment and the display
-// name; Path is the --git-dir.
+// name, Path is the --git-dir.
 type Repo struct {
 	Name string
 	Path string
@@ -103,7 +103,7 @@ func (s *Store) Open(name string) (Repo, bool) {
 	return Repo{Name: name, Path: path}, true
 }
 
-// Discover lists every bare repository under the root; anything not ending in
+// Discover lists every bare repository under the root, anything not ending in
 // .git is ignored, so the root may hold other things without publishing them.
 func (s *Store) Discover() ([]Repo, error) {
 	entries, err := os.ReadDir(s.Root)
@@ -146,7 +146,7 @@ func gitCmd(ctx context.Context, repo Repo, args ...string) *exec.Cmd {
 	return cmd
 }
 
-// run executes a plumbing command and returns stdout; stderr is folded into the error.
+// run executes a plumbing command and returns stdout, stderr is folded into the error.
 func run(ctx context.Context, repo Repo, args ...string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, gitTimeout)
 	defer cancel()
@@ -239,7 +239,7 @@ func (s *Store) Head(ctx context.Context, repo Repo) string {
 	return strings.TrimSpace(string(out))
 }
 
-// IsEmpty reports a repository with no commits; every other read fails on one.
+// IsEmpty reports a repository with no commits, every other read fails on one.
 func (s *Store) IsEmpty(ctx context.Context, repo Repo) bool {
 	_, err := run(ctx, repo, "rev-parse", "--verify", "--quiet", "HEAD")
 	return err != nil
@@ -265,7 +265,7 @@ const logFormat = "%H%x00%h%x00%an%x00%ae%x00%aI%x00%cI%x00%P%x00%D%x00%s%x00%b"
 
 const logFields = 10
 
-// Log reads commits reachable from rev; the caller caps limit.
+// Log reads commits reachable from rev, the caller caps limit.
 func (s *Store) Log(ctx context.Context, repo Repo, rev string, skip, limit int) ([]Commit, error) {
 	args := []string{"log", "-z", "--format=" + logFormat,
 		"--skip=" + strconv.Itoa(skip), "-n", strconv.Itoa(limit), rev, "--"}

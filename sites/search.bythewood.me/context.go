@@ -8,7 +8,7 @@ import (
 
 // Ambient is what the model would know if it were a person sitting here, and
 // has no way of knowing otherwise. Without the date it cannot tell what
-// "recent" means; without the place it answers a question about the weather or
+// "recent" means, without the place it answers a question about the weather or
 // what is open as though it were nowhere.
 //
 // Location is a constant for the same reason it is in dash: it is where Isaac

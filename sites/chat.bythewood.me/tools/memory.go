@@ -6,13 +6,10 @@ import (
 	"strings"
 )
 
-// Asked to remember something, the model had nothing to call. Memory was
-// written only by the pass that runs after a turn, which reads the exchange and
-// decides for itself what was worth keeping, so "remember that I want to watch
-// this" was a sentence it could agree with and not act on.
-//
-// This is the deliberate half. The pass still runs and still catches what Isaac
-// never thought to state, and this is for when he says it outright.
+// The tool for when Isaac says to remember something outright. The pass that
+// runs after a turn still reads the exchange and decides for itself what was
+// worth keeping, so "remember that I want to watch this" was otherwise a
+// sentence the model could agree with and never act on.
 
 // MemoryFact is one thing known about Isaac, thinned down to what a tool needs.
 type MemoryFact struct {

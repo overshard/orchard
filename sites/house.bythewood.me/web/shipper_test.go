@@ -89,8 +89,8 @@ func TestShipLogsTeesRatherThanReplaces(t *testing.T) {
 	}
 }
 
-// Attribute kinds have to survive the crossing intact: a duration that became
-// the string "1.042ms" is exactly what the hardening pass moved away from.
+// Attribute kinds have to survive the crossing intact, so a duration must not
+// arrive as the string "1.042ms".
 func TestShipLogsFlattensAttributeKinds(t *testing.T) {
 	c := &collector{}
 	_, shipper := withShipper(t, "blog", c.sink)
@@ -169,12 +169,9 @@ func TestShipLogsSurvivesWithAttrsAndWithGroup(t *testing.T) {
 	}
 }
 
-// The failure this pins has no symptom until somebody uses a child logger, and
-// then it is silent: an attribute added before a WithGroup must NOT gain that
-// group's prefix. If it does, the ingest side stops recognising "component" and
-// "status" as hot columns, the record stores an empty component and a zero
-// status, and its hourly rollup is keyed wrong, while stdout shows the same
-// line correctly.
+// An attribute added before a WithGroup must NOT gain that group's prefix. If it
+// does, the ingest side stops recognising "component" and "status" as hot columns
+// and keys the rollup wrong, while stdout shows the same line correctly.
 func TestWithGroupDoesNotRePrefixEarlierAttrs(t *testing.T) {
 	c := &collector{}
 	_, shipper := withShipper(t, "status", c.sink)
@@ -249,8 +246,7 @@ func TestEnqueueDropsRatherThanBlocking(t *testing.T) {
 }
 
 // Handle can run after Close, on a shutdown path where something logs from a
-// later defer. A send on a closed channel panics, which would be the one way a
-// log shipper could take a site down with it, so the channel is never closed.
+// later defer. A send on a closed channel panics, so the channel is never closed.
 func TestLoggingAfterCloseDoesNotPanic(t *testing.T) {
 	c := &collector{}
 	_, shipper := withShipper(t, "blog", c.sink)
@@ -266,10 +262,9 @@ func TestLoggingAfterCloseDoesNotPanic(t *testing.T) {
 	}
 }
 
-// A wedged sink must not hold shutdown open. Before this bound, a full queue
-// against a sink that accepts and never answers cost nine flushes at ten
-// seconds each: 100 seconds, against a Docker stop grace of ten, so every site
-// shipping to a hung logging container took a SIGKILL.
+// A wedged sink must not hold shutdown open. Without the bound, a full queue
+// against a sink that accepts and never answers runs well past Docker's ten
+// second stop grace, so every site shipping to it takes a SIGKILL.
 func TestCloseIsBoundedWhenTheSinkHangs(t *testing.T) {
 	wedged := func(source string, records []Record) {
 		// Longer than any plausible Close budget, and longer than the whole
@@ -291,8 +286,8 @@ func TestCloseIsBoundedWhenTheSinkHangs(t *testing.T) {
 	}
 }
 
-// Close flushes what is queued. A deploy kills these processes constantly and
-// the last few seconds of records are the ones that say why.
+// Close flushes what is queued, since a deploy kills these processes and the
+// last few seconds of records are the ones worth having.
 func TestCloseFlushesPendingRecords(t *testing.T) {
 	c := &collector{}
 	_, shipper := withShipper(t, "blog", c.sink)

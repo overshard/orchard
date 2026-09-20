@@ -60,8 +60,8 @@ func measuredRoad() RoadResult {
 }
 
 // The zero value of either lookup must not read as standing in a creek next to a
-// motorway ramp. It is the shape a skipped lookup leaves behind, and it used to
-// flag every such listing.
+// motorway ramp. It is the shape a skipped lookup leaves behind, and flagging
+// it marks every such listing.
 func TestUnmeasuredLookupsFlagNothing(t *testing.T) {
 	cfg := defaultConfig()
 	cfg.Geography.OriginLat, cfg.Geography.OriginLon = 35.90, -81.10
@@ -345,7 +345,7 @@ func TestSeverityIsConfigurable(t *testing.T) {
 }
 
 // Modular is built to the residential code on a permanent foundation, so it is
-// recognised and deliberately not flagged.
+// recognised and not flagged.
 func TestModularIsNotManufactured(t *testing.T) {
 	f := defaultConfig().Filters
 	if _, bad := manufacturedKind(Listing{Style: "Modular"}, f); bad {
@@ -399,7 +399,7 @@ func TestAFailedLookupDoesNotLowerTheScore(t *testing.T) {
 	}
 
 	// And it must stay in the same neighbourhood as the house it is a copy of,
-	// rather than collapsing the way it used to.
+	// rather than collapsing.
 	if b.Score < a.Score-2 {
 		t.Errorf("a failed detour lookup dropped the score from %.1f to %.1f", a.Score, b.Score)
 	}
@@ -1300,8 +1300,8 @@ func TestRetryAfterBothFormats(t *testing.T) {
 
 // CREATE TABLE IF NOT EXISTS does nothing to a table that already exists, so a
 // column added to the schema reaches a fresh database and no other. Every other
-// test starts fresh, which is exactly why that failed in production and nowhere a
-// test could see it. This one builds an old database on purpose.
+// test starts fresh, so an upgrade path only breaks against a database that
+// already has rows in it. This one builds an old database.
 func TestOldDatabaseGainsNewColumns(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "old.sqlite3")
@@ -1428,7 +1428,7 @@ func TestParcelPicksTheNearest(t *testing.T) {
 }
 
 // Directions stay in capitals and everything else is title cased. Length is not
-// the test, which is how the first version produced "118 Marchbank RD".
+// the test, or "118 Marchbank RD" comes back with the RD title cased too.
 func TestTitleAddress(t *testing.T) {
 	cases := map[string]string{
 		"118 MARCHBANK RD":    "118 Marchbank Rd",
@@ -1624,8 +1624,8 @@ func TestParcelPrefersTheMatchingAddress(t *testing.T) {
 	}
 }
 
-// An assessed value carried forward on the index, which is the whole point of the
-// estimate: the assessment is as of a revaluation and the market has moved since.
+// An assessed value carried forward on the index, which is what the
+// estimate is for, since the assessment is as of a revaluation and the market has moved since.
 func TestValueEstimateCarriesTheAssessmentForward(t *testing.T) {
 	h := &HPI{}
 	table := hpiTable{

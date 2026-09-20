@@ -2,16 +2,12 @@ package main
 
 // Searching what was said in earlier conversations.
 //
-// A tool result dies with the turn that fetched it and only the answer
-// survives, so a question about something settled last week had nothing to
-// reach for. Isaac asked for this twice on 2026-09-08 and it is the other half
-// of memory: memory keeps one sentence facts about him, and this keeps what was
-// actually said.
+// A tool result dies with the turn that fetched it and only the answer survives,
+// so a question about something settled last week had nothing to reach for.
+// Memory keeps one sentence facts about Isaac and this keeps what was said.
 //
-// Scored in Go for the same reason memory is. The candidate rows come out of
-// SQLite with a LIKE per term so the whole table never lands in memory, and the
-// ranking is the part that has to be right, which is easier to test as a
-// function than to argue about as a query.
+// Candidate rows come out of SQLite with a LIKE per term so the whole table
+// never lands in memory, and the ranking is done in Go where it can be tested.
 
 import (
 	"fmt"

@@ -292,8 +292,8 @@ const (
 
 // wikiInfobox pulls the labelled rows out of the first table.
 //
-// The whole table used to be thrown away, which read better and lost the one
-// line that answers who currently holds an office: "Prime Minister of Japan"
+// Throwing the whole table away reads better and loses the one line that
+// answers who currently holds an office: "Prime Minister of Japan"
 // describes the office in its lead and names the incumbent only here. A row is
 // kept as "Label: value", and a row with no label is kept on its own, since
 // that is the shape the incumbent row comes in.

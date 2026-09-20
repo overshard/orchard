@@ -13,7 +13,7 @@ const (
 	analyticsID = "0d379e18-9ea7-4228-a8bf-82369c25ab84"
 )
 
-// Staging is true on any hostname but the real one; it drives the noindex, the
+// Staging is true on any hostname but the real one, it drives the noindex, the
 // robots.txt Disallow and the analytics collector.
 var Staging = !strings.HasSuffix(baseURL, "//blog.bythewood.me")
 

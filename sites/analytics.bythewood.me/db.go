@@ -14,7 +14,7 @@ import (
 )
 
 // There is no migration table. Every statement is IF NOT EXISTS, so this runs
-// against an existing database as a no-op; a schema change is a new guarded block.
+// against an existing database as a no-op, a schema change is a new guarded block.
 const schema = `
 CREATE TABLE IF NOT EXISTS properties (
     id            BLOB PRIMARY KEY,
@@ -97,7 +97,7 @@ func openDB(path string) (*sql.DB, error) {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
 
-	// SQLite writes under a database-wide lock; the pool is sized for the
+	// SQLite writes under a database-wide lock, the pool is sized for the
 	// readers WAL lets run alongside a write.
 	db.SetMaxOpenConns(8)
 	db.SetMaxIdleConns(8)

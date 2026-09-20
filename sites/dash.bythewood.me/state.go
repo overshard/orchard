@@ -81,11 +81,10 @@ type Hub struct {
 	clients map[chan []byte]struct{}
 	last    []byte
 
-	// Closed on nothing; sent to when the first browser of a quiet spell
+	// Closed on nothing, and sent to when the first browser of a quiet spell
 	// connects. The markets loop waits on it alongside its timer, so somebody
-	// opening the page does not have to sit out the rest of an idle interval.
-	// Buffered by one and sent without blocking, so an arrival while the loop
-	// is mid-fetch is remembered rather than lost.
+	// opening the page does not sit out the rest of an idle interval. Buffered by
+	// one and sent without blocking, so an arrival mid-fetch is not lost.
 	wake chan struct{}
 }
 
@@ -227,7 +226,7 @@ func (s *Store) Run(ctx context.Context, g *Guard) {
 }
 
 // loop runs work on an interval. every is a function so the markets loop can
-// change its mind about the cadence between ticks; a nil one means use the
+// change its mind about the cadence between ticks, and a nil one means use the
 // fixed interval the source was registered with.
 //
 // The markets loop also wakes when the first browser of a quiet spell connects.

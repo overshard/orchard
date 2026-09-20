@@ -143,13 +143,10 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	// Everything is gated. This site can read Isaac's own infrastructure
-	// through its tools, so there is no anonymous surface at all, not even a
-	// landing page, which is the difference between this and the dashboards
-	// that show a signed out visitor something.
-	// The root is the one public page: what this is and a way in. Everything
-	// past it needs a session, and a signed in visitor gets the app here rather
-	// than the pitch.
+	// Everything is gated, since this site reads Isaac's own infrastructure through
+	// its tools, so there is no anonymous surface past the root.
+	// The root is the one public page, and a signed in visitor gets the app here
+	// rather than the pitch.
 	mux.HandleFunc("GET /{$}", s.root)
 	mux.HandleFunc("GET /c/{id}", s.auth.RequireAuth(s.page))
 	// Memory. Reading and deleting are plain pages and plain posts, and the
@@ -166,11 +163,11 @@ func main() {
 	mux.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, web.LoginURL(r), http.StatusSeeOther)
 	})
-	// Not gated, because the container's own health check calls it over
-	// loopback with no cookie and it says nothing.
-	// None of this is for a stranger, and without a robots.txt of our own the edge
-	// serves a default that restricts nothing. Both this and the noindex meta tag
-	// are needed, since a crawler obeying robots.txt never fetches the page.
+	// Not gated, because the container's own health check calls it over loopback
+	// with no cookie and it says nothing.
+	// Without a robots.txt of our own the edge serves a default that restricts
+	// nothing, and the noindex meta tag is needed too since a crawler obeying
+	// robots.txt never fetches the page.
 	mux.HandleFunc("GET /robots.txt", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Header().Set("Cache-Control", "public, max-age=300")
@@ -344,10 +341,8 @@ func readSend(w http.ResponseWriter, r *http.Request) (sendReq, []filePart, erro
 }
 
 // send starts one turn and streams it. Server sent events rather than a
-// websocket because the traffic is one way and this survives a proxy.
-//
-// The turn itself runs detached, so the browser is a reader and not the thing
-// the work depends on. Closing the tab drops the reader and the turn carries on.
+// websocket since the traffic is one way and this survives a proxy. The turn
+// runs detached, so closing the tab drops the reader and the turn carries on.
 func (s *site) send(w http.ResponseWriter, r *http.Request) {
 	req, parts, err := readSend(w, r)
 	if err != nil {
@@ -383,7 +378,7 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 	if !req.Incognito {
 		s.hub.Publish(HubEvent{Kind: "started", ConvID: key})
 	}
-	// Detached on purpose. r.Context() dies with the tab, and a turn that has
+	// This runs detached, since r.Context() dies with the tab and a turn that has
 	// spent two minutes fetching should not be thrown away because a phone
 	// locked.
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 12*time.Minute)
@@ -403,11 +398,9 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 }
 
 // streamRun writes a run to one browser: everything it has already produced,
-// then whatever comes next until the turn ends or this reader goes away.
-// events is the meta stream every open tab holds, so a turn started anywhere is
-// known everywhere. It carries which conversation changed and never what was
-// said: a tab is told to go and read, and the run is still the only place an
-// answer is assembled.
+// then whatever comes next until the turn ends or this reader goes away. events
+// is the meta stream every open tab holds, so a turn started anywhere is known
+// everywhere.
 func (s *site) events(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-store")
@@ -508,10 +501,9 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 	tr := NewTrace(emit)
 
 	// One turn at a time. There is one card behind this and llama.cpp runs it
-	// with a single slot, so two turns at once interleave and both take longer
-	// than they would have taken in order. The waiting is shown rather than
-	// hidden, since a tab sat on "thinking" because another is ahead looks
-	// broken and one that says it is second in line looks like a queue.
+	// with a single slot, so two turns at once interleave and both take longer.
+	// The waiting is shown, since a tab sat on "thinking" looks broken and one
+	// that says it is second in line looks like a queue.
 	release, ok := s.queue.Enter(ctx, func(q QueueState) {
 		emit(Event{Kind: "status", Text: waitingLabel(q)})
 	})
@@ -789,10 +781,8 @@ func (s *site) status(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, out)
 }
 
-// unload takes the weights off the card now instead of three minutes from now.
-// The card this runs on is the one the desktop draws with, so somebody who
-// asked a question mid game wants it back at the end of the answer and not at
-// the end of a timer they cannot see.
+// unload takes the weights off the card now instead of three minutes from now,
+// since the card this runs on is the one the desktop draws with.
 func (s *site) unload(w http.ResponseWriter, r *http.Request) {
 	// Pulling the model out from under a turn in flight kills that turn with
 	// an error nobody would connect to the button they pressed.

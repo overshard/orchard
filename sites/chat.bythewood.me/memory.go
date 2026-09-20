@@ -1,14 +1,12 @@
 // What the chat remembers about Isaac between conversations.
 //
 // One sentence facts and nothing longer. A memory that holds paragraphs is a
-// second transcript, and the point of this is that a fact costs almost nothing
-// to carry into every turn, so only the ones worth carrying are kept.
+// second transcript, and what makes this worth carrying into every turn is that
+// it costs almost nothing to carry.
 //
-// Every write goes through the model under the rules below. There is no text
-// box that edits a fact directly, which is deliberate: a fact typed by hand
-// drifts out of the shape the retrieval expects, and a contradiction typed by
-// hand leaves both versions in. Deleting is the one manual operation, because
-// deciding something should be forgotten needs no judgement a model can add.
+// Every write goes through the model under the rules below. A fact typed by
+// hand drifts out of the shape the retrieval expects and a contradiction typed
+// by hand leaves both versions in, so deleting is the one manual operation.
 package main
 
 import (
@@ -77,12 +75,10 @@ func (s *Store) Facts() ([]Fact, error) {
 
 // AddFact is idempotent on the subject rather than on the exact text.
 //
-// The unique index only ever caught a fact proposed back word for word, and
-// nothing else did, so on 2026-09-08 one turn wrote two nearly identical facts
-// about X post search and left a third standing that contradicted both. The
-// model is asked to replace rather than add and cannot be relied on to, and
-// both the automatic pass and the remember tool land here, so this is the one
-// place that can hold the line for both.
+// The unique index only catches a fact proposed back word for word, so without
+// this a turn writes two nearly identical facts and leaves a third standing that
+// contradicts both. The model is asked to replace and cannot be relied on to,
+// and both the automatic pass and the remember tool land here.
 func (s *Store) AddFact(text string) (int64, error) {
 	text = tidyFact(text)
 	if text == "" {
@@ -184,11 +180,9 @@ func (s *Store) markUsed(ids []int64) {
 	}
 }
 
-// Relevant scores every fact against the message in Go rather than in SQL.
-//
-// This is a few hundred rows at most, so a full scan costs less than the
-// round trip to ask for a clever one, and it means the scoring is a function
-// with a test rather than a query whose behaviour is the database's opinion.
+// Relevant scores every fact against the message in Go rather than in SQL. This
+// is a few hundred rows at most, so a full scan costs less than the round trip,
+// and the scoring is a function with a test.
 func (s *Store) Relevant(message string, limit int) []Fact {
 	all, err := s.Facts()
 	if err != nil || len(all) == 0 {
@@ -268,10 +262,8 @@ func terms(s string) map[string]bool {
 }
 
 // stem is the smallest thing that makes retrieval work on real questions.
-// Without it "camping" in a question never reaches "camps" in a fact, which was
-// the first case tried and the first one that failed. It is not a real stemmer
-// and does not need to be: over a few hundred short facts an occasional wrong
-// pairing costs one irrelevant line in the prompt.
+// Without it "camping" in a question never reaches "camps" in a fact. It is not
+// a real stemmer, and a wrong pairing costs one irrelevant line in the prompt.
 func stem(w string) string {
 	switch {
 	case len(w) > 5 && strings.HasSuffix(w, "ing"):
@@ -313,10 +305,8 @@ func tidyFact(s string) string {
 // both the pass that runs after a turn and the box in the memory panel, so the
 // two cannot disagree about what belongs here.
 //
-// The framing is positive on purpose. An earlier version listed what not to keep
-// first and ended on "an empty list is the right answer most of the time", and a
-// small model took that as permission to propose nothing every single time. The
-// same conversation against this wording produces five usable facts.
+// The framing is positive. Listing what not to keep first reads to a small model
+// as permission to propose nothing at all.
 const factRules = `You pull durable facts about Isaac out of a conversation and keep them for later.
 
 Your job is to notice what was revealed about him. Read the exchange and write down each thing that will still be true in six months.

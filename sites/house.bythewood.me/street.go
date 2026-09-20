@@ -11,19 +11,16 @@ import (
 	"time"
 )
 
-// Owner occupancy on the actual street, which is the thing most people are
-// pointing at when they say a neighbourhood is good. A street that is eighty
-// percent owner occupied behaves differently from one that is half rentals,
-// whatever else is true about the census tract it sits in.
+// Owner occupancy on the actual street, which is what most people are pointing
+// at when they say a neighbourhood is good. A street that is eighty percent
+// owner occupied behaves differently from one that is half rentals.
 //
-// It is in the tax records and it needs no survey: every parcel carries both
-// where the property is and where the owner's post goes. When those are the same
-// place, somebody lives in the house they own. When the post goes to an address
-// three towns over, or to a PO box, or to a company, it is let.
+// It is in the tax records and needs no survey: every parcel carries both where
+// the property is and where the owner's post goes. Post going three towns over,
+// to a PO box or to a company means the house is let.
 //
-// This is a count of the houses you would actually see from the drive, not a
-// county average. The census figures in area.json stay as the fallback for when
-// the parcels cannot be read.
+// This counts the houses you would actually see from the drive. The census
+// figures in area.json stay as the fallback for when the parcels cannot be read.
 const streetRadiusFeet = 900
 
 type StreetResult struct {
@@ -177,11 +174,9 @@ func sameAddress(mail, mailZip, site, siteZip string, a map[string]any) bool {
 }
 
 // sameHouse compares the house number and the street name and stops there. The
-// full strings never match: the tax roll writes the site address from its own
-// columns and leaves the street type out about half the time, while the mailing
-// address is whatever the owner wrote on a form, so "118 Marchbank" and
-// "118 MARCHBANK RD" are the same house and a whole-string compare called them
-// different and reported a street of owner occupiers as ten percent owned.
+// tax roll writes the site address from its own columns and leaves the street
+// type out about half the time, so "118 Marchbank" and "118 MARCHBANK RD" are
+// the same house, where a whole-string compare calls them different.
 func sameHouse(a, b string) bool {
 	na, sa := houseParts(a)
 	nb, sb := houseParts(b)
@@ -219,9 +214,9 @@ func houseParts(addr string) (number, street string) {
 	return number, street
 }
 
-// A mailing address that is a box at the post office is never the house. The
-// facilities roster used to need this too, and it is here now because this is the
-// only thing left that reads an address written by a county clerk.
+// A mailing address that is a box at the post office is never the house. It
+// lives here because this is the only thing left that reads an address written
+// by a county clerk.
 func isPOBox(addr string) bool {
 	a := strings.ToLower(strings.ReplaceAll(addr, ".", ""))
 	return strings.Contains(a, "po box") || strings.Contains(a, "p o box") ||
@@ -236,12 +231,10 @@ func zipOf(s string) string {
 	return ""
 }
 
-// Elbow room. How many houses are within a few hundred yards, which is a
-// different question from who owns them and pulls the other way: a street can be
-// ninety percent owner occupied and still have forty houses on it.
-//
-// Fewer is better, and the band runs from about five, which is a lane with
-// neighbours you would recognise, to forty, which is a subdivision.
+// Elbow room is how many houses are within a few hundred yards, which pulls the
+// other way from who owns them, since a street can be ninety percent owner
+// occupied and still have forty houses on it. Fewer is better, and the band runs
+// from about five, a lane with neighbours you would recognise, to forty.
 func (s StreetResult) SpaceRaw() float64 {
 	if !s.Found {
 		return 0.5

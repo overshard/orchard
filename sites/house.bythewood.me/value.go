@@ -15,10 +15,9 @@ import (
 // What the house is worth now, rather than what the county had it down as at the
 // last revaluation.
 //
-// A tax assessment is the only free appraisal there is, and in a rising market it
-// is stale by however long ago the county last reappraised. NC counties run four
-// to eight years between general reappraisals, so an assessment can be most of a
-// cycle behind and every listing then looks overpriced by the same amount.
+// A tax assessment is the only free appraisal there is, and NC counties run four
+// to eight years between general reappraisals, so one can be most of a cycle
+// behind and every listing then looks overpriced by the same amount.
 //
 // The FHFA publishes a house price index by metro going back to the 1970s, free
 // and with no key, so the assessment can be carried forward from the year it was

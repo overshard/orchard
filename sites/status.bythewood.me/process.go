@@ -12,7 +12,7 @@ func setProcessGroup(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 }
 
-// killProcessGroup signals the whole group; kill(2) reads a negative pid as
+// killProcessGroup signals the whole group, kill(2) reads a negative pid as
 // "every process in this group". Safe after a clean exit, where it gets ESRCH.
 func killProcessGroup(cmd *exec.Cmd) {
 	if cmd.Process == nil {

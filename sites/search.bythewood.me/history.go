@@ -17,20 +17,16 @@ import (
 )
 
 // History is the questions and the answers, which is the one thing the cache
-// deliberately does not hold.
+// does not hold.
 //
-// It is a second database rather than two more tables, for two reasons that are
-// both Isaac's requirements rather than tidiness. Deleting every question has
-// to be possible without throwing away the page archive, which is a personal
-// library of public articles and the expensive thing to rebuild. And a separate
-// file is one line to exclude from restic, which matters because a row deleted
-// here is still in whatever snapshot already went to B2. Deletion is forward
-// only, so the honest way to keep something out of a backup is to have never
-// put it in one.
+// A second database rather than two more tables, for two of Isaac's
+// requirements. Deleting every question has to be possible without throwing away
+// the page archive, which is the expensive thing to rebuild, and a separate file
+// is one line to exclude from restic, since a row deleted here is still in
+// whatever snapshot already went to B2.
 //
 // secure_delete is on so a deleted question is zeroed rather than left in the
-// free pages of the file, which is the difference between deleting a row and
-// deleting the text.
+// free pages of the file.
 type History struct {
 	db *sql.DB
 }
@@ -156,7 +152,7 @@ func (h *History) Log(a *Answer, stamp Stamp) (int64, error) {
 }
 
 // Rate records a verdict and moves the domains behind that answer with it. The
-// reputation is deliberately a count of answers rather than of sources, so a
+// reputation is a count of answers rather than of sources, so a
 // page cited once in a good answer counts once.
 func (h *History) Rate(id int64, verdict int, reason, note string) error {
 	if verdict > 0 {
@@ -290,15 +286,14 @@ func (h *History) DeleteAll() error {
 	return h.vacuum()
 }
 
-// vacuum is what actually removes the text rather than the row, and it takes
-// all three steps.
+// vacuum is what actually removes the text rather than the row, and it takes all
+// three steps.
 //
 // secure_delete zeroes a deleted row where it lay and VACUUM rewrites the file
-// without it, but in WAL mode both of those write through the log, so the
-// question is still sitting in history.db-wal afterwards. Deleting a row and
-// then finding it in a text search of the directory is the whole failure this
-// page exists to prevent, so the checkpoint truncates the log as well. Tested
-// by reading the files, since that is the only way to know.
+// without it, but in WAL mode both write through the log, so the question is
+// still sitting in history.db-wal afterwards. The checkpoint truncates the log
+// as well, and the test reads the files back since that is the only way to
+// check it.
 func (h *History) vacuum() error {
 	if _, err := h.db.Exec(`VACUUM`); err != nil {
 		return err

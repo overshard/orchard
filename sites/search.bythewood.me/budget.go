@@ -10,10 +10,9 @@ import (
 //
 // DuckDuckGo publishes no threshold. What is documented is community measured:
 // stay under 30 requests a minute from one address, detection fires well before
-// that, and roughly one request a second is the sustainable pace. So this
-// budgets conservatively against a number DDG never stated, and the point is
-// less to avoid a 202 than to make the ceiling visible, since hitting one with
-// no warning reads as the tool being broken.
+// that, and roughly one request a second is the sustainable pace. This budgets
+// against a number DDG never stated, and it makes the ceiling visible, since
+// hitting one with no warning reads as the tool being broken.
 //
 // A question spends one to three searches, so the window is counted in searches
 // and reported in both searches and whole questions.

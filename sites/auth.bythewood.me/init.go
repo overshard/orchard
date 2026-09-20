@@ -79,9 +79,9 @@ func runCheck(db *sql.DB) error {
 // that has no other way out: no codes left and ntfy or the tunnel down, so the
 // browser cannot reach a sign in and the security page is unreachable.
 //
-// It needs host access to the Docker socket, which is the point. That is the
-// bottom of the ladder and it is why nothing about this account has to be kept
-// anywhere: every credential here can be replaced from the machine.
+// It needs host access to the Docker socket, which is the bottom of the ladder
+// and why nothing about this account has to be kept anywhere. Every credential
+// here can be replaced from the machine.
 func runRecovery(db *sql.DB) error {
 	if _, err := loadUser(db); errors.Is(err, errNoUser) {
 		return fmt.Errorf("not initialized yet, run -init instead")

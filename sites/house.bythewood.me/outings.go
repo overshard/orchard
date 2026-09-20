@@ -9,28 +9,23 @@ import (
 	"time"
 )
 
-// Somewhere for a child to go on a Saturday. A science centre, a cinema, a
-// pool, a park with something in it. None of this decides whether a house is
-// sound and all of it decides whether a child is bored, and being twenty minutes
-// from the nearest anything is its own kind of expensive.
+// Somewhere for a child to go on a Saturday, like a science centre, a cinema, a
+// pool or a park with something in it, since being twenty minutes from the
+// nearest anything costs you as well.
 //
 // OpenStreetMap has all of it tagged, and one query around the house at a radius
-// worth driving covers the lot. `out center` rather than `out geom`, because what
+// worth driving covers the lot. `out center` rather than `out geom`, since what
 // is wanted is where a building is and not its outline.
-// An hour's drive, which on these roads is about forty miles. Wide enough to pick
-// up Hickory and Statesville from most of the search area, which is where the
-// science centre and the cinemas are.
+// An hour's drive, which on these roads is about forty miles. Wide enough to
+// pick up Hickory and Statesville, where the science centre and cinemas are.
 const outingsSearchFeet = 40 * 5280
 
-// The kinds worth counting, in the order a child would rank them. Each is a
-// tag match and a friendly name for the page.
-// What there is to do, in the shape a Saturday actually takes. Each filter is
-// another pass over the area, so these are kept to the ones that decide a day
-// out rather than every amenity OSM knows about.
+// The kinds worth counting, in the order a child would rank them. Each is a tag
+// match and a friendly name for the page, and each filter is another pass over
+// the area, so these are kept to the ones that decide a day out.
 //
-// The water ones matter here: the Catawba and the Yadkin are what people in these
-// counties do in July, and a put-in or a canoe hire within an hour is a different
-// summer from one without.
+// The water ones matter here, since the Catawba and the Yadkin are what people
+// in these counties do in July.
 var outingKinds = []struct {
 	filter string
 	label  string
@@ -71,7 +66,7 @@ func NewOutings(db *sql.DB, roads *Roads) *Outings {
 }
 
 func (o *Outings) Lookup(ctx context.Context, lat, lon float64) (OutingsResult, error) {
-	// Rounded coarsely on purpose. What there is to do within an hour does not
+	// Rounded coarsely, since what there is to do within an hour does not
 	// change between one house and the next, or between one town and the next
 	// either, so this is one query per rough area rather than one per address.
 	key := fmt.Sprintf("%.1f,%.1f", lat, lon)
@@ -90,13 +85,10 @@ func (o *Outings) Lookup(ctx context.Context, lat, lon float64) (OutingsResult, 
 
 	// One bounding box rather than nine `around` scans at forty miles. Overpass
 	// measures the distance to every candidate for an `around`, so nine of them at
-	// that radius is a lot of work to ask a free service for and it answered 429
-	// and timed out often enough that this was the one lookup that regularly came
-	// back empty. A box is cheap for it and the exact distance is worked out here
-	// afterwards anyway.
+	// that radius is enough work to ask a free service for that it answered 429 and
+	// timed out. A box is cheap and the exact distance is worked out here anyway.
 	//
-	// The kinds are collapsed into four clauses by tag key for the same reason,
-	// since a regex over one key costs less than several passes over the data.
+	// The kinds are collapsed into four clauses by tag key for the same reason.
 	south, west, north, east := boxAround(lat, lon, outingsSearchFeet)
 	box := fmt.Sprintf("(%.4f,%.4f,%.4f,%.4f)", south, west, north, east)
 

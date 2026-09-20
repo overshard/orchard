@@ -1,8 +1,7 @@
 // llm.bythewood.me, the model gateway.
 //
-// One model on one card, in front of every service that wants one. Before this,
-// chat and search each carried their own llama-swap and their own copy of the
-// weights, which on an 8GB card means whichever one you used last evicted the
+// One model on one card, in front of every service that wants one. A llama-swap
+// per service on an 8GB card means whichever one you used last evicted the
 // other. This holds the model, hands out API keys, and writes down every prompt
 // and every completion that passes through it, apart from the calls a caller
 // marks incognito, which are forwarded and never recorded.

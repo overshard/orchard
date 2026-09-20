@@ -1,8 +1,5 @@
-// The memory overlay's endpoints.
-//
-// JSON rather than pages, because this lives in a panel over the conversation
-// and navigating away from a thread to delete a fact is a worse trade than the
-// handful of endpoints here.
+// The memory overlay's endpoints. JSON rather than pages, since this lives in a
+// panel over the conversation and navigating away to delete a fact is worse.
 package main
 
 import (
