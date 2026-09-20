@@ -9,16 +9,13 @@ import (
 // One question runs at a time.
 //
 // The model server is started with --parallel 1, because Qwen3.5's hybrid
-// attention corrupts context checkpoints under multi-slot load, and there is one
-// GPU behind it. Two people asking at once would otherwise interleave into one
-// slot and both wait longer than if they had taken turns.
+// attention corrupts context checkpoints under multi-slot load, and there is
+// one GPU behind it. Two people asking at once would interleave into one slot
+// and both wait longer than if they had taken turns.
 //
-// So they take turns, and the waiting is shown rather than hidden: a page that
-// sits on "searching" for ninety seconds because someone else is ahead looks
-// broken, while one that says it is second in line looks like a queue.
-//
-// Nothing about who is waiting is recorded. A ticket is a position and a
-// channel, and it exists only while its request does.
+// The waiting is shown, since a page that sits on "searching" for ninety
+// seconds because someone else is ahead looks broken. Nothing about who is
+// waiting is recorded, and a ticket lives only as long as its request.
 type Queue struct {
 	mu      sync.Mutex
 	waiting []*ticket
@@ -115,10 +112,9 @@ func (q *Queue) finish() {
 
 // drop removes a ticket that gave up before its turn.
 //
-// There is a race worth naming: the context can end in the same moment finish
-// promotes this ticket, in which case the slot is already held by a caller that
-// will never use it and has to be handed on, or the person behind waits
-// forever.
+// The context can end in the same moment finish promotes this ticket, and then
+// the slot is held by a caller that will never use it and has to be handed on,
+// or the person behind waits forever.
 func (q *Queue) drop(t *ticket) {
 	q.mu.Lock()
 	for i, w := range q.waiting {

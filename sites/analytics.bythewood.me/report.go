@@ -71,7 +71,7 @@ func (s *site) renderReport(w http.ResponseWriter, r *http.Request, format, prop
 }
 
 // asciiFilename reduces a name to bytes a Content-Disposition header can carry
-// literally; Go will send an unencoded non-ASCII header that clients ignore.
+// literally, Go will send an unencoded non-ASCII header that clients ignore.
 func asciiFilename(name string) string {
 	var b strings.Builder
 	b.Grow(len(name))

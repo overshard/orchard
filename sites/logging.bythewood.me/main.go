@@ -20,7 +20,7 @@ import (
 	"logging.bythewood.me/web"
 )
 
-// Templates are source, so they ship in the binary unconditionally; the Vite
+// Templates are source, so they ship in the binary unconditionally, the Vite
 // bundle is build output and only embeds in a release build.
 //
 //go:embed templates
@@ -303,7 +303,7 @@ func (s *site) page(r *http.Request, title, description string) PageData {
 	}
 }
 
-// healthz answers 200 whenever the process is serving; it stays shallow because
+// healthz answers 200 whenever the process is serving, it stays shallow because
 // a full disk or a corrupt database is not fixed by the restart a failing check
 // would trigger. ?verbose adds writer counters and is served to loopback only.
 func (s *site) healthz(w http.ResponseWriter, r *http.Request) {

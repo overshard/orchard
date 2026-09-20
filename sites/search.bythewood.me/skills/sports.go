@@ -12,19 +12,18 @@ import (
 // "Did the Panthers win last night" has an exact answer, and reading it off a
 // scoreboard beats paraphrasing a recap someone wrote about it.
 //
-// The source is ESPN's own site data. Note the host: site.api.espn.com is the
-// documented-by-folklore one and it answers 403 to anything off ESPN's network,
+// The source is ESPN's own site data. site.api.espn.com is the
+// documented-by-folklore host and answers 403 to anything off ESPN's network,
 // while cdn.espn.com, which is what espn.com itself calls, serves the same
-// scoreboard to anyone. That difference is the whole reason this works.
+// scoreboard to anyone.
 //
 // No team list is hardcoded. Team names come out of the scoreboard responses,
 // so a franchise moving or renaming needs no change here.
 
-// Two URL shapes, which is not obvious and cost a round of debugging: the
-// American leagues are a path (core/nfl/scoreboard) while soccer is one path
-// with the competition as a parameter (core/soccer/scoreboard?league=eng.1).
-// Asking for core/soccer/eng.1/scoreboard answers 200 with a payload that has
-// no events in it at all, so it looks like a quiet day rather than a wrong URL.
+// Two URL shapes. The American leagues are a path (core/nfl/scoreboard) while
+// soccer is one path with the competition as a parameter
+// (core/soccer/scoreboard?league=eng.1). Asking for core/soccer/eng.1/scoreboard
+// answers 200 with a payload that has no events in it at all.
 const (
 	espnLeagueURL = "https://cdn.espn.com/core/%s/scoreboard?xhr=1"
 	espnSoccerURL = "https://cdn.espn.com/core/soccer/scoreboard?xhr=1&league=%s"
@@ -34,9 +33,9 @@ const (
 // ambiguous. "Panthers" is Carolina in the NFL and Florida in the NHL, and
 // answering for one silently would be wrong half the time.
 //
-// The soccer list is long on purpose. It is the sport most likely to come up in
+// The soccer list is long because it is the sport most likely to come up in
 // conversation with people outside the US, and a European league missing from
-// this list is a question that falls through to a web search.
+// it is a question that falls through to a web search.
 type league struct {
 	path   string
 	name   string
@@ -173,14 +172,13 @@ func (Sports) Run(ctx context.Context, question string, d Deps) (*Result, error)
 		return nil, nil
 	}
 
-	// One question used to fetch every league at once, seventeen requests of
-	// about a megabyte, and ESPN answered the lot with 202 and an empty body.
-	// It reads as an empty scoreboard rather than as a refusal, so the skill
-	// looked like it simply had no game to report.
+	// Fetching every league at once is seventeen requests of about a megabyte,
+	// and ESPN answers the lot with 202 and an empty body, which reads as an
+	// empty scoreboard rather than as a refusal.
 	//
-	// So the sweep is ordered and stops early. A question naming its
-	// competition goes straight to it, and otherwise the leagues are tried a
-	// few at a time, most likely first, until one has the team in it.
+	// So the sweep is ordered and stops early. A question naming its competition
+	// goes straight to it, and otherwise the leagues are tried a few at a time,
+	// most likely first, until one has the team in it.
 	order := leagueOrder(question)
 	for i := 0; i < len(order); i += 3 {
 		wave := order[i:min(i+3, len(order))]

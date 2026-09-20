@@ -15,7 +15,7 @@ func jsonLD(nodes ...map[string]any) template.JS {
 		"@context": "https://schema.org",
 		"@graph":   nodes,
 	}
-	// Indented for view-source; gzip removes the difference.
+	// Indented for view-source, gzip removes the difference.
 	buf, err := json.MarshalIndent(graph, "", "  ")
 	if err != nil {
 		return ""

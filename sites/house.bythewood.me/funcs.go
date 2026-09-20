@@ -145,11 +145,8 @@ func detourBand(cfg Config, mins float64) string {
 }
 
 // html/template sanitises inline style attributes and does not understand CSS
-// custom properties, so `style="--fill: 86%"` was silently rewritten to
-// ZgotmplZ and every bar on the page rendered empty. These return template.CSS,
-// which is the documented way to say a value is already safe, and they build a
-// plain declaration rather than a custom property so there is nothing to
-// misunderstand.
+// custom properties, so `style="--fill: 86%"` is rewritten to ZgotmplZ and every
+// bar renders empty. These return template.CSS and build a plain declaration.
 func widthPct(v float64) template.CSS {
 	if v < 0 {
 		v = 0
@@ -170,8 +167,7 @@ func sizeRem(rem string) template.CSS {
 	}
 	// The font size goes out with the box size because the number inside is sized
 	// as a percentage, and a percentage font size resolves against the inherited
-	// font size rather than against the element's own width. Without this the
-	// score rendered at about a third of the body text whatever the ring's size.
+	// font size rather than against the element's own width.
 	return template.CSS("width:" + rem + ";height:" + rem + ";font-size:" + rem)
 }
 

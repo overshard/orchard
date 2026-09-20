@@ -22,7 +22,7 @@ type Crumb struct {
 	URL   string
 }
 
-// PageData is everything base.html and one page template need; the fields for
+// PageData is everything base.html and one page template need, the fields for
 // pages other than the one rendering are zero.
 type PageData struct {
 	Title       string
@@ -40,7 +40,7 @@ type PageData struct {
 	ActiveTag   string
 	Breadcrumbs []Crumb
 
-	// Social meta is opt in; the home and 404 pages do without it.
+	// Social meta is opt in, the home and 404 pages do without it.
 	ShowSocial bool
 	OGImage    string
 
@@ -54,7 +54,7 @@ type PageData struct {
 	// Search box contents, so a query survives the round trip.
 	Query string
 
-	// Page specific; a nil slice renders nothing.
+	// Page specific, a nil slice renders nothing.
 	Latest      *Post
 	Posts       []*Post
 	ExtraPosts  []*Post
@@ -342,7 +342,7 @@ func (s *site) latestJSON(w http.ResponseWriter, r *http.Request) {
 	p := published[0]
 	enc := json.NewEncoder(w)
 	// The consumer renders these through html/template, which escapes for that
-	// context already; escaping here only corrupts an ampersand in a title.
+	// context already, escaping here only corrupts an ampersand in a title.
 	enc.SetEscapeHTML(false)
 	_ = enc.Encode(struct {
 		Title       string `json:"title"`

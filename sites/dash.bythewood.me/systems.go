@@ -119,10 +119,10 @@ var probeClient = &http.Client{
 	},
 }
 
-// probeResult separates the three things a probe attempt can mean. Collapsing
-// them was a real bug: the goroutines start at once, the guard paced all but one of
-// them, and a paced probe read as an unreachable site, so the strip reported
-// every other site down while every one of them was serving.
+// probeResult separates the three things a probe attempt can mean. Collapsed,
+// the goroutines start at once, the guard paces all but one of them, and a paced
+// probe reads as an unreachable site, so the strip reports a site down while it
+// is serving.
 type probeResult int
 
 const (

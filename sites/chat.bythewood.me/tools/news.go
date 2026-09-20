@@ -12,16 +12,14 @@ import (
 	"unicode"
 )
 
-// The news reader. A question like "any big news today?" used to go to
-// web_search, which returns whatever a search engine felt like that minute, so
-// the same question twice gave two different days of news. This reads a fixed
-// list of publishers instead, so the shape of an answer is the same every time
-// and the only thing that varies is what happened.
+// The news reader. A question like "any big news today?" sent to web_search
+// returns whatever a search engine felt like that minute, so the same question
+// twice gives two different days of news. A fixed list of publishers means the
+// only thing that varies is what happened.
 //
-// Two kinds of source, and they are ranked differently. Hacker News and
-// Lobsters publish a score, so what got attention is a number and the cut is a
-// threshold. A newsroom feed has no score, and the order it publishes in is the
-// desk's own judgement of what leads, so position is the signal there.
+// Hacker News and Lobsters publish a score, so the cut is a threshold. A
+// newsroom feed has no score and the order it publishes in is the desk's own
+// judgement, so position is the signal there.
 
 const (
 	// What a front page is worth reading down to. Below this an item is a
@@ -264,12 +262,11 @@ var (
 	marketch   = feed{"MarketWatch", "https://feeds.content.dowjones.io/public/rss/mw_topstories"}
 )
 
-// newsSections is the whole source list. Reuters and AP are missing because
-// both retired their public feeds: every documented Reuters path is dead at the
-// connection and apnews.com answers 401 or 404 to all of theirs. Reddit is
-// missing because old.reddit.com redirects every logged out request to a login
-// page and www.reddit.com rate limits its rss after a handful of calls, and
-// carries no score, so there is no way to ask it what got big numbers.
+// newsSections is the whole source list. Reuters and AP are missing because both
+// retired their public feeds, every documented Reuters path is dead at the
+// connection and apnews.com answers 401 or 404. Reddit is missing because
+// old.reddit.com redirects a logged out request to a login page, www.reddit.com
+// rate limits its rss, and neither carries a score.
 var newsSections = map[string][]section{
 	"general": {
 		{name: "Top stories", feeds: []feed{nprNews, bbcNews}, slots: 10},
@@ -306,12 +303,9 @@ type NewsSection struct {
 	Items []NewsItem `json:"items"`
 }
 
-// gatherNews reads every source for a topic at once and keeps what landed in
-// the window. A source that fails is counted and skipped rather than failing
-// the tool, because eight publishers answering out of nine is still the news.
-//
-// The aggregators are fetched once however many sections asked for them, since
-// two sections both wanting Hacker News is not a reason to fetch it twice.
+// gatherNews reads every source for a topic at once and keeps what landed in the
+// window. A source that fails is counted and skipped rather than failing the
+// tool, and the aggregators are fetched once however many sections asked.
 func gatherNews(ctx context.Context, d *Deps, topic string, since, until time.Time) ([]NewsSection, int, int) {
 	sections := newsSections[topic]
 	if topic == "ai" {
@@ -553,12 +547,11 @@ func stripTags(s string) string {
 }
 
 func readHackerNews(ctx context.Context, d *Deps, since, until time.Time) ([]NewsItem, error) {
-	// search_by_date with a timestamp filter rather than the front page, since
-	// the front page is whatever is on it now and says nothing about a window
-	// that closed on Sunday.
-	// The comparison operators have to be percent encoded. Sent raw, Algolia's
-	// front door answers 400 with an HTML body, which parses as no stories
-	// rather than as an error.
+	// search_by_date with a timestamp filter rather than the front page, which
+	// is whatever is on it now and says nothing about a window that closed.
+	// The comparison operators have to be percent encoded. Sent raw, Algolia
+	// answers 400 with an HTML body, which parses as no stories rather than as
+	// an error.
 	filters := fmt.Sprintf("created_at_i>%d,created_at_i<%d,points>%d",
 		since.Unix(), until.Unix(), hnMinPoints)
 	url := "https://hn.algolia.com/api/v1/search?tags=story&hitsPerPage=40&numericFilters=" +
@@ -632,13 +625,10 @@ func readLobsters(ctx context.Context, d *Deps, since, until time.Time) ([]NewsI
 }
 
 // Two publishers carrying one story is worth knowing and two copies of one
-// publisher's own item is not, so this drops by url and by headline and leaves
-// the rest alone.
+// publisher's own item is not, so this drops by url and by headline.
 //
-// Both keys are checked rather than one or the other. Keying on the url alone
-// let the same NPR story through twice on 2026-09-08, because the two copies
-// came off different feeds with different tracking parameters on them, and the
-// rundown carried it as two stories in the same section.
+// Both keys are checked rather than one or the other, since two copies off
+// different feeds carry different tracking parameters and slip past a url key.
 func dedupeNews(in []NewsItem) []NewsItem {
 	seenURL := make(map[string]bool, len(in))
 	seenHead := make(map[string]bool, len(in))

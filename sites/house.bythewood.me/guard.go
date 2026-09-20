@@ -18,17 +18,14 @@ import (
 
 // Every fact on a card comes from somebody else's free server: FEMA, NCDOT, the
 // Census geocoder, OSRM, a county GIS box that is one machine in a county
-// building. A ban on any of them is hard to undo and lands on whoever is running
-// this, so the guard goes in front of the client rather than on top of it.
+// building. A ban on any of them is hard to undo, so the guard goes in front of
+// the client rather than on top of it.
 //
-// Five things it does. It paces requests, with jitter, so a refresh of two
-// hundred listings does not arrive as two hundred simultaneous connections or as
-// a metronome. It counts failures and opens a breaker, whose state lives in
-// SQLite so a restart does not hand a struggling upstream a fresh round. It backs
-// off further each time the breaker reopens, so a service having a bad afternoon
-// is left alone for longer and longer rather than poked every ten minutes. It
-// honours 429 and 503 and Retry-After in both of its formats. And it keeps a hard
-// per-window budget, the backstop for a bug that would otherwise loop.
+// It paces requests with jitter, counts failures and opens a breaker whose state
+// lives in SQLite so a restart does not hand a struggling upstream a fresh round,
+// backs off further each time the breaker reopens, honours 429 and 503 and
+// Retry-After in both formats, and keeps a hard per-window budget as the backstop
+// for a bug that would otherwise loop.
 type Guard struct {
 	db   *sql.DB
 	name string
@@ -103,13 +100,11 @@ func NewGuard(db *sql.DB, name string, o GuardOpts) *Guard {
 //
 // A public records server usually sits behind a WAF that answers 403 to anything
 // that does not look like a browser, and the DHSR roster does exactly that. An
-// API meant for programs wants the opposite: Overpass answers 406 Not Acceptable
-// to a browser string, which is how sending one broke every road lookup after it
-// had fixed every roster download.
+// API meant for programs wants the opposite, and Overpass answers 406 Not
+// Acceptable to a browser string.
 //
 // So it is per endpoint. The browser string is the default because more of these
-// are WAF'd records servers than are APIs, and the ones that want a real client
-// name say so.
+// are WAF'd records servers than APIs.
 const browserUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
 	"(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 
@@ -163,9 +158,8 @@ func (g *Guard) load() (guardState, error) {
 }
 
 // redactURL strips a query string value that is a key. An http transport error
-// stringifies the whole URL it was given, and that URL carries an API key for one
-// of these services, so saving the error verbatim writes the key into the
-// database and into anything that ever renders guard state.
+// stringifies the whole URL it was given, so saving the error verbatim writes an
+// API key into the database and into anything that renders guard state.
 var keyInURL = regexp.MustCompile(`(?i)([?&](?:api_?key|key|token|access_token)=)[^&"\s]+`)
 
 func redactURL(s string) string {
@@ -275,8 +269,7 @@ func (g *Guard) stream(ctx context.Context, url string, headers map[string]strin
 	}
 	// Whichever of the two this endpoint wants. Either way it is about getting a
 	// public record out of a server that would otherwise refuse one, and never
-	// about getting past a site that has looked at the traffic and said no, which
-	// is why nothing here talks to Redfin or Zillow.
+	// about getting past a site that has looked at the traffic and said no.
 	req.Header.Set("User-Agent", g.userAgent)
 	req.Header.Set("Accept", "application/json, text/plain, */*")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
@@ -312,9 +305,9 @@ func (g *Guard) stream(ctx context.Context, url string, headers map[string]strin
 		wait := g.backoff(state.trips)
 		if asked := retryAfter(resp.Header.Get("Retry-After"), now); asked > wait {
 			// Stored as a LATER open time, so the existing backoff arithmetic
-			// carries the longer wait without a second column for it. The other way
-			// round, which is what this was, stamps the breaker as having opened in
-			// the past and the next call sails straight through.
+			// carries the longer wait without a second column for it. The other
+			// way round stamps the breaker as having opened in the past and the
+			// next call sails straight through.
 			state.openedAt = now.Add(asked - wait).Unix()
 			wait = asked
 		}
@@ -341,10 +334,9 @@ func (g *Guard) stream(ctx context.Context, url string, headers map[string]strin
 	return nil
 }
 
-// retryAfter reads both formats the header is allowed to take: a number of
-// seconds, or an HTTP date. Reading only the first means ignoring the second
-// entirely and asking again straight away, which is the opposite of what was
-// asked for.
+// retryAfter reads both formats the header is allowed to take, a number of
+// seconds or an HTTP date. Reading only the first means asking again straight
+// away.
 func retryAfter(header string, now time.Time) time.Duration {
 	header = strings.TrimSpace(header)
 	if header == "" {

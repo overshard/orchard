@@ -3,14 +3,12 @@ package tools
 import "sync"
 
 // A widget is the structured half of an answer. The model still writes prose
-// about a ticker or a forecast, but the numbers behind it read far better as a
-// chart than as a sentence, and the model is not good at either drawing one or
-// at reciting fourteen figures without dropping one.
+// about a ticker or a forecast, but the numbers read better as a chart and a
+// model is not good at reciting fourteen figures without dropping one.
 //
-// What is recorded here is the subject and not the data. The frontend fetches
-// the readings itself from /api/widget/..., so switching a chart from a day to
-// a year does not need another turn, and reopening a week old conversation
-// draws today's price rather than the one that was on screen when it was asked.
+// What is recorded is the subject and not the data. The frontend fetches the
+// readings from /api/widget/..., so a chart can change range without another
+// turn and a week old conversation draws today's price.
 type Widget struct {
 	Kind string `json:"kind"`
 

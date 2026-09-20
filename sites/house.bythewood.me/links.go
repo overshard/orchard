@@ -6,15 +6,12 @@ import (
 	"strings"
 )
 
-// Links out to the places worth looking at a house from. Every one of these is
-// built from the address and the coordinate, and nothing here asks anybody's
-// server anything: they are hrefs, and the browser follows them when somebody
-// clicks.
+// Links out to the places worth looking at a house from. Every one is built from
+// the address and the coordinate, and nothing here asks anybody's server
+// anything. They are hrefs, and the browser follows them when somebody clicks.
 //
-// That is the whole reason this is not a search. Looking the address up on a
-// search engine from here would mean a request per house to somebody who does not
-// want the traffic, and it would eventually be blocked. These URL shapes are
-// public, stable and cost nobody anything.
+// Looking the address up on a search engine from here would mean a request per
+// house to somebody who does not want the traffic, and it would be blocked.
 type OutLink struct {
 	Label string
 	URL   string

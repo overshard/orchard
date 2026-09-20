@@ -13,7 +13,7 @@ func at(s string) time.Time {
 	return t
 }
 
-// The windows are the whole point of this tool: if Isaac says today he means
+// The windows are what this tool is for. If Isaac says today he means
 // today, so each one is pinned against a fixed clock rather than trusted.
 func TestNewsWindowsAreTakenLiterally(t *testing.T) {
 	// A Monday afternoon, so "weekend" is the two days just gone.
@@ -208,7 +208,7 @@ func TestSameStoryCatchesARewrittenHeadline(t *testing.T) {
 		t.Error("two headlines about one paper were treated as two stories")
 	}
 
-	// And two genuinely different stories are not merged, which would lose one.
+	// And two different stories are not merged, which would lose one.
 	c := headlineWords("Mistral raises 3B euros for sovereign open-weight AI")
 	if sameStory(a, c) {
 		t.Error("two unrelated stories were merged")

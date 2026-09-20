@@ -1,17 +1,16 @@
 // Cassette futurism, held to instrument-panel discipline rather than costume.
 // The reference points are the Nostromo's MU/TH/UR terminals, the LAPD consoles
-// in Blade Runner 2049 and Lumon's basement, and what they share is not neon,
-// it is typographic restraint over a visible structural grid.
+// in Blade Runner 2049 and Lumon's basement, and what they share is typographic
+// restraint over a visible structural grid.
 //
-// Three rules the rest of this file follows:
+// The rules the rest of this file follows:
 //
 //   1. Warm dark, never pure black. Phosphor sat on warm glass and #000 reads
 //      as a hole in the page rather than a screen.
-//   2. Amber is the instrument, not the data. Chrome, labels and brackets are
-//      amber. The only saturated colour on the page is a market direction,
-//      which is the one thing worth looking at first.
-//   3. Every texture is drawn in CSS. No bitmap overlays, so the grain scales
-//      to any viewport and costs no request.
+//   2. Amber is chrome, labels and brackets. The only saturated colour on the
+//      page is a market direction, which is the thing worth looking at first.
+//   3. Every texture is drawn in CSS, so the grain scales to any viewport and
+//      costs no request.
 
 :root {
   // Warm near-black, five steps.
@@ -92,9 +91,9 @@ a:hover { color: #ffc84d; }
 
 // CRT overlays ---------------------------------------------------------------
 
-// Scanlines at 3px so they read as structure at any zoom. The opacity is low
-// on purpose: at anything stronger this stops being a dashboard and starts
-// being a screensaver, which is the failure mode of the whole genre.
+// Scanlines at 3px so they read as structure at any zoom. The opacity is low,
+// since at anything stronger this stops being a dashboard and starts being a
+// screensaver.
 .crt {
   position: fixed;
   inset: 0;
@@ -527,7 +526,7 @@ main {
 
   // Where this card's market shut while the rest of the strip kept trading, which
   // is every night for the VIX. Same dashed rule as the live cursor so it reads
-  // as a deliberate variant, in faint rather than amber because it means the
+  // as a variant of it, in faint rather than amber because it means the
   // opposite thing. The space right of it is left alone, since the dotted
   // baseline already runs the width of the card and a filled block there shouted
   // over everything else on the page.
@@ -651,8 +650,8 @@ main {
 
 // UV, air quality and pollen are three readings on three unrelated scales, and
 // drawing each as the same gauge is what makes them comparable at a glance.
-// Pollen used to be a full width cell under two half ones, which is what made
-// this corner look assembled rather than designed.
+// A full width cell under two half ones makes this corner look assembled
+// rather than designed.
 .gauges {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1221,7 +1220,7 @@ main {
   }
 
   // Yields up is bad for anything already held, so the colours are inverted
-  // against the equity cards on purpose. A falling yield is a rising bond.
+  // against the equity cards. A falling yield is a rising bond.
 
   .curve {
     display: flex;

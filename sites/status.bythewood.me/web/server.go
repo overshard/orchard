@@ -13,8 +13,8 @@ import (
 	"time"
 )
 
-// SetupLogging installs the process-wide structured logger. JSON, because these
-// logs are read by machine before they are read by a person.
+// SetupLogging installs the process-wide structured logger, in JSON since these
+// logs are read by machine first.
 func SetupLogging() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,

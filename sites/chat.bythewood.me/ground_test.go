@@ -286,11 +286,8 @@ func TestSubjectOfSkipsALiveHeadNoun(t *testing.T) {
 	}
 }
 
-// A remark is not a subject. The word cap was the only thing between the two,
-// and every one of these is short enough to clear it, so each one reached the
-// snapshot and came back with whatever happened to rank. "That's a crazy high
-// number" fetched the country song "Barefoot and Crazy" and the answer that
-// shipped was about the song.
+// A remark is not a subject. Each of these clears the word cap, so it reaches
+// the snapshot and comes back with whatever happened to rank.
 func TestSubjectOfSkipsSomebodyTalking(t *testing.T) {
 	for _, q := range []string{
 		"That's a crazy high number",

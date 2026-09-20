@@ -7,12 +7,10 @@ import (
 	"time"
 )
 
-// Time answers what the clock and the calendar say. It never leaves the
-// process, so it is the cheapest skill here and the one most certain to be
-// right, which is the opposite of how the web handles the same question: a
-// search for the time in another city returns a page that has to be rendered
-// and read, and a search for how many days until a date returns a countdown
-// widget the model cannot see.
+// Time answers what the clock and the calendar say. It never leaves the process,
+// so it is the cheapest skill here and the most certain to be right. A search
+// for the time in another city returns a page that has to be rendered and read,
+// and one for how many days until a date returns a widget the model cannot see.
 type Time struct{}
 
 func (Time) Card() Card {

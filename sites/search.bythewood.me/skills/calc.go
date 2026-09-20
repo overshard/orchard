@@ -10,13 +10,12 @@ import (
 	"unicode"
 )
 
-// A question like "30*27" should not spend fifteen seconds fetching web pages
-// to be told what a calculator knows. This is a small recursive descent parser
-// over the arithmetic a person types into a search box.
+// A question like "30*27" should not spend fifteen seconds fetching web pages to
+// be told what a calculator knows. This is a small recursive descent parser over
+// the arithmetic a person types into a search box.
 //
-// It is deliberately narrow. Anything it does not fully understand it declines,
-// and the question goes to the web instead, because a calculator that guesses
-// is worse than no calculator.
+// It is narrow, so anything it does not fully understand it declines and the
+// question goes to the web, since a calculator that guesses is worse than none.
 
 // Calculation is an arithmetic question answered without leaving the process.
 type Calculation struct {

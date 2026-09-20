@@ -1053,10 +1053,9 @@ func TestReportsParse(t *testing.T) {
 	}
 }
 
-// classifyCache answers one question, whether the edge served this itself. It
-// used to infer origin health from Age, which called a healthy origin dead six
-// times in an afternoon because Cloudflare's Edge TTL is set by a Cache Rule the
-// origin never sees.
+// classifyCache answers one question, whether the edge served this itself.
+// Inferring origin health from Age calls a healthy origin dead, since
+// Cloudflare's Edge TTL is set by a Cache Rule the origin never sees.
 func TestClassifyCache(t *testing.T) {
 	const cc = "public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800"
 
@@ -1077,8 +1076,8 @@ func TestClassifyCache(t *testing.T) {
 			cached:  true, age: 464,
 		},
 		{
-			// The case that used to fire. A Cache Rule holding a copy for longer
-			// than the origin asked for is not an outage.
+			// A Cache Rule holding a copy for longer than the origin asked for
+			// is not an outage.
 			name:    "very old copy is still only a cache hit",
 			headers: map[string]string{"cf-cache-status": "UPDATING", "age": "61854", "cache-control": cc},
 			cached:  true, age: 61854,

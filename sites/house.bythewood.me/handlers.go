@@ -392,10 +392,9 @@ func (s *site) verdict(w http.ResponseWriter, r *http.Request) {
 }
 
 // remove deletes a listing outright. A thumbs down hides a house and keeps what
-// was learned about it, which is the right default, but a house checked by
-// mistake or a typo that geocoded somewhere odd should be able to leave without
-// a trace. Every table keyed to the listing cascades, and the cached photo files
-// are not in the database so they are swept separately.
+// was learned about it, but a house checked by mistake or a typo that geocoded
+// somewhere odd should be able to leave without a trace. Every table keyed to
+// the listing cascades, and the cached photo files are swept separately.
 func (s *site) remove(w http.ResponseWriter, r *http.Request) {
 	id, err := listingIDFor(r.Context(), s.db, r.PathValue("id"))
 	if err != nil {
@@ -424,8 +423,7 @@ func (s *site) remove(w http.ResponseWriter, r *http.Request) {
 
 // status is what the report polls while the background assessment runs. It says
 // which facts have landed, who each one is being asked for, and which were
-// already on disk, because a spinner that says nothing for a minute reads as
-// broken.
+// already on disk, since a spinner that says nothing for a minute reads as broken.
 func (s *site) status(w http.ResponseWriter, r *http.Request) {
 	id, err := listingIDFor(r.Context(), s.db, r.PathValue("id"))
 	if err != nil {

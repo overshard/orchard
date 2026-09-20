@@ -16,7 +16,7 @@ import (
 // at build time. This is the one subprocess on a request path here, and why the
 // runtime image is not FROM scratch.
 
-// typstTimeout bounds one compile; a hung subprocess outlives the request.
+// typstTimeout bounds one compile, a hung subprocess outlives the request.
 const typstTimeout = 30 * time.Second
 
 // Typst runs the CLI, resolving the binary once.
@@ -29,7 +29,7 @@ type Typst struct {
 func NewTypst() *Typst { return &Typst{} }
 
 // ErrTypstMissing means no typst binary is on PATH, the normal state of a local
-// checkout; the PDF route then answers 503 and everything else works.
+// checkout, the PDF route then answers 503 and everything else works.
 var ErrTypstMissing = errors.New("typst binary not found on PATH")
 
 func (t *Typst) resolve() (string, error) {

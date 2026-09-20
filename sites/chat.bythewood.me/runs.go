@@ -1,15 +1,10 @@
 // Turns that outlive the tab that asked for them.
 //
-// A turn used to hang off the request context, so closing the tab, locking the
-// phone or switching app cancelled it mid generation and lost everything it had
-// already fetched. A turn takes up to twelve minutes and Isaac has one GPU, so
-// the tab is the least reliable part of the arrangement and the wrong thing to
-// tie the work to.
-//
-// So a turn runs detached and writes its events into a run, and a browser is
-// only ever a reader. Closing the tab drops a reader. Opening the conversation
-// again picks up a new one, which is handed everything the run has produced so
-// far and then follows it live.
+// A turn takes up to twelve minutes on one GPU and the tab is the least
+// reliable part of the arrangement, so a turn runs detached and writes its
+// events into a run. A browser is only ever a reader, so closing the tab drops
+// one, and opening the conversation again picks up a new one that is handed
+// everything so far and then follows live.
 package main
 
 import (
@@ -54,9 +49,8 @@ type Runs struct {
 func NewRuns() *Runs { return &Runs{m: map[string]*turnRun{}} }
 
 // Start opens a run for a key, replacing and cancelling any run already there.
-// Sending a second turn into the same conversation while one is still going
-// means the first is no longer wanted, and leaving it running would have two
-// generations writing into one conversation.
+// A second turn in the same conversation means the first is no longer wanted,
+// and leaving it running would have two generations writing into one thread.
 func (rs *Runs) Start(key string) *turnRun {
 	rs.mu.Lock()
 	defer rs.mu.Unlock()
@@ -173,11 +167,8 @@ func (r *turnRun) Finish() {
 
 // Follow hands back everything the run has already produced and a channel of
 // what comes next. The backlog is taken under the same lock that registers the
-// channel, so an event cannot land in the gap between the two and be lost.
-//
-// A closed channel means the turn is over. A run that had already finished
-// gives back its backlog and a closed channel, which is exactly what a tab
-// returning after the fact needs.
+// channel, so an event cannot land in the gap between the two. A closed channel
+// means the turn is over.
 func (r *turnRun) Follow() (backlog []json.RawMessage, ch <-chan json.RawMessage, live bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

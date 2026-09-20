@@ -58,7 +58,7 @@ type ParcelResult struct {
 	Found  bool
 }
 
-// The owner's name is on this layer and is deliberately not read. It is a third
+// The owner's name is on this layer and is not read. It is a third
 // party's information, it has no bearing on whether a house suits a family, and
 // the less of it that ends up in a database on a desktop the better.
 

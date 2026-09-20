@@ -72,7 +72,7 @@ For HTML, comrak's `create_formatter!` macro overrides individual node types and
 
 I came in expecting to rewrite my templates and didn't have to. [minijinja](https://docs.rs/minijinja), by Armin Ronacher who also wrote Jinja2, is faithful enough that the entire `templates/` directory came over with two whitespace tweaks and a parens fix on a ternary.
 
-There are two things worth knowing:
+It has two rough edges.
 
 - Jinja2 escapes `/` in URLs to `&#x2f;` and minijinja doesn't, which is
 technically more correct but it broke the OG image template and a couple of expected-string snapshots. About thirty lines of formatter to match Jinja2 sorted it out.

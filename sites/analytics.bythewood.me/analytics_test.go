@@ -35,7 +35,7 @@ func TestTypstStr(t *testing.T) {
 		{`say "hi"`, `say \"hi\"`},
 		{`back\slash`, `back\\slash`},
 		{"line\nbreak", `line\nbreak`},
-		// Markup metacharacters are harmless in a string literal; escaping
+		// Markup metacharacters are harmless in a string literal, escaping
 		// them here would put visible backslashes in the PDF.
 		{"a/b#c", "a/b#c"},
 	}

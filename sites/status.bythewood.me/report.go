@@ -78,7 +78,7 @@ func (s *site) renderReport(w http.ResponseWriter, r *http.Request, format, prop
 }
 
 // asciiFilename reduces a property name to bytes a Content-Disposition value can
-// carry literally; Go will send a non-ASCII one the client silently ignores.
+// carry literally, Go will send a non-ASCII one the client silently ignores.
 func asciiFilename(name string) string {
 	var b strings.Builder
 	b.Grow(len(name))

@@ -1,16 +1,8 @@
 // A message that is only an instruction to write something down.
 //
-// "Remember dash isn't showing oracle in earnings block when I think their
-// earnings are today" is a note, and the turn it got was six tool calls: the
-// time, the whole dashboard, the repository list and three walks into the
-// source, which ran the round budget out on a wrong guess and never called
-// remember at all. Isaac had to say "Remember this to fix later" to get the one
-// call he asked for the first time.
-//
-// The prompt already says to call remember when he asks. A prompt is a request,
-// and the fix for a model that reads an instruction as the start of a job is the
-// same one the gate uses: take the other tools off the table so the only thing
-// it can do is the thing that was asked.
+// The prompt already asks for remember, and a model that reads an instruction
+// as the start of a job goes looking instead and spends the round budget
+// without ever writing the note. So the other tools come off the table.
 package main
 
 import (

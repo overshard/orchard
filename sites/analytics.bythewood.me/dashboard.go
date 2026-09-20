@@ -24,7 +24,7 @@ const (
 	maxRangeDays = 3650
 )
 
-// PageData is everything base.html and one page template need; the fields for
+// PageData is everything base.html and one page template need, the fields for
 // pages other than the one rendering are zero.
 type PageData struct {
 	Title         string
@@ -127,7 +127,7 @@ type BreakdownTotals struct {
 }
 
 // dashboard renders one property. Public properties are readable without a
-// session; everything else, including a missing property, redirects.
+// session, everything else, including a missing property, redirects.
 func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 	ctx := r.Context()
 
@@ -199,7 +199,7 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 	prevEndMS := endMS - rangeDays*dayMS
 	filterURL := q.Get("filter_url")
 
-	// Anchor the graph to the requested end date; stepping back from today
+	// Anchor the graph to the requested end date, stepping back from today
 	// charts a historical range as zeros beside real metric cards.
 	graphEnd, err := time.ParseInLocation("2006-01-02", dateEnd, time.Local)
 	if err != nil {
@@ -263,7 +263,7 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 	s.renderer.Render(w, http.StatusOK, "property.html", data)
 }
 
-// reportFormat reads ?report; a bare "?report" means pdf.
+// reportFormat reads ?report, a bare "?report" means pdf.
 func reportFormat(q map[string][]string) (string, bool) {
 	values, present := q["report"]
 	if !present {
@@ -387,7 +387,7 @@ func min64(a, b int64) int64 {
 
 // jsonBlock marshals a value for an inline <script type="application/json">.
 // HTML escaping stays on so a value containing "</script>" cannot close the
-// block; html/template cannot work that out inside a non-JavaScript script type.
+// block, html/template cannot work that out inside a non-JavaScript script type.
 func jsonBlock(v any) template.JS {
 	b, err := json.Marshal(v)
 	if err != nil {

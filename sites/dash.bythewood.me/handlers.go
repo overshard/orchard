@@ -28,9 +28,8 @@ type PageData struct {
 	AnalyticsID string
 
 	// Every upstream the page reads, for the footer. Built from the same list
-	// the UPLINK panel is built from, since the hand written version of this
-	// named five of the thirteen and there was nothing to notice the other
-	// eight arriving.
+	// the UPLINK panel is built from, since a hand written one goes out of date
+	// with nothing to notice.
 	Sources []string
 
 	// The tab's own wording, handed to the page so the script that keeps the

@@ -5,16 +5,13 @@ import (
 	"sync"
 )
 
-// The record of what a turn actually did, kept so the page can show it.
+// The record of what a turn actually did, kept so the page can show it. A step
+// says what went in and what came out, and the page draws them as a list under
+// the answer.
 //
-// All of this already happened and none of it was ever visible, so an answer
-// written from the model's memory looked exactly like one read off a tool. A
-// step says what went in and what came out, and the page draws them as a list
-// under the answer.
-//
-// It is written next to the message, so it is bounded on purpose: a system
-// prompt is several thousand characters and a page of them per turn would grow
-// the database faster than the conversation does.
+// It is written next to the message and is bounded: a system prompt is several
+// thousand characters and a page of them per turn would grow the database
+// faster than the conversation does.
 
 // What one field of one step may store.
 const stepMax = 1200

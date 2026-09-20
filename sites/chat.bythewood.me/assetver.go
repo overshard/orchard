@@ -9,13 +9,10 @@ import (
 
 // Cache busting for the hand written assets.
 //
-// The Vite sites here get content hashed filenames, so `immutable` on their
-// static handler is safe. This site writes app.css and app.js by hand at fixed
-// paths, and `immutable` on a fixed path means Cloudflare holds the old file for
-// a year and a stylesheet change is invisible at the edge while being correct in
-// the container. A hash of the bytes in the query string gives the same
-// guarantee without a build step, since Cloudflare keys its cache on the whole
-// url.
+// This site writes app.css and app.js at fixed paths rather than the content
+// hashed names Vite gives the other sites, so `immutable` would have Cloudflare
+// hold the old file for a year. A hash of the bytes in the query string gives
+// the same guarantee without a build step, since Cloudflare keys on the url.
 
 var (
 	assetOnce sync.Once

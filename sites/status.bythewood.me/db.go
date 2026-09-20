@@ -338,7 +338,7 @@ func togglePublic(ctx context.Context, db *sql.DB, id uuid.UUID) (isPublic, foun
 }
 
 // Check is one HTTP probe. The four phase timings are nullable, so the chart
-// skips nulls; response_ms is the canonical total.
+// skips nulls, response_ms is the canonical total.
 type Check struct {
 	StatusCode int64
 	ResponseMS int64

@@ -14,12 +14,11 @@ import (
 // Flood risk, from the two authorities rather than from a listing's own
 // disclosure. FEMA's National Flood Hazard Layer says which zone a point is in,
 // and the USGS National Hydrography Dataset says how far the nearest mapped
-// water is, which is the thing FEMA misses: a creek too small to have been
+// water is, which is what FEMA misses, since a creek too small to have been
 // studied has no zone drawn around it and still floods a yard.
 //
-// Both answers come back as a distance, not a boolean. A house 40ft outside an
-// AE zone and one 4000ft outside both pass the filter and are not the same
-// house, so the margin is kept and scored.
+// Both answers come back as a distance. A house 40ft outside an AE zone and one
+// 4000ft outside both pass the filter and are not the same house.
 const (
 	nfhlFloodZones = "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28/query"
 	nhdFlowlines   = "https://hydro.nationalmap.gov/arcgis/rest/services/nhd/MapServer/6/query"
@@ -35,11 +34,10 @@ const (
 	floodCacheKind = "floodv2"
 )
 
-// NHD codes the kind of water in FCode, and the distinction is the whole point
-// here. A perennial stream or a lake is the thing a 300ft buffer is for. An
-// intermittent or ephemeral blue line is a wet-weather ditch, and in these
-// counties nearly every rural parcel has one inside 300ft, so buffering them the
-// same way excludes most of the county for nothing.
+// NHD codes the kind of water in FCode. A perennial stream or a lake is what a
+// 300ft buffer is for, while an intermittent or ephemeral blue line is a
+// wet-weather ditch, and nearly every rural parcel in these counties has one
+// inside 300ft.
 //
 // Codes from the NHD feature catalogue: 46006 perennial stream or river, 46003
 // intermittent, 46007 ephemeral, 33600 canal or ditch and its subtypes, 39004 and
@@ -258,7 +256,7 @@ func (f *Flood) Lookup(ctx context.Context, lat, lon float64) (FloodResult, erro
 		}
 		if out.Zone == "" && len(femaRes.Features) == 0 {
 			// Outside every mapped polygon. Parts of these counties are
-			// genuinely unmapped rather than safe, so say so.
+			// unmapped rather than safe, so say so.
 			out.Zone = "UNMAPPED"
 		}
 	}

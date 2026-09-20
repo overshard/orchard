@@ -29,7 +29,7 @@ type Page struct {
 //
 // These are harvested rather than searched for. A page that answers "the most
 // popular Go project" almost always links to the project it names, so the
-// canonical URL is already in hand and costs no extra search.
+// canonical URL is already in hand.
 type Link struct {
 	URL  string
 	Text string
@@ -105,10 +105,9 @@ func Fetch(client *http.Client, target string) (*Page, error) {
 	return p, nil
 }
 
-// stripAndPick removes page chrome, then returns the semantic content element
-// if there is one. Without a readability port this is what separates an article
-// from the navigation around it, and on real article pages it measures level
-// with one.
+// stripAndPick removes page chrome, then returns the semantic content element if
+// there is one. Without a readability port this is what tells an article
+// from the navigation around it.
 func stripAndPick(root *html.Node) *html.Node {
 	var prune func(*html.Node)
 	prune = func(n *html.Node) {
@@ -371,7 +370,7 @@ func metaContent(root *html.Node, key string) string {
 }
 
 // pubDate reads a publication date out of structured metadata. It finds one on
-// roughly half of real pages; the rest have it only as prose in the byline,
+// roughly half of real pages, the rest have it only as prose in the byline,
 // which is what the model's extraction pass is asked to pick up.
 func pubDate(root *html.Node) (time.Time, bool) {
 	if t, ok := fromJSONLD(root); ok {

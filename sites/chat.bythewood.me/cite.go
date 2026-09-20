@@ -1,12 +1,10 @@
 // Citations. The model points at a source by number and never writes the
 // address, so a link on this page is one a tool really fetched rather than one
-// a small model half remembered. It wrote three dead hostnames under an answer
-// before this existed.
+// a small model half remembered.
 //
-// The number it wrote is then repaired here rather than trusted, and a sentence
-// it left uncited gets one if the wording clearly came from a source. That is
-// search's shape without search's cost: no entailment call per sentence, which
-// is the part that makes an answer there take a minute.
+// The number it wrote is repaired here rather than trusted, and a sentence left
+// uncited gets one if the wording clearly came from a source. There is no
+// entailment call per sentence, which is what makes an answer on search slow.
 package main
 
 import (
@@ -255,9 +253,8 @@ func endsSentence(s string) bool {
 }
 
 // How much of a sentence has to be in a source before it is cited, and how many
-// of its distinctive words have to be. The share alone is not enough, since two
-// pages about one story share most of their ordinary vocabulary and the thing
-// that tells them apart is the figure or the name only one of them carries.
+// of its distinctive words. The share alone is not enough, since two pages about
+// one story share most of their ordinary vocabulary.
 const (
 	citeFloor      = 0.5
 	minDistinctive = 2
@@ -336,8 +333,7 @@ func distinctive(sentence string) map[string]bool {
 		}
 		// A capital anywhere counts, the opening word included. The stopword
 		// list already covers the ordinary openers, and refusing the first word
-		// loses the name in "Hampshire Police opened an investigation", which
-		// is the whole of what identifies the page it came from.
+		// loses the name in "Hampshire Police opened an investigation".
 		if len(clean) > 2 && clean[0] >= 'A' && clean[0] <= 'Z' {
 			out[low] = true
 		}
@@ -349,8 +345,8 @@ func hasDigit(s string) bool {
 	return strings.ContainsAny(s, "0123456789")
 }
 
-// sentences splits a line into the units a citation can hang off. It is crude
-// on purpose, since a split inside an abbreviation costs nothing here. A code
+// sentences splits a line into the units a citation can hang off. It is crude,
+// since a split inside an abbreviation costs nothing here. A code
 // span is stepped over, because a full stop in `fmt.Println` is not one.
 func sentences(s string) []string {
 	rs := []rune(s)
@@ -426,8 +422,7 @@ func cited(text string, srcs []Source) []Source {
 
 // linkCitations turns [3] into an anchor after rendering rather than before,
 // since goldmark drops raw HTML written into the markdown. It substitutes only
-// in text, never inside a tag, and never inside code, where [0] is an index
-// somebody is about to copy.
+// in text, never inside a tag, and never inside code.
 func linkCitations(h string, srcs []Source) string {
 	byN := make(map[int]Source, len(srcs))
 	for _, s := range srcs {
@@ -500,12 +495,8 @@ var (
 )
 
 // dropSourceList removes an address dump from the end of an answer. It works
-// backwards and stops at the first line that is prose, so an answer ending on a
-// real sentence is untouched.
-//
-// A bulleted address only goes when a Sources heading sits above it, because a
-// list of links in the middle of an answer is a list of links the reader asked
-// for and dropping it loses the answer.
+// backwards and stops at the first line that is prose, and a bulleted address
+// only goes when a Sources heading sits above it.
 func dropSourceList(text string) string {
 	lines := strings.Split(text, "\n")
 	plain, any := len(lines), len(lines)

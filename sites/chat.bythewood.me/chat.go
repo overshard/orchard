@@ -15,10 +15,9 @@ import (
 )
 
 const (
-	// Enough for a comparison that searches per thing, reads the best page, and
+	// Enough for a comparison that searches per thing, reads the best page and
 	// then goes back for whatever the gate says is missing. The repeat ledger
-	// below is what stops a model spending these on the same call over and
-	// over, which is why this can be more than the four it used to be.
+	// below stops a model spending them all on the same call.
 	maxToolRounds = 6
 
 	// How many times a reply that is not an answer gets sent back. Two, because
@@ -26,24 +25,18 @@ const (
 	// the third go and the turn still owes the user something.
 	maxGates = 2
 
-	// Budgets. The answer gets the big one because it is the only step whose
-	// output the user reads.
-	// Enough for several tool calls in one round. It was 900, which a model
-	// asked to total a bank statement spent on one arithmetic expression before
-	// being cut off mid string.
+	// The answer gets the big budget since it is the only output the user reads.
+	// A tool round needs room for several calls, and a single arithmetic
+	// expression has run past 900 on its own.
 	toolTurnTokens = 1600
 	answerTokens   = 2400
 	// The gate emits an enum and a search query and nothing else.
 	gateTokens = 120
 )
 
-// Event is what the browser is told while a turn runs.
-//
-// The answer arrives as `block` and `tail` rather than raw text. A block is a
-// finished piece of markdown already rendered to HTML, and the tail is the
-// unfinished paragraph after it, as plain text. That way the reader sees
-// formatting appear as it is settled instead of reading plain text and then
-// having the whole message reflow under them when the turn ends.
+// Event is what the browser is told while a turn runs. The answer arrives as
+// `block` and `tail`, a finished piece of rendered markdown and the unfinished
+// paragraph after it, so the page does not reflow under the reader at the end.
 type Event struct {
 	Kind string `json:"kind"` // status, tool, tool_done, widget, step, block, tail, done, error
 	Text string `json:"text,omitempty"`
@@ -92,14 +85,10 @@ func NewEngine(llm *LLM, modelName string) *Engine {
 	}
 }
 
-// ambient is what a person sitting here would know without being told. Without
-// the date the model cannot tell what "this weekend" means, and without the
-// place it answers a question about the weather as though it were nowhere.
-//
-// The time is stated to the hour rather than the minute on purpose: every
-// system prompt opens with this block and llama.cpp caches the prompt prefix it
-// has already processed, so a clock that ticks every minute means no turn ever
-// reuses another's work.
+// ambient is what a person sitting here would know without being told, the date
+// and the place. The time is stated to the hour rather than the minute since
+// llama.cpp caches the prompt prefix, and a clock that ticks every minute means
+// no turn ever reuses another's work.
 func (e *Engine) ambient() string {
 	loc, err := time.LoadLocation(e.tz)
 	if err != nil {
@@ -114,8 +103,7 @@ func (e *Engine) ambient() string {
 
 // identity is first in the prompt because a small model asked what it is will
 // otherwise answer with whatever name dominated its training data, and several
-// of them say Claude. It is a training artifact rather than a jailbreak, and
-// the only fix is telling it what it actually is.
+// of them say Claude.
 const identity = `You are %s, an open weights model running through llama.cpp on Isaac's own RTX 3070, in a chat application he wrote. You are not Claude, ChatGPT, Gemini, or any hosted assistant, and you were not made by Anthropic, OpenAI or Google. If you are asked what you are, say which model you are and that you run locally on his hardware. Do not claim to be anything else, and do not apologise for what you are.
 
 `
@@ -216,10 +204,9 @@ func (e *Engine) SearchDown() (time.Duration, bool) {
 	return left, ok
 }
 
-// Run drives one user turn and emits events as it goes.
-// Run drives one user turn. The session is the caller's own, forwarded to the
-// orchard tools so each site checks it rather than this one holding a
-// credential of its own.
+// Run drives one user turn and emits events as it goes. The session is the
+// caller's own, forwarded to the orchard tools so each site checks it rather
+// than this one holding a credential.
 func (e *Engine) Run(ctx context.Context, history []Message, user, session, memory string, tr *Trace, emit func(Event)) (Message, []tools.Result, []Source, []tools.Widget, Stats, error) {
 	deps := e.deps.WithSession(session)
 	// A tool decides for itself what incognito means for it, so the flag rides
@@ -238,8 +225,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	var used []tools.Result
 	// The first move on any question naming a thing, since the snapshot is on
 	// this machine and is newer than the weights. It goes in after the history
-	// so the cached prompt prefix survives, and it is recorded as a tool call
-	// because that is what it is and the reader should see its age.
+	// so the cached prompt prefix survives.
 	if res, msg, ok := e.opening(ctx, user); ok {
 		emit(Event{Kind: "tool", Tool: res.Name, Args: shortArgs(string(res.Args))})
 		emit(Event{Kind: "tool_done", Tool: res.Name, MS: res.Elapsed.Milliseconds(), OK: true})
@@ -266,11 +252,10 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	var stats Stats
 	schemas := e.reg.Schemas()
 
-	// A model that gets a thin or failed result will ask for the very same
-	// thing again, and again, until the round budget runs out. Nothing in the
-	// prompt reliably stops it, so the harness does: an identical call is
-	// answered from the ledger with a line telling it not to repeat, and after
-	// enough repeats the tools come off the table entirely.
+	// A model that gets a thin or failed result asks for the same thing again
+	// until the round budget runs out. An identical call is answered from the
+	// ledger with a line telling it not to repeat, and after enough repeats the
+	// tools come off the table.
 	seen := map[string]tools.Result{}
 	repeats := 0
 	gates := 0
@@ -279,10 +264,9 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	// and this is what makes it an instruction rather than a request.
 	forceTools := false
 
-	// A message that only asks for something to be written down gets one tool
-	// and is made to use it. Left with all of them it reads the note as a job
-	// and goes looking, which on 2026-09-10 spent six calls and the whole round
-	// budget and still never wrote the note down.
+	// A message that only asks for something to be written down gets one tool and
+	// is made to use it. Left with all of them it reads the note as a job and goes
+	// looking instead.
 	if isNote(user) {
 		schemas = tools.Only(schemas, tools.Remember.Name)
 		forceTools = true
@@ -290,16 +274,15 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 			In: user, Out: "offered remember and nothing else"})
 	}
 
-	// A round whose calls all failed teaches the model how to call the tool and
-	// leaves it no budget to act on that, so it answers from nothing. One extra
-	// round buys the retry, and only one, so a tool that fails every time
-	// cannot spin the turn out.
+	// A round whose calls all failed leaves no budget to act on what it learned,
+	// so it answers from nothing. One extra round buys the retry, and only one,
+	// so a tool that fails every time cannot spin the turn out.
 	budget, grace := maxToolRounds, 1
 	for round := 0; round < budget; round++ {
 		last := round == budget-1
 		if last {
 			// Out of tool budget. Taking the tools away is what forces an
-			// answer; leaving them on lets a model spend every round calling
+			// answer, leaving them on lets a model spend every round calling
 			// something and hand back an empty turn.
 			msgs = append(msgs, Message{Role: RoleUser, Content: budgetNote(used)})
 			break
@@ -334,11 +317,9 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 			In:  on,
 			Out: decision(reply), MS: time.Since(roundStart).Milliseconds(), Bad: err != nil,
 			Meta: itoa(st.Prompt) + " tokens in, " + itoa(st.Completion) + " out"})
-		// A tool call cut off by the token budget arrives as unparseable JSON
-		// and llama.cpp refuses the whole request, which would otherwise lose an
-		// answer the model was most of the way through. Asking again with the
-		// tools off is always answerable, since by then it has whatever the
-		// earlier rounds fetched.
+		// A tool call cut off by the token budget arrives as unparseable JSON and
+		// llama.cpp refuses the whole request. Asking again with the tools off is
+		// always answerable, since by then it has whatever the earlier rounds got.
 		if err != nil && isTruncatedToolCall(err) {
 			emit(Event{Kind: "status", Text: "answering"})
 			reply, st, err = e.llm.CompleteStats(ctx, msgs, nil, toolTurnTokens)
@@ -352,9 +333,8 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		}
 		if len(reply.ToolCalls) == 0 {
 			// A model sometimes writes its tool call syntax as ordinary text,
-			// which llama.cpp cannot parse and hands back as content. Recover
-			// the call so the turn is not wasted, and strip the markup either
-			// way so it never reaches the page.
+			// which llama.cpp hands back as content. Recover the call, and strip
+			// the markup either way so it never reaches the page.
 			cleaned, salvaged := salvageCalls(reply.Content, func(n string) bool {
 				_, ok := e.reg.Get(n)
 				return ok
@@ -364,9 +344,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 				reply.ToolCalls = salvaged
 			} else {
 				// It stopped calling tools, which is not the same as having
-				// answered. A reply that offers to go and check, or that
-				// asserts things nothing in this turn checked, goes back with
-				// the tools still on rather than becoming the answer.
+				// answered, so a deferral goes back with the tools still on.
 				if gates < maxGates && round < maxToolRounds-1 {
 					gateStart := time.Now()
 					nudge, gst := e.gate(ctx, user, reply.Content, answered, used, emit)
@@ -451,11 +429,9 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	// never an address, so a link under this answer is one a tool fetched.
 	srcs := collectSources(used)
 
-	// The answer is generated fresh here rather than reusing whatever the last
-	// tool round produced, because that one was written under a small budget
-	// with tools still on the table. Without saying so, a model writes the
-	// sentence it would have written before calling another tool, which reads
-	// as "Let me check that" and then stops.
+	// The answer is generated fresh rather than reusing the last tool round,
+	// which was written under a small budget with tools still on the table and
+	// reads as "Let me check that" and then stops.
 	msgs = append(msgs, Message{Role: RoleUser, Content: finalTurn + failedToolNote(used) + sourcePrompt(srcs)})
 
 	emit(Event{Kind: "status", Text: "writing"})
@@ -488,10 +464,9 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 }
 
 // failedToolNote names a tool that never once worked in the turn, so the model
-// is told what it could not find out rather than filling the hole. A model that
-// could not compute something otherwise writes an estimate in the same voice as
-// a checked figure. A tool that failed and later succeeded is left out, since a
-// retried fetch is not a gap.
+// is told what it could not find out rather than filling the hole with an
+// estimate in the same voice as a checked figure. A tool that failed and later
+// succeeded is left out.
 func failedToolNote(used []tools.Result) string {
 	failed, worked := map[string]string{}, map[string]bool{}
 	for _, r := range used {
@@ -525,10 +500,9 @@ func budgetNote(used []tools.Result) string {
 }
 
 // prepare is everything done to the model's markdown before it is rendered or
-// stored: the address dump at the end goes, a schemeless address becomes a
-// link, and the citations are repaired. It runs on each finished block as it
-// streams and on the whole answer at the end, and agrees with itself because
-// every step works a line at a time.
+// stored: the address dump at the end goes, a schemeless address becomes a link,
+// and the citations are repaired. It works a line at a time, so running on each
+// streamed block and again on the whole answer agrees with itself.
 
 func prepare(md string, srcs []Source) string {
 	return attach(dropLabelMarks(linkBareAddresses(dropSourceList(md))), srcs)

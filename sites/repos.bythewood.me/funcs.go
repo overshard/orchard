@@ -51,7 +51,7 @@ func humanBytes(n int64) string {
 	return fmt.Sprintf("%.1f %cB", float64(n)/float64(div), "KMGTPE"[exp])
 }
 
-// humanTime is the relative form; templates keep the absolute date in a title attribute.
+// humanTime is the relative form, templates keep the absolute date in a title attribute.
 func humanTime(t time.Time) string {
 	if t.IsZero() {
 		return "never"

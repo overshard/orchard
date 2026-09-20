@@ -3,10 +3,8 @@ package main
 import "testing"
 
 // A first answer that searched, then the same answer written out again under a
-// follow-up that asked something new. That is the shape Isaac hit twice in one
-// conversation: the tools ran on the first question and never again, and every
-// later reply was the first one reworded. The third is the control, a follow-up
-// that went somewhere the first answer does not cover.
+// follow-up that asked something new. The third is the control, a follow-up that
+// went somewhere the first answer does not cover.
 const (
 	firstAnswer = `Crossings are down rather than up. Between 1 January and 5 September 2026, 16,513 people made the crossing, which is 43% below the same period last year. Almost everyone who arrives claims asylum and is allowed to stay while the claim is decided.
 

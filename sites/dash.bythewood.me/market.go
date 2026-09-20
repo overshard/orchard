@@ -458,8 +458,8 @@ func buildMarket(quotes map[string]Quote, now time.Time) Market {
 
 	// A cash index that has not printed in half an hour during what the clock
 	// calls regular hours means the clock is wrong, and the cheapest way that
-	// happens is a market holiday. There is no holiday calendar here, on
-	// purpose, so the quote's own age stands in for one.
+	// happens is a market holiday. There is no holiday calendar here, so the
+	// quote's own age stands in for one.
 	if session == "regular" {
 		// A zero AsOf means Yahoo sent no regularMarketTime, which reads as
 		// 1970 and would make every session look like a holiday.
@@ -651,7 +651,7 @@ const (
 // sessionStart is the 9:30 New York morning that t belongs to, so the trading
 // day runs from one open to the next rather than from midnight. Weekends get an
 // open like any other day, since gold and bitcoin do not take Saturday off and
-// the whole point is that every card resets at the same hour.
+// every card has to reset at the same hour.
 func sessionStart(t time.Time) time.Time {
 	et := easternTime()
 	y, m, d := t.In(et).Date()
@@ -680,14 +680,14 @@ func sessionAxis(times []int64) tradingAxis {
 	return axis
 }
 
-// sessionBars drops everything before the open. They used to be clamped to the
-// edge instead, which stacked the VIX's 3:15am prints into a vertical smear
-// against the left of its card.
+// sessionBars drops everything before the open rather than clamping it to the
+// edge, which stacks the VIX's 3:15am prints into a vertical smear against the
+// left of its card.
 //
 // A series with bars after the close and none inside it is a market that has
 // reopened before its own next open, which is futures between Sunday evening and
 // Monday morning. There is no session to lay those over, so they take the full
-// width the way they always did.
+// width.
 func sessionBars(closes []float64, times []int64, axis tradingAxis) ([]float64, []int64, tradingAxis) {
 	if !axis.ok || len(times) != len(closes) {
 		return closes, times, tradingAxis{}

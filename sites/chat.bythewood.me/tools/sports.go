@@ -8,11 +8,10 @@ import (
 	"strings"
 )
 
-// leagues maps a name to ESPN's path. The host matters more than anything else
-// here: site.api.espn.com is what every write-up points at and it answers 403,
-// while cdn.espn.com is what espn.com itself calls and serves the same data to
-// anyone. Soccer is a query parameter rather than a path, and the wrong shape
-// answers 200 with no events, which looks like a quiet day rather than a bug.
+// leagues maps a name to ESPN's path. site.api.espn.com is what every write-up
+// points at and it answers 403, while cdn.espn.com is what espn.com itself calls
+// and serves the same data to anyone. Soccer is a query parameter rather than a
+// path, and the wrong shape answers 200 with no events.
 var leagues = map[string]string{
 	"nfl": "football/nfl", "college-football": "football/college-football",
 	"nba": "basketball/nba", "wnba": "basketball/wnba", "mlb": "baseball/mlb",

@@ -222,7 +222,7 @@ type Details struct {
 
 // parseDetails extracts the weighted metrics and the top opportunities. Group
 // "hidden" is audits Lighthouse keeps but no longer scores, and an opportunity
-// with no saving attached is a diagnostic; both would read as findings.
+// with no saving attached is a diagnostic, both would read as findings.
 func parseDetails(report map[string]any) *Details {
 	cats, ok := report["categories"].(map[string]any)
 	if !ok {

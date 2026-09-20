@@ -11,13 +11,12 @@ import (
 
 // ESPN answers 202 with an empty body when it is throttling, which is the same
 // signature DuckDuckGo uses and is easy to read as an empty scoreboard rather
-// than as a refusal. It showed up here because one sports question fans out to
-// every league at once, so a single question is seventeen requests of about a
-// megabyte, and a few questions in a row look like scraping.
+// than as a refusal. One sports question fans out to every league at once, so a
+// single question is seventeen requests of about a megabyte.
 //
-// Two things fix it and both live in this file. The scoreboard for a league on
-// a date does not change fast enough to fetch twice in five minutes, and once
-// an upstream starts refusing there is no point asking again for a while.
+// The scoreboard for a league on a date does not change fast enough to fetch
+// twice in five minutes, and once an upstream starts refusing there is no point
+// asking again for a while.
 var errThrottled = errors.New("upstream is throttling")
 
 const (

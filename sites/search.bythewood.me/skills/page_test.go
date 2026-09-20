@@ -37,7 +37,7 @@ func TestURLsIn(t *testing.T) {
 }
 
 // The claim is the whole routing decision for this one, so it has to hold
-// without a model. Decide is handed a nil model on purpose: reaching for it
+// without a model. Decide is handed a nil model, so reaching for it
 // would panic, which is the assertion.
 func TestPageClaimsWithoutTheModel(t *testing.T) {
 	r := Default()

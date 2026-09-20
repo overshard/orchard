@@ -212,11 +212,10 @@ func TestStateJSONCarriesNoInternalDetail(t *testing.T) {
 	row = body.Systems.Rows[0]
 
 	// Each of these was looked at before being added. label, host and url are
-	// public hostnames that are already links on the page. state, response,
+	// public hostnames that are already links on the page, and state, response,
 	// errors and the traffic figures are counts about sites that are on the
-	// internet, and Isaac asked for them on a page with no login. The baseline
-	// logging computes the trend from is not among them: the derived direction
-	// is published and the underlying week is not.
+	// internet. The baseline logging computes the trend from is not among them,
+	// so the derived direction is published and the underlying week is not.
 	allowed := map[string]bool{
 		"label": true, "host": true, "url": true, "state": true,
 		"response": true, "errors": true, "know_error": true,
@@ -999,8 +998,8 @@ func TestReportDateRoundTrips(t *testing.T) {
 }
 
 // Oracle reports tonight and Nasdaq has no figure for it until the date is
-// past, so the row carries no verdict all day. The forward walk used to start
-// on tomorrow, which left the biggest name of the week in neither half.
+// past, so the row carries no verdict all day. A forward walk starting on
+// tomorrow leaves the biggest name of the week in neither half.
 func TestUpcomingIncludesTonight(t *testing.T) {
 	today := time.Date(2026, 9, 10, 12, 0, 0, 0, easternTime())
 	days := map[string][]Earning{

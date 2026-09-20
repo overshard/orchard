@@ -9,8 +9,9 @@ import (
 )
 
 // ClientIP resolves the real client address. CF-Connecting-IP wins over
-// X-Forwarded-For, which is not the usual ordering: behind the tunnel the last
-// XFF entry is always cloudflared's own bridge address.
+// X-Forwarded-For, which is not the usual ordering, and the last XFF entry is
+// taken rather than the first, which is not either. Behind the tunnel that entry
+// is always cloudflared's own bridge address.
 func ClientIP(r *http.Request) string {
 	if ip := r.Header.Get("CF-Connecting-IP"); ip != "" {
 		return ip
@@ -49,13 +50,11 @@ func (w *recorder) Write(b []byte) (int, error) {
 }
 
 // Unwrap is what http.ResponseController follows to reach the real writer.
-// Without it a wrapped handler cannot flush, so a server-sent events endpoint
-// behind this middleware buffers until the connection closes.
+// Without it a server-sent events endpoint buffers until the connection closes.
 func (w *recorder) Unwrap() http.ResponseWriter { return w.ResponseWriter }
 
 // Logged writes one structured record per request. Duration is a float in
-// milliseconds rather than a formatted Duration, because "1.042ms" cannot be
-// sorted or compared by a log query and 1.042 can.
+// milliseconds so a log query can sort and compare it.
 func Logged(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -79,14 +78,9 @@ func Logged(next http.Handler) http.Handler {
 		// Absent means the request never crossed the tunnel.
 		if ray := r.Header.Get("CF-Ray"); ray != "" {
 			attrs = append(attrs, slog.String("cf_ray", ray))
-			// Only for a request that came in from outside, since the internal
-			// probes and the container to container calls are a third of the
-			// rows and none of them are anybody worth naming.
-			//
-			// A crawler that says who it is can be looked up in a log query. One
-			// that does not leaves only its address, which is how identifying
-			// the crawler that took 200MB off repos on 2026-09-10 came down to
-			// an RDAP lookup on a Dutch hosting range.
+			// Only for requests from outside. The internal probes and the
+			// container to container calls are a third of the rows and none of
+			// them are anybody worth naming.
 			if ua := r.Header.Get("User-Agent"); ua != "" {
 				attrs = append(attrs, slog.String("ua", truncateUA(ua)))
 			}
@@ -96,11 +90,11 @@ func Logged(next http.Handler) http.Handler {
 }
 
 // routeClass buckets a request into something the log store can group by. It
-// has to stay small: this is a rollup dimension there, and one that grew with
-// the URL space would make that table grow like the raw one it exists to avoid.
+// has to stay small, since this is a rollup dimension and one that grew with
+// the URL space would grow that table like the raw one it exists to avoid.
 //
-// A stream is named because its elapsed time measures the visit rather than any
-// work done, so nothing downstream should average it in with real requests.
+// A stream is named so the log store can exclude it, since its elapsed time
+// measures the visit rather than any work done.
 func routeClass(w *recorder, path string) string {
 	if strings.HasPrefix(w.Header().Get("Content-Type"), "text/event-stream") {
 		return "stream"
@@ -120,7 +114,7 @@ func routeClass(w *recorder, path string) string {
 	return "page"
 }
 
-// Recovered turns a panic in a handler into a 500 rather than killing the
+// Recovered turns a panic in a handler into a 500 instead of killing the
 // process and every other in-flight request with it.
 func Recovered(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -139,8 +133,8 @@ func Recovered(next http.Handler) http.Handler {
 }
 
 // SecurityHeaders applies the headers that belong to the app rather than the
-// edge. No HSTS: Caddy sets it, and this process only ever speaks plaintext on
-// a Docker bridge.
+// edge. No HSTS here, since Caddy sets it and this process only speaks plaintext
+// on a Docker bridge.
 func SecurityHeaders(csp string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -166,13 +160,12 @@ func Chain(h http.Handler, mw ...func(http.Handler) http.Handler) http.Handler {
 }
 
 // EdgeCache sets a shared cache policy on 200 GETs that have not already chosen
-// one; 400 and above get no-store, and a handler's own Cache-Control is left
-// alone.
+// one. 400 and above get no-store and a handler's own Cache-Control is left alone.
 //
-// Never use s-maxage here. It carries proxy-revalidate semantics, which makes
-// Cloudflare disable stale-while-revalidate and stale-if-error, and
-// stale-if-error is what keeps the last good copy served when the tunnel drops.
-// Cloudflare also ignores it with Always Online on, so that has to stay off.
+// Never use s-maxage here. It carries proxy-revalidate semantics, so Cloudflare
+// turns off stale-while-revalidate and stale-if-error, and stale-if-error is
+// what keeps the last good copy served when the tunnel drops. Cloudflare also
+// ignores it with Always Online on, so that has to stay off.
 func EdgeCache(policy string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -185,8 +178,8 @@ func EdgeCache(policy string) func(http.Handler) http.Handler {
 	}
 }
 
-// edgeCacheWriter defers the decision to WriteHeader, the first point at which
-// both the status code and the handler's own choice are known.
+// edgeCacheWriter defers the decision to WriteHeader, the first point where both
+// the status code and the handler's own choice are known.
 type edgeCacheWriter struct {
 	http.ResponseWriter
 	policy string
@@ -219,9 +212,8 @@ func (w *edgeCacheWriter) Write(b []byte) (int, error) {
 
 func (w *edgeCacheWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
 
-// uaMaxLen keeps a user agent to the part that names the client. A browser sends
-// 120 characters of version soup and a crawler puts its name and its url first,
-// and this is stored on every request for the retention window.
+// uaMaxLen keeps a user agent to the part that names the client, since this is
+// stored on every request for the whole retention window.
 const uaMaxLen = 120
 
 func truncateUA(ua string) string {

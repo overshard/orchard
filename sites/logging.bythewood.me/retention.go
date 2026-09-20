@@ -26,7 +26,7 @@ const (
 	// A ceiling on one sweep, so a large backlog is worked off over hours.
 	sweepMaxChunks = 200
 
-	// Reclaiming is paced the same way; 1000 pages is about 4MB per step.
+	// Reclaiming is paced the same way, 1000 pages is about 4MB per step.
 	vacuumPages    = 1000
 	vacuumMaxSteps = 200
 )

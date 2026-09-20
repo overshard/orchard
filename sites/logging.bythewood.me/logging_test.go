@@ -285,7 +285,7 @@ func TestIngestSheds429WhenFull(t *testing.T) {
 // The local sink is how this site records itself. It must drop its own ingest
 // request lines: every flush from every site is one POST here, so keeping them
 // would make this site's loudest source itself, describing the act of being
-// written to. Health checks need no special case here any more; toRow demotes
+// written to. Health checks need no special case here, toRow demotes
 // them for every source alike.
 func TestLocalSinkDropsSelfChatter(t *testing.T) {
 	db := testDB(t)
@@ -436,8 +436,7 @@ func TestTotalsAndErrorRate(t *testing.T) {
 // Every container health check is the binary probing itself over loopback, so
 // it carries no CF-Ray and would otherwise read as "something reached the
 // origin without crossing the tunnel". At one every thirty seconds per site
-// that buries the real signal within an hour, which is how this was found: the
-// tile read 18 on a system with no external traffic at all.
+// that buries the real signal within an hour.
 func TestDirectHitsIgnoresLoopback(t *testing.T) {
 	db := testDB(t)
 	base := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC).UnixMilli()
@@ -457,7 +456,7 @@ func TestDirectHitsIgnoresLoopback(t *testing.T) {
 	if got.DirectHits != 1 {
 		t.Errorf("DirectHits = %d, want 1: loopback health checks are not direct hits", got.DirectHits)
 	}
-	// The health checks are still stored and still findable; they are only
+	// The health checks are still stored and still findable, they are only
 	// excluded from this one count.
 	if got.Requests != 4 {
 		t.Errorf("Requests = %d, want 4: health checks are still records", got.Requests)
@@ -576,8 +575,8 @@ func TestSearchFilterMatchesMessageOrPath(t *testing.T) {
 	}
 }
 
-// A path at the sample floor used to report its 4th of 5 values under a column
-// headed p95, because PERCENT_RANK gives the largest row of every partition the
+// A path at the sample floor reports its 4th of 5 values under a column headed
+// p95, because PERCENT_RANK gives the largest row of every partition the
 // value 1.0 and the filter was `pr <= 0.95`. CUME_DIST reaches 1.0 at the max,
 // so the slowest sample is selectable and a small set reports honestly.
 func TestSlowestPathsP95IncludesTheSlowestSample(t *testing.T) {
@@ -647,14 +646,12 @@ func TestSweepDeletesRawButKeepsRollups(t *testing.T) {
 	}
 }
 
-// The bug this pins cost every rollup-backed number on the page: `rollups.hour`
-// is hour-floored, so a clause of `hour >= start` against a now-relative start
-// dropped the bucket containing the start, whole. The tiles disagreed with the
-// raw panels beside them, by up to a full hour of data.
+// `rollups.hour` is hour-floored, so a clause of `hour >= start` against a
+// now-relative start would drop the bucket containing the start, whole, and the
+// tiles would disagree with the raw panels beside them by up to an hour of data.
 //
 // Every other test here uses an hour-aligned base with a base-1..base+1 window,
-// which is the one shape where the floor and the bound coincide, which is
-// which is why none of them caught it. This one does not.
+// the one shape where the floor and the bound coincide. This one does not.
 func TestRollupsAndRawAgreeOverNamedWindows(t *testing.T) {
 	db := testDB(t)
 
@@ -726,8 +723,8 @@ func TestVolumeGraphHasNoPhantomLeadingBucket(t *testing.T) {
 	}
 }
 
-// An unbounded custom range used to build one bucket per day across five
-// thousand years: millions of formatted labels, joined into a polyline and
+// An unbounded custom range builds one bucket per day across five thousand
+// years: millions of formatted labels, joined into a polyline and
 // marshalled into the page, from a single authenticated GET.
 func TestCustomRangeIsClamped(t *testing.T) {
 	key, _, startMS, endMS := resolveWindow(map[string][]string{
@@ -857,7 +854,7 @@ func TestFormatMS(t *testing.T) {
 		1234.5: "1.23s",
 	}
 	for in, want := range tests {
-		// Sub-millisecond work is most of what these sites do; rendering
+		// Sub-millisecond work is most of what these sites do, rendering
 		// 0.412 as "0ms" would have every panel claim the server is
 		// instant.
 		if got := formatMS(in); got != want {
@@ -904,11 +901,10 @@ func TestChartPolyline(t *testing.T) {
 	}
 }
 
-// The Markdown report used to interpolate log text with no escaping at all,
-// while the Typst report routed the same fields through typstMD. That gap was
-// publicly reachable: web.Logged records r.URL.Path and Go percent-decodes it,
-// so a request to any of these sites can store a path containing a real newline
-// and a pipe, which forges rows in the operator's own report.
+// Log text reaches a report unescaped unless something escapes it, and that gap
+// is publicly reachable: web.Logged records r.URL.Path and Go percent-decodes
+// it, so a request to any of these sites can store a path containing a real
+// newline and a pipe, which forges rows in the operator's own report.
 func TestMarkdownReportEscapesLogText(t *testing.T) {
 	payload := "/x\n| INJECTED | 999 | 0 |\n" +
 		"<img src=x onerror=alert(1)> [c](javascript:alert(2))"
@@ -1275,7 +1271,7 @@ func TestWatchdogIsQuietDuringStartupGrace(t *testing.T) {
 
 // The restart rule, which is the one that reads across restarts of this
 // process and therefore has to persist. A start with a stop before it is a
-// deploy; a start with a start before it is a crash.
+// deploy, a start with a start before it is a crash.
 func TestWatchdogDetectsUncleanRestart(t *testing.T) {
 	db := testDB(t)
 	clock := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)

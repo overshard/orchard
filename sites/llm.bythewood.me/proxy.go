@@ -2,10 +2,9 @@
 // checks an API key, forwards the request, and writes down what was asked and
 // what came back.
 //
-// It is a proxy and not a client library on purpose. Every caller here already
-// speaks the OpenAI chat completions shape, so putting this in the path costs
-// them a base url and a header rather than a rewrite, and anything that shape
-// supports keeps working without this file knowing about it.
+// It is a proxy rather than a client library. Every caller here already speaks
+// the OpenAI chat completions shape, so putting this in the path costs them a
+// base url and a header rather than a rewrite.
 package main
 
 import (

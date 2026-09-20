@@ -15,10 +15,9 @@ import (
 // No migration table. Every statement is IF NOT EXISTS, so this runs against an
 // existing database as a no-op and a schema change is a new guarded block.
 //
-// History is the point of several of these tables. A listing that has sat for
-// ninety days and dropped twice is a different house to one that came on
-// yesterday at the same price, and neither an MLS export nor a scrape tells you
-// that. Only keeping every snapshot does.
+// History is why several of these tables exist. A listing that has sat for ninety
+// days and dropped twice is a different house to one that came on yesterday at
+// the same price, and only keeping every snapshot tells you that.
 const schema = `
 CREATE TABLE IF NOT EXISTS listings (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -279,12 +278,10 @@ func openDB(path string) (*sql.DB, error) {
 
 // CREATE TABLE IF NOT EXISTS does nothing to a table that already exists, so a
 // column added to the schema above reaches a fresh database and no other. Every
-// test starts on a fresh one, which is why this failed in the one place it
-// mattered and nowhere a test could see it.
+// test starts on a fresh one, so no test can see this.
 //
 // SQLite has no ADD COLUMN IF NOT EXISTS, so the existing columns are read first.
-// A column added here has to be added to the schema above as well, or a fresh
-// database and an old one end up different shapes.
+// A column added here has to be added to the schema above as well.
 var addedColumns = []struct{ table, column, decl string }{
 	{"guards", "trips", "INTEGER NOT NULL DEFAULT 0"},
 	{"facts", "penalty_total", "REAL NOT NULL DEFAULT 0"},

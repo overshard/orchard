@@ -4,7 +4,7 @@
 // same way shipper.go and session.go are. A colour that drifts between two of
 // these dashboards is visible, and there is no shared bundle to put it in.
 //
-// The series colours are punchier than the UI palette on purpose. Chrome can be
+// The series colours are punchier than the UI palette. Chrome can be
 // muted because nothing depends on telling two borders apart, and a doughnut
 // slice does. Same hues as the rest of the site, more chroma.
 //

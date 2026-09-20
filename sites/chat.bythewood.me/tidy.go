@@ -2,23 +2,21 @@ package main
 
 // The two things the contract asks for and does not get.
 //
-// Both are repaired in Go rather than asked for again, for cite.go's reason:
-// the model writes what it writes, and a rule it has already been given and
-// ignored is not worth a second model call. Neither of these changes what an
-// answer says, only what is left on the end of it.
+// Both are repaired in Go rather than asked for again, since a rule the model
+// has already been given and ignored is not worth a second model call. Neither
+// changes what an answer says, only what is left on the end of it.
 
 import (
 	"regexp"
 	"strings"
 )
 
-// A closing offer of more help. Isaac's stored preference says not to write
-// one, the contract repeats it and the final turn repeats it again, and four
-// answers on 2026-09-08 still ended on "Want me to...?".
+// A closing offer of more help. Isaac's stored preference says not to write one
+// and the contract repeats it, and answers still end on "Want me to...?".
 //
-// Every pattern needs a first person subject or an imperative aimed at him, so
-// a genuine question about what he meant survives. "Which of the two did you
-// mean?" is the turn needing an answer to continue and is not an offer.
+// Every pattern needs a first person subject or an imperative aimed at him, so a
+// genuine question about what he meant survives. "Which of the two did you
+// mean?" is the turn needing an answer to continue.
 var closingOffers = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)^(want|would you like|do you want|shall i|should i)\b.*\?$`),
 	regexp.MustCompile(`(?i)^(if you want|if you'?d like|if that helps|let me know)\b.*[.?!]$`),
@@ -90,13 +88,12 @@ func withoutOffer(line string) string {
 
 func stripEmphasis(s string) string { return strings.Trim(strings.TrimSpace(s), "*_ ") }
 
-// A bracketed label the model wrote where a citation number goes. It picked the
-// shape up from the numbered sources and filled it with a name, which lands in
-// the answer as "The S&P 500 is down 26.05 to 7692.55 [S&P 500]." and links to
-// nothing.
+// A bracketed label the model wrote where a citation number goes, picked up from
+// the numbered sources and filled with a name, which lands in the answer as
+// "The S&P 500 is down 26.05 to 7692.55 [S&P 500]" and links to nothing.
 //
-// RE2 has no lookahead, so a markdown link cannot be excluded in the pattern
-// and the character after the match is checked instead.
+// RE2 has no lookahead, so a markdown link cannot be excluded in the pattern and
+// the character after the match is checked instead.
 var labelMark = regexp.MustCompile(`\s*\[[^\]\n]{1,40}\]`)
 
 // dropLabelMarks removes those, outside code and outside a fence, and leaves

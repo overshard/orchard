@@ -1,6 +1,6 @@
 // repos.bythewood.me is a git remote with a browse UI on top: push to it over
 // HTTPS with a token, or let it mirror the GitHub account. Everything git is a
-// subprocess; see git.go for the rules that keep shelling out safe.
+// subprocess, see git.go for the rules that keep shelling out safe.
 package main
 
 import (
@@ -85,7 +85,7 @@ func main() {
 	store := NewStore(cfg.RepoRoot)
 	defer store.Close()
 
-	// A missing http-backend is not fatal; the browse half still works.
+	// A missing http-backend is not fatal, the browse half still works.
 	backend := gitHTTPBackend()
 	if backend == "" {
 		slog.Warn("git-http-backend not found; clone and push are unavailable")
@@ -124,7 +124,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Seeded once; after that the mirror list is edited on the settings page.
+	// Seeded once, after that the mirror list is edited on the settings page.
 	if err := db.SeedMirrorSources(githubUser); err != nil {
 		slog.Error("seed mirror sources", slog.Any("err", err))
 	}

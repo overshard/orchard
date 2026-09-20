@@ -15,13 +15,12 @@ import (
 	"time"
 )
 
-// Listing photos are served from disk, never hotlinked. Two reasons and both
-// matter: a grid of big photos opened twice a day from two phones would hammer
-// somebody else's CDN, and a CDN that sees every request knows which houses are
-// being looked at and how often.
+// Listing photos are served from disk, never hotlinked. A grid of big photos
+// opened twice a day from two phones would hammer somebody else's CDN, and a CDN
+// that sees every request knows which houses are being looked at and how often.
 //
-// So the first request for a photo fetches it once, writes it under the data
-// volume and serves the copy. Every request after that is a file read.
+// The first request for a photo fetches it once, writes it under the data volume
+// and serves the copy. Every request after that is a file read.
 type Photos struct {
 	db     *sql.DB
 	dir    string

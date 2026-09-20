@@ -8,9 +8,8 @@ import (
 )
 
 // The page fetches a widget's readings here rather than being handed them with
-// the turn. That is what lets a chart change range without asking the model
-// anything, and what makes a conversation opened a week later draw today's
-// price instead of the one that was on screen when the question was asked.
+// the turn, so a chart can change range without asking the model anything and a
+// conversation opened a week later draws today's price.
 
 // Widget is the subject of a chart, recorded on the message that produced it.
 type Widget = tools.Widget

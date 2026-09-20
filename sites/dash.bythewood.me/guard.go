@@ -15,16 +15,13 @@ import (
 // Every upstream this site reads is free, keyless and someone else's. A ban on
 // one of them is not something a retry fixes and it lands on Isaac rather than
 // on a reviewer, so each endpoint is fenced: a hard budget per hour, a pause
-// between consecutive calls, and a breaker that opens on the responses that
-// mean stop asking.
+// between consecutive calls, and a breaker that opens on the responses that mean
+// stop asking.
 //
-// The state is written to disk because a breaker that resets on restart is not
-// a breaker. A restart loop against an endpoint that just returned 429 is
-// exactly the case this is here to prevent, and an in-memory counter would
-// forget about it every few seconds. It is JSON rather than SQLite because
-// four counters per endpoint do not need a database, and skipping one keeps
-// this the only site in the repo with no cgo-free driver, no volume of
-// consequence and no schema to migrate.
+// The state is written to disk because a breaker that resets on restart is not a
+// breaker. A restart loop against an endpoint that just returned 429 is the case
+// this is here to prevent. It is JSON rather than SQLite because four counters
+// per endpoint do not need a database.
 
 var errGuardOpen = errors.New("circuit open")
 
@@ -121,9 +118,8 @@ func (g *Guard) entry(name string) *guardEntry {
 //
 // Pacing is reported as a refusal here, which is right for a probe that has
 // something better to do than queue. Anything on a timer should call Reserve
-// instead: three pollers sharing the Yahoo endpoint all fired at boot, two were
-// refused for being 1.6 seconds early, and because their retry interval is an
-// hour and six hours the panels they fill stayed empty for the rest of the day.
+// instead, since three pollers sharing the Yahoo endpoint all fire at boot and
+// a refusal costs them a whole tick, which for two of them is hours.
 func (g *Guard) Allow(name string) error {
 	wait, err := g.tryReserve(name)
 	if err != nil {

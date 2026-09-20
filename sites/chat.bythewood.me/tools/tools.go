@@ -1,10 +1,9 @@
 // Package tools is what the model can do besides talk. Every backend here is
-// keyless and every one is reachable from a scratch image over HTTPS, which is
-// the whole selection criterion: a tool that needs an account is a tool that
-// stops working when a key expires and nobody notices.
+// keyless and reachable from a scratch image over HTTPS, since a tool that needs
+// an account stops working when a key expires and nobody notices.
 //
-// A tool answers with a Go value that becomes JSON. It never returns prose,
-// because the model writes the prose and the tool supplies the facts.
+// A tool answers with a Go value that becomes JSON and never with prose. The
+// model writes the prose and the tool supplies the facts.
 package tools
 
 import (
@@ -20,9 +19,8 @@ import (
 )
 
 // UserAgent is a browser string because several of these endpoints answer 403
-// to anything that looks automated. It is not a disguise, it is the price of
-// entry for reading a public page.
-// Chrome on Windows because it is the commonest thing an edge sees, and current
+// to anything that looks automated.
+// Chrome on Windows since it is the commonest thing an edge sees, and current
 // because a two year old version on X11 Linux is a combination almost nothing
 // real sends. Chrome itself zeroes the last two version fields.
 const UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36"
@@ -114,11 +112,11 @@ func NewDeps() *Deps {
 	}
 }
 
-// Guard is a per host circuit breaker. Anything that answers with a refusal
-// puts its host in the penalty box, and every call to that host fails locally
-// until the box empties.
-// Store is however the caller persists the penalty box. It is an interface so
-// this package stays a leaf and does not import the database.
+// Guard is a per host circuit breaker. Anything that answers with a refusal puts
+// its host in the penalty box, and every call to that host fails locally until
+// the box empties.
+// Store is however the caller persists the penalty box, an interface so this
+// package stays a leaf and does not import the database.
 type PenaltyStore interface {
 	SavePenalty(host string, till time.Time, trips int)
 	ClearPenalty(host string)
@@ -143,9 +141,9 @@ func NewGuard(cool time.Duration) *Guard {
 	}
 }
 
-// Wait blocks until this host may be called again. It holds the lock across the
-// sleep on purpose, so two turns asking the same host queue rather than both
-// deciding the gap has passed.
+// Wait blocks until this host may be called again. Holding the lock across the
+// sleep is what makes two turns asking the same host queue, rather than both
+// deciding the gap has passed, so do not narrow it.
 func (g *Guard) Wait(host string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -171,19 +169,15 @@ func (g *Guard) Blocked(host string) (bool, time.Duration) {
 // How long a host that refused is left completely alone.
 //
 // Long and flat rather than short and escalating. A ten minute box means asking
-// again six times an hour, and every one of those is a request to an endpoint
-// that has already said no, which is how a soft limit turns into a hard one.
-// There is no signal that a ban has lifted other than a call, so the only safe
-// policy is to wait out a period long enough that the question is settled and
-// let a person's next real question be the one that finds out.
+// again six times an hour against an endpoint that has already said no, which is
+// how a soft limit turns into a hard one, and there is no signal that a ban has
+// lifted other than a call.
 const refusalCool = 6 * time.Hour
 
 // A page that timed out or redirected somewhere that failed is not a host
 // refusing us, and boxing it for six hours reads as a ban that never happened.
-// On 2026-09-08 that put developer.android.com, mirrors.wikimedia.org and
-// hacker-news.firebaseio.com out of reach for the afternoon over one slow
-// request each. Long enough to stop a turn hammering the same dead address,
-// short enough that the next question can try again.
+// Long enough to stop a turn hammering the same dead address, short enough that
+// the next question can try again.
 const stumbleCool = 5 * time.Minute
 
 // Trip is for a host that said no in as many words, a 202 or a 429. That is the
@@ -514,7 +508,7 @@ func integer(desc string) map[string]any {
 }
 
 // Only narrows an offer to one tool. Without drops the one thing a turn must
-// not do again; this is the other end of it, for a turn where there is exactly
+// not do again, this is the other end of it, for a turn where there is exactly
 // one thing to do and every other tool is a way to get lost.
 func Only(schemas []map[string]any, name string) []map[string]any {
 	for _, s := range schemas {

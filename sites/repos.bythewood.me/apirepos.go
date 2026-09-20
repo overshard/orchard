@@ -76,11 +76,10 @@ func (s *site) apiRepos(w http.ResponseWriter, r *http.Request) {
 
 // The tree and the file behind it, as data.
 //
-// chat.bythewood.me could list the repositories and read nothing inside them,
-// so every question about Isaac's own code ended with the model guessing raw
-// addresses, collecting 404s, and on one occasion writing a file it claimed to
-// have read. These two are the same git plumbing the HTML pages use, returned
-// as JSON so a tool can walk a repository the way a person does.
+// A caller that can list the repositories and read nothing inside them guesses
+// raw addresses and collects 404s. These two are the same git plumbing the HTML
+// pages use, returned as JSON so a tool can walk a repository the way a person
+// does.
 
 type apiEntry struct {
 	Name string `json:"name"`

@@ -22,8 +22,7 @@ const (
 
 // shapeEnum is what the plan step offers the model, and every entry has a
 // contract below. A shape the planner can pick and the contract map does not
-// hold falls back to prose, which is the wrong format quietly rather than
-// loudly, so a test walks this list.
+// hold falls back to prose, so a test walks this list.
 var shapeEnum = []Shape{
 	ShapeFactual, ShapeRecipe, ShapeHowTo, ShapeComparison,
 	ShapeNews, ShapeStatus, ShapeCode, ShapeUpcoming,
@@ -52,22 +51,16 @@ type Contract struct {
 	Reminder string
 }
 
-// answerFirst is prepended to every shape. The rule Isaac stated: answer the
-// question, then the few facts worth skimming, and only then the detail, which
-// is a bonus rather than something forced on a reader who wanted one number.
-// The closing section used to be "the fuller explanation", and a 4B given that
-// instruction after it has already stated the facts writes the list again in
-// prose. That restatement is generated from a weaker signal than the bullets
-// were, so it contradicted them often enough to be the worst thing on the page:
-// a wrong sentence sitting directly under the right one, in a site whose whole
-// claim is that every sentence is checked.
+// answerFirst is prepended to every shape: answer the question, then the few
+// facts worth skimming, and only then the detail.
 //
-// So the rule is the same one dash's weather alert landed on. Say a thing once,
-// and a section that has nothing new to add does not get written.
+// A 4B told to close with a fuller explanation writes the list again in prose,
+// generated from a weaker signal than the bullets were, so it contradicts them
+// and puts a wrong sentence directly under the right one, so each shape says a
+// thing once and a section with nothing new to add is not written.
 // Two rules every shape needs, learned off a recipe that came back with a
 // citation after every noun and a line reading "Total Time: Not specified in
-// passages". The reader is not in the room with the pipeline and does not know
-// what a passage is.
+// passages", which means nothing to a reader who has never heard of a passage.
 const houseStyle = "Put at most one citation at the end of a sentence or a list item, never in the middle of one and never more than one. " +
 	"Never refer to the answer itself, so no \"this response\", \"this answer\" or \"below you will find\". Write the thing rather than describing it. " +
 	"Write for someone who cannot see your sources and does not know how you work. " +
@@ -85,11 +78,10 @@ const datesArePast = "Today's date is given above, so check every date you write
 	"The same goes for tense: a passage saying something is happening now, is currently underway, or is in progress means when that passage was written, not today. " +
 	"If that was weeks or months ago, say what it was doing then and give the date, rather than saying it is doing it now. "
 
-// The mirror of datesArePast, and the half that was missing. Every shape above
-// describes the past or a standing fact, so "when is the next Liverpool game"
-// was classified news, whose contract opens by saying the question is about
-// what already happened, and the answer was four fixtures that had been played
-// followed by a line admitting it did not have the next one.
+// The mirror of datesArePast. Every shape above describes the past or a standing
+// fact, so "when is the next Liverpool game" classifies as news, whose contract
+// opens by saying the question is about what already happened, and the answer
+// comes back as four fixtures that have been played.
 const datesAreFuture = "The question asks about something that has not happened yet, so only a date that is today or later can answer it. " +
 	"Today's date is given above. Check every date you are about to write against it. " +
 	"A match, launch, release or meeting dated before today has already happened and is not the answer, whatever tense the passage uses. " +
@@ -175,12 +167,10 @@ var contracts = map[Shape]Contract{
 		MaxPassages: 16, PerSource: 4, MaxTokens: 1100,
 	},
 
-	// A code answer is the one shape where the reader does not read the
-	// answer, they paste it. So the prose is the part that gets cut and the
-	// file is the part that has to be whole: a snippet with a comment saying
-	// the rest goes here is worth nothing to someone who wanted a working
-	// thing, and it is the failure a small model reaches for when the passages
-	// only show fragments.
+	// A code answer is the one shape where the reader pastes the answer rather
+	// than reads it. The prose is the part that gets cut and the file is the part
+	// that has to be whole, since a snippet with a comment saying the rest goes
+	// here is what a small model reaches for when the passages show fragments.
 	ShapeCode: {
 		Shape: ShapeCode,
 		Instruction: strings.Join([]string{

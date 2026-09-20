@@ -9,16 +9,13 @@ import (
 // One turn runs at a time.
 //
 // The model server is started with --parallel 1, because Qwen3.5's hybrid
-// attention corrupts context checkpoints under multi-slot load, and there is one
-// GPU behind it. Two people asking at once would otherwise interleave into one
-// slot and both wait longer than if they had taken turns.
+// attention corrupts context checkpoints under multi-slot load, and there is
+// one GPU behind it. Two people asking at once would interleave into one slot
+// and both wait longer than if they had taken turns.
 //
-// So they take turns, and the waiting is shown rather than hidden: a tab that
-// sits on "thinking" for ninety seconds because another one is ahead looks
-// broken, while one that says it is second in line looks like a queue.
-//
-// Nothing about who is waiting is recorded. A ticket is a position and a
-// channel, and it exists only while its request does.
+// The waiting is shown, since a tab that sits on "thinking" for ninety seconds
+// because another is ahead looks broken. Nothing about who is waiting is
+// recorded, and a ticket lives only as long as its request.
 type Queue struct {
 	mu      sync.Mutex
 	waiting []*ticket
@@ -43,9 +40,8 @@ func NewQueue() *Queue { return &Queue{} }
 // Enter joins the queue and blocks until this caller's turn, reporting position
 // changes to onWait while it waits. The returned release must be called.
 //
-// A caller whose context is cancelled leaves the queue. Here that means a turn
-// that was stopped or timed out, not a closed tab, since a turn outlives its
-// tab and keeps its place.
+// A caller whose context is cancelled leaves the queue, which means a turn that
+// was stopped or timed out and not a closed tab, since a turn outlives its tab.
 func (q *Queue) Enter(ctx context.Context, onWait func(QueueState)) (release func(), ok bool) {
 	t := &ticket{ready: make(chan struct{}, 1)}
 
@@ -116,10 +112,9 @@ func (q *Queue) finish() {
 
 // drop removes a ticket that gave up before its turn.
 //
-// There is a race worth naming: the context can end in the same moment finish
-// promotes this ticket, in which case the slot is already held by a caller that
-// will never use it and has to be handed on, or the person behind waits
-// forever.
+// The context can end in the same moment finish promotes this ticket, and then
+// the slot is held by a caller that will never use it and has to be handed on,
+// or the person behind waits forever.
 func (q *Queue) drop(t *ticket) {
 	q.mu.Lock()
 	for i, w := range q.waiting {

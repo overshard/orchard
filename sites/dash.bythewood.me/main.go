@@ -22,7 +22,7 @@ import (
 	"dash.bythewood.me/web"
 )
 
-// Templates are source, so they ship in the binary unconditionally; the Vite
+// Templates are source, so they ship in the binary unconditionally. The Vite
 // bundle is build output and only embeds in a release build.
 //
 //go:embed templates

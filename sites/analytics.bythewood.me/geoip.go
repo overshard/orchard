@@ -35,7 +35,7 @@ type GeoLookup struct {
 	HasLoc  bool
 }
 
-// cityRecord is the part of the GeoIP2-City schema this app uses; v2 of the
+// cityRecord is the part of the GeoIP2-City schema this app uses, v2 of the
 // reader ships no record structs. DB-IP Lite follows MaxMind's schema.
 type cityRecord struct {
 	Country struct {
@@ -110,7 +110,7 @@ func (g *GeoIP) Lookup(ip netip.Addr) (GeoLookup, bool) {
 	}
 	if len(rec.Subdivisions) > 0 {
 		sub := rec.Subdivisions[0]
-		// The admin-1 topojson matches on the English name; the ISO code is
+		// The admin-1 topojson matches on the English name, the ISO code is
 		// a fallback that will not join to a shape.
 		if n := sub.Names["en"]; n != "" {
 			out.Region = n
