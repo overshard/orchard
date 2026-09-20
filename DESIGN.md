@@ -355,6 +355,19 @@ second wrapped a character at a time into a vertical column. Anything narrow
 enough to wrap in that row needs `white-space: nowrap` of its own, which
 `.model` had and `.tps` and `.meter` did not.
 
+**The same row gives up the model name and the tokens a second on a phone.**
+Under `34rem` the name goes and the dot and the eject stay, because the model
+is the one thing in that bar the reader already knows and the two glyphs are
+what they act on. The tokens a second goes with it, since incognito, no search,
+the meter and the speed all showing at once ran the row 83px past a 360px
+screen and pushed the model off the edge entirely.
+
+**A reading that is also a control says so by growing an affordance, not a
+slot.** `chat`'s model chip names the model, fills its dot when the weights are
+on the card, and unloads them when pressed, and the amber eject glyph only
+appears when there is something to eject. Adding a separate unload button
+beside it would have cost the title another 40px on every phone.
+
 **Nothing says where it runs.** search's landing page footer named the
 repository, the machine and the tunnel in one sentence, which is three facts a
 visitor cannot use and a stranger can. The footer rule above already said a site

@@ -6,6 +6,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"html/template"
@@ -188,6 +189,7 @@ func main() {
 	mux.HandleFunc("DELETE /api/conversation/{id}", s.auth.RequireAuthJSON(s.deleteConversation))
 	mux.HandleFunc("DELETE /api/conversations", s.auth.RequireAuthJSON(s.deleteAll))
 	mux.HandleFunc("GET /api/status", s.auth.RequireAuthJSON(s.status))
+	mux.HandleFunc("POST /api/unload", s.auth.RequireAuthJSON(s.unload))
 	mux.HandleFunc("GET /api/events", s.auth.RequireAuthJSON(s.events))
 	// The readings behind a chart. Gated like everything else here, and read
 	// only: both go out to a public source and neither touches this estate.
@@ -770,8 +772,9 @@ func (s *site) deleteAll(w http.ResponseWriter, r *http.Request) {
 
 func (s *site) status(w http.ResponseWriter, r *http.Request) {
 	nConv, nMsg := s.store.Count()
+	loaded, up := s.llm.Loaded(r.Context())
 	out := map[string]any{
-		"model": s.label, "up": s.llm.Healthy(r.Context()), "ctx": s.ctxSize,
+		"model": s.label, "up": up, "loaded": loaded, "ctx": s.ctxSize,
 		"tools": tools.Default().Names(), "conversations": nConv, "messages": nMsg,
 	}
 	// Search being unavailable is the one tool failure worth saying out loud,
@@ -784,6 +787,32 @@ func (s *site) status(w http.ResponseWriter, r *http.Request) {
 	minute, hour, day := s.engine.SearchSpend()
 	out["search_left"] = map[string]int{"minute": minute, "hour": hour, "day": day}
 	writeJSON(w, out)
+}
+
+// unload takes the weights off the card now instead of three minutes from now.
+// The card this runs on is the one the desktop draws with, so somebody who
+// asked a question mid game wants it back at the end of the answer and not at
+// the end of a timer they cannot see.
+func (s *site) unload(w http.ResponseWriter, r *http.Request) {
+	// Pulling the model out from under a turn in flight kills that turn with
+	// an error nobody would connect to the button they pressed.
+	if _, running := s.queue.Depth(); running {
+		jsonErr(w, http.StatusConflict, errors.New("a turn is running, so the card is still in use"))
+		return
+	}
+	if err := s.llm.Unload(r.Context()); err != nil {
+		jsonErr(w, http.StatusBadGateway, err)
+		return
+	}
+	writeJSON(w, map[string]any{"loaded": false})
+}
+
+// jsonErr answers with the reason rather than a bare status, since the caller
+// here is a script that has to say something to a reader.
+func jsonErr(w http.ResponseWriter, code int, err error) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 }
 
 func writeJSON(w http.ResponseWriter, v any) {
