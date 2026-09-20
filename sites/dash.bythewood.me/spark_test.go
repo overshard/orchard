@@ -292,6 +292,55 @@ func TestPreviousSessionCloseIsFourPMTheDayBefore(t *testing.T) {
 	}
 }
 
+// The trading day rolls at 9:30 and the close does not, so a bar from the small
+// hours has to measure from last night's 4pm and not from the one before it.
+// Anchoring on the session open put every round the clock card between midnight
+// and 9:30 a full session behind, which is what a 7am look at the futures showed.
+func TestPreviousSessionCloseOvernightIsLastNightsBell(t *testing.T) {
+	et := easternTime()
+
+	var closes []float64
+	var times []int64
+	for at := time.Date(2026, 9, 16, 9, 30, 0, 0, et); at.Before(time.Date(2026, 9, 18, 9, 30, 0, 0, et)); at = at.Add(30 * time.Minute) {
+		closes = append(closes, float64(at.Unix()))
+		times = append(times, at.Unix())
+	}
+
+	for _, c := range []struct {
+		name string
+		last time.Time
+		want time.Time
+	}{
+		{"mid session", time.Date(2026, 9, 17, 11, 0, 0, 0, et), time.Date(2026, 9, 16, 16, 0, 0, 0, et)},
+		{"after the bell", time.Date(2026, 9, 17, 18, 0, 0, 0, et), time.Date(2026, 9, 17, 16, 0, 0, 0, et)},
+		{"small hours", time.Date(2026, 9, 18, 2, 0, 0, 0, et), time.Date(2026, 9, 17, 16, 0, 0, 0, et)},
+		{"pre-market", time.Date(2026, 9, 18, 7, 0, 0, 0, et), time.Date(2026, 9, 17, 16, 0, 0, 0, et)},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			got, found := previousSessionClose(closes, times, c.last)
+			if !found {
+				t.Fatal("two full days of bars should have a close in them")
+			}
+			if int64(got) != c.want.Unix() {
+				t.Errorf("measured from %v, want %v",
+					time.Unix(int64(got), 0).In(et), c.want)
+			}
+		})
+	}
+}
+
+// 4pm is 4pm on both sides of a daylight saving change, so the cut is built in
+// Eastern rather than by subtracting a flat 24 hours.
+func TestLastBellHoldsAcrossDaylightSaving(t *testing.T) {
+	et := easternTime()
+	// The Sunday US clocks go back in 2026.
+	got := lastBell(time.Date(2026, 11, 2, 7, 0, 0, 0, et))
+	want := time.Date(2026, 11, 1, 16, 0, 0, 0, et)
+	if !got.Equal(want) {
+		t.Errorf("cut at %v, want %v", got.In(et), want)
+	}
+}
+
 func TestPreviousSessionCloseMissingIsReported(t *testing.T) {
 	et := easternTime()
 	open := time.Date(2026, 8, 31, 9, 30, 0, 0, et)
