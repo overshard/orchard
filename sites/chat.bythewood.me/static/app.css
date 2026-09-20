@@ -256,7 +256,24 @@ body {
 }
 .warn-flag[hidden] { display: none; }
 
-.model { color: var(--dim); font-size: 0.72rem; display: flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
+/* The model chip. It names the model, says whether the weights are on the card
+   right now, and takes them off when they are, because this GPU is also the one
+   the desktop draws games with and three minutes of idle ttl is a long time to
+   wait for it. A button rather than a flag beside one, so the narrowest row on
+   the page gains a control without gaining a slot. */
+.model {
+  color: var(--dim); font-size: 0.72rem; font-family: inherit;
+  display: flex; align-items: center; gap: 0.4rem; white-space: nowrap;
+  background: none; border: 1px solid transparent; border-radius: 2px;
+  padding: 0.15rem 0.3rem; cursor: pointer;
+}
+/* Nothing on the card is nothing to press, so it reads as the label it was. */
+.model[aria-disabled="true"] { cursor: default; }
+.model-eject { color: var(--amber); font-size: 0.78rem; line-height: 1; }
+.model:not(.loaded) .model-eject { display: none; }
+.model.loaded:hover, .model.loaded:focus-visible {
+  border-color: rgba(212, 180, 90, 0.5); color: var(--muted);
+}
 
 /* The context meter. A number beside a bar rather than a percentage, because
    how many tokens are left is the thing being decided and a percentage of a
@@ -296,8 +313,12 @@ body {
   border: 1px solid var(--line-hot); background: transparent;
   display: inline-block; flex: 0 0 auto;
 }
+/* Filled means the weights are resident, hollow means the card is free, and the
+   ring going terracotta means nothing answered at all. A hollow dot and a dead
+   server used to look the same. */
 .dot.on { background: var(--green-bright); border-color: var(--green-bright); box-shadow: 0 0 6px var(--green-glow); }
 .dot.busy { background: var(--amber); border-color: var(--amber); animation: pulse 1s ease-in-out infinite; }
+.dot.down { border-color: var(--terracotta); }
 @keyframes pulse { 50% { opacity: 0.35; } }
 
 .thread { flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain;
@@ -768,8 +789,16 @@ kbd {
   /* The bar is the tightest row on the page, so it gives up its padding first
      and the model name stops wrapping to a second line. */
   .bar { gap: 0.45rem; padding: 0 0.55rem; }
-  .model { font-size: 0.66rem; white-space: nowrap; }
   .bar-title { font-size: 0.76rem; }
+  /* Tall enough for a thumb without costing the row any width, since the bar
+     is 3.1rem and the padding here is vertical. */
+  .model {
+    font-size: 0.66rem; white-space: nowrap;
+    min-height: 2.25rem; padding: 0 0.35rem;
+  }
+  /* A press has no hover to preview it, so the chip carries its border all the
+     time when there is something to eject. */
+  .model.loaded { border-color: rgba(212, 180, 90, 0.4); }
 
   /* Dimming what is behind it is what says the sidebar is a layer rather than
      part of the page, and tapping it is how a phone expects to close one. It
@@ -1058,6 +1087,15 @@ kbd {
 }
 
 @media (max-width: 34rem) {
+  /* A flex row gives up the label, never the reading. On a 360px phone the
+     model name is the only thing in the bar the reader already knows, so it
+     goes and the dot and the eject stay. The title gets the width back. */
+  .model-name { display: none; }
+  .model { min-width: 2.25rem; justify-content: center; }
+  /* Incognito, no search, the meter and the tokens a second all showing at once
+     ran this row 83px past a 360px screen and pushed the model off the edge.
+     Speed is the one reading here nobody acts on, so it is what goes. */
+  .tps { display: none; }
   .wdg-name { max-width: 11rem; }
   .wdg-day { grid-template-columns: 3.4rem 2.8rem 1fr; }
   .wdg-day-feels { display: none; }

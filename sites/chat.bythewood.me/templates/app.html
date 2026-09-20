@@ -88,9 +88,14 @@
           <span class="meter-cap" id="meter-cap">{{.Ctx}}</span>
         </span>
         <span class="tps" id="tps" title="Generation speed of the last turn" hidden></span>
-        <span class="model" title="The model answering">
-          <i class="dot" id="model-dot"></i>{{.Model}}
-        </span>
+        <!-- The model chip is the indicator and the control both, so the bar
+             gains a button without gaining a slot. The eject glyph only shows
+             when there is something on the card to eject. -->
+        <button type="button" class="model" id="model-btn" title="The model answering">
+          <i class="dot" id="model-dot"></i>
+          <span class="model-name">{{.Model}}</span>
+          <span class="model-eject" aria-hidden="true">&#9167;</span>
+        </button>
       </div>
     </header>
 
@@ -175,6 +180,7 @@
       <dt><kbd>Enter</kbd></dt><dd>Send</dd>
       <dt><kbd>Shift</kbd><kbd>Enter</kbd></dt><dd>New line</dd>
       <dt><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>M</kbd></dt><dd>What it remembers</dd>
+      <dt><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>U</kbd></dt><dd>Unload the model off the card</dd>
       <dt><kbd>Ctrl</kbd><kbd>/</kbd></dt><dd>This list</dd>
     </dl>
     <p class="keys-note">On a Mac use <kbd>&#8984;</kbd> in place of <kbd>Ctrl</kbd>. Chrome keeps <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>I</kbd> for its developer tools, so incognito is also on <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>P</kbd>.</p>

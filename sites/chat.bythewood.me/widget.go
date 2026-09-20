@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -52,7 +51,5 @@ func (s *site) widgetWeather(w http.ResponseWriter, r *http.Request) {
 // panel prints it: a rate limited host and a symbol that does not exist read
 // identically as a blank chart otherwise.
 func widgetErr(w http.ResponseWriter, err error) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusBadGateway)
-	_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+	jsonErr(w, http.StatusBadGateway, err)
 }

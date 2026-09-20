@@ -364,23 +364,57 @@ func (l *LLM) Warm(ctx context.Context) {
 		Kwargs:   map[string]any{"enable_thinking": false}}, &out)
 }
 
-// Healthy asks whether the server is up without waking the model, because
-// /v1/models answers from llama-swap's config and loads no weights. Never point
-// this at /health, which would defeat the idle unload.
-func (l *LLM) Healthy(ctx context.Context) bool {
+// Loaded asks whether the weights are on the card and whether the gateway
+// answered at all, which is one call because a server that answers this is up
+// by definition. It reads llama-swap's process table and starts nothing, so
+// polling it is free. Never point this at /health, which would load the model
+// and defeat the idle unload.
+func (l *LLM) Loaded(ctx context.Context) (loaded, up bool) {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, "GET", l.BaseURL+"/v1/models", nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", l.BaseURL+"/v1/running", nil)
 	if err != nil {
-		return false
+		return false, false
 	}
 	l.sign(req)
 	resp, err := l.http.Do(req)
 	if err != nil {
-		return false
+		return false, false
 	}
 	defer resp.Body.Close()
-	return resp.StatusCode == 200
+	if resp.StatusCode != 200 {
+		return false, false
+	}
+	var out struct {
+		Loaded bool `json:"loaded"`
+	}
+	if json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&out) != nil {
+		return false, true
+	}
+	return out.Loaded, true
+}
+
+// Unload hands the card back rather than waiting out the idle ttl. The gateway
+// waits for the model process to be gone before it answers, so returning here
+// means the VRAM is actually free and not merely asked for.
+func (l *LLM) Unload(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, "POST", l.BaseURL+"/v1/unload", nil)
+	if err != nil {
+		return err
+	}
+	l.sign(req)
+	resp, err := l.http.Do(req)
+	if err != nil {
+		return fmt.Errorf("the model server is not answering: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return modelError(resp.StatusCode, resp.Body)
+	}
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64<<10))
+	return nil
 }
 
 // modelError carries the reason back rather than the number. A bare "the model

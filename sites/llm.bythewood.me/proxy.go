@@ -11,6 +11,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -238,6 +239,96 @@ func summarise(out []byte) (string, int, int, float64) {
 		text = "[tool calls: " + string(mustJSON(resp.Choices[0].Message.ToolCalls)) + "]"
 	}
 	return text, resp.Usage.PromptTokens, resp.Usage.CompletionTokens, resp.Timings.PredictedPerSec
+}
+
+// llama-swap keeps its own state outside the OpenAI shape, at the root and on
+// a GET. Unload changes what is on the card, so this takes a POST and
+// translates rather than passing the spelling through. Neither is logged,
+// since there is no prompt in either one.
+const (
+	swapRunning = "/running"
+	swapUnload  = "/unload"
+)
+
+// swapModel is llama-swap's own row with the command line and the port it
+// picked left off. Those name a path on this machine and a loopback address,
+// which are nobody's business past this container.
+type swapModel struct {
+	Model string `json:"model"`
+	Name  string `json:"name"`
+	State string `json:"state"`
+}
+
+// running says whether the weights are resident. Every caller here shares one
+// card, so a dashboard that wants to show the GPU as free or busy asks this
+// rather than guessing from the last call it made.
+func (s *site) running(w http.ResponseWriter, r *http.Request, _ Key) {
+	var body struct {
+		Running []swapModel `json:"running"`
+	}
+	if err := s.swap(r.Context(), swapRunning, &body); err != nil {
+		slog.Error("asking what is loaded", "err", err)
+		http.Error(w, "the model server is not answering", http.StatusBadGateway)
+		return
+	}
+	out := struct {
+		Loaded bool        `json:"loaded"`
+		Models []swapModel `json:"models"`
+	}{Models: body.Running}
+	if out.Models == nil {
+		out.Models = []swapModel{}
+	}
+	for _, m := range out.Models {
+		// A model on its way off the card is not one anybody can use, and
+		// calling it loaded would offer an unload that does nothing.
+		if m.State != "stopping" {
+			out.Loaded = true
+		}
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	_ = json.NewEncoder(w).Encode(out)
+}
+
+// unload takes the weights off the card now instead of at the end of the idle
+// ttl. The machine underneath this is a desktop as well as a server, so
+// somebody who asked one question and wants to go play something should not
+// have to wait out three minutes of timer for their VRAM.
+//
+// It answers once the process is gone rather than once the request was sent,
+// which is what makes the answer mean the card is free.
+func (s *site) unload(w http.ResponseWriter, r *http.Request, k Key) {
+	if err := s.swap(r.Context(), swapUnload, nil); err != nil {
+		slog.Error("unloading the model", "err", err, "caller", k.Name)
+		http.Error(w, "the model server is not answering", http.StatusBadGateway)
+		return
+	}
+	slog.Info("unloaded the model", "caller", k.Name)
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	_, _ = w.Write([]byte(`{"loaded":false}`))
+}
+
+// swap calls one of llama-swap's own endpoints and decodes the answer, with
+// into left nil when there is nothing worth reading back.
+func (s *site) swap(ctx context.Context, path string, into any) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s.upstream+path, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("the model server answered %d", resp.StatusCode)
+	}
+	if into == nil {
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64<<10))
+		return nil
+	}
+	return json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(into)
 }
 
 // passthrough carries the endpoints that are not a completion, like the model
