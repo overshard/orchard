@@ -147,3 +147,75 @@ func seedErrors(t *testing.T, db *sql.DB, rows []row) {
 		}
 	}
 }
+
+// Asked "any suspicious logs in orchard" on 2026-09-11 the summary said there
+// were none, and it was telling the truth about errors on a day the edge turned
+// away thousands of scanner probes. A refused request is not an ERROR anywhere,
+// so a reader with only the errors list cannot answer the question at all.
+func TestAPIRefusedSeesScannersWithNoErrors(t *testing.T) {
+	db := testDB(t)
+	now := time.Now()
+	var rows []row
+	for i := 0; i < 30; i++ {
+		rows = append(rows, row{
+			source: "blog", ts: now.Add(-time.Duration(i) * time.Minute).UnixMilli(),
+			level: "INFO", msg: "request", component: "http", method: "GET",
+			path: "/userfiles", host: "blog.bythewood.me", status: 404,
+			ip: "203.0.113.7", cfRay: "abc123",
+		})
+	}
+	rows = append(rows, row{
+		source: "blog", ts: now.Add(-time.Minute).UnixMilli(),
+		level: "INFO", msg: "request", component: "http", method: "GET",
+		path: "/", host: "blog.bythewood.me", status: 200,
+		ip: "203.0.113.9", cfRay: "def456",
+	})
+	seedErrors(t, db, rows)
+
+	s := &site{db: db}
+	if errs := s.apiRecentErrors(context.Background(), since(now, 24), 20, "", ""); len(errs) != 0 {
+		t.Fatalf("the seed has no errors, got %d", len(errs))
+	}
+
+	got := s.apiRefusedSummary(context.Background(), since(now, 24), 15)
+	if got.Client4xx != 30 {
+		t.Errorf("client_4xx = %d, want 30", got.Client4xx)
+	}
+	if got.Requests != 31 {
+		t.Errorf("requests = %d, want 31", got.Requests)
+	}
+	if len(got.TopPaths) != 1 || got.TopPaths[0].Path != "/userfiles" {
+		t.Fatalf("top 4xx paths = %+v, want one row for /userfiles", got.TopPaths)
+	}
+	if got.TopPaths[0].Hits != 30 || got.TopPaths[0].Clients != 1 {
+		t.Errorf("top path = %+v, want 30 hits from 1 client", got.TopPaths[0])
+	}
+}
+
+// Every container probes itself over loopback with no CF-Ray, and the sites
+// call each other across the docker bridge all day, which together were 97% of
+// this number on the first day it existed. Counting them buries the one request
+// that really did skip Cloudflare, which is the only thing the number is for.
+func TestAPIRefusedDirectHitsExcludePrivateAddresses(t *testing.T) {
+	db := testDB(t)
+	now := time.Now()
+	seedErrors(t, db, []row{
+		{source: "blog", ts: now.UnixMilli(), level: "INFO", msg: "request", component: "http",
+			method: "GET", path: "/", host: "blog.bythewood.me", status: 200, ip: "127.0.0.1"},
+		{source: "blog", ts: now.UnixMilli(), level: "INFO", msg: "request", component: "http",
+			method: "GET", path: "/", host: "blog.bythewood.me", status: 200, ip: "::1"},
+		{source: "blog", ts: now.UnixMilli(), level: "INFO", msg: "request", component: "http",
+			method: "GET", path: "/aggregate", host: "logging.bythewood.me", status: 200, ip: "172.18.0.4"},
+		{source: "blog", ts: now.UnixMilli(), level: "INFO", msg: "request", component: "http",
+			method: "GET", path: "/latest.json", host: "blog.bythewood.me", status: 200, ip: "10.0.0.9"},
+		{source: "blog", ts: now.UnixMilli(), level: "INFO", msg: "request", component: "http",
+			method: "GET", path: "/wp-login.php", host: "blog.bythewood.me", status: 404, ip: "198.51.100.4"},
+		{source: "blog", ts: now.UnixMilli(), level: "INFO", msg: "request", component: "http",
+			method: "GET", path: "/", host: "blog.bythewood.me", status: 200, ip: "198.51.100.5", cfRay: "ray"},
+	})
+
+	got := (&site{db: db}).apiRefusedSummary(context.Background(), since(now, 24), 15)
+	if got.DirectHits != 1 {
+		t.Errorf("direct_hits = %d, want 1: only the public address with no ray counts", got.DirectHits)
+	}
+}

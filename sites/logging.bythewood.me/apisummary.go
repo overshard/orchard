@@ -55,6 +55,30 @@ type apiPath struct {
 	Errors int     `json:"errors"`
 }
 
+// What the edge turned away, which is the half of "is anything suspicious"
+// that errors cannot answer. Asked that question on 2026-09-11 the summary
+// said nothing was wrong, and it was right about errors and wrong about the
+// day: the edge was refusing thousands of scanner probes an hour and none of
+// them is an ERROR anywhere.
+//
+// Blocked requests are deliberately absent. The scanner block carries log_skip,
+// so what shows up here is what got past it, which is the number worth seeing.
+type apiRefused struct {
+	Client4xx  int          `json:"client_4xx"`
+	Server5xx  int          `json:"server_5xx"`
+	Requests   int          `json:"requests"`
+	DirectHits int          `json:"direct_hits"`
+	TopPaths   []apiBadPath `json:"top_4xx_paths"`
+}
+
+type apiBadPath struct {
+	Host    string `json:"host,omitempty"`
+	Path    string `json:"path"`
+	Status  int    `json:"status"`
+	Hits    int    `json:"hits"`
+	Clients int    `json:"distinct_clients"`
+}
+
 func (s *site) apiSummary(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	window := 24 * time.Hour
@@ -77,6 +101,7 @@ func (s *site) apiSummary(w http.ResponseWriter, r *http.Request) {
 		"errors": s.apiRecentErrors(ctx, since,
 			clamp(r.URL.Query().Get("errors"), 20, 200), source, contains),
 		"busiest_paths": s.apiBusiestPaths(ctx, since, 15),
+		"refused":       s.apiRefusedSummary(ctx, since, 15),
 	}
 	if source != "" {
 		out["filtered_to_source"] = source
@@ -230,4 +255,57 @@ func clamp(raw string, def, max int) int {
 		return max
 	}
 	return n
+}
+
+// privateIP is the SQL for an address that is this machine talking to itself,
+// either over loopback or across the docker bridge.
+//
+// The dashboard tile excludes loopback alone, on the reasoning that it should
+// fail toward showing a strange record. A peer container is not strange: dash
+// polls /aggregate here 1,381 times a day from 172.18.0.4, which was 97% of
+// what this field counted on the first day it existed. A number that is
+// almost entirely one known caller cannot report the request that skipped
+// Cloudflare, which is the only thing it is for.
+const privateIP = `(ip = '' OR ip = '127.0.0.1' OR ip = '::1'
+	OR ip LIKE '10.%' OR ip LIKE '127.%' OR ip LIKE '192.168.%' OR ip LIKE '169.254.%'
+	OR ip GLOB '172.1[6-9].*' OR ip GLOB '172.2[0-9].*' OR ip GLOB '172.3[01].*'
+	OR ip LIKE 'fc%' OR ip LIKE 'fd%' OR ip LIKE 'fe80:%')`
+
+func (s *site) apiRefusedSummary(ctx context.Context, since int64, limit int) apiRefused {
+	var out apiRefused
+	err := s.db.QueryRowContext(ctx, `
+		SELECT COUNT(*),
+		       SUM(CASE WHEN status >= 400 AND status < 500 THEN 1 ELSE 0 END),
+		       SUM(CASE WHEN status >= 500 THEN 1 ELSE 0 END),
+		       SUM(CASE WHEN cf_ray = '' AND NOT `+privateIP+` THEN 1 ELSE 0 END)
+		FROM records
+		WHERE ts >= ? AND status > 0 AND component != 'healthz'`, since).
+		Scan(&out.Requests, &out.Client4xx, &out.Server5xx, &out.DirectHits)
+	if err != nil {
+		queryFailed("api refused", err)
+		return apiRefused{TopPaths: []apiBadPath{}}
+	}
+
+	out.TopPaths = []apiBadPath{}
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT host, path, status, COUNT(*), COUNT(DISTINCT ip)
+		FROM records
+		WHERE ts >= ? AND status >= 400 AND status < 500 AND path != ''
+		      AND component != 'healthz'
+		GROUP BY host, path, status
+		ORDER BY COUNT(*) DESC LIMIT ?`, since, limit)
+	if err != nil {
+		queryFailed("api refused paths", err)
+		return out
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var p apiBadPath
+		if err := rows.Scan(&p.Host, &p.Path, &p.Status, &p.Hits, &p.Clients); err != nil {
+			queryFailed("api refused paths scan", err)
+			break
+		}
+		out.TopPaths = append(out.TopPaths, p)
+	}
+	return out
 }
