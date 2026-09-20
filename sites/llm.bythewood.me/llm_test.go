@@ -329,3 +329,103 @@ func TestShortRendersMessagesReadably(t *testing.T) {
 		t.Errorf("not truncated: %q", short(string(msgs), 10))
 	}
 }
+
+func TestRunningReducesTheUpstreamRowAndHidesThePath(t *testing.T) {
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/running" {
+			t.Errorf("asked upstream for %q", r.URL.Path)
+		}
+		fmt.Fprint(w, `{"running":[{"model":"local","state":"ready","name":"Ornith 1.5 9B",
+			"cmd":"llama-server -m /models/ornith/Ornith-1.5-9B-Q4_K_M.gguf",
+			"proxy":"http://localhost:10001"}]}`)
+	}))
+	defer up.Close()
+
+	store := testStore(t)
+	secret, _, _ := store.NewKey("chat")
+	s := &site{store: store, upstream: up.URL, client: up.Client()}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/v1/running", nil)
+	req.Header.Set("Authorization", "Bearer "+secret)
+	s.requireKey(s.running)(rec, req)
+
+	if rec.Code != 200 {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `"loaded":true`) {
+		t.Errorf("a ready model did not read as loaded: %s", body)
+	}
+	// The command line names a path on the machine and the proxy names a
+	// loopback port, and both are answered to a browser on the far side.
+	if strings.Contains(body, "/models/") || strings.Contains(body, "10001") {
+		t.Errorf("the upstream command line leaked: %s", body)
+	}
+}
+
+func TestAModelOnItsWayOffTheCardIsNotLoaded(t *testing.T) {
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"running":[{"model":"local","state":"stopping"}]}`)
+	}))
+	defer up.Close()
+
+	store := testStore(t)
+	secret, _, _ := store.NewKey("chat")
+	s := &site{store: store, upstream: up.URL, client: up.Client()}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/v1/running", nil)
+	req.Header.Set("Authorization", "Bearer "+secret)
+	s.requireKey(s.running)(rec, req)
+
+	if !strings.Contains(rec.Body.String(), `"loaded":false`) {
+		t.Errorf("a stopping model read as loaded: %s", rec.Body.String())
+	}
+}
+
+// llama-swap spells unload as a GET, so the translation is the thing worth
+// asserting: a caller posts and the upstream is asked the way it expects.
+func TestUnloadIsPostedHereAndGotUpstream(t *testing.T) {
+	var method, path string
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		method, path = r.Method, r.URL.Path
+		fmt.Fprint(w, "OK")
+	}))
+	defer up.Close()
+
+	store := testStore(t)
+	secret, _, _ := store.NewKey("chat")
+	s := &site{store: store, upstream: up.URL, client: up.Client()}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/v1/unload", nil)
+	req.Header.Set("Authorization", "Bearer "+secret)
+	s.requireKey(s.unload)(rec, req)
+
+	if rec.Code != 200 {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	if method != "GET" || path != "/unload" {
+		t.Errorf("upstream got %s %s, want GET /unload", method, path)
+	}
+}
+
+func TestUnloadNeedsAKey(t *testing.T) {
+	reached := false
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reached = true
+	}))
+	defer up.Close()
+
+	s := &site{store: testStore(t), upstream: up.URL, client: up.Client()}
+	rec := httptest.NewRecorder()
+	s.requireKey(s.unload)(rec, httptest.NewRequest("POST", "/v1/unload", nil))
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("status = %d, want 401", rec.Code)
+	}
+	if reached {
+		t.Error("an unkeyed unload reached the model server")
+	}
+}

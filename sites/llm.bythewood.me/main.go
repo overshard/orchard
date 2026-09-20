@@ -146,6 +146,11 @@ func main() {
 	mux.HandleFunc("POST /v1/completions", s.requireKey(s.completions))
 	mux.HandleFunc("GET /v1/models", s.requireKey(s.passthrough))
 	mux.HandleFunc("POST /v1/embeddings", s.requireKey(s.passthrough))
+	// What is on the card, and a way to take it off before the idle ttl runs
+	// out. Neither loads anything, so a caller can poll the first as often as
+	// it likes without keeping the weights awake.
+	mux.HandleFunc("GET /v1/running", s.requireKey(s.running))
+	mux.HandleFunc("POST /v1/unload", s.requireKey(s.unload))
 
 	// Unkeyed, and it says nothing but whether this process is up. Asking the
 	// upstream here would wake the weights every thirty seconds and defeat the

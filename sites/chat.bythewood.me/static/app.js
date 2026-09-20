@@ -7,6 +7,7 @@
   const send = $("send"), stop = $("stop"), welcome = $("welcome");
   const incognito = $("incognito"), incogFlag = $("incog-flag");
   const barTitle = $("bar-title"), modelDot = $("model-dot"), footState = $("foot-state");
+  const modelBtn = $("model-btn");
   const side = $("side"), convs = $("convs"), scrim = $("scrim");
 
   // Conversations that finished a turn while the reader was somewhere else.
@@ -309,10 +310,34 @@
     toBottom(true);
   }
 
+  // Three facts land on the model chip from three places, so one painter owns it
+  // and they cannot disagree. Loaded is the weights being on the card, which is
+  // what the eject is offered against.
+  const card = { up: true, loaded: false, busy: false };
+  function paintModel() {
+    const { up, loaded, busy } = card;
+    modelDot.classList.toggle("busy", busy);
+    modelDot.classList.toggle("on", !busy && loaded);
+    modelDot.classList.toggle("down", !up);
+    // A turn holds the card, so the button is an indicator until it finishes.
+    const canEject = up && loaded && !busy;
+    modelBtn.classList.toggle("loaded", canEject);
+    modelBtn.setAttribute("aria-disabled", canEject ? "false" : "true");
+    modelBtn.title = !up ? "The model server is not answering"
+      : busy ? "Answering, so the card is in use"
+      : loaded ? "On the card. Press to unload it and free the GPU."
+      : "Not on the card. It loads itself on the next question.";
+    modelBtn.setAttribute("aria-label", modelBtn.title);
+  }
+  paintModel();
+
   function busy(on) {
     send.hidden = on; stop.hidden = !on; input.disabled = on;
-    modelDot.classList.toggle("busy", on);
-    modelDot.classList.toggle("on", !on);
+    // A turn that is running means the weights are on the card by definition,
+    // so this is the one place the state is known without asking.
+    card.busy = on;
+    if (on) card.loaded = true;
+    paintModel();
     if (!on) refocus();
   }
 
@@ -987,6 +1012,7 @@
     if (!e.shiftKey && key === "k") { e.preventDefault(); toggleFilter(); return; }
     if (!e.shiftKey && key === "/") { e.preventDefault(); toggleSheet(); return; }
     if (e.shiftKey && key === "m") { e.preventDefault(); memToggle(); return; }
+    if (e.shiftKey && key === "u") { e.preventDefault(); unloadModel(); return; }
   });
 
   $("keys-open").addEventListener("click", () => toggleSheet(true));
@@ -1063,8 +1089,9 @@
     try {
       const s = await (await fetch("/api/status")).json();
       if (s.ctx) { ctxSize = s.ctx; meterCap.textContent = kfmt(s.ctx); }
-      modelDot.classList.toggle("on", !!s.up);
-      modelDot.title = s.up ? "The model answering" : "The model server is not answering";
+      card.up = !!s.up;
+      card.loaded = !!s.loaded;
+      paintModel();
       const left = s.search_left || {};
       // Down means a host refused us. Spent means we stopped ourselves. They
       // read the same to a reader mid conversation, so the flag covers both and
@@ -1080,14 +1107,37 @@
         searchDown.title = "The search budget is spent for now, so searching is paused " +
           "rather than pushed. It frees up on its own.";
       } else if (left.day !== undefined) {
-        searchDown.title = "";
         // Not a warning until it is low, just something the bar can answer.
-        $("model-dot").title = (s.up ? "The model answering" : "The model server is not answering") +
-          "\nSearches left today: " + left.day;
+        searchDown.title = "Searches left today: " + left.day;
       }
     } catch { /* leave the bar as it was */ }
   }
   refreshStatus();
+
+  // The card empties on its own after llama-swap's idle ttl, so the chip has to
+  // keep asking or it sits on a green dot for a GPU that is already free. Only
+  // while the tab is in front, since nobody is reading a bar they cannot see.
+  setInterval(() => { if (!document.hidden) refreshStatus(); }, 15000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshStatus(); });
+
+  async function unloadModel() {
+    if (modelBtn.getAttribute("aria-disabled") === "true") {
+      footNote(card.up ? "Nothing is on the card." : "The model server is not answering.");
+      return;
+    }
+    card.loaded = false;
+    paintModel();
+    try {
+      const resp = await fetch("/api/unload", { method: "POST" });
+      const out = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(out.error || "could not unload the model");
+      footNote("Unloaded. The GPU is free until the next question.");
+    } catch (e) {
+      footNote(e.message || String(e));
+    }
+    refreshStatus();
+  }
+  modelBtn.addEventListener("click", unloadModel);
 
   // ---------------------------------------------------------------- viewport
   //
