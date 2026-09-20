@@ -5,9 +5,9 @@ visual, and update it when a decision changes.
 
 There is no shared stylesheet and there is not going to be one. Every site owns
 its own copy of its CSS the same way it owns its own copy of `web/`, so keeping
-these sites looking alike is a thing people do on purpose by following this
-file, not a thing a build step does. A change to the palette is a change in
-five places.
+these sites looking alike is something a person keeps true by following this
+file rather than something a build step enforces. A change to the palette is a
+change in every one of them.
 
 ## Two phosphors
 
@@ -85,7 +85,7 @@ One face does nearly everything.
 ## The grid
 
 Every site draws a 32px grid on `body` in two CSS gradients and nothing else.
-Green at `0.028` alpha on the five tools, amber at `0.022` on dash, which is
+Green at `0.028` alpha on the seven green sites, amber at `0.022` on dash, which is
 where the numbers differ because green reads fainter than amber at the same
 value.
 
@@ -103,7 +103,7 @@ lines up with the layout rather than cutting across it.
 **search borrows dash's texture and keeps green.** It is the one green site with
 the scanlines and the vignette, which contradicts the line below and is a
 choice: it is a page you sit and read answers on rather than a table of
-numbers, so the screen feel earns its place, while the phosphor stays green
+numbers, so the screen feel is worth having, while the phosphor stays green
 because the reading is sustained. Its palette is its own six step warm dark
 (`--void` through `--line-hot`, plus `--bar`) rather than the four role names in
 the table above, since it was built to dash's structure with green swapped in
@@ -140,8 +140,8 @@ glanced at. A section that wants the grid to show through sets
 
 ## The home page
 
-All five tools open the same way, and the home page is an advert for running the
-thing yourself rather than a dashboard. It ends by pointing at the source.
+analytics, status and logging open the same way, and the home page is an advert
+for running the thing yourself rather than a dashboard. It ends by pointing at the source.
 
 The skeleton, in order:
 
@@ -189,7 +189,7 @@ Every chart on every site draws from `chart_theme.js`, which is duplicated byte
 for byte in analytics, logging and status the same way `shipper.go` is. There is
 no shared bundle to put it in, so it gets copied and kept in step.
 
-**Series colours are punchier than the UI palette, on purpose.** Chrome can be
+**Series colours are punchier than the UI palette.** Chrome can be
 muted because nothing depends on telling two borders apart, and a doughnut slice
 does. Same hues, more chroma.
 
@@ -292,7 +292,7 @@ offset, and `::selection` is `rgba(107, 158, 120, 0.3)`. Only `repos` had either
 until 2026-09-01, so tabbing through a form on the other four got whatever
 Bootstrap did per component.
 
-**Citations take two forms and that is on purpose.** `search` writes a bare
+**Citations take two forms.** `search` writes a bare
 superscript `[3]` in `#95cca2` beside a sentence, because the passage it points
 at is on the same page and the number is a jump. `chat` boxes the number on its
 own, 1px `rgba(65, 78, 65, 0.55)` on `--panel` at `0.62rem`, raised `0.32em`,
@@ -330,7 +330,8 @@ and the GitHub mark on the right, linking to that site's own source.
 
 ## The 404
 
-Identical on all four, and it uses the description the handler already sets
+Identical on the four Bootstrap sites, and it uses the description the handler
+already sets
 rather than writing its own line:
 
 ```
@@ -431,8 +432,8 @@ again in a sentence, so the longest string on the page was mostly a repeat of
 the two short ones beside it. The row shows what is not already there instead,
 which is the counties, the forecast office and how long is left.
 
-**Do not cite this file, or anything under `code/memory`, from a comment.** This
-repository is public and the vault is not.
+**Do not cite this file, or anything outside this repository, from a comment.**
+A reader only ever has the repo.
 
 ## Per site
 
@@ -453,7 +454,7 @@ repository is public and the vault is not.
 
 `blog` and `isaacbythewood.com` were always outside this file. `house` joined them
 on 2026-09-13 and it is worth saying why, because on the face of it it is a tool
-with a login like the other eight.
+with a login like the other seven.
 
 The other tools are terminals. One person reads numbers on them, alone, and the
 green phosphor is a costume that suits that. `house` is two people at a kitchen

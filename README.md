@@ -14,6 +14,10 @@ inbound port.
 | `sites/repos.bythewood.me/` | Git remote you push to over HTTPS. Also mirrors GitHub |
 | `sites/dash.bythewood.me/` | Dashboard. Markets, news, weather and the health of the rest, live over SSE |
 | `sites/auth.bythewood.me/` | The front door. One account, a code pushed to a phone, one session for every site |
+| `sites/search.bythewood.me/` | Search. A local model reads the pages it finds and cites every sentence |
+| `sites/chat.bythewood.me/` | Chat. The same local model, with tools that read the rest of this repo |
+| `sites/llm.bythewood.me/` | The model gateway. One set of weights on one card, behind an API key |
+| `sites/house.bythewood.me/` | House hunting. Public records, scored and ranked, for one family's move |
 | `edge/` | The shared cloudflared tunnel, the Caddy behind it, and ntfy for alerts |
 
 ## Requirements
@@ -35,15 +39,15 @@ make install
 
 That opens a browser to authorise a Cloudflare zone, creates the tunnel and
 routes every hostname to it, writes a `.env` for each site that needs one,
-brings the edge and all eight sites up, creates the three ntfy accounts, mints
-the publishers' tokens into the `.env` files that use them, hands them to the
+brings the edge and every site up, creates the three ntfy accounts, mints the
+publishers' tokens into the `.env` files that use them, hands them to the
 running sites, creates the login account and prints its recovery codes, and ends
 on `doctor`.
 
-Nothing asks you to invent a password. Every one it needs is generated and
-printed as it goes, and so are the ten recovery codes the first sign in uses.
-Those are the only copies, so put them in 1Password while they are on screen.
-`make password` prints another whenever you want one.
+Nothing asks you to invent a secret. The ntfy passwords, the publishers' tokens
+and the ten recovery codes the first sign in uses are all generated and printed
+as it goes. Those are the only copies, so put them in 1Password while they are on
+screen. `make password` prints another suggestion whenever you want one.
 
 Signing in is on `auth.bythewood.me`: a username, then a six digit code pushed
 to a phone over ntfy. The other sites hold no password of their own and ask it
@@ -56,18 +60,20 @@ the DNS routes for the second zone fail the first time through. Run
 and the rest are created.
 
 Then point the ntfy Android client at `https://ntfy.bythewood.me` with the
-reading account it printed, and subscribe to `status` and `logging`.
+reading account it printed, and subscribe to `status`, `logging`, `house` and
+`auth`.
 
 Each step is a target of its own, for a run that stopped halfway:
 
 ```sh
 make tunnel-login   # browser auth, one Cloudflare zone at a time
 make tunnel         # create the tunnel, route DNS, write config.yml
-make env            # a .env per site, passwords generated and printed
+make env            # a .env per site that ships a .env.example
 make up             # the edge, then every site, ending in doctor
-make ntfy           # the two alert accounts
-make ntfy-token     # the publishers' token, into the two .env files
-make up             # hand the token to the sites that publish with it
+make ntfy           # the three ntfy accounts
+make ntfy-token     # the publishers' tokens, into the .env files that use them
+make up             # hand the tokens to the sites that publish with them
+make auth-init      # the login account, and its recovery codes
 ```
 
 `up` has to come before `ntfy`, since the accounts are created inside a running
@@ -86,7 +92,7 @@ make deploy SITE=blog.bythewood.me
 ```
 
 That is the only command that rebuilds. Nothing needs exporting first, since
-the four sites with secrets read them from a `.env` beside their compose file.
+the sites with secrets read them from a `.env` beside their compose file.
 
 Editing anything in `edge/` needs `make edge` instead, because those configs are
 baked into images and `make up` does not rebuild.
@@ -100,7 +106,7 @@ make doctor
 Read-only. It prints the tunnel credentials, the network, both edge containers,
 every site, and the SQLite volumes with their sizes, and puts the command that
 fixes it next to anything wrong. A container that is stopped or unhealthy
-usually wants `make up`; one serving the wrong thing wants `make deploy`.
+usually wants `make up`, and one serving the wrong thing wants `make deploy`.
 
 ## Commands
 
@@ -115,10 +121,13 @@ make down                            stop everything
 make tunnel-login                    browser auth for one Cloudflare zone
 make tunnel                          create the tunnel, route DNS, write config
 make tunnel-status                   what the tunnel has right now
-make env                             a .env per site, passwords generated
+make env                             a .env per site that ships a .env.example
 make password                        print a suggested password, writing nothing
-make ntfy                            create the two alert accounts
-make ntfy-token                      mint the publishers' token into the .env files
+make ntfy                            create the three ntfy accounts
+make ntfy-token                      mint the publishers' tokens into the .env files
+make auth-init                       create the login account and print its codes
+make llm-key NAME=chat               mint an api key for the model gateway
+make wiki                            download the offline wikipedia, 12.5GB
 make ntfy-status                     accounts, access and tokens
 make ntfy-passwd                     change the reading account's password
 
@@ -139,7 +148,7 @@ inside one without going through the root. There is no default `SITE`.
 
 Each site is its own Go module and builds on its own. There is no module at the
 repo root, and `go.work` only exists so repo-wide `make` targets and an editor
-can see all eight at once:
+can see all twelve at once:
 
 ```sh
 cd sites/blog.bythewood.me && GOWORK=off go build ./...
@@ -147,8 +156,8 @@ cd sites/blog.bythewood.me && GOWORK=off go build ./...
 
 Each site also carries its own copy of `web/`, the small HTTP layer they all
 need. That means a site is a directory you can lift into its own repository, and
-its Docker build context is that directory instead of the whole monorepo. The
-cost is that a fix in `web/` has to be made eight times.
+its Docker build context is that directory instead of the whole monorepo. That
+means a fix in `web/` has to be made twelve times.
 
 Go serves every request and `html/template` renders the pages. Vite is a build
 step and never a server: it writes content-hashed JS and CSS into `build/dist/`,
