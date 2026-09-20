@@ -79,8 +79,8 @@ help:
 	@echo "  make install               all of the below, in order, from nothing"
 	@echo "  make tunnel-login          browser auth for one Cloudflare zone"
 	@echo "  make tunnel                create the tunnel, route DNS, write config"
-	@echo "  make env                   write every missing .env, passwords filled in"
-	@echo "  make ntfy                  create the two alert accounts"
+	@echo "  make env                   write every missing .env from its example"
+	@echo "  make ntfy                  create the three ntfy accounts"
 	@echo "  make ntfy-token            mint the publishers' tokens into the .env files"
 	@echo "  make auth-init             create the login account, printing its recovery codes"
 	@echo "  make llm-key NAME=chat     mint an api key for the model gateway, printed once"
@@ -111,10 +111,8 @@ up-one: require-site require-env
 	cd $(SITE_DIR) && $(COMPOSE) up --detach
 
 # --force-recreate because compose will otherwise leave the old container in
-# place and still report success, which it did on 2026-08-31: the image built,
-# nothing was replaced, and the deploy read as done. The checks after it are
-# there because a deploy that says it worked and did not is worse than one that
-# fails loudly.
+# place and still report success, so the image builds, nothing is replaced, and
+# the deploy reads as done. The checks after it are there for the same reason.
 deploy: require-site require-env
 	cd $(SITE_DIR) && $(COMPOSE) up --build --force-recreate --detach
 	@echo ""
@@ -284,8 +282,8 @@ doctor:
 # that stopped halfway wants the one that failed rather than all of it again.
 #
 # `up` has to come before `ntfy`, since the accounts are created inside a
-# running container, and the second `up` is what hands the freshly minted token
-# to the two sites that publish with it.
+# running container, and the second `up` is what hands the freshly minted tokens
+# to the sites that publish with them.
 install: tunnel-login tunnel env
 	$(MAKE) --no-print-directory up
 	$(MAKE) --no-print-directory ntfy
@@ -294,7 +292,7 @@ install: tunnel-login tunnel env
 	$(MAKE) --no-print-directory auth-init
 	@echo ""
 	@echo "point the ntfy app at https://ntfy.bythewood.me with the reading"
-	@echo "account above, and subscribe to status, logging and auth."
+	@echo "account above, and subscribe to status, logging, house and auth."
 
 # A password out of /dev/urandom, in groups of eight so it can be read back off
 # a screen. Nothing is written, it is a suggestion to paste into 1Password.
@@ -303,13 +301,12 @@ GEN_PASSWORD = LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 32 | sed 's/
 password:
 	@$(GEN_PASSWORD); echo ""
 
-# A site needs a .env exactly when it ships a .env.example, and the passwords in
-# one are machine-local and never committed, so they are generated here rather
-# than invented. Only an empty *_PASSWORD is filled, which leaves NTFY_TOKEN for
-# `make ntfy-token` and REPOS_MIRROR unset, where unset means on.
+# A site needs a .env exactly when it ships a .env.example. Only an empty
+# *_PASSWORD is filled, which leaves NTFY_TOKEN and LLM_KEY for `make ntfy-token`
+# and `make llm-key`, and REPOS_MIRROR unset, where unset means on.
 #
-# An existing .env is never touched. Rewriting one would sign every open session
-# out of repos and take the ntfy token with it.
+# An existing .env is never touched, since rewriting one takes the token or the
+# api key already written into it.
 env:
 	@for ex in sites/*/.env.example; do \
 		d=$$(dirname "$$ex"); \
@@ -341,7 +338,7 @@ tunnel:
 tunnel-status:
 	@SUDO="$(SUDO)" sh edge/setup-tunnel.sh status
 
-# Both accounts, with generated passwords printed once. Needs orchard-ntfy
+# All three accounts, with generated passwords printed once. Needs orchard-ntfy
 # running, so it comes after `make up`.
 ntfy:
 	@SUDO="$(SUDO)" sh edge/setup-ntfy.sh up

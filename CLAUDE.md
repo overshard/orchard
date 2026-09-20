@@ -7,8 +7,8 @@ repository. Start with `README.md`, this file is the working detail behind it.
 palette, the type, the grid, the home page skeleton and its word budget, and the
 rules that are easy to get wrong all live there. Read it before touching a
 template or a stylesheet, and update it in the same commit when a design
-decision changes. There is no shared stylesheet here on purpose, so five sites
-looking alike is something a person keeps true by following that file.
+decision changes. There is no shared stylesheet here, so the sites looking
+alike is something a person keeps true by following that file.
 
 ## What this is
 
@@ -63,7 +63,7 @@ From the repo root:
 
 ```sh
 make install                         once per machine: tunnel, secrets, containers, alerts
-make up                              edge, then every site; idempotent, and the repair command
+make up                              edge, then every site, idempotent and the repair command
 make deploy SITE=blog.bythewood.me   rebuild one site and replace it
 make doctor                          tunnel, network, containers, and the data volumes
 make wiki                            download the offline wikipedia into its volume, 12.5GB
@@ -94,9 +94,10 @@ reachable on the bridge and nowhere else.
 **Everything is named `orchard-<first label>`.** `orchard-caddy` and
 `orchard-cloudflared` for the edge, then `orchard-blog`, `orchard-analytics`,
 `orchard-status`, `orchard-isaacbythewood`, `orchard-logging`, `orchard-repos`,
-`orchard-house` and `orchard-dash`, plus an `orchard-<label>-data` volume for each of the four
-sites with SQLite. One prefix, so `docker ps --filter name=orchard` is the whole
-system and the Makefile derives a container name from a site directory without a
+`orchard-auth`, `orchard-house`, `orchard-search`, `orchard-chat`, `orchard-llm`
+and `orchard-dash`, plus an `orchard-<label>-data` volume for each site with
+SQLite. One prefix, so `docker ps --filter name=orchard` is the whole system
+and the Makefile derives a container name from a site directory without a
 lookup table.
 
 **Six things reference a container by name, and all six bake it in.**
@@ -112,13 +113,14 @@ the name at runtime, so renaming one means rebuilding Caddy, the portfolio and
 every site, not just editing a compose file. No SQLite database refers to a
 container name.
 
-**The seventh is the one exception.** `sites/chat.bythewood.me/tools/wikipedia.go`
+**`orchard-wiki` is the one exception.** `sites/chat.bythewood.me/tools/wikipedia.go`
 reaches `http://orchard-wiki:8000` through `WIKI_URL`, which compose sets and
 which falls back to that name, so it is the only one of these a dev run can
 point somewhere else without a rebuild.
 
 **Alerts leave through ntfy in the edge, and reading them is authenticated.**
-status publishes to the `status` topic, logging to `logging` and auth to `auth`,
+status publishes to the `status` topic, logging to `logging`, house to `house` and
+auth to `auth`,
 all to `http://orchard-ntfy:8000` on the bridge with a write-only token from
 each site's `.env`, and reading is over the tunnel at `ntfy.bythewood.me` with a
 read-only account. There are three accounts, not two: `orchard-auth` writes the
@@ -159,11 +161,10 @@ to watch.
 because that directory is the project directory, so nothing is exported in a
 shell and nothing is forwarded through the Makefile. `.env` is gitignored by
 bare name and this repo is public, so check it with `git check-ignore -v`
-instead of assuming. Every site needing one commits a `.env.example`, and
-`make env` turns each example into a `.env` with a generated value for every
-empty `*_PASSWORD`, printing them once. It skips a site that already has one,
-because rewriting `repos`' password signs every open session out and rewriting
-either of the other two loses the ntfy token with it.
+instead of assuming. Seven of the twelve commit a `.env.example`, and
+`make env` turns each example into a `.env`, filling in a generated value for any
+empty `*_PASSWORD` and printing it once. It skips a site that already has one,
+because rewriting one loses the ntfy token or the api key that was written into it.
 
 **Editing anything in `edge/` needs `make edge`.** The Caddyfile and ntfy's
 `server.yml` are baked into images and `make up` does not pass `--build`, so an
@@ -182,9 +183,9 @@ is right, and the hostname still 404s from the Cloudflare edge. The DNS route
 calls in that script fail with an authentication error unless `cert.pem` covers
 that zone, which does not matter when the CNAME already exists.
 
-**Containers run as UID 65532, and base images are pinned by digest.** The four
-Alpine sites create a real user at that UID and the two scratch ones use the
-bare number, since there is no `/etc/passwd` to name one in. A `/data` volume
+**Containers run as UID 65532, and runtime base images are pinned by digest.** The
+five Alpine sites create a real user at that UID and the seven scratch ones use
+the bare number, since there is no `/etc/passwd` to name one in. A `/data` volume
 created root-owned stays root-owned, so a new one has to be chown'd once.
 
 **The binary is its own health check.** `-healthcheck` does a loopback GET
@@ -274,9 +275,9 @@ serif, which is how `blog_post.typ` asked for Inter and rendered in DejaVu.
 
 ## dash.bythewood.me
 
-The seventh site, built 2026-08-30. Markets, Hacker News, Lobsters, the weather
-and a health strip for the other six, all on one page that updates itself. It is
-public and has no login, which is the constraint everything below follows from.
+Markets, Hacker News, Lobsters, the weather and a health strip for every other
+site, all on one page that updates itself. It is public and has no login, which
+is the constraint everything below follows from.
 
 **Yahoo's `v7/finance/quote` is gone.** It answers 401 Unauthorized to anything
 that has not carried a cookie and a crumb through their handshake, and it is the
@@ -294,10 +295,10 @@ one. `hn.algolia.com/api/v1/search?tags=front_page` returns all thirty with
 titles, scores and comment counts in a single response.
 
 **Futures replace the cash indexes outside the session**, driven by a New York
-clock in `market.go` rather than by a holiday calendar. There is no calendar on
-purpose, and the case it would catch is caught instead by the age of the S&P's
-own quote: a cash index that has not printed in half an hour during what the
-clock calls regular hours means the clock is wrong.
+clock in `market.go` rather than by a holiday calendar. There is no calendar,
+and the case it would catch is caught instead by the age of the S&P's own
+quote: a cash index that has not printed in half an hour during what the clock
+calls regular hours means the clock is wrong.
 
 **The health strip asks the bridge first and the public hostname only as a
 fallback.** Cloudflare will serve a cached 200 for `/healthz` long after the
@@ -383,7 +384,7 @@ the outlook.
 **`range=1d` for BTC-USD is the UTC day and not the last 24 hours.** It rolls at
 8pm New York, so a poll at 8:05pm came back with six bars and drew a straight
 line across the card. That is what `carrySparks` was written for, and the wider
-range fixes it at the source, but it stays as a guard against Yahoo genuinely
+range fixes it at the source, but it stays as a guard against Yahoo
 having a moment. It keeps the previous shape when a poll returns fewer than five
 points and the last one had more, within one symbol and one trading day so a card
 never shows yesterday's chart or the other instrument's. Only the shape is held
@@ -391,8 +392,8 @@ back, the price and the percent are always fresh.
 
 ## house.bythewood.me
 
-The twelfth site. Listings in from an MLS export, the dealbreakers filtered out,
-what is left scored against the household's daily driving and shown photo first.
+Listings in from an MLS export, the dealbreakers filtered out, what is left
+scored against the household's daily driving and shown photo first.
 
 **It has no public half, and that is the constraint everything else follows
 from.** Every route is behind `RequireAuth`, including `/`, because the page
@@ -418,9 +419,9 @@ doubles on each reopen from ten minutes to a ceiling of eight hours, and one cle
 answer forgives the history. The footer names all of them in plain words and says
 which are resting.
 
-**There is no refresh button, and that is deliberate.** The instinct when a page
-looks wrong is to press it again, which is how a home user gets their IP blocked
-by somebody's free service. A report that came up short finishes itself instead: a
+**There is no refresh button.** The instinct when a page looks wrong is to
+press it again, which is how a home user gets their IP blocked by somebody's
+free service. A report that came up short finishes itself instead: a
 background mender walks the listings with gaps every few minutes, skips any whose
 guard is still resting, and re-runs the assessment, and everything already
 answered comes out of the cache so only the missing part costs a request.
@@ -463,11 +464,10 @@ with somebody watching a blank tab. The row goes in after the geocode, the reade
 is sent to the report, and the rest fills in behind them while the page polls. The
 independent lookups run concurrently, each still paced by its own guard.
 
-**The weights are family first and that is a decision.** The first version put the
-drop-off detour at 25 and the commute at 10, because that is what the brief asked
-for. They are 6 and 4 now, under schools, care, crime, flood, road and
-neighbourhood, because the point of moving is a family that is happy and safe and
-what serves them outranks what is convenient for the driver.
+**The weights are family first and that is a decision.** The drop-off detour is 6
+and the commute 4, under schools, care, crime, flood, road and neighbourhood,
+because the point of moving is a family that is happy and safe and what serves
+them outranks what is convenient for the driver.
 
 **Race and religion are shown and never scored.** The published census figures are
 on the page because they were asked for and they are public. They are not in the
@@ -481,8 +481,8 @@ sit empty, and how many households have children.
 sanctioned listing API, both block scrapers and both forbid it, and a spoofed user
 agent gets banned from the sites worth searching. Real listings arrive three ways
 instead: Redfin's own Download All button, which needs no account and is a person
-using a feature published for people; an export from a buyer's agent, which is the
-only one carrying photographs; and RentCast, whose free plan is fifty requests a
+using a feature published for people, an export from a buyer's agent, which is the
+only one carrying photographs, and RentCast, whose free plan is fifty requests a
 month and where one request covers the whole search radius. The same house from
 two sources is one row, and a field the newer row does not carry keeps what is
 already there, which is how the API's coordinate and the export's photographs end
@@ -558,10 +558,9 @@ because mobile Safari zooms the page in under that and never zooms back out.
 
 ## Signing in
 
-**One account, and it lives on auth.bythewood.me.** analytics, status, logging
-and repos each carried a near identical `auth.go` with its own password until
-2026-08-31. They now have none: signing in is a username and a six digit code
-pushed to a phone over the `auth` ntfy topic, and the four sites ask
+**One account, and it lives on auth.bythewood.me.** No site behind it holds a
+password of its own. Signing in is a username and a six digit code pushed to a
+phone over the `auth` ntfy topic, and every gated site asks
 `orchard-auth:8000/verify` whether the cookie on a request is live.
 
 **The session cookie is opaque and checked on every request.** It is 32 random
@@ -571,7 +570,7 @@ until it expires whatever the issuer says, so signing a device out would mean
 rotating a key and ending every other session with it. Nothing caches the
 answer, because a cache is a window in which a revoked session still works.
 
-**With orchard-auth down, all four dashboards are unreachable.** That is
+**With orchard-auth down, every dashboard behind it is unreachable.** That is
 inherent, and it is why the break-glass is ten Argon2id recovery codes rather
 than a password, and why `make auth-init` prints the first set. ntfy is behind
 the same tunnel as the sites it gates, so a bad tunnel takes the code path with
