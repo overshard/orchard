@@ -87,7 +87,11 @@ var OrchardLogs = Tool{
 	Description: "Read Isaac's own log aggregation at logging.bythewood.me: how many records and " +
 		"errors each of his sites produced, every kind of error with the reason it gives, and the " +
 		"busiest paths with their p95 latency. Use it for anything about whether his sites are " +
-		"misbehaving, what is erroring, or what is slow. Each error comes back grouped, so count " +
+		"misbehaving, what is erroring, or what is slow. The refused section is the one to read for " +
+		"anything about suspicious traffic, scanners or probing: errors will be zero on a day when the " +
+		"edge turned away thousands of them, because a refused request is not an error anywhere. " +
+		"direct_hits there counts requests that reached the origin without passing Cloudflare. " +
+		"Each error comes back grouped, so count " +
 		"and first_seen say how big it is and how long it has run, and the details field carries " +
 		"the reason, which is where the actual cause is rather than in the message. Call it a " +
 		"second time with source or contains to narrow down on one thing. Read only.",
