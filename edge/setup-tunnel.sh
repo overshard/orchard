@@ -7,7 +7,7 @@
 #   make tunnel-status          what exists right now
 #   sh edge/setup-tunnel.sh down    delete the tunnel and its volume
 #
-# `down` has no target on purpose, since deleting the tunnel is not something to
+# `down` has no target, since deleting the tunnel is not something to
 # have one keystroke away from `make doctor`.
 #
 # All cloudflared state lives in a named volume, never a bind mount. The Docker
