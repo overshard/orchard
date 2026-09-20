@@ -141,7 +141,10 @@ func round4(f float64) float64 { return float64(int(f*10000+0.5)) / 10000 }
 
 // ---------------------------------------------------------------- calc
 
-var safeExpr = regexp.MustCompile(`^[0-9\.\+\-\*/\(\)\s%]+$`)
+// Letters and commas are allowed for the function names in exprFuncs, and
+// evalNode is what decides which of them exist. This only keeps the obvious
+// rubbish out before the parser sees it.
+var safeExpr = regexp.MustCompile(`^[0-9a-z\.\+\-\*/\(\)\s%,^]+$`)
 
 // Long enough for any real sum and short enough that writing one cannot use up
 // a whole round's token budget.
@@ -150,9 +153,13 @@ const maxExprChars = 600
 var Calc = Tool{
 	Name: "calc",
 	Description: "Evaluate an arithmetic expression. Use it rather than doing sums in your head, especially " +
-		"for totals and budgets. Keep the expression short: to total a long list of numbers, add them in " +
-		"groups of about twenty and then total the groups, rather than writing every number into one call.",
-	Schema: obj(map[string]any{"expression": str("arithmetic only, like (1299 + 210) * 0.93")}, "expression"),
+		"for totals and budgets. Every total you are about to write down goes through here first, including the " +
+		"total row of a table and any figure you call an average, and the number you print is the number it " +
+		"returned. Changing one line of a table means totalling it again. pow, sqrt, abs, round, floor, ceil, " +
+		"min and max are available, so a monthly mortgage payment is P * r / (1 - pow(1 + r, -n)) with r the " +
+		"monthly rate and n the number of payments. Keep the expression short: to total a long list of numbers, " +
+		"add them in groups of about twenty and then total the groups, rather than writing every number into one call.",
+	Schema: obj(map[string]any{"expression": str("arithmetic only, like (1299 + 210) * 0.93 or 261250 * 0.00588 / (1 - pow(1.00588, -360))")}, "expression"),
 	Run: func(ctx context.Context, d *Deps, a map[string]any) (any, error) {
 		e := argStr(a, "expression")
 		// A model totalling a bank statement will write every line into one
