@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"math"
 	"strconv"
+	"strings"
 )
 
 // The functions calc understands. A mortgage payment needs a power and nothing
@@ -32,16 +33,80 @@ var exprFuncs = map[string]struct {
 	"max":   {2, func(a []float64) (float64, error) { return math.Max(a[0], a[1]), nil }},
 }
 
-// evalExpr walks a parsed Go expression rather than shelling out to anything.
+// evalExpr runs a short program: statements separated by newlines or
+// semicolons, each either `name = expression` or a bare expression, and the
+// value of the last one is the answer.
+//
+// Naming the parts is how anybody writes a mortgage payment, and a model asked
+// for one reaches for `r = 0.05/12` before anything else. Without it the call
+// is refused for a reason the model cannot act on, and it guesses instead.
+func evalExpr(s string) (float64, error) {
+	env := map[string]float64{}
+	var last float64
+	var ran bool
+	for _, st := range splitStatements(s) {
+		name, expr := assignment(st)
+		v, err := evalOne(expr, env)
+		if err != nil {
+			return 0, err
+		}
+		if name != "" {
+			env[name] = v
+		}
+		last, ran = v, true
+	}
+	if !ran {
+		return 0, fmt.Errorf("there is nothing to work out here")
+	}
+	return last, nil
+}
+
+func splitStatements(s string) []string {
+	var out []string
+	for _, part := range strings.FieldsFunc(s, func(r rune) bool { return r == '\n' || r == ';' }) {
+		if p := strings.TrimSpace(part); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// assignment splits `name = expression`. A bare expression comes back with no
+// name, and its value is still available as the answer if it is the last one.
+func assignment(st string) (name, expr string) {
+	i := strings.Index(st, "=")
+	if i < 0 {
+		return "", st
+	}
+	n := strings.TrimSpace(st[:i])
+	if n == "" || !isName(n) {
+		return "", st
+	}
+	return n, strings.TrimSpace(st[i+1:])
+}
+
+func isName(s string) bool {
+	for i, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z', r == '_':
+		case i > 0 && r >= '0' && r <= '9':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// evalOne walks a parsed Go expression rather than shelling out to anything.
 // go/parser is already in the standard library and it rejects everything that
 // is not an expression for free, so the whole risk surface is the node types
 // allowed below.
-func evalExpr(s string) (float64, error) {
+func evalOne(s string, env map[string]float64) (float64, error) {
 	node, err := parser.ParseExpr(s)
 	if err != nil {
 		return 0, fmt.Errorf("that is not an arithmetic expression")
 	}
-	v, err := evalNode(node)
+	v, err := evalNode(node, env)
 	if err != nil {
 		return 0, err
 	}
@@ -51,7 +116,7 @@ func evalExpr(s string) (float64, error) {
 	return v, nil
 }
 
-func evalNode(n ast.Expr) (float64, error) {
+func evalNode(n ast.Expr, env map[string]float64) (float64, error) {
 	switch e := n.(type) {
 	case *ast.BasicLit:
 		switch e.Kind {
@@ -59,8 +124,14 @@ func evalNode(n ast.Expr) (float64, error) {
 			return strconv.ParseFloat(e.Value, 64)
 		}
 		return 0, fmt.Errorf("only numbers are allowed")
+	case *ast.Ident:
+		v, ok := env[e.Name]
+		if !ok {
+			return 0, fmt.Errorf("nothing has been set called %s, write %s = ... on an earlier line", e.Name, e.Name)
+		}
+		return v, nil
 	case *ast.ParenExpr:
-		return evalNode(e.X)
+		return evalNode(e.X, env)
 	case *ast.CallExpr:
 		name, ok := e.Fun.(*ast.Ident)
 		if !ok {
@@ -75,7 +146,7 @@ func evalNode(n ast.Expr) (float64, error) {
 		}
 		args := make([]float64, len(e.Args))
 		for i, a := range e.Args {
-			v, err := evalNode(a)
+			v, err := evalNode(a, env)
 			if err != nil {
 				return 0, err
 			}
@@ -83,7 +154,7 @@ func evalNode(n ast.Expr) (float64, error) {
 		}
 		return f.fn(args)
 	case *ast.UnaryExpr:
-		v, err := evalNode(e.X)
+		v, err := evalNode(e.X, env)
 		if err != nil {
 			return 0, err
 		}
@@ -101,11 +172,11 @@ func evalNode(n ast.Expr) (float64, error) {
 		if e.Op == token.XOR {
 			return 0, fmt.Errorf("^ is not a power here, write pow(base, exponent)")
 		}
-		l, err := evalNode(e.X)
+		l, err := evalNode(e.X, env)
 		if err != nil {
 			return 0, err
 		}
-		r, err := evalNode(e.Y)
+		r, err := evalNode(e.Y, env)
 		if err != nil {
 			return 0, err
 		}
