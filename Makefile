@@ -292,7 +292,7 @@ install: tunnel-login tunnel env
 	$(MAKE) --no-print-directory auth-init
 	@echo ""
 	@echo "point the ntfy app at https://ntfy.bythewood.me with the reading"
-	@echo "account above, and subscribe to status, logging, house and auth."
+	@echo "account above, and subscribe to status, logging and auth."
 
 # A password out of /dev/urandom, in groups of eight so it can be read back off
 # a screen. Nothing is written, it is a suggestion to paste into 1Password.

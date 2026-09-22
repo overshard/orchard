@@ -13,7 +13,7 @@ alike is something a person keeps true by following that file.
 ## What this is
 
 One repo for every site Isaac Bythewood runs, plus the shared Cloudflare Tunnel
-and Caddy that front them. Twelve sites, all Go, all served from a desktop behind a
+and Caddy that front them. Eleven sites, all Go, all served from a desktop behind a
 tunnel rather than a rented server.
 
 | Directory | What it serves |
@@ -27,8 +27,7 @@ tunnel rather than a rented server.
 | `sites/dash.bythewood.me/` | Dashboard. Markets off Yahoo, Hacker News and Lobsters, the weather, and whether the other sites are answering. One poller, server sent events out, no database |
 | `sites/auth.bythewood.me/` | The front door. One account, a six digit code pushed over ntfy, and an opaque session every other site checks against it |
 | `sites/search.bythewood.me/` | Answers a question against the web, checking every sentence it writes against the passage it cites |
-| `sites/chat.bythewood.me/` | A conversation with a local model, with tools, attachments, history in SQLite and an incognito mode that writes nothing. It also carries the house hunting lookups, which used to be a dashboard of their own. Beside it an offline Wikipedia, served by kiwix off a 12.5GB ZIM |
-| `sites/house.bythewood.me/` | The house hunting dashboard, on its way out. Its lookup engine now lives in `sites/chat.bythewood.me/property/` and answers questions instead of drawing cards. The one site with no public half |
+| `sites/chat.bythewood.me/` | A conversation with a local model, with tools, attachments, history in SQLite and an incognito mode that writes nothing. It also answers a house out of public records, which used to be a dashboard of its own. Beside it an offline Wikipedia, served by kiwix off a 12.5GB ZIM |
 | `sites/llm.bythewood.me/` | The model gateway. One set of weights on one card behind an API key, with every prompt and completion logged unless the caller marks the call incognito |
 | `edge/` | The shared `cloudflared` tunnel, the Caddy that reverse proxies to each site, and the ntfy every alert is published to |
 
@@ -37,7 +36,7 @@ tunnel rather than a rented server.
 **Every site is its own Go module and owns its own copy of `web/`.**
 
 There is no module at the repo root. `go.work` exists so repo wide `make`
-targets and an editor can see all twelve at once, and nothing depends on it. Each
+targets and an editor can see all eleven at once, and nothing depends on it. Each
 site builds standalone:
 
 ```sh
@@ -53,9 +52,9 @@ policies, graceful shutdown, `shipper.go`, the tee handler that copies every log
 record to logging.bythewood.me, and `session.go`, which asks auth.bythewood.me
 whether the cookie on a request is a live session.
 
-**A fix in `web/` has to be made twelve times.** Do not add a shared parent module
+**A fix in `web/` has to be made eleven times.** Do not add a shared parent module
 to avoid it, and keep `shipper.go` and `session.go` byte identical across the
-twelve, since both are wire formats as much as files.
+eleven, since both are wire formats as much as files.
 
 ## Commands
 
@@ -94,7 +93,7 @@ reachable on the bridge and nowhere else.
 **Everything is named `orchard-<first label>`.** `orchard-caddy` and
 `orchard-cloudflared` for the edge, then `orchard-blog`, `orchard-analytics`,
 `orchard-status`, `orchard-isaacbythewood`, `orchard-logging`, `orchard-repos`,
-`orchard-auth`, `orchard-house`, `orchard-search`, `orchard-chat`, `orchard-llm`
+`orchard-auth`, `orchard-search`, `orchard-chat`, `orchard-llm`
 and `orchard-dash`, plus an `orchard-<label>-data` volume for each site with
 SQLite. One prefix, so `docker ps --filter name=orchard` is the whole system
 and the Makefile derives a container name from a site directory without a
@@ -119,8 +118,7 @@ which falls back to that name, so it is the only one of these a dev run can
 point somewhere else without a rebuild.
 
 **Alerts leave through ntfy in the edge, and reading them is authenticated.**
-status publishes to the `status` topic, logging to `logging`, house to `house` and
-auth to `auth`,
+status publishes to the `status` topic, logging to `logging` and auth to `auth`,
 all to `http://orchard-ntfy:8000` on the bridge with a write-only token from
 each site's `.env`, and reading is over the tunnel at `ntfy.bythewood.me` with a
 read-only account. There are three accounts, not two: `orchard-auth` writes the
@@ -161,7 +159,7 @@ to watch.
 because that directory is the project directory, so nothing is exported in a
 shell and nothing is forwarded through the Makefile. `.env` is gitignored by
 bare name and this repo is public, so check it with `git check-ignore -v`
-instead of assuming. Seven of the twelve commit a `.env.example`, and
+instead of assuming. Six of the eleven commit a `.env.example`, and
 `make env` turns each example into a `.env`, filling in a generated value for any
 empty `*_PASSWORD` and printing it once. It skips a site that already has one,
 because rewriting one loses the ntfy token or the api key that was written into it.
@@ -392,10 +390,76 @@ back, the price and the percent are always fresh.
 
 ## chat.bythewood.me, the house lookups
 
-`property/` is the engine that used to be house.bythewood.me, moved into chat and
-offered as two tools. A dashboard could draw everything about a house at once and
-could not answer a question, and every question about a house is a follow up: what
-about the flood zone, what if we put ten percent down, what would USDA cost.
+`property/` answers what a house at an address would be like to live in and what
+it would cost, from public records and nothing else. It was a dashboard of its own
+before this, and a dashboard can draw everything about a house at once and cannot
+answer a question, while every question about a house is a follow up: what about
+the flood zone, what if we put ten percent down, what would USDA cost.
+
+**Every fact comes from a free public service and each one is guarded.** FEMA's
+flood layer, USGS hydrography and elevation, NCDOT traffic counts, Overpass, the
+Census geocoder, OSRM, the DHSR roster, the Esri ACS layers, USDA's eligibility
+map and two county GIS servers that are one machine in a county building.
+`guard.go` paces each with jitter, keeps a hard per-window budget, honours 429 and
+503 and both formats of Retry-After, and trips a breaker whose state is a row in
+SQLite rather than memory, so a restart does not hand a struggling service a fresh
+round.
+
+**There is no refresh.** The instinct when an answer looks short is to ask again,
+which is how a home address gets blocked by somebody's free service. A report that
+came up short names what is missing and which upstreams are resting, and the next
+question finds the gap filled.
+
+**A geocoded point sits in the road, not on the lot.** The Census geocoder
+interpolates along the street centreline, so a point-in-polygon parcel query
+matches nothing. It queries an envelope and takes the nearest parcel, and says
+when the parcel it found is not the address that was asked about.
+
+**Two county parcel layers are unusable and the statewide one is not.**
+Alexander's declares a world projection while holding state plane coordinates, so
+ArcGIS reprojects a query into the Gulf of Guinea, and Catawba's publishes geometry
+with no attributes. NC OneMap aggregates all hundred counties and declares EPSG
+2264 correctly.
+
+**The user agent is per endpoint, and the two kinds want opposite things.** A
+public records server behind a WAF answers 403 to anything that is not a browser,
+which is what the DHSR roster does. An API meant for programs wants the opposite:
+Overpass answers 406 to a browser string, which is how fixing the roster broke
+every road lookup after it.
+
+**The water buffer is three buffers, not one.** NHD maps every wet-weather ditch
+in these counties and nearly every rural parcel has one inside 300ft, so one
+buffer over all water flagged eleven of sixteen sample addresses and found no
+flood risk at all. Year-round, intermittent and ditch each get their own.
+
+**A main road has to be at frontage distance to count.** Off a small road that
+leads to a main road is a different thing from fronting one, so a primary road
+drawn four hundred feet away says nothing about the driveway. Both the traffic
+count and the OSM class are gated on `aadt_radius_ft`.
+
+**Two counties publish attendance boundaries and three do not.** Alexander
+(`BoundaryLayers` 32, 33, 34) and Caldwell (`Public_Access` 13 to 16) are queried
+live. Catawba, Burke and Iredell publish none, so those read `nearest, not
+confirmed` and are never passed off as the zoned school, because the drop-off
+detour is measured to whatever school is named.
+
+**Overpass answers 504 under load** often enough that a single endpoint means no
+road data at all, and publishes a two concurrent query limit it enforces. There
+are several mirrors, each with its own guard, and all Overpass traffic goes
+through one mutex.
+
+**Distances are -1 when nothing was found, never +Inf,** since these structs are
+cached as JSON and JSON cannot carry an infinity, so a marshal would fail on
+exactly the rows furthest from water. Both lookups also carry a `Measured` flag,
+because the zero value otherwise reads as standing in a creek beside a motorway
+ramp.
+
+**A cached payload's shape is part of its key.** Every external answer is cached
+on the rounded coordinate, because a flood zone does not change between Tuesdays.
+When a struct gains a field the kind has to change with it (`roadv2`, `floodv2`,
+`parcel3`, `acs2`), and the assembled report carries a `reportVersion` for the
+same reason: an older row decoded into a newer struct reads as zero, and zero is a
+claim.
 
 **The tool takes a section, like `orchard_dash` takes a panel.** A whole report is
 several thousand tokens and a conversation about one house is a dozen questions,
@@ -487,178 +551,6 @@ record against a house standing on it. Both produce a percentage precise enough
 for a model to repeat as a finding, so `parcelCaveat` suppresses the comparison
 and says what is wrong with the record instead. 2953 Link Dr is the real case, an
 $11,100 assessment against a $289,900 asking price.
-
-## house.bythewood.me
-
-Listings in from an MLS export, the dealbreakers filtered out, what is left
-scored against the household's daily driving and shown photo first.
-
-**It is being retired.** Every lookup it does now lives in
-`sites/chat.bythewood.me/property/` and answers questions rather than drawing
-cards, so this site is a dashboard nobody needs a second copy of. Nothing here
-should be extended, and the section below is kept because the reasoning behind
-each lookup is worth having in one place until the site goes.
-
-**It has no public half, and that is the constraint everything else follows
-from.** Every route is behind `RequireAuth`, including `/`, because the page
-carries an address, a budget and a child's school run. It has no home page advert,
-no social card, no canonical, and it carries `noindex` whatever the hostname, where
-the other sites only do on staging.
-
-**Everything personal is in `data/config.json`, which is gitignored.** The
-committed half is `config.example.json` with placeholders. This repository is
-public, so the office address, the budget, the weights and the school run live in
-the data volume beside the database. A missing config is not fatal: the site boots
-on defaults and says so on every page, because a dashboard that will not start is
-harder to fix than one that tells you what it is missing.
-
-**Every fact on a card comes from a free public service, and each one is
-guarded.** FEMA's flood layer, USGS hydrography and elevation, NCDOT traffic
-counts, Overpass, the Census geocoder, OSRM, the DHSR roster, and two county GIS
-servers that are one machine in a county building. `guard.go` paces each with
-jitter, keeps a hard per-window budget, honours 429 and 503 and both formats of
-Retry-After, and trips a breaker whose state is a row in SQLite rather than
-memory, so a restart does not hand a struggling service a fresh round. The backoff
-doubles on each reopen from ten minutes to a ceiling of eight hours, and one clean
-answer forgives the history. The footer names all of them in plain words and says
-which are resting.
-
-**There is no refresh button.** The instinct when a page looks wrong is to
-press it again, which is how a home user gets their IP blocked by somebody's
-free service. A report that came up short finishes itself instead: a
-background mender walks the listings with gaps every few minutes, skips any whose
-guard is still resting, and re-runs the assessment, and everything already
-answered comes out of the cache so only the missing part costs a request.
-
-**A lookup that failed must never lower a score.** A failed lookup says nothing
-about the house, so the factor is marked unknown, left out of the total, and the
-report says what fraction of the house it was scored on. Getting this wrong is
-easy and silent: a distance of "not found" reads as nothing nearby, a zero-valued
-struct reads as standing in a creek, and a half mark reads as average. All three
-have happened here.
-
-**The front door is an address box, not a listing feed.** Paste an address and an
-asking price and everything else comes from public records: NC OneMap's statewide
-parcel layer for the deeded acreage and the assessed value, the census for the
-area, and the same services a listing would have gone through. That removed the
-only dependency that could not be satisfied for free, since MLS data is licensed
-and every route to it is paid, keyed or behind a sign in.
-
-**Two county parcel layers are unusable and the statewide one is not.**
-Alexander's declares a world projection while holding state plane coordinates, so
-ArcGIS reprojects a query into the Gulf of Guinea and matches nothing, and
-Catawba's publishes geometry with no attributes. NC OneMap aggregates all hundred
-counties, declares EPSG 2264 correctly, and names the assessor each row came from.
-
-**A geocoded point sits in the road, not on the lot.** The Census geocoder
-interpolates along the street centreline, so a point-in-polygon parcel query
-matches nothing at all. It queries an envelope and takes the nearest parcel, and
-says on the page when the parcel it found is not the address that was typed.
-
-**The user agent is per endpoint, and the two kinds want opposite things.** A
-public records server behind a WAF answers 403 to anything that is not a browser,
-which is what the DHSR roster does. An API meant for programs wants the opposite:
-Overpass answers 406 to a browser string, which is how fixing the roster broke
-every road lookup after it. The browser string is the default and the ones that
-want a real client name say so.
-
-**Checking one address is asynchronous, and has to be.** A dozen paced calls to
-other people's servers took a minute and a half and then died on the write timeout
-with somebody watching a blank tab. The row goes in after the geocode, the reader
-is sent to the report, and the rest fills in behind them while the page polls. The
-independent lookups run concurrently, each still paced by its own guard.
-
-**The weights are family first and that is a decision.** The drop-off detour is 6
-and the commute 4, under schools, care, crime, flood, road and neighbourhood,
-because the point of moving is a family that is happy and safe and what serves
-them outranks what is convenient for the driver.
-
-**Race and religion are shown and never scored.** The published census figures are
-on the page because they were asked for and they are public. They are not in the
-score and must not be put there: a tool that ranks houses by who lives nearby is a
-redlining machine whatever it was built for, and the number it produced would say
-nothing about whether a family would be safe or happy. What does bear on that, and
-what is scored, is crime, how many neighbours own rather than rent, how many homes
-sit empty, and how many households have children.
-
-**Nothing here scrapes anything.** Neither Zillow nor Realtor.com has a free
-sanctioned listing API, both block scrapers and both forbid it, and a spoofed user
-agent gets banned from the sites worth searching. Real listings arrive three ways
-instead: Redfin's own Download All button, which needs no account and is a person
-using a feature published for people, an export from a buyer's agent, which is the
-only one carrying photographs, and RentCast, whose free plan is fifty requests a
-month and where one request covers the whole search radius. The same house from
-two sources is one row, and a field the newer row does not carry keeps what is
-already there, which is how the API's coordinate and the export's photographs end
-up on the same card.
-
-**Overpass answers 504 under load.** Often enough that a single endpoint means no
-road data for a whole run, which is what the first run here did. There are three
-mirrors, each with its own guard and breaker, tried in order.
-
-**A cached payload's shape is part of its cache key.** Every external answer is
-cached forever on the rounded coordinate, because a flood zone does not change
-between Tuesdays. When a struct gains a field, the kind has to change with it
-(`roadv2`, `floodv2`): an older row decoded into a newer struct reads as zero, and
-zero feet from water is a very different claim from not measured.
-
-**Distances are -1 when nothing was found, never +Inf,** since these structs are
-cached as JSON and JSON cannot carry an infinity, so a marshal would fail on
-exactly the rows furthest from water. Both lookups also carry a `Measured` flag,
-because the zero value of either otherwise reads as standing in a creek beside a
-motorway ramp, which is what a skipped lookup leaves behind.
-
-**The water buffer is three buffers, not one.** NHD maps every wet-weather ditch
-in these counties and nearly every rural parcel has one inside 300ft, so one
-buffer over all water excluded eleven of sixteen sample listings and found no
-flood risk at all. The NHD FCode sorts a line into year-round, intermittent or
-ditch, and each gets its own buffer: 300ft, 150ft and none.
-
-**A main road has to be at frontage distance to count.** Off a small road that
-leads to a main road is the arrangement wanted, so a primary road drawn four
-hundred feet away says nothing about the driveway. Both the traffic count and the
-OSM class are gated on `aadt_radius_ft`.
-
-**Which rules exclude is config, not code.** Five exclude and the rest dock points
-and put a chip on the card saying why, because a corner lot or an old doublewide
-does not sink an otherwise perfect house. `filters.severity` flips any of them
-between the two.
-
-**Two counties publish attendance boundaries and three do not.** Alexander
-(`BoundaryLayers` 32, 33, 34) and Caldwell (`Public_Access` 13 to 16) are queried
-live. Catawba, Burke and Iredell publish none, so a listing there reads `zoning
-unverified` and names the district. It is never guessed from the nearest school:
-the drop-off detour is the heaviest factor and measuring it to the wrong school
-would be worse than leaving it blank.
-
-**The zone layers and the school point layers spell the same school
-differently.** A zone called `306 EAST MIDDLE` is the school `East Alexander
-Middle School`, so the name is tidied and then matched on token overlap with a
-floor of half the words. The zone layers carry a name and no coordinate, and a
-detour needs a coordinate.
-
-**The drop-off detour is one route, not two legs added up.** Home to school to
-work in a single OSRM call, because a stop changes which way the trip leaves the
-house and adding two legs would be a different number.
-
-**His verdict is its own table and a refresh never touches it.** That is the whole
-reason `verdicts` is not a column on `facts`.
-
-**Photos are served off disk and never hotlinked.** The first request fetches one,
-writes it under `/data/photos` and serves the copy, so `img-src` is `'self'` and no
-listing CDN is ever in the page. A grid of big photos opened twice a day from two
-phones would hammer somebody else's CDN, and that CDN would learn which houses are
-being looked at.
-
-**A new listing that clears the filters and scores well pushes to ntfy.** Being
-first to a listing is most of what this is worth and a dashboard only tells you
-when you open it. It publishes to the `house` topic with the write-only token from
-`.env`, low priority for a price cut and high for a new one worth getting up for.
-
-**The phone layout is the real one.** Both readers are usually standing in a
-driveway, so the single column is the design and the wide screens are the media
-queries. Every control that a thumb uses is at least 44px, and the inputs are 16px
-because mobile Safari zooms the page in under that and never zooms back out.
 
 ## Signing in
 
