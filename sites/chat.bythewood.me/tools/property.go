@@ -32,7 +32,10 @@ var PropertyTool = Tool{
 		"the road it fronts and how busy that road is, the schools it is zoned for, the drive to work with the school run in it, " +
 		"the lot size and how flat it is, what the county has it assessed at, how much of the street is owner occupied, the county " +
 		"census figures and reported crime, whether USDA will lend there, and what it costs a month all in under a conventional, " +
-		"FHA, VA or USDA loan. The cost section comes back with a finished markdown table to print as it is. " +
+		"FHA or USDA loan. It comes back with a finished markdown table: print that table as it is and do not " +
+		"retype the figures into prose, because the all-in number means nothing without the rows it is the sum of. " +
+		"What it returns is the whole answer about the house, so never search the web to check it or to fill it out, " +
+		"and never state a fact about the house it did not give you. " +
 		"The page draws buttons under your answer for the other sections, so do not list them. " +
 		"Call it whenever Isaac names an address or asks anything about a particular house, and keep calling it for every follow up " +
 		"about that house. A question naming somebody in his family is about their drive, their work or their school from the house " +
