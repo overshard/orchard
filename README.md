@@ -17,7 +17,6 @@ inbound port.
 | `sites/search.bythewood.me/` | Search. A local model reads the pages it finds and cites every sentence |
 | `sites/chat.bythewood.me/` | Chat. The same local model, with tools that read the rest of this repo, and the house hunting lookups |
 | `sites/llm.bythewood.me/` | The model gateway. One set of weights on one card, behind an API key |
-| `sites/house.bythewood.me/` | House hunting, as a dashboard. On its way out, the engine now lives in chat |
 | `edge/` | The shared cloudflared tunnel, the Caddy behind it, and ntfy for alerts |
 
 ## Requirements
@@ -60,7 +59,7 @@ the DNS routes for the second zone fail the first time through. Run
 and the rest are created.
 
 Then point the ntfy Android client at `https://ntfy.bythewood.me` with the
-reading account it printed, and subscribe to `status`, `logging`, `house` and
+reading account it printed, and subscribe to `status`, `logging` and
 `auth`.
 
 Each step is a target of its own, for a run that stopped halfway:

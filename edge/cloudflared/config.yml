@@ -17,8 +17,6 @@ ingress:
     service: http://caddy:80
   - hostname: auth.bythewood.me
     service: http://caddy:80
-  - hostname: house.bythewood.me
-    service: http://caddy:80
   - hostname: status.bythewood.me
     service: http://caddy:80
   - hostname: logging.bythewood.me
