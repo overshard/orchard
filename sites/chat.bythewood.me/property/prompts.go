@@ -25,7 +25,7 @@ type Prompt struct {
 // something in them, since an offer that comes back empty is worse than none.
 func (r *Report) Prompts() []Prompt {
 	// The whole address, not the street line. A chip arrives as the next turn
-	// with none of this conversation behind it, and "2935 Palmer Pl" on its own
+	// with none of this conversation behind it, and "402 Sample Rd" on its own
 	// does not geocode, so every chip came back "could not place" and the model
 	// started inventing towns to bolt on.
 	where := r.Full()

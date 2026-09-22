@@ -1015,7 +1015,7 @@ func TestTheSummaryCarriesTheCostTable(t *testing.T) {
 
 // everything used to hand back the whole struct, and a small model reaches for it
 // on the first question. Eleven thousand characters of Go field names and
-// sentinel distances came back out of the model as "Palmer Place, residential, 19
+// sentinel distances came back out of the model as "Sample Rd, residential, 19
 // feet class", which is not a sentence about a house.
 func TestEverythingNeverReturnsTheStruct(t *testing.T) {
 	r := &Report{
@@ -1099,19 +1099,19 @@ func TestEverythingFallsBackToTheSummary(t *testing.T) {
 }
 
 // A chip arrives as the next turn with none of the conversation behind it, so it
-// has to carry an address the geocoder can place. Every chip said "2935 Palmer
-// Pl" with no town, every one came back "could not place", and the model started
+// has to carry an address the geocoder can place. Every chip carried the street line
+// with no town, every one came back "could not place", and the model started
 // bolting invented towns onto it, each one a fresh cold lookup.
 func TestChipsCarryAnAddressThatGeocodes(t *testing.T) {
 	r := &Report{
-		Address: "2935 Palmer Pl", City: "Hudson", State: "NC", Zip: "28638",
+		Address: "402 Sample Rd", City: "Anytown", State: "NC", Zip: "27055",
 		Price: 310000, Quotes: []Quote{{Total: 2642, Eligible: true}},
 	}
-	if got := r.Full(); got != "2935 Palmer Pl, Hudson, NC, 28638" {
+	if got := r.Full(); got != "402 Sample Rd, Anytown, NC, 27055" {
 		t.Fatalf("got %q", got)
 	}
 	for _, p := range r.Prompts() {
-		for _, part := range []string{"Hudson", "NC"} {
+		for _, part := range []string{"Anytown", "NC"} {
 			if !strings.Contains(p.Ask, part) {
 				t.Errorf("chip %q is missing %q, so it will not place", p.Ask, part)
 			}
@@ -1127,31 +1127,31 @@ func TestAKnownHouseAnswersWithoutTheGeocoder(t *testing.T) {
 		t.Fatal(err)
 	}
 	ctx := context.Background()
-	full := &Report{Address: "2935 Palmer Pl", City: "Hudson", State: "NC", Zip: "28638", Complete: true}
+	full := &Report{Address: "402 Sample Rd", City: "Anytown", State: "NC", Zip: "27055", Complete: true}
 	if err := e.save(ctx, addressKey(full.Full(), ""), full); err != nil {
 		t.Fatal(err)
 	}
 
 	for _, written := range []string{
-		"2935 Palmer Pl, Hudson, NC, 28638",
-		"2935 Palmer Pl, Hudson, NC",
-		"2935 Palmer Pl",
+		"402 Sample Rd, Anytown, NC, 27055",
+		"402 Sample Rd, Anytown, NC",
+		"402 Sample Rd",
 	} {
 		got, ok := e.cachedLike(ctx, written)
 		if !ok {
 			t.Errorf("%q should find the report already built", written)
 			continue
 		}
-		if got.Address != "2935 Palmer Pl" {
+		if got.Address != "402 Sample Rd" {
 			t.Errorf("%q found the wrong house: %s", written, got.Address)
 		}
 	}
 
 	// A different house on the same street is not this one.
-	if _, ok := e.cachedLike(ctx, "2935 Palmer Pl"); !ok {
+	if _, ok := e.cachedLike(ctx, "402 Sample Rd"); !ok {
 		t.Fatal("setup")
 	}
-	if _, ok := e.cachedLike(ctx, "12 Palmer Pl, Hudson, NC"); ok {
+	if _, ok := e.cachedLike(ctx, "12 Sample Rd, Anytown, NC"); ok {
 		t.Fatal("a different number is a different house")
 	}
 }
