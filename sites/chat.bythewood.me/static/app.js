@@ -892,6 +892,10 @@
   document.querySelectorAll(".chip").forEach((c) =>
     c.addEventListener("click", () => ask(c.dataset.ask)));
 
+  // A prompt chip under an answer sends its question as the next turn. The
+  // renderer cannot reach the composer, so it is handed the way in.
+  window.Widgets.onAsk = (q) => { if (!input.disabled) ask(q); };
+
   $("new-chat").addEventListener("click", () => {
     convID = "";
     thread.replaceChildren();

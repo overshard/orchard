@@ -380,7 +380,30 @@
 
   // Adding a kind is one entry here and one branch on the server. Nothing else
   // in the page knows what a widget is.
-  const KINDS = { ticker: tickerWidget, weather: weatherWidget };
+  // The one kind that carries its own content. A report holds eleven sections
+  // and an answer shows one, so the rest are invisible to anybody who does not
+  // already know they are there. These are buttons rather than a list the model
+  // writes out, because the model mangles a list and cannot be clicked.
+  function promptsWidget(spec) {
+    const asks = (spec && spec.asks) || [];
+    if (!asks.length) return null;
+    const box = el("div", "wdg asks");
+    box.appendChild(el("div", "askhead", "More about " + esc(spec.label || "this")));
+    const row = el("div", "askrow");
+    asks.forEach((p) => {
+      if (!p || !p.ask) return;
+      const b = el("button", "askchip");
+      b.type = "button";
+      b.textContent = p.label || p.ask;
+      b.title = p.ask;
+      b.addEventListener("click", () => window.Widgets.onAsk && window.Widgets.onAsk(p.ask));
+      row.appendChild(b);
+    });
+    box.appendChild(row);
+    return box;
+  }
+
+  const KINDS = { ticker: tickerWidget, weather: weatherWidget, prompts: promptsWidget };
 
   window.Widgets = {
     // render fills a message's widget box. It is called both while a turn is
