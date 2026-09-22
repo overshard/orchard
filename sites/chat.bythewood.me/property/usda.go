@@ -29,8 +29,8 @@ func NewUSDA(db *sql.DB) *USDA {
 	return &USDA{
 		db: db,
 		guard: NewGuard(db, "usda-eligibility", GuardOpts{
-			MinInterval: time.Second,
-			Budget:      400,
+			MinInterval: 2 * time.Second,
+			Budget:      60,
 			Window:      time.Hour,
 			Timeout:     30 * time.Second,
 			UserAgent:   clientUA,

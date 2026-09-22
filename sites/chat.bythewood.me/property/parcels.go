@@ -74,7 +74,7 @@ func NewParcels(db *sql.DB) *Parcels {
 		// a little brisker than the county guards, but not much.
 		guard: NewGuard(db, "nc-parcels", GuardOpts{
 			MinInterval: 2 * time.Second,
-			Budget:      300,
+			Budget:      60,
 			Window:      time.Hour,
 			Timeout:     45 * time.Second,
 		}),

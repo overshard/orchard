@@ -38,7 +38,7 @@ func NewRouter(db *sql.DB) *Router {
 		// OSRM is the answer if a run ever needs to be faster than this.
 		guard: NewGuard(db, "osrm", GuardOpts{
 			MinInterval: 2 * time.Second,
-			Budget:      300,
+			Budget:      150,
 			Window:      time.Hour,
 			Timeout:     30 * time.Second,
 			UserAgent:   clientUA,

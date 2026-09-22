@@ -116,6 +116,13 @@ func (a AreaProfile) CrimeWhyShort() string {
 // the NAME and State columns, so one where clause queries all of them.
 const acsHost = "https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/"
 
+// A cached payload's shape is part of its key. The profile gained median age,
+// income, tenure, vacancy and the county median home value when it went from one
+// layer to four, and an `acs` row written before that decodes into the new struct
+// as five zeroes, which read as claims about the county rather than as a stale
+// cache. Bump this whenever a field is added.
+const acsCacheKind = "acs2"
+
 var acsLayers = []struct {
 	service string
 	fields  []string
@@ -137,7 +144,7 @@ func NewCensus(db *sql.DB) *Census {
 		db: db,
 		guard: NewGuard(db, "acs-census", GuardOpts{
 			MinInterval: 2 * time.Second,
-			Budget:      200,
+			Budget:      60,
 			Window:      time.Hour,
 			Timeout:     40 * time.Second,
 		}),
@@ -171,7 +178,7 @@ func (c *Census) County(ctx context.Context, state, county string) (AreaProfile,
 
 	var payload string
 	err := c.db.QueryRowContext(ctx,
-		`SELECT payload FROM lookups WHERE kind = 'acs' AND key = ?`, key).Scan(&payload)
+		`SELECT payload FROM lookups WHERE kind = ? AND key = ?`, acsCacheKind, key).Scan(&payload)
 	if err == nil {
 		var cached AreaProfile
 		if json.Unmarshal([]byte(payload), &cached) == nil {
@@ -267,8 +274,8 @@ func (c *Census) County(ctx context.Context, state, county string) (AreaProfile,
 		return out, err
 	}
 	if _, err := c.db.ExecContext(ctx,
-		`INSERT OR REPLACE INTO lookups (kind, key, payload, fetched_at) VALUES ('acs',?,?,?)`,
-		key, string(raw), time.Now().Unix()); err != nil {
+		`INSERT OR REPLACE INTO lookups (kind, key, payload, fetched_at) VALUES (?,?,?,?)`,
+		acsCacheKind, key, string(raw), time.Now().Unix()); err != nil {
 		return out, err
 	}
 	return out, nil

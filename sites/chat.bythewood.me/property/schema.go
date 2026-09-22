@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS reports (
 // Migrate applies the schema. It is separate from opening the database because
 // chat owns that, and this package only adds its own tables to it.
 func Migrate(db *sql.DB) error {
-	if _, err := db.Exec(schema); err != nil {
+	if _, err := db.Exec(schema + spendSchema); err != nil {
 		return fmt.Errorf("property schema: %w", err)
 	}
 	return nil

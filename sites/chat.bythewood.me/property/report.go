@@ -86,6 +86,10 @@ type Engine struct {
 	// thing the whole cache exists to avoid.
 	mu       sync.Mutex
 	inflight map[string]chan struct{}
+
+	// Held across the read and the write of the cold ceiling, so two turns asking
+	// about two new addresses at once cannot both see the last slot.
+	spendMu sync.Mutex
 }
 
 func NewEngine(db *sql.DB, cfg Config) (*Engine, error) {
@@ -168,6 +172,13 @@ func (e *Engine) Lookup(ctx context.Context, address string, opt Options) (*Repo
 			e.priceReport(ctx, r, opt)
 			return r, nil
 		}
+	}
+
+	// Nothing above this line leaves the machine twice for the same address, and
+	// everything below it is about thirty eight requests to eleven other people's
+	// servers, so the ceiling goes here: after the cache, before the work.
+	if err := e.spend(ctx, key); err != nil {
+		return nil, err
 	}
 
 	done := e.start(ctx, key, address, matched, lat, lon, opt)

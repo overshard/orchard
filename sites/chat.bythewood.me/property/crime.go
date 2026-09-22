@@ -39,7 +39,7 @@ func NewCrime(db *sql.DB) *Crime {
 			MinInterval: 2 * time.Second,
 			// Two calls per agency per county, and a county is kept for a year, so
 			// this is generous for a first run and nothing at all afterwards.
-			Budget:    300,
+			Budget:    150,
 			Window:    24 * time.Hour,
 			Timeout:   45 * time.Second,
 			UserAgent: clientUA,

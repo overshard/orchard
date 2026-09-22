@@ -34,7 +34,7 @@ func NewRates(db *sql.DB) *Rates {
 		db: db,
 		guard: NewGuard(db, "freddiemac", GuardOpts{
 			MinInterval: 5 * time.Second,
-			Budget:      20,
+			Budget:      10,
 			Window:      24 * time.Hour,
 			Timeout:     30 * time.Second,
 			UserAgent:   clientUA,

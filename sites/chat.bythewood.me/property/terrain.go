@@ -60,7 +60,7 @@ func NewTerrain(db *sql.DB) *Terrain {
 		db: db,
 		guard: NewGuard(db, "usgs-3dep", GuardOpts{
 			MinInterval: 1500 * time.Millisecond,
-			Budget:      400,
+			Budget:      60,
 			Timeout:     40 * time.Second,
 		}),
 	}
