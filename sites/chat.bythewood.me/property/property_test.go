@@ -374,18 +374,18 @@ func TestUnknownAspectNamesTheOnesThereAre(t *testing.T) {
 }
 
 func TestAddressKeyNormalizes(t *testing.T) {
-	a := addressKey("1234 Sampleton Road", "28681")
-	b := addressKey("1234 sampleton rd.", "28681-1234")
+	a := addressKey("402 Sample Road", "27055")
+	b := addressKey("402 sample rd.", "27055-1234")
 	if a != b {
 		t.Fatalf("%q and %q should be the same house", a, b)
 	}
-	if addressKey("1234 Sampleton Rd", "28681") == addressKey("1235 Sampleton Rd", "28681") {
+	if addressKey("402 Sample Rd", "27055") == addressKey("404 Sample Rd", "27055") {
 		t.Fatal("different house numbers are different houses")
 	}
 }
 
 func TestTitleAddressKeepsAbbreviatedDirectionsShouted(t *testing.T) {
-	if got := titleAddress("118 SAMPLETON RD"); got != "118 Sampleton Rd" {
+	if got := titleAddress("402 SAMPLE RD"); got != "402 Sample Rd" {
 		t.Fatalf("got %q", got)
 	}
 	if got := titleAddress("358 N MAIN AVE"); got != "358 N Main Ave" {
