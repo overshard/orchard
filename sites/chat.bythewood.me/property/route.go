@@ -51,10 +51,14 @@ type Leg struct {
 	Miles    float64
 	Geometry string // encoded polyline, for drawing the morning route on the map
 
-	// What the destination is, straight off the config entry. Scoring groups the
-	// drives by this rather than guessing from the key, which put a hospital in
-	// with the colleges the first time round.
+	// What the destination is, straight off the config entry.
 	Kind string
+
+	// Whose drive it is and where it goes. Without the name a question like
+	// "what about her commute" has nothing in the answer to match on, and the
+	// model went looking for the person on Wikipedia instead.
+	Who  string `json:",omitempty"`
+	Name string `json:",omitempty"`
 }
 
 type osrmResponse struct {

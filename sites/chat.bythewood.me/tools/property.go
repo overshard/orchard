@@ -33,8 +33,10 @@ var PropertyTool = Tool{
 		"the lot size and how flat it is, what the county has it assessed at, how much of the street is owner occupied, the county " +
 		"census figures and reported crime, whether USDA will lend there, and what it costs a month all in under a conventional, " +
 		"FHA, VA or USDA loan. " +
-		"Call it whenever Isaac names an address or asks anything about a particular house. Pass the price whenever he has said one, " +
-		"because nothing about the money is worked out without it. " +
+		"Call it whenever Isaac names an address or asks anything about a particular house, and keep calling it for every follow up " +
+		"about that house. A question naming somebody in his family is about their drive, their work or their school from the house " +
+		"being discussed, so it is this tool with section drives, never a search and never an encyclopedia lookup. " +
+		"Pass the price whenever he has said one, because nothing about the money is worked out without it. " +
 		"Ask for one section at a time rather than everything: the first call does the lookups and every call after it about the same " +
 		"address is free, so a follow up costs nothing. " +
 		"A new address costs about forty requests to other people's free servers and only a few are allowed an hour, so call it once " +
@@ -43,8 +45,14 @@ var PropertyTool = Tool{
 	Schema: obj(map[string]any{
 		"address": str("the street address, with the town and state if he gave them"),
 		"section": map[string]any{"type": "string",
-			"description": "which part to return. summary first, then the one the question is about",
-			"enum":        property.Aspects},
+			"description": "which part to return. summary first, then the one the question is about. " +
+				"cost is every loan priced all in. flood is the FEMA zone and the water. road is what it fronts and how busy. " +
+				"schools is the zoned schools and the drop off detour. drives is every drive from the house and whose it is, " +
+				"who lives there, and where the nursing work is, so any question naming a person belongs here. " +
+				"area is the county census figures and reported crime. land is the lot, the slope and the assessed value. " +
+				"neighbours is how much of the street is owner occupied. outings is what there is to do nearby. " +
+				"links is the Redfin, Zillow, Realtor, map and street view pages, built from the address, so never search for those",
+			"enum": property.Aspects},
 		"price":       integer("the asking price in dollars, whenever he has said one"),
 		"hoa_monthly": num("monthly HOA dues, if the listing carried any"),
 		"tax_annual":  num("the annual property tax bill off the listing, which beats the county rate estimate"),
