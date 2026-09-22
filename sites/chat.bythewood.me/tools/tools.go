@@ -79,6 +79,9 @@ type Deps struct {
 	Memory Memory
 	// History is the site's own conversation store, for the same reason.
 	History History
+	// Property is the house lookup engine, wired the same way and for the same
+	// reason: it owns tables in the site's database.
+	Property Property
 	// Whether this turn is incognito, which a tool that reaches a service with
 	// a model behind it has to pass along. Per turn and on the copy too.
 	Incognito bool

@@ -21,13 +21,24 @@ services:
       LLM_CTX: "65536"
       CHAT_DB: /data/chat.db
       WIKI_URL: http://orchard-wiki:8000
+      # The house lookups. The config carries a work address, a budget and a
+      # school run, so it lives in the volume beside the database and never in
+      # this repository. Without it the reports still answer and say they ran on
+      # placeholders.
+      PROPERTY_CONFIG: /data/property.json
+      # Reported crime, the one fact on a report with no keyless route to it.
+      # Free and instant at api.data.gov, and without it the crime lines say
+      # they have no figures rather than guessing.
+      FBI_API_KEY: ${FBI_API_KEY:-}
     volumes:
       - data:/data
     deploy:
       resources:
         limits:
           cpus: "1.00"
-          memory: 512M
+          # A cold property report fires eight lookups at once and some of the
+          # payloads are megabytes, which 512M did not leave room for.
+          memory: 768M
     security_opt:
       - no-new-privileges:true
     logging:
