@@ -352,6 +352,23 @@ body {
 }
 .chip:hover { background: var(--panel-2); border-color: var(--green); color: var(--green-hot); }
 
+/* Follow-up prompts under an answer. A report holds eleven sections and an
+   answer shows one, so these are how the rest are found at all. */
+.wdg.asks { margin-bottom: 0.8rem; }
+.askhead {
+  color: var(--faint); font-size: 0.64rem; font-weight: 600;
+  letter-spacing: var(--track); text-transform: uppercase; margin-bottom: 0.45rem;
+}
+.askrow { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.askchip {
+  background: var(--panel); border: 1px solid rgba(65, 78, 65, 0.42);
+  color: var(--muted); font: inherit; font-size: 0.74rem;
+  padding: 0.35rem 0.6rem; border-radius: 2px; cursor: pointer; text-align: left;
+}
+.askchip:hover { background: var(--panel-2); border-color: var(--green); color: var(--green-hot); }
+/* A thumb needs 44px and these sit in a row somebody scrolls past on a phone. */
+@media (max-width: 40rem) { .askchip { padding: 0.6rem 0.7rem; } }
+
 /* ------------------------------------------------------------------ messages */
 
 .msg { max-width: var(--col); margin: 0 auto 1.6rem; }

@@ -832,3 +832,125 @@ func TestAnOlderCachedReportIsRebuiltNotAnsweredFrom(t *testing.T) {
 		t.Fatal("a current one still comes back")
 	}
 }
+
+// The all-in number means nothing without the rows it is the sum of, and a model
+// asked to explain it in prose drops a line or invents one.
+func TestCostTableAddsUp(t *testing.T) {
+	cfg := testConfig()
+	market := Market{Thirty: 6.95, Found: true, Week: "9/17/2026"}
+	r := &Report{Price: 310000, County: "Alexander",
+		USDA: USDAArea{Eligible: true, Measured: true}}
+	r.Quotes = cfg.Quotes(LoanInput{Price: 310000, County: "Alexander",
+		USDAArea: true, USDAAreaChecked: true}, market)
+
+	table := r.CostTable()
+	for _, want := range []string{
+		"| Monthly cost |", "Principal and interest", "Property tax",
+		"Home insurance", "Mortgage insurance", "Utilities and internet",
+		"**All in per month**", "Down payment", "Cash to close", "Rate",
+	} {
+		if !strings.Contains(table, want) {
+			t.Errorf("the table is missing %q:\n%s", want, table)
+		}
+	}
+
+	// The rows above it have to be what the all-in row is, or the table is
+	// telling a different story from the number.
+	for _, q := range r.Quotes {
+		if q.Total <= 0 {
+			continue
+		}
+		sum := q.PrincipalInt + q.Tax + q.Insurance + q.MI + q.HOA + q.Utilities + q.Internet
+		if d := sum - q.Total; d > 0.02 || d < -0.02 {
+			t.Errorf("%s: the rows sum to %.2f and the all-in row says %.2f", q.Name, sum, q.Total)
+		}
+	}
+
+	// An ineligible programme keeps its column, marked, because "USDA would be
+	// cheapest and this address is not eligible" is the useful answer.
+	if !strings.Contains(table, "not available") {
+		t.Errorf("VA has no entitlement here and its column has to say so:\n%s", table)
+	}
+
+	// Every column is one programme, so a row has as many cells as there are
+	// programmes plus the label.
+	want := 0
+	for _, q := range r.Quotes {
+		if q.Total > 0 {
+			want++
+		}
+	}
+	for _, line := range strings.Split(strings.TrimSpace(table), "\n") {
+		if line == "" {
+			continue
+		}
+		if got := strings.Count(line, "|") - 1; got != want+1 {
+			t.Fatalf("row %q has %d cells, want %d", line, got, want+1)
+		}
+	}
+}
+
+func TestCostTableIsEmptyWithoutAPrice(t *testing.T) {
+	if got := (&Report{}).CostTable(); got != "" {
+		t.Fatalf("nothing to price means no table, got %q", got)
+	}
+}
+
+// Eleven sections are invisible to somebody who does not already know they are
+// there, which is why a question about a household member went to the
+// encyclopedia. Naming the questions is the general fix.
+func TestPromptsOnlyOfferSectionsThatHaveSomething(t *testing.T) {
+	bare := &Report{Address: "402 Sample Rd"}
+	for _, p := range bare.Prompts() {
+		for _, shouldNot := range []string{"schools", "flood", "drives", "road", "lot", "do near"} {
+			if strings.Contains(strings.ToLower(p.Ask), shouldNot) {
+				t.Errorf("nothing was measured, so %q must not be offered", p.Ask)
+			}
+		}
+	}
+
+	full := &Report{
+		Address: "402 Sample Rd",
+		Price:   310000,
+		Quotes:  []Quote{{Type: "conventional", Total: 2642}},
+		Zones:   SchoolZones{Elementary: "A School"},
+		Morning: Morning{Commute: Leg{Minutes: 30}},
+		Flood:   FloodResult{Measured: true},
+		Road:    RoadResult{Measured: true},
+		Street:  StreetResult{Found: true},
+		Parcel:  ParcelResult{Found: true},
+		Outings: OutingsResult{Nearest: []Outing{{Name: "A Park"}}},
+	}
+	got := full.Prompts()
+	if len(got) < 8 {
+		t.Fatalf("want a prompt per section with something in it, got %d: %v", len(got), got)
+	}
+	// Each one arrives as the next turn with none of this conversation behind
+	// it, so it has to carry the address or it means nothing on its own.
+	var labels, asks []string
+	for _, p := range got {
+		if !strings.Contains(p.Ask, "402 Sample Rd") {
+			t.Errorf("prompt %q has to name the house, since it is sent on its own", p.Ask)
+		}
+		// The label is what fits on a chip, so it must not carry the address.
+		if p.Label == "" || strings.Contains(p.Label, "402") {
+			t.Errorf("label %q should be short and carry no address", p.Label)
+		}
+		labels = append(labels, p.Label)
+		asks = append(asks, p.Ask)
+	}
+	// The drives prompt covers the whole household without naming anybody, which
+	// is the half of this that keeps working when the config changes.
+	if !hasSubstring(asks, "everyone in the house") {
+		t.Errorf("the drives prompt should cover everybody rather than one person: %v", asks)
+	}
+	if !hasSubstring(labels, "Drives") {
+		t.Errorf("want a drives chip: %v", labels)
+	}
+}
+
+func TestPromptsNeedAnAddress(t *testing.T) {
+	if got := (&Report{}).Prompts(); got != nil {
+		t.Fatalf("with no address a prompt cannot be sent on its own, got %v", got)
+	}
+}

@@ -1,6 +1,10 @@
 package tools
 
-import "sync"
+import (
+	"sync"
+
+	"chat.bythewood.me/property"
+)
 
 // A widget is the structured half of an answer. The model still writes prose
 // about a ticker or a forecast, but the numbers read better as a chart and a
@@ -24,6 +28,18 @@ type Widget struct {
 	Country string  `json:"country,omitempty"`
 
 	Label string `json:"label,omitempty"`
+
+	// prompts. The one kind that carries its content rather than its subject,
+	// because there is nothing to fetch: these are questions, they do not go
+	// stale, and a conversation reopened next week should still offer them.
+	Asks []property.Prompt `json:"asks,omitempty"`
+}
+
+// Key is what makes two widgets the same one. It lives here because the sink and
+// the emitter both dedupe on it, and they had drifted into two spellings of it,
+// which is how a second chart quietly stops being drawn.
+func (w Widget) Key() string {
+	return w.Kind + "\x00" + w.Symbol + "\x00" + w.Place + "\x00" + w.Label
 }
 
 // Sink collects the widgets one turn produced. A turn runs its tools on
@@ -45,11 +61,10 @@ func (s *Sink) Add(w Widget) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	key := w.Kind + "\x00" + w.Symbol + "\x00" + w.Place
-	if s.seen[key] {
+	if s.seen[w.Key()] {
 		return
 	}
-	s.seen[key] = true
+	s.seen[w.Key()] = true
 	s.list = append(s.list, w)
 }
 
