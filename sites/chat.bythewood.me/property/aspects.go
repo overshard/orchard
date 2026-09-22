@@ -151,6 +151,11 @@ func (r *Report) Cost() map[string]any {
 		delete(loans[i], "_total")
 	}
 	m["loans"] = loans
+	// Handed a shape, the model reproduces the shape, and the all-in number means
+	// nothing without the rows it is the sum of.
+	if t := r.CostTable(); t != "" {
+		m["answer_with_this_table_exactly"] = t
+	}
 
 	if r.Market.Found {
 		m["rate_basis"] = fmt.Sprintf("Freddie Mac's weekly survey for %s, %.2f%% on a 30 year conventional and %.2f%% on a 15 year. Every programme rate below is that plus the spread it normally goes out at, so a lender's sheet on the day is the real number.",
