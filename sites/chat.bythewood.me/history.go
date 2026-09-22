@@ -77,6 +77,10 @@ CREATE TABLE IF NOT EXISTS spend (
 CREATE INDEX IF NOT EXISTS spend_host_at ON spend(host, at);
 `
 
+// DB is for the property package, which owns its own tables in this database
+// rather than a second one. Nothing else reaches in here.
+func (s *Store) DB() *sql.DB { return s.db }
+
 func OpenStore(path string) (*Store, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return nil, err

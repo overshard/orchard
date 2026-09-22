@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"chat.bythewood.me/property"
 	"chat.bythewood.me/tools"
 	"chat.bythewood.me/web"
 	"github.com/yuin/goldmark"
@@ -74,6 +75,7 @@ func main() {
 		model   = flag.String("model", env("LLM_MODEL", "local"), "model name the server answers to")
 		label   = flag.String("model-name", env("LLM_NAME", "Ornith 1.5 9B"), "readable model name, shown in the UI and told to the model")
 		dbPath  = flag.String("db", env("CHAT_DB", "data/chat.db"), "conversation database")
+		propCfg = flag.String("property-config", env("PROPERTY_CONFIG", "data/property.json"), "house hunting config: the work address, the drives and the money")
 		wikiURL = flag.String("wiki", env("WIKI_URL", "http://orchard-wiki:8000"), "offline wikipedia base url")
 		ctxSize = flag.Int("ctx", envInt("LLM_CTX", 32768), "model context window in tokens")
 		health  = flag.Bool("healthcheck", false, "probe the local server and exit")
@@ -125,6 +127,20 @@ func main() {
 	// service, so it is handed the store rather than a url.
 	s.engine.Deps().Memory = memoryStore{store}
 	s.engine.Deps().History = historyStore{store}
+	// The house lookups, which own their own tables in the same database. A
+	// missing config is not fatal: the engine runs on placeholders and every
+	// report says which config it used, since a tool that will not answer is
+	// harder to notice than one that says what it is missing.
+	if pcfg, err := property.LoadConfig(*propCfg); err != nil {
+		slog.Error("property config", "path", *propCfg, "err", err)
+		os.Exit(1)
+	} else if pe, err := property.NewEngine(store.DB(), pcfg); err != nil {
+		slog.Error("property engine", "err", err)
+		os.Exit(1)
+	} else {
+		s.engine.Deps().Property = pe
+		slog.Info("property lookups ready", "config", pcfg.Label)
+	}
 	// The rate limit boxes survive a restart. Without this every deploy asked a
 	// host that was already refusing, which is how a ban gets renewed rather
 	// than expiring.
