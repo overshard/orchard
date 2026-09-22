@@ -51,7 +51,7 @@ var PropertyTool = Tool{
 		"section": map[string]any{"type": "string",
 			"description": "which part to return. summary first, then the one the question is about. " +
 				"cost is every loan priced all in. flood is the FEMA zone and the water. road is what it fronts and how busy. " +
-				"schools is the zoned schools and the drop off detour. drives is every drive from the house and whose it is, " +
+				"schools is the zoned schools and the drop off detour. commutes is how long every drive from the house takes and whose it is, " +
 				"who lives there, and where the nursing work is, so any question naming a person belongs here. " +
 				"area is the county census figures and reported crime. land is the lot, the slope and the assessed value. " +
 				"neighbours is how much of the street is owner occupied. outings is what there is to do nearby. " +

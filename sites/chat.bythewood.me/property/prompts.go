@@ -24,7 +24,11 @@ type Prompt struct {
 // Prompts are the follow ups worth offering, only for the sections that have
 // something in them, since an offer that comes back empty is worse than none.
 func (r *Report) Prompts() []Prompt {
-	where := r.Address
+	// The whole address, not the street line. A chip arrives as the next turn
+	// with none of this conversation behind it, and "2935 Palmer Pl" on its own
+	// does not geocode, so every chip came back "could not place" and the model
+	// started inventing towns to bolt on.
+	where := r.Full()
 	if where == "" {
 		return nil
 	}
@@ -44,7 +48,7 @@ func (r *Report) Prompts() []Prompt {
 	if r.Morning.Commute.Minutes > 0 || len(r.Drives) > 0 {
 		// Phrased to cover the whole household without naming anybody, which is
 		// the half of this that keeps working when the config changes.
-		add("Drives for everyone", "What are the drives from %s like, for everyone in the house?")
+		add("Commutes", "How long are the commutes and the school run from %s, for everyone in the house?")
 	}
 	if r.Flood.Measured {
 		add("Flood risk", "What is the flood risk at %s, and how close is the water?")
