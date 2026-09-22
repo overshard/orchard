@@ -59,7 +59,7 @@ func NewFacilities(db *sql.DB, _ *Geocoder) *Facilities {
 		db: db,
 		guard: NewGuard(db, "nc-health", GuardOpts{
 			MinInterval: 2 * time.Second,
-			Budget:      200,
+			Budget:      60,
 			Window:      time.Hour,
 			Timeout:     45 * time.Second,
 		}),

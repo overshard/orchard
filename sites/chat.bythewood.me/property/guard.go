@@ -59,11 +59,16 @@ type GuardOpts struct {
 }
 
 func NewGuard(db *sql.DB, name string, o GuardOpts) *Guard {
+	// The defaults are what a guard gets when somebody adds an endpoint and does
+	// not think about it, so they are the cautious numbers rather than the
+	// convenient ones. One cold address costs about forty requests across all of
+	// these and only a few addresses are allowed an hour, so no single endpoint
+	// here has any business sending sixty in one.
 	if o.MinInterval == 0 {
-		o.MinInterval = 500 * time.Millisecond
+		o.MinInterval = 1500 * time.Millisecond
 	}
 	if o.Budget == 0 {
-		o.Budget = 2000
+		o.Budget = 60
 	}
 	if o.Window == 0 {
 		o.Window = time.Hour

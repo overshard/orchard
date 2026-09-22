@@ -97,8 +97,12 @@ func (r *Report) Summary() map[string]any {
 		m["cheapest_loan"] = fmt.Sprintf("%s at $%s a month all in", best.Name, comma(best.Total))
 	}
 	if r.Value.Found {
-		m["what_it_is_worth"] = fmt.Sprintf("about $%s, from a $%s assessment carried forward from %d",
+		worth := fmt.Sprintf("about $%s, from a $%s assessment carried forward from %d",
 			comma(r.Value.Estimate), comma(r.Value.Assessed), r.Value.BaseYear)
+		if why := r.parcelCaveat(); why != "" {
+			worth += ", except " + why
+		}
+		m["what_it_is_worth"] = worth
 	}
 	if r.Price <= 0 {
 		m["note"] = "no asking price was given, so nothing about the money was worked out"
@@ -420,7 +424,12 @@ func (r *Report) LandPart() map[string]any {
 			"about $%s, between $%s and $%s, carrying the %d assessment forward %.1f%% on %s",
 			comma(r.Value.Estimate), comma(r.Value.Low), comma(r.Value.High),
 			r.Value.BaseYear, r.Value.MovedPct, r.Value.Basis)
-		if r.Price > 0 && r.Value.Estimate > 0 {
+		// A percentage off a record that is not this house is a wrong number
+		// wearing a precise one's clothes, and a model will repeat it as a
+		// finding. Say what is wrong with the record instead.
+		if why := r.parcelCaveat(); why != "" {
+			m["do_not_compare_the_price_to_that"] = why
+		} else if r.Price > 0 && r.Value.Estimate > 0 {
 			gap := (float64(r.Price) - r.Value.Estimate) / r.Value.Estimate * 100
 			m["asking_against_that"] = fmt.Sprintf("%+.0f%%", gap)
 		}
@@ -499,6 +508,25 @@ func (r *Report) Links() map[string]string {
 	}
 }
 
+// parcelCaveat is why the assessed value must not be held up against the asking
+// price. Both cases are common and both produce a number that looks precise: the
+// geocoder puts the point in the road so the nearest parcel is sometimes next
+// door, and a tax roll carrying land and no buildings is a vacant lot record
+// against a house that is standing on it.
+func (r *Report) parcelCaveat() string {
+	p := r.Parcel
+	if !p.Found || r.Price <= 0 {
+		return ""
+	}
+	if p.Address != "" && addressKey(p.Address, "") != addressKey(r.Address, "") {
+		return fmt.Sprintf("the parcel that matched is %s, not the address asked about, so the assessment is somebody else's", p.Address)
+	}
+	if p.MarketValue > 0 && p.BuildValue == 0 && p.LandValue > 0 {
+		return "the tax roll has land and no buildings on this parcel, so the assessment is for a vacant lot and says nothing about what the house is worth"
+	}
+	return ""
+}
+
 // The one line forms, which the summary is made of.
 
 func (r *Report) floodLine() string {
@@ -508,8 +536,15 @@ func (r *Report) floodLine() string {
 	if r.Flood.SFHA {
 		return fmt.Sprintf("in FEMA zone %s, a special flood hazard area, so flood insurance is required", r.Flood.Zone)
 	}
+	// An unmapped point is not zone X. FEMA leaves plenty of rural parcels off the
+	// panel entirely, and calling that X says somebody surveyed it and found
+	// minimal hazard.
+	if r.Flood.Zone == "" {
+		return fmt.Sprintf("FEMA maps no zone at this point, and the nearest special flood hazard area is %s",
+			feetOrNone(r.Flood.SFHAFeet))
+	}
 	return fmt.Sprintf("zone %s, outside any special flood hazard area, nearest one %s",
-		orUnnamed(r.Flood.Zone, "X"), feetOrNone(r.Flood.SFHAFeet))
+		r.Flood.Zone, feetOrNone(r.Flood.SFHAFeet))
 }
 
 func (r *Report) roadLine() string {

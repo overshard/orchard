@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -491,4 +493,263 @@ func hasSubstring(list []string, want string) bool {
 		}
 	}
 	return false
+}
+
+// A gap bounds the rate and only a ceiling bounds the total. This is the fence
+// against a model spelling one street name six ways inside a single turn.
+func TestColdLookupsAreCapped(t *testing.T) {
+	e, err := NewEngine(testDB(t), testConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+
+	for i := 0; i < coldPerHour; i++ {
+		if err := e.spend(ctx, fmt.Sprintf("house-%d", i)); err != nil {
+			t.Fatalf("address %d should be allowed: %v", i, err)
+		}
+	}
+
+	err = e.spend(ctx, "one-too-many")
+	var spent ErrSpent
+	if !errors.As(err, &spent) {
+		t.Fatalf("want the ceiling, got %v", err)
+	}
+	if spent.Window != "hour" || spent.Ceil != coldPerHour {
+		t.Fatalf("got %+v", spent)
+	}
+	if !strings.Contains(spent.Error(), "already answers") && !strings.Contains(spent.Error(), "still answers") {
+		t.Fatalf("a refusal has to say what still works: %q", spent.Error())
+	}
+}
+
+// An hour rolling off has to hand the allowance back, or the first busy morning
+// turns the tool off for good.
+func TestTheHourlyCeilingRollsOff(t *testing.T) {
+	db := testDB(t)
+	e, err := NewEngine(db, testConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+
+	for i := 0; i < coldPerHour; i++ {
+		if err := e.spend(ctx, fmt.Sprintf("house-%d", i)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := db.Exec(`UPDATE assessments SET started_at = ?`,
+		time.Now().Add(-90*time.Minute).Unix()); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.spend(ctx, "next-hour"); err != nil {
+		t.Fatalf("an hour later there should be allowance again: %v", err)
+	}
+}
+
+func TestTheDailyCeilingHoldsWhenTheHoursRollOff(t *testing.T) {
+	db := testDB(t)
+	e, err := NewEngine(db, testConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+
+	// Spread over the day, so the hourly window never bites and only the daily
+	// one is doing any work.
+	for i := 0; i < coldPerDay; i++ {
+		if _, err := db.Exec(`INSERT INTO assessments (key, started_at) VALUES (?,?)`,
+			fmt.Sprintf("h%d", i), time.Now().Add(-time.Duration(i+2)*time.Minute*50).Unix()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	err = e.spend(ctx, "one-too-many")
+	var spent ErrSpent
+	if !errors.As(err, &spent) || spent.Window != "day" {
+		t.Fatalf("want the daily ceiling, got %v", err)
+	}
+}
+
+// The ceiling is the cost of going out, so an address already in the cache must
+// not pay it. A conversation about one house is a dozen questions.
+func TestACachedAddressCostsNothingAgainstTheCeiling(t *testing.T) {
+	db := testDB(t)
+	e, err := NewEngine(db, testConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	for i := 0; i < coldPerHour; i++ {
+		if err := e.spend(ctx, fmt.Sprintf("house-%d", i)); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := e.save(ctx, "known", &Report{Address: "1 Test Rd", Complete: true}); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := e.cached(ctx, "known"); !ok {
+		t.Fatal("a cached report has to come back with the ceiling spent, since it costs nobody anything")
+	}
+	hour, day := e.Spend(ctx)
+	if hour != 0 || day != coldPerDay-coldPerHour {
+		t.Fatalf("got %d left this hour and %d today", hour, day)
+	}
+}
+
+// A restart handing back a fresh allowance is how a limit becomes a suggestion,
+// and a deploy is a restart.
+func TestTheCeilingSurvivesARestart(t *testing.T) {
+	db := testDB(t)
+	e, err := NewEngine(db, testConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	for i := 0; i < coldPerHour; i++ {
+		if err := e.spend(ctx, fmt.Sprintf("house-%d", i)); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	again, err := NewEngine(db, testConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := again.spend(ctx, "after-the-deploy"); err == nil {
+		t.Fatal("a new process must not hand back a spent allowance")
+	}
+}
+
+// Every one of these is somebody else's free server and several are one machine
+// in a county building, so a budget that drifts up is worth failing a test over.
+func TestEveryEndpointKeepsAModestBudget(t *testing.T) {
+	db := testDB(t)
+	if _, err := NewEngine(db, testConfig()); err != nil {
+		t.Fatal(err)
+	}
+	// One cold address costs about 38 requests across these, and the ceiling is
+	// six an hour, so nothing here needs a four figure allowance.
+	for _, g := range []*Guard{
+		NewGeocoder(db).guard, NewFlood(db, nil).fema, NewFlood(db, nil).usgs,
+		NewTerrain(db).guard, NewParcels(db).guard, NewUSDA(db).guard,
+		NewCensus(db).guard, NewFacilities(db, nil).guard, NewRouter(db).guard,
+	} {
+		if g.budget > 150 {
+			t.Errorf("%s allows %d requests per window, which is more than this ever needs", g.name, g.budget)
+		}
+		if g.minInterval < time.Second {
+			t.Errorf("%s paces at %v, which is faster than a free public service deserves", g.name, g.minInterval)
+		}
+	}
+}
+
+// A cached payload's shape is part of its key. An older row decoded into a newer
+// struct comes back as zeroes, and a zero here is a claim about a county rather
+// than a stale cache, which is why the kind is bumped whenever a field is added.
+func TestAnOlderAreaCacheRowIsNotReadBack(t *testing.T) {
+	db := testDB(t)
+	// What house wrote under the old kind: population and composition only, so
+	// every figure this engine added would come back nought.
+	if _, err := db.Exec(
+		`INSERT INTO lookups (kind, key, payload, fetched_at) VALUES ('acs',?,?,?)`,
+		"north carolina|alexander county",
+		`{"name":"Alexander County","population":36440,"found":true}`,
+		time.Now().Unix()); err != nil {
+		t.Fatal(err)
+	}
+
+	var n int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM lookups WHERE kind = ?`, acsCacheKind).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Fatal("the old row must not be visible under the current kind")
+	}
+	if acsCacheKind == "acs" {
+		t.Fatal("the kind has to change when the struct gains a field")
+	}
+}
+
+// FEMA leaves plenty of rural parcels off the panel entirely, and reading that as
+// zone X says somebody surveyed it and found minimal hazard.
+func TestAnUnmappedPointIsNotZoneX(t *testing.T) {
+	r := &Report{Flood: FloodResult{Measured: true, SFHAFeet: notFound}}
+	if got := r.floodLine(); strings.Contains(got, "zone X") {
+		t.Fatalf("an unmapped point must not read as zone X: %q", got)
+	}
+	if got := r.floodLine(); !strings.Contains(got, "no zone") {
+		t.Fatalf("it has to say FEMA maps nothing here: %q", got)
+	}
+	mapped := &Report{Flood: FloodResult{Measured: true, Zone: "X", SFHAFeet: 1200}}
+	if got := mapped.floodLine(); !strings.Contains(got, "zone X") {
+		t.Fatalf("a real zone X still reads as one: %q", got)
+	}
+}
+
+// The defaults are what an endpoint gets when somebody adds one and does not
+// think about it, so they have to be the cautious numbers.
+func TestGuardDefaultsAreCautious(t *testing.T) {
+	g := NewGuard(testDB(t), "something-new", GuardOpts{})
+	if g.budget > 60 {
+		t.Errorf("an unconsidered endpoint gets %d requests a window, which is too many", g.budget)
+	}
+	if g.minInterval < time.Second {
+		t.Errorf("an unconsidered endpoint paces at %v, which is faster than a free service deserves", g.minInterval)
+	}
+	if g.window > time.Hour {
+		t.Errorf("the default window is %v, so the budget means less than it looks", g.window)
+	}
+}
+
+// An assessment held up against an asking price is only worth anything when the
+// record is for this house. Both of these are common and both produce a number
+// that looks precise enough for a model to repeat as a finding.
+func TestAWrongParcelRecordIsNotComparedToThePrice(t *testing.T) {
+	// The geocoder interpolates along the street centreline, so the nearest
+	// parcel is sometimes next door.
+	nextDoor := &Report{
+		Address: "2953 Link Dr", Price: 289900,
+		Parcel: ParcelResult{Found: true, Address: "2949 Link Dr", MarketValue: 210000,
+			LandValue: 40000, BuildValue: 170000},
+		Value: ValueEstimate{Found: true, Estimate: 231000, Low: 210000, High: 252000, BaseYear: 2025},
+	}
+	land := nextDoor.LandPart()
+	if _, bad := land["asking_against_that"]; bad {
+		t.Fatal("a parcel next door must not be compared to this price")
+	}
+	if why, _ := land["do_not_compare_the_price_to_that"].(string); !strings.Contains(why, "2949") {
+		t.Fatalf("it has to name the parcel it actually matched: %q", why)
+	}
+
+	// A tax roll carrying land and no buildings is a vacant lot record against a
+	// house that is standing on it, which is where the $11,100 assessment on a
+	// $289,900 house came from.
+	vacant := &Report{
+		Address: "2953 Link Dr", Price: 289900,
+		Parcel: ParcelResult{Found: true, Address: "2953 Link Dr", MarketValue: 11100,
+			LandValue: 11100, BuildValue: 0},
+		Value: ValueEstimate{Found: true, Estimate: 11788, Low: 10000, High: 13000, BaseYear: 2025},
+	}
+	if _, bad := vacant.LandPart()["asking_against_that"]; bad {
+		t.Fatal("a vacant lot record must not be compared to the price of a house")
+	}
+	if why, _ := vacant.LandPart()["do_not_compare_the_price_to_that"].(string); !strings.Contains(why, "vacant lot") {
+		t.Fatalf("it has to say the record is land only: %q", why)
+	}
+	if got := vacant.Summary()["what_it_is_worth"].(string); !strings.Contains(got, "vacant lot") {
+		t.Fatalf("the summary line carries the caveat too: %q", got)
+	}
+
+	// A record that is for this house and has buildings on it still gets the
+	// comparison, which is the whole point of having it.
+	good := &Report{
+		Address: "2953 Link Dr", Price: 289900,
+		Parcel: ParcelResult{Found: true, Address: "2953 Link Dr", MarketValue: 240000,
+			LandValue: 40000, BuildValue: 200000},
+		Value: ValueEstimate{Found: true, Estimate: 264000, Low: 240000, High: 288000, BaseYear: 2025},
+	}
+	if _, ok := good.LandPart()["asking_against_that"]; !ok {
+		t.Fatal("a sound record is still compared to the price")
+	}
 }

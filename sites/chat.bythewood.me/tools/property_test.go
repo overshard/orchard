@@ -22,6 +22,8 @@ func (p *propStub) Lookup(_ context.Context, address string, opt property.Option
 	return p.rep, p.err
 }
 
+func (p *propStub) Spend(context.Context) (int, int) { return 5, 24 }
+
 func (p *propStub) Quote(_ context.Context, in property.LoanInput) ([]property.Quote, property.Market, error) {
 	p.in = in
 	return p.quotes, property.Market{Thirty: 6.95, Week: "9/17/2026", Found: true}, nil

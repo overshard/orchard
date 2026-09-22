@@ -461,6 +461,33 @@ figures are on the page because they are public and were asked for.
 asked us to slow down and until when, because "no schools found nearby" and "the
 schools server is refusing us this hour" are not the same fact.
 
+**A model decides when to call this, and that is the new risk.** The dashboard it
+came from had a person clicking a button. A turn here gets six tool rounds and a
+nudge to keep going, so one question can become six addresses, and a model that
+misreads a street name will spell it six ways. One cold address costs about forty
+requests, measured: ten routes, five and four to the two county GIS boxes, four
+census layers, and one or two of everything else. So `spend.go` caps cold lookups
+at **six an hour and twenty five a day**, in the database rather than in memory,
+because a restart handing back a fresh allowance is how a limit becomes a
+suggestion and a deploy is a restart. An address already in the cache costs one
+read and is not counted, so a conversation about one house never runs it down.
+
+**No endpoint budget is a four figure number any more.** They were sized for a
+nightly refresh over a grid of listings and this is a person asking now and then,
+so every one was cut against the measured per address cost: 150 for OSRM, 80 for a
+county GIS box, 40 per Overpass mirror, 60 for the rest, and `GuardOpts` defaults
+to 60 with a 1.5 second gap so an endpoint somebody adds without thinking gets the
+cautious numbers rather than the convenient ones. A test asserts all of it,
+because a budget that drifts up is exactly the change nobody notices.
+
+**An assessed value is only worth comparing to a price when the record is for that
+house.** The geocoder puts the point in the road so the nearest parcel is
+sometimes next door, and a tax roll carrying land and no buildings is a vacant lot
+record against a house standing on it. Both produce a percentage precise enough
+for a model to repeat as a finding, so `parcelCaveat` suppresses the comparison
+and says what is wrong with the record instead. 2953 Link Dr is the real case, an
+$11,100 assessment against a $289,900 asking price.
+
 ## house.bythewood.me
 
 Listings in from an MLS export, the dealbreakers filtered out, what is left
