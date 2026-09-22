@@ -345,7 +345,10 @@ func (r *Report) DrivesPart() map[string]any {
 		for _, leg := range r.Drives {
 			who := leg.Who
 			if who == "" {
-				who = "anybody in the house"
+				// The only drives with nobody against them are the hospitals and
+				// nursing homes, which are nobody's commute yet. Saying what they
+				// are beats filing them under a person who does not drive there.
+				who = "nursing work within reach, for whoever in the house wants it"
 			}
 			byWho[who] = append(byWho[who],
 				fmt.Sprintf("%s: %s, %.1f miles", orUnnamed(leg.Name, "somewhere"), minutes(leg.Minutes), leg.Miles))
@@ -358,21 +361,11 @@ func (r *Report) DrivesPart() map[string]any {
 	if len(r.Household) > 0 {
 		who := map[string]string{}
 		for _, p := range r.Household {
-			who[p.Name] = strings.TrimSpace(p.Role + " " + p.Note)
+			who[p.Name] = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(p.Role), ".") + ". " + p.Note)
 		}
 		// So a question naming somebody is answered about them rather than looked
 		// up as a stranger.
 		m["who_lives_here"] = who
-	}
-	if len(r.Work) > 0 {
-		var names []string
-		for _, f := range r.Work {
-			names = append(names, f.Name+", "+f.Label)
-		}
-		m["work_within_reach"] = map[string]any{
-			"note":   "the nearest hospitals and licensed nursing homes, which is what work nearby means for anybody in this house who nurses",
-			"places": names,
-		}
 	}
 	if r.Morning.Partial {
 		m["incomplete"] = "a leg would not route, so the detour is not trustworthy"
