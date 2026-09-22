@@ -23,6 +23,7 @@ import (
 type Property interface {
 	Lookup(ctx context.Context, address string, opt property.Options) (*property.Report, error)
 	Quote(ctx context.Context, in property.LoanInput) ([]property.Quote, property.Market, error)
+	Spend(ctx context.Context) (hourLeft, dayLeft int)
 }
 
 var PropertyTool = Tool{
@@ -35,7 +36,10 @@ var PropertyTool = Tool{
 		"Call it whenever Isaac names an address or asks anything about a particular house. Pass the price whenever he has said one, " +
 		"because nothing about the money is worked out without it. " +
 		"Ask for one section at a time rather than everything: the first call does the lookups and every call after it about the same " +
-		"address is free, so a follow up costs nothing. Read only, and it buys nothing and tells nobody.",
+		"address is free, so a follow up costs nothing. " +
+		"A new address costs about forty requests to other people's free servers and only a few are allowed an hour, so call it once " +
+		"with the address as he wrote it. If it says the ceiling is spent, say so and stop, because spelling the street a different way " +
+		"is a new address and spends another one. Read only, and it buys nothing and tells nobody.",
 	Schema: obj(map[string]any{
 		"address": str("the street address, with the town and state if he gave them"),
 		"section": map[string]any{"type": "string",
@@ -63,6 +67,8 @@ var PropertyTool = Tool{
 			return nil, err
 		}
 
+		hourLeft, dayLeft := d.Property.Spend(ctx)
+
 		out, ok := rep.Aspect(argStr(a, "section")).(map[string]any)
 		if !ok {
 			return rep.Aspect(argStr(a, "section")), nil
@@ -72,6 +78,13 @@ var PropertyTool = Tool{
 				"and ask the same thing again in a minute rather than guessing at the gaps."
 		}
 		out["other_sections"] = property.Aspects
+		// What is left to spend, so a model deciding whether to look up a second
+		// address can see the cost rather than find out by being refused.
+		if hourLeft <= 2 {
+			out["new_addresses_left"] = fmt.Sprintf(
+				"%d more this hour and %d today. A section of an address already looked up is free.",
+				hourLeft, dayLeft)
+		}
 		return out, nil
 	},
 }

@@ -30,7 +30,7 @@ func NewGeocoder(db *sql.DB) *Geocoder {
 		// reason to be careful rather than a licence.
 		guard: NewGuard(db, "census-geocoder", GuardOpts{
 			MinInterval: 1500 * time.Millisecond,
-			Budget:      400,
+			Budget:      60,
 			Window:      time.Hour,
 		}),
 	}

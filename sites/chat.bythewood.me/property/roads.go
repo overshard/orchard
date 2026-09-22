@@ -121,7 +121,7 @@ func NewRoads(db *sql.DB, badClasses []string, cornerFt float64) *Roads {
 		db: db,
 		ncdot: NewGuard(db, "ncdot-aadt", GuardOpts{
 			MinInterval: 1500 * time.Millisecond,
-			Budget:      400,
+			Budget:      60,
 			Timeout:     30 * time.Second,
 		}),
 		overpass: overpassGuards(db),
@@ -139,7 +139,7 @@ func overpassGuards(db *sql.DB) []mirror {
 			url: u,
 			guard: NewGuard(db, "overpass:"+hostOf(u), GuardOpts{
 				MinInterval: 4 * time.Second,
-				Budget:      120,
+				Budget:      40,
 				Window:      time.Hour,
 				Timeout:     overpassAttempt,
 				// Overpass answers 406 to a browser string. It is an API and it

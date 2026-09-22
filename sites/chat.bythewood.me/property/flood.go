@@ -128,12 +128,12 @@ func NewFlood(db *sql.DB, sfhaZones []string) *Flood {
 		db: db,
 		fema: NewGuard(db, "fema-nfhl", GuardOpts{
 			MinInterval: 1500 * time.Millisecond,
-			Budget:      400,
+			Budget:      60,
 			Timeout:     30 * time.Second,
 		}),
 		usgs: NewGuard(db, "usgs-nhd", GuardOpts{
 			MinInterval: 1500 * time.Millisecond,
-			Budget:      800,
+			Budget:      60,
 			Timeout:     30 * time.Second,
 		}),
 		zones: z,

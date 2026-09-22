@@ -134,7 +134,7 @@ func NewSchools(db *sql.DB) *Schools {
 		guards: map[string]*Guard{},
 		statewide: NewGuard(db, "nc-schools", GuardOpts{
 			MinInterval: 2 * time.Second,
-			Budget:      200,
+			Budget:      60,
 			Window:      time.Hour,
 			Timeout:     40 * time.Second,
 		}),
@@ -144,7 +144,7 @@ func NewSchools(db *sql.DB) *Schools {
 		// the gentlest pace here and the smallest budget.
 		s.guards[key] = NewGuard(db, "gis-"+key, GuardOpts{
 			MinInterval: 3 * time.Second,
-			Budget:      200,
+			Budget:      80,
 			Window:      time.Hour,
 			TripAfter:   3,
 			Timeout:     30 * time.Second,
