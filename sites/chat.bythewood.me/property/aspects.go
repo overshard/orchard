@@ -27,7 +27,7 @@ var Aspects = []string{
 // everything is accepted and not offered. A small model handed it in the enum
 // reaches for it on the first question, and what it used to return was the whole
 // struct: eleven thousand characters of Go field names and sentinel distances,
-// which came back out as "Palmer Place, residential, 19 feet class". It returns
+// which came back out as "Sample Rd, residential, 19 feet class". It returns
 // the written sections now, and the enum leaves it out so summary stays the
 // default for a first look.
 
