@@ -20,9 +20,16 @@ import (
 // Aspects is every slice a caller may ask for, which is also the enum the model
 // is handed.
 var Aspects = []string{
-	"summary", "cost", "flood", "road", "schools", "drives",
-	"area", "land", "neighbours", "outings", "links", "everything",
+	"summary", "cost", "flood", "road", "schools", "commutes",
+	"area", "land", "neighbours", "outings", "links",
 }
+
+// everything is accepted and not offered. A small model handed it in the enum
+// reaches for it on the first question, and what it used to return was the whole
+// struct: eleven thousand characters of Go field names and sentinel distances,
+// which came back out as "Palmer Place, residential, 19 feet class". It returns
+// the written sections now, and the enum leaves it out so summary stays the
+// default for a first look.
 
 // Aspect returns one part of the report. An unknown name comes back with the list
 // rather than an error, since a model that invents a section has still said what
@@ -39,7 +46,9 @@ func (r *Report) Aspect(name string) any {
 		return r.RoadPart()
 	case "schools", "school":
 		return r.SchoolsPart()
-	case "drives", "drive", "commute", "traffic_times":
+	// commutes rather than drives: asked for the drives section the model
+	// answered about the driveway and how many cars fit on it.
+	case "commutes", "commute", "drives", "drive", "traffic_times":
 		return r.DrivesPart()
 	case "area", "demographics", "crime", "census":
 		return r.AreaPart()
@@ -52,7 +61,13 @@ func (r *Report) Aspect(name string) any {
 	case "links":
 		return map[string]any{"links": r.Links()}
 	case "everything", "all", "full":
-		return r
+		// Not in the enum, so a model asking for it is guessing, and what it got
+		// buried the table eleven sections deep and filled the window. The
+		// summary is already a line on every part of the house.
+		out := r.Summary()
+		out["note"] = "there is no everything section. This is the summary, which covers every part of " +
+			"the house in a line. Ask for one of the other sections by name when a question needs the detail."
+		return out
 	default:
 		return map[string]any{
 			"error":    "no section called " + name,
@@ -123,6 +138,32 @@ func (r *Report) Summary() map[string]any {
 	return m
 }
 
+// budgetLine measures the cheapest payment against what he said he wanted to
+// spend. It is written in the second person because the model reads it back
+// almost verbatim, and in the third it told him what "he" was aiming for. Without it in the answer the model invented a range and reported being
+// inside it, which is the worst kind of wrong: specific, plausible, and about his
+// own money.
+func (r *Report) budgetLine() string {
+	best := r.cheapest()
+	if best == nil || r.MonthlyTarget <= 0 {
+		return ""
+	}
+	switch {
+	case best.Total <= r.MonthlyTarget:
+		return fmt.Sprintf("the cheapest is $%s, inside the $%s a month you are aiming for",
+			comma(best.Total), comma(r.MonthlyTarget))
+	case r.MonthlyCeiling > 0 && best.Total <= r.MonthlyCeiling:
+		return fmt.Sprintf("the cheapest is $%s, which is $%s over the $%s you are aiming for and still under your $%s ceiling",
+			comma(best.Total), comma(best.Total-r.MonthlyTarget), comma(r.MonthlyTarget), comma(r.MonthlyCeiling))
+	case r.MonthlyCeiling > 0:
+		return fmt.Sprintf("the cheapest is $%s, which is $%s over your $%s ceiling",
+			comma(best.Total), comma(best.Total-r.MonthlyCeiling), comma(r.MonthlyCeiling))
+	default:
+		return fmt.Sprintf("the cheapest is $%s, which is $%s over the $%s a month you are aiming for",
+			comma(best.Total), comma(best.Total-r.MonthlyTarget), comma(r.MonthlyTarget))
+	}
+}
+
 // cheapest is the lowest all-in monthly among the loans he could actually get.
 func (r *Report) cheapest() *Quote {
 	var best *Quote
@@ -174,6 +215,9 @@ func (r *Report) Cost() map[string]any {
 			r.Market.Week, r.Market.Thirty, r.Market.Deuce)
 	} else {
 		m["rate_basis"] = "the rate survey could not be reached, so any rate below was passed in rather than looked up"
+	}
+	if b := r.budgetLine(); b != "" {
+		m["against_his_budget"] = b
 	}
 	m["assumed"] = []string{
 		fmt.Sprintf("insurance at $%s a year", comma(r.mustCfgInsurance())),

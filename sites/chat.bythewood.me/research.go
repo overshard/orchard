@@ -307,6 +307,42 @@ func countsUpInProse(draft string) bool {
 	return len(numeral.FindAllString(clean, -1)) >= 3 && totalWord.MatchString(clean)
 }
 
+// copiedTheNumbers reports that every figure in the draft already appears in a
+// tool result from this turn, so the model transcribed rather than computed.
+//
+// Some tools add up for it. The property one returns an all-in monthly worked
+// out in Go and a table built from it, and sending that back to be totalled with
+// calc spent two rounds re-deriving a number that was already right.
+func copiedTheNumbers(draft string, used []tools.Result) bool {
+	if len(used) == 0 {
+		return false
+	}
+	var outputs strings.Builder
+	for _, r := range used {
+		if r.Err != "" {
+			continue
+		}
+		raw, err := json.Marshal(r.Content)
+		if err != nil {
+			return false
+		}
+		outputs.Write(raw)
+		outputs.WriteByte('\n')
+	}
+	// Separators differ between a tool result and a sentence, so both sides are
+	// compared on the digits alone.
+	bare := strings.NewReplacer(",", "", "$", "").Replace(outputs.String())
+	if bare == "" {
+		return false
+	}
+	for _, n := range numeral.FindAllString(strings.Join(outsideFences(citeNum.ReplaceAllString(draft, " ")), "\n"), -1) {
+		if !strings.Contains(bare, strings.ReplaceAll(n, ",", "")) {
+			return false
+		}
+	}
+	return true
+}
+
 // outsideFences drops fenced code, since arithmetic in an example is not a
 // claim about a total.
 func outsideFences(s string) []string {
@@ -328,6 +364,16 @@ func outsideFences(s string) []string {
 func calcNudge() string {
 	return "You added those up yourself. Call calc with the figures and write the total it gives you, " +
 		"rather than the one you worked out. If some of the figures are missing, say which."
+}
+
+// propertyNudge is what a thin draft gets when the property tool already ran. A
+// house is answered out of public records and not off the web, so sending it to
+// a search there can only contradict what it was handed, and the sections it has
+// not read yet are the thing it is actually missing.
+func propertyNudge() string {
+	return "That does not cover the house yet. Call property again for the sections you have not " +
+		"read, using the same address, and answer from those. Do not search the web for it. " +
+		"If the result gave you a cost table, print that table as it came and keep it in the answer."
 }
 
 func researchNudge(query string) string {
@@ -402,6 +448,9 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 	}
 	if isDeferral(draft) || refusal.MatchString(draft) {
 		emit(Event{Kind: "status", Text: "looking it up"})
+		if calledTool(used, tools.PropertyTool.Name) {
+			return propertyNudge(), st
+		}
 		return researchNudge(""), st
 	}
 	// Only when nothing was fetched. A turn that did the work and then restated
@@ -413,7 +462,7 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 	}
 	// Before the model check, since it costs nothing and the model check has
 	// never once objected to a wrong sum.
-	if !calledTool(used, tools.Calc.Name) && countsUpInProse(draft) {
+	if !calledTool(used, tools.Calc.Name) && countsUpInProse(draft) && !copiedTheNumbers(draft, used) {
 		emit(Event{Kind: "status", Text: "adding it up"})
 		return calcNudge(), st
 	}
@@ -454,6 +503,9 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 	// The snapshot already has the article, so sending it to a web search for
 	// something a local call answers in milliseconds is the slower way to be
 	// right.
+	if calledTool(used, tools.PropertyTool.Name) {
+		return propertyNudge(), st
+	}
 	if background != "" {
 		return wikiNudge(subjectOf(question)), st
 	}

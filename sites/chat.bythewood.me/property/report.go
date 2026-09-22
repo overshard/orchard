@@ -55,6 +55,12 @@ type Report struct {
 	Market Market  `json:"rates"`
 	Quotes []Quote `json:"loans"`
 
+	// What he said he wanted to spend. Without it in the answer the model
+	// invented a range and reported being inside it, which is the worst kind of
+	// wrong: specific, plausible and about his own money.
+	MonthlyTarget  float64 `json:"monthly_target,omitempty"`
+	MonthlyCeiling float64 `json:"monthly_ceiling,omitempty"`
+
 	// What could not be reached this time, named rather than left as a blank a
 	// reader would take for a measurement of nothing, and which upstreams have
 	// asked us to slow down, which is usually the reason.
@@ -129,6 +135,21 @@ func NewEngine(db *sql.DB, cfg Config) (*Engine, error) {
 
 func (e *Engine) Config() Config { return e.cfg }
 
+// Full is the address as somebody would write it down, which is what the
+// geocoder needs and what anything quoting a report back has to use.
+func (r *Report) Full() string {
+	if r.Address == "" {
+		return ""
+	}
+	out := r.Address
+	for _, part := range []string{r.City, r.State, r.Zip} {
+		if strings.TrimSpace(part) != "" {
+			out += ", " + part
+		}
+	}
+	return out
+}
+
 // A cached report is good for a month. Nothing in it moves faster than that
 // except the rate, which is looked up separately and is not cached with the
 // house, and the price, which comes from whoever is asking.
@@ -167,12 +188,25 @@ func (e *Engine) Lookup(ctx context.Context, address string, opt Options) (*Repo
 		return nil, fmt.Errorf("an address is needed, street and town at least")
 	}
 
+	// Before the geocoder, because a house already looked up is the same house
+	// whether or not the Census is answering and whether or not the street line
+	// arrived with its town on it. A follow up went out with the street alone,
+	// failed to place, and the model started bolting invented towns onto it.
+	if !opt.Refresh {
+		if r, ok := e.cachedLike(ctx, address); ok {
+			e.priceReport(ctx, r, opt)
+			return r, nil
+		}
+	}
+
 	lat, lon, matched, err := e.geo.Geocode(ctx, address)
 	if err != nil {
 		// What the geocoder says is for a log. Whoever asked gets something they
 		// can act on.
 		slog.Info("property geocode failed", "address", address, "err", err)
-		return nil, fmt.Errorf("could not place %s, check the street, town and state and try again", address)
+		return nil, fmt.Errorf(
+			"could not place %s. Give the street, the town and the state, and do not guess at a "+
+				"different town: a wrong one is a different house and costs another lookup", address)
 	}
 
 	key := reportKey(address, matched)
@@ -462,6 +496,8 @@ func (e *Engine) priceReport(ctx context.Context, r *Report, opt Options) {
 		slog.Info("no mortgage rate survey", "err", err)
 	}
 	r.Market = market
+	r.MonthlyTarget = e.cfg.Money.MonthlyTarget
+	r.MonthlyCeiling = e.cfg.Money.MonthlyCeiling
 
 	r.Quotes = e.cfg.Quotes(LoanInput{
 		Price:           r.Price,
@@ -489,6 +525,29 @@ func reportKey(asked, matched string) string {
 		return addressKey(matched, "")
 	}
 	return addressKey(asked, "")
+}
+
+// cachedLike finds a report for an address written any of the ways somebody
+// might write it. The stored key is built from the full matched address, so a
+// street line on its own does not equal it and has to be matched as a prefix.
+func (e *Engine) cachedLike(ctx context.Context, address string) (*Report, bool) {
+	key := addressKey(address, "")
+	if r, ok := e.cached(ctx, key); ok {
+		return r, true
+	}
+	// The street line alone, against the front of a stored key. Anchored, so
+	// "1 Oak" cannot match "21 Oak".
+	bare := strings.TrimSuffix(key, "|")
+	if len(bare) < 8 {
+		return nil, false
+	}
+	var stored string
+	err := e.db.QueryRowContext(ctx,
+		`SELECT key FROM reports WHERE key LIKE ? ORDER BY built_at DESC LIMIT 1`, bare+"%").Scan(&stored)
+	if err != nil {
+		return nil, false
+	}
+	return e.cached(ctx, stored)
 }
 
 func (e *Engine) cached(ctx context.Context, key string) (*Report, bool) {
