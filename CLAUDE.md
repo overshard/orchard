@@ -27,8 +27,8 @@ tunnel rather than a rented server.
 | `sites/dash.bythewood.me/` | Dashboard. Markets off Yahoo, Hacker News and Lobsters, the weather, and whether the other sites are answering. One poller, server sent events out, no database |
 | `sites/auth.bythewood.me/` | The front door. One account, a six digit code pushed over ntfy, and an opaque session every other site checks against it |
 | `sites/search.bythewood.me/` | Answers a question against the web, checking every sentence it writes against the passage it cites |
-| `sites/chat.bythewood.me/` | A conversation with a local model, with tools, attachments, history in SQLite and an incognito mode that writes nothing. Beside it an offline Wikipedia, served by kiwix off a 12.5GB ZIM |
-| `sites/house.bythewood.me/` | A house hunting dashboard. MLS exports in, dealbreakers filtered out, what is left scored against the household's daily driving and shown photo first. The one site with no public half |
+| `sites/chat.bythewood.me/` | A conversation with a local model, with tools, attachments, history in SQLite and an incognito mode that writes nothing. It also carries the house hunting lookups, which used to be a dashboard of their own. Beside it an offline Wikipedia, served by kiwix off a 12.5GB ZIM |
+| `sites/house.bythewood.me/` | The house hunting dashboard, on its way out. Its lookup engine now lives in `sites/chat.bythewood.me/property/` and answers questions instead of drawing cards. The one site with no public half |
 | `sites/llm.bythewood.me/` | The model gateway. One set of weights on one card behind an API key, with every prompt and completion logged unless the caller marks the call incognito |
 | `edge/` | The shared `cloudflared` tunnel, the Caddy that reverse proxies to each site, and the ntfy every alert is published to |
 
@@ -390,10 +390,87 @@ points and the last one had more, within one symbol and one trading day so a car
 never shows yesterday's chart or the other instrument's. Only the shape is held
 back, the price and the percent are always fresh.
 
+## chat.bythewood.me, the house lookups
+
+`property/` is the engine that used to be house.bythewood.me, moved into chat and
+offered as two tools. A dashboard could draw everything about a house at once and
+could not answer a question, and every question about a house is a follow up: what
+about the flood zone, what if we put ten percent down, what would USDA cost.
+
+**The tool takes a section, like `orchard_dash` takes a panel.** A whole report is
+several thousand tokens and a conversation about one house is a dozen questions,
+so `Aspect` slices it and the first answer names the other sections. The first
+call about an address does the lookups and every call after it is one SQLite read,
+which is what makes a follow up free rather than another minute of somebody else's
+servers.
+
+**A cold report answers before it is finished.** A dozen paced calls run past a
+minute and nobody in a conversation sits through that, so the assessment runs in
+the background on its own context and the tool waits 75 seconds for it. What is
+done comes back, the gaps are named, and the finished report lands in the cache for
+the next question. The background run outliving the turn is the part that matters:
+a caller who gave up waiting still leaves a finished report behind.
+
+**Every value a tool returns is already in words with its unit in the key.** A
+model handed `{"sfha_feet": -1}` writes that the house is minus one foot from a
+flood zone. Distances are -1 when nothing was found, so `feetOrNone` is what turns
+that into "none found within the search radius" before the model ever sees it.
+
+**Four loan programmes, and they are not variations on one loan.** FHA charges an
+upfront premium and then an annual one that usually never comes off, VA charges a
+funding fee and no insurance at all, USDA charges both but less, and conventional
+charges neither once there is twenty percent equity. Comparing note rates alone
+gets the ranking wrong most weeks, which is why every quote is the all-in monthly.
+Every government programme finances its upfront fee, so it lands on the loan and
+not on the cash to close.
+
+**The rate is Freddie Mac's weekly survey and nothing else is free.** Every lender
+rate table is behind a lead form and every aggregator wants a key. PMMS is a
+conventional conforming survey rate, so the other three are a spread off it, and
+the report says so rather than passing it off as a quote.
+
+**USDA's map publishes the ineligible areas, not the eligible ones.** A point that
+matches no polygon is a point they will lend on. Reading it the other way round
+calls the whole county ineligible, which is why the test pins a town and a rural
+address on both sides of it.
+
+**A programme that was not checked and one that failed must not read alike.**
+Blockers are what is known to be wrong and checks are what nobody said, and they
+are separate lists for the same reason a failed lookup never moves a score.
+
+**The FBI key is the one thing here that is not keyless.** `FBI_API_KEY` in `.env`,
+free and instant at api.data.gov, and without it every crime line says it has no
+figures rather than guessing.
+
+**Everything personal is in `data/property.json`,** gitignored like house's was,
+with `property.example.json` committed carrying placeholders. A work address, a
+budget and a child's school run are not facts to publish, and a missing config is
+not fatal: the reports run on defaults and say which config they used.
+
+**The Census Bureau's own API stopped answering without a key,** so the figures
+come from the Esri Living Atlas ACS layers instead, four of them, because no single
+layer carries age, income, tenure and composition together. Layer 1 is the county
+layer on all four and they share the NAME and State columns, so one where clause
+queries all of them.
+
+**Race and religion are shown and never scored.** Nothing here ranks a house at
+all any more, which removes the way that could have gone wrong, and the published
+figures are on the page because they are public and were asked for.
+
+**A gap without a reason is worth nothing.** `Resting` names which upstreams have
+asked us to slow down and until when, because "no schools found nearby" and "the
+schools server is refusing us this hour" are not the same fact.
+
 ## house.bythewood.me
 
 Listings in from an MLS export, the dealbreakers filtered out, what is left
 scored against the household's daily driving and shown photo first.
+
+**It is being retired.** Every lookup it does now lives in
+`sites/chat.bythewood.me/property/` and answers questions rather than drawing
+cards, so this site is a dashboard nobody needs a second copy of. Nothing here
+should be extended, and the section below is kept because the reasoning behind
+each lookup is worth having in one place until the site goes.
 
 **It has no public half, and that is the constraint everything else follows
 from.** Every route is behind `RequireAuth`, including `/`, because the page
