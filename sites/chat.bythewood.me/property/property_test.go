@@ -778,16 +778,16 @@ func TestDrivesAreGroupedByWhoseTheyAre(t *testing.T) {
 	if len(byWho["A Person"]) != 2 {
 		t.Fatalf("both of that person's drives belong under their name: %v", byWho)
 	}
-	if len(byWho["anybody in the house"]) != 1 {
-		t.Fatalf("a drive with nobody against it still has to appear: %v", byWho)
+	if len(byWho["nursing work within reach, for whoever in the house wants it"]) != 1 {
+		t.Fatalf("a drive with nobody against it still has to appear, and say what it is: %v", byWho)
 	}
 
 	who, ok := m["who_lives_here"].(map[string]string)
 	if !ok || who["A Person"] == "" {
 		t.Fatalf("the roster has to be in the answer so a name resolves: %v", m["who_lives_here"])
 	}
-	if _, ok := m["work_within_reach"]; !ok {
-		t.Fatal("where the work is has to be in the drives section")
+	if who["A Person"] != "a CNA. work nearby means hospitals" {
+		t.Fatalf("the role and the note need a stop between them: %q", who["A Person"])
 	}
 }
 
