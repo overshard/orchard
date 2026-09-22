@@ -107,8 +107,8 @@ var streetAbbrev = map[string]string{
 	"southeast": "se", "southwest": "sw",
 }
 
-// addressKey normalizes an address enough that "1234 Marchbank Road" and
-// "1234 Marchbank Rd." are one house. It is what a cached report is keyed on, so
+// addressKey normalizes an address enough that "402 Sample Road" and
+// "402 Sample Rd." are one house. It is what a cached report is keyed on, so
 // asking about the same house twice in a conversation costs nothing.
 func addressKey(addr, zip string) string {
 	words := strings.Fields(strings.ToLower(addr))
@@ -125,7 +125,7 @@ func addressKey(addr, zip string) string {
 
 // Directions stay in capitals and everything else is title cased. Length is not
 // the test: "Rd" is two letters and is not a direction, which is how the first
-// version of this produced "118 Marchbank RD".
+// version of this produced "402 Sample RD".
 var directions = map[string]bool{
 	"n": true, "s": true, "e": true, "w": true,
 	"ne": true, "nw": true, "se": true, "sw": true,

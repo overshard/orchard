@@ -174,7 +174,7 @@ func sameAddress(mail, mailZip, site, siteZip string, a map[string]any) bool {
 
 // sameHouse compares the house number and the street name and stops there. The
 // tax roll writes the site address from its own columns and leaves the street
-// type out about half the time, so "118 Marchbank" and "118 MARCHBANK RD" are
+// type out about half the time, so "402 Sample" and "402 SAMPLE RD" are
 // the same house, where a whole-string compare calls them different.
 func sameHouse(a, b string) bool {
 	na, sa := houseParts(a)

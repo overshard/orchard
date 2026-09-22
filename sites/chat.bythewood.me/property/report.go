@@ -499,7 +499,7 @@ func (e *Engine) save(ctx context.Context, key string, r *Report) error {
 }
 
 // splitMatched pulls the parts out of what the geocoder matched, which comes back
-// as "118 MARCHBANK RD, TAYLORSVILLE, NC, 28681". Anything it cannot parse is
+// as "402 SAMPLE RD, ANYTOWN, NC, 27055". Anything it cannot parse is
 // left as it was rather than blanked.
 func splitMatched(matched, fallback string) (addr, city, state, zip string) {
 	parts := strings.Split(matched, ",")
