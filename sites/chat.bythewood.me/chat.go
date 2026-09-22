@@ -130,7 +130,7 @@ Tools:
 - remember is long term memory, kept between conversations. Call it when he asks you to remember, note or forget something, and when he states a preference, a plan or something about himself worth keeping. Saying you will remember it does not remember it, the call does. List first when you need an id to correct or drop one, and keep each fact to one plain sentence about him.
 - The orchard_ tools read Isaac's own infrastructure: his logs, uptime monitoring, analytics, git repositories and dashboard. Use them for any question about his own sites rather than guessing or searching the web, and say which one you read. They only read, so nothing you do with them can change anything. orchard_dash takes a section, so ask for the one panel the question is about rather than pulling the whole dashboard into the conversation.
 - orchard_code reads the source of his repositories. It is the only way to see his code, so never fetch a url for it and never write code you say you read without having read it. Do not walk down from the top. Use action find with a file name to get its path, or action search with a function name, a symbol or a string to get the file and line of every hit, then action read on what that gave you. On a long file pass from and to and read the part around the hit rather than all of it. It can only read, so when you have found the problem say what to change and never claim to have changed it.
-- property answers anything about a particular house, from an address, and it is the tool for every follow up about that house. The cost section hands you a finished markdown table: print it as it came and do not retype the figures into prose, because the all-in number means nothing without the rows it is the sum of. The page already draws buttons under your answer for everything else there is to ask about the house, so never list those follow ups yourself and never end by offering to look more into it. A question naming a member of his family is about their drive, their work or their school from the house being discussed, so it is section drives, never wikipedia and never a search: the people in his household are not subjects to look up. Section links already carries the Redfin, Zillow and Realtor pages built from the address, so never search the web for a listing link either. It reads flood maps, road and traffic data, school attendance boundaries, the county tax roll, the census and the USDA rural lending map, and it works the payment out under every loan. Pass the price whenever he has said one, since nothing about the money happens without it. Ask for the one section the question is about, because the first call does the lookups and every call after it about the same address is free. A section that comes back with something still missing means the rest is being fetched, so say what you have and ask again rather than filling the gap in yourself.
+- property answers anything about a particular house, from an address, and it is the tool for every follow up about that house. It hands you a finished markdown table whenever there is a price: print that table as it came, and do not retype its figures into prose or write a paragraph per loan, because the all-in number means nothing without the rows it is the sum of. What it returns is the whole answer about that house, so never search the web to check it or to fill it out, and never write a fact about the house that did not come from it, including the year it was built. The page already draws buttons under your answer for everything else there is to ask about the house, so never list those follow ups yourself and never end by offering to look more into it. A question naming a member of his family is about their drive, their work or their school from the house being discussed, so it is section drives, never wikipedia and never a search: the people in his household are not subjects to look up. Section links already carries the Redfin, Zillow and Realtor pages built from the address, so never search the web for a listing link either. It reads flood maps, road and traffic data, school attendance boundaries, the county tax roll, the census and the USDA rural lending map, and it works the payment out under every loan. Pass the price whenever he has said one, since nothing about the money happens without it. Ask for the one section the question is about, because the first call does the lookups and every call after it about the same address is free. A section that comes back with something still missing means the rest is being fetched, so say what you have and ask again rather than filling the gap in yourself.
 - mortgage prices a payment with no house behind it, for a what if about money. When there is an address, use property with section cost instead, because that one knows the county's own tax rate and whether USDA will lend on that spot.
 - chat_history searches earlier conversations. Call it when he refers to something from another chat, asks what was decided before, or when a question only makes sense against something already settled. What it returns was true when it was said, so anything dated or priced in it needs looking up again.
 - Anything you present as current has to be current. A page and a snippet carry the date they were written, and today's date is at the top of this prompt, so compare the two before you write today, now or currently. A three day old incident reported as happening now is worse than saying you could not find anything from today.
@@ -251,6 +251,12 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	// news reads every feed on the list, so a second call re-reads all of them
 	// for a rundown the turn already has. One is the whole answer.
 	var usedNews bool
+	// The property tool answers a house out of public records, so a search after
+	// it can only contradict it or add something nobody checked. Asked about one
+	// house it searched the web anyway and came back with a build year that was
+	// in no tool result, which is the shape a prompt cannot fix, since a prompt
+	// is a request.
+	var usedProperty bool
 	var stats Stats
 	schemas := e.reg.Schemas()
 
@@ -292,6 +298,10 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		offer := schemas
 		if usedNews {
 			offer = tools.Without(offer, tools.News.Name)
+		}
+		if usedProperty {
+			offer = tools.Without(offer, tools.WebSearch.Name)
+			offer = tools.Without(offer, tools.WebFetch.Name)
 		}
 		if repeats >= 2 {
 			// It is going in circles. Take the tools away and make it answer
@@ -393,6 +403,9 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 			emit(Event{Kind: "tool", Tool: tc.Function.Name, Args: shortArgs(tc.Function.Arguments)})
 			if tc.Function.Name == tools.News.Name {
 				usedNews = true
+			}
+			if tc.Function.Name == tools.PropertyTool.Name {
+				usedProperty = true
 			}
 			res := e.reg.Call(ctx, deps, tc.Function.Name, json.RawMessage(tc.Function.Arguments))
 			seen[key] = res

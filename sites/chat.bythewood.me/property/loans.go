@@ -256,12 +256,23 @@ func loanCeiling(loan string) (float64, string) {
 	}
 }
 
-// Quotes prices one house under every programme. Nothing here is a decision about
-// which is best, because that depends on how long he keeps the loan and on cash
-// he has not told it about.
+// Quotes prices one house under every programme he could actually use. Nothing
+// here is a decision about which is best, because that depends on how long he
+// keeps the loan and on cash he has not told it about.
+//
+// A programme ruled out by something about the house still gets a row, marked,
+// because "USDA would be cheapest and this address is not in an eligible area"
+// is the useful answer. A programme ruled out by something about him does not,
+// because no report is ever going to change it and a column he cannot use is
+// noise in every answer he will ever read. VA without entitlement is the second
+// kind, and it was worse than noise: it priced out cheapest and the model led
+// with the figure before mentioning it was unavailable.
 func (c Config) Quotes(in LoanInput, market Market) []Quote {
 	out := make([]Quote, 0, len(LoanTypes))
 	for _, t := range LoanTypes {
+		if t == "va" && !c.Money.VAEligible {
+			continue
+		}
 		out = append(out, c.Quote(t, in, market))
 	}
 	return out

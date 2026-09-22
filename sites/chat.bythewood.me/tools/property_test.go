@@ -151,3 +151,34 @@ func TestBothToolsAreRegistered(t *testing.T) {
 		}
 	}
 }
+
+// Taking the web tools off the table once property has answered is structural,
+// because a prompt is a request. Asked about one house the model searched the web
+// anyway and wrote a build year that came from no tool result at all.
+func TestWebToolsCanBeTakenAwayAfterProperty(t *testing.T) {
+	schemas := Default().Schemas()
+	offer := Without(Without(schemas, WebSearch.Name), WebFetch.Name)
+
+	for _, s := range offer {
+		fn, _ := s["function"].(map[string]any)
+		name, _ := fn["name"].(string)
+		if name == WebSearch.Name || name == WebFetch.Name {
+			t.Fatalf("%s should be gone", name)
+		}
+	}
+	if len(offer) != len(schemas)-2 {
+		t.Fatalf("only the two web tools come off, got %d of %d", len(offer), len(schemas))
+	}
+	// The property tool itself has to survive, since a follow up section is the
+	// whole point of leaving anything on the table.
+	var kept bool
+	for _, s := range offer {
+		fn, _ := s["function"].(map[string]any)
+		if n, _ := fn["name"].(string); n == PropertyTool.Name {
+			kept = true
+		}
+	}
+	if !kept {
+		t.Fatal("property has to stay, a follow up section is another call to it")
+	}
+}
