@@ -772,6 +772,9 @@ func TestDrivesAreGroupedByWhoseTheyAre(t *testing.T) {
 	}
 
 	m := r.DrivesPart()
+	if _, ok := r.Aspect("commutes").(map[string]any); !ok {
+		t.Fatal("commutes is the name the model is given, since it read drives as driveways")
+	}
 	byWho, ok := m["drives_from_this_house"].(map[string][]string)
 	if !ok {
 		t.Fatalf("want the drives grouped by person, got %T", m["drives_from_this_house"])
@@ -951,8 +954,8 @@ func TestPromptsOnlyOfferSectionsThatHaveSomething(t *testing.T) {
 	if !hasSubstring(asks, "everyone in the house") {
 		t.Errorf("the drives prompt should cover everybody rather than one person: %v", asks)
 	}
-	if !hasSubstring(labels, "Drives") {
-		t.Errorf("want a drives chip: %v", labels)
+	if !hasSubstring(labels, "Commutes") {
+		t.Errorf("want a commutes chip: %v", labels)
 	}
 }
 
@@ -1007,5 +1010,148 @@ func TestTheSummaryCarriesTheCostTable(t *testing.T) {
 	// With no price there is nothing to table, and an empty one would be worse.
 	if _, ok := (&Report{Address: "402 Sample Rd"}).Summary()["answer_with_this_table_exactly"]; ok {
 		t.Fatal("no price means no table")
+	}
+}
+
+// everything used to hand back the whole struct, and a small model reaches for it
+// on the first question. Eleven thousand characters of Go field names and
+// sentinel distances came back out of the model as "Palmer Place, residential, 19
+// feet class", which is not a sentence about a house.
+func TestEverythingNeverReturnsTheStruct(t *testing.T) {
+	r := &Report{
+		Address: "402 Sample Rd", County: "Alexander", Price: 250000,
+		Flood:  FloodResult{Measured: true, Zone: "X", SFHAFeet: notFound, WaterFeet: notFound},
+		Road:   RoadResult{Measured: true, RoadName: "Sample Rd", Class: "residential", ClassFeet: 18.9, AADTFeet: notFound, RampFeet: notFound, HighwayFeet: notFound},
+		Drives: map[string]Leg{},
+	}
+
+	out, ok := r.Aspect("everything").(map[string]any)
+	if !ok {
+		t.Fatalf("want a written map, got %T", r.Aspect("everything"))
+	}
+	// Nothing in it should be a raw distance sentinel or a Go field name, which
+	// is what the struct handed over.
+	blob := mustJSON(out)
+	for _, leak := range []string{"SFHAFeet", "ClassFeet", "Measured", "18.9"} {
+		if strings.Contains(blob, leak) {
+			t.Errorf("%q leaked, so it is still handing over the struct:\n%s", leak, blob)
+		}
+	}
+}
+
+// The enum is what the model picks from, and it must not offer the one that
+// pulls the whole report into the window.
+func TestEverythingIsNotOffered(t *testing.T) {
+	for _, a := range Aspects {
+		if a == "everything" || a == "all" || a == "full" {
+			t.Fatalf("%q is accepted but must not be in the enum", a)
+		}
+	}
+	if _, ok := (&Report{Address: "402 Sample Rd"}).Aspect("everything").(map[string]any); !ok {
+		t.Fatal("it still has to work when asked for by name")
+	}
+}
+
+// It told him three loans "fit inside your ~$2,600 to $2,750 range" against a
+// target of $2,500. The range was invented, and a made up figure about his own
+// money is the worst kind: specific, plausible and wrong.
+func TestTheBudgetLineIsMeasuredNotInvented(t *testing.T) {
+	r := &Report{MonthlyTarget: 2500, MonthlyCeiling: 2750,
+		Quotes: []Quote{{Name: "Conventional", Eligible: true, Total: 2642}}}
+	got := r.budgetLine()
+	if !strings.Contains(got, "over the $2,500") || !strings.Contains(got, "under your $2,750") {
+		t.Fatalf("2642 is over the target and under the ceiling, got %q", got)
+	}
+
+	inside := &Report{MonthlyTarget: 2500, MonthlyCeiling: 2750,
+		Quotes: []Quote{{Name: "Conventional", Eligible: true, Total: 2100}}}
+	if !strings.Contains(inside.budgetLine(), "inside") {
+		t.Fatalf("2100 is inside the target, got %q", inside.budgetLine())
+	}
+
+	over := &Report{MonthlyTarget: 2500, MonthlyCeiling: 2750,
+		Quotes: []Quote{{Name: "Conventional", Eligible: true, Total: 3000}}}
+	if !strings.Contains(over.budgetLine(), "over your $2,750 ceiling") {
+		t.Fatalf("3000 is over the ceiling, got %q", over.budgetLine())
+	}
+
+	// No budget configured means nothing to say, not a guess.
+	if got := (&Report{Quotes: []Quote{{Eligible: true, Total: 2642}}}).budgetLine(); got != "" {
+		t.Fatalf("with no target there is nothing to measure against, got %q", got)
+	}
+}
+
+// everything is a guess, since it is not in the enum, and what it used to return
+// buried the table eleven sections deep.
+func TestEverythingFallsBackToTheSummary(t *testing.T) {
+	r := &Report{Address: "402 Sample Rd", Drives: map[string]Leg{}}
+	out, ok := r.Aspect("everything").(map[string]any)
+	if !ok {
+		t.Fatal("want a map")
+	}
+	if out["flood"] == nil && out["note"] == nil {
+		t.Fatalf("want the summary plus a note pointing at the real sections: %v", out)
+	}
+	note, _ := out["note"].(string)
+	if !strings.Contains(note, "no everything section") {
+		t.Fatalf("it has to say there is no such section: %q", note)
+	}
+}
+
+// A chip arrives as the next turn with none of the conversation behind it, so it
+// has to carry an address the geocoder can place. Every chip said "2935 Palmer
+// Pl" with no town, every one came back "could not place", and the model started
+// bolting invented towns onto it, each one a fresh cold lookup.
+func TestChipsCarryAnAddressThatGeocodes(t *testing.T) {
+	r := &Report{
+		Address: "2935 Palmer Pl", City: "Hudson", State: "NC", Zip: "28638",
+		Price: 310000, Quotes: []Quote{{Total: 2642, Eligible: true}},
+	}
+	if got := r.Full(); got != "2935 Palmer Pl, Hudson, NC, 28638" {
+		t.Fatalf("got %q", got)
+	}
+	for _, p := range r.Prompts() {
+		for _, part := range []string{"Hudson", "NC"} {
+			if !strings.Contains(p.Ask, part) {
+				t.Errorf("chip %q is missing %q, so it will not place", p.Ask, part)
+			}
+		}
+	}
+}
+
+// A house already looked up is the same house whether or not the Census is
+// answering and whether or not the street line arrived with its town on it.
+func TestAKnownHouseAnswersWithoutTheGeocoder(t *testing.T) {
+	e, err := NewEngine(testDB(t), testConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	full := &Report{Address: "2935 Palmer Pl", City: "Hudson", State: "NC", Zip: "28638", Complete: true}
+	if err := e.save(ctx, addressKey(full.Full(), ""), full); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, written := range []string{
+		"2935 Palmer Pl, Hudson, NC, 28638",
+		"2935 Palmer Pl, Hudson, NC",
+		"2935 Palmer Pl",
+	} {
+		got, ok := e.cachedLike(ctx, written)
+		if !ok {
+			t.Errorf("%q should find the report already built", written)
+			continue
+		}
+		if got.Address != "2935 Palmer Pl" {
+			t.Errorf("%q found the wrong house: %s", written, got.Address)
+		}
+	}
+
+	// A different house on the same street is not this one.
+	if _, ok := e.cachedLike(ctx, "2935 Palmer Pl"); !ok {
+		t.Fatal("setup")
+	}
+	if _, ok := e.cachedLike(ctx, "12 Palmer Pl, Hudson, NC"); ok {
+		t.Fatal("a different number is a different house")
 	}
 }

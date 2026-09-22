@@ -1,6 +1,11 @@
 package main
 
-import "testing"
+import (
+	"strings"
+	"testing"
+
+	"chat.bythewood.me/tools"
+)
 
 // The two that Isaac hit, verbatim in shape, plus the answers they must not be
 // confused with. A detector that fires on a real answer is worse than one that
@@ -106,5 +111,57 @@ func TestCountsUpInProseCatchesTheDayItWasWrong(t *testing.T) {
 		if countsUpInProse(c.draft) {
 			t.Errorf("%s was sent back", c.name)
 		}
+	}
+}
+
+// Some tools add up for it. Sending a total that came out of a tool back to be
+// recomputed with calc spends rounds re-deriving a number that was already right,
+// and the model then has to be talked out of the arithmetic it never did.
+func TestCopiedNumbersAreNotSentBackToCalc(t *testing.T) {
+	used := []tools.Result{{
+		Name:    "property",
+		Content: map[string]any{"monthly": "$2,642", "rows": []string{"$1,949", "$129", "$150", "$74", "$340"}},
+	}}
+	draft := "The total is $2,642 a month: $1,949 principal and interest, $129 tax, $150 insurance, $74 mortgage insurance and $340 utilities."
+
+	if !countsUpInProse(draft) {
+		t.Fatal("this is the shape the gate is for")
+	}
+	if !copiedTheNumbers(draft, used) {
+		t.Fatal("every figure came from the tool, so nothing was worked out here")
+	}
+}
+
+// A figure the tool never returned is one the model produced, which is the case
+// the gate exists for and must keep catching.
+func TestANumberFromNowhereStillGoesToCalc(t *testing.T) {
+	used := []tools.Result{{
+		Name:    "property",
+		Content: map[string]any{"rows": []string{"$1,949", "$129", "$150"}},
+	}}
+	draft := "Altogether that is $2,228 a month, from $1,949 and $129 and $150."
+	if copiedTheNumbers(draft, used) {
+		t.Fatal("2228 is in no tool result, so it was worked out in the draft")
+	}
+}
+
+func TestNoToolsMeansNothingWasCopied(t *testing.T) {
+	if copiedTheNumbers("The total is $2,642 from $1,949 and $693.", nil) {
+		t.Fatal("with no tool results there is nothing to have copied from")
+	}
+}
+
+// A house is answered out of public records and not off the web, so a thin draft
+// there is missing a section rather than a search. The gate was telling it to go
+// and search for the address it had just been handed a full report on.
+func TestAThinPropertyDraftIsSentBackToProperty(t *testing.T) {
+	n := propertyNudge()
+	for _, want := range []string{"property again", "Do not search the web", "cost table"} {
+		if !strings.Contains(n, want) {
+			t.Errorf("the nudge is missing %q: %q", want, n)
+		}
+	}
+	if strings.Contains(strings.ToLower(n), "search for \"") {
+		t.Errorf("it must not send a house question to a web search: %q", n)
 	}
 }
