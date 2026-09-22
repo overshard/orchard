@@ -437,8 +437,9 @@ func TestPricingACachedReportDoesNotNeedALookup(t *testing.T) {
 		USDA: USDAArea{Eligible: true, Measured: true}}
 
 	e.priceReport(context.Background(), r, Options{Price: 250000})
-	if len(r.Quotes) != len(LoanTypes) {
-		t.Fatalf("want a quote per programme, got %d", len(r.Quotes))
+	// VA is not quoted without entitlement, so it is one short of the list.
+	if len(r.Quotes) != len(LoanTypes)-1 {
+		t.Fatalf("want a quote per programme he could use, got %d", len(r.Quotes))
 	}
 	for _, q := range r.Quotes {
 		if q.Type == "usda" && !q.Eligible {
@@ -866,10 +867,16 @@ func TestCostTableAddsUp(t *testing.T) {
 		}
 	}
 
-	// An ineligible programme keeps its column, marked, because "USDA would be
-	// cheapest and this address is not eligible" is the useful answer.
-	if !strings.Contains(table, "not available") {
-		t.Errorf("VA has no entitlement here and its column has to say so:\n%s", table)
+	// A programme ruled out by the house keeps its column, marked, because "USDA
+	// would be cheapest and this address is not eligible" is the useful answer.
+	if strings.Contains(table, "VA") {
+		t.Errorf("VA is not on the table at all without entitlement:\n%s", table)
+	}
+	blocked := &Report{Price: 310000, County: "Alexander"}
+	blocked.Quotes = cfg.Quotes(LoanInput{Price: 310000, County: "Alexander",
+		USDAAreaChecked: true, USDAArea: false}, market)
+	if !strings.Contains(blocked.CostTable(), "not available") {
+		t.Errorf("an address USDA will not lend on keeps its column, marked:\n%s", blocked.CostTable())
 	}
 
 	// Every column is one programme, so a row has as many cells as there are
@@ -952,5 +959,53 @@ func TestPromptsOnlyOfferSectionsThatHaveSomething(t *testing.T) {
 func TestPromptsNeedAnAddress(t *testing.T) {
 	if got := (&Report{}).Prompts(); got != nil {
 		t.Fatalf("with no address a prompt cannot be sent on its own, got %v", got)
+	}
+}
+
+// Eligibility that is a fact about him filters the programme out, since no report
+// will ever change it. Eligibility that is a fact about the house keeps its row,
+// because knowing what it would have cost is the point of showing it.
+func TestVAIsNotQuotedWithoutEntitlement(t *testing.T) {
+	cfg := testConfig()
+	market := Market{Thirty: 6.95, Found: true}
+
+	for _, q := range cfg.Quotes(LoanInput{Price: 250000}, market) {
+		if q.Type == "va" {
+			t.Fatal("no entitlement on file means VA is not an option worth printing")
+		}
+	}
+
+	cfg.Money.VAEligible = true
+	var found bool
+	for _, q := range cfg.Quotes(LoanInput{Price: 250000}, market) {
+		if q.Type == "va" {
+			found = true
+			if !q.Eligible {
+				t.Fatal("with entitlement it is available")
+			}
+		}
+	}
+	if !found {
+		t.Fatal("with entitlement VA is quoted")
+	}
+}
+
+// A first question about a house gets the summary, so that is where the table has
+// to be. Without it the answer came back as a paragraph per loan with the figure
+// buried in each one.
+func TestTheSummaryCarriesTheCostTable(t *testing.T) {
+	cfg := testConfig()
+	r := &Report{Address: "402 Sample Rd", Price: 310000, County: "Alexander"}
+	r.Quotes = cfg.Quotes(LoanInput{Price: 310000, County: "Alexander"},
+		Market{Thirty: 6.95, Found: true})
+
+	table, _ := r.Summary()["answer_with_this_table_exactly"].(string)
+	if !strings.Contains(table, "**All in per month**") {
+		t.Fatalf("the summary has to carry the table: %v", r.Summary())
+	}
+
+	// With no price there is nothing to table, and an empty one would be worse.
+	if _, ok := (&Report{Address: "402 Sample Rd"}).Summary()["answer_with_this_table_exactly"]; ok {
+		t.Fatal("no price means no table")
 	}
 }

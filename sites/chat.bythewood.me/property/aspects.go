@@ -96,6 +96,12 @@ func (r *Report) Summary() map[string]any {
 	if best := r.cheapest(); best != nil {
 		m["cheapest_loan"] = fmt.Sprintf("%s at $%s a month all in", best.Name, comma(best.Total))
 	}
+	// The table belongs here and not only in the cost section, because a first
+	// question about a house gets the summary, and that is the answer that was
+	// coming back as four paragraphs of prose with a figure buried in each.
+	if t := r.CostTable(); t != "" {
+		m["answer_with_this_table_exactly"] = t
+	}
 	if r.Value.Found {
 		worth := fmt.Sprintf("about $%s, from a $%s assessment carried forward from %d",
 			comma(r.Value.Estimate), comma(r.Value.Assessed), r.Value.BaseYear)
@@ -107,6 +113,12 @@ func (r *Report) Summary() map[string]any {
 	if r.Price <= 0 {
 		m["note"] = "no asking price was given, so nothing about the money was worked out"
 	}
+	// Asked about a house with a price on it, the answer came back as four
+	// paragraphs about loans and said nothing about the house, which is the half
+	// a listing page cannot tell you and the reason any of this exists.
+	m["how_to_answer"] = "Say what the house and the area are like first, in a few lines, " +
+		"then print the table. Every line above is already checked, so use them rather than " +
+		"picking one."
 	m["config"] = r.ConfigLabel
 	return m
 }
