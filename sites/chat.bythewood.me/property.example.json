@@ -9,10 +9,24 @@
     "origin_lon": 0,
     "ideal_minutes": 20,
     "max_minutes": 40,
-    "counties": ["Alexander", "Caldwell", "Catawba", "Burke"]
+    "counties": [
+      "Alexander",
+      "Caldwell",
+      "Catawba",
+      "Burke"
+    ]
   },
   "thresholds": {
-    "flood_zones": ["A", "AE", "AO", "AH", "AR", "A99", "V", "VE"],
+    "flood_zones": [
+      "A",
+      "AE",
+      "AO",
+      "AH",
+      "AR",
+      "A99",
+      "V",
+      "VE"
+    ],
     "//water": "One buffer per kind of water, because they are not the same risk. NHD maps every wet-weather ditch in these counties and nearly every rural parcel has one inside 300 ft, so treating all three alike flags most of the county without finding any flood risk.",
     "water_buffer_feet": 300,
     "intermittent_buffer_feet": 150,
@@ -20,7 +34,12 @@
     "aadt_cutoff": 4000,
     "//aadt_radius": "A traffic count only speaks for the frontage if the counted segment is next to the house. NCDOT counts the highway and not the lane beside it.",
     "aadt_radius_ft": 250,
-    "road_classes": ["motorway", "trunk", "primary", "secondary"],
+    "road_classes": [
+      "motorway",
+      "trunk",
+      "primary",
+      "secondary"
+    ],
     "corner_feet": 150,
     "highway_too_close_feet": 2000,
     "highway_comfy_feet": 5280
@@ -75,13 +94,21 @@
     "dropoff_bad_min": 20,
     "lot_ideal_acres": 1
   },
+  "//people": "Who is in the household, so a question naming one of them reaches this tool rather than being read as a stranger to look up. Real names belong here: data/ is gitignored and this is a private conversation, not a page somebody glances at over a shoulder.",
+  "people": [
+    {
+      "name": "A Person",
+      "role": "what they do",
+      "note": "what work or school nearby means for them"
+    }
+  ],
   "//destinations": "Everywhere other than work a drive is measured to, every time. Geocode each one and paste the coordinate, since a wrong one here is a wrong number on every report.",
   "destinations": [
     {
       "key": "example-college",
       "name": "Example Community College",
       "kind": "school",
-      "who": "Mama Bear",
+      "who": "A Person",
       "addr": "2 Example Ave, Anytown, NC 00000",
       "lat": 0,
       "lon": 0

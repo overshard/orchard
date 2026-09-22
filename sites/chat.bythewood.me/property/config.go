@@ -16,6 +16,16 @@ import (
 // report says so, because a tool that refuses to answer is harder to fix than one
 // that tells you what it is missing.
 
+// Person is somebody in the household, so a question that names one of them
+// reaches this tool rather than being read as a subject to look up. house used
+// pseudonyms because its pages rendered on a phone somebody could glance at, and
+// this is a private conversation, so the real names belong here.
+type Person struct {
+	Name string `json:"name"`
+	Role string `json:"role"` // what they do, which is what "work nearby" means for them
+	Note string `json:"note,omitempty"`
+}
+
 // Place is somewhere a drive is measured to, every time, for whoever drives it.
 type Place struct {
 	Key   string  `json:"key"`
@@ -115,6 +125,7 @@ type Config struct {
 	Thresholds   Thresholds `json:"thresholds"`
 	Money        Money      `json:"money"`
 	Household    Household  `json:"household"`
+	People       []Person   `json:"people"`
 	Destinations []Place    `json:"destinations"`
 
 	// Set when data/property.json was not there, so a report can say the numbers

@@ -31,6 +31,11 @@ type Report struct {
 	BuiltAt  string  `json:"built_at"`
 	Complete bool    `json:"complete"`
 
+	// A cached report that gains a field decodes with that field blank, which is
+	// the same trap the lookup kinds carry a number for. Bump this whenever the
+	// report gains meaning, so an older row is rebuilt rather than answered from.
+	Version int `json:"v"`
+
 	Flood   FloodResult   `json:"flood"`
 	Road    RoadResult    `json:"road"`
 	Zones   SchoolZones   `json:"schools"`
@@ -42,9 +47,10 @@ type Report struct {
 	Outings OutingsResult `json:"outings"`
 	USDA    USDAArea      `json:"usda_area"`
 
-	Morning Morning        `json:"morning"`
-	Drives  map[string]Leg `json:"drives"`
-	Work    []Facility     `json:"nearby_work,omitempty"`
+	Morning   Morning        `json:"morning"`
+	Drives    map[string]Leg `json:"drives"`
+	Work      []Facility     `json:"nearby_work,omitempty"`
+	Household []Person       `json:"household,omitempty"`
 
 	Market Market  `json:"rates"`
 	Quotes []Quote `json:"loans"`
@@ -128,6 +134,11 @@ func (e *Engine) Config() Config { return e.cfg }
 // house, and the price, which comes from whoever is asking.
 const reportTTL = 30 * 24 * time.Hour
 
+// 2 when the drives learned whose they are and the household roster arrived. A
+// report written before that answers a question naming somebody with a flat list
+// of place names, which is what sent the model to Wikipedia looking for her.
+const reportVersion = 2
+
 // Options are what the caller knew that the public record does not.
 type Options struct {
 	Price      int
@@ -199,7 +210,8 @@ func (e *Engine) Lookup(ctx context.Context, address string, opt Options) (*Repo
 		// Still building and nothing written yet, so answer with the half that
 		// needs no lookups rather than with an error.
 		r = &Report{Address: titleAddress(matched), Asked: address, Lat: lat, Lon: lon,
-			BuiltAt: time.Now().UTC().Format(time.RFC3339), ConfigLabel: e.cfg.Label}
+			BuiltAt: time.Now().UTC().Format(time.RFC3339), ConfigLabel: e.cfg.Label,
+			Version: reportVersion}
 		r.Missing = append(r.Missing, "the area work is still running, ask again in a minute and it will be ready")
 	}
 	e.priceReport(ctx, r, opt)
@@ -251,6 +263,7 @@ func (e *Engine) assess(ctx context.Context, address, matched string, lat, lon f
 		Drives:      map[string]Leg{},
 		BuiltAt:     time.Now().UTC().Format(time.RFC3339),
 		ConfigLabel: e.cfg.Label,
+		Version:     reportVersion,
 	}
 	r.Address, r.City, r.State, r.Zip = splitMatched(matched, r.Address)
 
@@ -385,9 +398,13 @@ func (e *Engine) drives(ctx context.Context, r *Report, note func(string, error)
 		}
 	}
 
+	r.Household = e.cfg.People
+
 	type dest struct {
 		key  string
 		kind string
+		who  string
+		name string
 		at   point
 	}
 	var dests []dest
@@ -395,14 +412,15 @@ func (e *Engine) drives(ctx context.Context, r *Report, note func(string, error)
 		if place.Lat == 0 {
 			continue
 		}
-		dests = append(dests, dest{firstNonEmpty(place.Name, place.Key), place.Kind, point{place.Lat, place.Lon}})
+		name := firstNonEmpty(place.Name, place.Key)
+		dests = append(dests, dest{name, place.Kind, place.Who, name, point{place.Lat, place.Lon}})
 	}
 	// The three nearest licensed nursing homes, which answers where that kind of
 	// work is rather than the drive to one named employer.
 	if near, err := e.facs.Nearest(ctx, r.Lat, r.Lon, 3); err == nil {
 		r.Work = near
 		for _, fc := range near {
-			dests = append(dests, dest{fc.Name + ", " + fc.Label, "employer", point{fc.Lat, fc.Lon}})
+			dests = append(dests, dest{fc.Name + ", " + fc.Label, "employer", "", fc.Name + ", " + fc.Label, point{fc.Lat, fc.Lon}})
 		}
 	} else {
 		note("where the nursing work is", err)
@@ -418,7 +436,7 @@ func (e *Engine) drives(ctx context.Context, r *Report, note func(string, error)
 			if err != nil {
 				return
 			}
-			leg.Kind = d.kind
+			leg.Kind, leg.Who, leg.Name = d.kind, d.who, d.name
 			legs.Lock()
 			r.Drives[d.key] = leg
 			legs.Unlock()
@@ -488,10 +506,16 @@ func (e *Engine) cached(ctx context.Context, key string) (*Report, bool) {
 	if json.Unmarshal([]byte(payload), &r) != nil {
 		return nil, false
 	}
+	if r.Version != reportVersion {
+		return nil, false
+	}
 	return &r, true
 }
 
 func (e *Engine) save(ctx context.Context, key string, r *Report) error {
+	// Stamped here rather than wherever a report is built, so a new construction
+	// site cannot forget it and quietly write a row nothing will ever read back.
+	r.Version = reportVersion
 	_, err := e.db.ExecContext(ctx,
 		`INSERT OR REPLACE INTO reports (key, address, lat, lon, payload, built_at) VALUES (?,?,?,?,?,?)`,
 		key, r.Address, r.Lat, r.Lon, mustJSON(r), time.Now().Unix())

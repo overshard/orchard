@@ -336,21 +336,43 @@ func (r *Report) DrivesPart() map[string]any {
 		m["commute_with_the_school_run"] = minutes(r.Morning.WithElementary.Minutes)
 	}
 
+	// Grouped by whose drive it is, because a question here is almost always
+	// about one person. Asked about a household member's work against a flat list
+	// of place names, the model had nothing to match the name on and looked the
+	// name up in the encyclopedia as a stranger instead.
 	if len(r.Drives) > 0 {
-		out := map[string]string{}
-		for k, leg := range r.Drives {
-			out[k] = fmt.Sprintf("%s, %.1f miles", minutes(leg.Minutes), leg.Miles)
+		byWho := map[string][]string{}
+		for _, leg := range r.Drives {
+			who := leg.Who
+			if who == "" {
+				who = "anybody in the house"
+			}
+			byWho[who] = append(byWho[who],
+				fmt.Sprintf("%s: %s, %.1f miles", orUnnamed(leg.Name, "somewhere"), minutes(leg.Minutes), leg.Miles))
 		}
-		m["other_drives"] = out
+		for who := range byWho {
+			sort.Strings(byWho[who])
+		}
+		m["drives_from_this_house"] = byWho
+	}
+	if len(r.Household) > 0 {
+		who := map[string]string{}
+		for _, p := range r.Household {
+			who[p.Name] = strings.TrimSpace(p.Role + " " + p.Note)
+		}
+		// So a question naming somebody is answered about them rather than looked
+		// up as a stranger.
+		m["who_lives_here"] = who
 	}
 	if len(r.Work) > 0 {
 		var names []string
 		for _, f := range r.Work {
 			names = append(names, f.Name+", "+f.Label)
 		}
-		// Where the nursing work is, which is the question behind it, so this is
-		// hospitals and licensed nursing homes together rather than one employer.
-		m["nearest_places_that_employ_nurses"] = names
+		m["work_within_reach"] = map[string]any{
+			"note":   "the nearest hospitals and licensed nursing homes, which is what work nearby means for anybody in this house who nurses",
+			"places": names,
+		}
 	}
 	if r.Morning.Partial {
 		m["incomplete"] = "a leg would not route, so the detour is not trustworthy"
