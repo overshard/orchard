@@ -753,3 +753,82 @@ func TestAWrongParcelRecordIsNotComparedToThePrice(t *testing.T) {
 		t.Fatal("a sound record is still compared to the price")
 	}
 }
+
+// A question naming somebody in the house has to find them in the answer. Asked
+// about a household member's work against a flat list of place names, the model
+// had nothing to match the name on and looked the name up in the encyclopedia as
+// a stranger instead.
+func TestDrivesAreGroupedByWhoseTheyAre(t *testing.T) {
+	r := &Report{
+		Address: "1 Test Rd",
+		Drives: map[string]Leg{
+			"college": {Minutes: 26, Miles: 18, Who: "A Person", Name: "A Community College", Kind: "school"},
+			"clinic":  {Minutes: 31, Miles: 20, Who: "A Person", Name: "A Medical Center", Kind: "employer"},
+			"unnamed": {Minutes: 9, Miles: 4, Name: "A Shop"},
+		},
+		Household: []Person{{Name: "A Person", Role: "a CNA", Note: "work nearby means hospitals"}},
+		Work:      []Facility{{Name: "A Nursing Home", Label: "nursing or assisted living"}},
+	}
+
+	m := r.DrivesPart()
+	byWho, ok := m["drives_from_this_house"].(map[string][]string)
+	if !ok {
+		t.Fatalf("want the drives grouped by person, got %T", m["drives_from_this_house"])
+	}
+	if len(byWho["A Person"]) != 2 {
+		t.Fatalf("both of that person's drives belong under their name: %v", byWho)
+	}
+	if len(byWho["anybody in the house"]) != 1 {
+		t.Fatalf("a drive with nobody against it still has to appear: %v", byWho)
+	}
+
+	who, ok := m["who_lives_here"].(map[string]string)
+	if !ok || who["A Person"] == "" {
+		t.Fatalf("the roster has to be in the answer so a name resolves: %v", m["who_lives_here"])
+	}
+	if _, ok := m["work_within_reach"]; !ok {
+		t.Fatal("where the work is has to be in the drives section")
+	}
+}
+
+// Every section named in the tool's schema has to be one Aspect actually answers,
+// or the model is being pointed at something that does not exist.
+func TestTheSectionsTheModelIsOfferedAllExist(t *testing.T) {
+	for _, name := range Aspects {
+		m, ok := (&Report{Address: "1 Test Rd", Drives: map[string]Leg{}}).Aspect(name).(map[string]any)
+		if !ok {
+			continue // everything returns the whole report, which is fine
+		}
+		if _, missing := m["sections"]; missing {
+			t.Errorf("section %q is offered but falls through to the unknown branch", name)
+		}
+	}
+}
+
+// A cached report that gains a field decodes with it blank, which is the same
+// trap the lookup kinds carry a number for.
+func TestAnOlderCachedReportIsRebuiltNotAnsweredFrom(t *testing.T) {
+	db := testDB(t)
+	e, err := NewEngine(db, testConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+
+	if _, err := db.Exec(
+		`INSERT INTO reports (key, address, lat, lon, payload, built_at) VALUES (?,?,?,?,?,?)`,
+		"old", "1 Test Rd", 35.9, -81.1,
+		`{"address":"1 Test Rd","complete":true}`, time.Now().Unix()); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := e.cached(ctx, "old"); ok {
+		t.Fatal("a report from before the drives knew whose they are must not be answered from")
+	}
+
+	if err := e.save(ctx, "new", &Report{Address: "1 Test Rd", Version: reportVersion}); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := e.cached(ctx, "new"); !ok {
+		t.Fatal("a current one still comes back")
+	}
+}
