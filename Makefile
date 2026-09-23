@@ -176,7 +176,7 @@ down-one: require-site
 #
 # Volume and container names are both read out of the compose files rather than
 # listed here, so a site that gains state, or a second service, is picked up
-# without editing this. search has two containers for that reason.
+# without editing this. chat and llm have two containers each for that reason.
 doctor:
 	@probe() { \
 		st=$$($(DOCKER) ps -a --filter "name=^$$1$$" --format '{{.Status}}' 2>/dev/null | head -1); \

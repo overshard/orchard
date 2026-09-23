@@ -95,13 +95,6 @@ var sites = []Site{
 		Visit:       "https://llm.bythewood.me",
 	},
 	{
-		Name:        "search",
-		Dir:         "search.bythewood.me",
-		Description: "Ask it a question and it searches the web, reads the pages it finds, and writes an answer whose every sentence is checked against the passage it cites.",
-		Tech:        []string{"Go", "SQLite", "FTS5"},
-		Visit:       "https://search.bythewood.me",
-	},
-	{
 		Name:        "auth",
 		Dir:         "auth.bythewood.me",
 		Description: "The front door to the rest of these. One account, a six digit code pushed to my phone over ntfy, and a session the other sites check against this one.",

@@ -4,7 +4,7 @@
 //
 // The number it wrote is repaired here rather than trusted, and a sentence left
 // uncited gets one if the wording clearly came from a source. There is no
-// entailment call per sentence, which is what makes an answer on search slow.
+// entailment call per sentence, since one per sentence makes an answer slow.
 package main
 
 import (

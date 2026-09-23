@@ -14,7 +14,6 @@ inbound port.
 | `sites/repos.bythewood.me/` | Git remote you push to over HTTPS. Also mirrors GitHub |
 | `sites/dash.bythewood.me/` | Dashboard. Markets, news, weather and the health of the rest, live over SSE |
 | `sites/auth.bythewood.me/` | The front door. One account, a code pushed to a phone, one session for every site |
-| `sites/search.bythewood.me/` | Search. A local model reads the pages it finds and cites every sentence |
 | `sites/chat.bythewood.me/` | Chat. The same local model, with tools that read the rest of this repo, and the house hunting lookups |
 | `sites/llm.bythewood.me/` | The model gateway. One set of weights on one card, behind an API key |
 | `edge/` | The shared cloudflared tunnel, the Caddy behind it, and ntfy for alerts |
