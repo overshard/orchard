@@ -398,7 +398,7 @@ the flood zone, what if we put ten percent down, what would USDA cost.
 
 **Every fact comes from a free public service and each one is guarded.** FEMA's
 flood layer, USGS hydrography and elevation, NCDOT traffic counts, Overpass, the
-Census geocoder, OSRM, the DHSR roster, the Esri ACS layers, USDA's eligibility
+Census geocoder, OSRM, the DHSR roster, the Esri ACS layers, EPA's facility layers, USDA's eligibility
 map and two county GIS servers that are one machine in a county building.
 `guard.go` paces each with jitter, keeps a hard per-window budget, honours 429 and
 503 and both formats of Retry-After, and trips a breaker whose state is a row in
