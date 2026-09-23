@@ -128,3 +128,18 @@ func (s *site) media(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "public, max-age=86400")
 	http.Redirect(w, r, target, http.StatusMovedPermanently)
 }
+
+// ogLegacy answers the SVG card URLs from before the cards became PNG, which
+// search indexes still request. It sits inside StripPrefix, so the path is the
+// bare file name.
+func ogLegacy(cards fs.FS, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if slug, ok := strings.CutSuffix(r.URL.Path, ".svg"); ok {
+			if _, err := fs.Stat(cards, slug+".png"); err == nil {
+				http.Redirect(w, r, "/og/"+slug+".png", http.StatusMovedPermanently)
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
