@@ -68,9 +68,20 @@ var Remember = Tool{
 			if text == "" {
 				return nil, fmt.Errorf("nothing to remember, pass the fact to keep")
 			}
+			before, _ := d.Memory.Facts()
 			id, err := d.Memory.Add(text)
 			if err != nil {
 				return nil, err
+			}
+			// A fact that says nothing new is merged into the one already held,
+			// and a reply saying "the fix is in" over that is a false claim.
+			after, _ := d.Memory.Facts()
+			for _, f := range before {
+				if f.ID == id && factText(after, id) == f.Text {
+					return map[string]any{"already_known": f.Text, "id": id,
+						"note": "Nothing new was written, since this was already remembered. If he asked you to " +
+							"remember it, say it was already known. Never say you changed or fixed something here."}, nil
+				}
 			}
 			return map[string]any{"remembered": text, "id": id,
 				"note": "Say plainly that you have remembered it, in a line, and do not " +
@@ -123,4 +134,13 @@ func argInt64(a map[string]any, k string) int64 {
 		return out
 	}
 	return 0
+}
+
+func factText(facts []MemoryFact, id int64) string {
+	for _, f := range facts {
+		if f.ID == id {
+			return f.Text
+		}
+	}
+	return ""
 }

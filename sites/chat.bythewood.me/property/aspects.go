@@ -122,13 +122,14 @@ func (r *Report) Summary() map[string]any {
 	if t := r.CostTable(); t != "" {
 		m["answer_with_this_table_exactly"] = t
 	}
-	if r.Value.Found {
-		worth := fmt.Sprintf("about $%s, from a $%s assessment carried forward from %d",
+	// With a caveat the figure is left out rather than qualified. Handed the number
+	// and the reason it was wrong, the model led with the number.
+	if why := r.parcelCaveat(); why != "" {
+		m["assessment"] = "unknown, " + why
+	} else if r.Value.Found {
+		m["assessment_carried_forward"] = fmt.Sprintf(
+			"about $%s, from a $%s tax assessment in %d moved on a county price index, which is not an appraisal of this house",
 			comma(r.Value.Estimate), comma(r.Value.Assessed), r.Value.BaseYear)
-		if why := r.parcelCaveat(); why != "" {
-			worth += ", except " + why
-		}
-		m["what_it_is_worth"] = worth
 	}
 	if r.Price <= 0 {
 		m["note"] = "no asking price was given, so nothing about the money was worked out"
@@ -353,7 +354,8 @@ func (r *Report) SchoolsPart() map[string]any {
 	m["middle"] = schoolLine(z.Middle, z.MiddleMiles, r.Morning.MiddleDetourMin)
 	m["high"] = schoolLine(z.High, z.HighMiles, r.Morning.HighDetourMin)
 	m["zoned_or_nearest"] = zoningNote(z)
-	m["source"] = z.Source
+	// Not "source", which the model counted as a fourth school.
+	m["boundaries_from"] = z.Source
 	if z.K8 {
 		m["note"] = "one school covers elementary and middle here, so there is no second move"
 	}
@@ -486,7 +488,11 @@ func shareMap(s []AreaShare) map[string]float64 {
 func (r *Report) LandPart() map[string]any {
 	m := r.head()
 	p := r.Parcel
-	if p.Found {
+	switch other := r.otherParcel(); {
+	case other != "":
+		m["parcel"] = "the nearest parcel on the tax roll is " + other +
+			", not this house, so the lot size and the assessment are unknown"
+	case p.Found:
 		if p.Acres > 0 {
 			m["lot_size"] = fmt.Sprintf("%s acres, %s", trimFloat(p.Acres), p.AcresFrom)
 		}
@@ -496,25 +502,24 @@ func (r *Report) LandPart() map[string]any {
 		m["parcel_use"] = p.Use
 		m["last_sold"] = p.LastSold
 		m["parcel_source"] = p.Source
-	} else {
+	default:
 		m["parcel"] = "no parcel matched, so the lot size and the assessment are unknown"
 	}
 
-	if r.Value.Found {
-		m["what_the_assessment_is_worth_now"] = fmt.Sprintf(
+	// A figure off a record that is not this house is a wrong number wearing a
+	// precise one's clothes, so it is left out and the reason given instead.
+	if why := r.parcelCaveat(); why != "" {
+		m["assessment_now"] = "unknown, " + why
+	} else if r.Value.Found {
+		m["assessment_now"] = fmt.Sprintf(
 			"about $%s, between $%s and $%s, carrying the %d assessment forward %.1f%% on %s",
 			comma(r.Value.Estimate), comma(r.Value.Low), comma(r.Value.High),
 			r.Value.BaseYear, r.Value.MovedPct, r.Value.Basis)
-		// A percentage off a record that is not this house is a wrong number
-		// wearing a precise one's clothes, and a model will repeat it as a
-		// finding. Say what is wrong with the record instead.
-		if why := r.parcelCaveat(); why != "" {
-			m["do_not_compare_the_price_to_that"] = why
-		} else if r.Price > 0 && r.Value.Estimate > 0 {
+		if r.Price > 0 && r.Value.Estimate > 0 {
 			gap := (float64(r.Price) - r.Value.Estimate) / r.Value.Estimate * 100
 			m["asking_against_that"] = fmt.Sprintf("%+.0f%%", gap)
 		}
-		m["value_note"] = "a county index is not an appraisal of one house, which is what the range is for"
+		m["value_note"] = "a tax assessment moved on a county index is not an appraisal, so a gap to the asking price is a question to ask and not a verdict on the house"
 	}
 
 	t := r.Terrain
@@ -601,7 +606,7 @@ func (r *Report) IndustryPart() map[string]any {
 // one, so this costs no traffic to anybody and there is nothing to be blocked by.
 func (r *Report) Links() map[string]string {
 	lat, lon := r.Lat, r.Lon
-	if r.Parcel.Lat != 0 {
+	if r.Parcel.Lat != 0 && r.otherParcel() == "" {
 		// The middle of the lot, not the geocoded point, which sits in the road
 		// and lands a pin at the neighbour's.
 		lat, lon = r.Parcel.Lat, r.Parcel.Lon
@@ -626,16 +631,26 @@ func (r *Report) Links() map[string]string {
 // against a house that is standing on it.
 func (r *Report) parcelCaveat() string {
 	p := r.Parcel
-	if !p.Found || r.Price <= 0 {
+	if !p.Found {
 		return ""
 	}
-	if p.Address != "" && addressKey(p.Address, "") != addressKey(r.Address, "") {
-		return fmt.Sprintf("the parcel that matched is %s, not the address asked about, so the assessment is somebody else's", p.Address)
+	if other := r.otherParcel(); other != "" {
+		return fmt.Sprintf("the parcel that matched is %s, not the address asked about, so the assessment is somebody else's", other)
 	}
 	if p.MarketValue > 0 && p.BuildValue == 0 && p.LandValue > 0 {
 		return "the tax roll has land and no buildings on this parcel, so the assessment is for a vacant lot and says nothing about what the house is worth"
 	}
 	return ""
+}
+
+// otherParcel is the tax roll address of a parcel that matched and is not this
+// house, and empty when it is this house or nothing matched.
+func (r *Report) otherParcel() string {
+	p := r.Parcel
+	if !p.Found || p.Address == "" || addressKey(p.Address, "") == addressKey(r.Address, "") {
+		return ""
+	}
+	return p.Address
 }
 
 // The one line forms, which the summary is made of.
@@ -705,12 +720,17 @@ func (r *Report) morningLine() string {
 }
 
 func (r *Report) lotLine() string {
-	if !r.Parcel.Found {
-		return "no parcel matched"
+	var out string
+	switch other := r.otherParcel(); {
+	case other != "":
+		out = "size unknown, since the tax roll matched " + other + " rather than this house"
+	case r.Parcel.Found:
+		out = fmt.Sprintf("%s acres", trimFloat(r.Parcel.Acres))
+	default:
+		out = "no parcel matched"
 	}
-	out := fmt.Sprintf("%s acres", trimFloat(r.Parcel.Acres))
 	if r.Terrain.MeanSlopePct > 0 {
-		out += fmt.Sprintf(", %.0f%% of it flat enough to build or garden on", r.Terrain.FlatShare*100)
+		out += fmt.Sprintf(", %.0f%% of the ground around it flat enough to build or garden on", r.Terrain.FlatShare*100)
 	}
 	return out
 }
@@ -733,7 +753,8 @@ func (r *Report) usdaLine() string {
 }
 
 func (r *Report) crimeLine() string {
-	return r.Area.CrimeWhyShort() + ", " + r.Area.CrimeWhy()
+	return r.Area.CrimeWhyShort() + ", " + r.Area.CrimeWhy() +
+		". These are figures for the whole county, so they say nothing about this street against the rest of it"
 }
 
 // minutes writes a drive time, singular when it is one, since "1 minutes" in the

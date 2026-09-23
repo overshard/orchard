@@ -75,3 +75,22 @@ func TestSentenceCaseTitles(t *testing.T) {
 		}
 	}
 }
+
+func TestDropDashes(t *testing.T) {
+	cases := map[string]string{
+		"**AI stocks back on** — Nvidia and AMD are leading": "**AI stocks back on**, Nvidia and AMD are leading",
+		"a counter-signal to that — density instead":         "a counter-signal to that, density instead",
+		"rain is 2–4 percent":                                "rain is 2-4 percent",
+		"keep `a — b` in code":                               "keep `a — b` in code",
+		"no dash here, and a hyphen-word":                    "no dash here, and a hyphen-word",
+	}
+	for in, want := range cases {
+		if got := dropDashes(in); got != want {
+			t.Errorf("%q\n got %q\nwant %q", in, got, want)
+		}
+	}
+	fenced := "```\nx := a — b\n```"
+	if got := dropDashes(fenced); got != fenced {
+		t.Errorf("changed a fence: %q", got)
+	}
+}

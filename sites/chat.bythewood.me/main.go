@@ -392,6 +392,11 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 	// Incognito is left out of every one of these. A mode that writes nothing
 	// down must not announce itself to a tab on another device either.
 	if !req.Incognito {
+		q := req.Message
+		if q == "" && len(parts) > 0 {
+			q = parts[0].Name
+		}
+		rn.setQuestion(q)
 		s.hub.Publish(HubEvent{Kind: "started", ConvID: key})
 	}
 	// This runs detached, since r.Context() dies with the tab and a turn that has
@@ -718,7 +723,28 @@ func (s *site) listConversations(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	writeJSON(w, map[string]any{"conversations": convs})
+	// A turn still going is marked, and a new conversation's first turn is listed
+	// before it is stored, so a reload mid answer can still find it.
+	type row struct {
+		Conversation
+		Running bool `json:"running,omitempty"`
+	}
+	asking := s.runs.Asking()
+	out := make([]row, 0, len(convs)+len(asking))
+	listed := map[string]bool{}
+	for _, c := range convs {
+		listed[c.ID] = true
+	}
+	for key, q := range asking {
+		if !listed[key] {
+			out = append(out, row{Conversation: Conversation{ID: key, Title: trimLine(q, 60), Updated: time.Now()}, Running: true})
+		}
+	}
+	for _, c := range convs {
+		_, running := asking[c.ID]
+		out = append(out, row{Conversation: c, Running: running})
+	}
+	writeJSON(w, map[string]any{"conversations": out})
 }
 
 func (s *site) getConversation(w http.ResponseWriter, r *http.Request) {
@@ -754,6 +780,9 @@ func (s *site) getConversation(w http.ResponseWriter, r *http.Request) {
 	running := false
 	if rn, ok := s.runs.Get(id); ok {
 		running = rn.Running()
+		if q := rn.Asking(); q != "" {
+			rendered = append(rendered, out{Role: RoleUser, Text: q})
+		}
 	}
 	writeJSON(w, map[string]any{"id": id, "title": conv.Title,
 		"messages": rendered, "running": running})

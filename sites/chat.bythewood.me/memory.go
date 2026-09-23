@@ -319,7 +319,8 @@ Worth keeping:
 
 Not worth keeping:
 - what the weather is, what a page said, a price, a score, anything a tool looks up
-- what he is doing this minute, today or this week
+- what he is doing this minute, today or this week, including a trip he is planning or a particular listing he is looking at
+- advice, suggestions or packing lists the assistant gave him, which are not facts about him unless he said he does them
 - passwords, keys, tokens, account numbers, anything secret
 - facts about the world rather than about him
 

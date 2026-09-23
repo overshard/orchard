@@ -1,6 +1,6 @@
 // The conversation loop. A turn is not one big generation: the model decides
 // what it needs, tools fetch it, and only then does it write, which is what
-// makes a 4B usable here.
+// makes a small model usable here.
 package main
 
 import (
@@ -144,7 +144,8 @@ Follow-ups:
 
 Answers:
 - Not every message is a question. When he is chatting, agreeing, joking or thinking out loud, answer like a person would in a line or two and call nothing. Never tell him you do not know what he is asking.
-- Lead with the answer. No preamble, no restating the question, no closing offer of more help.
+- Lead with the answer. No preamble, no restating the question, no closing offer of more help. Do not open with "Good news", "You're right" or anything else that grades the question or the news before saying it.
+- Never name a tool, a section of one or a field in its result. He sees the answer, not the plumbing.
 - Never write a web address. When you are given a numbered list of sources, end the sentence with the number it came from, like [2].
 - Say plainly when you are unsure or when sources disagree. A short honest answer beats a confident wrong one.
 - Every name, title, date, number and price you write has to come from a tool result in this turn, from an answer you already gave in this conversation, or from what the user told you. Anything else needs a tool call before you write it.
@@ -228,7 +229,19 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	// The first move on any question naming a thing, since the snapshot is on
 	// this machine and is newer than the weights. It goes in after the history
 	// so the cached prompt prefix survives.
-	if res, msg, ok := e.opening(ctx, user); ok {
+	if house, msg, ok := e.houseOpening(ctx, deps, user, history); ok {
+		for _, res := range house {
+			emit(Event{Kind: "tool", Tool: res.Name, Args: shortArgs(string(res.Args))})
+			emit(Event{Kind: "tool_done", Tool: res.Name, MS: res.Elapsed.Milliseconds(), OK: res.Err == ""})
+			tr.Add(Step{Kind: "tool", Label: res.Name + ", before the model decided anything", In: string(res.Args),
+				Out: resultText(res), MS: res.Elapsed.Milliseconds(), Bad: res.Err != ""})
+		}
+		for _, wdg := range drained(deps.Widgets, sentWidgets) {
+			emit(Event{Kind: "widget", Widget: &wdg})
+		}
+		msgs = append(msgs, msg)
+		used = append(used, house...)
+	} else if res, msg, ok := e.opening(ctx, user); ok {
 		emit(Event{Kind: "tool", Tool: res.Name, Args: shortArgs(string(res.Args))})
 		emit(Event{Kind: "tool_done", Tool: res.Name, MS: res.Elapsed.Milliseconds(), OK: true})
 		msgs = append(msgs, msg)
@@ -256,7 +269,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	// house it searched the web anyway and came back with a build year that was
 	// in no tool result, which is the shape a prompt cannot fix, since a prompt
 	// is a request.
-	var usedProperty bool
+	usedProperty := calledTool(used, tools.PropertyTool.Name)
 	var stats Stats
 	schemas := e.reg.Schemas()
 
@@ -520,7 +533,7 @@ func budgetNote(used []tools.Result) string {
 // streamed block and again on the whole answer agrees with itself.
 
 func prepare(md string, srcs []Source) string {
-	return attach(dropLabelMarks(linkBareAddresses(dropSourceList(md))), srcs)
+	return attach(dropDashes(dropLabelMarks(linkBareAddresses(dropSourceList(md)))), srcs)
 }
 
 // blockWriter turns a token stream into finished markdown blocks. It only ever

@@ -48,6 +48,8 @@ var budgets = map[string]budget{
 	// Unofficial and the only pollen there is, so it is paced well under what
 	// dash already asks of it rather than at a limit nobody published.
 	"www.pollen.com": {gap: 2 * time.Second, minute: 10, hour: 60, day: 400},
+	// Nominatim's usage policy is one request a second at most.
+	"nominatim.openstreetmap.org": {gap: 1500 * time.Millisecond, minute: 10, hour: 60, day: 300},
 }
 
 var defaultBudget = budget{gap: 400 * time.Millisecond, minute: 60, hour: 900, day: 8000}

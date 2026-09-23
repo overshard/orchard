@@ -239,3 +239,26 @@ func TestWaitingLabelReadsAsWords(t *testing.T) {
 		}
 	}
 }
+
+// A new conversation is not stored until its first turn ends, so a reload mid
+// answer found nothing in the list and nothing to follow.
+func TestAskingListsTurnsStillGoing(t *testing.T) {
+	rs := NewRuns()
+	a := rs.Start("run-a")
+	a.setQuestion("what is the weather this weekend")
+	rs.Start("run-incognito")
+	done := rs.Start("run-done")
+	done.setQuestion("already answered")
+	done.Finish()
+
+	got := rs.Asking()
+	if got["run-a"] != "what is the weather this weekend" {
+		t.Errorf("a turn still going is not listed: %v", got)
+	}
+	if _, ok := got["run-incognito"]; ok {
+		t.Error("an incognito turn was listed")
+	}
+	if _, ok := got["run-done"]; ok {
+		t.Error("a finished turn was listed")
+	}
+}

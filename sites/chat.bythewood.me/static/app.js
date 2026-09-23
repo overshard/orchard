@@ -721,7 +721,9 @@
         showStats(ev.stats);
         ui.tail.remove();
         if (ev.conversation_id) {
-          const isNew = !convID;
+          // A new conversation followed after a reload is on screen under the
+          // key the browser made up, so that is new too.
+          const isNew = convID !== ev.conversation_id;
           convID = ev.conversation_id;
           if (isNew) {
             // The address has to catch up with the conversation that now
@@ -770,7 +772,7 @@
       } else {
         for (const c of d.conversations) {
           const a = document.createElement("a");
-          a.className = "conv" + (c.id === convID ? " active" : "");
+          a.className = "conv" + (c.id === convID ? " active" : "") + (c.running ? " working" : "");
           a.href = "/c/" + c.id;
           a.dataset.id = c.id;
           a.innerHTML = `<span class="conv-title">${esc(c.title)}</span>` +
@@ -1085,6 +1087,7 @@
         // Another tab, or another device, asked this conversation something.
         // Follow it if it is the one on screen and nothing here is streaming.
         if (ev.conversation_id === convID && !inflight) follow(convID);
+        refreshConversations().then(paintUnread);
         return;
       }
       if (ev.kind === "finished") {

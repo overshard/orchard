@@ -719,8 +719,19 @@ func TestAWrongParcelRecordIsNotComparedToThePrice(t *testing.T) {
 	if _, bad := land["asking_against_that"]; bad {
 		t.Fatal("a parcel next door must not be compared to this price")
 	}
-	if why, _ := land["do_not_compare_the_price_to_that"].(string); !strings.Contains(why, "2949") {
-		t.Fatalf("it has to name the parcel it actually matched: %q", why)
+	if why, _ := land["assessment_now"].(string); !strings.Contains(why, "2949") || strings.Contains(why, "231") {
+		t.Fatalf("it has to name the parcel it actually matched and leave its figure out: %q", why)
+	}
+	if _, bad := land["lot_size"]; bad {
+		t.Fatal("the acreage of the parcel next door is not this lot's")
+	}
+	// The model led with the figure when it came with the caveat attached.
+	sum := nextDoor.Summary()
+	if got, _ := sum["assessment"].(string); !strings.Contains(got, "2949") || strings.Contains(got, "231") {
+		t.Fatalf("the summary has to drop the figure and say why: %q", got)
+	}
+	if lot := nextDoor.lotLine(); strings.Contains(lot, "acres") {
+		t.Fatalf("the lot line quoted the neighbour's acreage: %q", lot)
 	}
 
 	// A tax roll carrying land and no buildings is a vacant lot record against a
@@ -735,10 +746,10 @@ func TestAWrongParcelRecordIsNotComparedToThePrice(t *testing.T) {
 	if _, bad := vacant.LandPart()["asking_against_that"]; bad {
 		t.Fatal("a vacant lot record must not be compared to the price of a house")
 	}
-	if why, _ := vacant.LandPart()["do_not_compare_the_price_to_that"].(string); !strings.Contains(why, "vacant lot") {
+	if why, _ := vacant.LandPart()["assessment_now"].(string); !strings.Contains(why, "vacant lot") {
 		t.Fatalf("it has to say the record is land only: %q", why)
 	}
-	if got := vacant.Summary()["what_it_is_worth"].(string); !strings.Contains(got, "vacant lot") {
+	if got := vacant.Summary()["assessment"].(string); !strings.Contains(got, "vacant lot") {
 		t.Fatalf("the summary line carries the caveat too: %q", got)
 	}
 
