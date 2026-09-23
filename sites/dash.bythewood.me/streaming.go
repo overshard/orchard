@@ -31,9 +31,10 @@ const (
 // popularQuery is JustWatch's own popularTitles ranking, which is driven by
 // what their users are actually doing. That is a better read on "making waves"
 // than a release date is: a show in its fourth season is new news even though
-// its release year is four years old.
+// its release year is four years old. The default sort is over a long window
+// and barely moves for months, so this asks for the last seven days instead.
 const popularQuery = `query Popular($country: Country!, $first: Int!) {
-  popularTitles(country: $country, first: $first, filter: {objectTypes: [MOVIE, SHOW]}) {
+  popularTitles(country: $country, first: $first, sortBy: POPULAR_7_DAYS, filter: {objectTypes: [MOVIE, SHOW]}) {
     edges { node {
       objectType
       content(country: $country, language: "en") {
