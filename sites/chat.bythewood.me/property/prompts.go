@@ -62,6 +62,9 @@ func (r *Report) Prompts() []Prompt {
 	if r.Parcel.Found || r.Terrain.MeanSlopePct > 0 {
 		add("The lot", "What is the lot at %s like, how flat is it, and what is it assessed at?")
 	}
+	if r.Industry.Measured {
+		add("Industry nearby", "Is there anything I would not want to live near around %s, like data centres, factories, landfills or quarries?")
+	}
 	if len(r.Outings.Nearest) > 0 {
 		add("Things to do", "What is there to do near %s?")
 	}

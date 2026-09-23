@@ -354,7 +354,7 @@ body {
 
 /* Follow-up prompts under an answer. A report holds eleven sections and an
    answer shows one, so these are how the rest are found at all. */
-.wdg.asks { margin-bottom: 0.8rem; }
+.wdg.asks { margin-bottom: 0.8rem; padding: 0.6rem 0.75rem 0.7rem; }
 .askhead {
   color: var(--faint); font-size: 0.64rem; font-weight: 600;
   letter-spacing: var(--track); text-transform: uppercase; margin-bottom: 0.45rem;

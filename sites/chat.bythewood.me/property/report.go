@@ -45,7 +45,10 @@ type Report struct {
 	Area    AreaProfile   `json:"area"`
 	Value   ValueEstimate `json:"value"`
 	Outings OutingsResult `json:"outings"`
-	USDA    USDAArea      `json:"usda_area"`
+	// Filled on the next lookup for reports cached before it existed, rather
+	// than bumping the version and rebuilding every house for one section.
+	Industry IndustryResult `json:"industry"`
+	USDA     USDAArea       `json:"usda_area"`
 
 	Morning   Morning        `json:"morning"`
 	Drives    map[string]Leg `json:"drives"`
@@ -90,6 +93,7 @@ type Engine struct {
 	route *Router
 	facs  *Facilities
 	outng *Outings
+	indus *Industry
 	usda  *USDA
 	rates *Rates
 
@@ -126,6 +130,7 @@ func NewEngine(db *sql.DB, cfg Config) (*Engine, error) {
 		route: NewRouter(db),
 		facs:  NewFacilities(db, geo),
 		outng: NewOutings(db, roads),
+		indus: NewIndustry(db, roads),
 		usda:  NewUSDA(db),
 		rates: NewRates(db),
 
@@ -193,7 +198,8 @@ func (e *Engine) Lookup(ctx context.Context, address string, opt Options) (*Repo
 	// arrived with its town on it. A follow up went out with the street alone,
 	// failed to place, and the model started bolting invented towns onto it.
 	if !opt.Refresh {
-		if r, ok := e.cachedLike(ctx, address); ok {
+		if r, key, ok := e.cachedLike(ctx, address); ok {
+			e.backfill(ctx, key, r)
 			e.priceReport(ctx, r, opt)
 			return r, nil
 		}
@@ -212,6 +218,7 @@ func (e *Engine) Lookup(ctx context.Context, address string, opt Options) (*Repo
 	key := reportKey(address, matched)
 	if !opt.Refresh {
 		if r, ok := e.cached(ctx, key); ok {
+			e.backfill(ctx, key, r)
 			// The price and the loans are the caller's, not the cache's, so they
 			// are worked out fresh over the cached facts every time.
 			e.priceReport(ctx, r, opt)
@@ -362,6 +369,11 @@ func (e *Engine) assess(ctx context.Context, address, matched string, lat, lon f
 	run("places to go nearby", func() error {
 		v, err := e.outng.Lookup(ctx, lat, lon)
 		r.Outings = v
+		return err
+	})
+	run("industry nearby", func() error {
+		v, err := e.indus.Lookup(ctx, lat, lon)
+		r.Industry = v
 		return err
 	})
 	run("the USDA rural area map", func() error {
@@ -530,24 +542,45 @@ func reportKey(asked, matched string) string {
 // cachedLike finds a report for an address written any of the ways somebody
 // might write it. The stored key is built from the full matched address, so a
 // street line on its own does not equal it and has to be matched as a prefix.
-func (e *Engine) cachedLike(ctx context.Context, address string) (*Report, bool) {
+func (e *Engine) cachedLike(ctx context.Context, address string) (*Report, string, bool) {
 	key := addressKey(address, "")
 	if r, ok := e.cached(ctx, key); ok {
-		return r, true
+		return r, key, true
 	}
 	// The street line alone, against the front of a stored key. Anchored, so
 	// "1 Oak" cannot match "21 Oak".
 	bare := strings.TrimSuffix(key, "|")
 	if len(bare) < 8 {
-		return nil, false
+		return nil, "", false
 	}
 	var stored string
 	err := e.db.QueryRowContext(ctx,
 		`SELECT key FROM reports WHERE key LIKE ? ORDER BY built_at DESC LIMIT 1`, bare+"%").Scan(&stored)
 	if err != nil {
-		return nil, false
+		return nil, "", false
 	}
-	return e.cached(ctx, stored)
+	r, ok := e.cached(ctx, stored)
+	return r, stored, ok
+}
+
+// backfill looks up the industry for a report cached before it had any. Three
+// requests, not the forty a cold address costs, so it is not counted against the
+// ceiling. A failure leaves it unmeasured and the next question tries again.
+func (e *Engine) backfill(ctx context.Context, key string, r *Report) {
+	if r.Industry.Measured || r.Lat == 0 {
+		return
+	}
+	ctx, cancel := context.WithTimeout(ctx, 45*time.Second)
+	defer cancel()
+	v, err := e.indus.Lookup(ctx, r.Lat, r.Lon)
+	if err != nil {
+		slog.Info("property industry backfill failed", "address", r.Address, "err", err)
+		return
+	}
+	r.Industry = v
+	if err := e.save(ctx, key, r); err != nil {
+		slog.Error("could not cache a property report", "address", r.Address, "err", err)
+	}
 }
 
 func (e *Engine) cached(ctx context.Context, key string) (*Report, bool) {

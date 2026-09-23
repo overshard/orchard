@@ -376,6 +376,17 @@ func propertyNudge() string {
 		"If the result gave you a cost table, print that table as it came and keep it in the answer."
 }
 
+// A house number, a street name and a street type, which is what every chip and
+// every listing carries.
+var streetAddress = regexp.MustCompile(`(?i)\b\d{1,6}\s+(?:[a-z0-9.'-]+\s+){1,4}(?:rd|road|st|street|dr|drive|ln|lane|ave|avenue|blvd|boulevard|ct|court|hwy|highway|way|pl|place|cir|circle|trl|trail|pkwy|parkway|loop|ter|terrace|run|pike)\b`)
+
+func namesAnAddress(question string) bool { return streetAddress.MatchString(question) }
+
+func addressNudge() string {
+	return "That question names a house. Call property with that address and the section the question is about, " +
+		"and answer from what it returns. Do not search the web for it."
+}
+
 func researchNudge(query string) string {
 	q := strings.TrimSpace(query)
 	if q == "" {
@@ -433,6 +444,13 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 	// question under it to research.
 	if calledTool(used, tools.Remember.Name) {
 		return "", Stats{}
+	}
+	// A follow up chip names the house and the model answers it from the last
+	// reply, which reads to the freshness check as local and current, so it went
+	// to the web and came back saying the lot's own flood zone was unknown.
+	if len(used) == 0 && namesAnAddress(question) {
+		emit(Event{Kind: "status", Text: "looking it up"})
+		return addressNudge(), Stats{}
 	}
 	// Asked of the question and before anything reads the draft, since the failure
 	// this catches is a draft that sounds like an answer. A turn that already
