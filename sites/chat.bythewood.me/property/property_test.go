@@ -1137,7 +1137,7 @@ func TestAKnownHouseAnswersWithoutTheGeocoder(t *testing.T) {
 		"402 Sample Rd, Anytown, NC",
 		"402 Sample Rd",
 	} {
-		got, ok := e.cachedLike(ctx, written)
+		got, _, ok := e.cachedLike(ctx, written)
 		if !ok {
 			t.Errorf("%q should find the report already built", written)
 			continue
@@ -1148,10 +1148,43 @@ func TestAKnownHouseAnswersWithoutTheGeocoder(t *testing.T) {
 	}
 
 	// A different house on the same street is not this one.
-	if _, ok := e.cachedLike(ctx, "402 Sample Rd"); !ok {
+	if _, _, ok := e.cachedLike(ctx, "402 Sample Rd"); !ok {
 		t.Fatal("setup")
 	}
-	if _, ok := e.cachedLike(ctx, "12 Sample Rd, Anytown, NC"); ok {
+	if _, _, ok := e.cachedLike(ctx, "12 Sample Rd, Anytown, NC"); ok {
 		t.Fatal("a different number is a different house")
+	}
+}
+
+// A solar farm is a power plant to OSM, and a data centre is often also tagged
+// as industrial land, so the order of the checks decides what a site reads as.
+func TestIndustryKindReadsTheRightTag(t *testing.T) {
+	cases := []struct {
+		tags map[string]string
+		want string
+	}{
+		{map[string]string{"power": "plant", "plant:source": "solar"}, "solar farm"},
+		{map[string]string{"power": "plant", "plant:source": "gas"}, "power plant"},
+		{map[string]string{"telecom": "data_center", "landuse": "industrial"}, "data centre"},
+		{map[string]string{"landuse": "landfill", "name": "Foothills"}, "landfill"},
+		{map[string]string{"highway": "secondary"}, ""},
+	}
+	for _, c := range cases {
+		if got := industryKind(c.tags); got != c.want {
+			t.Errorf("%v read as %q, want %q", c.tags, got, c.want)
+		}
+	}
+}
+
+// Nothing found has to say what was searched and what was not, or a model turns
+// an empty list into a clean bill.
+func TestAnEmptyIndustrySectionSaysWhatItDidNotCover(t *testing.T) {
+	r := &Report{Address: "1 Test Rd", Industry: IndustryResult{Measured: true}}
+	m := r.IndustryPart()
+	if !strings.Contains(fmt.Sprint(m["not_covered"]), "poultry") {
+		t.Fatalf("the gaps have to be named, got %v", m)
+	}
+	if (&Report{Address: "1 Test Rd"}).IndustryPart()["industry"] == nil {
+		t.Fatal("an unmeasured section has to say so")
 	}
 }
