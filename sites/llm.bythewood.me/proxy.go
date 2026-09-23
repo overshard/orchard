@@ -26,7 +26,7 @@ import (
 const maxRequestBytes = 32 << 20
 
 // incognitoHeader is a caller saying this turn is not to be written down. Chat
-// and search set it when the user is in incognito, and it is taken at its word
+// sets it when the user is in incognito, and it is taken at its word
 // because every caller here holds a key that was handed out by hand.
 const incognitoHeader = "X-Incognito"
 

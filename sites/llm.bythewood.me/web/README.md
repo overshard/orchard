@@ -1,8 +1,8 @@
 # web
 
-Search's own copy of the shared pieces, the same way every other site in orchard
+The gateway's own copy of the shared pieces, the same way every other site in orchard
 carries one. The renderer, static handler and Vite manifest are still absent,
-because search builds its templates itself and serves assets out of `assets.go`.
+because llm parses its templates itself and serves assets out of `assets_embed.go` and `assets_disk.go`.
 
 `server.go` is the copy without a write bound, shared with dash, since both
 serve an event stream that has to stay open. The rest are byte for byte the
