@@ -10,6 +10,21 @@
   const modelBtn = $("model-btn");
   const side = $("side"), convs = $("convs"), scrim = $("scrim");
 
+  // A revoked or expired session answers every call with 401, and most callers
+  // here swallow errors, so without this the page just goes quiet. The redirect
+  // waits a tick so a failed send can save its message first.
+  const DRAFT = "chat-draft";
+  let leaving = false;
+  const nativeFetch = window.fetch.bind(window);
+  window.fetch = async (...args) => {
+    const r = await nativeFetch(...args);
+    if (r.status === 401 && !leaving) {
+      leaving = true;
+      setTimeout(() => location.assign("/login?next=" + encodeURIComponent(location.pathname)), 0);
+    }
+    return r;
+  };
+
   // Conversations that finished a turn while the reader was somewhere else.
   // Declared up here because refreshConversations paints from it and runs
   // before the live stream is wired.
@@ -628,6 +643,9 @@
         };
       }
       const resp = await fetch("/api/send", init);
+      if (resp.status === 401) {
+        try { sessionStorage.setItem(DRAFT, text); } catch { /* private window */ }
+      }
       if (!resp.ok || !resp.body) throw new Error("the server refused that (" + resp.status + ")");
 
       await consume(resp, { body, toolbar, srcbox, blocks, tail, widgets: wdgbox,
@@ -869,6 +887,14 @@
     input.style.height = "auto";
     ask(t);
   });
+
+  try {
+    const draft = sessionStorage.getItem(DRAFT);
+    if (draft) {
+      sessionStorage.removeItem(DRAFT);
+      if (!input.value) input.value = draft;
+    }
+  } catch { /* private window */ }
 
   input.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); }
