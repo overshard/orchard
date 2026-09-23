@@ -57,7 +57,6 @@ var monitored = []Monitored{
 	{Label: "Status", Source: "status", Host: "status.bythewood.me"},
 	{Label: "Logging", Source: "logging", Host: "logging.bythewood.me"},
 	{Label: "Repos", Source: "repos", Host: "repos.bythewood.me"},
-	{Label: "Search", Source: "search", Host: "search.bythewood.me"},
 	{Label: "Chat", Source: "chat", Host: "chat.bythewood.me"},
 	{Label: "LLM", Source: "llm", Host: "llm.bythewood.me"},
 	{Label: "Dash", Source: "dash", Host: "dash.bythewood.me"},

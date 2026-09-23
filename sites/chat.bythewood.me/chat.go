@@ -1,6 +1,6 @@
 // The conversation loop. A turn is not one big generation: the model decides
-// what it needs, tools fetch it, and only then does it write. That is the same
-// insight search rests on and it is what makes a 4B usable here.
+// what it needs, tools fetch it, and only then does it write, which is what
+// makes a 4B usable here.
 package main
 
 import (

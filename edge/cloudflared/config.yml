@@ -27,8 +27,6 @@ ingress:
     service: http://caddy:80
   - hostname: dash.bythewood.me
     service: http://caddy:80
-  - hostname: search.bythewood.me
-    service: http://caddy:80
   - hostname: chat.bythewood.me
     service: http://caddy:80
   - hostname: llm.bythewood.me

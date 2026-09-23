@@ -265,8 +265,7 @@ http://dash.bythewood.me {
 # The answer arrives over server-sent events, which must not be buffered or
 # compressed, so this block imports scanners and headers directly rather than
 # taking (site) with its blanket encode. Same reason dash does.
-# Streams its answers and runs a local model, so the same shape as search: no
-# blanket encode over the event stream and timeouts that outlast a slow turn.
+# It also runs a local model, so its timeouts have to outlast a slow turn.
 http://chat.bythewood.me {
 	import scanners
 	import headers
@@ -305,24 +304,6 @@ http://llm.bythewood.me {
 	}
 }
 
-http://search.bythewood.me {
-	import scanners
-	import headers
-
-	@compressible not path /stream
-
-	encode @compressible zstd gzip
-
-	# A question runs a local model and can take a minute, well past Caddy's
-	# default. The stream is held open for the whole of it.
-	reverse_proxy orchard-search:8000 {
-		flush_interval -1
-		transport http {
-			response_header_timeout 5m
-			read_timeout 6m
-		}
-	}
-}
 
 # ntfy, the alert path. An allowlist of three routes, for two reasons.
 #
