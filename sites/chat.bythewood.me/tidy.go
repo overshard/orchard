@@ -1,6 +1,6 @@
 package main
 
-// The two things the contract asks for and does not get.
+// What the contract asks for and does not get.
 //
 // Both are repaired in Go rather than asked for again, since a rule the model
 // has already been given and ignored is not worth a second model call. Neither
@@ -98,7 +98,22 @@ var labelMark = regexp.MustCompile(`\s*\[[^\]\n]{1,40}\]`)
 
 // dropLabelMarks removes those, outside code and outside a fence, and leaves
 // anything that is really markdown alone.
-func dropLabelMarks(text string) string {
+func dropLabelMarks(text string) string { return outsideCodeLines(text, dropLabelsIn) }
+
+// The prompt asks for no em dashes and the model writes them anyway, mostly after
+// a bold label. A comma reads the same in every one of them.
+var (
+	spacedDash = regexp.MustCompile(`\s*[—–]\s+|\s+[—–]\s*|—`)
+	dashRange  = regexp.MustCompile(`(\d)–(\d)`)
+)
+
+func dropDashes(text string) string {
+	return outsideCodeLines(text, func(part string) string {
+		return spacedDash.ReplaceAllString(dashRange.ReplaceAllString(part, "$1-$2"), ", ")
+	})
+}
+
+func outsideCodeLines(text string, fn func(string) string) string {
 	lines := strings.Split(text, "\n")
 	fenced := false
 	for i, line := range lines {
@@ -110,7 +125,7 @@ func dropLabelMarks(text string) string {
 		if fenced {
 			continue
 		}
-		lines[i] = eachOutsideCode(line, dropLabelsIn)
+		lines[i] = eachOutsideCode(line, fn)
 	}
 	return strings.Join(lines, "\n")
 }

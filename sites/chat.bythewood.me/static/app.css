@@ -172,6 +172,15 @@ body {
   margin-left: 0.4rem; vertical-align: middle;
   border-radius: 50%; background: var(--green-bright);
 }
+/* A turn still writing into this one, including a new conversation's first
+   turn, which is not stored until it ends. */
+.conv.working .conv-title::after {
+  content: "";
+  display: inline-block; width: 0.4rem; height: 0.4rem;
+  margin-left: 0.4rem; vertical-align: middle;
+  border-radius: 50%; background: var(--amber);
+  animation: pulse 1s ease-in-out infinite;
+}
 /* The same signal on the button that opens the drawer, since on a phone the
    list it marks is off screen. */
 .icon-btn.dot-on::after {

@@ -68,7 +68,36 @@ func geocode(ctx context.Context, d *Deps, place string) (g geo, err error) {
 			return g, nil
 		}
 	}
+	// Open-Meteo only knows towns, so a gorge, a park or a trailhead misses and the
+	// answer came back for the nearest town down in the valley instead.
+	if g, ok := nominatim(ctx, d, place); ok {
+		return g, nil
+	}
 	return geo{}, fmt.Errorf("could not find a place called %q", place)
+}
+
+func nominatim(ctx context.Context, d *Deps, place string) (geo, bool) {
+	var out []struct {
+		Lat     string `json:"lat"`
+		Lon     string `json:"lon"`
+		Name    string `json:"name"`
+		Display string `json:"display_name"`
+	}
+	u := "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=us&q=" + url.QueryEscape(place)
+	// Their policy asks for an agent that names the application, not a browser's.
+	if err := getJSONHeaders(ctx, d, u, map[string]string{"User-Agent": "chat.bythewood.me"}, &out); err != nil || len(out) == 0 {
+		return geo{}, false
+	}
+	lat, err1 := strconv.ParseFloat(out[0].Lat, 64)
+	lon, err2 := strconv.ParseFloat(out[0].Lon, 64)
+	if err1 != nil || err2 != nil {
+		return geo{}, false
+	}
+	name := out[0].Name
+	if parts := strings.Split(out[0].Display, ", "); len(parts) >= 2 {
+		name = strings.Join(parts[:2], ", ")
+	}
+	return geo{Lat: lat, Lon: lon, Name: name, Country: "US"}, true
 }
 
 // geo is what one lookup settles. The postcode is carried because pollen.com is
