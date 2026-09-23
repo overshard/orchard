@@ -178,8 +178,8 @@ func main() {
 
 	// Cards are compiled at build time, and change only with a post's title
 	// or tags.
-	mux.Handle("GET /og/", http.StripPrefix("/og/",
-		cacheControl("public, max-age=86400", http.FileServer(http.FS(s.og)))))
+	mux.Handle("GET /og/", http.StripPrefix("/og/", ogLegacy(s.og,
+		cacheControl("public, max-age=86400", http.FileServer(http.FS(s.og))))))
 	mux.HandleFunc("GET /favicon.ico", favicon)
 	mux.HandleFunc("GET /favicon.svg", favicon)
 	mux.HandleFunc("GET /robots.txt", robots)

@@ -2,7 +2,10 @@ package main
 
 import (
 	"io/fs"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"testing/fstest"
 )
 
 // Every /media/ URL the logs have actually seen, so a rename in content/images
@@ -89,6 +92,27 @@ func TestMediaTargets(t *testing.T) {
 		}
 		if !ok || got != tc.want {
 			t.Errorf("target(%q) = %q,%v want %q", tc.path, got, ok, tc.want)
+		}
+	}
+}
+
+func TestOGLegacySVGRedirects(t *testing.T) {
+	cards := fstest.MapFS{"counting-table-row-counts-in-postgresql.png": {Data: []byte("png")}}
+	h := http.StripPrefix("/og/", ogLegacy(cards, http.FileServer(http.FS(cards))))
+
+	for _, tc := range []struct {
+		path     string
+		status   int
+		location string
+	}{
+		{"/og/counting-table-row-counts-in-postgresql.svg", 301, "/og/counting-table-row-counts-in-postgresql.png"},
+		{"/og/no-such-post.svg", 404, ""},
+		{"/og/counting-table-row-counts-in-postgresql.png", 200, ""},
+	} {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest("GET", tc.path, nil))
+		if rec.Code != tc.status || rec.Header().Get("Location") != tc.location {
+			t.Errorf("%s = %d %q, want %d %q", tc.path, rec.Code, rec.Header().Get("Location"), tc.status, tc.location)
 		}
 	}
 }
