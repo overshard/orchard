@@ -193,3 +193,21 @@ func TestAHouseQuestionIsSentToPropertyNotTheWeb(t *testing.T) {
 		t.Errorf("the nudge has to name property and rule out the web: %q", n)
 	}
 }
+
+// The Ukraine answer ended on this after two paragraphs from memory, and the
+// next message had to be "you could look it up".
+func TestNoFiguresIsCaughtAnywhere(t *testing.T) {
+	late := strings.Repeat("Both sides are dug in and neither can finish the other. ", 12) +
+		"I don't have hard figures on current troop numbers, casualty totals, or where the front line sits now."
+	if !noFigures.MatchString(late) {
+		t.Fatal("missed the admission at the end of a long draft")
+	}
+	for _, fine := range []string{
+		"You don't have figures for the utilities yet, so the table uses the defaults.",
+		"The county does not publish figures for that.",
+	} {
+		if noFigures.MatchString(fine) {
+			t.Errorf("caught a line that is not the model putting work off: %q", fine)
+		}
+	}
+}

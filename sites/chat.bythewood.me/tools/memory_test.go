@@ -113,3 +113,21 @@ func TestRememberWithNoStore(t *testing.T) {
 		t.Error("a missing store was not reported")
 	}
 }
+
+// The store merges a rewording into the fact it already holds and hands back that
+// id, and the reply over it said "the fix is in" with nothing written.
+type mergingStub struct{ memStub }
+
+func (m *mergingStub) Add(string) (int64, error) { return 1, nil }
+
+func TestRememberSaysWhenNothingNewWasWritten(t *testing.T) {
+	m := &mergingStub{memStub{facts: []MemoryFact{{ID: 1, Text: "Isaac runs Ornith 1.5 9B on his RTX 3070."}}}}
+	out, err := Remember.Run(context.Background(), withMem(m), map[string]any{"action": "add", "fact": "Isaac runs Ornith 1.5 9B."})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := out.(map[string]any)
+	if _, ok := got["already_known"]; !ok {
+		t.Fatalf("a merged fact has to say nothing new was written: %v", got)
+	}
+}

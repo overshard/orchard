@@ -547,8 +547,10 @@ because a budget that drifts up is exactly the change nobody notices.
 house.** The geocoder puts the point in the road so the nearest parcel is
 sometimes next door, and a tax roll carrying land and no buildings is a vacant lot
 record against a house standing on it. Both produce a percentage precise enough
-for a model to repeat as a finding, so `parcelCaveat` suppresses the comparison
-and says what is wrong with the record instead. 2953 Link Dr is the real case, an
+for a model to repeat as a finding, so `parcelCaveat` leaves the figure out
+entirely and says what is wrong with the record instead, and a parcel next door
+takes its acreage with it. Handed the number with the caveat beside it, the
+model led with the number. 2953 Link Dr is the real case, an
 $11,100 assessment against a $289,900 asking price.
 
 ## Signing in

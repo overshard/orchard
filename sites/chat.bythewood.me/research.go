@@ -60,6 +60,10 @@ func isDeferral(reply string) bool {
 // because it says outright that the reply is not answering the question.
 var refusal = regexp.MustCompile(`(?i)\b(i|we) (cannot|can'?t|could not|couldn'?t) answer (this|that|it|your question)\b.{0,60}\bfrom (the )?tool results\b`)
 
+// A draft that fetched nothing and says it has no figures is putting the work
+// off wherever the line falls, so this one is matched anywhere too.
+var noFigures = regexp.MustCompile(`(?i)\b(i|we) (do not|don'?t) have (any |the |hard |current |recent |up ?to ?date |exact |reliable )*(figures|numbers|data|stats|statistics|details)\b`)
+
 // The tool results die with the turn and only the answers survive, so a model
 // reading its own earlier answer treats it as evidence and writes it out again.
 // Six word shingles against every earlier answer catch that, and the floor sits
@@ -110,7 +114,7 @@ func shingles(s string) map[string]bool {
 
 // The gate runs when the model stops calling tools and wants to answer.
 //
-// Two fields and one of them an enum, since a 4B handed a free reasoning field
+// Two fields and one of them an enum, since a small model handed a free reasoning field
 // beside a constrained one writes the reasoning and then contradicts it. A
 // verdict without a query sends the model back to the search it already ran.
 type verdict struct {
@@ -133,7 +137,7 @@ var verdictSchema = map[string]any{
 
 const gateSystem = `You are checking a draft answer before it is sent. Answer only with the JSON object you were given a schema for.
 
-"answered" means the draft answers the question with real specifics and every fact in it either came from the tool results, or was established earlier in this conversation, or is something no tool could change, like arithmetic, code, or an opinion asked for. A draft that disagrees with the background section is never "answered", whatever else is true of it.
+"answered" means the draft answers the question with real specifics and every fact in it either came from the tool results, or was established earlier in this conversation, or is something no tool could change, like arithmetic, code, an opinion asked for, or what you are and the machine you run on. A draft that disagrees with the background section is never "answered", whatever else is true of it.
 
 "research" means the draft is not ready to send. Choose it when any of these are true:
 - A background section is present and the draft disagrees with it. Compare them claim by claim before anything else. The background is the opening section of a Wikipedia article, so on a definition, a name, a date, an origin or who did something it is right and a draft that says otherwise is wrong, however confident the draft sounds. Two limits: the background does not cover everything, so a fact it is simply silent on is not a disagreement, and it was taken on the date it states, so a difference about something that could have changed since then means the background is old rather than the draft wrong, and that is "answered".
@@ -203,15 +207,18 @@ true when it describes what a named tool, service, format or standard does or is
 
 false when the draft is explanation, reasoning, opinion, code the user asked to be written, arithmetic on figures the user supplied, or ordinary conversation.
 false when every specific in it came from what the user said in the question.
+false when the question is a remark about his own life or setup rather than a request for information, and the draft only answers the remark.
+false when the specifics are about you, the assistant, the model you run as, or his own machines and software, which you were told and cannot look up.
 
 When needs_check is true, query is the single web search that would check the most load bearing specific, written as a person would type it. When it is false, query is an empty string.`
 
 // needsChecking reports whether a draft written from memory states specifics.
 // A failure is a no, for the same reason every other gate fails open.
-func (e *Engine) needsChecking(ctx context.Context, draft string) (grounding, Stats) {
+func (e *Engine) needsChecking(ctx context.Context, question, draft string) (grounding, Stats) {
 	msgs := []Message{
 		{Role: RoleSystem, Content: groundingSystem},
-		{Role: RoleUser, Content: "Draft:\n" + trim(strings.TrimSpace(draft), 1800)},
+		{Role: RoleUser, Content: "Question:\n" + trim(strings.TrimSpace(question), 600) +
+			"\n\nDraft:\n" + trim(strings.TrimSpace(draft), 1800)},
 	}
 	var g grounding
 	st, err := e.llm.Structured(ctx, msgs, gateTokens, groundingSchema, &g)
@@ -464,7 +471,7 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 			return researchNudge(f.Query), st
 		}
 	}
-	if isDeferral(draft) || refusal.MatchString(draft) {
+	if isDeferral(draft) || refusal.MatchString(draft) || (len(used) == 0 && noFigures.MatchString(draft)) {
 		emit(Event{Kind: "status", Text: "looking it up"})
 		if calledTool(used, tools.PropertyTool.Name) {
 			return propertyNudge(), st
@@ -488,12 +495,19 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 	// only catches what changes over time, and the specifics that were wrong were
 	// mostly things that do not.
 	if len(used) == 0 {
-		g, gst := e.needsChecking(ctx, draft)
+		g, gst := e.needsChecking(ctx, question, draft)
 		st.merge(gst)
 		if g.NeedsCheck {
 			emit(Event{Kind: "status", Text: "checking it"})
 			return researchNudge(g.Query), st
 		}
+	}
+	// A house answered out of the public record is not something a second opinion
+	// can improve. Asked anyway it sent a jobs question back twice for sections
+	// nobody asked about, and the answer filled up with the racetrack and the
+	// county income.
+	if calledTool(used, tools.PropertyTool.Name) {
+		return "", st
 	}
 	emit(Event{Kind: "status", Text: "checking the answer"})
 	// Only when the turn fetched nothing, since that is the case the gate has
@@ -521,9 +535,6 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 	// The snapshot already has the article, so sending it to a web search for
 	// something a local call answers in milliseconds is the slower way to be
 	// right.
-	if calledTool(used, tools.PropertyTool.Name) {
-		return propertyNudge(), st
-	}
 	if background != "" {
 		return wikiNudge(subjectOf(question)), st
 	}

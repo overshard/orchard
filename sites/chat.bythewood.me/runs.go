@@ -36,6 +36,10 @@ type turnRun struct {
 	// turn is over rather than waiting on a stream that will never speak.
 	endedAt time.Time
 	cancel  context.CancelFunc
+	// What was asked, since it is not stored until the turn ends and a tab that
+	// reloads mid turn would otherwise show an answer to nothing. Empty for an
+	// incognito turn, which is never listed.
+	question string
 }
 
 // Runs holds every turn in flight, keyed by the conversation it belongs to. A
@@ -193,6 +197,36 @@ func (r *turnRun) Unfollow(ch <-chan json.RawMessage) {
 			return
 		}
 	}
+}
+
+func (r *turnRun) setQuestion(q string) {
+	r.mu.Lock()
+	r.question = q
+	r.mu.Unlock()
+}
+
+// Asking is the question a turn still going was asked, and empty once it is done
+// or when it was incognito.
+func (r *turnRun) Asking() string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.done {
+		return ""
+	}
+	return r.question
+}
+
+// Asking is every turn still going that can be shown, by key.
+func (rs *Runs) Asking() map[string]string {
+	rs.mu.Lock()
+	defer rs.mu.Unlock()
+	out := map[string]string{}
+	for k, r := range rs.m {
+		if q := r.Asking(); q != "" {
+			out[k] = q
+		}
+	}
+	return out
 }
 
 // Running reports whether a turn is still going, which is what the conversation
