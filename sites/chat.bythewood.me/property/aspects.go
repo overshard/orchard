@@ -21,7 +21,7 @@ import (
 // is handed.
 var Aspects = []string{
 	"summary", "cost", "flood", "road", "schools", "commutes",
-	"area", "land", "neighbours", "outings", "links",
+	"area", "land", "neighbours", "outings", "industry", "links",
 }
 
 // everything is accepted and not offered. A small model handed it in the enum
@@ -58,6 +58,8 @@ func (r *Report) Aspect(name string) any {
 		return r.NeighboursPart()
 	case "outings", "things_to_do", "recreation":
 		return r.OutingsPart()
+	case "industry", "nuisances", "pollution", "factories", "data_centres", "data_centers", "landfill", "nearby":
+		return r.IndustryPart()
 	case "links":
 		return map[string]any{"links": r.Links()}
 	case "everything", "all", "full":
@@ -105,6 +107,9 @@ func (r *Report) Summary() map[string]any {
 	m["lot"] = r.lotLine()
 	m["neighbourhood"] = r.neighbourLine()
 	m["usda_area"] = r.usdaLine()
+	if r.Industry.Measured {
+		m["industry_nearby"] = r.Industry.Line()
+	}
 	if r.Area.CrimeSource != "" {
 		m["crime"] = r.crimeLine()
 	}
@@ -558,6 +563,36 @@ func (r *Report) OutingsPart() map[string]any {
 	m["in_short"] = r.Outings.Why()
 	if r.Outings.Partial {
 		m["incomplete"] = true
+	}
+	return m
+}
+
+func (r *Report) IndustryPart() map[string]any {
+	m := r.head()
+	if !r.Industry.Measured {
+		m["industry"] = "not measured yet, ask again in a minute"
+		return m
+	}
+	lines := make([]string, 0, len(r.Industry.Sites))
+	for _, s := range r.Industry.Sites {
+		lines = append(lines, s.describe())
+	}
+	if len(lines) == 0 {
+		m["industry"] = r.Industry.Line()
+	} else {
+		m["closest_first"] = lines
+		m["how_many_of_each"] = r.Industry.Counts
+	}
+	m["searched"] = "four miles around the house on OpenStreetMap for data centres, factories, landfills, quarries, " +
+		"power plants, transmission substations, sewage works, prisons, airfields, racetracks and shooting ranges, " +
+		"and three miles on EPA's lists of Superfund sites and plants holding an air permit"
+	// Said so the model cannot turn a gap into a clean bill. Hog and chicken
+	// houses are the thing people here most want to know about and neither
+	// source carries them.
+	m["not_covered"] = "OpenStreetMap is mapped by volunteers, so something unmapped is not proof it is not there. " +
+		"Hog and poultry houses are on neither list, and neither is anything only planned or permitted but not built"
+	if r.Industry.Partial {
+		m["incomplete"] = "one of the sources did not answer, so this is not the whole list"
 	}
 	return m
 }

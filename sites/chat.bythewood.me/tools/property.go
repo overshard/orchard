@@ -55,6 +55,7 @@ var PropertyTool = Tool{
 				"who lives there, and where the nursing work is, so any question naming a person belongs here. " +
 				"area is the county census figures and reported crime. land is the lot, the slope and the assessed value. " +
 				"neighbours is how much of the street is owner occupied. outings is what there is to do nearby. " +
+				"industry is anything unpleasant to live near, like data centres, factories, landfills, quarries, power plants and Superfund sites. " +
 				"links is the Redfin, Zillow, Realtor, map and street view pages, built from the address, so never search for those",
 			"enum": property.Aspects},
 		"price":       integer("the asking price in dollars, whenever he has said one"),

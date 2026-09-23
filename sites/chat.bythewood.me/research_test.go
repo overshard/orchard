@@ -165,3 +165,31 @@ func TestAThinPropertyDraftIsSentBackToProperty(t *testing.T) {
 		t.Errorf("it must not send a house question to a web search: %q", n)
 	}
 }
+
+// The chip that went to DuckDuckGo, and questions that only look like one.
+func TestAHouseQuestionIsSentToPropertyNotTheWeb(t *testing.T) {
+	houses := []string{
+		"What is the flood risk at 2408 Setzers Creek Rd, Lenoir, NC, 28645, and how close is the water?",
+		"$249,900\n2408 Setzers Creek Rd, Lenoir, NC 28645",
+		"is 118 Liledoun Road on a busy street",
+	}
+	for _, q := range houses {
+		if !namesAnAddress(q) {
+			t.Errorf("missed the address in %q", q)
+		}
+	}
+	others := []string{
+		"what happened on 9/11",
+		"how many calories in 2 large eggs",
+		"the 3070 has 8 GB, is that enough for a 9B at q4",
+		"what time is the 400 at Martinsville on Sunday",
+	}
+	for _, q := range others {
+		if namesAnAddress(q) {
+			t.Errorf("read %q as an address", q)
+		}
+	}
+	if n := addressNudge(); !strings.Contains(n, "property") || !strings.Contains(n, "Do not search the web") {
+		t.Errorf("the nudge has to name property and rule out the web: %q", n)
+	}
+}
