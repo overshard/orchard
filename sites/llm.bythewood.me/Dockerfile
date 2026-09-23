@@ -18,4 +18,5 @@ EXPOSE 8000
 VOLUME ["/data"]
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD ["/app", "-healthcheck"]
+ENV SHIP_LOGS=1
 ENTRYPOINT ["/app"]

@@ -269,7 +269,14 @@ func flatten(dst map[string]any, prefix string, a slog.Attr) {
 // HTTPSink posts batches to the logging site. It never calls slog, since a
 // shipper that logged its own failures would enqueue a record about failing to
 // ship. State changes go to stderr instead.
+//
+// Only the production images set SHIP_LOGS=1. The dev container is on the same
+// bridge, so without it a local run lands in production and trips its alerts.
 func HTTPSink() Sink {
+	if os.Getenv("SHIP_LOGS") != "1" {
+		fmt.Fprintln(os.Stderr, "log shipping off, SHIP_LOGS is not 1")
+		return func(string, []Record) {}
+	}
 	client := &http.Client{Timeout: shipTimeout}
 	var (
 		mu      sync.Mutex
