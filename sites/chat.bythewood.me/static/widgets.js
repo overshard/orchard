@@ -485,7 +485,7 @@
     function paint() {
       const q = last;
       if (q.stage !== "prompt") meta.innerHTML = `${q.width} &times; ${q.height}`;
-      const since = Math.max(0, Date.now() - q.stage_at);
+      const since = Math.max(0, Date.now() - skew - q.stage_at);
       const at = q.stage === "failed" ? (q.load_ms ? "drawing" : "loading")
         : q.stage === "stopped" ? q.was : q.stage;
       const live = ORDER.indexOf(at);
@@ -579,6 +579,10 @@
     return root;
   }
 
+  // How far this device's clock is ahead of the server's. The stage times are
+  // the server's, so a device clock running slow holds every count at 0s.
+  let skew = 0;
+
   const KINDS = { ticker: tickerWidget, weather: weatherWidget, prompts: promptsWidget, image: imageWidget };
 
   window.Widgets = {
@@ -604,6 +608,14 @@
     settle(box) {
       if (!box) return;
       box.querySelectorAll(".img-wait").forEach((n) => n._settle && n._settle());
+    },
+    // clock reads the server's time off a response. The Date header is only
+    // to the second, so anything under two is left alone as noise.
+    clock(resp) {
+      const at = Date.parse(resp.headers.get("date") || "");
+      if (!at) return;
+      const off = Date.now() - at;
+      skew = Math.abs(off) > 2000 ? off : 0;
     },
     // progress draws or moves on the panel a picture is being made behind.
     progress(box, p) {
