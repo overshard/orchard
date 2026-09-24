@@ -53,12 +53,16 @@ func pngSize(b []byte) (image.Config, error) {
 	return png.DecodeConfig(bytes.NewReader(b))
 }
 
-// sizeLike is a canvas of about a megapixel in the shape of the picture an
-// edit starts from, so a wide product shot does not come back square.
-func sizeLike(w, h int) (int, int) {
+// An edit is drawn at two megapixels. At one the fabric on a product shot came
+// back smeared, and the card manages two in about forty seconds.
+const editPixels = 2 * 1024 * 1024
+
+// sizeLike is a canvas of the given area in the shape w by h, so a wide
+// product shot does not come back square.
+func sizeLike(w, h, pixels int) (int, int) {
 	aspect := float64(w) / float64(h)
 	aspect = math.Max(1.0/3, math.Min(3, aspect))
-	ch := math.Sqrt(float64(referencePixels) / aspect)
+	ch := math.Sqrt(float64(pixels) / aspect)
 	return round16(ch * aspect), round16(ch)
 }
 
