@@ -90,6 +90,7 @@ type fakeCard struct {
 	lastImage map[string]any
 	hold      []filePart
 	args      string
+	history   []Message
 }
 
 func (f *fakeCard) server(t *testing.T) *httptest.Server {
@@ -182,7 +183,7 @@ func (f *fakeCard) runWith(t *testing.T, store *Store, ctx context.Context, mess
 	var mu sync.Mutex
 	var stages []tools.ImageProgress
 	p.Hold(f.hold)
-	reply, _, _, widgets, _, err := e.Run(ctx, nil, message,
+	reply, _, _, widgets, _, err := e.Run(ctx, f.history, message,
 		"", "", NewTrace(nil), func(ev Event) {
 			if ev.Kind == "image" {
 				mu.Lock()
@@ -496,5 +497,30 @@ func TestAChangeStartsFromTheLastPictureAndAFreshGoDoesNot(t *testing.T) {
 	}
 	if isPictureChange("make it night", nil) {
 		t.Error("a change with no picture before it started from nothing")
+	}
+}
+
+// A message after a picture that reads as nothing in particular, where the
+// model still reaches for the image tool, is a change it did not recognise.
+func TestAPictureCallStraightAfterOneChangesIt(t *testing.T) {
+	f := &fakeCard{
+		hold: []filePart{{Attachment: Attachment{Image: "scene"}, Picture: solidPNG(t, 64, 32)}},
+		history: []Message{
+			{Role: RoleUser, Content: "put this sofa in a room"},
+			{Role: RoleAssistant, Content: drewPrefix + "a sofa in a room"},
+		},
+		args: `{"prompt":"a sofa the model imagined","shape":"square"}`,
+	}
+	msg := "the base of the sofa looks muddy near the floor"
+	ctx := withReferences(context.Background(), references{Last: "scene", Message: msg})
+	f.runWith(t, testStore(t), ctx, msg)
+	if f.lastImage["from"] != 1 {
+		t.Fatalf("drew from nothing: %v", f.lastImage)
+	}
+	if p, _ := f.lastImage["prompt"].(string); strings.Contains(p, "imagined") || !strings.Contains(p, "muddy") {
+		t.Errorf("prompt = %q, want his words and not the model's", p)
+	}
+	if f.lastImage["size"] == "1024x1024" {
+		t.Error("came back square")
 	}
 }

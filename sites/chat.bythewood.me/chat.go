@@ -480,7 +480,17 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 			if tc.Function.Name == tools.PropertyTool.Name {
 				usedProperty = true
 			}
-			res := e.reg.Call(ctx, deps, tc.Function.Name, json.RawMessage(tc.Function.Arguments))
+			args := json.RawMessage(tc.Function.Arguments)
+			// The model reached for a picture straight after one without
+			// being asked for a new one, which is a change it did not
+			// recognise, so it is made one, in his words.
+			if tc.Function.Name == tools.Image.Name && len(deps.Start) == 0 && refs.Last != "" &&
+				lastWasPicture(history) && !wantsNewPicture(said) {
+				deps.Start = []string{refs.Last}
+				args, _ = json.Marshal(map[string]any{"prompt": editPrompt(said, "", false), "shape": "same"})
+				tr.Add(Step{Kind: "tool", Label: "read as a change to the last picture", In: said})
+			}
+			res := e.reg.Call(ctx, deps, tc.Function.Name, args)
 			seen[key] = res
 			if res.Name == tools.Image.Name && drawn == nil {
 				drawn = &res
