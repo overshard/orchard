@@ -1,9 +1,11 @@
 // Files a turn can carry.
 //
-// Nothing is kept. A file arrives with the turn, is read into text and the bytes
-// are dropped, so there is no upload directory to age out and incognito stays
-// true to its name. The extracted text is already in the conversation, so a
-// follow up about a file works without the file being sent again.
+// A file arrives with the turn, is read into text and the bytes are dropped, so
+// there is no upload directory to age out and incognito stays true to its name.
+// The extracted text is already in the conversation, so a follow up about a file
+// works without the file being sent again. A picture is the exception, since
+// there is no text in it and the image model needs the picture itself, so it is
+// kept with the conversation the way a drawn one is.
 package main
 
 import (
@@ -38,11 +40,16 @@ type Attachment struct {
 	Kind  string `json:"kind"`
 	Chars int    `json:"chars,omitempty"`
 	Err   string `json:"err,omitempty"`
+	// A picture, by the id it is served and stored under.
+	Image  string `json:"image,omitempty"`
+	Width  int    `json:"width,omitempty"`
+	Height int    `json:"height,omitempty"`
 }
 
 type filePart struct {
 	Attachment
-	Text string
+	Text    string
+	Picture []byte
 }
 
 // readFiles turns the uploaded parts into text. A file that cannot be read is
@@ -61,7 +68,22 @@ func readFiles(headers []*multipart.FileHeader) []filePart {
 		case h.Size > maxFileBytes:
 			p.Kind, p.Err = "skipped", fmt.Sprintf("larger than %s", humanSize(maxFileBytes))
 		default:
-			text, kind, err := extract(h)
+			raw, err := readPart(h)
+			if err != nil {
+				p.Kind, p.Err = "unreadable", err.Error()
+				break
+			}
+			if kind, ok := imageKind(raw); ok {
+				p.Kind = kind
+				pic, w, h, err := asReference(raw)
+				if err != nil {
+					p.Err = err.Error()
+					break
+				}
+				p.Picture, p.Image, p.Width, p.Height = pic, newID(), w, h
+				break
+			}
+			text, kind, err := extract(h.Filename, raw)
 			p.Kind = kind
 			if err != nil {
 				p.Err = err.Error()
@@ -84,17 +106,17 @@ func readFiles(headers []*multipart.FileHeader) []filePart {
 	return out
 }
 
-func extract(h *multipart.FileHeader) (string, string, error) {
+func readPart(h *multipart.FileHeader) ([]byte, error) {
 	f, err := h.Open()
 	if err != nil {
-		return "", "unreadable", err
+		return nil, err
 	}
 	defer f.Close()
-	raw, err := io.ReadAll(io.LimitReader(f, maxFileBytes))
-	if err != nil {
-		return "", "unreadable", err
-	}
-	if strings.EqualFold(filepath.Ext(h.Filename), ".pdf") || bytes.HasPrefix(raw, []byte("%PDF-")) {
+	return io.ReadAll(io.LimitReader(f, maxFileBytes))
+}
+
+func extract(name string, raw []byte) (string, string, error) {
+	if strings.EqualFold(filepath.Ext(name), ".pdf") || bytes.HasPrefix(raw, []byte("%PDF-")) {
 		text, err := pdfText(raw)
 		return text, "pdf", err
 	}
@@ -105,13 +127,10 @@ func extract(h *multipart.FileHeader) (string, string, error) {
 		}
 		return "", "zip", fmt.Errorf("an archive cannot be read, send the files inside it instead")
 	}
-	if kind, ok := imageKind(raw); ok {
-		return "", kind, fmt.Errorf("this model reads text only, so an image cannot be looked at")
-	}
 	if !looksTextual(raw) {
 		return "", "binary", fmt.Errorf("not a text file, so there is nothing to read out of it")
 	}
-	return normalise(string(raw)), textKind(h.Filename), nil
+	return normalise(string(raw)), textKind(name), nil
 }
 
 // pdfText tries poppler first and the pure Go reader second.
@@ -283,6 +302,10 @@ func composeTurn(message string, parts []filePart) string {
 			fmt.Fprintf(&sb, "--- %s (%s): not readable, %s ---\n\n", p.Name, humanSize(p.Size), p.Err)
 			continue
 		}
+		if p.Image != "" {
+			fmt.Fprintf(&sb, "--- %s (a %dx%d picture) ---\nYou cannot see this. The image tool starts from it, so pass what he wants done to it and what has to stay the same, in his words.\n--- end of %s ---\n\n", p.Name, p.Width, p.Height, p.Name)
+			continue
+		}
 		fmt.Fprintf(&sb, "--- %s (%s, %s) ---\n%s\n--- end of %s ---\n\n", p.Name, p.Kind, humanSize(p.Size), p.Text, p.Name)
 	}
 	sb.WriteString("The user's message about them:\n\n")
@@ -292,6 +315,17 @@ func composeTurn(message string, parts []filePart) string {
 		sb.WriteString(message)
 	}
 	return sb.String()
+}
+
+// pictures is the ids of the pictures among a turn's files.
+func pictures(parts []filePart) []string {
+	var ids []string
+	for _, p := range parts {
+		if p.Image != "" {
+			ids = append(ids, p.Image)
+		}
+	}
+	return ids
 }
 
 func attachments(parts []filePart) []Attachment {

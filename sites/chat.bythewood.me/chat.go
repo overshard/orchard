@@ -219,7 +219,16 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	// on the per turn copy rather than only on this process's own requests.
 	deps.Incognito = IsIncognito(ctx)
 	deps.OnImage = func(p tools.ImageProgress) { emit(Event{Kind: "image", Image: &p}) }
-	picture := isPictureAsk(user, history)
+	refs := referencesOf(ctx)
+	deps.Start, deps.LastPicture = refs.Attached, refs.Last
+	// A small model leaves change_last off for "make it night", so a short
+	// change straight after a picture is not left to it.
+	if len(deps.Start) == 0 && refs.Last != "" && isPictureChange(user, history) {
+		deps.Start = []string{refs.Last}
+	}
+	// Nothing else can be done with a picture he attached, since the chat
+	// model cannot see it.
+	picture := isPictureAsk(user, history) || len(refs.Attached) > 0
 	// Which widgets have already gone out, since the sink holds every one the
 	// turn has produced and each round would otherwise resend the earlier ones.
 	sentWidgets := map[string]bool{}

@@ -35,6 +35,18 @@ func isPictureAsk(message string, history []Message) bool {
 	return lastWasPicture(history) && len(strings.Fields(m)) <= 14 && pictureEdit.MatchString(m)
 }
 
+// A fresh go at the same thing wants a new picture, not the last one changed.
+var pictureAgain = regexp.MustCompile(`(?i)\b(again|another|redo|one more|different one|new one|start over)\b`)
+
+// isPictureChange is a short instruction straight after a picture that changes
+// it, as opposed to asking for a new one.
+func isPictureChange(message string, history []Message) bool {
+	m := strings.TrimSpace(message)
+	return lastWasPicture(history) && len(strings.Fields(m)) <= 14 &&
+		pictureEdit.MatchString(m) && !pictureAgain.MatchString(m) &&
+		!pictureAsk.MatchString(m) && !drawVerb.MatchString(m)
+}
+
 func lastWasPicture(history []Message) bool {
 	for i := len(history) - 1; i >= 0; i-- {
 		if history[i].Role == RoleAssistant {

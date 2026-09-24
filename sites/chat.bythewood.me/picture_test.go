@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"image"
+	"image/png"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -85,6 +88,8 @@ type fakeCard struct {
 	drawFor   time.Duration
 	failWith  string
 	lastImage map[string]any
+	hold      []filePart
+	args      string
 }
 
 func (f *fakeCard) server(t *testing.T) *httptest.Server {
@@ -99,10 +104,16 @@ func (f *fakeCard) server(t *testing.T) *httptest.Server {
 			}
 			f.mu.Unlock()
 			fmt.Fprintf(w, `{"loaded":true,"models":[{"model":"image","name":"klein","state":%q}]}`, state)
-		case "/v1/images/generations":
+		case "/v1/images/generations", "/v1/images/edits":
 			f.mu.Lock()
 			f.asked = time.Now()
-			_ = json.NewDecoder(r.Body).Decode(&f.lastImage)
+			if r.URL.Path == "/v1/images/edits" {
+				_ = r.ParseMultipartForm(8 << 20)
+				f.lastImage = map[string]any{"prompt": r.FormValue("prompt"), "size": r.FormValue("size"),
+					"from": len(r.MultipartForm.File["image[]"])}
+			} else {
+				_ = json.NewDecoder(r.Body).Decode(&f.lastImage)
+			}
 			f.mu.Unlock()
 			time.Sleep(f.loadFor + f.drawFor)
 			if f.failWith != "" {
@@ -137,8 +148,16 @@ func (f *fakeCard) server(t *testing.T) *httptest.Server {
 				names = append(names, tl.Function.Name)
 			}
 			f.offered = append(f.offered, names)
-			fmt.Fprint(w, `{"choices":[{"message":{"role":"assistant","content":"","tool_calls":[{"id":"c1",`+
-				`"type":"function","function":{"name":"image","arguments":"{\"prompt\":\"a red barn in fog\",\"shape\":\"landscape\"}"}}]}}]}`)
+			// A real model takes a while to write the call, and the prompt
+			// stage is timed in whole milliseconds.
+			time.Sleep(5 * time.Millisecond)
+			args := f.args
+			if args == "" {
+				args = `{"prompt":"a red barn in fog","shape":"landscape"}`
+			}
+			call, _ := json.Marshal(map[string]any{"role": "assistant", "content": "", "tool_calls": []any{
+				map[string]any{"id": "c1", "type": "function", "function": map[string]any{"name": "image", "arguments": args}}}})
+			fmt.Fprintf(w, `{"choices":[{"message":%s}]}`, call)
 		default:
 			http.NotFound(w, r)
 		}
@@ -146,6 +165,10 @@ func (f *fakeCard) server(t *testing.T) *httptest.Server {
 }
 
 func (f *fakeCard) run(t *testing.T, store *Store) (Message, []tools.Widget, []tools.ImageProgress) {
+	return f.runWith(t, store, context.Background(), "draw a red barn in the fog")
+}
+
+func (f *fakeCard) runWith(t *testing.T, store *Store, ctx context.Context, message string) (Message, []tools.Widget, []tools.ImageProgress) {
 	t.Helper()
 	srv := f.server(t)
 	t.Cleanup(srv.Close)
@@ -158,7 +181,8 @@ func (f *fakeCard) run(t *testing.T, store *Store) (Message, []tools.Widget, []t
 
 	var mu sync.Mutex
 	var stages []tools.ImageProgress
-	reply, _, _, widgets, _, err := e.Run(context.Background(), nil, "draw a red barn in the fog",
+	p.Hold(f.hold)
+	reply, _, _, widgets, _, err := e.Run(ctx, nil, message,
 		"", "", NewTrace(nil), func(ev Event) {
 			if ev.Kind == "image" {
 				mu.Lock()
@@ -269,13 +293,13 @@ func TestAPictureIsKeptWithItsConversationAndDeletedWithIt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p.Keep(conv, []Widget{{Kind: "image", Image: "pic-1", Width: 1, Height: 1}})
+	p.Keep(conv, []Widget{{Kind: "image", Image: "pic-1", Width: 1, Height: 1}}, nil)
 	if _, ok := p.shelf.Get("pic-1"); ok {
 		t.Error("a kept picture is still on the shelf")
 	}
 	// A failed write leaves it where the page can still find it.
 	p.shelf.Put("pic-2", onePixel, 1, 1)
-	p.Keep("no-such-conversation", []Widget{{Kind: "image", Image: "pic-2", Width: 1, Height: 1}})
+	p.Keep("no-such-conversation", []Widget{{Kind: "image", Image: "pic-2", Width: 1, Height: 1}}, nil)
 	if _, ok := p.PNG("pic-2"); !ok {
 		t.Error("a picture that could not be stored was lost")
 	}
@@ -319,5 +343,115 @@ func TestTheGuessIsTheMedianScaledToTheSize(t *testing.T) {
 	}
 	if half := store.ImageGuess(512 * 1024).Draw; half != 6000 {
 		t.Errorf("half the pixels guessed %d, want 6000", half)
+	}
+}
+
+// A picture he attached is the only thing that can be done anything with, so
+// it becomes a picture turn whatever he typed, and the picture goes to the image
+// model as an edit in its own shape.
+func TestAnAttachedPictureIsWhatTheImageModelStartsFrom(t *testing.T) {
+	f := &fakeCard{}
+	store := testStore(t)
+	wide, _, _, err := asReference(solidPNG(t, 2000, 800))
+	if err != nil {
+		t.Fatal(err)
+	}
+	parts := []filePart{{Attachment: Attachment{Name: "sofa.png", Image: "att-1", Width: 1618, Height: 647}, Picture: wide}}
+	ctx := withReferences(context.Background(), references{Attached: pictures(parts)})
+
+	f.hold = parts
+	// No shape, which is what the model sends when nothing was said about one.
+	f.args = `{"prompt":"keep the sofa exactly as it is, in a bright living room"}`
+	_, widgets, _ := f.runWith(t, store, ctx, composeTurn("put this in a nice living room", parts))
+	if len(f.offered) == 0 || len(f.offered[0]) != 1 || f.offered[0][0] != "image" {
+		t.Fatalf("tools offered = %v, want image alone", f.offered)
+	}
+	if f.lastImage["from"] != 1 {
+		t.Fatalf("the image model was not handed the picture: %v", f.lastImage)
+	}
+	if f.lastImage["size"] != "1616x640" {
+		t.Errorf("size = %v, want the wide shape of the picture", f.lastImage["size"])
+	}
+	if len(widgets) != 1 || widgets[0].Kind != "image" {
+		t.Errorf("widgets = %+v", widgets)
+	}
+}
+
+func TestChangeLastStartsFromTheNewestPicture(t *testing.T) {
+	stored := []Stored{
+		{Role: RoleUser, Files: []Attachment{{Name: "a.png", Image: "old"}}},
+		{Role: RoleAssistant, Widgets: []Widget{{Kind: "image", Image: "drawn"}}},
+		{Role: RoleUser, Content: "make it night"},
+	}
+	if got := lastPicture(stored); got != "drawn" {
+		t.Errorf("last picture = %q, want the drawn one", got)
+	}
+	if got := lastPicture(nil); got != "" {
+		t.Errorf("last picture of nothing = %q", got)
+	}
+}
+
+func TestAReferenceIsShrunkToWhatTheModelReads(t *testing.T) {
+	pic, w, h, err := asReference(solidPNG(t, 3000, 2000))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if w*h > referencePixels || w < 1200 || h < 800 {
+		t.Errorf("scaled to %dx%d", w, h)
+	}
+	if !bytes.HasPrefix(pic, pngMagic) {
+		t.Error("not a png")
+	}
+	if _, _, _, err := asReference(append([]byte("\x89PNG\r\n\x1a\n"), 0, 1)); err == nil {
+		t.Error("a broken png was taken")
+	}
+}
+
+func TestSizeLikeKeepsTheShape(t *testing.T) {
+	for _, c := range []struct{ w, h, ww, wh int }{
+		{1024, 1024, 1024, 1024},
+		{1920, 767, 1616, 640},
+		{800, 1200, 832, 1248},
+		{5000, 100, 1776, 592},
+	} {
+		w, h := sizeLike(c.w, c.h)
+		if w != c.ww || h != c.wh || w%16 != 0 || h%16 != 0 {
+			t.Errorf("sizeLike(%d, %d) = %dx%d, want %dx%d", c.w, c.h, w, h, c.ww, c.wh)
+		}
+	}
+}
+
+func solidPNG(t *testing.T, w, h int) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	for i := range img.Pix {
+		img.Pix[i] = 200
+	}
+	var b bytes.Buffer
+	if err := png.Encode(&b, img); err != nil {
+		t.Fatal(err)
+	}
+	return b.Bytes()
+}
+
+func TestAChangeStartsFromTheLastPictureAndAFreshGoDoesNot(t *testing.T) {
+	after := []Message{
+		{Role: RoleUser, Content: "draw a barn"},
+		{Role: RoleAssistant, Content: drewPrefix + "a red barn"},
+	}
+	for msg, want := range map[string]bool{
+		"make it night":             true,
+		"now in watercolour":        true,
+		"add a dog on the porch":    true,
+		"try again":                 false,
+		"another one":               false,
+		"draw a lighthouse instead": false,
+	} {
+		if got := isPictureChange(msg, after); got != want {
+			t.Errorf("isPictureChange(%q) = %v, want %v", msg, got, want)
+		}
+	}
+	if isPictureChange("make it night", nil) {
+		t.Error("a change with no picture before it started from nothing")
 	}
 }
