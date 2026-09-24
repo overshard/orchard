@@ -26,8 +26,8 @@ tunnel rather than a rented server.
 | `sites/repos.bythewood.me/` | Self hosted git remote. Push to it over HTTPS with a token, and it mirrors the GitHub account as a backup. Everything git is a subprocess |
 | `sites/dash.bythewood.me/` | Dashboard. Markets off Yahoo, Hacker News and Lobsters, the weather, and whether the other sites are answering. One poller, server sent events out, no database |
 | `sites/auth.bythewood.me/` | The front door. One account, a six digit code pushed over ntfy, and an opaque session every other site checks against it |
-| `sites/chat.bythewood.me/` | A conversation with a local model, with tools, attachments, history in SQLite and an incognito mode that writes nothing. It also answers a house out of public records, which used to be a dashboard of its own. Beside it an offline Wikipedia, served by kiwix off a 12.5GB ZIM |
-| `sites/llm.bythewood.me/` | The model gateway. One set of weights on one card behind an API key, with every prompt and completion logged unless the caller marks the call incognito |
+| `sites/chat.bythewood.me/` | A conversation with a local model, with tools, attachments, pictures, history in SQLite and an incognito mode that writes nothing. It also answers a house out of public records, which used to be a dashboard of its own. Beside it an offline Wikipedia, served by kiwix off a 12.5GB ZIM |
+| `sites/llm.bythewood.me/` | The model gateway. One card behind an API key, Ornith for chat and FLUX.2 klein for pictures taking turns on it, with every prompt and completion logged unless the caller marks the call incognito |
 | `edge/` | The shared `cloudflared` tunnel, the Caddy that reverse proxies to each site, and the ntfy every alert is published to |
 
 ## The one structural rule

@@ -1049,6 +1049,75 @@ kbd {
 .wdg-plot .wdg-msg:empty { display: none; }
 .wdg.loading { opacity: 0.65; }
 
+/* A picture, in its own shape and capped so a portrait does not run past the
+   screen. The panel it is drawn behind has the same caption under it. */
+.wdg-image {
+  margin: 0;
+  width: 100%;
+  max-width: min(100%, calc(70vh * var(--w) / var(--h)));
+}
+.img-open {
+  display: block;
+  aspect-ratio: var(--w) / var(--h);
+  background: var(--panel-2);
+}
+.img-open img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.img-cap {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.3rem 0.8rem;
+  padding: 0.45rem 0.75rem 0.5rem;
+  border-top: 1px solid var(--line);
+  color: var(--faint); font-size: 0.72rem;
+}
+.img-cap a { margin-left: auto; color: var(--green-bright); }
+.img-cap a:hover { color: var(--green-hot); }
+.img-model {
+  color: var(--amber); font-size: 0.66rem; font-weight: 600;
+  letter-spacing: var(--track); text-transform: uppercase;
+}
+
+/* The waiting panel keeps its own height rather than the picture's, since the
+   shape is not chosen until the prompt is written. */
+.wdg-image.img-wait { max-width: 100%; }
+.img-wait .img-open { display: flex; aspect-ratio: auto; min-height: 15rem; }
+.img-panel {
+  margin: auto; width: 100%; max-width: 26rem;
+  padding: 1.1rem 1.2rem;
+}
+.img-stages { list-style: none; margin: 0 0 0.9rem; padding: 0; display: grid; gap: 0.65rem; }
+.img-stages li {
+  display: grid; grid-template-columns: 0.9rem 1fr auto; align-items: baseline; gap: 0.6rem;
+  color: var(--faint);
+}
+.img-stages .k { color: inherit; }
+.img-stages .n { display: block; font-size: 0.7rem; color: var(--faint); }
+.img-stages .t { font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 0.75rem; }
+.img-stages i {
+  width: 0.5rem; height: 0.5rem; border-radius: 50%;
+  border: 1px solid var(--line-hot); align-self: center;
+}
+.img-stages li[data-state="on"] { color: var(--text); }
+.img-stages li[data-state="on"] i {
+  background: var(--green-bright); border-color: var(--green-bright);
+  animation: pulse 1s ease-in-out infinite;
+}
+.img-stages li[data-state="done"] { color: var(--muted); }
+.img-stages li[data-state="done"] i { background: var(--green); border-color: var(--green); }
+.img-stages li[data-state="bad"] { color: var(--terracotta); }
+.img-stages li[data-state="bad"] i { background: var(--terracotta); border-color: var(--terracotta); }
+
+/* Scaled rather than resized, since a bar that changes its width relays out
+   the page on every tick. */
+.img-bar { height: 3px; background: var(--panel-2); overflow: hidden; }
+.img-bar b {
+  display: block; height: 100%; background: var(--green);
+  transform: scaleX(0); transform-origin: left;
+  transition: transform 0.5s linear;
+}
+.img-note { margin: 0.6rem 0 0; min-height: 1.2em; font-size: 0.72rem; color: var(--faint); }
+.img-note[data-tone="slow"] { color: var(--amber); }
+.img-note[data-tone="bad"] { color: var(--terracotta); }
+.img-note a { color: var(--green-bright); }
+
 .wdg-foot {
   display: flex;
   justify-content: space-between;
