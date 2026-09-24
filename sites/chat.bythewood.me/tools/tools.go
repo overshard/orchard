@@ -92,6 +92,10 @@ type Deps struct {
 	Images  Images
 	OnImage func(ImageProgress)
 	Picture *ImageProgress
+	// Start is what this turn's picture starts from whatever the model says,
+	// and LastPicture is what change_last means. Per turn, on the copy.
+	Start       []string
+	LastPicture string
 }
 
 // WithSession returns a copy carrying one turn's session and its own widget
@@ -482,6 +486,17 @@ func argStr(a map[string]any, k string) string {
 		return strings.TrimSpace(fmt.Sprint(v))
 	}
 	return ""
+}
+
+// argBool takes a small model's "true" as readily as its true.
+func argBool(a map[string]any, k string) bool {
+	switch v := a[k].(type) {
+	case bool:
+		return v
+	case string:
+		return strings.EqualFold(strings.TrimSpace(v), "true")
+	}
+	return false
 }
 
 func argNum(a map[string]any, k string, def float64) float64 {

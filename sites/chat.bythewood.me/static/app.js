@@ -392,6 +392,13 @@
       const el = document.createElement("span");
       el.className = "chip";
       el.innerHTML = `<span class="nm">${esc(f.name)}</span><span class="sz">${bytes(f.size)}</span>`;
+      if (f.type.startsWith("image/")) {
+        const img = document.createElement("img");
+        img.alt = "";
+        img.src = URL.createObjectURL(f);
+        img.addEventListener("load", () => URL.revokeObjectURL(img.src), { once: true });
+        el.prepend(img);
+      }
       const x = document.createElement("button");
       x.type = "button";
       x.textContent = "\u2715";
@@ -405,11 +412,23 @@
   }
 
   // A chip on a message that has already been sent. The file is gone by then,
-  // so this only ever reports what happened to it.
+  // so this only ever reports what happened to it, apart from a picture, which
+  // is kept so the image model can start from it and so shows and opens.
   function fileChip(f) {
-    const el = document.createElement("span");
+    const el = document.createElement(f.image ? "a" : "span");
     el.className = "chip" + (f.err ? " bad" : "");
     el.innerHTML = `<span class="nm">${esc(f.name)}</span><span class="sz">${bytes(f.size)}</span>`;
+    if (f.image) {
+      el.href = "/api/image/" + encodeURIComponent(f.image);
+      el.target = "_blank";
+      el.rel = "noopener";
+      el.insertAdjacentHTML("afterbegin", `<img src="${el.href}" alt="" loading="lazy">`);
+    } else if (f.file) {
+      const img = document.createElement("img");
+      img.alt = "";
+      img.src = URL.createObjectURL(f.file);
+      el.prepend(img);
+    }
     if (f.err) el.title = f.err;
     return el;
   }
@@ -594,7 +613,8 @@
     if (sending.length) {
       const fb = mine.querySelector(".files");
       fb.hidden = false;
-      fb.replaceChildren(...sending.map((f) => fileChip({ name: f.name, size: f.size })));
+      fb.replaceChildren(...sending.map((f) => fileChip({ name: f.name, size: f.size,
+        file: f.type.startsWith("image/") ? f : null })));
     }
 
     const reply = bubble("bot");

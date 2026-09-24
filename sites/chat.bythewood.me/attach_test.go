@@ -70,17 +70,22 @@ func TestReadsAnUnknownExtension(t *testing.T) {
 	}
 }
 
-func TestRefusesAnImageAndSaysWhy(t *testing.T) {
-	png := append([]byte("\x89PNG\r\n\x1a\n"), bytes.Repeat([]byte{0x00, 0x01}, 64)...)
-	parts := readFiles(headers(t, map[string][]byte{"shot.png": png}))
-	if parts[0].Err == "" {
-		t.Fatal("an image was accepted")
+// A picture has no text for the chat model, so it is kept as a picture for
+// the image model to start from, in a shape sd-server can open.
+func TestTakesAPictureToStartFrom(t *testing.T) {
+	parts := readFiles(headers(t, map[string][]byte{"shot.png": solidPNG(t, 40, 20)}))
+	p := parts[0]
+	if p.Err != "" {
+		t.Fatalf("a picture was refused: %s", p.Err)
 	}
-	if !strings.Contains(parts[0].Err, "text only") {
-		t.Errorf("err = %q, want it to name the reason", parts[0].Err)
+	if p.Kind != "png" || p.Image == "" || p.Width != 40 || p.Height != 20 || len(p.Picture) == 0 {
+		t.Errorf("got %+v", p.Attachment)
 	}
-	if parts[0].Kind != "png" {
-		t.Errorf("kind = %q, want png", parts[0].Kind)
+	if got := composeTurn("put it in a room", parts); !strings.Contains(got, "cannot see this") {
+		t.Errorf("the model was not told it cannot see the picture:\n%s", got)
+	}
+	if ids := pictures(parts); len(ids) != 1 || ids[0] != p.Image {
+		t.Errorf("pictures = %v", ids)
 	}
 }
 

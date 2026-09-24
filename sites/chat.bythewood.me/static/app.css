@@ -558,6 +558,10 @@ body {
 }
 .chip .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chip .sz { color: var(--faint); }
+.chip img {
+  height: 2.2rem; width: auto; max-width: 5rem; object-fit: contain;
+  margin-left: -0.3rem; background: var(--panel-2);
+}
 .chip.bad { border-color: rgba(196, 112, 85, 0.5); color: var(--terracotta); }
 .chip button {
   background: none; border: 0; color: var(--faint); cursor: pointer;
@@ -566,7 +570,8 @@ body {
 .chip button:hover { color: var(--terracotta); }
 
 /* Attachment chips on a sent message. Same shape as the tool chips above them
-   and not interactive, since the file itself was never kept. */
+   and not interactive, since the file itself was never kept, apart from a
+   picture, which opens. */
 .files { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.7rem; }
 .files[hidden] { display: none; }
 

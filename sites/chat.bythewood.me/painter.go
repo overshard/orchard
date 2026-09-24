@@ -52,13 +52,31 @@ func (p *Painter) Expect() tools.ImageProgress {
 		StageAt: time.Now().UnixMilli(), PromptGuess: g.Prompt, LoadGuess: g.Load, DrawGuess: g.Draw}
 }
 
-func (p *Painter) Draw(ctx context.Context, prompt, shape string, from *tools.ImageProgress, report func(tools.ImageProgress)) (tools.Drawn, error) {
+func (p *Painter) Draw(ctx context.Context, prompt, shape string, startFrom []string, from *tools.ImageProgress, report func(tools.ImageProgress)) (tools.Drawn, error) {
+	refs, err := p.references(startFrom)
+	if err != nil {
+		if from != nil {
+			f := *from
+			f.Stage, f.Err, f.StageAt = "failed", err.Error(), time.Now().UnixMilli()
+			report(f)
+		}
+		return tools.Drawn{}, err
+	}
 	size, ok := shapes[shape]
 	if !ok {
 		size = shapes["square"]
 	}
 	w, h := size[0], size[1]
-	g := p.store.ImageGuess(w * h)
+	if shape == "same" && len(refs) > 0 {
+		w, h = sizeLike(refs[0].w, refs[0].h)
+	}
+	// A picture it starts from is read in beside the one being drawn, so it
+	// costs about what the same number of pixels drawn would.
+	pixels := w * h
+	for _, r := range refs {
+		pixels += r.w * r.h
+	}
+	g := p.store.ImageGuess(pixels)
 	pr := tools.ImageProgress{ID: newID(), Model: p.name}
 	if from != nil {
 		pr = *from
@@ -77,6 +95,15 @@ func (p *Painter) Draw(ctx context.Context, prompt, shape string, from *tools.Im
 	}
 	done := make(chan result, 1)
 	go func() {
+		if len(refs) > 0 {
+			pngs := make([][]byte, len(refs))
+			for i, r := range refs {
+				pngs[i] = r.png
+			}
+			png, err := p.llm.Edit(ctx, p.model, prompt, w, h, pngs)
+			done <- result{png, err}
+			return
+		}
 		png, err := p.llm.Image(ctx, p.model, prompt, w, h)
 		done <- result{png, err}
 	}()
@@ -102,7 +129,7 @@ func (p *Painter) Draw(ctx context.Context, prompt, shape string, from *tools.Im
 				// built from it would be wrong in both halves.
 				loadMS = 0
 			} else if !IsIncognito(ctx) {
-				p.store.SaveImageRun(pr.PromptMS, loadMS, total-loadMS, w*h)
+				p.store.SaveImageRun(pr.PromptMS, loadMS, total-loadMS, pixels)
 			}
 			pr.Stage, pr.LoadMS, pr.DrawMS, pr.StageAt = "done", loadMS, total-loadMS, time.Now().UnixMilli()
 			report(pr)
@@ -116,6 +143,34 @@ func (p *Painter) Draw(ctx context.Context, prompt, shape string, from *tools.Im
 			report(pr)
 		}
 	}
+}
+
+type reference struct {
+	png  []byte
+	w, h int
+}
+
+// At most this many, since each one read in makes the drawing slower and the
+// model was trained on a handful.
+const maxReferences = 4
+
+func (p *Painter) references(ids []string) ([]reference, error) {
+	if len(ids) > maxReferences {
+		ids = ids[:maxReferences]
+	}
+	out := make([]reference, 0, len(ids))
+	for _, id := range ids {
+		png, ok := p.PNG(id)
+		if !ok {
+			return nil, fmt.Errorf("the picture to start from is gone")
+		}
+		cfg, err := pngSize(png)
+		if err != nil {
+			return nil, fmt.Errorf("the picture to start from is unreadable: %w", err)
+		}
+		out = append(out, reference{png: png, w: cfg.Width, h: cfg.Height})
+	}
+	return out, nil
 }
 
 func (p *Painter) ready(ctx context.Context) bool {
@@ -146,25 +201,48 @@ func (p *Painter) explain(ctx context.Context, err error, loaded bool) string {
 	return fmt.Sprintf("it failed %s: %v", stage, err)
 }
 
+// Hold puts pictures he attached on the shelf, where the image tool and the
+// page can both find them before the turn is stored.
+func (p *Painter) Hold(parts []filePart) {
+	for _, f := range parts {
+		if f.Image != "" {
+			p.shelf.Put(f.Image, f.Picture, f.Width, f.Height)
+		}
+	}
+}
+
 // Keep moves a turn's pictures off the shelf and into the conversation, once
 // the conversation has an id to hang them on.
-func (p *Painter) Keep(convID string, widgets []Widget) {
-	for _, w := range widgets {
-		if w.Kind != "image" {
-			continue
-		}
+func (p *Painter) Keep(convID string, widgets []Widget, files []Attachment) {
+	ids := pictureIDs(widgets, files)
+	for _, id := range ids {
 		// Off the shelf only once it is in the database, since the page asks
 		// for it at the same moment the turn ends and this runs.
-		png, ok := p.shelf.Get(w.Image)
+		pic, ok := p.shelf.Take(id)
 		if !ok {
 			continue
 		}
-		if err := p.store.SaveImage(w.Image, convID, png, w.Width, w.Height); err != nil {
-			slog.Error("keeping a picture", "err", err, "id", w.Image)
+		if err := p.store.SaveImage(id, convID, pic.png, pic.w, pic.h); err != nil {
+			slog.Error("keeping a picture", "err", err, "id", id)
 			continue
 		}
-		p.shelf.Drop(w.Image)
+		p.shelf.Drop(id)
 	}
+}
+
+func pictureIDs(widgets []Widget, files []Attachment) []string {
+	var ids []string
+	for _, f := range files {
+		if f.Image != "" {
+			ids = append(ids, f.Image)
+		}
+	}
+	for _, w := range widgets {
+		if w.Kind == "image" && w.Image != "" {
+			ids = append(ids, w.Image)
+		}
+	}
+	return ids
 }
 
 func (p *Painter) PNG(id string) ([]byte, bool) {
@@ -235,6 +313,14 @@ func (s *shelf) Get(id string) ([]byte, bool) {
 	defer s.mu.Unlock()
 	v, ok := s.items[id]
 	return v.png, ok
+}
+
+// Take is Get with the size, and leaves the picture where it is.
+func (s *shelf) Take(id string) (shelved, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	v, ok := s.items[id]
+	return v, ok
 }
 
 func (s *shelf) Drop(id string) {

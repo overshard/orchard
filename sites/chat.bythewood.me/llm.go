@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"strings"
 	"time"
@@ -424,6 +425,10 @@ func (l *LLM) Image(ctx context.Context, model, prompt string, w, h int) ([]byte
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	return l.picture(req)
+}
+
+func (l *LLM) picture(req *http.Request) ([]byte, error) {
 	l.sign(req)
 	resp, err := l.http.Do(req)
 	if err != nil {
@@ -453,6 +458,36 @@ func (l *LLM) Image(ctx context.Context, model, prompt string, w, h int) ([]byte
 		return nil, errors.New("the image model sent something that is not a png")
 	}
 	return png, nil
+}
+
+// Edit is Image starting from pictures. The edits call is a form rather than
+// JSON, since that is the shape the OpenAI images api gives it.
+func (l *LLM) Edit(ctx context.Context, model, prompt string, w, h int, pictures [][]byte) ([]byte, error) {
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	_ = mw.WriteField("model", model)
+	_ = mw.WriteField("prompt", prompt)
+	_ = mw.WriteField("size", fmt.Sprintf("%dx%d", w, h))
+	_ = mw.WriteField("n", "1")
+	_ = mw.WriteField("output_format", "png")
+	for i, pic := range pictures {
+		fw, err := mw.CreateFormFile("image[]", fmt.Sprintf("start%d.png", i+1))
+		if err != nil {
+			return nil, err
+		}
+		if _, err := fw.Write(pic); err != nil {
+			return nil, err
+		}
+	}
+	if err := mw.Close(); err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, "POST", l.BaseURL+"/v1/images/edits", &body)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	return l.picture(req)
 }
 
 var pngMagic = []byte("\x89PNG\r\n\x1a\n")
