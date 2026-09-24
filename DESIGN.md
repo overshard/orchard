@@ -403,7 +403,7 @@ A reader only ever has the repo.
 | `logging` | green | Bootstrap. Dashboards run full width inside the container |
 | `auth` | green | Bootstrap. Carries the starfield on `/login`, which the grid sits under |
 | `repos` | green | Hand written CSS, no Bootstrap, since it is dense text. Newsreader on repository names |
-| `chat` | green | Hand written CSS, no Bootstrap. A conversation, so it reads at the longest length on the estate. Citation pills and a source row under each answer, and widget panels above one when a ticker or a forecast was looked up. An unread dot on a conversation that finished a turn off screen |
+| `chat` | green | Hand written CSS, no Bootstrap. A conversation, so it reads at the longest length on the estate. Citation pills and a source row under each answer, and widget panels above one when a ticker or a forecast was looked up. A picture draws behind a panel listing its stages, each with a count and a guess from the last few, and replaces it once it has loaded. An unread dot on a conversation that finished a turn off screen |
 | `dash` | amber | Hand written CSS. Scanlines, vignette, JetBrains Mono and Space Grotesk |
 | `blog`, `isaacbythewood.com` | neither | Separate identities. Nothing here applies to them |
 

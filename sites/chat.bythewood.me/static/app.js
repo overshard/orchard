@@ -328,9 +328,13 @@
   // Three facts land on the model chip from three places, so one painter owns it
   // and they cannot disagree. Loaded is the weights being on the card, which is
   // what the eject is offered against.
-  const card = { up: true, loaded: false, busy: false };
+  const card = { up: true, loaded: false, busy: false, onCard: "" };
+  const modelName = modelBtn.querySelector(".model-name");
+  const chatModel = modelName.textContent;
   function paintModel() {
     const { up, loaded, busy } = card;
+    const name = (loaded || busy) && card.onCard ? card.onCard : chatModel;
+    modelName.textContent = name;
     modelDot.classList.toggle("busy", busy);
     modelDot.classList.toggle("on", !busy && loaded);
     modelDot.classList.toggle("down", !up);
@@ -339,9 +343,9 @@
     modelBtn.classList.toggle("loaded", canEject);
     modelBtn.setAttribute("aria-disabled", canEject ? "false" : "true");
     modelBtn.title = !up ? "The model server is not answering"
-      : busy ? "Answering, so the card is in use"
-      : loaded ? "On the card. Press to unload it and free the GPU."
-      : "Not on the card. It loads itself on the next question.";
+      : busy ? name + " is working, so the card is in use"
+      : loaded ? name + " is on the card. Press to unload it and free the GPU."
+      : "Nothing is on the card. " + chatModel + " loads itself on the next question.";
     modelBtn.setAttribute("aria-label", modelBtn.title);
   }
   paintModel();
@@ -351,7 +355,8 @@
     // A turn that is running means the weights are on the card by definition,
     // so this is the one place the state is known without asking.
     card.busy = on;
-    if (on) card.loaded = true;
+    // Every turn starts on the chat model, whatever the last one left there.
+    if (on) { card.loaded = true; card.onCard = ""; }
     paintModel();
     if (!on) refocus();
   }
@@ -697,6 +702,24 @@
         if (ev.widget) window.Widgets.add(ui.widgets, ev.widget);
         keepPinned();
         break;
+      case "image":
+        window.Widgets.progress(ui.widgets, ev.image);
+        if (ev.image) {
+          const st = ev.image.stage;
+          if (st === "prompt") {
+            statusLine("writing the prompt");
+          } else if (st === "loading" || st === "drawing") {
+            statusLine(st === "loading" ? "loading " + ev.image.model : "drawing");
+            // The chip follows the card, so it names the picture model while
+            // that is the one on it.
+            card.onCard = ev.image.model;
+            paintModel();
+          } else {
+            clearStatus();
+          }
+        }
+        keepPinned();
+        break;
       case "block":
         clearStatus();
         // Append rather than replace, so nothing already on screen moves.
@@ -714,10 +737,12 @@
         break;
       case "error":
         clearStatus();
+        window.Widgets.settle(ui.widgets);
         errorLine(ev.text);
         break;
       case "done":
         clearStatus();
+        window.Widgets.settle(ui.widgets);
         showStats(ev.stats);
         ui.tail.remove();
         if (ev.conversation_id) {
@@ -1122,6 +1147,7 @@
       if (s.ctx) { ctxSize = s.ctx; meterCap.textContent = kfmt(s.ctx); }
       card.up = !!s.up;
       card.loaded = !!s.loaded;
+      card.onCard = s.on_card || "";
       paintModel();
       const left = s.search_left || {};
       // Down means a host refused us. Spent means we stopped ourselves. They

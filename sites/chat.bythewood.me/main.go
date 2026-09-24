@@ -57,6 +57,7 @@ type site struct {
 	queue   *Queue
 	hub     *Hub
 	comp    *Compactor
+	painter *Painter
 	tpl     *template.Template
 	md      goldmark.Markdown
 	label   string
@@ -68,17 +69,19 @@ func round1(f float64) float64 { return float64(int(f*10+0.5)) / 10 }
 
 func main() {
 	var (
-		addr    = flag.String("addr", env("CHAT_ADDR", listenAddr), "listen address")
-		llmURL  = flag.String("llm", env("LLM_URL", "http://orchard-llm:8000"), "model gateway base url")
-		llmKey  = flag.String("llm-key", os.Getenv("LLM_KEY"), "api key for the model gateway")
-		verify  = flag.String("verify", "", "development only: check sessions against this url instead of auth")
-		model   = flag.String("model", env("LLM_MODEL", "local"), "model name the server answers to")
-		label   = flag.String("model-name", env("LLM_NAME", "Ornith 1.5 9B"), "readable model name, shown in the UI and told to the model")
-		dbPath  = flag.String("db", env("CHAT_DB", "data/chat.db"), "conversation database")
-		propCfg = flag.String("property-config", env("PROPERTY_CONFIG", "data/property.json"), "house hunting config: the work address, the drives and the money")
-		wikiURL = flag.String("wiki", env("WIKI_URL", "http://orchard-wiki:8000"), "offline wikipedia base url")
-		ctxSize = flag.Int("ctx", envInt("LLM_CTX", 32768), "model context window in tokens")
-		health  = flag.Bool("healthcheck", false, "probe the local server and exit")
+		addr     = flag.String("addr", env("CHAT_ADDR", listenAddr), "listen address")
+		llmURL   = flag.String("llm", env("LLM_URL", "http://orchard-llm:8000"), "model gateway base url")
+		llmKey   = flag.String("llm-key", os.Getenv("LLM_KEY"), "api key for the model gateway")
+		verify   = flag.String("verify", "", "development only: check sessions against this url instead of auth")
+		model    = flag.String("model", env("LLM_MODEL", "local"), "model name the server answers to")
+		label    = flag.String("model-name", env("LLM_NAME", "Ornith 1.5 9B"), "readable model name, shown in the UI and told to the model")
+		imgModel = flag.String("image-model", env("IMAGE_MODEL", "image"), "model name the server draws pictures with")
+		imgName  = flag.String("image-name", env("IMAGE_NAME", "FLUX.2 klein 4B"), "readable name of the picture model")
+		dbPath   = flag.String("db", env("CHAT_DB", "data/chat.db"), "conversation database")
+		propCfg  = flag.String("property-config", env("PROPERTY_CONFIG", "data/property.json"), "house hunting config: the work address, the drives and the money")
+		wikiURL  = flag.String("wiki", env("WIKI_URL", "http://orchard-wiki:8000"), "offline wikipedia base url")
+		ctxSize  = flag.Int("ctx", envInt("LLM_CTX", 32768), "model context window in tokens")
+		health   = flag.Bool("healthcheck", false, "probe the local server and exit")
 	)
 	flag.Parse()
 	web.SetupLogging()
@@ -127,6 +130,8 @@ func main() {
 	// service, so it is handed the store rather than a url.
 	s.engine.Deps().Memory = memoryStore{store}
 	s.engine.Deps().History = historyStore{store}
+	s.painter = NewPainter(llm, *imgModel, *imgName, store)
+	s.engine.Deps().Images = s.painter
 	// The house lookups, which own their own tables in the same database. A
 	// missing config is not fatal: the engine runs on placeholders and every
 	// report says which config it used, since a tool that will not answer is
@@ -196,6 +201,7 @@ func main() {
 	})
 	mux.HandleFunc("POST /api/send", s.auth.RequireAuthJSON(s.send))
 	mux.HandleFunc("GET /api/attach/{id}", s.auth.RequireAuthJSON(s.attach))
+	mux.HandleFunc("GET /api/image/{id}", s.auth.RequireAuthJSON(s.image))
 	mux.HandleFunc("POST /api/stop/{id}", s.auth.RequireAuthJSON(s.stop))
 	mux.HandleFunc("GET /api/conversations", s.auth.RequireAuthJSON(s.listConversations))
 	mux.HandleFunc("GET /api/conversation/{id}", s.auth.RequireAuthJSON(s.getConversation))
@@ -582,6 +588,7 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 
 	// Whatever the model wrote, the stored copy has no leaked markup in it.
 	reply.Content, _ = salvageCalls(reply.Content, func(string) bool { return false })
+	drew := hasPicture(widgets)
 
 	summaries := make([]ToolSummary, 0, len(used))
 	for _, u := range used {
@@ -617,7 +624,13 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 			_ = s.store.Append(convID, user)
 			_ = s.store.Append(convID, Stored{Role: RoleAssistant, Content: reply.Content,
 				Tools: summaries, Sources: srcs, Widgets: widgets, Steps: tr.Steps()})
-			if len(stored) == 0 {
+			s.painter.Keep(convID, widgets)
+			if len(stored) == 0 && drew {
+				// Naming it with the model would put the chat model back on
+				// the card for four words, and the picture's own prompt names it.
+				title = pictureTitle(reply.Content)
+				_ = s.store.SetTitle(convID, title)
+			} else if len(stored) == 0 {
 				seed := titleSeed(req.Message, parts)
 				titleStart := time.Now()
 				if t := s.comp.Title(context.WithoutCancel(ctx), seed, reply.Content); t != "" {
@@ -633,8 +646,9 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 
 	// After the answer is on its way, never in front of it. Incognito is
 	// excluded: a mode that writes nothing down cannot be the one that teaches
-	// it something to write down later.
-	if !req.Incognito {
+	// it something to write down later. So is a picture, which says nothing
+	// about him and would swap the chat model straight back on to find that out.
+	if !req.Incognito && !drew {
 		go func() {
 			// Recovered here and not by the middleware, which only wraps the
 			// handler. A panic on this goroutine would take the process down
@@ -809,9 +823,9 @@ func (s *site) deleteAll(w http.ResponseWriter, r *http.Request) {
 
 func (s *site) status(w http.ResponseWriter, r *http.Request) {
 	nConv, nMsg := s.store.Count()
-	loaded, up := s.llm.Loaded(r.Context())
+	onCard, loaded, up := s.llm.Loaded(r.Context())
 	out := map[string]any{
-		"model": s.label, "up": up, "loaded": loaded, "ctx": s.ctxSize,
+		"model": s.label, "up": up, "loaded": loaded, "on_card": onCard, "ctx": s.ctxSize,
 		"tools": tools.Default().Names(), "conversations": nConv, "messages": nMsg,
 	}
 	// Search being unavailable is the one tool failure worth saying out loud,
