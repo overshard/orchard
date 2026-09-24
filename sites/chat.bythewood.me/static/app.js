@@ -557,6 +557,7 @@
   // The stream is read the same way whether it came from starting a turn or
   // from attaching to one already running, so both go through here.
   async function consume(resp, ui) {
+    window.Widgets.clock(resp);
     const reader = resp.body.getReader();
     const dec = new TextDecoder();
     let buf = "";
