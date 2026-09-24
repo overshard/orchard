@@ -75,6 +75,12 @@ func round16(v float64) int {
 type references struct {
 	Attached []string
 	Last     string
+	// What he typed, without the note about the file wrapped round it.
+	Message string
+	// The newest picture he attached in this conversation, and what he said
+	// with it, which is where a new scene starts from.
+	Origin     string
+	OriginSaid string
 }
 
 type referencesKey struct{}
@@ -105,4 +111,16 @@ func lastPicture(stored []Stored) string {
 		}
 	}
 	return ""
+}
+
+func lastAttached(stored []Stored) (string, string) {
+	for i := len(stored) - 1; i >= 0; i-- {
+		m := stored[i]
+		for j := len(m.Files) - 1; j >= 0; j-- {
+			if m.Files[j].Image != "" {
+				return m.Files[j].Image, m.Display
+			}
+		}
+	}
+	return "", ""
 }
