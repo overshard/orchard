@@ -369,7 +369,10 @@ func TestAnAttachedPictureIsWhatTheImageModelStartsFrom(t *testing.T) {
 	if f.lastImage["from"] != 1 {
 		t.Fatalf("the image model was not handed the picture: %v", f.lastImage)
 	}
-	if f.lastImage["size"] != "1616x640" {
+	if p, _ := f.lastImage["prompt"].(string); !strings.HasPrefix(p, tools.KeepPrefix) {
+		t.Errorf("the image model was not told to keep the picture: %q", p)
+	}
+	if f.lastImage["size"] != "2288x912" {
 		t.Errorf("size = %v, want the wide shape of the picture", f.lastImage["size"])
 	}
 	if len(widgets) != 1 || widgets[0].Kind != "image" {
@@ -408,13 +411,14 @@ func TestAReferenceIsShrunkToWhatTheModelReads(t *testing.T) {
 }
 
 func TestSizeLikeKeepsTheShape(t *testing.T) {
-	for _, c := range []struct{ w, h, ww, wh int }{
-		{1024, 1024, 1024, 1024},
-		{1920, 767, 1616, 640},
-		{800, 1200, 832, 1248},
-		{5000, 100, 1776, 592},
+	for _, c := range []struct{ w, h, px, ww, wh int }{
+		{1024, 1024, referencePixels, 1024, 1024},
+		{1920, 767, referencePixels, 1616, 640},
+		{1431, 732, editPixels, 2032, 1040},
+		{800, 1200, editPixels, 1184, 1776},
+		{5000, 100, referencePixels, 1776, 592},
 	} {
-		w, h := sizeLike(c.w, c.h)
+		w, h := sizeLike(c.w, c.h, c.px)
 		if w != c.ww || h != c.wh || w%16 != 0 || h%16 != 0 {
 			t.Errorf("sizeLike(%d, %d) = %dx%d, want %dx%d", c.w, c.h, w, h, c.ww, c.wh)
 		}

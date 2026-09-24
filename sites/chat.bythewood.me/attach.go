@@ -303,7 +303,7 @@ func composeTurn(message string, parts []filePart) string {
 			continue
 		}
 		if p.Image != "" {
-			fmt.Fprintf(&sb, "--- %s (a %dx%d picture) ---\nYou cannot see this. The image tool starts from it, so pass what he wants done to it and what has to stay the same, in his words.\n--- end of %s ---\n\n", p.Name, p.Width, p.Height, p.Name)
+			fmt.Fprintf(&sb, "--- %s (a %dx%d picture) ---\nYou cannot see this, so never describe what is in it. The image tool starts from it, so pass what he wants done to it, in his words.\n--- end of %s ---\n\n", p.Name, p.Width, p.Height, p.Name)
 			continue
 		}
 		fmt.Fprintf(&sb, "--- %s (%s, %s) ---\n%s\n--- end of %s ---\n\n", p.Name, p.Kind, humanSize(p.Size), p.Text, p.Name)

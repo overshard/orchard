@@ -67,8 +67,13 @@ func (p *Painter) Draw(ctx context.Context, prompt, shape string, startFrom []st
 		size = shapes["square"]
 	}
 	w, h := size[0], size[1]
-	if shape == "same" && len(refs) > 0 {
-		w, h = sizeLike(refs[0].w, refs[0].h)
+	if len(refs) > 0 {
+		if shape == "same" || shape == "square" {
+			// Square is what a model asks for when it has no reason to, and
+			// the picture it starts from is the reason.
+			w, h = refs[0].w, refs[0].h
+		}
+		w, h = sizeLike(w, h, editPixels)
 	}
 	// A picture it starts from is read in beside the one being drawn, so it
 	// costs about what the same number of pixels drawn would.
