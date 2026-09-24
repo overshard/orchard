@@ -38,3 +38,26 @@ models:
       --cache-type-k q4_0
       --cache-type-v q4_0
       --ubatch-size 256
+
+  # Images. Only one entry runs at a time, so asking for this takes Ornith off
+  # the card and the next chat turn puts it back.
+  "image":
+    name: "FLUX.2 klein 4B"
+    ttl: 180
+    # sd-server has no /health, and it loads the weights before it listens, so
+    # the model list answering means it is ready to draw.
+    checkEndpoint: /v1/models
+    # Q8_0 because Q4_0 misspells the words in a picture. offload-to-cpu keeps
+    # the weights in RAM and moves each part onto the card only while it runs,
+    # and a full size VAE decode runs out of memory and retries tiled anyway.
+    cmd: >
+      sd-server
+      --listen-ip 127.0.0.1 --listen-port ${PORT}
+      --diffusion-model /models/klein/flux-2-klein-4b-Q8_0.gguf
+      --llm /models/klein/Qwen3-4B-Q4_K_M.gguf
+      --vae /models/klein/flux2-vae.safetensors
+      --steps 4
+      --cfg-scale 1.0
+      --diffusion-fa
+      --offload-to-cpu
+      --vae-tiling

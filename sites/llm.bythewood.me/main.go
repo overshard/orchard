@@ -145,6 +145,7 @@ func main() {
 	mux.HandleFunc("POST /v1/completions", s.requireKey(s.completions))
 	mux.HandleFunc("GET /v1/models", s.requireKey(s.passthrough))
 	mux.HandleFunc("POST /v1/embeddings", s.requireKey(s.passthrough))
+	mux.HandleFunc("POST /v1/images/generations", s.requireKey(s.images))
 	// What is on the card, and a way to take it off before the idle ttl runs
 	// out. Neither loads anything, so a caller can poll the first as often as
 	// it likes without keeping the weights awake.
