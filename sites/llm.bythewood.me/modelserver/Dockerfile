@@ -1,4 +1,5 @@
-# The model server behind llm.bythewood.me: llama.cpp behind llama-swap.
+# The model server behind llm.bythewood.me: llama.cpp for chat and
+# stable-diffusion.cpp for pictures, both behind llama-swap.
 #
 # Nothing else in the estate runs one of these. Every service that wants a model
 # goes through the gateway in front of this, which is what makes one set of
@@ -51,7 +52,29 @@ RUN git clone --depth 1 --branch ${LLAMA_REF} https://github.com/ggml-org/llama.
     cmake --build /tmp/build --target llama-server -j"$(nproc)" && \
     strip /tmp/build/bin/llama-server
 
+
+# On top of the llama stage rather than beside it, since two CUDA builds at
+# once run a 16GB machine out of memory. Pinned because its server API is young.
+FROM build AS sd
+
+ARG SD_REF=master-908-88411ef
+RUN git clone --depth 1 --branch ${SD_REF} https://github.com/leejet/stable-diffusion.cpp /tmp/sd && \
+    git -C /tmp/sd submodule update --init --depth 1 ggml && \
+    cmake -S /tmp/sd -B /tmp/sd/build -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DSD_CUDA=ON \
+        -DCMAKE_CUDA_ARCHITECTURES=86 \
+        -DGGML_NATIVE=OFF \
+        -DSD_WEBP=OFF \
+        -DSD_WEBM=OFF \
+        -DSD_SERVER_BUILD_FRONTEND=OFF && \
+    cmake --build /tmp/sd/build --target sd-server -j"$(nproc)" && \
+    strip /tmp/sd/build/bin/sd-server
+
+
 # llama-swap ships a static Go binary, so it is fetched rather than built.
+FROM build AS swap
+
 # Pinned by digest: a release asset can be replaced in place.
 ARG SWAP_VERSION=252
 ARG SWAP_SHA256=5f858d72a90ae28aa7c75d34df25d05f9d7daec8c47b9503fb8a264bc6d95d25
@@ -79,7 +102,8 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/* /tmp/keyring.deb
 
 COPY --from=build /tmp/build/bin/llama-server /usr/local/bin/llama-server
-COPY --from=build /usr/local/bin/llama-swap /usr/local/bin/llama-swap
+COPY --from=sd /tmp/sd/build/bin/sd-server /usr/local/bin/sd-server
+COPY --from=swap /usr/local/bin/llama-swap /usr/local/bin/llama-swap
 COPY config.yaml /etc/llama-swap/config.yaml
 
 # A malformed config would otherwise surface as a container that starts and

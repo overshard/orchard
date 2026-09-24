@@ -38,9 +38,9 @@ services:
         max-file: "3"
     networks: [edge, model]
 
-  # llama.cpp behind llama-swap with the card attached. Ornith 1.5 9B at Q4_K_M,
-  # 64k of context with a q4_0 KV cache, unloaded after three idle minutes so a
-  # desktop that is also a workstation gets its card back.
+  # llama.cpp and stable-diffusion.cpp behind llama-swap with the card attached.
+  # Ornith 1.5 9B for chat and FLUX.2 klein 4B for pictures, one at a time, each
+  # unloaded after three idle minutes so the desktop gets its card back.
   swap:
     build:
       context: ./modelserver
