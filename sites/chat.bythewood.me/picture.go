@@ -40,7 +40,7 @@ var pictureAgain = regexp.MustCompile(`(?i)\b(again|another|redo|one more|differ
 
 // Words that change a picture wherever they fall, since "can we change the
 // background of this, it's weird" opens on nothing the edit pattern knows.
-var changeWord = regexp.MustCompile(`(?i)\b(change|make|replace|swap|add|remove|put|use|turn|try|instead|background|brighter|darker|lighter|colou?r|without|with)\b`)
+var changeWord = regexp.MustCompile(`(?i)\b(change|make|replace|swap|add|remove|put|use|turn|try|instead|background|brighter|darker|lighter|colou?r|without|with|correct|fix|smooth|adjust|tweak|clean|improve|shadows?|lighting|more|less|keep)\b`)
 
 // A question about the picture is not a change to it.
 var askingAbout = regexp.MustCompile(`(?i)^\s*(why|what|how|who|where|when|is|does|did|was)\b`)
@@ -49,13 +49,15 @@ var askingAbout = regexp.MustCompile(`(?i)^\s*(why|what|how|who|where|when|is|do
 // opposed to asking for a new one or asking about it.
 func isPictureChange(message string, history []Message) bool {
 	m := strings.TrimSpace(message)
-	if m == "" || !lastWasPicture(history) || askingAbout.MatchString(m) || pictureAgain.MatchString(m) {
-		return false
-	}
-	if pictureAsk.MatchString(m) || drawVerb.MatchString(m) {
+	if m == "" || !lastWasPicture(history) || askingAbout.MatchString(m) || wantsNewPicture(m) {
 		return false
 	}
 	return pictureEdit.MatchString(m) || changeWord.MatchString(m)
+}
+
+// wantsNewPicture is asking for a different picture rather than this one fixed.
+func wantsNewPicture(m string) bool {
+	return pictureAgain.MatchString(m) || pictureAsk.MatchString(m) || drawVerb.MatchString(m)
 }
 
 // A change to where the thing is rather than to the picture. Each edit of an
