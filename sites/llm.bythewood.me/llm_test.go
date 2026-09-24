@@ -429,3 +429,97 @@ func TestUnloadNeedsAKey(t *testing.T) {
 		t.Error("an unkeyed unload reached the model server")
 	}
 }
+
+func TestAnImageIsForwardedAndOnlyItsPromptIsKept(t *testing.T) {
+	var got imageReq
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&got)
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"created":1,"data":[{"b64_json":"`+strings.Repeat("A", 4096)+`"}]}`)
+	}))
+	defer up.Close()
+
+	store := testStore(t)
+	secret, _, _ := store.NewKey("chat")
+	s := &site{store: store, upstream: up.URL, client: up.Client()}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/v1/images/generations",
+		strings.NewReader(`{"model":"image","prompt":"a red barn in fog","size":"1024x1024"}`))
+	req.Header.Set("Authorization", "Bearer "+secret)
+	s.requireKey(s.images)(rec, req)
+
+	if rec.Code != 200 {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	if got.Prompt != "a red barn in fog" || got.Model != "image" {
+		t.Errorf("upstream got %+v", got)
+	}
+	if !strings.Contains(rec.Body.String(), "b64_json") {
+		t.Errorf("the caller did not get the picture: %.80s", rec.Body.String())
+	}
+	calls, _ := store.Calls("chat", 5)
+	if len(calls) != 1 {
+		t.Fatalf("logged %d calls", len(calls))
+	}
+	c := calls[0]
+	if !strings.Contains(c.Messages, "a red barn in fog") {
+		t.Errorf("the prompt was not kept: %q", c.Messages)
+	}
+	if strings.Contains(c.Completion, "AAAA") {
+		t.Errorf("the picture itself was logged: %.80s", c.Completion)
+	}
+	if c.Completion != "[an image, 1024x1024, 3 KB]" {
+		t.Errorf("completion = %q", c.Completion)
+	}
+}
+
+func TestAnIncognitoImageIsNotWrittenDown(t *testing.T) {
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"data":[{"b64_json":"AAAA"}]}`)
+	}))
+	defer up.Close()
+
+	store := testStore(t)
+	secret, _, _ := store.NewKey("chat")
+	s := &site{store: store, upstream: up.URL, client: up.Client()}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/v1/images/generations",
+		strings.NewReader(`{"model":"image","prompt":"a secret"}`))
+	req.Header.Set("Authorization", "Bearer "+secret)
+	req.Header.Set(incognitoHeader, "1")
+	s.requireKey(s.images)(rec, req)
+
+	if rec.Code != 200 {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	if calls, _ := store.Calls("", 5); len(calls) != 0 {
+		t.Fatalf("an incognito image was logged: %+v", calls)
+	}
+}
+
+func TestAFailedImageKeepsTheReason(t *testing.T) {
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(500)
+		fmt.Fprint(w, `{"error":{"message":"out of memory","type":"server_error"}}`)
+	}))
+	defer up.Close()
+
+	store := testStore(t)
+	secret, _, _ := store.NewKey("chat")
+	s := &site{store: store, upstream: up.URL, client: up.Client()}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/v1/images/generations", strings.NewReader(`{"model":"image","prompt":"x"}`))
+	req.Header.Set("Authorization", "Bearer "+secret)
+	s.requireKey(s.images)(rec, req)
+
+	if rec.Code != 500 || !strings.Contains(rec.Body.String(), "out of memory") {
+		t.Errorf("caller got %d %s", rec.Code, rec.Body.String())
+	}
+	calls, _ := store.Calls("chat", 5)
+	if len(calls) != 1 || calls[0].Err != "server_error: out of memory" {
+		t.Errorf("logged %+v", calls)
+	}
+}
