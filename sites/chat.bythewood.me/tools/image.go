@@ -54,11 +54,6 @@ type ImageProgress struct {
 
 var imageShapes = map[string]bool{"square": true, "portrait": true, "landscape": true, "same": true}
 
-// KeepPrefix goes in front of every change to a picture, since the chat model
-// cannot see it and a small model fills that gap with a description.
-const KeepPrefix = "Keep everything from the reference picture that is not asked to change exactly as it is, " +
-	"the same shape, colours, materials and details. "
-
 var Image = Tool{
 	Name: "image",
 	Description: "Draw a picture with FLUX.2 klein, an image model that runs on the same card as you. " +
@@ -109,11 +104,7 @@ var Image = Tool{
 		if report == nil {
 			report = func(ImageProgress) {}
 		}
-		sent := prompt
-		if len(start) > 0 {
-			sent = KeepPrefix + prompt
-		}
-		got, err := d.Images.Draw(ctx, sent, shape, start, d.Picture, report)
+		got, err := d.Images.Draw(ctx, prompt, shape, start, d.Picture, report)
 		if err != nil {
 			return nil, err
 		}

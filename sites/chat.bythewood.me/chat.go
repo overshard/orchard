@@ -221,14 +221,40 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	deps.OnImage = func(p tools.ImageProgress) { emit(Event{Kind: "image", Image: &p}) }
 	refs := referencesOf(ctx)
 	deps.Start, deps.LastPicture = refs.Attached, refs.Last
-	// A small model leaves change_last off for "make it night", so a short
-	// change straight after a picture is not left to it.
-	if len(deps.Start) == 0 && refs.Last != "" && isPictureChange(user, history) {
+	said := refs.Message
+	if said == "" {
+		said = user
+	}
+	// A small model leaves change_last off for "make it night", so a change
+	// straight after a picture is not left to it.
+	named, keepThing := "", len(refs.Attached) > 0
+	if len(deps.Start) == 0 && refs.Last != "" && isPictureChange(said, history) {
 		deps.Start = []string{refs.Last}
+		if refs.Origin != "" && sceneWord.MatchString(said) {
+			deps.Start, named, keepThing = []string{refs.Origin}, refs.OriginSaid, true
+		}
 	}
 	// Nothing else can be done with a picture he attached, since the chat
 	// model cannot see it.
-	picture := isPictureAsk(user, history) || len(refs.Attached) > 0
+	picture := isPictureAsk(user, history) || len(deps.Start) > 0
+
+	// A change to a picture skips the chat model. It cannot see the picture,
+	// and every prompt it wrote for one described a sofa it made up.
+	if len(deps.Start) > 0 && deps.Images != nil {
+		prompt := editPrompt(said, named, keepThing)
+		args, _ := json.Marshal(map[string]any{"prompt": prompt, "shape": "same"})
+		emit(Event{Kind: "tool", Tool: tools.Image.Name, Args: shortArgs(string(args))})
+		res := e.reg.Call(ctx, deps, tools.Image.Name, args)
+		emit(Event{Kind: "tool_done", Tool: res.Name, MS: res.Elapsed.Milliseconds(), OK: res.Err == ""})
+		tr.Add(Step{Kind: "tool", Label: "changed the picture without the chat model", In: string(args),
+			Out: resultText(res), MS: res.Elapsed.Milliseconds(), Bad: res.Err != ""})
+		for _, wdg := range drained(deps.Widgets, map[string]bool{}) {
+			emit(Event{Kind: "widget", Widget: &wdg})
+		}
+		text := pictureReply(res)
+		emit(Event{Kind: "block", HTML: e.Render(text)})
+		return Message{Role: RoleAssistant, Content: text}, []tools.Result{res}, nil, deps.Widgets.List(), Stats{}, nil
+	}
 	// Which widgets have already gone out, since the sink holds every one the
 	// turn has produced and each round would otherwise resend the earlier ones.
 	sentWidgets := map[string]bool{}
