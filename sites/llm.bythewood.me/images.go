@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"mime"
+	"mime/multipart"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -14,12 +17,16 @@ type imageReq struct {
 	Model  string `json:"model"`
 	Prompt string `json:"prompt"`
 	Size   string `json:"size"`
+	// Pictures an edit starts from. Counted and never logged, for the same
+	// reason the picture that comes back is not.
+	From int `json:"-"`
 }
 
 // images forwards one picture to llama-swap, which takes the chat model off the
 // card to make room. The prompt is logged like a message would be, and the
 // picture is not, since a couple of megabytes of base64 a row would bury the
-// log it sits in.
+// log it sits in. An edit is the same call as a form carrying the pictures it
+// starts from.
 func (s *site) images(w http.ResponseWriter, r *http.Request, k Key) {
 	started := time.Now()
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxRequestBytes))
@@ -27,8 +34,7 @@ func (s *site) images(w http.ResponseWriter, r *http.Request, k Key) {
 		http.Error(w, "request too large", http.StatusRequestEntityTooLarge)
 		return
 	}
-	var req imageReq
-	_ = json.Unmarshal(body, &req)
+	req := readImageReq(r.Header.Get("Content-Type"), body)
 
 	keep := r.Header.Get(incognitoHeader) != "1"
 	call := Call{KeyID: k.ID, Caller: k.Name, Model: req.Model}
@@ -49,7 +55,7 @@ func (s *site) images(w http.ResponseWriter, r *http.Request, k Key) {
 		http.Error(w, "bad gateway", http.StatusBadGateway)
 		return
 	}
-	up.Header.Set("Content-Type", "application/json")
+	up.Header.Set("Content-Type", r.Header.Get("Content-Type"))
 
 	resp, err := s.client.Do(up)
 	if err != nil {
@@ -80,6 +86,45 @@ func (s *site) images(w http.ResponseWriter, r *http.Request, k Key) {
 		return
 	}
 	call.Completion = describeImages(out, req.Size)
+	if req.From > 0 {
+		call.Completion += fmt.Sprintf(", from %d %s", req.From, plural(req.From, "picture", "pictures"))
+	}
+}
+
+func readImageReq(contentType string, body []byte) imageReq {
+	var req imageReq
+	mt, params, _ := mime.ParseMediaType(contentType)
+	if !strings.HasPrefix(mt, "multipart/") {
+		_ = json.Unmarshal(body, &req)
+		return req
+	}
+	mr := multipart.NewReader(bytes.NewReader(body), params["boundary"])
+	for {
+		p, err := mr.NextPart()
+		if err != nil {
+			return req
+		}
+		if p.FileName() != "" {
+			req.From++
+			continue
+		}
+		v, _ := io.ReadAll(io.LimitReader(p, 64<<10))
+		switch p.FormName() {
+		case "model":
+			req.Model = string(v)
+		case "prompt":
+			req.Prompt = string(v)
+		case "size":
+			req.Size = string(v)
+		}
+	}
+}
+
+func plural(n int, one, many string) string {
+	if n == 1 {
+		return one
+	}
+	return many
 }
 
 // describeImages is what the log keeps in place of the picture.

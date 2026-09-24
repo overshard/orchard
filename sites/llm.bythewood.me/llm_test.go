@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -521,5 +523,63 @@ func TestAFailedImageKeepsTheReason(t *testing.T) {
 	calls, _ := store.Calls("chat", 5)
 	if len(calls) != 1 || calls[0].Err != "server_error: out of memory" {
 		t.Errorf("logged %+v", calls)
+	}
+}
+
+func TestAnEditIsForwardedAsAFormAndItsPicturesAreNotKept(t *testing.T) {
+	var gotPrompt, gotModel string
+	var gotFiles int
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/images/edits" {
+			t.Errorf("forwarded to %s", r.URL.Path)
+		}
+		if err := r.ParseMultipartForm(1 << 20); err != nil {
+			t.Errorf("upstream could not read the form: %v", err)
+			return
+		}
+		gotPrompt, gotModel = r.FormValue("prompt"), r.FormValue("model")
+		gotFiles = len(r.MultipartForm.File["image[]"])
+		fmt.Fprint(w, `{"data":[{"b64_json":"AAAA"}]}`)
+	}))
+	defer up.Close()
+
+	store := testStore(t)
+	secret, _, _ := store.NewKey("chat")
+	s := &site{store: store, upstream: up.URL, client: up.Client()}
+
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	_ = mw.WriteField("model", "image")
+	_ = mw.WriteField("prompt", "the same sofa in a living room")
+	_ = mw.WriteField("size", "1216x832")
+	fw, _ := mw.CreateFormFile("image[]", "sofa.png")
+	_, _ = fw.Write([]byte("\x89PNG\r\n\x1a\nPICTUREBYTES"))
+	_ = mw.Close()
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/v1/images/edits", &body)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	req.Header.Set("Authorization", "Bearer "+secret)
+	s.requireKey(s.images)(rec, req)
+
+	if rec.Code != 200 {
+		t.Fatalf("status = %d %s", rec.Code, rec.Body.String())
+	}
+	if gotPrompt != "the same sofa in a living room" || gotModel != "image" || gotFiles != 1 {
+		t.Errorf("upstream got prompt %q model %q and %d files", gotPrompt, gotModel, gotFiles)
+	}
+	calls, _ := store.Calls("chat", 5)
+	if len(calls) != 1 {
+		t.Fatalf("logged %d calls", len(calls))
+	}
+	c := calls[0]
+	if c.Model != "image" || !strings.Contains(c.Messages, "the same sofa") {
+		t.Errorf("logged %+v", c)
+	}
+	if strings.Contains(c.Messages+c.Completion, "PICTUREBYTES") {
+		t.Error("the picture sent in was logged")
+	}
+	if !strings.HasSuffix(c.Completion, "1216x832, 0 KB], from 1 picture") {
+		t.Errorf("completion = %q", c.Completion)
 	}
 }
