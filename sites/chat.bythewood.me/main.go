@@ -545,6 +545,7 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 	if req.Incognito {
 		ctx = WithIncognito(ctx)
 	}
+	s.painter.Hold(parts)
 
 	// Load the conversation and build the window before anything else, since
 	// compaction may need a model call of its own.
@@ -565,6 +566,8 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 				Out: summary, Meta: itoa(covered) + " earlier messages replaced"})
 		}
 	}
+
+	ctx = withReferences(ctx, references{Attached: pictures(parts), Last: lastPicture(stored)})
 
 	// Warm the weights while the window is being built rather than after.
 	go s.llm.Warm(context.WithoutCancel(ctx))
@@ -624,7 +627,7 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 			_ = s.store.Append(convID, user)
 			_ = s.store.Append(convID, Stored{Role: RoleAssistant, Content: reply.Content,
 				Tools: summaries, Sources: srcs, Widgets: widgets, Steps: tr.Steps()})
-			s.painter.Keep(convID, widgets)
+			s.painter.Keep(convID, widgets, user.Files)
 			if len(stored) == 0 && drew {
 				// Naming it with the model would put the chat model back on
 				// the card for four words, and the picture's own prompt names it.
