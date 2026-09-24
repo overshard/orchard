@@ -38,13 +38,67 @@ func isPictureAsk(message string, history []Message) bool {
 // A fresh go at the same thing wants a new picture, not the last one changed.
 var pictureAgain = regexp.MustCompile(`(?i)\b(again|another|redo|one more|different one|new one|start over)\b`)
 
-// isPictureChange is a short instruction straight after a picture that changes
-// it, as opposed to asking for a new one.
+// Words that change a picture wherever they fall, since "can we change the
+// background of this, it's weird" opens on nothing the edit pattern knows.
+var changeWord = regexp.MustCompile(`(?i)\b(change|make|replace|swap|add|remove|put|use|turn|try|instead|background|brighter|darker|lighter|colou?r|without|with)\b`)
+
+// A question about the picture is not a change to it.
+var askingAbout = regexp.MustCompile(`(?i)^\s*(why|what|how|who|where|when|is|does|did|was)\b`)
+
+// isPictureChange is a message straight after a picture that changes it, as
+// opposed to asking for a new one or asking about it.
 func isPictureChange(message string, history []Message) bool {
 	m := strings.TrimSpace(message)
-	return lastWasPicture(history) && len(strings.Fields(m)) <= 14 &&
-		pictureEdit.MatchString(m) && !pictureAgain.MatchString(m) &&
-		!pictureAsk.MatchString(m) && !drawVerb.MatchString(m)
+	if m == "" || !lastWasPicture(history) || askingAbout.MatchString(m) || pictureAgain.MatchString(m) {
+		return false
+	}
+	if pictureAsk.MatchString(m) || drawVerb.MatchString(m) {
+		return false
+	}
+	return pictureEdit.MatchString(m) || changeWord.MatchString(m)
+}
+
+// A change to where the thing is rather than to the picture. Each edit of an
+// edit coarsens the fabric, so these start again from the picture he attached.
+var sceneWord = regexp.MustCompile(`(?i)\b(background|backdrop|room|wall|walls|scene|setting|apartment|house|kitchen|office|bedroom|outdoors?|patio|put it|place it|move it)\b`)
+
+// The thing he names with "this sofa" or "my chair", which the image model is
+// told to keep. Words that name a part of the picture rather than a thing in it
+// are skipped.
+var namedThing = regexp.MustCompile(`(?i)\b(?:this|that|my|the)\s+([a-z][a-z-]{2,})`)
+
+var notAThing = map[string]bool{"picture": true, "image": true, "photo": true, "background": true,
+	"room": true, "scene": true, "one": true, "same": true, "whole": true, "rest": true, "colour": true, "color": true}
+
+// editPrompt is what the image model is asked for when a picture is changed.
+// It is written here and not by the chat model, which cannot see the picture
+// and describes what it imagines is in it, and the image model draws that.
+// named is where the thing to keep is looked for, which for a new scene is the
+// message the picture was attached to, and is empty for a change to the last
+// picture as it stands.
+func editPrompt(message, named string, keepThing bool) string {
+	words := strings.Join(strings.Fields(message), " ")
+	words = strings.TrimRight(words, " -.,")
+	keep := "Keep everything in the picture that is not asked to change exactly as it is, the same shape, colours, materials and details."
+	if keepThing {
+		thing := "the subject"
+		for _, m := range namedThing.FindAllStringSubmatch(named+" "+words, -1) {
+			if !notAThing[strings.ToLower(m[1])] {
+				thing = "the " + strings.ToLower(m[1])
+				break
+			}
+		}
+		keep = "Keep " + thing + " from the picture exactly as it is, the same shape, fabric, colour and details."
+	}
+	return keep + " " + upperFirst(words) + ". Photorealistic, professional photography, natural light and realistic shadows."
+}
+
+func upperFirst(s string) string {
+	r := []rune(s)
+	if len(r) > 0 {
+		r[0] = unicode.ToUpper(r[0])
+	}
+	return string(r)
 }
 
 func lastWasPicture(history []Message) bool {

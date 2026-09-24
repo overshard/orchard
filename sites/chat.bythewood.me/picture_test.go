@@ -360,17 +360,17 @@ func TestAnAttachedPictureIsWhatTheImageModelStartsFrom(t *testing.T) {
 	ctx := withReferences(context.Background(), references{Attached: pictures(parts)})
 
 	f.hold = parts
-	// No shape, which is what the model sends when nothing was said about one.
-	f.args = `{"prompt":"keep the sofa exactly as it is, in a bright living room"}`
-	_, widgets, _ := f.runWith(t, store, ctx, composeTurn("put this in a nice living room", parts))
-	if len(f.offered) == 0 || len(f.offered[0]) != 1 || f.offered[0][0] != "image" {
-		t.Fatalf("tools offered = %v, want image alone", f.offered)
+	ctx = withReferences(context.Background(), references{Attached: pictures(parts), Message: "put this sofa in a nice living room"})
+	_, widgets, _ := f.runWith(t, store, ctx, composeTurn("put this sofa in a nice living room", parts))
+	if len(f.offered) != 0 {
+		t.Errorf("the chat model was asked to write the prompt: %v", f.offered)
 	}
 	if f.lastImage["from"] != 1 {
 		t.Fatalf("the image model was not handed the picture: %v", f.lastImage)
 	}
-	if p, _ := f.lastImage["prompt"].(string); !strings.HasPrefix(p, tools.KeepPrefix) {
-		t.Errorf("the image model was not told to keep the picture: %q", p)
+	if p, _ := f.lastImage["prompt"].(string); !strings.HasPrefix(p, "Keep the sofa from the picture exactly as it is") ||
+		!strings.Contains(p, "Put this sofa in a nice living room.") {
+		t.Errorf("prompt = %q", p)
 	}
 	if f.lastImage["size"] != "2288x912" {
 		t.Errorf("size = %v, want the wide shape of the picture", f.lastImage["size"])
@@ -410,6 +410,43 @@ func TestAReferenceIsShrunkToWhatTheModelReads(t *testing.T) {
 	}
 }
 
+func TestAnEditPromptKeepsWhatHeNamed(t *testing.T) {
+	got := editPrompt("put this sofa in a nice upscale apartment overlooking a city --", "", true)
+	if !strings.HasPrefix(got, "Keep the sofa from the picture exactly as it is") ||
+		!strings.Contains(got, "Put this sofa in a nice upscale apartment overlooking a city.") {
+		t.Errorf("got %q", got)
+	}
+	if got := editPrompt("change the background of this to a loft", "", true); !strings.HasPrefix(got, "Keep the subject") {
+		t.Errorf("the background was kept as the thing: %q", got)
+	}
+	// A new scene later in the conversation keeps what the first message named.
+	got = editPrompt("can we change the background, do a modern living room", "put this sofa in a nice room", true)
+	if !strings.HasPrefix(got, "Keep the sofa from the picture") {
+		t.Errorf("got %q", got)
+	}
+	if got := editPrompt("make it night", "", false); !strings.HasPrefix(got, "Keep everything in the picture") {
+		t.Errorf("got %q", got)
+	}
+}
+
+// A new background starts again from what he attached, since an edit of an
+// edit coarsens the fabric, and anything smaller changes the last picture.
+func TestANewSceneStartsFromTheAttachedPicture(t *testing.T) {
+	stored := []Stored{
+		{Role: RoleUser, Display: "put this sofa in a room", Files: []Attachment{{Name: "a.png", Image: "silo"}}},
+		{Role: RoleAssistant, Widgets: []Widget{{Kind: "image", Image: "scene"}}},
+	}
+	if id, said := lastAttached(stored); id != "silo" || said != "put this sofa in a room" {
+		t.Errorf("lastAttached = %q, %q", id, said)
+	}
+	if !sceneWord.MatchString("can we change the background of this it's weird") {
+		t.Error("a new background did not read as a new scene")
+	}
+	if sceneWord.MatchString("make it night with the lamps on") {
+		t.Error("a lighting change read as a new scene")
+	}
+}
+
 func TestSizeLikeKeepsTheShape(t *testing.T) {
 	for _, c := range []struct{ w, h, px, ww, wh int }{
 		{1024, 1024, referencePixels, 1024, 1024},
@@ -444,12 +481,14 @@ func TestAChangeStartsFromTheLastPictureAndAFreshGoDoesNot(t *testing.T) {
 		{Role: RoleAssistant, Content: drewPrefix + "a red barn"},
 	}
 	for msg, want := range map[string]bool{
-		"make it night":             true,
-		"now in watercolour":        true,
-		"add a dog on the porch":    true,
-		"try again":                 false,
-		"another one":               false,
-		"draw a lighthouse instead": false,
+		"make it night":          true,
+		"now in watercolour":     true,
+		"add a dog on the porch": true,
+		"can we change the background of this it's weird do a modern living room": true,
+		"why did it change the colour?":                                           false,
+		"try again":                                                               false,
+		"another one":                                                             false,
+		"draw a lighthouse instead":                                               false,
 	} {
 		if got := isPictureChange(msg, after); got != want {
 			t.Errorf("isPictureChange(%q) = %v, want %v", msg, got, want)

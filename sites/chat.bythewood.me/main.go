@@ -567,10 +567,17 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 		}
 	}
 
-	ctx = withReferences(ctx, references{Attached: pictures(parts), Last: lastPicture(stored)})
+	origin, originSaid := lastAttached(stored)
+	ctx = withReferences(ctx, references{Attached: pictures(parts), Last: lastPicture(stored), Message: req.Message,
+		Origin: origin, OriginSaid: originSaid})
 
-	// Warm the weights while the window is being built rather than after.
-	go s.llm.Warm(context.WithoutCancel(ctx))
+	// Warm the weights while the window is being built rather than after. A
+	// change to a picture never asks the chat model anything, and warming it
+	// would only put it on the card for klein to take straight back off.
+	refs := referencesOf(ctx)
+	if len(refs.Attached) == 0 && !(refs.Last != "" && isPictureChange(req.Message, history)) {
+		go s.llm.Warm(context.WithoutCancel(ctx))
+	}
 
 	// Retrieval is against what the user typed, not the composed prompt, since
 	// the text of an attachment would swamp the scoring with its own words.
