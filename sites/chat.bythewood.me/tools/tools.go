@@ -85,6 +85,13 @@ type Deps struct {
 	// Whether this turn is incognito, which a tool that reaches a service with
 	// a model behind it has to pass along. Per turn and on the copy too.
 	Incognito bool
+
+	// Images draws pictures. OnImage is where the turn wants to hear how one is
+	// getting on, and Picture is the one the turn already showed as expected.
+	// Both are per turn and set on the copy.
+	Images  Images
+	OnImage func(ImageProgress)
+	Picture *ImageProgress
 }
 
 // WithSession returns a copy carrying one turn's session and its own widget

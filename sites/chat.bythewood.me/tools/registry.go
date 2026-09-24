@@ -11,6 +11,7 @@ func Default() *Registry {
 		OrchardLogs, OrchardStatus, OrchardAnalytics, OrchardRepos, OrchardCode, OrchardDash,
 		ChatHistory, XSearch,
 		PropertyTool, Mortgage,
+		Image,
 	} {
 		r.Add(t)
 	}

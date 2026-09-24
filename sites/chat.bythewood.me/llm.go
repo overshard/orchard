@@ -6,7 +6,9 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -362,34 +364,98 @@ func (l *LLM) Warm(ctx context.Context) {
 		Kwargs:   map[string]any{"enable_thinking": false}}, &out)
 }
 
-// Loaded asks whether the weights are on the card and whether the gateway
-// answered at all. It reads llama-swap's process table and starts nothing, so
-// polling is free. Never point this at /health, which would load the model and
-// defeat the idle unload.
-func (l *LLM) Loaded(ctx context.Context) (loaded, up bool) {
+// Resident is one model llama-swap has a process for, as the gateway reports it.
+type Resident struct {
+	Model string `json:"model"`
+	Name  string `json:"name"`
+	State string `json:"state"`
+}
+
+// Running reads llama-swap's process table through the gateway. It starts
+// nothing, so polling it is free. Never point this at /health, which would
+// load the model and defeat the idle unload.
+func (l *LLM) Running(ctx context.Context) (models []Resident, up bool) {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, "GET", l.BaseURL+"/v1/running", nil)
 	if err != nil {
-		return false, false
+		return nil, false
 	}
 	l.sign(req)
 	resp, err := l.http.Do(req)
 	if err != nil {
-		return false, false
+		return nil, false
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		return false, false
+		return nil, false
 	}
 	var out struct {
-		Loaded bool `json:"loaded"`
+		Models []Resident `json:"models"`
 	}
 	if json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&out) != nil {
-		return false, true
+		return nil, true
 	}
-	return out.Loaded, true
+	return out.Models, true
 }
+
+// Loaded says which model is on the card, if any, and whether the gateway
+// answered at all. A model on its way off is not counted.
+func (l *LLM) Loaded(ctx context.Context) (name string, loaded, up bool) {
+	models, up := l.Running(ctx)
+	for _, m := range models {
+		if m.State != "stopping" {
+			return m.Name, true, up
+		}
+	}
+	return "", false, up
+}
+
+// Image asks for one picture. The model name is what llama-swap swaps on, so
+// asking for it is what takes the chat model off the card.
+func (l *LLM) Image(ctx context.Context, model, prompt string, w, h int) ([]byte, error) {
+	body, err := json.Marshal(map[string]any{"model": model, "prompt": prompt,
+		"size": fmt.Sprintf("%dx%d", w, h), "n": 1, "output_format": "png"})
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, "POST", l.BaseURL+"/v1/images/generations", bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	l.sign(req)
+	resp, err := l.http.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("the model server is not answering: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		err := modelError(resp.StatusCode, resp.Body)
+		return nil, errors.New(strings.TrimPrefix(err.Error(), "the model refused this turn: "))
+	}
+	var out struct {
+		Data []struct {
+			B64 string `json:"b64_json"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 64<<20)).Decode(&out); err != nil {
+		return nil, fmt.Errorf("the picture came back unreadable: %w", err)
+	}
+	if len(out.Data) == 0 || out.Data[0].B64 == "" {
+		return nil, errors.New("the image model answered with no picture")
+	}
+	png, err := base64.StdEncoding.DecodeString(out.Data[0].B64)
+	if err != nil {
+		return nil, fmt.Errorf("the picture came back unreadable: %w", err)
+	}
+	if !bytes.HasPrefix(png, pngMagic) {
+		return nil, errors.New("the image model sent something that is not a png")
+	}
+	return png, nil
+}
+
+var pngMagic = []byte("\x89PNG\r\n\x1a\n")
 
 // Unload hands the card back rather than waiting out the idle ttl. The gateway
 // waits for the model process to be gone before it answers, so returning here

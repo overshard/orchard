@@ -38,7 +38,7 @@ const (
 // `block` and `tail`, a finished piece of rendered markdown and the unfinished
 // paragraph after it, so the page does not reflow under the reader at the end.
 type Event struct {
-	Kind string `json:"kind"` // status, tool, tool_done, widget, step, block, tail, done, error
+	Kind string `json:"kind"` // status, tool, tool_done, widget, image, step, block, tail, done, error
 	Text string `json:"text,omitempty"`
 	HTML string `json:"html,omitempty"`
 	Tool string `json:"tool,omitempty"`
@@ -53,6 +53,9 @@ type Event struct {
 	// One entry in the record of what this turn did, sent as it happens so the
 	// list fills in rather than appearing all at once at the end.
 	Step *Step `json:"step,omitempty"`
+
+	// Where a picture has got to, sent each time it changes stage.
+	Image *tools.ImageProgress `json:"image,omitempty"`
 }
 
 type Engine struct {
@@ -215,6 +218,8 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	// A tool decides for itself what incognito means for it, so the flag rides
 	// on the per turn copy rather than only on this process's own requests.
 	deps.Incognito = IsIncognito(ctx)
+	deps.OnImage = func(p tools.ImageProgress) { emit(Event{Kind: "image", Image: &p}) }
+	picture := isPictureAsk(user, history)
 	// Which widgets have already gone out, since the sink holds every one the
 	// turn has produced and each round would otherwise resend the earlier ones.
 	sentWidgets := map[string]bool{}
@@ -229,7 +234,10 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	// The first move on any question naming a thing, since the snapshot is on
 	// this machine and is newer than the weights. It goes in after the history
 	// so the cached prompt prefix survives.
-	if house, msg, ok := e.houseOpening(ctx, deps, user, history); ok {
+	if picture {
+		// Nothing to look up. The wikipedia opening would read "draw a fox" as
+		// a question about foxes and hand the model an article to write about.
+	} else if house, msg, ok := e.houseOpening(ctx, deps, user, history); ok {
 		for _, res := range house {
 			emit(Event{Kind: "tool", Tool: res.Name, Args: shortArgs(string(res.Args))})
 			emit(Event{Kind: "tool_done", Tool: res.Name, MS: res.Elapsed.Milliseconds(), OK: res.Err == ""})
@@ -295,6 +303,18 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 			In: user, Out: "offered remember and nothing else"})
 	}
 
+	if picture {
+		schemas = tools.Only(schemas, tools.Image.Name)
+		forceTools = true
+		if deps.Images != nil {
+			p := deps.Images.Expect()
+			deps.Picture = &p
+			emit(Event{Kind: "image", Image: &p})
+		}
+		tr.Add(Step{Kind: "tool", Label: "read as a request for a picture",
+			In: user, Out: "offered image and nothing else"})
+	}
+
 	// A round whose calls all failed leaves no budget to act on what it learned,
 	// so it answers from nothing. One extra round buys the retry, and only one,
 	// so a tool that fails every time cannot spin the turn out.
@@ -321,7 +341,11 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 			// with what it has rather than spending the rest of the budget.
 			offer = nil
 		}
-		emit(Event{Kind: "status", Text: thinkingLabel(round)})
+		label := thinkingLabel(round)
+		if picture {
+			label = "writing the prompt"
+		}
+		emit(Event{Kind: "status", Text: label})
 		roundStart := time.Now()
 		var reply Message
 		var st Stats
@@ -393,6 +417,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		}
 		msgs = append(msgs, reply)
 		ran, failed := 0, 0
+		var drawn *tools.Result
 		for _, tc := range reply.ToolCalls {
 			key := tc.Function.Name + "\x00" + canonArgs(tc.Function.Arguments)
 			if prev, done := seen[key]; done {
@@ -422,6 +447,9 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 			}
 			res := e.reg.Call(ctx, deps, tc.Function.Name, json.RawMessage(tc.Function.Arguments))
 			seen[key] = res
+			if res.Name == tools.Image.Name && drawn == nil {
+				drawn = &res
+			}
 			used = append(used, res)
 			ran++
 			if res.Err != "" {
@@ -446,6 +474,13 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 				id = tc.Function.Name
 			}
 			msgs = append(msgs, Message{Role: RoleTool, ToolCallID: id, Name: res.Name, Content: string(body)})
+		}
+		if drawn != nil {
+			text := pictureReply(*drawn)
+			emit(Event{Kind: "block", HTML: e.Render(text)})
+			tr.Add(Step{Kind: "answer", Label: "ended the turn on the picture", Out: text,
+				Meta: "the chat model stays off the card until the next question"})
+			return Message{Role: RoleAssistant, Content: text}, used, nil, deps.Widgets.List(), stats, nil
 		}
 		if ran > 0 && failed == ran && grace > 0 {
 			grace--

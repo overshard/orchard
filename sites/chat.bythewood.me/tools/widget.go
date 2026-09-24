@@ -29,6 +29,13 @@ type Widget struct {
 
 	Label string `json:"label,omitempty"`
 
+	// image. The id of a stored picture and its size, so the page can hold the
+	// space open before the bytes arrive.
+	Image  string `json:"image,omitempty"`
+	Model  string `json:"model,omitempty"`
+	Width  int    `json:"width,omitempty"`
+	Height int    `json:"height,omitempty"`
+
 	// prompts. The one kind that carries its content rather than its subject,
 	// because there is nothing to fetch: these are questions, they do not go
 	// stale, and a conversation reopened next week should still offer them.
@@ -39,7 +46,7 @@ type Widget struct {
 // the emitter both dedupe on it, and they had drifted into two spellings of it,
 // which is how a second chart quietly stops being drawn.
 func (w Widget) Key() string {
-	return w.Kind + "\x00" + w.Symbol + "\x00" + w.Place + "\x00" + w.Label
+	return w.Kind + "\x00" + w.Symbol + "\x00" + w.Place + "\x00" + w.Label + "\x00" + w.Image
 }
 
 // Sink collects the widgets one turn produced. A turn runs its tools on

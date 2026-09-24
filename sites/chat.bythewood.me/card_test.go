@@ -12,13 +12,16 @@ func TestLoadedReadsTheGatewayAndNeverWakesTheModel(t *testing.T) {
 	var path string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path = r.URL.Path
-		fmt.Fprint(w, `{"loaded":true,"models":[{"model":"local","state":"ready"}]}`)
+		fmt.Fprint(w, `{"loaded":true,"models":[{"model":"local","name":"Ornith 1.5 9B","state":"ready"}]}`)
 	}))
 	defer srv.Close()
 
-	loaded, up := NewLLM(srv.URL, "local", "k").Loaded(context.Background())
+	name, loaded, up := NewLLM(srv.URL, "local", "k").Loaded(context.Background())
 	if !loaded || !up {
 		t.Errorf("loaded = %v, up = %v, want both true", loaded, up)
+	}
+	if name != "Ornith 1.5 9B" {
+		t.Errorf("name = %q", name)
 	}
 	// /health and a completion both load the weights, which is the whole thing
 	// this endpoint exists to avoid.
@@ -33,9 +36,24 @@ func TestAGatewayThatDoesNotAnswerReadsAsDownAndNotAsFree(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	loaded, up := NewLLM(srv.URL, "local", "k").Loaded(context.Background())
+	_, loaded, up := NewLLM(srv.URL, "local", "k").Loaded(context.Background())
 	if loaded || up {
 		t.Errorf("loaded = %v, up = %v, want both false", loaded, up)
+	}
+}
+
+// The picture model takes the card when a picture is drawn, and the chip has to
+// name that one rather than the chat model it was built around.
+func TestLoadedNamesWhicheverModelIsOnTheCard(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"loaded":true,"models":[{"model":"local","name":"Ornith 1.5 9B","state":"stopping"},`+
+			`{"model":"image","name":"FLUX.2 klein 4B","state":"starting"}]}`)
+	}))
+	defer srv.Close()
+
+	name, loaded, _ := NewLLM(srv.URL, "local", "k").Loaded(context.Background())
+	if !loaded || name != "FLUX.2 klein 4B" {
+		t.Errorf("name = %q, loaded = %v", name, loaded)
 	}
 }
 

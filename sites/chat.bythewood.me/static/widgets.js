@@ -403,7 +403,183 @@
     return box;
   }
 
-  const KINDS = { ticker: tickerWidget, weather: weatherWidget, prompts: promptsWidget };
+  // ---------------------------------------------------------------- image
+  //
+  // A picture is half a minute of waiting, spent on the chat model writing a
+  // prompt, that model coming off the card and the picture model going on, and
+  // then the drawing. The wait is drawn as those stages with a count and a
+  // guess on each, so a slow one reads as slow rather than as broken.
+
+  const secs = (ms) => (ms < 10000 ? (ms / 1000).toFixed(1) : String(Math.round(ms / 1000))) + "s";
+  const whole = (ms) => Math.max(0, Math.round(ms / 1000)) + "s";
+
+  function frame(w, h, id) {
+    const root = el("figure", "wdg wdg-image");
+    root.style.setProperty("--w", w || 1024);
+    root.style.setProperty("--h", h || 1024);
+    root.dataset.image = id || "";
+    return root;
+  }
+
+  function imageWidget(spec) {
+    if (!spec.image) return null;
+    const root = frame(spec.width, spec.height, spec.image);
+    const src = "/api/image/" + encodeURIComponent(spec.image);
+    root.innerHTML = `
+      <a class="img-open" href="${src}" target="_blank" rel="noopener">
+        <img alt="" decoding="async" loading="lazy" width="${spec.width || 1024}" height="${spec.height || 1024}">
+      </a>
+      <figcaption class="img-cap">
+        <span class="img-model">${esc(spec.model || "picture")}</span>
+        <span class="img-meta">${spec.width || 1024} &times; ${spec.height || 1024}<span class="img-took"></span></span>
+        <a href="${src}" target="_blank" rel="noopener">full size</a>
+      </figcaption>`;
+    const img = root.querySelector("img");
+    img.alt = spec.label || "";
+    img.src = src;
+    return root;
+  }
+
+  // The panel a picture is drawn behind. It keeps the last progress it was
+  // sent and counts the seconds itself between them.
+  function imageWait(p) {
+    const root = frame(p.width, p.height, p.id);
+    root.classList.add("img-wait");
+    root.innerHTML = `
+      <div class="img-open"><div class="img-panel">
+        <ol class="img-stages">
+          <li data-stage="prompt"><i></i><span class="k">Writing the prompt<span class="n">the chat model turns what you asked into a description</span></span><span class="t"></span></li>
+          <li data-stage="loading"><i></i><span class="k">Loading ${esc(p.model)}<span class="n">the chat model comes off the card to make room</span></span><span class="t"></span></li>
+          <li data-stage="drawing"><i></i><span class="k">Drawing<span class="n">four passes over the whole picture</span></span><span class="t"></span></li>
+        </ol>
+        <div class="img-bar"><b></b></div>
+        <p class="img-note"></p>
+      </div></div>
+      <figcaption class="img-cap">
+        <span class="img-model">${esc(p.model)}</span>
+        <span class="img-meta"></span>
+      </figcaption>`;
+    const rows = {
+      prompt: root.querySelector('[data-stage="prompt"]'),
+      loading: root.querySelector('[data-stage="loading"]'),
+      drawing: root.querySelector('[data-stage="drawing"]'),
+    };
+    const bar = root.querySelector(".img-bar b");
+    const note = root.querySelector(".img-note");
+    const meta = root.querySelector(".img-meta");
+    // A picture the chat model decided on by itself had no prompt stage.
+    if (p.stage !== "prompt") rows.prompt.remove();
+    let last = p, timer = null;
+
+    function row(name, state, text) {
+      rows[name].dataset.state = state;
+      rows[name].querySelector(".t").textContent = text;
+    }
+
+    // What each stage took, or how long it has been going, or what it
+    // usually takes when it has not started yet.
+    const ORDER = ["prompt", "loading", "drawing"];
+    const took = { prompt: "prompt_ms", loading: "load_ms", drawing: "draw_ms" };
+    const usual = { prompt: "prompt_guess", loading: "load_guess", drawing: "draw_guess" };
+
+    function paint() {
+      const q = last;
+      if (q.stage !== "prompt") meta.innerHTML = `${q.width} &times; ${q.height}`;
+      const since = Math.max(0, Date.now() - q.stage_at);
+      const at = q.stage === "failed" ? (q.load_ms ? "drawing" : "loading")
+        : q.stage === "stopped" ? q.was : q.stage;
+      const live = ORDER.indexOf(at);
+      let spent = 0, guess = 0, over = false;
+      ORDER.forEach((name, i) => {
+        if (!rows[name].parentNode) return;
+        const g = q[usual[name]] || 0;
+        guess += g;
+        if (q.stage === "done" || i < live) {
+          row(name, "done", secs(q[took[name]] || 0));
+          spent += q[took[name]] || 0;
+        } else if (i === live && (q.stage === "failed" || q.stage === "stopped")) {
+          row(name, "bad", q.stage);
+        } else if (i === live) {
+          row(name, "on", whole(since) + (g ? " of about " + whole(g) : ""));
+          spent += since;
+          over = g > 0 && since > g * 1.5 + 5000;
+        } else {
+          row(name, "wait", g ? "about " + whole(g) : "");
+        }
+      });
+      if (q.stage === "done") {
+        note.dataset.tone = "";
+        note.textContent = "Done in " + secs(spent) + ", bringing the picture over.";
+        bar.style.transform = "scaleX(1)";
+        return;
+      }
+      if (q.stage === "failed" || q.stage === "stopped") {
+        note.dataset.tone = "bad";
+        note.textContent = q.stage === "stopped" ? "The turn ended before the picture was drawn."
+          : "It didn't come out, " + (q.error || "for no reason the server gave") + ".";
+        bar.style.transform = "scaleX(0)";
+        return;
+      }
+      // Never full until it is done, since a bar at the end with nothing to
+      // show is the thing that looks broken.
+      bar.style.transform = "scaleX(" + (guess ? Math.min(0.96, spent / guess) : 0.5) + ")";
+      note.dataset.tone = over ? "slow" : "";
+      const left = guess - spent;
+      note.textContent = over
+        ? "Taking longer than it usually does. It gives up on its own after four minutes, and will say so."
+        : !guess ? ""
+        : left >= 1000 ? "About " + whole(left) + " left, going by the last few."
+        : "A little past the usual time, still going.";
+    }
+
+    root._update = (q) => {
+      last = q;
+      paint();
+      const live = q.stage === "prompt" || q.stage === "loading" || q.stage === "drawing";
+      if (live && !timer) {
+        timer = setInterval(() => {
+          if (!root.isConnected) { clearInterval(timer); timer = null; return; }
+          paint();
+        }, 500);
+      } else if (!live && timer) {
+        clearInterval(timer);
+        timer = null;
+      }
+    };
+
+    // The picture replaces the panel once it has loaded, not once it was
+    // named, so there is never an empty frame between the two.
+    root._land = (pic) => {
+      const took = pic.querySelector(".img-took");
+      if (took && last.stage === "done") {
+        took.textContent = " \u00b7 loaded in " + secs(last.load_ms) + ", drawn in " + secs(last.draw_ms);
+      }
+      const img = pic.querySelector("img");
+      img.loading = "eager";
+      const src = img.src;
+      let tries = 0;
+      img.addEventListener("load", () => root.replaceWith(pic), { once: true });
+      img.addEventListener("error", () => {
+        // One more go, since the picture is being filed away at the moment
+        // the turn ends and a request that lands in between can miss it.
+        if (tries++ < 2) { setTimeout(() => { img.src = src + "?try=" + tries; }, 700 * tries); return; }
+        note.dataset.tone = "bad";
+        note.innerHTML = `It was drawn but would not load here. <a href="${src}" target="_blank" rel="noopener">Open it on its own</a>.`;
+      });
+    };
+
+    // The turn ended or failed with this panel still counting, which happens
+    // when the chat model errors before it ever calls for the picture.
+    root._settle = () => {
+      if (last.stage === "done" || last.stage === "failed" || last.stage === "stopped") return;
+      root._update({ ...last, stage: "stopped", was: last.stage });
+    };
+
+    root._update(p);
+    return root;
+  }
+
+  const KINDS = { ticker: tickerWidget, weather: weatherWidget, prompts: promptsWidget, image: imageWidget };
 
   window.Widgets = {
     // render fills a message's widget box. It is called both while a turn is
@@ -420,9 +596,32 @@
       const node = one(spec);
       if (!node) return;
       box.hidden = false;
+      const wait = spec.kind === "image" && waitFor(box, spec.image);
+      if (wait && wait._land) { wait._land(node); return; }
       box.appendChild(node);
     },
+    // settle stops any panel in the box that is still counting.
+    settle(box) {
+      if (!box) return;
+      box.querySelectorAll(".img-wait").forEach((n) => n._settle && n._settle());
+    },
+    // progress draws or moves on the panel a picture is being made behind.
+    progress(box, p) {
+      if (!box || !p || !p.id) return;
+      let node = waitFor(box, p.id);
+      if (!node) {
+        node = imageWait(p);
+        box.hidden = false;
+        box.appendChild(node);
+        return;
+      }
+      if (node._update) node._update(p);
+    },
   };
+
+  function waitFor(box, id) {
+    return id ? box.querySelector(`.img-wait[data-image="${CSS.escape(id)}"]`) : null;
+  }
 
   function one(spec) {
     const make = KINDS[spec && spec.kind];

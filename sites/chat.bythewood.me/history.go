@@ -75,6 +75,28 @@ CREATE TABLE IF NOT EXISTS spend (
   at   INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS spend_host_at ON spend(host, at);
+
+-- Pictures, which go with their conversation when it is deleted. The message
+-- only carries the id, so a thread with a dozen of them still loads quickly.
+CREATE TABLE IF NOT EXISTS images (
+  id      TEXT PRIMARY KEY,
+  conv_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  png     BLOB NOT NULL,
+  width   INTEGER NOT NULL,
+  height  INTEGER NOT NULL,
+  at      INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS images_conv ON images(conv_id);
+
+-- How long the last pictures took, each stage apart, which is where the page's
+-- guess for the next one comes from.
+CREATE TABLE IF NOT EXISTS image_runs (
+  at        INTEGER NOT NULL,
+  prompt_ms INTEGER NOT NULL,
+  load_ms   INTEGER NOT NULL,
+  draw_ms   INTEGER NOT NULL,
+  pixels    INTEGER NOT NULL
+);
 `
 
 // DB is for the property package, which owns its own tables in this database
