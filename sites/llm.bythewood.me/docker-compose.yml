@@ -39,7 +39,7 @@ services:
     networks: [edge, model]
 
   # llama.cpp and stable-diffusion.cpp behind llama-swap with the card attached.
-  # Ornith 1.5 9B for chat and FLUX.2 klein 4B for pictures, one at a time, each
+  # Ornith 1.5 9B for chat and FLUX.2 klein 9B for pictures, one at a time, each
   # unloaded after three idle minutes so the desktop gets its card back.
   swap:
     build:
