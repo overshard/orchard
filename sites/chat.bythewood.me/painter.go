@@ -47,7 +47,7 @@ func NewPainter(llm *LLM, model, name string, store *Store) *Painter {
 // the chat model picks a shape, so the guesses are for a square.
 func (p *Painter) Expect() tools.ImageProgress {
 	w, h := shapes["square"][0], shapes["square"][1]
-	g := p.store.ImageGuess(w * h)
+	g := p.store.ImageGuess(p.name, w*h)
 	return tools.ImageProgress{ID: newID(), Stage: "prompt", Model: p.name, Width: w, Height: h,
 		StageAt: time.Now().UnixMilli(), PromptGuess: g.Prompt, LoadGuess: g.Load, DrawGuess: g.Draw}
 }
@@ -81,7 +81,7 @@ func (p *Painter) Draw(ctx context.Context, prompt, shape string, startFrom []st
 	for _, r := range refs {
 		pixels += r.w * r.h
 	}
-	g := p.store.ImageGuess(pixels)
+	g := p.store.ImageGuess(p.name, pixels)
 	pr := tools.ImageProgress{ID: newID(), Model: p.name}
 	if from != nil {
 		pr = *from
@@ -134,7 +134,7 @@ func (p *Painter) Draw(ctx context.Context, prompt, shape string, startFrom []st
 				// built from it would be wrong in both halves.
 				loadMS = 0
 			} else if !IsIncognito(ctx) {
-				p.store.SaveImageRun(pr.PromptMS, loadMS, total-loadMS, pixels)
+				p.store.SaveImageRun(p.name, pr.PromptMS, loadMS, total-loadMS, pixels)
 			}
 			pr.Stage, pr.LoadMS, pr.DrawMS, pr.StageAt = "done", loadMS, total-loadMS, time.Now().UnixMilli()
 			report(pr)
@@ -335,20 +335,20 @@ func (s *shelf) Drop(id string) {
 }
 
 // What a first picture is told to expect before this card has timed any, off
-// FLUX.2 klein 4B on a 3070 straight after the chat model.
+// FLUX.2 klein 9B on a 3070 straight after the chat model.
 const (
 	firstPromptGuess = 10000
 	firstLoadGuess   = 2000
-	firstDrawGuess   = 16000
+	firstDrawGuess   = 26000
 )
 
 type guess struct{ Prompt, Load, Draw int64 }
 
 // ImageGuess is how long the next picture will probably take, from the median
-// of the last few, with the drawing scaled to the size asked for.
-func (s *Store) ImageGuess(pixels int) guess {
+// of the last few by this model, with the drawing scaled to the size asked for.
+func (s *Store) ImageGuess(model string, pixels int) guess {
 	g := guess{firstPromptGuess, firstLoadGuess, firstDrawGuess * int64(pixels) / (1024 * 1024)}
-	rows, err := s.db.Query(`SELECT prompt_ms, load_ms, draw_ms, pixels FROM image_runs ORDER BY at DESC LIMIT 9`)
+	rows, err := s.db.Query(`SELECT prompt_ms, load_ms, draw_ms, pixels FROM image_runs WHERE model = ? ORDER BY at DESC LIMIT 9`, model)
 	if err != nil {
 		return g
 	}
@@ -383,9 +383,9 @@ func median(v []float64) float64 {
 	return (v[len(v)/2-1] + v[len(v)/2]) / 2
 }
 
-func (s *Store) SaveImageRun(promptMS, loadMS, drawMS int64, pixels int) {
-	if _, err := s.db.Exec(`INSERT INTO image_runs(at, prompt_ms, load_ms, draw_ms, pixels) VALUES(?,?,?,?,?)`,
-		time.Now().UnixMilli(), promptMS, loadMS, drawMS, pixels); err != nil {
+func (s *Store) SaveImageRun(model string, promptMS, loadMS, drawMS int64, pixels int) {
+	if _, err := s.db.Exec(`INSERT INTO image_runs(at, prompt_ms, load_ms, draw_ms, pixels, model) VALUES(?,?,?,?,?,?)`,
+		time.Now().UnixMilli(), promptMS, loadMS, drawMS, pixels, model); err != nil {
 		slog.Warn("recording how long a picture took", "err", err)
 		return
 	}

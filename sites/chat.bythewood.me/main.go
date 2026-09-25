@@ -76,7 +76,7 @@ func main() {
 		model    = flag.String("model", env("LLM_MODEL", "local"), "model name the server answers to")
 		label    = flag.String("model-name", env("LLM_NAME", "Ornith 1.5 9B"), "readable model name, shown in the UI and told to the model")
 		imgModel = flag.String("image-model", env("IMAGE_MODEL", "image"), "model name the server draws pictures with")
-		imgName  = flag.String("image-name", env("IMAGE_NAME", "FLUX.2 klein 4B"), "readable name of the picture model")
+		imgName  = flag.String("image-name", env("IMAGE_NAME", "FLUX.2 klein 9B"), "readable name of the picture model")
 		dbPath   = flag.String("db", env("CHAT_DB", "data/chat.db"), "conversation database")
 		propCfg  = flag.String("property-config", env("PROPERTY_CONFIG", "data/property.json"), "house hunting config: the work address, the drives and the money")
 		wikiURL  = flag.String("wiki", env("WIKI_URL", "http://orchard-wiki:8000"), "offline wikipedia base url")

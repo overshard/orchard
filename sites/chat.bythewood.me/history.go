@@ -95,7 +95,8 @@ CREATE TABLE IF NOT EXISTS image_runs (
   prompt_ms INTEGER NOT NULL,
   load_ms   INTEGER NOT NULL,
   draw_ms   INTEGER NOT NULL,
-  pixels    INTEGER NOT NULL
+  pixels    INTEGER NOT NULL,
+  model     TEXT NOT NULL DEFAULT ''
 );
 `
 
@@ -136,6 +137,7 @@ func migrate(db *sql.DB) {
 		`ALTER TABLE messages ADD COLUMN sources TEXT NOT NULL DEFAULT '[]'`,
 		`ALTER TABLE messages ADD COLUMN widgets TEXT NOT NULL DEFAULT '[]'`,
 		`ALTER TABLE messages ADD COLUMN steps TEXT NOT NULL DEFAULT '[]'`,
+		`ALTER TABLE image_runs ADD COLUMN model TEXT NOT NULL DEFAULT ''`,
 	} {
 		if _, err := db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column") {
 			slog.Warn("migrate", "stmt", stmt, "err", err)
