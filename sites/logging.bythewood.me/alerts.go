@@ -60,14 +60,14 @@ type alertBody struct {
 	Message  string
 	Priority string
 	Tags     string
-	Click    string
+	Link     string
 }
 
 // renderAlert builds the notification for a transition, reporting false for an
 // unknown kind.
 func renderAlert(kind string, ctx AlertContext) (alertBody, bool) {
 	// Absolute: it is opened from a phone that has no idea what the origin is.
-	click := baseURL + "/sources/" + ctx.Source
+	link := baseURL + "/sources/" + ctx.Source
 
 	switch kind {
 	case "silence":
@@ -79,7 +79,7 @@ func renderAlert(kind string, ctx AlertContext) (alertBody, bool) {
 			// Not urgent: that bypasses do-not-disturb.
 			Priority: "high",
 			Tags:     "mute",
-			Click:    click,
+			Link:     link,
 		}, true
 
 	case "resumed":
@@ -90,7 +90,7 @@ func renderAlert(kind string, ctx AlertContext) (alertBody, bool) {
 				humanDuration(ctx.Silent)),
 			Priority: "default",
 			Tags:     "white_check_mark",
-			Click:    click,
+			Link:     link,
 		}, true
 
 	case "restart":
@@ -102,7 +102,7 @@ func renderAlert(kind string, ctx AlertContext) (alertBody, bool) {
 			// A crash that repeats also trips the silence rule, which is loud.
 			Priority: "default",
 			Tags:     "warning",
-			Click:    click,
+			Link:     link,
 		}, true
 	}
 	return alertBody{}, false
@@ -162,7 +162,8 @@ func (n *Notifier) publish(ctx context.Context, body alertBody) error {
 	req.Header.Set("Title", body.Title)
 	req.Header.Set("Priority", body.Priority)
 	req.Header.Set("Tags", body.Tags)
-	req.Header.Set("Click", body.Click)
+	// A button rather than Click, so tapping the notification only opens ntfy.
+	req.Header.Set("Actions", "view, Open logs, "+body.Link)
 
 	resp, err := n.client.Do(req)
 	if err != nil {
@@ -192,7 +193,7 @@ func previewAlert(kind string) error {
 	fmt.Printf("Title:    %s\n", body.Title)
 	fmt.Printf("Priority: %s\n", body.Priority)
 	fmt.Printf("Tags:     %s\n", body.Tags)
-	fmt.Printf("Click:    %s\n\n", body.Click)
+	fmt.Printf("Actions:  view, Open logs, %s\n\n", body.Link)
 	fmt.Println(body.Message)
 	return nil
 }

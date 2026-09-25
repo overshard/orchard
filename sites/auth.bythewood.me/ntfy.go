@@ -53,7 +53,8 @@ type message struct {
 	Body     string
 	Priority string
 	Tags     string
-	Click    string
+	Link     string
+	Label    string
 }
 
 // codeMessage carries where the login was asked from, which is the phishing
@@ -77,7 +78,8 @@ func sessionMessage(c reqContext, how string) message {
 		Body:     fmt.Sprintf("Signed in with %s from %s (%s).\n%s", how, c.Where(), c.IP, c.UA),
 		Priority: "high",
 		Tags:     "key",
-		Click:    baseURL + "/sessions",
+		Link:     baseURL + "/sessions",
+		Label:    "Sessions",
 	}
 }
 
@@ -88,7 +90,8 @@ func recoveryMessage(c reqContext, remaining int) message {
 			c.Where(), c.IP, remaining),
 		Priority: "high",
 		Tags:     "rotating_light",
-		Click:    baseURL + "/security",
+		Link:     baseURL + "/security",
+		Label:    "Security",
 	}
 }
 
@@ -110,8 +113,9 @@ func (n *Notifier) publish(ctx context.Context, m message) error {
 	req.Header.Set("Title", m.Title)
 	req.Header.Set("Priority", m.Priority)
 	req.Header.Set("Tags", m.Tags)
-	if m.Click != "" {
-		req.Header.Set("Click", m.Click)
+	// A button rather than Click, so tapping the notification only opens ntfy.
+	if m.Link != "" {
+		req.Header.Set("Actions", "view, "+m.Label+", "+m.Link)
 	}
 
 	resp, err := n.client.Do(req)

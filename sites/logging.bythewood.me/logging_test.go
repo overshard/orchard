@@ -1152,8 +1152,8 @@ func TestRenderAlertKinds(t *testing.T) {
 		if !strings.Contains(body.Title, "blog") {
 			t.Errorf("%s: title %q does not name the source", kind, body.Title)
 		}
-		if want := "https://logging.bythewood.me/sources/blog"; body.Click != want {
-			t.Errorf("%s: click = %q, want %q", kind, body.Click, want)
+		if want := "https://logging.bythewood.me/sources/blog"; body.Link != want {
+			t.Errorf("%s: click = %q, want %q", kind, body.Link, want)
 		}
 	}
 
