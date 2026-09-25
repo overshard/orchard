@@ -255,7 +255,7 @@ func TestAPictureEndsTheTurnWithoutTheChatModelComingBack(t *testing.T) {
 		t.Errorf("the prompt stage was not timed: %+v", done)
 	}
 	// And the next one is guessed from this one.
-	if g := store.ImageGuess(1344 * 768); g.Load != done.LoadMS || g.Prompt != done.PromptMS {
+	if g := store.ImageGuess("klein", 1344*768); g.Load != done.LoadMS || g.Prompt != done.PromptMS {
 		t.Errorf("next guess = %+v, want the %d and %d just measured", g, done.PromptMS, done.LoadMS)
 	}
 }
@@ -332,9 +332,9 @@ func TestTheShelfIsBounded(t *testing.T) {
 func TestTheGuessIsTheMedianScaledToTheSize(t *testing.T) {
 	store := testStore(t)
 	for _, r := range [][3]int64{{9000, 5000, 10000}, {0, 7000, 12000}, {11000, 60000, 90000}} {
-		store.SaveImageRun(r[0], r[1], r[2], 1024*1024)
+		store.SaveImageRun("klein", r[0], r[1], r[2], 1024*1024)
 	}
-	g := store.ImageGuess(1024 * 1024)
+	g := store.ImageGuess("klein", 1024*1024)
 	if g.Load != 7000 || g.Draw != 12000 {
 		t.Errorf("guess = %+v, want the medians 7000/12000 and not the outlier", g)
 	}
@@ -342,8 +342,12 @@ func TestTheGuessIsTheMedianScaledToTheSize(t *testing.T) {
 	if g.Prompt != 10000 {
 		t.Errorf("prompt guess = %d, want 10000 from the two that were timed", g.Prompt)
 	}
-	if half := store.ImageGuess(512 * 1024).Draw; half != 6000 {
+	if half := store.ImageGuess("klein", 512*1024).Draw; half != 6000 {
 		t.Errorf("half the pixels guessed %d, want 6000", half)
+	}
+	// A different model's times say nothing about this one.
+	if g := store.ImageGuess("bigger", 1024*1024); g.Draw != firstDrawGuess || g.Load != firstLoadGuess {
+		t.Errorf("another model guessed %+v, want the defaults", g)
 	}
 }
 
