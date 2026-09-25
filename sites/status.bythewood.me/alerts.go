@@ -64,14 +64,14 @@ type alertBody struct {
 	Message  string
 	Priority string
 	Tags     string
-	Click    string
+	Link     string
 }
 
 // renderAlert builds the notification for a transition, false for an unknown
 // kind.
 func renderAlert(kind string, ctx AlertContext) (alertBody, bool) {
 	// Absolute, because it is opened from a phone with no idea of the origin.
-	click := baseURL + "/" + ctx.ID
+	link := baseURL + "/" + ctx.ID
 
 	switch kind {
 	case "down":
@@ -83,7 +83,7 @@ func renderAlert(kind string, ctx AlertContext) (alertBody, bool) {
 			// high, not urgent: urgent bypasses do-not-disturb.
 			Priority: "high",
 			Tags:     "rotating_light",
-			Click:    click,
+			Link:     link,
 		}, true
 
 	case "recovery":
@@ -94,7 +94,7 @@ func renderAlert(kind string, ctx AlertContext) (alertBody, bool) {
 				ctx.URL, ctx.CurrentStatus, ctx.AvgResponseMS),
 			Priority: "default",
 			Tags:     "white_check_mark",
-			Click:    click,
+			Link:     link,
 		}, true
 	}
 	return alertBody{}, false
@@ -134,7 +134,8 @@ func (n *Notifier) publish(ctx context.Context, body alertBody) error {
 	req.Header.Set("Title", body.Title)
 	req.Header.Set("Priority", body.Priority)
 	req.Header.Set("Tags", body.Tags)
-	req.Header.Set("Click", body.Click)
+	// A button rather than Click, so tapping the notification only opens ntfy.
+	req.Header.Set("Actions", "view, Open status, "+body.Link)
 
 	resp, err := n.client.Do(req)
 	if err != nil {
@@ -166,7 +167,7 @@ func previewAlert(kind string) error {
 	fmt.Printf("Title:    %s\n", body.Title)
 	fmt.Printf("Priority: %s\n", body.Priority)
 	fmt.Printf("Tags:     %s\n", body.Tags)
-	fmt.Printf("Click:    %s\n\n", body.Click)
+	fmt.Printf("Actions:  view, Open status, %s\n\n", body.Link)
 	fmt.Println(body.Message)
 	return nil
 }
