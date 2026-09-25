@@ -527,8 +527,8 @@ func TestRenderAlert(t *testing.T) {
 	if !strings.Contains(down.Title, "example.com") || !strings.Contains(down.Message, "503") {
 		t.Errorf("the down alert lost its detail: %+v", down)
 	}
-	if down.Click != baseURL+"/abc" {
-		t.Errorf("the down alert links to %q, which is not an absolute dashboard URL", down.Click)
+	if down.Link != baseURL+"/abc" {
+		t.Errorf("the down alert links to %q, which is not an absolute dashboard URL", down.Link)
 	}
 	// Read on a phone, where an outage that looks like a recovery gets missed.
 	if down.Priority == "default" {
