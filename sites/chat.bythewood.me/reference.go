@@ -53,6 +53,31 @@ func pngSize(b []byte) (image.Config, error) {
 	return png.DecodeConfig(bytes.NewReader(b))
 }
 
+// cropTo trims a picture drawn larger than asked back to the size asked for,
+// since sd-server rounds each side up to a multiple of 16 and 1080 is not one.
+func cropTo(b []byte, w, h int) []byte {
+	cfg, err := pngSize(b)
+	if err != nil || cfg.Width < w || cfg.Height < h || (cfg.Width == w && cfg.Height == h) {
+		return b
+	}
+	img, err := png.Decode(bytes.NewReader(b))
+	if err != nil {
+		return b
+	}
+	x, y := (cfg.Width-w)/2, (cfg.Height-h)/2
+	sub, ok := img.(interface {
+		SubImage(image.Rectangle) image.Image
+	})
+	if !ok {
+		return b
+	}
+	var out bytes.Buffer
+	if png.Encode(&out, sub.SubImage(image.Rect(x, y, x+w, y+h))) != nil {
+		return b
+	}
+	return out.Bytes()
+}
+
 // An edit is drawn at two megapixels. At one the fabric on a product shot came
 // back smeared, and the card manages two in about forty seconds.
 const editPixels = 2 * 1024 * 1024
