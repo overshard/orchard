@@ -25,8 +25,8 @@ const drawLimit = 4 * time.Minute
 // every side a multiple of 16 since it will not take anything else.
 var shapes = map[string][2]int{
 	"square":    {1024, 1024},
-	"portrait":  {768, 1344},
-	"landscape": {1344, 768},
+	"portrait":  {1080, 1920},
+	"landscape": {1920, 1080},
 }
 
 type Painter struct {
@@ -128,6 +128,7 @@ func (p *Painter) Draw(ctx context.Context, prompt, shape string, startFrom []st
 				return tools.Drawn{}, errors.New(pr.Err)
 			}
 			id := pr.ID
+			r.png = cropTo(r.png, w, h)
 			p.shelf.Put(id, r.png, w, h)
 			if loadMS < 0 {
 				// Never saw it ready, so the split is unknown and a guess

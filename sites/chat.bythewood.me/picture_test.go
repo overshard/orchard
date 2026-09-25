@@ -223,10 +223,10 @@ func TestAPictureEndsTheTurnWithoutTheChatModelComingBack(t *testing.T) {
 	if !strings.HasPrefix(reply.Content, drewPrefix) || !strings.Contains(reply.Content, "a red barn in fog") {
 		t.Errorf("reply = %q", reply.Content)
 	}
-	if len(widgets) != 1 || widgets[0].Kind != "image" || widgets[0].Width != 1344 || widgets[0].Height != 768 {
+	if len(widgets) != 1 || widgets[0].Kind != "image" || widgets[0].Width != 1920 || widgets[0].Height != 1080 {
 		t.Fatalf("widgets = %+v", widgets)
 	}
-	if f.lastImage["size"] != "1344x768" || f.lastImage["model"] != "image" {
+	if f.lastImage["size"] != "1920x1080" || f.lastImage["model"] != "image" {
 		t.Errorf("the gateway was asked for %v", f.lastImage)
 	}
 
@@ -255,7 +255,7 @@ func TestAPictureEndsTheTurnWithoutTheChatModelComingBack(t *testing.T) {
 		t.Errorf("the prompt stage was not timed: %+v", done)
 	}
 	// And the next one is guessed from this one.
-	if g := store.ImageGuess("klein", 1344*768); g.Load != done.LoadMS || g.Prompt != done.PromptMS {
+	if g := store.ImageGuess("klein", 1920*1080); g.Load != done.LoadMS || g.Prompt != done.PromptMS {
 		t.Errorf("next guess = %+v, want the %d and %d just measured", g, done.PromptMS, done.LoadMS)
 	}
 }
@@ -526,5 +526,29 @@ func TestAPictureCallStraightAfterOneChangesIt(t *testing.T) {
 	}
 	if f.lastImage["size"] == "1024x1024" {
 		t.Error("came back square")
+	}
+}
+
+// sd-server rounds 1080 up to 1088 on either side, and the picture kept is the one asked for.
+func TestAPictureDrawnLargerIsCroppedToTheSizeAsked(t *testing.T) {
+	img := image.NewRGBA(image.Rect(0, 0, 1920, 1088))
+	var b bytes.Buffer
+	if err := png.Encode(&b, img); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := pngSize(cropTo(b.Bytes(), 1920, 1080))
+	if err != nil || cfg.Width != 1920 || cfg.Height != 1080 {
+		t.Errorf("cropped to %dx%d (%v), want 1920x1080", cfg.Width, cfg.Height, err)
+	}
+	tall := image.NewRGBA(image.Rect(0, 0, 1088, 1920))
+	b.Reset()
+	if err := png.Encode(&b, tall); err != nil {
+		t.Fatal(err)
+	}
+	if cfg, _ := pngSize(cropTo(b.Bytes(), 1080, 1920)); cfg.Width != 1080 || cfg.Height != 1920 {
+		t.Errorf("portrait cropped to %dx%d, want 1080x1920", cfg.Width, cfg.Height)
+	}
+	if small := cropTo(onePixel, 1920, 1080); !bytes.Equal(small, onePixel) {
+		t.Error("a picture smaller than asked was changed")
 	}
 }
