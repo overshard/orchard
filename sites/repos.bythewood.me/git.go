@@ -441,6 +441,13 @@ func (s *Store) objectSize(ctx context.Context, repo Repo, spec string) (int64, 
 	return strconv.ParseInt(strings.TrimSpace(string(out)), 10, 64)
 }
 
+// IsBlob reports whether path names a file at rev. /raw asks first, because a
+// cat-file that fails while streaming has left nothing written and Go answers 200.
+func (s *Store) IsBlob(ctx context.Context, repo Repo, rev, path string) bool {
+	out, err := run(ctx, repo, "cat-file", "-t", rev+":"+path)
+	return err == nil && strings.TrimSpace(string(out)) == "blob"
+}
+
 // StreamBlob writes a file's bytes to w without buffering, which is what makes
 // /raw work on a file too large to render.
 func (s *Store) StreamBlob(ctx context.Context, repo Repo, rev, path string, w io.Writer) error {
