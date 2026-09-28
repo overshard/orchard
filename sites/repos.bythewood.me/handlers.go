@@ -409,7 +409,7 @@ func (s *site) raw(w http.ResponseWriter, r *http.Request) {
 	}
 
 	path := strings.Trim(r.PathValue("path"), "/")
-	if path == "" {
+	if path == "" || !s.store.IsBlob(ctx, rc.Repo, rc.Rev, path) {
 		s.notFound(w, r)
 		return
 	}
@@ -424,9 +424,9 @@ func (s *site) raw(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.store.StreamBlob(ctx, rc.Repo, rc.Rev, path, w); err != nil {
-		// The header is already written, so there is nothing to say to the client.
+		// The status may already be sent, so there is nothing to say to the client.
 		slog.Info("raw blob failed",
-			slog.String("repo", rc.Repo.Name), slog.String("path", path))
+			slog.String("repo", rc.Repo.Name), slog.String("path", path), slog.Any("err", err))
 	}
 }
 
