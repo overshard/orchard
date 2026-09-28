@@ -85,7 +85,8 @@ func main() {
 	}
 
 	web.SetupLogging()
-	web.ShipLogs(selfSource, web.HTTPSink())
+	shipper := web.ShipLogs(selfSource, web.HTTPSink())
+	defer shipper.Close()
 
 	store, err := OpenStore(*dbPath)
 	if err != nil {
@@ -171,7 +172,10 @@ func main() {
 	})
 
 	slog.Info("llm listening", "addr", *addr, "upstream", s.upstream, "model", s.model)
-	web.Serve(*addr, web.Chain(mux, web.Recovered, web.Logged, web.SecurityHeaders(csp())))
+	if err := web.Serve(*addr, web.Chain(mux, web.Recovered, web.Logged, web.SecurityHeaders(csp()))); err != nil {
+		slog.Error("startup failed", slog.Any("err", err))
+		os.Exit(1)
+	}
 }
 
 // prune trims the call log on a timer. The prompts are the whole of what

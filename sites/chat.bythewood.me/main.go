@@ -96,7 +96,8 @@ func main() {
 	// Past the healthcheck branch, so a HEALTHCHECK invocation does not start a
 	// queue it will never flush. This was the only one of the eleven sites not
 	// shipping, which is why logging.bythewood.me had no record of chat at all.
-	web.ShipLogs(selfSource, web.HTTPSink())
+	shipper := web.ShipLogs(selfSource, web.HTTPSink())
+	defer shipper.Close()
 
 	store, err := OpenStore(*dbPath)
 	if err != nil {
@@ -217,7 +218,10 @@ func main() {
 
 	slog.Info("chat listening", "addr", *addr, "llm", *llmURL, "model", *label,
 		"db", *dbPath, "reloaded", Reloaded)
-	web.Serve(*addr, web.Chain(mux, web.Recovered, web.Logged, web.SecurityHeaders(csp())))
+	if err := web.Serve(*addr, web.Chain(mux, web.Recovered, web.Logged, web.SecurityHeaders(csp()))); err != nil {
+		slog.Error("startup failed", slog.Any("err", err))
+		os.Exit(1)
+	}
 }
 
 func env(k, def string) string {
