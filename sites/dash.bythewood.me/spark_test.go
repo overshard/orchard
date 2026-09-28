@@ -291,10 +291,8 @@ func TestPreviousSessionCloseIsFourPMTheDayBefore(t *testing.T) {
 	}
 }
 
-// The trading day rolls at 9:30 and the close does not, so a bar from the small
-// hours has to measure from last night's 4pm and not from the one before it.
-// Anchoring on the session open put every round the clock card between midnight
-// and 9:30 a full session behind, which is what a 7am look at the futures showed.
+// The close rolls at midnight, so the evening still measures from the day before
+// and a bar from the small hours measures from last night's 4pm.
 func TestPreviousSessionCloseOvernightIsLastNightsBell(t *testing.T) {
 	et := easternTime()
 
@@ -311,7 +309,9 @@ func TestPreviousSessionCloseOvernightIsLastNightsBell(t *testing.T) {
 		want time.Time
 	}{
 		{"mid session", time.Date(2026, 9, 17, 11, 0, 0, 0, et), time.Date(2026, 9, 16, 16, 0, 0, 0, et)},
-		{"after the bell", time.Date(2026, 9, 17, 18, 0, 0, 0, et), time.Date(2026, 9, 17, 16, 0, 0, 0, et)},
+		{"after the bell", time.Date(2026, 9, 17, 18, 0, 0, 0, et), time.Date(2026, 9, 16, 16, 0, 0, 0, et)},
+		{"just before midnight", time.Date(2026, 9, 17, 23, 59, 0, 0, et), time.Date(2026, 9, 16, 16, 0, 0, 0, et)},
+		{"just after midnight", time.Date(2026, 9, 18, 0, 0, 0, 0, et), time.Date(2026, 9, 17, 16, 0, 0, 0, et)},
 		{"small hours", time.Date(2026, 9, 18, 2, 0, 0, 0, et), time.Date(2026, 9, 17, 16, 0, 0, 0, et)},
 		{"pre-market", time.Date(2026, 9, 18, 7, 0, 0, 0, et), time.Date(2026, 9, 17, 16, 0, 0, 0, et)},
 	} {

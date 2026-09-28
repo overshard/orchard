@@ -734,12 +734,12 @@ func lastBell(t time.Time) time.Time {
 // disagree about what day it is. Reading it off the bars puts them all on the
 // same 4pm.
 //
-// last is the newest bar and not the session open, because the trading day rolls
-// at 9:30 and the close does not. Anchoring on the open left every round the
-// clock card between midnight and 9:30 measuring from the close two sessions
-// back, so a 7am glance at the futures carried all of yesterday inside it.
+// The cut is the 4pm before the newest bar's day and rolls at midnight, so the
+// evening futures keep the day's move rather than going flat at the bell, and a
+// 7am glance measures from last night's close rather than the one before it.
 func previousSessionClose(closes []float64, times []int64, last time.Time) (float64, bool) {
-	cut := lastBell(last).Unix()
+	y, m, d := last.In(easternTime()).Date()
+	cut := lastBell(time.Date(y, m, d, 0, 0, 0, 0, easternTime())).Unix()
 
 	var prev float64
 	var found bool
