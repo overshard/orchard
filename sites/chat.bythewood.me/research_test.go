@@ -230,3 +230,25 @@ func TestSpecsNobodySaidAreChecked(t *testing.T) {
 		t.Error("a plain number with no unit was sent back")
 	}
 }
+
+// The receipt said Total: $177.07 and the answer multiplied each line total by
+// its quantity and reported $1,190.33, twice, with the rule in the prompt.
+func TestAPrintedTotalChecksTheAnswer(t *testing.T) {
+	q := composeTurn("what's the total on this receipt", []filePart{{Name: "receipt.pdf", Kind: "pdf", Size: 100,
+		Text: " Item                   Qty Price\n Deck screws, 5lb       2    $38.98\n Pressure treated 2x6x10 8   $103.92\n\nTax: $11.73\nTotal: $177.07\n"}})
+	if got := printedTotal(q); got != "177.07" {
+		t.Fatalf("printed total %q", got)
+	}
+	if !missesPrintedTotal("The items come to $1,178.60, plus tax, for a total of $1,190.33.", "177.07") {
+		t.Error("a total the receipt contradicts was let through")
+	}
+	if missesPrintedTotal("The receipt comes to $177.07 with $11.73 of tax.", "177.07") {
+		t.Error("the right total was sent back")
+	}
+	if printedTotal(composeTurn("which line cost most", []filePart{{Name: "r.pdf", Kind: "pdf", Text: "Total: $177.07\n"}})) != "" {
+		t.Error("a question that was not about the total was checked against it")
+	}
+	if printedTotal("what is the total of 2 and 3") != "" {
+		t.Error("a message with no attachment had a printed total")
+	}
+}
