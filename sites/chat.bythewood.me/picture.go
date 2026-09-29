@@ -57,8 +57,12 @@ func isPictureChange(message string, history []Message) bool {
 
 // wantsNewPicture is asking for a different picture rather than this one fixed.
 func wantsNewPicture(m string) bool {
-	return pictureAgain.MatchString(m) || pictureAsk.MatchString(m) || drawVerb.MatchString(m)
+	return pictureAgain.MatchString(m) || pictureAsk.MatchString(m) || drawVerb.MatchString(m) || newView.MatchString(m)
 }
+
+// Another view of the same thing is a new picture. An edit keeps the framing,
+// so "from the outside" drew the same living room again.
+var newView = regexp.MustCompile(`(?i)\b(from (the )?(outside|inside|above|below|behind|the side|the front|the back|the street|the air|another angle|a different angle)|exterior|interior|aerial|bird'?s[- ]eye|(another|different|other) (angle|side|view))\b`)
 
 // A change to where the thing is rather than to the picture. Each edit of an
 // edit coarsens the fabric, so these start again from the picture he attached.
