@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -462,8 +463,13 @@ func (r *Registry) Call(ctx context.Context, d *Deps, name string, raw json.RawM
 	}
 	var args map[string]any
 	if len(raw) > 0 {
+		// Running the tool on no arguments would blame a missing field, when
+		// what the model has to fix is the length of the call.
 		if err := json.Unmarshal(raw, &args); err != nil {
-			args = map[string]any{}
+			res.Err = "the arguments were cut off or are not valid JSON, call it again with shorter arguments"
+			res.Content = map[string]any{"error": res.Err}
+			res.Elapsed = time.Since(start)
+			return res
 		}
 	}
 	out, err := t.Run(ctx, d, args)
@@ -532,16 +538,17 @@ func integer(desc string) map[string]any {
 	return map[string]any{"type": "integer", "description": desc}
 }
 
-// Only narrows an offer to one tool. Without drops the one thing a turn must
-// not do again, this is the other end of it, for a turn where there is exactly
-// one thing to do and every other tool is a way to get lost.
-func Only(schemas []map[string]any, name string) []map[string]any {
+// Only narrows an offer to the named tools. Without drops the one thing a turn
+// must not do again, this is the other end of it, for a turn with one job to do
+// where every other tool is a way to get lost.
+func Only(schemas []map[string]any, names ...string) []map[string]any {
+	var out []map[string]any
 	for _, s := range schemas {
 		if fn, ok := s["function"].(map[string]any); ok {
-			if n, _ := fn["name"].(string); n == name {
-				return []map[string]any{s}
+			if n, _ := fn["name"].(string); slices.Contains(names, n) {
+				out = append(out, s)
 			}
 		}
 	}
-	return nil
+	return out
 }
