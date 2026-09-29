@@ -28,6 +28,9 @@ const (
 	// How many facts a turn carries. Enough to be useful, few enough that a
 	// wrong one is visible rather than buried.
 	factsPerTurn = 6
+	// A message with more distinct terms than this needs two in common with a
+	// fact before the fact is recalled.
+	shortMessageTerms = 8
 )
 
 const factSchema = `
@@ -197,21 +200,24 @@ func (s *Store) Relevant(message string, limit int) []Fact {
 		f Fact
 		n int
 	}
+	// One shared word is chance in a long message, "rating" meeting a sleeping
+	// bag's rating, and it takes two there. A short one only has one to give.
+	need := 1
+	if len(want) > shortMessageTerms {
+		need = 2
+	}
 	hits := make([]scored, 0, len(all))
 	for _, f := range all {
 		n := overlap(want, terms(f.Text))
-		if n > 0 {
+		if n >= need {
 			hits = append(hits, scored{f, n})
 		}
 	}
+	// A tie goes to the newer fact. Not to the most used one, since every recall
+	// counts as a use and a fact that matched by accident would keep winning.
 	sort.SliceStable(hits, func(i, j int) bool {
 		if hits[i].n != hits[j].n {
 			return hits[i].n > hits[j].n
-		}
-		// A tie goes to the fact that has earned its place, then to the newer
-		// one, so a stale duplicate loses to the one actually being used.
-		if hits[i].f.Used != hits[j].f.Used {
-			return hits[i].f.Used > hits[j].f.Used
 		}
 		return hits[i].f.Updated.After(hits[j].f.Updated)
 	})
