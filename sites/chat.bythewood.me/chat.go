@@ -244,7 +244,11 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	// and every prompt it wrote for one described a sofa it made up.
 	if len(deps.Start) > 0 && deps.Images != nil {
 		prompt := editPrompt(said, named, keepThing)
-		args, _ := json.Marshal(map[string]any{"prompt": prompt, "shape": "same"})
+		shape := askedShape(said)
+		if shape == "" {
+			shape = "same"
+		}
+		args, _ := json.Marshal(map[string]any{"prompt": prompt, "shape": shape})
 		emit(Event{Kind: "tool", Tool: tools.Image.Name, Args: shortArgs(string(args))})
 		res := e.reg.Call(ctx, deps, tools.Image.Name, args)
 		emit(Event{Kind: "tool_done", Tool: res.Name, MS: res.Elapsed.Milliseconds(), OK: res.Err == ""})
@@ -341,7 +345,8 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	// A message that only asks for something to be written down gets remember,
 	// and the two lookups when it says to look something up, and is made to call
 	// one. Left with all of them it reads the note as a job and goes looking.
-	if isNote(user) {
+	note := isNote(user)
+	if note {
 		offered, out := []string{tools.Remember.Name}, "offered remember and nothing else"
 		if wantsLookup(user) {
 			offered = append(offered, tools.Wikipedia.Name, tools.WebSearch.Name)
@@ -473,6 +478,13 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 				reply.Content = cleaned
 				reply.ToolCalls = salvaged
 			} else {
+				// Made to call a tool, it wrote prose until the cap instead, and
+				// half an answer is no draft to keep figures from.
+				if forcedThisRound && st.Truncated {
+					tr.Add(Step{Kind: "model", Label: "dropped prose written where a call was required",
+						Out: "it ran to the token limit without calling anything", Bad: true})
+					continue
+				}
 				// It stopped calling tools, which is not the same as having
 				// answered, so a deferral goes back with the tools still on.
 				if gates < maxGates {
@@ -487,7 +499,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 						// The draft itself is never appended. A model handed
 						// its own text back writes it again.
 						msgs = append(msgs, Message{Role: RoleUser, Content: nudge})
-						forceTools = true
+						forceTools = nudge != remarkNudge
 						// The next round would be the budget cut, which answers
 						// with the tools off, so the nudge would be read and
 						// never acted on.
@@ -543,6 +555,9 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 				args, _ = json.Marshal(map[string]any{"prompt": editPrompt(said, "", false), "shape": "same"})
 				tr.Add(Step{Kind: "tool", Label: "read as a change to the last picture", In: said})
 			}
+			if tc.Function.Name == tools.Image.Name {
+				args = withShape(args, askedShape(said))
+			}
 			res := e.reg.Call(ctx, deps, tc.Function.Name, args)
 			seen[key] = res
 			if res.Name == tools.Image.Name && drawn == nil {
@@ -576,6 +591,11 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		if cut > 0 {
 			msgs = append(msgs, Message{Role: RoleUser, Content: cutCallNote(cut)})
 		}
+		// A note is one write. Left with the tools it went on to list, replace
+		// the watch list with the note and replace it back, five calls in all.
+		if note && cut == 0 && !wantsLookup(user) && wroteMemory(used) {
+			schemas = nil
+		}
 		if drawn != nil {
 			text := pictureReply(*drawn)
 			emit(Event{Kind: "block", HTML: e.Render(text)})
@@ -593,6 +613,16 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	// never an address, so a link under this answer is one a tool fetched.
 	srcs := collectSources(used)
 
+	// A note that was written down is answered by the line the model already
+	// wrote. Handed "Remembered it." the writer wrote "Understood. I'll write
+	// the answer now." in its place.
+	if strings.TrimSpace(draft) != "" && onlyRemembered(used) {
+		text := dropClosingOffer(prepare(draft, srcs))
+		emit(Event{Kind: "block", HTML: e.Render(text)})
+		tr.Add(Step{Kind: "answer", Label: "kept the line it wrote", Out: text})
+		return Message{Role: RoleAssistant, Content: text}, used, nil, deps.Widgets.List(), stats, nil
+	}
+
 	// The answer is generated fresh rather than reusing the last tool round,
 	// which was written under a small budget with tools still on the table and
 	// reads as "Let me check that" and then stops.
@@ -607,7 +637,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	answerStart := time.Now()
 	var sb strings.Builder
 	w := &blockWriter{emit: emit, render: func(md string) string {
-		return linkCitations(e.Render(prepare(md, srcs)), srcs)
+		return linkCitations(e.Render(fixWeekdays(prepare(md, srcs), e.now())), srcs)
 	}}
 	text, st, err := e.llm.Stream(ctx, msgs, answerTokens, func(d string) {
 		sb.WriteString(d)
@@ -624,12 +654,35 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	// Only on the whole answer, never on a streamed block. A block is finished
 	// when a blank line closes it and nothing knows yet whether another one is
 	// coming, so a paragraph mid answer would read as the end of it.
-	text = dropClosingOffer(prepare(text, srcs))
+	text = fixWeekdays(dropClosingOffer(prepare(text, srcs)), e.now())
 	if strings.TrimSpace(text) == "" {
 		text = "I could not produce an answer for that. The model returned nothing."
 		emit(Event{Kind: "block", HTML: e.Render(text)})
 	}
 	return Message{Role: RoleAssistant, Content: text}, used, cited(text, srcs), deps.Widgets.List(), stats, nil
+}
+
+// wroteMemory is a turn that has written something to memory.
+func wroteMemory(used []tools.Result) bool {
+	for _, r := range used {
+		if r.Name != tools.Remember.Name || r.Err != "" {
+			continue
+		}
+		if m, ok := r.Content.(map[string]any); ok && (m["remembered"] != nil || m["now"] != nil || m["already_known"] != nil) {
+			return true
+		}
+	}
+	return false
+}
+
+// onlyRemembered is a turn whose only calls wrote to memory.
+func onlyRemembered(used []tools.Result) bool {
+	for _, r := range used {
+		if r.Name != tools.Remember.Name {
+			return false
+		}
+	}
+	return len(used) > 0
 }
 
 // failedToolNote names a tool that never once worked in the turn, so the model
