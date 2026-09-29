@@ -73,6 +73,12 @@ func TestRelevantIgnoresWordsThatMatchEverything(t *testing.T) {
 	if got := s.Relevant("what is the weather", 5); len(got) != 0 {
 		t.Errorf("matched on filler words: %+v", got)
 	}
+	if _, err := s.AddFact("Isaac is researching whether a tiny home on wheels can be lived in full-time"); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.Relevant("what time is it right now", 5); len(got) != 0 {
+		t.Errorf("matched on filler words: %+v", got)
+	}
 }
 
 // A long message shares a word with almost anything, so one in common is chance.

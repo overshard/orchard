@@ -252,6 +252,16 @@ var stopwords = map[string]bool{
 	"what": true, "when": true, "where": true, "which": true, "who": true,
 	"why": true, "will": true, "with": true, "would": true, "you": true,
 	"your": true,
+	// Common enough to be in any message and in no way what it is about. "what
+	// time is it" matched a fact about living in a tiny home full time.
+	"now": true, "time": true, "right": true, "thing": true, "things": true,
+	"use": true, "used": true, "uses": true, "using": true, "other": true,
+	"still": true, "want": true, "wants": true, "make": true, "made": true,
+	"good": true, "new": true, "really": true, "going": true, "know": true,
+	"need": true, "first": true, "last": true, "much": true, "many": true,
+	"more": true, "most": true, "very": true, "also": true, "only": true,
+	"even": true, "way": true, "lot": true, "something": true, "anything": true,
+	"start": true, "started": true, "starting": true, "today": true,
 }
 
 func terms(s string) map[string]bool {
