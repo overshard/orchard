@@ -254,12 +254,26 @@
 
     </section>
 
+    <section class="panel broadcasts" data-panel="broadcasts">
+      <div class="bracket tl"></div><div class="bracket tr"></div>
+      <div class="bracket bl"></div><div class="bracket br"></div>
+      <header class="panel-head">
+        <span class="idx">10</span>
+        <h2>ON AIR</h2>
+        <span class="rule"></span>
+        <span class="panel-meta">TWITCH</span>
+      </header>
+      <div class="air" data-broadcasts>
+        {{template "broadcasts" .State.OnAir}}
+      </div>
+    </section>
+
 
     <section class="panel systems" data-panel="systems">
       <div class="bracket tl"></div><div class="bracket tr"></div>
       <div class="bracket bl"></div><div class="bracket br"></div>
       <header class="panel-head">
-        <span class="idx">10</span>
+        <span class="idx">11</span>
         <h2>SYSTEMS</h2>
         <span class="rule"></span>
         <span class="panel-meta" data-systems-summary>{{.State.Systems.Up}}/{{.State.Systems.Total}} UP</span>
@@ -286,7 +300,7 @@
       <div class="bracket tl"></div><div class="bracket tr"></div>
       <div class="bracket bl"></div><div class="bracket br"></div>
       <header class="panel-head">
-        <span class="idx">11</span>
+        <span class="idx">12</span>
         <h2>UPLINK</h2>
         <span class="rule"></span>
         <span class="panel-meta">UPSTREAM</span>
@@ -312,7 +326,7 @@
     <div class="bracket tl"></div><div class="bracket tr"></div>
     <div class="bracket bl"></div><div class="bracket br"></div>
     <header class="panel-head">
-    <span class="idx">12</span>
+    <span class="idx">13</span>
     <h2>WIRE</h2>
       <span class="rule"></span>
       <span class="panel-meta">NPR / BBC</span>
@@ -326,7 +340,7 @@
     <div class="bracket tl"></div><div class="bracket tr"></div>
     <div class="bracket bl"></div><div class="bracket br"></div>
     <header class="panel-head">
-      <span class="idx">13</span>
+      <span class="idx">14</span>
       <h2>HACKER NEWS</h2>
       <span class="rule"></span>
       <a class="panel-meta" href="https://news.ycombinator.com" rel="noopener noreferrer" target="_blank">NEWS.YCOMBINATOR.COM</a>
@@ -338,7 +352,7 @@
     <div class="bracket tl"></div><div class="bracket tr"></div>
     <div class="bracket bl"></div><div class="bracket br"></div>
     <header class="panel-head">
-      <span class="idx">14</span>
+      <span class="idx">15</span>
       <h2>LOBSTERS</h2>
       <span class="rule"></span>
       <a class="panel-meta" href="https://lobste.rs" rel="noopener noreferrer" target="_blank">LOBSTE.RS</a>

@@ -25,7 +25,7 @@ type State struct {
 	Weather   Weather      `json:"weather"`
 	Air       Air          `json:"air"`
 	Alerts    []Alert      `json:"alerts"`
-	OnAir     OnAir        `json:"on_air"`
+	OnAir     OnAir        `json:"onair"`
 	Outlook   Outlook      `json:"outlook"`
 	Steam     []Game       `json:"steam"`
 	Streaming []Title      `json:"streaming"`
@@ -49,6 +49,10 @@ type Store struct {
 	// poll rebuilds that panel every thirty seconds and this only refreshes
 	// hourly.
 	history *history
+
+	// His archive and schedule as last fetched, which every banner poll
+	// rebuilds the ON AIR panel from.
+	past *twitchPast
 
 	hub *Hub
 }
@@ -200,6 +204,7 @@ func (s *Store) Run(ctx context.Context, g *Guard) {
 	}, func() { s.refreshMarket(ctx, g) })
 
 	go s.loop(ctx, "onair", nil, func() { s.refreshOnAir(ctx, g) })
+	go s.loop(ctx, "broadcasts", nil, func() { s.refreshBroadcasts(ctx, g) })
 	go s.loop(ctx, "news", nil, func() { s.refreshNews(ctx, g) })
 	go s.loop(ctx, "wire", nil, func() { s.refreshWire(ctx, g) })
 	go s.loop(ctx, "signal", nil, func() { s.refreshSignal(ctx, g) })
@@ -246,20 +251,21 @@ func (s *Store) Run(ctx context.Context, g *Guard) {
 // out the whole five minutes watching a page that says it is live.
 func (s *Store) loop(ctx context.Context, name string, every func() time.Duration, work func()) {
 	fixed := map[string]time.Duration{
-		"news":      newsEvery,
-		"wire":      wireEvery,
-		"signal":    signalEvery,
-		"board":     boardEvery,
-		"earnings":  earningsEvery,
-		"reports":   reportsEvery,
-		"alerts":    alertsEvery,
-		"onair":     onAirEvery,
-		"air":       airEvery,
-		"outdoors":  outdoorsEvery,
-		"steam":     steamEvery,
-		"streaming": streamingEvery,
-		"weather":   weatherEvery,
-		"systems":   probeEvery,
+		"news":       newsEvery,
+		"wire":       wireEvery,
+		"signal":     signalEvery,
+		"board":      boardEvery,
+		"earnings":   earningsEvery,
+		"reports":    reportsEvery,
+		"alerts":     alertsEvery,
+		"onair":      onAirEvery,
+		"broadcasts": broadcastsEvery,
+		"air":        airEvery,
+		"outdoors":   outdoorsEvery,
+		"steam":      steamEvery,
+		"streaming":  streamingEvery,
+		"weather":    weatherEvery,
+		"systems":    probeEvery,
 	}[name]
 
 	if every == nil {
@@ -414,10 +420,35 @@ func (s *Store) refreshOnAir(ctx context.Context, g *Guard) {
 		slog.Warn("on air poll failed", slog.String("component", "onair"), slog.Any("err", err))
 		return
 	}
+	s.mu.RLock()
+	past := s.past
+	s.mu.RUnlock()
+
 	s.update(func(st *State) {
-		st.OnAir = carryOnAir(fresh, st.OnAir, now)
+		o := carryOnAir(fresh, st.OnAir, now)
+		o.Broadcasts = st.OnAir.Broadcasts
+		if past != nil {
+			o.Broadcasts = buildBroadcasts(*past, o, now)
+		}
+		st.OnAir = o
 		st.setNotices("live", onAirNotices(st.OnAir))
 	})
+}
+
+// refreshBroadcasts keeps the last good archive when Twitch fails, and the
+// banner goes on without it.
+func (s *Store) refreshBroadcasts(ctx context.Context, g *Guard) {
+	past, err := fetchBroadcasts(ctx, g, twitchGQL)
+	if err != nil {
+		slog.Warn("broadcasts poll failed", slog.String("component", "onair"), slog.Any("err", err))
+		return
+	}
+	s.mu.Lock()
+	s.past = &past
+	s.mu.Unlock()
+
+	now := time.Now()
+	s.update(func(st *State) { st.OnAir.Broadcasts = buildBroadcasts(past, st.OnAir, now) })
 }
 
 func (s *Store) refreshAir(ctx context.Context, g *Guard) {

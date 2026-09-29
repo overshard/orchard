@@ -78,6 +78,11 @@ type site struct {
 	hub      *Hub
 	guard    *Guard
 
+	// Only the quick chat reads these. Nothing else on the page knows or
+	// cares who is looking at it.
+	auth *web.Authenticator
+	chat string
+
 	script string
 	styles []string
 }
@@ -139,6 +144,8 @@ func main() {
 		store:    store,
 		hub:      hub,
 		guard:    guard,
+		auth:     web.NewAuthenticator(),
+		chat:     chatSendURL,
 		script:   assets.Script("index.js"),
 		styles:   assets.Styles("index.js"),
 	}
@@ -169,6 +176,8 @@ func main() {
 	mux.HandleFunc("GET /{$}", s.home)
 	mux.HandleFunc("GET /events", s.events)
 	mux.HandleFunc("GET /api/state", s.state)
+	mux.HandleFunc("GET /api/quick", s.quick)
+	mux.HandleFunc("POST /api/quick/send", s.quickSend)
 
 	mux.HandleFunc("GET /favicon.ico", favicon)
 	mux.HandleFunc("GET /favicon.svg", favicon)

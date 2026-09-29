@@ -828,6 +828,94 @@ function renderOnAir(o) {
   host.replaceChildren(a);
 }
 
+const WEEK = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+
+function airRow(key, value, title) {
+  const li = el("li");
+  li.append(el("span", "k", key));
+  li.append(el("span", "bar"));
+  const v = el("span", "v", value || "—");
+  if (title !== undefined) v.title = title;
+  li.append(v);
+  return li;
+}
+
+// The ON AIR panel, drawn from the whole of the onair slice since whether he is
+// on comes from the banner's poll and everything else from the archive.
+function renderBroadcasts(o) {
+  const host = document.querySelector("[data-broadcasts]");
+  if (!host) return;
+  const b = (o && o.broadcasts) || {};
+  const next = b.next || {};
+  const last = b.last || {};
+
+  const rows = el("ul", "air-rows");
+
+  const who = el("li", "air-who");
+  who.dataset.state = o && o.live ? "live" : "off";
+  who.append(el("span", "pip"));
+  who.append(link("https://www.twitch.tv/theburntpeanut", "k", "THEBURNTPEANUT"));
+  who.append(el("span", "bar"));
+  who.append(el("span", "v", o && o.live ? "LIVE" : "OFF AIR"));
+  rows.append(who);
+
+  const nextRow = airRow("NEXT", next.at, next.title || "");
+  if (next.kind) {
+    const tag = el("span", "tag", next.kind === "scheduled" ? "SCHEDULED" : "GUESS");
+    tag.dataset.kind = next.kind;
+    nextRow.append(tag);
+  }
+  rows.append(nextRow);
+
+  const usual = airRow("USUAL", b.usual_start);
+  const week = el("span", "week");
+  const days = b.usual_days || [];
+  for (const d of WEEK) {
+    const i = el("i", null, d[0]);
+    i.dataset.on = days.includes(d) ? "yes" : "no";
+    i.title = d;
+    week.append(i);
+  }
+  usual.append(week);
+  rows.append(usual);
+
+  const lastRow = airRow(last.live ? "NOW" : "LAST", last.start, last.title || "");
+  if (last.ran) lastRow.append(el("span", "n", last.ran));
+  rows.append(lastRow);
+
+  const strip = b.days || [];
+  if (strip.length === 0) {
+    host.replaceChildren(rows, el("p", "empty", "AWAITING ARCHIVE"));
+    return;
+  }
+
+  const wrap = el("div", "air-days");
+  const head = el("div", "air-head");
+  head.append(el("span", "k", `LAST ${strip.length} DAYS`));
+  head.append(el("span", "v", "HOURS ON AIR"));
+  wrap.append(head);
+
+  const plot = el("div", "air-plot");
+  const cols = el("div", "air-cols");
+  for (const d of strip) {
+    const today = d.today ? "yes" : "no";
+    const bar = el("span", "abar");
+    bar.dataset.today = today;
+    bar.title = `${d.day} ${d.date} · ${d.hours}H`;
+    const fill = el("i");
+    fill.style.height = `${d.fill || 0}%`;
+    bar.append(fill);
+    plot.append(bar);
+
+    const letter = el("span", null, d.day[0]);
+    letter.dataset.today = today;
+    cols.append(letter);
+  }
+  wrap.append(plot, cols);
+
+  host.replaceChildren(rows, wrap);
+}
+
 function renderSteam(games) {
   const host = document.querySelector("[data-steam]");
   if (!host) return;
@@ -986,7 +1074,10 @@ function render(state) {
   if (changed("sectors", state.sectors)) renderSectors(state.sectors);
   if (changed("earnings", state.earnings)) renderEarnings(state.earnings);
   if (changed("alerts", state.alerts)) renderAlerts(state.alerts);
-  if (changed("onair", state.on_air)) renderOnAir(state.on_air);
+  if (changed("onair", state.onair)) {
+    renderOnAir(state.onair);
+    renderBroadcasts(state.onair);
+  }
   if (changed("outlook", state.outlook)) renderOutlook(state.outlook);
   if (changed("steam", state.steam)) renderSteam(state.steam);
   if (changed("wire", state.wire)) renderWire(state.wire);

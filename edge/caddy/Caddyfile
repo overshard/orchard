@@ -248,14 +248,15 @@ http://logging.bythewood.me {
 	}
 }
 
-# The live panels arrive over server-sent events, which must not be buffered or
-# compressed on the way out, so this imports the two halves of (site) directly
-# and gives encode a matcher instead of taking the blanket one.
+# The live panels and the quick chat relay arrive over server-sent events, which
+# must not be buffered or compressed on the way out, so this imports the two
+# halves of (site) directly and gives encode a matcher instead of taking the
+# blanket one.
 http://dash.bythewood.me {
 	import scanners
 	import headers
 
-	@compressible not path /events
+	@compressible not path /events /api/quick/send
 
 	encode @compressible zstd gzip
 

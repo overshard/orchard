@@ -63,7 +63,7 @@
       <span class="readout-val" data-clock-date>----</span>
     </div>
     <div class="readout notify" data-notify data-state="off" hidden>
-      <button type="button" class="notify-btn" data-notify-button aria-haspopup="true" aria-expanded="false" aria-controls="notify-menu">
+      <button type="button" class="readout-btn" data-notify-button aria-haspopup="true" aria-expanded="false" aria-controls="notify-menu">
         <span class="readout-key">NOTIFY</span>
         <span class="readout-val"><span class="pip"></span><span data-notify-label>OFF</span></span>
       </button>
@@ -75,6 +75,12 @@
         <label><input type="checkbox" value="live"> BURNTPEANUT LIVE</label>
         <p>WHILE THIS TAB IS OPEN</p>
       </div>
+    </div>
+    <div class="readout quick-open" data-quick-open hidden>
+      <button type="button" class="readout-btn" data-quick-button aria-haspopup="dialog" aria-controls="quick">
+        <span class="readout-key">CHAT</span>
+        <span class="readout-val" data-quick-key>CTRL K</span>
+      </button>
     </div>
     <div class="readout link" data-live data-state="connecting">
       <span class="readout-key">LINK</span>
@@ -94,6 +100,36 @@
   <span class="seg"><a href="{{.SourceURL}}" rel="noopener noreferrer" target="_blank">SOURCE</a></span>
   <span class="seg">&copy;&nbsp;{{.Year}}&nbsp;{{.AuthorName}}</span>
 </footer>
+
+{{/*
+  Quick chat. Everybody gets this markup, since the page can come out of the
+  edge's cache, and quick.js only opens it once /api/quick says the visitor is
+  signed in.
+*/}}
+<dialog class="quick" id="quick" data-quick aria-labelledby="quick-title">
+  <div class="quick-box">
+    <div class="bracket tl"></div><div class="bracket tr"></div>
+    <div class="bracket bl"></div><div class="bracket br"></div>
+    <header class="panel-head">
+      <h2 id="quick-title">CHAT</h2>
+      <span class="rule"></span>
+      <span class="quick-status" data-quick-status aria-live="polite"></span>
+      <button type="button" class="quick-close" data-quick-close>CLOSE</button>
+    </header>
+    <div class="quick-log" data-quick-log></div>
+    <form class="quick-form" data-quick-form>
+      <label class="quick-prompt" for="quick-input">&gt;</label>
+      <textarea id="quick-input" name="message" rows="1" autocomplete="off" placeholder="ASK CHAT" data-quick-input></textarea>
+      <button type="submit" class="quick-send" data-quick-send>SEND</button>
+    </form>
+    <footer class="quick-foot">
+      <a data-quick-link href="https://chat.bythewood.me/" target="_blank" rel="noopener noreferrer" hidden>OPEN IN CHAT</a>
+      <button type="button" data-quick-new hidden>NEW</button>
+      <span class="grow"></span>
+      <span class="hint">ENTER SENDS &middot; ESC CLOSES</span>
+    </footer>
+  </div>
+</dialog>
 
 {{if .Script}}<script type="module" src="{{.Script}}"></script>{{end}}
 </body>

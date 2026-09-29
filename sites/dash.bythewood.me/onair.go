@@ -46,11 +46,14 @@ type OnAir struct {
 	Game     string `json:"game"`
 	Since    string `json:"since"`
 
+	Broadcasts Broadcasts `json:"broadcasts"`
+
 	// id is the platform's own for this broadcast. The notice is named by the
 	// session, which outlives a reconnect or a fall over to Twitch.
 	id      string
 	session string
 	seen    time.Time
+	started time.Time
 }
 
 // pickOnAir takes the first source that says he is live. Offline only needs one
@@ -138,6 +141,7 @@ func parseYouTube(page []byte, now time.Time) (OnAir, error) {
 		URL:      "https://www.youtube.com/watch?v=" + string(m[1]),
 		Since:    onAirSince(details.StartTimestamp, now),
 		id:       string(m[1]),
+		started:  details.StartTimestamp,
 	}
 	if t := ytTitle.FindSubmatch(page); t != nil {
 		o.Title = streamTitle(html.UnescapeString(string(t[1])))
@@ -248,6 +252,7 @@ func parseTwitch(p twitchPayload, now time.Time) (OnAir, error) {
 		Viewers:  compactCount(s.ViewersCount),
 		Since:    onAirSince(s.CreatedAt, now),
 		id:       s.ID,
+		started:  s.CreatedAt,
 	}
 	if s.Game != nil {
 		o.Game = strings.ToUpper(s.Game.Name)
