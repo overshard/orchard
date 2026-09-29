@@ -32,7 +32,7 @@ func isPictureAsk(message string, history []Message) bool {
 	if pictureAsk.MatchString(m) || drawVerb.MatchString(m) {
 		return true
 	}
-	return lastWasPicture(history) && len(strings.Fields(m)) <= 14 && pictureEdit.MatchString(m)
+	return lastWasPicture(history) && len(strings.Fields(m)) <= 14 && (pictureEdit.MatchString(m) || newView.MatchString(m))
 }
 
 // A fresh go at the same thing wants a new picture, not the last one changed.
