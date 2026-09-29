@@ -613,3 +613,59 @@ func TestAnotherViewIsANewPicture(t *testing.T) {
 		t.Error("a plain change stopped being one")
 	}
 }
+
+// Said about the picture or the app, not a change to it. The first went to the
+// image model as an edit because it has "fix" in it.
+func TestAComplaintIsNotAnEdit(t *testing.T) {
+	history := []Message{{Role: RoleUser, Content: "make a modern living room"},
+		{Role: RoleAssistant, Content: drewPrefix + "A modern living room."}}
+	for _, m := range []string{
+		"this didn't do anything -- remember this chat and that i nshould fix it when iget home",
+		"that didn't work",
+		"remember that I like this style",
+	} {
+		if isPictureChange(m, history) || isPictureAsk(m, history) {
+			t.Errorf("%q went to the image model", m)
+		}
+	}
+	if !isPictureChange("fix the lighting on the left", history) {
+		t.Error("a real fix stopped being a change")
+	}
+}
+
+func TestMovingTheCameraIsANewPicture(t *testing.T) {
+	history := []Message{{Role: RoleUser, Content: "make a modern living room"},
+		{Role: RoleAssistant, Content: drewPrefix + "A modern living room."}}
+	m := "can we make the image 1920x1080 and be angled up higher instead of from the ground"
+	if isPictureChange(m, history) {
+		t.Error("a camera move was read as an edit of the last picture")
+	}
+	if !isPictureAsk(m, history) {
+		t.Error("a camera move after a picture was not read as asking for one")
+	}
+	for _, v := range []string{"zoom out a bit", "a close-up of the lamp", "from eye level this time", "low angle shot"} {
+		if !newView.MatchString(v) {
+			t.Errorf("%q is not a new view", v)
+		}
+	}
+}
+
+func TestASizeHeAskedForIsTheShape(t *testing.T) {
+	for m, want := range map[string]string{
+		"can we make the image 1920x1080":  "landscape",
+		"make it 1080 x 1920 for my phone": "portrait",
+		"widescreen please":                "landscape",
+		"as a phone wallpaper":             "portrait",
+		"square it off, 1:1":               "square",
+		"make the sofa blue":               "",
+		"a portrait of a golden retriever": "",
+	} {
+		if got := askedShape(m); got != want {
+			t.Errorf("askedShape(%q) = %q, want %q", m, got, want)
+		}
+	}
+	got := withShape([]byte(`{"prompt":"a room","shape":"square"}`), "landscape")
+	if !strings.Contains(string(got), `"shape":"landscape"`) {
+		t.Errorf("withShape = %s", got)
+	}
+}

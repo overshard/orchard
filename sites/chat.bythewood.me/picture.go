@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"regexp"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -12,7 +14,7 @@ import (
 // model reads "draw me a fox" as a question about foxes and goes to Wikipedia.
 var pictureAsk = regexp.MustCompile(`(?i)^\s*(ok(ay)?|so|hey|now)?[\s,]*(please\s+)?(can you\s+|could you\s+|would you\s+)?` +
 	`(draw|paint|sketch|illustrate|render|generate|create|make|design|give me|show me)\b.{0,40}?` +
-	`\b(picture|image|drawing|painting|sketch|illustration|photo|photograph|logo|icon|wallpaper|portrait|render|art|artwork|poster|banner)s?\b`)
+	`\b(picture|image|drawing|painting|sketch|illustration|photo|photograph|logo|icon|wallpaper|portrait|render|art|artwork|poster|banner|scene)s?\b`)
 
 // Drawing verbs are unambiguous on their own, so "draw a fox" needs no noun.
 var drawVerb = regexp.MustCompile(`(?i)^\s*(ok(ay)?|so|hey|now)?[\s,]*(please\s+)?(can you\s+|could you\s+)?(draw|paint|sketch|illustrate)\b`)
@@ -32,8 +34,16 @@ func isPictureAsk(message string, history []Message) bool {
 	if pictureAsk.MatchString(m) || drawVerb.MatchString(m) {
 		return true
 	}
-	return lastWasPicture(history) && len(strings.Fields(m)) <= 14 && (pictureEdit.MatchString(m) || newView.MatchString(m))
+	if !lastWasPicture(history) || aboutIt.MatchString(m) {
+		return false
+	}
+	return newView.MatchString(m) || len(strings.Fields(m)) <= 14 && pictureEdit.MatchString(m)
 }
+
+// Something said about the picture or the app rather than a change to it. "this
+// didn't do anything, remember this chat" went to the image model as an edit,
+// since it has "fix" in it.
+var aboutIt = regexp.MustCompile(`(?i)\b(didn'?t|did not|doesn'?t|does not|wasn'?t|was not|isn'?t|is not)\s+(do|work|change|help|come out)\b|\b(remember|bug|broken|when i get home)\b|\b(this|the)\s+(chat|conversation|app)\b`)
 
 // A fresh go at the same thing wants a new picture, not the last one changed.
 var pictureAgain = regexp.MustCompile(`(?i)\b(again|another|redo|one more|different one|new one|start over)\b`)
@@ -49,7 +59,7 @@ var askingAbout = regexp.MustCompile(`(?i)^\s*(why|what|how|who|where|when|is|do
 // opposed to asking for a new one or asking about it.
 func isPictureChange(message string, history []Message) bool {
 	m := strings.TrimSpace(message)
-	if m == "" || !lastWasPicture(history) || askingAbout.MatchString(m) || wantsNewPicture(m) {
+	if m == "" || !lastWasPicture(history) || askingAbout.MatchString(m) || aboutIt.MatchString(m) || wantsNewPicture(m) {
 		return false
 	}
 	return pictureEdit.MatchString(m) || changeWord.MatchString(m)
@@ -62,7 +72,57 @@ func wantsNewPicture(m string) bool {
 
 // Another view of the same thing is a new picture. An edit keeps the framing,
 // so "from the outside" drew the same living room again.
-var newView = regexp.MustCompile(`(?i)\b(from (the )?(outside|inside|above|below|behind|the side|the front|the back|the street|the air|another angle|a different angle)|exterior|interior|aerial|bird'?s[- ]eye|(another|different|other) (angle|side|view))\b`)
+// Moving the camera is the same, since klein keeps the framing it starts from and
+// "angled up higher" came back as the same picture.
+var newView = regexp.MustCompile(`(?i)\b(from (the )?(outside|inside|above|below|behind|the side|the front|the back|the street|the air|another angle|a different angle|higher|lower|higher up|up high|eye level|the ceiling|the floor|the doorway|across the room)|exterior|interior|aerial|bird'?s[- ]eye|(another|different|other) (angle|side|view)|angled? (up|down|higher|lower)|(higher|lower|low|high|eye[- ]level|overhead|top[- ]down) (angle|view|shot|camera)|(zoom(ed)?|pull(ed)?) (out|back)|wider (shot|view|angle)|close[- ]?up)\b`)
+
+// A size or an orientation he asked for, which beats whatever shape the chat
+// model picks and whatever shape the picture being changed already has.
+var (
+	pixelSize  = regexp.MustCompile(`\b(\d{3,4})\s*(?:x|×|by)\s*(\d{3,4})\b`)
+	wideWord   = regexp.MustCompile(`(?i)\b(landscape|widescreen|wide ?screen|horizontal|16:9|desktop wallpaper|wider)\b`)
+	tallWord   = regexp.MustCompile(`(?i)\b(vertical|9:16|phone wallpaper|portrait (orientation|mode|shape))\b`)
+	squareWord = regexp.MustCompile(`(?i)\b(square|1:1)\b`)
+)
+
+// askedShape is the shape his words ask for, or empty when they ask for none.
+func askedShape(m string) string {
+	if px := pixelSize.FindStringSubmatch(m); px != nil {
+		w, _ := strconv.Atoi(px[1])
+		h, _ := strconv.Atoi(px[2])
+		switch {
+		case w > h:
+			return "landscape"
+		case h > w:
+			return "portrait"
+		default:
+			return "square"
+		}
+	}
+	switch {
+	case wideWord.MatchString(m):
+		return "landscape"
+	case tallWord.MatchString(m):
+		return "portrait"
+	case squareWord.MatchString(m):
+		return "square"
+	}
+	return ""
+}
+
+// withShape puts the shape he asked for into a call's arguments.
+func withShape(args json.RawMessage, shape string) json.RawMessage {
+	var m map[string]any
+	if shape == "" || json.Unmarshal(args, &m) != nil {
+		return args
+	}
+	m["shape"] = shape
+	out, err := json.Marshal(m)
+	if err != nil {
+		return args
+	}
+	return out
+}
 
 // A change to where the thing is rather than to the picture. Each edit of an
 // edit coarsens the fabric, so these start again from the picture he attached.
