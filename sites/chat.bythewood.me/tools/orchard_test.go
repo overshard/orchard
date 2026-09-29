@@ -364,3 +364,13 @@ func TestOrchardCodeReadsALineRange(t *testing.T) {
 		}
 	}
 }
+
+// Asked where something lives in orchard, the model passed "overshard/orchard",
+// GitHub's name for it, and every call came back as no such path.
+func TestARepoIsFoundByItsGitHubName(t *testing.T) {
+	for _, in := range []string{"orchard", "overshard/orchard", "https://github.com/overshard/orchard", "github.com/overshard/orchard.git", "/orchard/"} {
+		if got := repoName(in); got != "orchard" {
+			t.Errorf("repoName(%q) = %q", in, got)
+		}
+	}
+}

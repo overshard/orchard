@@ -195,7 +195,8 @@ var OrchardCode = Tool{
 		"rev":   str("a branch, tag or commit, optional, defaults to the default branch"),
 	}, "repo"),
 	Run: func(ctx context.Context, d *Deps, a map[string]any) (any, error) {
-		repo := strings.Trim(strings.TrimSpace(argStr(a, "repo")), "/")
+		asked := strings.Trim(strings.TrimSpace(argStr(a, "repo")), "/")
+		repo := repoName(asked)
 		if repo == "" {
 			return nil, fmt.Errorf("repo is required, and orchard_repos lists the names")
 		}
@@ -204,6 +205,9 @@ var OrchardCode = Tool{
 			rev = "HEAD"
 		}
 		path := strings.Trim(strings.TrimSpace(argStr(a, "path")), "/")
+		if path == asked || path == repo {
+			path = ""
+		}
 		query := strings.TrimSpace(argStr(a, "query"))
 		base := reposBase + "/api/repos/" + url.PathEscape(repo)
 
@@ -216,7 +220,7 @@ var OrchardCode = Tool{
 			q.Set("q", query)
 			var out map[string]any
 			err := estateGet(ctx, d, base+"/find/"+url.PathEscape(rev)+"?"+q.Encode(), &out)
-			return out, err
+			return out, noRepo(err, repo, rev)
 
 		case action == "search" || (action == "" && query != ""):
 			if query == "" {
@@ -229,7 +233,7 @@ var OrchardCode = Tool{
 			}
 			var out map[string]any
 			err := estateGet(ctx, d, base+"/grep/"+url.PathEscape(rev)+"?"+q.Encode(), &out)
-			return out, err
+			return out, noRepo(err, repo, rev)
 		}
 
 		return orchardWalk(ctx, d, base, repo, rev, path, a)
@@ -280,6 +284,25 @@ func orchardWalk(ctx context.Context, d *Deps, base, repo, rev, path string, a m
 			"action find and query %q to get its real path", repo, path, lastSegment(path))
 	}
 	return tree, nil
+}
+
+// noRepo says what a 404 from find or search means, which is a repository or a
+// revision that is not there. "no such path" sent the model looking for a path.
+func noRepo(err error, repo, rev string) error {
+	if errors.Is(err, errEstateMissing) {
+		return fmt.Errorf("there is no repository called %q at %q on repos, orchard_repos lists the names", repo, rev)
+	}
+	return err
+}
+
+// repoName is the name repos knows a repository by. The model passes GitHub's
+// owner/name, or the whole url, since that is how code is usually named.
+func repoName(raw string) string {
+	s := strings.TrimSuffix(strings.Trim(strings.TrimSpace(raw), "/"), ".git")
+	if i := strings.LastIndex(s, "/"); i >= 0 {
+		s = s[i+1:]
+	}
+	return s
 }
 
 // lastSegment is what to hand find when a path was wrong, since the file name is
