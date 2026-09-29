@@ -221,3 +221,12 @@ func TestABracketedMarkerIsOneCitation(t *testing.T) {
 		t.Errorf("got %q", got)
 	}
 }
+
+func TestTheCommaBetweenTwoMarkersGoes(t *testing.T) {
+	srcs := []Source{{N: 1, URL: "https://a.example/x", Title: "Yadkin River", Site: "a.example"},
+		{N: 11, URL: "https://b.example/y", Title: "Pee Dee River", Site: "b.example"}}
+	got := attach("It becomes the Pee Dee River south of Badin and east of Albemarle [1], [11].", srcs)
+	if got != "It becomes the Pee Dee River south of Badin and east of Albemarle.[1][11]" {
+		t.Errorf("got %q", got)
+	}
+}
