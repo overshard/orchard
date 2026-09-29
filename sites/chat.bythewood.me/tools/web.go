@@ -144,7 +144,10 @@ var WebFetch = Tool{
 		if err != nil {
 			return nil, err
 		}
-		txt := Text(string(body))
+		txt, ok := dirListing(string(body))
+		if !ok {
+			txt = Text(string(body))
+		}
 		out := map[string]any{"url": u, "text": txt, "chars": len(txt)}
 		part, cut, note := window(txt, strings.TrimSpace(argStr(a, "find")), limit)
 		out["text"] = part
@@ -162,6 +165,49 @@ var WebFetch = Tool{
 		}
 		return out, nil
 	},
+}
+
+var (
+	listingTitle = regexp.MustCompile(`(?i)<title>\s*Index of\s+([^<]*)</title>`)
+	listingRow   = regexp.MustCompile(`(?i)<a href="([^"?][^"]*)">[^<]*</a>\s+(\d{1,2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2})\s+(\d+|-)`)
+)
+
+// dirListing reads a server's index page as one row per file with its size in
+// gigabytes. Read as prose, a twelve digit byte count lost a digit on its way
+// into an answer, and 127GB became 12.7GB.
+func dirListing(h string) (string, bool) {
+	title := listingTitle.FindStringSubmatch(h)
+	if title == nil {
+		return "", false
+	}
+	rows := listingRow.FindAllStringSubmatch(h, -1)
+	if len(rows) == 0 {
+		return "", false
+	}
+	var b strings.Builder
+	b.WriteString("Index of " + strings.TrimSpace(html.UnescapeString(title[1])) + "\n")
+	b.WriteString("One file per line: name, last changed, size.\n")
+	for _, r := range rows {
+		name, _ := url.PathUnescape(r[1])
+		b.WriteString(name + " | " + r[2] + " | " + humanBytes(r[3]) + "\n")
+	}
+	return b.String(), true
+}
+
+func humanBytes(raw string) string {
+	n, err := strconv.ParseFloat(raw, 64)
+	if err != nil {
+		return raw
+	}
+	for _, u := range []struct {
+		name string
+		size float64
+	}{{"TB", 1e12}, {"GB", 1e9}, {"MB", 1e6}, {"KB", 1e3}} {
+		if n >= u.size {
+			return strconv.FormatFloat(n/u.size, 'f', 1, 64) + " " + u.name + " (" + raw + " bytes)"
+		}
+	}
+	return raw + " bytes"
 }
 
 // window is the part of a page a fetch returns: from a little before find when
