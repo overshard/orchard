@@ -350,6 +350,24 @@ func copiedTheNumbers(draft string, used []tools.Result) bool {
 	return true
 }
 
+// specFigure is a quantity with a hardware or physical unit, the kind of figure a
+// small model states with confidence and gets wrong.
+var specFigure = regexp.MustCompile(`(?i)\b(\d[\d,]*(?:\.\d+)?)\s?(?:gb/s|tb/s|mb/s|gbps|mbps|gb|tb|mb|mhz|ghz|watts|nm|tok/s|tokens/s|tflops|tops|mah|kwh|wh|mph|mpg|hp)\b`)
+
+// statesUncheckedSpecs is true for a draft written without tools that gives a
+// spec nobody in the conversation said. The model check lets these through when
+// the question reads as opinion, and the figures in an opinion are still facts.
+func statesUncheckedSpecs(draft, question string, previous []string) bool {
+	said := strings.ReplaceAll(question+"\n"+strings.Join(previous, "\n"), ",", "")
+	for _, m := range specFigure.FindAllStringSubmatch(strings.Join(outsideFences(draft), "\n"), -1) {
+		n := strings.ReplaceAll(m[1], ",", "")
+		if !regexp.MustCompile(`(^|[^\d.])` + regexp.QuoteMeta(n) + `($|[^\d])`).MatchString(said) {
+			return true
+		}
+	}
+	return false
+}
+
 // outsideFences drops fenced code, since arithmetic in an example is not a
 // claim about a total.
 func outsideFences(s string) []string {
@@ -494,6 +512,10 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 	// A draft written from memory that states specifics. The freshness check above
 	// only catches what changes over time, and the specifics that were wrong were
 	// mostly things that do not.
+	if len(used) == 0 && statesUncheckedSpecs(draft, question, previous) {
+		emit(Event{Kind: "status", Text: "checking it"})
+		return researchNudge(""), st
+	}
 	if len(used) == 0 {
 		g, gst := e.needsChecking(ctx, question, draft)
 		st.merge(gst)

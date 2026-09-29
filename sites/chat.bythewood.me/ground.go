@@ -141,6 +141,33 @@ var notASubject = map[string]bool{
 	"add": true, "update": true, "delete": true, "ignore": true,
 }
 
+// pictureReference finds the article on a real thing a picture is asked of, so
+// the prompt can describe the Monsanto House of the Future rather than a
+// kitchen the model imagines. Nothing named, nothing added.
+func (e *Engine) pictureReference(ctx context.Context, message string) (tools.Result, Message, bool) {
+	for _, q := range referenceWindows(message) {
+		args, err := json.Marshal(map[string]string{"query": q})
+		if err != nil {
+			break
+		}
+		res := e.reg.Call(ctx, e.deps, tools.Wikipedia.Name, args)
+		m, ok := res.Content.(map[string]any)
+		if res.Err != "" || !ok {
+			continue
+		}
+		title, _ := m["title"].(string)
+		summary, _ := m["summary"].(string)
+		if found, _ := m["found"].(bool); !found || strings.TrimSpace(summary) == "" || !namesTitle(title, message) {
+			continue
+		}
+		msg := Message{Role: RoleUser, Content: "He named a real thing, so here is the opening of the " + title +
+			" article from the offline Wikipedia. Use what it says about how it looks, when it was built or made " +
+			"and what it is made of in the prompt, and draw what he asked for.\n\n" + trimLine(summary, 1500)}
+		return res, msg, true
+	}
+	return tools.Result{}, Message{}, false
+}
+
 // background looks the question's subject up in the offline snapshot and returns
 // a line for the gate, or empty when there is nothing to add. Anything that goes
 // wrong returns empty, since a failure here must not change a verdict.

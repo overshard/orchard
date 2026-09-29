@@ -60,8 +60,10 @@ var Image = Tool{
 		"Call it whenever he asks for a picture, drawing, image, photo, illustration, logo, icon or wallpaper, " +
 		"or attaches a picture, or asks for a change to the last one. " +
 		"The prompt is a plain description of what should be in the picture, the subject first, then the setting, " +
-		"the style, the light and the framing, in one or two sentences. Put any words that should appear in the " +
-		"picture in quotes. " +
+		"the style, the light and the framing, in one or two sentences. Leave words, labels and signs out unless he " +
+		"asked for particular ones, since anything longer than a short title comes out garbled, and for a recipe, " +
+		"chart or infographic keep it to pictures and a title in quotes. When he wants the same thing from another " +
+		"side, outside or from above, describe what that view shows and leave out what it could not see. " +
 		"When he attached a picture it is always the starting point, and when he asks for a change to the last picture " +
 		"set change_last. Either way the image model sees that picture and you do not, so the prompt says what to do " +
 		"to it and what has to stay, like \"keep the sofa from the picture exactly as it is\". Never describe what is " +
