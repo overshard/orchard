@@ -211,3 +211,13 @@ func TestSentences(t *testing.T) {
 		t.Errorf("a code span split a sentence: %q", got)
 	}
 }
+
+// The news rundown wrapped every marker in brackets after the full stop, and
+// each came out as the citation, an empty "()", and the citation again.
+func TestABracketedMarkerIsOneCitation(t *testing.T) {
+	srcs := []Source{{N: 1, URL: "https://www.bbc.co.uk/news/x", Title: "Five men arrested in RAF Fairford incident released on police bail", Site: "bbc.co.uk"}}
+	got := attach("- **Five men arrested** in the RAF Fairford incident released on police bail. ([1])", srcs)
+	if got != "- **Five men arrested** in the RAF Fairford incident released on police bail.[1]" {
+		t.Errorf("got %q", got)
+	}
+}
