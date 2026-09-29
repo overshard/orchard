@@ -230,3 +230,20 @@ func TestTheCommaBetweenTwoMarkersGoes(t *testing.T) {
 		t.Errorf("got %q", got)
 	}
 }
+
+func TestATrailingLineOfMarkersIsDropped(t *testing.T) {
+	for _, c := range []string{
+		"Your vault was not touched.[1]\n\n[1]",
+		"It is about 150 GB.[1]\n\nSources:[1][3]",
+		"Run a second daemon.[2]\n\nSources: Tailscale Docs, Manage multiple tailnets; tailmux.app, Connect to two tailnets.[1][2]",
+	} {
+		got := dropSourceList(c)
+		if strings.Count(got, "\n") > 0 {
+			t.Errorf("dropSourceList(%q) = %q", c, got)
+		}
+	}
+	keep := "Options:\n\n- **Syncthing**, peer to peer and private.[2]"
+	if got := dropSourceList(keep); got != keep {
+		t.Errorf("a bullet ending on its citation was taken: %q", got)
+	}
+}
