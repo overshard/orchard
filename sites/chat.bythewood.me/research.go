@@ -350,6 +350,34 @@ func copiedTheNumbers(draft string, used []tools.Result) bool {
 	return true
 }
 
+// A total line an attached document prints on its own, with nothing after the
+// amount, which is what a reading of its columns has to agree with.
+var totalLine = regexp.MustCompile(`(?im)^\s*(?:grand\s+total|total(?:\s+due)?|amount\s+due|balance\s+due)\s*:?\s*\$?\s*(\d[\d,]*\.\d{2})\s*$`)
+
+// printedTotal is the last total line of the attached files, and only when he
+// asked about a total, since a statement prints several and he may want none.
+func printedTotal(question string) string {
+	files, asked, ok := strings.Cut(question, "The user's message about them:")
+	if !ok || !strings.HasPrefix(files, "The user attached ") || !totalWord.MatchString(asked) {
+		return ""
+	}
+	ms := totalLine.FindAllStringSubmatch(files, -1)
+	if len(ms) == 0 {
+		return ""
+	}
+	return strings.ReplaceAll(ms[len(ms)-1][1], ",", "")
+}
+
+func missesPrintedTotal(draft, printed string) bool {
+	return !strings.Contains(strings.ReplaceAll(draft, ",", ""), printed)
+}
+
+func totalNudge(printed string) string {
+	return "The document prints its own total, $" + printed + ", and your answer does not match it, so a column has " +
+		"been misread. On a receipt or a statement the price beside a quantity is usually already the line total. " +
+		"Read it again and answer with the total the document states."
+}
+
 // specFigure is a quantity with a hardware or physical unit, the kind of figure a
 // small model states with confidence and gets wrong.
 var specFigure = regexp.MustCompile(`(?i)\b(\d[\d,]*(?:\.\d+)?)\s?(?:gb/s|tb/s|mb/s|gbps|mbps|gb|tb|mb|mhz|ghz|watts|nm|tok/s|tokens/s|tflops|tops|mah|kwh|wh|mph|mpg|hp)\b`)
@@ -503,6 +531,10 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 	if len(used) == 0 && repeatsAnswered(draft, previous) {
 		emit(Event{Kind: "status", Text: "looking it up"})
 		return repeatNudge(), st
+	}
+	if printed := printedTotal(question); printed != "" && missesPrintedTotal(draft, printed) {
+		emit(Event{Kind: "status", Text: "checking the total"})
+		return totalNudge(printed), st
 	}
 	// Before the model check, since it costs nothing and the model check has
 	// never once objected to a wrong sum.
