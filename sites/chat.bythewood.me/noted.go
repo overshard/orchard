@@ -2,7 +2,8 @@
 //
 // The prompt already asks for remember, and a model that reads an instruction
 // as the start of a job goes looking instead and spends the round budget
-// without ever writing the note. So the other tools come off the table.
+// without ever writing the note. So the other tools come off the table, all but
+// the lookups when the note asks for one.
 package main
 
 import (
@@ -20,6 +21,12 @@ var noteOpening = regexp.MustCompile(`(?i)^\s*(ok(ay)?|so|and|also|hey)?[\s,-]*`
 // talked about the tunnel? what did we settle on" wants the history, not a new
 // fact, and forcing remember there would answer the wrong half.
 var carriesAQuestion = regexp.MustCompile(`\?|(?i)\b(can you|could you|what|why|how|when|where|which|who)\b.*\?`)
+
+// A note that also says to look something up. Left with remember alone the
+// model writes down whatever it half remembers about the thing instead.
+var asksForLookup = regexp.MustCompile(`(?i)\blook\s+(\w+\s+)?up\b|\bsearch (for|up)\b|\bfind out\b|\bresearch\b`)
+
+func wantsLookup(message string) bool { return asksForLookup.MatchString(message) }
 
 // isNote reports whether the message asks for something to be written down and
 // nothing else. Only then is it safe to take every other tool away.
