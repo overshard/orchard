@@ -275,6 +275,12 @@ for the rest, in amber, with a ring after the title where a working one has the
 dot. The thread of a waiting turn says the same number in words, counting the
 turn on the card as one ahead, so the list and the thread never disagree.
 
+**A flagged conversation says so in place of its time.** `chat` marks one he asked
+to come back to with `flagged` in amber where the time goes, the same slot `working`
+and `queued #2` use, and opens its thread on a bordered note with an amber
+`FLAGGED` label, his own words, and a `clear` button. His words are the reason for
+the flag, so they are shown as he typed them.
+
 **Notifications are a switch somebody presses.** A browser only asks for
 permission from inside a press, and a public page asking on load is a prompt
 nobody wanted, so `dash` has a `NOTIFY` readout in its rail beside `LINK` that
