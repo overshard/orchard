@@ -161,7 +161,8 @@ var Odds = Tool{
 		"A single game is listed by nicknames, like \"Lions vs. Panthers\", with the date it closes, so search " +
 		"with the nickname alone. For a sportsbook spread or over/under on a game, sports_scores has the line. " +
 		"It is not a price check and knows nothing about what a product costs, so use " +
-		"web_search for anything on sale.",
+		"web_search for anything on sale. It knows nothing about when anybody streams, posts or releases " +
+		"something either.",
 	Schema: obj(map[string]any{
 		"query": str("the event or team, like \"US Open winner\", \"government shutdown\" or \"Panthers\""),
 	}, "query"),
