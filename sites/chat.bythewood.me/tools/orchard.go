@@ -220,7 +220,19 @@ var OrchardCode = Tool{
 			q.Set("q", query)
 			var out map[string]any
 			err := estateGet(ctx, d, base+"/find/"+url.PathEscape(rev)+"?"+q.Encode(), &out)
-			return out, noRepo(err, repo, rev)
+			if err != nil {
+				return nil, noRepo(err, repo, rev)
+			}
+			// find matches file names, and the model reaches for it with the name
+			// of a constant or a function, which is in a file rather than naming one.
+			if n, _ := out["count"].(float64); n == 0 && query != "" {
+				var hits map[string]any
+				if estateGet(ctx, d, base+"/grep/"+url.PathEscape(rev)+"?"+q.Encode(), &hits) == nil {
+					hits["note"] = "No file is named that, so these are the places the text appears inside files."
+					return hits, nil
+				}
+			}
+			return out, nil
 
 		case action == "search" || (action == "" && query != ""):
 			if query == "" {
