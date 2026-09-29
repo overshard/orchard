@@ -2,6 +2,8 @@
 // over /events. Both sides render the same JSON, so the markup built here has
 // to match templates/home.html and partials.html.
 
+import { notices } from "./notify.js";
+
 const live = document.querySelector("[data-live]");
 const liveLabel = document.querySelector("[data-live-label]");
 const guardLine = document.querySelector("[data-guard-line]");
@@ -946,6 +948,8 @@ function renderStreaming(titles) {
 // before it refills. Each renderer is handed only its own slice, so comparing
 // that slice is enough to know whether the panel can be left alone.
 function render(state) {
+  // First, so a panel that throws on a frame cannot swallow a warning.
+  notices(state.notices);
   if (changed("market", state.market)) renderMarket(state.market);
   if (changed("signal", state.signal)) renderConditions(state.signal);
   if (changed("rates", state.rates)) renderRates(state.rates);

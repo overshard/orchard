@@ -268,6 +268,20 @@ number would be answering a question nobody asks: how many replies are waiting
 does not change what you do about them, and the row already says which
 conversation it was.
 
+**A turn waiting its place in line says where it is.** `chat` runs one turn at
+a time on one card, so a conversation with a turn going shows it in the list in
+place of its time, `working` for the one on the card and `next up` or `queued #2`
+for the rest, in amber, with a ring after the title where a working one has the
+dot. The thread of a waiting turn says the same number in words, counting the
+turn on the card as one ahead, so the list and the thread never disagree.
+
+**Notifications are a switch somebody presses.** A browser only asks for
+permission from inside a press, and a public page asking on load is a prompt
+nobody wanted, so `dash` has a `NOTIFY` readout in its rail beside `LINK` that
+asks the first time and opens a menu of what to be told about after that, and
+`chat` asks on the first question sent. Both keep quiet about anything the
+reader is already looking at, apart from a severe weather warning on dash.
+
 **Content width** is Bootstrap's container scale, so 1140px and then 1320px past
 a 1400px viewport. `repos` matches it with a media query rather than sitting
 narrower on a wide screen.
@@ -403,7 +417,7 @@ A reader only ever has the repo.
 | `logging` | green | Bootstrap. Dashboards run full width inside the container |
 | `auth` | green | Bootstrap. Carries the starfield on `/login`, which the grid sits under |
 | `repos` | green | Hand written CSS, no Bootstrap, since it is dense text. Newsreader on repository names |
-| `chat` | green | Hand written CSS, no Bootstrap. A conversation, so it reads at the longest length on the estate. Citation pills and a source row under each answer, and widget panels above one when a ticker or a forecast was looked up. A picture draws behind a panel listing its stages, each with a count and a guess from the last few, and replaces it once it has loaded. An unread dot on a conversation that finished a turn off screen |
-| `dash` | amber | Hand written CSS. Scanlines, vignette, JetBrains Mono and Space Grotesk |
+| `chat` | green | Hand written CSS, no Bootstrap. A conversation, so it reads at the longest length on the estate. Citation pills and a source row under each answer, and widget panels above one when a ticker or a forecast was looked up. A picture draws behind a panel listing its stages, each with a count and a guess from the last few, and replaces it once it has loaded. An unread dot on a conversation that finished a turn off screen, and the place in line of every turn still waiting |
+| `dash` | amber | Hand written CSS. Scanlines, vignette, JetBrains Mono and Space Grotesk. A `NOTIFY` switch in the rail |
 | `blog`, `isaacbythewood.com` | neither | Separate identities. Nothing here applies to them |
 

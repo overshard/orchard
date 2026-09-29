@@ -378,6 +378,19 @@ gets, so a row where the result and the move disagree by more than 1.5% is
 tagged `SOLD THE BEAT` or `BOUGHT THE MISS` and the panel says nothing else about
 the outlook.
 
+**A notice is named by the thing and never by when it was seen.** Every frame
+carries `notices`, each poller rebuilding its own kind, and the browser remembers
+which ids it has shown and counts the ones on the page at load as seen. A market
+move is its symbol, its day and its rung on a ladder, a warning is its VTEC event
+number rather than the NWS id that changes with every update, and a headline is
+its URL, which is what keeps a restart or a reconnect from notifying twice.
+
+**Nasdaq only fills in an evening report once its date has passed,** so an after
+hours print is heard about the next morning at the earliest. A quick check asks
+for today and the weekday before every quarter hour from 6am to 8pm on weekdays,
+and runs the full earnings poll only when it finds a print the last one did not
+have, since a full one is up to twenty requests.
+
 **`range=1d` for BTC-USD is the UTC day and not the last 24 hours.** It rolls at
 8pm New York, so a poll at 8:05pm came back with six bars and drew a straight
 line across the card. That is what `carrySparks` was written for, and the wider
