@@ -35,7 +35,10 @@ CREATE TABLE IF NOT EXISTS conversations (
   summary    TEXT NOT NULL DEFAULT '',
   -- How many messages the summary already covers, so compaction knows where
   -- to resume rather than summarising the same turns again.
-  summarized INTEGER NOT NULL DEFAULT 0
+  summarized INTEGER NOT NULL DEFAULT 0,
+  -- What he said when he asked for this one to be looked at again. Empty when
+  -- nothing is flagged.
+  flag       TEXT NOT NULL DEFAULT ''
 );
 CREATE TABLE IF NOT EXISTS messages (
   id      INTEGER PRIMARY KEY,
@@ -138,6 +141,7 @@ func migrate(db *sql.DB) {
 		`ALTER TABLE messages ADD COLUMN widgets TEXT NOT NULL DEFAULT '[]'`,
 		`ALTER TABLE messages ADD COLUMN steps TEXT NOT NULL DEFAULT '[]'`,
 		`ALTER TABLE image_runs ADD COLUMN model TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE conversations ADD COLUMN flag TEXT NOT NULL DEFAULT ''`,
 	} {
 		if _, err := db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column") {
 			slog.Warn("migrate", "stmt", stmt, "err", err)
@@ -199,7 +203,8 @@ func migrateIDs(db *sql.DB) {
 		`CREATE TABLE conversations_new (
 		  id TEXT PRIMARY KEY, title TEXT NOT NULL DEFAULT '',
 		  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
-		  summary TEXT NOT NULL DEFAULT '', summarized INTEGER NOT NULL DEFAULT 0)`,
+		  summary TEXT NOT NULL DEFAULT '', summarized INTEGER NOT NULL DEFAULT 0,
+		  flag TEXT NOT NULL DEFAULT '')`,
 		`CREATE TABLE messages_new (
 		  id INTEGER PRIMARY KEY,
 		  conv_id TEXT NOT NULL REFERENCES conversations_new(id) ON DELETE CASCADE,
@@ -218,7 +223,7 @@ func migrateIDs(db *sql.DB) {
 	for _, o := range old {
 		id := newID()
 		if fail("copying a conversation", run(tx,
-			`INSERT INTO conversations_new SELECT ?, title, created_at, updated_at, summary, summarized FROM conversations WHERE id=?`,
+			`INSERT INTO conversations_new SELECT ?, title, created_at, updated_at, summary, summarized, flag FROM conversations WHERE id=?`,
 			id, o)) {
 			return
 		}
@@ -280,6 +285,7 @@ type Conversation struct {
 	Preview   string    `json:"preview,omitempty"`
 	Summary   string    `json:"-"`
 	Summarize int       `json:"-"`
+	Flag      string    `json:"flag,omitempty"`
 }
 
 type Stored struct {
@@ -382,7 +388,7 @@ func (s *Store) Messages(convID string) ([]Stored, error) {
 
 func (s *Store) List(limit int) ([]Conversation, error) {
 	rows, err := s.db.Query(`
-		SELECT c.id, c.title, c.updated_at,
+		SELECT c.id, c.title, c.updated_at, c.flag,
 		       COALESCE((SELECT COALESCE(NULLIF(display, ''), content) FROM messages WHERE conv_id=c.id AND role='user' ORDER BY id LIMIT 1), '')
 		FROM conversations c
 		WHERE EXISTS (SELECT 1 FROM messages WHERE conv_id=c.id)
@@ -396,7 +402,7 @@ func (s *Store) List(limit int) ([]Conversation, error) {
 		var c Conversation
 		var up int64
 		var first string
-		if err := rows.Scan(&c.ID, &c.Title, &up, &first); err != nil {
+		if err := rows.Scan(&c.ID, &c.Title, &up, &c.Flag, &first); err != nil {
 			return nil, err
 		}
 		c.Updated = time.Unix(up, 0)
@@ -412,14 +418,21 @@ func (s *Store) List(limit int) ([]Conversation, error) {
 func (s *Store) Get(convID string) (Conversation, error) {
 	var c Conversation
 	var up int64
-	err := s.db.QueryRow(`SELECT id, title, updated_at, summary, summarized FROM conversations WHERE id=?`,
-		convID).Scan(&c.ID, &c.Title, &up, &c.Summary, &c.Summarize)
+	err := s.db.QueryRow(`SELECT id, title, updated_at, summary, summarized, flag FROM conversations WHERE id=?`,
+		convID).Scan(&c.ID, &c.Title, &up, &c.Summary, &c.Summarize, &c.Flag)
 	c.Updated = time.Unix(up, 0)
 	return c, err
 }
 
 func (s *Store) SetSummary(convID string, summary string, covered int) error {
 	_, err := s.db.Exec(`UPDATE conversations SET summary=?, summarized=? WHERE id=?`, summary, covered, convID)
+	return err
+}
+
+// SetFlag marks a conversation to come back to, with what he said about it.
+// An empty note clears it.
+func (s *Store) SetFlag(convID, note string) error {
+	_, err := s.db.Exec(`UPDATE conversations SET flag=? WHERE id=?`, trimLine(note, 300), convID)
 	return err
 }
 
