@@ -8,17 +8,16 @@ import (
 	"strings"
 )
 
-// leagues maps a name to ESPN's path. site.api.espn.com is what every write-up
-// points at and it answers 403, while cdn.espn.com is what espn.com itself calls
-// and serves the same data to anyone. Soccer is a query parameter rather than a
-// path, and the wrong shape answers 200 with no events.
+// leagues maps a name to ESPN's sport and league. The scoreboard is read off
+// site.api.espn.com, since the cdn.espn.com pages espn.com itself used started
+// redirecting and then 404ing.
 var leagues = map[string]string{
 	"nfl": "football/nfl", "college-football": "football/college-football",
 	"nba": "basketball/nba", "wnba": "basketball/wnba", "mlb": "baseball/mlb",
-	"nhl": "hockey/nhl", "tennis": "tennis", "golf": "golf",
+	"nhl": "hockey/nhl", "tennis": "tennis/atp", "golf": "golf/pga",
 	"nascar": "racing/nascar-premier", "f1": "racing/f1",
-	"epl": "soccer?league=eng.1", "mls": "soccer?league=usa.1",
-	"champions-league": "soccer?league=uefa.champions",
+	"epl": "soccer/eng.1", "mls": "soccer/usa.1",
+	"champions-league": "soccer/uefa.champions",
 }
 
 var SportsScores = Tool{
@@ -39,25 +38,13 @@ var SportsScores = Tool{
 			}
 			return nil, fmt.Errorf("no league called %q, known: %s", key, strings.Join(names, ", "))
 		}
-		sep := "?"
-		if strings.Contains(path, "?") {
-			sep = "&"
-		}
 		var raw struct {
-			Content struct {
-				SBData struct {
-					Events json.RawMessage `json:"events"`
-				} `json:"sbData"`
-				Events json.RawMessage `json:"events"`
-			} `json:"content"`
+			Events json.RawMessage `json:"events"`
 		}
-		if err := getJSON(ctx, d, "https://cdn.espn.com/core/"+path+sep+"xhr=1", &raw); err != nil {
+		if err := getJSON(ctx, d, "https://site.api.espn.com/apis/site/v2/sports/"+path+"/scoreboard", &raw); err != nil {
 			return nil, fmt.Errorf("%w (try web_search for the scores)", err)
 		}
-		blob := raw.Content.SBData.Events
-		if len(blob) == 0 {
-			blob = raw.Content.Events
-		}
+		blob := raw.Events
 		var evs []struct {
 			Name      string `json:"name"`
 			ShortName string `json:"shortName"`
