@@ -43,11 +43,22 @@ type Alert struct {
 	Starts    string `json:"starts"`
 	Until     string `json:"until"`
 	UntilUnix int64  `json:"until_unix"`
+
+	// Which event this is across the updates the NWS issues for it, what it
+	// is called in words rather than caps, and whether it is a cancellation.
+	key    string
+	name   string
+	cancel bool
 }
 
 type alertPayload struct {
 	Features []struct {
 		Properties struct {
+			ID          string `json:"id"`
+			MessageType string `json:"messageType"`
+			Parameters  struct {
+				VTEC []string `json:"VTEC"`
+			} `json:"parameters"`
 			Event     string `json:"event"`
 			Severity  string `json:"severity"`
 			Urgency   string `json:"urgency"`
@@ -122,6 +133,20 @@ func alertArea(desc string) string {
 	return fmt.Sprintf("%s +%d", lead, len(names)-1)
 }
 
+// alertKey names one event across every update the NWS issues for it. A warning
+// is reissued with a new id each time it is continued or extended, but its VTEC
+// string keeps the office, the phenomenon and the event number, so that is the
+// key, and only an alert with no VTEC at all falls back to its own id.
+func alertKey(vtec []string, id string) string {
+	for _, v := range vtec {
+		f := strings.Split(strings.Trim(v, "/"), ".")
+		if len(f) >= 6 {
+			return strings.Join(f[2:6], ".")
+		}
+	}
+	return id
+}
+
 func fetchAlerts(ctx context.Context, g *Guard) ([]Alert, error) {
 	url := fmt.Sprintf(alertsURL, weatherLat, weatherLon)
 
@@ -146,6 +171,9 @@ func fetchAlerts(ctx context.Context, g *Guard) ([]Alert, error) {
 			Area:     alertArea(p.AreaDesc),
 			Office:   alertOffice(p.Headline),
 			Headline: alertHeadline(p.Event, p.Headline),
+			key:      alertKey(p.Parameters.VTEC, p.ID),
+			name:     strings.TrimSpace(p.Event),
+			cancel:   p.MessageType == "Cancel",
 		}
 
 		ends := p.Ends

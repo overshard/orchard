@@ -326,6 +326,8 @@ type Market struct {
 	// what the market is doing. The S&P while the session is open and bitcoin
 	// once it shuts, since bitcoin is the one on this page that never stops.
 	Ticker string `json:"ticker"`
+
+	notices []Notice
 }
 
 // stripRow is one card between picking its symbol and drawing it, which takes two
@@ -511,6 +513,7 @@ func buildMarket(quotes map[string]Quote, now time.Time) Market {
 	}
 
 	m.Ticker = tabTicker(m)
+	m.notices = moveNotices(rows, session)
 
 	// Drawdown from the 52 week high, which is the number Isaac acts on. It is
 	// the 52 week high and not the all time high because that is what the same

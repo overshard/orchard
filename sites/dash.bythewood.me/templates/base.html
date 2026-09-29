@@ -62,6 +62,19 @@
       <span class="readout-key">DATE</span>
       <span class="readout-val" data-clock-date>----</span>
     </div>
+    <div class="readout notify" data-notify data-state="off" hidden>
+      <button type="button" class="notify-btn" data-notify-button aria-haspopup="true" aria-expanded="false" aria-controls="notify-menu">
+        <span class="readout-key">NOTIFY</span>
+        <span class="readout-val"><span class="pip"></span><span data-notify-label>OFF</span></span>
+      </button>
+      <div class="notify-menu" id="notify-menu" data-notify-menu hidden>
+        <label><input type="checkbox" value="market"> MARKET MOVES</label>
+        <label><input type="checkbox" value="weather"> SEVERE WEATHER</label>
+        <label><input type="checkbox" value="earnings"> EARNINGS</label>
+        <label><input type="checkbox" value="news"> HEADLINES</label>
+        <p>WHILE THIS TAB IS OPEN</p>
+      </div>
+    </div>
     <div class="readout link" data-live data-state="connecting">
       <span class="readout-key">LINK</span>
       <span class="readout-val"><span class="pip"></span><span data-live-label>INIT</span></span>
