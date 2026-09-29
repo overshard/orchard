@@ -130,6 +130,9 @@ type Stats struct {
 	Completion int     `json:"completion_tokens"`
 	Decode     float64 `json:"decode_tps"`
 	Prefill    float64 `json:"prefill_tps"`
+	// The reply stopped at max_tokens, which is how a tool call arrives with
+	// its arguments half written. It belongs to one call and is never merged.
+	Truncated bool `json:"-"`
 }
 
 func (s *Stats) merge(o Stats) {
@@ -188,6 +191,7 @@ func (l *LLM) complete(ctx context.Context, msgs []Message, schemas []map[string
 		return Message{}, Stats{}, fmt.Errorf("the model returned no choices")
 	}
 	st := statsOf(out)
+	st.Truncated = out.Choices[0].FinishReason == "length"
 	c := out.Choices[0].Message
 	// Empty content beside a full chain of thought means enable_thinking did
 	// not take. Loud is better than a blank bubble.
@@ -522,7 +526,8 @@ func (l *LLM) Unload(ctx context.Context) error {
 
 // modelError carries the reason back rather than the number. A bare "the model
 // answered 500" is unactionable, and the body always says whether it was the
-// context, the template or the request.
+// context, the template or the request. It is trimmed since llama.cpp quotes
+// the input it choked on, which can be kilobytes, and the page shows this.
 func modelError(status int, body io.Reader) error {
 	raw, _ := io.ReadAll(io.LimitReader(body, 32<<10))
 	var e struct {
@@ -531,7 +536,7 @@ func modelError(status int, body io.Reader) error {
 		} `json:"error"`
 	}
 	if json.Unmarshal(raw, &e) == nil && strings.TrimSpace(e.Error.Message) != "" {
-		return fmt.Errorf("the model refused this turn: %s", strings.TrimSpace(e.Error.Message))
+		return fmt.Errorf("the model refused this turn: %s", trimLine(e.Error.Message, 300))
 	}
 	if txt := strings.TrimSpace(string(raw)); txt != "" {
 		return fmt.Errorf("the model answered %d: %s", status, trimLine(txt, 300))

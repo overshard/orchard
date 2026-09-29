@@ -338,14 +338,18 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	// and this is what makes it an instruction rather than a request.
 	forceTools := false
 
-	// A message that only asks for something to be written down gets one tool and
-	// is made to use it. Left with all of them it reads the note as a job and goes
-	// looking instead.
+	// A message that only asks for something to be written down gets remember,
+	// and the two lookups when it says to look something up, and is made to call
+	// one. Left with all of them it reads the note as a job and goes looking.
 	if isNote(user) {
-		schemas = tools.Only(schemas, tools.Remember.Name)
+		offered, out := []string{tools.Remember.Name}, "offered remember and nothing else"
+		if wantsLookup(user) {
+			offered = append(offered, tools.Wikipedia.Name, tools.WebSearch.Name)
+			out = "offered remember, wikipedia and web_search, since it asked for a lookup"
+		}
+		schemas = tools.Only(schemas, offered...)
 		forceTools = true
-		tr.Add(Step{Kind: "memory", Label: "read as a note to write down",
-			In: user, Out: "offered remember and nothing else"})
+		tr.Add(Step{Kind: "memory", Label: "read as a note to write down", In: user, Out: out})
 	}
 
 	if picture {
@@ -408,14 +412,20 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		if forcedThisRound {
 			on += ", and it was made to call one"
 		}
+		meta := itoa(st.Prompt) + " tokens in, " + itoa(st.Completion) + " out"
+		if st.Truncated {
+			meta += ", cut off at the token limit"
+		}
 		tr.Add(Step{Kind: "model", Label: "round " + itoa(round+1) + ", decide",
 			In:  on,
 			Out: decision(reply), MS: time.Since(roundStart).Milliseconds(), Bad: err != nil,
-			Meta: itoa(st.Prompt) + " tokens in, " + itoa(st.Completion) + " out"})
-		// A tool call cut off by the token budget arrives as unparseable JSON and
-		// llama.cpp refuses the whole request. Asking again with the tools off is
-		// always answerable, since by then it has whatever the earlier rounds got.
+			Meta: meta})
+		// llama.cpp refuses a whole request when any call in it has arguments
+		// that do not parse. Asking again with the tools off is always answerable,
+		// since by then it has whatever the earlier rounds got, but only once
+		// those calls are out, or it is the same request.
 		if err != nil && isTruncatedToolCall(err) {
+			msgs = withoutBrokenCalls(msgs)
 			emit(Event{Kind: "status", Text: "answering"})
 			reply, st, err = e.llm.CompleteStats(ctx, msgs, nil, toolTurnTokens)
 			stats.merge(st)
@@ -425,6 +435,31 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		}
 		if err != nil {
 			return Message{}, used, nil, deps.Widgets.List(), stats, err
+		}
+		// A call cut off at the token limit never goes into the conversation,
+		// since the next request carrying it would be refused.
+		kept, cut := wholeCalls(reply.ToolCalls)
+		reply.ToolCalls = kept
+		if cut > 0 {
+			label := "dropped a tool call that never finished"
+			if cut > 1 {
+				label = "dropped " + itoa(cut) + " tool calls that never finished"
+			}
+			why := "its arguments were not valid JSON"
+			if st.Truncated {
+				why = "the reply was cut off at the token limit partway through its arguments"
+			}
+			tr.Add(Step{Kind: "model", Label: label, Out: why, Bad: true})
+			// Nothing ran and nothing was said, which is a round that failed.
+			if len(reply.ToolCalls) == 0 && strings.TrimSpace(reply.Content) == "" {
+				msgs = append(msgs, Message{Role: RoleUser, Content: cutCallNote(cut)})
+				forceTools = forcedThisRound
+				if grace > 0 {
+					grace--
+					budget++
+				}
+				continue
+			}
 		}
 		if len(reply.ToolCalls) == 0 {
 			// A model sometimes writes its tool call syntax as ordinary text,
@@ -537,6 +572,9 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 				id = tc.Function.Name
 			}
 			msgs = append(msgs, Message{Role: RoleTool, ToolCallID: id, Name: res.Name, Content: string(body)})
+		}
+		if cut > 0 {
+			msgs = append(msgs, Message{Role: RoleUser, Content: cutCallNote(cut)})
 		}
 		if drawn != nil {
 			text := pictureReply(*drawn)
@@ -798,6 +836,74 @@ func isTruncatedToolCall(err error) bool {
 	}
 	m := strings.ToLower(err.Error())
 	return strings.Contains(m, "tool call") && strings.Contains(m, "parse")
+}
+
+// wholeArgs is a call's arguments as llama.cpp will take them back in the next
+// request, which parses every one, so empty becomes {} and garbage is false.
+func wholeArgs(raw string) (string, bool) {
+	if strings.TrimSpace(raw) == "" {
+		return "{}", true
+	}
+	return raw, json.Valid([]byte(raw))
+}
+
+// wholeCalls keeps the calls whose arguments parse and counts the rest, which
+// is what a call cut off at the token limit looks like.
+func wholeCalls(calls []ToolCall) (kept []ToolCall, cut int) {
+	for _, tc := range calls {
+		args, ok := wholeArgs(tc.Function.Arguments)
+		if !ok {
+			cut++
+			continue
+		}
+		tc.Function.Arguments = args
+		kept = append(kept, tc)
+	}
+	return kept, cut
+}
+
+// withoutBrokenCalls takes every call whose arguments do not parse out of a
+// conversation, with the results that answer it, and leaves msgs as it was.
+func withoutBrokenCalls(msgs []Message) []Message {
+	broken := map[string]bool{}
+	out := make([]Message, 0, len(msgs))
+	for _, m := range msgs {
+		if m.Role == RoleTool && broken[m.ToolCallID] {
+			continue
+		}
+		if m.Role == RoleAssistant && len(m.ToolCalls) > 0 {
+			var kept []ToolCall
+			for _, tc := range m.ToolCalls {
+				if _, ok := wholeArgs(tc.Function.Arguments); ok {
+					kept = append(kept, tc)
+					continue
+				}
+				// A result is filed under the tool's name when the call had no id.
+				id := tc.ID
+				if id == "" {
+					id = tc.Function.Name
+				}
+				broken[id] = true
+			}
+			if len(kept) == 0 && strings.TrimSpace(m.Content) == "" {
+				continue
+			}
+			m.ToolCalls = kept
+		}
+		out = append(out, m)
+	}
+	return out
+}
+
+// cutCallNote tells the model a call it made never ran, or it reads the silence
+// as done and says so.
+func cutCallNote(cut int) string {
+	calls := "One of your tool calls was"
+	if cut > 1 {
+		calls = itoa(cut) + " of your tool calls were"
+	}
+	return calls + " cut off at the token limit before the arguments were finished and dropped without running. " +
+		"Make it again if it is still needed, and keep the arguments short."
 }
 
 // drained returns the widgets a sink has gained since it was last read. The
