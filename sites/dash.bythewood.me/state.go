@@ -32,6 +32,10 @@ type State struct {
 	Feeds     []Feed       `json:"feeds"`
 	Updated   string       `json:"updated"`
 	Guarded   []string     `json:"guarded"`
+
+	// What a browser with notifications on is told about, rebuilt by each
+	// poller from what it just fetched.
+	Notices []Notice `json:"notices"`
 }
 
 // Store holds the latest of everything and hands out snapshots. Each poller
@@ -160,6 +164,11 @@ const (
 
 	marketIdle = 5 * time.Minute
 	newsEvery  = 5 * time.Minute
+
+	// The check between full earnings polls, which only asks whether anything
+	// has printed since the last one, so a report is heard about within the
+	// quarter hour rather than up to six hours later.
+	reportsEvery = 15 * time.Minute
 )
 
 // Prime fetches what the first page render needs, synchronously, before the
@@ -194,6 +203,7 @@ func (s *Store) Run(ctx context.Context, g *Guard) {
 	go s.loop(ctx, "signal", nil, func() { s.refreshSignal(ctx, g) })
 	go s.loop(ctx, "board", nil, func() { s.refreshBoard(ctx, g) })
 	go s.loop(ctx, "earnings", nil, func() { s.refreshEarnings(ctx, g) })
+	go s.loop(ctx, "reports", nil, func() { s.refreshReports(ctx, g) })
 	go s.loop(ctx, "alerts", nil, func() { s.refreshAlerts(ctx, g) })
 	go s.loop(ctx, "air", nil, func() { s.refreshAir(ctx, g) })
 	go s.loop(ctx, "outdoors", nil, func() { s.refreshOutlook(ctx, g) })
@@ -239,6 +249,7 @@ func (s *Store) loop(ctx context.Context, name string, every func() time.Duratio
 		"signal":    signalEvery,
 		"board":     boardEvery,
 		"earnings":  earningsEvery,
+		"reports":   reportsEvery,
 		"alerts":    alertsEvery,
 		"air":       airEvery,
 		"outdoors":  outdoorsEvery,
@@ -308,6 +319,7 @@ func (s *Store) refreshMarket(ctx context.Context, g *Guard) {
 	s.update(func(st *State) {
 		st.Market = m
 		st.Signal = sig
+		st.setNotices("market", m.notices)
 	})
 }
 
@@ -346,7 +358,33 @@ func (s *Store) refreshEarnings(ctx context.Context, g *Guard) {
 		slog.Warn("earnings poll failed", slog.String("component", "earnings"), slog.Any("err", err))
 		return
 	}
-	s.update(func(st *State) { st.Earnings = rows })
+	s.update(func(st *State) {
+		st.Earnings = rows
+		st.setNotices("earnings", earningsNotices(rows.recent))
+	})
+}
+
+// refreshReports asks whether anything has printed since the last full poll,
+// which costs two calendar requests and not the twenty a full one can, and runs
+// the full one only when something has. Reports land before the open and after
+// the close, so it only asks across those hours on a weekday.
+func (s *Store) refreshReports(ctx context.Context, g *Guard) {
+	now := time.Now().In(easternTime())
+	e := s.Snapshot().Earnings
+	if e.caps == nil || !reportingHours(now) {
+		return
+	}
+	day := func(d time.Time) ([]Earning, bool) { return earningsDay(ctx, g, d, now, e.caps) }
+	if newReports(recentReports(day, now), e.recent) {
+		s.refreshEarnings(ctx, g)
+	}
+}
+
+func reportingHours(t time.Time) bool {
+	if wd := t.Weekday(); wd == time.Saturday || wd == time.Sunday {
+		return false
+	}
+	return t.Hour() >= 6 && t.Hour() < 20
 }
 
 // An empty alert list is a result, not a failure, so this writes it: the panel
@@ -357,7 +395,10 @@ func (s *Store) refreshAlerts(ctx context.Context, g *Guard) {
 		slog.Warn("alerts poll failed", slog.String("component", "local"), slog.Any("err", err))
 		return
 	}
-	s.update(func(st *State) { st.Alerts = alerts })
+	s.update(func(st *State) {
+		st.Alerts = alerts
+		st.setNotices("weather", alertNotices(alerts))
+	})
 }
 
 func (s *Store) refreshAir(ctx context.Context, g *Guard) {
@@ -419,7 +460,10 @@ func (s *Store) refreshWire(ctx context.Context, g *Guard) {
 		slog.Warn("wire poll failed", slog.String("component", "wire"), slog.Any("err", err))
 		return
 	}
-	s.update(func(st *State) { st.Wire = wire })
+	s.update(func(st *State) {
+		st.Wire = wire
+		st.setNotices("news", wireNotices(wire, time.Now()))
+	})
 }
 
 func (s *Store) refreshNews(ctx context.Context, g *Guard) {

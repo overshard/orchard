@@ -49,6 +49,8 @@ type Headline struct {
 	URL    string `json:"url"`
 	Source string `json:"source"`
 	Age    string `json:"age"`
+
+	posted time.Time
 }
 
 type rssFeed struct {
@@ -112,6 +114,7 @@ func fetchWire(ctx context.Context, g *Guard, now time.Time) ([]Headline, error)
 					URL:    it.Link,
 					Source: feed.name,
 					Age:    humanAge(at, now),
+					posted: at,
 				},
 				at: at,
 			})

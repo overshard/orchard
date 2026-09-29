@@ -71,12 +71,22 @@ type Earning struct {
 	// guidance, so this is as close as the panel gets to saying why a company
 	// that beat still closed down.
 	Note string `json:"note"`
+
+	// The New York date it was reported on, which the label stops saying once
+	// it is more than a day old.
+	date string
 }
 
 // Earnings is the panel: what has printed and what is coming.
 type Earnings struct {
 	Reported []Earning `json:"reported"`
 	Upcoming []Earning `json:"upcoming"`
+
+	// Every index name that printed today or on the weekday before, which the
+	// panel's three rows can leave out on a busy morning, and the caps list the
+	// quick check between full polls filters against.
+	recent []Earning
+	caps   map[string]float64
 }
 
 func (e Earnings) empty() bool { return len(e.Reported) == 0 && len(e.Upcoming) == 0 }
@@ -113,16 +123,28 @@ func fetchEarnings(ctx context.Context, g *Guard, now time.Time) (Earnings, erro
 		return Earnings{}, err
 	}
 
-	var out Earnings
+	out := Earnings{caps: caps}
 	today := now.In(easternTime())
 
 	// Both walks start on today. Nasdaq stops supplying the time of day once a
 	// date is in the past and only fills in the actual EPS then too, so the
 	// presence of that figure is what sorts a row into one half or the other,
 	// and a company reporting tonight is upcoming until its number lands.
-	day := func(d time.Time) ([]Earning, bool) { return earningsDay(ctx, g, d, today, caps) }
+	fetched := map[string][]Earning{}
+	day := func(d time.Time) ([]Earning, bool) {
+		k := d.Format("2006-01-02")
+		if rows, ok := fetched[k]; ok {
+			return rows, true
+		}
+		rows, ok := earningsDay(ctx, g, d, today, caps)
+		if ok {
+			fetched[k] = rows
+		}
+		return rows, ok
+	}
 	out.Reported = walkEarnings(day, today, -1, earningsBackDays, reportedRow)
 	out.Upcoming = walkEarnings(day, today, 1, earningsNextDays, upcomingRow)
+	out.recent = recentReports(day, today)
 
 	// Today's pre-market names land in Reported ahead of yesterday's, and the
 	// walk visits days newest first, so the halves are already in the order they
@@ -161,6 +183,44 @@ func walkEarnings(day func(time.Time) ([]Earning, bool), today time.Time, step, 
 	return out
 }
 
+// recentReports is every index name that printed today or on the weekday
+// before. Nasdaq only fills in an evening report once its date is past, so last
+// night's are still arriving this morning.
+func recentReports(day func(time.Time) ([]Earning, bool), today time.Time) []Earning {
+	var out []Earning
+	for _, d := range []time.Time{today, lastWeekday(today)} {
+		rows, _ := day(d)
+		for _, r := range rows {
+			if reportedRow(r) {
+				out = append(out, r)
+			}
+		}
+	}
+	return out
+}
+
+func lastWeekday(t time.Time) time.Time {
+	d := t.AddDate(0, 0, -1)
+	for d.Weekday() == time.Saturday || d.Weekday() == time.Sunday {
+		d = d.AddDate(0, 0, -1)
+	}
+	return d
+}
+
+// newReports is whether a check found a print the last full poll did not have.
+func newReports(fresh, known []Earning) bool {
+	seen := map[string]bool{}
+	for _, r := range known {
+		seen[r.Symbol+r.date] = true
+	}
+	for _, r := range fresh {
+		if !seen[r.Symbol+r.date] {
+			return true
+		}
+	}
+	return false
+}
+
 // earningsDay is one calendar day filtered to the index names, largest first.
 // The false return is a day that could not be fetched, which costs its own rows
 // rather than the panel.
@@ -187,6 +247,7 @@ func earningsDay(ctx context.Context, g *Guard, day, today time.Time, caps map[s
 			Name:   trimCompany(r.Name),
 			Day:    label,
 			When:   whenLabel(r.Time),
+			date:   day.Format("2006-01-02"),
 		}
 
 		actual, hasActual := parseEPS(r.EPS)
