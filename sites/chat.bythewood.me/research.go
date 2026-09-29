@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"regexp"
 	"strings"
+	"time"
 
 	"chat.bythewood.me/tools"
 )
@@ -510,6 +511,18 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 	// this catches is a draft that sounds like an answer. A turn that already
 	// fetched something is left alone.
 	var st Stats
+	// A remark about the last answer gets a remark back. Sent to research, "that's
+	// pretty major is it not?" became three more searches and a longer rewrite
+	// of the answer he was reacting to.
+	if len(used) == 0 && isRemark(question, previous) {
+		if isDeferral(draft) {
+			return researchNudge(""), st
+		}
+		if remarkAddsFacts(draft, question, previous, e.now()) {
+			return remarkNudge, st
+		}
+		return "", st
+	}
 	if len(used) == 0 {
 		f, fst := e.needsFresh(ctx, question)
 		st.merge(fst)
@@ -548,6 +561,15 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 	if len(used) == 0 && statesUncheckedSpecs(draft, question, previous) {
 		emit(Event{Kind: "status", Text: "checking it"})
 		return researchNudge(""), st
+	}
+	// Names and years a turn that looked things up never found. The Caveat draft
+	// dated a 2020 horror film to 1969 and cast it from memory, with the search
+	// result saying 2020 sitting right there, and the model check let it go.
+	if len(used) > 0 && !calledTool(used, tools.PropertyTool.Name) {
+		if missing := unsupported(draft, question, previous, used, e.now()); len(missing) > 0 {
+			emit(Event{Kind: "status", Text: "checking it"})
+			return unsupportedNudge(missing), st
+		}
 	}
 	if len(used) == 0 {
 		g, gst := e.needsChecking(ctx, question, draft)
@@ -626,3 +648,123 @@ func calledTool(used []tools.Result, name string) bool {
 	}
 	return false
 }
+
+// A follow up that reacts to the last answer rather than asking for anything.
+var (
+	remarkShape = regexp.MustCompile(`(?i)\b(in my opinion|i think|i feel|seems?|tempting|pretty (major|big|bad|good|wild|crazy|cool)|is it not|isn'?t it|lol|haha|not that (big|much|bad)|makes sense|fair enough|interesting|wild|crazy)\b|^\s*(hm+|oh+|ah+|wow|yeah|ok(ay)?|nice|cool|huh)\b`)
+	askingFor   = regexp.MustCompile(`(?i)\b(what|when|where|who|which|why|how (much|many|long|big|do|does|did|can|would|is|are)|can (i|you|we)|could (i|you|we)|should (i|we)|is there|are there|tell me|show me|find|look up|search)\b`)
+)
+
+func isRemark(question string, previous []string) bool {
+	q := strings.TrimSpace(question)
+	return len(previous) > 0 && remarkShape.MatchString(q) && !askingFor.MatchString(q)
+}
+
+var (
+	yearWord = regexp.MustCompile(`\b(1[5-9]\d\d|20\d\d)\b`)
+	// Two to four capitalised words in a row, which is how a person, a film or
+	// a company is written.
+	properName = regexp.MustCompile(`\b([A-Z][a-z]+(?:[\s-]+(?:[A-Z]\.\s*)?[A-Z][a-z]+){1,3})\b`)
+)
+
+// Capitalised because they open a sentence or a label, not because they name
+// anybody.
+var nameOpeners = map[string]bool{
+	"The": true, "This": true, "That": true, "These": true, "Those": true, "It": true, "Its": true,
+	"A": true, "An": true, "In": true, "On": true, "At": true, "For": true, "From": true, "With": true,
+	"Your": true, "You": true, "If": true, "When": true, "What": true, "Why": true, "How": true,
+	"Yes": true, "No": true, "So": true, "But": true, "And": true, "Or": true, "One": true, "Two": true,
+	"Both": true, "Each": true, "Every": true, "Some": true, "Most": true, "All": true, "There": true,
+	"Here": true, "He": true, "She": true, "They": true, "We": true, "I": true, "My": true, "Our": true,
+	"Monday": true, "Tuesday": true, "Wednesday": true, "Thursday": true, "Friday": true,
+	"Saturday": true, "Sunday": true, "Today": true, "Tomorrow": true,
+}
+
+// unsupported lists the years and names in a draft that nothing in the turn
+// said. A year on its own is enough, since a wrong one is the commonest thing
+// a small model invents, and names need two, since one is often a paraphrase.
+func unsupported(draft, question string, previous []string, used []tools.Result, now time.Time) []string {
+	var hay strings.Builder
+	hay.WriteString(question)
+	hay.WriteString("\n")
+	hay.WriteString(strings.Join(previous, "\n"))
+	hay.WriteString("\n" + now.Format("2006"))
+	for _, r := range used {
+		if r.Err != "" {
+			continue
+		}
+		b, err := json.Marshal(r.Content)
+		if err == nil {
+			hay.Write(b)
+			hay.WriteByte('\n')
+		}
+	}
+	h := strings.ToLower(hay.String())
+	text := strings.Join(outsideFences(citeNum.ReplaceAllString(draft, " ")), "\n")
+
+	var years, names []string
+	seen := map[string]bool{}
+	for _, y := range yearWord.FindAllString(text, -1) {
+		if !seen[y] && !strings.Contains(h, y) {
+			years = append(years, y)
+		}
+		seen[y] = true
+	}
+	for _, m := range properName.FindAllString(text, -1) {
+		words := strings.Fields(strings.ReplaceAll(m, "-", " "))
+		if nameOpeners[words[0]] {
+			words = words[1:]
+		}
+		if len(words) < 2 {
+			continue
+		}
+		name := strings.Join(words, " ")
+		if seen[name] {
+			continue
+		}
+		seen[name] = true
+		// A surname on its own in the results is the same person.
+		if strings.Contains(h, strings.ToLower(name)) || strings.Contains(h, strings.ToLower(words[len(words)-1])) {
+			continue
+		}
+		names = append(names, name)
+	}
+	if len(names) < 2 {
+		names = nil
+	}
+	if len(years) == 0 && len(names) == 0 {
+		return nil
+	}
+	return append(years, names...)
+}
+
+func unsupportedNudge(missing []string) string {
+	return "Your draft gives " + strings.Join(missing, ", ") + ", and nothing looked up in this turn says so. " +
+		"Look the subject up again under the name he used and answer from what the results say, " +
+		"leaving out anything they do not support."
+}
+
+// A reply to a remark that brings figures or names nothing in the conversation
+// had. Let straight through, "that's pretty major" got a 93 minutes and 33
+// seconds and a config file that do not exist.
+func remarkAddsFacts(draft, question string, previous []string, now time.Time) bool {
+	if len(unsupported(draft, question, previous, nil, now)) > 0 {
+		return true
+	}
+	said := strings.ReplaceAll(question+"\n"+strings.Join(previous, "\n"), ",", "")
+	for _, n := range figure.FindAllString(strings.Join(outsideFences(citeNum.ReplaceAllString(draft, " ")), "\n"), -1) {
+		n = strings.ReplaceAll(n, ",", "")
+		if !regexp.MustCompile(`(^|[^\d.])` + regexp.QuoteMeta(n) + `($|[^\d])`).MatchString(said) {
+			return true
+		}
+	}
+	return false
+}
+
+// A number worth checking, two digits or more or a decimal, since "2 things"
+// and "one of 3" are how people talk.
+var figure = regexp.MustCompile(`\d[\d,]*\.\d+|\d{2,}[\d,]*`)
+
+// Sent back without a tool demanded, since the fix is saying less.
+const remarkNudge = "He is reacting to your last answer, not asking for more. Reply to that in two or three sentences, " +
+	"using only what this conversation already says, and add no new figures, names or dates."
