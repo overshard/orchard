@@ -148,6 +148,10 @@ var citeMark = regexp.MustCompile(`\[(\d{1,3})\]`)
 // of it, so it moves inside before anything is split.
 var markAfterStop = regexp.MustCompile(`([.!?:])((?:\s*\[\d{1,3}\])+)`)
 
+// A marker the model wrapped in brackets, "([1])", split off as a sentence of
+// its own and left "()" behind it on the page.
+var bracketedMarks = regexp.MustCompile(`\(\s*((?:\[\d{1,3}\][\s,]*)+)\)`)
+
 // attach repairs the citations in a block of markdown. A number with no source
 // behind it is dropped, a sentence that cites nothing is matched against what
 // the turn read, and every marker ends up in the same place.
@@ -182,6 +186,7 @@ func citeLine(line string, srcs []Source, known map[int]bool) string {
 	if item, ok := listItem(body); ok {
 		marker, body = body[:len(body)-len(item)], item
 	}
+	body = bracketedMarks.ReplaceAllString(body, "$1")
 	body = markAfterStop.ReplaceAllString(body, "$2$1")
 
 	var out []string
