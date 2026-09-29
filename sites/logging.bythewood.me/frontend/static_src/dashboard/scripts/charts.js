@@ -69,8 +69,8 @@ if (volume && volumeCanvas) {
         {
           label: "errors",
           data: volume.map((p) => p.errors),
-          borderColor: terracotta,
-          backgroundColor: withAlpha(terracotta, 0.35),
+          borderColor: status.bad,
+          backgroundColor: withAlpha(status.bad, 0.35),
           borderWidth: 1.5,
           fill: "origin",
           pointRadius: 0,
@@ -81,8 +81,8 @@ if (volume && volumeCanvas) {
         {
           label: "other records",
           data: volume.map((p) => Math.max(0, p.count - p.errors)),
-          borderColor: green,
-          backgroundColor: withAlpha(green, 0.18),
+          borderColor: status.good,
+          backgroundColor: withAlpha(status.good, 0.18),
           borderWidth: 1.5,
           fill: "-1",
           pointRadius: 0,
