@@ -75,6 +75,34 @@ func TestRelevantIgnoresWordsThatMatchEverything(t *testing.T) {
 	}
 }
 
+// A long message shares a word with almost anything, so one in common is chance.
+// These are real questions and the facts each one pulled in by a single word.
+func TestALongQuestionNeedsTwoWordsInCommon(t *testing.T) {
+	s := memStore(t)
+	for _, f := range []string{
+		"Isaac dislikes super-processed, pre-cooked food and prefers simple, whole ingredients seasoned with spices.",
+		"Isaac packs a warm layer, a mid-40s-rated sleeping bag, and dry sleepwear for cool camping nights.",
+		"Isaac's chat application is fronted by a Cloudflare Tunnel and Caddy, the same stack that fronts his other sites.",
+		"Isaac runs his own AI assistant, Ornith 1.5 9B, on his RTX 3070 GPU, which he also uses for gaming.",
+	} {
+		if _, err := s.AddFact(f); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, q := range []string{
+		`what do people currently use for TUI to view process and system monitoring on linux as the cool thing -- i used to use top then htop for years -- is htop still on "top" as it were`,
+		"why has wardogs been losing rating % on steam? it started low due to server issues/ddos, then went up to like 81%, now it's at like 76%",
+		"why has arctic vibe celcius packets and alani nu packets been just sold out on amazon and other places for like a few weeks / month now?",
+	} {
+		if got := s.Relevant(q, 6); len(got) != 0 {
+			t.Errorf("%q pulled in %q", q[:40], got[0].Text)
+		}
+	}
+	if got := s.Relevant("is my 3070 still good enough for gaming at 1440p with newer titles coming out this year", 6); len(got) != 1 {
+		t.Errorf("a long question sharing two words with a fact got %d facts", len(got))
+	}
+}
+
 func TestRelevantCountsUses(t *testing.T) {
 	s := memStore(t)
 	if _, err := s.AddFact("Isaac uses bun rather than npm"); err != nil {
