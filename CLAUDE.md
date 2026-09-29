@@ -385,6 +385,17 @@ move is its symbol, its day and its rung on a ladder, a warning is its VTEC even
 number rather than the NWS id that changes with every update, and a headline is
 its URL, which is what keeps a restart or a reconnect from notifying twice.
 
+**The on air banner reads YouTube first and Twitch only when YouTube has
+nothing.** YouTube is a scrape of `@theburntpeanut/live`, which is the watch page
+of the stream when he's live and carries `"isLiveNow":true`, and canonicals to
+the channel when he isn't. A page that is neither counts as a failure, so a
+consent wall or a redesign shows up on the UPLINK row instead of quietly hiding
+the banner. Twitch is its GraphQL endpoint with the web player's public
+Client-ID, since Helix wants a registered app. Offline only needs one of the two
+to have answered, or a dead source would hold the banner up forever. A stream
+that drops and comes back inside half an hour keeps its notice id, whichever
+platform it comes back on, so a reconnect doesn't notify twice.
+
 **Nasdaq only fills in an evening report once its date has passed,** so an after
 hours print is heard about the next morning at the earliest. A quick check asks
 for today and the weekday before every quarter hour from 6am to 8pm on weekdays,

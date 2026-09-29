@@ -798,6 +798,36 @@ function renderAlerts(alerts) {
   tickAlerts();
 }
 
+// Nothing at all while he's offline, the same as the alerts above it.
+function renderOnAir(o) {
+  const host = document.querySelector("[data-onair]");
+  if (!host) return;
+
+  if (!o || !o.live) {
+    host.replaceChildren();
+    return;
+  }
+
+  const a = link(o.url, "onair");
+  a.title = o.title || "";
+
+  const head = el("span", "onair-head");
+  head.append(el("span", "pip"));
+  head.append(el("span", "who", o.name));
+  head.append(el("span", "chip", `LIVE ON ${o.platform}`));
+  a.append(head);
+
+  if (o.title) a.append(el("span", "ttl", o.title));
+
+  const meta = el("span", "onair-meta");
+  if (o.game) meta.append(alertMeta("PLAYING", o.game));
+  if (o.viewers) meta.append(alertMeta("WATCHING", o.viewers));
+  if (o.since) meta.append(alertMeta("SINCE", o.since));
+  a.append(meta);
+
+  host.replaceChildren(a);
+}
+
 function renderSteam(games) {
   const host = document.querySelector("[data-steam]");
   if (!host) return;
@@ -956,6 +986,7 @@ function render(state) {
   if (changed("sectors", state.sectors)) renderSectors(state.sectors);
   if (changed("earnings", state.earnings)) renderEarnings(state.earnings);
   if (changed("alerts", state.alerts)) renderAlerts(state.alerts);
+  if (changed("onair", state.on_air)) renderOnAir(state.on_air);
   if (changed("outlook", state.outlook)) renderOutlook(state.outlook);
   if (changed("steam", state.steam)) renderSteam(state.steam);
   if (changed("wire", state.wire)) renderWire(state.wire);

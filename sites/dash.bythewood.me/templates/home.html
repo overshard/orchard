@@ -19,6 +19,22 @@
   {{end}}
 </div>
 
+<div class="onair-host" data-onair>
+  {{- with .State.OnAir}}{{if .Live}}
+  <a class="onair" href="{{.URL}}" target="_blank" rel="noopener noreferrer" title="{{.Title}}">
+    <span class="onair-head">
+      <span class="pip"></span><span class="who">{{.Name}}</span><span class="chip">LIVE ON {{.Platform}}</span>
+    </span>
+    {{if .Title}}<span class="ttl">{{.Title}}</span>{{end}}
+    <span class="onair-meta">
+      {{if .Game}}<span class="m"><span class="k">PLAYING</span><span class="v">{{.Game}}</span></span>{{end}}
+      {{if .Viewers}}<span class="m"><span class="k">WATCHING</span><span class="v">{{.Viewers}}</span></span>{{end}}
+      {{if .Since}}<span class="m"><span class="k">SINCE</span><span class="v">{{.Since}}</span></span>{{end}}
+    </span>
+  </a>
+  {{- end}}{{end -}}
+</div>
+
 <section class="panel markets" data-panel="markets">
   <div class="bracket tl"></div><div class="bracket tr"></div>
   <div class="bracket bl"></div><div class="bracket br"></div>

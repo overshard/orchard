@@ -400,6 +400,12 @@ severity chip, then a row of labelled values that wrap as pairs, and the stripe
 down the left carries the severity as well as the colour does, since amber
 against red is one distinction a reader may not be able to make.
 
+**dash's on air banner sits under the alerts and borrows their card.** It
+renders nothing while he's offline, for the same reason the alerts do, and the
+red is kept to the pip and the `LIVE ON` chip because a red stripe down the left
+already means severe weather. A title that opens with `🔴LIVE |` loses it, since
+the chip says so.
+
 **Say a thing once.** That NWS headline was the event name and the end time
 again in a sentence, so the longest string on the page was mostly a repeat of
 the two short ones beside it. The row shows what is not already there instead,
