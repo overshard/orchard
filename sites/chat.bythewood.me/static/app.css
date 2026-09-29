@@ -190,7 +190,7 @@ body {
   border-radius: 50%; border: 1px solid var(--amber);
   box-sizing: border-box;
 }
-.conv.working .conv-when, .conv.waiting .conv-when { color: var(--amber); }
+.conv.working .conv-when, .conv.waiting .conv-when, .conv.flagged .conv-when { color: var(--amber); }
 /* The same signal on the button that opens the drawer, since on a phone the
    list it marks is off screen. */
 .icon-btn.dot-on::after {
@@ -342,6 +342,25 @@ body {
 
 .thread { flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain;
   padding: 1.6rem 1rem 1rem; min-height: 0; }
+
+/* A conversation he asked to come back to. What he said is the reason, so it
+   is shown as he typed it. */
+.flag-note {
+  max-width: var(--col); margin: 0 auto 1.2rem;
+  display: flex; align-items: baseline; gap: 0.6rem;
+  padding: 0.45rem 0.6rem; border: 1px solid var(--line); border-radius: 2px;
+  color: var(--muted); font-size: 0.78rem;
+}
+.flag-label {
+  color: var(--amber); font-size: 0.64rem; font-weight: 600;
+  letter-spacing: var(--track); flex: 0 0 auto;
+}
+.flag-text { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.flag-clear {
+  flex: 0 0 auto; background: none; border: 1px solid var(--line); border-radius: 2px;
+  color: var(--dim); font: inherit; font-size: 0.7rem; padding: 0.1rem 0.45rem; cursor: pointer;
+}
+.flag-clear:hover { color: var(--green-hot); border-color: var(--line-hot); }
 
 /* ------------------------------------------------------------------ welcome */
 

@@ -207,6 +207,7 @@ func main() {
 	mux.HandleFunc("GET /api/conversations", s.auth.RequireAuthJSON(s.listConversations))
 	mux.HandleFunc("GET /api/conversation/{id}", s.auth.RequireAuthJSON(s.getConversation))
 	mux.HandleFunc("DELETE /api/conversation/{id}", s.auth.RequireAuthJSON(s.deleteConversation))
+	mux.HandleFunc("DELETE /api/conversation/{id}/flag", s.auth.RequireAuthJSON(s.unflag))
 	mux.HandleFunc("DELETE /api/conversations", s.auth.RequireAuthJSON(s.deleteAll))
 	mux.HandleFunc("GET /api/status", s.auth.RequireAuthJSON(s.status))
 	mux.HandleFunc("POST /api/unload", s.auth.RequireAuthJSON(s.unload))
@@ -597,23 +598,34 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 	ctx = withReferences(ctx, references{Attached: pictures(parts), Last: lastPicture(stored), Message: req.Message,
 		Origin: origin, OriginSaid: originSaid})
 
+	flagging := !req.Incognito && req.ConvID != "" && len(stored) > 0 && len(parts) == 0 && flagAsk.MatchString(req.Message)
+
 	// Warm the weights while the window is being built rather than after. A
 	// change to a picture never asks the chat model anything, and warming it
 	// would only put it on the card for klein to take straight back off.
 	refs := referencesOf(ctx)
-	if len(refs.Attached) == 0 && !(refs.Last != "" && isPictureChange(req.Message, history)) {
+	if !flagging && len(refs.Attached) == 0 && !(refs.Last != "" && isPictureChange(req.Message, history)) {
 		go s.llm.Warm(context.WithoutCancel(ctx))
 	}
 
 	// Retrieval is against what the user typed, not the composed prompt, since
 	// the text of an attachment would swamp the scoring with its own words.
-	recalled := s.store.Relevant(req.Message, factsPerTurn)
+	// A picture says nothing about him, and a fact about liking well worn
+	// interiors got a sofa drawn threadbare.
+	var recalled []Fact
+	if !flagging && !isPictureAsk(req.Message, history) && len(refs.Attached) == 0 && !(refs.Last != "" && isPictureChange(req.Message, history)) {
+		recalled = s.store.Relevant(req.Message, factsPerTurn)
+	}
 	if len(recalled) > 0 {
 		tr.Add(Step{Kind: "memory", Label: "recalled what it knows about Isaac",
 			In: req.Message, Out: memoryBlock(recalled),
 			Meta: itoa(len(recalled)) + " of the stored facts scored against this question"})
 	}
-	reply, used, srcs, widgets, stats, err := s.engine.Run(ctx, history, prompt, session, memoryBlock(recalled), tr, emit)
+	run := s.engine.Run
+	if flagging {
+		run = s.flagTurn(req.ConvID)
+	}
+	reply, used, srcs, widgets, stats, err := run(ctx, history, prompt, session, memoryBlock(recalled), tr, emit)
 	// Whether the turn worked or not, whatever it spent has been spent, and a
 	// failed turn is exactly when the counts matter most.
 	s.engine.SaveSpend(s.store.SaveSpend)
@@ -685,7 +697,7 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 	// excluded: a mode that writes nothing down cannot be the one that teaches
 	// it something to write down later. So is a picture, which says nothing
 	// about him and would swap the chat model straight back on to find that out.
-	if !req.Incognito && !drew {
+	if !req.Incognito && !drew && !flagging {
 		go func() {
 			// Recovered here and not by the middleware, which only wraps the
 			// handler. A panic on this goroutine would take the process down
@@ -835,8 +847,18 @@ func (s *site) getConversation(w http.ResponseWriter, r *http.Request) {
 			rendered = append(rendered, out{Role: RoleUser, Text: q})
 		}
 	}
-	writeJSON(w, map[string]any{"id": id, "title": conv.Title,
+	writeJSON(w, map[string]any{"id": id, "title": conv.Title, "flag": conv.Flag,
 		"messages": rendered, "running": running})
+}
+
+// unflag clears the mark once he has come back to it.
+func (s *site) unflag(w http.ResponseWriter, r *http.Request) {
+	if err := s.store.SetFlag(r.PathValue("id"), ""); err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	s.hub.Publish(HubEvent{Kind: "changed", ConvID: r.PathValue("id")})
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *site) deleteConversation(w http.ResponseWriter, r *http.Request) {

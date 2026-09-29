@@ -861,7 +861,11 @@
           a.className = "conv" + (c.id === convID ? " active" : "");
           a.href = "/c/" + c.id;
           a.dataset.id = c.id;
-          a.dataset.when = when(c.updated);
+          a.dataset.when = c.flag ? "flagged" : when(c.updated);
+          if (c.flag) {
+            a.classList.add("flagged");
+            a.dataset.flag = c.flag;
+          }
           a.innerHTML = `<span class="conv-title">${esc(c.title)}</span>` +
             `<span class="conv-when">${esc(a.dataset.when)}</span>` +
             `<button class="conv-del" data-del="${c.id}" title="Delete" aria-label="Delete conversation">&#10005;</button>`;
@@ -930,6 +934,7 @@
       if (m.steps && m.steps.length) finishWork(node.querySelector(".work"), m.steps);
       showSources(node.querySelector(".sources"), m.sources);
     }
+    if (d.flag) thread.prepend(flagNote(id, d.flag));
     document.querySelectorAll(".conv").forEach((el) =>
       el.classList.toggle("active", el.dataset.id === id));
     history.pushState({ id }, "", "/c/" + id);
@@ -938,6 +943,23 @@
     // A turn is still writing into this one. Put an empty reply back on screen
     // and follow it, which is what makes closing the tab mid answer survivable.
     if (d.running) follow(id);
+  }
+
+  // What he said when he flagged this one, above the thread, and the way to
+  // clear it once he has come back to it.
+  function flagNote(id, note) {
+    const el = document.createElement("div");
+    el.className = "flag-note";
+    el.innerHTML = `<span class="flag-label">FLAGGED</span><span class="flag-text">${esc(note)}</span>` +
+      `<button class="flag-clear" type="button">clear</button>`;
+    el.querySelector(".flag-clear").addEventListener("click", async () => {
+      const r = await fetch("/api/conversation/" + id + "/flag", { method: "DELETE" });
+      if (r.ok) {
+        el.remove();
+        refreshConversations();
+      }
+    });
+    return el;
   }
 
   // follow attaches to a turn already running and renders the rest of it. The
@@ -1263,7 +1285,8 @@
       if (!w) return;
       if (pos === undefined) {
         if (el.dataset.when) w.textContent = el.dataset.when;
-        el.removeAttribute("title");
+        if (el.dataset.flag) el.title = "Flagged: " + el.dataset.flag;
+        else el.removeAttribute("title");
       } else if (pos === 0) {
         w.textContent = "working";
         el.title = "Answering now";
