@@ -387,8 +387,9 @@ func outsideFences(s string) []string {
 }
 
 func calcNudge() string {
-	return "You added those up yourself. Call calc with the figures and write the total it gives you, " +
-		"rather than the one you worked out. If some of the figures are missing, say which."
+	return "You worked those out yourself. Call calc now with every step the question needs, one named line " +
+		"each, and write down the numbers it returns rather than the ones you worked out. A figure is only " +
+		"missing if it is in neither the question nor a tool result."
 }
 
 // propertyNudge is what a thin draft gets when the property tool already ran. A
