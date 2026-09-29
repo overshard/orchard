@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -23,14 +24,16 @@ import (
 )
 
 const (
-	// A fact longer than this is a paragraph wearing a full stop.
-	maxFactChars = 200
+	// A fact longer than this is a paragraph wearing a full stop. It has room
+	// for a list, since a watch list is one fact and not eight.
+	maxFactChars = 300
 	// How many facts a turn carries. Enough to be useful, few enough that a
 	// wrong one is visible rather than buried.
 	factsPerTurn = 6
 	// A message with more distinct terms than this needs two in common with a
-	// fact before the fact is recalled.
-	shortMessageTerms = 8
+	// fact before the fact is recalled. One shared word out of four was chance
+	// every time it happened: "sync" found a mirror, "over" found a sofa.
+	shortMessageTerms = 3
 )
 
 const factSchema = `
@@ -262,6 +265,10 @@ var stopwords = map[string]bool{
 	"more": true, "most": true, "very": true, "also": true, "only": true,
 	"even": true, "way": true, "lot": true, "something": true, "anything": true,
 	"start": true, "started": true, "starting": true, "today": true,
+	"one": true, "ones": true, "over": true, "into": true, "back": true, "same": true,
+	"should": true, "take": true, "year": true, "years": true, "got": true, "think": true,
+	"look": true, "see": true, "sure": true, "maybe": true, "probably": true, "please": true,
+	"tell": true, "give": true, "show": true, "best": true, "better": true,
 }
 
 func terms(s string) map[string]bool {
@@ -272,9 +279,21 @@ func terms(s string) map[string]bool {
 		if len(w) < 3 || stopwords[w] {
 			continue
 		}
-		out[stem(w)] = true
+		out[synonym(stem(w))] = true
 	}
 	return out
+}
+
+// synonym folds the words he uses for the same thing, so a question about a
+// movie finds the fact that says films.
+func synonym(w string) string {
+	switch w {
+	case "film", "flick":
+		return "movie"
+	case "photo", "pic", "picture":
+		return "image"
+	}
+	return w
 }
 
 // stem is the smallest thing that makes retrieval work on real questions.
@@ -306,8 +325,13 @@ func overlap(a, b map[string]bool) int {
 	return n
 }
 
+// The id a recalled fact is shown with, copied back into the text by a model
+// writing the fact out again.
+var factID = regexp.MustCompile(`^\[\d+\]\s*|\s*\(id \d+\)\.?$`)
+
 func tidyFact(s string) string {
 	s = strings.Join(strings.Fields(s), " ")
+	s = factID.ReplaceAllString(s, "")
 	s = strings.Trim(s, "-*• ")
 	if len(s) > maxFactChars {
 		s = s[:maxFactChars]
@@ -528,9 +552,10 @@ func memoryBlock(facts []Fact) string {
 	var sb strings.Builder
 	sb.WriteString("\n\nWhat you remember about Isaac, which may or may not bear on this question:\n")
 	for _, f := range facts {
-		fmt.Fprintf(&sb, "- %s\n", f.Text)
+		fmt.Fprintf(&sb, "- %s (id %d)\n", f.Text, f.ID)
 	}
-	sb.WriteString("Use one only if it actually helps. Do not list them back at him or mention remembering.")
+	sb.WriteString("Use one only if it actually helps. Do not list them back at him or mention remembering. " +
+		"The id is what remember takes and is never part of a fact or something to say to him.")
 	return sb.String()
 }
 
