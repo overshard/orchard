@@ -223,13 +223,14 @@ a:hover { color: #ffc84d; }
 
 // A readout that is also a switch. It keeps the readout's shape so the rail
 // stays one row of instruments, and grows a hover and a menu rather than a slot.
-.readout.notify {
+.readout.notify,
+.readout.quick-open {
   position: relative;
   padding: 0;
 
   &[hidden] { display: none; }
 
-  .notify-btn {
+  .readout-btn {
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -247,7 +248,11 @@ a:hover { color: #ffc84d; }
     &:hover { background: var(--panel-2); }
     &:focus-visible { outline: 1px solid var(--amber); outline-offset: -1px; }
   }
+}
 
+.readout.quick-open .readout-val { color: var(--amber); }
+
+.readout.notify {
   &[data-state="on"] {
     .readout-val { color: var(--amber); }
     .pip { background: var(--amber); }
@@ -334,9 +339,11 @@ main {
   grid-template-columns: 0.8fr 1.05fr 1.15fr 1.4fr;
 }
 
-// The five readouts, all figures rather than prose, so they take equal width.
+// The seven readouts, all figures rather than prose, so they take equal width.
+// Seven across only fits once main widens past 1900, and below that the band
+// wraps, which is in the responsive rules at the bottom.
 .local-band {
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(7, 1fr);
 }
 
 // The three feeds on a row of their own. Equal thirds puts a headline on about
@@ -1819,6 +1826,155 @@ main {
   }
 }
 
+// On air, the panel ---------------------------------------------------------
+
+// A few readings and fourteen days of bars. The banner above the markets says
+// he is live, and this says when he usually is, so it keeps the banner's red to
+// its own pip and the word LIVE.
+.broadcasts {
+  .air {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .air-rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    column-gap: 24px;
+
+    li {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      padding: 5px 0;
+      font-size: 12px;
+    }
+
+    .k { font-size: 10px; letter-spacing: var(--track); color: var(--dim); white-space: nowrap; }
+
+    .bar {
+      flex: 1;
+      height: 1px;
+      min-width: 8px;
+      background: repeating-linear-gradient(
+        90deg,
+        var(--line-hot) 0 1px,
+        transparent 1px 4px
+      );
+    }
+
+    .v { color: var(--text); white-space: nowrap; }
+    .n { font-size: 11px; color: var(--muted); white-space: nowrap; }
+
+    // Which of the two the time is. A guess is dim because it is one.
+    .tag {
+      font-size: 9px;
+      letter-spacing: var(--track);
+      padding: 1px 5px;
+      border: 1px solid var(--line-hot);
+      color: var(--dim);
+      white-space: nowrap;
+    }
+    .tag[data-kind="scheduled"] { color: var(--amber); border-color: var(--amber-dim); }
+
+    .week {
+      display: flex;
+      gap: 4px;
+      margin-left: 2px;
+      font-size: 10px;
+
+      i { font-style: normal; color: var(--faint); }
+      i[data-on="yes"] { color: var(--amber); }
+    }
+  }
+
+  .air-who {
+    a.k { font-size: 12px; letter-spacing: 0.04em; color: var(--text); }
+    a.k:hover { color: var(--amber); }
+    .v { font-size: 10px; letter-spacing: var(--track); color: var(--dim); }
+
+    &[data-state="live"] {
+      .pip { background: var(--down); box-shadow: 0 0 6px rgba(255, 95, 77, 0.6); }
+      .v { color: var(--down); }
+    }
+  }
+
+  // The bars take whatever height the band leaves, the way the rain plot does,
+  // and stand on one shared floor with a rule at six hours.
+  .air-days {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .air-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6px;
+
+    .k { font-size: 9px; letter-spacing: var(--track); color: var(--dim); }
+    .v { font-size: 9px; letter-spacing: var(--track); color: var(--faint); }
+  }
+
+  .air-plot {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(14, 1fr);
+    align-items: end;
+    flex: 1;
+    min-height: 56px;
+    border-bottom: 1px solid var(--line-hot);
+
+    &::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      border-top: 1px dashed var(--line-hot);
+      pointer-events: none;
+    }
+  }
+
+  .abar {
+    width: 50%;
+    max-width: 6px;
+    justify-self: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    height: 100%;
+
+    // A day off still draws, so it reads as a day off rather than a gap. The
+    // fade keeps fourteen tall bars from outweighing every figure on the page.
+    i {
+      display: block;
+      width: 100%;
+      min-height: 1px;
+      background: linear-gradient(180deg, var(--amber-dim), rgba(179, 123, 0, 0.3));
+    }
+    &[data-today="yes"] i { background: var(--amber); }
+  }
+
+  .air-cols {
+    display: grid;
+    grid-template-columns: repeat(14, 1fr);
+    margin-top: 4px;
+
+    span { font-size: 9px; text-align: center; color: var(--faint); }
+    span[data-today="yes"] { color: var(--amber); }
+  }
+
+  .empty { margin: 0; color: var(--dim); font-size: 11px; letter-spacing: var(--track); }
+}
+
 // Wire -----------------------------------------------------------------------
 
 // Source, headline, age, on one line. The boxed pill on a line of its own under
@@ -1952,6 +2108,196 @@ main {
   a { font-size: 11px; letter-spacing: var(--track); }
 }
 
+// Quick chat -------------------------------------------------------------------
+
+// A modal rather than a panel, since it is only there for one reader. It sits in
+// the top layer above the scanlines, which suits something read rather than
+// glanced at.
+.quick {
+  width: min(720px, calc(100vw - 24px));
+  max-height: min(78vh, 760px);
+  margin: 12vh auto auto;
+  padding: 0;
+  overflow: visible;
+  border: 1px solid var(--line-hot);
+  background: var(--panel);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+
+  &::backdrop { background: rgba(10, 9, 8, 0.72); }
+
+  .panel-head { margin-bottom: 10px; }
+}
+
+.quick-box {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  max-height: inherit;
+  padding: var(--pad);
+}
+
+.quick-status {
+  font-size: 10px;
+  letter-spacing: var(--track);
+  color: var(--amber);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.quick-close {
+  flex: none;
+  padding: 3px 7px;
+  background: none;
+  border: 1px solid var(--line-hot);
+  color: var(--dim);
+  font: inherit;
+  font-size: 10px;
+  letter-spacing: var(--track);
+  cursor: pointer;
+
+  &:hover { color: var(--amber); border-color: var(--amber-dim); }
+}
+
+.quick-log {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+
+  &:empty { display: none; }
+}
+
+.quick-q {
+  margin: 0;
+  padding: 7px 10px;
+  border-left: 2px solid var(--amber-dim);
+  background: rgba(255, 255, 255, 0.015);
+  color: var(--muted);
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+// chat's own rendered markdown, restyled into this page's type.
+.quick-a {
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+
+  p, ul, ol, pre, table, blockquote { margin: 0 0 0.7em; }
+  ul, ol { padding-left: 1.4em; }
+  h1, h2, h3, h4 {
+    margin: 0.9em 0 0.4em;
+    font-family: var(--grotesk);
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    color: var(--amber);
+  }
+  a { color: var(--amber); }
+  code { font-family: var(--mono); background: var(--panel-2); padding: 0 3px; }
+  pre { overflow-x: auto; padding: 8px 10px; background: var(--void); border: 1px solid var(--line); }
+  pre code { background: none; padding: 0; }
+  blockquote { padding-left: 10px; border-left: 2px solid var(--line-hot); color: var(--muted); }
+  table { border-collapse: collapse; font-size: 12px; }
+  th, td { padding: 3px 7px; border: 1px solid var(--line); text-align: left; }
+
+  // Boxed on its own, the way chat draws them, since it points off the site.
+  a.cite {
+    display: inline-block;
+    margin-left: 2px;
+    padding: 0 3px;
+    border: 1px solid var(--line-hot);
+    font-size: 0.62rem;
+    line-height: 1.3;
+    vertical-align: 0.32em;
+  }
+
+  .blocks > :last-child { margin-bottom: 0; }
+  .tail { margin: 0; color: var(--muted); white-space: pre-wrap; }
+}
+
+.quick-err {
+  margin: 6px 0 0;
+  font-size: 11px;
+  letter-spacing: var(--track);
+  color: var(--down);
+}
+
+.quick-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-hot);
+  background: var(--void);
+
+  &:focus-within { border-color: var(--amber-dim); }
+
+  .quick-prompt { color: var(--amber); line-height: 1.5; }
+
+  textarea {
+    flex: 1;
+    min-width: 0;
+    max-height: 30vh;
+    resize: none;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    outline: 0;
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  textarea::placeholder { color: var(--faint); letter-spacing: var(--track); font-size: 11px; }
+}
+
+.quick-send,
+.quick-foot button {
+  flex: none;
+  padding: 3px 8px;
+  background: none;
+  border: 1px solid var(--amber-dim);
+  color: var(--amber);
+  font: inherit;
+  font-size: 10px;
+  letter-spacing: var(--track);
+  cursor: pointer;
+
+  &:hover { background: var(--amber-glow); }
+  &:disabled { opacity: 0.4; cursor: default; }
+  &:focus-visible { outline: 1px solid var(--amber); outline-offset: 1px; }
+}
+
+.quick-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 10px;
+  letter-spacing: var(--track);
+  color: var(--faint);
+
+  &:has(a[hidden]):has(button[hidden]) .grow { display: none; }
+  .grow { flex: 1; }
+  a { color: var(--amber); }
+  a:hover { color: #ffc84d; }
+}
+
+// Nobody on a phone has an Esc key, and 16px is the size under which iOS zooms
+// the page on focus.
+@media (pointer: coarse) {
+  .quick-foot .hint { display: none; }
+  .quick-form textarea { font-size: 16px; }
+}
+
 // Responsive -----------------------------------------------------------------
 //
 // Four sizes, each a real machine rather than a round number: a large desktop
@@ -1968,8 +2314,26 @@ main {
 
 // Laptop. Eight cards across stops being readable well before the layout
 // breaks, so they go to two rows of four first.
-@media (max-width: 1700px) {
-  .local-band { grid-template-columns: repeat(3, 1fr); }
+// Seven panels leave a hole on any grid narrower than seven, so UPLINK takes
+// two cells wherever the band wraps and runs its rows two across. It is the
+// one list here that loses nothing to width.
+@media (max-width: 1899px) {
+  .local-band { grid-template-columns: repeat(4, 1fr); }
+}
+
+@media (min-width: 1025px) and (max-width: 1899px) {
+  .local-band > .uplink { grid-column: span 2; }
+  .uplink .rows {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-content: space-around;
+    column-gap: 28px;
+  }
+}
+
+// Alone on its row and full width, ON AIR puts its readings two by two.
+@media (min-width: 621px) and (max-width: 1024px) {
+  .broadcasts .air-rows { grid-template-columns: 1fr 1fr; }
 }
 
 @media (max-width: 1560px) {
@@ -2010,6 +2374,7 @@ main {
   .panel { padding: 11px; }
 
   .rail-brand .rail-sub { display: none; }
+  .quick { margin-top: 8px; width: calc(100vw - 16px); max-height: calc(100dvh - 16px); }
   .readout[data-readout="utc"],
   .readout[data-readout="date"] { display: none; }
   .readout { min-width: 0; padding: 0 8px; }

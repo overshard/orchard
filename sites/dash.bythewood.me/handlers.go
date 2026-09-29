@@ -216,8 +216,9 @@ var faviconHref = "/favicon.svg?v=" + faviconVersion
 func sourceNames() []string {
 	out := make([]string, 0, len(feedOrder))
 	for _, f := range feedOrder {
-		// Isaac's own logging site, which is not an outside source to credit.
-		if f.key == "logging" {
+		// Isaac's own logging site is not an outside source to credit, and the
+		// archive is Twitch again on a budget of its own.
+		if f.key == "logging" || f.key == broadcastsKey {
 			continue
 		}
 		out = append(out, f.label)

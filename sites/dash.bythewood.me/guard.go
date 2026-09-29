@@ -47,6 +47,9 @@ var budgets = map[string]budget{
 	"justwatch": {perHour: 60, pace: 2 * time.Second},
 	"youtube":   {perHour: 90, pace: 2 * time.Second},
 	"twitch":    {perHour: 90, pace: 2 * time.Second},
+	// The same Twitch endpoint as above, on its own key so the hourly archive
+	// read cannot spend or trip what the live banner needs.
+	"twitchvods": {perHour: 30, pace: 2 * time.Second},
 	// No pacing on these two. They go to Isaac's own machine rather than to a
 	// stranger's endpoint, and the strip fires every probe at once, so a
 	// pause between them would only refuse all but the first.
@@ -302,6 +305,7 @@ var feedOrder = []struct{ key, label string }{
 	{"justwatch", "JUSTWATCH"},
 	{"youtube", "YOUTUBE"},
 	{"twitch", "TWITCH"},
+	{"twitchvods", "TWITCH VODS"},
 	{"logging", "LOGGING"},
 }
 

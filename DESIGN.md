@@ -288,6 +288,15 @@ asks the first time and opens a menu of what to be told about after that, and
 `chat` asks on the first question sent. Both keep quiet about anything the
 reader is already looking at, apart from a severe weather warning on dash.
 
+**dash's quick chat is for its one signed in reader and looks like the rest of
+the page.** A `CHAT` readout joins `NOTIFY` and `LINK` in the rail and ctrl+k or
+cmd+k opens the same box, an amber panel head, the question under a left rule the
+way the CONDITIONS verdict sits, chat's answer in JetBrains Mono, and `OPEN IN
+CHAT` once there is a conversation to open. The page ships it to everybody,
+since it can come out of the edge's cache, and neither the readout nor the key
+does anything until `/api/quick` says the visitor is signed in. A phone has no
+ctrl+k, so the readout is the way in there and reads `OPEN`.
+
 **Content width** is Bootstrap's container scale, so 1140px and then 1320px past
 a 1400px viewport. `repos` matches it with a media query rather than sitting
 narrower on a wide screen.
@@ -412,6 +421,20 @@ red is kept to the pip and the `LIVE ON` chip because a red stripe down the left
 already means severe weather. A title that opens with `🔴LIVE |` loses it, since
 the chip says so.
 
+**dash's ON AIR panel says when he usually is, and the banner says when he is.**
+It sits in the local band beside STREAMING with a status row, NEXT tagged
+`SCHEDULED` or `GUESS`, USUAL with the week lit on the days he streams, LAST
+(which reads NOW while he's on) and fourteen days of bars against a twelve hour
+ceiling with a rule at six. Red stays on the pip and the word LIVE, the same as
+the banner. The bars fade toward their floor, because fourteen solid amber
+columns outweighed every figure on the page.
+
+**Seven panels only fit seven across.** dash's local band goes seven wide from
+1900px, where `main` widens, and four and then two below that, with UPLINK
+taking two cells and running its rows two across so neither leaves a hole.
+UPLINK is the one stretched since a list of names and counts loses nothing to
+width, where ON AIR stretched to two cells was fourteen bars in an empty box.
+
 **Say a thing once.** That NWS headline was the event name and the end time
 again in a sentence, so the longest string on the page was mostly a repeat of
 the two short ones beside it. The row shows what is not already there instead,
@@ -430,6 +453,6 @@ A reader only ever has the repo.
 | `auth` | green | Bootstrap. Carries the starfield on `/login`, which the grid sits under |
 | `repos` | green | Hand written CSS, no Bootstrap, since it is dense text. Newsreader on repository names |
 | `chat` | green | Hand written CSS, no Bootstrap. A conversation, so it reads at the longest length on the estate. Citation pills and a source row under each answer, and widget panels above one when a ticker or a forecast was looked up. A picture draws behind a panel listing its stages, each with a count and a guess from the last few, and replaces it once it has loaded. An unread dot on a conversation that finished a turn off screen, and the place in line of every turn still waiting |
-| `dash` | amber | Hand written CSS. Scanlines, vignette, JetBrains Mono and Space Grotesk. A `NOTIFY` switch in the rail |
+| `dash` | amber | Hand written CSS. Scanlines, vignette, JetBrains Mono and Space Grotesk. A `NOTIFY` switch in the rail, and a `CHAT` readout beside it that only appears signed in |
 | `blog`, `isaacbythewood.com` | neither | Separate identities. Nothing here applies to them |
 

@@ -143,7 +143,7 @@ func TestHomeRendersWithAnEmptyState(t *testing.T) {
 	}
 	body := rec.Body.String()
 	for _, want := range []string{"MARKETS", "CONDITIONS", "RATES", "SECTORS", "EARNINGS", "WIRE",
-		"HACKER NEWS", "LOBSTERS", "ATMOS", "SYSTEMS", "UPLINK", "STEAM"} {
+		"HACKER NEWS", "LOBSTERS", "ATMOS", "SYSTEMS", "UPLINK", "STEAM", "ON AIR", "AWAITING ARCHIVE"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the page is missing the %s panel", want)
 		}
@@ -162,6 +162,7 @@ func TestHomeRendersAFullState(t *testing.T) {
 		st.Lobsters = []Story{{Title: "Another", URL: "https://example.com/b", Host: "example.com", Comments: "https://lobste.rs/s/x", Points: 5, Count: 1, Age: "2h"}}
 		st.Weather = Weather{Place: "Yadkin Valley, NC", Temperature: "81", Feels: "86", High: "86", Low: "70", Rain: "3%", Condition: "Clear", Wind: "4 mph"}
 		st.Systems = Systems{Rows: []SystemRow{{Label: "Blog", State: "up", Response: "12ms", Errors: 3, KnowError: true}}, Up: 1, Total: 1, Window: 24}
+		st.OnAir.Broadcasts = buildBroadcasts(pastFixture(t, "2026-09-30T00:00:00Z"), OnAir{}, at(t, "2026-09-29 19:01"))
 	})
 
 	rec := httptest.NewRecorder()
@@ -171,7 +172,8 @@ func TestHomeRendersAFullState(t *testing.T) {
 		t.Fatalf("status %d, want 200", rec.Code)
 	}
 	body := rec.Body.String()
-	for _, want := range []string{"A story", "Another", "Yadkin Valley", "S&amp;P 500", "spark-line"} {
+	for _, want := range []string{"A story", "Another", "Yadkin Valley", "S&amp;P 500", "spark-line",
+		"TUE 8:00PM", "SCHEDULED", "7:10PM", `<i data-on="no" title="SUN">S</i>`, "MON 7:19PM", "LAST 14 DAYS"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the rendered page is missing %q", want)
 		}

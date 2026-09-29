@@ -98,7 +98,7 @@ SQLite. One prefix, so `docker ps --filter name=orchard` is the whole system
 and the Makefile derives a container name from a site directory without a
 lookup table.
 
-**Six things reference a container by name, and all six bake it in.**
+**Seven things reference a container by name, and all seven bake it in.**
 `edge/caddy/Caddyfile` reverse-proxies to each site and writes its access log to
 `tcp/orchard-logging:9001`, `sites/isaacbythewood.com/site.go` fetches
 `http://orchard-blog:8000/latest.json` for the latest-posts panel,
@@ -106,7 +106,9 @@ lookup table.
 `alerts.go` in status and logging posts to `http://orchard-ntfy:8000`, and
 `sites/dash.bythewood.me/systems.go` reads `http://orchard-logging:8000/aggregate`
 and probes every other site at `http://orchard-<label>:8000/healthz`, and
-`web/session.go` in every site asks `http://orchard-auth:8000/verify`. None reads
+`web/session.go` in every site asks `http://orchard-auth:8000/verify`, and
+`sites/dash.bythewood.me/quick.go` relays the quick chat to
+`http://orchard-chat:8000/api/send`. None reads
 the name at runtime, so renaming one means rebuilding Caddy, the portfolio and
 every site, not just editing a compose file. No SQLite database refers to a
 container name.
@@ -323,7 +325,16 @@ comment frame every 25 seconds instead, which is inside Cloudflare's 100 second
 idle drop.
 
 **Caddy's `encode` takes a matcher in this site's block** rather than the
-blanket one in `(site)`, because a compressed `text/event-stream` buffers.
+blanket one in `(site)`, because a compressed `text/event-stream` buffers. Both
+streams are in it, `/events` and `/api/quick/send`.
+
+**The quick chat is the one thing on dash that knows who is looking.** The home
+page can come out of Cloudflare's cache, so it is the same for everybody and
+`GET /api/quick` answers `no-store` whether the `bw_session` cookie is live.
+`POST /api/quick/send` checks the session itself, refuses a `Sec-Fetch-Site`
+other than `same-origin` because another bythewood.me host is same site and
+carries the cookie, and relays to chat over the bridge with that cookie and
+nothing else of the caller's, so chat needs no CORS.
 
 **Every card on the strip is drawn against one New York trading day.** It runs
 9:30 to 16:00 and rolls at the open rather than at midnight, weekends included,
