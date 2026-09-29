@@ -284,8 +284,13 @@ func (l *LLM) Stream(ctx context.Context, msgs []Message, maxTok int, onDelta fu
 		}
 		// The last chunk carries the usage and timings and no choices, which
 		// is why this is read before the choices check rather than after.
+		// With timings_per_token every chunk carries running totals, so the
+		// largest is the count and adding them up gives n(n+1)/2.
 		if got := statsOf(ev); got.Prompt > 0 || got.Decode > 0 || got.Completion > 0 {
+			done := max(st.Completion, got.Completion)
+			got.Completion = 0
 			st.merge(got)
+			st.Completion = done
 		}
 		if len(ev.Choices) == 0 {
 			continue
