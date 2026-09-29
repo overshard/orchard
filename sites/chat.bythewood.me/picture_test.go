@@ -552,3 +552,48 @@ func TestAPictureDrawnLargerIsCroppedToTheSizeAsked(t *testing.T) {
 		t.Error("a picture smaller than asked was changed")
 	}
 }
+
+// A prompt pasted back from the last one already says what to keep, and the
+// fixed sentence in front of it said it twice.
+func TestAnEditPromptSaysKeepOnce(t *testing.T) {
+	said := "Keep the sofa from the picture exactly as it is, the same shape, fabric, color and details. Put it in a beach house. Photorealistic, natural light."
+	got := editPrompt(said, "", true)
+	if strings.Count(strings.ToLower(got), "exactly as") != 1 || strings.Count(strings.ToLower(got), "photorealistic") != 1 {
+		t.Errorf("doubled: %q", got)
+	}
+	if !strings.Contains(got, "The sofa's upholstery stays smooth and taut, as new.") {
+		t.Errorf("no upholstery line for a sofa: %q", got)
+	}
+	if got := editPrompt("put this lamp on a desk", "", true); strings.Contains(got, "upholstery") {
+		t.Errorf("upholstery on a lamp: %q", got)
+	}
+}
+
+// A picture of a real thing looks it up by trying runs of the words he used,
+// since the whole ask never matches a title and one word matches too much.
+func TestAPictureAskIsLookedUpByItsName(t *testing.T) {
+	got := referenceWindows("make an image of the Disney Monsanto House of the Future kitchen try to be realistic")
+	found := false
+	for _, w := range got {
+		if w == "Monsanto House of the Future" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("the title was never tried: %q", got)
+	}
+	for _, w := range referenceWindows("put this sofa in a nice upscale living room") {
+		if w == "living room" {
+			t.Error("a lowercase pair was tried as a title")
+		}
+	}
+	if !namesTitle("Monsanto House of the Future", "the disney monsanto house of the future kitchen") {
+		t.Error("a title every word of which he used was refused")
+	}
+	if namesTitle("High Point, North Carolina", "the craftmaster furniture high point showroom") {
+		t.Error("a title with words he never used was taken")
+	}
+	if namesTitle("Fox", "draw a fox") {
+		t.Error("a one word title was taken")
+	}
+}

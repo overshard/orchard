@@ -211,3 +211,22 @@ func TestNoFiguresIsCaughtAnywhere(t *testing.T) {
 		}
 	}
 }
+
+// The 5090 follow up called nothing and gave the card's bandwidth from memory,
+// wrong, and the model check let it through as opinion.
+func TestSpecsNobodySaidAreChecked(t *testing.T) {
+	previous := []string{"The 5090 launched at $1,999 in early 2025 and sells for over $4,000 now."}
+	q := "so companies are pivoting to AI workstations with a fraction of the memory bandwidth?"
+	if !statesUncheckedSpecs("Yes. The 5090 runs 1,024 GB/s and those boxes a fraction of it.", q, previous) {
+		t.Error("a bandwidth nobody gave was let through")
+	}
+	if statesUncheckedSpecs("Right, and at $4,000 the 5090 is out of reach for most.", q, previous) {
+		t.Error("a price from the last answer was sent back")
+	}
+	if statesUncheckedSpecs("You said 16 GB, and 16GB holds a 9B at Q4 easily.", "does 16 GB fit a 9B?", nil) {
+		t.Error("a figure from the question was sent back")
+	}
+	if statesUncheckedSpecs("That comes to 12 once you take off the three.", q, nil) {
+		t.Error("a plain number with no unit was sent back")
+	}
+}

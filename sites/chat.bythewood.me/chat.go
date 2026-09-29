@@ -123,6 +123,7 @@ Tools:
 - Never answer a question about the world from memory when a tool could check it. Your training data is old and this is what the tools are for.
 - wikipedia is an offline snapshot on this machine. It answers instantly, it cannot be rate limited, and it carries each article's opening section only, so it is the cheapest way to get the background right before deciding whether anything needs searching. It knows nothing after its snapshot date, so never use it for news, prices, scores or anything that changed recently.
 - web_search gives titles, urls and snippets. Call web_fetch on a url when you need what the page actually says.
+- When the results include a project's own repository or documentation, read that before anybody's write up about it. How to configure or use a piece of software is in its README and docs, and a blog post or an old forum thread is often out of date.
 - news reads a fixed list of publishers and is what to call for any question about what is happening or what happened over a period, rather than searching. Pass the window the question actually used, so today means today and this weekend means the weekend just gone, and pass the topic only when one was named. It hands back each publisher's own headline for you to rewrite plainly.
 - An attached file is already in this conversation in full. There is no url or path for it, so never try to fetch one, and never guess where it might be on a disk.
 - Search once per thing you are comparing. One search rarely covers a comparison or a build.
@@ -270,8 +271,16 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	// this machine and is newer than the weights. It goes in after the history
 	// so the cached prompt prefix survives.
 	if picture {
-		// Nothing to look up. The wikipedia opening would read "draw a fox" as
-		// a question about foxes and hand the model an article to write about.
+		// Not the ordinary opening, which would read "draw a fox" as a question
+		// about foxes. Only a named thing with an article of its own.
+		if res, msg, ok := e.pictureReference(ctx, said); ok {
+			emit(Event{Kind: "tool", Tool: res.Name, Args: shortArgs(string(res.Args))})
+			emit(Event{Kind: "tool_done", Tool: res.Name, MS: res.Elapsed.Milliseconds(), OK: true})
+			msgs = append(msgs, msg)
+			tr.Add(Step{Kind: "wikipedia", Label: "looked up what the picture names",
+				In: said, Out: msg.Content, MS: res.Elapsed.Milliseconds(),
+				Meta: "local snapshot, no web request"})
+		}
 	} else if house, msg, ok := e.houseOpening(ctx, deps, user, history); ok {
 		for _, res := range house {
 			emit(Event{Kind: "tool", Tool: res.Name, Args: shortArgs(string(res.Args))})
@@ -354,6 +363,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	// so it answers from nothing. One extra round buys the retry, and only one,
 	// so a tool that fails every time cannot spin the turn out.
 	budget, grace := maxToolRounds, 1
+	var draft string
 	for round := 0; round < budget; round++ {
 		last := round == budget-1
 		if last {
@@ -429,7 +439,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 			} else {
 				// It stopped calling tools, which is not the same as having
 				// answered, so a deferral goes back with the tools still on.
-				if gates < maxGates && round < maxToolRounds-1 {
+				if gates < maxGates {
 					gateStart := time.Now()
 					nudge, gst := e.gate(ctx, user, reply.Content, answered, used, emit)
 					stats.merge(gst)
@@ -442,11 +452,18 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 						// its own text back writes it again.
 						msgs = append(msgs, Message{Role: RoleUser, Content: nudge})
 						forceTools = true
+						// The next round would be the budget cut, which answers
+						// with the tools off, so the nudge would be read and
+						// never acted on.
+						if round+2 >= budget {
+							budget++
+						}
 						continue
 					}
 				}
 				// It answered without tools. Stream it properly rather than
 				// handing back a block of text that appeared all at once.
+				draft = reply.Content
 				break
 			}
 		}
@@ -540,7 +557,12 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	// The answer is generated fresh rather than reusing the last tool round,
 	// which was written under a small budget with tools still on the table and
 	// reads as "Let me check that" and then stops.
-	msgs = append(msgs, Message{Role: RoleUser, Content: finalTurn + failedToolNote(used) + sourcePrompt(srcs)})
+	// Without the draft the answer works its figures out a second time, and the
+	// second go can disagree with the one the gate let through.
+	if strings.TrimSpace(draft) != "" {
+		msgs = append(msgs, Message{Role: RoleAssistant, Content: draft})
+	}
+	msgs = append(msgs, Message{Role: RoleUser, Content: finalTurn + draftNote(draft) + failedToolNote(used) + sourcePrompt(srcs)})
 
 	emit(Event{Kind: "status", Text: "writing"})
 	answerStart := time.Now()
@@ -599,6 +621,17 @@ func failedToolNote(used []tools.Result) string {
 	return "\n\nThese tools never worked in this turn: " + strings.Join(names, "; ") +
 		". Do not write down a number you could not work out. Where one is missing, say so and say " +
 		"why, rather than estimating it and presenting it like the rest."
+}
+
+// draftNote tells the writer the reply above is its own checked draft, so the
+// answer keeps what the draft established rather than working it out again.
+func draftNote(draft string) string {
+	if strings.TrimSpace(draft) == "" {
+		return ""
+	}
+	return "\n\nYour draft of this reply is above and it has been checked. Keep what it says, with every figure, " +
+		"name and date exactly as the draft has them, and do not add a figure the draft does not have. " +
+		"Change only the wording, and add the source numbers."
 }
 
 // budgetNote is the nudge the last decide round gets when the tools come off.
