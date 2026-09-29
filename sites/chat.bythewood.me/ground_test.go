@@ -335,3 +335,16 @@ func TestSubjectOfHandlesHowMuch(t *testing.T) {
 		t.Logf("how many reduced to %q", got)
 	}
 }
+
+func TestARemarkOrAReleaseQuestionFindsTheThing(t *testing.T) {
+	for q, want := range map[string]string{
+		"ah so trixie is still fairly new -- when is it's EOL?": "",
+		"hmmmm tempting it's not that big really":               "",
+		"when was trixie released":                              "trixie",
+		"when is forky coming out":                              "forky",
+	} {
+		if got := subjectOf(q); got != want {
+			t.Errorf("subjectOf(%q) = %q, want %q", q, got, want)
+		}
+	}
+}

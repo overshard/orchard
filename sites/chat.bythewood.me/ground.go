@@ -30,7 +30,7 @@ import (
 var questionHead = regexp.MustCompile(`(?i)^\s*how\s+(much|many)\s+(is|are|was|were|do|does|did|would|will)?\s*|^\s*(what|who|which|where|when|why|how)('?s| is| are| was| were| do| does| did)?\s+|^\s*(tell me about|explain|describe|define)\s+`)
 
 // Trailing filler left behind once the head is gone, as in "kubernetes for".
-var questionTail = regexp.MustCompile(`(?i)\s+((is|are|was|were)\s+(it|this|that|they|there)|for|about|like|used for|good for|mean|means|work|works)\s*[?.!]*\s*$`)
+var questionTail = regexp.MustCompile(`(?i)\s+((is|are|was|were)\s+(it|this|that|they|there)|for|about|like|used for|good for|mean|means|work|works|released|founded|invented|built|born|made|created|discovered|launched|announced|introduced|formed|established|written|published|directed|designed|coming out|come out|out)\s*[?.!]*\s*$`)
 
 // A trailing time phrase. It is stripped rather than used as a signal on its
 // own, because the question it is attached to may still name a real subject:
@@ -71,6 +71,8 @@ var openingFiller = map[string]bool{
 	"hmm": true, "huh": true, "wow": true, "lol": true, "haha": true, "well": true,
 	"also": true, "actually": true, "wait": true, "hey": true, "hi": true, "hello": true,
 	"please": true, "tldr": true, "tl;dr": true, "btw": true, "anyway": true, "right": true,
+	"ah": true, "ahh": true, "aha": true, "hm": true, "hmmm": true, "hmmmm": true,
+	"ugh": true, "nice": true, "cool": true, "sure": true, "alright": true, "damn": true, "dang": true,
 }
 
 // subjectOf pulls the thing a question is about out of it, or returns empty
@@ -157,7 +159,7 @@ func (e *Engine) pictureReference(ctx context.Context, message string) (tools.Re
 		}
 		title, _ := m["title"].(string)
 		summary, _ := m["summary"].(string)
-		if found, _ := m["found"].(bool); !found || strings.TrimSpace(summary) == "" || !namesTitle(title, message) {
+		if found, _ := m["found"].(bool); !found || isDisambiguation(m) || strings.TrimSpace(summary) == "" || !namesTitle(title, message) {
 			continue
 		}
 		msg := Message{Role: RoleUser, Content: "He named a real thing, so here is the opening of the " + title +
@@ -166,6 +168,13 @@ func (e *Engine) pictureReference(ctx context.Context, message string) (tools.Re
 		return res, msg, true
 	}
 	return tools.Result{}, Message{}, false
+}
+
+// isDisambiguation is a lookup that landed on a list of things sharing a name,
+// which is no background for anything.
+func isDisambiguation(m map[string]any) bool {
+	d, _ := m["disambiguation"].(bool)
+	return d
 }
 
 // background looks the question's subject up in the offline snapshot and returns
@@ -188,7 +197,7 @@ func (e *Engine) background(ctx context.Context, question string) string {
 	if !ok {
 		return ""
 	}
-	if found, _ := m["found"].(bool); !found {
+	if found, _ := m["found"].(bool); !found || isDisambiguation(m) {
 		return ""
 	}
 	title, _ := m["title"].(string)
@@ -232,7 +241,7 @@ func (e *Engine) opening(ctx context.Context, question string) (tools.Result, Me
 	if !ok {
 		return tools.Result{}, Message{}, false
 	}
-	if found, _ := m["found"].(bool); !found {
+	if found, _ := m["found"].(bool); !found || isDisambiguation(m) {
 		return tools.Result{}, Message{}, false
 	}
 	title, _ := m["title"].(string)
