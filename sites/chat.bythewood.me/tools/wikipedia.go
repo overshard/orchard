@@ -153,7 +153,23 @@ func wikiResult(ctx context.Context, d *Deps, base, title, text string, also []s
 	if len(also) > 0 {
 		out["other_matches"] = also
 	}
+	if isDisambiguation(text) {
+		out["disambiguation"] = true
+		out["note"] = "This is a list of things that share the name, not an article about any of them. " +
+			"Call again with the one the question means, or use web_search."
+	}
 	return out
+}
+
+// isDisambiguation spots a page that lists the things sharing a name. "define
+// pareto" landed on one and the answer read it as the definition.
+func isDisambiguation(text string) bool {
+	head := strings.ToLower(strings.TrimSpace(text))
+	if len(head) > 400 {
+		head = head[:400]
+	}
+	return strings.HasPrefix(head, "look up ") || strings.Contains(head, "may refer to") ||
+		strings.Contains(head, "may also refer to")
 }
 
 func wikiMiss(near []string) map[string]any {
