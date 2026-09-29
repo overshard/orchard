@@ -227,15 +227,15 @@ func TestASecondTurnWaitsAndIsToldSo(t *testing.T) {
 
 func TestWaitingLabelReadsAsWords(t *testing.T) {
 	for _, tc := range []struct {
-		ahead int
-		want  string
+		position int
+		want     string
 	}{
-		{0, "waiting for the card"},
-		{1, "waiting, one turn ahead"},
-		{3, "waiting, 3 turns ahead"},
+		{1, "next in line"},
+		{2, "waiting, 2 turns ahead"},
+		{4, "waiting, 4 turns ahead"},
 	} {
-		if got := waitingLabel(QueueState{Ahead: tc.ahead}); got != tc.want {
-			t.Errorf("ahead=%d gave %q, want %q", tc.ahead, got, tc.want)
+		if got := waitingLabel(QueueState{Position: tc.position, Ahead: tc.position - 1}); got != tc.want {
+			t.Errorf("position=%d gave %q, want %q", tc.position, got, tc.want)
 		}
 	}
 }
