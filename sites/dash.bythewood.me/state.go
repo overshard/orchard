@@ -25,6 +25,7 @@ type State struct {
 	Weather   Weather      `json:"weather"`
 	Air       Air          `json:"air"`
 	Alerts    []Alert      `json:"alerts"`
+	OnAir     OnAir        `json:"on_air"`
 	Outlook   Outlook      `json:"outlook"`
 	Steam     []Game       `json:"steam"`
 	Streaming []Title      `json:"streaming"`
@@ -197,6 +198,13 @@ func (s *Store) Run(ctx context.Context, g *Guard) {
 		// open onto real numbers, not a spinner.
 		return marketIdle
 	}, func() { s.refreshMarket(ctx, g) })
+
+	go s.loop(ctx, "onair", func() time.Duration {
+		if s.hub.Watching() > 0 {
+			return onAirWatched
+		}
+		return onAirIdle
+	}, func() { s.refreshOnAir(ctx, g) })
 
 	go s.loop(ctx, "news", nil, func() { s.refreshNews(ctx, g) })
 	go s.loop(ctx, "wire", nil, func() { s.refreshWire(ctx, g) })
@@ -398,6 +406,22 @@ func (s *Store) refreshAlerts(ctx context.Context, g *Guard) {
 	s.update(func(st *State) {
 		st.Alerts = alerts
 		st.setNotices("weather", alertNotices(alerts))
+	})
+}
+
+func (s *Store) refreshOnAir(ctx context.Context, g *Guard) {
+	now := time.Now()
+	fresh, err := pickOnAir(
+		func() (OnAir, error) { return fetchYouTube(ctx, g) },
+		func() (OnAir, error) { return fetchTwitch(ctx, g) },
+	)
+	if err != nil {
+		slog.Warn("on air poll failed", slog.String("component", "onair"), slog.Any("err", err))
+		return
+	}
+	s.update(func(st *State) {
+		st.OnAir = carryOnAir(fresh, st.OnAir, now)
+		st.setNotices("live", onAirNotices(st.OnAir))
 	})
 }
 

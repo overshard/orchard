@@ -1142,6 +1142,98 @@ main {
   }
 }
 
+// On air -----------------------------------------------------------------------
+
+.onair-host:empty { display: none; }
+
+// The alert card's shape, so the two read as one kind of thing, with the red
+// kept to the pip and the chip since a red stripe here says severe weather.
+.onair {
+  display: block;
+  padding: 10px 12px 10px 14px;
+  border: 1px solid var(--line-hot);
+  border-left: 3px solid var(--amber-dim);
+  background: var(--panel);
+  color: var(--text);
+  text-decoration: none;
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--amber-dim);
+    border-left-color: var(--amber);
+    .ttl { color: var(--text); }
+  }
+
+  .onair-head { display: block; line-height: 1.35; }
+
+  .pip {
+    display: inline-block;
+    vertical-align: 0.15em;
+    margin-right: 8px;
+    background: var(--down);
+    box-shadow: 0 0 6px rgba(255, 95, 77, 0.6);
+  }
+
+  .who {
+    font-family: var(--grotesk);
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    overflow-wrap: anywhere;
+  }
+
+  .chip {
+    display: inline-block;
+    vertical-align: 0.1em;
+    margin-left: 9px;
+    padding: 2px 6px;
+    border: 1px solid rgba(255, 95, 77, 0.45);
+    font-size: 9px;
+    letter-spacing: var(--track);
+    text-transform: uppercase;
+    color: var(--down);
+    white-space: nowrap;
+  }
+
+  // Streamers write titles for the directory listing and they run long, so a
+  // phone gets two lines of it and the full thing is on hover.
+  .ttl {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    margin-top: 7px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--muted);
+  }
+
+  .onair-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 3px 16px;
+    margin-top: 7px;
+
+    .m { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+    .k { font-size: 9px; letter-spacing: var(--track); color: var(--faint); }
+    .v { font-size: 11px; letter-spacing: 0.04em; color: var(--text); }
+  }
+}
+
+@media (min-width: 1025px) {
+  .onair {
+    display: flex;
+    align-items: center;
+    gap: 8px 20px;
+
+    .onair-head { flex: none; }
+    .ttl { display: block; flex: 1 1 auto; min-width: 0; margin-top: 0; white-space: nowrap; text-overflow: ellipsis; }
+    .onair-meta { flex: none; margin-top: 0; margin-left: auto; justify-content: flex-end; }
+  }
+}
+
 // Conditions -------------------------------------------------------------------
 
 .conditions {

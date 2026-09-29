@@ -13,7 +13,7 @@ import (
 // the browser only has to remember which ids it has already shown.
 type Notice struct {
 	ID    string `json:"id"`
-	Kind  string `json:"kind"` // market, weather, earnings, news
+	Kind  string `json:"kind"` // market, weather, earnings, news, live
 	Title string `json:"title"`
 	Body  string `json:"body"`
 	URL   string `json:"url,omitempty"`
@@ -85,6 +85,19 @@ func alertNotices(alerts []Alert) []Notice {
 		out = append(out, Notice{ID: "weather:" + a.key, Kind: "weather", Title: a.name, Body: body})
 	}
 	return out
+}
+
+func onAirNotices(o OnAir) []Notice {
+	if !o.Live || o.session == "" {
+		return nil
+	}
+	return []Notice{{
+		ID:    "live:" + o.session,
+		Kind:  "live",
+		Title: o.Name + " is live on " + o.Platform,
+		Body:  o.Title,
+		URL:   o.URL,
+	}}
 }
 
 func earningsNotices(rows []Earning) []Notice {
