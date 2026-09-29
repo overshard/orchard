@@ -630,9 +630,9 @@ func draftNote(draft string) string {
 	if strings.TrimSpace(draft) == "" {
 		return ""
 	}
-	return "\n\nYour draft of this reply is above and it has been checked. Keep what it says, with every figure, " +
-		"name and date exactly as the draft has them. Improve the wording, answer any part of the question it " +
-		"left out from the tool results, and add the source numbers."
+	return "\n\nYour reply above has been checked. Write it out again as the answer, keeping every figure, name and " +
+		"date exactly as it has them, improving the wording, answering any part of the question it left out from " +
+		"the tool results, and adding the source numbers. Say nothing about it having been checked or written before."
 }
 
 // budgetNote is the nudge the last decide round gets when the tools come off.

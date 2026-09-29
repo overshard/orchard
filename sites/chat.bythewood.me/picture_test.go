@@ -606,6 +606,9 @@ func TestAnotherViewIsANewPicture(t *testing.T) {
 			t.Errorf("%q was read as a change to the last picture", m)
 		}
 	}
+	if !isPictureAsk("show me this house from the outside", history) {
+		t.Error("another view after a picture was not read as a picture")
+	}
 	if !isPictureChange("make it night", history) {
 		t.Error("a plain change stopped being one")
 	}
