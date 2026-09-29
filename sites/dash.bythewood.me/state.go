@@ -199,13 +199,7 @@ func (s *Store) Run(ctx context.Context, g *Guard) {
 		return marketIdle
 	}, func() { s.refreshMarket(ctx, g) })
 
-	go s.loop(ctx, "onair", func() time.Duration {
-		if s.hub.Watching() > 0 {
-			return onAirWatched
-		}
-		return onAirIdle
-	}, func() { s.refreshOnAir(ctx, g) })
-
+	go s.loop(ctx, "onair", nil, func() { s.refreshOnAir(ctx, g) })
 	go s.loop(ctx, "news", nil, func() { s.refreshNews(ctx, g) })
 	go s.loop(ctx, "wire", nil, func() { s.refreshWire(ctx, g) })
 	go s.loop(ctx, "signal", nil, func() { s.refreshSignal(ctx, g) })
@@ -259,6 +253,7 @@ func (s *Store) loop(ctx context.Context, name string, every func() time.Duratio
 		"earnings":  earningsEvery,
 		"reports":   reportsEvery,
 		"alerts":    alertsEvery,
+		"onair":     onAirEvery,
 		"air":       airEvery,
 		"outdoors":  outdoorsEvery,
 		"steam":     steamEvery,
