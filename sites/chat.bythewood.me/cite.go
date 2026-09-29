@@ -522,7 +522,8 @@ func dropSourceList(text string) string {
 			any, plain = i, i
 			continue
 		}
-		if !onlyAddresses(rest) {
+		headed := sourceHeading.FindString(t) != ""
+		if !onlyAddresses(rest) && !markersOnly.MatchString(rest) && !(headed && markersEnd.MatchString(rest)) {
 			break
 		}
 		any = i
@@ -547,6 +548,13 @@ func dropSourceList(text string) string {
 	}
 	return strings.TrimRight(strings.Join(lines[:cut], "\n"), "\n")
 }
+
+// The list in another shape: a line of bare markers, or a sources line naming
+// what its markers already link. "[1]" on its own closed a Bitwarden answer.
+var (
+	markersOnly = regexp.MustCompile(`^(\[\d{1,3}\]\s*,?\s*)+\.?$`)
+	markersEnd  = regexp.MustCompile(`(\[\d{1,3}\]\s*)+\.?$`)
+)
 
 // onlyAddresses reports whether a line is nothing but addresses.
 func onlyAddresses(s string) bool {
