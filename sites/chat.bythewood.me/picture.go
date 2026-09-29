@@ -82,6 +82,7 @@ func editPrompt(message, named string, keepThing bool) string {
 	words := strings.Join(strings.Fields(message), " ")
 	words = strings.TrimRight(words, " -.,")
 	keep := "Keep everything in the picture that is not asked to change exactly as it is, the same shape, colours, materials and details."
+	var taut string
 	if keepThing {
 		thing := "the subject"
 		for _, m := range namedThing.FindAllStringSubmatch(named+" "+words, -1) {
@@ -91,9 +92,27 @@ func editPrompt(message, named string, keepThing bool) string {
 			}
 		}
 		keep = "Keep " + thing + " from the picture exactly as it is, the same shape, fabric, colour and details."
+		// klein relaxes upholstery into creases on every redraw, and telling it
+		// not to add wrinkles puts the word wrinkles in the prompt.
+		if upholstered.MatchString(thing) {
+			taut = " " + upperFirst(thing) + "'s upholstery stays smooth and taut, as new."
+		}
 	}
-	return keep + " " + upperFirst(words) + ". Photorealistic, professional photography, natural light and realistic shadows."
+	prompt := upperFirst(words) + "." + taut
+	if !saysKeep.MatchString(words) {
+		prompt = keep + " " + prompt
+	}
+	if !strings.Contains(strings.ToLower(words), "photorealistic") {
+		prompt += " Photorealistic, professional photography, natural light and realistic shadows."
+	}
+	return prompt
 }
+
+// saysKeep is his own version of the keep sentence, which is often pasted back
+// from the last prompt and would otherwise go in twice.
+var saysKeep = regexp.MustCompile(`(?i)\bkeep\b.{0,60}\bexactly as\b`)
+
+var upholstered = regexp.MustCompile(`(?i)\b(sofa|couch|sectional|loveseat|chair|armchair|recliner|ottoman|chaise|settee|headboard|bench)\b`)
 
 func upperFirst(s string) string {
 	r := []rune(s)
@@ -148,4 +167,70 @@ func pictureTitle(reply string) string {
 	r := []rune(trimLine(p, 48))
 	r[0] = unicode.ToUpper(r[0])
 	return string(r)
+}
+
+// What a picture ask is of, once the asking and the style are taken off.
+var (
+	pictureOf    = regexp.MustCompile(`(?i)^.*?\b(?:picture|image|drawing|painting|sketch|illustration|photo|photograph|render|art|artwork|poster)s?\s+(?:of\s+)?`)
+	pictureStyle = regexp.MustCompile(`(?i)(,|;|\s--?\s|\s(?:try|make it|in the style|photo ?realistic|realistic|at dusk|at night|at sunset|on a|with)\s).*$`)
+	titleWord    = regexp.MustCompile(`[A-Za-z0-9]+`)
+)
+
+// referenceWindows are the runs of words in a picture ask worth trying as an
+// article title, longest first. Three words or more, or two with a capital,
+// since "living room" has an article and is not what anybody wants looked up.
+func referenceWindows(message string) []string {
+	s := pictureOf.ReplaceAllString(strings.TrimSpace(message), "")
+	s = pictureStyle.ReplaceAllString(s, "")
+	words := strings.Fields(regexp.MustCompile(`(?i)^(a|an|the)\s+`).ReplaceAllString(s, ""))
+	if len(words) > 8 {
+		words = words[:8]
+	}
+	var out []string
+	for n := len(words); n >= 2; n-- {
+		for i := 0; i+n <= len(words); i++ {
+			run := words[i : i+n]
+			if n == 2 && !capitalised(run) {
+				continue
+			}
+			out = append(out, strings.Join(run, " "))
+			if len(out) == maxReferenceTries {
+				return out
+			}
+		}
+	}
+	return out
+}
+
+// Each try is a call on the bridge to a container on this machine, so ten is
+// well under a second and still reaches a five word title inside eight words.
+const maxReferenceTries = 10
+
+func capitalised(words []string) bool {
+	for _, w := range words {
+		if r := []rune(w); len(r) > 0 && unicode.IsUpper(r[0]) {
+			return true
+		}
+	}
+	return false
+}
+
+// namesTitle is true when every word of an article's title is in what he asked,
+// so a search that wandered off to something near it is not taken.
+func namesTitle(title, message string) bool {
+	have := terms(message)
+	n := 0
+	for _, w := range titleWord.FindAllString(title, -1) {
+		t := terms(w)
+		if len(t) == 0 {
+			continue
+		}
+		for k := range t {
+			if !have[k] {
+				return false
+			}
+		}
+		n++
+	}
+	return n >= 2
 }
