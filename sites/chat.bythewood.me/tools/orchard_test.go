@@ -374,3 +374,33 @@ func TestARepoIsFoundByItsGitHubName(t *testing.T) {
 		}
 	}
 }
+
+// Asked where maxToolRounds is set, the model used find, which matches file
+// names, and got nothing back six times.
+func TestFindFallsBackToSearchingInsideFiles(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/repos/orchard/find/HEAD":
+			_ = json.NewEncoder(w).Encode(map[string]any{"count": 0, "paths": []string{}})
+		case "/api/repos/orchard/grep/HEAD":
+			_ = json.NewEncoder(w).Encode(map[string]any{"count": 1, "hits": []map[string]any{
+				{"path": "sites/chat.bythewood.me/chat.go", "line": 21, "text": "maxToolRounds = 6"}}})
+		default:
+			http.Error(w, "", http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+	old := reposBase
+	reposBase = srv.URL
+	defer func() { reposBase = old }()
+	d := testDeps(srv.URL).WithSession("a-live-session")
+
+	got, err := OrchardCode.Run(context.Background(), d,
+		map[string]any{"repo": "overshard/orchard", "action": "find", "query": "maxToolRounds"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m, _ := got.(map[string]any); m["hits"] == nil || m["note"] == nil {
+		t.Errorf("an empty find did not search the files: %#v", got)
+	}
+}
