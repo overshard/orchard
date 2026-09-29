@@ -55,6 +55,10 @@ var ChatHistory = Tool{
 		if err != nil {
 			return nil, err
 		}
+		// The container runs in UTC, where an evening here is already tomorrow.
+		for i := range hits {
+			hits[i].When = hits[i].When.In(newYork())
+		}
 		if len(hits) == 0 {
 			return map[string]any{"query": q, "exchanges": []any{}, "count": 0,
 				"note": "Nothing earlier matched. Say so rather than inventing what was said, " +
