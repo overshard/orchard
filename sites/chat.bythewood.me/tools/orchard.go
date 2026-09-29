@@ -343,7 +343,9 @@ func escapePath(p string) string {
 var OrchardDash = Tool{
 	Name: "orchard_dash",
 	Description: "Read Isaac's dashboard at dash.bythewood.me: markets, Hacker News, Lobsters, the " +
-		"weather, earnings, and whether each of his sites is answering. Pass section to get one " +
+		"weather, earnings, and whether each of his sites is answering. Section onair is whether TheBurntPeanut " +
+		"is streaming, when he usually goes live, his last fourteen days and his next go live, and it is the " +
+		"answer to any question about when he streams. Pass section to get one " +
 		"panel, which is almost always what a question wants, and leave it empty only when the " +
 		"question really does span most of the dashboard. Read only.",
 	Schema: obj(map[string]any{
