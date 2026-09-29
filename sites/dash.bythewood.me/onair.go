@@ -29,11 +29,7 @@ const (
 	twitchGQL      = "https://gql.twitch.tv/gql"
 	twitchClientID = "kimne78kx3ncx6brgo4mv6wki5h1ko"
 
-	// The YouTube page is about 290KB gzipped, so it's only asked this often
-	// while somebody has the page open, which is also the only time a
-	// notification can fire.
-	onAirWatched = 2 * time.Minute
-	onAirIdle    = 10 * time.Minute
+	onAirEvery = 10 * time.Minute
 
 	// A stream that drops and comes back inside this is the same broadcast and
 	// is not announced twice.
