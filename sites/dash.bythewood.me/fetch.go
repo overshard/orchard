@@ -103,10 +103,14 @@ func getJSONHeaders(ctx context.Context, g *Guard, endpoint, url string, headers
 	return nil
 }
 
-// postJSON is getJSON for the one upstream that only speaks GraphQL. Guarded
+// postJSON is getJSON for the upstreams that only speak GraphQL. Guarded
 // identically, since a POST to somebody else's endpoint is no cheaper than a
 // GET.
 func postJSON(ctx context.Context, g *Guard, endpoint, url string, body, out any) error {
+	return postJSONHeaders(ctx, g, endpoint, url, nil, body, out)
+}
+
+func postJSONHeaders(ctx context.Context, g *Guard, endpoint, url string, headers map[string]string, body, out any) error {
 	if err := g.Reserve(ctx, endpoint); err != nil {
 		return err
 	}
@@ -123,6 +127,9 @@ func postJSON(ctx context.Context, g *Guard, endpoint, url string, body, out any
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {

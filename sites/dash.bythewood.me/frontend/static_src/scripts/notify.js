@@ -10,11 +10,13 @@ const boxes = menu ? [...menu.querySelectorAll("input[type=checkbox]")] : [];
 
 const KINDS = "dash-notify";
 const SHOWN = "dash-notify-shown";
+const KNOWN = "dash-notify-known";
 const GROUP = {
   market: "Markets",
   weather: "Severe weather",
   earnings: "Earnings",
   news: "Headlines",
+  live: "TheBurntPeanut",
 };
 
 // Chrome on Android has the API but throws on the constructor, since it only
@@ -32,9 +34,29 @@ function kinds() {
 function saveKinds(set) {
   try {
     localStorage.setItem(KINDS, JSON.stringify([...set]));
+    localStorage.setItem(KNOWN, JSON.stringify(Object.keys(GROUP)));
   } catch {
     // A private window can refuse storage, and then the choice lasts a page.
   }
+}
+
+// A kind added to the menu after someone switched notifications on starts on
+// for them, as it would have if it had been there when they pressed it.
+function adopt() {
+  const chosen = kinds();
+  if (!chosen.size) return;
+  let known;
+  try {
+    known = JSON.parse(localStorage.getItem(KNOWN) || "null");
+  } catch {
+    known = null;
+  }
+  // Anyone who switched on before this key existed chose from these four.
+  known ??= ["market", "weather", "earnings", "news"];
+  const added = Object.keys(GROUP).filter((k) => !known.includes(k));
+  if (!added.length) return;
+  for (const k of added) chosen.add(k);
+  saveKinds(chosen);
 }
 
 function paint() {
@@ -46,7 +68,7 @@ function paint() {
   button.title =
     state === "blocked"
       ? "Notifications are blocked for this site in the browser's settings"
-      : "Browser notifications for severe weather, big market moves, earnings and headlines";
+      : "Browser notifications for severe weather, big market moves, earnings, headlines and TheBurntPeanut going live";
   for (const box of boxes) box.checked = chosen.has(box.value);
 }
 
@@ -57,6 +79,7 @@ function openMenu(open) {
 
 if (root && supported) {
   root.hidden = false;
+  adopt();
   paint();
 
   // A browser only asks for permission from inside a press, which is why this
