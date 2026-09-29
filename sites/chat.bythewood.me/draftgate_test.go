@@ -96,7 +96,7 @@ func TestTheWriterIsHandedTheCheckedDraft(t *testing.T) {
 	if s.final[n-2]["role"] != "assistant" || s.final[n-2]["content"] != draft {
 		t.Errorf("the message before the instruction is %v, want the draft", s.final[n-2])
 	}
-	if !strings.Contains(s.final[n-1]["content"], "Your draft of this reply is above") {
+	if !strings.Contains(s.final[n-1]["content"], "Your reply above has been checked") {
 		t.Errorf("the instruction does not mention the draft: %q", s.final[n-1]["content"])
 	}
 }
