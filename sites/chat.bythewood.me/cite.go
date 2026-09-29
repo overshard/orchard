@@ -219,7 +219,7 @@ func citeSentence(s string, srcs []Source, known map[int]bool) string {
 		return citeMark.ReplaceAllString(part, "")
 	})
 	body = spaceBeforePunct.ReplaceAllString(spaceRun.ReplaceAllString(body, " "), "$1")
-	body = strings.TrimSpace(body)
+	body = strings.TrimRight(strayComma.ReplaceAllString(strings.TrimSpace(body), "$1"), ",")
 	if body == "" {
 		return ""
 	}
@@ -244,6 +244,8 @@ var (
 	// Lifting a marker out from in front of the full stop leaves the space it
 	// was sitting on.
 	spaceBeforePunct = regexp.MustCompile(` +([,.;:!?])`)
+	// "Albemarle [1], [11]." loses its markers and keeps the comma between them.
+	strayComma = regexp.MustCompile(`,+([.;:!?])`)
 )
 
 func endsSentence(s string) bool {
