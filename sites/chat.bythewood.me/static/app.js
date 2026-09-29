@@ -29,6 +29,9 @@
   // Declared up here because refreshConversations paints from it and runs
   // before the live stream is wired.
   const unread = new Set();
+  // Every turn still going, from the meta stream and the list, by conversation:
+  // 0 is on the card and a number is its place in line.
+  const live = new Map();
 
   // The width the stylesheet switches the sidebar to an overlay at. Kept in one
   // place because the two have to agree: a sidebar that is an overlay in CSS and
@@ -350,16 +353,38 @@
   }
   paintModel();
 
+  // The composer follows the conversation on screen, and the chip follows the
+  // card, which another conversation can be holding while this one is idle.
+  let viewBusy = false;
+  function paintCard() {
+    card.busy = viewBusy || [...live.values()].some((pos) => pos === 0);
+    paintModel();
+  }
+
   function busy(on) {
     send.hidden = on; stop.hidden = !on; input.disabled = on;
-    // A turn that is running means the weights are on the card by definition,
-    // so this is the one place the state is known without asking.
-    card.busy = on;
+    viewBusy = on;
     // Every turn starts on the chat model, whatever the last one left there.
     if (on) { card.loaded = true; card.onCard = ""; }
-    paintModel();
+    paintCard();
     if (!on) refocus();
   }
+
+  // Stops drawing the turn on screen without stopping the turn, which carries on
+  // on the server and is followed again from the start when its conversation is
+  // opened. The reader's own cleanup sees it is no longer the one on screen and
+  // leaves the thread alone, since by then the thread is another conversation.
+  function detach() {
+    if (!inflight) return;
+    const ctl = inflight;
+    inflight = null;
+    ctl.abort();
+    clearStatus();
+    busy(false);
+  }
+  // The conversation the reader on screen last saw to the end, so the meta
+  // stream saying the same turn finished does not redraw it a second time.
+  let lastEnded = "";
 
   // ----------------------------------------------------------- attachments
 
@@ -602,6 +627,7 @@
     // A turn made only of files is a real question, so an empty box is only
     // empty when nothing is attached either.
     if ((!text.trim() && !staged.length) || inflight) return;
+    askToNotify();
     welcome?.remove();
     const sending = staged;
     staged = [];
@@ -679,13 +705,16 @@
     } catch (e) {
       if (e.name !== "AbortError") errorLine(e.message || String(e));
     } finally {
-      clearStatus();
-      body.classList.remove("typing");
-      if (tail.isConnected && !tail.textContent.trim()) tail.remove();
-      if (!body.textContent.trim()) reply.remove();
-      inflight = null;
-      busy(false);
-      sizeSpacer();
+      if (inflight === ctl) {
+        clearStatus();
+        body.classList.remove("typing");
+        if (tail.isConnected && !tail.textContent.trim()) tail.remove();
+        if (!body.textContent.trim()) reply.remove();
+        lastEnded = convID || runID;
+        inflight = null;
+        busy(false);
+        sizeSpacer();
+      }
       // A turn is when search finds out it has been rate limited, so the bar
       // learns about it here rather than on the next reload.
       refreshStatus();
@@ -765,12 +794,18 @@
         clearStatus();
         window.Widgets.settle(ui.widgets);
         showStats(ev.stats);
+        // Every other turn is announced by the meta stream, which never hears
+        // about an incognito one.
+        if (ev.incognito) claim("incognito").then((ok) => ok && notify("", "Incognito", "The answer is ready."));
         ui.tail.remove();
         if (ev.conversation_id) {
           // A new conversation followed after a reload is on screen under the
           // key the browser made up, so that is new too.
           const isNew = convID !== ev.conversation_id;
           convID = ev.conversation_id;
+          // The meta stream can name the real id before this stream does, and
+          // then marks the conversation on screen as unread.
+          if (unread.delete(convID)) paintUnread();
           if (isNew) {
             // The address has to catch up with the conversation that now
             // exists, or a reload lands back on an empty page.
@@ -808,25 +843,34 @@
 
   // ---------------------------------------------------------------- history
 
+  // Every event on the meta stream asks for the list, and two answers can come
+  // back in the wrong order, so only the newest one is drawn.
+  let listing = 0;
   async function refreshConversations() {
+    const mine = ++listing;
     try {
       const r = await fetch("/api/conversations");
       const d = await r.json();
+      if (mine !== listing) return;
       convs.replaceChildren();
       if (!d.conversations || !d.conversations.length) {
         convs.innerHTML = `<p class="empty">Nothing yet. Ask something.</p>`;
       } else {
         for (const c of d.conversations) {
           const a = document.createElement("a");
-          a.className = "conv" + (c.id === convID ? " active" : "") + (c.running ? " working" : "");
+          a.className = "conv" + (c.id === convID ? " active" : "");
           a.href = "/c/" + c.id;
           a.dataset.id = c.id;
+          a.dataset.when = when(c.updated);
           a.innerHTML = `<span class="conv-title">${esc(c.title)}</span>` +
-            `<span class="conv-when">${esc(when(c.updated))}</span>` +
+            `<span class="conv-when">${esc(a.dataset.when)}</span>` +
             `<button class="conv-del" data-del="${c.id}" title="Delete" aria-label="Delete conversation">&#10005;</button>`;
           convs.appendChild(a);
         }
       }
+      live.clear();
+      for (const c of d.conversations || []) if (c.running) live.set(c.id, c.waiting || 0);
+      paintLive();
       if (!filter.hidden) applyFilter();
       paintUnread();
       const s = await (await fetch("/api/status")).json();
@@ -844,15 +888,27 @@
     return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
   }
 
+  // Clicks can outrun the fetches they start, so only the newest one draws.
+  let opening = 0;
   async function openConversation(id) {
+    if (id === convID && inflight) {
+      if (isNarrow()) showSide(false);
+      return;
+    }
+    const mine = ++opening;
     const r = await fetch("/api/conversation/" + id);
-    if (!r.ok) return;
+    if (!r.ok || mine !== opening) return;
     const d = await r.json();
+    if (mine !== opening) return;
+    detach();
     convID = id;
     unread.delete(id);
     thread.replaceChildren();
     spacer = null; anchor = null;
-    barTitle.textContent = d.title || "Conversation";
+    // A new conversation has no title until its first turn is stored, and its
+    // row in the list is the question it was asked.
+    const row = document.querySelector(`.conv[data-id="${CSS.escape(id)}"] .conv-title`);
+    barTitle.textContent = d.title || row?.textContent || "Conversation";
     clearStats();
     for (const m of d.messages) {
       const node = bubble(m.role === "user" ? "user" : "bot");
@@ -916,13 +972,16 @@
     } catch (e) {
       if (e.name !== "AbortError") errorLine(e.message || String(e));
     } finally {
-      clearStatus();
-      body.classList.remove("typing");
-      if (tail.isConnected && !tail.textContent.trim()) tail.remove();
-      if (!body.textContent.trim()) reply.remove();
-      inflight = null;
-      busy(false);
-      sizeSpacer();
+      if (inflight === ctl) {
+        clearStatus();
+        body.classList.remove("typing");
+        if (tail.isConnected && !tail.textContent.trim()) tail.remove();
+        if (!body.textContent.trim()) reply.remove();
+        lastEnded = convID;
+        inflight = null;
+        busy(false);
+        sizeSpacer();
+      }
     }
   }
 
@@ -971,6 +1030,8 @@
   window.Widgets.onAsk = (q) => { if (!input.disabled) ask(q); };
 
   $("new-chat").addEventListener("click", () => {
+    opening++;
+    detach();
     convID = "";
     thread.replaceChildren();
     spacer = null; anchor = null;
@@ -1105,6 +1166,75 @@
     else scrim.hidden = side.classList.contains("closed");
   });
 
+  // -------------------------------------------------------- notifications
+  //
+  // An answer can take minutes, so one that lands while the tab is behind
+  // something else says so. Chrome on Android has the API but throws on the
+  // constructor, since it only shows a notification from a service worker.
+  const canNotify = "Notification" in window && !/Android/i.test(navigator.userAgent);
+  const away = () => document.hidden || !document.hasFocus();
+
+  // A browser only asks from inside a press, and the first question sent is the
+  // first press that makes it worth asking.
+  function askToNotify() {
+    if (canNotify && Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
+    }
+  }
+
+  // Every open tab hears the same turn finish and only one of them should say
+  // so. The lock makes the check and the write one step across tabs.
+  function claim(id) {
+    const take = () => {
+      const k = "chat-told:" + id, now = Date.now();
+      try {
+        if (now - Number(localStorage.getItem(k) || 0) < 15000) return false;
+        localStorage.setItem(k, String(now));
+      } catch { /* without storage every tab says it */ }
+      return true;
+    };
+    return navigator.locks ? navigator.locks.request("chat-notify", take) : Promise.resolve(take());
+  }
+
+  function notify(id, title, body) {
+    if (!canNotify || Notification.permission !== "granted" || !away()) return;
+    try {
+      const n = new Notification(title || "chat", { body, tag: "chat-" + (id || "incognito") });
+      n.onclick = () => {
+        window.focus();
+        n.close();
+        if (id && id !== convID) openConversation(id);
+      };
+    } catch { /* a browser that has the API and refuses the constructor */ }
+  }
+
+  // Markdown read back as a line of plain text, since a notification shows
+  // asterisks and citation numbers as they are.
+  function plain(md) {
+    return md.replace(/```[\s\S]*?```/g, " ").replace(/\[\d+\]/g, "")
+      .replace(/[*_`#>|]/g, "").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+      .replace(/\s+/g, " ").trim().slice(0, 180);
+  }
+
+  // The meta stream says which conversation finished and never what was said,
+  // so the answer is read back only when there is a notification to put it in.
+  async function notifyFinished(ev) {
+    if (!canNotify || Notification.permission !== "granted" || !away()) return;
+    if (!(await claim(ev.conversation_id))) return;
+    const row = document.querySelector(`.conv[data-id="${CSS.escape(ev.conversation_id)}"] .conv-title`);
+    let title = ev.title || row?.textContent || "", body = "That turn did not finish.";
+    if (!ev.failed) {
+      body = "The answer is ready.";
+      try {
+        const d = await (await fetch("/api/conversation/" + ev.conversation_id)).json();
+        title = title || d.title || "";
+        const last = [...(d.messages || [])].reverse().find((m) => m.role !== "user");
+        if (last?.text) body = plain(last.text) || body;
+      } catch { /* the title alone still says which one */ }
+    }
+    notify(ev.conversation_id, title, body);
+  }
+
   // ------------------------------------------------------------ live meta
   //
   // A turn outlives the tab that started it, so a question asked on the desktop
@@ -1122,6 +1252,29 @@
     $("side-open").classList.toggle("dot-on", n > 0);
   }
 
+  // A row says what its turn is doing in place of when it last changed, so the
+  // list reads as the queue while anything is in it.
+  function paintLive() {
+    document.querySelectorAll(".conv").forEach((el) => {
+      const pos = live.get(el.dataset.id);
+      const w = el.querySelector(".conv-when");
+      el.classList.toggle("working", pos === 0);
+      el.classList.toggle("waiting", pos > 0);
+      if (!w) return;
+      if (pos === undefined) {
+        if (el.dataset.when) w.textContent = el.dataset.when;
+        el.removeAttribute("title");
+      } else if (pos === 0) {
+        w.textContent = "working";
+        el.title = "Answering now";
+      } else {
+        w.textContent = pos === 1 ? "next up" : "queued #" + pos;
+        el.title = pos === 1 ? "Next in line for the model" : (pos - 1) + " ahead of it in line, plus the one answering now";
+      }
+    });
+    paintCard();
+  }
+
   function liveMeta() {
     const es = new EventSource("/api/events");
     es.addEventListener("message", async (m) => {
@@ -1129,7 +1282,13 @@
       try { ev = JSON.parse(m.data); } catch { return; }
       if (ev.kind === "changed") { refreshConversations().then(paintUnread); return; }
 
+      if (ev.kind === "waiting" || ev.kind === "working") {
+        live.set(ev.conversation_id, ev.kind === "waiting" ? ev.position : 0);
+        paintLive();
+        return;
+      }
       if (ev.kind === "started") {
+        live.set(ev.conversation_id, ev.position || 0);
         // Another tab, or another device, asked this conversation something.
         // Follow it if it is the one on screen and nothing here is streaming.
         if (ev.conversation_id === convID && !inflight) follow(convID);
@@ -1137,14 +1296,18 @@
         return;
       }
       if (ev.kind === "finished") {
+        live.delete(ev.conversation_id);
+        paintLive();
         if (ev.conversation_id === convID) {
           // Only when this tab was not the one writing it. The turn we ran has
           // already drawn itself and re-opening would replay the whole thread.
-          if (!inflight) await openConversation(convID);
+          if (!inflight && ev.conversation_id !== lastEnded) await openConversation(convID);
         } else {
           markUnread(ev.conversation_id);
         }
+        notifyFinished(ev);
         refreshConversations().then(paintUnread);
+        refreshStatus();
       }
     });
     // EventSource reconnects on its own, and a reconnect after the server

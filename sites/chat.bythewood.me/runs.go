@@ -40,6 +40,8 @@ type turnRun struct {
 	// reloads mid turn would otherwise show an answer to nothing. Empty for an
 	// incognito turn, which is never listed.
 	question string
+	// Where in line the turn is, and 0 once it has the card.
+	waiting int
 }
 
 // Runs holds every turn in flight, keyed by the conversation it belongs to. A
@@ -199,6 +201,27 @@ func (r *turnRun) Unfollow(ch <-chan json.RawMessage) {
 	}
 }
 
+// setWaiting records where in line the turn is and reports whether that moved,
+// so a position is announced to every tab once rather than every second.
+func (r *turnRun) setWaiting(pos int) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.waiting == pos {
+		return false
+	}
+	r.waiting = pos
+	return true
+}
+
+func (r *turnRun) Waiting() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.done {
+		return 0
+	}
+	return r.waiting
+}
+
 func (r *turnRun) setQuestion(q string) {
 	r.mu.Lock()
 	r.question = q
@@ -227,6 +250,16 @@ func (rs *Runs) Asking() map[string]string {
 		}
 	}
 	return out
+}
+
+// WaitingFor is where in line the turn under key is, 0 when it has the card or
+// there is no turn.
+func (rs *Runs) WaitingFor(key string) int {
+	r, ok := rs.Get(key)
+	if !ok {
+		return 0
+	}
+	return r.Waiting()
 }
 
 // Running reports whether a turn is still going, which is what the conversation

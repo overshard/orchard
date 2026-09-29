@@ -17,9 +17,12 @@ import (
 const hubBuffer = 16
 
 type HubEvent struct {
-	Kind   string `json:"kind"` // started, finished, changed
+	Kind   string `json:"kind"` // started, waiting, working, finished, changed
 	ConvID string `json:"conversation_id,omitempty"`
 	Title  string `json:"title,omitempty"`
+	// Where in line a turn is, 1 being next. Zero is not waiting.
+	Position int  `json:"position,omitempty"`
+	Failed   bool `json:"failed,omitempty"`
 }
 
 type Hub struct {
