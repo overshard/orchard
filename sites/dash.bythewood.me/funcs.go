@@ -1,6 +1,9 @@
 package main
 
-import "html/template"
+import (
+	"html/template"
+	"slices"
+)
 
 var templateFuncs = template.FuncMap{
 	// The sparkline paths are computed in spark.go and go straight into a d
@@ -26,6 +29,11 @@ var templateFuncs = template.FuncMap{
 		}
 		return out
 	},
+
+	// The ON AIR panel draws the week Monday first and lights the days he
+	// usually streams, which the state carries as a list of names.
+	"weekdays": func() []string { return []string{"MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"} },
+	"in":       slices.Contains[[]string],
 
 	// Valve's own review bands, so the colour on a rating matches the word the
 	// store puts next to the same number.

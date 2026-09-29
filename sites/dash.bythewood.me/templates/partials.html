@@ -209,3 +209,55 @@
   {{end}}
 </div>
 {{end}}
+
+{{/*
+  The ON AIR panel's body, rendered from the whole of OnAir, since whether he is
+  on comes from the banner's poll and the rest from the hourly archive read.
+  live.js builds the same markup in renderBroadcasts.
+*/}}
+{{define "broadcasts"}}
+<ul class="air-rows">
+  <li class="air-who" data-state="{{if .Live}}live{{else}}off{{end}}">
+    <span class="pip"></span>
+    <a class="k" href="https://www.twitch.tv/theburntpeanut" rel="noopener noreferrer" target="_blank">THEBURNTPEANUT</a>
+    <span class="bar"></span>
+    <span class="v">{{if .Live}}LIVE{{else}}OFF AIR{{end}}</span>
+  </li>
+  {{- with .Broadcasts}}
+  <li>
+    <span class="k">NEXT</span>
+    <span class="bar"></span>
+    <span class="v" title="{{.Next.Title}}">{{if .Next.At}}{{.Next.At}}{{else}}&mdash;{{end}}</span>
+    {{if .Next.Kind}}<span class="tag" data-kind="{{.Next.Kind}}">{{if eq .Next.Kind "scheduled"}}SCHEDULED{{else}}GUESS{{end}}</span>{{end}}
+  </li>
+  <li>
+    <span class="k">USUAL</span>
+    <span class="bar"></span>
+    <span class="v">{{if .Usual}}{{.Usual}}{{else}}&mdash;{{end}}</span>
+    <span class="week">{{$days := .Days}}{{range weekdays}}<i data-on="{{if in $days .}}yes{{else}}no{{end}}" title="{{.}}">{{slice . 0 1}}</i>{{end}}</span>
+  </li>
+  <li>
+    <span class="k">{{if .Last.Live}}NOW{{else}}LAST{{end}}</span>
+    <span class="bar"></span>
+    <span class="v" title="{{.Last.Title}}">{{if .Last.Start}}{{.Last.Start}}{{else}}&mdash;{{end}}</span>
+    {{if .Last.Ran}}<span class="n">{{.Last.Ran}}</span>{{end}}
+  </li>
+  {{- end}}
+</ul>
+{{if .Broadcasts.Strip}}
+<div class="air-days">
+  <div class="air-head">
+    <span class="k">LAST {{len .Broadcasts.Strip}} DAYS</span>
+    <span class="v">HOURS ON AIR</span>
+  </div>
+  <div class="air-plot">
+    {{range .Broadcasts.Strip}}<span class="abar" data-today="{{if .Today}}yes{{else}}no{{end}}" title="{{.Day}} {{.Date}} &middot; {{.Hours}}H"><i style="height:{{.Fill}}%"></i></span>{{end}}
+  </div>
+  <div class="air-cols">
+    {{range .Broadcasts.Strip}}<span data-today="{{if .Today}}yes{{else}}no{{end}}">{{slice .Day 0 1}}</span>{{end}}
+  </div>
+</div>
+{{else}}
+<p class="empty">AWAITING ARCHIVE</p>
+{{end}}
+{{end}}
