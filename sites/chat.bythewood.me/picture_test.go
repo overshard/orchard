@@ -597,3 +597,16 @@ func TestAPictureAskIsLookedUpByItsName(t *testing.T) {
 		t.Error("a one word title was taken")
 	}
 }
+
+func TestAnotherViewIsANewPicture(t *testing.T) {
+	history := []Message{{Role: RoleUser, Content: "make an image of a curved living room"},
+		{Role: RoleAssistant, Content: drewPrefix + "A curved living room."}}
+	for _, m := range []string{"show me this house from the outside", "now an aerial view of it", "what about from a different angle"} {
+		if isPictureChange(m, history) || !wantsNewPicture(m) {
+			t.Errorf("%q was read as a change to the last picture", m)
+		}
+	}
+	if !isPictureChange("make it night", history) {
+		t.Error("a plain change stopped being one")
+	}
+}
