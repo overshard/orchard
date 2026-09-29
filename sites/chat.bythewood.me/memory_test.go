@@ -292,3 +292,54 @@ func TestAddFactKeepsUnrelatedFactsApart(t *testing.T) {
 		t.Errorf("three unrelated facts collapsed to %d: %#v", len(facts), facts)
 	}
 }
+
+// Real misses from a day of use, each a fact recalled by one word it shared
+// with a question about something else.
+func TestOneSharedWordIsChanceOnAnOrdinaryQuestion(t *testing.T) {
+	s := memStore(t)
+	for _, f := range []string{
+		"Isaac eats sausages but avoids ones containing nitrates or nitrites.",
+		"Isaac likes the Vogue article's idea of lived-in, well-loved interiors over freshly new.",
+		"Isaac is researching whether a tiny home on wheels can legally be lived in full-time in Yadkin County, NC.",
+		"Isaac works on a project called orchard-dash, a dashboard he is developing.",
+	} {
+		if _, err := s.AddFact(f); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, q := range []string{
+		"how do i backup my aegis one time passwords",
+		"any big news over night",
+		"can i have multiple tailscale networks on the same system like for work and home?",
+		"make a cyberpunk esque living room scene",
+	} {
+		if got := s.Relevant(q, 6); len(got) != 0 {
+			t.Errorf("%q pulled in %q", q, got[0].Text)
+		}
+	}
+}
+
+func TestAFilmIsAMovie(t *testing.T) {
+	s := memStore(t)
+	if _, err := s.AddFact("Isaac and his friends want to watch the films Heretic and Terrifier this weekend."); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.Relevant("what movies do my friends and I want to watch", 6); len(got) != 1 {
+		t.Errorf("a question about movies missed the fact about films: %d", len(got))
+	}
+}
+
+// The id a recalled fact is shown with was copied into the fact itself.
+func TestAFactLosesTheIDItWasShownWith(t *testing.T) {
+	for in, want := range map[string]string{
+		"[1] Isaac's friends movie night watch list: Heretic.": "Isaac's friends movie night watch list: Heretic.",
+		"Isaac likes buttered chicken pizza. (id 19)":          "Isaac likes buttered chicken pizza.",
+	} {
+		if got := tidyFact(in); got != want {
+			t.Errorf("tidyFact(%q) = %q", in, got)
+		}
+	}
+	if got := memoryBlock([]Fact{{ID: 7, Text: "Isaac drinks his coffee black"}}); !strings.Contains(got, "(id 7)") {
+		t.Errorf("the block does not carry the id: %q", got)
+	}
+}
