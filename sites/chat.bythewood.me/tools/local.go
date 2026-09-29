@@ -6,9 +6,11 @@ import (
 	"net/url"
 	"regexp"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 )
 
 // ---------------------------------------------------------------- music
@@ -30,31 +32,18 @@ var MusicLookup = Tool{
 		if term == "" {
 			return nil, fmt.Errorf("artist is required")
 		}
-		var res struct {
-			Results []struct {
-				ArtistName     string `json:"artistName"`
-				TrackName      string `json:"trackName"`
-				CollectionName string `json:"collectionName"`
-				ReleaseDate    string `json:"releaseDate"`
-			} `json:"results"`
+		track := strings.TrimSpace(argStr(a, "track"))
+		if out, ok := artistSongs(ctx, d, strings.TrimSpace(argStr(a, "artist")), track); ok {
+			return map[string]any{"query": term, "matches": out}, nil
 		}
-		u := "https://itunes.apple.com/search?media=music&limit=5&term=" + url.QueryEscape(term)
+		var res itunesResults
+		u := "https://itunes.apple.com/search?media=music&entity=song&limit=5&term=" + url.QueryEscape(term)
 		if err := getJSON(ctx, d, u, &res); err != nil {
 			return nil, err
 		}
-		type match struct {
-			Artist string `json:"artist"`
-			Track  string `json:"track"`
-			Album  string `json:"album"`
-			Year   string `json:"year"`
-		}
-		out := make([]match, 0, len(res.Results))
+		out := make([]songMatch, 0, len(res.Results))
 		for _, r := range res.Results {
-			y := r.ReleaseDate
-			if len(y) >= 4 {
-				y = y[:4]
-			}
-			out = append(out, match{r.ArtistName, r.TrackName, r.CollectionName, y})
+			out = append(out, r.match())
 		}
 		if len(out) == 0 {
 			return map[string]any{"query": term, "matches": out,
@@ -62,6 +51,75 @@ var MusicLookup = Tool{
 		}
 		return map[string]any{"query": term, "matches": out}, nil
 	},
+}
+
+type itunesResults struct {
+	Results []itunesItem `json:"results"`
+}
+
+type itunesItem struct {
+	WrapperType    string `json:"wrapperType"`
+	ArtistID       int64  `json:"artistId"`
+	ArtistName     string `json:"artistName"`
+	TrackName      string `json:"trackName"`
+	CollectionName string `json:"collectionName"`
+	ReleaseDate    string `json:"releaseDate"`
+}
+
+type songMatch struct {
+	Artist string `json:"artist"`
+	Track  string `json:"track"`
+	Album  string `json:"album"`
+	Year   string `json:"year"`
+}
+
+func (r itunesItem) match() songMatch {
+	y := r.ReleaseDate
+	if len(y) >= 4 {
+		y = y[:4]
+	}
+	return songMatch{r.ArtistName, r.TrackName, r.CollectionName, y}
+}
+
+// artistSongs reads the artist's own catalogue rather than searching every
+// song, where an original is buried under its covers and tribute albums. The
+// earliest release comes first, since that is usually the original.
+func artistSongs(ctx context.Context, d *Deps, artist, track string) ([]songMatch, bool) {
+	if artist == "" || track == "" {
+		return nil, false
+	}
+	var found itunesResults
+	u := "https://itunes.apple.com/search?media=music&entity=musicArtist&limit=1&term=" + url.QueryEscape(artist)
+	if getJSON(ctx, d, u, &found) != nil || len(found.Results) == 0 || found.Results[0].ArtistID == 0 {
+		return nil, false
+	}
+	var songs itunesResults
+	u = fmt.Sprintf("https://itunes.apple.com/lookup?entity=song&limit=200&id=%d", found.Results[0].ArtistID)
+	if getJSON(ctx, d, u, &songs) != nil {
+		return nil, false
+	}
+	want := foldTitle(track)
+	var out []songMatch
+	for _, r := range songs.Results {
+		if r.WrapperType == "track" && strings.Contains(foldTitle(r.TrackName), want) {
+			out = append(out, r.match())
+		}
+	}
+	if len(out) == 0 {
+		return nil, false
+	}
+	sort.SliceStable(out, func(i, j int) bool { return out[i].Year < out[j].Year })
+	return out[:min(len(out), 6)], true
+}
+
+func foldTitle(s string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(s) {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 // ---------------------------------------------------------------- convert
