@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -121,4 +124,58 @@ func TestQueueReportsPosition(t *testing.T) {
 		t.Fatal("no position was reported")
 	}
 	release()
+}
+
+// A turn behind another is announced with its place in line, so every tab's
+// list says it is waiting rather than working, and one stopped before it reached
+// the card is still announced as over, or those lists say waiting forever.
+func TestAQueuedTurnIsAnnouncedAndSoIsItsEnd(t *testing.T) {
+	q := NewQueue()
+	release, _ := q.Enter(context.Background(), nil)
+	defer release()
+
+	s := &site{runs: NewRuns(), queue: q, hub: NewHub()}
+	events, unsubscribe := s.hub.Subscribe()
+	defer unsubscribe()
+
+	sent := make(chan struct{})
+	go func() {
+		req := httptest.NewRequest(http.MethodPost, "/api/send", strings.NewReader(`{"message":"hello","run_id":"r1"}`))
+		s.send(httptest.NewRecorder(), req)
+		close(sent)
+	}()
+
+	next := func(kind string) HubEvent {
+		t.Helper()
+		for {
+			select {
+			case ev := <-events:
+				if ev.Kind == kind {
+					return ev
+				}
+			case <-time.After(3 * time.Second):
+				t.Fatalf("no %s event", kind)
+			}
+		}
+	}
+
+	if ev := next("started"); ev.ConvID != "r1" || ev.Position != 1 {
+		t.Errorf("started = %+v, want r1 first in line", ev)
+	}
+	if got := s.runs.WaitingFor("r1"); got != 1 {
+		t.Errorf("the list would show position %d, want 1", got)
+	}
+
+	s.runs.Cancel("r1")
+	if ev := next("finished"); ev.ConvID != "r1" || !ev.Failed {
+		t.Errorf("finished = %+v, want r1 marked failed", ev)
+	}
+	select {
+	case <-sent:
+	case <-time.After(3 * time.Second):
+		t.Fatal("the stream stayed open after the turn ended")
+	}
+	if got := s.runs.WaitingFor("r1"); got != 0 {
+		t.Errorf("a finished turn still reads as position %d", got)
+	}
 }

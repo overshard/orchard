@@ -407,7 +407,12 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 			q = parts[0].Name
 		}
 		rn.setQuestion(q)
-		s.hub.Publish(HubEvent{Kind: "started", ConvID: key})
+		// Counted before the turn joins the queue, so a tab that reads the list
+		// on hearing this sees it waiting rather than working for a second.
+		if waiting, running := s.queue.Depth(); running {
+			rn.setWaiting(waiting + 1)
+		}
+		s.hub.Publish(HubEvent{Kind: "started", ConvID: key, Position: rn.Waiting()})
 	}
 	// This runs detached, since r.Context() dies with the tab and a turn that has
 	// spent two minutes fetching should not be thrown away because a phone
@@ -416,14 +421,24 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 	rn.setCancel(cancel)
 	go func() {
 		defer cancel()
+		id, title, ok := key, "", false
 		defer rn.Finish()
+		// Every ending is announced, a failed or stopped one included, or the
+		// sidebar on another tab says working until something else refreshes it.
+		// It goes out before Finish so the tab reading the stream is still
+		// attached when it hears, and does not read the conversation twice.
+		defer func() {
+			if !req.Incognito {
+				s.hub.Publish(HubEvent{Kind: "finished", ConvID: id, Title: title, Failed: !ok})
+			}
+		}()
 		defer func() {
 			if p := recover(); p != nil {
 				slog.Error("a turn panicked", "err", p)
 				rn.Emit(Event{Kind: "error", Text: "that turn failed"})
 			}
 		}()
-		s.turn(ctx, rn, key, req, parts, session)
+		id, title, ok = s.turn(ctx, rn, key, req, parts, session)
 	}()
 	s.streamRun(w, r, rn)
 }
@@ -525,8 +540,9 @@ func (s *site) streamRun(w http.ResponseWriter, r *http.Request, tr *turnRun) {
 }
 
 // turn is the work, with no http in it. It writes into the run rather than to a
-// response, which is what lets it outlive the request that started it.
-func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, parts []filePart, session string) {
+// response, which is what lets it outlive the request that started it. It hands
+// back the conversation the turn ended up in, which for a new one is not key.
+func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, parts []filePart, session string) (string, string, bool) {
 	prompt := composeTurn(req.Message, parts)
 	emit := func(e Event) { rn.Emit(e) }
 	tr := NewTrace(emit)
@@ -537,12 +553,18 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 	// that says it is second in line looks like a queue.
 	release, ok := s.queue.Enter(ctx, func(q QueueState) {
 		emit(Event{Kind: "status", Text: waitingLabel(q)})
+		if q.Position > 0 && rn.setWaiting(q.Position) && !req.Incognito {
+			s.hub.Publish(HubEvent{Kind: "waiting", ConvID: key, Position: q.Position})
+		}
 	})
 	if !ok {
 		emit(Event{Kind: "error", Text: "that turn was stopped before it started"})
-		return
+		return key, "", false
 	}
 	defer release()
+	if rn.setWaiting(0) && !req.Incognito {
+		s.hub.Publish(HubEvent{Kind: "working", ConvID: key})
+	}
 	// Every model call this turn makes hangs off this context, including the
 	// ones the tools start, so marking it here is what keeps the gateway from
 	// writing down what the local database is not writing down either.
@@ -596,8 +618,9 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 	// failed turn is exactly when the counts matter most.
 	s.engine.SaveSpend(s.store.SaveSpend)
 	if err != nil {
+		slog.Warn("a turn failed", "err", trimLine(err.Error(), 300))
 		emit(Event{Kind: "error", Text: err.Error()})
-		return
+		return key, "", false
 	}
 
 	// Whatever the model wrote, the stored copy has no leaked markup in it.
@@ -689,9 +712,10 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 			"ctx": s.ctxSize,
 		}}
 	rn.Emit(done)
-	if !req.Incognito && convID != "" {
-		s.hub.Publish(HubEvent{Kind: "finished", ConvID: convID, Title: title})
+	if convID == "" {
+		convID = key
 	}
+	return convID, title, true
 }
 
 // attach lets a tab that went away pick a turn back up. It is the same stream
@@ -716,16 +740,13 @@ func (s *site) stop(w http.ResponseWriter, r *http.Request) {
 }
 
 // waitingLabel says where in the queue a turn is, in words rather than a
-// number on its own, since "2" beside a spinner reads as an error code.
+// number on its own, since "2" beside a spinner reads as an error code. The
+// turn on the card counts as one ahead, so this agrees with the list's number.
 func waitingLabel(q QueueState) string {
-	switch {
-	case q.Ahead <= 0:
-		return "waiting for the card"
-	case q.Ahead == 1:
-		return "waiting, one turn ahead"
-	default:
-		return "waiting, " + itoa(q.Ahead) + " turns ahead"
+	if q.Position <= 1 {
+		return "next in line"
 	}
+	return "waiting, " + itoa(q.Position) + " turns ahead"
 }
 
 // render turns the model's markdown into HTML on the server, so the browser
@@ -756,6 +777,7 @@ func (s *site) listConversations(w http.ResponseWriter, r *http.Request) {
 	type row struct {
 		Conversation
 		Running bool `json:"running,omitempty"`
+		Waiting int  `json:"waiting,omitempty"`
 	}
 	asking := s.runs.Asking()
 	out := make([]row, 0, len(convs)+len(asking))
@@ -765,12 +787,13 @@ func (s *site) listConversations(w http.ResponseWriter, r *http.Request) {
 	}
 	for key, q := range asking {
 		if !listed[key] {
-			out = append(out, row{Conversation: Conversation{ID: key, Title: trimLine(q, 60), Updated: time.Now()}, Running: true})
+			out = append(out, row{Conversation: Conversation{ID: key, Title: trimLine(q, 60), Updated: time.Now()},
+				Running: true, Waiting: s.runs.WaitingFor(key)})
 		}
 	}
 	for _, c := range convs {
 		_, running := asking[c.ID]
-		out = append(out, row{Conversation: c, Running: running})
+		out = append(out, row{Conversation: c, Running: running, Waiting: s.runs.WaitingFor(c.ID)})
 	}
 	writeJSON(w, map[string]any{"conversations": out})
 }

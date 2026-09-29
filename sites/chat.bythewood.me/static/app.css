@@ -181,6 +181,16 @@ body {
   border-radius: 50%; background: var(--amber);
   animation: pulse 1s ease-in-out infinite;
 }
+/* A turn waiting its place in line is a ring rather than a dot, since it has
+   not started, and the row says where it is in place of when it changed. */
+.conv.waiting .conv-title::after {
+  content: "";
+  display: inline-block; width: 0.4rem; height: 0.4rem;
+  margin-left: 0.4rem; vertical-align: middle;
+  border-radius: 50%; border: 1px solid var(--amber);
+  box-sizing: border-box;
+}
+.conv.working .conv-when, .conv.waiting .conv-when { color: var(--amber); }
 /* The same signal on the button that opens the drawer, since on a phone the
    list it marks is off screen. */
 .icon-btn.dot-on::after {
