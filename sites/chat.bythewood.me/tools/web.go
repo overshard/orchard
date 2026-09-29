@@ -6,7 +6,9 @@ import (
 	"html"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 var (
@@ -127,15 +129,16 @@ var WebFetch = Tool{
 	Schema: obj(map[string]any{
 		"url":       str("the full address, including https://"),
 		"max_chars": integer("how much text to return, default 6000"),
+		"find":      str("optional, a heading or phrase to start reading from, for a long page whose answer is further down"),
 	}, "url"),
 	Run: func(ctx context.Context, d *Deps, a map[string]any) (any, error) {
 		u, err := publicURL(argStr(a, "url"))
 		if err != nil {
 			return nil, err
 		}
-		max := int(argNum(a, "max_chars", 12000))
-		if max < 500 || max > 24000 {
-			max = 12000
+		limit := int(argNum(a, "max_chars", 12000))
+		if limit < 500 || limit > 24000 {
+			limit = 12000
 		}
 		body, err := get(ctx, d, u, "text/html")
 		if err != nil {
@@ -143,11 +146,15 @@ var WebFetch = Tool{
 		}
 		txt := Text(string(body))
 		out := map[string]any{"url": u, "text": txt, "chars": len(txt)}
-		if len(txt) > max {
-			out["text"] = txt[:max]
+		part, cut, note := window(txt, strings.TrimSpace(argStr(a, "find")), limit)
+		out["text"] = part
+		if cut {
 			out["truncated"] = true
-			out["note"] = "This is the start of a long page and it is usually enough to answer from. " +
-				"Fetching the same url again returns the same text, so do not repeat this call."
+			note = firstNonEmpty(note, "This is part of a long page and it is usually enough to answer from. To read "+
+				"further down, call again with find set to a heading or phrase from the part you need.")
+		}
+		if note != "" {
+			out["note"] = note
 		}
 		if len(strings.TrimSpace(txt)) < 400 {
 			out["note"] = "This page returned very little readable text, which usually means it needs " +
@@ -155,4 +162,39 @@ var WebFetch = Tool{
 		}
 		return out, nil
 	},
+}
+
+// window is the part of a page a fetch returns: from a little before find when
+// it is there, and at most limit bytes, cut on a rune boundary.
+func window(txt, find string, limit int) (part string, cut bool, note string) {
+	from := 0
+	if find != "" {
+		lower, f := strings.ToLower(txt), strings.ToLower(find)
+		i := strings.Index(lower, f)
+		// The first mention near the top is usually a table of contents, and
+		// the section itself is the next one.
+		if i >= 0 && i < len(txt)/6 {
+			if next := strings.Index(lower[i+len(f):], f); next >= 0 {
+				i += len(f) + next
+			}
+		}
+		if i < 0 {
+			note = "The page has no " + strconv.Quote(find) + " in it, so this is the start of it."
+		} else {
+			// A little before the phrase, so a heading keeps the line above it.
+			// Lowercasing can change a rune's width, hence the clamp.
+			from = min(max(0, i-min(300, limit/10)), len(txt))
+			for from > 0 && from < len(txt) && !utf8.RuneStart(txt[from]) {
+				from--
+			}
+		}
+	}
+	if len(txt)-from <= limit {
+		return txt[from:], false, note
+	}
+	end := from + limit
+	for end > from && !utf8.RuneStart(txt[end]) {
+		end--
+	}
+	return txt[from:end], true, note
 }
