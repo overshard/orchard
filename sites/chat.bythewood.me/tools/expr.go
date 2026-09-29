@@ -101,6 +101,10 @@ func isName(s string) bool {
 // is not an expression for free, so the whole risk surface is the node types
 // allowed below.
 func evalOne(s string, env map[string]float64) (float64, error) {
+	s, err := powers(s)
+	if err != nil {
+		return 0, err
+	}
 	node, err := parser.ParseExpr(s)
 	if err != nil {
 		return 0, fmt.Errorf("that is not an arithmetic expression")
@@ -165,9 +169,7 @@ func evalNode(n ast.Expr, env map[string]float64) (float64, error) {
 		}
 		return 0, fmt.Errorf("unsupported sign")
 	case *ast.BinaryExpr:
-		// Go reads ^ as bitwise XOR and binds it looser than * and /, so
-		// treating it as a power would make 2 * 3 ^ 2 come out 36 rather than
-		// 18 with nothing to show for it. Name the way out instead.
+		// powers rewrites every ^ it can see, so one left here had no operand.
 		if e.Op == token.XOR {
 			return 0, fmt.Errorf("^ is not a power here, write pow(base, exponent)")
 		}
@@ -200,4 +202,99 @@ func evalNode(n ast.Expr, env map[string]float64) (float64, error) {
 		return 0, fmt.Errorf("unsupported operator %s", e.Op)
 	}
 	return 0, fmt.Errorf("only arithmetic is supported")
+}
+
+// powers turns a ^ b and a ** b into pow(a, b) before Go parses anything. Go
+// reads ^ as XOR and binds it looser than * and /, so it cannot be left for the
+// parser, and a model refused over it spent two rounds on 1024^3.
+func powers(s string) (string, error) {
+	s = strings.ReplaceAll(s, "**", "^")
+	for {
+		// The rightmost first, since a power binds right to left.
+		at := strings.LastIndex(s, "^")
+		if at < 0 {
+			return s, nil
+		}
+		ls, ok := leftOperand(s, at)
+		if !ok {
+			return "", fmt.Errorf("^ needs a number on each side, or write pow(base, exponent)")
+		}
+		re, ok := rightOperand(s, at+1)
+		if !ok {
+			return "", fmt.Errorf("^ needs a number on each side, or write pow(base, exponent)")
+		}
+		s = s[:ls] + "pow(" + strings.TrimSpace(s[ls:at]) + ", " + strings.TrimSpace(s[at+1:re]) + ")" + s[re:]
+	}
+}
+
+func operandByte(c byte) bool {
+	return c == '_' || c == '.' || c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
+}
+
+// leftOperand finds where the operand ending just before i starts: a number, a
+// name, a bracket, or a call like pow(2, 3).
+func leftOperand(s string, i int) (int, bool) {
+	j := i - 1
+	for j >= 0 && s[j] == ' ' {
+		j--
+	}
+	if j < 0 {
+		return 0, false
+	}
+	if s[j] == ')' {
+		depth := 0
+		for ; j >= 0; j-- {
+			switch s[j] {
+			case ')':
+				depth++
+			case '(':
+				depth--
+			}
+			if depth == 0 {
+				break
+			}
+		}
+		if j < 0 {
+			return 0, false
+		}
+		for j > 0 && operandByte(s[j-1]) {
+			j--
+		}
+		return j, true
+	}
+	end := j
+	for j >= 0 && operandByte(s[j]) {
+		j--
+	}
+	return j + 1, j < end
+}
+
+// rightOperand finds where the operand starting at i ends, a sign included.
+func rightOperand(s string, i int) (int, bool) {
+	for i < len(s) && s[i] == ' ' {
+		i++
+	}
+	if i < len(s) && (s[i] == '-' || s[i] == '+') {
+		i++
+	}
+	start := i
+	for i < len(s) && operandByte(s[i]) {
+		i++
+	}
+	if i < len(s) && s[i] == '(' {
+		depth := 0
+		for ; i < len(s); i++ {
+			switch s[i] {
+			case '(':
+				depth++
+			case ')':
+				depth--
+			}
+			if depth == 0 {
+				return i + 1, true
+			}
+		}
+		return 0, false
+	}
+	return i, i > start
 }

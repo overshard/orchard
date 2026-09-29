@@ -86,19 +86,6 @@ func TestEvalExprFunctions(t *testing.T) {
 	}
 }
 
-// Go binds ^ looser than * and /, so accepting it as a power would make
-// 2 * 3 ^ 2 come out 36 rather than 18. The error has to name the way out,
-// because a model that gets a flat refusal here invents the number instead.
-func TestEvalExprCaretIsRefusedByName(t *testing.T) {
-	_, err := evalExpr("2 * 3 ^ 2")
-	if err == nil {
-		t.Fatal("^ was accepted")
-	}
-	if want := "pow(base, exponent)"; !contains(err.Error(), want) {
-		t.Errorf("error %q does not name %q", err, want)
-	}
-}
-
 func TestEvalExprRejects(t *testing.T) {
 	for _, in := range []string{
 		"1 / 0",

@@ -68,8 +68,8 @@ func TestARefusalNamesWhatToDoAboutIt(t *testing.T) {
 	if e := calcErr(t, "2 $ 2"); !strings.Contains(e, `'$'`) {
 		t.Errorf("a bad character was not named: %s", e)
 	}
-	if e := calcErr(t, "2^10"); !strings.Contains(e, "pow(") {
-		t.Errorf("^ did not point at pow: %s", e)
+	if e := calcErr(t, "2^"); !strings.Contains(e, "pow(") {
+		t.Errorf("a ^ with nothing after it did not point at pow: %s", e)
 	}
 	if e := calcErr(t, "  "); !strings.Contains(e, "nothing to work out") {
 		t.Errorf("an empty expression: %s", e)
