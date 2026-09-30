@@ -168,8 +168,8 @@ func parseFrontmatter(text string) (map[string]string, string) {
 	return meta, body
 }
 
-// today is local, which is the zone publish_date is written in.
-func today() string { return time.Now().Format("2006-01-02") }
+// today is Eastern, which is the zone publish_date is written in.
+func today() string { return time.Now().In(eastern).Format("2006-01-02") }
 
 // Published returns the visible posts, newest first, along with the tag and
 // year facets computed from that same set.

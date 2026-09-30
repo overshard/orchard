@@ -347,10 +347,12 @@ func customEventCards(ctx context.Context, db *sql.DB, propertyID uuid.UUID, car
 // range as a row of zeros beside real metric cards.
 func eventsGraph(ctx context.Context, db *sql.DB, propertyID uuid.UUID, startMS, endMS int64, filterURL string, endDate time.Time, rangeDays int64) []GraphPoint {
 	extraSQL, extraArgs := filterClause(filterURL)
-	query := `SELECT date(created_at / 1000, 'unixepoch') AS day, COUNT(*)
+	// By the hour and folded into Eastern days here, since SQLite only knows
+	// UTC and a fixed offset would be an hour wrong across a DST change.
+	query := `SELECT created_at / 3600000 AS hour, COUNT(*)
 	  FROM events
 	  WHERE property_id = ? AND created_at >= ? AND created_at <= ?` + extraSQL + `
-	  GROUP BY day`
+	  GROUP BY hour`
 	args := append([]any{propertyID[:], startMS, endMS}, extraArgs...)
 
 	byDay := map[string]int64{}
@@ -358,10 +360,9 @@ func eventsGraph(ctx context.Context, db *sql.DB, propertyID uuid.UUID, startMS,
 	logQuery("events_graph", err)
 	if err == nil {
 		for rows.Next() {
-			var day string
-			var c int64
-			if rows.Scan(&day, &c) == nil {
-				byDay[day] = c
+			var hour, c int64
+			if rows.Scan(&hour, &c) == nil {
+				byDay[time.UnixMilli(hour*3600000).In(eastern).Format("2006-01-02")] += c
 			}
 		}
 		rows.Close()
@@ -646,9 +647,9 @@ func botTraffic(ctx context.Context, db *sql.DB, propertyID uuid.UUID, startMS, 
 }
 
 // parseDateToMS turns a "YYYY-MM-DD" query parameter into a unix-ms bound. The
-// boundary resolves in local time, since the operator means their own days.
+// boundary resolves in Eastern time, since the operator means their own days.
 func parseDateToMS(date string, endOfDay bool) (int64, bool) {
-	d, err := time.ParseInLocation("2006-01-02", date, time.Local)
+	d, err := time.ParseInLocation("2006-01-02", date, eastern)
 	if err != nil {
 		return 0, false
 	}

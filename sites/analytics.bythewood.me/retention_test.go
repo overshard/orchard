@@ -132,3 +132,19 @@ func TestAWeeklyGraphCountsEveryWeekInFull(t *testing.T) {
 		t.Errorf("the newest week is labelled %q, want Sep 30", last)
 	}
 }
+
+// 9pm Eastern is already tomorrow in UTC, and it has to count on his day.
+func TestAnEveningVisitCountsOnTheEasternDay(t *testing.T) {
+	db, id := retentionTestDB(t)
+	evening := time.Date(2026, 9, 29, 21, 0, 0, 0, eastern)
+	seedEvent(t, db, "events", id, evening.UnixMilli())
+
+	end := time.Date(2026, 9, 30, 0, 0, 0, 0, eastern)
+	startMS, _ := parseDateToMS("2026-09-29", false)
+	endMS, _ := parseDateToMS("2026-09-30", true)
+	points := eventsGraph(context.Background(), db, id, startMS, endMS, "", end, 2)
+
+	if len(points) != 2 || points[0].Label != "Sep 29" || points[0].Count != 1 || points[1].Count != 0 {
+		t.Errorf("got %+v, want the visit on Sep 29", points)
+	}
+}

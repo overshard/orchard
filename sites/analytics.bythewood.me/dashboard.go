@@ -149,7 +149,7 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 	}
 
 	q := r.URL.Query()
-	today := time.Now()
+	today := time.Now().In(eastern)
 
 	dateStart := q.Get("date_start")
 	if dateStart == "" {
@@ -201,7 +201,7 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 
 	// Anchor the graph to the requested end date, stepping back from today
 	// charts a historical range as zeros beside real metric cards.
-	graphEnd, err := time.ParseInLocation("2006-01-02", dateEnd, time.Local)
+	graphEnd, err := time.ParseInLocation("2006-01-02", dateEnd, eastern)
 	if err != nil {
 		graphEnd = today
 	}
@@ -247,7 +247,7 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 		IsPublic:    p.IsPublic,
 	}
 	data.Dash = d
-	data.ReportedAt = time.Now().Format("2006-01-02 15:04")
+	data.ReportedAt = time.Now().In(eastern).Format("2006-01-02 15:04")
 
 	// Report export is operator-only even for a public property: the PDF path
 	// spawns an unthrottled Typst compile.
