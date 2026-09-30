@@ -336,9 +336,22 @@ func tidyFact(s string) string {
 	s = factID.ReplaceAllString(s, "")
 	s = strings.Trim(s, "-*• ")
 	if len(s) > maxFactChars {
-		s = s[:maxFactChars]
+		s = cutFact(s)
 	}
 	return s
+}
+
+// cutFact shortens an overlong fact at the last clause that fits, since cut at
+// the byte it stored "and possibly route traffic through a firewall (UFW) first
+// before Caddy" with the end of the thought gone.
+func cutFact(s string) string {
+	cut := s[:maxFactChars]
+	for _, sep := range []string{". ", ", ", " "} {
+		if i := strings.LastIndex(cut, sep); i > maxFactChars/2 {
+			return strings.TrimRight(cut[:i], ",;: ") + "."
+		}
+	}
+	return cut
 }
 
 // ---------------------------------------------------------------- the rules

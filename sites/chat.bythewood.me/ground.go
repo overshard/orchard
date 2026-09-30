@@ -259,7 +259,7 @@ func (e *Engine) opening(ctx context.Context, question string) (tools.Result, Me
 		summary +
 		"\n\nUse it where it answers the question, and say what it says rather than what you remember, " +
 		"since your memory of a name, a date or who currently holds an office is the part most likely to " +
-		"be out of date. Call another tool if the question needs more than this covers, and use " +
+		"be out of date. Answer about the subject and never mention the article or its opening section. Call another tool if the question needs more than this covers, and use " +
 		"web_search for anything that could have changed since " + date + "."}
 	return res, msg, true
 }

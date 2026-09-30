@@ -53,7 +53,7 @@ func (e *Engine) definitionOpening(ctx context.Context, deps *tools.Deps, questi
 	}
 	msg := Message{Role: RoleUser, Content: "Before you answer, here is what Wiktionary says " + quoted(word) +
 		" means, looked up for you: " + resultText(res) + "\n\nHe is asking what the word means, so answer with " +
-		"the everyday senses first. If he plainly means something named after it, look that up as well."}
+		"the everyday senses, and say nothing about what else could be looked up."}
 	return res, msg, true
 }
 

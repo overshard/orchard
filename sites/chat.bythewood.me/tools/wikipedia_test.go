@@ -334,3 +334,10 @@ func TestTheSnapshotIsNotRateLimitedLikeAThirdParty(t *testing.T) {
 		t.Errorf("the snapshot host was put in the penalty box: %v", down)
 	}
 }
+
+func TestTheSpouseRowSaysTheySeparated(t *testing.T) {
+	in := "Hilary Korzon ​ ​ ( m.  2012; sep.  2021) ​"
+	if got := spellMarriage(in); got != "Hilary Korzon ( married 2012; separated 2021)" {
+		t.Errorf("spellMarriage = %q", got)
+	}
+}

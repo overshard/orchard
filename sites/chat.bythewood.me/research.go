@@ -593,7 +593,7 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 		st.merge(gst)
 		if g.NeedsCheck {
 			emit(Event{Kind: "status", Text: "checking it"})
-			return researchNudge(g.Query), st
+			return researchNudge(ownQuery(g.Query, draft, question, previous, used)), st
 		}
 	}
 	// A house answered out of the public record is not something a second opinion
@@ -638,7 +638,37 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 	if background != "" {
 		return wikiNudge(subjectOf(question)), st
 	}
-	return researchNudge(v.Query), st
+	return researchNudge(ownQuery(v.Query, draft, question, previous, used)), st
+}
+
+// ownQuery drops the words a search was asked for that only the draft ever
+// said. Built from a draft that invented Maze War and Doom, the search went
+// for them and the answer told him they were not what he was after.
+func ownQuery(query, draft, question string, previous []string, used []tools.Result) string {
+	var hay strings.Builder
+	hay.WriteString(question + "\n" + strings.Join(previous, "\n"))
+	for _, r := range used {
+		body, _ := json.Marshal(r.Content)
+		hay.Write(body)
+	}
+	known, drafted := wordSet(hay.String()), wordSet(draft)
+	var kept []string
+	for _, w := range strings.Fields(query) {
+		k := strings.ToLower(strings.Trim(w, `"'.,;:!?()`))
+		if drafted[k] && !known[k] {
+			continue
+		}
+		kept = append(kept, w)
+	}
+	return strings.Join(kept, " ")
+}
+
+func wordSet(s string) map[string]bool {
+	out := map[string]bool{}
+	for _, w := range wordRun.FindAllString(strings.ToLower(s), -1) {
+		out[w] = true
+	}
+	return out
 }
 
 // gateOffline is the gate with the search host refusing us. The only thing that
@@ -716,7 +746,7 @@ func calledTool(used []tools.Result, name string) bool {
 
 // A follow up that reacts to the last answer rather than asking for anything.
 var (
-	remarkShape = regexp.MustCompile(`(?i)\b(in my opinion|i think|i feel|seems?|tempting|pretty (major|big|bad|good|wild|crazy|cool)|is it not|isn'?t it|lol|haha|not that (big|much|bad)|makes sense|fair enough|interesting|wild|crazy)\b|^\s*(hm+|oh+|ah+|wow|yeah|ok(ay)?|nice|cool|huh)\b`)
+	remarkShape = regexp.MustCompile(`(?i)\b(in my opinion|i think|i feel|seems?|tempting|pretty (major|big|bad|good|wild|crazy|cool)|is it not|isn'?t it|lol|haha|not that (big|much|bad)|makes sense|fair enough|interesting|wild|crazy|exciting|fascinating|riveting|boring|thanks|thank you|good to know|neat|funny)\b|^\s*(hm+|oh+|ah+|wow|yeah|ok(ay)?|nice|cool|huh)\b`)
 	askingFor   = regexp.MustCompile(`(?i)\b(what|when|where|who|which|why|how (much|many|long|big|do|does|did|can|would|is|are)|can (i|you|we)|could (i|you|we)|should (i|we)|is there|are there|tell me|show me|find|look up|search)\b`)
 )
 

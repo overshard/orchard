@@ -4,6 +4,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -622,6 +623,12 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 			}
 			if tc.Function.Name == tools.Image.Name {
 				args = withShape(args, askedShape(said))
+			}
+			if tc.Function.Name == tools.Markets.Name {
+				if fixed := withTickers(args, said); !bytes.Equal(fixed, args) {
+					args = fixed
+					tr.Add(Step{Kind: "tool", Label: "quoted the tickers he typed", In: tc.Function.Arguments, Out: string(fixed)})
+				}
 			}
 			res := e.reg.Call(ctx, deps, tc.Function.Name, args)
 			seen[key] = res
