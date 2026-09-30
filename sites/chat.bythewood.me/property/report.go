@@ -233,6 +233,14 @@ func (e *Engine) Lookup(ctx context.Context, address string, opt Options) (*Repo
 		return nil, err
 	}
 
+	// Nothing is cached for an incognito house, so there is nothing to wait on
+	// and read back. It runs inside the turn and is gone with it.
+	if incognito(ctx) {
+		r := e.assess(ctx, address, matched, lat, lon, opt)
+		e.priceReport(ctx, r, opt)
+		return r, nil
+	}
+
 	done := e.start(ctx, key, address, matched, lat, lon, opt)
 
 	wait := opt.Wait
@@ -608,7 +616,7 @@ func (e *Engine) save(ctx context.Context, key string, r *Report) error {
 	// Stamped here rather than wherever a report is built, so a new construction
 	// site cannot forget it and quietly write a row nothing will ever read back.
 	r.Version = reportVersion
-	_, err := e.db.ExecContext(ctx,
+	_, err := keep(ctx, e.db,
 		`INSERT OR REPLACE INTO reports (key, address, lat, lon, payload, built_at) VALUES (?,?,?,?,?,?)`,
 		key, r.Address, r.Lat, r.Lon, mustJSON(r), time.Now().Unix())
 	return err

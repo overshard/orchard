@@ -310,7 +310,7 @@ func (f *Flood) Lookup(ctx context.Context, lat, lon float64) (FloodResult, erro
 	if err != nil {
 		return out, err
 	}
-	if _, err := f.db.ExecContext(ctx,
+	if _, err := keep(ctx, f.db,
 		`INSERT OR REPLACE INTO lookups (kind, key, payload, fetched_at) VALUES (?,?,?,?)`,
 		floodCacheKind, key, string(raw), time.Now().Unix()); err != nil {
 		return out, err

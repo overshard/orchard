@@ -130,7 +130,7 @@ func (in *Industry) Lookup(ctx context.Context, lat, lon float64) (IndustryResul
 	if err != nil {
 		return out, err
 	}
-	if _, err := in.db.ExecContext(ctx,
+	if _, err := keep(ctx, in.db,
 		`INSERT OR REPLACE INTO lookups (kind, key, payload, fetched_at) VALUES (?,?,?,?)`,
 		industryCacheKind, key, string(raw), time.Now().Unix()); err != nil {
 		return out, err

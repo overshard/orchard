@@ -87,7 +87,7 @@ func (g *Geocoder) Geocode(ctx context.Context, address string) (lat, lon float6
 
 	now := time.Now().Unix()
 	if len(out.Result.AddressMatches) == 0 {
-		if _, err := g.db.ExecContext(ctx,
+		if _, err := keep(ctx, g.db,
 			`INSERT OR REPLACE INTO geocodes (query, lat, lon, matched, source, fetched_at)
 			 VALUES (?, NULL, NULL, NULL, 'census', ?)`, key, now); err != nil {
 			return 0, 0, "", err
@@ -97,7 +97,7 @@ func (g *Geocoder) Geocode(ctx context.Context, address string) (lat, lon float6
 
 	m := out.Result.AddressMatches[0]
 	lat, lon, matched = m.Coordinates.Y, m.Coordinates.X, m.MatchedAddress
-	if _, err := g.db.ExecContext(ctx,
+	if _, err := keep(ctx, g.db,
 		`INSERT OR REPLACE INTO geocodes (query, lat, lon, matched, source, fetched_at)
 		 VALUES (?,?,?,?,'census',?)`, key, lat, lon, matched, now); err != nil {
 		return 0, 0, "", err

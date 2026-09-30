@@ -114,7 +114,7 @@ func (r *Router) Route(ctx context.Context, pts ...point) (Leg, error) {
 	}
 
 	route := res.Routes[0]
-	if _, err := r.db.ExecContext(ctx,
+	if _, err := keep(ctx, r.db,
 		`INSERT OR REPLACE INTO routes (key, seconds, meters, geometry, fetched_at) VALUES (?,?,?,?,?)`,
 		key, route.Duration, route.Distance, route.Geometry, time.Now().Unix()); err != nil {
 		return leg, err

@@ -309,7 +309,7 @@ func (s *Schools) cache(ctx context.Context, key string, z SchoolZones) (SchoolZ
 	if err != nil {
 		return z, err
 	}
-	_, err = s.db.ExecContext(ctx,
+	_, err = keep(ctx, s.db,
 		`INSERT OR REPLACE INTO lookups (kind, key, payload, fetched_at) VALUES ('zones2',?,?,?)`,
 		key, string(raw), time.Now().Unix())
 	return z, err
