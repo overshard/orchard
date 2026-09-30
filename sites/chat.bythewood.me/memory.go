@@ -189,7 +189,7 @@ func (s *Store) markUsed(ids []int64) {
 // Relevant scores every fact against the message in Go rather than in SQL. This
 // is a few hundred rows at most, so a full scan costs less than the round trip,
 // and the scoring is a function with a test.
-func (s *Store) Relevant(message string, limit int) []Fact {
+func (s *Store) Relevant(message string, limit int, mark bool) []Fact {
 	all, err := s.Facts()
 	if err != nil || len(all) == 0 {
 		return nil
@@ -233,7 +233,9 @@ func (s *Store) Relevant(message string, limit int) []Fact {
 		out = append(out, h.f)
 		ids = append(ids, h.f.ID)
 	}
-	s.markUsed(ids)
+	if mark {
+		s.markUsed(ids)
+	}
 	return out
 }
 

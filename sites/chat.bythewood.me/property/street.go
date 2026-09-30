@@ -80,7 +80,7 @@ func (s *Street) Lookup(ctx context.Context, lat, lon float64) (StreetResult, er
 	if err != nil {
 		return out, err
 	}
-	if _, err := s.db.ExecContext(ctx,
+	if _, err := keep(ctx, s.db,
 		`INSERT OR REPLACE INTO lookups (kind, key, payload, fetched_at) VALUES ('street',?,?,?)`,
 		key, string(raw), time.Now().Unix()); err != nil {
 		return out, err

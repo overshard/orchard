@@ -71,6 +71,9 @@ var PropertyTool = Tool{
 			return nil, fmt.Errorf("an address is needed, the street and the town at least")
 		}
 
+		if d.Incognito {
+			ctx = property.Incognito(ctx)
+		}
 		rep, err := d.Property.Lookup(ctx, addr, property.Options{
 			Price:      int(argNum(a, "price", 0)),
 			HOAMonthly: argNum(a, "hoa_monthly", 0),

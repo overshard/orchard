@@ -91,7 +91,7 @@ func (u *USDA) Lookup(ctx context.Context, lat, lon float64) (USDAArea, error) {
 		Measured: true,
 		Source:   "USDA Rural Development eligibility map, single family housing layer",
 	}
-	if _, err := u.db.ExecContext(ctx,
+	if _, err := keep(ctx, u.db,
 		`INSERT OR REPLACE INTO lookups (kind, key, payload, fetched_at) VALUES ('usda',?,?,?)`,
 		key, mustJSON(a), time.Now().Unix()); err != nil {
 		return a, nil

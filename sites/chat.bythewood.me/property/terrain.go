@@ -144,7 +144,7 @@ func (t *Terrain) Lookup(ctx context.Context, lat, lon float64) (TerrainResult, 
 	if err != nil {
 		return out, err
 	}
-	if _, err := t.db.ExecContext(ctx,
+	if _, err := keep(ctx, t.db,
 		`INSERT OR REPLACE INTO lookups (kind, key, payload, fetched_at) VALUES (?,?,?,?)`,
 		terrainCacheKind, key, string(raw), time.Now().Unix()); err != nil {
 		return out, err

@@ -292,7 +292,7 @@ func (r *Roads) Lookup(ctx context.Context, lat, lon float64) (RoadResult, error
 	if err != nil {
 		return out, err
 	}
-	if _, err := r.db.ExecContext(ctx,
+	if _, err := keep(ctx, r.db,
 		`INSERT OR REPLACE INTO lookups (kind, key, payload, fetched_at) VALUES (?,?,?,?)`,
 		roadCacheKind, key, string(raw), time.Now().Unix()); err != nil {
 		return out, err

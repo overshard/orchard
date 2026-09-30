@@ -614,7 +614,7 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 	// interiors got a sofa drawn threadbare.
 	var recalled []Fact
 	if !flagging && !isPictureAsk(req.Message, history) && len(refs.Attached) == 0 && !(refs.Last != "" && isPictureChange(req.Message, history)) {
-		recalled = s.store.Relevant(req.Message, factsPerTurn)
+		recalled = s.store.Relevant(req.Message, factsPerTurn, !req.Incognito)
 	}
 	if len(recalled) > 0 {
 		tr.Add(Step{Kind: "memory", Label: "recalled what it knows about Isaac",

@@ -126,7 +126,7 @@ func (p *Parcels) Lookup(ctx context.Context, lat, lon float64, county, address 
 	if err != nil {
 		return out, err
 	}
-	if _, err := p.db.ExecContext(ctx,
+	if _, err := keep(ctx, p.db,
 		`INSERT OR REPLACE INTO lookups (kind, key, payload, fetched_at) VALUES ('parcel3',?,?,?)`,
 		key, string(raw), time.Now().Unix()); err != nil {
 		return out, err
