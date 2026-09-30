@@ -214,6 +214,7 @@ func main() {
 		web.Recovered,
 		web.Logged,
 		web.SecurityHeaders(csp()),
+		web.SameOrigin(),
 		// Browse pages branch on LoggedIn and the logged-in half names internal
 		// container topology, so an operator response must never be shared-cacheable.
 		privateWhenSignedIn,

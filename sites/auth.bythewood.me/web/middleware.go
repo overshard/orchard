@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 )
@@ -147,6 +148,33 @@ func SecurityHeaders(csp string) func(http.Handler) http.Handler {
 				h.Set("Content-Security-Policy", csp)
 			}
 			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// SameOrigin refuses a state-changing request a browser says came from another
+// origin. The session cookie is SameSite=Strict, but every *.bythewood.me host
+// counts as the same site, so SameSite alone lets one of them post to another.
+// A request with no Sec-Fetch-Site is a container or git, not a browser, and
+// passes. exempt names paths that take cross-origin posts by design.
+func SameOrigin(exempt ...string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.Method {
+			case http.MethodGet, http.MethodHead, http.MethodOptions:
+				next.ServeHTTP(w, r)
+				return
+			}
+			if slices.Contains(exempt, r.URL.Path) {
+				next.ServeHTTP(w, r)
+				return
+			}
+			switch r.Header.Get("Sec-Fetch-Site") {
+			case "", "same-origin", "none":
+				next.ServeHTTP(w, r)
+			default:
+				http.Error(w, "cross origin request refused", http.StatusForbidden)
+			}
 		})
 	}
 }
