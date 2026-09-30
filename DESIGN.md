@@ -297,6 +297,17 @@ since it can come out of the edge's cache, and neither the readout nor the key
 does anything until `/api/quick` says the visitor is signed in. A phone has no
 ctrl+k, so the readout is the way in there and reads `OPEN`.
 
+**dash's quick chat shows its work as a tape deck.** Every turn gets a deck
+between the question and the answer: two reels and a strip of tape that run
+while it works, the stage in amber caps with a block cursor, a fourteen segment
+meter that jumps on each event and falls back between them, a `TAPE` counter of
+tokens the model has written, and a clock. Under it a log of each model round,
+tool call, lookup and gate check as it happens, the call with a moving strip
+until it returns and a line under it saying what came back. The log folds to a
+one line summary the moment the answer starts, since the answer is what gets
+read then, and the summary opens it again. Everything that moves is transform
+or opacity and all of it stops when the turn does.
+
 **Content width** is Bootstrap's container scale, so 1140px and then 1320px past
 a 1400px viewport. `repos` matches it with a media query rather than sitting
 narrower on a wide screen.
