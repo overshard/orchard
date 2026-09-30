@@ -172,7 +172,7 @@ func main() {
 	})
 
 	slog.Info("llm listening", "addr", *addr, "upstream", s.upstream, "model", s.model)
-	if err := web.Serve(*addr, web.Chain(mux, web.Recovered, web.Logged, web.SecurityHeaders(csp()))); err != nil {
+	if err := web.Serve(*addr, web.Chain(mux, web.Recovered, web.Logged, web.SecurityHeaders(csp()), web.SameOrigin())); err != nil {
 		slog.Error("startup failed", slog.Any("err", err))
 		os.Exit(1)
 	}

@@ -227,6 +227,7 @@ func main() {
 		web.Recovered,
 		web.Logged,
 		web.SecurityHeaders(csp()),
+		web.SameOrigin(),
 	)
 
 	slog.Info(fmt.Sprintf("status serving %s (staging=%t)", baseURL, Staging))

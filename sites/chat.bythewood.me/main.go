@@ -219,7 +219,7 @@ func main() {
 
 	slog.Info("chat listening", "addr", *addr, "llm", *llmURL, "model", *label,
 		"db", *dbPath, "reloaded", Reloaded)
-	if err := web.Serve(*addr, web.Chain(mux, web.Recovered, web.Logged, web.SecurityHeaders(csp()))); err != nil {
+	if err := web.Serve(*addr, web.Chain(mux, web.Recovered, web.Logged, web.SecurityHeaders(csp()), web.SameOrigin())); err != nil {
 		slog.Error("startup failed", slog.Any("err", err))
 		os.Exit(1)
 	}
