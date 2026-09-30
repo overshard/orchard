@@ -2294,23 +2294,30 @@ main {
 // The work deck. Everything that moves here moves by transform or opacity, and
 // all of it stops when the turn does, so a finished answer sits still.
 .work {
-  // A flex child of the scrolling log, and one with overflow hidden shrinks to
-  // nothing there unless it is told not to.
+  // A flex child of the scrolling log, and one that clips shrinks to nothing
+  // there unless it is told not to. clip rather than hidden, since hidden makes
+  // it a scroll container and the head could no longer stick.
   flex: none;
   position: relative;
-  overflow: hidden;
+  overflow: clip;
   border: 1px solid var(--line);
   background: linear-gradient(180deg, rgba(255, 176, 0, 0.035), transparent 60%), var(--void);
   font-size: 11px;
   letter-spacing: 0.04em;
 }
 
+// It stays in view while a long log scrolls under it, so the reels and the
+// clock are always on screen.
 .work-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 7px 10px;
   border-bottom: 1px solid var(--line);
+  background: var(--void);
 }
 
 .reels {
@@ -2432,7 +2439,16 @@ main {
   .w-glyph::before { content: "▪"; }
   .w-kind { color: var(--dim); letter-spacing: var(--track); font-size: 10px; overflow: hidden; text-overflow: ellipsis; }
   .w-text { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-  .w-meta { color: var(--faint); font-size: 10px; letter-spacing: var(--track); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .w-meta {
+    max-width: 22ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--faint);
+    font-size: 10px;
+    letter-spacing: var(--track);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
 
   // What came back, under the line it belongs to.
   .w-out {
@@ -2490,7 +2506,19 @@ main {
   text-align: left;
   cursor: pointer;
 
-  &::after { content: "SHOW WORK ▸"; margin-left: auto; color: var(--amber-dim); }
+  align-items: baseline;
+  gap: 12px;
+
+  .sum-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .sum-text > span + span::before { content: " · "; }
+
+  &::after { content: "SHOW WORK ▸"; flex: none; white-space: nowrap; color: var(--amber-dim); }
   &:hover { color: var(--text); }
   &:hover::after { color: var(--amber); }
   &:focus-visible { outline: 1px solid var(--amber); outline-offset: -1px; }
@@ -2536,9 +2564,33 @@ main {
   to { opacity: 1; transform: none; }
 }
 
+// A phone, which is 412px wide on his. The kind and its timing share a row and
+// what it did goes underneath at full width, since a column for each cut every
+// tool name to seven letters. The log scrolls with the box rather than inside it.
 @media (max-width: 560px) {
   .work-count, .vu { display: none; }
-  .w-line { grid-template-columns: 12px 80px minmax(0, 1fr) auto; }
+  .work-head { gap: 10px; }
+  .work-log { max-height: none; padding: 6px 8px 8px; }
+  .w-line {
+    grid-template-columns: 12px minmax(0, 1fr) auto;
+    grid-template-areas: "g k m" ". t t" ". o o" ". b b";
+    column-gap: 6px;
+    padding: 4px 0;
+
+    .w-glyph { grid-area: g; }
+    .w-kind { grid-area: k; }
+    .w-meta { grid-area: m; }
+    .w-text { grid-area: t; }
+    .w-out { grid-area: o; }
+    .w-bar { grid-area: b; }
+    .w-text:empty { display: none; }
+  }
+  .work-sum {
+    padding: 7px 8px;
+    .s-tok { display: none; }
+    &::after { content: "WORK ▸"; }
+  }
+  .work:not([data-state="running"]).open .work-sum::after { content: "HIDE ▾"; }
 }
 
 // Nobody on a phone has an Esc key, and 16px is the size under which iOS zooms
