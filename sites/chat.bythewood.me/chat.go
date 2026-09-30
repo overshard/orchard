@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -351,6 +352,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	// in no tool result, which is the shape a prompt cannot fix, since a prompt
 	// is a request.
 	usedProperty := calledTool(used, tools.PropertyTool.Name)
+	untrusted := readUntrusted(used)
 	var stats Stats
 	schemas := e.reg.Schemas()
 
@@ -411,7 +413,13 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 			msgs = append(msgs, Message{Role: RoleUser, Content: budgetNote(used)})
 			break
 		}
+		// Taken at the top of the round, so a private call made alongside a
+		// fetch in the same reply was decided before the page was read.
+		closed := untrusted
 		offer := schemas
+		if closed {
+			offer = withoutPrivate(offer)
+		}
 		if usedNews {
 			offer = tools.Without(offer, tools.News.Name)
 		}
@@ -582,7 +590,20 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 					Content: `{"note":"news was already read in this turn and one call is the whole rundown. Use what it returned."}`})
 				continue
 			}
+			if closed && slices.Contains(privateTools, tc.Function.Name) {
+				id := tc.ID
+				if id == "" {
+					id = tc.Function.Name
+				}
+				msgs = append(msgs, Message{Role: RoleTool, ToolCallID: id, Name: tc.Function.Name,
+					Content: `{"note":"that tool is off for the rest of this turn because web content was read. Answer with what you have."}`})
+				tr.Add(Step{Kind: "tool", Label: tc.Function.Name + " refused after web content", In: tc.Function.Arguments, Bad: true})
+				continue
+			}
 			emit(Event{Kind: "tool", Tool: tc.Function.Name, Args: shortArgs(tc.Function.Arguments)})
+			if slices.Contains(untrustedTools, tc.Function.Name) {
+				untrusted = true
+			}
 			if tc.Function.Name == tools.News.Name {
 				usedNews = true
 			}
