@@ -93,15 +93,21 @@ func NewEngine(llm *LLM, modelName string) *Engine {
 // llama.cpp caches the prompt prefix, and a clock that ticks every minute means
 // no turn ever reuses another's work.
 func (e *Engine) ambient() string {
-	loc, err := time.LoadLocation(e.tz)
-	if err != nil {
-		loc = time.UTC
-	}
-	t := e.now().In(loc)
+	t := e.local()
 	return fmt.Sprintf("Today is %s. It is around %s. The user is in %s, "+
 		"which is what to use for weather, local news and anything asking what is nearby. "+
 		"It is not a hint about what an unfamiliar name means.",
 		t.Format("Monday, 2 January 2006"), t.Format("3 PM MST"), e.place)
+}
+
+// local is now where he is. The container runs on UTC, which is already
+// tomorrow from eight in the evening in New York.
+func (e *Engine) local() time.Time {
+	loc, err := time.LoadLocation(e.tz)
+	if err != nil {
+		loc = time.UTC
+	}
+	return e.now().In(loc)
 }
 
 // identity is first in the prompt because a small model asked what it is will
@@ -272,6 +278,14 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		Meta: itoa(len(sys.Content)) + " characters, " + itoa(len(history)) + " earlier messages in the window"})
 
 	var used []tools.Result
+	opened := func(res tools.Result, msg Message) {
+		emit(Event{Kind: "tool", Tool: res.Name, Args: shortArgs(string(res.Args))})
+		emit(Event{Kind: "tool_done", Tool: res.Name, MS: res.Elapsed.Milliseconds(), OK: true})
+		msgs = append(msgs, msg)
+		used = append(used, res)
+		tr.Add(Step{Kind: "tool", Label: res.Name + ", before the model decided anything", In: string(res.Args),
+			Out: resultText(res), MS: res.Elapsed.Milliseconds()})
+	}
 	// The first move on any question naming a thing, since the snapshot is on
 	// this machine and is newer than the weights. It goes in after the history
 	// so the cached prompt prefix survives.
@@ -298,6 +312,12 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		}
 		msgs = append(msgs, msg)
 		used = append(used, house...)
+	} else if res, msg, ok := e.clockOpening(ctx, deps, user); ok {
+		opened(res, msg)
+	} else if res, msg, ok := e.siteOpening(ctx, deps, user); ok {
+		opened(res, msg)
+	} else if res, msg, ok := e.definitionOpening(ctx, deps, user); ok {
+		opened(res, msg)
 	} else if res, msg, ok := e.opening(ctx, user); ok {
 		emit(Event{Kind: "tool", Tool: res.Name, Args: shortArgs(string(res.Args))})
 		emit(Event{Kind: "tool_done", Tool: res.Name, MS: res.Elapsed.Milliseconds(), OK: true})
@@ -374,6 +394,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	// so a tool that fails every time cannot spin the turn out.
 	budget, grace := maxToolRounds, 1
 	var draft string
+	var draftCut bool
 	for round := 0; round < budget; round++ {
 		last := round == budget-1
 		if last {
@@ -511,7 +532,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 				}
 				// It answered without tools. Stream it properly rather than
 				// handing back a block of text that appeared all at once.
-				draft = reply.Content
+				draft, draftCut = reply.Content, st.Truncated
 				break
 			}
 		}
@@ -536,6 +557,17 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 					id = tc.Function.Name
 				}
 				msgs = append(msgs, Message{Role: RoleTool, ToolCallID: id, Name: prev.Name, Content: string(body)})
+				continue
+			}
+			// Six topics asked for in one round read every feed six times over
+			// and filled a third of the window.
+			if tc.Function.Name == tools.News.Name && usedNews {
+				id := tc.ID
+				if id == "" {
+					id = tc.Function.Name
+				}
+				msgs = append(msgs, Message{Role: RoleTool, ToolCallID: id, Name: tc.Function.Name,
+					Content: `{"note":"news was already read in this turn and one call is the whole rundown. Use what it returned."}`})
 				continue
 			}
 			emit(Event{Kind: "tool", Tool: tc.Function.Name, Args: shortArgs(tc.Function.Arguments)})
@@ -623,6 +655,17 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		return Message{Role: RoleAssistant, Content: text}, used, nil, deps.Widgets.List(), stats, nil
 	}
 
+	// With nothing looked up there is nothing to cite and nothing left out, so a
+	// rewrite can only lose the draft. Asked to write out its answer about
+	// Christianity, the writer wrote the one before it about Wednesday instead.
+	if strings.TrimSpace(draft) != "" && !draftCut && len(used) == 0 {
+		text := fixWeekdays(dropClosingOffer(prepare(draft, srcs)), e.local())
+		emit(Event{Kind: "block", HTML: e.Render(text)})
+		tr.Add(Step{Kind: "answer", Label: "sent the checked draft as it was",
+			Out: text, Meta: "nothing was looked up, so there was nothing to add to it"})
+		return Message{Role: RoleAssistant, Content: text}, used, nil, deps.Widgets.List(), stats, nil
+	}
+
 	// The answer is generated fresh rather than reusing the last tool round,
 	// which was written under a small budget with tools still on the table and
 	// reads as "Let me check that" and then stops.
@@ -637,7 +680,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	answerStart := time.Now()
 	var sb strings.Builder
 	w := &blockWriter{emit: emit, render: func(md string) string {
-		return linkCitations(e.Render(fixWeekdays(prepare(md, srcs), e.now())), srcs)
+		return linkCitations(e.Render(fixWeekdays(prepare(md, srcs), e.local())), srcs)
 	}}
 	text, st, err := e.llm.Stream(ctx, msgs, answerTokens, func(d string) {
 		sb.WriteString(d)
@@ -654,12 +697,29 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	// Only on the whole answer, never on a streamed block. A block is finished
 	// when a blank line closes it and nothing knows yet whether another one is
 	// coming, so a paragraph mid answer would read as the end of it.
-	text = fixWeekdays(dropClosingOffer(prepare(text, srcs)), e.now())
+	text = fixWeekdays(dropClosingOffer(prepare(text, srcs)), e.local())
+	// The done frame carries the stored text, so the page swaps the copy out.
+	if copiedEarlier(text, draft, answered) {
+		text = fixWeekdays(dropClosingOffer(prepare(draft, srcs)), e.local())
+		tr.Add(Step{Kind: "answer", Label: "kept the checked draft", Bad: true,
+			Out: "the reply it wrote repeated an earlier answer the draft did not"})
+	}
 	if strings.TrimSpace(text) == "" {
 		text = "I could not produce an answer for that. The model returned nothing."
 		emit(Event{Kind: "block", HTML: e.Render(text)})
 	}
 	return Message{Role: RoleAssistant, Content: text}, used, cited(text, srcs), deps.Widgets.List(), stats, nil
+}
+
+// copiedEarlier is a written answer that repeats one this conversation already
+// gave while the draft it was asked to write out does not.
+func copiedEarlier(answer, draft string, previous []string) bool {
+	if strings.TrimSpace(draft) == "" || len(previous) == 0 {
+		return false
+	}
+	return repeatsAnsweredAt(answer, previous, copiedOverlap) &&
+		!repeatsAnsweredAt(draft, previous, repeatOverlap) &&
+		!repeatsAnsweredAt(answer, []string{draft}, repeatOverlap)
 }
 
 // wroteMemory is a turn that has written something to memory.
@@ -868,7 +928,7 @@ func shortArgs(raw string) string {
 	if json.Unmarshal([]byte(raw), &m) != nil {
 		return ""
 	}
-	for _, k := range []string{"query", "location", "symbols", "url", "expression", "artist", "league",
+	for _, k := range []string{"query", "word", "location", "symbols", "url", "expression", "artist", "league", "until",
 		"section", "address", "path", "team", "topic", "fact", "items", "prompt"} {
 		if v, ok := m[k]; ok {
 			s := fmt.Sprint(v)

@@ -67,10 +67,18 @@ func TestAReplyToARemarkAddsNothingNew(t *testing.T) {
 
 func TestAWrongTomorrowGoesBack(t *testing.T) {
 	now := time.Date(2026, 9, 29, 20, 0, 0, 0, time.UTC)
-	if wrongDay("MIC is not reporting tomorrow. Tomorrow is Saturday, 3 October 2026, and MU reports on the 30th.", now) == "" {
-		t.Error("a wrong tomorrow went through")
+	for _, bad := range []string{
+		"MIC is not reporting tomorrow. Tomorrow is Saturday, 3 October 2026, and MU reports on the 30th.",
+		"Today's the 29th, so tomorrow is Wednesday, October 1st.",
+		"Tomorrow is Thursday, so pack a jacket.",
+	} {
+		if wrongDay(bad, now) == "" {
+			t.Errorf("a wrong tomorrow went through: %q", bad)
+		}
 	}
 	for _, ok := range []string{
+		"Tomorrow is Wednesday, September 30th.",
+		"Today, 12 states reported cases.",
 		"Micron reports tomorrow. Tomorrow is Wednesday, 30 September.",
 		"Today is Tuesday, 29 September 2026.",
 		"It reports tomorrow after the close.",
@@ -97,5 +105,12 @@ func TestTodaysDateIsNotANewFact(t *testing.T) {
 	prev := []string{"MIC is not reporting tomorrow."}
 	if remarkAddsFacts("Right, today is Tuesday, 29 September 2026, so tomorrow is the 30th.", "tomorrow is the 30th", prev, now) {
 		t.Error("today's date read as a new fact")
+	}
+}
+
+func TestRussell2000IsNotAYear(t *testing.T) {
+	now := time.Date(2026, 9, 30, 8, 0, 0, 0, time.UTC)
+	if got := unsupported("The Russell 2000 is down 0.35%.", "how are futures", nil, []tools.Result{{Name: "markets", Content: "x"}}, now); len(got) > 0 {
+		t.Errorf("Russell 2000 read as unsupported: %v", got)
 	}
 }

@@ -91,7 +91,7 @@ func subjectOf(question string) string {
 	// the head noun: "Big news today" ended in "today" and so read as an
 	// ordinary subject.
 	s = timeTail.ReplaceAllString(s, "")
-	s = strings.Trim(s, " \t?.!,:;")
+	s = strings.Trim(s, " \t?.!,:;\"'“”‘’")
 	// Leading article, which is never part of a title.
 	s = regexp.MustCompile(`(?i)^(a|an|the)\s+`).ReplaceAllString(s, "")
 	s = strings.TrimSpace(s)
