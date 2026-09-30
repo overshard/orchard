@@ -95,6 +95,7 @@ function failed(ui, text) {
 // round, call and check as it happens.
 
 const SVG = "http://www.w3.org/2000/svg";
+const SEGMENTS = 14;
 
 function reel() {
   const svg = document.createElementNS(SVG, "svg");
@@ -189,8 +190,13 @@ function deck() {
   const stage = el("span", "work-stage", "THINKING");
   stage.setAttribute("aria-live", "polite");
   const vu = el("span", "vu");
-  const fill = el("span", "vu-fill");
-  vu.append(fill);
+  vu.setAttribute("aria-hidden", "true");
+  const segs = [];
+  for (let i = 0; i < SEGMENTS; i++) {
+    const seg = el("i", i >= SEGMENTS - 3 ? "hot" : "");
+    segs.push(seg);
+    vu.append(seg);
+  }
   const counter = el("span", "work-count");
   const tape = el("span", "v", "0000");
   counter.append(el("span", "k", "TAPE"), tape);
@@ -221,17 +227,34 @@ function deck() {
     clock.textContent = clockText(performance.now() - started);
   }, 100);
 
-  // The needle falls back between events and jitters a little on its own, so a
-  // long wait on the model still reads as something happening.
+  // Whole segments on a slow tick, the way an LED meter steps, with the top one
+  // held for a moment before it falls. The level jumps on an event, decays
+  // between them and wanders a little on its own, so a long wait on the model
+  // still reads as signal. Only segments that change are touched.
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  function meter() {
-    if (!running) return;
-    level = Math.max(0.12, level * 0.94);
-    const jitter = still ? 0 : (Math.random() - 0.5) * 0.08;
-    fill.style.transform = `scaleX(${Math.min(1, Math.max(0.05, level + jitter)).toFixed(3)})`;
-    requestAnimationFrame(meter);
+  let lit = -1;
+  let peak = 0;
+  let peakHeld = 0;
+  function show(n) {
+    if (n !== lit) {
+      segs.forEach((seg, i) => seg.classList.toggle("on", i < n));
+      lit = n;
+    }
+    if (n >= peak) {
+      peak = n;
+      peakHeld = 8;
+    } else if (peakHeld > 0) {
+      peakHeld--;
+    } else {
+      peak = Math.max(n, peak - 1);
+    }
+    segs.forEach((seg, i) => seg.classList.toggle("peak", i === peak - 1 && peak > n));
   }
-  requestAnimationFrame(meter);
+  const meter = setInterval(() => {
+    level = Math.max(0.18, level * 0.86);
+    const wander = still ? 0 : (Math.random() - 0.5) * 0.12;
+    show(Math.round(Math.min(1, Math.max(0.1, level + wander)) * SEGMENTS));
+  }, 90);
   const kick = (to = 0.95) => { level = Math.max(level, to); };
 
   function line(kind, label, text, meta) {
@@ -364,7 +387,8 @@ function deck() {
     for (const li of pending.values()) li.querySelector(".w-bar")?.remove();
     summary.hidden = false;
     sum();
-    fill.style.transform = "scaleX(0)";
+    clearInterval(meter);
+    segs.forEach((seg) => seg.classList.remove("on", "peak"));
   }
 
   return { root, step, toolStart, toolDone, setStage, writing, stop, kick };

@@ -2381,24 +2381,22 @@ main {
   }
 }
 
-// Fourteen segments, lit from the left by how much is happening.
+// Fourteen segments, lit whole from the left by how much is happening, the last
+// three hotter, and the peak left lit a moment after the level drops.
 .vu {
   flex: none;
-  position: relative;
+  display: flex;
+  gap: 2px;
   width: 84px;
   height: 8px;
-  overflow: hidden;
-  background: repeating-linear-gradient(90deg, var(--line-hot) 0 4px, transparent 4px 6px);
 
-  .vu-fill {
-    position: absolute;
-    inset: 0;
-    transform-origin: left;
-    transform: scaleX(0.2);
-    background:
-      repeating-linear-gradient(90deg, transparent 0 4px, var(--void) 4px 6px),
-      linear-gradient(90deg, var(--amber-dim), var(--amber) 70%, #ffd166);
+  i {
+    flex: 1;
+    background: var(--line-hot);
   }
+  i.on { background: var(--amber); box-shadow: 0 0 4px var(--amber-glow); }
+  i.hot.on { background: #ffd166; }
+  i.peak { background: var(--amber-dim); }
 }
 
 .work-count {
