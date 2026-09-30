@@ -47,7 +47,7 @@ func TestRelevantFindsWhatTheQuestionTouches(t *testing.T) {
 		}
 	}
 
-	got := s.Relevant("what tent should I take camping this year", 3)
+	got := s.Relevant("what tent should I take camping this year", 3, true)
 	if len(got) == 0 {
 		t.Fatal("nothing matched a question about camping")
 	}
@@ -70,13 +70,13 @@ func TestRelevantIgnoresWordsThatMatchEverything(t *testing.T) {
 	if _, err := s.AddFact("Isaac prefers the aisle seat"); err != nil {
 		t.Fatal(err)
 	}
-	if got := s.Relevant("what is the weather", 5); len(got) != 0 {
+	if got := s.Relevant("what is the weather", 5, true); len(got) != 0 {
 		t.Errorf("matched on filler words: %+v", got)
 	}
 	if _, err := s.AddFact("Isaac is researching whether a tiny home on wheels can be lived in full-time"); err != nil {
 		t.Fatal(err)
 	}
-	if got := s.Relevant("what time is it right now", 5); len(got) != 0 {
+	if got := s.Relevant("what time is it right now", 5, true); len(got) != 0 {
 		t.Errorf("matched on filler words: %+v", got)
 	}
 }
@@ -100,11 +100,11 @@ func TestALongQuestionNeedsTwoWordsInCommon(t *testing.T) {
 		"why has wardogs been losing rating % on steam? it started low due to server issues/ddos, then went up to like 81%, now it's at like 76%",
 		"why has arctic vibe celcius packets and alani nu packets been just sold out on amazon and other places for like a few weeks / month now?",
 	} {
-		if got := s.Relevant(q, 6); len(got) != 0 {
+		if got := s.Relevant(q, 6, true); len(got) != 0 {
 			t.Errorf("%q pulled in %q", q[:40], got[0].Text)
 		}
 	}
-	if got := s.Relevant("is my 3070 still good enough for gaming at 1440p with newer titles coming out this year", 6); len(got) != 1 {
+	if got := s.Relevant("is my 3070 still good enough for gaming at 1440p with newer titles coming out this year", 6, true); len(got) != 1 {
 		t.Errorf("a long question sharing two words with a fact got %d facts", len(got))
 	}
 }
@@ -114,10 +114,24 @@ func TestRelevantCountsUses(t *testing.T) {
 	if _, err := s.AddFact("Isaac uses bun rather than npm"); err != nil {
 		t.Fatal(err)
 	}
-	s.Relevant("should I use bun here", 3)
+	s.Relevant("should I use bun here", 3, true)
 	facts, _ := s.Facts()
 	if facts[0].Used != 1 {
 		t.Errorf("used = %d, want 1", facts[0].Used)
+	}
+}
+
+func TestAnIncognitoRecallCountsNothing(t *testing.T) {
+	s := memStore(t)
+	if _, err := s.AddFact("Isaac uses bun rather than npm"); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.Relevant("should I use bun here", 3, false); len(got) != 1 {
+		t.Fatalf("recalled %d facts, want 1", len(got))
+	}
+	facts, _ := s.Facts()
+	if facts[0].Used != 0 {
+		t.Errorf("used = %d after an incognito recall, want 0", facts[0].Used)
 	}
 }
 
@@ -313,7 +327,7 @@ func TestOneSharedWordIsChanceOnAnOrdinaryQuestion(t *testing.T) {
 		"can i have multiple tailscale networks on the same system like for work and home?",
 		"make a cyberpunk esque living room scene",
 	} {
-		if got := s.Relevant(q, 6); len(got) != 0 {
+		if got := s.Relevant(q, 6, true); len(got) != 0 {
 			t.Errorf("%q pulled in %q", q, got[0].Text)
 		}
 	}
@@ -324,7 +338,7 @@ func TestAFilmIsAMovie(t *testing.T) {
 	if _, err := s.AddFact("Isaac and his friends want to watch the films Heretic and Terrifier this weekend."); err != nil {
 		t.Fatal(err)
 	}
-	if got := s.Relevant("what movies do my friends and I want to watch", 6); len(got) != 1 {
+	if got := s.Relevant("what movies do my friends and I want to watch", 6, true); len(got) != 1 {
 		t.Errorf("a question about movies missed the fact about films: %d", len(got))
 	}
 }

@@ -81,6 +81,10 @@ func (e *Engine) spend(ctx context.Context, key string) error {
 		return ErrSpent{Window: "day", Done: day, Ceil: coldPerDay, Until: now.Add(24 * time.Hour)}
 	}
 
+	// Still counted, so incognito cannot spend past the ceiling, but not named.
+	if incognito(ctx) {
+		key = ""
+	}
 	if _, err := e.db.ExecContext(ctx,
 		`INSERT INTO assessments (key, started_at) VALUES (?,?)`, key, now.Unix()); err != nil {
 		return err
