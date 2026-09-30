@@ -107,3 +107,38 @@ func TestNoDraftNoteWithoutADraft(t *testing.T) {
 		t.Error("an empty draft produced a note")
 	}
 }
+
+// With nothing looked up the writer has nothing to add, and asked to write out
+// a draft about Christianity it wrote the answer before it about Wednesday.
+func TestADraftWithNothingLookedUpIsTheAnswer(t *testing.T) {
+	draft := "Christianity spread through the Roman roads and then had the state behind it."
+	s := &scriptModel{replies: []string{draft}}
+	srv := s.server(t)
+	defer srv.Close()
+	e := NewEngine(NewLLM(srv.URL, "local", "k"), "test")
+	e.Render = func(md string) string { return md }
+	msg, _, _, _, _, err := e.Run(context.Background(), nil, "how fast is it", "", "", NewTrace(nil), func(Event) {})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if msg.Content != draft {
+		t.Errorf("answer = %q, want the draft", msg.Content)
+	}
+	if s.final != nil {
+		t.Error("the writer was called for a draft with nothing to cite")
+	}
+}
+
+func TestAWrittenAnswerCopyingAnEarlierOneIsCaught(t *testing.T) {
+	earlier := "The name comes from the Anglo-Saxons. In Old English it was Wodnesdaeg, meaning day of Woden, their equivalent of the Norse god Odin. So the English name honours a Germanic god. In the Romance languages it comes from a different root, the Latin day of Mercury."
+	draft := "Christianity took over gradually over centuries, through the Roman roads, a common language, bishops and a written Bible, and then the state itself once Constantine converted in 312."
+	if !copiedEarlier(earlier, draft, []string{earlier}) {
+		t.Error("a copy of the earlier answer was not caught")
+	}
+	if copiedEarlier(draft+" It also spread through families.", draft, []string{earlier}) {
+		t.Error("the draft written out was read as a copy")
+	}
+	if copiedEarlier(earlier, earlier, []string{earlier}) {
+		t.Error("a draft that was itself the earlier answer should be left to the gate")
+	}
+}

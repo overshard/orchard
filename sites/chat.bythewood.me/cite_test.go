@@ -257,3 +257,17 @@ func TestAnInitialDoesNotEndASentence(t *testing.T) {
 		t.Errorf("an abbreviation split the sentence: %q", got)
 	}
 }
+
+func TestARundownLineKeepsTheHeadlinesNumber(t *testing.T) {
+	srcs := []Source{{N: 2, URL: "https://npr.org/a", Title: "a"}, {N: 20, URL: "https://npr.org/b", Title: "b"}, {N: 13, URL: "https://npr.org/c", Title: "c"}, {N: 3, URL: "https://bbc.co.uk/d", Title: "d"}}
+	for in, want := range map[string]string{
+		`- **Supreme Court** sided with the administration.[2] (NPR: "Court sides with Trump")[2]`:                         `- **Supreme Court** sided with the administration. (NPR: "Court sides with Trump")[2]`,
+		`- **Trump weakened fuel standards**, drawing criticism.[20] (NPR: "Trump weakens fuel efficiency standards")[13]`: `- **Trump weakened fuel standards**, drawing criticism. (NPR: "Trump weakens fuel efficiency standards")[13]`,
+		`- **FBI hunting hackers** who stole data. (NPR: "FBI hunting the hackers" [2])`:                                   `- **FBI hunting hackers** who stole data. (NPR: "FBI hunting the hackers")[2]`,
+		`- **UK to consider rejoining**, says Burnham.[3] (BBC: "Move to rejoin EU" [3])`:                                  `- **UK to consider rejoining**, says Burnham. (BBC: "Move to rejoin EU")[3]`,
+	} {
+		if got := attach(in, srcs); got != want {
+			t.Errorf("\n got %s\nwant %s", got, want)
+		}
+	}
+}

@@ -7,10 +7,13 @@ func TestAskingToComeBackToAChatIsAFlag(t *testing.T) {
 		"this is not true, remember in memory to check this chat later to fix":                   true,
 		"this didn't do anything -- remember this chat and that i nshould fix it when iget home": true,
 		"flag this conversation": true,
-		"Hmmmm tomorrow is the 30th... Remember you got this wrong so we can fix later": true,
-		"remember that I like watercolour":                                              false,
-		"add the long walk to the list of movies we want to see":                        false,
-		"what did we decide in the chat about tailscale":                                false,
+		"Hmmmm tomorrow is the 30th... Remember you got this wrong so we can fix later":                      true,
+		"i don't think this is correct nad up to date info if you want to remember this so we can fix later": true,
+		"remember this is wrong it's an hour and 33 mins lol":                                                true,
+		"remember that I like watercolour":                                                                   false,
+		"remember that the long walk is on netflix":                                                          false,
+		"add the long walk to the list of movies we want to see":                                             false,
+		"what did we decide in the chat about tailscale":                                                     false,
 	} {
 		if got := flagAsk.MatchString(msg); got != want {
 			t.Errorf("flagAsk(%q) = %v, want %v", msg, got, want)

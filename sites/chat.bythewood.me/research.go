@@ -76,6 +76,9 @@ const (
 	// Below this a draft is too short for the overlap to mean anything. A one
 	// line answer to "why?" shares its whole vocabulary with what came before.
 	repeatMinShingles = 20
+	// A written answer that is mostly an earlier one, which is a copy rather than
+	// a follow-up leaning on what it said.
+	copiedOverlap = 0.60
 )
 
 var wordish = regexp.MustCompile(`[a-z0-9]+`)
@@ -83,6 +86,10 @@ var wordish = regexp.MustCompile(`[a-z0-9]+`)
 // repeatsAnswered reports whether most of the draft is already in what this
 // conversation has answered.
 func repeatsAnswered(draft string, previous []string) bool {
+	return repeatsAnsweredAt(draft, previous, repeatOverlap)
+}
+
+func repeatsAnsweredAt(draft string, previous []string, at float64) bool {
 	d := shingles(draft)
 	if len(d) < repeatMinShingles {
 		return false
@@ -102,7 +109,7 @@ func repeatsAnswered(draft string, previous []string) bool {
 			hit++
 		}
 	}
-	return float64(hit)/float64(len(d)) >= repeatOverlap
+	return float64(hit)/float64(len(d)) >= at
 }
 
 func shingles(s string) map[string]bool {
@@ -519,7 +526,7 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 		if isDeferral(draft) {
 			return researchNudge(""), st
 		}
-		if remarkAddsFacts(draft, question, previous, e.now()) {
+		if remarkAddsFacts(draft, question, previous, e.local()) {
 			return remarkNudge, st
 		}
 		return "", st
@@ -550,7 +557,11 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 		emit(Event{Kind: "status", Text: "checking the total"})
 		return totalNudge(printed), st
 	}
-	if wrong := wrongDay(draft, e.now()); wrong != "" {
+	if left := countdownLeft(used); left != "" && !saysTimeLeft(draft, left) {
+		emit(Event{Kind: "status", Text: "checking the time"})
+		return "The time left is " + left + ", worked out from the clock. Answer with that and nothing you worked out yourself.", st
+	}
+	if wrong := wrongDay(draft, e.local()); wrong != "" {
 		emit(Event{Kind: "status", Text: "checking the date"})
 		return wrong, st
 	}
@@ -572,7 +583,7 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 	// dated a 2020 horror film to 1969 and cast it from memory, with the search
 	// result saying 2020 sitting right there, and the model check let it go.
 	if len(used) > 0 && !calledTool(used, tools.PropertyTool.Name) {
-		if missing := unsupported(draft, question, previous, used, e.now()); len(missing) > 0 {
+		if missing := unsupported(draft, question, previous, used, e.local()); len(missing) > 0 {
 			emit(Event{Kind: "status", Text: "checking it"})
 			return unsupportedNudge(missing), st
 		}
@@ -646,6 +657,38 @@ func (e *Engine) gateOffline(ctx context.Context, question, draft string, used [
 
 func calledNews(used []tools.Result) bool { return calledTool(used, tools.News.Name) }
 
+var timePart = regexp.MustCompile(`(\d+) (day|hour|minute)`)
+
+// saysTimeLeft is a draft giving every part of the time left, in figures or as
+// "an hour".
+func saysTimeLeft(draft, left string) bool {
+	d := strings.ToLower(draft)
+	for _, p := range timePart.FindAllStringSubmatch(left, -1) {
+		unit := map[string]string{"day": "day", "hour": "(hour|hr)", "minute": "min"}[p[2]]
+		ok := regexp.MustCompile(`\b` + p[1] + `\s*` + unit).MatchString(d)
+		if !ok && p[1] == "1" {
+			ok = regexp.MustCompile(`\b(an?|one)\s+` + unit).MatchString(d)
+		}
+		if !ok {
+			return false
+		}
+	}
+	return true
+}
+
+// countdownLeft is the time left a clock reading in the turn worked out, which
+// the draft said was 8 minutes when it was an hour and 2.
+func countdownLeft(used []tools.Result) string {
+	for _, r := range used {
+		if m, ok := r.Content.(map[string]any); ok && r.Name == tools.Now.Name && r.Err == "" {
+			if left, _ := m["remaining"].(string); left != "" {
+				return left
+			}
+		}
+	}
+	return ""
+}
+
 func calledTool(used []tools.Result, name string) bool {
 	for _, r := range used {
 		if r.Name == name && r.Err == "" {
@@ -668,6 +711,8 @@ func isRemark(question string, previous []string) bool {
 
 var (
 	yearWord = regexp.MustCompile(`\b(1[5-9]\d\d|20\d\d)\b`)
+	// Names that carry a number shaped like a year.
+	notAYear = regexp.MustCompile(`(?i)\brussell\s+2000\b|\bwindows\s+2000\b`)
 	// Two to four capitalised words in a row, which is how a person, a film or
 	// a company is written.
 	properName = regexp.MustCompile(`\b([A-Z][a-z]+(?:[\s-]+(?:[A-Z]\.\s*)?[A-Z][a-z]+){1,3})\b`)
@@ -707,6 +752,7 @@ func unsupported(draft, question string, previous []string, used []tools.Result,
 	}
 	h := strings.ToLower(hay.String())
 	text := strings.Join(outsideFences(citeNum.ReplaceAllString(draft, " ")), "\n")
+	text = notAYear.ReplaceAllString(text, " ")
 
 	var years, names []string
 	seen := map[string]bool{}
@@ -782,10 +828,22 @@ func asksForAmount(question string) bool { return amountAsk.MatchString(question
 
 // "Tomorrow is Saturday, 3 October 2026" on a Tuesday the 29th. The model does
 // the date arithmetic in its head and the rest of the answer is built on it.
-var relativeDay = regexp.MustCompile(`(?i)\b(today|tomorrow|yesterday)(?: is|,| was)\s+(?:(monday|tuesday|wednesday|thursday|friday|saturday|sunday),?\s+)?(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?(?:\s+(?:of\s+)?(january|february|march|april|may|june|july|august|september|october|november|december))?`)
+var relativeDay = regexp.MustCompile(`(?i)\b(today|tomorrow|yesterday)( is|,| was)\s+(?:(` + dayNames + `)\b,?\s*)?(?:(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?(?:\s+(?:of\s+)?(` + monthNames + `))?|(` + monthNames + `)\s+(\d{1,2})(?:st|nd|rd|th)?)?`)
 
+// wrongDay checks a draft's today, tomorrow and yesterday against the real date.
+// now has to be local, since between eight and midnight in New York the UTC date
+// is already tomorrow.
 func wrongDay(draft string, now time.Time) string {
 	for _, m := range relativeDay.FindAllStringSubmatch(draft, -1) {
+		weekday, day, month := m[3], m[4], m[5]
+		if m[6] != "" {
+			day, month = m[7], m[6]
+		}
+		// "Today, 12 states..." is not a date, and "tomorrow is" on its own
+		// says nothing to check.
+		if weekday == "" && month == "" && (day == "" || m[2] == ",") {
+			continue
+		}
 		d := now
 		switch strings.ToLower(m[1]) {
 		case "tomorrow":
@@ -793,10 +851,12 @@ func wrongDay(draft string, now time.Time) string {
 		case "yesterday":
 			d = now.AddDate(0, 0, -1)
 		}
-		day, _ := strconv.Atoi(m[3])
-		wrongWeekday := m[2] != "" && !strings.EqualFold(m[2], d.Weekday().String())
-		wrongMonth := m[4] != "" && !strings.EqualFold(m[4], d.Month().String())
-		if day != d.Day() || wrongWeekday || wrongMonth {
+		n, _ := strconv.Atoi(day)
+		wrongDate := day != "" && n != d.Day()
+		wrongWeekday := weekday != "" && !strings.EqualFold(weekday, d.Weekday().String())
+		mon, known := monthNumber(month)
+		wrongMonth := known && mon != d.Month()
+		if wrongDate || wrongWeekday || wrongMonth {
 			return "Today is " + now.Format("Monday, 2 January 2006") + ", so " + strings.ToLower(m[1]) + " is " +
 				d.Format("Monday, 2 January") + ". Your draft says otherwise. Answer again with the right date, " +
 				"and check anything you worked out from the wrong one."
