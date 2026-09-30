@@ -583,3 +583,24 @@ func TestAnEditIsForwardedAsAFormAndItsPicturesAreNotKept(t *testing.T) {
 		t.Errorf("completion = %q", c.Completion)
 	}
 }
+
+func TestANewKeyNeverLandsInAURL(t *testing.T) {
+	s := &site{store: testStore(t)}
+	req := httptest.NewRequest("POST", "/keys", strings.NewReader("name=test"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	s.keyCreate(rec, req)
+
+	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/" {
+		t.Fatalf("got %d to %q, want 303 to /", rec.Code, rec.Header().Get("Location"))
+	}
+	var secret string
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == newKeyCookie {
+			secret = c.Value
+		}
+	}
+	if !strings.HasPrefix(secret, "orch-") {
+		t.Fatalf("the key should ride a one-shot cookie, got %q", secret)
+	}
+}
