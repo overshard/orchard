@@ -108,6 +108,10 @@ func (s *site) loginSubmit(w http.ResponseWriter, r *http.Request) {
 		// second one.
 		s.codePage(w, r, next, "A code was already sent. Check your phone.", http.StatusOK)
 		return
+	case errors.Is(err, errLockedOut):
+		s.loginError(w, r, next,
+			"Too many wrong codes today. Use a recovery code.", http.StatusTooManyRequests)
+		return
 	case errors.Is(err, errCeiling):
 		audit(s.db, r, evCeilingHit, "")
 		s.loginError(w, r, next,
@@ -153,9 +157,17 @@ func (s *site) codeSubmit(w http.ResponseWriter, r *http.Request) {
 		clearPendingCookie(w)
 		s.loginError(w, r, next, "That code has expired. Start again.", http.StatusUnauthorized)
 		return
+	case errors.Is(err, errLockedOut):
+		clearPendingCookie(w)
+		s.loginError(w, r, next,
+			"Too many wrong codes today. Use a recovery code.", http.StatusTooManyRequests)
+		return
 	case errors.Is(err, errBadCode):
 		time.Sleep(failedDelay)
 		audit(s.db, r, evCodeFailed, "")
+		if n, _ := failuresInWindow(s.db); n == dailyFailures {
+			go s.notifier.notify(lockoutMessage(requestContext(r)))
+		}
 		s.codePage(w, r, next, "That code is not right.", http.StatusUnauthorized)
 		return
 	case err != nil:
