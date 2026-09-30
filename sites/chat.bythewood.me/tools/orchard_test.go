@@ -404,3 +404,13 @@ func TestFindFallsBackToSearchingInsideFiles(t *testing.T) {
 		t.Errorf("an empty find did not search the files: %#v", got)
 	}
 }
+
+func TestDashSectionTakesAPluralForASingularPanel(t *testing.T) {
+	got, err := dashSection(map[string]any{"market": 1, "alerts": 2}, "markets")
+	if err != nil || got.(map[string]any)["market"] != 1 {
+		t.Errorf("markets did not find market: %v %v", got, err)
+	}
+	if got, err := dashSection(map[string]any{"market": 1, "alerts": 2}, "alert"); err != nil || got.(map[string]any)["alerts"] != 2 {
+		t.Errorf("alert did not find alerts: %v %v", got, err)
+	}
+}
