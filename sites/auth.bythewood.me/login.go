@@ -17,8 +17,12 @@ const defaultNext = "/account"
 //
 // "starts with /" is not enough on its own: "//evil.example" is
 // protocol-relative and "/\evil.example" is followed off-site by some browsers.
+// Browsers also strip tabs and newlines from a Location, so "/\t/evil.example"
+// arrives as "//evil.example".
 func safeNext(next string) string {
-	if next == "" {
+	if next == "" || strings.ContainsFunc(next, func(r rune) bool {
+		return r < 0x20 || r == 0x7f || r == '\\'
+	}) {
 		return defaultNext
 	}
 	if strings.HasPrefix(next, "/") {
