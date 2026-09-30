@@ -41,7 +41,14 @@ function status(text) {
   statusLine.textContent = text ? text.toUpperCase() : "";
 }
 
+// Closing the box ends the conversation, so the next open starts a new one. A
+// turn still running when it closed is left alone and shown again if the box
+// comes back before it finishes.
+let fresh = false;
+
 function open() {
+  if (fresh && !inflight) clear();
+  fresh = false;
   if (!dialog.open) dialog.showModal();
   input.focus();
 }
@@ -525,6 +532,9 @@ function enable() {
   input.addEventListener("input", fit);
   newButton.addEventListener("click", clear);
   closeButton.addEventListener("click", () => dialog.close());
+  dialog.addEventListener("close", () => {
+    fresh = true;
+  });
 
   // The box has no padding of its own, so a click whose target is the dialog
   // itself landed on the backdrop.
