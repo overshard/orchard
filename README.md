@@ -124,6 +124,7 @@ make password                        print a suggested password, writing nothing
 make ntfy                            create the three ntfy accounts
 make ntfy-token                      mint the publishers' tokens into the .env files
 make auth-init                       create the login account and print its codes
+make chat-key                        mint chat's gateway key into its .env, if it has none
 make llm-key NAME=chat               mint an api key for the model gateway
 make wiki                            download the offline wikipedia, 12.5GB
 make ntfy-status                     accounts, access and tokens
