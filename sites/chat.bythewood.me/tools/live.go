@@ -130,8 +130,11 @@ var Weather = Tool{
 		if days < 1 || days > 14 {
 			days = 7
 		}
+		// Asked for one day about tomorrow it got today and called it tomorrow.
+		days = max(days, 3)
 		var w struct {
-			Daily struct {
+			Offset int `json:"utc_offset_seconds"`
+			Daily  struct {
 				Time    []string  `json:"time"`
 				Max     []float64 `json:"temperature_2m_max"`
 				Min     []float64 `json:"temperature_2m_min"`
@@ -150,6 +153,7 @@ var Weather = Tool{
 		type day struct {
 			Date      string  `json:"date"`
 			Weekday   string  `json:"weekday"`
+			When      string  `json:"when,omitempty"`
 			HighF     float64 `json:"high_f"`
 			LowF      float64 `json:"low_f"`
 			PrecipPct float64 `json:"precip_chance_pct"`
@@ -157,12 +161,13 @@ var Weather = Tool{
 			Sunset    string  `json:"sunset,omitempty"`
 		}
 		out := make([]day, 0, len(w.Daily.Time))
+		today := d.Now().UTC().Add(time.Duration(w.Offset) * time.Second).Format("2006-01-02")
 		for i := range w.Daily.Time {
 			wd := ""
 			if t, e := time.Parse("2006-01-02", w.Daily.Time[i]); e == nil {
 				wd = t.Format("Monday")
 			}
-			dd := day{Date: w.Daily.Time[i], Weekday: wd, HighF: w.Daily.Max[i],
+			dd := day{Date: w.Daily.Time[i], Weekday: wd, When: relativeTo(today, w.Daily.Time[i]), HighF: w.Daily.Max[i],
 				LowF: w.Daily.Min[i], PrecipPct: w.Daily.Precip[i], WindMPH: w.Daily.Wind[i]}
 			if i < len(w.Daily.Sunset) {
 				if t, e := time.Parse("2006-01-02T15:04", w.Daily.Sunset[i]); e == nil {
@@ -175,16 +180,66 @@ var Weather = Tool{
 	},
 }
 
+func nyOrUTC() *time.Location {
+	if ny, err := time.LoadLocation("America/New_York"); err == nil {
+		return ny
+	}
+	return time.UTC
+}
+
+// relativeTo names a date against today, both as the place's own YYYY-MM-DD, so
+// the model reads which row is tomorrow rather than working it out.
+func relativeTo(today, date string) string {
+	t, err1 := time.Parse("2006-01-02", today)
+	d, err2 := time.Parse("2006-01-02", date)
+	if err1 != nil || err2 != nil {
+		return ""
+	}
+	switch int(d.Sub(t).Hours() / 24) {
+	case -1:
+		return "yesterday"
+	case 0:
+		return "today"
+	case 1:
+		return "tomorrow"
+	}
+	return ""
+}
+
 // ---------------------------------------------------------------- markets
 
 // alias lets the model say "S&P 500" or "gold" instead of knowing ticker syntax.
+// Keys are lower case with hyphens read as spaces.
 var alias = map[string]string{
 	"s&p 500": "^GSPC", "s&p": "^GSPC", "sp500": "^GSPC", "spx": "^GSPC", "spy": "SPY",
 	"nasdaq": "^IXIC", "nasdaq 100": "^NDX", "dow": "^DJI", "dow jones": "^DJI",
 	"russell 2000": "^RUT", "vix": "^VIX", "gold": "GC=F", "silver": "SI=F",
 	"oil": "CL=F", "crude": "CL=F", "natural gas": "NG=F", "10 year": "^TNX",
+	"10 year treasury": "^TNX", "10 year yield": "^TNX", "10 year treasury yield": "^TNX",
+	"us10y": "^TNX", "tnx": "^TNX", "treasury": "^TNX",
 	"bitcoin": "BTC-USD", "btc": "BTC-USD", "ethereum": "ETH-USD", "eth": "ETH-USD",
 	"solana": "SOL-USD", "dogecoin": "DOGE-USD",
+	// ES on its own is also Eversource's ticker, and asked "ES, NQ, YM" for the
+	// morning's futures it quoted a utility.
+	"es": "ES=F", "/es": "ES=F", "s&p futures": "ES=F", "s&p 500 futures": "ES=F", "spx futures": "ES=F",
+	"nq": "NQ=F", "/nq": "NQ=F", "nasdaq futures": "NQ=F", "nasdaq 100 futures": "NQ=F",
+	"ym": "YM=F", "/ym": "YM=F", "dow futures": "YM=F", "dow jones futures": "YM=F",
+	"rty": "RTY=F", "/rty": "RTY=F", "russell futures": "RTY=F", "russell 2000 futures": "RTY=F",
+}
+
+// futuresOf is the contract that trades while an index is shut.
+var futuresOf = map[string]string{"^GSPC": "ES=F", "^NDX": "NQ=F", "^IXIC": "NQ=F", "^DJI": "YM=F", "^RUT": "RTY=F"}
+
+// closedIndex is a quote whose last print was a close rather than a trade,
+// which is how CNBC dates a quote with no time on it.
+func closedIndex(q Quote) bool { return strings.HasPrefix(q.AsOf, "the close") }
+
+// Asked for "futures" the model means the four index contracts.
+var indexFutures = []string{"ES=F", "NQ=F", "YM=F", "RTY=F"}
+
+var futuresWord = map[string]bool{
+	"futures": true, "index futures": true, "stock futures": true, "equity futures": true,
+	"us futures": true, "stock market futures": true,
 }
 
 // cnbcSym maps the tickers people write to the ones CNBC's quote cache uses.
@@ -193,7 +248,7 @@ var alias = map[string]string{
 var cnbcSym = map[string]string{
 	"^GSPC": ".SPX", "^IXIC": ".IXIC", "^DJI": ".DJI", "^NDX": ".NDX", "^RUT": ".RUT",
 	"^VIX": ".VIX", "GC=F": "@GC.1", "SI=F": "@SI.1", "CL=F": "@CL.1", "NG=F": "@NG.1",
-	"^TNX": "US10Y",
+	"^TNX": "US10Y", "ES=F": "@SP.1", "NQ=F": "@ND.1", "YM=F": "@DJ.1", "RTY=F": "@TFS.1",
 }
 
 var coinIDs = map[string]string{
@@ -202,24 +257,77 @@ var coinIDs = map[string]string{
 }
 
 type Quote struct {
-	Symbol    string  `json:"symbol"`
-	Name      string  `json:"name,omitempty"`
-	Price     float64 `json:"price"`
-	Change    string  `json:"change,omitempty"`
-	ChangePct string  `json:"change_pct,omitempty"`
-	PrevClose string  `json:"prev_close,omitempty"`
-	AsOf      string  `json:"as_of,omitempty"`
-	Currency  string  `json:"currency,omitempty"`
-	Source    string  `json:"source"`
-	Err       string  `json:"error,omitempty"`
+	Symbol    string   `json:"symbol"`
+	Name      string   `json:"name,omitempty"`
+	Price     float64  `json:"price"`
+	Change    string   `json:"change,omitempty"`
+	ChangePct string   `json:"change_pct,omitempty"`
+	PrevClose string   `json:"prev_close,omitempty"`
+	AsOf      string   `json:"as_of,omitempty"`
+	Extended  *Session `json:"extended_hours,omitempty"`
+	Futures   *Quote   `json:"futures_now,omitempty"`
+	Over      *Span    `json:"over_period,omitempty"`
+	Currency  string   `json:"currency,omitempty"`
+	Source    string   `json:"source"`
+	Err       string   `json:"error,omitempty"`
+}
+
+// Session is a stock's pre-market or after hours print, which is the only
+// thing that moved when the regular quote is still last night's close.
+type Session struct {
+	Kind      string `json:"session"`
+	Last      string `json:"price"`
+	Change    string `json:"change,omitempty"`
+	ChangePct string `json:"change_pct,omitempty"`
+	AsOf      string `json:"as_of,omitempty"`
+}
+
+// Span is the change over a week, a month or a year, measured from the first
+// bar of the span, since a question about the week is not answered by a day.
+type Span struct {
+	Period  string  `json:"period"`
+	Since   string  `json:"since"`
+	From    float64 `json:"from"`
+	Change  float64 `json:"change"`
+	Percent float64 `json:"percent"`
+}
+
+// periodRange is the chart range each period reads.
+var periodRange = map[string]string{"week": "1w", "month": "1m", "year": "1y"}
+
+// asOf says when a CNBC quote was taken, in words. A quote from before today is
+// the last close, and read at eight in the morning it was reported as how the
+// futures were doing.
+func asOf(lastTime, when string, now time.Time) string {
+	ny := nyOrUTC()
+	now = now.In(ny)
+	if t, err := time.ParseInLocation("2006-01-02", lastTime, ny); err == nil {
+		if t.Format("2006-01-02") == now.Format("2006-01-02") {
+			return "the close today"
+		}
+		return "the close on " + t.Format("Monday, 2 January")
+	}
+	if t, err := time.Parse("2006-01-02T15:04:05.000-0700", lastTime); err == nil {
+		t = t.In(ny)
+		if t.Format("2006-01-02") == now.Format("2006-01-02") {
+			return t.Format("3:04 PM MST") + " today"
+		}
+		return t.Format("3:04 PM MST on Monday, 2 January")
+	}
+	return when
 }
 
 var Markets = Tool{
 	Name: "markets",
-	Description: "Current price and daily change for stocks, indexes, commodities and crypto. " +
-		"Plain names work: \"S&P 500, gold, bitcoin\" as well as \"AAPL\".",
+	Description: "Current price and daily change for stocks, indexes, futures, treasury yields, commodities and crypto. " +
+		"Plain names work: \"S&P 500, gold, bitcoin\" as well as \"AAPL\". \"futures\" gives the S&P, Nasdaq, Dow and " +
+		"Russell index futures, which are what moves before the open and after the close, since an index quote " +
+		"outside market hours is the last close. An index that is shut carries its futures in futures_now, and that " +
+		"is how it is trading now. Each quote says when it was taken in as_of, so say which day a " +
+		"close is from. Pass period week, month or year for a question about more than today.",
 	Schema: obj(map[string]any{
 		"symbols": str("comma separated symbols or plain names, up to eight"),
+		"period":  str("day (default), week, month or year, for the change over that span"),
 	}, "symbols"),
 	Run: func(ctx context.Context, d *Deps, a map[string]any) (any, error) {
 		raw := argStr(a, "symbols")
@@ -233,18 +341,18 @@ var Markets = Tool{
 			if s == "" {
 				continue
 			}
-			sym := s
-			if v, ok := alias[strings.ToLower(s)]; ok {
-				sym = v
-			} else {
-				sym = strings.ToUpper(s)
+			key := strings.ReplaceAll(strings.ToLower(s), "-", " ")
+			syms := []string{strings.ToUpper(s)}
+			if v, ok := alias[key]; ok {
+				syms = []string{v}
+			} else if futuresWord[key] {
+				syms = indexFutures
 			}
-			if !seen[sym] {
-				seen[sym] = true
-				want = append(want, sym)
-			}
-			if len(want) >= 8 {
-				break
+			for _, sym := range syms {
+				if !seen[sym] && len(want) < 8 {
+					seen[sym] = true
+					want = append(want, sym)
+				}
 			}
 		}
 		out := make([]Quote, 0, len(want))
@@ -286,6 +394,12 @@ var Markets = Tool{
 				} else {
 					ids = append(ids, s)
 				}
+				// Asked for the S&P at eight in the morning it quoted Tuesday's
+				// close as how the futures were doing, so an index always
+				// brings its future along and keeps it when the index is shut.
+				if f, ok := futuresOf[s]; ok && !seen[f] {
+					ids = append(ids, cnbcSym[f])
+				}
 			}
 			var cn struct {
 				R struct {
@@ -301,7 +415,23 @@ var Markets = Tool{
 				}
 			} else {
 				type cq struct {
-					Symbol, ShortName, Last, Change, ChangePct, PreviousDayClosing, LastTimedate, CurrencyCode string
+					Symbol       string `json:"symbol"`
+					ShortName    string `json:"shortName"`
+					Last         string `json:"last"`
+					Change       string `json:"change"`
+					ChangePct    string `json:"change_pct"`
+					PrevClose    string `json:"previous_day_closing"`
+					LastTime     string `json:"last_time"`
+					LastTimedate string `json:"last_timedate"`
+					CurrencyCode string `json:"currencyCode"`
+					Extended     *struct {
+						Type         string `json:"type"`
+						Last         string `json:"last"`
+						Change       string `json:"change"`
+						ChangePct    string `json:"change_pct"`
+						LastTime     string `json:"last_time"`
+						LastTimedate string `json:"last_timedate"`
+					} `json:"ExtendedMktQuote"`
 				}
 				var rows []cq
 				// One symbol comes back as an object rather than an array.
@@ -321,22 +451,56 @@ var Markets = Tool{
 					if b, ok := back[sym]; ok {
 						sym = b
 					}
-					p, _ := strconv.ParseFloat(strings.ReplaceAll(r.Last, ",", ""), 64)
+					// A yield comes back as "5.241%".
+					p, _ := strconv.ParseFloat(strings.NewReplacer(",", "", "%", "").Replace(r.Last), 64)
 					if p == 0 {
 						continue
 					}
-					got[sym] = Quote{Symbol: sym, Name: r.ShortName, Price: p, Change: r.Change,
-						ChangePct: r.ChangePct, PrevClose: r.PreviousDayClosing, AsOf: r.LastTimedate,
+					// After the close CNBC hands back the close as the previous
+					// close too, which reads as a day that did not move.
+					if r.PrevClose == r.Last {
+						r.PrevClose = ""
+					}
+					q := Quote{Symbol: sym, Name: r.ShortName, Price: p, Change: r.Change,
+						ChangePct: r.ChangePct, PrevClose: r.PrevClose, AsOf: asOf(r.LastTime, r.LastTimedate, d.Now()),
 						Currency: r.CurrencyCode, Source: "cnbc"}
+					if x := r.Extended; x != nil && x.Last != "" {
+						kind := "after hours"
+						if x.Type == "PRE_MKT" {
+							kind = "pre-market"
+						}
+						q.Extended = &Session{Kind: kind, Last: x.Last, Change: x.Change, ChangePct: x.ChangePct,
+							AsOf: asOf(x.LastTime, x.LastTimedate, d.Now())}
+					}
+					got[sym] = q
 				}
 				for _, s := range rest {
 					if q, ok := got[s]; ok {
+						if f, ok := got[futuresOf[s]]; ok && closedIndex(q) {
+							q.Futures = &f
+						}
 						out = append(out, q)
 					} else {
 						out = append(out, Quote{Symbol: s, Source: "cnbc",
 							Err: "no quote for that symbol, try web_search"})
 					}
 				}
+			}
+		}
+		period := strings.ToLower(argStr(a, "period"))
+		if key, ok := periodRange[period]; ok {
+			spans := 0
+			for i := range out {
+				if spans >= 4 || out[i].Err != "" || out[i].Price == 0 {
+					continue
+				}
+				spans++
+				ser, err := Ticker(ctx, d, out[i].Symbol, key)
+				if err != nil || len(ser.Points) == 0 {
+					continue
+				}
+				out[i].Over = &Span{Period: period, From: ser.Previous, Change: ser.Change,
+					Percent: ser.Percent, Since: time.Unix(ser.Points[0].T, 0).In(nyOrUTC()).Format("Monday, 2 January 2006")}
 			}
 		}
 		// A chart each for the first few that actually resolved. Charting a
