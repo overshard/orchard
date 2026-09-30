@@ -153,6 +153,7 @@ func main() {
 		web.Recovered,
 		web.Logged,
 		web.SecurityHeaders(csp()),
+		web.SameOrigin(),
 		// No s-maxage. Per RFC 9111 it carries proxy-revalidate semantics, so
 		// Cloudflare reads it as "never serve stale without asking first" and
 		// disables stale-while-revalidate and stale-if-error both.

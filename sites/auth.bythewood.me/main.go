@@ -280,5 +280,6 @@ func (s *site) handler() http.Handler {
 		web.Recovered,
 		web.Logged,
 		web.SecurityHeaders(csp()),
+		web.SameOrigin(),
 	)
 }

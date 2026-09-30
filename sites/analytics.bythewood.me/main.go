@@ -251,6 +251,8 @@ func main() {
 		web.Recovered,
 		web.Logged,
 		web.SecurityHeaders(csp()),
+		// The collector is posted to from every tracked site.
+		web.SameOrigin("/collect", "/collect/"),
 	)
 
 	slog.Info(fmt.Sprintf("analytics serving %s (staging=%t, property=%s)", baseURL, Staging, analyticsID))

@@ -194,6 +194,7 @@ func main() {
 		web.Recovered,
 		web.Logged,
 		web.SecurityHeaders(csp()),
+		web.SameOrigin(),
 	)
 
 	slog.Info(fmt.Sprintf("dash serving %s (staging=%t)", baseURL, Staging))

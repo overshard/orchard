@@ -225,6 +225,7 @@ func main() {
 		web.Recovered,
 		web.Logged,
 		web.SecurityHeaders(csp()),
+		web.SameOrigin(),
 		// No s-maxage: per RFC 9111 it carries proxy-revalidate semantics, so
 		// Cloudflare disables stale-while-revalidate and stale-if-error both.
 		web.EdgeCache("public, max-age=300, "+
