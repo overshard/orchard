@@ -64,3 +64,38 @@ func TestAReplyToARemarkAddsNothingNew(t *testing.T) {
 		t.Error("a reply using only what was said went back")
 	}
 }
+
+func TestAWrongTomorrowGoesBack(t *testing.T) {
+	now := time.Date(2026, 9, 29, 20, 0, 0, 0, time.UTC)
+	if wrongDay("MIC is not reporting tomorrow. Tomorrow is Saturday, 3 October 2026, and MU reports on the 30th.", now) == "" {
+		t.Error("a wrong tomorrow went through")
+	}
+	for _, ok := range []string{
+		"Micron reports tomorrow. Tomorrow is Wednesday, 30 September.",
+		"Today is Tuesday, 29 September 2026.",
+		"It reports tomorrow after the close.",
+	} {
+		if n := wrongDay(ok, now); n != "" {
+			t.Errorf("%q went back: %s", ok, n)
+		}
+	}
+}
+
+func TestOnlyAQuestionAboutAnAmountIsSentToCalc(t *testing.T) {
+	if asksForAmount("How to play gin rummy with two players") {
+		t.Error("a rules question read as asking for an amount")
+	}
+	for _, q := range []string{"what's the total on this receipt", "split $84 three ways with a 20% tip", "how much is 3 of them"} {
+		if !asksForAmount(q) {
+			t.Errorf("%q did not read as asking for an amount", q)
+		}
+	}
+}
+
+func TestTodaysDateIsNotANewFact(t *testing.T) {
+	now := time.Date(2026, 9, 29, 20, 0, 0, 0, time.UTC)
+	prev := []string{"MIC is not reporting tomorrow."}
+	if remarkAddsFacts("Right, today is Tuesday, 29 September 2026, so tomorrow is the 30th.", "tomorrow is the 30th", prev, now) {
+		t.Error("today's date read as a new fact")
+	}
+}
