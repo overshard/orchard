@@ -351,7 +351,7 @@ var OrchardDash = Tool{
 		"panel, which is almost always what a question wants, and leave it empty only when the " +
 		"question really does span most of the dashboard. Read only.",
 	Schema: obj(map[string]any{
-		"section": str("one panel, such as earnings, markets or weather. Call once with it empty to see the names"),
+		"section": str("one panel, such as earnings, market, sectors or weather. Call once with it empty to see the names"),
 	}),
 	Run: func(ctx context.Context, d *Deps, a map[string]any) (any, error) {
 		var out any
@@ -389,8 +389,11 @@ func dashSection(state any, section string) (any, error) {
 	if section == "" || !ok {
 		return state, nil
 	}
-	if v, ok := m[section]; ok {
-		return map[string]any{"section": section, section: v}, nil
+	// "markets" for the market panel, or "alert" for alerts.
+	for _, name := range []string{section, strings.TrimSuffix(section, "s"), section + "s"} {
+		if v, ok := m[name]; ok {
+			return map[string]any{"section": name, name: v}, nil
+		}
 	}
 	names := make([]string, 0, len(m))
 	for k := range m {
