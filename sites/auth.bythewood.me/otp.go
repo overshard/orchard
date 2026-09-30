@@ -28,6 +28,12 @@ const (
 	// A speed bump on top, not the limit: the sleep is per goroutine, so
 	// concurrent attempts all serve it at once.
 	failedDelay = 500 * time.Millisecond
+
+	// Wrong codes across every row before codes stop working for a day. Five
+	// a code and five codes an hour otherwise adds up to a real chance over a
+	// year of quiet guessing. Recovery codes still work while this is tripped.
+	dailyFailures = 10
+	failureWindow = 24 * time.Hour
 )
 
 // One global bucket rather than per-IP state, which grows with every prober,
@@ -68,6 +74,7 @@ var (
 	errOutstanding = errors.New("a code is already outstanding")
 	errNoPending   = errors.New("that code has expired, start again")
 	errBadCode     = errors.New("that code is not right")
+	errLockedOut   = errors.New("too many wrong codes today")
 )
 
 // pendingBrowser reads the cookie that binds an outstanding code to the browser
@@ -135,6 +142,13 @@ func sendsInWindow(db *sql.DB) (int, error) {
 // It publishes nothing itself. The caller does that, and only records the send
 // once ntfy accepted it, so a failed publish does not spend the ceiling.
 func startLogin(db *sql.DB, r *http.Request) (code, browser string, err error) {
+	// No point pushing a code that cannot be typed.
+	if locked, err := lockedOut(db); err != nil {
+		return "", "", err
+	} else if locked {
+		return "", "", errLockedOut
+	}
+
 	// One outstanding at a time, for the account rather than per browser. A
 	// repeat request inside the window publishes nothing, which is what
 	// collapses a flood of requests into one notification per window.
@@ -196,16 +210,21 @@ func finishLogin(db *sql.DB, r *http.Request, code string) error {
 		return errNoPending
 	}
 
+	if locked, err := lockedOut(db); err != nil {
+		return err
+	} else if locked {
+		return errLockedOut
+	}
+
 	var (
 		id         int64
 		hash, salt []byte
-		attempts   int
 	)
 	err := db.QueryRow(`
-        SELECT id, code_hash, code_salt, attempts FROM pending_logins
+        SELECT id, code_hash, code_salt FROM pending_logins
         WHERE consumed = 0 AND expires > ? AND browser_hash = ?
         ORDER BY id DESC LIMIT 1`,
-		time.Now().Unix(), sessionHash(browser)).Scan(&id, &hash, &salt, &attempts)
+		time.Now().Unix(), sessionHash(browser)).Scan(&id, &hash, &salt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return errNoPending
 	}
@@ -213,21 +232,46 @@ func finishLogin(db *sql.DB, r *http.Request, code string) error {
 		return err
 	}
 
-	if attempts+1 >= maxAttempts {
+	// Claim the attempt in the same statement that checks the limit, or
+	// concurrent guesses all read the same count and all get checked.
+	var attempts int
+	err = db.QueryRow(`
+        UPDATE pending_logins SET attempts = attempts + 1
+        WHERE id = ? AND consumed = 0 AND attempts < ?
+        RETURNING attempts`, id, maxAttempts).Scan(&attempts)
+	if errors.Is(err, sql.ErrNoRows) {
+		return errNoPending
+	}
+	if err != nil {
+		return err
+	}
+
+	if attempts >= maxAttempts {
 		// Burn the row on the last attempt whether or not this one is right, so
 		// a wrong fifth guess cannot be followed by a sixth.
 		defer func() { _, _ = db.Exec(`UPDATE pending_logins SET consumed = 1 WHERE id = ?`, id) }()
 	}
-	if _, err := db.Exec(`UPDATE pending_logins SET attempts = attempts + 1 WHERE id = ?`, id); err != nil {
-		return err
-	}
 
 	if !secretMatches(code, hash, salt) {
+		_, _ = db.Exec(`INSERT INTO failures (ts) VALUES (?)`, time.Now().Unix())
 		return errBadCode
 	}
 
 	_, err = db.Exec(`UPDATE pending_logins SET consumed = 1 WHERE id = ?`, id)
 	return err
+}
+
+// failuresInWindow counts wrong codes across every row in the last day.
+func failuresInWindow(db *sql.DB) (int, error) {
+	var n int
+	err := db.QueryRow(`SELECT COUNT(*) FROM failures WHERE ts > ?`,
+		time.Now().Add(-failureWindow).Unix()).Scan(&n)
+	return n, err
+}
+
+func lockedOut(db *sql.DB) (bool, error) {
+	n, err := failuresInWindow(db)
+	return n >= dailyFailures, err
 }
 
 // sweepPending drops spent and expired rows, and the send counters that have
@@ -237,6 +281,9 @@ func sweepPending(db *sql.DB) error {
 	if _, err := db.Exec(`DELETE FROM pending_logins WHERE expires < ?`, cutoff); err != nil {
 		return err
 	}
-	_, err := db.Exec(`DELETE FROM sends WHERE ts < ?`, cutoff)
+	if _, err := db.Exec(`DELETE FROM sends WHERE ts < ?`, cutoff); err != nil {
+		return err
+	}
+	_, err := db.Exec(`DELETE FROM failures WHERE ts < ?`, cutoff)
 	return err
 }

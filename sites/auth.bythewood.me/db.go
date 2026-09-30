@@ -81,6 +81,13 @@ CREATE TABLE IF NOT EXISTS sends (
 
 CREATE INDEX IF NOT EXISTS sends_ts ON sends(ts);
 
+CREATE TABLE IF NOT EXISTS failures (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS failures_ts ON failures(ts);
+
 -- The break-glass, ten at a time, Argon2id hashed like repos' push tokens.
 -- prefix is the first four characters in clear, which finds the right row
 -- without hashing all ten and gives nothing away on its own.

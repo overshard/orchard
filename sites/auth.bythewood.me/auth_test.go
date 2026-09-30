@@ -2,11 +2,13 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -481,5 +483,74 @@ func TestLoginURLNeverReturnsToALoginStub(t *testing.T) {
 		if !strings.HasSuffix(got, url.QueryEscape(want)) {
 			t.Errorf("LoginURL(%q) = %q, want it to return to %q", path, got, want)
 		}
+	}
+}
+
+func TestConcurrentGuessesCannotExceedTheAttemptLimit(t *testing.T) {
+	s, stub := newTestSite(t)
+	if err := runInit(s.db); err != nil {
+		t.Fatal(err)
+	}
+	rec := httptest.NewRecorder()
+	s.handler().ServeHTTP(rec, postForm("/login", url.Values{"username": {seedUsername}}))
+	pending := cookieNamed(rec.Result().Cookies(), pendingCookie)
+	wrong := "000000"
+	if stub.lastCode(t) == wrong {
+		wrong = "111111"
+	}
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	checked := 0
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			req := postForm("/code", url.Values{"code": {wrong}})
+			req.AddCookie(pending)
+			if errors.Is(finishLogin(s.db, req, wrong), errBadCode) {
+				mu.Lock()
+				checked++
+				mu.Unlock()
+			}
+		}()
+	}
+	wg.Wait()
+	if checked > maxAttempts {
+		t.Fatalf("%d guesses were checked against one code, want at most %d", checked, maxAttempts)
+	}
+}
+
+func TestTooManyWrongCodesLockCodesForADay(t *testing.T) {
+	s, stub := newTestSite(t)
+	if err := runInit(s.db); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < dailyFailures; i++ {
+		if _, err := s.db.Exec(`INSERT INTO failures (ts) VALUES (?)`, time.Now().Unix()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	sent := len(stub.titles)
+
+	loginBucket.tokens = loginBucket.burst
+	rec := httptest.NewRecorder()
+	s.handler().ServeHTTP(rec, postForm("/login", url.Values{"username": {seedUsername}}))
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("got %d, want 429 while locked out", rec.Code)
+	}
+	if len(stub.titles) != sent {
+		t.Fatal("a code was pushed while codes are locked out")
+	}
+
+	// A day later it clears on its own.
+	if _, err := s.db.Exec(`UPDATE failures SET ts = ?`, time.Now().Add(-failureWindow-time.Minute).Unix()); err != nil {
+		t.Fatal(err)
+	}
+	loginBucket.tokens = loginBucket.burst
+	rec = httptest.NewRecorder()
+	s.handler().ServeHTTP(rec, postForm("/login", url.Values{"username": {seedUsername}}))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("got %d, want 200 once the window passed", rec.Code)
 	}
 }
