@@ -53,13 +53,12 @@ func (s *site) apiSummary(w http.ResponseWriter, r *http.Request) {
 
 	// One property can be asked for by name, since a model given every
 	// property spends most of the answer saying which one it is talking about.
-	want := r.URL.Query().Get("property")
+	if want := strings.TrimSpace(r.URL.Query().Get("property")); want != "" {
+		props = propertiesNamed(props, want)
+	}
 
 	out := make([]apiPropertySummary, 0, len(props))
 	for _, p := range props {
-		if want != "" && !strings.EqualFold(p.Name, want) {
-			continue
-		}
 		counts := eventCounts(ctx, s.db, p.ID, startMS, endMS, "")
 		sum := apiPropertySummary{
 			ID: p.ID.String(), Name: p.Name, Public: p.IsPublic,
@@ -99,6 +98,22 @@ func (s *site) apiProperties(ctx context.Context) ([]*Property, error) {
 		out = append(out, p)
 	}
 	return out, rows.Err()
+}
+
+// propertiesNamed is the property called want, or failing that every one whose
+// name contains it, since a model asks for "blog" and the property is called
+// blog.bythewood.me.
+func propertiesNamed(props []*Property, want string) []*Property {
+	var partial []*Property
+	for _, p := range props {
+		if strings.EqualFold(p.Name, want) {
+			return []*Property{p}
+		}
+		if strings.Contains(strings.ToLower(p.Name), strings.ToLower(want)) {
+			partial = append(partial, p)
+		}
+	}
+	return partial
 }
 
 // topCountries flattens the map the dashboard uses into the ordered list every

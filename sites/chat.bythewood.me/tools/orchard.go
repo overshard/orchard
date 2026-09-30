@@ -145,13 +145,58 @@ var OrchardAnalytics = Tool{
 		if dd := int(argNum(a, "days", 0)); dd > 0 {
 			q.Set("days", strconv.Itoa(dd))
 		}
-		if p := strings.TrimSpace(argStr(a, "property")); p != "" {
+		p := strings.TrimSpace(argStr(a, "property"))
+		if p != "" {
 			q.Set("property", p)
 		}
-		var out any
-		err := estateGet(ctx, d, analyticsBase+"/api/summary?"+q.Encode(), &out)
-		return out, err
+		var out map[string]any
+		if err := estateGet(ctx, d, analyticsBase+"/api/summary?"+q.Encode(), &out); err != nil {
+			return nil, err
+		}
+		// An empty list reads to a model as no traffic at all.
+		if found, _ := out["properties"].([]any); p != "" && len(found) == 0 {
+			q.Del("property")
+			out = nil
+			if err := estateGet(ctx, d, analyticsBase+"/api/summary?"+q.Encode(), &out); err != nil {
+				return nil, err
+			}
+			out["note"] = "no property is named " + strconv.Quote(p) + ", so these are all of them"
+		}
+		if props, ok := out["properties"].([]any); ok {
+			for _, prop := range props {
+				if m, ok := prop.(map[string]any); ok {
+					labelFirst(m)
+				}
+			}
+		}
+		return out, nil
 	},
+}
+
+// labelFirst turns each {"count":8,"label":"/posts/x/"} row into "/posts/x/: 8".
+// A map marshals its keys sorted, so the count came before its label and the
+// model read every label with the count after it.
+func labelFirst(m map[string]any) {
+	for k, v := range m {
+		rows, ok := v.([]any)
+		if !ok || !strings.HasPrefix(k, "top_") {
+			continue
+		}
+		flat := make([]string, 0, len(rows))
+		for _, r := range rows {
+			row, _ := r.(map[string]any)
+			label, _ := row["label"].(string)
+			count, ok := row["count"].(float64)
+			if !ok {
+				continue
+			}
+			if label == "" {
+				label = "(none)"
+			}
+			flat = append(flat, label+": "+strconv.FormatFloat(count, 'f', -1, 64))
+		}
+		m[k] = flat
+	}
 }
 
 var OrchardRepos = Tool{

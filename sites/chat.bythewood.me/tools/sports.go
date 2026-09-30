@@ -228,8 +228,14 @@ var Odds = Tool{
 			Legs   []leg   `json:"legs"`
 		}
 		var out []mkt
+		words := oddsWords(q)
 		for _, e := range res.Events {
 			for _, m := range e.Markets {
+				// Polymarket matches any one word, so a blog post title came back
+				// as Venezuelan crude oil production.
+				if !aboutWords(e.Title+" "+m.Question, words) {
+					continue
+				}
 				// Polymarket encodes these arrays as JSON strings inside its
 				// JSON, so reading them as []string silently yields nothing.
 				var names []string
@@ -278,7 +284,8 @@ var Odds = Tool{
 			}
 		}
 		if len(out) == 0 {
-			return nil, fmt.Errorf("no active betting market matching %q, try web_search", q)
+			return nil, fmt.Errorf("no betting market is about %q. odds only covers what people bet on, "+
+				"like elections, games and rate decisions, so anything else needs another tool", q)
 		}
 		return map[string]any{"markets": out,
 			"note": "implied probability from a betting market, which is a price and not a forecast"}, nil
@@ -288,6 +295,41 @@ var Odds = Tool{
 // oddsFiller is what a question about a bet says around the name, and none of it
 // is in a market's title.
 var oddsFiller = regexp.MustCompile(`(?i)\b(betting|odds|next|game|match|line|lines|spread|moneyline|who will win|chances?|of|the|for|on)\b`)
+
+var oddsStop = map[string]bool{"a": true, "an": true, "and": true, "in": true, "to": true, "is": true,
+	"be": true, "by": true, "at": true, "vs": true, "who": true, "what": true, "when": true, "will": true,
+	"win": true, "wins": true, "does": true, "do": true, "top": true, "me": true, "my": true, "i": true}
+
+func oddsWords(q string) []string {
+	var out []string
+	for _, w := range wordRe.FindAllString(strings.ToLower(q), -1) {
+		if !oddsStop[w] {
+			out = append(out, w)
+		}
+	}
+	return out
+}
+
+var wordRe = regexp.MustCompile(`[a-z0-9]+`)
+
+// aboutWords is a title carrying at least half of the words asked about, where
+// a plural or a longer form of a word counts as that word.
+func aboutWords(title string, words []string) bool {
+	if len(words) == 0 {
+		return true
+	}
+	have := wordRe.FindAllString(strings.ToLower(title), -1)
+	hit := 0
+	for _, w := range words {
+		for _, h := range have {
+			if h == w || (len(w) >= 4 && strings.HasPrefix(h, w)) || (len(h) >= 4 && strings.HasPrefix(w, h)) {
+				hit++
+				break
+			}
+		}
+	}
+	return hit*2 >= len(words)
+}
 
 func dateOnly(s string) string {
 	if len(s) >= 10 {

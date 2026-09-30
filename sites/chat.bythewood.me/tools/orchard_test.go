@@ -414,3 +414,48 @@ func TestDashSectionTakesAPluralForASingularPanel(t *testing.T) {
 		t.Errorf("alert did not find alerts: %v %v", got, err)
 	}
 }
+
+func TestAnalyticsNamesAPropertyThatIsNotThere(t *testing.T) {
+	var asked []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		asked = append(asked, r.URL.Query().Get("property"))
+		props := []any{}
+		if r.URL.Query().Get("property") == "" {
+			props = append(props, map[string]any{"name": "blog.bythewood.me", "page_views": 48})
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"days": 7, "properties": props})
+	}))
+	defer srv.Close()
+	defer func(was string) { analyticsBase = was }(analyticsBase)
+	analyticsBase = srv.URL
+
+	got, err := OrchardAnalytics.Run(context.Background(), testDeps(srv.URL).WithSession("s"), map[string]any{"property": "my blog"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := got.(map[string]any)
+	if props, _ := m["properties"].([]any); len(props) != 1 {
+		t.Errorf("properties = %v, want every one after the name missed", m["properties"])
+	}
+	if note, _ := m["note"].(string); !strings.Contains(note, "my blog") {
+		t.Errorf("note = %q, want it to say the name missed", note)
+	}
+	if strings.Join(asked, ",") != "my blog," {
+		t.Errorf("asked for %q", asked)
+	}
+}
+
+func TestAnalyticsRowsPutTheLabelFirst(t *testing.T) {
+	m := map[string]any{"page_views": 49.0, "top_pages": []any{
+		map[string]any{"count": 15.0, "label": "/"},
+		map[string]any{"count": 8.0, "label": "/posts/optimizing-sqlite-for-django-in-production/"},
+	}, "top_referrers": nil}
+	labelFirst(m)
+	got, _ := json.Marshal(m["top_pages"])
+	if string(got) != `["/: 15","/posts/optimizing-sqlite-for-django-in-production/: 8"]` {
+		t.Errorf("top_pages = %s", got)
+	}
+	if m["page_views"] != 49.0 {
+		t.Errorf("page_views = %v", m["page_views"])
+	}
+}
