@@ -328,6 +328,22 @@ func wikiCaption(v string) bool {
 	return false
 }
 
+// The spouse row's "m. 2012; sep. 2021" was read as still married.
+var (
+	zeroWidth    = strings.NewReplacer("\u200b", "", "\u200c", "", "\u200d", "", "\ufeff", "")
+	marriageMark = regexp.MustCompile(`\b(m|sep|div)\.\s+(\d{4})`)
+	marriageWord = map[string]string{"m": "married", "sep": "separated", "div": "divorced"}
+)
+
+func spellMarriage(t string) string {
+	t = zeroWidth.Replace(t)
+	t = marriageMark.ReplaceAllStringFunc(t, func(m string) string {
+		p := marriageMark.FindStringSubmatch(m)
+		return marriageWord[p[1]] + " " + p[2]
+	})
+	return strings.Join(strings.Fields(t), " ")
+}
+
 func wikiInfobox(h string) []string {
 	m := wikiTable.FindString(h)
 	if m == "" {
@@ -340,6 +356,7 @@ func wikiInfobox(h string) []string {
 		for _, c := range wikiCell.FindAllStringSubmatch(r[1], -1) {
 			t := strings.TrimSpace(Text(wikiCSS.ReplaceAllString(c[2], " ")))
 			t = strings.ReplaceAll(t, "\n", " ")
+			t = spellMarriage(t)
 			if c[1] == "h" && label == "" {
 				label = t
 				continue

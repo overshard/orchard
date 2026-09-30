@@ -357,3 +357,16 @@ func TestAFactLosesTheIDItWasShownWith(t *testing.T) {
 		t.Errorf("the block does not carry the id: %q", got)
 	}
 }
+
+func TestAnOverlongFactEndsOnAClause(t *testing.T) {
+	long := "Isaac wants to build an autonomous AI WAF: run orchard-llm on orchard-logging at midnight to find bad actors, " +
+		"generate an orchard Caddy rule to block them, verify accuracy, live-reload Caddy, test it works and nothing is broken, " +
+		"and possibly route traffic through a firewall (UFW) first before Caddy and update a firewall rule instead."
+	got := tidyFact(long)
+	if len(got) > maxFactChars || !strings.HasSuffix(got, ".") || strings.HasSuffix(got, "Caddy.") {
+		t.Errorf("tidyFact cut to %q", got)
+	}
+	if !strings.HasSuffix(got, "is broken.") {
+		t.Errorf("tidyFact should end on the last whole clause, got %q", got)
+	}
+}

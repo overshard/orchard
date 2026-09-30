@@ -44,6 +44,9 @@ func TestARemarkIsNotSentToResearch(t *testing.T) {
 		"ah so trixie is still fairly new -- when is it's EOL?":                    false,
 		"is the cli built in and you don't have to use the web control panel":      false,
 		"can syncthing sync over tailscale?":                                       false,
+		"exciting conversation":                                                    true,
+		"thanks":                                                                   true,
+		"what's the most exciting thing they've built":                             false,
 	} {
 		if got := isRemark(q, prev); got != want {
 			t.Errorf("isRemark(%q) = %v, want %v", q, got, want)
@@ -112,5 +115,18 @@ func TestRussell2000IsNotAYear(t *testing.T) {
 	now := time.Date(2026, 9, 30, 8, 0, 0, 0, time.UTC)
 	if got := unsupported("The Russell 2000 is down 0.35%.", "how are futures", nil, []tools.Result{{Name: "markets", Content: "x"}}, now); len(got) > 0 {
 		t.Errorf("Russell 2000 read as unsupported: %v", got)
+	}
+}
+
+func TestASearchKeepsNoneOfWhatTheDraftMadeUp(t *testing.T) {
+	draft := "Yes, that's Marc Andreessen. He wrote a game called Maze War at 12 and a shareware game called Doom."
+	got := ownQuery("Marc Andreessen Maze War age Doom age", draft, "is andreessen the child prodigy of finance i've heard about", nil, nil)
+	if got != "Andreessen age age" {
+		t.Errorf("ownQuery = %q", got)
+	}
+	used := []tools.Result{{Name: "web_search", Content: map[string]any{"snippet": "Firefox 157 ships the Nova design"}}}
+	got = ownQuery("Firefox 157 Nova reception reviews", "Firefox 157, codename Nova, landed today.", "what is the reception of the new firefox redesign", nil, used)
+	if got != "Firefox 157 Nova reception reviews" {
+		t.Errorf("ownQuery dropped what a result said: %q", got)
 	}
 }
