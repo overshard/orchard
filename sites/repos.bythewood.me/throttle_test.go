@@ -77,7 +77,11 @@ func TestPageLimitLeavesAReaderAlone(t *testing.T) {
 
 // A signed in request is Isaac using his own site and never counts.
 func TestSignedInSkipsTheLimit(t *testing.T) {
-	s := &site{}
+	verify := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"ok":true}`))
+	}))
+	defer verify.Close()
+	s := &site{auth: web.NewAuthenticatorAt(verify.URL)}
 	th := newThrottle(archiveLimit)
 	hit := 0
 	h := s.limited(th, func(w http.ResponseWriter, r *http.Request) { hit++ })
@@ -93,6 +97,28 @@ func TestSignedInSkipsTheLimit(t *testing.T) {
 	}
 	if hit != 10 {
 		t.Errorf("the handler ran %d times, want 10", hit)
+	}
+}
+
+// Any cookie value used to be enough to skip the limit.
+func TestAMadeUpSessionStillCounts(t *testing.T) {
+	verify := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"ok":false}`))
+	}))
+	defer verify.Close()
+	s := &site{auth: web.NewAuthenticatorAt(verify.URL)}
+	th := newThrottle(archiveLimit)
+	h := s.limited(th, func(w http.ResponseWriter, r *http.Request) {})
+
+	var last *httptest.ResponseRecorder
+	for i := 0; i < 5; i++ {
+		r := httptest.NewRequest(http.MethodGet, "/orchard/archive/main.tar.gz", nil)
+		r.AddCookie(&http.Cookie{Name: web.SessionCookie, Value: "x"})
+		last = httptest.NewRecorder()
+		h(last, r)
+	}
+	if last.Code != http.StatusTooManyRequests {
+		t.Fatalf("a made up session answered %d on the fifth archive", last.Code)
 	}
 }
 

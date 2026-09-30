@@ -104,15 +104,15 @@ func (t *throttle) sweep(now time.Time) {
 }
 
 // limited wraps a handler with one of the buckets. A signed in request goes
-// straight through: whether the session is live is auth's question, and somebody
-// holding a cookie is not the traffic this exists to bound.
+// through a full bucket, but only once auth says the session is live, since any
+// cookie value would otherwise do. Asking only on refusal keeps a crawler with
+// a made up cookie from turning every request into a call to auth.
 func (s *site) limited(t *throttle, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if c, err := r.Cookie(web.SessionCookie); err == nil && c.Value != "" {
-			next(w, r)
-			return
-		}
 		ok, wait := t.allow(web.ClientIP(r), time.Now())
+		if !ok && s.auth.Authenticated(r) {
+			ok = true
+		}
 		if !ok {
 			// Never cache a refusal. The edge would otherwise hand the same 429
 			// to everybody else asking for that path.
