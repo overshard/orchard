@@ -11,7 +11,7 @@ import (
 // Everything else gets an hour, which covers files copied through from
 // publicDir under their original names.
 func Static(dist fs.FS, assets *Assets) http.Handler {
-	server := http.FileServer(http.FS(dist))
+	server := NoDirs(http.FileServer(http.FS(dist)))
 	hashed := assets.Hashed()
 
 	return http.StripPrefix("/static/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
