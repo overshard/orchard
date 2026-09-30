@@ -300,7 +300,8 @@ ctrl+k, so the readout is the way in there and reads `OPEN`.
 **dash's quick chat shows its work as a tape deck.** Every turn gets a deck
 between the question and the answer: two reels and a strip of tape that run
 while it works, the stage in amber caps with a block cursor, a fourteen segment
-meter that jumps on each event and falls back between them, a `TAPE` counter of
+meter that lights whole segments on a stepped tick, jumps on each event, falls
+back between them and holds its peak a moment, a `TAPE` counter of
 tokens the model has written, and a clock. Under it a log of each model round,
 tool call, lookup and gate check as it happens, the call with a moving strip
 until it returns and a line under it saying what came back. The log folds to a
