@@ -153,6 +153,21 @@ var markAfterStop = regexp.MustCompile(`([.!?:])((?:\s*\[\d{1,3}\])+)`)
 // its own and left "()" behind it on the page.
 var bracketedMarks = regexp.MustCompile(`\(\s*((?:\[\d{1,3}\][\s,]*)+)\)`)
 
+var (
+	headlineTail = regexp.MustCompile(`\([^:()\n]{1,40}: "[^"\n]+"\s*\)\s*\[\d{1,3}\]\s*$`)
+	// The number written inside the brackets, "(NPR: "headline" [2])".
+	markInHeadline = regexp.MustCompile(`("\s*)((?:\[\d{1,3}\]\s*)+)\)\s*$`)
+)
+
+func headlineNum(tail string) int {
+	m := citeNum.FindAllString(tail, -1)
+	if len(m) == 0 {
+		return 0
+	}
+	n, _ := strconv.Atoi(strings.Trim(m[len(m)-1], "[]"))
+	return n
+}
+
 // attach repairs the citations in a block of markdown. A number with no source
 // behind it is dropped, a sentence that cites nothing is matched against what
 // the turn read, and every marker ends up in the same place.
@@ -188,6 +203,15 @@ func citeLine(line string, srcs []Source, known map[int]bool) string {
 		marker, body = body[:len(body)-len(item)], item
 	}
 	body = bracketedMarks.ReplaceAllString(body, "$1")
+	// A rundown line ends on the publisher's headline and its number, and the
+	// model cited the sentence before it as well, twice over or with the wrong
+	// story's number.
+	body = markInHeadline.ReplaceAllString(body, `")$2`)
+	if loc := headlineTail.FindStringIndex(body); loc != nil && known[headlineNum(body[loc[0]:])] {
+		lead := strings.TrimRight(citeNum.ReplaceAllString(body[:loc[0]], ""), " ")
+		tail := regexp.MustCompile(`"\s+\)`).ReplaceAllString(strings.TrimSpace(body[loc[0]:]), `")`)
+		return indent + marker + lead + " " + strings.TrimRight(tail, " ")
+	}
 	body = markAfterStop.ReplaceAllString(body, "$2$1")
 
 	var out []string

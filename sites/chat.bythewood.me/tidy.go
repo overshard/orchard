@@ -107,8 +107,14 @@ var (
 	dashRange  = regexp.MustCompile(`(\d)–(\d)`)
 )
 
+// A dash alone in a table cell means none, and as a comma it drew "|, |".
+var dashCell = regexp.MustCompile(`\|\s*[—–]\s*\|`)
+
 func dropDashes(text string) string {
 	return outsideCodeLines(text, func(part string) string {
+		for dashCell.MatchString(part) {
+			part = dashCell.ReplaceAllString(part, "| |")
+		}
 		return spacedDash.ReplaceAllString(dashRange.ReplaceAllString(part, "$1-$2"), ", ")
 	})
 }

@@ -83,6 +83,7 @@ func TestDropDashes(t *testing.T) {
 		"rain is 2–4 percent":                                "rain is 2-4 percent",
 		"keep `a — b` in code":                               "keep `a — b` in code",
 		"no dash here, and a hyphen-word":                    "no dash here, and a hyphen-word",
+		"| `program` | builtin | — | — |":                    "| `program` | builtin | | |",
 	}
 	for in, want := range cases {
 		if got := dropDashes(in); got != want {
