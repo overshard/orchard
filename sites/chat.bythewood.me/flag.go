@@ -12,7 +12,9 @@ import (
 // was recalled into questions about tailscale and dash for the rest of the day.
 var flagAsk = regexp.MustCompile(`(?i)\b(remember|note|flag|mark|bookmark|save)\b[^.?!]{0,40}\b(this|the)\s+(chat|conversation|thread)\b|` +
 	`\b(check|look at|come back to|fix|review|revisit)\b[^.?!]{0,30}\b(this|the)\s+(chat|conversation|thread)\b|` +
-	`\b(this|the)\s+(chat|conversation|thread)\b[^.?!]{0,30}\b(later|when i get home|tomorrow)\b`)
+	`\b(this|the)\s+(chat|conversation|thread)\b[^.?!]{0,30}\b(later|when i get home|tomorrow)\b|` +
+	`\bremember\b[^.?!]{0,30}\b(got (this|that|it) wrong|(was|were) wrong|messed (this|that|it) up)\b|` +
+	`\b(so we can|to|and) (fix|look at|check) (this|it|that)( one)? later\b`)
 
 const flaggedReply = "Flagged this conversation to come back to."
 

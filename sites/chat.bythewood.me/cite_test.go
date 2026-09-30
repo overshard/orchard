@@ -247,3 +247,13 @@ func TestATrailingLineOfMarkersIsDropped(t *testing.T) {
 		t.Errorf("a bullet ending on its citation was taken: %q", got)
 	}
 }
+
+func TestAnInitialDoesNotEndASentence(t *testing.T) {
+	got := sentences("The president is Donald J. Trump, the 47th. He took office in 2025.")
+	if len(got) != 2 || !strings.HasPrefix(got[0], "The president is Donald J. Trump") {
+		t.Errorf("sentences = %q", got)
+	}
+	if got := sentences("It is on Main St. in Taylorsville. Open daily."); len(got) != 2 {
+		t.Errorf("an abbreviation split the sentence: %q", got)
+	}
+}

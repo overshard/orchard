@@ -6,10 +6,11 @@ func TestAskingToComeBackToAChatIsAFlag(t *testing.T) {
 	for msg, want := range map[string]bool{
 		"this is not true, remember in memory to check this chat later to fix":                   true,
 		"this didn't do anything -- remember this chat and that i nshould fix it when iget home": true,
-		"flag this conversation":                                 true,
-		"remember that I like watercolour":                       false,
-		"add the long walk to the list of movies we want to see": false,
-		"what did we decide in the chat about tailscale":         false,
+		"flag this conversation": true,
+		"Hmmmm tomorrow is the 30th... Remember you got this wrong so we can fix later": true,
+		"remember that I like watercolour":                                              false,
+		"add the long walk to the list of movies we want to see":                        false,
+		"what did we decide in the chat about tailscale":                                false,
 	} {
 		if got := flagAsk.MatchString(msg); got != want {
 			t.Errorf("flagAsk(%q) = %v, want %v", msg, got, want)
