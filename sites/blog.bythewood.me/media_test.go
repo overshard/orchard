@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 	"testing/fstest"
+	"time"
 )
 
 // Every /media/ URL the logs have actually seen, so a rename in content/images
@@ -113,6 +114,40 @@ func TestOGLegacySVGRedirects(t *testing.T) {
 		h.ServeHTTP(rec, httptest.NewRequest("GET", tc.path, nil))
 		if rec.Code != tc.status || rec.Header().Get("Location") != tc.location {
 			t.Errorf("%s = %d %q, want %d %q", tc.path, rec.Code, rec.Header().Get("Location"), tc.status, tc.location)
+		}
+	}
+}
+
+// Cards are built for every post, so a scheduled one's title and tags would be
+// readable at /og/ before it is out, and the directory listed every slug.
+func TestOGServesOnlyPublishedCards(t *testing.T) {
+	now := time.Now()
+	yesterday := now.AddDate(0, 0, -1).Format("2006-01-02")
+	tomorrow := now.AddDate(0, 0, 1).Format("2006-01-02")
+	lib := &Library{bySlug: map[string]*Post{
+		"live":      {Slug: "live", PublishDate: yesterday},
+		"scheduled": {Slug: "scheduled", PublishDate: tomorrow},
+	}}
+	cards := fstest.MapFS{
+		"live.png":          {Data: []byte("png")},
+		"scheduled.png":     {Data: []byte("png")},
+		ogSiteCard + ".png": {Data: []byte("png")},
+	}
+	s := &site{lib: lib, og: cards}
+	h := http.StripPrefix("/og/", s.ogPublished(ogLegacy(cards, http.FileServer(http.FS(cards)))))
+
+	for path, want := range map[string]int{
+		"/og/live.png":               200,
+		"/og/" + ogSiteCard + ".png": 200,
+		"/og/scheduled.png":          404,
+		"/og/scheduled.svg":          404,
+		"/og/live.svg":               301,
+		"/og/":                       404,
+	} {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest("GET", path, nil))
+		if rec.Code != want {
+			t.Errorf("%s = %d, want %d", path, rec.Code, want)
 		}
 	}
 }

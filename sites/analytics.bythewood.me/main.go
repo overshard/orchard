@@ -231,7 +231,7 @@ func main() {
 	// are stable and cacheable for a year.
 	mux.Handle("GET /static_maps/", http.StripPrefix("/static_maps/",
 		cacheControl("public, max-age=31536000, immutable",
-			http.FileServer(http.FS(mapsFS())))))
+			web.NoDirs(http.FileServer(http.FS(mapsFS()))))))
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")

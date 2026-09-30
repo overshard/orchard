@@ -179,6 +179,18 @@ func SameOrigin(exempt ...string) func(http.Handler) http.Handler {
 	}
 }
 
+// NoDirs keeps a file server from answering a directory, which it does with an
+// index of every file in it, naming things nothing links to.
+func NoDirs(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "" || strings.HasSuffix(r.URL.Path, "/") {
+			http.NotFound(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // Chain applies middleware so the first argument is the outermost layer.
 func Chain(h http.Handler, mw ...func(http.Handler) http.Handler) http.Handler {
 	for i := len(mw) - 1; i >= 0; i-- {
