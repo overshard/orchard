@@ -281,3 +281,25 @@ func TestEveryListedTemplateParses(t *testing.T) {
 		t.Fatalf("the template set does not parse: %v", err)
 	}
 }
+
+func TestPropertiesNamedTakesPartOfAName(t *testing.T) {
+	props := []*Property{{Name: "analytics.bythewood.me"}, {Name: "blog.bythewood.me"}, {Name: "blog"}, {Name: "isaacbythewood.com"}}
+	names := func(ps []*Property) []string {
+		var out []string
+		for _, p := range ps {
+			out = append(out, p.Name)
+		}
+		return out
+	}
+	for want, expect := range map[string]string{
+		"blog":              "blog",
+		"BLOG.bythewood.me": "blog.bythewood.me",
+		"isaacbythewood":    "isaacbythewood.com",
+		"bythewood.me":      "analytics.bythewood.me,blog.bythewood.me",
+		"status":            "",
+	} {
+		if got := strings.Join(names(propertiesNamed(props, want)), ","); got != expect {
+			t.Errorf("propertiesNamed(%q) = %q, want %q", want, got, expect)
+		}
+	}
+}

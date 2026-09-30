@@ -603,6 +603,12 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 	if calledTool(used, tools.PropertyTool.Name) {
 		return "", st
 	}
+	// His own sites are the record of themselves, and the check reads each
+	// result cut short, so it sent a right answer about his blog's top pages
+	// off to search the web for them.
+	if calledEstate(used) {
+		return "", st
+	}
 	emit(Event{Kind: "status", Text: "checking the answer"})
 	// Only when the turn fetched nothing, since that is the case the gate has
 	// no evidence for. A turn that called tools already gave it something to
@@ -656,6 +662,16 @@ func (e *Engine) gateOffline(ctx context.Context, question, draft string, used [
 }
 
 func calledNews(used []tools.Result) bool { return calledTool(used, tools.News.Name) }
+
+func calledEstate(used []tools.Result) bool {
+	for _, t := range []tools.Tool{tools.OrchardLogs, tools.OrchardStatus, tools.OrchardAnalytics,
+		tools.OrchardRepos, tools.OrchardCode, tools.OrchardDash} {
+		if calledTool(used, t.Name) {
+			return true
+		}
+	}
+	return false
+}
 
 var timePart = regexp.MustCompile(`(\d+) (day|hour|minute)`)
 
