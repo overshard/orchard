@@ -95,6 +95,18 @@ func recoveryMessage(c reqContext, remaining int) message {
 	}
 }
 
+func lockoutMessage(c reqContext) message {
+	return message{
+		Title: "Login codes locked for a day",
+		Body: fmt.Sprintf("%d wrong codes in 24 hours, the last from %s (%s).\nRecovery codes still work.",
+			dailyFailures, c.Where(), c.IP),
+		Priority: "high",
+		Tags:     "rotating_light",
+		Link:     baseURL + "/activity",
+		Label:    "Activity",
+	}
+}
+
 // publish posts to ntfy: the message is the body and everything else a header.
 func (n *Notifier) publish(ctx context.Context, m message) error {
 	ctx, cancel := context.WithTimeout(ctx, ntfyTimeout)
