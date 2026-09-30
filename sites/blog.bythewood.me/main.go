@@ -178,8 +178,8 @@ func main() {
 
 	// Cards are compiled at build time, and change only with a post's title
 	// or tags.
-	mux.Handle("GET /og/", http.StripPrefix("/og/", ogLegacy(s.og,
-		cacheControl("public, max-age=86400", http.FileServer(http.FS(s.og))))))
+	mux.Handle("GET /og/", http.StripPrefix("/og/", s.ogPublished(ogLegacy(s.og,
+		cacheControl("public, max-age=86400", http.FileServer(http.FS(s.og)))))))
 	mux.HandleFunc("GET /favicon.ico", favicon)
 	mux.HandleFunc("GET /favicon.svg", favicon)
 	mux.HandleFunc("GET /robots.txt", robots)
@@ -200,7 +200,7 @@ func main() {
 	}
 	images := http.StripPrefix("/content/images/",
 		cacheControl("public, max-age=86400",
-			http.FileServer(http.FS(contentImages))))
+			web.NoDirs(http.FileServer(http.FS(contentImages)))))
 	mux.Handle("GET /content/images/", images)
 
 	// Wagtail rendition URLs, still arriving from feeds and search indexes.

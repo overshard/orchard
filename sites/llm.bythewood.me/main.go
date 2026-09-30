@@ -212,7 +212,7 @@ func (s *site) loadTemplates() error {
 }
 
 func (s *site) static() http.Handler {
-	fs := http.FileServerFS(assets())
+	fs := web.NoDirs(http.FileServerFS(assets()))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if Reloaded {
 			w.Header().Set("Cache-Control", "no-store")

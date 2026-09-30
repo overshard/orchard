@@ -32,3 +32,16 @@ func TestSameOriginRefusesASiblingHost(t *testing.T) {
 		}
 	}
 }
+
+func TestNoDirsRefusesAListing(t *testing.T) {
+	h := NoDirs(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	for path, want := range map[string]int{"/a.css": 200, "/": 404, "": 404, "/sub/": 404} {
+		r := httptest.NewRequest("GET", "/x", nil)
+		r.URL.Path = path
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		if w.Code != want {
+			t.Errorf("%q = %d, want %d", path, w.Code, want)
+		}
+	}
+}

@@ -259,7 +259,7 @@ func (s *site) loadTemplates() error {
 }
 
 func (s *site) static() http.Handler {
-	fs := http.FileServerFS(assets())
+	fs := web.NoDirs(http.FileServerFS(assets()))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Assets come off disk in development so a CSS edit shows up on
 		// reload, and out of the binary in the release build. That split is

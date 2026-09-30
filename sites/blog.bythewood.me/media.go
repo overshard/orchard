@@ -132,6 +132,26 @@ func (s *site) media(w http.ResponseWriter, r *http.Request) {
 // ogLegacy answers the SVG card URLs from before the cards became PNG, which
 // search indexes still request. It sits inside StripPrefix, so the path is the
 // bare file name.
+// ogPublished serves a card only for the site or a post that is out, since the
+// cards are built for every post and a scheduled one's title is not public yet.
+func (s *site) ogPublished(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		slug, ok := strings.CutSuffix(r.URL.Path, ".png")
+		if !ok {
+			slug, ok = strings.CutSuffix(r.URL.Path, ".svg")
+		}
+		if !ok {
+			http.NotFound(w, r)
+			return
+		}
+		if _, published := s.lib.Lookup(slug); !published && slug != ogSiteCard {
+			http.NotFound(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func ogLegacy(cards fs.FS, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if slug, ok := strings.CutSuffix(r.URL.Path, ".svg"); ok {
