@@ -108,3 +108,27 @@ func TestFreshDatabaseCanReclaim(t *testing.T) {
 		t.Errorf("reclaim() = %q, want %q", got, "reclaimed")
 	}
 }
+
+// One event a day for 90 days has to chart as full weeks, with no cliff at the
+// end where the newest bucket ran past the last day.
+func TestAWeeklyGraphCountsEveryWeekInFull(t *testing.T) {
+	db, id := retentionTestDB(t)
+	end := time.Date(2026, 9, 30, 0, 0, 0, 0, time.UTC)
+	for i := 0; i < 90; i++ {
+		seedEvent(t, db, "events", id, end.AddDate(0, 0, -i).Add(12*time.Hour).UnixMilli())
+	}
+	start := end.AddDate(0, 0, -89)
+	points := eventsGraph(context.Background(), db, id, start.UnixMilli(), end.Add(24*time.Hour).UnixMilli()-1, "", end, 90)
+
+	if len(points) != 12 {
+		t.Fatalf("%d points, want 12 weeks", len(points))
+	}
+	for _, p := range points {
+		if p.Count != 7 {
+			t.Errorf("%s counted %d, want 7", p.Label, p.Count)
+		}
+	}
+	if last := points[len(points)-1].Label; last != "Sep 30" {
+		t.Errorf("the newest week is labelled %q, want Sep 30", last)
+	}
+}

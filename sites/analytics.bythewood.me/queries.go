@@ -368,10 +368,12 @@ func eventsGraph(ctx context.Context, db *sql.DB, propertyID uuid.UUID, startMS,
 	}
 
 	key := func(t time.Time) string { return t.Format("2006-01-02") }
-	bucketSum := func(start time.Time, days int) int64 {
+	// A bucket is labelled by its last day and counts back from it, so the
+	// newest one ends on endDate rather than running past it into days to come.
+	bucketSum := func(end time.Time, days int) int64 {
 		var sum int64
 		for j := 0; j < days; j++ {
-			sum += byDay[key(start.AddDate(0, 0, j))]
+			sum += byDay[key(end.AddDate(0, 0, -j))]
 		}
 		return sum
 	}
