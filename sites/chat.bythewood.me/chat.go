@@ -868,7 +868,8 @@ func shortArgs(raw string) string {
 	if json.Unmarshal([]byte(raw), &m) != nil {
 		return ""
 	}
-	for _, k := range []string{"query", "location", "symbols", "url", "expression", "artist", "league"} {
+	for _, k := range []string{"query", "location", "symbols", "url", "expression", "artist", "league",
+		"section", "address", "path", "team", "topic", "fact", "items", "prompt"} {
 		if v, ok := m[k]; ok {
 			s := fmt.Sprint(v)
 			if len(s) > 60 {

@@ -143,7 +143,9 @@ function preview(out) {
     const titles = [...raw.matchAll(/"title":"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1]);
     if (titles.length) return `results · ${titles.slice(0, 3).join(" · ")}`;
     const text = /"text":"((?:[^"\\]|\\.)*)/.exec(raw);
-    return text ? `read · ${text[1].replace(/\\n/g, " ")}` : raw;
+    if (text) return `read · ${text[1].replace(/\\n/g, " ")}`;
+    const key = /^\{"(\w+)":/.exec(raw);
+    return key ? `read ${key[1]}` : raw;
   }
   if (Array.isArray(r.results)) return `${r.results.length} results · ${r.results.slice(0, 3).map((x) => x.title).join(" · ")}`;
   if (r.found === false) return "no article under that name";
@@ -152,8 +154,21 @@ function preview(out) {
   if (typeof r.text === "string") return `read ${r.chars || r.text.length} chars · ${r.text}`;
   if (r.remembered || r.now) return `kept · ${r.remembered || r.now}`;
   if (r.value !== undefined) return `= ${r.value}`;
+  if (typeof r.section === "string") return `read ${r.section}`;
   const keys = Object.keys(r);
-  return keys.length === 1 && typeof r[keys[0]] === "object" ? `read ${keys[0]}` : raw;
+  return keys.length ? `read ${keys.slice(0, 4).join(", ")}` : raw;
+}
+
+// The counts a step carries, cut to what fits beside its name.
+function metaText(kind, meta) {
+  const m = String(meta || "");
+  let x = /([\d,]+) tokens in, ([\d,]+) out/.exec(m);
+  if (x) return `${Number(x[1].replace(/,/g, "")).toLocaleString()} IN · ${x[2]} OUT`;
+  x = /([\d,]+) characters/.exec(m);
+  if (x) return `${Number(x[1].replace(/,/g, "")).toLocaleString()} CHARS`;
+  x = /^(\d+) of the stored facts/.exec(m);
+  if (x) return `${x[1]} ${x[1] === "1" ? "FACT" : "FACTS"}`;
+  return short(m, 28).toUpperCase();
 }
 
 function deck() {
@@ -255,7 +270,7 @@ function deck() {
         return;
       }
       case "model": {
-        const li = line("model", KIND.model, s.label, short(s.meta, 40));
+        const li = line("model", KIND.model, s.label, metaText(s.kind, s.meta));
         li.dataset.bad = s.bad ? "yes" : "no";
         detail(li, s.out);
         tokens(s.meta);
@@ -276,7 +291,7 @@ function deck() {
         tokens(s.meta);
         return;
       default: {
-        const li = line(s.kind, KIND[s.kind] || s.kind.toUpperCase(), s.label, short(s.meta, 40));
+        const li = line(s.kind, KIND[s.kind] || s.kind.toUpperCase(), s.label, metaText(s.kind, s.meta));
         if (s.kind === "memory" || s.kind === "wikipedia") detail(li, s.out);
       }
     }
@@ -307,9 +322,19 @@ function deck() {
     if (text) stage.textContent = text.toUpperCase();
   }
 
+  // Parts rather than one string, so a phone can drop the token count and keep
+  // the line to one row.
   function sum() {
     const took = clockText(performance.now() - started);
-    summary.textContent = `${count} STEPS · ${tools} ${tools === 1 ? "CALL" : "CALLS"} · ${String(written).padStart(4, "0")} TOK · ${took}`;
+    const parts = [
+      ["s-steps", `${count} STEPS`],
+      ["s-calls", `${tools} ${tools === 1 ? "CALL" : "CALLS"}`],
+      ["s-tok", `${String(written).padStart(4, "0")} TOK`],
+      ["s-time", took],
+    ];
+    const text = el("span", "sum-text");
+    for (const [cls, t] of parts) text.append(el("span", cls, t));
+    summary.replaceChildren(text);
   }
 
   // Once the answer is coming the log folds to one line, since the answer is
