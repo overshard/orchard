@@ -45,7 +45,7 @@ var Remember = Tool{
 		"id": map[string]any{"type": "integer",
 			"description": "for append, replace and forget, which remembered fact, from a list call or the id beside a recalled fact"},
 		"items": map[string]any{"type": "string",
-			"description": "for append, the new items only, like \"The Long Walk\" or \"Cold Storage and Clayface\""},
+			"description": "for append, the new items only, like \"The Long Walk\" or \"Cold Storage, Clayface\""},
 	}, "action"),
 	Run: func(ctx context.Context, d *Deps, a map[string]any) (any, error) {
 		if d.Memory == nil {
@@ -172,12 +172,16 @@ func factText(facts []MemoryFact, id int64) string {
 	return ""
 }
 
-// appendItems adds to the end of a list written as a sentence, so "A, B and C."
-// plus "D" reads "A, B, C and D." The list is extended in Go because a model
+// appendItems adds to the end of a list written as a sentence, so "A, B, and C."
+// plus "D" reads "A, B, C, and D." The list is extended in Go because a model
 // asked to write the whole list out again dropped a word from one of the titles.
+// The Oxford comma is what keeps the last title whole when the model reads it
+// back, since "Cold Storage and Clayface" came back as one film.
 func appendItems(fact, items string) string {
 	base := strings.TrimRight(strings.TrimSpace(fact), ". ")
-	if i := strings.LastIndex(base, " and "); i >= 0 && !strings.Contains(base[i+5:], ",") {
+	if i := strings.LastIndex(base, ", and "); i >= 0 {
+		base = base[:i] + ", " + base[i+6:]
+	} else if i := strings.LastIndex(base, " and "); i >= 0 && !strings.Contains(base[i+5:], ",") {
 		base = base[:i] + ", " + base[i+5:]
 	}
 	var list []string
@@ -192,5 +196,5 @@ func appendItems(fact, items string) string {
 	if len(list) > 1 {
 		base += ", " + strings.Join(list[:len(list)-1], ", ")
 	}
-	return base + " and " + list[len(list)-1] + "."
+	return base + ", and " + list[len(list)-1] + "."
 }
