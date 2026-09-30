@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"chat.bythewood.me/tools"
 )
@@ -355,6 +356,24 @@ func hasDigit(s string) bool {
 // sentences splits a line into the units a citation can hang off. It is crude,
 // since a split inside an abbreviation costs nothing here. A code
 // span is stepped over, because a full stop in `fmt.Println` is not one.
+// A full stop that ends an initial or a title rather than a sentence. "Donald
+// J. Trump" came out as "Donald J.[1] Trump".
+var abbreviations = map[string]bool{"mr": true, "mrs": true, "ms": true, "dr": true, "st": true,
+	"jr": true, "sr": true, "vs": true, "inc": true, "co": true, "no": true, "etc": true, "e.g": true,
+	"i.e": true, "u.s": true, "u.k": true, "mt": true, "ft": true, "approx": true}
+
+func abbreviation(rs []rune, dot int) bool {
+	w := dot
+	for w > 0 && rs[w-1] != ' ' && rs[w-1] != '\n' && rs[w-1] != '(' {
+		w--
+	}
+	word := string(rs[w:dot])
+	if r := []rune(word); len(r) == 1 && unicode.IsUpper(r[0]) {
+		return true
+	}
+	return abbreviations[strings.ToLower(word)]
+}
+
 func sentences(s string) []string {
 	rs := []rune(s)
 	var out []string
@@ -365,6 +384,9 @@ func sentences(s string) []string {
 			tick = !tick
 			continue
 		case tick, rs[i] != '.' && rs[i] != '!' && rs[i] != '?':
+			continue
+		}
+		if rs[i] == '.' && abbreviation(rs, i) {
 			continue
 		}
 		j := i + 1

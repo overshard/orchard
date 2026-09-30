@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -549,9 +550,14 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 		emit(Event{Kind: "status", Text: "checking the total"})
 		return totalNudge(printed), st
 	}
+	if wrong := wrongDay(draft, e.now()); wrong != "" {
+		emit(Event{Kind: "status", Text: "checking the date"})
+		return wrong, st
+	}
 	// Before the model check, since it costs nothing and the model check has
-	// never once objected to a wrong sum.
-	if !calledTool(used, tools.Calc.Name) && countsUpInProse(draft) && !copiedTheNumbers(draft, used) {
+	// never once objected to a wrong sum. Only when the question is about an
+	// amount, since the rules of gin rummy mention a total and got sent to calc.
+	if !calledTool(used, tools.Calc.Name) && asksForAmount(question) && countsUpInProse(draft) && !copiedTheNumbers(draft, used) {
 		emit(Event{Kind: "status", Text: "adding it up"})
 		return calcNudge(), st
 	}
@@ -688,7 +694,7 @@ func unsupported(draft, question string, previous []string, used []tools.Result,
 	hay.WriteString(question)
 	hay.WriteString("\n")
 	hay.WriteString(strings.Join(previous, "\n"))
-	hay.WriteString("\n" + now.Format("2006"))
+	hay.WriteString(knownDates(now))
 	for _, r := range used {
 		if r.Err != "" {
 			continue
@@ -751,7 +757,7 @@ func remarkAddsFacts(draft, question string, previous []string, now time.Time) b
 	if len(unsupported(draft, question, previous, nil, now)) > 0 {
 		return true
 	}
-	said := strings.ReplaceAll(question+"\n"+strings.Join(previous, "\n"), ",", "")
+	said := strings.ReplaceAll(question+"\n"+strings.Join(previous, "\n")+knownDates(now), ",", "")
 	for _, n := range figure.FindAllString(strings.Join(outsideFences(citeNum.ReplaceAllString(draft, " ")), "\n"), -1) {
 		n = strings.ReplaceAll(n, ",", "")
 		if !regexp.MustCompile(`(^|[^\d.])` + regexp.QuoteMeta(n) + `($|[^\d])`).MatchString(said) {
@@ -768,3 +774,42 @@ var figure = regexp.MustCompile(`\d[\d,]*\.\d+|\d{2,}[\d,]*`)
 // Sent back without a tool demanded, since the fix is saying less.
 const remarkNudge = "He is reacting to your last answer, not asking for more. Reply to that in two or three sentences, " +
 	"using only what this conversation already says, and add no new figures, names or dates."
+
+// A question about an amount carries a number or a word asking for one.
+var amountAsk = regexp.MustCompile(`(?i)\d|\b(total|sum|add up|how much|how many|cost|price|split|calculate|work out|average|per)\b`)
+
+func asksForAmount(question string) bool { return amountAsk.MatchString(question) }
+
+// "Tomorrow is Saturday, 3 October 2026" on a Tuesday the 29th. The model does
+// the date arithmetic in its head and the rest of the answer is built on it.
+var relativeDay = regexp.MustCompile(`(?i)\b(today|tomorrow|yesterday)(?: is|,| was)\s+(?:(monday|tuesday|wednesday|thursday|friday|saturday|sunday),?\s+)?(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?(?:\s+(?:of\s+)?(january|february|march|april|may|june|july|august|september|october|november|december))?`)
+
+func wrongDay(draft string, now time.Time) string {
+	for _, m := range relativeDay.FindAllStringSubmatch(draft, -1) {
+		d := now
+		switch strings.ToLower(m[1]) {
+		case "tomorrow":
+			d = now.AddDate(0, 0, 1)
+		case "yesterday":
+			d = now.AddDate(0, 0, -1)
+		}
+		day, _ := strconv.Atoi(m[3])
+		wrongWeekday := m[2] != "" && !strings.EqualFold(m[2], d.Weekday().String())
+		wrongMonth := m[4] != "" && !strings.EqualFold(m[4], d.Month().String())
+		if day != d.Day() || wrongWeekday || wrongMonth {
+			return "Today is " + now.Format("Monday, 2 January 2006") + ", so " + strings.ToLower(m[1]) + " is " +
+				d.Format("Monday, 2 January") + ". Your draft says otherwise. Answer again with the right date, " +
+				"and check anything you worked out from the wrong one."
+		}
+	}
+	return ""
+}
+
+// knownDates is today and the days either side of it, which need no looking up.
+func knownDates(now time.Time) string {
+	var b strings.Builder
+	for _, d := range []time.Time{now.AddDate(0, 0, -1), now, now.AddDate(0, 0, 1)} {
+		b.WriteString("\n" + d.Format("Monday, 2 January 2006, January 2"))
+	}
+	return b.String()
+}
