@@ -278,13 +278,15 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		Meta: itoa(len(sys.Content)) + " characters, " + itoa(len(history)) + " earlier messages in the window"})
 
 	var used []tools.Result
-	opened := func(res tools.Result, msg Message) {
-		emit(Event{Kind: "tool", Tool: res.Name, Args: shortArgs(string(res.Args))})
-		emit(Event{Kind: "tool_done", Tool: res.Name, MS: res.Elapsed.Milliseconds(), OK: true})
+	opened := func(msg Message, read ...tools.Result) {
+		for _, res := range read {
+			emit(Event{Kind: "tool", Tool: res.Name, Args: shortArgs(string(res.Args))})
+			emit(Event{Kind: "tool_done", Tool: res.Name, MS: res.Elapsed.Milliseconds(), OK: true})
+			used = append(used, res)
+			tr.Add(Step{Kind: "tool", Label: res.Name + ", before the model decided anything", In: string(res.Args),
+				Out: resultText(res), MS: res.Elapsed.Milliseconds()})
+		}
 		msgs = append(msgs, msg)
-		used = append(used, res)
-		tr.Add(Step{Kind: "tool", Label: res.Name + ", before the model decided anything", In: string(res.Args),
-			Out: resultText(res), MS: res.Elapsed.Milliseconds()})
 	}
 	// The first move on any question naming a thing, since the snapshot is on
 	// this machine and is newer than the weights. It goes in after the history
@@ -312,12 +314,14 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		}
 		msgs = append(msgs, msg)
 		used = append(used, house...)
+	} else if res, msg, ok := e.trafficOpening(ctx, deps, user, history); ok {
+		opened(msg, res...)
 	} else if res, msg, ok := e.clockOpening(ctx, deps, user); ok {
-		opened(res, msg)
+		opened(msg, res)
 	} else if res, msg, ok := e.siteOpening(ctx, deps, user); ok {
-		opened(res, msg)
+		opened(msg, res)
 	} else if res, msg, ok := e.definitionOpening(ctx, deps, user); ok {
-		opened(res, msg)
+		opened(msg, res)
 	} else if res, msg, ok := e.opening(ctx, user); ok {
 		emit(Event{Kind: "tool", Tool: res.Name, Args: shortArgs(string(res.Args))})
 		emit(Event{Kind: "tool_done", Tool: res.Name, MS: res.Elapsed.Milliseconds(), OK: true})
@@ -356,6 +360,9 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	// tools come off the table.
 	seen := map[string]tools.Result{}
 	repeats := 0
+	// Told there was no betting market about "analytics", it asked odds about
+	// "page views" next, so a tool that failed twice in a turn is taken away.
+	failures := map[string]int{}
 	gates := 0
 	// Set when the gate has sent the turn back, so the round that follows a
 	// nudge cannot answer with prose again. The nudge still carries the query,
@@ -411,6 +418,11 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		if usedProperty {
 			offer = tools.Without(offer, tools.WebSearch.Name)
 			offer = tools.Without(offer, tools.WebFetch.Name)
+		}
+		for name, n := range failures {
+			if n >= 2 {
+				offer = tools.Without(offer, name)
+			}
 		}
 		if repeats >= 2 {
 			// It is going in circles. Take the tools away and make it answer
@@ -599,6 +611,10 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 			ran++
 			if res.Err != "" {
 				failed++
+				if failures[res.Name]++; failures[res.Name] == 2 {
+					tr.Add(Step{Kind: "tool", Label: "took " + res.Name + " off the table",
+						Out: "it failed twice in this turn", Bad: true})
+				}
 			}
 			tr.Add(Step{Kind: "tool", Label: res.Name, In: tc.Function.Arguments,
 				Out: resultText(res), MS: res.Elapsed.Milliseconds(), Bad: res.Err != "",
