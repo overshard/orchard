@@ -258,8 +258,15 @@ func (s *site) overview(w http.ResponseWriter, r *http.Request) {
 	nKeys, nCalls := s.store.Counts()
 
 	// A key is shown once, on the redirect straight after it is made, because
-	// nothing here can produce it again.
-	fresh := r.URL.Query().Get("key")
+	// nothing here can produce it again. Read once and clear.
+	fresh := ""
+	if c, err := r.Cookie(newKeyCookie); err == nil {
+		fresh = c.Value
+		http.SetCookie(w, &http.Cookie{
+			Name: newKeyCookie, Value: "", Path: "/",
+			Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode, MaxAge: -1,
+		})
+	}
 
 	s.render(w, "overview.html", map[string]any{
 		"Keys": keys, "Usage": usage, "Recent": recent,
@@ -288,10 +295,18 @@ func (s *site) keyCreate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 400)
 		return
 	}
-	// Carried in the query rather than rendered here so a refresh of the
-	// resulting page does not mint a second key.
-	http.Redirect(w, r, "/?key="+secret, http.StatusSeeOther)
+	// A one-shot cookie rather than a query string: a key in a URL lands in the
+	// edge access log, a Referer header and browser history.
+	http.SetCookie(w, &http.Cookie{
+		Name: newKeyCookie, Value: secret, Path: "/",
+		Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode, MaxAge: 60,
+	})
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
+
+// newKeyCookie carries a freshly minted key from the POST to the page that
+// shows it, exactly once.
+const newKeyCookie = "new_key"
 
 func (s *site) keyRevoke(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
