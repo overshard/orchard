@@ -26,6 +26,9 @@ models:
     #
     # A path on the volume rather than -hf, so the one service every other one
     # depends on does not need HuggingFace to be reachable to start.
+    #
+    # Reasoning off here and not only per request, since chat asks for that in
+    # every call but pi has no way to and would otherwise think on every turn.
     cmd: >
       llama-server
       --host 127.0.0.1 --port ${PORT}
@@ -34,6 +37,7 @@ models:
       --flash-attn on
       --parallel 1
       --jinja
+      --reasoning off
       --ctx-size 65536
       --cache-type-k q4_0
       --cache-type-v q4_0
