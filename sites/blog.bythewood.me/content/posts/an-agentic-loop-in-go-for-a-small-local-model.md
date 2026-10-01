@@ -4,15 +4,13 @@ slug: an-agentic-loop-in-go-for-a-small-local-model
 date: 2026-09-20
 publish_date: 2026-09-20
 tags: go, ai, webdev
-description: I run my own general purpose assistant on a 9B at home, and the tool calling loop in it is about two hundred lines, most of which is stopping it telling me it could look something up if I wanted.
+description: I run my own assistant on a 9B at home and the tool calling loop in it is a few hundred lines of Go, most of which is there to stop it offering to look something up instead of looking it up.
 cover_image: agentic-loop-cover.webp
 ---
 
-I run my own assistant at <https://chat.bythewood.me/>, the general purpose kind like Claude or ChatGPT, except it's a 9B on my own 3070 and everything it touches is mine. It has tools, attachments, history and a memory, and I use it for the same sorts of things I'd use one of the hosted ones for.
+I run my own assistant at <https://chat.bythewood.me/>. It's the general purpose kind like Claude or ChatGPT except it's a 9B model running on my own 3070, with tools, attachments, history, and a memory. The agentic loop under it is a few hundred lines of Go with no framework and the loop itself was the easy part. Most of the work went into deciding whether the model actually answered when it stopped calling tools.
 
-The agentic loop underneath is maybe two hundred lines of Go with no framework, and honestly the loop was the easy part. Nearly all of the work went into the thing that sits after it and decides whether the model actually answered.
-
-The loop itself is what you'd expect. Offer the tool schemas, take what comes back, run any tool calls, append the results, go around again.
+The basic loop is what you'd expect, offer the tool schemas, run any tool calls that come back, append the results, and go around again:
 
 ```go
 for round := 0; round < maxToolRounds; round++ {
@@ -34,11 +32,11 @@ for round := 0; round < maxToolRounds; round++ {
 }
 ```
 
-That works fine with a big model. With a small one the `break` is where it all falls apart, because a reply with no tool call is not the same thing as an answer. What I kept getting was this:
+That's fine with a big model but with a small one the `break` is the problem, since a reply with no tool call isn't always an answer. I kept getting replies like this:
 
 > I don't have access to real time data, but I can search for the current price if you'd like.
 
-The loop reads that as done. The user reads it as nothing. So the break goes through a gate first, and if the gate objects the turn goes back around with the tools still on the table.
+The loop treats that as done and I get nothing useful. So before the break the reply goes through a gate, and if the gate doesn't like it the turn goes back around with the tools still offered:
 
 ```go
 if len(reply.ToolCalls) == 0 {
@@ -57,9 +55,9 @@ if len(reply.ToolCalls) == 0 {
 }
 ```
 
-Two things in there matter more than they look. The draft never goes back into the conversation, since a model that can see its own deferral will write it again almost word for word. And `forceTools` flips the next round to `tool_choice: "required"`, which is what turns the nudge from a request into an instruction. Asking politely a second time gets you a politer deferral.
+The draft never gets appended to the conversation because when a small model can see its own deferral it'll write it again almost word for word. `forceTools` sets `tool_choice: "required"` on the next round so the model has to call something, otherwise it tends to just defer again a bit more politely.
 
-The gate runs its free checks before it spends a model call. Most deferrals are a handful of shapes and a regex catches them for nothing:
+The gate tries a few free checks before it spends a model call. Most deferrals look about the same so a handful of regexes catch them:
 
 ```go
 var deferrals = []*regexp.Regexp{
@@ -74,9 +72,9 @@ var deferrals = []*regexp.Regexp{
 }
 ```
 
-Every pattern needs a first person subject or you throw away good answers, because "you can search for it on their site" is advice and not a deferral. I also only look at the first 240 characters, since an answer that does the work and then offers to check the other two things at the end has answered, and taking that away costs you the whole turn again.
+Every pattern needs a first person subject or you start throwing away good answers, "you can search for it on their site" is advice and not the model putting off work. I also only check the first 240 characters, since an answer that does the work and then offers to check something else at the end did answer, and sending it back costs you the whole turn again.
 
-When the cheap checks don't fire, the model gets asked. That call is constrained to a JSON schema, which llama.cpp compiles to a GBNF grammar and samples against, so an enum field can't come back as anything else:
+When the regexes don't match the model gets asked whether the draft answered. That call is constrained to a JSON schema, which llama.cpp compiles into a GBNF grammar and samples against, so the enum can't come back as anything else:
 
 ```go
 type verdict struct {
@@ -97,9 +95,9 @@ var verdictSchema = map[string]any{
 }
 ```
 
-Two fields and one of them an enum. I tried giving it a free reasoning field next to the constrained one and it would write a paragraph arguing its way to one answer and then emit the other, which was maddening to watch. The query field is there because a verdict on its own isn't actionable, and a nudge that just says more research is needed sends the model back to the search it already ran.
+I tried adding a free text reasoning field next to the verdict and it would write a paragraph arguing for one answer and then pick the other. The query field is there so the nudge can tell the model what to search for, if the nudge just says more research is needed the model runs the same search it already ran.
 
-The other thing that helped a lot is asking one question at a time. My first draft check weighed about eight rules at once and it was wrong often enough to be useless. Split into single judgements it got most of them right, and the freshness one is a whole prompt for one boolean:
+Asking one question at a time helped a lot too. My first version of the draft check weighed about eight rules at once and was wrong too often to be useful. Split into single questions it got most of them right. Here's the freshness prompt, which is a whole prompt for one boolean:
 
 ```
 Decide whether answering the user's question correctly needs information you
@@ -109,16 +107,16 @@ happened since.
 true when the question touches news, current events, prices, markets, scores,
 odds, fixtures, schedules, opening or closing, weather, or what is happening now.
 true whenever the question carries a time word like today, tonight, this
-weekend, yesterday, right now, currently, or latest, even if the subject sounds
-ordinary.
+weekend, yesterday, this week, right now, currently, or latest, even if the
+subject sounds ordinary.
 
 false when the answer is a definition, an explanation, how something works,
 history, code, arithmetic, or a recipe, none of which change.
 ```
 
-That one is asked of the question and never of the draft, because a draft that invented an answer reads exactly like one that knew it.
+That one only ever sees the question and never the draft, since a draft with a made up answer looks just as confident as one with a real answer.
 
-Two more things worth having if you try this. A model that gets a thin or failed result will ask for the same thing again, and again, until the budget is gone, so I keep a ledger of calls already made in this turn and answer a repeat from it with a line telling it not to:
+Small models will also ask for the same thing over and over when a tool returns something thin or fails, until the round budget is gone. I keep a ledger of calls already made in the turn and answer a repeat from it with a note telling it to stop:
 
 ```go
 key := tc.Function.Name + "\x00" + canonArgs(tc.Function.Arguments)
@@ -138,29 +136,16 @@ if prev, done := seen[key]; done {
 }
 ```
 
-After two repeats I just stop offering tools at all, and on the last round I take them away and append a note saying what couldn't be found. Taking the tools off the table is the only reliable way I've found to make a small model stop fetching and write something, and it also means a tool that fails every time can't spin the turn out forever.
+After two repeats I stop offering tools completely, and on the last round the tools come off and I append a note saying what couldn't be found. Taking the tools away is the only reliable way I've found to get a small model to stop fetching and write something, and it means a tool that fails every time can't spin a turn out forever.
 
-A note on the model, because picking the right one did more for this than any of the scaffolding above. I've run a lot of small models against this by now, all on the same system prompt, the same eleven tools and the same twenty odd conversations, scored mechanically rather than by asking another model what it thought. Four of them are worth putting side by side.
+## Picking the model
 
-The one I landed on is Ornith 1.5 9B and I'd point anybody doing this at it. It made 106 tool calls across thirteen scenarios where Qwen3.5 9B made 41 and Gemma 4 E4B made 12. Not one of them ever emitted a malformed argument or invented a tool name, so the thing that tells them apart isn't whether they can format a call, it's whether they bother to go and look.
+The model mattered more than any of this. I ran four small models against the same system prompt, the same eleven tools, and the same thirteen scenarios, scored with mechanical checks rather than having another model grade them. I went with Ornith 1.5 9B. It made 106 tool calls across the thirteen scenarios where Qwen3.5 9B made 41 and Gemma 4 E4B made 12. None of the four ever sent malformed arguments or made up a tool name, so what separated them was mostly how willing they were to go and check something.
 
-Three things it did that nothing else did:
+Asked for a playlist, Ornith made 65 calls checking every track against a music catalogue and all eleven songs it gave me were real. Qwen 9B didn't check and made up four. Given a log with four problems planted in it Ornith found all four, including 64 errors on one endpoint that both Qwens missed. With web search turned off it said so and answered with what it had, telling me to treat the prices as ballpark. Gemma treated a missing tool as a reason to stop and refused eight of the thirteen, which rules it out for me since my tools fail fairly regularly.
 
-* Asked for a playlist, it spent 65 calls checking every track against a music catalogue instead of trusting itself, and all eleven songs it gave me were real ones. The Qwen 9B trusted itself and invented four.
-* Handed a log to read, it found all four of the problems I'd planted in it, including 64 errors on one endpoint that both Qwens walked straight past.
-* With web search switched off it said so, then answered anyway with what it had and told me to treat the prices as ballpark. Gemma reads a missing tool as a full stop and refused eight of thirteen scenarios, which is most of why I'm not running it, since my tools fail fairly regularly.
+## Related papers
 
-## Other people got here first
+I built this from watching it fail and only went looking afterwards, and a lot of it is already in the literature done properly with trained models instead of a regex and a couple of extra calls. [Self-RAG](https://arxiv.org/abs/2310.11511) is the closest, it trains a model to decide when to retrieve and to critique its own draft, which covers both my freshness check and the gate. [CRITIC](https://arxiv.org/abs/2305.11738), [Corrective RAG](https://arxiv.org/abs/2401.15884), and [Reflexion](https://arxiv.org/abs/2303.11366) are all variations on checking an answer and feeding text back into the next attempt. [Efficient Guided Generation](https://arxiv.org/abs/2307.09702) is the theory behind the constrained JSON, and [Small Language Models are the Future of Agentic AI](https://arxiv.org/abs/2506.02153) makes the case for small models in agents in general. If you're doing this seriously read those first.
 
-I built this off watching it fail rather than off any paper, and went looking afterwards to see whether anybody else had landed in the same place. They had, and some of it has been sitting in the literature for years.
-
-* [Self-RAG](https://arxiv.org/abs/2310.11511) (Asai et al., 2023) trains a model to decide on demand whether it needs to go and retrieve anything at all, and then to critique its own draft for whether the evidence actually supports it. That is my freshness check and my gate, done properly as one trained model instead of two extra calls around a loop.
-* [CRITIC](https://arxiv.org/abs/2305.11738) (Gou et al., 2023) takes a finished answer, has the model check it against a tool, and revises it from the feedback. Same shape as sending a draft back.
-* [Corrective RAG](https://arxiv.org/abs/2401.15884) (Yan et al., 2024) puts a lightweight evaluator in front of the retrieved documents and kicks off a web search when they do not hold up. Their evaluator hands back something actionable for the same reason my gate returns a query.
-* [Reflexion](https://arxiv.org/abs/2303.11366) (Shinn et al., 2023) writes feedback into the next attempt as plain text rather than touching the weights, which is what the nudge is.
-* [Efficient Guided Generation](https://arxiv.org/abs/2307.09702) (Willard and Louf, 2023) is the theory under the enum trick, and it is the same idea as the GBNF grammars llama.cpp gives me for free.
-* [Small Language Models are the Future of Agentic AI](https://arxiv.org/abs/2506.02153) (Belcak et al., 2025) makes the general case that a small model is the right size for most agent calls, which is the bet this whole thing is making.
-
-The difference is mostly that those are training and framework answers and mine is a regex and a couple of constrained calls in the harness, since I am not fine tuning anything on a 3070. If you are building this properly, read those first.
-
-The gate costs about a second on a turn that takes twenty, and it got the thing to stop offering to look stuff up, which is all I wanted out of it. The whole version is in [orchard](https://github.com/overshard/orchard) under `sites/chat.bythewood.me`, `chat.go` for the loop and `research.go` for the gate.
+The gate adds about a second to a turn that usually takes twenty and it got the model to stop offering to look things up. The code is in [orchard](https://github.com/overshard/orchard) under `sites/chat.bythewood.me`, `chat.go` for the loop and `research.go` for the gate.
