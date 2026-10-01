@@ -281,6 +281,43 @@ func TestAStreamedCallIsReassembledForTheLog(t *testing.T) {
 	}
 }
 
+// A turn that only calls tools has no content, and the log has to show the call
+// rather than an empty row.
+func TestAStreamedToolCallIsReassembledForTheLog(t *testing.T) {
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		for _, chunk := range []string{
+			`{"choices":[{"delta":{"tool_calls":[{"index":0,"id":"c1","type":"function","function":{"name":"read","arguments":""}}]}}]}`,
+			`{"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\"path\":"}}]}}]}`,
+			`{"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\"a.go\"}"}}]}}]}`,
+			`{"choices":[{"delta":{"tool_calls":[{"index":1,"id":"c2","type":"function","function":{"name":"bash","arguments":"{}"}}]}}]}`,
+		} {
+			fmt.Fprintf(w, "data: %s\n\n", chunk)
+		}
+		fmt.Fprint(w, "data: [DONE]\n\n")
+	}))
+	defer up.Close()
+
+	store := testStore(t)
+	secret, _, _ := store.NewKey("aiagent")
+	s := &site{store: store, upstream: up.URL, client: up.Client()}
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/v1/chat/completions",
+		strings.NewReader(`{"model":"local","stream":true,"messages":[{"role":"user","content":"go"}]}`))
+	req.Header.Set("Authorization", "Bearer "+secret)
+	s.requireKey(s.completions)(rec, req)
+
+	calls, _ := store.Calls("aiagent", 5)
+	if len(calls) != 1 {
+		t.Fatalf("logged %d calls", len(calls))
+	}
+	want := `[tool calls: [{"id":"c1","type":"function","function":{"name":"read","arguments":"{\"path\":\"a.go\"}"}},{"id":"c2","type":"function","function":{"name":"bash","arguments":"{}"}}]]`
+	if calls[0].Completion != want {
+		t.Errorf("completion = %s\nwant %s", calls[0].Completion, want)
+	}
+}
+
 // A caller whose key is refused upstream still gets a row, since a log with the
 // failures missing is the one that cannot explain an outage.
 func TestAnUpstreamFailureIsStillLogged(t *testing.T) {
