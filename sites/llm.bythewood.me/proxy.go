@@ -160,6 +160,7 @@ func (s *site) completions(w http.ResponseWriter, r *http.Request, k Key) {
 func (s *site) pipeStream(w http.ResponseWriter, body io.Reader) (string, int, int, float64) {
 	rc := http.NewResponseController(w)
 	var text strings.Builder
+	var calls []*streamedToolCall
 	var promptTok, outTok int
 	var tps float64
 
@@ -181,7 +182,15 @@ func (s *site) pipeStream(w http.ResponseWriter, body io.Reader) (string, int, i
 		var chunk struct {
 			Choices []struct {
 				Delta struct {
-					Content string `json:"content"`
+					Content   string `json:"content"`
+					ToolCalls []struct {
+						Index    int    `json:"index"`
+						ID       string `json:"id"`
+						Function struct {
+							Name      string `json:"name"`
+							Arguments string `json:"arguments"`
+						} `json:"function"`
+					} `json:"tool_calls"`
 				} `json:"delta"`
 			} `json:"choices"`
 			Usage struct {
@@ -197,6 +206,22 @@ func (s *site) pipeStream(w http.ResponseWriter, body io.Reader) (string, int, i
 		}
 		for _, c := range chunk.Choices {
 			text.WriteString(c.Delta.Content)
+			// A tool call streams as fragments keyed by index, with the name in
+			// the first one and the arguments spread across the rest.
+			for _, tc := range c.Delta.ToolCalls {
+				if tc.Index < 0 || tc.Index > 63 {
+					continue
+				}
+				for len(calls) <= tc.Index {
+					calls = append(calls, &streamedToolCall{Type: "function"})
+				}
+				call := calls[tc.Index]
+				if tc.ID != "" {
+					call.ID = tc.ID
+				}
+				call.Function.Name += tc.Function.Name
+				call.Function.Arguments += tc.Function.Arguments
+			}
 		}
 		if chunk.Usage.PromptTokens > 0 {
 			promptTok = chunk.Usage.PromptTokens
@@ -209,7 +234,22 @@ func (s *site) pipeStream(w http.ResponseWriter, body io.Reader) (string, int, i
 		}
 	}
 	_ = rc.Flush()
-	return text.String(), promptTok, outTok, tps
+	out := text.String()
+	if out == "" && len(calls) > 0 {
+		out = "[tool calls: " + string(mustJSON(calls)) + "]"
+	}
+	return out, promptTok, outTok, tps
+}
+
+// streamedToolCall is the shape a non streamed answer carries its tool calls
+// in, so both kinds of call read the same in the log.
+type streamedToolCall struct {
+	ID       string `json:"id"`
+	Type     string `json:"type"`
+	Function struct {
+		Name      string `json:"name"`
+		Arguments string `json:"arguments"`
+	} `json:"function"`
 }
 
 func summarise(out []byte) (string, int, int, float64) {
