@@ -2,8 +2,8 @@
 # HTTP to the Docker bridge, so there is nothing here to encrypt.
 #
 # Caddy sits between cloudflared and the apps so headers, compression and
-# per-host routing live in one place. Adding a site is a block here plus an
-# ingress rule.
+# per-host routing live in one place. Adding a site is a block here, with
+# `import hold` in its reverse_proxy, plus an ingress rule.
 {
 	auto_https off
 	admin off
@@ -177,15 +177,28 @@
 	encode zstd gzip
 }
 
+# Imported inside every reverse_proxy, so a request that arrives while a
+# container is being replaced waits for the new one rather than taking a 502.
+# Longer than the 30s stop_grace_period, which bounds how long a replace takes.
+# A failed dial is retried for any method, since nothing reached the app, and a
+# failure after that only for GET, so a POST is never sent twice.
+(hold) {
+	lb_try_duration 40s
+}
+
 # One block per hostname, each proxying to a container by name.
 http://isaacbythewood.com {
 	import site
-	reverse_proxy orchard-isaacbythewood:8000
+	reverse_proxy orchard-isaacbythewood:8000 {
+		import hold
+	}
 }
 
 http://blog.bythewood.me {
 	import site
-	reverse_proxy orchard-blog:8000
+	reverse_proxy orchard-blog:8000 {
+		import hold
+	}
 }
 
 # The collector is the one route here an anonymous stranger can POST to. The app
@@ -197,7 +210,9 @@ http://analytics.bythewood.me {
 		max_size 16KB
 	}
 
-	reverse_proxy orchard-analytics:8000
+	reverse_proxy orchard-analytics:8000 {
+		import hold
+	}
 }
 
 # /verify is answered here rather than proxied, so reaching it really does mean
@@ -217,13 +232,17 @@ http://auth.bythewood.me {
 	}
 
 	handle {
-		reverse_proxy orchard-auth:8000
+		reverse_proxy orchard-auth:8000 {
+			import hold
+		}
 	}
 }
 
 http://status.bythewood.me {
 	import site
-	reverse_proxy orchard-status:8000
+	reverse_proxy orchard-status:8000 {
+		import hold
+	}
 }
 
 # /ingest and /aggregate are answered here rather than proxied, so reaching
@@ -244,7 +263,9 @@ http://logging.bythewood.me {
 	}
 
 	handle {
-		reverse_proxy orchard-logging:8000
+		reverse_proxy orchard-logging:8000 {
+			import hold
+		}
 	}
 }
 
@@ -260,7 +281,9 @@ http://dash.bythewood.me {
 
 	encode @compressible zstd gzip
 
-	reverse_proxy orchard-dash:8000
+	reverse_proxy orchard-dash:8000 {
+		import hold
+	}
 }
 
 # The answer arrives over server-sent events, which must not be buffered or
@@ -278,6 +301,7 @@ http://chat.bythewood.me {
 	# A turn can call tools for several rounds before it answers, and the whole
 	# of it is one held open response.
 	reverse_proxy orchard-chat:8000 {
+		import hold
 		flush_interval -1
 		transport http {
 			response_header_timeout 15m
@@ -297,6 +321,7 @@ http://llm.bythewood.me {
 	encode @compressible zstd gzip
 
 	reverse_proxy orchard-llm:8000 {
+		import hold
 		flush_interval -1
 		transport http {
 			response_header_timeout 15m
@@ -304,7 +329,6 @@ http://llm.bythewood.me {
 		}
 	}
 }
-
 
 # ntfy, the alert path. An allowlist of three routes, for two reasons.
 #
@@ -330,7 +354,9 @@ http://ntfy.bythewood.me {
 	}
 
 	handle @client {
-		reverse_proxy orchard-ntfy:8000
+		reverse_proxy orchard-ntfy:8000 {
+			import hold
+		}
 	}
 
 	handle {
@@ -355,13 +381,17 @@ http://repos.bythewood.me {
 		request_body {
 			max_size 100MB
 		}
-		reverse_proxy orchard-repos:8000
+		reverse_proxy orchard-repos:8000 {
+			import hold
+		}
 	}
 
 	# The browse UI is ordinary HTML and does want compression.
 	handle {
 		encode zstd gzip
-		reverse_proxy orchard-repos:8000
+		reverse_proxy orchard-repos:8000 {
+			import hold
+		}
 	}
 }
 

@@ -179,6 +179,12 @@ Adding a hostname takes three changes: a site block in `edge/caddy/Caddyfile`,
 an ingress rule in `edge/cloudflared/config.yml`, and a proxied CNAME to
 `<tunnel-id>.cfargotunnel.com`.
 
+Every `reverse_proxy` imports `hold`, which sets `lb_try_duration` so Caddy
+keeps retrying the container for up to 40 seconds instead of answering 502. A
+deploy stops the old container before the new one starts, and without it a
+dash deploy answered 502 for about 15 seconds. With it the same requests wait
+and then succeed.
+
 Caddy also writes its access log to `logging.bythewood.me`, over a plain socket
 on port 9001 rather than through the shipper every site uses, since Caddy can't
 carry a Go handler. It keeps writing the same lines to stderr as well, so

@@ -174,7 +174,8 @@ restart it, and the tunnel serves the old ingress while a newly added hostname
 still serves the old ingress, because the config it reads is the copy in the
 volume and nothing has replaced it.
 
-Adding a hostname is five changes: a Caddy site block, a `cloudflared` ingress
+Adding a hostname is five changes: a Caddy site block (with `import hold` inside
+its `reverse_proxy`, or a deploy of that site answers 502 until it is back), a `cloudflared` ingress
 rule, the name in `HOSTNAMES` in `edge/setup-tunnel.sh`, a proxied CNAME to
 `<tunnel-id>.cfargotunnel.com`, and then `make tunnel` to reseed the
 volume before `make edge`. Skip the reseed and the container is healthy, Caddy
