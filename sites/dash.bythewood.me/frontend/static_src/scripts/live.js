@@ -160,6 +160,20 @@ function patchCard(card, data) {
   setText(card.querySelector(".pct"), data.percent);
 
   const spark = data.spark || {};
+
+  // A card rendered before its session had two bars has an empty svg, and the
+  // setAttr calls below only touch paths that already exist, so it would sit
+  // there with a cursor and no line until a reload.
+  const svgRoot = card.querySelector(".spark");
+  if (!svgRoot) return;
+  if (
+    Boolean(spark.line) !== Boolean(svgRoot.querySelector(".spark-line")) ||
+    Boolean(spark.line && spark.has_base) !== Boolean(svgRoot.querySelector(".spark-base"))
+  ) {
+    svgRoot.replaceWith(sparkNode(spark));
+    return;
+  }
+
   setAttr(card.querySelector(".spark-area"), "d", spark.area);
   setAttr(card.querySelector(".spark-line"), "d", spark.line);
 
@@ -173,9 +187,6 @@ function patchCard(card, data) {
   // it swaps for the closed rule when that card's market shuts while the rest of
   // the strip keeps going, so both have to be added and removed rather than only
   // moved.
-  const svgRoot = card.querySelector(".spark");
-  if (!svgRoot) return;
-
   const marker = (cls, make) => {
     let node = card.querySelector("." + cls);
     if (!node) {
