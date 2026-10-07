@@ -19,7 +19,7 @@ type State struct {
 	Sectors   []SectorCell `json:"sectors"`
 	Signal    Signal       `json:"signal"`
 	Earnings  Earnings     `json:"earnings"`
-	Wire      []Headline   `json:"wire"`
+	Briefs    Briefs       `json:"briefs"`
 	HN        []Story      `json:"hn"`
 	Lobsters  []Story      `json:"lobsters"`
 	Weather   Weather      `json:"weather"`
@@ -206,7 +206,6 @@ func (s *Store) Run(ctx context.Context, g *Guard) {
 	go s.loop(ctx, "onair", nil, func() { s.refreshOnAir(ctx, g) })
 	go s.loop(ctx, "broadcasts", nil, func() { s.refreshBroadcasts(ctx, g) })
 	go s.loop(ctx, "news", nil, func() { s.refreshNews(ctx, g) })
-	go s.loop(ctx, "wire", nil, func() { s.refreshWire(ctx, g) })
 	go s.loop(ctx, "signal", nil, func() { s.refreshSignal(ctx, g) })
 	go s.loop(ctx, "board", nil, func() { s.refreshBoard(ctx, g) })
 	go s.loop(ctx, "earnings", nil, func() { s.refreshEarnings(ctx, g) })
@@ -252,7 +251,6 @@ func (s *Store) Run(ctx context.Context, g *Guard) {
 func (s *Store) loop(ctx context.Context, name string, every func() time.Duration, work func()) {
 	fixed := map[string]time.Duration{
 		"news":       newsEvery,
-		"wire":       wireEvery,
 		"signal":     signalEvery,
 		"board":      boardEvery,
 		"earnings":   earningsEvery,
@@ -501,18 +499,6 @@ func (s *Store) refreshSteam(ctx context.Context, g *Guard) {
 		if keepSteam(games, st.Steam) {
 			st.Steam = games
 		}
-	})
-}
-
-func (s *Store) refreshWire(ctx context.Context, g *Guard) {
-	wire, err := fetchWire(ctx, g, time.Now())
-	if err != nil {
-		slog.Warn("wire poll failed", slog.String("component", "wire"), slog.Any("err", err))
-		return
-	}
-	s.update(func(st *State) {
-		st.Wire = wire
-		st.setNotices("news", wireNotices(wire, time.Now()))
 	})
 }
 

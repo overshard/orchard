@@ -7,181 +7,20 @@ import (
 	"io"
 	"net/http"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 )
 
-// The day's major headlines from NPR and BBC, newest first, and nothing else.
-//
-// These three feeds are the editor picked ones rather than a topic list, since
-// what lands on a front page is the closest thing an RSS feed has to a signal
-// that a story is big. BBC's own top stories feed is the UK edition and leads
-// on the Budget and Reform UK, so the two regional editions are the American
-// reader's version of it.
-//
-// The endpoint is the guard bucket, so one outlet going down or answering 429
-// costs its own headlines and leaves the others their budget.
-var wireFeeds = []struct{ name, endpoint, url string }{
-	{"NPR", "npr", "https://feeds.npr.org/1001/rss.xml"},
-	{"BBC", "bbc", "https://feeds.bbci.co.uk/news/world/us_and_canada/rss.xml"},
-	{"BBC", "bbc", "https://feeds.bbci.co.uk/news/world/rss.xml"},
-}
-
-const (
-	wireEvery = 10 * time.Minute
-	wireShown = 10
-
-	// At most this many rows from one outlet. BBC supplies two of the three
-	// feeds and posts about twice as often as NPR does, so without this a busy
-	// afternoon is a column of BBC.
-	wirePerSource = 6
-
-	// Both outlets post enough that ten rows never reach back this far, so
-	// this is the floor that keeps a dead feed off the panel rather than a
-	// window anything is chosen inside.
-	wireMaxAge = 2 * 24 * time.Hour
-)
-
-// Headline is one story on the wire panel.
-type Headline struct {
-	Title  string `json:"title"`
-	URL    string `json:"url"`
-	Source string `json:"source"`
-	Age    string `json:"age"`
-
-	posted time.Time
-}
-
 type rssFeed struct {
 	Channel struct {
 		Items []struct {
-			Title   string `xml:"title"`
-			Link    string `xml:"link"`
-			PubDate string `xml:"pubDate"`
-			GUID    string `xml:"guid"`
+			Title       string `xml:"title"`
+			Link        string `xml:"link"`
+			PubDate     string `xml:"pubDate"`
+			GUID        string `xml:"guid"`
+			Description string `xml:"description"`
 		} `xml:"item"`
 	} `xml:"channel"`
-}
-
-// dated is a headline with the timestamp the sort needs, which the panel shows
-// only as an age.
-type dated struct {
-	Headline
-	at time.Time
-}
-
-func fetchWire(ctx context.Context, g *Guard, now time.Time) ([]Headline, error) {
-	seen := map[string]bool{}
-	var all []dated
-
-	for _, feed := range wireFeeds {
-		items, err := fetchRSS(ctx, g, feed.endpoint, feed.url)
-		if err != nil {
-			// One dead feed costs its own headlines and not the panel.
-			continue
-		}
-
-		for _, it := range items.Channel.Items {
-			title := strings.TrimSpace(it.Title)
-			if title == "" || it.Link == "" {
-				continue
-			}
-			if promotional(title) || sidebar(title) || clip(it.Link) {
-				continue
-			}
-
-			key := it.GUID
-			if key == "" {
-				key = it.Link
-			}
-			// BBC's world and US feeds overlap by about half, and the same
-			// story reaches two outlets under headlines that differ by a word,
-			// so the title is deduped as well as the identifier.
-			if seen[key] || seen[titleKey(title)] {
-				continue
-			}
-			seen[key], seen[titleKey(title)] = true, true
-
-			at, err := parseRSSTime(it.PubDate)
-			if err != nil || now.Sub(at) > wireMaxAge {
-				continue
-			}
-
-			all = append(all, dated{
-				Headline: Headline{
-					Title:  title,
-					URL:    it.Link,
-					Source: feed.name,
-					Age:    humanAge(at, now),
-					posted: at,
-				},
-				at: at,
-			})
-		}
-	}
-
-	if len(all) == 0 {
-		return nil, fmt.Errorf("wire: nothing fresh in %d feeds", len(wireFeeds))
-	}
-
-	sort.SliceStable(all, func(i, j int) bool { return all[i].at.After(all[j].at) })
-	return pick(dedupe(all)), nil
-}
-
-// dedupe drops the second telling of a story two outlets worded differently,
-// which the title key cannot catch. It runs over the sorted list so the copy
-// that survives is the newer one.
-func dedupe(all []dated) []dated {
-	kept := make([]dated, 0, len(all))
-	keys := make([][]string, 0, len(all))
-
-	for _, d := range all {
-		w := significant(d.Title)
-		if slices.ContainsFunc(keys, func(k []string) bool { return sameStory(k, w) }) {
-			continue
-		}
-		kept = append(kept, d)
-		keys = append(keys, w)
-	}
-	return kept
-}
-
-// pick takes the newest rows in order, holding one outlet to its cap, and then
-// gives the leftover slots back to whatever the cap passed over, since a short
-// panel is worse than a lopsided one. Both passes mark rows rather than emit
-// them, because the panel still has to read newest first afterwards.
-func pick(all []dated) []Headline {
-	taken := make([]bool, len(all))
-	perSource := map[string]int{}
-	count := 0
-
-	for i, d := range all {
-		if count == wireShown {
-			break
-		}
-		if perSource[d.Source] == wirePerSource {
-			continue
-		}
-		taken[i], perSource[d.Source], count = true, perSource[d.Source]+1, count+1
-	}
-
-	for i := range all {
-		if count == wireShown {
-			break
-		}
-		if !taken[i] {
-			taken[i], count = true, count+1
-		}
-	}
-
-	out := make([]Headline, 0, count)
-	for i, d := range all {
-		if taken[i] {
-			out = append(out, d.Headline)
-		}
-	}
-	return out
 }
 
 // Four words in common is enough to be one story, and rare enough that two

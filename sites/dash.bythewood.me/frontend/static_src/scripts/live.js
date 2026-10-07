@@ -580,25 +580,61 @@ function renderFeeds(feeds) {
   );
 }
 
-function renderWire(wire) {
-  const host = document.querySelector("[data-wire]");
-  if (!host) return;
+function briefLinks(links) {
+  return (links || []).map((l) => {
+    const a = link(l.url, "src", l.source);
+    a.title = l.title;
+    return a;
+  });
+}
 
-  if (!wire || wire.length === 0) {
-    const li = el("li", "empty", "AWAITING WIRE");
-    host.replaceChildren(li);
+function briefEmpty(brief) {
+  return el("p", "empty", brief && brief.status === "off" ? "BRIEF OFF, NO MODEL KEY" : "AWAITING BRIEF");
+}
+
+function renderMarketBrief(brief) {
+  const host = document.querySelector("[data-brief-markets]");
+  if (!host) return;
+  if (!brief || !brief.points || brief.points.length === 0) {
+    host.replaceChildren(briefEmpty(brief));
     return;
   }
+  const ul = el("ul", "brief-lines");
+  for (const p of brief.points) {
+    const li = el("li");
+    li.append(el("span", "tag", p.label || ""), el("span", "txt", p.text));
+    const srcs = el("span", "srcs");
+    srcs.append(...briefLinks(p.links));
+    li.append(srcs);
+    ul.append(li);
+  }
+  const meta = el("p", "brief-meta", `${brief.title} BRIEF / COMPILED ${brief.compiled} / ${brief.stories} STORIES / LOCAL MODEL`);
+  host.replaceChildren(ul, meta);
+}
 
-  host.replaceChildren(
-    ...wire.map((h) => {
-      const li = el("li");
-      li.append(el("span", "tag", h.source));
-      li.append(link(h.url, null, h.title));
-      li.append(el("span", "age", h.age));
-      return li;
-    }),
-  );
+function renderNewsBrief(brief) {
+  const host = document.querySelector("[data-news-brief]");
+  const head = document.querySelector("[data-news-brief-meta]");
+  if (!host) return;
+  const has = brief && brief.points && brief.points.length > 0;
+  if (head) head.textContent = has ? `${brief.title} / ${brief.compiled}` : "";
+  if (!has) {
+    host.replaceChildren(briefEmpty(brief));
+    return;
+  }
+  const ol = el("ol", "brief");
+  for (const p of brief.points) {
+    const li = el("li");
+    li.append(el("p", "txt", p.text));
+    const meta = el("div", "meta");
+    meta.append(...briefLinks(p.links));
+    if (p.coverage) meta.append(el("span", "cov", p.coverage));
+    if (p.note) meta.append(el("span", "note", p.note));
+    li.append(meta);
+    ol.append(li);
+  }
+  const foot = el("p", "footnote", `SUMMARISED BY A LOCAL MODEL FROM ${brief.stories} STORIES. L C R COUNTS THE OUTLETS THAT CARRIED IT BY ALLSIDES LEAN.`);
+  host.replaceChildren(ol, foot);
 }
 
 function renderConditions(signal) {
@@ -1091,7 +1127,8 @@ function render(state) {
   }
   if (changed("outlook", state.outlook)) renderOutlook(state.outlook);
   if (changed("steam", state.steam)) renderSteam(state.steam);
-  if (changed("wire", state.wire)) renderWire(state.wire);
+  if (changed("brief-markets", state.briefs && state.briefs.markets)) renderMarketBrief(state.briefs && state.briefs.markets);
+  if (changed("brief-news", state.briefs && state.briefs.news)) renderNewsBrief(state.briefs && state.briefs.news);
   if (changed("feeds", state.feeds)) renderFeeds(state.feeds);
   if (changed("hn", state.hn)) renderStories("[data-hn]", state.hn);
   if (changed("lobsters", state.lobsters)) renderStories("[data-lobsters]", state.lobsters);

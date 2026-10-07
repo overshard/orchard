@@ -155,9 +155,12 @@ func main() {
 	pollCtx, stopPolling := context.WithCancel(context.Background())
 	defer stopPolling()
 
+	briefer := NewBriefer(store, guard, NewModel(dir("LLM_URL", "http://orchard-llm:8000"), os.Getenv("LLM_KEY")), dataDir)
+
 	store.Prime(pollCtx, guard)
 	go func() {
 		waitForListener(pollCtx)
+		go briefer.Run(pollCtx)
 		store.Run(pollCtx, guard)
 	}()
 

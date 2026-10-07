@@ -32,24 +32,6 @@ func (st *State) setNotices(kind string, ns []Notice) {
 	st.Notices = append(kept, ns...)
 }
 
-// A headline older than this when it first reaches the panel is an old story
-// filling a slot a dead feed left, not news.
-const newsFresh = 3 * time.Hour
-
-func wireNotices(wire []Headline, now time.Time) []Notice {
-	var out []Notice
-	for _, h := range wire {
-		if h.posted.IsZero() || now.Sub(h.posted) > newsFresh {
-			continue
-		}
-		out = append(out, Notice{
-			ID: "news:" + h.URL, Kind: "news",
-			Title: h.Title, Body: h.Source, URL: h.URL,
-		})
-	}
-	return out
-}
-
 // severeAlert is a watch or a warning, or anything the NWS itself grades severe.
 // Advisories and statements are on the panel and stay off the phone.
 func severeAlert(a Alert) bool {

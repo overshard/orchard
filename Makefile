@@ -59,7 +59,7 @@ COMPOSE_DOWN = $(DOCKER) compose
 .DEFAULT_GOAL := help
 .PHONY: help install up up-one deploy edge doctor down down-one run build check fmt fmt-check vet test \
 	env password tunnel tunnel-login tunnel-status ntfy ntfy-token ntfy-status ntfy-passwd \
-	auth-init auth-recovery chat-key llm-key wiki require-site require-env require-tunnel
+	auth-init auth-recovery chat-key dash-key llm-key wiki require-site require-env require-tunnel
 
 help:
 	@echo "running system"
@@ -84,6 +84,7 @@ help:
 	@echo "  make ntfy-token            mint the publishers' tokens into the .env files"
 	@echo "  make auth-init             create the login account, printing its recovery codes"
 	@echo "  make chat-key              mint chat's gateway key into its .env, if it has none"
+	@echo "  make dash-key              the same for dash, which writes the daily briefs with it"
 	@echo "  make llm-key NAME=chat     mint an api key for the model gateway, printed once"
 	@echo "  make wiki                  download the offline wikipedia into its volume, 12.5GB"
 	@echo "  make auth-recovery         replace the recovery codes when locked out"
@@ -295,6 +296,7 @@ doctor:
 install: tunnel-login tunnel env
 	-$(MAKE) --no-print-directory up
 	$(MAKE) --no-print-directory chat-key
+	$(MAKE) --no-print-directory dash-key
 	$(MAKE) --no-print-directory ntfy
 	$(MAKE) --no-print-directory ntfy-token
 	$(MAKE) --no-print-directory up
@@ -412,14 +414,21 @@ auth-init:
 # llm.bythewood.me's own UI is behind auth, which is reached over the tunnel this
 # gateway feeds, so there has to be a way in that does not need any of that
 # working yet. The plaintext is printed once and nothing keeps it.
-# chat's gateway key, minted and written into its .env when it has none.
-chat-key:
-	@f=sites/chat.bythewood.me/.env; \
-	if grep -q '^LLM_KEY=.' "$$f"; then echo "chat has a gateway key already, left alone"; exit 0; fi; \
-	key=$$($(DOCKER) exec orchard-llm /app -newkey chat); \
+# A site's gateway key, minted and written into its .env when it has none.
+define mint-key
+	@f=sites/$(1)/.env; \
+	if grep -q '^LLM_KEY=.' "$$f"; then echo "$(2) has a gateway key already, left alone"; exit 0; fi; \
+	key=$$($(DOCKER) exec orchard-llm /app -newkey $(2)); \
 	case "$$key" in orch-*) ;; *) echo "could not mint a key, is orchard-llm up?" >&2; exit 1 ;; esac; \
 	sed -i "s|^LLM_KEY=.*|LLM_KEY=$$key|" "$$f"; \
-	echo "chat's gateway key written to $$f"
+	echo "$(2)'s gateway key written to $$f"
+endef
+
+chat-key:
+	$(call mint-key,chat.bythewood.me,chat)
+
+dash-key:
+	$(call mint-key,dash.bythewood.me,dash)
 
 llm-key:
 	@test -n "$(NAME)" || { \
