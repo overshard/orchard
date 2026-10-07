@@ -24,7 +24,7 @@ tunnel rather than a rented server.
 | `sites/status.bythewood.me/` | Self hosted uptime monitoring. SQLite, Lighthouse audits, crawler |
 | `sites/logging.bythewood.me/` | Self hosted log aggregation. Every other site ships its slog records here. SQLite, retention and rollups, Typst PDF reports |
 | `sites/repos.bythewood.me/` | Self hosted git remote. Push to it over HTTPS with a token, and it mirrors the GitHub account as a backup. Everything git is a subprocess |
-| `sites/dash.bythewood.me/` | Dashboard. Markets off Yahoo, Hacker News and Lobsters, the weather, and whether the other sites are answering. One poller, server sent events out, no database |
+| `sites/dash.bythewood.me/` | Dashboard. Markets off Yahoo, a markets line and a news summary the local model writes three times a day, Hacker News and Lobsters, the weather, and whether the other sites are answering. One poller, server sent events out, no database |
 | `sites/auth.bythewood.me/` | The front door. One account, a six digit code pushed over ntfy, and an opaque session every other site checks against it |
 | `sites/chat.bythewood.me/` | A conversation with a local model, with tools, attachments, pictures, history in SQLite and an incognito mode that writes nothing. It also answers a house out of public records, which used to be a dashboard of its own. Beside it an offline Wikipedia, served by kiwix off a 12.5GB ZIM |
 | `sites/llm.bythewood.me/` | The model gateway. One card behind an API key, Ornith for chat and FLUX.2 klein for pictures taking turns on it, with every prompt and completion logged unless the caller marks the call incognito |
@@ -160,7 +160,7 @@ to watch.
 because that directory is the project directory, so nothing is exported in a
 shell and nothing is forwarded through the Makefile. `.env` is gitignored by
 bare name and this repo is public, so check it with `git check-ignore -v`
-instead of assuming. Five of the ten commit a `.env.example`, and
+instead of assuming. Six of the ten commit a `.env.example`, and
 `make env` turns each example into a `.env`, filling in a generated value for any
 empty `*_PASSWORD` and printing it once. It skips a site that already has one,
 because rewriting one loses the ntfy token or the api key that was written into it.
@@ -396,6 +396,20 @@ which ids it has shown and counts the ones on the page at load as seen. A market
 move is its symbol, its day and its rung on a ladder, a warning is its VTEC event
 number rather than the NWS id that changes with every update, and a headline is
 its URL, which is what keeps a restart or a reconnect from notifying twice.
+
+**The briefs are the one thing on dash a model writes.** At 7:00, 11:00 and
+16:05 New York time `brief.go` reads eleven news feeds and seven market feeds,
+groups the same event across outlets, ranks the groups by how many outlets
+carried them, and asks llm.bythewood.me for a markets line and a TODAY summary
+under a JSON schema. The model cites events by number and Go turns those into
+links, so it cannot make up a URL, and a news point it could not cite is dropped.
+Each feed carries its AllSides lean, which is counted per point (`L1 C3 R1`) and
+never shown to the model, and a story only one side's outlets ran is marked as
+that rather than left out. Common words of the day are dropped before grouping,
+or two stories about the administration share four words and become one. The
+last two briefs live in `briefs.json` on the volume, so a deploy shows them
+rather than nothing, and a missed slot runs on start. `LLM_KEY` in `.env` from
+`make dash-key`, and without it the panels say the briefs are off.
 
 **The on air banner reads YouTube first and Twitch only when YouTube has
 nothing.** YouTube is a scrape of `@theburntpeanut/live`, which is the watch page
