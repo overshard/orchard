@@ -53,6 +53,7 @@ type probeOutcome struct {
 	// originUnreachable is set when a cache answered and a direct probe of the
 	// live origin could have left it, see classifyCache.
 	originUnreachable bool
+	originStatus      int64
 }
 
 // hopResult is one request and response, with enough detail to follow a redirect.
@@ -148,6 +149,7 @@ func runCheck(ctx context.Context, db *sql.DB, p *Property) (int64, error) {
 			slog.String("cf_cache_status", outcome.cacheStatus),
 			slog.Int64("age", derefAge(outcome.age)),
 			slog.Int64("edge_status", outcome.statusCode),
+			slog.Int64("origin_status", outcome.originStatus),
 		)
 	}
 
@@ -230,8 +232,10 @@ func probeWithRedirects(ctx context.Context, rawURL string) (*probeOutcome, erro
 	// the one case where this response says nothing about the origin.
 	cacheStatus, age, cached := classifyCache(headers)
 	unreachable := false
+	var originStatus int64
 	if cached {
-		alive, known := originAnswered(ctx, current)
+		var alive, known bool
+		originStatus, alive, known = originAnswered(ctx, current)
 		unreachable = known && !alive
 	}
 	return &probeOutcome{
@@ -241,6 +245,7 @@ func probeWithRedirects(ctx context.Context, rawURL string) (*probeOutcome, erro
 		cacheStatus:       cacheStatus,
 		age:               age,
 		originUnreachable: unreachable,
+		originStatus:      originStatus,
 	}, nil
 }
 
@@ -269,22 +274,25 @@ func classifyCache(headers map[string]string) (status string, age *int64, cached
 // whether the origin answered and whether the question could be asked at all,
 // so a property with no health endpoint gets no opinion rather than a permanent
 // alarm.
-func originAnswered(ctx context.Context, u *url.URL) (alive, known bool) {
+//
+// A dead origin behind the tunnel is a quick 530 or 502 from Cloudflare, so a
+// transport error means status could not reach Cloudflare and says nothing.
+func originAnswered(ctx context.Context, u *url.URL) (code int64, alive, known bool) {
 	probe := *u
 	probe.Path = "/healthz"
 	probe.RawQuery = "cb=" + strconv.FormatInt(time.Now().UnixNano(), 36)
 
 	hop, err := phasedHop(ctx, &probe)
 	if err != nil {
-		return false, true
+		return 0, false, false
 	}
 	switch hop.statusCode {
 	case http.StatusOK:
-		return true, true
+		return hop.statusCode, true, true
 	case http.StatusNotFound:
-		return false, false
+		return hop.statusCode, false, false
 	}
-	return false, true
+	return hop.statusCode, false, true
 }
 
 func isRedirect(code int64) bool {
