@@ -213,6 +213,7 @@ func main() {
 	handler := web.Chain(staticRouter(dist, assets, wr.Router(mux)),
 		web.Recovered,
 		web.Logged,
+		refuseMeta,
 		web.SecurityHeaders(csp()),
 		web.SameOrigin(),
 		// Browse pages branch on LoggedIn and the logged-in half names internal
