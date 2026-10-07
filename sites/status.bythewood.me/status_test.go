@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1145,5 +1146,15 @@ func TestEveryListedTemplateParses(t *testing.T) {
 	}
 	if _, err := web.NewRenderer(templates, templateFuncs, layoutTemplates, pageTemplates); err != nil {
 		t.Fatalf("the template set does not parse: %v", err)
+	}
+}
+
+func TestOriginAnsweredHasNoOpinionWhenUnreachable(t *testing.T) {
+	srv := httptest.NewServer(http.NotFoundHandler())
+	u, _ := url.Parse(strings.Replace(srv.URL, "http:", "https:", 1))
+	srv.Close()
+
+	if _, _, known := originAnswered(context.Background(), u); known {
+		t.Error("a refused connection counted as an answer about the origin")
 	}
 }
