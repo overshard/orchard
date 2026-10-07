@@ -146,3 +146,24 @@ func TestRefusalIsUncacheableAndSaysWhen(t *testing.T) {
 		t.Errorf("Cache-Control = %q, want no-store", last.Header().Get("Cache-Control"))
 	}
 }
+
+func TestRefuseMetaLeavesEveryoneElse(t *testing.T) {
+	h := refuseMeta(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	for ip, want := range map[string]int{
+		"2a03:2880:f806:1d::": http.StatusForbidden,
+		"2a03:2881::1":        http.StatusOK,
+		"71.71.122.88":        http.StatusOK,
+		"":                    http.StatusOK,
+	} {
+		r := httptest.NewRequest("GET", "/orchard/log", nil)
+		r.Header.Set("CF-Connecting-IP", ip)
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		if w.Code != want {
+			t.Errorf("%q = %d, want %d", ip, w.Code, want)
+		}
+		if want == http.StatusForbidden && w.Header().Get("Cache-Control") != "no-store" {
+			t.Errorf("a refusal the edge could cache: %q", w.Header().Get("Cache-Control"))
+		}
+	}
+}
