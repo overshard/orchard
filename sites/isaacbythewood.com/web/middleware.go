@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // ClientIP resolves the real client address. CF-Connecting-IP wins over
@@ -180,10 +181,12 @@ func SameOrigin(exempt ...string) func(http.Handler) http.Handler {
 }
 
 // NoDirs keeps a file server from answering a directory, which it does with an
-// index of every file in it, naming things nothing links to.
+// index of every file in it, naming things nothing links to. It also refuses a
+// name that is not UTF-8, which fs.Sub fails as invalid rather than missing and
+// FileServer turns into a 500.
 func NoDirs(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "" || strings.HasSuffix(r.URL.Path, "/") {
+		if r.URL.Path == "" || strings.HasSuffix(r.URL.Path, "/") || !utf8.ValidString(r.URL.Path) {
 			http.NotFound(w, r)
 			return
 		}
