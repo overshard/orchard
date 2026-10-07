@@ -14,6 +14,7 @@ package main
 
 import (
 	"net/http"
+	"net/netip"
 	"strconv"
 	"sync"
 	"time"
@@ -123,4 +124,20 @@ func (s *site) limited(t *throttle, next http.HandlerFunc) http.HandlerFunc {
 		}
 		next(w, r)
 	}
+}
+
+// Meta's crawler fetches robots.txt, which disallows everything here, and walks
+// the site anyway from hundreds of addresses in this range, so no bucket keyed on
+// one address ever fills.
+var metaCrawler = netip.MustParsePrefix("2a03:2880::/32")
+
+func refuseMeta(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if addr, err := netip.ParseAddr(web.ClientIP(r)); err == nil && metaCrawler.Contains(addr) {
+			w.Header().Set("Cache-Control", "no-store")
+			http.Error(w, "forbidden, see /robots.txt", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
