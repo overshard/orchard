@@ -70,12 +70,31 @@
 </ol>
 {{end}}
 
-{{define "headline"}}
-<li>
-  <span class="tag">{{.Source}}</span>
-  <a href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{.Title}}</a>
-  <span class="age">{{.Age}}</span>
-</li>
+{{define "brief-links"}}{{range .}}<a class="src" href="{{.URL}}" title="{{.Title}}" rel="noopener noreferrer" target="_blank">{{.Source}}</a>{{end}}{{end}}
+
+{{define "market-brief"}}
+{{- if .Points}}
+<ul class="brief-lines">
+  {{range .Points}}<li><span class="tag">{{.Label}}</span><span class="txt">{{.Text}}</span><span class="srcs">{{template "brief-links" .Links}}</span></li>
+  {{end}}
+</ul>
+<p class="brief-meta">{{.Title}} BRIEF / COMPILED {{.Compiled}} / {{.Stories}} STORIES / LOCAL MODEL</p>
+{{- else if eq .Status "off"}}<p class="empty">BRIEF OFF, NO MODEL KEY</p>
+{{- else}}<p class="empty">AWAITING BRIEF</p>{{end}}
+{{end}}
+
+{{define "news-brief"}}
+{{- if .Points}}
+<ol class="brief">
+  {{range .Points}}<li>
+    <p class="txt">{{.Text}}</p>
+    <div class="meta">{{template "brief-links" .Links}}{{if .Coverage}}<span class="cov">{{.Coverage}}</span>{{end}}{{if .Note}}<span class="note">{{.Note}}</span>{{end}}</div>
+  </li>
+  {{end}}
+</ol>
+<p class="footnote">SUMMARISED BY A LOCAL MODEL FROM {{.Stories}} STORIES. L C R COUNTS THE OUTLETS THAT CARRIED IT BY ALLSIDES LEAN.</p>
+{{- else if eq .Status "off"}}<p class="empty">BRIEF OFF, NO MODEL KEY</p>
+{{- else}}<p class="empty">AWAITING BRIEF</p>{{end}}
 {{end}}
 
 {{define "condition"}}

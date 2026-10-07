@@ -1,110 +1,9 @@
 package main
 
 import (
-	"strings"
 	"testing"
 	"time"
 )
-
-// row builds a dated at a fixed offset back from a fixed now, so the tests can
-// talk about order without carrying timestamps around.
-func row(source string, minsAgo int) dated {
-	base := time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC)
-	id := source + string(rune('a'+minsAgo))
-	return dated{
-		Headline: Headline{Title: id, URL: "https://example.test/" + id, Source: source},
-		at:       base.Add(-time.Duration(minsAgo) * time.Minute),
-	}
-}
-
-func sources(out []Headline) string {
-	var b strings.Builder
-	for i, h := range out {
-		if i > 0 {
-			b.WriteString(" ")
-		}
-		b.WriteString(h.Source)
-	}
-	return b.String()
-}
-
-// The panel reads down newest to oldest, which is the whole shape Isaac asked
-// for, and the cap must not reorder anything on the way there.
-func TestPickReadsNewestFirst(t *testing.T) {
-	all := []dated{row("NPR", 5), row("BBC", 20), row("NPR", 40), row("BBC", 90)}
-
-	out := pick(all)
-	if got := sources(out); got != "NPR BBC NPR BBC" {
-		t.Errorf("want the input order back, got %v", got)
-	}
-}
-
-func TestPickFillsThePanel(t *testing.T) {
-	var all []dated
-	for i := 0; i < 40; i++ {
-		all = append(all, row("BBC", i))
-		all = append(all, row("NPR", i))
-	}
-
-	out := pick(all)
-	if len(out) != wireShown {
-		t.Fatalf("want %d rows, got %d", wireShown, len(out))
-	}
-}
-
-// BBC supplies two of the three feeds and posts more often, so without the cap
-// a busy afternoon is a column of one outlet.
-func TestPickCapsOneOutlet(t *testing.T) {
-	var all []dated
-	for i := 0; i < 20; i++ {
-		all = append(all, row("BBC", i))
-	}
-	for i := 0; i < 20; i++ {
-		all = append(all, row("NPR", i+30))
-	}
-
-	out := pick(all)
-	bbc := 0
-	for _, h := range out {
-		if h.Source == "BBC" {
-			bbc++
-		}
-	}
-	if bbc > wirePerSource {
-		t.Errorf("BBC took %d rows, cap is %d: %v", bbc, wirePerSource, sources(out))
-	}
-}
-
-// The cap is a preference, not a reason to serve a short panel.
-func TestPickFillsPastTheCapWhenItHasTo(t *testing.T) {
-	var all []dated
-	for i := 0; i < 14; i++ {
-		all = append(all, row("NPR", i))
-	}
-
-	out := pick(all)
-	if len(out) != wireShown {
-		t.Fatalf("want %d rows from a single outlet, got %d", wireShown, len(out))
-	}
-	// The fill has to keep the panel in time order rather than append what the
-	// cap passed over to the bottom.
-	// row names each headline in age order, so the panel is in time order when
-	// the titles come back ascending.
-	for i := 1; i < len(out); i++ {
-		if out[i-1].Title > out[i].Title {
-			t.Fatalf("rows are out of order: %v", sources(out))
-		}
-	}
-}
-
-func TestPickTakesWhatItHasWhenTheresLittle(t *testing.T) {
-	all := []dated{row("NPR", 1), row("BBC", 2)}
-
-	out := pick(all)
-	if len(out) != 2 {
-		t.Fatalf("want 2 rows, got %d", len(out))
-	}
-}
 
 func TestPromotionalKeepsRealNews(t *testing.T) {
 	keep := []string{
@@ -197,21 +96,6 @@ func TestDedupeCatchesTheSameStoryTwice(t *testing.T) {
 	b := "Trump $1 coin makes him first living president on US currency in a century"
 	if sameStory(significant(a), significant(b)) {
 		t.Errorf("read two stories as one: %q and %q", a, b)
-	}
-}
-
-func TestDedupeKeepsTheNewerCopy(t *testing.T) {
-	newer := row("BBC", 5)
-	newer.Title = "US billionaire Leon Black defies summons and sues Epstein panel"
-	older := row("NPR", 60)
-	older.Title = "Leon Black defies subpoena to testify in Epstein inquiry and sues House panel"
-
-	out := dedupe([]dated{newer, older})
-	if len(out) != 1 {
-		t.Fatalf("want 1 row, got %d", len(out))
-	}
-	if out[0].Source != "BBC" {
-		t.Errorf("want the newer copy, got %q", out[0].Source)
 	}
 }
 

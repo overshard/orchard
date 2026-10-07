@@ -57,6 +57,8 @@
   <div class="cards" data-market-cards>
     {{range .State.Market.Cards}}{{template "card" .}}{{end}}
   </div>
+
+  <div class="market-brief" data-brief-markets>{{template "market-brief" .State.Briefs.Markets}}</div>
 </section>
 
 <div class="band market-band">
@@ -322,18 +324,16 @@
 </div>
 
 <div class="band news-band">
-  <section class="panel wire" data-panel="wire">
+  <section class="panel today" data-panel="today">
     <div class="bracket tl"></div><div class="bracket tr"></div>
     <div class="bracket bl"></div><div class="bracket br"></div>
     <header class="panel-head">
-    <span class="idx">13</span>
-    <h2>WIRE</h2>
+      <span class="idx">13</span>
+      <h2>TODAY</h2>
       <span class="rule"></span>
-      <span class="panel-meta">NPR / BBC</span>
+      <span class="panel-meta" data-news-brief-meta>{{with .State.Briefs.News}}{{if .Points}}{{.Title}} / {{.Compiled}}{{end}}{{end}}</span>
     </header>
-    <ol class="headlines" data-wire>
-      {{range .State.Wire}}{{template "headline" .}}{{else}}<li class="empty">AWAITING WIRE</li>{{end}}
-  </ol>
+    <div data-news-brief>{{template "news-brief" .State.Briefs.News}}</div>
   </section>
 
   <section class="panel feed" data-panel="hn">

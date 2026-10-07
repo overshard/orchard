@@ -441,6 +441,13 @@ ceiling with a rule at six. Red stays on the pip and the word LIVE, the same as
 the banner. The bars fade toward their floor, because fourteen solid amber
 columns outweighed every figure on the page.
 
+**dash's model written text always says it was.** The markets line under the
+strip and the TODAY panel each end on a dim caps line naming the slot, when it
+was compiled, how many stories went in and that a local model wrote it. Sources
+are short amber tags after the text, the way the wire's were, and TODAY takes
+the wider column of the news band since it is prose and HN and Lobsters are
+headlines.
+
 **Seven panels only fit seven across.** dash's local band goes seven wide from
 1900px, where `main` widens, and four and then two below that, with UPLINK
 taking two cells and running its rows two across so neither leaves a hole.

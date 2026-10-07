@@ -123,22 +123,6 @@ func TestOnlySevereAlertsNotify(t *testing.T) {
 	}
 }
 
-// A dead feed hands its slots to older stories from the other outlet, and those
-// are not news just because the panel had not shown them yet.
-func TestOnlyFreshHeadlinesNotify(t *testing.T) {
-	now := time.Date(2026, 9, 28, 15, 0, 0, 0, time.UTC)
-	wire := []Headline{
-		{Title: "New", URL: "https://example.test/new", Source: "NPR", posted: now.Add(-20 * time.Minute)},
-		{Title: "Old", URL: "https://example.test/old", Source: "BBC", posted: now.Add(-5 * time.Hour)},
-	}
-	got := wireNotices(wire, now)
-	if len(got) != 1 || got[0].ID != "news:https://example.test/new" || got[0].URL == "" {
-		t.Errorf("notices = %+v", got)
-	}
-}
-
-// The panel labels a row TODAY and then YESTERDAY, so the id has to come from
-// the date or a report would notify again at midnight.
 func TestEarningsNoticeIDsUseTheDate(t *testing.T) {
 	row := Earning{Symbol: "NVDA", Name: "NVIDIA", Day: "TODAY", Verdict: "BEAT", Actual: "$1.64", Forecast: "$1.60", date: "2026-09-28"}
 	next := row

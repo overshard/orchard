@@ -346,10 +346,10 @@ main {
   grid-template-columns: repeat(7, 1fr);
 }
 
-// The three feeds on a row of their own. Equal thirds puts a headline on about
-// sixty characters, which is where prose stops being a chore to scan.
+// TODAY is prose and the two link feeds are headlines, so it takes the wider
+// column and they keep about sixty characters a line.
 .news-band {
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 1.4fr 1fr 1fr;
 }
 
 // Panels ---------------------------------------------------------------------
@@ -1975,44 +1975,79 @@ main {
   .empty { margin: 0; color: var(--dim); font-size: 11px; letter-spacing: var(--track); }
 }
 
-// Wire -----------------------------------------------------------------------
+// Briefs ---------------------------------------------------------------------
 
-// Source, headline, age, on one line. The boxed pill on a line of its own under
-// each headline gave every row a different height and read as a stack of cards
-// rather than a wire. Same three column shape the earnings and story rows use.
-.headlines {
+// The model's summaries. Prose rather than figures, so they get the body size
+// and the sources sit after the text as short amber tags like the wire's were.
+.src {
+  font-size: 9px;
+  letter-spacing: var(--track);
+  color: var(--amber-dim);
+  white-space: nowrap;
+  &:hover { color: var(--amber); }
+}
+
+.market-brief {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+
+  .empty { margin: 0; color: var(--dim); font-size: 11px; letter-spacing: var(--track); }
+}
+
+.brief-lines {
   list-style: none;
   margin: 0;
   padding: 0;
 
   li {
     display: grid;
-    grid-template-columns: 38px 1fr auto;
+    grid-template-columns: 74px 1fr auto;
     align-items: baseline;
     column-gap: 10px;
-    padding: 7px 0;
+    padding: 3px 0;
+  }
+
+  .tag { font-size: 9px; letter-spacing: var(--track); color: var(--amber); }
+  .txt { color: var(--text); font-size: 13px; line-height: 1.45; }
+  .srcs { display: inline-flex; gap: 8px; }
+}
+
+.brief-meta {
+  margin: 6px 0 0;
+  font-size: 9px;
+  letter-spacing: var(--track);
+  color: var(--dim);
+}
+
+.brief {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li {
+    padding: 8px 0;
     border-bottom: 1px solid var(--line);
     &:last-child { border-bottom: 0; }
   }
 
-  .tag {
-    font-size: 9px;
-    letter-spacing: var(--track);
-    color: var(--amber-dim);
-    white-space: nowrap;
+  .txt { margin: 0; color: var(--text); font-size: 13px; line-height: 1.45; }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 9px;
+    margin-top: 4px;
   }
 
-  a { color: var(--text); font-size: 13px; line-height: 1.4; }
-  a:hover { color: var(--amber); }
+  .cov { font-size: 9px; letter-spacing: var(--track); color: var(--dim); }
+  .note { font-size: 9px; letter-spacing: var(--track); color: var(--amber); }
+}
 
-  .age { font-size: 11px; color: var(--dim); white-space: nowrap; }
-
-  li.empty {
-    display: block;
-    color: var(--dim);
-    font-size: 11px;
-    letter-spacing: var(--track);
-  }
+.today {
+  .empty { margin: 0; color: var(--dim); font-size: 11px; letter-spacing: var(--track); }
+  .footnote { margin: 10px 0 0; font-size: 9px; letter-spacing: var(--track); color: var(--dim); }
 }
 
 // Traffic meter --------------------------------------------------------------
@@ -2692,9 +2727,10 @@ main {
     .rule { display: none; }
   }
 
-  // The wire keeps its three columns down here, the source is four characters
-  // and stacking it above the headline is what made these rows look like cards.
-  .headlines li { grid-template-columns: 32px 1fr auto; column-gap: 8px; }
+  // The source tags drop under the line, since three of them beside the text
+  // leave it a word wide.
+  .brief-lines li { grid-template-columns: 58px 1fr; column-gap: 8px; }
+  .brief-lines .srcs { grid-column: 2; }
 
   // Three gauges still fit at this width, but a band like SENSITIVE GROUPS has
   // to be allowed onto a second line rather than pushing the cell wider.
