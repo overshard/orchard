@@ -595,9 +595,9 @@ const neutralRules = `Rules:
 // the point it wrote calls a trial politics. Labelling the list on its own first
 // is an easier job, so the skipping happens in Go before the summary.
 var newsCategories = []string{"us_politics", "world", "economy", "markets", "technology", "disaster",
-	"security", "culture", "crime_or_court", "human_interest", "sport", "celebrity", "local"}
+	"security", "culture", "crime_or_court", "incident", "human_interest", "sport", "celebrity", "local"}
 
-var minor = []string{"crime_or_court", "human_interest", "sport", "celebrity", "local"}
+var minor = []string{"crime_or_court", "incident", "human_interest", "sport", "celebrity", "local"}
 
 // mainstream is how many outlets have to carry a minor story before it counts
 // as mainstream culture anyway, the way the Lindsay Clancy trial was.
@@ -698,6 +698,7 @@ func (b *Briefer) classify(ctx context.Context, events []cluster, now time.Time)
 - us_politics: Congress, the White House, federal agencies and policy, elections, parties.
 - crime_or_court: a criminal case, arrest, trial, sentencing or execution of particular people, even when officials are involved.
 - security: war, terrorism, the military and intelligence, when it is about a country and not one suspect.
+- incident: a shooting, attack, crash, fire or accident with a handful of victims, in any country, that changes nothing beyond the place it happened.
 - human_interest: one person's or family's story.
 - local: a story about one city or town.
 The rest mean what they say.`

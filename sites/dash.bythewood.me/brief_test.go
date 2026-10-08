@@ -307,6 +307,10 @@ func TestKeepMajor(t *testing.T) {
 	if len(got) != 2 || len(got[0].outlets()) != 7 {
 		t.Errorf("kept %d, want the trial everyone ran and the Fed", len(got))
 	}
+	poland := cluster{stories: []story{{source: "REUTERS", title: "One dead, two injured in school attack"}}}
+	if got := keepMajor([]cluster{poland, fed}, []string{"incident", "economy"}); len(got) != 1 {
+		t.Errorf("kept %d, want the school attack dropped as an incident", len(got))
+	}
 	if len(keepMajor([]cluster{trial, fed}, []string{"economy"})) != 2 {
 		t.Error("a short label list should keep everything")
 	}
