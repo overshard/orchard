@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"html"
 	"log/slog"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -69,15 +71,12 @@ type briefSlot struct {
 
 	// How far back a story may be and still count, from the slot.
 	reach time.Duration
-
-	// What the markets lines are about, one label each, in order.
-	marketLines []string
 }
 
 var briefSlots = []briefSlot{
-	{kind: "morning", hour: 7, reach: 24 * time.Hour, marketLines: []string{"YESTERDAY", "TODAY"}},
-	{kind: "midday", hour: 11, reach: 6 * time.Hour, marketLines: []string{"SO FAR"}},
-	{kind: "close", hour: 16, minute: 5, reach: 11 * time.Hour, marketLines: []string{"SESSION", "READ", "AHEAD"}},
+	{kind: "morning", hour: 7, reach: 24 * time.Hour},
+	{kind: "midday", hour: 11, reach: 6 * time.Hour},
+	{kind: "close", hour: 16, minute: 5, reach: 11 * time.Hour},
 }
 
 const (
@@ -117,8 +116,10 @@ type Point struct {
 	Text  string `json:"text"`
 	Links []Link `json:"links"`
 
-	// higher, lower or mixed on the lines that look forward.
+	// higher, lower or mixed on the lines that look forward, and up, down or
+	// flat on the ones that already happened, which also carry the move.
 	Lean string `json:"lean,omitempty"`
+	Move string `json:"move,omitempty"`
 
 	// Outlets that carried it per AllSides lean, like "L1 C3 R1".
 	Coverage string `json:"coverage,omitempty"`
@@ -833,9 +834,9 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 	b.store.refreshBoard(ctx, b.guard)
 
 	now := time.Now()
-	// A Saturday or Sunday has little market news of its own, so a weekend
-	// brief reads back to Friday morning.
-	reach := slot.reach
+	// YESTERDAY needs the stories about yesterday's close whatever the slot,
+	// and a weekend brief reads back to Friday morning.
+	reach := max(slot.reach, 30*time.Hour)
 	if weekend(at) {
 		reach = max(reach, 72*time.Hour)
 	}
@@ -844,32 +845,28 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 		return Brief{}, fmt.Errorf("only %d events", len(events))
 	}
 
+	b.store.refreshSignal(ctx, b.guard)
 	b.store.mu.RLock()
 	h := b.store.history
 	b.store.mu.RUnlock()
 	st := b.store.Snapshot()
 
-	var asks []string
-	labels := slot.marketLines
-	switch {
-	case weekend(at):
-		asks = []string{
-			"how last week ended for stocks and the main reason given",
-			"which way the market as a whole leans for Monday and the two or three biggest market-wide reasons",
+	lines := marketLines(h, st.Market.Session, at)
+	asks := make([]string, len(lines))
+	releases := fetchReleases(ctx, b.guard)
+	var calendar strings.Builder
+	for i, l := range lines {
+		asks[i] = l.ask
+		if !l.forward {
+			continue
 		}
-		labels = []string{"LAST WEEK", "MONDAY"}
-	case slot.kind == "morning":
-		asks = []string{
-			"how the previous session went and the main reason given for it",
-			"which way the market as a whole leans today and the two or three biggest market-wide reasons",
+		fmt.Fprintf(&calendar, "%s, %s:\n", l.label, l.day.Format("Monday January 2"))
+		notes := sessionNotes(l.day, releases, vixLevel(st))
+		if len(notes) == 0 {
+			calendar.WriteString("- Nothing scheduled and no calendar pattern.\n")
 		}
-	case slot.kind == "midday":
-		asks = []string{"how today's session is going so far and the main reason given for it"}
-	default:
-		asks = []string{
-			"how today's session closed and the main reason given for it",
-			"the broader read: what led and lagged, rates, and whether today fits the recent trend",
-			"which way the market as a whole leans for tomorrow and the two or three biggest market-wide reasons",
+		for _, n := range notes {
+			calendar.WriteString("- " + n + "\n")
 		}
 	}
 	var want strings.Builder
@@ -881,14 +878,17 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 - Each line is one short sentence of at most 25 words. Name companies and events, never just "earnings" or "data".
 - Quote figures exactly as given in the numbers. Never compute or invent a figure.
 - A reason for a move has to come from a story, and is cited. If no story gives one, say what moved and leave the reason out.
+- Each story says how long ago it ran. Explain a session only with stories from around that session, so a story about this morning's futures is never the reason for yesterday's close.
 - No advice, nothing like "investors should".
-- The line asking which way things lean is about the whole market, never single companies. Its reasons come from market-wide drivers: futures, Treasury yields and the Fed, scheduled economic data, oil, the VIX and the recent trend, and geopolitical news. Mention a company only if it is one of the very largest in the S&P 500. It sets "lean" to higher, lower or mixed, for which way its reasons point on balance, and names each reason and which way it pushes, like "Futures are flat, but yields at multi-decade highs and a rising VIX weigh on stocks."
+- A line asking which way things lean is about the whole market, never single companies. Its reasons come from market-wide drivers: futures, Treasury yields and the Fed, the calendar and patterns listed for that day, oil, the VIX and the recent trend, and geopolitical news. A scheduled Fed decision or big release always gets named. The patterns are mild tilts, so they settle a close call and never outweigh the news. Mention a company only if it is one of the very largest in the S&P 500. It sets "lean" to higher, lower or mixed, for which way its reasons point on balance, and names each reason and which way it pushes, like "Futures are flat, but yields at multi-decade highs and a rising VIX weigh on stocks."
 - Do not write the lean itself into the text, the page shows it beside the line. The text is only the reasons.
-- Every other line sets "lean" to none and makes no prediction.`
+- The line for the next session names what the calendar has for that day, or says nothing major is scheduled, and never repeats the line before it.
+- A line about a session that already happened gives the main reason for its move, and leaves out the direction and the percent, since the page shows them beside it.
+- Every line that is not asking which way things lean sets "lean" to none and makes no prediction.`
 
-	user := fmt.Sprintf("It is %s Eastern.\n\n%s\nNumbers right now:\n%s\nStories, most widely covered first:\n%s",
+	user := fmt.Sprintf("It is %s Eastern.\n\n%s\nNumbers right now:\n%s\nCalendar and patterns:\n%s\nStories, most widely covered first:\n%s",
 		at.In(easternTime()).Format("15:04 on Monday, January 2 2006"), want.String(),
-		marketFacts(st, h, slot), clusterList(events, now))
+		marketFacts(st, h, at), calendar.String(), clusterList(events, now))
 
 	var out struct {
 		Points []struct {
@@ -906,13 +906,20 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 		brief.Title = "WEEKEND"
 	}
 	for i, p := range out.Points {
+		if i >= len(lines) {
+			break
+		}
+		l := lines[i]
 		pt := cite(events, p.Sources)
 		pt.Text = tidy(p.Text)
 		if pt.Text == "" {
 			continue
 		}
-		pt.Label = labels[min(i, len(labels)-1)]
-		if forward(pt.Label) && p.Lean != "none" {
+		pt.Label = l.label
+		switch {
+		case l.move != "":
+			pt.Lean, pt.Move = l.dir, l.move
+		case l.forward && p.Lean != "none":
 			pt.Lean = p.Lean
 		}
 		brief.Points = append(brief.Points, pt)
@@ -925,8 +932,21 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 
 // marketFacts is everything on the page the model may quote, written out the
 // way the cards show it so a figure in the summary matches the one above it.
-func marketFacts(st State, h *history, slot briefSlot) string {
+func marketFacts(st State, h *history, at time.Time) string {
 	var b strings.Builder
+	if h != nil {
+		today := at.In(easternTime()).Format("2006-01-02")
+		var moves []string
+		bars := dailyBars(h, easternTime())
+		for i := max(1, len(bars)-5); i < len(bars); i++ {
+			if bars[i].date < today {
+				moves = append(moves, fmt.Sprintf("%s %+.2f%%", bars[i].day.Format("Mon Jan 2"), (bars[i].close-bars[i-1].close)/bars[i-1].close*100))
+			}
+		}
+		if len(moves) > 0 {
+			fmt.Fprintf(&b, "S&P 500 recent closes, oldest first: %s\n", strings.Join(moves, ", "))
+		}
+	}
 	m := st.Market
 	fmt.Fprintf(&b, "Session: %s %s\n", m.Session, m.Phase)
 	for _, c := range m.Cards {
@@ -938,10 +958,6 @@ func marketFacts(st State, h *history, slot briefSlot) string {
 			fmt.Fprintf(&b, ", %s", strings.ToLower(c.Note))
 		}
 		b.WriteString("\n")
-	}
-	if (slot.kind == "morning" || weekend(time.Now())) && h != nil && len(h.closes) >= 2 {
-		last, prev := h.closes[len(h.closes)-1], h.closes[len(h.closes)-2]
-		fmt.Fprintf(&b, "S&P 500 previous session close: %.2f, %+.2f%%\n", last, (last-prev)/prev*100)
 	}
 	if m.Drawdown != "" {
 		fmt.Fprintf(&b, "S&P 500 from its 52 week high: %s\n", m.Drawdown)
@@ -984,10 +1000,6 @@ func marketFacts(st State, h *history, slot briefSlot) string {
 func newBrief(slot briefSlot, at time.Time, events []cluster) Brief {
 	return Brief{Kind: slot.kind, Title: slot.title(), Slot: at.Unix(), Stories: storyCount(events),
 		Outlets: outletNames(events), Compiled: time.Now().In(easternTime()).Format("15:04 MST")}
-}
-
-func forward(label string) bool {
-	return label == "TODAY" || label == "AHEAD" || label == "MONDAY"
 }
 
 func session(when string) string {
@@ -1048,4 +1060,133 @@ func tidy(s string) string {
 	s = citeMarks.ReplaceAllString(s, "")
 	s = strings.NewReplacer(" — ", ", ", "—", ", ", " – ", ", ").Replace(s)
 	return strings.TrimSpace(s)
+}
+
+// marketLine is one line of the markets brief before the model writes it. A
+// session that already happened has its move worked out here from the daily
+// closes, so the up or down beside it is a fact and never the model's guess.
+type marketLine struct {
+	label   string
+	ask     string
+	forward bool
+	dir     string
+	move    string
+
+	// The session a forward line is about.
+	day time.Time
+}
+
+// marketLines is always the last session, today and the next, so the strip has
+// the same three answers at 7am as at 4pm. On a weekend it's Friday, the week
+// and Monday.
+func marketLines(h *history, session string, at time.Time) []marketLine {
+	et := easternTime()
+	now := at.In(et)
+	today := now.Format("2006-01-02")
+	next := nextWeekday(now)
+
+	var bars []dayBar
+	if h != nil {
+		bars = dailyBars(h, et)
+	}
+	before := slices.IndexFunc(bars, func(b dayBar) bool { return b.date >= today })
+	if before < 0 {
+		before = len(bars)
+	}
+	past, current := bars[:before], bars[before:]
+
+	if weekend(at) {
+		var lines []marketLine
+		if n := len(past); n >= 2 {
+			lines = append(lines, closedLine(dayName(past[n-1].day, now), past[n-1].close, past[n-2].close,
+				"the main reason given for the S&P 500's move on Friday"))
+		}
+		if n := len(past); n >= 6 {
+			lines = append(lines, closedLine("LAST WEEK", past[n-1].close, past[n-6].close,
+				"the main reason given for how stocks did over the past week"))
+		}
+		return append(lines, marketLine{label: dayName(next, now), forward: true, day: next,
+			ask: "which way the market as a whole leans for Monday and the two or three biggest market-wide reasons"})
+	}
+
+	var lines []marketLine
+	if n := len(past); n >= 2 {
+		day := past[n-1].day
+		lines = append(lines, closedLine(dayName(day, now), past[n-1].close, past[n-2].close,
+			"the main reason given for the S&P 500's move on "+day.Format("Monday")))
+	}
+	if len(current) > 0 && len(past) > 0 && session != "pre" {
+		l := closedLine("TODAY", current[0].close, past[len(past)-1].close,
+			"the main reason given for how today's session closed")
+		if session == "regular" {
+			l.move += " SO FAR"
+			l.ask = "the main reason given for how today's session is going so far"
+		}
+		lines = append(lines, l)
+	} else {
+		lines = append(lines, marketLine{label: "TODAY", forward: true, day: now,
+			ask: "which way the market as a whole leans today and the two or three biggest market-wide reasons"})
+	}
+	return append(lines, marketLine{label: dayName(next, now), forward: true, day: next,
+		ask: "which way the market as a whole leans for " + next.Format("Monday") + ", the next session, and the two or three biggest market-wide reasons"})
+}
+
+func closedLine(label string, close, prev float64, ask string) marketLine {
+	pct := (close - prev) / prev * 100
+	dir := "flat"
+	switch {
+	case pct >= 0.1:
+		dir = "up"
+	case pct <= -0.1:
+		dir = "down"
+	}
+	return marketLine{label: label, ask: ask, dir: dir, move: fmt.Sprintf("%.2f%%", math.Abs(pct))}
+}
+
+type dayBar struct {
+	date  string
+	day   time.Time
+	close float64
+}
+
+func dailyBars(h *history, et *time.Location) []dayBar {
+	var out []dayBar
+	for i, c := range h.closes {
+		if i >= len(h.times) {
+			break
+		}
+		d := time.Unix(h.times[i], 0).In(et)
+		out = append(out, dayBar{d.Format("2006-01-02"), d, c})
+	}
+	return out
+}
+
+func nextWeekday(t time.Time) time.Time {
+	t = t.AddDate(0, 0, 1)
+	for weekend(t) {
+		t = t.AddDate(0, 0, 1)
+	}
+	return t
+}
+
+// dayName is YESTERDAY or TOMORROW when it is one, and the weekday when it is
+// further, so Monday's brief says FRIDAY rather than calling it yesterday.
+func dayName(day, now time.Time) string {
+	switch day.Format("2006-01-02") {
+	case now.AddDate(0, 0, -1).Format("2006-01-02"):
+		return "YESTERDAY"
+	case now.AddDate(0, 0, 1).Format("2006-01-02"):
+		return "TOMORROW"
+	}
+	return strings.ToUpper(day.Format("Monday"))
+}
+
+func vixLevel(st State) float64 {
+	for _, c := range st.Market.Cards {
+		if c.Key == "vix" && !c.Unavailable {
+			v, _ := strconv.ParseFloat(strings.ReplaceAll(c.Price, ",", ""), 64)
+			return v
+		}
+	}
+	return 0
 }

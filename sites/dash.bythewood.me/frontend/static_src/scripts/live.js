@@ -605,7 +605,7 @@ function renderMarketBrief(brief) {
     const li = el("li");
     const txt = el("span", "txt");
     if (p.lean) {
-      const lean = el("span", "lean", `LEANS ${p.lean.toUpperCase()}`);
+      const lean = el("span", "lean", p.move ? `${p.lean.toUpperCase()} ${p.move}` : `LEANS ${p.lean.toUpperCase()}`);
       lean.dataset.lean = p.lean;
       txt.append(lean, " ");
     }

@@ -446,7 +446,9 @@ strip and the TODAY panel each end on a dim caps line naming the slot, when it
 was compiled, how many stories went in and that a local model wrote it. Sources
 are short amber tags after the text, the way the wire's were, and TODAY takes
 the wider column of the news band since it is prose and HN and Lobsters are
-headlines.
+headlines. TODAY is numbered like the feeds, but by impact. The markets lines
+say `UP 0.22%` beside a session that happened and `LEANS LOWER` beside one that
+hasn't, green, red or amber either way, so a fact and a guess never look alike.
 
 **UPLINK goes at the bottom, full width.** It grew to more rows than any
 readout beside it and stretched the whole local band to match, so it moved under
