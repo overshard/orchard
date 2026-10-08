@@ -448,11 +448,11 @@ are short amber tags after the text, the way the wire's were, and TODAY takes
 the wider column of the news band since it is prose and HN and Lobsters are
 headlines.
 
-**Seven panels only fit seven across.** dash's local band goes seven wide from
-1900px, where `main` widens, and four and then two below that, with UPLINK
-taking two cells and running its rows two across so neither leaves a hole.
-UPLINK is the one stretched since a list of names and counts loses nothing to
-width, where ON AIR stretched to two cells was fourteen bars in an empty box.
+**UPLINK goes at the bottom, full width.** It grew to more rows than any
+readout beside it and stretched the whole local band to match, so it moved under
+the news band on its own and runs its rows as many across as fit. That leaves the
+local band six panels, six wide from 1900px where `main` widens, then three and
+then two, so no width leaves a hole.
 
 **Say a thing once.** That NWS headline was the event name and the end time
 again in a sentence, so the longest string on the page was mostly a repeat of
