@@ -2018,9 +2018,9 @@ main {
   font-size: 9px;
   letter-spacing: var(--track);
   color: var(--dim);
-  &[data-lean="higher"] { color: var(--up); }
-  &[data-lean="lower"] { color: var(--down); }
-  &[data-lean="mixed"] { color: var(--amber); }
+  &[data-lean="higher"], &[data-lean="up"] { color: var(--up); }
+  &[data-lean="lower"], &[data-lean="down"] { color: var(--down); }
+  &[data-lean="mixed"], &[data-lean="flat"] { color: var(--amber); }
 }
 
 .brief-meta {

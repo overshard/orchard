@@ -325,3 +325,45 @@ func TestMostImpact(t *testing.T) {
 		t.Errorf("kept %d, want the trial everyone ran too but not the trial or the attack", len(got))
 	}
 }
+
+func TestMarketLines(t *testing.T) {
+	et := easternTime()
+	bar := func(d int, close float64) (int64, float64) {
+		return time.Date(2026, 10, d, 9, 30, 0, 0, et).Unix(), close
+	}
+	h := &history{}
+	for _, b := range [][2]float64{{1, 100}, {2, 101}, {5, 100}, {6, 102}, {7, 101}, {8, 101.5}} {
+		ts, c := bar(int(b[0]), b[1])
+		h.times, h.closes = append(h.times, ts), append(h.closes, c)
+	}
+	type want struct{ label, lean, move string }
+	check := func(name string, got []marketLine, w []want) {
+		t.Helper()
+		if len(got) != len(w) {
+			t.Fatalf("%s: %d lines, want %d", name, len(got), len(w))
+		}
+		for i := range w {
+			if got[i].label != w[i].label || got[i].dir != w[i].lean || got[i].move != w[i].move {
+				t.Errorf("%s line %d: %s %s %s, want %v", name, i, got[i].label, got[i].dir, got[i].move, w[i])
+			}
+		}
+	}
+
+	// Thursday before the open has no bar for today yet as far as it cares.
+	check("thursday morning", marketLines(h, "pre", time.Date(2026, 10, 8, 7, 0, 0, 0, et)), []want{
+		{"YESTERDAY", "down", "0.98%"}, {"TODAY", "", ""}, {"TOMORROW", "", ""},
+	})
+	check("thursday midday", marketLines(h, "regular", time.Date(2026, 10, 8, 11, 0, 0, 0, et)), []want{
+		{"YESTERDAY", "down", "0.98%"}, {"TODAY", "up", "0.50% SO FAR"}, {"TOMORROW", "", ""},
+	})
+	check("thursday close", marketLines(h, "post", time.Date(2026, 10, 8, 16, 5, 0, 0, et)), []want{
+		{"YESTERDAY", "down", "0.98%"}, {"TODAY", "up", "0.50%"}, {"TOMORROW", "", ""},
+	})
+	h.times, h.closes = h.times[:3], h.closes[:3]
+	check("monday morning", marketLines(h, "pre", time.Date(2026, 10, 5, 7, 0, 0, 0, et)), []want{
+		{"FRIDAY", "up", "1.00%"}, {"TODAY", "", ""}, {"TOMORROW", "", ""},
+	})
+	if got := marketLines(h, "closed", time.Date(2026, 10, 3, 9, 0, 0, 0, et)); got[len(got)-1].label != "MONDAY" || !got[len(got)-1].forward {
+		t.Errorf("saturday should end on a Monday lean, got %+v", got)
+	}
+}

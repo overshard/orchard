@@ -398,7 +398,7 @@ number rather than the NWS id that changes with every update, and a headline is
 its URL, which is what keeps a restart or a reconnect from notifying twice.
 
 **The briefs are the one thing on dash a model writes.** At 7:00, 11:00 and
-16:05 New York time `brief.go` reads eleven news feeds and seven market feeds,
+16:05 New York time `brief.go` reads sixteen news feeds and seven market feeds,
 groups the same event across outlets, ranks the groups by how many outlets
 carried them, and asks llm.bythewood.me for a markets line and a TODAY summary
 under a JSON schema. The model cites events by number and Go turns those into
@@ -407,10 +407,21 @@ Each feed carries its AllSides lean, which is counted per point (`L1 C3 R1`) and
 never shown to the model, and a story only one side's outlets ran is marked as
 that rather than left out. Common words of the day are dropped before grouping,
 or two stories about the administration share four words and become one. The
-model labels every event by topic in its own call first, and crime, trials,
-human interest, sport, celebrity and local stories are dropped in Go unless
-seven or more outlets ran them, because told to skip a trial in the summary
-prompt it writes one up anyway and calls it politics. The last two briefs live
+model rates every event in its own calls first, twenty at a time with each
+rating carrying the event's number, since a single list of sixty drifted a place
+partway down. A rating is a topic and an impact from 1 to 5 on an ordinary
+American's money and life. Crime, trials, one-off incidents, human interest,
+sport, celebrity and local stories are dropped in Go unless seven or more
+outlets ran them, because told to skip a trial in the summary prompt it writes
+one up anyway and calls it politics, and so is anything rated 1. Go keeps the
+twelve highest rated and the writer only rewrites them as headlines, so the
+order on the page is the impact order. The markets line is always the last
+session, today and the next. A session that already happened gets its up or down
+from the daily closes in Go, and the forward lines lean on the Fed's meeting
+dates (copied into `calendar.go`, add next year's in December), the BLS and BEA
+release calendars and two documented patterns, the turn of the month and the
+drift into a Fed decision. BLS answers 403 to any User-Agent without a contact
+address in it, browsers included. The last two briefs live
 in `briefs.json` on the volume, so a deploy shows them rather than nothing, and
 a missed slot runs on start. `LLM_KEY` in `.env` from `make dash-key`, and
 without it the panels say the briefs are off.
