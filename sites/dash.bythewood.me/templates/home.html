@@ -297,30 +297,6 @@
       <p class="footnote" data-systems-note>{{if .State.Systems.Window}}{{.State.Systems.Requests}} REQ / {{.State.Systems.Errors}} ERR / P95 / LAST {{.State.Systems.Window}}H{{end}}</p>
     </section>
 
-
-    <section class="panel uplink" data-panel="uplink">
-      <div class="bracket tl"></div><div class="bracket tr"></div>
-      <div class="bracket bl"></div><div class="bracket br"></div>
-      <header class="panel-head">
-        <span class="idx">12</span>
-        <h2>UPLINK</h2>
-        <span class="rule"></span>
-        <span class="panel-meta">UPSTREAM</span>
-      </header>
-      <ul class="rows" data-feeds>
-        {{range .State.Feeds}}
-        <li data-state="{{.State}}">
-          <span class="pip"></span>
-          <span class="name">{{.Name}}</span>
-          <span class="bar"></span>
-          <span class="age">{{.Age}}</span>
-          <span class="load" data-hot="{{if ge .Load 50}}yes{{else}}no{{end}}">{{.Used}}/{{.Budget}}</span>
-        </li>
-        {{end}}
-      </ul>
-      <p class="footnote">CALLS THIS HOUR / HOURLY CEILING</p>
-    </section>
-
 </div>
 
 <div class="band news-band">
@@ -328,7 +304,7 @@
     <div class="bracket tl"></div><div class="bracket tr"></div>
     <div class="bracket bl"></div><div class="bracket br"></div>
     <header class="panel-head">
-      <span class="idx">13</span>
+      <span class="idx">12</span>
       <h2>TODAY</h2>
       <span class="rule"></span>
       <span class="panel-meta" data-news-brief-meta>{{with .State.Briefs.News}}{{if .Points}}{{.Title}} / {{.Compiled}}{{end}}{{end}}</span>
@@ -340,7 +316,7 @@
     <div class="bracket tl"></div><div class="bracket tr"></div>
     <div class="bracket bl"></div><div class="bracket br"></div>
     <header class="panel-head">
-      <span class="idx">14</span>
+      <span class="idx">13</span>
       <h2>HACKER NEWS</h2>
       <span class="rule"></span>
       <a class="panel-meta" href="https://news.ycombinator.com" rel="noopener noreferrer" target="_blank">NEWS.YCOMBINATOR.COM</a>
@@ -352,7 +328,7 @@
     <div class="bracket tl"></div><div class="bracket tr"></div>
     <div class="bracket bl"></div><div class="bracket br"></div>
     <header class="panel-head">
-      <span class="idx">15</span>
+      <span class="idx">14</span>
       <h2>LOBSTERS</h2>
       <span class="rule"></span>
       <a class="panel-meta" href="https://lobste.rs" rel="noopener noreferrer" target="_blank">LOBSTE.RS</a>
@@ -360,5 +336,30 @@
     <div data-lobsters>{{template "stories" .State.Lobsters}}</div>
   </section>
 
+</div>
+
+<div class="band uplink-band">
+  <section class="panel uplink" data-panel="uplink">
+    <div class="bracket tl"></div><div class="bracket tr"></div>
+    <div class="bracket bl"></div><div class="bracket br"></div>
+    <header class="panel-head">
+      <span class="idx">15</span>
+      <h2>UPLINK</h2>
+      <span class="rule"></span>
+      <span class="panel-meta">UPSTREAM</span>
+    </header>
+    <ul class="rows" data-feeds>
+      {{range .State.Feeds}}
+      <li data-state="{{.State}}">
+        <span class="pip"></span>
+        <span class="name">{{.Name}}</span>
+        <span class="bar"></span>
+        <span class="age">{{.Age}}</span>
+        <span class="load" data-hot="{{if ge .Load 50}}yes{{else}}no{{end}}">{{.Used}}/{{.Budget}}</span>
+      </li>
+      {{end}}
+    </ul>
+    <p class="footnote">CALLS THIS HOUR / HOURLY CEILING</p>
+  </section>
 </div>
 {{end}}

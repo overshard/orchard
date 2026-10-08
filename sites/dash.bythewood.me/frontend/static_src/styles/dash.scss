@@ -339,11 +339,11 @@ main {
   grid-template-columns: 0.8fr 1.05fr 1.15fr 1.4fr;
 }
 
-// The seven readouts, all figures rather than prose, so they take equal width.
-// Seven across only fits once main widens past 1900, and below that the band
+// The six readouts, all figures rather than prose, so they take equal width.
+// Six across only fits once main widens past 1900, and below that the band
 // wraps, which is in the responsive rules at the bottom.
 .local-band {
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(6, 1fr);
 }
 
 // TODAY is prose and the two link feeds are headlines, so it takes the wider
@@ -963,15 +963,16 @@ main {
   }
 }
 
+// UPLINK grew past what fits in a cell beside the readouts, so it sits alone at
+// the bottom and runs its rows as many across as the width allows.
 .uplink {
   .rows {
     list-style: none;
     margin: 0;
     padding: 0;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-around;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr));
+    column-gap: 28px;
 
     li {
       display: flex;
@@ -2658,21 +2659,9 @@ main {
 
 // Laptop. Eight cards across stops being readable well before the layout
 // breaks, so they go to two rows of four first.
-// Seven panels leave a hole on any grid narrower than seven, so UPLINK takes
-// two cells wherever the band wraps and runs its rows two across. It is the
-// one list here that loses nothing to width.
+// Six panels wrap to three and then two below that, so neither leaves a hole.
 @media (max-width: 1899px) {
-  .local-band { grid-template-columns: repeat(4, 1fr); }
-}
-
-@media (min-width: 1025px) and (max-width: 1899px) {
-  .local-band > .uplink { grid-column: span 2; }
-  .uplink .rows {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    align-content: space-around;
-    column-gap: 28px;
-  }
+  .local-band { grid-template-columns: repeat(3, 1fr); }
 }
 
 // Alone on its row and full width, ON AIR puts its readings two by two.
