@@ -86,13 +86,16 @@
 {{define "news-brief"}}
 {{- if .Points}}
 <ol class="brief">
-  {{range .Points}}<li>
-    <p class="txt">{{.Text}}</p>
-    <div class="meta">{{template "brief-links" .Links}}{{if .Coverage}}<span class="cov">{{.Coverage}}</span>{{end}}{{if .Note}}<span class="note">{{.Note}}</span>{{end}}</div>
+  {{range $i, $p := .Points}}<li>
+    <span class="rank">{{printf "%02d" (inc $i)}}</span>
+    <div class="body">
+      <p class="txt">{{$p.Text}}</p>
+      <div class="meta">{{template "brief-links" $p.Links}}{{if $p.Coverage}}<span class="cov">{{$p.Coverage}}</span>{{end}}{{if $p.Note}}<span class="note">{{$p.Note}}</span>{{end}}</div>
+    </div>
   </li>
   {{end}}
 </ol>
-<p class="footnote">{{if .Waiting}}{{.Waiting}}. {{end}}SUMMARISED BY A LOCAL MODEL FROM {{.Stories}} STORIES. L C R COUNTS THE OUTLETS THAT CARRIED IT BY ALLSIDES LEAN.</p>
+<p class="footnote">{{if .Waiting}}{{.Waiting}}. {{end}}SUMMARISED BY A LOCAL MODEL FROM {{.Stories}} STORIES, MOST IMPACT FIRST. L C R COUNTS THE OUTLETS THAT CARRIED IT BY ALLSIDES LEAN.</p>
 {{- else if eq .Status "off"}}<p class="empty">BRIEF OFF, NO MODEL KEY</p>
 {{- else}}<p class="empty">{{if .Waiting}}{{.Waiting}}{{else}}AWAITING BRIEF{{end}}</p>{{end}}
 {{end}}

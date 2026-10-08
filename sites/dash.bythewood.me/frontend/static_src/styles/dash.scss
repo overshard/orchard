@@ -2036,10 +2036,24 @@ main {
   padding: 0;
 
   li {
+    display: flex;
+    gap: 10px;
     padding: 6px 0;
     border-bottom: 1px solid var(--line);
     &:last-child { border-bottom: 0; }
   }
+
+  // Ranked by the model's impact score, most first, so the number means
+  // something here where on the feeds it is the site's own order.
+  .rank {
+    font-size: 11px;
+    color: var(--faint);
+    padding-top: 1px;
+    flex: none;
+    width: 18px;
+  }
+
+  .body { min-width: 0; }
 
   .txt { margin: 0; color: var(--text); font-size: 12px; line-height: 1.4; }
 
