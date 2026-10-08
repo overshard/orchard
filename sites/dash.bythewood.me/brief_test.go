@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -288,30 +289,39 @@ func TestWidelyCarriedKeepsSinglesOnAQuietDay(t *testing.T) {
 	}
 
 	var busy []cluster
-	for i := 0; i < 12; i++ {
+	for i := 0; i < 24; i++ {
 		busy = append(busy, two)
 	}
 	busy = append(busy, one)
-	if got := widelyCarried(busy); len(got) != 12 {
-		t.Errorf("kept %d, want the 12 shared", len(got))
+	if got := widelyCarried(busy); len(got) != 24 {
+		t.Errorf("kept %d, want the 24 shared", len(got))
 	}
 }
 
-func TestKeepMajor(t *testing.T) {
+func TestMostImpact(t *testing.T) {
 	trial := cluster{stories: []story{{source: "AP", title: "Court denies stay"}, {source: "CBS"}}}
 	clancy := cluster{stories: []story{{source: "AP"}, {source: "REUTERS"}, {source: "WSJ"}, {source: "HILL"},
 		{source: "NPR"}, {source: "CBS"}, {source: "FOX"}}}
-	fed := cluster{stories: []story{{source: "AP"}, {source: "WSJ"}}}
-
-	got := keepMajor([]cluster{trial, clancy, fed}, []string{"crime_or_court", "crime_or_court", "economy"})
-	if len(got) != 2 || len(got[0].outlets()) != 7 {
-		t.Errorf("kept %d, want the trial everyone ran and the Fed", len(got))
-	}
+	fed := cluster{stories: []story{{source: "AP", title: "Fed holds"}, {source: "WSJ"}}}
 	poland := cluster{stories: []story{{source: "REUTERS", title: "One dead, two injured in school attack"}}}
-	if got := keepMajor([]cluster{poland, fed}, []string{"incident", "economy"}); len(got) != 1 {
-		t.Errorf("kept %d, want the school attack dropped as an incident", len(got))
+	envoy := cluster{stories: []story{{source: "NPR", title: "Envoy recalled"}}}
+	skipped := cluster{stories: []story{{source: "BBC", title: "Not rated"}}}
+
+	events := []cluster{trial, clancy, fed, poland, envoy, skipped}
+	ratings := []eventRating{
+		{1, "crime_or_court", 2}, {2, "crime_or_court", 2}, {3, "economy", 5},
+		{4, "world", 1}, {5, "world", 4}, {},
 	}
-	if len(keepMajor([]cluster{trial, fed}, []string{"economy"})) != 2 {
-		t.Error("a short label list should keep everything")
+	got := mostImpact(events, ratings, 3)
+	var titles []string
+	for _, c := range got {
+		titles = append(titles, c.lead().title)
+	}
+	want := []string{"Fed holds", "Envoy recalled", "Not rated"}
+	if !slices.Equal(titles, want) {
+		t.Errorf("got %q, want %q", titles, want)
+	}
+	if got := mostImpact(events, ratings, 10); len(got) != 4 {
+		t.Errorf("kept %d, want the trial everyone ran too but not the trial or the attack", len(got))
 	}
 }
