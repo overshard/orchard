@@ -54,6 +54,7 @@ type site struct {
 	tpl      *template.Template
 	client   *http.Client
 	upstream string
+	gpuProbe string
 	model    string
 	retain   time.Duration
 }
@@ -69,6 +70,7 @@ func main() {
 	var (
 		addr     = flag.String("addr", env("LLM_ADDR", listenAddr), "listen address")
 		upstream = flag.String("upstream", env("LLM_UPSTREAM", "http://swap:8091"), "llama-swap base url")
+		gpuProbe = flag.String("gpu", env("LLM_GPU", "http://gpu:8092"), "gpu probe base url")
 		model    = flag.String("model", env("LLM_MODEL", "local"), "the model name callers ask for")
 		dbPath   = flag.String("db", env("LLM_DB", "data/llm.db"), "database path")
 		retain   = flag.Duration("retain", 90*24*time.Hour, "how long a logged call is kept")
@@ -113,6 +115,7 @@ func main() {
 		auth:     web.NewAuthenticator(),
 		store:    store,
 		upstream: strings.TrimSuffix(*upstream, "/"),
+		gpuProbe: strings.TrimSuffix(*gpuProbe, "/"),
 		model:    *model,
 		retain:   *retain,
 		// No timeout on the client. A cold model load plus a long generation
@@ -153,6 +156,9 @@ func main() {
 	// it likes without keeping the weights awake.
 	mux.HandleFunc("GET /v1/running", s.requireKey(s.running))
 	mux.HandleFunc("POST /v1/unload", s.requireKey(s.unload))
+	// Whether the desktop is using the card, for callers that run on a timer
+	// and would rather wait than load a model on top of a game.
+	mux.HandleFunc("GET /v1/gpu", s.requireKey(s.gpu))
 
 	// Unkeyed, and it says nothing but whether this process is up. Asking the
 	// upstream here would wake the weights every thirty seconds and defeat the
