@@ -2013,6 +2013,15 @@ main {
   .srcs { display: inline-flex; gap: 8px; }
 }
 
+.lean {
+  font-size: 9px;
+  letter-spacing: var(--track);
+  color: var(--dim);
+  &[data-lean="higher"] { color: var(--up); }
+  &[data-lean="lower"] { color: var(--down); }
+  &[data-lean="mixed"] { color: var(--amber); }
+}
+
 .brief-meta {
   margin: 6px 0 0;
   font-size: 9px;

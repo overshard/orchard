@@ -603,13 +603,20 @@ function renderMarketBrief(brief) {
   const ul = el("ul", "brief-lines");
   for (const p of brief.points) {
     const li = el("li");
-    li.append(el("span", "tag", p.label || ""), el("span", "txt", p.text));
+    const txt = el("span", "txt");
+    if (p.lean) {
+      const lean = el("span", "lean", `LEANS ${p.lean.toUpperCase()}`);
+      lean.dataset.lean = p.lean;
+      txt.append(lean, " ");
+    }
+    txt.append(p.text);
+    li.append(el("span", "tag", p.label || ""), txt);
     const srcs = el("span", "srcs");
     srcs.append(...briefLinks(p.links));
     li.append(srcs);
     ul.append(li);
   }
-  const meta = el("p", "brief-meta", `${brief.title} BRIEF / COMPILED ${brief.compiled} / ${brief.stories} STORIES / LOCAL MODEL${brief.waiting ? ` / ${brief.waiting}` : ""}`);
+  const meta = el("p", "brief-meta", `${brief.title} BRIEF / COMPILED ${brief.compiled} / ${brief.stories} STORIES / LOCAL MODEL / A LEAN IS A READ, NOT A FORECAST${brief.waiting ? ` / ${brief.waiting}` : ""}`);
   host.replaceChildren(ul, meta);
 }
 
