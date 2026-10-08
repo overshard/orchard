@@ -33,6 +33,8 @@ type State struct {
 	Feeds     []Feed       `json:"feeds"`
 	Updated   string       `json:"updated"`
 	Guarded   []string     `json:"guarded"`
+	Ahead     []Upcoming   `json:"ahead"`
+	NextBrief string       `json:"next_brief"`
 
 	// What a browser with notifications on is told about, rebuilt by each
 	// poller from what it just fetched.
@@ -53,6 +55,10 @@ type Store struct {
 	// His archive and schedule as last fetched, which every banner poll
 	// rebuilds the ON AIR panel from.
 	past *twitchPast
+
+	// The BLS and BEA calendars, which the footer reads every minute and the
+	// markets brief reads three times a day.
+	releases []release
 
 	hub *Hub
 }
@@ -170,6 +176,11 @@ const (
 	marketIdle = 5 * time.Minute
 	newsEvery  = 5 * time.Minute
 
+	// Both calendars are set months ahead, so twice a day only catches a
+	// rescheduled release.
+	calendarEvery = 12 * time.Hour
+	aheadCount    = 4
+
 	// The check between full earnings polls, which only asks whether anything
 	// has printed since the last one, so a report is heard about within the
 	// quarter hour rather than up to six hours later.
@@ -185,6 +196,7 @@ const (
 func (s *Store) Prime(ctx context.Context, g *Guard) {
 	s.refreshSignal(ctx, g)
 	s.refreshMarket(ctx, g)
+	s.update(func(st *State) { st.NextBrief = nextBrief(time.Now()) })
 }
 
 // Run starts one goroutine per source and blocks until ctx is done. It must not
@@ -217,6 +229,7 @@ func (s *Store) Run(ctx context.Context, g *Guard) {
 	go s.loop(ctx, "streaming", nil, func() { s.refreshStreaming(ctx, g) })
 	go s.loop(ctx, "weather", nil, func() { s.refreshWeather(ctx, g) })
 	go s.loop(ctx, "systems", nil, func() { s.refreshSystems(ctx, g) })
+	go s.loop(ctx, "calendar", nil, func() { s.refreshCalendar(ctx, g) })
 
 	// The guard writes itself out on a timer rather than on every call, so a
 	// thirty second poll does not mean a file write per tick.
@@ -230,9 +243,14 @@ func (s *Store) Run(ctx context.Context, g *Guard) {
 				return
 			case <-t.C:
 				g.Flush()
+				s.mu.RLock()
+				rs := s.releases
+				s.mu.RUnlock()
 				s.update(func(st *State) {
 					st.Guarded = g.Status()
 					st.Feeds = g.Feeds(time.Now())
+					st.Ahead = ahead(rs, time.Now(), aheadCount)
+					st.NextBrief = nextBrief(time.Now())
 				})
 			}
 		}
@@ -264,6 +282,7 @@ func (s *Store) loop(ctx context.Context, name string, every func() time.Duratio
 		"streaming":  streamingEvery,
 		"weather":    weatherEvery,
 		"systems":    probeEvery,
+		"calendar":   calendarEvery,
 	}[name]
 
 	if every == nil {
@@ -537,4 +556,28 @@ func (s *Store) refreshSystems(ctx context.Context, g *Guard) {
 		st.Feeds = g.Feeds(time.Now())
 		st.Guarded = g.Status()
 	})
+}
+
+func (s *Store) refreshCalendar(ctx context.Context, g *Guard) {
+	rs := fetchReleases(ctx, g)
+	if len(rs) == 0 {
+		return
+	}
+	s.mu.Lock()
+	s.releases = rs
+	s.mu.Unlock()
+	s.update(func(st *State) { st.Ahead = ahead(rs, time.Now(), aheadCount) })
+}
+
+func (s *Store) releasesOrFetch(ctx context.Context, g *Guard) []release {
+	s.mu.RLock()
+	rs := s.releases
+	s.mu.RUnlock()
+	if len(rs) == 0 {
+		s.refreshCalendar(ctx, g)
+		s.mu.RLock()
+		rs = s.releases
+		s.mu.RUnlock()
+	}
+	return rs
 }

@@ -70,6 +70,8 @@
 </ol>
 {{end}}
 
+{{define "ahead"}}{{if .}}AHEAD{{range .}}<span class="ev"><b>{{.Label}}</b> {{.When}}</span>{{end}}{{end}}{{end}}
+
 {{define "brief-links"}}{{range .}}<a class="src" href="{{.URL}}" title="{{.Title}}" rel="noopener noreferrer" target="_blank">{{.Source}}</a>{{end}}{{end}}
 
 {{define "market-brief"}}

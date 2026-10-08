@@ -27,11 +27,6 @@ type PageData struct {
 	Analytics   bool
 	AnalyticsID string
 
-	// Every upstream the page reads, for the footer. Built from the same list
-	// the UPLINK panel is built from, since a hand written one goes out of date
-	// with nothing to notice.
-	Sources []string
-
 	// The tab's own wording, handed to the page so the script that keeps the
 	// title live does not carry a second copy of it.
 	TitleBase string
@@ -55,10 +50,12 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 		Favicon:     faviconHref,
 		Analytics:   !Staging,
 		AnalyticsID: analyticsID,
-		Sources:     sourceNames(),
 		TitleBase:   titleBase,
 		State:       s.store.Snapshot(),
 	}
+	// The store only refreshes this once a minute, and a cold load shouldn't
+	// wait for that.
+	data.State.NextBrief = nextBrief(time.Now())
 	s.renderer.Render(w, http.StatusOK, "home.html", data)
 }
 
@@ -182,7 +179,6 @@ func (s *site) notFound(w http.ResponseWriter, r *http.Request) {
 		Favicon:     faviconHref,
 		Analytics:   !Staging,
 		AnalyticsID: analyticsID,
-		Sources:     sourceNames(),
 		TitleBase:   titleBase,
 	}
 	s.renderer.Render(w, http.StatusNotFound, "notfound.html", data)
@@ -209,19 +205,3 @@ func sitemap(w http.ResponseWriter, r *http.Request) {
 
 // faviconHref carries the content hash, so replacing the icon replaces the URL.
 var faviconHref = "/favicon.svg?v=" + faviconVersion
-
-// sourceNames is the footer's credit line. Reading it off feedOrder is what
-// keeps it honest, since the two are the same list and a source added to one
-// has to appear in the other.
-func sourceNames() []string {
-	out := make([]string, 0, len(feedOrder))
-	for _, f := range feedOrder {
-		// Isaac's own logging site is not an outside source to credit, and the
-		// archive is Twitch again on a budget of its own.
-		if f.key == "logging" || f.key == broadcastsKey {
-			continue
-		}
-		out = append(out, f.label)
-	}
-	return out
-}

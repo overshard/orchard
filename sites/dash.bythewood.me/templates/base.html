@@ -94,7 +94,8 @@
 </main>
 
 <footer class="statusline">
-  <span class="seg srcs">SRC {{range $i, $s := .Sources}}{{if $i}}<i>·</i>{{end}}{{$s}}{{end}}</span>
+  <span class="seg next" data-next-brief>{{with .State.NextBrief}}NEXT BRIEF {{.}}{{end}}</span>
+  <span class="seg ahead" data-ahead>{{template "ahead" .State.Ahead}}</span>
   <span class="seg" data-guard-line></span>
   <span class="seg grow"></span>
   <span class="seg"><a href="{{.SourceURL}}" rel="noopener noreferrer" target="_blank">SOURCE</a></span>
