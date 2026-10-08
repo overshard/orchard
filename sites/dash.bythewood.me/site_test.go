@@ -164,7 +164,8 @@ func TestHomeRendersAFullState(t *testing.T) {
 		st.Systems = Systems{Rows: []SystemRow{{Label: "Blog", State: "up", Response: "12ms", Errors: 3, KnowError: true}}, Up: 1, Total: 1, Window: 24}
 		st.OnAir.Broadcasts = buildBroadcasts(pastFixture(t, "2026-09-30T00:00:00Z"), OnAir{}, at(t, "2026-09-29 19:01"))
 		st.Briefs.Markets = Brief{Title: "MORNING", Compiled: "07:02 EDT", Stories: 40,
-			Points: []Point{{Label: "YESTERDAY", Text: "The S&P 500 rose", Links: []Link{{Source: "WSJ", URL: "https://wsj.test/a"}}}}}
+			Points: []Point{{Label: "YESTERDAY", Text: "The S&P 500 rose", Links: []Link{{Source: "WSJ", URL: "https://wsj.test/a"}}},
+				{Label: "TODAY", Lean: "lower", Text: "Yields weigh"}}}
 		st.Briefs.News = Brief{Title: "MORNING", Compiled: "07:03 EDT", Stories: 120,
 			Points: []Point{{Text: "The Senate passed a bill", Coverage: "L1 C2 R1", Links: []Link{{Source: "AP", URL: "https://ap.test/a"}}}}}
 	})
@@ -178,7 +179,7 @@ func TestHomeRendersAFullState(t *testing.T) {
 	body := rec.Body.String()
 	for _, want := range []string{"A story", "Another", "Yadkin Valley", "S&amp;P 500", "spark-line",
 		"TUE 8:00PM", "SCHEDULED", "7:10PM", `<i data-on="no" title="SUN">S</i>`, "MON 7:19PM", "LAST 14 DAYS",
-		"The S&amp;P 500 rose", "YESTERDAY", "The Senate passed a bill", "L1 C2 R1", "MORNING / 07:03 EDT"} {
+		"The S&amp;P 500 rose", "YESTERDAY", "LEANS LOWER", "The Senate passed a bill", "L1 C2 R1", "MORNING / 07:03 EDT"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the rendered page is missing %q", want)
 		}
