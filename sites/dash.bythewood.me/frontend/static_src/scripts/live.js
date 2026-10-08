@@ -631,17 +631,19 @@ function renderNewsBrief(brief) {
     return;
   }
   const ol = el("ol", "brief");
-  for (const p of brief.points) {
+  brief.points.forEach((p, i) => {
     const li = el("li");
-    li.append(el("p", "txt", p.text));
+    const body = el("div", "body");
+    body.append(el("p", "txt", p.text));
     const meta = el("div", "meta");
     meta.append(...briefLinks(p.links));
     if (p.coverage) meta.append(el("span", "cov", p.coverage));
     if (p.note) meta.append(el("span", "note", p.note));
-    li.append(meta);
+    body.append(meta);
+    li.append(el("span", "rank", String(i + 1).padStart(2, "0")), body);
     ol.append(li);
-  }
-  const foot = el("p", "footnote", `${brief.waiting ? `${brief.waiting}. ` : ""}SUMMARISED BY A LOCAL MODEL FROM ${brief.stories} STORIES. L C R COUNTS THE OUTLETS THAT CARRIED IT BY ALLSIDES LEAN.`);
+  });
+  const foot = el("p", "footnote", `${brief.waiting ? `${brief.waiting}. ` : ""}SUMMARISED BY A LOCAL MODEL FROM ${brief.stories} STORIES, MOST IMPACT FIRST. L C R COUNTS THE OUTLETS THAT CARRIED IT BY ALLSIDES LEAN.`);
   host.replaceChildren(ol, foot);
 }
 

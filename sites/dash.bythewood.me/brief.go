@@ -39,7 +39,12 @@ var newsFeeds = []briefFeed{
 	{"HILL", "C", "thehill", "https://thehill.com/news/feed/"},
 	{"NEWSNATION", "C", "newsnation", "https://www.newsnationnow.com/feed/"},
 	{"BBC", "C", "bbc", "https://feeds.bbci.co.uk/news/world/us_and_canada/rss.xml"},
+	{"BBC", "C", "bbc", "https://feeds.bbci.co.uk/news/world/rss.xml"},
+	{"BBC", "C", "bbc", "https://feeds.bbci.co.uk/news/business/rss.xml"},
 	{"NPR", "L", "npr", "https://feeds.npr.org/1001/rss.xml"},
+	{"NPR", "L", "npr", "https://feeds.npr.org/1014/rss.xml"},
+	{"NPR", "L", "npr", "https://feeds.npr.org/1004/rss.xml"},
+	{"NPR", "L", "npr", "https://feeds.npr.org/1006/rss.xml"},
 	{"PBS", "L", "pbs", "https://www.pbs.org/newshour/feeds/rss/headlines"},
 	{"CBS", "L", "cbs", "https://www.cbsnews.com/latest/rss/main"},
 	{"FOX", "R", "fox", "https://moxie.foxnews.com/google-publisher/latest.xml"},
@@ -79,7 +84,7 @@ const (
 	// A failed run tries again after this, until the next slot replaces it.
 	briefRetry = 15 * time.Minute
 
-	newsEvents   = 50
+	newsEvents   = 60
 	marketEvents = 40
 
 	// Fewer than this and the feeds are down, and a summary of five stories is
@@ -521,7 +526,9 @@ func widelyCarried(cs []cluster) []cluster {
 			shared = append(shared, c)
 		}
 	}
-	if len(shared) < 12 {
+	// Twice the most points a brief can hold, so there's still a choice left
+	// once the minor ones are gone.
+	if len(shared) < 24 {
 		return cs
 	}
 	return shared
@@ -603,24 +610,29 @@ var minor = []string{"crime_or_court", "incident", "human_interest", "sport", "c
 // as mainstream culture anyway, the way the Lindsay Clancy trial was.
 const mainstream = 7
 
-var newsSchema = map[string]any{
-	"type": "object",
-	"properties": map[string]any{
-		"points": map[string]any{
-			"type": "array", "minItems": 3, "maxItems": 8,
-			"items": map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"text":    map[string]any{"type": "string", "maxLength": 120},
-					"sources": map[string]any{"type": "array", "minItems": 1, "maxItems": 4, "items": map[string]any{"type": "integer"}},
+// newsPoints is the most a brief holds, and so the most events the writer sees.
+const newsPoints = 12
+
+func newsSchema(events int) map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"points": map[string]any{
+				"type": "array", "minItems": min(3, events), "maxItems": events,
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"text":    map[string]any{"type": "string", "maxLength": 120},
+						"sources": map[string]any{"type": "array", "minItems": 1, "maxItems": 4, "items": map[string]any{"type": "integer"}},
+					},
+					"required":             []string{"text", "sources"},
+					"additionalProperties": false,
 				},
-				"required":             []string{"text", "sources"},
-				"additionalProperties": false,
 			},
 		},
-	},
-	"required":             []string{"points"},
-	"additionalProperties": false,
+		"required":             []string{"points"},
+		"additionalProperties": false,
+	}
 }
 
 type modelPoints struct {
@@ -636,11 +648,11 @@ func (b *Briefer) compileNews(ctx context.Context, slot briefSlot, at time.Time)
 	if len(events) < briefFloor {
 		return Brief{}, fmt.Errorf("only %d events", len(events))
 	}
-	labels, err := b.classify(ctx, events, now)
+	ratings, err := b.rate(ctx, events, now)
 	if err != nil {
-		return Brief{}, fmt.Errorf("classify: %w", err)
+		return Brief{}, fmt.Errorf("rate: %w", err)
 	}
-	events = keepMajor(events, labels)
+	events = mostImpact(events, ratings, newsPoints)
 	if len(events) < 3 {
 		return Brief{}, fmt.Errorf("only %d major events", len(events))
 	}
@@ -652,19 +664,28 @@ func (b *Briefer) compileNews(ctx context.Context, slot briefSlot, at time.Time)
 	}[slot.kind]
 
 	system := "You write a short executive news summary for one reader in the United States.\n" + neutralRules + `
-- The events are listed most widely covered first. Keep roughly that order, and prefer events many outlets carried over ones only one did.
-- Write 3 to 8 points. Each point is one neutral headline about exactly one event, at most 14 words, in past tense. No second sentence, no detail beyond what makes the event clear.
-- Include an event only if it affects US politics, world politics, the markets or the economy, or mainstream culture in a big way. Major technology news and disasters affecting many people count.
-- Skip individual crime and court cases, trials, human interest, local stories, celebrity, sport and lifestyle. The exception is a story 7 or more outlets carried, which has become mainstream culture in its own right.
-- Fewer points is better than filler. On a quiet day write three.
-- Each point cites the numbers of every event it draws on in "sources".`
+- Write one point for each event, in the order given. If two events are the same story, write one point for them and cite both.
+- Each point is one neutral headline about exactly one event, at most 14 words, in past tense. No second sentence, no detail beyond what makes the event clear.
+- Each point cites the numbers of the events it draws on in "sources".`
 
 	user := fmt.Sprintf("It is %s Eastern. %s\n\nEvents:\n%s", at.In(easternTime()).Format("15:04 on Monday, January 2 2006"), task, clusterList(events, now))
 
 	var out modelPoints
-	if err := b.model.Structured(ctx, system, user, newsSchema, 900, &out); err != nil {
+	if err := b.model.Structured(ctx, system, user, newsSchema(len(events)), 1300, &out); err != nil {
 		return Brief{}, err
 	}
+	// The events are already ranked, so a point goes where its first event is
+	// whatever order the model wrote them in.
+	first := func(ns []int) int {
+		m := len(events)
+		for _, n := range ns {
+			if n >= 1 && n <= len(events) {
+				m = min(m, n)
+			}
+		}
+		return m
+	}
+	sort.SliceStable(out.Points, func(i, j int) bool { return first(out.Points[i].Sources) < first(out.Points[j].Sources) })
 
 	brief := newBrief(slot, at, events)
 	for _, p := range out.Points {
@@ -682,50 +703,102 @@ func (b *Briefer) compileNews(ctx context.Context, slot briefSlot, at time.Time)
 	return brief, nil
 }
 
-func (b *Briefer) classify(ctx context.Context, events []cluster, now time.Time) ([]string, error) {
-	schema := map[string]any{
-		"type": "object",
-		"properties": map[string]any{
-			"labels": map[string]any{
-				"type": "array", "minItems": len(events), "maxItems": len(events),
-				"items": map[string]any{"type": "string", "enum": newsCategories},
-			},
-		},
-		"required":             []string{"labels"},
-		"additionalProperties": false,
-	}
-	system := `You label news events by topic, one label per event, in the order given.
+// eventRating is the model's read of one event. Each carries its number back, since
+// a small model handed sixty events and asked for sixty labels in order drifts
+// a place or two partway down and labels the futures story an incident.
+type eventRating struct {
+	N      int    `json:"n"`
+	Label  string `json:"label"`
+	Impact int    `json:"impact"`
+}
+
+// rateBatch keeps each call short enough that the numbering holds.
+const rateBatch = 20
+
+func (b *Briefer) rate(ctx context.Context, events []cluster, now time.Time) ([]eventRating, error) {
+	system := `You rate news events, one rating per event, each carrying the event's number as "n".
+
+"label" is the topic:
 - us_politics: Congress, the White House, federal agencies and policy, elections, parties.
 - crime_or_court: a criminal case, arrest, trial, sentencing or execution of particular people, even when officials are involved.
 - security: war, terrorism, the military and intelligence, when it is about a country and not one suspect.
-- incident: a shooting, attack, crash, fire or accident with a handful of victims, in any country, that changes nothing beyond the place it happened.
+- incident: a shooting, attack, crash or fire with a handful of victims, in any country, that changes nothing beyond the place it happened.
+- disaster: storms, floods, quakes and anything that shuts down production, power or travel for many people.
 - human_interest: one person's or family's story.
 - local: a story about one city or town.
-The rest mean what they say.`
-	var out struct {
-		Labels []string `json:"labels"`
+The rest mean what they say.
+
+"impact" is how much the event could change an ordinary American's money, prices, job, safety or daily life, or move the US stock market:
+5: moves the whole market or changes prices, taxes or rates for most Americans, like a Fed decision, a war that moves oil, or tariffs on a major partner.
+4: likely to move oil, rates or a whole industry, or a major change in US law or policy.
+3: a notable US political or world event with an indirect effect.
+2: worth knowing, with little effect on an American's money or life.
+1: no effect on them at all.`
+
+	ratings := make([]eventRating, len(events))
+	for start := 0; start < len(events); start += rateBatch {
+		batch := events[start:min(start+rateBatch, len(events))]
+		schema := map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"ratings": map[string]any{
+					"type": "array", "minItems": len(batch), "maxItems": len(batch),
+					"items": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"n":      map[string]any{"type": "integer", "minimum": 1, "maximum": len(batch)},
+							"label":  map[string]any{"type": "string", "enum": newsCategories},
+							"impact": map[string]any{"type": "integer", "minimum": 1, "maximum": 5},
+						},
+						"required":             []string{"n", "label", "impact"},
+						"additionalProperties": false,
+					},
+				},
+			},
+			"required":             []string{"ratings"},
+			"additionalProperties": false,
+		}
+		var out struct {
+			Ratings []eventRating `json:"ratings"`
+		}
+		if err := b.model.Structured(ctx, system, "Events:\n"+clusterList(batch, now), schema, 30*len(batch)+100, &out); err != nil {
+			return nil, err
+		}
+		for _, r := range out.Ratings {
+			if r.N >= 1 && r.N <= len(batch) {
+				ratings[start+r.N-1] = r
+			}
+		}
 	}
-	if err := b.model.Structured(ctx, system, "Events:\n"+clusterList(events, now), schema, 20*len(events)+100, &out); err != nil {
-		return nil, err
-	}
-	return out.Labels, nil
+	return ratings, nil
 }
 
-// keepMajor drops the minor events, unless so many outlets carried one that it
-// is mainstream anyway. A label list the wrong length keeps everything, since
-// it cannot be lined up with the events.
-func keepMajor(events []cluster, labels []string) []cluster {
-	if len(labels) != len(events) {
-		return events
+// mostImpact drops the minor events, unless so many outlets carried one that it
+// is mainstream anyway, and the ones rated as changing nothing, then keeps the
+// highest rated up to limit. Ties stay in the order they came, most outlets
+// first. An event the model skipped is kept and ranked as middling.
+func mostImpact(events []cluster, ratings []eventRating, limit int) []cluster {
+	type ranked struct {
+		c      cluster
+		impact int
 	}
-	var out []cluster
+	var keep []ranked
 	for i, c := range events {
-		if slices.Contains(minor, labels[i]) && len(c.outlets()) < mainstream {
-			slog.Info("brief event dropped as minor", slog.String("component", "brief"),
-				slog.String("category", labels[i]), slog.String("title", c.lead().title))
+		r := eventRating{Impact: 3}
+		if i < len(ratings) && ratings[i].N != 0 {
+			r = ratings[i]
+		}
+		if (slices.Contains(minor, r.Label) && len(c.outlets()) < mainstream) || r.Impact <= 1 {
+			slog.Info("brief event dropped", slog.String("component", "brief"), slog.String("category", r.Label),
+				slog.Int("impact", r.Impact), slog.String("title", c.lead().title))
 			continue
 		}
-		out = append(out, c)
+		keep = append(keep, ranked{c, r.Impact})
+	}
+	sort.SliceStable(keep, func(i, j int) bool { return keep[i].impact > keep[j].impact })
+	var out []cluster
+	for _, k := range keep[:min(len(keep), limit)] {
+		out = append(out, k.c)
 	}
 	return out
 }
