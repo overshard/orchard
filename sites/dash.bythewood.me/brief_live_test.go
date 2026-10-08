@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -28,7 +29,7 @@ func TestBriefLive(t *testing.T) {
 	store.refreshEarnings(ctx, g)
 	b := NewBriefer(store, g, m, t.TempDir())
 
-	slot, at := latestSlot(time.Now(), false)
+	slot, at := latestSlot(time.Now())
 	for i, c := range clusterStories(gather(ctx, g, newsFeeds, at.Add(-24*time.Hour), time.Now()), 25) {
 		t.Logf("%2d %v %s", i+1, c.outlets(), c.lead().title)
 	}
@@ -40,13 +41,7 @@ func TestBriefLive(t *testing.T) {
 
 	for _, desk := range []string{"markets", "news"} {
 		started := time.Now()
-		var brief Brief
-		var err error
-		if desk == "markets" {
-			brief, err = b.compileMarkets(ctx, slot, at)
-		} else {
-			brief, err = b.compileNews(ctx, slot, at)
-		}
+		brief, err := b.compileDesk(ctx, desk, slot, at)
 		if err != nil {
 			t.Fatalf("%s: %v", desk, err)
 		}
@@ -60,4 +55,52 @@ func env(k, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// TestBriefTickLive is the scheduled path end to end: ask about the card, write
+// both briefs on one load, and unload. Afterwards the card should be empty.
+func TestBriefTickLive(t *testing.T) {
+	if os.Getenv("BRIEF_LIVE") == "" {
+		t.Skip("set BRIEF_LIVE=1 to call the feeds and the model")
+	}
+	m := NewModel(env("LLM_URL", "http://orchard-llm:8000"), os.Getenv("LLM_KEY"))
+	ctx := context.Background()
+	g := NewGuard(t.TempDir())
+	store := NewStore(NewHub())
+	store.Prime(ctx, g)
+	store.refreshBoard(ctx, g)
+	store.refreshEarnings(ctx, g)
+	b := NewBriefer(store, g, m, t.TempDir())
+
+	before, err := m.GPU(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("before: %+v", before)
+
+	started := time.Now()
+	b.tick(ctx, time.Now())
+	t.Logf("tick took %s", time.Since(started).Round(time.Second))
+
+	after, err := m.GPU(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("after: %+v", after)
+	if !before.Busy && after.Loaded {
+		t.Errorf("the model is still on the card after the tick")
+	}
+	br := store.Snapshot().Briefs
+	if before.Busy {
+		t.Logf("card was busy, waiting: %q", br.News.Waiting)
+		return
+	}
+	for _, desk := range []Brief{br.Markets, br.News} {
+		if len(desk.Points) == 0 {
+			t.Errorf("a desk wrote nothing")
+		}
+		for _, p := range desk.Points {
+			t.Logf("%-14s %3d words  %s  [%s %s]", p.Label, len(strings.Fields(p.Text)), p.Text, p.Coverage, p.Note)
+		}
+	}
 }

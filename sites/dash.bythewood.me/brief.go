@@ -12,7 +12,6 @@ import (
 	"slices"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -100,6 +99,9 @@ type Brief struct {
 	// "off" when there is no model key, so the panel can say why it is empty.
 	Status string `json:"status,omitempty"`
 
+	// Why a slot that is due has not run yet, like the card being in use.
+	Waiting string `json:"waiting,omitempty"`
+
 	// The slot this answered, in unix seconds, which is how a restart knows
 	// whether it is owed a run.
 	Slot int64 `json:"slot"`
@@ -136,15 +138,12 @@ func (s briefSlot) title() string {
 	return "CLOSE"
 }
 
-// latestSlot is the most recent slot at or before now. Markets skip weekends,
-// so Saturday and Sunday still show Friday's close.
-func latestSlot(now time.Time, weekdays bool) (briefSlot, time.Time) {
+// latestSlot is the most recent slot at or before now. Weekends run too,
+// since a Sunday read of the week is a read of what Monday has coming.
+func latestSlot(now time.Time) (briefSlot, time.Time) {
 	now = now.In(easternTime())
-	for back := 0; back < 8; back++ {
+	for back := 0; back < 2; back++ {
 		day := now.AddDate(0, 0, -back)
-		if weekdays && (day.Weekday() == time.Saturday || day.Weekday() == time.Sunday) {
-			continue
-		}
 		for i := len(briefSlots) - 1; i >= 0; i-- {
 			s := briefSlots[i]
 			at := time.Date(day.Year(), day.Month(), day.Day(), s.hour, s.minute, 0, 0, day.Location())
@@ -156,20 +155,43 @@ func latestSlot(now time.Time, weekdays bool) (briefSlot, time.Time) {
 	return briefSlots[0], now
 }
 
+func weekend(t time.Time) bool {
+	d := t.In(easternTime()).Weekday()
+	return d == time.Saturday || d == time.Sunday
+}
+
+// briefModel is the part of the gateway the briefs use, so the schedule can
+// be tested without a card.
+type briefModel interface {
+	Structured(ctx context.Context, system, user string, schema map[string]any, maxTok int, out any) error
+	GPU(ctx context.Context) (GPUState, error)
+	Unload(ctx context.Context) error
+}
+
+// A card the desktop is using is asked again in an hour, so a weekend of games
+// costs one probe an hour and never a model load.
+const briefDefer = time.Hour
+
 // Briefer owns the schedule and the file the last two briefs are kept in, so a
 // deploy at 9am still shows the morning one rather than nothing until 11.
 type Briefer struct {
 	store *Store
 	guard *Guard
-	model *Model
+	model briefModel
 	path  string
 
-	mu   sync.Mutex
-	last map[string]time.Time
+	// Nothing is tried before this, whether the card was busy or a run failed.
+	next time.Time
+
+	compile func(ctx context.Context, desk string, slot briefSlot, at time.Time) (Brief, error)
 }
 
 func NewBriefer(store *Store, g *Guard, m *Model, dataDir string) *Briefer {
-	b := &Briefer{store: store, guard: g, model: m, path: filepath.Join(dataDir, "briefs.json"), last: map[string]time.Time{}}
+	b := &Briefer{store: store, guard: g, path: filepath.Join(dataDir, "briefs.json")}
+	b.compile = b.compileDesk
+	if m != nil {
+		b.model = m
+	}
 
 	var saved Briefs
 	if raw, err := os.ReadFile(b.path); err == nil {
@@ -177,6 +199,7 @@ func NewBriefer(store *Store, g *Guard, m *Model, dataDir string) *Briefer {
 			slog.Warn("briefs file unreadable", slog.String("component", "brief"), slog.Any("err", err))
 		}
 	}
+	saved.Markets.Waiting, saved.News.Waiting = "", ""
 	if m == nil {
 		saved.Markets.Status, saved.News.Status = "off", "off"
 	}
@@ -201,27 +224,51 @@ func (b *Briefer) Run(ctx context.Context) {
 	}
 }
 
+// tick runs both desks back to back on one model load when a slot is owed,
+// after asking whether the desktop is using the card.
 func (b *Briefer) tick(ctx context.Context, now time.Time) {
-	for _, desk := range []string{"markets", "news"} {
-		slot, at := latestSlot(now, desk == "markets")
-		cur := b.store.Snapshot().Briefs.News
-		if desk == "markets" {
-			cur = b.store.Snapshot().Briefs.Markets
-		}
-		if cur.Slot >= at.Unix() || now.Sub(b.last[desk]) < briefRetry {
-			continue
-		}
-		b.last[desk] = now
+	slot, at := latestSlot(now)
+	cur := b.store.Snapshot().Briefs
+	var due []string
+	if cur.Markets.Slot < at.Unix() {
+		due = append(due, "markets")
+	}
+	if cur.News.Slot < at.Unix() {
+		due = append(due, "news")
+	}
+	if len(due) == 0 || now.Before(b.next) {
+		return
+	}
 
+	gpu, err := b.model.GPU(ctx)
+	if err != nil {
+		b.next = now.Add(briefRetry)
+		slog.Warn("brief could not ask about the card", slog.String("component", "brief"), slog.Any("err", err))
+		return
+	}
+	if gpu.Busy {
+		b.next = now.Add(briefDefer)
+		slog.Info("brief deferred", slog.String("component", "brief"), slog.String("slot", slot.kind),
+			slog.String("reason", gpu.Reason), slog.Time("next", b.next))
+		b.waiting(fmt.Sprintf("CARD IN USE, NEXT TRY %s", b.next.In(easternTime()).Format("15:04")))
+		return
+	}
+	// Only weights this run put on the card come off it. A model already there
+	// is somebody's conversation, and its own idle timer is theirs.
+	if !gpu.Loaded {
+		defer func() {
+			if err := b.model.Unload(context.WithoutCancel(ctx)); err != nil {
+				slog.Warn("brief could not unload", slog.String("component", "brief"), slog.Any("err", err))
+			}
+		}()
+	}
+
+	failed := false
+	for _, desk := range due {
 		started := time.Now()
-		var brief Brief
-		var err error
-		if desk == "markets" {
-			brief, err = b.compileMarkets(ctx, slot, at)
-		} else {
-			brief, err = b.compileNews(ctx, slot, at)
-		}
+		brief, err := b.compile(ctx, desk, slot, at)
 		if err != nil {
+			failed = true
 			slog.Warn("brief failed", slog.String("component", "brief"), slog.String("desk", desk),
 				slog.String("slot", slot.kind), slog.Any("err", err))
 			continue
@@ -238,8 +285,24 @@ func (b *Briefer) tick(ctx context.Context, now time.Time) {
 				st.setNotices("news", briefNotices(brief))
 			}
 		})
-		b.save()
 	}
+	if failed {
+		b.next = now.Add(briefRetry)
+	}
+	b.waiting("")
+	b.save()
+}
+
+func (b *Briefer) compileDesk(ctx context.Context, desk string, slot briefSlot, at time.Time) (Brief, error) {
+	if desk == "markets" {
+		return b.compileMarkets(ctx, slot, at)
+	}
+	return b.compileNews(ctx, slot, at)
+}
+
+// waiting says on both panels why the last brief is still up.
+func (b *Briefer) waiting(why string) {
+	b.store.update(func(st *State) { st.Briefs.Markets.Waiting, st.Briefs.News.Waiting = why, why })
 }
 
 func (b *Briefer) save() {
@@ -445,6 +508,22 @@ func blurb(desc string) string {
 	return s
 }
 
+// widelyCarried drops the events only one outlet ran once there are enough
+// that two or more did. A story nobody else picked up is rarely the one that
+// matters, and a 9B model handed fifty will reach for some of them.
+func widelyCarried(cs []cluster) []cluster {
+	var shared []cluster
+	for _, c := range cs {
+		if len(c.outlets()) > 1 {
+			shared = append(shared, c)
+		}
+	}
+	if len(shared) < 12 {
+		return cs
+	}
+	return shared
+}
+
 func outletNames(cs []cluster) string {
 	var names []string
 	for _, c := range cs {
@@ -509,15 +588,27 @@ const neutralRules = `Rules:
 - Include a story whichever party or side it reflects well or badly on.
 - Do not put story numbers or outlet names in the text. The page shows the sources beside each point.`
 
+// A small model told to skip trials will still write one up, and asked to label
+// the point it wrote calls a trial politics. Labelling the list on its own first
+// is an easier job, so the skipping happens in Go before the summary.
+var newsCategories = []string{"us_politics", "world", "economy", "markets", "technology", "disaster",
+	"security", "culture", "crime_or_court", "human_interest", "sport", "celebrity", "local"}
+
+var minor = []string{"crime_or_court", "human_interest", "sport", "celebrity", "local"}
+
+// mainstream is how many outlets have to carry a minor story before it counts
+// as mainstream culture anyway, the way the Lindsay Clancy trial was.
+const mainstream = 7
+
 var newsSchema = map[string]any{
 	"type": "object",
 	"properties": map[string]any{
 		"points": map[string]any{
-			"type": "array", "minItems": 5, "maxItems": 8,
+			"type": "array", "minItems": 3, "maxItems": 8,
 			"items": map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"text":    map[string]any{"type": "string", "maxLength": 280},
+					"text":    map[string]any{"type": "string", "maxLength": 120},
 					"sources": map[string]any{"type": "array", "minItems": 1, "maxItems": 4, "items": map[string]any{"type": "integer"}},
 				},
 				"required":             []string{"text", "sources"},
@@ -538,9 +629,17 @@ type modelPoints struct {
 
 func (b *Briefer) compileNews(ctx context.Context, slot briefSlot, at time.Time) (Brief, error) {
 	now := time.Now()
-	events := clusterStories(gather(ctx, b.guard, newsFeeds, at.Add(-slot.reach), now), newsEvents)
+	events := widelyCarried(clusterStories(gather(ctx, b.guard, newsFeeds, at.Add(-slot.reach), now), newsEvents))
 	if len(events) < briefFloor {
 		return Brief{}, fmt.Errorf("only %d events", len(events))
+	}
+	labels, err := b.classify(ctx, events, now)
+	if err != nil {
+		return Brief{}, fmt.Errorf("classify: %w", err)
+	}
+	events = keepMajor(events, labels)
+	if len(events) < 3 {
+		return Brief{}, fmt.Errorf("only %d major events", len(events))
 	}
 
 	task := map[string]string{
@@ -551,14 +650,16 @@ func (b *Briefer) compileNews(ctx context.Context, slot briefSlot, at time.Time)
 
 	system := "You write a short executive news summary for one reader in the United States.\n" + neutralRules + `
 - The events are listed most widely covered first. Keep roughly that order, and prefer events many outlets carried over ones only one did.
-- Write 6 to 8 points. Each point is about exactly one event, in one or two sentences of at most 45 words. Never list several events in one point.
-- Cover US national news, the economy and world news. Skip celebrity, sport and lifestyle unless it is the biggest story of the day.
+- Write 3 to 8 points. Each point is one neutral headline about exactly one event, at most 14 words, in past tense. No second sentence, no detail beyond what makes the event clear.
+- Include an event only if it affects US politics, world politics, the markets or the economy, or mainstream culture in a big way. Major technology news and disasters affecting many people count.
+- Skip individual crime and court cases, trials, human interest, local stories, celebrity, sport and lifestyle. The exception is a story 7 or more outlets carried, which has become mainstream culture in its own right.
+- Fewer points is better than filler. On a quiet day write three.
 - Each point cites the numbers of every event it draws on in "sources".`
 
 	user := fmt.Sprintf("It is %s Eastern. %s\n\nEvents:\n%s", at.In(easternTime()).Format("15:04 on Monday, January 2 2006"), task, clusterList(events, now))
 
 	var out modelPoints
-	if err := b.model.Structured(ctx, system, user, newsSchema, 1500, &out); err != nil {
+	if err := b.model.Structured(ctx, system, user, newsSchema, 900, &out); err != nil {
 		return Brief{}, err
 	}
 
@@ -572,10 +673,57 @@ func (b *Briefer) compileNews(ctx context.Context, slot briefSlot, at time.Time)
 		}
 		brief.Points = append(brief.Points, pt)
 	}
-	if len(brief.Points) < 3 {
+	if len(brief.Points) < 2 {
 		return Brief{}, fmt.Errorf("only %d cited points", len(brief.Points))
 	}
 	return brief, nil
+}
+
+func (b *Briefer) classify(ctx context.Context, events []cluster, now time.Time) ([]string, error) {
+	schema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"labels": map[string]any{
+				"type": "array", "minItems": len(events), "maxItems": len(events),
+				"items": map[string]any{"type": "string", "enum": newsCategories},
+			},
+		},
+		"required":             []string{"labels"},
+		"additionalProperties": false,
+	}
+	system := `You label news events by topic, one label per event, in the order given.
+- us_politics: Congress, the White House, federal agencies and policy, elections, parties.
+- crime_or_court: a criminal case, arrest, trial, sentencing or execution of particular people, even when officials are involved.
+- security: war, terrorism, the military and intelligence, when it is about a country and not one suspect.
+- human_interest: one person's or family's story.
+- local: a story about one city or town.
+The rest mean what they say.`
+	var out struct {
+		Labels []string `json:"labels"`
+	}
+	if err := b.model.Structured(ctx, system, "Events:\n"+clusterList(events, now), schema, 20*len(events)+100, &out); err != nil {
+		return nil, err
+	}
+	return out.Labels, nil
+}
+
+// keepMajor drops the minor events, unless so many outlets carried one that it
+// is mainstream anyway. A label list the wrong length keeps everything, since
+// it cannot be lined up with the events.
+func keepMajor(events []cluster, labels []string) []cluster {
+	if len(labels) != len(events) {
+		return events
+	}
+	var out []cluster
+	for i, c := range events {
+		if slices.Contains(minor, labels[i]) && len(c.outlets()) < mainstream {
+			slog.Info("brief event dropped as minor", slog.String("component", "brief"),
+				slog.String("category", labels[i]), slog.String("title", c.lead().title))
+			continue
+		}
+		out = append(out, c)
+	}
+	return out
 }
 
 func marketSchema(lines int) map[string]any {
@@ -587,7 +735,7 @@ func marketSchema(lines int) map[string]any {
 				"items": map[string]any{
 					"type": "object",
 					"properties": map[string]any{
-						"text":    map[string]any{"type": "string", "maxLength": 260},
+						"text":    map[string]any{"type": "string", "maxLength": 180},
 						"sources": map[string]any{"type": "array", "maxItems": 3, "items": map[string]any{"type": "integer"}},
 					},
 					"required":             []string{"text", "sources"},
@@ -607,7 +755,13 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 	b.store.refreshBoard(ctx, b.guard)
 
 	now := time.Now()
-	events := clusterStories(gather(ctx, b.guard, marketFeeds, at.Add(-slot.reach), now), marketEvents)
+	// A Saturday or Sunday has little market news of its own, so a weekend
+	// brief reads back to Friday morning.
+	reach := slot.reach
+	if weekend(at) {
+		reach = max(reach, 72*time.Hour)
+	}
+	events := clusterStories(gather(ctx, b.guard, marketFeeds, at.Add(-reach), now), marketEvents)
 	if len(events) < briefFloor {
 		return Brief{}, fmt.Errorf("only %d events", len(events))
 	}
@@ -618,13 +772,20 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 	st := b.store.Snapshot()
 
 	var asks []string
-	switch slot.kind {
-	case "morning":
+	labels := slot.marketLines
+	switch {
+	case weekend(at):
+		asks = []string{
+			"how last week ended for stocks and the main reason given",
+			"what could move markets on Monday: scheduled earnings and data, weekend news, and futures if they are trading",
+		}
+		labels = []string{"LAST WEEK", "MONDAY"}
+	case slot.kind == "morning":
 		asks = []string{
 			"how the previous session went and the main reason given for it",
 			"what futures point to for today and what is scheduled that could move it (earnings, data, the Fed)",
 		}
-	case "midday":
+	case slot.kind == "midday":
 		asks = []string{"how today's session is going so far and the main reason given for it"}
 	default:
 		asks = []string{
@@ -638,7 +799,7 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 	}
 
 	system := "You write a one line markets summary for a dashboard, for one reader who invests in index funds.\n" + neutralRules + `
-- Each line is one sentence of at most 40 words.
+- Each line is one short sentence of at most 25 words.
 - Quote figures exactly as given in the numbers. Never compute or invent a figure.
 - A reason for a move has to come from a story, and is cited. If no story gives one, say what moved and leave the reason out.
 - No advice, no predictions of your own, nothing like "investors should".`
@@ -653,13 +814,16 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 	}
 
 	brief := newBrief(slot, at, events)
+	if weekend(at) {
+		brief.Title = "WEEKEND"
+	}
 	for i, p := range out.Points {
 		pt := cite(events, p.Sources)
 		pt.Text = tidy(p.Text)
 		if pt.Text == "" {
 			continue
 		}
-		pt.Label = slot.marketLines[min(i, len(slot.marketLines)-1)]
+		pt.Label = labels[min(i, len(labels)-1)]
 		brief.Points = append(brief.Points, pt)
 	}
 	if len(brief.Points) == 0 {
@@ -684,7 +848,7 @@ func marketFacts(st State, h *history, slot briefSlot) string {
 		}
 		b.WriteString("\n")
 	}
-	if slot.kind == "morning" && h != nil && len(h.closes) >= 2 {
+	if (slot.kind == "morning" || weekend(time.Now())) && h != nil && len(h.closes) >= 2 {
 		last, prev := h.closes[len(h.closes)-1], h.closes[len(h.closes)-2]
 		fmt.Fprintf(&b, "S&P 500 previous session close: %.2f, %+.2f%%\n", last, (last-prev)/prev*100)
 	}
