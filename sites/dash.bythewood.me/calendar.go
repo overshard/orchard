@@ -7,6 +7,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 )
@@ -31,20 +32,21 @@ var fomcDecisions = map[string]bool{
 const contactAgent = "dash.bythewood.me (isaac@bythewood.me)"
 
 type release struct {
-	at   time.Time
-	name string
+	at    time.Time
+	name  string
+	short string
 }
 
 // The releases that move the whole market. Everything else on these calendars
 // is regional, annual or too small to matter the next morning.
-var bigReleases = []struct{ prefix, name string }{
-	{"Consumer Price Index", "CPI inflation"},
-	{"Producer Price Index", "PPI wholesale inflation"},
-	{"Employment Situation", "The monthly jobs report"},
-	{"Job Openings and Labor Turnover Survey", "JOLTS job openings"},
-	{"Gross Domestic Product,", "GDP"},
-	{"GDP (", "GDP"},
-	{"Personal Income and Outlays", "PCE inflation and spending"},
+var bigReleases = []struct{ prefix, name, short string }{
+	{"Consumer Price Index", "CPI inflation", "CPI"},
+	{"Producer Price Index", "PPI wholesale inflation", "PPI"},
+	{"Employment Situation", "The monthly jobs report", "JOBS"},
+	{"Job Openings and Labor Turnover Survey", "JOLTS job openings", "JOLTS"},
+	{"Gross Domestic Product,", "GDP", "GDP"},
+	{"GDP (", "GDP", "GDP"},
+	{"Personal Income and Outlays", "PCE inflation and spending", "PCE"},
 }
 
 func fetchReleases(ctx context.Context, g *Guard) []release {
@@ -124,7 +126,7 @@ func parseICS(r io.Reader) []release {
 		case l == "END:VEVENT":
 			for _, b := range bigReleases {
 				if strings.HasPrefix(summary, b.prefix) && !at.IsZero() {
-					out = append(out, release{at, b.name})
+					out = append(out, release{at, b.name, b.short})
 					break
 				}
 			}
@@ -193,4 +195,45 @@ func turnOfMonth(day time.Time) bool {
 		}
 	}
 	return n <= 3
+}
+
+// Upcoming is one entry on the footer's AHEAD line.
+type Upcoming struct {
+	Label string `json:"label"`
+	When  string `json:"when"`
+}
+
+// ahead is the next few market moving dates, the releases and the Fed
+// decisions together, within three weeks.
+func ahead(releases []release, now time.Time, limit int) []Upcoming {
+	et := easternTime()
+	now = now.In(et)
+	events := slices.Clone(releases)
+	for date := range fomcDecisions {
+		d, err := time.ParseInLocation("2006-01-02", date, et)
+		if err == nil {
+			events = append(events, release{at: d.Add(14 * time.Hour), short: "FED"})
+		}
+	}
+	slices.SortFunc(events, func(a, b release) int { return a.at.Compare(b.at) })
+
+	var out []Upcoming
+	for _, e := range events {
+		if !e.at.After(now) || e.at.After(now.AddDate(0, 0, 21)) {
+			continue
+		}
+		at := e.at.In(et)
+		when := strings.ToUpper(at.Format("Mon Jan 2"))
+		switch at.Format("2006-01-02") {
+		case now.Format("2006-01-02"):
+			when = "TODAY " + strings.ToUpper(at.Format("3:04pm"))
+		case now.AddDate(0, 0, 1).Format("2006-01-02"):
+			when = "TOMORROW " + strings.ToUpper(at.Format("3:04pm"))
+		}
+		out = append(out, Upcoming{e.short, when})
+		if len(out) == limit {
+			break
+		}
+	}
+	return out
 }

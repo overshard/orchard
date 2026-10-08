@@ -2129,19 +2129,17 @@ main {
     &:last-child { border-right: 0; }
   }
 
-  // Every upstream the page reads, generated from the same list the UPLINK
-  // panel uses. It is the one segment allowed to be cut short, since the
-  // panel names them all anyway.
-  .srcs {
+  .seg:empty { display: none; }
+
+  // The one segment allowed to be cut short, since the furthest date is the
+  // least urgent.
+  .ahead {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
 
-    i {
-      font-style: normal;
-      padding: 0 5px;
-      color: var(--line-hot);
-    }
+    .ev { margin-left: 12px; }
+    b { font-weight: inherit; color: var(--amber); }
   }
   .grow { flex: 1; border-right: 0; }
   a { color: var(--dim); }

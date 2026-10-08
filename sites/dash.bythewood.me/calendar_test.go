@@ -37,7 +37,7 @@ func TestTurnOfMonth(t *testing.T) {
 
 func TestSessionNotes(t *testing.T) {
 	et := easternTime()
-	cpi := release{time.Date(2026, 10, 28, 8, 30, 0, 0, et), "CPI inflation"}
+	cpi := release{time.Date(2026, 10, 28, 8, 30, 0, 0, et), "CPI inflation", "CPI"}
 	notes := strings.Join(sessionNotes(time.Date(2026, 10, 28, 9, 0, 0, 0, et), []release{cpi}, 15.9), "\n")
 	for _, want := range []string{"CPI inflation comes out at 8:30am", "rate decision at 2pm", "about 1.0% either way"} {
 		if !strings.Contains(notes, want) {
@@ -46,5 +46,36 @@ func TestSessionNotes(t *testing.T) {
 	}
 	if eve := sessionNotes(time.Date(2026, 10, 27, 9, 0, 0, 0, et), nil, 0); len(eve) != 1 || !strings.Contains(eve[0], "decision the next day") {
 		t.Errorf("the day before: %v", eve)
+	}
+}
+
+func TestAhead(t *testing.T) {
+	et := easternTime()
+	now := time.Date(2026, 10, 13, 9, 0, 0, 0, et)
+	rs := []release{
+		{time.Date(2026, 10, 9, 8, 30, 0, 0, et), "", "OLD"},
+		{time.Date(2026, 10, 14, 8, 30, 0, 0, et), "", "CPI"},
+		{time.Date(2026, 10, 15, 8, 30, 0, 0, et), "", "PPI"},
+		{time.Date(2026, 12, 1, 8, 30, 0, 0, et), "", "FAR"},
+	}
+	got := ahead(rs, now, 4)
+	want := []Upcoming{{"CPI", "TOMORROW 8:30AM"}, {"PPI", "THU OCT 15"}, {"FED", "WED OCT 28"}}
+	if len(got) != len(want) {
+		t.Fatalf("got %+v", got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("%d: got %+v, want %+v", i, got[i], want[i])
+		}
+	}
+}
+
+func TestNextBrief(t *testing.T) {
+	et := easternTime()
+	if got := nextBrief(time.Date(2026, 10, 8, 9, 20, 0, 0, et)); got != "11:00 IN 1H 40M" {
+		t.Errorf("morning: %s", got)
+	}
+	if got := nextBrief(time.Date(2026, 10, 8, 22, 0, 0, 0, et)); got != "07:00 IN 9H 0M" {
+		t.Errorf("night: %s", got)
 	}
 }

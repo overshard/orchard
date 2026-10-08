@@ -853,7 +853,7 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 
 	lines := marketLines(h, st.Market.Session, at)
 	asks := make([]string, len(lines))
-	releases := fetchReleases(ctx, b.guard)
+	releases := b.store.releasesOrFetch(ctx, b.guard)
 	var calendar strings.Builder
 	for i, l := range lines {
 		asks[i] = l.ask
@@ -1189,4 +1189,30 @@ func vixLevel(st State) float64 {
 		}
 	}
 	return 0
+}
+
+// nextSlot is when the next brief is due, weekends included.
+func nextSlot(now time.Time) time.Time {
+	now = now.In(easternTime())
+	for day := 0; day < 2; day++ {
+		d := now.AddDate(0, 0, day)
+		for _, s := range briefSlots {
+			at := time.Date(d.Year(), d.Month(), d.Day(), s.hour, s.minute, 0, 0, d.Location())
+			if at.After(now) {
+				return at
+			}
+		}
+	}
+	return now
+}
+
+// nextBrief is the footer's NEXT BRIEF segment.
+func nextBrief(now time.Time) string {
+	at := nextSlot(now)
+	d := at.Sub(now).Round(time.Minute)
+	in := fmt.Sprintf("%dM", int(d.Minutes()))
+	if d >= time.Hour {
+		in = fmt.Sprintf("%dH %dM", int(d.Hours()), int(d.Minutes())%60)
+	}
+	return at.Format("15:04") + " IN " + in
 }
