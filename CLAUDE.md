@@ -407,9 +407,22 @@ Each feed carries its AllSides lean, which is counted per point (`L1 C3 R1`) and
 never shown to the model, and a story only one side's outlets ran is marked as
 that rather than left out. Common words of the day are dropped before grouping,
 or two stories about the administration share four words and become one. The
-last two briefs live in `briefs.json` on the volume, so a deploy shows them
-rather than nothing, and a missed slot runs on start. `LLM_KEY` in `.env` from
-`make dash-key`, and without it the panels say the briefs are off.
+model labels every event by topic in its own call first, and crime, trials,
+human interest, sport, celebrity and local stories are dropped in Go unless
+seven or more outlets ran them, because told to skip a trial in the summary
+prompt it writes one up anyway and calls it politics. The last two briefs live
+in `briefs.json` on the volume, so a deploy shows them rather than nothing, and
+a missed slot runs on start. `LLM_KEY` in `.env` from `make dash-key`, and
+without it the panels say the briefs are off.
+
+**A brief never loads a model onto a card the desktop is using.** Each slot asks
+the gateway's `GET /v1/gpu` first, which reads `nvidia-smi` through the
+`orchard-llm-gpu` sidecar, and a busy card, 55% or 3000MiB with none of our
+models on it, defers the slot an hour and says so on both panels. Weekends run
+too, pointed at Monday. Both desks share one load, and the weights come off with
+`/v1/unload` straight after, unless a model was already resident, which is
+somebody's chat and is left to its own idle timer. The sidecar exists because the
+gateway is a scratch image and the injected `nvidia-smi` needs glibc.
 
 **The on air banner reads YouTube first and Twitch only when YouTube has
 nothing.** YouTube is a scrape of `@theburntpeanut/live`, which is the watch page

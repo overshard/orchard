@@ -1,9 +1,9 @@
 name: orchard-llm
 
-# Two services. The gateway is on the edge network so Caddy and every other site
-# can reach it, and the model server is on a private one that nothing else
-# joins, since it has no authentication of its own and the gateway is what
-# supplies that.
+# Three services. The gateway is on the edge network so Caddy and every other site
+# can reach it, and the model server and the gpu probe are on a private one that
+# nothing else joins, since neither has authentication of its own and the
+# gateway is what supplies that.
 
 services:
   app:
@@ -17,6 +17,7 @@ services:
     stop_grace_period: 30s
     environment:
       LLM_UPSTREAM: http://swap:8091
+      LLM_GPU: http://gpu:8092
       LLM_MODEL: local
       LLM_DB: /data/llm.db
     volumes:
@@ -64,6 +65,39 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks: [model]
+
+  # nvidia-smi with the utility capability and nothing else, so the gateway can
+  # say whether the desktop is using the card before a timed caller loads a model.
+  gpu:
+    build:
+      context: .
+      dockerfile: gpuprobe/Dockerfile
+    container_name: orchard-llm-gpu
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 64M
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [utility]
+    healthcheck:
+      test: ["CMD", "/gpuprobe", "-healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
     security_opt:
       - no-new-privileges:true
     logging:

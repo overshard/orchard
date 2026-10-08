@@ -2009,7 +2009,7 @@ main {
   }
 
   .tag { font-size: 9px; letter-spacing: var(--track); color: var(--amber); }
-  .txt { color: var(--text); font-size: 13px; line-height: 1.45; }
+  .txt { color: var(--text); font-size: 12px; line-height: 1.4; }
   .srcs { display: inline-flex; gap: 8px; }
 }
 
@@ -2026,19 +2026,19 @@ main {
   padding: 0;
 
   li {
-    padding: 8px 0;
+    padding: 6px 0;
     border-bottom: 1px solid var(--line);
     &:last-child { border-bottom: 0; }
   }
 
-  .txt { margin: 0; color: var(--text); font-size: 13px; line-height: 1.45; }
+  .txt { margin: 0; color: var(--text); font-size: 12px; line-height: 1.4; }
 
   .meta {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
-    gap: 4px 9px;
-    margin-top: 4px;
+    gap: 2px 9px;
+    margin-top: 2px;
   }
 
   .cov { font-size: 9px; letter-spacing: var(--track); color: var(--dim); }

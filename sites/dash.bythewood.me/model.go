@@ -99,3 +99,46 @@ func (m *Model) Structured(ctx context.Context, system, user string, schema map[
 	}
 	return json.Unmarshal([]byte(text), out)
 }
+
+// GPUState is the gateway's read of the card before anything is loaded.
+type GPUState struct {
+	Busy    bool   `json:"busy"`
+	Reason  string `json:"reason"`
+	Loaded  bool   `json:"loaded"`
+	UtilAvg int    `json:"util_avg"`
+	UsedMiB int    `json:"used_mib"`
+}
+
+func (m *Model) GPU(ctx context.Context) (GPUState, error) {
+	var g GPUState
+	err := m.call(ctx, http.MethodGet, "/v1/gpu", &g)
+	return g, err
+}
+
+// Unload takes the weights off now rather than at the end of the gateway's
+// three minute idle timer, so a game started straight after a brief has the card.
+func (m *Model) Unload(ctx context.Context) error {
+	return m.call(ctx, http.MethodPost, "/v1/unload", nil)
+}
+
+func (m *Model) call(ctx context.Context, method, path string, into any) error {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, method, m.url+path, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+m.key)
+	resp, err := m.http.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("model: %s %s: http %d", method, path, resp.StatusCode)
+	}
+	if into == nil {
+		return nil
+	}
+	return json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(into)
+}

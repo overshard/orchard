@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -17,28 +19,21 @@ func inNY(t *testing.T, v string) time.Time {
 }
 
 func TestLatestSlot(t *testing.T) {
-	cases := []struct {
-		now      string
-		weekdays bool
-		kind     string
-		at       string
-	}{
-		{"2026-10-07 06:59", false, "close", "2026-10-06 16:05"},
-		{"2026-10-07 07:00", false, "morning", "2026-10-07 07:00"},
-		{"2026-10-07 10:30", false, "morning", "2026-10-07 07:00"},
-		{"2026-10-07 11:00", false, "midday", "2026-10-07 11:00"},
-		{"2026-10-07 16:04", false, "midday", "2026-10-07 11:00"},
-		{"2026-10-07 16:05", false, "close", "2026-10-07 16:05"},
-		// Saturday morning, the news has a run and the markets keep Friday's close.
-		{"2026-10-10 08:00", false, "morning", "2026-10-10 07:00"},
-		{"2026-10-10 08:00", true, "close", "2026-10-09 16:05"},
-		// Monday before the open still reaches back over the weekend.
-		{"2026-10-12 06:00", true, "close", "2026-10-09 16:05"},
+	cases := []struct{ now, kind, at string }{
+		{"2026-10-07 06:59", "close", "2026-10-06 16:05"},
+		{"2026-10-07 07:00", "morning", "2026-10-07 07:00"},
+		{"2026-10-07 10:30", "morning", "2026-10-07 07:00"},
+		{"2026-10-07 11:00", "midday", "2026-10-07 11:00"},
+		{"2026-10-07 16:04", "midday", "2026-10-07 11:00"},
+		{"2026-10-07 16:05", "close", "2026-10-07 16:05"},
+		// Weekends run like any other day.
+		{"2026-10-10 08:00", "morning", "2026-10-10 07:00"},
+		{"2026-10-12 06:00", "close", "2026-10-11 16:05"},
 	}
 	for _, c := range cases {
-		slot, at := latestSlot(inNY(t, c.now), c.weekdays)
+		slot, at := latestSlot(inNY(t, c.now))
 		if slot.kind != c.kind || !at.Equal(inNY(t, c.at)) {
-			t.Errorf("%s weekdays=%t: got %s at %s, want %s at %s", c.now, c.weekdays, slot.kind, at.Format("2006-01-02 15:04"), c.kind, c.at)
+			t.Errorf("%s: got %s at %s, want %s at %s", c.now, slot.kind, at.Format("2006-01-02 15:04"), c.kind, c.at)
 		}
 	}
 }
@@ -180,5 +175,139 @@ func TestClusterIgnoresTheDaysCommonWords(t *testing.T) {
 		if len(c.outlets()) > 1 {
 			t.Errorf("merged %v", c.outlets())
 		}
+	}
+}
+
+type fakeGateway struct {
+	gpu      GPUState
+	gpuErr   error
+	asked    int
+	unloads  int
+	compiled []string
+}
+
+func (f *fakeGateway) Structured(context.Context, string, string, map[string]any, int, any) error {
+	return nil
+}
+func (f *fakeGateway) GPU(context.Context) (GPUState, error) { f.asked++; return f.gpu, f.gpuErr }
+func (f *fakeGateway) Unload(context.Context) error          { f.unloads++; return nil }
+
+func testBriefer(t *testing.T, f *fakeGateway, fail bool) *Briefer {
+	t.Helper()
+	b := NewBriefer(NewStore(NewHub()), nil, nil, t.TempDir())
+	b.model = f
+	b.compile = func(_ context.Context, desk string, slot briefSlot, at time.Time) (Brief, error) {
+		f.compiled = append(f.compiled, desk)
+		if fail {
+			return Brief{}, errors.New("model fell over")
+		}
+		return Brief{Slot: at.Unix(), Title: slot.title(), Points: []Point{{Text: desk}}}, nil
+	}
+	return b
+}
+
+// Gaming on a Saturday: the 7am slot is owed, the card is busy, nothing loads,
+// and the next ask is an hour later, not every minute.
+func TestBriefDefersAnHourWhenTheCardIsBusy(t *testing.T) {
+	f := &fakeGateway{gpu: GPUState{Busy: true, Reason: "card at 95%"}}
+	b := testBriefer(t, f, false)
+	now := inNY(t, "2026-10-10 07:00")
+
+	for m := 0; m < 59; m++ {
+		b.tick(context.Background(), now.Add(time.Duration(m)*time.Minute))
+	}
+	if f.asked != 1 || len(f.compiled) != 0 || f.unloads != 0 {
+		t.Fatalf("in the first hour: asked %d, compiled %v, unloaded %d", f.asked, f.compiled, f.unloads)
+	}
+	if w := b.store.Snapshot().Briefs.News.Waiting; w != "CARD IN USE, NEXT TRY 08:00" {
+		t.Errorf("waiting %q", w)
+	}
+
+	f.gpu = GPUState{Reason: "card idle"}
+	b.tick(context.Background(), now.Add(time.Hour))
+	if f.asked != 2 || strings.Join(f.compiled, ",") != "markets,news" || f.unloads != 1 {
+		t.Fatalf("at 8am: asked %d, compiled %v, unloaded %d", f.asked, f.compiled, f.unloads)
+	}
+	if w := b.store.Snapshot().Briefs.News.Waiting; w != "" {
+		t.Errorf("still waiting %q after a run", w)
+	}
+
+	// Done for this slot, so nothing more until 11.
+	b.tick(context.Background(), now.Add(2*time.Hour))
+	if f.asked != 2 {
+		t.Errorf("asked again with nothing owed")
+	}
+}
+
+// A model already on the card is somebody's chat, and pulling it would kill
+// their turn, so the brief uses it and leaves it.
+func TestBriefLeavesAResidentModelAlone(t *testing.T) {
+	f := &fakeGateway{gpu: GPUState{Loaded: true}}
+	b := testBriefer(t, f, false)
+	b.tick(context.Background(), inNY(t, "2026-10-07 11:00"))
+	if len(f.compiled) != 2 || f.unloads != 0 {
+		t.Errorf("compiled %v, unloaded %d", f.compiled, f.unloads)
+	}
+}
+
+// A failed run still unloads what it loaded, and tries again in a quarter hour.
+func TestBriefUnloadsAndRetriesAfterAFailure(t *testing.T) {
+	f := &fakeGateway{}
+	b := testBriefer(t, f, true)
+	now := inNY(t, "2026-10-07 16:05")
+	b.tick(context.Background(), now)
+	if f.unloads != 1 {
+		t.Errorf("unloaded %d after a failed run", f.unloads)
+	}
+	b.tick(context.Background(), now.Add(14*time.Minute))
+	b.tick(context.Background(), now.Add(15*time.Minute))
+	if f.asked != 2 {
+		t.Errorf("asked %d times, want a retry at 15 minutes", f.asked)
+	}
+}
+
+// The gateway being down is not the card being busy, and is asked again sooner.
+func TestBriefRetriesWhenTheGatewayIsDown(t *testing.T) {
+	f := &fakeGateway{gpuErr: errors.New("connection refused")}
+	b := testBriefer(t, f, false)
+	now := inNY(t, "2026-10-07 07:00")
+	b.tick(context.Background(), now)
+	b.tick(context.Background(), now.Add(15*time.Minute))
+	if f.asked != 2 || len(f.compiled) != 0 {
+		t.Errorf("asked %d, compiled %v", f.asked, f.compiled)
+	}
+}
+
+func TestWidelyCarriedKeepsSinglesOnAQuietDay(t *testing.T) {
+	two := cluster{stories: []story{{source: "AP"}, {source: "FOX"}}}
+	one := cluster{stories: []story{{source: "NPR"}}}
+
+	quiet := []cluster{two, one, one}
+	if len(widelyCarried(quiet)) != 3 {
+		t.Error("dropped singles with too few shared events to replace them")
+	}
+
+	var busy []cluster
+	for i := 0; i < 12; i++ {
+		busy = append(busy, two)
+	}
+	busy = append(busy, one)
+	if got := widelyCarried(busy); len(got) != 12 {
+		t.Errorf("kept %d, want the 12 shared", len(got))
+	}
+}
+
+func TestKeepMajor(t *testing.T) {
+	trial := cluster{stories: []story{{source: "AP", title: "Court denies stay"}, {source: "CBS"}}}
+	clancy := cluster{stories: []story{{source: "AP"}, {source: "REUTERS"}, {source: "WSJ"}, {source: "HILL"},
+		{source: "NPR"}, {source: "CBS"}, {source: "FOX"}}}
+	fed := cluster{stories: []story{{source: "AP"}, {source: "WSJ"}}}
+
+	got := keepMajor([]cluster{trial, clancy, fed}, []string{"crime_or_court", "crime_or_court", "economy"})
+	if len(got) != 2 || len(got[0].outlets()) != 7 {
+		t.Errorf("kept %d, want the trial everyone ran and the Fed", len(got))
+	}
+	if len(keepMajor([]cluster{trial, fed}, []string{"economy"})) != 2 {
+		t.Error("a short label list should keep everything")
 	}
 }

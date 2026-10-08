@@ -589,7 +589,8 @@ function briefLinks(links) {
 }
 
 function briefEmpty(brief) {
-  return el("p", "empty", brief && brief.status === "off" ? "BRIEF OFF, NO MODEL KEY" : "AWAITING BRIEF");
+  if (brief && brief.status === "off") return el("p", "empty", "BRIEF OFF, NO MODEL KEY");
+  return el("p", "empty", (brief && brief.waiting) || "AWAITING BRIEF");
 }
 
 function renderMarketBrief(brief) {
@@ -608,7 +609,7 @@ function renderMarketBrief(brief) {
     li.append(srcs);
     ul.append(li);
   }
-  const meta = el("p", "brief-meta", `${brief.title} BRIEF / COMPILED ${brief.compiled} / ${brief.stories} STORIES / LOCAL MODEL`);
+  const meta = el("p", "brief-meta", `${brief.title} BRIEF / COMPILED ${brief.compiled} / ${brief.stories} STORIES / LOCAL MODEL${brief.waiting ? ` / ${brief.waiting}` : ""}`);
   host.replaceChildren(ul, meta);
 }
 
@@ -633,7 +634,7 @@ function renderNewsBrief(brief) {
     li.append(meta);
     ol.append(li);
   }
-  const foot = el("p", "footnote", `SUMMARISED BY A LOCAL MODEL FROM ${brief.stories} STORIES. L C R COUNTS THE OUTLETS THAT CARRIED IT BY ALLSIDES LEAN.`);
+  const foot = el("p", "footnote", `${brief.waiting ? `${brief.waiting}. ` : ""}SUMMARISED BY A LOCAL MODEL FROM ${brief.stories} STORIES. L C R COUNTS THE OUTLETS THAT CARRIED IT BY ALLSIDES LEAN.`);
   host.replaceChildren(ol, foot);
 }
 
