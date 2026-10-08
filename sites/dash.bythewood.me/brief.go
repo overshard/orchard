@@ -72,7 +72,7 @@ type briefSlot struct {
 var briefSlots = []briefSlot{
 	{kind: "morning", hour: 7, reach: 24 * time.Hour, marketLines: []string{"YESTERDAY", "TODAY"}},
 	{kind: "midday", hour: 11, reach: 6 * time.Hour, marketLines: []string{"SO FAR"}},
-	{kind: "close", hour: 16, minute: 5, reach: 11 * time.Hour, marketLines: []string{"SESSION", "READ"}},
+	{kind: "close", hour: 16, minute: 5, reach: 11 * time.Hour, marketLines: []string{"SESSION", "READ", "AHEAD"}},
 }
 
 const (
@@ -111,6 +111,9 @@ type Point struct {
 	Label string `json:"label,omitempty"`
 	Text  string `json:"text"`
 	Links []Link `json:"links"`
+
+	// higher, lower or mixed on the lines that look forward.
+	Lean string `json:"lean,omitempty"`
 
 	// Outlets that carried it per AllSides lean, like "L1 C3 R1".
 	Coverage string `json:"coverage,omitempty"`
@@ -735,10 +738,11 @@ func marketSchema(lines int) map[string]any {
 				"items": map[string]any{
 					"type": "object",
 					"properties": map[string]any{
-						"text":    map[string]any{"type": "string", "maxLength": 180},
+						"lean":    map[string]any{"type": "string", "enum": []string{"higher", "lower", "mixed", "none"}},
+						"text":    map[string]any{"type": "string", "maxLength": 300},
 						"sources": map[string]any{"type": "array", "maxItems": 3, "items": map[string]any{"type": "integer"}},
 					},
-					"required":             []string{"text", "sources"},
+					"required":             []string{"lean", "text", "sources"},
 					"additionalProperties": false,
 				},
 			},
@@ -777,13 +781,13 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 	case weekend(at):
 		asks = []string{
 			"how last week ended for stocks and the main reason given",
-			"what could move markets on Monday: scheduled earnings and data, weekend news, and futures if they are trading",
+			"which way the market as a whole leans for Monday and the two or three biggest market-wide reasons",
 		}
 		labels = []string{"LAST WEEK", "MONDAY"}
 	case slot.kind == "morning":
 		asks = []string{
 			"how the previous session went and the main reason given for it",
-			"what futures point to for today and what is scheduled that could move it (earnings, data, the Fed)",
+			"which way the market as a whole leans today and the two or three biggest market-wide reasons",
 		}
 	case slot.kind == "midday":
 		asks = []string{"how today's session is going so far and the main reason given for it"}
@@ -791,6 +795,7 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 		asks = []string{
 			"how today's session closed and the main reason given for it",
 			"the broader read: what led and lagged, rates, and whether today fits the recent trend",
+			"which way the market as a whole leans for tomorrow and the two or three biggest market-wide reasons",
 		}
 	}
 	var want strings.Builder
@@ -799,17 +804,26 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 	}
 
 	system := "You write a one line markets summary for a dashboard, for one reader who invests in index funds.\n" + neutralRules + `
-- Each line is one short sentence of at most 25 words.
+- Each line is one short sentence of at most 25 words. Name companies and events, never just "earnings" or "data".
 - Quote figures exactly as given in the numbers. Never compute or invent a figure.
 - A reason for a move has to come from a story, and is cited. If no story gives one, say what moved and leave the reason out.
-- No advice, no predictions of your own, nothing like "investors should".`
+- No advice, nothing like "investors should".
+- The line asking which way things lean is about the whole market, never single companies. Its reasons come from market-wide drivers: futures, Treasury yields and the Fed, scheduled economic data, oil, the VIX and the recent trend, and geopolitical news. Mention a company only if it is one of the very largest in the S&P 500. It sets "lean" to higher, lower or mixed, for which way its reasons point on balance, and names each reason and which way it pushes, like "Futures are flat, but yields at multi-decade highs and a rising VIX weigh on stocks."
+- Do not write the lean itself into the text, the page shows it beside the line. The text is only the reasons.
+- Every other line sets "lean" to none and makes no prediction.`
 
 	user := fmt.Sprintf("It is %s Eastern.\n\n%s\nNumbers right now:\n%s\nStories, most widely covered first:\n%s",
 		at.In(easternTime()).Format("15:04 on Monday, January 2 2006"), want.String(),
 		marketFacts(st, h, slot), clusterList(events, now))
 
-	var out modelPoints
-	if err := b.model.Structured(ctx, system, user, marketSchema(len(asks)), 800, &out); err != nil {
+	var out struct {
+		Points []struct {
+			Lean    string `json:"lean"`
+			Text    string `json:"text"`
+			Sources []int  `json:"sources"`
+		} `json:"points"`
+	}
+	if err := b.model.Structured(ctx, system, user, marketSchema(len(asks)), 900, &out); err != nil {
 		return Brief{}, err
 	}
 
@@ -824,6 +838,9 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 			continue
 		}
 		pt.Label = labels[min(i, len(labels)-1)]
+		if forward(pt.Label) && p.Lean != "none" {
+			pt.Lean = p.Lean
+		}
 		brief.Points = append(brief.Points, pt)
 	}
 	if len(brief.Points) == 0 {
@@ -858,6 +875,11 @@ func marketFacts(st State, h *history, slot briefSlot) string {
 	if st.Signal.Headline != "" {
 		fmt.Fprintf(&b, "Conditions: %s\n", strings.ToLower(st.Signal.Headline))
 	}
+	for _, c := range st.Signal.Conditions {
+		if c.Known {
+			fmt.Fprintf(&b, "S&P 500 %s (%s): %s, %s\n", strings.ToLower(c.Label), strings.ToLower(c.Note), c.Value, strings.ToLower(c.State))
+		}
+	}
 	for _, r := range st.Rates.Rows {
 		if !r.Unavailable {
 			fmt.Fprintf(&b, "%s Treasury yield: %s, %s\n", r.Label, r.Yield, r.Change)
@@ -876,10 +898,11 @@ func marketFacts(st State, h *history, slot briefSlot) string {
 		fmt.Fprintf(&b, "Sectors best to worst: %s\n", strings.Join(sectors, ", "))
 	}
 	for _, e := range st.Earnings.Reported {
-		fmt.Fprintf(&b, "Reported %s %s: %s %s, EPS %s against %s forecast, stock %s\n", e.Day, e.Symbol, e.When, e.Verdict, e.Actual, e.Forecast, e.Move)
+		fmt.Fprintf(&b, "%s (%s) reported %s %s: EPS %s against %s forecast, %s, stock %s\n",
+			e.Name, e.Symbol, strings.ToLower(e.Day), session(e.When), e.Actual, e.Forecast, strings.ToLower(e.Verdict), e.Move)
 	}
 	for _, e := range st.Earnings.Upcoming {
-		fmt.Fprintf(&b, "Reports %s %s %s, EPS estimate %s\n", e.Symbol, e.Day, e.When, e.Est)
+		fmt.Fprintf(&b, "%s (%s) reports %s %s, EPS estimate %s\n", e.Name, e.Symbol, strings.ToLower(e.Day), session(e.When), e.Est)
 	}
 	return b.String()
 }
@@ -887,6 +910,20 @@ func marketFacts(st State, h *history, slot briefSlot) string {
 func newBrief(slot briefSlot, at time.Time, events []cluster) Brief {
 	return Brief{Kind: slot.kind, Title: slot.title(), Slot: at.Unix(), Stories: storyCount(events),
 		Outlets: outletNames(events), Compiled: time.Now().In(easternTime()).Format("15:04 MST")}
+}
+
+func forward(label string) bool {
+	return label == "TODAY" || label == "AHEAD" || label == "MONDAY"
+}
+
+func session(when string) string {
+	switch when {
+	case "PRE":
+		return "before the open"
+	case "POST":
+		return "after the close"
+	}
+	return ""
 }
 
 // cite turns the model's event numbers into links, one per outlet with the
