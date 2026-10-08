@@ -75,7 +75,7 @@
 {{define "market-brief"}}
 {{- if .Points}}
 <ul class="brief-lines">
-  {{range .Points}}<li><span class="tag">{{.Label}}</span><span class="txt">{{if .Lean}}<span class="lean" data-lean="{{.Lean}}">LEANS {{upper .Lean}}</span> {{end}}{{.Text}}</span><span class="srcs">{{template "brief-links" .Links}}</span></li>
+  {{range .Points}}<li><span class="tag">{{.Label}}</span><span class="txt">{{if .Move}}<span class="lean" data-lean="{{.Lean}}">{{upper .Lean}} {{.Move}}</span> {{else if .Lean}}<span class="lean" data-lean="{{.Lean}}">LEANS {{upper .Lean}}</span> {{end}}{{.Text}}</span><span class="srcs">{{template "brief-links" .Links}}</span></li>
   {{end}}
 </ul>
 <p class="brief-meta">{{.Title}} BRIEF / COMPILED {{.Compiled}} / {{.Stories}} STORIES / LOCAL MODEL / A LEAN IS A READ, NOT A FORECAST{{if .Waiting}} / {{.Waiting}}{{end}}</p>

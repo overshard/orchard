@@ -48,6 +48,7 @@ type Signal struct {
 // give it, since that one only ever asks for a single day.
 type history struct {
 	closes []float64
+	times  []int64
 	high52 float64
 }
 
@@ -66,9 +67,11 @@ func fetchHistory(ctx context.Context, g *Guard, symbol string) (*history, error
 			continue
 		}
 		h := &history{high52: r.Response[0].Meta.FiftyTwoWeekHigh}
-		for _, c := range r.Response[0].Indicators.Quote[0].Close {
-			if c != nil {
+		ts := r.Response[0].Timestamp
+		for i, c := range r.Response[0].Indicators.Quote[0].Close {
+			if c != nil && i < len(ts) {
 				h.closes = append(h.closes, *c)
+				h.times = append(h.times, ts[i])
 			}
 		}
 		if len(h.closes) < 30 {
