@@ -539,6 +539,25 @@ function renderGuard(guarded) {
       : "GUARD NOMINAL";
 }
 
+function renderFooter(ahead, next) {
+  const nextHost = document.querySelector("[data-next-brief]");
+  if (nextHost && next) nextHost.textContent = `NEXT BRIEF ${next}`;
+  const host = document.querySelector("[data-ahead]");
+  if (!host) return;
+  if (!ahead || !ahead.length) {
+    host.replaceChildren();
+    return;
+  }
+  host.replaceChildren(
+    "AHEAD",
+    ...ahead.map((a) => {
+      const ev = el("span", "ev");
+      ev.append(el("b", null, a.label), ` ${a.when}`);
+      return ev;
+    }),
+  );
+}
+
 function renderFeeds(feeds) {
   const host = document.querySelector("[data-feeds]");
   if (!host || !feeds) return;
@@ -1148,6 +1167,7 @@ function render(state) {
   if (changed("air", [state.weather, state.air])) renderAir(state.weather, state.air);
   if (changed("systems", state.systems)) renderSystems(state.systems);
   if (changed("guarded", state.guarded)) renderGuard(state.guarded);
+  if (changed("footer", [state.ahead, state.next_brief])) renderFooter(state.ahead, state.next_brief);
 }
 
 // EventSource reconnects on its own, but only for a clean disconnect. An error

@@ -454,7 +454,10 @@ hasn't, green, red or amber either way, so a fact and a guess never look alike.
 readout beside it and stretched the whole local band to match, so it moved under
 the news band on its own and runs its rows as many across as fit. That leaves the
 local band six panels, six wide from 1900px where `main` widens, then three and
-then two, so no width leaves a hole.
+then two, so no width leaves a hole. The status line under it doesn't list the sources again, since
+UPLINK names them all. It says when the next brief is due and the next four
+market moving dates, CPI, PPI, jobs, JOLTS, GDP, PCE and the Fed, with the label
+in amber.
 
 **Say a thing once.** That NWS headline was the event name and the end time
 again in a sentence, so the longest string on the page was mostly a repeat of
