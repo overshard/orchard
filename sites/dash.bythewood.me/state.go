@@ -14,27 +14,30 @@ import (
 // the SSE connection on every update, so there is one shape to get right rather
 // than a server one and a browser one that drift.
 type State struct {
-	Market    Market       `json:"market"`
-	Rates     Rates        `json:"rates"`
-	Sectors   []SectorCell `json:"sectors"`
-	Signal    Signal       `json:"signal"`
-	Earnings  Earnings     `json:"earnings"`
-	Briefs    Briefs       `json:"briefs"`
-	HN        []Story      `json:"hn"`
-	Lobsters  []Story      `json:"lobsters"`
-	Weather   Weather      `json:"weather"`
-	Air       Air          `json:"air"`
-	Alerts    []Alert      `json:"alerts"`
-	OnAir     OnAir        `json:"onair"`
-	Outlook   Outlook      `json:"outlook"`
-	Steam     []Game       `json:"steam"`
-	Streaming []Title      `json:"streaming"`
-	Systems   Systems      `json:"systems"`
-	Feeds     []Feed       `json:"feeds"`
-	Updated   string       `json:"updated"`
-	Guarded   []string     `json:"guarded"`
-	Ahead     []Upcoming   `json:"ahead"`
-	NextBrief string       `json:"next_brief"`
+	Market   Market       `json:"market"`
+	Rates    Rates        `json:"rates"`
+	Sectors  []SectorCell `json:"sectors"`
+	Signal   Signal       `json:"signal"`
+	Earnings Earnings     `json:"earnings"`
+	Briefs   Briefs       `json:"briefs"`
+	HN       []Story      `json:"hn"`
+	Lobsters []Story      `json:"lobsters"`
+
+	HNPulse       Pulse      `json:"hn_pulse"`
+	LobstersPulse Pulse      `json:"lobsters_pulse"`
+	Weather       Weather    `json:"weather"`
+	Air           Air        `json:"air"`
+	Alerts        []Alert    `json:"alerts"`
+	OnAir         OnAir      `json:"onair"`
+	Outlook       Outlook    `json:"outlook"`
+	Steam         []Game     `json:"steam"`
+	Streaming     []Title    `json:"streaming"`
+	Systems       Systems    `json:"systems"`
+	Feeds         []Feed     `json:"feeds"`
+	Updated       string     `json:"updated"`
+	Guarded       []string   `json:"guarded"`
+	Ahead         []Upcoming `json:"ahead"`
+	NextBrief     string     `json:"next_brief"`
 
 	// What a browser with notifications on is told about, rebuilt by each
 	// poller from what it just fetched.
@@ -524,16 +527,16 @@ func (s *Store) refreshSteam(ctx context.Context, g *Guard) {
 func (s *Store) refreshNews(ctx context.Context, g *Guard) {
 	now := time.Now()
 
-	if stories, err := fetchHackerNews(ctx, g, now); err != nil {
+	if stories, pulse, err := fetchHackerNews(ctx, g, now); err != nil {
 		pollFailed(ctx, "hacker news", "news", err)
 	} else {
-		s.update(func(st *State) { st.HN = stories })
+		s.update(func(st *State) { st.HN, st.HNPulse = stories, pulse })
 	}
 
-	if stories, err := fetchLobsters(ctx, g, now); err != nil {
+	if stories, pulse, err := fetchLobsters(ctx, g, now); err != nil {
 		pollFailed(ctx, "lobsters", "news", err)
 	} else {
-		s.update(func(st *State) { st.Lobsters = stories })
+		s.update(func(st *State) { st.Lobsters, st.LobstersPulse = stories, pulse })
 	}
 }
 
