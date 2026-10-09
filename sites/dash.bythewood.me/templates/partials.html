@@ -70,7 +70,7 @@
 </ol>
 {{end}}
 
-{{define "ahead"}}{{if .}}AHEAD{{range .}}<span class="ev"><b>{{.Label}}</b> {{.When}}</span>{{end}}{{end}}{{end}}
+{{define "ahead"}}{{if .}}{{range .}}<span class="ev"><b>{{.Label}}</b> {{.When}}</span>{{end}}{{end}}{{end}}
 
 {{define "pulse"}}{{if .Label}}<div class="pulse" data-level="{{.Level}}">
   <p class="head"><span class="lvl">{{.Label}}</span>{{if .Text}} {{.Text}}{{end}}</p>
