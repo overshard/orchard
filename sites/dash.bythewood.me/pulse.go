@@ -44,48 +44,60 @@ func feedPulse(items []feedItem, sc pulseScale, theme func([]feedItem) (string, 
 	if len(items) == 0 {
 		return Pulse{}
 	}
-	// Taking off now is a fresh story already high, and a huge one from
-	// yesterday is still the biggest thing on the page but isn't blowing up.
-	biggest := func(keep func(feedItem) bool) *feedItem {
-		var best *feedItem
-		for i := range items {
-			if keep(items[i]) && (best == nil || items[i].points+items[i].comments > best.points+best.comments) {
-				best = &items[i]
-			}
+	// In the order the rows are drawn, so a story can be named by its row and
+	// the top row never gets repeated back.
+	items = slices.Clone(items)
+	slices.SortStableFunc(items, func(a, b feedItem) int { return b.points - a.points })
+	row := func(i int) string {
+		if i < storiesShown {
+			return fmt.Sprintf("No. %d", i+1)
 		}
-		return best
+		return short(items[i].title)
 	}
-	hot := biggest(func(it feedItem) bool {
-		return it.age <= sc.fresh && it.points >= sc.freshPoints || it.age <= 24*time.Hour && it.points >= sc.hugePoints
-	})
-	big := biggest(func(it feedItem) bool { return it.points >= sc.hugePoints || it.comments >= sc.hugeComments })
-	argued := items[0]
-	for _, it := range items[1:] {
-		if it.comments > argued.comments {
-			argued = it
+
+	hot := -1
+	for i, it := range items {
+		if it.age <= sc.fresh && it.points >= sc.freshPoints || it.age <= 24*time.Hour && it.points >= sc.hugePoints {
+			hot = i
+			break
 		}
 	}
+	argued := 0
+	for i, it := range items {
+		if it.comments > items[argued].comments {
+			argued = i
+		}
+	}
+	big := items[0].points >= sc.hugePoints || items[argued].comments >= sc.hugeComments
+	busy := items[0].points >= sc.busyPoints || items[argued].comments >= sc.busyComments
 
 	var p Pulse
 	var parts []string
 	switch {
-	case hot != nil:
+	case hot >= 0:
 		p.Level, p.Label = "hot", "BLOWING UP"
-		parts = append(parts, fmt.Sprintf("%s, %d points in %s", short(hot.title), hot.points, hours(hot.age)))
-	case big != nil:
+		parts = append(parts, fmt.Sprintf("%s hit %d points in %s", row(hot), items[hot].points, hours(items[hot].age)))
+	case big:
 		p.Level, p.Label = "big", "BIG THREAD"
-		parts = append(parts, fmt.Sprintf("%s, %d points and %d comments", short(big.title), big.points, big.comments))
-	case slices.ContainsFunc(items, func(it feedItem) bool { return it.points >= sc.busyPoints || it.comments >= sc.busyComments }):
+	case busy:
 		p.Level, p.Label = "busy", "BUSY"
-		parts = append(parts, fmt.Sprintf("Most argued: %s, %d comments", short(argued.title), argued.comments))
 	default:
 		p.Level, p.Label = "quiet", "QUIET"
-		parts = append(parts, "Nothing taking off")
+	}
+	// The most argued thread is worth a mention when it isn't the top row,
+	// since a fight in the comments is invisible from the points.
+	if argued != 0 && argued != hot && items[argued].comments >= sc.busyComments {
+		parts = append(parts, fmt.Sprintf("%s has the argument, %d comments", row(argued), items[argued].comments))
 	}
 	if name, n := theme(items); n >= sc.theme {
 		parts = append(parts, fmt.Sprintf("%s in %d of %d", name, n, len(items)))
 	}
-	p.Text = strings.Join(parts, ". ") + "."
+	if len(parts) == 0 && p.Level == "quiet" {
+		parts = append(parts, "Nothing taking off")
+	}
+	if len(parts) > 0 {
+		p.Text = strings.Join(parts, ". ") + "."
+	}
 	return p
 }
 
