@@ -66,6 +66,23 @@ func TestClusterRanksByOutlets(t *testing.T) {
 	}
 }
 
+// One outlet folded the ICC sanctions into its Nobel headline, and the model
+// handed that back as the day's top story.
+func TestLeadIsTheTitleTheOthersShare(t *testing.T) {
+	c := cluster{stories: []story{
+		st("CBS", "L", `Nobel Peace Prize awarded to former ICC judge Navanethem "Navi" Pillay`, 50),
+		st("REUTERS", "C", "Former ICC judge Navi Pillay wins 2026 Nobel Peace Prize", 45),
+		st("FOX", "R", "Nobel Peace Prize awarded to UN jurist who accused Israel of committing genocide in Gaza", 40),
+		st("HILL", "C", "US sanctions global court as judge awarded Nobel Peace Prize", 35),
+		st("REUTERS", "C", "EXCLUSIVE US imposes sanctions on International Criminal Court, hours after former judge wins Nobel", 30),
+		st("BBC", "C", "Navi Pillay, former UN human rights chief, wins Nobel Peace Prize", 25),
+		st("NPR", "L", "South African human rights lawyer Navi Pillay wins the Nobel Peace Prize", 20),
+	}}
+	if got := c.lead().title; !strings.Contains(got, "Pillay") {
+		t.Errorf("want a title naming Pillay, got %q", got)
+	}
+}
+
 func TestCiteCountsSidesAndPutsCenterFirst(t *testing.T) {
 	events := clusterStories([]story{
 		st("FOX", "R", "Senate passes stopgap spending bill to avert shutdown", 60),

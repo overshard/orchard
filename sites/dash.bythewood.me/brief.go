@@ -543,12 +543,20 @@ func (c cluster) outlets() []string {
 	return names
 }
 
-// lead is the telling the model reads, a center outlet's where there is one,
+// lead is the telling the model reads. The title that shares the most words
+// with the rest of the event wins, so one outlet folding a second story into
+// its headline doesn't speak for all of them, and a center outlet's is favoured
 // since the point is to hand it the least framed headline available.
 func (c cluster) lead() story {
-	best := c.stories[0]
 	score := func(s story) int {
 		n := 0
+		for _, w := range s.words {
+			for _, o := range c.stories {
+				if o.url != s.url && slices.Contains(o.words, w) {
+					n++
+				}
+			}
+		}
 		if s.lean == "C" {
 			n += 2
 		}
@@ -557,6 +565,7 @@ func (c cluster) lead() story {
 		}
 		return n
 	}
+	best := c.stories[0]
 	for _, s := range c.stories[1:] {
 		if score(s) > score(best) {
 			best = s
@@ -1090,27 +1099,32 @@ func mostImpact(events []cluster, ratings []eventRating, limit int) []cluster {
 	return out
 }
 
-func marketSchema(lines int) map[string]any {
-	return map[string]any{
-		"type": "object",
-		"properties": map[string]any{
-			"points": map[string]any{
-				"type": "array", "minItems": lines, "maxItems": lines,
-				"items": map[string]any{
-					"type": "object",
-					"properties": map[string]any{
-						"lean":    map[string]any{"type": "string", "enum": []string{"higher", "lower", "mixed", "none"}},
-						"text":    map[string]any{"type": "string", "maxLength": 300},
-						"sources": map[string]any{"type": "array", "maxItems": 3, "items": map[string]any{"type": "integer"}},
-					},
-					"required":             []string{"lean", "text", "sources"},
-					"additionalProperties": false,
-				},
+// marketSchema gives every line its own field so a forward line can't come
+// back as "none", which the 9B did on a quiet Monday and wrote up Netflix layoffs.
+// The lean is "verdict" since keys go out sorted and the model writes them in
+// that order, and it has to write its reasons before it picks a side.
+func marketSchema(lines []marketLine) map[string]any {
+	props := map[string]any{}
+	var required []string
+	for i, l := range lines {
+		leans := []string{"none"}
+		if l.forward {
+			leans = []string{"higher", "lower", "mixed"}
+		}
+		key := fmt.Sprintf("line%d", i+1)
+		props[key] = map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"verdict": map[string]any{"type": "string", "enum": leans},
+				"text":    map[string]any{"type": "string", "maxLength": 300},
+				"sources": map[string]any{"type": "array", "maxItems": 3, "items": map[string]any{"type": "integer"}},
 			},
-		},
-		"required":             []string{"points"},
-		"additionalProperties": false,
+			"required":             []string{"verdict", "text", "sources"},
+			"additionalProperties": false,
+		}
+		required = append(required, key)
 	}
+	return map[string]any{"type": "object", "properties": props, "required": required, "additionalProperties": false}
 }
 
 func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Time) (Brief, error) {
@@ -1157,7 +1171,7 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 	}
 	var want strings.Builder
 	for i, a := range asks {
-		fmt.Fprintf(&want, "Line %d: %s.\n", i+1, a)
+		fmt.Fprintf(&want, "line%d: %s.\n", i+1, a)
 	}
 
 	system := "You write a one line markets summary for a dashboard, for one reader who invests in index funds.\n" + neutralRules + `
@@ -1166,24 +1180,23 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 - A reason for a move has to come from a story, and is cited. If no story gives one, say what moved and leave the reason out.
 - Each story says how long ago it ran. Explain a session only with stories from around that session, so a story about this morning's futures is never the reason for yesterday's close.
 - No advice, nothing like "investors should".
-- A line asking which way things lean is about the whole market, never single companies. Its reasons come from market-wide drivers: futures, Treasury yields and the Fed, the calendar and patterns listed for that day, oil, the VIX and the recent trend, and geopolitical news. A scheduled Fed decision or big release always gets named. The patterns are mild tilts, so they settle a close call and never outweigh the news. Mention a company only if it is one of the very largest in the S&P 500. It sets "lean" to higher, lower or mixed, for which way its reasons point on balance, and names each reason and which way it pushes, like "Futures are flat, but yields at multi-decade highs and a rising VIX weigh on stocks."
+- A line asking which way things lean is about the whole market, never single companies. Its reasons come from market-wide drivers: futures, Treasury yields and the Fed, the calendar and patterns listed for that day, oil, the VIX and the recent trend, and geopolitical news. A scheduled Fed decision or big release always gets named. The patterns are mild tilts, so they settle a close call and never outweigh the news. Mention a company only if it is one of the very largest in the S&P 500. It sets "verdict" to higher, lower or mixed, for which way the reasons in its text point on balance, and names each reason and which way it pushes, like "Futures are flat, but yields at multi-decade highs and a rising VIX weigh on stocks."
 - Do not write the lean itself into the text, the page shows it beside the line. The text is only the reasons.
 - The line for the next session names what the calendar has for that day, or says nothing major is scheduled, and never repeats the line before it.
 - A line about a session that already happened gives the main reason for its move, and leaves out the direction and the percent, since the page shows them beside it.
-- Every line that is not asking which way things lean sets "lean" to none and makes no prediction.`
+- A line asking which way things lean never leads with one company's news, and when no story speaks to that day it leans on the futures, yields, the VIX, the trend and the calendar in the numbers.
+- Every line that is not asking which way things lean sets "verdict" to none and makes no prediction.`
 
 	user := fmt.Sprintf("It is %s Eastern.\n\n%s\nNumbers right now:\n%s\nCalendar and patterns:\n%s\nStories, most widely covered first:\n%s",
 		at.In(easternTime()).Format("15:04 on Monday, January 2 2006"), want.String(),
 		marketFacts(st, h, at), calendar.String(), clusterList(events, now))
 
-	var out struct {
-		Points []struct {
-			Lean    string `json:"lean"`
-			Text    string `json:"text"`
-			Sources []int  `json:"sources"`
-		} `json:"points"`
+	var out map[string]struct {
+		Lean    string `json:"verdict"`
+		Text    string `json:"text"`
+		Sources []int  `json:"sources"`
 	}
-	if err := b.model.Structured(ctx, system, user, marketSchema(len(asks)), 900, &out); err != nil {
+	if err := b.model.Structured(ctx, system, user, marketSchema(lines), 900, &out); err != nil {
 		return Brief{}, err
 	}
 
@@ -1191,11 +1204,8 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 	if weekend(at) {
 		brief.Title = "WEEKEND"
 	}
-	for i, p := range out.Points {
-		if i >= len(lines) {
-			break
-		}
-		l := lines[i]
+	for i, l := range lines {
+		p := out[fmt.Sprintf("line%d", i+1)]
 		pt := cite(events, p.Sources)
 		pt.Text = tidy(p.Text)
 		if pt.Text == "" {
@@ -1205,7 +1215,7 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 		switch {
 		case l.move != "":
 			pt.Lean, pt.Move = l.dir, l.move
-		case l.forward && p.Lean != "none":
+		case l.forward:
 			pt.Lean = p.Lean
 		}
 		brief.Points = append(brief.Points, pt)
