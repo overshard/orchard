@@ -2095,13 +2095,13 @@ main {
 // something is actually blowing up.
 .pulse {
   margin: 0 0 6px;
-  padding-bottom: 6px;
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--line-hot);
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.4;
 
+  .head { margin: 0 0 3px; color: var(--muted); font-size: 11px; line-height: 1.4; }
   .lvl { margin-right: 4px; font-size: 9px; letter-spacing: var(--track); color: var(--dim); }
+  .txt { margin: 0; color: var(--text); font-size: 12px; line-height: 1.45; }
+  .meta { display: flex; flex-wrap: wrap; gap: 2px 9px; margin-top: 3px; }
   &[data-level="hot"] .lvl { color: var(--amber); }
   &[data-level="big"] .lvl, &[data-level="busy"] .lvl { color: var(--muted); }
 }

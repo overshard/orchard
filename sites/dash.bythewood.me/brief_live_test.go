@@ -39,7 +39,7 @@ func TestBriefLive(t *testing.T) {
 		}
 	}
 
-	for _, desk := range []string{"markets", "news"} {
+	for _, desk := range []string{"markets", "news", "feeds"} {
 		if d := os.Getenv("BRIEF_DESK"); d != "" && d != desk {
 			continue
 		}

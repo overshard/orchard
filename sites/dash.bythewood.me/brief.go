@@ -149,6 +149,7 @@ type Link struct {
 type Briefs struct {
 	Markets Brief `json:"markets"`
 	News    Brief `json:"news"`
+	Feeds   Brief `json:"feeds"`
 }
 
 func (s briefSlot) title() string {
@@ -225,7 +226,7 @@ func NewBriefer(store *Store, g *Guard, m *Model, dataDir string) *Briefer {
 			slog.Warn("briefs file unreadable", slog.String("component", "brief"), slog.Any("err", err))
 		}
 	}
-	saved.Markets.Waiting, saved.News.Waiting = "", ""
+	saved.Markets.Waiting, saved.News.Waiting, saved.Feeds.Waiting = "", "", ""
 	if m == nil {
 		saved.Markets.Status, saved.News.Status = "off", "off"
 	}
@@ -233,7 +234,7 @@ func NewBriefer(store *Store, g *Guard, m *Model, dataDir string) *Briefer {
 	if b.leans.add(saved.Markets) {
 		b.leans.save()
 	}
-	for desk, br := range map[string]Brief{"markets": saved.Markets, "news": saved.News} {
+	for desk, br := range map[string]Brief{"markets": saved.Markets, "news": saved.News, "feeds": saved.Feeds} {
 		if len(br.Points) > 0 && br.Slot > 0 && !b.archive.has(desk, br.Slot) {
 			b.archive.add(desk, br)
 		}
@@ -276,6 +277,9 @@ func (b *Briefer) tick(ctx context.Context, now time.Time) {
 	}
 	if cur.News.Slot < at.Unix() {
 		due = append(due, "news")
+	}
+	if cur.Feeds.Slot < at.Unix() {
+		due = append(due, "feeds")
 	}
 	if len(due) == 0 || now.Before(b.next) {
 		return
@@ -324,9 +328,13 @@ func (b *Briefer) tick(ctx context.Context, now time.Time) {
 		}
 
 		b.store.update(func(st *State) {
-			if desk == "markets" {
+			switch desk {
+			case "markets":
 				st.Briefs.Markets = brief
-			} else {
+			case "feeds":
+				st.Briefs.Feeds = brief
+				st.attachFeedReads()
+			default:
 				st.Briefs.News = brief
 				st.setNotices("news", briefNotices(brief))
 			}
@@ -340,15 +348,20 @@ func (b *Briefer) tick(ctx context.Context, now time.Time) {
 }
 
 func (b *Briefer) compileDesk(ctx context.Context, desk string, slot briefSlot, at time.Time) (Brief, error) {
-	if desk == "markets" {
+	switch desk {
+	case "markets":
 		return b.compileMarkets(ctx, slot, at)
+	case "feeds":
+		return b.compileFeeds(ctx, slot, at)
 	}
 	return b.compileNews(ctx, slot, at)
 }
 
 // waiting says on both panels why the last brief is still up.
 func (b *Briefer) waiting(why string) {
-	b.store.update(func(st *State) { st.Briefs.Markets.Waiting, st.Briefs.News.Waiting = why, why })
+	b.store.update(func(st *State) {
+		st.Briefs.Markets.Waiting, st.Briefs.News.Waiting, st.Briefs.Feeds.Waiting = why, why, why
+	})
 }
 
 func (b *Briefer) save() {
@@ -783,9 +796,10 @@ func (b *Briefer) compileNews(ctx context.Context, slot briefSlot, at time.Time)
 // when asked for nine, and a tighter cap drops the top story.
 const readMax = 100
 
-// whole tidies a line and drops it if the maxLength cut it off, keeping the
-// first sentence when one finished before the cut. The model's cut lands a few
-// characters short of the limit, so a long line is checked by how it ends.
+// whole tidies a line the maxLength may have cut off, keeping the first
+// sentence that finished before the cut, or else everything to the last comma
+// past halfway, or nothing. The model's cut lands a few characters short of the
+// limit, so a long line is checked by how it ends.
 func whole(raw string, limit int) string {
 	s := tidy(raw)
 	if s == "" {
@@ -796,14 +810,19 @@ func whole(raw string, limit int) string {
 		for i > 0 && !endsSentence(s[:i+1]) {
 			j := strings.Index(s[i+2:], ". ")
 			if j < 0 {
-				return ""
+				i = -1
+				break
 			}
 			i += 2 + j
 		}
-		if i < 0 {
+		switch c := strings.LastIndex(s, ", "); {
+		case i > 0:
+			s = s[:i+1]
+		case c > len(s)/2:
+			s = strings.TrimSuffix(strings.TrimSuffix(s[:c], " and"), " while")
+		default:
 			return ""
 		}
-		s = s[:i+1]
 	}
 	if !strings.ContainsAny(s[len(s)-1:], ".!?\"'\u201d") {
 		s += "."

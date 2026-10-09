@@ -456,9 +456,11 @@ story is on, then one short headline per most carried story at 13px over a
 hotter rule, with a two word opener from Go only on a major or quiet day. The level is
 counted from the outlets and never the model's call, and only `MAJOR STORY`
 lights amber, so the panel can't cry wolf on a normal Tuesday. HACKER NEWS and
-LOBSTERS each open on a one line pulse the same way, `BLOWING UP`, `BIG THREAD`,
-`BUSY` or `QUIET` in caps, then the story behind it and the topic most of the
-page shares, and only `BLOWING UP` is amber.
+LOBSTERS each open on a pulse the same way, `BLOWING UP`, `BIG THREAD`, `BUSY`
+or `QUIET` in caps (with the row that's taking off when one is), then two
+sentences from the last brief on what the page is about and what the top
+comments on the busiest thread argue, with links named by row. Only `BLOWING UP`
+is amber, and nothing in the pulse repeats the top row back.
 
 **UPLINK goes at the bottom, full width.** It grew to more rows than any
 readout beside it and stretched the whole local band to match, so it moved under
