@@ -188,6 +188,7 @@ type Briefer struct {
 	guard *Guard
 	model briefModel
 	path  string
+	leans *leanBook
 
 	// Nothing is tried before this, whether the card was busy or a run failed.
 	next time.Time
@@ -196,7 +197,7 @@ type Briefer struct {
 }
 
 func NewBriefer(store *Store, g *Guard, m *Model, dataDir string) *Briefer {
-	b := &Briefer{store: store, guard: g, path: filepath.Join(dataDir, "briefs.json")}
+	b := &Briefer{store: store, guard: g, path: filepath.Join(dataDir, "briefs.json"), leans: openLeanBook(dataDir)}
 	b.compile = b.compileDesk
 	if m != nil {
 		b.model = m
@@ -213,6 +214,9 @@ func NewBriefer(store *Store, g *Guard, m *Model, dataDir string) *Briefer {
 		saved.Markets.Status, saved.News.Status = "off", "off"
 	}
 	store.update(func(st *State) { st.Briefs = saved })
+	if b.leans.add(saved.Markets) {
+		b.leans.save()
+	}
 	return b
 }
 
@@ -236,6 +240,13 @@ func (b *Briefer) Run(ctx context.Context) {
 // tick runs both desks back to back on one model load when a slot is owed,
 // after asking whether the desktop is using the card.
 func (b *Briefer) tick(ctx context.Context, now time.Time) {
+	b.store.mu.RLock()
+	h := b.store.history
+	b.store.mu.RUnlock()
+	if b.leans.score(h, now) {
+		b.leans.save()
+	}
+
 	slot, at := latestSlot(now)
 	cur := b.store.Snapshot().Briefs
 	var due []string
@@ -285,6 +296,10 @@ func (b *Briefer) tick(ctx context.Context, now time.Time) {
 		slog.Info("brief written", slog.String("component", "brief"), slog.String("desk", desk),
 			slog.String("slot", slot.kind), slog.Int("stories", brief.Stories),
 			slog.Duration("took", time.Since(started).Round(time.Second)))
+		logPoints(desk, slot.kind, brief)
+		if desk == "markets" && b.leans.add(brief) {
+			b.leans.save()
+		}
 
 		b.store.update(func(st *State) {
 			if desk == "markets" {
@@ -325,6 +340,21 @@ func (b *Briefer) save() {
 	}
 	if err != nil {
 		slog.Warn("briefs not saved", slog.String("component", "brief"), slog.Any("err", err))
+	}
+}
+
+// logPoints puts every line of a brief in logging, since the page and the file
+// only keep the latest one and a brief can't be judged after it's replaced.
+func logPoints(desk, slot string, b Brief) {
+	for i, p := range b.Points {
+		cited := make([]string, len(p.Links))
+		for j, l := range p.Links {
+			cited[j] = l.Source + ": " + l.Title
+		}
+		slog.Info("brief point", slog.String("component", "brief"), slog.String("desk", desk),
+			slog.String("slot", slot), slog.Int("rank", i+1), slog.String("label", p.Label),
+			slog.String("lean", p.Lean), slog.String("move", p.Move), slog.String("coverage", p.Coverage),
+			slog.String("text", p.Text), slog.String("cited", strings.Join(cited, " | ")))
 	}
 }
 
@@ -789,12 +819,16 @@ func mostImpact(events []cluster, ratings []eventRating, limit int) []cluster {
 		if i < len(ratings) && ratings[i].N != 0 {
 			r = ratings[i]
 		}
-		if (slices.Contains(minor, r.Label) && len(c.outlets()) < mainstream) || r.Impact <= 1 {
-			slog.Info("brief event dropped", slog.String("component", "brief"), slog.String("category", r.Label),
-				slog.Int("impact", r.Impact), slog.String("title", c.lead().title))
-			continue
+		drop := (slices.Contains(minor, r.Label) && len(c.outlets()) < mainstream) || r.Impact <= 1
+		msg := "brief event kept"
+		if drop {
+			msg = "brief event dropped"
 		}
-		keep = append(keep, ranked{c, r.Impact})
+		slog.Info(msg, slog.String("component", "brief"), slog.String("category", r.Label),
+			slog.Int("impact", r.Impact), slog.Int("outlets", len(c.outlets())), slog.String("title", c.lead().title))
+		if !drop {
+			keep = append(keep, ranked{c, r.Impact})
+		}
 	}
 	sort.SliceStable(keep, func(i, j int) bool { return keep[i].impact > keep[j].impact })
 	var out []cluster
