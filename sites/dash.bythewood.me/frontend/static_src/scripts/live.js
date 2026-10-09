@@ -649,6 +649,17 @@ function renderNewsBrief(brief) {
     host.replaceChildren(briefEmpty(brief));
     return;
   }
+  const parts = [];
+  if (brief.read) {
+    const read = el("div", "read");
+    read.dataset.level = brief.read.level;
+    const head = el("p", "head");
+    head.append(el("span", "lvl", brief.read.label), ` / ${brief.read.spread}`);
+    const meta = el("div", "meta");
+    meta.append(...briefLinks(brief.read.links));
+    read.append(head, el("p", "txt", brief.read.text), meta);
+    parts.push(read);
+  }
   const ol = el("ol", "brief");
   brief.points.forEach((p, i) => {
     const li = el("li");
@@ -663,7 +674,7 @@ function renderNewsBrief(brief) {
     ol.append(li);
   });
   const foot = el("p", "footnote", `${brief.waiting ? `${brief.waiting}. ` : ""}SUMMARISED BY A LOCAL MODEL FROM ${brief.stories} STORIES, MOST IMPACT FIRST. L C R COUNTS THE OUTLETS THAT CARRIED IT BY ALLSIDES LEAN.`);
-  host.replaceChildren(ol, foot);
+  host.replaceChildren(...parts, ol, foot);
 }
 
 function renderConditions(signal) {
