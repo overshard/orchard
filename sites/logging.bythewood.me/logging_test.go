@@ -1526,3 +1526,46 @@ func TestEveryListedTemplateParses(t *testing.T) {
 		t.Fatalf("the template set does not parse: %v", err)
 	}
 }
+
+// A new connection must be able to read while the sweep or the flusher holds
+// the write lock, which a write-taking pragma in the DSN breaks.
+func TestNewConnectionReadsUnderWriteLock(t *testing.T) {
+	path := t.TempDir() + "/db.sqlite3"
+	db, err := openDB(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`INSERT INTO records (source, ts, level, msg) VALUES ('blog', 1, 'INFO', 'x')`); err != nil {
+		t.Fatal(err)
+	}
+
+	fresh, err := sql.Open("sqlite", dsn(path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { fresh.Close() })
+
+	start := time.Now()
+	var n int
+	if err := fresh.QueryRow(`SELECT COUNT(*) FROM records`).Scan(&n); err != nil {
+		t.Fatalf("read on a new connection: %v", err)
+	}
+	if waited := time.Since(start); waited > time.Second {
+		t.Errorf("read waited %v for the writer", waited)
+	}
+
+	var mode int
+	if err := fresh.QueryRow("PRAGMA auto_vacuum").Scan(&mode); err != nil {
+		t.Fatal(err)
+	}
+	if mode != 2 {
+		t.Errorf("auto_vacuum = %d, want 2 (INCREMENTAL)", mode)
+	}
+}
