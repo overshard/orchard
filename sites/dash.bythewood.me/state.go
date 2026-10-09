@@ -326,7 +326,7 @@ func (s *Store) loop(ctx context.Context, name string, every func() time.Duratio
 func (s *Store) refreshMarket(ctx context.Context, g *Guard) {
 	quotes, err := fetchStrip(ctx, g)
 	if err != nil {
-		slog.Warn("market poll failed", slog.String("component", "market"), slog.Any("err", err))
+		pollFailed(ctx, "market", "market", err)
 		// The previous cards stay up rather than being blanked, and the panel
 		// marks itself stale so the page says so instead of quietly lying.
 		s.update(func(st *State) { st.Market.Stale = true })
@@ -355,7 +355,7 @@ func (s *Store) refreshMarket(ctx context.Context, g *Guard) {
 func (s *Store) refreshBoard(ctx context.Context, g *Guard) {
 	quotes, err := fetchQuotes(ctx, g, rateAndSectorSymbols(), sessionRange)
 	if err != nil {
-		slog.Warn("board poll failed", slog.String("component", "board"), slog.Any("err", err))
+		pollFailed(ctx, "board", "board", err)
 		return
 	}
 
@@ -370,7 +370,7 @@ func (s *Store) refreshBoard(ctx context.Context, g *Guard) {
 func (s *Store) refreshSignal(ctx context.Context, g *Guard) {
 	h, err := fetchHistory(ctx, g, signalSymbol)
 	if err != nil {
-		slog.Warn("history poll failed", slog.String("component", "signal"), slog.Any("err", err))
+		pollFailed(ctx, "history", "signal", err)
 		return
 	}
 	s.mu.Lock()
@@ -381,7 +381,7 @@ func (s *Store) refreshSignal(ctx context.Context, g *Guard) {
 func (s *Store) refreshEarnings(ctx context.Context, g *Guard) {
 	rows, err := fetchEarnings(ctx, g, time.Now())
 	if err != nil {
-		slog.Warn("earnings poll failed", slog.String("component", "earnings"), slog.Any("err", err))
+		pollFailed(ctx, "earnings", "earnings", err)
 		return
 	}
 	s.update(func(st *State) {
@@ -418,7 +418,7 @@ func reportingHours(t time.Time) bool {
 func (s *Store) refreshAlerts(ctx context.Context, g *Guard) {
 	alerts, err := fetchAlerts(ctx, g)
 	if err != nil {
-		slog.Warn("alerts poll failed", slog.String("component", "local"), slog.Any("err", err))
+		pollFailed(ctx, "alerts", "local", err)
 		return
 	}
 	s.update(func(st *State) {
@@ -434,7 +434,7 @@ func (s *Store) refreshOnAir(ctx context.Context, g *Guard) {
 		func() (OnAir, error) { return fetchTwitch(ctx, g) },
 	)
 	if err != nil {
-		slog.Warn("on air poll failed", slog.String("component", "onair"), slog.Any("err", err))
+		pollFailed(ctx, "on air", "onair", err)
 		return
 	}
 	s.mu.RLock()
@@ -457,7 +457,7 @@ func (s *Store) refreshOnAir(ctx context.Context, g *Guard) {
 func (s *Store) refreshBroadcasts(ctx context.Context, g *Guard) {
 	past, err := fetchBroadcasts(ctx, g, twitchGQL)
 	if err != nil {
-		slog.Warn("broadcasts poll failed", slog.String("component", "onair"), slog.Any("err", err))
+		pollFailed(ctx, "broadcasts", "onair", err)
 		return
 	}
 	s.mu.Lock()
@@ -471,14 +471,14 @@ func (s *Store) refreshBroadcasts(ctx context.Context, g *Guard) {
 func (s *Store) refreshAir(ctx context.Context, g *Guard) {
 	air, err := fetchAir(ctx, g)
 	if err != nil {
-		slog.Warn("air poll failed", slog.String("component", "local"), slog.Any("err", err))
+		pollFailed(ctx, "air", "local", err)
 		return
 	}
 
 	// Pollen is the unofficial source here, so it losing its footing costs its
 	// own row and not the air quality beside it.
 	if index, top, err := fetchPollen(ctx, g); err != nil {
-		slog.Warn("pollen poll failed", slog.String("component", "local"), slog.Any("err", err))
+		pollFailed(ctx, "pollen", "local", err)
 	} else {
 		air.Pollen = fmt.Sprintf("%.1f", index)
 		air.PollenState = pollenBand(index)
@@ -493,7 +493,7 @@ func (s *Store) refreshAir(ctx context.Context, g *Guard) {
 func (s *Store) refreshStreaming(ctx context.Context, g *Guard) {
 	titles, err := fetchStreaming(ctx, g)
 	if err != nil {
-		slog.Warn("streaming poll failed", slog.String("component", "streaming"), slog.Any("err", err))
+		pollFailed(ctx, "streaming", "streaming", err)
 		return
 	}
 	s.update(func(st *State) { st.Streaming = titles })
@@ -502,7 +502,7 @@ func (s *Store) refreshStreaming(ctx context.Context, g *Guard) {
 func (s *Store) refreshOutlook(ctx context.Context, g *Guard) {
 	outlook, err := fetchOutlook(ctx, g, time.Now())
 	if err != nil {
-		slog.Warn("outlook poll failed", slog.String("component", "local"), slog.Any("err", err))
+		pollFailed(ctx, "outlook", "local", err)
 		return
 	}
 	s.update(func(st *State) { st.Outlook = outlook })
@@ -511,7 +511,7 @@ func (s *Store) refreshOutlook(ctx context.Context, g *Guard) {
 func (s *Store) refreshSteam(ctx context.Context, g *Guard) {
 	games, err := fetchSteam(ctx, g)
 	if err != nil {
-		slog.Warn("steam poll failed", slog.String("component", "steam"), slog.Any("err", err))
+		pollFailed(ctx, "steam", "steam", err)
 		return
 	}
 	s.update(func(st *State) {
@@ -525,13 +525,13 @@ func (s *Store) refreshNews(ctx context.Context, g *Guard) {
 	now := time.Now()
 
 	if stories, err := fetchHackerNews(ctx, g, now); err != nil {
-		slog.Warn("hacker news poll failed", slog.String("component", "news"), slog.Any("err", err))
+		pollFailed(ctx, "hacker news", "news", err)
 	} else {
 		s.update(func(st *State) { st.HN = stories })
 	}
 
 	if stories, err := fetchLobsters(ctx, g, now); err != nil {
-		slog.Warn("lobsters poll failed", slog.String("component", "news"), slog.Any("err", err))
+		pollFailed(ctx, "lobsters", "news", err)
 	} else {
 		s.update(func(st *State) { st.Lobsters = stories })
 	}
@@ -540,7 +540,7 @@ func (s *Store) refreshNews(ctx context.Context, g *Guard) {
 func (s *Store) refreshWeather(ctx context.Context, g *Guard) {
 	w, err := fetchWeather(ctx, g)
 	if err != nil {
-		slog.Warn("weather poll failed", slog.String("component", "weather"), slog.Any("err", err))
+		pollFailed(ctx, "weather", "weather", err)
 		return
 	}
 	s.update(func(st *State) { st.Weather = w })
@@ -580,4 +580,13 @@ func (s *Store) releasesOrFetch(ctx context.Context, g *Guard) []release {
 		s.mu.RUnlock()
 	}
 	return rs
+}
+
+// pollFailed stays quiet when the poll only failed because the site is
+// shutting down, or every deploy writes a warning per poller.
+func pollFailed(ctx context.Context, what, component string, err error) {
+	if ctx.Err() != nil {
+		return
+	}
+	slog.Warn(what+" poll failed", slog.String("component", component), slog.Any("err", err))
 }
