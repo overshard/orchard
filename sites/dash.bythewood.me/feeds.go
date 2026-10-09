@@ -184,11 +184,11 @@ func threadList(ts []thread) string {
 	return b.String()
 }
 
-// The model writes to whatever cap it's given, so these set the length, about
-// eighteen words for the page and twenty eight for the comments.
+// Wide enough that the model finishes a sentence on its own, since at tighter
+// caps it ran into them every time and left half a clause.
 const (
-	feedPageMax     = 120
-	feedCommentsMax = 180
+	feedPageMax     = 200
+	feedCommentsMax = 280
 )
 
 func (b *Briefer) compileFeeds(ctx context.Context, slot briefSlot, at time.Time) (Brief, error) {
