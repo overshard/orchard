@@ -57,6 +57,10 @@ func leanDay(label string, slot time.Time) string {
 // add records the forward leans in a markets brief, once per slot and label, so
 // reading the saved brief back on a restart doesn't count it twice.
 func (lb *leanBook) add(b Brief) bool {
+	// A zero slot is a brief cleared to force a rerun, and has no day.
+	if b.Slot == 0 {
+		return false
+	}
 	added := false
 	for _, p := range b.Points {
 		if p.Lean != "higher" && p.Lean != "lower" && p.Lean != "mixed" {
