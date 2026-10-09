@@ -663,8 +663,9 @@ var minor = []string{"crime_or_court", "incident", "human_interest", "sport", "c
 // as mainstream culture anyway, the way the Lindsay Clancy trial was.
 const mainstream = 7
 
-// newsMax is a headline's maxLength, room for 14 words.
-const newsMax = 120
+// newsMax is a headline's maxLength, well past twelve words, since a line that
+// hits it is cut mid word and dropped.
+const newsMax = 160
 
 // newsPoints is the most a brief holds, and so the most events the writer sees.
 const newsPoints = 12
@@ -716,7 +717,17 @@ func (b *Briefer) compileNews(ctx context.Context, slot briefSlot, at time.Time)
 			rated[c.lead().url] = ratings[i]
 		}
 	}
-	events = mostImpact(events, ratings, newsPoints)
+
+	// The read goes first so the headlines can leave out what it already says.
+	read, picked, err := b.read(ctx, slot, at, all, rated, heard(stories), now)
+	if err != nil {
+		slog.Warn("brief read failed", slog.String("component", "brief"), slog.Any("err", err))
+	}
+	events = mostImpact(events, ratings, newsPoints+len(picked))
+	events = slices.DeleteFunc(events, func(c cluster) bool {
+		return slices.ContainsFunc(picked, func(p cluster) bool { return p.lead().url == c.lead().url })
+	})
+	events = events[:min(len(events), newsPoints)]
 	if len(events) < 3 {
 		return Brief{}, fmt.Errorf("only %d major events", len(events))
 	}
@@ -729,7 +740,7 @@ func (b *Briefer) compileNews(ctx context.Context, slot briefSlot, at time.Time)
 
 	system := "You write a short executive news summary for one reader in the United States.\n" + neutralRules + `
 - Write one point for each event, in the order given. If two events are the same story, write one point for them and cite both.
-- Each point is one neutral headline about exactly one event, at most 14 words, in past tense. No second sentence, no detail beyond what makes the event clear.
+- Each point is one neutral headline about exactly one event, at most 12 words, in past tense. No second sentence, no detail beyond what makes the event clear.
 - Each point cites the numbers of the events it draws on in "sources".`
 
 	user := fmt.Sprintf("It is %s Eastern. %s\n\nEvents:\n%s", at.In(easternTime()).Format("15:04 on Monday, January 2 2006"), task, clusterList(events, now))
@@ -764,15 +775,7 @@ func (b *Briefer) compileNews(ctx context.Context, slot briefSlot, at time.Time)
 	if len(brief.Points) < 2 {
 		return Brief{}, fmt.Errorf("only %d cited points", len(brief.Points))
 	}
-
-	// The headlines are worth having without it, so a read that fails is
-	// only logged.
-	read, err := b.read(ctx, slot, at, all, rated, heard(stories), now)
-	if err != nil {
-		slog.Warn("brief read failed", slog.String("component", "brief"), slog.Any("err", err))
-	} else {
-		brief.Read = read
-	}
+	brief.Read = read
 	return brief, nil
 }
 
@@ -868,9 +871,11 @@ func pulse(top, outlets int) (level, label string) {
 	return "steady", "NORMAL DAY"
 }
 
-func (b *Briefer) read(ctx context.Context, slot briefSlot, at time.Time, all []cluster, rated map[string]eventRating, outlets int, now time.Time) (*Read, error) {
+// read returns the events it covered, which the headlines then leave out. A
+// read that fails is only logged, since the headlines stand without it.
+func (b *Briefer) read(ctx context.Context, slot briefSlot, at time.Time, all []cluster, rated map[string]eventRating, outlets int, now time.Time) (*Read, []cluster, error) {
 	if len(all) == 0 {
-		return nil, fmt.Errorf("no events")
+		return nil, nil, fmt.Errorf("no events")
 	}
 	top := len(all[0].outlets())
 	level, label := pulse(top, outlets)
@@ -881,7 +886,7 @@ func (b *Briefer) read(ctx context.Context, slot briefSlot, at time.Time, all []
 	opener := map[string]string{"major": "One story is everywhere.", "quiet": "A quiet day."}[level]
 	events := readPicks(all, rated, map[string]int{"major": 2, "steady": 3, "quiet": 2}[level])
 	if len(events) == 0 {
-		return nil, fmt.Errorf("nothing carried widely that matters")
+		return nil, nil, fmt.Errorf("nothing carried widely that matters")
 	}
 
 	props := map[string]any{}
@@ -914,7 +919,7 @@ func (b *Briefer) read(ctx context.Context, slot briefSlot, at time.Time, all []
 
 	var out map[string]string
 	if err := b.model.Structured(ctx, system, user, schema, 300, &out); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var parts []string
 	if opener != "" {
@@ -934,7 +939,7 @@ func (b *Briefer) read(ctx context.Context, slot briefSlot, at time.Time, all []
 		cited = append(cited, i+1)
 	}
 	if len(cited) == 0 {
-		return nil, fmt.Errorf("no read")
+		return nil, nil, fmt.Errorf("no read")
 	}
 	// One link per event, the least framed telling, since cite would spend all
 	// four on the first event's outlets.
@@ -949,7 +954,11 @@ func (b *Briefer) read(ctx context.Context, slot briefSlot, at time.Time, all []
 	slog.Info("brief read", slog.String("component", "brief"), slog.String("slot", slot.kind),
 		slog.String("level", level), slog.Int("top", top), slog.Int("outlets", outlets),
 		slog.String("lead", all[0].lead().title), slog.String("text", text))
-	return r, nil
+	var covered []cluster
+	for _, n := range cited {
+		covered = append(covered, events[n-1])
+	}
+	return r, covered, nil
 }
 
 // eventRating is the model's read of one event. Each carries its number back, since
