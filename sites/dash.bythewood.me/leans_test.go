@@ -119,7 +119,7 @@ func TestMostImpactKeepsAMarketStoryFiledAsAnIncident(t *testing.T) {
 }
 
 func TestWhole(t *testing.T) {
-	pad := strings.Repeat("word ", 13)
+	pad := strings.Repeat("word ", 17)
 	for _, c := range []struct{ in, want string }{
 		{"Fed held rates.", "Fed held rates."},
 		{"Fed held rates", "Fed held rates."},

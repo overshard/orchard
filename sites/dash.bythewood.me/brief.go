@@ -710,6 +710,12 @@ func (b *Briefer) compileNews(ctx context.Context, slot briefSlot, at time.Time)
 	if err != nil {
 		return Brief{}, fmt.Errorf("rate: %w", err)
 	}
+	rated := map[string]eventRating{}
+	for i, c := range events {
+		if i < len(ratings) {
+			rated[c.lead().url] = ratings[i]
+		}
+	}
 	events = mostImpact(events, ratings, newsPoints)
 	if len(events) < 3 {
 		return Brief{}, fmt.Errorf("only %d major events", len(events))
@@ -761,7 +767,7 @@ func (b *Briefer) compileNews(ctx context.Context, slot briefSlot, at time.Time)
 
 	// The headlines are worth having without it, so a read that fails is
 	// only logged.
-	read, err := b.read(ctx, slot, at, all, heard(stories), now)
+	read, err := b.read(ctx, slot, at, all, rated, heard(stories), now)
 	if err != nil {
 		slog.Warn("brief read failed", slog.String("component", "brief"), slog.Any("err", err))
 	} else {
@@ -770,8 +776,9 @@ func (b *Briefer) compileNews(ctx context.Context, slot briefSlot, at time.Time)
 	return brief, nil
 }
 
-// readMax is a read headline's maxLength, room for nine words.
-const readMax = 80
+// readMax is a read headline's maxLength. The model writes about twelve words
+// when asked for nine, and a tighter cap drops the top story.
+const readMax = 100
 
 // whole tidies a line and drops it if the maxLength cut it off, keeping the
 // first sentence when one finished before the cut. The model's cut lands a few
@@ -819,6 +826,23 @@ func endsSentence(s string) bool {
 	return true
 }
 
+// readPicks is the most carried events that change something, by the same
+// ratings the headlines use, so a prize or a profile that five outlets ran
+// doesn't make the read unless nearly everyone did.
+func readPicks(all []cluster, rated map[string]eventRating, n int) []cluster {
+	var out []cluster
+	for _, c := range all {
+		if len(out) == n {
+			break
+		}
+		r, ok := rated[c.lead().url]
+		if len(c.outlets()) >= mainstream || ok && r.Impact >= 3 {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
 // heard is how many outlets answered this run, which is what a story's
 // spread is measured against when a feed is down.
 func heard(stories []story) int {
@@ -844,7 +868,7 @@ func pulse(top, outlets int) (level, label string) {
 	return "steady", "NORMAL DAY"
 }
 
-func (b *Briefer) read(ctx context.Context, slot briefSlot, at time.Time, all []cluster, outlets int, now time.Time) (*Read, error) {
+func (b *Briefer) read(ctx context.Context, slot briefSlot, at time.Time, all []cluster, rated map[string]eventRating, outlets int, now time.Time) (*Read, error) {
 	if len(all) == 0 {
 		return nil, fmt.Errorf("no events")
 	}
@@ -855,7 +879,10 @@ func (b *Briefer) read(ctx context.Context, slot briefSlot, at time.Time, all []
 	// the model only sees the events it writes, since from a longer list it
 	// skipped the second and third most carried for whatever read best.
 	opener := map[string]string{"major": "One story is everywhere.", "quiet": "A quiet day."}[level]
-	events := all[:min(len(all), map[string]int{"major": 2, "steady": 3, "quiet": 2}[level])]
+	events := readPicks(all, rated, map[string]int{"major": 2, "steady": 3, "quiet": 2}[level])
+	if len(events) == 0 {
+		return nil, fmt.Errorf("nothing carried widely that matters")
+	}
 
 	props := map[string]any{}
 	var required []string
