@@ -148,3 +148,38 @@ func TestAnEveningVisitCountsOnTheEasternDay(t *testing.T) {
 		t.Errorf("got %+v, want the visit on Sep 29", points)
 	}
 }
+
+// A new connection must be able to read while the sweep holds the write lock,
+// which a write-taking pragma in the DSN breaks.
+func TestNewConnectionReadsUnderWriteLock(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "db.sqlite3")
+	db, err := openDB(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`DELETE FROM properties`); err != nil {
+		t.Fatal(err)
+	}
+
+	fresh, err := sql.Open("sqlite", dsn(path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { fresh.Close() })
+
+	start := time.Now()
+	var n int
+	if err := fresh.QueryRow(`SELECT COUNT(*) FROM properties`).Scan(&n); err != nil {
+		t.Fatalf("read on a new connection: %v", err)
+	}
+	if waited := time.Since(start); waited > time.Second {
+		t.Errorf("read waited %v for the writer", waited)
+	}
+}
