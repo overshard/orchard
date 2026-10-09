@@ -450,6 +450,13 @@ headlines. TODAY is numbered like the feeds, but by impact. The markets lines
 say `UP 0.22%` beside a session that happened and `LEANS LOWER` beside one that
 hasn't, green, red or amber either way, so a fact and a guess never look alike.
 
+**TODAY opens on a read of the day before the ranked headlines.** A dim caps
+line says `MAJOR STORY`, `NORMAL DAY` or `QUIET DAY` and how many outlets the top
+story is on, then a sentence from Go saying the same in words and one short
+headline per most carried story, at 13px over a hotter rule. The level is
+counted from the outlets and never the model's call, and only `MAJOR STORY`
+lights amber, so the panel can't cry wolf on a normal Tuesday.
+
 **UPLINK goes at the bottom, full width.** It grew to more rows than any
 readout beside it and stretched the whole local band to match, so it moved under
 the news band on its own and runs its rows as many across as fit. That leaves the

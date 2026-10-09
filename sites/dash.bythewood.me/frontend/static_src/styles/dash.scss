@@ -2069,6 +2069,28 @@ main {
   .note { font-size: 9px; letter-spacing: var(--track); color: var(--amber); }
 }
 
+// The read over the headlines. Its level comes from how many outlets are on
+// the top story, so amber only lights when one story really has everyone.
+.read {
+  padding: 2px 0 9px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid var(--line-hot);
+
+  .head { margin: 0 0 4px; font-size: 9px; letter-spacing: var(--track); color: var(--dim); }
+  .lvl { color: var(--muted); }
+  &[data-level="major"] .lvl { color: var(--amber); }
+  &[data-level="quiet"] .lvl { color: var(--dim); }
+
+  .txt { margin: 0; color: var(--text); font-size: 13px; line-height: 1.45; }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 9px;
+    margin-top: 3px;
+  }
+}
+
 .today {
   .empty { margin: 0; color: var(--dim); font-size: 11px; letter-spacing: var(--track); }
   .footnote { margin: 10px 0 0; font-size: 9px; letter-spacing: var(--track); color: var(--dim); }
