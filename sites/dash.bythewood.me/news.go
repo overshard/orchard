@@ -18,7 +18,7 @@ import (
 // Algolia's front_page search returns all of them, scored and with comment
 // counts, in a single response.
 const (
-	hackerNewsURL = "https://hn.algolia.com/api/v1/search?tags=front_page"
+	hackerNewsURL = "https://hn.algolia.com/api/v1/search?tags=front_page&hitsPerPage=30"
 	lobstersURL   = "https://lobste.rs/hottest.json"
 
 	// Enough to fill the panel with a little room to drop anything malformed.
@@ -47,13 +47,14 @@ type algoliaPayload struct {
 	} `json:"hits"`
 }
 
-func fetchHackerNews(ctx context.Context, g *Guard, now time.Time) ([]Story, error) {
+func fetchHackerNews(ctx context.Context, g *Guard, now time.Time) ([]Story, Pulse, error) {
 	var payload algoliaPayload
 	if err := getJSON(ctx, g, "algolia", hackerNewsURL, &payload); err != nil {
-		return nil, err
+		return nil, Pulse{}, err
 	}
 
 	stories := make([]Story, 0, len(payload.Hits))
+	var items []feedItem
 	for _, h := range payload.Hits {
 		if h.Title == "" {
 			continue
@@ -74,32 +75,35 @@ func fetchHackerNews(ctx context.Context, g *Guard, now time.Time) ([]Story, err
 			Count:    h.NumComments,
 			Age:      humanAge(time.Unix(h.CreatedAtI, 0), now),
 		})
+		items = append(items, feedItem{title: h.Title, points: h.Points, comments: h.NumComments, age: now.Sub(time.Unix(h.CreatedAtI, 0))})
 	}
 
 	// Algolia returns the front page in its own order, which is not by score.
 	// Sorting here means the two feeds are ranked the same way and the panel
 	// reads consistently.
 	sort.SliceStable(stories, func(i, j int) bool { return stories[i].Points > stories[j].Points })
-	return trim(stories), nil
+	return trim(stories), feedPulse(items, hnScale, hnTheme), nil
 }
 
 type lobstersStory struct {
-	Title        string `json:"title"`
-	URL          string `json:"url"`
-	ShortIDURL   string `json:"short_id_url"`
-	CommentsURL  string `json:"comments_url"`
-	Score        int    `json:"score"`
-	CommentCount int    `json:"comment_count"`
-	CreatedAt    string `json:"created_at"`
+	Title        string   `json:"title"`
+	URL          string   `json:"url"`
+	ShortIDURL   string   `json:"short_id_url"`
+	CommentsURL  string   `json:"comments_url"`
+	Score        int      `json:"score"`
+	CommentCount int      `json:"comment_count"`
+	CreatedAt    string   `json:"created_at"`
+	Tags         []string `json:"tags"`
 }
 
-func fetchLobsters(ctx context.Context, g *Guard, now time.Time) ([]Story, error) {
+func fetchLobsters(ctx context.Context, g *Guard, now time.Time) ([]Story, Pulse, error) {
 	var payload []lobstersStory
 	if err := getJSON(ctx, g, "lobsters", lobstersURL, &payload); err != nil {
-		return nil, err
+		return nil, Pulse{}, err
 	}
 
 	stories := make([]Story, 0, len(payload))
+	var items []feedItem
 	for _, s := range payload {
 		if s.Title == "" {
 			continue
@@ -114,11 +118,14 @@ func fetchLobsters(ctx context.Context, g *Guard, now time.Time) ([]Story, error
 		}
 
 		age := ""
+		item := feedItem{title: s.Title, points: s.Score, comments: s.CommentCount, tags: s.Tags, age: 24 * time.Hour}
 		// Lobsters writes RFC 3339 with an offset. A value that will not parse
 		// costs the row its age and nothing else.
 		if t, err := time.Parse(time.RFC3339, s.CreatedAt); err == nil {
 			age = humanAge(t, now)
+			item.age = now.Sub(t)
 		}
+		items = append(items, item)
 
 		stories = append(stories, Story{
 			Title:    s.Title,
@@ -132,7 +139,7 @@ func fetchLobsters(ctx context.Context, g *Guard, now time.Time) ([]Story, error
 	}
 
 	sort.SliceStable(stories, func(i, j int) bool { return stories[i].Points > stories[j].Points })
-	return trim(stories), nil
+	return trim(stories), feedPulse(items, lobstersScale, lobstersTheme), nil
 }
 
 func trim(s []Story) []Story {

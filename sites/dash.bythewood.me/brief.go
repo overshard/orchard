@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 )
 
 // Three times a day the local model reads what the feeds below have published
@@ -662,6 +663,9 @@ var minor = []string{"crime_or_court", "incident", "human_interest", "sport", "c
 // as mainstream culture anyway, the way the Lindsay Clancy trial was.
 const mainstream = 7
 
+// newsMax is a headline's maxLength, room for 14 words.
+const newsMax = 120
+
 // newsPoints is the most a brief holds, and so the most events the writer sees.
 const newsPoints = 12
 
@@ -674,7 +678,7 @@ func newsSchema(events int) map[string]any {
 				"items": map[string]any{
 					"type": "object",
 					"properties": map[string]any{
-						"text":    map[string]any{"type": "string", "maxLength": 120},
+						"text":    map[string]any{"type": "string", "maxLength": newsMax},
 						"sources": map[string]any{"type": "array", "minItems": 1, "maxItems": 4, "items": map[string]any{"type": "integer"}},
 					},
 					"required":             []string{"text", "sources"},
@@ -744,7 +748,7 @@ func (b *Briefer) compileNews(ctx context.Context, slot briefSlot, at time.Time)
 	brief := newBrief(slot, at, events)
 	for _, p := range out.Points {
 		pt := cite(events, p.Sources)
-		pt.Text = tidy(p.Text)
+		pt.Text = whole(p.Text, newsMax)
 		// A point the model could not tie to a story is one it may have made up.
 		if pt.Text == "" || len(pt.Links) == 0 {
 			continue
@@ -766,19 +770,53 @@ func (b *Briefer) compileNews(ctx context.Context, slot briefSlot, at time.Time)
 	return brief, nil
 }
 
-// whole is a line the maxLength didn't cut off, back to its last full stop if
-// it was, or nothing. A headline without a full stop gets one.
-func whole(s string) string {
-	if s == "" || strings.ContainsAny(s[len(s)-1:], ".!?\"'") {
-		return s
+// readMax is a read headline's maxLength, room for nine words.
+const readMax = 80
+
+// whole tidies a line and drops it if the maxLength cut it off, keeping the
+// first sentence when one finished before the cut. The model's cut lands a few
+// characters short of the limit, so a long line is checked by how it ends.
+func whole(raw string, limit int) string {
+	s := tidy(raw)
+	if s == "" {
+		return ""
 	}
-	if i := strings.LastIndex(s, ". "); i > 0 {
-		return s[:i+1]
+	if len([]rune(s)) >= limit*85/100 && !endsSentence(s) {
+		i := strings.Index(s, ". ")
+		for i > 0 && !endsSentence(s[:i+1]) {
+			j := strings.Index(s[i+2:], ". ")
+			if j < 0 {
+				return ""
+			}
+			i += 2 + j
+		}
+		if i < 0 {
+			return ""
+		}
+		s = s[:i+1]
 	}
-	if len(s) < 100 {
-		return s + "."
+	if !strings.ContainsAny(s[len(s)-1:], ".!?\"'\u201d") {
+		s += "."
 	}
-	return ""
+	return s
+}
+
+// endsSentence is a full stop after an ordinary word, since one after U.S. or
+// a number doesn't end anything and half a word has none.
+func endsSentence(s string) bool {
+	if !strings.HasSuffix(s, ".") {
+		return false
+	}
+	last := strings.TrimSuffix(s[strings.LastIndex(s, " ")+1:], ".")
+	if len(last) < 3 {
+		return false
+	}
+	for _, r := range last {
+		if !unicode.IsLower(r) {
+			return false
+		}
+	}
+	return true
 }
 
 // heard is how many outlets answered this run, which is what a story's
@@ -816,19 +854,15 @@ func (b *Briefer) read(ctx context.Context, slot briefSlot, at time.Time, all []
 	// Go says how big the day is, so the model can't call every day busy, and
 	// the model only sees the events it writes, since from a longer list it
 	// skipped the second and third most carried for whatever read best.
-	opener := map[string]string{
-		"major":  "One story has nearly every newsroom on it.",
-		"steady": "No one story has every newsroom on it, these are the most carried.",
-		"quiet":  "A quiet day, no story is on more than a few outlets.",
-	}[level]
+	opener := map[string]string{"major": "One story is everywhere.", "quiet": "A quiet day."}[level]
 	events := all[:min(len(all), map[string]int{"major": 2, "steady": 3, "quiet": 2}[level])]
 
 	props := map[string]any{}
 	var required []string
 	for i := range events {
-		limit := 120
+		limit := readMax
 		if i == 0 && level == "major" {
-			limit = 240
+			limit = 2 * readMax
 		}
 		key := fmt.Sprintf("event%d", i+1)
 		props[key] = map[string]any{"type": "string", "maxLength": limit}
@@ -842,7 +876,7 @@ func (b *Briefer) read(ctx context.Context, slot briefSlot, at time.Time, all []
 	}
 	system := "You write the opening lines of a news summary for one reader in the United States, one per event, about the stories most newsrooms are carrying.\n" + neutralRules + `
 - "event1" is ` + first + `. Every other field is one neutral headline about the event with that number.
-- A headline is at most 14 words, in past tense, with no second clause and no detail like wind speeds, ages or who criticised whom.
+- A headline is at most 9 words, in past tense, with no second clause and no detail like wind speeds, ages, places or who criticised whom.
 - Rewrite each in your own plain words. Never hand back the event's own title or quote its words.
 - Use only what the event lines say. Never add a name, title or fact from memory, since yours may be out of date.
 - Never say how many or which outlets carried it.`
@@ -855,10 +889,17 @@ func (b *Briefer) read(ctx context.Context, slot briefSlot, at time.Time, all []
 	if err := b.model.Structured(ctx, system, user, schema, 300, &out); err != nil {
 		return nil, err
 	}
-	parts := []string{opener}
+	var parts []string
+	if opener != "" {
+		parts = append(parts, opener)
+	}
 	var cited []int
 	for i := range events {
-		t := whole(tidy(out[fmt.Sprintf("event%d", i+1)]))
+		limit := readMax
+		if i == 0 && level == "major" {
+			limit = 2 * readMax
+		}
+		t := whole(out[fmt.Sprintf("event%d", i+1)], limit)
 		if t == "" {
 			continue
 		}

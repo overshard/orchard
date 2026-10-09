@@ -119,14 +119,17 @@ func TestMostImpactKeepsAMarketStoryFiledAsAnIncident(t *testing.T) {
 }
 
 func TestWhole(t *testing.T) {
-	for in, want := range map[string]string{
-		"Fed held rates.": "Fed held rates.",
-		"Fed held rates":  "Fed held rates.",
-		"Fed held rates. Powell said it would wait": "Fed held rates.",
-		strings.Repeat("word ", 24):                 "",
+	pad := strings.Repeat("word ", 13)
+	for _, c := range []struct{ in, want string }{
+		{"Fed held rates.", "Fed held rates."},
+		{"Fed held rates", "Fed held rates."},
+		{pad + "and the U.S.", ""},
+		{pad + "and some residents fled as wi", ""},
+		{"U.S. prosecutors charged him. " + pad + "and", "U.S. prosecutors charged him."},
+		{pad + "and it rained.", pad + "and it rained."},
 	} {
-		if got := whole(strings.TrimSpace(in)); got != want {
-			t.Errorf("whole(%q) = %q, want %q", in, got, want)
+		if got := whole(c.in, readMax); got != c.want {
+			t.Errorf("whole(%q) = %q, want %q", c.in, got, c.want)
 		}
 	}
 }

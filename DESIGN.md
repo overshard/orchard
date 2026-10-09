@@ -452,10 +452,13 @@ hasn't, green, red or amber either way, so a fact and a guess never look alike.
 
 **TODAY opens on a read of the day before the ranked headlines.** A dim caps
 line says `MAJOR STORY`, `NORMAL DAY` or `QUIET DAY` and how many outlets the top
-story is on, then a sentence from Go saying the same in words and one short
-headline per most carried story, at 13px over a hotter rule. The level is
+story is on, then one short headline per most carried story at 13px over a
+hotter rule, with a two word opener from Go only on a major or quiet day. The level is
 counted from the outlets and never the model's call, and only `MAJOR STORY`
-lights amber, so the panel can't cry wolf on a normal Tuesday.
+lights amber, so the panel can't cry wolf on a normal Tuesday. HACKER NEWS and
+LOBSTERS each open on a one line pulse the same way, `BLOWING UP`, `BIG THREAD`,
+`BUSY` or `QUIET` in caps, then the story behind it and the topic most of the
+page shares, and only `BLOWING UP` is amber.
 
 **UPLINK goes at the bottom, full width.** It grew to more rows than any
 readout beside it and stretched the whole local band to match, so it moved under

@@ -427,7 +427,13 @@ level counted in Go from the share of outlets on the top story (seven in ten is
 major, four in ten or under is quiet) and one headline per most carried story
 from the model, each its own schema field with a `maxLength`, because a word
 limit in a prompt is ignored and handed a longer list it skipped the second
-most carried story for whatever read best. BLS answers 403 to any User-Agent without a contact
+most carried story for whatever read best. The model's cut lands a few
+characters short of a `maxLength`, so `whole` judges a long line by whether it
+ends on a full stop after an ordinary word, and drops it if not. Hacker News and
+Lobsters each get a pulse line computed in `pulse.go` on every poll, with no
+model, since a thread takes off inside an hour. Blowing up means fresh and
+already high, a huge thread from yesterday is only a big thread, and Lobsters
+runs on about a tenth of Hacker News' numbers. BLS answers 403 to any User-Agent without a contact
 address in it, browsers included. The latest brief per desk lives
 in `briefs.json` on the volume, so a deploy shows them rather than nothing, and
 a missed slot runs on start. Every brief is also appended to `briefs.jsonl`, and
