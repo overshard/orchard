@@ -34,9 +34,11 @@ type budget struct {
 }
 
 var budgets = map[string]budget{
-	"yahoo":     {perHour: 900, pace: 2 * time.Second},
-	"algolia":   {perHour: 120, pace: 2 * time.Second},
-	"lobsters":  {perHour: 120, pace: 2 * time.Second},
+	"yahoo":    {perHour: 900, pace: 2 * time.Second},
+	"algolia":  {perHour: 120, pace: 2 * time.Second},
+	"lobsters": {perHour: 120, pace: 2 * time.Second},
+	// The top comments on the busiest threads, a dozen calls three times a day.
+	"hnitem":    {perHour: 60, pace: time.Second},
 	"openmeteo": {perHour: 120, pace: 2 * time.Second},
 	"npr":       {perHour: 120, pace: 2 * time.Second},
 	"bbc":       {perHour: 60, pace: 2 * time.Second},
@@ -306,6 +308,7 @@ type Feed struct {
 var feedOrder = []struct{ key, label string }{
 	{"yahoo", "YAHOO"},
 	{"algolia", "HN"},
+	{"hnitem", "HN THREADS"},
 	{"lobsters", "LOBSTERS"},
 	{"npr", "NPR"},
 	{"bbc", "BBC"},

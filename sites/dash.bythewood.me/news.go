@@ -82,7 +82,7 @@ func fetchHackerNews(ctx context.Context, g *Guard, now time.Time) ([]Story, Pul
 	// Sorting here means the two feeds are ranked the same way and the panel
 	// reads consistently.
 	sort.SliceStable(stories, func(i, j int) bool { return stories[i].Points > stories[j].Points })
-	return trim(stories), feedPulse(items, hnScale, hnTheme), nil
+	return trim(stories), feedPulse(items, hnScale), nil
 }
 
 type lobstersStory struct {
@@ -118,7 +118,7 @@ func fetchLobsters(ctx context.Context, g *Guard, now time.Time) ([]Story, Pulse
 		}
 
 		age := ""
-		item := feedItem{title: s.Title, points: s.Score, comments: s.CommentCount, tags: s.Tags, age: 24 * time.Hour}
+		item := feedItem{title: s.Title, points: s.Score, comments: s.CommentCount, age: 24 * time.Hour}
 		// Lobsters writes RFC 3339 with an offset. A value that will not parse
 		// costs the row its age and nothing else.
 		if t, err := time.Parse(time.RFC3339, s.CreatedAt); err == nil {
@@ -139,7 +139,7 @@ func fetchLobsters(ctx context.Context, g *Guard, now time.Time) ([]Story, Pulse
 	}
 
 	sort.SliceStable(stories, func(i, j int) bool { return stories[i].Points > stories[j].Points })
-	return trim(stories), feedPulse(items, lobstersScale, lobstersTheme), nil
+	return trim(stories), feedPulse(items, lobstersScale), nil
 }
 
 func trim(s []Story) []Story {

@@ -124,7 +124,8 @@ func TestWhole(t *testing.T) {
 		{"Fed held rates.", "Fed held rates."},
 		{"Fed held rates", "Fed held rates."},
 		{pad + "and the U.S.", ""},
-		{pad + "and some residents fled as wi", ""},
+		{"short, " + pad + "and some residents fled as wi", ""},
+		{pad + "rather than uploads, while others compare it to minimal", pad + "rather than uploads."},
 		{"U.S. prosecutors charged him. " + pad + "and", "U.S. prosecutors charged him."},
 		{pad + "and it rained.", pad + "and it rained."},
 	} {

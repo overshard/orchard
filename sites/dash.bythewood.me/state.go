@@ -530,13 +530,19 @@ func (s *Store) refreshNews(ctx context.Context, g *Guard) {
 	if stories, pulse, err := fetchHackerNews(ctx, g, now); err != nil {
 		pollFailed(ctx, "hacker news", "news", err)
 	} else {
-		s.update(func(st *State) { st.HN, st.HNPulse = stories, pulse })
+		s.update(func(st *State) {
+			st.HN, st.HNPulse = stories, pulse
+			st.attachFeedReads()
+		})
 	}
 
 	if stories, pulse, err := fetchLobsters(ctx, g, now); err != nil {
 		pollFailed(ctx, "lobsters", "news", err)
 	} else {
-		s.update(func(st *State) { st.Lobsters, st.LobstersPulse = stories, pulse })
+		s.update(func(st *State) {
+			st.Lobsters, st.LobstersPulse = stories, pulse
+			st.attachFeedReads()
+		})
 	}
 }
 
