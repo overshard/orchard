@@ -802,7 +802,11 @@ const readMax = 100
 // limit, so a long line is checked by how it ends.
 func whole(raw string, limit int) string {
 	s := tidy(raw)
-	if s == "" {
+	// A cut that lands right after a comma is a whole clause already.
+	if t := strings.TrimSuffix(s, ","); t != s {
+		s = strings.TrimSuffix(strings.TrimSuffix(t, " and"), " while") + "."
+	}
+	if s == "" || s == "." {
 		return ""
 	}
 	if len([]rune(s)) >= limit*85/100 && !endsSentence(s) {
