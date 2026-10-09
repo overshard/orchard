@@ -301,10 +301,18 @@ function renderPulse(selector, pulse) {
     host.replaceChildren();
     return;
   }
-  const p = el("p", "pulse");
-  p.dataset.level = pulse.level;
-  p.append(el("span", "lvl", pulse.label), ` ${pulse.text}`);
-  host.replaceChildren(p);
+  const box = el("div", "pulse");
+  box.dataset.level = pulse.level;
+  const head = el("p", "head");
+  head.append(el("span", "lvl", pulse.label));
+  if (pulse.text) head.append(` ${pulse.text}`);
+  box.append(head);
+  if (pulse.read) {
+    const meta = el("div", "meta");
+    meta.append(...briefLinks(pulse.links));
+    box.append(el("p", "txt", pulse.read), meta);
+  }
+  host.replaceChildren(box);
 }
 
 function renderStories(selector, stories) {
