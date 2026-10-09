@@ -63,8 +63,7 @@ CREATE TABLE IF NOT EXISTS meta (
 `
 
 // openDB opens the database and applies the schema. Pragmas go in the DSN
-// because they are per connection and database/sql opens connections lazily;
-// auto_vacuum in particular only takes effect on an empty file.
+// because they are per connection and database/sql opens connections lazily.
 func openDB(path string) (*sql.DB, error) {
 	if dir := filepath.Dir(path); dir != "" {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -72,14 +71,11 @@ func openDB(path string) (*sql.DB, error) {
 		}
 	}
 
-	dsn := path +
-		"?_pragma=journal_mode(WAL)" +
-		"&_pragma=synchronous(NORMAL)" +
-		"&_pragma=busy_timeout(5000)" +
-		"&_pragma=auto_vacuum(INCREMENTAL)" +
-		"&_pragma=foreign_keys(ON)"
+	if err := setAutoVacuum(path); err != nil {
+		return nil, fmt.Errorf("set auto_vacuum: %w", err)
+	}
 
-	db, err := sql.Open("sqlite", dsn)
+	db, err := sql.Open("sqlite", dsn(path))
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
@@ -97,6 +93,29 @@ func openDB(path string) (*sql.DB, error) {
 		return nil, fmt.Errorf("apply schema: %w", err)
 	}
 	return db, nil
+}
+
+// setAutoVacuum stamps auto_vacuum on a new file, and does nothing to an
+// existing one. It stays out of the DSN since setting it there takes the write
+// lock on every new connection, which then fails behind a long sweep.
+func setAutoVacuum(path string) error {
+	// Its own connection, since the setting is lost once WAL or the first
+	// table has written page 1 without it.
+	db, err := sql.Open("sqlite", path+"?_pragma=busy_timeout(5000)")
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	_, err = db.Exec("PRAGMA auto_vacuum = INCREMENTAL; PRAGMA journal_mode = WAL")
+	return err
+}
+
+func dsn(path string) string {
+	return path +
+		"?_pragma=journal_mode(WAL)" +
+		"&_pragma=synchronous(NORMAL)" +
+		"&_pragma=busy_timeout(5000)" +
+		"&_pragma=foreign_keys(ON)"
 }
 
 // hourFloor truncates unix milliseconds to the hour the rollup is keyed by.

@@ -82,17 +82,11 @@ func openDB(path string) (*sql.DB, error) {
 		}
 	}
 
-	dsn := path +
-		"?_pragma=journal_mode(WAL)" +
-		"&_pragma=synchronous(NORMAL)" +
-		"&_pragma=busy_timeout(5000)" +
-		// Lets the retention sweep hand freed pages back. It only takes effect
-		// on an empty file, so a database made before this keeps auto_vacuum
-		// NONE and needs a one-off VACUUM to convert.
-		"&_pragma=auto_vacuum(INCREMENTAL)" +
-		"&_pragma=foreign_keys(ON)"
+	if err := setAutoVacuum(path); err != nil {
+		return nil, fmt.Errorf("set auto_vacuum: %w", err)
+	}
 
-	db, err := sql.Open("sqlite", dsn)
+	db, err := sql.Open("sqlite", dsn(path))
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
@@ -113,6 +107,30 @@ func openDB(path string) (*sql.DB, error) {
 		return nil, fmt.Errorf("rename proprium: %w", err)
 	}
 	return db, nil
+}
+
+func dsn(path string) string {
+	return path +
+		"?_pragma=journal_mode(WAL)" +
+		"&_pragma=synchronous(NORMAL)" +
+		"&_pragma=busy_timeout(5000)" +
+		"&_pragma=foreign_keys(ON)"
+}
+
+// setAutoVacuum stamps auto_vacuum on a new file so the retention sweep can hand
+// freed pages back. A database made before this keeps NONE and needs a one-off
+// VACUUM to convert. It stays out of the DSN since setting it there takes the
+// write lock on every new connection.
+func setAutoVacuum(path string) error {
+	// Its own connection, since the setting is lost once WAL or the first
+	// table has written page 1 without it.
+	db, err := sql.Open("sqlite", path+"?_pragma=busy_timeout(5000)")
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	_, err = db.Exec("PRAGMA auto_vacuum = INCREMENTAL; PRAGMA journal_mode = WAL")
+	return err
 }
 
 // renameProprium is a one-time data migration. It is idempotent and matches
