@@ -233,7 +233,7 @@ func NewBriefer(store *Store, g *Guard, m *Model, dataDir string) *Briefer {
 		b.leans.save()
 	}
 	for desk, br := range map[string]Brief{"markets": saved.Markets, "news": saved.News} {
-		if len(br.Points) > 0 && !b.archive.has(desk, br.Slot) {
+		if len(br.Points) > 0 && br.Slot > 0 && !b.archive.has(desk, br.Slot) {
 			b.archive.add(desk, br)
 		}
 	}
