@@ -125,7 +125,7 @@ func TestClusterListLeavesLeanOut(t *testing.T) {
 }
 
 func TestTidy(t *testing.T) {
-	got := tidy("Stocks fell [3, 4] after the Fed — citing inflation [12]. ")
+	got := tidy("Stocks fell [3, 4] after the Fed (2) — citing inflation [12]. ")
 	if got != "Stocks fell after the Fed, citing inflation." {
 		t.Errorf("got %q", got)
 	}

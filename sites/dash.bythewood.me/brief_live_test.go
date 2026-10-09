@@ -40,6 +40,9 @@ func TestBriefLive(t *testing.T) {
 	}
 
 	for _, desk := range []string{"markets", "news"} {
+		if d := os.Getenv("BRIEF_DESK"); d != "" && d != desk {
+			continue
+		}
 		started := time.Now()
 		brief, err := b.compileDesk(ctx, desk, slot, at)
 		if err != nil {

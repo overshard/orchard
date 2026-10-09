@@ -87,6 +87,11 @@
 
 {{define "news-brief"}}
 {{- if .Points}}
+{{with .Read}}<div class="read" data-level="{{.Level}}">
+  <p class="head"><span class="lvl">{{.Label}}</span> / {{.Spread}}</p>
+  <p class="txt">{{.Text}}</p>
+  <div class="meta">{{template "brief-links" .Links}}</div>
+</div>{{end}}
 <ol class="brief">
   {{range $i, $p := .Points}}<li>
     <span class="rank">{{printf "%02d" (inc $i)}}</span>

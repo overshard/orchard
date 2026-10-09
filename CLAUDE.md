@@ -413,17 +413,27 @@ partway down. A rating is a topic and an impact from 1 to 5 on an ordinary
 American's money and life. Crime, trials, one-off incidents, human interest,
 sport, celebrity and local stories are dropped in Go unless seven or more
 outlets ran them, because told to skip a trial in the summary prompt it writes
-one up anyway and calls it politics, and so is anything rated 1. Go keeps the
+one up anyway and calls it politics, and so is anything rated 1. A minor label
+rated 4 or 5 is kept anyway, since the rater files futures falling after an
+attack under incident. Go keeps the
 twelve highest rated and the writer only rewrites them as headlines, so the
 order on the page is the impact order. The markets line is always the last
 session, today and the next. A session that already happened gets its up or down
 from the daily closes in Go, and the forward lines lean on the Fed's meeting
 dates (copied into `calendar.go`, add next year's in December), the BLS and BEA
 release calendars and two documented patterns, the turn of the month and the
-drift into a Fed decision. BLS answers 403 to any User-Agent without a contact
-address in it, browsers included. The last two briefs live
+drift into a Fed decision. Above TODAY's headlines sits a read of the day, its
+level counted in Go from the share of outlets on the top story (seven in ten is
+major, four in ten or under is quiet) and one headline per most carried story
+from the model, each its own schema field with a `maxLength`, because a word
+limit in a prompt is ignored and handed a longer list it skipped the second
+most carried story for whatever read best. BLS answers 403 to any User-Agent without a contact
+address in it, browsers included. The latest brief per desk lives
 in `briefs.json` on the volume, so a deploy shows them rather than nothing, and
-a missed slot runs on start. `LLM_KEY` in `.env` from `make dash-key`, and
+a missed slot runs on start. Every brief is also appended to `briefs.jsonl`, and
+every forward lean to `leans.json`, where it's scored against the S&P's close
+the day after its session and logged as `brief lean scored` with the running
+record, so how often the leans are right is a query and not a guess. `LLM_KEY` in `.env` from `make dash-key`, and
 without it the panels say the briefs are off.
 
 **A brief never loads a model onto a card the desktop is using.** Each slot asks

@@ -1,6 +1,10 @@
 package main
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -63,5 +67,66 @@ func TestLeanBookScoresClosedDaysOnly(t *testing.T) {
 	lb.save()
 	if got := openLeanBook(lb.path[:len(lb.path)-len("/leans.json")]); len(got.calls) != 3 || got.calls[1].Dir != "flat" {
 		t.Errorf("read back %+v", got.calls)
+	}
+}
+
+func TestPulse(t *testing.T) {
+	for _, c := range []struct {
+		top, outlets int
+		want         string
+	}{
+		{8, 11, "major"}, {7, 11, "steady"}, {5, 11, "steady"}, {4, 11, "quiet"}, {6, 8, "major"}, {1, 0, "steady"},
+	} {
+		if got, _ := pulse(c.top, c.outlets); got != c.want {
+			t.Errorf("%d of %d: %s, want %s", c.top, c.outlets, got, c.want)
+		}
+	}
+}
+
+func TestArchiveKeepsEachSlotOnce(t *testing.T) {
+	dir := t.TempDir()
+	a := openArchive(dir)
+	b := Brief{Slot: 100, Points: []Point{{Text: "x"}}, Waiting: "CARD IN USE"}
+	if a.has("news", 100) {
+		t.Fatal("empty archive has a slot")
+	}
+	a.add("news", b)
+	a.add("markets", Brief{Slot: 100})
+	if !a.has("news", 100) || a.has("markets", 100) || a.has("news", 101) {
+		t.Error("has disagrees with what was added")
+	}
+
+	// A restart reads the saved briefs back and should not add them again.
+	saved, _ := json.Marshal(Briefs{News: b})
+	os.WriteFile(filepath.Join(dir, "briefs.json"), saved, 0o644)
+	NewBriefer(NewStore(NewHub()), nil, nil, dir)
+	raw, _ := os.ReadFile(a.path)
+	if n := strings.Count(string(raw), "\n"); n != 1 {
+		t.Errorf("%d lines, want 1", n)
+	}
+	if strings.Contains(string(raw), "CARD IN USE") {
+		t.Error("archived the waiting note")
+	}
+}
+
+func TestMostImpactKeepsAMarketStoryFiledAsAnIncident(t *testing.T) {
+	futures := cluster{stories: []story{{source: "REUTERS", title: "US futures fall after explosions in Riyadh"}}}
+	poland := cluster{stories: []story{{source: "REUTERS", title: "School attack"}}}
+	got := mostImpact([]cluster{futures, poland}, []eventRating{{1, "incident", 4}, {2, "incident", 3}}, 12)
+	if len(got) != 1 || got[0].lead().title != futures.lead().title {
+		t.Errorf("kept %d", len(got))
+	}
+}
+
+func TestWhole(t *testing.T) {
+	for in, want := range map[string]string{
+		"Fed held rates.": "Fed held rates.",
+		"Fed held rates":  "Fed held rates.",
+		"Fed held rates. Powell said it would wait": "Fed held rates.",
+		strings.Repeat("word ", 24):                 "",
+	} {
+		if got := whole(strings.TrimSpace(in)); got != want {
+			t.Errorf("whole(%q) = %q, want %q", in, got, want)
+		}
 	}
 }

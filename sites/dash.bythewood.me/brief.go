@@ -100,6 +100,9 @@ type Brief struct {
 	Outlets  string  `json:"outlets"`
 	Points   []Point `json:"points"`
 
+	// The paragraph over TODAY's headlines. Markets never has one.
+	Read *Read `json:"read,omitempty"`
+
 	// "off" when there is no model key, so the panel can say why it is empty.
 	Status string `json:"status,omitempty"`
 
@@ -124,6 +127,16 @@ type Point struct {
 	// Outlets that carried it per AllSides lean, like "L1 C3 R1".
 	Coverage string `json:"coverage,omitempty"`
 	Note     string `json:"note,omitempty"`
+}
+
+// Read says whether anything big is going on, judged by how many newsrooms are
+// on the same story rather than by the model, which would call every day busy.
+type Read struct {
+	Level  string `json:"level"`
+	Label  string `json:"label"`
+	Spread string `json:"spread"`
+	Text   string `json:"text"`
+	Links  []Link `json:"links"`
 }
 
 type Link struct {
@@ -184,11 +197,12 @@ const briefDefer = time.Hour
 // Briefer owns the schedule and the file the last two briefs are kept in, so a
 // deploy at 9am still shows the morning one rather than nothing until 11.
 type Briefer struct {
-	store *Store
-	guard *Guard
-	model briefModel
-	path  string
-	leans *leanBook
+	store   *Store
+	guard   *Guard
+	model   briefModel
+	path    string
+	leans   *leanBook
+	archive briefArchive
 
 	// Nothing is tried before this, whether the card was busy or a run failed.
 	next time.Time
@@ -197,7 +211,8 @@ type Briefer struct {
 }
 
 func NewBriefer(store *Store, g *Guard, m *Model, dataDir string) *Briefer {
-	b := &Briefer{store: store, guard: g, path: filepath.Join(dataDir, "briefs.json"), leans: openLeanBook(dataDir)}
+	b := &Briefer{store: store, guard: g, path: filepath.Join(dataDir, "briefs.json"), leans: openLeanBook(dataDir),
+		archive: openArchive(dataDir)}
 	b.compile = b.compileDesk
 	if m != nil {
 		b.model = m
@@ -216,6 +231,11 @@ func NewBriefer(store *Store, g *Guard, m *Model, dataDir string) *Briefer {
 	store.update(func(st *State) { st.Briefs = saved })
 	if b.leans.add(saved.Markets) {
 		b.leans.save()
+	}
+	for desk, br := range map[string]Brief{"markets": saved.Markets, "news": saved.News} {
+		if len(br.Points) > 0 && !b.archive.has(desk, br.Slot) {
+			b.archive.add(desk, br)
+		}
 	}
 	return b
 }
@@ -297,6 +317,7 @@ func (b *Briefer) tick(ctx context.Context, now time.Time) {
 			slog.String("slot", slot.kind), slog.Int("stories", brief.Stories),
 			slog.Duration("took", time.Since(started).Round(time.Second)))
 		logPoints(desk, slot.kind, brief)
+		b.archive.add(desk, brief)
 		if desk == "markets" && b.leans.add(brief) {
 			b.leans.save()
 		}
@@ -675,7 +696,9 @@ type modelPoints struct {
 
 func (b *Briefer) compileNews(ctx context.Context, slot briefSlot, at time.Time) (Brief, error) {
 	now := time.Now()
-	events := widelyCarried(clusterStories(gather(ctx, b.guard, newsFeeds, at.Add(-slot.reach), now), newsEvents))
+	stories := gather(ctx, b.guard, newsFeeds, at.Add(-slot.reach), now)
+	all := clusterStories(stories, newsEvents)
+	events := widelyCarried(all)
 	if len(events) < briefFloor {
 		return Brief{}, fmt.Errorf("only %d events", len(events))
 	}
@@ -731,7 +754,134 @@ func (b *Briefer) compileNews(ctx context.Context, slot briefSlot, at time.Time)
 	if len(brief.Points) < 2 {
 		return Brief{}, fmt.Errorf("only %d cited points", len(brief.Points))
 	}
+
+	// The headlines are worth having without it, so a read that fails is
+	// only logged.
+	read, err := b.read(ctx, slot, at, all, heard(stories), now)
+	if err != nil {
+		slog.Warn("brief read failed", slog.String("component", "brief"), slog.Any("err", err))
+	} else {
+		brief.Read = read
+	}
 	return brief, nil
+}
+
+// whole is a line the maxLength didn't cut off, back to its last full stop if
+// it was, or nothing. A headline without a full stop gets one.
+func whole(s string) string {
+	if s == "" || strings.ContainsAny(s[len(s)-1:], ".!?\"'") {
+		return s
+	}
+	if i := strings.LastIndex(s, ". "); i > 0 {
+		return s[:i+1]
+	}
+	if len(s) < 100 {
+		return s + "."
+	}
+	return ""
+}
+
+// heard is how many outlets answered this run, which is what a story's
+// spread is measured against when a feed is down.
+func heard(stories []story) int {
+	var names []string
+	for _, s := range stories {
+		if !slices.Contains(names, s.source) {
+			names = append(names, s.source)
+		}
+	}
+	return len(names)
+}
+
+// pulse is how big the day is, from the share of outlets on its most carried
+// story. Seven in ten is every newsroom leading with the same thing, and four
+// of eleven is about what an ordinary day's biggest story gets.
+func pulse(top, outlets int) (level, label string) {
+	switch {
+	case outlets > 0 && top*10 >= outlets*7:
+		return "major", "MAJOR STORY"
+	case top*10 <= outlets*4:
+		return "quiet", "QUIET DAY"
+	}
+	return "steady", "NORMAL DAY"
+}
+
+func (b *Briefer) read(ctx context.Context, slot briefSlot, at time.Time, all []cluster, outlets int, now time.Time) (*Read, error) {
+	if len(all) == 0 {
+		return nil, fmt.Errorf("no events")
+	}
+	top := len(all[0].outlets())
+	level, label := pulse(top, outlets)
+
+	// Go says how big the day is, so the model can't call every day busy, and
+	// the model only sees the events it writes, since from a longer list it
+	// skipped the second and third most carried for whatever read best.
+	opener := map[string]string{
+		"major":  "One story has nearly every newsroom on it.",
+		"steady": "No one story has every newsroom on it, these are the most carried.",
+		"quiet":  "A quiet day, no story is on more than a few outlets.",
+	}[level]
+	events := all[:min(len(all), map[string]int{"major": 2, "steady": 3, "quiet": 2}[level])]
+
+	props := map[string]any{}
+	var required []string
+	for i := range events {
+		limit := 120
+		if i == 0 && level == "major" {
+			limit = 240
+		}
+		key := fmt.Sprintf("event%d", i+1)
+		props[key] = map[string]any{"type": "string", "maxLength": limit}
+		required = append(required, key)
+	}
+	schema := map[string]any{"type": "object", "properties": props, "required": required, "additionalProperties": false}
+
+	first := "one neutral headline about event 1"
+	if level == "major" {
+		first = "two neutral headlines about event 1, what happened and what comes next"
+	}
+	system := "You write the opening lines of a news summary for one reader in the United States, one per event, about the stories most newsrooms are carrying.\n" + neutralRules + `
+- "event1" is ` + first + `. Every other field is one neutral headline about the event with that number.
+- A headline is at most 14 words, in past tense, with no second clause and no detail like wind speeds, ages or who criticised whom.
+- Rewrite each in your own plain words. Never hand back the event's own title or quote its words.
+- Use only what the event lines say. Never add a name, title or fact from memory, since yours may be out of date.
+- Never say how many or which outlets carried it.`
+
+	when := map[string]string{"morning": "yesterday and overnight", "midday": "so far today", "close": "today"}[slot.kind]
+	user := fmt.Sprintf("It is %s Eastern. The most widely carried news %s.\n\nEvents:\n%s",
+		at.In(easternTime()).Format("15:04 on Monday, January 2 2006"), when, clusterList(events, now))
+
+	var out map[string]string
+	if err := b.model.Structured(ctx, system, user, schema, 300, &out); err != nil {
+		return nil, err
+	}
+	parts := []string{opener}
+	var cited []int
+	for i := range events {
+		t := whole(tidy(out[fmt.Sprintf("event%d", i+1)]))
+		if t == "" {
+			continue
+		}
+		parts = append(parts, t)
+		cited = append(cited, i+1)
+	}
+	if len(cited) == 0 {
+		return nil, fmt.Errorf("no read")
+	}
+	// One link per event, the least framed telling, since cite would spend all
+	// four on the first event's outlets.
+	var links []Link
+	for _, n := range cited {
+		l := events[n-1].lead()
+		links = append(links, Link{Source: l.source, URL: l.url, Title: l.title})
+	}
+	text := strings.Join(parts, " ")
+	r := &Read{Level: level, Label: label, Spread: fmt.Sprintf("TOP STORY ON %d OF %d OUTLETS", top, outlets),
+		Text: text, Links: links}
+	slog.Info("brief read", slog.String("component", "brief"), slog.String("slot", slot.kind),
+		slog.String("level", level), slog.Int("top", top), slog.Int("outlets", outlets),
+		slog.String("lead", all[0].lead().title), slog.String("text", text))
+	return r, nil
 }
 
 // eventRating is the model's read of one event. Each carries its number back, since
@@ -757,6 +907,7 @@ func (b *Briefer) rate(ctx context.Context, events []cluster, now time.Time) ([]
 - disaster: storms, floods, quakes and anything that shuts down production, power or travel for many people.
 - human_interest: one person's or family's story.
 - local: a story about one city or town.
+- economy or markets: any story about prices, shares, yields, earnings or forecasts, whatever set it off, so futures falling after an attack is markets and not an incident.
 The rest mean what they say.
 
 "impact" is how much the event could change an ordinary American's money, prices, job, safety or daily life, or move the US stock market:
@@ -805,7 +956,8 @@ The rest mean what they say.
 }
 
 // mostImpact drops the minor events, unless so many outlets carried one that it
-// is mainstream anyway, and the ones rated as changing nothing, then keeps the
+// is mainstream anyway or it was rated 4 or 5, since the rater files market
+// stories under incident, and the ones rated as changing nothing, then keeps the
 // highest rated up to limit. Ties stay in the order they came, most outlets
 // first. An event the model skipped is kept and ranked as middling.
 func mostImpact(events []cluster, ratings []eventRating, limit int) []cluster {
@@ -819,7 +971,7 @@ func mostImpact(events []cluster, ratings []eventRating, limit int) []cluster {
 		if i < len(ratings) && ratings[i].N != 0 {
 			r = ratings[i]
 		}
-		drop := (slices.Contains(minor, r.Label) && len(c.outlets()) < mainstream) || r.Impact <= 1
+		drop := (slices.Contains(minor, r.Label) && r.Impact <= 3 && len(c.outlets()) < mainstream) || r.Impact <= 1
 		msg := "brief event kept"
 		if drop {
 			msg = "brief event dropped"
@@ -1086,7 +1238,7 @@ func cite(events []cluster, nums []int) Point {
 	return pt
 }
 
-var citeMarks = regexp.MustCompile(`\s*\[\d+(?:\s*,\s*\d+)*\]`)
+var citeMarks = regexp.MustCompile(`\s*[\[(]\d+(?:\s*,\s*\d+)*[\])]`)
 
 // tidy strips the bracketed numbers a model writes into the text even when
 // told not to, and the dashes the page's type does not use.
