@@ -283,13 +283,13 @@ the flag, so they are shown as he typed them.
 
 **Notifications are a switch somebody presses.** A browser only asks for
 permission from inside a press, and a public page asking on load is a prompt
-nobody wanted, so `dash` has a `NOTIFY` readout in its rail beside `LINK` that
+nobody wanted, so `dash` has a `NOTIFY` readout in panel 00 beside `LINK` that
 asks the first time and opens a menu of what to be told about after that, and
 `chat` asks on the first question sent. Both keep quiet about anything the
 reader is already looking at, apart from a severe weather warning on dash.
 
 **dash's quick chat is for its one signed in reader and looks like the rest of
-the page.** A `CHAT` readout joins `NOTIFY` and `LINK` in the rail and ctrl+k or
+the page.** A `CHAT` readout joins `NOTIFY` and `LINK` in panel 00 and ctrl+k or
 cmd+k opens the same box, an amber panel head, the question under a left rule the
 way the CONDITIONS verdict sits, chat's answer in JetBrains Mono, and `OPEN IN
 CHAT` once there is a conversation to open. The page ships it to everybody,
@@ -417,7 +417,22 @@ start with `pattern matches no files`.
 **Chrome width has to match content width.** logging's navbar and footer were
 `container-fluid` while its home page was `container`, so the hero sat narrower
 than the bar above it. All four use `container` now, and only logging's
-dashboard pages go full width inside it.
+dashboard pages go full width inside it. dash broke the same rule until
+2026-10-09 with a rail and a status line running edge to edge past a capped
+`main`.
+
+**dash's chrome is panel 00 and panel 16.** The header is a panel like any other,
+DASH large with a boxed `MODEL BW-07 / SERIES ORCHARD` plate under it and the
+readouts as tiles on the market cards' hairline grid, the two blocks exactly the
+same height so their edges line up. The footer is a rating plate, the sticker on
+the back of old gear, starting at `SER. NO. 0830-26` (the day dash was built) and
+then next brief, the dates ahead, guard and source. MODEL is on the 00 plate only.
+Past 1900px both fold into a 236px spine down the left, DASH running up a void
+strip with the plate and four amber stripes under it, sticky when the window is
+at least 820px tall so its bottom can always be reached. It is one piece of
+markup: `.console` is `display: contents` below 1900px, which makes the two
+panels the frame's first and last rows, and a column above it, so nothing is
+duplicated per breakpoint. Below 1900 the chrome scrolls away with the page.
 
 **A row of unequal strings is a stack, not a flex line.** dash's severe weather
 alerts were an event name that could not wrap, an NWS headline of 114 characters
@@ -466,7 +481,7 @@ is amber, and nothing in the pulse repeats the top row back.
 readout beside it and stretched the whole local band to match, so it moved under
 the news band on its own and runs its rows as many across as fit. That leaves the
 local band six panels, six wide from 1900px where `main` widens, then three and
-then two, so no width leaves a hole. The status line under it doesn't list the sources again, since
+then two, so no width leaves a hole. Panel 16 under it doesn't list the sources again, since
 UPLINK names them all. It says when the next brief is due and the next four
 market moving dates, CPI, PPI, jobs, JOLTS, GDP, PCE and the Fed, with the label
 in amber.
@@ -489,6 +504,6 @@ A reader only ever has the repo.
 | `auth` | green | Bootstrap. Carries the starfield on `/login`, which the grid sits under |
 | `repos` | green | Hand written CSS, no Bootstrap, since it is dense text. Newsreader on repository names |
 | `chat` | green | Hand written CSS, no Bootstrap. A conversation, so it reads at the longest length on the estate. Citation pills and a source row under each answer, and widget panels above one when a ticker or a forecast was looked up. A picture draws behind a panel listing its stages, each with a count and a guess from the last few, and replaces it once it has loaded. An unread dot on a conversation that finished a turn off screen, and the place in line of every turn still waiting |
-| `dash` | amber | Hand written CSS. Scanlines, vignette, JetBrains Mono and Space Grotesk. A `NOTIFY` switch in the rail, and a `CHAT` readout beside it that only appears signed in |
+| `dash` | amber | Hand written CSS. Scanlines, vignette, JetBrains Mono and Space Grotesk. Panel 00 and panel 16 for chrome, a spine past 1900px. A `NOTIFY` switch in panel 00, and a `CHAT` readout beside it that only appears signed in |
 | `blog`, `isaacbythewood.com` | neither | Separate identities. Nothing here applies to them |
 

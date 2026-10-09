@@ -42,65 +42,92 @@
 <div class="crt" aria-hidden="true"></div>
 <div class="vignette" aria-hidden="true"></div>
 
-<header class="rail">
-  <div class="rail-brand">
-    <span class="mark">◤</span>
-    <span class="wordmark">DASH</span>
-    <span class="rail-sub">BYTHEWOOD&nbsp;/&nbsp;ORCHARD</span>
-  </div>
-
-  <div class="rail-readouts">
-    <div class="readout" data-readout="utc">
-      <span class="readout-key">UTC</span>
-      <span class="readout-val" data-clock-utc>--:--:--</span>
+{{/*
+  The chrome is two panels, 00 and 16. Under 1900px the console wrapper is
+  display: contents, so they are the first and last rows of the page. From
+  1900px it is a sticky column down the left, since there is width to spare.
+*/}}
+<div class="frame">
+<div class="console">
+<section class="panel sys system" aria-label="System">
+  <div class="bracket tl"></div><div class="bracket tr"></div>
+  <div class="bracket bl"></div><div class="bracket br"></div>
+  <header class="panel-head">
+    <span class="idx">00</span>
+    <h2>SYSTEM</h2>
+    <span class="rule"></span>
+    <span class="panel-meta">BYTHEWOOD&nbsp;/&nbsp;ORCHARD</span>
+  </header>
+  <div class="sys-row">
+    <div class="ident">
+      <span class="wordmark"><span class="mark">◤</span>DASH</span>
+      <span class="plate"><span class="pk">MODEL</span><span class="pv">BW-07</span><span class="pk series">SERIES</span><span class="pv series">ORCHARD</span></span>
     </div>
-    <div class="readout" data-readout="local">
-      <span class="readout-key" data-clock-zone>LOCAL</span>
-      <span class="readout-val" data-clock-local>--:--:--</span>
-    </div>
-    <div class="readout" data-readout="date">
-      <span class="readout-key">DATE</span>
-      <span class="readout-val" data-clock-date>----</span>
-    </div>
-    <div class="readout notify" data-notify data-state="off" hidden>
-      <button type="button" class="readout-btn" data-notify-button aria-haspopup="true" aria-expanded="false" aria-controls="notify-menu">
-        <span class="readout-key">NOTIFY</span>
-        <span class="readout-val"><span class="pip"></span><span data-notify-label>OFF</span></span>
-      </button>
-      <div class="notify-menu" id="notify-menu" data-notify-menu hidden>
-        <label><input type="checkbox" value="market"> MARKET MOVES</label>
-        <label><input type="checkbox" value="weather"> SEVERE WEATHER</label>
-        <label><input type="checkbox" value="earnings"> EARNINGS</label>
-        <label><input type="checkbox" value="news"> HEADLINES</label>
-        <label><input type="checkbox" value="live"> BURNTPEANUT LIVE</label>
-        <p>WHILE THIS TAB IS OPEN</p>
+    <div class="readouts">
+      <div class="readout" data-readout="utc">
+        <span class="readout-key">UTC</span>
+        <span class="readout-val" data-clock-utc>--:--:--</span>
+      </div>
+      <div class="readout" data-readout="local">
+        <span class="readout-key" data-clock-zone>LOCAL</span>
+        <span class="readout-val" data-clock-local>--:--:--</span>
+      </div>
+      <div class="readout" data-readout="date">
+        <span class="readout-key">DATE</span>
+        <span class="readout-val" data-clock-date>----</span>
+      </div>
+      <div class="readout notify" data-notify data-state="off" hidden>
+        <button type="button" class="readout-btn" data-notify-button aria-haspopup="true" aria-expanded="false" aria-controls="notify-menu">
+          <span class="readout-key">NOTIFY</span>
+          <span class="readout-val"><span class="pip"></span><span data-notify-label>OFF</span></span>
+        </button>
+        <div class="notify-menu" id="notify-menu" data-notify-menu hidden>
+          <label><input type="checkbox" value="market"> MARKET MOVES</label>
+          <label><input type="checkbox" value="weather"> SEVERE WEATHER</label>
+          <label><input type="checkbox" value="earnings"> EARNINGS</label>
+          <label><input type="checkbox" value="news"> HEADLINES</label>
+          <label><input type="checkbox" value="live"> BURNTPEANUT LIVE</label>
+          <p>WHILE THIS TAB IS OPEN</p>
+        </div>
+      </div>
+      <div class="readout quick-open" data-quick-open hidden>
+        <button type="button" class="readout-btn" data-quick-button aria-haspopup="dialog" aria-controls="quick">
+          <span class="readout-key">CHAT</span>
+          <span class="readout-val" data-quick-key>CTRL K</span>
+        </button>
+      </div>
+      <div class="readout link" data-live data-state="connecting">
+        <span class="readout-key">LINK</span>
+        <span class="readout-val"><span class="pip"></span><span data-live-label>INIT</span></span>
       </div>
     </div>
-    <div class="readout quick-open" data-quick-open hidden>
-      <button type="button" class="readout-btn" data-quick-button aria-haspopup="dialog" aria-controls="quick">
-        <span class="readout-key">CHAT</span>
-        <span class="readout-val" data-quick-key>CTRL K</span>
-      </button>
-    </div>
-    <div class="readout link" data-live data-state="connecting">
-      <span class="readout-key">LINK</span>
-      <span class="readout-val"><span class="pip"></span><span data-live-label>INIT</span></span>
-    </div>
   </div>
-</header>
+</section>
+
+<footer class="panel sys status">
+  <div class="bracket tl"></div><div class="bracket tr"></div>
+  <div class="bracket bl"></div><div class="bracket br"></div>
+  <header class="panel-head">
+    <span class="idx">16</span>
+    <h2>STATUS</h2>
+    <span class="rule"></span>
+    <span class="panel-meta">&copy;&nbsp;{{.Year}}&nbsp;{{upper .AuthorName}}</span>
+  </header>
+  {{/* The serial is the day dash was built, and the model on the 00 plate is its number in orchard. */}}
+  <div class="rating">
+    <div class="cell id"><span class="k">SER. NO.</span><span class="v">0830-26</span></div>
+    <div class="cell next"><span class="k">NEXT BRIEF</span><span class="v" data-next-brief>{{.State.NextBrief}}</span></div>
+    <div class="cell ahead"><span class="k">AHEAD</span><span class="v" data-ahead>{{template "ahead" .State.Ahead}}</span></div>
+    <div class="cell guard"><span class="k">GUARD</span><span class="v" data-guard-line>NOMINAL</span></div>
+    <div class="cell src"><span class="k">SOURCE</span><span class="v"><a href="{{.SourceURL}}" rel="noopener noreferrer" target="_blank">GITHUB&nbsp;↗</a></span></div>
+  </div>
+</footer>
+</div>
 
 <main>
 {{template "content" .}}
 </main>
-
-<footer class="statusline">
-  <span class="seg next" data-next-brief>{{with .State.NextBrief}}NEXT BRIEF {{.}}{{end}}</span>
-  <span class="seg ahead" data-ahead>{{template "ahead" .State.Ahead}}</span>
-  <span class="seg" data-guard-line></span>
-  <span class="seg grow"></span>
-  <span class="seg"><a href="{{.SourceURL}}" rel="noopener noreferrer" target="_blank">SOURCE</a></span>
-  <span class="seg">&copy;&nbsp;{{.Year}}&nbsp;{{.AuthorName}}</span>
-</footer>
+</div>
 
 {{/*
   Quick chat. Everybody gets this markup, since the page can come out of the

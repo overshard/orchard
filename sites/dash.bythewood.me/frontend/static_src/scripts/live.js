@@ -550,19 +550,18 @@ function renderSystemsSummary(systems) {
   );
 }
 
-// The status line names any upstream currently shut off, so a panel that has
+// The status panel names any upstream currently shut off, so a panel that has
 // stopped moving says why instead of just looking stale.
 function renderGuard(guarded) {
   if (!guardLine) return;
-  guardLine.textContent =
-    guarded && guarded.length
-      ? `GUARD OPEN: ${guarded.join(" ").toUpperCase()}`
-      : "GUARD NOMINAL";
+  const open = guarded && guarded.length;
+  guardLine.textContent = open ? `OPEN: ${guarded.join(" ").toUpperCase()}` : "NOMINAL";
+  guardLine.dataset.open = open ? "yes" : "no";
 }
 
 function renderFooter(ahead, next) {
   const nextHost = document.querySelector("[data-next-brief]");
-  if (nextHost && next) nextHost.textContent = `NEXT BRIEF ${next}`;
+  if (nextHost && next) nextHost.textContent = next;
   const host = document.querySelector("[data-ahead]");
   if (!host) return;
   if (!ahead || !ahead.length) {
@@ -570,7 +569,6 @@ function renderFooter(ahead, next) {
     return;
   }
   host.replaceChildren(
-    "AHEAD",
     ...ahead.map((a) => {
       const ev = el("span", "ev");
       ev.append(el("b", null, a.label), ` ${a.when}`);
