@@ -294,6 +294,19 @@ function storyNode(story, i) {
   return li;
 }
 
+function renderPulse(selector, pulse) {
+  const host = document.querySelector(selector);
+  if (!host) return;
+  if (!pulse || !pulse.label) {
+    host.replaceChildren();
+    return;
+  }
+  const p = el("p", "pulse");
+  p.dataset.level = pulse.level;
+  p.append(el("span", "lvl", pulse.label), ` ${pulse.text}`);
+  host.replaceChildren(p);
+}
+
 function renderStories(selector, stories) {
   const host = document.querySelector(selector);
   if (!host) return;
@@ -1172,6 +1185,8 @@ function render(state) {
   if (changed("feeds", state.feeds)) renderFeeds(state.feeds);
   if (changed("hn", state.hn)) renderStories("[data-hn]", state.hn);
   if (changed("lobsters", state.lobsters)) renderStories("[data-lobsters]", state.lobsters);
+  if (changed("hn_pulse", state.hn_pulse)) renderPulse("[data-hn-pulse]", state.hn_pulse);
+  if (changed("lobsters_pulse", state.lobsters_pulse)) renderPulse("[data-lobsters-pulse]", state.lobsters_pulse);
   if (changed("weather", state.weather)) renderWeather(state.weather);
   // Two figures in this bank come from the weather poll and three from the air
   // poll, so it has to redraw when either moves.

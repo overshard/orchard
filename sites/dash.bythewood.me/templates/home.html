@@ -321,6 +321,7 @@
       <span class="rule"></span>
       <a class="panel-meta" href="https://news.ycombinator.com" rel="noopener noreferrer" target="_blank">NEWS.YCOMBINATOR.COM</a>
     </header>
+    <div data-hn-pulse>{{template "pulse" .State.HNPulse}}</div>
     <div data-hn>{{template "stories" .State.HN}}</div>
   </section>
 
@@ -333,6 +334,7 @@
       <span class="rule"></span>
       <a class="panel-meta" href="https://lobste.rs" rel="noopener noreferrer" target="_blank">LOBSTE.RS</a>
     </header>
+    <div data-lobsters-pulse>{{template "pulse" .State.LobstersPulse}}</div>
     <div data-lobsters>{{template "stories" .State.Lobsters}}</div>
   </section>
 
