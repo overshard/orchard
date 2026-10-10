@@ -1,8 +1,8 @@
 name: orchard-analytics
 
 # No published ports. Traffic arrives through cloudflared to Caddy on the shared
-# network. State is a named volume, not a bind mount: the Docker CLI here talks
-# to Docker Desktop, which mounts a /home/dev path empty instead of erroring.
+# network. State is a named volume since the daemon is on the host and mounts a
+# /home/dev path empty instead of erroring.
 
 services:
   app:

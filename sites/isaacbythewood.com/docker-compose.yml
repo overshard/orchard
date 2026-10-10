@@ -1,8 +1,7 @@
 name: orchard-isaacbythewood
 
-# No published ports and no state. Bind mounts would not work here anyway: the
-# Docker CLI talks to Docker Desktop, which mounts a /home/dev path empty
-# instead of erroring.
+# No published ports and no state. Bind mounts would not work here anyway, the
+# daemon is on the host and mounts a /home/dev path empty instead of erroring.
 
 services:
   app:

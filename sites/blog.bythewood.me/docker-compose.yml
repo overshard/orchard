@@ -1,8 +1,8 @@
 name: orchard-blog
 
 # No published ports and no state, since posts are files baked into the image.
-# Bind mounts would not work anyway: the Docker CLI talks to Docker Desktop,
-# which mounts a /home/dev path empty instead of erroring.
+# Bind mounts would not work anyway, the daemon is on the host and mounts a
+# /home/dev path empty instead of erroring.
 
 services:
   app:

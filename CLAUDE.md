@@ -234,7 +234,7 @@ get every other site SIGKILLed on the next `make deploy`, skipping their
 `stop_grace_period: 30s`.
 
 **Deploys need `sudo`, and `sudo` then eats the password.** The Docker socket is
-`root:root` mode 660 and the `docker` group does not help. But sudoers here sets
+root-owned mode 660 and the `docker` group does not help. But sudoers here sets
 `env_reset`, so `ANALYTICS_PASSWORD=... sudo docker compose up` starts compose
 with the variable stripped and the `${VAR:?}` guard aborts, complaining about
 the shell you just set it in. The Makefile forwards each one as a sudo-level
