@@ -436,9 +436,10 @@ thread from yesterday is only a big thread, and Lobsters runs on about a tenth o
 Hacker News' numbers. Under it sits a third desk, `feeds.go`, which at each slot
 reads both front pages plus the top three comments on the three busiest threads
 (Firebase for HN, since it lists replies in the site's rank order and Algolia
-doesn't) and writes a page sentence and a comments sentence as separate fields.
-The 9B writes right up to whatever `maxLength` it gets, so the caps set the
-length and `whole` keeps a cut line up to its last whole clause. BLS answers 403 to any User-Agent without a contact
+doesn't) and writes one sentence of about fifteen words on what the commenters
+on the busiest of them argue, since the titles are on the panel already. The 9B
+writes right up to whatever `maxLength` it gets, so the cap sits well past the
+asked length and `whole` keeps a cut line up to its last whole clause. BLS answers 403 to any User-Agent without a contact
 address in it, browsers included. The latest brief per desk lives
 in `briefs.json` on the volume, so a deploy shows them rather than nothing, and
 a missed slot runs on start. Every brief is also appended to `briefs.jsonl`, and

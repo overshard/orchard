@@ -12,9 +12,9 @@ import (
 )
 
 // The feeds desk reads Hacker News and Lobsters at each brief slot and writes a
-// couple of sentences on what each front page is talking about, from the titles
-// and the top comments on the busiest threads. The numbers alone can say a
-// thread is big but not what anyone thinks of it.
+// sentence on what the top comments on the busiest threads argue. The titles are
+// on the panel already, and the numbers can say a thread is big but not what
+// anyone thinks of it.
 
 const (
 	threadsShown   = 15
@@ -184,12 +184,9 @@ func threadList(ts []thread) string {
 	return b.String()
 }
 
-// Wide enough that the model finishes a sentence on its own, since at tighter
-// caps it ran into them every time and left half a clause.
-const (
-	feedPageMax     = 200
-	feedCommentsMax = 280
-)
+// Room past the asked 15 words so the model finishes the sentence on its own,
+// since at a cap near the target it ran into it and left half a clause.
+const feedReadMax = 160
 
 func (b *Briefer) compileFeeds(ctx context.Context, slot briefSlot, at time.Time) (Brief, error) {
 	now := time.Now()
@@ -226,37 +223,32 @@ func (b *Briefer) compileFeeds(ctx context.Context, slot briefSlot, at time.Time
 }
 
 func (b *Briefer) feedRead(ctx context.Context, name string, ts []thread) (Point, error) {
-	system := `You write two sentences for one reader on what a tech community's front page is talking about right now, from its stories and the top comments on its busiest threads.
-- "page" is one sentence of at most 18 words naming the subjects that dominate the page, grouped, saying what they are about rather than repeating titles.
-- "comments" is one sentence of at most 22 words on what the top comments argue on the single busiest thread, naming its subject, in your own words, attributed to commenters, and only what a listed comment says.
-- Use only what the stories and comments say. No outside knowledge, no opinion of your own, no hype words like buzzing, hot, or exploding.
-- Do not put story numbers or point counts in the text. Cite the numbers of the stories you mention in "sources".`
+	system := `You write one sentence for one reader on what a tech community is arguing about right now, from its front page and the top comments on its busiest threads. The titles are shown to the reader already, so the sentence is about what the commenters think.
+- "read" is one sentence of at most 15 words. Pick the thread whose comments say the most, open with "On" and its subject in a few words, then say what its top commenters argue, in your own words, like "On <subject>, commenters <what they argue>."
+- Use only what the listed comments say. No outside knowledge, no opinion of your own, no hype words like buzzing, hot, or exploding.
+- Do not put story numbers or point counts in the text. Cite the number of the thread you wrote about in "sources".`
 	user := fmt.Sprintf("The %s front page, most points first:\n%s", name, threadList(ts))
 	schema := map[string]any{
 		"type": "object",
 		"properties": map[string]any{
-			"page":     map[string]any{"type": "string", "maxLength": feedPageMax},
-			"comments": map[string]any{"type": "string", "maxLength": feedCommentsMax},
-			"sources":  map[string]any{"type": "array", "minItems": 1, "maxItems": 3, "items": map[string]any{"type": "integer"}},
+			"read":    map[string]any{"type": "string", "maxLength": feedReadMax},
+			"sources": map[string]any{"type": "array", "minItems": 1, "maxItems": 1, "items": map[string]any{"type": "integer"}},
 		},
-		"required":             []string{"page", "comments", "sources"},
+		"required":             []string{"read", "sources"},
 		"additionalProperties": false,
 	}
 	var out struct {
-		Page     string `json:"page"`
-		Comments string `json:"comments"`
-		Sources  []int  `json:"sources"`
+		Read    string `json:"read"`
+		Sources []int  `json:"sources"`
 	}
-	if err := b.model.Structured(ctx, system, user, schema, 300, &out); err != nil {
+	if err := b.model.Structured(ctx, system, user, schema, 200, &out); err != nil {
 		return Point{}, err
 	}
-	page, said := whole(out.Page, feedPageMax), whole(out.Comments, feedCommentsMax)
-	for raw, kept := range map[string]string{out.Page: page, out.Comments: said} {
-		if raw != "" && kept == "" {
-			slog.Info("brief line cut", slog.String("component", "brief"), slog.String("feed", name), slog.String("raw", raw))
-		}
+	read := whole(out.Read, feedReadMax)
+	if out.Read != "" && read == "" {
+		slog.Info("brief line cut", slog.String("component", "brief"), slog.String("feed", name), slog.String("raw", out.Read))
 	}
-	pt := Point{Text: strings.TrimSpace(page + " " + said)}
+	pt := Point{Text: read}
 	for _, n := range out.Sources {
 		if n < 1 || n > len(ts) || slices.ContainsFunc(pt.Links, func(l Link) bool { return l.URL == ts[n-1].discuss }) {
 			continue
