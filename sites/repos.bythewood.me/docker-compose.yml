@@ -1,7 +1,7 @@
 name: orchard-repos
 
-# A volume, not a bind mount: the Docker CLI here talks to Docker Desktop, which
-# mounts a /home/dev path empty instead of erroring. It is primary data, holding
+# A volume since the daemon is on the host and mounts a /home/dev path empty
+# instead of erroring. It is primary data, holding
 # the only copy of repositories that exist nowhere else, so restic covers it.
 
 services:

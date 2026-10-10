@@ -138,7 +138,7 @@ make test                            every site's tests
 ```
 
 The development targets touch no Docker. Everything else goes through `sudo`,
-because the socket in the webdev container is `root:root` mode 660. On a host
+because the socket in the webdev container is root-owned mode 660. On a host
 where docker needs no sudo: `make up SUDO=`.
 
 Every site has `run`, `build` and `clean` in its own `Makefile`, so you can work
@@ -213,8 +213,8 @@ git check-ignore -v sites/status.bythewood.me/.env
 ```
 
 Bind mounts of paths under `/home/dev` silently mount an empty directory,
-because the daemon is Docker Desktop on the Windows host and resolves the source
-against its own filesystem. Use named volumes.
+because the daemon runs on the host and resolves the source against its own
+filesystem, not webdev's. Use named volumes.
 
 An alerter running on this machine cannot tell you this machine lost power. A
 tunnel that drops is covered from the other side, since Cloudflare sends its own
