@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -32,9 +33,14 @@ func SetupLogging() {
 // Serve runs h on addr until SIGINT or SIGTERM, then drains in-flight requests
 // before returning.
 func Serve(addr string, h http.Handler) error {
+	// Shutdown waits for every connection to go idle and an event stream never
+	// does, so open tabs would hold it to the deadline. This ends them first.
+	base, endStreams := context.WithCancel(context.Background())
+	defer endStreams()
 	srv := &http.Server{
 		Addr:              addr,
 		Handler:           h,
+		BaseContext:       func(net.Listener) context.Context { return base },
 		ReadHeaderTimeout: 10 * time.Second,
 		// No write bound. This one serves an event stream and Go's WriteTimeout
 		// bounds the whole response, so any value at all cuts the browser off
@@ -62,6 +68,7 @@ func Serve(addr string, h http.Handler) error {
 		slog.Info("shutting down", slog.String("signal", sig.String()))
 	}
 
+	srv.RegisterOnShutdown(endStreams)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	return srv.Shutdown(ctx)
