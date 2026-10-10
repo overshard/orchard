@@ -24,7 +24,7 @@
 # line carrying that string even on a dry run.
 #
 # Every docker command goes through sudo, because the socket in the webdev
-# container is root:root mode 660 and being in the docker group does not help.
+# container is root-owned mode 660 and being in the docker group does not help.
 # On a host where docker needs no sudo, turn it off:  make up SUDO=
 #
 # Each site is its own Go module and there is no module at this level, which is
