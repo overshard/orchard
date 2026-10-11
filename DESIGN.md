@@ -482,7 +482,19 @@ same top block (a caps level line, three clamped lines of read, a line of links)
 and then ten rows of one ellipsised headline and one meta line at fixed heights,
 blank rows filling out a short list, and a one line footnote. Below 1340px TODAY
 takes the full width and the two feeds sit side by side under it, and on a phone
-it's one column. A cut headline has the whole text on hover.
+it's one column.
+
+**Cut text opens in a readout card, never a `title`.** The browser's own tooltip
+is small, slow, unstyled and missing on a phone. `tip.js` keeps one card for the
+page, void black with the four amber corner brackets, a plate naming where the
+text came from (`TODAY | 04`, or `BBC | TODAY` on a source tag, which shows that
+article's title), the full text at 13px, and a short amber leader back to the
+line. It paints in with a four frame stepped wipe and the brackets flash once,
+none of it under reduced motion, and there's no shadow. `data-full` opens only
+when the element is actually clipped, `data-tip` always. A mouse opens it on a
+short hover, a keyboard on focus, a tap opens and closes it, and a link takes a
+long press so the tap still follows it. A tap opens on the way up, since a
+scroll that starts on a headline gets a pointercancel and shouldn't flash it.
 
 **AT A GLANCE is panel 01, above MARKETS and under the alerts and ON AIR.** One
 sentence or two first, with a level chip of `QUIET`, `WATCH` or `ACT`, then one
