@@ -55,7 +55,7 @@
   <li>
     <span class="rank">{{printf "%02d" (inc $i)}}</span>
     <div class="body">
-      <a class="title" href="{{$s.URL}}" title="{{$s.Title}}" rel="noopener noreferrer" target="_blank">{{$s.Title}}</a>
+      <a class="title" href="{{$s.URL}}" data-full="{{$s.Title}}" rel="noopener noreferrer" target="_blank">{{$s.Title}}</a>
       <div class="meta">
         {{if $s.Host}}<span class="host">{{$s.Host}}</span>{{end}}
         <span class="pts">{{$s.Points}}<span class="unit">PTS</span></span>
@@ -75,11 +75,11 @@
 
 {{define "pulse"}}<div class="lede" data-level="{{.Level}}">
   <p class="head"><span class="lvl">{{or .Label "AWAITING FEED"}}</span>{{if .Text}} {{.Text}}{{end}}</p>
-  {{if .Read}}<p class="txt" title="{{.Read}}">{{.Read}}</p>{{else}}<p class="txt none">AWAITING READ</p>{{end}}
+  {{if .Read}}<p class="txt" data-full="{{.Read}}">{{.Read}}</p>{{else}}<p class="txt none">AWAITING READ</p>{{end}}
   <div class="meta">{{template "brief-links" .Links}}</div>
 </div>{{end}}
 
-{{define "brief-links"}}{{range .}}<a class="src" href="{{.URL}}" title="{{.Title}}" rel="noopener noreferrer" target="_blank">{{.Source}}</a>{{end}}{{end}}
+{{define "brief-links"}}{{range .}}<a class="src" href="{{.URL}}" data-tip="{{.Title}}" data-tip-label="{{.Source}}" rel="noopener noreferrer" target="_blank">{{.Source}}</a>{{end}}{{end}}
 
 {{define "market-brief"}}
 {{- if .Points}}
@@ -97,7 +97,7 @@
 {{- else}}
 {{with .Read}}<div class="lede" data-level="{{.Level}}">
   <p class="head"><span class="lvl">{{.Label}}</span> {{.Spread}}</p>
-  <p class="txt" title="{{.Text}}">{{.Text}}</p>
+  <p class="txt" data-full="{{.Text}}">{{.Text}}</p>
   <div class="meta">{{template "brief-links" .Links}}</div>
 </div>{{else}}<div class="lede">
   <p class="head"><span class="lvl">{{if .Waiting}}{{.Waiting}}{{else}}AWAITING BRIEF{{end}}</span></p>
@@ -108,7 +108,7 @@
   {{range $i, $p := .Points}}{{if lt $i rows}}<li>
     <span class="rank">{{printf "%02d" (inc $i)}}</span>
     <div class="body">
-      <p class="title" title="{{$p.Text}}">{{$p.Text}}</p>
+      <p class="title" data-full="{{$p.Text}}">{{$p.Text}}</p>
       <div class="meta">{{template "brief-links" $p.Links}}{{if $p.Coverage}}<span class="cov">{{$p.Coverage}}</span>{{end}}{{if $p.Note}}<span class="note">{{$p.Note}}</span>{{end}}</div>
     </div>
   </li>
@@ -127,7 +127,7 @@
   <p class="txt">{{marked .Read.Text}}</p>
 </div>
 <ul class="glance-lines">
-  {{range .Points}}<li data-level="{{.Level}}"><a class="tag" href="#{{.Anchor}}">{{.Label}}</a><span class="lvl">{{upper .Level}}</span><span class="txt" title="{{.Text}}">{{.Text}}</span></li>
+  {{range .Points}}<li data-level="{{.Level}}"><a class="tag" href="#{{.Anchor}}">{{.Label}}</a><span class="lvl">{{upper .Level}}</span><span class="txt" data-full="{{.Text}}">{{.Text}}</span></li>
   {{end}}
 </ul>
 {{- else}}<p class="empty">{{if .Waiting}}{{.Waiting}}{{else}}AWAITING FIRST READ{{end}}</p>{{end}}
