@@ -16,12 +16,12 @@
 # refuses the publish routes on the public hostname.
 #
 # All ntfy state lives in the orchard-ntfy-data volume, never a bind mount. The
-# Docker CLI here talks to Docker Desktop on the Windows host, whose daemon
+# daemon runs on the host, whose filesystem is not this one, so its daemon
 # cannot see this filesystem, so a bind mount silently resolves to an empty
 # directory.
 #
 # Every docker command goes through sudo, because the socket in the webdev
-# container is root:root mode 660 and being in the docker group does not help.
+# container is root-owned mode 660 and being in the docker group does not help.
 # On a host where docker needs no sudo:  make ntfy SUDO=
 set -e
 
