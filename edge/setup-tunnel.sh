@@ -10,12 +10,12 @@
 # `down` has no target, since deleting the tunnel is not something to
 # have one keystroke away from `make doctor`.
 #
-# All cloudflared state lives in a named volume, never a bind mount. The Docker
-# CLI here talks to Docker Desktop on the Windows host, whose daemon cannot see
-# this filesystem, so a bind mount silently resolves to an empty directory.
+# All cloudflared state lives in a named volume, never a bind mount. The daemon
+# runs on the host and cannot see this filesystem, so a bind mount silently
+# resolves to an empty directory.
 #
 # Every docker command goes through sudo, because the socket in the webdev
-# container is root:root mode 660 and being in the docker group does not help.
+# container is root-owned mode 660 and being in the docker group does not help.
 # On a host where docker needs no sudo:  make tunnel SUDO=
 set -e
 
@@ -36,16 +36,16 @@ docker() { ${SUDO} "$DOCKER_BIN" "$@"; }
 VOLUME=orchard-cloudflared
 TUNNEL=orchard
 IMAGE=cloudflare/cloudflared:latest
+# cloudflared's image is distroless, so poking at the volume borrows a shell.
+HELPER=debian@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a
 # Every hostname the tunnel serves, matching the ingress rules in
 # cloudflared/config.yml. These span two zones and cert.pem covers one at a time,
 # so routing all of them means logging in once per zone and running `up` again.
 # The per-host failures in between are expected.
 HOSTNAMES="isaacbythewood.com www.isaacbythewood.com bythewood.me www.bythewood.me blog.bythewood.me analytics.bythewood.me auth.bythewood.me status.bythewood.me logging.bythewood.me ntfy.bythewood.me repos.bythewood.me dash.bythewood.me chat.bythewood.me llm.bythewood.me"
 
-# cloudflared's image is distroless with no shell, so anything that needs to
-# poke at the volume borrows a plain alpine.
 volume_sh() {
-	docker run --rm -v "$VOLUME:/etc/cloudflared" alpine:3 sh -c "$1"
+	docker run --rm -v "$VOLUME:/etc/cloudflared" "$HELPER" sh -c "$1"
 }
 
 # Every command except login has to be told where the origin cert is, or it
@@ -84,9 +84,23 @@ up)
 	# The credentials file is named after the tunnel id, so the id reads straight
 	# off the volume instead of out of `tunnel list`.
 	ID=$(volume_sh "ls /etc/cloudflared" | grep -E '^[0-9a-f-]{36}\.json$' | head -1 | sed 's/\.json$//')
+
+	# No credentials here but the tunnel exists upstream is the restore case, on
+	# a machine that lost the volume. Fetch them back rather than creating a
+	# second tunnel, because a new id means re-pointing every CNAME by hand.
+	# Only works for tunnels created by cloudflared 2022.3.0 or later.
 	if [ -z "$ID" ]; then
-		echo "could not determine tunnel id, run: make tunnel-status" >&2
-		exit 1
+		echo "no credentials in the volume, fetching them for tunnel $TUNNEL"
+		cfd tunnel token --cred-file /etc/cloudflared/recovered.json "$TUNNEL"
+		ID=$(volume_sh "grep -o '\"TunnelID\":\"[^\"]*\"' /etc/cloudflared/recovered.json | cut -d'\"' -f4")
+		if [ -z "$ID" ]; then
+			echo "could not recover credentials, run: make tunnel-status" >&2
+			exit 1
+		fi
+		volume_sh "mv /etc/cloudflared/recovered.json /etc/cloudflared/$ID.json && \
+			chown 65532:65532 /etc/cloudflared/$ID.json && \
+			chmod 400 /etc/cloudflared/$ID.json"
+		echo "recovered the credentials for the existing tunnel"
 	fi
 	echo "tunnel id: $ID"
 
@@ -115,7 +129,7 @@ up)
 		echo "tunnel id was not substituted into config.yml" >&2
 		exit 1
 	}
-	docker run --rm -i -v "$VOLUME:/etc/cloudflared" alpine:3 \
+	docker run --rm -i -v "$VOLUME:/etc/cloudflared" "$HELPER" \
 		sh -c 'cat > /etc/cloudflared/config.yml && chown 65532:65532 /etc/cloudflared/config.yml' \
 		< "$rendered"
 

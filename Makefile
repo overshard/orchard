@@ -439,19 +439,19 @@ dash-key:
 	$(call mint-key,dash.bythewood.me,dash)
 
 llm-key:
-	@test -n "$(NAME)" || { \
-		echo "which service is the key for?" >&2; \
-		echo "" >&2; \
-		echo "  make llm-key NAME=chat" >&2; \
-		exit 1; \
-	}
 	@$(DOCKER) ps --filter "name=^orchard-llm$$" --format '{{.Names}}' 2>/dev/null | grep -q . || { \
 		echo "orchard-llm is not running:" >&2; \
 		echo "" >&2; \
 		echo "  make up" >&2; \
 		exit 1; \
-	}
-	@$(DOCKER) exec orchard-llm /app -newkey "$(NAME)"
+	}; \
+	name="$(NAME)"; \
+	if [ -z "$$name" ]; then \
+		printf 'which service is the key for? '; \
+		read -r name; \
+	fi; \
+	test -n "$$name" || { echo "no name given" >&2; exit 1; }; \
+	$(DOCKER) exec orchard-llm /app -newkey "$$name"
 
 # The way back in when there are no recovery codes left and ntfy or the tunnel
 # is down, so the browser cannot reach a sign in. It needs the Docker socket,
