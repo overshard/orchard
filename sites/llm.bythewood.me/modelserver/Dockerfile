@@ -37,7 +37,7 @@ ENV PATH=/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/
 # Static libs because upstream ships shared objects with no SONAME, which
 # ldconfig then refuses to cache, and the resulting failure names a missing
 # .so rather than the cause.
-ARG LLAMA_REF=master
+ARG LLAMA_REF=v0.6.0
 RUN git clone --depth 1 --branch ${LLAMA_REF} https://github.com/ggml-org/llama.cpp /tmp/src && \
     cmake -S /tmp/src -B /tmp/build -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
