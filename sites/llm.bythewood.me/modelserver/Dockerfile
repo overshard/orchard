@@ -10,7 +10,7 @@
 # whatever else the machine is doing. Without it the weights sit resident
 # forever, which on a desktop that is also a workstation is the card gone.
 
-FROM debian:trixie-slim AS build
+FROM debian@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a AS build
 
 # CUDA 13.2 produces gibberish from low-bit quants, so pin away from it.
 ARG CUDA=13-3
@@ -85,7 +85,7 @@ RUN curl -fsSL -o /tmp/swap.tgz \
     install -m 0755 /tmp/llama-swap /usr/local/bin/llama-swap
 
 
-FROM debian:trixie-slim
+FROM debian@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a
 
 ARG CUDA=13-3
 
