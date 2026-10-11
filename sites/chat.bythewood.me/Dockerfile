@@ -1,10 +1,10 @@
 # chat.bythewood.me.
 #
-# This one ends at Alpine rather than scratch, for poppler's pdftotext. The pure
+# This one ends at Debian rather than scratch, for poppler's pdftotext. The pure
 # Go reader cannot open an encrypted pdf, which is what a bank statement usually
 # is, and it loses the column alignment that makes a statement readable at all.
 # Everything else here is still parsed in process.
-FROM golang:1.27-trixie AS build
+FROM golang:1.27-trixie@sha256:2f84bc93ecfb2689f782b153fdcd368b5a7ab96c1386c65cdaccf35e726d6a44 AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
