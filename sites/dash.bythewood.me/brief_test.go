@@ -389,3 +389,23 @@ func TestMarketLines(t *testing.T) {
 		t.Errorf("sunday should end on a lean for the week of the 5th, got %+v", got)
 	}
 }
+
+func TestMarketProblems(t *testing.T) {
+	et := easternTime()
+	monday := time.Date(2026, 10, 12, 0, 0, 0, 0, et)
+	lines := []marketLine{{label: "LAST WEEK"}, {label: weekAhead, forward: true, week: true, day: monday}}
+	releases := []release{{at: time.Date(2026, 10, 14, 8, 30, 0, 0, et), short: "CPI"}}
+	same := "Retailers trimmed assortments and Apple cut iPhone orders on soft demand."
+
+	bad := marketProblems(lines, map[string]marketAnswer{"line1": {Text: same}, "line2": {Text: same}}, releases)
+	if !strings.Contains(bad["line2"], "repeats line1") || bad["line1"] != "" {
+		t.Errorf("a copied week ahead: %v", bad)
+	}
+	bad = marketProblems(lines, map[string]marketAnswer{"line1": {Text: "Stocks rose."}, "line2": {Text: "Apple cut iPhone orders."}}, releases)
+	if !strings.Contains(bad["line2"], "CPI") {
+		t.Errorf("a week ahead without the CPI: %v", bad)
+	}
+	if bad = marketProblems(lines, map[string]marketAnswer{"line1": {Text: "Stocks rose."}, "line2": {Text: "CPI on Wednesday weighs."}}, releases); len(bad) != 0 {
+		t.Errorf("a good week ahead flagged: %v", bad)
+	}
+}

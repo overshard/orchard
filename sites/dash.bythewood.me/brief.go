@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html"
 	"log/slog"
+	"maps"
 	"math"
 	"os"
 	"path/filepath"
@@ -1212,13 +1213,27 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 		at.In(easternTime()).Format("15:04 on Monday, January 2 2006"), want.String(),
 		marketFacts(st, h, at), calendar.String(), clusterList(events, now))
 
-	var out map[string]struct {
-		Lean    string `json:"verdict"`
-		Text    string `json:"text"`
-		Sources []int  `json:"sources"`
-	}
-	if err := b.model.Structured(ctx, system, user, marketSchema(lines), 900, &out); err != nil {
-		return Brief{}, err
+	// One retry with the problem named, since the 9B now and then copies one
+	// line into the next or writes the week ahead about a single company.
+	var out map[string]marketAnswer
+	ask := user
+	for try := 0; try < 2; try++ {
+		out = nil
+		if err := b.model.Structured(ctx, system, ask, marketSchema(lines), 900, &out); err != nil {
+			return Brief{}, err
+		}
+		bad := marketProblems(lines, out, releases)
+		if len(bad) == 0 {
+			break
+		}
+		slog.Info("brief markets retried", slog.String("component", "brief"), slog.Int("try", try+1), slog.String("problems", strings.Join(slices.Collect(maps.Values(bad)), "; ")))
+		if try == 1 {
+			for key := range bad {
+				delete(out, key)
+			}
+			break
+		}
+		ask = user + "\n\nYour last answer had problems, fix them:\n- " + strings.Join(slices.Collect(maps.Values(bad)), "\n- ")
 	}
 
 	brief := newBrief(slot, at, events)
@@ -1462,6 +1477,69 @@ func marketLines(h *history, session string, at time.Time) []marketLine {
 	}
 	return append(lines, marketLine{label: dayName(next, now), forward: true, day: next,
 		ask: "which way the market as a whole leans for " + next.Format("Monday") + ", the next session, and the two or three biggest market-wide reasons"})
+}
+
+type marketAnswer struct {
+	Lean    string `json:"verdict"`
+	Text    string `json:"text"`
+	Sources []int  `json:"sources"`
+}
+
+// marketProblems is what's wrong with each forward line, by key: one that repeats
+// another line, and a week ahead that leaves out the week's scheduled releases.
+func marketProblems(lines []marketLine, out map[string]marketAnswer, releases []release) map[string]string {
+	bad := map[string]string{}
+	for i, l := range lines {
+		if !l.forward {
+			continue
+		}
+		key := fmt.Sprintf("line%d", i+1)
+		text := out[key].Text
+		for j := range lines {
+			if other := out[fmt.Sprintf("line%d", j+1)].Text; j != i && text != "" && wordOverlap(text, other) > 0.6 {
+				bad[key] = fmt.Sprintf("%s repeats %s, write it about %s instead", key, fmt.Sprintf("line%d", j+1), lines[i].label)
+			}
+		}
+		if _, dup := bad[key]; dup || !l.week {
+			continue
+		}
+		want := weekReleases(l.day, releases)
+		if len(want) > 0 && !slices.ContainsFunc(want, func(w string) bool { return strings.Contains(strings.ToLower(text), strings.ToLower(w)) }) {
+			bad[key] = fmt.Sprintf("%s has to name the week's scheduled %s", key, strings.Join(want, " and "))
+		}
+	}
+	return bad
+}
+
+// weekReleases is the short names of what's scheduled Monday to Friday.
+func weekReleases(monday time.Time, releases []release) []string {
+	var out []string
+	for d := monday; !weekend(d); d = d.AddDate(0, 0, 1) {
+		date := d.Format("2006-01-02")
+		for _, r := range releases {
+			if r.at.In(easternTime()).Format("2006-01-02") == date && r.short != "" && !slices.Contains(out, r.short) {
+				out = append(out, r.short)
+			}
+		}
+		if _, ok := fomcDecisions[date]; ok && !slices.Contains(out, "Fed") {
+			out = append(out, "Fed")
+		}
+	}
+	return out
+}
+
+func wordOverlap(a, b string) float64 {
+	wa, wb := strings.Fields(strings.ToLower(a)), strings.Fields(strings.ToLower(b))
+	if len(wa) == 0 || len(wb) == 0 {
+		return 0
+	}
+	shared := 0
+	for _, w := range wa {
+		if slices.Contains(wb, w) {
+			shared++
+		}
+	}
+	return float64(shared) / float64(max(len(wa), len(wb)))
 }
 
 func closedLine(label string, close, prev float64, ask string) marketLine {
