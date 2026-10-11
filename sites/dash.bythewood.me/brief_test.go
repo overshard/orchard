@@ -243,7 +243,7 @@ func TestBriefDefersAnHourWhenTheCardIsBusy(t *testing.T) {
 
 	f.gpu = GPUState{Reason: "card idle"}
 	b.tick(context.Background(), now.Add(time.Hour))
-	if f.asked != 2 || strings.Join(f.compiled, ",") != "markets,news,feeds" || f.unloads != 1 {
+	if f.asked != 2 || strings.Join(f.compiled, ",") != "markets,news,feeds,glance" || f.unloads != 1 {
 		t.Fatalf("at 8am: asked %d, compiled %v, unloaded %d", f.asked, f.compiled, f.unloads)
 	}
 	if w := b.store.Snapshot().Briefs.News.Waiting; w != "" {
@@ -263,7 +263,7 @@ func TestBriefLeavesAResidentModelAlone(t *testing.T) {
 	f := &fakeGateway{gpu: GPUState{Loaded: true}}
 	b := testBriefer(t, f, false)
 	b.tick(context.Background(), inNY(t, "2026-10-07 11:00"))
-	if len(f.compiled) != 3 || f.unloads != 0 {
+	if len(f.compiled) != 4 || f.unloads != 0 {
 		t.Errorf("compiled %v, unloaded %d", f.compiled, f.unloads)
 	}
 }
@@ -376,11 +376,16 @@ func TestMarketLines(t *testing.T) {
 	check("thursday close", marketLines(h, "post", time.Date(2026, 10, 8, 16, 5, 0, 0, et)), []want{
 		{"YESTERDAY", "down", "0.98%"}, {"TODAY", "up", "0.50%"}, {"TOMORROW", "", ""},
 	})
+	// The week is Thursday's close against the Friday before, with no bar for
+	// this Friday, and the week ahead carries the lean.
+	check("saturday", marketLines(h, "closed", time.Date(2026, 10, 10, 9, 0, 0, 0, et)), []want{
+		{"LAST WEEK", "up", "0.50%"}, {"WEEK AHEAD", "", ""},
+	})
 	h.times, h.closes = h.times[:3], h.closes[:3]
 	check("monday morning", marketLines(h, "pre", time.Date(2026, 10, 5, 7, 0, 0, 0, et)), []want{
 		{"FRIDAY", "up", "1.00%"}, {"TODAY", "", ""}, {"TOMORROW", "", ""},
 	})
-	if got := marketLines(h, "closed", time.Date(2026, 10, 3, 9, 0, 0, 0, et)); got[len(got)-1].label != "MONDAY" || !got[len(got)-1].forward {
-		t.Errorf("saturday should end on a Monday lean, got %+v", got)
+	if got := marketLines(h, "closed", time.Date(2026, 10, 4, 9, 0, 0, 0, et)); got[len(got)-1].label != "WEEK AHEAD" || !got[len(got)-1].week || got[len(got)-1].day.Day() != 5 {
+		t.Errorf("sunday should end on a lean for the week of the 5th, got %+v", got)
 	}
 }

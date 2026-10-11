@@ -50,12 +50,12 @@
 {{end}}
 
 {{define "stories"}}
-<ol class="stories">
-  {{range $i, $s := .}}
+<ol class="rows stories">
+  {{range $i, $s := .}}{{if lt $i rows}}
   <li>
     <span class="rank">{{printf "%02d" (inc $i)}}</span>
     <div class="body">
-      <a class="title" href="{{$s.URL}}" rel="noopener noreferrer" target="_blank">{{$s.Title}}</a>
+      <a class="title" href="{{$s.URL}}" title="{{$s.Title}}" rel="noopener noreferrer" target="_blank">{{$s.Title}}</a>
       <div class="meta">
         {{if $s.Host}}<span class="host">{{$s.Host}}</span>{{end}}
         <span class="pts">{{$s.Points}}<span class="unit">PTS</span></span>
@@ -64,18 +64,20 @@
       </div>
     </div>
   </li>
-  {{else}}
-  <li class="empty"><span class="rank">--</span><div class="body">AWAITING FEED</div></li>
-  {{end}}
+  {{end}}{{end}}
+  {{template "blank-rows" (len .)}}
 </ol>
 {{end}}
 
+{{define "blank-rows"}}{{range blanks .}}<li class="blank"><span class="rank">--</span><div class="body"><span class="title">&nbsp;</span><div class="meta">&nbsp;</div></div></li>{{end}}{{end}}
+
 {{define "ahead"}}{{if .}}{{range .}}<span class="ev"><b>{{.Label}}</b> {{.When}}</span>{{end}}{{end}}{{end}}
 
-{{define "pulse"}}{{if .Label}}<div class="pulse" data-level="{{.Level}}">
-  <p class="head"><span class="lvl">{{.Label}}</span>{{if .Text}} {{.Text}}{{end}}</p>
-  {{if .Read}}<p class="txt">{{.Read}}</p><div class="meta">{{template "brief-links" .Links}}</div>{{end}}
-</div>{{end}}{{end}}
+{{define "pulse"}}<div class="lede" data-level="{{.Level}}">
+  <p class="head"><span class="lvl">{{or .Label "AWAITING FEED"}}</span>{{if .Text}} {{.Text}}{{end}}</p>
+  {{if .Read}}<p class="txt" title="{{.Read}}">{{.Read}}</p>{{else}}<p class="txt none">AWAITING READ</p>{{end}}
+  <div class="meta">{{template "brief-links" .Links}}</div>
+</div>{{end}}
 
 {{define "brief-links"}}{{range .}}<a class="src" href="{{.URL}}" title="{{.Title}}" rel="noopener noreferrer" target="_blank">{{.Source}}</a>{{end}}{{end}}
 
@@ -91,25 +93,44 @@
 {{end}}
 
 {{define "news-brief"}}
-{{- if .Points}}
-{{with .Read}}<div class="read" data-level="{{.Level}}">
-  <p class="head"><span class="lvl">{{.Label}}</span> / {{.Spread}}</p>
-  <p class="txt">{{.Text}}</p>
+{{- if eq .Status "off"}}<p class="empty">BRIEF OFF, NO MODEL KEY</p>
+{{- else}}
+{{with .Read}}<div class="lede" data-level="{{.Level}}">
+  <p class="head"><span class="lvl">{{.Label}}</span> {{.Spread}}</p>
+  <p class="txt" title="{{.Text}}">{{.Text}}</p>
   <div class="meta">{{template "brief-links" .Links}}</div>
+</div>{{else}}<div class="lede">
+  <p class="head"><span class="lvl">{{if .Waiting}}{{.Waiting}}{{else}}AWAITING BRIEF{{end}}</span></p>
+  <p class="txt none">AWAITING READ</p>
+  <div class="meta"></div>
 </div>{{end}}
-<ol class="brief">
-  {{range $i, $p := .Points}}<li>
+<ol class="rows brief">
+  {{range $i, $p := .Points}}{{if lt $i rows}}<li>
     <span class="rank">{{printf "%02d" (inc $i)}}</span>
     <div class="body">
-      <p class="txt">{{$p.Text}}</p>
+      <p class="title" title="{{$p.Text}}">{{$p.Text}}</p>
       <div class="meta">{{template "brief-links" $p.Links}}{{if $p.Coverage}}<span class="cov">{{$p.Coverage}}</span>{{end}}{{if $p.Note}}<span class="note">{{$p.Note}}</span>{{end}}</div>
     </div>
   </li>
-  {{end}}
+  {{end}}{{end}}
+  {{template "blank-rows" (len .Points)}}
 </ol>
 <p class="footnote">{{if .Waiting}}{{.Waiting}}. {{end}}SUMMARISED BY A LOCAL MODEL FROM {{.Stories}} STORIES, MOST IMPACT FIRST. L C R COUNTS THE OUTLETS THAT CARRIED IT BY ALLSIDES LEAN.</p>
-{{- else if eq .Status "off"}}<p class="empty">BRIEF OFF, NO MODEL KEY</p>
-{{- else}}<p class="empty">{{if .Waiting}}{{.Waiting}}{{else}}AWAITING BRIEF{{end}}</p>{{end}}
+{{- end}}
+{{end}}
+
+{{define "glance"}}
+{{- if eq .Status "off"}}<p class="empty">BRIEF OFF, NO MODEL KEY</p>
+{{- else if .Read}}
+<div class="glance-read" data-level="{{.Read.Level}}">
+  <span class="lvl">{{.Read.Label}}</span>
+  <p class="txt">{{marked .Read.Text}}</p>
+</div>
+<ul class="glance-lines">
+  {{range .Points}}<li data-level="{{.Level}}"><a class="tag" href="#{{.Anchor}}">{{.Label}}</a><span class="lvl">{{upper .Level}}</span><span class="txt" title="{{.Text}}">{{.Text}}</span></li>
+  {{end}}
+</ul>
+{{- else}}<p class="empty">{{if .Waiting}}{{.Waiting}}{{else}}AWAITING FIRST READ{{end}}</p>{{end}}
 {{end}}
 
 {{define "condition"}}

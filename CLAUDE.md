@@ -427,9 +427,10 @@ outlets ran them, because told to skip a trial in the summary prompt it writes
 one up anyway and calls it politics, and so is anything rated 1. A minor label
 rated 4 or 5 is kept anyway, since the rater files futures falling after an
 attack under incident. Go keeps the
-twelve highest rated and the writer only rewrites them as headlines, so the
+ten highest rated and the writer only rewrites them as headlines, so the
 order on the page is the impact order. The markets line is always the last
-session, today and the next. A session that already happened gets its up or down
+session, today and the next, and on a weekend it's the week just gone and a lean
+on the week ahead, scored against that week's move. A session that already happened gets its up or down
 from the daily closes in Go, and the forward lines lean on the Fed's meeting
 dates (copied into `calendar.go`, add next year's in December), the BLS and BEA
 release calendars and two documented patterns, the turn of the month and the
@@ -445,10 +446,17 @@ Lobsters each get a pulse level computed in `pulse.go` on every poll, since a
 thread takes off inside an hour. Blowing up means fresh and already high, a huge
 thread from yesterday is only a big thread, and Lobsters runs on about a tenth of
 Hacker News' numbers. Under it sits a third desk, `feeds.go`, which at each slot
-reads both front pages plus the top three comments on the three busiest threads
+reads both front pages plus the top three comments on the five busiest threads
 (Firebase for HN, since it lists replies in the site's rank order and Algolia
-doesn't) and writes one sentence of about fifteen words on what the commenters
-on the busiest of them argue, since the titles are on the panel already. The 9B
+doesn't) and writes a read of about thirty words on
+what the page as a whole is about and what the commenters make of it. A fourth
+desk, `glance.go`, runs last and reads everything on the page into AT A GLANCE,
+a sentence or two and one line each for markets, news, tech, weather and play.
+Each line's level, quiet, watch or act, is a threshold in Go and the model only
+phrases it, a figure in its text that the facts don't carry swaps the line for
+one Go writes, and bold only lands on a phrase the facts carry. A story every
+outlet runs doesn't raise the level, since being everywhere isn't the same as
+touching him. The 9B
 writes right up to whatever `maxLength` it gets, so the cap sits well past the
 asked length and `whole` keeps a cut line up to its last whole clause. BLS answers 403 to any User-Agent without a contact
 address in it, browsers included. The latest brief per desk lives
@@ -462,8 +470,8 @@ without it the panels say the briefs are off.
 **A brief never loads a model onto a card the desktop is using.** Each slot asks
 the gateway's `GET /v1/gpu` first, which reads `nvidia-smi` through the
 `orchard-llm-gpu` sidecar, and a busy card, 55% or 3000MiB with none of our
-models on it, defers the slot an hour and says so on both panels. Weekends run
-too, pointed at Monday. Both desks share one load, and the weights come off with
+models on it, defers the slot an hour and says so on the panels. Weekends run
+too, pointed at the week ahead. Every desk shares one load, and the weights come off with
 `/v1/unload` straight after, unless a model was already resident, which is
 somebody's chat and is left to its own idle timer. The sidecar exists because the
 gateway is a scratch image and the injected `nvidia-smi` needs glibc.

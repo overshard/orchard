@@ -181,6 +181,24 @@ func sessionNotes(day time.Time, releases []release, vix float64) []string {
 	return notes
 }
 
+// weekNotes is the calendar for a week ahead line, day by day from Monday,
+// with the VIX given once as a weekly move rather than on every day.
+func weekNotes(monday time.Time, releases []release, vix float64) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s, the week of %s:\n", weekAhead, monday.Format("Monday January 2"))
+	for d := monday; !weekend(d); d = d.AddDate(0, 0, 1) {
+		for _, n := range sessionNotes(d, releases, 0) {
+			fmt.Fprintf(&b, "- %s: %s\n", d.Format("Monday"), n)
+		}
+	}
+	if vix > 0 {
+		fmt.Fprintf(&b, "- A VIX of %.1f prices a typical weekly move of about %.1f%% either way.\n", vix, vix/math.Sqrt(52))
+	} else if !strings.Contains(b.String(), "\n- ") {
+		b.WriteString("- Nothing scheduled and no calendar pattern.\n")
+	}
+	return b.String()
+}
+
 func turnOfMonth(day time.Time) bool {
 	if weekend(day) {
 		return false

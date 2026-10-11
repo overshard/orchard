@@ -25,9 +25,24 @@ func TestBriefLive(t *testing.T) {
 	g := NewGuard(t.TempDir())
 	store := NewStore(NewHub())
 	store.Prime(ctx, g)
+	// BRIEF_STATE is a saved /api/state, so the glance desk sees the weather,
+	// Steam and the rest that Prime doesn't fetch.
+	if path := os.Getenv("BRIEF_STATE"); path != "" {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		store.update(func(st *State) {
+			if err := json.Unmarshal(raw, st); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
 	store.refreshBoard(ctx, g)
 	store.refreshEarnings(ctx, g)
-	b := NewBriefer(store, g, m, t.TempDir())
+	// BRIEF_DATA points at a copy of the volume, so a lone desk like glance
+	// has the other briefs to read.
+	b := NewBriefer(store, g, m, env("BRIEF_DATA", t.TempDir()))
 
 	slot, at := latestSlot(time.Now())
 	for i, c := range clusterStories(gather(ctx, g, newsFeeds, at.Add(-24*time.Hour), time.Now()), 25) {
@@ -39,7 +54,7 @@ func TestBriefLive(t *testing.T) {
 		}
 	}
 
-	for _, desk := range []string{"markets", "news", "feeds"} {
+	for _, desk := range []string{"markets", "news", "feeds", "glance"} {
 		if d := os.Getenv("BRIEF_DESK"); d != "" && d != desk {
 			continue
 		}
@@ -48,6 +63,7 @@ func TestBriefLive(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", desk, err)
 		}
+		store.update(func(st *State) { st.setBrief(desk, brief) })
 		out, _ := json.MarshalIndent(brief, "", "  ")
 		t.Logf("%s %s in %s\n%s", desk, slot.kind, time.Since(started).Round(time.Second), out)
 	}
@@ -71,9 +87,24 @@ func TestBriefTickLive(t *testing.T) {
 	g := NewGuard(t.TempDir())
 	store := NewStore(NewHub())
 	store.Prime(ctx, g)
+	// BRIEF_STATE is a saved /api/state, so the glance desk sees the weather,
+	// Steam and the rest that Prime doesn't fetch.
+	if path := os.Getenv("BRIEF_STATE"); path != "" {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		store.update(func(st *State) {
+			if err := json.Unmarshal(raw, st); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
 	store.refreshBoard(ctx, g)
 	store.refreshEarnings(ctx, g)
-	b := NewBriefer(store, g, m, t.TempDir())
+	// BRIEF_DATA points at a copy of the volume, so a lone desk like glance
+	// has the other briefs to read.
+	b := NewBriefer(store, g, m, env("BRIEF_DATA", t.TempDir()))
 
 	before, err := m.GPU(ctx)
 	if err != nil {

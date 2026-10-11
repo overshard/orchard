@@ -12,13 +12,12 @@ import (
 )
 
 // The feeds desk reads Hacker News and Lobsters at each brief slot and writes a
-// sentence on what the top comments on the busiest threads argue. The titles are
-// on the panel already, and the numbers can say a thread is big but not what
-// anyone thinks of it.
+// read of the whole front page, what runs through it and what the commenters
+// make of it. The numbers can say a thread is big but not what the day is like.
 
 const (
 	threadsShown   = 15
-	threadsRead    = 3
+	threadsRead    = 5
 	commentsRead   = 3
 	commentRunes   = 280
 	hnItemURL      = "https://hacker-news.firebaseio.com/v0/item/%d.json"
@@ -184,9 +183,9 @@ func threadList(ts []thread) string {
 	return b.String()
 }
 
-// Room past the asked 15 words so the model finishes the sentence on its own,
+// Room past the asked 30 words so the model finishes the sentence on its own,
 // since at a cap near the target it ran into it and left half a clause.
-const feedReadMax = 160
+const feedReadMax = 240
 
 func (b *Briefer) compileFeeds(ctx context.Context, slot briefSlot, at time.Time) (Brief, error) {
 	now := time.Now()
@@ -223,16 +222,18 @@ func (b *Briefer) compileFeeds(ctx context.Context, slot briefSlot, at time.Time
 }
 
 func (b *Briefer) feedRead(ctx context.Context, name string, ts []thread) (Point, error) {
-	system := `You write one sentence for one reader on what a tech community is arguing about right now, from its front page and the top comments on its busiest threads. The titles are shown to the reader already, so the sentence is about what the commenters think.
-- "read" is one sentence of at most 15 words. Pick the thread whose comments say the most, open with "On" and its subject in a few words, then say what its top commenters argue, in your own words, like "On <subject>, commenters <what they argue>."
-- Use only what the listed comments say. No outside knowledge, no opinion of your own, no hype words like buzzing, hot, or exploding.
-- Do not put story numbers or point counts in the text. Cite the number of the thread you wrote about in "sources".`
+	system := `You write a short read for one reader of what a tech community's front page is like today, from its titles and the top comments on its busiest threads.
+- "read" is one or two sentences, at most 30 words in all. Name the two or three subjects that run through more than one thread, then say what the commenters broadly make of them.
+- If nothing runs through more than one thread, say the page is all over the place and give the argument on the busiest thread instead.
+- Don't list titles back, since the reader sees them. Describe the page as a whole.
+- Use only the titles and the listed comments. No outside knowledge, no opinion of your own, no hype words like buzzing, hot, or exploding.
+- Do not put story numbers or point counts in the text. Cite the numbers of up to three threads the read draws on in "sources", the most important first.`
 	user := fmt.Sprintf("The %s front page, most points first:\n%s", name, threadList(ts))
 	schema := map[string]any{
 		"type": "object",
 		"properties": map[string]any{
 			"read":    map[string]any{"type": "string", "maxLength": feedReadMax},
-			"sources": map[string]any{"type": "array", "minItems": 1, "maxItems": 1, "items": map[string]any{"type": "integer"}},
+			"sources": map[string]any{"type": "array", "minItems": 1, "maxItems": 3, "items": map[string]any{"type": "integer"}},
 		},
 		"required":             []string{"read", "sources"},
 		"additionalProperties": false,
@@ -241,7 +242,7 @@ func (b *Briefer) feedRead(ctx context.Context, name string, ts []thread) (Point
 		Read    string `json:"read"`
 		Sources []int  `json:"sources"`
 	}
-	if err := b.model.Structured(ctx, system, user, schema, 200, &out); err != nil {
+	if err := b.model.Structured(ctx, system, user, schema, 300, &out); err != nil {
 		return Point{}, err
 	}
 	read := whole(out.Read, feedReadMax)

@@ -421,7 +421,7 @@ dashboard pages go full width inside it. dash broke the same rule until
 2026-10-09 with a rail and a status line running edge to edge past a capped
 `main`.
 
-**dash's chrome is panel 00 and panel 16.** The header is a panel like any other,
+**dash's chrome is panel 00 and panel 17.** The header is a panel like any other,
 DASH large with a boxed `MODEL BW-07 / SERIES ORCHARD` plate under it and the
 readouts as tiles on the market cards' hairline grid, the two blocks exactly the
 same height so their edges line up. The footer is a rating plate, the sticker on
@@ -472,16 +472,31 @@ hotter rule, with a two word opener from Go only on a major or quiet day. The le
 counted from the outlets and never the model's call, and only `MAJOR STORY`
 lights amber, so the panel can't cry wolf on a normal Tuesday. HACKER NEWS and
 LOBSTERS each open on a pulse the same way, `BLOWING UP`, `BIG THREAD`, `BUSY`
-or `QUIET` in caps (with the row that's taking off when one is), then two
-sentences from the last brief on what the page is about and what the top
-comments on the busiest thread argue, with links named by row. Only `BLOWING UP`
-is amber, and nothing in the pulse repeats the top row back.
+or `QUIET` in caps (with the row that's taking off when one is), then a read from
+the last brief of what the whole front page is about and what the commenters make
+of it, with links named by row. Only `BLOWING UP` is amber, and nothing in the
+pulse repeats the top row back.
+
+**The news band is three panels that line up row for row.** Each opens on the
+same top block (a caps level line, three clamped lines of read, a line of links)
+and then ten rows of one ellipsised headline and one meta line at fixed heights,
+blank rows filling out a short list, and a one line footnote. Below 1340px TODAY
+takes the full width and the two feeds sit side by side under it, and on a phone
+it's one column. A cut headline has the whole text on hover.
+
+**AT A GLANCE is panel 01, above MARKETS and under the alerts and ON AIR.** One
+sentence or two first, with a level chip of `QUIET`, `WATCH` or `ACT`, then one
+line each for MARKETS, NEWS, TECH, WEATHER and PLAY, each tagged with its own
+level and linking down to its panel. The levels come from thresholds in Go and
+the model only phrases them, so a quiet chip is grey, watch is amber and act is
+red, and a quiet line is muted so a watch line stands out. Bold is the one
+markup a model's text gets, at most two phrases, and only ones the facts carry.
 
 **UPLINK goes at the bottom, full width.** It grew to more rows than any
 readout beside it and stretched the whole local band to match, so it moved under
 the news band on its own and runs its rows as many across as fit. That leaves the
 local band six panels, six wide from 1900px where `main` widens, then three and
-then two, so no width leaves a hole. Panel 16 under it doesn't list the sources again, since
+then two, so no width leaves a hole. Panel 17 under it doesn't list the sources again, since
 UPLINK names them all. It says when the next brief is due and the next four
 market moving dates, CPI, PPI, jobs, JOLTS, GDP, PCE and the Fed, with the label
 in amber.
@@ -504,6 +519,6 @@ A reader only ever has the repo.
 | `auth` | green | Bootstrap. Carries the starfield on `/login`, which the grid sits under |
 | `repos` | green | Hand written CSS, no Bootstrap, since it is dense text. Newsreader on repository names |
 | `chat` | green | Hand written CSS, no Bootstrap. A conversation, so it reads at the longest length on the estate. Citation pills and a source row under each answer, and widget panels above one when a ticker or a forecast was looked up. A picture draws behind a panel listing its stages, each with a count and a guess from the last few, and replaces it once it has loaded. An unread dot on a conversation that finished a turn off screen, and the place in line of every turn still waiting |
-| `dash` | amber | Hand written CSS. Scanlines, vignette, JetBrains Mono and Space Grotesk. Panel 00 and panel 16 for chrome, a spine past 1900px. A `NOTIFY` switch in panel 00, and a `CHAT` readout beside it that only appears signed in |
+| `dash` | amber | Hand written CSS. Scanlines, vignette, JetBrains Mono and Space Grotesk. Panel 00 and panel 17 for chrome, a spine past 1900px. A `NOTIFY` switch in panel 00, and a `CHAT` readout beside it that only appears signed in |
 | `blog`, `isaacbythewood.com` | neither | Separate identities. Nothing here applies to them |
 
