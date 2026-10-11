@@ -43,6 +43,7 @@ SITE_DIR = sites/$(SITE)
 CONTAINER = orchard-$(firstword $(subst ., ,$(SITE)))
 
 EDGE_COMPOSE = cd edge && $(DOCKER) compose
+UTIL         = orchard-util:latest
 
 # Secrets come from a .env file in the site's own directory, which compose reads
 # by itself because that directory is the project directory. Nothing is
@@ -59,7 +60,7 @@ COMPOSE_DOWN = $(DOCKER) compose
 .DEFAULT_GOAL := help
 .PHONY: help install up up-one deploy edge doctor down down-one run build check fmt fmt-check vet test \
 	env password tunnel tunnel-login tunnel-status ntfy ntfy-token ntfy-status ntfy-passwd \
-	auth-init auth-recovery chat-key dash-key llm-key wiki require-site require-env require-tunnel
+	auth-init auth-recovery chat-key dash-key llm-key wiki util require-site require-env require-tunnel
 
 help:
 	@echo "running system"
@@ -103,7 +104,7 @@ help:
 # so an image that already exists is reused. Use `deploy` when code changed.
 # One site failing does not stop the rest, since the sites after it in the
 # alphabet would otherwise never start. It still exits non-zero, naming them.
-up: require-tunnel
+up: require-tunnel util
 	$(EDGE_COMPOSE) up --detach
 	@failed=""; \
 	for s in $(SITES); do \
@@ -184,7 +185,7 @@ down-one: require-site
 # Volume and container names are both read out of the compose files rather than
 # listed here, so a site that gains state, or a second service, is picked up
 # without editing this. chat and llm have two containers each for that reason.
-doctor:
+doctor: util
 	@probe() { \
 		st=$$($(DOCKER) ps -a --filter "name=^$$1$$" --format '{{.Status}}' 2>/dev/null | head -1); \
 		case "$$st" in \
@@ -212,8 +213,8 @@ doctor:
 	echo ""; \
 	echo "alerts"; \
 	if $(DOCKER) ps --filter "name=^orchard-ntfy$$" --format '{{.Names}}' 2>/dev/null | grep -q .; then \
-		if $(DOCKER) run --rm --network container:orchard-ntfy curlimages/curl:latest \
-			-s --max-time 5 http://127.0.0.1:8000/v1/health 2>/dev/null | grep -q '"healthy":true'; then \
+		if $(DOCKER) run --rm --network container:orchard-ntfy $(UTIL) \
+			curl -s --max-time 5 http://127.0.0.1:8000/v1/health 2>/dev/null | grep -q '"healthy":true'; then \
 			printf '  %-22s answering, topics status, logging and auth\n' "ntfy"; \
 		else \
 			printf '  %-22s %-22s %s\n' "ntfy" "NOT ANSWERING" "-> docker logs orchard-ntfy"; \
@@ -234,8 +235,8 @@ doctor:
 	echo "ingest"; \
 	if $(DOCKER) ps --filter "name=^orchard-logging$$" --format '{{.Names}}' 2>/dev/null | grep -q .; then \
 		$(DOCKER) exec orchard-logging /app -healthcheck >/dev/null 2>&1 && \
-		out=$$($(DOCKER) run --rm --network container:orchard-logging curlimages/curl:latest \
-			-s --max-time 5 'http://127.0.0.1:8000/healthz?verbose' 2>/dev/null); \
+		out=$$($(DOCKER) run --rm --network container:orchard-logging $(UTIL) \
+			curl -s --max-time 5 'http://127.0.0.1:8000/healthz?verbose' 2>/dev/null); \
 		if [ -n "$$out" ]; then \
 			age=$$(echo "$$out" | sed -n 's/.*"newest_record_age_s": *\([0-9]*\).*/\1/p'); \
 			failed=$$(echo "$$out" | sed -n 's/.*"failed": *\([0-9]*\).*/\1/p'); \
@@ -362,6 +363,13 @@ ntfy-status:
 
 ntfy-passwd:
 	@SUDO="$(SUDO)" sh edge/setup-ntfy.sh passwd
+# The one throwaway container this Makefile runs: curl into another container's
+# namespace for the health checks, and fetch the Wikipedia snapshot. Built on
+# demand rather than pulled, so nothing here reaches for a foreign base image.
+util:
+	@$(DOCKER) image inspect $(UTIL) >/dev/null 2>&1 || \
+		$(DOCKER) build --quiet --tag $(UTIL) edge/util
+
 
 # The snapshot behind chat's wikipedia tool. Too big for git and too big for an
 # image, so it is downloaded into the volume once and left there.
@@ -373,9 +381,9 @@ ntfy-passwd:
 WIKI_ZIM = wikipedia_en_all_mini_2026-06.zim
 WIKI_SHA = 1d0f8178709481c831272d95f95dccc030e9193e38e732b86b1938ae2606226e
 
-wiki:
+wiki: util
 	@$(SUDO) docker volume create orchard-wiki-data >/dev/null
-	@$(SUDO) docker run --rm -v orchard-wiki-data:/data alpine sh -c '\
+	@$(SUDO) docker run --rm -v orchard-wiki-data:/data $(UTIL) sh -c '\
 		if [ -f /data/wikipedia.zim ] && \
 		   echo "$(WIKI_SHA)  /data/wikipedia.zim" | sha256sum -c - >/dev/null 2>&1; then \
 			echo "the snapshot is already there and matches"; \
@@ -383,7 +391,7 @@ wiki:
 		fi; \
 		echo "downloading $(WIKI_ZIM), 12.5GB, this takes a while"; \
 		rm -f /data/wikipedia.zim.part; \
-		wget -O /data/wikipedia.zim.part "https://download.kiwix.org/zim/wikipedia/$(WIKI_ZIM)" && \
+		curl -fL -o /data/wikipedia.zim.part "https://download.kiwix.org/zim/wikipedia/$(WIKI_ZIM)" && \
 		echo "$(WIKI_SHA)  /data/wikipedia.zim.part" | sha256sum -c - && \
 		mv /data/wikipedia.zim.part /data/wikipedia.zim && \
 		echo "in place" || { \

@@ -15,12 +15,17 @@ COPY . .
 # environment is set.
 RUN CGO_ENABLED=0 go build -tags embed -trimpath -ldflags="-s -w" -o /app .
 
-FROM alpine:3.23@sha256:fd791d74b68913cbb027c6546007b3f0d3bc45125f797758156952bc2d6daf40
+FROM debian@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a
 
 # poppler-utils is pdftotext and nothing else here needs a shell. ca-certificates
 # because every tool fetches over TLS, and tzdata because the ambient block
 # states a local time.
-RUN apk add --no-cache ca-certificates poppler-utils tzdata
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      ca-certificates \
+      poppler-utils \
+      tzdata \
+      && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app /app
 
@@ -31,7 +36,8 @@ RUN mkdir -p /data && chown 65532:65532 /data
 VOLUME ["/data"]
 
 # UID 65532 like the scratch images here, so one number owns every /data volume.
-RUN addgroup -g 65532 app && adduser -u 65532 -G app -D -H app
+RUN groupadd -g 65532 app && \
+    useradd -u 65532 -g app -M -s /usr/sbin/nologin app
 USER 65532:65532
 
 # pdftotext writes its temporary files under the working directory otherwise.

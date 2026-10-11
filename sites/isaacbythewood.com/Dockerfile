@@ -1,10 +1,12 @@
 # Build context is this directory alone: the site is its own Go module with its
-# own copy of web/. Base images are pinned by digest because :1-alpine floats.
+# own copy of web/. Base images are pinned by digest because :1-debian floats.
 
-FROM alpine:3.23@sha256:fd791d74b68913cbb027c6546007b3f0d3bc45125f797758156952bc2d6daf40 AS typst
+FROM debian@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a AS typst
 ARG TYPST_VERSION=0.14.0
 ARG TYPST_SHA256=99816d2982de08d2b091bac56b59b2faa523a10e1378ad3cdd68e35b8eb74b3d
-RUN apk add --no-cache curl tar xz && \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl ca-certificates tar xz-utils && \
+    rm -rf /var/lib/apt/lists/* && \
     curl -fsSL -o /tmp/typst.tar.xz \
       "https://github.com/typst/typst/releases/download/v${TYPST_VERSION}/typst-x86_64-unknown-linux-musl.tar.xz" && \
     echo "${TYPST_SHA256}  /tmp/typst.tar.xz" | sha256sum -c - && \
@@ -15,13 +17,16 @@ RUN apk add --no-cache curl tar xz && \
 # is required: resume.typ names Liberation Sans and Typst falls back without
 # saying so, which moves every line break.
 FROM typst AS resume
-RUN apk add --no-cache ttf-liberation fontconfig && fc-cache -f
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends fonts-liberation fontconfig && \
+    rm -rf /var/lib/apt/lists/* && \
+    fc-cache -f
 COPY resume/ /resume/
 RUN typst compile --root /resume /resume/resume.typ /resume-isaac-bythewood.pdf
 
 # Its own stage because both the frontend build and the card need node_modules,
 # and having the card read it out of the frontend stage would be a cycle.
-FROM oven/bun:1-alpine@sha256:07235578f79ef8c6f97d94aee7938e76f5cdba5f21ae5dbfdd3d3d38058437eb AS deps
+FROM oven/bun:1-debian@sha256:923bedb355f7746666659f71e724998159a5c8c54bd1cb1030e1975a0698415b AS deps
 WORKDIR /src
 # bunfig.toml has to arrive before install runs, or install.peer = false
 # silently does nothing.
@@ -54,7 +59,7 @@ COPY --from=resume /resume-isaac-bythewood.pdf ./public/pdfs/resume-isaac-bythew
 COPY --from=card /card.png ./public/og/card.png
 RUN bun run vite
 
-FROM golang:1.27-alpine@sha256:4c9fe60190a2a3350ddc51de80d0224b8a6698d12bdfc999fee45ea9d6c46dbc AS build
+FROM golang:1.27-trixie@sha256:2f84bc93ecfb2689f782b153fdcd368b5a7ab96c1386c65cdaccf35e726d6a44 AS build
 WORKDIR /src
 # The bracket glob makes go.sum optional, since a plain COPY go.sum fails the
 # build outright for a module with no third party dependency.

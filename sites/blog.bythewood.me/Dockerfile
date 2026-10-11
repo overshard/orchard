@@ -1,20 +1,22 @@
 # Build context is this directory alone: the site is its own Go module with its
-# own copy of web/. Base images are pinned by digest because :1-alpine floats.
+# own copy of web/. Base images are pinned by digest because :1-debian floats.
 
 # Typst runs here at build time and never reaches the runtime image. Posts load
 # once at startup and cannot change while the process runs, so every PDF the
 # site will ever serve is known before it boots.
-FROM alpine:3.23@sha256:fd791d74b68913cbb027c6546007b3f0d3bc45125f797758156952bc2d6daf40 AS typst
+FROM debian@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a AS typst
 ARG TYPST_VERSION=0.14.0
 ARG TYPST_SHA256=99816d2982de08d2b091bac56b59b2faa523a10e1378ad3cdd68e35b8eb74b3d
-RUN apk add --no-cache curl tar xz && \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl ca-certificates tar xz-utils && \
+    rm -rf /var/lib/apt/lists/* && \
     curl -fsSL -o /tmp/typst.tar.xz \
       "https://github.com/typst/typst/releases/download/v${TYPST_VERSION}/typst-x86_64-unknown-linux-musl.tar.xz" && \
     echo "${TYPST_SHA256}  /tmp/typst.tar.xz" | sha256sum -c - && \
     tar -xJf /tmp/typst.tar.xz -C /tmp && \
     mv /tmp/typst-x86_64-unknown-linux-musl/typst /usr/local/bin/typst
 
-FROM oven/bun:1-alpine@sha256:07235578f79ef8c6f97d94aee7938e76f5cdba5f21ae5dbfdd3d3d38058437eb AS frontend
+FROM oven/bun:1-debian@sha256:923bedb355f7746666659f71e724998159a5c8c54bd1cb1030e1975a0698415b AS frontend
 WORKDIR /src
 # bunfig.toml has to arrive before install runs, or install.peer = false
 # silently does nothing.
@@ -23,13 +25,16 @@ RUN bun install --frozen-lockfile
 COPY frontend/ ./
 RUN bun run build
 
-FROM golang:1.27-alpine@sha256:4c9fe60190a2a3350ddc51de80d0224b8a6698d12bdfc999fee45ea9d6c46dbc AS build
+FROM golang:1.27-trixie@sha256:2f84bc93ecfb2689f782b153fdcd368b5a7ab96c1386c65cdaccf35e726d6a44 AS build
 WORKDIR /src
 
 COPY --from=typst /usr/local/bin/typst /usr/local/bin/typst
 # Typst embeds only DejaVu Sans Mono and its own serif, and falls back to a
 # serif for anything it cannot find without saying so.
-RUN apk add --no-cache font-jetbrains-mono ttf-dejavu ttf-liberation
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      fonts-jetbrains-mono fonts-dejavu fonts-liberation && \
+    rm -rf /var/lib/apt/lists/*
 # Geist out of the frontend stage's node_modules, because @fontsource ships
 # woff2 only and Typst reads TrueType.
 COPY --from=frontend /src/node_modules/geist/dist/fonts/geist-sans /fonts/geist-sans
