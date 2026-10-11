@@ -128,6 +128,10 @@ type Point struct {
 	// Outlets that carried it per AllSides lean, like "L1 C3 R1".
 	Coverage string `json:"coverage,omitempty"`
 	Note     string `json:"note,omitempty"`
+
+	// A glance line's level, and the panel it points at.
+	Level  string `json:"level,omitempty"`
+	Anchor string `json:"anchor,omitempty"`
 }
 
 // Read says whether anything big is going on, judged by how many newsrooms are
@@ -150,6 +154,7 @@ type Briefs struct {
 	Markets Brief `json:"markets"`
 	News    Brief `json:"news"`
 	Feeds   Brief `json:"feeds"`
+	Glance  Brief `json:"glance"`
 }
 
 func (s briefSlot) title() string {
@@ -226,15 +231,15 @@ func NewBriefer(store *Store, g *Guard, m *Model, dataDir string) *Briefer {
 			slog.Warn("briefs file unreadable", slog.String("component", "brief"), slog.Any("err", err))
 		}
 	}
-	saved.Markets.Waiting, saved.News.Waiting, saved.Feeds.Waiting = "", "", ""
+	saved.Markets.Waiting, saved.News.Waiting, saved.Feeds.Waiting, saved.Glance.Waiting = "", "", "", ""
 	if m == nil {
-		saved.Markets.Status, saved.News.Status = "off", "off"
+		saved.Markets.Status, saved.News.Status, saved.Glance.Status = "off", "off", "off"
 	}
 	store.update(func(st *State) { st.Briefs = saved })
 	if b.leans.add(saved.Markets) {
 		b.leans.save()
 	}
-	for desk, br := range map[string]Brief{"markets": saved.Markets, "news": saved.News, "feeds": saved.Feeds} {
+	for desk, br := range map[string]Brief{"markets": saved.Markets, "news": saved.News, "feeds": saved.Feeds, "glance": saved.Glance} {
 		if len(br.Points) > 0 && br.Slot > 0 && !b.archive.has(desk, br.Slot) {
 			b.archive.add(desk, br)
 		}
@@ -259,7 +264,7 @@ func (b *Briefer) Run(ctx context.Context) {
 	}
 }
 
-// tick runs both desks back to back on one model load when a slot is owed,
+// tick runs every desk back to back on one model load when a slot is owed,
 // after asking whether the desktop is using the card.
 func (b *Briefer) tick(ctx context.Context, now time.Time) {
 	b.store.mu.RLock()
@@ -280,6 +285,10 @@ func (b *Briefer) tick(ctx context.Context, now time.Time) {
 	}
 	if cur.Feeds.Slot < at.Unix() {
 		due = append(due, "feeds")
+	}
+	// Last, since it reads what the other three just wrote.
+	if cur.Glance.Slot < at.Unix() {
+		due = append(due, "glance")
 	}
 	if len(due) == 0 || now.Before(b.next) {
 		return
@@ -327,18 +336,7 @@ func (b *Briefer) tick(ctx context.Context, now time.Time) {
 			b.leans.save()
 		}
 
-		b.store.update(func(st *State) {
-			switch desk {
-			case "markets":
-				st.Briefs.Markets = brief
-			case "feeds":
-				st.Briefs.Feeds = brief
-				st.attachFeedReads()
-			default:
-				st.Briefs.News = brief
-				st.setNotices("news", briefNotices(brief))
-			}
-		})
+		b.store.update(func(st *State) { st.setBrief(desk, brief) })
 	}
 	if failed {
 		b.next = now.Add(briefRetry)
@@ -347,12 +345,29 @@ func (b *Briefer) tick(ctx context.Context, now time.Time) {
 	b.save()
 }
 
+func (st *State) setBrief(desk string, brief Brief) {
+	switch desk {
+	case "markets":
+		st.Briefs.Markets = brief
+	case "feeds":
+		st.Briefs.Feeds = brief
+		st.attachFeedReads()
+	case "glance":
+		st.Briefs.Glance = brief
+	default:
+		st.Briefs.News = brief
+		st.setNotices("news", briefNotices(brief))
+	}
+}
+
 func (b *Briefer) compileDesk(ctx context.Context, desk string, slot briefSlot, at time.Time) (Brief, error) {
 	switch desk {
 	case "markets":
 		return b.compileMarkets(ctx, slot, at)
 	case "feeds":
 		return b.compileFeeds(ctx, slot, at)
+	case "glance":
+		return b.compileGlance(ctx, slot, at)
 	}
 	return b.compileNews(ctx, slot, at)
 }
@@ -360,7 +375,7 @@ func (b *Briefer) compileDesk(ctx context.Context, desk string, slot briefSlot, 
 // waiting says on both panels why the last brief is still up.
 func (b *Briefer) waiting(why string) {
 	b.store.update(func(st *State) {
-		st.Briefs.Markets.Waiting, st.Briefs.News.Waiting, st.Briefs.Feeds.Waiting = why, why, why
+		st.Briefs.Markets.Waiting, st.Briefs.News.Waiting, st.Briefs.Feeds.Waiting, st.Briefs.Glance.Waiting = why, why, why, why
 	})
 }
 
@@ -690,7 +705,8 @@ const mainstream = 7
 const newsMax = 160
 
 // newsPoints is the most a brief holds, and so the most events the writer sees.
-const newsPoints = 12
+// It matches the feeds so the three panels in the band line up row for row.
+const newsPoints = storiesShown
 
 func newsSchema(events int) map[string]any {
 	return map[string]any{
@@ -1160,6 +1176,10 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 		if !l.forward {
 			continue
 		}
+		if l.week {
+			calendar.WriteString(weekNotes(l.day, releases, vixLevel(st)))
+			continue
+		}
 		fmt.Fprintf(&calendar, "%s, %s:\n", l.label, l.day.Format("Monday January 2"))
 		notes := sessionNotes(l.day, releases, vixLevel(st))
 		if len(notes) == 0 {
@@ -1183,6 +1203,7 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 - A line asking which way things lean is about the whole market, never single companies. Its reasons come from market-wide drivers: futures, Treasury yields and the Fed, the calendar and patterns listed for that day, oil, the VIX and the recent trend, and geopolitical news. A scheduled Fed decision or big release always gets named. The patterns are mild tilts, so they settle a close call and never outweigh the news. Mention a company only if it is one of the very largest in the S&P 500. It sets "verdict" to higher, lower or mixed, for which way the reasons in its text point on balance, and names each reason and which way it pushes, like "Futures are flat, but yields at multi-decade highs and a rising VIX weigh on stocks."
 - Do not write the lean itself into the text, the page shows it beside the line. The text is only the reasons.
 - The line for the next session names what the calendar has for that day, or says nothing major is scheduled, and never repeats the line before it.
+- The line for the week ahead names the biggest things on that week's calendar, and any weekend news that bears on Monday's open.
 - A line about a session that already happened gives the main reason for its move, and leaves out the direction and the percent, since the page shows them beside it.
 - A line asking which way things lean never leads with one company's news, and when no story speaks to that day it leans on the futures, yields, the VIX, the trend and the calendar in the numbers.
 - Every line that is not asking which way things lean sets "verdict" to none and makes no prediction.`
@@ -1368,13 +1389,31 @@ type marketLine struct {
 	dir     string
 	move    string
 
-	// The session a forward line is about.
-	day time.Time
+	// The session a forward line is about, or the Monday of the week it is
+	// about when week is set.
+	day  time.Time
+	week bool
+}
+
+const weekAhead = "WEEK AHEAD"
+
+func weekStart(t time.Time) time.Time {
+	return t.AddDate(0, 0, -(int(t.Weekday())+6)%7)
+}
+
+// lastBefore is the index of the last bar from before the day, or -1.
+func lastBefore(bars []dayBar, day time.Time) int {
+	date := day.Format("2006-01-02")
+	i := slices.IndexFunc(bars, func(b dayBar) bool { return b.date >= date })
+	if i < 0 {
+		i = len(bars)
+	}
+	return i - 1
 }
 
 // marketLines is always the last session, today and the next, so the strip has
-// the same three answers at 7am as at 4pm. On a weekend it's Friday, the week
-// and Monday.
+// the same three answers at 7am as at 4pm. On a weekend it's the week just gone
+// and the week ahead.
 func marketLines(h *history, session string, at time.Time) []marketLine {
 	et := easternTime()
 	now := at.In(et)
@@ -1393,16 +1432,14 @@ func marketLines(h *history, session string, at time.Time) []marketLine {
 
 	if weekend(at) {
 		var lines []marketLine
-		if n := len(past); n >= 2 {
-			lines = append(lines, closedLine(dayName(past[n-1].day, now), past[n-1].close, past[n-2].close,
-				"the main reason given for the S&P 500's move on Friday"))
+		if n := len(past); n > 0 {
+			if i := lastBefore(past, weekStart(past[n-1].day)); i >= 0 {
+				lines = append(lines, closedLine("LAST WEEK", past[n-1].close, past[i].close,
+					"the two or three main reasons given for how stocks did over the past week"))
+			}
 		}
-		if n := len(past); n >= 6 {
-			lines = append(lines, closedLine("LAST WEEK", past[n-1].close, past[n-6].close,
-				"the main reason given for how stocks did over the past week"))
-		}
-		return append(lines, marketLine{label: dayName(next, now), forward: true, day: next,
-			ask: "which way the market as a whole leans for Monday and the two or three biggest market-wide reasons"})
+		return append(lines, marketLine{label: weekAhead, forward: true, week: true, day: next,
+			ask: "which way the market as a whole leans over the coming week, Monday to Friday, and the two or three biggest market-wide reasons, including anything that happened over the weekend that bears on it"})
 	}
 
 	var lines []marketLine

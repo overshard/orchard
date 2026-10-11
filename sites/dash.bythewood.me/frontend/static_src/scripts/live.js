@@ -269,12 +269,44 @@ function renderMarket(market) {
   if (drawdown) drawdown.textContent = market.drawdown || "—";
 }
 
+// The news band always draws this many rows a panel, blank ones filling out a
+// short list, so the three panels stay level. Same as storiesShown in Go.
+const ROWS = 10;
+
+function blankRows(have) {
+  const out = [];
+  for (let i = have; i < ROWS; i++) {
+    const body = el("div", "body");
+    body.append(el("span", "title", "\u00a0"), el("div", "meta", "\u00a0"));
+    const li = el("li", "blank");
+    li.append(el("span", "rank", "--"), body);
+    out.push(li);
+  }
+  return out;
+}
+
+// The top block of a news band panel: a level line, the read, and its links.
+function lede(level, head, text, links) {
+  const box = el("div", "lede");
+  if (level) box.dataset.level = level;
+  const p = el("p", "head");
+  p.append(...head);
+  const txt = el("p", text ? "txt" : "txt none", text || "AWAITING READ");
+  if (text) txt.title = text;
+  const meta = el("div", "meta");
+  meta.append(...briefLinks(links));
+  box.append(p, txt, meta);
+  return box;
+}
+
 function storyNode(story, i) {
   const li = el("li");
   li.append(el("span", "rank", String(i + 1).padStart(2, "0")));
 
   const body = el("div", "body");
-  body.append(link(story.url, "title", story.title));
+  const title = link(story.url, "title", story.title);
+  title.title = story.title;
+  body.append(title);
 
   const meta = el("div", "meta");
   if (story.host) meta.append(el("span", "host", story.host));
@@ -297,37 +329,17 @@ function storyNode(story, i) {
 function renderPulse(selector, pulse) {
   const host = document.querySelector(selector);
   if (!host) return;
-  if (!pulse || !pulse.label) {
-    host.replaceChildren();
-    return;
-  }
-  const box = el("div", "pulse");
-  box.dataset.level = pulse.level;
-  const head = el("p", "head");
-  head.append(el("span", "lvl", pulse.label));
-  if (pulse.text) head.append(` ${pulse.text}`);
-  box.append(head);
-  if (pulse.read) {
-    const meta = el("div", "meta");
-    meta.append(...briefLinks(pulse.links));
-    box.append(el("p", "txt", pulse.read), meta);
-  }
-  host.replaceChildren(box);
+  const head = [el("span", "lvl", (pulse && pulse.label) || "AWAITING FEED")];
+  if (pulse && pulse.text) head.push(` ${pulse.text}`);
+  host.replaceChildren(lede(pulse && pulse.level, head, pulse && pulse.read, pulse && pulse.links));
 }
 
 function renderStories(selector, stories) {
   const host = document.querySelector(selector);
   if (!host) return;
-
-  const list = el("ol", "stories");
-  if (!stories || stories.length === 0) {
-    const li = el("li", "empty");
-    li.append(el("span", "rank", "--"));
-    li.append(el("div", "body", "AWAITING FEED"));
-    list.append(li);
-  } else {
-    list.append(...stories.map(storyNode));
-  }
+  const list = el("ol", "rows stories");
+  const shown = (stories || []).slice(0, ROWS);
+  list.append(...shown.map(storyNode), ...blankRows(shown.length));
   host.replaceChildren(list);
 }
 
@@ -662,28 +674,23 @@ function renderNewsBrief(brief) {
   const host = document.querySelector("[data-news-brief]");
   const head = document.querySelector("[data-news-brief-meta]");
   if (!host) return;
-  const has = brief && brief.points && brief.points.length > 0;
-  if (head) head.textContent = has ? `${brief.title} / ${brief.compiled}` : "";
-  if (!has) {
+  const points = ((brief && brief.points) || []).slice(0, ROWS);
+  if (head) head.textContent = points.length ? `${brief.title} / ${brief.compiled}` : "";
+  if (brief && brief.status === "off") {
     host.replaceChildren(briefEmpty(brief));
     return;
   }
-  const parts = [];
-  if (brief.read) {
-    const read = el("div", "read");
-    read.dataset.level = brief.read.level;
-    const head = el("p", "head");
-    head.append(el("span", "lvl", brief.read.label), ` / ${brief.read.spread}`);
-    const meta = el("div", "meta");
-    meta.append(...briefLinks(brief.read.links));
-    read.append(head, el("p", "txt", brief.read.text), meta);
-    parts.push(read);
-  }
-  const ol = el("ol", "brief");
-  brief.points.forEach((p, i) => {
+  const read = points.length && brief.read;
+  const top = read
+    ? lede(read.level, [el("span", "lvl", read.label), ` ${read.spread}`], read.text, read.links)
+    : lede("", [el("span", "lvl", (brief && brief.waiting) || "AWAITING BRIEF")], "", []);
+  const ol = el("ol", "rows brief");
+  points.forEach((p, i) => {
     const li = el("li");
     const body = el("div", "body");
-    body.append(el("p", "txt", p.text));
+    const title = el("p", "title", p.text);
+    title.title = p.text;
+    body.append(title);
     const meta = el("div", "meta");
     meta.append(...briefLinks(p.links));
     if (p.coverage) meta.append(el("span", "cov", p.coverage));
@@ -692,8 +699,49 @@ function renderNewsBrief(brief) {
     li.append(el("span", "rank", String(i + 1).padStart(2, "0")), body);
     ol.append(li);
   });
-  const foot = el("p", "footnote", `${brief.waiting ? `${brief.waiting}. ` : ""}SUMMARISED BY A LOCAL MODEL FROM ${brief.stories} STORIES, MOST IMPACT FIRST. L C R COUNTS THE OUTLETS THAT CARRIED IT BY ALLSIDES LEAN.`);
-  host.replaceChildren(...parts, ol, foot);
+  ol.append(...blankRows(points.length));
+  const foot = el("p", "footnote", `${brief && brief.waiting ? `${brief.waiting}. ` : ""}SUMMARISED BY A LOCAL MODEL FROM ${(brief && brief.stories) || 0} STORIES, MOST IMPACT FIRST. L C R COUNTS THE OUTLETS THAT CARRIED IT BY ALLSIDES LEAN.`);
+  host.replaceChildren(top, ol, foot);
+}
+
+// Mirrors marked in Go: text, with **double asterisks** as bold and nothing
+// else treated as markup.
+function marked(text) {
+  const parts = String(text || "").split("**");
+  const out = [];
+  parts.forEach((p, i) => {
+    if (i % 2 === 1 && i < parts.length - 1) out.push(el("b", "", p));
+    else out.push((i % 2 === 1 ? "**" : "") + p);
+  });
+  return out;
+}
+
+function renderGlance(brief) {
+  const host = document.querySelector("[data-glance]");
+  const head = document.querySelector("[data-glance-meta]");
+  if (!host) return;
+  if (head) head.textContent = brief && brief.read ? `${brief.title} / ${brief.compiled}` : "";
+  if (!brief || brief.status === "off" || !brief.read) {
+    host.replaceChildren(brief && brief.status === "off" ? briefEmpty(brief) : el("p", "empty", (brief && brief.waiting) || "AWAITING FIRST READ"));
+    return;
+  }
+  const read = el("div", "glance-read");
+  read.dataset.level = brief.read.level;
+  const txt = el("p", "txt");
+  txt.append(...marked(brief.read.text));
+  read.append(el("span", "lvl", brief.read.label), txt);
+  const ul = el("ul", "glance-lines");
+  for (const p of brief.points || []) {
+    const li = el("li");
+    li.dataset.level = p.level || "";
+    const tag = el("a", "tag", p.label);
+    tag.href = `#${p.anchor || ""}`;
+    const line = el("span", "txt", p.text);
+    line.title = p.text;
+    li.append(tag, el("span", "lvl", (p.level || "").toUpperCase()), line);
+    ul.append(li);
+  }
+  host.replaceChildren(read, ul);
 }
 
 function renderConditions(signal) {
@@ -1188,6 +1236,7 @@ function render(state) {
   if (changed("steam", state.steam)) renderSteam(state.steam);
   if (changed("brief-markets", state.briefs && state.briefs.markets)) renderMarketBrief(state.briefs && state.briefs.markets);
   if (changed("brief-news", state.briefs && state.briefs.news)) renderNewsBrief(state.briefs && state.briefs.news);
+  if (changed("brief-glance", state.briefs && state.briefs.glance)) renderGlance(state.briefs && state.briefs.glance);
   if (changed("feeds", state.feeds)) renderFeeds(state.feeds);
   if (changed("hn", state.hn)) renderStories("[data-hn]", state.hn);
   if (changed("lobsters", state.lobsters)) renderStories("[data-lobsters]", state.lobsters);

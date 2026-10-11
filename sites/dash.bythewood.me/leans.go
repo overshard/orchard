@@ -20,6 +20,10 @@ type leanCall struct {
 	Lean  string `json:"lean"`
 	Text  string `json:"text"`
 
+	// The Monday of a week ahead lean, which is scored on the whole week's
+	// move, with Day as that week's Friday.
+	From string `json:"from,omitempty"`
+
 	// Filled once the day has closed, up, down or flat, or "closed" for a
 	// holiday the calendar didn't know about.
 	Dir  string `json:"dir,omitempty"`
@@ -44,14 +48,19 @@ func openLeanBook(dataDir string) *leanBook {
 	return lb
 }
 
-// leanDay is the session a forward line is about. Only TODAY and the next
-// weekday ever carry a lean, so the label is enough to tell which.
-func leanDay(label string, slot time.Time) string {
+// leanDay is the session a forward line is about. Only TODAY, the next weekday
+// and the week ahead ever carry a lean, so the label is enough to tell which.
+// A week ahead lean is about Monday to Friday and from is that Monday.
+func leanDay(label string, slot time.Time) (day, from string) {
 	slot = slot.In(easternTime())
-	if label == "TODAY" {
-		return slot.Format("2006-01-02")
+	switch label {
+	case "TODAY":
+		return slot.Format("2006-01-02"), ""
+	case weekAhead:
+		monday := nextWeekday(slot)
+		return monday.AddDate(0, 0, 4).Format("2006-01-02"), monday.Format("2006-01-02")
 	}
-	return nextWeekday(slot).Format("2006-01-02")
+	return nextWeekday(slot).Format("2006-01-02"), ""
 }
 
 // add records the forward leans in a markets brief, once per slot and label, so
@@ -76,8 +85,9 @@ func (lb *leanBook) add(b Brief) bool {
 		if dup {
 			continue
 		}
+		day, from := leanDay(p.Label, time.Unix(b.Slot, 0))
 		lb.calls = append(lb.calls, leanCall{
-			Day: leanDay(p.Label, time.Unix(b.Slot, 0)), Slot: b.Slot, Kind: b.Kind,
+			Day: day, From: from, Slot: b.Slot, Kind: b.Kind,
 			Label: p.Label, Lean: p.Lean, Text: p.Text,
 		})
 		added = true
@@ -114,6 +124,18 @@ func (lb *leanBook) score(h *history, now time.Time) bool {
 		}
 		j, ok := idx[c.Day]
 		switch {
+		case c.From != "":
+			end := lastBefore(bars, dateOf(c.Day).AddDate(0, 0, 1))
+			start := lastBefore(bars, dateOf(c.From))
+			if start < 0 {
+				continue
+			}
+			if end <= start {
+				c.Dir = "closed"
+				break
+			}
+			l := closedLine("", bars[end].close, bars[start].close, "")
+			c.Dir, c.Move = l.dir, l.move
 		case !ok:
 			c.Dir = "closed"
 		case j == 0:
@@ -130,6 +152,11 @@ func (lb *leanBook) score(h *history, now time.Time) bool {
 			slog.Bool("hit", leanHit(c.Lean, c.Dir)), slog.Int("hits", hits), slog.Int("calls", calls))
 	}
 	return changed
+}
+
+func dateOf(date string) time.Time {
+	t, _ := time.ParseInLocation("2006-01-02", date, easternTime())
+	return t
 }
 
 // leanHit is higher on an up day, lower on a down day, and mixed on a flat one.

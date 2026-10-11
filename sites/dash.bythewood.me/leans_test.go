@@ -70,6 +70,30 @@ func TestLeanBookScoresClosedDaysOnly(t *testing.T) {
 	}
 }
 
+func TestLeanBookScoresTheWeekAhead(t *testing.T) {
+	et := easternTime()
+	h := &history{}
+	for _, b := range [][2]float64{{2, 100}, {5, 101}, {8, 99}, {9, 98}} {
+		h.times = append(h.times, time.Date(2026, 10, int(b[0]), 9, 30, 0, 0, et).Unix())
+		h.closes = append(h.closes, b[1])
+	}
+	lb := openLeanBook(t.TempDir())
+	lb.add(Brief{Kind: "midday", Slot: time.Date(2026, 10, 4, 11, 0, 0, 0, et).Unix(), Points: []Point{
+		{Label: "LAST WEEK", Lean: "up", Move: "1.00%"},
+		{Label: weekAhead, Lean: "lower"},
+	}})
+	if len(lb.calls) != 1 || lb.calls[0].From != "2026-10-05" || lb.calls[0].Day != "2026-10-09" {
+		t.Fatalf("calls %+v", lb.calls)
+	}
+	if lb.score(h, time.Date(2026, 10, 9, 20, 0, 0, 0, et)) {
+		t.Error("scored the week before Friday's close was trusted")
+	}
+	lb.score(h, time.Date(2026, 10, 10, 9, 0, 0, 0, et))
+	if c := lb.calls[0]; c.Dir != "down" || c.Move != "2.00%" {
+		t.Errorf("week scored %s %s, want the 2nd to the 9th", c.Dir, c.Move)
+	}
+}
+
 func TestPulse(t *testing.T) {
 	for _, c := range []struct {
 		top, outlets int
