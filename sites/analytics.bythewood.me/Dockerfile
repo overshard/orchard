@@ -1,20 +1,22 @@
 # Build context is this directory alone: the site is its own Go module with its
-# own copy of web/. Base images are pinned by digest because :1-alpine floats.
+# own copy of web/. Base images are pinned by digest because :1-debian floats.
 
 # Typst is copied into the runtime image rather than discarded after the build,
 # because a report covers an arbitrary date range over a table that keeps
 # growing, so there is nothing finite to precompile. See typst.go.
-FROM alpine:3.23@sha256:fd791d74b68913cbb027c6546007b3f0d3bc45125f797758156952bc2d6daf40 AS typst
+FROM debian@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a AS typst
 ARG TYPST_VERSION=0.14.0
 ARG TYPST_SHA256=99816d2982de08d2b091bac56b59b2faa523a10e1378ad3cdd68e35b8eb74b3d
-RUN apk add --no-cache curl tar xz && \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl ca-certificates tar xz-utils && \
+    rm -rf /var/lib/apt/lists/* && \
     curl -fsSL -o /tmp/typst.tar.xz \
       "https://github.com/typst/typst/releases/download/v${TYPST_VERSION}/typst-x86_64-unknown-linux-musl.tar.xz" && \
     echo "${TYPST_SHA256}  /tmp/typst.tar.xz" | sha256sum -c - && \
     tar -xJf /tmp/typst.tar.xz -C /tmp && \
     mv /tmp/typst-x86_64-unknown-linux-musl/typst /usr/local/bin/typst
 
-FROM oven/bun:1-alpine@sha256:07235578f79ef8c6f97d94aee7938e76f5cdba5f21ae5dbfdd3d3d38058437eb AS frontend
+FROM oven/bun:1-debian@sha256:923bedb355f7746666659f71e724998159a5c8c54bd1cb1030e1975a0698415b AS frontend
 WORKDIR /src
 # bunfig.toml has to arrive before install runs, or install.peer = false
 # silently does nothing.
@@ -25,7 +27,7 @@ RUN bun run build
 
 # Its own stage so a CSS change does not re-download and rebuild 10MB of
 # Natural Earth topojson, which is the only build step that fetches content.
-FROM oven/bun:1-alpine@sha256:07235578f79ef8c6f97d94aee7938e76f5cdba5f21ae5dbfdd3d3d38058437eb AS maps
+FROM oven/bun:1-debian@sha256:923bedb355f7746666659f71e724998159a5c8c54bd1cb1030e1975a0698415b AS maps
 WORKDIR /src
 COPY frontend/package.json frontend/bun.lock ./
 RUN bun install --frozen-lockfile
@@ -40,7 +42,7 @@ COPY --from=frontend /src/node_modules/geist/dist/fonts/geist-sans /fonts/geist-
 COPY typst/card.typ /card.typ
 RUN typst compile --format png --ppi 72 --font-path /fonts/geist-sans /card.typ /card.png
 
-FROM golang:1.27-alpine@sha256:4c9fe60190a2a3350ddc51de80d0224b8a6698d12bdfc999fee45ea9d6c46dbc AS build
+FROM golang:1.27-trixie@sha256:2f84bc93ecfb2689f782b153fdcd368b5a7ab96c1386c65cdaccf35e726d6a44 AS build
 WORKDIR /src
 
 # The bracket glob makes go.sum optional, since a plain COPY go.sum fails the
@@ -60,16 +62,18 @@ COPY --from=maps /build/static_maps ./build/static_maps
 RUN CGO_ENABLED=0 go build -tags embed -trimpath -ldflags="-s -w" \
     -o /app .
 
-# alpine, not scratch: this site execs typst on the request path and typst needs
+# debian, not scratch: this site execs typst on the request path and typst needs
 # real font files on disk.
-FROM alpine:3.23@sha256:fd791d74b68913cbb027c6546007b3f0d3bc45125f797758156952bc2d6daf40
+FROM debian@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a
 
-RUN apk add --no-cache \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
       ca-certificates \
-      font-jetbrains-mono \
-      ttf-dejavu \
-      ttf-liberation \
-      fontconfig && \
+      fonts-jetbrains-mono \
+      fonts-dejavu \
+      fonts-liberation \
+      fontconfig \
+      && rm -rf /var/lib/apt/lists/* && \
     fc-cache -f
 
 COPY --from=typst /usr/local/bin/typst /usr/local/bin/typst
@@ -91,12 +95,13 @@ RUN mkdir -p /data && chown 65532:65532 /data
 VOLUME ["/data"]
 
 # UID 65532 like the scratch images here, so one number owns every /data volume.
-# -H because this user has no home and writes only to /data and /tmp.
-RUN addgroup -g 65532 app && adduser -u 65532 -G app -D -H app
+# -M because this user has no home and writes only to /data and /tmp.
+RUN groupadd -g 65532 app && \
+    useradd -u 65532 -g app -M -s /usr/sbin/nologin app
 USER 65532:65532
 
-# The binary probes itself rather than shelling out to wget, which this image
-# does have, because the scratch images cannot. Compose sets the same check.
+# The binary probes itself the way the scratch images have to, so one check
+# works everywhere. Compose sets the same one.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD ["/app", "-healthcheck"]
 

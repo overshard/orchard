@@ -183,10 +183,20 @@ is right, and the hostname still 404s from the Cloudflare edge. The DNS route
 calls in that script fail with an authentication error unless `cert.pem` covers
 that zone, which does not matter when the CNAME already exists.
 
+**One base image, and it is Debian trixie.** Every stage of every Dockerfile here
+is `debian:trixie-slim`, `golang:1.27-trixie` or `oven/bun:1-debian`, pinned by
+digest, and a site with nothing to exec ends at `FROM scratch` instead. Nothing
+pulls Alpine, `curlimages/curl` or any other base, including the throwaway
+containers the Makefile runs, which use `orchard-util` out of `edge/util`. The
+exceptions are the vendor images we do not build (`caddy`, `ntfy`, `cloudflared`
+and `kiwix-serve`), where the base is theirs to pick. Reach for a new base image
+and the answer is no: add the package to `edge/util` or to the runtime stage.
+
 **Containers run as UID 65532, and runtime base images are pinned by digest.** The
-five Alpine sites create a real user at that UID and the seven scratch ones use
-the bare number, since there is no `/etc/passwd` to name one in. A `/data` volume
-created root-owned stays root-owned, so a new one has to be chown'd once.
+five Debian sites create a real user at that UID with `groupadd`/`useradd` and the
+seven scratch ones use the bare number, since there is no `/etc/passwd` to name
+one in. A `/data` volume created root-owned stays root-owned, so a new one has to
+be chown'd once.
 
 **The binary is its own health check.** `-healthcheck` does a loopback GET
 against `/healthz` and exits 0 or 1. A `FROM scratch` image has no shell for
@@ -265,7 +275,8 @@ programs and not assets. The tag exists so a fresh clone still builds, since
 **Typst runs at build time, not on the request path.** Post PDFs, the resume and
 every social card are compiled during `docker build` and served as files, which
 is how the blog and the portfolio end at `FROM scratch`. Analytics, status and
-logging keep Typst in the runtime image because their reports come from live
+logging keep Typst in the runtime image, which is why those three are Debian
+rather than scratch because their reports come from live
 data over an arbitrary date range, with no finite set to precompile.
 
 **Fonts for Typst must be TrueType.** Geist comes from `bun add geist`, Vercel's

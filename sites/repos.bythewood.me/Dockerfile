@@ -1,14 +1,14 @@
 # Build context is this directory alone: the site is its own Go module with its
-# own copy of web/. Base images are pinned by digest because :1-alpine floats.
+# own copy of web/. Base images are pinned by digest because :1-debian floats.
 
-FROM oven/bun:1-alpine@sha256:07235578f79ef8c6f97d94aee7938e76f5cdba5f21ae5dbfdd3d3d38058437eb AS frontend
+FROM oven/bun:1-debian@sha256:923bedb355f7746666659f71e724998159a5c8c54bd1cb1030e1975a0698415b AS frontend
 WORKDIR /src
 COPY frontend/package.json frontend/bun.lock ./
 RUN bun install --frozen-lockfile
 COPY frontend/ ./
 RUN bun run build
 
-FROM golang:1.27-alpine@sha256:4c9fe60190a2a3350ddc51de80d0224b8a6698d12bdfc999fee45ea9d6c46dbc AS build
+FROM golang:1.27-trixie@sha256:2f84bc93ecfb2689f782b153fdcd368b5a7ab96c1386c65cdaccf35e726d6a44 AS build
 WORKDIR /src
 
 COPY go.mod go.su[m] ./
@@ -20,15 +20,19 @@ COPY --from=frontend /build/dist ./build/dist
 # to it, so the binary is static and needs no libc.
 RUN CGO_ENABLED=0 go build -tags embed -trimpath -ldflags="-s -w" -o /app .
 
-# alpine, not scratch: the clone and push wire is git itself. `git http-backend`
+# debian, not scratch: the clone and push wire is git itself. `git http-backend`
 # is git's own CGI and has to be on disk to serve a single clone, and every page
 # read is a git plumbing subprocess.
-FROM alpine:3.23@sha256:fd791d74b68913cbb027c6546007b3f0d3bc45125f797758156952bc2d6daf40
+FROM debian@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a
 
-# git-daemon is the Alpine package that ships git-http-backend, and plain `git`
-# does not, so without it the site starts fine and then 404s every clone.
+# Debian's git package ships git-http-backend under /usr/lib/git-core, which
+# wire.go probes for, so a clone works without a second package.
 # ca-certificates is for the mirror lane talking to api.github.com over TLS.
-RUN apk add --no-cache git git-daemon ca-certificates
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      git \
+      ca-certificates \
+      && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app /app
 
@@ -45,7 +49,8 @@ VOLUME ["/data"]
 
 # UID 65532 is what every other image here runs as, so one number owns every
 # /data volume.
-RUN addgroup -g 65532 app && adduser -u 65532 -G app -D -H app
+RUN groupadd -g 65532 app && \
+    useradd -u 65532 -g app -M -s /usr/sbin/nologin app
 USER 65532:65532
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
