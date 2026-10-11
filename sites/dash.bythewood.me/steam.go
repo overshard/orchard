@@ -57,6 +57,9 @@ type Game struct {
 	Verdict  string `json:"verdict"`
 	Reviews  string `json:"reviews"`
 	Reviewed bool   `json:"reviewed"`
+
+	// 2006-01-02, or empty for a preorder whose date is a quarter or a year.
+	Released string `json:"released,omitempty"`
 }
 
 type steamPayload struct {
@@ -79,6 +82,9 @@ type appDetails struct {
 		Genres []struct {
 			Description string `json:"description"`
 		} `json:"genres"`
+		ReleaseDate struct {
+			Date string `json:"date"`
+		} `json:"release_date"`
 	} `json:"data"`
 }
 
@@ -152,6 +158,7 @@ func fetchSteam(ctx context.Context, g *Guard) ([]Game, error) {
 			Discount: discount(d),
 			Tags:     gameTags(d),
 			Players:  playersOnline(ctx, g, id),
+			Released: releaseDay(d.Data.ReleaseDate.Date),
 		}
 		rating(ctx, g, id, &game)
 		out = append(out, game)
@@ -270,4 +277,16 @@ func steamPrice(d *appDetails) string {
 		return "TBA"
 	}
 	return fmt.Sprintf("$%.2f", float64(d.Data.Price.Final)/100)
+}
+
+// releaseDay reads the store's date, which comes as "Oct 5, 2026" in English
+// and "5 Oct, 2026" for some publishers, and as "Q4 2026" or "Coming soon" for
+// things not out yet, which aren't a day.
+func releaseDay(raw string) string {
+	for _, layout := range []string{"Jan 2, 2006", "2 Jan, 2006"} {
+		if t, err := time.Parse(layout, strings.TrimSpace(raw)); err == nil {
+			return t.Format("2006-01-02")
+		}
+	}
+	return ""
 }

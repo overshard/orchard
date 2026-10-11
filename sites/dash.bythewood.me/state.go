@@ -31,6 +31,7 @@ type State struct {
 	OnAir         OnAir      `json:"onair"`
 	Outlook       Outlook    `json:"outlook"`
 	Steam         []Game     `json:"steam"`
+	SteamUsual    string     `json:"steam_usual"`
 	Streaming     []Title    `json:"streaming"`
 	Systems       Systems    `json:"systems"`
 	Feeds         []Feed     `json:"feeds"`
@@ -62,6 +63,9 @@ type Store struct {
 	// The BLS and BEA calendars, which the footer reads every minute and the
 	// markets brief reads three times a day.
 	releases []release
+
+	// Which game held the top of Steam each day, nil in tests.
+	chart *steamChart
 
 	hub *Hub
 }
@@ -520,6 +524,9 @@ func (s *Store) refreshSteam(ctx context.Context, g *Guard) {
 	s.update(func(st *State) {
 		if keepSteam(games, st.Steam) {
 			st.Steam = games
+		}
+		if s.chart != nil {
+			st.SteamUsual = s.chart.record(st.Steam, time.Now())
 		}
 	})
 }
