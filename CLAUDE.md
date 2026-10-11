@@ -454,7 +454,11 @@ desk, `glance.go`, runs last and reads everything on the page into AT A GLANCE,
 a sentence or two and one line each for markets, news, tech, weather and play.
 Each line's level, quiet, watch or act, is a threshold in Go and the model only
 phrases it, a figure in its text that the facts don't carry swaps the line for
-one Go writes, and bold only lands on a phrase the facts carry. A story every
+one Go writes, and bold only lands on a phrase the facts carry. WEATHER
+watches an inch of rain, or half an inch over ten hours, or 30mph gusts today or
+tomorrow even with no NWS alert out, and PLAY watches a game out under a month in
+Steam's top three or a No. 1 that isn't the usual one, which `steam.json` on the
+volume keeps by day since Steam publishes no chart history. A story every
 outlet runs doesn't raise the level, since being everywhere isn't the same as
 touching him. The 9B
 writes right up to whatever `maxLength` it gets, so the cap sits well past the

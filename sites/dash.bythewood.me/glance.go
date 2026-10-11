@@ -54,7 +54,7 @@ func (g glanceSlot) text() string {
 // of quiet, since a read that says watch every day stops being read.
 func glanceSlots(st State, releases []release, now time.Time) []glanceSlot {
 	now = now.In(easternTime())
-	return []glanceSlot{glanceMarkets(st, releases, now), glanceNews(st), glanceTech(st), glanceWeather(st), glancePlay(st)}
+	return []glanceSlot{glanceMarkets(st, releases, now), glanceNews(st), glanceTech(st), glanceWeather(st), glancePlay(st, now)}
 }
 
 func glanceMarkets(st State, releases []release, now time.Time) glanceSlot {
@@ -178,6 +178,14 @@ func glanceTech(st State) glanceSlot {
 	return g
 }
 
+// Below an NWS advisory, but a day of this is one to plan around.
+const (
+	heavyRain       = 1.0
+	steadyRain      = 0.5
+	steadyRainHours = 10
+	strongGusts     = 30
+)
+
 func glanceWeather(st State) glanceSlot {
 	g := glanceSlot{label: "WEATHER", anchor: "weather", level: levelQuiet}
 	for _, a := range st.Alerts {
@@ -194,6 +202,18 @@ func glanceWeather(st State) glanceSlot {
 		g.facts = append(g.facts, fmt.Sprintf("Now %s°F and %s, high %s, low %s, rain chance %s, wind %s", w.Temperature, strings.ToLower(w.Condition), w.High, w.Low, w.Rain, w.Wind))
 		g.fallback = fmt.Sprintf("%s°F and %s, high %s.", w.Temperature, strings.ToLower(w.Condition), w.High)
 	}
+	for i, d := range w.Days[:min(len(w.Days), 2)] {
+		when := []string{"today", "tomorrow"}[i]
+		if d.Rain >= heavyRain || d.Rain >= steadyRain && d.RainHours >= steadyRainHours {
+			g.level = higher(g.level, levelWatch)
+			g.why = append(g.why, fmt.Sprintf("%.1f in of rain %s", d.Rain, when))
+		}
+		if d.Gusts >= strongGusts {
+			g.level = higher(g.level, levelWatch)
+			g.why = append(g.why, fmt.Sprintf("gusts to %.0f mph %s", d.Gusts, when))
+		}
+		g.facts = append(g.facts, fmt.Sprintf("Rain %s: %.1f in over %.0f hours, gusts to %.0f mph", when, d.Rain, d.RainHours, d.Gusts))
+	}
 	for _, d := range st.Outlook.Days[:min(len(st.Outlook.Days), 3)] {
 		var fs []string
 		for _, f := range d.Factors {
@@ -204,10 +224,24 @@ func glanceWeather(st State) glanceSlot {
 	return g
 }
 
-func glancePlay(st State) glanceSlot {
+// newRelease is how recently out a game has to be to count as new at the top.
+const newRelease = 30 * 24 * time.Hour
+
+func glancePlay(st State, now time.Time) glanceSlot {
 	g := glanceSlot{label: "PLAY", anchor: "steam", level: levelQuiet}
 	for i, s := range st.Steam[:min(len(st.Steam), 4)] {
-		g.facts = append(g.facts, fmt.Sprintf("Steam top seller %d: %s, %d%% positive, %s playing", i+1, s.Name, s.Rating, s.Players))
+		line := fmt.Sprintf("Steam top seller %d: %s, %d%% positive, %s playing", i+1, s.Name, s.Rating, s.Players)
+		if out, err := time.ParseInLocation("2006-01-02", s.Released, easternTime()); err == nil && i < 3 && now.Sub(out) < newRelease {
+			line += ", released " + out.Format("January 2")
+			g.level = levelWatch
+			g.why = append(g.why, s.Name+" is new and in the top three")
+		}
+		g.facts = append(g.facts, line)
+	}
+	if len(st.Steam) > 0 && st.SteamUsual != "" && st.Steam[0].Name != st.SteamUsual {
+		g.level = levelWatch
+		g.why = append(g.why, st.Steam[0].Name+" took No. 1 from "+st.SteamUsual)
+		g.facts = append(g.facts, st.SteamUsual+" usually tops Steam and has been pushed off it")
 	}
 	for i, t := range st.Streaming[:min(len(st.Streaming), 4)] {
 		g.facts = append(g.facts, fmt.Sprintf("Streaming popular %d: %s on %s, scored %d", i+1, t.Name, t.Provider, t.Score))
