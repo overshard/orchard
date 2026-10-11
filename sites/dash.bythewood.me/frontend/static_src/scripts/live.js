@@ -292,7 +292,7 @@ function lede(level, head, text, links) {
   const p = el("p", "head");
   p.append(...head);
   const txt = el("p", text ? "txt" : "txt none", text || "AWAITING READ");
-  if (text) txt.title = text;
+  if (text) txt.dataset.full = text;
   const meta = el("div", "meta");
   meta.append(...briefLinks(links));
   box.append(p, txt, meta);
@@ -305,7 +305,7 @@ function storyNode(story, i) {
 
   const body = el("div", "body");
   const title = link(story.url, "title", story.title);
-  title.title = story.title;
+  title.dataset.full = story.title;
   body.append(title);
 
   const meta = el("div", "meta");
@@ -633,7 +633,8 @@ function renderFeeds(feeds) {
 function briefLinks(links) {
   return (links || []).map((l) => {
     const a = link(l.url, "src", l.source);
-    a.title = l.title;
+    if (l.title) a.dataset.tip = l.title;
+    a.dataset.tipLabel = l.source;
     return a;
   });
 }
@@ -689,7 +690,7 @@ function renderNewsBrief(brief) {
     const li = el("li");
     const body = el("div", "body");
     const title = el("p", "title", p.text);
-    title.title = p.text;
+    title.dataset.full = p.text;
     body.append(title);
     const meta = el("div", "meta");
     meta.append(...briefLinks(p.links));
@@ -737,7 +738,7 @@ function renderGlance(brief) {
     const tag = el("a", "tag", p.label);
     tag.href = `#${p.anchor || ""}`;
     const line = el("span", "txt", p.text);
-    line.title = p.text;
+    line.dataset.full = p.text;
     li.append(tag, el("span", "lvl", (p.level || "").toUpperCase()), line);
     ul.append(li);
   }

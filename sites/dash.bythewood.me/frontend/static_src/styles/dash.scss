@@ -763,6 +763,72 @@ main {
   .empty { margin: 0; color: var(--dim); font-size: 11px; letter-spacing: var(--track); }
 }
 
+// Readout card -----------------------------------------------------------------
+
+// The full text of a line the page cut short, framed like a panel and labelled
+// like a plate, with a leader tick back to where it came from. Under the
+// scanlines like everything else, and no shadow, same as the panels.
+.tip {
+  position: fixed;
+  z-index: 500;
+  max-width: 520px;
+  padding: 9px 12px 11px;
+  background: linear-gradient(180deg, rgba(255, 176, 0, 0.035), transparent 60%), var(--void);
+  border: 1px solid var(--line-hot);
+  pointer-events: none;
+
+  &[hidden] { display: none; }
+
+  .bracket { border-color: var(--amber); }
+
+  .tip-plate {
+    display: inline-flex;
+    margin-bottom: 8px;
+    border: 1px solid var(--line-hot);
+    font-size: 9.5px;
+    letter-spacing: var(--track);
+    line-height: 1;
+    white-space: nowrap;
+
+    span { padding: 4px 7px; }
+    span + span { border-left: 1px solid var(--line-hot); }
+    .pk { color: var(--amber); background: var(--panel-2); }
+    .pv { color: var(--muted); }
+    .pv[hidden] { display: none; }
+  }
+
+  .tip-txt {
+    margin: 0;
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+
+  .tip-lead {
+    position: absolute;
+    width: 1px;
+    height: 9px;
+    background: var(--amber);
+  }
+  &[data-side="below"] .tip-lead { top: -10px; }
+  &[data-side="above"] .tip-lead { bottom: -10px; }
+
+  // A stepped wipe, four frames, the way a CRT readout paints rather than the
+  // smooth fade a web tooltip does, and the brackets flash once as it lands.
+  &.on[data-side="below"] { animation: tip-down 0.14s steps(4, end); }
+  &.on[data-side="above"] { animation: tip-up 0.14s steps(4, end); }
+  &.on .bracket { animation: tip-flash 0.3s steps(2, end); }
+}
+
+@keyframes tip-down { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0); } }
+@keyframes tip-up { from { clip-path: inset(100% 0 0 0); } to { clip-path: inset(0); } }
+@keyframes tip-flash { from { border-color: var(--text); } to { border-color: var(--amber); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .tip.on, .tip.on .bracket { animation: none; }
+}
+
 // Feeds ----------------------------------------------------------------------
 
 // TODAY, HACKER NEWS and LOBSTERS share one row: a line of headline cut with an
