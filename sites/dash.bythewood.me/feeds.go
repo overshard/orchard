@@ -242,12 +242,19 @@ func (b *Briefer) feedRead(ctx context.Context, name string, ts []thread) (Point
 		Read    string `json:"read"`
 		Sources []int  `json:"sources"`
 	}
-	if err := b.model.Structured(ctx, system, user, schema, 300, &out); err != nil {
-		return Point{}, err
-	}
-	read := whole(out.Read, feedReadMax)
-	if out.Read != "" && read == "" {
-		slog.Info("brief line cut", slog.String("component", "brief"), slog.String("feed", name), slog.String("raw", out.Read))
+	// One retry, since the 9B now and then writes a single sentence straight
+	// into the maxLength with no comma late enough for whole to keep.
+	var read string
+	ask := user
+	for try := 0; try < 2 && read == ""; try++ {
+		if err := b.model.Structured(ctx, system, ask, schema, 300, &out); err != nil {
+			return Point{}, err
+		}
+		read = whole(out.Read, feedReadMax)
+		if out.Read != "" && read == "" {
+			slog.Info("brief line cut", slog.String("component", "brief"), slog.String("feed", name), slog.Int("try", try+1), slog.String("raw", out.Read))
+			ask = user + "\n\nYour last read ran past the length limit and was cut off mid sentence. Write two short sentences, at most 30 words in all."
+		}
 	}
 	pt := Point{Text: read}
 	for _, n := range out.Sources {

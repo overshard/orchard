@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -41,6 +43,39 @@ func TestAttachFeedReads(t *testing.T) {
 	st.attachFeedReads()
 	if st.HNPulse.Read != "Commenters doubt the benchmark." || st.LobstersPulse.Read != "" {
 		t.Errorf("%+v %+v", st.HNPulse, st.LobstersPulse)
+	}
+}
+
+type scriptedModel struct {
+	answers []string
+	asks    []string
+}
+
+func (m *scriptedModel) Structured(_ context.Context, _, user string, _ map[string]any, _ int, out any) error {
+	m.asks = append(m.asks, user)
+	a := m.answers[0]
+	m.answers = m.answers[1:]
+	return json.Unmarshal([]byte(a), out)
+}
+func (m *scriptedModel) GPU(context.Context) (GPUState, error) { return GPUState{}, nil }
+func (m *scriptedModel) Unload(context.Context) error          { return nil }
+
+// The 11 Oct morning HN read, one sentence run into the cap with its only comma
+// too early to cut at, which left the panel with no read at all.
+func TestFeedReadRetriesACutRead(t *testing.T) {
+	cut := "The Hacker News front page is a mix of niche software projects, infrastructure incidents, and a science study, with commenters debating the practical limits of code-as-math tools and warning about the hidden costs of self-hosting on free AI"
+	m := &scriptedModel{answers: []string{
+		`{"read": "` + cut + `", "sources": [1]}`,
+		`{"read": "On self-hosting, commenters warn about hidden costs.", "sources": [1]}`,
+	}}
+	b := &Briefer{model: m}
+	ts := []thread{{title: "Self-hosting on free AI", discuss: "https://news.ycombinator.com/item?id=1"}}
+	pt, err := b.feedRead(context.Background(), "Hacker News", ts)
+	if err != nil || pt.Text != "On self-hosting, commenters warn about hidden costs." || len(m.asks) != 2 {
+		t.Fatalf("%+v %v asks=%d", pt, err, len(m.asks))
+	}
+	if !strings.Contains(m.asks[1], "cut off") {
+		t.Errorf("retry didn't name the problem: %q", m.asks[1])
 	}
 }
 
