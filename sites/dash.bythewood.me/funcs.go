@@ -12,10 +12,16 @@ var templateFuncs = template.FuncMap{
 	// without escaping. Everything else on this page is text and stays escaped.
 	"path": func(d string) template.HTMLAttr { return template.HTMLAttr(d) },
 
-	"upper": strings.ToUpper,
+	"upper":  strings.ToUpper,
+	"marked": marked,
 
 	// range gives a zero based index and the feed ranks read from one.
 	"inc": func(i int) int { return i + 1 },
+
+	// The news band always draws ten rows a panel, blank ones filling out a
+	// short list, so the three panels stay level.
+	"rows":   func() int { return storiesShown },
+	"blanks": func(have int) []struct{} { return make([]struct{}, max(0, storiesShown-have)) },
 
 	// dict builds a map inline, which is the only way a template can pass a
 	// named set of values to a shared define. Three gauges with six fields each

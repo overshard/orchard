@@ -412,10 +412,6 @@ main {
   > .panel { display: flex; flex-direction: column; }
 }
 
-// The feeds hold ten rows each and are naturally close in height, so they are
-// not forced level the way the short readouts above them are.
-.news-band { align-items: start; }
-
 // Four short readouts, weighted by how much each carries rather than equal:
 // the curve is four rows, conditions and earnings are the wide ones.
 .market-band {
@@ -429,10 +425,11 @@ main {
   grid-template-columns: repeat(6, 1fr);
 }
 
-// TODAY is prose and the two link feeds are headlines, so it takes the wider
-// column and they keep about sixty characters a line.
+// TODAY's headlines run longer than the feed titles, so it takes the wider
+// column and loses less to the ellipsis.
 .news-band {
   grid-template-columns: 1.4fr 1fr 1fr;
+  > .panel { min-width: 0; }
 }
 
 // Panels ---------------------------------------------------------------------
@@ -700,9 +697,78 @@ main {
   }
 }
 
+// Glance ---------------------------------------------------------------------
+
+// The read at the top. The level is Go's, so its colour is the one thing here
+// that can be trusted at a glance: dim when quiet, amber to watch, red to act.
+.glance {
+  .glance-read {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 2px 0 10px;
+    border-bottom: 1px solid var(--line-hot);
+  }
+
+  .glance-read .lvl {
+    flex: none;
+    padding: 2px 7px;
+    border: 1px solid var(--line-hot);
+    font-size: 10px;
+    letter-spacing: var(--track);
+    color: var(--muted);
+  }
+  .glance-read[data-level="watch"] .lvl { color: var(--amber); border-color: var(--amber-dim); }
+  .glance-read[data-level="act"] .lvl { color: var(--down); border-color: var(--down); }
+
+  .glance-read .txt {
+    margin: 0;
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.45;
+    b { color: var(--amber); font-weight: 600; }
+  }
+
+  .glance-lines {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+
+    li {
+      display: grid;
+      grid-template-columns: 76px 52px minmax(0, 1fr);
+      align-items: baseline;
+      gap: 10px;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--line);
+      &:last-child { border-bottom: 0; }
+    }
+
+    .tag { font-size: 10px; letter-spacing: var(--track); color: var(--amber-dim); }
+    .tag:hover { color: var(--amber); }
+    .lvl { font-size: 9px; letter-spacing: var(--track); color: var(--faint); }
+    li[data-level="watch"] .lvl { color: var(--amber); }
+    li[data-level="act"] .lvl { color: var(--down); }
+
+    .txt {
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    li[data-level="watch"] .txt, li[data-level="act"] .txt { color: var(--text); }
+  }
+
+  .empty { margin: 0; color: var(--dim); font-size: 11px; letter-spacing: var(--track); }
+}
+
 // Feeds ----------------------------------------------------------------------
 
-.stories {
+// TODAY, HACKER NEWS and LOBSTERS share one row: a line of headline cut with an
+// ellipsis and a line of meta, both at a fixed height, so ten rows are the same
+// height in all three panels whatever the text.
+.rows {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -717,38 +783,50 @@ main {
 
   .rank {
     font-size: 11px;
+    line-height: 18px;
     color: var(--faint);
-    padding-top: 2px;
     flex: none;
     width: 18px;
   }
 
-  .body { min-width: 0; }
+  .body { flex: 1; min-width: 0; }
 
   .title {
     display: block;
+    margin: 0;
+    height: 18px;
     color: var(--text);
     font-size: 13px;
-    line-height: 1.35;
+    line-height: 18px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .title:hover { color: var(--amber); }
+  a.title:hover { color: var(--amber); }
 
   .meta {
     display: flex;
-    flex-wrap: wrap;
-    gap: 11px;
+    align-items: baseline;
+    gap: 9px;
+    height: 15px;
     margin-top: 3px;
     font-size: 11px;
+    line-height: 15px;
     color: var(--dim);
-
-    .host { color: var(--muted); }
-    .unit { margin-left: 3px; color: var(--faint); }
-    .pts { color: var(--muted); }
-    a.cmt { color: var(--muted); }
-    a.cmt:hover { color: var(--amber); }
+    white-space: nowrap;
+    overflow: hidden;
   }
 
-  li.empty .body { color: var(--dim); font-size: 11px; letter-spacing: var(--track); }
+  li.blank .rank { color: var(--line-hot); }
+}
+
+.stories .meta {
+  gap: 11px;
+  .host { color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+  .unit { margin-left: 3px; color: var(--faint); }
+  .pts { color: var(--muted); }
+  a.cmt { color: var(--muted); }
+  a.cmt:hover { color: var(--amber); }
 }
 
 // Atmos ----------------------------------------------------------------------
@@ -2113,85 +2191,74 @@ main {
   color: var(--dim);
 }
 
-.brief {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-
-  li {
-    display: flex;
-    gap: 10px;
-    padding: 6px 0;
-    border-bottom: 1px solid var(--line);
-    &:last-child { border-bottom: 0; }
-  }
-
-  // Ranked by the model's impact score, most first, so the number means
-  // something here where on the feeds it is the site's own order.
-  .rank {
-    font-size: 11px;
-    color: var(--faint);
-    padding-top: 1px;
-    flex: none;
-    width: 18px;
-  }
-
-  .body { min-width: 0; }
-
-  .txt { margin: 0; color: var(--text); font-size: 12px; line-height: 1.4; }
-
-  .meta {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 2px 9px;
-    margin-top: 2px;
-  }
-
+// Ranked by the model's impact score, most first, so the number means
+// something here where on the feeds it is the site's own order.
+.brief .meta {
   .cov { font-size: 9px; letter-spacing: var(--track); color: var(--dim); }
   .note { font-size: 9px; letter-spacing: var(--track); color: var(--amber); }
 }
 
-// The read over the headlines. Its level comes from how many outlets are on
-// the top story, so amber only lights when one story really has everyone.
-.read {
+// The read over each list in the news band, the same height in all three: a
+// level line, three lines of read, a line of links. A longer read is clamped
+// and its whole text is on hover. Amber only when one story has everyone or
+// a thread is actually blowing up.
+.lede {
+  margin: 0 0 2px;
   padding: 2px 0 9px;
-  margin-bottom: 2px;
   border-bottom: 1px solid var(--line-hot);
 
-  .head { margin: 0 0 4px; font-size: 9px; letter-spacing: var(--track); color: var(--dim); }
-  .lvl { color: var(--muted); }
-  &[data-level="major"] .lvl { color: var(--amber); }
+  .head {
+    margin: 0;
+    height: 14px;
+    font-size: 9px;
+    line-height: 14px;
+    letter-spacing: var(--track);
+    text-transform: uppercase;
+    color: var(--dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .lvl { margin-right: 4px; color: var(--muted); }
+  &[data-level="major"] .lvl, &[data-level="hot"] .lvl { color: var(--amber); }
   &[data-level="quiet"] .lvl { color: var(--dim); }
 
-  .txt { margin: 0; color: var(--text); font-size: 13px; line-height: 1.45; }
+  .txt {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    margin: 4px 0 0;
+    height: 57px;
+    overflow: hidden;
+    color: var(--text);
+    font-size: 13px;
+    line-height: 19px;
+  }
+  .txt.none { font-size: 11px; letter-spacing: var(--track); color: var(--dim); }
 
   .meta {
     display: flex;
-    flex-wrap: wrap;
-    gap: 2px 9px;
+    gap: 9px;
+    height: 15px;
     margin-top: 3px;
+    line-height: 15px;
+    white-space: nowrap;
+    overflow: hidden;
   }
 }
 
-// A feed's pulse, worked out from its numbers on every poll. Amber only when
-// something is actually blowing up.
-.pulse {
-  margin: 0 0 6px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--line-hot);
-
-  .head { margin: 0 0 3px; color: var(--muted); font-size: 11px; line-height: 1.4; }
-  .lvl { margin-right: 4px; font-size: 9px; letter-spacing: var(--track); color: var(--dim); }
-  .txt { margin: 0; color: var(--text); font-size: 12px; line-height: 1.45; }
-  .meta { display: flex; flex-wrap: wrap; gap: 2px 9px; margin-top: 3px; }
-  &[data-level="hot"] .lvl { color: var(--amber); }
-  &[data-level="big"] .lvl, &[data-level="busy"] .lvl { color: var(--muted); }
-}
-
-.today {
+.news-band {
   .empty { margin: 0; color: var(--dim); font-size: 11px; letter-spacing: var(--track); }
-  .footnote { margin: 10px 0 0; font-size: 9px; letter-spacing: var(--track); color: var(--dim); }
+  .footnote {
+    margin: auto 0 0;
+    padding-top: 10px;
+    font-size: 9px;
+    letter-spacing: var(--track);
+    color: var(--dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
 
 // Traffic meter --------------------------------------------------------------
@@ -2881,12 +2948,16 @@ main {
 
 @media (max-width: 1340px) {
   .local-band { grid-template-columns: repeat(2, 1fr); }
-  .news-band { grid-template-columns: 1fr 1fr; }
+
+  // TODAY across the top and the two feeds side by side under it, rather than
+  // LOBSTERS alone on a row of its own.
+  .news-band { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .news-band .today { grid-column: 1 / -1; }
 }
 
 // Tablet.
 @media (max-width: 1024px) {
-  .band { grid-template-columns: 1fr; }
+  .band:not(.news-band) { grid-template-columns: 1fr; }
   .heat { grid-template-columns: repeat(3, 1fr); }
 
   .sys-row { flex-direction: column; gap: 12px; }
@@ -2918,6 +2989,13 @@ main {
 // things worth knowing before scrolling, and drops the rest.
 @media (max-width: 620px) {
   :root { --gap: 8px; --pad: 10px; }
+
+  // The line drops under its label, since a third of a phone is not a sentence.
+  .glance .glance-lines li { grid-template-columns: auto 1fr; }
+  .glance .glance-lines .txt { grid-column: 1 / -1; white-space: normal; }
+  .glance .glance-read { flex-direction: column; gap: 6px; }
+
+  .news-band { grid-template-columns: 1fr; }
 
   .panel { padding: 11px; }
 

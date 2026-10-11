@@ -184,6 +184,10 @@ func TestHomeRendersAFullState(t *testing.T) {
 			t.Errorf("the rendered page is missing %q", want)
 		}
 	}
+	// One row each in TODAY, HN and Lobsters, so nine blanks apiece.
+	if n := strings.Count(body, `class="blank"`); n != 27 {
+		t.Errorf("%d blank rows, want 27 so every news panel draws ten", n)
+	}
 }
 
 func TestNotFoundRenders(t *testing.T) {
