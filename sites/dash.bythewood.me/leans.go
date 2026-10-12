@@ -86,6 +86,9 @@ func (lb *leanBook) add(b Brief) bool {
 			continue
 		}
 		day, from := leanDay(p.Label, time.Unix(b.Slot, 0))
+		if i, ok := lb.lastCalls()[day+from]; ok && lb.calls[i].Lean == p.Lean && lb.calls[i].Text == p.Text {
+			continue
+		}
 		lb.calls = append(lb.calls, leanCall{
 			Day: day, From: from, Slot: b.Slot, Kind: b.Kind,
 			Label: p.Label, Lean: p.Lean, Text: p.Text,
@@ -116,6 +119,7 @@ func (lb *leanBook) score(h *history, now time.Time) bool {
 		idx[b.date] = i
 	}
 
+	last := lb.lastCalls()
 	changed := false
 	for i := range lb.calls {
 		c := &lb.calls[i]
@@ -149,7 +153,8 @@ func (lb *leanBook) score(h *history, now time.Time) bool {
 		slog.Info("brief lean scored", slog.String("component", "brief"),
 			slog.String("day", c.Day), slog.String("kind", c.Kind), slog.String("label", c.Label),
 			slog.String("lean", c.Lean), slog.String("dir", c.Dir), slog.String("move", c.Move),
-			slog.Bool("hit", leanHit(c.Lean, c.Dir)), slog.Int("hits", hits), slog.Int("calls", calls))
+			slog.Bool("hit", leanHit(c.Lean, c.Dir)), slog.Bool("counted", last[c.Day+c.From] == i),
+			slog.Int("hits", hits), slog.Int("calls", calls))
 	}
 	return changed
 }
@@ -164,10 +169,25 @@ func leanHit(lean, dir string) bool {
 	return lean == "higher" && dir == "up" || lean == "lower" && dir == "down" || lean == "mixed" && dir == "flat"
 }
 
-// record is how many scored leans were right, out of how many were scored.
+// lastCalls is the index of the latest call for each session or week. Every
+// slot before it opens makes one, and the last has the most to go on.
+func (lb *leanBook) lastCalls() map[string]int {
+	last := map[string]int{}
+	for i, c := range lb.calls {
+		if j, ok := last[c.Day+c.From]; !ok || c.Slot >= lb.calls[j].Slot {
+			last[c.Day+c.From] = i
+		}
+	}
+	return last
+}
+
+// record is how many scored leans were right, out of how many were scored,
+// counting one call per session or week so a lean that flipped between slots
+// can't score both ways.
 func (lb *leanBook) record() (hits, calls int) {
-	for _, c := range lb.calls {
-		if c.Dir == "" || c.Dir == "closed" {
+	last := lb.lastCalls()
+	for i, c := range lb.calls {
+		if last[c.Day+c.From] != i || c.Dir == "" || c.Dir == "closed" {
 			continue
 		}
 		calls++

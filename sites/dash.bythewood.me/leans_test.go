@@ -159,3 +159,70 @@ func TestWhole(t *testing.T) {
 		}
 	}
 }
+
+func TestLeanRecordCountsTheLastCallPerSession(t *testing.T) {
+	et := easternTime()
+	h := &history{}
+	for _, b := range [][2]float64{{8, 100}, {9, 101}} {
+		h.times = append(h.times, time.Date(2026, 10, int(b[0]), 9, 30, 0, 0, et).Unix())
+		h.closes = append(h.closes, b[1])
+	}
+	lb := openLeanBook(t.TempDir())
+	lb.add(Brief{Kind: "close", Slot: time.Date(2026, 10, 8, 16, 5, 0, 0, et).Unix(), Points: []Point{
+		{Label: "TOMORROW", Lean: "lower", Text: "a"},
+	}})
+	lb.add(Brief{Kind: "morning", Slot: time.Date(2026, 10, 9, 7, 0, 0, 0, et).Unix(), Points: []Point{
+		{Label: "TODAY", Lean: "higher", Text: "b"},
+	}})
+	lb.score(h, time.Date(2026, 10, 10, 9, 0, 0, 0, et))
+	if lb.calls[0].Dir != "up" || lb.calls[1].Dir != "up" {
+		t.Fatalf("both calls should still be scored, got %+v", lb.calls)
+	}
+	if hits, calls := lb.record(); hits != 1 || calls != 1 {
+		t.Errorf("record %d of %d, want only the morning call", hits, calls)
+	}
+}
+
+func TestLeanBookSkipsAHeldLine(t *testing.T) {
+	et := easternTime()
+	lb := openLeanBook(t.TempDir())
+	held := Point{Label: weekAhead, Lean: "higher", Text: "CPI lands Wednesday."}
+	lb.add(Brief{Kind: "morning", Slot: time.Date(2026, 10, 10, 7, 0, 0, 0, et).Unix(), Points: []Point{held}})
+	if lb.add(Brief{Kind: "midday", Slot: time.Date(2026, 10, 10, 11, 0, 0, 0, et).Unix(), Points: []Point{held}}) {
+		t.Error("recorded the same line again")
+	}
+}
+
+func TestHeldLineWantsTheSamePricesAndSession(t *testing.T) {
+	et := easternTime()
+	sat := time.Date(2026, 10, 10, 7, 0, 0, 0, et).Unix()
+	sun := time.Date(2026, 10, 11, 16, 5, 0, 0, et).Unix()
+	prev := Brief{Slot: sat, Basis: "7,859.75", Points: []Point{
+		{Label: "LAST WEEK", Lean: "up", Move: "1.00%"},
+		{Label: weekAhead, Lean: "higher", Text: "CPI lands Wednesday."},
+	}}
+
+	if pt, ok := heldLine(prev, Brief{Slot: sun, Basis: "7,859.75"}, weekAhead); !ok || pt.Lean != "higher" {
+		t.Errorf("weekend with no new prices should hold, got %+v %v", pt, ok)
+	}
+	if _, ok := heldLine(prev, Brief{Slot: sun, Basis: "7,881.00"}, weekAhead); ok {
+		t.Error("held a line after the futures moved")
+	}
+	friday := Brief{Slot: time.Date(2026, 10, 9, 16, 5, 0, 0, et).Unix(), Basis: "7,859.75",
+		Points: []Point{{Label: "MONDAY", Lean: "lower"}}}
+	if _, ok := heldLine(friday, Brief{Slot: sat, Basis: "7,859.75"}, weekAhead); ok {
+		t.Error("held a line from a different label")
+	}
+	if _, ok := heldLine(Brief{Slot: sat, Points: prev.Points}, Brief{Slot: sun}, weekAhead); ok {
+		t.Error("held with no prices to compare")
+	}
+}
+
+func TestClosedLineTellsTheModelTheDirection(t *testing.T) {
+	if l := closedLine("LAST WEEK", 101, 100, "the reasons"); !strings.HasSuffix(l.ask, "was up 1.00%") {
+		t.Errorf("ask %q", l.ask)
+	}
+	if l := closedLine("", 99, 100, ""); l.ask != "" {
+		t.Errorf("scoring line got an ask %q", l.ask)
+	}
+}
