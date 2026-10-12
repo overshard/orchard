@@ -1326,6 +1326,23 @@ func TestWatchdogLifecycleSurvivesRestart(t *testing.T) {
 	}
 }
 
+// A shutdown queues this site's own "shutting down" just before the watchdog is
+// stopped, and it still has to be written or the next start reads as a crash.
+func TestWatchdogRecordsQueuedEventsOnStop(t *testing.T) {
+	db := testDB(t)
+	clock := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)
+	w, _ := testWatchdog(t, db, &clock)
+	w.events <- lifecycleEvent{source: "logging", up: false, at: clock}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	w.Run(ctx)
+
+	if up, _, known := w.readLifecycle(context.Background(), "logging"); !known || up {
+		t.Errorf("up=%v known=%v, want the shutdown recorded", up, known)
+	}
+}
+
 // Observe reads the lifecycle messages out of the record stream by exact text,
 // so this asserts the strings it matches are the ones web/server.go actually
 // logs. Renaming either there would silently disable restart detection: no

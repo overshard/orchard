@@ -172,9 +172,18 @@ func main() {
 			slog.String("component", "watchdog"),
 			slog.Any("err", err))
 	}
+	// Waited on, since it writes to the database until it returns and the
+	// deferred db.Close runs after this.
 	watchCtx, stopWatching := context.WithCancel(context.Background())
-	defer stopWatching()
-	go s.watchdog.Run(watchCtx)
+	watched := make(chan struct{})
+	go func() {
+		s.watchdog.Run(watchCtx)
+		close(watched)
+	}()
+	defer func() {
+		stopWatching()
+		<-watched
+	}()
 
 	// Local sink rather than HTTP: posting to itself would mean an ingest
 	// request that logs a request that becomes an ingest request. Must close
