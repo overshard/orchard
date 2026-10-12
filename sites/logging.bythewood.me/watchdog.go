@@ -175,11 +175,25 @@ func (w *Watchdog) Run(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
+			w.drain(context.WithoutCancel(ctx))
 			return
 		case ev := <-w.events:
-			w.handleLifecycle(ctx, ev)
+			w.handleLifecycle(context.WithoutCancel(ctx), ev)
 		case <-t.C:
 			w.checkSilence()
+		}
+	}
+}
+
+// drain records the lifecycle events already queued. On shutdown that includes
+// this site's own, or the next start finds it still marked up.
+func (w *Watchdog) drain(ctx context.Context) {
+	for {
+		select {
+		case ev := <-w.events:
+			w.handleLifecycle(ctx, ev)
+		default:
+			return
 		}
 	}
 }

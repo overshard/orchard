@@ -141,12 +141,10 @@ func (w *Writer) run() {
 			return
 		}
 		err := w.commit(batch)
-		if err != nil && isBusy(err) {
-			// The common cause is transient: a long dashboard read, or the
-			// retention pass holding the write lock.
-			select {
-			case <-time.After(250 * time.Millisecond):
-			}
+		// The common cause is transient, a long dashboard read or the
+		// retention pass holding the write lock, and a lost batch is lost logs.
+		for try := 1; err != nil && isBusy(err) && try <= 3; try++ {
+			time.Sleep(time.Duration(try) * time.Second)
 			err = w.commit(batch)
 		}
 		if err != nil {

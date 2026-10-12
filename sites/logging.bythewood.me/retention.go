@@ -29,6 +29,11 @@ const (
 	// Reclaiming is paced the same way, 1000 pages is about 4MB per step.
 	vacuumPages    = 1000
 	vacuumMaxSteps = 200
+
+	// The pause between steps. SQLite's busy handler polls every 100ms once
+	// it has waited a while, so a shorter gap can fall between two polls and
+	// the writer waits out its whole busy_timeout behind a long sweep.
+	sweepYield = 250 * time.Millisecond
 )
 
 type Sweeper struct {
@@ -93,7 +98,7 @@ func (s *Sweeper) sweep(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(50 * time.Millisecond):
+		case <-time.After(sweepYield):
 		}
 	}
 
@@ -131,7 +136,7 @@ func (s *Sweeper) deleteOlderThan(ctx context.Context, cutoff int64) (int64, err
 		select {
 		case <-ctx.Done():
 			return total, ctx.Err()
-		case <-time.After(50 * time.Millisecond):
+		case <-time.After(sweepYield):
 		}
 	}
 	return total, nil
