@@ -114,6 +114,9 @@ type Brief struct {
 	// The slot this answered, in unix seconds, which is how a restart knows
 	// whether it is owed a run.
 	Slot int64 `json:"slot"`
+
+	// The S&P price a markets brief was written against.
+	Basis string `json:"basis,omitempty"`
 }
 
 type Point struct {
@@ -1237,10 +1240,17 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 	}
 
 	brief := newBrief(slot, at, events)
+	brief.Basis = spBasis(st.Market)
 	if weekend(at) {
 		brief.Title = "WEEKEND"
 	}
 	for i, l := range lines {
+		if l.forward {
+			if pt, ok := heldLine(st.Briefs.Markets, brief, l.label); ok {
+				brief.Points = append(brief.Points, pt)
+				continue
+			}
+		}
 		p := out[fmt.Sprintf("line%d", i+1)]
 		pt := cite(events, p.Sources)
 		pt.Text = tidy(p.Text)
@@ -1260,6 +1270,36 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 		return Brief{}, fmt.Errorf("no lines")
 	}
 	return brief, nil
+}
+
+// spBasis is the S&P card's price, which over a weekend is Friday's last
+// futures print and doesn't move until they reopen Sunday evening.
+func spBasis(m Market) string {
+	for _, c := range m.Cards {
+		if c.Key == "sp500" && !c.Unavailable {
+			return c.Price
+		}
+	}
+	return ""
+}
+
+// heldLine is the last brief's line for the same session or week when nothing
+// has traded since it was written, since asked again with the same prices the
+// 9B often flips its lean.
+func heldLine(prev, b Brief, label string) (Point, bool) {
+	if b.Basis == "" || prev.Basis != b.Basis || prev.Slot == 0 {
+		return Point{}, false
+	}
+	day, from := leanDay(label, time.Unix(b.Slot, 0))
+	if d, f := leanDay(label, time.Unix(prev.Slot, 0)); d != day || f != from {
+		return Point{}, false
+	}
+	for _, p := range prev.Points {
+		if p.Label == label && p.Lean != "" {
+			return p, true
+		}
+	}
+	return Point{}, false
 }
 
 // marketFacts is everything on the page the model may quote, written out the
@@ -1467,8 +1507,8 @@ func marketLines(h *history, session string, at time.Time) []marketLine {
 		l := closedLine("TODAY", current[0].close, past[len(past)-1].close,
 			"the main reason given for how today's session closed")
 		if session == "regular" {
+			l.ask = "the main reason given for how today's session is going so far" + l.moved("is")
 			l.move += " SO FAR"
-			l.ask = "the main reason given for how today's session is going so far"
 		}
 		lines = append(lines, l)
 	} else {
@@ -1551,7 +1591,23 @@ func closedLine(label string, close, prev float64, ask string) marketLine {
 	case pct <= -0.1:
 		dir = "down"
 	}
-	return marketLine{label: label, ask: ask, dir: dir, move: fmt.Sprintf("%.2f%%", math.Abs(pct))}
+	l := marketLine{label: label, dir: dir, move: fmt.Sprintf("%.2f%%", math.Abs(pct))}
+	if ask != "" {
+		l.ask = ask + l.moved("was")
+	}
+	return l
+}
+
+// moved tells the model which way a session went, or it gives reasons that
+// "weighed on" stocks beside an up arrow.
+func (l marketLine) moved(verb string) string {
+	switch l.dir {
+	case "up":
+		return ", when the S&P 500 " + verb + " up " + l.move
+	case "down":
+		return ", when the S&P 500 " + verb + " down " + l.move
+	}
+	return ", when the S&P 500 " + verb + " about flat"
 }
 
 type dayBar struct {

@@ -468,7 +468,10 @@ in `briefs.json` on the volume, so a deploy shows them rather than nothing, and
 a missed slot runs on start. Every brief is also appended to `briefs.jsonl`, and
 every forward lean to `leans.json`, where it's scored against the S&P's close
 the day after its session and logged as `brief lean scored` with the running
-record, so how often the leans are right is a query and not a guess. `LLM_KEY` in `.env` from `make dash-key`, and
+record, so how often the leans are right is a query and not a guess. Every
+slot before a session makes a call on it and only the last one counts, and a
+forward line is kept as it was while the S&P's price hasn't moved, since asked
+again over a weekend with the same prices the 9B flips its lean. `LLM_KEY` in `.env` from `make dash-key`, and
 without it the panels say the briefs are off.
 
 **A brief never loads a model onto a card the desktop is using.** Each slot asks
