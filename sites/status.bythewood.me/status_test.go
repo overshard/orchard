@@ -3,8 +3,11 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"database/sql"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
@@ -1156,5 +1159,16 @@ func TestOriginAnsweredHasNoOpinionWhenUnreachable(t *testing.T) {
 
 	if _, _, known := originAnswered(context.Background(), u); known {
 		t.Error("a refused connection counted as an answer about the origin")
+	}
+}
+
+func TestTimeoutInHandshakeIsNotACertError(t *testing.T) {
+	timeout := fmt.Errorf("tls handshake: %w", context.DeadlineExceeded)
+	if looksLikeTLSError(timeout) {
+		t.Error("a handshake that timed out was recorded as a certificate failure")
+	}
+	cert := fmt.Errorf("tls handshake: %w", &tls.CertificateVerificationError{Err: errors.New("expired")})
+	if !looksLikeTLSError(cert) {
+		t.Error("a certificate failure was not recognised")
 	}
 }

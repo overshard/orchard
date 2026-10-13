@@ -108,6 +108,11 @@ func looksLikeTLSError(err error) bool {
 	if errors.As(err, &recordErr) {
 		return true
 	}
+	// A handshake that ran out of time is wrapped as "tls handshake: ...", so
+	// the text match below would call a lost packet a bad certificate.
+	if isTimeout(err) {
+		return false
+	}
 	s := strings.ToLower(err.Error())
 	for _, needle := range []string{"certificate", "tls", "handshake", "x509"} {
 		if strings.Contains(s, needle) {
@@ -117,12 +122,29 @@ func looksLikeTLSError(err error) bool {
 	return false
 }
 
+func isTimeout(err error) bool {
+	var netErr net.Error
+	return errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &netErr) && netErr.Timeout())
+}
+
+// probeWithRetry retries a failed probe once, since a single dropped SYN on the way
+// to Cloudflare costs seconds of retransmit and can use up the whole timeout.
+// A certificate failure is not retried, it will say the same thing again.
+func probeWithRetry(ctx context.Context, rawURL string) (*probeOutcome, time.Time, error) {
+	started := time.Now()
+	outcome, err := probeWithRedirects(ctx, rawURL)
+	if err == nil || looksLikeTLSError(err) || ctx.Err() != nil {
+		return outcome, started, err
+	}
+	started = time.Now()
+	outcome, err = probeWithRedirects(ctx, rawURL)
+	return outcome, started, err
+}
+
 // runCheck performs one probe and writes the row. It returns the status code
 // the alert state machine should act on.
 func runCheck(ctx context.Context, db *sql.DB, p *Property) (int64, error) {
-	started := time.Now()
-
-	outcome, err := probeWithRedirects(ctx, p.URL)
+	outcome, started, err := probeWithRetry(ctx, p.URL)
 	if err != nil {
 		code := int64(408)
 		if looksLikeTLSError(err) {
