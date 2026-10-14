@@ -133,8 +133,9 @@ make ntfy-passwd                     change the reading account's password
 
 make run SITE=blog.bythewood.me      vite watch + go run, on :8000
 make build SITE=blog.bythewood.me    frontend, then a release binary in bin/
-make check                           gofmt, then vet and build every site
+make check                           gofmt, vet, govulncheck and build every site
 make test                            every site's tests
+make deps                            update every site's Go modules together
 ```
 
 The development targets touch no Docker. Everything else goes through `sudo`,

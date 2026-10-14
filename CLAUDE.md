@@ -70,8 +70,9 @@ make down                            stop everything
 
 make run SITE=blog.bythewood.me      vite watch + go run
 make build SITE=blog.bythewood.me
-make check                           gofmt, then vet and build every site
+make check                           gofmt, vet, govulncheck and build every site
 make test                            every site's tests, including its own web/ copy
+make deps                            update every site's direct Go modules together
 ```
 
 There is no default `SITE`, so a bare `make deploy` cannot replace the wrong
@@ -806,7 +807,9 @@ does nothing.
 ## Tests
 
 `make test` runs every site's suite plus its `web/` copy. There
-are no linter configs, and `make check` is gofmt, vet and build. The portfolio
+are no linter configs, and `make check` is gofmt, vet, govulncheck and build.
+govulncheck also checks the local Go, so it fails when webdev's Go is behind
+the `golang:1.27-trixie` the images build with. The portfolio
 has no Go tests of its own, being templates and handlers over static data, and
 is covered by its `web/` package plus browser checks.
 
