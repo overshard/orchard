@@ -34,9 +34,10 @@ tunnel rather than a rented server.
 
 **Every site is its own Go module and owns its own copy of `web/`.**
 
-There is no module at the repo root. `go.work` exists so repo wide `make`
-targets and an editor can see all ten at once, and nothing depends on it. Each
-site builds standalone:
+There is no module at the repo root. `go.work` is for the editor and nothing
+depends on it. The Makefile exports `GOWORK=off`, since under a workspace every
+site resolves to the newest version any site uses and tests would run against
+deps the image doesn't ship. Each site builds standalone:
 
 ```sh
 cd sites/blog.bythewood.me && GOWORK=off go build ./...

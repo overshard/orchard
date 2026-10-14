@@ -28,8 +28,10 @@
 # On a host where docker needs no sudo, turn it off:  make up SUDO=
 #
 # Each site is its own Go module and there is no module at this level, which is
-# why every loop below runs its command inside the site directory. go.work
-# exists so these repo-wide targets and an editor can see all six at once.
+# why every loop below runs its command inside the site directory. go.work is
+# for the editor only. Under it every site resolves to the newest version any
+# site uses, so tests would run against deps the Docker build doesn't ship.
+export GOWORK = off
 
 SUDO   ?= sudo
 DOCKER ?= $(SUDO) docker
