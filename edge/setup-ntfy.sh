@@ -118,7 +118,7 @@ up)
 			printf '  %-10s %s\n' "$u" "$p"
 		done
 		echo
-		echo "$READER is the account the phone logs in with. put both in 1Password."
+		echo "$READER is the account the phone logs in with. put both in Bitwarden."
 	fi
 
 	echo

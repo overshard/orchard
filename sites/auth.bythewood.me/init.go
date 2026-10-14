@@ -48,7 +48,7 @@ func runInit(db *sql.DB) error {
 	for _, code := range codes {
 		fmt.Printf("  %s\n", code)
 	}
-	fmt.Printf("\nthese are the only copies, so put them in 1Password now. each one\n")
+	fmt.Printf("\nthese are the only copies, so put them in Bitwarden now. each one\n")
 	fmt.Printf("works once. sign in with one at %s/recovery, then\n", baseURL)
 	fmt.Printf("subscribe the phone to the %q topic and regenerate them from the\n", ntfyTopic)
 	fmt.Printf("security page, so the set you keep was never on a terminal.\n")
