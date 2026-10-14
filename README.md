@@ -147,8 +147,9 @@ inside one without going through the root. There is no default `SITE`.
 ## Layout
 
 Each site is its own Go module and builds on its own. There is no module at the
-repo root, and `go.work` only exists so repo-wide `make` targets and an editor
-can see all twelve at once:
+repo root, and `go.work` is only there so an editor can see every site at once.
+The Makefile turns it off, since under it each site would test against whatever
+version the newest site uses:
 
 ```sh
 cd sites/blog.bythewood.me && GOWORK=off go build ./...
