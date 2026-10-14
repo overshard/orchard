@@ -312,7 +312,7 @@ install: tunnel-login tunnel env
 	@echo "account above, and subscribe to status, logging and auth."
 
 # A password out of /dev/urandom, in groups of eight so it can be read back off
-# a screen. Nothing is written, it is a suggestion to paste into 1Password.
+# a screen. Nothing is written, it is a suggestion to paste into Bitwarden.
 GEN_PASSWORD = LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 32 | sed 's/.\{8\}/&-/g; s/-$$//'
 
 password:
@@ -341,7 +341,7 @@ env:
 		done; \
 	done
 	@echo ""
-	@echo "those are the only copies, so put them in 1Password now."
+	@echo "those are the only copies, so put them in Bitwarden now."
 
 # The browser step, and it covers one Cloudflare zone at a time because cert.pem
 # carries a single zone. Two zones means running this again for the second and
@@ -494,7 +494,7 @@ require-env:
 		echo "that writes one for every site that is missing it, with a" >&2; \
 		echo "generated password in each, and prints them. if this machine is" >&2; \
 		echo "rejoining something that already exists, the old values are in" >&2; \
-		echo "1Password and go in by hand instead." >&2; \
+		echo "Bitwarden and go in by hand instead." >&2; \
 		exit 1; \
 	fi
 

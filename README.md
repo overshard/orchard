@@ -44,7 +44,7 @@ on `doctor`.
 
 Nothing asks you to invent a secret. The ntfy passwords, the publishers' tokens
 and the ten recovery codes the first sign in uses are all generated and printed
-as it goes. Those are the only copies, so put them in 1Password while they are on
+as it goes. Those are the only copies, so put them in Bitwarden while they are on
 screen. `make password` prints another suggestion whenever you want one.
 
 Signing in is on `auth.bythewood.me`: a username, then a six digit code pushed
