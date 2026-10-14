@@ -60,7 +60,7 @@ func glanceSlots(st State, releases []release, now time.Time) []glanceSlot {
 func glanceMarkets(st State, releases []release, now time.Time) glanceSlot {
 	g := glanceSlot{label: "MARKETS", anchor: "markets", level: levelQuiet}
 	g.facts = append(g.facts, "Session: "+st.Market.Session)
-	var spx, vix float64
+	var spx, ndx, vix float64
 	var movers []string
 	for _, c := range st.Market.Cards {
 		if c.Unavailable {
@@ -72,6 +72,9 @@ func glanceMarkets(st State, releases []release, now time.Time) glanceSlot {
 		case "sp500":
 			spx = pct
 			movers = append(movers, "S&P 500 "+c.Percent)
+		case "nasdaq":
+			ndx = pct
+			movers = append(movers, "Nasdaq "+c.Percent)
 		case "vix":
 			vix, _ = strconv.ParseFloat(strings.ReplaceAll(c.Price, ",", ""), 64)
 			movers = append(movers, "VIX "+c.Price)
@@ -89,6 +92,16 @@ func glanceMarkets(st State, releases []release, now time.Time) glanceSlot {
 	case math.Abs(spx) >= 1:
 		g.level = higher(g.level, levelWatch)
 		g.why = append(g.why, fmt.Sprintf("the S&P 500 moved %+.2f%%", spx))
+	}
+	// The Nasdaq runs about a third hotter than the S&P, so a tech selloff can
+	// be a big day while the S&P is only down a percent.
+	switch {
+	case math.Abs(ndx) >= 2.5:
+		g.level = levelAct
+		g.why = append(g.why, fmt.Sprintf("the Nasdaq moved %+.2f%%", ndx))
+	case math.Abs(ndx) >= 1.5:
+		g.level = higher(g.level, levelWatch)
+		g.why = append(g.why, fmt.Sprintf("the Nasdaq moved %+.2f%%", ndx))
 	}
 	switch {
 	case vix >= 30:
@@ -156,23 +169,28 @@ func glanceTech(st State) glanceSlot {
 		pulse   Pulse
 		stories []Story
 	}{{"Hacker News", st.HNPulse, st.HN}, {"Lobsters", st.LobstersPulse, st.Lobsters}} {
+		// Points and pace are left out of the facts, since handed them the
+		// model writes how fast a thread grew instead of what it's about.
+		line := f.name + " is " + strings.ToLower(f.pulse.Label)
 		if f.pulse.Level == "hot" {
 			g.level = levelWatch
 			g.why = append(g.why, "a thread is blowing up on "+f.name)
-		}
-		line := f.name + " is " + strings.ToLower(f.pulse.Label)
-		if f.pulse.Text != "" {
-			line += ", " + f.pulse.Text
+			if f.pulse.Thread != "" {
+				line += ", the thread is " + f.pulse.Thread
+				if g.fallback == "" {
+					g.fallback = f.pulse.Thread + " is blowing up on " + f.name + "."
+				}
+			}
 		}
 		g.facts = append(g.facts, line)
 		if f.pulse.Read != "" {
 			g.facts = append(g.facts, f.name+" read: "+f.pulse.Read)
 		}
 		for i, s := range f.stories[:min(len(f.stories), 3)] {
-			g.facts = append(g.facts, fmt.Sprintf("%s No. %d: %s (%d points)", f.name, i+1, s.Title, s.Points))
+			g.facts = append(g.facts, fmt.Sprintf("%s No. %d: %s", f.name, i+1, s.Title))
 		}
 	}
-	if len(st.HN) > 0 {
+	if g.fallback == "" && len(st.HN) > 0 {
 		g.fallback = "Top of Hacker News is " + st.HN[0].Title + "."
 	}
 	return g
@@ -306,13 +324,14 @@ func (b *Briefer) compileGlance(ctx context.Context, slot briefSlot, at time.Tim
 		fmt.Fprintf(&facts, "His own sites that are down: %s\n", strings.Join(down, ", "))
 	}
 
-	system := `You write the read at the top of one person's dashboard, so he can tell at a glance whether anything needs his attention. He lives in North Carolina's Yadkin Valley, invests in index funds, works in software, and plays PC games. Most days nothing needs him, and saying so plainly is the right answer.
-- The level of each slot and of the whole read is decided already and given to you. Never make anything sound bigger than its level. On a quiet slot say what's there in a calm, flat way.
+	system := `You write the read at the top of a dashboard, the first thing its owner sees. He lives in North Carolina's Yadkin Valley, invests in index funds, works in software, and plays PC games.
+- The level of each slot and of the whole read is decided already and given to you, and a QUIET, WATCH or ACT chip beside your summary shows it. Never make anything sound bigger than its level. On a quiet slot say what's there in a calm, flat way.
 - Each slot is one sentence of at most 18 words, about only that slot, using only its facts. No advice.
-- "summary" is one or two sentences, at most 35 words, of what matters across all of it, the things that set the level first. If the overall level is quiet, say nothing needs attention and name the one or two things most worth knowing.
-- "summary" opens by saying whether anything needs him. Then the one or two things most worth knowing today.
+- The TECH slot says what the biggest thread is about and what its commenters make of it. Never its points, rank, or how fast it grew.
+- "summary" is one or two sentences, at most 35 words. Open with the thing that set the level, then the next thing most worth knowing. On a quiet read name the one or two things most worth knowing today.
+- The chip already says whether anything needs attention, so the summary never does. Never mention the reader, never write "nothing needs" or "needs attention".
 - "words_to_bold" is the one or two names or figures in your summary that matter most, copied exactly as they appear in it, and they are shown in bold. No asterisks anywhere.
-- Quote figures exactly as given. Never compute, round, or invent a figure, a name, or a date. No dashes, use commas.`
+- Quote figures exactly as given. Never compute, round, or invent a figure, a name, or a date. No dashes or semicolons, use commas.`
 
 	user := fmt.Sprintf("It is %s Eastern. The overall level is %s.\n\n%s", at.In(easternTime()).Format("15:04 on Monday, January 2"), level, facts.String())
 
@@ -362,6 +381,10 @@ func (b *Briefer) compileGlance(ctx context.Context, slot briefSlot, at time.Tim
 		brief.Points = append(brief.Points, Point{Label: s.label, Text: text, Level: s.level, Anchor: s.anchor})
 	}
 	summary := whole(out["summary"], glanceSummaryMax)
+	if talksToHim.MatchString(summary) {
+		slog.Info("glance summary replaced", slog.String("component", "brief"), slog.String("raw", out["summary"]), slog.String("verdict", talksToHim.FindString(summary)))
+		summary = ""
+	}
 	if bad := unsupported(summary, all); bad != "" {
 		slog.Info("glance summary replaced", slog.String("component", "brief"), slog.String("raw", out["summary"]), slog.String("unsupported", bad))
 		summary = ""
@@ -373,9 +396,14 @@ func (b *Briefer) compileGlance(ctx context.Context, slot briefSlot, at time.Tim
 	return brief, nil
 }
 
+// talksToHim catches a summary saying whether anything needs him, which the chip
+// beside it already does, and which the 9B writes on a WATCH day as readily as
+// a quiet one.
+var talksToHim = regexp.MustCompile(`(?i)\bneeds? (him|you|his|your|attention)\b|\bnothing needs\b|\b(his|your) attention\b`)
+
 func glanceFallback(level string, why []string) string {
 	if level == levelQuiet || len(why) == 0 {
-		return "Nothing needs attention right now."
+		return "Nothing out of the ordinary today."
 	}
 	return "Worth a look, " + strings.Join(why, ", ") + "."
 }

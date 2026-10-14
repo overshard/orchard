@@ -17,6 +17,8 @@ type Pulse struct {
 	Text  string `json:"text"`
 	Read  string `json:"read,omitempty"`
 	Links []Link `json:"links,omitempty"`
+	// Thread is the title of the one blowing up, for the glance to name.
+	Thread string `json:"thread,omitempty"`
 }
 
 // attachFeedReads copies the feeds brief onto the live pulses, which every poll
@@ -92,6 +94,7 @@ func feedPulse(items []feedItem, sc pulseScale) Pulse {
 	case hot >= 0:
 		p.Level, p.Label = "hot", "BLOWING UP"
 		p.Text = fmt.Sprintf("%s hit %d points in %s.", row(hot), items[hot].points, hours(items[hot].age))
+		p.Thread = items[hot].title
 	case big:
 		p.Level, p.Label = "big", "BIG THREAD"
 	case busy:

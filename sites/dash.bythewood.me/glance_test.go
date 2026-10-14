@@ -137,3 +137,46 @@ func TestReleaseDay(t *testing.T) {
 		}
 	}
 }
+
+// 14 Oct: a bad CPI print took the Nasdaq down 2.03% and the S&P only 1.17%.
+func TestGlanceWatchesTheNasdaq(t *testing.T) {
+	now := time.Date(2026, 10, 14, 11, 0, 0, 0, easternTime())
+	var st State
+	st.Market.Cards = []Card{{Key: "sp500", Label: "S&P 500", Price: "7,780.00", Percent: "-0.60%"}, {Key: "nasdaq", Label: "Nasdaq", Price: "30,100.00", Percent: "-1.60%"}}
+	if g := glanceMarkets(st, nil, now); g.level != levelWatch || !strings.Contains(strings.Join(g.why, " "), "Nasdaq") {
+		t.Errorf("the Nasdaq down 1.6%% is %s %v", g.level, g.why)
+	}
+	st.Market.Cards[1].Percent = "-2.73%"
+	if g := glanceMarkets(st, nil, now); g.level != levelAct {
+		t.Errorf("the Nasdaq down 2.73%% is %s %v", g.level, g.why)
+	}
+}
+
+// Handed the points, the model wrote "615 points in 2 hours" and nothing about
+// what the thread was.
+func TestGlanceTechNamesTheThread(t *testing.T) {
+	var st State
+	st.HNPulse = Pulse{Level: "hot", Label: "BLOWING UP", Text: "No. 1 hit 807 points in 5 hours.", Thread: "Frontier labs are skipping security basics"}
+	st.HN = []Story{{Title: "Frontier labs are skipping security basics", Points: 807}}
+	g := glanceTech(st)
+	if strings.Contains(g.text(), "807") {
+		t.Errorf("points reached the model: %s", g.text())
+	}
+	if !strings.Contains(g.text(), "the thread is Frontier labs") || !strings.HasPrefix(g.fallback, "Frontier labs") {
+		t.Errorf("the hot thread isn't named: %s / %s", g.text(), g.fallback)
+	}
+	if bad := unsupported("Frontier labs thread hit 807 points on Hacker News.", g.text()); bad != "807" {
+		t.Errorf("a line quoting points got through, %q", bad)
+	}
+}
+
+func TestGlanceVerdict(t *testing.T) {
+	for _, s := range []string{"Nothing needs him. Stocks fell.", "Nothing needs attention, stocks fell.", "Stocks fell, which needs your attention."} {
+		if !talksToHim.MatchString(s) {
+			t.Errorf("%q got through", s)
+		}
+	}
+	if talksToHim.MatchString("A bad CPI print took the Nasdaq down 2.03%, and AION 2 still tops Steam.") {
+		t.Error("an ordinary summary was caught")
+	}
+}
