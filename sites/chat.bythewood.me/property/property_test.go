@@ -719,7 +719,7 @@ func TestAWrongParcelRecordIsNotComparedToThePrice(t *testing.T) {
 	if _, bad := land["asking_against_that"]; bad {
 		t.Fatal("a parcel next door must not be compared to this price")
 	}
-	if why, _ := land["assessment_now"].(string); !strings.Contains(why, "2949") || strings.Contains(why, "231") {
+	if why, _ := land["assessment_now"].(string); !strings.Contains(why, "73 Sample") || strings.Contains(why, "231") {
 		t.Fatalf("it has to name the parcel it actually matched and leave its figure out: %q", why)
 	}
 	if _, bad := land["lot_size"]; bad {
@@ -727,7 +727,7 @@ func TestAWrongParcelRecordIsNotComparedToThePrice(t *testing.T) {
 	}
 	// The model led with the figure when it came with the caveat attached.
 	sum := nextDoor.Summary()
-	if got, _ := sum["assessment"].(string); !strings.Contains(got, "2949") || strings.Contains(got, "231") {
+	if got, _ := sum["assessment"].(string); !strings.Contains(got, "73 Sample") || strings.Contains(got, "231") {
 		t.Fatalf("the summary has to drop the figure and say why: %q", got)
 	}
 	if lot := nextDoor.lotLine(); strings.Contains(lot, "acres") {
