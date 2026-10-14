@@ -16,7 +16,7 @@
 #
 #   make run SITE=blog.bythewood.me      vite watch + go run, on :8000
 #   make build SITE=blog.bythewood.me    release binary into bin/
-#   make check                           gofmt, then vet and build every site
+#   make check                           gofmt, vet, govulncheck, build every site
 #   make test                            every site's tests
 #
 # `make help` lists the setup targets. Nothing below may contain $$(MAKE) inside
@@ -35,6 +35,8 @@ export GOWORK = off
 
 SUDO   ?= sudo
 DOCKER ?= $(SUDO) docker
+
+GOVULNCHECK = golang.org/x/vuln/cmd/govulncheck@v1.8.0
 
 SITES    = $(notdir $(wildcard sites/*))
 SITE_DIR = sites/$(SITE)
@@ -60,7 +62,7 @@ COMPOSE      = $(DOCKER) compose
 COMPOSE_DOWN = $(DOCKER) compose
 
 .DEFAULT_GOAL := help
-.PHONY: help install up up-one deploy edge doctor down down-one run build check fmt fmt-check vet test \
+.PHONY: help install up up-one deploy edge doctor down down-one run build check fmt fmt-check vet vuln deps test \
 	env password tunnel tunnel-login tunnel-status ntfy ntfy-token ntfy-status ntfy-passwd \
 	auth-init auth-recovery chat-key dash-key llm-key wiki util require-site require-env require-tunnel
 
@@ -75,7 +77,8 @@ help:
 	@echo "development, no docker involved"
 	@echo "  make run SITE=<site>       vite watch + go run, on :8000"
 	@echo "  make build SITE=<site>     release binary into bin/"
-	@echo "  make check                 gofmt, then vet and build every site"
+	@echo "  make check                 gofmt, vet, govulncheck and build every site"
+	@echo "  make deps                  update every site's Go modules together"
 	@echo "  make test                  every site's tests"
 	@echo ""
 	@echo "once per machine"
@@ -519,9 +522,21 @@ build: require-site
 # the working directory, and build/ is gitignored.
 # check reports and does not repair, so it must not depend on fmt, which runs
 # gofmt -w and would make the answer yes by rewriting. Use `make fmt` for that.
-check: fmt-check vet
+check: fmt-check vet vuln
 	for s in $(SITES); do echo "build $$s"; \
 		(cd sites/$$s && mkdir -p build && go build -o build/ ./...) || exit 1; done
+
+# Reports stdlib issues against the local toolchain too, so an old Go in webdev
+# shows up here until taproot's GO_VERSION is bumped.
+vuln:
+	for s in $(SITES); do echo "vuln $$s"; (cd sites/$$s && go run $(GOVULNCHECK) ./...) || exit 1; done
+
+# Bumps each site's direct modules together so the sites don't drift apart.
+# Indirect ones move only as far as a direct one asks.
+deps:
+	for s in $(SITES); do echo "deps $$s"; (cd sites/$$s && \
+		mods=$$(go list -m -f '{{if not (or .Indirect .Main)}}{{.Path}}@latest{{end}}' all); \
+		[ -z "$$mods" ] || go get $$mods && go mod tidy) || exit 1; done
 
 fmt-check:
 	@out=$$(gofmt -l sites); \
