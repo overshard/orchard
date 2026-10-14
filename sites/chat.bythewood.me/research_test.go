@@ -169,8 +169,8 @@ func TestAThinPropertyDraftIsSentBackToProperty(t *testing.T) {
 // The chip that went to DuckDuckGo, and questions that only look like one.
 func TestAHouseQuestionIsSentToPropertyNotTheWeb(t *testing.T) {
 	houses := []string{
-		"What is the flood risk at 2408 Example Creek Rd, Lenoir, NC, 28645, and how close is the water?",
-		"$249,900\n2408 Example Creek Rd, Lenoir, NC 28645",
+		"What is the flood risk at 500 Example Creek Rd, Anytown, NC, 27055, and how close is the water?",
+		"$249,900\n500 Example Creek Rd, Anytown, NC 27055",
 		"is 118 Example Road on a busy street",
 	}
 	for _, q := range houses {
