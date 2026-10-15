@@ -14,10 +14,10 @@ the flood zone, what if we put ten percent down, what would USDA cost.
 flood layer, USGS hydrography and elevation, NCDOT traffic counts, Overpass, the
 Census geocoder, OSRM, the DHSR roster, the Esri ACS layers, EPA's facility layers, USDA's eligibility
 map and two county GIS servers that are one machine in a county building.
-`guard.go` paces each with jitter, keeps a hard per-window budget, honours 429 and
-503 and both formats of Retry-After, and trips a breaker whose state is a row in
-SQLite rather than memory, so a restart does not hand a struggling service a fresh
-round.
+`guard.go` puts each behind `guard/`, the package dash shares, with jitter on the
+pace, a hard per-window budget, 429, every 5xx and both formats of Retry-After
+honoured, and a breaker whose state is a row in SQLite instead of memory, so a
+restart does not hand a struggling service a fresh round.
 
 **There is no refresh.** The instinct when an answer looks short is to ask again,
 which is how a home address gets blocked by somebody's free service. A report that
