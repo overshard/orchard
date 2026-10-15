@@ -6,7 +6,7 @@ import (
 )
 
 // The Person node carries the same @id the other sites use, so they describe one
-// person rather than several strangers sharing a name.
+// person instead of several strangers sharing a name.
 const (
 	personID  = "https://isaacbythewood.com/#person"
 	websiteID = baseURL + "/#website"
@@ -26,7 +26,6 @@ func jsonLD(nodes ...map[string]any) template.JS {
 	return template.JS(buf)
 }
 
-// pageGraph is the graph every page on this site carries.
 func pageGraph(title, description, canonical string) template.JS {
 	return jsonLD(
 		map[string]any{

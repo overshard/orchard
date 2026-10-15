@@ -107,8 +107,7 @@ func crawl(ctx context.Context, startURL string, progress func(pages int)) (*Cra
 	}
 
 	enqueue(startURL)
-	// The sitemap is a second entry point and not just a checklist, since it
-	// surfaces pages nothing links to.
+	// The sitemap is a second entry point since it surfaces pages nothing links to.
 	for i, u := range sitemapURLs {
 		if i >= PageCap {
 			break

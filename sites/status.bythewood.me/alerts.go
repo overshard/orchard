@@ -47,8 +47,8 @@ type Notifier struct {
 func NewNotifier() *Notifier {
 	token := os.Getenv("NTFY_TOKEN")
 	if token == "" {
-		// Not fatal: refusing to start over a missing alert credential would
-		// turn a missed notification into an outage.
+		// Not fatal, since refusing to start over a missing alert credential
+		// would turn a missed notification into an outage.
 		slog.Warn("NTFY_TOKEN is unset; alerts will be rendered and refused, not delivered",
 			slog.String("component", "alerts"))
 	}
@@ -83,7 +83,7 @@ func renderAlert(kind string, ctx AlertContext) (alertBody, bool) {
 			Message: fmt.Sprintf(
 				"%s\nTwo consecutive checks failed. Latest status: %d.\nRolling average response: %d ms.",
 				ctx.URL, ctx.CurrentStatus, ctx.AvgResponseMS),
-			// high, not urgent: urgent bypasses do-not-disturb.
+			// high since urgent bypasses do-not-disturb.
 			Priority: "high",
 			Tags:     "rotating_light",
 			Link:     link,
@@ -111,8 +111,8 @@ func (n *Notifier) Send(kind string, ctx AlertContext) {
 // Wait returns once every alert handed to Send has gone out or failed.
 func (n *Notifier) Wait() { n.sending.Wait() }
 
-// Fire publishes one transition. Errors are logged and swallowed: it runs in a
-// goroutine off the scheduler's path with nobody to return to.
+// Fire publishes one transition. Errors are logged and swallowed since it runs
+// in a goroutine off the scheduler's path with nobody to return to.
 func (n *Notifier) Fire(kind string, ctx AlertContext) {
 	body, ok := renderAlert(kind, ctx)
 	if !ok {
@@ -145,7 +145,7 @@ func (n *Notifier) publish(ctx context.Context, body alertBody) error {
 	req.Header.Set("Title", body.Title)
 	req.Header.Set("Priority", body.Priority)
 	req.Header.Set("Tags", body.Tags)
-	// A button rather than Click, so tapping the notification only opens ntfy.
+	// A button instead of Click, so tapping the notification only opens ntfy.
 	req.Header.Set("Actions", "view, Open status, "+body.Link)
 
 	resp, err := n.client.Do(req)

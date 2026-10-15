@@ -23,7 +23,7 @@ import (
 // for a pooled http.Client, the phase chart exists because nothing is reused.
 
 const (
-	// A real Chrome UA: sites behave differently for something announcing
+	// A real Chrome UA, since sites behave differently for something announcing
 	// itself as a monitor.
 	probeUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
 		"(KHTML, like Gecko) Chrome/102.0.5005.115 Safari/537.36 Status/2.0.0"
@@ -64,11 +64,11 @@ type hopResult struct {
 	timings     PhaseTimings
 }
 
-// errPlainHTTP is returned for an http:// URL: the probe is HTTP/2 over TLS
+// errPlainHTTP is returned for an http:// URL since the probe is HTTP/2 over TLS
 // only. Property creation rejects http:// too, so this is the second fence.
 var errPlainHTTP = errors.New("plain HTTP not supported; use https:// (HTTP/2 only)")
 
-// atLeast1ms reports a sub-millisecond phase as 1 rather than 0. Probing a site
+// atLeast1ms reports a sub-millisecond phase as 1 instead of 0. Probing a site
 // that shares this machine goes over lo and truncates to zero, which reads on
 // the chart as a phase that never happened.
 func atLeast1ms(d time.Duration) int64 {
@@ -98,7 +98,7 @@ func parseHTTPURL(raw string) (*url.URL, error) {
 }
 
 // looksLikeTLSError picks between 526 for a certificate problem and 408 for a
-// generic timeout. Matching on error text, to avoid unwrapping driver types.
+// generic timeout. The text match catches what doesn't unwrap to a tls type.
 func looksLikeTLSError(err error) bool {
 	var certErr *tls.CertificateVerificationError
 	if errors.As(err, &certErr) {
@@ -241,8 +241,8 @@ func probeWithRedirects(ctx context.Context, rawURL string) (*probeOutcome, erro
 		current = next
 		hop, err := phasedHop(ctx, current)
 		if err != nil {
-			// Keep the 3xx actually observed: the site answered and pointed
-			// somewhere broken.
+			// Keep the 3xx actually observed, since the site answered and
+			// pointed somewhere broken.
 			break
 		}
 		status = hop.statusCode
@@ -271,10 +271,9 @@ func probeWithRedirects(ctx context.Context, rawURL string) (*probeOutcome, erro
 	}, nil
 }
 
-// classifyCache reports whether the edge answered out of its own copy. A hit is
-// not evidence either way about the origin, and Age cannot stand in for one: the
-// Edge TTL comes from a Cache Rule the origin never sees, so Age climbs past the
-// origin's own max-age on a site that is perfectly healthy.
+// classifyCache reports whether the edge answered out of its own copy. Age says
+// nothing about the origin, since the Edge TTL comes from a Cache Rule the origin
+// never sees and Age climbs past its max-age on a perfectly healthy site.
 func classifyCache(headers map[string]string) (status string, age *int64, cached bool) {
 	status = headers["cf-cache-status"]
 
@@ -291,14 +290,9 @@ func classifyCache(headers map[string]string) (status string, age *int64, cached
 	return status, age, false
 }
 
-// originAnswered asks the origin directly, with a query string nothing has
-// cached and against the one path every site here serves no-store. It reports
-// whether the origin answered and whether the question could be asked at all,
-// so a property with no health endpoint gets no opinion rather than a permanent
-// alarm.
-//
-// A dead origin behind the tunnel is a quick 530 or 502 from Cloudflare, so a
-// transport error means status could not reach Cloudflare and says nothing.
+// originAnswered asks /healthz, served no-store by every site here, with a fresh
+// query string. A 404 (no health endpoint) and a transport error (status never
+// reached Cloudflare, which answers a dead origin with a 530 or 502) are unknown.
 func originAnswered(ctx context.Context, u *url.URL) (code int64, alive, known bool) {
 	probe := *u
 	probe.Path = "/healthz"
@@ -366,8 +360,8 @@ func phasedHop(ctx context.Context, u *url.URL) (*hopResult, error) {
 		return nil, errPlainHTTP
 	}
 
-	// ALPN is pinned to h2 alone, so a server that does not speak HTTP/2 fails
-	// the handshake rather than being measured over HTTP/1.1.
+	// ALPN is pinned to h2 alone, so a server that doesn't speak HTTP/2 fails
+	// the handshake instead of being measured over HTTP/1.1.
 	tlsStart := time.Now()
 	tlsConn := tls.Client(conn, &tls.Config{
 		ServerName: host,
@@ -429,8 +423,8 @@ func h2Request(ctx context.Context, conn *tls.Conn, u *url.URL) (
 	}
 	ttfbMS = atLeast1ms(time.Since(ttfbStart))
 
-	// The body is never read: this measures time to first byte. Closing without
-	// reading sends RST_STREAM, which is correct and cheap.
+	// The body is never read since this measures time to first byte, and closing
+	// without reading sends RST_STREAM, which is cheap.
 	defer resp.Body.Close()
 
 	headers = make(map[string]string, len(resp.Header))
@@ -440,8 +434,7 @@ func h2Request(ctx context.Context, conn *tls.Conn, u *url.URL) (
 		}
 	}
 
-	// encoding/json sorts map keys, so the stored blob is byte-stable across
-	// probes rather than reshuffled by map iteration order.
+	// encoding/json sorts map keys, so the stored blob is byte-stable across probes.
 	encoded, err := json.Marshal(headers)
 	if err != nil {
 		encoded = []byte("{}")
@@ -450,7 +443,6 @@ func h2Request(ctx context.Context, conn *tls.Conn, u *url.URL) (
 	return int64(resp.StatusCode), headers, string(encoded), ttfbMS, nil
 }
 
-// processCheck runs a probe, stores it, then advances the alert state machine.
 func processCheck(ctx context.Context, db *sql.DB, notifier *Notifier, p *Property) error {
 	status, err := runCheck(ctx, db, p)
 	if err != nil {
@@ -459,13 +451,9 @@ func processCheck(ctx context.Context, db *sql.DB, notifier *Notifier, p *Proper
 	return advanceAlertState(ctx, db, notifier, p, status)
 }
 
-// advanceAlertState is the debounce that decides when to wake somebody up.
-//
-//	up   -> down: two consecutive non-200 checks
-//	down -> up:   immediately, on any 200
-//
-// The state commits before the notification is sent, so a crash between the two
-// loses an alert rather than repeating one forever.
+// advanceAlertState goes down after two consecutive non-200 checks and up on any
+// 200. The state commits before the notification is sent, so a crash between the
+// two loses an alert instead of repeating one forever.
 func advanceAlertState(ctx context.Context, db *sql.DB, notifier *Notifier, p *Property, statusCode int64) error {
 	isUp := statusCode == 200
 

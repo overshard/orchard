@@ -9,10 +9,9 @@ import (
 	"time"
 )
 
-// TestProbeTiming is a diagnostic rather than an assertion, and is skipped
-// unless asked for, since it runs the real phasedHop against the live internet.
-//
-//	STATUS_PROBE_BENCH=https://blog.bythewood.me go test -run TestProbeTiming -v
+// TestProbeTiming is a diagnostic instead of an assertion, skipped unless
+// STATUS_PROBE_BENCH names a URL since it runs the real phasedHop against the
+// live internet.
 func TestProbeTiming(t *testing.T) {
 	target := os.Getenv("STATUS_PROBE_BENCH")
 	if target == "" {

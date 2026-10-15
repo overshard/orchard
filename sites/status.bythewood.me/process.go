@@ -6,8 +6,8 @@ import (
 )
 
 // setProcessGroup gives the child its own group so a timeout can reach the
-// browser lighthouse starts: exec.CommandContext only signals its direct child.
-// Linux only.
+// browser lighthouse starts, since exec.CommandContext only signals its direct
+// child. Linux only.
 func setProcessGroup(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 }

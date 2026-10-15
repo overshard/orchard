@@ -97,8 +97,8 @@ func attrPtr(n *html.Node, name string) *string {
 	return nil
 }
 
-// collapse squeezes any run of whitespace down to one space, which is what
-// every comparison in the checks assumes it has been given.
+// collapse squeezes any run of whitespace down to one space. Every comparison in
+// the checks assumes its input went through it.
 func collapse(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
@@ -268,8 +268,8 @@ func parseHTML(body []byte, pageURL string) (*ParsedHTML, error) {
 
 		case atom.Script:
 			if strings.EqualFold(attrOr(n, "type", ""), "application/ld+json") {
-				// rawTextOf and not textOf, since textOf skips script elements
-				// entirely, which is right for the word count and wrong here.
+				// Not textOf, since it skips script elements, which is right for
+				// the word count and wrong here.
 				raw := strings.TrimSpace(rawTextOf(n))
 				if raw != "" {
 					if json.Valid([]byte(raw)) {
