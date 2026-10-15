@@ -67,27 +67,12 @@ func collectSources(used []tools.Result) []Source {
 			continue
 		}
 		m, _ := r.Content.(map[string]any)
-		if m == nil {
+		cites := tools.Of(r.Name).Cites
+		if m == nil || cites == nil {
 			continue
 		}
-		switch r.Name {
-		case tools.WebFetch.Name:
-			add(asString(m["url"]), "", asString(m["text"]), true)
-		case tools.WebSearch.Name:
-			hits, _ := m["results"].([]tools.SearchHit)
-			for _, h := range hits {
-				add(h.URL, h.Title, h.Title+" "+h.Snippet, false)
-			}
-		case tools.News.Name:
-			// A rundown named its publishers in the prose and linked none of
-			// them, so the one answer most worth clicking through was the one
-			// with nothing to click. Each headline is a page that was read.
-			sections, _ := m["sections"].([]tools.NewsSection)
-			for _, sec := range sections {
-				for _, it := range sec.Items {
-					add(it.URL, it.Headline, it.Headline+" "+it.Summary, false)
-				}
-			}
+		for _, c := range cites(m) {
+			add(c.URL, c.Title, c.Text, c.Fetched)
 		}
 	}
 
@@ -96,7 +81,7 @@ func collectSources(used []tools.Result) []Source {
 	// left most of the news with nothing to click.
 	cap := maxSources
 	for _, r := range used {
-		if r.Name == tools.News.Name && r.Err == "" {
+		if r.Err == "" && tools.Of(r.Name).Is(tools.Rundown) {
 			cap = maxNewsSources
 			break
 		}
@@ -669,11 +654,6 @@ func siteOf(raw string) string {
 		return raw
 	}
 	return strings.TrimPrefix(u.Host, "www.")
-}
-
-func asString(v any) string {
-	s, _ := v.(string)
-	return s
 }
 
 // The words that say nothing about which page a sentence came from.
