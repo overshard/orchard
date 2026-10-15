@@ -9,10 +9,33 @@ import (
 	"strings"
 )
 
+type orchardCodeArgs struct {
+	Repo   string
+	Action string
+	Query  string
+	Path   string
+	From   int
+	To     int
+	Rev    string
+}
+
+func (a *orchardCodeArgs) params() []param {
+	return []param{
+		strArg(&a.Repo, "repo", "the repository name, as orchard_repos lists it").required(),
+		strArg(&a.Action, "action", "find a file by name, search file contents, read a file, or list a directory").
+			oneOf("find", "search", "read", "list"),
+		strArg(&a.Query, "query", "for find, part of a file name such as earnings.go; for search, the exact text to look for such as a function name"),
+		strArg(&a.Path, "path", "for read and list, the full path; for find and search, an optional directory to stay inside"),
+		intArg(&a.From, "from", "for read, the first line to return, optional"),
+		intArg(&a.To, "to", "for read, the last line to return, optional"),
+		strArg(&a.Rev, "rev", "a branch, tag or commit, optional, defaults to the default branch"),
+	}
+}
+
 // OrchardCode says what's in a repository where orchard_repos says what exists,
 // or a question about Isaac's code ends in guessed addresses and 404s. find and
 // search let the first call land on the file instead of walking to it.
-var OrchardCode = Tool{
+var OrchardCode = Define(Tool{
 	Name: "orchard_code",
 	Description: "Read the source of one of Isaac's repositories on repos.bythewood.me, read only, " +
 		"and it can never change anything. Four actions: find locates a file by name anywhere in " +
@@ -21,87 +44,73 @@ var OrchardCode = Tool{
 		"than walking down from the top, since a name or a symbol gets there in one call. On a long " +
 		"file read the lines around a hit with from and to instead of the whole thing. Never guess " +
 		"a url for his code and never fetch one, this is the only way in.",
-	Schema: obj(map[string]any{
-		"repo": str("the repository name, as orchard_repos lists it"),
-		"action": map[string]any{
-			"type":        "string",
-			"enum":        []string{"find", "search", "read", "list"},
-			"description": "find a file by name, search file contents, read a file, or list a directory",
-		},
-		"query": str("for find, part of a file name such as earnings.go; for search, the exact text to look for such as a function name"),
-		"path":  str("for read and list, the full path; for find and search, an optional directory to stay inside"),
-		"from":  integer("for read, the first line to return, optional"),
-		"to":    integer("for read, the last line to return, optional"),
-		"rev":   str("a branch, tag or commit, optional, defaults to the default branch"),
-	}, "repo"),
-	Run: func(ctx context.Context, d *Deps, a map[string]any) (any, error) {
-		asked := strings.Trim(strings.TrimSpace(argStr(a, "repo")), "/")
-		repo := repoName(asked)
-		if repo == "" {
-			return nil, fmt.Errorf("repo is required, and orchard_repos lists the names")
-		}
-		rev := strings.TrimSpace(argStr(a, "rev"))
-		if rev == "" {
-			rev = "HEAD"
-		}
-		path := strings.Trim(strings.TrimSpace(argStr(a, "path")), "/")
-		if path == asked || path == repo {
-			path = ""
-		}
-		query := strings.TrimSpace(argStr(a, "query"))
-		base := reposBase + "/api/repos/" + url.PathEscape(repo)
+}, func(ctx context.Context, d *Deps, a orchardCodeArgs) (any, error) {
+	asked := strings.Trim(a.Repo, "/")
+	repo := repoName(asked)
+	if repo == "" {
+		return nil, fmt.Errorf("repo is required, and orchard_repos lists the names")
+	}
+	rev := a.Rev
+	if rev == "" {
+		rev = "HEAD"
+	}
+	path := strings.Trim(a.Path, "/")
+	if path == asked || path == repo {
+		path = ""
+	}
+	query := a.Query
+	base := reposBase + "/api/repos/" + url.PathEscape(repo)
 
-		// The action is what the model said it wants, but a call naming one
-		// thing and asking for another is common enough that the arguments
-		// decide when they disagree. A query with no action is a search.
-		switch action := strings.ToLower(strings.TrimSpace(argStr(a, "action"))); {
-		case action == "find":
-			q := url.Values{}
-			q.Set("q", query)
-			var out map[string]any
-			err := estateGet(ctx, d, base+"/find/"+url.PathEscape(rev)+"?"+q.Encode(), &out)
-			if err != nil {
-				return nil, noRepo(err, repo, rev)
-			}
-			// find matches file names, and the model reaches for it with the name
-			// of a constant or a function, which is in a file and doesn't name one.
-			if n, _ := out["count"].(float64); n == 0 && query != "" {
-				var hits map[string]any
-				if estateGet(ctx, d, base+"/grep/"+url.PathEscape(rev)+"?"+q.Encode(), &hits) == nil {
-					hits["note"] = "No file is named that, so these are the places the text appears inside files."
-					return hits, nil
-				}
-			}
-			return out, nil
-
-		case action == "search" || (action == "" && query != ""):
-			if query == "" {
-				return nil, fmt.Errorf("search needs a query, which is the text to look for")
-			}
-			q := url.Values{}
-			q.Set("q", query)
-			if path != "" {
-				q.Set("path", path)
-			}
-			var out map[string]any
-			err := estateGet(ctx, d, base+"/grep/"+url.PathEscape(rev)+"?"+q.Encode(), &out)
-			return out, noRepo(err, repo, rev)
+	// The action is what the model said it wants, but a call naming one
+	// thing and asking for another is common enough that the arguments
+	// decide when they disagree. A query with no action is a search.
+	switch action := strings.ToLower(a.Action); {
+	case action == "find":
+		q := url.Values{}
+		q.Set("q", query)
+		var out map[string]any
+		err := estateGet(ctx, d, base+"/find/"+url.PathEscape(rev)+"?"+q.Encode(), &out)
+		if err != nil {
+			return nil, noRepo(err, repo, rev)
 		}
+		// find matches file names, and the model reaches for it with the name
+		// of a constant or a function, which is in a file and doesn't name one.
+		if n, _ := out["count"].(float64); n == 0 && query != "" {
+			var hits map[string]any
+			if estateGet(ctx, d, base+"/grep/"+url.PathEscape(rev)+"?"+q.Encode(), &hits) == nil {
+				hits["note"] = "No file is named that, so these are the places the text appears inside files."
+				return hits, nil
+			}
+		}
+		return out, nil
 
-		return orchardWalk(ctx, d, base, repo, rev, path, a)
-	},
-}
+	case action == "search" || (action == "" && query != ""):
+		if query == "" {
+			return nil, fmt.Errorf("search needs a query, which is the text to look for")
+		}
+		q := url.Values{}
+		q.Set("q", query)
+		if path != "" {
+			q.Set("path", path)
+		}
+		var out map[string]any
+		err := estateGet(ctx, d, base+"/grep/"+url.PathEscape(rev)+"?"+q.Encode(), &out)
+		return out, noRepo(err, repo, rev)
+	}
+
+	return orchardWalk(ctx, d, base, repo, rev, path, a.From, a.To)
+})
 
 // orchardWalk is read and list in one call, since a path with no dot in its last
 // segment is usually a directory and guessing wrong costs a round. The read goes
 // first so an extensionless file still reads and a directory still lists.
-func orchardWalk(ctx context.Context, d *Deps, base, repo, rev, path string, a map[string]any) (any, error) {
+func orchardWalk(ctx context.Context, d *Deps, base, repo, rev, path string, from, to int) (any, error) {
 	if path != "" {
 		q := url.Values{}
-		if from := int(argNum(a, "from", 0)); from > 0 {
+		if from > 0 {
 			q.Set("from", strconv.Itoa(from))
 		}
-		if to := int(argNum(a, "to", 0)); to > 0 {
+		if to > 0 {
 			q.Set("to", strconv.Itoa(to))
 		}
 		fileURL := base + "/file/" + url.PathEscape(rev) + "/" + escapePath(path)
