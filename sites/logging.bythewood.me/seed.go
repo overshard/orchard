@@ -60,7 +60,6 @@ var seedComponentMessages = map[string][]string{
 	"retention":  {"retention sweep"},
 }
 
-// runSeed generates records spread over the last `days` days and commits them.
 func runSeed(ctx context.Context, db *sql.DB, count, days int) error {
 	if count <= 0 || days <= 0 {
 		return fmt.Errorf("seed needs a positive count and day span, got %d over %d", count, days)

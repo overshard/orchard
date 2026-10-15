@@ -15,9 +15,9 @@ import (
 	"logging.bythewood.me/web"
 )
 
-// Every record arrives on one channel and one goroutine drains it into batched
-// transactions: SQLite takes a database-wide write lock, so a second writer buys
-// SQLITE_BUSY rather than throughput.
+// One goroutine drains every record off one channel into batched transactions,
+// since SQLite takes a database-wide write lock and a second writer buys
+// SQLITE_BUSY instead of throughput.
 
 const (
 	// Queue depth between the HTTP handlers and the flusher.
@@ -103,8 +103,8 @@ func (w *Writer) Stats() Stats {
 }
 
 // enqueue takes a whole batch or none of it, and reports whether it did. The
-// capacity check is not atomic with the sends, so two callers can both see room;
-// any drop must still report failure so the caller answers 429 and not 202.
+// capacity check isn't atomic with the sends, so two callers can both see room,
+// and any drop must still report failure so the caller answers 429 and not 202.
 func (w *Writer) enqueue(rows []row) bool {
 	if len(rows) > cap(w.ch)-len(w.ch) {
 		w.mu.Lock()
@@ -148,8 +148,8 @@ func (w *Writer) run() {
 			err = w.commit(batch)
 		}
 		if err != nil {
-			// Straight to stderr: logging this through slog would enqueue a
-			// record about a failing writer onto the queue it drains.
+			// Straight to stderr, since logging this through slog would enqueue
+			// a record about a failing writer onto the queue it drains.
 			w.mu.Lock()
 			w.failed += int64(len(batch))
 			w.mu.Unlock()
@@ -218,7 +218,7 @@ func (w *Writer) commit(batch []row) error {
 	defer insert.Close()
 
 	// Aggregated in memory first so a batch from one site in one hour is one
-	// upsert rather than one per record.
+	// upsert instead of one per record.
 	deltas := make(map[rollupKey]*rollupDelta, 16)
 
 	for _, r := range batch {
@@ -243,7 +243,7 @@ func (w *Writer) commit(batch []row) error {
 			deltas[k] = d
 		}
 		d.count++
-		// A record with no duration is a subsystem message, not a request;
+		// A record with no duration is a subsystem message, not a request, and
 		// counting it as zero would drag every mean down.
 		if r.durationMS > 0 {
 			d.durCount++
@@ -335,15 +335,15 @@ func (s *site) ingest(w http.ResponseWriter, r *http.Request) {
 		rows = append(rows, toRow(source, rec))
 	}
 
-	// Backpressure rather than a stall: blocking here would let this site hold
-	// a request open on every site it watches.
+	// Backpressure instead of a stall, since blocking here would let this site
+	// hold a request open on every site it watches.
 	if !s.writer.enqueue(rows) {
 		w.Header().Set("Retry-After", "5")
 		http.Error(w, "ingest queue is full", http.StatusTooManyRequests)
 		return
 	}
 
-	// After the enqueue: a refused batch is not evidence the source is healthy.
+	// After the enqueue, since a refused batch isn't evidence the source is healthy.
 	s.watchdog.Observe(source, batch.Records)
 
 	w.WriteHeader(http.StatusAccepted)
@@ -404,8 +404,7 @@ func toRow(source string, rec web.Record) row {
 		}
 	}
 	// A response the server held open is a connection lifetime, not a request
-	// duration, and averaging the two together makes every mean meaningless.
-	// The elapsed time moves to the bag rather than being thrown away.
+	// duration, so its elapsed time moves to the bag and out of every mean.
 	if out.msg == "request" && (out.status == 101 || out.component == "stream" || out.durationMS > streamingAfterMS) {
 		rest["stream_ms"] = out.durationMS
 		out.durationMS = 0
@@ -417,9 +416,8 @@ func toRow(source string, rec web.Record) row {
 		}
 	}
 
-	// A health check is a health check whoever asked. Keying this on the caller
-	// only held while each container was the sole prober of itself, and it
-	// stopped holding the moment anything else polled across the bridge.
+	// Keyed on the path and not the caller, since containers poll each other's
+	// /healthz across the bridge too.
 	if out.msg == "request" && out.path == "/healthz" {
 		out.component = "healthz"
 		out.rollupOnly = true
@@ -432,15 +430,13 @@ func isLoopback(ip string) bool {
 }
 
 const (
-	// Caps on the free-text fields: a legal 4MB message would be a 4MB row forever.
+	// Caps on the free-text fields, or a legal 4MB message is a 4MB row forever.
 	maxFieldLen = 4096
 	maxAttrsLen = 8192
 
-	// streamingAfterMS is web's own WriteTimeout. Nothing here can serve an
-	// ordinary request for longer, so anything past it was held open to stream.
-	// It is the backstop for sources that cannot say so themselves, Caddy above
-	// all. A site that knows it is streaming says component=stream instead, which
-	// catches the short connections this threshold cannot see.
+	// streamingAfterMS is web's own WriteTimeout, so anything past it was held
+	// open to stream. It's the backstop for sources that can't say so, Caddy
+	// above all, and a site that knows it's streaming says component=stream.
 	streamingAfterMS = 60_000
 )
 
@@ -500,8 +496,8 @@ func saneStatus(v float64) int64 {
 // sweep deletes ts < cutoff, so a future-dated row would never be reclaimed.
 const sanetimestampSkew = 5 * time.Minute
 
-// sanetimestampFloor catches a unit mistake: seconds sent where milliseconds
-// were meant lands in 1970 and would be swept immediately and silently.
+// sanetimestampFloor catches seconds sent where milliseconds were meant, which
+// lands in 1970 and would be swept immediately and silently.
 var sanetimestampFloor = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
 
 func saneTimestamp(ts int64) int64 {
@@ -541,8 +537,8 @@ func asFloat(v any) float64 {
 }
 
 // LocalSink records this site's own logs straight onto the writer's queue. It
-// drops its /ingest request lines: every flush from every site is one POST here,
-// so keeping them would make this site's loudest source itself.
+// drops its /ingest request lines, since every flush from every site is one POST
+// here and keeping them would make this site its own loudest source.
 func (s *site) LocalSink(source string, records []web.Record) {
 	rows := make([]row, 0, len(records))
 	for _, rec := range records {

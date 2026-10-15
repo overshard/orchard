@@ -12,7 +12,7 @@ import (
 
 // records holds raw lines, kept for rawRetention and searchable, rollups holds
 // hourly counters kept forever, so a year-long graph is a few hundred row reads
-// rather than a scan. Hot attributes get columns, the rest lands in attrs JSON.
+// instead of a scan. Hot attributes get columns, the rest lands in attrs JSON.
 const schema = `
 CREATE TABLE IF NOT EXISTS records (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -81,7 +81,7 @@ func openDB(path string) (*sql.DB, error) {
 	}
 
 	// SQLite takes a database-wide write lock, so a second writing connection
-	// buys SQLITE_BUSY rather than throughput. The flusher is the only writer.
+	// buys SQLITE_BUSY instead of throughput. The flusher is the only writer.
 	db.SetMaxOpenConns(8)
 	db.SetMaxIdleConns(8)
 	db.SetConnMaxLifetime(time.Hour)

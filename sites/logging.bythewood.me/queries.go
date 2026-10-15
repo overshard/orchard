@@ -11,7 +11,7 @@ import (
 
 // Two tables answer different questions. rollups answers "how many, over time"
 // for any range, records answers "which ones, and how slow", and only inside
-// rawRetention. Reading the wrong one gives a quietly wrong answer.
+// rawRetention.
 
 type LabelCount struct {
 	Label string `json:"label"`
@@ -92,8 +92,8 @@ type filter struct {
 }
 
 // where builds the clause and its arguments, all as placeholders. The start is
-// floored for the hour column: rollups.hour is hour-floored, so an unaligned
-// start would silently drop the bucket containing it, whole.
+// floored for the hour column, since rollups.hour is hour-floored and an
+// unaligned start would silently drop the bucket containing it, whole.
 func (f filter) where(tsColumn string) (string, []any) {
 	start := f.StartMS
 	if tsColumn == "hour" {
@@ -120,7 +120,7 @@ func (f filter) where(tsColumn string) (string, []any) {
 		args = append(args, lo, lo+100)
 	}
 	if f.Q != "" {
-		// ESCAPE is what stops a search for "100%" from matching everything.
+		// ESCAPE stops a search for "100%" from matching everything.
 		clauses = append(clauses, "(msg LIKE ? ESCAPE '\\' OR path LIKE ? ESCAPE '\\')")
 		like := "%" + escapeLike(f.Q) + "%"
 		args = append(args, like, like)
@@ -155,8 +155,8 @@ type Totals struct {
 	// ErrorRate is 5xx over requests, not error records over all records,
 	// which would mix a subsystem complaining with a visitor seeing a 500.
 	ErrorRate float64
-	// DirectHits are request records with no cf_ray: something reached the
-	// origin without crossing the tunnel.
+	// DirectHits are request records with no cf_ray, which reached the origin
+	// without crossing the tunnel.
 	DirectHits int64
 }
 
@@ -185,10 +185,9 @@ func totals(ctx context.Context, db *sql.DB, f filter) Totals {
 		t.ErrorRate = float64(t.Server5xx) * 100 / float64(t.Requests)
 	}
 
-	// cf_ray cannot be a rollup dimension, being unique per request, so this
-	// reads raw rows and only means anything inside rawRetention. Loopback is
-	// excluded: a self-probe never crossed the tunnel and never carries a
-	// CF-Ray. A record with no IP at all is still counted.
+	// cf_ray is unique per request so it can't be a rollup dimension. Loopback
+	// is excluded since a self-probe never crosses the tunnel, but a record with
+	// no IP at all still counts.
 	rw, rargs := f.where("ts")
 	err = db.QueryRowContext(ctx, `
 		SELECT COUNT(*) FROM records
@@ -261,8 +260,7 @@ func volumeGraph(ctx context.Context, db *sql.DB, f filter) []GraphPoint {
 
 // breakdown is the shape every "top N by X" panel shares, over rollups.
 func breakdown(ctx context.Context, db *sql.DB, f filter, column string, limit int) []LabelCount {
-	// column is interpolated into the SQL, so it is allowlisted here rather
-	// than trusted from a caller.
+	// column is interpolated into the SQL, so it's allowlisted here.
 	switch column {
 	case "source", "level", "component":
 	default:
@@ -299,8 +297,8 @@ func statusClasses(ctx context.Context, db *sql.DB, f filter) []LabelCount {
 	return scanLabelCounts(rows, "status classes")
 }
 
-// topPaths reads raw rows: path is unbounded enough that keying rollups on it
-// would make that table grow like the raw one.
+// topPaths reads raw rows, since path is unbounded enough that keying rollups
+// on it would make that table grow like the raw one.
 func topPaths(ctx context.Context, db *sql.DB, f filter, limit int) []LabelCount {
 	w, args := f.where("ts")
 	args = append(args, limit)
@@ -331,8 +329,8 @@ func scanLabelCounts(rows *sql.Rows, what string) []LabelCount {
 }
 
 // latency computes the whole distribution in one CUME_DIST pass, so all three
-// percentiles cost one sort. Not PERCENT_RANK: it gives the largest row 1.0, so
-// a threshold test can never select the slowest sample.
+// percentiles cost one sort. PERCENT_RANK gives the largest row 1.0, so a
+// threshold test there can never select the slowest sample.
 func latency(ctx context.Context, db *sql.DB, f filter) Latency {
 	var l Latency
 	w, args := f.where("ts")
@@ -448,8 +446,8 @@ func sources(ctx context.Context, db *sql.DB, f filter) []SourceRow {
 	}
 	queryFailed("sources rows", rows.Err())
 
-	// A second pass rather than a join: the two tables cover different
-	// windows, and a join would drop any source whose raw rows have aged out.
+	// A second pass instead of a join, since the two tables cover different
+	// windows and a join would drop any source whose raw rows have aged out.
 	liveCutoff := time.Now().Add(-15 * time.Minute).UnixMilli()
 	for i := range out {
 		sf := f
@@ -533,8 +531,8 @@ func errorFeed(ctx context.Context, db *sql.DB, f filter, limit int) []RecordRow
 	return out
 }
 
-// SiteStats is the only data on this site visible without a session: counts and
-// a start date, nothing about what any record says.
+// SiteStats is the only data on this site visible without a session, so it's
+// counts and a start date and nothing about what any record says.
 type SiteStats struct {
 	Records   int64
 	Sources   int64
@@ -567,7 +565,7 @@ func sourceExists(ctx context.Context, db *sql.DB, source string) bool {
 	}
 	queryFailed("source exists", err)
 	// Anything but a clean "no such row" resolves to "exists", so a broken
-	// database shows an empty dashboard rather than a 404 on a real source.
+	// database shows an empty dashboard instead of a 404 on a real source.
 	return true
 }
 

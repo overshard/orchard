@@ -10,9 +10,8 @@ import (
 	texttemplate "text/template"
 )
 
-// Parsed with text/template: html/template would escape a Typst "#" or a
-// Markdown "*" into an HTML entity. Escaping happens through typstMD and
-// typstStr instead.
+// text/template, since html/template would escape a Typst "#" or a Markdown "*"
+// into an HTML entity. typstMD and typstStr do the escaping instead.
 //
 //go:embed reports
 var reportFS embed.FS
@@ -95,7 +94,7 @@ func (s *site) renderReport(w http.ResponseWriter, r *http.Request, format, subj
 }
 
 // asciiFilename reduces a subject to what a Content-Disposition value can carry
-// literally, Go sends a header with a non-ASCII byte rather than complaining.
+// literally, since Go sends a header with a non-ASCII byte without complaining.
 func asciiFilename(name string) string {
 	var b strings.Builder
 	b.Grow(len(name))

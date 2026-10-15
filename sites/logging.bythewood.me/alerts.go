@@ -12,9 +12,8 @@ import (
 	"time"
 )
 
-// The container name on the orchard-edge bridge, never the public hostname:
-// Caddy refuses every publish route on ntfy.bythewood.me, so publishing is
-// reachable only from the bridge even holding the write token.
+// The bridge name, never the public hostname, since Caddy refuses every publish
+// route on ntfy.bythewood.me even to a request holding the write token.
 const (
 	ntfyURL   = "http://orchard-ntfy:8000"
 	ntfyTopic = "logging"
@@ -41,8 +40,8 @@ type Notifier struct {
 func NewNotifier() *Notifier {
 	token := os.Getenv("NTFY_TOKEN")
 	if token == "" {
-		// Not fatal: refusing to start over a missing alert credential would
-		// turn a quiet notification into an outage.
+		// Not fatal, since refusing to start over a missing alert credential
+		// would turn a quiet notification into an outage.
 		slog.Warn("NTFY_TOKEN is unset; alerts will be rendered and refused, not delivered",
 			slog.String("component", "alerts"))
 	}
@@ -66,7 +65,7 @@ type alertBody struct {
 // renderAlert builds the notification for a transition, reporting false for an
 // unknown kind.
 func renderAlert(kind string, ctx AlertContext) (alertBody, bool) {
-	// Absolute: it is opened from a phone that has no idea what the origin is.
+	// Absolute, since it's opened from a phone that has no idea what the origin is.
 	link := baseURL + "/sources/" + ctx.Source
 
 	switch kind {
@@ -76,7 +75,7 @@ func renderAlert(kind string, ctx AlertContext) (alertBody, bool) {
 			Message: fmt.Sprintf(
 				"No records for %s.\nThe container may be down, wedged, or unable to reach ingest. Its own stdout is still the source of truth: docker logs orchard-%s",
 				humanDuration(ctx.Silent), ctx.Source),
-			// Not urgent: that bypasses do-not-disturb.
+			// Not urgent, which bypasses do-not-disturb.
 			Priority: "high",
 			Tags:     "mute",
 			Link:     link,
@@ -108,7 +107,6 @@ func renderAlert(kind string, ctx AlertContext) (alertBody, bool) {
 	return alertBody{}, false
 }
 
-// humanDuration renders a gap for a person to read.
 func humanDuration(d time.Duration) string {
 	switch {
 	case d < time.Minute:
@@ -125,8 +123,8 @@ func humanDuration(d time.Duration) string {
 	}
 }
 
-// Fire publishes one transition. Errors are logged and swallowed: it runs off
-// the watchdog's timer with nobody to return to.
+// Fire publishes one transition. Errors are logged and swallowed since it runs
+// off the watchdog's timer with nobody to return to.
 func (n *Notifier) Fire(kind string, ctx AlertContext) {
 	body, ok := renderAlert(kind, ctx)
 	if !ok {
@@ -143,7 +141,7 @@ func (n *Notifier) Fire(kind string, ctx AlertContext) {
 		slog.String("component", "alerts"))
 }
 
-// publish posts to ntfy: the message is the body and everything else a header.
+// ntfy takes the message as the body and everything else as a header.
 func (n *Notifier) publish(ctx context.Context, body alertBody) error {
 	ctx, cancel := context.WithTimeout(ctx, ntfyTimeout)
 	defer cancel()
@@ -162,7 +160,7 @@ func (n *Notifier) publish(ctx context.Context, body alertBody) error {
 	req.Header.Set("Title", body.Title)
 	req.Header.Set("Priority", body.Priority)
 	req.Header.Set("Tags", body.Tags)
-	// A button rather than Click, so tapping the notification only opens ntfy.
+	// A button instead of Click, so tapping the notification only opens ntfy.
 	req.Header.Set("Actions", "view, Open logs, "+body.Link)
 
 	resp, err := n.client.Do(req)
@@ -170,7 +168,7 @@ func (n *Notifier) publish(ctx context.Context, body alertBody) error {
 		return err
 	}
 	defer resp.Body.Close()
-	// Drain so the connection can be reused rather than abandoned.
+	// Drain so the connection can be reused.
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
@@ -179,7 +177,6 @@ func (n *Notifier) publish(ctx context.Context, body alertBody) error {
 	return nil
 }
 
-// previewAlert prints what would be published, without sending it.
 func previewAlert(kind string) error {
 	body, ok := renderAlert(kind, AlertContext{
 		Source: "blog",

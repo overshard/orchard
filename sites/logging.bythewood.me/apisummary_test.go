@@ -8,10 +8,8 @@ import (
 	"time"
 )
 
-// The reason an error happened lives in the attrs bag, because a slog call names
-// the operation in the message and puts the error itself in an attribute.
-// Dropping that bag lets chat say a site is erroring and never say what went
-// wrong.
+// A slog call names the operation in the message and puts the error in an
+// attribute, so without the attrs bag chat can't say what went wrong.
 func TestAPIErrorsCarryTheReason(t *testing.T) {
 	db := testDB(t)
 	now := time.Now()
@@ -73,14 +71,14 @@ func TestAPIErrorsGroupByKind(t *testing.T) {
 	if git.FirstSeen == git.LastSeen {
 		t.Error("a group spanning eleven minutes reported no span")
 	}
-	// One path across the group, so naming it is right rather than misleading.
+	// One path across the group, so naming it isn't misleading.
 	if git.Path != "/orchard.git/info/refs" {
 		t.Errorf("path = %q, want the one path the group shares", git.Path)
 	}
 }
 
-// Narrowing is what makes a second look worth taking. Without it the follow up
-// to "search is erroring" is the same twenty lines again.
+// Without narrowing, the follow up to "search is erroring" is the same twenty
+// lines again.
 func TestAPIErrorsFilter(t *testing.T) {
 	db := testDB(t)
 	now := time.Now()
@@ -97,7 +95,7 @@ func TestAPIErrorsFilter(t *testing.T) {
 		t.Errorf("source filter returned %+v", got)
 	}
 	// The bag is searched too, since the reason is the part worth grepping and
-	// it is never in the message.
+	// it's never in the message.
 	if got := s.apiRecentErrors(ctx, since(now, 24), 20, "", "deadline"); len(got) != 1 || got[0].Source != "search" {
 		t.Errorf("contains filter did not reach the attrs bag: %+v", got)
 	}
@@ -128,7 +126,7 @@ func since(now time.Time, hours int) int64 {
 	return now.Add(-time.Duration(hours) * time.Hour).Truncate(time.Hour).UnixMilli()
 }
 
-// Straight into the table rather than through the writer, since these tests are
+// Straight into the table instead of through the writer, since these tests are
 // about what comes back out and not about batching.
 func seedErrors(t *testing.T, db *sql.DB, rows []row) {
 	t.Helper()
@@ -147,10 +145,8 @@ func seedErrors(t *testing.T, db *sql.DB, rows []row) {
 	}
 }
 
-// Asked "any suspicious logs in orchard" on 2026-09-11 the summary said there
-// were none, and it was telling the truth about errors on a day the edge turned
-// away thousands of scanner probes. A refused request is not an ERROR anywhere,
-// so a reader with only the errors list cannot answer the question at all.
+// A refused request isn't an ERROR anywhere, so a reader with only the errors
+// list can't tell that the edge turned away a flood of scanner probes.
 func TestAPIRefusedSeesScannersWithNoErrors(t *testing.T) {
 	db := testDB(t)
 	now := time.Now()
@@ -191,10 +187,9 @@ func TestAPIRefusedSeesScannersWithNoErrors(t *testing.T) {
 	}
 }
 
-// Every container probes itself over loopback with no CF-Ray, and the sites
-// call each other across the docker bridge all day, which together were 97% of
-// this number on the first day it existed. Counting them buries the one request
-// that really did skip Cloudflare, which is the only thing the number is for.
+// Every container probes itself over loopback with no CF-Ray and the sites call
+// each other across the docker bridge all day, and counting either buries the
+// one request that really did skip Cloudflare.
 func TestAPIRefusedDirectHitsExcludePrivateAddresses(t *testing.T) {
 	db := testDB(t)
 	now := time.Now()

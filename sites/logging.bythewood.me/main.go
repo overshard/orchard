@@ -71,9 +71,8 @@ type site struct {
 	dashStyles  []string
 }
 
-// The template sets, shared with the tests, which parse them for real. A page
-// listed here with no file behind it parses at boot and not at build, so
-// nothing but doing it catches a template that was deleted and left listed.
+// Shared with the tests, which parse them for real, since a page listed here
+// with no file behind it builds fine and only fails at boot.
 var (
 	layoutTemplates = []string{"base.html", "partials.html"}
 	pageTemplates   = []string{
@@ -89,7 +88,7 @@ func main() {
 	}
 }
 
-// realMain returns rather than exits, so its deferred closes and the log
+// realMain returns instead of exiting so the deferred closes and the log
 // shipper's flush run on every path out.
 func realMain() error {
 	web.SetupLogging()
@@ -97,8 +96,8 @@ func realMain() error {
 	seed := flag.Bool("seed", false, "fill the database with realistic fake records, then exit")
 	seedRecords := flag.Int("seed-records", 40000, "records to generate in -seed mode")
 	seedDays := flag.Int("seed-days", 14, "days to spread -seed records over")
-	// The container HEALTHCHECK runs this: a FROM scratch image has no shell
-	// for a check to call, so every binary probes itself.
+	// The container HEALTHCHECK runs this, the same way it does on the FROM
+	// scratch sites that have no shell for a check to call.
 	healthcheck := flag.Bool("healthcheck", false, "probe a running server on this host and exit")
 	preview := flag.String("preview-alert", "", "print an example alert ('silence', 'resumed' or 'restart') and exit")
 	flag.Parse()
@@ -167,8 +166,8 @@ func realMain() error {
 		dashStyles:  assets.Styles("static_src/dashboard/index.js"),
 	}
 
-	// Must exist before anything is observed: the watchdog is fed from ingest,
-	// not from a query. A failed bootstrap only loses the seeded source list.
+	// Must exist before anything is observed, since the watchdog is fed from
+	// ingest. A failed bootstrap only loses the seeded source list.
 	s.watchdog = NewWatchdog(db, NewNotifier().Fire)
 	if err := s.watchdog.Bootstrap(context.Background()); err != nil {
 		slog.Error("watchdog bootstrap failed; watching only what ships from now on",
@@ -188,7 +187,7 @@ func realMain() error {
 		<-watched
 	}()
 
-	// Local sink rather than HTTP: posting to itself would mean an ingest
+	// Local sink instead of HTTP, since posting to itself would be an ingest
 	// request that logs a request that becomes an ingest request. Must close
 	// before the writer so the last queued records are committed.
 	shipper := web.ShipLogs(selfSource, s.LocalSink)
@@ -232,16 +231,15 @@ func realMain() error {
 	mux.HandleFunc("GET /sources/{source}", noStore(s.auth.RequireAuth(s.sourceDetail)))
 	mux.HandleFunc("GET /search", noStore(s.auth.RequireAuth(s.search)))
 
-	// Unauthenticated, and reachable only over the bridge: Caddy refuses
+	// Unauthenticated, and reachable only over the bridge since Caddy refuses
 	// /ingest on the public hostname.
 	mux.HandleFunc("POST /ingest", s.ingest)
 
-	// Counts per source for the dash health strip, fenced the same way and for
-	// a second reason: dash is public, so this returns numbers and never a
-	// message, a path or an address. See aggregate.go.
+	// Counts per source for the dash health strip, fenced the same way, and
+	// since dash is public it never returns a message, a path or an address.
 	mux.HandleFunc("GET /aggregate", s.aggregate)
-	// The read only view chat.bythewood.me's tools call. Behind the session
-	// rather than public like /aggregate, because it carries messages.
+	// The read only view chat.bythewood.me's tools call, behind the session
+	// since it carries messages.
 	mux.HandleFunc("GET /api/summary", noStore(s.auth.RequireAuthJSON(s.apiSummary)))
 
 	// The mux only answers 405 itself when nothing else matches, and the
@@ -322,10 +320,9 @@ func (s *site) page(r *http.Request, title, description string) PageData {
 func (s *site) healthz(w http.ResponseWriter, r *http.Request) {
 	if !r.URL.Query().Has("verbose") || !isLoopback(web.ClientIP(r)) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		// EdgeCache fills in the site policy whenever a handler sets no
-		// Cache-Control of its own, so saying nothing here means the edge
-		// answers a liveness check out of cache long after this process has
-		// stopped serving.
+		// EdgeCache fills in the site policy when a handler sets no
+		// Cache-Control, and the edge would then answer a liveness check out
+		// of cache long after this process stopped serving.
 		w.Header().Set("Cache-Control", "no-store")
 		_, _ = w.Write([]byte("ok\n"))
 		return

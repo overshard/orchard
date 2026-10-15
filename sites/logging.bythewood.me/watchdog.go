@@ -13,9 +13,9 @@ import (
 	"logging.bythewood.me/web"
 )
 
-// Two rules: a source going silent, and a start with no preceding shutdown.
-// An error rate threshold is not one of them, because these sites log almost no
-// ERROR or WARN records and a rule that never fires cannot be told from a broken one.
+// The rules are a source going silent and a start with no preceding shutdown.
+// There's no error rate rule, since these sites log almost no ERROR or WARN
+// records and a rule that never fires can't be told from a broken one.
 
 const (
 	// A healthy source is seen roughly every thirty-five seconds, from its own
@@ -35,14 +35,14 @@ const (
 	startupGrace = 5 * time.Minute
 
 	// How far back Bootstrap looks for sources. A source that stops existing
-	// ages out of this window rather than alerting forever.
+	// ages out of this window instead of alerting forever.
 	knownSourceWindow = 24 * time.Hour
 
 	// Lifecycle events between the ingest path and the watchdog goroutine.
 	lifecycleQueue = 64
 
-	// Matched against web/server.go by exact text: renaming either string there
-	// silently disables restart detection. A test asserts they still match.
+	// Matched against web/server.go by exact text, so renaming either string
+	// there silently disables restart detection. A test asserts they still match.
 	msgListening = "listening"
 	msgShutdown  = "shutting down"
 )
@@ -53,9 +53,9 @@ type lifecycleEvent struct {
 	at     time.Time
 }
 
-// Watchdog tracks liveness in memory at ingest time rather than by query:
-// health check lines are rollup-only and never reach records, and rollups are
-// hour-granular, so a query could not notice anything less than an hour late.
+// Watchdog tracks liveness in memory at ingest time, since health check lines
+// never reach records and rollups are hour-granular, so a query couldn't notice
+// anything less than an hour late.
 type Watchdog struct {
 	db     *sql.DB
 	notify func(kind string, ctx AlertContext)
@@ -86,8 +86,8 @@ func NewWatchdog(db *sql.DB, notify func(kind string, ctx AlertContext)) *Watchd
 }
 
 // Observe records that a batch arrived from source. It never blocks, never
-// touches the database, and is safe on a nil Watchdog. Called per batch rather
-// than per record so it costs one mutex acquisition per POST.
+// touches the database, and is safe on a nil Watchdog. Called per batch instead
+// of per record so it costs one mutex acquisition per POST.
 func (w *Watchdog) Observe(source string, records []web.Record) {
 	if w == nil || len(records) == 0 {
 		return
@@ -109,7 +109,7 @@ func (w *Watchdog) Observe(source string, records []web.Record) {
 }
 
 // recordTime falls back to now, so a record with a broken clock still counts as
-// a transition rather than being ignored.
+// a transition.
 func recordTime(rec web.Record, fallback time.Time) time.Time {
 	if rec.Time <= 0 {
 		return fallback
@@ -117,8 +117,8 @@ func recordTime(rec web.Record, fallback time.Time) time.Time {
 	return time.UnixMilli(rec.Time)
 }
 
-// enqueue drops rather than blocks: losing a lifecycle event costs one alert,
-// blocking the ingest path costs the sites this one watches.
+// enqueue drops instead of blocking, since losing a lifecycle event costs one
+// alert and blocking the ingest path costs the sites this one watches.
 func (w *Watchdog) enqueue(ev lifecycleEvent) {
 	select {
 	case w.events <- ev:
@@ -127,7 +127,7 @@ func (w *Watchdog) enqueue(ev lifecycleEvent) {
 }
 
 // Bootstrap seeds the source list, so a site already down when this process
-// starts is still noticed. It reads rollups rather than records because health
+// starts is still noticed. It reads rollups instead of records because health
 // checks are counted there and only there.
 func (w *Watchdog) Bootstrap(ctx context.Context) error {
 	cutoff := hourFloor(w.now().Add(-knownSourceWindow).UnixMilli())
@@ -153,8 +153,8 @@ func (w *Watchdog) Bootstrap(ctx context.Context) error {
 
 	w.mu.Lock()
 	for _, source := range found {
-		// Seeded as seen now: this process cannot tell a site that is down
-		// from one it was not running to receive. silenceAfter settles it.
+		// Seeded as seen now, since this process can't tell a site that's down
+		// from one it wasn't running to receive. silenceAfter settles it.
 		w.seen[source] = start
 	}
 	w.mu.Unlock()
@@ -229,15 +229,15 @@ func (w *Watchdog) checkSilence() {
 	}
 	w.mu.Unlock()
 
-	// Outside the lock: a publish takes up to ntfyTimeout, and the ingest path
-	// takes the same mutex.
+	// Outside the lock, since a publish takes up to ntfyTimeout and the ingest
+	// path takes the same mutex.
 	for _, f := range fire {
 		w.notify(f.kind, AlertContext{Source: f.source, Silent: f.gap})
 	}
 }
 
 // silenceFor is how long a source may go quiet before it is reported, which
-// depends on what its heartbeat is rather than on the source itself.
+// depends on what its heartbeat is and not on the source itself.
 func silenceFor(source string) time.Duration {
 	if source == caddySource {
 		return caddySilenceAfter
@@ -245,7 +245,7 @@ func silenceFor(source string) time.Duration {
 	return silenceAfter
 }
 
-// handleLifecycle applies the restart rule. State lives in meta rather than in
+// handleLifecycle applies the restart rule. State lives in meta instead of in
 // memory because the question spans restarts of this process. caddy logs
 // neither message, so only the silence rule ever covers the edge.
 func (w *Watchdog) handleLifecycle(ctx context.Context, ev lifecycleEvent) {

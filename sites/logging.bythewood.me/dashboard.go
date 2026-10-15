@@ -101,11 +101,11 @@ type rangeOption struct {
 }
 
 // WithinRetention reports whether the raw records table can answer this window.
-// The search page offers only these: past retention there are no lines to match.
+// The search page offers only these, since past retention there are no lines.
 func (o rangeOption) WithinRetention() bool { return o.Dur <= rawRetention }
 
-// Anything past rawRetention still charts correctly from the hourly rollups;
-// what thins out beyond it is the raw detail.
+// Anything past rawRetention still charts correctly from the hourly rollups, and
+// only the raw detail thins out beyond it.
 var rangeOptions = []rangeOption{
 	{"1h", "Last hour", time.Hour},
 	{"24h", "Last 24 hours", 24 * time.Hour},
@@ -121,13 +121,13 @@ const defaultRange = "24h"
 // not have to carry it.
 func (d *Dashboard) RangeOptions() []rangeOption { return rangeOptions }
 
-// maxWindow bounds a custom range: volumeGraph fills one bucket per day across
-// whatever it is given, so a mistyped year is an out-of-memory kill.
+// maxWindow bounds a custom range, since volumeGraph fills one bucket per day
+// across whatever it's given and a mistyped year would be an out-of-memory kill.
 const maxWindow = 5 * 365 * 24 * time.Hour
 
 // resolveWindow reads the range out of the query string. The start is floored to
-// the hour so rollup-backed and raw-backed panels cover the same span, the cost
-// is that "Last hour" means since the top of the previous hour.
+// the hour so rollup-backed and raw-backed panels cover the same span, which
+// makes "Last hour" mean since the top of the previous hour.
 func resolveWindow(q map[string][]string) (key, name string, startMS, endMS int64) {
 	now := time.Now().UTC()
 
@@ -142,7 +142,7 @@ func resolveWindow(q map[string][]string) (key, name string, startMS, endMS int6
 		st, okS := parseDateToMS(s, false)
 		en, okE := parseDateToMS(e, true)
 		// Both are midnight and so already hour-aligned. An end in the future
-		// is pulled back to now rather than rejected.
+		// is pulled back to now instead of rejected.
 		if okS && okE && en > st {
 			if en > now.UnixMilli() {
 				en = now.UnixMilli()
@@ -195,8 +195,8 @@ func (s *site) sourceDetail(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/overview", http.StatusSeeOther)
 		return
 	}
-	// 404 rather than a dashboard of zeros: "silent" and "does not exist" must
-	// not look the same.
+	// 404 instead of a dashboard of zeros, so "silent" and "does not exist"
+	// don't look the same.
 	if !sourceExists(r.Context(), s.db, source) {
 		s.notFound(w, r)
 		return
@@ -286,7 +286,6 @@ func reportFormat(q map[string][]string) (string, bool) {
 	return format, true
 }
 
-// fillReportExtras precomputes the polyline, labels and peak the reports need.
 func (d *Dashboard) fillReportExtras() {
 	d.ChartPolyline = chartPolyline(d.Graph)
 	if len(d.Graph) == 0 {
@@ -363,7 +362,6 @@ type SearchView struct {
 
 const searchPerPage = 100
 
-// RangeOptions mirrors the dashboard's picker.
 func (v *SearchView) RangeOptions() []rangeOption { return rangeOptions }
 
 func (s *site) search(w http.ResponseWriter, r *http.Request) {
@@ -395,8 +393,8 @@ func (s *site) search(w http.ResponseWriter, r *http.Request) {
 		Q:           strings.TrimSpace(q.Get("q")),
 	}
 
-	// One row more than a page, so "is there a next page" costs a row rather
-	// than a COUNT(*) over a filtered scan.
+	// One row more than a page, so "is there a next page" costs a row instead
+	// of a COUNT(*) over a filtered scan.
 	rows := recentRecords(ctx, s.db, f, searchPerPage+1, (page-1)*searchPerPage)
 	hasMore := len(rows) > searchPerPage
 	if hasMore {

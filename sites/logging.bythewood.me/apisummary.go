@@ -1,8 +1,6 @@
-// The read only JSON view of this site, for chat.bythewood.me's tools.
-//
-// /aggregate is the public one, which feeds dash and returns counts and nothing
-// else, while this sits behind the same session as the dashboard and carries the
-// messages and paths with it.
+// The read only JSON view of this site for chat.bythewood.me's tools. It sits
+// behind the dashboard's session and carries messages and paths, while the public
+// /aggregate hands dash counts and nothing else.
 package main
 
 import (
@@ -21,16 +19,9 @@ type apiSource struct {
 	Server5xx int    `json:"server_5xx"`
 }
 
-// One kind of error rather than one occurrence of one.
-//
-// The twenty most recent rows are usually the same failure twenty times, which
-// spends the whole answer saying so and never says how long it has been going
-// on. Grouping by what the error is turns that into one line with a count and a
-// span, and a group of one is still the single record it was.
-//
-// Details is the attrs bag, which is where the reason lives. A slog call is
-// `slog.Error("shipping a batch failed", "err", err)`, so the message names the
-// operation and the error itself is an attribute.
+// One kind of error, grouped so the same failure twenty times is one line with a
+// count and a span. Details is the attrs bag, since slog puts the error itself in
+// an attribute and the message only names the operation.
 type apiError struct {
 	Message   string `json:"message"`
 	Source    string `json:"source"`
@@ -52,12 +43,9 @@ type apiPath struct {
 	Errors int     `json:"errors"`
 }
 
-// What the edge turned away, which is the half of "is anything suspicious" that
-// errors cannot answer. The edge refuses thousands of scanner probes an hour and
-// none of them is an ERROR anywhere.
-//
-// Blocked requests are absent. The scanner block carries log_skip, so what shows
-// up here is what got past it, which is the number worth seeing.
+// What the edge turned away, which errors can't answer since a refused scanner
+// probe is an ERROR nowhere. The scanner block carries log_skip, so blocked
+// requests are absent and this is what got past it.
 type apiRefused struct {
 	Client4xx  int          `json:"client_4xx"`
 	Server5xx  int          `json:"server_5xx"`
@@ -84,9 +72,8 @@ func (s *site) apiSummary(w http.ResponseWriter, r *http.Request) {
 	// now-relative start otherwise drops the bucket containing it whole.
 	since := time.Now().Add(-window).Truncate(time.Hour).UnixMilli()
 
-	// Narrowing is what makes a second look useful. A summary that says search
-	// is erroring and cannot then be asked only about search leaves the reader
-	// with the same twenty lines again.
+	// Narrowing lets a second look ask only about the source or the text the
+	// first one flagged, instead of reading the same twenty lines again.
 	source := truncate(r.URL.Query().Get("source"), 64)
 	contains := truncate(r.URL.Query().Get("contains"), 200)
 
@@ -136,16 +123,13 @@ func (s *site) apiSources(ctx context.Context, since int64) []apiSource {
 	return out
 }
 
-// How much of the attrs bag is worth carrying. It is capped at 8KB on the way
-// in, and twenty of those would be most of a small model's window spent on one
-// tool result, so the reason is kept and a stack trace pasted into an attribute
-// is not.
+// Attrs are capped at 8KB on the way in, and twenty of those would spend most of
+// a small model's window on one tool result, so the reason is kept and a stack
+// trace pasted into an attribute isn't.
 const maxDetailLen = 500
 
 // The example row for a group is the newest one, picked with a window function
-// rather than MAX(ts) so its path, status and attrs come from that same record.
-// Mixing the newest timestamp with an arbitrary row's details is how a group
-// ends up describing an error that never happened.
+// instead of MAX(ts) so its path, status and attrs all come from that one record.
 func (s *site) apiRecentErrors(ctx context.Context, since int64, limit int, source, contains string) []apiError {
 	rows, err := s.db.QueryContext(ctx, `
 		WITH errs AS (
@@ -207,9 +191,9 @@ func (s *site) apiRecentErrors(ctx context.Context, since int64, limit int, sour
 	return out
 }
 
-// CUME_DIST and not PERCENT_RANK: PERCENT_RANK gives exactly 1.0 to the largest
-// row of every partition, so `<= 0.95` never selects the slowest sample and a
-// path with few samples reports well under the percentile it claims.
+// CUME_DIST, since PERCENT_RANK gives exactly 1.0 to the largest row of every
+// partition, so `<= 0.95` never selects the slowest sample and a path with few
+// samples reports well under the percentile it claims.
 func (s *site) apiBusiestPaths(ctx context.Context, since int64, limit int) []apiPath {
 	rows, err := s.db.QueryContext(ctx, `
 		WITH windowed AS (
@@ -252,13 +236,9 @@ func clamp(raw string, def, max int) int {
 	return n
 }
 
-// privateIP is the SQL for an address that is this machine talking to itself,
-// either over loopback or across the docker bridge.
-//
-// The dashboard tile excludes loopback alone, so that it fails toward showing a
-// strange record. A peer container is ordinary here, since dash polls /aggregate
-// off the bridge all day, and a number that is almost entirely one known caller
-// cannot report the request that skipped Cloudflare.
+// privateIP matches this machine talking to itself, over loopback or the docker
+// bridge. The dashboard tile only excludes loopback, but here dash polling off
+// the bridge all day would bury the one request that skipped Cloudflare.
 const privateIP = `(ip = '' OR ip = '127.0.0.1' OR ip = '::1'
 	OR ip LIKE '10.%' OR ip LIKE '127.%' OR ip LIKE '192.168.%' OR ip LIKE '169.254.%'
 	OR ip GLOB '172.1[6-9].*' OR ip GLOB '172.2[0-9].*' OR ip GLOB '172.3[01].*'
