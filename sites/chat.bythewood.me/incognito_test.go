@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"chat.bythewood.me/internal/incognito"
 )
 
 // The gateway keeps every prompt it forwards, so an incognito turn that writes
@@ -21,7 +23,7 @@ func TestAnIncognitoTurnAsksTheGatewayNotToLog(t *testing.T) {
 
 	l := NewLLM(srv.URL, "local", "key")
 	var out chatResp
-	if err := l.post(WithIncognito(context.Background()), chatReq{Model: "local"}, &out); err != nil {
+	if err := l.post(incognito.With(context.Background()), chatReq{Model: "local"}, &out); err != nil {
 		t.Fatalf("post: %v", err)
 	}
 	if seen != "1" {

@@ -21,6 +21,7 @@ import (
 	"syscall"
 	"time"
 
+	"chat.bythewood.me/internal/incognito"
 	"chat.bythewood.me/internal/property"
 	"chat.bythewood.me/tools"
 	"chat.bythewood.me/web"
@@ -599,7 +600,7 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 	// so marking it here keeps the gateway from writing down what the local
 	// database isn't writing down either.
 	if req.Incognito {
-		ctx = WithIncognito(ctx)
+		ctx = incognito.With(ctx)
 	}
 	s.painter.Hold(parts)
 

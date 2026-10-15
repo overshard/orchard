@@ -15,6 +15,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"chat.bythewood.me/internal/incognito"
 )
 
 type Role string
@@ -315,7 +317,7 @@ func (l *LLM) sign(r *http.Request) {
 	if l.Key != "" {
 		r.Header.Set("Authorization", "Bearer "+l.Key)
 	}
-	if IsIncognito(r.Context()) {
+	if incognito.On(r.Context()) {
 		r.Header.Set(incognitoHeader, "1")
 	}
 }
@@ -323,20 +325,6 @@ func (l *LLM) sign(r *http.Request) {
 // The gateway writes down every prompt and completion it forwards, so a mode
 // that writes nothing down here has to say so there as well.
 const incognitoHeader = "X-Incognito"
-
-type incognitoKey struct{}
-
-// WithIncognito marks a context as belonging to an incognito turn. It rides the
-// context instead of the client since the client is shared by every turn, and
-// this way the gate, the compaction pass and the tools all inherit it.
-func WithIncognito(ctx context.Context) context.Context {
-	return context.WithValue(ctx, incognitoKey{}, true)
-}
-
-func IsIncognito(ctx context.Context) bool {
-	on, _ := ctx.Value(incognitoKey{}).(bool)
-	return on
-}
 
 func (l *LLM) post(ctx context.Context, req chatReq, out *chatResp) error {
 	body, err := json.Marshal(req)
