@@ -1,25 +1,32 @@
-package main
+package memory
 
 import (
+	"database/sql"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	_ "modernc.org/sqlite"
 )
 
 func memStore(t *testing.T) *Store {
 	t.Helper()
-	s, err := OpenStore(filepath.Join(t.TempDir(), "chat.db"))
+	db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "chat.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = s.Close() })
+	t.Cleanup(func() { _ = db.Close() })
+	s, err := Open(db, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	return s
 }
 
 func TestAFactIsStoredOnceHoweverOftenProposed(t *testing.T) {
 	s := memStore(t)
 	for i := 0; i < 3; i++ {
-		if _, err := s.AddFact("Isaac drinks his coffee black"); err != nil {
+		if _, err := s.Add("Isaac drinks his coffee black"); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -42,7 +49,7 @@ func TestRelevantFindsWhatTheQuestionTouches(t *testing.T) {
 		"Isaac runs every site he owns from a desktop behind a Cloudflare tunnel",
 		"Isaac camps most weekends through the autumn",
 	} {
-		if _, err := s.AddFact(f); err != nil {
+		if _, err := s.Add(f); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -67,13 +74,13 @@ func TestRelevantFindsWhatTheQuestionTouches(t *testing.T) {
 // anything drags in the whole table.
 func TestRelevantIgnoresWordsThatMatchEverything(t *testing.T) {
 	s := memStore(t)
-	if _, err := s.AddFact("Isaac prefers the aisle seat"); err != nil {
+	if _, err := s.Add("Isaac prefers the aisle seat"); err != nil {
 		t.Fatal(err)
 	}
 	if got := s.Relevant("what is the weather", 5, true); len(got) != 0 {
 		t.Errorf("matched on filler words: %+v", got)
 	}
-	if _, err := s.AddFact("Isaac is researching whether a tiny home on wheels can be lived in full-time"); err != nil {
+	if _, err := s.Add("Isaac is researching whether a tiny home on wheels can be lived in full-time"); err != nil {
 		t.Fatal(err)
 	}
 	if got := s.Relevant("what time is it right now", 5, true); len(got) != 0 {
@@ -91,7 +98,7 @@ func TestALongQuestionNeedsTwoWordsInCommon(t *testing.T) {
 		"Isaac's chat application is fronted by a Cloudflare Tunnel and Caddy, the same stack that fronts his other sites.",
 		"Isaac runs his own AI assistant, Ornith 1.5 9B, on his RTX 3070 GPU, which he also uses for gaming.",
 	} {
-		if _, err := s.AddFact(f); err != nil {
+		if _, err := s.Add(f); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -111,7 +118,7 @@ func TestALongQuestionNeedsTwoWordsInCommon(t *testing.T) {
 
 func TestRelevantCountsUses(t *testing.T) {
 	s := memStore(t)
-	if _, err := s.AddFact("Isaac uses bun rather than npm"); err != nil {
+	if _, err := s.Add("Isaac uses bun rather than npm"); err != nil {
 		t.Fatal(err)
 	}
 	s.Relevant("should I use bun here", 3, true)
@@ -123,7 +130,7 @@ func TestRelevantCountsUses(t *testing.T) {
 
 func TestAnIncognitoRecallCountsNothing(t *testing.T) {
 	s := memStore(t)
-	if _, err := s.AddFact("Isaac uses bun rather than npm"); err != nil {
+	if _, err := s.Add("Isaac uses bun rather than npm"); err != nil {
 		t.Fatal(err)
 	}
 	if got := s.Relevant("should I use bun here", 3, false); len(got) != 1 {
@@ -161,14 +168,13 @@ func TestCredentialsAreRefusedWhateverTheModelSays(t *testing.T) {
 
 func TestApplyChangesRefusesAnIdThatIsNotThere(t *testing.T) {
 	s := memStore(t)
-	id, err := s.AddFact("Isaac drinks his coffee black")
+	id, err := s.Add("Isaac drinks his coffee black")
 	if err != nil {
 		t.Fatal(err)
 	}
 	existing, _ := s.Facts()
-	site := &site{store: s}
 
-	applied := site.applyChanges([]memChange{
+	applied := s.Apply([]Change{
 		{Op: "replace", ID: id + 999, Fact: "something else"},
 		{Op: "delete", ID: id + 998},
 	}, existing)
@@ -182,11 +188,10 @@ func TestApplyChangesRefusesAnIdThatIsNotThere(t *testing.T) {
 
 func TestApplyChangesReplacesRatherThanDuplicating(t *testing.T) {
 	s := memStore(t)
-	id, _ := s.AddFact("Isaac's car is a Subaru")
+	id, _ := s.Add("Isaac's car is a Subaru")
 	existing, _ := s.Facts()
-	site := &site{store: s}
 
-	site.applyChanges([]memChange{{Op: "replace", ID: id, Fact: "Isaac's car is a Toyota"}}, existing)
+	s.Apply([]Change{{Op: "replace", ID: id, Fact: "Isaac's car is a Toyota"}}, existing)
 
 	facts, _ := s.Facts()
 	if len(facts) != 1 {
@@ -225,10 +230,10 @@ func TestParseChangesDropsTheMalformed(t *testing.T) {
 // An empty block is left out entirely instead of saying it knows nothing,
 // which a model reads as an invitation to talk about not knowing things.
 func TestMemoryBlockIsEmptyWhenNothingMatched(t *testing.T) {
-	if got := memoryBlock(nil); got != "" {
+	if got := Block(nil); got != "" {
 		t.Errorf("got %q, want nothing", got)
 	}
-	got := memoryBlock([]Fact{{Text: "Isaac drinks his coffee black"}})
+	got := Block([]Fact{{Text: "Isaac drinks his coffee black"}})
 	if !strings.Contains(got, "coffee black") {
 		t.Errorf("the fact is missing:\n%s", got)
 	}
@@ -252,11 +257,11 @@ func TestTidyFactCapsLength(t *testing.T) {
 func TestAddFactMergesARewording(t *testing.T) {
 	s := memStore(t)
 
-	first, err := s.AddFact("Isaac wants to build XCancel into the chat tooling in some way.")
+	first, err := s.Add("Isaac wants to build XCancel into the chat tooling in some way.")
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := s.AddFact("Isaac is still looking for a way to integrate X post search into the chat tooling, " +
+	second, err := s.Add("Isaac is still looking for a way to integrate X post search into the chat tooling, " +
 		"but xcancel and Nitter are not the solutions since xcancel has no API.")
 	if err != nil {
 		t.Fatal(err)
@@ -278,8 +283,8 @@ func TestAddFactMergesARewording(t *testing.T) {
 // longer with the shorter would throw away what it knew.
 func TestAddFactKeepsTheFullerWording(t *testing.T) {
 	s := memStore(t)
-	full, _ := s.AddFact("Isaac camps and hikes in Yadkin Valley, North Carolina.")
-	again, err := s.AddFact("Isaac camps and hikes.")
+	full, _ := s.Add("Isaac camps and hikes in Yadkin Valley, North Carolina.")
+	again, err := s.Add("Isaac camps and hikes.")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -296,9 +301,9 @@ func TestAddFactKeepsTheFullerWording(t *testing.T) {
 // lose one of them for good.
 func TestAddFactKeepsUnrelatedFactsApart(t *testing.T) {
 	s := memStore(t)
-	_, _ = s.AddFact("Isaac likes buttered chicken pizza.")
-	_, _ = s.AddFact("Isaac eats sausages but avoids ones containing nitrates or nitrites.")
-	_, _ = s.AddFact("Isaac regularly cooks sheet-pan meals of broccoli and potatoes with a single roasted protein.")
+	_, _ = s.Add("Isaac likes buttered chicken pizza.")
+	_, _ = s.Add("Isaac eats sausages but avoids ones containing nitrates or nitrites.")
+	_, _ = s.Add("Isaac regularly cooks sheet-pan meals of broccoli and potatoes with a single roasted protein.")
 	facts, _ := s.Facts()
 	if len(facts) != 3 {
 		t.Errorf("three unrelated facts collapsed to %d: %#v", len(facts), facts)
@@ -315,7 +320,7 @@ func TestOneSharedWordIsChanceOnAnOrdinaryQuestion(t *testing.T) {
 		"Isaac is researching whether a tiny home on wheels can legally be lived in full-time in Yadkin County, NC.",
 		"Isaac works on a project called orchard-dash, a dashboard he is developing.",
 	} {
-		if _, err := s.AddFact(f); err != nil {
+		if _, err := s.Add(f); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -333,7 +338,7 @@ func TestOneSharedWordIsChanceOnAnOrdinaryQuestion(t *testing.T) {
 
 func TestAFilmIsAMovie(t *testing.T) {
 	s := memStore(t)
-	if _, err := s.AddFact("Isaac and his friends want to watch the films Heretic and Terrifier this weekend."); err != nil {
+	if _, err := s.Add("Isaac and his friends want to watch the films Heretic and Terrifier this weekend."); err != nil {
 		t.Fatal(err)
 	}
 	if got := s.Relevant("what movies do my friends and I want to watch", 6, true); len(got) != 1 {
@@ -351,7 +356,7 @@ func TestAFactLosesTheIDItWasShownWith(t *testing.T) {
 			t.Errorf("tidyFact(%q) = %q", in, got)
 		}
 	}
-	if got := memoryBlock([]Fact{{ID: 7, Text: "Isaac drinks his coffee black"}}); !strings.Contains(got, "(id 7)") {
+	if got := Block([]Fact{{ID: 7, Text: "Isaac drinks his coffee black"}}); !strings.Contains(got, "(id 7)") {
 		t.Errorf("the block does not carry the id: %q", got)
 	}
 }

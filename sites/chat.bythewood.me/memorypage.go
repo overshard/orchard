@@ -9,17 +9,19 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"chat.bythewood.me/internal/memory"
 )
 
 type memoryView struct {
-	Facts   []Fact      `json:"facts"`
-	Note    string      `json:"note,omitempty"`
-	Problem string      `json:"problem,omitempty"`
-	Applied []memChange `json:"applied,omitempty"`
+	Facts   []memory.Fact   `json:"facts"`
+	Note    string          `json:"note,omitempty"`
+	Problem string          `json:"problem,omitempty"`
+	Applied []memory.Change `json:"applied,omitempty"`
 }
 
 func (s *site) memoryList(w http.ResponseWriter, r *http.Request) {
-	facts, err := s.store.Facts()
+	facts, err := s.memory.Facts()
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
@@ -44,22 +46,22 @@ func (s *site) memoryTeach(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
 
-	existing, err := s.store.Facts()
+	existing, err := s.memory.Facts()
 	if err != nil {
 		s.memoryProblem(w, err.Error())
 		return
 	}
-	changes, err := s.proposeChanges(ctx, existing,
+	changes, err := s.memory.Propose(ctx, existing,
 		"Isaac is editing his memory himself and said:\n"+said,
 		"Do what he asked, following the rules above.")
 	if err != nil {
 		s.memoryProblem(w, "the model did not answer: "+err.Error())
 		return
 	}
-	applied := s.applyChanges(changes, existing)
+	applied := s.memory.Apply(changes, existing)
 	s.store.Checkpoint()
 
-	facts, _ := s.store.Facts()
+	facts, _ := s.memory.Facts()
 	if len(applied) == 0 {
 		writeJSON(w, memoryView{Facts: facts,
 			Problem: "Nothing changed. It read that as not worth keeping, or as already known."})
@@ -80,13 +82,13 @@ func (s *site) memoryTeach(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *site) memoryProblem(w http.ResponseWriter, msg string) {
-	facts, _ := s.store.Facts()
+	facts, _ := s.memory.Facts()
 	writeJSON(w, memoryView{Facts: facts, Problem: msg})
 }
 
 func (s *site) memoryDelete(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err := s.store.DeleteFact(id); err != nil {
+	if err := s.memory.Delete(id); err != nil {
 		http.Error(w, err.Error(), 500)
 		return
 	}
@@ -95,7 +97,7 @@ func (s *site) memoryDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *site) memoryForget(w http.ResponseWriter, r *http.Request) {
-	if err := s.store.ForgetEverything(); err != nil {
+	if err := s.memory.ForgetEverything(); err != nil {
 		http.Error(w, err.Error(), 500)
 		return
 	}

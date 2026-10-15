@@ -120,11 +120,7 @@ func OpenStore(path string) (*Store, error) {
 	}
 	migrate(db)
 	migrateIDs(db)
-	st := &Store{db: db}
-	if err := st.initFacts(); err != nil {
-		return nil, err
-	}
-	return st, nil
+	return &Store{db: db}, nil
 }
 
 // migrate adds what a database written by an older build does not have. SQLite

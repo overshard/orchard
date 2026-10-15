@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"chat.bythewood.me/internal/memory"
 )
 
 // Hit is one earlier exchange that matched.
@@ -29,7 +31,7 @@ const searchExcerpt = 700
 // exchanges instead of single messages, since an answer with no question in
 // front of it reads as an assertion from nowhere.
 func (s *Store) SearchHistory(query string, limit int) ([]Hit, error) {
-	want := terms(query)
+	want := memory.Terms(query)
 	if len(want) == 0 {
 		return nil, fmt.Errorf("nothing to search for in %q", query)
 	}
@@ -78,7 +80,7 @@ func (s *Store) SearchHistory(query string, limit int) ([]Hit, error) {
 			r.text = content
 		}
 		r.at = time.Unix(at, 0)
-		r.score = overlap(want, terms(r.text))
+		r.score = memory.Overlap(want, memory.Terms(r.text))
 		if r.score > 0 {
 			found = append(found, r)
 		}
