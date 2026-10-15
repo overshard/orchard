@@ -49,6 +49,11 @@ type Mirror struct {
 	store *Store
 	db    *DB
 
+	// A manual sync runs on life rather than on the request that asked for it,
+	// so it ends at shutdown, and manual is how shutdown waits for it.
+	life   context.Context
+	manual sync.WaitGroup
+
 	// Set while a manual sync is in flight, so a second click is declined rather
 	// than parked on the mutex below.
 	running atomic.Bool
@@ -58,8 +63,8 @@ type Mirror struct {
 	mu sync.Mutex
 }
 
-func NewMirror(store *Store, db *DB) *Mirror {
-	return &Mirror{store: store, db: db}
+func NewMirror(life context.Context, store *Store, db *DB) *Mirror {
+	return &Mirror{store: store, db: db, life: life}
 }
 
 // Run syncs on a ticker until the context is cancelled.
@@ -501,15 +506,18 @@ func RunGC(ctx context.Context, store *Store, every time.Duration) {
 
 // TrySync runs a sync in the background and reports whether it started one. It
 // declines rather than queues, so two clicks do not mean two syncs.
-func (m *Mirror) TrySync(ctx context.Context) bool {
+func (m *Mirror) TrySync() bool {
 	if !m.running.CompareAndSwap(false, true) {
 		return false
 	}
-	go func() {
+	m.manual.Go(func() {
 		defer m.running.Store(false)
-		if err := m.Sync(ctx); err != nil {
+		if err := m.Sync(m.life); err != nil {
 			slog.Error("manual mirror sync failed", slog.Any("err", err))
 		}
-	}()
+	})
 	return true
 }
+
+// Wait returns once a manual sync in flight has finished.
+func (m *Mirror) Wait() { m.manual.Wait() }
