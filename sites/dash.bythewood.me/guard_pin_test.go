@@ -20,9 +20,9 @@ import (
 // pinRewind moves one endpoint's clock back, so a test can step past a pace,
 // a window or an open breaker without waiting it out.
 func pinRewind(g *Guard, name string, d time.Duration) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	e := g.entry(name)
+	g.file.mu.Lock()
+	defer g.file.mu.Unlock()
+	e := g.file.entry(name)
 	e.LastCall = e.LastCall.Add(-d)
 	e.OpenUntil = e.OpenUntil.Add(-d)
 	e.WindowStart = e.WindowStart.Add(-d)

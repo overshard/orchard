@@ -73,9 +73,9 @@ func TestGuardTakesTheLongerOfBackoffAndRetryAfter(t *testing.T) {
 	g := NewGuard(t.TempDir())
 	g.Fail("yahoo", http.StatusTooManyRequests, 20*time.Minute)
 
-	g.mu.Lock()
-	open := g.entries["yahoo"].OpenUntil
-	g.mu.Unlock()
+	g.file.mu.Lock()
+	open := g.file.entries["yahoo"].OpenUntil
+	g.file.mu.Unlock()
 
 	if wait := time.Until(open); wait < 19*time.Minute {
 		t.Errorf("breaker opens for %s, want the 20 minute Retry-After", wait)

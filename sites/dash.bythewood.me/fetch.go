@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"time"
+
+	"dash.bythewood.me/guard"
 )
 
 // userAgent has to look like a browser, since Yahoo answers Go's default with a
@@ -45,21 +46,7 @@ func getJSON(ctx context.Context, g *Guard, endpoint, url string, out any) error
 // parseRetryAfter reads both forms in RFC 9110 section 10.2.3, a delay in
 // seconds or an HTTP date. An unparseable value is no value.
 func parseRetryAfter(v string) time.Duration {
-	if v == "" {
-		return 0
-	}
-	if secs, err := strconv.Atoi(v); err == nil {
-		if secs < 0 {
-			return 0
-		}
-		return time.Duration(secs) * time.Second
-	}
-	if t, err := http.ParseTime(v); err == nil {
-		if d := time.Until(t); d > 0 {
-			return d
-		}
-	}
-	return 0
+	return guard.RetryAfter(v, time.Now())
 }
 
 // getJSONHeaders is getJSON with extra request headers. Nasdaq answers an

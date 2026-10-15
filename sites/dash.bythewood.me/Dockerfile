@@ -15,6 +15,7 @@ WORKDIR /src
 # build outright for a module with no third party dependency.
 COPY go.mod go.su[m] ./
 COPY web/ ./web/
+COPY guard/ ./guard/
 COPY *.go ./
 COPY templates/ ./templates/
 # -tags embed reads build/ at compile time, so the bundle has to land here
