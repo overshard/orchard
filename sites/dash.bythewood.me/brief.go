@@ -256,6 +256,7 @@ func (b *Briefer) Run(ctx context.Context) {
 		slog.Warn("no LLM_KEY, briefs are off", slog.String("component", "brief"))
 		return
 	}
+	b.store.awaitFirstRound(ctx, 2*time.Minute)
 	t := time.NewTicker(time.Minute)
 	defer t.Stop()
 	for {
