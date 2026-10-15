@@ -1,7 +1,6 @@
-// Command gpuprobe answers how busy the card is, for callers that would rather
-// not load a model onto it while the desktop is using it. It runs beside the
-// model server with the driver's utility capability and nothing else, since
-// the gateway is a scratch image and cannot run nvidia-smi itself.
+// Command gpuprobe says how busy the card is for callers that would rather not
+// load a model on top of the desktop. It runs beside the model server with only
+// the driver's utility capability, since the gateway is a scratch image.
 package main
 
 import (
@@ -20,8 +19,8 @@ import (
 
 const addr = ":8092"
 
-// Utilisation is an instant reading and a game's frame pacing swings it, so
-// one sample can land in a gap. Several over a couple of seconds can't.
+// Utilisation is an instant reading and a game's frame pacing swings it, so one
+// sample can land in a gap but several over a couple of seconds can't.
 const (
 	samples = 5
 	gap     = 400 * time.Millisecond
@@ -100,7 +99,7 @@ func main() {
 		_ = json.NewEncoder(w).Encode(got)
 	})
 	// Says the process is up and nothing about the card, so the healthcheck
-	// does not run nvidia-smi every thirty seconds.
+	// doesn't run nvidia-smi every thirty seconds.
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("ok"))
 	})
