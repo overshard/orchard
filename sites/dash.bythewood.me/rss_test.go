@@ -81,9 +81,8 @@ func TestClipDropsBBCVideoAndLive(t *testing.T) {
 	}
 }
 
-// Two outlets word the same story differently, which is what the exact title
-// key cannot catch, and a duplicate row is the most obvious thing on a panel
-// of ten.
+// Two outlets word the same story differently, which the exact title key can't
+// catch, and a duplicate row is the most obvious thing on a panel.
 func TestDedupeCatchesTheSameStoryTwice(t *testing.T) {
 	npr := "Leon Black defies subpoena to testify in Epstein inquiry and sues House panel"
 	bbc := "US billionaire Leon Black defies summons and sues Epstein panel"

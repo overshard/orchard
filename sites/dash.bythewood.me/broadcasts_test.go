@@ -230,7 +230,7 @@ func TestBuildBroadcastsLiveInTheArchive(t *testing.T) {
 }
 
 // A broadcast that starts after midnight belongs to the night before, and the
-// usual start of three late nights is late at night rather than noon.
+// usual start of three late nights is late at night and not noon.
 func TestStreamDayTurnsAtSixInTheMorning(t *testing.T) {
 	past := twitchPast{vods: []pastBroadcast{
 		{start: at(t, "2026-09-24 01:00"), length: 3 * time.Hour},

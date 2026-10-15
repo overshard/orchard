@@ -167,8 +167,8 @@ func parseBroadcasts(p broadcastsPayload) (twitchPast, error) {
 }
 
 // buildBroadcasts reads the archive against what the banner last saw. The
-// banner polls every ten minutes and the archive hourly, so whether he is on
-// now comes from the banner.
+// banner polls more often than the archive, so whether he is on now comes from
+// the banner.
 func buildBroadcasts(past twitchPast, live OnAir, now time.Time) Broadcasts {
 	vods := withLive(past.vods, live, now)
 

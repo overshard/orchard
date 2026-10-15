@@ -224,8 +224,8 @@ func threadList(ts []thread) string {
 	return b.String()
 }
 
-// Room past the asked 30 words so the model finishes the sentence on its own,
-// since at a cap near the target it ran into it and left half a clause.
+// Room past the asked 30 words so the model finishes the sentence on its own
+// instead of running into the cap mid clause.
 const feedReadMax = 240
 
 func (b *Briefer) compileFeeds(ctx context.Context, slot briefSlot, at time.Time) (Brief, error) {

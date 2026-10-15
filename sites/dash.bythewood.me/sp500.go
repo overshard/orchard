@@ -2,17 +2,9 @@ package main
 
 import "strings"
 
-// The S&P 500, which is what turns Nasdaq's cap sorted list of every
-// US listing into "the top hundred of the index" rather than the top hundred of
-// the market. Without it the panel fills with ASML, TSM and ARM, which are large
-// and are not in the index.
-//
-// Refresh it from Wikipedia's list of S&P 500 companies when a swap happens. A
-// stale entry costs one row and never breaks the panel, and swaps almost never
-// touch the hundred largest, so this going a few months out of date is fine.
-//
-// Class share tickers are written the way Nasdaq writes them, with a slash, so
-// BRK/B rather than Wikipedia's BRK.B.
+// The S&P 500, so Nasdaq's cap sorted list becomes the top hundred of the index
+// and not of the market, which has ASML, TSM and ARM in it. Refresh it from
+// Wikipedia's list after a swap, writing class shares Nasdaq's way, BRK/B.
 var sp500Symbols = []string{
 	"A", "AAPL", "ABBV", "ABNB", "ABT", "ACGL", "ACN", "ADBE", "ADI", "ADM", "ADP", "ADSK",
 	"AEE", "AEP", "AES", "AFL", "AIG", "AIZ", "AJG", "AKAM", "ALB", "ALGN", "ALL", "ALLE",

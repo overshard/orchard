@@ -1,8 +1,6 @@
-// Command dash serves dash.bythewood.me: markets, news, weather and the state
-// of every site in this repo, on one page that updates itself. Everything it
-// shows is fetched by one poller and pushed to every open browser over
-// server-sent events, so the page costs the upstreams the same whether nobody
-// or everybody is watching.
+// Command dash serves dash.bythewood.me, markets, news, weather and the state
+// of every site in this repo, on one page that updates itself. Each poll is
+// pushed to every open browser, so another viewer costs the upstreams nothing.
 package main
 
 import (
@@ -30,11 +28,9 @@ var templateFS embed.FS
 
 const listenAddr = ":8000"
 
-// waitForListener blocks until this process answers its own health check. The
-// health strip probes over loopback, so a first round started before Serve has
-// bound the socket reports this site as unknown for a minute after every
-// deploy. There is no deadline because a server that never binds has already
-// exited on the error.
+// waitForListener blocks until this process answers its own health check, since
+// the strip probes it over loopback. There's no deadline, since a server that
+// never binds has already exited on the error.
 func waitForListener(ctx context.Context) {
 	for {
 		if err := web.HealthCheck("http://127.0.0.1:8000/healthz", time.Second); err == nil {
@@ -55,9 +51,9 @@ func dir(env, fallback string) string {
 	return fallback
 }
 
-// csp allows 'unsafe-inline' for the analytics collector snippet and for the
-// sparkline paths, which are computed per quote and written as style attributes
-// rather than into a stylesheet that would need a nonce per render.
+// csp allows 'unsafe-inline' for the analytics snippet and the sparkline paths,
+// which are computed per quote and written as style attributes instead of a
+// stylesheet that would need a nonce per render.
 func csp() string {
 	return strings.Join([]string{
 		"default-src 'self'",
@@ -94,7 +90,7 @@ func main() {
 	}
 }
 
-// realMain returns rather than exits, so its deferred closes and the log
+// realMain returns instead of exiting, so its deferred closes and the log
 // shipper's flush run on every path out.
 func realMain() error {
 	web.SetupLogging()
@@ -155,7 +151,7 @@ func realMain() error {
 		styles:   assets.Styles("index.js"),
 	}
 
-	// Cancelled on shutdown so an in-flight fetch is abandoned rather than
+	// Cancelled on shutdown so an in-flight fetch is abandoned instead of
 	// holding the process past the stop grace period.
 	pollCtx, stopPolling := context.WithCancel(context.Background())
 	defer stopPolling()

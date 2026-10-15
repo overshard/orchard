@@ -75,9 +75,9 @@ var promoted = []string{
 	"newsletter",
 }
 
-// sidebars are the formats that are a page rather than a story, a minute of
-// footage or a rolling feed, and ten rows cannot spare a slot for one.
-// A question mark anywhere in a headline is the explainer beside the story.
+// sidebars are the formats that are a page and not a story, a minute of footage
+// or a rolling feed, which a panel can't spare a row for. A question mark
+// anywhere in a headline is the explainer beside the story.
 var sidebars = []string{
 	"watch:",
 	"watch live",
@@ -126,12 +126,11 @@ func titleKey(title string) string {
 	return key
 }
 
-// fetchRSS is the XML twin of getJSON, guarded the same way. It is separate
-// rather than a flag on that function because the decode differs and nothing
-// else about the two is worth sharing.
+// fetchRSS is the XML twin of getJSON, guarded the same way, and separate since
+// the decode differs and nothing else is worth sharing.
 func fetchRSS(ctx context.Context, g *Guard, endpoint, url string) (*rssFeed, error) {
-	// Feeds are fetched back to back, so this has to wait out the pace between
-	// two on the same endpoint rather than lose the second one.
+	// Feeds are fetched back to back, so this waits out the pace between two on
+	// the same endpoint instead of losing the second.
 	if err := g.Reserve(ctx, endpoint); err != nil {
 		return nil, err
 	}
@@ -165,8 +164,8 @@ func fetchRSS(ctx context.Context, g *Guard, endpoint, url string) (*rssFeed, er
 	return &feed, nil
 }
 
-// parseRSSTime reads the several date formats RSS feeds actually ship, rather
-// than the one RFC 822 says they should.
+// parseRSSTime reads the several date formats RSS feeds actually ship, and not
+// only the one RFC 822 says they should.
 func parseRSSTime(v string) (time.Time, error) {
 	v = strings.TrimSpace(v)
 	layouts := []string{

@@ -94,7 +94,7 @@ func TestSwingLooksOnlyInsideTheWindow(t *testing.T) {
 }
 
 // A warning is continued and extended under new ids through its life, and the
-// VTEC event number is what stays the same.
+// VTEC event number stays the same.
 func TestAlertKeyFollowsTheEventNotTheMessage(t *testing.T) {
 	first := alertKey([]string{"/O.NEW.KRAH.SV.W.0123.260928T2000Z-260928T2045Z/"}, "urn:1")
 	later := alertKey([]string{"/O.CON.KRAH.SV.W.0123.000000T0000Z-260928T2045Z/"}, "urn:2")

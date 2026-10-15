@@ -7,12 +7,11 @@ import (
 	"time"
 )
 
-// boardEvery is the rates and sector poll. Five minutes is finer than either
-// number deserves and it is a fifth of what riding the market poll cost.
+// boardEvery is the rates and sector poll, which is finer than either number
+// deserves.
 const boardEvery = 5 * time.Minute
 
-// Treasury yields and the sector board. Both ride the request the market strip
-// already makes, so the whole of this file costs no extra call.
+// Treasury yields and the sector board, which share a poll of their own.
 
 // Rate is one point on the curve. Yahoo publishes these as index symbols whose
 // price is the yield.
@@ -36,10 +35,8 @@ type RateRow struct {
 	Direction   string `json:"direction"`
 	Unavailable bool   `json:"unavailable"`
 
-	// How long this row's bar is. Four numbers in a column say what each
-	// maturity pays and nothing about the shape they make together, and the
-	// shape is the only reason anyone looks at a curve. Reading the bars down
-	// the panel gives the ladder without spending a block on a chart.
+	// How long this row's bar is, so reading the bars down the panel gives the
+	// curve's shape, which a column of yields doesn't.
 	Fill float64 `json:"fill"`
 }
 
@@ -49,17 +46,15 @@ type Rates struct {
 	// The shape in a word, which is the read the spread is there to give.
 	Shape string `json:"shape"`
 
-	// Curve is the ten year less the three month. It is the spread with the
-	// better record as a recession signal than the two year version everyone
-	// quotes, and it is the one these four symbols can actually produce, since
-	// Yahoo has no clean two year index.
+	// Curve is the ten year less the three month, which has a better record as
+	// a recession signal than the two year version, and Yahoo has no clean two
+	// year index anyway.
 	Curve      string `json:"curve"`
 	CurveState string `json:"curve_state"`
 }
 
-// normaliseYield handles Yahoo's legacy scaling. These indexes were quoted at
-// ten times the yield for years and are now quoted as the yield itself, and a
-// treasury paying 42% would be a story bigger than this dashboard, so anything
+// normaliseYield handles Yahoo's legacy scaling at ten times the yield. A
+// treasury paying 42% would be a bigger story than this dashboard, so anything
 // above twenty is the old form.
 func normaliseYield(v float64) float64 {
 	if v > 20 {
@@ -117,10 +112,9 @@ func buildRates(quotes map[string]Quote) Rates {
 	return r
 }
 
-// scaleRates sets each row's bar length. The scale runs from zero to the top of
-// the range rounded up, so a bar is proportional to the yield it draws and the
-// four together read as the ladder. A relative scale between the lowest and the
-// highest would turn a quarter point of spread into a cliff.
+// scaleRates runs each row's bar from zero to the top of the range rounded up,
+// so a bar is proportional to its yield. A scale from the lowest to the highest
+// would turn a quarter point of spread into a cliff.
 func scaleRates(r *Rates, yields map[string]float64) {
 	var hi float64
 	for _, y := range yields {
@@ -142,8 +136,8 @@ func scaleRates(r *Rates, yields map[string]float64) {
 	}
 }
 
-// Sector is one of the eleven SPDR funds the S&P is cut into. Together they are
-// the answer to what is actually moving on a day the index moved.
+// Sector is one of the SPDR funds the S&P is cut into, which together say
+// what's moving on a day the index moved.
 type Sector struct {
 	Symbol string
 	Label  string
@@ -173,13 +167,13 @@ type SectorCell struct {
 	Unavailable bool    `json:"unavailable"`
 }
 
-// benchmark sits in the board with the eleven sectors, both so the grid is a
-// complete three by four and because the only useful thing to know about a
-// sector's day is whether it beat the index.
+// benchmark sits in the board with the sectors, both to fill out the grid and
+// because the only useful thing to know about a sector's day is whether it beat
+// the index.
 var benchmark = Sector{"SPY", "S&P 500"}
 
 // buildSectors returns the cells ordered by the day's move, so the board reads
-// best to worst rather than in a fixed order nobody remembers.
+// best to worst instead of in a fixed order nobody remembers.
 func buildSectors(quotes map[string]Quote) []SectorCell {
 	cells := make([]SectorCell, 0, len(sectors)+1)
 
@@ -201,7 +195,7 @@ func buildSectors(quotes map[string]Quote) []SectorCell {
 		cells = append(cells, cell)
 	}
 
-	// Descending, with anything unavailable pushed to the end rather than
+	// Descending, with anything unavailable pushed to the end instead of
 	// sorting as a zero in the middle of the board.
 	for i := 1; i < len(cells); i++ {
 		for j := i; j > 0; j-- {
@@ -238,8 +232,7 @@ func heatStep(pct float64) int {
 	}
 }
 
-// rateAndSectorSymbols is everything this file needs, appended to the one
-// request the market poll already makes.
+// rateAndSectorSymbols is everything the board poll asks for.
 func rateAndSectorSymbols() []string {
 	out := make([]string, 0, len(rates)+len(sectors)+1)
 	for _, r := range rates {

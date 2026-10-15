@@ -60,8 +60,8 @@ func (m *scriptedModel) Structured(_ context.Context, _, user string, _ map[stri
 func (m *scriptedModel) GPU(context.Context) (GPUState, error) { return GPUState{}, nil }
 func (m *scriptedModel) Unload(context.Context) error          { return nil }
 
-// The 11 Oct morning HN read, one sentence run into the cap with its only comma
-// too early to cut at, which left the panel with no read at all.
+// A read run into the cap as one sentence with its only comma too early to cut
+// at, which would leave the panel with no read at all.
 func TestFeedReadRetriesACutRead(t *testing.T) {
 	cut := "The Hacker News front page is a mix of niche software projects, infrastructure incidents, and a science study, with commenters debating the practical limits of code-as-math tools and warning about the hidden costs of self-hosting on free AI"
 	m := &scriptedModel{answers: []string{

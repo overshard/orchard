@@ -49,8 +49,8 @@ func quickSite(t *testing.T, chat string) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/quick", s.quick)
 	mux.HandleFunc("POST /api/quick/send", s.quickSend)
-	// Through the request logger, since a wrapper that hides the flusher is
-	// how a stream here broke before.
+	// Through the request logger, since a wrapper that hides the flusher breaks
+	// a stream.
 	return web.Chain(mux, web.Logged)
 }
 

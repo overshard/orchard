@@ -14,11 +14,9 @@ import (
 	"time"
 )
 
-// The glance desk runs last at each slot and reads everything else on the page
-// into one short read at the top, so a day where nothing happened can be seen to
-// be one without scrolling. Each slot's level is worked out here from fixed
-// thresholds and the model only gets to phrase it, since a small model asked
-// whether things are serious will find a way to say yes.
+// The glance desk runs last at each slot and reads the rest of the page into
+// one short read at the top. Go sets the levels and the model only phrases
+// them, since asked whether things are serious it says yes.
 
 const (
 	levelQuiet = "quiet"
@@ -50,8 +48,8 @@ func (g glanceSlot) text() string {
 	return strings.Join(g.facts, "\n")
 }
 
-// glanceSlots reads the state into the five slots. Thresholds are on the side
-// of quiet, since a read that says watch every day stops being read.
+// glanceSlots reads the state into its slots. Thresholds are on the side of
+// quiet, since a read that says watch every day stops being read.
 func glanceSlots(st State, releases []release, now time.Time) []glanceSlot {
 	now = now.In(easternTime())
 	return []glanceSlot{glanceMarkets(st, releases, now), glanceNews(st), glanceTech(st), glanceWeather(st), glancePlay(st, now)}
@@ -308,7 +306,7 @@ func (b *Briefer) compileGlance(ctx context.Context, slot briefSlot, at time.Tim
 		why = append(why, "down on the health strip: "+strings.Join(down, ", "))
 	}
 
-	// A slot with nothing to go on is left out rather than handed to the model,
+	// A slot with nothing to go on is left out instead of handed to the model,
 	// which writes "No weather." for it.
 	slots = slices.DeleteFunc(slots, func(s glanceSlot) bool { return len(s.facts) == 0 })
 

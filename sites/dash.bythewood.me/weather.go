@@ -8,9 +8,8 @@ import (
 	"time"
 )
 
-// open-meteo needs no key and no account, which is the reason it is here rather
-// than any of the services that would put a credential in this repo for a panel
-// showing the temperature.
+// open-meteo needs no key and no account, so no credential lands in this repo
+// for a panel showing the temperature.
 const weatherURL = "https://api.open-meteo.com/v1/forecast"
 
 type Weather struct {
@@ -47,8 +46,8 @@ type WeatherDay struct {
 	Gusts     float64 `json:"gusts"`
 }
 
-// Hour is one column of the strip. Rain is a percentage rather than a depth
-// because a chance is what decides whether to take a coat.
+// Hour is one column of the strip. Rain is a chance and not a depth, since a
+// chance decides whether to take a coat.
 type Hour struct {
 	Label string `json:"label"`
 	Temp  string `json:"temp"`
@@ -124,9 +123,8 @@ func fetchWeather(ctx context.Context, g *Guard) (Weather, error) {
 		w.UVFill, w.UVLevel = gauge(uv, 11, 3, 6, 8)
 	}
 
-	// open-meteo returns these as local wall clock with no offset, which is
-	// what timezone=America/New_York asked for, so they are parsed in that
-	// location rather than as UTC.
+	// open-meteo returns these as New York wall clock with no offset, as
+	// timezone asked for, so they're parsed in that location and not as UTC.
 	if len(payload.Daily.Sunrise) > 0 && len(payload.Daily.Sunset) > 0 {
 		rise, errRise := time.ParseInLocation("2006-01-02T15:04", payload.Daily.Sunrise[0], easternTime())
 		set, errSet := time.ParseInLocation("2006-01-02T15:04", payload.Daily.Sunset[0], easternTime())
@@ -171,7 +169,7 @@ func buildHours(p weatherPayload, now time.Time) []Hour {
 	}
 
 	// The strip colours its temperatures against its own range, so a mild
-	// evening still shows a gradient instead of eight identical cells.
+	// evening still shows a gradient instead of identical cells.
 	lo, hi := math.Inf(1), math.Inf(-1)
 	for i := start; i < len(h.Temperature) && i < start+hoursShown; i++ {
 		lo, hi = math.Min(lo, h.Temperature[i]), math.Max(hi, h.Temperature[i])
@@ -198,7 +196,7 @@ func buildHours(p weatherPayload, now time.Time) []Hour {
 }
 
 // warmStep buckets a temperature into four steps across the strip's own range,
-// so the row reads as a gradient rather than as eight numbers.
+// so the row reads as a gradient instead of a list of numbers.
 func warmStep(v, lo, hi float64) int {
 	if hi-lo < 1 {
 		return 1
@@ -240,10 +238,9 @@ func uvBand(uv float64) string {
 	}
 }
 
-// describeWeather maps a WMO 4677 present-weather code to words. The ranges are
-// the ones open-meteo documents, collapsed to the distinctions worth making on
-// a card this size. No glyph, because an emoji is the one texture that would
-// give the whole page away as a web page.
+// describeWeather maps a WMO 4677 code to words, the ranges open-meteo
+// documents collapsed to what's worth saying on a card this size. No glyph,
+// since an emoji would give the whole page away as a web page.
 func describeWeather(code int) string {
 	switch {
 	case code == 0:

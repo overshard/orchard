@@ -89,8 +89,8 @@ func TestTradingDay(t *testing.T) {
 	}
 }
 
-// Reuters ran the same headline after Monday's close and Tuesday's, and one
-// cluster cited for both had YESTERDAY and TODAY saying the same thing.
+// Reuters runs the same headline after Monday's close and Tuesday's, and one
+// cluster cited for both would have YESTERDAY and TODAY saying the same thing.
 func TestMarketsKeepSessionsApart(t *testing.T) {
 	monday := story{title: "S&P 500 flat as chipmakers fall", url: "https://reuters.test/1", source: "REUTERS", at: inNY(t, "2026-10-12 16:10")}
 	tuesday := story{title: "S&P 500 flat as chipmakers fall and bank earnings roll in", url: "https://reuters.test/2", source: "REUTERS", at: inNY(t, "2026-10-13 16:10")}

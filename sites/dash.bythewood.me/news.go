@@ -9,14 +9,9 @@ import (
 	"time"
 )
 
-// Two feeds, two reasons. Hacker News is what Isaac asked for, and Lobsters
-// sits next to it so the panel is not one community's view of the same day.
-//
-// Hacker News comes from Algolia rather than from the official Firebase API.
-// Firebase hands back 500 bare story ids and charges one HTTP request per story
-// to resolve each into a title, which is 30 requests for a panel that shows 10.
-// Algolia's front_page search returns all of them, scored and with comment
-// counts, in a single response.
+// Hacker News, with Lobsters beside it so the panel isn't one community's view
+// of the day. HN is Algolia's front_page search, every story with its score and
+// comments in one response, where Firebase costs one each.
 const (
 	hackerNewsURL = "https://hn.algolia.com/api/v1/search?tags=front_page&hitsPerPage=30"
 	lobstersURL   = "https://lobste.rs/hottest.json"
@@ -72,7 +67,7 @@ func fetchHackerNews(ctx context.Context, g *Guard, now time.Time) ([]Story, Pul
 		link := h.URL
 		discuss := "https://news.ycombinator.com/item?id=" + h.ObjectID
 		// An Ask HN or a Show HN with no link is its own discussion, so the
-		// title has to point somewhere rather than nowhere.
+		// title points there.
 		if link == "" {
 			link = discuss
 		}

@@ -22,10 +22,9 @@ var marketFeeds = []briefFeed{
 	{"NPR", "L", "npr", "https://feeds.npr.org/1017/rss.xml"},
 }
 
-// marketSchema gives every line its own field so a forward line can't come
-// back as "none", which the 9B did on a quiet Monday and wrote up Netflix layoffs.
-// The lean is "verdict" since keys go out sorted and the model writes them in
-// that order, and it has to write its reasons before it picks a side.
+// marketSchema gives every line its own field so a forward line can't come back
+// as "none". The lean is "verdict" since keys go out sorted and the model
+// writes them in order, so its reasons come before it picks a side.
 func marketSchema(lines []marketLine) map[string]any {
 	props := map[string]any{}
 	var required []string
@@ -51,8 +50,8 @@ func marketSchema(lines []marketLine) map[string]any {
 }
 
 func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Time) (Brief, error) {
-	// The strip idles at five minutes with nobody watching, and the close
-	// wants the 4pm print rather than one from before the bell.
+	// The strip idles slow with nobody watching, and the close wants the 4pm
+	// print and not one from before the bell.
 	b.store.refreshMarket(ctx, b.guard)
 	b.store.refreshBoard(ctx, b.guard)
 
@@ -545,7 +544,7 @@ func nextWeekday(t time.Time) time.Time {
 }
 
 // dayName is YESTERDAY or TOMORROW when it is one, and the weekday when it is
-// further, so Monday's brief says FRIDAY rather than calling it yesterday.
+// further, so Monday's brief says FRIDAY instead of calling it yesterday.
 func dayName(day, now time.Time) string {
 	switch day.Format("2006-01-02") {
 	case now.AddDate(0, 0, -1).Format("2006-01-02"):

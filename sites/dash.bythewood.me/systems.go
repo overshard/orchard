@@ -11,18 +11,12 @@ import (
 	"time"
 )
 
-// The health strip. This is a public page, so a row carries a name, an up or
-// down, a latency and a count of errors, and never a path, a message, a status
-// code or an address. What logging hands over is already limited to that, and
-// the limit lives at both ends so neither has to remember for the other.
-//
-// This is not a second status.bythewood.me. There are no phase timings, no
-// history and no alerting here, because status already does all of that
-// properly and a strip of dots is what a dashboard wants.
+// The health strip. The page is public, so a row carries a name, up or down, a
+// latency and an error count, and never a path, a message, a status code or an
+// address. logging hands over only that, and both ends hold the limit.
 
-// probeEvery is the strip's cadence. Slower than the markets panel because a
-// site that has been up for eight hours is not news, and every probe is against
-// Isaac's own machine rather than someone else's endpoint.
+// probeEvery is slower than the markets poll, since a site that stayed up isn't
+// news.
 const probeEvery = 60 * time.Second
 
 // aggregateURL is a container name on the orchard-edge bridge, never the public
@@ -35,9 +29,9 @@ type Monitored struct {
 	Label  string
 	Source string
 
-	// Host is the public hostname, and is empty for something that has none.
-	// Without one there is no fallback probe, so it reads unknown rather than
-	// down wherever the bridge is not reachable.
+	// Host is the public hostname, empty for something that has none. Without
+	// one there's no fallback probe, so it reads unknown instead of down
+	// wherever the bridge isn't reachable.
 	Host string
 
 	// Bridge overrides the usual <container>:8000/healthz.
@@ -61,10 +55,9 @@ var monitored = []Monitored{
 	{Label: "LLM", Source: "llm", Host: "llm.bythewood.me"},
 	{Label: "Dash", Source: "dash", Host: "dash.bythewood.me"},
 
-	// The edge itself, and the only part of it on this strip: Caddy is the one
-	// that ships its access log, so it is the one with an error count to show
-	// beside the others. cloudflared and ntfy log to stdout and cannot write to
-	// a socket, so neither has anything here to be counted.
+	// Caddy is the only part of the edge on the strip, since it ships its
+	// access log and so has an error count to show. cloudflared and ntfy only
+	// log to stdout.
 	{Label: "Caddy", Source: "caddy", Bridge: "http://orchard-caddy:80/", AnyStatus: true},
 }
 
@@ -76,16 +69,14 @@ type SystemRow struct {
 	Errors    int64  `json:"errors"`
 	KnowError bool   `json:"know_error"`
 
-	// How long this site takes to answer at the slow end of a day, read off
-	// its own access log rather than measured here. The probe runs over the
-	// Docker bridge, so timing it reported the bridge: every site came back
-	// between one and two milliseconds whatever it was actually doing.
+	// How long this site takes to answer at the slow end of a day, read off its
+	// own access log instead of timed here, since a probe over the Docker
+	// bridge only times the bridge.
 	Response string `json:"response"`
 
-	// Traffic over the same window as Errors, plus where it sits against this
-	// site's own preceding week. Busy is relative here or it is meaningless:
-	// a day that would be dead for a news site is a good day for a personal
-	// blog, so the comparison is always against the site itself.
+	// Traffic over the same window as Errors, and where it sits against this
+	// site's own preceding week, since a dead day for a news site is a good one
+	// for a blog.
 	Requests int64  `json:"requests"`
 	KnowTraf bool   `json:"know_traf"`
 	Level    int    `json:"level"`
@@ -102,11 +93,8 @@ type Systems struct {
 	Checked  string      `json:"checked"`
 }
 
-// probeClient is separate from the shared JSON client because these are health
-// probes and a pooled connection would report a warm socket rather than a
-// reachable site. Nothing here is trying to be a real uptime measurement, that
-// is what status is for, but a probe that reuses a socket to a container that
-// died two seconds ago is wrong rather than approximate.
+// probeClient is separate from the shared client because a probe that reuses a
+// pooled socket to a container that just died reports it up.
 var probeClient = &http.Client{
 	Timeout: 5 * time.Second,
 	Transport: &http.Transport{
@@ -118,29 +106,23 @@ var probeClient = &http.Client{
 	},
 }
 
-// probeResult separates the three things a probe attempt can mean. Collapsed,
-// the goroutines start at once, the guard paces all but one of them, and a paced
-// probe reads as an unreachable site, so the strip reports a site down while it
-// is serving.
+// probeResult separates the three things a probe attempt can mean. The probes
+// start at once and the guard paces all but one, so a paced probe read as
+// unreachable would call a serving site down.
 type probeResult int
 
 const (
 	probeAnswered probeResult = iota
-	// The name does not resolve, so this is the wrong route rather than a
-	// failure and the caller should try the next one.
+	// The name doesn't resolve, so this is the wrong route and not a failure,
+	// and the caller tries the next one.
 	probeNoRoute
 	// The guard said no, so nothing went out and nothing was learned.
 	probeSkipped
 )
 
-// probe answers whether one site is serving, and how fast.
-//
-// The container on the bridge is asked first and the public hostname is only a
-// fallback, because Cloudflare will happily serve a cached 200 for /healthz
-// long after the origin behind it has stopped answering. Two of these sites
-// return CF-Cache-Status: HIT for that path right now, so a public probe is not
-// evidence the site is up. When the fallback is what answered, the row says
-// cached rather than up and means it.
+// probe asks the container on the bridge first and the public hostname only as
+// a fallback, since Cloudflare serves a cached 200 for /healthz long after the
+// origin stops. A row the fallback answered says cached instead of up.
 func probe(ctx context.Context, g *Guard, m Monitored) SystemRow {
 	row := SystemRow{Label: m.Label, Host: m.Host, State: "unknown"}
 	if m.Host != "" {
@@ -176,8 +158,8 @@ func probe(ctx context.Context, g *Guard, m Monitored) SystemRow {
 			row.State = state
 			return row
 		case probeSkipped:
-			// Nothing was measured, so the row stays unknown rather than
-			// claiming a site is down on the strength of a paced request.
+			// Nothing was measured, so the row stays unknown instead of calling
+			// a site down on the strength of a paced request.
 			return row
 		}
 	}
@@ -222,12 +204,9 @@ func hit(ctx context.Context, g *Guard, url string, public, anyStatus bool) (sta
 	return state, probeAnswered
 }
 
-// humanMS keeps a response time to six characters. These sites answer an
-// embedded page in a fraction of a millisecond and repos answers a git pack in a
-// fifth of a second, so the column has to carry four orders of magnitude without
-// going ragged. Anything under a millisecond is still printed rather than
-// rounded to "<1ms", or half the strip reads as the same number when the sites
-// are a factor of ten apart.
+// humanMS keeps a response time to six characters across four orders of
+// magnitude. Under a millisecond is still printed instead of "<1ms", or half
+// the strip reads the same when the sites are ten times apart.
 func humanMS(ms float64) string {
 	switch {
 	case ms <= 0:
@@ -325,8 +304,8 @@ func visitURL(host string) string {
 }
 
 // trafficLevel puts a site's day on a four step scale against the busiest site
-// here, so the bars compare like with like on one machine rather than against
-// some idea of what a busy site is.
+// here, so the bars compare like with like instead of against some idea of
+// busy.
 func trafficLevel(requests, busiest int64) int {
 	if requests <= 0 || busiest <= 0 {
 		return 0

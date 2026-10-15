@@ -7,10 +7,9 @@ import (
 	"time"
 )
 
-// Notice is something a browser with notifications switched on should hear
-// about once. The id is built from the thing itself and never from when it was
-// seen, so every poll and every restart names the same event the same way and
-// the browser only has to remember which ids it has already shown.
+// Notice is something a browser with notifications on should hear about once.
+// The id is built from the thing and never from when it was seen, so every poll
+// and every restart names an event the same way.
 type Notice struct {
 	ID    string `json:"id"`
 	Kind  string `json:"kind"` // market, weather, earnings, news, live
@@ -20,7 +19,7 @@ type Notice struct {
 }
 
 // setNotices replaces one kind's notices and leaves the rest. It builds a new
-// slice rather than filtering in place, since a snapshot handed out earlier
+// slice instead of filtering in place, since a snapshot handed out earlier
 // shares the old backing array.
 func (st *State) setNotices(kind string, ns []Notice) {
 	kept := make([]Notice, 0, len(st.Notices)+len(ns))
@@ -102,11 +101,9 @@ func earningsNotices(rows []Earning) []Notice {
 	return out
 }
 
-// The move on each card worth hearing about, in percent. day is measured from
-// the close and swing inside the last swingWindow. Each is the first rung of a
-// ladder that notifies again every half step further, so a slide from 2% to 4%
-// is three notifications and not one per poll. The Dow and the Russell are left
-// to the S&P and the Nasdaq, and the VIX follows the S&P rather than leading it.
+// Moves worth a notice, in percent, day from the close and swing inside
+// swingWindow, each the first rung of a ladder that notifies every half step
+// further. The Dow, the Russell and the VIX are left to the S&P and the Nasdaq.
 var moveBands = map[string]struct{ day, swing float64 }{
 	"sp500":   {2, 1.5},
 	"nasdaq":  {2.5, 2},
@@ -203,7 +200,7 @@ func upDown(pct float64) string {
 }
 
 // moveContext is the rest of the market beside a move, since one index falling
-// alone and all four falling together are different afternoons.
+// alone and every index falling together are different afternoons.
 func moveContext(r stripRow, byKey map[string]stripRow) string {
 	switch r.in.Key {
 	case "sp500", "nasdaq":

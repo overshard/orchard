@@ -5,8 +5,8 @@ import (
 	"time"
 )
 
-// at builds a New York wall clock time, which is what every session boundary
-// here is expressed in.
+// at builds a New York wall clock time, the clock every session boundary here
+// is expressed in.
 func at(t *testing.T, s string) time.Time {
 	t.Helper()
 	ts, err := time.ParseInLocation("2006-01-02 15:04", s, easternTime())
@@ -66,7 +66,7 @@ func TestBuildMarketSwapsToFuturesOutsideRegularHours(t *testing.T) {
 }
 
 // A market holiday falls inside regular hours by the clock, and there is no
-// holiday calendar here, so the quote's own age is what catches it.
+// holiday calendar here, so the quote's own age catches it.
 func TestBuildMarketTreatsAStaleCashQuoteAsClosed(t *testing.T) {
 	now := at(t, "2026-08-27 14:00")
 
@@ -215,7 +215,7 @@ func TestCarrySparksStopsAtASymbolChange(t *testing.T) {
 	}
 }
 
-// The spark endpoint answers 400 rather than truncating past its symbol limit,
+// The spark endpoint answers 400 instead of truncating past its symbol limit,
 // so every symbol the page needs has to arrive in a batch small enough to be
 // accepted.
 func TestSparkSymbolsBatchWithinTheLimit(t *testing.T) {
@@ -294,8 +294,8 @@ func TestTheFastPollCarriesOnlyTheStrip(t *testing.T) {
 	}
 }
 
-// The strip goes out as two requests now, and each half still has to fit the
-// endpoint's symbol limit or it answers 400 rather than truncating.
+// The strip goes out as two requests, and each half still has to fit the
+// endpoint's symbol limit or it answers 400 instead of truncating.
 func TestSplitStripCoversTheWholeStripInAcceptableBatches(t *testing.T) {
 	session, extended := splitStrip()
 
@@ -368,8 +368,8 @@ func TestBuildMarketOnlyRecomputesThePreviousCloseForRoundTheClockSymbols(t *tes
 }
 
 // Yahoo's own previous close is relative to the range asked for, so on the five
-// day batch it is a five day old number. A card with no 4pm in its bars has to
-// say it has no baseline rather than quietly measure from last week.
+// day batch it's five days old. A card with no 4pm in its bars says it has no
+// baseline instead of quietly measuring from last week.
 func TestRoundTheClockCardWithNoBellWithholdsTheChange(t *testing.T) {
 	et := easternTime()
 	open := time.Date(2026, 8, 31, 9, 30, 0, 0, et)
@@ -408,8 +408,8 @@ func TestRoundTheClockCardWithNoBellWithholdsTheChange(t *testing.T) {
 	}
 }
 
-// The board is the eleven sectors plus the index they are read against, which
-// is also what makes it a complete three by four grid.
+// The board is the sectors plus the index they are read against, which also
+// makes it a complete grid.
 func TestSectorBoardCarriesTheBenchmark(t *testing.T) {
 	quotes := map[string]Quote{}
 	for _, s := range append(sectors, benchmark) {
@@ -440,10 +440,9 @@ func TestSectorBoardCarriesTheBenchmark(t *testing.T) {
 	}
 }
 
-// The tab leads with whatever is still moving: the S&P while the session is
-// open, and bitcoin once it shuts, which is the one on this page that never
-// stops. Worth a test because the closed branch is the only one visible for
-// most of the day and the open one would otherwise ship unread.
+// The tab leads with whatever is still moving, the S&P while the session is
+// open and bitcoin once it shuts. The closed branch is the only one visible
+// most of the day, so the open one would otherwise ship unread.
 func TestTabTickerFollowsTheSession(t *testing.T) {
 	cards := []Card{
 		{Key: "sp500", Percent: "+0.42%"},
@@ -470,9 +469,9 @@ func TestTabTickerSkipsAnUnavailableCard(t *testing.T) {
 	}
 }
 
-// The eight cards are read across, so the right edge of one has to mean the same
-// hour as the right edge of the next. Bitcoin trades through the evening and the
-// VIX stops at the bell, and without a shared end both would fill their card.
+// The cards are read across, so the right edge of one has to mean the same hour
+// as the right edge of the next. Bitcoin trades through the evening and the VIX
+// stops at the bell, and without a shared end both would fill their card.
 func TestStripAxisSharesOneWindowAndLeavesAFrozenCardShort(t *testing.T) {
 	et := easternTime()
 	open := time.Date(2026, 8, 31, 9, 30, 0, 0, et)

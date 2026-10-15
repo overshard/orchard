@@ -12,13 +12,13 @@ import (
 	"time"
 )
 
-// lean is AllSides' rating of each outlet, L, C or R. It is never shown to the
-// model as a reason to keep or drop anything, only counted per story so a story
-// one side alone is covering can be marked as that rather than left out.
+// lean is AllSides' rating of each outlet, L, C or R. It's never shown to the
+// model, only counted per story, so a story one side alone is covering gets
+// marked as that instead of left out.
 type briefFeed struct{ name, lean, endpoint, url string }
 
-// AP and Reuters have no public feeds of their own any more, so they come
-// through Google News searches restricted to their domains.
+// AP and Reuters have no public feeds of their own, so they come through Google
+// News searches restricted to their domains.
 func googleNews(site string) string {
 	return "https://news.google.com/rss/search?q=when:1d+site:" + site + "&hl=en-US&gl=US&ceid=US:en"
 }
@@ -172,10 +172,9 @@ func (c cluster) outlets() []string {
 	return names
 }
 
-// lead is the telling the model reads. The title that shares the most words
-// with the rest of the event wins, so one outlet folding a second story into
-// its headline doesn't speak for all of them, and a center outlet's is favoured
-// since the point is to hand it the least framed headline available.
+// lead is the telling the model reads, the title sharing the most words with
+// the rest, so one outlet folding in a second story doesn't speak for all. A
+// center outlet's is favoured as the least framed.
 func (c cluster) lead() story {
 	score := func(s story) int {
 		n := 0
