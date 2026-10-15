@@ -576,6 +576,26 @@ fmt-check:
 fmt:
 	gofmt -l -w sites
 
+# The comment rules a script can hold, from the Writing section of CLAUDE.md.
+# dash is left out until its own pass, since its blocks still run long.
+VOICE_SITES = $(filter-out dash.bythewood.me,$(SITES))
+
+.PHONY: voice
+check: voice
+voice:
+	@find $(addprefix sites/,$(VOICE_SITES)) -name '*.go' -not -path '*/build/*' | sort | \
+	xargs awk -v em="$$(printf '\342\200\224')" -v en="$$(printf '\342\200\223')" ' \
+	function say(n, what) { print file ":" n ": " what; bad = 1 } \
+	function flush() { if (run > 3) say(start, "comment block of " run " lines"); run = 0 } \
+	FNR == 1 { flush(); file = FILENAME } \
+	{ line = $$0; sub(/^[ \t]+/, "", line); full = substr(line, 1, 2) == "//"; dir = line ~ /^\/\/(go:|line )/ } \
+	full && !dir { if (!run) start = FNR; run++; bare = line == "//" } \
+	!full || dir { if (dir && bare) run--; flush() } \
+	{ i = index($$0, "//"); if (!i || dir) next; c = substr($$0, i + 2) } \
+	index(c, em) || index(c, en) { say(FNR, "em or en dash") } \
+	full { gsub(/"[^"]*"|`[^`]*`/, "", c); if (c ~ /[A-Za-z0-9)]; |;$$/) say(FNR, "semicolon") } \
+	END { flush(); exit bad }'
+
 vet:
 	for s in $(SITES); do echo "vet $$s"; (cd sites/$$s && go vet ./...) || exit 1; done
 
