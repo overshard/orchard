@@ -29,6 +29,7 @@ const (
 	listenAddr = ":8000"
 	sourceURL  = "https://github.com/overshard/orchard/tree/main/sites/llm.bythewood.me"
 	selfSource = "llm"
+	author     = "Isaac Bythewood"
 )
 
 // csp is the same shape as every other site here. 'unsafe-inline' is for the
@@ -208,6 +209,7 @@ func (s *site) loadTemplates() error {
 		"when":  fmtWhen,
 		"short": short,
 		"comma": comma,
+		"num":   num,
 		"asset": assetURL,
 	}).ParseFS(assets(), "templates/*.html")
 	if err != nil {
@@ -250,7 +252,11 @@ func (s *site) root(w http.ResponseWriter, r *http.Request) {
 		s.overview(w, r)
 		return
 	}
-	s.render(w, "landing.html", map[string]any{"Title": "Overview"})
+	nKeys, nCalls := s.store.Counts()
+	s.render(w, "landing.html", map[string]any{
+		"Title": "Overview", "Keys": nKeys, "Calls": nCalls,
+		"RetainDays": int(s.retain.Hours() / 24), "Author": author, "Year": time.Now().Year(),
+	})
 }
 
 func (s *site) overview(w http.ResponseWriter, r *http.Request) {
@@ -368,6 +374,18 @@ func short(s string, n int) string {
 		return text
 	}
 	return text[:n] + "..."
+}
+
+// num is comma for templates. It takes any because a template handing it the
+// wrong integer type fails at render time, not at build.
+func num(v any) string {
+	switch t := v.(type) {
+	case int:
+		return comma(t)
+	case int64:
+		return comma(int(t))
+	}
+	return fmt.Sprint(v)
 }
 
 func comma(n int) string {
