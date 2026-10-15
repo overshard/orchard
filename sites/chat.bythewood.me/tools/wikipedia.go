@@ -30,7 +30,17 @@ const wikiBook = "wikipedia"
 // is for the occasional long one.
 const wikiMaxChars = 4000
 
-var Wikipedia = Tool{
+type wikipediaArgs struct {
+	Query string
+}
+
+func (a *wikipediaArgs) params() []param {
+	return []param{
+		strArg(&a.Query, "query", "the name of the thing to look up, like 'PostgreSQL' or 'North Korea', not a question").required(),
+	}
+}
+
+var Wikipedia = Define(Tool{
 	Name: "wikipedia",
 	Description: "Look a subject up in a local offline Wikipedia snapshot. It answers in " +
 		"milliseconds, costs no web request, and returns the opening section of that article. " +
@@ -40,21 +50,17 @@ var Wikipedia = Tool{
 		"is a b-tree used for' pass 'b-tree'. It holds background rather than news: it knows " +
 		"nothing after its snapshot date and carries each article's opening section only, so use " +
 		"web_search or web_fetch for detail or for anything current.",
-	Schema: obj(map[string]any{
-		"query": str("the name of the thing to look up, like 'PostgreSQL' or 'North Korea', not a question"),
-	}, "query"),
-	Run: func(ctx context.Context, d *Deps, a map[string]any) (any, error) {
-		q := strings.TrimSpace(argStr(a, "query"))
-		if q == "" {
-			return nil, fmt.Errorf("query is required")
-		}
-		if to := liveInstead(q); to != "" {
-			return nil, fmt.Errorf("the snapshot cannot answer that, it holds background and not "+
-				"what is happening. Call %s instead", to)
-		}
-		return wikiLookup(ctx, d, WikiBase, q)
-	},
-}
+}, func(ctx context.Context, d *Deps, a wikipediaArgs) (any, error) {
+	q := a.Query
+	if q == "" {
+		return nil, fmt.Errorf("query is required")
+	}
+	if to := liveInstead(q); to != "" {
+		return nil, fmt.Errorf("the snapshot cannot answer that, it holds background and not "+
+			"what is happening. Call %s instead", to)
+	}
+	return wikiLookup(ctx, d, WikiBase, q)
+})
 
 // liveInstead names the tool for a subject whose head noun changes by the hour,
 // since "Big news today" otherwise finds Universe Today. The head noun and not any

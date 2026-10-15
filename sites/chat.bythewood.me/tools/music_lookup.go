@@ -9,7 +9,19 @@ import (
 	"unicode"
 )
 
-var MusicLookup = Tool{
+type musicLookupArgs struct {
+	Artist string
+	Track  string
+}
+
+func (a *musicLookupArgs) params() []param {
+	return []param{
+		strArg(&a.Artist, "artist", "the artist").required(),
+		strArg(&a.Track, "track", "the song title, optional"),
+	}
+}
+
+var MusicLookup = Define(Tool{
 	Name: "music_lookup",
 	Description: "Check that a song or artist actually exists and get its album and year, from the " +
 		"iTunes catalogue. Use it before listing songs you are not certain about, since an invented " +
@@ -17,35 +29,30 @@ var MusicLookup = Tool{
 		"Only for a question that is already about music. It searches a music catalogue and cannot " +
 		"say what an unfamiliar name refers to, so never reach for it to identify a person, a " +
 		"channel or a company because the name sounds like a band.",
-	Schema: obj(map[string]any{
-		"artist": str("the artist"),
-		"track":  str("the song title, optional"),
-	}, "artist"),
-	Run: func(ctx context.Context, d *Deps, a map[string]any) (any, error) {
-		term := strings.TrimSpace(argStr(a, "artist") + " " + argStr(a, "track"))
-		if term == "" {
-			return nil, fmt.Errorf("artist is required")
-		}
-		track := strings.TrimSpace(argStr(a, "track"))
-		if out, ok := artistSongs(ctx, d, strings.TrimSpace(argStr(a, "artist")), track); ok {
-			return map[string]any{"query": term, "matches": out}, nil
-		}
-		var res itunesResults
-		u := "https://itunes.apple.com/search?media=music&entity=song&limit=5&term=" + url.QueryEscape(term)
-		if err := getJSON(ctx, d, u, &res); err != nil {
-			return nil, err
-		}
-		out := make([]songMatch, 0, len(res.Results))
-		for _, r := range res.Results {
-			out = append(out, r.match())
-		}
-		if len(out) == 0 {
-			return map[string]any{"query": term, "matches": out,
-				"note": "nothing in the catalogue matches, so treat this as not existing"}, nil
-		}
+}, func(ctx context.Context, d *Deps, a musicLookupArgs) (any, error) {
+	term := strings.TrimSpace(a.Artist + " " + a.Track)
+	if term == "" {
+		return nil, fmt.Errorf("artist is required")
+	}
+	track := a.Track
+	if out, ok := artistSongs(ctx, d, a.Artist, track); ok {
 		return map[string]any{"query": term, "matches": out}, nil
-	},
-}
+	}
+	var res itunesResults
+	u := "https://itunes.apple.com/search?media=music&entity=song&limit=5&term=" + url.QueryEscape(term)
+	if err := getJSON(ctx, d, u, &res); err != nil {
+		return nil, err
+	}
+	out := make([]songMatch, 0, len(res.Results))
+	for _, r := range res.Results {
+		out = append(out, r.match())
+	}
+	if len(out) == 0 {
+		return map[string]any{"query": term, "matches": out,
+			"note": "nothing in the catalogue matches, so treat this as not existing"}, nil
+	}
+	return map[string]any{"query": term, "matches": out}, nil
+})
 
 type itunesResults struct {
 	Results []itunesItem `json:"results"`

@@ -106,74 +106,81 @@ type geo struct {
 	Country  string
 }
 
-var Weather = Tool{
+type weatherArgs struct {
+	Location string
+	Days     int
+}
+
+func (a *weatherArgs) params() []param {
+	return []param{
+		strArg(&a.Location, "location", "a town, city or region, like \"Boone, NC\"").required(),
+		intArg(&a.Days, "days", "how many days ahead, 1 to 14, default 7").otherwise(7),
+	}
+}
+
+var Weather = Define(Tool{
 	Name:        "weather",
 	Description: "Daily forecast for a place, up to 14 days out, in Fahrenheit and mph.",
-	Schema: obj(map[string]any{
-		"location": str("a town, city or region, like \"Boone, NC\""),
-		"days":     integer("how many days ahead, 1 to 14, default 7"),
-	}, "location"),
-	Run: func(ctx context.Context, d *Deps, a map[string]any) (any, error) {
-		g, err := geocode(ctx, d, argStr(a, "location"))
-		if err != nil {
-			return nil, err
+}, func(ctx context.Context, d *Deps, a weatherArgs) (any, error) {
+	g, err := geocode(ctx, d, a.Location)
+	if err != nil {
+		return nil, err
+	}
+	lat, lon, name := g.Lat, g.Lon, g.Name
+	d.Widgets.Add(Widget{Kind: "weather", Place: name, Lat: lat, Lon: lon,
+		Zip: g.Zip, Country: g.Country})
+	days := a.Days
+	if days < 1 || days > 14 {
+		days = 7
+	}
+	// Asked for one day about tomorrow it got today and called it tomorrow.
+	days = max(days, 3)
+	var w struct {
+		Offset int `json:"utc_offset_seconds"`
+		Daily  struct {
+			Time    []string  `json:"time"`
+			Max     []float64 `json:"temperature_2m_max"`
+			Min     []float64 `json:"temperature_2m_min"`
+			Precip  []float64 `json:"precipitation_probability_max"`
+			Wind    []float64 `json:"wind_speed_10m_max"`
+			Sunrise []string  `json:"sunrise"`
+			Sunset  []string  `json:"sunset"`
+		} `json:"daily"`
+	}
+	u := fmt.Sprintf("https://api.open-meteo.com/v1/forecast?latitude=%f&longitude=%f"+
+		"&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,sunrise,sunset"+
+		"&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=%d", lat, lon, days)
+	if err := getJSON(ctx, d, u, &w); err != nil {
+		return nil, err
+	}
+	type day struct {
+		Date      string  `json:"date"`
+		Weekday   string  `json:"weekday"`
+		When      string  `json:"when,omitempty"`
+		HighF     float64 `json:"high_f"`
+		LowF      float64 `json:"low_f"`
+		PrecipPct float64 `json:"precip_chance_pct"`
+		WindMPH   float64 `json:"wind_mph"`
+		Sunset    string  `json:"sunset,omitempty"`
+	}
+	out := make([]day, 0, len(w.Daily.Time))
+	today := d.Now().UTC().Add(time.Duration(w.Offset) * time.Second).Format("2006-01-02")
+	for i := range w.Daily.Time {
+		wd := ""
+		if t, e := time.Parse("2006-01-02", w.Daily.Time[i]); e == nil {
+			wd = t.Format("Monday")
 		}
-		lat, lon, name := g.Lat, g.Lon, g.Name
-		d.Widgets.Add(Widget{Kind: "weather", Place: name, Lat: lat, Lon: lon,
-			Zip: g.Zip, Country: g.Country})
-		days := int(argNum(a, "days", 7))
-		if days < 1 || days > 14 {
-			days = 7
-		}
-		// Asked for one day about tomorrow it got today and called it tomorrow.
-		days = max(days, 3)
-		var w struct {
-			Offset int `json:"utc_offset_seconds"`
-			Daily  struct {
-				Time    []string  `json:"time"`
-				Max     []float64 `json:"temperature_2m_max"`
-				Min     []float64 `json:"temperature_2m_min"`
-				Precip  []float64 `json:"precipitation_probability_max"`
-				Wind    []float64 `json:"wind_speed_10m_max"`
-				Sunrise []string  `json:"sunrise"`
-				Sunset  []string  `json:"sunset"`
-			} `json:"daily"`
-		}
-		u := fmt.Sprintf("https://api.open-meteo.com/v1/forecast?latitude=%f&longitude=%f"+
-			"&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,sunrise,sunset"+
-			"&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=%d", lat, lon, days)
-		if err := getJSON(ctx, d, u, &w); err != nil {
-			return nil, err
-		}
-		type day struct {
-			Date      string  `json:"date"`
-			Weekday   string  `json:"weekday"`
-			When      string  `json:"when,omitempty"`
-			HighF     float64 `json:"high_f"`
-			LowF      float64 `json:"low_f"`
-			PrecipPct float64 `json:"precip_chance_pct"`
-			WindMPH   float64 `json:"wind_mph"`
-			Sunset    string  `json:"sunset,omitempty"`
-		}
-		out := make([]day, 0, len(w.Daily.Time))
-		today := d.Now().UTC().Add(time.Duration(w.Offset) * time.Second).Format("2006-01-02")
-		for i := range w.Daily.Time {
-			wd := ""
-			if t, e := time.Parse("2006-01-02", w.Daily.Time[i]); e == nil {
-				wd = t.Format("Monday")
+		dd := day{Date: w.Daily.Time[i], Weekday: wd, When: relativeTo(today, w.Daily.Time[i]), HighF: w.Daily.Max[i],
+			LowF: w.Daily.Min[i], PrecipPct: w.Daily.Precip[i], WindMPH: w.Daily.Wind[i]}
+		if i < len(w.Daily.Sunset) {
+			if t, e := time.Parse("2006-01-02T15:04", w.Daily.Sunset[i]); e == nil {
+				dd.Sunset = t.Format("3:04 PM")
 			}
-			dd := day{Date: w.Daily.Time[i], Weekday: wd, When: relativeTo(today, w.Daily.Time[i]), HighF: w.Daily.Max[i],
-				LowF: w.Daily.Min[i], PrecipPct: w.Daily.Precip[i], WindMPH: w.Daily.Wind[i]}
-			if i < len(w.Daily.Sunset) {
-				if t, e := time.Parse("2006-01-02T15:04", w.Daily.Sunset[i]); e == nil {
-					dd.Sunset = t.Format("3:04 PM")
-				}
-			}
-			out = append(out, dd)
 		}
-		return map[string]any{"place": name, "units": "fahrenheit, mph", "days": out}, nil
-	},
-}
+		out = append(out, dd)
+	}
+	return map[string]any{"place": name, "units": "fahrenheit, mph", "days": out}, nil
+})
 
 // relativeTo names a date against today, both as the place's own YYYY-MM-DD, so
 // the model reads which row is tomorrow instead of working it out.
