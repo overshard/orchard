@@ -105,6 +105,10 @@ type Brief struct {
 	// The paragraph over TODAY's headlines. Markets never has one.
 	Read *Read `json:"read,omitempty"`
 
+	// What the commenters make of each thread on the feeds, by its discussion
+	// URL, for the card a row opens.
+	Threads []ThreadRead `json:"threads,omitempty"`
+
 	// "off" when there is no model key, so the panel can say why it is empty.
 	Status string `json:"status,omitempty"`
 
@@ -146,6 +150,11 @@ type Read struct {
 	Spread string `json:"spread"`
 	Text   string `json:"text"`
 	Links  []Link `json:"links"`
+}
+
+type ThreadRead struct {
+	URL  string `json:"url"`
+	Read string `json:"read"`
 }
 
 type Link struct {

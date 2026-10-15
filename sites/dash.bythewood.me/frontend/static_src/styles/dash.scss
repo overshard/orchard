@@ -845,7 +845,39 @@ main {
     &:hover .t, &:focus-visible .t { color: var(--text); }
     &:hover .arrow, &:focus-visible .arrow { color: var(--amber); }
   }
-  .tip-meta[hidden], .tip-links[hidden] { display: none; }
+  .tip-meta[hidden], .tip-talk[hidden], .tip-links[hidden] { display: none; }
+
+  .tip-sec {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+  }
+
+  .tip-head {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 9.5px;
+    letter-spacing: var(--track);
+    color: var(--amber);
+  }
+
+  .tip-read {
+    margin: 0;
+    color: var(--text);
+    font-size: 12.5px;
+    line-height: 1.5;
+  }
+
+  .tip-said {
+    margin: 0;
+    padding: 2px 0 2px 10px;
+    border-left: 1px solid var(--line-hot);
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    & + .tip-said { margin-top: 8px; }
+  }
 
   .tip-lead {
     position: absolute;

@@ -34,6 +34,15 @@ type Story struct {
 	Points   int    `json:"points"`
 	Count    int    `json:"count"`
 	Age      string `json:"age"`
+
+	// The top comments off the comments cache, and what the last feeds brief
+	// read in them, for the card the row opens.
+	Said   []string `json:"said,omitempty"`
+	Read   string   `json:"read,omitempty"`
+	ReadAt string   `json:"read_at,omitempty"`
+
+	// Its id on the site, which the comments are fetched by.
+	id string
 }
 
 type algoliaPayload struct {
@@ -74,6 +83,7 @@ func fetchHackerNews(ctx context.Context, g *Guard, now time.Time) ([]Story, Pul
 			Points:   h.Points,
 			Count:    h.NumComments,
 			Age:      humanAge(time.Unix(h.CreatedAtI, 0), now),
+			id:       h.ObjectID,
 		})
 		items = append(items, feedItem{title: h.Title, points: h.Points, comments: h.NumComments, age: now.Sub(time.Unix(h.CreatedAtI, 0))})
 	}
@@ -86,6 +96,7 @@ func fetchHackerNews(ctx context.Context, g *Guard, now time.Time) ([]Story, Pul
 }
 
 type lobstersStory struct {
+	ShortID      string   `json:"short_id"`
 	Title        string   `json:"title"`
 	URL          string   `json:"url"`
 	ShortIDURL   string   `json:"short_id_url"`
@@ -135,6 +146,7 @@ func fetchLobsters(ctx context.Context, g *Guard, now time.Time) ([]Story, Pulse
 			Points:   s.Score,
 			Count:    s.CommentCount,
 			Age:      age,
+			id:       s.ShortID,
 		})
 	}
 
