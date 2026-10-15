@@ -27,7 +27,8 @@ recovery codes, and `make auth-recovery` replaces them from the machine.
 
 `login.go` and `otp.go` are the sign in, `session.go` the cookie, `handlers.go`
 the account pages and `/verify`, `credentials.go` the Argon2id hashing,
-`ntfy.go` the push, and `init.go` the `-init`, `-check` and `-recovery` modes.
+`ntfy.go` what gets pushed and `ntfy/` the push, and `init.go` the `-init`,
+`-check` and `-recovery` modes.
 State is `data/db.sqlite3`, or the `orchard-auth-data` volume in production.
 
 ## Things that will bite you

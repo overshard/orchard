@@ -26,8 +26,8 @@ make clean        delete build/, both node_modules and data/, the dev database
 
 `scheduler.go` runs the timers, `checker.go` does the probes, `lighthouse.go`
 and `process.go` the audits, and the `crawler*.go` files the SEO crawl.
-`alerts.go` talks to ntfy, and `report.go` with `reports/` and `typst.go` writes
-the PDFs. The image is the heaviest here, since it carries Chromium, bun and
+`alerts.go` words the alerts and `ntfy/` sends them, and `report.go` with
+`reports/` and `typst.go` writes the PDFs. The image is the heaviest here, since it carries Chromium, bun and
 Lighthouse as well as typst.
 
 ## Things that will bite you
