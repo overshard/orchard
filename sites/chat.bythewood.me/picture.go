@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unicode"
 
+	"chat.bythewood.me/internal/memory"
 	"chat.bythewood.me/tools"
 )
 
@@ -278,10 +279,10 @@ func capitalised(words []string) bool {
 // namesTitle is true when every word of an article's title is in what he asked,
 // so a search that wandered off to something near it is not taken.
 func namesTitle(title, message string) bool {
-	have := terms(message)
+	have := memory.Terms(message)
 	n := 0
 	for _, w := range titleWord.FindAllString(title, -1) {
-		t := terms(w)
+		t := memory.Terms(w)
 		if len(t) == 0 {
 			continue
 		}

@@ -1,18 +1,17 @@
-// What the chat remembers about Isaac between conversations, in one sentence facts
-// so it costs almost nothing to carry into every turn. Every write goes through the
+// Package memory keeps one sentence facts about Isaac between conversations, so
+// they cost almost nothing to carry into every turn. Every write goes through the
 // model, since a fact typed by hand drifts out of the shape retrieval expects.
-package main
+package memory
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"regexp"
 	"sort"
 	"strings"
-
-	"chat.bythewood.me/tools"
 	"time"
 	"unicode"
 )
@@ -23,7 +22,7 @@ const (
 	maxFactChars = 300
 	// How many facts a turn carries. Enough to be useful, few enough that a
 	// wrong one is visible instead of buried.
-	factsPerTurn = 6
+	PerTurn = 6
 	// A message with more distinct terms than this needs two in common with a
 	// fact before the fact is recalled, since one shared word there is chance.
 	shortMessageTerms = 3
@@ -48,9 +47,25 @@ type Fact struct {
 	Used    int       `json:"used"`
 }
 
-func (s *Store) initFacts() error {
-	_, err := s.db.Exec(factSchema)
-	return err
+// Model is what a proposed change is asked of, one system prompt and one
+// message in and the reply out.
+type Model interface {
+	Ask(ctx context.Context, system, user string, maxTokens int) (string, error)
+}
+
+// Store keeps the facts in a table of the site's own database.
+type Store struct {
+	db    *sql.DB
+	model Model
+}
+
+// Open makes sure the table is there. The model is only asked by Remember and
+// Propose, so a store that never writes through it can be handed nil.
+func Open(db *sql.DB, model Model) (*Store, error) {
+	if _, err := db.Exec(factSchema); err != nil {
+		return nil, err
+	}
+	return &Store{db: db, model: model}, nil
 }
 
 func (s *Store) Facts() ([]Fact, error) {
@@ -72,10 +87,10 @@ func (s *Store) Facts() ([]Fact, error) {
 	return out, rows.Err()
 }
 
-// AddFact is idempotent on the subject and not just the exact text, since the
+// Add is idempotent on the subject and not just the exact text, since the
 // model is asked to replace a fact and can't be relied on to. Both the automatic
 // pass and the remember tool land here.
-func (s *Store) AddFact(text string) (int64, error) {
+func (s *Store) Add(text string) (int64, error) {
 	text = tidyFact(text)
 	if text == "" {
 		return 0, fmt.Errorf("an empty fact")
@@ -87,7 +102,7 @@ func (s *Store) AddFact(text string) (int64, error) {
 			s.touchFact(id)
 			return id, nil
 		}
-		return id, s.ReplaceFact(id, text)
+		return id, s.Replace(id, text)
 	}
 	now := time.Now().Unix()
 	r, err := s.db.Exec(`
@@ -106,11 +121,11 @@ func (s *Store) sameSubject(text string) (id int64, replace bool) {
 	if err != nil {
 		return 0, false
 	}
-	fresh := terms(text)
+	fresh := Terms(text)
 	var best float64
 	for _, f := range all {
-		held := terms(f.Text)
-		shared := overlap(fresh, held)
+		held := Terms(f.Text)
+		shared := Overlap(fresh, held)
 		// Three shared words is the floor. Below it "Isaac has a young son" and
 		// "Isaac likes pizza" start to look related because they share a name.
 		if shared < minSharedTerms {
@@ -142,7 +157,7 @@ func (s *Store) touchFact(id int64) {
 	_, _ = s.db.Exec(`UPDATE facts SET updated_at=? WHERE id=?`, time.Now().Unix(), id)
 }
 
-func (s *Store) ReplaceFact(id int64, text string) error {
+func (s *Store) Replace(id int64, text string) error {
 	text = tidyFact(text)
 	if text == "" {
 		return fmt.Errorf("an empty fact")
@@ -151,7 +166,7 @@ func (s *Store) ReplaceFact(id int64, text string) error {
 	return err
 }
 
-func (s *Store) DeleteFact(id int64) error {
+func (s *Store) Delete(id int64) error {
 	_, err := s.db.Exec(`DELETE FROM facts WHERE id=?`, id)
 	return err
 }
@@ -182,7 +197,7 @@ func (s *Store) Relevant(message string, limit int, mark bool) []Fact {
 	if err != nil || len(all) == 0 {
 		return nil
 	}
-	want := terms(message)
+	want := Terms(message)
 	if len(want) == 0 {
 		return nil
 	}
@@ -199,7 +214,7 @@ func (s *Store) Relevant(message string, limit int, mark bool) []Fact {
 	}
 	hits := make([]scored, 0, len(all))
 	for _, f := range all {
-		n := overlap(want, terms(f.Text))
+		n := Overlap(want, Terms(f.Text))
 		if n >= need {
 			hits = append(hits, scored{f, n})
 		}
@@ -261,7 +276,9 @@ var stopwords = map[string]bool{
 	"tell": true, "give": true, "show": true, "best": true, "better": true,
 }
 
-func terms(s string) map[string]bool {
+// Terms is the words a fact or a question is about, folded so a question finds
+// a fact worded differently. Searching past conversations ranks by them too.
+func Terms(s string) map[string]bool {
 	out := map[string]bool{}
 	for _, w := range strings.FieldsFunc(strings.ToLower(s), func(r rune) bool {
 		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
@@ -305,7 +322,8 @@ func stem(w string) string {
 	return w
 }
 
-func overlap(a, b map[string]bool) int {
+// Overlap counts the terms two sets share.
+func Overlap(a, b map[string]bool) int {
 	n := 0
 	for w := range a {
 		if b[w] {
@@ -341,8 +359,6 @@ func cutFact(s string) string {
 	return cut
 }
 
-// ---------------------------------------------------------------- the rules
-
 // factRules is the whole contract for writing here, shared by the pass after a
 // turn and the memory panel so the two can't disagree. A small model reads a list
 // of what not to keep as permission to propose nothing, so the framing is positive.
@@ -370,9 +386,9 @@ If a new fact contradicts one you already have, replace that one rather than add
 Reply with JSON and nothing else:
 {"changes":[{"op":"add","fact":"..."},{"op":"replace","id":3,"fact":"..."},{"op":"delete","id":7}]}`
 
-// memChange is one proposed edit. Delete and replace carry the id of the fact
+// Change is one proposed edit. Delete and replace carry the id of the fact
 // they act on, so the existing facts are numbered in the prompt.
-type memChange struct {
+type Change struct {
 	Op   string `json:"op"`
 	ID   int64  `json:"id,omitempty"`
 	Fact string `json:"fact,omitempty"`
@@ -382,15 +398,15 @@ type memChange struct {
 // Remember runs the extraction pass over one exchange after the answer is sent,
 // so its cost is never in front of the reader, and a failure is logged and dropped
 // since a memory that didn't save isn't worth an error message.
-func (s *site) Remember(ctx context.Context, user, assistant string) {
+func (s *Store) Remember(ctx context.Context, user, assistant string) {
 	if strings.TrimSpace(user) == "" {
 		return
 	}
-	existing, err := s.store.Facts()
+	existing, err := s.Facts()
 	if err != nil {
 		return
 	}
-	changes, err := s.proposeChanges(ctx, existing,
+	changes, err := s.Propose(ctx, existing,
 		fmt.Sprintf("The exchange:\n\nIsaac said:\n%s\n\nYou answered:\n%s", trim(user, 4000), trim(assistant, 2000)),
 		"What did this reveal about Isaac that is worth keeping?")
 	if err != nil {
@@ -399,13 +415,13 @@ func (s *site) Remember(ctx context.Context, user, assistant string) {
 	}
 	// Logged at info even when nothing changed, since a pass that proposes an
 	// empty list every time looks just like one that isn't running.
-	applied := s.applyChanges(changes, existing)
+	applied := s.Apply(changes, existing)
 	slog.Info("memory pass", "known", len(existing), "proposed", len(changes), "applied", len(applied))
 }
 
-// proposeChanges is the one place the model is asked to write memory. Both the
+// Propose is the one place the model is asked to write memory. Both the
 // automatic pass and the memory page go through it, so the rules apply to both.
-func (s *site) proposeChanges(ctx context.Context, existing []Fact, situation, ask string) ([]memChange, error) {
+func (s *Store) Propose(ctx context.Context, existing []Fact, situation, ask string) ([]Change, error) {
 	var known strings.Builder
 	if len(existing) == 0 {
 		known.WriteString("(nothing yet)")
@@ -416,20 +432,17 @@ func (s *site) proposeChanges(ctx context.Context, existing []Fact, situation, a
 
 	user := fmt.Sprintf("Facts you already have:\n%s\n\n%s\n\n%s", known.String(), situation, ask)
 
-	out, err := s.llm.Complete(ctx, []Message{
-		{Role: RoleSystem, Content: factRules},
-		{Role: RoleUser, Content: user},
-	}, nil, 600)
+	out, err := s.model.Ask(ctx, factRules, user, 600)
 	if err != nil {
 		return nil, err
 	}
-	return parseChanges(out.Content), nil
+	return parseChanges(out), nil
 }
 
 // parseChanges is forgiving about the wrapping and strict about the contents. A
 // small model puts JSON in a fence or writes a sentence before it, and neither
 // is a reason to lose the edit.
-func parseChanges(raw string) []memChange {
+func parseChanges(raw string) []Change {
 	raw = strings.TrimSpace(raw)
 	if i := strings.Index(raw, "{"); i > 0 {
 		raw = raw[i:]
@@ -438,12 +451,12 @@ func parseChanges(raw string) []memChange {
 		raw = raw[:j+1]
 	}
 	var body struct {
-		Changes []memChange `json:"changes"`
+		Changes []Change `json:"changes"`
 	}
 	if json.Unmarshal([]byte(raw), &body) != nil {
 		return nil
 	}
-	out := make([]memChange, 0, len(body.Changes))
+	out := make([]Change, 0, len(body.Changes))
 	for _, c := range body.Changes {
 		c.Op = strings.ToLower(strings.TrimSpace(c.Op))
 		c.Fact = tidyFact(c.Fact)
@@ -465,15 +478,15 @@ func parseChanges(raw string) []memChange {
 	return out
 }
 
-// applyChanges is the fence the model does not get to talk its way past. It
+// Apply is the fence the model does not get to talk its way past. It
 // refuses anything that looks like a credential whatever the rules said, and it
 // will not act on an id that is not really there.
-func (s *site) applyChanges(changes []memChange, existing []Fact) []memChange {
+func (s *Store) Apply(changes []Change, existing []Fact) []Change {
 	known := map[int64]bool{}
 	for _, f := range existing {
 		known[f.ID] = true
 	}
-	applied := make([]memChange, 0, len(changes))
+	applied := make([]Change, 0, len(changes))
 	for _, c := range changes {
 		if c.Fact != "" && looksSecret(c.Fact) {
 			slog.Warn("a proposed fact looked like a credential and was dropped")
@@ -482,17 +495,17 @@ func (s *site) applyChanges(changes []memChange, existing []Fact) []memChange {
 		var err error
 		switch c.Op {
 		case "add":
-			_, err = s.store.AddFact(c.Fact)
+			_, err = s.Add(c.Fact)
 		case "replace":
 			if !known[c.ID] {
 				continue
 			}
-			err = s.store.ReplaceFact(c.ID, c.Fact)
+			err = s.Replace(c.ID, c.Fact)
 		case "delete":
 			if !known[c.ID] {
 				continue
 			}
-			err = s.store.DeleteFact(c.ID)
+			err = s.Delete(c.ID)
 		}
 		if err != nil {
 			slog.Debug("applying a memory change", "op", c.Op, "err", err)
@@ -539,10 +552,10 @@ func looksRandom(s string) bool {
 	return digits > 0 && upper > 0 && lower > 0
 }
 
-// memoryBlock is what gets folded into the system prompt. It's left out entirely
+// Block is what gets folded into the system prompt. It's left out entirely
 // when nothing matched, since a block saying it knows nothing reads to a model as
 // an instruction to talk about not knowing things.
-func memoryBlock(facts []Fact) string {
+func Block(facts []Fact) string {
 	if len(facts) == 0 {
 		return ""
 	}
@@ -556,41 +569,10 @@ func memoryBlock(facts []Fact) string {
 	return sb.String()
 }
 
-// memoryStore hands the fact store to the remember tool. The tools package
-// cannot see Store, and the names differ either side because Store has other
-// kinds of row to keep straight and the tool has only the one.
-type memoryStore struct{ s *Store }
-
-func (m memoryStore) Facts() ([]tools.MemoryFact, error) {
-	all, err := m.s.Facts()
-	if err != nil {
-		return nil, err
+func trim(s string, n int) string {
+	s = strings.Join(strings.Fields(s), " ")
+	if len(s) <= n {
+		return s
 	}
-	out := make([]tools.MemoryFact, 0, len(all))
-	for _, f := range all {
-		out = append(out, tools.MemoryFact{ID: f.ID, Text: f.Text})
-	}
-	return out, nil
+	return strings.TrimSpace(s[:n-1]) + "…"
 }
-
-// historyStore hands the conversation store to the chat_history tool. Separate
-// from memoryStore because the two answer different questions and a tool that
-// reads facts has no business reaching messages.
-type historyStore struct{ s *Store }
-
-func (h historyStore) SearchPast(query string, limit int) ([]tools.PastExchange, error) {
-	hits, err := h.s.SearchHistory(query, limit)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]tools.PastExchange, 0, len(hits))
-	for _, x := range hits {
-		out = append(out, tools.PastExchange{ConvID: x.ConvID, Title: x.Title,
-			When: x.When, Question: x.Question, Answer: x.Answer})
-	}
-	return out, nil
-}
-
-func (m memoryStore) Add(text string) (int64, error)      { return m.s.AddFact(text) }
-func (m memoryStore) Replace(id int64, text string) error { return m.s.ReplaceFact(id, text) }
-func (m memoryStore) Delete(id int64) error               { return m.s.DeleteFact(id) }

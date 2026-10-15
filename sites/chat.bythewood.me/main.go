@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"chat.bythewood.me/internal/incognito"
+	"chat.bythewood.me/internal/memory"
 	"chat.bythewood.me/internal/property"
 	"chat.bythewood.me/tools"
 	"chat.bythewood.me/web"
@@ -58,6 +59,7 @@ type site struct {
 	llm     *LLM
 	engine  *Engine
 	store   *Store
+	memory  *memory.Store
 	runs    *Runs
 	queue   *Queue
 	hub     *Hub
@@ -162,7 +164,10 @@ func realMain() error {
 	s.engine.Render = s.render
 	// The remember tool writes to this process's own database, so it's handed
 	// the store instead of a url.
-	s.engine.Deps().Memory = memoryStore{store}
+	if s.memory, err = memory.Open(store.DB(), asker{llm}); err != nil {
+		return fmt.Errorf("memory: %w", err)
+	}
+	s.engine.Deps().Memory = memoryStore{s.memory}
 	s.engine.Deps().History = historyStore{store}
 	s.painter = NewPainter(llm, *imgModel, *imgName, store)
 	s.engine.Deps().Images = s.painter
@@ -641,20 +646,20 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 	// Retrieval is against what he typed and not the composed prompt, since an
 	// attachment's text would swamp the scoring. A picture says nothing about him,
 	// and a fact about liking well worn interiors got a sofa drawn threadbare.
-	var recalled []Fact
+	var recalled []memory.Fact
 	if !flagging && !isPictureAsk(req.Message, history) && len(refs.Attached) == 0 && !(refs.Last != "" && isPictureChange(req.Message, history)) {
-		recalled = s.store.Relevant(req.Message, factsPerTurn, !req.Incognito)
+		recalled = s.memory.Relevant(req.Message, memory.PerTurn, !req.Incognito)
 	}
 	if len(recalled) > 0 {
 		tr.Add(Step{Kind: "memory", Label: "recalled what it knows about Isaac",
-			In: req.Message, Out: memoryBlock(recalled),
+			In: req.Message, Out: memory.Block(recalled),
 			Meta: itoa(len(recalled)) + " of the stored facts scored against this question"})
 	}
 	run := s.engine.Run
 	if flagging {
 		run = s.flagTurn(req.ConvID)
 	}
-	reply, used, srcs, widgets, stats, err := run(ctx, history, prompt, session, memoryBlock(recalled), tr, emit)
+	reply, used, srcs, widgets, stats, err := run(ctx, history, prompt, session, memory.Block(recalled), tr, emit)
 	// Whether the turn worked or not, whatever it spent has been spent, and a
 	// failed turn is exactly when the counts matter most.
 	s.engine.SaveSpend(s.store.SaveSpend)
@@ -737,7 +742,7 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 			}()
 			bg, cancel := s.detach(ctx, 2*time.Minute)
 			defer cancel()
-			s.Remember(bg, req.Message, reply.Content)
+			s.memory.Remember(bg, req.Message, reply.Content)
 		})
 	}
 
