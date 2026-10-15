@@ -159,7 +159,7 @@ cd sites/blog.bythewood.me && GOWORK=off go build ./...
 Each site also carries its own copy of `web/`, the small HTTP layer they all
 need. That means a site is a directory you can lift into its own repository, and
 its Docker build context is that directory instead of the whole monorepo. That
-means a fix in `web/` has to be made twelve times.
+means a fix in `web/` has to be made in every site.
 
 Go serves every request and `html/template` renders the pages. Vite is a build
 step and never a server: it writes content-hashed JS and CSS into `build/dist/`,

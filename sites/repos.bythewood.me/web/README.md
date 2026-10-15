@@ -5,8 +5,8 @@ shipper.
 
 Every site carries its own copy instead of importing a shared module, so a site
 can be lifted out into its own repository and its Docker build context is just
-its own directory. The cost is that a fix here has to be made eight times, so if a
-change belongs in all eight then change all eight.
+its own directory. A fix here has to be made in every site, so if a
+change belongs in one copy then change them all.
 
 `shipper.go` is the only file that talks to another site. It installs a
 `slog.Handler` that tees, so stdout is written exactly as before and a copy is

@@ -76,7 +76,7 @@ volumes:
     external: true
 
   # Data rather than cache: cache.db holds alerts already delivered so an
-  # offline phone catches up, and user.db holds the two accounts. Lose this and
-  # setup-ntfy.sh has to run again and both publishers need a new token.
+  # offline phone catches up, and user.db holds the accounts. Lose this and
+  # make ntfy has to run again and every publisher needs a new token.
   ntfy:
     name: orchard-ntfy-data

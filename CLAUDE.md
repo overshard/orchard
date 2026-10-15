@@ -13,7 +13,7 @@ alike is something a person keeps true by following that file.
 ## What this is
 
 One repo for every site Isaac Bythewood runs, plus the shared Cloudflare Tunnel
-and Caddy that front them. Ten sites, all Go, all served from a desktop behind a
+and Caddy that front them. Every site is Go, and all of them are served from a desktop behind a
 tunnel rather than a rented server.
 
 | Directory | What it serves |
@@ -100,25 +100,24 @@ SQLite. One prefix, so `docker ps --filter name=orchard` is the whole system
 and the Makefile derives a container name from a site directory without a
 lookup table.
 
-**Seven things reference a container by name, and all seven bake it in.**
+**Container names are baked in wherever they're used.**
 `edge/caddy/Caddyfile` reverse-proxies to each site and writes its access log to
 `tcp/orchard-logging:9001`, `sites/isaacbythewood.com/site.go` fetches
 `http://orchard-blog:8000/latest.json` for the latest-posts panel,
 `web/shipper.go` in every site posts to `http://orchard-logging:8000/ingest`,
-`alerts.go` in status and logging posts to `http://orchard-ntfy:8000`, and
+`web/session.go` in every site asks `http://orchard-auth:8000/verify`,
+status, logging and auth publish to `http://orchard-ntfy:8000`,
 `sites/dash.bythewood.me/systems.go` reads `http://orchard-logging:8000/aggregate`
 and probes every other site at `http://orchard-<label>:8000/healthz`, and
-`web/session.go` in every site asks `http://orchard-auth:8000/verify`, and
 `sites/dash.bythewood.me/quick.go` relays the quick chat to
-`http://orchard-chat:8000/api/send`. None reads
-the name at runtime, so renaming one means rebuilding Caddy, the portfolio and
-every site, not just editing a compose file. No SQLite database refers to a
-container name.
+`http://orchard-chat:8000/api/send`. None of those reads the name at runtime,
+so renaming a container means rebuilding Caddy, the portfolio and every site,
+not just editing a compose file. No SQLite database refers to a container name.
 
-**`orchard-wiki` is the one exception.** `sites/chat.bythewood.me/tools/wikipedia.go`
-reaches `http://orchard-wiki:8000` through `WIKI_URL`, which compose sets and
-which falls back to that name, so it is the only one of these a dev run can
-point somewhere else without a rebuild.
+**`orchard-llm` and `orchard-wiki` are the exceptions.** chat and dash reach the
+gateway through `LLM_URL` and chat reaches the wiki through `WIKI_URL`, which
+compose sets and which fall back to those names, so they're the only ones a dev
+run can point somewhere else without a rebuild.
 
 **Alerts leave through ntfy in the edge, and reading them is authenticated.**
 status publishes to the `status` topic, logging to `logging` and auth to `auth`,
@@ -162,7 +161,7 @@ to watch.
 because that directory is the project directory, so nothing is exported in a
 shell and nothing is forwarded through the Makefile. `.env` is gitignored by
 bare name and this repo is public, so check it with `git check-ignore -v`
-instead of assuming. Six of the ten commit a `.env.example`, and
+instead of assuming. Every site that needs a secret commits a `.env.example`, and
 `make env` turns each example into a `.env`, filling in a generated value for any
 empty `*_PASSWORD` and printing it once. It skips a site that already has one,
 because rewriting one loses the ntfy token or the api key that was written into it.
@@ -261,7 +260,7 @@ since serving a page whose script tag points at a file that was never built is
 worse than refusing to start. Vite 8 bundles with Rolldown, which imports
 `styleText` from `node:util`, and Node 18 does not export it, so a build under
 an old Node dies with a `SyntaxError`. It needs bun 1.4 or a modern Node, and
-the pinned `oven/bun:1-alpine` in every frontend stage is already 1.4.
+the pinned `oven/bun:1-debian` in every frontend stage is already 1.4.
 
 **`build/` holds every generated file, and only generated files.** Vite output,
 the blog's PDFs and cards, analytics' topojson. It is gitignored and `make
@@ -426,7 +425,7 @@ the `golang:1.27-trixie` the images build with. The portfolio
 has no Go tests of its own, being templates and handlers over static data, and
 is covered by its `web/` package plus browser checks.
 
-`web/shipper_test.go` is one of the twelve identical copies and covers the parts
+`web/shipper_test.go` is identical in every site and covers the parts
 easy to get quietly wrong: that a record reaches both the original handler and
 the queue, that `WithAttrs` and `WithGroup` still tee, that a full queue drops
 instead of blocking, and that logging after `Close` does not panic.
