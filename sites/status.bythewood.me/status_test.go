@@ -503,6 +503,64 @@ func TestAlertStateIgnoresNonConsecutiveFailures(t *testing.T) {
 	}
 }
 
+// Two alert transitions that overlap. Under a deferred BEGIN the second to
+// write fails with SQLITE_BUSY rather than waiting, and loses its state change.
+func TestOverlappingWritesWaitRatherThanFail(t *testing.T) {
+	db, id := freshDB(t)
+	ctx := context.Background()
+
+	readThenWrite := func(tx *sql.Tx) error {
+		var state string
+		if err := tx.QueryRowContext(ctx, "SELECT alert_state FROM properties WHERE id = ?", id[:]).Scan(&state); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(ctx, "UPDATE properties SET updated_at = ? WHERE id = ?", nowMS(), id[:])
+		return err
+	}
+
+	first, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = first.Rollback() }()
+	var state string
+	if err := first.QueryRowContext(ctx, "SELECT alert_state FROM properties WHERE id = ?", id[:]).Scan(&state); err != nil {
+		t.Fatal(err)
+	}
+
+	second := make(chan error, 1)
+	go func() {
+		tx, err := db.BeginTx(ctx, nil)
+		if err != nil {
+			second <- err
+			return
+		}
+		defer func() { _ = tx.Rollback() }()
+		if err := readThenWrite(tx); err != nil {
+			second <- err
+			return
+		}
+		second <- tx.Commit()
+	}()
+
+	// Long enough for the second to commit first if nothing holds it back.
+	select {
+	case err := <-second:
+		second <- err
+	case <-time.After(200 * time.Millisecond):
+	}
+
+	if _, err := first.ExecContext(ctx, "UPDATE properties SET updated_at = ? WHERE id = ?", nowMS(), id[:]); err != nil {
+		t.Fatalf("first write: %v", err)
+	}
+	if err := first.Commit(); err != nil {
+		t.Fatalf("first commit: %v", err)
+	}
+	if err := <-second; err != nil {
+		t.Fatalf("second transaction: %v", err)
+	}
+}
+
 func freshDB(t *testing.T) (*sql.DB, uuid.UUID) {
 	t.Helper()
 	db, err := openDB(filepath.Join(t.TempDir(), "db.sqlite3"))

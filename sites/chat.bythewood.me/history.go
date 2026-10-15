@@ -113,8 +113,10 @@ func OpenStore(path string) (*Store, error) {
 	}
 	// secure_delete zeroes a deleted row rather than leaving it in the free
 	// pages, which is the difference between deleting a conversation and
-	// deleting the text of one.
-	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=secure_delete(ON)&_pragma=foreign_keys(ON)")
+	// deleting the text of one. _txlock is there because a deferred transaction
+	// that reads first gets SQLITE_BUSY on the upgrade, which busy_timeout does
+	// not retry.
+	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=secure_delete(ON)&_pragma=foreign_keys(ON)&_txlock=immediate")
 	if err != nil {
 		return nil, err
 	}

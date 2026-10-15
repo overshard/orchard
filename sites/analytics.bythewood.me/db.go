@@ -114,7 +114,10 @@ func dsn(path string) string {
 		"?_pragma=journal_mode(WAL)" +
 		"&_pragma=synchronous(NORMAL)" +
 		"&_pragma=busy_timeout(5000)" +
-		"&_pragma=foreign_keys(ON)"
+		"&_pragma=foreign_keys(ON)" +
+		// A deferred transaction that reads first gets SQLITE_BUSY on the upgrade
+		// to a write, and busy_timeout does not retry that.
+		"&_txlock=immediate"
 }
 
 // setAutoVacuum stamps auto_vacuum on a new file so the retention sweep can hand
