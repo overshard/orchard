@@ -192,8 +192,12 @@ func TestShutdownEndsTurnsAndRefusesNewOnes(t *testing.T) {
 	events, unsubscribe := s.hub.Subscribe()
 	defer unsubscribe()
 
-	go s.send(httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "/api/send",
-		strings.NewReader(`{"message":"hello","run_id":"r1"}`)))
+	sent := make(chan struct{})
+	go func() {
+		s.send(httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "/api/send",
+			strings.NewReader(`{"message":"hello","run_id":"r1"}`)))
+		close(sent)
+	}()
 
 	select {
 	case <-events:
@@ -201,7 +205,13 @@ func TestShutdownEndsTurnsAndRefusesNewOnes(t *testing.T) {
 		t.Fatal("the turn never started")
 	}
 
+	// The server drains its handlers before the drain begins, so this does too.
 	stop()
+	select {
+	case <-sent:
+	case <-time.After(3 * time.Second):
+		t.Fatal("the stream stayed open after shutdown")
+	}
 	drained := make(chan struct{})
 	go func() {
 		s.detached.Wait()
