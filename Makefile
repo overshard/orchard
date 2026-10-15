@@ -16,7 +16,7 @@
 #
 #   make run SITE=blog.bythewood.me      vite watch + go run, on :8000
 #   make build SITE=blog.bythewood.me    release binary into bin/
-#   make check                           gofmt, vet, govulncheck, build every site
+#   make check                           gofmt, web/ drift, vet, govulncheck, build
 #   make test                            every site's tests
 #
 # `make help` lists the setup targets. Nothing below may contain $$(MAKE) inside
@@ -62,7 +62,7 @@ COMPOSE      = $(DOCKER) compose
 COMPOSE_DOWN = $(DOCKER) compose
 
 .DEFAULT_GOAL := help
-.PHONY: help install up up-one deploy edge doctor down down-one run build check fmt fmt-check vet vuln deps test \
+.PHONY: help install up up-one deploy edge doctor down down-one run build check web-check fmt fmt-check vet vuln deps test \
 	env password tunnel tunnel-login tunnel-status ntfy ntfy-token ntfy-status ntfy-passwd \
 	auth-init auth-recovery chat-key dash-key llm-key wiki util require-site require-env require-tunnel
 
@@ -77,7 +77,7 @@ help:
 	@echo "development, no docker involved"
 	@echo "  make run SITE=<site>       vite watch + go run, on :8000"
 	@echo "  make build SITE=<site>     release binary into bin/"
-	@echo "  make check                 gofmt, vet, govulncheck and build every site"
+	@echo "  make check                 gofmt, web/ drift, vet, govulncheck and build"
 	@echo "  make deps                  update every site's Go modules together"
 	@echo "  make test                  every site's tests"
 	@echo ""
@@ -522,9 +522,36 @@ build: require-site
 # the working directory, and build/ is gitignored.
 # check reports and does not repair, so it must not depend on fmt, which runs
 # gofmt -w and would make the answer yes by rewriting. Use `make fmt` for that.
-check: fmt-check vet vuln
+check: fmt-check web-check vet vuln
 	for s in $(SITES); do echo "build $$s"; \
 		(cd sites/$$s && mkdir -p build && go build -o build/ ./...) || exit 1; done
+
+# Every copy of a web/ file has to match every other copy, so a fix made in one
+# site and forgotten in the rest fails here. server.go comes in a few variants,
+# one per kind of server, and README.md is written for its own site.
+web-check:
+	@fail=0; \
+	for f in $$(for p in sites/*/web/*; do basename "$$p"; done | sort -u); do \
+		case "$$f" in server.go|README.md) continue ;; esac; \
+		n=$$(for p in sites/*/web/$$f; do cksum < "$$p"; done | sort -u | wc -l); \
+		[ "$$n" -le 1 ] && continue; \
+		fail=1; \
+		echo "web/$$f is not the same in every site. Each line is one version of it:" >&2; \
+		for sum in $$(for p in sites/*/web/$$f; do cksum < "$$p" | tr ' ' -; done | sort | uniq -c | sort -rn | awk '{print $$2}'); do \
+			printf ' ' >&2; \
+			for p in sites/*/web/$$f; do \
+				[ "$$(cksum < "$$p" | tr ' ' -)" = "$$sum" ] || continue; \
+				s=$${p#sites/}; printf ' %s' "$${s%%/*}" >&2; \
+			done; \
+			echo "" >&2; \
+		done; \
+	done; \
+	if [ $$fail -ne 0 ]; then \
+		echo "" >&2; \
+		echo "diff a copy from each line, then make every copy the same" >&2; \
+		exit 1; \
+	fi; \
+	echo "web/ copies match"
 
 # Reports stdlib issues against the local toolchain too, so an old Go in webdev
 # shows up here until taproot's GO_VERSION is bumped.
