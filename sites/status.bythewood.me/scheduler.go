@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 )
 
@@ -39,6 +40,9 @@ type Scheduler struct {
 	// wanted to work rather than spawning an unbounded number of them.
 	fast chan struct{}
 	slow chan struct{}
+
+	// The loop and every job it started, so shutdown can wait for their writes.
+	jobs sync.WaitGroup
 }
 
 func NewScheduler(db *sql.DB, notifier *Notifier, root string) *Scheduler {
@@ -63,8 +67,15 @@ func (s *Scheduler) ResetOnBoot(ctx context.Context) error {
 	return err
 }
 
-// Run loops until the context is cancelled.
-func (s *Scheduler) Run(ctx context.Context) {
+// Start runs the loop in the background until ctx is cancelled.
+func (s *Scheduler) Start(ctx context.Context) {
+	s.jobs.Go(func() { s.run(ctx) })
+}
+
+// Wait returns once the loop and every job it started have stopped.
+func (s *Scheduler) Wait() { s.jobs.Wait() }
+
+func (s *Scheduler) run(ctx context.Context) {
 	ticker := time.NewTicker(cycleInterval)
 	defer ticker.Stop()
 
@@ -140,7 +151,7 @@ func (s *Scheduler) enqueueChecks(ctx context.Context) error {
 			continue
 		}
 
-		go func(p *Property) {
+		s.jobs.Go(func() {
 			select {
 			case s.fast <- struct{}{}:
 				defer func() { <-s.fast }()
@@ -151,7 +162,7 @@ func (s *Scheduler) enqueueChecks(ctx context.Context) error {
 			if err := processCheck(ctx, s.db, s.notifier, p); err != nil {
 				slog.Error(fmt.Sprintf("check failed for %s: %v", p.URL, err), slog.String("component", "scheduler"))
 			}
-		}(p)
+		})
 	}
 	return nil
 }
@@ -176,7 +187,7 @@ func (s *Scheduler) enqueueLighthouse(ctx context.Context) error {
 			continue
 		}
 
-		go func(p *Property) {
+		s.jobs.Go(func() {
 			select {
 			case s.slow <- struct{}{}:
 				defer func() { <-s.slow }()
@@ -184,7 +195,7 @@ func (s *Scheduler) enqueueLighthouse(ctx context.Context) error {
 				return
 			}
 			s.runLighthouseFor(ctx, p)
-		}(p)
+		})
 	}
 	return nil
 }
@@ -265,7 +276,7 @@ func (s *Scheduler) enqueueCrawls(ctx context.Context) error {
 			continue
 		}
 
-		go func(p *Property) {
+		s.jobs.Go(func() {
 			select {
 			case s.slow <- struct{}{}:
 				defer func() { <-s.slow }()
@@ -273,7 +284,7 @@ func (s *Scheduler) enqueueCrawls(ctx context.Context) error {
 				return
 			}
 			s.runCrawlFor(ctx, p)
-		}(p)
+		})
 	}
 	return nil
 }

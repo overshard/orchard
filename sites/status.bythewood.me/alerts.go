@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -39,6 +40,8 @@ type Notifier struct {
 	base   string
 	topic  string
 	token  string
+
+	sending sync.WaitGroup
 }
 
 func NewNotifier() *Notifier {
@@ -99,6 +102,14 @@ func renderAlert(kind string, ctx AlertContext) (alertBody, bool) {
 	}
 	return alertBody{}, false
 }
+
+// Send fires in the background, so a slow ntfy does not hold up the caller.
+func (n *Notifier) Send(kind string, ctx AlertContext) {
+	n.sending.Go(func() { n.Fire(kind, ctx) })
+}
+
+// Wait returns once every alert handed to Send has gone out or failed.
+func (n *Notifier) Wait() { n.sending.Wait() }
 
 // Fire publishes one transition. Errors are logged and swallowed: it runs in a
 // goroutine off the scheduler's path with nobody to return to.

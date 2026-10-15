@@ -576,6 +576,27 @@ func freshDB(t *testing.T) (*sql.DB, uuid.UUID) {
 	return db, id
 }
 
+// Shutdown waits on this, so an alert whose state is already committed as sent
+// is not dropped by the process exiting under it.
+func TestWaitHoldsForAnAlertInFlight(t *testing.T) {
+	got := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(100 * time.Millisecond)
+		close(got)
+	}))
+	defer srv.Close()
+
+	n := &Notifier{client: srv.Client(), base: srv.URL, topic: "test"}
+	n.Send("down", AlertContext{ID: "x", Name: "x", URL: "https://example.com"})
+	n.Wait()
+
+	select {
+	case <-got:
+	default:
+		t.Fatal("Wait returned before the alert reached ntfy")
+	}
+}
+
 func TestRenderAlert(t *testing.T) {
 	ctx := AlertContext{
 		ID: "abc", Name: "example.com", URL: "https://example.com",
