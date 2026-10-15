@@ -441,5 +441,7 @@ that restates the line, narrates what the code used to be, or quotes a number
 from a single run. Nothing written here points at anything outside this
 repository, since a reader only ever has the repo. Commit subjects are short,
 capitalised, imperative and carry no trailing period, like `Add atom feed` or
-`Fix rollup window off by an hour`, and they carry no body. Prose has no em
-dashes and no semicolons, use a comma, a full stop, or and.
+`Fix rollup window off by an hour`, and they carry no body. Keep them under 50
+characters with one change per commit, since a subject that needs an and is two
+commits, and leave off any Co-Authored-By trailer. Prose has no em dashes and no
+semicolons, use a comma, a full stop, or and.
