@@ -31,6 +31,25 @@ function link(href, className, text) {
   return a;
 }
 
+// A line that opens the readout card on a tap or click, which tip.js fills from
+// the row around it.
+function cardLine(className, text) {
+  const node = el("p", className, text);
+  node.dataset.card = "";
+  node.setAttribute("role", "button");
+  node.tabIndex = 0;
+  node.setAttribute("aria-controls", "tip");
+  node.setAttribute("aria-expanded", "false");
+  return node;
+}
+
+function goLink(href, label) {
+  if (!href) return el("span", "go");
+  const a = link(href, "go", "\u2197");
+  a.setAttribute("aria-label", label);
+  return a;
+}
+
 // Every frame carries the whole state, so without this a market poll every
 // thirty seconds rebuilt the DOM of the weather, the earnings and the store
 // listings too. Rebuilding a panel empties it for a moment before refilling it,
@@ -291,8 +310,7 @@ function lede(level, head, text, links) {
   if (level) box.dataset.level = level;
   const p = el("p", "head");
   p.append(...head);
-  const txt = el("p", text ? "txt" : "txt none", text || "AWAITING READ");
-  if (text) txt.dataset.full = text;
+  const txt = text ? cardLine("txt", text) : el("p", "txt none", "AWAITING READ");
   const meta = el("div", "meta");
   meta.append(...briefLinks(links));
   box.append(p, txt, meta);
@@ -304,9 +322,7 @@ function storyNode(story, i) {
   li.append(el("span", "rank", String(i + 1).padStart(2, "0")));
 
   const body = el("div", "body");
-  const title = link(story.url, "title", story.title);
-  title.dataset.full = story.title;
-  body.append(title);
+  body.append(cardLine("title", story.title));
 
   const meta = el("div", "meta");
   if (story.host) meta.append(el("span", "host", story.host));
@@ -322,7 +338,7 @@ function storyNode(story, i) {
   if (story.age) meta.append(el("span", "age", story.age));
 
   body.append(meta);
-  li.append(body);
+  li.append(body, goLink(story.url, "Open article"));
   return li;
 }
 
@@ -689,15 +705,14 @@ function renderNewsBrief(brief) {
   points.forEach((p, i) => {
     const li = el("li");
     const body = el("div", "body");
-    const title = el("p", "title", p.text);
-    title.dataset.full = p.text;
-    body.append(title);
+    body.append(cardLine("title", p.text));
     const meta = el("div", "meta");
     meta.append(...briefLinks(p.links));
     if (p.coverage) meta.append(el("span", "cov", p.coverage));
     if (p.note) meta.append(el("span", "note", p.note));
     body.append(meta);
-    li.append(el("span", "rank", String(i + 1).padStart(2, "0")), body);
+    const first = (p.links || [])[0];
+    li.append(el("span", "rank", String(i + 1).padStart(2, "0")), body, goLink(first && first.url, first ? `Open ${first.source} article` : ""));
     ol.append(li);
   });
   ol.append(...blankRows(points.length));
