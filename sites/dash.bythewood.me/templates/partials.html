@@ -55,7 +55,7 @@
   <li>
     <span class="rank">{{printf "%02d" (inc $i)}}</span>
     <div class="body">
-      <a class="title" href="{{$s.URL}}" data-full="{{$s.Title}}" rel="noopener noreferrer" target="_blank">{{$s.Title}}</a>
+      <p class="title" data-card role="button" tabindex="0" aria-controls="tip" aria-expanded="false">{{$s.Title}}</p>
       <div class="meta">
         {{if $s.Host}}<span class="host">{{$s.Host}}</span>{{end}}
         <span class="pts">{{$s.Points}}<span class="unit">PTS</span></span>
@@ -63,6 +63,7 @@
         {{if $s.Age}}<span class="age">{{$s.Age}}</span>{{end}}
       </div>
     </div>
+    <a class="go" href="{{$s.URL}}" aria-label="Open article" rel="noopener noreferrer" target="_blank">↗</a>
   </li>
   {{end}}{{end}}
   {{template "blank-rows" (len .)}}
@@ -75,7 +76,7 @@
 
 {{define "pulse"}}<div class="lede" data-level="{{.Level}}">
   <p class="head"><span class="lvl">{{or .Label "AWAITING FEED"}}</span>{{if .Text}} {{.Text}}{{end}}</p>
-  {{if .Read}}<p class="txt" data-full="{{.Read}}">{{.Read}}</p>{{else}}<p class="txt none">AWAITING READ</p>{{end}}
+  {{if .Read}}<p class="txt" data-card role="button" tabindex="0" aria-controls="tip" aria-expanded="false">{{.Read}}</p>{{else}}<p class="txt none">AWAITING READ</p>{{end}}
   <div class="meta">{{template "brief-links" .Links}}</div>
 </div>{{end}}
 
@@ -97,7 +98,7 @@
 {{- else}}
 {{with .Read}}<div class="lede" data-level="{{.Level}}">
   <p class="head"><span class="lvl">{{.Label}}</span> {{.Spread}}</p>
-  <p class="txt" data-full="{{.Text}}">{{.Text}}</p>
+  <p class="txt" data-card role="button" tabindex="0" aria-controls="tip" aria-expanded="false">{{.Text}}</p>
   <div class="meta">{{template "brief-links" .Links}}</div>
 </div>{{else}}<div class="lede">
   <p class="head"><span class="lvl">{{if .Waiting}}{{.Waiting}}{{else}}AWAITING BRIEF{{end}}</span></p>
@@ -108,9 +109,10 @@
   {{range $i, $p := .Points}}{{if lt $i rows}}<li>
     <span class="rank">{{printf "%02d" (inc $i)}}</span>
     <div class="body">
-      <p class="title" data-full="{{$p.Text}}">{{$p.Text}}</p>
+      <p class="title" data-card role="button" tabindex="0" aria-controls="tip" aria-expanded="false">{{$p.Text}}</p>
       <div class="meta">{{template "brief-links" $p.Links}}{{if $p.Coverage}}<span class="cov">{{$p.Coverage}}</span>{{end}}{{if $p.Note}}<span class="note">{{$p.Note}}</span>{{end}}</div>
     </div>
+    {{with $p.Links}}<a class="go" href="{{(index . 0).URL}}" aria-label="Open {{(index . 0).Source}} article" rel="noopener noreferrer" target="_blank">↗</a>{{else}}<span class="go"></span>{{end}}
   </li>
   {{end}}{{end}}
   {{template "blank-rows" (len .Points)}}

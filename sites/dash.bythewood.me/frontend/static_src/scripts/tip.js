@@ -1,40 +1,44 @@
-// One readout card for any text the page had to cut short. data-full opens it
-// only when the element is actually clipped, and data-tip always, for a source
-// tag whose article title isn't on the page at all. A mouse opens it on a short
-// hover, a keyboard on focus, and a touch on a tap, or a long press on a link so
-// the tap still follows it.
+// One readout card for the page. A data-card line opens it on a click, a tap or
+// Enter, filled from the row around it with the links that row carries, and a
+// mouse gets a preview on hover when the line is cut. data-full is text the
+// page had to cut short and data-tip a source tag's headline, which a mouse
+// sees on hover and a keyboard on focus. Nothing waits on a long press, since
+// a phone keeps that for its own link menu.
 
 const HOVER_MS = 280;
-const PRESS_MS = 450;
 const GUTTER = 8;
 const GAP = 9;
 
 const card = document.createElement("div");
 card.className = "tip";
-card.setAttribute("role", "tooltip");
 card.id = "tip";
 card.hidden = true;
 card.innerHTML =
   '<div class="bracket tl"></div><div class="bracket tr"></div>' +
   '<div class="bracket bl"></div><div class="bracket br"></div>' +
-  '<i class="tip-lead"></i><div class="tip-plate"><span class="pk"></span><span class="pv"></span></div><p class="tip-txt"></p>';
+  '<i class="tip-lead"></i><div class="tip-plate"><span class="pk"></span><span class="pv"></span></div>' +
+  '<p class="tip-txt"></p><div class="tip-meta"></div><div class="tip-links"></div>';
 document.body.append(card);
 
 const lead = card.querySelector(".tip-lead");
 const key = card.querySelector(".pk");
 const val = card.querySelector(".pv");
 const txt = card.querySelector(".tip-txt");
+const metaBox = card.querySelector(".tip-meta");
+const linkBox = card.querySelector(".tip-links");
 
 let current = null;
+let pinned = false;
 let timer = 0;
-let swallowClick = null;
 
 function clipped(el) {
   return el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1;
 }
 
-function target(node) {
-  const el = node instanceof Element ? node.closest("[data-full], [data-tip]") : null;
+// What a hover or focus would show: a source tag always, a card line or cut
+// text only when it's cut.
+function preview(node) {
+  const el = node instanceof Element ? node.closest("[data-card], [data-full], [data-tip]") : null;
   if (!el) return null;
   if (el.dataset.tip) return el;
   return clipped(el) ? el : null;
@@ -49,122 +53,182 @@ function label(el) {
   return [name ? name.textContent : "", rank && rank.textContent !== "--" ? rank.textContent : ""];
 }
 
+function span(className, text) {
+  const s = document.createElement("span");
+  s.className = className;
+  s.textContent = text;
+  return s;
+}
+
+function cardLink(href, k, t) {
+  const a = document.createElement("a");
+  a.className = "tip-link";
+  a.href = href;
+  a.rel = "noopener noreferrer";
+  a.target = "_blank";
+  a.append(span("k", k), span("t", t), span("arrow", "↗"));
+  return a;
+}
+
+// A story row carries its article and comments, a brief row or a read carries
+// its sources, each with the headline the row only had room to name.
+function extras(el) {
+  const meta = [];
+  const links = [];
+  const row = el.closest(".lede") || el.closest("li");
+  if (!row) return [meta, links];
+  if (row.classList.contains("lede")) {
+    const head = row.querySelector(".head");
+    if (head) meta.push(head.textContent.trim());
+  }
+  const go = row.querySelector(":scope > a.go");
+  const cmt = row.querySelector("a.cmt");
+  if (go && cmt) {
+    const host = row.querySelector(".host");
+    const pts = row.querySelector(".pts");
+    const age = row.querySelector(".age");
+    if (pts) meta.push(`${pts.firstChild.textContent} PTS`);
+    meta.push(`${cmt.firstChild.textContent} CMT`);
+    if (age) meta.push(age.textContent);
+    links.push(cardLink(go.href, "ARTICLE", host ? host.textContent : new URL(go.href).host));
+    links.push(cardLink(cmt.href, "COMMENTS", new URL(cmt.href).host));
+  }
+  for (const s of row.querySelectorAll(".meta .cov, .meta .note")) meta.push(s.textContent);
+  for (const a of row.querySelectorAll(".meta a.src")) links.push(cardLink(a.href, a.dataset.tipLabel || a.textContent, a.dataset.tip || a.href));
+  return [meta, links];
+}
+
+function fill(el) {
+  const [panel, row] = label(el);
+  const tipLabel = el.dataset.tipLabel;
+  key.textContent = tipLabel || panel || "READOUT";
+  val.textContent = tipLabel ? panel : row || (el.closest(".lede") ? "READ" : "");
+  val.hidden = !val.textContent;
+  txt.textContent = el.dataset.tip || el.dataset.full || el.textContent.trim();
+  const [meta, links] = "card" in el.dataset ? extras(el) : [[], []];
+  metaBox.replaceChildren(...meta.map((m) => span("", m)));
+  metaBox.hidden = meta.length === 0;
+  linkBox.replaceChildren(...links);
+  linkBox.hidden = links.length === 0;
+}
+
 function place(el) {
   const r = el.getBoundingClientRect();
   const vw = document.documentElement.clientWidth;
   const vh = window.innerHeight;
   card.style.maxWidth = `${Math.min(520, vw - GUTTER * 2)}px`;
+  card.style.maxHeight = "";
   const w = card.offsetWidth;
   const h = card.offsetHeight;
+  const room = { below: vh - GUTTER - r.bottom - GAP, above: r.top - GAP - GUTTER };
+  const below = h <= room.below || room.below >= room.above;
+  card.style.maxHeight = `${Math.max(120, below ? room.below : room.above)}px`;
   const left = Math.max(GUTTER, Math.min(r.left, vw - w - GUTTER));
-  const below = r.bottom + GAP + h <= vh - GUTTER || r.top - GAP - h < GUTTER;
-  const top = below ? r.bottom + GAP : r.top - GAP - h;
   card.style.left = `${left}px`;
-  card.style.top = `${top}px`;
+  card.style.top = below ? `${r.bottom + GAP}px` : `${r.top - GAP - Math.min(h, card.offsetHeight)}px`;
   card.dataset.side = below ? "below" : "above";
   // The leader sits over the start of the text it came from, kept inside the card.
   lead.style.left = `${Math.max(10, Math.min(r.left - left + 12, w - 12))}px`;
 }
 
-function show(el) {
-  if (current === el && !card.hidden) return;
+function show(el, pin) {
+  clearTimeout(timer);
+  if (current === el && !card.hidden) {
+    pinned = pinned || pin;
+    return;
+  }
+  if (current) release(current);
   current = el;
-  const [panel, row] = label(el);
-  const tipLabel = el.dataset.tipLabel;
-  key.textContent = tipLabel || panel || "READOUT";
-  val.textContent = tipLabel ? panel : row;
-  val.hidden = !val.textContent;
-  txt.textContent = el.dataset.tip || el.dataset.full || el.textContent;
+  pinned = pin;
+  fill(el);
   card.hidden = false;
   card.classList.remove("on");
   place(el);
   void card.offsetWidth;
   card.classList.add("on");
-  el.setAttribute("aria-describedby", "tip");
+  if ("card" in el.dataset) el.setAttribute("aria-expanded", "true");
+  else el.setAttribute("aria-describedby", "tip");
+}
+
+function release(el) {
+  el.removeAttribute("aria-describedby");
+  if ("card" in el.dataset) el.setAttribute("aria-expanded", "false");
 }
 
 function hide() {
   clearTimeout(timer);
-  if (current) current.removeAttribute("aria-describedby");
+  if (current) release(current);
   current = null;
+  pinned = false;
   card.hidden = true;
   card.classList.remove("on");
 }
 
+function toggle(el) {
+  if (current === el && pinned) hide();
+  else show(el, true);
+}
+
 document.addEventListener("pointerover", (e) => {
-  if (e.pointerType !== "mouse") return;
-  const el = target(e.target);
+  if (e.pointerType !== "mouse" || pinned) return;
+  const el = preview(e.target);
   clearTimeout(timer);
   if (!el) {
     if (current && !card.contains(e.target)) timer = setTimeout(hide, 120);
     return;
   }
-  timer = setTimeout(() => show(el), current ? 0 : HOVER_MS);
+  timer = setTimeout(() => show(el, false), current ? 0 : HOVER_MS);
 });
 
-document.addEventListener("focusin", (e) => {
-  const el = target(e.target);
-  if (el && e.target.matches(":focus-visible")) show(el);
-});
-document.addEventListener("focusout", () => hide());
-
-// A tap opens on the way up, since a finger that starts a scroll gets a
-// pointercancel instead and shouldn't flash the card on its way past.
-let tapped = null;
-document.addEventListener("pointerdown", (e) => {
-  if (e.pointerType === "mouse") return;
-  const el = target(e.target);
-  clearTimeout(timer);
-  tapped = null;
-  if (!el) {
-    if (!card.contains(e.target)) hide();
+// A click is what a tap becomes once the browser is sure it wasn't a scroll,
+// so a finger that starts a scroll on a headline never opens anything.
+document.addEventListener("click", (e) => {
+  if (card.contains(e.target)) {
+    if (e.target.closest("a")) hide();
     return;
   }
-  if (el.closest("a")) {
-    timer = setTimeout(() => {
-      show(el);
-      swallowClick = el.closest("a");
-    }, PRESS_MS);
-  } else {
-    tapped = el;
+  const line = e.target.closest("[data-card]");
+  if (line) {
+    toggle(line);
+    return;
   }
-});
-document.addEventListener("pointerup", () => {
-  if (!swallowClick) clearTimeout(timer);
-  if (!tapped) return;
-  if (current === tapped) hide();
-  else show(tapped);
-  tapped = null;
-});
-document.addEventListener("pointercancel", () => {
-  clearTimeout(timer);
-  tapped = null;
-});
-
-// A long press that opened the card shouldn't also follow the link.
-document.addEventListener(
-  "click",
-  (e) => {
-    if (swallowClick && swallowClick.contains(e.target)) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    swallowClick = null;
-  },
-  true,
-);
-document.addEventListener("contextmenu", (e) => {
-  if (swallowClick) e.preventDefault();
+  const cut = e.target.closest("[data-full]");
+  if (cut && clipped(cut)) {
+    toggle(cut);
+    return;
+  }
+  if (current) hide();
 });
 
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") hide();
+  if (e.key === "Escape" && current) {
+    const back = pinned && card.contains(document.activeElement) ? current : null;
+    hide();
+    if (back) back.focus();
+    return;
+  }
+  const line = e.target instanceof Element && e.target.closest("[data-card]");
+  if (line && (e.key === "Enter" || e.key === " ")) {
+    e.preventDefault();
+    toggle(line);
+  }
 });
-window.addEventListener("scroll", hide, { passive: true });
+
+document.addEventListener("focusin", (e) => {
+  if (card.contains(e.target) || pinned) return;
+  const el = preview(e.target);
+  if (el && e.target.matches(":focus-visible")) show(el, false);
+});
+document.addEventListener("focusout", (e) => {
+  if (pinned || card.contains(e.relatedTarget)) return;
+  if (current) hide();
+});
+
+window.addEventListener("scroll", () => current && hide(), { passive: true });
 
 // The stream redraws whole lists, so the row a card was opened on can vanish
 // from under it.
 new MutationObserver(() => {
   if (current && !current.isConnected) hide();
 }).observe(document.body, { childList: true, subtree: true });
-window.addEventListener("resize", hide);
+window.addEventListener("resize", () => current && hide());

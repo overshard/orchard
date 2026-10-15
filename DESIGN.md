@@ -499,11 +499,18 @@ page, void black with the four amber corner brackets, a plate naming where the
 text came from (`TODAY | 04`, or `BBC | TODAY` on a source tag, which shows that
 article's title), the full text at 13px, and a short amber leader back to the
 line. It paints in with a four frame stepped wipe and the brackets flash once,
-none of it under reduced motion, and there's no shadow. `data-full` opens only
-when the element is actually clipped, `data-tip` always. A mouse opens it on a
-short hover, a keyboard on focus, a tap opens and closes it, and a link takes a
-long press so the tap still follows it. A tap opens on the way up, since a
-scroll that starts on a headline gets a pointercancel and shouldn't flash it.
+none of it under reduced motion, and there's no shadow.
+
+**A news row's headline opens the card and the ↗ at its end opens the article.**
+Headlines and reads in the news band are `data-card` lines, a tap, a click or
+Enter opens the card and the same again closes it, and on a mouse a cut one also
+previews on hover. The card carries the row's way out as full width rows, the
+article and the comments for a feed, and every source with its headline for
+TODAY. A headline is never a link and nothing waits on a long press, since a
+phone keeps long press for its own link menu and the two raced. The ↗ is the
+full height of the row and 32px wide so a thumb finds it. `data-full` text
+elsewhere opens only when it's actually cut, and a source tag's `data-tip`
+shows its headline on hover and focus and is just a link on a phone.
 
 **AT A GLANCE is panel 01, above MARKETS and under the alerts and ON AIR.** One
 sentence or two first, with a level chip of `QUIET`, `WATCH` or `ACT`, then one

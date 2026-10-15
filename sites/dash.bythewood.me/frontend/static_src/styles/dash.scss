@@ -775,7 +775,8 @@ main {
   padding: 9px 12px 11px;
   background: linear-gradient(180deg, rgba(255, 176, 0, 0.035), transparent 60%), var(--void);
   border: 1px solid var(--line-hot);
-  pointer-events: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 
   &[hidden] { display: none; }
 
@@ -804,6 +805,41 @@ main {
     line-height: 1.5;
     overflow-wrap: anywhere;
   }
+
+  .tip-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    margin-top: 8px;
+    font-size: 10px;
+    letter-spacing: var(--track);
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+
+  // Full width rows rather than the panel's small tags, so each one is a thumb
+  // sized target, with the headline a source tag could only name.
+  .tip-links {
+    margin-top: 10px;
+    border-top: 1px solid var(--line);
+  }
+
+  .tip-link {
+    display: grid;
+    grid-template-columns: minmax(64px, auto) 1fr auto;
+    align-items: baseline;
+    column-gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+    &:last-child { border-bottom: 0; padding-bottom: 2px; }
+
+    .k { font-size: 9.5px; letter-spacing: var(--track); color: var(--amber); white-space: nowrap; }
+    .t { color: var(--muted); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+    .arrow { color: var(--dim); }
+    &:hover .t, &:focus-visible .t { color: var(--text); }
+    &:hover .arrow, &:focus-visible .arrow { color: var(--amber); }
+  }
+  .tip-meta[hidden], .tip-links[hidden] { display: none; }
 
   .tip-lead {
     position: absolute;
@@ -868,7 +904,23 @@ main {
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  a.title:hover { color: var(--amber); }
+  // A tap leaves a caret in the text and Chrome drops the ellipsis while it's
+  // there. The card the line opens can still be selected.
+  .title[data-card] { cursor: pointer; user-select: none; }
+  .title[data-card]:hover, .title[aria-expanded="true"] { color: var(--amber); }
+
+  // The way out to the article, the full height of the row so a thumb finds it.
+  .go {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    margin: -7px -6px -7px 0;
+    color: var(--dim);
+    font-size: 14px;
+  }
+  a.go:hover, a.go:focus-visible { color: var(--amber); }
 
   .meta {
     display: flex;
@@ -2300,6 +2352,8 @@ main {
     font-size: 13px;
     line-height: 19px;
   }
+  .txt[data-card] { cursor: pointer; user-select: none; }
+  .txt[data-card]:hover, .txt[aria-expanded="true"] { color: var(--amber); }
   .txt.none { font-size: 11px; letter-spacing: var(--track); color: var(--dim); }
 
   .meta {
