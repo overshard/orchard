@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"auth.bythewood.me/web"
@@ -162,9 +163,12 @@ func realMain() error {
 	shipper := web.ShipLogs(selfSource, web.HTTPSink())
 	defer shipper.Close()
 
+	// Waited on after the cancel, so the db is not closed under a sweep.
 	sweepCtx, stopSweeping := context.WithCancel(context.Background())
+	var sweeping sync.WaitGroup
+	defer sweeping.Wait()
 	defer stopSweeping()
-	go runSweeper(sweepCtx, db)
+	sweeping.Go(func() { runSweeper(sweepCtx, db) })
 
 	handler := s.handler()
 
