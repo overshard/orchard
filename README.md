@@ -14,216 +14,54 @@ inbound port.
 | `sites/repos.bythewood.me/` | Git remote you push to over HTTPS. Also mirrors GitHub |
 | `sites/dash.bythewood.me/` | Dashboard. Markets, news, weather and the health of the rest, live over SSE |
 | `sites/auth.bythewood.me/` | The front door. One account, a code pushed to a phone, one session for every site |
-| `sites/chat.bythewood.me/` | Chat. The same local model, with tools that read the rest of this repo, the house hunting lookups, and pictures |
-| `sites/llm.bythewood.me/` | The model gateway. One card behind an API key, with a chat model and a picture model taking turns on it |
+| `sites/chat.bythewood.me/` | Chat with the local model, with tools that read the rest of this repo, house lookups and pictures |
+| `sites/llm.bythewood.me/` | The model gateway. One card behind an API key, a chat model and a picture model taking turns on it |
 | `edge/` | The shared cloudflared tunnel, the Caddy behind it, and ntfy for alerts |
 
 ## Requirements
 
-Docker, Go and bun. A Cloudflare account with a zone you control, since the
-whole thing is served through a tunnel. Everything else comes out of the
+Docker, Go and bun, and a Cloudflare account with a zone you control, since
+the whole thing is served through a tunnel. Everything else comes out of the
 Dockerfiles.
 
-## Getting it running
-
-### From nothing
-
-A fresh clone on a machine where none of this exists, or a machine where it all
-went down at once:
-
-```sh
-make install
-```
-
-That opens a browser to authorise a Cloudflare zone, creates the tunnel and
-routes every hostname to it, writes a `.env` for each site that needs one,
-brings the edge and every site up, creates the three ntfy accounts, mints the
-publishers' tokens into the `.env` files that use them, hands them to the
-running sites, creates the login account and prints its recovery codes, and ends
-on `doctor`.
-
-Nothing asks you to invent a secret. The ntfy passwords, the publishers' tokens
-and the ten recovery codes the first sign in uses are all generated and printed
-as it goes. Those are the only copies, so put them in Bitwarden while they are on
-screen. `make password` prints another suggestion whenever you want one.
-
-Signing in is on `auth.bythewood.me`: a username, then a six digit code pushed
-to a phone over ntfy. The other sites hold no password of their own and ask it
-whether the cookie on a request is a live session, so a session revoked there is
-gone everywhere on the next request.
-
-`cert.pem` covers a single Cloudflare zone, and the hostnames here span two, so
-the DNS routes for the second zone fail the first time through. Run
-`make tunnel-login` and `make tunnel` again, pick the other zone in the browser,
-and the rest are created.
-
-Then point the ntfy Android client at `https://ntfy.bythewood.me` with the
-reading account it printed, and subscribe to `status`, `logging` and
-`auth`.
-
-Each step is a target of its own, for a run that stopped halfway:
-
-```sh
-make tunnel-login   # browser auth, one Cloudflare zone at a time
-make tunnel         # create the tunnel, route DNS, write config.yml
-make env            # a .env per site that ships a .env.example
-make up             # the edge, then every site, ending in doctor
-make ntfy           # the three ntfy accounts
-make ntfy-token     # the publishers' tokens, into the .env files that use them
-make up             # hand the tokens to the sites that publish with them
-make auth-init      # the login account, and its recovery codes
-```
-
-`up` has to come before `ntfy`, since the accounts are created inside a running
-container. Everything else is safe to re-run at any time, and `make env` never
-touches a `.env` that already exists.
-
-A different domain means editing three things before the tunnel step: the
-`HOSTNAMES` line in `edge/setup-tunnel.sh`, the ingress rules in
-`edge/cloudflared/config.yml`, and the site blocks in `edge/caddy/Caddyfile`.
-Each site's own hostname is a constant in its `site.go`.
-
-### After you change something
-
-```sh
-make deploy SITE=blog.bythewood.me
-```
-
-That is the only command that rebuilds. Nothing needs exporting first, since
-the sites with secrets read them from a `.env` beside their compose file.
-
-Editing anything in `edge/` needs `make edge` instead, because those configs are
-baked into images and `make up` does not rebuild.
-
-### When something is broken
-
-```sh
-make doctor
-```
-
-Read-only. It prints the tunnel credentials, the network, both edge containers,
-every site, and the SQLite volumes with their sizes, and puts the command that
-fixes it next to anything wrong. A container that is stopped or unhealthy
-usually wants `make up`, and one serving the wrong thing wants `make deploy`.
-
-## Commands
+## Running it
 
 ```sh
 make install                         a machine that has never run this
-make up                              everything, from nothing or from broken
 make deploy SITE=blog.bythewood.me   rebuild one site and replace it
-make edge                            rebuild the edge after editing edge/
-make doctor                          tunnel, network, containers, data volumes
-make down                            stop everything
-
-make tunnel-login                    browser auth for one Cloudflare zone
-make tunnel                          create the tunnel, route DNS, write config
-make tunnel-status                   what the tunnel has right now
-make env                             a .env per site that ships a .env.example
-make password                        print a suggested password, writing nothing
-make ntfy                            create the three ntfy accounts
-make ntfy-token                      mint the publishers' tokens into the .env files
-make auth-init                       create the login account and print its codes
-make chat-key                        mint chat's gateway key into its .env, if it has none
-make dash-key                        the same for dash, which writes the daily briefs with it
-make llm-key NAME=chat               mint an api key for the model gateway
-make wiki                            download the offline wikipedia, 12.5GB
-make ntfy-status                     accounts, access and tokens
-make ntfy-passwd                     change the reading account's password
-
+make up                              everything, from nothing or from broken
+make doctor                          what's down and what to type
 make run SITE=blog.bythewood.me      vite watch + go run, on :8000
-make build SITE=blog.bythewood.me    frontend, then a release binary in bin/
-make check                           gofmt, vet, govulncheck and build every site
+make check                           gofmt, vet, govulncheck and build
 make test                            every site's tests
-make deps                            update every site's Go modules together
 ```
 
-The development targets touch no Docker. Everything else goes through `sudo`,
-because the socket in the webdev container is root-owned mode 660. On a host
-where docker needs no sudo: `make up SUDO=`.
-
-Every site has `run`, `build` and `clean` in its own `Makefile`, so you can work
-inside one without going through the root. There is no default `SITE`.
+`make help` lists the rest. `docs/install.md` walks through what install does
+and how to finish one that stopped halfway, and `docs/edge.md` covers the
+tunnel, Caddy and ntfy.
 
 ## Layout
 
-Each site is its own Go module and builds on its own. There is no module at the
-repo root, and `go.work` is only there so an editor can see every site at once.
-The Makefile turns it off, since under it each site would test against whatever
-version the newest site uses:
-
-```sh
-cd sites/blog.bythewood.me && GOWORK=off go build ./...
-```
-
-Each site also carries its own copy of `web/`, the small HTTP layer they all
-need. That means a site is a directory you can lift into its own repository, and
-its Docker build context is that directory instead of the whole monorepo. That
-means a fix in `web/` has to be made in every site.
-
-Go serves every request and `html/template` renders the pages. Vite is a build
-step and never a server: it writes content-hashed JS and CSS into `build/dist/`,
-and the Go binary reads `build/dist/.vite/manifest.json` to turn those hashes
-into script and link tags. Typst does the typesetting at build time for post
-PDFs, the resume, and the social card each site serves as its `og:image`.
-
-Everything generated lands in `sites/<name>/build/`, which is gitignored.
-`make build` passes `-tags embed` so `//go:embed` compiles that directory into
-the binary, which is how blog and the portfolio come out as a single file.
-
-## The edge
-
-One cloudflared and one Caddy serve the whole repo. Traffic is outbound only,
-so there is no port forwarding, no dynamic DNS, and the origin IP is never
-published. Every container listens on 8000 internally and nothing is published
-to the host.
-
-Adding a hostname takes three changes: a site block in `edge/caddy/Caddyfile`,
-an ingress rule in `edge/cloudflared/config.yml`, and a proxied CNAME to
-`<tunnel-id>.cfargotunnel.com`.
-
-Every `reverse_proxy` imports `hold`, which sets `lb_try_duration` so Caddy
-keeps retrying the container for up to 40 seconds instead of answering 502. A
-deploy stops the old container before the new one starts, and without it a
-dash deploy answered 502 for about 15 seconds. With it the same requests wait
-and then succeed.
-
-Caddy also writes its access log to `logging.bythewood.me`, over a plain socket
-on port 9001 rather than through the shipper every site uses, since Caddy can't
-carry a Go handler. It keeps writing the same lines to stderr as well, so
-`docker logs orchard-caddy` is unchanged. cloudflared and ntfy don't ship
-anywhere, because neither can write its log to a network address and pointing
-either at a file takes its stdout away.
-
-ntfy runs in the edge and is how anything here reaches a phone. status publishes
-outage transitions and logging publishes silence transitions, both over the
-internal bridge. Reading is over the tunnel with a read-only account.
+Each site is its own Go module with its own copy of `web/`, the small HTTP
+layer they all need, so a site is a directory you can lift into its own repo and
+a fix in `web/` has to be made in every site. There's no root module, and
+`go.work` is only there for editors. Go serves every request, Vite is a build
+step that writes hashed assets into `build/dist/`, and Typst typesets the PDFs
+and social cards at build time. Everything generated lands in
+`sites/<name>/build/`, which is gitignored.
 
 ## Things that will bite you
 
-Editing an `edge/` config and running `make up` does nothing. Those configs are
-baked into images. Use `make edge`.
+- Editing an `edge/` config and running `make up` does nothing, since those
+  configs are baked into images. Use `make edge`.
+- A `/data` volume created root-owned stays that way and needs a one time
+  `chown -R 65532:65532`.
+- Bind mounts of paths under `/home/dev` silently mount an empty directory,
+  because the daemon resolves the path on the host. Use named volumes.
+- `.env` is gitignored by bare name and this repo is public, so check it with
+  `git check-ignore -v sites/<site>/.env` rather than trusting it.
 
-A `/data` volume created root-owned stays root-owned and needs a one-time
-`chown -R 65532:65532`.
-
-`.env` is gitignored by bare name and this repository is public, so it is worth
-checking rather than trusting:
-
-```sh
-git check-ignore -v sites/status.bythewood.me/.env
-```
-
-Bind mounts of paths under `/home/dev` silently mount an empty directory,
-because the daemon runs on the host and resolves the source against its own
-filesystem, not webdev's. Use named volumes.
-
-An alerter running on this machine cannot tell you this machine lost power. A
-tunnel that drops is covered from the other side, since Cloudflare sends its own
-tunnel health notification.
-
-`CLAUDE.md` has the rest: the conventions, and the mistakes that have already
-been made once.
+`CLAUDE.md` has the rest, the conventions and the mistakes already made once.
 
 ## License
 
