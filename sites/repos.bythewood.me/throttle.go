@@ -1,15 +1,6 @@
-// A rate limit on the three route families robots.txt already asks crawlers to
-// leave alone.
-//
-// A git browser has no bounded URL space: every commit times every file times
-// every tree, across every repository here including the archived ones.
-// robots.txt is the only thing between a crawler and all of it, so a crawler
-// that ignores robots.txt walks forever, and one of them walked a couple of
-// hundred megabytes of it in an afternoon.
-//
-// It is in Go rather than in Caddy because the edge image is stock
-// caddy:2-alpine, and a rate limit there means an xcaddy build of the whole edge
-// for one site.
+// A rate limit for crawlers that ignore robots.txt, since a git browser's URL
+// space has no bound and one of them walks it forever. It's in Go since the edge
+// runs stock caddy and a limit there needs an xcaddy build of the whole edge.
 package main
 
 import (
@@ -22,15 +13,12 @@ import (
 	"repos.bythewood.me/web"
 )
 
-// What each bucket allows. Archives are their own because they are the only
-// route here that costs real work: git archive of a whole repository, measured
-// at up to 25 seconds and several megabytes, against about 50KB for a page.
-//
-// A signed in request skips all of this, so these numbers only ever have to be
-// generous to a stranger reading the site and not to Isaac using it.
+// Archives get their own bucket since a git archive of a whole repository is the
+// only route here that costs real work. A signed in request skips all of this, so
+// these only have to be generous to a stranger reading the site.
 var (
 	// Reading commits, raw files and history. A person clicking through a
-	// repository does not approach this and the crawler averaged 29 a minute.
+	// repository doesn't come near this.
 	pageLimit = rate{burst: 40, per: time.Minute, refill: 20}
 
 	// Tarballs. Three an hour is enough to take a copy of what somebody came
@@ -62,7 +50,7 @@ func newThrottle(limit rate) *throttle {
 
 // allow spends a token for addr, refilling by how long it has been. It returns
 // how long to wait when there is nothing to spend, which becomes Retry-After so
-// a well meaning client knows what to do rather than guessing.
+// a well meaning client knows what to do instead of guessing.
 func (t *throttle) allow(addr string, now time.Time) (bool, time.Duration) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -104,10 +92,9 @@ func (t *throttle) sweep(now time.Time) {
 	}
 }
 
-// limited wraps a handler with one of the buckets. A signed in request goes
-// through a full bucket, but only once auth says the session is live, since any
-// cookie value would otherwise do. Asking only on refusal keeps a crawler with
-// a made up cookie from turning every request into a call to auth.
+// limited wraps a handler with a bucket. A refused request still goes through
+// when auth says its session is live, and auth is only asked on a refusal so a
+// crawler with a made up cookie can't turn every request into a call to auth.
 func (s *site) limited(t *throttle, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ok, wait := t.allow(web.ClientIP(r), time.Now())

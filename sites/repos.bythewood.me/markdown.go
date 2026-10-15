@@ -1,6 +1,6 @@
 package main
 
-// README rendering and file highlighting. The bluemonday pass is not optional:
+// README rendering and file highlighting. The bluemonday pass is required since
 // goldmark passes raw HTML through, and this renders READMEs from mirrored
 // repositories nobody here reviewed.
 
@@ -38,7 +38,7 @@ var (
 		),
 		goldmark.WithRendererOptions(
 			// Unsafe is on because escaping raw HTML breaks the badges and
-			// anchors most READMEs use, sanitizer below is what makes it safe.
+			// anchors most READMEs use, and the sanitizer below makes it safe.
 			goldmarkhtml.WithUnsafe(),
 		),
 	)
@@ -50,7 +50,7 @@ var (
 
 func newSanitizer() *bluemonday.Policy {
 	p := bluemonday.UGCPolicy()
-	// Sizing attributes, so badges do not render at full resolution.
+	// Sizing attributes, so badges don't render at full resolution.
 	p.AllowAttrs("width", "height", "align").OnElements("img")
 	p.AllowAttrs("id").OnElements("h1", "h2", "h3", "h4", "h5", "h6")
 	// chroma's spans carry their colours on class attributes.
@@ -164,8 +164,8 @@ func Highlight(name string, src []byte) (template.HTML, bool) {
 	return template.HTML(buf.String()), true
 }
 
-// IsBinary decides whether to offer a file for download. The NUL test is what git
-// itself uses.
+// IsBinary decides whether to offer a file for download, with the same NUL test
+// git uses.
 func IsBinary(src []byte) bool {
 	limit := min(len(src), 8000)
 	return bytes.IndexByte(src[:limit], 0) >= 0

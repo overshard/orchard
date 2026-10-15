@@ -15,7 +15,6 @@ import (
 	"repos.bythewood.me/web"
 )
 
-// site holds everything a handler needs.
 type site struct {
 	renderer *web.Renderer
 	store    *Store
@@ -191,8 +190,8 @@ type repoContext struct {
 
 	CloneURL  string
 	BridgeURL string
-	// BridgeContainer is the container name alone, which is what the push help
-	// builds its commands from.
+	// BridgeContainer is the container name alone, for the push help to build
+	// its commands from.
 	BridgeContainer string
 	// OverLimit says a from-scratch push of this repository is larger than one
 	// request through Cloudflare, so seeding it needs the bridge or slices.
@@ -232,8 +231,8 @@ func (s *site) resolveRepo(w http.ResponseWriter, r *http.Request) (*repoContext
 		rc.Tags, _ = s.store.Tags(ctx, repo)
 	}
 
-	// Either way the revision is resolved before use, so anything that does not
-	// name a commit is a 404 rather than an argument to a later git command.
+	// Either way the revision is resolved before use, so anything that doesn't
+	// name a commit is a 404 instead of an argument to a later git command.
 	rev := r.PathValue("rev")
 	if rev == "" {
 		rev = rc.Head
@@ -371,7 +370,7 @@ func (s *site) blob(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case err == errTooLarge:
-		// Not an error page: the file exists and is still downloadable.
+		// Not an error page, the file exists and is still downloadable.
 		data["TooLarge"] = true
 	case err != nil:
 		s.notFound(w, r)
@@ -416,7 +415,7 @@ func (s *site) raw(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	// A blob at a resolved SHA cannot change, at a branch name it can.
+	// A blob at a resolved SHA can't change, at a branch name it can.
 	if sha == rc.Rev {
 		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 	} else {
@@ -469,7 +468,7 @@ func (s *site) log(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// One extra row rather than counting the whole history, which is a graph walk.
+	// One extra row instead of counting the whole history, which is a graph walk.
 	hasNext := len(commits) > perPage
 	if hasNext {
 		commits = commits[:perPage]
@@ -529,7 +528,6 @@ func (s *site) refsPage(templateName string) http.HandlerFunc {
 	}
 }
 
-// archive streams a tarball or zip of a revision.
 func (s *site) archive(w http.ResponseWriter, r *http.Request) {
 	rc, ok := s.resolveRepo(w, r)
 	if !ok {
@@ -580,7 +578,7 @@ func (s *site) settings(w http.ResponseWriter, r *http.Request) {
 	// shared cache. EdgeCache leaves a handler's own choice alone.
 	w.Header().Set("Cache-Control", "no-store, private")
 
-	// Read once and clear, so a refresh does not show the token again.
+	// Read once and clear, so a refresh doesn't show the token again.
 	fresh := ""
 	if c, err := r.Cookie(newTokenCookie); err == nil {
 		fresh = c.Value
@@ -627,8 +625,8 @@ func (s *site) createToken(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "could not create token", http.StatusInternalServerError)
 		return
 	}
-	// A one-shot cookie rather than a query string: a bearer credential in a URL
-	// lands in the edge access log, a Referer header and browser history.
+	// A one-shot cookie instead of a query string, since a bearer credential in a
+	// URL lands in the edge access log, a Referer header and browser history.
 	http.SetCookie(w, &http.Cookie{
 		Name:     newTokenCookie,
 		Value:    token,
@@ -661,7 +659,7 @@ func (s *site) editRepo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// A mirror's description is overwritten on the next sync, so it is not editable.
+	// A mirror's description is overwritten on the next sync, so it isn't editable.
 	if meta, err := s.db.Repo(name); err == nil && meta.Mirror {
 		http.Error(w, "this repository is a mirror; its description comes from upstream",
 			http.StatusForbidden)
@@ -802,7 +800,7 @@ func (s *site) addMirrorSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Sync now rather than at the next tick, so a typo'd name is reported here.
+	// Sync now instead of at the next tick, so a typo'd name is reported here.
 	msg := "Added " + src.Label() + ". Syncing now."
 	if !s.mirrorReady() {
 		msg = "Added " + src.Label() + ". The mirror lane is disabled, so nothing will sync."

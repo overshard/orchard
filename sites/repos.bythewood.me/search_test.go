@@ -11,8 +11,8 @@ import (
 	"testing"
 )
 
-// A repository with the shape that broke the walk: the file worth finding is
-// three levels down and its directory name is the one the model dropped.
+// The file worth finding is three levels down, under a directory name a model
+// tends to drop.
 func searchFixture(t *testing.T) *site {
 	t.Helper()
 	if _, err := exec.LookPath("git"); err != nil {
@@ -71,8 +71,8 @@ func callJSON(t *testing.T, h http.HandlerFunc, pattern, target string) (int, ma
 	return w.Code, out
 }
 
-// The one call that replaces the walk. "earnings.go" has to come back as its
-// full path without anything having listed a directory.
+// "earnings.go" has to come back as its full path without anything having
+// listed a directory.
 func TestFindLocatesAFileByName(t *testing.T) {
 	s := searchFixture(t)
 	code, out := callJSON(t, s.apiFind, "GET /api/repos/{name}/find/{rev}",
@@ -85,8 +85,8 @@ func TestFindLocatesAFileByName(t *testing.T) {
 		t.Fatalf("find returned %v", out["paths"])
 	}
 
-	// No query is the whole tree, which is how the shape of a repository is
-	// seen in one call rather than one directory at a time.
+	// No query is the whole tree, so the shape of a repository is seen in one
+	// call instead of one directory at a time.
 	_, all := callJSON(t, s.apiFind, "GET /api/repos/{name}/find/{rev}",
 		"/api/repos/orchard/find/HEAD")
 	if n, _ := all["count"].(float64); n != 3 {
@@ -116,8 +116,8 @@ func TestGrepFindsASymbol(t *testing.T) {
 	}
 }
 
-// A question about one site must not read the other ten, which is the whole
-// reason the pathspec is passed to git rather than filtered afterwards.
+// A question about one site mustn't read the rest, so the pathspec goes to git
+// instead of being filtered afterwards.
 func TestGrepStaysInsideThePathspec(t *testing.T) {
 	s := searchFixture(t)
 	_, out := callJSON(t, s.apiGrep, "GET /api/repos/{name}/grep/{rev}",
@@ -164,7 +164,7 @@ func TestFileTakesALineRange(t *testing.T) {
 		t.Errorf("a slice did not say it was one: %v", out)
 	}
 
-	// The whole file is the shape it always was, with no range fields on it.
+	// A whole file read has no range fields on it.
 	_, whole := callJSON(t, s.apiFile, "GET /api/repos/{name}/file/{rev}/{path...}",
 		"/api/repos/orchard/file/HEAD/sites/dash.bythewood.me/earnings.go")
 	if whole["partial"] != nil {

@@ -40,7 +40,7 @@ type GitHubRepo struct {
 	} `json:"owner"`
 
 	// explicit is true when a source named this repository outright. An account
-	// sweep skips forks, a repository asked for by name is not skipped.
+	// sweep skips forks, a repository asked for by name isn't skipped.
 	explicit bool
 }
 
@@ -49,17 +49,17 @@ type Mirror struct {
 	store *Store
 	db    *DB
 
-	// A manual sync runs on life rather than on the request that asked for it,
+	// A manual sync runs on life instead of on the request that asked for it,
 	// so it ends at shutdown, and manual is how shutdown waits for it.
 	life   context.Context
 	manual sync.WaitGroup
 
-	// Set while a manual sync is in flight, so a second click is declined rather
-	// than parked on the mutex below.
+	// Set while a manual sync is in flight, so a second click is declined instead
+	// of parked on the mutex below.
 	running atomic.Bool
 
-	// One sync at a time: two `git remote update` runs against one repository
-	// fight over the lock file.
+	// One sync at a time, since two `git remote update` runs against one
+	// repository fight over the lock file.
 	mu sync.Mutex
 }
 
@@ -112,13 +112,13 @@ func (m *Mirror) Sync(ctx context.Context) error {
 
 	seen := make(map[string]bool, len(remote))
 	for _, gh := range remote {
-		// A private repository needs a token this site does not have, and an
+		// A private repository needs a token this site doesn't have, and an
 		// account sweep skips forks unless one was named outright.
 		if gh.Private || (gh.Fork && !gh.explicit) {
 			continue
 		}
-		// Ownership of a name is decided by what is on disk, not by a database
-		// row: a bare repository with no mirror row is a pushed one, offered to
+		// Ownership of a name is decided by what's on disk and not by a database
+		// row, so a bare repository with no mirror row is a pushed one, offered to
 		// adopt and skipped if it declines.
 		if repo, onDisk := m.store.Open(gh.Name); onDisk {
 			if meta, err := m.db.Repo(gh.Name); err != nil || !meta.Mirror {
@@ -182,7 +182,7 @@ func (m *Mirror) Sync(ctx context.Context) error {
 }
 
 // list reads every configured source. One source failing is logged and the rest
-// still run, so a typo does not stop the other sources being backed up.
+// still run, so a typo doesn't stop the other sources being backed up.
 func (m *Mirror) list(ctx context.Context, sources []MirrorSource) ([]GitHubRepo, error) {
 	client := &http.Client{Timeout: 30 * time.Second}
 
@@ -348,7 +348,7 @@ func (m *Mirror) adopt(ctx context.Context, gh GitHubRepo, repo Repo) (bool, err
 				slog.String("repo", gh.Name), slog.String("ref", name))
 			ok = false
 		default:
-			// --is-ancestor is a predicate: the exit status is the answer.
+			// --is-ancestor is a predicate, the exit status is the answer.
 			if err := gitCmd(ctx, repo,
 				"merge-base", "--is-ancestor", sha, up).Run(); err != nil {
 				slog.Warn("not adopting: local commits are not on upstream",
@@ -369,8 +369,8 @@ func (m *Mirror) adopt(ctx context.Context, gh GitHubRepo, repo Repo) (bool, err
 		return false, nil
 	}
 
-	// Only now does origin become a mirror remote, which is what makes the
-	// `remote update --prune` in syncOne rewrite refs rather than add to them.
+	// Only now does origin become a mirror remote, so the `remote update --prune`
+	// in syncOne rewrites refs instead of adding to them.
 	for _, kv := range [][2]string{
 		{"remote.origin.fetch", "+refs/*:refs/*"},
 		{"remote.origin.mirror", "true"},
@@ -428,9 +428,9 @@ func (m *Mirror) syncOne(ctx context.Context, gh GitHubRepo) error {
 		}
 	} else {
 		repo := Repo{Name: gh.Name, Path: path}
-		// --prune propagates an upstream deletion, which is why every mirror is
-		// created with a never-expiring reflog. gitCmd rather than run, because
-		// run imposes gitTimeout, which is far too short for a fetch.
+		// --prune propagates an upstream deletion, so every mirror is created with
+		// a never-expiring reflog. gitCmd and not run, since gitTimeout is far too
+		// short for a fetch.
 		cmd := gitCmd(ctx, repo, "remote", "update", "--prune")
 		var stderr bytes.Buffer
 		cmd.Stderr = &stderr
@@ -445,7 +445,7 @@ func (m *Mirror) syncOne(ctx context.Context, gh GitHubRepo) error {
 	if err := m.db.MarkMirror(gh.Name, gh.CloneURL, gh.Archived); err != nil {
 		return err
 	}
-	// Upstream owns a mirror's description and topics, and the UI will not edit
+	// Upstream owns a mirror's description and topics, and the UI won't edit
 	// them, so overwriting on each sync is correct.
 	return m.db.SetDescription(gh.Name, gh.Desc, gh.Topics, gh.Homepage)
 }
@@ -462,8 +462,8 @@ func (m *Mirror) clone(ctx context.Context, gh GitHubRepo, path string) error {
 		return fmt.Errorf("clone %s: %w: %s", gh.Name, err, strings.TrimSpace(string(out)))
 	}
 
-	// core.logAllRefUpdates is off by default in a bare repository, and it is what
-	// leaves an upstream force push's old tip recoverable in the reflog.
+	// core.logAllRefUpdates is off by default in a bare repository, and it leaves
+	// an upstream force push's old tip recoverable in the reflog.
 	repo := Repo{Name: gh.Name, Path: path}
 	for _, kv := range [][2]string{
 		{"core.logAllRefUpdates", "true"},
@@ -478,8 +478,8 @@ func (m *Mirror) clone(ctx context.Context, gh GitHubRepo, path string) error {
 	return nil
 }
 
-// RunGC repacks every repository on a ticker, which is what makes
-// receive.autogc=false safe to set.
+// RunGC repacks every repository on a ticker so receive.autogc=false is safe to
+// set.
 func RunGC(ctx context.Context, store *Store, every time.Duration) {
 	t := time.NewTicker(every)
 	defer t.Stop()
@@ -505,7 +505,7 @@ func RunGC(ctx context.Context, store *Store, every time.Duration) {
 }
 
 // TrySync runs a sync in the background and reports whether it started one. It
-// declines rather than queues, so two clicks do not mean two syncs.
+// declines instead of queueing, so two clicks don't mean two syncs.
 func (m *Mirror) TrySync() bool {
 	// Nothing may join manual once shutdown is waiting on it.
 	if m.life.Err() != nil {

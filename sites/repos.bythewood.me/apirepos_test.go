@@ -11,10 +11,8 @@ import (
 	"testing"
 )
 
-// chat.bythewood.me could list these repositories and read nothing inside them,
-// so every question about Isaac's own code ended with the model guessing raw
-// addresses and collecting 404s. These two endpoints are what it reads instead,
-// so the shape they answer in is a contract.
+// These two endpoints are how chat.bythewood.me reads inside a repository, so the
+// shape they answer in is a contract.
 func TestAPITreeAndFile(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not on PATH")
@@ -84,8 +82,8 @@ func TestAPITreeAndFile(t *testing.T) {
 		t.Errorf("the file came back as %q", out["text"])
 	}
 
-	// A missing path is a 404, which is what orchard_code falls through on when
-	// it tries a file first and the path turns out to be a directory.
+	// A missing path is a 404, since orchard_code falls through on it when it
+	// tries a file first and the path turns out to be a directory.
 	code, _ = call(s.apiFile, "GET /api/repos/{name}/file/{rev}/{path...}", "/api/repos/demo/file/HEAD/tools")
 	if code != http.StatusNotFound {
 		t.Errorf("a directory read as a file answered %d, want 404", code)

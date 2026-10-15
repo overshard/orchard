@@ -1,6 +1,6 @@
 package main
 
-// The database holds only what git cannot: push tokens, description and topics,
+// The database holds only what git can't: push tokens, description and topics,
 // and mirror state. Refs, commits, trees, sizes and dates are never copied here,
 // since a cache of something git can answer is a second source of truth.
 
@@ -109,7 +109,7 @@ func OpenDB(dir string) (*DB, error) {
 	}
 	path := filepath.Join(dir, "repos.db")
 
-	// WAL so a mirror sync writing state does not block a page read, and a
+	// WAL so a mirror sync writing state doesn't block a page read, and a
 	// busy_timeout because a push-to-create and a sync tick can land together.
 	dsn := path + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)"
 
@@ -145,7 +145,7 @@ type RepoMeta struct {
 }
 
 // Repo reads one row. No row means a repository that was pushed and never
-// described, rather than an error.
+// described, not an error.
 func (d *DB) Repo(name string) (RepoMeta, error) {
 	row := d.sql.QueryRow(`
         SELECT name, description, topics, homepage, mirror, upstream,
@@ -214,7 +214,7 @@ func (d *DB) EnsureRepo(name string) error {
 }
 
 // SetDescription updates what the UI can edit. Topics are a JSON array, not a
-// join table, nothing queries across them that a LIKE cannot answer.
+// join table, nothing queries across them that a LIKE can't answer.
 func (d *DB) SetDescription(name, description string, topics []string, homepage string) error {
 	if err := d.EnsureRepo(name); err != nil {
 		return err
@@ -289,9 +289,8 @@ type Token struct {
 	LastUsed time.Time
 }
 
-// Argon2id parameters, modest because what is hashed is a 256 bit random value
-// rather than a human password. The hash is here so a leaked database is not a
-// credential, not to withstand a dictionary attack.
+// Argon2id parameters, modest since what's hashed is a 256 bit random value and
+// not a human password. The hash only keeps a leaked database from being a credential.
 const (
 	argonTime    = 1
 	argonMemory  = 64 * 1024
@@ -361,7 +360,7 @@ func (d *DB) VerifyToken(token string) (string, error) {
 		candidate := argon2.IDKey([]byte(token), salt,
 			argonTime, argonMemory, argonThreads, argonKeyLen)
 		if subtle.ConstantTimeCompare(candidate, hash) == 1 {
-			// Best effort: a push must not fail because this write did.
+			// Best effort, a push mustn't fail because this write did.
 			_, _ = d.sql.Exec(`UPDATE tokens SET last_used = ? WHERE id = ?`,
 				time.Now().Unix(), id)
 			return label, nil
@@ -447,7 +446,7 @@ var ghNamePart = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 // syntax there is.
 func ParseMirrorSource(input string) (MirrorSource, error) {
 	in := strings.TrimSpace(input)
-	// A pasted GitHub URL is accepted rather than rejected.
+	// A pasted GitHub URL is accepted too.
 	in = strings.TrimSuffix(strings.TrimPrefix(strings.TrimPrefix(in,
 		"https://github.com/"), "github.com/"), ".git")
 	// Only a trailing slash is forgiven, a leading one means the owner is missing.
@@ -509,7 +508,7 @@ func (d *DB) DeleteMirrorSource(id int64) error {
 }
 
 // SeedMirrorSources adds owner as a source on first run. Guarded by a marker
-// rather than by an empty table, so deleting the last source keeps it deleted.
+// instead of an empty table, so deleting the last source keeps it deleted.
 func (d *DB) SeedMirrorSources(owner string) error {
 	var seeded string
 	err := d.sql.QueryRow(`SELECT value FROM settings WHERE key = 'mirror_sources_seeded'`).Scan(&seeded)
