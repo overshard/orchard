@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"math"
 	"net/url"
 	"sort"
@@ -75,6 +76,10 @@ type Earning struct {
 	// The New York date it was reported on, which the label stops saying once
 	// it is more than a day old.
 	date string
+
+	// Nasdaq's own surprise figure, which the verdict is read from and which
+	// is logged beside the two figures it should agree with.
+	surprise string
 }
 
 // Earnings is the panel: what has printed and what is coming.
@@ -207,18 +212,55 @@ func lastWeekday(t time.Time) time.Time {
 	return d
 }
 
-// newReports is whether a check found a print the last full poll did not have.
-func newReports(fresh, known []Earning) bool {
-	seen := map[string]bool{}
+// reportChange is a print the last full poll did not have, or had with
+// different figures, since Nasdaq can revise a row on the day it lands.
+type reportChange struct {
+	was *Earning
+	now Earning
+}
+
+func changedReports(fresh, known []Earning) []reportChange {
+	seen := map[string]Earning{}
 	for _, r := range known {
-		seen[r.Symbol+r.date] = true
+		seen[r.Symbol+r.date] = r
 	}
+	var out []reportChange
 	for _, r := range fresh {
-		if !seen[r.Symbol+r.date] {
-			return true
+		was, ok := seen[r.Symbol+r.date]
+		switch {
+		case !ok:
+			out = append(out, reportChange{now: r})
+		case was.Actual != r.Actual || was.Forecast != r.Forecast || was.Verdict != r.Verdict:
+			out = append(out, reportChange{was: &was, now: r})
 		}
 	}
-	return false
+	return out
+}
+
+// logReports records what Nasdaq said about each print as it was heard, since
+// the panel only ever holds the latest version.
+func logReports(changes []reportChange) {
+	for _, c := range changes {
+		attrs := []any{
+			slog.String("component", "earnings"),
+			slog.String("symbol", c.now.Symbol),
+			slog.String("date", c.now.date),
+			slog.String("verdict", c.now.Verdict),
+			slog.String("actual", c.now.Actual),
+			slog.String("forecast", c.now.Forecast),
+			slog.String("surprise", c.now.surprise),
+		}
+		if c.was == nil {
+			slog.Info("earnings reported", attrs...)
+			continue
+		}
+		slog.Warn("earnings revised", append(attrs,
+			slog.String("was_verdict", c.was.Verdict),
+			slog.String("was_actual", c.was.Actual),
+			slog.String("was_forecast", c.was.Forecast),
+			slog.String("was_surprise", c.was.surprise),
+		)...)
+	}
 }
 
 // earningsDay is one calendar day filtered to the index names, largest first.
@@ -257,6 +299,7 @@ func earningsDay(ctx context.Context, g *Guard, day, today time.Time, caps map[s
 			e.Verdict = epsVerdict(actual, forecast, r.Surprise)
 			e.Actual = money(actual)
 			e.Forecast = money(forecast)
+			e.surprise = strings.TrimSpace(r.Surprise)
 		case hasForecast:
 			e.Est = money(forecast)
 			e.Ests = strings.TrimSpace(r.NoOfEsts)

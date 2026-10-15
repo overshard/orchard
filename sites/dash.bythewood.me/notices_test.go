@@ -140,13 +140,21 @@ func TestEarningsNoticeIDsUseTheDate(t *testing.T) {
 	}
 }
 
-func TestNewReportsComparesByNameAndDate(t *testing.T) {
-	known := []Earning{{Symbol: "ORCL", date: "2026-09-10"}}
-	if newReports([]Earning{{Symbol: "ORCL", date: "2026-09-10"}}, known) {
-		t.Error("a print the full poll already had counted as new")
+func TestChangedReports(t *testing.T) {
+	known := []Earning{{Symbol: "UNH", date: "2026-10-13", Verdict: "MISS", Actual: "$2.92", Forecast: "$4.12"}}
+	if got := changedReports(known, known); len(got) != 0 {
+		t.Errorf("a print the full poll already had counted as changed: %+v", got)
 	}
-	if !newReports([]Earning{{Symbol: "ORCL", date: "2026-09-10"}, {Symbol: "ADBE", date: "2026-09-10"}}, known) {
-		t.Error("a new print was missed")
+
+	added := append(known, Earning{Symbol: "JNJ", date: "2026-10-13", Verdict: "BEAT"})
+	if got := changedReports(added, known); len(got) != 1 || got[0].now.Symbol != "JNJ" || got[0].was != nil {
+		t.Errorf("a new print = %+v", got)
+	}
+
+	revised := []Earning{{Symbol: "UNH", date: "2026-10-13", Verdict: "BEAT", Actual: "$4.69", Forecast: "$4.12"}}
+	got := changedReports(revised, known)
+	if len(got) != 1 || got[0].was == nil || got[0].was.Actual != "$2.92" || got[0].now.Actual != "$4.69" {
+		t.Errorf("a revised print = %+v", got)
 	}
 }
 
