@@ -18,6 +18,9 @@ services:
     # receive-pack subprocess finish rather than leave a half-written pack and a
     # stale lock.
     stop_grace_period: 30s
+    # git leaves children behind that nothing reaps without an init as PID 1,
+    # and they pile up as zombies until the container hits its process limit.
+    init: true
     # A ceiling to fail against rather than a target. Roomier than the static
     # sites because a push runs `git index-pack`, and a mirror clone of a 130MB
     # repository can run alongside it.
