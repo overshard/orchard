@@ -25,7 +25,7 @@ make clean    delete that binary
 
 ## Layout
 
-`chat.go` is the turn, `tools/` every tool the model can call, `property/` the
+`chat.go` is the turn, `tools/` every tool the model can call, `internal/property/` the
 house lookups (with the detail in `CLAUDE.md`), `history.go` and `memory.go`
 what gets kept, and `attach.go` and `picture.go` files in and pictures out.
 `templates/` and `static/` are written by hand, with no Vite.

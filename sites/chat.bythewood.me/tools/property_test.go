@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"chat.bythewood.me/property"
+	"chat.bythewood.me/internal/property"
 )
 
 type propStub struct {

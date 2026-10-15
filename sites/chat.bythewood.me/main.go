@@ -21,7 +21,7 @@ import (
 	"syscall"
 	"time"
 
-	"chat.bythewood.me/property"
+	"chat.bythewood.me/internal/property"
 	"chat.bythewood.me/tools"
 	"chat.bythewood.me/web"
 	"github.com/yuin/goldmark"

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"chat.bythewood.me/property"
+	"chat.bythewood.me/internal/property"
 )
 
 // House hunting works as a conversation since every question about a house is a
