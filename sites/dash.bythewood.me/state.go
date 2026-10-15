@@ -236,31 +236,9 @@ func (s *Store) awaitFirstRound(ctx context.Context, most time.Duration) {
 // the site the dashboard is running on as unknown until the next round a minute
 // later, which is every deploy.
 func (s *Store) Run(ctx context.Context, g *Guard) {
-	go s.loop(ctx, "market", func() time.Duration {
-		if s.hub.Watching() > 0 {
-			return marketWatched
-		}
-		// Nobody is on the page, so this drops to a keep-warm poll. It does not
-		// stop outright because the first visitor after a quiet night should
-		// open onto real numbers, not a spinner.
-		return marketIdle
-	}, func() { s.refreshMarket(ctx, g) })
-
-	go s.loop(ctx, "onair", nil, func() { s.refreshOnAir(ctx, g) })
-	go s.loop(ctx, "broadcasts", nil, func() { s.refreshBroadcasts(ctx, g) })
-	go s.loop(ctx, "news", nil, func() { s.refreshNews(ctx, g) })
-	go s.loop(ctx, "signal", nil, func() { s.refreshSignal(ctx, g) })
-	go s.loop(ctx, "board", nil, func() { s.refreshBoard(ctx, g) })
-	go s.loop(ctx, "earnings", nil, func() { s.refreshEarnings(ctx, g) })
-	go s.loop(ctx, "reports", nil, func() { s.refreshReports(ctx, g) })
-	go s.loop(ctx, "alerts", nil, func() { s.refreshAlerts(ctx, g) })
-	go s.loop(ctx, "air", nil, func() { s.refreshAir(ctx, g) })
-	go s.loop(ctx, "outdoors", nil, func() { s.refreshOutlook(ctx, g) })
-	go s.loop(ctx, "steam", nil, func() { s.refreshSteam(ctx, g) })
-	go s.loop(ctx, "streaming", nil, func() { s.refreshStreaming(ctx, g) })
-	go s.loop(ctx, "weather", nil, func() { s.refreshWeather(ctx, g) })
-	go s.loop(ctx, "systems", nil, func() { s.refreshSystems(ctx, g) })
-	go s.loop(ctx, "calendar", nil, func() { s.refreshCalendar(ctx, g) })
+	for _, src := range sources {
+		go s.loop(ctx, g, src)
+	}
 
 	// The guard writes itself out on a timer rather than on every call, so a
 	// thirty second poll does not mean a file write per tick.
@@ -288,70 +266,6 @@ func (s *Store) Run(ctx context.Context, g *Guard) {
 	}()
 
 	<-ctx.Done()
-}
-
-// loop runs work on an interval. every is a function so the markets loop can
-// change its mind about the cadence between ticks, and a nil one means use the
-// fixed interval the source was registered with.
-//
-// The markets loop also wakes when the first browser of a quiet spell connects.
-// Without it a visitor arriving a second after an idle timer was set would wait
-// out the whole five minutes watching a page that says it is live.
-func (s *Store) loop(ctx context.Context, name string, every func() time.Duration, work func()) {
-	fixed := map[string]time.Duration{
-		"news":       newsEvery,
-		"signal":     signalEvery,
-		"board":      boardEvery,
-		"earnings":   earningsEvery,
-		"reports":    reportsEvery,
-		"alerts":     alertsEvery,
-		"onair":      onAirEvery,
-		"broadcasts": broadcastsEvery,
-		"air":        airEvery,
-		"outdoors":   outdoorsEvery,
-		"steam":      steamEvery,
-		"streaming":  streamingEvery,
-		"weather":    weatherEvery,
-		"systems":    probeEvery,
-		"calendar":   calendarEvery,
-	}[name]
-
-	if every == nil {
-		every = func() time.Duration { return fixed }
-	}
-
-	var wake <-chan struct{}
-	if name == "market" {
-		wake = s.hub.wake
-	}
-
-	// The first run is immediate for everything Prime did not already do.
-	last := time.Now()
-	if name != "market" && name != "signal" {
-		work()
-	}
-
-	for {
-		t := time.NewTimer(every())
-		select {
-		case <-ctx.Done():
-			t.Stop()
-			return
-
-		case <-t.C:
-			work()
-			last = time.Now()
-
-		case <-wake:
-			t.Stop()
-			// A viewer arriving right after a fetch does not need another one,
-			// and the hub has already replayed the current state to them.
-			if time.Since(last) >= marketWatched {
-				work()
-				last = time.Now()
-			}
-		}
-	}
 }
 
 func (s *Store) refreshMarket(ctx context.Context, g *Guard) {
