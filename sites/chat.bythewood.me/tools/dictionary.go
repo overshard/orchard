@@ -26,7 +26,7 @@ var Dictionary = Define(Tool{
 	Name: "dictionary",
 	Description: "What a word or a short phrase means, from Wiktionary, with its part of speech and an example. " +
 		"Use it to define a word or say what a term means, and use wikipedia for a person, place, thing or event.",
-}, func(ctx context.Context, d *Deps, a dictionaryArgs) (any, error) {
+}, func(ctx context.Context, d *Turn, a dictionaryArgs) (any, error) {
 	word := strings.Trim(a.Word, "\"'“”‘’?.!")
 	if word == "" {
 		return nil, fmt.Errorf("word is required")
@@ -47,7 +47,7 @@ var Dictionary = Define(Tool{
 		w := forms[i]
 		u := "https://en.wiktionary.org/api/rest_v1/page/definition/" + url.PathEscape(strings.ReplaceAll(w, " ", "_"))
 		raw = nil
-		if err := getJSON(ctx, d, u, &raw); err != nil {
+		if err := getJSON(ctx, d.Deps, u, &raw); err != nil {
 			continue
 		}
 		senses = englishSenses(raw["en"])

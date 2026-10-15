@@ -36,7 +36,7 @@ var OrchardLogs = Define(Tool{
 		"and first_seen say how big it is and how long it has run, and the details field carries " +
 		"the reason, which is where the actual cause is rather than in the message. Call it a " +
 		"second time with source or contains to narrow down on one thing. Read only.",
-}, func(ctx context.Context, d *Deps, a orchardLogsArgs) (any, error) {
+}, func(ctx context.Context, d *Turn, a orchardLogsArgs) (any, error) {
 	q := url.Values{}
 	if h := int(a.Hours); h > 0 {
 		q.Set("hours", strconv.Itoa(h))

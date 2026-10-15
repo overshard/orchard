@@ -87,7 +87,7 @@ var Image = Define(Tool{
 		"in that picture, its colour, material, style or condition, unless he said it, because you would be guessing " +
 		"and the image model draws your guess over the real thing. " +
 		"It takes about half a minute and the picture is shown to him on its own, so do not describe it afterwards.",
-}, func(ctx context.Context, d *Deps, a imageArgs) (any, error) {
+}, func(ctx context.Context, d *Turn, a imageArgs) (any, error) {
 	if d.Images == nil {
 		return nil, errors.New("pictures are not set up on this server")
 	}

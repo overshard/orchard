@@ -29,7 +29,7 @@ var WebFetch = Define(Tool{
 	Traits:      Untrusted | OpenWeb,
 	Cites:       fetchedPage,
 	Description: "Fetch one url and return its readable text. Use it after web_search when a snippet is not enough.",
-}, func(ctx context.Context, d *Deps, a webFetchArgs) (any, error) {
+}, func(ctx context.Context, d *Turn, a webFetchArgs) (any, error) {
 	u, err := publicURL(a.URL)
 	if err != nil {
 		return nil, err
@@ -38,7 +38,7 @@ var WebFetch = Define(Tool{
 	if limit < 500 || limit > 24000 {
 		limit = 12000
 	}
-	body, err := get(ctx, d, u, "text/html")
+	body, err := get(ctx, d.Deps, u, "text/html")
 	if err != nil {
 		return nil, err
 	}

@@ -29,18 +29,18 @@ var MusicLookup = Define(Tool{
 		"Only for a question that is already about music. It searches a music catalogue and cannot " +
 		"say what an unfamiliar name refers to, so never reach for it to identify a person, a " +
 		"channel or a company because the name sounds like a band.",
-}, func(ctx context.Context, d *Deps, a musicLookupArgs) (any, error) {
+}, func(ctx context.Context, d *Turn, a musicLookupArgs) (any, error) {
 	term := strings.TrimSpace(a.Artist + " " + a.Track)
 	if term == "" {
 		return nil, fmt.Errorf("artist is required")
 	}
 	track := a.Track
-	if out, ok := artistSongs(ctx, d, a.Artist, track); ok {
+	if out, ok := artistSongs(ctx, d.Deps, a.Artist, track); ok {
 		return map[string]any{"query": term, "matches": out}, nil
 	}
 	var res itunesResults
 	u := "https://itunes.apple.com/search?media=music&entity=song&limit=5&term=" + url.QueryEscape(term)
-	if err := getJSON(ctx, d, u, &res); err != nil {
+	if err := getJSON(ctx, d.Deps, u, &res); err != nil {
 		return nil, err
 	}
 	out := make([]songMatch, 0, len(res.Results))

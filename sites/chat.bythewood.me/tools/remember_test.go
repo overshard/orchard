@@ -27,10 +27,10 @@ func (m *memStub) Replace(id int64, t string) error {
 }
 func (m *memStub) Delete(id int64) error { m.deleted = append(m.deleted, id); return nil }
 
-func withMem(m Memory) *Deps {
+func withMem(m Memory) *Turn {
 	d := NewDeps()
 	d.Memory = m
-	return d
+	return d.Turn("")
 }
 
 func TestRememberWritesReadsAndForgets(t *testing.T) {
@@ -109,7 +109,7 @@ func TestRememberRefusesIncompleteCalls(t *testing.T) {
 
 // A site with no store must not panic a turn that calls this.
 func TestRememberWithNoStore(t *testing.T) {
-	if _, err := Remember.Run(context.Background(), NewDeps(), map[string]any{"action": "list"}); err == nil {
+	if _, err := Remember.Run(context.Background(), NewDeps().Turn(""), map[string]any{"action": "list"}); err == nil {
 		t.Error("a missing store was not reported")
 	}
 }

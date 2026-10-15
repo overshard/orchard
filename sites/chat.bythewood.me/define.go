@@ -34,7 +34,7 @@ func definedWord(question string) string {
 	return w
 }
 
-func (e *Engine) definitionOpening(ctx context.Context, deps *tools.Deps, question string) (tools.Result, Message, bool) {
+func (e *Engine) definitionOpening(ctx context.Context, turn *tools.Turn, question string) (tools.Result, Message, bool) {
 	word := definedWord(question)
 	if word == "" {
 		return tools.Result{}, Message{}, false
@@ -43,7 +43,7 @@ func (e *Engine) definitionOpening(ctx context.Context, deps *tools.Deps, questi
 	if err != nil {
 		return tools.Result{}, Message{}, false
 	}
-	res := e.reg.Call(ctx, deps, tools.Dictionary.Name, args)
+	res := e.reg.Call(ctx, turn, tools.Dictionary.Name, args)
 	m, ok := res.Content.(map[string]any)
 	if res.Err != "" || !ok {
 		return tools.Result{}, Message{}, false
@@ -62,7 +62,7 @@ func (e *Engine) definitionOpening(ctx context.Context, deps *tools.Deps, questi
 // article through a redirect the day after a new site launched there.
 var siteName = regexp.MustCompile(`(?i)^[a-z0-9-]+(\.[a-z0-9-]+)*\.(com|org|net|gov|mil|edu|io|dev|ai|app|co|us|uk|me|tv|xyz|info)$`)
 
-func (e *Engine) siteOpening(ctx context.Context, deps *tools.Deps, question string) (tools.Result, Message, bool) {
+func (e *Engine) siteOpening(ctx context.Context, turn *tools.Turn, question string) (tools.Result, Message, bool) {
 	site := subjectOf(question)
 	if !siteName.MatchString(site) {
 		return tools.Result{}, Message{}, false
@@ -71,7 +71,7 @@ func (e *Engine) siteOpening(ctx context.Context, deps *tools.Deps, question str
 	if err != nil {
 		return tools.Result{}, Message{}, false
 	}
-	res := e.reg.Call(ctx, deps, tools.WebSearch.Name, args)
+	res := e.reg.Call(ctx, turn, tools.WebSearch.Name, args)
 	if res.Err != "" {
 		return tools.Result{}, Message{}, false
 	}

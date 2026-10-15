@@ -40,7 +40,7 @@ var SportsScores = Define(Tool{
 		"With no date it is the current round of games. For a team's next game pass date, the day it is " +
 		"probably played, worked out from now. Pass team to see only that team's games. " +
 		"For anything not listed, use web_search instead.",
-}, func(ctx context.Context, d *Deps, a sportsScoresArgs) (any, error) {
+}, func(ctx context.Context, d *Turn, a sportsScoresArgs) (any, error) {
 	key := strings.ToLower(a.League)
 	path, ok := leagues[key]
 	if !ok {
@@ -62,7 +62,7 @@ var SportsScores = Define(Tool{
 		u += "&dates=" + t.Format("20060102")
 	}
 	team := strings.ToLower(a.Team)
-	if err := getJSON(ctx, d, u, &raw); err != nil {
+	if err := getJSON(ctx, d.Deps, u, &raw); err != nil {
 		return nil, fmt.Errorf("%w (try web_search for the scores)", err)
 	}
 	blob := raw.Events

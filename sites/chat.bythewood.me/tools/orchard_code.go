@@ -45,7 +45,7 @@ var OrchardCode = Define(Tool{
 		"than walking down from the top, since a name or a symbol gets there in one call. On a long " +
 		"file read the lines around a hit with from and to instead of the whole thing. Never guess " +
 		"a url for his code and never fetch one, this is the only way in.",
-}, func(ctx context.Context, d *Deps, a orchardCodeArgs) (any, error) {
+}, func(ctx context.Context, d *Turn, a orchardCodeArgs) (any, error) {
 	asked := strings.Trim(a.Repo, "/")
 	repo := repoName(asked)
 	if repo == "" {
@@ -105,7 +105,7 @@ var OrchardCode = Define(Tool{
 // orchardWalk is read and list in one call, since a path with no dot in its last
 // segment is usually a directory and guessing wrong costs a round. The read goes
 // first so an extensionless file still reads and a directory still lists.
-func orchardWalk(ctx context.Context, d *Deps, base, repo, rev, path string, from, to int) (any, error) {
+func orchardWalk(ctx context.Context, d *Turn, base, repo, rev, path string, from, to int) (any, error) {
 	if path != "" {
 		q := url.Values{}
 		if from > 0 {

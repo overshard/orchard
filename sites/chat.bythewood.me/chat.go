@@ -221,13 +221,13 @@ func (e *Engine) SearchDown() (time.Duration, bool) {
 // caller's own, forwarded to the orchard tools so each site checks it instead
 // of this one holding a credential.
 func (e *Engine) Run(ctx context.Context, history []Message, user, session, memory string, tr *Trace, emit func(Event)) (Message, []tools.Result, []Source, []tools.Widget, Stats, error) {
-	deps := e.deps.WithSession(session)
+	turn := e.deps.Turn(session)
 	// A tool decides for itself what incognito means for it, so the flag rides
-	// on the per turn copy and not only on this process's own requests.
-	deps.Incognito = IsIncognito(ctx)
-	deps.OnImage = func(p tools.ImageProgress) { emit(Event{Kind: "image", Image: &p}) }
+	// on the turn and not only on this process's own requests.
+	turn.Incognito = IsIncognito(ctx)
+	turn.OnImage = func(p tools.ImageProgress) { emit(Event{Kind: "image", Image: &p}) }
 	refs := referencesOf(ctx)
-	deps.Start, deps.LastPicture = refs.Attached, refs.Last
+	turn.Start, turn.LastPicture = refs.Attached, refs.Last
 	said := refs.Message
 	if said == "" {
 		said = user
@@ -235,19 +235,19 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	// A small model leaves change_last off for "make it night", so a change
 	// straight after a picture is not left to it.
 	named, keepThing := "", len(refs.Attached) > 0
-	if len(deps.Start) == 0 && refs.Last != "" && isPictureChange(said, history) {
-		deps.Start = []string{refs.Last}
+	if len(turn.Start) == 0 && refs.Last != "" && isPictureChange(said, history) {
+		turn.Start = []string{refs.Last}
 		if refs.Origin != "" && sceneWord.MatchString(said) {
-			deps.Start, named, keepThing = []string{refs.Origin}, refs.OriginSaid, true
+			turn.Start, named, keepThing = []string{refs.Origin}, refs.OriginSaid, true
 		}
 	}
 	// Nothing else can be done with a picture he attached, since the chat
 	// model cannot see it.
-	picture := isPictureAsk(user, history) || len(deps.Start) > 0
+	picture := isPictureAsk(user, history) || len(turn.Start) > 0
 
 	// A change to a picture skips the chat model. It cannot see the picture,
 	// and every prompt it wrote for one described a sofa it made up.
-	if len(deps.Start) > 0 && deps.Images != nil {
+	if len(turn.Start) > 0 && turn.Images != nil {
 		prompt := editPrompt(said, named, keepThing)
 		shape := askedShape(said)
 		if shape == "" {
@@ -255,16 +255,16 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		}
 		args, _ := json.Marshal(map[string]any{"prompt": prompt, "shape": shape})
 		emit(Event{Kind: "tool", Tool: tools.Image.Name, Args: shortArgs(string(args))})
-		res := e.reg.Call(ctx, deps, tools.Image.Name, args)
+		res := e.reg.Call(ctx, turn, tools.Image.Name, args)
 		emit(Event{Kind: "tool_done", Tool: res.Name, MS: res.Elapsed.Milliseconds(), OK: res.Err == ""})
 		tr.Add(Step{Kind: "tool", Label: "changed the picture without the chat model", In: string(args),
 			Out: resultText(res), MS: res.Elapsed.Milliseconds(), Bad: res.Err != ""})
-		for _, wdg := range drained(deps.Widgets, map[string]bool{}) {
+		for _, wdg := range drained(turn.Widgets, map[string]bool{}) {
 			emit(Event{Kind: "widget", Widget: &wdg})
 		}
 		text := pictureReply(res)
 		emit(Event{Kind: "block", HTML: e.Render(text)})
-		return Message{Role: RoleAssistant, Content: text}, []tools.Result{res}, nil, deps.Widgets.List(), Stats{}, nil
+		return Message{Role: RoleAssistant, Content: text}, []tools.Result{res}, nil, turn.Widgets.List(), Stats{}, nil
 	}
 	// Which widgets have already gone out, since the sink holds every one the
 	// turn has produced and each round would otherwise resend the earlier ones.
@@ -301,25 +301,25 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 				In: said, Out: msg.Content, MS: res.Elapsed.Milliseconds(),
 				Meta: "local snapshot, no web request"})
 		}
-	} else if house, msg, ok := e.houseOpening(ctx, deps, user, history); ok {
+	} else if house, msg, ok := e.houseOpening(ctx, turn, user, history); ok {
 		for _, res := range house {
 			emit(Event{Kind: "tool", Tool: res.Name, Args: shortArgs(string(res.Args))})
 			emit(Event{Kind: "tool_done", Tool: res.Name, MS: res.Elapsed.Milliseconds(), OK: res.Err == ""})
 			tr.Add(Step{Kind: "tool", Label: res.Name + ", before the model decided anything", In: string(res.Args),
 				Out: resultText(res), MS: res.Elapsed.Milliseconds(), Bad: res.Err != ""})
 		}
-		for _, wdg := range drained(deps.Widgets, sentWidgets) {
+		for _, wdg := range drained(turn.Widgets, sentWidgets) {
 			emit(Event{Kind: "widget", Widget: &wdg})
 		}
 		msgs = append(msgs, msg)
 		used = append(used, house...)
-	} else if res, msg, ok := e.trafficOpening(ctx, deps, user, history); ok {
+	} else if res, msg, ok := e.trafficOpening(ctx, turn, user, history); ok {
 		opened(msg, res...)
-	} else if res, msg, ok := e.clockOpening(ctx, deps, user); ok {
+	} else if res, msg, ok := e.clockOpening(ctx, turn, user); ok {
 		opened(msg, res)
-	} else if res, msg, ok := e.siteOpening(ctx, deps, user); ok {
+	} else if res, msg, ok := e.siteOpening(ctx, turn, user); ok {
 		opened(msg, res)
-	} else if res, msg, ok := e.definitionOpening(ctx, deps, user); ok {
+	} else if res, msg, ok := e.definitionOpening(ctx, turn, user); ok {
 		opened(msg, res)
 	} else if res, msg, ok := e.opening(ctx, user); ok {
 		emit(Event{Kind: "tool", Tool: res.Name, Args: shortArgs(string(res.Args))})
@@ -383,9 +383,9 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	if picture {
 		schemas = tools.OnlyAny(schemas, tools.Draws)
 		forceTools = true
-		if deps.Images != nil {
-			p := deps.Images.Expect()
-			deps.Picture = &p
+		if turn.Images != nil {
+			p := turn.Images.Expect()
+			turn.Picture = &p
 			emit(Event{Kind: "image", Image: &p})
 		}
 		tr.Add(Step{Kind: "tool", Label: "read as a request for a picture",
@@ -472,7 +472,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 			}
 		}
 		if err != nil {
-			return Message{}, used, nil, deps.Widgets.List(), stats, err
+			return Message{}, used, nil, turn.Widgets.List(), stats, err
 		}
 		// A call cut off at the token limit never goes into the conversation,
 		// since the next request carrying it would be refused.
@@ -607,9 +607,9 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 			// The model reached for a picture straight after one without
 			// being asked for a new one, which is a change it did not
 			// recognise, so it is made one, in his words.
-			if tool.Is(tools.Draws) && len(deps.Start) == 0 && refs.Last != "" &&
+			if tool.Is(tools.Draws) && len(turn.Start) == 0 && refs.Last != "" &&
 				lastWasPicture(history) && !wantsNewPicture(said) {
-				deps.Start = []string{refs.Last}
+				turn.Start = []string{refs.Last}
 				args, _ = json.Marshal(map[string]any{"prompt": editPrompt(said, "", false), "shape": "same"})
 				tr.Add(Step{Kind: "tool", Label: "read as a change to the last picture", In: said})
 			}
@@ -622,7 +622,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 					tr.Add(Step{Kind: "tool", Label: "quoted the tickers he typed", In: tc.Function.Arguments, Out: string(fixed)})
 				}
 			}
-			res := e.reg.Call(ctx, deps, tc.Function.Name, args)
+			res := e.reg.Call(ctx, turn, tc.Function.Name, args)
 			seen[key] = res
 			if tool.Is(tools.Draws) && drawn == nil {
 				drawn = &res
@@ -642,7 +642,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 			emit(Event{Kind: "tool_done", Tool: res.Name, MS: res.Elapsed.Milliseconds(), OK: res.Err == ""})
 			// Straight after the tool that named it, so the chart is drawing
 			// while the answer is still being written.
-			for _, wdg := range drained(deps.Widgets, sentWidgets) {
+			for _, wdg := range drained(turn.Widgets, sentWidgets) {
 				emit(Event{Kind: "widget", Widget: &wdg})
 			}
 			body, _ := json.Marshal(res.Content)
@@ -668,7 +668,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 			emit(Event{Kind: "block", HTML: e.Render(text)})
 			tr.Add(Step{Kind: "answer", Label: "ended the turn on the picture", Out: text,
 				Meta: "the chat model stays off the card until the next question"})
-			return Message{Role: RoleAssistant, Content: text}, used, nil, deps.Widgets.List(), stats, nil
+			return Message{Role: RoleAssistant, Content: text}, used, nil, turn.Widgets.List(), stats, nil
 		}
 		if ran > 0 && failed == ran && grace > 0 {
 			grace--
@@ -687,7 +687,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		text := dropClosingOffer(prepare(draft, srcs))
 		emit(Event{Kind: "block", HTML: e.Render(text)})
 		tr.Add(Step{Kind: "answer", Label: "kept the line it wrote", Out: text})
-		return Message{Role: RoleAssistant, Content: text}, used, nil, deps.Widgets.List(), stats, nil
+		return Message{Role: RoleAssistant, Content: text}, used, nil, turn.Widgets.List(), stats, nil
 	}
 
 	// With nothing looked up there is nothing to cite and nothing left out, so a
@@ -698,7 +698,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		emit(Event{Kind: "block", HTML: e.Render(text)})
 		tr.Add(Step{Kind: "answer", Label: "sent the checked draft as it was",
 			Out: text, Meta: "nothing was looked up, so there was nothing to add to it"})
-		return Message{Role: RoleAssistant, Content: text}, used, nil, deps.Widgets.List(), stats, nil
+		return Message{Role: RoleAssistant, Content: text}, used, nil, turn.Widgets.List(), stats, nil
 	}
 
 	// The answer is generated fresh since the last tool round was written on a
@@ -725,7 +725,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		Out: sb.String(), Bad: err != nil && sb.Len() == 0,
 		Meta: itoa(st.Prompt) + " tokens in, " + itoa(st.Completion) + " out"})
 	if err != nil && sb.Len() == 0 {
-		return Message{}, used, nil, deps.Widgets.List(), stats, err
+		return Message{}, used, nil, turn.Widgets.List(), stats, err
 	}
 	// Only on the whole answer, never on a streamed block. A block is finished
 	// when a blank line closes it and nothing knows yet whether another one is
@@ -741,7 +741,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		text = "I could not produce an answer for that. The model returned nothing."
 		emit(Event{Kind: "block", HTML: e.Render(text)})
 	}
-	return Message{Role: RoleAssistant, Content: text}, used, cited(text, srcs), deps.Widgets.List(), stats, nil
+	return Message{Role: RoleAssistant, Content: text}, used, cited(text, srcs), turn.Widgets.List(), stats, nil
 }
 
 // copiedEarlier is a written answer that repeats one this conversation already

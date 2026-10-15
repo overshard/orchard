@@ -45,7 +45,7 @@ var Calc = Define(Tool{
 		"payment on a 275000 loan at 5% over 30 years, which is 1476.26. r is the monthly rate and n the number " +
 		"of payments, so do not divide the result by 12 again. To total a long list of numbers, add them in " +
 		"groups of about twenty and total the groups rather than writing every number into one call.",
-}, func(ctx context.Context, d *Deps, a calcArgs) (any, error) {
+}, func(ctx context.Context, d *Turn, a calcArgs) (any, error) {
 	e := a.Expression
 	if e == "" {
 		return nil, fmt.Errorf("there is nothing to work out, pass the arithmetic as expression")

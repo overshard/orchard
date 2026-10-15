@@ -12,7 +12,7 @@ import (
 // handed the time it said 10am was 33 minutes away at 8:27.
 var untilAsk = regexp.MustCompile(`(?i)\b(?:how\s+(?:long|much\s+(?:longer|time)|many\s+(?:more\s+)?(?:hours|hrs|minutes|mins|days|weeks))|time\s+left|countdown)\b.*?\b(?:until|till|til|'til|before|to)\s+(.+?)\s*[?.!]*\s*$`)
 
-func (e *Engine) clockOpening(ctx context.Context, deps *tools.Deps, question string) (tools.Result, Message, bool) {
+func (e *Engine) clockOpening(ctx context.Context, turn *tools.Turn, question string) (tools.Result, Message, bool) {
 	m := untilAsk.FindStringSubmatch(question)
 	if m == nil {
 		return tools.Result{}, Message{}, false
@@ -24,7 +24,7 @@ func (e *Engine) clockOpening(ctx context.Context, deps *tools.Deps, question st
 	if err != nil {
 		return tools.Result{}, Message{}, false
 	}
-	res := e.reg.Call(ctx, deps, tools.Now.Name, args)
+	res := e.reg.Call(ctx, turn, tools.Now.Name, args)
 	if res.Err != "" {
 		return tools.Result{}, Message{}, false
 	}

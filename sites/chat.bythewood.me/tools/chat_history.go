@@ -44,7 +44,7 @@ var ChatHistory = Define(Tool{
 		"question only makes sense against something already settled. It returns whole exchanges, so " +
 		"quote the answer as something said earlier rather than as a fresh fact, and check anything " +
 		"that has since changed. It does not search the web. Read only.",
-}, func(ctx context.Context, d *Deps, a chatHistoryArgs) (any, error) {
+}, func(ctx context.Context, d *Turn, a chatHistoryArgs) (any, error) {
 	if d.History == nil {
 		return nil, fmt.Errorf("the conversation history is not available in this turn")
 	}

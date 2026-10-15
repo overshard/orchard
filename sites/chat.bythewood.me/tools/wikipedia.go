@@ -51,7 +51,7 @@ var Wikipedia = Define(Tool{
 		"is a b-tree used for' pass 'b-tree'. It holds background rather than news: it knows " +
 		"nothing after its snapshot date and carries each article's opening section only, so use " +
 		"web_search or web_fetch for detail or for anything current.",
-}, func(ctx context.Context, d *Deps, a wikipediaArgs) (any, error) {
+}, func(ctx context.Context, d *Turn, a wikipediaArgs) (any, error) {
 	q := a.Query
 	if q == "" {
 		return nil, fmt.Errorf("query is required")
@@ -60,7 +60,7 @@ var Wikipedia = Define(Tool{
 		return nil, fmt.Errorf("the snapshot cannot answer that, it holds background and not "+
 			"what is happening. Call %s instead", to)
 	}
-	return wikiLookup(ctx, d, WikiBase, q)
+	return wikiLookup(ctx, d.Deps, WikiBase, q)
 })
 
 // liveInstead names the tool for a subject whose head noun changes by the hour,

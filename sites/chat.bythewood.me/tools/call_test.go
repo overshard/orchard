@@ -12,12 +12,12 @@ import (
 func TestCallRefusesArgumentsThatDoNotParse(t *testing.T) {
 	ran := 0
 	var r Registry
-	r.Add(Tool{Name: "probe", Run: func(context.Context, *Deps, map[string]any) (any, error) {
+	r.Add(Tool{Name: "probe", Run: func(context.Context, *Turn, map[string]any) (any, error) {
 		ran++
 		return "ok", nil
 	}})
 
-	res := r.Call(context.Background(), NewDeps(), "probe",
+	res := r.Call(context.Background(), NewDeps().Turn(""), "probe",
 		json.RawMessage(`{"action":"add","fact":"directed by Feige, directed by`))
 	if ran != 0 {
 		t.Error("the tool ran on arguments that do not parse")
@@ -30,7 +30,7 @@ func TestCallRefusesArgumentsThatDoNotParse(t *testing.T) {
 	}
 
 	// No arguments at all is a call that takes none, not a broken one.
-	if res := r.Call(context.Background(), NewDeps(), "probe", nil); res.Err != "" || ran != 1 {
+	if res := r.Call(context.Background(), NewDeps().Turn(""), "probe", nil); res.Err != "" || ran != 1 {
 		t.Errorf("an empty call gave %q and ran %d times", res.Err, ran)
 	}
 }

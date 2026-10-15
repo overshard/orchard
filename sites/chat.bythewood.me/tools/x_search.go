@@ -33,7 +33,7 @@ var XSearch = Define(Tool{
 		"It reads what a search engine has indexed rather than X itself, so it covers public " +
 		"posts only, misses plenty of them, and can hand back a copy older than the post. " +
 		"Say that when the answer rests on it. There is no free X API and this is the way in.",
-}, func(ctx context.Context, d *Deps, a xSearchArgs) (any, error) {
+}, func(ctx context.Context, d *Turn, a xSearchArgs) (any, error) {
 	q := a.Query
 	if q == "" {
 		return nil, fmt.Errorf("query is required")
@@ -50,7 +50,7 @@ var XSearch = Define(Tool{
 		scope = "(site:x.com/" + acct + " OR site:twitter.com/" + acct + ")"
 	}
 
-	body, err := get(ctx, d, "https://html.duckduckgo.com/html/?q="+
+	body, err := get(ctx, d.Deps, "https://html.duckduckgo.com/html/?q="+
 		url.QueryEscape(scope+" "+q), "text/html")
 	if err != nil {
 		return nil, err

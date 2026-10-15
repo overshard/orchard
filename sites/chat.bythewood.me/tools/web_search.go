@@ -34,7 +34,7 @@ var WebSearch = Define(Tool{
 	Cites:  searchHits,
 	Description: "Search the web and get back titles, urls and snippets. Use it for anything current, " +
 		"local, priced or contested. Snippets are short, so follow up with web_fetch when you need what a page actually says.",
-}, func(ctx context.Context, d *Deps, a webSearchArgs) (any, error) {
+}, func(ctx context.Context, d *Turn, a webSearchArgs) (any, error) {
 	q := a.Query
 	if q == "" {
 		return nil, fmt.Errorf("query is required")
@@ -43,7 +43,7 @@ var WebSearch = Define(Tool{
 	if n < 1 || n > 12 {
 		n = 6
 	}
-	body, err := get(ctx, d, "https://html.duckduckgo.com/html/?q="+url.QueryEscape(q), "text/html")
+	body, err := get(ctx, d.Deps, "https://html.duckduckgo.com/html/?q="+url.QueryEscape(q), "text/html")
 	if err != nil {
 		return nil, err
 	}

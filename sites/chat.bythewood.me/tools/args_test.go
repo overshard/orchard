@@ -28,7 +28,7 @@ func (a *probeArgs) params() []param {
 }
 
 func TestDefineWritesTheSchemaFromTheStruct(t *testing.T) {
-	tool := Define(Tool{Name: "probe"}, func(context.Context, *Deps, probeArgs) (any, error) { return nil, nil })
+	tool := Define(Tool{Name: "probe"}, func(context.Context, *Turn, probeArgs) (any, error) { return nil, nil })
 	want := map[string]any{
 		"type": "object",
 		"properties": map[string]any{
@@ -45,7 +45,7 @@ func TestDefineWritesTheSchemaFromTheStruct(t *testing.T) {
 		t.Errorf("schema = %#v", tool.Schema)
 	}
 
-	none := Define(Tool{Name: "none"}, func(context.Context, *Deps, noArgs) (any, error) { return nil, nil })
+	none := Define(Tool{Name: "none"}, func(context.Context, *Turn, noArgs) (any, error) { return nil, nil })
 	if b, _ := json.Marshal(none.Schema); string(b) != `{"properties":{},"type":"object"}` {
 		t.Errorf("a tool with no arguments has schema %s", b)
 	}
@@ -55,7 +55,7 @@ func TestDefineWritesTheSchemaFromTheStruct(t *testing.T) {
 // it has no use for, and none of that should reach a tool as a different value.
 func TestDefineReadsSloppyArgumentsLeniently(t *testing.T) {
 	var got probeArgs
-	tool := Define(Tool{Name: "probe"}, func(_ context.Context, _ *Deps, a probeArgs) (any, error) {
+	tool := Define(Tool{Name: "probe"}, func(_ context.Context, _ *Turn, a probeArgs) (any, error) {
 		got = a
 		return nil, nil
 	})
@@ -74,7 +74,7 @@ func TestDefineReadsSloppyArgumentsLeniently(t *testing.T) {
 	}
 	for _, c := range cases {
 		got = probeArgs{}
-		if _, err := tool.Run(context.Background(), NewDeps(), c.raw); err != nil {
+		if _, err := tool.Run(context.Background(), NewDeps().Turn(""), c.raw); err != nil {
 			t.Fatal(err)
 		}
 		if got != c.want {

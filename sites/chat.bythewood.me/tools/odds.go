@@ -29,7 +29,7 @@ var Odds = Define(Tool{
 		"It is not a price check and knows nothing about what a product costs, so use " +
 		"web_search for anything on sale. It knows nothing about when anybody streams, posts or releases " +
 		"something either.",
-}, func(ctx context.Context, d *Deps, a oddsArgs) (any, error) {
+}, func(ctx context.Context, d *Turn, a oddsArgs) (any, error) {
 	q := a.Query
 	if q == "" {
 		return nil, fmt.Errorf("query is required")
@@ -53,7 +53,7 @@ var Odds = Define(Tool{
 	search := func(q string) (result, error) {
 		var res result
 		u := "https://gamma-api.polymarket.com/public-search?limit_per_type=10&events_status=active&q=" + url.QueryEscape(q)
-		return res, getJSON(ctx, d, u, &res)
+		return res, getJSON(ctx, d.Deps, u, &res)
 	}
 	hasGame := func(r result) bool {
 		for _, e := range r.Events {
