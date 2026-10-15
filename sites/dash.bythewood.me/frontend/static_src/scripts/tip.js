@@ -17,7 +17,7 @@ card.innerHTML =
   '<div class="bracket tl"></div><div class="bracket tr"></div>' +
   '<div class="bracket bl"></div><div class="bracket br"></div>' +
   '<i class="tip-lead"></i><div class="tip-body"><div class="tip-plate"><span class="pk"></span><span class="pv"></span></div>' +
-  '<p class="tip-txt"></p><div class="tip-meta"></div><div class="tip-links"></div></div>';
+  '<p class="tip-txt"></p><div class="tip-meta"></div><div class="tip-talk"></div><div class="tip-links"></div></div>';
 document.body.append(card);
 
 const lead = card.querySelector(".tip-lead");
@@ -26,6 +26,7 @@ const key = card.querySelector(".pk");
 const val = card.querySelector(".pv");
 const txt = card.querySelector(".tip-txt");
 const metaBox = card.querySelector(".tip-meta");
+const talkBox = card.querySelector(".tip-talk");
 const linkBox = card.querySelector(".tip-links");
 
 let current = null;
@@ -71,13 +72,42 @@ function cardLink(href, k, t) {
   return a;
 }
 
+function section(head, nodes) {
+  const box = document.createElement("div");
+  box.className = "tip-sec";
+  box.append(span("tip-head", head), ...nodes);
+  return box;
+}
+
+// What the commenters on a feed row are saying, the brief's read of them and
+// the top few comments, which the row carries hidden.
+function talk(row) {
+  const out = [];
+  const read = row.querySelector(".talk .talk-read");
+  if (read) {
+    const p = document.createElement("p");
+    p.className = "tip-read";
+    p.textContent = read.textContent;
+    out.push(section(read.dataset.at ? `COMMENTERS / READ ${read.dataset.at}` : "COMMENTERS", [p]));
+  }
+  const said = [...row.querySelectorAll(".talk .talk-said")].map((c) => {
+    const p = document.createElement("p");
+    p.className = "tip-said";
+    p.textContent = c.textContent;
+    return p;
+  });
+  if (said.length) out.push(section("TOP COMMENTS", said));
+  return out;
+}
+
 // A story row carries its article and comments, a brief row or a read carries
 // its sources, each with the headline the row only had room to name.
 function extras(el) {
   const meta = [];
   const links = [];
+  const talks = [];
   const row = el.closest(".lede") || el.closest("li");
-  if (!row) return [meta, links];
+  if (!row) return [meta, links, talks];
   if (row.classList.contains("lede")) {
     const head = row.querySelector(".head");
     if (head) meta.push(head.textContent.trim());
@@ -93,10 +123,11 @@ function extras(el) {
     if (age) meta.push(age.textContent);
     links.push(cardLink(go.href, "ARTICLE", host ? host.textContent : new URL(go.href).host));
     links.push(cardLink(cmt.dataset.href, "COMMENTS", new URL(cmt.dataset.href).host));
+    talks.push(...talk(row));
   }
   for (const s of row.querySelectorAll(".meta .cov, .meta .note")) meta.push(s.textContent);
   for (const a of row.querySelectorAll(".meta a.src")) links.push(cardLink(a.href, a.dataset.tipLabel || a.textContent, a.dataset.tip || a.href));
-  return [meta, links];
+  return [meta, links, talks];
 }
 
 function fill(el) {
@@ -106,9 +137,11 @@ function fill(el) {
   val.textContent = tipLabel ? panel : row || (el.closest(".lede") ? "READ" : "");
   val.hidden = !val.textContent;
   txt.textContent = el.dataset.tip || el.dataset.full || el.textContent.trim();
-  const [meta, links] = "card" in el.dataset ? extras(el) : [[], []];
+  const [meta, links, talks] = "card" in el.dataset ? extras(el) : [[], [], []];
   metaBox.replaceChildren(...meta.map((m) => span("", m)));
   metaBox.hidden = meta.length === 0;
+  talkBox.replaceChildren(...talks);
+  talkBox.hidden = talks.length === 0;
   linkBox.replaceChildren(...links);
   linkBox.hidden = links.length === 0;
 }

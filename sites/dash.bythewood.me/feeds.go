@@ -16,9 +16,11 @@ import (
 // make of it. The numbers can say a thread is big but not what the day is like.
 
 const (
-	threadsShown   = 15
-	threadsRead    = 5
-	commentsRead   = 3
+	threadsShown = 15
+	threadsRead  = 5
+	commentsRead = 3
+	// A thread's own read wants more of the room than the front page read does.
+	commentsThread = 8
 	commentRunes   = 280
 	hnItemURL      = "https://hacker-news.firebaseio.com/v0/item/%d.json"
 	lobstersStoryF = "https://lobste.rs/s/%s.json"
@@ -29,6 +31,8 @@ type thread struct {
 	points, comments     int
 	age                  time.Duration
 	said                 []string
+	// One of the busiest, whose comments the front page read sees.
+	busy bool
 }
 
 func hnThreads(ctx context.Context, g *Guard, now time.Time) ([]thread, error) {
@@ -52,28 +56,18 @@ func hnThreads(ctx context.Context, g *Guard, now time.Time) ([]thread, error) {
 	sort.SliceStable(hits, func(i, j int) bool { return hits[i].t.points > hits[j].t.points })
 	hits = hits[:min(len(hits), threadsShown)]
 
-	// Firebase lists a story's replies in the order the site ranks them, which
-	// Algolia doesn't, so the comments come from there.
 	for _, i := range busiest(len(hits), func(i int) int { return hits[i].t.comments }) {
-		var story struct {
-			Kids []int64 `json:"kids"`
-		}
-		if err := getJSON(ctx, g, "hnitem", fmt.Sprintf(hnItemURL, hits[i].id), &story); err != nil {
-			slog.Warn("brief thread failed", slog.String("component", "brief"), slog.Any("err", err))
+		hits[i].t.busy = true
+	}
+	for i := range hits {
+		if i >= storiesShown && !hits[i].t.busy {
 			continue
 		}
-		for _, kid := range story.Kids[:min(len(story.Kids), commentsRead)] {
-			var c struct {
-				Text    string `json:"text"`
-				Deleted bool   `json:"deleted"`
-				Dead    bool   `json:"dead"`
-			}
-			if getJSON(ctx, g, "hnitem", fmt.Sprintf(hnItemURL, kid), &c) == nil && !c.Deleted && !c.Dead {
-				if s := commentText(c.Text); s != "" {
-					hits[i].t.said = append(hits[i].t.said, s)
-				}
-			}
+		said, err := hnComments(ctx, g, hits[i].id, commentsThread)
+		if err != nil {
+			slog.Warn("brief thread failed", slog.String("component", "brief"), slog.Any("err", err))
 		}
+		hits[i].t.said = said
 	}
 	out := make([]thread, len(hits))
 	for i, h := range hits {
@@ -82,11 +76,38 @@ func hnThreads(ctx context.Context, g *Guard, now time.Time) ([]thread, error) {
 	return out, nil
 }
 
-func lobstersThreads(ctx context.Context, g *Guard, now time.Time) ([]thread, error) {
-	var payload []struct {
-		lobstersStory
-		ShortID string `json:"short_id"`
+// hnComments is a story's top level comments in the order the site ranks them.
+// Firebase lists replies in that order and Algolia doesn't, so they come from
+// there, at one request for the story and one per comment.
+func hnComments(ctx context.Context, g *Guard, id int64, n int) ([]string, error) {
+	var story struct {
+		Kids []int64 `json:"kids"`
 	}
+	if err := getJSON(ctx, g, "hnitem", fmt.Sprintf(hnItemURL, id), &story); err != nil {
+		return nil, err
+	}
+	var said []string
+	for _, kid := range story.Kids {
+		if len(said) == n {
+			break
+		}
+		var c struct {
+			Text    string `json:"text"`
+			Deleted bool   `json:"deleted"`
+			Dead    bool   `json:"dead"`
+		}
+		if err := getJSON(ctx, g, "hnitem", fmt.Sprintf(hnItemURL, kid), &c); err != nil {
+			return said, err
+		}
+		if s := commentText(c.Text); s != "" && !c.Deleted && !c.Dead {
+			said = append(said, s)
+		}
+	}
+	return said, nil
+}
+
+func lobstersThreads(ctx context.Context, g *Guard, now time.Time) ([]thread, error) {
+	var payload []lobstersStory
 	if err := getJSON(ctx, g, "lobsters", lobstersURL, &payload); err != nil {
 		return nil, err
 	}
@@ -109,36 +130,56 @@ func lobstersThreads(ctx context.Context, g *Guard, now time.Time) ([]thread, er
 	hits = hits[:min(len(hits), threadsShown)]
 
 	for _, i := range busiest(len(hits), func(i int) int { return hits[i].t.comments }) {
-		var story struct {
-			Comments []struct {
-				Depth        int    `json:"depth"`
-				Score        int    `json:"score"`
-				CommentPlain string `json:"comment_plain"`
-				IsDeleted    bool   `json:"is_deleted"`
-			} `json:"comments"`
-		}
-		if err := getJSON(ctx, g, "lobsters", fmt.Sprintf(lobstersStoryF, hits[i].id), &story); err != nil {
-			slog.Warn("brief thread failed", slog.String("component", "brief"), slog.Any("err", err))
+		hits[i].t.busy = true
+	}
+	for i := range hits {
+		if i >= storiesShown && !hits[i].t.busy {
 			continue
 		}
-		top := story.Comments[:0]
-		for _, c := range story.Comments {
-			if c.Depth == 0 && !c.IsDeleted {
-				top = append(top, c)
-			}
+		said, err := lobstersComments(ctx, g, hits[i].id, commentsThread)
+		if err != nil {
+			slog.Warn("brief thread failed", slog.String("component", "brief"), slog.Any("err", err))
 		}
-		sort.SliceStable(top, func(a, b int) bool { return top[a].Score > top[b].Score })
-		for _, c := range top[:min(len(top), commentsRead)] {
-			if s := commentText(c.CommentPlain); s != "" {
-				hits[i].t.said = append(hits[i].t.said, s)
-			}
-		}
+		hits[i].t.said = said
 	}
 	out := make([]thread, len(hits))
 	for i, h := range hits {
 		out[i] = h.t
 	}
 	return out, nil
+}
+
+// lobstersComments is a story's top level comments by score, which one request
+// carries all of.
+func lobstersComments(ctx context.Context, g *Guard, shortID string, n int) ([]string, error) {
+	var story struct {
+		Comments []struct {
+			Depth        int    `json:"depth"`
+			Score        int    `json:"score"`
+			CommentPlain string `json:"comment_plain"`
+			IsDeleted    bool   `json:"is_deleted"`
+		} `json:"comments"`
+	}
+	if err := getJSON(ctx, g, "lobsters", fmt.Sprintf(lobstersStoryF, shortID), &story); err != nil {
+		return nil, err
+	}
+	top := story.Comments[:0]
+	for _, c := range story.Comments {
+		if c.Depth == 0 && !c.IsDeleted {
+			top = append(top, c)
+		}
+	}
+	sort.SliceStable(top, func(a, b int) bool { return top[a].Score > top[b].Score })
+	var said []string
+	for _, c := range top {
+		if len(said) == n {
+			break
+		}
+		if s := commentText(c.CommentPlain); s != "" {
+			said = append(said, s)
+		}
+	}
+	return said, nil
 }
 
 // busiest is the indexes of the threads with the most comments, which is where
@@ -172,11 +213,11 @@ func threadList(ts []thread) string {
 	}
 	b.WriteString("\nTop comments on the busiest threads:\n")
 	for i, t := range ts {
-		if len(t.said) == 0 {
+		if !t.busy || len(t.said) == 0 {
 			continue
 		}
 		fmt.Fprintf(&b, "[%d] %s\n", i+1, t.title)
-		for _, s := range t.said {
+		for _, s := range t.said[:min(len(t.said), commentsRead)] {
 			b.WriteString("- " + s + "\n")
 		}
 	}
@@ -209,6 +250,11 @@ func (b *Briefer) compileFeeds(ctx context.Context, slot briefSlot, at time.Time
 			if err == nil {
 				brief.Points = append(brief.Points, pt)
 				brief.Stories += len(ts)
+			}
+			for _, t := range ts[:min(len(ts), storiesShown)] {
+				if read := b.threadRead(ctx, site.name, t); read != "" {
+					brief.Threads = append(brief.Threads, ThreadRead{URL: t.discuss, Read: read})
+				}
 			}
 		}
 		if err != nil {
@@ -272,4 +318,54 @@ func (b *Briefer) feedRead(ctx context.Context, name string, ts []thread) (Point
 		return Point{}, fmt.Errorf("no read")
 	}
 	return pt, nil
+}
+
+// Room past the asked 25 words, for the same reason as feedReadMax.
+const threadReadMax = 200
+
+// threadRead is what one thread's commenters make of it, for the card its row
+// opens. A thread with too little said to read gets nothing, and so does one
+// the model fails on, since the card still has its top comments.
+func (b *Briefer) threadRead(ctx context.Context, name string, t thread) string {
+	if len(t.said) < commentsRead {
+		return ""
+	}
+	system := `You write a short read for one reader of what the commenters on one thread make of it, from its title and its top comments.
+- "read" is one or two sentences, at most 25 words in all. Say what most of the commenters think, then where they split if they do.
+- Don't restate the title, since the reader sees it.
+- Use only the listed comments. No outside knowledge, no opinion of your own, no hype words.`
+	var c strings.Builder
+	fmt.Fprintf(&c, "A %s thread, %d points and %d comments: %s", name, t.points, t.comments, t.title)
+	if t.host != "" {
+		c.WriteString(" (" + t.host + ")")
+	}
+	c.WriteString("\n\nTop comments, most upvoted first:\n")
+	for _, s := range t.said {
+		c.WriteString("- " + s + "\n")
+	}
+	user := c.String()
+	schema := map[string]any{
+		"type":                 "object",
+		"properties":           map[string]any{"read": map[string]any{"type": "string", "maxLength": threadReadMax}},
+		"required":             []string{"read"},
+		"additionalProperties": false,
+	}
+	var out struct {
+		Read string `json:"read"`
+	}
+	// A read that stops without a full stop was cut at the cap, and whole can
+	// only guess where its last clause ended, so it gets one more try first.
+	ask := user
+	for try := 0; try < 2; try++ {
+		if err := b.model.Structured(ctx, system, ask, schema, 200, &out); err != nil {
+			slog.Warn("brief thread read failed", slog.String("component", "brief"), slog.String("feed", name), slog.Any("err", err))
+			return ""
+		}
+		if read := tidy(out.Read); read == "" || strings.ContainsAny(read[len(read)-1:], ".!?") {
+			return read
+		}
+		slog.Info("brief line cut", slog.String("component", "brief"), slog.String("feed", name), slog.Int("try", try+1), slog.String("raw", out.Read))
+		ask = user + "\n\nYour last read ran past the length limit and was cut off mid sentence. Write two short sentences, at most 25 words in all."
+	}
+	return whole(out.Read, threadReadMax)
 }

@@ -507,8 +507,13 @@ Enter opens the card and the same again closes it, and on a mouse a cut one also
 previews on hover. The card carries the row's way out as full width rows, the
 article and the comments for a feed, and every source with its headline for
 TODAY. A headline is never a link and nothing waits on a long press, since a
-phone keeps long press for its own link menu and the two raced. The ↗ is the
-full height of the row and 32px wide so a thumb finds it. `data-full` text
+phone keeps long press for its own link menu and the two raced. Nothing else on
+a feed row is a link either, `CMT` included, so a tap anywhere on a row but the
+↗ opens its card. The ↗ is the full height of the row and 32px wide so a thumb
+finds it. A feed row's card also carries COMMENTERS, the brief's read of the
+thread, and TOP COMMENTS, each under a small amber head, and when that runs
+taller than the room the card's body scrolls, never the card itself, since the
+brackets and the leader sit just outside it. `data-full` text
 elsewhere opens only when it's actually cut, and a source tag's `data-tip`
 shows its headline on hover and focus and is just a link on a phone.
 

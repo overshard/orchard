@@ -64,6 +64,7 @@
       </div>
     </div>
     <a class="go" href="{{$s.URL}}" aria-label="Open article" rel="noopener noreferrer" target="_blank">↗</a>
+    {{if or $s.Read $s.Said}}<div class="talk" hidden>{{if $s.Read}}<p class="talk-read" data-at="{{$s.ReadAt}}">{{$s.Read}}</p>{{end}}{{range $s.Said}}<p class="talk-said">{{.}}</p>{{end}}</div>{{end}}
   </li>
   {{end}}{{end}}
   {{template "blank-rows" (len .)}}

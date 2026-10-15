@@ -210,6 +210,16 @@ to have answered, or a dead source would hold the banner up forever. A stream
 that drops and comes back inside half an hour keeps its notice id, whichever
 platform it comes back on, so a reconnect doesn't notify twice.
 
+**Every feed row carries its top comments and a read of them.** The news poll
+fetches the top three top level comments for each HN and Lobsters row into a
+cache keyed by discussion URL and only looks again after 45 minutes, since every
+HN comment is its own Firebase request. The feeds desk fetches eight for each of
+the ten rows and writes one or two sentences per thread on what most of the
+commenters think and where they split, kept on the brief as `threads` and copied
+onto the rows by URL with the time it was read. A thread that turned up after
+the last slot has comments and no read. A read that doesn't end on a full stop
+was cut at the cap and gets one retry, since `whole` would keep "while others."
+
 **Nasdaq only fills in an evening report once its date has passed,** so an after
 hours print is heard about the next morning at the earliest. A quick check asks
 for today and the weekday before every quarter hour from 6am to 8pm on weekdays,

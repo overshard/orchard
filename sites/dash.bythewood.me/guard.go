@@ -37,8 +37,9 @@ var budgets = map[string]budget{
 	"yahoo":    {perHour: 900, pace: 2 * time.Second},
 	"algolia":  {perHour: 120, pace: 2 * time.Second},
 	"lobsters": {perHour: 120, pace: 2 * time.Second},
-	// The top comments on the busiest threads, a dozen calls three times a day.
-	"hnitem":    {perHour: 60, pace: time.Second},
+	// A request per comment, three on every row as it turns over and eight on
+	// each row at a brief slot, which is about 120 calls in the slot's hour.
+	"hnitem":    {perHour: 300, pace: 250 * time.Millisecond},
 	"openmeteo": {perHour: 120, pace: 2 * time.Second},
 	"npr":       {perHour: 120, pace: 2 * time.Second},
 	"bbc":       {perHour: 60, pace: 2 * time.Second},

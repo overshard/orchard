@@ -35,6 +35,18 @@ func (st *State) attachFeedReads() {
 			}
 		}
 	}
+	reads := map[string]string{}
+	for _, t := range st.Briefs.Feeds.Threads {
+		reads[t.URL] = t.Read
+	}
+	for _, list := range [][]Story{st.HN, st.Lobsters} {
+		for i := range list {
+			list[i].Read, list[i].ReadAt = reads[list[i].Comments], ""
+			if list[i].Read != "" {
+				list[i].ReadAt = st.Briefs.Feeds.Compiled
+			}
+		}
+	}
 }
 
 // feedItem is a story with what the pulse needs and the row doesn't show.

@@ -67,10 +67,13 @@ type Store struct {
 	// Which game held the top of Steam each day, nil in tests.
 	chart *steamChart
 
+	// The top comments on each feed row, nil in tests.
+	comments *commentBook
+
 	hub *Hub
 }
 
-func NewStore(hub *Hub) *Store { return &Store{hub: hub} }
+func NewStore(hub *Hub) *Store { return &Store{hub: hub, comments: newCommentBook()} }
 
 func (s *Store) Snapshot() State {
 	s.mu.RLock()
@@ -563,6 +566,7 @@ func (s *Store) refreshNews(ctx context.Context, g *Guard) {
 		s.update(func(st *State) {
 			st.HN, st.HNPulse = stories, pulse
 			st.attachFeedReads()
+			s.comments.attach(st.HN)
 		})
 	}
 
@@ -572,8 +576,11 @@ func (s *Store) refreshNews(ctx context.Context, g *Guard) {
 		s.update(func(st *State) {
 			st.Lobsters, st.LobstersPulse = stories, pulse
 			st.attachFeedReads()
+			s.comments.attach(st.Lobsters)
 		})
 	}
+
+	s.refreshComments(ctx, g)
 }
 
 func (s *Store) refreshWeather(ctx context.Context, g *Guard) {

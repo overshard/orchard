@@ -340,6 +340,18 @@ function storyNode(story, i) {
 
   body.append(meta);
   li.append(body, goLink(story.url, "Open article"));
+
+  if (story.read || (story.said && story.said.length)) {
+    const talk = el("div", "talk");
+    talk.hidden = true;
+    if (story.read) {
+      const read = el("p", "talk-read", story.read);
+      read.dataset.at = story.read_at || "";
+      talk.append(read);
+    }
+    for (const s of story.said || []) talk.append(el("p", "talk-said", s));
+    li.append(talk);
+  }
   return li;
 }
 
