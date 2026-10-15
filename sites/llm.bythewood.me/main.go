@@ -11,6 +11,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -20,6 +21,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"llm.bythewood.me/web"
@@ -134,7 +136,12 @@ func realMain() error {
 	if err := s.loadTemplates(); err != nil {
 		return fmt.Errorf("templates: %w", err)
 	}
-	go s.prune()
+	// Waited on after the cancel, so the store is not closed under a prune.
+	pruneCtx, stopPruning := context.WithCancel(context.Background())
+	var pruning sync.WaitGroup
+	defer pruning.Wait()
+	defer stopPruning()
+	pruning.Go(func() { s.prune(pruneCtx) })
 
 	mux := http.NewServeMux()
 
@@ -191,14 +198,20 @@ func realMain() error {
 // prune trims the call log on a timer. The prompts are the whole of what
 // anybody asked this estate, so they age out rather than accumulating until the
 // volume fills.
-func (s *site) prune() {
+func (s *site) prune(ctx context.Context) {
+	t := time.NewTicker(6 * time.Hour)
+	defer t.Stop()
 	for {
 		if n, err := s.store.Prune(s.retain); err != nil {
 			slog.Error("pruning the call log", "err", err)
 		} else if n > 0 {
 			slog.Info("pruned the call log", "rows", n, "keep", s.retain.String())
 		}
-		time.Sleep(6 * time.Hour)
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
 	}
 }
 
