@@ -341,9 +341,14 @@ function storyNode(story, i) {
   body.append(meta);
   li.append(body, goLink(story.url, "Open article"));
 
-  if (story.read || (story.said && story.said.length)) {
+  if (story.gist || story.read || (story.said && story.said.length)) {
     const talk = el("div", "talk");
     talk.hidden = true;
+    if (story.gist) {
+      const gist = el("p", "talk-gist", story.gist);
+      gist.dataset.at = story.read_at || "";
+      talk.append(gist);
+    }
     if (story.read) {
       const read = el("p", "talk-read", story.read);
       read.dataset.at = story.read_at || "";
@@ -726,6 +731,12 @@ function renderNewsBrief(brief) {
     body.append(meta);
     const first = (p.links || [])[0];
     li.append(el("span", "rank", String(i + 1).padStart(2, "0")), body, goLink(first && first.url, first ? `Open ${first.source} article` : ""));
+    if (p.gist) {
+      const talk = el("div", "talk");
+      talk.hidden = true;
+      talk.append(el("p", "talk-gist", p.gist));
+      li.append(talk);
+    }
     ol.append(li);
   });
   ol.append(...blankRows(points.length));

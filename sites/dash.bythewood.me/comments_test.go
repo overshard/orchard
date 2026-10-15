@@ -35,9 +35,9 @@ func TestCommentBookDueAndPrune(t *testing.T) {
 func TestAttachThreadReads(t *testing.T) {
 	st := State{HN: []Story{{Comments: "a"}, {Comments: "b", Read: "stale"}}}
 	st.Briefs.Feeds.Compiled = "16:05 EDT"
-	st.Briefs.Feeds.Threads = []ThreadRead{{URL: "a", Read: "Most think it's overdue."}}
+	st.Briefs.Feeds.Threads = []ThreadRead{{URL: "a", Read: "Most think it's overdue.", Gist: "A new release."}}
 	st.attachFeedReads()
-	if st.HN[0].Read != "Most think it's overdue." || st.HN[0].ReadAt != "16:05 EDT" || st.HN[1].Read != "" || st.HN[1].ReadAt != "" {
+	if st.HN[0].Read != "Most think it's overdue." || st.HN[0].Gist != "A new release." || st.HN[0].ReadAt != "16:05 EDT" || st.HN[1].Read != "" || st.HN[1].ReadAt != "" {
 		t.Errorf("%+v", st.HN)
 	}
 }

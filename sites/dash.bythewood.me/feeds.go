@@ -27,10 +27,10 @@ const (
 )
 
 type thread struct {
-	title, host, discuss string
-	points, comments     int
-	age                  time.Duration
-	said                 []string
+	title, host, link, discuss string
+	points, comments           int
+	age                        time.Duration
+	said                       []string
 	// One of the busiest, whose comments the front page read sees.
 	busy bool
 }
@@ -50,7 +50,7 @@ func hnThreads(ctx context.Context, g *Guard, now time.Time) ([]thread, error) {
 		if _, err := fmt.Sscan(h.ObjectID, &id); err != nil || h.Title == "" {
 			continue
 		}
-		hits = append(hits, hit{id, thread{title: h.Title, host: hostOf(h.URL), points: h.Points, comments: h.NumComments,
+		hits = append(hits, hit{id, thread{title: h.Title, host: hostOf(h.URL), link: h.URL, points: h.Points, comments: h.NumComments,
 			age: now.Sub(time.Unix(h.CreatedAtI, 0)), discuss: "https://news.ycombinator.com/item?id=" + h.ObjectID}})
 	}
 	sort.SliceStable(hits, func(i, j int) bool { return hits[i].t.points > hits[j].t.points })
@@ -120,7 +120,7 @@ func lobstersThreads(ctx context.Context, g *Guard, now time.Time) ([]thread, er
 		if s.Title == "" || s.ShortID == "" {
 			continue
 		}
-		t := thread{title: s.Title, host: hostOf(s.URL), points: s.Score, comments: s.CommentCount, discuss: s.CommentsURL, age: 24 * time.Hour}
+		t := thread{title: s.Title, host: hostOf(s.URL), link: s.URL, points: s.Score, comments: s.CommentCount, discuss: s.CommentsURL, age: 24 * time.Hour}
 		if at, err := time.Parse(time.RFC3339, s.CreatedAt); err == nil {
 			t.age = now.Sub(at)
 		}
@@ -252,8 +252,10 @@ func (b *Briefer) compileFeeds(ctx context.Context, slot briefSlot, at time.Time
 				brief.Stories += len(ts)
 			}
 			for _, t := range ts[:min(len(ts), storiesShown)] {
-				if read := b.threadRead(ctx, site.name, t); read != "" {
-					brief.Threads = append(brief.Threads, ThreadRead{URL: t.discuss, Read: read})
+				tr := ThreadRead{URL: t.discuss, Read: b.threadRead(ctx, site.name, t)}
+				tr.Gist = b.articleTLDR(ctx, t.title, fetchArticle(ctx, b.guard, t.link))
+				if tr.Read != "" || tr.Gist != "" {
+					brief.Threads = append(brief.Threads, tr)
 				}
 			}
 		}

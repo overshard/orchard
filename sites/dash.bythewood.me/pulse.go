@@ -35,14 +35,15 @@ func (st *State) attachFeedReads() {
 			}
 		}
 	}
-	reads := map[string]string{}
+	reads := map[string]ThreadRead{}
 	for _, t := range st.Briefs.Feeds.Threads {
-		reads[t.URL] = t.Read
+		reads[t.URL] = t
 	}
 	for _, list := range [][]Story{st.HN, st.Lobsters} {
 		for i := range list {
-			list[i].Read, list[i].ReadAt = reads[list[i].Comments], ""
-			if list[i].Read != "" {
+			t := reads[list[i].Comments]
+			list[i].Read, list[i].Gist, list[i].ReadAt = t.Read, t.Gist, ""
+			if t.Read != "" || t.Gist != "" {
 				list[i].ReadAt = st.Briefs.Feeds.Compiled
 			}
 		}
