@@ -16,7 +16,7 @@ run:
 		if [ $$i -gt 120 ]; then echo "vite did not produce a manifest in 60s" >&2; exit 1; fi; \
 		sleep 0.5; \
 	done; \
-	REPOS_MIRROR=$${REPOS_MIRROR:-0} REPOS_PASSWORD=$${REPOS_PASSWORD:-dev} go run .
+	REPOS_MIRROR=$${REPOS_MIRROR:-0} go run .
 
 frontend:
 	cd frontend && bun install --frozen-lockfile && bun run build

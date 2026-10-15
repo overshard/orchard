@@ -7,9 +7,6 @@
 # Go waits for the manifest rather than sleeping a guessed number of seconds.
 # The server treats a missing manifest as fatal, so the startup order matters
 # and a cold build takes longer than any number worth hardcoding.
-#
-# LOGGING_PASSWORD has no default and the server refuses to start without one.
-# A development value belongs in the shell that runs this, not in this file.
 run:
 	cd frontend && bun run dev & \
 	i=0; while [ ! -f build/dist/.vite/manifest.json ]; do \
