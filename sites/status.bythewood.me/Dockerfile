@@ -51,6 +51,7 @@ WORKDIR /src
 # build outright for a module with no third party dependency.
 COPY go.mod go.su[m] ./
 COPY web/ ./web/
+COPY ntfy/ ./ntfy/
 COPY *.go ./
 COPY templates/ ./templates/
 COPY reports/ ./reports/

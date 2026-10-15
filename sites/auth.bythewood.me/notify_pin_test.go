@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"auth.bythewood.me/ntfy"
 )
 
 // pinNotifier is the real constructor pointed at a test server, so the token,
@@ -20,11 +22,11 @@ import (
 func pinNotifier(t *testing.T, base string) *Notifier {
 	t.Helper()
 	n := NewNotifier()
-	n.base = base
+	n.client.Base = base
 	return n
 }
 
-func pinBase() string { return NewNotifier().base }
+func pinBase() string { return NewNotifier().client.Base }
 
 // captureNtfy records every request as text, headers sorted, so a test can
 // compare what reached ntfy byte for byte.
@@ -78,7 +80,7 @@ func TestNotificationRequestsArePinned(t *testing.T) {
 	if !n.configured() {
 		t.Fatal("a notifier with a token reads as unconfigured")
 	}
-	for _, m := range []message{
+	for _, m := range []ntfy.Message{
 		codeMessage("123456", pinVisitor),
 		sessionMessage(pinVisitor, "a login code"),
 		recoveryMessage(pinVisitor, 7),

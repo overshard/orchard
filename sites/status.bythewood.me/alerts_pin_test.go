@@ -18,11 +18,11 @@ import (
 func pinNotifier(t *testing.T, base string) *Notifier {
 	t.Helper()
 	n := NewNotifier()
-	n.base = base
+	n.client.Base = base
 	return n
 }
 
-func pinBase() string { return NewNotifier().base }
+func pinBase() string { return NewNotifier().client.Base }
 
 // captureNtfy records every request as text, headers sorted, so a test can
 // compare what reached ntfy byte for byte.
