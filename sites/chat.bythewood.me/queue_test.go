@@ -134,7 +134,7 @@ func TestAQueuedTurnIsAnnouncedAndSoIsItsEnd(t *testing.T) {
 	release, _ := q.Enter(context.Background(), nil)
 	defer release()
 
-	s := &site{runs: NewRuns(), queue: q, hub: NewHub()}
+	s := &site{runs: NewRuns(), queue: q, hub: NewHub(), stopping: context.Background()}
 	events, unsubscribe := s.hub.Subscribe()
 	defer unsubscribe()
 
@@ -177,5 +177,46 @@ func TestAQueuedTurnIsAnnouncedAndSoIsItsEnd(t *testing.T) {
 	}
 	if got := s.runs.WaitingFor("r1"); got != 0 {
 		t.Errorf("a finished turn still reads as position %d", got)
+	}
+}
+
+// A deploy ends a turn rather than letting the process exit under it, the drain
+// waits for it, and nothing new starts once shutdown has begun.
+func TestShutdownEndsTurnsAndRefusesNewOnes(t *testing.T) {
+	q := NewQueue()
+	release, _ := q.Enter(context.Background(), nil)
+	defer release()
+
+	stopping, stop := context.WithCancel(context.Background())
+	s := &site{runs: NewRuns(), queue: q, hub: NewHub(), stopping: stopping}
+	events, unsubscribe := s.hub.Subscribe()
+	defer unsubscribe()
+
+	go s.send(httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "/api/send",
+		strings.NewReader(`{"message":"hello","run_id":"r1"}`)))
+
+	select {
+	case <-events:
+	case <-time.After(3 * time.Second):
+		t.Fatal("the turn never started")
+	}
+
+	stop()
+	drained := make(chan struct{})
+	go func() {
+		s.detached.Wait()
+		close(drained)
+	}()
+	select {
+	case <-drained:
+	case <-time.After(3 * time.Second):
+		t.Fatal("the drain is still waiting on a turn shutdown should have ended")
+	}
+
+	w := httptest.NewRecorder()
+	s.send(w, httptest.NewRequest(http.MethodPost, "/api/send",
+		strings.NewReader(`{"message":"hello","run_id":"r2"}`)))
+	if w.Code != http.StatusServiceUnavailable {
+		t.Errorf("a send during shutdown answered %d, want 503", w.Code)
 	}
 }
