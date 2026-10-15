@@ -577,8 +577,7 @@ fmt:
 	gofmt -l -w sites
 
 # The comment rules a script can hold, from the Writing section of CLAUDE.md.
-# dash is left out until its own pass, since its blocks still run long.
-VOICE_SITES = $(filter-out dash.bythewood.me,$(SITES))
+VOICE_SITES = $(SITES)
 
 .PHONY: voice
 check: voice

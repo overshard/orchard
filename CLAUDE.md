@@ -475,5 +475,5 @@ Comments have a few more rules, each one a habit that kept creeping in.
   the constraint. Splitting a block in two with a blank line doesn't count.
 
 `make voice` runs with `make check` and fails on a comment block over three
-lines, an em or en dash, or a semicolon in comment prose, naming the file and
-line. It skips dash until that site has had the same pass.
+lines, an em or en dash, or a semicolon in comment prose anywhere under
+`sites/`, naming the file and line.
