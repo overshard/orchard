@@ -102,12 +102,15 @@ glanced at. A section that wants the grid to show through sets
 
 ## The home page
 
-analytics, status and logging open the same way, and the home page is an advert
-for running the thing yourself rather than a dashboard. It ends by pointing at the source.
+analytics, status, logging and chat open the same way, and the home page is an
+advert for running the thing yourself rather than a dashboard. It ends by
+pointing at the source.
 
 The skeleton, in order:
 
 1. **Eyebrow.** A pill with a green dot, then version, stage, and `self-hosted`.
+   A site with no version to give puts one fact about itself there instead, the
+   repository count on repos and the model on chat.
 2. **Headline.** One line, on the pattern `<thing> for operators who host their
    own <noun>`, with the last two words in green.
 3. **Hero paragraph.** Roughly 30 words. A list of what it does, then the
@@ -126,6 +129,11 @@ which is what it is for.
 
 `repos` shows its hero to signed out visitors only, because signed in that page
 is a working repository list and an advert would be in the way every visit.
+
+chat has no Bootstrap and no Vite, so its landing page writes the skeleton out
+by hand in a `.landing-body` block in `static/app.css`. That block carries the
+shared palette rather than the app's own, and a change to it is checked against
+a Bootstrap site's computed styles rather than by eye.
 
 ## Dashboards
 

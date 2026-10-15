@@ -680,51 +680,233 @@ kbd {
 
 /* ---------------------------------------------------------------- landing */
 
-/* The one page a signed out visitor sees. It reuses the palette and the brand
-   mark and nothing else, since the app's layout is a three pane shell and this
-   is a single column of prose. */
+/* The one page a signed out visitor sees, on the skeleton analytics, logging
+   and status open with. Their values come through Bootstrap and are written
+   out by hand here, and the palette is the shared one rather than the app's. */
 
-.landing-body { display: block; overflow-y: auto; }
+.landing-body {
+  --ground: #0e0d0a;
+  --sunken: #090806;
+  --panel: #1c1a15;
+  --text: #ddd7cd;
+  --bright: #ede8e0;
+  --muted: #b3aba2;
+  --faint: #8a8279;
+  --green: #6b9e78;
+  --green-bright: #7db88c;
+  --green-hot: #95cca2;
+  --amber: #c9a84c;
+  --wrap: 100%;
 
-.landing {
-  max-width: 42rem;
-  margin: 0 auto;
-  padding: 4rem 1.4rem 5rem;
+  display: block;
+  overflow-y: auto;
+  margin: 0;
+  background-color: var(--ground);
+  background-image:
+    linear-gradient(rgba(107, 158, 120, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(107, 158, 120, 0.028) 1px, transparent 1px);
+  background-size: 32px 32px;
+  background-position: center top;
+  color: var(--text);
+  font: 400 0.92rem/1.7 var(--mono);
+  letter-spacing: 0.01em;
 }
-.landing .brand { display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none; }
-.landing .brand:hover { text-decoration: none; }
 
-.landing .eyebrow {
-  color: var(--amber); font-size: 0.64rem; font-weight: 600;
-  letter-spacing: var(--track); text-transform: uppercase;
-  margin: 1.6rem 0 0.6rem;
-}
-.landing h1 {
-  font-size: 1.7rem; line-height: 1.3; font-weight: 700;
-  letter-spacing: -0.01em; margin: 0 0 1rem; color: var(--text);
-}
-.landing h1 .accent { color: var(--green-bright); }
-.landing .lede { color: var(--muted); font-size: 0.92rem; margin: 0 0 1.6rem; }
+/* Bootstrap's container scale, so the content sits at the same width as the
+   other sites at every breakpoint. */
+@media (min-width: 576px) { .landing-body { --wrap: 540px; } }
+@media (min-width: 768px) { .landing-body { --wrap: 720px; } }
+@media (min-width: 992px) { .landing-body { --wrap: 960px; } }
+@media (min-width: 1200px) { .landing-body { --wrap: 1140px; } }
+@media (min-width: 1400px) { .landing-body { --wrap: 1320px; } }
 
-.landing .points { list-style: none; padding: 0; margin: 0 0 2rem; }
-.landing .points li {
-  color: var(--dim); font-size: 0.82rem;
-  padding: 0.5rem 0 0.5rem 1rem;
-  border-left: 1px solid var(--line);
-  margin-bottom: 0.3rem;
-}
-.landing .points b { color: var(--green-bright); font-weight: 700; }
+.landing-body .container { max-width: var(--wrap); margin: 0 auto; padding: 0 0.75rem; }
 
-.landing .ctas { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 2.4rem; }
-.landing .btn {
-  display: inline-block; background: var(--green); color: var(--void);
-  border: 1px solid var(--green); border-radius: 2px;
-  font-size: 0.78rem; font-weight: 700; padding: 0.45rem 0.9rem;
-  text-decoration: none;
+.landing-body a { color: var(--green-bright); text-decoration: none; }
+.landing-body a:hover { color: var(--green-hot); text-decoration: underline; }
+.landing-body :focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.landing-body ::selection { background: rgba(107, 158, 120, 0.3); }
+
+.landing-body .btn {
+  display: inline-block;
+  font: inherit; font-size: 0.82rem; font-weight: 500; letter-spacing: 0.04em;
+  padding: 0.6rem 1.1rem;
+  border: 1px solid transparent; border-radius: 0.25rem;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
-.landing .btn:hover { background: var(--green-hot); border-color: var(--green-hot); text-decoration: none; }
-.landing .btn.ghost { background: none; color: var(--dim); border-color: var(--line); }
-.landing .btn.ghost:hover { color: var(--green-bright); border-color: var(--line-hot); }
+.landing-body .btn:hover { text-decoration: none; }
+.landing-body .btn-primary {
+  background: rgba(107, 158, 120, 0.16); border-color: var(--green); color: var(--green-bright);
+}
+.landing-body .btn-primary:hover { background: rgba(107, 158, 120, 0.26); color: var(--green-bright); }
+.landing-body .btn-ghost { border-color: rgba(221, 215, 205, 0.28); color: var(--text); }
+.landing-body .btn-ghost:hover {
+  border-color: rgba(221, 215, 205, 0.5); background: rgba(221, 215, 205, 0.05); color: var(--text);
+}
+.landing-body .btn-sm {
+  font-size: 0.805rem; letter-spacing: 0.02em; padding: 0.25rem 0.5rem; border-radius: 0.2rem;
+}
+
+.landing-body .topbar {
+  background: var(--sunken);
+  border-bottom: 1px solid rgba(107, 158, 120, 0.3);
+}
+.landing-body .topbar .container {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  min-height: 52px;
+}
+.landing-body .brand { display: inline-flex; align-items: center; gap: 0.5rem; }
+.landing-body .brand:hover { text-decoration: none; }
+.landing-body .brand-name { color: var(--bright); font-size: 0.95rem; font-weight: 700; letter-spacing: 0.02em; }
+
+.landing-body .hero {
+  background: var(--sunken);
+  border-bottom: 1px solid rgba(107, 158, 120, 0.3);
+  padding: 4rem 0;
+}
+.landing-body .hero-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3rem 1.5rem; }
+@media (min-width: 992px) {
+  .landing-body .hero-grid { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+  .landing-body .hero-grid .terminal-block { align-self: center; }
+}
+
+.landing-body .hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 0.55rem;
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--amber);
+  background: rgba(201, 168, 76, 0.16);
+  border: 1px solid rgba(201, 168, 76, 0.5);
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+}
+.landing-body .eyebrow-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+
+.landing-body .hero-title {
+  font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 700; line-height: 1.1;
+  letter-spacing: -0.01em; color: var(--bright);
+  margin: 1.5rem 0 0;
+  text-wrap: balance;
+}
+.landing-body .hero-title .accent { color: var(--green-bright); }
+
+.landing-body .hero-sub {
+  color: var(--muted); font-size: 1rem; line-height: 1.7;
+  margin: 1.25rem 0 0; max-width: 620px;
+}
+
+.landing-body .hero-ctas { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.75rem; }
+
+.landing-body .terminal-block {
+  background: rgba(9, 8, 6, 0.7);
+  border: 1px solid rgba(107, 158, 120, 0.3);
+  border-radius: 0.25rem;
+  font-size: 0.8rem; line-height: 1.8;
+  color: var(--green-bright);
+  padding: 1rem 1.2rem;
+}
+.landing-body .t-line { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.landing-body .t-prompt { color: var(--amber); margin-right: 0.4rem; }
+.landing-body .t-out { color: #c4bdb2; }
+.landing-body .t-comment { color: var(--faint); }
+.landing-body .t-key { color: var(--amber); }
+.landing-body .t-val { color: var(--green-bright); }
+.landing-body .t-cursor {
+  display: inline-block; width: 7px; height: 0.9em; vertical-align: -2px;
+  background: var(--green-bright);
+  animation: t-blink 1s steps(1) infinite;
+}
+@keyframes t-blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+
+/* Transparent so the page grid runs through the strip instead of stopping. */
+.landing-body .stat-strip {
+  background: transparent;
+  border-bottom: 1px solid rgba(107, 158, 120, 0.3);
+  padding: 1.5rem 0;
+}
+.landing-body .stat-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; }
+@media (min-width: 768px) {
+  .landing-body .stat-row { grid-template-columns: repeat(var(--stats, 4), minmax(0, 1fr)); }
+}
+.landing-body .stat-row.three { --stats: 3; }
+@media (max-width: 767.98px) {
+  .landing-body .stat-row.three .stat:last-child { grid-column: 1 / -1; }
+}
+.landing-body .stat {
+  text-align: center; padding: 0 1rem;
+  background: none; border: 0; flex: none;
+}
+.landing-body .stat-label {
+  font-size: 0.66rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--faint);
+}
+.landing-body .stat-value {
+  font-size: 1.75rem; font-weight: 700; line-height: 1.2; letter-spacing: -0.01em;
+  color: var(--green-bright); margin-top: 0.2rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.landing-body .features {
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem;
+  margin-top: 3rem; margin-bottom: 3rem; padding-top: 1.5rem; padding-bottom: 1.5rem;
+}
+@media (min-width: 768px) { .landing-body .features { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 992px) { .landing-body .features { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+.landing-body .feature {
+  background: var(--panel);
+  border: 1px solid rgba(107, 158, 120, 0.42);
+  border-radius: 0.25rem;
+  padding: 1.5rem;
+  transition: border-color 250ms ease;
+}
+.landing-body .feature:hover { border-color: rgba(107, 158, 120, 0.62); }
+.landing-body .feature-label {
+  font-size: 0.68rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--amber);
+}
+.landing-body .feature-title { color: var(--bright); font-size: 1.05rem; font-weight: 600; margin-top: 0.5rem; }
+.landing-body .feature-desc { color: var(--muted); font-size: 0.88rem; line-height: 1.65; margin: 0.6rem 0 0; }
+
+.landing-body .footer {
+  background: var(--sunken);
+  border-top: 1px solid rgba(107, 158, 120, 0.3);
+  padding: 6rem 0 4rem;
+}
+.landing-body .footer .cols {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem;
+}
+.landing-body .footer .about { grid-column: 1 / -1; }
+@media (min-width: 992px) {
+  .landing-body .footer .cols { grid-template-columns: minmax(0, 6fr) repeat(3, minmax(0, 2fr)); }
+  .landing-body .footer .about { grid-column: auto; }
+}
+.landing-body .footer .h5 {
+  font-size: 0.7rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+  line-height: 1.3; color: var(--amber); margin-bottom: 1rem;
+}
+.landing-body .footer p { color: rgba(221, 215, 205, 0.5); font-size: 0.85rem; line-height: 1.75; margin: 0; }
+.landing-body .footer p a { color: rgba(221, 215, 205, 0.75); text-decoration: underline; text-underline-offset: 2px; }
+.landing-body .footer p a:hover { color: var(--bright); }
+.landing-body .footer ul { list-style: none; margin: 0; padding: 0; }
+.landing-body .footer li { margin-bottom: 0.5rem; }
+.landing-body .footer li a { color: #9a9188; }
+.landing-body .footer li a:hover { color: var(--bright); text-decoration: none; }
+
+.landing-body .footer-bar {
+  background: #050403;
+  border-top: 1px solid rgba(107, 158, 120, 0.2);
+  padding: 0.8rem 0;
+  font-size: 0.78rem;
+}
+.landing-body .footer-bar .container {
+  display: flex; flex-direction: column-reverse; align-items: center; gap: 1rem;
+}
+@media (min-width: 576px) {
+  .landing-body .footer-bar .container { flex-direction: row; justify-content: space-between; }
+}
+.landing-body .footer-bar small { color: rgba(221, 215, 205, 0.3); font-size: 0.875em; }
+.landing-body .footer-bar-link { display: inline-flex; color: rgba(221, 215, 205, 0.3); }
+.landing-body .footer-bar-link:hover { color: var(--bright); }
 
 
 /* ------------------------------------------------------- memory overlay */

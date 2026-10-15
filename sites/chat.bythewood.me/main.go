@@ -29,6 +29,7 @@ const (
 	listenAddr = ":8000"
 	sourceURL  = "https://github.com/overshard/orchard/tree/main/sites/chat.bythewood.me"
 	selfSource = "chat"
+	author     = "Isaac Bythewood"
 )
 
 // csp is the same shape as every other site here. 'unsafe-inline' is for the
@@ -250,6 +251,7 @@ func (s *site) loadTemplates() error {
 	t, err := template.New("").Funcs(template.FuncMap{
 		"when":  fmtWhen,
 		"asset": assetURL,
+		"num":   formatNum,
 	}).ParseFS(assets(), "templates/*.html")
 	if err != nil {
 		return err
@@ -291,8 +293,11 @@ func (s *site) landing(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
+	nConv, nMsg := s.store.Count()
 	if err := s.tpl.ExecuteTemplate(w, "landing.html", map[string]any{
 		"Source": sourceURL, "Model": s.label, "Ctx": kfmt(s.ctxSize),
+		"Tools": len(tools.Default().Names()), "Conversations": nConv, "Messages": nMsg,
+		"Author": author, "Year": time.Now().Year(),
 	}); err != nil {
 		slog.Error("render landing", "err", err)
 	}
@@ -935,6 +940,34 @@ func kfmt(n int) string {
 		return strconv.Itoa(n)
 	}
 	return strconv.Itoa(n/1024) + "k"
+}
+
+// formatNum groups thousands with commas. It takes any because a template
+// handing it the wrong integer type fails at render time, not at build.
+func formatNum(v any) string {
+	var n int64
+	switch t := v.(type) {
+	case int:
+		n = int64(t)
+	case int64:
+		n = t
+	default:
+		return fmt.Sprint(v)
+	}
+	s := strconv.FormatInt(n, 10)
+	neg := strings.HasPrefix(s, "-")
+	s = strings.TrimPrefix(s, "-")
+	var b strings.Builder
+	for i, d := range s {
+		if i > 0 && (len(s)-i)%3 == 0 {
+			b.WriteByte(',')
+		}
+		b.WriteRune(d)
+	}
+	if neg {
+		return "-" + b.String()
+	}
+	return b.String()
 }
 
 // snapshotAge reads the date a tool's data was taken, when it has one. Any tool
