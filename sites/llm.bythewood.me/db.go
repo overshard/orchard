@@ -1,10 +1,6 @@
-// The key ring and the call log.
-//
-// One file, two tables, and the same reasoning chat's history uses: this holds
-// the full text of every prompt and every completion the estate has produced,
-// so it is its own database rather than tables beside anything else, and
-// deleting it is one command that touches nothing else. secure_delete is on, so
-// a deleted call is zeroed rather than left in the free pages.
+// The key ring and the call log hold the full text of every prompt and
+// completion, so they get a database of their own that can be deleted alone, and
+// secure_delete zeroes a deleted call instead of leaving it in the free pages.
 package main
 
 import (
@@ -77,7 +73,7 @@ func OpenStore(path string) (*Store, error) {
 }
 
 // Close checkpoints the write ahead log first, so a container stopped with
-// SIGKILL rather than SIGTERM loses at most the call in flight.
+// SIGKILL instead of SIGTERM loses at most the call in flight.
 func (s *Store) Close() error {
 	if _, err := s.db.Exec(`PRAGMA wal_checkpoint(TRUNCATE)`); err != nil {
 		slog.Warn("wal checkpoint", "err", err)
@@ -101,11 +97,11 @@ type Key struct {
 }
 
 // keyPrefix is on every key this service issues, so one found in a config file
-// is identifiable as belonging here rather than to some other provider.
+// is identifiable as belonging here and not to some other provider.
 const keyPrefix = "orch-"
 
-// NewKey mints a key and returns the plaintext exactly once. Nothing keeps it,
-// so a lost key is reissued rather than recovered.
+// NewKey mints a key and returns the plaintext once. Nothing keeps it, so a lost
+// key is reissued, not recovered.
 func (s *Store) NewKey(name string) (string, Key, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
@@ -132,9 +128,9 @@ func hashKey(secret string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// Authenticate resolves a presented key. A revoked key is not a match, and the
-// comparison is constant time even though the lookup is by hash, because the
-// row is fetched by hash and then confirmed rather than trusted.
+// Authenticate resolves a presented key. A revoked key isn't a match, and the
+// row fetched by hash is confirmed with a constant time compare instead of
+// trusted.
 func (s *Store) Authenticate(secret string) (Key, bool) {
 	if !strings.HasPrefix(secret, keyPrefix) {
 		return Key{}, false
@@ -186,7 +182,7 @@ func (s *Store) Keys() ([]Key, error) {
 	return out, rows.Err()
 }
 
-// Revoke is not a delete, so the call log keeps pointing at a real key and the
+// Revoke isn't a delete, so the call log keeps pointing at a real key and the
 // history of what a retired service asked for stays readable.
 func (s *Store) Revoke(id int64) error {
 	_, err := s.db.Exec(`UPDATE keys SET revoked_at=? WHERE id=? AND revoked_at=0`, time.Now().Unix(), id)
@@ -289,9 +285,8 @@ func (s *Store) Usage(since time.Time) ([]Usage, error) {
 	return out, rows.Err()
 }
 
-// Prune drops calls older than the retention window. The prompts are the whole
-// of what anyone asked this estate, so they do not accumulate forever by
-// default.
+// Prune drops calls older than the retention window, so the prompts don't pile
+// up forever by default.
 func (s *Store) Prune(keep time.Duration) (int64, error) {
 	r, err := s.db.Exec(`DELETE FROM calls WHERE at < ?`, time.Now().Add(-keep).Unix())
 	if err != nil {

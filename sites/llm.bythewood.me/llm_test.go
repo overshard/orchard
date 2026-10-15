@@ -63,8 +63,8 @@ func TestAWrongKeyIsRefused(t *testing.T) {
 	}
 }
 
-// Revoking has to take effect on the next request, which is the whole reason
-// the key is checked every time rather than cached.
+// Revoking has to take effect on the next request, which is why the key is
+// checked every time instead of cached.
 func TestRevokingStopsAKeyImmediately(t *testing.T) {
 	s := testStore(t)
 	secret, k, _ := s.NewKey("search")
@@ -102,7 +102,7 @@ func TestCallsAreLoggedAndRolledUp(t *testing.T) {
 		t.Fatalf("got %d calls", len(calls))
 	}
 	// The prompt and the completion are the point of the log, so assert they
-	// survived rather than only that a row exists.
+	// survived and not only that a row exists.
 	if !strings.Contains(calls[1].Messages, "hello") || calls[1].Completion != "hi" {
 		t.Errorf("the text was not kept: %+v", calls[1])
 	}
@@ -140,8 +140,8 @@ func TestPruneDropsOldCallsOnly(t *testing.T) {
 	}
 }
 
-// The gateway is the security boundary, so an unkeyed request must not reach
-// upstream at all rather than being refused after it.
+// The gateway is the security boundary, so an unkeyed request must never reach
+// upstream at all, not even to be refused after.
 func TestAnUnkeyedRequestNeverReachesUpstream(t *testing.T) {
 	reached := false
 	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -282,7 +282,7 @@ func TestAStreamedCallIsReassembledForTheLog(t *testing.T) {
 }
 
 // A turn that only calls tools has no content, and the log has to show the call
-// rather than an empty row.
+// instead of an empty row.
 func TestAStreamedToolCallIsReassembledForTheLog(t *testing.T) {
 	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
@@ -318,8 +318,8 @@ func TestAStreamedToolCallIsReassembledForTheLog(t *testing.T) {
 	}
 }
 
-// A caller whose key is refused upstream still gets a row, since a log with the
-// failures missing is the one that cannot explain an outage.
+// A caller whose key is refused upstream still gets a row, since a log missing
+// the failures can't explain an outage.
 func TestAnUpstreamFailureIsStillLogged(t *testing.T) {
 	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "no model loaded", http.StatusServiceUnavailable)
@@ -423,8 +423,8 @@ func TestAModelOnItsWayOffTheCardIsNotLoaded(t *testing.T) {
 	}
 }
 
-// llama-swap spells unload as a GET, so the translation is the thing worth
-// asserting: a caller posts and the upstream is asked the way it expects.
+// llama-swap spells unload as a GET, so a caller posts here and the upstream is
+// asked the way it expects.
 func TestUnloadIsPostedHereAndGotUpstream(t *testing.T) {
 	var method, path string
 	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

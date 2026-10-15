@@ -13,7 +13,7 @@ func TestJudge(t *testing.T) {
 		r    gpuReading
 		busy bool
 	}{
-		// Readings taken on this desktop with nothing loaded.
+		// Readings off this desktop with nothing loaded, then the thresholds.
 		{gpuReading{UtilAvg: 14, UsedMiB: 1556, TotalMiB: 8192}, false},
 		{gpuReading{UtilAvg: 29, UsedMiB: 1582, TotalMiB: 8192}, false},
 		{gpuReading{UtilAvg: 34, UtilMax: 40, UsedMiB: 1619, TotalMiB: 8192}, false},
@@ -81,7 +81,7 @@ func TestGPUIdle(t *testing.T) {
 }
 
 // With our own model resident the numbers are ours, so the probe is skipped and
-// the caller is told it can go ahead and use what is already loaded.
+// the caller is told it can go ahead and use what's already loaded.
 func TestGPUWithAModelResidentSkipsTheProbe(t *testing.T) {
 	s, secret, probed := gpuSite(t, `{"running":[{"model":"local","state":"ready"}]}`, gpuReading{UtilAvg: 99, UsedMiB: 7300})
 	a := askGPU(t, s, secret)

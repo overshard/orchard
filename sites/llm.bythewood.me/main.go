@@ -1,13 +1,6 @@
-// llm.bythewood.me, the model gateway.
-//
-// One model on one card, in front of every service that wants one. A llama-swap
-// per service on an 8GB card means whichever one you used last evicted the
-// other. This holds the model, hands out API keys, and writes down every prompt
-// and every completion that passes through it, apart from the calls a caller
-// marks incognito, which are forwarded and never recorded.
-//
-// The web half is behind auth.bythewood.me like the other dashboards. The API
-// half is behind a key, because the callers are containers with no browser.
+// llm.bythewood.me holds one model on one card for every service, since a
+// llama-swap per service on an 8GB card evicts whichever was used last. It hands
+// out API keys and logs every call unless the caller marks it incognito.
 package main
 
 import (
@@ -34,9 +27,8 @@ const (
 	author     = "Isaac Bythewood"
 )
 
-// csp is the same shape as every other site here. 'unsafe-inline' is for the
-// analytics collector snippet, which is an inline script by design, and for the
-// handful of inline style attributes the templates set.
+// 'unsafe-inline' is for the analytics collector snippet, which is an inline
+// script, and for the inline style attributes the templates set.
 func csp() string {
 	return strings.Join([]string{
 		"default-src 'self'",
@@ -76,7 +68,7 @@ func main() {
 	}
 }
 
-// realMain returns rather than exits, so its deferred closes and the log
+// realMain returns instead of exiting so the deferred closes and the log
 // shipper's flush run on every path out.
 func realMain() error {
 	var (
@@ -108,9 +100,9 @@ func realMain() error {
 	}
 	defer store.Close()
 
-	// The first key cannot come from the web UI, because that is behind auth
-	// and auth is reached over the tunnel this gateway is meant to be feeding.
-	// Same shape as auth's own recovery codes: a flag, printed once.
+	// The first key can't come from the web UI, since that's behind auth and auth
+	// is reached over the tunnel this gateway feeds, so it's a flag printed once
+	// like auth's own recovery codes.
 	if *newKey != "" {
 		secret, _, err := store.NewKey(*newKey)
 		if err != nil {
@@ -128,15 +120,14 @@ func realMain() error {
 		gpuProbe: strings.TrimSuffix(*gpuProbe, "/"),
 		model:    *model,
 		retain:   *retain,
-		// No timeout on the client. A cold model load plus a long generation
-		// runs well past any value worth picking, and the caller's own context
-		// is what bounds this instead.
+		// No timeout on the client, since a cold model load plus a long generation
+		// runs past any value worth picking and the caller's own context bounds it.
 		client: &http.Client{},
 	}
 	if err := s.loadTemplates(); err != nil {
 		return fmt.Errorf("templates: %w", err)
 	}
-	// Waited on after the cancel, so the store is not closed under a prune.
+	// Waited on after the cancel so the store isn't closed under a prune.
 	pruneCtx, stopPruning := context.WithCancel(context.Background())
 	var pruning sync.WaitGroup
 	defer pruning.Wait()
@@ -145,9 +136,8 @@ func realMain() error {
 
 	mux := http.NewServeMux()
 
-	// The dashboard. Behind auth like every other one here.
-	// The root is the one public page: what this is and a way in. A signed in
-	// visitor gets the dashboard here rather than the pitch.
+	// The root is the one public page, and a signed in visitor gets the dashboard
+	// there instead of the pitch.
 	mux.HandleFunc("GET /{$}", s.root)
 	mux.HandleFunc("GET /calls", s.auth.RequireAuth(s.callsPage))
 	mux.Handle("GET /static/", s.static())
@@ -165,27 +155,26 @@ func realMain() error {
 	mux.HandleFunc("POST /v1/embeddings", s.requireKey(s.passthrough))
 	mux.HandleFunc("POST /v1/images/generations", s.requireKey(s.images))
 	mux.HandleFunc("POST /v1/images/edits", s.requireKey(s.images))
-	// What is on the card, and a way to take it off before the idle ttl runs
-	// out. Neither loads anything, so a caller can poll the first as often as
-	// it likes without keeping the weights awake.
+	// What's on the card, and a way to take it off before the idle ttl runs out.
+	// Neither loads anything, so a caller can poll the first as often as it likes
+	// without keeping the weights awake.
 	mux.HandleFunc("GET /v1/running", s.requireKey(s.running))
 	mux.HandleFunc("POST /v1/unload", s.requireKey(s.unload))
 	// Whether the desktop is using the card, for callers that run on a timer
 	// and would rather wait than load a model on top of a game.
 	mux.HandleFunc("GET /v1/gpu", s.requireKey(s.gpu))
 
-	// Unkeyed, and it says nothing but whether this process is up. Asking the
-	// upstream here would wake the weights every thirty seconds and defeat the
-	// idle unload this whole service exists to make possible.
 	// None of this is for a stranger, and without a robots.txt of our own the edge
-	// serves a default that restricts nothing. Both this and the noindex meta tag
-	// are needed, since a crawler obeying robots.txt never fetches the page.
+	// serves a default that restricts nothing. The noindex meta tag needs this
+	// too, since a crawler obeying robots.txt never fetches the page.
 	mux.HandleFunc("GET /robots.txt", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Header().Set("Cache-Control", "public, max-age=300")
 		_, _ = w.Write([]byte("User-agent: *\nDisallow: /\n"))
 	})
 
+	// Unkeyed and says nothing but whether this process is up, since asking the
+	// upstream would wake the weights every thirty seconds and defeat the idle unload.
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		fmt.Fprintln(w, "ok")
@@ -196,7 +185,7 @@ func realMain() error {
 }
 
 // prune trims the call log on a timer. The prompts are the whole of what
-// anybody asked this estate, so they age out rather than accumulating until the
+// anybody asked this estate, so they age out instead of piling up until the
 // volume fills.
 func (s *site) prune(ctx context.Context) {
 	t := time.NewTicker(6 * time.Hour)
@@ -285,8 +274,8 @@ func (s *site) overview(w http.ResponseWriter, r *http.Request) {
 	recent, _ := s.store.Calls("", 12)
 	nKeys, nCalls := s.store.Counts()
 
-	// A key is shown once, on the redirect straight after it is made, because
-	// nothing here can produce it again. Read once and clear.
+	// A key is shown once, on the redirect straight after it's made, because
+	// nothing here can produce it again.
 	fresh := ""
 	if c, err := r.Cookie(newKeyCookie); err == nil {
 		fresh = c.Value
@@ -323,8 +312,8 @@ func (s *site) keyCreate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 400)
 		return
 	}
-	// A one-shot cookie rather than a query string: a key in a URL lands in the
-	// edge access log, a Referer header and browser history.
+	// A one-shot cookie instead of a query string, since a key in a URL lands in
+	// the edge access log, a Referer header and browser history.
 	http.SetCookie(w, &http.Cookie{
 		Name: newKeyCookie, Value: secret, Path: "/",
 		Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode, MaxAge: 60,
@@ -333,7 +322,7 @@ func (s *site) keyCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 // newKeyCookie carries a freshly minted key from the POST to the page that
-// shows it, exactly once.
+// shows it, once.
 const newKeyCookie = "new_key"
 
 func (s *site) keyRevoke(w http.ResponseWriter, r *http.Request) {

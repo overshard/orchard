@@ -1,10 +1,6 @@
-// The gateway itself: an OpenAI shaped endpoint in front of llama-swap that
-// checks an API key, forwards the request, and writes down what was asked and
-// what came back.
-//
-// It is a proxy rather than a client library. Every caller here already speaks
-// the OpenAI chat completions shape, so putting this in the path costs them a
-// base url and a header rather than a rewrite.
+// The gateway is an OpenAI shaped proxy in front of llama-swap that checks an
+// API key, forwards the request and logs what was asked and what came back. Every
+// caller already speaks that shape, so this costs them a base url and a header.
 package main
 
 import (
@@ -20,14 +16,13 @@ import (
 	"time"
 )
 
-// The whole request body is held so it can be both forwarded and logged, so
-// this is a real ceiling rather than a formality. A 64k window of text is a
-// long way under it.
+// The whole request body is held so it can be forwarded and logged, so this is
+// a real ceiling, and a 64k window of text is a long way under it.
 const maxRequestBytes = 32 << 20
 
-// incognitoHeader is a caller saying this turn is not to be written down. Chat
-// sets it when the user is in incognito, and it is taken at its word
-// because every caller here holds a key that was handed out by hand.
+// incognitoHeader is a caller saying this turn isn't to be written down. Chat
+// sets it when the user is in incognito, and it's taken at its word since every
+// caller here holds a key that was handed out by hand.
 const incognitoHeader = "X-Incognito"
 
 type upstreamReq struct {
@@ -37,13 +32,13 @@ type upstreamReq struct {
 	Tools    []json.RawMessage `json:"tools,omitempty"`
 }
 
-// authenticate resolves the bearer token on a request. Sessions do not work
-// here: the callers are other containers with no browser and no cookie.
+// authenticate resolves the bearer token on a request, since the callers are
+// other containers with no browser and no cookie.
 func (s *site) authenticate(r *http.Request) (Key, bool) {
 	h := r.Header.Get("Authorization")
 	if !strings.HasPrefix(h, "Bearer ") {
 		// llama.cpp's own clients send the key as an api key header, so both
-		// spellings are accepted rather than making every caller special.
+		// spellings are accepted.
 		if v := r.Header.Get("X-Api-Key"); v != "" {
 			return s.store.Authenticate(strings.TrimSpace(v))
 		}
@@ -69,7 +64,7 @@ func (s *site) requireKey(next func(http.ResponseWriter, *http.Request, Key)) ht
 
 // completions forwards one chat completion and logs it. Both shapes go through
 // here, since a streamed answer has to be reassembled to be written down and a
-// caller that streams is exactly the one whose output is worth keeping.
+// caller that streams is the one whose output is most worth keeping.
 func (s *site) completions(w http.ResponseWriter, r *http.Request, k Key) {
 	started := time.Now()
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxRequestBytes))
@@ -127,10 +122,8 @@ func (s *site) completions(w http.ResponseWriter, r *http.Request, k Key) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(resp.StatusCode)
 
-	// An upstream refusal carries its reason in the body, and that body is the
-	// one thing worth having when a turn fails. Without this the log says 500
-	// and nothing else, which is what made a template error look like a size
-	// limit for an afternoon.
+	// An upstream refusal carries its reason in the body, and without it the log
+	// says 500 and nothing else.
 	if resp.StatusCode >= 400 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
 		_, _ = w.Write(body)
@@ -154,9 +147,8 @@ func (s *site) completions(w http.ResponseWriter, r *http.Request, k Key) {
 }
 
 // pipeStream copies the event stream straight through while reading the deltas
-// out of it. The bytes the caller receives are the bytes upstream sent, since
-// re-serialising them would put this service in the position of having to keep
-// up with a format it only wants to record.
+// out of it, since re-serialising would mean keeping up with a format this only
+// wants to record.
 func (s *site) pipeStream(w http.ResponseWriter, body io.Reader) (string, int, int, float64) {
 	rc := http.NewResponseController(w)
 	var text strings.Builder
@@ -169,7 +161,7 @@ func (s *site) pipeStream(w http.ResponseWriter, body io.Reader) (string, int, i
 	for sc.Scan() {
 		line := sc.Text()
 		fmt.Fprintln(w, line)
-		// A blank line ends an event, and flushing there rather than per line
+		// A blank line ends an event, and flushing there instead of per line
 		// keeps a half written event from reaching the caller.
 		if line == "" {
 			_ = rc.Flush()
@@ -280,10 +272,9 @@ func summarise(out []byte) (string, int, int, float64) {
 	return text, resp.Usage.PromptTokens, resp.Usage.CompletionTokens, resp.Timings.PredictedPerSec
 }
 
-// llama-swap keeps its own state outside the OpenAI shape, at the root and on
-// a GET. Unload changes what is on the card, so this takes a POST and
-// translates rather than passing the spelling through. Neither is logged,
-// since there is no prompt in either one.
+// llama-swap keeps its own state outside the OpenAI shape, at the root and on a
+// GET. Unload changes what's on the card so the gateway takes a POST for it, and
+// neither is logged since there's no prompt in either one.
 const (
 	swapRunning = "/running"
 	swapUnload  = "/unload"
@@ -300,7 +291,7 @@ type swapModel struct {
 
 // running says whether the weights are resident. Every caller here shares one
 // card, so a dashboard that wants to show the GPU as free or busy asks this
-// rather than guessing from the last call it made.
+// instead of guessing from the last call it made.
 func (s *site) running(w http.ResponseWriter, r *http.Request, _ Key) {
 	var body struct {
 		Running []swapModel `json:"running"`
@@ -318,7 +309,7 @@ func (s *site) running(w http.ResponseWriter, r *http.Request, _ Key) {
 		out.Models = []swapModel{}
 	}
 	for _, m := range out.Models {
-		// A model on its way off the card is not one anybody can use, and
+		// A model on its way off the card isn't one anybody can use, and
 		// calling it loaded would offer an unload that does nothing.
 		if m.State != "stopping" {
 			out.Loaded = true
@@ -330,12 +321,8 @@ func (s *site) running(w http.ResponseWriter, r *http.Request, _ Key) {
 }
 
 // unload takes the weights off the card now instead of at the end of the idle
-// ttl. The machine underneath this is a desktop as well as a server, so
-// somebody who asked one question and wants to go play something should not
-// have to wait out three minutes of timer for their VRAM.
-//
-// It answers once the process is gone rather than once the request was sent,
-// which is what makes the answer mean the card is free.
+// ttl, since the machine is a desktop too. It answers once the process is gone,
+// not once the request was sent, so the answer means the card is free.
 func (s *site) unload(w http.ResponseWriter, r *http.Request, k Key) {
 	if err := s.swap(r.Context(), swapUnload, nil); err != nil {
 		slog.Error("unloading the model", "err", err, "caller", k.Name)
@@ -370,9 +357,9 @@ func (s *site) swap(ctx context.Context, path string, into any) error {
 	return json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(into)
 }
 
-// passthrough carries the endpoints that are not a completion, like the model
-// list. They are not logged, because there is no prompt in them and a health
-// check every thirty seconds would bury the log that matters.
+// passthrough carries the endpoints that aren't a completion, like the model
+// list. They aren't logged, since there's no prompt in them and a health check
+// every thirty seconds would bury the log that matters.
 func (s *site) passthrough(w http.ResponseWriter, r *http.Request, _ Key) {
 	up, err := http.NewRequestWithContext(r.Context(), r.Method, s.upstream+r.URL.Path, r.Body)
 	if err != nil {
@@ -404,7 +391,7 @@ func mustJSON(v any) []byte {
 }
 
 // upstreamReason pulls the message out of llama.cpp's error shape and falls
-// back to the raw body, since a body that does not parse is still the evidence.
+// back to the raw body, since a body that doesn't parse is still the evidence.
 func upstreamReason(body []byte) string {
 	var e struct {
 		Error struct {

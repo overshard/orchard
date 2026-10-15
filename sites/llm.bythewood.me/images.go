@@ -17,16 +17,14 @@ type imageReq struct {
 	Model  string `json:"model"`
 	Prompt string `json:"prompt"`
 	Size   string `json:"size"`
-	// Pictures an edit starts from. Counted and never logged, for the same
-	// reason the picture that comes back is not.
+	// Pictures an edit starts from, counted and never logged for the same reason
+	// the picture that comes back isn't.
 	From int `json:"-"`
 }
 
-// images forwards one picture to llama-swap, which takes the chat model off the
-// card to make room. The prompt is logged like a message would be, and the
-// picture is not, since a couple of megabytes of base64 a row would bury the
-// log it sits in. An edit is the same call as a form carrying the pictures it
-// starts from.
+// images forwards a picture request to llama-swap, which takes the chat model
+// off the card to make room. The prompt is logged and the picture isn't, since
+// megabytes of base64 a row would bury the log. An edit arrives as a form.
 func (s *site) images(w http.ResponseWriter, r *http.Request, k Key) {
 	started := time.Now()
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxRequestBytes))
@@ -127,7 +125,7 @@ func plural(n int, one, many string) string {
 	return many
 }
 
-// describeImages is what the log keeps in place of the picture.
+// describeImages stands in for the picture in the log.
 func describeImages(out []byte, size string) string {
 	var resp struct {
 		Data []struct {

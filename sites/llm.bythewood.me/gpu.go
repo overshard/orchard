@@ -45,7 +45,7 @@ func judge(r gpuReading) (bool, string) {
 }
 
 // gpu tells a background caller whether loading a model now would land on top
-// of whatever the desktop is doing. It loads nothing and is not logged.
+// of whatever the desktop is doing. It loads nothing and isn't logged.
 func (s *site) gpu(w http.ResponseWriter, r *http.Request, _ Key) {
 	var running struct {
 		Running []swapModel `json:"running"`
