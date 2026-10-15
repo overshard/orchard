@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"fmt"
 	"html"
 	"net/url"
 	"regexp"
@@ -10,117 +9,6 @@ import (
 	"strings"
 	"unicode/utf8"
 )
-
-var (
-	ddgResult = regexp.MustCompile(`(?is)<a rel="nofollow" class="result__a" href="(.*?)".*?>(.*?)</a>.*?class="result__snippet".*?>(.*?)</a>`)
-	tagStrip  = regexp.MustCompile(`(?is)<[^>]+>`)
-	// RE2 has no backreferences, so a paired tag needs its own expression
-	// instead of one alternation closing on \1.
-	blockTags = func() []*regexp.Regexp {
-		var out []*regexp.Regexp
-		for _, t := range []string{"script", "style", "nav", "header", "footer", "aside", "form", "svg", "noscript", "template"} {
-			out = append(out, regexp.MustCompile(`(?is)<`+t+`[^>]*>.*?</`+t+`\s*>`))
-		}
-		return out
-	}()
-	articleRe = []*regexp.Regexp{
-		regexp.MustCompile(`(?is)<article[^>]*>(.*?)</article\s*>`),
-		regexp.MustCompile(`(?is)<main[^>]*>(.*?)</main\s*>`),
-	}
-	spaces   = regexp.MustCompile(`[ \t]+`)
-	blankRun = regexp.MustCompile(`\n{3,}`)
-)
-
-// Text pulls readable prose out of an HTML page, and keeps the byline and the
-// date that a readability port throws away.
-func Text(h string) string {
-	for _, re := range blockTags {
-		h = re.ReplaceAllString(h, " ")
-	}
-	// The body of an <article> or <main> is the page, and everything around
-	// it is furniture. Falling through with the whole document is fine when
-	// neither is present.
-	for _, re := range articleRe {
-		if m := re.FindStringSubmatch(h); m != nil && len(m[1]) > 200 {
-			h = m[1]
-			break
-		}
-	}
-	h = regexp.MustCompile(`(?i)</(p|div|li|h[1-6]|tr|section)>`).ReplaceAllString(h, "\n")
-	h = regexp.MustCompile(`(?i)<br\s*/?>`).ReplaceAllString(h, "\n")
-	h = tagStrip.ReplaceAllString(h, " ")
-	h = html.UnescapeString(h)
-	h = spaces.ReplaceAllString(h, " ")
-	var keep []string
-	for _, line := range strings.Split(h, "\n") {
-		if l := strings.TrimSpace(line); l != "" {
-			keep = append(keep, l)
-		}
-	}
-	return blankRun.ReplaceAllString(strings.Join(keep, "\n"), "\n\n")
-}
-
-type SearchHit struct {
-	Title   string `json:"title"`
-	URL     string `json:"url"`
-	Snippet string `json:"snippet"`
-}
-
-var WebSearch = Tool{
-	Name: "web_search",
-	Description: "Search the web and get back titles, urls and snippets. Use it for anything current, " +
-		"local, priced or contested. Snippets are short, so follow up with web_fetch when you need what a page actually says.",
-	Schema: obj(map[string]any{
-		"query": str("what to search for, as a person would type it"),
-		"n":     integer("how many results to return, default 6"),
-	}, "query"),
-	Run: func(ctx context.Context, d *Deps, a map[string]any) (any, error) {
-		q := argStr(a, "query")
-		if q == "" {
-			return nil, fmt.Errorf("query is required")
-		}
-		n := int(argNum(a, "n", 6))
-		if n < 1 || n > 12 {
-			n = 6
-		}
-		body, err := get(ctx, d, "https://html.duckduckgo.com/html/?q="+url.QueryEscape(q), "text/html")
-		if err != nil {
-			return nil, err
-		}
-		hits := parseDDG(string(body), n)
-		if len(hits) == 0 {
-			return nil, fmt.Errorf("the search engine returned nothing, which usually means it is refusing us")
-		}
-		return map[string]any{"query": q, "results": hits}, nil
-	},
-}
-
-// parseDDG pulls the results out of a DuckDuckGo HTML page. A limit of zero
-// means every one, for a caller filtering them itself.
-func parseDDG(body string, limit int) []SearchHit {
-	var hits []SearchHit
-	for _, m := range ddgResult.FindAllStringSubmatch(body, -1) {
-		href := m[1]
-		// DuckDuckGo wraps results in its own redirector, and the real address
-		// is the uddg parameter inside it.
-		if strings.HasPrefix(href, "//duckduckgo.com/l/") {
-			if u, e := url.Parse("https:" + href); e == nil {
-				if real := u.Query().Get("uddg"); real != "" {
-					href = real
-				}
-			}
-		}
-		hits = append(hits, SearchHit{
-			Title:   strings.TrimSpace(Text(m[2])),
-			URL:     href,
-			Snippet: strings.TrimSpace(Text(m[3])),
-		})
-		if limit > 0 && len(hits) >= limit {
-			break
-		}
-	}
-	return hits
-}
 
 var WebFetch = Tool{
 	Name:        "web_fetch",
