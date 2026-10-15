@@ -15,8 +15,8 @@ const (
 	latestFetchTimeout    = 10 * time.Second
 )
 
-// LatestPost is the blog's /latest.json, hand written on that side so this does
-// not have to track its Post type.
+// LatestPost is the blog's /latest.json, hand written on that side so this
+// doesn't have to track its Post type.
 type LatestPost struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
@@ -68,8 +68,8 @@ func (c *LatestCache) Start(ctx context.Context) {
 }
 
 func (c *LatestCache) refresh(ctx context.Context) {
-	// First source that answers wins: the sibling container in the image, the
-	// public site in a local checkout.
+	// The first source that answers wins, the sibling container in the image and
+	// the public site in a local checkout.
 	var post LatestPost
 	var err error
 	for _, src := range c.sources {
@@ -80,7 +80,7 @@ func (c *LatestCache) refresh(ctx context.Context) {
 		slog.Info(fmt.Sprintf("latest post: %s: %v", src, err))
 	}
 	if err != nil {
-		// Keep whatever was there, so a failure does not blank the card.
+		// Keep whatever was there so a failure doesn't blank the card.
 		return
 	}
 

@@ -68,8 +68,8 @@ type ProjectView struct {
 	Delay  template.CSS
 }
 
-// PourView carries a whole size ladder rather than one path, so a phone
-// rendering a card at 380px does not download the widest scan.
+// PourView carries a whole size ladder instead of one path so a phone
+// rendering a card at 380px doesn't download the widest scan.
 type PourView struct {
 	Pour
 	CardSrc     string // fallback for browsers without srcset
@@ -129,7 +129,7 @@ func (s *site) page(name, title, description string) PageData {
 		Page:        name,
 		Num:         num,
 		Staging:     Staging,
-		// Off on the test hostname, so it does not report into the real ID.
+		// Off on the test hostname so it doesn't report into the real ID.
 		Analytics: !Staging,
 		Script:    s.script,
 		Styles:    s.styles,
@@ -154,13 +154,13 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := s.page("index", "Senior Solutions Architect at Craftmaster Furniture", "")
-	// No card at all when the blog cannot be reached, rather than a stale one.
+	// No card at all until the blog has answered once.
 	if post, ok := s.latest.Get(); ok {
 		data.Latest = &post
 	}
 	// The only page that holds the curtain, since it waits on the hero image.
 	data.LoaderWaits = true
-	// Full-bleed 100vw, so it is the one image with a 2400w candidate.
+	// Full-bleed 100vw, so it's the one image with a HeroWidth candidate.
 	data.HeroSrc = pourURL(images.Hero, images.LightboxWidth)
 	data.HeroSrcset = pourSrcset(images.Hero,
 		images.CardWidths[len(images.CardWidths)-1], images.LightboxWidth, images.HeroWidth)
@@ -184,9 +184,9 @@ func (s *site) about(w http.ResponseWriter, r *http.Request) {
 func (s *site) code(w http.ResponseWriter, r *http.Request) {
 	data := s.page("code", "Code", "Some of my most recent coding projects.")
 
-	// Three lists, because the template renders three sections with different
-	// chrome. The delay counts across all of them, so the entrance reads as one
-	// sequence rather than restarting at each heading.
+	// The template renders each list as a section with its own chrome, but the
+	// delay counts across all of them so the entrance reads as one sequence
+	// instead of restarting at each heading.
 	delay := 0
 	nextDelay := func() template.CSS {
 		style := template.CSS(fmt.Sprintf("animation-delay: %dms", delay*100))
@@ -210,7 +210,7 @@ func (s *site) code(w http.ResponseWriter, r *http.Request) {
 			URL:     "https://github.com/" + githubUser + "/" + project.Slug,
 			Delay:   nextDelay(),
 		}
-		// On a read-only repo it is always the commit that archived it.
+		// A read-only repo's latest commit is always the one that archived it.
 		if !project.Archived {
 			view.Commit = s.commits.JSON(project.Slug)
 		}

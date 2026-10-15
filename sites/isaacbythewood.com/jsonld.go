@@ -6,7 +6,7 @@ import (
 )
 
 // The Person node uses the same @id the blog's graph references, so the two
-// sites describe one entity rather than two people with the same name.
+// sites describe one entity instead of two people with the same name.
 
 const (
 	personID  = baseURL + "/#person"

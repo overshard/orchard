@@ -9,11 +9,9 @@ import (
 	"strings"
 )
 
-// The site ran on Next.js until 2026 and its image optimiser is still being
-// asked for pictures that are still here, under a different extension and with
-// the width baked into the name instead of the query string. The old URL was
-// /_next/image?url=/static/images/art/acrylic-pours/000.webp&w=960, and that
-// picture is now /static/images/art/acrylic-pours/000-960.avif.
+// Search indexes still ask the old Next.js image optimiser for pictures that now
+// have another extension and the width in the name, so a request for
+// /_next/image?url=/static/images/x/000.webp&w=960 goes to /static/images/x/000-960.avif.
 
 // nextImageIndex holds the widths available for each image base path.
 type nextImageIndex struct {
@@ -58,10 +56,9 @@ func splitWidth(stem string) (base string, width int, ok bool) {
 	return stem[:i], w, true
 }
 
-// resolve maps an old optimiser request onto a file that exists now. It takes
-// the smallest width at least as large as the one asked for, so the picture is
-// never upscaled, and the largest available when the request wants more than
-// anything here has.
+// resolve maps an old optimiser request onto a file that exists. It takes the
+// smallest width at least as large as the one asked for so nothing is upscaled,
+// or the largest there is when the request wants more than that.
 func (n *nextImageIndex) resolve(rawURL string, want int) (string, bool) {
 	rest, ok := strings.CutPrefix(path.Clean(rawURL), "/static/")
 	if !ok {

@@ -12,17 +12,17 @@ import (
 	"time"
 )
 
-// Unauthenticated GitHub allows 60 requests an hour per IP, so thirteen cards on an
-// hourly ticker fits inside it with no token to store.
+// Unauthenticated GitHub allows 60 requests an hour per IP, so a card per live
+// repo on an hourly ticker fits inside it with no token to store.
 
 const (
 	commitRefreshInterval = time.Hour
 	commitFetchTimeout    = 10 * time.Second
 )
 
-// CommitTarget is the feed behind one card. Path is empty for a whole
-// repository, and set to a subdirectory for the sites in orchard, which all
-// share one repo and would otherwise show the same commit eleven times.
+// CommitTarget is the feed behind one card. Path is set to a subdirectory for
+// the sites in orchard, which share one repo and would otherwise all show the
+// same commit.
 type CommitTarget struct {
 	Key  string
 	Repo string
@@ -58,9 +58,9 @@ func (c *CommitCache) Get(key string) (Commit, bool) {
 	return commit, ok
 }
 
-// JSON renders a commit the way the card displays it. SetEscapeHTML(false),
-// which MarshalIndent cannot do, because html/template escapes already and the
-// default renders an arrow in a message as a literal "\u003e" in the <pre>.
+// JSON renders a commit the way the card displays it. It needs
+// SetEscapeHTML(false), which MarshalIndent can't do, since html/template
+// escapes already and an arrow in a message would show as a literal "\u003e".
 func (c *CommitCache) JSON(key string) string {
 	commit, ok := c.Get(key)
 	if !ok {
@@ -74,7 +74,7 @@ func (c *CommitCache) JSON(key string) string {
 	if err := enc.Encode(commit); err != nil {
 		return ""
 	}
-	// Encode appends a newline that MarshalIndent does not.
+	// Encode appends a newline that MarshalIndent doesn't.
 	return strings.TrimRight(buf.String(), "\n")
 }
 
@@ -122,7 +122,7 @@ func (c *CommitCache) refresh(ctx context.Context, targets []CommitTarget) {
 	}
 	wg.Wait()
 
-	// A failed repo keeps its previous value, so a 502 does not blank a card.
+	// A failed repo keeps its previous value so a 502 doesn't blank a card.
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for _, r := range results {

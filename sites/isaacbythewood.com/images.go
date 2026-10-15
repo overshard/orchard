@@ -12,7 +12,7 @@ import (
 )
 
 // images.json is read here and by frontend/scripts/images.js, which generates
-// the files, so the page cannot reference a width that was never built.
+// the files, so the page can't reference a width that was never built.
 //
 //go:embed images.json
 var imagesJSON []byte
