@@ -775,10 +775,16 @@ main {
   padding: 9px 12px 11px;
   background: linear-gradient(180deg, rgba(255, 176, 0, 0.035), transparent 60%), var(--void);
   border: 1px solid var(--line-hot);
-  overflow-y: auto;
-  overscroll-behavior: contain;
 
   &[hidden] { display: none; }
+
+  .tip-body {
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-hot) transparent;
+  }
 
   .bracket { border-color: var(--amber); }
 

@@ -16,11 +16,12 @@ card.hidden = true;
 card.innerHTML =
   '<div class="bracket tl"></div><div class="bracket tr"></div>' +
   '<div class="bracket bl"></div><div class="bracket br"></div>' +
-  '<i class="tip-lead"></i><div class="tip-plate"><span class="pk"></span><span class="pv"></span></div>' +
-  '<p class="tip-txt"></p><div class="tip-meta"></div><div class="tip-links"></div>';
+  '<i class="tip-lead"></i><div class="tip-body"><div class="tip-plate"><span class="pk"></span><span class="pv"></span></div>' +
+  '<p class="tip-txt"></p><div class="tip-meta"></div><div class="tip-links"></div></div>';
 document.body.append(card);
 
 const lead = card.querySelector(".tip-lead");
+const body = card.querySelector(".tip-body");
 const key = card.querySelector(".pk");
 const val = card.querySelector(".pv");
 const txt = card.querySelector(".tip-txt");
@@ -117,12 +118,14 @@ function place(el) {
   const vw = document.documentElement.clientWidth;
   const vh = window.innerHeight;
   card.style.maxWidth = `${Math.min(520, vw - GUTTER * 2)}px`;
-  card.style.maxHeight = "";
+  body.style.maxHeight = "";
   const w = card.offsetWidth;
   const h = card.offsetHeight;
   const room = { below: vh - GUTTER - r.bottom - GAP, above: r.top - GAP - GUTTER };
   const below = h <= room.below || room.below >= room.above;
-  card.style.maxHeight = `${Math.max(120, below ? room.below : room.above)}px`;
+  // The body scrolls rather than the card, since the brackets and the leader
+  // sit just outside the card and would give it scrollbars of its own.
+  body.style.maxHeight = `${Math.max(120, below ? room.below : room.above) - (h - body.offsetHeight)}px`;
   const left = Math.max(GUTTER, Math.min(r.left, vw - w - GUTTER));
   card.style.left = `${left}px`;
   card.style.top = below ? `${r.bottom + GAP}px` : `${r.top - GAP - Math.min(h, card.offsetHeight)}px`;
