@@ -507,6 +507,10 @@ func RunGC(ctx context.Context, store *Store, every time.Duration) {
 // TrySync runs a sync in the background and reports whether it started one. It
 // declines rather than queues, so two clicks do not mean two syncs.
 func (m *Mirror) TrySync() bool {
+	// Nothing may join manual once shutdown is waiting on it.
+	if m.life.Err() != nil {
+		return false
+	}
 	if !m.running.CompareAndSwap(false, true) {
 		return false
 	}
