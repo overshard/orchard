@@ -73,9 +73,10 @@ make down                            stop everything
 
 make run SITE=blog.bythewood.me      vite watch + go run
 make build SITE=blog.bythewood.me
-make check                           gofmt, web/ drift, vet, govulncheck and build
+make check                           gofmt, web/ drift, the template, vet, govulncheck and build
 make test                            every site's tests, including its own web/ copy
 make deps                            update every site's direct Go modules together
+make new SITE=notes.bythewood.me     a new site from template/, ready to run
 ```
 
 There is no default `SITE`, so a bare `make deploy` cannot replace the wrong
@@ -84,6 +85,13 @@ existing images, which makes it both safe on a healthy system and the repair
 command on a broken one, and `deploy` is the only thing that rebuilds. Each site
 has `run`, `build` and `clean` in its own `Makefile`, but no `serve` target,
 since `go run .` without Vite leaves no manifest and that is fatal.
+
+`make new` copies `template/` into `sites/<hostname>/`, takes `web/` from
+isaacbythewood.com rather than keeping a copy in the template, adds the site to
+`go.work`, and prints the edge changes still to make, which it leaves alone. It
+refuses a directory that exists or a first label another site already has,
+since that label is the container name. `make check` scaffolds the template
+into a temporary directory and builds and tests it, so it can't quietly rot.
 
 ## Conventions that will bite you
 

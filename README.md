@@ -34,6 +34,7 @@ make doctor                          what's down and what to type
 make run SITE=blog.bythewood.me      vite watch + go run, on :8000
 make check                           gofmt, web/ drift, vet, govulncheck and build
 make test                            every site's tests
+make new SITE=notes.bythewood.me     a new site that builds, runs and deploys like the rest
 ```
 
 `make help` lists the rest. `docs/install.md` walks through what install does
@@ -48,7 +49,8 @@ a fix in `web/` has to be made in every site. There's no root module, and
 `go.work` is only there for editors. Go serves every request, Vite is a build
 step that writes hashed assets into `build/dist/`, and Typst typesets the PDFs
 and social cards at build time. Everything generated lands in
-`sites/<name>/build/`, which is gitignored.
+`sites/<name>/build/`, which is gitignored. `template/` is what `make new` copies a
+new site from, and isn't a site itself.
 
 ## Things that will bite you
 

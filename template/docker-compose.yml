@@ -1,0 +1,44 @@
+name: orchard-__LABEL__
+
+# No published ports. Caddy reaches this by container name on the shared network.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: orchard-__LABEL__
+    restart: unless-stopped
+    # Longer than Docker's 10s default, because shutdown drains the log shipper
+    # queue. Without it a slow drain means SIGKILL.
+    stop_grace_period: 30s
+    # An init as PID 1 reaps any child process this site ever execs, which
+    # otherwise piles up as zombies until the container hits its process limit.
+    init: true
+    # A ceiling to fail against rather than a target, since this machine is also
+    # a workstation.
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 192M
+    healthcheck:
+      test: ["CMD", "/app", "-healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    # Otherwise container logs grow unbounded on a workstation.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks: [edge]
+
+networks:
+  edge:
+    name: orchard-edge
+    external: true

@@ -12,12 +12,13 @@
 #   make edge                            rebuild and replace the edge itself
 #   make doctor                          what is running, what is not, what to type
 #
-# And four for development, none of which touch Docker at all:
+# And five for development, none of which touch Docker at all:
 #
 #   make run SITE=blog.bythewood.me      vite watch + go run, on :8000
 #   make build SITE=blog.bythewood.me    release binary into bin/
-#   make check                           gofmt, web/ drift, vet, govulncheck, build
+#   make check                           gofmt, web/ drift, template, vet, govulncheck, build
 #   make test                            every site's tests
+#   make new SITE=notes.bythewood.me     a new site from template/, ready to run
 #
 # `make help` lists the setup targets. Nothing below may contain $$(MAKE) inside
 # a recipe that must not run under `make -n`, since GNU make runs any recipe
@@ -62,7 +63,7 @@ COMPOSE      = $(DOCKER) compose
 COMPOSE_DOWN = $(DOCKER) compose
 
 .DEFAULT_GOAL := help
-.PHONY: help install up up-one deploy edge doctor down down-one run build check web-check fmt fmt-check vet vuln deps test \
+.PHONY: help install up up-one deploy edge doctor down down-one run build check web-check template-check new fmt fmt-check vet vuln deps test \
 	env password tunnel tunnel-login tunnel-status ntfy ntfy-token ntfy-status ntfy-passwd \
 	auth-init auth-recovery chat-key dash-key llm-key wiki util require-site require-env require-tunnel
 
@@ -77,9 +78,10 @@ help:
 	@echo "development, no docker involved"
 	@echo "  make run SITE=<site>       vite watch + go run, on :8000"
 	@echo "  make build SITE=<site>     release binary into bin/"
-	@echo "  make check                 gofmt, web/ drift, vet, govulncheck and build"
+	@echo "  make check                 gofmt, web/ drift, the template, vet, govulncheck and build"
 	@echo "  make deps                  update every site's Go modules together"
 	@echo "  make test                  every site's tests"
+	@echo "  make new SITE=<hostname>   a new site from template/, ready to run"
 	@echo ""
 	@echo "once per machine"
 	@echo "  make install               all of the below, in order, from nothing"
@@ -522,7 +524,7 @@ build: require-site
 # the working directory, and build/ is gitignored.
 # check reports and does not repair, so it must not depend on fmt, which runs
 # gofmt -w and would make the answer yes by rewriting. Use `make fmt` for that.
-check: fmt-check web-check vet vuln
+check: fmt-check web-check template-check vet vuln
 	for s in $(SITES); do echo "build $$s"; \
 		(cd sites/$$s && mkdir -p build && go build -o build/ ./...) || exit 1; done
 
@@ -579,3 +581,69 @@ vet:
 
 test:
 	for s in $(SITES); do echo "test $$s"; (cd sites/$$s && go test ./...) || exit 1; done
+
+# ------------------------------------------------------------------ new sites
+
+# template/ is a site with its hostname left as __SITE__ and its first label as
+# __LABEL__. It sits outside sites/ so nothing above mistakes it for one, and it
+# has no web/ of its own, since a copy kept there would drift. A new site takes
+# its web/ from WEB_FROM, which has the common server.go and no third party
+# module for the new site to inherit.
+TEMPLATE = template
+WEB_FROM = sites/isaacbythewood.com
+
+# $(1) is the directory to write and $(2) the hostname it serves.
+scaffold = label=$$(echo "$(2)" | cut -d. -f1) && \
+	mkdir -p "$(1)" && \
+	cp -R $(TEMPLATE)/. "$(1)/" && \
+	rm -rf "$(1)/frontend/node_modules" "$(1)/build" && \
+	mkdir "$(1)/web" && \
+	cp $(WEB_FROM)/web/* "$(1)/web/" && \
+	find "$(1)" -type f -exec sed -i -e "s/__SITE__/$(2)/g" -e "s/__LABEL__/$$label/g" {} + && \
+	sed -i "1s/^This package is [^ ]* own copy/This package is $(2)'s own copy/" "$(1)/web/README.md"
+
+new:
+	@test -n "$(SITE)" || { echo "name the hostname it will serve, like  make new SITE=notes.bythewood.me" >&2; exit 1; }
+	@case "$(SITE)" in \
+	*[!a-z0-9.-]*|.*|*.|*..*) echo "'$(SITE)' is not a lowercase hostname" >&2; exit 1 ;; \
+	*.*) ;; \
+	*) echo "SITE is the whole hostname, like notes.bythewood.me" >&2; exit 1 ;; \
+	esac
+	@test ! -e "$(SITE_DIR)" || { echo "$(SITE_DIR) already exists, and new never writes over a site" >&2; exit 1; }
+	@label=$$(echo "$(SITE)" | cut -d. -f1); \
+	for s in $(SITES); do \
+		if [ "$${s%%.*}" = "$$label" ]; then \
+			echo "$$s is already orchard-$$label, so this needs a different first label" >&2; \
+			exit 1; \
+		fi; \
+	done
+	@$(call scaffold,$(SITE_DIR),$(SITE))
+	@GOWORK= go work use ./$(SITE_DIR)
+	@label=$$(echo "$(SITE)" | cut -d. -f1); \
+	echo "$(SITE_DIR) written, and added to go.work"; \
+	echo ""; \
+	echo "  make run SITE=$(SITE)    serves it on :8000"; \
+	echo ""; \
+	echo "nothing routes to it yet. for $(SITE) to answer:"; \
+	echo ""; \
+	echo "  1. a site block in edge/caddy/Caddyfile proxying to orchard-$$label:8000, with import hold"; \
+	echo "  2. an ingress rule in edge/cloudflared/config.yml"; \
+	echo "  3. $(SITE) in HOSTNAMES in edge/setup-tunnel.sh"; \
+	echo "  4. make tunnel, which routes the CNAME and reseeds the tunnel's config"; \
+	echo "  5. make edge, then make deploy SITE=$(SITE)"; \
+	echo ""; \
+	echo "then a row in the tables in README.md and CLAUDE.md, an entry in monitored in"; \
+	echo "sites/dash.bythewood.me/systems.go, and siteDesc and analyticsID in its site.go."
+
+# Scaffolds the template somewhere temporary and builds and tests it there, so a
+# template that stopped building fails here instead of on the day it's needed.
+template-check:
+	@tmp=$$(mktemp -d) && trap 'rm -rf "$$tmp"' EXIT && \
+	$(call scaffold,$$tmp/example.bythewood.me,example.bythewood.me) && \
+	cd "$$tmp/example.bythewood.me" && \
+	out=$$(gofmt -l .) && \
+	if [ -n "$$out" ]; then echo "the template is not gofmt clean:" >&2; echo "$$out" >&2; exit 1; fi && \
+	go vet ./... && \
+	go build -o "$$tmp/bin" . && \
+	go test ./... && \
+	echo "template scaffolds, builds and passes its tests"
