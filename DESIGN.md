@@ -102,15 +102,15 @@ glanced at. A section that wants the grid to show through sets
 
 ## The home page
 
-analytics, status, logging and chat open the same way, and the home page is an
-advert for running the thing yourself rather than a dashboard. It ends by
+analytics, status, logging, chat and llm open the same way, and the home page is
+an advert for running the thing yourself rather than a dashboard. It ends by
 pointing at the source.
 
 The skeleton, in order:
 
 1. **Eyebrow.** A pill with a green dot, then version, stage, and `self-hosted`.
    A site with no version to give puts one fact about itself there instead, the
-   repository count on repos and the model on chat.
+   repository count on repos, the model on chat and `openai compatible` on llm.
 2. **Headline.** One line, on the pattern `<thing> for operators who host their
    own <noun>`, with the last two words in green.
 3. **Hero paragraph.** Roughly 30 words. A list of what it does, then the
@@ -130,10 +130,11 @@ which is what it is for.
 `repos` shows its hero to signed out visitors only, because signed in that page
 is a working repository list and an advert would be in the way every visit.
 
-chat has no Bootstrap and no Vite, so its landing page writes the skeleton out
-by hand in a `.landing-body` block in `static/app.css`. That block carries the
-shared palette rather than the app's own, and a change to it is checked against
-a Bootstrap site's computed styles rather than by eye.
+chat and llm have no Bootstrap and no Vite, so their landing pages write the
+skeleton out by hand in a `.landing-body` block in `static/app.css`.
+That block is byte identical between the two and carries the shared palette
+rather than the app's own, so a change to it is made in both, and checked
+against a Bootstrap site's computed styles rather than by eye.
 
 ## Dashboards
 
@@ -539,6 +540,7 @@ A reader only ever has the repo.
 | `auth` | green | Bootstrap. Carries the starfield on `/login`, which the grid sits under |
 | `repos` | green | Hand written CSS, no Bootstrap, since it is dense text. Newsreader on repository names |
 | `chat` | green | Hand written CSS, no Bootstrap. A conversation, so it reads at the longest length on the estate. Citation pills and a source row under each answer, and widget panels above one when a ticker or a forecast was looked up. A picture draws behind a panel listing its stages, each with a count and a guess from the last few, and replaces it once it has loaded. An unread dot on a conversation that finished a turn off screen, and the place in line of every turn still waiting |
+| `llm` | green | Hand written CSS, no Bootstrap. Behind the landing is a dashboard of keys, usage and the call log |
 | `dash` | amber | Hand written CSS. Scanlines, vignette, JetBrains Mono and Space Grotesk. Panel 00 and panel 17 for chrome, a spine past 1900px. A `NOTIFY` switch in panel 00, and a `CHAT` readout beside it that only appears signed in |
 | `blog`, `isaacbythewood.com` | neither | Separate identities. Nothing here applies to them |
 

@@ -20,33 +20,138 @@
        "https://analytics.bythewood.me", "e432c02b-1537-4703-bc5a-6aa2e8573613");
   </script>
 </head>
-<body>
-<main class="landing">
-  <a class="brand" href="/"><span class="key">L</span><span class="brand-name">llm</span></a>
-
-  <p class="eyebrow">Self hosted &middot; {{.Model}} &middot; api key required</p>
-
-  <h1>One set of weights on one card, in front of <span class="accent">every service</span>.</h1>
-
-  <p class="lede">
-    An OpenAI shaped endpoint over llama.cpp. Before this each site carried its own
-    model server, which on an 8GB card meant whichever one you used last evicted the
-    other. This holds the model, hands out keys, and writes down every prompt and
-    every completion that passes through.
-  </p>
-
-  <ul class="points">
-    <li><b>A proxy, not a library.</b> Anything that already speaks chat completions needs a base url and a header, not a rewrite.</li>
-    <li><b>Keys per caller</b>, so usage is attributable and revoking one stops it on the next request.</li>
-    <li><b>Every call logged</b> in full, prompt and completion, with tokens and throughput, aged out on a retention window.</li>
-    <li><b>Loaded on demand</b> and unloaded after three idle minutes, so a desktop that is also a workstation gets its card back.</li>
-  </ul>
-
-  <div class="ctas">
-    <a class="btn" href="/login">Open dashboard &rarr;</a>
-    <a class="btn ghost" href="{{.Source}}" target="_blank" rel="noopener">View source</a>
+<body class="landing-body">
+<header class="topbar">
+  <div class="container">
+    <a class="brand" href="/"><span class="key">L</span><span class="brand-name">llm</span></a>
+    <a class="btn btn-ghost btn-sm" href="/login">Sign in</a>
   </div>
+</header>
 
+<main>
+<section class="hero">
+  <div class="container hero-grid">
+    <div>
+      <span class="hero-eyebrow">
+        <span class="eyebrow-dot" aria-hidden="true"></span>
+        openai compatible &middot; self-hosted
+      </span>
+      <h1 class="hero-title">
+        A model gateway for operators who host their <span class="accent">own weights</span>.
+      </h1>
+      <p class="hero-sub">
+        Chat completions and pictures from one card, a key per caller, every
+        prompt and completion logged unless the caller says otherwise, and the
+        weights unloaded when nobody is asking. Your data never leaves your
+        infrastructure.
+      </p>
+      <div class="hero-ctas">
+        <a href="/login" class="btn btn-primary">Access dashboard &rarr;</a>
+        <a href="{{.Source}}" target="_blank" rel="noopener" class="btn btn-ghost">View source</a>
+      </div>
+    </div>
+    <div class="terminal-block">
+      <span class="t-line"><span class="t-comment"># one call through the gateway</span></span>
+      <span class="t-line"><span class="t-prompt">dash$</span><span class="t-out">POST /v1/chat/completions</span></span>
+      <span class="t-line"><span class="t-key">key</span>=<span class="t-val">dash</span> <span class="t-key">model</span>=<span class="t-val">{{.Model}}</span> <span class="t-key">stream</span>=<span class="t-val">true</span></span>
+      <span class="t-line"><span class="t-key">prompt</span>=<span class="t-val">1,204</span> <span class="t-key">output</span>=<span class="t-val">212</span> <span class="t-key">tok/s</span>=<span class="t-val">48.6</span></span>
+      <span class="t-line"><span class="t-key">logged</span>=<span class="t-val">yes</span> <span class="t-key">keep</span>=<span class="t-val">{{.RetainDays}}d</span></span>
+      <span class="t-line"><span class="t-prompt">dash$</span> <span class="t-cursor"></span></span>
+    </div>
+  </div>
+</section>
+
+<section class="stat-strip">
+  <div class="container stat-row three">
+    <div class="stat">
+      <div class="stat-label">live keys</div>
+      <div class="stat-value">{{num .Keys}}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">calls logged</div>
+      <div class="stat-value">{{num .Calls}}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">retention</div>
+      <div class="stat-value">{{.RetainDays}}d</div>
+    </div>
+  </div>
+</section>
+
+<section class="container features">
+  <div class="feature">
+    <div class="feature-label">proxy</div>
+    <div class="feature-title">A proxy, not a library</div>
+    <p class="feature-desc">Anything that already speaks chat completions needs a base url and a header, not a rewrite. Streams and tool calls pass straight through.</p>
+  </div>
+  <div class="feature">
+    <div class="feature-label">keys</div>
+    <div class="feature-title">A key per caller</div>
+    <p class="feature-desc">Every call is attributed to the key that made it. Revoking one stops it on the next request.</p>
+  </div>
+  <div class="feature">
+    <div class="feature-label">log</div>
+    <div class="feature-title">Every call written down</div>
+    <p class="feature-desc">Prompt, completion, tokens and throughput are kept in full and aged out on a retention window. A call marked incognito writes no row at all.</p>
+  </div>
+  <div class="feature">
+    <div class="feature-label">card</div>
+    <div class="feature-title">Loaded on demand</div>
+    <p class="feature-desc">The weights load on the first call and come off after three idle minutes. A desktop that is also a workstation gets its card back.</p>
+  </div>
+  <div class="feature">
+    <div class="feature-label">pictures</div>
+    <div class="feature-title">Chat and pictures take turns</div>
+    <p class="feature-desc">A chat model and an image model share the one card, and whichever is asked for swaps in. The prompt is logged and the picture is not.</p>
+  </div>
+  <div class="feature">
+    <div class="feature-label">manners</div>
+    <div class="feature-title">Knows when the card is busy</div>
+    <p class="feature-desc">A caller can ask how loaded the card is before it asks for anything. A background job uses that to wait rather than take it from somebody.</p>
+  </div>
+</section>
 </main>
+
+<footer class="footer">
+  <div class="container cols">
+    <div class="about">
+      <div class="h5">// llm</div>
+      <p>The model behind the other sites here, by <a href="https://isaacbythewood.com/">{{.Author}}</a>.
+        One endpoint they all call, a key each, and a record of what was asked and what came back.</p>
+    </div>
+    <div>
+      <div class="h5">// Elsewhere</div>
+      <ul>
+        <li><a href="https://isaacbythewood.com/">Portfolio</a></li>
+        <li><a href="https://blog.bythewood.me/">Blog</a></li>
+        <li><a href="https://github.com/overshard" target="_blank" rel="noopener">GitHub</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="h5">// Pages</div>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="{{.Source}}" target="_blank" rel="noopener">Source</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="h5">// Operator</div>
+      <ul>
+        <li><a href="/login">Sign in</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+
+<div class="footer-bar">
+  <div class="container">
+    <small>&copy; {{.Year}} {{.Author}} &middot; Some rights reserved</small>
+    <a href="{{.Source}}" target="_blank" rel="noopener" class="footer-bar-link" aria-label="GitHub">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+      </svg>
+    </a>
+  </div>
+</div>
 </body>
 </html>
