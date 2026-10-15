@@ -13,9 +13,9 @@ import (
 	"github.com/google/uuid"
 )
 
-// Dev tooling: fills a "Seed Test" property with fake traffic so the dashboard
-// has something to render. It is a flag on the site binary rather than its own
-// cmd/, since it needs the schema, connection settings and column list.
+// Dev tooling that fills a "Seed Test" property with fake traffic so the
+// dashboard has something to render. It's a flag on the site binary instead of
+// its own cmd/ since it needs the schema, connection settings and column list.
 
 const seedPropertyName = "Seed Test"
 

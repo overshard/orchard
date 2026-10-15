@@ -33,8 +33,8 @@ func dict(pairs ...any) (map[string]any, error) {
 	return out, nil
 }
 
-// pct renders count as a whole-number percentage of total, and returns 0 rather
-// than dividing by zero.
+// pct renders count as a whole-number percentage of total, and 0 when total is
+// zero.
 func pct(count, total int64) int64 {
 	if total <= 0 {
 		return 0

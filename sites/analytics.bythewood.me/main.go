@@ -53,7 +53,6 @@ func csp() string {
 	}, "; ")
 }
 
-// site is everything the handlers share.
 type site struct {
 	renderer *web.Renderer
 	db       *sql.DB
@@ -72,9 +71,8 @@ type site struct {
 	propsStyles []string
 }
 
-// The template sets, shared with the tests, which parse them for real. A page
-// listed here with no file behind it parses at boot and not at build, so
-// nothing but doing it catches a template that was deleted and left listed.
+// Shared with the tests, which parse them for real, since a page listed here
+// with no file behind it only fails at boot and never at build.
 var (
 	layoutTemplates = []string{"base.html", "partials.html"}
 	pageTemplates   = []string{
@@ -90,7 +88,7 @@ func main() {
 	}
 }
 
-// realMain returns rather than exits, so its deferred closes and the log
+// realMain returns instead of exiting so the deferred closes and the log
 // shipper's flush run on every path out.
 func realMain() error {
 	web.SetupLogging()
@@ -98,8 +96,8 @@ func realMain() error {
 	seed := flag.Bool("seed", false, "fill a Seed Test property with realistic fake events, then exit")
 	seedSessions := flag.Int("seed-sessions", 500, "sessions to generate in -seed mode")
 	seedDays := flag.Int("seed-days", 60, "days to spread -seed sessions over")
-	// The container HEALTHCHECK runs this: a FROM scratch image has no shell
-	// for a check to call, so the binary probes itself.
+	// The container HEALTHCHECK runs this since a FROM scratch image has no
+	// shell for a check to call, so the binary probes itself.
 	healthcheck := flag.Bool("healthcheck", false, "probe a running server on this host and exit")
 	flag.Parse()
 
@@ -110,9 +108,8 @@ func realMain() error {
 		return nil
 	}
 
-	// Tees stdout records to logging.bythewood.me, see web/shipper.go. It goes
-	// after the healthcheck branch so a HEALTHCHECK does not start a queue it
-	// will never flush.
+	// After the healthcheck branch so a HEALTHCHECK doesn't start a log queue
+	// it will never flush.
 	shipper := web.ShipLogs("analytics", web.HTTPSink())
 	defer shipper.Close()
 
@@ -242,10 +239,9 @@ func realMain() error {
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		// EdgeCache fills in the site policy whenever a handler sets no
-		// Cache-Control of its own, so saying nothing here means the edge
-		// answers a liveness check out of cache long after this process has
-		// stopped serving.
+		// EdgeCache fills in the site policy when a handler sets no
+		// Cache-Control, and the edge would then answer a liveness check out
+		// of cache long after this process stopped serving.
 		w.Header().Set("Cache-Control", "no-store")
 		_, _ = w.Write([]byte("ok\n"))
 	})

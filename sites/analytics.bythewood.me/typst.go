@@ -12,11 +12,11 @@ import (
 	"time"
 )
 
-// A report covers an arbitrary date range, so there is no finite set to compile
-// at build time. This is the one subprocess on a request path here, and why the
-// runtime image is not FROM scratch.
+// A report covers an arbitrary date range, so there's no finite set to compile
+// at build time, and this subprocess on the request path is why the runtime
+// image isn't FROM scratch.
 
-// typstTimeout bounds one compile, a hung subprocess outlives the request.
+// typstTimeout bounds one compile since a hung subprocess outlives the request.
 const typstTimeout = 30 * time.Second
 
 // Typst runs the CLI, resolving the binary once.

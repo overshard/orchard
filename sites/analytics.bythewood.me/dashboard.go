@@ -249,8 +249,8 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 	data.Dash = d
 	data.ReportedAt = time.Now().In(eastern).Format("2006-01-02 15:04")
 
-	// Report export is operator-only even for a public property: the PDF path
-	// spawns an unthrottled Typst compile.
+	// Report export is operator-only even for a public property since the PDF
+	// path spawns an unthrottled Typst compile.
 	if report, ok := reportFormat(q); ok {
 		if !authed {
 			http.Redirect(w, r, "/"+id.String(), http.StatusSeeOther)

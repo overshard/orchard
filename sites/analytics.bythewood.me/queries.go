@@ -1,7 +1,7 @@
 package main
 
 // Every aggregation here logs its database error and returns a zero value, so
-// one failing panel leaves a blank panel rather than a 500 page. Time arithmetic
+// one failing panel leaves a blank panel instead of a 500 page. Time arithmetic
 // is unix milliseconds throughout, matching events.created_at.
 
 import (
@@ -63,7 +63,7 @@ type BotTraffic struct {
 	TopPages []LabelCount `json:"top_pages"`
 }
 
-// EventCounts is the five headline counts, gathered in one pass.
+// EventCounts holds the headline counts, gathered in one pass.
 type EventCounts struct {
 	SessionStart int64
 	PageView     int64
@@ -73,7 +73,7 @@ type EventCounts struct {
 }
 
 // pctChange is the period-over-period delta on each card. A zero previous
-// returns zero, not infinity, which would put "+100%" on every first-week card.
+// returns zero since there's no percentage change from nothing.
 func pctChange(current, previous float64) int64 {
 	if previous == 0 {
 		return 0
@@ -177,7 +177,7 @@ func avgTimeOnPage(ctx context.Context, db *sql.DB, propertyID uuid.UUID, startM
 	return math.Round(avg.Float64*100) / 100
 }
 
-// standardEventCards builds the seven tiles every property gets, each with its
+// standardEventCards builds the tiles every property gets, each with its
 // change against the immediately preceding period of the same length.
 func standardEventCards(ctx context.Context, db *sql.DB, propertyID uuid.UUID, startMS, endMS, prevStartMS, prevEndMS int64, filterURL string) []EventCard {
 	cur := eventCounts(ctx, db, propertyID, startMS, endMS, filterURL)
@@ -237,15 +237,14 @@ func standardEventCards(ctx context.Context, db *sql.DB, propertyID uuid.UUID, s
 	return cards
 }
 
-// trimFloat uses 'f' with precision -1 rather than %v, which is %g underneath
+// trimFloat uses 'f' with precision -1 instead of %v, which is %g underneath
 // and flips to scientific notation at the top of the range.
 func trimFloat(v float64) string {
 	return strconv.FormatFloat(v, 'f', -1, 64)
 }
 
-// customEventCards returns the pinned custom-event tiles and, separately,
-// every custom event this property has ever recorded so the picker can list
-// them.
+// customEventCards returns the pinned custom-event tiles and, for the picker,
+// every custom event this property has ever recorded.
 func customEventCards(ctx context.Context, db *sql.DB, propertyID uuid.UUID, cards []CustomCard, startMS, endMS, prevStartMS, prevEndMS int64, filterURL string) ([]EventCard, []CustomEventDescriptor) {
 	// Unbounded by the date range, so the picker still lists a stale event.
 	query := `SELECT DISTINCT event FROM events
@@ -285,8 +284,8 @@ func customEventCards(ctx context.Context, db *sql.DB, propertyID uuid.UUID, car
 		return nil, descriptors
 	}
 
-	// Iterate names, not the map, so the tile order is the picker's rather
-	// than Go's randomised one.
+	// Iterate names, not the map, so the tile order is the picker's instead
+	// of Go's randomised one.
 	activeNames := make([]string, 0, len(active))
 	for _, n := range names {
 		if active[n] {
@@ -370,7 +369,7 @@ func eventsGraph(ctx context.Context, db *sql.DB, propertyID uuid.UUID, startMS,
 
 	key := func(t time.Time) string { return t.Format("2006-01-02") }
 	// A bucket is labelled by its last day and counts back from it, so the
-	// newest one ends on endDate rather than running past it into days to come.
+	// newest one ends on endDate instead of running past it into days to come.
 	bucketSum := func(end time.Time, days int) int64 {
 		var sum int64
 		for j := 0; j < days; j++ {
@@ -470,8 +469,8 @@ func scanLabelCounts(ctx context.Context, db *sql.DB, what, query string, args .
 }
 
 // eventsByScreenSize counts distinct visitors per screen size. It filters on
-// page_view, like the three breakdowns below it, because the collector's user-id
-// cookie suppresses session_start after a visitor's first visit.
+// page_view, like the device, browser and platform breakdowns, because the
+// collector's user-id cookie suppresses session_start after a first visit.
 func eventsByScreenSize(ctx context.Context, db *sql.DB, propertyID uuid.UUID, startMS, endMS int64, filterURL string, limit int64) []LabelCount {
 	extraSQL, extraArgs := filterClause(filterURL)
 	query := `SELECT screen_width, screen_height, COUNT(DISTINCT user_id) FROM events
@@ -529,8 +528,8 @@ func sessionStartsByReferrer(ctx context.Context, db *sql.DB, id uuid.UUID, s, e
 	return topByColumn(ctx, db, id, s, e, f, "referrer", "session_start", limit, false)
 }
 
-// pageViewsByUTM maps a campaign field to its column, which is what keeps a
-// request-supplied field out of topByColumn's interpolation.
+// pageViewsByUTM maps a campaign field to its column so a request-supplied
+// field never reaches topByColumn's interpolation.
 func pageViewsByUTM(ctx context.Context, db *sql.DB, id uuid.UUID, s, e int64, f, field string, limit int64) []LabelCount {
 	column, ok := map[string]string{
 		"source":   "utm_source",

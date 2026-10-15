@@ -26,7 +26,7 @@ type ParsedUA struct {
 	BotName  string
 }
 
-// NewUAParser builds a parser lazily, compiling the uap-core regex set is the
+// NewUAParser builds a parser lazily since compiling the uap-core regex set is the
 // most expensive thing this process would do at startup.
 func NewUAParser() *UAParser { return &UAParser{} }
 
@@ -109,8 +109,8 @@ func looksLikeBot(ua string) bool {
 }
 
 // classifyDevice collapses uap-core's device families into the three buckets the
-// dashboard charts. Tablet is tested first: an iPad's User-Agent says neither
-// "mobile" nor "iphone", and an Android tablet's says "mobile".
+// dashboard charts. Tablet is tested first since an iPad's User-Agent carries
+// "Mobile" and an Android tablet's carries "android".
 func classifyDevice(ua, family string) string {
 	lower := strings.ToLower(ua)
 
