@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"analytics.bythewood.me/web"
@@ -179,10 +180,13 @@ func realMain() error {
 	}()
 
 	// Cancelled on shutdown so a sweep stops between chunks instead of holding
-	// the write lock while everything else drains.
+	// the write lock while everything else drains, then waited on so the db is
+	// not closed under it.
 	sweepCtx, stopSweeping := context.WithCancel(context.Background())
+	var sweeping sync.WaitGroup
+	defer sweeping.Wait()
 	defer stopSweeping()
-	go NewSweeper(db).Run(sweepCtx)
+	sweeping.Go(func() { NewSweeper(db).Run(sweepCtx) })
 
 	mux := http.NewServeMux()
 
