@@ -214,7 +214,10 @@ platform it comes back on, so a reconnect doesn't notify twice.
 hours print is heard about the next morning at the earliest. A quick check asks
 for today and the weekday before every quarter hour from 6am to 8pm on weekdays,
 and runs the full earnings poll only when it finds a print the last one did not
-have, since a full one is up to twenty requests.
+have, or one whose figures changed, since a full one is up to twenty requests.
+Each new or revised print is logged as `earnings reported` or `earnings revised`
+with Nasdaq's figures, because the panel only holds the latest version and a row
+that read MISS in the morning and BEAT the next day left nothing to look at.
 
 **`range=1d` for BTC-USD is the UTC day and not the last 24 hours.** It rolls at
 8pm New York, so a poll at 8:05pm came back with six bars and drew a straight

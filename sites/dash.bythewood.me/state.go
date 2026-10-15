@@ -407,21 +407,23 @@ func (s *Store) refreshSignal(ctx context.Context, g *Guard) {
 }
 
 func (s *Store) refreshEarnings(ctx context.Context, g *Guard) {
+	known := s.Snapshot().Earnings.recent
 	rows, err := fetchEarnings(ctx, g, time.Now())
 	if err != nil {
 		pollFailed(ctx, "earnings", "earnings", err)
 		return
 	}
+	logReports(changedReports(rows.recent, known))
 	s.update(func(st *State) {
 		st.Earnings = rows
 		st.setNotices("earnings", earningsNotices(rows.recent))
 	})
 }
 
-// refreshReports asks whether anything has printed since the last full poll,
-// which costs two calendar requests and not the twenty a full one can, and runs
-// the full one only when something has. Reports land before the open and after
-// the close, so it only asks across those hours on a weekday.
+// refreshReports asks whether anything has printed or been revised since the
+// last full poll, which costs two calendar requests and not the twenty a full
+// one can, and runs the full one only when something has. Reports land before
+// the open and after the close, so it only asks across those hours on a weekday.
 func (s *Store) refreshReports(ctx context.Context, g *Guard) {
 	now := time.Now().In(easternTime())
 	e := s.Snapshot().Earnings
@@ -429,7 +431,7 @@ func (s *Store) refreshReports(ctx context.Context, g *Guard) {
 		return
 	}
 	day := func(d time.Time) ([]Earning, bool) { return earningsDay(ctx, g, d, now, e.caps) }
-	if newReports(recentReports(day, now), e.recent) {
+	if len(changedReports(recentReports(day, now), e.recent)) > 0 {
 		s.refreshEarnings(ctx, g)
 	}
 }
