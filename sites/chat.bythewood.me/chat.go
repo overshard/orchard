@@ -341,13 +341,13 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		}
 	}
 
-	// news reads every feed on the list, so a second call re-reads all of them
-	// for a rundown the turn already has.
-	var usedNews bool
+	// The tools that run once a turn and already have, since a second news call
+	// re-reads every feed for a rundown the turn already has.
+	ranOnce := map[string]bool{}
 	// A search after the property tool can only contradict it or add something
 	// nobody checked. Asked about one house it searched anyway and came back with
 	// a build year in no tool result, and a prompt can't stop that.
-	usedProperty := calledWith(used, tools.Settles)
+	settled := calledWith(used, tools.Settles)
 	untrusted := readUntrusted(used)
 	var stats Stats
 	schemas := e.reg.Schemas()
@@ -370,18 +370,18 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	// one. Left with all of them it reads the note as a job and goes looking.
 	note := isNote(user)
 	if note {
-		offered, out := []string{tools.Remember.Name}, "offered remember and nothing else"
+		offered, out := tools.Notes, "offered remember and nothing else"
 		if wantsLookup(user) {
-			offered = append(offered, tools.Wikipedia.Name, tools.WebSearch.Name)
+			offered |= tools.Lookup
 			out = "offered remember, wikipedia and web_search, since it asked for a lookup"
 		}
-		schemas = tools.Only(schemas, offered...)
+		schemas = tools.OnlyAny(schemas, offered)
 		forceTools = true
 		tr.Add(Step{Kind: "memory", Label: "read as a note to write down", In: user, Out: out})
 	}
 
 	if picture {
-		schemas = tools.Only(schemas, tools.Image.Name)
+		schemas = tools.OnlyAny(schemas, tools.Draws)
 		forceTools = true
 		if deps.Images != nil {
 			p := deps.Images.Expect()
@@ -414,12 +414,11 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		if closed {
 			offer = tools.WithoutAny(offer, tools.Private)
 		}
-		if usedNews {
-			offer = tools.Without(offer, tools.News.Name)
+		for name := range ranOnce {
+			offer = tools.Without(offer, name)
 		}
-		if usedProperty {
-			offer = tools.Without(offer, tools.WebSearch.Name)
-			offer = tools.Without(offer, tools.WebFetch.Name)
+		if settled {
+			offer = tools.WithoutAny(offer, tools.OpenWeb)
 		}
 		for name, n := range failures {
 			if n >= 2 {
@@ -553,6 +552,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		ran, failed := 0, 0
 		var drawn *tools.Result
 		for _, tc := range reply.ToolCalls {
+			tool := tools.Of(tc.Function.Name)
 			key := tc.Function.Name + "\x00" + canonArgs(tc.Function.Arguments)
 			if prev, done := seen[key]; done {
 				repeats++
@@ -574,16 +574,16 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 			}
 			// Six topics asked for in one round read every feed six times over
 			// and filled a third of the window.
-			if tc.Function.Name == tools.News.Name && usedNews {
+			if tool.Is(tools.Once) && ranOnce[tc.Function.Name] {
 				id := tc.ID
 				if id == "" {
 					id = tc.Function.Name
 				}
 				msgs = append(msgs, Message{Role: RoleTool, ToolCallID: id, Name: tc.Function.Name,
-					Content: `{"note":"news was already read in this turn and one call is the whole rundown. Use what it returned."}`})
+					Content: `{"note":"` + tc.Function.Name + ` was already read in this turn and one call is the whole rundown. Use what it returned."}`})
 				continue
 			}
-			if closed && tools.Of(tc.Function.Name).Is(tools.Private) {
+			if closed && tool.Is(tools.Private) {
 				id := tc.ID
 				if id == "" {
 					id = tc.Function.Name
@@ -594,29 +594,29 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 				continue
 			}
 			emit(Event{Kind: "tool", Tool: tc.Function.Name, Args: shortArgs(tc.Function.Arguments)})
-			if tools.Of(tc.Function.Name).Is(tools.Untrusted) {
+			if tool.Is(tools.Untrusted) {
 				untrusted = true
 			}
-			if tc.Function.Name == tools.News.Name {
-				usedNews = true
+			if tool.Is(tools.Once) {
+				ranOnce[tc.Function.Name] = true
 			}
-			if tc.Function.Name == tools.PropertyTool.Name {
-				usedProperty = true
+			if tool.Is(tools.Settles) {
+				settled = true
 			}
 			args := json.RawMessage(tc.Function.Arguments)
 			// The model reached for a picture straight after one without
 			// being asked for a new one, which is a change it did not
 			// recognise, so it is made one, in his words.
-			if tc.Function.Name == tools.Image.Name && len(deps.Start) == 0 && refs.Last != "" &&
+			if tool.Is(tools.Draws) && len(deps.Start) == 0 && refs.Last != "" &&
 				lastWasPicture(history) && !wantsNewPicture(said) {
 				deps.Start = []string{refs.Last}
 				args, _ = json.Marshal(map[string]any{"prompt": editPrompt(said, "", false), "shape": "same"})
 				tr.Add(Step{Kind: "tool", Label: "read as a change to the last picture", In: said})
 			}
-			if tc.Function.Name == tools.Image.Name {
+			if tool.Is(tools.Draws) {
 				args = withShape(args, askedShape(said))
 			}
-			if tc.Function.Name == tools.Markets.Name {
+			if tool.Is(tools.Tickers) {
 				if fixed := withTickers(args, said); !bytes.Equal(fixed, args) {
 					args = fixed
 					tr.Add(Step{Kind: "tool", Label: "quoted the tickers he typed", In: tc.Function.Arguments, Out: string(fixed)})
@@ -624,7 +624,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 			}
 			res := e.reg.Call(ctx, deps, tc.Function.Name, args)
 			seen[key] = res
-			if res.Name == tools.Image.Name && drawn == nil {
+			if tool.Is(tools.Draws) && drawn == nil {
 				drawn = &res
 			}
 			used = append(used, res)
@@ -757,7 +757,7 @@ func copiedEarlier(answer, draft string, previous []string) bool {
 
 func wroteMemory(used []tools.Result) bool {
 	for _, r := range used {
-		if r.Name != tools.Remember.Name || r.Err != "" {
+		if !tools.Of(r.Name).Is(tools.Notes) || r.Err != "" {
 			continue
 		}
 		if m, ok := r.Content.(map[string]any); ok && (m["remembered"] != nil || m["now"] != nil || m["already_known"] != nil) {
@@ -769,7 +769,7 @@ func wroteMemory(used []tools.Result) bool {
 
 func onlyRemembered(used []tools.Result) bool {
 	for _, r := range used {
-		if r.Name != tools.Remember.Name {
+		if !tools.Of(r.Name).Is(tools.Notes) {
 			return false
 		}
 	}
