@@ -72,12 +72,12 @@ type PageData struct {
 type site struct {
 	renderer *web.Renderer
 	lib      *Library
-	// Filesystems rather than paths: in a release build these live inside the
-	// executable and there is no path to hand out.
+	// Filesystems instead of paths since in a release build these live inside
+	// the executable and there's no path to hand out.
 	content fs.FS
 	pdfs    fs.FS
 	og      fs.FS
-	// Resolves Wagtail era /media/ URLs onto the files that serve them now.
+	// Maps Wagtail era /media/ URLs onto the files that serve them.
 	mediaIdx *mediaIndex
 	script   string
 	styles   []string
@@ -221,8 +221,8 @@ func (s *site) post(w http.ResponseWriter, r *http.Request) {
 	s.renderer.Render(w, http.StatusOK, "post.html", data)
 }
 
-// postPDF serves the PDF built during the image build. It is a handler and not
-// a static mount so an unpublished post stays a 404.
+// postPDF is a handler instead of a static mount so an unpublished post stays
+// a 404.
 func (s *site) postPDF(w http.ResponseWriter, r *http.Request) {
 	post, ok := s.lookup(r)
 	if !ok {
@@ -246,7 +246,6 @@ func (s *site) postPDF(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, post.Slug+".pdf", time.Time{}, bytes.NewReader(raw))
 }
 
-// postMarkdown hands back the source file.
 func (s *site) postMarkdown(w http.ResponseWriter, r *http.Request) {
 	post, ok := s.lookup(r)
 	if !ok {
@@ -285,7 +284,7 @@ func (s *site) redirectPost(w http.ResponseWriter, r *http.Request) {
 }
 
 // redirectPostFormat handles the old export URLs. Only pdf and md exist, so
-// anything else 404s here rather than redirecting to a 404.
+// anything else 404s here instead of redirecting to a 404.
 func (s *site) redirectPostFormat(w http.ResponseWriter, r *http.Request) {
 	format := r.PathValue("format")
 	if format != "pdf" && format != "md" {
@@ -295,7 +294,7 @@ func (s *site) redirectPostFormat(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/posts/"+r.PathValue("slug")+"/"+format+"/", http.StatusMovedPermanently)
 }
 
-// redirectSlash sends /blog to /blog/, so the slashless form is not a 404.
+// redirectSlash sends /blog to /blog/ so the slashless form isn't a 404.
 func redirectSlash(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, r.URL.Path+"/", http.StatusMovedPermanently)
 }
@@ -325,8 +324,8 @@ func urlPathEscape(s string) string {
 }
 
 // latestJSON publishes the newest post for isaacbythewood.com's promo slot. The
-// shape is hand-written so a new field on Post does not become a public API by
-// accident, and there is no CORS because the only consumer fetches server side.
+// shape is hand-written so a new field on Post doesn't become a public API by
+// accident, and there's no CORS since the only consumer fetches server side.
 func (s *site) latestJSON(w http.ResponseWriter, r *http.Request) {
 	published, _, _ := s.lib.Published()
 

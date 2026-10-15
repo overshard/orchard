@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// matches is a substring scan over title, description and tags. Bodies are not
+// matches is a substring scan over title, description and tags. Bodies aren't
 // searched, since a match nothing highlights looks like a wrong result.
 func matches(post *Post, needle string) bool {
 	if strings.Contains(strings.ToLower(post.Title), needle) ||
@@ -50,7 +50,7 @@ func (s *site) search(w http.ResponseWriter, r *http.Request) {
 	data.Breadcrumbs = []Crumb{{Title: "Home", URL: "/"}, {Title: "Search"}}
 
 	if strings.TrimSpace(query) == "" {
-		// An empty query offers somewhere to go rather than no results.
+		// An empty query offers somewhere to go instead of no results.
 		data.RandomPosts = pickRandom(published, 6)
 	} else {
 		data.Posts = search(published, query, 0)
@@ -70,7 +70,7 @@ func (s *site) searchLive(w http.ResponseWriter, r *http.Request) {
 		URL         string `json:"url"`
 	}
 
-	// An empty array, never null: search.js reads data.length.
+	// An empty array and never null, since search.js reads data.length.
 	out := []result{}
 	for _, post := range search(published, r.URL.Query().Get("q"), 5) {
 		out = append(out, result{post.Title, post.Description, post.URL()})

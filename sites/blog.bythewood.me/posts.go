@@ -29,7 +29,7 @@ type Post struct {
 	BodyTypst string
 }
 
-// Methods rather than template helpers, so the compiler checks them.
+// Methods instead of template helpers so the compiler checks them.
 func (p *Post) URL() string      { return "/posts/" + p.Slug + "/" }
 func (p *Post) PDFURL() string   { return "/posts/" + p.Slug + "/pdf/" }
 func (p *Post) MDURL() string    { return "/posts/" + p.Slug + "/md/" }
@@ -70,8 +70,8 @@ type Library struct {
 	years     []string
 }
 
-// LoadLibrary reads every .md file under posts/. It takes an fs.FS rather than a
-// path because the content ships inside the binary.
+// LoadLibrary takes an fs.FS instead of a path since the content ships inside
+// the binary.
 func LoadLibrary(content fs.FS) (*Library, error) {
 	entries, err := fs.ReadDir(content, "posts")
 	if err != nil {
@@ -92,7 +92,7 @@ func LoadLibrary(content fs.FS) (*Library, error) {
 		lib.bySlug[post.Slug] = post
 	}
 
-	// Newest first, tie-broken on filename so two posts sharing a date do not
+	// Newest first, tie-broken on filename so two posts sharing a date don't
 	// swap places between builds.
 	sort.SliceStable(lib.all, func(i, j int) bool {
 		if lib.all[i].Date != lib.all[j].Date {
@@ -196,8 +196,8 @@ func (l *Library) Published() ([]*Post, []TagEntry, []string) {
 	return l.published, l.tags, l.years
 }
 
-// Lookup finds a post by slug, reporting false for an unpublished one. A caller
-// should 404 rather than 403, since a 403 confirms the slug.
+// Lookup reports false for an unpublished post too, and a caller should 404 on
+// it instead of 403 since a 403 confirms the slug exists.
 func (l *Library) Lookup(slug string) (*Post, bool) {
 	post, ok := l.bySlug[slug]
 	if !ok || post.PublishDate > today() {
@@ -329,8 +329,8 @@ func related(post *Post, posts []*Post, count int) []*Post {
 	return out
 }
 
-// titleCase capitalises each word of a tag name. strings.Title is deprecated and
-// golang.org/x/text is a dependency, for a dozen lowercase ASCII tags.
+// strings.Title is deprecated and golang.org/x/text is a whole dependency for
+// some lowercase ASCII tags.
 func titleCase(s string) string {
 	out := []rune(s)
 	upper := true

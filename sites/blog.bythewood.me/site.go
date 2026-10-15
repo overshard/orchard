@@ -2,8 +2,8 @@ package main
 
 import "strings"
 
-// Identity is hardcoded, never configured. This site has no credentials at all,
-// so it needs no .env.
+// Identity is hardcoded and this site has no credentials at all, so it needs
+// no .env.
 const (
 	baseURL     = "https://blog.bythewood.me"
 	siteName    = "Isaac Bythewood's Blog"
@@ -13,11 +13,10 @@ const (
 	analyticsID = "0d379e18-9ea7-4228-a8bf-82369c25ab84"
 )
 
-// Staging is true on any hostname but the real one, it drives the noindex, the
-// robots.txt Disallow and the analytics collector.
+// Staging is true when baseURL isn't the real host, and it drives the noindex,
+// the robots.txt Disallow and the analytics collector.
 var Staging = !strings.HasSuffix(baseURL, "//blog.bythewood.me")
 
-// FooterLink is one entry in a footer column.
 type FooterLink struct {
 	Label string
 	Href  string
