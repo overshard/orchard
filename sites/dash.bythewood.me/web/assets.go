@@ -26,8 +26,8 @@ type manifestEntry struct {
 }
 
 // LoadAssets reads the manifest out of a dist filesystem. A missing manifest is
-// an error rather than a warning, because serving a page whose script tag points
-// at a file that was never built is worse than refusing to start.
+// an error, since serving a page whose script tag points at a file that was
+// never built is worse than refusing to start.
 func LoadAssets(dist fs.FS) (*Assets, error) {
 	raw, err := fs.ReadFile(dist, ".vite/manifest.json")
 	if err != nil {
@@ -52,10 +52,9 @@ func (a *Assets) Script(entry string) string {
 	return "/static/" + e.File
 }
 
-// Hashed reports every file Vite emitted with a content hash in its name, which
-// is the set safe to cache for a year. Files copied through from publicDir keep
-// their original names and stay out of it, or an updated resume would never
-// reach anybody.
+// Hashed reports every file Vite emitted with a content hash in its name, the
+// set safe to cache for a year. Files copied from publicDir keep their names and
+// stay out of it, or an updated resume would never reach anybody.
 func (a *Assets) Hashed() map[string]bool {
 	hashed := make(map[string]bool, len(a.entries)*2)
 	for _, e := range a.entries {

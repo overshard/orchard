@@ -8,10 +8,9 @@ import (
 	"net/http"
 )
 
-// Renderer parses a base layout plus one template per page, and renders into a
-// buffer before writing. Buffering is what makes a mid-render template error
-// recoverable: writing straight to the ResponseWriter would send the 200 and
-// half a page before anything failed.
+// Renderer parses a base layout plus one template per page and renders into a
+// buffer first, so a template error halfway through can still become a 500
+// instead of a 200 and half a page.
 type Renderer struct {
 	pages map[string]*template.Template
 }
@@ -34,7 +33,7 @@ func NewRenderer(files fs.FS, funcs template.FuncMap, layouts []string, pages []
 	return r, nil
 }
 
-// Render writes a page, or a 500 rather than a half-written body.
+// Render writes a page, or a 500 instead of a half-written body.
 func (r *Renderer) Render(w http.ResponseWriter, status int, page string, data any) {
 	t, ok := r.pages[page]
 	if !ok {
