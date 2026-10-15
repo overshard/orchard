@@ -59,7 +59,7 @@
       <div class="meta">
         {{if $s.Host}}<span class="host">{{$s.Host}}</span>{{end}}
         <span class="pts">{{$s.Points}}<span class="unit">PTS</span></span>
-        <a class="cmt" href="{{$s.Comments}}" rel="noopener noreferrer" target="_blank">{{$s.Count}}<span class="unit">CMT</span></a>
+        <span class="cmt" data-href="{{$s.Comments}}">{{$s.Count}}<span class="unit">CMT</span></span>
         {{if $s.Age}}<span class="age">{{$s.Age}}</span>{{end}}
       </div>
     </div>

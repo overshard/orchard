@@ -913,6 +913,7 @@ main {
   // A tap leaves a caret in the text and Chrome drops the ellipsis while it's
   // there. The card the line opens can still be selected.
   .title[data-card] { cursor: pointer; user-select: none; }
+  li:has(.title[data-card]) .meta { cursor: pointer; }
   .title[data-card]:hover, .title[aria-expanded="true"] { color: var(--amber); }
 
   // The way out to the article, the full height of the row so a thumb finds it.
@@ -949,8 +950,7 @@ main {
   .host { color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
   .unit { margin-left: 3px; color: var(--faint); }
   .pts { color: var(--muted); }
-  a.cmt { color: var(--muted); }
-  a.cmt:hover { color: var(--amber); }
+  .cmt { color: var(--muted); }
 }
 
 // Atmos ----------------------------------------------------------------------

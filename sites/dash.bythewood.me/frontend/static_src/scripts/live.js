@@ -331,7 +331,8 @@ function storyNode(story, i) {
   pts.append(el("span", "unit", "PTS"));
   meta.append(pts);
 
-  const cmt = link(story.comments, "cmt", String(story.count));
+  const cmt = el("span", "cmt", String(story.count));
+  cmt.dataset.href = story.comments;
   cmt.append(el("span", "unit", "CMT"));
   meta.append(cmt);
 
