@@ -1,4 +1,4 @@
-package main
+package history
 
 import (
 	"database/sql"
@@ -39,7 +39,7 @@ func TestMigrateToUUIDs(t *testing.T) {
 	}
 	db.Close()
 
-	st, err := OpenStore(path)
+	st, err := Open(path)
 	if err != nil {
 		t.Fatalf("opening a counter-id database: %v", err)
 	}
@@ -78,7 +78,7 @@ func TestMigrateToUUIDs(t *testing.T) {
 
 	// Reopening finds uuids already and leaves everything alone.
 	st.Close()
-	again, err := OpenStore(path)
+	again, err := Open(path)
 	if err != nil {
 		t.Fatal(err)
 	}

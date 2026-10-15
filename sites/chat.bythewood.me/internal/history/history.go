@@ -1,7 +1,7 @@
-// Conversations on disk, and the incognito mode that keeps them off it. Deletion
-// is forward only, so the way to keep something out of a backup is never to put
-// it in one.
-package main
+// Package history is conversations on disk, and the database file every other
+// engine keeps its tables in. Deletion is forward only, so the way to keep
+// something out of a backup is never to put it in one.
+package history
 
 import (
 	"crypto/rand"
@@ -77,11 +77,11 @@ CREATE TABLE IF NOT EXISTS spend (
 CREATE INDEX IF NOT EXISTS spend_host_at ON spend(host, at);
 `
 
-// DB is for the property package, which owns its own tables in this database.
-// Nothing else reaches in here.
+// DB is for the engines that own their own tables in this database, and they
+// reach no further than those tables.
 func (s *Store) DB() *sql.DB { return s.db }
 
-func OpenStore(path string) (*Store, error) {
+func Open(path string) (*Store, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return nil, err
 	}
@@ -257,39 +257,18 @@ type Conversation struct {
 	Flag      string    `json:"flag,omitempty"`
 }
 
-type Stored struct {
-	Role    Role          `json:"role"`
-	Content string        `json:"content"`
-	Display string        `json:"display,omitempty"`
-	Files   []Attachment  `json:"files,omitempty"`
-	Tools   []ToolSummary `json:"tools,omitempty"`
-	Sources []Source      `json:"sources,omitempty"`
-	Widgets []Widget      `json:"widgets,omitempty"`
-	Steps   []Step        `json:"steps,omitempty"`
-	At      time.Time     `json:"at"`
-}
-
-// Shown is what the user typed, which is the whole message unless files were
-// attached and their text was folded into it.
-func (m Stored) Shown() string {
-	if m.Display != "" {
-		return m.Display
-	}
-	return m.Content
-}
-
-// ToolSummary is what the UI shows under a message: which tools ran and how
-// they went, not their whole payload.
-type ToolSummary struct {
-	Name string `json:"name"`
-	Args string `json:"args,omitempty"`
-	MS   int64  `json:"ms"`
-	OK   bool   `json:"ok"`
-	Err  string `json:"err,omitempty"`
-	// How old the data behind this call is, for a tool that reads a snapshot
-	// and not the live thing. Shown on the chip, because an answer off a local
-	// corpus looks exactly like one off the web otherwise.
-	Age string `json:"age,omitempty"`
+// Message is one stored message. The parts beside its text are JSON the site
+// writes and reads back itself, and the store keeps them as they come.
+type Message struct {
+	Role    string
+	Content string
+	Display string
+	Files   json.RawMessage
+	Tools   json.RawMessage
+	Sources json.RawMessage
+	Widgets json.RawMessage
+	Steps   json.RawMessage
+	At      time.Time
 }
 
 func (s *Store) NewConversation(title string) (string, error) {
@@ -316,40 +295,40 @@ func newID() string {
 	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
 }
 
-func (s *Store) Append(convID string, m Stored) error {
-	b, _ := json.Marshal(m.Tools)
-	f, _ := json.Marshal(m.Files)
-	src, _ := json.Marshal(m.Sources)
-	wid, _ := json.Marshal(m.Widgets)
-	stp, _ := json.Marshal(m.Steps)
+func (s *Store) Append(convID string, m Message) error {
 	if _, err := s.db.Exec(`INSERT INTO messages(conv_id, role, content, tools, display, files, sources, widgets, steps, at) VALUES(?,?,?,?,?,?,?,?,?,?)`,
-		convID, string(m.Role), m.Content, string(b), m.Display, string(f), string(src), string(wid), string(stp), time.Now().Unix()); err != nil {
+		convID, m.Role, m.Content, part(m.Tools), m.Display, part(m.Files), part(m.Sources), part(m.Widgets), part(m.Steps), time.Now().Unix()); err != nil {
 		return err
 	}
 	_, err := s.db.Exec(`UPDATE conversations SET updated_at=? WHERE id=?`, time.Now().Unix(), convID)
 	return err
 }
 
-func (s *Store) Messages(convID string) ([]Stored, error) {
+// part writes a missing part as JSON null, which is what a nil list marshals to.
+func part(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return "null"
+	}
+	return string(raw)
+}
+
+func (s *Store) Messages(convID string) ([]Message, error) {
 	rows, err := s.db.Query(`SELECT role, content, tools, display, files, sources, widgets, steps, at FROM messages WHERE conv_id=? ORDER BY id`, convID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []Stored
+	var out []Message
 	for rows.Next() {
-		var m Stored
-		var role, tools, files, sources, widgets, steps string
+		var m Message
+		var tools, files, sources, widgets, steps string
 		var at int64
-		if err := rows.Scan(&role, &m.Content, &tools, &m.Display, &files, &sources, &widgets, &steps, &at); err != nil {
+		if err := rows.Scan(&m.Role, &m.Content, &tools, &m.Display, &files, &sources, &widgets, &steps, &at); err != nil {
 			return nil, err
 		}
-		m.Role, m.At = Role(role), time.Unix(at, 0)
-		_ = json.Unmarshal([]byte(tools), &m.Tools)
-		_ = json.Unmarshal([]byte(files), &m.Files)
-		_ = json.Unmarshal([]byte(sources), &m.Sources)
-		_ = json.Unmarshal([]byte(widgets), &m.Widgets)
-		_ = json.Unmarshal([]byte(steps), &m.Steps)
+		m.At = time.Unix(at, 0)
+		m.Tools, m.Files, m.Sources = json.RawMessage(tools), json.RawMessage(files), json.RawMessage(sources)
+		m.Widgets, m.Steps = json.RawMessage(widgets), json.RawMessage(steps)
 		out = append(out, m)
 	}
 	return out, rows.Err()
@@ -447,18 +426,12 @@ func trim(s string, n int) string {
 	return strings.TrimSpace(s[:n-1]) + "…"
 }
 
-func fmtWhen(t time.Time) string {
-	d := time.Since(t)
-	switch {
-	case d < time.Minute:
-		return "just now"
-	case d < time.Hour:
-		return fmt.Sprintf("%dm ago", int(d.Minutes()))
-	case d < 24*time.Hour:
-		return fmt.Sprintf("%dh ago", int(d.Hours()))
-	default:
-		return t.Format("2 Jan")
+func trimLine(s string, n int) string {
+	s = strings.Join(strings.Fields(s), " ")
+	if len(s) > n {
+		return s[:n] + "..."
 	}
+	return s
 }
 
 // Penalties reads back the rate limit boxes that outlived the last process.

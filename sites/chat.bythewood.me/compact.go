@@ -9,6 +9,8 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"chat.bythewood.me/internal/history"
 )
 
 const (
@@ -45,7 +47,7 @@ func (c *Compactor) budgetChars() int {
 // Window turns a stored conversation into what the model is handed. It returns
 // the messages plus whether it compacted, so the caller can persist a new
 // summary instead of recomputing one every turn.
-func (c *Compactor) Window(ctx context.Context, conv Conversation, stored []Stored) (msgs []Message, summary string, covered int, changed bool) {
+func (c *Compactor) Window(ctx context.Context, conv history.Conversation, stored []Stored) (msgs []Message, summary string, covered int, changed bool) {
 	summary, covered = conv.Summary, conv.Summarize
 	if covered > len(stored) {
 		covered = 0

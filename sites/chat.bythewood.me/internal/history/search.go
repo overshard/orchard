@@ -1,4 +1,4 @@
-package main
+package history
 
 // A tool result dies with its turn and only the answer survives, so this
 // searches what was said, beside memory's one sentence facts. Rows come out of
@@ -150,5 +150,5 @@ func (s *Store) exchangeAround(id int64) (question, answer string) {
 	// The same pair of queries covers both roles. A matching user message is
 	// its own question and the reply after it is the answer, and a matching
 	// assistant message is its own answer with the question before it.
-	return get(prior, id, string(RoleUser), id), get(next, id, string(RoleAssistant), id)
+	return get(prior, id, "user", id), get(next, id, "assistant", id)
 }

@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 
+	"chat.bythewood.me/internal/history"
 	"chat.bythewood.me/internal/memory"
 	"chat.bythewood.me/tools"
 )
@@ -46,7 +47,7 @@ func (m memoryStore) Delete(id int64) error               { return m.m.Delete(id
 // historyStore hands the conversation store to the chat_history tool. Separate
 // from memoryStore because the two answer different questions and a tool that
 // reads facts has no business reaching messages.
-type historyStore struct{ s *Store }
+type historyStore struct{ s *history.Store }
 
 func (h historyStore) SearchPast(query string, limit int) ([]tools.PastExchange, error) {
 	hits, err := h.s.SearchHistory(query, limit)

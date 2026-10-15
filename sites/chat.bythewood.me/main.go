@@ -21,6 +21,7 @@ import (
 	"syscall"
 	"time"
 
+	"chat.bythewood.me/internal/history"
 	"chat.bythewood.me/internal/incognito"
 	"chat.bythewood.me/internal/memory"
 	"chat.bythewood.me/internal/pictures"
@@ -59,7 +60,7 @@ type site struct {
 	auth    *web.Authenticator
 	llm     *LLM
 	engine  *Engine
-	store   *Store
+	store   *history.Store
 	memory  *memory.Store
 	runs    *Runs
 	queue   *Queue
@@ -128,7 +129,7 @@ func realMain() error {
 	shipper := web.ShipLogs(selfSource, web.HTTPSink())
 	defer shipper.Close()
 
-	store, err := OpenStore(*dbPath)
+	store, err := history.Open(*dbPath)
 	if err != nil {
 		return fmt.Errorf("open store: %w", err)
 	}
@@ -614,12 +615,12 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 
 	// Load the conversation and build the window before anything else, since
 	// compaction may need a model call of its own.
+	var conv history.Conversation
 	var history []Message
-	var conv Conversation
 	var stored []Stored
 	if !req.Incognito && req.ConvID != "" {
 		conv, _ = s.store.Get(req.ConvID)
-		stored, _ = s.store.Messages(req.ConvID)
+		stored, _ = storedMessages(s.store, req.ConvID)
 		var summary string
 		var covered int
 		var changed bool
@@ -707,8 +708,8 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 			if len(parts) > 0 {
 				user.Display, user.Files = req.Message, attachments(parts)
 			}
-			_ = s.store.Append(convID, user)
-			_ = s.store.Append(convID, Stored{Role: RoleAssistant, Content: reply.Content,
+			_ = appendStored(s.store, convID, user)
+			_ = appendStored(s.store, convID, Stored{Role: RoleAssistant, Content: reply.Content,
 				Tools: summaries, Sources: srcs, Widgets: widgets, Steps: tr.Steps()})
 			s.painter.Keep(convID, pictureIDs(widgets, user.Files))
 			if len(stored) == 0 && drew {
@@ -823,7 +824,7 @@ func (s *site) listConversations(w http.ResponseWriter, r *http.Request) {
 	// A turn still going is marked, and a new conversation's first turn is listed
 	// before it is stored, so a reload mid answer can still find it.
 	type row struct {
-		Conversation
+		history.Conversation
 		Running bool `json:"running,omitempty"`
 		Waiting int  `json:"waiting,omitempty"`
 	}
@@ -835,7 +836,7 @@ func (s *site) listConversations(w http.ResponseWriter, r *http.Request) {
 	}
 	for key, q := range asking {
 		if !listed[key] {
-			out = append(out, row{Conversation: Conversation{ID: key, Title: trimLine(q, 60), Updated: time.Now()},
+			out = append(out, row{Conversation: history.Conversation{ID: key, Title: trimLine(q, 60), Updated: time.Now()},
 				Running: true, Waiting: s.runs.WaitingFor(key)})
 		}
 	}
@@ -848,7 +849,7 @@ func (s *site) listConversations(w http.ResponseWriter, r *http.Request) {
 
 func (s *site) getConversation(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	msgs, err := s.store.Messages(id)
+	msgs, err := storedMessages(s.store, id)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
@@ -975,6 +976,20 @@ func kfmt(n int) string {
 
 // formatNum groups thousands with commas. It takes any because a template
 // handing it the wrong integer type fails at render time, not at build.
+func fmtWhen(t time.Time) string {
+	d := time.Since(t)
+	switch {
+	case d < time.Minute:
+		return "just now"
+	case d < time.Hour:
+		return fmt.Sprintf("%dm ago", int(d.Minutes()))
+	case d < 24*time.Hour:
+		return fmt.Sprintf("%dh ago", int(d.Hours()))
+	default:
+		return t.Format("2 Jan")
+	}
+}
+
 func formatNum(v any) string {
 	var n int64
 	switch t := v.(type) {
