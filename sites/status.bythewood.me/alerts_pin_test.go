@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -26,8 +27,9 @@ func pinBase() string { return NewNotifier().client.Base }
 
 // captureNtfy records every request as text, headers sorted, so a test can
 // compare what reached ntfy byte for byte.
-func captureNtfy(t *testing.T, status int) (*httptest.Server, *[]string) {
+func captureNtfy(t *testing.T, status int) (*httptest.Server, func() []string) {
 	t.Helper()
+	var mu sync.Mutex
 	var got []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
@@ -36,11 +38,17 @@ func captureNtfy(t *testing.T, status int) (*httptest.Server, *[]string) {
 			lines = append(lines, k+": "+strings.Join(v, ","))
 		}
 		sort.Strings(lines)
+		mu.Lock()
 		got = append(got, fmt.Sprintf("%s %s\n%s\n\n%s", r.Method, r.RequestURI, strings.Join(lines, "\n"), body))
+		mu.Unlock()
 		w.WriteHeader(status)
 	}))
 	t.Cleanup(srv.Close)
-	return srv, &got
+	return srv, func() []string {
+		mu.Lock()
+		defer mu.Unlock()
+		return append([]string(nil), got...)
+	}
 }
 
 // captureLog swaps the default logger for one this test can read, with the
@@ -98,12 +106,12 @@ func TestAlertRequestsArePinned(t *testing.T) {
 			"User-Agent: Go-http-client/1.1\n\n" +
 			"https://example.com\nThe latest check returned 200.\nRolling average response: 184 ms.",
 	}
-	if len(*got) != len(want) {
-		t.Fatalf("ntfy got %d requests, want %d:\n%s", len(*got), len(want), strings.Join(*got, "\n----\n"))
+	if len(got()) != len(want) {
+		t.Fatalf("ntfy got %d requests, want %d:\n%s", len(got()), len(want), strings.Join(got(), "\n----\n"))
 	}
 	for i := range want {
-		if (*got)[i] != want[i] {
-			t.Errorf("request %d is\n%s\nwant\n%s", i, (*got)[i], want[i])
+		if got()[i] != want[i] {
+			t.Errorf("request %d is\n%s\nwant\n%s", i, got()[i], want[i])
 		}
 	}
 
@@ -124,8 +132,8 @@ func TestAlertFailureAndMissingTokenArePinned(t *testing.T) {
 	n := pinNotifier(t, srv.URL)
 	n.Fire("down", AlertContext{ID: "0b1c", Name: "example.com", URL: "https://example.com", CurrentStatus: 503, AvgResponseMS: 184})
 
-	if len(*got) != 1 || strings.Contains((*got)[0], "Authorization") {
-		t.Errorf("a missing token should still publish, unauthenticated: %v", *got)
+	if len(got()) != 1 || strings.Contains(got()[0], "Authorization") {
+		t.Errorf("a missing token should still publish, unauthenticated: %v", got())
 	}
 	wantLog := `level=WARN msg="NTFY_TOKEN is unset; alerts will be rendered and refused, not delivered" component=alerts
 level=ERROR msg="alert: publishing down for https://example.com failed: ntfy returned 403"

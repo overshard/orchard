@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -30,8 +31,9 @@ func pinBase() string { return NewNotifier().client.Base }
 
 // captureNtfy records every request as text, headers sorted, so a test can
 // compare what reached ntfy byte for byte.
-func captureNtfy(t *testing.T, status int) (*httptest.Server, *[]string) {
+func captureNtfy(t *testing.T, status int) (*httptest.Server, func() []string) {
 	t.Helper()
+	var mu sync.Mutex
 	var got []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
@@ -40,11 +42,17 @@ func captureNtfy(t *testing.T, status int) (*httptest.Server, *[]string) {
 			lines = append(lines, k+": "+strings.Join(v, ","))
 		}
 		sort.Strings(lines)
+		mu.Lock()
 		got = append(got, fmt.Sprintf("%s %s\n%s\n\n%s", r.Method, r.RequestURI, strings.Join(lines, "\n"), body))
+		mu.Unlock()
 		w.WriteHeader(status)
 	}))
 	t.Cleanup(srv.Close)
-	return srv, &got
+	return srv, func() []string {
+		mu.Lock()
+		defer mu.Unlock()
+		return append([]string(nil), got...)
+	}
 }
 
 // captureLog swaps the default logger for one this test can read, with the
@@ -142,12 +150,12 @@ func TestNotificationRequestsArePinned(t *testing.T) {
 			"User-Agent: Go-http-client/1.1\n\n" +
 			"Asked for from 198.51.100.4 (198.51.100.4).\nIf that is not you, ignore this and the code expires on its own.",
 	}
-	if len(*got) != len(want) {
-		t.Fatalf("ntfy got %d requests, want %d:\n%s", len(*got), len(want), strings.Join(*got, "\n----\n"))
+	if len(got()) != len(want) {
+		t.Fatalf("ntfy got %d requests, want %d:\n%s", len(got()), len(want), strings.Join(got(), "\n----\n"))
 	}
 	for i := range want {
-		if (*got)[i] != want[i] {
-			t.Errorf("request %d is\n%s\nwant\n%s", i, (*got)[i], want[i])
+		if got()[i] != want[i] {
+			t.Errorf("request %d is\n%s\nwant\n%s", i, got()[i], want[i])
 		}
 	}
 	if logs.String() != "" {
@@ -170,8 +178,8 @@ func TestNotificationFailureAndMissingTokenArePinned(t *testing.T) {
 	}
 	n.notify(lockoutMessage(pinVisitor))
 
-	if len(*got) != 2 || strings.Contains((*got)[0], "Authorization") {
-		t.Errorf("a missing token should still publish, unauthenticated: %v", *got)
+	if len(got()) != 2 || strings.Contains(got()[0], "Authorization") {
+		t.Errorf("a missing token should still publish, unauthenticated: %v", got())
 	}
 	wantLog := `level=WARN msg="AUTH_NTFY_TOKEN is unset; login codes cannot be delivered, so only recovery codes will work" component=auth
 level=ERROR msg="publishing an alert failed" component=auth err="ntfy returned 429"
@@ -200,10 +208,10 @@ func TestLoginNotificationsArePinned(t *testing.T) {
 	req.Header.Set("User-Agent", "pin-agent/1.0")
 	rec := httptest.NewRecorder()
 	s.handler().ServeHTTP(rec, req)
-	if len(*got) != 1 {
-		t.Fatalf("POST /login published %d notifications", len(*got))
+	if len(got()) != 1 {
+		t.Fatalf("POST /login published %d notifications", len(got()))
 	}
-	code := strings.TrimPrefix(pinCode.FindString((*got)[0]), "Login code ")
+	code := strings.TrimPrefix(pinCode.FindString(got()[0]), "Login code ")
 	want := "POST /auth\n" +
 		"Accept-Encoding: gzip\n" +
 		"Authorization: Bearer tk_pin\n" +
@@ -213,7 +221,7 @@ func TestLoginNotificationsArePinned(t *testing.T) {
 		"Title: Login code CODE\n" +
 		"User-Agent: Go-http-client/1.1\n\n" +
 		"Asked for from US (192.0.2.1).\nIf that is not you, ignore this and the code expires on its own."
-	if g := strings.Replace((*got)[0], code, "CODE", 1); g != want {
+	if g := strings.Replace(got()[0], code, "CODE", 1); g != want {
 		t.Errorf("the login code request is\n%s\nwant\n%s", g, want)
 	}
 
@@ -223,11 +231,11 @@ func TestLoginNotificationsArePinned(t *testing.T) {
 	req.AddCookie(cookieNamed(rec.Result().Cookies(), pendingCookie))
 	rec = httptest.NewRecorder()
 	s.handler().ServeHTTP(rec, req)
-	for i := 0; i < 100 && len(*got) < 2; i++ {
+	for i := 0; i < 100 && len(got()) < 2; i++ {
 		time.Sleep(10 * time.Millisecond)
 	}
-	if len(*got) != 2 {
-		t.Fatalf("signing in published %d notifications, want 2", len(*got))
+	if len(got()) != 2 {
+		t.Fatalf("signing in published %d notifications, want 2", len(got()))
 	}
 	want = "POST /auth\n" +
 		"Accept-Encoding: gzip\n" +
@@ -239,7 +247,7 @@ func TestLoginNotificationsArePinned(t *testing.T) {
 		"Title: New login to bythewood.me\n" +
 		"User-Agent: Go-http-client/1.1\n\n" +
 		"Signed in with a code from US (192.0.2.1).\npin-agent/1.0"
-	if (*got)[1] != want {
-		t.Errorf("the session request is\n%s\nwant\n%s", (*got)[1], want)
+	if got()[1] != want {
+		t.Errorf("the session request is\n%s\nwant\n%s", got()[1], want)
 	}
 }
