@@ -37,7 +37,8 @@ func (a *chatHistoryArgs) params() []param {
 }
 
 var ChatHistory = Define(Tool{
-	Name: "chat_history",
+	Name:   "chat_history",
+	Traits: Private,
 	Description: "Search earlier conversations with Isaac for what was actually said. Use it when he " +
 		"refers to something from another chat, asks what was decided or discussed before, or when a " +
 		"question only makes sense against something already settled. It returns whole exchanges, so " +

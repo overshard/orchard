@@ -3,7 +3,8 @@ package tools
 import "context"
 
 var OrchardRepos = Define(Tool{
-	Name: "orchard_repos",
+	Name:   "orchard_repos",
+	Traits: Private | Estate,
 	Description: "Read Isaac's own git remote at repos.bythewood.me: every repository, its " +
 		"description, size, branch and tag counts, when it was last pushed, and how close it is to " +
 		"the push size limit. Use it for what he is working on or what a repository holds. Read only.",

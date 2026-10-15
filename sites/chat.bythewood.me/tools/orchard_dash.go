@@ -21,7 +21,8 @@ func (a *orchardDashArgs) params() []param {
 }
 
 var OrchardDash = Define(Tool{
-	Name: "orchard_dash",
+	Name:   "orchard_dash",
+	Traits: Private | Estate,
 	Description: "Read Isaac's dashboard at dash.bythewood.me: markets, Hacker News, Lobsters, the " +
 		"weather, earnings, and whether each of his sites is answering. Section onair is whether TheBurntPeanut " +
 		"is streaming, when he usually goes live, his last fourteen days and his next go live, and it is the " +

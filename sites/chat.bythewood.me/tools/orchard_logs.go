@@ -23,7 +23,8 @@ func (a *orchardLogsArgs) params() []param {
 }
 
 var OrchardLogs = Define(Tool{
-	Name: "orchard_logs",
+	Name:   "orchard_logs",
+	Traits: Private | Estate,
 	Description: "Read Isaac's own log aggregation at logging.bythewood.me: how many records and " +
 		"errors each of his sites produced, every kind of error with the reason it gives, and the " +
 		"busiest paths with their p95 latency. Use it for anything about whether his sites are " +

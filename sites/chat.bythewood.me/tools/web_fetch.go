@@ -26,6 +26,8 @@ func (a *webFetchArgs) params() []param {
 
 var WebFetch = Define(Tool{
 	Name:        "web_fetch",
+	Traits:      Untrusted | OpenWeb,
+	Cites:       fetchedPage,
 	Description: "Fetch one url and return its readable text. Use it after web_search when a snippet is not enough.",
 }, func(ctx context.Context, d *Deps, a webFetchArgs) (any, error) {
 	u, err := publicURL(a.URL)
@@ -137,4 +139,10 @@ func window(txt, find string, limit int) (part string, cut bool, note string) {
 		end--
 	}
 	return txt[from:end], true, note
+}
+
+func fetchedPage(m map[string]any) []Cited {
+	u, _ := m["url"].(string)
+	text, _ := m["text"].(string)
+	return []Cited{{URL: u, Text: text, Fetched: true}}
 }
