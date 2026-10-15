@@ -29,7 +29,22 @@ const (
 // New York clock, since "today" means the day he is having and not UTC's.
 var newsWindows = []string{"today", "yesterday", "weekend", "weekend-and-today", "week", "month"}
 
-var News = Tool{
+type newsArgs struct {
+	Window string
+	Topic  string
+}
+
+func (a *newsArgs) params() []param {
+	return []param{
+		strArg(&a.Window, "window", "the period the question asked for, taken literally. today means today, "+
+			"weekend means Saturday and Sunday only, and weekend-and-today is for a question "+
+			"that asks for both, like over the weekend including today").oneOf(newsWindows...).required(),
+		strArg(&a.Topic, "topic", "the subject asked for, or general when the question named none").
+			oneOf("general", "world", "us", "tech", "ai", "politics", "business", "science"),
+	}
+}
+
+var News = Define(Tool{
 	Name: "news",
 	Description: "Read the news from a fixed list of publishers rather than searching the web. " +
 		"Use this for any question asking what is happening or what happened over a period, " +
@@ -38,79 +53,67 @@ var News = Tool{
 		"It reads publisher front pages and nothing else, so it cannot tell you whether people are " +
 		"complaining about something, whether a service is degraded, or what is being said about a " +
 		"company outside the newsroom. Those are web_search.",
-	Schema: obj(map[string]any{
-		"window": map[string]any{"type": "string",
-			"description": "the period the question asked for, taken literally. today means today, " +
-				"weekend means Saturday and Sunday only, and weekend-and-today is for a question " +
-				"that asks for both, like over the weekend including today",
-			"enum": newsWindows},
-		"topic": map[string]any{"type": "string",
-			"description": "the subject asked for, or general when the question named none",
-			"enum": []string{"general", "world", "us", "tech", "ai", "politics",
-				"business", "science"}},
-	}, "window"),
-	Run: func(ctx context.Context, d *Deps, a map[string]any) (any, error) {
-		window := strings.ToLower(argStr(a, "window"))
-		if window == "" {
-			window = "today"
-		}
-		topic := strings.ToLower(argStr(a, "topic"))
-		if topic == "" {
-			topic = "general"
-		}
+}, func(ctx context.Context, d *Deps, a newsArgs) (any, error) {
+	window := strings.ToLower(a.Window)
+	if window == "" {
+		window = "today"
+	}
+	topic := strings.ToLower(a.Topic)
+	if topic == "" {
+		topic = "general"
+	}
 
-		now := d.Now().In(newYork())
-		since, until, label := resolveWindow(now, window)
+	now := d.Now().In(newYork())
+	since, until, label := resolveWindow(now, window)
 
-		sections, tried, failed := gatherNews(ctx, d, topic, since, until)
-		if len(sections) == 0 {
-			if failed >= tried && tried > 0 {
-				return nil, fmt.Errorf("none of the %d news sources answered", tried)
-			}
-			return map[string]any{
-				"window": label, "topic": topic, "sections": []any{},
-				"note": "Nothing was published in that window by any of the sources read. " +
-					"Say so plainly rather than widening the window on your own or " +
-					"answering from memory.",
-			}, nil
+	sections, tried, failed := gatherNews(ctx, d, topic, since, until)
+	if len(sections) == 0 {
+		if failed >= tried && tried > 0 {
+			return nil, fmt.Errorf("none of the %d news sources answered", tried)
 		}
-
 		return map[string]any{
-			"window":   label,
-			"topic":    topic,
-			"sections": sections,
-			"sources":  sectionSources(sections),
-			"count":    countItems(sections),
-			"note": itemBudget(sections) +
-				"Answer in exactly this shape and nothing else:\n\n" +
-				"### <section name>\n" +
-				"- **<the fact>** rest of the plain sentence. (Publisher: \"their headline\")\n" +
-				"- **<the fact>** rest of the plain sentence. (Publisher: \"their headline\")\n\n" +
-				"### <next section name>\n" +
-				"- ...\n\n" +
-				"Worked example of one bullet:\n" +
-				"- **Five died** when a cargo plane overran the runway at **Miami International**. " +
-				"(NPR: \"5 dead after crash at Miami Airport\")\n\n" +
-				"Rules:\n" +
-				"- One heading per section above, in the order given, keeping its name.\n" +
-				"- Every item gets a bullet, including the sections further down. Dropping a " +
-				"whole section is the failure to avoid here. This is a rundown, so do not pick " +
-				"one and write it up, and do not collapse the list into a paragraph.\n" +
-				"- One bullet per item and no more. The counts above are what is in the list, " +
-				"so never split one story into two bullets or repeat one across sections to " +
-				"reach a number. Every headline above is already distinct.\n" +
-				"- Bold only the few words carrying the news, the number, the name, the place or " +
-				"what changed, so it can be skimmed. Never bold a whole sentence.\n" +
-				"- The publisher's headline goes after your sentence, word for word, in quotes. " +
-				"Never drop it, it is what shows how the story was sold.\n" +
-				"- Merge a story two publishers ran into one bullet and name both.\n" +
-				"- Strip the loaded verbs and the party line, and put back the specifics they " +
-				"hid, so \"SLAMS\" becomes what was actually said and a tariff names the rate " +
-				"and the goods. Take no side and invent no detail.\n" +
-				"- Do not research any of these. The rundown is the answer.",
+			"window": label, "topic": topic, "sections": []any{},
+			"note": "Nothing was published in that window by any of the sources read. " +
+				"Say so plainly rather than widening the window on your own or " +
+				"answering from memory.",
 		}, nil
-	},
-}
+	}
+
+	return map[string]any{
+		"window":   label,
+		"topic":    topic,
+		"sections": sections,
+		"sources":  sectionSources(sections),
+		"count":    countItems(sections),
+		"note": itemBudget(sections) +
+			"Answer in exactly this shape and nothing else:\n\n" +
+			"### <section name>\n" +
+			"- **<the fact>** rest of the plain sentence. (Publisher: \"their headline\")\n" +
+			"- **<the fact>** rest of the plain sentence. (Publisher: \"their headline\")\n\n" +
+			"### <next section name>\n" +
+			"- ...\n\n" +
+			"Worked example of one bullet:\n" +
+			"- **Five died** when a cargo plane overran the runway at **Miami International**. " +
+			"(NPR: \"5 dead after crash at Miami Airport\")\n\n" +
+			"Rules:\n" +
+			"- One heading per section above, in the order given, keeping its name.\n" +
+			"- Every item gets a bullet, including the sections further down. Dropping a " +
+			"whole section is the failure to avoid here. This is a rundown, so do not pick " +
+			"one and write it up, and do not collapse the list into a paragraph.\n" +
+			"- One bullet per item and no more. The counts above are what is in the list, " +
+			"so never split one story into two bullets or repeat one across sections to " +
+			"reach a number. Every headline above is already distinct.\n" +
+			"- Bold only the few words carrying the news, the number, the name, the place or " +
+			"what changed, so it can be skimmed. Never bold a whole sentence.\n" +
+			"- The publisher's headline goes after your sentence, word for word, in quotes. " +
+			"Never drop it, it is what shows how the story was sold.\n" +
+			"- Merge a story two publishers ran into one bullet and name both.\n" +
+			"- Strip the loaded verbs and the party line, and put back the specifics they " +
+			"hid, so \"SLAMS\" becomes what was actually said and a tariff names the rate " +
+			"and the goods. Take no side and invent no detail.\n" +
+			"- Do not research any of these. The rundown is the answer.",
+	}, nil
+})
 
 func countItems(sections []NewsSection) int {
 	n := 0
