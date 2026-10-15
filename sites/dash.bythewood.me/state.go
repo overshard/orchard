@@ -206,6 +206,27 @@ func (s *Store) Prime(ctx context.Context, g *Guard) {
 	s.update(func(st *State) { st.NextBrief = nextBrief(time.Now()) })
 }
 
+// awaitFirstRound holds until the pollers Prime doesn't run have filled in,
+// since a slot owed at start would otherwise write the glance without weather
+// or Steam. A source that never answers only costs the wait.
+func (s *Store) awaitFirstRound(ctx context.Context, most time.Duration) {
+	ctx, cancel := context.WithTimeout(ctx, most)
+	defer cancel()
+	t := time.NewTicker(2 * time.Second)
+	defer t.Stop()
+	for {
+		st := s.Snapshot()
+		if (st.Weather.Condition != "" || st.Weather.Unavailable) && len(st.Steam) > 0 && len(st.HN) > 0 {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+	}
+}
+
 // Run starts one goroutine per source and blocks until ctx is done. It must not
 // start before the listener is up: the health strip probes this process over
 // loopback, and a first round against a socket nobody is listening on reports
