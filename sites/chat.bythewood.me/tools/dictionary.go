@@ -10,56 +10,64 @@ import (
 	"strings"
 )
 
+type dictionaryArgs struct {
+	Word string
+}
+
+func (a *dictionaryArgs) params() []param {
+	return []param{
+		strArg(&a.Word, "word", "the word or phrase, like \"program\" or \"ad hoc\"").required(),
+	}
+}
+
 // Dictionary reads Wiktionary since a word isn't an article, and asking
 // wikipedia to define "program" lands on a disambiguation page.
-var Dictionary = Tool{
+var Dictionary = Define(Tool{
 	Name: "dictionary",
 	Description: "What a word or a short phrase means, from Wiktionary, with its part of speech and an example. " +
 		"Use it to define a word or say what a term means, and use wikipedia for a person, place, thing or event.",
-	Schema: obj(map[string]any{"word": str("the word or phrase, like \"program\" or \"ad hoc\"")}, "word"),
-	Run: func(ctx context.Context, d *Deps, a map[string]any) (any, error) {
-		word := strings.Trim(strings.TrimSpace(argStr(a, "word")), "\"'“”‘’?.!")
-		if word == "" {
-			return nil, fmt.Errorf("word is required")
+}, func(ctx context.Context, d *Deps, a dictionaryArgs) (any, error) {
+	word := strings.Trim(a.Word, "\"'“”‘’?.!")
+	if word == "" {
+		return nil, fmt.Errorf("word is required")
+	}
+	var raw map[string][]struct {
+		PartOfSpeech string `json:"partOfSpeech"`
+		Language     string `json:"language"`
+		Definitions  []struct {
+			Definition string   `json:"definition"`
+			Examples   []string `json:"examples"`
+		} `json:"definitions"`
+	}
+	var senses []map[string]any
+	// Wiktionary keeps a capitalised word as its own entry, and "Wednesday"
+	// has one where "wednesday" does not.
+	forms, hops := dictionaryForms(word), 0
+	for i := 0; i < len(forms); i++ {
+		w := forms[i]
+		u := "https://en.wiktionary.org/api/rest_v1/page/definition/" + url.PathEscape(strings.ReplaceAll(w, " ", "_"))
+		raw = nil
+		if err := getJSON(ctx, d, u, &raw); err != nil {
+			continue
 		}
-		var raw map[string][]struct {
-			PartOfSpeech string `json:"partOfSpeech"`
-			Language     string `json:"language"`
-			Definitions  []struct {
-				Definition string   `json:"definition"`
-				Examples   []string `json:"examples"`
-			} `json:"definitions"`
+		senses = englishSenses(raw["en"])
+		// "luddite" is only "Alternative letter-case form of Luddite", which
+		// left the model to explain the word from memory.
+		if to := formOf(senses); to != "" && hops < 2 && !slices.Contains(forms[:i+1], to) {
+			forms, i, hops = []string{to}, -1, hops+1
+			continue
 		}
-		var senses []map[string]any
-		// Wiktionary keeps a capitalised word as its own entry, and "Wednesday"
-		// has one where "wednesday" does not.
-		forms, hops := dictionaryForms(word), 0
-		for i := 0; i < len(forms); i++ {
-			w := forms[i]
-			u := "https://en.wiktionary.org/api/rest_v1/page/definition/" + url.PathEscape(strings.ReplaceAll(w, " ", "_"))
-			raw = nil
-			if err := getJSON(ctx, d, u, &raw); err != nil {
-				continue
-			}
-			senses = englishSenses(raw["en"])
-			// "luddite" is only "Alternative letter-case form of Luddite", which
-			// left the model to explain the word from memory.
-			if to := formOf(senses); to != "" && hops < 2 && !slices.Contains(forms[:i+1], to) {
-				forms, i, hops = []string{to}, -1, hops+1
-				continue
-			}
-			if len(senses) > 0 {
-				word = w
-				break
-			}
+		if len(senses) > 0 {
+			word = w
+			break
 		}
-		if len(senses) == 0 {
-			return map[string]any{"word": word, "found": false,
-				"note": "Wiktionary has no English entry for that. If it is the name of something, try wikipedia."}, nil
-		}
-		return map[string]any{"word": word, "found": true, "source": "Wiktionary", "senses": senses}, nil
-	},
-}
+	}
+	if len(senses) == 0 {
+		return map[string]any{"word": word, "found": false,
+			"note": "Wiktionary has no English entry for that. If it is the name of something, try wikipedia."}, nil
+	}
+	return map[string]any{"word": word, "found": true, "source": "Wiktionary", "senses": senses}, nil
+})
 
 func dictionaryForms(word string) []string {
 	forms := []string{word}

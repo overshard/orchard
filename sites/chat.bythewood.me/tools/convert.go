@@ -36,47 +36,55 @@ func normUnit(u string) string {
 	return u
 }
 
-var Convert = Tool{
+type convertArgs struct {
+	Value    float64
+	FromUnit string
+	ToUnit   string
+}
+
+func (a *convertArgs) params() []param {
+	return []param{
+		numArg(&a.Value, "value", "the number to convert").required(),
+		strArg(&a.FromUnit, "from_unit", "the unit it is in, like cup, lb, f, mi").required(),
+		strArg(&a.ToUnit, "to_unit", "the unit to convert to, like g, kg, c, km").required(),
+	}
+}
+
+var Convert = Define(Tool{
 	Name:        "convert",
 	Description: "Convert between units of weight, volume, length or temperature.",
-	Schema: obj(map[string]any{
-		"value":     num("the number to convert"),
-		"from_unit": str("the unit it is in, like cup, lb, f, mi"),
-		"to_unit":   str("the unit to convert to, like g, kg, c, km"),
-	}, "value", "from_unit", "to_unit"),
-	Run: func(ctx context.Context, d *Deps, a map[string]any) (any, error) {
-		v := argNum(a, "value", 0)
-		from, to := normUnit(argStr(a, "from_unit")), normUnit(argStr(a, "to_unit"))
-		if from == "" || to == "" {
-			return nil, fmt.Errorf("from_unit and to_unit are required")
+}, func(ctx context.Context, d *Deps, a convertArgs) (any, error) {
+	v := a.Value
+	from, to := normUnit(a.FromUnit), normUnit(a.ToUnit)
+	if from == "" || to == "" {
+		return nil, fmt.Errorf("from_unit and to_unit are required")
+	}
+	if from == "c" || from == "f" || to == "c" || to == "f" {
+		switch {
+		case from == "c" && to == "f":
+			return map[string]any{"value": round1(v*9/5 + 32), "unit": "F"}, nil
+		case from == "f" && to == "c":
+			return map[string]any{"value": round1((v - 32) * 5 / 9), "unit": "C"}, nil
+		case from == to:
+			return map[string]any{"value": v, "unit": strings.ToUpper(from)}, nil
 		}
-		if from == "c" || from == "f" || to == "c" || to == "f" {
-			switch {
-			case from == "c" && to == "f":
-				return map[string]any{"value": round1(v*9/5 + 32), "unit": "F"}, nil
-			case from == "f" && to == "c":
-				return map[string]any{"value": round1((v - 32) * 5 / 9), "unit": "C"}, nil
-			case from == to:
-				return map[string]any{"value": v, "unit": strings.ToUpper(from)}, nil
-			}
-			return nil, fmt.Errorf("temperature only converts to temperature")
+		return nil, fmt.Errorf("temperature only converts to temperature")
+	}
+	for _, set := range []map[string]float64{weight, volume, length} {
+		f, okF := set[from]
+		t, okT := set[to]
+		if okF && okT {
+			return map[string]any{"value": round4(v * f / t), "unit": to}, nil
 		}
-		for _, set := range []map[string]float64{weight, volume, length} {
-			f, okF := set[from]
-			t, okT := set[to]
-			if okF && okT {
-				return map[string]any{"value": round4(v * f / t), "unit": to}, nil
-			}
+	}
+	// The one crossing worth allowing, said out loud.
+	if f, ok := volume[from]; ok {
+		if t, ok2 := weight[to]; ok2 {
+			return map[string]any{"value": round4(v * f / t), "unit": to,
+				"warning": "volume to weight is only right for water. Flour, sugar and butter all differ, so say so or look up the real density."}, nil
 		}
-		// The one crossing worth allowing, said out loud.
-		if f, ok := volume[from]; ok {
-			if t, ok2 := weight[to]; ok2 {
-				return map[string]any{"value": round4(v * f / t), "unit": to,
-					"warning": "volume to weight is only right for water. Flour, sugar and butter all differ, so say so or look up the real density."}, nil
-			}
-		}
-		return nil, fmt.Errorf("cannot convert %s to %s", from, to)
-	},
-}
+	}
+	return nil, fmt.Errorf("cannot convert %s to %s", from, to)
+})
 
 func round4(f float64) float64 { return float64(int(f*10000+0.5)) / 10000 }
