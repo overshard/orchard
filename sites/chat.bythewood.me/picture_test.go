@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"chat.bythewood.me/internal/pictures"
 	"chat.bythewood.me/tools"
 )
 
@@ -91,6 +92,7 @@ type fakeCard struct {
 	hold      []filePart
 	args      string
 	history   []Message
+	painter   *pictures.Painter
 }
 
 func (f *fakeCard) server(t *testing.T) *httptest.Server {
@@ -176,13 +178,17 @@ func (f *fakeCard) runWith(t *testing.T, store *Store, ctx context.Context, mess
 	llm := NewLLM(srv.URL, "local", "k")
 	e := NewEngine(llm, "test")
 	e.Render = func(md string) string { return md }
-	p := NewPainter(llm, "image", "klein", store)
-	p.poll = 10 * time.Millisecond
+	p, err := pictures.New(llm, "image", "klein", store.DB())
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.Poll = 10 * time.Millisecond
 	e.Deps().Images = p
+	f.painter = p
 
 	var mu sync.Mutex
 	var stages []tools.ImageProgress
-	p.Hold(f.hold)
+	holdPictures(p, f.hold)
 	reply, _, _, widgets, _, err := e.Run(ctx, f.history, message,
 		"", "", NewTrace(nil), func(ev Event) {
 			if ev.Kind == "image" {
@@ -248,14 +254,11 @@ func TestAPictureEndsTheTurnWithoutTheChatModelComingBack(t *testing.T) {
 	if done.LoadMS < 40 || done.DrawMS < 40 {
 		t.Errorf("load %dms and draw %dms, both should be near 60", done.LoadMS, done.DrawMS)
 	}
-	if stages[0].LoadGuess != firstLoadGuess || stages[0].PromptGuess != firstPromptGuess {
-		t.Errorf("first guesses = %+v, want the defaults before anything was timed", stages[0])
-	}
 	if done.PromptMS <= 0 {
 		t.Errorf("the prompt stage was not timed: %+v", done)
 	}
 	// And the next one is guessed from this one.
-	if g := store.ImageGuess("klein", 1920*1080); g.Load != done.LoadMS || g.Prompt != done.PromptMS {
+	if g := f.painter.Expect(); g.LoadGuess != done.LoadMS || g.PromptGuess != done.PromptMS {
 		t.Errorf("next guess = %+v, want the %d and %d just measured", g, done.PromptMS, done.LoadMS)
 	}
 }
@@ -280,92 +283,21 @@ func TestAFailedPictureSaysWhichStageItDiedIn(t *testing.T) {
 	}
 }
 
-// A picture sits in memory until its turn is stored, then lives with its
-// conversation and goes when that is deleted.
-func TestAPictureIsKeptWithItsConversationAndDeletedWithIt(t *testing.T) {
-	store := testStore(t)
-	p := NewPainter(nil, "image", "klein", store)
-	p.shelf.Put("pic-1", onePixel, 1, 1)
-	if _, ok := p.PNG("pic-1"); !ok {
-		t.Fatal("a picture on the shelf could not be read back")
-	}
-
-	conv, err := store.NewConversation("")
-	if err != nil {
-		t.Fatal(err)
-	}
-	p.Keep(conv, []Widget{{Kind: "image", Image: "pic-1", Width: 1, Height: 1}}, nil)
-	if _, ok := p.shelf.Get("pic-1"); ok {
-		t.Error("a kept picture is still on the shelf")
-	}
-	// A failed write leaves it where the page can still find it.
-	p.shelf.Put("pic-2", onePixel, 1, 1)
-	p.Keep("no-such-conversation", []Widget{{Kind: "image", Image: "pic-2", Width: 1, Height: 1}}, nil)
-	if _, ok := p.PNG("pic-2"); !ok {
-		t.Error("a picture that could not be stored was lost")
-	}
-	if got, ok := p.PNG("pic-1"); !ok || string(got) != string(onePixel) {
-		t.Fatal("a kept picture could not be read back from the database")
-	}
-	if err := store.Delete(conv); err != nil {
-		t.Fatal(err)
-	}
-	if _, ok := p.PNG("pic-1"); ok {
-		t.Error("the picture outlived its conversation")
-	}
-}
-
-func TestTheShelfIsBounded(t *testing.T) {
-	s := newShelf()
-	for i := 0; i < shelfSize+5; i++ {
-		s.Put(fmt.Sprint(i), onePixel, 1, 1)
-	}
-	if len(s.items) != shelfSize {
-		t.Errorf("%d on the shelf, want %d", len(s.items), shelfSize)
-	}
-	if _, ok := s.Get("0"); ok {
-		t.Error("the oldest picture was kept over a newer one")
-	}
-}
-
-// Drawing scales with the size and loading does not.
-func TestTheGuessIsTheMedianScaledToTheSize(t *testing.T) {
-	store := testStore(t)
-	for _, r := range [][3]int64{{9000, 5000, 10000}, {0, 7000, 12000}, {11000, 60000, 90000}} {
-		store.SaveImageRun("klein", r[0], r[1], r[2], 1024*1024)
-	}
-	g := store.ImageGuess("klein", 1024*1024)
-	if g.Load != 7000 || g.Draw != 12000 {
-		t.Errorf("guess = %+v, want the medians 7000/12000 and not the outlier", g)
-	}
-	// A picture the model asked for by itself had no prompt stage to time.
-	if g.Prompt != 10000 {
-		t.Errorf("prompt guess = %d, want 10000 from the two that were timed", g.Prompt)
-	}
-	if half := store.ImageGuess("klein", 512*1024).Draw; half != 6000 {
-		t.Errorf("half the pixels guessed %d, want 6000", half)
-	}
-	// A different model's times say nothing about this one.
-	if g := store.ImageGuess("bigger", 1024*1024); g.Draw != firstDrawGuess || g.Load != firstLoadGuess {
-		t.Errorf("another model guessed %+v, want the defaults", g)
-	}
-}
-
 // A picture he attached is the only thing that can be done anything with, so
 // it becomes a picture turn whatever he typed, and the picture goes to the image
 // model as an edit in its own shape.
 func TestAnAttachedPictureIsWhatTheImageModelStartsFrom(t *testing.T) {
 	f := &fakeCard{}
 	store := testStore(t)
-	wide, _, _, err := asReference(solidPNG(t, 2000, 800))
+	wide, _, _, err := pictures.AsReference(solidPNG(t, 2000, 800))
 	if err != nil {
 		t.Fatal(err)
 	}
 	parts := []filePart{{Attachment: Attachment{Name: "sofa.png", Image: "att-1", Width: 1618, Height: 647}, Picture: wide}}
-	ctx := withReferences(context.Background(), references{Attached: pictures(parts)})
+	ctx := withReferences(context.Background(), references{Attached: attachedPictures(parts)})
 
 	f.hold = parts
-	ctx = withReferences(context.Background(), references{Attached: pictures(parts), Message: "put this sofa in a nice living room"})
+	ctx = withReferences(context.Background(), references{Attached: attachedPictures(parts), Message: "put this sofa in a nice living room"})
 	_, widgets, _ := f.runWith(t, store, ctx, composeTurn("put this sofa in a nice living room", parts))
 	if len(f.offered) != 0 {
 		t.Errorf("the chat model was asked to write the prompt: %v", f.offered)
@@ -396,22 +328,6 @@ func TestChangeLastStartsFromTheNewestPicture(t *testing.T) {
 	}
 	if got := lastPicture(nil); got != "" {
 		t.Errorf("last picture of nothing = %q", got)
-	}
-}
-
-func TestAReferenceIsShrunkToWhatTheModelReads(t *testing.T) {
-	pic, w, h, err := asReference(solidPNG(t, 3000, 2000))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if w*h > referencePixels || w < 1200 || h < 800 {
-		t.Errorf("scaled to %dx%d", w, h)
-	}
-	if !bytes.HasPrefix(pic, pngMagic) {
-		t.Error("not a png")
-	}
-	if _, _, _, err := asReference(append([]byte("\x89PNG\r\n\x1a\n"), 0, 1)); err == nil {
-		t.Error("a broken png was taken")
 	}
 }
 
@@ -449,21 +365,6 @@ func TestANewSceneStartsFromTheAttachedPicture(t *testing.T) {
 	}
 	if sceneWord.MatchString("make it night with the lamps on") {
 		t.Error("a lighting change read as a new scene")
-	}
-}
-
-func TestSizeLikeKeepsTheShape(t *testing.T) {
-	for _, c := range []struct{ w, h, px, ww, wh int }{
-		{1024, 1024, referencePixels, 1024, 1024},
-		{1920, 767, referencePixels, 1616, 640},
-		{1431, 732, editPixels, 2032, 1040},
-		{800, 1200, editPixels, 1184, 1776},
-		{5000, 100, referencePixels, 1776, 592},
-	} {
-		w, h := sizeLike(c.w, c.h, c.px)
-		if w != c.ww || h != c.wh || w%16 != 0 || h%16 != 0 {
-			t.Errorf("sizeLike(%d, %d) = %dx%d, want %dx%d", c.w, c.h, w, h, c.ww, c.wh)
-		}
 	}
 }
 
@@ -526,30 +427,6 @@ func TestAPictureCallStraightAfterOneChangesIt(t *testing.T) {
 	}
 	if f.lastImage["size"] == "1024x1024" {
 		t.Error("came back square")
-	}
-}
-
-// sd-server rounds 1080 up to 1088 on either side, and the picture kept is the one asked for.
-func TestAPictureDrawnLargerIsCroppedToTheSizeAsked(t *testing.T) {
-	img := image.NewRGBA(image.Rect(0, 0, 1920, 1088))
-	var b bytes.Buffer
-	if err := png.Encode(&b, img); err != nil {
-		t.Fatal(err)
-	}
-	cfg, err := pngSize(cropTo(b.Bytes(), 1920, 1080))
-	if err != nil || cfg.Width != 1920 || cfg.Height != 1080 {
-		t.Errorf("cropped to %dx%d (%v), want 1920x1080", cfg.Width, cfg.Height, err)
-	}
-	tall := image.NewRGBA(image.Rect(0, 0, 1088, 1920))
-	b.Reset()
-	if err := png.Encode(&b, tall); err != nil {
-		t.Fatal(err)
-	}
-	if cfg, _ := pngSize(cropTo(b.Bytes(), 1080, 1920)); cfg.Width != 1080 || cfg.Height != 1920 {
-		t.Errorf("portrait cropped to %dx%d, want 1080x1920", cfg.Width, cfg.Height)
-	}
-	if small := cropTo(onePixel, 1920, 1080); !bytes.Equal(small, onePixel) {
-		t.Error("a picture smaller than asked was changed")
 	}
 }
 

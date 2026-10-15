@@ -84,7 +84,7 @@ func TestTakesAPictureToStartFrom(t *testing.T) {
 	if got := composeTurn("put it in a room", parts); !strings.Contains(got, "cannot see this") {
 		t.Errorf("the model was not told it cannot see the picture:\n%s", got)
 	}
-	if ids := pictures(parts); len(ids) != 1 || ids[0] != p.Image {
+	if ids := attachedPictures(parts); len(ids) != 1 || ids[0] != p.Image {
 		t.Errorf("pictures = %v", ids)
 	}
 }
