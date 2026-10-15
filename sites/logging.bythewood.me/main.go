@@ -82,6 +82,15 @@ var (
 )
 
 func main() {
+	if err := realMain(); err != nil {
+		slog.Error("exiting", slog.Any("err", err))
+		os.Exit(1)
+	}
+}
+
+// realMain returns rather than exits, so its deferred closes and the log
+// shipper's flush run on every path out.
+func realMain() error {
 	web.SetupLogging()
 
 	seed := flag.Bool("seed", false, "fill the database with realistic fake records, then exit")
@@ -95,54 +104,47 @@ func main() {
 
 	if *preview != "" {
 		if err := previewAlert(*preview); err != nil {
-			slog.Error(err.Error())
-			os.Exit(1)
+			return err
 		}
-		return
+		return nil
 	}
 
 	if *healthcheck {
 		if err := web.HealthCheck("http://127.0.0.1:8000/healthz", 3*time.Second); err != nil {
-			slog.Info(fmt.Sprintf("healthcheck: %v", err))
-			os.Exit(1)
+			return fmt.Errorf("healthcheck: %w", err)
 		}
-		return
+		return nil
 	}
 
 	dataDir := dir("SITE_DATA", "data")
 	db, err := openDB(dataDir + "/db.sqlite3")
 	if err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
+		return err
 	}
 	defer db.Close()
 
 	if *seed {
 		if err := runSeed(context.Background(), db, *seedRecords, *seedDays); err != nil {
-			slog.Error(fmt.Sprintf("seed: %v", err))
-			os.Exit(1)
+			return fmt.Errorf("seed: %w", err)
 		}
-		return
+		return nil
 	}
 
 	dist := distFS()
 
 	assets, err := web.LoadAssets(dist)
 	if err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
+		return err
 	}
 
 	templates, err := fs.Sub(templateFS, "templates")
 	if err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
+		return err
 	}
 
 	renderer, err := web.NewRenderer(templates, templateFuncs, layoutTemplates, pageTemplates)
 	if err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
+		return err
 	}
 
 	writer := NewWriter(db)
@@ -265,10 +267,7 @@ func main() {
 
 	slog.Info(fmt.Sprintf("logging serving %s (staging=%t, retention=%dd)",
 		baseURL, Staging, int(rawRetention/(24*time.Hour))))
-	if err := web.Serve(listenAddr, handler); err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
-	}
+	return web.Serve(listenAddr, handler)
 }
 
 func noStore(next http.HandlerFunc) http.HandlerFunc {

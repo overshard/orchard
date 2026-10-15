@@ -45,6 +45,15 @@ func csp() string {
 }
 
 func main() {
+	if err := realMain(); err != nil {
+		slog.Error("exiting", slog.Any("err", err))
+		os.Exit(1)
+	}
+}
+
+// realMain returns rather than exits, so its deferred closes and the log
+// shipper's flush run on every path out.
+func realMain() error {
 	web.SetupLogging()
 
 	// The container HEALTHCHECK runs this: a FROM scratch image has no shell
@@ -54,10 +63,9 @@ func main() {
 
 	if *healthcheck {
 		if err := web.HealthCheck("http://127.0.0.1:8000/healthz", 3*time.Second); err != nil {
-			slog.Info(fmt.Sprintf("healthcheck: %v", err))
-			os.Exit(1)
+			return fmt.Errorf("healthcheck: %w", err)
 		}
-		return
+		return nil
 	}
 
 	// Below the healthcheck branch, so a HEALTHCHECK invocation does not start
@@ -69,14 +77,12 @@ func main() {
 
 	assets, err := web.LoadAssets(dist)
 	if err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
+		return err
 	}
 
 	templates, err := fs.Sub(templateFS, "templates")
 	if err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
+		return err
 	}
 
 	renderer, err := web.NewRenderer(
@@ -86,8 +92,7 @@ func main() {
 		[]string{"index.html", "about.html", "code.html", "art.html", "contact.html", "notfound.html"},
 	)
 	if err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
+		return err
 	}
 
 	commits := NewCommitCache()
@@ -162,10 +167,7 @@ func main() {
 	)
 
 	slog.Info(fmt.Sprintf("isaacbythewood.com serving %s (staging=%t)", baseURL, Staging))
-	if err := web.Serve(listenAddr, handler); err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
-	}
+	return web.Serve(listenAddr, handler)
 }
 
 func rootAsset(dist fs.FS, name string) http.Handler {

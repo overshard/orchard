@@ -53,6 +53,15 @@ var (
 )
 
 func main() {
+	if err := realMain(); err != nil {
+		slog.Error("exiting", slog.Any("err", err))
+		os.Exit(1)
+	}
+}
+
+// realMain returns rather than exits, so its deferred closes and the log
+// shipper's flush run on every path out.
+func realMain() error {
 	web.SetupLogging()
 
 	healthcheck := flag.Bool("healthcheck", false, "probe a running server on this host and exit")
@@ -60,10 +69,9 @@ func main() {
 
 	if *healthcheck {
 		if err := web.HealthCheck("http://127.0.0.1:8000/healthz", 3*time.Second); err != nil {
-			slog.Info(fmt.Sprintf("healthcheck: %v", err))
-			os.Exit(1)
+			return fmt.Errorf("healthcheck: %w", err)
 		}
-		return
+		return nil
 	}
 
 	shipper := web.ShipLogs("repos", web.HTTPSink())
@@ -71,14 +79,12 @@ func main() {
 
 	cfg := LoadConfig()
 	if err := os.MkdirAll(cfg.RepoRoot, 0o755); err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
+		return err
 	}
 
 	db, err := OpenDB(cfg.DataDir)
 	if err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
+		return err
 	}
 	defer db.Close()
 
@@ -94,20 +100,17 @@ func main() {
 	dist := distFS()
 	assets, err := web.LoadAssets(dist)
 	if err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
+		return err
 	}
 
 	templates, err := fs.Sub(templateFS, "templates")
 	if err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
+		return err
 	}
 
 	renderer, err := web.NewRenderer(templates, templateFuncs, layoutTemplates, pageTemplates)
 	if err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
+		return err
 	}
 
 	s := &site{
@@ -228,10 +231,7 @@ func main() {
 
 	slog.Info(fmt.Sprintf("repos.bythewood.me serving %s (staging=%t, mirror=%t)",
 		baseURL, Staging, cfg.MirrorEnabled))
-	if err := web.Serve(listenAddr, handler); err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
-	}
+	return web.Serve(listenAddr, handler)
 }
 
 // privateWhenSignedIn stamps no-store on any response to a request carrying a

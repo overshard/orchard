@@ -75,6 +75,15 @@ type site struct {
 }
 
 func main() {
+	if err := realMain(); err != nil {
+		slog.Error("exiting", slog.Any("err", err))
+		os.Exit(1)
+	}
+}
+
+// realMain returns rather than exits, so its deferred closes and the log
+// shipper's flush run on every path out.
+func realMain() error {
 	web.SetupLogging()
 
 	initialize := flag.Bool("init", false, "seed the account and print its recovery codes, then exit")
@@ -87,63 +96,55 @@ func main() {
 
 	if *healthcheck {
 		if err := web.HealthCheck("http://127.0.0.1:8000/healthz", 3*time.Second); err != nil {
-			slog.Info(fmt.Sprintf("healthcheck: %v", err))
-			os.Exit(1)
+			return fmt.Errorf("healthcheck: %w", err)
 		}
-		return
+		return nil
 	}
 
 	dataDir := dir("SITE_DATA", "data")
 	db, err := openDB(dataDir + "/db.sqlite3")
 	if err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
+		return err
 	}
 	defer db.Close()
 
 	if *initialize {
 		if err := runInit(db); err != nil {
-			slog.Error(fmt.Sprintf("init: %v", err))
-			os.Exit(1)
+			return fmt.Errorf("init: %w", err)
 		}
-		return
+		return nil
 	}
 
 	if *recovery {
 		if err := runRecovery(db); err != nil {
-			slog.Error(fmt.Sprintf("recovery: %v", err))
-			os.Exit(1)
+			return fmt.Errorf("recovery: %w", err)
 		}
-		return
+		return nil
 	}
 
 	if *check {
 		if err := runCheck(db); err != nil {
-			slog.Error(fmt.Sprintf("check: %v", err))
-			os.Exit(1)
+			return fmt.Errorf("check: %w", err)
 		}
-		return
+		return nil
 	}
 
 	dist := distFS()
 
 	assets, err := web.LoadAssets(dist)
 	if err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
+		return err
 	}
 
 	templates, err := templateSub()
 	if err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
+		return err
 	}
 
 	renderer, err := web.NewRenderer(templates, templateFuncs,
 		[]string{"base.html", "partials.html"}, allPages)
 	if err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
+		return err
 	}
 
 	s := &site{
@@ -169,10 +170,7 @@ func main() {
 
 	slog.Info(fmt.Sprintf("auth serving %s (staging=%t, cookie domain=%q)",
 		baseURL, Staging, cookieDomain()))
-	if err := web.Serve(listenAddr, handler); err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
-	}
+	return web.Serve(listenAddr, handler)
 }
 
 // noStore is applied to every authenticated page. These carry addresses, user

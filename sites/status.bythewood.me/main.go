@@ -84,6 +84,15 @@ var (
 )
 
 func main() {
+	if err := realMain(); err != nil {
+		slog.Error("exiting", slog.Any("err", err))
+		os.Exit(1)
+	}
+}
+
+// realMain returns rather than exits, so its deferred closes and the log
+// shipper's flush run on every path out.
+func realMain() error {
 	web.SetupLogging()
 
 	previewKind := flag.String("preview-alert", "",
@@ -94,10 +103,9 @@ func main() {
 
 	if *healthcheck {
 		if err := web.HealthCheck("http://127.0.0.1:8000/healthz", 3*time.Second); err != nil {
-			slog.Info(fmt.Sprintf("healthcheck: %v", err))
-			os.Exit(1)
+			return fmt.Errorf("healthcheck: %w", err)
 		}
-		return
+		return nil
 	}
 
 	// Tees onto the stdout handler rather than replacing it. Kept after the
@@ -107,17 +115,15 @@ func main() {
 
 	if *previewKind != "" {
 		if err := previewAlert(*previewKind); err != nil {
-			slog.Error("startup failed", slog.Any("err", err))
-			os.Exit(1)
+			return err
 		}
-		return
+		return nil
 	}
 
 	dataDir := dir("SITE_DATA", "data")
 	db, err := openDB(dataDir + "/db.sqlite3")
 	if err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
+		return err
 	}
 	defer db.Close()
 
@@ -125,20 +131,17 @@ func main() {
 
 	assets, err := web.LoadAssets(dist)
 	if err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
+		return err
 	}
 
 	templates, err := fs.Sub(templateFS, "templates")
 	if err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
+		return err
 	}
 
 	renderer, err := web.NewRenderer(templates, templateFuncs, layoutTemplates, pageTemplates)
 	if err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
+		return err
 	}
 
 	s := &site{
@@ -163,8 +166,7 @@ func main() {
 
 	scheduler := NewScheduler(db, NewNotifier(), dir("SITE_ROOT", "."))
 	if err := scheduler.ResetOnBoot(ctx); err != nil {
-		slog.Error(fmt.Sprintf("reset wedged states: %v", err))
-		os.Exit(1)
+		return fmt.Errorf("reset wedged states: %w", err)
 	}
 	go scheduler.Run(ctx)
 
@@ -231,10 +233,7 @@ func main() {
 	)
 
 	slog.Info(fmt.Sprintf("status serving %s (staging=%t)", baseURL, Staging))
-	if err := web.Serve(listenAddr, handler); err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
-	}
+	return web.Serve(listenAddr, handler)
 }
 
 func methodNotAllowed(allow string) http.HandlerFunc {
