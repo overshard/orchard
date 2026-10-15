@@ -204,7 +204,7 @@ func (lb *leanBook) save() {
 		return
 	}
 	tmp := lb.path + ".tmp"
-	if err := os.WriteFile(tmp, raw, 0o644); err == nil {
+	if err = os.WriteFile(tmp, raw, 0o644); err == nil {
 		err = os.Rename(tmp, lb.path)
 	}
 	if err != nil {

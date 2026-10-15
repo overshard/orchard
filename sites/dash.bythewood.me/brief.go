@@ -390,7 +390,7 @@ func (b *Briefer) save() {
 		return
 	}
 	tmp := b.path + ".tmp"
-	if err := os.WriteFile(tmp, raw, 0o644); err == nil {
+	if err = os.WriteFile(tmp, raw, 0o644); err == nil {
 		err = os.Rename(tmp, b.path)
 	}
 	if err != nil {
