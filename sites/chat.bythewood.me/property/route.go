@@ -9,19 +9,13 @@ import (
 	"time"
 )
 
-// Drive times, from a real routing engine. The roads run around ridges and along
-// the river, so two houses the same distance from the office can be fifteen
-// minutes apart.
-//
-// OSRM's public demo server is the default and it asks for light use, so every
-// route is cached forever and a refresh only routes listings it has not seen.
+// OSRM's public demo server asks for light use, so every route is cached forever.
 const (
 	osrmBase = "https://router.project-osrm.org"
 
-	// OSRM's demo profile is car with no traffic model, so a night shift drive is
-	// close to right and the morning school run is the one this understates. The
-	// detour is a difference of two routes over the same roads at the same hour,
-	// so the understatement largely cancels out.
+	// The demo profile has no traffic model, so it understates the morning run,
+	// but the detour is a difference of two routes at the same hour and that
+	// largely cancels out.
 	osrmProfile = "/route/v1/driving/"
 )
 
@@ -33,9 +27,8 @@ type Router struct {
 func NewRouter(db *sql.DB) *Router {
 	return &Router{
 		db: db,
-		// The demo server is a courtesy and asks for light use in so many words,
-		// which is why this is the slowest pace here after Overpass. Self-hosting
-		// OSRM is the answer if a run ever needs to be faster than this.
+		// The demo server is a courtesy and asks for light use in so many words.
+		// Self-hosting OSRM is the answer if this is ever too slow.
 		guard: NewGuard(db, "osrm", GuardOpts{
 			MinInterval: 2 * time.Second,
 			Budget:      150,
@@ -51,12 +44,10 @@ type Leg struct {
 	Miles    float64
 	Geometry string // encoded polyline, for drawing the morning route on the map
 
-	// What the destination is, straight off the config entry.
 	Kind string
 
-	// Whose drive it is and where it goes. Without the name a question like
-	// "what about her commute" has nothing in the answer to match on, and the
-	// model went looking for the person on Wikipedia instead.
+	// Without Who a question like "what about her commute" has nothing in the
+	// answer to match on.
 	Who  string `json:",omitempty"`
 	Name string `json:",omitempty"`
 }
@@ -70,9 +61,8 @@ type osrmResponse struct {
 	} `json:"routes"`
 }
 
-// Route is one or more waypoints in order, so home to school to work is one call
-// and one cache entry rather than two legs added together. Adding legs would be
-// wrong anyway, since a stop changes which way the route leaves the first point.
+// Route takes waypoints in order instead of adding legs, since a stop changes
+// which way the route leaves the first point.
 func (r *Router) Route(ctx context.Context, pts ...point) (Leg, error) {
 	if len(pts) < 2 {
 		return Leg{}, fmt.Errorf("a route needs two points")
@@ -127,9 +117,8 @@ func (r *Router) Route(ctx context.Context, pts ...point) (Leg, error) {
 	}, nil
 }
 
-// Morning holds the three numbers the school run turns on, the commute with no
-// child in the car, the commute actually driven, and the difference between
-// them, which is the cost of the drop-off and what ranks this dashboard.
+// Morning's detours are the commute through each school minus the commute alone,
+// which is the cost of the drop-off.
 type Morning struct {
 	Commute        Leg
 	WithElementary Leg
@@ -140,23 +129,19 @@ type Morning struct {
 	MiddleDetourMin float64
 	HighDetourMin   float64
 
-	// True when the elementary and the middle school lie in opposite directions
-	// from the house. That is a two-stop morning once both children's schools
-	// matter, which is a dealbreaker wearing the costume of a small detour.
+	// The elementary and middle school lie in opposite directions from the
+	// house, which is a two-stop morning once both matter.
 	OppositeWays bool
 
 	Partial bool // a leg could not be routed, so the detour is not trustworthy
 }
 
-// Morning computes the three routes and the two detours. A missing school
-// coordinate is a partial result rather than a zero, because a zero detour would
-// rank an unknown house at the top of the grid.
+// Morning marks a missing school coordinate partial instead of zero, since a zero
+// detour reads as the best possible school run.
 func (r *Router) Morning(ctx context.Context, home, work point, elem, middle, high point) Morning {
 	var m Morning
 
-	// Three independent routes, asked for at once. The guard still paces them
-	// against the demo server one at a time, which is the part that matters, and
-	// asking in sequence only added the round trips together.
+	// Asked for at once, and the guard still paces them one at a time.
 	var wg sync.WaitGroup
 	var base, withElem, withMiddle, withHigh Leg
 	var baseErr, elemErr, middleErr error
@@ -217,9 +202,8 @@ func (r *Router) Morning(ctx context.Context, home, work point, elem, middle, hi
 	}
 
 	if elem.lat != 0 && middle.lat != 0 {
-		// Opposite is measured from the house, not from the office: the question
-		// is whether one morning trip can take in both, and two schools more
-		// than 120 degrees apart as seen from the driveway cannot be.
+		// Measured from the house, since two schools more than 120 degrees apart
+		// from the driveway can't both fit in one morning trip.
 		a := bearingDeg(home.lat, home.lon, elem.lat, elem.lon)
 		b := bearingDeg(home.lat, home.lon, middle.lat, middle.lon)
 		diff := math.Abs(a - b)

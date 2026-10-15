@@ -7,10 +7,9 @@ import (
 	"chat.bythewood.me/tools"
 )
 
-// The two that Isaac hit, verbatim in shape, plus the answers they must not be
-// confused with. A detector that fires on a real answer is worse than one that
-// misses a deferral, since a miss costs a bad turn and a false positive costs
-// every turn that mentions searching.
+// Deferrals Isaac hit and the answers they mustn't be confused with. A false
+// positive is worse than a miss, since a miss costs one bad turn and a false
+// positive costs every turn that mentions searching.
 func TestIsDeferral(t *testing.T) {
 	defer_ := []string{
 		"I don't have anything to report on major news over the weekend, but I can search for the latest headlines if you'd like.",
@@ -74,10 +73,9 @@ func contains(s, sub string) bool {
 	return false
 }
 
-// The three answers with wrong sums in them on 2026-09-08, and the answers from
-// the same day that must not be sent back. calc was called zero times that day
-// with the contract asking for it in as many words, which is why this is a
-// check rather than a line in the prompt.
+// Answers with wrong sums in them, and answers that mustn't be sent back. The
+// model skipped calc with the contract asking for it in as many words, so this is
+// a check instead of a line in the prompt.
 func TestCountsUpInProseCatchesTheDayItWasWrong(t *testing.T) {
 	adds := []struct{ name, draft string }{
 		{"a day total that contradicts its own earlier figure",
@@ -152,8 +150,7 @@ func TestNoToolsMeansNothingWasCopied(t *testing.T) {
 }
 
 // A house is answered out of public records and not off the web, so a thin draft
-// there is missing a section rather than a search. The gate was telling it to go
-// and search for the address it had just been handed a full report on.
+// there is missing a section and not a search.
 func TestAThinPropertyDraftIsSentBackToProperty(t *testing.T) {
 	n := propertyNudge()
 	for _, want := range []string{"property again", "Do not search the web", "cost table"} {

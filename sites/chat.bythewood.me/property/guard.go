@@ -16,16 +16,9 @@ import (
 	"time"
 )
 
-// Every fact on a card comes from somebody else's free server: FEMA, NCDOT, the
-// Census geocoder, OSRM, a county GIS box that is one machine in a county
-// building. A ban on any of them is hard to undo, so the guard goes in front of
-// the client rather than on top of it.
-//
-// It paces requests with jitter, counts failures and opens a breaker whose state
-// lives in SQLite so a restart does not hand a struggling upstream a fresh round,
-// backs off further each time the breaker reopens, honours 429 and 503 and
-// Retry-After in both formats, and keeps a hard per-window budget as the backstop
-// for a bug that would otherwise loop.
+// Guard sits in front of somebody else's free server, where a ban is hard to undo.
+// The breaker's state is a row in SQLite so a restart doesn't hand a struggling
+// upstream a fresh round, and the budget is the backstop for a bug that loops.
 type Guard struct {
 	db   *sql.DB
 	name string
@@ -43,8 +36,8 @@ type Guard struct {
 	rand     *rand.Rand
 }
 
-// GuardOpts keeps the per-endpoint numbers in one place at the call site, since
-// a county ArcGIS box and the Census geocoder do not deserve the same pace.
+// GuardOpts is per endpoint, since a county ArcGIS box and the Census geocoder
+// don't deserve the same pace.
 type GuardOpts struct {
 	MinInterval time.Duration
 	Budget      int
@@ -53,17 +46,15 @@ type GuardOpts struct {
 	OpenFor     time.Duration
 	Timeout     time.Duration
 
-	// Empty means the browser string. Set it to clientUA for an API that would
-	// rather know who is calling, which some of them enforce.
+	// Empty means the browser string. Set it to clientUA for an API that wants
+	// to know who is calling, which some of them enforce.
 	UserAgent string
 }
 
 func NewGuard(db *sql.DB, name string, o GuardOpts) *Guard {
-	// The defaults are what a guard gets when somebody adds an endpoint and does
-	// not think about it, so they are the cautious numbers rather than the
-	// convenient ones. One cold address costs about forty requests across all of
-	// these and only a few addresses are allowed an hour, so no single endpoint
-	// here has any business sending sixty in one.
+	// The defaults are what an endpoint added without thinking gets, so they're
+	// the cautious numbers. A cold address costs about forty requests across all
+	// of these, so no single endpoint has any business sending sixty an hour.
 	if o.MinInterval == 0 {
 		o.MinInterval = 1500 * time.Millisecond
 	}
@@ -88,8 +79,8 @@ func NewGuard(db *sql.DB, name string, o GuardOpts) *Guard {
 	return &Guard{
 		db:   db,
 		name: name,
-		// Seeded per guard rather than from the global source, so two guards
-		// created in the same millisecond do not jitter in lockstep.
+		// Seeded per guard so two created in the same millisecond don't jitter
+		// in lockstep.
 		rand:        rand.New(rand.NewSource(time.Now().UnixNano() + int64(len(name)))),
 		minInterval: o.MinInterval,
 		budget:      o.Budget,
@@ -101,24 +92,17 @@ func NewGuard(db *sql.DB, name string, o GuardOpts) *Guard {
 	}
 }
 
-// Two user agents, because the two kinds of upstream here want opposite things.
-//
-// A public records server usually sits behind a WAF that answers 403 to anything
-// that does not look like a browser, and the DHSR roster does exactly that. An
-// API meant for programs wants the opposite, and Overpass answers 406 Not
-// Acceptable to a browser string.
-//
-// So it is per endpoint. The browser string is the default because more of these
-// are WAF'd records servers than APIs.
+// A public records server behind a WAF, like the DHSR roster, answers 403 to
+// anything that isn't a browser, while Overpass answers 406 to a browser string.
+// The browser string is the default since more of these are records servers.
 const browserUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
 	"(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 
-// An honest one, with somewhere to write to. Services that publish usage terms
-// ask for this and are entitled to it.
+// Services that publish usage terms ask for a contact and are entitled to it.
 const clientUA = "house.bythewood.me/1.0 (self-hosted house search; isaac@bythewood.me)"
 
-// ErrGuarded is returned without a request being sent. It is a distinct error so
-// a caller can tell "the upstream said no" from "we did not ask".
+// ErrGuarded means no request was sent, so a caller can tell "the upstream said
+// no" from "we didn't ask".
 type ErrGuarded struct {
 	Endpoint string
 	Why      string
@@ -131,14 +115,13 @@ type guardState struct {
 	openedAt    int64
 	windowStart int64
 	windowCount int
-	// How many times the breaker has opened without a clean run in between. It is
-	// what makes the backoff grow, and a successful request resets it.
+	// Opens without a clean run in between, which grows the backoff. A
+	// successful request resets it.
 	trips int
 }
 
-// backoff doubles per consecutive trip and stops at eight hours. A service that
-// has been down all afternoon should be asked once an hour, not six times, and
-// the ceiling is there so a run the next morning is not still waiting.
+// backoff doubles per consecutive trip and stops at eight hours, so a run the
+// next morning isn't still waiting.
 func (g *Guard) backoff(trips int) time.Duration {
 	const ceiling = 8 * time.Hour
 	d := g.openFor
@@ -162,9 +145,8 @@ func (g *Guard) load() (guardState, error) {
 	return s, err
 }
 
-// redactURL strips a query string value that is a key. An http transport error
-// stringifies the whole URL it was given, so saving the error verbatim writes an
-// API key into the database and into anything that renders guard state.
+// An http transport error stringifies the whole URL, so saving it verbatim
+// writes an API key into the database and anything that renders guard state.
 var keyInURL = regexp.MustCompile(`(?i)([?&](?:api_?key|key|token|access_token)=)[^&"\s]+`)
 
 func redactURL(s string) string {
@@ -185,8 +167,6 @@ func (g *Guard) save(s guardState, lastErr string) {
 	}
 }
 
-// Get sends one guarded GET and decodes JSON into out. Everything external here
-// is a JSON GET, so there is one path rather than a general purpose client.
 func (g *Guard) Get(ctx context.Context, url string, out any) error {
 	body, err := g.GetRaw(ctx, url)
 	if err != nil {
@@ -205,8 +185,6 @@ func (g *Guard) GetRaw(ctx context.Context, url string) ([]byte, error) {
 	return g.GetWithHeaders(ctx, url, nil)
 }
 
-// GetWithHeaders is the same guarded GET with extra request headers, which is
-// what an upstream that authenticates with a key needs.
 func (g *Guard) GetWithHeaders(ctx context.Context, url string, headers map[string]string) ([]byte, error) {
 	var body []byte
 	err := g.stream(ctx, url, headers, func(r io.Reader) error {
@@ -218,9 +196,7 @@ func (g *Guard) GetWithHeaders(ctx context.Context, url string, headers map[stri
 	return body, err
 }
 
-// Stream hands the response body to a reader rather than buying it into memory,
-// for the one source here that is measured in tens of megabytes. Everything the
-// guard does about pacing, budgets and backoff is the same.
+// Stream is for the one source here measured in tens of megabytes.
 func (g *Guard) Stream(ctx context.Context, url string, consume func(io.Reader) error) error {
 	return g.stream(ctx, url, nil, consume)
 }
@@ -242,8 +218,8 @@ func (g *Guard) stream(ctx context.Context, url string, headers map[string]strin
 			return &ErrGuarded{g.name, fmt.Sprintf("backed off, %s left",
 				(wait - now.Sub(open)).Round(time.Second))}
 		}
-		// Half open: one request decides whether it closes or reopens. The trip
-		// count is left alone, so a service that fails again waits twice as long.
+		// Half open, one request decides. The trip count stays, so a service
+		// that fails again waits twice as long.
 		state.openedAt = 0
 		state.failures = 0
 	}
@@ -256,9 +232,8 @@ func (g *Guard) stream(ctx context.Context, url string, headers map[string]strin
 		return &ErrGuarded{g.name, fmt.Sprintf("budget spent, %d in this %s", state.windowCount, g.window)}
 	}
 
-	// Jitter, up to a fifth of the interval on top. A fleet of identical clients
-	// pacing to the same round number arrives in step, which is the shape that
-	// looks like an attack from the far end.
+	// Clients pacing to the same round number arrive in step, which looks like an
+	// attack from the far end.
 	pace := g.minInterval + time.Duration(g.rand.Int63n(int64(g.minInterval/5)+1))
 	if wait := pace - now.Sub(g.lastCall); wait > 0 && !g.lastCall.IsZero() {
 		select {
@@ -272,9 +247,8 @@ func (g *Guard) stream(ctx context.Context, url string, headers map[string]strin
 	if err != nil {
 		return err
 	}
-	// Whichever of the two this endpoint wants. Either way it is about getting a
-	// public record out of a server that would otherwise refuse one, and never
-	// about getting past a site that has looked at the traffic and said no.
+	// This is for getting a public record out of a WAF'd server, never for
+	// getting past a site that has looked at the traffic and said no.
 	req.Header.Set("User-Agent", g.userAgent)
 	req.Header.Set("Accept", "application/json, text/plain, */*")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
@@ -299,20 +273,14 @@ func (g *Guard) stream(ctx context.Context, url string, headers map[string]strin
 
 	switch {
 	case resp.StatusCode == http.StatusTooManyRequests, resp.StatusCode >= 500:
-		// Told to back off, so back off for real rather than retrying.
 		state.failures = g.tripAfter
 		state.trips++
 		state.openedAt = now.Unix()
 
-		// A Retry-After longer than the backoff wins, and it comes in two
-		// formats: a number of seconds or an HTTP date. Only reading the first
-		// means ignoring the second entirely and asking again immediately.
 		wait := g.backoff(state.trips)
 		if asked := retryAfter(resp.Header.Get("Retry-After"), now); asked > wait {
-			// Stored as a LATER open time, so the existing backoff arithmetic
-			// carries the longer wait without a second column for it. The other
-			// way round stamps the breaker as having opened in the past and the
-			// next call sails straight through.
+			// A later open time, so the backoff arithmetic carries the longer wait.
+			// Stamping it in the past instead lets the next call sail through.
 			state.openedAt = now.Add(asked - wait).Unix()
 			wait = asked
 		}
@@ -331,17 +299,16 @@ func (g *Guard) stream(ctx context.Context, url string, headers map[string]strin
 		return fmt.Errorf("%s: %s", g.name, redactURL(err.Error()))
 	}
 
-	// A clean answer closes the breaker and forgives the history, so a service
-	// that had a bad hour is not punished for it a week later.
+	// Forgive the history so a service that had a bad hour isn't punished for it
+	// a week later.
 	state.failures = 0
 	state.trips = 0
 	g.save(state, "")
 	return nil
 }
 
-// retryAfter reads both formats the header is allowed to take, a number of
-// seconds or an HTTP date. Reading only the first means asking again straight
-// away.
+// retryAfter reads both formats, seconds or an HTTP date, since reading only the
+// first means asking again straight away.
 func retryAfter(header string, now time.Time) time.Duration {
 	header = strings.TrimSpace(header)
 	if header == "" {
@@ -361,9 +328,8 @@ func retryAfter(header string, now time.Time) time.Duration {
 	return 0
 }
 
-// GuardStatus is the state of one upstream. A report with a gap in it is worth
-// nothing without this: "no schools found nearby" and "the schools server is
-// refusing us this hour" read the same on a page and are not the same fact.
+// GuardStatus exists since "no schools found nearby" and "the schools server is
+// refusing us this hour" read the same on a page and aren't the same fact.
 type GuardStatus struct {
 	Endpoint  string
 	Failures  int
@@ -373,8 +339,7 @@ type GuardStatus struct {
 	LastError string
 }
 
-// Who each endpoint actually is, since "nc-parcels, 3 failures" means nothing to
-// somebody who just asked about a house.
+// "nc-parcels, 3 failures" means nothing to somebody who asked about a house.
 var guardNames = map[string]string{
 	"census-geocoder":  "US Census, for turning an address into a place on the map",
 	"nc-parcels":       "NC OneMap, for the lot and what the county values it at",
@@ -394,8 +359,6 @@ var guardNames = map[string]string{
 	"freddiemac":       "Freddie Mac, for this week's mortgage rates",
 }
 
-// Name is the endpoint in plain words, falling back to the slug for anything not
-// named yet, which is better than an empty row.
 func (g GuardStatus) Name() string {
 	if n, ok := guardNames[g.Endpoint]; ok {
 		return n
@@ -406,12 +369,10 @@ func (g GuardStatus) Name() string {
 	return g.Endpoint
 }
 
-// Resting reports that this one has been asked to slow down, which is the only
-// state on this panel a reader can do anything about, and what they can do is wait.
 func (g GuardStatus) Resting() bool { return g.Open }
 
-// backoffFor is the status page's view of the same growth the guard applies, for
-// a row whose own Guard is not to hand.
+// backoffFor mirrors Guard.backoff with the default OpenFor, for a row whose own
+// Guard isn't to hand.
 func backoffFor(trips int) time.Duration {
 	const base, ceiling = 10 * time.Minute, 8 * time.Hour
 	d := base
@@ -424,9 +385,8 @@ func backoffFor(trips int) time.Duration {
 	return d
 }
 
-// Resting is every upstream that has asked us to slow down, in plain words. It is
-// what a gap in a report means, and the only thing a reader can do about one is
-// wait, so it says which and for how long rather than offering a retry.
+// Resting says which upstreams asked us to slow down and for how long, since
+// waiting is the only thing a reader can do about a gap.
 func Resting(db *sql.DB) []string {
 	all, err := guardStatuses(db)
 	if err != nil {

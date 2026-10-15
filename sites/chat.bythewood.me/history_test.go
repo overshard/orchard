@@ -9,8 +9,8 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// The shape the database had before the ids became uuids, without the sources
-// column either, which is the state the deployed one is actually in.
+// The counter-id schema with no sources column, the state the deployed database
+// is actually in.
 const oldSchema = `
 CREATE TABLE conversations (
   id INTEGER PRIMARY KEY, title TEXT NOT NULL DEFAULT '',

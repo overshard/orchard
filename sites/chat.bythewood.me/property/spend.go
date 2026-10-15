@@ -7,24 +7,9 @@ import (
 	"time"
 )
 
-// How many addresses this will go out and look up, on top of what each endpoint
-// already paces for itself.
-//
-// The dashboard this came from had a person clicking a button, and this has a
-// model deciding when to call. A turn gets six tool rounds and a nudge to keep
-// going, so one question can become six addresses, and a model that misreads a
-// street name will spell it six ways and send thirty eight requests each time to
-// eleven other people's servers. A gap bounds the rate and only a ceiling bounds
-// the total, which is the same thing the search budgets in tools/budget.go exist
-// for after this address was blocked by DuckDuckGo.
-//
-// One cold address costs about 38 requests, measured: ten routes, five and four
-// to the two county GIS boxes, four census layers, and one or two of everything
-// else. An address already in the cache costs one SQLite read and is not counted
-// here at all, so a conversation about a house is never what runs this down.
-//
-// Twenty five new addresses in a day is more house hunting than anybody does, and
-// six in an hour stops a loop inside one turn.
+// A model that misreads a street name will spell it six ways in one turn, each a
+// cold lookup of dozens of requests, and only a ceiling bounds the total. Six an
+// hour stops a loop and twenty five a day is more house hunting than anybody does.
 const (
 	coldPerHour = 6
 	coldPerDay  = 25
@@ -41,8 +26,8 @@ CREATE TABLE IF NOT EXISTS assessments (
 CREATE INDEX IF NOT EXISTS assessments_at ON assessments(started_at);
 `
 
-// ErrSpent is returned instead of starting a cold lookup. It is a distinct error
-// so a tool can say what is left and when rather than reading as a failure.
+// ErrSpent is distinct so a tool can say what's left and when instead of reading
+// as a failure.
 type ErrSpent struct {
 	Window string
 	Done   int
@@ -58,9 +43,6 @@ func (e ErrSpent) Error() string {
 		e.Done, e.Window, e.Ceil, e.Until.UTC().Format("15:04 UTC"))
 }
 
-// spend counts what has been looked up in each window and records this one. It
-// checks and writes under the same statement order every time, so two turns
-// asking about two new addresses at once cannot both see the last slot.
 func (e *Engine) spend(ctx context.Context, key string) error {
 	e.spendMu.Lock()
 	defer e.spendMu.Unlock()
@@ -81,7 +63,7 @@ func (e *Engine) spend(ctx context.Context, key string) error {
 		return ErrSpent{Window: "day", Done: day, Ceil: coldPerDay, Until: now.Add(24 * time.Hour)}
 	}
 
-	// Still counted, so incognito cannot spend past the ceiling, but not named.
+	// Still counted, so incognito can't spend past the ceiling, but not named.
 	if incognito(ctx) {
 		key = ""
 	}
@@ -89,8 +71,7 @@ func (e *Engine) spend(ctx context.Context, key string) error {
 		`INSERT INTO assessments (key, started_at) VALUES (?,?)`, key, now.Unix()); err != nil {
 		return err
 	}
-	// Nothing past a day is ever read, and this table would otherwise grow for the
-	// life of the database to answer a question about the last 24 hours.
+	// Nothing past a day is ever read.
 	_, _ = e.db.ExecContext(ctx,
 		`DELETE FROM assessments WHERE started_at < ?`, now.Add(-48*time.Hour).Unix())
 	return nil
@@ -106,7 +87,7 @@ func (e *Engine) countSince(ctx context.Context, since time.Time) (int, error) {
 	return n, err
 }
 
-// Spend is what is left, for a tool that wants to say so before it is refused.
+// Spend is what's left, for a tool that wants to say so before it's refused.
 func (e *Engine) Spend(ctx context.Context) (hourLeft, dayLeft int) {
 	now := time.Now()
 	hour, _ := e.countSince(ctx, now.Add(-time.Hour))

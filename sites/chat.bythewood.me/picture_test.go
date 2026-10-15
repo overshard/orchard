@@ -78,7 +78,7 @@ var onePixel, _ = base64.StdEncoding.DecodeString("iVBORw0KGgoAAAANSUhEUgAAAAEAA
 
 // fakeCard is the gateway with both models behind it. The chat model always
 // asks for a picture, and the picture model takes a moment to load and then
-// a moment to draw, which is what the stages are read off.
+// a moment to draw, and the stages are read off those.
 type fakeCard struct {
 	mu        sync.Mutex
 	offered   [][]string
@@ -207,8 +207,8 @@ func testStore(t *testing.T) *Store {
 	return st
 }
 
-// The whole point of ending the turn on the picture is that the chat model is
-// not put back on the card to write a sentence about it.
+// Ending the turn on the picture means the chat model isn't put back on the card
+// to write a sentence about it.
 func TestAPictureEndsTheTurnWithoutTheChatModelComingBack(t *testing.T) {
 	f := &fakeCard{loadFor: 60 * time.Millisecond, drawFor: 60 * time.Millisecond}
 	store := testStore(t)

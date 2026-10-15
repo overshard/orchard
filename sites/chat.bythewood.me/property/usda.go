@@ -9,15 +9,8 @@ import (
 	"time"
 )
 
-// Whether an address sits somewhere USDA will lend on, which is the question
-// every USDA answer turns on and the one a mortgage calculator never asks. A
-// no-money-down loan is worth a great deal and most of this county qualifies,
-// while a house three miles further in does not.
-//
-// The map publishes the ineligible areas as polygons rather than the eligible
-// ones, so a point that matches nothing is a point USDA will lend on. Getting
-// that backwards would call the whole county ineligible, which is why the test
-// pins both a town and a rural address.
+// The map publishes the ineligible areas, not the eligible ones, so a point that
+// matches nothing is one USDA will lend on.
 var usdaLayer = "https://rdgdwe.sc.egov.usda.gov/arcgis/rest/services/Eligibility/Eligibility/MapServer/4/query"
 
 type USDA struct {
@@ -38,15 +31,13 @@ func NewUSDA(db *sql.DB) *USDA {
 	}
 }
 
-// USDAArea is what the map said about one point.
 type USDAArea struct {
 	Eligible bool   `json:"eligible"`
 	Measured bool   `json:"measured"`
 	Source   string `json:"source"`
 }
 
-// The boundaries move when USDA redraws them off a census, which is every ten
-// years with a revision or two in between, so a year is not long to hold one.
+// USDA redraws the boundaries off each census with a revision or two between.
 const usdaTTL = 365 * 24 * time.Hour
 
 func (u *USDA) Lookup(ctx context.Context, lat, lon float64) (USDAArea, error) {

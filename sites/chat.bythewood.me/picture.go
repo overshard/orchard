@@ -40,7 +40,7 @@ func isPictureAsk(message string, history []Message) bool {
 	return newView.MatchString(m) || len(strings.Fields(m)) <= 14 && pictureEdit.MatchString(m)
 }
 
-// Something said about the picture or the app rather than a change to it. "this
+// Something said about the picture or the app instead of a change to it. "this
 // didn't do anything, remember this chat" went to the image model as an edit,
 // since it has "fix" in it.
 var aboutIt = regexp.MustCompile(`(?i)\b(didn'?t|did not|doesn'?t|does not|wasn'?t|was not|isn'?t|is not)\s+(do|work|change|help|come out)\b|\b(remember|bug|broken|when i get home)\b|\b(this|the)\s+(chat|conversation|app)\b`)
@@ -65,15 +65,14 @@ func isPictureChange(message string, history []Message) bool {
 	return pictureEdit.MatchString(m) || changeWord.MatchString(m)
 }
 
-// wantsNewPicture is asking for a different picture rather than this one fixed.
+// wantsNewPicture is asking for a different picture instead of this one fixed.
 func wantsNewPicture(m string) bool {
 	return pictureAgain.MatchString(m) || pictureAsk.MatchString(m) || drawVerb.MatchString(m) || newView.MatchString(m)
 }
 
-// Another view of the same thing is a new picture. An edit keeps the framing,
-// so "from the outside" drew the same living room again.
-// Moving the camera is the same, since klein keeps the framing it starts from and
-// "angled up higher" came back as the same picture.
+// Another view of the same thing is a new picture, since klein keeps the framing
+// an edit starts from and "from the outside" or "angled up higher" came back as
+// the same picture.
 var newView = regexp.MustCompile(`(?i)\b(from (the )?(outside|inside|above|below|behind|the side|the front|the back|the street|the air|another angle|a different angle|higher|lower|higher up|up high|eye level|the ceiling|the floor|the doorway|across the room)|exterior|interior|aerial|bird'?s[- ]eye|(another|different|other) (angle|side|view)|angled? (up|down|higher|lower)|(higher|lower|low|high|eye[- ]level|overhead|top[- ]down) (angle|view|shot|camera)|(zoom(ed)?|pull(ed)?) (out|back)|wider (shot|view|angle)|close[- ]?up)\b`)
 
 // A size or an orientation he asked for, which beats whatever shape the chat
@@ -124,24 +123,21 @@ func withShape(args json.RawMessage, shape string) json.RawMessage {
 	return out
 }
 
-// A change to where the thing is rather than to the picture. Each edit of an
+// A change to where the thing is and not to the picture. Each edit of an
 // edit coarsens the fabric, so these start again from the picture he attached.
 var sceneWord = regexp.MustCompile(`(?i)\b(background|backdrop|room|wall|walls|scene|setting|apartment|house|kitchen|office|bedroom|outdoors?|patio|put it|place it|move it)\b`)
 
 // The thing he names with "this sofa" or "my chair", which the image model is
-// told to keep. Words that name a part of the picture rather than a thing in it
+// told to keep. Words that name a part of the picture instead of a thing in it
 // are skipped.
 var namedThing = regexp.MustCompile(`(?i)\b(?:this|that|my|the)\s+([a-z][a-z-]{2,})`)
 
 var notAThing = map[string]bool{"picture": true, "image": true, "photo": true, "background": true,
 	"room": true, "scene": true, "one": true, "same": true, "whole": true, "rest": true, "colour": true, "color": true}
 
-// editPrompt is what the image model is asked for when a picture is changed.
-// It is written here and not by the chat model, which cannot see the picture
-// and describes what it imagines is in it, and the image model draws that.
-// named is where the thing to keep is looked for, which for a new scene is the
-// message the picture was attached to, and is empty for a change to the last
-// picture as it stands.
+// editPrompt is written here and not by the chat model, which can't see the
+// picture and would describe what it imagines is in it. named is where the thing to
+// keep is looked for, the attached picture's message for a new scene and empty otherwise.
 func editPrompt(message, named string, keepThing bool) string {
 	words := strings.Join(strings.Fields(message), " ")
 	words = strings.TrimRight(words, " -.,")
@@ -196,12 +192,12 @@ func lastWasPicture(history []Message) bool {
 }
 
 // drewPrefix opens every stored picture turn. The model reads it back as the
-// record of what was drawn, which is what a change to the picture needs.
+// record of what was drawn, and a change to the picture needs that.
 const drewPrefix = "Drew it from this prompt:\n\n> "
 
-// pictureReply is the whole answer to a picture. It is written here rather
-// than by the model, because the model is off the card by then and bringing it
-// back for one sentence costs more than the sentence is worth.
+// pictureReply is the whole answer to a picture. It's written here instead of by
+// the model, since the model is off the card by then and bringing it back for one
+// sentence costs more than the sentence is worth.
 func pictureReply(res tools.Result) string {
 	if res.Err != "" {
 		return "The picture didn't come out, " + res.Err + "."

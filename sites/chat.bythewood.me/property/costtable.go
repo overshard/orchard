@@ -6,16 +6,10 @@ import (
 	"strings"
 )
 
-// The all-in monthly written as a table, because the number on its own does not
-// say what is in it and a model asked to explain it in prose drops a line or
-// invents one. Handed a shape, it reproduces the shape: the prompt already tells
-// it to use one exactly when a tool result gives it one.
-//
-// One column per programme and one row per cost, so the all-in row is visibly
-// the sum of the rows above it rather than a figure to take on trust.
+// A table since a model explaining the all-in monthly in prose drops a line or
+// invents one, and the all-in row is visibly the sum of the rows above it.
 
-// costRows is every line of the monthly payment, in the order a settlement
-// statement would list them.
+// In the order a settlement statement lists them.
 var costRows = []struct {
 	label string
 	of    func(Quote) float64
@@ -28,9 +22,8 @@ var costRows = []struct {
 	{"Utilities and internet", func(q Quote) float64 { return q.Utilities + q.Internet }},
 }
 
-// CostTable renders the comparison. Ineligible programmes are kept, marked, and
-// sorted last, since "USDA would be cheapest and this address is not in an
-// eligible area" is the useful answer and dropping the column loses it.
+// CostTable keeps ineligible programmes, marked and sorted last, since "USDA would
+// be cheapest and this address isn't eligible" is a useful answer.
 func (r *Report) CostTable() string {
 	quotes := make([]Quote, 0, len(r.Quotes))
 	for _, q := range r.Quotes {
@@ -85,7 +78,6 @@ func (r *Report) CostTable() string {
 			}
 			cells = append(cells, "$"+comma(v))
 		}
-		// A row that is nought for every programme is noise. HOA usually is.
 		if any {
 			row(cells)
 		}

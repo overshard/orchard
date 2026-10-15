@@ -11,16 +11,13 @@ import (
 	"chat.bythewood.me/tools"
 )
 
-// What stops a turn ending on "I could look that up for you".
-//
-// The turn loop breaks the moment the model replies without a tool call, which
-// treats every reply as an answer. A reply that offers to go and check, or one
-// that states facts nothing in the turn checked, gets another pass with the
-// tools still on the table instead.
+// What stops a turn ending on "I could look that up for you". The loop takes any
+// reply without a tool call as an answer, so one that offers to check, or states
+// facts nothing in the turn checked, gets another pass with the tools still out.
 
 // The shapes a small model writes a deferral in, checked first since they are
 // free. Every pattern needs a first person subject, because "you can search for
-// it on their site" is advice rather than a deferral.
+// it on their site" is advice and not a deferral.
 var deferrals = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)\b(i|we)\s+(can|could|will|shall|am able to)\s+(now\s+)?(go\s+)?(and\s+)?(search|look|check|find|fetch|pull|dig|research|browse|see)\b`),
 	regexp.MustCompile(`(?i)\b(let me|i'?ll|i will|i'?m going to|i am going to)\s+(go\s+)?(and\s+)?(search|look|check|find|fetch|pull|dig|research|browse|see|grab|get)\b`),
@@ -43,7 +40,7 @@ const deferralHead = 240
 // that opened with one and then wrote two thousand characters did the work.
 const deferralMax = 1200
 
-// isDeferral reports whether a reply puts the work off rather than doing it.
+// isDeferral reports whether a reply puts the work off instead of doing it.
 func isDeferral(reply string) bool {
 	s := strings.TrimSpace(reply)
 	if s == "" || len(s) > deferralMax {
@@ -66,18 +63,17 @@ var refusal = regexp.MustCompile(`(?i)\b(i|we) (cannot|can'?t|could not|couldn'?
 // off wherever the line falls, so this one is matched anywhere too.
 var noFigures = regexp.MustCompile(`(?i)\b(i|we) (do not|don'?t) have (any |the |hard |current |recent |up ?to ?date |exact |reliable )*(figures|numbers|data|stats|statistics|details)\b`)
 
-// The tool results die with the turn and only the answers survive, so a model
-// reading its own earlier answer treats it as evidence and writes it out again.
-// Six word shingles against every earlier answer catch that, and the floor sits
-// between what a rehash scores and what a real follow-up does.
+// Tool results die with the turn and only answers survive, so a model reads its
+// own earlier answer as evidence and writes it out again. Six word shingles catch
+// that, and the floor sits between what a rehash scores and what a follow-up does.
 const (
 	repeatShingle = 6
 	repeatOverlap = 0.30
 	// Below this a draft is too short for the overlap to mean anything. A one
 	// line answer to "why?" shares its whole vocabulary with what came before.
 	repeatMinShingles = 20
-	// A written answer that is mostly an earlier one, which is a copy rather than
-	// a follow-up leaning on what it said.
+	// A written answer that's mostly an earlier one is a copy and not a follow-up
+	// leaning on what it said.
 	copiedOverlap = 0.60
 )
 
@@ -121,11 +117,9 @@ func shingles(s string) map[string]bool {
 	return out
 }
 
-// The gate runs when the model stops calling tools and wants to answer.
-//
-// Two fields and one of them an enum, since a small model handed a free reasoning field
-// beside a constrained one writes the reasoning and then contradicts it. A
-// verdict without a query sends the model back to the search it already ran.
+// The gate runs when the model stops calling tools and wants to answer. There's no
+// reasoning field, since a small model writes the reasoning and then contradicts it
+// in the enum, and a verdict without a query sends it back to the search it ran.
 type verdict struct {
 	Verdict string `json:"verdict"`
 	Query   string `json:"query"`
@@ -178,7 +172,7 @@ var freshnessSchema = map[string]any{
 	"additionalProperties": false,
 }
 
-// One question rather than the eight the draft check weighs at once, since a 9B
+// One question instead of the several the draft check weighs at once, since a 9B
 // asked for a single judgement gets it right far more often.
 const freshnessSystem = `Decide whether answering the user's question correctly needs information you could not have from training alone, because it changes over time or has happened since.
 
@@ -191,8 +185,8 @@ false when the answer is a definition, an explanation, how something works, hist
 When needs_fresh is true, query is the single web search that would answer it, written as a person would type it. When it is false, query is an empty string.`
 
 // The second narrow question, asked of a draft that fetched nothing and passed
-// the freshness check. What goes wrong there is specifics written from memory,
-// so it is asked of the draft rather than of the question, which is often vague.
+// the freshness check. The trouble there is specifics written from memory, so
+// it's asked of the draft instead of the question, which is often vague.
 type grounding struct {
 	NeedsCheck bool   `json:"needs_check"`
 	Query      string `json:"query"`
@@ -238,8 +232,8 @@ func (e *Engine) needsChecking(ctx context.Context, question, draft string) (gro
 }
 
 // needsFresh reports whether the question wants current information. A failure
-// is a no, for the same reason the draft check fails open: a turn that cannot
-// reach the model to ask is not a turn to send round again.
+// is a no, since a turn that can't reach the model to ask isn't a turn to send
+// round again.
 func (e *Engine) needsFresh(ctx context.Context, question string) (freshness, Stats) {
 	msgs := []Message{
 		{Role: RoleSystem, Content: freshnessSystem},
@@ -261,8 +255,8 @@ func (e *Engine) enough(ctx context.Context, question, draft, background string,
 	b.WriteString("Question:\n")
 	b.WriteString(strings.TrimSpace(question))
 	if len(previous) > 0 {
-		// Without this the gate cannot tell a fresh answer from the last one
-		// written out again, which is the whole failure on a follow-up.
+		// Without this the gate can't tell a fresh answer to a follow-up from the
+		// last one written out again.
 		b.WriteString("\n\nAnswers already given earlier in this conversation:\n")
 		for _, p := range previous {
 			b.WriteString("- ")
@@ -311,8 +305,8 @@ var (
 )
 
 // countsUpInProse is true for a draft that states a total over several numbers
-// it worked out itself. Three is the floor: two numbers and a total is usually
-// a comparison, and one is a quantity rather than a sum.
+// it worked out itself. Three is the floor, since two numbers and a total is
+// usually a comparison and one is just a quantity.
 func countsUpInProse(draft string) bool {
 	clean := citeNum.ReplaceAllString(draft, " ")
 	if !totalWord.MatchString(clean) {
@@ -324,11 +318,8 @@ func countsUpInProse(draft string) bool {
 }
 
 // copiedTheNumbers reports that every figure in the draft already appears in a
-// tool result from this turn, so the model transcribed rather than computed.
-//
-// Some tools add up for it. The property one returns an all-in monthly worked
-// out in Go and a table built from it, and sending that back to be totalled with
-// calc spent two rounds re-deriving a number that was already right.
+// tool result from this turn, so the model transcribed instead of computing. Some
+// tools add up for it, like property's all-in monthly, and calc would only redo it.
 func copiedTheNumbers(draft string, used []tools.Result) bool {
 	if len(used) == 0 {
 		return false
@@ -360,7 +351,7 @@ func copiedTheNumbers(draft string, used []tools.Result) bool {
 }
 
 // A total line an attached document prints on its own, with nothing after the
-// amount, which is what a reading of its columns has to agree with.
+// amount, and a reading of its columns has to agree with it.
 var totalLine = regexp.MustCompile(`(?im)^\s*(?:grand\s+total|total(?:\s+due)?|amount\s+due|balance\s+due)\s*:?\s*\$?\s*(\d[\d,]*\.\d{2})\s*$`)
 
 // printedTotal is the last total line of the attached files, and only when he
@@ -430,17 +421,16 @@ func calcNudge() string {
 }
 
 // propertyNudge is what a thin draft gets when the property tool already ran. A
-// house is answered out of public records and not off the web, so sending it to
-// a search there can only contradict what it was handed, and the sections it has
-// not read yet are the thing it is actually missing.
+// web search can only contradict the public records it was handed, and the
+// sections it hasn't read yet are what it's missing.
 func propertyNudge() string {
 	return "That does not cover the house yet. Call property again for the sections you have not " +
 		"read, using the same address, and answer from those. Do not search the web for it. " +
 		"If the result gave you a cost table, print that table as it came and keep it in the answer."
 }
 
-// A house number, a street name and a street type, which is what every chip and
-// every listing carries.
+// A house number, a street name and a street type, as every chip and every
+// listing carries.
 var streetAddress = regexp.MustCompile(`(?i)\b\d{1,6}\s+(?:[a-z0-9.'-]+\s+){1,4}(?:rd|road|st|street|dr|drive|ln|lane|ave|avenue|blvd|boulevard|ct|court|hwy|highway|way|pl|place|cir|circle|trl|trail|pkwy|parkway|loop|ter|terrace|run|pike)\b`)
 
 func namesAnAddress(question string) bool { return streetAddress.MatchString(question) }
@@ -472,9 +462,9 @@ func wikiNudge(subject string) string {
 		"Call wikipedia with " + quoted(s) + " now, read the article, and correct the answer rather than repeating it."
 }
 
-// What a rehash is told, which has to say why rather than just no. A model sent
-// back with the generic nudge writes the same answer a third time, since as far
-// as it can see it already has the material.
+// What a rehash is told has to say why and not just no, since a model sent back
+// with the generic nudge writes the same answer a third time, and as far as it
+// can see it already has the material.
 func repeatNudge() string {
 	return "That is the answer you already gave, and it does not address what this question adds. " +
 		"The tool results from the earlier turns are gone and the pages behind them are not in front of you, so nothing there can be quoted or checked. " +
@@ -484,20 +474,18 @@ func repeatNudge() string {
 // Quoted so a multi word query is not read as part of the sentence around it.
 func quoted(s string) string { return "\"" + strings.ReplaceAll(s, "\"", "") + "\"" }
 
-// gate is the whole check. It returns the nudge to send the turn back with, or
-// an empty string to let the draft stand. The two free checks run first and the
-// model is only asked when neither fired. previous is what this conversation has
-// already answered, most recent last.
+// gate returns the nudge to send the turn back with, or empty to let the draft
+// stand. The free checks run before the model is asked, and previous is what this
+// conversation has already answered, most recent last.
 func (e *Engine) gate(ctx context.Context, question, draft string, previous []string, used []tools.Result, emit func(Event)) (string, Stats) {
-	// Sending a turn back to research while the search endpoint is in the penalty
-	// box is a loop that cannot succeed, so every nudge below that names a search
-	// is held back. The local snapshot is not, since it is a container on the
-	// bridge and nothing there is refusing us.
+	// With the search endpoint in the penalty box a nudge that names a search is a
+	// loop that can't succeed. The local snapshot is still asked, since it's a
+	// container on the bridge and nothing there is refusing us.
 	_, searchDown := e.SearchDown()
 	if searchDown {
 		return e.gateOffline(ctx, question, draft, used, emit)
 	}
-	// A news rundown is finished when it arrives. The gate reads a list of twenty
+	// A news rundown is finished when it arrives. The gate reads a list of
 	// stories as an answer that covers part of the question, so left alone it
 	// sends the turn back and the rundown becomes a single story write up.
 	if calledNews(used) {
@@ -509,19 +497,15 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 		return "", Stats{}
 	}
 	// A follow up chip names the house and the model answers it from the last
-	// reply, which reads to the freshness check as local and current, so it went
-	// to the web and came back saying the lot's own flood zone was unknown.
+	// reply, which the freshness check reads as local and current and would send
+	// to the web instead of to property.
 	if len(used) == 0 && namesAnAddress(question) {
 		emit(Event{Kind: "status", Text: "looking it up"})
 		return addressNudge(), Stats{}
 	}
-	// Asked of the question and before anything reads the draft, since the failure
-	// this catches is a draft that sounds like an answer. A turn that already
-	// fetched something is left alone.
 	var st Stats
-	// A remark about the last answer gets a remark back. Sent to research, "that's
-	// pretty major is it not?" became three more searches and a longer rewrite
-	// of the answer he was reacting to.
+	// A remark about the last answer gets a remark back, since sent to research it
+	// becomes more searches and a longer rewrite of the answer he was reacting to.
 	if len(used) == 0 && isRemark(question, previous) {
 		if isDeferral(draft) {
 			return researchNudge(""), st
@@ -531,6 +515,8 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 		}
 		return "", st
 	}
+	// Asked of the question before anything reads the draft, since the failure
+	// this catches is a draft that sounds like an answer.
 	if len(used) == 0 {
 		f, fst := e.needsFresh(ctx, question)
 		st.merge(fst)
@@ -565,9 +551,9 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 		emit(Event{Kind: "status", Text: "checking the date"})
 		return wrong, st
 	}
-	// Before the model check, since it costs nothing and the model check has
-	// never once objected to a wrong sum. Only when the question is about an
-	// amount, since the rules of gin rummy mention a total and got sent to calc.
+	// Before the model check, since it costs nothing and the model check doesn't
+	// object to a wrong sum. Only when the question is about an amount, since the
+	// rules of gin rummy mention a total.
 	if !calledTool(used, tools.Calc.Name) && asksForAmount(question) && countsUpInProse(draft) && !copiedTheNumbers(draft, used) {
 		emit(Event{Kind: "status", Text: "adding it up"})
 		return calcNudge(), st
@@ -579,9 +565,9 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 		emit(Event{Kind: "status", Text: "checking it"})
 		return researchNudge(""), st
 	}
-	// Names and years a turn that looked things up never found. The Caveat draft
-	// dated a 2020 horror film to 1969 and cast it from memory, with the search
-	// result saying 2020 sitting right there, and the model check let it go.
+	// Names and years a turn that looked things up never found, since a draft will
+	// date and cast a film from memory with the search result right there, and the
+	// model check lets it go.
 	if len(used) > 0 && !calledTool(used, tools.PropertyTool.Name) {
 		if missing := unsupported(draft, question, previous, used, e.local()); len(missing) > 0 {
 			emit(Event{Kind: "status", Text: "checking it"})
@@ -596,16 +582,13 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 			return researchNudge(ownQuery(g.Query, draft, question, previous, used)), st
 		}
 	}
-	// A house answered out of the public record is not something a second opinion
-	// can improve. Asked anyway it sent a jobs question back twice for sections
-	// nobody asked about, and the answer filled up with the racetrack and the
-	// county income.
+	// A second opinion can't improve a house answered out of the public record, and
+	// asked anyway it sends the turn back for sections nobody asked about.
 	if calledTool(used, tools.PropertyTool.Name) {
 		return "", st
 	}
 	// His own sites are the record of themselves, and the check reads each
-	// result cut short, so it sent a right answer about his blog's top pages
-	// off to search the web for them.
+	// result cut short and would send a right answer off to the web.
 	if calledEstate(used) {
 		return "", st
 	}
@@ -632,9 +615,8 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 		return "", st
 	}
 	emit(Event{Kind: "status", Text: "looking it up"})
-	// The snapshot already has the article, so sending it to a web search for
-	// something a local call answers in milliseconds is the slower way to be
-	// right.
+	// The snapshot already has the article, so the turn goes back to the local
+	// call instead of a web search.
 	if background != "" {
 		return wikiNudge(subjectOf(question)), st
 	}
@@ -642,8 +624,7 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 }
 
 // ownQuery drops the words a search was asked for that only the draft ever
-// said. Built from a draft that invented Maze War and Doom, the search went
-// for them and the answer told him they were not what he was after.
+// said, or a search built off what the draft invented goes looking for it.
 func ownQuery(query, draft, question string, previous []string, used []tools.Result) string {
 	var hay strings.Builder
 	hay.WriteString(question + "\n" + strings.Join(previous, "\n"))
@@ -722,8 +703,8 @@ func saysTimeLeft(draft, left string) bool {
 	return true
 }
 
-// countdownLeft is the time left a clock reading in the turn worked out, which
-// the draft said was 8 minutes when it was an hour and 2.
+// countdownLeft is the time left a clock reading in the turn worked out, since
+// a draft does that arithmetic in its head and gets it wrong.
 func countdownLeft(used []tools.Result) string {
 	for _, r := range used {
 		if m, ok := r.Content.(map[string]any); ok && r.Name == tools.Now.Name && r.Err == "" {
@@ -744,7 +725,7 @@ func calledTool(used []tools.Result, name string) bool {
 	return false
 }
 
-// A follow up that reacts to the last answer rather than asking for anything.
+// A follow up that reacts to the last answer instead of asking for anything.
 var (
 	remarkShape = regexp.MustCompile(`(?i)\b(in my opinion|i think|i feel|seems?|tempting|pretty (major|big|bad|good|wild|crazy|cool)|is it not|isn'?t it|lol|haha|not that (big|much|bad)|makes sense|fair enough|interesting|wild|crazy|exciting|fascinating|riveting|boring|thanks|thank you|good to know|neat|funny)\b|^\s*(hm+|oh+|ah+|wow|yeah|ok(ay)?|nice|cool|huh)\b`)
 	askingFor   = regexp.MustCompile(`(?i)\b(what|when|where|who|which|why|how (much|many|long|big|do|does|did|can|would|is|are)|can (i|you|we)|could (i|you|we)|should (i|we)|is there|are there|tell me|show me|find|look up|search)\b`)
@@ -843,8 +824,7 @@ func unsupportedNudge(missing []string) string {
 }
 
 // A reply to a remark that brings figures or names nothing in the conversation
-// had. Let straight through, "that's pretty major" got a 93 minutes and 33
-// seconds and a config file that do not exist.
+// had, which the model invents when it's let straight through.
 func remarkAddsFacts(draft, question string, previous []string, now time.Time) bool {
 	if len(unsupported(draft, question, previous, nil, now)) > 0 {
 		return true

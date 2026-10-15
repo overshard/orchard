@@ -8,18 +8,12 @@ import (
 	"chat.bythewood.me/property"
 )
 
-// House hunting, which used to be a dashboard of its own and is better as a
-// conversation. The dashboard could show everything at once and could not answer
-// a question, and every question about a house is a follow up: what about the
-// flood zone, what if we put 10% down, what would USDA cost instead.
-//
-// The engine behind this caches every lookup and the assembled report, so the
-// first question about an address costs a minute of somebody else's servers and
-// every question after it is free.
+// House hunting works as a conversation since every question about a house is a
+// follow up. The engine caches every lookup and the report, so only the first
+// question about an address costs a minute of somebody else's servers.
 
-// Property is the lookup engine, an interface for the same reason Memory is: a
-// test wants a fake, and a turn where it is not wired must say so rather than
-// panic.
+// Property is an interface so a test can fake it, and a turn where it isn't
+// wired must say so instead of panicking.
 type Property interface {
 	Lookup(ctx context.Context, address string, opt property.Options) (*property.Report, error)
 	Quote(ctx context.Context, in property.LoanInput) ([]property.Quote, property.Market, error)
@@ -93,16 +87,15 @@ var PropertyTool = Tool{
 			out["note"] = "some of this is still being looked up. Say what is here and that the rest is coming, " +
 				"and ask the same thing again in a minute rather than guessing at the gaps."
 		}
-		// The chips under the answer, rather than a list the model has to repeat
-		// and can mangle. Eleven sections are invisible to somebody who does not
-		// already know they are there, which is the whole reason a question about
-		// a person in the house went to the encyclopedia instead.
+		// The chips under the answer, instead of a list the model has to repeat and
+		// can mangle, since sections nobody knows are there go unasked and a question
+		// about a person in the house ends up at the encyclopedia.
 		if asks := rep.Prompts(); len(asks) > 0 {
 			d.Widgets.Add(Widget{Kind: "prompts", Label: rep.Address, Asks: asks})
 		}
 		out["other_sections"] = property.Aspects
 		// What is left to spend, so a model deciding whether to look up a second
-		// address can see the cost rather than find out by being refused.
+		// address can see the cost instead of finding out by being refused.
 		if hourLeft <= 2 {
 			out["new_addresses_left"] = fmt.Sprintf(
 				"%d more this hour and %d today. A section of an address already looked up is free.",
@@ -160,7 +153,7 @@ var Mortgage = Tool{
 
 		want := strings.ToLower(argStr(a, "loan_type"))
 		// A report is the thing that knows how to write a quote for a model, so
-		// the loose quotes are hung on one rather than formatted twice.
+		// the loose quotes are hung on one instead of formatted twice.
 		rep := &property.Report{Price: price, County: argStr(a, "county"), Quotes: quotes, Market: market}
 		if want != "" && want != "all" {
 			var kept []property.Quote

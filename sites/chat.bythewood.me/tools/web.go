@@ -15,7 +15,7 @@ var (
 	ddgResult = regexp.MustCompile(`(?is)<a rel="nofollow" class="result__a" href="(.*?)".*?>(.*?)</a>.*?class="result__snippet".*?>(.*?)</a>`)
 	tagStrip  = regexp.MustCompile(`(?is)<[^>]+>`)
 	// RE2 has no backreferences, so a paired tag needs its own expression
-	// rather than one alternation closing on \1.
+	// instead of one alternation closing on \1.
 	blockTags = func() []*regexp.Regexp {
 		var out []*regexp.Regexp
 		for _, t := range []string{"script", "style", "nav", "header", "footer", "aside", "form", "svg", "noscript", "template"} {
@@ -31,9 +31,8 @@ var (
 	blankRun = regexp.MustCompile(`\n{3,}`)
 )
 
-// Text pulls readable prose out of an HTML page. Forty lines of standard
-// library beat a readability port on real article pages when this was measured
-// for search, and it keeps the byline and the date that readability throws away.
+// Text pulls readable prose out of an HTML page, and keeps the byline and the
+// date that a readability port throws away.
 func Text(h string) string {
 	for _, re := range blockTags {
 		h = re.ReplaceAllString(h, " ")
@@ -97,7 +96,7 @@ var WebSearch = Tool{
 }
 
 // parseDDG pulls the results out of a DuckDuckGo HTML page. A limit of zero
-// means every one, which is what a caller filtering them itself needs.
+// means every one, for a caller filtering them itself.
 func parseDDG(body string, limit int) []SearchHit {
 	var hits []SearchHit
 	for _, m := range ddgResult.FindAllStringSubmatch(body, -1) {
@@ -173,8 +172,7 @@ var (
 )
 
 // dirListing reads a server's index page as one row per file with its size in
-// gigabytes. Read as prose, a twelve digit byte count lost a digit on its way
-// into an answer, and 127GB became 12.7GB.
+// gigabytes, since a model reading a twelve digit byte count as prose drops a digit.
 func dirListing(h string) (string, bool) {
 	title := listingTitle.FindStringSubmatch(h)
 	if title == nil {

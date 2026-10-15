@@ -13,7 +13,7 @@ import (
 
 // stubModel answers every decide call with the same failing calc call, so the
 // round loop is driven without a model anywhere near it. The last reply has no
-// tool calls, which is what the answer step looks like.
+// tool calls, like the answer step.
 type stubModel struct {
 	mu     sync.Mutex
 	rounds int

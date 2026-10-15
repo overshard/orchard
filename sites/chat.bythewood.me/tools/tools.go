@@ -1,9 +1,6 @@
-// Package tools is what the model can do besides talk. Every backend here is
-// keyless and reachable from a scratch image over HTTPS, since a tool that needs
-// an account stops working when a key expires and nobody notices.
-//
-// A tool answers with a Go value that becomes JSON and never with prose. The
-// model writes the prose and the tool supplies the facts.
+// Package tools is what the model can do besides talk. Every backend is keyless,
+// since a tool that needs an account stops working when a key expires and nobody
+// notices, and a tool answers with JSON and leaves the prose to the model.
 package tools
 
 import (
@@ -19,11 +16,9 @@ import (
 	"time"
 )
 
-// UserAgent is a browser string because several of these endpoints answer 403
-// to anything that looks automated.
-// Chrome on Windows since it is the commonest thing an edge sees, and current
-// because a two year old version on X11 Linux is a combination almost nothing
-// real sends. Chrome itself zeroes the last two version fields.
+// UserAgent is a current Chrome on Windows because several of these endpoints
+// answer 403 to anything that looks automated, and an old version on Linux is a
+// combination almost nothing real sends. Chrome itself zeroes the last two fields.
 const UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36"
 
 // Chrome sends these on every request, so a Chrome user agent arriving without
@@ -52,44 +47,44 @@ type Tool struct {
 	Run         func(ctx context.Context, d *Deps, args map[string]any) (any, error)
 }
 
-// Deps is what every tool shares. Passing a clock rather than calling
-// time.Now means a test can sit on a fixed day, which matters for anything
-// that decides what "this weekend" is.
+// Deps is what every tool shares. Now is a clock instead of time.Now so a test
+// can sit on a fixed day, which matters for anything that decides what "this
+// weekend" is.
 type Deps struct {
-	// HTTP reaches anything, and is what the orchard tools use to read this
-	// machine's own services by container name.
+	// HTTP reaches anything, including this machine's own services by container
+	// name for the orchard tools.
 	HTTP *http.Client
-	// Public refuses to connect to this machine or its network, and is what
-	// every tool that takes a url from the model goes through.
+	// Public refuses to connect to this machine or its network, and every tool
+	// that takes a url from the model goes through it.
 	Public  *http.Client
 	Now     func() time.Time
 	Guard   *Guard
 	Budgets *Budgets
 
 	// The session of whoever is chatting, forwarded by the orchard tools so
-	// each site does its own check. It is per turn rather than per process,
-	// so it is set on a copy and never on the shared Deps.
+	// each site does its own check. It's per turn, so it is set on a copy and
+	// never on the shared Deps.
 	Session string
 
 	// Where a tool hangs a chart or a forecast for the page to draw. Per turn
 	// and on the copy, for the same reason the session is.
 	Widgets *Sink
 
-	// Memory is the site's own fact store, so the remember tool can write to
-	// the database this process owns rather than to a service over http.
+	// Memory is the site's own fact store, so the remember tool writes to the
+	// database this process owns instead of to a service over http.
 	Memory Memory
 	// History is the site's own conversation store, for the same reason.
 	History History
-	// Property is the house lookup engine, wired the same way and for the same
-	// reason: it owns tables in the site's database.
+	// Property is the house lookup engine, wired the same way since it owns
+	// tables in the site's database.
 	Property Property
-	// Whether this turn is incognito, which a tool that reaches a service with
-	// a model behind it has to pass along. Per turn and on the copy too.
+	// A tool that reaches a service with a model behind it has to pass this
+	// along. Per turn and on the copy too.
 	Incognito bool
 
-	// Images draws pictures. OnImage is where the turn wants to hear how one is
-	// getting on, and Picture is the one the turn already showed as expected.
-	// Both are per turn and set on the copy.
+	// OnImage is where the turn wants to hear how a picture is getting on, and
+	// Picture is the one the turn already showed as expected. Both per turn and
+	// set on the copy.
 	Images  Images
 	OnImage func(ImageProgress)
 	Picture *ImageProgress
@@ -100,9 +95,8 @@ type Deps struct {
 }
 
 // WithSession returns a copy carrying one turn's session and its own widget
-// sink. A copy because Deps is shared across every turn, and writing either of
-// those onto it would hand one person's session, and one turn's charts, to the
-// next request.
+// sink, since Deps is shared across every turn and writing either onto it would
+// hand one person's session and one turn's charts to the next request.
 func (d *Deps) WithSession(session string) *Deps {
 	c := *d
 	c.Session = session
@@ -115,35 +109,30 @@ func NewDeps() *Deps {
 		HTTP:   &http.Client{Timeout: 25 * time.Second},
 		Public: publicClient(25 * time.Second),
 		Now:    time.Now,
-		// One host that starts refusing keeps refusing for a while, and asking
-		// it again in the meantime is what keeps a rate limit alive rather than
-		// letting it expire. See the DuckDuckGo and ESPN bans this was written
-		// after.
+		// A host that starts refusing keeps refusing for a while, and asking it
+		// again in the meantime keeps a rate limit alive instead of letting it expire.
 		Guard: NewGuard(10 * time.Minute),
 		// What we allow ourselves, as opposed to what a host has told us. A gap
-		// bounds the rate and this bounds the total, and only the second one
-		// stops a long turn spending a day's searches on one question.
+		// bounds the rate but only a total stops a long turn spending a day's
+		// searches on one question.
 		Budgets: NewBudgets(),
 	}
 }
 
-// Guard is a per host circuit breaker. Anything that answers with a refusal puts
-// its host in the penalty box, and every call to that host fails locally until
-// the box empties.
-// Store is however the caller persists the penalty box, an interface so this
-// package stays a leaf and does not import the database.
+// PenaltyStore is an interface so this package stays a leaf and doesn't import
+// the database.
 type PenaltyStore interface {
 	SavePenalty(host string, till time.Time, trips int)
 	ClearPenalty(host string)
 }
 
+// Guard is a per host circuit breaker. A host that refuses goes in the penalty
+// box, and every call to it fails locally until the box empties.
 type Guard struct {
 	mu   sync.Mutex
 	till map[string]time.Time
 	last map[string]time.Time
-	// How many times in a row a host has refused. Asking again the moment a
-	// ten minute box empties is what keeps a rate limit alive, so each repeat
-	// doubles the wait instead of poking the same endpoint six times an hour.
+	// How many times in a row a host has failed, saved with the box.
 	trips map[string]int
 	cool  time.Duration
 	store PenaltyStore
@@ -156,9 +145,9 @@ func NewGuard(cool time.Duration) *Guard {
 	}
 }
 
-// Wait blocks until this host may be called again. Holding the lock across the
-// sleep is what makes two turns asking the same host queue, rather than both
-// deciding the gap has passed, so do not narrow it.
+// Wait blocks until this host may be called again. The lock is held across the
+// sleep so two turns asking the same host queue instead of both deciding the gap
+// has passed, so don't narrow it.
 func (g *Guard) Wait(host string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -181,26 +170,20 @@ func (g *Guard) Blocked(host string) (bool, time.Duration) {
 	return true, time.Until(t)
 }
 
-// How long a host that refused is left completely alone.
-//
-// Long and flat rather than short and escalating. A ten minute box means asking
-// again six times an hour against an endpoint that has already said no, which is
-// how a soft limit turns into a hard one, and there is no signal that a ban has
-// lifted other than a call.
+// Long and flat, since a short box asks again several times an hour against an
+// endpoint that already said no, which turns a soft limit into a hard one, and
+// nothing but a call says a ban has lifted.
 const refusalCool = 6 * time.Hour
 
-// A page that timed out or redirected somewhere that failed is not a host
-// refusing us, and boxing it for six hours reads as a ban that never happened.
-// Long enough to stop a turn hammering the same dead address, short enough that
-// the next question can try again.
+// A page that timed out isn't a host refusing us, so this is long enough to stop
+// a turn hammering a dead address and short enough that the next question can try.
 const stumbleCool = 5 * time.Minute
 
-// Trip is for a host that said no in as many words, a 202 or a 429. That is the
-// case the long box was written for.
+// Trip is for a host that said no in as many words, a 202 or a 429.
 func (g *Guard) Trip(host string) { g.box(host, refusalCool) }
 
-// Stumble is for a request that failed without the host refusing anything: a
-// timeout, a dead name, a redirect to somewhere that would not answer.
+// Stumble is for a request that failed without the host refusing anything, like
+// a timeout, a dead name, or a redirect to somewhere that wouldn't answer.
 func (g *Guard) Stumble(host string) { g.box(host, stumbleCool) }
 
 func (g *Guard) box(host string, cool time.Duration) {
@@ -231,8 +214,8 @@ func (g *Guard) Restore(store PenaltyStore, saved map[string][2]int64) {
 	}
 }
 
-// Cleared on a call that worked, so one bad afternoon does not leave a host on
-// a four hour backoff for the rest of the process.
+// OK clears the trip count on a call that worked, so one bad afternoon doesn't
+// follow a host around for the rest of the process.
 func (g *Guard) OK(host string) {
 	g.mu.Lock()
 	_, had := g.trips[host]
@@ -245,7 +228,7 @@ func (g *Guard) OK(host string) {
 }
 
 // Down is every host currently in the penalty box, so the page can say search
-// is unavailable rather than letting each turn discover it again.
+// is unavailable instead of each turn discovering it again.
 func (g *Guard) Down() map[string]time.Duration {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -263,14 +246,12 @@ func (g *Guard) Down() map[string]time.Duration {
 // cannot look anything up and every other tool is narrower.
 const SearchHost = "html.duckduckgo.com"
 
-// get fetches a URL through the breaker and returns the body.
 func get(ctx context.Context, d *Deps, url string, accept string) ([]byte, error) {
 	return getWith(ctx, d, url, accept, nil)
 }
 
-// getWith is get plus per host headers, which exists because pollen.com refuses
-// a request that arrives without a Referer naming the page its own front end
-// would have been on.
+// getWith takes per host headers because pollen.com refuses a request without a
+// Referer naming the page its own front end would have been on.
 func getWith(ctx context.Context, d *Deps, url string, accept string, extra map[string]string) ([]byte, error) {
 	host := hostOf(url)
 	if blocked, left := d.Guard.Blocked(host); blocked {
@@ -316,9 +297,8 @@ func getWith(ctx context.Context, d *Deps, url string, accept string, extra map[
 	if err != nil {
 		return nil, err
 	}
-	// 202 is how both DuckDuckGo and ESPN say no. It reads as an empty result
-	// rather than a refusal, which is worse than an error, so it is turned into
-	// one here. This and a 429 are the only two the long box is for.
+	// 202 is how both DuckDuckGo and ESPN say no, and it reads as an empty result
+	// unless it's turned into an error here. This and a 429 get the long box.
 	if resp.StatusCode == http.StatusAccepted || resp.StatusCode == http.StatusTooManyRequests {
 		d.Guard.Trip(host)
 		return nil, fmt.Errorf("%s is rate limiting us (status %d)", host, resp.StatusCode)
@@ -380,8 +360,8 @@ func transportReason(err error) string {
 	case strings.Contains(s, "certificate"):
 		return "its certificate did not check out"
 	}
-	// A redirect chain names the address it ended on, which is not the one that
-	// was asked for, so the bare url is dropped rather than reported as a host.
+	// A redirect chain names the address it ended on and not the one asked for,
+	// so the url is dropped instead of being reported as the host that failed.
 	if i := strings.Index(s, ": "); i > 0 && strings.HasPrefix(s, "Get \"") {
 		return strings.TrimSpace(s[i+2:])
 	}
@@ -396,7 +376,6 @@ func hostOf(url string) string {
 	return s
 }
 
-// Registry is the set of tools the model is offered.
 type Registry struct {
 	byName map[string]Tool
 	order  []string
@@ -414,10 +393,9 @@ func (r *Registry) Add(t Tool) {
 func (r *Registry) Get(name string) (Tool, bool) { t, ok := r.byName[name]; return t, ok }
 func (r *Registry) Names() []string              { return append([]string(nil), r.order...) }
 
-// Schemas renders the registry as the OpenAI tools array.
-// Without drops one schema from an offer. Taking a tool off the table is how
-// this harness stops something it cannot afford twice, the same way the repeat
-// ledger does, because a rule in the prompt is a request and this is not.
+// Without drops one schema from an offer. Taking a tool off the table stops
+// something the harness can't afford twice, since a rule in the prompt is only
+// a request.
 func Without(schemas []map[string]any, name string) []map[string]any {
 	out := make([]map[string]any, 0, len(schemas))
 	for _, s := range schemas {
@@ -431,6 +409,7 @@ func Without(schemas []map[string]any, name string) []map[string]any {
 	return out
 }
 
+// Schemas renders the registry as the OpenAI tools array.
 func (r *Registry) Schemas() []map[string]any {
 	out := make([]map[string]any, 0, len(r.order))
 	for _, n := range r.order {
@@ -447,10 +426,9 @@ func (r *Registry) Schemas() []map[string]any {
 	return out
 }
 
-// Call runs one tool. A tool that fails returns its error as content rather
-// than blowing up the turn, because "the search engine is refusing us" is
-// something the model should say out loud rather than something that should
-// end the conversation.
+// Call returns a failed tool's error as content instead of ending the turn,
+// because "the search engine is refusing us" is something the model should say
+// out loud.
 func (r *Registry) Call(ctx context.Context, d *Deps, name string, raw json.RawMessage) Result {
 	start := time.Now()
 	res := Result{Name: name, Args: raw}
@@ -483,7 +461,6 @@ func (r *Registry) Call(ctx context.Context, d *Deps, name string, raw json.RawM
 	return res
 }
 
-// helpers for reading loosely typed arguments off a model
 func argStr(a map[string]any, k string) string {
 	if v, ok := a[k]; ok {
 		if s, ok := v.(string); ok {
@@ -538,9 +515,8 @@ func integer(desc string) map[string]any {
 	return map[string]any{"type": "integer", "description": desc}
 }
 
-// Only narrows an offer to the named tools. Without drops the one thing a turn
-// must not do again, this is the other end of it, for a turn with one job to do
-// where every other tool is a way to get lost.
+// Only narrows an offer to the named tools, for a turn with one job to do where
+// every other tool is a way to get lost.
 func Only(schemas []map[string]any, names ...string) []map[string]any {
 	var out []map[string]any
 	for _, s := range schemas {

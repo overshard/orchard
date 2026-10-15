@@ -7,7 +7,7 @@ import (
 )
 
 // A step goes out as it happens, so the list fills in while the answer is still
-// being written rather than appearing whole at the end.
+// being written instead of appearing whole at the end.
 func TestAStepIsSentAsItHappens(t *testing.T) {
 	var sent []Event
 	tr := NewTrace(func(e Event) { sent = append(sent, e) })
@@ -53,7 +53,7 @@ func TestTheStepCountIsCapped(t *testing.T) {
 }
 
 // A nil trace is what the tests and any caller that does not want one pass, and
-// it has to be usable rather than a panic waiting in the turn loop.
+// it has to be usable and not a panic waiting in the turn loop.
 func TestANilTraceIsSafe(t *testing.T) {
 	var tr *Trace
 	tr.Add(Step{Kind: "model"})

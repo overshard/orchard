@@ -6,21 +6,9 @@ import (
 	"time"
 )
 
-// A spend limit on the hosts that ban an address for asking too often.
-//
-// A gap between calls bounds the rate and nothing bounded the total. Six seconds
-// of spacing was already in place and DuckDuckGo blocked the address anyway,
-// since a model given six tool rounds can spend an afternoon's worth of searches
-// on one question and still honour every gap.
-//
-// So there are three ceilings and a call has to clear all of them. When one is
-// spent, searching stops and says so, which lets the limit expire instead of
-// renewing it.
-//
-// The numbers are held well under what the duckduckgo_search library and the
-// people running into this recommend, which is two seconds between calls,
-// fifteen after an error and under thirty requests a minute. Nothing official
-// is published.
+// budget is a spend limit for hosts that ban an address for asking too often. A
+// gap only bounds the rate and DuckDuckGo blocked us with every gap honoured, so a
+// spent ceiling stops the calls and lets the host's limit expire instead of renewing it.
 type budget struct {
 	gap    time.Duration
 	minute int
@@ -29,24 +17,20 @@ type budget struct {
 }
 
 var budgets = map[string]budget{
-	// Six seconds is stricter than the two that library asks for and a person
-	// asking one question does not notice it, but a gap only bounds the rate.
-	//
-	// DuckDuckGo blocked this address for sustained volume rather than for a
-	// burst, so the ceilings are on the total and not only on the gap. Every
-	// search this site makes goes through this count.
+	// Well under the two second gap and thirty a minute the duckduckgo_search
+	// library suggests, since DuckDuckGo publishes nothing official.
 	SearchHost:                 {gap: 6 * time.Second, minute: 8, hour: 30, day: 200},
 	"cdn.espn.com":             {gap: 3 * time.Second, minute: 15, hour: 120, day: 900},
 	"query1.finance.yahoo.com": {gap: 3 * time.Second, minute: 15, hour: 120, day: 900},
 	"api.coingecko.com":        {gap: 2 * time.Second, minute: 20, hour: 200, day: 1500},
-	// The widget hosts. A chart the reader flips between four ranges is four
-	// calls in a few seconds, so the gap here is small and the ceiling is what
-	// stops a page left open from becoming a poller.
+	// The widget hosts. A reader flipping a chart between ranges makes a call
+	// each in a few seconds, so the gap is small and the ceiling stops a page left
+	// open from becoming a poller.
 	"query2.finance.yahoo.com":       {gap: 3 * time.Second, minute: 15, hour: 120, day: 900},
 	"api.open-meteo.com":             {gap: 500 * time.Millisecond, minute: 40, hour: 400, day: 3000},
 	"air-quality-api.open-meteo.com": {gap: 500 * time.Millisecond, minute: 40, hour: 400, day: 3000},
-	// Unofficial and the only pollen there is, so it is paced well under what
-	// dash already asks of it rather than at a limit nobody published.
+	// Unofficial and the only pollen there is, so it's paced well under what dash
+	// already asks of it.
 	"www.pollen.com": {gap: 2 * time.Second, minute: 10, hour: 60, day: 400},
 	// Nominatim's usage policy is one request a second at most.
 	"nominatim.openstreetmap.org": {gap: 1500 * time.Millisecond, minute: 10, hour: 60, day: 300},
@@ -68,8 +52,8 @@ type spend struct {
 	at []time.Time
 }
 
-// trim drops what has aged out of the longest window, which is what keeps the
-// slice from growing all day.
+// trim drops what has aged out of the longest window so the slice doesn't grow
+// all day.
 func (s *spend) trim(now time.Time) {
 	cut := now.Add(-24 * time.Hour)
 	i := 0
@@ -122,8 +106,8 @@ func (s *spend) left(now time.Time, b budget) (minute, hour, day int, free time.
 	return
 }
 
-// Budgets holds every host's spend. It is separate from the penalty box: the
-// box is what a host told us, and this is what we decided to allow ourselves.
+// Budgets holds the limits we set ourselves, kept apart from the penalty box,
+// which holds what a host told us.
 type Budgets struct {
 	mu  sync.Mutex
 	by  map[string]*spend
@@ -143,11 +127,9 @@ func (b *Budgets) get(host string) *spend {
 	return s
 }
 
-// Take records one call against a host, or refuses when a pool is spent. The
-// refusal names which ceiling and when it frees, because "search is off" with
-// no reason reads like a bug.
-// A nil Budgets allows everything, so a Deps built by hand in a test does not
-// panic in the one place every outbound call goes through.
+// Take records one call against a host, or refuses naming the spent ceiling and
+// when it frees, since "search is off" with no reason reads like a bug. A nil
+// Budgets allows everything so a Deps built by hand in a test doesn't panic.
 func (b *Budgets) Take(host string) error {
 	if b == nil {
 		return nil
@@ -175,8 +157,8 @@ func (b *Budgets) Take(host string) error {
 	return nil
 }
 
-// Left is what the page reports, so a reader can see the pool draining rather
-// than finding out when it is gone.
+// Left feeds the page, so a reader can see the pool draining instead
+// of finding out when it's gone.
 func (b *Budgets) Left(host string) (minute, hour, day int, free time.Duration) {
 	if b == nil {
 		return 0, 0, 0, 0
@@ -189,7 +171,7 @@ func (b *Budgets) Left(host string) (minute, hour, day int, free time.Duration) 
 	return s.left(now, budgetFor(host))
 }
 
-// Restore replays the timestamps the last process wrote, so a deploy does not
+// Restore replays the timestamps the last process wrote, so a deploy doesn't
 // hand the model a fresh day's allowance.
 func (b *Budgets) Restore(host string, at []time.Time) {
 	if b == nil {
@@ -202,8 +184,8 @@ func (b *Budgets) Restore(host string, at []time.Time) {
 	s.trim(b.now())
 }
 
-// Spent is what to persist, so the counts survive a restart the way the penalty
-// box does.
+// Spent is persisted so the counts survive a restart the way the penalty box
+// does.
 func (b *Budgets) Spent(host string) []time.Time {
 	if b == nil {
 		return nil

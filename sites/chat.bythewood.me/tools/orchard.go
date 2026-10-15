@@ -1,14 +1,8 @@
 package tools
 
-// The estate's own sites, read only.
-//
-// These are the one group of tools that reach something private. Each forwards
-// the session cookie of whoever is chatting and the site on the other end does
-// its own check against auth.bythewood.me, so this chat cannot read anything
-// the person using it could not already open in a browser.
-//
-// Every one is a GET against an endpoint that only reads, and there is not
-// going to be one here that changes anything.
+// The estate's own sites, read only. Each tool forwards the session of whoever is
+// chatting and the site does its own check against auth.bythewood.me, so this
+// chat can't read anything the person couldn't already open in a browser.
 
 import (
 	"context"
@@ -23,14 +17,12 @@ import (
 	"strings"
 )
 
-// SessionCookie is the name web/session.go uses, repeated here rather than
+// SessionCookie is the name web/session.go uses, repeated here instead of
 // imported because tools is a leaf package.
 const SessionCookie = "bw_session"
 
-// Site names resolve on the bridge, so these never leave the machine and never
-// pass through Cloudflare.
-// Vars rather than constants so a test can stand a real server up in front of
-// one.
+// Site names resolve on the bridge so these never pass through Cloudflare, and
+// they're vars so a test can stand a real server up in front of one.
 var (
 	loggingBase   = "http://orchard-logging:8000"
 	statusBase    = "http://orchard-status:8000"
@@ -40,13 +32,12 @@ var (
 )
 
 // errEstateMissing is a 404 from one of the sites, which for a tool walking a
-// repository is a path that is not there rather than a failure.
+// repository is a path that isn't there, not a failure.
 var errEstateMissing = fmt.Errorf("no such path")
 
-// estateGet fetches one of the sites with the caller's session on it. It does
-// not go through get(): the Guard exists for third party endpoints that rate
-// limit this address, and putting a container on the bridge in the penalty box
-// would take a whole site out over a blip nobody else is throttling.
+// estateGet skips get() since the Guard is for third party endpoints that rate
+// limit this address, and boxing a container on the bridge would take a whole
+// site out over a blip.
 func estateGet(ctx context.Context, d *Deps, rawURL string, into any) error {
 	if d.Session == "" {
 		return fmt.Errorf("this needs you to be signed in, and the turn carried no session")
@@ -174,8 +165,8 @@ var OrchardAnalytics = Tool{
 }
 
 // labelFirst turns each {"count":8,"label":"/posts/x/"} row into "/posts/x/: 8".
-// A map marshals its keys sorted, so the count came before its label and the
-// model read every label with the count after it.
+// A map marshals its keys sorted, so the count lands before its label and the
+// model pairs each label with the next row's count.
 func labelFirst(m map[string]any) {
 	for k, v := range m {
 		rows, ok := v.([]any)
@@ -212,11 +203,9 @@ var OrchardRepos = Tool{
 	},
 }
 
-// OrchardCode is the other half of orchard_repos: the listing says what exists
-// and this says what is in it. Without it a question about Isaac's own code ends
-// with the model guessing raw addresses, collecting 404s, and writing a file it
-// said it had read. find and search are there so the first call lands on the
-// file rather than spending four rounds walking to it.
+// OrchardCode says what's in a repository where orchard_repos says what exists,
+// or a question about Isaac's code ends in guessed addresses and 404s. find and
+// search let the first call land on the file instead of walking to it.
 var OrchardCode = Tool{
 	Name: "orchard_code",
 	Description: "Read the source of one of Isaac's repositories on repos.bythewood.me, read only, " +
@@ -269,7 +258,7 @@ var OrchardCode = Tool{
 				return nil, noRepo(err, repo, rev)
 			}
 			// find matches file names, and the model reaches for it with the name
-			// of a constant or a function, which is in a file rather than naming one.
+			// of a constant or a function, which is in a file and doesn't name one.
 			if n, _ := out["count"].(float64); n == 0 && query != "" {
 				var hits map[string]any
 				if estateGet(ctx, d, base+"/grep/"+url.PathEscape(rev)+"?"+q.Encode(), &hits) == nil {
@@ -298,9 +287,8 @@ var OrchardCode = Tool{
 }
 
 // orchardWalk is read and list in one call, since a path with no dot in its last
-// segment is a directory more often than not and guessing wrong costs a round.
-// The read is tried first and a miss falls through to the listing, so an
-// extensionless file still reads and a directory still lists.
+// segment is usually a directory and guessing wrong costs a round. The read goes
+// first so an extensionless file still reads and a directory still lists.
 func orchardWalk(ctx context.Context, d *Deps, base, repo, rev, path string, a map[string]any) (any, error) {
 	if path != "" {
 		q := url.Values{}
@@ -335,7 +323,7 @@ func orchardWalk(ctx context.Context, d *Deps, base, repo, rev, path string, a m
 			return nil, err
 		}
 		// A wrong path is the commonest mistake here, since the model drops a
-		// directory from the front, so the error carries the way out rather than
+		// directory from the front, so the error carries the way out instead of
 		// the level above.
 		return nil, fmt.Errorf("%s has no file or directory at %q. Call again with "+
 			"action find and query %q to get its real path", repo, path, lastSegment(path))
@@ -343,8 +331,8 @@ func orchardWalk(ctx context.Context, d *Deps, base, repo, rev, path string, a m
 	return tree, nil
 }
 
-// noRepo says what a 404 from find or search means, which is a repository or a
-// revision that is not there. "no such path" sent the model looking for a path.
+// noRepo says a 404 from find or search is a repository or revision that isn't
+// there, since "no such path" sends the model looking for a path.
 func noRepo(err error, repo, rev string) error {
 	if errors.Is(err, errEstateMissing) {
 		return fmt.Errorf("there is no repository called %q at %q on repos, orchard_repos lists the names", repo, rev)
@@ -362,7 +350,7 @@ func repoName(raw string) string {
 	return s
 }
 
-// lastSegment is what to hand find when a path was wrong, since the file name is
+// lastSegment goes to find when a path was wrong, since the file name is
 // the part the model usually has right.
 func lastSegment(p string) string {
 	if i := strings.LastIndexByte(p, '/'); i >= 0 && i+1 < len(p) {
@@ -401,7 +389,7 @@ var OrchardDash = Tool{
 	Run: func(ctx context.Context, d *Deps, a map[string]any) (any, error) {
 		var out any
 		// dash publishes this without a session, since the page it feeds has no
-		// login, so it is the one here that works signed out.
+		// login, so this one works signed out.
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, dashBase+"/api/state", nil)
 		if err != nil {
 			return nil, err
@@ -421,13 +409,9 @@ var OrchardDash = Tool{
 	},
 }
 
-// dashSection picks one panel out of the state. The whole thing is about six
-// thousand tokens of a sixty four thousand token window, so a question about
-// earnings was paying for the air quality and the alerts to sit in the context
-// for the rest of the conversation.
-//
-// A name that is not there returns the list rather than an error, since the
-// names are the state's own keys.
+// dashSection picks one panel out of a state that's about six thousand tokens of
+// a sixty four thousand token window. A name that isn't there returns the list
+// instead of an error, since the names are the state's own keys.
 func dashSection(state any, section string) (any, error) {
 	section = strings.ToLower(strings.TrimSpace(section))
 	m, ok := state.(map[string]any)

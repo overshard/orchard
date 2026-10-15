@@ -1,16 +1,8 @@
 package tools
 
-// Searching X posts without an X account, an API key, or a mirror.
-//
-// The two obvious routes are closed. xcancel has no API of its own and was
-// served a cease and desist by X Corp on 24 August 2026, and Nitter is what it
-// is built on, needs Redis and a server of your own, and is under the same
-// letter. The official Posts Search API is a paid tier with a key.
-//
-// What is left is the search engines, which index public post pages like any
-// other page. Only public posts are indexed, only some of those, and a search
-// engine's copy can be older than the post. The description says so, so an
-// answer built on it can say so too.
+// X is searched through a search engine's copy of public post pages, since xcancel
+// and Nitter are under a cease and desist from X Corp and the official search API
+// is a paid tier. That copy misses plenty and can be older than the post.
 
 import (
 	"context"

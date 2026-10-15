@@ -1,7 +1,6 @@
-// Pictures. A second model draws them, and it takes turns with the chat model
-// on the one card, so most of the wait is one model coming off and the other
-// going on. The page is told which of those is happening and how long each
-// took the last few times, because a panel that only spins reads as broken.
+// Pictures are drawn by a second model taking turns with the chat model on one
+// card, so the page is told which stage is running and how long each took the
+// last few times, since a panel that only spins reads as broken.
 package main
 
 import (
@@ -21,8 +20,8 @@ import (
 // forever.
 const drawLimit = 4 * time.Minute
 
-// Close to a megapixel each, which is what the model was trained around, and
-// every side a multiple of 16 since it will not take anything else.
+// Close to a megapixel each since the model was trained around that. sd-server
+// rounds 1080 up to 1088 and cropTo trims it back.
 var shapes = map[string][2]int{
 	"square":    {1024, 1024},
 	"portrait":  {1080, 1920},

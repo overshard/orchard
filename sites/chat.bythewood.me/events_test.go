@@ -10,10 +10,9 @@ import (
 	"time"
 )
 
-// The meta stream is what makes a turn started on the desktop show up on the
-// phone. It has to open immediately, since a proxy that buffers until it sees
-// output would otherwise hold the whole stream, and it has to stop when the tab
-// goes away rather than leaking a subscriber per reload.
+// The meta stream shows a turn started on the desktop on the phone. It has to
+// open immediately or a buffering proxy holds the whole stream, and it has to
+// stop when the tab goes away instead of leaking a subscriber per reload.
 func TestEventsStreamsAndCleansUp(t *testing.T) {
 	s := &site{hub: NewHub()}
 	srv := httptest.NewServer(http.HandlerFunc(s.events))
@@ -63,7 +62,7 @@ func TestEventsStreamsAndCleansUp(t *testing.T) {
 		t.Errorf("frame = %s", got)
 	}
 
-	// A tab that goes away drops its subscriber rather than leaving one behind
+	// A tab that goes away drops its subscriber instead of leaving one behind
 	// for every reload the phone does.
 	cancel()
 	resp.Body.Close()

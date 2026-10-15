@@ -72,8 +72,8 @@ func (s *scriptModel) drive(t *testing.T) {
 	}
 }
 
-// A send back on the fifth round used to be followed by the budget cut, so the
-// nudge to go and search was read and then answered with the tools off.
+// Without an extra round a send back on the fifth round meets the budget cut,
+// and the nudge to go and search gets answered with the tools off.
 func TestASendBackOnTheLastRoundGetsARoundToActOn(t *testing.T) {
 	s := &scriptModel{replies: []string{"calc:1+1", "calc:1+2", "calc:1+3", "calc:1+4",
 		"Let me check that for you.", "calc:1+5"}}
@@ -84,7 +84,7 @@ func TestASendBackOnTheLastRoundGetsARoundToActOn(t *testing.T) {
 }
 
 // A draft the gate let through goes to the writer, so the answer keeps its
-// figures rather than working them out a second time.
+// figures instead of working them out a second time.
 func TestTheWriterIsHandedTheCheckedDraft(t *testing.T) {
 	draft := "Used ones sell for about $295 and ask about $400."
 	s := &scriptModel{replies: []string{"calc:295+105", draft}}

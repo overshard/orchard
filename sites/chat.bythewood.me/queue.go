@@ -6,16 +6,9 @@ import (
 	"time"
 )
 
-// One turn runs at a time.
-//
-// The model server is started with --parallel 1, because Qwen3.5's hybrid
-// attention corrupts context checkpoints under multi-slot load, and there is
-// one GPU behind it. Two people asking at once would interleave into one slot
-// and both wait longer than if they had taken turns.
-//
-// The waiting is shown, since a tab that sits on "thinking" for ninety seconds
-// because another is ahead looks broken. Nothing about who is waiting is
-// recorded, and a ticket lives only as long as its request.
+// Queue runs one turn at a time. The model server runs --parallel 1 since Qwen3.5's
+// hybrid attention corrupts context checkpoints under multi-slot load, and nothing
+// about who is waiting is kept past the request.
 type Queue struct {
 	mu      sync.Mutex
 	waiting []*ticket
@@ -27,8 +20,8 @@ type ticket struct {
 	done  bool
 }
 
-// QueueState is what a waiting page is told: how far back it is and how many
-// are behind it. Positions only, never identities.
+// QueueState is what a waiting page is told, since a tab sitting on "thinking"
+// with another turn ahead looks broken. Positions only, never identities.
 type QueueState struct {
 	Position int `json:"position"` // 1 means next, 0 means running now
 	Ahead    int `json:"ahead"`
@@ -37,11 +30,9 @@ type QueueState struct {
 
 func NewQueue() *Queue { return &Queue{} }
 
-// Enter joins the queue and blocks until this caller's turn, reporting position
-// changes to onWait while it waits. The returned release must be called.
-//
-// A caller whose context is cancelled leaves the queue, which means a turn that
-// was stopped or timed out and not a closed tab, since a turn outlives its tab.
+// Enter blocks until this caller's turn and the returned release must be called.
+// A cancelled context leaves the queue, and that's a stopped or timed out turn
+// and not a closed tab, since a turn outlives its tab.
 func (q *Queue) Enter(ctx context.Context, onWait func(QueueState)) (release func(), ok bool) {
 	t := &ticket{ready: make(chan struct{}, 1)}
 
@@ -59,8 +50,8 @@ func (q *Queue) Enter(ctx context.Context, onWait func(QueueState)) (release fun
 		return q.finish, true
 	}
 
-	// Report the starting position immediately, so a waiting page says so
-	// rather than showing nothing until the first tick.
+	// Report the starting position now so a waiting page isn't blank until the
+	// first tick.
 	if onWait != nil {
 		onWait(q.stateOf(t))
 	}
@@ -110,11 +101,9 @@ func (q *Queue) finish() {
 	next.ready <- struct{}{}
 }
 
-// drop removes a ticket that gave up before its turn.
-//
-// The context can end in the same moment finish promotes this ticket, and then
-// the slot is held by a caller that will never use it and has to be handed on,
-// or the person behind waits forever.
+// drop removes a ticket that gave up before its turn. The context can end just as
+// finish promotes it, and then the slot has to be handed on or the person behind
+// waits forever.
 func (q *Queue) drop(t *ticket) {
 	q.mu.Lock()
 	for i, w := range q.waiting {

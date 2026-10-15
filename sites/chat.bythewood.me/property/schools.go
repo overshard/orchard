@@ -11,13 +11,9 @@ import (
 	"time"
 )
 
-// School zoning, from actual attendance boundaries and never from "nearest
-// school". The drop-off detour is the number that ranks this dashboard and it is
-// measured to whichever school the house is assigned to.
-//
-// Two of the four counties publish the boundaries as a live ArcGIS layer and two
-// do not. A listing in a county with no layer is marked unverified rather than
-// guessed, since a made-up zone is worse than a blank one.
+// Only some counties publish attendance boundaries, and anywhere else the nearest
+// school is named but never passed off as zoned, since the drop-off detour is
+// measured to whatever school is named.
 type zoneLayer struct {
 	url   string
 	field string
@@ -28,8 +24,8 @@ type countyZones struct {
 	name     string
 	district string
 	layers   []zoneLayer
-	// The point layer holding the schools themselves, so a zone name can be
-	// turned into somewhere to drive to.
+	// The schools as points, so a zone name can be turned into somewhere to
+	// drive to.
 	schoolsURL   string
 	schoolsField string
 	levelField   string
@@ -66,9 +62,7 @@ var zoneSources = map[string]countyZones{
 	},
 }
 
-// The counties inside the drive-time band that publish nothing. Named rather
-// than inferred from a missing map entry, so the card can say which district it
-// is and that the zone was not checked.
+// Named so a report can give the district and say the zone wasn't checked.
 var unzonedCounties = map[string]string{
 	"catawba":  "Catawba County Schools, Hickory City Schools or Newton-Conover City Schools",
 	"burke":    "Burke County Public Schools",
@@ -78,14 +72,11 @@ var unzonedCounties = map[string]string{
 	"mcdowell": "McDowell County Schools",
 }
 
-// Every public school in the state as a point, with its grade range and its DPI
-// school code. This is the fallback for the counties that publish no attendance
-// boundary, and the nearest school of each level is not the same claim as the
-// zoned one.
+// Every public school in the state as a point, the fallback where no attendance
+// boundary is published.
 const ncSchools = "https://services.nconemap.gov/secure/rest/services/NC1Map_Education/MapServer/3/query"
 
-// How far to look for a school. Rural districts are wide and a child can be bused
-// a long way, so this is generous and the distance is reported alongside.
+// Rural districts are wide and a child can be bused a long way.
 const schoolSearchFeet = 12 * 5280
 
 type SchoolZones struct {
@@ -100,19 +91,16 @@ type SchoolZones struct {
 	HighLon       float64
 	County        string
 	Source        string
-	// Set when the schools came from the statewide point layer rather than from a
-	// real attendance boundary, so the page can say nearest rather than zoned.
+	// From the statewide points instead of a real boundary, so nearest, not zoned.
 	Nearest     bool
 	ElemMiles   float64
 	MiddleMiles float64
 	HighMiles   float64
-	// A coordinate had to be taken from the nearest school of that level because
-	// the county's own point layer did not carry one, so the drive is to a school
-	// that may not be the zoned one.
+	// A coordinate came from the nearest school of that level, so the drive may
+	// not be to the zoned one.
 	Borrowed bool
 
-	// Nothing answered, so this must not be cached: a one minute outage would
-	// otherwise cost the address its schools factor forever.
+	// Never cached, or a one minute outage would cost the address its schools.
 	Partial bool
 
 	Verified bool
@@ -123,8 +111,7 @@ type SchoolZones struct {
 type Schools struct {
 	db     *sql.DB
 	guards map[string]*Guard
-	// The statewide points layer, which is a state server rather than one county
-	// machine and can take a brisker pace.
+	// A state server, not one county machine, so it takes a brisker pace.
 	statewide *Guard
 }
 
@@ -140,8 +127,7 @@ func NewSchools(db *sql.DB) *Schools {
 		}),
 	}
 	for key := range zoneSources {
-		// A county GIS server is one machine in a county building, so it gets
-		// the gentlest pace here and the smallest budget.
+		// A county GIS server is one machine in a county building.
 		s.guards[key] = NewGuard(db, "gis-"+key, GuardOpts{
 			MinInterval: 3 * time.Second,
 			Budget:      80,
@@ -159,9 +145,8 @@ func countyKey(county string) string {
 	return strings.TrimSpace(c)
 }
 
-// Lookup resolves the zones for one point. The county on the listing is a hint
-// only: the point query is what decides, so a listing whose county column is
-// wrong still gets the right zone as long as some county claims the point.
+// Lookup treats the county as a hint and lets the point query decide, so a wrong
+// county still gets the right zone as long as some county claims the point.
 func (s *Schools) Lookup(ctx context.Context, lat, lon float64, county string) (SchoolZones, error) {
 	key := fmt.Sprintf("%.5f,%.5f", lat, lon)
 
@@ -180,24 +165,21 @@ func (s *Schools) Lookup(ctx context.Context, lat, lon float64, county string) (
 	ck := countyKey(county)
 	src, ok := zoneSources[ck]
 	if !ok {
-		// Try every county that does publish, since the hint may be wrong or a
-		// listing may sit near a county line.
+		// The hint may be wrong or the house may sit near a county line.
 		for k, candidate := range zoneSources {
 			if z, err := s.queryCounty(ctx, k, candidate, lat, lon); err == nil && z.Elementary != "" {
 				return s.cache(ctx, key, z)
 			}
 		}
-		// No boundary anywhere, so fall back to the nearest of each level. It is a
-		// different claim and the page says so.
+		// Nearest of each level is a different claim, and the report says so.
 		district := unzonedCounties[ck]
 		if district == "" {
 			district = strings.TrimSpace(county) + " schools"
 		}
 		z, err := s.nearestSchools(ctx, lat, lon)
 		if err != nil {
-			// A bad minute at NC OneMap, not a county without schools. Caching this
-			// would cost the address its heaviest factor permanently, since nothing
-			// here expires and Progress would count the source as answered.
+			// A bad minute at NC OneMap, not a county without schools, so it
+			// mustn't be cached.
 			return SchoolZones{
 				Source:  district,
 				Partial: true,
@@ -222,9 +204,8 @@ func (s *Schools) Lookup(ctx context.Context, lat, lon float64, county string) (
 	return s.cache(ctx, key, z)
 }
 
-// nearestSchools picks the closest elementary, middle and high school to a point
-// from the statewide layer. Distance as the crow flies, which is only deciding
-// which school to name and to measure a drive to.
+// nearestSchools goes by straight line, which only decides which school to name
+// and route to.
 func (s *Schools) nearestSchools(ctx context.Context, lat, lon float64) (SchoolZones, error) {
 	var z SchoolZones
 
@@ -270,8 +251,7 @@ func (s *Schools) nearestSchools(ctx context.Context, lat, lon float64) (SchoolZ
 				*b = best{name, miles, *f.Geometry.Y, *f.Geometry.X}
 			}
 		}
-		// A school can serve more than one level, and a K-12 serves all of them,
-		// so these are not exclusive.
+		// Not exclusive, since a K-12 serves every level.
 		if attrString(f.Attributes, "elem") != "" {
 			put(&elem)
 		}
@@ -332,8 +312,7 @@ func (s *Schools) queryCounty(ctx context.Context, ck string, src countyZones, l
 			z.Elementary = name
 		case "elementary-k8":
 			// A K-8 zone wins over a K-5 one for the same point and answers the
-			// middle school question too, which is the good case: no second
-			// school run when the elementary years end.
+			// middle school question too.
 			z.Elementary = name
 			z.Middle = name
 			z.K8 = true
@@ -354,15 +333,10 @@ func (s *Schools) queryCounty(ctx context.Context, ck string, src countyZones, l
 		z.Note = "zones are real, school locations are not: " + err.Error()
 	}
 
-	// A zone with a name and no coordinate cannot be routed to, and the county
-	// point layers do not always carry every school. The statewide layer fills in
-	// whichever is still missing, keeping the zoned name and borrowing only the
-	// position of the nearest school of that level.
+	// The county point layers don't always carry every school, so the zoned name
+	// stays and only the position is borrowed from the nearest of that level.
 	if z.ElementaryLat == 0 || z.MiddleLat == 0 || z.HighLat == 0 {
 		if near, err := s.nearestSchools(ctx, lat, lon); err == nil {
-			// Borrowing a position means the detour is measured to whichever
-			// school is closest, which is not necessarily the zoned one, so the
-			// page has to stop claiming the zoning is confirmed.
 			z.Borrowed = true
 			if z.ElementaryLat == 0 {
 				z.ElementaryLat, z.ElementaryLon = near.ElementaryLat, near.ElementaryLon
@@ -379,9 +353,7 @@ func (s *Schools) queryCounty(ctx context.Context, ck string, src countyZones, l
 		}
 	}
 
-	// A zoned school has a name and a boundary and nothing that says how far away
-	// it is, so the distance is measured here once the coordinate is settled. It
-	// is a straight line and it is only used to rank, never to promise a drive.
+	// A straight line, never a promise about the drive.
 	z.fillMiles(lat, lon)
 	return z, nil
 }
@@ -422,8 +394,7 @@ func (s *Schools) zoneName(ctx context.Context, guard *Guard, layer zoneLayer, l
 	return tidyZoneName(attrString(res.Features[0].Attributes, layer.field)), nil
 }
 
-// tidyZoneName drops the leading district number Alexander puts in front of the
-// name and title cases the shouting, so "328 TAYLORSVILLE" reads as Taylorsville.
+// Alexander's zones read "328 TAYLORSVILLE".
 func tidyZoneName(raw string) string {
 	fields := strings.Fields(raw)
 	if len(fields) > 1 && num(fields[0]) != 0 && !strings.ContainsAny(fields[0], "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") {
@@ -436,10 +407,8 @@ func tidyZoneName(raw string) string {
 	return strings.Join(fields, " ")
 }
 
-// locate fills in where the zoned elementary and middle schools actually are, by
-// matching the zone name against the county's own school point layer. The zone
-// layers carry a name and no coordinate, and a drop-off detour needs a
-// coordinate.
+// locate exists since the zone layers carry a name and no coordinate, and a
+// drop-off detour needs one.
 func (s *Schools) locate(ctx context.Context, ck string, src countyZones, z *SchoolZones) error {
 	if src.schoolsURL == "" {
 		return nil
@@ -467,8 +436,7 @@ type schoolPoint struct {
 	Lon   float64 `json:"lon"`
 }
 
-// schoolPoints fetches a county's whole school layer once and caches it. It is a
-// few dozen points and it does not move.
+// schoolPoints caches a county's whole layer, a few dozen points that don't move.
 func (s *Schools) schoolPoints(ctx context.Context, ck string, src countyZones) ([]schoolPoint, error) {
 	var payload string
 	err := s.db.QueryRowContext(ctx,
@@ -527,9 +495,8 @@ func (s *Schools) schoolPoints(ctx context.Context, ck string, src countyZones) 
 	return pts, nil
 }
 
-// bestSchoolMatch scores token overlap between a zone name and a school name,
-// because the two layers spell the same school differently: a zone called
-// "East Middle" is the school "East Alexander Middle School".
+// bestSchoolMatch scores token overlap since the two layers spell a school
+// differently, a zone called "East Middle" is "East Alexander Middle School".
 func bestSchoolMatch(points []schoolPoint, zone string) (lat, lon float64, ok bool) {
 	want := nameTokens(zone)
 	if len(want) == 0 {
@@ -550,7 +517,6 @@ func bestSchoolMatch(points []schoolPoint, zone string) (lat, lon float64, ok bo
 		if hits == 0 {
 			continue
 		}
-		// Normalised so a long school name does not win on length alone.
 		score := float64(hits) / math.Max(float64(len(want)), 1)
 		if score > best {
 			best, lat, lon, ok = score, p.Lat, p.Lon, true

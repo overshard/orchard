@@ -9,23 +9,12 @@ import (
 	"time"
 )
 
-// Somewhere for a child to go on a Saturday, like a science centre, a cinema, a
-// pool or a park with something in it, since being twenty minutes from the
-// nearest anything costs you as well.
-//
-// OpenStreetMap has all of it tagged, and one query around the house at a radius
-// worth driving covers the lot. `out center` rather than `out geom`, since what
-// is wanted is where a building is and not its outline.
-// An hour's drive, which on these roads is about forty miles. Wide enough to
-// pick up Hickory and Statesville, where the science centre and cinemas are.
+// An hour's drive on these roads, wide enough to pick up Hickory and Statesville
+// where the science centre and cinemas are.
 const outingsSearchFeet = 40 * 5280
 
-// The kinds worth counting, in the order a child would rank them. Each is a tag
-// match and a friendly name for the page, and each filter is another pass over
-// the area, so these are kept to the ones that decide a day out.
-//
-// The water ones matter here, since the Catawba and the Yadkin are what people
-// in these counties do in July.
+// In the order a child would rank them. The water ones matter since the Catawba
+// and the Yadkin are what people in these counties do in July.
 var outingKinds = []struct {
 	filter string
 	label  string
@@ -51,7 +40,7 @@ type Outing struct {
 }
 
 type OutingsResult struct {
-	// The nearest of each kind that exists nearby, closest first.
+	// The nearest of each kind, closest first.
 	Nearest []Outing `json:"nearest"`
 	Partial bool     `json:"partial"`
 }
@@ -66,9 +55,8 @@ func NewOutings(db *sql.DB, roads *Roads) *Outings {
 }
 
 func (o *Outings) Lookup(ctx context.Context, lat, lon float64) (OutingsResult, error) {
-	// Rounded coarsely, since what there is to do within an hour does not
-	// change between one house and the next, or between one town and the next
-	// either, so this is one query per rough area rather than one per address.
+	// Rounded coarsely, since what there is to do within an hour doesn't change
+	// between one town and the next.
 	key := fmt.Sprintf("%.1f,%.1f", lat, lon)
 
 	var payload string
@@ -83,17 +71,14 @@ func (o *Outings) Lookup(ctx context.Context, lat, lon float64) (OutingsResult, 
 		return OutingsResult{}, err
 	}
 
-	// One bounding box rather than nine `around` scans at forty miles. Overpass
-	// measures the distance to every candidate for an `around`, so nine of them at
-	// that radius is enough work to ask a free service for that it answered 429 and
-	// timed out. A box is cheap and the exact distance is worked out here anyway.
-	//
-	// The kinds are collapsed into four clauses by tag key for the same reason.
+	// A box in a few clauses instead of an `around` per kind, since Overpass
+	// measures every candidate for an `around` and at forty miles that drew 429s
+	// and timeouts.
 	south, west, north, east := boxAround(lat, lon, outingsSearchFeet)
 	box := fmt.Sprintf("(%.4f,%.4f,%.4f,%.4f)", south, west, north, east)
 
-	// nwr covers a point, a building outline and a relation in one pass, which
-	// matters because a cinema is tagged all three ways depending on who mapped it.
+	// nwr since a cinema is a point, an outline or a relation depending on who
+	// mapped it.
 	q := fmt.Sprintf("[out:json][timeout:%d];(", int(overpassAttempt.Seconds())) +
 		`nwr["tourism"~"^(museum|zoo)$"]` + box + ";" +
 		`nwr["amenity"="cinema"]` + box + ";" +
@@ -121,8 +106,8 @@ func (o *Outings) Lookup(ctx context.Context, lat, lon float64) (OutingsResult, 
 		return OutingsResult{Partial: true}, err
 	}
 
-	// The closest of each kind, so a town with six parks and no cinema does not
-	// score as well as one with both.
+	// The closest of each kind, so six parks and no cinema doesn't read as well as
+	// both.
 	best := map[string]Outing{}
 	for _, el := range res.Elements {
 		elat, elon := el.Lat, el.Lon
@@ -137,8 +122,7 @@ func (o *Outings) Lookup(ctx context.Context, lat, lon float64) (OutingsResult, 
 			continue
 		}
 		miles := haversineFeet(lat, lon, elat, elon) / 5280
-		// The query asks for a box and the search is a circle, so a corner of the
-		// box is half again as far as the radius and has to be dropped here.
+		// The box's corners are further out than the radius.
 		if miles > outingsSearchFeet/5280 {
 			continue
 		}
@@ -174,8 +158,7 @@ func (o *Outings) Lookup(ctx context.Context, lat, lon float64) (OutingsResult, 
 	return out, nil
 }
 
-// labelFor maps an element's tags back to the kind it matched. The union query
-// does not say which arm returned a row, so it is worked out from the tags.
+// labelFor exists since a union query doesn't say which arm returned a row.
 func labelFor(tags map[string]string) string {
 	switch {
 	case tags["tourism"] == "museum":

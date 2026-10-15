@@ -1,10 +1,6 @@
-// Turns that outlive the tab that asked for them.
-//
-// A turn takes up to twelve minutes on one GPU and the tab is the least
-// reliable part of the arrangement, so a turn runs detached and writes its
-// events into a run. A browser is only ever a reader, so closing the tab drops
-// one, and opening the conversation again picks up a new one that is handed
-// everything so far and then follows live.
+// Turns that outlive the tab that asked for them. A turn takes up to twelve minutes
+// and a tab is the least reliable part, so a turn runs detached and writes its events
+// into a run, and a tab opening the conversation reads everything so far then follows.
 package main
 
 import (
@@ -26,14 +22,13 @@ const runMaxEvents = 4096
 
 type turnRun struct {
 	mu sync.Mutex
-	// Raw json rather than Event, because the last frame of a turn is the done
-	// payload, which carries the stats, the sources and the rendered html and
-	// is not an Event at all.
+	// Raw json instead of Event, since a turn's last frame is the done payload
+	// with the stats, the sources and the rendered html, and that isn't an Event.
 	events []json.RawMessage
 	subs   map[chan json.RawMessage]struct{}
 	done   bool
 	// Set when the run ends, so a reader arriving after the fact is told the
-	// turn is over rather than waiting on a stream that will never speak.
+	// turn is over instead of waiting on a stream that will never speak.
 	endedAt time.Time
 	cancel  context.CancelFunc
 	// What was asked, since it is not stored until the turn ends and a tab that
@@ -91,7 +86,7 @@ func (rs *Runs) Rekey(from, to string) {
 }
 
 // Sweep drops runs that finished long enough ago that nobody is coming back for
-// them. Called on a timer rather than on read, so a conversation nobody opens
+// them. Called on a timer instead of on read, so a conversation nobody opens
 // again does not sit in memory until the process restarts.
 func (rs *Runs) Sweep(now time.Time) {
 	rs.mu.Lock()
@@ -106,8 +101,8 @@ func (rs *Runs) Sweep(now time.Time) {
 	}
 }
 
-// Cancel stops a run, which is what a browser asking to stop a turn does. The
-// events already produced stay readable.
+// Cancel stops a run when a browser asks to stop a turn, and the events already
+// produced stay readable.
 func (rs *Runs) Cancel(key string) bool {
 	rs.mu.Lock()
 	r, ok := rs.m[key]
@@ -131,7 +126,7 @@ func (r *turnRun) setCancel(cancel context.CancelFunc) {
 }
 
 // Emit records an event and hands it to whoever is reading. A reader that is
-// not keeping up is skipped rather than waited on, since one slow tab must not
+// not keeping up is skipped instead of waited on, since one slow tab must not
 // hold up the turn or the readers behind it.
 func (r *turnRun) Emit(v any) {
 	b, err := json.Marshal(v)
@@ -156,7 +151,7 @@ func (r *turnRun) Emit(v any) {
 }
 
 // Finish closes the run to new events and wakes every reader so they can see it
-// ended rather than sitting on an open stream.
+// ended instead of sitting on an open stream.
 func (r *turnRun) Finish() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -171,10 +166,9 @@ func (r *turnRun) Finish() {
 	}
 }
 
-// Follow hands back everything the run has already produced and a channel of
-// what comes next. The backlog is taken under the same lock that registers the
-// channel, so an event cannot land in the gap between the two. A closed channel
-// means the turn is over.
+// Follow hands back everything the run has produced and a channel of what comes
+// next, closed when the turn is over. The backlog is taken under the lock that
+// registers the channel so no event lands in the gap between the two.
 func (r *turnRun) Follow() (backlog []json.RawMessage, ch <-chan json.RawMessage, live bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -202,7 +196,7 @@ func (r *turnRun) Unfollow(ch <-chan json.RawMessage) {
 }
 
 // setWaiting records where in line the turn is and reports whether that moved,
-// so a position is announced to every tab once rather than every second.
+// so a position is announced to every tab once instead of every second.
 func (r *turnRun) setWaiting(pos int) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -262,8 +256,8 @@ func (rs *Runs) WaitingFor(key string) int {
 	return r.Waiting()
 }
 
-// Running reports whether a turn is still going, which is what the conversation
-// endpoint tells a browser so it knows to attach rather than render and stop.
+// Running reports whether a turn is still going, so the conversation endpoint can
+// tell a browser to attach instead of rendering and stopping.
 func (r *turnRun) Running() bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()

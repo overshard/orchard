@@ -8,8 +8,8 @@ import (
 	"testing"
 )
 
-// headers runs the bytes through a real multipart round trip, since that is
-// what the handler hands readFiles and a hand built FileHeader has no body.
+// headers runs the bytes through a real multipart round trip, since a hand built
+// FileHeader has no body.
 func headers(t *testing.T, files map[string][]byte) []*multipart.FileHeader {
 	t.Helper()
 	var buf bytes.Buffer
@@ -209,8 +209,8 @@ func TestHumanSize(t *testing.T) {
 	}
 }
 
-// The failure that lost a whole turn: a tool call cut off by the token budget
-// arrives as unparseable JSON and llama.cpp refuses the request outright.
+// A tool call cut off by the token budget arrives as unparseable JSON and
+// llama.cpp refuses the request outright, which lost a whole turn.
 func TestATruncatedToolCallIsRecognised(t *testing.T) {
 	real := fmt.Errorf("the model refused this turn: server_error: Failed to parse tool call arguments as JSON: " +
 		"[json.exception.parse_error.101] parse error at line 1, column 868: syntax error while parsing value - " +

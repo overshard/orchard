@@ -11,13 +11,8 @@ import (
 	"time"
 )
 
-// A whole house, answered. Everything below comes from a public record and every
-// piece of it is cached, so asking a second question about the same address costs
-// one read and no requests to anybody.
-
-// Report is what one address is worth knowing. Every field is a measurement or a
-// stated absence, never a guess, because the thing this replaced learned twice
-// that a zero reads as a claim.
+// Report holds a measurement or a stated absence in every field, never a guess,
+// since a zero reads as a claim.
 type Report struct {
 	Address  string  `json:"address"`
 	Asked    string  `json:"asked_as,omitempty"`
@@ -31,9 +26,8 @@ type Report struct {
 	BuiltAt  string  `json:"built_at"`
 	Complete bool    `json:"complete"`
 
-	// A cached report that gains a field decodes with that field blank, which is
-	// the same trap the lookup kinds carry a number for. Bump this whenever the
-	// report gains meaning, so an older row is rebuilt rather than answered from.
+	// A cached report that gains a field decodes with it blank, so reportVersion
+	// is bumped whenever the report gains meaning.
 	Version int `json:"v"`
 
 	Flood   FloodResult   `json:"flood"`
@@ -45,8 +39,8 @@ type Report struct {
 	Area    AreaProfile   `json:"area"`
 	Value   ValueEstimate `json:"value"`
 	Outings OutingsResult `json:"outings"`
-	// Filled on the next lookup for reports cached before it existed, rather
-	// than bumping the version and rebuilding every house for one section.
+	// Backfilled on the next lookup instead of bumping the version and
+	// rebuilding every house for one section.
 	Industry IndustryResult `json:"industry"`
 	USDA     USDAArea       `json:"usda_area"`
 
@@ -58,24 +52,21 @@ type Report struct {
 	Market Market  `json:"rates"`
 	Quotes []Quote `json:"loans"`
 
-	// What he said he wanted to spend. Without it in the answer the model
-	// invented a range and reported being inside it, which is the worst kind of
-	// wrong: specific, plausible and about his own money.
+	// Without the budget in the answer the model invented a range and reported
+	// being inside it.
 	MonthlyTarget  float64 `json:"monthly_target,omitempty"`
 	MonthlyCeiling float64 `json:"monthly_ceiling,omitempty"`
 
-	// What could not be reached this time, named rather than left as a blank a
-	// reader would take for a measurement of nothing, and which upstreams have
-	// asked us to slow down, which is usually the reason.
+	// Named so a blank isn't taken for a measurement of nothing, and Resting is
+	// usually the reason.
 	Missing []string `json:"still_missing,omitempty"`
 	Resting []string `json:"upstreams_resting,omitempty"`
 
-	// Which config the figures came from, so a report built on defaults says so
-	// rather than passing placeholder numbers off as his.
+	// So a report built on defaults says so.
 	ConfigLabel string `json:"config"`
 }
 
-// Engine holds every lookup and the database they cache into. One per process.
+// Engine is one per process.
 type Engine struct {
 	db  *sql.DB
 	cfg Config
@@ -97,14 +88,13 @@ type Engine struct {
 	usda  *USDA
 	rates *Rates
 
-	// One assessment per address at a time. Two questions about the same house in
-	// the same turn would otherwise double every external request, which is the
-	// thing the whole cache exists to avoid.
+	// One assessment per address at a time, or two questions about the same
+	// house in one turn double every external request.
 	mu       sync.Mutex
 	inflight map[string]chan struct{}
 
-	// Held across the read and the write of the cold ceiling, so two turns asking
-	// about two new addresses at once cannot both see the last slot.
+	// Held across the read and the write of the cold ceiling, so two new
+	// addresses at once can't both see the last slot.
 	spendMu sync.Mutex
 }
 
@@ -140,8 +130,8 @@ func NewEngine(db *sql.DB, cfg Config) (*Engine, error) {
 
 func (e *Engine) Config() Config { return e.cfg }
 
-// Full is the address as somebody would write it down, which is what the
-// geocoder needs and what anything quoting a report back has to use.
+// Full is what the geocoder needs and what anything quoting a report back has to
+// use.
 func (r *Report) Full() string {
 	if r.Address == "" {
 		return ""
@@ -155,48 +145,37 @@ func (r *Report) Full() string {
 	return out
 }
 
-// A cached report is good for a month. Nothing in it moves faster than that
-// except the rate, which is looked up separately and is not cached with the
-// house, and the price, which comes from whoever is asking.
+// Nothing in a report moves faster than a month except the rate and the price,
+// and neither is cached with the house.
 const reportTTL = 30 * 24 * time.Hour
 
-// 2 when the drives learned whose they are and the household roster arrived. A
-// report written before that answers a question naming somebody with a flat list
-// of place names, which is what sent the model to Wikipedia looking for her.
+// Bump whenever the report gains meaning, so an older row is rebuilt.
 const reportVersion = 2
 
-// Options are what the caller knew that the public record does not.
 type Options struct {
 	Price      int
 	HOAMonthly float64
 	TaxAnnual  float64
 	Remarks    string
 
-	// How long to wait for a cold report before answering with what is done. A
-	// full assessment is a dozen paced calls to other people's servers and runs
-	// past a minute, and somebody in a conversation will not sit through that, so
-	// the rest finishes in the background and lands in the cache for the next
-	// question.
+	// A full assessment runs past a minute, so after Wait the answer is what's
+	// done and the rest lands in the cache for the next question.
 	Wait time.Duration
 
-	// Refresh throws away a cached report and builds it again. It is not offered
-	// to the model: pressing a thing again when it looks wrong is how a home
-	// address gets blocked by somebody's free service.
+	// Not offered to the model, since pressing it again when an answer looks
+	// wrong is how a home address gets blocked by somebody's free service.
 	Refresh bool
 }
 
-// Lookup is the front door. An address and whatever else is known, and a report
-// back, cached or fresh or half built.
+// Lookup answers with a report that's cached, fresh or half built.
 func (e *Engine) Lookup(ctx context.Context, address string, opt Options) (*Report, error) {
 	address = strings.TrimSpace(address)
 	if address == "" {
 		return nil, fmt.Errorf("an address is needed, street and town at least")
 	}
 
-	// Before the geocoder, because a house already looked up is the same house
-	// whether or not the Census is answering and whether or not the street line
-	// arrived with its town on it. A follow up went out with the street alone,
-	// failed to place, and the model started bolting invented towns onto it.
+	// Before the geocoder, so a known house answers whether or not the Census is
+	// up and whether or not the street line came with its town.
 	if !opt.Refresh {
 		if r, key, ok := e.cachedLike(ctx, address); ok {
 			e.backfill(ctx, key, r)
@@ -207,8 +186,6 @@ func (e *Engine) Lookup(ctx context.Context, address string, opt Options) (*Repo
 
 	lat, lon, matched, err := e.geo.Geocode(ctx, address)
 	if err != nil {
-		// What the geocoder says is for a log. Whoever asked gets something they
-		// can act on.
 		slog.Info("property geocode failed", "address", address, "err", err)
 		return nil, fmt.Errorf(
 			"could not place %s. Give the street, the town and the state, and do not guess at a "+
@@ -219,22 +196,18 @@ func (e *Engine) Lookup(ctx context.Context, address string, opt Options) (*Repo
 	if !opt.Refresh {
 		if r, ok := e.cached(ctx, key); ok {
 			e.backfill(ctx, key, r)
-			// The price and the loans are the caller's, not the cache's, so they
-			// are worked out fresh over the cached facts every time.
 			e.priceReport(ctx, r, opt)
 			return r, nil
 		}
 	}
 
-	// Nothing above this line leaves the machine twice for the same address, and
-	// everything below it is about thirty eight requests to eleven other people's
-	// servers, so the ceiling goes here: after the cache, before the work.
+	// After the cache and before the work, since everything below is dozens of
+	// requests to other people's servers.
 	if err := e.spend(ctx, key); err != nil {
 		return nil, err
 	}
 
-	// Nothing is cached for an incognito house, so there is nothing to wait on
-	// and read back. It runs inside the turn and is gone with it.
+	// Nothing is cached for an incognito house, so there's nothing to read back.
 	if incognito(ctx) {
 		r := e.assess(ctx, address, matched, lat, lon, opt)
 		e.priceReport(ctx, r, opt)
@@ -256,8 +229,8 @@ func (e *Engine) Lookup(ctx context.Context, address string, opt Options) (*Repo
 
 	r, ok := e.cached(ctx, key)
 	if !ok {
-		// Still building and nothing written yet, so answer with the half that
-		// needs no lookups rather than with an error.
+		// Still building, so answer with the half that needs no lookups instead of
+		// an error.
 		r = &Report{Address: titleAddress(matched), Asked: address, Lat: lat, Lon: lon,
 			BuiltAt: time.Now().UTC().Format(time.RFC3339), ConfigLabel: e.cfg.Label,
 			Version: reportVersion}
@@ -267,10 +240,8 @@ func (e *Engine) Lookup(ctx context.Context, address string, opt Options) (*Repo
 	return r, nil
 }
 
-// start runs one assessment in the background and hands back a channel that
-// closes when it is written. Backgrounded rather than run inline so a caller that
-// gives up waiting still leaves a finished report in the cache for the next
-// question, which is what makes a follow up free.
+// start runs in the background so a caller who gives up waiting still leaves a
+// finished report in the cache for the next question.
 func (e *Engine) start(ctx context.Context, key, address, matched string, lat, lon float64, opt Options) chan struct{} {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -281,8 +252,8 @@ func (e *Engine) start(ctx context.Context, key, address, matched string, lat, l
 	e.inflight[key] = ch
 
 	go func() {
-		// Its own context, since the whole point is that it outlives the turn
-		// that asked. Twenty minutes is the worst case with every guard resting.
+		// It outlives the turn that asked. Twenty minutes is the worst case with
+		// every guard resting.
 		bg, cancel := context.WithTimeout(context.WithoutCancel(ctx), 20*time.Minute)
 		defer cancel()
 		defer func() {
@@ -300,9 +271,8 @@ func (e *Engine) start(ctx context.Context, key, address, matched string, lat, l
 	return ch
 }
 
-// assess is every lookup for one point. The independent ones run at once, each
-// still paced against its own upstream by its own guard, because one after
-// another took the best part of two minutes for one address.
+// assess runs the independent lookups at once, each still paced by its own
+// guard, since one after another took minutes.
 func (e *Engine) assess(ctx context.Context, address, matched string, lat, lon float64, opt Options) *Report {
 	r := &Report{
 		Address:     titleAddress(matched),
@@ -391,9 +361,8 @@ func (e *Engine) assess(ctx context.Context, address, matched string, lat, lon f
 	})
 	wg.Wait()
 
-	// The county the parcel sits in beats the one on the address, which the
-	// geocoder does not return at all, and the area figures have nothing to key on
-	// until this lands.
+	// The geocoder doesn't return a county, and the area figures have nothing to
+	// key on until this lands.
 	r.County = firstNonEmpty(r.Parcel.County, r.Zones.County)
 
 	if profile, err := e.acs.County(ctx, "North Carolina", r.County); err == nil {
@@ -401,7 +370,6 @@ func (e *Engine) assess(ctx context.Context, address, matched string, lat, lon f
 	} else {
 		note("the census figures for the county", err)
 	}
-	// Crime after the census, so it can use the population that just came back.
 	if r.Area.CrimeSource == "" {
 		if fbi, err := e.crime.County(ctx, r.County, r.Area.Population); err != nil {
 			note("reported crime", err)
@@ -425,17 +393,13 @@ func (e *Engine) assess(ctx context.Context, address, matched string, lat, lon f
 
 	e.drives(ctx, r, note)
 
-	// A gap is worth nothing without the reason for it. "no schools found" and
-	// "the schools server is refusing us this hour" read the same in a report and
-	// are not the same fact.
 	r.Resting = Resting(e.db)
 	r.Complete = len(r.Missing) == 0
 	return r
 }
 
-// drives is the morning run and every configured destination. The detour is one
-// route through the school rather than two legs added up, because a stop changes
-// which way the trip leaves the house.
+// The detour is one route through the school instead of two legs added up, since
+// a stop changes which way the trip leaves the house.
 func (e *Engine) drives(ctx context.Context, r *Report, note func(string, error)) {
 	home := point{r.Lat, r.Lon}
 
@@ -469,8 +433,8 @@ func (e *Engine) drives(ctx context.Context, r *Report, note func(string, error)
 		name := firstNonEmpty(place.Name, place.Key)
 		dests = append(dests, dest{name, place.Kind, place.Who, name, point{place.Lat, place.Lon}})
 	}
-	// The three nearest licensed nursing homes, which answers where that kind of
-	// work is rather than the drive to one named employer.
+	// The nearest hospitals and nursing homes say where that kind of work is,
+	// which one named employer doesn't.
 	if near, err := e.facs.Nearest(ctx, r.Lat, r.Lon, 3); err == nil {
 		r.Work = near
 		for _, fc := range near {
@@ -499,10 +463,8 @@ func (e *Engine) drives(ctx context.Context, r *Report, note func(string, error)
 	wg.Wait()
 }
 
-// priceReport works the money out over whatever facts the report has. It is
-// separate from the assessment because the price is the caller's and changes
-// between two questions about the same house, and none of it costs a request
-// beyond the weekly rate survey.
+// priceReport is separate from the assessment since the price is the caller's and
+// changes between two questions about the same house.
 func (e *Engine) priceReport(ctx context.Context, r *Report, opt Options) {
 	if opt.Price > 0 {
 		r.Price = opt.Price
@@ -530,8 +492,7 @@ func (e *Engine) priceReport(ctx context.Context, r *Report, opt Options) {
 	}, market)
 }
 
-// Quote prices one house under one programme without touching a lookup, for the
-// question that is only about money.
+// Quote is for a question only about money, so it touches no lookup.
 func (e *Engine) Quote(ctx context.Context, in LoanInput) ([]Quote, Market, error) {
 	market, err := e.rates.Current(ctx)
 	if err != nil && !market.Found {
@@ -547,16 +508,14 @@ func reportKey(asked, matched string) string {
 	return addressKey(asked, "")
 }
 
-// cachedLike finds a report for an address written any of the ways somebody
-// might write it. The stored key is built from the full matched address, so a
-// street line on its own does not equal it and has to be matched as a prefix.
+// cachedLike matches a bare street line as a prefix, since the stored key is
+// built from the full matched address.
 func (e *Engine) cachedLike(ctx context.Context, address string) (*Report, string, bool) {
 	key := addressKey(address, "")
 	if r, ok := e.cached(ctx, key); ok {
 		return r, key, true
 	}
-	// The street line alone, against the front of a stored key. Anchored, so
-	// "1 Oak" cannot match "21 Oak".
+	// Anchored, so "1 Oak" can't match "21 Oak".
 	bare := strings.TrimSuffix(key, "|")
 	if len(bare) < 8 {
 		return nil, "", false
@@ -571,9 +530,8 @@ func (e *Engine) cachedLike(ctx context.Context, address string) (*Report, strin
 	return r, stored, ok
 }
 
-// backfill looks up the industry for a report cached before it had any. Three
-// requests, not the forty a cold address costs, so it is not counted against the
-// ceiling. A failure leaves it unmeasured and the next question tries again.
+// backfill is a few requests, not the forty a cold address costs, so it isn't
+// counted against the ceiling.
 func (e *Engine) backfill(ctx context.Context, key string, r *Report) {
 	if r.Industry.Measured || r.Lat == 0 {
 		return
@@ -613,8 +571,8 @@ func (e *Engine) cached(ctx context.Context, key string) (*Report, bool) {
 }
 
 func (e *Engine) save(ctx context.Context, key string, r *Report) error {
-	// Stamped here rather than wherever a report is built, so a new construction
-	// site cannot forget it and quietly write a row nothing will ever read back.
+	// Stamped here so a new place that builds a report can't forget it and write
+	// a row nothing will ever read back.
 	r.Version = reportVersion
 	_, err := keep(ctx, e.db,
 		`INSERT OR REPLACE INTO reports (key, address, lat, lon, payload, built_at) VALUES (?,?,?,?,?,?)`,
@@ -622,9 +580,8 @@ func (e *Engine) save(ctx context.Context, key string, r *Report) error {
 	return err
 }
 
-// splitMatched pulls the parts out of what the geocoder matched, which comes back
-// as "402 SAMPLE RD, ANYTOWN, NC, 27055". Anything it cannot parse is
-// left as it was rather than blanked.
+// splitMatched reads "402 SAMPLE RD, ANYTOWN, NC, 27055" and leaves anything
+// else as it was.
 func splitMatched(matched, fallback string) (addr, city, state, zip string) {
 	parts := strings.Split(matched, ",")
 	if len(parts) < 4 {

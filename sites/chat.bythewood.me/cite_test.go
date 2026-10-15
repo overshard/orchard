@@ -54,7 +54,7 @@ func TestAttachKeepsAndRepairs(t *testing.T) {
 	srcs := testSources()
 
 	// A number the model wrote that names a real source is kept, and one that
-	// names nothing is dropped rather than shown as text.
+	// names nothing is dropped instead of shown as text.
 	got := attach("Border Force brought 140 people ashore at Portsmouth [1]. The rest is guesswork [9].", srcs)
 	if !strings.Contains(got, "Portsmouth.[1]") {
 		t.Errorf("the model's own citation was not kept: %q", got)
@@ -109,8 +109,8 @@ func TestAttachMovesTheMarkerToTheEnd(t *testing.T) {
 }
 
 func TestDropSourceList(t *testing.T) {
-	// What the model wrote under an answer before it had numbers, and every
-	// line of it was dead text rather than a link.
+	// An address dump under an answer, where every line is dead text and not
+	// a link.
 	answer := "The crossings are down 43% on last year.\n\nSo the framing does not hold.\n\nbbc.co.uk/news/articles/crl60z17lyko\nindependent.co.uk/news/uk/home-news/portsmouth-b3045873.html"
 	got := dropSourceList(answer)
 	if strings.Contains(got, "bbc.co.uk") || strings.Contains(got, "independent") {
@@ -171,7 +171,7 @@ func TestLinkCitations(t *testing.T) {
 	if !strings.Contains(got, `href="https://www.bbc.co.uk/news/articles/x"`) {
 		t.Errorf("the pill did not link to the source: %q", got)
 	}
-	// A number with no source behind it stays as text rather than becoming a
+	// A number with no source behind it stays as text instead of becoming a
 	// link to nothing.
 	if got := linkCitations("<p>Something[7].</p>", srcs); strings.Contains(got, "<a") {
 		t.Errorf("an unknown number was linked: %q", got)

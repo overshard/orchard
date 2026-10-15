@@ -81,9 +81,9 @@ func (r itunesItem) match() songMatch {
 	return songMatch{r.ArtistName, r.TrackName, r.CollectionName, y}
 }
 
-// artistSongs reads the artist's own catalogue rather than searching every
-// song, where an original is buried under its covers and tribute albums. The
-// earliest release comes first, since that is usually the original.
+// artistSongs reads the artist's own catalogue instead of searching every song,
+// where an original is buried under its covers and tribute albums. The earliest
+// release comes first, since that's usually the original.
 func artistSongs(ctx context.Context, d *Deps, artist, track string) ([]songMatch, bool) {
 	if artist == "" || track == "" {
 		return nil, false
@@ -125,8 +125,8 @@ func foldTitle(s string) string {
 // ---------------------------------------------------------------- convert
 
 // units are grouped so a length never converts into a weight. Volume to weight
-// is the one crossing allowed and it is only true for water, which is why it
-// says so in the answer rather than quietly being wrong about flour.
+// is the one crossing allowed and it's only true for water, so the answer says
+// so instead of quietly being wrong about flour.
 var (
 	weight = map[string]float64{"mg": 0.001, "g": 1, "kg": 1000, "oz": 28.3495, "lb": 453.592, "st": 6350.29}
 	volume = map[string]float64{"ml": 1, "l": 1000, "tsp": 4.92892, "tbsp": 14.7868,
@@ -217,10 +217,9 @@ func quoteChars(s string) string {
 
 // ---------------------------------------------------------------- calc
 
-// Letters and commas are allowed for the function names in exprFuncs, and
-// `=` and `;` for naming a part before using it. evalExpr is what decides
-// which names and functions exist. This only keeps the obvious rubbish out
-// before the parser sees it.
+// Letters and commas are for the function names in exprFuncs, and `=` and `;`
+// for naming a part. evalExpr decides which names exist, and this only keeps the
+// obvious rubbish away from the parser.
 const exprChars = `[0-9a-z_\.\+\-\*/\(\)\s%,^;=]`
 
 var safeExpr = regexp.MustCompile(`^` + exprChars + `+$`)
@@ -249,19 +248,17 @@ var Calc = Tool{
 		if e == "" {
 			return nil, fmt.Errorf("there is nothing to work out, pass the arithmetic as expression")
 		}
-		// A model totalling a bank statement will write every line into one
-		// expression and run out of tokens partway, so the call arrives cut in
-		// half. Saying so is more use than evaluating whatever survived, and
-		// which advice helps depends on whether it was summing or deriving.
+		// A model totalling a bank statement writes every line into one expression
+		// and runs out of tokens partway, so saying so beats evaluating whatever
+		// survived, and the advice depends on whether it was summing or deriving.
 		if len(e) > maxExprChars {
 			if strings.Count(e, "+") > 20 {
 				return nil, fmt.Errorf("that expression is too long at %d characters, add the numbers in groups of about twenty and total the groups", len(e))
 			}
 			return nil, fmt.Errorf("that expression is too long at %d characters, work it out in fewer steps or across more than one call", len(e))
 		}
-		// Naming the character is the difference between a model fixing this on
-		// the next call and writing the same thing again, which is what a flat
-		// "only arithmetic is supported" got.
+		// Naming the character gets it fixed on the next call, where a flat "only
+		// arithmetic is supported" got the same thing written again.
 		if !safeExpr.MatchString(e) {
 			return nil, fmt.Errorf("calc cannot read %s in that expression. Numbers, + - * / %% ( ) and the "+
 				"functions pow, sqrt, abs, round, floor, ceil, min and max are allowed, and a part can be named "+

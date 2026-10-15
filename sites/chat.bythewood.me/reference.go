@@ -120,7 +120,7 @@ func referencesOf(ctx context.Context) references {
 }
 
 // lastPicture is the newest picture in a stored conversation, drawn or
-// attached, which is what "make it night" means.
+// attached, and "make it night" means that one.
 func lastPicture(stored []Stored) string {
 	for i := len(stored) - 1; i >= 0; i-- {
 		m := stored[i]

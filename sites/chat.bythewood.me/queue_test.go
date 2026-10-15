@@ -127,7 +127,7 @@ func TestQueueReportsPosition(t *testing.T) {
 }
 
 // A turn behind another is announced with its place in line, so every tab's
-// list says it is waiting rather than working, and one stopped before it reached
+// list says it is waiting instead of working, and one stopped before it reached
 // the card is still announced as over, or those lists say waiting forever.
 func TestAQueuedTurnIsAnnouncedAndSoIsItsEnd(t *testing.T) {
 	q := NewQueue()
@@ -180,7 +180,7 @@ func TestAQueuedTurnIsAnnouncedAndSoIsItsEnd(t *testing.T) {
 	}
 }
 
-// A deploy ends a turn rather than letting the process exit under it, the drain
+// A deploy ends a turn instead of letting the process exit under it, the drain
 // waits for it, and nothing new starts once shutdown has begun.
 func TestShutdownEndsTurnsAndRefusesNewOnes(t *testing.T) {
 	q := NewQueue()

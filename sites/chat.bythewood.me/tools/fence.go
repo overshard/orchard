@@ -1,16 +1,8 @@
 package tools
 
-// The fence between the open web and this machine.
-//
-// Every public tool here takes a url or a query from a model, and a model will
-// happily be talked into fetching whatever it is handed. This site sits on
-// orchard-edge, so an unguarded fetch of http://orchard-auth:8000 or
-// http://127.0.0.1 reaches the estate from inside, past Caddy and the tunnel.
-//
-// The check is on the address actually dialled rather than on the string, so a
-// redirect to an internal host and a name that resolves to one are both caught.
-// The orchard_ tools do not go through this, since they name their host and
-// carry the caller's own session.
+// A model will fetch whatever it's handed and this site sits on orchard-edge, so
+// every public tool dials through this fence, which checks the address actually
+// dialled. The orchard_ tools skip it since they name their host and carry a session.
 
 import (
 	"fmt"
@@ -22,11 +14,9 @@ import (
 	"time"
 )
 
-// publicClient refuses to connect to anything that is not a public address.
-//
-// Control runs after the name is resolved and before the socket is connected,
-// which is the only point where the decision can be made on the address that
-// will really be used. Checking the hostname instead leaves DNS rebinding open.
+// publicClient refuses to connect to anything that isn't a public address. The
+// check is in Control, after the name resolves and before the socket connects,
+// since checking the hostname instead leaves DNS rebinding open.
 func publicClient(timeout time.Duration) *http.Client {
 	d := &net.Dialer{
 		Timeout:   10 * time.Second,
@@ -72,7 +62,7 @@ func isPublicIP(ip net.IP) bool {
 }
 
 // publicURL is the check on the string, done before the dial so an obviously
-// wrong scheme is refused with something a model can act on rather than with a
+// wrong scheme is refused with something a model can act on instead of with a
 // connection error.
 func publicURL(raw string) (string, error) {
 	raw = strings.TrimSpace(raw)
@@ -95,7 +85,7 @@ func publicURL(raw string) (string, error) {
 		return "", fmt.Errorf("the url has no host")
 	}
 	// A bare name with no dot is a container on the bridge, and the estate is
-	// reached with the orchard tools rather than by fetching it.
+	// reached with the orchard tools, not by fetching it.
 	host := u.Hostname()
 	if !strings.Contains(host, ".") && net.ParseIP(host) == nil {
 		return "", fmt.Errorf("%q is not a public address, and this machine's own services are read with the orchard tools", host)

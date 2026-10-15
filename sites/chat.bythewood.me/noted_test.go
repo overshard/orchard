@@ -2,9 +2,8 @@ package main
 
 import "testing"
 
-// The five Isaac actually sent. Every one of them is a note and nothing else,
-// and the one that went wrong is the Oracle line, which spent six tool calls
-// and the whole round budget before answering with a guess.
+// Ones Isaac actually sent, each a note and nothing else. The Oracle line spent
+// the whole round budget on tool calls before answering with a guess.
 func TestIsNoteOnTheRealOnes(t *testing.T) {
 	for _, m := range []string{
 		"Remember dash isn't showing oracle in earnings block when I think their earnings are today",
@@ -22,9 +21,8 @@ func TestIsNoteOnTheRealOnes(t *testing.T) {
 	}
 }
 
-// The note that asked for a lookup and was offered remember alone, so it wrote
-// down three films from memory until the third call ran into the token cap.
-// "look into why" is a job for later and not a lookup now.
+// Offered remember alone, a note that asks for a lookup writes down whatever the
+// model half remembers. "look into why" is a job for later and not a lookup now.
 func TestANoteThatAsksForALookupGetsTheLookups(t *testing.T) {
 	for _, m := range []string{
 		"remember that my friends and I want to watch heretic, alien romulus, and terrifier this weekend, look up basic details and name of each and add them to memory",

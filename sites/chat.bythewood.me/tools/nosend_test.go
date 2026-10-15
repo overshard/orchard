@@ -9,8 +9,8 @@ import (
 	"time"
 )
 
-// The point of the pool: once it is spent, no request leaves. A limit that
-// still sends the call and throws the answer away is not a limit.
+// Once a pool is spent no request leaves, since a limit that still sends the call
+// and throws the answer away isn't a limit.
 func TestSpentPoolSendsNothing(t *testing.T) {
 	var hits int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -42,7 +42,7 @@ func TestSpentPoolSendsNothing(t *testing.T) {
 	}
 }
 
-// And a host that refused is not called again either, which is the poking.
+// A host that refused isn't called again either.
 func TestBoxedHostSendsNothing(t *testing.T) {
 	var hits int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -1,10 +1,6 @@
-// Citations. The model points at a source by number and never writes the
-// address, so a link on this page is one a tool really fetched rather than one
-// a small model half remembered.
-//
-// The number it wrote is repaired here rather than trusted, and a sentence left
-// uncited gets one if the wording clearly came from a source. There is no
-// entailment call per sentence, since one per sentence makes an answer slow.
+// The model cites by number and never writes an address, so a link here is one a
+// tool really fetched. Numbers are repaired, and an uncited sentence gets one by
+// word overlap, since an entailment call per sentence makes an answer slow.
 package main
 
 import (
@@ -126,9 +122,9 @@ func collectSources(used []tools.Result) []Source {
 	return out
 }
 
-// prompt is the numbered list the final turn is handed. Titles are trimmed hard
-// because a page title runs to a headline and a sentence of standfirst, and the
-// model only needs enough to tell one source from another.
+// sourcePrompt is the numbered list the final turn is handed. Titles are trimmed
+// hard because a page title runs to a headline and a sentence of standfirst, and
+// the model only needs enough to tell one source from another.
 func sourcePrompt(srcs []Source) string {
 	if len(srcs) == 0 {
 		return ""
@@ -184,8 +180,8 @@ func attach(text string, srcs []Source) string {
 			fenced = !fenced
 			continue
 		}
-		// A pill in a heading, a quote or a table cell is in the way rather
-		// than in the margin, and a fence is code somebody is about to copy.
+		// A pill in a heading, a quote or a table cell is in the way and not in
+		// the margin, and a fence is code somebody is about to copy.
 		if fenced || t == "" || strings.HasPrefix(t, "#") ||
 			strings.HasPrefix(t, ">") || strings.HasPrefix(t, "|") {
 			continue
@@ -292,9 +288,9 @@ const (
 	minDistinctive = 2
 )
 
-// bestSource picks what a sentence came from, or 0 when nothing is close
-// enough. Silence is the right answer here: a pill on a sentence the page does
-// not support is worse than no pill, since it is read as a check that passed.
+// bestSource picks what a sentence came from, or 0 when nothing is close enough.
+// A pill on a sentence the page doesn't support is read as a check that passed,
+// so no pill is better.
 func bestSource(sentence string, srcs []Source) int {
 	words := tokenSet(sentence)
 	if len(words) < 4 {
@@ -348,9 +344,8 @@ func tokenSet(s string) map[string]bool {
 	return out
 }
 
-// distinctive is the half of a sentence that identifies which page it came
-// from: the figures, the dates and the names. A word is a name here if it is
-// capitalised anywhere but the opening of the sentence.
+// distinctive is the figures, dates and names in a sentence, the half that says
+// which page it came from.
 func distinctive(sentence string) map[string]bool {
 	out := map[string]bool{}
 	for _, f := range strings.Fields(strings.ReplaceAll(sentence, ",", "")) {
@@ -377,11 +372,8 @@ func hasDigit(s string) bool {
 	return strings.ContainsAny(s, "0123456789")
 }
 
-// sentences splits a line into the units a citation can hang off. It is crude,
-// since a split inside an abbreviation costs nothing here. A code
-// span is stepped over, because a full stop in `fmt.Println` is not one.
-// A full stop that ends an initial or a title rather than a sentence. "Donald
-// J. Trump" came out as "Donald J.[1] Trump".
+// A full stop after one of these, or after an initial, ends a title and not a
+// sentence. "Donald J. Trump" came out as "Donald J.[1] Trump".
 var abbreviations = map[string]bool{"mr": true, "mrs": true, "ms": true, "dr": true, "st": true,
 	"jr": true, "sr": true, "vs": true, "inc": true, "co": true, "no": true, "etc": true, "e.g": true,
 	"i.e": true, "u.s": true, "u.k": true, "mt": true, "ft": true, "approx": true}
@@ -398,6 +390,8 @@ func abbreviation(rs []rune, dot int) bool {
 	return abbreviations[strings.ToLower(word)]
 }
 
+// sentences splits a line into the units a citation can hang off. A code span is
+// stepped over, since a full stop in `fmt.Println` isn't one.
 func sentences(s string) []string {
 	rs := []rune(s)
 	var out []string
@@ -457,7 +451,7 @@ func listItem(t string) (string, bool) {
 }
 
 // cited reports which sources an answer actually points at, in number order, so
-// the row under a message lists what was used rather than everything read.
+// the row under a message lists what was used instead of everything read.
 func cited(text string, srcs []Source) []Source {
 	used := map[int]bool{}
 	for _, m := range citeMark.FindAllStringSubmatch(text, -1) {
@@ -473,9 +467,9 @@ func cited(text string, srcs []Source) []Source {
 	return out
 }
 
-// linkCitations turns [3] into an anchor after rendering rather than before,
-// since goldmark drops raw HTML written into the markdown. It substitutes only
-// in text, never inside a tag, and never inside code.
+// linkCitations turns [3] into an anchor after rendering, since goldmark drops
+// raw HTML written into the markdown. It substitutes only in text, never inside
+// a tag, and never inside code.
 func linkCitations(h string, srcs []Source) string {
 	byN := make(map[int]Source, len(srcs))
 	for _, s := range srcs {
@@ -539,9 +533,8 @@ func escapeHTML(s string) string {
 	).Replace(s)
 }
 
-// A trailing list of addresses, which is what the model wrote before it had
-// numbers to write instead. The row under the message replaces it, and half of
-// them arrived with no scheme and so were never links at all.
+// A trailing list of addresses. The row under the message replaces it, and they
+// often arrive with no scheme and so were never links at all.
 var (
 	sourceHeading = regexp.MustCompile(`(?i)^\**(sources?|references?|links?)\**\s*:?\s*`)
 	bareAddress   = regexp.MustCompile(`^(?:https?://)?(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,24}(?:/\S*)?$`)
@@ -578,8 +571,8 @@ func dropSourceList(text string) string {
 		}
 	}
 	cut := plain
-	// The heading is what makes a bulleted run a source list rather than part
-	// of the answer.
+	// Only the heading makes a bulleted run a source list and not part of the
+	// answer.
 	if any < plain {
 		for i := any - 1; i >= 0; i-- {
 			t := strings.TrimSpace(lines[i])
@@ -602,7 +595,6 @@ var (
 	markersEnd  = regexp.MustCompile(`(\[\d{1,3}\]\s*)+\.?$`)
 )
 
-// onlyAddresses reports whether a line is nothing but addresses.
 func onlyAddresses(s string) bool {
 	fields := strings.FieldsFunc(s, func(r rune) bool { return r == ' ' || r == ',' })
 	if len(fields) == 0 {
@@ -616,9 +608,8 @@ func onlyAddresses(s string) bool {
 	return true
 }
 
-// An address written without a scheme is not a link to anything, and this model
-// writes them that way about half the time. Adding the scheme is what makes
-// goldmark's autolinker see it.
+// An address written without a scheme isn't a link to anything, and this model
+// often writes them that way. goldmark's autolinker only sees one with a scheme.
 var schemeless = regexp.MustCompile(`(^|[\s(])((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,24}/[^\s)<>]*)`)
 
 func linkBareAddresses(text string) string {

@@ -10,16 +10,9 @@ import (
 	"time"
 )
 
-// Owner occupancy on the actual street, which is what most people are pointing
-// at when they say a neighbourhood is good. A street that is eighty percent
-// owner occupied behaves differently from one that is half rentals.
-//
-// It is in the tax records and needs no survey: every parcel carries both where
-// the property is and where the owner's post goes. Post going three towns over,
-// to a PO box or to a company means the house is let.
-//
-// This counts the houses you would actually see from the drive. The census
-// figures in area.json stay as the fallback for when the parcels cannot be read.
+// Owner occupancy on the street comes from the tax roll, where every parcel has
+// both its site address and where the owner's post goes. Post going elsewhere
+// means the house is let.
 const streetRadiusFeet = 900
 
 type StreetResult struct {
@@ -27,8 +20,7 @@ type StreetResult struct {
 	OwnerOccupied int     `json:"owner_occupied"`
 	Percent       float64 `json:"percent"`
 
-	// Houses with nobody's post going to them, which is a second sort of empty:
-	// no mailing address at all on the tax roll.
+	// No mailing address at all on the tax roll.
 	Unknown int  `json:"unknown"`
 	Found   bool `json:"found"`
 }
@@ -88,8 +80,6 @@ func (s *Street) Lookup(ctx context.Context, lat, lon float64) (StreetResult, er
 	return out, nil
 }
 
-// tallyStreet is split out so the comparison can be tested without a network
-// call, which matters because the whole thing turns on one fuzzy string match.
 func tallyStreet(res esriQueryResult) StreetResult {
 	var out StreetResult
 
@@ -100,8 +90,6 @@ func tallyStreet(res esriQueryResult) StreetResult {
 		if site == "" {
 			continue
 		}
-		// Only houses. A church, a school and a stretch of woodland are all
-		// parcels and none of them is a neighbour.
 		if !residential(attrString(a, "parusedesc")) {
 			continue
 		}
@@ -117,8 +105,7 @@ func tallyStreet(res esriQueryResult) StreetResult {
 		}
 	}
 
-	// Under about eight houses it is not a street, it is a few neighbours, and a
-	// percentage of six is noise rather than a measurement.
+	// A percentage of six houses is noise.
 	if out.Parcels >= 8 {
 		out.Found = true
 		counted := out.Parcels - out.Unknown
@@ -129,9 +116,8 @@ func tallyStreet(res esriQueryResult) StreetResult {
 	return out
 }
 
-// A parcel use that is somebody's home. The tax roll spells this a dozen ways and
-// leaves it blank often enough that blank has to count as residential, since most
-// parcels on a residential street are houses.
+// The tax roll spells this a dozen ways and leaves it blank often enough that
+// blank counts as residential.
 func residential(use string) bool {
 	u := strings.ToLower(use)
 	if u == "" {
@@ -155,16 +141,13 @@ func siteAddressOf(a map[string]any) string {
 	return strings.Join(strings.Fields(attrString(a, "siteadd")), " ")
 }
 
-// sameAddress decides whether the owner's post goes to the house itself. The two
-// strings are written by different clerks in different decades, so this compares
-// the house number and the street name rather than the whole line, and a PO box
-// is never the house.
+// sameAddress compares the house number and street name instead of the whole
+// line, since different clerks wrote the two strings in different decades.
 func sameAddress(mail, mailZip, site, siteZip string, a map[string]any) bool {
 	if isPOBox(mail) {
 		return false
 	}
-	// A different postcode is a different place, and that alone settles most of
-	// the lets.
+	// A different postcode alone settles most of the lets.
 	mz, sz := zipOf(mailZip), zipOf(siteZip)
 	if mz != "" && sz != "" && mz != sz {
 		return false
@@ -172,19 +155,15 @@ func sameAddress(mail, mailZip, site, siteZip string, a map[string]any) bool {
 	return sameHouse(mail, site)
 }
 
-// sameHouse compares the house number and the street name and stops there. The
-// tax roll writes the site address from its own columns and leaves the street
-// type out about half the time, so "402 Sample" and "402 SAMPLE RD" are
-// the same house, where a whole-string compare calls them different.
+// The tax roll leaves the street type out about half the time, so "402 Sample"
+// and "402 SAMPLE RD" have to be the same house.
 func sameHouse(a, b string) bool {
 	na, sa := houseParts(a)
 	nb, sb := houseParts(b)
 	return na != "" && na == nb && sa != "" && sa == sb
 }
 
-// houseParts pulls the number and the first real word of the street name out of
-// an address line, dropping a leading directional so "118 N Main" and "118 Main"
-// do not disagree.
+// houseParts drops a leading directional so "118 N Main" and "118 Main" agree.
 func houseParts(addr string) (number, street string) {
 	fields := strings.Fields(strings.ToLower(addr))
 	for i, f := range fields {
@@ -193,8 +172,7 @@ func houseParts(addr string) (number, street string) {
 			continue
 		}
 		if number == "" {
-			// The first thing that is a number is the house number, and anything
-			// before it is a unit or a name and is not wanted.
+			// Anything before the house number is a unit or a name.
 			if num(f) != 0 && !strings.ContainsAny(f, "abcdefghijklmnopqrstuvwxyz") {
 				number = f
 			}
@@ -203,7 +181,6 @@ func houseParts(addr string) (number, street string) {
 		if directions[f] {
 			continue
 		}
-		// The first word after the number that is not a direction is the street.
 		street = nonAlnum.ReplaceAllString(f, "")
 		if street != "" {
 			return number, street
@@ -213,9 +190,6 @@ func houseParts(addr string) (number, street string) {
 	return number, street
 }
 
-// A mailing address that is a box at the post office is never the house. It
-// lives here because this is the only thing left that reads an address written
-// by a county clerk.
 func isPOBox(addr string) bool {
 	a := strings.ToLower(strings.ReplaceAll(addr, ".", ""))
 	return strings.Contains(a, "po box") || strings.Contains(a, "p o box") ||

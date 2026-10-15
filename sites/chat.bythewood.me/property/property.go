@@ -1,17 +1,6 @@
-// Package property answers what a house at an address would actually be like to
-// live in and what it would cost, from public records and nothing else. Flood
-// zone, the road it fronts, the schools it is zoned for, how flat the yard is,
-// what the county has it assessed at, who else lives on the street, the drive to
-// work and back with the school run in it, and the all-in monthly under every
-// loan a person round here can get.
-//
-// It came out of house.bythewood.me, which was a dashboard around this engine.
-// Chat asks better questions of it than a grid of cards could, so the engine
-// moved and the dashboard is going.
-//
-// Every backend is free and keyless bar one: the FBI's crime API wants a key,
-// which is free and instant, and without it the crime figures say they have none
-// rather than guessing.
+// Package property answers what a house at an address would be like to live in
+// and what it would cost, from public records and nothing else. Every backend is
+// keyless except the FBI's crime API.
 package property
 
 import (
@@ -23,8 +12,7 @@ import (
 )
 
 // band maps a measurement onto 0 to 1 between the best and the worst value worth
-// distinguishing, so a report can say "good" without the caller knowing the
-// units.
+// distinguishing.
 func band(v, best, worst float64) float64 {
 	if best == worst {
 		return 0.5
@@ -33,8 +21,7 @@ func band(v, best, worst float64) float64 {
 	return math.Max(0, math.Min(1, t))
 }
 
-// bearingDeg is the initial compass bearing from one point to another, clockwise
-// from true north.
+// bearingDeg is the initial bearing, clockwise from true north.
 func bearingDeg(lat1, lon1, lat2, lon2 float64) float64 {
 	p := math.Pi / 180
 	y := math.Sin((lon2-lon1)*p) * math.Cos(lat2*p)
@@ -52,9 +39,8 @@ func firstNonEmpty(v ...string) string {
 	return ""
 }
 
-// mustJSON is for a struct built here that cannot fail to marshal. An error
-// would mean a field type changed, and an empty object is the right thing to
-// store either way.
+// mustJSON is for a struct built here that can't fail to marshal, and an empty
+// object is the right thing to store if one ever does.
 func mustJSON(v any) string {
 	raw, err := json.Marshal(v)
 	if err != nil {
@@ -66,8 +52,7 @@ func mustJSON(v any) string {
 func round1(f float64) float64 { return math.Round(f*10) / 10 }
 func round2(f float64) float64 { return math.Round(f*100) / 100 }
 
-// num parses a number out of whatever a person or an export put in the field:
-// $250,000 and "1.25 ac" and a bare float all have to come back as one.
+// num reads $250,000, "1.25 ac" and a bare float alike.
 func num(s string) float64 {
 	var b strings.Builder
 	seenDot := false
@@ -89,8 +74,6 @@ func num(s string) float64 {
 	return v
 }
 
-// trimFloat writes a float without trailing zeroes, so 1.50 and 1.00 come out
-// as 1.5 and 1.
 func trimFloat(v float64) string {
 	s := strconv.FormatFloat(v, 'f', 2, 64)
 	s = strings.TrimRight(s, "0")
@@ -107,9 +90,8 @@ var streetAbbrev = map[string]string{
 	"southeast": "se", "southwest": "sw",
 }
 
-// addressKey normalizes an address enough that "402 Sample Road" and
-// "402 Sample Rd." are one house. It is what a cached report is keyed on, so
-// asking about the same house twice in a conversation costs nothing.
+// addressKey makes "402 Sample Road" and "402 Sample Rd." one house, and a
+// cached report is keyed on it.
 func addressKey(addr, zip string) string {
 	words := strings.Fields(strings.ToLower(addr))
 	for i, w := range words {
@@ -123,27 +105,22 @@ func addressKey(addr, zip string) string {
 	return key + "|" + strings.TrimSpace(strings.SplitN(zip, "-", 2)[0])
 }
 
-// Directions stay in capitals and everything else is title cased. Length is not
-// the test: "Rd" is two letters and is not a direction, which is how the first
-// version of this produced "402 Sample RD".
+// Length alone isn't the test, since "Rd" is two letters and isn't a direction.
 var directions = map[string]bool{
 	"n": true, "s": true, "e": true, "w": true,
 	"ne": true, "nw": true, "se": true, "sw": true,
-	// Spelled out too. The tax roll writes "358 WEST MAIN AVENUE" against a site
-	// address of "358 MAIN AVE", and reading WEST as the street name said the
-	// owner lived somewhere else.
+	// The tax roll writes "358 WEST MAIN AVENUE" against a site address of
+	// "358 MAIN AVE", and reading WEST as the street name moved the owner.
 	"north": true, "south": true, "east": true, "west": true,
 	"northeast": true, "northwest": true, "southeast": true, "southwest": true,
 }
 
-// The geocoder shouts, and an address read back in capitals is being shouted at
-// whoever asked.
+// The geocoder and the tax roll answer in capitals.
 func titleAddress(s string) string {
 	words := strings.Fields(strings.ToLower(s))
 	for i, w := range words {
 		trimmed := strings.Trim(w, ".")
-		// Only the abbreviations are shouted. A spelled out direction is a word
-		// and reads as one.
+		// A spelled out direction is a word and reads as one.
 		if directions[trimmed] && len(trimmed) <= 2 {
 			words[i] = strings.ToUpper(w)
 			continue

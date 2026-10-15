@@ -1,6 +1,6 @@
-// The conversation loop. A turn is not one big generation: the model decides
-// what it needs, tools fetch it, and only then does it write, which is what
-// makes a small model usable here.
+// The conversation loop. In a turn the model decides what it needs, tools fetch
+// it and only then does it write, since one big generation is more than a small
+// model can do well.
 package main
 
 import (
@@ -53,7 +53,7 @@ type Event struct {
 	Widget *tools.Widget `json:"widget,omitempty"`
 
 	// One entry in the record of what this turn did, sent as it happens so the
-	// list fills in rather than appearing all at once at the end.
+	// list fills in instead of appearing all at once at the end.
 	Step *Step `json:"step,omitempty"`
 
 	// Where a picture has got to, sent each time it changes stage.
@@ -69,9 +69,8 @@ type Engine struct {
 	reg  *tools.Registry
 	deps *tools.Deps
 	now  func() time.Time
-	// modelName is what the model is told it is. It is the readable name
-	// rather than llama-swap's "local" alias, which is a routing key and means
-	// nothing to a reader.
+	// modelName is what the model is told it is, the readable name and not
+	// llama-swap's "local" alias, which is a routing key.
 	modelName string
 	place     string
 	tz        string
@@ -90,10 +89,9 @@ func NewEngine(llm *LLM, modelName string) *Engine {
 	}
 }
 
-// ambient is what a person sitting here would know without being told, the date
-// and the place. The time is stated to the hour rather than the minute since
-// llama.cpp caches the prompt prefix, and a clock that ticks every minute means
-// no turn ever reuses another's work.
+// ambient is what a person sitting here would know without being told. The time
+// is to the hour since llama.cpp caches the prompt prefix, and a clock that ticks
+// every minute means no turn ever reuses another's work.
 func (e *Engine) ambient() string {
 	t := e.local()
 	return fmt.Sprintf("Today is %s. It is around %s. The user is in %s, "+
@@ -207,7 +205,7 @@ func (e *Engine) SearchSpend() (minute, hour, day int) {
 }
 
 // SaveSpend hands the current counts back to the caller's store. It runs after
-// a turn rather than per request, since a write on the request path costs more
+// a turn instead of per request, since a write on the request path costs more
 // than losing one turn's counts to a hard kill.
 func (e *Engine) SaveSpend(save func(host string, at []time.Time)) {
 	save(tools.SearchHost, e.deps.Budgets.Spent(tools.SearchHost))
@@ -221,12 +219,12 @@ func (e *Engine) SearchDown() (time.Duration, bool) {
 }
 
 // Run drives one user turn and emits events as it goes. The session is the
-// caller's own, forwarded to the orchard tools so each site checks it rather
-// than this one holding a credential.
+// caller's own, forwarded to the orchard tools so each site checks it instead
+// of this one holding a credential.
 func (e *Engine) Run(ctx context.Context, history []Message, user, session, memory string, tr *Trace, emit func(Event)) (Message, []tools.Result, []Source, []tools.Widget, Stats, error) {
 	deps := e.deps.WithSession(session)
 	// A tool decides for itself what incognito means for it, so the flag rides
-	// on the per turn copy rather than only on this process's own requests.
+	// on the per turn copy and not only on this process's own requests.
 	deps.Incognito = IsIncognito(ctx)
 	deps.OnImage = func(p tools.ImageProgress) { emit(Event{Kind: "image", Image: &p}) }
 	refs := referencesOf(ctx)
@@ -345,31 +343,27 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	}
 
 	// news reads every feed on the list, so a second call re-reads all of them
-	// for a rundown the turn already has. One is the whole answer.
+	// for a rundown the turn already has.
 	var usedNews bool
-	// The property tool answers a house out of public records, so a search after
-	// it can only contradict it or add something nobody checked. Asked about one
-	// house it searched the web anyway and came back with a build year that was
-	// in no tool result, which is the shape a prompt cannot fix, since a prompt
-	// is a request.
+	// A search after the property tool can only contradict it or add something
+	// nobody checked. Asked about one house it searched anyway and came back with
+	// a build year in no tool result, and a prompt can't stop that.
 	usedProperty := calledTool(used, tools.PropertyTool.Name)
 	untrusted := readUntrusted(used)
 	var stats Stats
 	schemas := e.reg.Schemas()
 
-	// A model that gets a thin or failed result asks for the same thing again
-	// until the round budget runs out. An identical call is answered from the
-	// ledger with a line telling it not to repeat, and after enough repeats the
-	// tools come off the table.
+	// Given a thin or failed result a model asks for the same thing until the
+	// rounds run out. An identical call is answered from the ledger with a line
+	// telling it not to repeat, and after enough repeats the tools come off.
 	seen := map[string]tools.Result{}
 	repeats := 0
 	// Told there was no betting market about "analytics", it asked odds about
 	// "page views" next, so a tool that failed twice in a turn is taken away.
 	failures := map[string]int{}
 	gates := 0
-	// Set when the gate has sent the turn back, so the round that follows a
-	// nudge cannot answer with prose again. The nudge still carries the query,
-	// and this is what makes it an instruction rather than a request.
+	// Set when the gate has sent the turn back, so the round after a nudge can't
+	// answer in prose again. The nudge carries the query and this makes it binding.
 	forceTools := false
 
 	// A message that only asks for something to be written down gets remember,
@@ -408,9 +402,9 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	for round := 0; round < budget; round++ {
 		last := round == budget-1
 		if last {
-			// Out of tool budget. Taking the tools away is what forces an
-			// answer, leaving them on lets a model spend every round calling
-			// something and hand back an empty turn.
+			// Out of tool budget. Taking the tools away forces an answer, since
+			// with them on a model can spend every round calling something and
+			// hand back an empty turn.
 			msgs = append(msgs, Message{Role: RoleUser, Content: budgetNote(used)})
 			break
 		}
@@ -434,8 +428,8 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 			}
 		}
 		if repeats >= 2 {
-			// It is going in circles. Take the tools away and make it answer
-			// with what it has rather than spending the rest of the budget.
+			// It's going in circles. Take the tools away and make it answer
+			// with what it has instead of spending the rest of the budget.
 			offer = nil
 		}
 		label := thinkingLabel(round)
@@ -468,9 +462,8 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 			Out: decision(reply), MS: time.Since(roundStart).Milliseconds(), Bad: err != nil,
 			Meta: meta})
 		// llama.cpp refuses a whole request when any call in it has arguments
-		// that do not parse. Asking again with the tools off is always answerable,
-		// since by then it has whatever the earlier rounds got, but only once
-		// those calls are out, or it is the same request.
+		// that don't parse. Asking again with the tools off and those calls taken
+		// out always gets an answer, from whatever the earlier rounds got.
 		if err != nil && isTruncatedToolCall(err) {
 			msgs = withoutBrokenCalls(msgs)
 			emit(Event{Kind: "status", Text: "answering"})
@@ -551,7 +544,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 						continue
 					}
 				}
-				// It answered without tools. Stream it properly rather than
+				// It answered without tools. Stream it properly instead of
 				// handing back a block of text that appeared all at once.
 				draft, draftCut = reply.Content, st.Truncated
 				break
@@ -649,8 +642,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 				Meta: snapshotMeta(res.Content)})
 			emit(Event{Kind: "tool_done", Tool: res.Name, MS: res.Elapsed.Milliseconds(), OK: res.Err == ""})
 			// Straight after the tool that named it, so the chart is drawing
-			// while the answer is still being written rather than appearing
-			// under a finished one.
+			// while the answer is still being written.
 			for _, wdg := range drained(deps.Widgets, sentWidgets) {
 				emit(Event{Kind: "widget", Widget: &wdg})
 			}
@@ -710,11 +702,9 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		return Message{Role: RoleAssistant, Content: text}, used, nil, deps.Widgets.List(), stats, nil
 	}
 
-	// The answer is generated fresh rather than reusing the last tool round,
-	// which was written under a small budget with tools still on the table and
-	// reads as "Let me check that" and then stops.
-	// Without the draft the answer works its figures out a second time, and the
-	// second go can disagree with the one the gate let through.
+	// The answer is generated fresh since the last tool round was written on a
+	// small budget with tools on and reads as "Let me check that". The draft goes
+	// in, or the figures get worked out again and can disagree with what passed.
 	if strings.TrimSpace(draft) != "" {
 		msgs = append(msgs, Message{Role: RoleAssistant, Content: draft})
 	}
@@ -766,7 +756,6 @@ func copiedEarlier(answer, draft string, previous []string) bool {
 		!repeatsAnsweredAt(answer, []string{draft}, repeatOverlap)
 }
 
-// wroteMemory is a turn that has written something to memory.
 func wroteMemory(used []tools.Result) bool {
 	for _, r := range used {
 		if r.Name != tools.Remember.Name || r.Err != "" {
@@ -779,7 +768,6 @@ func wroteMemory(used []tools.Result) bool {
 	return false
 }
 
-// onlyRemembered is a turn whose only calls wrote to memory.
 func onlyRemembered(used []tools.Result) bool {
 	for _, r := range used {
 		if r.Name != tools.Remember.Name {
@@ -790,9 +778,8 @@ func onlyRemembered(used []tools.Result) bool {
 }
 
 // failedToolNote names a tool that never once worked in the turn, so the model
-// is told what it could not find out rather than filling the hole with an
-// estimate in the same voice as a checked figure. A tool that failed and later
-// succeeded is left out.
+// says what it couldn't find out instead of filling the hole with an estimate
+// in the same voice as a checked figure.
 func failedToolNote(used []tools.Result) string {
 	failed, worked := map[string]string{}, map[string]bool{}
 	for _, r := range used {
@@ -820,7 +807,7 @@ func failedToolNote(used []tools.Result) string {
 }
 
 // draftNote tells the writer the reply above is its own checked draft, so the
-// answer keeps what the draft established rather than working it out again.
+// answer keeps what the draft established instead of working it out again.
 func draftNote(draft string) string {
 	if strings.TrimSpace(draft) == "" {
 		return ""
@@ -836,10 +823,9 @@ func budgetNote(used []tools.Result) string {
 		"and say plainly if something is missing." + failedToolNote(used)
 }
 
-// prepare is everything done to the model's markdown before it is rendered or
-// stored: the address dump at the end goes, a schemeless address becomes a link,
-// and the citations are repaired. It works a line at a time, so running on each
-// streamed block and again on the whole answer agrees with itself.
+// prepare is everything done to the model's markdown before it's rendered or
+// stored. It works a line at a time, so running on each streamed block and again
+// on the whole answer agrees with itself.
 
 func prepare(md string, srcs []Source) string {
 	return attach(dropDashes(dropLabelMarks(linkBareAddresses(dropSourceList(md)))), srcs)
@@ -877,7 +863,7 @@ func (w *blockWriter) write(d string) {
 	}
 	tail := w.buf.String()
 	if looksLikeCall(tail) {
-		// Hold it back rather than showing markup that is about to be removed.
+		// Hold it back instead of showing markup that is about to be removed.
 		return
 	}
 	if tail != w.lastTail {
@@ -938,9 +924,9 @@ func thinkingLabel(round int) string {
 	return "checking"
 }
 
-// sizeArgs say how much to return rather than what to fetch. They are left out
-// of the repeat key, because asking for the same page again with a bigger limit
-// is the same call and it is exactly how a model talks itself into a loop.
+// sizeArgs say how much to return, not what to fetch, so they're left out of the
+// repeat key. The same page again with a bigger limit is the same call, and it's
+// how a model talks itself into a loop.
 var sizeArgs = map[string]bool{"n": true, "max_chars": true, "top": true, "limit": true, "days": true}
 
 // canonArgs is a stable key for a set of arguments, so the same call written
@@ -1080,7 +1066,7 @@ func drained(sink *tools.Sink, sent map[string]bool) []tools.Widget {
 }
 
 // decision says what a round chose, which is the part of a reply worth showing
-// when the reply itself is a tool call rather than prose.
+// when the reply itself is a tool call instead of prose.
 func decision(m Message) string {
 	if len(m.ToolCalls) == 0 {
 		return "answered without calling anything"
@@ -1110,8 +1096,8 @@ func resultText(r tools.Result) string {
 	return string(b)
 }
 
-// snapshotMeta says how old a tool's data is, for the tools that read something
-// dated rather than the live thing.
+// snapshotMeta says how old a tool's data is, for the tools that read a dated
+// snapshot of something live.
 func snapshotMeta(content any) string {
 	if d := snapshotAge(content); d != "" {
 		return "snapshot taken " + d

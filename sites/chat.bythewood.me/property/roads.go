@@ -12,44 +12,25 @@ import (
 	"time"
 )
 
-// What the house fronts, from two sources that disagree usefully.
-//
-// NCDOT publishes annual average daily traffic per road segment, which is a
-// measured count and the defensible half of "is this on a busy road". OSM
-// publishes a road classification, which covers the roads NCDOT never counted,
-// including the subdivision street a house actually fronts. Neither alone is
-// enough: NC 90 has a count and the gravel lane beside it does not, and OSM
-// calls both of them something.
+// NCDOT's traffic counts are measured but skip most small roads, and OSM's road
+// class covers the street a house actually fronts, so neither is enough alone.
 const (
 	ncdotAADT = "https://services.arcgis.com/NuWFvHYDMVmmxMeM/arcgis/rest/services/NCDOT_AADT_Traffic_Segmentation/FeatureServer/2/query"
 
-	// How far from the house to look for a road. A rural driveway can run a few
-	// hundred feet, so the nearest classified way inside this radius is the one
-	// the house fronts often enough to be the right default.
+	// A rural driveway can run a few hundred feet.
 	roadSearchFeet = 600
 
-	// How far out to look for an interstate on-ramp. Being a couple of minutes
-	// from one is a want, and two minutes of driving is about a mile and a half.
+	// About two minutes of driving.
 	rampSearchFeet = 10560
 
-	// The cache payload shape, in the cache key. An older cached row has no ramp
-	// distance and no way count, and reading one back would say a house is right
-	// beside a ramp and has no roads near it, so a shape change has to miss
-	// rather than decode.
+	// Bump when RoadResult changes shape, since an older row reads as a ramp
+	// nought feet away and no roads near.
 	roadCacheKind = "roadv2"
 )
 
-// Overpass, for road class, the corner test and where the nearest interstate ramp
-// is. The public instances ask for light use and mean it, so this is one query
-// per listing behind the slowest guard here.
-//
-// More than one instance, because the main one answers 504 under load often
-// enough that a single endpoint means no road data for a whole run. Each has its
-// own guard, so a mirror that is down gets its own breaker.
-//
-// Every one is checked to hold data for North Carolina. Several public instances
-// are regional extracts and overpass.osm.ch is Switzerland only, which answered
-// 200 with an empty element list for every address here.
+// The main Overpass instance answers 504 under load often enough that one
+// endpoint means no road data. Each mirror here holds North Carolina, since some
+// are regional extracts that answer 200 with nothing in it.
 var overpassMirrors = []string{
 	"https://overpass-api.de/api/interpreter",
 	"https://z.overpass-api.de/api/interpreter",
@@ -61,41 +42,33 @@ var overpassMirrors = []string{
 type RoadResult struct {
 	AADT      int     // count on the nearest counted segment, 0 when none nearby
 	AADTRoute string  // NCDOT's own route name for that segment
-	AADTFeet  float64 // how far that segment is, so a count on a road a mile off is visibly not the frontage
+	AADTFeet  float64 // so a count on a road a mile off is visibly not the frontage
 	Class     string  // the OSM highway value of the nearest classified way
 	RoadName  string
-	ClassFeet float64 // how far that way is, which is what separates fronting a road from being near one
+	ClassFeet float64 // fronting a road and being near one differ by this
 
-	// Roads inside the corner radius. Two distinct ones means the house has road
-	// on more than one side, which is the corner lot rule.
+	// Inside the corner radius. Two distinct ones is a corner lot.
 	NearbyRoads []string
 
-	// Two different questions about the same road. The pavement is the noise and
-	// the safety one, since what nobody wants is an interstate at the bottom of
-	// the garden. The ramp is the getting-places one and it matters far less.
+	// The pavement is noise and safety, and the ramp is getting places, which
+	// matters far less.
 	HighwayFeet float64
 	HighwayName string
 	RampFeet    float64
 	RampName    string
 
-	// Set when a lookup actually ran, for the same reason FloodResult carries one:
-	// the zero value would otherwise read as a ramp nought feet away.
+	// Without it the zero value reads as a ramp nought feet away.
 	Measured bool
 
 	Partial bool
 }
 
-// newRoadResult is the not-measured zero value, with every distance at the
-// sentinel rather than at zero.
 func newRoadResult() RoadResult {
 	return RoadResult{AADTFeet: notFound, ClassFeet: notFound, RampFeet: notFound, HighwayFeet: notFound}
 }
 
-// Corner reports whether road runs on more than one side of the house.
 func (r RoadResult) Corner() bool { return len(r.NearbyRoads) > 1 }
 
-// A mirror and its own guard, together. They were two parallel slices indexed by
-// position, which panics the moment the lists disagree about their length.
 type mirror struct {
 	url   string
 	guard *Guard
@@ -130,8 +103,8 @@ func NewRoads(db *sql.DB, badClasses []string, cornerFt float64) *Roads {
 	}
 }
 
-// Four seconds apart and a small budget each. Overpass asks for light use and
-// bans by IP, and the ban is not something to negotiate out of.
+// Overpass asks for light use and bans by IP, and the ban isn't something to
+// negotiate out of.
 func overpassGuards(db *sql.DB) []mirror {
 	var out []mirror
 	for _, u := range overpassMirrors {
@@ -142,8 +115,7 @@ func overpassGuards(db *sql.DB) []mirror {
 				Budget:      40,
 				Window:      time.Hour,
 				Timeout:     overpassAttempt,
-				// Overpass answers 406 to a browser string. It is an API and it
-				// wants to know who is calling, which is fair.
+				// Overpass answers 406 to a browser string.
 				UserAgent: clientUA,
 			}),
 		})
@@ -159,35 +131,24 @@ func hostOf(raw string) string {
 	return u.Host
 }
 
-// emptyIsNotAnAnswer is returned when a mirror answers with nothing. Every
-// address this runs against is a house somebody lives in, so there is a road within six hundred feet of it. An empty element list
-// means the mirror has no data for this part of the world, and caching it would
-// score the listing as having no frontage at all.
+// Every address here is a house with a road near it, so an empty answer means the
+// mirror has no data for here, and caching it would read as no frontage at all.
 var emptyIsNotAnAnswer = fmt.Errorf("mirror returned no elements, so it has no data for here")
 
-// This bounds the whole mirror loop rather than each attempt. Five mirrors at a
-// forty second timeout each is over three minutes of waiting for an answer that
-// is not coming, and on a bad Overpass day two of these run at once. The road
-// and outing factors both degrade honestly when it runs out.
-// Five mirrors have to fit inside it, so the per mirror timeout below has to
-// divide into it or the first one to hang eats the lot and the rest are never
-// asked.
+// Bounds the whole mirror loop, not each attempt, so overpassAttempt has to
+// divide into it or the first mirror to hang eats the lot.
 const overpassBudget = 90 * time.Second
 
-// What one mirror gets before we move on. It is also written into the query as
-// Overpass' own [timeout:], so the server gives up at the same moment the client
-// does rather than carrying on with work nobody is waiting for.
+// Also written into the query as Overpass' own [timeout:], so the server gives up
+// when the client does.
 const overpassAttempt = 25 * time.Second
 
-// Overpass publishes its own limit of two concurrent queries per address, which
-// /api/status will tell you. An assessment asks for the roads and the outings at
-// once and each of those walks four mirrors, so the two overlap and the answer is
-// 429 for both. One at a time, everywhere, keeps us inside it.
+// Overpass enforces two concurrent queries per address, and an assessment runs
+// several Overpass lookups at once, so one at a time everywhere keeps us inside it.
 var overpassSlot sync.Mutex
 
-// overpassQuery tries each mirror in turn and returns the first real answer. A
-// mirror whose breaker is open costs nothing to skip, which is why they are asked
-// in order rather than at random.
+// overpassQuery asks mirrors in order, since one whose breaker is open costs
+// nothing to skip.
 func (r *Roads) overpassQuery(ctx context.Context, query string) ([]byte, error) {
 	overpassSlot.Lock()
 	defer overpassSlot.Unlock()
@@ -258,8 +219,7 @@ func (r *Roads) Lookup(ctx context.Context, lat, lon float64) (RoadResult, error
 		out.Partial = true
 	} else {
 		for _, feat := range res.Features {
-			// Newest year present wins. NCDOT adds a column per survey year
-			// rather than replacing one, and which years exist moves over time.
+			// NCDOT adds a column per survey year, so the newest present wins.
 			count, ok := attrFloat(feat.Attributes, "AADT_2023", "AADT_2022", "AADT_2021", "AADT")
 			if !ok {
 				continue
@@ -322,13 +282,9 @@ type osmAnswer struct {
 	highwayName string
 }
 
-// osmAround is one Overpass call answering three questions: what the house
-// fronts, whether road runs on more than one side of it, and how far the nearest
-// interstate on-ramp is.
-//
-// `out geom` on the near ring, because a way's centre can be half a mile off when
-// the way is long and that picks the wrong road. The wide ring asks for ramps
-// only, which are short ways, so the whole response stays small.
+// osmAround uses `out geom` since a long way's centre can be half a mile off and
+// pick the wrong road. The wide ring asks only for motorways, trunks and ramps,
+// so the response stays small.
 func (r *Roads) osmAround(ctx context.Context, lat, lon, corner float64) (osmAnswer, error) {
 	const (
 		nearM = int(roadSearchFeet * 3048 / 10000)
@@ -383,8 +339,7 @@ way(around:%d,%.6f,%.6f)["highway"~"^(motorway|motorway_link|trunk)$"];
 				ans.highwayFeet = d
 				ans.highwayName = orUnnamed(name, el.Tags["ref"])
 			}
-			// A motorway inside the near ring is also the frontage, so it falls
-			// through to the class test below rather than being counted only here.
+			// A motorway inside the near ring is also the frontage.
 			if d > roadSearchFeet {
 				continue
 			}
@@ -394,9 +349,8 @@ way(around:%d,%.6f,%.6f)["highway"~"^(motorway|motorway_link|trunk)$"];
 			ans.classFeet, ans.class, ans.name = d, class, name
 		}
 
-		// A driveway and a track are not road on a side of the house, and an
-		// unnamed way is counted by its class so two lanes with no name still
-		// read as two roads.
+		// A driveway and a track aren't road on a side of the house. An unnamed
+		// way is counted by its class so two lanes with no name read as two.
 		if d <= corner && class != "service" && class != "track" {
 			label := orUnnamed(name, class)
 			if !seen[label] {

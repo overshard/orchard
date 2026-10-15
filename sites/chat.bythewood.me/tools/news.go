@@ -12,14 +12,9 @@ import (
 	"unicode"
 )
 
-// The news reader. A question like "any big news today?" sent to web_search
-// returns whatever a search engine felt like that minute, so the same question
-// twice gives two different days of news. A fixed list of publishers means the
-// only thing that varies is what happened.
-//
-// Hacker News and Lobsters publish a score, so the cut is a threshold. A
-// newsroom feed has no score and the order it publishes in is the desk's own
-// judgement, so position is the signal there.
+// A fixed list of publishers, since "any big news today?" sent to web_search gives
+// two different days of news asked twice. Hacker News and Lobsters cut on a score
+// and a newsroom feed has none, so there the desk's own order is the signal.
 
 const (
 	// What a front page is worth reading down to. Below this an item is a
@@ -125,9 +120,9 @@ func countItems(sections []NewsSection) int {
 	return n
 }
 
-// itemBudget opens the note with the arithmetic, because "every item gets a
-// bullet" on its own got four of twenty one and two sections of four. A model
-// told it owes twenty one bullets under four headings can count what it wrote.
+// itemBudget opens the note with the arithmetic, since a model told it owes
+// twenty one bullets under four headings can count what it wrote, and "every item
+// gets a bullet" alone gets a handful.
 func itemBudget(sections []NewsSection) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "There are %d items here across %d sections. Your answer has to carry all %d, "+
@@ -170,7 +165,7 @@ func newYork() *time.Location {
 
 // resolveWindow turns a word into a half open range and a label saying what it
 // decided, because a reader who asked for the weekend deserves to see which
-// days that was rather than trusting it.
+// days that was instead of trusting it.
 func resolveWindow(now time.Time, window string) (time.Time, time.Time, string) {
 	midnight := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	day := func(t time.Time) string { return t.Format("Mon 2 Jan 2006") }
@@ -180,17 +175,15 @@ func resolveWindow(now time.Time, window string) (time.Time, time.Time, string) 
 		start := midnight.AddDate(0, 0, -1)
 		return start, midnight, "yesterday, " + day(start)
 	case "weekend-and-today":
-		// "over the weekend including today" has no answer in either of the
-		// other two, and asked on a Monday the plain weekend window excludes
-		// today by definition, which quietly dropped the day he asked about.
+		// "over the weekend including today" fits neither of the other two, since
+		// asked on a Monday the plain weekend window excludes today.
 		back := (int(now.Weekday()) + 1) % 7
 		sat := midnight.AddDate(0, 0, -back)
 		return sat, now, "the weekend of " + day(sat) + " and " + day(sat.AddDate(0, 0, 1)) +
 			", plus today, " + day(now)
 	case "weekend":
-		// The most recent Saturday and Sunday. Asked on one of them it means
-		// the one being had, and asked on a Wednesday it means the one just
-		// gone, which is what a person means by "this weekend" either way.
+		// The most recent Saturday and Sunday, the one being had when asked on
+		// one of them and the one just gone when asked on a Wednesday.
 		back := (int(now.Weekday()) + 1) % 7
 		sat := midnight.AddDate(0, 0, -back)
 		end := sat.AddDate(0, 0, 2)
@@ -210,8 +203,8 @@ func resolveWindow(now time.Time, window string) (time.Time, time.Time, string) 
 }
 
 // NewsItem is one story. Points is left out of the JSON when there is none,
-// since a newsroom feed has no score and a zero would read as unpopular rather
-// than unscored.
+// since a newsroom feed has no score and a zero would read as unpopular, not
+// unscored.
 type NewsItem struct {
 	Source    string `json:"source"`
 	Headline  string `json:"headline"`
@@ -232,10 +225,8 @@ type feed struct {
 	name, url string
 }
 
-// section is one heading in the answer. Each keeps its own slots, which is what
-// stops the newsrooms crowding the aggregators out: a flat cap over everything
-// sorted desks first took 28 of 45 items and left all fourteen Hacker News
-// stories and both Lobsters ones on the floor.
+// section is one heading in the answer. Each keeps its own slots, since a flat
+// cap over everything sorted desks first leaves the aggregators on the floor.
 type section struct {
 	name        string
 	feeds       []feed
@@ -262,10 +253,8 @@ var (
 	marketch   = feed{"MarketWatch", "https://feeds.content.dowjones.io/public/rss/mw_topstories"}
 )
 
-// newsSections is the whole source list. Reuters and AP are missing because both
-// retired their public feeds, every documented Reuters path is dead at the
-// connection and apnews.com answers 401 or 404. Reddit is missing because
-// old.reddit.com redirects a logged out request to a login page, www.reddit.com
+// Reuters and AP are missing because both retired their public feeds, and Reddit
+// because old.reddit.com sends a logged out request to a login page, www.reddit.com
 // rate limits its rss, and neither carries a score.
 var newsSections = map[string][]section{
 	"general": {
@@ -304,7 +293,7 @@ type NewsSection struct {
 }
 
 // gatherNews reads every source for a topic at once and keeps what landed in the
-// window. A source that fails is counted and skipped rather than failing the
+// window. A source that fails is counted and skipped instead of failing the
 // tool, and the aggregators are fetched once however many sections asked.
 func gatherNews(ctx context.Context, d *Deps, topic string, since, until time.Time) ([]NewsSection, int, int) {
 	sections := newsSections[topic]
@@ -376,9 +365,8 @@ func gatherNews(ctx context.Context, d *Deps, topic string, since, until time.Ti
 	// One story reaching two sections reads as the tool repeating itself, so a
 	// headline is placed in the first section that wanted it and nowhere else.
 	placed := map[string]bool{}
-	// The headlines already taken, for the case two publishers write one story
-	// up under different words. An exact key cannot see that, and on
-	// 2026-09-08 the same Navier-Stokes paper led the tech section twice.
+	// The headlines already taken, for two publishers writing one story up under
+	// different words, which an exact key can't see.
 	var placedWords []map[string]bool
 	take := func(items []NewsItem, slots int, scoredFirst bool) []NewsItem {
 		items = dedupeNews(items)
@@ -419,10 +407,9 @@ func gatherNews(ctx context.Context, d *Deps, topic string, since, until time.Ti
 	return out, tried, failed
 }
 
-// fillSection shares one section's slots out between the newsrooms and the
-// aggregators. A section holding both has to split them, or the desks sort
-// first and eat every one, which is the same starvation the per section slots
-// were added to stop. Whatever one side does not use, the other takes.
+// fillSection splits one section's slots between the newsrooms and the
+// aggregators, or the desks sort first and eat every one. Whatever one side
+// doesn't use, the other takes.
 func fillSection(sec section, desks, scored []NewsItem, take func([]NewsItem, int, bool) []NewsItem) []NewsItem {
 	switch {
 	case !sec.aggregators:
@@ -547,11 +534,9 @@ func stripTags(s string) string {
 }
 
 func readHackerNews(ctx context.Context, d *Deps, since, until time.Time) ([]NewsItem, error) {
-	// search_by_date with a timestamp filter rather than the front page, which
-	// is whatever is on it now and says nothing about a window that closed.
-	// The comparison operators have to be percent encoded. Sent raw, Algolia
-	// answers 400 with an HTML body, which parses as no stories rather than as
-	// an error.
+	// search_by_date, since the front page says nothing about a window that
+	// closed. The operators have to be percent encoded or Algolia answers 400
+	// with an HTML body, which parses as no stories instead of as an error.
 	filters := fmt.Sprintf("created_at_i>%d,created_at_i<%d,points>%d",
 		since.Unix(), until.Unix(), hnMinPoints)
 	url := "https://hn.algolia.com/api/v1/search?tags=story&hitsPerPage=40&numericFilters=" +
@@ -625,10 +610,8 @@ func readLobsters(ctx context.Context, d *Deps, since, until time.Time) ([]NewsI
 }
 
 // Two publishers carrying one story is worth knowing and two copies of one
-// publisher's own item is not, so this drops by url and by headline.
-//
-// Both keys are checked rather than one or the other, since two copies off
-// different feeds carry different tracking parameters and slip past a url key.
+// publisher's item isn't, so this drops by url and by headline both, since copies
+// off different feeds carry different tracking parameters and slip past a url key.
 func dedupeNews(in []NewsItem) []NewsItem {
 	seenURL := make(map[string]bool, len(in))
 	seenHead := make(map[string]bool, len(in))
@@ -664,8 +647,8 @@ func canonicalNewsURL(raw string) string {
 }
 
 // headlineWords is the distinctive half of a headline, for deciding whether two
-// items are the same story written up twice. Not a real tokeniser and does not
-// need to be: it only ever compares two headlines from the same rundown.
+// items are the same story. It only ever compares headlines from one rundown, so
+// it doesn't need to be a real tokeniser.
 func headlineWords(h string) map[string]bool {
 	out := map[string]bool{}
 	for _, w := range strings.FieldsFunc(strings.ToLower(h), func(r rune) bool {
@@ -719,10 +702,9 @@ func sameStory(a, b map[string]bool) bool {
 	return float64(shared)/float64(small) >= 0.75
 }
 
-// What leads depends on the topic. On tech the aggregators are the story and a
-// score is the best measure of that. On general news they are not: a post about
-// converting timestamps outranking a fatal plane crash is the wrong answer to
-// "any big news today", so there the desks lead and the scored items follow.
+// On tech the aggregators are the story and a score measures it, but on general
+// news a post about converting timestamps outranking a fatal plane crash is the
+// wrong answer to "any big news today", so there the desks lead.
 func sortNews(items []NewsItem, scoredFirst bool) {
 	sort.SliceStable(items, func(i, j int) bool {
 		a, b := items[i], items[j]

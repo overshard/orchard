@@ -2,12 +2,8 @@ package property
 
 import "math"
 
-// Just enough geometry to answer "how far is this house from that" without a
-// dependency. Every distance comes back in feet.
-//
-// The projection is a local equirectangular one: x scaled by cos(latitude), y
-// left alone, both multiplied by feet per degree. Over the few thousand feet
-// these questions cover the error is well under a foot.
+// Distances are in feet on a local equirectangular projection, x scaled by
+// cos(latitude), and over a few thousand feet the error is well under a foot.
 const (
 	feetPerDegLat = 364000.0 // 1 degree of latitude, near enough at this latitude
 	sqFtPerAcre   = 43560.0
@@ -15,7 +11,6 @@ const (
 
 type point struct{ lat, lon float64 }
 
-// esriGeometry is the subset of ArcGIS JSON geometry these services return.
 type esriGeometry struct {
 	Rings [][][]float64 `json:"rings"`
 	Paths [][][]float64 `json:"paths"`
@@ -27,8 +22,6 @@ func feetPerDegLon(lat float64) float64 {
 	return feetPerDegLat * math.Cos(lat*math.Pi/180)
 }
 
-// distToSegmentFeet is the distance from p to the segment ab, projected flat
-// around p's latitude.
 func distToSegmentFeet(p, a, b point) float64 {
 	fx := feetPerDegLon(p.lat)
 	px, py := 0.0, 0.0
@@ -45,9 +38,8 @@ func distToSegmentFeet(p, a, b point) float64 {
 	return math.Hypot(cx, cy)
 }
 
-// pointInRing is ray casting, counting crossings of the ring's edges. Holes are
-// not distinguished: for "is this house in a flood zone" treating a hole as
-// inside is the cautious answer and these layers rarely carry one.
+// pointInRing doesn't distinguish holes, since inside is the cautious answer for
+// a flood zone and these layers rarely carry one.
 func pointInRing(p point, ring [][]float64) bool {
 	inside := false
 	for i, j := 0, len(ring)-1; i < len(ring); j, i = i, i+1 {
@@ -61,9 +53,8 @@ func pointInRing(p point, ring [][]float64) bool {
 	return inside
 }
 
-// distanceFeet is the distance from p to a geometry, and zero when p is inside a
-// polygon. Anything unrecognised comes back as +Inf so a caller treats a shape
-// it cannot read as "not nearby" rather than as "right here".
+// distanceFeet is zero inside a polygon and +Inf for a shape it can't read, so
+// that reads as not nearby instead of right here.
 func (g esriGeometry) distanceFeet(p point) float64 {
 	best := math.Inf(1)
 
@@ -99,13 +90,8 @@ func ringDistance(p point, ring [][]float64) float64 {
 	return best
 }
 
-// acres is the area of a polygon, which is how a lot size is known in a county
-// that publishes parcel shapes and no attributes. The shoelace formula on the
-// same flat projection everything else here uses, so it is exact enough at the
-// size of a house lot and meaningless at the size of a state.
-//
-// Rings after the first are holes and are subtracted, since an ArcGIS polygon
-// winds them the other way.
+// acres is for a county that publishes parcel shapes and no attributes. Holes
+// subtract on their own, since ArcGIS winds them the other way.
 func (g esriGeometry) acres(around point) float64 {
 	fx, fy := feetPerDegLon(around.lat), feetPerDegLat
 
@@ -128,17 +114,14 @@ func (g esriGeometry) acres(around point) float64 {
 	return math.Abs(total) / sqFtPerAcre
 }
 
-// envelopeAround is the lat/lon box a given number of feet out from a point,
-// which is what every ArcGIS envelope query here asks for.
 func envelopeAround(lat, lon, feet float64) (xmin, ymin, xmax, ymax float64) {
 	dLat := feet / feetPerDegLat
 	dLon := feet / feetPerDegLon(lat)
 	return lon - dLon, lat - dLat, lon + dLon, lat + dLat
 }
 
-// centroid is the middle of the first ring, area weighted. The geocoder puts a
-// point in the road, so a map link built from it drops its pin a few doors along,
-// and the lot's own middle is where the house actually is.
+// centroid is for the map pin, since the geocoder puts the point in the road a
+// few doors along.
 func (g esriGeometry) centroid() (point, bool) {
 	for _, ring := range g.Rings {
 		if len(ring) < 4 {
@@ -165,18 +148,15 @@ func (g esriGeometry) centroid() (point, bool) {
 	return point{}, false
 }
 
-// boxAround is the lat/lon bounding box a given number of feet out from a point,
-// in the south,west,north,east order Overpass wants, which is the opposite order
-// to the one ArcGIS wants.
+// boxAround is in the south,west,north,east order Overpass wants, unlike ArcGIS.
 func boxAround(lat, lon, feet float64) (south, west, north, east float64) {
 	dLat := feet / feetPerDegLat
 	dLon := feet / feetPerDegLon(lat)
 	return lat - dLat, lon - dLon, lat + dLat, lon + dLon
 }
 
-// haversineFeet is the great circle distance in feet. Used for water buffers and
-// for how far the nearest anything is, never for a commute: the roads here do not
-// run straight and a straight line through a ridge is not a drive.
+// haversineFeet is never for a commute, since a straight line through a ridge
+// isn't a drive.
 func haversineFeet(lat1, lon1, lat2, lon2 float64) float64 {
 	const earthFeet = 20902231.0 // mean Earth radius, 6371 km in feet
 	p := math.Pi / 180

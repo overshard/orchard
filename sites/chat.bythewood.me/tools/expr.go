@@ -10,9 +10,9 @@ import (
 	"strings"
 )
 
-// The functions calc understands. A mortgage payment needs a power, and without
-// one the model writes the amortization formula with `^`, is told it is not
-// arithmetic, and puts a made up number in the table instead.
+// A mortgage payment needs a power, and without pow the model writes the
+// amortization formula with `^`, gets refused, and puts a made up number in the
+// table instead.
 var exprFuncs = map[string]struct {
 	args int
 	fn   func([]float64) (float64, error)
@@ -32,13 +32,9 @@ var exprFuncs = map[string]struct {
 	"max":   {2, func(a []float64) (float64, error) { return math.Max(a[0], a[1]), nil }},
 }
 
-// evalExpr runs a short program: statements separated by newlines or
-// semicolons, each either `name = expression` or a bare expression, and the
-// value of the last one is the answer.
-//
-// Naming the parts is how anybody writes a mortgage payment, and a model asked
-// for one reaches for `r = 0.05/12` first. Without it the call is refused for a
-// reason the model cannot act on, and it guesses instead.
+// evalExpr runs statements split by newlines or semicolons, each `name = expr`
+// or a bare expression, and the last value is the answer. A model asked for a
+// mortgage payment reaches for `r = 0.05/12` first, and refused it just guesses.
 func evalExpr(s string) (float64, error) {
 	env := map[string]float64{}
 	var last float64
@@ -96,10 +92,9 @@ func isName(s string) bool {
 	return true
 }
 
-// evalOne walks a parsed Go expression rather than shelling out to anything.
-// go/parser is already in the standard library and it rejects everything that
-// is not an expression for free, so the whole risk surface is the node types
-// allowed below.
+// evalOne walks a parsed Go expression instead of shelling out to anything.
+// go/parser rejects whatever isn't an expression, so the risk is limited to the
+// node types allowed below.
 func evalOne(s string, env map[string]float64) (float64, error) {
 	s, err := powers(s)
 	if err != nil {
@@ -204,9 +199,8 @@ func evalNode(n ast.Expr, env map[string]float64) (float64, error) {
 	return 0, fmt.Errorf("only arithmetic is supported")
 }
 
-// powers turns a ^ b and a ** b into pow(a, b) before Go parses anything. Go
-// reads ^ as XOR and binds it looser than * and /, so it cannot be left for the
-// parser, and a model refused over it spent two rounds on 1024^3.
+// powers turns a ^ b and a ** b into pow(a, b) before Go parses anything, since
+// Go reads ^ as XOR and binds it looser than * and /.
 func powers(s string) (string, error) {
 	s = strings.ReplaceAll(s, "**", "^")
 	for {

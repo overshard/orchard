@@ -1,19 +1,17 @@
 package main
 
-// What every open tab is told, whichever one asked for it.
-//
-// This is the meta channel and not a second copy of the answer stream. It
-// carries which conversation changed and nothing about what was said, so a tab
-// knows what to go and read and the answer still comes from the run itself.
+// The meta channel every open tab hears. It says which conversation changed and
+// nothing about what was said, so a tab knows what to go and read and the answer
+// still comes from the run itself.
 
 import (
 	"encoding/json"
 	"sync"
 )
 
-// A slow reader is dropped rather than waited on. A tab on a locked phone can
-// stop reading for minutes, and a broadcast that blocks on it would stall every
-// other tab and the turn doing the publishing.
+// A slow reader misses events instead of being waited on. A tab on a locked
+// phone can stop reading for minutes, and a broadcast that blocks on it would
+// stall every other tab and the turn doing the publishing.
 const hubBuffer = 16
 
 type HubEvent struct {
@@ -51,9 +49,8 @@ func (h *Hub) Subscribe() (<-chan HubEvent, func()) {
 	}
 }
 
-// Publish tells every open tab. It never blocks: a subscriber whose buffer is
-// full has stopped reading, and the events are hints to go and re-read rather
-// than a record that has to arrive.
+// Publish never blocks, since a subscriber whose buffer is full has stopped
+// reading and the events are only hints to go and re-read.
 func (h *Hub) Publish(ev HubEvent) {
 	if h == nil {
 		return

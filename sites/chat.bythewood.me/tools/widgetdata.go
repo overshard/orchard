@@ -10,14 +10,12 @@ import (
 	"time"
 )
 
-// The readings behind a widget. These are called from the page rather than from
+// The readings behind a widget. These are called from the page instead of from
 // a turn, so a chart can change range without the model being involved and a
 // reopened conversation draws today's numbers.
 
-// Range is one of the four spans the chart offers. Yahoo wants a range and an
-// interval together and the pair has to be chosen rather than derived: a year
-// at five minute bars is 20,000 points nobody can see and a day at daily bars
-// is one.
+// Range pairs the span with its interval, since Yahoo wants both and a year at
+// five minute bars is 20,000 points nobody can see and a day at daily bars is one.
 type Range struct {
 	Key      string
 	Label    string
@@ -57,8 +55,8 @@ type Series struct {
 	Percent  float64 `json:"percent"`
 	Points   []Point `json:"points"`
 
-	// Intraday is the one range whose baseline means yesterday's close rather
-	// than the first bar drawn, which is what the dotted rule on the chart is.
+	// Intraday is the one range whose baseline is yesterday's close, drawn as
+	// the dotted rule, instead of the first bar.
 	Intraday bool `json:"intraday"`
 }
 
@@ -116,8 +114,8 @@ func buildSeries(out chartPayload, r Range, symbol string) (Series, error) {
 		s.Name = res.Meta.ShortName
 	}
 
-	// A gap in the series is a bar the exchange never printed, so it is dropped
-	// rather than zeroed. A zero would draw a spike to the floor of the chart.
+	// A gap in the series is a bar the exchange never printed, so it's dropped
+	// instead of zeroed, since a zero would draw a spike to the floor.
 	if len(res.Indicators.Quote) > 0 {
 		cl := res.Indicators.Quote[0].Close
 		for i := range cl {
@@ -131,8 +129,8 @@ func buildSeries(out chartPayload, r Range, symbol string) (Series, error) {
 		return Series{}, fmt.Errorf("no prices for %q over %s", symbol, r.Label)
 	}
 
-	// The last bar is the price when the quote field is empty, which is what
-	// happens on an index and on anything out of hours.
+	// The last bar is the price when the quote field is empty, as it is on an
+	// index and on anything out of hours.
 	if s.Price == 0 {
 		s.Price = s.Points[len(s.Points)-1].C
 	}
@@ -274,10 +272,9 @@ func (rep *Report) airQuality(ctx context.Context, d *Deps, lat, lon float64) {
 	}
 }
 
-// pollen is pollen.com, which is the source dash settled on for the same
-// reason: open-meteo carries pollen for Europe only and returns null for every
-// US location. It is keyed on a zip, which the geocode already knew, and it
-// refuses a request that arrives without a Referer.
+// pollen reads pollen.com, keyed on the zip the geocode already knew, since
+// open-meteo returns null pollen for every US location. It refuses a request
+// that arrives without a Referer.
 func (rep *Report) pollen(ctx context.Context, d *Deps, zip, country string) {
 	if zip == "" || (country != "" && country != "US") {
 		return

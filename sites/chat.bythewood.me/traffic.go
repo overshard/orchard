@@ -11,7 +11,7 @@ import (
 )
 
 // Traffic on his own sites is read before the model decides. Asked whether
-// eight views in a week sounded right, it asked the betting markets six times.
+// eight views in a week sounded right, it went to the betting markets.
 var (
 	ownSite     = regexp.MustCompile(`(?i)\borchard[\s_-]?analytics\b|\banalytics\.bythewood\b|\b(my|our)\b.{0,30}\b(blog|site|sites|website|websites|portfolio|posts?|analytics|traffic)\b`)
 	trafficWord = regexp.MustCompile(`(?i)\b(analytics|traffic|page\s?views?|pageviews|views|visits|visitors|readers|sessions|referr?ers|referrals|popular|hits)\b`)

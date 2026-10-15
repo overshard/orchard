@@ -1,8 +1,7 @@
 package tools
 
-// Default is every tool the chat is offered. Adding one here is the only step:
-// the schemas handed to the model and the dispatch table are both built from
-// this, so a tool cannot exist in one and not the other.
+// Default is every tool the chat is offered, and the schemas and the dispatch
+// table are both built from it so a tool can't exist in one and not the other.
 func Default() *Registry {
 	r := &Registry{}
 	for _, t := range []Tool{

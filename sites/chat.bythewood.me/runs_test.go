@@ -58,7 +58,7 @@ func TestAReaderLeavingDoesNotStopTheRun(t *testing.T) {
 }
 
 // A tab that comes back after the turn ended gets the whole thing and a closed
-// channel, rather than an open stream that will never speak.
+// channel instead of an open stream that will never speak.
 func TestAReaderArrivingAfterTheEndGetsEverything(t *testing.T) {
 	rs := NewRuns()
 	rn := rs.Start("c1")
@@ -155,7 +155,7 @@ func TestFinishedRunsAreSweptButOnlyWhenStale(t *testing.T) {
 	}
 }
 
-// A reader that stops keeping up is skipped rather than waited on, or one slow
+// A reader that stops keeping up is skipped instead of waited on, or one slow
 // tab holds up the turn and every reader behind it.
 func TestASlowReaderDoesNotBlockTheTurn(t *testing.T) {
 	rs := NewRuns()
@@ -178,8 +178,8 @@ func TestASlowReaderDoesNotBlockTheTurn(t *testing.T) {
 	}
 }
 
-// Two turns at once take the card in order rather than interleaving, and the
-// one waiting is told where it is rather than sitting on a spinner.
+// Two turns at once take the card in order instead of interleaving, and the one
+// waiting is told where it is so it isn't sitting on a spinner.
 func TestASecondTurnWaitsAndIsToldSo(t *testing.T) {
 	q := NewQueue()
 	first, ok := q.Enter(context.Background(), func(QueueState) {})

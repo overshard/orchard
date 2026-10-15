@@ -6,50 +6,35 @@ import (
 	"strings"
 )
 
-// What a house actually costs a month under each loan a person round here can
-// get. A list price is not what a house costs and neither is principal and
-// interest, so every figure below is the all-in one: principal, interest, the
-// county's own tax rate, insurance, whatever mortgage insurance that programme
-// charges, HOA, utilities and internet.
-//
-// The four programmes are not variations on one loan. FHA charges an upfront
-// premium and then an annual one that usually never comes off, VA charges a one
-// off funding fee and no insurance at all, USDA charges both but less, and
-// conventional charges neither once there is 20% equity. Comparing note rates
-// alone gets the ranking wrong most of the time, which is the reason this exists.
+// Each programme charges insurance and fees differently, so comparing note rates
+// alone gets the ranking wrong most weeks and every figure here is all in.
 
-// Every figure in this block is published, and every one of them moves. The year
-// each came from is in the name or the comment, and a report says which year it
-// used so a stale one is visible rather than silent.
+// Every figure here is published and moves, so the year is in the name or the
+// comment.
 const (
-	// FHFA's baseline conforming limit for a one unit property, 2026. High cost
-	// counties are higher and none in this part of the state is one.
+	// FHFA's 2026 baseline for one unit. No county in this part of the state is
+	// high cost.
 	conformingLimit2026 = 832750.0
 
-	// FHA's floor and ceiling are 65% and 150% of that. Every county in the
-	// search area sits at the floor.
+	// Of the conforming limit. Every county in the search area sits at the floor.
 	fhaFloorPct   = 0.65
 	fhaCeilingPct = 1.50
 
-	// HUD's annual MIP schedule steps at this loan amount, which is the 2023
-	// conforming limit and has not been moved since ML 2023-05.
+	// HUD's annual MIP schedule steps here, the 2023 conforming limit, unmoved
+	// since ML 2023-05.
 	fhaMIPStep = 726200.0
 
-	// FHA's upfront premium, financed into the loan.
 	fhaUpfrontPct = 1.75
 
-	// USDA Section 502 guaranteed: 1% upfront, financed, and 0.35% a year on the
-	// scheduled balance.
+	// USDA Section 502 guaranteed, the annual fee on the scheduled balance.
 	usdaUpfrontPct = 1.00
 	usdaAnnualPct  = 0.35
 
-	// A conventional borrower stops paying mortgage insurance at 80% on request
-	// and at 78% automatically. FHA's runs eleven years or the life of the loan,
-	// and USDA's runs the life of the loan.
+	// Conventional MI comes off at 80% on request and 78% automatically, where
+	// FHA's runs eleven years or the life of the loan and USDA's runs for life.
 	pmiDropLTV = 80.0
 )
 
-// LoanTypes is every programme quoted, in the order a report lists them.
 var LoanTypes = []string{"conventional", "fha", "va", "usda"}
 
 var loanNames = map[string]string{
@@ -59,15 +44,12 @@ var loanNames = map[string]string{
 	"usda":         "USDA Rural Development",
 }
 
-// Quote is one programme's answer for one price.
 type Quote struct {
 	Type string `json:"type"`
 	Name string `json:"name"`
 
-	// Whether this is a loan he could actually get on this house. A quote that
-	// cannot happen is still returned, with the reason, because "USDA would be
-	// cheapest and this address is not in an eligible area" is the useful answer
-	// and hiding the row loses it.
+	// An ineligible quote still comes back with its reasons, since "USDA would be
+	// cheapest and this address isn't eligible" is a useful answer.
 	Eligible bool     `json:"eligible"`
 	Blockers []string `json:"blockers,omitempty"`
 	Checks   []string `json:"unverified,omitempty"`
@@ -95,19 +77,15 @@ type Quote struct {
 	Internet     float64 `json:"internet"`
 	Total        float64 `json:"total_monthly"`
 
-	// What it takes to get to the table, which is the number that decides
-	// whether a programme is available this year rather than next.
 	CashToClose float64 `json:"cash_to_close"`
 
-	// Debt to income, when the income is known. Front is housing over income and
-	// back is housing plus every other monthly debt.
+	// Front is housing over income and back is housing plus every other monthly
+	// debt, set only when the income is known.
 	FrontDTI float64 `json:"front_dti_pct,omitempty"`
 	BackDTI  float64 `json:"back_dti_pct,omitempty"`
 	DTINote  string  `json:"dti_note,omitempty"`
 }
 
-// LoanInput is everything a quote needs that is not in the config: the house, and
-// whatever the person asking chose to say about themselves.
 type LoanInput struct {
 	Price      int
 	County     string
@@ -122,12 +100,11 @@ type LoanInput struct {
 	TermYears   int
 	CreditScore int
 
-	// Whether the address cleared USDA's rural map, and whether that was
-	// actually checked. A skipped check must not read as a failed one.
+	// A skipped check mustn't read as a failed one.
 	USDAArea        bool
 	USDAAreaChecked bool
 
-	// Down payment assistance, which goes in as cash and so lowers the loan, the
+	// Down payment assistance goes in as cash, so it lowers the loan, the
 	// payment and the insurance together.
 	UseDPA bool
 }
@@ -147,9 +124,8 @@ func amortize(principal, annualRatePct float64, years int) float64 {
 	return principal * r * pow / (pow - 1)
 }
 
-// conventionalPMI is the annual premium as a percent of the loan, by loan to
-// value and credit score. Below 80% there is none, which is the whole reason a
-// conventional loan wins once there is a deposit behind it.
+// conventionalPMI is the annual premium as a percent of the loan. There's none at
+// 80% or under, which is why conventional wins once there's a deposit behind it.
 func conventionalPMI(ltv float64, score int) float64 {
 	if ltv <= pmiDropLTV {
 		return 0
@@ -178,9 +154,8 @@ func conventionalPMI(ltv float64, score int) float64 {
 	}
 }
 
-// fhaMIP is the annual premium and how long it lasts. Above 90% at origination it
-// runs the life of the loan, which is the figure people are surprised by and the
-// reason an FHA loan can be dearer than a conventional one at the same rate.
+// fhaMIP runs the life of the loan above 90% at origination, which is why FHA can
+// be dearer than conventional at the same rate.
 func fhaMIP(baseLoan, ltv float64) (float64, string) {
 	big := baseLoan > fhaMIPStep
 	var pct float64
@@ -200,9 +175,6 @@ func fhaMIP(baseLoan, ltv float64) (float64, string) {
 	return pct, "for eleven years"
 }
 
-// vaFundingFee is a percent of the loan, financed. It steps on the deposit and on
-// whether this is a first use, and a service connected disability rating removes
-// it entirely.
 func vaFundingFee(downPct float64, firstUse, exempt bool) (float64, string) {
 	if exempt {
 		return 0, "waived on a service connected disability rating"
@@ -223,8 +195,8 @@ func vaFundingFee(downPct float64, firstUse, exempt bool) (float64, string) {
 	}
 }
 
-// minDownPct is the least a programme will take. Conventional's 3% needs a first
-// time buyer or an income under the area limit, and 5% is the plain figure.
+// Conventional's 3% needs a first time buyer or an income under the area limit,
+// and 5% is the plain figure.
 func minDownPct(loan string, score int, firstTime bool) float64 {
 	switch loan {
 	case "fha":
@@ -242,9 +214,8 @@ func minDownPct(loan string, score int, firstTime bool) float64 {
 	}
 }
 
-// loanCeiling is the most that programme will lend on one unit. VA and USDA have
-// none: VA caps the guarantee rather than the loan, and USDA caps the borrower's
-// income instead.
+// VA and USDA have no ceiling, since VA caps the guarantee and USDA caps the
+// borrower's income.
 func loanCeiling(loan string) (float64, string) {
 	switch loan {
 	case "conventional":
@@ -256,17 +227,9 @@ func loanCeiling(loan string) (float64, string) {
 	}
 }
 
-// Quotes prices one house under every programme he could actually use. Nothing
-// here is a decision about which is best, because that depends on how long he
-// keeps the loan and on cash he has not told it about.
-//
-// A programme ruled out by something about the house still gets a row, marked,
-// because "USDA would be cheapest and this address is not in an eligible area"
-// is the useful answer. A programme ruled out by something about him does not,
-// because no report is ever going to change it and a column he cannot use is
-// noise in every answer he will ever read. VA without entitlement is the second
-// kind, and it was worse than noise: it priced out cheapest and the model led
-// with the figure before mentioning it was unavailable.
+// Quotes keeps a programme the house rules out but drops one the borrower rules
+// out, since no report will change it. VA without entitlement priced cheapest and
+// the model led with it before saying it was unavailable.
 func (c Config) Quotes(in LoanInput, market Market) []Quote {
 	out := make([]Quote, 0, len(LoanTypes))
 	for _, t := range LoanTypes {
@@ -293,8 +256,8 @@ func (c Config) Quote(loan string, in LoanInput, market Market) Quote {
 	score := firstNonZeroInt(in.CreditScore, m.CreditScore)
 	price := float64(in.Price)
 
-	// The rate. A quoted one wins, then the survey plus this programme's spread,
-	// and a report that had neither says so rather than inventing a number.
+	// A report with neither a quoted rate nor the survey says so instead of
+	// inventing a number.
 	base := market.Thirty
 	switch {
 	case in.RatePct > 0:
@@ -306,8 +269,8 @@ func (c Config) Quote(loan string, in LoanInput, market Market) Quote {
 		q.Checks = append(q.Checks, "no rate available, so the payment could not be worked out")
 	}
 
-	// The deposit. An explicit amount wins over a percent, and the programme's own
-	// floor is applied last so a 0% USDA quote is not silently turned into 3%.
+	// The programme's own floor goes last so a 0% USDA quote isn't silently
+	// turned into 3%.
 	floor := minDownPct(loan, score, m.FirstTimeBuyer)
 	downPct := in.DownPct
 	if in.DownAmount > 0 && price > 0 {
@@ -337,8 +300,8 @@ func (c Config) Quote(loan string, in LoanInput, market Market) Quote {
 	q.BaseLoan = round2(price - down)
 	q.LTV = round2(q.BaseLoan / math.Max(price, 1) * 100)
 
-	// The upfront premium, which every government programme finances rather than
-	// collects, so it lands on the loan and not on the cash to close.
+	// Every government programme finances its upfront fee, so it lands on the
+	// loan and not on the cash to close.
 	switch loan {
 	case "fha":
 		q.UpfrontFee = round2(q.BaseLoan * fhaUpfrontPct / 100)
@@ -359,8 +322,8 @@ func (c Config) Quote(loan string, in LoanInput, market Market) Quote {
 
 	q.PrincipalInt = round2(amortize(q.Loan, q.RatePct, q.TermYears))
 
-	// Mortgage insurance, charged on the base loan for conventional and FHA and on
-	// the financed balance for USDA, which is how each programme writes it.
+	// On the base loan for conventional and FHA and on the financed balance for
+	// USDA, which is how each programme writes it.
 	switch loan {
 	case "conventional":
 		if pct := conventionalPMI(q.LTV, score); pct > 0 {
@@ -380,8 +343,7 @@ func (c Config) Quote(loan string, in LoanInput, market Market) Quote {
 		q.MINote = fmt.Sprintf("%.2f%% a year for the life of the loan", usdaAnnualPct)
 	}
 
-	// Tax. What the listing reported wins, because it is the actual bill on the
-	// actual assessment, and the county rate against the price is the fallback.
+	// The listing's bill wins since it's the actual bill on the actual assessment.
 	if in.TaxAnnual > 0 {
 		q.Tax = round2(in.TaxAnnual / 12)
 		q.TaxSource = "the bill on the listing"
@@ -394,9 +356,8 @@ func (c Config) Quote(loan string, in LoanInput, market Market) Quote {
 
 	q.Total = round2(q.PrincipalInt + q.Tax + q.Insurance + q.MI + q.HOA + q.Utilities + q.Internet)
 
-	// Closing costs are the one figure here nobody publishes. Three percent of the
-	// price is the band a settlement statement lands in round here, and it is a
-	// guess rather than a quote, so it is named as one.
+	// Nobody publishes closing costs, so 3% is the band a settlement statement
+	// lands in round here and the report names it a guess.
 	q.CashToClose = round2(down + price*0.03)
 
 	if m.AnnualIncome > 0 {
@@ -411,9 +372,8 @@ func (c Config) Quote(loan string, in LoanInput, market Market) Quote {
 	return q
 }
 
-// dtiNote says whether the ratios clear what that programme normally writes to.
-// Every one of these is a guideline an underwriter moves on compensating factors,
-// so it is a heads up and never a refusal.
+// dtiNote is a heads up and never a refusal, since an underwriter moves every one
+// of these on compensating factors.
 func dtiNote(loan string, front, back float64) string {
 	switch loan {
 	case "usda":
@@ -445,9 +405,8 @@ func dtiNote(loan string, front, back float64) string {
 	}
 }
 
-// applyEligibility is every reason this loan might not happen on this house. A
-// blocker is a thing that is known to be wrong and a check is a thing nobody told
-// it, and the two must not read alike.
+// A blocker is known to be wrong and a check is something nobody said, and the
+// two mustn't read alike.
 func (c Config) applyEligibility(q *Quote, loan string, in LoanInput, score int) {
 	m := c.Money
 
@@ -501,10 +460,8 @@ func (c Config) applyEligibility(q *Quote, loan string, in LoanInput, score int)
 	}
 }
 
-// usdaIncomeLimit is the guaranteed programme's cap for the household size, which
-// is 115% of area median income adjusted upward for a household over four. The
-// per county figures are config, since USDA publishes them as a PDF map and they
-// move every year.
+// usdaIncomeLimit is 115% of area median income, from config since USDA
+// publishes it as a PDF map that moves every year.
 func (c Config) usdaIncomeLimit(county string) float64 {
 	limits := c.Money.usdaLimits()
 	if limits == nil {
@@ -517,8 +474,7 @@ func (c Config) usdaIncomeLimit(county string) float64 {
 			return 0
 		}
 	}
-	// USDA's own step: the published figure covers a household of one to four and
-	// rises 8% for five to eight.
+	// USDA's figure covers one to four and rises 8% for five to eight.
 	if c.Money.HouseholdSize > 4 {
 		v *= 1.08
 	}
@@ -534,8 +490,6 @@ func firstNonZeroInt(v ...int) int {
 	return 0
 }
 
-// comma writes a whole number of dollars with thousands separators, since a
-// six figure loan with no separators is unreadable in a chat reply.
 func comma(v float64) string {
 	s := fmt.Sprintf("%.0f", math.Abs(v))
 	var b strings.Builder

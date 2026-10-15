@@ -76,8 +76,8 @@ func groundEngine(t *testing.T, base string) *Engine {
 	return NewEngine(NewLLM("http://127.0.0.1:1", "local", ""), "test model")
 }
 
-// The case this was written for: the model answered from memory, so the gate
-// has no tool result to check the draft against, and the snapshot has one.
+// The model answered from memory, so the gate has no tool result to check the
+// draft against, and the snapshot has one.
 func TestBackgroundIsFoundForAnAnsweredFromMemoryQuestion(t *testing.T) {
 	eng := groundEngine(t, fakeWiki(t, "Goodyear welt",
 		"A Goodyear welt is a strip of leather. The machine was invented by Auguste Destouy and improved for Charles Goodyear Jr."))
@@ -188,8 +188,8 @@ func TestBackgroundDoesNotMasqueradeAsAToolResult(t *testing.T) {
 	}
 }
 
-// A gate that answers "research" whatever it is asked, so the path through it
-// is what the test is measuring rather than the model's judgment.
+// A gate that answers "research" whatever it's asked, so the test measures the
+// path through it and not the model's judgment.
 func fakeGate(t *testing.T, verdict string) string {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -204,8 +204,8 @@ func fakeGate(t *testing.T, verdict string) string {
 	return srv.URL
 }
 
-// The whole reason for a local corpus is that it works while a search host is
-// refusing us, so the check it makes possible has to work then too.
+// A local corpus works while a search host is refusing us, so the check it
+// makes possible has to work then too.
 func TestTheLocalCheckStillRunsWhenSearchIsBoxed(t *testing.T) {
 	tools.WikiBase = fakeWiki(t, "Goodyear welt", "A Goodyear welt is a strip of leather.")
 	t.Cleanup(func() { tools.WikiBase = "http://orchard-wiki:8000" })
@@ -261,9 +261,9 @@ func TestSnapshotAgeReachesTheToolSummary(t *testing.T) {
 	}
 }
 
-// "Big news today" reduces to "Big news", which was in neither map, and the
-// snapshot answered it with the founding date of Universe Today. The head noun
-// is what a phrase is really about.
+// "Big news today" reduces to "Big news", which is in neither map, and the
+// snapshot answered it with the founding date of Universe Today, so the head
+// noun is checked too.
 func TestSubjectOfSkipsALiveHeadNoun(t *testing.T) {
 	for _, q := range []string{
 		"Big news today",
@@ -305,7 +305,7 @@ func TestSubjectOfSkipsSomebodyTalking(t *testing.T) {
 	}
 }
 
-// The tightening has to leave a real subject alone, including the three the
+// The tightening has to leave a real subject alone, including ones the
 // snapshot is known to resolve and the shapes the head strip handles.
 func TestSubjectOfKeepsARealSubject(t *testing.T) {
 	for q, want := range map[string]string{

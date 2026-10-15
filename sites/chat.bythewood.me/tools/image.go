@@ -7,14 +7,14 @@ import (
 	"strings"
 )
 
-// Images draws pictures. An interface for the same reason Memory is: the thing
-// behind it is this site's own model client and database.
+// Images is an interface because the thing behind it is this site's own model
+// client and database.
 type Images interface {
 	// Expect starts the record of a picture before the chat model has written
 	// its prompt, so the page can show that stage too.
 	Expect() ImageProgress
 	// Draw carries on from what Expect started, or starts afresh from nil.
-	// Starting from pictures makes it a change to them rather than a new one.
+	// Starting from pictures makes it a change to them instead of a new one.
 	Draw(ctx context.Context, prompt, shape string, start []string, from *ImageProgress, report func(ImageProgress)) (Drawn, error)
 }
 
@@ -29,7 +29,7 @@ type Drawn struct {
 }
 
 // ImageProgress is one change in a picture being made. The whole state goes out
-// each time rather than a delta, so a tab that attaches half way through only
+// each time instead of a delta, so a tab that attaches half way through only
 // needs the last one it was sent.
 type ImageProgress struct {
 	ID     string `json:"id"`
@@ -38,7 +38,7 @@ type ImageProgress struct {
 	Width  int    `json:"width"`
 	Height int    `json:"height"`
 	// Unix milliseconds, so the page counts the seconds itself between events
-	// rather than being sent a tick every second.
+	// instead of being sent a tick every second.
 	StageAt  int64 `json:"stage_at"`
 	PromptMS int64 `json:"prompt_ms,omitempty"`
 	LoadMS   int64 `json:"load_ms,omitempty"`

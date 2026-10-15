@@ -7,7 +7,7 @@ import (
 	"chat.bythewood.me/tools"
 )
 
-// The page fetches a widget's readings here rather than being handed them with
+// The page fetches a widget's readings here instead of being handed them with
 // the turn, so a chart can change range without asking the model anything and a
 // conversation opened a week later draws today's price.
 
@@ -46,9 +46,9 @@ func (s *site) widgetWeather(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, rep)
 }
 
-// widgetErr answers with the reason rather than a bare status, because the
-// panel prints it: a rate limited host and a symbol that does not exist read
-// identically as a blank chart otherwise.
+// widgetErr answers with the reason instead of a bare status since the panel
+// prints it, and a rate limited host and a missing symbol both look like a blank
+// chart otherwise.
 func widgetErr(w http.ResponseWriter, err error) {
 	jsonErr(w, http.StatusBadGateway, err)
 }

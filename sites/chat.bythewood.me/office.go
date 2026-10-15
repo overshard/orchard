@@ -1,8 +1,6 @@
-// docx, xlsx and pptx.
-//
-// All three are a zip of xml, so they need no dependency and no subprocess. The
-// parsing is shallow since what a model wants out of a spreadsheet is the values
-// in row and column order, and the rest is noise it would have to read past.
+// docx, xlsx and pptx are each a zip of xml, so they need no dependency and no
+// subprocess. The parsing is shallow since a model wants a spreadsheet's values in
+// row and column order and the rest is noise it would have to read past.
 package main
 
 import (
@@ -16,7 +14,7 @@ import (
 	"strings"
 )
 
-// officeKind names the format from the parts inside the zip rather than the
+// officeKind names the format from the parts inside the zip instead of the
 // extension, since all three look identical from the outside and a renamed file
 // is common.
 func officeKind(zr *zip.Reader) string {
@@ -68,7 +66,7 @@ func openPart(zr *zip.Reader, name string) ([]byte, error) {
 }
 
 // runsToText walks the xml pulling out the text runs and turning the elements
-// that mean a line break into one. Decoding by token rather than into a struct
+// that mean a line break into one. Decoding by token instead of into a struct
 // keeps this indifferent to the parts of the schema it does not care about.
 func runsToText(data []byte, breakOn map[string]bool) string {
 	dec := xml.NewDecoder(bytes.NewReader(data))
@@ -106,7 +104,7 @@ func docxText(zr *zip.Reader) (string, error) {
 		return "", fmt.Errorf("this docx has no document part")
 	}
 	// A paragraph and a table row both end a line, and a cell does not, so a
-	// table comes out one row per line rather than one word per line.
+	// table comes out one row per line instead of one word per line.
 	text := runsToText(data, map[string]bool{"p": true, "tr": true, "br": true})
 	if strings.TrimSpace(text) == "" {
 		return "", fmt.Errorf("this docx has no text in it")
@@ -224,8 +222,8 @@ func sharedStrings(zr *zip.Reader) []string {
 	return out
 }
 
-// sheetText renders a sheet as tab separated rows, which is the shape a model
-// reads a table in most reliably and is what a csv would have looked like.
+// sheetText renders a sheet as tab separated rows like a csv, the shape a model
+// reads a table in most reliably.
 func sheetText(data []byte, shared []string) string {
 	dec := xml.NewDecoder(bytes.NewReader(data))
 	var sb strings.Builder
@@ -275,8 +273,8 @@ func sheetText(data []byte, shared []string) string {
 	return sb.String()
 }
 
-// A cell of type s holds an index into the shared table rather than a value,
-// which is the one thing that makes a spreadsheet unreadable if missed.
+// A cell of type s holds an index into the shared table instead of a value, and
+// missing that makes a spreadsheet unreadable.
 func resolveCell(raw, cellType string, shared []string) string {
 	if cellType == "s" {
 		if i, err := strconv.Atoi(strings.TrimSpace(raw)); err == nil && i >= 0 && i < len(shared) {

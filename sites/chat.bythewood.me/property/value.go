@@ -12,22 +12,12 @@ import (
 	"time"
 )
 
-// What the house is worth now, rather than what the county had it down as at the
-// last revaluation.
-//
-// A tax assessment is the only free appraisal there is, and NC counties run four
-// to eight years between general reappraisals, so one can be most of a cycle
-// behind and every listing then looks overpriced by the same amount.
-//
-// The FHFA publishes a house price index by metro going back to the 1970s, free
-// and with no key, so the assessment can be carried forward from the year it was
-// set. It is an index over a whole metro and not a comparable sale, so this
-// produces a range and says what it was built from.
+// NC counties run four to eight years between reappraisals, so an assessment is
+// carried forward on FHFA's keyless metro price index. That's an index and not a
+// comparable sale, so it gives a range.
 const hpiMaster = "https://www.fhfa.gov/hpi/download/monthly/hpi_master.csv"
 
-// Which index covers which county. Hickory-Lenoir-Morganton is Alexander, Burke,
-// Caldwell and Catawba, and Iredell is counted into Charlotte. Anything else
-// falls back to the state series.
+// Anything not listed falls back to the state series.
 var countyIndex = map[string]string{
 	"alexander": "25860",
 	"burke":     "25860",
@@ -51,9 +41,8 @@ type HPI struct {
 func NewHPI(db *sql.DB) *HPI {
 	return &HPI{
 		db: db,
-		// The whole national file in one request, which is seventeen megabytes, so
-		// it is fetched rarely and kept for a quarter. The index only moves once a
-		// quarter anyway.
+		// The whole national file is tens of megabytes, and the index only moves
+		// once a quarter.
 		guard: NewGuard(db, "fhfa-hpi", GuardOpts{
 			MinInterval: 30 * time.Second,
 			Budget:      8,
@@ -64,8 +53,6 @@ func NewHPI(db *sql.DB) *HPI {
 	}
 }
 
-// series is one place's index, by year and quarter, kept as the small part of a
-// very large file that is actually wanted.
 type series map[string]float64 // "2023-4" -> index
 
 type hpiTable struct {
@@ -104,9 +91,7 @@ func (h *HPI) table(ctx context.Context) (hpiTable, error) {
 	return out, err
 }
 
-// fetch streams the national file and keeps only the handful of places this
-// search covers. Decoding all of it would be a hundred thousand rows held in
-// memory to answer a question about three of them.
+// fetch streams the national file and keeps only the places this search covers.
 func (h *HPI) fetch(ctx context.Context) (hpiTable, error) {
 	out := hpiTable{Places: map[string]series{}, Latest: map[string]string{}}
 
@@ -134,9 +119,8 @@ func (h *HPI) fetch(ctx context.Context) (hpiTable, error) {
 			}
 		}
 
-		// Best first. A metro carries all-transactions and expanded-data but not
-		// always purchase-only, and taking whichever arrives last would mix two
-		// indexes with different bases into one series.
+		// Taking whichever flavor arrives last would mix two indexes with
+		// different bases into one series.
 		rank := map[string]int{"expanded-data": 3, "all-transactions": 2, "purchase-only": 1}
 		best := map[string]int{}
 
@@ -186,8 +170,6 @@ func (h *HPI) fetch(ctx context.Context) (hpiTable, error) {
 	return out, nil
 }
 
-// later compares two "year-quarter" stamps without parsing dates, since the
-// quarter is a single digit and the year is always four.
 func later(a, b string) bool {
 	if b == "" {
 		return true
@@ -213,20 +195,16 @@ func splitStamp(s string) (year, quarter int, ok bool) {
 	return y, q, err1 == nil && err2 == nil
 }
 
-// ValueEstimate is the assessment carried forward to today.
 type ValueEstimate struct {
-	// What the county said, and when they said it.
 	Assessed float64
 	BaseYear int
 
-	// What that is worth at today's index, and the range either side of it. The
-	// range is the honest part: an index over a metro is not an appraisal of a
+	// The range matters since an index over a metro isn't an appraisal of a
 	// house.
 	Estimate float64
 	Low      float64
 	High     float64
 
-	// How much the index moved over the period, as a percentage, and which index.
 	MovedPct float64
 	Basis    string
 	AsOf     string
@@ -234,7 +212,6 @@ type ValueEstimate struct {
 	Found bool
 }
 
-// Estimate carries an assessed value forward from the year it was set.
 func (h *HPI) Estimate(ctx context.Context, county string, assessed float64, baseYear int) (ValueEstimate, error) {
 	var out ValueEstimate
 	if assessed <= 0 || baseYear <= 0 {
@@ -248,8 +225,6 @@ func (h *HPI) Estimate(ctx context.Context, county string, assessed float64, bas
 	return estimateFrom(table, county, assessed, baseYear), nil
 }
 
-// estimateFrom is the arithmetic on its own, with no database and no network in
-// front of it.
 func estimateFrom(table hpiTable, county string, assessed float64, baseYear int) ValueEstimate {
 	var out ValueEstimate
 	if assessed <= 0 || baseYear <= 0 {
@@ -266,8 +241,8 @@ func estimateFrom(table hpiTable, county string, assessed float64, baseYear int)
 		return out
 	}
 
-	// A revaluation is effective on 1 January, so the index that matches it is the
-	// last quarter of the year before.
+	// A revaluation takes effect on 1 January, so it matches the last quarter of
+	// the year before.
 	from, ok := quarterNear(s, baseYear-1, 4)
 	if !ok {
 		return out
@@ -282,8 +257,7 @@ func estimateFrom(table hpiTable, county string, assessed float64, baseYear int)
 	out.BaseYear = baseYear
 	out.MovedPct = (now/from - 1) * 100
 	out.Estimate = assessed * now / from
-	// Fifteen per cent either side. An index says what the metro did and not what
-	// this house did, and a single figure would be read as an appraisal.
+	// A single figure would be read as an appraisal.
 	out.Low = out.Estimate * 0.85
 	out.High = out.Estimate * 1.15
 	out.Basis = indexNames[place]
@@ -294,8 +268,7 @@ func estimateFrom(table hpiTable, county string, assessed float64, baseYear int)
 	return out
 }
 
-// quarterNear takes the asked-for quarter, or the closest one in that year, since
-// a series can start or stop mid-year.
+// A series can start or stop mid-year.
 func quarterNear(s series, year, quarter int) (float64, bool) {
 	if v, ok := s[fmt.Sprintf("%d-%d", year, quarter)]; ok && v > 0 {
 		return v, true

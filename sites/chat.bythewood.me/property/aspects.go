@@ -8,32 +8,18 @@ import (
 	"strings"
 )
 
-// One report is far more than a small model should be handed to answer "is it in
-// a flood zone". The whole thing runs to several thousand tokens and a
-// conversation about one house is a dozen questions, so the tool takes an aspect
-// and this is what each one is.
-//
 // Every value here is already in plain words with its unit in the key, because a
 // model handed `{"sfha_feet": -1}` writes that the house is minus one foot from a
 // flood zone.
 
-// Aspects is every slice a caller may ask for, which is also the enum the model
-// is handed.
+// Aspects is also the enum the model is handed.
 var Aspects = []string{
 	"summary", "cost", "flood", "road", "schools", "commutes",
 	"area", "land", "neighbours", "outings", "industry", "links",
 }
 
-// everything is accepted and not offered. A small model handed it in the enum
-// reaches for it on the first question, and what it used to return was the whole
-// struct: eleven thousand characters of Go field names and sentinel distances,
-// which came back out as "Sample Rd, residential, 19 feet class". It returns
-// the written sections now, and the enum leaves it out so summary stays the
-// default for a first look.
-
-// Aspect returns one part of the report. An unknown name comes back with the list
-// rather than an error, since a model that invents a section has still said what
-// it wants and the list is what gets it there.
+// Aspect answers an unknown name with the list instead of an error, since a
+// model that invents a section has still said what it wants.
 func (r *Report) Aspect(name string) any {
 	switch strings.ToLower(strings.TrimSpace(name)) {
 	case "", "summary":
@@ -46,8 +32,8 @@ func (r *Report) Aspect(name string) any {
 		return r.RoadPart()
 	case "schools", "school":
 		return r.SchoolsPart()
-	// commutes rather than drives: asked for the drives section the model
-	// answered about the driveway and how many cars fit on it.
+	// Named commutes since a model asked for "drives" answered about the
+	// driveway and how many cars fit on it.
 	case "commutes", "commute", "drives", "drive", "traffic_times":
 		return r.DrivesPart()
 	case "area", "demographics", "crime", "census":
@@ -63,9 +49,9 @@ func (r *Report) Aspect(name string) any {
 	case "links":
 		return map[string]any{"links": r.Links()}
 	case "everything", "all", "full":
-		// Not in the enum, so a model asking for it is guessing, and what it got
-		// buried the table eleven sections deep and filled the window. The
-		// summary is already a line on every part of the house.
+		// Accepted and left out of the enum, since a small model offered it
+		// reaches for it first and the whole report buries the table and fills
+		// the window.
 		out := r.Summary()
 		out["note"] = "there is no everything section. This is the summary, which covers every part of " +
 			"the house in a line. Ask for one of the other sections by name when a question needs the detail."
@@ -95,9 +81,7 @@ func (r *Report) head() map[string]any {
 	return m
 }
 
-// Summary is the one line per thing answer, for the first question about a house.
-// Every number here is repeated in a section, so a follow up is a cheap read
-// rather than another lookup.
+// Summary is one line per thing, for the first question about a house.
 func (r *Report) Summary() map[string]any {
 	m := r.head()
 	m["flood"] = r.floodLine()
@@ -116,14 +100,13 @@ func (r *Report) Summary() map[string]any {
 	if best := r.cheapest(); best != nil {
 		m["cheapest_loan"] = fmt.Sprintf("%s at $%s a month all in", best.Name, comma(best.Total))
 	}
-	// The table belongs here and not only in the cost section, because a first
-	// question about a house gets the summary, and that is the answer that was
-	// coming back as four paragraphs of prose with a figure buried in each.
+	// The table is here too since without it the money came back as paragraphs
+	// of prose with a figure buried in each.
 	if t := r.CostTable(); t != "" {
 		m["answer_with_this_table_exactly"] = t
 	}
-	// With a caveat the figure is left out rather than qualified. Handed the number
-	// and the reason it was wrong, the model led with the number.
+	// With a caveat the figure is left out, since handed the number and the
+	// reason it was wrong, the model led with the number.
 	if why := r.parcelCaveat(); why != "" {
 		m["assessment"] = "unknown, " + why
 	} else if r.Value.Found {
@@ -134,9 +117,8 @@ func (r *Report) Summary() map[string]any {
 	if r.Price <= 0 {
 		m["note"] = "no asking price was given, so nothing about the money was worked out"
 	}
-	// Asked about a house with a price on it, the answer came back as four
-	// paragraphs about loans and said nothing about the house, which is the half
-	// a listing page cannot tell you and the reason any of this exists.
+	// Given a price, the model wrote about loans and nothing about the house,
+	// which is the half a listing page can't tell you.
 	m["how_to_answer"] = "Say what the house and the area are like first, in a few lines, " +
 		"then print the table. Every line above is already checked, so use them rather than " +
 		"picking one."
@@ -144,11 +126,8 @@ func (r *Report) Summary() map[string]any {
 	return m
 }
 
-// budgetLine measures the cheapest payment against what he said he wanted to
-// spend. It is written in the second person because the model reads it back
-// almost verbatim, and in the third it told him what "he" was aiming for. Without it in the answer the model invented a range and reported being
-// inside it, which is the worst kind of wrong: specific, plausible, and about his
-// own money.
+// budgetLine is in the second person because the model reads it back almost
+// verbatim. Without it the model invented a budget and reported being inside it.
 func (r *Report) budgetLine() string {
 	best := r.cheapest()
 	if best == nil || r.MonthlyTarget <= 0 {
@@ -170,7 +149,6 @@ func (r *Report) budgetLine() string {
 	}
 }
 
-// cheapest is the lowest all-in monthly among the loans he could actually get.
 func (r *Report) cheapest() *Quote {
 	var best *Quote
 	for i := range r.Quotes {
@@ -185,8 +163,6 @@ func (r *Report) cheapest() *Quote {
 	return best
 }
 
-// Cost is the whole money answer: every programme, what the rate came from, and
-// what was assumed rather than measured.
 func (r *Report) Cost() map[string]any {
 	m := r.head()
 	if len(r.Quotes) == 0 {
@@ -210,8 +186,8 @@ func (r *Report) Cost() map[string]any {
 		delete(loans[i], "_total")
 	}
 	m["loans"] = loans
-	// Handed a shape, the model reproduces the shape, and the all-in number means
-	// nothing without the rows it is the sum of.
+	// Handed a shape the model reproduces it, and the all-in number means
+	// nothing without the rows it sums.
 	if t := r.CostTable(); t != "" {
 		m["answer_with_this_table_exactly"] = t
 	}
@@ -404,18 +380,16 @@ func (r *Report) DrivesPart() map[string]any {
 		m["commute_with_the_school_run"] = minutes(r.Morning.WithElementary.Minutes)
 	}
 
-	// Grouped by whose drive it is, because a question here is almost always
-	// about one person. Asked about a household member's work against a flat list
-	// of place names, the model had nothing to match the name on and looked the
-	// name up in the encyclopedia as a stranger instead.
+	// Grouped by person, since against a flat list of places the model had
+	// nothing to match a household member's name on and looked them up in the
+	// encyclopedia as a stranger.
 	if len(r.Drives) > 0 {
 		byWho := map[string][]string{}
 		for _, leg := range r.Drives {
 			who := leg.Who
 			if who == "" {
 				// The only drives with nobody against them are the hospitals and
-				// nursing homes, which are nobody's commute yet. Saying what they
-				// are beats filing them under a person who does not drive there.
+				// nursing homes, which are nobody's commute yet.
 				who = "nursing work within reach, for whoever in the house wants it"
 			}
 			byWho[who] = append(byWho[who],
@@ -431,8 +405,6 @@ func (r *Report) DrivesPart() map[string]any {
 		for _, p := range r.Household {
 			who[p.Name] = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(p.Role), ".") + ". " + p.Note)
 		}
-		// So a question naming somebody is answered about them rather than looked
-		// up as a stranger.
 		m["who_lives_here"] = who
 	}
 	if r.Morning.Partial {
@@ -506,8 +478,6 @@ func (r *Report) LandPart() map[string]any {
 		m["parcel"] = "no parcel matched, so the lot size and the assessment are unknown"
 	}
 
-	// A figure off a record that is not this house is a wrong number wearing a
-	// precise one's clothes, so it is left out and the reason given instead.
 	if why := r.parcelCaveat(); why != "" {
 		m["assessment_now"] = "unknown, " + why
 	} else if r.Value.Found {
@@ -555,9 +525,8 @@ func (r *Report) OutingsPart() map[string]any {
 	}
 	out := make([]string, 0, len(r.Outings.Nearest))
 	for _, o := range r.Outings.Nearest {
-		// Overpass carries plenty of unnamed features, and the loader falls back
-		// to the label, so printing both reads as "tubing or paddling: tubing or
-		// paddling".
+		// An unnamed Overpass feature falls back to its label, so printing both
+		// reads as "tubing or paddling: tubing or paddling".
 		if strings.EqualFold(o.Name, o.Label) {
 			out = append(out, fmt.Sprintf("%s, %.1f miles", o.Label, o.Miles))
 			continue
@@ -591,9 +560,8 @@ func (r *Report) IndustryPart() map[string]any {
 	m["searched"] = "four miles around the house on OpenStreetMap for data centres, factories, landfills, quarries, " +
 		"power plants, transmission substations, sewage works, prisons, airfields, racetracks and shooting ranges, " +
 		"and three miles on EPA's lists of Superfund sites and plants holding an air permit"
-	// Said so the model cannot turn a gap into a clean bill. Hog and chicken
-	// houses are the thing people here most want to know about and neither
-	// source carries them.
+	// Said so the model can't turn a gap into a clean bill, since hog and
+	// chicken houses are what people here most want to know about.
 	m["not_covered"] = "OpenStreetMap is mapped by volunteers, so something unmapped is not proof it is not there. " +
 		"Hog and poultry houses are on neither list, and neither is anything only planned or permitted but not built"
 	if r.Industry.Partial {
@@ -602,13 +570,11 @@ func (r *Report) IndustryPart() map[string]any {
 	return m
 }
 
-// Links are built from the address and nothing is requested until somebody clicks
-// one, so this costs no traffic to anybody and there is nothing to be blocked by.
+// Links are only built, never requested, so they cost no upstream anything.
 func (r *Report) Links() map[string]string {
 	lat, lon := r.Lat, r.Lon
 	if r.Parcel.Lat != 0 && r.otherParcel() == "" {
-		// The middle of the lot, not the geocoded point, which sits in the road
-		// and lands a pin at the neighbour's.
+		// The geocoded point sits in the road and lands a pin at the neighbour's.
 		lat, lon = r.Parcel.Lat, r.Parcel.Lon
 	}
 	q := url.QueryEscape(strings.Join([]string{r.Address, r.City, r.State, r.Zip}, " "))
@@ -624,11 +590,9 @@ func (r *Report) Links() map[string]string {
 	}
 }
 
-// parcelCaveat is why the assessed value must not be held up against the asking
-// price. Both cases are common and both produce a number that looks precise: the
-// geocoder puts the point in the road so the nearest parcel is sometimes next
-// door, and a tax roll carrying land and no buildings is a vacant lot record
-// against a house that is standing on it.
+// parcelCaveat is why the assessed value can't be held against the asking price.
+// The nearest parcel to a point in the road is sometimes next door, and land with
+// no buildings is a vacant lot record against a house standing on it.
 func (r *Report) parcelCaveat() string {
 	p := r.Parcel
 	if !p.Found {
@@ -643,8 +607,7 @@ func (r *Report) parcelCaveat() string {
 	return ""
 }
 
-// otherParcel is the tax roll address of a parcel that matched and is not this
-// house, and empty when it is this house or nothing matched.
+// otherParcel is empty when the parcel is this house or nothing matched.
 func (r *Report) otherParcel() string {
 	p := r.Parcel
 	if !p.Found || p.Address == "" || addressKey(p.Address, "") == addressKey(r.Address, "") {
@@ -653,8 +616,6 @@ func (r *Report) otherParcel() string {
 	return p.Address
 }
 
-// The one line forms, which the summary is made of.
-
 func (r *Report) floodLine() string {
 	if !r.Flood.Measured {
 		return "not measured"
@@ -662,9 +623,8 @@ func (r *Report) floodLine() string {
 	if r.Flood.SFHA {
 		return fmt.Sprintf("in FEMA zone %s, a special flood hazard area, so flood insurance is required", r.Flood.Zone)
 	}
-	// An unmapped point is not zone X. FEMA leaves plenty of rural parcels off the
-	// panel entirely, and calling that X says somebody surveyed it and found
-	// minimal hazard.
+	// FEMA leaves plenty of rural parcels off the panel, and calling that zone X
+	// says somebody surveyed it and found minimal hazard.
 	if r.Flood.Zone == "" {
 		return fmt.Sprintf("FEMA maps no zone at this point, and the nearest special flood hazard area is %s",
 			feetOrNone(r.Flood.SFHAFeet))
@@ -757,8 +717,6 @@ func (r *Report) crimeLine() string {
 		". These are figures for the whole county, so they say nothing about this street against the rest of it"
 }
 
-// minutes writes a drive time, singular when it is one, since "1 minutes" in the
-// middle of an answer is the sort of thing that makes the rest look careless.
 func minutes(m float64) string {
 	if math.Round(m) == 1 {
 		return "1 minute"

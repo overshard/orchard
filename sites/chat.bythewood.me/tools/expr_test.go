@@ -26,9 +26,8 @@ func TestEvalExprArithmetic(t *testing.T) {
 	}
 }
 
-// The payment that the 2026-09-15 home cost conversation could not get. calc
-// had no power, so the model wrote the formula with ^, was told it was not
-// arithmetic, and printed $1,694 rather than the real $1,748.63.
+// A real 30 year payment, which a model with no power to call guesses at and
+// gets wrong by about fifty dollars a month.
 func TestEvalExprMortgagePayment(t *testing.T) {
 	const want = 1748.63
 	got, err := evalExpr("261250 * (0.0706 / 12) / (1 - pow(1 + (0.0706 / 12), -360))")
@@ -40,9 +39,8 @@ func TestEvalExprMortgagePayment(t *testing.T) {
 	}
 }
 
-// A percent of a value is where the same conversation went wrong by a factor of
-// 100 and then by a factor of 12: 0.637% of $275,000 is $1,751.75 a year and
-// $145.98 a month, and every table it wrote said $16 or $17.
+// A model gets a percent of a value wrong by a factor of 100 and then by 12, and
+// writes $16 for a monthly tax of $145.98.
 func TestEvalExprPercentOfValue(t *testing.T) {
 	year, err := evalExpr("275000 * 0.00637")
 	if err != nil {

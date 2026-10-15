@@ -11,38 +11,25 @@ import (
 	"time"
 )
 
-// Flood risk, from the two authorities rather than from a listing's own
-// disclosure. FEMA's National Flood Hazard Layer says which zone a point is in,
-// and the USGS National Hydrography Dataset says how far the nearest mapped
-// water is, which is what FEMA misses, since a creek too small to have been
-// studied has no zone drawn around it and still floods a yard.
-//
-// Both answers come back as a distance. A house 40ft outside an AE zone and one
-// 4000ft outside both pass the filter and are not the same house.
+// USGS hydrography is here alongside FEMA since a creek too small to have been
+// studied has no zone drawn around it and still floods a yard. Both answers are
+// distances, since 40ft outside an AE zone and 4000ft outside aren't the same house.
 const (
 	nfhlFloodZones = "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28/query"
 	nhdFlowlines   = "https://hydro.nationalmap.gov/arcgis/rest/services/nhd/MapServer/6/query"
 	nhdWaterbodies = "https://hydro.nationalmap.gov/arcgis/rest/services/nhd/MapServer/12/query"
 
-	// How far out to look. A mile of margin is more than the score needs and
-	// keeps one query per listing per layer instead of a widening ladder.
+	// One query per layer with a mile of margin instead of a widening ladder.
 	floodSearchFeet = 5280
 
-	// The cache payload shape, in the cache key. An older row has one water
-	// distance where this one has three, and decoding it would read as no ditch
-	// and no stream anywhere, so a shape change has to miss rather than decode.
+	// Bump when FloodResult changes shape, since an older row decodes as no
+	// ditch and no stream anywhere.
 	floodCacheKind = "floodv2"
 )
 
-// NHD codes the kind of water in FCode. A perennial stream or a lake is what a
-// 300ft buffer is for, while an intermittent or ephemeral blue line is a
-// wet-weather ditch, and nearly every rural parcel in these counties has one
-// inside 300ft.
-//
-// Codes from the NHD feature catalogue: 46006 perennial stream or river, 46003
-// intermittent, 46007 ephemeral, 33600 canal or ditch and its subtypes, 39004 and
-// 39009 perennial lake or pond, 39001 and 39006 intermittent, 43600 reservoir,
-// 49300 estuary, 48400 wash.
+// waterClass reads NHD's FCode, from its feature catalogue: 46006 perennial
+// stream, 46003 intermittent, 46007 ephemeral, 33600 ditch, 39004 and 39009
+// perennial lake, 39001 and 39006 intermittent, 43600 reservoir, 49300 estuary.
 func waterClass(fcode float64, ftype string) string {
 	switch int(fcode) {
 	case 46006, 46000, 39004, 39009, 39010, 39011, 39012, 43600, 43601, 43603,
@@ -59,17 +46,16 @@ func waterClass(fcode float64, ftype string) string {
 		42814, 42815, 42816:
 		return "ditch"
 	}
-	// An unknown code is treated as perennial, which is the cautious answer and
-	// is what an unmapped FCode on a real river looks like.
+	// An unknown code is perennial, which is cautious and is what an unmapped
+	// FCode on a real river looks like.
 	if ftype != "" {
 		return "perennial"
 	}
 	return "perennial"
 }
 
-// Distances are -1 when nothing of that kind was found inside the search
-// radius, never +Inf: JSON cannot carry an infinity and this struct is cached as
-// JSON, so a marshal would fail on the very rows that are furthest from water.
+// Never +Inf, since JSON can't carry an infinity and a cached marshal would fail
+// on the rows furthest from water.
 const notFound = -1.0
 
 type FloodResult struct {
@@ -78,30 +64,26 @@ type FloodResult struct {
 	SFHA     bool    // inside a Special Flood Hazard Area
 	SFHAFeet float64 // to the nearest SFHA, 0 inside one, -1 if none within a mile
 
-	// The nearest water of each kind, kept apart because they mean different
-	// things. Perennial is the river, the creek that runs all year and the lake.
-	// Intermittent and ephemeral are the wet-weather lines, and a ditch is a ditch.
+	// Kept apart since nearly every rural parcel here has a wet-weather line or a
+	// ditch inside 300ft, and only perennial water is what a buffer is for.
 	PerennialFeet    float64
 	PerennialName    string
 	IntermittentFeet float64
 	IntermittentName string
 	DitchFeet        float64
 
-	// The nearest of any kind, which is what the card shows in one line.
+	// The nearest of any kind.
 	WaterFeet float64
 	WaterName string
 	WaterKind string
 
-	// Set when a lookup actually ran. Without it the zero value of this struct
-	// reads as water nought feet away, which would flag every listing whose flood
-	// lookup was skipped as standing in a creek.
+	// Without it the zero value reads as water nought feet away, so a skipped
+	// lookup would be standing in a creek.
 	Measured bool
 
 	Partial bool // a layer could not be reached, so the numbers are incomplete
 }
 
-// newFloodResult is the not-measured zero value, with every distance at the
-// sentinel rather than at zero.
 func newFloodResult() FloodResult {
 	return FloodResult{
 		SFHAFeet:         notFound,
@@ -177,9 +159,8 @@ func attrFloat(a map[string]any, keys ...string) (float64, bool) {
 	return 0, false
 }
 
-// envelopeQuery is the one ArcGIS call shape every layer here uses: a box around
-// a point, geometry returned in WGS84, trimmed to six decimal places because
-// anything finer is under a foot and only makes the response bigger.
+// envelopeQuery trims geometry to six decimal places, since anything finer is
+// under a foot and only makes the response bigger.
 func envelopeQuery(base string, lat, lon, feet float64, outFields, where string) string {
 	xmin, ymin, xmax, ymax := envelopeAround(lat, lon, feet)
 	v := url.Values{
@@ -199,9 +180,8 @@ func envelopeQuery(base string, lat, lon, feet float64, outFields, where string)
 	return base + "?" + v.Encode()
 }
 
-// Lookup answers both questions for one point, cached by rounded coordinate.
-// Five decimal places is about a metre, so two listings on the same parcel share
-// a cache entry and nothing meaningful is merged that should not be.
+// Lookup is cached to five decimal places, about a metre, so two listings on the
+// same parcel share an entry.
 func (f *Flood) Lookup(ctx context.Context, lat, lon float64) (FloodResult, error) {
 	key := fmt.Sprintf("%.5f,%.5f", lat, lon)
 
@@ -239,8 +219,7 @@ func (f *Flood) Lookup(ctx context.Context, lat, lon float64) (FloodResult, erro
 			isSFHA := f.zones[zone] || attrString(feat.Attributes, "SFHA_TF") == "T"
 
 			if d == 0 {
-				// The point is inside this polygon. An SFHA wins over an X zone
-				// when both claim the point, which happens on a boundary.
+				// On a boundary both claim the point, and the SFHA wins.
 				if out.Zone == "" || isSFHA {
 					out.Zone = zone
 					out.Subtype = attrString(feat.Attributes, "ZONE_SUBTY")
@@ -255,8 +234,7 @@ func (f *Flood) Lookup(ctx context.Context, lat, lon float64) (FloodResult, erro
 			}
 		}
 		if out.Zone == "" && len(femaRes.Features) == 0 {
-			// Outside every mapped polygon. Parts of these counties are
-			// unmapped rather than safe, so say so.
+			// Parts of these counties are unmapped, which isn't the same as safe.
 			out.Zone = "UNMAPPED"
 		}
 	}
@@ -298,7 +276,7 @@ func (f *Flood) Lookup(ctx context.Context, lat, lon float64) (FloodResult, erro
 		}
 	}
 
-	// Before the marshal, not in a deferred tidy-up afterwards.
+	// Before the marshal, which fails on an infinity.
 	for _, d := range []*float64{&out.SFHAFeet, &out.PerennialFeet,
 		&out.IntermittentFeet, &out.DitchFeet, &out.WaterFeet} {
 		if math.IsInf(*d, 1) {

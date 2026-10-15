@@ -62,9 +62,8 @@ func TestIsPublicIP(t *testing.T) {
 	}
 }
 
-// The string check can be got past by a name that resolves inward, so the real
-// fence is on the dial. This proves it by pointing a real client at a real
-// loopback server, which is exactly the shape of the attack.
+// A name that resolves inward gets past the string check, so this points a real
+// client at a real loopback server to show the fence on the dial holds.
 func TestTheClientRefusesToDialLoopback(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("this must never be read"))

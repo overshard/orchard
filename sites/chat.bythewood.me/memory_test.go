@@ -32,8 +32,8 @@ func TestAFactIsStoredOnceHoweverOftenProposed(t *testing.T) {
 	}
 }
 
-// Retrieval is the whole value of this. A fact that does not surface when the
-// question touches it may as well not be stored.
+// A fact that doesn't surface when the question touches it may as well not be
+// stored.
 func TestRelevantFindsWhatTheQuestionTouches(t *testing.T) {
 	s := memStore(t)
 	for _, f := range []string{
@@ -222,7 +222,7 @@ func TestParseChangesDropsTheMalformed(t *testing.T) {
 	}
 }
 
-// An empty block is left out entirely rather than saying it knows nothing,
+// An empty block is left out entirely instead of saying it knows nothing,
 // which a model reads as an invitation to talk about not knowing things.
 func TestMemoryBlockIsEmptyWhenNothingMatched(t *testing.T) {
 	if got := memoryBlock(nil); got != "" {
@@ -247,10 +247,8 @@ func TestTidyFactCapsLength(t *testing.T) {
 	}
 }
 
-// The unique index only ever caught a fact proposed back word for word. On
-// 2026-09-08 one turn wrote two nearly identical facts about X post search and
-// left a third standing that contradicted both, because the model is asked to
-// replace rather than add and did not.
+// The unique index only catches a fact proposed back word for word, and a model
+// asked to replace a fact will add a near copy of it and leave the old one.
 func TestAddFactMergesARewording(t *testing.T) {
 	s := memStore(t)
 

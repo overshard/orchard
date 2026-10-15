@@ -9,60 +9,47 @@ import (
 	"chat.bythewood.me/tools"
 )
 
-// Checking a draft that called no tools against the local Wikipedia.
-//
-// The gate asks whether every fact in a draft is supported by a tool result,
-// and a draft written straight from memory has none, so there is nothing to
-// check and it goes out as it stands. When nothing was fetched, the subject of
-// the question is looked up in the offline snapshot and handed to the gate as
-// background. That costs one call on the bridge and no model call.
+// The gate checks a draft against tool results, so a draft written from memory
+// has nothing to check. When the turn fetched nothing, the question's subject is
+// looked up in the offline snapshot and handed to the gate as background.
 
-// Only when the turn fetched nothing. A turn that called tools has results for
-// the gate to work with, and a question whose subject is not a thing an article
-// is named after gets nothing useful out of this.
-
-// The shapes a question opens with. Stripping one leaves the subject, which is
-// what the wikipedia tool takes, since it refuses a question outright.
-//
-// "how much" and "how many" carry their own verb, so they are listed ahead of
-// the bare question words or "how" strips alone and leaves "much is a keystone
-// crickett" behind.
+// The shapes a question opens with, stripped since the wikipedia tool refuses a
+// question. "how much" and "how many" go ahead of the bare question words or
+// "how" strips alone and leaves "much is a keystone crickett" behind.
 var questionHead = regexp.MustCompile(`(?i)^\s*how\s+(much|many)\s+(is|are|was|were|do|does|did|would|will)?\s*|^\s*(what|who|which|where|when|why|how)('?s| is| are| was| were| do| does| did)?\s+|^\s*(tell me about|explain|describe|define)\s+`)
 
 // Trailing filler left behind once the head is gone, as in "kubernetes for".
 var questionTail = regexp.MustCompile(`(?i)\s+((is|are|was|were)\s+(it|this|that|they|there)|for|about|like|used for|good for|mean|means|work|works|released|founded|invented|built|born|made|created|discovered|launched|announced|introduced|formed|established|written|published|directed|designed|coming out|come out|out)\s*[?.!]*\s*$`)
 
-// A trailing time phrase. It is stripped rather than used as a signal on its
-// own, because the question it is attached to may still name a real subject:
-// "what is the RTX 5090 going for today" is about the card.
+// A trailing time phrase is stripped and not used as a signal on its own, since
+// the question may still name a real subject. "what is the RTX 5090 going for
+// today" is about the card.
 var timeTail = regexp.MustCompile(`(?i)\s+(right\s+now|now|today|tonight|yesterday|currently|lately|so\s+far|this\s+(morning|afternoon|evening|week|weekend|month|year)|last\s+(night|week|weekend|month|year))\s*[?.!]*\s*$`)
 
 // A subject runs to the first clause break. "a b-tree and why do databases use
 // them" is one question about one thing.
 var clauseBreak = regexp.MustCompile(`(?i)\s+(and|but|or|so|because|since|which|that|vs\.?|versus)\s+`)
 
-// Past this it is a sentence rather than the name of something, and looking it
-// up returns whatever happened to rank.
+// Past this it's a sentence and not the name of something, and looking it up
+// returns whatever happened to rank.
 const subjectMaxWords = 5
 
-// A subject is the name of a thing, so a clause is not one however short it is.
-// The word cap alone let a remark through, since "That's a crazy high number" is
-// four words once the head strip runs. These three say the string is somebody
-// talking rather than a title.
+// A short clause still isn't a subject, "That's a crazy high number" is four
+// words. These three catch somebody talking instead of a title.
 
 // A pronoun is the giveaway, since a title almost never contains one and a
 // sentence about something almost always does.
 var subjectPronoun = regexp.MustCompile(`(?i)(^|\s)(i|i'?m|i'?ve|you|you'?re|we|we'?re|they|they'?re|he|she|it|it'?s|me|my|your|our|their|its|us|him|her|this|that|that'?s|these|those|thats)($|[\s',.!?])`)
 
 // A finite verb, which makes the string a statement or a question about a thing
-// rather than the thing. "is there no service", "oh it needs redis to run",
-// "sorry i wanted total calories".
+// and not the thing. "is there no service", "oh it needs redis to run", "sorry i
+// wanted total calories".
 var subjectVerb = regexp.MustCompile(`(?i)(^|\s)(is|are|was|were|be|been|am|do|does|did|has|have|had|can|could|should|would|will|want|wants|wanted|need|needs|needed|think|thinks|thought|said|says|got|get|gets|goes|went|make|makes|made|take|takes|took|seems|looks|feels|means|works|runs|sounds)($|[\s',.!?])`)
 
 // A pasted address, which reduces to itself and is never a title.
 var subjectURL = regexp.MustCompile(`(?i)(^|\s)(https?://|www\.)`)
 
-// What a message opens with when it is a reply rather than a question. The rest
+// What a message opens with when it's a reply instead of a question. The rest
 // of it is a remark about what was just said, so there is no subject in it to
 // find. "tl;dr <url>" is here because the subject of that turn is the page.
 var openingFiller = map[string]bool{
@@ -104,14 +91,13 @@ func subjectOf(question string) string {
 	if notASubject[l] || liveSubject[l] {
 		return ""
 	}
-	// The whole phrase is not always the giveaway. "Big news today" reduces to
-	// "Big news", which is in neither map. The head noun is what the phrase is
-	// really about, and "News Corporation" survives because its head is the
-	// corporation.
+	// The whole phrase isn't always the giveaway, "Big news today" reduces to
+	// "Big news", which is in neither map. The head noun says what it's about,
+	// and "News Corporation" survives because its head is the corporation.
 	if f := strings.Fields(l); len(f) > 1 && liveSubject[f[len(f)-1]] {
 		return ""
 	}
-	// Somebody talking rather than the name of a thing. Checked after the maps
+	// Somebody talking, not the name of a thing. Checked after the maps
 	// so a real one word subject still costs one map lookup and nothing else.
 	if subjectURL.MatchString(s) || subjectPronoun.MatchString(s) || subjectVerb.MatchString(s) {
 		return ""
@@ -144,8 +130,8 @@ var notASubject = map[string]bool{
 }
 
 // pictureReference finds the article on a real thing a picture is asked of, so
-// the prompt can describe the Monsanto House of the Future rather than a
-// kitchen the model imagines. Nothing named, nothing added.
+// the prompt can describe the Monsanto House of the Future instead of a kitchen
+// the model imagines.
 func (e *Engine) pictureReference(ctx context.Context, message string) (tools.Result, Message, bool) {
 	for _, q := range referenceWindows(message) {
 		args, err := json.Marshal(map[string]string{"query": q})
@@ -216,14 +202,9 @@ func (e *Engine) background(ctx context.Context, question string) string {
 		", looked up here rather than by the model: " + trimLine(summary, 1500)
 }
 
-// opening looks the question's subject up before the model decides anything.
-//
-// The snapshot is local, so this costs a call on the bridge and no web request,
-// and it is current in a way the weights are not. Answering the common question
-// from something checkable leaves the model free to go further from there.
-//
-// It returns the result to record and the message to put in front of the model,
-// or a zero result when there is nothing worth adding.
+// opening looks the question's subject up in the local snapshot before the model
+// decides anything. It costs no web request and is newer than the weights, and
+// it returns false when there is nothing worth adding.
 func (e *Engine) opening(ctx context.Context, question string) (tools.Result, Message, bool) {
 	subject := subjectOf(question)
 	if subject == "" {

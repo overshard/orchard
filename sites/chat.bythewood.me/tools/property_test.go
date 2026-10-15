@@ -60,8 +60,8 @@ func TestPropertyToolPassesThePriceThrough(t *testing.T) {
 	}
 }
 
-// A half built report has to tell the model to ask again rather than let it fill
-// the gaps in itself.
+// A half built report has to tell the model to ask again instead of letting it
+// fill the gaps in itself.
 func TestPropertyToolSaysWhenItIsStillRunning(t *testing.T) {
 	p := &propStub{rep: &property.Report{
 		Address: "1 Test Rd", Complete: false,
@@ -152,9 +152,9 @@ func TestBothToolsAreRegistered(t *testing.T) {
 	}
 }
 
-// Taking the web tools off the table once property has answered is structural,
-// because a prompt is a request. Asked about one house the model searched the web
-// anyway and wrote a build year that came from no tool result at all.
+// The web tools come off the table once property has answered, since a prompt is
+// only a request and the model asked about one house searched the web anyway and
+// wrote a build year no tool returned.
 func TestWebToolsCanBeTakenAwayAfterProperty(t *testing.T) {
 	schemas := Default().Schemas()
 	offer := Without(Without(schemas, WebSearch.Name), WebFetch.Name)
@@ -169,8 +169,8 @@ func TestWebToolsCanBeTakenAwayAfterProperty(t *testing.T) {
 	if len(offer) != len(schemas)-2 {
 		t.Fatalf("only the two web tools come off, got %d of %d", len(offer), len(schemas))
 	}
-	// The property tool itself has to survive, since a follow up section is the
-	// whole point of leaving anything on the table.
+	// The property tool itself has to survive so a follow up section can still be
+	// asked for.
 	var kept bool
 	for _, s := range offer {
 		fn, _ := s["function"].(map[string]any)
