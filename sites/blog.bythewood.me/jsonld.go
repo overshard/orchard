@@ -9,7 +9,7 @@ import (
 
 // jsonLD marshals a graph into the bytes that go inside the script tag.
 // template.JS skips html/template's escaping, which is safe because
-// encoding/json escapes <, > and & and so cannot close the element.
+// encoding/json escapes <, > and & and so can't close the element.
 func jsonLD(nodes ...map[string]any) template.JS {
 	graph := map[string]any{
 		"@context": "https://schema.org",
@@ -43,7 +43,7 @@ const (
 	websiteID = baseURL + "/#website"
 )
 
-// siteGraph is what every page that is not a post carries.
+// siteGraph goes on every page that isn't a post.
 func siteGraph() template.JS {
 	return jsonLD(personNode(), map[string]any{
 		"@type":       "Blog",

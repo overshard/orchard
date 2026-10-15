@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-// A mistake in the Markdown to Typst walker is quiet: the page still renders,
-// the PDF still compiles, and the text is wrong somewhere on page two.
+// A mistake in the Markdown to Typst walker is quiet, the page still renders
+// and the PDF still compiles with the text wrong somewhere on page two.
 func TestTypstEscapes(t *testing.T) {
 	tests := []struct {
 		name string
@@ -34,7 +34,7 @@ func TestTypstEscapes(t *testing.T) {
 		},
 		{
 			// Typst reads # as a code expression and @ as a label reference, so
-			// an unescaped one is a compile error rather than a typo.
+			// an unescaped one is a compile error instead of a typo.
 			name: "typst sigils are escaped",
 			md:   `see #tag and @handle`,
 			want: `see \#tag and \@handle`,
@@ -84,7 +84,7 @@ func TestParseFrontmatter(t *testing.T) {
 	}
 }
 
-// Getting the publish date comparison backwards publishes a draft, so it is
+// Getting the publish date comparison backwards publishes a draft, so it's
 // asserted from both sides.
 func TestPublishDateGating(t *testing.T) {
 	now := time.Now()
@@ -150,7 +150,7 @@ func TestTitleCase(t *testing.T) {
 }
 
 // The card and the title size are both fixed, so a long title has to wrap and
-// then stop rather than running off the edge.
+// then stop instead of running off the edge.
 func TestWrapTitle(t *testing.T) {
 	lines := wrapTitle("Cool URIs don't change unless an AI rewrites your blog and keeps going", 35, 3)
 	if len(lines) > 3 {

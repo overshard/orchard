@@ -286,7 +286,7 @@ func plainText(raw []byte) string {
 }
 
 // markupEscaper covers the characters that mean something in Typst markup, so a
-// post mentioning #hashtags or an @handle does not compile into a reference.
+// post mentioning #hashtags or an @handle doesn't compile into a reference.
 var markupEscaper = strings.NewReplacer(
 	`\`, `\\`, `[`, `\[`, `]`, `\]`, `*`, `\*`, `_`, `\_`,
 	"`", "\\`", `#`, `\#`, `$`, `\$`, `<`, `\<`, `@`, `\@`, `~`, `\~`,
@@ -320,7 +320,7 @@ func typstSource(post *Post) string {
 		}
 		fmt.Fprintf(&b, "%q", tag)
 	}
-	// A one-element Typst array needs the trailing comma or it is just a
+	// A one-element Typst array needs the trailing comma or it's just a
 	// parenthesised string, and `for tag in tags` iterates its characters.
 	if len(post.Tags) == 1 {
 		b.WriteByte(',')

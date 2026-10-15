@@ -8,8 +8,8 @@ import (
 	"strings"
 )
 
-// robots.txt, the sitemap and the feed. None of these are HTML, so they use
-// encoding/xml and an explicit escape rather than html/template.
+// robots.txt and the sitemap aren't HTML, so they're written with fmt and
+// encoding/xml instead of html/template.
 
 // wrapTitle greedily breaks a title into at most maxLines lines of about
 // maxChars.
@@ -42,7 +42,7 @@ func xmlEscape(s string) string {
 	return buf.String()
 }
 
-// Generated rather than a file, so its two colours stay the stylesheet's two.
+// The green stop is the stylesheet's $green, so change them together.
 const faviconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 16 16">
   <defs>
     <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">

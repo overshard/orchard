@@ -33,7 +33,7 @@ var markdownRenderer = goldmark.New(
 
 // imagePathTransformer rewrites a post's relative "images/foo.webp", which a
 // browser would resolve against /posts/<slug>/ and 404, to the /content/images/
-// path it is served at. Absolute and off-site URLs are left alone.
+// path it's served at. Absolute and off-site URLs are left alone.
 type imagePathTransformer struct{}
 
 func (t *imagePathTransformer) Transform(doc *ast.Document, reader text.Reader, pc parser.Context) {
@@ -61,7 +61,7 @@ func renderMarkdown(md string) template.HTML {
 	return template.HTML(buf.String())
 }
 
-// base16OceanDark is spelled out because chroma does not bundle it, and every
+// base16OceanDark is spelled out because chroma doesn't bundle it, and every
 // existing code block was written under it.
 var base16OceanDark = chroma.MustNewStyle("base16-ocean-dark", chroma.StyleEntries{
 	chroma.Background:            "#c0c5ce bg:#2b303b",
@@ -112,8 +112,8 @@ var base16OceanDark = chroma.MustNewStyle("base16-ocean-dark", chroma.StyleEntri
 	chroma.Error:                 "#ab7967",
 })
 
-// Spans only. post.scss styles `article > pre` as a direct child, and chroma's
-// own wrapper div would break that selector on every code block.
+// Spans only, since post.scss styles `article > pre` as a direct child and
+// chroma's own wrapper div would break that selector on every code block.
 var chromaFormatter = chromahtml.New(
 	chromahtml.WithClasses(false),
 	chromahtml.PreventSurroundingPre(true),

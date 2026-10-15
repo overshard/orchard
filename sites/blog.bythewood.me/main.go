@@ -21,8 +21,8 @@ import (
 //go:embed templates
 var templateFS embed.FS
 
-// The posts too, which is what makes the release binary the whole blog. `all:`
-// keeps dot-prefixed files under content/images, which embed would skip.
+// The posts ship inside the binary too, so the release binary is the whole
+// blog. `all:` keeps dot-prefixed files under content/images, which embed skips.
 //
 //go:embed all:content
 var contentFS embed.FS
@@ -62,7 +62,7 @@ func main() {
 	}
 }
 
-// realMain returns rather than exits, so its deferred closes and the log
+// realMain returns instead of exiting so the deferred closes and the log
 // shipper's flush run on every path out.
 func realMain() error {
 	web.SetupLogging()
@@ -73,8 +73,8 @@ func realMain() error {
 	ogOut := flag.String("og", "", "compile every social card to a PNG in this directory")
 	typstRoot := flag.String("typst-root", ".", "directory Typst resolves absolute paths against")
 	typstFonts := flag.String("typst-fonts", "", "directory of extra font files for Typst")
-	// The container HEALTHCHECK runs this: a FROM scratch image has no shell
-	// for a check to call, so the binary probes itself.
+	// The container HEALTHCHECK runs this since a FROM scratch image has no
+	// shell for a check to call, so the binary probes itself.
 	healthcheck := flag.Bool("healthcheck", false, "probe a running server on this host and exit")
 	flag.Parse()
 
@@ -85,9 +85,8 @@ func realMain() error {
 		return nil
 	}
 
-	// Tees stdout records to logging.bythewood.me, see web/shipper.go. It goes
-	// after the healthcheck branch so a HEALTHCHECK does not start a queue it
-	// will never flush.
+	// This goes after the healthcheck branch so a HEALTHCHECK doesn't start a
+	// queue it will never flush.
 	shipper := web.ShipLogs("blog", web.HTTPSink())
 	defer shipper.Close()
 
@@ -102,8 +101,6 @@ func realMain() error {
 	}
 	slog.Info(fmt.Sprintf("loaded %d posts", len(lib.All())))
 
-	// Either mode ends the process: this binary serves the site or compiles
-	// assets, never both.
 	if *pdfsOut != "" || *ogOut != "" {
 		if *pdfsOut != "" {
 			if err := GeneratePDFs(lib, *typstRoot, *typstFonts, *pdfsOut); err != nil {
@@ -186,14 +183,14 @@ func realMain() error {
 	mux.HandleFunc("GET /robots.txt", robots)
 	mux.HandleFunc("GET /sitemap.xml", s.sitemap)
 	mux.HandleFunc("GET "+feedPath, s.feed)
-	// The two paths readers guess at.
+	// Paths readers guess at for the feed.
 	mux.HandleFunc("GET /feed", redirectFeed)
 	mux.HandleFunc("GET /rss.xml", redirectFeed)
 
 	mux.Handle("GET /static/", web.Static(dist, assets))
 
-	// Post images keep their real filenames, so replacing one has to become
-	// visible without a hash change, no immutable year here.
+	// Post images keep their real filenames, so a replaced one has to show up
+	// without a hash change and can't be cached immutable for a year.
 	contentImages, err := fs.Sub(content, "images")
 	if err != nil {
 		return err
@@ -207,13 +204,11 @@ func realMain() error {
 	s.mediaIdx = newMediaIndex(contentImages)
 	mux.HandleFunc("GET /media/", s.media)
 
-	// Not logged: a line per probe would bury real traffic.
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		// EdgeCache fills in the site policy whenever a handler sets no
-		// Cache-Control of its own, so saying nothing here means the edge
-		// answers a liveness check out of cache long after this process has
-		// stopped serving.
+		// EdgeCache fills in the site policy when a handler sets no
+		// Cache-Control, and then the edge would answer a liveness check out of
+		// cache long after this process stopped serving.
 		w.Header().Set("Cache-Control", "no-store")
 		_, _ = w.Write([]byte("ok\n"))
 	})

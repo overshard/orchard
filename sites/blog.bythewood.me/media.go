@@ -8,14 +8,12 @@ import (
 	"strings"
 )
 
-// The blog ran on Wagtail until 2026, and its rendition URLs are still being
-// requested by feed readers and search indexes years later. A rendition is
+// Feed readers and search indexes still request Wagtail rendition URLs like
 // /media/images/<stem>.<hash>.<filterspec>.<format>.webp, and the same picture
-// now lives at /content/images/<stem>.webp under a tidier name, so the old URL
-// can be resolved rather than 404'd.
+// lives at /content/images/<stem>.webp so the old URL can redirect to it.
 
 // renditionToken matches the first component Wagtail appends: an eight
-// character content hash, or a filter spec when the rendition was not hashed.
+// character content hash, or a filter spec when the rendition wasn't hashed.
 var renditionToken = regexp.MustCompile(`^([0-9a-f]{8}|(?:max|min|fill|width|height|scale|original|format)-.*)$`)
 
 // wagtailAliases covers what no rule can derive. Wagtail truncated the stem to
@@ -56,8 +54,8 @@ func normalizeStem(s string) string {
 }
 
 // originalStem strips the rendition suffix, keeping dotted names like
-// caddyserver.com intact by stopping at the first component that is a Wagtail
-// token rather than at the first dot.
+// caddyserver.com intact by stopping at the first component that's a Wagtail
+// token instead of at the first dot.
 func originalStem(filename string) string {
 	parts := strings.Split(filename, ".")
 	for i, p := range parts {
@@ -73,7 +71,7 @@ func originalStem(filename string) string {
 
 // resolve finds the current file for an old rendition name. A truncated stem
 // resolves only when exactly one file starts with it, so an ambiguous prefix
-// 404s rather than sending a reader to the wrong picture.
+// 404s instead of sending a reader to the wrong picture.
 func (m *mediaIndex) resolve(filename string) (string, bool) {
 	stem := normalizeStem(originalStem(filename))
 	if stem == "" {
@@ -99,10 +97,9 @@ func (m *mediaIndex) resolve(filename string) (string, bool) {
 	return match, match != ""
 }
 
-// target maps a Wagtail media URL onto the path that serves it now. The avatar
-// had a UUID in its name and only ever had one subject, so the whole directory
-// resolves to it. og_images were hashed with nothing recoverable in the name,
-// so those have no answer and 404.
+// The avatar had a UUID in its name and only ever one subject, so the whole
+// directory resolves to it. og_images were hashed with nothing recoverable in
+// the name, so those 404.
 func (m *mediaIndex) target(urlPath string) (string, bool) {
 	dir, file := path.Split(strings.TrimPrefix(urlPath, "/media/"))
 
@@ -129,11 +126,8 @@ func (s *site) media(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, target, http.StatusMovedPermanently)
 }
 
-// ogLegacy answers the SVG card URLs from before the cards became PNG, which
-// search indexes still request. It sits inside StripPrefix, so the path is the
-// bare file name.
-// ogPublished serves a card only for the site or a post that is out, since the
-// cards are built for every post and a scheduled one's title is not public yet.
+// ogPublished serves a card only for the site or a post that's out, since the
+// cards are built for every post and a scheduled one's title isn't public yet.
 func (s *site) ogPublished(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		slug, ok := strings.CutSuffix(r.URL.Path, ".png")
@@ -152,6 +146,8 @@ func (s *site) ogPublished(next http.Handler) http.Handler {
 	})
 }
 
+// ogLegacy redirects the old SVG card URLs search indexes still request. It
+// sits inside StripPrefix, so the path is the bare file name.
 func ogLegacy(cards fs.FS, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if slug, ok := strings.CutSuffix(r.URL.Path, ".svg"); ok {

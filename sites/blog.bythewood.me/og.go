@@ -11,32 +11,31 @@ import (
 	"sync"
 )
 
-// Social cards, compiled at build time like the PDFs. PNG rather than SVG:
-// Facebook, X, LinkedIn, Slack, iMessage and Discord all refuse image/svg+xml
-// for og:image.
+// Social cards are PNG since Facebook, X, LinkedIn, Slack, iMessage and
+// Discord all refuse image/svg+xml for og:image.
 
 const (
 	ogWidth  = 1200
 	ogHeight = 630
 
-	// Named so it cannot collide with a post slug.
+	// Named so it can't collide with a post slug.
 	ogSiteCard = "blog"
 )
 
 // ogTypstSource renders one card. Text reaches Typst as string literals, so a
-// title containing #, $, @ or * is drawn rather than parsed.
+// title containing #, $, @ or * is drawn instead of parsed.
 func ogTypstSource(title string, tags []string) string {
 	var b strings.Builder
 
 	fmt.Fprintf(&b, "#set page(width: %dpt, height: %dpt, margin: 0pt, fill: rgb(\"#0d1117\"))\n", ogWidth, ogHeight)
 	// Geist comes in through --font-path. Typst embeds only DejaVu Sans Mono
-	// and its own serif, and a missing face falls back rather than erroring.
+	// and its own serif, and a missing face falls back instead of erroring.
 	b.WriteString("#set text(font: (\"Geist\", \"DejaVu Sans\"), fill: rgb(\"#f0f6fc\"))\n")
 
 	b.WriteString("#place(dx: 80pt, dy: 80pt, rect(width: 5pt, height: 160pt, " +
 		"fill: gradient.linear(rgb(\"#0e3ff4\"), rgb(\"#842bff\"), angle: 90deg)))\n")
 
-	// Fixed baselines, so the card does not reflow on a different wrap.
+	// Fixed baselines, so the card doesn't reflow on a different wrap.
 	for i, line := range wrapTitle(title, 35, 3) {
 		fmt.Fprintf(&b, "#place(dx: 110pt, dy: %dpt, text(size: 54pt, weight: \"bold\")[#%s])\n",
 			110+i*64, typstString(line))

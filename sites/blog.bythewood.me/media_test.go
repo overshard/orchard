@@ -10,7 +10,7 @@ import (
 )
 
 // Every /media/ URL the logs have actually seen, so a rename in content/images
-// that breaks one of these fails here rather than quietly going back to 404.
+// that breaks one of these fails here instead of quietly going back to 404.
 func TestWagtailMediaURLsResolve(t *testing.T) {
 	images, err := fs.Sub(contentFS, "content/images")
 	if err != nil {
@@ -48,7 +48,7 @@ func TestWagtailMediaURLsResolve(t *testing.T) {
 	}
 }
 
-// An unresolvable name must 404 rather than redirect to whatever sorted first.
+// An unresolvable name must 404 instead of redirecting to whatever sorted first.
 func TestUnknownMediaIsNotGuessed(t *testing.T) {
 	images, err := fs.Sub(contentFS, "content/images")
 	if err != nil {
@@ -119,7 +119,7 @@ func TestOGLegacySVGRedirects(t *testing.T) {
 }
 
 // Cards are built for every post, so a scheduled one's title and tags would be
-// readable at /og/ before it is out, and the directory listed every slug.
+// readable at /og/ before it's out, and the directory would list every slug.
 func TestOGServesOnlyPublishedCards(t *testing.T) {
 	now := time.Now()
 	yesterday := now.AddDate(0, 0, -1).Format("2006-01-02")

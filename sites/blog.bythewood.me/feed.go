@@ -48,15 +48,15 @@ type atomCategory struct {
 }
 
 // atomContent is type="html", so a post's raw HTML is escaped into a text node
-// rather than inlined as XHTML, where it could produce a malformed feed.
+// instead of inlined as XHTML, where it could produce a malformed feed.
 type atomContent struct {
 	Type string `xml:"type,attr"`
 	Body string `xml:",chardata"`
 }
 
 // feedTime turns a YYYY-MM-DD front matter date into Atom's RFC3339 stamp. A
-// date that will not parse falls back to the epoch, so one bad file does not
-// fail the whole feed.
+// date that won't parse falls back to the epoch, so one bad file doesn't fail
+// the whole feed.
 func feedTime(day string) string {
 	t, err := time.Parse("2006-01-02", day)
 	if err != nil {

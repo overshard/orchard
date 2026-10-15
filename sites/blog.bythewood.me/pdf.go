@@ -13,10 +13,10 @@ import (
 
 // PDFs are compiled during `docker build` and the handler serves a file, so no
 // subprocess sits on the request path. Every post is rendered, scheduled ones
-// included, and the handler is what enforces the publish date.
+// included, and the handler enforces the publish date.
 
 // GeneratePDFs compiles one PDF per post into outDir. root is the directory
-// Typst resolves absolute paths against, so /templates/blog_post.typ and
+// Typst resolves absolute paths against, so /typst/blog_post.typ and
 // /content/images/* both land.
 func GeneratePDFs(lib *Library, root, fontPath, outDir string) error {
 	if _, err := exec.LookPath("typst"); err != nil {
@@ -68,7 +68,7 @@ func GeneratePDFs(lib *Library, root, fontPath, outDir string) error {
 	return nil
 }
 
-// compilePDF pipes Typst markup to the compiler on stdin, so there is nothing
+// compilePDF pipes Typst markup to the compiler on stdin, so there's nothing
 // to clean up on failure and nothing for parallel workers to collide over.
 func compilePDF(source, root, fontPath, out string) error {
 	args := []string{"compile", "--root", root}
@@ -80,7 +80,7 @@ func compilePDF(source, root, fontPath, out string) error {
 	cmd.Stdin = strings.NewReader(source)
 
 	// Typst reports compile errors on stderr and exits non-zero, so the exit
-	// code alone is not the diagnosis.
+	// code alone isn't the diagnosis.
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
 
