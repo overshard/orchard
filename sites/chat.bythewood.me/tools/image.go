@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 )
 
 // Images is an interface because the thing behind it is this site's own model
@@ -54,7 +53,23 @@ type ImageProgress struct {
 
 var imageShapes = map[string]bool{"square": true, "portrait": true, "landscape": true, "same": true}
 
-var Image = Tool{
+type imageArgs struct {
+	Prompt     string
+	Shape      string
+	ChangeLast bool
+}
+
+func (a *imageArgs) params() []param {
+	return []param{
+		strArg(&a.Prompt, "prompt", "what to draw, or what to do to the picture it starts from, written out in full").required(),
+		strArg(&a.Shape, "shape", "square unless the subject wants otherwise, portrait for a person or a phone wallpaper, "+
+			"landscape for a scene, same to keep the shape of the picture it starts from").
+			oneOf("square", "portrait", "landscape", "same"),
+		boolArg(&a.ChangeLast, "change_last", "true to change the last picture in this conversation rather than draw a new one"),
+	}
+}
+
+var Image = Define(Tool{
 	Name: "image",
 	Description: "Draw a picture with FLUX.2 klein, an image model that runs on the same card as you. " +
 		"Call it whenever he asks for a picture, drawing, image, photo, illustration, logo, icon or wallpaper, " +
@@ -71,58 +86,44 @@ var Image = Tool{
 		"in that picture, its colour, material, style or condition, unless he said it, because you would be guessing " +
 		"and the image model draws your guess over the real thing. " +
 		"It takes about half a minute and the picture is shown to him on its own, so do not describe it afterwards.",
-	Schema: obj(map[string]any{
-		"prompt": str("what to draw, or what to do to the picture it starts from, written out in full"),
-		"shape": map[string]any{
-			"type": "string",
-			"enum": []string{"square", "portrait", "landscape", "same"},
-			"description": "square unless the subject wants otherwise, portrait for a person or a phone wallpaper, " +
-				"landscape for a scene, same to keep the shape of the picture it starts from",
-		},
-		"change_last": map[string]any{
-			"type":        "boolean",
-			"description": "true to change the last picture in this conversation rather than draw a new one",
-		},
-	}, "prompt"),
-	Run: func(ctx context.Context, d *Deps, args map[string]any) (any, error) {
-		if d.Images == nil {
-			return nil, errors.New("pictures are not set up on this server")
-		}
-		prompt := strings.TrimSpace(argStr(args, "prompt"))
-		if prompt == "" {
-			return nil, errors.New("say what to draw in prompt")
-		}
-		start := d.Start
-		if len(start) == 0 && argBool(args, "change_last") && d.LastPicture != "" {
-			start = []string{d.LastPicture}
-		}
-		shape := argStr(args, "shape")
-		if !imageShapes[shape] || shape == "same" && len(start) == 0 {
-			shape = "square"
-			if len(start) > 0 {
-				shape = "same"
-			}
-		}
-		report := d.OnImage
-		if report == nil {
-			report = func(ImageProgress) {}
-		}
-		got, err := d.Images.Draw(ctx, prompt, shape, start, d.Picture, report)
-		if err != nil {
-			return nil, err
-		}
-		d.Widgets.Add(Widget{Kind: "image", Image: got.ID, Label: prompt, Model: got.Model,
-			Width: got.Width, Height: got.Height})
-		out := map[string]any{
-			"drawn":         true,
-			"shown_to_user": true,
-			"prompt":        prompt,
-			"size":          fmt.Sprintf("%dx%d", got.Width, got.Height),
-			"seconds_taken": (got.LoadMS + got.DrawMS + 500) / 1000,
-		}
+}, func(ctx context.Context, d *Deps, a imageArgs) (any, error) {
+	if d.Images == nil {
+		return nil, errors.New("pictures are not set up on this server")
+	}
+	prompt := a.Prompt
+	if prompt == "" {
+		return nil, errors.New("say what to draw in prompt")
+	}
+	start := d.Start
+	if len(start) == 0 && a.ChangeLast && d.LastPicture != "" {
+		start = []string{d.LastPicture}
+	}
+	shape := a.Shape
+	if !imageShapes[shape] || shape == "same" && len(start) == 0 {
+		shape = "square"
 		if len(start) > 0 {
-			out["started_from"] = len(start)
+			shape = "same"
 		}
-		return out, nil
-	},
-}
+	}
+	report := d.OnImage
+	if report == nil {
+		report = func(ImageProgress) {}
+	}
+	got, err := d.Images.Draw(ctx, prompt, shape, start, d.Picture, report)
+	if err != nil {
+		return nil, err
+	}
+	d.Widgets.Add(Widget{Kind: "image", Image: got.ID, Label: prompt, Model: got.Model,
+		Width: got.Width, Height: got.Height})
+	out := map[string]any{
+		"drawn":         true,
+		"shown_to_user": true,
+		"prompt":        prompt,
+		"size":          fmt.Sprintf("%dx%d", got.Width, got.Height),
+		"seconds_taken": (got.LoadMS + got.DrawMS + 500) / 1000,
+	}
+	if len(start) > 0 {
+		out["started_from"] = len(start)
+	}
+	return out, nil
+})
