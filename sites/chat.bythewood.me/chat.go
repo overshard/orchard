@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"chat.bythewood.me/internal/incognito"
 	"chat.bythewood.me/tools"
 )
 
@@ -224,7 +225,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	turn := e.deps.Turn(session)
 	// A tool decides for itself what incognito means for it, so the flag rides
 	// on the turn and not only on this process's own requests.
-	turn.Incognito = IsIncognito(ctx)
+	turn.Incognito = incognito.On(ctx)
 	turn.OnImage = func(p tools.ImageProgress) { emit(Event{Kind: "image", Image: &p}) }
 	refs := referencesOf(ctx)
 	turn.Start, turn.LastPicture = refs.Attached, refs.Last

@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"chat.bythewood.me/internal/incognito"
 	"chat.bythewood.me/tools"
 )
 
@@ -133,7 +134,7 @@ func (p *Painter) Draw(ctx context.Context, prompt, shape string, startFrom []st
 				// Never saw it ready, so the split is unknown and a guess
 				// built from it would be wrong in both halves.
 				loadMS = 0
-			} else if !IsIncognito(ctx) {
+			} else if !incognito.On(ctx) {
 				p.store.SaveImageRun(p.name, pr.PromptMS, loadMS, total-loadMS, pixels)
 			}
 			pr.Stage, pr.LoadMS, pr.DrawMS, pr.StageAt = "done", loadMS, total-loadMS, time.Now().UnixMilli()
