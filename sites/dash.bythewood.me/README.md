@@ -23,10 +23,11 @@ make clean    delete build/ and node_modules
 
 `market.go`, `news.go`, `feeds.go`, `weather.go`, `earnings.go` and
 `systems.go` each poll one thing into the store in `state.go`, which broadcasts
-it on `/events`. `brief.go` writes the briefs, `quick.go` relays the quick chat
-to chat.bythewood.me, and `guard.go` fences every upstream with a budget and a
-breaker. There's no database, just JSON files in `build/data`, or the
-`orchard-dash-data` volume in production. `CLAUDE.md` has the rest.
+it on `/events`. `sources.go` lists every poller with its interval, so a new
+panel is one entry there. `brief.go` writes the briefs, `quick.go` relays the
+quick chat to chat.bythewood.me, and `guard.go` fences every upstream with a
+budget and a breaker. There's no database, just JSON files in `build/data`, or
+the `orchard-dash-data` volume in production. `CLAUDE.md` has the rest.
 
 ## Things that will bite you
 
