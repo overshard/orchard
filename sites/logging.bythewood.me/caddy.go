@@ -12,28 +12,19 @@ import (
 	"logging.bythewood.me/web"
 )
 
-// Caddy's access log intake. Caddy cannot carry web/shipper.go, so it ships
-// over its own net writer instead: newline delimited JSON on a TCP connection
-// it opens and holds. Each line becomes the same web.Record every other source
-// posts to /ingest, so storage, rollups, retention and the watchdog treat a
-// Caddy row exactly like a site's own.
-//
-// Only Caddy's access log arrives here, never its runtime log. The runtime log
-// is where a failing net writer reports itself, so shipping it over the
-// connection that is failing would be a feedback loop. The access log is driven
-// by requests instead.
+// Caddy can't carry web/shipper.go, so it holds a TCP connection here and writes
+// its access log as JSON lines, each becoming the web.Record a site would post.
+// Its runtime log never comes here, since a failing net writer reports itself there.
 
 const (
-	// No token, and no fence beyond the bridge, on the same reasoning as
-	// /ingest: Caddy answers nothing on this port for the public hostname,
-	// so anything that can reach it is already inside the network.
+	// No token, like /ingest, since nothing outside the bridge can reach this
+	// port and anything that can is already inside the network.
 	caddyListenAddr = ":9001"
 
 	// Matches the container name, like every other source here.
 	caddySource = "caddy"
 
-	// A filtered line runs about 400 bytes, so this is the cap that stops a
-	// stream with no newline in it from being read into memory forever.
+	// Stops a stream with no newline in it from being read into memory forever.
 	caddyMaxLine = 64 << 10
 
 	caddyBatch = 200
@@ -45,7 +36,6 @@ const (
 	caddyKeepAlive = 30 * time.Second
 )
 
-// ServeCaddyLogs listens on addr and accepts connections until ctx is cancelled.
 func (s *site) ServeCaddyLogs(ctx context.Context, addr string) error {
 	var lc net.ListenConfig
 	ln, err := lc.Listen(ctx, "tcp", addr)
@@ -86,7 +76,6 @@ func (s *site) serveCaddyLogs(ctx context.Context, ln net.Listener) error {
 	}
 }
 
-// readCaddyLog drains one connection until it closes.
 func (s *site) readCaddyLog(conn net.Conn) {
 	if tcp, ok := conn.(*net.TCPConn); ok {
 		_ = tcp.SetKeepAlive(true)
@@ -102,8 +91,8 @@ func (s *site) readCaddyLog(conn net.Conn) {
 			return
 		}
 		s.writer.enqueue(rows)
-		// After the enqueue, like the ingest path: a batch that was refused
-		// is not evidence the source is healthy.
+		// After the enqueue, like ingest, since a refused batch isn't evidence
+		// the source is healthy.
 		s.watchdog.Observe(caddySource, recs)
 		rows, recs = rows[:0], recs[:0]
 	}
@@ -114,8 +103,8 @@ func (s *site) readCaddyLog(conn net.Conn) {
 		// json.Unmarshal copies every string it keeps.
 		line, err := br.ReadSlice('\n')
 		if err == bufio.ErrBufferFull {
-			// Drop the rest of an oversized line rather than the whole
-			// connection, which Caddy would reopen and resend into.
+			// Drop the rest of an oversized line and keep the connection,
+			// which Caddy would otherwise reopen and resend into.
 			discardCaddyLine(br)
 			continue
 		}
@@ -199,9 +188,8 @@ func parseCaddyLine(line []byte) (web.Record, bool) {
 	if e.CFRay != "" {
 		attrs["cf_ray"] = e.CFRay
 	}
-	// An edge row is its own kind of route, and defaulting here means a Caddy
-	// that has not been reconfigured yet still lands in the same bucket rather
-	// than in the empty one.
+	// The default lands a Caddy that hasn't been reconfigured in the edge
+	// bucket instead of the empty one.
 	attrs["component"] = "edge"
 	if e.Component != "" {
 		attrs["component"] = e.Component
@@ -219,8 +207,8 @@ func parseCaddyLine(line []byte) (web.Record, bool) {
 	}, true
 }
 
-// caddyMillis scales by magnitude rather than pinning time_format in the
-// Caddyfile, so changing that there cannot silently date every row to 1970.
+// caddyMillis scales by magnitude instead of pinning time_format in the
+// Caddyfile, so changing that there can't silently date every row to 1970.
 // saneTimestamp replaces anything still out of range with now.
 func caddyMillis(ts float64) int64 {
 	switch {

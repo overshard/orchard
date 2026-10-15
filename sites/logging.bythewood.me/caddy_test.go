@@ -11,7 +11,7 @@ import (
 )
 
 // One real line off the wire, with the Caddyfile's filter already applied, so
-// this is the shape the parser actually receives rather than an idealised one.
+// this is the shape the parser actually receives.
 const caddyLine = `{"level":"info","ts":1788121034.4924123,"logger":"http.log.access.ship",` +
 	`"msg":"handled request","request":{"remote_ip":"172.18.0.9","remote_port":"47644",` +
 	`"client_ip":"203.0.113.7","proto":"HTTP/1.1","method":"GET","host":"blog.bythewood.me",` +
@@ -121,8 +121,8 @@ func TestCaddyMillis(t *testing.T) {
 	}
 }
 
-// End to end over a real socket, because the parser being right is only half of
-// it: the read loop has to frame lines and flush them into the writer.
+// End to end over a real socket, since the read loop has to frame lines and
+// flush them into the writer too.
 func TestCaddyLogSocketWritesRows(t *testing.T) {
 	db := testDB(t)
 	s := testSite(t, db)
@@ -150,8 +150,8 @@ func TestCaddyLogSocketWritesRows(t *testing.T) {
 	}
 	conn.Close()
 
-	// The reader owns its own goroutine and the writer commits on a ticker,
-	// so the rows arrive after the close rather than because of it.
+	// The reader has its own goroutine and the writer commits on a ticker, so
+	// the rows arrive some time after the close.
 	if got := waitForCaddyRows(t, db, 3); got != 3 {
 		t.Errorf("records = %d, want 3: the malformed line must be skipped, not fatal", got)
 	}
@@ -237,8 +237,8 @@ func TestCaddySilenceThresholdIsLonger(t *testing.T) {
 // guaranteed to see a request with nobody visiting.
 const checkCadence = 3 * time.Minute
 
-// Every app names the kind of route it served. An edge row that named nothing
-// left a hole in the one dimension the rollups group by.
+// Every app names the kind of route it served, and an edge row naming nothing
+// leaves a hole in the one dimension the rollups group by.
 func TestCaddyRowsCarryAComponent(t *testing.T) {
 	const line = `{"level":"info","ts":1788220000.5,"status":200,"size":4058,"duration":0.0016,
 	  "cf_ray":"a33f-IAD","component":"edge",

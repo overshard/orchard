@@ -15,10 +15,8 @@ import (
 	"logging.bythewood.me/web"
 )
 
-// A temporary database per test, through the real openDB, so the schema and the
-// pragmas under test are the ones that ship. An in-memory DSN would not be:
-// auto_vacuum behaves differently and these tests are about the
-// storage behaviour.
+// A temporary database per test through the real openDB, so the schema and the
+// pragmas are the ones that ship. auto_vacuum behaves differently in memory.
 func testDB(t *testing.T) *sql.DB {
 	t.Helper()
 	db, err := openDB(t.TempDir() + "/db.sqlite3")
@@ -30,7 +28,7 @@ func testDB(t *testing.T) *sql.DB {
 }
 
 // mustTemplates is the embedded template directory, the same one main uses, so
-// a template that only fails at execute time fails here rather than in a
+// a template that only fails at execute time fails here instead of in a
 // browser.
 func mustTemplates(t *testing.T) fs.FS {
 	t.Helper()
@@ -65,13 +63,12 @@ func stubAuth(t *testing.T, signedIn bool) *web.Authenticator {
 }
 
 // The hot attributes are lifted into columns and everything else stays in the
-// JSON bag. Getting this wrong is invisible: no error, just a dashboard where
-// every latency is zero because "ms" stayed in the blob.
+// JSON bag. Getting this wrong is silent, every latency reads zero because "ms"
+// stayed in the blob.
 func TestToRowLiftsHotAttributes(t *testing.T) {
-	// Values arrive through JSON, where every number is a float64 no matter
-	// how it was logged. Encoding and decoding for real rather than building
-	// the map by hand, because building it by hand is what would let an
-	// int64 pass a test the wire never produces.
+	// Values arrive through JSON, where every number is a float64, so this
+	// decodes for real since a map built by hand could pass an int64 the wire
+	// never sends.
 	raw := `{"t":1756500000000,"l":"info","m":"request","a":{
 		"status":404,"method":"GET","path":"/nope","host":"blog.bythewood.me",
 		"ip":"203.0.113.7","cf_ray":"9a1f-IAD","ms":1.25,"bytes":512}}`
@@ -86,7 +83,7 @@ func TestToRowLiftsHotAttributes(t *testing.T) {
 		t.Errorf("source/ts = %q/%d", got.source, got.ts)
 	}
 	// Uppercased, so a level logged as "info" and one logged as "INFO" land
-	// in the same rollup bucket rather than two.
+	// in the same rollup bucket.
 	if got.level != "INFO" {
 		t.Errorf("level = %q, want INFO", got.level)
 	}
@@ -115,7 +112,7 @@ func TestToRowDefaults(t *testing.T) {
 	if got.level != "INFO" {
 		t.Errorf("level = %q, want INFO for an unset level", got.level)
 	}
-	// A record with no timestamp is stamped on arrival rather than filed at
+	// A record with no timestamp is stamped on arrival instead of filed at
 	// the epoch, where it would be swept the moment retention next ran.
 	if got.ts < before {
 		t.Errorf("ts = %d, want at least %d", got.ts, before)
@@ -132,10 +129,8 @@ func TestNormalizeSource(t *testing.T) {
 		"  status  ":         "status",
 		"blog.bythewood.me":  "blog",
 		"iSaacByThewood.com": "isaacbythewood",
-		// Everything from the first dot on is dropped, because a caller
-		// passing a hostname should land in the same bucket as one passing
-		// a label rather than opening a second one nobody looks at. A
-		// traversal attempt loses its slashes on the way there.
+		// Everything from the first dot on is dropped so a hostname lands in
+		// the same bucket as a label. A traversal attempt loses its slashes.
 		"weird/../path":         "weird",
 		"logging/../../etc":     "logging",
 		"":                      "",
@@ -154,7 +149,7 @@ func TestIngestWritesRecordsAndRollups(t *testing.T) {
 	s := testSite(t, db)
 
 	// Two records in the same hour, same source, same level, same status, so
-	// they must collapse into exactly one rollup row rather than two.
+	// they must collapse into exactly one rollup row.
 	hour := time.Date(2026, 8, 29, 14, 0, 0, 0, time.UTC).UnixMilli()
 	body := web.Batch{Source: "blog", Records: []web.Record{
 		{Time: hour + 1000, Level: "INFO", Msg: "request",
@@ -170,9 +165,8 @@ func TestIngestWritesRecordsAndRollups(t *testing.T) {
 		t.Fatalf("ingest = %d, want 202", rr.Code)
 	}
 
-	// The writer flushes on a timer, so the assertion has to wait for it
-	// rather than assume it. Close is the deterministic way to make it
-	// happen, and it is what shutdown does anyway.
+	// The writer flushes on a timer, so Close makes the flush deterministic,
+	// and it's what shutdown does anyway.
 	s.writer.Close()
 
 	var records int
@@ -203,9 +197,8 @@ func TestIngestWritesRecordsAndRollups(t *testing.T) {
 	}
 }
 
-// A record with no duration is a subsystem message, not an instant request.
-// Counting it as a zero would drag every mean toward zero, which is the kind of
-// wrong that looks like good news.
+// A record with no duration is a subsystem message, not an instant request, and
+// counting it as a zero would drag every mean toward zero.
 func TestRollupIgnoresZeroDurations(t *testing.T) {
 	db := testDB(t)
 	w := &Writer{db: db}
@@ -255,9 +248,9 @@ func TestIngestRejectsBadInput(t *testing.T) {
 	}
 }
 
-// Backpressure has to be a real answer rather than a stall: a logging site that
-// can hold a request open on every site it watches is worse than no logging
-// site. The whole batch is refused rather than half-written.
+// Backpressure has to be a real answer instead of a stall, since a logging site
+// that holds a request open on every site it watches is worse than none. The
+// whole batch is refused, never half-written.
 func TestIngestSheds429WhenFull(t *testing.T) {
 	db := testDB(t)
 	// A writer with no goroutine draining it, so the queue fills.
@@ -282,11 +275,9 @@ func TestIngestSheds429WhenFull(t *testing.T) {
 	}
 }
 
-// The local sink is how this site records itself. It must drop its own ingest
-// request lines: every flush from every site is one POST here, so keeping them
-// would make this site's loudest source itself, describing the act of being
-// written to. Health checks need no special case here, toRow demotes
-// them for every source alike.
+// The local sink drops this site's own ingest request lines, since every flush
+// from every site is one POST here. Health checks need no special case, toRow
+// demotes them for every source alike.
 func TestLocalSinkDropsSelfChatter(t *testing.T) {
 	db := testDB(t)
 	s := testSite(t, db)
@@ -317,8 +308,7 @@ func TestLocalSinkDropsSelfChatter(t *testing.T) {
 	}
 
 	// The health check left no raw row but must still be counted, forever,
-	// under its own component, which is why they are demoted rather
-	// than dropping.
+	// under its own component.
 	var healthz int64
 	if err := db.QueryRow(
 		`SELECT COALESCE(SUM(count), 0) FROM rollups WHERE component = 'healthz'`).Scan(&healthz); err != nil {
@@ -330,9 +320,8 @@ func TestLocalSinkDropsSelfChatter(t *testing.T) {
 }
 
 // Health checks are the process probing itself over loopback every thirty
-// seconds. Counted as traffic they made the p50 read 0.042ms against a real
-// 0.537ms and put /healthz at the top of the busiest paths, which is roughly
-// 66% of every raw scan spent on the fleet talking to itself.
+// seconds, and counted as traffic they drag the p50 toward zero and put
+// /healthz at the top of the busiest paths.
 func TestHealthChecksAreRollupOnly(t *testing.T) {
 	db := testDB(t)
 	base := time.Now().UTC().Add(-time.Minute).UnixMilli()
@@ -371,7 +360,7 @@ func TestHealthChecksAreRollupOnly(t *testing.T) {
 	if got := topPaths(context.Background(), db, f, 10); len(got) != 1 || got[0].Label != "/" {
 		t.Errorf("busiest paths = %+v, want only /", got)
 	}
-	// And the tiles agree: one request, not twenty-one.
+	// And the tiles agree on one request, not twenty-one.
 	if got := totals(context.Background(), db, f); got.Requests != 1 {
 		t.Errorf("Requests = %d, want 1", got.Requests)
 	}
@@ -421,8 +410,8 @@ func TestTotalsAndErrorRate(t *testing.T) {
 	if got.Server5xx != 1 || got.Client4xx != 1 {
 		t.Errorf("5xx/4xx = %d/%d, want 1/1", got.Server5xx, got.Client4xx)
 	}
-	// 1 of 4 requests, not 1 of 5 records. Mixing the two is the mistake
-	// this pins: a scheduler complaining is not a visitor being told no.
+	// 1 of 4 requests, not 1 of 5 records, since a scheduler complaining
+	// isn't a visitor being told no.
 	if got.ErrorRate != 25 {
 		t.Errorf("ErrorRate = %v, want 25", got.ErrorRate)
 	}
@@ -433,10 +422,9 @@ func TestTotalsAndErrorRate(t *testing.T) {
 	}
 }
 
-// Every container health check is the binary probing itself over loopback, so
-// it carries no CF-Ray and would otherwise read as "something reached the
-// origin without crossing the tunnel". At one every thirty seconds per site
-// that buries the real signal within an hour.
+// A container health check is the binary probing itself over loopback with no
+// CF-Ray, and at one every thirty seconds per site it would bury the real
+// direct hits within an hour.
 func TestDirectHitsIgnoresLoopback(t *testing.T) {
 	db := testDB(t)
 	base := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC).UnixMilli()
@@ -469,7 +457,7 @@ func TestLatencyPercentiles(t *testing.T) {
 
 	var rows []row
 	// 1..100ms, so the percentiles are arithmetic somebody can check by
-	// hand rather than a number that only agrees with itself.
+	// hand.
 	for i := 1; i <= 100; i++ {
 		rows = append(rows, row{
 			source: "blog", ts: base, level: "INFO", msg: "request",
@@ -482,9 +470,7 @@ func TestLatencyPercentiles(t *testing.T) {
 	if got.Count != 100 {
 		t.Fatalf("Count = %d, want 100", got.Count)
 	}
-	// Nearest rank: the pth percentile of 1..100 is the ceil(p*100)th value.
-	// The earlier offset-based implementation returned 51/96/100, one row high
-	// whenever count*p landed exactly on an integer.
+	// Nearest rank, so the pth percentile of 1..100 is the ceil(p*100)th value.
 	if got.P50 != 50 || got.P95 != 95 || got.P99 != 99 {
 		t.Errorf("p50/p95/p99 = %v/%v/%v, want 50/95/99", got.P50, got.P95, got.P99)
 	}
@@ -494,7 +480,7 @@ func TestLatencyPercentiles(t *testing.T) {
 }
 
 // A percentile offset past the end of a short set would read nothing and render
-// as "instant", which is the worst possible way to be wrong about latency.
+// as "instant".
 func TestLatencyClampsOnTinySets(t *testing.T) {
 	db := testDB(t)
 	base := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC).UnixMilli()
@@ -536,9 +522,8 @@ func TestVolumeGraphFillsEmptyBuckets(t *testing.T) {
 	}
 }
 
-// The group-by column is chosen from a fixed set. A caller passing a query
-// parameter through would otherwise be writing SQL, so the refusal is asserted
-// rather than assumed.
+// The group-by column is chosen from a fixed set, since a caller passing a
+// query parameter through would otherwise be writing SQL.
 func TestBreakdownRefusesUnknownColumn(t *testing.T) {
 	db := testDB(t)
 	got := breakdown(context.Background(), db, filter{EndMS: 1}, "msg; DROP TABLE records", 5)
@@ -575,10 +560,9 @@ func TestSearchFilterMatchesMessageOrPath(t *testing.T) {
 	}
 }
 
-// A path at the sample floor reports its 4th of 5 values under a column headed
-// p95, because PERCENT_RANK gives the largest row of every partition the
-// value 1.0 and the filter was `pr <= 0.95`. CUME_DIST reaches 1.0 at the max,
-// so the slowest sample is selectable and a small set reports honestly.
+// PERCENT_RANK gives the largest row of every partition 1.0, so `pr <= 0.95`
+// reports a path's 4th of 5 values as p95. CUME_DIST reaches 1.0 at the max,
+// so the slowest sample is selectable.
 func TestSlowestPathsP95IncludesTheSlowestSample(t *testing.T) {
 	db := testDB(t)
 	base := time.Now().UTC().Add(-time.Minute).UnixMilli()
@@ -599,9 +583,8 @@ func TestSlowestPathsP95IncludesTheSlowestSample(t *testing.T) {
 	if got[0].Max != 1000 {
 		t.Fatalf("max = %v, want 1000", got[0].Max)
 	}
-	// Nearest rank over five samples puts p95 at the 5th, which is the 1000ms
-	// outlier. Reporting 40 here is the old behaviour and hides the one
-	// request worth finding.
+	// Nearest rank over five samples puts p95 at the 5th, the 1000ms outlier
+	// and the one request worth finding.
 	if got[0].P95 != 1000 {
 		t.Errorf("p95 = %v, want 1000: the slowest sample must be reachable", got[0].P95)
 	}
@@ -631,8 +614,7 @@ func TestSweepDeletesRawButKeepsRollups(t *testing.T) {
 	if records != 1 {
 		t.Errorf("records = %d, want 1: only the fresh row survives", records)
 	}
-	// This is the whole design: a graph over a year still works after the
-	// raw lines behind it are gone.
+	// A graph over a year still works after the raw lines behind it are gone.
 	if rollups != 2 {
 		t.Errorf("rollups = %d, want 2: rollups are kept forever", rollups)
 	}
@@ -646,12 +628,9 @@ func TestSweepDeletesRawButKeepsRollups(t *testing.T) {
 	}
 }
 
-// `rollups.hour` is hour-floored, so a clause of `hour >= start` against a
-// now-relative start would drop the bucket containing the start, whole, and the
-// tiles would disagree with the raw panels beside them by up to an hour of data.
-//
-// Every other test here uses an hour-aligned base with a base-1..base+1 window,
-// the one shape where the floor and the bound coincide. This one does not.
+// `rollups.hour` is hour-floored, so `hour >= start` against a now-relative
+// start would drop the bucket containing it and the tiles would disagree with
+// the raw panels. An hour-aligned base can't catch that, so this one isn't.
 func TestRollupsAndRawAgreeOverNamedWindows(t *testing.T) {
 	db := testDB(t)
 
@@ -693,8 +672,8 @@ func TestRollupsAndRawAgreeOverNamedWindows(t *testing.T) {
 	}
 }
 
-// The graph must not open with a phantom empty bucket, which is what happened
-// when the fill loop started below the window the WHERE clause enforced.
+// The graph must not open with a phantom empty bucket from a fill loop starting
+// below the window the WHERE clause enforces.
 func TestVolumeGraphHasNoPhantomLeadingBucket(t *testing.T) {
 	db := testDB(t)
 	now := time.Now().UTC()
@@ -724,8 +703,7 @@ func TestVolumeGraphHasNoPhantomLeadingBucket(t *testing.T) {
 }
 
 // An unbounded custom range builds one bucket per day across five thousand
-// years: millions of formatted labels, joined into a polyline and
-// marshalled into the page, from a single authenticated GET.
+// years, millions of labels from a single authenticated GET.
 func TestCustomRangeIsClamped(t *testing.T) {
 	key, _, startMS, endMS := resolveWindow(map[string][]string{
 		"start": {"0001-01-01"}, "end": {"9999-12-31"},
@@ -737,7 +715,7 @@ func TestCustomRangeIsClamped(t *testing.T) {
 		t.Errorf("fallback window is %v, want at most %v", span, maxWindow)
 	}
 
-	// An end date in the future is pulled back to now rather than refused, so
+	// An end date in the future is pulled back to now instead of refused, so
 	// a lazily typed end still works.
 	key, _, _, endMS = resolveWindow(map[string][]string{
 		"start": {time.Now().UTC().AddDate(0, 0, -2).Format("2006-01-02")},
@@ -751,9 +729,8 @@ func TestCustomRangeIsClamped(t *testing.T) {
 	}
 }
 
-// Reclaiming has to actually shrink the file, not merely not error. The row
-// count being bounded while the file grows forever is the exact failure
-// auto_vacuum exists to prevent, and it is invisible from inside SQL.
+// Reclaiming has to actually shrink the file, since a bounded row count in a
+// file that grows forever is invisible from inside SQL.
 func TestSweepReclaimsDiskSpace(t *testing.T) {
 	dir := t.TempDir()
 	path := dir + "/db.sqlite3"
@@ -812,8 +789,8 @@ func TestResolveWindow(t *testing.T) {
 		t.Errorf("span = %v, want about 7 days", d)
 	}
 
-	// An unknown range falls back rather than producing a zero window, which
-	// would render every panel empty and look like a data loss.
+	// An unknown range falls back to the default, since a zero window would
+	// render every panel empty and look like a data loss.
 	key, _, start, end = resolveWindow(map[string][]string{"range": {"nonsense"}})
 	if key != defaultRange || end <= start {
 		t.Errorf("fallback = %q, span %d", key, end-start)
@@ -830,7 +807,7 @@ func TestResolveWindow(t *testing.T) {
 		t.Errorf("span = %dms; end is exclusive at the start of the day after end", end-start)
 	}
 
-	// A reversed pair is ignored rather than producing a negative window.
+	// A reversed pair is ignored instead of producing a negative window.
 	if key, _, _, _ := resolveWindow(map[string][]string{
 		"start": {"2026-08-09"}, "end": {"2026-08-01"},
 	}); key == "custom" {
@@ -890,8 +867,8 @@ func TestChartPolyline(t *testing.T) {
 	if got := chartPolyline(nil); got != "" {
 		t.Errorf("empty series = %q, want empty", got)
 	}
-	// One bucket has no horizontal span to distribute across, so it is drawn
-	// at the midpoint rather than dividing by zero.
+	// One bucket has no horizontal span to distribute across, so it's drawn
+	// at the midpoint instead of dividing by zero.
 	if got := chartPolyline([]GraphPoint{{Count: 5}}); !strings.HasPrefix(got, "300.0,") {
 		t.Errorf("single point = %q, want it at x=300", got)
 	}
@@ -901,10 +878,9 @@ func TestChartPolyline(t *testing.T) {
 	}
 }
 
-// Log text reaches a report unescaped unless something escapes it, and that gap
-// is publicly reachable: web.Logged records r.URL.Path and Go percent-decodes
-// it, so a request to any of these sites can store a path containing a real
-// newline and a pipe, which forges rows in the operator's own report.
+// web.Logged records r.URL.Path and Go percent-decodes it, so any request to
+// any site can store a path with a real newline and a pipe, which forges rows
+// in the operator's own report unless it's escaped.
 func TestMarkdownReportEscapesLogText(t *testing.T) {
 	payload := "/x\n| INJECTED | 999 | 0 |\n" +
 		"<img src=x onerror=alert(1)> [c](javascript:alert(2))"
@@ -937,32 +913,29 @@ func TestMarkdownReportEscapesLogText(t *testing.T) {
 	}
 	body := rr.Body.String()
 
-	// Row forgery is the worst of it: a newline plus a pipe invents a table
-	// row carrying numbers the operator will read as real. No rendered line
-	// may begin a cell the payload wrote.
+	// A newline plus a pipe invents a table row carrying numbers the operator
+	// will read as real, so no rendered line may begin a cell the payload wrote.
 	for _, line := range strings.Split(body, "\n") {
 		if strings.HasPrefix(strings.TrimSpace(line), "| INJECTED") {
 			t.Errorf("the payload forged a table row:\n%s", line)
 		}
 	}
-	// The HTML and link syntax must arrive escaped rather than live. Checking
-	// for the escaped form rather than the absence of the raw substring,
-	// because "\<img" trivially contains "<img".
+	// The HTML and link syntax must arrive escaped. This checks for the
+	// escaped form, since "\<img" trivially contains "<img".
 	if !strings.Contains(body, `\<img`) {
 		t.Errorf("`<` was not escaped in the report:\n%s", body)
 	}
 	if strings.Contains(body, "[c](javascript:") {
 		t.Errorf("a javascript: link survived unescaped:\n%s", body)
 	}
-	// And the payload is still legible as text rather than dropped.
+	// And the payload is still legible as text, not dropped.
 	if !strings.Contains(body, "INJECTED") {
 		t.Error("the path vanished entirely; it should be escaped, not discarded")
 	}
 }
 
-// The collector snippet is identity, not a credential, but it is easy to ship
-// a page whose tracking silently does nothing: an empty id renders a script
-// that files events against no property. This pins both halves.
+// An empty analytics id renders a script that silently files events against no
+// property, and the CSP has to permit the snippet too. This pins both halves.
 func TestAnalyticsSnippetIsRendered(t *testing.T) {
 	db := testDB(t)
 	s := testSite(t, db)
@@ -991,8 +964,8 @@ func TestAnalyticsSnippetIsRendered(t *testing.T) {
 			t.Error("the property id rendered empty")
 		}
 	}
-	// And the CSP actually permits what the snippet needs, which is the half
-	// that is easy to get wrong when the two are edited separately.
+	// And the CSP actually permits what the snippet needs, which is easy to
+	// get wrong when the two are edited separately.
 	policy := csp()
 	for _, need := range []string{"'unsafe-inline'", "https://analytics.bythewood.me"} {
 		if !strings.Contains(policy, need) {
@@ -1020,9 +993,8 @@ func TestReportFormat(t *testing.T) {
 	}
 }
 
-// Every page renders against a real database, because a template that
-// references a field that does not exist fails at execute time rather than at
-// parse time and would otherwise only be found by loading the page.
+// Every page renders against a real database, because a template referencing a
+// field that doesn't exist fails at execute time and not at parse time.
 func TestPagesRender(t *testing.T) {
 	db := testDB(t)
 	base := time.Now().UTC().Add(-time.Hour).UnixMilli()
@@ -1054,9 +1026,8 @@ func TestPagesRender(t *testing.T) {
 		{"documentation", "/documentation", http.StatusOK, s.documentation},
 		{"overview", "/overview?range=24h", http.StatusOK, s.overview},
 		{"search", "/search?q=boom", http.StatusOK, s.search},
-		// The 404 page is a rendered page that happens to answer 404, and
-		// the status is part of what is being asserted: a soft 404 that
-		// answers 200 is the version search engines index.
+		// The status is asserted too, since a soft 404 that answers 200 is
+		// the version search engines index.
 		{"notfound", "/nope", http.StatusNotFound, s.notFound},
 	}
 	for _, p := range pages {
@@ -1072,9 +1043,8 @@ func TestPagesRender(t *testing.T) {
 		})
 	}
 
-	// A source nobody has shipped from must 404, not render a convincing
-	// dashboard of zeros. "Silent" and "never existed" are different answers
-	// and this page's whole job is telling them apart.
+	// A source nobody has shipped from must 404, not render a dashboard of
+	// zeros, since "silent" and "never existed" are different answers.
 	t.Run("unknown source is a 404", func(t *testing.T) {
 		rr := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/sources/doesnotexist", nil)
@@ -1136,10 +1106,8 @@ func testWatchdog(t *testing.T, db *sql.DB, clock *time.Time) (*Watchdog, *[]rec
 	return w, &fired
 }
 
-// Every kind renders, and an unknown kind is refused rather than published as
-// an empty notification. The click URL is the piece worth asserting: it is
-// opened from a phone with no idea what the origin is, so a relative path is a
-// dead link.
+// Every kind renders and an unknown kind is refused. The click URL has to be
+// absolute, since it's opened from a phone with no idea what the origin is.
 func TestRenderAlertKinds(t *testing.T) {
 	for _, kind := range []string{"silence", "resumed", "restart"} {
 		body, ok := renderAlert(kind, AlertContext{Source: "blog", Silent: 7 * time.Minute})
@@ -1192,12 +1160,9 @@ func TestHumanDuration(t *testing.T) {
 	}
 }
 
-// The whole rule, end to end: a source goes quiet, is reported once and not
-// again, then comes back and is reported once.
-//
-// Firing once per transition is the part that matters. A rule that re-fires
-// every thirty seconds through an overnight outage trains its reader to swipe
-// it away, which costs the next alert too.
+// A source goes quiet, is reported once and not again, then comes back and is
+// reported once. A rule that re-fires every thirty seconds through an outage
+// trains its reader to swipe it away, which costs the next alert too.
 func TestWatchdogFiresSilenceOnceThenRecovery(t *testing.T) {
 	db := testDB(t)
 	clock := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)
@@ -1205,7 +1170,7 @@ func TestWatchdogFiresSilenceOnceThenRecovery(t *testing.T) {
 
 	w.Observe("blog", []web.Record{{Msg: "request"}})
 
-	// Still inside the threshold: nothing has gone wrong yet.
+	// Still inside the threshold, so nothing has gone wrong yet.
 	clock = clock.Add(silenceAfter - time.Second)
 	w.checkSilence()
 	if len(*fired) != 0 {
@@ -1245,10 +1210,8 @@ func TestWatchdogFiresSilenceOnceThenRecovery(t *testing.T) {
 	}
 }
 
-// Nothing alerts during the grace window after this process starts. When this
-// site restarts, every other site's shipper is dropping into a refused
-// connection, so the record stream has a real hole either side of a deploy and
-// both rules read false inside it.
+// Nothing alerts during the grace window after this process starts, since every
+// other site's shipper drops into a refused connection either side of a deploy.
 func TestWatchdogIsQuietDuringStartupGrace(t *testing.T) {
 	db := testDB(t)
 	clock := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)
@@ -1269,18 +1232,17 @@ func TestWatchdogIsQuietDuringStartupGrace(t *testing.T) {
 	}
 }
 
-// The restart rule, which is the one that reads across restarts of this
-// process and therefore has to persist. A start with a stop before it is a
-// deploy, a start with a start before it is a crash.
+// The restart rule reads across restarts of this process, so it has to persist.
+// A start with a stop before it is a deploy, a start with a start before it is a
+// crash.
 func TestWatchdogDetectsUncleanRestart(t *testing.T) {
 	db := testDB(t)
 	clock := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)
 	w, fired := testWatchdog(t, db, &clock)
 	ctx := context.Background()
 
-	// The first start ever seen has nothing to compare against and says
-	// nothing. Alerting here would mean every new site announcing itself as a
-	// crash.
+	// The first start ever seen says nothing, or every new site would
+	// announce itself as a crash.
 	w.handleLifecycle(ctx, lifecycleEvent{source: "blog", up: true, at: clock})
 	if len(*fired) != 0 {
 		t.Fatalf("first listening alerted: %v", *fired)
@@ -1305,9 +1267,8 @@ func TestWatchdogDetectsUncleanRestart(t *testing.T) {
 	}
 }
 
-// Lifecycle state survives a restart of this site, which is the only reason it
-// is in the meta table rather than in memory: a crash noticed only after the
-// next deploy is still a crash.
+// Lifecycle state lives in meta so it survives a restart of this site, since a
+// crash noticed only after the next deploy is still a crash.
 func TestWatchdogLifecycleSurvivesRestart(t *testing.T) {
 	db := testDB(t)
 	clock := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)
@@ -1343,10 +1304,9 @@ func TestWatchdogRecordsQueuedEventsOnStop(t *testing.T) {
 	}
 }
 
-// Observe reads the lifecycle messages out of the record stream by exact text,
-// so this asserts the strings it matches are the ones web/server.go actually
-// logs. Renaming either there would silently disable restart detection: no
-// error, no failing test anywhere else, just an alert that never fires again.
+// Observe matches the lifecycle messages by exact text, so this asserts they're
+// the strings web/server.go actually logs, or a rename there silently stops
+// restart alerts.
 func TestLifecycleMessagesMatchServer(t *testing.T) {
 	src, err := os.ReadFile("web/server.go")
 	if err != nil {
@@ -1359,9 +1319,8 @@ func TestLifecycleMessagesMatchServer(t *testing.T) {
 	}
 }
 
-// A batch the writer refused is not evidence the source is healthy. Counting a
-// 429 as liveness would mean a site whose records are all being shed looks
-// perfectly alive to the silence rule, which is exactly backwards.
+// A batch the writer refused isn't evidence the source is healthy, or a site
+// whose records are all being shed looks alive to the silence rule.
 func TestRefusedBatchIsNotLiveness(t *testing.T) {
 	db := testDB(t)
 	clock := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)
@@ -1385,9 +1344,8 @@ func TestRefusedBatchIsNotLiveness(t *testing.T) {
 	}
 }
 
-// Bootstrap reads rollups rather than records. Health check lines are demoted
-// to rollup-only, so a site with no public traffic has hours of rollups and no
-// raw rows at all, and reading records would leave a quiet site unwatched.
+// Bootstrap reads rollups, since health check lines are rollup-only and a site
+// with no public traffic has hours of rollups and no raw rows at all.
 func TestWatchdogBootstrapsFromRollups(t *testing.T) {
 	db := testDB(t)
 	clock := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)
@@ -1421,9 +1379,8 @@ func TestWatchdogBootstrapsFromRollups(t *testing.T) {
 	}
 }
 
-// A peer container polling /healthz across the bridge is still a health check.
-// This was keyed on the caller being loopback, so dash polling every site put
-// thousands of probes into the raw table and into every site's request count.
+// A peer container polling /healthz across the bridge is still a health check,
+// or dash polling every site puts thousands of probes into the raw table.
 func TestHealthChecksFromAPeerAreRollupOnly(t *testing.T) {
 	db := testDB(t)
 	base := time.Now().UTC().Add(-time.Minute).UnixMilli()
@@ -1530,10 +1487,8 @@ func TestStreamComponentIsNotADuration(t *testing.T) {
 	}
 }
 
-// Every template the server asks for has to exist. NewRenderer resolves the
-// list at boot rather than at build, so a page left listed after its file was
-// deleted compiles, ships, and then crash-loops the container on startup, which
-// is how it was found on repos.
+// NewRenderer resolves the template list at boot and not at build, so a page
+// left listed after its file was deleted ships and then crash-loops.
 func TestEveryListedTemplateParses(t *testing.T) {
 	templates, err := fs.Sub(templateFS, "templates")
 	if err != nil {

@@ -6,7 +6,7 @@ import (
 )
 
 // personID is shared with the portfolio and the blog so every site describes
-// one person rather than several strangers with the same name.
+// one person instead of several strangers with the same name.
 const (
 	personID  = "https://isaacbythewood.com/#person"
 	websiteID = baseURL + "/#website"

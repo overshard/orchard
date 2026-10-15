@@ -8,14 +8,14 @@ import (
 	"time"
 )
 
-// Raw records age out, hourly rollups do not, which is what lets a graph cover
-// a year while the database stays a fixed size.
+// Raw records age out and hourly rollups don't, so a graph can cover a year
+// while the database stays a fixed size.
 
 const (
-	// Changing this costs nothing: the next sweep enforces whatever it says.
+	// Safe to change, the next sweep enforces whatever it says.
 	rawRetention = 30 * 24 * time.Hour
 
-	// Hourly rather than daily, so a deletion is always small and a machine
+	// Hourly instead of daily, so a deletion is always small and a machine
 	// asleep most of the day still gets one in.
 	sweepInterval = time.Hour
 
@@ -74,10 +74,9 @@ func (s *Sweeper) sweep(ctx context.Context) {
 		return
 	}
 
-	// Without this the row count is bounded but the file is not: only
-	// auto_vacuum hands freed pages back. Paced, because a bare
-	// incremental_vacuum frees the whole freelist under the write lock.
-	// The page count is formatted in because SQLite takes no PRAGMA parameter.
+	// Only auto_vacuum hands freed pages back, so this keeps the file bounded.
+	// It's paced since a bare incremental_vacuum frees the whole freelist under
+	// the write lock, and the count is formatted in since a PRAGMA takes no parameter.
 	reclaimed := "reclaimed"
 	for i := 0; i < vacuumMaxSteps; i++ {
 		if _, err := s.db.ExecContext(ctx,

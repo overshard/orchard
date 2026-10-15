@@ -10,9 +10,8 @@ import (
 	"time"
 )
 
-// The dash strip is a public page, so this endpoint is the fence: it may hand
-// over counts and an up flag, and never a message, a path, a status code or an
-// address. A field added here is a field published to the internet.
+// The dash strip is a public page, so this may hand over counts and an up flag
+// and never a message, a path, a status code or an address.
 func TestAggregatePublishesCountsAndNothingElse(t *testing.T) {
 	db := testDB(t)
 	s := testSite(t, db)

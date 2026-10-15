@@ -13,8 +13,8 @@ import (
 )
 
 // Reports cover an arbitrary date range over a growing table, so there is no
-// finite set to precompile at build time. That is why a subprocess is on the
-// request path and why this runtime image is Alpine rather than FROM scratch.
+// finite set to precompile at build time, so a subprocess is on the request
+// path and this runtime image can't be FROM scratch.
 
 const typstTimeout = 30 * time.Second
 
@@ -28,7 +28,7 @@ type Typst struct {
 func NewTypst() *Typst { return &Typst{} }
 
 // ErrTypstMissing means no typst binary is on PATH, the normal state of a local
-// checkout: the PDF route answers 503 and everything else works.
+// checkout, so the PDF route answers 503 and everything else works.
 var ErrTypstMissing = errors.New("typst binary not found on PATH")
 
 func (t *Typst) resolve() (string, error) {

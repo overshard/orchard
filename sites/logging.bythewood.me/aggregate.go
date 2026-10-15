@@ -9,15 +9,9 @@ import (
 	"time"
 )
 
-// The one read another site makes of this one. dash.bythewood.me shows a health
-// strip and needs a number per source, so this hands over counts and nothing
-// else: no messages, no paths, no IP addresses, no request identifiers. dash is
-// public and unauthenticated, so what leaves here has to be safe to publish
-// without anything downstream having to remember that.
-//
-// Unauthenticated for the same reason /ingest is, and with the same fence:
-// Caddy refuses this path on the public hostname, so it is reachable only by
-// container name on the orchard-edge bridge.
+// dash reads /aggregate for its health strip and dash is public, so this hands
+// over counts per source and never a message, path, IP address or request id.
+// It's unauthenticated like /ingest, and Caddy refuses it on the public hostname.
 
 const (
 	// aggregateWindow is what "recent" means on the dash strip.
@@ -26,7 +20,7 @@ const (
 	// baselineWindow sits immediately before it and is what "normal" means.
 	baselineWindow = 7 * 24 * time.Hour
 
-	// Past this a response was being held open rather than worked on.
+	// Past this a response was being held open, not worked on.
 	heldOpenMS = 60_000
 )
 
@@ -40,13 +34,10 @@ type aggregateSource struct {
 	UpKnown   bool   `json:"up_known"`
 
 	// Requests a day over the preceding week, so a caller can say whether
-	// today is busy for this site rather than busy in the abstract. A site
-	// with no history yet reports zero and the caller shows no comparison.
+	// today is busy for this site. A site with no history yet reports zero.
 	BaselineDaily float64 `json:"baseline_daily"`
 
-	// The slow end of how long this site takes to answer a real request. A
-	// duration is not a path or a message, so it clears the same fence
-	// everything else here does.
+	// A duration isn't a path or a message, so it's as safe to publish as a count.
 	P95MS float64 `json:"p95_ms"`
 }
 
@@ -54,8 +45,8 @@ func (s *site) aggregate(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	since := time.Now().Add(-aggregateWindow).Truncate(time.Hour).UnixMilli()
 
-	// healthz is excluded the same way the source table excludes it: a probe
-	// every thirty seconds would otherwise be most of what a quiet site logs.
+	// healthz is excluded like the source table excludes it, since a probe every
+	// thirty seconds would otherwise be most of what a quiet site logs.
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT source,
 		       SUM(count),
@@ -97,9 +88,8 @@ func (s *site) aggregate(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// lifecycleState reads what the watchdog last wrote for a source. It parses the
-// same "state|millis" value writeLifecycle produces and only needs the state
-// half.
+// lifecycleState reads the "state|millis" the watchdog last wrote for a source
+// and keeps the state half.
 func lifecycleState(ctx context.Context, db *sql.DB, source string) (up, known bool) {
 	var value string
 	err := db.QueryRowContext(ctx,
@@ -112,17 +102,15 @@ func lifecycleState(ctx context.Context, db *sql.DB, source string) (up, known b
 }
 
 // baselines fills in the per-day request average over the week before the
-// window, which is the comparison that makes a traffic number mean anything on
-// a site this size. The window itself is excluded so today is measured against
-// normal rather than against itself.
+// window. The window itself is excluded so today is measured against normal and
+// not against itself.
 func baselines(ctx context.Context, db *sql.DB, out []aggregateSource) {
 	now := time.Now()
 	windowStart := now.Add(-aggregateWindow).Truncate(time.Hour).UnixMilli()
 	baselineStart := now.Add(-aggregateWindow - baselineWindow).Truncate(time.Hour).UnixMilli()
 
-	// MIN(hour) as well as the sum, because this database is younger than the
-	// baseline window and dividing two days of traffic by seven would report
-	// every site as busier than normal, every day, forever.
+	// MIN(hour) too, since the database can be younger than the baseline window
+	// and dividing two days of traffic by seven would make every site look busy.
 	rows, err := db.QueryContext(ctx, `
 		SELECT source,
 		       SUM(CASE WHEN status > 0 THEN count ELSE 0 END),
@@ -168,20 +156,9 @@ func baselines(ctx context.Context, db *sql.DB, out []aggregateSource) {
 	}
 }
 
-// responseTimes fills in the 95th percentile request duration per source. It
-// reads raw rows rather than the rollups because a percentile needs the
-// distribution and the rollups only carry a sum, a count and a max.
-//
-// The mean is what the rollups could answer cheaply and it is the wrong number
-// here: dash holds an events stream open for as long as a tab is on it, so one
-// six hour visit dragged its mean to seventy seconds while it was answering
-// pages in one. The two components excluded below measure something other than
-// work, healthz being the container talking to itself and stream a connection
-// left open.
-//
-// The ceiling is for the streams that cannot be named. Caddy proxies every one
-// of them and has no handler to tag them in, and nothing this machine serves
-// takes a minute to answer.
+// responseTimes reads raw rows since a percentile needs the distribution and the
+// rollups only carry a sum, count and max. healthz and stream aren't work, and
+// heldOpenMS drops the streams Caddy proxies, since it has no handler to tag them.
 func responseTimes(ctx context.Context, db *sql.DB, out []aggregateSource) {
 	since := time.Now().Add(-aggregateWindow).UnixMilli()
 

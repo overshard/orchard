@@ -23,8 +23,8 @@ var templateFuncs = template.FuncMap{
 	"isLoopback":  isLoopback,
 }
 
-// topCount is the denominator for the rank-list bars: the largest value rather
-// than the sum, so a dominant entry does not flatten the tail into slivers.
+// topCount is the largest value instead of the sum, so a dominant entry doesn't
+// flatten the tail of a rank list's bars into slivers.
 func topCount(items []LabelCount) int64 {
 	var top int64
 	for _, i := range items {
@@ -54,7 +54,6 @@ func dict(pairs ...any) (map[string]any, error) {
 	return out, nil
 }
 
-// pct renders count as a whole-number percentage of total.
 func pct(count, total int64) int64 {
 	if total <= 0 {
 		return 0
@@ -77,7 +76,6 @@ func formatMS(v float64) string {
 	}
 }
 
-// formatNum groups thousands with commas.
 func formatNum(v any) string {
 	var n int64
 	switch t := v.(type) {
