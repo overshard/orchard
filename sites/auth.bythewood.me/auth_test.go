@@ -16,7 +16,7 @@ import (
 )
 
 // newTestSite builds the real thing against a temporary database and a stub
-// ntfy, so a template referencing a field that does not exist fails here rather
+// ntfy, so a template referencing a field that does not exist fails here instead
 // than at execute time on the live site.
 func newTestSite(t *testing.T) (*site, *stubNtfy) {
 	t.Helper()
@@ -101,7 +101,7 @@ func TestEveryPageRenders(t *testing.T) {
 		t.Fatalf("init: %v", err)
 	}
 
-	// Signed out first: the four public pages.
+	// Signed out first, the public pages.
 	for _, path := range []string{"/", "/login", "/recovery"} {
 		rec := httptest.NewRecorder()
 		s.handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
@@ -146,7 +146,7 @@ func TestEveryPageRenders(t *testing.T) {
 			}
 		},
 		"codes": func() {
-			// Rendered by the rotate handler rather than a GET route, so
+			// Rendered by the rotate handler instead of a GET route, so
 			// nothing else here would catch a bad field on it.
 			rec := httptest.NewRecorder()
 			data := s.page(httptest.NewRequest(http.MethodGet, "/security", nil),
@@ -259,9 +259,8 @@ func TestOnlyOneCodeIsOutstandingAtATime(t *testing.T) {
 	}
 }
 
-// The ceiling counts published notifications for the account and ignores where
-// the request came from, which is what still holds when every request arrives
-// from a different address.
+// The ceiling counts published notifications for the account whatever address
+// asked, so it holds when every request comes from somewhere new.
 func TestSendCeilingIgnoresTheSourceAddress(t *testing.T) {
 	s, stub := newTestSite(t)
 	if err := runInit(s.db); err != nil {
@@ -353,8 +352,8 @@ func TestRecoveryCodesWorkOnceEach(t *testing.T) {
 	}
 }
 
-// Revocation is the reason sessions are opaque rows rather than signed cookies,
-// so it has to actually take effect on the next request.
+// Sessions are opaque rows so revocation works, and it has to take effect on the
+// next request.
 func TestRevokingASessionEndsIt(t *testing.T) {
 	s, stub := newTestSite(t)
 	if err := runInit(s.db); err != nil {
@@ -469,9 +468,8 @@ func TestSudoExpires(t *testing.T) {
 	}
 }
 
-// A site's own /login is a redirect to auth, so handing it back as the return
-// address is the infinite loop it caused on logging.bythewood.me: auth sends you
-// there, the stub sends you to auth, auth sees a session and sends you there.
+// A site's own /login redirects to auth, so returning to it loops forever: auth
+// sends you there, the stub sends you back, auth sees a session and sends you there.
 func TestLoginURLNeverReturnsToALoginStub(t *testing.T) {
 	for path, want := range map[string]string{
 		"/login":                "https://logging.bythewood.me/",

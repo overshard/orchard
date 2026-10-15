@@ -9,9 +9,6 @@ import (
 	"time"
 )
 
-// PageData is what every template gets. There is no analytics snippet here:
-// site is a login form, and pointing a third script at the page somebody types
-// a one time code into is the wrong trade even when the third script is ours.
 type PageData struct {
 	Title       string
 	Description string
@@ -102,7 +99,7 @@ func (s *site) codePage(w http.ResponseWriter, r *http.Request, next, msg string
 }
 
 // uninitialized is what a fresh install serves until `make auth-init` has run.
-// It names the command rather than offering to create the account over HTTP,
+// It names the command instead of offering to create the account over HTTP,
 // which would let whoever found the hostname first claim it.
 func (s *site) uninitialized(w http.ResponseWriter, r *http.Request) {
 	data := s.page(r, "Not set up", "This installation has no account yet.")
@@ -214,10 +211,9 @@ func (s *site) revokeOthers(w http.ResponseWriter, r *http.Request, l live) {
 	http.Redirect(w, r, "/sessions", http.StatusSeeOther)
 }
 
-// security holds the credentials half. The ntfy password is not on it and
-// cannot be: ntfy stores it hashed and will not hand one back, and the only
-// ways around that are keeping a second reversible copy here or giving this
-// container the Docker socket. `make ntfy-passwd` is how it is changed.
+// security holds the credentials half. The ntfy password isn't on it since ntfy
+// stores it hashed, and showing it would mean a reversible copy here or this
+// container holding the Docker socket. `make ntfy-passwd` changes it.
 func (s *site) security(w http.ResponseWriter, r *http.Request, l live) {
 	user, err := loadUser(s.db)
 	if err != nil {
@@ -253,9 +249,8 @@ func (s *site) rotateRecovery(w http.ResponseWriter, r *http.Request, l live) {
 	data.User = user
 	data.NewCodes = codes
 	data.Remaining = len(codes)
-	// Rendered rather than redirected, because a redirect would need the codes
-	// to survive somewhere between two requests and there is nowhere safe to
-	// put them.
+	// Rendered instead of redirected, since a redirect would need the codes kept
+	// somewhere between two requests and nowhere is safe.
 	s.renderer.Render(w, http.StatusOK, "codes.html", data)
 }
 
@@ -291,12 +286,9 @@ func (s *site) activity(w http.ResponseWriter, r *http.Request, l live) {
 	s.renderer.Render(w, http.StatusOK, "activity.html", data)
 }
 
-// verify is what the other sites call over the bridge to turn a cookie into an
-// answer. Caddy refuses this path on the public hostname, so reaching it really
-// does mean being inside the network.
-//
-// It returns the username and nothing else. A site behind this needs to know
-// somebody is signed in, and there is one somebody.
+// verify is how the other sites turn a cookie into an answer over the bridge,
+// and Caddy refuses this path on the public hostname. It returns the username
+// and the sudo flag and nothing else, since there's only one somebody.
 func (s *site) verify(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")

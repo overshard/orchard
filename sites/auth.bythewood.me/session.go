@@ -25,10 +25,9 @@ const (
 	lastSeenResolution = 5 * time.Minute
 )
 
-// cookieDomain is what makes one login cover every bythewood.me host. Empty
-// leaves the cookie host-only, which is what development on localhost needs,
-// since a Domain of .bythewood.me is simply not sent to localhost and the login
-// would appear to succeed and then not stick.
+// cookieDomain makes one login cover every bythewood.me host. Empty leaves the
+// cookie host-only for localhost, where a .bythewood.me cookie is never sent and
+// a login would seem to work and then not stick.
 func cookieDomain() string { return os.Getenv("SESSION_DOMAIN") }
 
 // Session is one row of the list on the sessions page.
@@ -82,9 +81,9 @@ func writeSessionCookie(w http.ResponseWriter, value string) {
 		Value:  value,
 		Path:   "/",
 		Domain: cookieDomain(),
-		// SameSite=Strict rather than a CSRF token: every state-changing route
-		// here is a POST, and a subdomain of the same registrable domain is
-		// same-site, so moving between the sites keeps the cookie.
+		// SameSite=Strict instead of a CSRF token, since every state change here
+		// is a POST and sibling bythewood.me hosts are same-site, so moving
+		// between the sites keeps the cookie.
 		SameSite: http.SameSiteStrictMode,
 		HttpOnly: true,
 		Secure:   true,
@@ -186,9 +185,8 @@ func revokeSession(db *sql.DB, id int64) error {
 	return err
 }
 
-// revokeOthers signs out everything but the caller. Sessions the other sites
-// are holding die with it, because they validate against this table rather than
-// carrying a signature of their own.
+// revokeOthers signs out everything but the caller. The other sites' sessions
+// die with it, since they validate against this table instead of a signature.
 func revokeOthers(db *sql.DB, keep int64) (int64, error) {
 	res, err := db.Exec(`UPDATE sessions SET revoked = 1 WHERE id != ? AND revoked = 0`, keep)
 	if err != nil {

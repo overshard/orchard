@@ -7,9 +7,8 @@ import (
 	"time"
 )
 
-// The event vocabulary, fixed here rather than spelled at each call site. A
-// query written against these outlives the code that emits them, so adding a
-// kind is cheap and renaming one is not.
+// Queries written against these stored kinds outlive the code that emits them,
+// so adding a kind is cheap and renaming one isn't.
 const (
 	evCodeRequested   = "code_requested"
 	evCodeSent        = "code_sent"
@@ -37,12 +36,9 @@ type Event struct {
 	Detail  string
 }
 
-// audit writes the local copy and ships the same fact to
-// logging.bythewood.me through the slog tee.
-//
-// No code ever reaches here, expired or otherwise. Retention outlives incident
-// response, and a login code in a log store with a year on it is a login code
-// somebody can read next spring.
+// audit writes the local row and ships the same fact to logging.bythewood.me
+// through the slog tee. No code ever reaches here, expired or otherwise, since
+// log retention outlives incident response by a long way.
 func audit(db *sql.DB, r *http.Request, kind, detail string) {
 	c := requestContext(r)
 
@@ -96,8 +92,7 @@ func recentEvents(db *sql.DB, limit int) ([]Event, error) {
 }
 
 // sweepEvents keeps the local copy bounded. logging.bythewood.me holds the long
-// history, this table is only what the activity page reads when logging is the
-// thing that is down.
+// history, and this table is only for the activity page when logging is down.
 func sweepEvents(db *sql.DB) error {
 	_, err := db.Exec(`
         DELETE FROM events WHERE id NOT IN (

@@ -2,8 +2,6 @@ package main
 
 import "strings"
 
-// Identity is hardcoded. Only the secrets come from the environment, and this
-// site reads two: the ntfy publish token and, optionally, the cookie domain.
 const (
 	baseURL    = "https://auth.bythewood.me"
 	siteName   = "Auth"
@@ -13,7 +11,7 @@ const (
 	// Must match the first hostname label, like every other source label.
 	selfSource = "auth"
 
-	// Identity, not a credential: this id is in the page source by design.
+	// Not a credential, it's public in every page's source.
 	analyticsID = "75a24b68-7734-4337-bb7a-9265f219f397"
 )
 

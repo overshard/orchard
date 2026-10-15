@@ -1,6 +1,6 @@
 // Command auth is the front door for every bythewood.me site: one account, a
 // six digit code pushed over ntfy, and an opaque session the other sites check
-// against this process rather than verifying for themselves.
+// against this process instead of verifying it themselves.
 package main
 
 import (
@@ -28,9 +28,8 @@ var templateFS embed.FS
 
 const listenAddr = ":8000"
 
-// allPages is shared with the tests, which render every one of them against a
-// real database: a template naming a field that does not exist fails at execute
-// time rather than at parse time, so nothing but rendering it catches that.
+// allPages is shared with the tests, which render each one against a real
+// database since a template naming a missing field only fails at execute time.
 var allPages = []string{
 	"home.html", "login.html", "code.html", "recovery.html",
 	"account.html", "sessions.html", "security.html", "codes.html",
@@ -82,7 +81,7 @@ func main() {
 	}
 }
 
-// realMain returns rather than exits, so its deferred closes and the log
+// realMain returns instead of exiting so the deferred closes and the log
 // shipper's flush run on every path out.
 func realMain() error {
 	web.SetupLogging()
@@ -194,7 +193,7 @@ func methodNotAllowed(allow string) http.HandlerFunc {
 	}
 }
 
-// runSweeper keeps the four tables that only grow from doing so.
+// runSweeper keeps the tables that only grow from doing so.
 func runSweeper(ctx context.Context, db *sql.DB) {
 	sweep := func() {
 		for _, f := range []func(*sql.DB) error{sweepSessions, sweepPending, sweepEvents} {
@@ -221,15 +220,14 @@ func runSweeper(ctx context.Context, db *sql.DB) {
 // failing check would trigger.
 func healthz(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	// EdgeCache is not in this site's chain, but saying nothing here would
-	// still let a Cloudflare cache rule answer a liveness check long after this
-	// process stopped serving.
+	// Without this a Cloudflare cache rule could answer a liveness check long
+	// after the process stopped serving.
 	w.Header().Set("Cache-Control", "no-store")
 	_, _ = w.Write([]byte("ok\n"))
 }
 
 // handler wires every route. It is a method so the tests drive the real mux
-// rather than a second copy of it that can drift.
+// instead of a second copy of it that can drift.
 func (s *site) handler() http.Handler {
 	mux := http.NewServeMux()
 

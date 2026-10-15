@@ -6,19 +6,9 @@ import (
 	"fmt"
 )
 
-// runInit seeds the account and prints the first set of recovery codes, which
-// are what the first login uses. Nothing here needs ntfy, so a fresh machine can
-// get in before the phone is enrolled and mint everything else from inside.
-//
-// It is idempotent the same way `ntfy up` is: an account that already exists
-// keeps what it has and nothing is printed, because handing back a set of codes
-// that were never applied is worse than printing nothing.
-//
-// This runs as `docker exec orchard-auth /app -init`, which works against a
-// scratch image because exec wants a binary path rather than a shell. It must
-// never generate on first boot and print to stdout, since container stdout ships
-// to logging.bythewood.me and that would write recovery codes into a store with
-// a long retention on it.
+// runInit seeds the account and prints its first recovery codes, needing no
+// ntfy, and leaves an existing account alone. It runs by docker exec and never on
+// boot, since container stdout ships to logging and codes must never land there.
 func runInit(db *sql.DB) error {
 	created, err := createUser(db, seedUsername)
 	if err != nil {
@@ -55,9 +45,8 @@ func runInit(db *sql.DB) error {
 	return nil
 }
 
-// runCheck reports what exists without changing anything, which is what
-// `make doctor` calls. It has to be its own flag rather than a second run of
-// -init, since that would create the account on a machine that has none.
+// runCheck reports what exists without changing anything, for `make doctor`. A
+// second -init would create the account on a machine that has none.
 func runCheck(db *sql.DB) error {
 	user, err := loadUser(db)
 	if errors.Is(err, errNoUser) {
@@ -75,13 +64,9 @@ func runCheck(db *sql.DB) error {
 	return nil
 }
 
-// runRecovery replaces the recovery codes from the command line, for the case
-// that has no other way out: no codes left and ntfy or the tunnel down, so the
-// browser cannot reach a sign in and the security page is unreachable.
-//
-// It needs host access to the Docker socket, which is the bottom of the ladder
-// and why nothing about this account has to be kept anywhere. Every credential
-// here can be replaced from the machine.
+// runRecovery replaces the recovery codes for when none are left and ntfy or the
+// tunnel is down. It needs the host's Docker socket, so every credential here can
+// be replaced from the machine and none of them has to be kept anywhere.
 func runRecovery(db *sql.DB) error {
 	if _, err := loadUser(db); errors.Is(err, errNoUser) {
 		return fmt.Errorf("not initialized yet, run -init instead")
