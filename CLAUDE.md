@@ -53,8 +53,11 @@ record to logging.bythewood.me, and `session.go`, which asks auth.bythewood.me
 whether the cookie on a request is a live session.
 
 **A fix in `web/` has to be made ten times.** Do not add a shared parent module
-to avoid it, and keep `shipper.go` and `session.go` byte identical across the
-ten, since both are wire formats as much as files.
+to avoid it. Every file in `web/` is byte identical in every site that has it,
+and `make check` fails naming the file and the sites when one drifts. The two
+exceptions are `server.go`, which comes in four variants (the common one, the
+one with no write bound that chat and llm share for their streams, and dash's
+and repos' own), and `README.md`, which is written for its site.
 
 ## Commands
 
@@ -70,7 +73,7 @@ make down                            stop everything
 
 make run SITE=blog.bythewood.me      vite watch + go run
 make build SITE=blog.bythewood.me
-make check                           gofmt, vet, govulncheck and build every site
+make check                           gofmt, web/ drift, vet, govulncheck and build
 make test                            every site's tests, including its own web/ copy
 make deps                            update every site's direct Go modules together
 ```
@@ -419,7 +422,8 @@ does nothing.
 ## Tests
 
 `make test` runs every site's suite plus its `web/` copy. There
-are no linter configs, and `make check` is gofmt, vet, govulncheck and build.
+are no linter configs, and `make check` is gofmt, the `web/` drift check, vet,
+govulncheck and build.
 govulncheck also checks the local Go, so it fails when webdev's Go is behind
 the `golang:1.27-trixie` the images build with. The portfolio
 has no Go tests of its own, being templates and handlers over static data, and

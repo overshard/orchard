@@ -32,7 +32,7 @@ make deploy SITE=blog.bythewood.me   rebuild one site and replace it
 make up                              everything, from nothing or from broken
 make doctor                          what's down and what to type
 make run SITE=blog.bythewood.me      vite watch + go run, on :8000
-make check                           gofmt, vet, govulncheck and build
+make check                           gofmt, web/ drift, vet, govulncheck and build
 make test                            every site's tests
 ```
 
