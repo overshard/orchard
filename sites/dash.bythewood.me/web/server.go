@@ -75,8 +75,8 @@ func Serve(addr string, h http.Handler) error {
 }
 
 // HealthCheck probes a running server over the loopback and reports whether it
-// answered 200, so a container can check itself. Two of these images are FROM
-// scratch, with no shell and no curl for HEALTHCHECK to call.
+// answered 200, so a container can check itself. A scratch image has no shell
+// and no curl for HEALTHCHECK to call.
 func HealthCheck(url string, timeout time.Duration) error {
 	client := &http.Client{Timeout: timeout}
 
