@@ -19,8 +19,8 @@ type Result struct {
 	Elapsed time.Duration   `json:"-"`
 }
 
-// Tool is one capability. Schema is the JSON Schema the model is handed, and
-// Run is given the arguments it chose.
+// Tool is one capability. Schema is the JSON Schema the model is handed and Run
+// is given the arguments it chose, and Define fills in both from a struct.
 type Tool struct {
 	Name        string
 	Description string
@@ -98,18 +98,4 @@ func NewDeps() *Deps {
 		// searches on one question.
 		Budgets: NewBudgets(),
 	}
-}
-
-func obj(props map[string]any, required ...string) map[string]any {
-	m := map[string]any{"type": "object", "properties": props}
-	if len(required) > 0 {
-		m["required"] = required
-	}
-	return m
-}
-
-func str(desc string) map[string]any { return map[string]any{"type": "string", "description": desc} }
-func num(desc string) map[string]any { return map[string]any{"type": "number", "description": desc} }
-func integer(desc string) map[string]any {
-	return map[string]any{"type": "integer", "description": desc}
 }
