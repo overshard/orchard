@@ -164,11 +164,19 @@ func realMain() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	scheduler := NewScheduler(db, NewNotifier(), dir("SITE_ROOT", "."))
+	notifier := NewNotifier()
+	scheduler := NewScheduler(db, notifier, dir("SITE_ROOT", "."))
 	if err := scheduler.ResetOnBoot(ctx); err != nil {
 		return fmt.Errorf("reset wedged states: %w", err)
 	}
-	go scheduler.Run(ctx)
+	scheduler.Start(ctx)
+	// Before the db closes, and the alerts last, since a job that is finishing
+	// can still raise one.
+	defer func() {
+		stop()
+		scheduler.Wait()
+		notifier.Wait()
+	}()
 
 	mux := http.NewServeMux()
 

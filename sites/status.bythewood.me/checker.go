@@ -539,8 +539,8 @@ func advanceAlertState(ctx context.Context, db *sql.DB, notifier *Notifier, p *P
 		slog.Info(fmt.Sprintf("alert: average response time for %s: %v", p.URL, err))
 	}
 
-	// Fire and forget: a slow notifier must not hold up the scheduler tick.
-	go notifier.Fire(transition, AlertContext{
+	// Sent in the background, so a slow notifier does not hold up the tick.
+	notifier.Send(transition, AlertContext{
 		ID:            p.ID.String(),
 		Name:          p.Name(),
 		URL:           p.URL,
