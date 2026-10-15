@@ -4,16 +4,17 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
-	"math/rand"
 	"net/http"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"chat.bythewood.me/guard"
 )
 
 // Guard sits in front of somebody else's free server, where a ban is hard to undo.
@@ -30,10 +31,12 @@ type Guard struct {
 	openFor     time.Duration
 	userAgent   string
 
-	mu       sync.Mutex
-	lastCall time.Time
-	client   *http.Client
-	rand     *rand.Rand
+	// Held across the whole call, the request included, so one endpoint has
+	// one call out at a time.
+	mu     sync.Mutex
+	client *http.Client
+	guard  *guard.Guard
+	rows   *rowStore
 }
 
 // GuardOpts is per endpoint, since a county ArcGIS box and the Census geocoder
@@ -50,6 +53,9 @@ type GuardOpts struct {
 	// to know who is calling, which some of them enforce.
 	UserAgent string
 }
+
+// maxBackoff stops the doubling, so a run the next morning isn't still waiting.
+const maxBackoff = 8 * time.Hour
 
 func NewGuard(db *sql.DB, name string, o GuardOpts) *Guard {
 	// The defaults are what an endpoint added without thinking gets, so they're
@@ -76,12 +82,23 @@ func NewGuard(db *sql.DB, name string, o GuardOpts) *Guard {
 	if o.UserAgent == "" {
 		o.UserAgent = browserUA
 	}
+	// Half open, so once a backoff runs out one refusal decides and failures
+	// start counting again from nothing.
+	p := guard.Policy{
+		Gap:           o.MinInterval,
+		Jitter:        true,
+		Budget:        o.Budget,
+		Window:        o.Window,
+		TripAfter:     o.TripAfter,
+		OpenFor:       o.OpenFor,
+		MaxOpen:       maxBackoff,
+		HalfOpen:      true,
+		FillOnRefusal: true,
+	}
+	rows := &rowStore{db: db, openFor: o.OpenFor}
 	return &Guard{
-		db:   db,
-		name: name,
-		// Seeded per guard so two created in the same millisecond don't jitter
-		// in lockstep.
-		rand:        rand.New(rand.NewSource(time.Now().UnixNano() + int64(len(name)))),
+		db:          db,
+		name:        name,
 		minInterval: o.MinInterval,
 		budget:      o.Budget,
 		window:      o.Window,
@@ -89,6 +106,8 @@ func NewGuard(db *sql.DB, name string, o GuardOpts) *Guard {
 		openFor:     o.OpenFor,
 		userAgent:   o.UserAgent,
 		client:      &http.Client{Timeout: o.Timeout},
+		guard:       guard.New(rows, func(string) (guard.Policy, bool) { return p, true }),
+		rows:        rows,
 	}
 }
 
@@ -110,39 +129,43 @@ type ErrGuarded struct {
 
 func (e *ErrGuarded) Error() string { return e.Endpoint + " guarded: " + e.Why }
 
-type guardState struct {
-	failures    int
-	openedAt    int64
-	windowStart int64
-	windowCount int
-	// Opens without a clean run in between, which grows the backoff. A
-	// successful request resets it.
-	trips int
+// rowStore keeps a guard's state in its row of the guards table, read at the
+// start of every call so the page and a restart see what the guard sees. A call
+// holds its changes in memory and writes them once, with how it went.
+type rowStore struct {
+	db       *sql.DB
+	openFor  time.Duration
+	lastCall time.Time
+
+	pending *guard.State
+	why     string
 }
 
-// backoff doubles per consecutive trip and stops at eight hours, so a run the
-// next morning isn't still waiting.
-func (g *Guard) backoff(trips int) time.Duration {
-	const ceiling = 8 * time.Hour
-	d := g.openFor
-	for i := 1; i < trips && d < ceiling; i++ {
-		d *= 2
+// The row holds when the breaker opened and how many trips in a row, and the
+// open runs for the backoff those trips earn.
+func (r *rowStore) Load(name string) (guard.State, error) {
+	if r.pending != nil {
+		return *r.pending, nil
 	}
-	if d > ceiling {
-		d = ceiling
-	}
-	return d
-}
-
-func (g *Guard) load() (guardState, error) {
-	var s guardState
-	err := g.db.QueryRow(
+	var failures, count, trips int
+	var opened, start int64
+	err := r.db.QueryRow(
 		`SELECT failures, opened_at, window_start, window_count, trips FROM guards WHERE endpoint = ?`,
-		g.name).Scan(&s.failures, &s.openedAt, &s.windowStart, &s.windowCount, &s.trips)
+		name).Scan(&failures, &opened, &start, &count, &trips)
 	if err == sql.ErrNoRows {
-		return s, nil
+		return guard.State{LastCall: r.lastCall}, nil
 	}
-	return s, err
+	if err != nil {
+		return guard.State{}, err
+	}
+	s := guard.State{LastCall: r.lastCall, Count: count, Fails: failures, Trips: trips}
+	if opened > 0 {
+		s.OpenUntil = time.Unix(opened, 0).Add(guard.Backoff(r.openFor, maxBackoff, trips))
+	}
+	if start > 0 {
+		s.WindowStart = time.Unix(start, 0)
+	}
+	return s, nil
 }
 
 // An http transport error stringifies the whole URL, so saving it verbatim
@@ -153,17 +176,36 @@ func redactURL(s string) string {
 	return keyInURL.ReplaceAllString(s, "${1}REDACTED")
 }
 
-func (g *Guard) save(s guardState, lastErr string) {
-	lastErr = redactURL(lastErr)
-	if _, err := g.db.Exec(`
+func (r *rowStore) Save(name string, s guard.State, why string) {
+	r.pending, r.why = &s, why
+}
+
+// drop forgets a call that never went out.
+func (r *rowStore) drop() { r.pending = nil }
+
+func (r *rowStore) flush(name string) {
+	if r.pending == nil {
+		return
+	}
+	s, why := *r.pending, r.why
+	r.pending = nil
+	r.lastCall = s.LastCall
+	var opened, start int64
+	if !s.OpenUntil.IsZero() {
+		opened = s.OpenUntil.Add(-guard.Backoff(r.openFor, maxBackoff, s.Trips)).Unix()
+	}
+	if !s.WindowStart.IsZero() {
+		start = s.WindowStart.Unix()
+	}
+	if _, err := r.db.Exec(`
 		INSERT INTO guards (endpoint, failures, opened_at, window_start, window_count, trips, last_error)
 		VALUES (?,?,?,?,?,?,?)
 		ON CONFLICT(endpoint) DO UPDATE SET
 			failures = excluded.failures, opened_at = excluded.opened_at,
 			window_start = excluded.window_start, window_count = excluded.window_count,
 			trips = excluded.trips, last_error = excluded.last_error`,
-		g.name, s.failures, s.openedAt, s.windowStart, s.windowCount, s.trips, lastErr); err != nil {
-		slog.Error("guard state write failed", slog.String("endpoint", g.name), slog.Any("err", err))
+		name, s.Fails, opened, start, s.Count, s.Trips, redactURL(why)); err != nil {
+		slog.Error("guard state write failed", slog.String("endpoint", name), slog.Any("err", err))
 	}
 }
 
@@ -205,48 +247,26 @@ func (g *Guard) stream(ctx context.Context, url string, headers map[string]strin
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
+	// Every failure below opens from here, the moment the call was asked for.
 	now := time.Now()
-	state, err := g.load()
-	if err != nil {
+	if err := g.guard.Wait(ctx, g.name, now); err != nil {
+		var open *guard.OpenError
+		var spent *guard.SpentError
+		switch {
+		case errors.As(err, &open):
+			return &ErrGuarded{g.name, fmt.Sprintf("backed off, %s left", open.Left.Round(time.Second))}
+		case errors.As(err, &spent):
+			return &ErrGuarded{g.name, fmt.Sprintf("budget spent, %d in this %s", spent.Used, g.window)}
+		}
 		return err
-	}
-
-	if state.openedAt > 0 {
-		open := time.Unix(state.openedAt, 0)
-		wait := g.backoff(state.trips)
-		if now.Sub(open) < wait {
-			return &ErrGuarded{g.name, fmt.Sprintf("backed off, %s left",
-				(wait - now.Sub(open)).Round(time.Second))}
-		}
-		// Half open, one request decides. The trip count stays, so a service
-		// that fails again waits twice as long.
-		state.openedAt = 0
-		state.failures = 0
-	}
-
-	if state.windowStart == 0 || now.Sub(time.Unix(state.windowStart, 0)) > g.window {
-		state.windowStart = now.Unix()
-		state.windowCount = 0
-	}
-	if state.windowCount >= g.budget {
-		return &ErrGuarded{g.name, fmt.Sprintf("budget spent, %d in this %s", state.windowCount, g.window)}
-	}
-
-	// Clients pacing to the same round number arrive in step, which looks like an
-	// attack from the far end.
-	pace := g.minInterval + time.Duration(g.rand.Int63n(int64(g.minInterval/5)+1))
-	if wait := pace - now.Sub(g.lastCall); wait > 0 && !g.lastCall.IsZero() {
-		select {
-		case <-time.After(wait):
-		case <-ctx.Done():
-			return ctx.Err()
-		}
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
+		g.rows.drop()
 		return err
 	}
+	defer g.rows.flush(g.name)
 	// This is for getting a public record out of a WAF'd server, never for
 	// getting past a site that has looked at the traffic and said no.
 	req.Header.Set("User-Agent", g.userAgent)
@@ -256,76 +276,35 @@ func (g *Guard) stream(ctx context.Context, url string, headers map[string]strin
 		req.Header.Set(k, v)
 	}
 
-	g.lastCall = time.Now()
-	state.windowCount++
-
 	resp, err := g.client.Do(req)
 	if err != nil {
-		state.failures++
-		if state.failures >= g.tripAfter {
-			state.openedAt = now.Unix()
-			state.trips++
-		}
-		g.save(state, err.Error())
+		g.guard.Fail(g.name, now, guard.Failure{Kind: guard.Failed, Why: err.Error()})
 		return fmt.Errorf("%s: %s", g.name, redactURL(err.Error()))
 	}
 	defer resp.Body.Close()
 
 	switch {
 	case resp.StatusCode == http.StatusTooManyRequests, resp.StatusCode >= 500:
-		state.failures = g.tripAfter
-		state.trips++
-		state.openedAt = now.Unix()
-
-		wait := g.backoff(state.trips)
-		if asked := retryAfter(resp.Header.Get("Retry-After"), now); asked > wait {
-			// A later open time, so the backoff arithmetic carries the longer wait.
-			// Stamping it in the past instead lets the next call sail through.
-			state.openedAt = now.Add(asked - wait).Unix()
-			wait = asked
-		}
-
-		g.save(state, fmt.Sprintf("HTTP %d", resp.StatusCode))
+		wait := g.guard.Fail(g.name, now, guard.Failure{
+			Kind:       guard.Refused,
+			RetryAfter: guard.RetryAfter(resp.Header.Get("Retry-After"), now),
+			Why:        fmt.Sprintf("HTTP %d", resp.StatusCode),
+		})
 		return fmt.Errorf("%s: HTTP %d, backing off %s", g.name, resp.StatusCode, wait.Round(time.Second))
 	case resp.StatusCode != http.StatusOK:
-		state.failures++
-		g.save(state, fmt.Sprintf("HTTP %d", resp.StatusCode))
+		g.guard.Fail(g.name, now, guard.Failure{Kind: guard.Noted, Why: fmt.Sprintf("HTTP %d", resp.StatusCode)})
 		return fmt.Errorf("%s: HTTP %d", g.name, resp.StatusCode)
 	}
 
 	if err := consume(resp.Body); err != nil {
-		state.failures++
-		g.save(state, err.Error())
+		g.guard.Fail(g.name, now, guard.Failure{Kind: guard.Noted, Why: err.Error()})
 		return fmt.Errorf("%s: %s", g.name, redactURL(err.Error()))
 	}
 
 	// Forgive the history so a service that had a bad hour isn't punished for it
 	// a week later.
-	state.failures = 0
-	state.trips = 0
-	g.save(state, "")
+	g.guard.Succeed(g.name)
 	return nil
-}
-
-// retryAfter reads both formats, seconds or an HTTP date, since reading only the
-// first means asking again straight away.
-func retryAfter(header string, now time.Time) time.Duration {
-	header = strings.TrimSpace(header)
-	if header == "" {
-		return 0
-	}
-	if secs, err := strconv.Atoi(header); err == nil {
-		if secs < 0 {
-			return 0
-		}
-		return time.Duration(secs) * time.Second
-	}
-	if when, err := http.ParseTime(header); err == nil {
-		if d := when.Sub(now); d > 0 {
-			return d
-		}
-	}
-	return 0
 }
 
 // GuardStatus exists since "no schools found nearby" and "the schools server is
@@ -371,18 +350,10 @@ func (g GuardStatus) Name() string {
 
 func (g GuardStatus) Resting() bool { return g.Open }
 
-// backoffFor mirrors Guard.backoff with the default OpenFor, for a row whose own
-// Guard isn't to hand.
+// backoffFor is the backoff with the default OpenFor, for a row whose own Guard
+// isn't to hand.
 func backoffFor(trips int) time.Duration {
-	const base, ceiling = 10 * time.Minute, 8 * time.Hour
-	d := base
-	for i := 1; i < trips && d < ceiling; i++ {
-		d *= 2
-	}
-	if d > ceiling {
-		d = ceiling
-	}
-	return d
+	return guard.Backoff(10*time.Minute, maxBackoff, trips)
 }
 
 // Resting says which upstreams asked us to slow down and for how long, since

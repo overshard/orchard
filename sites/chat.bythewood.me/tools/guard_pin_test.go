@@ -15,14 +15,14 @@ import (
 // pinRewind moves one host's clock back, so a test can step past a gap or a
 // box without waiting it out.
 func pinRewind(g *Guard, host string, d time.Duration) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	if t, ok := g.last[host]; ok {
-		g.last[host] = t.Add(-d)
+	s := g.boxes.mem[host]
+	if !s.LastCall.IsZero() {
+		s.LastCall = s.LastCall.Add(-d)
 	}
-	if t, ok := g.till[host]; ok {
-		g.till[host] = t.Add(-d)
+	if !s.OpenUntil.IsZero() {
+		s.OpenUntil = s.OpenUntil.Add(-d)
 	}
+	g.boxes.mem[host] = s
 }
 
 type pinReply struct {

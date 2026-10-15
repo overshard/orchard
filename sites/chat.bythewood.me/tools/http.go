@@ -31,14 +31,15 @@ func get(ctx context.Context, d *Deps, url string, accept string) ([]byte, error
 func getWith(ctx context.Context, d *Deps, url string, accept string, extra map[string]string) ([]byte, error) {
 	host := hostOf(url)
 	if blocked, left := d.Guard.Blocked(host); blocked {
-		return nil, fmt.Errorf("%s refused us and is being left alone for another %s, "+
-			"so nothing can be looked up there until then", host, round(left))
+		return nil, refusedErr(host, left)
 	}
 	// The spend ceiling, checked before the gap so a spent pool costs no wait.
 	if err := d.Budgets.Take(host); err != nil {
 		return nil, err
 	}
-	d.Guard.Wait(host)
+	if err := d.Guard.Wait(host); err != nil {
+		return nil, err
+	}
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err

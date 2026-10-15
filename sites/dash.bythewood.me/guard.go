@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"dash.bythewood.me/guard"
 )
 
 // Every upstream is free, keyless and someone else's, and a ban isn't fixed by
@@ -77,6 +79,22 @@ const (
 	maxBackoff = 30 * time.Minute
 )
 
+// policy is an upstream's budget and pace, with the same breaker for every
+// one. A name with no budget still gets the breaker, and Take refuses it.
+func policy(name string) (guard.Policy, bool) {
+	b, ok := budgets[name]
+	return guard.Policy{
+		Gap:       b.pace,
+		Budget:    b.perHour,
+		Window:    time.Hour,
+		TripAfter: failsToTrip,
+		OpenFor:   minBackoff,
+		MaxOpen:   maxBackoff,
+	}, ok
+}
+
+// guardEntry is one upstream in guard.json. Its shape is what the last deploy
+// wrote, so it can't change without a restart forgetting every open breaker.
 type guardEntry struct {
 	WindowStart time.Time     `json:"window_start"`
 	Count       int           `json:"count"`
@@ -86,19 +104,87 @@ type guardEntry struct {
 	Backoff     time.Duration `json:"backoff"`
 }
 
-// Guard is safe for concurrent use. Every poller shares one.
-type Guard struct {
-	path string
-
+// fileStore holds every upstream's state in memory and writes it to disk on a
+// timer, so a 30 second poll isn't a write per tick.
+type fileStore struct {
 	mu      sync.Mutex
 	entries map[string]*guardEntry
 	dirty   bool
 }
 
+func (f *fileStore) entry(name string) *guardEntry {
+	e, ok := f.entries[name]
+	if !ok {
+		e = &guardEntry{}
+		f.entries[name] = e
+	}
+	return e
+}
+
+// Load makes an entry for a name it hasn't seen, so the panel shows an upstream
+// that was asked about as ok instead of idle.
+func (f *fileStore) Load(name string) (guard.State, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	e := f.entry(name)
+	return guard.State{
+		LastCall:    e.LastCall,
+		WindowStart: e.WindowStart,
+		Count:       e.Count,
+		Fails:       e.Fails,
+		Trips:       tripsFor(e.Backoff),
+		OpenUntil:   e.OpenUntil,
+	}, nil
+}
+
+func (f *fileStore) Save(name string, s guard.State, _ string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	next := guardEntry{
+		WindowStart: s.WindowStart,
+		Count:       s.Count,
+		Fails:       s.Fails,
+		LastCall:    s.LastCall,
+		OpenUntil:   s.OpenUntil,
+	}
+	if s.Trips > 0 {
+		next.Backoff = guard.Backoff(minBackoff, maxBackoff, s.Trips)
+	}
+	e := f.entry(name)
+	// A window rolling over with nothing in it waits for the next real write.
+	rolled := next.Count == 0 && next.Fails == e.Fails && next.Backoff == e.Backoff &&
+		next.LastCall.Equal(e.LastCall) && next.OpenUntil.Equal(e.OpenUntil)
+	if !rolled {
+		f.dirty = true
+	}
+	*e = next
+}
+
+// tripsFor turns a backoff on disk back into the opens that doubled it there.
+func tripsFor(backoff time.Duration) int {
+	if backoff <= 0 {
+		return 0
+	}
+	n := 1
+	for d := minBackoff; d < backoff && d < maxBackoff; d = guard.Backoff(minBackoff, maxBackoff, n) {
+		n++
+	}
+	return n
+}
+
+// Guard is safe for concurrent use. Every poller shares one.
+type Guard struct {
+	guard *guard.Guard
+	file  *fileStore
+	path  string
+}
+
 func NewGuard(dataDir string) *Guard {
+	f := &fileStore{entries: map[string]*guardEntry{}}
 	g := &Guard{
-		path:    filepath.Join(dataDir, "guard.json"),
-		entries: map[string]*guardEntry{},
+		guard: guard.New(f, policy),
+		file:  f,
+		path:  filepath.Join(dataDir, "guard.json"),
 	}
 
 	b, err := os.ReadFile(g.path)
@@ -112,28 +198,19 @@ func NewGuard(dataDir string) *Guard {
 		}
 		return g
 	}
-	if err := json.Unmarshal(b, &g.entries); err != nil {
+	if err := json.Unmarshal(b, &f.entries); err != nil {
 		slog.Warn("guard state unparseable, starting closed",
 			slog.String("component", "guard"), slog.Any("err", err))
-		g.entries = map[string]*guardEntry{}
+		f.entries = map[string]*guardEntry{}
 	}
 	return g
-}
-
-func (g *Guard) entry(name string) *guardEntry {
-	e, ok := g.entries[name]
-	if !ok {
-		e = &guardEntry{}
-		g.entries[name] = e
-	}
-	return e
 }
 
 // Allow reports whether a call may go out now and reserves a slot when it may.
 // A pace is a refusal, which suits a probe, and anything on a timer calls
 // Reserve, or pollers sharing an endpoint at boot each lose a whole tick.
 func (g *Guard) Allow(name string) error {
-	wait, err := g.tryReserve(name)
+	wait, err := g.take(name)
 	if err != nil {
 		return err
 	}
@@ -148,7 +225,7 @@ func (g *Guard) Allow(name string) error {
 // moment and a caller that queued on them would pile up behind a dead endpoint.
 func (g *Guard) Reserve(ctx context.Context, name string) error {
 	for {
-		wait, err := g.tryReserve(name)
+		wait, err := g.take(name)
 		if err != nil {
 			return err
 		}
@@ -164,89 +241,37 @@ func (g *Guard) Reserve(ctx context.Context, name string) error {
 	}
 }
 
-// tryReserve returns how long the caller has to wait for the pace, or an error
-// for the two conditions that waiting does not help. A zero wait with no error
-// means the slot is taken.
-func (g *Guard) tryReserve(name string) (time.Duration, error) {
-	now := time.Now()
-
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	e := g.entry(name)
-
-	if now.Before(e.OpenUntil) {
-		return 0, fmt.Errorf("%s: %w for another %s", name, errGuardOpen, e.OpenUntil.Sub(now).Round(time.Second))
-	}
-
-	b, ok := budgets[name]
-	if !ok {
+// take words the guard's refusals the way the rest of dash reads them.
+func (g *Guard) take(name string) (time.Duration, error) {
+	wait, err := g.guard.Take(name, time.Now())
+	var open *guard.OpenError
+	var spent *guard.SpentError
+	switch {
+	case errors.As(err, &open):
+		return 0, fmt.Errorf("%s: %w for another %s", name, errGuardOpen, open.Left.Round(time.Second))
+	case errors.As(err, &spent):
+		return 0, fmt.Errorf("%s: hourly budget of %d spent", name, spent.Budget)
+	case errors.Is(err, guard.ErrUnknown):
 		return 0, fmt.Errorf("%s: no budget defined", name)
 	}
-
-	if now.Sub(e.WindowStart) >= time.Hour {
-		e.WindowStart = now
-		e.Count = 0
-	}
-	if e.Count >= b.perHour {
-		return 0, fmt.Errorf("%s: hourly budget of %d spent", name, b.perHour)
-	}
-	if since := now.Sub(e.LastCall); since < b.pace {
-		return b.pace - since, nil
-	}
-
-	e.Count++
-	e.LastCall = now
-	g.dirty = true
-	return 0, nil
+	return wait, err
 }
 
 // Succeed closes the breaker and clears the backoff.
-func (g *Guard) Succeed(name string) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	e := g.entry(name)
-	if e.Fails != 0 || e.Backoff != 0 {
-		e.Fails = 0
-		e.Backoff = 0
-		g.dirty = true
-	}
-}
+func (g *Guard) Succeed(name string) { g.guard.Succeed(name) }
 
 // Fail records an unsuccessful call. status is the HTTP status, or 0 for a
 // transport error. 429 and 503 open the breaker at once, since they're the
 // endpoint saying so instead of the network being bad.
 func (g *Guard) Fail(name string, status int, retryAfter time.Duration) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	e := g.entry(name)
-	e.Fails++
-	g.dirty = true
-
-	immediate := status == 429 || status == 503
-	if !immediate && e.Fails < failsToTrip {
+	kind := guard.Failed
+	if status == 429 || status == 503 {
+		kind = guard.Refused
+	}
+	wait := g.guard.Fail(name, time.Now(), guard.Failure{Kind: kind, RetryAfter: retryAfter})
+	if wait == 0 {
 		return
 	}
-
-	if e.Backoff == 0 {
-		e.Backoff = minBackoff
-	} else {
-		e.Backoff *= 2
-	}
-	if e.Backoff > maxBackoff {
-		e.Backoff = maxBackoff
-	}
-	// An explicit Retry-After wins over the doubling, both ways: the endpoint
-	// knows when it wants us back and guessing shorter is how a soft limit
-	// becomes a hard one.
-	wait := e.Backoff
-	if retryAfter > wait {
-		wait = retryAfter
-	}
-
-	e.OpenUntil = time.Now().Add(wait)
 	slog.Warn("upstream breaker opened",
 		slog.String("component", "guard"),
 		slog.String("endpoint", name),
@@ -254,17 +279,16 @@ func (g *Guard) Fail(name string, status int, retryAfter time.Duration) {
 		slog.String("for", wait.String()))
 }
 
-// Flush writes the state out when it has changed. It runs on a timer instead of
-// on every call, so a 30 second poll isn't a write per tick.
+// Flush writes the state out when it has changed.
 func (g *Guard) Flush() {
-	g.mu.Lock()
-	if !g.dirty {
-		g.mu.Unlock()
+	g.file.mu.Lock()
+	if !g.file.dirty {
+		g.file.mu.Unlock()
 		return
 	}
-	b, err := json.Marshal(g.entries)
-	g.dirty = false
-	g.mu.Unlock()
+	b, err := json.Marshal(g.file.entries)
+	g.file.dirty = false
+	g.file.mu.Unlock()
 
 	if err != nil {
 		slog.Warn("guard state unmarshalable", slog.String("component", "guard"), slog.Any("err", err))
@@ -331,8 +355,8 @@ var feedOrder = []struct{ key, label string }{
 func (g *Guard) Feeds(now time.Time) []Feed {
 	order := feedOrder
 
-	g.mu.Lock()
-	defer g.mu.Unlock()
+	g.file.mu.Lock()
+	defer g.file.mu.Unlock()
 
 	feeds := make([]Feed, 0, len(order))
 	for _, o := range order {
@@ -340,7 +364,7 @@ func (g *Guard) Feeds(now time.Time) []Feed {
 		if b, ok := budgets[o.key]; ok {
 			f.Budget = b.perHour
 		}
-		if e, ok := g.entries[o.key]; ok {
+		if e, ok := g.file.entries[o.key]; ok {
 			// The window rolls, so a count from a window that has already
 			// expired is not this hour's usage.
 			if now.Sub(e.WindowStart) < time.Hour {
@@ -381,11 +405,11 @@ func shortAge(d time.Duration) string {
 func (g *Guard) Status() []string {
 	now := time.Now()
 
-	g.mu.Lock()
-	defer g.mu.Unlock()
+	g.file.mu.Lock()
+	defer g.file.mu.Unlock()
 
 	var open []string
-	for name, e := range g.entries {
+	for name, e := range g.file.entries {
 		if now.Before(e.OpenUntil) {
 			open = append(open, name)
 		}

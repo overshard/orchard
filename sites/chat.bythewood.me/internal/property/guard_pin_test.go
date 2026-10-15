@@ -22,8 +22,8 @@ func pinRewind(t *testing.T, g *Guard, d time.Duration) {
 	t.Helper()
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	if !g.lastCall.IsZero() {
-		g.lastCall = g.lastCall.Add(-d)
+	if !g.rows.lastCall.IsZero() {
+		g.rows.lastCall = g.rows.lastCall.Add(-d)
 	}
 	secs := int64(d / time.Second)
 	if _, err := g.db.Exec(`UPDATE guards SET
