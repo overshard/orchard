@@ -138,30 +138,6 @@ var Remember = Tool{
 	},
 }
 
-// The model sends an id as a number, a float or a string depending on how the
-// template rendered it, and a wrong type here reads as a missing id.
-func argInt64(a map[string]any, k string) int64 {
-	v, ok := a[k]
-	if !ok {
-		return 0
-	}
-	switch n := v.(type) {
-	case float64:
-		return int64(n)
-	case int64:
-		return n
-	case int:
-		return int64(n)
-	case string:
-		var out int64
-		if _, err := fmt.Sscan(strings.TrimSpace(n), &out); err != nil {
-			return 0
-		}
-		return out
-	}
-	return 0
-}
-
 func factText(facts []MemoryFact, id int64) string {
 	for _, f := range facts {
 		if f.ID == id {

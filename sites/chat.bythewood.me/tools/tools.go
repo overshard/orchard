@@ -6,9 +6,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
-	"strings"
 	"time"
 )
 
@@ -100,46 +98,6 @@ func NewDeps() *Deps {
 		// searches on one question.
 		Budgets: NewBudgets(),
 	}
-}
-
-func argStr(a map[string]any, k string) string {
-	if v, ok := a[k]; ok {
-		if s, ok := v.(string); ok {
-			return strings.TrimSpace(s)
-		}
-		return strings.TrimSpace(fmt.Sprint(v))
-	}
-	return ""
-}
-
-// argBool takes a small model's "true" as readily as its true.
-func argBool(a map[string]any, k string) bool {
-	switch v := a[k].(type) {
-	case bool:
-		return v
-	case string:
-		return strings.EqualFold(strings.TrimSpace(v), "true")
-	}
-	return false
-}
-
-func argNum(a map[string]any, k string, def float64) float64 {
-	v, ok := a[k]
-	if !ok {
-		return def
-	}
-	switch n := v.(type) {
-	case float64:
-		return n
-	case int:
-		return float64(n)
-	case string:
-		var f float64
-		if _, err := fmt.Sscanf(n, "%g", &f); err == nil {
-			return f
-		}
-	}
-	return def
 }
 
 func obj(props map[string]any, required ...string) map[string]any {
