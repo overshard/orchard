@@ -488,12 +488,12 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 	// A news rundown is finished when it arrives. The gate reads a list of
 	// stories as an answer that covers part of the question, so left alone it
 	// sends the turn back and the rundown becomes a single story write up.
-	if calledNews(used) {
+	if calledWith(used, tools.Rundown) {
 		return "", Stats{}
 	}
 	// Same for a turn that was told to remember something and did. There is no
 	// question under it to research.
-	if calledTool(used, tools.Remember.Name) {
+	if calledWith(used, tools.Notes) {
 		return "", Stats{}
 	}
 	// A follow up chip names the house and the model answers it from the last
@@ -527,7 +527,7 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 	}
 	if isDeferral(draft) || refusal.MatchString(draft) || (len(used) == 0 && noFigures.MatchString(draft)) {
 		emit(Event{Kind: "status", Text: "looking it up"})
-		if calledTool(used, tools.PropertyTool.Name) {
+		if calledWith(used, tools.Settles) {
 			return propertyNudge(), st
 		}
 		return researchNudge(""), st
@@ -554,7 +554,7 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 	// Before the model check, since it costs nothing and the model check doesn't
 	// object to a wrong sum. Only when the question is about an amount, since the
 	// rules of gin rummy mention a total.
-	if !calledTool(used, tools.Calc.Name) && asksForAmount(question) && countsUpInProse(draft) && !copiedTheNumbers(draft, used) {
+	if !calledWith(used, tools.Sums) && asksForAmount(question) && countsUpInProse(draft) && !copiedTheNumbers(draft, used) {
 		emit(Event{Kind: "status", Text: "adding it up"})
 		return calcNudge(), st
 	}
@@ -568,7 +568,7 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 	// Names and years a turn that looked things up never found, since a draft will
 	// date and cast a film from memory with the search result right there, and the
 	// model check lets it go.
-	if len(used) > 0 && !calledTool(used, tools.PropertyTool.Name) {
+	if len(used) > 0 && !calledWith(used, tools.Settles) {
 		if missing := unsupported(draft, question, previous, used, e.local()); len(missing) > 0 {
 			emit(Event{Kind: "status", Text: "checking it"})
 			return unsupportedNudge(missing), st
@@ -584,12 +584,12 @@ func (e *Engine) gate(ctx context.Context, question, draft string, previous []st
 	}
 	// A second opinion can't improve a house answered out of the public record, and
 	// asked anyway it sends the turn back for sections nobody asked about.
-	if calledTool(used, tools.PropertyTool.Name) {
+	if calledWith(used, tools.Settles) {
 		return "", st
 	}
 	// His own sites are the record of themselves, and the check reads each
 	// result cut short and would send a right answer off to the web.
-	if calledEstate(used) {
+	if calledWith(used, tools.Estate) {
 		return "", st
 	}
 	emit(Event{Kind: "status", Text: "checking the answer"})
@@ -672,18 +672,6 @@ func (e *Engine) gateOffline(ctx context.Context, question, draft string, used [
 	return wikiNudge(subjectOf(question)), st
 }
 
-func calledNews(used []tools.Result) bool { return calledTool(used, tools.News.Name) }
-
-func calledEstate(used []tools.Result) bool {
-	for _, t := range []tools.Tool{tools.OrchardLogs, tools.OrchardStatus, tools.OrchardAnalytics,
-		tools.OrchardRepos, tools.OrchardCode, tools.OrchardDash} {
-		if calledTool(used, t.Name) {
-			return true
-		}
-	}
-	return false
-}
-
 var timePart = regexp.MustCompile(`(\d+) (day|hour|minute)`)
 
 // saysTimeLeft is a draft giving every part of the time left, in figures or as
@@ -707,7 +695,7 @@ func saysTimeLeft(draft, left string) bool {
 // a draft does that arithmetic in its head and gets it wrong.
 func countdownLeft(used []tools.Result) string {
 	for _, r := range used {
-		if m, ok := r.Content.(map[string]any); ok && r.Name == tools.Now.Name && r.Err == "" {
+		if m, ok := r.Content.(map[string]any); ok && tools.Of(r.Name).Is(tools.Clock) && r.Err == "" {
 			if left, _ := m["remaining"].(string); left != "" {
 				return left
 			}
@@ -716,9 +704,10 @@ func countdownLeft(used []tools.Result) string {
 	return ""
 }
 
-func calledTool(used []tools.Result, name string) bool {
+// calledWith is a turn where a tool with the trait answered without failing.
+func calledWith(used []tools.Result, tr tools.Trait) bool {
 	for _, r := range used {
-		if r.Name == name && r.Err == "" {
+		if r.Err == "" && tools.Of(r.Name).Is(tr) {
 			return true
 		}
 	}
