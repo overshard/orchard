@@ -23,7 +23,7 @@ var Now = Define(Tool{
 	Traits: Clock,
 	Description: "The current date and time. Use it whenever the answer depends on what day it is. " +
 		"Pass until for how long it is to a time or a date, and give the remaining it returns rather than working it out.",
-}, func(ctx context.Context, d *Deps, a nowArgs) (any, error) {
+}, func(ctx context.Context, d *Turn, a nowArgs) (any, error) {
 	name := a.Timezone
 	if name == "" {
 		name = "America/New_York"

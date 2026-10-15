@@ -33,7 +33,7 @@ var errEstateMissing = fmt.Errorf("no such path")
 // estateGet skips get() since the Guard is for third party endpoints that rate
 // limit this address, and boxing a container on the bridge would take a whole
 // site out over a blip.
-func estateGet(ctx context.Context, d *Deps, rawURL string, into any) error {
+func estateGet(ctx context.Context, d *Turn, rawURL string, into any) error {
 	if d.Session == "" {
 		return fmt.Errorf("this needs you to be signed in, and the turn carried no session")
 	}

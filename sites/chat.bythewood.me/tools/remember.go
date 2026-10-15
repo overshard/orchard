@@ -52,7 +52,7 @@ var Remember = Define(Tool{
 		"When he adds to a list already remembered, like another film for a watch list, use append with that " +
 		"fact's id and only the new items, rather than adding a second fact that holds half the list. " +
 		"One call is the whole job.",
-}, func(ctx context.Context, d *Deps, a rememberArgs) (any, error) {
+}, func(ctx context.Context, d *Turn, a rememberArgs) (any, error) {
 	if d.Memory == nil {
 		return nil, fmt.Errorf("memory is not available in this turn")
 	}

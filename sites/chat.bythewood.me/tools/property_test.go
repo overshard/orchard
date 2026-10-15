@@ -29,10 +29,10 @@ func (p *propStub) Quote(_ context.Context, in property.LoanInput) ([]property.Q
 	return p.quotes, property.Market{Thirty: 6.95, Week: "9/17/2026", Found: true}, nil
 }
 
-func withProperty(p Property) *Deps {
+func withProperty(p Property) *Turn {
 	d := NewDeps()
 	d.Property = p
-	return d
+	return d.Turn("")
 }
 
 func TestPropertyToolPassesThePriceThrough(t *testing.T) {
@@ -84,10 +84,10 @@ func TestPropertyToolNeedsAnAddress(t *testing.T) {
 }
 
 func TestPropertyToolWithoutAnEngineSaysSo(t *testing.T) {
-	if _, err := PropertyTool.Run(context.Background(), NewDeps(), map[string]any{"address": "1 Test Rd"}); err == nil {
+	if _, err := PropertyTool.Run(context.Background(), NewDeps().Turn(""), map[string]any{"address": "1 Test Rd"}); err == nil {
 		t.Fatal("an unwired engine has to error rather than panic")
 	}
-	if _, err := Mortgage.Run(context.Background(), NewDeps(), map[string]any{"price": float64(250000)}); err == nil {
+	if _, err := Mortgage.Run(context.Background(), NewDeps().Turn(""), map[string]any{"price": float64(250000)}); err == nil {
 		t.Fatal("an unwired engine has to error rather than panic")
 	}
 }

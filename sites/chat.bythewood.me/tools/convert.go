@@ -53,7 +53,7 @@ func (a *convertArgs) params() []param {
 var Convert = Define(Tool{
 	Name:        "convert",
 	Description: "Convert between units of weight, volume, length or temperature.",
-}, func(ctx context.Context, d *Deps, a convertArgs) (any, error) {
+}, func(ctx context.Context, d *Turn, a convertArgs) (any, error) {
 	v := a.Value
 	from, to := normUnit(a.FromUnit), normUnit(a.ToUnit)
 	if from == "" || to == "" {

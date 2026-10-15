@@ -79,7 +79,7 @@ func (r *Registry) Schemas() []map[string]any {
 // Call returns a failed tool's error as content instead of ending the turn,
 // because "the search engine is refusing us" is something the model should say
 // out loud.
-func (r *Registry) Call(ctx context.Context, d *Deps, name string, raw json.RawMessage) Result {
+func (r *Registry) Call(ctx context.Context, turn *Turn, name string, raw json.RawMessage) Result {
 	start := time.Now()
 	res := Result{Name: name, Args: raw}
 	t, ok := r.Get(name)
@@ -100,7 +100,7 @@ func (r *Registry) Call(ctx context.Context, d *Deps, name string, raw json.RawM
 			return res
 		}
 	}
-	out, err := t.Run(ctx, d, args)
+	out, err := t.Run(ctx, turn, args)
 	if err != nil {
 		res.Err = err.Error()
 		res.Content = map[string]any{"error": err.Error()}

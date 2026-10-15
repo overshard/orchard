@@ -16,15 +16,15 @@ type args[A any] interface {
 
 // Define finishes a tool from its arguments struct, filling in the schema and a
 // Run that decodes into the struct before calling run.
-func Define[A any, P args[A]](t Tool, run func(ctx context.Context, d *Deps, a A) (any, error)) Tool {
+func Define[A any, P args[A]](t Tool, run func(ctx context.Context, t *Turn, a A) (any, error)) Tool {
 	var zero A
 	t.Schema = schemaOf(P(&zero).params())
-	t.Run = func(ctx context.Context, d *Deps, raw map[string]any) (any, error) {
+	t.Run = func(ctx context.Context, turn *Turn, raw map[string]any) (any, error) {
 		var a A
 		for _, p := range P(&a).params() {
 			p.set(raw)
 		}
-		return run(ctx, d, a)
+		return run(ctx, turn, a)
 	}
 	return t
 }

@@ -138,7 +138,7 @@ func (e *Engine) pictureReference(ctx context.Context, message string) (tools.Re
 		if err != nil {
 			break
 		}
-		res := e.reg.Call(ctx, e.deps, tools.Wikipedia.Name, args)
+		res := e.reg.Call(ctx, &tools.Turn{Deps: e.deps}, tools.Wikipedia.Name, args)
 		m, ok := res.Content.(map[string]any)
 		if res.Err != "" || !ok {
 			continue
@@ -175,7 +175,7 @@ func (e *Engine) background(ctx context.Context, question string) string {
 	if err != nil {
 		return ""
 	}
-	res := e.reg.Call(ctx, e.deps, tools.Wikipedia.Name, args)
+	res := e.reg.Call(ctx, &tools.Turn{Deps: e.deps}, tools.Wikipedia.Name, args)
 	if res.Err != "" {
 		return ""
 	}
@@ -214,7 +214,7 @@ func (e *Engine) opening(ctx context.Context, question string) (tools.Result, Me
 	if err != nil {
 		return tools.Result{}, Message{}, false
 	}
-	res := e.reg.Call(ctx, e.deps, tools.Wikipedia.Name, args)
+	res := e.reg.Call(ctx, &tools.Turn{Deps: e.deps}, tools.Wikipedia.Name, args)
 	if res.Err != "" {
 		return tools.Result{}, Message{}, false
 	}

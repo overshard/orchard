@@ -25,7 +25,7 @@ func TestEstateToolsRefuseWithoutASession(t *testing.T) {
 	defer srv.Close()
 
 	var out any
-	err := estateGet(context.Background(), testDeps(srv.URL), srv.URL, &out)
+	err := estateGet(context.Background(), testDeps(srv.URL).Turn(""), srv.URL, &out)
 	if err == nil {
 		t.Fatal("an unsigned request was allowed")
 	}
@@ -47,7 +47,7 @@ func TestEstateToolsForwardTheSession(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	d := testDeps(srv.URL).WithSession("a-live-session")
+	d := testDeps(srv.URL).Turn("a-live-session")
 	var out map[string]any
 	if err := estateGet(context.Background(), d, srv.URL, &out); err != nil {
 		t.Fatal(err)
@@ -60,17 +60,20 @@ func TestEstateToolsForwardTheSession(t *testing.T) {
 	}
 }
 
-// WithSession must copy, or one person's session lands on the shared Deps and
-// the next turn borrows it.
-func TestWithSessionDoesNotMutateTheShared(t *testing.T) {
+// Each turn carries its own session and widgets, and the Deps every turn
+// shares has nowhere to put either.
+func TestTurnsDoNotShareASessionOrWidgets(t *testing.T) {
 	base := testDeps("")
-	a := base.WithSession("one")
-	b := base.WithSession("two")
-	if base.Session != "" {
-		t.Errorf("the shared Deps was written to: %q", base.Session)
-	}
+	a := base.Turn("one")
+	b := base.Turn("two")
 	if a.Session != "one" || b.Session != "two" {
-		t.Errorf("copies crossed: %q and %q", a.Session, b.Session)
+		t.Errorf("turns crossed: %q and %q", a.Session, b.Session)
+	}
+	if a.Widgets == b.Widgets {
+		t.Error("two turns share a widget sink")
+	}
+	if a.Deps != base || b.Deps != base {
+		t.Error("a turn is not on the shared Deps")
 	}
 }
 
@@ -82,7 +85,7 @@ func TestEstateToolsReadARedirectAsSignedOut(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	d := testDeps(srv.URL).WithSession("stale")
+	d := testDeps(srv.URL).Turn("stale")
 	// The client must not follow it, or the test proves nothing.
 	d.HTTP = &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error {
 		return http.ErrUseLastResponse
@@ -101,7 +104,7 @@ func TestEstateToolsReportARefusedSession(t *testing.T) {
 	defer srv.Close()
 
 	var out any
-	err := estateGet(context.Background(), testDeps(srv.URL).WithSession("revoked"), srv.URL, &out)
+	err := estateGet(context.Background(), testDeps(srv.URL).Turn("revoked"), srv.URL, &out)
 	if err == nil || !strings.Contains(err.Error(), "signed out") {
 		t.Errorf("err = %v, want it to say the session was refused", err)
 	}
@@ -123,7 +126,7 @@ func TestOrchardToolsAreRegistered(t *testing.T) {
 // into advice it can act on instead of a sum of whatever survived.
 func TestCalcRefusesAnExpressionTooLongToBeWhole(t *testing.T) {
 	long := strings.TrimSuffix(strings.Repeat("14.45+", 200), "+")
-	_, err := Calc.Run(context.Background(), testDeps(""), map[string]any{"expression": long})
+	_, err := Calc.Run(context.Background(), testDeps("").Turn(""), map[string]any{"expression": long})
 	if err == nil {
 		t.Fatal("a runaway expression was evaluated")
 	}
@@ -131,7 +134,7 @@ func TestCalcRefusesAnExpressionTooLongToBeWhole(t *testing.T) {
 		t.Errorf("err = %q, want it to say what to do instead", err)
 	}
 	// An ordinary sum still works.
-	got, err := Calc.Run(context.Background(), testDeps(""), map[string]any{"expression": "14.45+10.70+15.52"})
+	got, err := Calc.Run(context.Background(), testDeps("").Turn(""), map[string]any{"expression": "14.45+10.70+15.52"})
 	if err != nil {
 		t.Fatalf("an ordinary sum was refused: %v", err)
 	}
@@ -184,7 +187,7 @@ func TestOrchardCodeReadsAFileAndListsADirectory(t *testing.T) {
 	old := reposBase
 	reposBase = srv.URL
 	defer func() { reposBase = old }()
-	d := testDeps(srv.URL).WithSession("a-live-session")
+	d := testDeps(srv.URL).Turn("a-live-session")
 
 	got, err := OrchardCode.Run(context.Background(), d,
 		map[string]any{"repo": "orchard", "path": "sites/chat.bythewood.me/tools/web.go"})
@@ -301,7 +304,7 @@ func TestOrchardCodeFindsAndSearches(t *testing.T) {
 	old := reposBase
 	reposBase = srv.URL
 	defer func() { reposBase = old }()
-	d := testDeps(srv.URL).WithSession("a-live-session")
+	d := testDeps(srv.URL).Turn("a-live-session")
 
 	got, err := OrchardCode.Run(context.Background(), d,
 		map[string]any{"repo": "orchard", "action": "find", "query": "earnings.go"})
@@ -348,7 +351,7 @@ func TestOrchardCodeReadsALineRange(t *testing.T) {
 	old := reposBase
 	reposBase = srv.URL
 	defer func() { reposBase = old }()
-	d := testDeps(srv.URL).WithSession("a-live-session")
+	d := testDeps(srv.URL).Turn("a-live-session")
 
 	if _, err := OrchardCode.Run(context.Background(), d, map[string]any{
 		"repo": "orchard", "action": "read",
@@ -389,7 +392,7 @@ func TestFindFallsBackToSearchingInsideFiles(t *testing.T) {
 	old := reposBase
 	reposBase = srv.URL
 	defer func() { reposBase = old }()
-	d := testDeps(srv.URL).WithSession("a-live-session")
+	d := testDeps(srv.URL).Turn("a-live-session")
 
 	got, err := OrchardCode.Run(context.Background(), d,
 		map[string]any{"repo": "overshard/orchard", "action": "find", "query": "maxToolRounds"})
@@ -425,7 +428,7 @@ func TestAnalyticsNamesAPropertyThatIsNotThere(t *testing.T) {
 	defer func(was string) { analyticsBase = was }(analyticsBase)
 	analyticsBase = srv.URL
 
-	got, err := OrchardAnalytics.Run(context.Background(), testDeps(srv.URL).WithSession("s"), map[string]any{"property": "my blog"})
+	got, err := OrchardAnalytics.Run(context.Background(), testDeps(srv.URL).Turn("s"), map[string]any{"property": "my blog"})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -45,7 +45,7 @@ var Mortgage = Define(Tool{
 		"Use it for a question about money with no particular house behind it, like what can we afford or what would FHA cost. " +
 		"For a real address use the property tool with section cost instead, since that one knows the county's own tax rate " +
 		"and whether USDA will lend on that spot.",
-}, func(ctx context.Context, d *Deps, a mortgageArgs) (any, error) {
+}, func(ctx context.Context, d *Turn, a mortgageArgs) (any, error) {
 	if d.Property == nil {
 		return nil, fmt.Errorf("the mortgage figures are not available in this turn")
 	}

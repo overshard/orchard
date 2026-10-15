@@ -45,8 +45,7 @@ func (w Widget) Key() string {
 }
 
 // Sink collects the widgets one turn produced. A turn runs its tools on
-// goroutines, so this locks, and it's created per turn and hung on the Deps
-// copy, not the shared one, for the same reason the session is.
+// goroutines, so this locks, and each Turn has its own.
 type Sink struct {
 	mu   sync.Mutex
 	list []Widget

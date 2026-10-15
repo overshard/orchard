@@ -121,8 +121,8 @@ func (a *weatherArgs) params() []param {
 var Weather = Define(Tool{
 	Name:        "weather",
 	Description: "Daily forecast for a place, up to 14 days out, in Fahrenheit and mph.",
-}, func(ctx context.Context, d *Deps, a weatherArgs) (any, error) {
-	g, err := geocode(ctx, d, a.Location)
+}, func(ctx context.Context, d *Turn, a weatherArgs) (any, error) {
+	g, err := geocode(ctx, d.Deps, a.Location)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +150,7 @@ var Weather = Define(Tool{
 	u := fmt.Sprintf("https://api.open-meteo.com/v1/forecast?latitude=%f&longitude=%f"+
 		"&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,sunrise,sunset"+
 		"&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=%d", lat, lon, days)
-	if err := getJSON(ctx, d, u, &w); err != nil {
+	if err := getJSON(ctx, d.Deps, u, &w); err != nil {
 		return nil, err
 	}
 	type day struct {

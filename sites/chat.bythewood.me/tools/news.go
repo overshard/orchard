@@ -55,7 +55,7 @@ var News = Define(Tool{
 		"It reads publisher front pages and nothing else, so it cannot tell you whether people are " +
 		"complaining about something, whether a service is degraded, or what is being said about a " +
 		"company outside the newsroom. Those are web_search.",
-}, func(ctx context.Context, d *Deps, a newsArgs) (any, error) {
+}, func(ctx context.Context, d *Turn, a newsArgs) (any, error) {
 	window := strings.ToLower(a.Window)
 	if window == "" {
 		window = "today"
@@ -68,7 +68,7 @@ var News = Define(Tool{
 	now := d.Now().In(newYork())
 	since, until, label := resolveWindow(now, window)
 
-	sections, tried, failed := gatherNews(ctx, d, topic, since, until)
+	sections, tried, failed := gatherNews(ctx, d.Deps, topic, since, until)
 	if len(sections) == 0 {
 		if failed >= tried && tried > 0 {
 			return nil, fmt.Errorf("none of the %d news sources answered", tried)

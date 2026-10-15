@@ -25,7 +25,7 @@ type Tool struct {
 	Name        string
 	Description string
 	Schema      map[string]any
-	Run         func(ctx context.Context, d *Deps, args map[string]any) (any, error)
+	Run         func(ctx context.Context, t *Turn, args map[string]any) (any, error)
 
 	Traits Trait
 	// Cites lists the pages a result read, and is nil for a tool whose
@@ -33,7 +33,7 @@ type Tool struct {
 	Cites func(result map[string]any) []Cited
 }
 
-// Deps is what every tool shares. Now is a clock instead of time.Now so a test
+// Deps is what every turn shares. Now is a clock instead of time.Now so a test
 // can sit on a fixed day, which matters for anything that decides what "this
 // weekend" is.
 type Deps struct {
@@ -47,15 +47,6 @@ type Deps struct {
 	Guard   *Guard
 	Budgets *Budgets
 
-	// The session of whoever is chatting, forwarded by the orchard tools so
-	// each site does its own check. It's per turn, so it is set on a copy and
-	// never on the shared Deps.
-	Session string
-
-	// Where a tool hangs a chart or a forecast for the page to draw. Per turn
-	// and on the copy, for the same reason the session is.
-	Widgets *Sink
-
 	// Memory is the site's own fact store, so the remember tool writes to the
 	// database this process owns instead of to a service over http.
 	Memory Memory
@@ -64,30 +55,37 @@ type Deps struct {
 	// Property is the house lookup engine, wired the same way since it owns
 	// tables in the site's database.
 	Property Property
+	Images   Images
+}
+
+// Turn is what a tool is handed, the shared Deps and what belongs to one turn,
+// which lives here so it can never be written onto the Deps every turn shares.
+type Turn struct {
+	*Deps
+
+	// The session of whoever is chatting, forwarded by the orchard tools so
+	// each site does its own check.
+	Session string
+	// Where a tool hangs a chart or a forecast for the page to draw.
+	Widgets *Sink
 	// A tool that reaches a service with a model behind it has to pass this
-	// along. Per turn and on the copy too.
+	// along.
 	Incognito bool
 
 	// OnImage is where the turn wants to hear how a picture is getting on, and
-	// Picture is the one the turn already showed as expected. Both per turn and
-	// set on the copy.
-	Images  Images
+	// Picture is the one the turn already showed as expected.
 	OnImage func(ImageProgress)
 	Picture *ImageProgress
 	// Start is what this turn's picture starts from whatever the model says,
-	// and LastPicture is what change_last means. Per turn, on the copy.
+	// and LastPicture is what change_last means.
 	Start       []string
 	LastPicture string
 }
 
-// WithSession returns a copy carrying one turn's session and its own widget
-// sink, since Deps is shared across every turn and writing either onto it would
-// hand one person's session and one turn's charts to the next request.
-func (d *Deps) WithSession(session string) *Deps {
-	c := *d
-	c.Session = session
-	c.Widgets = NewSink()
-	return &c
+// Turn starts one turn on the shared Deps, carrying its session and a widget
+// sink of its own.
+func (d *Deps) Turn(session string) *Turn {
+	return &Turn{Deps: d, Session: session, Widgets: NewSink()}
 }
 
 func NewDeps() *Deps {

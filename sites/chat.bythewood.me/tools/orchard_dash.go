@@ -31,7 +31,7 @@ var OrchardDash = Define(Tool{
 		"when one reports or what it is expected to earn. Pass section to get one " +
 		"panel, which is almost always what a question wants, and leave it empty only when the " +
 		"question really does span most of the dashboard. Read only.",
-}, func(ctx context.Context, d *Deps, a orchardDashArgs) (any, error) {
+}, func(ctx context.Context, d *Turn, a orchardDashArgs) (any, error) {
 	var out any
 	// dash publishes this without a session, since the page it feeds has no
 	// login, so this one works signed out.

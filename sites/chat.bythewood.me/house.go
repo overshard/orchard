@@ -116,7 +116,7 @@ func houseQuestion(question string, history []Message) (addr string, price int, 
 
 // houseOpening calls property for the sections the question is about and hands
 // the model what came back.
-func (e *Engine) houseOpening(ctx context.Context, deps *tools.Deps, question string, history []Message) ([]tools.Result, Message, bool) {
+func (e *Engine) houseOpening(ctx context.Context, turn *tools.Turn, question string, history []Message) ([]tools.Result, Message, bool) {
 	addr, price, sections := houseQuestion(question, history)
 	if addr == "" {
 		return nil, Message{}, false
@@ -129,7 +129,7 @@ func (e *Engine) houseOpening(ctx context.Context, deps *tools.Deps, question st
 			args["price"] = price
 		}
 		raw, _ := json.Marshal(args)
-		res := e.reg.Call(ctx, deps, tools.PropertyTool.Name, raw)
+		res := e.reg.Call(ctx, turn, tools.PropertyTool.Name, raw)
 		results = append(results, res)
 		if res.Err != "" {
 			// A failed first call is a failed lookup, and asking for the next

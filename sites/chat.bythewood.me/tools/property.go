@@ -66,7 +66,7 @@ var PropertyTool = Define(Tool{
 		"A new address costs about forty requests to other people's free servers and only a few are allowed an hour, so call it once " +
 		"with the address as he wrote it. If it says the ceiling is spent, say so and stop, because spelling the street a different way " +
 		"is a new address and spends another one. Read only, and it buys nothing and tells nobody.",
-}, func(ctx context.Context, d *Deps, a propertyArgs) (any, error) {
+}, func(ctx context.Context, d *Turn, a propertyArgs) (any, error) {
 	if d.Property == nil {
 		return nil, fmt.Errorf("the property lookups are not available in this turn")
 	}

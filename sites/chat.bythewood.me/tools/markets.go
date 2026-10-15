@@ -147,7 +147,7 @@ var Markets = Define(Tool{
 		"outside market hours is the last close. An index that is shut carries its futures in futures_now, and that " +
 		"is how it is trading now. Each quote says when it was taken in as_of, so say which day a " +
 		"close is from. Pass period week, month or year for a question about more than today.",
-}, func(ctx context.Context, d *Deps, a marketsArgs) (any, error) {
+}, func(ctx context.Context, d *Turn, a marketsArgs) (any, error) {
 	raw := a.Symbols
 	if raw == "" {
 		return nil, fmt.Errorf("symbols is required")
@@ -192,7 +192,7 @@ var Markets = Define(Tool{
 			Change float64 `json:"usd_24h_change"`
 		}
 		u := "https://api.coingecko.com/api/v3/simple/price?vs_currencies=usd&include_24hr_change=true&ids=" + strings.Join(ids, ",")
-		if err := getJSON(ctx, d, u, &cg); err != nil {
+		if err := getJSON(ctx, d.Deps, u, &cg); err != nil {
 			for _, c := range coins {
 				out = append(out, Quote{Symbol: c, Source: "coingecko", Err: err.Error()})
 			}
@@ -227,7 +227,7 @@ var Markets = Define(Tool{
 		u := "https://quote.cnbc.com/quote-html-webservice/restQuote/symbolType/symbol?symbols=" +
 			url.QueryEscape(strings.Join(ids, "|")) +
 			"&requestMethod=itv&noform=1&partnerId=2&fund=1&exthrs=1&output=json&events=1"
-		if err := getJSON(ctx, d, u, &cn); err != nil {
+		if err := getJSON(ctx, d.Deps, u, &cn); err != nil {
 			for _, s := range rest {
 				out = append(out, Quote{Symbol: s, Source: "cnbc", Err: err.Error()})
 			}
@@ -313,7 +313,7 @@ var Markets = Define(Tool{
 				continue
 			}
 			spans++
-			ser, err := Ticker(ctx, d, out[i].Symbol, key)
+			ser, err := Ticker(ctx, d.Deps, out[i].Symbol, key)
 			if err != nil || len(ser.Points) == 0 {
 				continue
 			}

@@ -75,7 +75,7 @@ func trafficArgs(q string) (property string, days int) {
 // week alone the model defended eight views by projecting a month it made up.
 const contextDays = 28
 
-func (e *Engine) trafficOpening(ctx context.Context, deps *tools.Deps, question string, history []Message) ([]tools.Result, Message, bool) {
+func (e *Engine) trafficOpening(ctx context.Context, turn *tools.Turn, question string, history []Message) ([]tools.Result, Message, bool) {
 	property, days, ok := trafficQuestion(question, history)
 	if !ok {
 		return nil, Message{}, false
@@ -98,7 +98,7 @@ func (e *Engine) trafficOpening(ctx context.Context, deps *tools.Deps, question 
 		if err != nil {
 			return nil, Message{}, false
 		}
-		res := e.reg.Call(ctx, deps, tools.OrchardAnalytics.Name, args)
+		res := e.reg.Call(ctx, turn, tools.OrchardAnalytics.Name, args)
 		if res.Err != "" {
 			break
 		}

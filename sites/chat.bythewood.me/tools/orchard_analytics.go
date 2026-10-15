@@ -25,7 +25,7 @@ var OrchardAnalytics = Define(Tool{
 	Description: "Read Isaac's own analytics at analytics.bythewood.me: sessions, page views, live " +
 		"users, and the top pages, referrers, countries, browsers and devices for each property. Use " +
 		"it for anything about his traffic or where his visitors come from. Read only.",
-}, func(ctx context.Context, d *Deps, a orchardAnalyticsArgs) (any, error) {
+}, func(ctx context.Context, d *Turn, a orchardAnalyticsArgs) (any, error) {
 	q := url.Values{}
 	if dd := int(a.Days); dd > 0 {
 		q.Set("days", strconv.Itoa(dd))
