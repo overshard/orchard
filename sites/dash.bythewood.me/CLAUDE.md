@@ -125,10 +125,11 @@ number rather than the NWS id that changes with every update, and a headline is
 its URL, which is what keeps a restart or a reconnect from notifying twice.
 
 **The briefs are the one thing on dash a model writes.** At 7:00, 11:00 and
-16:05 New York time `brief.go` reads sixteen news feeds and seven market feeds,
-groups the same event across outlets, ranks the groups by how many outlets
-carried them, and asks llm.bythewood.me for a markets line and a TODAY summary
-under a JSON schema. The model cites events by number and Go turns those into
+16:05 New York time `briefnews.go` and `briefmarkets.go` read sixteen news feeds
+and seven market feeds, `briefstories.go` groups the same event across outlets
+and ranks the groups by how many outlets carried them, and the two desks ask
+llm.bythewood.me for a markets line and a TODAY summary under a JSON schema,
+on the one model load `brief.go` schedules. The model cites events by number and Go turns those into
 links, so it cannot make up a URL, and a news point it could not cite is dropped.
 Each feed carries its AllSides lean, which is counted per point (`L1 C3 R1`) and
 never shown to the model, and a story only one side's outlets ran is marked as
