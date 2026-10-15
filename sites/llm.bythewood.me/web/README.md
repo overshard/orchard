@@ -4,8 +4,8 @@ The gateway's own copy of the shared pieces, the same way every other site in or
 carries one. The renderer, static handler and Vite manifest are still absent,
 because llm parses its templates itself and serves assets out of `assets_embed.go` and `assets_disk.go`.
 
-`server.go` is the copy without a write bound, shared with dash, since both
-serve an event stream that has to stay open. The rest are byte for byte the
+`server.go` is the copy without a write bound, shared by chat and llm, since
+both stream a model's answer for as long as it takes. The rest are byte for byte the
 same as everywhere else.
 
 A fix in one copy has to be made in the others. That cost was accepted on
