@@ -8,7 +8,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -413,7 +412,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		closed := untrusted
 		offer := schemas
 		if closed {
-			offer = withoutPrivate(offer)
+			offer = tools.WithoutAny(offer, tools.Private)
 		}
 		if usedNews {
 			offer = tools.Without(offer, tools.News.Name)
@@ -584,7 +583,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 					Content: `{"note":"news was already read in this turn and one call is the whole rundown. Use what it returned."}`})
 				continue
 			}
-			if closed && slices.Contains(privateTools, tc.Function.Name) {
+			if closed && tools.Of(tc.Function.Name).Is(tools.Private) {
 				id := tc.ID
 				if id == "" {
 					id = tc.Function.Name
@@ -595,7 +594,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 				continue
 			}
 			emit(Event{Kind: "tool", Tool: tc.Function.Name, Args: shortArgs(tc.Function.Arguments)})
-			if slices.Contains(untrustedTools, tc.Function.Name) {
+			if tools.Of(tc.Function.Name).Is(tools.Untrusted) {
 				untrusted = true
 			}
 			if tc.Function.Name == tools.News.Name {
