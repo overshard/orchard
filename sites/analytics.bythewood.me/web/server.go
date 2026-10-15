@@ -36,9 +36,9 @@ func Serve(addr string, h http.Handler) error {
 		Addr:              addr,
 		Handler:           h,
 		ReadHeaderTimeout: 10 * time.Second,
-		// Whole-request bounds, so a slow body or a wedged handler cannot
-		// hold a connection open forever. The write bound is generous enough
-		// for a Typst report, which has its own 30 second ceiling.
+		// Whole-request bounds, so a slow body or a wedged handler can't hold
+		// a connection open forever. The write bound leaves room for a Typst
+		// report, which has its own 30 second ceiling.
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 60 * time.Second,
 		IdleTimeout:  120 * time.Second,
@@ -68,8 +68,8 @@ func Serve(addr string, h http.Handler) error {
 }
 
 // HealthCheck probes a running server over the loopback and reports whether it
-// answered 200, so a container can check itself. Two of these images are FROM
-// scratch, with no shell and no curl for HEALTHCHECK to call.
+// answered 200, so a container can check itself. A scratch image has no shell
+// and no curl for HEALTHCHECK to call.
 func HealthCheck(url string, timeout time.Duration) error {
 	client := &http.Client{Timeout: timeout}
 

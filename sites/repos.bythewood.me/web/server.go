@@ -14,12 +14,11 @@ import (
 )
 
 // SetupLogging installs the process-wide structured logger, in JSON since these
-// logs are read by machine first. Source positions are off because the message
-// and attributes already say where a record came from.
+// logs are read by machine first.
 func SetupLogging() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
-		// UTC, which is not slog's default. Local time in a container
+		// UTC is not slog's default, and local time in a container
 		// silently differs from the host's.
 		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
 			if a.Key == slog.TimeKey && len(groups) == 0 {
@@ -36,11 +35,9 @@ func Serve(addr string, h http.Handler) error {
 	srv := &http.Server{
 		Addr:    addr,
 		Handler: h,
-		// No body timeouts. This one serves the git wire, where one request
-		// carries a whole packfile, and Go's Read and WriteTimeout bound the
-		// entire body, so a 60s write bound cuts a large clone off mid-stream.
-		// ReadHeaderTimeout still closes a connection that dribbles headers, and
-		// body size is bounded by the spool cap in wire.go and by Cloudflare.
+		// No body timeouts, since one git request carries a whole packfile and
+		// Go's Read and WriteTimeout bound the entire body. Size is still capped
+		// by the spool in wire.go and by Cloudflare.
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       0,
 		WriteTimeout:      0,
@@ -65,17 +62,16 @@ func Serve(addr string, h http.Handler) error {
 		slog.Info("shutting down", slog.String("signal", sig.String()))
 	}
 
-	// Inside the 30s stop_grace_period the compose file asks for, so a
-	// receive-pack in flight at deploy time finishes writing its pack instead of
-	// being cut off and leaving a stale lock.
+	// Inside compose's 30s stop_grace_period, so a receive-pack in flight at
+	// deploy time finishes its pack instead of leaving a stale lock.
 	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 	defer cancel()
 	return srv.Shutdown(ctx)
 }
 
 // HealthCheck probes a running server over the loopback and reports whether it
-// answered 200, so a container can check itself. Two of these images are FROM
-// scratch, with no shell and no curl for HEALTHCHECK to call.
+// answered 200, so a container can check itself. A scratch image has no shell
+// and no curl for HEALTHCHECK to call.
 func HealthCheck(url string, timeout time.Duration) error {
 	client := &http.Client{Timeout: timeout}
 
@@ -83,8 +79,7 @@ func HealthCheck(url string, timeout time.Duration) error {
 	if err != nil {
 		return err
 	}
-	// Drained as well as closed: an undrained body leaks the connection out
-	// of the pool.
+	// Drained as well as closed, or the connection leaks out of the pool.
 	defer resp.Body.Close()
 	_, _ = io.Copy(io.Discard, resp.Body)
 

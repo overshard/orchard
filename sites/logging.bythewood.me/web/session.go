@@ -10,15 +10,9 @@ import (
 	"time"
 )
 
-// Single sign-on for every bythewood.me site, against auth.bythewood.me.
-//
-// The cookie is opaque, so a site has to ask auth about it on every request.
-// That is what makes revoking a session take effect everywhere right away
-// instead of whenever a signature ages out. The answer is never cached, since a
-// cache puts a window on revocation, which is the thing this exists for.
-//
-// With orchard-auth down, every site behind this is unreachable, which is why
-// auth.bythewood.me has recovery codes and why nothing public is behind it.
+// Single sign-on against auth.bythewood.me. The cookie is opaque, so every
+// request asks auth and nothing caches the answer, since a cache would leave a
+// revoked session working for a while. With auth down every gated site is too.
 const (
 	SessionCookie = "bw_session"
 
@@ -38,8 +32,8 @@ type Authenticator struct {
 
 func NewAuthenticator() *Authenticator { return NewAuthenticatorAt(authVerifyURL) }
 
-// NewAuthenticatorAt points at a different verifier, which is what the tests
-// use to stand one up without a running auth container.
+// NewAuthenticatorAt points at a different verifier, so a test can stand one up
+// without a running auth container.
 func NewAuthenticatorAt(verify string) *Authenticator {
 	return &Authenticator{
 		client: &http.Client{
@@ -57,7 +51,7 @@ func NewAuthenticatorAt(verify string) *Authenticator {
 // Authenticated reports whether the caller is signed in. Every failure is a no,
 // including auth being unreachable, because the alternative is failing open.
 func (a *Authenticator) Authenticated(r *http.Request) bool {
-	// A site built without one is signed out rather than a panic, since this is
+	// A site built without one is signed out instead of a panic, since this is
 	// called from the page data every template renders.
 	if a == nil || a.client == nil {
 		return false
@@ -119,12 +113,9 @@ func (a *Authenticator) RequireAuthJSON(next http.HandlerFunc) http.HandlerFunc 
 	}
 }
 
-// LoginURL is where a signed out visitor goes, carrying an absolute return
-// address because the login is on another host.
-//
-// The return address is never this site's own /login. That path redirects to
-// auth, so handing it back as the destination loops forever. An explicit
-// ?next= on the stub is honoured instead, and the site root is the fallback.
+// LoginURL is where a signed out visitor goes, with an absolute return address
+// since the login is on another host. It never returns to this site's /login,
+// which redirects to auth and would loop, so it uses ?next= or the root instead.
 func LoginURL(r *http.Request) string {
 	scheme := "https"
 	if r.TLS == nil && r.Header.Get("X-Forwarded-Proto") == "http" {
