@@ -347,7 +347,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	// A search after the property tool can only contradict it or add something
 	// nobody checked. Asked about one house it searched anyway and came back with
 	// a build year in no tool result, and a prompt can't stop that.
-	usedProperty := calledTool(used, tools.PropertyTool.Name)
+	usedProperty := calledWith(used, tools.Settles)
 	untrusted := readUntrusted(used)
 	var stats Stats
 	schemas := e.reg.Schemas()
