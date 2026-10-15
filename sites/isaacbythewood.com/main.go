@@ -28,7 +28,7 @@ var templateFS embed.FS
 const listenAddr = ":8000"
 
 // 'unsafe-inline' in script-src is there for the analytics collector loader,
-// which is a literal inline script. No 'unsafe-eval' anywhere.
+// which is a literal inline script.
 func csp() string {
 	return strings.Join([]string{
 		"default-src 'self'",
@@ -51,13 +51,13 @@ func main() {
 	}
 }
 
-// realMain returns rather than exits, so its deferred closes and the log
+// realMain returns instead of exiting so the deferred closes and the log
 // shipper's flush run on every path out.
 func realMain() error {
 	web.SetupLogging()
 
-	// The container HEALTHCHECK runs this: a FROM scratch image has no shell
-	// for a check to call, so the binary probes itself.
+	// A FROM scratch image has no shell for the container HEALTHCHECK to call,
+	// so the binary probes itself.
 	healthcheck := flag.Bool("healthcheck", false, "probe a running server on this host and exit")
 	flag.Parse()
 
@@ -68,8 +68,8 @@ func realMain() error {
 		return nil
 	}
 
-	// Below the healthcheck branch, so a HEALTHCHECK invocation does not start
-	// a queue it will never flush.
+	// Below the healthcheck branch so a HEALTHCHECK invocation doesn't start a
+	// queue it will never flush.
 	shipper := web.ShipLogs("isaacbythewood", web.HTTPSink())
 	defer shipper.Close()
 
@@ -99,8 +99,8 @@ func realMain() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Live cards only. An archived repo does not change, so polling it spends
-	// the rate limit re-reading the same commit.
+	// An archived repo doesn't change, so polling it would spend the rate limit
+	// re-reading the same commit.
 	targets := make([]CommitTarget, 0, len(sites)+len(projects))
 	for _, live := range sites {
 		targets = append(targets, live.CommitTarget())
@@ -137,20 +137,18 @@ func realMain() error {
 	mux.Handle("GET /favicon.ico", rootAsset(dist, "favicon.ico"))
 	mux.Handle("GET /favicon.svg", rootAsset(dist, "favicon.svg"))
 
-	// Not logged, or a line per probe would bury the real traffic.
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		// EdgeCache fills in the site policy whenever a handler sets no
-		// Cache-Control of its own, so saying nothing here means the edge
-		// answers a liveness check out of cache long after this process has
-		// stopped serving.
+		// EdgeCache fills in the site policy when a handler sets no
+		// Cache-Control, and the edge would then answer a liveness check out of
+		// cache long after this process stopped serving.
 		w.Header().Set("Cache-Control", "no-store")
 		_, _ = w.Write([]byte("ok\n"))
 	})
 
 	mux.Handle("GET /static/", web.Static(dist, assets))
 
-	// Next.js image optimiser URLs, still arriving from search indexes.
+	// Search indexes still send Next.js image optimiser URLs from the old site.
 	s.nextImages = newNextImageIndex(dist)
 	mux.HandleFunc("GET /_next/image", s.nextImage)
 
@@ -190,7 +188,7 @@ func rootAsset(dist fs.FS, name string) http.Handler {
 			return
 		}
 
-		// Unhashed, so a short cache rather than an immutable one.
+		// Unhashed, so a short cache instead of an immutable one.
 		w.Header().Set("Cache-Control", "public, max-age=3600")
 		http.ServeContent(w, r, filepath.Base(name), info.ModTime(), seeker)
 	})

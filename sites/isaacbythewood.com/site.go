@@ -2,8 +2,8 @@ package main
 
 import "strings"
 
-// Identity is hardcoded, never configured. Staging derives from baseURL, so
-// that one line also drives the noindex and the robots.txt Disallow.
+// Identity is hardcoded instead of configured, and Staging derives from baseURL
+// so that one line also drives the noindex and the robots.txt Disallow.
 const (
 	baseURL     = "https://isaacbythewood.com"
 	siteTitle   = "Isaac Bythewood"
@@ -72,13 +72,13 @@ type Site struct {
 	Dir         string
 	Description string
 	Tech        []string
-	// The site's own front door, which every one of these has. Most of the
-	// dashboards want a login, the landing pages do not.
+	// The site's own front door, which every one of these has, though most
+	// of the dashboards want a login.
 	Visit string
 }
 
-// Newest first, same as the archived list, which puts the seven built from
-// scratch above the four that were ports.
+// Newest first, same as the archived list, which puts the ones built from
+// scratch above the ports.
 var sites = []Site{
 	{
 		Name:        "chat",
@@ -168,7 +168,7 @@ type Project struct {
 	Slug        string
 	Description string
 	Tech        []string
-	// Archived splits the page, so a read-only snapshot does not sit in a wall
+	// Archived splits the page so a read-only snapshot doesn't sit in a wall
 	// of cards that all look equally alive.
 	Archived bool
 }
