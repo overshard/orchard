@@ -3,7 +3,8 @@ package tools
 import "context"
 
 var OrchardStatus = Define(Tool{
-	Name: "orchard_status",
+	Name:   "orchard_status",
+	Traits: Private | Estate,
 	Description: "Read Isaac's own uptime monitoring at status.bythewood.me: every property he " +
 		"watches, whether it is up, when it was last checked, its Lighthouse scores and its crawler " +
 		"state. Use it for whether a site of his is down or slow, or how it scores. Read only.",

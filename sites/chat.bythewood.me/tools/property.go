@@ -46,7 +46,8 @@ func (a *propertyArgs) params() []param {
 }
 
 var PropertyTool = Define(Tool{
-	Name: "property",
+	Name:   "property",
+	Traits: Settles,
 	Description: "Everything the public record knows about a house at an address: the FEMA flood zone and the water near it, " +
 		"the road it fronts and how busy that road is, the schools it is zoned for, the drive to work with the school run in it, " +
 		"the lot size and how flat it is, what the county has it assessed at, how much of the street is owner occupied, the county " +

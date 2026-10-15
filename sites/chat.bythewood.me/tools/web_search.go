@@ -29,7 +29,9 @@ func (a *webSearchArgs) params() []param {
 }
 
 var WebSearch = Define(Tool{
-	Name: "web_search",
+	Name:   "web_search",
+	Traits: Untrusted | OpenWeb | Lookup,
+	Cites:  searchHits,
 	Description: "Search the web and get back titles, urls and snippets. Use it for anything current, " +
 		"local, priced or contested. Snippets are short, so follow up with web_fetch when you need what a page actually says.",
 }, func(ctx context.Context, d *Deps, a webSearchArgs) (any, error) {
@@ -77,4 +79,13 @@ func parseDDG(body string, limit int) []SearchHit {
 		}
 	}
 	return hits
+}
+
+func searchHits(m map[string]any) []Cited {
+	hits, _ := m["results"].([]SearchHit)
+	out := make([]Cited, 0, len(hits))
+	for _, h := range hits {
+		out = append(out, Cited{URL: h.URL, Title: h.Title, Text: h.Title + " " + h.Snippet})
+	}
+	return out
 }

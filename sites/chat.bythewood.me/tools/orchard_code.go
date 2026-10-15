@@ -36,7 +36,8 @@ func (a *orchardCodeArgs) params() []param {
 // or a question about Isaac's code ends in guessed addresses and 404s. find and
 // search let the first call land on the file instead of walking to it.
 var OrchardCode = Define(Tool{
-	Name: "orchard_code",
+	Name:   "orchard_code",
+	Traits: Private | Estate,
 	Description: "Read the source of one of Isaac's repositories on repos.bythewood.me, read only, " +
 		"and it can never change anything. Four actions: find locates a file by name anywhere in " +
 		"the repository, search finds a string inside the files and gives the path and line of each " +

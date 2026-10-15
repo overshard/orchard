@@ -26,6 +26,11 @@ type Tool struct {
 	Description string
 	Schema      map[string]any
 	Run         func(ctx context.Context, d *Deps, args map[string]any) (any, error)
+
+	Traits Trait
+	// Cites lists the pages a result read, and is nil for a tool whose
+	// results are not pages.
+	Cites func(result map[string]any) []Cited
 }
 
 // Deps is what every tool shares. Now is a clock instead of time.Now so a test

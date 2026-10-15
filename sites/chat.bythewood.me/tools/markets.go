@@ -139,7 +139,8 @@ func (a *marketsArgs) params() []param {
 }
 
 var Markets = Define(Tool{
-	Name: "markets",
+	Name:   "markets",
+	Traits: Tickers,
 	Description: "Current price and daily change for stocks, indexes, futures, treasury yields, commodities and crypto. " +
 		"Plain names work: \"S&P 500, gold, bitcoin\" as well as \"AAPL\". \"futures\" gives the S&P, Nasdaq, Dow and " +
 		"Russell index futures, which are what moves before the open and after the close, since an index quote " +

@@ -45,7 +45,9 @@ func (a *newsArgs) params() []param {
 }
 
 var News = Define(Tool{
-	Name: "news",
+	Name:   "news",
+	Traits: Untrusted | Once | Rundown,
+	Cites:  newsHeadlines,
 	Description: "Read the news from a fixed list of publishers rather than searching the web. " +
 		"Use this for any question asking what is happening or what happened over a period, " +
 		"like news today, big stories this weekend, what did I miss this week, or any tech or AI news. " +
@@ -722,4 +724,18 @@ func sortNews(items []NewsItem, scoredFirst bool) {
 		}
 		return a.at.After(b.at)
 	})
+}
+
+// A rundown named its publishers in the prose and linked none of them, so the
+// one answer most worth clicking through was the one with nothing to click.
+// Each headline is a page that was read.
+func newsHeadlines(m map[string]any) []Cited {
+	sections, _ := m["sections"].([]NewsSection)
+	var out []Cited
+	for _, sec := range sections {
+		for _, it := range sec.Items {
+			out = append(out, Cited{URL: it.URL, Title: it.Headline, Text: it.Headline + " " + it.Summary})
+		}
+	}
+	return out
 }

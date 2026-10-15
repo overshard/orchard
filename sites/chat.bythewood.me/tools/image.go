@@ -70,7 +70,8 @@ func (a *imageArgs) params() []param {
 }
 
 var Image = Define(Tool{
-	Name: "image",
+	Name:   "image",
+	Traits: Draws,
 	Description: "Draw a picture with FLUX.2 klein, an image model that runs on the same card as you. " +
 		"Call it whenever he asks for a picture, drawing, image, photo, illustration, logo, icon or wallpaper, " +
 		"or attaches a picture, or asks for a change to the last one. " +

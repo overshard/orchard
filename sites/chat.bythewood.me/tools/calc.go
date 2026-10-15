@@ -34,7 +34,8 @@ func (a *calcArgs) params() []param {
 }
 
 var Calc = Define(Tool{
-	Name: "calc",
+	Name:   "calc",
+	Traits: Sums,
 	Description: "Evaluate arithmetic. Use it rather than doing sums in your head, especially for totals and " +
 		"budgets. Every total you are about to write down goes through here first, including the total row of a " +
 		"table and any figure you call an average, and the number you print is the number it returned. Changing " +

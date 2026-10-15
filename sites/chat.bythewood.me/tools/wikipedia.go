@@ -41,7 +41,8 @@ func (a *wikipediaArgs) params() []param {
 }
 
 var Wikipedia = Define(Tool{
-	Name: "wikipedia",
+	Name:   "wikipedia",
+	Traits: Lookup,
 	Description: "Look a subject up in a local offline Wikipedia snapshot. It answers in " +
 		"milliseconds, costs no web request, and returns the opening section of that article. " +
 		"Use it first for background on any person, place, organisation, product, species, event " +
