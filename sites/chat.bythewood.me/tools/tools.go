@@ -8,8 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"slices"
-	"sort"
 	"strings"
 	"time"
 )
@@ -104,91 +102,6 @@ func NewDeps() *Deps {
 	}
 }
 
-type Registry struct {
-	byName map[string]Tool
-	order  []string
-}
-
-func (r *Registry) Add(t Tool) {
-	if r.byName == nil {
-		r.byName = map[string]Tool{}
-	}
-	r.byName[t.Name] = t
-	r.order = append(r.order, t.Name)
-	sort.Strings(r.order)
-}
-
-func (r *Registry) Get(name string) (Tool, bool) { t, ok := r.byName[name]; return t, ok }
-func (r *Registry) Names() []string              { return append([]string(nil), r.order...) }
-
-// Without drops one schema from an offer. Taking a tool off the table stops
-// something the harness can't afford twice, since a rule in the prompt is only
-// a request.
-func Without(schemas []map[string]any, name string) []map[string]any {
-	out := make([]map[string]any, 0, len(schemas))
-	for _, s := range schemas {
-		if fn, ok := s["function"].(map[string]any); ok {
-			if n, _ := fn["name"].(string); n == name {
-				continue
-			}
-		}
-		out = append(out, s)
-	}
-	return out
-}
-
-// Schemas renders the registry as the OpenAI tools array.
-func (r *Registry) Schemas() []map[string]any {
-	out := make([]map[string]any, 0, len(r.order))
-	for _, n := range r.order {
-		t := r.byName[n]
-		out = append(out, map[string]any{
-			"type": "function",
-			"function": map[string]any{
-				"name":        t.Name,
-				"description": t.Description,
-				"parameters":  t.Schema,
-			},
-		})
-	}
-	return out
-}
-
-// Call returns a failed tool's error as content instead of ending the turn,
-// because "the search engine is refusing us" is something the model should say
-// out loud.
-func (r *Registry) Call(ctx context.Context, d *Deps, name string, raw json.RawMessage) Result {
-	start := time.Now()
-	res := Result{Name: name, Args: raw}
-	t, ok := r.Get(name)
-	if !ok {
-		res.Err = fmt.Sprintf("no tool named %q", name)
-		res.Content = map[string]any{"error": res.Err}
-		res.Elapsed = time.Since(start)
-		return res
-	}
-	var args map[string]any
-	if len(raw) > 0 {
-		// Running the tool on no arguments would blame a missing field, when
-		// what the model has to fix is the length of the call.
-		if err := json.Unmarshal(raw, &args); err != nil {
-			res.Err = "the arguments were cut off or are not valid JSON, call it again with shorter arguments"
-			res.Content = map[string]any{"error": res.Err}
-			res.Elapsed = time.Since(start)
-			return res
-		}
-	}
-	out, err := t.Run(ctx, d, args)
-	if err != nil {
-		res.Err = err.Error()
-		res.Content = map[string]any{"error": err.Error()}
-	} else {
-		res.Content = out
-	}
-	res.Elapsed = time.Since(start)
-	return res
-}
-
 func argStr(a map[string]any, k string) string {
 	if v, ok := a[k]; ok {
 		if s, ok := v.(string); ok {
@@ -241,18 +154,4 @@ func str(desc string) map[string]any { return map[string]any{"type": "string", "
 func num(desc string) map[string]any { return map[string]any{"type": "number", "description": desc} }
 func integer(desc string) map[string]any {
 	return map[string]any{"type": "integer", "description": desc}
-}
-
-// Only narrows an offer to the named tools, for a turn with one job to do where
-// every other tool is a way to get lost.
-func Only(schemas []map[string]any, names ...string) []map[string]any {
-	var out []map[string]any
-	for _, s := range schemas {
-		if fn, ok := s["function"].(map[string]any); ok {
-			if n, _ := fn["name"].(string); slices.Contains(names, n) {
-				out = append(out, s)
-			}
-		}
-	}
-	return out
 }
