@@ -11,6 +11,7 @@ import (
 
 // Default is every tool the chat is offered, and the schemas and the dispatch
 // table are both built from it so a tool can't exist in one and not the other.
+// A new tool is its own file and a line here, and its traits tell the turn the rest.
 func Default() *Registry {
 	r := &Registry{}
 	for _, t := range []Tool{
