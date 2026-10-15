@@ -93,8 +93,8 @@ func TestExactTitleTriesTheCapital(t *testing.T) {
 	}
 }
 
-// The failure this guard exists for: a short query with no article of its own,
-// where the best ranked hit shares nothing with it and reads as an answer.
+// A short query with no article of its own, where the best ranked hit shares
+// nothing with it, has to be a miss instead of being read as an answer.
 func TestShortQueryWithNoRealMatchIsAMiss(t *testing.T) {
 	srv, _ := fakeKiwix(t,
 		map[string]string{"Abu_Simbel_temples": "<p>Abu Simbel is in Egypt.</p>"},
@@ -113,9 +113,9 @@ func TestShortQueryWithNoRealMatchIsAMiss(t *testing.T) {
 	}
 }
 
-// A question is not what this takes. Ranking lead sections across 19 million
-// articles answered "who is the leader of north korea" with a military history
-// article, so a question is refused and the model is told to pass the subject.
+// The top ranked lead for "who is the leader of north korea" is a military
+// history article, so a question is refused and the model is told to pass the
+// subject.
 func TestAQuestionIsRefusedRatherThanAnsweredWrong(t *testing.T) {
 	srv, _ := fakeKiwix(t,
 		map[string]string{"Military_history_of_Korea": "<p>Korea's military history.</p>"},
@@ -145,7 +145,7 @@ func TestTheSubjectBehindAQuestionResolves(t *testing.T) {
 }
 
 // A title carrying more than was asked for still matches when the extra is a
-// qualifier, which is how a place resolves from the name people use for it.
+// qualifier, so a place resolves from the name people use for it.
 func TestAQualifiedTitleStillMatches(t *testing.T) {
 	srv, _ := fakeKiwix(t,
 		map[string]string{"Yadkin_Valley,_North_Carolina": "<p>The Yadkin Valley is a region.</p>"},
@@ -173,9 +173,8 @@ func TestTheLicenceFooterIsStripped(t *testing.T) {
 	}
 }
 
-// The infobox is kept as labelled lines rather than flattened into the prose.
-// Throwing it away read better and lost the row that answers who holds an
-// office, which is the only place a lead names an incumbent.
+// The infobox is kept as labelled lines instead of flattened into the prose,
+// since it holds the row that answers who holds an office.
 func TestTheInfoboxBecomesLabelledLines(t *testing.T) {
 	article := `<h1>Sourdough</h1>
 	<table class="infobox"><tr><th>Type</th><td>Bread</td></tr>
@@ -197,9 +196,8 @@ func TestTheInfoboxBecomesLabelledLines(t *testing.T) {
 	}
 }
 
-// The failure this was written for. "Prime Minister of Japan" describes the
-// office in its lead and names the current holder only in the infobox, so
-// dropping the table meant the snapshot could not answer who it is.
+// "Prime Minister of Japan" names the current holder only in the infobox, so
+// dropping the table leaves the snapshot unable to say who it is.
 func TestTheIncumbentRowSurvives(t *testing.T) {
 	article := `<table class="infobox">
 	<tr><td>Standard of the prime minister</td></tr>
@@ -258,8 +256,8 @@ func TestTheInfoboxIsCapped(t *testing.T) {
 	}
 }
 
-// Cutting at the first heading is what keeps this a lead section if the ZIM is
-// ever swapped for a flavour that carries whole articles.
+// Cutting at the first heading keeps this a lead section if the ZIM is ever
+// swapped for a flavour that carries whole articles.
 func TestOnlyTheLeadSectionIsReturned(t *testing.T) {
 	article := `<p>The lead sentence.</p><h2 id="History">History</h2><p>Everything after.</p>`
 	srv, _ := fakeKiwix(t, map[string]string{"Thing": article}, nil)

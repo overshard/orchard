@@ -1,11 +1,6 @@
-// Files a turn can carry.
-//
-// A file arrives with the turn, is read into text and the bytes are dropped, so
-// there is no upload directory to age out and incognito stays true to its name.
-// The extracted text is already in the conversation, so a follow up about a file
-// works without the file being sent again. A picture is the exception, since
-// there is no text in it and the image model needs the picture itself, so it is
-// kept with the conversation the way a drawn one is.
+// A file is read into text and its bytes dropped, so there's no upload directory
+// to age out, incognito stays true to its name and a follow up finds the text in
+// the conversation. A picture is kept, since the image model needs the picture.
 package main
 
 import (
@@ -52,10 +47,9 @@ type filePart struct {
 	Picture []byte
 }
 
-// readFiles turns the uploaded parts into text. A file that cannot be read is
-// not an error for the turn: it comes back with Err set and the model is told
-// which files it did not get, which is better than refusing the whole message
-// because one of five was a screenshot.
+// A file that can't be read isn't an error for the turn. It comes back with Err
+// set and the model is told which files it didn't get, which beats refusing the
+// whole message because one of five was a screenshot.
 func readFiles(headers []*multipart.FileHeader) []filePart {
 	if len(headers) > maxFiles {
 		headers = headers[:maxFiles]
@@ -133,11 +127,9 @@ func extract(name string, raw []byte) (string, string, error) {
 	return normalise(string(raw)), textKind(name), nil
 }
 
-// pdfText tries poppler first and the pure Go reader second.
-//
-// A bank statement is normally encrypted with an empty owner password, which the
-// Go reader will not open at all, and what it does open comes back in object
-// order with no column alignment. pdftotext -layout keeps the columns.
+// pdfText tries poppler first since the Go reader won't open a bank statement
+// encrypted with an empty owner password, and what it does open comes back in
+// object order with no columns. pdftotext -layout keeps them.
 func pdfText(raw []byte) (string, error) {
 	if out, err := popplerText(raw); err == nil {
 		return out, nil
@@ -200,10 +192,9 @@ func popplerText(raw []byte) (string, error) {
 	return text, nil
 }
 
-// goPDFText is the fallback for a development run outside the container, where
-// poppler is not on the path. It recovers rather than propagating a panic,
-// because the reader panics on a malformed cross reference table instead of
-// returning an error.
+// goPDFText is the fallback for a development run where poppler isn't on the
+// path. It recovers because the reader panics on a malformed cross reference
+// table instead of returning an error.
 func goPDFText(raw []byte) (text string, err error) {
 	defer func() {
 		if r := recover(); r != nil {

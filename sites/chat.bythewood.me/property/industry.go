@@ -12,35 +12,27 @@ import (
 	"time"
 )
 
-// Whatever you would not want to find out about after closing, like a data
-// centre going up behind the tree line, a landfill, a quarry, a plant with an
-// air permit or a Superfund site.
-//
-// Two sources, since neither covers it alone. OpenStreetMap has the landfills,
-// quarries, data centres and power plants that somebody mapped, and EPA's
-// facility layers have every plant that holds an air permit and every Superfund
-// site whether or not anybody mapped it.
+// OpenStreetMap only has what somebody mapped, and EPA's layers have every air
+// permit and Superfund site whether or not anybody mapped it, so it takes both.
 const industrySearchFeet = 4 * 5280
 
-// EPA's permit points are dense in a mill town, so their circle is smaller. A
-// furniture plant four miles off is the next town over.
+// EPA's permit points are dense in a mill town, and a furniture plant four miles
+// off is the next town over.
 const epaSearchMiles = 3
 
 const epaFacilities = "https://geopub.epa.gov/arcgis/rest/services/EMEF/efpoints/MapServer"
 
-// Layer 0 is Superfund and 3 is ICIS-AIR. Layer 1, the toxics inventory, was left
-// out because a plant that closed in 2005 is still on it with nothing saying so.
+// Layer 1, the toxics inventory, is left out since a plant that closed in 2005 is
+// still on it with nothing saying so.
 const (
 	epaSuperfundLayer = 0
 	epaAirLayer       = 3
 )
 
-// Bump when what is cached changes shape, so an older row is fetched again rather
-// than decoded into zeroes.
+// Bump when IndustryResult changes shape, so an older row isn't decoded into zeroes.
 const industryCacheKind = "industry1"
 
-// How many of each kind are worth naming. A town with nine furniture plants reads
-// the same with three named and a count.
+// A town with nine furniture plants reads the same with three named and a count.
 const industryPerKind = 3
 
 type IndustrySite struct {
@@ -51,9 +43,9 @@ type IndustrySite struct {
 
 type IndustryResult struct {
 	Measured bool `json:"measured"`
-	// Nearest few of each kind, closest first overall.
+	// Closest first, a few of each kind.
 	Sites []IndustrySite `json:"sites"`
-	// How many of each kind were inside the search, including the unnamed ones.
+	// Including the unnamed ones.
 	Counts  map[string]int `json:"counts"`
 	Partial bool           `json:"partial"`
 }
@@ -77,8 +69,8 @@ func NewIndustry(db *sql.DB, roads *Roads) *Industry {
 }
 
 func (in *Industry) Lookup(ctx context.Context, lat, lon float64) (IndustryResult, error) {
-	// Three decimal places is about a hundred yards, which moves nothing that is
-	// measured in miles.
+	// Three decimal places is about a hundred yards, which moves nothing measured
+	// in miles.
 	key := fmt.Sprintf("%.3f,%.3f", lat, lon)
 
 	var payload string
@@ -142,9 +134,8 @@ func (in *Industry) osm(ctx context.Context, lat, lon float64) ([]IndustrySite, 
 	south, west, north, east := boxAround(lat, lon, industrySearchFeet)
 	box := fmt.Sprintf("(%.4f,%.4f,%.4f,%.4f)", south, west, north, east)
 
-	// The highway clause is there so a mirror's answer is never empty. The mirror
-	// code reads an empty list as a mirror with no data, and a house with nothing
-	// industrial for four miles is the answer everybody hopes for.
+	// The highway clause keeps the answer from being empty, since the mirror code
+	// reads an empty list as a mirror with no data.
 	q := fmt.Sprintf("[out:json][timeout:%d];(", int(overpassAttempt.Seconds())) +
 		`nwr["telecom"="data_center"]` + box + ";" +
 		`nwr["building"="data_center"]` + box + ";" +
@@ -201,7 +192,6 @@ func (in *Industry) osm(ctx context.Context, lat, lon float64) ([]IndustrySite, 
 	return out, nil
 }
 
-// industryKind maps an element back to the arm of the union that returned it.
 // Order matters, since a data centre is often also tagged as industrial land.
 func industryKind(t map[string]string) string {
 	switch {
@@ -214,8 +204,8 @@ func industryKind(t map[string]string) string {
 	case t["man_made"] == "wastewater_plant":
 		return "sewage works"
 	case t["power"] == "plant":
-		// A solar farm is a power plant to OSM and is nothing like a gas turbine
-		// to live beside.
+		// A solar farm is a power plant to OSM and nothing like a gas turbine to
+		// live beside.
 		if t["plant:source"] == "solar" {
 			return "solar farm"
 		}
@@ -282,7 +272,6 @@ func (in *Industry) epaLayer(ctx context.Context, layer int, lat, lon float64) (
 	return out, nil
 }
 
-// Line is the one sentence the summary carries.
 func (r IndustryResult) Line() string {
 	if !r.Measured {
 		return "not measured"
@@ -293,8 +282,8 @@ func (r IndustryResult) Line() string {
 		}
 		return "nothing industrial mapped within four miles"
 	}
-	// The nearest of each kind, so three plants in town cannot push the landfill
-	// out of the sentence.
+	// One per kind, so three plants in town can't push the landfill out of the
+	// sentence.
 	var parts []string
 	seen := map[string]bool{}
 	for _, s := range r.Sites {

@@ -23,8 +23,8 @@ func TestLoadedReadsTheGatewayAndNeverWakesTheModel(t *testing.T) {
 	if name != "Ornith 1.5 9B" {
 		t.Errorf("name = %q", name)
 	}
-	// /health and a completion both load the weights, which is the whole thing
-	// this endpoint exists to avoid.
+	// /health and a completion both load the weights, and this endpoint exists
+	// to avoid that.
 	if path != "/v1/running" {
 		t.Errorf("asked the gateway for %q", path)
 	}
@@ -43,7 +43,7 @@ func TestAGatewayThatDoesNotAnswerReadsAsDownAndNotAsFree(t *testing.T) {
 }
 
 // The picture model takes the card when a picture is drawn, and the chip has to
-// name that one rather than the chat model it was built around.
+// name that one instead of the chat model it was built around.
 func TestLoadedNamesWhicheverModelIsOnTheCard(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, `{"loaded":true,"models":[{"model":"local","name":"Ornith 1.5 9B","state":"stopping"},`+

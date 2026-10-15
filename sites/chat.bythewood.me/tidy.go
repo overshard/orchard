@@ -1,22 +1,17 @@
 package main
 
-// What the contract asks for and does not get.
-//
-// Both are repaired in Go rather than asked for again, since a rule the model
-// has already been given and ignored is not worth a second model call. Neither
-// changes what an answer says, only what is left on the end of it.
+// What the contract asks for and doesn't get is repaired in Go instead of asked
+// for again, since a rule the model was given and ignored isn't worth a second
+// call. None of it changes what an answer says.
 
 import (
 	"regexp"
 	"strings"
 )
 
-// A closing offer of more help. Isaac's stored preference says not to write one
-// and the contract repeats it, and answers still end on "Want me to...?".
-//
-// Every pattern needs a first person subject or an imperative aimed at him, so a
-// genuine question about what he meant survives. "Which of the two did you
-// mean?" is the turn needing an answer to continue.
+// A closing offer of more help, which his stored preference and the contract both
+// rule out and answers still end on. Every pattern needs a first person subject or
+// an imperative aimed at him, so a real question about what he meant survives.
 var closingOffers = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)^(want|would you like|do you want|shall i|should i)\b.*\?$`),
 	regexp.MustCompile(`(?i)^(if you want|if you'?d like|if that helps|let me know)\b.*[.?!]$`),
@@ -25,8 +20,8 @@ var closingOffers = []*regexp.Regexp{
 }
 
 // dropClosingOffer removes an offer of further help from the end of an answer.
-// Only from the end, and only when something else is left: an answer that is
-// nothing but an offer had a reason to be, and the gate is what deals with it.
+// Only from the end, and only when something else is left, since an answer that's
+// nothing but an offer had a reason to be and the gate deals with it.
 func dropClosingOffer(text string) string {
 	lines := strings.Split(text, "\n")
 	for i := len(lines) - 1; i >= 0; i-- {
@@ -34,8 +29,8 @@ func dropClosingOffer(text string) string {
 		if t == "" {
 			continue
 		}
-		// A list item or a heading is structure rather than a sign off, and a
-		// fence is code.
+		// A list item or a heading is structure and not a sign off, and a fence
+		// is code.
 		if strings.HasPrefix(t, "#") || strings.HasPrefix(t, ">") ||
 			strings.HasPrefix(t, "|") || strings.HasPrefix(t, "```") {
 			return text
@@ -48,8 +43,8 @@ func dropClosingOffer(text string) string {
 			return text
 		}
 		if strings.TrimSpace(strings.Join(lines[:i], "")) == "" && kept == "" {
-			// The offer was the whole answer. Leave it: an empty reply is worse
-			// than one that asks a question.
+			// The offer was the whole answer, and an empty reply is worse than one
+			// that asks a question.
 			return text
 		}
 		if kept == "" {
@@ -88,12 +83,9 @@ func withoutOffer(line string) string {
 
 func stripEmphasis(s string) string { return strings.Trim(strings.TrimSpace(s), "*_ ") }
 
-// A bracketed label the model wrote where a citation number goes, picked up from
-// the numbered sources and filled with a name, which lands in the answer as
-// "The S&P 500 is down 26.05 to 7692.55 [S&P 500]" and links to nothing.
-//
-// RE2 has no lookahead, so a markdown link cannot be excluded in the pattern and
-// the character after the match is checked instead.
+// A bracketed label like "[S&P 500]" the model wrote where a citation number goes,
+// which links to nothing. RE2 has no lookahead, so a markdown link can't be
+// excluded in the pattern and the character after the match is checked instead.
 var labelMark = regexp.MustCompile(`\s*\[[^\]\n]{1,40}\]`)
 
 // dropLabelMarks removes those, outside code and outside a fence, and leaves

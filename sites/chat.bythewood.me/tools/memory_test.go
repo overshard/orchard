@@ -115,7 +115,7 @@ func TestRememberWithNoStore(t *testing.T) {
 }
 
 // The store merges a rewording into the fact it already holds and hands back that
-// id, and the reply over it said "the fix is in" with nothing written.
+// id, which must not be reported as a change.
 type mergingStub struct{ memStub }
 
 func (m *mergingStub) Add(string) (int64, error) { return 1, nil }

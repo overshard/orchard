@@ -5,12 +5,9 @@ import (
 	"fmt"
 )
 
-// Every table here is a cache. None of it is a record of anything, so losing the
-// lot costs a rebuild of the lookups and nothing else, which is why it lives in
-// chat's own database rather than a volume of its own.
-//
-// Every statement is IF NOT EXISTS and this runs at startup, so a schema change
-// is a new guarded block and never a migration.
+// Every table here is a cache, so losing it costs a rebuild and it can live in
+// chat's database. Each statement is IF NOT EXISTS and runs at startup, so a
+// schema change is a new guarded block, never a migration.
 const schema = `
 -- What somebody else's server said about a fixed fact. A flood zone does not
 -- change between Tuesdays, so asking twice is rude as well as slow.
@@ -64,8 +61,7 @@ CREATE TABLE IF NOT EXISTS reports (
 );
 `
 
-// Migrate applies the schema. It is separate from opening the database because
-// chat owns that, and this package only adds its own tables to it.
+// Migrate only adds this package's tables, since chat owns opening the database.
 func Migrate(db *sql.DB) error {
 	if _, err := db.Exec(schema + spendSchema); err != nil {
 		return fmt.Errorf("property schema: %w", err)

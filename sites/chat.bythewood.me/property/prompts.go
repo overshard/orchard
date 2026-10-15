@@ -2,32 +2,22 @@ package property
 
 import "fmt"
 
-// What else there is to ask about this house.
-//
-// A report holds eleven sections and a first answer shows one, so the rest are
-// invisible to anybody who does not already know they are there. Asked about a
-// household member's work, the model looked the name up in the encyclopedia, and
-// the reason was the same: nothing ever said the drives were in here. Naming the
-// questions is the general fix, and it beats teaching the model one household.
+// A first answer shows one section, so the rest are invisible to anybody who
+// doesn't already know they're there, the model included.
 
-// Prompt is a chip. The label is what it reads as, and the ask is what gets sent,
-// which is a whole question carrying the address because it arrives as the next
-// turn with none of this conversation behind it.
-//
-// Both come from here rather than the label being derived from the question in
-// the page, which turned "What is there to do near X" into "Is there to do".
+// Prompt is a chip. Ask carries the whole address since it arrives as the next
+// turn with none of this conversation behind it, and Label is written here since
+// deriving it in the page turned "What is there to do near X" into "Is there to do".
 type Prompt struct {
 	Label string `json:"label"`
 	Ask   string `json:"ask"`
 }
 
-// Prompts are the follow ups worth offering, only for the sections that have
-// something in them, since an offer that comes back empty is worse than none.
+// Prompts skips empty sections, since an offer that comes back empty is worse
+// than none.
 func (r *Report) Prompts() []Prompt {
-	// The whole address, not the street line. A chip arrives as the next turn
-	// with none of this conversation behind it, and "402 Sample Rd" on its own
-	// does not geocode, so every chip came back "could not place" and the model
-	// started inventing towns to bolt on.
+	// The street line alone doesn't geocode, and the model then invents towns to
+	// bolt on.
 	where := r.Full()
 	if where == "" {
 		return nil
@@ -46,8 +36,7 @@ func (r *Report) Prompts() []Prompt {
 		add("Schools", "What schools is %s zoned for, and what is the drop off detour?")
 	}
 	if r.Morning.Commute.Minutes > 0 || len(r.Drives) > 0 {
-		// Phrased to cover the whole household without naming anybody, which is
-		// the half of this that keeps working when the config changes.
+		// Names nobody, so it keeps working when the config changes.
 		add("Commutes", "How long are the commutes and the school run from %s, for everyone in the house?")
 	}
 	if r.Flood.Measured {

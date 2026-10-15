@@ -5,19 +5,15 @@ import (
 	"sync"
 )
 
-// The record of what a turn actually did, kept so the page can show it. A step
-// says what went in and what came out, and the page draws them as a list under
-// the answer.
-//
-// It is written next to the message and is bounded: a system prompt is several
-// thousand characters and a page of them per turn would grow the database
-// faster than the conversation does.
+// What a turn did is kept next to the message for the page to show, and it's
+// bounded since a system prompt is several thousand characters and a page of them
+// per turn would grow the database faster than the conversation does.
 
 // What one field of one step may store.
 const stepMax = 1200
 
-// How many steps a turn may record. Six tool rounds with a gate and a nudge
-// each is comfortably inside this, and a runaway turn cannot write a megabyte.
+// How many steps a turn may record. Every tool round with a gate and a nudge
+// each fits inside this, and a runaway turn can't write a megabyte.
 const stepsMax = 60
 
 type Step struct {
@@ -28,8 +24,8 @@ type Step struct {
 	In    string `json:"in,omitempty"`
 	Out   string `json:"out,omitempty"`
 	MS    int64  `json:"ms,omitempty"`
-	// Something failed or was rejected, which the page colours rather than
-	// hides, since a refused tool is part of the work.
+	// Something failed or was rejected, which the page colours instead of
+	// hiding, since a refused tool is part of the work.
 	Bad bool `json:"bad,omitempty"`
 	// Free text for whatever the step counts, like "1,204 in / 86 out".
 	Meta string `json:"meta,omitempty"`

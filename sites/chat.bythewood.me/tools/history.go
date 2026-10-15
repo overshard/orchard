@@ -1,10 +1,7 @@
 package tools
 
-// Searching earlier conversations.
-//
-// The other half of memory. Memory keeps one sentence facts about Isaac and this
-// reaches what was actually said, since a tool result dies with the turn that
-// fetched it and only the answer survives.
+// Memory keeps one sentence facts about Isaac and chat_history reaches what was
+// actually said, since a tool result dies with the turn that fetched it.
 
 import (
 	"context"
@@ -22,8 +19,8 @@ type PastExchange struct {
 	Answer   string    `json:"answer"`
 }
 
-// History is chat's own conversation store, an interface for the same reason
-// Memory is: this package cannot see the database the site owns.
+// History is an interface because this package can't see the database the
+// site owns.
 type History interface {
 	SearchPast(query string, limit int) ([]PastExchange, error)
 }

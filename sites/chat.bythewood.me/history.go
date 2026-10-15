@@ -1,9 +1,6 @@
-// Conversations on disk, and the mode that keeps them off it.
-//
-// A second database rather than more tables beside anything else, so deleting
-// every conversation is possible without touching whatever else the site caches
-// and a separate file is one line to exclude from a backup. Deletion is forward
-// only, so the way to keep something out of a backup is never to put it in one.
+// Conversations on disk, and the incognito mode that keeps them off it. Deletion
+// is forward only, so the way to keep something out of a backup is never to put
+// it in one.
 package main
 
 import (
@@ -103,19 +100,17 @@ CREATE TABLE IF NOT EXISTS image_runs (
 );
 `
 
-// DB is for the property package, which owns its own tables in this database
-// rather than a second one. Nothing else reaches in here.
+// DB is for the property package, which owns its own tables in this database.
+// Nothing else reaches in here.
 func (s *Store) DB() *sql.DB { return s.db }
 
 func OpenStore(path string) (*Store, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return nil, err
 	}
-	// secure_delete zeroes a deleted row rather than leaving it in the free
-	// pages, which is the difference between deleting a conversation and
-	// deleting the text of one. _txlock is there because a deferred transaction
-	// that reads first gets SQLITE_BUSY on the upgrade, which busy_timeout does
-	// not retry.
+	// secure_delete zeroes a deleted row instead of leaving its text in the free
+	// pages. _txlock is there because a deferred transaction that reads first
+	// gets SQLITE_BUSY on the upgrade, and busy_timeout doesn't retry that.
 	db, err := sql.Open("sqlite", path+"?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=secure_delete(ON)&_pragma=foreign_keys(ON)&_txlock=immediate")
 	if err != nil {
 		return nil, err
@@ -153,7 +148,7 @@ func migrate(db *sql.DB) {
 
 // migrateIDs rebuilds both tables when the conversation id is still a counter.
 // SQLite cannot change a column's type and the ids have to be handed out before
-// anything can point at them, so it is a copy rather than an update.
+// anything can point at them, so it's a copy and not an update.
 func migrateIDs(db *sql.DB) {
 	rows, err := db.Query(`PRAGMA table_info(conversations)`)
 	if err != nil {
@@ -263,7 +258,7 @@ func run(tx *sql.Tx, stmt string, args ...any) error {
 
 // Close checkpoints the write ahead log into the database file before closing.
 // Without this the newest conversations live only in the -wal, and a container
-// stopped with SIGKILL rather than SIGTERM can lose them.
+// stopped with SIGKILL instead of SIGTERM can lose them.
 func (s *Store) Close() error {
 	if _, err := s.db.Exec(`PRAGMA wal_checkpoint(TRUNCATE)`); err != nil {
 		slog.Warn("wal checkpoint", "err", err)
@@ -272,8 +267,8 @@ func (s *Store) Close() error {
 }
 
 // Checkpoint folds the log into the file without closing. It runs after every
-// turn, so the cost of a hard kill is at most the turn in flight rather than
-// everything since the process started.
+// turn, so a hard kill loses at most the turn in flight instead of everything
+// since the process started.
 func (s *Store) Checkpoint() {
 	if _, err := s.db.Exec(`PRAGMA wal_checkpoint(PASSIVE)`); err != nil {
 		slog.Debug("wal checkpoint", "err", err)
@@ -320,8 +315,8 @@ type ToolSummary struct {
 	OK   bool   `json:"ok"`
 	Err  string `json:"err,omitempty"`
 	// How old the data behind this call is, for a tool that reads a snapshot
-	// rather than the live thing. Shown on the chip, because an answer off a
-	// local corpus looks exactly like one off the web otherwise.
+	// and not the live thing. Shown on the chip, because an answer off a local
+	// corpus looks exactly like one off the web otherwise.
 	Age string `json:"age,omitempty"`
 }
 
@@ -449,7 +444,7 @@ func (s *Store) Delete(convID string) error {
 }
 
 // DeleteAll drops every conversation. VACUUM afterwards so the pages actually
-// come back rather than sitting in the file as free space.
+// come back instead of sitting in the file as free space.
 func (s *Store) DeleteAll() error {
 	if _, err := s.db.Exec(`DELETE FROM conversations`); err != nil {
 		return err
@@ -495,7 +490,7 @@ func fmtWhen(t time.Time) string {
 }
 
 // Penalties reads back the rate limit boxes that outlived the last process.
-// Anything already expired is left behind rather than deleted here, since the
+// Anything already expired is left alone instead of deleted here, since the
 // next Trip overwrites it and a read should not write.
 func (s *Store) Penalties() map[string][2]int64 {
 	out := map[string][2]int64{}
@@ -548,10 +543,9 @@ func (s *Store) Spend(host string) []time.Time {
 	return out
 }
 
-// SaveSpend replaces a host's record with what the budget currently holds, and
-// drops what has aged out in the same statement. Called after a turn rather
-// than per request, since losing the last turn's counts to a hard kill costs
-// less than a write on the request path.
+// SaveSpend replaces a host's record with what the budget holds and drops what
+// has aged out in the same statement. It runs after a turn, since losing one
+// turn's counts to a hard kill costs less than a write on the request path.
 func (s *Store) SaveSpend(host string, at []time.Time) {
 	tx, err := s.db.Begin()
 	if err != nil {

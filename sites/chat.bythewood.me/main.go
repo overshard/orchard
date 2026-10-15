@@ -35,9 +35,9 @@ const (
 	author     = "Isaac Bythewood"
 )
 
-// csp is the same shape as every other site here. 'unsafe-inline' is for the
-// analytics collector snippet, which is an inline script by design, and for the
-// handful of inline style attributes the templates set.
+// csp matches every other site here. 'unsafe-inline' is for the analytics
+// collector snippet, which is an inline script, and for the inline style
+// attributes the templates set.
 func csp() string {
 	return strings.Join([]string{
 		"default-src 'self'",
@@ -91,7 +91,7 @@ func main() {
 	}
 }
 
-// realMain returns rather than exits, so its deferred closes and the log
+// realMain returns instead of exiting so the deferred closes and the log
 // shipper's flush run on every path out.
 func realMain() error {
 	var (
@@ -119,9 +119,8 @@ func realMain() error {
 		return nil
 	}
 
-	// Past the healthcheck branch, so a HEALTHCHECK invocation does not start a
-	// queue it will never flush. This was the only one of the eleven sites not
-	// shipping, which is why logging.bythewood.me had no record of chat at all.
+	// Past the healthcheck branch, so a HEALTHCHECK invocation doesn't start a
+	// queue it will never flush.
 	shipper := web.ShipLogs(selfSource, web.HTTPSink())
 	defer shipper.Close()
 
@@ -160,16 +159,15 @@ func realMain() error {
 		s.detached.Wait()
 	}()
 	s.engine.Render = s.render
-	// The remember tool writes to this process's own database rather than to a
-	// service, so it is handed the store rather than a url.
+	// The remember tool writes to this process's own database, so it's handed
+	// the store instead of a url.
 	s.engine.Deps().Memory = memoryStore{store}
 	s.engine.Deps().History = historyStore{store}
 	s.painter = NewPainter(llm, *imgModel, *imgName, store)
 	s.engine.Deps().Images = s.painter
-	// The house lookups, which own their own tables in the same database. A
-	// missing config is not fatal: the engine runs on placeholders and every
-	// report says which config it used, since a tool that will not answer is
-	// harder to notice than one that says what it is missing.
+	// The house lookups own their tables in the same database. A missing config
+	// isn't fatal, the engine runs on placeholders and every report says which
+	// config it used.
 	if pcfg, err := property.LoadConfig(*propCfg); err != nil {
 		return fmt.Errorf("property config %s: %w", *propCfg, err)
 	} else if pe, err := property.NewEngine(store.DB(), pcfg); err != nil {
@@ -178,13 +176,12 @@ func realMain() error {
 		s.engine.Deps().Property = pe
 		slog.Info("property lookups ready", "config", pcfg.Label)
 	}
-	// The rate limit boxes survive a restart. Without this every deploy asked a
-	// host that was already refusing, which is how a ban gets renewed rather
-	// than expiring.
+	// The rate limit boxes survive a restart, or every deploy asks a host that's
+	// already refusing and a ban gets renewed instead of expiring.
 	s.engine.RestoreGuard(store, store.Penalties())
 	s.engine.RestoreSpend(store.Spend(tools.SearchHost))
 	// Finished runs are kept a while so a tab coming back can still read one,
-	// and swept after that rather than held until the process restarts.
+	// and swept after that instead of held until the process restarts.
 	go func() {
 		for range time.Tick(5 * time.Minute) {
 			s.runs.Sweep(time.Now())
@@ -195,14 +192,13 @@ func realMain() error {
 	}
 
 	mux := http.NewServeMux()
-	// Everything is gated, since this site reads Isaac's own infrastructure through
-	// its tools, so there is no anonymous surface past the root.
-	// The root is the one public page, and a signed in visitor gets the app here
-	// rather than the pitch.
+	// Everything past the root is gated since the tools read Isaac's own
+	// infrastructure. The root is the one public page, and a signed in visitor
+	// gets the app there instead of the pitch.
 	mux.HandleFunc("GET /{$}", s.root)
 	mux.HandleFunc("GET /c/{id}", s.auth.RequireAuth(s.page))
-	// Memory. Reading and deleting are plain pages and plain posts, and the
-	// only way to write is the one that goes through the model.
+	// Memory. Reading and deleting are plain JSON calls, and the only way to
+	// write is the one that goes through the model.
 	mux.HandleFunc("GET /api/memory", s.auth.RequireAuthJSON(s.memoryList))
 	mux.HandleFunc("POST /api/memory/teach", s.auth.RequireAuthJSON(s.memoryTeach))
 	mux.HandleFunc("DELETE /api/memory/{id}", s.auth.RequireAuthJSON(s.memoryDelete))
@@ -211,12 +207,10 @@ func realMain() error {
 	// nothing a session would protect.
 	mux.Handle("GET /static/", s.static())
 	// Signing in happens on auth.bythewood.me, and this is here so an old
-	// bookmark lands somewhere useful rather than on a redirect loop.
+	// bookmark lands somewhere useful instead of on a redirect loop.
 	mux.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, web.LoginURL(r), http.StatusSeeOther)
 	})
-	// Not gated, because the container's own health check calls it over loopback
-	// with no cookie and it says nothing.
 	// Without a robots.txt of our own the edge serves a default that restricts
 	// nothing, and the noindex meta tag is needed too since a crawler obeying
 	// robots.txt never fetches the page.
@@ -226,6 +220,8 @@ func realMain() error {
 		_, _ = w.Write([]byte("User-agent: *\nDisallow: /\n"))
 	})
 
+	// Not gated, because the container's own health check calls it over loopback
+	// with no cookie and it says nothing.
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		fmt.Fprintln(w, "ok")
@@ -289,9 +285,8 @@ func (s *site) loadTemplates() error {
 func (s *site) static() http.Handler {
 	fs := web.NoDirs(http.FileServerFS(assets()))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Assets come off disk in development so a CSS edit shows up on
-		// reload, and out of the binary in the release build. That split is
-		// why an embedded stylesheet does not silently ignore an edit.
+		// Assets come off disk in development, and no-store there means a CSS
+		// edit shows up on reload.
 		if Reloaded {
 			w.Header().Set("Cache-Control", "no-store")
 		} else {
@@ -364,7 +359,7 @@ type sendReq struct {
 }
 
 // A turn's whole upload, across every file on it. The per file ceiling is in
-// attach.go and this is the one that stops ten of them at once.
+// attach.go.
 const maxUploadBytes = 64 << 20
 
 // readSend accepts either JSON or a multipart form, since a turn carrying files
@@ -384,7 +379,7 @@ func readSend(w http.ResponseWriter, r *http.Request) (sendReq, []filePart, erro
 	}
 	// Anything over the memory limit was spooled to a temp file, so the parts
 	// are turned into text here and the spill is dropped before the turn runs,
-	// rather than sitting there for the twelve minutes a turn may take.
+	// instead of sitting there for the twelve minutes a turn may take.
 	defer func() { _ = r.MultipartForm.RemoveAll() }()
 
 	req.Message = strings.TrimSpace(r.FormValue("message"))
@@ -398,7 +393,7 @@ func readSend(w http.ResponseWriter, r *http.Request) (sendReq, []filePart, erro
 	return req, readFiles(headers), nil
 }
 
-// send starts one turn and streams it. Server sent events rather than a
+// send starts one turn and streams it. Server sent events instead of a
 // websocket since the traffic is one way and this survives a proxy. The turn
 // runs detached, so closing the tab drops the reader and the turn carries on.
 func (s *site) send(w http.ResponseWriter, r *http.Request) {
@@ -446,7 +441,7 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 		}
 		rn.setQuestion(q)
 		// Counted before the turn joins the queue, so a tab that reads the list
-		// on hearing this sees it waiting rather than working for a second.
+		// on hearing this sees it waiting instead of working for a second.
 		if waiting, running := s.queue.Depth(); running {
 			rn.setWaiting(waiting + 1)
 		}
@@ -461,10 +456,9 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 		defer cancel()
 		id, title, ok := key, "", false
 		defer rn.Finish()
-		// Every ending is announced, a failed or stopped one included, or the
-		// sidebar on another tab says working until something else refreshes it.
-		// It goes out before Finish so the tab reading the stream is still
-		// attached when it hears, and does not read the conversation twice.
+		// Every ending is announced, failed or stopped too, or another tab's
+		// sidebar says working until something refreshes it. It goes out before
+		// Finish so the reading tab is still attached and doesn't read it twice.
 		defer func() {
 			if !req.Incognito {
 				s.hub.Publish(HubEvent{Kind: "finished", ConvID: id, Title: title, Failed: !ok})
@@ -481,10 +475,8 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 	s.streamRun(w, r, rn)
 }
 
-// streamRun writes a run to one browser: everything it has already produced,
-// then whatever comes next until the turn ends or this reader goes away. events
-// is the meta stream every open tab holds, so a turn started anywhere is known
-// everywhere.
+// events is the meta stream every open tab holds, so a turn started anywhere is
+// known everywhere.
 func (s *site) events(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-store")
@@ -496,7 +488,7 @@ func (s *site) events(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	// An immediate frame, so a proxy that buffers until it sees output lets the
-	// stream through rather than holding it until the first real event.
+	// stream through instead of holding it until the first real event.
 	if _, err := fmt.Fprint(w, ": open\n\n"); err != nil || rc.Flush() != nil {
 		return
 	}
@@ -531,6 +523,8 @@ func (s *site) events(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// streamRun writes a run to one browser, everything it has already produced and
+// then whatever comes next until the turn ends or this reader goes away.
 func (s *site) streamRun(w http.ResponseWriter, r *http.Request, tr *turnRun) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-store")
@@ -577,18 +571,16 @@ func (s *site) streamRun(w http.ResponseWriter, r *http.Request, tr *turnRun) {
 	}
 }
 
-// turn is the work, with no http in it. It writes into the run rather than to a
-// response, which is what lets it outlive the request that started it. It hands
-// back the conversation the turn ended up in, which for a new one is not key.
+// turn is the work, with no http in it. It writes into the run instead of a
+// response so it can outlive the request, and hands back the conversation the
+// turn ended up in, which for a new one isn't key.
 func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, parts []filePart, session string) (string, string, bool) {
 	prompt := composeTurn(req.Message, parts)
 	emit := func(e Event) { rn.Emit(e) }
 	tr := NewTrace(emit)
 
-	// One turn at a time. There is one card behind this and llama.cpp runs it
-	// with a single slot, so two turns at once interleave and both take longer.
-	// The waiting is shown, since a tab sat on "thinking" looks broken and one
-	// that says it is second in line looks like a queue.
+	// One turn at a time, since llama.cpp runs the one card with a single slot.
+	// The waiting is shown since a tab sat on "thinking" looks broken.
 	release, ok := s.queue.Enter(ctx, func(q QueueState) {
 		emit(Event{Kind: "status", Text: waitingLabel(q)})
 		if q.Position > 0 && rn.setWaiting(q.Position) && !req.Incognito {
@@ -603,9 +595,9 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 	if rn.setWaiting(0) && !req.Incognito {
 		s.hub.Publish(HubEvent{Kind: "working", ConvID: key})
 	}
-	// Every model call this turn makes hangs off this context, including the
-	// ones the tools start, so marking it here is what keeps the gateway from
-	// writing down what the local database is not writing down either.
+	// Every model call this turn makes hangs off this context, the tools' too,
+	// so marking it here keeps the gateway from writing down what the local
+	// database isn't writing down either.
 	if req.Incognito {
 		ctx = WithIncognito(ctx)
 	}
@@ -637,7 +629,7 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 
 	flagging := !req.Incognito && req.ConvID != "" && len(stored) > 0 && len(parts) == 0 && flagAsk.MatchString(req.Message)
 
-	// Warm the weights while the window is being built rather than after. A
+	// Warm the weights while the window is being built instead of after. A
 	// change to a picture never asks the chat model anything, and warming it
 	// would only put it on the card for klein to take straight back off.
 	refs := referencesOf(ctx)
@@ -645,10 +637,9 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 		go s.llm.Warm(context.WithoutCancel(ctx))
 	}
 
-	// Retrieval is against what the user typed, not the composed prompt, since
-	// the text of an attachment would swamp the scoring with its own words.
-	// A picture says nothing about him, and a fact about liking well worn
-	// interiors got a sofa drawn threadbare.
+	// Retrieval is against what he typed and not the composed prompt, since an
+	// attachment's text would swamp the scoring. A picture says nothing about him,
+	// and a fact about liking well worn interiors got a sofa drawn threadbare.
 	var recalled []Fact
 	if !flagging && !isPictureAsk(req.Message, history) && len(refs.Attached) == 0 && !(refs.Last != "" && isPictureChange(req.Message, history)) {
 		recalled = s.store.Relevant(req.Message, factsPerTurn, !req.Incognito)
@@ -730,10 +721,9 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 		}
 	}
 
-	// After the answer is on its way, never in front of it. Incognito is
-	// excluded: a mode that writes nothing down cannot be the one that teaches
-	// it something to write down later. So is a picture, which says nothing
-	// about him and would swap the chat model straight back on to find that out.
+	// After the answer is on its way, never in front of it. Not for incognito,
+	// which can't teach it something to write down later, and not for a picture,
+	// which says nothing about him and would swap the chat model straight back on.
 	if !req.Incognito && !drew && !flagging {
 		s.detached.Go(func() {
 			// Recovered here and not by the middleware, which only wraps the
@@ -788,7 +778,7 @@ func (s *site) stop(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"stopped": s.runs.Cancel(r.PathValue("id"))})
 }
 
-// waitingLabel says where in the queue a turn is, in words rather than a
+// waitingLabel says where in the queue a turn is, in words instead of a
 // number on its own, since "2" beside a spinner reads as an error code. The
 // turn on the card counts as one ahead, so this agrees with the list's number.
 func waitingLabel(q QueueState) string {
@@ -809,7 +799,7 @@ func (s *site) render(md string) string {
 }
 
 // renderCited is the same render with the citation numbers turned into links.
-// The markdown is stored with its numbers rather than its anchors, so a change
+// The markdown is stored with its numbers instead of its anchors, so a change
 // to how a pill looks does not need every old message rewritten.
 func (s *site) renderCited(md string, srcs []Source) string {
 	return linkCitations(s.render(md), srcs)
@@ -875,8 +865,8 @@ func (s *site) getConversation(w http.ResponseWriter, r *http.Request) {
 	}
 	conv, _ := s.store.Get(id)
 	// Whether a turn is still writing into this conversation, so a tab that
-	// comes back knows to attach and follow rather than render what is stored
-	// and stop, which is how a half finished turn looked like a lost one.
+	// comes back attaches and follows instead of rendering what's stored and
+	// stopping like the turn was lost.
 	running := false
 	if rn, ok := s.runs.Get(id); ok {
 		running = rn.Running()
@@ -952,7 +942,7 @@ func (s *site) unload(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"loaded": false})
 }
 
-// jsonErr answers with the reason rather than a bare status, since the caller
+// jsonErr answers with the reason instead of a bare status, since the caller
 // here is a script that has to say something to a reader.
 func jsonErr(w http.ResponseWriter, code int, err error) {
 	w.Header().Set("Content-Type", "application/json")
@@ -1003,7 +993,7 @@ func formatNum(v any) string {
 }
 
 // snapshotAge reads the date a tool's data was taken, when it has one. Any tool
-// answering from a snapshot rather than the live source reports it the same
+// answering from a snapshot instead of the live source reports it the same
 // way, so the chip needs no per tool knowledge.
 func snapshotAge(content any) string {
 	m, ok := content.(map[string]any)

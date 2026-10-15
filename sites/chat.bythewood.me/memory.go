@@ -1,12 +1,6 @@
-// What the chat remembers about Isaac between conversations.
-//
-// One sentence facts and nothing longer. A memory that holds paragraphs is a
-// second transcript, and what makes this worth carrying into every turn is that
-// it costs almost nothing to carry.
-//
-// Every write goes through the model under the rules below. A fact typed by
-// hand drifts out of the shape the retrieval expects and a contradiction typed
-// by hand leaves both versions in, so deleting is the one manual operation.
+// What the chat remembers about Isaac between conversations, in one sentence facts
+// so it costs almost nothing to carry into every turn. Every write goes through the
+// model, since a fact typed by hand drifts out of the shape retrieval expects.
 package main
 
 import (
@@ -28,11 +22,10 @@ const (
 	// for a list, since a watch list is one fact and not eight.
 	maxFactChars = 300
 	// How many facts a turn carries. Enough to be useful, few enough that a
-	// wrong one is visible rather than buried.
+	// wrong one is visible instead of buried.
 	factsPerTurn = 6
 	// A message with more distinct terms than this needs two in common with a
-	// fact before the fact is recalled. One shared word out of four was chance
-	// every time it happened: "sync" found a mirror, "over" found a sofa.
+	// fact before the fact is recalled, since one shared word there is chance.
 	shortMessageTerms = 3
 )
 
@@ -79,12 +72,9 @@ func (s *Store) Facts() ([]Fact, error) {
 	return out, rows.Err()
 }
 
-// AddFact is idempotent on the subject rather than on the exact text.
-//
-// The unique index only catches a fact proposed back word for word, so without
-// this a turn writes two nearly identical facts and leaves a third standing that
-// contradicts both. The model is asked to replace and cannot be relied on to,
-// and both the automatic pass and the remember tool land here.
+// AddFact is idempotent on the subject and not just the exact text, since the
+// model is asked to replace a fact and can't be relied on to. Both the automatic
+// pass and the remember tool land here.
 func (s *Store) AddFact(text string) (int64, error) {
 	text = tidyFact(text)
 	if text == "" {
@@ -141,10 +131,8 @@ func (s *Store) sameSubject(text string) (id int64, replace bool) {
 	return id, replace
 }
 
-// How alike two facts have to be before they are treated as one. Measured
-// against the duplicates the database actually accumulated: the pair about X
-// post search scores 0.75, "Isaac has a young son" inside the longer fact that
-// already says it scores 1.0, and no unrelated pair in the table reaches 0.5.
+// How alike two facts have to be before they're treated as one. Real duplicates
+// in the table scored 0.75 and up and no unrelated pair reached 0.5.
 const (
 	sameSubjectAt  = 0.7
 	minSharedTerms = 3
@@ -186,9 +174,9 @@ func (s *Store) markUsed(ids []int64) {
 	}
 }
 
-// Relevant scores every fact against the message in Go rather than in SQL. This
-// is a few hundred rows at most, so a full scan costs less than the round trip,
-// and the scoring is a function with a test.
+// Relevant scores every fact against the message in Go instead of SQL, since a
+// full scan of a few hundred rows costs less than the round trip and the scoring
+// is a function with a test.
 func (s *Store) Relevant(message string, limit int, mark bool) []Fact {
 	all, err := s.Facts()
 	if err != nil || len(all) == 0 {
@@ -216,7 +204,7 @@ func (s *Store) Relevant(message string, limit int, mark bool) []Fact {
 			hits = append(hits, scored{f, n})
 		}
 	}
-	// A tie goes to the newer fact. Not to the most used one, since every recall
+	// A tie goes to the newer fact and not the most used one, since every recall
 	// counts as a use and a fact that matched by accident would keep winning.
 	sort.SliceStable(hits, func(i, j int) bool {
 		if hits[i].n != hits[j].n {
@@ -341,9 +329,8 @@ func tidyFact(s string) string {
 	return s
 }
 
-// cutFact shortens an overlong fact at the last clause that fits, since cut at
-// the byte it stored "and possibly route traffic through a firewall (UFW) first
-// before Caddy" with the end of the thought gone.
+// cutFact shortens an overlong fact at the last clause that fits, since a fact
+// cut at the byte loses the end of the thought.
 func cutFact(s string) string {
 	cut := s[:maxFactChars]
 	for _, sep := range []string{". ", ", ", " "} {
@@ -356,12 +343,9 @@ func cutFact(s string) string {
 
 // ---------------------------------------------------------------- the rules
 
-// factRules is the whole contract for writing to this. It is one string used by
-// both the pass that runs after a turn and the box in the memory panel, so the
-// two cannot disagree about what belongs here.
-//
-// The framing is positive. Listing what not to keep first reads to a small model
-// as permission to propose nothing at all.
+// factRules is the whole contract for writing here, shared by the pass after a
+// turn and the memory panel so the two can't disagree. A small model reads a list
+// of what not to keep as permission to propose nothing, so the framing is positive.
 const factRules = `You pull durable facts about Isaac out of a conversation and keep them for later.
 
 Your job is to notice what was revealed about him. Read the exchange and write down each thing that will still be true in six months.
@@ -387,7 +371,7 @@ Reply with JSON and nothing else:
 {"changes":[{"op":"add","fact":"..."},{"op":"replace","id":3,"fact":"..."},{"op":"delete","id":7}]}`
 
 // memChange is one proposed edit. Delete and replace carry the id of the fact
-// they act on, which is why the existing facts are numbered in the prompt.
+// they act on, so the existing facts are numbered in the prompt.
 type memChange struct {
 	Op   string `json:"op"`
 	ID   int64  `json:"id,omitempty"`
@@ -395,10 +379,9 @@ type memChange struct {
 	Why  string `json:"why,omitempty"`
 }
 
-// Remember runs the extraction pass over one exchange and applies what comes
-// back. It is called after the answer has been sent, so its cost is never in
-// front of the reader, and every failure is logged and dropped rather than
-// surfaced, because a memory that did not save is not worth an error message.
+// Remember runs the extraction pass over one exchange after the answer is sent,
+// so its cost is never in front of the reader, and a failure is logged and dropped
+// since a memory that didn't save isn't worth an error message.
 func (s *site) Remember(ctx context.Context, user, assistant string) {
 	if strings.TrimSpace(user) == "" {
 		return
@@ -414,9 +397,8 @@ func (s *site) Remember(ctx context.Context, user, assistant string) {
 		slog.Error("the memory pass failed", "err", err)
 		return
 	}
-	// Logged at info even when nothing changed. A pass that silently proposes
-	// an empty list every time looks exactly like one that is not running, and
-	// telling those apart took a trip through the gateway's call log.
+	// Logged at info even when nothing changed, since a pass that proposes an
+	// empty list every time looks just like one that isn't running.
 	applied := s.applyChanges(changes, existing)
 	slog.Info("memory pass", "known", len(existing), "proposed", len(changes), "applied", len(applied))
 }
@@ -521,9 +503,9 @@ func (s *site) applyChanges(changes []memChange, existing []Fact) []memChange {
 	return applied
 }
 
-// looksSecret is a last fence rather than the only one. The rules already say
-// not to keep a credential, and a model that ignores them once must not be able
-// to write one into a file that is read into every future turn.
+// looksSecret is a last fence behind the rules, since a model that ignores them
+// once must not be able to write a credential into a file that's read into every
+// future turn.
 func looksSecret(s string) bool {
 	low := strings.ToLower(s)
 	for _, w := range []string{"password", "passphrase", "api key", "apikey", "secret key",
@@ -557,9 +539,9 @@ func looksRandom(s string) bool {
 	return digits > 0 && upper > 0 && lower > 0
 }
 
-// memoryBlock is what gets folded into the system prompt. It is left out
-// entirely when nothing matched, rather than saying it knows nothing, which a
-// model reads as an instruction to talk about not knowing things.
+// memoryBlock is what gets folded into the system prompt. It's left out entirely
+// when nothing matched, since a block saying it knows nothing reads to a model as
+// an instruction to talk about not knowing things.
 func memoryBlock(facts []Fact) string {
 	if len(facts) == 0 {
 		return ""

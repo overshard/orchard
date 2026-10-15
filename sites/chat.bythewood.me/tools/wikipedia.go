@@ -1,15 +1,8 @@
 package tools
 
-// A local Wikipedia, served by kiwix off a ZIM on the bridge.
-//
-// The snapshot is the mini flavour, which carries every article's lead section
-// and nothing below the first heading. That is the half that answers what and
-// who and when, and it is the half that fits: a full article runs 18k to 50k
-// tokens and one of them would spend most of the window on a single tool
-// result. Depth stays a web_fetch away on the url this returns.
-//
-// It reaches a container on the bridge, so it costs no outbound request and
-// keeps working while a search host has this address blocked.
+// A local Wikipedia, served by kiwix off the mini ZIM, which carries each lead
+// section and fits where a full article would spend the window. It's on the
+// bridge, so it costs no outbound request and works while a search host blocks us.
 
 import (
 	"context"
@@ -30,11 +23,11 @@ import (
 var WikiBase = "http://orchard-wiki:8000"
 
 // kiwix names a book after its file, so the deploy calls the ZIM wikipedia.zim
-// and this matches. Getting it wrong answers 400 rather than an empty result.
+// and this matches. Getting it wrong answers 400, not an empty result.
 const wikiBook = "wikipedia"
 
-// What one lead section is allowed to cost. Measured leads run well under this
-// and the cap is for the occasional long one rather than the common case.
+// What one lead section is allowed to cost. Most run well under it and the cap
+// is for the occasional long one.
 const wikiMaxChars = 4000
 
 var Wikipedia = Tool{
@@ -63,13 +56,9 @@ var Wikipedia = Tool{
 	},
 }
 
-// A subject whose head noun is something that changes by the hour, and the tool
-// that does answer it. Asked for "Big news today" the snapshot returned the
-// founding date of Universe Today, which is a real article and a useless answer,
-// and the contract telling the model not to do this did not stop it.
-//
-// The head noun rather than any word in the phrase, so "News Corporation" and
-// "Marketplace" still look up as the things they are.
+// liveInstead names the tool for a subject whose head noun changes by the hour,
+// since "Big news today" otherwise finds Universe Today. The head noun and not any
+// word, so "News Corporation" and "Marketplace" still look up as what they are.
 func liveInstead(q string) string {
 	f := strings.Fields(strings.ToLower(strings.Trim(q, " \t?.!,:;")))
 	if len(f) == 0 {
@@ -113,17 +102,16 @@ func wikiLookup(ctx context.Context, d *Deps, base, q string) (any, error) {
 	}
 
 	// Titles of the runners up, so a wrong first guess can be corrected with a
-	// second call rather than a search.
+	// second call instead of a search.
 	var also []string
 	for _, h := range hits[1:] {
 		also = append(also, h.Title)
 	}
 
 	top := hits[0]
-	// The argument names a thing, so its article is named after it. Ranking
-	// lead sections across 19 million of them puts something unrelated on top
-	// often enough that handing the best hit over regardless is how the model
-	// gets told the leader of North Korea is a military history article.
+	// The argument names a thing, so its article is named after it, and the top
+	// ranked lead is unrelated often enough to tell the model the leader of North
+	// Korea is a military history article.
 	if !wikiMatches(q, top.Title) {
 		return wikiMiss(append([]string{top.Title}, also...)), nil
 	}
@@ -161,8 +149,8 @@ func wikiResult(ctx context.Context, d *Deps, base, title, text string, also []s
 	return out
 }
 
-// isDisambiguation spots a page that lists the things sharing a name. "define
-// pareto" landed on one and the answer read it as the definition.
+// isDisambiguation spots a page that lists the things sharing a name, which a
+// model otherwise reads as a definition.
 func isDisambiguation(text string) bool {
 	head := strings.ToLower(strings.TrimSpace(text))
 	if len(head) > 400 {
@@ -222,10 +210,9 @@ func wikiWords(s string) []string {
 	return out
 }
 
-// wikiMatches asks whether the article is about the thing that was asked for,
-// rather than whether it mentions it. Half the title's own words have to appear
-// in the query, so "North Korea" matches and "Military history of Korea" does
-// not, which is the difference between an answer and a confident wrong one.
+// wikiMatches asks whether the article is about the thing asked for and doesn't
+// only mention it. Half the title's own words have to appear in the query, so
+// "North Korea" matches and "Military history of Korea" doesn't.
 func wikiMatches(q, title string) bool {
 	tw := wikiWords(title)
 	if len(tw) == 0 {
@@ -270,7 +257,7 @@ var (
 	wikiH1      = regexp.MustCompile(`(?is)<h1[^>]*>.*?</h1\s*>`)
 	wikiCutHead = regexp.MustCompile(`(?is)<h[23][^>]*>`)
 	// kiwix appends the Creative Commons notice to every article, so without
-	// this every single summary ends on the same two sentences of licence.
+	// this every summary ends on the same two sentences of licence.
 	wikiFooter = regexp.MustCompile(`(?is)<div[^>]*class="[^"]*zim-footer[^"]*"`)
 	wikiTitle  = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title\s*>`)
 	// The infobox. Flattened to text it reads as a run of labels with no
@@ -306,15 +293,8 @@ const (
 	wikiMaxFactsLen = 600
 )
 
-// wikiInfobox pulls the labelled rows out of the first table.
-//
-// Throwing the whole table away reads better and loses the one line that
-// answers who currently holds an office: "Prime Minister of Japan"
-// describes the office in its lead and names the incumbent only here. A row is
-// kept as "Label: value", and a row with no label is kept on its own, since
-// that is the shape the incumbent row comes in.
-// Captions on the images an infobox opens with. They are the only unlabelled
-// rows that are not facts, so they are named rather than guessed at.
+// Captions on the images an infobox opens with, the only unlabelled rows that
+// aren't facts, so they're named instead of guessed at.
 var captionStart = []string{"emblem of", "standard of", "flag of", "seal of", "logo of",
 	"coat of arms", "portrait of", "official portrait", "map of", "photograph of"}
 
@@ -328,7 +308,7 @@ func wikiCaption(v string) bool {
 	return false
 }
 
-// The spouse row's "m. 2012; sep. 2021" was read as still married.
+// A model reads the spouse row's "m. 2012; sep. 2021" as still married.
 var (
 	zeroWidth    = strings.NewReplacer("\u200b", "", "\u200c", "", "\u200d", "", "\ufeff", "")
 	marriageMark = regexp.MustCompile(`\b(m|sep|div)\.\s+(\d{4})`)
@@ -344,6 +324,9 @@ func spellMarriage(t string) string {
 	return strings.Join(strings.Fields(t), " ")
 }
 
+// wikiInfobox keeps the rows of the first table, since "Prime Minister of Japan"
+// names its incumbent only here. A row with no label is kept on its own, since
+// that's the shape the incumbent row comes in.
 func wikiInfobox(h string) []string {
 	m := wikiTable.FindString(h)
 	if m == "" {
@@ -365,8 +348,8 @@ func wikiInfobox(h string) []string {
 				value = t
 			}
 		}
-		// A stylesheet that survived, which is what the class rules in a cell
-		// flatten to, and it is never a fact.
+		// The class rules in a cell flatten to a stylesheet, which is never a
+		// fact.
 		if strings.Contains(value, "mw-parser-output") || strings.Contains(label, "mw-parser-output") {
 			continue
 		}
@@ -437,9 +420,9 @@ func wikiArticle(ctx context.Context, d *Deps, base, link string) (title, text s
 	return title, text, nil
 }
 
-// wikiGet does not go through get(). The Guard and the budgets exist for third
-// party hosts that rate limit this address, and putting a container on the
-// bridge in the penalty box would take the snapshot out over a blip.
+// wikiGet skips get() since the Guard and the budgets are for third party hosts
+// that rate limit this address, and boxing a container on the bridge would take
+// the snapshot out over a blip.
 func wikiGet(ctx context.Context, d *Deps, rawURL string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
@@ -456,10 +439,9 @@ func wikiGet(ctx context.Context, d *Deps, rawURL string) ([]byte, error) {
 	return io.ReadAll(io.LimitReader(resp.Body, 8<<20))
 }
 
-// The snapshot's own date, kept after the first call that answers. A model told
-// this is offline but not told how old it is will present a two month old fact
-// as current. Only a success latches, since caching the failure would leave a
-// container that started before kiwix reporting an unknown date for good.
+// The snapshot's date, latched on the first success, since a model not told how
+// old an offline fact is presents it as current, and latching a failure would
+// leave a container that started before kiwix with an unknown date for good.
 var (
 	wikiDateMu  sync.Mutex
 	wikiDateVal string

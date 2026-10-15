@@ -1,9 +1,6 @@
-// Compaction. A small model degrades on a long conversation, so the old turns
-// become a summary and the recent ones stay verbatim.
-//
-// llama.cpp caches the prompt prefix it has already processed and a rewrite of
-// the history throws that away, so compaction happens at a threshold rather
-// than every turn and the summary sits at the front where it stays put.
+// A small model degrades on a long conversation, so old turns become a summary.
+// llama.cpp caches the prompt prefix and rewriting the history throws it away,
+// so it runs at a threshold, not every turn, and the summary stays at the front.
 package main
 
 import (
@@ -47,7 +44,7 @@ func (c *Compactor) budgetChars() int {
 
 // Window turns a stored conversation into what the model is handed. It returns
 // the messages plus whether it compacted, so the caller can persist a new
-// summary rather than recomputing one every turn.
+// summary instead of recomputing one every turn.
 func (c *Compactor) Window(ctx context.Context, conv Conversation, stored []Stored) (msgs []Message, summary string, covered int, changed bool) {
 	summary, covered = conv.Summary, conv.Summarize
 	if covered > len(stored) {
@@ -85,7 +82,7 @@ func (c *Compactor) Window(ctx context.Context, conv Conversation, stored []Stor
 	return msgs, summary, covered, changed
 }
 
-// summarise rewrites the whole summary rather than appending to it, so it stops
+// summarise rewrites the whole summary instead of appending to it, so it stops
 // growing without bound.
 func (c *Compactor) summarise(ctx context.Context, prev string, older []Stored) (string, error) {
 	var b strings.Builder
@@ -149,8 +146,8 @@ func (c *Compactor) Title(ctx context.Context, first, answer string) string {
 		return ""
 	}
 	// A model that answers with a sentence and then explains itself still gave
-	// a usable name on its first line, so take that rather than throwing the
-	// whole thing away and falling back to the raw question.
+	// a usable name on its first line, so take that instead of falling back to
+	// the raw question.
 	t := strings.TrimSpace(out.Content)
 	if i := strings.IndexByte(t, '\n'); i >= 0 {
 		t = t[:i]

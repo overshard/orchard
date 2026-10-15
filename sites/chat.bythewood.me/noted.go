@@ -1,9 +1,6 @@
-// A message that is only an instruction to write something down.
-//
-// The prompt already asks for remember, and a model that reads an instruction
-// as the start of a job goes looking instead and spends the round budget
-// without ever writing the note. So the other tools come off the table, all but
-// the lookups when the note asks for one.
+// A message that's only an instruction to write something down. A model that
+// reads it as the start of a job goes looking and spends the round budget without
+// writing the note, so the other tools come off the table, all but the lookups.
 package main
 
 import (

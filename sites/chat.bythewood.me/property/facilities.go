@@ -9,23 +9,17 @@ import (
 	"time"
 )
 
-// Where a nurse can work, as points on a map rather than as addresses to place.
-//
-// NC OneMap publishes the DHSR licensing data already located, so there is
-// nothing to geocode and nothing to fail. Downloading the roster and geocoding
-// every row fails on the ones listed at a PO box, and Caldwell Memorial is one.
-//
-// Two layers, hospitals and the nursing and assisted living homes, queried
-// around the house rather than by county, since a county line is not a commute.
+// NC OneMap publishes the DHSR licensing data already located, where geocoding
+// the roster fails on rows listed at a PO box. Queried around the house, not by
+// county, since a county line isn't a commute.
 const ncHealth = "https://services.nconemap.gov/secure/rest/services/NC1Map_Health/MapServer"
 
 type healthLayer struct {
 	id    string
 	kind  string
 	label string
-	// The name column, which differs between the two layers. Asking for a field a
-	// layer does not have fails the whole query with "Failed to execute query" and
-	// no clue which field was wrong.
+	// Differs per layer. Asking for a field a layer doesn't have fails the whole
+	// query with "Failed to execute query" and no clue which field was wrong.
 	nameField string
 }
 
@@ -34,9 +28,7 @@ var healthLayers = []healthLayer{
 	{"3", "nursing_home", "nursing or assisted living", "name"},
 }
 
-// How far around a house to look for somewhere to work. Wider than the search
-// band for houses, because a commute to work is allowed to be longer than a
-// commute to school and the score decides what is near rather than this.
+// Wide, since a commute to work is allowed to be longer than one to school.
 const facilitySearchFeet = 35 * 5280
 
 type Facility struct {
@@ -66,8 +58,7 @@ func NewFacilities(db *sql.DB, _ *Geocoder) *Facilities {
 	}
 }
 
-// Around returns every facility within the search radius of a point, cached on
-// the rounded coordinate. Two requests per new area and none after that.
+// Around is cached on the rounded coordinate.
 func (f *Facilities) Around(ctx context.Context, lat, lon float64) ([]Facility, error) {
 	key := fmt.Sprintf("%.3f,%.3f", lat, lon)
 
@@ -135,9 +126,8 @@ func (f *Facilities) Around(ctx context.Context, lat, lon float64) ([]Facility, 
 	return out, nil
 }
 
-// Nearest is the n closest by straight line, which only decides which are worth
-// routing. A hospital is always kept alongside the homes, since the nearest
-// three homes in one town would otherwise hide the hospital in the next.
+// Nearest takes n of each kind by straight line, so the nearest homes in one
+// town don't hide the hospital in the next.
 func (f *Facilities) Nearest(ctx context.Context, lat, lon float64, n int) ([]Facility, error) {
 	all, err := f.Around(ctx, lat, lon)
 	if err != nil {
@@ -168,7 +158,3 @@ func sortByDistance(f []Facility, lat, lon float64) {
 		}
 	}
 }
-
-// Unused, kept out: the DHSR bed counts and licence numbers. They are on the
-// rosters and not on these layers, and neither changes whether a place is
-// somewhere to apply.

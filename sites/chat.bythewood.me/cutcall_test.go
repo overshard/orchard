@@ -19,10 +19,9 @@ const brokenArgsRefusal = `{"error":{"code":500,"type":"server_error","message":
 	`arguments as JSON: [json.exception.parse_error.101] parse error at line 1, column 5419: syntax error ` +
 	`while parsing value - invalid string: missing closing quote; last read: 'directed by Feige, directed by Feige'"}}`
 
-// cutStub is a model that refuses any request carrying a call with broken
-// arguments, the way llama.cpp does. Its first tool round answers with first,
-// every round after that answers in prose, and a request with no tools is the
-// answer step.
+// cutStub refuses any request carrying a call with broken arguments, the way
+// llama.cpp does. Its first tool round answers with first, every later round
+// answers in prose, and a request with no tools is the answer step.
 type cutStub struct {
 	mu      sync.Mutex
 	first   []ToolCall

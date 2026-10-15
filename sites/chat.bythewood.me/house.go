@@ -10,10 +10,9 @@ import (
 	"chat.bythewood.me/tools"
 )
 
-// A question about a house is looked up before the model decides anything. Told
-// by the gate to call property, it answered twice more without calling it and
-// then gave a clean bill on industry the report had measured, so the call is
-// made here rather than asked for.
+// A house question is looked up before the model decides anything. Told by the
+// gate to call property, it answered twice more without it and then gave a clean
+// bill on industry the report had measured, so the call is made here.
 
 // Only an address that runs through to a zip code is taken, since a cold lookup
 // spends one of a few allowed an hour and a street line on its own often fails to
@@ -80,9 +79,8 @@ func priceIn(text string) int {
 }
 
 // houseQuestion works out which house a turn is about and which sections it
-// wants. A question naming no address is a follow up about the last house the
-// conversation named, and only counts when it asks for a section by its words,
-// since "what's the weather there" is not a question for the public record.
+// wants. A question with no address is about the last house named, but only when
+// it names a section, since "what's the weather there" isn't a records question.
 func houseQuestion(question string, history []Message) (addr string, price int, sections []string) {
 	sections = houseSectionsFor(question)
 	addr, price = houseAddress(question), priceIn(question)

@@ -1,13 +1,8 @@
 package main
 
-// Searching what was said in earlier conversations.
-//
-// A tool result dies with the turn that fetched it and only the answer survives,
-// so a question about something settled last week had nothing to reach for.
-// Memory keeps one sentence facts about Isaac and this keeps what was said.
-//
-// Candidate rows come out of SQLite with a LIKE per term so the whole table
-// never lands in memory, and the ranking is done in Go where it can be tested.
+// A tool result dies with its turn and only the answer survives, so this
+// searches what was said, beside memory's one sentence facts. Rows come out of
+// SQLite with a LIKE per term and are ranked in Go, where it can be tested.
 
 import (
 	"fmt"
@@ -31,7 +26,7 @@ type Hit struct {
 const searchExcerpt = 700
 
 // SearchHistory finds earlier exchanges matching a query. It returns whole
-// exchanges rather than single messages, since an answer with no question in
+// exchanges instead of single messages, since an answer with no question in
 // front of it reads as an assertion from nowhere.
 func (s *Store) SearchHistory(query string, limit int) ([]Hit, error) {
 	want := terms(query)

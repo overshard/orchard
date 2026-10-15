@@ -49,8 +49,8 @@ func TestSearchHistoryFindsTheRightExchange(t *testing.T) {
 	}
 }
 
-// The stemmer is what makes a real question reach a stored one. Without it
-// "rifle" never finds "rifles", which is the same failure memory hit first.
+// Without the stemmer "rifle" never finds "rifles", which is the same failure
+// memory hit first.
 func TestSearchHistoryStems(t *testing.T) {
 	s := searchStore(t)
 	hits, err := s.SearchHistory("rifle", 5)

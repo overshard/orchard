@@ -26,8 +26,8 @@ func TestHubReachesEveryOpenTab(t *testing.T) {
 }
 
 // A tab on a locked phone stops reading. Waiting on it would stall the turn
-// doing the publishing and every other tab with it, and these events are a hint
-// to go and re-read rather than a record that has to arrive.
+// doing the publishing and every other tab with it, and these events are only a
+// hint to go and re-read, not a record that has to arrive.
 func TestHubDoesNotBlockOnATabThatStoppedReading(t *testing.T) {
 	h := NewHub()
 	_, cancel := h.Subscribe()

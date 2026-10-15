@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// Time arithmetic is done here rather than by the model, which read 8:27 and
+// Time arithmetic is done here instead of by the model, which read 8:27 and
 // said 10am was 33 minutes away.
 
 var (

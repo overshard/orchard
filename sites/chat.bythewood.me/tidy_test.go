@@ -3,8 +3,7 @@ package main
 import "testing"
 
 // Isaac's stored preference says no closing offer of more help, the contract
-// repeats it and the final turn repeats it again. Four answers on 2026-09-08
-// still ended on one.
+// repeats it and the final turn repeats it again, and answers still end on one.
 func TestDropClosingOffer(t *testing.T) {
 	cases := []struct{ name, in, want string }{
 		{"a trailing offer on its own line",

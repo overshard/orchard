@@ -9,13 +9,9 @@ import (
 	"time"
 )
 
-// The Census geocoder, because it needs no key, covers every US address, and is
-// run by the people who assign the address ranges. It answers with a point on a
-// matched street range rather than a rooftop, which is inside the tolerance here,
-// since a 300ft water buffer and a drive time do not turn on thirty feet.
-//
-// Nominatim is not used. Its terms cap bulk geocoding and OSM's coverage of
-// rural NC address points is thinner than TIGER's.
+// The Census geocoder needs no key and answers with a point interpolated on the
+// street, not a rooftop. Nominatim's terms cap bulk geocoding and OSM's rural NC
+// address points are thinner than TIGER's.
 const censusGeocodeURL = "https://geocoding.geo.census.gov/geocoder/locations/onelineaddress"
 
 type Geocoder struct {
@@ -26,8 +22,8 @@ type Geocoder struct {
 func NewGeocoder(db *sql.DB) *Geocoder {
 	return &Geocoder{
 		db: db,
-		// One a second. The service has no published rate limit, which is a
-		// reason to be careful rather than a licence.
+		// The service publishes no rate limit, which is a reason to be careful
+		// and not a licence.
 		guard: NewGuard(db, "census-geocoder", GuardOpts{
 			MinInterval: 1500 * time.Millisecond,
 			Budget:      60,
@@ -48,8 +44,7 @@ type censusResponse struct {
 	} `json:"result"`
 }
 
-// Geocode resolves one address, cached forever. An address does not move, so a
-// cache hit is always correct and the only reason to ask twice is a miss.
+// Geocode is cached forever, misses included, since an address doesn't move.
 func (g *Geocoder) Geocode(ctx context.Context, address string) (lat, lon float64, matched string, err error) {
 	key := strings.ToLower(strings.Join(strings.Fields(address), " "))
 	if key == "" {
@@ -62,8 +57,6 @@ func (g *Geocoder) Geocode(ctx context.Context, address string) (lat, lon float6
 		`SELECT lat, lon, matched FROM geocodes WHERE query = ?`, key).Scan(&clat, &clon, &cmatched)
 	if err == nil {
 		if !clat.Valid {
-			// A cached miss. Asking again every refresh for an address the
-			// geocoder has already said it cannot place is the loop this avoids.
 			return 0, 0, "", fmt.Errorf("no geocode match for %q", address)
 		}
 		return clat.Float64, clon.Float64, cmatched.String, nil
@@ -80,8 +73,8 @@ func (g *Geocoder) Geocode(ctx context.Context, address string) (lat, lon float6
 
 	var out censusResponse
 	if err := g.guard.Get(ctx, u, &out); err != nil {
-		// Not cached as a miss: a guarded or failed call is our problem, not an
-		// address that cannot be placed.
+		// Not cached as a miss, since a guarded or failed call says nothing
+		// about the address.
 		return 0, 0, "", err
 	}
 

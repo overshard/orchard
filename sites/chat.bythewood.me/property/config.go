@@ -7,26 +7,17 @@ import (
 	"strings"
 )
 
-// Everything personal lives in data/property.json, which is gitignored along with
-// the rest of the data directory. This repository is public, so the committed
-// half is property.example.json and carries placeholders: an address, a budget
-// and a child's school run are not facts to publish.
-//
-// A missing config is not fatal. The engine runs on these defaults and every
-// report says so, because a tool that refuses to answer is harder to fix than one
-// that tells you what it is missing.
+// Everything personal lives in data/property.json, which is gitignored since this
+// repository is public, and property.example.json carries placeholders.
 
 // Person is somebody in the household, so a question that names one of them
-// reaches this tool rather than being read as a subject to look up. house used
-// pseudonyms because its pages rendered on a phone somebody could glance at, and
-// this is a private conversation, so the real names belong here.
+// reaches this tool instead of being read as a subject to look up.
 type Person struct {
 	Name string `json:"name"`
 	Role string `json:"role"` // what they do, which is what "work nearby" means for them
 	Note string `json:"note,omitempty"`
 }
 
-// Place is somewhere a drive is measured to, every time, for whoever drives it.
 type Place struct {
 	Key   string  `json:"key"`
 	Name  string  `json:"name"`
@@ -38,9 +29,8 @@ type Place struct {
 	Daily bool    `json:"daily"`
 }
 
-// Geography is the one point everything else is measured from, which is the
-// office, plus the drive time band a house has to land inside to be worth talking
-// about.
+// Geography is the office everything else is measured from, plus the drive time
+// band a house has to land inside to be worth talking about.
 type Geography struct {
 	OriginName string  `json:"origin_name"`
 	OriginAddr string  `json:"origin_addr"`
@@ -53,15 +43,13 @@ type Geography struct {
 	Counties []string `json:"counties"`
 }
 
-// Thresholds are what a lookup needs to sort a measurement into good or bad. They
-// are here rather than in the code because which distance is close enough moves
-// as a person sees houses.
+// Thresholds are config since which distance is close enough moves as a person
+// sees houses.
 type Thresholds struct {
 	FloodZones []string `json:"flood_zones"`
 
-	// One buffer per kind of water. NHD maps every wet-weather ditch in these
-	// counties and nearly every rural parcel has one inside 300ft, so buffering
-	// all three alike flags most of the county without finding any flood risk.
+	// NHD maps every wet-weather ditch here and nearly every rural parcel has one
+	// inside 300ft, so one buffer for all water flags most of the county.
 	WaterBufferFeet        float64 `json:"water_buffer_feet"`
 	IntermittentBufferFeet float64 `json:"intermittent_buffer_feet"`
 	DitchBufferFeet        float64 `json:"ditch_buffer_feet"`
@@ -75,9 +63,8 @@ type Thresholds struct {
 	HighwayComfyFeet    float64 `json:"highway_comfy_feet"`
 }
 
-// Money is everything the payment needs that is not the price or the loan. The
-// loan terms themselves are in loans.go, since they are published figures rather
-// than preferences.
+// Money is everything the payment needs that isn't the price or the loan. Loan
+// terms are published figures, so they live in loans.go.
 type Money struct {
 	DownPaymentPercent float64 `json:"down_payment_percent"`
 	TermYears          int     `json:"term_years"`
@@ -89,9 +76,8 @@ type Money struct {
 	MonthlyCeiling     float64 `json:"monthly_ceiling"`
 	DPAAmount          float64 `json:"dpa_amount"`
 
-	// Household income and monthly debts, which USDA and every debt to income
-	// answer needs. Left at zero the loan comparison still works and the
-	// eligibility answers say what they could not check.
+	// Left at zero the loan comparison still works and the eligibility answers
+	// say what they couldn't check.
 	AnnualIncome    float64            `json:"annual_income"`
 	HouseholdSize   int                `json:"household_size"`
 	MonthlyDebts    float64            `json:"monthly_debts"`
@@ -102,16 +88,13 @@ type Money struct {
 	CountyTaxPer100 map[string]float64 `json:"county_tax_per_100"`
 	RevaluedYear    map[string]int     `json:"revalued_year"`
 
-	// USDA's guaranteed programme income cap per county, for a household of one
-	// to four. It is config because USDA publishes it as a PDF map and it moves
-	// every year, and an unconfigured county says it could not check rather than
-	// guessing.
+	// USDA's guaranteed income cap per county for a household of one to four. It's
+	// config since USDA publishes it as a PDF map that moves every year.
 	USDAIncomeLimit map[string]float64 `json:"usda_income_limit"`
 }
 
 func (m Money) usdaLimits() map[string]float64 { return m.USDAIncomeLimit }
 
-// Household is the family the drives are measured for.
 type Household struct {
 	DropoffGreatMin float64 `json:"dropoff_great_min"`
 	DropoffOkMin    float64 `json:"dropoff_ok_min"`
@@ -128,16 +111,16 @@ type Config struct {
 	People       []Person   `json:"people"`
 	Destinations []Place    `json:"destinations"`
 
-	// Set when data/property.json was not there, so a report can say the numbers
-	// in it are defaults and not his.
+	// Set when data/property.json wasn't there, so a report can say its numbers
+	// are defaults.
 	Defaulted bool `json:"-"`
 }
 
 func (c Config) HasOrigin() bool { return c.Geography.OriginLat != 0 || c.Geography.OriginLon != 0 }
 
-// RevaluationYear is the year a county's last general reappraisal took effect,
-// which is what an assessed value is as of. NC counties run four to eight years
-// between them, so a wrong year here is a whole cycle of drift.
+// RevaluationYear is when a county's last general reappraisal took effect. NC
+// counties run four to eight years between them, so a wrong year is a whole
+// cycle of drift.
 func (m Money) RevaluationYear(county string) int {
 	key := countyKey(county)
 	if y, ok := m.RevaluedYear[key]; ok {
@@ -146,14 +129,12 @@ func (m Money) RevaluationYear(county string) int {
 	return 0
 }
 
-// rateFor is the combined county plus municipal rate per $100 of assessed value.
-// Neighbouring counties differ enough to move a payment by $40 a month on the
-// same price, so a single average rate would be wrong in both directions at once.
+// rateFor is per $100 of assessed value, per county since neighbouring counties
+// differ enough that one average rate is wrong in both directions.
 func (m Money) rateFor(county, city string) (float64, string) {
 	key := countyKey(county)
 
-	// A city rate is looked up first, as "county:city", since a house inside town
-	// limits pays both.
+	// "county:city" comes first, since a house inside town limits pays both.
 	if city != "" {
 		ck := key + ":" + strings.ToLower(strings.TrimSpace(city))
 		if r, ok := m.CountyTaxPer100[ck]; ok {
@@ -177,8 +158,8 @@ func defaultConfig() Config {
 		Label: "defaults, no data/property.json",
 		Geography: Geography{
 			OriginName: "Work",
-			// Left empty, since a fake origin would compute a page of drive times
-			// to the wrong place and look like it worked.
+			// No origin, since a fake one would compute drive times to the wrong
+			// place and look like it worked.
 			IdealMinutes: 25,
 			MaxMinutes:   45,
 		},
@@ -215,9 +196,8 @@ func defaultConfig() Config {
 	}
 }
 
-// LoadConfig reads data/property.json. A missing file is not an error, and a
-// malformed one is, because silently running on defaults when a file exists hides
-// a typo behind numbers that look plausible.
+// LoadConfig treats a missing file as defaults and a malformed one as an error,
+// since running on defaults when a file exists hides a typo behind plausible numbers.
 func LoadConfig(path string) (Config, error) {
 	raw, err := os.ReadFile(path)
 	if os.IsNotExist(err) {

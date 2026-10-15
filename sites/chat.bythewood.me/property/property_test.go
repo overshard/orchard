@@ -71,8 +71,7 @@ func TestParsePMMSRefusesAFileWithNoRate(t *testing.T) {
 }
 
 func TestAmortize(t *testing.T) {
-	// $250,000 at 6.5% over 30 years is $1,580.17 a month, which is the figure
-	// every amortisation table prints.
+	// The figure every amortisation table prints.
 	got := amortize(250000, 6.5, 30)
 	if math.Abs(got-1580.17) > 0.01 {
 		t.Fatalf("got %.2f, want 1580.17", got)
@@ -80,15 +79,14 @@ func TestAmortize(t *testing.T) {
 	if amortize(0, 6.5, 30) != 0 || amortize(250000, 6.5, 0) != 0 {
 		t.Fatal("a loan of nothing or a term of nothing has to be zero, not a NaN")
 	}
-	// A zero rate is a real case at the edge of the formula, where r(1+r)^n over
-	// (1+r)^n - 1 is nought over nought.
+	// At a zero rate the formula is nought over nought.
 	if got := amortize(120000, 0, 10); math.Abs(got-1000) > 0.001 {
 		t.Fatalf("zero rate: got %.4f, want 1000", got)
 	}
 }
 
-// The PMI cliff at 80% is the whole reason a conventional loan wins once there is
-// a deposit behind it, so it has to be exact rather than nearly right.
+// The PMI cliff at 80% is why conventional wins once there's a deposit, so it
+// has to be exact.
 func TestConventionalPMIStopsAt80(t *testing.T) {
 	if p := conventionalPMI(80, 740); p != 0 {
 		t.Fatalf("at 80%% LTV there is no PMI, got %v", p)
@@ -101,9 +99,6 @@ func TestConventionalPMIStopsAt80(t *testing.T) {
 	}
 }
 
-// Above 90% at closing FHA's premium runs for the life of the loan, which is the
-// figure people are surprised by and the reason FHA can be dearer than
-// conventional at the same rate.
 func TestFHAMIPDuration(t *testing.T) {
 	_, life := fhaMIP(200000, 96.5)
 	if !strings.Contains(life, "life of the loan") {
@@ -142,9 +137,7 @@ func TestVAFundingFeeSteps(t *testing.T) {
 	}
 }
 
-// Every government programme finances its upfront fee, so it lands on the loan
-// and not on the cash to close. Getting that backwards makes USDA look like it
-// needs a deposit.
+// Getting this backwards makes USDA look like it needs a deposit.
 func TestUpfrontFeesAreFinancedNotPaid(t *testing.T) {
 	cfg := testConfig()
 	market := Market{Thirty: 6.95, Found: true, Week: "9/17/2026"}
@@ -170,9 +163,6 @@ func TestUpfrontFeesAreFinancedNotPaid(t *testing.T) {
 	}
 }
 
-// A programme that was not checked and one that was checked and failed must not
-// read alike, which is the same rule the whole engine follows about a missing
-// measurement.
 func TestUSDAUncheckedIsNotTheSameAsIneligible(t *testing.T) {
 	cfg := testConfig()
 	market := Market{Thirty: 6.95, Found: true}
@@ -218,8 +208,7 @@ func TestLoanOverTheConformingLimitIsBlocked(t *testing.T) {
 	}
 }
 
-// The programme's own floor wins over a lower figure, since quoting FHA at 3%
-// down would be a payment nobody can get.
+// Quoting FHA under its floor would be a payment nobody can get.
 func TestDownPaymentFloorIsApplied(t *testing.T) {
 	cfg := testConfig()
 	q := cfg.Quote("fha", LoanInput{Price: 200000, DownPct: 1}, Market{Thirty: 6.95, Found: true})
@@ -239,8 +228,6 @@ func TestRatesFallBelowConventionalForTheGovernmentProgrammes(t *testing.T) {
 	if noteRate(base, "conventional", 620) <= noteRate(base, "conventional", 780) {
 		t.Fatal("a worse score costs rate on a conventional loan")
 	}
-	// Government programmes are not priced on the score the same way, so the
-	// adjustment must not reach them.
 	if noteRate(base, "va", 620) != noteRate(base, "va", 780) {
 		t.Fatal("the conventional credit adjustment must not apply to VA")
 	}
@@ -262,8 +249,7 @@ func TestUSDAIncomeLimitRisesWithHousehold(t *testing.T) {
 	}
 }
 
-// The map publishes ineligible areas, so no match means USDA will lend. Reading
-// it the other way round would call the whole county ineligible.
+// The map publishes ineligible areas, so no match means USDA will lend.
 func TestUSDALookupReadsTheLayerTheRightWayRound(t *testing.T) {
 	var count int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -318,8 +304,6 @@ func TestUSDALookupCaches(t *testing.T) {
 	}
 }
 
-// A distance of not-found is -1 rather than zero, because JSON cannot carry an
-// infinity and a zero reads as standing in a creek.
 func TestNotFoundDistancesReadAsNotFound(t *testing.T) {
 	if got := feetOrNone(notFound); !strings.Contains(got, "none found") {
 		t.Fatalf("got %q", got)
@@ -332,7 +316,6 @@ func TestNotFoundDistancesReadAsNotFound(t *testing.T) {
 	}
 }
 
-// A lookup that never ran must never read as a measurement of nothing.
 func TestUnmeasuredSectionsSaySo(t *testing.T) {
 	r := &Report{Address: "1 Test Rd", Flood: newFloodResult(), Road: newRoadResult()}
 	if got := r.FloodPart()["flood"]; got == nil || !strings.Contains(got.(string), "not measured") {
@@ -361,8 +344,6 @@ func TestEveryAspectAnswers(t *testing.T) {
 	}
 }
 
-// A section nobody has heard of comes back with the list, since a model that
-// invents a name has still said what it wants.
 func TestUnknownAspectNamesTheOnesThereAre(t *testing.T) {
 	m, ok := (&Report{}).Aspect("vibes").(map[string]any)
 	if !ok {
@@ -416,8 +397,6 @@ func TestReportCacheRoundTrip(t *testing.T) {
 		t.Fatalf("got %+v", got)
 	}
 
-	// Past its life it is gone rather than stale, since a month old drive time is
-	// fine and a month old anything else is not worth the argument.
 	if _, err := db.Exec(`UPDATE reports SET built_at = ?`, time.Now().Add(-reportTTL-time.Hour).Unix()); err != nil {
 		t.Fatal(err)
 	}
@@ -426,8 +405,8 @@ func TestReportCacheRoundTrip(t *testing.T) {
 	}
 }
 
-// The price is the caller's and moves between two questions about one house, so
-// it is worked out over the cached facts rather than cached with them.
+// The price moves between two questions about one house, so it's worked out
+// over the cached facts instead of cached with them.
 func TestPricingACachedReportDoesNotNeedALookup(t *testing.T) {
 	e, err := NewEngine(testDB(t), testConfig())
 	if err != nil {
@@ -437,7 +416,7 @@ func TestPricingACachedReportDoesNotNeedALookup(t *testing.T) {
 		USDA: USDAArea{Eligible: true, Measured: true}}
 
 	e.priceReport(context.Background(), r, Options{Price: 250000})
-	// VA is not quoted without entitlement, so it is one short of the list.
+	// VA isn't quoted without entitlement.
 	if len(r.Quotes) != len(LoanTypes)-1 {
 		t.Fatalf("want a quote per programme he could use, got %d", len(r.Quotes))
 	}
@@ -496,8 +475,8 @@ func hasSubstring(list []string, want string) bool {
 	return false
 }
 
-// A gap bounds the rate and only a ceiling bounds the total. This is the fence
-// against a model spelling one street name six ways inside a single turn.
+// A gap bounds the rate and only a ceiling bounds the total, against a model
+// spelling one street name six ways in a single turn.
 func TestColdLookupsAreCapped(t *testing.T) {
 	e, err := NewEngine(testDB(t), testConfig())
 	if err != nil {
@@ -524,8 +503,6 @@ func TestColdLookupsAreCapped(t *testing.T) {
 	}
 }
 
-// An hour rolling off has to hand the allowance back, or the first busy morning
-// turns the tool off for good.
 func TestTheHourlyCeilingRollsOff(t *testing.T) {
 	db := testDB(t)
 	e, err := NewEngine(db, testConfig())
@@ -556,8 +533,7 @@ func TestTheDailyCeilingHoldsWhenTheHoursRollOff(t *testing.T) {
 	}
 	ctx := context.Background()
 
-	// Spread over the day, so the hourly window never bites and only the daily
-	// one is doing any work.
+	// Spread over the day so the hourly window never bites.
 	for i := 0; i < coldPerDay; i++ {
 		if _, err := db.Exec(`INSERT INTO assessments (key, started_at) VALUES (?,?)`,
 			fmt.Sprintf("h%d", i), time.Now().Add(-time.Duration(i+2)*time.Minute*50).Unix()); err != nil {
@@ -571,8 +547,7 @@ func TestTheDailyCeilingHoldsWhenTheHoursRollOff(t *testing.T) {
 	}
 }
 
-// The ceiling is the cost of going out, so an address already in the cache must
-// not pay it. A conversation about one house is a dozen questions.
+// A conversation about one house is a dozen questions.
 func TestACachedAddressCostsNothingAgainstTheCeiling(t *testing.T) {
 	db := testDB(t)
 	e, err := NewEngine(db, testConfig())
@@ -598,8 +573,7 @@ func TestACachedAddressCostsNothingAgainstTheCeiling(t *testing.T) {
 	}
 }
 
-// A restart handing back a fresh allowance is how a limit becomes a suggestion,
-// and a deploy is a restart.
+// A deploy is a restart.
 func TestTheCeilingSurvivesARestart(t *testing.T) {
 	db := testDB(t)
 	e, err := NewEngine(db, testConfig())
@@ -622,15 +596,13 @@ func TestTheCeilingSurvivesARestart(t *testing.T) {
 	}
 }
 
-// Every one of these is somebody else's free server and several are one machine
-// in a county building, so a budget that drifts up is worth failing a test over.
+// Several of these are one machine in a county building, so a budget that
+// drifts up is worth failing a test over.
 func TestEveryEndpointKeepsAModestBudget(t *testing.T) {
 	db := testDB(t)
 	if _, err := NewEngine(db, testConfig()); err != nil {
 		t.Fatal(err)
 	}
-	// One cold address costs about 38 requests across these, and the ceiling is
-	// six an hour, so nothing here needs a four figure allowance.
 	for _, g := range []*Guard{
 		NewGeocoder(db).guard, NewFlood(db, nil).fema, NewFlood(db, nil).usgs,
 		NewTerrain(db).guard, NewParcels(db).guard, NewUSDA(db).guard,
@@ -645,13 +617,9 @@ func TestEveryEndpointKeepsAModestBudget(t *testing.T) {
 	}
 }
 
-// A cached payload's shape is part of its key. An older row decoded into a newer
-// struct comes back as zeroes, and a zero here is a claim about a county rather
-// than a stale cache, which is why the kind is bumped whenever a field is added.
+// An older row decodes as zeroes, and a zero here is a claim about a county.
 func TestAnOlderAreaCacheRowIsNotReadBack(t *testing.T) {
 	db := testDB(t)
-	// What house wrote under the old kind: population and composition only, so
-	// every figure this engine added would come back nought.
 	if _, err := db.Exec(
 		`INSERT INTO lookups (kind, key, payload, fetched_at) VALUES ('acs',?,?,?)`,
 		"north carolina|alexander county",
@@ -672,8 +640,6 @@ func TestAnOlderAreaCacheRowIsNotReadBack(t *testing.T) {
 	}
 }
 
-// FEMA leaves plenty of rural parcels off the panel entirely, and reading that as
-// zone X says somebody surveyed it and found minimal hazard.
 func TestAnUnmappedPointIsNotZoneX(t *testing.T) {
 	r := &Report{Flood: FloodResult{Measured: true, SFHAFeet: notFound}}
 	if got := r.floodLine(); strings.Contains(got, "zone X") {
@@ -688,8 +654,7 @@ func TestAnUnmappedPointIsNotZoneX(t *testing.T) {
 	}
 }
 
-// The defaults are what an endpoint gets when somebody adds one and does not
-// think about it, so they have to be the cautious numbers.
+// The defaults are what an endpoint added without thinking gets.
 func TestGuardDefaultsAreCautious(t *testing.T) {
 	g := NewGuard(testDB(t), "something-new", GuardOpts{})
 	if g.budget > 60 {
@@ -703,12 +668,9 @@ func TestGuardDefaultsAreCautious(t *testing.T) {
 	}
 }
 
-// An assessment held up against an asking price is only worth anything when the
-// record is for this house. Both of these are common and both produce a number
-// that looks precise enough for a model to repeat as a finding.
+// Both of these produce a number precise enough for a model to repeat as a
+// finding.
 func TestAWrongParcelRecordIsNotComparedToThePrice(t *testing.T) {
-	// The geocoder interpolates along the street centreline, so the nearest
-	// parcel is sometimes next door.
 	nextDoor := &Report{
 		Address: "77 Sample Ln", Price: 289900,
 		Parcel: ParcelResult{Found: true, Address: "73 Sample Ln", MarketValue: 210000,
@@ -725,7 +687,6 @@ func TestAWrongParcelRecordIsNotComparedToThePrice(t *testing.T) {
 	if _, bad := land["lot_size"]; bad {
 		t.Fatal("the acreage of the parcel next door is not this lot's")
 	}
-	// The model led with the figure when it came with the caveat attached.
 	sum := nextDoor.Summary()
 	if got, _ := sum["assessment"].(string); !strings.Contains(got, "73 Sample") || strings.Contains(got, "231") {
 		t.Fatalf("the summary has to drop the figure and say why: %q", got)
@@ -734,9 +695,6 @@ func TestAWrongParcelRecordIsNotComparedToThePrice(t *testing.T) {
 		t.Fatalf("the lot line quoted the neighbour's acreage: %q", lot)
 	}
 
-	// A tax roll carrying land and no buildings is a vacant lot record against a
-	// house that is standing on it, which is where the $11,100 assessment on a
-	// $289,900 house came from.
 	vacant := &Report{
 		Address: "77 Sample Ln", Price: 289900,
 		Parcel: ParcelResult{Found: true, Address: "77 Sample Ln", MarketValue: 11100,
@@ -753,8 +711,6 @@ func TestAWrongParcelRecordIsNotComparedToThePrice(t *testing.T) {
 		t.Fatalf("the summary line carries the caveat too: %q", got)
 	}
 
-	// A record that is for this house and has buildings on it still gets the
-	// comparison, which is the whole point of having it.
 	good := &Report{
 		Address: "77 Sample Ln", Price: 289900,
 		Parcel: ParcelResult{Found: true, Address: "77 Sample Ln", MarketValue: 240000,
@@ -766,10 +722,8 @@ func TestAWrongParcelRecordIsNotComparedToThePrice(t *testing.T) {
 	}
 }
 
-// A question naming somebody in the house has to find them in the answer. Asked
-// about a household member's work against a flat list of place names, the model
-// had nothing to match the name on and looked the name up in the encyclopedia as
-// a stranger instead.
+// Against a flat list of places the model looked a household member up in the
+// encyclopedia as a stranger.
 func TestDrivesAreGroupedByWhoseTheyAre(t *testing.T) {
 	r := &Report{
 		Address: "1 Test Rd",
@@ -806,13 +760,11 @@ func TestDrivesAreGroupedByWhoseTheyAre(t *testing.T) {
 	}
 }
 
-// Every section named in the tool's schema has to be one Aspect actually answers,
-// or the model is being pointed at something that does not exist.
 func TestTheSectionsTheModelIsOfferedAllExist(t *testing.T) {
 	for _, name := range Aspects {
 		m, ok := (&Report{Address: "1 Test Rd", Drives: map[string]Leg{}}).Aspect(name).(map[string]any)
 		if !ok {
-			continue // everything returns the whole report, which is fine
+			continue
 		}
 		if _, missing := m["sections"]; missing {
 			t.Errorf("section %q is offered but falls through to the unknown branch", name)
@@ -820,8 +772,7 @@ func TestTheSectionsTheModelIsOfferedAllExist(t *testing.T) {
 	}
 }
 
-// A cached report that gains a field decodes with it blank, which is the same
-// trap the lookup kinds carry a number for.
+// A cached report that gains a field decodes with it blank.
 func TestAnOlderCachedReportIsRebuiltNotAnsweredFrom(t *testing.T) {
 	db := testDB(t)
 	e, err := NewEngine(db, testConfig())
@@ -848,8 +799,6 @@ func TestAnOlderCachedReportIsRebuiltNotAnsweredFrom(t *testing.T) {
 	}
 }
 
-// The all-in number means nothing without the rows it is the sum of, and a model
-// asked to explain it in prose drops a line or invents one.
 func TestCostTableAddsUp(t *testing.T) {
 	cfg := testConfig()
 	market := Market{Thirty: 6.95, Found: true, Week: "9/17/2026"}
@@ -869,8 +818,6 @@ func TestCostTableAddsUp(t *testing.T) {
 		}
 	}
 
-	// The rows above it have to be what the all-in row is, or the table is
-	// telling a different story from the number.
 	for _, q := range r.Quotes {
 		if q.Total <= 0 {
 			continue
@@ -881,8 +828,6 @@ func TestCostTableAddsUp(t *testing.T) {
 		}
 	}
 
-	// A programme ruled out by the house keeps its column, marked, because "USDA
-	// would be cheapest and this address is not eligible" is the useful answer.
 	if strings.Contains(table, "VA") {
 		t.Errorf("VA is not on the table at all without entitlement:\n%s", table)
 	}
@@ -893,8 +838,6 @@ func TestCostTableAddsUp(t *testing.T) {
 		t.Errorf("an address USDA will not lend on keeps its column, marked:\n%s", blocked.CostTable())
 	}
 
-	// Every column is one programme, so a row has as many cells as there are
-	// programmes plus the label.
 	want := 0
 	for _, q := range r.Quotes {
 		if q.Total > 0 {
@@ -917,9 +860,6 @@ func TestCostTableIsEmptyWithoutAPrice(t *testing.T) {
 	}
 }
 
-// Eleven sections are invisible to somebody who does not already know they are
-// there, which is why a question about a household member went to the
-// encyclopedia. Naming the questions is the general fix.
 func TestPromptsOnlyOfferSectionsThatHaveSomething(t *testing.T) {
 	bare := &Report{Address: "402 Sample Rd"}
 	for _, p := range bare.Prompts() {
@@ -946,22 +886,17 @@ func TestPromptsOnlyOfferSectionsThatHaveSomething(t *testing.T) {
 	if len(got) < 8 {
 		t.Fatalf("want a prompt per section with something in it, got %d: %v", len(got), got)
 	}
-	// Each one arrives as the next turn with none of this conversation behind
-	// it, so it has to carry the address or it means nothing on its own.
 	var labels, asks []string
 	for _, p := range got {
 		if !strings.Contains(p.Ask, "402 Sample Rd") {
 			t.Errorf("prompt %q has to name the house, since it is sent on its own", p.Ask)
 		}
-		// The label is what fits on a chip, so it must not carry the address.
 		if p.Label == "" || strings.Contains(p.Label, "402") {
 			t.Errorf("label %q should be short and carry no address", p.Label)
 		}
 		labels = append(labels, p.Label)
 		asks = append(asks, p.Ask)
 	}
-	// The drives prompt covers the whole household without naming anybody, which
-	// is the half of this that keeps working when the config changes.
 	if !hasSubstring(asks, "everyone in the house") {
 		t.Errorf("the drives prompt should cover everybody rather than one person: %v", asks)
 	}
@@ -976,9 +911,8 @@ func TestPromptsNeedAnAddress(t *testing.T) {
 	}
 }
 
-// Eligibility that is a fact about him filters the programme out, since no report
-// will ever change it. Eligibility that is a fact about the house keeps its row,
-// because knowing what it would have cost is the point of showing it.
+// Eligibility that's a fact about the borrower drops the programme, since no
+// report will ever change it.
 func TestVAIsNotQuotedWithoutEntitlement(t *testing.T) {
 	cfg := testConfig()
 	market := Market{Thirty: 6.95, Found: true}
@@ -1004,9 +938,7 @@ func TestVAIsNotQuotedWithoutEntitlement(t *testing.T) {
 	}
 }
 
-// A first question about a house gets the summary, so that is where the table has
-// to be. Without it the answer came back as a paragraph per loan with the figure
-// buried in each one.
+// A first question about a house gets the summary.
 func TestTheSummaryCarriesTheCostTable(t *testing.T) {
 	cfg := testConfig()
 	r := &Report{Address: "402 Sample Rd", Price: 310000, County: "Alexander"}
@@ -1018,16 +950,13 @@ func TestTheSummaryCarriesTheCostTable(t *testing.T) {
 		t.Fatalf("the summary has to carry the table: %v", r.Summary())
 	}
 
-	// With no price there is nothing to table, and an empty one would be worse.
 	if _, ok := (&Report{Address: "402 Sample Rd"}).Summary()["answer_with_this_table_exactly"]; ok {
 		t.Fatal("no price means no table")
 	}
 }
 
-// everything used to hand back the whole struct, and a small model reaches for it
-// on the first question. Eleven thousand characters of Go field names and
-// sentinel distances came back out of the model as "Sample Rd, residential, 19
-// feet class", which is not a sentence about a house.
+// Field names and sentinel distances came back out of the model as "Sample Rd,
+// residential, 19 feet class".
 func TestEverythingNeverReturnsTheStruct(t *testing.T) {
 	r := &Report{
 		Address: "402 Sample Rd", County: "Alexander", Price: 250000,
@@ -1040,8 +969,6 @@ func TestEverythingNeverReturnsTheStruct(t *testing.T) {
 	if !ok {
 		t.Fatalf("want a written map, got %T", r.Aspect("everything"))
 	}
-	// Nothing in it should be a raw distance sentinel or a Go field name, which
-	// is what the struct handed over.
 	blob := mustJSON(out)
 	for _, leak := range []string{"SFHAFeet", "ClassFeet", "Measured", "18.9"} {
 		if strings.Contains(blob, leak) {
@@ -1050,8 +977,6 @@ func TestEverythingNeverReturnsTheStruct(t *testing.T) {
 	}
 }
 
-// The enum is what the model picks from, and it must not offer the one that
-// pulls the whole report into the window.
 func TestEverythingIsNotOffered(t *testing.T) {
 	for _, a := range Aspects {
 		if a == "everything" || a == "all" || a == "full" {
@@ -1063,9 +988,7 @@ func TestEverythingIsNotOffered(t *testing.T) {
 	}
 }
 
-// It told him three loans "fit inside your ~$2,600 to $2,750 range" against a
-// target of $2,500. The range was invented, and a made up figure about his own
-// money is the worst kind: specific, plausible and wrong.
+// The model once invented a budget range and reported three loans inside it.
 func TestTheBudgetLineIsMeasuredNotInvented(t *testing.T) {
 	r := &Report{MonthlyTarget: 2500, MonthlyCeiling: 2750,
 		Quotes: []Quote{{Name: "Conventional", Eligible: true, Total: 2642}}}
@@ -1086,14 +1009,11 @@ func TestTheBudgetLineIsMeasuredNotInvented(t *testing.T) {
 		t.Fatalf("3000 is over the ceiling, got %q", over.budgetLine())
 	}
 
-	// No budget configured means nothing to say, not a guess.
 	if got := (&Report{Quotes: []Quote{{Eligible: true, Total: 2642}}}).budgetLine(); got != "" {
 		t.Fatalf("with no target there is nothing to measure against, got %q", got)
 	}
 }
 
-// everything is a guess, since it is not in the enum, and what it used to return
-// buried the table eleven sections deep.
 func TestEverythingFallsBackToTheSummary(t *testing.T) {
 	r := &Report{Address: "402 Sample Rd", Drives: map[string]Leg{}}
 	out, ok := r.Aspect("everything").(map[string]any)
@@ -1109,10 +1029,8 @@ func TestEverythingFallsBackToTheSummary(t *testing.T) {
 	}
 }
 
-// A chip arrives as the next turn with none of the conversation behind it, so it
-// has to carry an address the geocoder can place. Every chip carried the street line
-// with no town, every one came back "could not place", and the model started
-// bolting invented towns onto it, each one a fresh cold lookup.
+// A chip arrives with none of the conversation behind it, and the street line
+// alone doesn't geocode.
 func TestChipsCarryAnAddressThatGeocodes(t *testing.T) {
 	r := &Report{
 		Address: "402 Sample Rd", City: "Anytown", State: "NC", Zip: "27055",
@@ -1130,8 +1048,6 @@ func TestChipsCarryAnAddressThatGeocodes(t *testing.T) {
 	}
 }
 
-// A house already looked up is the same house whether or not the Census is
-// answering and whether or not the street line arrived with its town on it.
 func TestAKnownHouseAnswersWithoutTheGeocoder(t *testing.T) {
 	e, err := NewEngine(testDB(t), testConfig())
 	if err != nil {
@@ -1158,7 +1074,6 @@ func TestAKnownHouseAnswersWithoutTheGeocoder(t *testing.T) {
 		}
 	}
 
-	// A different house on the same street is not this one.
 	if _, _, ok := e.cachedLike(ctx, "402 Sample Rd"); !ok {
 		t.Fatal("setup")
 	}
@@ -1167,8 +1082,6 @@ func TestAKnownHouseAnswersWithoutTheGeocoder(t *testing.T) {
 	}
 }
 
-// A solar farm is a power plant to OSM, and a data centre is often also tagged
-// as industrial land, so the order of the checks decides what a site reads as.
 func TestIndustryKindReadsTheRightTag(t *testing.T) {
 	cases := []struct {
 		tags map[string]string
@@ -1187,8 +1100,7 @@ func TestIndustryKindReadsTheRightTag(t *testing.T) {
 	}
 }
 
-// Nothing found has to say what was searched and what was not, or a model turns
-// an empty list into a clean bill.
+// Without the gaps named a model turns an empty list into a clean bill.
 func TestAnEmptyIndustrySectionSaysWhatItDidNotCover(t *testing.T) {
 	r := &Report{Address: "1 Test Rd", Industry: IndustryResult{Measured: true}}
 	m := r.IndustryPart()

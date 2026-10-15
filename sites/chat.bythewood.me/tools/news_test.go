@@ -13,8 +13,8 @@ func at(s string) time.Time {
 	return t
 }
 
-// The windows are what this tool is for. If Isaac says today he means
-// today, so each one is pinned against a fixed clock rather than trusted.
+// If Isaac says today he means today, so each window is pinned against a fixed
+// clock instead of trusted.
 func TestNewsWindowsAreTakenLiterally(t *testing.T) {
 	// A Monday afternoon, so "weekend" is the two days just gone.
 	now := at("2026-09-07 16:20")
@@ -57,7 +57,7 @@ func TestTheWeekendAskedForOnTheWeekendIsThisOne(t *testing.T) {
 	}
 }
 
-// An unknown word is today rather than an error, since the model picking
+// An unknown word is today instead of an error, since the model picking
 // something outside the enum should not cost the turn.
 func TestAnUnknownWindowIsToday(t *testing.T) {
 	now := at("2026-09-07 16:20")
@@ -106,7 +106,7 @@ func TestDuplicatesGoAndSeparatePublishersStay(t *testing.T) {
 }
 
 // On general news a scored post about timestamps must not outrank a fatal
-// crash, and on tech the score is exactly what should lead.
+// crash, and on tech the score should lead.
 func TestWhatLeadsDependsOnTheTopic(t *testing.T) {
 	desk := NewsItem{Source: "NPR", Headline: "Five dead in crash", rank: 0}
 	scored := NewsItem{Source: "Hacker News", Headline: "Timestamp conversion", Points: 900}
@@ -124,9 +124,8 @@ func TestWhatLeadsDependsOnTheTopic(t *testing.T) {
 	}
 }
 
-// The bug that started this: a flat cap over everything, sorted desks first,
-// took 28 of 45 items and left all fourteen Hacker News stories and both
-// Lobsters ones on the floor. A section holding both has to split its slots.
+// A flat cap over everything sorted desks first leaves the aggregators on the
+// floor, so a section holding both has to split its slots.
 func TestASectionHoldingBothGivesTheAggregatorsSlots(t *testing.T) {
 	// A plain taker, so this tests the sharing and not the sorting.
 	take := func(items []NewsItem, slots int, _ bool) []NewsItem {
@@ -161,8 +160,8 @@ func TestASectionHoldingBothGivesTheAggregatorsSlots(t *testing.T) {
 	}
 }
 
-// A section with nothing from one side still fills up from the other rather
-// than coming back half empty.
+// A section with nothing from one side still fills up from the other instead of
+// coming back half empty.
 func TestASectionFillsUpWhenOneSideIsEmpty(t *testing.T) {
 	take := func(items []NewsItem, slots int, _ bool) []NewsItem {
 		if len(items) > slots {
@@ -180,9 +179,8 @@ func TestASectionFillsUpWhenOneSideIsEmpty(t *testing.T) {
 	}
 }
 
-// The rundown carried the same NPR story twice on 2026-09-08 because the two
-// copies came off different feeds with different tracking parameters, and the
-// url was the only key that got looked at.
+// Two copies of one NPR story off different feeds carry different tracking
+// parameters, so a url key alone lets both through.
 func TestDedupeNewsIgnoresTrackingParameters(t *testing.T) {
 	in := []NewsItem{
 		{Source: "NPR Technology", Headline: "Voters are fed up with data centers", URL: "https://www.npr.org/2026/09/08/data-centers"},
@@ -200,7 +198,7 @@ func TestDedupeNewsIgnoresTrackingParameters(t *testing.T) {
 }
 
 // One story written up under two headlines is still one story, which an exact
-// key cannot see. The Navier-Stokes paper led the tech section twice.
+// key can't see.
 func TestSameStoryCatchesARewrittenHeadline(t *testing.T) {
 	a := headlineWords("On the Navier-Stokes Millennium Prize Problem")
 	b := headlineWords("Navier-Stokes Millennium Prize Problem, by Tristan Buckmaster")

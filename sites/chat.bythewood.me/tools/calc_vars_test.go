@@ -26,9 +26,8 @@ func calcErr(t *testing.T, expr string) string {
 
 func near(a, b float64) bool { return a-b < 0.01 && b-a < 0.01 }
 
-// The shape a model reaches for when asked for a mortgage payment. Both
-// spellings were refused before, which is how a housing budget came back with
-// every figure invented.
+// The shape a model reaches for when asked for a mortgage payment, and refusing
+// either spelling leaves it inventing every figure in a housing budget.
 func TestCalcTakesNamedParts(t *testing.T) {
 	for _, expr := range []string{
 		"r = 0.05/12; 275000 * r / (1 - pow(1 + r, -360))",
@@ -50,7 +49,7 @@ func TestCalcCarriesNamesAcrossManyLines(t *testing.T) {
 }
 
 // The last statement is the answer, so an expression that only assigns has one
-// too rather than coming back empty.
+// too instead of coming back empty.
 func TestTheLastStatementIsTheAnswer(t *testing.T) {
 	if got := calcOK(t, "a = 2\nb = 3\na * b"); got != 6 {
 		t.Errorf("= %v, want 6", got)
@@ -60,7 +59,7 @@ func TestTheLastStatementIsTheAnswer(t *testing.T) {
 	}
 }
 
-// A refusal a model cannot act on is what made it write the same call twice.
+// A refusal a model can't act on makes it write the same call twice.
 func TestARefusalNamesWhatToDoAboutIt(t *testing.T) {
 	if e := calcErr(t, "nope * 2"); !strings.Contains(e, "nope = ") {
 		t.Errorf("an unset name did not say how to set it: %s", e)
@@ -76,8 +75,8 @@ func TestARefusalNamesWhatToDoAboutIt(t *testing.T) {
 	}
 }
 
-// Functions were always supported and the refusal said they were not, which is
-// the sentence that sent it looking for a different tool.
+// A refusal that says functions aren't supported sends the model looking for a
+// different tool.
 func TestTheRefusalNoLongerDeniesFunctions(t *testing.T) {
 	e := calcErr(t, "2 $ 2")
 	if strings.Contains(e, "no names or functions") {
@@ -107,7 +106,7 @@ func TestTooLongSaysSomethingUseful(t *testing.T) {
 	}
 }
 
-// 683 characters of named steps is a real mortgage program and was refused.
+// 683 characters of named steps is a real mortgage program, so it has to fit.
 func TestARealProgramFitsTheLimit(t *testing.T) {
 	expr := "price = 275000\nloan_usda = 275000\nloan_fha = 275000 * (1 - 0.035)\n" +
 		"r5 = 0.05 / 12\nr6 = 0.06 / 12\n" +

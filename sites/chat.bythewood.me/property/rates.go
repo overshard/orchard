@@ -10,18 +10,12 @@ import (
 	"time"
 )
 
-// The rate a payment is worked out at, from Freddie Mac's Primary Mortgage Market
-// Survey. It is the one free, keyless, published mortgage rate in the country:
-// every lender rate table is behind a lead form and every aggregator wants a key.
-//
-// PMMS is a survey of what lenders quoted that week to a borrower with good
-// credit putting 20% down on a conforming conventional loan, so it is the anchor
-// and not the answer. What FHA, VA and USDA go out at is a spread off it, and a
-// real quote from a real lender will differ by a quarter either way.
+// Freddie Mac's survey is the one keyless published mortgage rate, since lender
+// tables sit behind lead forms. It's conventional with 20% down and good credit,
+// so FHA, VA and USDA are a spread off it.
 const pmmsURL = "https://www.freddiemac.com/pmms/docs/PMMS_history.csv"
 
-// The survey publishes on a Thursday, so a day is plenty and nothing here ever
-// asks Freddie Mac twice in a morning.
+// The survey publishes weekly on a Thursday.
 const pmmsTTL = 12 * time.Hour
 
 type Rates struct {
@@ -42,7 +36,6 @@ func NewRates(db *sql.DB) *Rates {
 	}
 }
 
-// Market is the published survey, and the week it is for.
 type Market struct {
 	Thirty float64   `json:"thirty_year_pct"`
 	Deuce  float64   `json:"fifteen_year_pct"`
@@ -52,9 +45,6 @@ type Market struct {
 	Found  bool      `json:"found"`
 }
 
-// Current returns this week's survey. A failure is not an error the caller has to
-// handle: the payment is still worth working out at a stated fallback, and the
-// report says the rate is an assumption rather than a reading.
 func (r *Rates) Current(ctx context.Context) (Market, error) {
 	var payload string
 	var fetched int64
@@ -86,9 +76,8 @@ func (r *Rates) Current(ctx context.Context) (Market, error) {
 	return m, nil
 }
 
-// parsePMMS reads the last row carrying a 30 year figure. The file runs back to
-// 1971 and the recent rows leave the ARM columns empty, so the last line is not
-// reliably the last complete one.
+// parsePMMS reads the last row carrying a 30 year figure, since the last line
+// isn't reliably complete.
 func parsePMMS(body string) (Market, error) {
 	rd := csv.NewReader(strings.NewReader(body))
 	rd.FieldsPerRecord = -1
@@ -122,13 +111,9 @@ func parsePMMS(body string) (Market, error) {
 	return Market{}, fmt.Errorf("pmms carried no 30 year rate")
 }
 
-// What each programme goes out at, relative to the conventional survey rate.
-// Government backed loans price below conventional because the guarantee carries
-// the credit risk, and the borrower pays for that in the insurance instead, which
-// is why comparing note rates alone gets the answer wrong.
-//
-// These are the spreads that hold most weeks. A lender's sheet on the day is the
-// real number and the report says so.
+// Government backed loans price below conventional since the guarantee carries
+// the credit risk and the borrower pays in insurance instead. These spreads hold
+// most weeks, and a lender's sheet on the day is the real number.
 var loanSpread = map[string]float64{
 	"conventional": 0,
 	"fha":          -0.375,
@@ -136,9 +121,8 @@ var loanSpread = map[string]float64{
 	"usda":         -0.25,
 }
 
-// creditAdjustment is what Fannie and Freddie's loan level price adjustments cost
-// a conventional borrower, expressed as rate rather than as points. FHA, VA and
-// USDA do not price this way, so it applies to conventional alone.
+// creditAdjustment is Fannie and Freddie's loan level price adjustments as rate
+// instead of points. FHA, VA and USDA don't price this way.
 func creditAdjustment(score int) float64 {
 	switch {
 	case score == 0:
@@ -162,7 +146,6 @@ func creditAdjustment(score int) float64 {
 	}
 }
 
-// noteRate is what the loan itself charges, before any insurance.
 func noteRate(base float64, loan string, score int) float64 {
 	r := base + loanSpread[loan]
 	if loan == "conventional" {

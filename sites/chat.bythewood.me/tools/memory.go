@@ -6,10 +6,9 @@ import (
 	"strings"
 )
 
-// The tool for when Isaac says to remember something outright. The pass that
-// runs after a turn still reads the exchange and decides for itself what was
-// worth keeping, so "remember that I want to watch this" was otherwise a
-// sentence the model could agree with and never act on.
+// The tool for when Isaac says to remember something outright, since the pass
+// after a turn decides for itself what to keep and "remember that I want to
+// watch this" could otherwise be agreed with and never acted on.
 
 // MemoryFact is one thing known about Isaac, thinned down to what a tool needs.
 type MemoryFact struct {
@@ -17,9 +16,9 @@ type MemoryFact struct {
 	Text string `json:"fact"`
 }
 
-// Memory is chat's own fact store. It is an interface because this package
-// cannot see the database the site owns, and it is nil in a test that does not
-// care, which the tool has to survive rather than panic on.
+// Memory is chat's own fact store. It's an interface because this package can't
+// see the database the site owns, and it's nil in a test that doesn't care, which
+// the tool has to survive instead of panicking.
 type Memory interface {
 	Facts() ([]MemoryFact, error)
 	Add(text string) (int64, error)
@@ -172,11 +171,9 @@ func factText(facts []MemoryFact, id int64) string {
 	return ""
 }
 
-// appendItems adds to the end of a list written as a sentence, so "A, B, and C."
-// plus "D" reads "A, B, C, and D." The list is extended in Go because a model
-// asked to write the whole list out again dropped a word from one of the titles.
-// The Oxford comma is what keeps the last title whole when the model reads it
-// back, since "Cold Storage and Clayface" came back as one film.
+// appendItems extends a list written as a sentence in Go, since a model writing
+// the whole list out again dropped a word from a title. The Oxford comma keeps
+// the last title whole, or "Cold Storage and Clayface" reads back as one film.
 func appendItems(fact, items string) string {
 	base := strings.TrimRight(strings.TrimSpace(fact), ". ")
 	if i := strings.LastIndex(base, ", and "); i >= 0 {

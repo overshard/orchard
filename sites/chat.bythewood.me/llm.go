@@ -111,8 +111,8 @@ type chatResp struct {
 		PromptTokens     int `json:"prompt_tokens"`
 		CompletionTokens int `json:"completion_tokens"`
 	} `json:"usage"`
-	// llama.cpp reports its own timings, which are the honest numbers: they
-	// exclude this client, the tools and the network.
+	// llama.cpp reports its own timings, which leave out this client, the tools
+	// and the network.
 	Timings struct {
 		PromptN         int     `json:"prompt_n"`
 		PromptPerSecond float64 `json:"prompt_per_second"`
@@ -123,15 +123,15 @@ type chatResp struct {
 }
 
 // Stats is what one turn cost, for the meter in the bar. Prompt is the whole
-// window the model was handed, so it is the number that says how full the
-// context is, not how long the last message was.
+// window the model was handed, so it says how full the context is and not how
+// long the last message was.
 type Stats struct {
 	Prompt     int     `json:"prompt_tokens"`
 	Completion int     `json:"completion_tokens"`
 	Decode     float64 `json:"decode_tps"`
 	Prefill    float64 `json:"prefill_tps"`
-	// The reply stopped at max_tokens, which is how a tool call arrives with
-	// its arguments half written. It belongs to one call and is never merged.
+	// The reply stopped at max_tokens, so a tool call can arrive with its
+	// arguments half written. It belongs to one call and is never merged.
 	Truncated bool `json:"-"`
 }
 
@@ -148,10 +148,9 @@ func (s *Stats) merge(o Stats) {
 	}
 }
 
-// sampling is Qwen's published non-thinking recipe, which the other models here
-// are close enough to. Thinking is off because llama.cpp puts the chain of
-// thought in reasoning_content and leaves content empty, which arrives as a 200
-// with nothing to show the user.
+// base samples with Qwen's published non-thinking recipe, close enough for the
+// other models here. Thinking is off since llama.cpp puts the chain of thought in
+// reasoning_content and leaves content empty, a 200 with nothing to show.
 func (l *LLM) base(msgs []Message, maxTok int) chatReq {
 	return chatReq{
 		Model: l.Model, Messages: msgs, Temperature: 0.7, TopP: 0.8, TopK: 20,
@@ -193,8 +192,8 @@ func (l *LLM) complete(ctx context.Context, msgs []Message, schemas []map[string
 	st := statsOf(out)
 	st.Truncated = out.Choices[0].FinishReason == "length"
 	c := out.Choices[0].Message
-	// Empty content beside a full chain of thought means enable_thinking did
-	// not take. Loud is better than a blank bubble.
+	// Empty content beside a full chain of thought means enable_thinking didn't
+	// take, and that's an error instead of a blank bubble.
 	if strings.TrimSpace(c.Content) == "" && len(c.ToolCalls) == 0 && strings.TrimSpace(c.Reasoning) != "" {
 		return Message{}, st, fmt.Errorf("the model returned only reasoning and no answer")
 	}
@@ -224,7 +223,7 @@ func (l *LLM) Structured(ctx context.Context, msgs []Message, maxTok int, schema
 	st := statsOf(resp)
 	text := strings.TrimSpace(resp.Choices[0].Message.Content)
 	// A model that opens with a word before the object is still constrained to
-	// emit one, so find it rather than failing the whole step.
+	// emit one, so find it instead of failing the whole step.
 	if i := strings.Index(text, "{"); i > 0 {
 		text = text[i:]
 	}
@@ -286,10 +285,9 @@ func (l *LLM) Stream(ctx context.Context, msgs []Message, maxTok int, onDelta fu
 		if json.Unmarshal([]byte(data), &ev) != nil {
 			continue
 		}
-		// The last chunk carries the usage and timings and no choices, which
-		// is why this is read before the choices check rather than after.
-		// With timings_per_token every chunk carries running totals, so the
-		// largest is the count and adding them up gives n(n+1)/2.
+		// The last chunk carries the usage and timings and no choices, so this
+		// is read before the choices check. With timings_per_token every chunk
+		// carries running totals, so the largest is the count.
 		if got := statsOf(ev); got.Prompt > 0 || got.Decode > 0 || got.Completion > 0 {
 			done := max(st.Completion, got.Completion)
 			got.Completion = 0
@@ -311,8 +309,8 @@ func (l *LLM) Stream(ctx context.Context, msgs []Message, maxTok int, onDelta fu
 }
 
 // sign puts the gateway key on a request, and the incognito header when the
-// turn is one. An empty key means talking straight to a llama-swap with no
-// gateway in front, which is what a bare development run is.
+// turn is one. An empty key is a bare development run talking straight to
+// llama-swap with no gateway in front.
 func (l *LLM) sign(r *http.Request) {
 	if l.Key != "" {
 		r.Header.Set("Authorization", "Bearer "+l.Key)
@@ -329,8 +327,8 @@ const incognitoHeader = "X-Incognito"
 type incognitoKey struct{}
 
 // WithIncognito marks a context as belonging to an incognito turn. It rides the
-// context rather than the client because the client is shared by every turn,
-// and this way the gate, the compaction pass and the tools all inherit it.
+// context instead of the client since the client is shared by every turn, and
+// this way the gate, the compaction pass and the tools all inherit it.
 func WithIncognito(ctx context.Context) context.Context {
 	return context.WithValue(ctx, incognitoKey{}, true)
 }
@@ -422,7 +420,7 @@ func (l *LLM) Loaded(ctx context.Context) (name string, loaded, up bool) {
 }
 
 // Image asks for one picture. The model name is what llama-swap swaps on, so
-// asking for it is what takes the chat model off the card.
+// asking for it takes the chat model off the card.
 func (l *LLM) Image(ctx context.Context, model, prompt string, w, h int) ([]byte, error) {
 	body, err := json.Marshal(map[string]any{"model": model, "prompt": prompt,
 		"size": fmt.Sprintf("%dx%d", w, h), "n": 1, "output_format": "png"})
@@ -469,8 +467,8 @@ func (l *LLM) picture(req *http.Request) ([]byte, error) {
 	return png, nil
 }
 
-// Edit is Image starting from pictures. The edits call is a form rather than
-// JSON, since that is the shape the OpenAI images api gives it.
+// Edit is Image starting from pictures. The edits call is a form instead of
+// JSON, since that's the shape the OpenAI images api gives it.
 func (l *LLM) Edit(ctx context.Context, model, prompt string, w, h int, pictures [][]byte) ([]byte, error) {
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
@@ -501,7 +499,7 @@ func (l *LLM) Edit(ctx context.Context, model, prompt string, w, h int, pictures
 
 var pngMagic = []byte("\x89PNG\r\n\x1a\n")
 
-// Unload hands the card back rather than waiting out the idle ttl. The gateway
+// Unload hands the card back instead of waiting out the idle ttl. The gateway
 // waits for the model process to be gone before it answers, so returning here
 // means the VRAM is actually free and not merely asked for.
 func (l *LLM) Unload(ctx context.Context) error {
@@ -524,10 +522,9 @@ func (l *LLM) Unload(ctx context.Context) error {
 	return nil
 }
 
-// modelError carries the reason back rather than the number. A bare "the model
-// answered 500" is unactionable, and the body always says whether it was the
-// context, the template or the request. It is trimmed since llama.cpp quotes
-// the input it choked on, which can be kilobytes, and the page shows this.
+// modelError carries the reason back instead of the bare status, since the body
+// says whether it was the context, the template or the request. It's trimmed
+// since llama.cpp quotes the input it choked on, and the page shows this.
 func modelError(status int, body io.Reader) error {
 	raw, _ := io.ReadAll(io.LimitReader(body, 32<<10))
 	var e struct {

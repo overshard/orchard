@@ -21,10 +21,9 @@ var stateNames = map[string]string{
 
 var trailingState = regexp.MustCompile(`^(.*?)[,\s]+([A-Za-z]{2})$`)
 
-// geocode tries the obvious rewrites before giving up. Open-Meteo wants a clean
-// place name and a model passes whatever the user typed, so "Yadkin Valley NC"
-// misses where "Yadkin Valley, North Carolina" hits. That one missing comma was
-// a real wrong answer during the bakeoff.
+// geocode tries the obvious rewrites before giving up, since Open-Meteo wants a
+// clean place name and "Yadkin Valley NC" misses where "Yadkin Valley, North
+// Carolina" hits.
 func geocode(ctx context.Context, d *Deps, place string) (g geo, err error) {
 	cands := []string{place}
 	if m := trailingState.FindStringSubmatch(place); m != nil {
@@ -68,8 +67,8 @@ func geocode(ctx context.Context, d *Deps, place string) (g geo, err error) {
 			return g, nil
 		}
 	}
-	// Open-Meteo only knows towns, so a gorge, a park or a trailhead misses and the
-	// answer came back for the nearest town down in the valley instead.
+	// Open-Meteo only knows towns, so a gorge, a park or a trailhead would answer
+	// for the nearest town down in the valley.
 	if g, ok := nominatim(ctx, d, place); ok {
 		return g, nil
 	}
@@ -100,10 +99,9 @@ func nominatim(ctx context.Context, d *Deps, place string) (geo, bool) {
 	return geo{Lat: lat, Lon: lon, Name: name, Country: "US"}, true
 }
 
-// geo is what one lookup settles. The postcode is carried because pollen.com is
-// keyed on a US zip and this is the only call that ever knows one, and the
-// country because that is what says whether asking for pollen is worth a
-// request at all.
+// The postcode is carried because pollen.com is keyed on a US zip and this is the
+// only call that ever knows one, and the country says whether asking for pollen
+// is worth a request at all.
 type geo struct {
 	Lat, Lon float64
 	Name     string
@@ -188,7 +186,7 @@ func nyOrUTC() *time.Location {
 }
 
 // relativeTo names a date against today, both as the place's own YYYY-MM-DD, so
-// the model reads which row is tomorrow rather than working it out.
+// the model reads which row is tomorrow instead of working it out.
 func relativeTo(today, date string) string {
 	t, err1 := time.Parse("2006-01-02", today)
 	d, err2 := time.Parse("2006-01-02", date)
@@ -230,8 +228,8 @@ var alias = map[string]string{
 // futuresOf is the contract that trades while an index is shut.
 var futuresOf = map[string]string{"^GSPC": "ES=F", "^NDX": "NQ=F", "^IXIC": "NQ=F", "^DJI": "YM=F", "^RUT": "RTY=F"}
 
-// closedIndex is a quote whose last print was a close rather than a trade,
-// which is how CNBC dates a quote with no time on it.
+// closedIndex is a quote whose last print was a close and not a trade, which is
+// how CNBC dates a quote with no time on it.
 func closedIndex(q Quote) bool { return strings.HasPrefix(q.AsOf, "the close") }
 
 // Asked for "futures" the model means the four index contracts.
@@ -243,8 +241,8 @@ var futuresWord = map[string]bool{
 }
 
 // cnbcSym maps the tickers people write to the ones CNBC's quote cache uses.
-// CNBC is the primary here rather than Yahoo because Yahoo's spark and chart
-// endpoints both rate limit a home address hard, and this one does not.
+// CNBC is the primary here instead of Yahoo because Yahoo's spark and chart
+// endpoints both rate limit a home address hard, and this one doesn't.
 var cnbcSym = map[string]string{
 	"^GSPC": ".SPX", "^IXIC": ".IXIC", "^DJI": ".DJI", "^NDX": ".NDX", "^RUT": ".RUT",
 	"^VIX": ".VIX", "GC=F": "@GC.1", "SI=F": "@SI.1", "CL=F": "@CL.1", "NG=F": "@NG.1",
@@ -296,8 +294,8 @@ type Span struct {
 var periodRange = map[string]string{"week": "1w", "month": "1m", "year": "1y"}
 
 // asOf says when a CNBC quote was taken, in words. A quote from before today is
-// the last close, and read at eight in the morning it was reported as how the
-// futures were doing.
+// the last close, which a model reading it at eight in the morning reports as
+// how the futures are doing.
 func asOf(lastTime, when string, now time.Time) string {
 	ny := nyOrUTC()
 	now = now.In(ny)
@@ -394,9 +392,9 @@ var Markets = Tool{
 				} else {
 					ids = append(ids, s)
 				}
-				// Asked for the S&P at eight in the morning it quoted Tuesday's
-				// close as how the futures were doing, so an index always
-				// brings its future along and keeps it when the index is shut.
+				// An index always brings its future along and keeps it while the
+				// index is shut, or a morning question about the S&P gets last
+				// night's close as how the futures are doing.
 				if f, ok := futuresOf[s]; ok && !seen[f] {
 					ids = append(ids, cnbcSym[f])
 				}
@@ -434,7 +432,7 @@ var Markets = Tool{
 					} `json:"ExtendedMktQuote"`
 				}
 				var rows []cq
-				// One symbol comes back as an object rather than an array.
+				// One symbol comes back as an object instead of an array.
 				if err := json.Unmarshal(cn.R.Q, &rows); err != nil {
 					var one cq
 					if json.Unmarshal(cn.R.Q, &one) == nil {
@@ -503,10 +501,8 @@ var Markets = Tool{
 					Percent: ser.Percent, Since: time.Unix(ser.Points[0].T, 0).In(nyOrUTC()).Format("Monday, 2 January 2006")}
 			}
 		}
-		// A chart each for the first few that actually resolved. Charting a
-		// symbol whose quote came back empty draws an axis with nothing on it,
-		// which is what "energy,util" did: neither is a ticker, both were
-		// uppercased into one, and two empty panels went out above the answer.
+		// A chart each for the first few that actually resolved, since charting a
+		// symbol whose quote came back empty draws an axis with nothing on it.
 		charts := 0
 		for _, q := range out {
 			if charts >= 3 {

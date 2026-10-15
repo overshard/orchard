@@ -10,8 +10,7 @@ import (
 // through an hour is not a test.
 func atTime(b *Budgets, t *time.Time) { b.now = func() time.Time { return *t } }
 
-// The gap was never what got this address blocked. Six seconds of spacing was
-// already in place and the total was unbounded, so a long turn could spend an
+// A gap alone leaves the total unbounded, so a long turn could spend an
 // afternoon's searches on one question and honour every gap doing it.
 func TestBudgetStopsAtTheMinutePool(t *testing.T) {
 	now := time.Now()
@@ -68,8 +67,7 @@ func TestBudgetStopsAtTheHourAndDayPools(t *testing.T) {
 	}
 }
 
-// A deploy must not hand the model a fresh allowance, which is the same mistake
-// the penalty box made before it was persisted.
+// A deploy must not hand the model a fresh allowance.
 func TestBudgetSurvivesARestart(t *testing.T) {
 	now := time.Now()
 	b := NewBudgets()
@@ -109,7 +107,7 @@ func TestBudgetForgetsYesterday(t *testing.T) {
 	}
 }
 
-// The search host has to be the strictest thing here, since it is the one that
+// The search host has to be the strictest thing here, since it's the one that
 // has actually banned this address.
 func TestSearchIsTheStrictestBudget(t *testing.T) {
 	s, d := budgetFor(SearchHost), defaultBudget

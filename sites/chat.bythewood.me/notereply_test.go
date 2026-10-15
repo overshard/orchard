@@ -60,9 +60,8 @@ func TestANoteKeepsTheLineTheModelWrote(t *testing.T) {
 	}
 }
 
-// Made to call a tool, a model that writes prose until the cap instead has not
-// written a draft, and half an answer handed to the writer came out with a
-// stray [1] on its own line at the end.
+// Made to call a tool, a model that writes prose to the cap instead hasn't written
+// a draft, and that half answer handed to the writer ended on a stray [1].
 func TestProseRunToTheCapOnAForcedRoundIsDropped(t *testing.T) {
 	var mu sync.Mutex
 	rounds := 0

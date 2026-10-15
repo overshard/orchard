@@ -11,8 +11,7 @@ import (
 )
 
 // leagues maps a name to ESPN's sport and league. The scoreboard is read off
-// site.api.espn.com, since the cdn.espn.com pages espn.com itself used started
-// redirecting and then 404ing.
+// site.api.espn.com, since the cdn.espn.com pages redirect and then 404.
 var leagues = map[string]string{
 	"nfl": "football/nfl", "college-football": "football/college-football",
 	"nba": "basketball/nba", "wnba": "basketball/wnba", "mlb": "baseball/mlb",
@@ -171,10 +170,8 @@ var Odds = Tool{
 		if q == "" {
 			return nil, fmt.Errorf("query is required")
 		}
-		// /events?search= is silently ignored by Polymarket and hands back the
-		// top volume list whatever you ask, which is how a question about
-		// tennis came back with a presidential nomination market.
-		// /public-search is the endpoint that actually searches.
+		// Polymarket silently ignores /events?search= and hands back the top
+		// volume list whatever you ask, so this uses /public-search.
 		type result struct {
 			Events []struct {
 				Title   string `json:"title"`
@@ -231,8 +228,8 @@ var Odds = Tool{
 		words := oddsWords(q)
 		for _, e := range res.Events {
 			for _, m := range e.Markets {
-				// Polymarket matches any one word, so a blog post title came back
-				// as Venezuelan crude oil production.
+				// Polymarket matches any one word, so it hands back markets with
+				// nothing to do with the question.
 				if !aboutWords(e.Title+" "+m.Question, words) {
 					continue
 				}
@@ -251,10 +248,8 @@ var Odds = Tool{
 					vol = asFloat(e.Volume)
 				}
 				// A novelty market with two hundred dollars in it is noise next
-				// to one with twenty million, and answering from the first is
-				// how "how is the US Open going" got a Chipotle market.
-				// A single game trades thinly until the week of it and is still
-				// the market that was asked about.
+				// to one with twenty million, but a single game trades thinly
+				// until the week of it and is still the market that was asked about.
 				if vol < 10000 && (m.GameStart == "" || vol < 100) {
 					continue
 				}
@@ -265,9 +260,8 @@ var Odds = Tool{
 					}
 					var p float64
 					fmt.Sscanf(prices[i], "%g", &p)
-					// Exactly 0 or 1 is a settled leg, an eliminated name
-					// rather than a long shot, so it is dropped instead of
-					// being listed at 0%.
+					// Exactly 0 or 1 is a settled leg, an eliminated name and
+					// not a long shot, so it's dropped instead of listed at 0%.
 					if p > 0 && p < 1 {
 						legs = append(legs, leg{Outcome: names[i], Pct: round1(p * 100)})
 					}
@@ -292,8 +286,8 @@ var Odds = Tool{
 	},
 }
 
-// oddsFiller is what a question about a bet says around the name, and none of it
-// is in a market's title.
+// oddsFiller is the words a question about a bet puts around the name, and none
+// of them are in a market's title.
 var oddsFiller = regexp.MustCompile(`(?i)\b(betting|odds|next|game|match|line|lines|spread|moneyline|who will win|chances?|of|the|for|on)\b`)
 
 var oddsStop = map[string]bool{"a": true, "an": true, "and": true, "in": true, "to": true, "is": true,

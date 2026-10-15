@@ -11,14 +11,9 @@ import (
 	"time"
 )
 
-// What the area around a house is like, which after schools is the thing that
-// decides whether a family is happy where they land.
-//
-// Crime and the settled neighbourhood measures are scored: how many neighbours
-// own their homes rather than pass through, how many houses sit empty, and how
-// many households have children in them. The published race, ethnicity and
-// religion figures are shown and never scored, since a tool that ranks houses
-// by who lives nearby is a redlining machine whatever it was built for.
+// AreaProfile is the county around a house. Race, ethnicity and religion are
+// shown and never scored, since a tool that ranks houses by who lives nearby is
+// a redlining machine whatever it was built for.
 type AreaProfile struct {
 	Name   string `json:"name"`   // what this describes, a county or a tract
 	Level  string `json:"level"`  // county or tract
@@ -28,32 +23,28 @@ type AreaProfile struct {
 	MedianAge    float64 `json:"median_age"`
 	MedianIncome float64 `json:"median_income"`
 
-	// The settled neighbourhood measures. Owned rather than rented and lived in
-	// rather than empty are what people mean by whether a street is settled.
 	OwnerOccupiedPct float64 `json:"owner_occupied_pct"`
 	VacancyPct       float64 `json:"vacancy_pct"`
 	AvgHouseholdSize float64 `json:"avg_household_size"`
 
-	// What the county's houses sell for, which is the only honest check on
-	// whether an asking price is sane for where it is.
+	// The county median is the only check on whether an asking price is sane
+	// for where it is.
 	MedianHomeValue float64 `json:"median_home_value"`
 
-	// Reported offences per thousand residents per year, and where it came from.
-	// Violent and property are kept apart because they weigh differently to a
-	// family and averaging them hides which one a place has.
+	// Offences per thousand residents a year. Violent and property weigh
+	// differently to a family and averaging them hides which one a place has.
 	ViolentPer1k  float64 `json:"violent_per_1k"`
 	PropertyPer1k float64 `json:"property_per_1k"`
 	CrimeSource   string  `json:"crime_source"`
 	CrimeYear     int     `json:"crime_year"`
 
-	// Published and never scored. Kept as a free-form list so the report can show
-	// whatever the source actually published rather than a fixed set of buckets.
+	// Published and never scored, as a list so the report shows whatever the
+	// source published instead of a fixed set of buckets.
 	Composition []AreaShare `json:"composition"`
 	Religion    []AreaShare `json:"religion"`
 
-	// Serialized, not derived. This was tagged json:"-" and the profile is cached
-	// as JSON on the facts row, so it came back false every time and the whole
-	// area panel silently never rendered.
+	// Serialized since the profile is cached as JSON, and a json:"-" tag would
+	// read back false every time.
 	Found bool `json:"found"`
 }
 
@@ -62,22 +53,20 @@ type AreaShare struct {
 	Percent float64 `json:"percent"`
 }
 
-// NC state averages for 2023, which is what a county is measured against so a
-// number reads as better or worse than around here rather than as a bare figure.
-// From the FBI's Crime Data Explorer state tables.
+// NC state averages for 2023 from the FBI's Crime Data Explorer, so a county
+// reads as better or worse than around here instead of as a bare figure.
 const (
 	ncViolentPer1k  = 3.8
 	ncPropertyPer1k = 19.4
 )
 
-// CrimeRaw scores violent crime heavily and property crime lightly, because they
-// are different worries: one is about whether the family is safe and the other is
-// about whether the shed gets emptied.
+// CrimeRaw weighs violent crime heavily and property crime lightly, since one is
+// whether the family is safe and the other is whether the shed gets emptied.
 func (a AreaProfile) CrimeRaw() float64 {
 	if !a.Found || a.CrimeSource == "" {
 		return 0.5
 	}
-	// Half the state average scores full marks and twice it scores nothing.
+	// 40% of the state average scores full marks and twice it scores nothing.
 	violent := band(a.ViolentPer1k, ncViolentPer1k*0.4, ncViolentPer1k*2)
 	property := band(a.PropertyPer1k, ncPropertyPer1k*0.4, ncPropertyPer1k*2)
 	return violent*0.7 + property*0.3
@@ -91,7 +80,6 @@ func (a AreaProfile) CrimeWhy() string {
 		a.ViolentPer1k, a.PropertyPer1k, a.Name, ncViolentPer1k, ncPropertyPer1k)
 }
 
-// CrimeWhyShort is the one line a card has room for.
 func (a AreaProfile) CrimeWhyShort() string {
 	if !a.Found || a.CrimeSource == "" {
 		return "crime figures not loaded"
@@ -106,21 +94,13 @@ func (a AreaProfile) CrimeWhyShort() string {
 	}
 }
 
-// The census figures that are still published without a key, through the ArcGIS
-// services the Census and Esri put the ACS tables on. The Census Bureau's own API
-// started refusing keyless requests, and this is the same data by another road.
-//
-// Four services rather than one, because Esri splits the ACS tables the way the
-// Census publishes them and no single layer carries age, income, tenure and
-// composition together. Layer 1 is the county layer on all four, and they share
-// the NAME and State columns, so one where clause queries all of them.
+// The Census Bureau's own API refuses keyless requests, so the ACS tables come
+// from Esri's layers, where no single one carries age, income, tenure and
+// composition. Layer 1 is the county on all four, so one where clause fits all.
 const acsHost = "https://services.arcgis.com/P3ePLMYs2RVChkJx/arcgis/rest/services/"
 
-// A cached payload's shape is part of its key. The profile gained median age,
-// income, tenure, vacancy and the county median home value when it went from one
-// layer to four, and an `acs` row written before that decodes into the new struct
-// as five zeroes, which read as claims about the county rather than as a stale
-// cache. Bump this whenever a field is added.
+// Bump this whenever AreaProfile gains a field, since an older row decodes
+// with zeroes that read as claims about the county.
 const acsCacheKind = "acs2"
 
 var acsLayers = []struct {
@@ -151,8 +131,7 @@ func NewCensus(db *sql.DB) *Census {
 	}
 }
 
-// The published shares, in the order the census tabulates them. Kept as a list
-// rather than a struct so the report shows what was actually published.
+// In the order the census tabulates them.
 var acsShares = []struct{ field, label string }{
 	{"B03002_calc_pctNHWhiteE", "White"},
 	{"B03002_calc_pctBlackE", "Black"},
@@ -164,8 +143,8 @@ var acsShares = []struct{ field, label string }{
 	{"B03002_calc_pctOtherE", "Other"},
 }
 
-// County fills in population and composition for one county, cached by name
-// because a five year survey does not move between refreshes.
+// County is cached by name because a five year survey doesn't move between
+// refreshes.
 func (c *Census) County(ctx context.Context, state, county string) (AreaProfile, error) {
 	name := strings.TrimSpace(county)
 	if name == "" {
@@ -196,9 +175,6 @@ func (c *Census) County(ctx context.Context, state, county string) (AreaProfile,
 		Found:  true,
 	}
 
-	// The Census Bureau's own API started refusing keyless requests, and these
-	// layers are the same tables by another road. One where clause, four
-	// services, run together since each has its own pace to keep.
 	where := fmt.Sprintf("State='%s' AND NAME='%s'", esc(state), esc(name))
 	attrs := make([]map[string]any, len(acsLayers))
 	var wg sync.WaitGroup

@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-// A README's settings sit far below where a fetch used to stop, and the first
-// mention of a heading is its line in the table of contents.
+// A README's settings sit far down the page, and the first mention of a heading
+// is its line in the table of contents.
 func TestAFetchCanStartAtASection(t *testing.T) {
 	page := "Index\nKeybindings\nConfigurability\n" + strings.Repeat("filler line about installing\n", 400) +
 		"Configurability\nproc_left = false\n" + strings.Repeat("more\n", 100)

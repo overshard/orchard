@@ -31,15 +31,15 @@ func TestGuardLeavesARefusingHostAlone(t *testing.T) {
 	if left < refusalCool-time.Minute {
 		t.Errorf("boxed for only %s, want about %s", left, refusalCool)
 	}
-	// Flat rather than escalating, so nothing has to be poked to find the step.
+	// Flat instead of escalating, so nothing has to be poked to find the step.
 	g.Trip("example.com")
 	if _, again := g.Blocked("example.com"); again > refusalCool+time.Minute {
 		t.Errorf("a second refusal stretched the box to %s", again)
 	}
 }
 
-// One bad afternoon must not leave a host on a four hour backoff for the rest
-// of the process, so a call that worked resets the streak.
+// One bad afternoon must not follow a host around for the rest of the process,
+// so a call that worked resets the streak.
 func TestGuardOKResetsTheStreak(t *testing.T) {
 	store := &fakeStore{}
 	g := NewGuard(10 * time.Minute)
@@ -79,7 +79,7 @@ func TestGuardSurvivesARestart(t *testing.T) {
 	}
 }
 
-// Down is what the page reads to say search is unavailable.
+// The page reads Down to say search is unavailable.
 func TestGuardDownListsOnlyLiveBoxes(t *testing.T) {
 	g := NewGuard(10 * time.Minute)
 	g.Trip(SearchHost)
@@ -113,8 +113,8 @@ func TestAStumbleIsBoxedBrieflyAndARefusalIsNot(t *testing.T) {
 	}
 }
 
-// A page timing out on a host that already refused us must not shorten the box
-// it is in, which is what would happen if the later, smaller deadline won.
+// A page timing out on a host that already refused us must not let the later,
+// smaller deadline shorten its box.
 func TestAStumbleDoesNotCutShortARefusal(t *testing.T) {
 	g := NewGuard(time.Minute)
 	g.Trip("html.duckduckgo.com")

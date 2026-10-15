@@ -36,8 +36,8 @@ func mustJSONString(s string) string {
 	return string(b)
 }
 
-// The failure this was written for: a draft that sounds like an answer, on a
-// question the weights cannot answer, with nothing fetched.
+// A draft that sounds like an answer goes back when the weights can't answer
+// the question and nothing was fetched.
 func TestAFreshQuestionWithNoToolCallIsSentBack(t *testing.T) {
 	llm, _ := fakeJudge(t, true, "big news today")
 	e := NewEngine(llm, "test")
@@ -71,8 +71,8 @@ func TestAFreshQuestionThatFetchedSomethingIsNotSentBack(t *testing.T) {
 	}
 }
 
-// Turning the model loose again after a nudge is what let the old loop run out
-// of attempts, so the round after one has to be a forced call.
+// A model turned loose again after a nudge runs out of attempts, so the round
+// after one has to be a forced call.
 func TestTheCallAfterANudgeRequiresATool(t *testing.T) {
 	var choices []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -154,7 +154,7 @@ func TestTheTitlerIsGivenTheAnswerAsWellAsTheQuestion(t *testing.T) {
 	}
 }
 
-// A turn with no answer to hand still has to produce a name rather than an
+// A turn with no answer to hand still has to produce a name instead of an
 // empty prompt section.
 func TestTheTitlerWorksWithNoAnswer(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

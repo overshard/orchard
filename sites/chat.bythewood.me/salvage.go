@@ -1,13 +1,6 @@
-// Recovering a tool call the model wrote as prose.
-//
-// llama.cpp parses the tool call syntax its template defines. A malformed
-// version does not match, so the whole thing arrives as ordinary content and
-// renders to the user as markup. Ornith does this occasionally, with no
-// closing tags:
-//
-//	<tool_call> <function=web_fetch> <parameter=url> https://example.com </tool_call>
-//
-// The markup must never reach the page, and the call it describes should run.
+// Recovering a tool call the model wrote as prose. llama.cpp only parses the
+// syntax its template defines, so a call Ornith writes without closing tags comes
+// through as content, and it should still run without its markup reaching the page.
 package main
 
 import (
@@ -29,8 +22,7 @@ var (
 )
 
 // salvageCalls pulls any tool calls out of prose and returns them alongside the
-// content with the markup removed. Both halves matter: an unparsed call is a
-// wasted turn, and leaving the markup in is markup on the page.
+// content with the markup removed.
 func salvageCalls(content string, known func(string) bool) (string, []ToolCall) {
 	if !strings.Contains(content, "<tool_call") && !strings.Contains(content, "<function=") {
 		return content, nil
@@ -72,7 +64,7 @@ func parseCall(s string, known func(string) bool) (ToolCall, bool) {
 		args[m[1]] = strings.TrimSpace(m[2])
 	}
 	if len(args) == 0 {
-		// The JSON shape keeps its arguments in an object rather than in tags.
+		// The JSON shape keeps its arguments in an object instead of in tags.
 		if i := strings.Index(s, "{"); i >= 0 {
 			var probe struct {
 				Arguments json.RawMessage `json:"arguments"`

@@ -10,9 +10,8 @@ import (
 	"strings"
 )
 
-// Dictionary reads Wiktionary's own definitions. A word is not an article, so
-// "define program" landed on a disambiguation page, got nothing, and was
-// answered as a command the model made up along with what it printed.
+// Dictionary reads Wiktionary since a word isn't an article, and asking
+// wikipedia to define "program" lands on a disambiguation page.
 var Dictionary = Tool{
 	Name: "dictionary",
 	Description: "What a word or a short phrase means, from Wiktionary, with its part of speech and an example. " +

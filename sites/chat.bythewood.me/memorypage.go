@@ -1,5 +1,5 @@
-// The memory overlay's endpoints. JSON rather than pages, since this lives in a
-// panel over the conversation and navigating away to delete a fact is worse.
+// The memory overlay's endpoints answer JSON instead of pages, since this lives in
+// a panel over the conversation and navigating away to delete a fact is worse.
 package main
 
 import (
@@ -27,9 +27,9 @@ func (s *site) memoryList(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, memoryView{Facts: facts})
 }
 
-// memoryTeach is the write path, and the only one. What is typed here is not
-// stored: it goes to the model with the same rules the automatic pass uses, and
-// what comes back is what gets written.
+// memoryTeach is the only write path. What's typed here isn't stored as is, it
+// goes to the model with the same rules the automatic pass uses and the model's
+// answer gets written.
 func (s *site) memoryTeach(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Said string `json:"said"`

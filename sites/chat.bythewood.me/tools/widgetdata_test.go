@@ -121,7 +121,7 @@ func TestSinkIgnoresARepeat(t *testing.T) {
 	}
 }
 
-// A nil sink is what a tool sees outside a turn, and it must not panic.
+// A tool sees a nil sink outside a turn, and it must not panic.
 func TestNilSinkIsSafe(t *testing.T) {
 	var s *Sink
 	s.Add(Widget{Kind: "ticker", Symbol: "VTI"})

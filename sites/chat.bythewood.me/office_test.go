@@ -41,7 +41,7 @@ func TestDocxKeepsParagraphsAndTableRows(t *testing.T) {
 	if kind != "docx" {
 		t.Errorf("kind = %q", kind)
 	}
-	// Runs inside one paragraph join, rather than becoming two lines.
+	// Runs inside one paragraph join instead of becoming two lines.
 	if !strings.Contains(text, "Second line") {
 		t.Errorf("runs did not join:\n%s", text)
 	}
@@ -50,8 +50,8 @@ func TestDocxKeepsParagraphsAndTableRows(t *testing.T) {
 	}
 }
 
-// The shared string table is the thing that makes a spreadsheet unreadable when
-// missed, since every label is an index and not a value.
+// Missing the shared string table makes a spreadsheet unreadable, since every
+// label is an index and not a value.
 func TestXlsxResolvesSharedStrings(t *testing.T) {
 	raw := zipOf(t, map[string]string{
 		"xl/workbook.xml": `<workbook/>`,
@@ -99,7 +99,7 @@ func TestPptxOrdersSlidesNumerically(t *testing.T) {
 	if kind != "pptx" {
 		t.Errorf("kind = %q", kind)
 	}
-	// slide10 sorts before slide2 as a string, which is the trap.
+	// slide10 sorts before slide2 as a string.
 	if strings.Index(text, "two") > strings.Index(text, "ten") {
 		t.Errorf("slides came out in string order:\n%s", text)
 	}

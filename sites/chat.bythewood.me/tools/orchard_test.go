@@ -16,7 +16,7 @@ func testDeps(base string) *Deps {
 }
 
 // Without a session these tools have no way to prove who is asking, and the
-// failure has to be local rather than an unauthenticated request going out.
+// failure has to be local instead of an unauthenticated request going out.
 func TestEstateToolsRefuseWithoutASession(t *testing.T) {
 	reached := false
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -141,9 +141,8 @@ func TestCalcRefusesAnExpressionTooLongToBeWhole(t *testing.T) {
 }
 
 // news reads every feed on the list, so a second call in one turn re-reads all
-// of them for a rundown the turn already has. The prompt asks for one and this
-// is what makes it one, so the harness has to be able to take a tool off the
-// table mid turn.
+// of them for a rundown it already has, and the harness has to be able to take a
+// tool off the table mid turn.
 func TestWithoutTakesAToolOffTheTable(t *testing.T) {
 	all := []map[string]any{
 		{"type": "function", "function": map[string]any{"name": News.Name}},
@@ -197,7 +196,7 @@ func TestOrchardCodeReadsAFileAndListsADirectory(t *testing.T) {
 	}
 
 	// A directory is not a file, and the 404 on the file read has to fall
-	// through to the listing rather than being reported as a missing path.
+	// through to the listing instead of being reported as a missing path.
 	got, err = OrchardCode.Run(context.Background(), d,
 		map[string]any{"repo": "orchard", "path": "sites"})
 	if err != nil {
@@ -207,10 +206,9 @@ func TestOrchardCodeReadsAFileAndListsADirectory(t *testing.T) {
 		t.Fatalf("the listing came back as %#v", got)
 	}
 
-	// A path that is neither says so, and says what to do about it, rather
-	// than handing back an empty listing that reads as an empty directory.
-	// Dropping a directory off the front is the commonest mistake here, so the
-	// way out is find with the file name rather than the level above.
+	// A path that is neither says so and points at find with the file name,
+	// since the commonest mistake is dropping a directory off the front and an
+	// empty listing reads as an empty directory.
 	_, err = OrchardCode.Run(context.Background(), d,
 		map[string]any{"repo": "orchard", "path": "sites/nope/nothing.go"})
 	if err == nil {
@@ -258,7 +256,7 @@ func TestDashSectionTakesOnePanel(t *testing.T) {
 		t.Error("the other panels came with it")
 	}
 
-	// Empty is the whole thing, which is what it always was.
+	// Empty is the whole thing.
 	whole, err := dashSection(state, "")
 	if err != nil || len(whole.(map[string]any)) != 3 {
 		t.Errorf("no section = %#v, %v", whole, err)
@@ -279,9 +277,8 @@ func TestDashSectionNamesThePanels(t *testing.T) {
 	}
 }
 
-// find and search are what stop the walk. The Oracle turn listed the
-// repository, listed sites, guessed a path without its prefix and ran out of
-// rounds, so the point of these two is that the first call lands on the file.
+// find and search let the first call land on the file, where walking the tree
+// guesses a path without its prefix and runs out of rounds.
 func TestOrchardCodeFindsAndSearches(t *testing.T) {
 	var asked []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -365,8 +362,7 @@ func TestOrchardCodeReadsALineRange(t *testing.T) {
 	}
 }
 
-// Asked where something lives in orchard, the model passed "overshard/orchard",
-// GitHub's name for it, and every call came back as no such path.
+// The model passes GitHub's name for a repository, like "overshard/orchard".
 func TestARepoIsFoundByItsGitHubName(t *testing.T) {
 	for _, in := range []string{"orchard", "overshard/orchard", "https://github.com/overshard/orchard", "github.com/overshard/orchard.git", "/orchard/"} {
 		if got := repoName(in); got != "orchard" {
@@ -375,8 +371,8 @@ func TestARepoIsFoundByItsGitHubName(t *testing.T) {
 	}
 }
 
-// Asked where maxToolRounds is set, the model used find, which matches file
-// names, and got nothing back six times.
+// Asked where a constant is set, the model reaches for find, which only matches
+// file names.
 func TestFindFallsBackToSearchingInsideFiles(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
