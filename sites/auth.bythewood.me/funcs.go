@@ -17,7 +17,7 @@ var templateFuncs = template.FuncMap{
 	"dict":       dict,
 }
 
-// dict builds a map inline, so a partial can take named arguments rather than
+// dict builds a map inline, so a partial can take named arguments instead of
 // one positional value.
 func dict(pairs ...any) map[string]any {
 	out := make(map[string]any, len(pairs)/2)
@@ -140,10 +140,9 @@ func browser(ua string) string {
 	return "other"
 }
 
-// Inline rather than a file so it cannot drift from the navbar logo, which is
-// the same markup. A north star with three companions, which is the same
-// language as the field behind the sign in form and still reads at 16px, where
-// a full constellation turns to mush.
+// Inline so it can't drift from the navbar logo, which is the same markup. A
+// north star with three companions still reads at 16px, where a full
+// constellation turns to mush.
 const faviconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <g stroke="#6b9e78" stroke-width="1.6" opacity="0.55" stroke-linecap="round">
     <path d="M46 15 L34 28"/>

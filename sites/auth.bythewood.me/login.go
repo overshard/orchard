@@ -11,14 +11,9 @@ import (
 // defaultNext is where a login with nowhere particular to go ends up.
 const defaultNext = "/account"
 
-// safeNext keeps the post-login redirect on this platform. A relative path is
-// fine, and so is any https bythewood.me host, which is what lets analytics
-// send somebody here and get them back afterwards.
-//
-// "starts with /" is not enough on its own: "//evil.example" is
-// protocol-relative and "/\evil.example" is followed off-site by some browsers.
-// Browsers also strip tabs and newlines from a Location, so "/\t/evil.example"
-// arrives as "//evil.example".
+// safeNext keeps the post-login redirect on a relative path or an https
+// bythewood.me host. "//x" is protocol-relative, some browsers follow "/\x"
+// off-site, and browsers strip tabs and newlines so "/\t/x" arrives as "//x".
 func safeNext(next string) string {
 	if next == "" || strings.ContainsFunc(next, func(r rune) bool {
 		return r < 0x20 || r == 0x7f || r == '\\'
@@ -64,12 +59,9 @@ func (s *site) loginForm(w http.ResponseWriter, r *http.Request) {
 	s.renderer.Render(w, http.StatusOK, "login.html", data)
 }
 
-// loginSubmit takes the username and pushes a code.
-//
-// The reply is the same page whether or not the username was right, because
-// this site is open source and the username is in it, so pretending otherwise
-// would be theatre. What actually bounds the abuse is the per account ceiling
-// and the one-outstanding-code rule, both in otp.go.
+// loginSubmit takes the username and pushes a code. A wrong username isn't
+// hidden since it's in this public repo, and the per account ceiling and the
+// one outstanding code rule in otp.go bound the abuse.
 func (s *site) loginSubmit(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
@@ -107,9 +99,8 @@ func (s *site) loginSubmit(w http.ResponseWriter, r *http.Request) {
 	code, browser, err := startLogin(s.db, r)
 	switch {
 	case errors.Is(err, errOutstanding):
-		// Not an error to the person holding the phone: a code is already on
-		// its way, so send them to the form to type it rather than sending a
-		// second one.
+		// A code is already on its way, so send them to the form to type it
+		// instead of publishing a second.
 		s.codePage(w, r, next, "A code was already sent. Check your phone.", http.StatusOK)
 		return
 	case errors.Is(err, errLockedOut):
@@ -183,10 +174,9 @@ func (s *site) codeSubmit(w http.ResponseWriter, r *http.Request) {
 	s.openSession(w, r, next, "a code")
 }
 
-// recoveryForm and recoverySubmit are the break-glass, and they exist because
-// ntfy is a container behind the same tunnel as the sites this gates. A bad
-// tunnel would otherwise lock the operator out of logging and status at exactly
-// the moment they are needed.
+// recoveryForm and recoverySubmit are the break-glass, since ntfy is behind the
+// same tunnel as the sites this gates and a bad tunnel would otherwise lock the
+// operator out of logging and status right when they're needed.
 func (s *site) recoveryForm(w http.ResponseWriter, r *http.Request) {
 	data := s.page(r, "Recovery code", "")
 	data.Next = r.URL.Query().Get("next")

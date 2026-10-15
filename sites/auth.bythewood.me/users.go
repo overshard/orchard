@@ -8,11 +8,9 @@ import (
 	"time"
 )
 
-// The account the ntfy container was created with by edge/setup-ntfy.sh. It is
-// seeded as the username too, and the two must not be assumed equal after that:
-// ntfy has no rename, so changing the username here can never change the
-// account over there, and a code path that compares the strings instead of
-// reading this row breaks delivery at the moment somebody is trying to log in.
+// The ntfy account from edge/setup-ntfy.sh, and the first username. ntfy has no
+// rename so the two drift, and anything comparing them instead of reading the
+// users row breaks delivery right when somebody is trying to log in.
 const seedUsername = "isaac"
 
 var errNoUser = errors.New("this installation has not been initialized")
@@ -43,8 +41,8 @@ func loadUser(db *sql.DB) (User, error) {
 }
 
 // createUser seeds the one row, reporting false if it was already there. The
-// caller prints nothing in that case rather than handing back a set of recovery
-// codes that were never applied.
+// caller then prints no codes, since handing back ones that were never applied
+// is worse than nothing.
 func createUser(db *sql.DB, username string) (bool, error) {
 	res, err := db.Exec(`
         INSERT OR IGNORE INTO users (id, username, ntfy_account, created)

@@ -18,10 +18,8 @@ const (
 	// million, inside ten minutes, with the row destroyed at the fifth.
 	maxAttempts = 5
 
-	// The ceiling that actually bounds the damage, because it counts published
-	// notifications for the account and ignores where the request came from.
-	// Per-IP limiting is bypassed by sending one request from each of a
-	// thousand proxies, this is what still holds when that happens.
+	// Published notifications for the account, whatever address asked, since
+	// per-IP limits are bypassed by one request from each of a thousand proxies.
 	sendCeiling = 5
 	sendWindow  = time.Hour
 
@@ -36,8 +34,8 @@ const (
 	failureWindow = 24 * time.Hour
 )
 
-// One global bucket rather than per-IP state, which grows with every prober,
-// and there is exactly one legitimate user.
+// One global bucket instead of per-IP state, which grows with every prober,
+// and there's only one legitimate user.
 var (
 	loginBucket = &tokenBucket{tokens: 5, burst: 5, refill: 2 * time.Second, last: time.Now()}
 	codeBucket  = &tokenBucket{tokens: 10, burst: 10, refill: time.Second, last: time.Now()}
@@ -136,11 +134,9 @@ func sendsInWindow(db *sql.DB) (int, error) {
 	return n, err
 }
 
-// startLogin mints a code and stores it, returning the code to publish and the
-// browser token to set as a cookie.
-//
-// It publishes nothing itself. The caller does that, and only records the send
-// once ntfy accepted it, so a failed publish does not spend the ceiling.
+// startLogin mints and stores a code, returning it and the browser token for the
+// cookie. It publishes nothing, and the caller records the send only once ntfy
+// accepts it, so a failed publish doesn't spend the ceiling.
 func startLogin(db *sql.DB, r *http.Request) (code, browser string, err error) {
 	// No point pushing a code that cannot be typed.
 	if locked, err := lockedOut(db); err != nil {
@@ -149,9 +145,8 @@ func startLogin(db *sql.DB, r *http.Request) (code, browser string, err error) {
 		return "", "", errLockedOut
 	}
 
-	// One outstanding at a time, for the account rather than per browser. A
-	// repeat request inside the window publishes nothing, which is what
-	// collapses a flood of requests into one notification per window.
+	// One outstanding code for the account, not per browser, so a flood of
+	// requests collapses into one notification per window.
 	if _, _, ok, err := livePending(db); err != nil {
 		return "", "", err
 	} else if ok {
@@ -201,9 +196,8 @@ func recordSend(db *sql.DB) error {
 	return err
 }
 
-// finishLogin checks a code against the outstanding row for this browser. A
-// code pushed to the phone is worthless in a browser that did not ask for it,
-// which is what stops somebody who can see the notification from using it.
+// finishLogin checks a code against the outstanding row for this browser, so
+// somebody who can see the notification can't use it from a browser that didn't ask.
 func finishLogin(db *sql.DB, r *http.Request, code string) error {
 	browser := pendingBrowser(r)
 	if browser == "" {
@@ -274,8 +268,7 @@ func lockedOut(db *sql.DB) (bool, error) {
 	return n >= dailyFailures, err
 }
 
-// sweepPending drops spent and expired rows, and the send counters that have
-// aged past the window they are counted in.
+// sweepPending drops login rows, sends and failures a day after they stop mattering.
 func sweepPending(db *sql.DB) error {
 	cutoff := time.Now().Add(-24 * time.Hour).Unix()
 	if _, err := db.Exec(`DELETE FROM pending_logins WHERE expires < ?`, cutoff); err != nil {

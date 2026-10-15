@@ -12,10 +12,9 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
-// Argon2id parameters, the same shape repos uses for its push tokens. What is
-// hashed here is either a 30 bit login code with a ten minute life and five
-// attempts, or a 60 bit recovery code, so this exists to keep a leaked database
-// from being a credential rather than to survive an offline dictionary attack.
+// Argon2id, shaped like repos' push tokens. What's hashed is a 20 bit login code
+// that lives ten minutes or a 60 bit recovery code, so this keeps a leaked
+// database from being a credential and isn't tuned against offline guessing.
 const (
 	argonTime    = 1
 	argonMemory  = 64 * 1024
@@ -37,8 +36,8 @@ func secretMatches(secret string, hash, salt []byte) bool {
 	return subtle.ConstantTimeCompare(candidate, hash) == 1
 }
 
-// newCode returns six digits, zero padded, from crypto/rand. Not math/rand: the
-// whole value of this is that it cannot be predicted from the last one.
+// newCode returns six zero padded digits from crypto/rand, since math/rand can
+// be predicted from its earlier output.
 func newCode() (string, error) {
 	n, err := rand.Int(rand.Reader, big.NewInt(1000000))
 	if err != nil {
@@ -56,8 +55,8 @@ const (
 	recoveryCount  = 10
 	recoveryGroups = 3
 	recoveryPerRun = 4
-	// The first four characters, stored in clear, which finds the row without
-	// hashing all ten. Four of a 30 character alphabet is not enough to guess.
+	// Kept in clear so a lookup doesn't hash all ten, and the rest is still
+	// around 40 bits to guess.
 	recoveryPrefix = 4
 )
 
@@ -80,9 +79,8 @@ func newRecoveryCode() (string, error) {
 }
 
 // regenerateRecoveryCodes replaces the whole set in one transaction and returns
-// the new codes, which is the only time they exist anywhere readable. An old
-// code stops working the moment this returns, so a half-applied set would leave
-// the account with no break-glass at all.
+// the only readable copy of the new codes. The old ones die with it, so a half
+// applied set would leave the account with no break-glass at all.
 func regenerateRecoveryCodes(db *sql.DB) ([]string, error) {
 	codes := make([]string, 0, recoveryCount)
 	for i := 0; i < recoveryCount; i++ {
@@ -123,9 +121,9 @@ func regenerateRecoveryCodes(db *sql.DB) ([]string, error) {
 
 var errBadRecovery = errors.New("that recovery code is not valid")
 
-// useRecoveryCode spends one code, reporting how many are left. Marking it used
-// is part of the same statement that finds it, so the same code arriving twice
-// at once cannot be spent twice.
+// useRecoveryCode spends one code, reporting how many are left. The UPDATE only
+// takes a row that's still unused, so the same code arriving twice at once is
+// spent once.
 func useRecoveryCode(db *sql.DB, code string) (remaining int, err error) {
 	code = strings.ToLower(strings.TrimSpace(code))
 	if len(code) < recoveryPrefix {

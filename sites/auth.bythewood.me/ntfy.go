@@ -11,13 +11,9 @@ import (
 	"time"
 )
 
-// The container name on the orchard-edge bridge, never the public hostname:
-// Caddy refuses every publish route on ntfy.bythewood.me, so publishing is
-// reachable only from the bridge even holding the write token.
-//
-// A topic of its own, and a write token only this site holds. The alert topics
-// would not do: the token in status' and logging' .env files can publish to
-// those, so a copy of either would be able to mint its own login codes.
+// The bridge address, never the public hostname, since Caddy refuses publishing
+// on ntfy.bythewood.me. The topic and its write token are auth's alone so the
+// alert token in status' and logging's .env can't mint login codes.
 const (
 	ntfyURL   = "http://orchard-ntfy:8000"
 	ntfyTopic = "auth"
@@ -57,12 +53,9 @@ type message struct {
 	Label    string
 }
 
-// codeMessage carries where the login was asked from, which is the phishing
-// defence: a code arriving from somewhere the phone is not is a code not to
-// type. CISA and Microsoft's answer to MFA fatigue is the same idea.
-//
-// Priority low, so a flood of these lands silently in the drawer instead of
-// buzzing. The alert for a session that actually opened is the loud one.
+// codeMessage says where the login was asked from, so a code from somewhere the
+// phone isn't is a code not to type. Priority low so a flood lands silently, and
+// only a session that actually opened buzzes.
 func codeMessage(code string, c reqContext) message {
 	return message{
 		Title:    "Login code " + code,
@@ -125,7 +118,7 @@ func (n *Notifier) publish(ctx context.Context, m message) error {
 	req.Header.Set("Title", m.Title)
 	req.Header.Set("Priority", m.Priority)
 	req.Header.Set("Tags", m.Tags)
-	// A button rather than Click, so tapping the notification only opens ntfy.
+	// A button instead of Click, so tapping the notification only opens ntfy.
 	if m.Link != "" {
 		req.Header.Set("Actions", "view, "+m.Label+", "+m.Link)
 	}
