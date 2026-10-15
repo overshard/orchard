@@ -1,6 +1,6 @@
-// Ten independent modules. This file exists so `go build ./...`, `go vet ./...`
-// and `go test ./...` work from the repo root and an editor resolves all ten
-// at once.
+// One independent module per site. This file exists so `go build ./...`,
+// `go vet ./...` and `go test ./...` work from the repo root and an editor
+// resolves every site at once. `make new` adds a site here.
 //
 // Nothing depends on it. Each site builds on its own from its own directory,
 // and its Docker build context is that directory alone, so a site can be moved

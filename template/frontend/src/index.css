@@ -1,0 +1,90 @@
+/* The green palette from DESIGN.md, which is the authority on every value here. */
+:root {
+  --ground: #0e0d0a;
+  --panel: #1c1a15;
+  --text: #ddd7cd;
+  --muted: #b3aba2;
+  --faint: #8a8279;
+  --green: #6b9e78;
+  --green-bright: #7db88c;
+  --green-hot: #95cca2;
+  --amber: #c9a84c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--ground);
+  background-image:
+    linear-gradient(rgba(107, 158, 120, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(107, 158, 120, 0.028) 1px, transparent 1px);
+  background-size: 32px 32px;
+  background-position: center top;
+  color: var(--text);
+  font-family: "Monaspace Argon", ui-monospace, monospace;
+  font-size: 0.92rem;
+  line-height: 1.7;
+}
+
+main {
+  flex: 1;
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 64px 32px;
+}
+
+h1 {
+  margin: 0 0 16px;
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+p {
+  color: var(--muted);
+}
+
+a {
+  color: var(--green-bright);
+}
+
+a:hover {
+  color: var(--green-hot);
+}
+
+.label {
+  margin-bottom: 8px;
+  color: var(--amber);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.button {
+  display: inline-block;
+  padding: 8px 16px;
+  border: 1px solid rgba(107, 158, 120, 0.42);
+  text-decoration: none;
+}
+
+footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 32px;
+  border-top: 1px solid rgba(107, 158, 120, 0.42);
+  color: var(--faint);
+  font-size: 0.8rem;
+}

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ .Title }} · {{ .SiteName }}</title>
+  <meta name="description" content="{{ .Description }}">
+  {{- if .Staging }}
+  <meta name="robots" content="noindex, nofollow">
+  {{- end }}
+  <meta name="theme-color" content="#0e0d0a">
+
+  {{ range .Styles }}<link href="{{ . }}" rel="stylesheet">{{ end }}
+
+  {{- if and .AnalyticsID (not .Staging) }}
+  <script>
+    (function (m, e, t, r, i, c, s) {
+      m.collectorQueue = m.collectorQueue || r;
+      m.collectorServer = c;
+      m.collectorId = s;
+      m.collectorScript = e.createElement(t);
+      m.collectorScript.src = c + i;
+      e.head.appendChild(m.collectorScript);
+    })(window, document, "script", [], "/static/collector.js",
+       "https://analytics.bythewood.me", "{{ .AnalyticsID }}");
+  </script>
+  {{- end }}
+</head>
+
+<body>
+  <main>
+    {{ template "main" . }}
+  </main>
+
+  <footer>
+    <span>&copy; {{ .Year }} Isaac Bythewood · Some rights reserved</span>
+    <a href="{{ .SourceURL }}">Source</a>
+  </footer>
+
+  <script type="module" src="{{ .Script }}"></script>
+</body>
+</html>
