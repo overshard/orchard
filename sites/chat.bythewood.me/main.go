@@ -69,6 +69,15 @@ type site struct {
 func round1(f float64) float64 { return float64(int(f*10+0.5)) / 10 }
 
 func main() {
+	if err := realMain(); err != nil {
+		slog.Error("exiting", slog.Any("err", err))
+		os.Exit(1)
+	}
+}
+
+// realMain returns rather than exits, so its deferred closes and the log
+// shipper's flush run on every path out.
+func realMain() error {
 	var (
 		addr     = flag.String("addr", env("CHAT_ADDR", listenAddr), "listen address")
 		llmURL   = flag.String("llm", env("LLM_URL", "http://orchard-llm:8000"), "model gateway base url")
@@ -89,9 +98,9 @@ func main() {
 
 	if *health {
 		if err := web.HealthCheck("http://127.0.0.1"+*addr+"/healthz", 3*time.Second); err != nil {
-			os.Exit(1)
+			return fmt.Errorf("healthcheck: %w", err)
 		}
-		return
+		return nil
 	}
 
 	// Past the healthcheck branch, so a HEALTHCHECK invocation does not start a
@@ -102,8 +111,7 @@ func main() {
 
 	store, err := OpenStore(*dbPath)
 	if err != nil {
-		slog.Error("open store", "err", err)
-		os.Exit(1)
+		return fmt.Errorf("open store: %w", err)
 	}
 	defer store.Close()
 
@@ -139,11 +147,9 @@ func main() {
 	// report says which config it used, since a tool that will not answer is
 	// harder to notice than one that says what it is missing.
 	if pcfg, err := property.LoadConfig(*propCfg); err != nil {
-		slog.Error("property config", "path", *propCfg, "err", err)
-		os.Exit(1)
+		return fmt.Errorf("property config %s: %w", *propCfg, err)
 	} else if pe, err := property.NewEngine(store.DB(), pcfg); err != nil {
-		slog.Error("property engine", "err", err)
-		os.Exit(1)
+		return fmt.Errorf("property engine: %w", err)
 	} else {
 		s.engine.Deps().Property = pe
 		slog.Info("property lookups ready", "config", pcfg.Label)
@@ -161,8 +167,7 @@ func main() {
 		}
 	}()
 	if err := s.loadTemplates(); err != nil {
-		slog.Error("templates", "err", err)
-		os.Exit(1)
+		return fmt.Errorf("templates: %w", err)
 	}
 
 	mux := http.NewServeMux()
@@ -220,10 +225,7 @@ func main() {
 
 	slog.Info("chat listening", "addr", *addr, "llm", *llmURL, "model", *label,
 		"db", *dbPath, "reloaded", Reloaded)
-	if err := web.Serve(*addr, web.Chain(mux, web.Recovered, web.Logged, web.SecurityHeaders(csp()), web.SameOrigin())); err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
-	}
+	return web.Serve(*addr, web.Chain(mux, web.Recovered, web.Logged, web.SecurityHeaders(csp()), web.SameOrigin()))
 }
 
 func env(k, def string) string {

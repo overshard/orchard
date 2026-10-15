@@ -56,6 +56,15 @@ func csp() string {
 }
 
 func main() {
+	if err := realMain(); err != nil {
+		slog.Error("exiting", slog.Any("err", err))
+		os.Exit(1)
+	}
+}
+
+// realMain returns rather than exits, so its deferred closes and the log
+// shipper's flush run on every path out.
+func realMain() error {
 	web.SetupLogging()
 
 	// The build-time modes live on the site binary so the post loader and the
@@ -71,10 +80,9 @@ func main() {
 
 	if *healthcheck {
 		if err := web.HealthCheck("http://127.0.0.1:8000/healthz", 3*time.Second); err != nil {
-			slog.Info(fmt.Sprintf("healthcheck: %v", err))
-			os.Exit(1)
+			return fmt.Errorf("healthcheck: %w", err)
 		}
-		return
+		return nil
 	}
 
 	// Tees stdout records to logging.bythewood.me, see web/shipper.go. It goes
@@ -85,14 +93,12 @@ func main() {
 
 	content, err := fs.Sub(contentFS, "content")
 	if err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
+		return err
 	}
 
 	lib, err := LoadLibrary(content)
 	if err != nil {
-		slog.Error(fmt.Sprintf("load posts: %v", err))
-		os.Exit(1)
+		return fmt.Errorf("load posts: %w", err)
 	}
 	slog.Info(fmt.Sprintf("loaded %d posts", len(lib.All())))
 
@@ -101,31 +107,27 @@ func main() {
 	if *pdfsOut != "" || *ogOut != "" {
 		if *pdfsOut != "" {
 			if err := GeneratePDFs(lib, *typstRoot, *typstFonts, *pdfsOut); err != nil {
-				slog.Error(fmt.Sprintf("generate pdfs: %v", err))
-				os.Exit(1)
+				return fmt.Errorf("generate pdfs: %w", err)
 			}
 		}
 		if *ogOut != "" {
 			if err := GenerateOGCards(lib, *typstRoot, *typstFonts, *ogOut); err != nil {
-				slog.Error(fmt.Sprintf("generate og cards: %v", err))
-				os.Exit(1)
+				return fmt.Errorf("generate og cards: %w", err)
 			}
 		}
-		return
+		return nil
 	}
 
 	dist := distFS()
 
 	assets, err := web.LoadAssets(dist)
 	if err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
+		return err
 	}
 
 	templates, err := fs.Sub(templateFS, "templates")
 	if err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
+		return err
 	}
 
 	renderer, err := web.NewRenderer(
@@ -135,8 +137,7 @@ func main() {
 		[]string{"home.html", "blog.html", "post.html", "search.html", "notfound.html"},
 	)
 	if err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
+		return err
 	}
 
 	s := &site{
@@ -195,8 +196,7 @@ func main() {
 	// visible without a hash change, no immutable year here.
 	contentImages, err := fs.Sub(content, "images")
 	if err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
+		return err
 	}
 	images := http.StripPrefix("/content/images/",
 		cacheControl("public, max-age=86400",
@@ -233,10 +233,7 @@ func main() {
 	)
 
 	slog.Info(fmt.Sprintf("blog.bythewood.me serving %s (staging=%t)", baseURL, Staging))
-	if err := web.Serve(listenAddr, handler); err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
-	}
+	return web.Serve(listenAddr, handler)
 }
 
 func cacheControl(value string, next http.Handler) http.Handler {

@@ -83,6 +83,15 @@ var (
 )
 
 func main() {
+	if err := realMain(); err != nil {
+		slog.Error("exiting", slog.Any("err", err))
+		os.Exit(1)
+	}
+}
+
+// realMain returns rather than exits, so its deferred closes and the log
+// shipper's flush run on every path out.
+func realMain() error {
 	web.SetupLogging()
 
 	seed := flag.Bool("seed", false, "fill a Seed Test property with realistic fake events, then exit")
@@ -95,10 +104,9 @@ func main() {
 
 	if *healthcheck {
 		if err := web.HealthCheck("http://127.0.0.1:8000/healthz", 3*time.Second); err != nil {
-			slog.Info(fmt.Sprintf("healthcheck: %v", err))
-			os.Exit(1)
+			return fmt.Errorf("healthcheck: %w", err)
 		}
-		return
+		return nil
 	}
 
 	// Tees stdout records to logging.bythewood.me, see web/shipper.go. It goes
@@ -110,8 +118,7 @@ func main() {
 	dataDir := dir("SITE_DATA", "data")
 	db, err := openDB(dataDir + "/db.sqlite3")
 	if err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
+		return err
 	}
 	defer db.Close()
 
@@ -119,30 +126,26 @@ func main() {
 
 	if *seed {
 		if err := runSeed(ctx, db, *seedSessions, *seedDays); err != nil {
-			slog.Error(fmt.Sprintf("seed: %v", err))
-			os.Exit(1)
+			return fmt.Errorf("seed: %w", err)
 		}
-		return
+		return nil
 	}
 
 	dist := distFS()
 
 	assets, err := web.LoadAssets(dist)
 	if err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
+		return err
 	}
 
 	templates, err := fs.Sub(templateFS, "templates")
 	if err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
+		return err
 	}
 
 	renderer, err := web.NewRenderer(templates, templateFuncs, layoutTemplates, pageTemplates)
 	if err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
+		return err
 	}
 
 	geoipPath := dataDir + "/db.mmdb"
@@ -256,10 +259,7 @@ func main() {
 	)
 
 	slog.Info(fmt.Sprintf("analytics serving %s (staging=%t, property=%s)", baseURL, Staging, analyticsID))
-	if err := web.Serve(listenAddr, handler); err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
-	}
+	return web.Serve(listenAddr, handler)
 }
 
 func methodNotAllowed(allow string) http.HandlerFunc {

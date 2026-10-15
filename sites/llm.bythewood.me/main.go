@@ -68,6 +68,15 @@ func env(k, def string) string {
 }
 
 func main() {
+	if err := realMain(); err != nil {
+		slog.Error("exiting", slog.Any("err", err))
+		os.Exit(1)
+	}
+}
+
+// realMain returns rather than exits, so its deferred closes and the log
+// shipper's flush run on every path out.
+func realMain() error {
 	var (
 		addr     = flag.String("addr", env("LLM_ADDR", listenAddr), "listen address")
 		upstream = flag.String("upstream", env("LLM_UPSTREAM", "http://swap:8091"), "llama-swap base url")
@@ -82,9 +91,9 @@ func main() {
 
 	if *check {
 		if err := web.HealthCheck("http://127.0.0.1"+*addr+"/healthz", 3*time.Second); err != nil {
-			os.Exit(1)
+			return fmt.Errorf("healthcheck: %w", err)
 		}
-		return
+		return nil
 	}
 
 	web.SetupLogging()
@@ -93,8 +102,7 @@ func main() {
 
 	store, err := OpenStore(*dbPath)
 	if err != nil {
-		slog.Error("opening the database", "err", err)
-		os.Exit(1)
+		return fmt.Errorf("opening the database: %w", err)
 	}
 	defer store.Close()
 
@@ -104,12 +112,11 @@ func main() {
 	if *newKey != "" {
 		secret, _, err := store.NewKey(*newKey)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+			return err
 		}
 		fmt.Println(secret)
 		store.Checkpoint()
-		return
+		return nil
 	}
 
 	s := &site{
@@ -125,8 +132,7 @@ func main() {
 		client: &http.Client{},
 	}
 	if err := s.loadTemplates(); err != nil {
-		slog.Error("templates", "err", err)
-		os.Exit(1)
+		return fmt.Errorf("templates: %w", err)
 	}
 	go s.prune()
 
@@ -179,10 +185,7 @@ func main() {
 	})
 
 	slog.Info("llm listening", "addr", *addr, "upstream", s.upstream, "model", s.model)
-	if err := web.Serve(*addr, web.Chain(mux, web.Recovered, web.Logged, web.SecurityHeaders(csp()), web.SameOrigin())); err != nil {
-		slog.Error("startup failed", slog.Any("err", err))
-		os.Exit(1)
-	}
+	return web.Serve(*addr, web.Chain(mux, web.Recovered, web.Logged, web.SecurityHeaders(csp()), web.SameOrigin()))
 }
 
 // prune trims the call log on a timer. The prompts are the whole of what
