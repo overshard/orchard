@@ -806,7 +806,7 @@ func (s *site) addMirrorSource(w http.ResponseWriter, r *http.Request) {
 	msg := "Added " + src.Label() + ". Syncing now."
 	if !s.mirrorReady() {
 		msg = "Added " + src.Label() + ". The mirror lane is disabled, so nothing will sync."
-	} else if !s.mirror.TrySync(context.Background()) {
+	} else if !s.mirror.TrySync() {
 		msg = "Added " + src.Label() + ". A sync is already running; it will be picked up next time."
 	}
 	s.setMirrorNotice(w, msg)
@@ -834,7 +834,7 @@ func (s *site) syncMirrors(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case !s.mirrorReady():
 		s.setMirrorNotice(w, "The mirror lane is disabled (REPOS_MIRROR=0).")
-	case s.mirror.TrySync(context.Background()):
+	case s.mirror.TrySync():
 		s.setMirrorNotice(w, "Sync started. Reload in a moment to see it land.")
 	default:
 		s.setMirrorNotice(w, "A sync is already running.")

@@ -770,7 +770,7 @@ func TestAdopt(t *testing.T) {
 		if !ok {
 			t.Fatalf("store.Open(%q) = false", name)
 		}
-		return NewMirror(store, db), repo
+		return NewMirror(context.Background(), store, db), repo
 	}
 
 	head := func(dir string) string {

@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"repos.bythewood.me/web"
@@ -131,16 +132,26 @@ func realMain() error {
 	if err := db.SeedMirrorSources(githubUser); err != nil {
 		slog.Error("seed mirror sources", slog.Any("err", err))
 	}
-	mirror := NewMirror(store, db)
+	mirror := NewMirror(ctx, store, db)
 	s.mirror = mirror
+
+	// Cancelled and then waited on, so no sync or repack is still writing when
+	// the db and the store close.
+	var background sync.WaitGroup
+	defer func() {
+		cancel()
+		background.Wait()
+		mirror.Wait()
+	}()
+
 	if cfg.MirrorEnabled {
-		go mirror.Run(ctx, cfg.MirrorEvery)
+		background.Go(func() { mirror.Run(ctx, cfg.MirrorEvery) })
 	} else {
 		slog.Info("mirror lane disabled")
 	}
 	// receive.autogc is false on every repository here, so a push never repacks
 	// while Cloudflare counts to 100. This lane is where that work went.
-	go RunGC(ctx, store, cfg.GCEvery)
+	background.Go(func() { RunGC(ctx, store, cfg.GCEvery) })
 
 	mux := http.NewServeMux()
 
