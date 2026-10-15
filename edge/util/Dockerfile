@@ -1,7 +1,6 @@
 # The one throwaway container the Makefile reaches for: curl into another
 # container's network namespace, and fetch the Wikipedia snapshot. Every image
-# in this repo is Debian trixie or scratch, so this is too rather than pulling
-# alpine and curlimages/curl at random.
+# in this repo is Debian trixie or scratch, so this is too.
 #
 # Built by `make util`, which the targets that need it depend on.
 

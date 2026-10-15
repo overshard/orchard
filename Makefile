@@ -181,8 +181,8 @@ down-one: require-site
 # nobody runs a doctor that pushes a notification every time. To test the path
 # end to end:
 #
-#   sudo docker run --rm --network container:orchard-ntfy curlimages/curl \
-#     -d "test" http://127.0.0.1:8000/status
+#   sudo docker run --rm --network container:orchard-ntfy orchard-util \
+#     curl -d "test" http://127.0.0.1:8000/status
 #
 # `ps -a` rather than `ps`, so a container that exited reads as stopped rather
 # than vanishing from the report.

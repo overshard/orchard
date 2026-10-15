@@ -18,8 +18,8 @@ cache-file: "/var/lib/ntfy/cache.db"
 cache-duration: "24h"
 
 # deny-all means an anonymous request can neither read nor publish, on any topic.
-# Two accounts exist, created by setup-ntfy.sh: isaac reads status and logging,
-# orchard writes them with a token that lives in each site's .env.
+# make ntfy creates three accounts. isaac reads every topic, orchard writes
+# status and logging, and orchard-auth writes auth, each with a token in a .env.
 auth-file: "/var/lib/ntfy/user.db"
 auth-default-access: "deny-all"
 

@@ -118,7 +118,7 @@ var sites = []Site{
 	{
 		Name:        "logging",
 		Dir:         "logging.bythewood.me",
-		Description: "Every site here ships its structured logs to this one, so a request I want to find is in one place instead of eleven docker logs.",
+		Description: "Every site here ships its structured logs to this one, so a request I want to find is in one place instead of spread across every container's docker logs.",
 		Tech:        []string{"Go", "SQLite", "Typst"},
 		Visit:       "https://logging.bythewood.me",
 	},
