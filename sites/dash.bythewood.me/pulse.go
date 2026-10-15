@@ -7,10 +7,9 @@ import (
 	"time"
 )
 
-// Pulse is the line over a feed. Its level is worked out from points and age
-// on every poll, since a thread takes off inside an hour, and under it sits the
-// model's read of the page from the last brief, which says what the numbers
-// can't.
+// Pulse is the line over a feed. Its level is worked out on every poll since a
+// thread takes off inside an hour, and under it sits the model's read from the
+// last brief, which says what the numbers can't.
 type Pulse struct {
 	Level string `json:"level"`
 	Label string `json:"label"`

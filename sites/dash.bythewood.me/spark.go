@@ -7,9 +7,8 @@ import (
 	"strings"
 )
 
-// Sparkline geometry. The SVG is drawn with preserveAspectRatio="none" so these
-// are a coordinate space rather than pixels, and the card decides the real size
-// in CSS.
+// Sparkline geometry. The SVG is drawn with preserveAspectRatio="none", so
+// these are a coordinate space and the card sets the real size in CSS.
 const (
 	sparkWidth  = 100.0
 	sparkHeight = 32.0
@@ -19,11 +18,9 @@ const (
 	sparkPad = 1.5
 )
 
-// Spark is one sparkline as the template writes it out: a path for the line, a
-// closed path for the fill under it, and the y of the previous close so the
-// card can rule a line across at the level the day is measured from. This is
-// how Yahoo draws it, and the reference line is what makes the shape mean
-// anything on its own.
+// Spark is one sparkline as the template writes it, a path for the line, a
+// closed path for the fill under it, and the y of the previous close, which the
+// card rules a line across so the shape means something on its own.
 type Spark struct {
 	Line     string  `json:"line"`
 	Area     string  `json:"area"`
@@ -31,28 +28,21 @@ type Spark struct {
 	HasBase  bool    `json:"has_base"`
 	Points   int     `json:"points"`
 
-	// How far across the box the data reaches, and whether that is short of the
-	// end. The axis is the whole session rather than the bars that have printed
-	// so far, so ten minutes after the open the line covers a fortieth of the
-	// card instead of all of it. Yahoo and every other intraday sparkline draw
-	// it this way, and stretching five bars across a full card is a lie about
-	// how much of the day has happened.
+	// How far across the box the data reaches, and whether that's short of the
+	// end. The axis is the whole session, since five bars stretched across a
+	// full card lie about how much of the day has happened.
 	Span    float64 `json:"span"`
 	Partial bool    `json:"partial"`
 
-	// A card whose market shut while the rest of the strip kept trading. The VIX
-	// stops at the bell every night with seven cards beside it still moving, so
-	// its rule at the last print has to say closed rather than say now.
+	// A card whose market shut while the rest of the strip kept trading, like
+	// the VIX at the bell, so its rule at the last print says closed instead of
+	// now.
 	Closed bool `json:"closed"`
 }
 
-// buildSpark scales closes into the viewBox. previous is included in the range
-// so the baseline is always drawn inside the box rather than off the top of a
-// day that only went up.
-//
-// times are the unix seconds of each close and axis is the session they are
-// drawn against. Either being absent falls back to spacing the points evenly
-// across the full width, which is right for anything that never closes.
+// buildSpark scales closes into the viewBox, with previous in the range so the
+// baseline is always inside the box. Without times or an axis the points are
+// spaced evenly, which is right for anything that never closes.
 func buildSpark(closes []float64, times []int64, previous float64, axis tradingAxis) Spark {
 	if len(closes) < 2 {
 		return Spark{}
@@ -96,10 +86,9 @@ func buildSpark(closes []float64, times []int64, previous float64, axis tradingA
 		}
 	}
 
-	// The fill runs from the line down to the floor of the box, which is the
-	// shape Yahoo uses. Filling to the baseline instead would need two clipped
-	// halves to colour the above and below parts differently, and at 32 units
-	// tall that reads as noise.
+	// The fill runs from the line to the floor of the box, the shape Yahoo
+	// uses. Filling to the baseline would need two clipped halves coloured
+	// apart, and at this height that reads as noise.
 	first, last := xs[0], xs[len(xs)-1]
 	area := line.String() +
 		fmt.Sprintf(" L%s,%s L%s,%s Z", num(last), num(sparkHeight), num(first), num(sparkHeight))
@@ -120,9 +109,9 @@ func buildSpark(closes []float64, times []int64, previous float64, axis tradingA
 	return s
 }
 
-// scaleX places each close along the session rather than along the list. A
-// point outside the axis is clamped rather than dropped, since an extended
-// hours bar is still a price and pushing it off the box would lose it.
+// scaleX places each close along the session instead of along the list. A point
+// outside the axis is clamped and not dropped, since an extended hours bar is
+// still a price.
 func scaleX(closes []float64, times []int64, axis tradingAxis) []float64 {
 	xs := make([]float64, len(closes))
 

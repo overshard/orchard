@@ -14,17 +14,13 @@ import (
 	_ "time/tzdata"
 )
 
-// Yahoo's spark endpoint is the one that still answers without a session.
-// v7/finance/quote returns 401 Unauthorized to anything that has not carried a
-// cookie and crumb through their handshake, and v8/finance/chart works but is
-// one request per symbol. spark takes the whole list in a single call and hands
-// back the same meta block plus the intraday closes, which is every number on
-// this page for the cost of one request.
+// spark answers without a session, where v7/finance/quote answers 401 to
+// anything that hasn't been through Yahoo's cookie and crumb handshake. It
+// takes every symbol in one call, v8/finance/chart one each.
 const sparkURL = "https://query1.finance.yahoo.com/v7/finance/spark"
 
 // Instrument is one card. Cash shows during the US equity session and Future
-// replaces it outside one, which is what Isaac asked for and what Yahoo itself
-// does on its front page.
+// replaces it outside one, the way Yahoo's own front page does.
 type Instrument struct {
 	Key         string
 	Label       string
@@ -34,17 +30,9 @@ type Instrument struct {
 	Decimals    int
 }
 
-// The eight cards, in display order.
-//
-// Gold, crude and bitcoin have no Future because Cash already is the nearly
-// round the clock contract, so there is nothing to swap them to. The VIX has no
-// tradeable overnight form on Yahoo, so it simply goes stale after the close
-// and says so rather than pretending.
-//
-// ^IXIC is the Nasdaq Composite and NQ=F is the Nasdaq 100. Different baskets,
-// so the two halves of that card will not agree to the basis point across a
-// session boundary. Yahoo pairs them the same way, and "Nasdaq" means the
-// Composite to most people, so the futures label names the index it actually is.
+// Gold, crude and bitcoin already trade nearly round the clock and the VIX has
+// no overnight form on Yahoo, so none of them has a Future. NQ=F is the Nasdaq
+// 100 and not the Composite, so its label says so.
 var instruments = []Instrument{
 	{Key: "sp500", Label: "S&P 500", Cash: "^GSPC", Future: "ES=F", FutureLabel: "S&P 500 futures", Decimals: 2},
 	{Key: "dow", Label: "Dow 30", Cash: "^DJI", Future: "YM=F", FutureLabel: "Dow futures", Decimals: 2},
@@ -70,19 +58,16 @@ func sparkSymbols() []string {
 	return out
 }
 
-// roundClock is a symbol that keeps printing outside the New York session: the
-// four index futures, gold, crude and bitcoin. They need a wider fetch and a
-// previous close worked out from the bars, because Yahoo dates their day by the
-// contract or by UTC and never by the exchange floor. A leading caret is every
-// cash index and only cash indexes, and the sector ETFs are on the board poll
-// which does not go through here.
+// roundClock is a symbol that keeps printing outside the New York session.
+// Those need a wider fetch and a previous close off the bars, since Yahoo dates
+// their day by the contract or by UTC. A leading caret marks a cash index.
 func roundClock(symbol string) bool {
 	return !strings.HasPrefix(symbol, "^")
 }
 
-// splitStrip separates the strip into the two fetches it takes. A cash index is
-// quoted on exchange hours and Yahoo's own previous close is already the 4pm
-// one, so those keep the single day request they have always had.
+// splitStrip separates the strip into its two fetches. A cash index is quoted
+// on exchange hours and Yahoo's previous close for it is already the 4pm one,
+// so it only needs the day it is in.
 func splitStrip() (session, extended []string) {
 	for _, s := range sparkSymbols() {
 		if roundClock(s) {
@@ -144,8 +129,8 @@ type Quote struct {
 	Low52    float64
 	Closes   []float64
 
-	// Unix seconds for each close, so the sparkline can place a bar at the time
-	// it printed rather than at its position in the list.
+	// Unix seconds for each close, so the sparkline places a bar at the time it
+	// printed instead of at its position in the list.
 	Times []int64
 }
 
@@ -163,9 +148,8 @@ func (q Quote) percent() float64 {
 	return (q.Price - q.Previous) / q.Previous * 100
 }
 
-// sparkBatch is how many symbols one spark request may carry. The endpoint
-// answers 400 rather than truncating past its limit, which is how a working
-// twelve symbol poll broke the moment rates and sectors took it to twenty seven.
+// sparkBatch is the most symbols one spark request may carry, since past it the
+// endpoint answers 400 instead of truncating.
 const sparkBatch = 10
 
 // fetchQuotes asks for every symbol the page needs, in as few requests as the
@@ -209,9 +193,8 @@ const (
 	extendedRange = "5d"
 )
 
-// fetchStrip is the market poll. It goes out as two requests because the range
-// is per request and the two halves of the strip need different ones, which is
-// the same number of batches the one range fetch took.
+// fetchStrip is the market poll. It goes out as two requests since the range is
+// per request and the two halves of the strip need different ones.
 func fetchStrip(ctx context.Context, g *Guard) (map[string]Quote, error) {
 	session, extended := splitStrip()
 
@@ -306,9 +289,8 @@ type Card struct {
 	Spark       Spark  `json:"spark"`
 	Unavailable bool   `json:"unavailable"`
 
-	// Unexported, so it stays out of the JSON the page is patched from. It is
-	// only here so one poll can tell whether the next one is the same trading
-	// day. See carrySparks.
+	// Unexported to keep it out of the JSON. carrySparks reads it to tell
+	// whether the next poll is the same trading day.
 	asOf time.Time
 }
 
@@ -358,10 +340,9 @@ func (r stripRow) axisOr(strip tradingAxis) tradingAxis {
 	return r.axis
 }
 
-// resolveRows picks each card's symbol and puts its bars on the New York trading
-// day, so the eight of them start their line at the same 9:30 and measure it
-// from the same 4pm. The previous close is read before the bars are trimmed,
-// since it is the print before the open they are trimmed to.
+// resolveRows picks each card's symbol and puts its bars on the New York
+// trading day, so every card starts at 9:30 and measures from 4pm. The previous
+// close is read before trimming, since it's the print before the open.
 func resolveRows(quotes map[string]Quote, useFutures bool) []stripRow {
 	rows := make([]stripRow, 0, len(instruments))
 
@@ -378,18 +359,17 @@ func resolveRows(quotes map[string]Quote, useFutures bool) []stripRow {
 			continue
 		}
 
-		// Anything with no overnight form freezes at the close, so say when the
-		// number is from rather than showing a stale figure as a live one.
+		// Anything with no overnight form freezes at the close, so the card
+		// says when its number is from instead of passing it off as live.
 		if useFutures && in.Future == "" && in.Key == "vix" {
 			r.note = "as of " + q.AsOf.In(easternTime()).Format("Mon 3:04pm")
 		}
 
 		axis := sessionAxis(q.Times)
 		if n := len(q.Times); n > 0 && roundClock(r.symbol) {
-			// Yahoo's own previous close is a five day old one on this batch,
-			// since it is relative to the range asked for. There is no falling
-			// back to it, so a card with no 4pm in its bars says it has no
-			// baseline rather than measuring from last week.
+			// Yahoo's own previous close on this batch is relative to the five
+			// day range, so a card with no 4pm in its bars says it has no
+			// baseline instead of measuring from last week.
 			q.Previous, r.nobase = 0, true
 			if prev, found := previousSessionClose(q.Closes, q.Times, time.Unix(q.Times[n-1], 0)); found {
 				q.Previous, r.nobase = prev, false
@@ -403,11 +383,9 @@ func resolveRows(quotes map[string]Quote, useFutures bool) []stripRow {
 	return rows
 }
 
-// stripAxis is the one window the strip is read across: the latest open any card
-// reached, and the latest bar printed against it. Without a shared end the right
-// edge of a card that stopped at 4pm is a different hour than the right edge of
-// the one beside it that is still trading, and reading the eight together is the
-// only reason they sit in a row.
+// stripAxis is the one window the strip is read across, the latest open any
+// card reached and the latest bar printed against it, so the right edge of
+// every card is the same hour.
 func stripAxis(rows []stripRow) tradingAxis {
 	var strip tradingAxis
 	for _, r := range rows {
@@ -426,10 +404,9 @@ func stripAxis(rows []stripRow) tradingAxis {
 	return strip
 }
 
-// stripLive is the most recent bar anywhere on the strip, which is the edge a
-// card has to reach to count as still trading. The axis end cannot stand in for
-// it, since through the session that is the scheduled 16:00 and every card is
-// short of it without any of them having stopped.
+// stripLive is the latest bar anywhere on the strip, the edge a card has to
+// reach to count as still trading. The axis end can't stand in for it, since
+// through the session that's the scheduled 16:00 and every card is short of it.
 func stripLive(rows []stripRow) int64 {
 	var live int64
 	for _, r := range rows {
@@ -458,10 +435,9 @@ func (r stripRow) shutBy(live int64) bool {
 func buildMarket(quotes map[string]Quote, now time.Time) Market {
 	session, phase := equitySession(now)
 
-	// A cash index that has not printed in half an hour during what the clock
-	// calls regular hours means the clock is wrong, and the cheapest way that
-	// happens is a market holiday. There is no holiday calendar here, so the
-	// quote's own age stands in for one.
+	// A cash index that hasn't printed in half an hour of what the clock calls
+	// regular hours means the clock is wrong, usually on a market holiday, and
+	// with no holiday calendar the quote's own age stands in for one.
 	if session == "regular" {
 		// A zero AsOf means Yahoo sent no regularMarketTime, which reads as
 		// 1970 and would make every session look like a holiday.
@@ -491,9 +467,8 @@ func buildMarket(quotes map[string]Quote, now time.Time) Market {
 
 		change, pct := q.change(), q.percent()
 		pts, percent := signed(change, r.in.Decimals), signed(pct, 2)+"%"
-		// The price is real and the close it would be measured from is not, so
-		// the card prints the one and withholds the other. It would otherwise
-		// read +0.00%, which is a number rather than an absence.
+		// The price is real and its baseline isn't, so the card shows the one
+		// and withholds the other instead of reading +0.00%.
 		if r.nobase {
 			pts, percent = "\u2014", ""
 		}
@@ -515,9 +490,9 @@ func buildMarket(quotes map[string]Quote, now time.Time) Market {
 	m.Ticker = tabTicker(m)
 	m.notices = moveNotices(rows, session)
 
-	// Drawdown from the 52 week high, which is the number Isaac acts on. It is
-	// the 52 week high and not the all time high because that is what the same
-	// payload already carries, and the label says so.
+	// Drawdown from the 52 week high, the number Isaac acts on. The payload
+	// carries the 52 week high and not the all time one, so that's what the
+	// label says.
 	if q, ok := quotes["^GSPC"]; ok && q.High52 > 0 {
 		m.DrawdownPct = (q.Price - q.High52) / q.High52 * 100
 		m.Drawdown = fmt.Sprintf("%.1f%%", m.DrawdownPct)
@@ -526,11 +501,9 @@ func buildMarket(quotes map[string]Quote, now time.Time) Market {
 	return m
 }
 
-// A poll that comes back with almost no points to draw is the upstream having a
-// moment, not the market: Yahoo's spark endpoint will return two closes for a
-// symbol that had 287 a minute earlier. A straight line between two points is
-// worse than the real shape a minute late, so the old one is carried forward.
-// The price and the change on the card are always the fresh ones.
+// A poll with fewer points than this is Yahoo having a moment and not the
+// market, so the last shape is carried forward, since a minute late beats a
+// straight line. The price and the change are always fresh.
 const sparkFloor = 5
 
 func carrySparks(next, prev Market) Market {
@@ -584,8 +557,8 @@ func easternTime() *time.Location {
 	if eastern == nil {
 		loc, err := time.LoadLocation("America/New_York")
 		if err != nil {
-			// Cannot happen with time/tzdata linked in, and UTC is a wrong
-			// clock rather than a crashed process if it somehow does.
+			// Can't happen with time/tzdata linked in, and if it somehow does,
+			// UTC is a wrong clock instead of a crashed process.
 			loc = time.UTC
 		}
 		eastern = loc
@@ -593,12 +566,9 @@ func easternTime() *time.Location {
 	return eastern
 }
 
-// equitySession is the US equity clock: pre from 4:00, regular from 9:30 to
-// 16:00, post until 20:00, all New York time, weekends closed.
-//
-// There is no exchange holiday calendar, which is the same call finance made:
-// a hardcoded list goes stale silently and a fetched one is another endpoint to
-// guard. buildMarket catches the holiday case from the quote's own age instead.
+// equitySession is the US equity clock in New York time, pre from 4:00, regular
+// 9:30 to 16:00, post until 20:00. A holiday calendar goes stale silently, so
+// buildMarket catches a holiday from the quote's age.
 func equitySession(now time.Time) (session, phase string) {
 	t := now.In(easternTime())
 
@@ -642,19 +612,17 @@ type tradingAxis struct {
 	ok         bool
 }
 
-// The New York trading day, which every card on the strip is now drawn against.
-// The exchanges open at 9:30 and shut at 16:00, and a symbol that trades through
-// the night keeps printing past the close.
+// The New York trading day every card on the strip is drawn against. A symbol
+// that trades through the night keeps printing past the close.
 const (
 	sessionOpenHour = 9
 	sessionOpenMin  = 30
 	regularHours    = 6*time.Hour + 30*time.Minute
 )
 
-// sessionStart is the 9:30 New York morning that t belongs to, so the trading
-// day runs from one open to the next rather than from midnight. Weekends get an
-// open like any other day, since gold and bitcoin do not take Saturday off and
-// every card has to reset at the same hour.
+// sessionStart is the 9:30 New York morning t belongs to, so the trading day
+// runs open to open. Weekends get an open too, since gold and bitcoin trade on
+// Saturday and every card resets at the same hour.
 func sessionStart(t time.Time) time.Time {
 	et := easternTime()
 	y, m, d := t.In(et).Date()
@@ -665,10 +633,9 @@ func sessionStart(t time.Time) time.Time {
 	return open
 }
 
-// sessionAxis is the window a series is drawn against: the open it belongs to
-// through the close, stretched to hold whatever printed after the bell. The
-// anchor comes from the last bar rather than from the wall clock, so the VIX at
-// midnight still shows the session it actually traded instead of an empty box.
+// sessionAxis is the window a series is drawn against, its open through the
+// close, stretched to hold whatever printed after the bell. It's anchored on
+// the last bar so the VIX at midnight shows the session it traded.
 func sessionAxis(times []int64) tradingAxis {
 	if len(times) == 0 {
 		return tradingAxis{}
@@ -683,14 +650,9 @@ func sessionAxis(times []int64) tradingAxis {
 	return axis
 }
 
-// sessionBars drops everything before the open rather than clamping it to the
-// edge, which stacks the VIX's 3:15am prints into a vertical smear against the
-// left of its card.
-//
-// A series with bars after the close and none inside it is a market that has
-// reopened before its own next open, which is futures between Sunday evening and
-// Monday morning. There is no session to lay those over, so they take the full
-// width.
+// sessionBars drops what printed before the open instead of clamping it, which
+// would smear the VIX's overnight prints up the left edge. Bars after the close
+// and none inside are futures reopened Sunday evening, given the full width.
 func sessionBars(closes []float64, times []int64, axis tradingAxis) ([]float64, []int64, tradingAxis) {
 	if !axis.ok || len(times) != len(closes) {
 		return closes, times, tradingAxis{}
@@ -717,9 +679,9 @@ func sessionBars(closes []float64, times []int64, axis tradingAxis) ([]float64, 
 	return keptCloses, keptTimes, axis
 }
 
-// lastBell is the most recent 4pm New York strictly before t. It is built from
-// the open rather than from a 16 so the two stay in step, and in Eastern so it
-// lands on 4pm across a daylight saving change instead of 3 or 5.
+// lastBell is the most recent 4pm New York strictly before t. It's built from
+// the open instead of a 16 so the two stay in step, and in Eastern so it lands
+// on 4pm across a daylight saving change.
 func lastBell(t time.Time) time.Time {
 	et := easternTime()
 	y, m, d := t.In(et).Date()
@@ -730,16 +692,9 @@ func lastBell(t time.Time) time.Time {
 	return bell
 }
 
-// previousSessionClose is the last print at or before the most recent 4pm, which
-// is what "the close" has to mean once every card is on one clock. Yahoo dates
-// bitcoin's day by UTC and a future's by its contract, so their own previous
-// close measures from a different moment than the S&P's and the eight cards
-// disagree about what day it is. Reading it off the bars puts them all on the
-// same 4pm.
-//
-// The cut is the 4pm before the newest bar's day and rolls at midnight, so the
-// evening futures keep the day's move rather than going flat at the bell, and a
-// 7am glance measures from last night's close rather than the one before it.
+// previousSessionClose is the last print at or before the latest 4pm, since
+// Yahoo dates bitcoin's day by UTC and a future's by contract. The cut is the
+// 4pm before the newest bar's day, so the evening futures keep the day's move.
 func previousSessionClose(closes []float64, times []int64, last time.Time) (float64, bool) {
 	y, m, d := last.In(easternTime()).Date()
 	cut := lastBell(time.Date(y, m, d, 0, 0, 0, 0, easternTime())).Unix()

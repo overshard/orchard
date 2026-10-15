@@ -115,8 +115,8 @@ func (m *Model) GPU(ctx context.Context) (GPUState, error) {
 	return g, err
 }
 
-// Unload takes the weights off now rather than at the end of the gateway's
-// three minute idle timer, so a game started straight after a brief has the card.
+// Unload takes the weights off now instead of at the end of the gateway's idle
+// timer, so a game started straight after a brief has the card.
 func (m *Model) Unload(ctx context.Context) error {
 	return m.call(ctx, http.MethodPost, "/v1/unload", nil)
 }

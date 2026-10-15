@@ -30,14 +30,14 @@ const (
 	// and a fraction of the response.
 	reviewsURL = "https://store.steampowered.com/appreviews/%d?json=1&language=all&purchase_type=all&num_per_page=0"
 
-	// How far down the chart to look for six games, which is headroom for a
-	// lookup that fails rather than for the chart itself.
+	// How far down the chart to look for steamShown games, as headroom for a
+	// lookup that fails.
 	steamCandidates = 12
 )
 
-// The search hands back a capsule image rather than an app id, and the id is
-// the only part of the URL that is stable across the several CDN hosts and
-// path shapes Valve has used.
+// The search hands back a capsule image instead of an app id, and the id is the
+// only part of the URL that holds still across Valve's CDN hosts and path
+// shapes.
 var steamAppID = regexp.MustCompile(`/apps/(\d+)/`)
 
 type Game struct {
@@ -48,11 +48,9 @@ type Game struct {
 	Tags     []string `json:"tags"`
 	Players  string   `json:"players"`
 
-	// What Steam's own users make of it. Rating is the percentage positive and
-	// Verdict is Valve's word for that percentage, which is the label anyone
-	// who uses the store already reads. Reviews is how much it rests on, since
-	// 100% of nine reviews and 94% of four hundred thousand are different
-	// claims.
+	// What Steam's own users make of it. Rating is the percentage positive,
+	// Verdict is Valve's word for it, and Reviews is how much it rests on,
+	// since 100% of nine and 94% of four hundred thousand are different claims.
 	Rating   int    `json:"rating"`
 	Verdict  string `json:"verdict"`
 	Reviews  string `json:"reviews"`
@@ -133,9 +131,9 @@ func fetchSteam(ctx context.Context, g *Guard) ([]Game, error) {
 
 		d, err := details(ctx, g, id)
 		if err != nil {
-			// The four Steam endpoints share one breaker, so a refusal here
-			// refuses every lookup left in the loop. Carrying on would hand
-			// back the two rows it has as though that were the chart.
+			// The Steam endpoints share one breaker, so a refusal here refuses
+			// every lookup left in the loop, and carrying on would hand back a
+			// short list as the chart.
 			break
 		}
 		if d == nil {
@@ -171,16 +169,15 @@ func fetchSteam(ctx context.Context, g *Guard) ([]Game, error) {
 }
 
 // keepSteam reports whether a fresh poll should replace what is on screen. A
-// short list means the lookups gave out partway rather than the store selling
-// out, and the poll is hourly, so two rows would sit there for the rest of it.
+// short list means the lookups gave out partway, and the poll is hourly, so two
+// rows would sit there for the rest of it.
 func keepSteam(fresh, shown []Game) bool {
 	return len(fresh) >= steamShown || len(fresh) >= len(shown)
 }
 
-// details looks one app up. A nil payload with a nil error means the lookup
-// landed and the thing is not a game, which costs a row. An error means the
-// lookup did not land at all, which is a different answer and one the caller
-// must not read as an empty chart.
+// details looks one app up. A nil payload with a nil error is a lookup that
+// landed on something that isn't a game, and an error is one that didn't land,
+// which the caller mustn't read as an empty chart.
 func details(ctx context.Context, g *Guard, id int) (*appDetails, error) {
 	var payload map[string]appDetails
 	if err := getJSON(ctx, g, "steam", detailsURL+strconv.Itoa(id), &payload); err != nil {
@@ -197,8 +194,8 @@ func details(ctx context.Context, g *Guard, id int) (*appDetails, error) {
 	return &d, nil
 }
 
-// gameTags reports the genres, three at most. The list runs to six and the
-// rest is noise at this width.
+// gameTags reports the genres, three at most, since the rest is noise at this
+// width.
 func gameTags(d *appDetails) []string {
 	tags := make([]string, 0, 3)
 	for _, genre := range d.Data.Genres {
@@ -217,10 +214,9 @@ func discount(d *appDetails) int {
 	return d.Data.Price.DiscountPercent
 }
 
-// rating fills in the review summary, and leaves the row alone if it cannot.
-// A game with almost no reviews gets none: Valve does not call a percentage a
-// verdict under ten of them either, and "100% POSITIVE" off three reviews is
-// the most misleading thing this panel could print.
+// rating fills in the review summary and leaves the row alone if it can't.
+// Under ten reviews a game gets none, since Valve doesn't call that a verdict
+// either and "100% POSITIVE" off three reviews would mislead.
 func rating(ctx context.Context, g *Guard, id int, game *Game) {
 	var payload reviewSummary
 	if err := getJSON(ctx, g, "steam", fmt.Sprintf(reviewsURL, id), &payload); err != nil {

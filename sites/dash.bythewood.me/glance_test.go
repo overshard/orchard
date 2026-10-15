@@ -71,7 +71,8 @@ func TestMarkedEscapes(t *testing.T) {
 	}
 }
 
-// 11 Oct: 1.33 in over nine hours and no alert out, which isn't a quiet day.
+// An inch and a third of rain over nine hours with no alert out isn't a quiet
+// day.
 func TestGlanceWeatherWatchesRainAndWind(t *testing.T) {
 	var st State
 	st.Weather.Days = []WeatherDay{{Rain: 0.2, RainHours: 3, Gusts: 12}, {Rain: 0.1, RainHours: 2, Gusts: 15}}
@@ -138,7 +139,8 @@ func TestReleaseDay(t *testing.T) {
 	}
 }
 
-// 14 Oct: a bad CPI print took the Nasdaq down 2.03% and the S&P only 1.17%.
+// A bad CPI print can take the Nasdaq down far more than the S&P, and that's a
+// day to watch on its own.
 func TestGlanceWatchesTheNasdaq(t *testing.T) {
 	now := time.Date(2026, 10, 14, 11, 0, 0, 0, easternTime())
 	var st State
@@ -152,8 +154,8 @@ func TestGlanceWatchesTheNasdaq(t *testing.T) {
 	}
 }
 
-// Handed the points, the model wrote "615 points in 2 hours" and nothing about
-// what the thread was.
+// Handed the points, the model writes how fast a thread grew and nothing about
+// what it is.
 func TestGlanceTechNamesTheThread(t *testing.T) {
 	var st State
 	st.HNPulse = Pulse{Level: "hot", Label: "BLOWING UP", Text: "No. 1 hit 807 points in 5 hours.", Thread: "Frontier labs are skipping security basics"}

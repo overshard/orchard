@@ -74,7 +74,7 @@ const mainstream = 7
 const newsMax = 160
 
 // newsPoints is the most a brief holds, and so the most events the writer sees.
-// It matches the feeds so the three panels in the band line up row for row.
+// It matches the feeds so the panels in the band line up row for row.
 const newsPoints = storiesShown
 
 func newsSchema(events int) map[string]any {
@@ -208,8 +208,8 @@ func readPicks(all []cluster, rated map[string]eventRating, n int) []cluster {
 	return out
 }
 
-// heard is how many outlets answered this run, which is what a story's
-// spread is measured against when a feed is down.
+// heard is how many outlets answered this run, the count a story's spread is
+// measured against when a feed is down.
 func heard(stories []story) int {
 	var names []string
 	for _, s := range stories {
@@ -242,9 +242,9 @@ func (b *Briefer) read(ctx context.Context, slot briefSlot, at time.Time, all []
 	top := len(all[0].outlets())
 	level, label := pulse(top, outlets)
 
-	// Go says how big the day is, so the model can't call every day busy, and
-	// the model only sees the events it writes, since from a longer list it
-	// skipped the second and third most carried for whatever read best.
+	// Go says how big the day is so the model can't call every day busy, and
+	// the model only sees the events it writes up, or it reaches for whatever
+	// reads best.
 	opener := map[string]string{"major": "One story is everywhere.", "quiet": "A quiet day."}[level]
 	events := readPicks(all, rated, map[string]int{"major": 2, "steady": 3, "quiet": 2}[level])
 	if len(events) == 0 {
@@ -303,8 +303,8 @@ func (b *Briefer) read(ctx context.Context, slot briefSlot, at time.Time, all []
 	if len(cited) == 0 {
 		return nil, nil, fmt.Errorf("no read")
 	}
-	// One link per event, the least framed telling, since cite would spend all
-	// four on the first event's outlets.
+	// One link per event, the least framed telling, since cite would spend
+	// every link on the first event's outlets.
 	var links []Link
 	for _, n := range cited {
 		l := events[n-1].lead()
@@ -323,9 +323,9 @@ func (b *Briefer) read(ctx context.Context, slot briefSlot, at time.Time, all []
 	return r, covered, nil
 }
 
-// eventRating is the model's read of one event. Each carries its number back, since
-// a small model handed sixty events and asked for sixty labels in order drifts
-// a place or two partway down and labels the futures story an incident.
+// eventRating is the model's read of one event. Each carries its number back,
+// since a small model labelling a long list in order drifts a place partway
+// down.
 type eventRating struct {
 	N      int    `json:"n"`
 	Label  string `json:"label"`
@@ -394,11 +394,9 @@ The rest mean what they say.
 	return ratings, nil
 }
 
-// mostImpact drops the minor events, unless so many outlets carried one that it
-// is mainstream anyway or it was rated 4 or 5, since the rater files market
-// stories under incident, and the ones rated as changing nothing, then keeps the
-// highest rated up to limit. Ties stay in the order they came, most outlets
-// first. An event the model skipped is kept and ranked as middling.
+// mostImpact drops events rated as changing nothing and minor ones unless
+// mainstream or rated 4 or 5, since market stories get filed as incidents, then
+// keeps the top rated up to limit. Unrated counts as middling.
 func mostImpact(events []cluster, ratings []eventRating, limit int) []cluster {
 	type ranked struct {
 		c      cluster

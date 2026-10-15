@@ -8,15 +8,9 @@ import (
 	"time"
 )
 
-// The conditions panel. Isaac sells into declines and buys back on the
-// recovery, and his own read of the research is that these signals work far
-// better for the buying half than the selling half, so this only ever describes
-// how far the market has fallen and never suggests getting out.
-//
-// It is a readout, not a prediction, and the page says so. Every threshold
-// below is arbitrary in the sense that no number is the right one, but they are
-// the conventional ones: five percent is a dip, ten a correction, twenty a bear
-// market, and a VIX in the thirties is panic.
+// The conditions panel. These signals work far better for buying back after a
+// decline than for selling into one, so it only describes how far the market
+// has fallen and never suggests getting out.
 
 const signalEvery = time.Hour
 
@@ -27,25 +21,23 @@ type Condition struct {
 	State string `json:"state"`
 	Known bool   `json:"known"`
 
-	// Where this reading sits along its own scale, and where the three band
-	// edges fall on it. A state word says which band a number landed in and
-	// nothing about how close it is to the next one, which is the question
-	// anyone watching a drawdown is actually asking.
+	// Where this reading sits along its own scale and where the band edges fall
+	// on it, since a state word says which band a number is in and nothing
+	// about how close it is to the next.
 	Fill  float64   `json:"fill"`
 	Ticks []float64 `json:"ticks"`
 }
 
 type Signal struct {
-	// Level is the whole panel in one word, and Headline says what it means in
-	// the only terms that matter here, which is whether this is an ordinary
-	// week or one of the moments worth adding into.
+	// Level is the whole panel in one word, and Headline says whether this is
+	// an ordinary week or one of the moments worth adding into.
 	Level      string      `json:"level"`
 	Headline   string      `json:"headline"`
 	Conditions []Condition `json:"conditions"`
 }
 
-// history is the daily series the panel needs and the 30 second poll cannot
-// give it, since that one only ever asks for a single day.
+// history is the daily series the panel needs and the market poll can't give
+// it, since that one only asks for a single day.
 type history struct {
 	closes []float64
 	times  []int64
@@ -118,8 +110,8 @@ func buildSignal(h *history, quotes map[string]Quote) Signal {
 		})
 	}
 
-	// The short shock, which is the case Isaac described: a fast drop over a
-	// few days rather than a long grind down.
+	// The short shock Isaac described, a fast drop over a few days instead of a
+	// long grind down.
 	if h != nil && len(h.closes) > 5 && price > 0 {
 		ref := h.closes[len(h.closes)-6]
 		if ref > 0 {
@@ -149,8 +141,8 @@ func buildSignal(h *history, quotes map[string]Quote) Signal {
 	}
 
 	// The regime. Below the 200 day average is the line most trend rules use,
-	// and it is here as context rather than as a trigger: it stays red through
-	// the whole of a recovery, which is exactly when Isaac is buying.
+	// and it's context here and not a trigger, since it stays red through a
+	// whole recovery while Isaac is buying.
 	if h != nil && len(h.closes) >= 200 && price > 0 {
 		ma := mean(h.closes[len(h.closes)-200:])
 		gap := (price - ma) / ma * 100
@@ -160,7 +152,7 @@ func buildSignal(h *history, quotes map[string]Quote) Signal {
 			state, note = "watch", "BELOW 200DMA"
 		}
 		// Above the average is the calm end, so the scale runs down from it and
-		// a longer bar means further below, the same as the three rows above.
+		// a longer bar means further below, the same as the rows above.
 		fill, ticks := meter(gap, 15, -15)
 		s.Conditions = append(s.Conditions, Condition{
 			Label: "TREND", Value: fmt.Sprintf("%+.1f%%", gap),
@@ -173,13 +165,9 @@ func buildSignal(h *history, quotes map[string]Quote) Signal {
 	return s
 }
 
-// meter turns a reading into a percentage across a fixed scale, plus where the
-// thresholds sit on that same scale. calm and worst are the two ends, and the
-// scale runs from one to the other in whichever direction the numbers go, so a
-// falling drawdown and a rising VIX both fill from the left as things get worse.
-//
-// A tick of zero is dropped, which is how the trend row gets a bar with no band
-// edges on it: above or below the average is the whole of what it says.
+// meter turns a reading into a percentage across a fixed scale from calm to
+// worst, whichever way the numbers run, plus where the thresholds sit. A zero
+// tick is dropped, which gives the trend row a bar with no band edges.
 func meter(v, calm, worst float64, edges ...float64) (float64, []float64) {
 	at := func(x float64) float64 {
 		frac := (x - calm) / (worst - calm) * 100
@@ -227,10 +215,9 @@ func vixNote(v float64) string {
 	}
 }
 
-// verdict is the one line at the top of the panel. It is worded as an
-// observation about the market rather than as an instruction, because a
-// dashboard that tells someone to buy is a dashboard that will eventually be
-// wrong at the worst possible moment.
+// verdict is the one line at the top of the panel, worded as an observation
+// instead of an instruction, since a dashboard that tells someone to buy will
+// one day be wrong at the worst moment.
 func verdict(worst int) (level, headline string) {
 	switch worst {
 	case 3:

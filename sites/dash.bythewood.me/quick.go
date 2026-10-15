@@ -40,12 +40,11 @@ func (s *site) quick(w http.ResponseWriter, r *http.Request) {
 }
 
 // quickSend relays one turn to chat over the bridge and streams its events
-// back, so the browser never calls chat cross origin and chat needs no CORS.
-// Only the session cookie goes with it, since chat checks that against auth
-// the same way this did.
+// back, so chat needs no CORS. Only the session cookie goes with it, which chat
+// checks against auth the same way this does.
 func (s *site) quickSend(w http.ResponseWriter, r *http.Request) {
 	// A page on another bythewood.me host is same-site and would carry the
-	// cookie, so the fence is same origin rather than SameSite.
+	// cookie, so the fence is same origin and not SameSite.
 	if site := r.Header.Get("Sec-Fetch-Site"); site != "" && site != "same-origin" {
 		quickError(w, http.StatusForbidden, "cross origin")
 		return

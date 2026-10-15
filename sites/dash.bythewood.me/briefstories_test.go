@@ -34,8 +34,8 @@ func TestClusterRanksByOutlets(t *testing.T) {
 	}
 }
 
-// One outlet folded the ICC sanctions into its Nobel headline, and the model
-// handed that back as the day's top story.
+// One outlet folds the ICC sanctions into its Nobel headline, and that headline
+// mustn't speak for the event.
 func TestLeadIsTheTitleTheOthersShare(t *testing.T) {
 	c := cluster{stories: []story{
 		st("CBS", "L", `Nobel Peace Prize awarded to former ICC judge Navanethem "Navi" Pillay`, 50),

@@ -10,8 +10,8 @@ import (
 	"time"
 )
 
-// Conditions where Isaac actually is, beyond the temperature. Three upstreams,
-// all free and keyless, all guarded.
+// Conditions where Isaac actually is, beyond the temperature. Every upstream
+// here is free, keyless and guarded.
 
 const (
 	// The National Weather Service asks for a contact in the User-Agent and is
@@ -23,10 +23,9 @@ const (
 	airURL   = "https://air-quality-api.open-meteo.com/v1/air-quality"
 	airEvery = 30 * time.Minute
 
-	// pollen.com's own front end calls this, and it refuses a request without
-	// a Referer pointing back at the matching page. Unofficial, so it is the
-	// most likely thing here to break, and the panel drops the row rather than
-	// the section when it does.
+	// pollen.com's own front end calls this, and it refuses a request without a
+	// Referer pointing back at the matching page. Unofficial, so when it breaks
+	// the panel drops the row and not the section.
 	pollenURL   = "https://www.pollen.com/api/forecast/current/pollen/"
 	pollenZip   = "27055"
 	pollenEvery = 6 * time.Hour
@@ -44,8 +43,8 @@ type Alert struct {
 	Until     string `json:"until"`
 	UntilUnix int64  `json:"until_unix"`
 
-	// Which event this is across the updates the NWS issues for it, what it
-	// is called in words rather than caps, and whether it is a cancellation.
+	// Which event this is across the updates the NWS issues for it, what it is
+	// called in words instead of caps, and whether it is a cancellation.
 	key    string
 	name   string
 	cancel bool
@@ -73,9 +72,8 @@ type alertPayload struct {
 }
 
 // The NWS writes every headline off one template, "<event> issued <time> until
-// <time> by <office>", so beside a row that already carries the event and the
-// end time it is the same sentence a third time. The office is the only part
-// of it that is not already on the row.
+// <time> by <office>", and the office is the only part a row doesn't already
+// carry.
 func alertOffice(headline string) string {
 	i := strings.LastIndex(headline, " by ")
 	if i < 0 {
@@ -97,9 +95,8 @@ func alertHeadline(event, headline string) string {
 	return h
 }
 
-// areaDesc is a semicolon separated list of every county an alert covers, which
-// runs to nine names on a watch and will not fit on a phone. The home county
-// leads when it is in the list, since the row is read to find out whether the
+// areaDesc lists every county an alert covers, too many for a phone. The home
+// county leads when it's in the list, since the row is read to see whether the
 // thing is overhead, and the rest becomes a count.
 func alertArea(desc string) string {
 	seen := make(map[string]bool)
@@ -133,10 +130,9 @@ func alertArea(desc string) string {
 	return fmt.Sprintf("%s +%d", lead, len(names)-1)
 }
 
-// alertKey names one event across every update the NWS issues for it. A warning
-// is reissued with a new id each time it is continued or extended, but its VTEC
-// string keeps the office, the phenomenon and the event number, so that is the
-// key, and only an alert with no VTEC at all falls back to its own id.
+// alertKey names one event across every update the NWS issues for it. A
+// continued warning gets a new id but keeps its VTEC office, phenomenon and
+// event number, so that's the key, else the alert's own id.
 func alertKey(vtec []string, id string) string {
 	for _, v := range vtec {
 		f := strings.Split(strings.Trim(v, "/"), ".")
@@ -227,9 +223,8 @@ type Air struct {
 	PollenKnown bool   `json:"pollen_known"`
 
 	// Each reading placed on its own scale, so UV, air quality and pollen read
-	// as three of the same instrument rather than as three unrelated numbers
-	// that happen to sit beside each other. Level is the severity step the
-	// colour comes from.
+	// as three of the same instrument instead of three unrelated numbers. Level
+	// is the severity step the colour comes from.
 	AQIFill     float64 `json:"aqi_fill"`
 	AQILevel    int     `json:"aqi_level"`
 	PollenFill  float64 `json:"pollen_fill"`
@@ -276,9 +271,9 @@ func fetchAir(ctx context.Context, g *Guard) (Air, error) {
 		PM25:     fmt.Sprintf("%.1f", payload.Current.PM25),
 		Known:    true,
 	}
-	// Scaled to 200 rather than to the 500 the index runs to, since anything
-	// over 200 here would be smoke from a fire two states away and the bar has
-	// to say something on an ordinary day.
+	// Scaled to 200 instead of the 500 the index runs to, since anything over
+	// 200 here is smoke from a fire two states away and the bar has to say
+	// something on an ordinary day.
 	air.AQIFill, air.AQILevel = gauge(float64(aqi), 200, 50, 100, 150)
 	return air, nil
 }
@@ -329,8 +324,7 @@ func fetchPollen(ctx context.Context, g *Guard) (index float64, top string, err 
 		if !strings.EqualFold(p.Type, "Today") {
 			continue
 		}
-		// Two, because a third wraps the cell onto a second line and the panel
-		// is a readout rather than a list of what is in the air.
+		// Two, because a third wraps the cell onto a second line.
 		names := make([]string, 0, 2)
 		for _, t := range p.Triggers {
 			if len(names) == 2 {

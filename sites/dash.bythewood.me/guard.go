@@ -12,16 +12,9 @@ import (
 	"time"
 )
 
-// Every upstream this site reads is free, keyless and someone else's. A ban on
-// one of them is not something a retry fixes and it lands on Isaac rather than
-// on a reviewer, so each endpoint is fenced: a hard budget per hour, a pause
-// between consecutive calls, and a breaker that opens on the responses that mean
-// stop asking.
-//
-// The state is written to disk because a breaker that resets on restart is not a
-// breaker. A restart loop against an endpoint that just returned 429 is the case
-// this is here to prevent. It is JSON rather than SQLite because four counters
-// per endpoint do not need a database.
+// Every upstream is free, keyless and someone else's, and a ban isn't fixed by
+// a retry, so each gets an hourly budget, a pace and a breaker. The state is on
+// disk, or a restart loop would hammer an endpoint that just answered 429.
 
 var errGuardOpen = errors.New("circuit open")
 
@@ -68,9 +61,9 @@ var budgets = map[string]budget{
 	// The same Twitch endpoint as above, on its own key so the hourly archive
 	// read cannot spend or trip what the live banner needs.
 	"twitchvods": {perHour: 30, pace: 2 * time.Second},
-	// No pacing on these two. They go to Isaac's own machine rather than to a
-	// stranger's endpoint, and the strip fires every probe at once, so a
-	// pause between them would only refuse all but the first.
+	// No pacing on these. They go to Isaac's own machine and the strip fires
+	// every probe at once, so a pause between them would only refuse all but
+	// the first.
 	"uptime":  {perHour: 900},
 	"logging": {perHour: 900},
 }
@@ -136,13 +129,9 @@ func (g *Guard) entry(name string) *guardEntry {
 	return e
 }
 
-// Allow reports whether a call to name may go out now, and reserves a slot in
-// the budget when it may. A caller that is refused must not make the request.
-//
-// Pacing is reported as a refusal here, which is right for a probe that has
-// something better to do than queue. Anything on a timer should call Reserve
-// instead, since three pollers sharing the Yahoo endpoint all fire at boot and
-// a refusal costs them a whole tick, which for two of them is hours.
+// Allow reports whether a call may go out now and reserves a slot when it may.
+// A pace is a refusal, which suits a probe, and anything on a timer calls
+// Reserve, or pollers sharing an endpoint at boot each lose a whole tick.
 func (g *Guard) Allow(name string) error {
 	wait, err := g.tryReserve(name)
 	if err != nil {
@@ -225,9 +214,9 @@ func (g *Guard) Succeed(name string) {
 	}
 }
 
-// Fail records an unsuccessful call. status is the HTTP status where there was
-// one and 0 for a transport error. 429 and 503 open the breaker at once,
-// because they are the endpoint saying so rather than the network being bad.
+// Fail records an unsuccessful call. status is the HTTP status, or 0 for a
+// transport error. 429 and 503 open the breaker at once, since they're the
+// endpoint saying so instead of the network being bad.
 func (g *Guard) Fail(name string, status int, retryAfter time.Duration) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -265,8 +254,8 @@ func (g *Guard) Fail(name string, status int, retryAfter time.Duration) {
 		slog.String("for", wait.String()))
 }
 
-// Flush writes the state out when it has changed. Called on a timer rather
-// than on every call so a 30 second poll does not mean a write per tick.
+// Flush writes the state out when it has changed. It runs on a timer instead of
+// on every call, so a 30 second poll isn't a write per tick.
 func (g *Guard) Flush() {
 	g.mu.Lock()
 	if !g.dirty {
@@ -282,7 +271,7 @@ func (g *Guard) Flush() {
 		return
 	}
 	// Rename onto the real path so a crash mid-write leaves the old state
-	// rather than a truncated file the next boot would refuse to parse.
+	// instead of a truncated file the next boot would refuse to parse.
 	tmp := g.path + ".tmp"
 	if err := os.WriteFile(tmp, b, 0o644); err != nil {
 		slog.Warn("guard state unwritable", slog.String("component", "guard"), slog.Any("err", err))
@@ -300,8 +289,7 @@ type Feed struct {
 	Age   string `json:"age"`
 
 	// Calls taken out of this hour's budget, and the budget itself, so the
-	// panel answers whether anything here is being hammered rather than
-	// leaving it to be worked out from the poll intervals in the source.
+	// panel says whether anything here is being hammered.
 	Used   int `json:"used"`
 	Budget int `json:"budget"`
 	Load   int `json:"load"`

@@ -12,29 +12,26 @@ import (
 	"time"
 )
 
-// Earnings for the hundred largest companies in the S&P 500, which is as far
-// down the index as a name is still a reason the market moved. Nasdaq publishes
-// a free calendar and a free screener, and the screener is what makes "the top
-// hundred" a filter that maintains itself rather than a list to keep by hand.
+// Earnings for the hundred largest companies in the S&P 500, as far down the
+// index as a name is still a reason the market moved. Nasdaq's free screener
+// keeps the top hundred up to date, so there's no list to maintain by hand.
 const (
 	earningsURL      = "https://api.nasdaq.com/api/calendar/earnings?date="
 	earningsCapsURL  = "https://api.nasdaq.com/api/screener/stocks?tableonly=true&limit=500&offset=0"
 	earningsEvery    = 6 * time.Hour
 	earningsDailyURL = "https://query1.finance.yahoo.com/v7/finance/spark"
 
-	// How far down the index the panel goes. The hundredth name is worth about
-	// $120B at the moment, and everything under it reports into a market that is
-	// not watching.
+	// How far down the index the panel goes, since everything under it reports
+	// into a market that isn't watching.
 	earningsRank = 100
 
 	// Three either side, since that is what the panel has room for once every
 	// row carries a result.
 	earningsShown = 3
 
-	// How far each walk goes for those three, counting today in both. Reporting
-	// season is four bursts a year, so off season the forward walk runs its
-	// whole length and finds nothing, which is the correct answer rather than a
-	// failure.
+	// How far each walk goes, counting today in both. Off season the forward
+	// walk runs its whole length and finds nothing, which is the right answer
+	// and not a failure.
 	earningsBackDays = 21
 	earningsNextDays = 28
 
@@ -44,7 +41,7 @@ const (
 	earningsMetBand = 2.0
 
 	// A move this size is the market having an opinion. Under it a beat and a
-	// red close is noise rather than a story about the outlook.
+	// red close is noise and not a story about the outlook.
 	earningsMoveBand = 1.5
 )
 
@@ -88,8 +85,8 @@ type Earnings struct {
 	Upcoming []Earning `json:"upcoming"`
 
 	// Every index name that printed today or on the weekday before, which the
-	// panel's three rows can leave out on a busy morning, and the caps list the
-	// quick check between full polls filters against.
+	// panel's rows can leave out on a busy morning, and the caps list the quick
+	// check between full polls filters against.
 	recent []Earning
 	caps   map[string]float64
 }
@@ -131,10 +128,9 @@ func fetchEarnings(ctx context.Context, g *Guard, now time.Time) (Earnings, erro
 	out := Earnings{caps: caps}
 	today := now.In(easternTime())
 
-	// Both walks start on today. Nasdaq stops supplying the time of day once a
-	// date is in the past and only fills in the actual EPS then too, so the
-	// presence of that figure is what sorts a row into one half or the other,
-	// and a company reporting tonight is upcoming until its number lands.
+	// Both walks start on today. Nasdaq only fills in the actual EPS once a
+	// date is past, so that figure sorts a row into one half or the other, and
+	// a company reporting tonight is upcoming until its number lands.
 	fetched := map[string][]Earning{}
 	day := func(d time.Time) ([]Earning, bool) {
 		k := d.Format("2006-01-02")
@@ -264,8 +260,8 @@ func logReports(changes []reportChange) {
 }
 
 // earningsDay is one calendar day filtered to the index names, largest first.
-// The false return is a day that could not be fetched, which costs its own rows
-// rather than the panel.
+// The false return is a day that couldn't be fetched, which costs its own rows
+// and not the panel.
 func earningsDay(ctx context.Context, g *Guard, day, today time.Time, caps map[string]float64) ([]Earning, bool) {
 	if wd := day.Weekday(); wd == time.Saturday || wd == time.Sunday {
 		return nil, false
@@ -343,7 +339,7 @@ func fetchIndexCaps(ctx context.Context, g *Guard) (map[string]float64, error) {
 
 // addReactions fills in what each stock did around its print, in place. One
 // batched request covers every reported row, and a failure leaves the rows
-// without a move rather than dropping them.
+// without a move instead of dropping them.
 func addReactions(ctx context.Context, g *Guard, rows []Earning, today time.Time) {
 	if len(rows) == 0 {
 		return
@@ -415,12 +411,9 @@ func fetchDailyCloses(ctx context.Context, g *Guard, symbols []string) (map[stri
 	return out, nil
 }
 
-// reaction is what the stock did on the announcement, as a percent.
-//
-// Nasdaq drops the pre-market or after-hours flag once a date is in the past, so
-// which of the two sessions around the report carried it is not knowable from
-// the calendar. The one that moved is the one that heard the news, and when
-// neither did it does not matter which gets picked.
+// reaction is what the stock did on the announcement, as a percent. Nasdaq
+// drops the pre-market or after-hours flag once a date is past, so the session
+// that moved is taken as the one that heard the news.
 func reaction(days []dailyClose, report time.Time) (float64, bool) {
 	stamp := report.Format("2006-01-02")
 

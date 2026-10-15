@@ -59,7 +59,7 @@ func TestThreadReadNeedsComments(t *testing.T) {
 }
 
 // The front page read still sees three comments from the busiest threads only,
-// though every shown thread now carries more for its own read.
+// though every shown thread carries more for its own read.
 func TestThreadListOnlyBusy(t *testing.T) {
 	ts := []thread{
 		{title: "Busy", busy: true, said: []string{"a", "b", "c", "d"}},
@@ -71,8 +71,8 @@ func TestThreadListOnlyBusy(t *testing.T) {
 	}
 }
 
-// The 14 Oct passkeys read, cut at a comma with its last clause left as two
-// words, which whole kept as a sentence.
+// A read cut at a comma with its last clause left as two words, which whole
+// would keep as a sentence.
 func TestThreadReadRetriesACutRead(t *testing.T) {
 	m := &scriptedModel{answers: []string{
 		`{"read": "Most think passkeys are a mess, but some say the issue is attestation being extended to restrict devices, while others,"}`,

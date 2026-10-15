@@ -36,7 +36,7 @@ func TestGuardPacesConsecutiveCalls(t *testing.T) {
 }
 
 // 429 and 503 are the endpoint saying stop, so they open the breaker at once
-// rather than after a failure streak.
+// instead of after a failure streak.
 func TestGuardOpensImmediatelyOnRateLimit(t *testing.T) {
 	for _, status := range []int{http.StatusTooManyRequests, http.StatusServiceUnavailable} {
 		g := NewGuard(t.TempDir())
@@ -144,10 +144,9 @@ func TestParseRetryAfter(t *testing.T) {
 	}
 }
 
-// Pacing is a timing concern rather than a breaker, so a poller waits it out.
-// Three pollers share the Yahoo endpoint and fire together at boot, and refusing
-// two of them leaves their panels empty until their next tick, which for two of
-// them is hours away.
+// Pacing is a timing concern and not a breaker, so a poller waits it out, or
+// the pollers sharing an endpoint at boot leave their panels empty until their
+// next tick.
 func TestGuardReserveWaitsOutThePace(t *testing.T) {
 	g := NewGuard(t.TempDir())
 

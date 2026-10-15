@@ -13,14 +13,12 @@ import (
 	"unicode"
 )
 
-// Three times a day the local model reads what the feeds below have published
-// and writes two things, a line or two on the markets under the strip and an
-// executive summary of the news in place of a list of headlines. Headlines are
-// written to be clicked, so the summary is told to restate what happened rather
-// than repeat how an outlet framed it.
+// Three times a day the local model writes a brief for each desk. Headlines are
+// written to be clicked, so the news is told to restate what happened instead
+// of how an outlet framed it.
 
-// briefSlot is one of the three runs. The close runs a few minutes after the
-// bell so the 4pm print has landed on Yahoo before the strip is read.
+// briefSlot is one run. The close is a few minutes after the bell so the 4pm
+// print has landed on Yahoo before the strip is read.
 type briefSlot struct {
 	kind         string
 	hour, minute int
@@ -100,7 +98,7 @@ type Point struct {
 }
 
 // Read says whether anything big is going on, judged by how many newsrooms are
-// on the same story rather than by the model, which would call every day busy.
+// on the same story and not by the model, which would call every day busy.
 type Read struct {
 	Level  string `json:"level"`
 	Label  string `json:"label"`
@@ -173,8 +171,8 @@ type briefModel interface {
 // costs one probe an hour and never a model load.
 const briefDefer = time.Hour
 
-// Briefer owns the schedule and the file the last two briefs are kept in, so a
-// deploy at 9am still shows the morning one rather than nothing until 11.
+// Briefer owns the schedule and the file the latest briefs are kept in, so a
+// deploy at 9am still shows the morning one instead of nothing until 11.
 type Briefer struct {
 	store   *Store
 	guard   *Guard
@@ -259,7 +257,7 @@ func (b *Briefer) tick(ctx context.Context, now time.Time) {
 	if cur.Feeds.Slot < at.Unix() {
 		due = append(due, "feeds")
 	}
-	// Last, since it reads what the other three just wrote.
+	// Last, since it reads what the other desks just wrote.
 	if cur.Glance.Slot < at.Unix() {
 		due = append(due, "glance")
 	}
@@ -345,7 +343,7 @@ func (b *Briefer) compileDesk(ctx context.Context, desk string, slot briefSlot, 
 	return b.compileNews(ctx, slot, at)
 }
 
-// waiting says on both panels why the last brief is still up.
+// waiting says on every brief panel why the last brief is still up.
 func (b *Briefer) waiting(why string) {
 	b.store.update(func(st *State) {
 		st.Briefs.Markets.Waiting, st.Briefs.News.Waiting, st.Briefs.Feeds.Waiting, st.Briefs.Glance.Waiting = why, why, why, why
@@ -381,8 +379,8 @@ func logPoints(desk, slot string, b Brief) {
 	}
 }
 
-// The rules both prompts share. They are about register and not about any
-// side, since the reader asked for what happened and not for a take on it.
+// The rules the prompts share. They're about register and not about any side,
+// since the reader asked for what happened and not for a take on it.
 const neutralRules = `Rules:
 - Write in AP wire style. Past tense, who did what and when, no adjectives that judge.
 - Restate what happened in your own plain words. Never copy a headline's framing.
@@ -396,10 +394,9 @@ const neutralRules = `Rules:
 - Include a story whichever party or side it reflects well or badly on.
 - Do not put story numbers or outlet names in the text. The page shows the sources beside each point.`
 
-// whole tidies a line the maxLength may have cut off, keeping the first
-// sentence that finished before the cut, or else everything to the last comma
-// past halfway, or nothing. The model's cut lands a few characters short of the
-// limit, so a long line is checked by how it ends.
+// whole keeps what a maxLength cut left whole, the first finished sentence,
+// else up to the last comma past halfway, else nothing. The cut lands just
+// short of the limit, so a long line is judged by how it ends.
 func whole(raw string, limit int) string {
 	s := tidy(raw)
 	// A cut that lands right after a comma is a whole clause already.

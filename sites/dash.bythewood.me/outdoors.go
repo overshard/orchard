@@ -7,10 +7,9 @@ import (
 	"time"
 )
 
-// Is the weekend worth going out in. Isaac camps and hikes, and described his
-// optimal day as a cool dry one with firm ground and no wind, so that is what
-// the scoring is built around rather than around a generic idea of nice
-// weather. A hot still day scores badly here and would score well anywhere else.
+// Is the weekend worth going out in. Isaac camps and hikes and his best day is
+// cool, dry, still and on firm ground, so a hot still day scores badly here and
+// would score well anywhere else.
 const (
 	outdoorsURL   = "https://api.open-meteo.com/v1/forecast"
 	outdoorsEvery = 3 * time.Hour
@@ -19,8 +18,7 @@ const (
 	// it is what the same request returns for free.
 	groundDays = 3
 
-	// Friday through Sunday, which is the shape of a trip rather than the
-	// shape of a weekend.
+	// Friday through Sunday, the shape of a trip and not of a weekend.
 	outlookDays = 3
 )
 
@@ -33,9 +31,8 @@ type OutlookDay struct {
 	High string `json:"high"`
 	Low  string `json:"low"`
 
-	// The four things being graded, each with the word and the nought to three
-	// it scored. The word alone said what the weather was doing and left which
-	// of the four ruined the day to be worked out by comparing four adjectives.
+	// The things being graded, each with its word and its nought to three, so
+	// which one ruined the day isn't left to comparing adjectives.
 	Factors []Factor `json:"factors"`
 }
 
@@ -46,7 +43,7 @@ type Factor struct {
 
 	// The reading the word came from. FIRM and MUDDY are a judgement about
 	// three days of rain and the judgement is the useful part, but the number
-	// behind it is what says whether a call was close.
+	// behind it says whether a call was close.
 	Detail string `json:"detail"`
 }
 
@@ -106,9 +103,9 @@ func fetchOutlook(ctx context.Context, g *Guard, now time.Time) (Outlook, error)
 			continue
 		}
 
-		// Rain over the days before this one, which is what decides whether the
-		// ground is firm or a swamp. The window walks back through the past
-		// days the same request returned.
+		// Rain over the days before this one, which decides whether the ground
+		// is firm or a swamp. The window walks back through the past days the
+		// same request returned.
 		var before float64
 		for j := i - groundDays; j < i; j++ {
 			if j >= 0 && j < len(d.Precip) {
@@ -226,8 +223,8 @@ func gradeGround(before float64) (int, string) {
 	}
 }
 
-// Gusts rather than the average, since an average of ten with gusts to thirty
-// is the day the tent goes flat.
+// Gusts and not the average, since an average of ten with gusts to thirty is
+// the day the tent goes flat.
 func gradeWind(gust float64) (int, string) {
 	switch {
 	case gust < 15:

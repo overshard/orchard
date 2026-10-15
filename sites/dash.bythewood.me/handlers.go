@@ -73,9 +73,8 @@ func (s *site) state(w http.ResponseWriter, r *http.Request) {
 // that changes anything arrives here, so the page never polls this server and
 // this server never polls an upstream per viewer.
 func (s *site) events(w http.ResponseWriter, r *http.Request) {
-	// ResponseController rather than a type assertion for http.Flusher, because
-	// the request logger wraps the writer and an assertion would see the
-	// wrapper. It follows Unwrap down to the real one.
+	// ResponseController follows Unwrap down to the real writer, where
+	// asserting http.Flusher would only see the request logger's wrapper.
 	rc := http.NewResponseController(w)
 
 	// web/server.go sets no write bound for this site, and this clears any
@@ -138,10 +137,9 @@ func (s *site) events(w http.ResponseWriter, r *http.Request) {
 func (s *site) healthz(w http.ResponseWriter, r *http.Request) {
 	if !r.URL.Query().Has("verbose") || !isLoopback(web.ClientIP(r)) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		// EdgeCache fills in the site policy whenever a handler sets no
-		// Cache-Control of its own, so saying nothing here means the edge
-		// answers a liveness check out of cache long after this process has
-		// stopped serving.
+		// EdgeCache fills in the site policy when a handler sets no
+		// Cache-Control, so without this the edge would answer a liveness check
+		// out of cache long after this process stopped.
 		w.Header().Set("Cache-Control", "no-store")
 		_, _ = w.Write([]byte("ok\n"))
 		return

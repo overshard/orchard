@@ -9,15 +9,9 @@ import (
 	"time"
 )
 
-// What is being watched, where it is streaming, and whether it is any good.
-//
-// JustWatch's own front end talks to this GraphQL endpoint and it answers
-// without a key. TMDB and Trakt both want one, and Rotten Tomatoes has had no
-// public API since Fandango shut it down. This one hands over the tomatometer
-// and the IMDb score together.
-//
-// It is unofficial, so it is the second most likely thing here to break after
-// the pollen source, and its failure costs this panel and nothing else.
+// What's being watched, where, and whether it's any good, off the GraphQL
+// endpoint JustWatch's front end calls. It needs no key where TMDB and Trakt
+// do, and hands over the tomatometer and the IMDb score together.
 const (
 	justwatchURL   = "https://apis.justwatch.com/graphql"
 	streamingEvery = 3 * time.Hour
@@ -28,11 +22,9 @@ const (
 	streamingAsked = 24
 )
 
-// popularQuery is JustWatch's own popularTitles ranking, which is driven by
-// what their users are actually doing. That is a better read on "making waves"
-// than a release date is: a show in its fourth season is new news even though
-// its release year is four years old. The default sort is over a long window
-// and barely moves for months, so this asks for the last seven days instead.
+// popularQuery is JustWatch's popularTitles ranking, driven by what their users
+// are doing, which reads making waves better than a release date. The default
+// sort barely moves for months, so this asks for the last seven days.
 const popularQuery = `query Popular($country: Country!, $first: Int!) {
   popularTitles(country: $country, first: $first, sortBy: POPULAR_7_DAYS, filter: {objectTypes: [MOVIE, SHOW]}) {
     edges { node {
@@ -61,15 +53,13 @@ type Title struct {
 	Provider string `json:"provider"`
 
 	// Each score graded on its own, so a good number reads as good without
-	// having to be compared against the other five rows.
+	// comparing it to the other rows.
 	IMDbState   string `json:"imdb_state"`
 	TomatoState string `json:"tomato_state"`
 
-	// The two scores averaged onto one bar, since the pair of them is what
-	// anyone actually reads and a bar is quicker to scan down a column than two
-	// numbers are. IMDb is out of ten so it is multiplied up first. Source says
-	// which numbers went into it, because an average of one is not the same
-	// claim as an average of two.
+	// The two scores averaged onto one bar, quicker to scan than two numbers,
+	// with IMDb multiplied up from ten. Source says which went in, since an
+	// average of one isn't the claim an average of two is.
 	Score     int    `json:"score"`
 	ScoreBand string `json:"score_band"`
 	ScoreFrom string `json:"score_from"`
@@ -197,8 +187,8 @@ func gradeIMDb(v float64) string {
 }
 
 // combineScores puts both ratings on the same nought to a hundred scale and
-// averages them. A title with no tomatometer is its IMDb score alone rather
-// than half of one, which would read as terrible for a film nobody reviewed.
+// averages them. A title with no tomatometer is its IMDb score alone, since
+// half of one would read as terrible for a film nobody reviewed.
 func combineScores(imdb float64, tomato int) (int, string) {
 	pct := imdb * 10
 	from := "IMDB ONLY"
@@ -209,9 +199,9 @@ func combineScores(imdb float64, tomato int) (int, string) {
 	return int(math.Round(pct)), from
 }
 
-// The combined bar gets its own lines rather than either source's. Eighty is
-// where the two good lines above average out, and sixty five sits between IMDb
-// being fair at 6.5 and the tomatometer being fresh at 60.
+// The combined bar gets its own lines instead of either source's. Eighty is
+// where the two good lines above average out, and sixty five sits between
+// IMDb's fair at 6.5 and the tomatometer's fresh at 60.
 func gradeScore(pct int) string {
 	switch {
 	case pct >= 80:
@@ -235,10 +225,9 @@ func gradeTomato(v int) string {
 	}
 }
 
-// services is the subscription list in the order a title should be attributed
-// to one. JustWatch returns every way to watch something, including a dozen
-// resold channels, so "Paramount Plus Apple TV Channel" has to resolve to
-// Paramount and a title on both Netflix and a reseller has to read as Netflix.
+// services is the subscription list in the order a title is attributed to one.
+// JustWatch returns resold channels too, so "Paramount Plus Apple TV Channel"
+// is Paramount and a title on Netflix and a reseller reads as Netflix.
 var services = []struct{ match, name string }{
 	{"netflix", "NETFLIX"},
 	{"hbo max", "HBO MAX"},

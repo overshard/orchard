@@ -11,20 +11,18 @@ import (
 	"time"
 )
 
-// userAgent has to look like a browser. Yahoo answers Go's default
-// "Go-http-client/2.0" with a block page rather than JSON, and the other three
-// upstreams are friendlier about it but no worse for having one.
+// userAgent has to look like a browser, since Yahoo answers Go's default with a
+// block page instead of JSON.
 const userAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 
 // The RSS feeds want the opposite. An outlet behind AWS WAF bot control
-// challenges the string above for claiming to be Chrome while carrying none of
-// the headers Chrome sends, and answers 202 with an empty body and
-// "x-amzn-waf-action: challenge". Naming the program passes every feed here.
+// challenges a string claiming to be Chrome without Chrome's headers, answering
+// 202 with an empty body, and naming the program passes every feed here.
 const feedAgent = "dash.bythewood.me (+https://dash.bythewood.me)"
 
 // One client for every upstream. These are all plain JSON GETs over TLS to
-// hosts that keep connections alive, so pooling is what makes a 30 second poll
-// cost a round trip instead of a handshake.
+// hosts that keep connections alive, so pooling makes a 30 second poll cost a
+// round trip instead of a handshake.
 var client = &http.Client{
 	Timeout: 12 * time.Second,
 	Transport: &http.Transport{
@@ -34,8 +32,7 @@ var client = &http.Client{
 }
 
 // maxBody caps what a compromised or confused upstream can make this process
-// allocate. The largest real response here is Yahoo's twelve symbol spark at
-// about 30KB.
+// allocate.
 const maxBody = 4 << 20
 
 // getJSON runs one guarded request and decodes it into out. A refusal from the
@@ -66,7 +63,7 @@ func parseRetryAfter(v string) time.Duration {
 }
 
 // getJSONHeaders is getJSON with extra request headers. Nasdaq answers an
-// Accept it does not recognise with an HTML challenge page rather than JSON.
+// Accept it doesn't recognise with an HTML challenge page instead of JSON.
 func getJSONHeaders(ctx context.Context, g *Guard, endpoint, url string, headers map[string]string, out any) error {
 	if err := g.Reserve(ctx, endpoint); err != nil {
 		return err

@@ -9,10 +9,9 @@ import (
 	"time"
 )
 
-// State is the whole page as data. Every panel is rebuilt into this and the
-// same struct is what the template renders on a cold load and what goes down
-// the SSE connection on every update, so there is one shape to get right rather
-// than a server one and a browser one that drift.
+// State is the whole page as data. The template renders it on a cold load and
+// the SSE connection sends it on every update, so there's one shape to get
+// right instead of a server one and a browser one that drift.
 type State struct {
 	Market   Market       `json:"market"`
 	Rates    Rates        `json:"rates"`
@@ -82,8 +81,7 @@ func (s *Store) Snapshot() State {
 }
 
 // update applies one change and pushes the whole state out. Taking a mutator
-// rather than a field keeps every write on one path, which is what makes the
-// broadcast unconditional and impossible to forget.
+// keeps every write on one path, so the broadcast can't be forgotten.
 func (s *Store) update(f func(*State)) {
 	s.mu.Lock()
 	f(&s.state)
@@ -106,10 +104,9 @@ type Hub struct {
 	clients map[chan []byte]struct{}
 	last    []byte
 
-	// Closed on nothing, and sent to when the first browser of a quiet spell
-	// connects. The markets loop waits on it alongside its timer, so somebody
-	// opening the page does not sit out the rest of an idle interval. Buffered by
-	// one and sent without blocking, so an arrival mid-fetch is not lost.
+	// Sent to without blocking when the first browser of a quiet spell
+	// connects, so the idle source doesn't make them sit out its interval.
+	// Buffered by one so an arrival mid-fetch isn't lost.
 	wake chan struct{}
 }
 
@@ -120,9 +117,9 @@ func NewHub() *Hub {
 	}
 }
 
-// Subscribe returns a channel of frames and the function that closes it. The
-// buffer is small: a browser that cannot keep up with a state this size is
-// gone, and dropping the frame is better than holding the broadcast for it.
+// Subscribe returns a channel of frames and the function that closes it. A
+// browser that can't keep up with a state this size is gone, so a full buffer
+// drops the frame instead of holding the broadcast.
 func (h *Hub) Subscribe() (<-chan []byte, func()) {
 	ch := make(chan []byte, 4)
 
@@ -139,8 +136,8 @@ func (h *Hub) Subscribe() (<-chan []byte, func()) {
 		}
 	}
 
-	// A new connection gets the current state at once rather than waiting out
-	// the poll interval, which is what makes a reconnect invisible.
+	// A new connection gets the current state at once, so a reconnect doesn't
+	// wait out a poll interval.
 	if last != nil {
 		ch <- last
 	}
@@ -193,16 +190,13 @@ const (
 
 	// The check between full earnings polls, which only asks whether anything
 	// has printed since the last one, so a report is heard about within the
-	// quarter hour rather than up to six hours later.
+	// quarter hour instead of up to six hours later.
 	reportsEvery = 15 * time.Minute
 )
 
-// Prime fetches what the first page render needs, synchronously, before the
-// server starts listening.
-//
-// The daily history comes first because the conditions panel is built by the
-// market poll out of it, and priming them the other way round renders a panel
-// with one of its four rows for the first thirty seconds after every deploy.
+// Prime fetches what the first render needs before the server listens. The
+// history goes first since the market poll builds the conditions panel from it,
+// or the panel starts a row short after every deploy.
 func (s *Store) Prime(ctx context.Context, g *Guard) {
 	s.refreshSignal(ctx, g)
 	s.refreshMarket(ctx, g)
@@ -230,18 +224,16 @@ func (s *Store) awaitFirstRound(ctx context.Context, most time.Duration) {
 	}
 }
 
-// Run starts one goroutine per source and blocks until ctx is done. It must not
-// start before the listener is up: the health strip probes this process over
-// loopback, and a first round against a socket nobody is listening on reports
-// the site the dashboard is running on as unknown until the next round a minute
-// later, which is every deploy.
+// Run starts one goroutine per source and blocks until ctx is done. It has to
+// wait for the listener, since the health strip probes this process over
+// loopback and would report it unknown until the next round.
 func (s *Store) Run(ctx context.Context, g *Guard) {
 	for _, src := range sources {
 		go s.loop(ctx, g, src)
 	}
 
-	// The guard writes itself out on a timer rather than on every call, so a
-	// thirty second poll does not mean a file write per tick.
+	// The guard writes itself out on a timer instead of on every call, so a
+	// thirty second poll isn't a file write per tick.
 	go func() {
 		t := time.NewTicker(time.Minute)
 		defer t.Stop()
@@ -272,8 +264,8 @@ func (s *Store) refreshMarket(ctx context.Context, g *Guard) {
 	quotes, err := fetchStrip(ctx, g)
 	if err != nil {
 		pollFailed(ctx, "market", "market", err)
-		// The previous cards stay up rather than being blanked, and the panel
-		// marks itself stale so the page says so instead of quietly lying.
+		// The previous cards stay up and the panel marks itself stale, so the
+		// page says so instead of quietly lying.
 		s.update(func(st *State) { st.Market.Stale = true })
 		return
 	}
@@ -294,9 +286,8 @@ func (s *Store) refreshMarket(ctx context.Context, g *Guard) {
 	})
 }
 
-// refreshBoard is the rates and sectors poll. Neither moves on the scale the
-// market strip does, and riding the fast poll cost a third of every Yahoo
-// request this site makes for numbers that had not changed.
+// refreshBoard is the rates and sectors poll, kept off the fast market poll
+// since neither moves on that scale.
 func (s *Store) refreshBoard(ctx context.Context, g *Guard) {
 	quotes, err := fetchQuotes(ctx, g, rateAndSectorSymbols(), sessionRange)
 	if err != nil {
@@ -337,10 +328,9 @@ func (s *Store) refreshEarnings(ctx context.Context, g *Guard) {
 	})
 }
 
-// refreshReports asks whether anything has printed or been revised since the
-// last full poll, which costs two calendar requests and not the twenty a full
-// one can, and runs the full one only when something has. Reports land before
-// the open and after the close, so it only asks across those hours on a weekday.
+// refreshReports asks whether anything printed or was revised since the last
+// full poll, at two requests against up to twenty, and runs the full poll only
+// when something has.
 func (s *Store) refreshReports(ctx context.Context, g *Guard) {
 	now := time.Now().In(easternTime())
 	e := s.Snapshot().Earnings
@@ -360,8 +350,8 @@ func reportingHours(t time.Time) bool {
 	return t.Hour() >= 6 && t.Hour() < 20
 }
 
-// An empty alert list is a result, not a failure, so this writes it: the panel
-// has to be able to say all clear rather than showing yesterday's warning.
+// An empty alert list is a result and not a failure, so it's written and the
+// panel says all clear instead of showing yesterday's warning.
 func (s *Store) refreshAlerts(ctx context.Context, g *Guard) {
 	alerts, err := fetchAlerts(ctx, g)
 	if err != nil {

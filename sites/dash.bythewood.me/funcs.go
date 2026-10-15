@@ -18,15 +18,13 @@ var templateFuncs = template.FuncMap{
 	// range gives a zero based index and the feed ranks read from one.
 	"inc": func(i int) int { return i + 1 },
 
-	// The news band always draws ten rows a panel, blank ones filling out a
-	// short list, so the three panels stay level.
+	// The news band always draws storiesShown rows a panel, blank ones filling
+	// out a short list, so the panels stay level.
 	"rows":   func() int { return storiesShown },
 	"blanks": func(have int) []struct{} { return make([]struct{}, max(0, storiesShown-have)) },
 
-	// dict builds a map inline, which is the only way a template can pass a
-	// named set of values to a shared define. Three gauges with six fields each
-	// is the point at which repeating the markup three times stops being the
-	// simpler option.
+	// dict builds a map inline, the only way a template can hand a named set of
+	// values to a shared define like the gauges.
 	"dict": func(pairs ...any) map[string]any {
 		out := make(map[string]any, len(pairs)/2)
 		for i := 0; i+1 < len(pairs); i += 2 {

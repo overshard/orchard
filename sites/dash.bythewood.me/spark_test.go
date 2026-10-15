@@ -136,8 +136,8 @@ func TestDirection(t *testing.T) {
 }
 
 // The whole session is the axis, so a line drawn an hour into a six and a half
-// hour day covers about a sixth of the card. Spacing the points evenly instead
-// is what made a card at 9:35 look like a finished day.
+// hour day covers about a sixth of the card, and an hour in doesn't look like a
+// finished day.
 func TestBuildSparkDrawsAgainstTheWholeSession(t *testing.T) {
 	et := easternTime()
 	open := time.Date(2026, 8, 31, 9, 30, 0, 0, et)
@@ -177,8 +177,8 @@ func TestBuildSparkFillsTheCardOnAFinishedSession(t *testing.T) {
 }
 
 // Every card is on the New York trading day, so a future and bitcoin lay their
-// bars over the same 9:30 to 16:00 window a cash index does. Taking the full
-// width made an hour of bitcoin look like a whole day beside an hour of the S&P.
+// bars over the same 9:30 to 16:00 window a cash index does, or an hour of
+// bitcoin looks like a whole day beside an hour of the S&P.
 func TestSessionAxisIsTheSameForEveryInstrument(t *testing.T) {
 	et := easternTime()
 	open := time.Date(2026, 8, 31, 9, 30, 0, 0, et)
@@ -329,7 +329,7 @@ func TestPreviousSessionCloseOvernightIsLastNightsBell(t *testing.T) {
 }
 
 // 4pm is 4pm on both sides of a daylight saving change, so the cut is built in
-// Eastern rather than by subtracting a flat 24 hours.
+// Eastern instead of by subtracting a flat 24 hours.
 func TestLastBellHoldsAcrossDaylightSaving(t *testing.T) {
 	et := easternTime()
 	// The Sunday US clocks go back in 2026.

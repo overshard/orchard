@@ -13,14 +13,12 @@ import (
 )
 
 // What the next session has coming, for the markets brief's lean. Each note
-// says which way it has tended to push, so the model weighs the calendar
-// instead of guessing at it. None of these is strong alone and the prompt
-// treats them as tilts.
+// says which way it has tended to push, and the prompt treats them as tilts
+// since none is strong alone.
 
-// fomcDecisions is the second day of each meeting, when the statement comes
-// at 2pm. The Fed publishes no machine readable calendar, so these are copied
-// from federalreserve.gov/monetarypolicy/fomccalendars.htm and need adding to
-// once a year. true marks a meeting with projections.
+// fomcDecisions is each meeting's second day, when the 2pm statement comes, and
+// true marks projections. There's no machine readable calendar, so copy each
+// year's from federalreserve.gov/monetarypolicy/fomccalendars.htm.
 var fomcDecisions = map[string]bool{
 	"2026-01-28": false, "2026-03-18": true, "2026-04-29": false, "2026-06-17": true,
 	"2026-07-29": false, "2026-09-16": true, "2026-10-28": false, "2026-12-09": true,
@@ -181,8 +179,8 @@ func sessionNotes(day time.Time, releases []release, vix float64) []string {
 	return notes
 }
 
-// weekNotes is the calendar for a week ahead line, day by day from Monday,
-// with the VIX given once as a weekly move rather than on every day.
+// weekNotes is the calendar for a week ahead line, day by day from Monday, with
+// the VIX given once as a weekly move instead of on every day.
 func weekNotes(monday time.Time, releases []release, vix float64) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s, the week of %s:\n", weekAhead, monday.Format("Monday January 2"))

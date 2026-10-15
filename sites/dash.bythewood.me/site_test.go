@@ -49,7 +49,7 @@ func TestHumanAge(t *testing.T) {
 }
 
 // The WMO code ranges are contiguous, so an off-by-one at a boundary is the
-// failure mode and every boundary is checked rather than a sample.
+// failure mode and every boundary is checked instead of a sample.
 func TestDescribeWeatherBoundaries(t *testing.T) {
 	cases := map[int]string{
 		0: "Clear", 1: "Partly cloudy", 2: "Partly cloudy", 3: "Overcast",
@@ -69,8 +69,8 @@ func TestDescribeWeatherBoundaries(t *testing.T) {
 	}
 }
 
-// A cached edge response is not evidence the origin is up, which is the whole
-// reason the strip asks the bridge first.
+// A cached edge response is not evidence the origin is up, which is why the
+// strip asks the bridge first.
 func TestCacheHit(t *testing.T) {
 	for _, s := range []string{"HIT", "hit", "STALE", "UPDATING", "REVALIDATED"} {
 		if !cacheHit(s) {
@@ -85,8 +85,7 @@ func TestCacheHit(t *testing.T) {
 }
 
 // A probe that the guard refused measured nothing, so the row has to stay
-// unknown. Reporting it as down is what made the strip claim six live sites
-// were dead.
+// unknown and not report a live site as down.
 func TestProbeReportsUnknownWhenTheGuardRefuses(t *testing.T) {
 	g := NewGuard(t.TempDir())
 	g.Fail("uptime", http.StatusTooManyRequests, 0)
@@ -130,8 +129,8 @@ func newTestSite(t *testing.T) *site {
 	}
 }
 
-// html/template resolves a missing field at execute time rather than at parse
-// time, so a page nothing renders is a page nothing checks.
+// html/template resolves a missing field at execute time and not at parse time,
+// so a page nothing renders is a page nothing checks.
 func TestHomeRendersWithAnEmptyState(t *testing.T) {
 	s := newTestSite(t)
 
@@ -223,11 +222,9 @@ func TestStateJSONCarriesNoInternalDetail(t *testing.T) {
 	}
 	row = body.Systems.Rows[0]
 
-	// Each of these was looked at before being added. label, host and url are
-	// public hostnames that are already links on the page, and state, response,
-	// errors and the traffic figures are counts about sites that are on the
-	// internet. The baseline logging computes the trend from is not among them,
-	// so the derived direction is published and the underlying week is not.
+	// label, host and url are hostnames already linked on the page and the rest
+	// are counts about public sites. The baseline behind the trend isn't here,
+	// so the direction is published and the week isn't.
 	allowed := map[string]bool{
 		"label": true, "host": true, "url": true, "state": true,
 		"response": true, "errors": true, "know_error": true,
@@ -377,7 +374,7 @@ func TestGuardFeedsAreStableAndComplete(t *testing.T) {
 		}
 	}
 
-	// Nothing has been called yet, so every row reads idle rather than ok.
+	// Nothing has been called yet, so every row reads idle and not ok.
 	for _, f := range first {
 		if f.State != "idle" {
 			t.Errorf("%s reads %q before any call, want idle", f.Name, f.State)
@@ -708,8 +705,8 @@ func TestDayProgressClamps(t *testing.T) {
 	}
 }
 
-// Go's time layout is the reference time and it is case sensitive, so an
-// uppercased layout is matched literally. Every earnings row read "MON 1 JAN".
+// Go's time layout is the reference time and it's case sensitive, so an
+// uppercased layout is matched literally and every row reads "MON 1 JAN".
 func TestDayLabelFormatsRealDates(t *testing.T) {
 	today := time.Date(2026, 8, 31, 9, 0, 0, 0, time.UTC)
 
@@ -798,8 +795,8 @@ func TestIMDbURL(t *testing.T) {
 	}
 }
 
-// A missing tomatometer has to leave the IMDb score alone rather than average
-// it against nothing, which would read as terrible for a film nobody reviewed.
+// A missing tomatometer leaves the IMDb score alone instead of averaging it
+// against nothing, which would read as terrible for a film nobody reviewed.
 func TestCombineScores(t *testing.T) {
 	for _, tc := range []struct {
 		imdb   float64
@@ -898,8 +895,9 @@ func TestKeepSteamWillNotShrinkAFullPanel(t *testing.T) {
 	}
 }
 
-// The two sessions around a report, and Nasdaq no longer says which one carried
-// it, so the one that moved is the one that heard the news.
+// The two sessions around a report, and Nasdaq stops saying which one carried
+// it once the date is past, so the one that moved is the one that heard the
+// news.
 func TestReactionPicksTheSessionThatMoved(t *testing.T) {
 	report := time.Date(2026, 9, 3, 0, 0, 0, 0, time.UTC)
 	days := []dailyClose{
@@ -979,8 +977,8 @@ func TestEPSVerdict(t *testing.T) {
 	}
 }
 
-// The panel is the top of the index and not the top of the market, which is the
-// whole reason the membership list is carried at all.
+// The panel is the top of the index and not the top of the market, which is why
+// the membership list is carried at all.
 func TestIndexMembership(t *testing.T) {
 	for _, in := range []string{"AAPL", "aapl", "BRK/B", "BRK.B"} {
 		if !inIndex(in) {
@@ -1030,7 +1028,7 @@ func TestUpcomingIncludesTonight(t *testing.T) {
 }
 
 // The same name the morning after, once Nasdaq has filled the actual in. It
-// moves to the other half rather than showing up in both.
+// moves to the other half instead of showing up in both.
 func TestReportedTakesOverOnceTheFigureLands(t *testing.T) {
 	today := time.Date(2026, 9, 11, 12, 0, 0, 0, easternTime())
 	printed := Earning{Symbol: "ORCL", Name: "Oracle", Day: "YESTERDAY", Verdict: "BEAT", Actual: "$1.47", Forecast: "$1.39"}

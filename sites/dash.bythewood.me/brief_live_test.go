@@ -9,10 +9,9 @@ import (
 	"time"
 )
 
-// TestBriefLive writes both briefs against the real feeds and the real model
-// and prints them. It needs the gateway on the bridge, so run it in a container
-// on orchard-edge with BRIEF_LIVE=1 and LLM_KEY set. BRIEF_SLOT picks morning,
-// midday or close.
+// TestBriefLive writes the briefs against the real feeds and model and prints
+// them. It needs the gateway, so run it in a container on orchard-edge with
+// BRIEF_LIVE=1 and LLM_KEY set, and BRIEF_SLOT to pick the slot.
 func TestBriefLive(t *testing.T) {
 	if os.Getenv("BRIEF_LIVE") == "" {
 		t.Skip("set BRIEF_LIVE=1 to call the feeds and the model")
@@ -77,7 +76,8 @@ func env(k, fallback string) string {
 }
 
 // TestBriefTickLive is the scheduled path end to end: ask about the card, write
-// both briefs on one load, and unload. Afterwards the card should be empty.
+// every desk's brief on one load, and unload. Afterwards the card should be
+// empty.
 func TestBriefTickLive(t *testing.T) {
 	if os.Getenv("BRIEF_LIVE") == "" {
 		t.Skip("set BRIEF_LIVE=1 to call the feeds and the model")

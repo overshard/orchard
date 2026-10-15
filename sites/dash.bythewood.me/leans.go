@@ -8,10 +8,9 @@ import (
 	"time"
 )
 
-// leanCall is one forward line's lean, kept until the session it was about has
-// closed so it can be checked against what the S&P 500 actually did. The page
-// only ever holds the latest brief, so without this a lean is gone by the next
-// slot and nobody can say how often they were right.
+// leanCall is one forward line's lean, kept until its session closes so it can
+// be checked against what the S&P 500 did. The page only holds the latest
+// brief, so without this nobody can say how often the leans were right.
 type leanCall struct {
 	Day   string `json:"day"`
 	Slot  int64  `json:"slot"`
@@ -102,9 +101,8 @@ func (lb *leanBook) add(b Brief) bool {
 }
 
 // score checks every lean whose day closed before today against the daily
-// closes and logs each one, with the running record, so logging can answer how
-// often the leans were right. Today's close isn't trusted until tomorrow, since
-// Yahoo's daily bar can still move a little just after the bell.
+// closes and logs each with the running record. Today's close isn't trusted
+// until tomorrow, since Yahoo's daily bar can still move just after the bell.
 func (lb *leanBook) score(h *history, now time.Time) bool {
 	if h == nil {
 		return false
