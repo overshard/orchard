@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"auth.bythewood.me/ntfy"
 	"auth.bythewood.me/web"
 )
 
@@ -74,12 +75,12 @@ func newStubNtfy(t *testing.T) *stubNtfy {
 	}))
 	t.Cleanup(s.server.Close)
 
-	s.notifier = &Notifier{
-		client: s.server.Client(),
-		base:   s.server.URL,
-		topic:  ntfyTopic,
-		token:  "tk_test",
-	}
+	s.notifier = &Notifier{client: &ntfy.Client{
+		HTTP:  s.server.Client(),
+		Base:  s.server.URL,
+		Topic: ntfyTopic,
+		Token: "tk_test",
+	}}
 	return s
 }
 

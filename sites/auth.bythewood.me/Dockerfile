@@ -16,6 +16,7 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY web/ ./web/
+COPY ntfy/ ./ntfy/
 COPY *.go ./
 COPY templates/ ./templates/
 # -tags embed reads build/ at compile time, so the bundle has to land here

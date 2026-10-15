@@ -1114,7 +1114,7 @@ func TestRenderAlertKinds(t *testing.T) {
 		if !ok {
 			t.Fatalf("%s: not rendered", kind)
 		}
-		if body.Title == "" || body.Message == "" {
+		if body.Title == "" || body.Body == "" {
 			t.Errorf("%s: empty title or message", kind)
 		}
 		if !strings.Contains(body.Title, "blog") {

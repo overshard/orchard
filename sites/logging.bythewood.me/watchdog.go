@@ -229,7 +229,7 @@ func (w *Watchdog) checkSilence() {
 	}
 	w.mu.Unlock()
 
-	// Outside the lock, since a publish takes up to ntfyTimeout and the ingest
+	// Outside the lock, since a publish takes up to ntfy.Timeout and the ingest
 	// path takes the same mutex.
 	for _, f := range fire {
 		w.notify(f.kind, AlertContext{Source: f.source, Silent: f.gap})

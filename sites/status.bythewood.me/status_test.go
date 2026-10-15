@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"status.bythewood.me/ntfy"
 	"status.bythewood.me/web"
 )
 
@@ -427,7 +428,7 @@ func TestSecurityPosture(t *testing.T) {
 func TestAlertStateMachine(t *testing.T) {
 	db, id := freshDB(t)
 	ctx := context.Background()
-	notifier := &Notifier{client: http.DefaultClient, base: "http://127.0.0.1:1", topic: "test"}
+	notifier := &Notifier{client: &ntfy.Client{HTTP: http.DefaultClient, Base: "http://127.0.0.1:1", Topic: "test"}}
 
 	p, err := getProperty(ctx, db, id)
 	if err != nil {
@@ -477,7 +478,7 @@ func TestAlertStateMachine(t *testing.T) {
 func TestAlertStateIgnoresNonConsecutiveFailures(t *testing.T) {
 	db, id := freshDB(t)
 	ctx := context.Background()
-	notifier := &Notifier{client: http.DefaultClient, base: "http://127.0.0.1:1", topic: "test"}
+	notifier := &Notifier{client: &ntfy.Client{HTTP: http.DefaultClient, Base: "http://127.0.0.1:1", Topic: "test"}}
 	p, _ := getProperty(ctx, db, id)
 
 	// created_at is explicit and increasing, since the state machine orders by
@@ -586,7 +587,7 @@ func TestWaitHoldsForAnAlertInFlight(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	n := &Notifier{client: srv.Client(), base: srv.URL, topic: "test"}
+	n := &Notifier{client: &ntfy.Client{HTTP: srv.Client(), Base: srv.URL, Topic: "test"}}
 	n.Send("down", AlertContext{ID: "x", Name: "x", URL: "https://example.com"})
 	n.Wait()
 
@@ -607,7 +608,7 @@ func TestRenderAlert(t *testing.T) {
 	if !ok {
 		t.Fatal("the down alert did not render")
 	}
-	if !strings.Contains(down.Title, "example.com") || !strings.Contains(down.Message, "503") {
+	if !strings.Contains(down.Title, "example.com") || !strings.Contains(down.Body, "503") {
 		t.Errorf("the down alert lost its detail: %+v", down)
 	}
 	if down.Link != baseURL+"/abc" {
