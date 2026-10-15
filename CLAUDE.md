@@ -457,3 +457,23 @@ capitalised, imperative and carry no trailing period, like `Add atom feed` or
 characters with one change per commit, since a subject that needs an and is two
 commits, and leave off any Co-Authored-By trailer. Prose has no em dashes and no
 semicolons, use a comma, a full stop, or and.
+
+Comments have a few more rules, each one a habit that kept creeping in.
+
+- Write "instead of", or just say the thing, and leave "rather than" out since
+  Isaac never writes it.
+- Skip the cleft sentence, so "It is the cache that keeps..." is "The cache
+  keeps..." and "What this does is..." is "This...".
+- A comment says what is true now. "used to", "previously", "before the split",
+  "this replaced" and the story of the bug that led here all go, and only the
+  rule it left behind stays.
+- Don't count things that change. "the eight sites" or "all six tools" is wrong
+  the day one is added, so say every site or the tools.
+- No numbers from a single run, no arguing with somebody who isn't there, and
+  no comment that only exists because a name is unclear.
+- When a constraint won't fit in three lines, cut the story around it and keep
+  the constraint. Splitting a block in two with a blank line doesn't count.
+
+`make voice` runs with `make check` and fails on a comment block over three
+lines, an em or en dash, or a semicolon in comment prose, naming the file and
+line. It skips dash until that site has had the same pass.
