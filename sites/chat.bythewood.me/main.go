@@ -14,8 +14,11 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"sync"
+	"syscall"
 	"time"
 
 	"chat.bythewood.me/property"
@@ -64,6 +67,19 @@ type site struct {
 	label   string
 	ctxSize int
 	dev     bool
+
+	// stopping ends at SIGTERM, and turns and memory passes are counted in
+	// detached so shutdown can wait for their writes before the store closes.
+	stopping context.Context
+	detached sync.WaitGroup
+}
+
+// detach is the context for work that outlives its request: the request's
+// values, a deadline of its own, and an end at shutdown.
+func (s *site) detach(ctx context.Context, d time.Duration) (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), d)
+	unlink := context.AfterFunc(s.stopping, cancel)
+	return ctx, func() { unlink(); cancel() }
 }
 
 func round1(f float64) float64 { return float64(int(f*10+0.5)) / 10 }
@@ -115,6 +131,9 @@ func realMain() error {
 	}
 	defer store.Close()
 
+	stopping, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	tools.WikiBase = *wikiURL
 
 	llm := NewLLM(*llmURL, *model, *llmKey)
@@ -134,7 +153,12 @@ func realMain() error {
 		runs: NewRuns(), queue: NewQueue(), hub: NewHub(),
 		md: goldmark.New(goldmark.WithExtensions(extension.GFM),
 			goldmark.WithRendererOptions()),
+		stopping: stopping,
 	}
+	defer func() {
+		stop()
+		s.detached.Wait()
+	}()
 	s.engine.Render = s.render
 	// The remember tool writes to this process's own database rather than to a
 	// service, so it is handed the store rather than a url.
@@ -400,6 +424,12 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "no conversation or run id", 400)
 		return
 	}
+	// Checked here, well before the drain begins, so nothing is added to it
+	// once it is waiting.
+	if s.stopping.Err() != nil {
+		http.Error(w, "shutting down", http.StatusServiceUnavailable)
+		return
+	}
 
 	var session string
 	if c, err := r.Cookie(web.SessionCookie); err == nil {
@@ -425,9 +455,9 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 	// This runs detached, since r.Context() dies with the tab and a turn that has
 	// spent two minutes fetching should not be thrown away because a phone
 	// locked.
-	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 12*time.Minute)
+	ctx, cancel := s.detach(r.Context(), 12*time.Minute)
 	rn.setCancel(cancel)
-	go func() {
+	s.detached.Go(func() {
 		defer cancel()
 		id, title, ok := key, "", false
 		defer rn.Finish()
@@ -447,7 +477,7 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 			}
 		}()
 		id, title, ok = s.turn(ctx, rn, key, req, parts, session)
-	}()
+	})
 	s.streamRun(w, r, rn)
 }
 
@@ -705,7 +735,7 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 	// it something to write down later. So is a picture, which says nothing
 	// about him and would swap the chat model straight back on to find that out.
 	if !req.Incognito && !drew && !flagging {
-		go func() {
+		s.detached.Go(func() {
 			// Recovered here and not by the middleware, which only wraps the
 			// handler. A panic on this goroutine would take the process down
 			// and lose every conversation in flight.
@@ -714,10 +744,10 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 					slog.Error("the memory pass panicked", "err", r)
 				}
 			}()
-			bg, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Minute)
+			bg, cancel := s.detach(ctx, 2*time.Minute)
 			defer cancel()
 			s.Remember(bg, req.Message, reply.Content)
-		}()
+		})
 	}
 
 	done := map[string]any{"kind": "done", "conversation_id": convID, "title": title,
