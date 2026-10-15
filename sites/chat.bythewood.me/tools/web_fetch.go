@@ -10,49 +10,57 @@ import (
 	"unicode/utf8"
 )
 
-var WebFetch = Tool{
+type webFetchArgs struct {
+	URL      string
+	MaxChars int
+	Find     string
+}
+
+func (a *webFetchArgs) params() []param {
+	return []param{
+		strArg(&a.URL, "url", "the full address, including https://").required(),
+		intArg(&a.MaxChars, "max_chars", "how much text to return, default 6000").otherwise(12000),
+		strArg(&a.Find, "find", "optional, a heading or phrase to start reading from, for a long page whose answer is further down"),
+	}
+}
+
+var WebFetch = Define(Tool{
 	Name:        "web_fetch",
 	Description: "Fetch one url and return its readable text. Use it after web_search when a snippet is not enough.",
-	Schema: obj(map[string]any{
-		"url":       str("the full address, including https://"),
-		"max_chars": integer("how much text to return, default 6000"),
-		"find":      str("optional, a heading or phrase to start reading from, for a long page whose answer is further down"),
-	}, "url"),
-	Run: func(ctx context.Context, d *Deps, a map[string]any) (any, error) {
-		u, err := publicURL(argStr(a, "url"))
-		if err != nil {
-			return nil, err
-		}
-		limit := int(argNum(a, "max_chars", 12000))
-		if limit < 500 || limit > 24000 {
-			limit = 12000
-		}
-		body, err := get(ctx, d, u, "text/html")
-		if err != nil {
-			return nil, err
-		}
-		txt, ok := dirListing(string(body))
-		if !ok {
-			txt = Text(string(body))
-		}
-		out := map[string]any{"url": u, "text": txt, "chars": len(txt)}
-		part, cut, note := window(txt, strings.TrimSpace(argStr(a, "find")), limit)
-		out["text"] = part
-		if cut {
-			out["truncated"] = true
-			note = firstNonEmpty(note, "This is part of a long page and it is usually enough to answer from. To read "+
-				"further down, call again with find set to a heading or phrase from the part you need.")
-		}
-		if note != "" {
-			out["note"] = note
-		}
-		if len(strings.TrimSpace(txt)) < 400 {
-			out["note"] = "This page returned very little readable text, which usually means it needs " +
-				"JavaScript or is behind a wall. Fetching it again will not help. Say so, or try another source."
-		}
-		return out, nil
-	},
-}
+}, func(ctx context.Context, d *Deps, a webFetchArgs) (any, error) {
+	u, err := publicURL(a.URL)
+	if err != nil {
+		return nil, err
+	}
+	limit := a.MaxChars
+	if limit < 500 || limit > 24000 {
+		limit = 12000
+	}
+	body, err := get(ctx, d, u, "text/html")
+	if err != nil {
+		return nil, err
+	}
+	txt, ok := dirListing(string(body))
+	if !ok {
+		txt = Text(string(body))
+	}
+	out := map[string]any{"url": u, "text": txt, "chars": len(txt)}
+	part, cut, note := window(txt, a.Find, limit)
+	out["text"] = part
+	if cut {
+		out["truncated"] = true
+		note = firstNonEmpty(note, "This is part of a long page and it is usually enough to answer from. To read "+
+			"further down, call again with find set to a heading or phrase from the part you need.")
+	}
+	if note != "" {
+		out["note"] = note
+	}
+	if len(strings.TrimSpace(txt)) < 400 {
+		out["note"] = "This page returned very little readable text, which usually means it needs " +
+			"JavaScript or is behind a wall. Fetching it again will not help. Say so, or try another source."
+	}
+	return out, nil
+})
 
 var (
 	listingTitle = regexp.MustCompile(`(?i)<title>\s*Index of\s+([^<]*)</title>`)

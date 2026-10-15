@@ -16,34 +16,41 @@ type SearchHit struct {
 	Snippet string `json:"snippet"`
 }
 
-var WebSearch = Tool{
+type webSearchArgs struct {
+	Query string
+	N     int
+}
+
+func (a *webSearchArgs) params() []param {
+	return []param{
+		strArg(&a.Query, "query", "what to search for, as a person would type it").required(),
+		intArg(&a.N, "n", "how many results to return, default 6").otherwise(6),
+	}
+}
+
+var WebSearch = Define(Tool{
 	Name: "web_search",
 	Description: "Search the web and get back titles, urls and snippets. Use it for anything current, " +
 		"local, priced or contested. Snippets are short, so follow up with web_fetch when you need what a page actually says.",
-	Schema: obj(map[string]any{
-		"query": str("what to search for, as a person would type it"),
-		"n":     integer("how many results to return, default 6"),
-	}, "query"),
-	Run: func(ctx context.Context, d *Deps, a map[string]any) (any, error) {
-		q := argStr(a, "query")
-		if q == "" {
-			return nil, fmt.Errorf("query is required")
-		}
-		n := int(argNum(a, "n", 6))
-		if n < 1 || n > 12 {
-			n = 6
-		}
-		body, err := get(ctx, d, "https://html.duckduckgo.com/html/?q="+url.QueryEscape(q), "text/html")
-		if err != nil {
-			return nil, err
-		}
-		hits := parseDDG(string(body), n)
-		if len(hits) == 0 {
-			return nil, fmt.Errorf("the search engine returned nothing, which usually means it is refusing us")
-		}
-		return map[string]any{"query": q, "results": hits}, nil
-	},
-}
+}, func(ctx context.Context, d *Deps, a webSearchArgs) (any, error) {
+	q := a.Query
+	if q == "" {
+		return nil, fmt.Errorf("query is required")
+	}
+	n := a.N
+	if n < 1 || n > 12 {
+		n = 6
+	}
+	body, err := get(ctx, d, "https://html.duckduckgo.com/html/?q="+url.QueryEscape(q), "text/html")
+	if err != nil {
+		return nil, err
+	}
+	hits := parseDDG(string(body), n)
+	if len(hits) == 0 {
+		return nil, fmt.Errorf("the search engine returned nothing, which usually means it is refusing us")
+	}
+	return map[string]any{"query": q, "results": hits}, nil
+})
 
 // parseDDG pulls the results out of a DuckDuckGo HTML page. A limit of zero
 // means every one, for a caller filtering them itself.

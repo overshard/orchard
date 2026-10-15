@@ -11,65 +11,73 @@ import (
 	"strings"
 )
 
-var XSearch = Tool{
+type xSearchArgs struct {
+	Query   string
+	Account string
+	N       int
+}
+
+func (a *xSearchArgs) params() []param {
+	return []param{
+		strArg(&a.Query, "query", "what to look for, as a person would type it").required(),
+		strArg(&a.Account, "account", "one account to search within, with or without the @, optional"),
+		intArg(&a.N, "n", "how many posts to return, default 6").otherwise(6),
+	}
+}
+
+var XSearch = Define(Tool{
 	Name: "x_search",
 	Description: "Find public posts on X, formerly Twitter, through a web search of x.com. " +
 		"Use it when Isaac asks what someone posted or what is being said on X. " +
 		"It reads what a search engine has indexed rather than X itself, so it covers public " +
 		"posts only, misses plenty of them, and can hand back a copy older than the post. " +
 		"Say that when the answer rests on it. There is no free X API and this is the way in.",
-	Schema: obj(map[string]any{
-		"query":   str("what to look for, as a person would type it"),
-		"account": str("one account to search within, with or without the @, optional"),
-		"n":       integer("how many posts to return, default 6"),
-	}, "query"),
-	Run: func(ctx context.Context, d *Deps, a map[string]any) (any, error) {
-		q := strings.TrimSpace(argStr(a, "query"))
-		if q == "" {
-			return nil, fmt.Errorf("query is required")
-		}
-		n := int(argNum(a, "n", 6))
-		if n < 1 || n > 12 {
-			n = 6
-		}
+}, func(ctx context.Context, d *Deps, a xSearchArgs) (any, error) {
+	q := a.Query
+	if q == "" {
+		return nil, fmt.Errorf("query is required")
+	}
+	n := a.N
+	if n < 1 || n > 12 {
+		n = 6
+	}
 
-		// Both hostnames, since old posts are indexed under twitter.com and new
-		// ones under x.com, and a search for one alone misses half of them.
-		scope := "(site:x.com OR site:twitter.com)"
-		if acct := strings.TrimSpace(strings.TrimPrefix(argStr(a, "account"), "@")); acct != "" {
-			scope = "(site:x.com/" + acct + " OR site:twitter.com/" + acct + ")"
-		}
+	// Both hostnames, since old posts are indexed under twitter.com and new
+	// ones under x.com, and a search for one alone misses half of them.
+	scope := "(site:x.com OR site:twitter.com)"
+	if acct := strings.TrimSpace(strings.TrimPrefix(a.Account, "@")); acct != "" {
+		scope = "(site:x.com/" + acct + " OR site:twitter.com/" + acct + ")"
+	}
 
-		body, err := get(ctx, d, "https://html.duckduckgo.com/html/?q="+
-			url.QueryEscape(scope+" "+q), "text/html")
-		if err != nil {
-			return nil, err
-		}
-		hits := parseDDG(string(body), 0)
+	body, err := get(ctx, d, "https://html.duckduckgo.com/html/?q="+
+		url.QueryEscape(scope+" "+q), "text/html")
+	if err != nil {
+		return nil, err
+	}
+	hits := parseDDG(string(body), 0)
 
-		posts := make([]SearchHit, 0, n)
-		for _, h := range hits {
-			if !isXPost(h.URL) {
-				continue
-			}
-			h.URL = asXCom(h.URL)
-			posts = append(posts, h)
-			if len(posts) >= n {
-				break
-			}
+	posts := make([]SearchHit, 0, n)
+	for _, h := range hits {
+		if !isXPost(h.URL) {
+			continue
 		}
-		if len(posts) == 0 {
-			return nil, fmt.Errorf("no indexed posts matched that. Search engines carry only part " +
-				"of X and there is no free API, so say that rather than that nothing was posted")
+		h.URL = asXCom(h.URL)
+		posts = append(posts, h)
+		if len(posts) >= n {
+			break
 		}
-		return map[string]any{
-			"query": q, "posts": posts, "count": len(posts),
-			"note": "These come from a search engine's index of x.com, not from X. It holds public " +
-				"posts only and not all of them, and a snippet can be older than the post. Do not " +
-				"present this as a complete or current picture of what is on X.",
-		}, nil
-	},
-}
+	}
+	if len(posts) == 0 {
+		return nil, fmt.Errorf("no indexed posts matched that. Search engines carry only part " +
+			"of X and there is no free API, so say that rather than that nothing was posted")
+	}
+	return map[string]any{
+		"query": q, "posts": posts, "count": len(posts),
+		"note": "These come from a search engine's index of x.com, not from X. It holds public " +
+			"posts only and not all of them, and a snippet can be older than the post. Do not " +
+			"present this as a complete or current picture of what is on X.",
+	}, nil
+})
 
 // isXPost keeps the status pages and drops the profile, hashtag and help pages
 // a site search also returns.
