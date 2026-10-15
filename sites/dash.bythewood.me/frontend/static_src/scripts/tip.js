@@ -83,7 +83,7 @@ function extras(el) {
     if (head) meta.push(head.textContent.trim());
   }
   const go = row.querySelector(":scope > a.go");
-  const cmt = row.querySelector("a.cmt");
+  const cmt = row.querySelector(".cmt[data-href]");
   if (go && cmt) {
     const host = row.querySelector(".host");
     const pts = row.querySelector(".pts");
@@ -92,7 +92,7 @@ function extras(el) {
     meta.push(`${cmt.firstChild.textContent} CMT`);
     if (age) meta.push(age.textContent);
     links.push(cardLink(go.href, "ARTICLE", host ? host.textContent : new URL(go.href).host));
-    links.push(cardLink(cmt.href, "COMMENTS", new URL(cmt.href).host));
+    links.push(cardLink(cmt.dataset.href, "COMMENTS", new URL(cmt.dataset.href).host));
   }
   for (const s of row.querySelectorAll(".meta .cov, .meta .note")) meta.push(s.textContent);
   for (const a of row.querySelectorAll(".meta a.src")) links.push(cardLink(a.href, a.dataset.tipLabel || a.textContent, a.dataset.tip || a.href));
@@ -190,7 +190,10 @@ document.addEventListener("click", (e) => {
     if (e.target.closest("a")) hide();
     return;
   }
-  const line = e.target.closest("[data-card]");
+  // Anywhere on a row that isn't a link counts as its headline, so a thumb that
+  // lands on the meta line under it still opens the card.
+  const row = !e.target.closest("a") && e.target.closest(".rows li, .lede");
+  const line = e.target.closest("[data-card]") || (row && row.querySelector("[data-card]"));
   if (line) {
     toggle(line);
     return;
