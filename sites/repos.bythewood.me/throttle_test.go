@@ -10,7 +10,7 @@ import (
 )
 
 // Three archives an hour is enough to take a copy of what somebody came for and
-// not enough to mirror the estate. The crawler took 36 in two and a half hours.
+// not enough to mirror the estate.
 func TestArchiveLimitStopsAMirror(t *testing.T) {
 	th := newThrottle(archiveLimit)
 	now := time.Now()
@@ -51,7 +51,7 @@ func TestThrottleIsPerAddress(t *testing.T) {
 }
 
 // The page bucket has to be generous to a person clicking through history and
-// still bound a crawler that averaged 29 requests a minute.
+// still bound a crawler going flat out.
 func TestPageLimitLeavesAReaderAlone(t *testing.T) {
 	th := newThrottle(pageLimit)
 	now := time.Now()
@@ -100,7 +100,7 @@ func TestSignedInSkipsTheLimit(t *testing.T) {
 	}
 }
 
-// Any cookie value used to be enough to skip the limit.
+// A cookie that auth says is dead still counts against the limit.
 func TestAMadeUpSessionStillCounts(t *testing.T) {
 	verify := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"ok":false}`))

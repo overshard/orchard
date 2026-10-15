@@ -14,8 +14,8 @@ const (
 	authorName  = "Isaac Bythewood"
 	githubUser  = "overshard"
 
-	// analyticsID is in the page source of every site, so it names a site rather
-	// than authorising anything.
+	// analyticsID is in the page source of every site, so it names a site and
+	// doesn't authorise anything.
 	analyticsID = "49f89ef6-b0b2-4b47-879e-7e252a067d0c"
 
 	// containerName is baked in, not read at runtime. Repository pages show it
@@ -39,7 +39,7 @@ type Config struct {
 	// MirrorEvery is how often the GitHub mirror lane runs.
 	MirrorEvery time.Duration
 	// GCEvery is how often repositories are repacked, which nothing else does
-	// now that receive.autogc is off.
+	// since receive.autogc is off.
 	GCEvery time.Duration
 	// MirrorEnabled turns the GitHub lane off for dev runs.
 	MirrorEnabled bool

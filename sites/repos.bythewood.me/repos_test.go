@@ -48,7 +48,7 @@ func TestRepoNameFromPath(t *testing.T) {
 	}{
 		{"orchard.git", "orchard", true},
 		{"blog.bythewood.me.git", "blog.bythewood.me", true},
-		{"orchard", "", false},  // no suffix: a browse path, not a wire path
+		{"orchard", "", false},  // no suffix is a browse path, not a wire path
 		{".git", "", false},     // empty name
 		{"../x.git", "", false}, // traversal survives the suffix strip
 	}
@@ -113,7 +113,7 @@ Binary files a/image.png and b/image.png differ
 		t.Fatalf("file 0 has %d hunks, want 1", len(modified.Hunks))
 	}
 
-	// The line numbers are why the patch is parsed rather than printed.
+	// The line numbers are why the patch is parsed instead of printed.
 	h := modified.Hunks[0]
 	want := []struct {
 		kind   string
@@ -173,8 +173,8 @@ func TestParseHunkHeader(t *testing.T) {
 	}
 }
 
-// core.quotePath=false is what keeps this header split parseable, including a
-// path holding the separator it splits on.
+// core.quotePath=false keeps this header split parseable, including a path
+// holding the separator it splits on.
 func TestParseDiffGit(t *testing.T) {
 	cases := []struct{ line, old, new string }{
 		{"diff --git a/x.txt b/x.txt", "x.txt", "x.txt"},
@@ -206,7 +206,7 @@ func TestHumanBytes(t *testing.T) {
 }
 
 // TestPercentOf covers the meter that has to warn before a push hits
-// Cloudflare's limit rather than after.
+// Cloudflare's limit, not after.
 func TestPercentOf(t *testing.T) {
 	cases := []struct {
 		n    int64
@@ -215,7 +215,7 @@ func TestPercentOf(t *testing.T) {
 		{0, 0},
 		{50 << 20, 50},
 		{cloudflareBodyLimit, 100},
-		// Over the limit clamps rather than overflowing the bar.
+		// Over the limit clamps instead of overflowing the bar.
 		{200 << 20, 100},
 	}
 	for _, c := range cases {
@@ -449,7 +449,7 @@ func TestGitRoundTrip(t *testing.T) {
 	}
 
 	// Overview answers the whole listing card from one ref walk, so it has to
-	// agree with the four calls it replaced.
+	// agree with the separate calls.
 	o := store.Overview(ctx, repo)
 	if o.Branches != len(branches) || o.Tags != len(tags) {
 		t.Errorf("Overview = %d branches and %d tags, want %d and %d",
@@ -466,9 +466,8 @@ func TestGitRoundTrip(t *testing.T) {
 	}
 }
 
-// TestOverviewCache proves the listing card is cached and that invalidating is
-// what makes a push visible, since a stale card is the failure mode the cache
-// introduces.
+// TestOverviewCache proves the listing card is cached and that invalidating makes
+// a push visible, since a stale card is the failure mode a cache brings.
 func TestOverviewCache(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not on PATH")
@@ -559,18 +558,18 @@ func TestInitBareConfig(t *testing.T) {
 		t.Errorf("receive.autogc = %q, want false", got)
 	}
 	// Off by default in a bare repository. With it, a force push leaves the
-	// old tip recoverable, so today's mistake is not the only copy left.
+	// old tip recoverable, so today's mistake isn't the only copy left.
 	if got := get("core.logAllRefUpdates"); got != "true" {
 		t.Errorf("core.logAllRefUpdates = %q, want true", got)
 	}
-	// Explicitly NOT set. A false here denies the authenticated smart push
-	// too, so push-to-create would create a repository and then reject the
-	// push that made it.
+	// Never set. A false here denies the authenticated smart push too, so
+	// push-to-create would create a repository and then reject the push that
+	// made it.
 	if got := get("http.receivepack"); got != "" {
 		t.Errorf("http.receivepack = %q, want unset", got)
 	}
 
-	// Idempotent: a second push to the same name must not fail.
+	// A second push to the same name mustn't fail.
 	if _, err := store.InitBare(ctx, "created"); err != nil {
 		t.Errorf("InitBare is not idempotent: %v", err)
 	}
@@ -677,7 +676,7 @@ func TestRepoMeta(t *testing.T) {
 		t.Error("a pushed repository should not be flagged as a mirror")
 	}
 
-	// A mirror refuses pushes, so the flag is what the wire checks.
+	// The wire checks this flag to refuse a push into a mirror.
 	if err := db.MarkMirror("pinry", "https://github.com/overshard/pinry.git", true); err != nil {
 		t.Fatalf("MarkMirror: %v", err)
 	}
@@ -800,7 +799,7 @@ func TestAdopt(t *testing.T) {
 		if !adopted {
 			t.Fatal("adopted = false, want true")
 		}
-		// The mirror refspec is what makes syncOne rewrite refs, not add to them.
+		// The mirror refspec makes syncOne rewrite refs instead of adding to them.
 		out, err := run(ctx, repo, "config", "--get", "remote.origin.fetch")
 		if err != nil || strings.TrimSpace(string(out)) != "+refs/*:refs/*" {
 			t.Errorf("remote.origin.fetch = %q (err %v), want +refs/*:refs/*", out, err)
@@ -867,7 +866,7 @@ func TestAdopt(t *testing.T) {
 }
 
 // The slash is the entire grammar of the one field the settings form has, so
-// the cases either side of it are what matter.
+// the cases either side of it matter most.
 func TestParseMirrorSource(t *testing.T) {
 	ok := []struct {
 		in    string
@@ -879,12 +878,12 @@ func TestParseMirrorSource(t *testing.T) {
 		{"  overshard  ", sourceAccount, "overshard", ""},
 		{"overshard/newtab", sourceRepo, "overshard", "newtab"},
 		{"overshard/blog.bythewood.me", sourceRepo, "overshard", "blog.bythewood.me"},
-		// Pasting the URL is the obvious mistake, so it is accepted.
+		// Pasting the URL is the obvious mistake, so it's accepted.
 		{"https://github.com/overshard", sourceAccount, "overshard", ""},
 		{"https://github.com/overshard/newtab", sourceRepo, "overshard", "newtab"},
 		{"https://github.com/overshard/newtab.git", sourceRepo, "overshard", "newtab"},
 		{"github.com/overshard/newtab/", sourceRepo, "overshard", "newtab"},
-		// A trailing slash is what a copied URL carries, so it is forgiven.
+		// A copied URL carries a trailing slash, so it's forgiven.
 		{"overshard/", sourceAccount, "overshard", ""},
 	}
 	for _, c := range ok {
@@ -947,7 +946,7 @@ func TestMirrorSources(t *testing.T) {
 		t.Fatalf("after seed: %+v, want one account source for overshard", got)
 	}
 
-	// Re-seeding is what a restart does, and it must not duplicate.
+	// A restart re-seeds, and it mustn't duplicate.
 	if err := db.SeedMirrorSources("overshard"); err != nil {
 		t.Fatalf("re-seed: %v", err)
 	}
@@ -1010,8 +1009,8 @@ func TestCoveredBySource(t *testing.T) {
 	}
 }
 
-// TestAnalyticsWiring guards the four places the collector lives, since they
-// are edited separately and any one alone fails silently.
+// TestAnalyticsWiring guards each place the collector lives, since they're
+// edited separately and any one alone fails silently.
 func TestAnalyticsWiring(t *testing.T) {
 	// The id is identity and not a credential, and a typo files this site's
 	// traffic under nothing.
@@ -1048,10 +1047,9 @@ func TestAnalyticsWiring(t *testing.T) {
 	}
 }
 
-// Every template the server asks for has to exist. NewRenderer resolves the
-// list at boot rather than at build, so a page left listed after its file was
-// deleted compiles, ships, and then crash-loops the container on startup, which
-// is how it was found.
+// Every template the server asks for has to exist. NewRenderer resolves the list
+// at boot instead of at build, so a page left listed after its file was deleted
+// compiles, ships, and then crash-loops the container on startup.
 func TestEveryListedTemplateParses(t *testing.T) {
 	templates, err := fs.Sub(templateFS, "templates")
 	if err != nil {

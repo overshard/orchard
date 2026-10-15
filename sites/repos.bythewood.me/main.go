@@ -41,9 +41,8 @@ func csp() string {
 	}, "; ")
 }
 
-// The template sets, shared with the tests, which parse them for real. A page
-// listed here with no file behind it parses at boot and not at build, so
-// nothing but doing it catches a template that was deleted and left listed.
+// Shared with the tests, which parse them for real, since a page listed here
+// with no file behind it fails at boot and not at build.
 var (
 	layoutTemplates = []string{"base.html", "partials.html", "pushhelp.html"}
 	pageTemplates   = []string{
@@ -60,7 +59,7 @@ func main() {
 	}
 }
 
-// realMain returns rather than exits, so its deferred closes and the log
+// realMain returns instead of exiting so the deferred closes and the log
 // shipper's flush run on every path out.
 func realMain() error {
 	web.SetupLogging()
@@ -92,7 +91,7 @@ func realMain() error {
 	store := NewStore(cfg.RepoRoot)
 	defer store.Close()
 
-	// A missing http-backend is not fatal, the browse half still works.
+	// A missing http-backend isn't fatal, the browse half still works.
 	backend := gitHTTPBackend()
 	if backend == "" {
 		slog.Warn("git-http-backend not found; clone and push are unavailable")
@@ -149,16 +148,16 @@ func realMain() error {
 	} else {
 		slog.Info("mirror lane disabled")
 	}
-	// receive.autogc is false on every repository here, so a push never repacks
-	// while Cloudflare counts to 100. This lane is where that work went.
+	// receive.autogc is false on every repository here so a push never repacks
+	// while Cloudflare counts to 100, and this lane does the repacking instead.
 	background.Go(func() { RunGC(ctx, store, cfg.GCEvery) })
 
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /{$}", s.index)
 
-	// Signing in happens on auth.bythewood.me. This stays so an old bookmark
-	// and every "sign in" link in the templates land somewhere useful.
+	// Signing in happens on auth.bythewood.me, this is so an old bookmark and
+	// every "sign in" link in the templates land somewhere useful.
 	mux.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, web.LoginURL(r), http.StatusSeeOther)
 	})
@@ -177,7 +176,7 @@ func realMain() error {
 	mux.HandleFunc("POST /settings/mirrors/{id}/delete", s.requireLogin(s.deleteMirrorSource))
 	mux.HandleFunc("POST /settings/mirrors/sync", s.requireLogin(s.syncMirrors))
 
-	// ServeMux matches most specific first, so registration order does not matter.
+	// ServeMux matches most specific first, so registration order doesn't matter.
 	mux.HandleFunc("GET /{name}", s.repo)
 	mux.HandleFunc("POST /{name}/edit", s.requireLogin(s.editRepo))
 
@@ -185,8 +184,8 @@ func realMain() error {
 	mux.HandleFunc("GET /{name}/tree/{rev}/{path...}", s.tree)
 	mux.HandleFunc("GET /{name}/blob/{rev}/{path...}", s.blob)
 
-	// raw, log, commit and archive are the four robots.txt disallows, and they
-	// are rate limited for anyone not signed in. See throttle.go for why.
+	// raw, log, commit and archive are rate limited for anyone not signed in,
+	// see throttle.go for why.
 	pages, archives := newThrottle(pageLimit), newThrottle(archiveLimit)
 
 	mux.HandleFunc("GET /{name}/raw/{rev}/{path...}", s.limited(pages, s.raw))
@@ -209,10 +208,9 @@ func realMain() error {
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		// EdgeCache fills in the site policy whenever a handler sets no
-		// Cache-Control of its own, so saying nothing here means the edge
-		// answers a liveness check out of cache long after this process has
-		// stopped serving.
+		// EdgeCache fills in the site policy when a handler sets no Cache-Control,
+		// so without this the edge answers a liveness check out of cache long
+		// after this process has stopped serving.
 		w.Header().Set("Cache-Control", "no-store")
 		_, _ = w.Write([]byte("ok\n"))
 	})
@@ -221,8 +219,8 @@ func realMain() error {
 
 	wr := &wire{store: store, db: db, backend: backend, allowCreate: true}
 
-	// Neither the wire nor /static/ can be a mux pattern: a wildcard matches a
-	// whole segment so "{name}.git" is illegal, and "GET /static/" conflicts
+	// Neither the wire nor /static/ can be a mux pattern, since a wildcard matches
+	// a whole segment so "{name}.git" is illegal, and "GET /static/" conflicts
 	// with "GET /{name}/tree/{rev}/{path...}" and panics at registration.
 	handler := web.Chain(staticRouter(dist, assets, wr.Router(mux)),
 		web.Recovered,
@@ -246,11 +244,8 @@ func realMain() error {
 }
 
 // privateWhenSignedIn stamps no-store on any response to a request carrying a
-// session cookie, so EdgeCache leaves it alone.
-//
-// It tests for the cookie rather than for a live session, which is both cheaper
-// and safer: whether the cookie is still valid is a question for auth, and a
-// response to somebody holding an expired one still must not be shared cached.
+// session cookie, so EdgeCache leaves it alone. It doesn't ask auth if the session
+// is live since a response to somebody holding an expired one still mustn't be shared.
 func privateWhenSignedIn(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if c, err := r.Cookie(web.SessionCookie); err == nil && c.Value != "" {

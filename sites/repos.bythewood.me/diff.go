@@ -1,7 +1,7 @@
 package main
 
-// The unified diff parser: git hands back the text format, and this turns it into
-// the structs every template downstream works with.
+// The unified diff parser, which turns git's text format into the structs the
+// templates work with.
 
 import (
 	"bufio"
@@ -58,7 +58,7 @@ type Hunk struct {
 	Lines    []DiffLine
 }
 
-// DiffLine carries both line numbers, a zero means the line does not exist on
+// DiffLine carries both line numbers, a zero means the line doesn't exist on
 // that side.
 type DiffLine struct {
 	Kind   string // "context", "add", "del"
@@ -78,7 +78,7 @@ type CommitDiff struct {
 
 // Diff reads and parses one commit's patch. -r recurses, -M detects renames, and
 // --root makes the first commit in a repository diff against the empty tree
-// rather than produce nothing.
+// instead of producing nothing.
 func (s *Store) Diff(ctx context.Context, repo Repo, sha string) (CommitDiff, error) {
 	out, err := run(ctx, repo, "diff-tree", "-p", "-r", "-M", "--root",
 		"--no-color", "--patch-with-raw", "--format=", sha)
@@ -198,12 +198,12 @@ func parseDiff(patch []byte) CommitDiff {
 			cur.Deletions++
 
 		case strings.HasPrefix(line, "\\"):
-			// "\ No newline at end of file" annotates the line above rather
-			// than being one, numbering it shifts everything after it.
+			// "\ No newline at end of file" annotates the line above and isn't a
+			// line itself, numbering it shifts everything after it.
 			continue
 
 		case strings.HasPrefix(line, " "), line == "":
-			// An empty context line can arrive as a bare "" rather than a single
+			// An empty context line can arrive as a bare "" instead of a single
 			// space, since some tools strip trailing whitespace from a patch.
 			text := ""
 			if line != "" {

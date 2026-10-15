@@ -1,9 +1,6 @@
-// Finding a file and finding a string in one, which is the half of reading a
-// repository that walking a tree one directory at a time cannot do.
-//
-// A caller that can only list a directory and read a path it already knows
-// spends its whole budget walking down from the root guessing. One grep lands
-// on the file instead.
+// Finding a file and finding a string, the half of reading a repository that
+// walking a tree one directory at a time can't do. A caller that can only list
+// and read spends its budget guessing down from the root, and one grep lands on it.
 package main
 
 import (
@@ -21,26 +18,21 @@ type GrepHit struct {
 }
 
 const (
-	// How many hits come back at most. A search is meant to point at a file,
-	// and a hundred lines of context is already more than a reader needs to
-	// decide where to look.
+	// A search is meant to point at a file, and a hundred lines is already more
+	// than a reader needs to decide where to look.
 	grepMaxHits = 100
 
-	// How many lines of one file can match before the rest are its own problem.
-	// Without it a common identifier returns one file over and over.
+	// Without a per file cap a common identifier returns one file over and over.
 	grepMaxPerFile = 20
 
 	// A line longer than this is minified or generated, and the part past here
-	// has never once been the part that mattered.
+	// is never the part that matters.
 	grepMaxLineLen = 300
 )
 
-// Grep searches file contents at a revision. Fixed string and case insensitive,
-// because the caller is a language model and a regex it wrote by accident is a
-// worse failure than a literal that finds nothing.
-//
-// The pathspec narrows it, and it is passed to git rather than filtered here so
-// a search of one site does not walk the other ten.
+// Grep searches file contents at a revision, fixed string and case insensitive
+// since a regex a language model wrote by accident is worse than a literal that
+// finds nothing. The pathspec goes to git so a search of one site skips the rest.
 func (s *Store) Grep(ctx context.Context, repo Repo, rev, query, pathspec string, limit int) ([]GrepHit, bool, error) {
 	query = strings.TrimSpace(query)
 	if query == "" {
@@ -52,8 +44,8 @@ func (s *Store) Grep(ctx context.Context, repo Repo, rev, query, pathspec string
 
 	args := []string{
 		"grep",
-		// Skip binaries rather than reporting that one matched, which is all
-		// git will say about them anyway.
+		// Skip binaries instead of reporting that one matched, which is all git
+		// will say about them anyway.
 		"-I",
 		"-n", "-z", "--no-color",
 		"--fixed-strings", "--ignore-case",
@@ -62,8 +54,8 @@ func (s *Store) Grep(ctx context.Context, repo Repo, rev, query, pathspec string
 		rev,
 	}
 	if p := strings.Trim(strings.TrimSpace(pathspec), "/"); p != "" {
-		// A bare directory matches nothing on its own, so it is widened to
-		// everything under it, which is what somebody typing it means.
+		// A bare directory matches nothing on its own, so it's widened to
+		// everything under it.
 		if !strings.ContainsAny(p, "*?[") {
 			p += "/*"
 		}
@@ -71,7 +63,7 @@ func (s *Store) Grep(ctx context.Context, repo Repo, rev, query, pathspec string
 	}
 
 	// git grep exits 1 with no output when nothing matched, which run reports as
-	// an error. Nothing found is an answer, so it is not one here.
+	// an error, but nothing found is an answer.
 	out, err := run(ctx, repo, args...)
 	if err != nil {
 		if len(out) == 0 {
@@ -107,8 +99,8 @@ func (s *Store) Grep(ctx context.Context, repo Repo, rev, query, pathspec string
 		}
 		hits = append(hits, GrepHit{Path: path, Line: n, Text: text})
 		if len(hits) == limit {
-			// One more would have come back, so say so rather than letting a
-			// caller read a full page as the whole answer.
+			// A full page says it was cut short, so a caller doesn't read it as
+			// the whole answer.
 			return hits, true, nil
 		}
 	}
@@ -117,12 +109,9 @@ func (s *Store) Grep(ctx context.Context, repo Repo, rev, query, pathspec string
 
 const findMaxPaths = 200
 
-// FindPaths is every path at a revision whose name contains the query, which is
-// the one call that turns "earnings.go" into "sites/dash.bythewood.me/earnings.go"
-// without walking anything.
-//
-// An empty query lists the whole tree, capped, which is how a caller sees the
-// shape of a repository in one go rather than in a directory at a time.
+// FindPaths is every path at a revision whose name contains the query, so
+// "earnings.go" turns into its full path without walking anything. An empty
+// query lists the whole tree, capped, for the shape of a repository in one go.
 func (s *Store) FindPaths(ctx context.Context, repo Repo, rev, query string, limit int) ([]string, bool, error) {
 	if limit <= 0 || limit > findMaxPaths {
 		limit = findMaxPaths

@@ -1,8 +1,8 @@
 package main
 
-// Every repository read here is a git subprocess. The rules that keep that safe:
-// plumbing commands only, NUL delimiters (-z and %x00) because ref names and
-// commit messages contain newlines, and "--" before every user supplied ref or path.
+// Every repository read here is a git subprocess, kept safe by NUL delimiters (-z
+// and %x00) since paths and commit messages can hold newlines, and by "--" before
+// every user supplied path.
 
 import (
 	"bufio"
@@ -21,7 +21,7 @@ import (
 )
 
 // gitTimeout stays under Cloudflare's 100 second ceiling, so a wedged subprocess
-// surfaces as a 500 here rather than a 524 from the edge.
+// surfaces as a 500 here instead of a 524 from the edge.
 const gitTimeout = 20 * time.Second
 
 // maxBlobSize is the largest file read into memory to render. Anything larger is
@@ -36,8 +36,8 @@ type Repo struct {
 }
 
 // validName gates every name arriving from a URL before it is joined to a path,
-// and is the traversal fence. Interior dots are allowed because
-// `blog.bythewood.me` is a repository name here; a leading dot is not.
+// and is the traversal fence. Interior dots are allowed since `blog.bythewood.me`
+// is a repository name here, but a leading dot isn't.
 func validName(name string) bool {
 	if name == "" || len(name) > 100 {
 		return false
@@ -202,7 +202,6 @@ func (s *Store) refs(ctx context.Context, repo Repo, pattern string) ([]Ref, err
 		if author == "" {
 			author = f[6]
 		}
-		// The starred object name is set only for an annotated tag.
 		target, annotated := f[2], false
 		if f[3] != "" {
 			target, annotated = f[3], true
@@ -293,7 +292,7 @@ func parseLog(out []byte) []Commit {
 	for i := 0; i+logFields <= len(fields); i += logFields {
 		f := fields[i : i+logFields]
 		// Some git versions leave a leading newline on the next group's first
-		// field, so trim rather than trusting the separator.
+		// field, so trim instead of trusting the separator.
 		sha := strings.TrimLeft(f[0], "\n")
 		if len(sha) < 7 {
 			break
@@ -331,8 +330,8 @@ func (s *Store) CommitOne(ctx context.Context, repo Repo, rev string) (Commit, e
 	return commits[0], nil
 }
 
-// CountCommits walks the graph, and is the one number on a repository page that
-// costs real work on a large history.
+// CountCommits walks the whole graph, so on a large history it's the one number
+// on a repository page that costs real work.
 func (s *Store) CountCommits(ctx context.Context, repo Repo, rev string) int {
 	out, err := run(ctx, repo, "rev-list", "--count", rev, "--")
 	if err != nil {
@@ -353,7 +352,7 @@ type TreeEntry struct {
 }
 
 // IsDir is true for a subdirectory. A gitlink is neither tree nor blob, so this
-// is not the same as "not a blob".
+// isn't the same as "not a blob".
 func (e TreeEntry) IsDir() bool { return e.Type == "tree" }
 
 // IsSubmodule reports a gitlink, which ls-tree types as "commit" inside a tree.
@@ -363,7 +362,7 @@ func (e TreeEntry) IsSubmodule() bool { return e.Type == "commit" }
 func (e TreeEntry) IsSymlink() bool { return e.Mode == "120000" }
 
 // Tree lists one directory, not recursively. --long asks for sizes, which git
-// answers from the object header rather than by inflating each blob.
+// answers from the object header instead of inflating each blob.
 func (s *Store) Tree(ctx context.Context, repo Repo, rev, path string) ([]TreeEntry, error) {
 	spec := rev + ":" + path
 	if path == "" {
@@ -412,7 +411,7 @@ func (s *Store) Tree(ctx context.Context, repo Repo, rev, path string) ([]TreeEn
 }
 
 // Blob reads a file at a revision. The size comes from the object header first,
-// so an oversized file costs a header read rather than a buffer.
+// so an oversized file costs a header read instead of a buffer.
 func (s *Store) Blob(ctx context.Context, repo Repo, rev, path string) ([]byte, int64, error) {
 	spec := rev + ":" + path
 
@@ -448,8 +447,8 @@ func (s *Store) IsBlob(ctx context.Context, repo Repo, rev, path string) bool {
 	return err == nil && strings.TrimSpace(string(out)) == "blob"
 }
 
-// StreamBlob writes a file's bytes to w without buffering, which is what makes
-// /raw work on a file too large to render.
+// StreamBlob writes a file's bytes to w without buffering, so /raw works on a
+// file too large to render.
 func (s *Store) StreamBlob(ctx context.Context, repo Repo, rev, path string, w io.Writer) error {
 	cmd := gitCmd(ctx, repo, "cat-file", "blob", rev+":"+path)
 	cmd.Stdout = w
@@ -459,7 +458,7 @@ func (s *Store) StreamBlob(ctx context.Context, repo Repo, rev, path string, w i
 
 // Resolve turns a user supplied revision into a commit SHA, and is the validation
 // step for anything arriving in a URL. The ^{commit} peel means every caller
-// downstream can assume it holds a commit rather than a tag.
+// downstream can assume it holds a commit and not a tag.
 func (s *Store) Resolve(ctx context.Context, repo Repo, rev string) (string, error) {
 	out, err := run(ctx, repo, "rev-parse", "--verify", "--quiet", rev+"^{commit}")
 	if err != nil {
@@ -495,8 +494,8 @@ func (s *Store) Size(ctx context.Context, repo Repo) int64 {
 }
 
 // Overview is one repository's listing card. The index renders one per
-// repository and push-to-create means that count only grows, so this read is
-// the one whose cost scales with the site.
+// repository and push-to-create means that only grows, so this read's cost
+// scales with the site.
 type Overview struct {
 	Size     int64
 	Branches int
@@ -516,12 +515,12 @@ type overviewEntry struct {
 const overviewTTL = 10 * time.Minute
 
 // overviewFormat is the ref name and the date of the commit under it.
-// committerdate is empty on an annotated tag object, which is why only
-// refs/heads/ feeds LastPush.
+// committerdate is empty on an annotated tag object, so only refs/heads/ feeds
+// LastPush.
 const overviewFormat = "%(refname)%00%(committerdate:iso-strict)"
 
 // Overview answers from cache when it can. A miss costs two subprocesses, and a
-// concurrent miss on one repository may pay that twice rather than hold a lock
+// concurrent miss on one repository may pay that twice instead of holding a lock
 // across a fork.
 func (s *Store) Overview(ctx context.Context, repo Repo) Overview {
 	s.overviewMu.Lock()
@@ -540,7 +539,7 @@ func (s *Store) Overview(ctx context.Context, repo Repo) Overview {
 }
 
 // InvalidateOverview drops one repository's card, and is called from every write
-// path here so a push that has landed is never listed as if it had not.
+// path here so a push that has landed is never listed as if it hadn't.
 func (s *Store) InvalidateOverview(name string) {
 	s.overviewMu.Lock()
 	delete(s.overviews, name)
@@ -552,8 +551,8 @@ func (s *Store) InvalidateOverview(name string) {
 func (s *Store) readOverview(ctx context.Context, repo Repo) Overview {
 	o := Overview{Size: s.Size(ctx, repo)}
 
-	// A card that cannot be read renders empty rather than failing the page,
-	// which is how the listing treats every other per-repository error.
+	// A card that can't be read renders empty instead of failing the page, like
+	// every other per-repository error in the listing.
 	out, _ := run(ctx, repo, "for-each-ref",
 		"--format="+overviewFormat, "refs/heads/", "refs/tags/")
 
@@ -580,7 +579,7 @@ func (s *Store) readOverview(ctx context.Context, repo Repo) Overview {
 }
 
 // Archive streams a tarball or zip of a revision. The prefix gives it a top level
-// directory, so extracting does not scatter files into the current one.
+// directory, so extracting doesn't scatter files into the current one.
 func (s *Store) Archive(ctx context.Context, repo Repo, rev, format, prefix string, w io.Writer) error {
 	switch format {
 	case "tar.gz", "zip":
@@ -711,7 +710,7 @@ func (c *catFile) object(spec string) (typ string, data []byte, err error) {
 
 	parts := strings.Fields(header)
 	if len(parts) < 3 {
-		// "missing" or "ambiguous": what a request for an absent path looks like.
+		// An absent path answers "missing" or "ambiguous".
 		return "", nil, fmt.Errorf("cat-file: %s", header)
 	}
 	size, err := strconv.ParseInt(parts[2], 10, 64)

@@ -1,8 +1,8 @@
 package main
 
-// The git smart HTTP wire: clone, fetch and push, over net/http/cgi. Basic auth
-// because git's credential subsystem natively fills, stores and replays no other
-// scheme, the password field carries a random token. The browser UI is in auth.go.
+// The git smart HTTP wire for clone, fetch and push, over net/http/cgi. It's Basic
+// auth since git's credential subsystem natively fills, stores and replays no other
+// scheme, and the password field carries a random token.
 
 import (
 	"context"
@@ -19,7 +19,7 @@ import (
 	"repos.bythewood.me/web"
 )
 
-// gitHTTPBackend finds git's own CGI, which is not on PATH and moves between
+// gitHTTPBackend finds git's own CGI, which isn't on PATH and moves between
 // distributions.
 func gitHTTPBackend() string {
 	candidates := []string{
@@ -46,9 +46,9 @@ type wire struct {
 	allowCreate bool
 }
 
-// Router puts the wire in front of the browse mux. A wrapper rather than mux
-// patterns because a ServeMux wildcard matches a whole segment, so "{name}.git"
-// cannot be registered.
+// Router puts the wire in front of the browse mux. It's a wrapper instead of mux
+// patterns since a ServeMux wildcard matches a whole segment, so "{name}.git"
+// can't be registered.
 func (wr *wire) Router(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		seg, rest, _ := strings.Cut(strings.TrimPrefix(r.URL.Path, "/"), "/")
@@ -68,9 +68,9 @@ func (wr *wire) serve(w http.ResponseWriter, r *http.Request, name, rest string)
 		return
 	}
 
-	// The service=git-receive-pack probe must be challenged too: answer it
-	// anonymously and git never asks for a credential, so the push that follows
-	// fails with a 401 the user cannot act on.
+	// The service=git-receive-pack probe must be challenged too, since if it's
+	// answered anonymously git never asks for a credential and the push that
+	// follows fails with a 401 the user can't act on.
 	writing := rest == "git-receive-pack" ||
 		r.URL.Query().Get("service") == "git-receive-pack"
 
@@ -119,7 +119,6 @@ func (wr *wire) serve(w http.ResponseWriter, r *http.Request, name, rest string)
 	wr.serveBackend(w, r, repo, name, rest, writing)
 }
 
-// serveBackend hands the request to git.
 func (wr *wire) serveBackend(w http.ResponseWriter, r *http.Request, repo Repo, name, rest string, writing bool) {
 	if wr.backend == "" {
 		http.Error(w, "git http-backend not available", http.StatusInternalServerError)
@@ -129,13 +128,13 @@ func (wr *wire) serveBackend(w http.ResponseWriter, r *http.Request, repo Repo, 
 
 	env := []string{
 		// GIT_PROJECT_ROOT plus PATH_INFO is how http-backend is told which
-		// repository to serve, GIT_DIR does not support the /info/refs form.
+		// repository to serve, GIT_DIR doesn't support the /info/refs form.
 		"GIT_PROJECT_ROOT=" + wr.store.Root,
 		// Without this each repository needs a git-daemon-export-ok file.
 		"GIT_HTTP_EXPORT_ALL=1",
-		// Do not raise GIT_HTTP_MAX_REQUEST_BUFFER: it bounds what http-backend
-		// reads into memory during anonymous ref negotiation, and does nothing
-		// for the push path, which is the spooling below.
+		// Don't raise GIT_HTTP_MAX_REQUEST_BUFFER, it bounds what http-backend
+		// reads into memory during anonymous ref negotiation and does nothing for
+		// the push path, which is the spooling below.
 		"GIT_CONFIG_NOSYSTEM=1",
 		"HOME=" + os.TempDir(),
 	}
@@ -219,7 +218,7 @@ func spoolBody(body io.ReadCloser, limit int64) (*spooledFile, int64, error) {
 }
 
 // maxPushBytes matches Cloudflare's request body ceiling, so a push the edge would
-// refuse is refused here rather than spooled to disk first.
+// refuse is refused here instead of spooled to disk first.
 const maxPushBytes = cloudflareBodyLimit
 
 // maxNegotiationBytes caps an unauthenticated body, matching git's own
@@ -231,7 +230,7 @@ type spooledFile struct{ *os.File }
 func (s *spooledFile) Close() error { return s.File.Close() }
 
 // authenticate checks a Basic credential and returns the token's label. The
-// username is ignored: git requires a field, and the token alone identifies.
+// username is ignored since git requires one but the token alone identifies.
 func (wr *wire) authenticate(r *http.Request) (string, bool) {
 	_, password, ok := r.BasicAuth()
 	if !ok || password == "" {
@@ -267,7 +266,7 @@ func repoNameFromPath(seg string) (string, bool) {
 		return "", false
 	}
 	if !validName(name) {
-		// Return nothing rather than the rejected name, which would be one
+		// Return nothing instead of the rejected name, which would be one
 		// refactor away from a traversal.
 		return "", false
 	}
@@ -280,7 +279,7 @@ func cloneURL(base, name string) string {
 }
 
 // bridgeCloneURL reaches the repository over the Docker bridge instead of through
-// Cloudflare, which is how a first push too large for the tunnel gets seeded.
+// Cloudflare, so a first push too large for the tunnel can be seeded.
 func bridgeCloneURL(container, name string) string {
 	return "http://" + container + ":8000/" + name + ".git"
 }

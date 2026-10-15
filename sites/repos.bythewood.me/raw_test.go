@@ -9,8 +9,8 @@ import (
 	"repos.bythewood.me/web"
 )
 
-// A path that is not a file has to be a 404. cat-file failing inside the stream
-// wrote nothing, so Go answered 200 with an empty body, cached for a year at a SHA.
+// A path that isn't a file has to be a 404, since cat-file failing inside the
+// stream writes nothing and Go answers 200 with an empty body, cached for a year at a SHA.
 func TestRawMissesAreNotFound(t *testing.T) {
 	s := searchFixture(t)
 	db, err := OpenDB(t.TempDir())

@@ -1,9 +1,6 @@
-// The read only JSON view of the repositories, for chat.bythewood.me's tools.
-//
-// The index page already assembles this, so this handler builds the same cards
-// and hands them over as data. Hidden repositories are included, unlike on the
-// index, because this is behind the session and hiding one is about the public
-// listing rather than about secrecy.
+// The read only JSON view of the repositories for chat.bythewood.me's tools.
+// Hidden repositories are included since this is behind the session, and hiding
+// one is about the public listing and not about secrecy.
 package main
 
 import (
@@ -74,12 +71,8 @@ func (s *site) apiRepos(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// The tree and the file behind it, as data.
-//
-// A caller that can list the repositories and read nothing inside them guesses
-// raw addresses and collects 404s. These two are the same git plumbing the HTML
-// pages use, returned as JSON so a tool can walk a repository the way a person
-// does.
+// The tree and the file behind it as JSON, so a tool can walk a repository the
+// way a person does instead of guessing raw addresses and collecting 404s.
 
 type apiEntry struct {
 	Name string `json:"name"`
@@ -88,9 +81,9 @@ type apiEntry struct {
 	Size int64  `json:"size,omitempty"`
 }
 
-// apiTree lists one directory. It does not recurse: a repository the size of
-// orchard flattened into one response is most of a megabyte of paths, and the
-// model only ever needs the level it is looking at.
+// apiTree lists one directory and doesn't recurse, since a repository the size of
+// orchard flattened into one response is most of a megabyte of paths and the
+// model only needs the level it's looking at.
 func (s *site) apiTree(w http.ResponseWriter, r *http.Request) {
 	repo, rev, ok := s.apiResolve(w, r)
 	if !ok {
@@ -111,7 +104,7 @@ func (s *site) apiTree(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// apiFile returns one file's text. Binary is refused rather than encoded, since
+// apiFile returns one file's text. Binary is refused instead of encoded, since
 // nothing that reads this can do anything with the bytes.
 func (s *site) apiFile(w http.ResponseWriter, r *http.Request) {
 	repo, rev, ok := s.apiResolve(w, r)
@@ -138,17 +131,16 @@ func (s *site) apiFile(w http.ResponseWriter, r *http.Request) {
 
 	lines := strings.Split(string(src), "\n")
 	// A file ending in a newline splits with an empty element after it, which
-	// is not a line. Left in, the count is one too many and a range past the
-	// end clamps onto it and returns nothing.
+	// isn't a line. Left in, the count is one too many and a range past the end
+	// clamps onto it and returns nothing.
 	if n := len(lines); n > 1 && lines[n-1] == "" {
 		lines = lines[:n-1]
 	}
 	total := len(lines)
 	from, to := lineRange(r, total)
 	text := strings.Join(lines[from-1:to], "\n")
-	// The trailing newline was split off above so it would not count as a line.
-	// A read that runs to the end of the file gets it back, since a whole file
-	// read has to hand over the file as it is.
+	// A read that runs to the end gets the trailing newline back, so a whole file
+	// read hands over the file as it is.
 	if to == total && strings.HasSuffix(string(src), "\n") {
 		text += "\n"
 	}
@@ -157,18 +149,16 @@ func (s *site) apiFile(w http.ResponseWriter, r *http.Request) {
 		"size": size, "lines": total,
 		"language": languageOf(path), "text": text,
 	}
-	// Only when a slice was actually taken, so an ordinary whole file read is
-	// the same shape it always was.
+	// Only when a slice was taken, so a whole file read keeps the plain shape.
 	if from != 1 || to != total {
 		body["from"], body["to"], body["partial"] = from, to, true
 	}
 	writeJSON(w, body)
 }
 
-// lineRange reads from and to off the query, clamped to the file. A reader that
-// wants one function out of a thousand line file should not have to take the
-// thousand lines to get it, and on the other end of this the whole file is
-// context that a small window pays for.
+// lineRange reads from and to off the query, clamped to the file, so a reader
+// that wants one function out of a thousand line file doesn't pay for the other
+// lines as context.
 func lineRange(r *http.Request, total int) (int, int) {
 	from := queryInt(r, "from", 1)
 	to := queryInt(r, "to", total)
@@ -199,8 +189,8 @@ func queryInt(r *http.Request, key string, fallback int) int {
 	return n
 }
 
-// apiGrep searches file contents. The pathspec is how a question about one site
-// stays inside it rather than reading the other ten.
+// apiGrep searches file contents. The pathspec keeps a question about one site
+// inside it instead of reading every other one.
 func (s *site) apiGrep(w http.ResponseWriter, r *http.Request) {
 	repo, rev, ok := s.apiResolve(w, r)
 	if !ok {
@@ -227,8 +217,8 @@ func (s *site) apiGrep(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// apiFind matches on the path rather than the contents, which is the call that
-// turns a file name into a full path without walking a single directory.
+// apiFind matches on the path instead of the contents, so a file name turns into
+// a full path without walking a single directory.
 func (s *site) apiFind(w http.ResponseWriter, r *http.Request) {
 	repo, rev, ok := s.apiResolve(w, r)
 	if !ok {
