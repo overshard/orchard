@@ -59,6 +59,15 @@ exceptions are `server.go`, which comes in four variants (the common one, the
 one with no write bound that chat and llm share for their streams, and dash's
 and repos' own), and `README.md`, which is written for its site.
 
+Two smaller packages are shared the same way. `guard/`, in chat and dash, paces
+the calls to somebody else's server, keeps a budget per window and opens a
+breaker when the far end says no, with each site's numbers in a `Policy` and its
+state behind a `Store`. `ntfy/`, in status, logging and auth, publishes an
+alert. Both are byte identical wherever they are, with no exceptions, and `make
+check` holds them to it the same way it holds `web/`, so a fix to either is made
+in every site that carries it. Most Dockerfiles copy the build stage by name, so
+a site taking one up needs its `COPY` line or the image fails to build.
+
 ## Commands
 
 From the repo root:
@@ -73,7 +82,7 @@ make down                            stop everything
 
 make run SITE=blog.bythewood.me      vite watch + go run
 make build SITE=blog.bythewood.me
-make check                           gofmt, web/ drift, the template, vet, govulncheck and build
+make check                           gofmt, shared copy drift, the template, vet, govulncheck and build
 make test                            every site's tests, including its own web/ copy
 make deps                            update every site's direct Go modules together
 make new SITE=notes.bythewood.me     a new site from template/, ready to run
@@ -117,7 +126,7 @@ lookup table.
 `http://orchard-blog:8000/latest.json` for the latest-posts panel,
 `web/shipper.go` in every site posts to `http://orchard-logging:8000/ingest`,
 `web/session.go` in every site asks `http://orchard-auth:8000/verify`,
-status, logging and auth publish to `http://orchard-ntfy:8000`,
+`ntfy/ntfy.go` in status, logging and auth publishes to `http://orchard-ntfy:8000`,
 `sites/dash.bythewood.me/systems.go` reads `http://orchard-logging:8000/aggregate`
 and probes every other site at `http://orchard-<label>:8000/healthz`, and
 `sites/dash.bythewood.me/quick.go` relays the quick chat to
@@ -430,8 +439,8 @@ does nothing.
 ## Tests
 
 `make test` runs every site's suite plus its `web/` copy. There
-are no linter configs, and `make check` is gofmt, the `web/` drift check, vet,
-govulncheck and build.
+are no linter configs, and `make check` is gofmt, the drift check on `web/`,
+`guard/` and `ntfy/`, vet, govulncheck and build.
 govulncheck also checks the local Go, so it fails when webdev's Go is behind
 the `golang:1.27-trixie` the images build with. The portfolio
 has no Go tests of its own, being templates and handlers over static data, and
