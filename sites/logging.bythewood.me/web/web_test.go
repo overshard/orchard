@@ -11,9 +11,8 @@ import (
 	"testing/fstest"
 )
 
-// A mistake in the client IP rule is invisible: it does not error, it
-// attributes every visitor to the wrong address. Pinned rather than reasoned
-// about.
+// A wrong client IP rule never errors and quietly puts every visitor at the
+// wrong address, so the cases are pinned here.
 func TestClientIP(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -71,8 +70,8 @@ func TestClientIP(t *testing.T) {
 	}
 }
 
-// Caching the wrong file for a year cannot be undone from the server side:
-// every browser that saw it holds it until the year is up.
+// Caching the wrong file for a year can't be undone from the server, every
+// browser that saw it holds it until the year is up.
 func TestStaticCachePolicy(t *testing.T) {
 	dist := fstest.MapFS{
 		".vite/manifest.json": &fstest.MapFile{Data: []byte(`{
@@ -130,11 +129,9 @@ func TestStaticCachePolicy(t *testing.T) {
 	})
 }
 
-// EdgeCache fills in the site policy for a handler that sets no Cache-Control,
-// which is what makes a silent handler cacheable. A handler that has an opinion
-// keeps it, and every /healthz in this repo relies on that to say no-store:
-// without it the edge answers a liveness check out of cache long after the
-// origin has stopped serving, which is exactly what blog.bythewood.me did.
+// A handler with its own Cache-Control keeps it, and every /healthz relies on
+// that to say no-store, or the edge answers a liveness check out of cache long
+// after the origin has stopped.
 func TestEdgeCacheYieldsToTheHandler(t *testing.T) {
 	const policy = "public, max-age=14400"
 
@@ -190,9 +187,7 @@ func TestEdgeCacheYieldsToTheHandler(t *testing.T) {
 }
 
 // component is a rollup dimension in the log store, so this set has to stay
-// small and every request has to land in it. An empty component was why the
-// dashboard could group requests by status but never by what kind of route
-// served them.
+// small and every request has to land in it.
 func TestRouteClassIsBoundedAndTotal(t *testing.T) {
 	seen := map[string]bool{}
 
@@ -215,7 +210,7 @@ func TestRouteClassIsBoundedAndTotal(t *testing.T) {
 		{"/favicon.ico", "image/x-icon", "asset"},
 		{"/healthz", "text/plain", "healthz"},
 		{"/events", "text/event-stream", "stream"},
-		// Content type wins: a stream is a stream whatever it is served from.
+		// Content type wins, a stream is a stream whatever path serves it.
 		{"/api/live", "text/event-stream; charset=utf-8", "stream"},
 	} {
 		rec := &recorder{ResponseWriter: httptest.NewRecorder()}
@@ -232,9 +227,8 @@ func TestRouteClassIsBoundedAndTotal(t *testing.T) {
 	}
 }
 
-// A crawler that names itself can be found with a log query. One that does not
-// leaves only an address, which is what identifying the crawler that took 200MB
-// off repos on 2026-09-10 came down to.
+// A crawler that names itself can be found with a log query, and one that
+// doesn't leaves only an address.
 func TestLoggedRecordsTheUserAgent(t *testing.T) {
 	var rec map[string]any
 	old := slog.Default()
@@ -257,7 +251,7 @@ func TestLoggedRecordsTheUserAgent(t *testing.T) {
 	}
 
 	// A request that never crossed the tunnel is the healthz probe or another
-	// container, and those are a third of the rows and nobody worth naming.
+	// container, and nobody worth naming.
 	buf.Reset()
 	inside := httptest.NewRequest(http.MethodGet, "/healthz", nil)
 	inside.Header.Set("User-Agent", "Go-http-client/1.1")

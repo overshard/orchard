@@ -23,7 +23,7 @@ import (
 const ShipEndpoint = "http://orchard-logging:8000/ingest"
 
 const (
-	// Bounded, so the failure mode is dropping rather than blocking.
+	// Bounded, so the failure mode is dropping instead of blocking.
 	shipQueue = 4096
 	// Whichever comes first. Each flush is one POST that the logging site
 	// itself logs, so a faster cadence would make ingest the loudest thing
@@ -32,10 +32,9 @@ const (
 	shipEvery   = 5 * time.Second
 	shipTimeout = 10 * time.Second
 
-	// This is the hard ceiling on Close. A sink that accepts the connection and
-	// never answers costs shipTimeout per flush, which unbounded runs past
-	// Docker's stop grace and turns one hung container into a SIGKILL for every
-	// other site, skipping their db.Close().
+	// The hard ceiling on Close. A sink that accepts and never answers costs
+	// shipTimeout per flush, which runs past Docker's stop grace and gets every
+	// other site SIGKILLed on the next deploy, skipping their db.Close().
 	closeTimeout = 2 * time.Second
 )
 
@@ -86,11 +85,9 @@ func ShipLogs(source string, sink Sink) *Shipper {
 	return s
 }
 
-// enqueue never blocks. A full queue means the record is already safely on
-// stdout either way.
-//
-// The channel is never closed. Handle can still run after Close, from a later
-// defer, and a send on a closed channel panics.
+// enqueue never blocks, since a dropped record is on stdout anyway. The channel
+// is never closed, because Handle can still run after Close from a later defer
+// and a send on a closed channel panics.
 func (s *Shipper) enqueue(r Record) {
 	select {
 	case s.ch <- r:
@@ -260,18 +257,15 @@ func flatten(dst map[string]any, prefix string, a slog.Attr) {
 	case slog.KindString:
 		dst[key] = a.Value.String()
 	default:
-		// Formatted rather than marshalled, because an arbitrary value can
+		// Formatted instead of marshalled, because an arbitrary value can
 		// fail to marshal and one bad attribute must not cost the batch.
 		dst[key] = fmt.Sprint(a.Value.Any())
 	}
 }
 
-// HTTPSink posts batches to the logging site. It never calls slog, since a
-// shipper that logged its own failures would enqueue a record about failing to
-// ship. State changes go to stderr instead.
-//
-// Only the production images set SHIP_LOGS=1. The dev container is on the same
-// bridge, so without it a local run lands in production and trips its alerts.
+// HTTPSink posts batches to the logging site and writes its state changes to
+// stderr, never slog, which would enqueue a record about failing to ship. It's
+// off without SHIP_LOGS=1, since a dev run on the same bridge would trip alerts.
 func HTTPSink() Sink {
 	if os.Getenv("SHIP_LOGS") != "1" {
 		fmt.Fprintln(os.Stderr, "log shipping off, SHIP_LOGS is not 1")

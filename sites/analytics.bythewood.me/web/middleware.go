@@ -10,10 +10,9 @@ import (
 	"unicode/utf8"
 )
 
-// ClientIP resolves the real client address. CF-Connecting-IP wins over
-// X-Forwarded-For, which is not the usual ordering, and the last XFF entry is
-// taken rather than the first, which is not either. Behind the tunnel that entry
-// is always cloudflared's own bridge address.
+// ClientIP prefers CF-Connecting-IP over X-Forwarded-For and takes the last XFF
+// entry instead of the first, both backwards from the usual order. Behind the
+// tunnel that last entry is always cloudflared's own bridge address.
 func ClientIP(r *http.Request) string {
 	if ip := r.Header.Get("CF-Connecting-IP"); ip != "" {
 		return ip
@@ -51,8 +50,8 @@ func (w *recorder) Write(b []byte) (int, error) {
 	return n, err
 }
 
-// Unwrap is what http.ResponseController follows to reach the real writer.
-// Without it a server-sent events endpoint buffers until the connection closes.
+// Unwrap lets http.ResponseController reach the real writer. Without it a
+// server-sent events endpoint buffers until the connection closes.
 func (w *recorder) Unwrap() http.ResponseWriter { return w.ResponseWriter }
 
 // Logged writes one structured record per request. Duration is a float in
@@ -80,9 +79,8 @@ func Logged(next http.Handler) http.Handler {
 		// Absent means the request never crossed the tunnel.
 		if ray := r.Header.Get("CF-Ray"); ray != "" {
 			attrs = append(attrs, slog.String("cf_ray", ray))
-			// Only for requests from outside. The internal probes and the
-			// container to container calls are a third of the rows and none of
-			// them are anybody worth naming.
+			// Only for requests from outside, since the probes and container to
+			// container calls aren't anybody worth naming.
 			if ua := r.Header.Get("User-Agent"); ua != "" {
 				attrs = append(attrs, slog.String("ua", truncateUA(ua)))
 			}
@@ -91,12 +89,9 @@ func Logged(next http.Handler) http.Handler {
 	})
 }
 
-// routeClass buckets a request into something the log store can group by. It
-// has to stay small, since this is a rollup dimension and one that grew with
-// the URL space would grow that table like the raw one it exists to avoid.
-//
-// A stream is named so the log store can exclude it, since its elapsed time
-// measures the visit rather than any work done.
+// routeClass buckets a request for the log store's rollups, so it has to stay
+// small and never grow with the URL space. A stream gets its own name so it can
+// be left out, since its elapsed time measures the visit and not any work.
 func routeClass(w *recorder, path string) string {
 	if strings.HasPrefix(w.Header().Get("Content-Type"), "text/event-stream") {
 		return "stream"
@@ -134,7 +129,7 @@ func Recovered(next http.Handler) http.Handler {
 	})
 }
 
-// SecurityHeaders applies the headers that belong to the app rather than the
+// SecurityHeaders applies the headers that belong to the app instead of the
 // edge. No HSTS here, since Caddy sets it and this process only speaks plaintext
 // on a Docker bridge.
 func SecurityHeaders(csp string) func(http.Handler) http.Handler {
@@ -154,10 +149,8 @@ func SecurityHeaders(csp string) func(http.Handler) http.Handler {
 }
 
 // SameOrigin refuses a state-changing request a browser says came from another
-// origin. The session cookie is SameSite=Strict, but every *.bythewood.me host
-// counts as the same site, so SameSite alone lets one of them post to another.
-// A request with no Sec-Fetch-Site is a container or git, not a browser, and
-// passes. exempt names paths that take cross-origin posts by design.
+// origin, since SameSite=Strict counts every *.bythewood.me host as one site. A
+// request with no Sec-Fetch-Site is a container or git and passes.
 func SameOrigin(exempt ...string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -180,10 +173,9 @@ func SameOrigin(exempt ...string) func(http.Handler) http.Handler {
 	}
 }
 
-// NoDirs keeps a file server from answering a directory, which it does with an
-// index of every file in it, naming things nothing links to. It also refuses a
-// name that is not UTF-8, which fs.Sub fails as invalid rather than missing and
-// FileServer turns into a 500.
+// NoDirs keeps a file server from answering a directory with an index of every
+// file in it. It also refuses a name that isn't UTF-8, which fs.Sub fails as
+// invalid instead of missing and FileServer turns into a 500.
 func NoDirs(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "" || strings.HasSuffix(r.URL.Path, "/") || !utf8.ValidString(r.URL.Path) {
@@ -202,13 +194,9 @@ func Chain(h http.Handler, mw ...func(http.Handler) http.Handler) http.Handler {
 	return h
 }
 
-// EdgeCache sets a shared cache policy on 200 GETs that have not already chosen
-// one. 400 and above get no-store and a handler's own Cache-Control is left alone.
-//
-// Never use s-maxage here. It carries proxy-revalidate semantics, so Cloudflare
-// turns off stale-while-revalidate and stale-if-error, and stale-if-error is
-// what keeps the last good copy served when the tunnel drops. Cloudflare also
-// ignores it with Always Online on, so that has to stay off.
+// EdgeCache sets policy on a 200 GET with no Cache-Control of its own, and
+// no-store on 400 and up. Never put s-maxage in it, Cloudflare then drops
+// stale-if-error and stops serving the last good copy when the tunnel is down.
 func EdgeCache(policy string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -36,9 +36,8 @@ func Serve(addr string, h http.Handler) error {
 		Addr:              addr,
 		Handler:           h,
 		ReadHeaderTimeout: 10 * time.Second,
-		// No write bound. This one serves an event stream and Go's WriteTimeout
-		// bounds the whole response, so any value at all cuts the browser off
-		// mid-session. The read side is still bounded.
+		// No write bound, since Go's WriteTimeout covers the whole response and
+		// any value at all cuts an event stream off mid-session.
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 0,
 		IdleTimeout:  120 * time.Second,
@@ -68,8 +67,8 @@ func Serve(addr string, h http.Handler) error {
 }
 
 // HealthCheck probes a running server over the loopback and reports whether it
-// answered 200, so a container can check itself. Two of these images are FROM
-// scratch, with no shell and no curl for HEALTHCHECK to call.
+// answered 200, so a container can check itself. A scratch image has no shell
+// and no curl for HEALTHCHECK to call.
 func HealthCheck(url string, timeout time.Duration) error {
 	client := &http.Client{Timeout: timeout}
 

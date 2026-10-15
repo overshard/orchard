@@ -30,9 +30,8 @@ func (c *collector) all() []Record {
 }
 
 // withShipper installs a shipper over a buffer-backed JSON handler and restores
-// the process logger afterwards. ShipLogs replaces slog's default, which is
-// global state, so a test that did not restore it would silently change every
-// test that ran after it.
+// slog's default afterwards, since it's global and would leak into every test
+// that runs after.
 func withShipper(t *testing.T, source string, sink Sink) (*bytes.Buffer, *Shipper) {
 	t.Helper()
 
@@ -48,8 +47,7 @@ func withShipper(t *testing.T, source string, sink Sink) (*bytes.Buffer, *Shippe
 	return &buf, s
 }
 
-// The whole design is a tee, not a replacement. stdout stays the source of
-// truth, so a record has to appear in both places.
+// stdout stays the source of truth, so a record has to appear in both places.
 func TestShipLogsTeesRatherThanReplaces(t *testing.T) {
 	c := &collector{}
 	buf, shipper := withShipper(t, "blog", c.sink)
@@ -59,8 +57,7 @@ func TestShipLogsTeesRatherThanReplaces(t *testing.T) {
 		slog.String("path", "/feed.atom"),
 		slog.Float64("ms", 1.25))
 
-	// Close is the deterministic flush. The ticker would get there in five
-	// seconds, which is not a thing to put in a test.
+	// Close is the deterministic flush, the ticker would take five seconds.
 	shipper.Close()
 
 	if !bytes.Contains(buf.Bytes(), []byte(`"path":"/feed.atom"`)) {
@@ -81,9 +78,8 @@ func TestShipLogsTeesRatherThanReplaces(t *testing.T) {
 	if r.Attrs["ms"] != 1.25 {
 		t.Errorf("ms = %#v, want 1.25", r.Attrs["ms"])
 	}
-	// Milliseconds, not nanoseconds and not seconds. The ingest side stores
-	// this straight into a column and a wrong unit here would put every
-	// record either in 1970 or fifty thousand years out.
+	// Milliseconds. The ingest side stores this straight into a column, and a
+	// wrong unit puts every record in 1970 or fifty thousand years out.
 	if delta := time.Now().UTC().UnixMilli() - r.Time; delta < 0 || delta > 60_000 {
 		t.Errorf("Time = %d, which is not unix milliseconds near now", r.Time)
 	}
@@ -116,7 +112,7 @@ func TestShipLogsFlattensAttributeKinds(t *testing.T) {
 	if a["d"] != "1.5s" {
 		t.Errorf("duration = %#v, want \"1.5s\"", a["d"])
 	}
-	// An arbitrary value is formatted rather than marshalled, because one
+	// An arbitrary value is formatted instead of marshalled, because one
 	// value that cannot marshal must not cost the whole batch.
 	if a["err"] != "context canceled" {
 		t.Errorf("error = %#v, want its message", a["err"])
@@ -169,7 +165,7 @@ func TestShipLogsSurvivesWithAttrsAndWithGroup(t *testing.T) {
 	}
 }
 
-// An attribute added before a WithGroup must NOT gain that group's prefix. If it
+// An attribute added before a WithGroup must not gain that group's prefix. If it
 // does, the ingest side stops recognising "component" and "status" as hot columns
 // and keys the rollup wrong, while stdout shows the same line correctly.
 func TestWithGroupDoesNotRePrefixEarlierAttrs(t *testing.T) {
@@ -220,9 +216,8 @@ func TestWithGroupEmptyNameIsNoOp(t *testing.T) {
 	}
 }
 
-// Nothing here may ever block the caller. A full queue drops, because the
-// record is already safely on stdout and a stalled site is a worse outcome than
-// a gap in a dashboard.
+// Nothing here may ever block the caller. A full queue drops, since the record
+// is on stdout and a stalled site is worse than a gap in a dashboard.
 func TestEnqueueDropsRatherThanBlocking(t *testing.T) {
 	s := &Shipper{ch: make(chan Record, 2)}
 
@@ -256,7 +251,7 @@ func TestLoggingAfterCloseDoesNotPanic(t *testing.T) {
 
 	slog.Info("logged during shutdown")
 	// And a queue's worth more, to reach the point a closed channel would
-	// have been written to rather than merely selected on.
+	// have been written to instead of just selected on.
 	for i := 0; i < shipQueue+10; i++ {
 		slog.Info("more")
 	}
