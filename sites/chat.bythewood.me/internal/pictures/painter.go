@@ -1,21 +1,56 @@
-// Pictures are drawn by a second model taking turns with the chat model on one
-// card, so the page is told which stage is running and how long each took the
-// last few times, since a panel that only spins reads as broken.
-package main
+// Package pictures draws with a second model taking turns with the chat model on
+// one card, so the page is told which stage is running and how long each took
+// the last few times, since a panel that only spins reads as broken.
+package pictures
 
 import (
 	"context"
+	"crypto/rand"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
 	"chat.bythewood.me/internal/incognito"
 	"chat.bythewood.me/tools"
 )
+
+// Model is the gateway a picture is drawn through.
+type Model interface {
+	Image(ctx context.Context, model, prompt string, w, h int) ([]byte, error)
+	Edit(ctx context.Context, model, prompt string, w, h int, pictures [][]byte) ([]byte, error)
+	// Ready reports whether the named model is on the card and drawing.
+	Ready(ctx context.Context, model string) bool
+}
+
+const schema = `
+-- Pictures, which go with their conversation when it is deleted. The message
+-- only carries the id, so a thread with a dozen of them still loads quickly.
+CREATE TABLE IF NOT EXISTS images (
+  id      TEXT PRIMARY KEY,
+  conv_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  png     BLOB NOT NULL,
+  width   INTEGER NOT NULL,
+  height  INTEGER NOT NULL,
+  at      INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS images_conv ON images(conv_id);
+
+-- How long the last pictures took, each stage apart, which is where the page's
+-- guess for the next one comes from.
+CREATE TABLE IF NOT EXISTS image_runs (
+  at        INTEGER NOT NULL,
+  prompt_ms INTEGER NOT NULL,
+  load_ms   INTEGER NOT NULL,
+  draw_ms   INTEGER NOT NULL,
+  pixels    INTEGER NOT NULL,
+  model     TEXT NOT NULL DEFAULT ''
+);
+`
 
 // Past this a picture is not coming, and saying so beats a panel that counts
 // forever.
@@ -30,25 +65,50 @@ var shapes = map[string][2]int{
 }
 
 type Painter struct {
-	llm   *LLM
+	llm   Model
 	model string // what llama-swap swaps on
 	name  string // what the page calls it
-	store *Store
+	db    *sql.DB
 	shelf *shelf
-	poll  time.Duration
+	// Poll is how often the gateway is asked whether the model has loaded.
+	Poll time.Duration
 }
 
-func NewPainter(llm *LLM, model, name string, store *Store) *Painter {
-	return &Painter{llm: llm, model: model, name: name, store: store,
-		shelf: newShelf(), poll: 400 * time.Millisecond}
+// New makes sure the picture tables are in the site's database, beside the
+// conversations their rows belong to.
+func New(llm Model, model, name string, db *sql.DB) (*Painter, error) {
+	if _, err := db.Exec(schema); err != nil {
+		return nil, err
+	}
+	// A database written before the model was recorded has no column for it,
+	// and SQLite has no ADD COLUMN IF NOT EXISTS.
+	stmt := `ALTER TABLE image_runs ADD COLUMN model TEXT NOT NULL DEFAULT ''`
+	if _, err := db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column") {
+		slog.Warn("migrate", "stmt", stmt, "err", err)
+	}
+	return &Painter{llm: llm, model: model, name: name, db: db,
+		shelf: newShelf(), Poll: 400 * time.Millisecond}, nil
+}
+
+// NewID is a version 4 uuid, which every picture is served and stored under.
+func NewID() string {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		// The only way this fails is a broken kernel, and carrying on with a
+		// predictable id would be worse than saying so.
+		panic("no randomness for a picture id: " + err.Error())
+	}
+	b[6] = b[6]&0x0f | 0x40
+	b[8] = b[8]&0x3f | 0x80
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
 }
 
 // Expect is the picture before its prompt exists. The size is not known until
 // the chat model picks a shape, so the guesses are for a square.
 func (p *Painter) Expect() tools.ImageProgress {
 	w, h := shapes["square"][0], shapes["square"][1]
-	g := p.store.ImageGuess(p.name, w*h)
-	return tools.ImageProgress{ID: newID(), Stage: "prompt", Model: p.name, Width: w, Height: h,
+	g := p.imageGuess(p.name, w*h)
+	return tools.ImageProgress{ID: NewID(), Stage: "prompt", Model: p.name, Width: w, Height: h,
 		StageAt: time.Now().UnixMilli(), PromptGuess: g.Prompt, LoadGuess: g.Load, DrawGuess: g.Draw}
 }
 
@@ -81,8 +141,8 @@ func (p *Painter) Draw(ctx context.Context, prompt, shape string, startFrom []st
 	for _, r := range refs {
 		pixels += r.w * r.h
 	}
-	g := p.store.ImageGuess(p.name, pixels)
-	pr := tools.ImageProgress{ID: newID(), Model: p.name}
+	g := p.imageGuess(p.name, pixels)
+	pr := tools.ImageProgress{ID: NewID(), Model: p.name}
 	if from != nil {
 		pr = *from
 		pr.PromptMS = time.Now().UnixMilli() - from.StageAt
@@ -116,7 +176,7 @@ func (p *Painter) Draw(ctx context.Context, prompt, shape string, startFrom []st
 	// The request is one call that blocks for the whole wait, so which half of
 	// it is running comes from watching llama-swap's process table beside it.
 	loadMS := int64(-1)
-	tick := time.NewTicker(p.poll)
+	tick := time.NewTicker(p.Poll)
 	defer tick.Stop()
 	for {
 		select {
@@ -135,7 +195,7 @@ func (p *Painter) Draw(ctx context.Context, prompt, shape string, startFrom []st
 				// built from it would be wrong in both halves.
 				loadMS = 0
 			} else if !incognito.On(ctx) {
-				p.store.SaveImageRun(p.name, pr.PromptMS, loadMS, total-loadMS, pixels)
+				p.saveImageRun(p.name, pr.PromptMS, loadMS, total-loadMS, pixels)
 			}
 			pr.Stage, pr.LoadMS, pr.DrawMS, pr.StageAt = "done", loadMS, total-loadMS, time.Now().UnixMilli()
 			report(pr)
@@ -180,13 +240,7 @@ func (p *Painter) references(ids []string) ([]reference, error) {
 }
 
 func (p *Painter) ready(ctx context.Context) bool {
-	models, _ := p.llm.Running(ctx)
-	for _, m := range models {
-		if m.Model == p.model && m.State == "ready" {
-			return true
-		}
-	}
-	return false
+	return p.llm.Ready(ctx, p.model)
 }
 
 // explain turns a failure into something a reader can act on. Which stage it
@@ -207,20 +261,15 @@ func (p *Painter) explain(ctx context.Context, err error, loaded bool) string {
 	return fmt.Sprintf("it failed %s: %v", stage, err)
 }
 
-// Hold puts pictures he attached on the shelf, where the image tool and the
-// page can both find them before the turn is stored.
-func (p *Painter) Hold(parts []filePart) {
-	for _, f := range parts {
-		if f.Image != "" {
-			p.shelf.Put(f.Image, f.Picture, f.Width, f.Height)
-		}
-	}
+// Hold puts a picture he attached on the shelf, where the image tool and the
+// page can both find it before the turn is stored.
+func (p *Painter) Hold(id string, png []byte, w, h int) {
+	p.shelf.Put(id, png, w, h)
 }
 
 // Keep moves a turn's pictures off the shelf and into the conversation, once
 // the conversation has an id to hang them on.
-func (p *Painter) Keep(convID string, widgets []Widget, files []Attachment) {
-	ids := pictureIDs(widgets, files)
+func (p *Painter) Keep(convID string, ids []string) {
 	for _, id := range ids {
 		// Off the shelf only once it is in the database, since the page asks
 		// for it at the same moment the turn ends and this runs.
@@ -228,7 +277,7 @@ func (p *Painter) Keep(convID string, widgets []Widget, files []Attachment) {
 		if !ok {
 			continue
 		}
-		if err := p.store.SaveImage(id, convID, pic.png, pic.w, pic.h); err != nil {
+		if err := p.saveImage(id, convID, pic.png, pic.w, pic.h); err != nil {
 			slog.Error("keeping a picture", "err", err, "id", id)
 			continue
 		}
@@ -236,40 +285,11 @@ func (p *Painter) Keep(convID string, widgets []Widget, files []Attachment) {
 	}
 }
 
-func pictureIDs(widgets []Widget, files []Attachment) []string {
-	var ids []string
-	for _, f := range files {
-		if f.Image != "" {
-			ids = append(ids, f.Image)
-		}
-	}
-	for _, w := range widgets {
-		if w.Kind == "image" && w.Image != "" {
-			ids = append(ids, w.Image)
-		}
-	}
-	return ids
-}
-
 func (p *Painter) PNG(id string) ([]byte, bool) {
 	if png, ok := p.shelf.Get(id); ok {
 		return png, true
 	}
-	return p.store.ImagePNG(id)
-}
-
-// image serves one picture. Ids are never reused, so it can be cached for good.
-func (s *site) image(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	png, ok := s.painter.PNG(id)
-	if !ok {
-		http.Error(w, "no such picture", http.StatusNotFound)
-		return
-	}
-	w.Header().Set("Content-Type", "image/png")
-	w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
-	w.Header().Set("Content-Disposition", `inline; filename="`+id+`.png"`)
-	_, _ = w.Write(png)
+	return p.imagePNG(id)
 }
 
 // shelf holds pictures that are not in the database: a turn's own until the
@@ -345,11 +365,11 @@ const (
 
 type guess struct{ Prompt, Load, Draw int64 }
 
-// ImageGuess is how long the next picture will probably take, from the median
+// imageGuess is how long the next picture will probably take, from the median
 // of the last few by this model, with the drawing scaled to the size asked for.
-func (s *Store) ImageGuess(model string, pixels int) guess {
+func (p *Painter) imageGuess(model string, pixels int) guess {
 	g := guess{firstPromptGuess, firstLoadGuess, firstDrawGuess * int64(pixels) / (1024 * 1024)}
-	rows, err := s.db.Query(`SELECT prompt_ms, load_ms, draw_ms, pixels FROM image_runs WHERE model = ? ORDER BY at DESC LIMIT 9`, model)
+	rows, err := p.db.Query(`SELECT prompt_ms, load_ms, draw_ms, pixels FROM image_runs WHERE model = ? ORDER BY at DESC LIMIT 9`, model)
 	if err != nil {
 		return g
 	}
@@ -384,24 +404,24 @@ func median(v []float64) float64 {
 	return (v[len(v)/2-1] + v[len(v)/2]) / 2
 }
 
-func (s *Store) SaveImageRun(model string, promptMS, loadMS, drawMS int64, pixels int) {
-	if _, err := s.db.Exec(`INSERT INTO image_runs(at, prompt_ms, load_ms, draw_ms, pixels, model) VALUES(?,?,?,?,?,?)`,
+func (p *Painter) saveImageRun(model string, promptMS, loadMS, drawMS int64, pixels int) {
+	if _, err := p.db.Exec(`INSERT INTO image_runs(at, prompt_ms, load_ms, draw_ms, pixels, model) VALUES(?,?,?,?,?,?)`,
 		time.Now().UnixMilli(), promptMS, loadMS, drawMS, pixels, model); err != nil {
 		slog.Warn("recording how long a picture took", "err", err)
 		return
 	}
-	_, _ = s.db.Exec(`DELETE FROM image_runs WHERE at < (SELECT at FROM image_runs ORDER BY at DESC LIMIT 1 OFFSET 49)`)
+	_, _ = p.db.Exec(`DELETE FROM image_runs WHERE at < (SELECT at FROM image_runs ORDER BY at DESC LIMIT 1 OFFSET 49)`)
 }
 
-func (s *Store) SaveImage(id, convID string, png []byte, w, h int) error {
-	_, err := s.db.Exec(`INSERT INTO images(id, conv_id, png, width, height, at) VALUES(?,?,?,?,?,?)`,
+func (p *Painter) saveImage(id, convID string, png []byte, w, h int) error {
+	_, err := p.db.Exec(`INSERT INTO images(id, conv_id, png, width, height, at) VALUES(?,?,?,?,?,?)`,
 		id, convID, png, w, h, time.Now().Unix())
 	return err
 }
 
-func (s *Store) ImagePNG(id string) ([]byte, bool) {
+func (p *Painter) imagePNG(id string) ([]byte, bool) {
 	var png []byte
-	if err := s.db.QueryRow(`SELECT png FROM images WHERE id = ?`, id).Scan(&png); err != nil {
+	if err := p.db.QueryRow(`SELECT png FROM images WHERE id = ?`, id).Scan(&png); err != nil {
 		return nil, false
 	}
 	return png, true

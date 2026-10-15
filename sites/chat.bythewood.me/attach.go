@@ -17,6 +17,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"chat.bythewood.me/internal/pictures"
 	"github.com/ledongthuc/pdf"
 )
 
@@ -69,12 +70,12 @@ func readFiles(headers []*multipart.FileHeader) []filePart {
 			}
 			if kind, ok := imageKind(raw); ok {
 				p.Kind = kind
-				pic, w, h, err := asReference(raw)
+				pic, w, h, err := pictures.AsReference(raw)
 				if err != nil {
 					p.Err = err.Error()
 					break
 				}
-				p.Picture, p.Image, p.Width, p.Height = pic, newID(), w, h
+				p.Picture, p.Image, p.Width, p.Height = pic, pictures.NewID(), w, h
 				break
 			}
 			text, kind, err := extract(h.Filename, raw)
@@ -308,8 +309,8 @@ func composeTurn(message string, parts []filePart) string {
 	return sb.String()
 }
 
-// pictures is the ids of the pictures among a turn's files.
-func pictures(parts []filePart) []string {
+// attachedPictures is the ids of the pictures among a turn's files.
+func attachedPictures(parts []filePart) []string {
 	var ids []string
 	for _, p := range parts {
 		if p.Image != "" {

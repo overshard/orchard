@@ -23,6 +23,7 @@ import (
 
 	"chat.bythewood.me/internal/incognito"
 	"chat.bythewood.me/internal/memory"
+	"chat.bythewood.me/internal/pictures"
 	"chat.bythewood.me/internal/property"
 	"chat.bythewood.me/tools"
 	"chat.bythewood.me/web"
@@ -64,7 +65,7 @@ type site struct {
 	queue   *Queue
 	hub     *Hub
 	comp    *Compactor
-	painter *Painter
+	painter *pictures.Painter
 	tpl     *template.Template
 	md      goldmark.Markdown
 	label   string
@@ -169,7 +170,9 @@ func realMain() error {
 	}
 	s.engine.Deps().Memory = memoryStore{s.memory}
 	s.engine.Deps().History = historyStore{store}
-	s.painter = NewPainter(llm, *imgModel, *imgName, store)
+	if s.painter, err = pictures.New(llm, *imgModel, *imgName, store.DB()); err != nil {
+		return fmt.Errorf("pictures: %w", err)
+	}
 	s.engine.Deps().Images = s.painter
 	// The house lookups own their tables in the same database. A missing config
 	// isn't fatal, the engine runs on placeholders and every report says which
@@ -607,7 +610,7 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 	if req.Incognito {
 		ctx = incognito.With(ctx)
 	}
-	s.painter.Hold(parts)
+	holdPictures(s.painter, parts)
 
 	// Load the conversation and build the window before anything else, since
 	// compaction may need a model call of its own.
@@ -630,7 +633,7 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 	}
 
 	origin, originSaid := lastAttached(stored)
-	ctx = withReferences(ctx, references{Attached: pictures(parts), Last: lastPicture(stored), Message: req.Message,
+	ctx = withReferences(ctx, references{Attached: attachedPictures(parts), Last: lastPicture(stored), Message: req.Message,
 		Origin: origin, OriginSaid: originSaid})
 
 	flagging := !req.Incognito && req.ConvID != "" && len(stored) > 0 && len(parts) == 0 && flagAsk.MatchString(req.Message)
@@ -707,7 +710,7 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 			_ = s.store.Append(convID, user)
 			_ = s.store.Append(convID, Stored{Role: RoleAssistant, Content: reply.Content,
 				Tools: summaries, Sources: srcs, Widgets: widgets, Steps: tr.Steps()})
-			s.painter.Keep(convID, widgets, user.Files)
+			s.painter.Keep(convID, pictureIDs(widgets, user.Files))
 			if len(stored) == 0 && drew {
 				// Naming it with the model would put the chat model back on
 				// the card for four words, and the picture's own prompt names it.

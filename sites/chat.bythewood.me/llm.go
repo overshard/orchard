@@ -395,6 +395,18 @@ func (l *LLM) Running(ctx context.Context) (models []Resident, up bool) {
 	return out.Models, true
 }
 
+// Ready reports whether the named model is loaded and drawing, off the same
+// process table, which is the only way to tell loading from drawing.
+func (l *LLM) Ready(ctx context.Context, model string) bool {
+	models, _ := l.Running(ctx)
+	for _, m := range models {
+		if m.Model == model && m.State == "ready" {
+			return true
+		}
+	}
+	return false
+}
+
 // Loaded says which model is on the card, if any, and whether the gateway
 // answered at all. A model on its way off is not counted.
 func (l *LLM) Loaded(ctx context.Context) (name string, loaded, up bool) {
