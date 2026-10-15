@@ -10,7 +10,7 @@ import (
 	texttemplate "text/template"
 )
 
-// text/template, not html/template: HTML escaping would turn a Typst "#" or a
+// text/template since HTML escaping would turn a Typst "#" or a
 // Markdown "*" into an entity. typstMD and typstStr do the escaping that matters.
 //
 //go:embed reports

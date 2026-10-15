@@ -48,7 +48,7 @@ func (s *site) documentation(w http.ResponseWriter, r *http.Request) {
 	s.renderer.Render(w, http.StatusOK, "documentation.html", data)
 }
 
-// Inline rather than a file so it cannot drift from the navbar logo, which is
+// Inline instead of a file so it can't drift from the navbar logo, which is
 // this same markup.
 const faviconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <rect x="6"  y="38" width="10" height="22" rx="1.5" fill="#6b9e78"/>
@@ -64,16 +64,14 @@ func favicon(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(faviconSVG))
 }
 
-// robots keeps a staging hostname out of search results. It duplicates the
-// noindex in base.html because a meta tag is only read if the page is fetched.
+// robots refuses every crawl, production included, since nothing here is for a
+// stranger. It duplicates the noindex in base.html because a crawler that obeys
+// robots.txt never fetches the page to see the tag.
 func robots(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	// Explicit, because Cloudflare stamps its own TTL on a header-less response
-	// and a stale robots.txt at the edge is four hours of the wrong answer.
+	// Cloudflare stamps its own TTL on a header-less response, and a stale
+	// robots.txt at the edge is hours of the wrong answer.
 	w.Header().Set("Cache-Control", "public, max-age=300")
-	// Nothing here is for a stranger, so the crawl is refused in production as
-	// well as on staging. Both this and the noindex meta tag are needed: a crawler
-	// that obeys robots.txt never fetches the page to see the tag.
 	_, _ = w.Write([]byte("User-agent: *\nDisallow: /\n"))
 }
 

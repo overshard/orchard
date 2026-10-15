@@ -16,7 +16,7 @@ const (
 	// A year, so the dashboard's longest window still has every row behind it.
 	eventRetention = 365 * 24 * time.Hour
 
-	// Hourly rather than daily, so a deletion is always small and a machine
+	// Hourly instead of daily, so a deletion is always small and a machine
 	// asleep most of the day still gets one in.
 	sweepInterval = time.Hour
 
@@ -33,8 +33,8 @@ const (
 	vacuumMaxSteps = 200
 )
 
-// sweptTables are the two that grow with traffic. properties is operator sized
-// and never swept.
+// sweptTables are the tables that grow with traffic, properties is operator
+// sized and never swept.
 var sweptTables = []string{"events", "bot_events"}
 
 type Sweeper struct {
@@ -92,8 +92,8 @@ func (s *Sweeper) sweep(ctx context.Context) {
 // subselect on rowid is there because LIMIT on DELETE is a SQLite compile-time
 // option not enabled in every build.
 func (s *Sweeper) deleteOlderThan(ctx context.Context, table string, cutoff int64) (int64, error) {
-	// table is one of sweptTables above and never comes from a request, which
-	// is the only reason it can be formatted into the statement at all.
+	// Formatting table into the statement is only safe because it's one of
+	// sweptTables and never comes from a request.
 	stmt := fmt.Sprintf(`
 		DELETE FROM %s
 		WHERE rowid IN (SELECT rowid FROM %s WHERE created_at < ? ORDER BY rowid LIMIT ?)`,
@@ -124,14 +124,9 @@ func (s *Sweeper) deleteOlderThan(ctx context.Context, table string, cutoff int6
 	return total, nil
 }
 
-// reclaim hands freed pages back to the filesystem, and says what it did.
-//
-// Only a database created with auto_vacuum=INCREMENTAL can do this, and the
-// pragma is ignored on a file that already exists, so a database from before
-// that setting reports "not enabled" here. Deleting still bounds the row count
-// and stops the file growing, the freed pages are just reused rather than
-// returned. A one-off `VACUUM` converts an existing file if the space is wanted
-// back sooner.
+// reclaim hands freed pages back to the filesystem and says what it did. A file
+// created without auto_vacuum=INCREMENTAL reports "not enabled" and just reuses
+// its freed pages, until a one-off `VACUUM` converts it.
 func (s *Sweeper) reclaim(ctx context.Context) string {
 	var mode int
 	if err := s.db.QueryRowContext(ctx, "PRAGMA auto_vacuum").Scan(&mode); err != nil {
@@ -143,8 +138,8 @@ func (s *Sweeper) reclaim(ctx context.Context) string {
 
 	for i := 0; i < vacuumMaxSteps; i++ {
 		// The page count is formatted in because SQLite takes no PRAGMA
-		// parameter. A bare incremental_vacuum would free the whole freelist
-		// under the write lock, hence the pacing.
+		// parameter, and a bare incremental_vacuum would free the whole freelist
+		// under one write lock.
 		if _, err := s.db.ExecContext(ctx,
 			fmt.Sprintf("PRAGMA incremental_vacuum(%d)", vacuumPages)); err != nil {
 			return fmt.Sprintf("incremental_vacuum failed: %v", err)

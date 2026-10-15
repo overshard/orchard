@@ -17,7 +17,7 @@ import (
 
 // GeoIP resolves a visitor address to a country, region and city against DB-IP
 // City Lite. It is safe for concurrent use, and a missing database disables
-// enrichment rather than failing the boot.
+// enrichment instead of failing the boot.
 type GeoIP struct {
 	path string
 
@@ -86,8 +86,8 @@ func (g *GeoIP) Reload() bool {
 	return true
 }
 
-// Lookup resolves one address. The read lock has to span the decode, which is
-// what touches the mapped bytes.
+// Lookup resolves one address. The read lock has to span the decode since that
+// reads the mapped bytes.
 func (g *GeoIP) Lookup(ip netip.Addr) (GeoLookup, bool) {
 	g.mu.RLock()
 	defer g.mu.RUnlock()

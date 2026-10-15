@@ -72,8 +72,8 @@ func (s *site) properties(w http.ResponseWriter, r *http.Request) {
 
 	for _, p := range props {
 		var total, pv, ss, active int64
-		// Four correlated subqueries rather than four round trips. Still N+1
-		// across the list, which is fine at this scale.
+		// One round trip for all four counts, still N+1 across the list, which
+		// is fine at this scale.
 		err := s.db.QueryRowContext(ctx, `SELECT
 		    (SELECT COUNT(*) FROM events WHERE property_id = ?1),
 		    (SELECT COUNT(*) FROM events WHERE property_id = ?1 AND event = 'page_view'),

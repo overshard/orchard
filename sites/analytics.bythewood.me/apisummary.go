@@ -1,10 +1,6 @@
-// The read only JSON view of traffic, for chat.bythewood.me's tools.
-//
-// It answers the shape of question a person actually asks about their own
-// analytics, which is how many people, from where, reading what, over some
-// number of days. The dashboard's own cards are richer and the report PDF is
-// richer still, and neither is worth a model reading past to find three
-// numbers.
+// The read only JSON view of traffic for chat.bythewood.me's tools. It answers
+// what a person asks about their own analytics, how many people, from where,
+// reading what, without a model reading past the dashboard to find three numbers.
 package main
 
 import (

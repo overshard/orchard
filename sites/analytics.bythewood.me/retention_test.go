@@ -51,7 +51,7 @@ func TestSweepDropsEventsPastRetention(t *testing.T) {
 	now := time.Now().UTC()
 
 	// A day either side of the boundary, so an off-by-a-window error shows up
-	// rather than being hidden by a generous margin.
+	// instead of hiding behind a generous margin.
 	stale := now.Add(-eventRetention - 24*time.Hour).UnixMilli()
 	keep := now.Add(-eventRetention + 24*time.Hour).UnixMilli()
 
@@ -92,8 +92,8 @@ func TestSweepKeepsEverythingInsideRetention(t *testing.T) {
 	}
 }
 
-// A fresh database is created with auto_vacuum INCREMENTAL, which is what lets
-// the sweep hand pages back rather than only stopping the file from growing.
+// A fresh database gets auto_vacuum INCREMENTAL so the sweep can hand pages
+// back instead of only stopping the file from growing.
 func TestFreshDatabaseCanReclaim(t *testing.T) {
 	db, _ := retentionTestDB(t)
 

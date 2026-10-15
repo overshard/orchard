@@ -13,8 +13,8 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// There is no migration table. Every statement is IF NOT EXISTS, so this runs
-// against an existing database as a no-op, a schema change is a new guarded block.
+// There's no migration table. Every statement is IF NOT EXISTS so this is a no-op
+// on an existing database, and a schema change is a new guarded block.
 const schema = `
 CREATE TABLE IF NOT EXISTS properties (
     id            BLOB PRIMARY KEY,
@@ -121,9 +121,8 @@ func dsn(path string) string {
 }
 
 // setAutoVacuum stamps auto_vacuum on a new file so the retention sweep can hand
-// freed pages back. A database made before this keeps NONE and needs a one-off
-// VACUUM to convert. It stays out of the DSN since setting it there takes the
-// write lock on every new connection.
+// freed pages back, an existing file keeps NONE until a one-off VACUUM. It stays
+// out of the DSN since setting it there takes the write lock on every connection.
 func setAutoVacuum(path string) error {
 	// Its own connection, since the setting is lost once WAL or the first
 	// table has written page 1 without it.
@@ -167,7 +166,7 @@ type CustomCard struct {
 const propertyColumns = `id, name, custom_cards, is_protected, is_public, created_at, updated_at`
 
 // scanProperty reads one row of propertyColumns. Malformed custom_cards JSON
-// degrades to no cards rather than failing the request.
+// degrades to no cards instead of failing the request.
 func scanProperty(scan func(...any) error) (*Property, error) {
 	var (
 		p     Property

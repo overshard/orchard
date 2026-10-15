@@ -19,10 +19,10 @@ import (
 // The collector is the one cross-origin endpoint and the only one an anonymous
 // stranger can write to.
 const (
-	// The only bound on a table that grows forever.
+	// Bounds what one anonymous POST can write.
 	maxCollectBody = 16 * 1024
 	// Each distinct name becomes a dashboard card, so an oversized one is
-	// rejected rather than truncated into a collision with a real event.
+	// rejected instead of truncated into a collision with a real event.
 	maxEventNameLen = 200
 	// The clamp on every stored string field, these columns are indexed and
 	// rendered into breakdown tables.
@@ -121,8 +121,8 @@ func (s *site) collect(w http.ResponseWriter, r *http.Request) {
 }
 
 // enrichGeo writes country, region, city and coordinates onto a session_start.
-// web.ClientIP prefers CF-Connecting-IP, the last X-Forwarded-For entry behind
-// the tunnel is cloudflared's own bridge address, and resolves without erroring.
+// web.ClientIP prefers CF-Connecting-IP since the last X-Forwarded-For entry
+// behind the tunnel is cloudflared's own bridge address.
 func (s *site) enrichGeo(r *http.Request, data map[string]any) {
 	addr, err := netip.ParseAddr(web.ClientIP(r))
 	if err != nil || addr.IsLoopback() {
@@ -147,7 +147,7 @@ func putIfNotEmpty(m map[string]any, key, value string) {
 }
 
 // normalizeReferrer reduces a referrer to a bare hostname without "www.", so
-// the breakdown is one row per site rather than per URL.
+// the breakdown is one row per site instead of per URL.
 func normalizeReferrer(ref string) string {
 	host := ref
 	if i := strings.Index(host, "://"); i >= 0 {
@@ -232,7 +232,7 @@ func encodeExtra(data map[string]any) string {
 }
 
 // takeString removes a key and returns it as a NULL-able clamped string. A
-// non-string value is stringified rather than dropped.
+// non-string value is stringified instead of dropped.
 func takeString(data map[string]any, key string) any {
 	v, ok := data[key]
 	if !ok {
@@ -346,7 +346,7 @@ func originOrWildcard(r *http.Request) string {
 
 // collectorScript serves the embed script at a stable URL, resolving Vite's
 // content hash per request because pasted snippets hardcode this path. The
-// short cache is because the name is stable and the bytes are not.
+// cache is short since the name is stable and the bytes aren't.
 func (s *site) collectorScript(w http.ResponseWriter, r *http.Request) {
 	name := s.assets.Script("static_src/collector/index.js")
 	if name == "" {

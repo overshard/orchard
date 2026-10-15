@@ -10,8 +10,8 @@ import (
 	"analytics.bythewood.me/web"
 )
 
-// The "/" case is the one that is not obvious: "//" opens a Typst line comment,
-// so a page URL swallows the rest of the line rather than failing.
+// The "/" case isn't obvious since "//" opens a Typst line comment, and a page
+// URL would swallow the rest of the line instead of failing.
 func TestTypstMD(t *testing.T) {
 	tests := []struct{ in, want string }{
 		{"/blog/post", `\/blog\/post`},
@@ -162,8 +162,8 @@ func TestBotClassification(t *testing.T) {
 	}
 }
 
-// Tablet is tested before mobile because an iPad's User-Agent contains neither
-// "mobile" nor "iphone", while an Android tablet's contains "mobile".
+// Tablet is tested before mobile since an iPad's User-Agent carries "Mobile"
+// and an Android tablet's carries "android".
 func TestClassifyDevice(t *testing.T) {
 	tests := []struct{ ua, family, want string }{
 		{"Mozilla/5.0 (iPad; CPU OS 17_4 like Mac OS X)", "iPad", "Tablet"},
@@ -202,7 +202,7 @@ func isValidUTF8(s string) bool {
 	return true
 }
 
-// encodeExtra stores rather than renders, so a "<" that went in comes back out.
+// encodeExtra stores instead of rendering, so a "<" that went in comes back out.
 func TestEncodeExtra(t *testing.T) {
 	if got := encodeExtra(nil); got != "{}" {
 		t.Errorf("empty extra = %q, want {}", got)
@@ -222,7 +222,7 @@ func TestParseDateToMS(t *testing.T) {
 	if !ok {
 		t.Fatal("a valid end date failed to parse")
 	}
-	// One second short of a full day: 23:59:59.
+	// One second short of a full day, 23:59:59.
 	if d := end - start; d != 86399*1000 {
 		t.Errorf("end minus start = %dms, want %dms", d, 86399*1000)
 	}
@@ -251,7 +251,7 @@ func TestTrimFloat(t *testing.T) {
 	}
 }
 
-// A wrong id here is silent: the dashboard just shows no traffic for itself.
+// A wrong id here is silent, the dashboard just shows no traffic for itself.
 func TestSelfTrackingID(t *testing.T) {
 	const want = "580ebab0-3d14-4a20-89da-d57fc3d7d9e8"
 	if analyticsID != want {
@@ -260,7 +260,7 @@ func TestSelfTrackingID(t *testing.T) {
 	if _, err := uuid.Parse(analyticsID); err != nil {
 		t.Errorf("analyticsID is not a uuid, so collect would reject it: %v", err)
 	}
-	// Staging renders no snippet rather than posting an id it has no row for.
+	// Staging renders no snippet instead of posting an id it has no row for.
 	if got := collectorID(); Staging && got != "" {
 		t.Errorf("collectorID() = %q on staging, want empty", got)
 	} else if !Staging && got != analyticsID {
@@ -268,10 +268,8 @@ func TestSelfTrackingID(t *testing.T) {
 	}
 }
 
-// Every template the server asks for has to exist. NewRenderer resolves the
-// list at boot rather than at build, so a page left listed after its file was
-// deleted compiles, ships, and then crash-loops the container on startup, which
-// is how it was found on repos.
+// NewRenderer resolves the list at boot and not at build, so a page left listed
+// after its file was deleted compiles, ships, and then crash-loops on startup.
 func TestEveryListedTemplateParses(t *testing.T) {
 	templates, err := fs.Sub(templateFS, "templates")
 	if err != nil {

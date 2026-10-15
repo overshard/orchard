@@ -9,8 +9,8 @@ import (
 	"os"
 )
 
-// `all:` is required on build/dist: without it embed skips dot-prefixed entries,
-// and .vite/manifest.json is one, which the server treats as fatal.
+// `all:` is required on build/dist since embed skips dot-prefixed entries
+// without it, and the server won't start without .vite/manifest.json.
 //
 //go:embed all:build/dist
 //go:embed build/static_maps
