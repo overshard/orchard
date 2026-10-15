@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"chat.bythewood.me/property"
+	"chat.bythewood.me/internal/property"
 )
 
 type mortgageArgs struct {

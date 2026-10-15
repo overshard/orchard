@@ -4,7 +4,7 @@ Working detail for this site. The repo-wide rules are in `CLAUDE.md` at the root
 
 ## The house lookups
 
-`property/` answers what a house at an address would be like to live in and what
+`internal/property/` answers what a house at an address would be like to live in and what
 it would cost, from public records and nothing else. It was a dashboard of its own
 before this, and a dashboard can draw everything about a house at once and cannot
 answer a question, while every question about a house is a follow up: what about

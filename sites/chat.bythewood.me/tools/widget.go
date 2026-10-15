@@ -3,7 +3,7 @@ package tools
 import (
 	"sync"
 
-	"chat.bythewood.me/property"
+	"chat.bythewood.me/internal/property"
 )
 
 // Numbers read better as a chart than recited by a model. A widget records the
