@@ -27,7 +27,7 @@ func TestAFlagIsKeptOnTheConversationAndCleared(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := s.Append(id, Stored{Role: RoleUser, Content: "hi"}); err != nil {
+	if err := appendStored(s, id, Stored{Role: RoleUser, Content: "hi"}); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.SetFlag(id, "check this chat later"); err != nil {

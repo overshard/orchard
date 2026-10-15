@@ -1,4 +1,4 @@
-package main
+package history
 
 import (
 	"path/filepath"
@@ -10,19 +10,19 @@ import (
 // get wrong.
 func searchStore(t *testing.T) *Store {
 	t.Helper()
-	s, err := OpenStore(filepath.Join(t.TempDir(), "chat.db"))
+	s, err := Open(filepath.Join(t.TempDir(), "chat.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { s.Close() })
 
 	rifles, _ := s.NewConversation("Cheap bolt action rimfire rifles")
-	_ = s.Append(rifles, Stored{Role: RoleUser, Content: "what are the most common cheap bolt action 22 rifles for plinking"})
-	_ = s.Append(rifles, Stored{Role: RoleAssistant, Content: "The Savage Mark II and the Ruger American Rimfire are the two that show up everywhere."})
+	_ = s.Append(rifles, Message{Role: "user", Content: "what are the most common cheap bolt action 22 rifles for plinking"})
+	_ = s.Append(rifles, Message{Role: "assistant", Content: "The Savage Mark II and the Ruger American Rimfire are the two that show up everywhere."})
 
 	food, _ := s.NewConversation("Bojangles nutrition")
-	_ = s.Append(food, Stored{Role: RoleUser, Content: "is the dirty rice better than the pinto beans"})
-	_ = s.Append(food, Stored{Role: RoleAssistant, Content: "The pinto beans have 7g of protein and no saturated fat, so they beat the dirty rice."})
+	_ = s.Append(food, Message{Role: "user", Content: "is the dirty rice better than the pinto beans"})
+	_ = s.Append(food, Message{Role: "assistant", Content: "The pinto beans have 7g of protein and no saturated fat, so they beat the dirty rice."})
 	return s
 }
 
@@ -71,8 +71,8 @@ func TestSearchHistoryReturnsOneHitPerConversation(t *testing.T) {
 	s := searchStore(t)
 	id, _ := s.NewConversation("Rifles again")
 	for i := 0; i < 6; i++ {
-		_ = s.Append(id, Stored{Role: RoleUser, Content: "more about rifles and rifles"})
-		_ = s.Append(id, Stored{Role: RoleAssistant, Content: "still about rifles"})
+		_ = s.Append(id, Message{Role: "user", Content: "more about rifles and rifles"})
+		_ = s.Append(id, Message{Role: "assistant", Content: "still about rifles"})
 	}
 	hits, err := s.SearchHistory("rifles", 10)
 	if err != nil {

@@ -548,3 +548,11 @@ func trimLine(s string, n int) string {
 	}
 	return s
 }
+
+func trim(s string, n int) string {
+	s = strings.Join(strings.Fields(s), " ")
+	if len(s) <= n {
+		return s
+	}
+	return strings.TrimSpace(s[:n-1]) + "…"
+}

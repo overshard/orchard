@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"chat.bythewood.me/internal/history"
 	"chat.bythewood.me/internal/pictures"
 	"chat.bythewood.me/tools"
 )
@@ -167,11 +168,11 @@ func (f *fakeCard) server(t *testing.T) *httptest.Server {
 	}))
 }
 
-func (f *fakeCard) run(t *testing.T, store *Store) (Message, []tools.Widget, []tools.ImageProgress) {
+func (f *fakeCard) run(t *testing.T, store *history.Store) (Message, []tools.Widget, []tools.ImageProgress) {
 	return f.runWith(t, store, context.Background(), "draw a red barn in the fog")
 }
 
-func (f *fakeCard) runWith(t *testing.T, store *Store, ctx context.Context, message string) (Message, []tools.Widget, []tools.ImageProgress) {
+func (f *fakeCard) runWith(t *testing.T, store *history.Store, ctx context.Context, message string) (Message, []tools.Widget, []tools.ImageProgress) {
 	t.Helper()
 	srv := f.server(t)
 	t.Cleanup(srv.Close)
@@ -203,9 +204,9 @@ func (f *fakeCard) runWith(t *testing.T, store *Store, ctx context.Context, mess
 	return reply, widgets, stages
 }
 
-func testStore(t *testing.T) *Store {
+func testStore(t *testing.T) *history.Store {
 	t.Helper()
-	st, err := OpenStore(filepath.Join(t.TempDir(), "chat.db"))
+	st, err := history.Open(filepath.Join(t.TempDir(), "chat.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

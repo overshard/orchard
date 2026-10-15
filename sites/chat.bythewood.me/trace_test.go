@@ -4,6 +4,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"chat.bythewood.me/internal/history"
 )
 
 // A step goes out as it happens, so the list fills in while the answer is still
@@ -66,7 +68,7 @@ func TestANilTraceIsSafe(t *testing.T) {
 // be read back. A new column that went into one of the two table creates and
 // not the other would lose them silently.
 func TestStepsSurviveAStoreRoundTrip(t *testing.T) {
-	store, err := OpenStore(filepath.Join(t.TempDir(), "chat.db"))
+	store, err := history.Open(filepath.Join(t.TempDir(), "chat.db"))
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -80,11 +82,11 @@ func TestStepsSurviveAStoreRoundTrip(t *testing.T) {
 		{Kind: "wikipedia", Label: "looked the subject up", In: "north korea", Out: "a country", MS: 18},
 		{Kind: "gate", Label: "checked the draft", Bad: true},
 	}
-	if err := store.Append(id, Stored{Role: RoleAssistant, Content: "hi", Steps: want}); err != nil {
+	if err := appendStored(store, id, Stored{Role: RoleAssistant, Content: "hi", Steps: want}); err != nil {
 		t.Fatalf("append: %v", err)
 	}
 
-	msgs, err := store.Messages(id)
+	msgs, err := storedMessages(store, id)
 	if err != nil {
 		t.Fatalf("messages: %v", err)
 	}
