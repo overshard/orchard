@@ -13,8 +13,8 @@ import (
 	"time"
 )
 
-// `bun run --bun` below keeps Node out of the image: it symlinks `node` to bun,
-// so the lighthouse shim's `#!/usr/bin/env node` shebang resolves to bun.
+// `bun run --bun` below keeps Node out of the image, since it symlinks `node` to
+// bun and the lighthouse shim's `#!/usr/bin/env node` shebang resolves to bun.
 
 const (
 	lighthouseTimeout = 180 * time.Second
@@ -29,7 +29,7 @@ var ErrLighthouseMissing = errors.New("lighthouse CLI not installed")
 
 // findChromium tries CHROMIUM_BIN, then PATH, then the Playwright browser
 // directory. Lighthouse drives DevTools and needs a full Chrome, so
-// headless-shell is last: it can fail in ways that look like a broken site.
+// headless-shell is last since it can fail in ways that look like a broken site.
 func findChromium() string {
 	if p := os.Getenv("CHROMIUM_BIN"); p != "" {
 		if isFile(p) {
@@ -94,8 +94,8 @@ func runLighthouse(ctx context.Context, root, target string) (map[string]any, er
 		"--output-path=stdout",
 		"--quiet",
 	)
-	// A minimal environment: Lighthouse and Chromium both read a lot of ambient
-	// configuration, and the numbers must not depend on the calling shell.
+	// A minimal environment, since Lighthouse and Chromium both read a lot of
+	// ambient configuration and the numbers mustn't depend on the calling shell.
 	cmd.Env = []string{"PATH=/usr/bin:/bin:/usr/local/bin"}
 	if chromium := findChromium(); chromium != "" {
 		cmd.Env = append(cmd.Env, "CHROME_PATH="+chromium)
@@ -138,7 +138,7 @@ func tailString(s string, n int) string {
 	return string(runes[len(runes)-n:])
 }
 
-// Scores are the four category headlines, as whole percentages. The JSON names
+// Scores are the category headlines, as whole percentages. The JSON names
 // are the rendered labels and are stored that way, so renaming one orphans rows.
 type Scores struct {
 	Performance   int64 `json:"Performance"`
@@ -147,9 +147,9 @@ type Scores struct {
 	SEO           int64 `json:"SEO"`
 }
 
-// parseScores pulls the four category scores. A null is an error, not a zero:
-// Lighthouse returns null for a category it could not evaluate, and a stored 0
-// would draw a red bar claiming the site scored nothing.
+// parseScores treats a null as an error instead of a zero, since Lighthouse
+// returns null for a category it couldn't evaluate and a stored 0 would draw a
+// red bar claiming the site scored nothing.
 func parseScores(report map[string]any) (*Scores, error) {
 	cats, ok := report["categories"].(map[string]any)
 	if !ok {
@@ -317,8 +317,8 @@ func parseDetails(report map[string]any) *Details {
 		})
 	}
 
-	// SliceStable, so equal weights keep Lighthouse's own order: two metrics
-	// swapping places between audits would look like the page had changed.
+	// SliceStable, so equal weights keep Lighthouse's own order and two metrics
+	// don't swap places between audits as if the page had changed.
 	sort.SliceStable(details.Metrics, func(i, j int) bool {
 		return details.Metrics[i].Weight > details.Metrics[j].Weight
 	})
@@ -338,8 +338,8 @@ type ScorePair struct {
 	Score int64
 }
 
-// Pairs returns the four scores in Lighthouse's own report order. A slice, not
-// a map, so the tiles cannot rearrange themselves between page loads.
+// Pairs returns the scores in Lighthouse's own report order, as a slice so the
+// tiles can't rearrange themselves between page loads.
 func (s *Scores) Pairs() []ScorePair {
 	return []ScorePair{
 		{"Performance", s.Performance},

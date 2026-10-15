@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// Report templates are text: html/template would escape a Typst "#" or a
+// Report templates are text since html/template would escape a Typst "#" or a
 // Markdown "*" into an entity. typstMD and typstStr do the escaping instead.
 //
 //go:embed reports

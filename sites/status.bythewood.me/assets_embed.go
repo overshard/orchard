@@ -9,8 +9,8 @@ import (
 	"os"
 )
 
-// `all:` is required: without it embed skips every entry whose name starts with
-// a dot, and .vite/manifest.json is one.
+// `all:` is required since without it embed skips every entry whose name starts
+// with a dot, and .vite/manifest.json is one.
 //
 //go:embed all:build/dist
 var buildFS embed.FS

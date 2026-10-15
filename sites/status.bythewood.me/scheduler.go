@@ -13,7 +13,7 @@ import (
 const (
 	cycleInterval = 30 * time.Second
 
-	// Two pools, so a nine-minute crawl cannot starve a three-minute ping.
+	// Two pools, so a long crawl can't starve a three-minute ping.
 	fastWorkers = 2
 	slowWorkers = 2
 
@@ -36,8 +36,8 @@ type Scheduler struct {
 	notifier *Notifier
 	root     string
 
-	// Buffered channels as semaphores: a full channel blocks the goroutine that
-	// wanted to work rather than spawning an unbounded number of them.
+	// Buffered channels as semaphores, a full one blocks the goroutine that wants
+	// to work until a slot frees up.
 	fast chan struct{}
 	slow chan struct{}
 
@@ -94,8 +94,8 @@ func (s *Scheduler) run(ctx context.Context) {
 }
 
 func (s *Scheduler) cycle(ctx context.Context, lastCleanup *time.Time) {
-	// Each step logs and continues rather than returning, so a failure
-	// enqueuing Lighthouse does not also skip the uptime checks.
+	// Each step logs and continues instead of returning, so a failure
+	// enqueuing Lighthouse doesn't also skip the uptime checks.
 	if err := s.enqueueChecks(ctx); err != nil {
 		slog.Info(fmt.Sprintf("enqueue checks: %v", err), slog.String("component", "scheduler"))
 	}
@@ -237,8 +237,8 @@ func (s *Scheduler) runLighthouseFor(ctx context.Context, p *Property) {
 		fail(err)
 		return
 	}
-	// Details are best effort: a Lighthouse release that reshapes auditRefs must
-	// not throw away a good audit. The template tests for "null".
+	// Details are best effort, since a Lighthouse release that reshapes auditRefs
+	// mustn't throw away a good audit. The template tests for "null".
 	detailsJSON := []byte("null")
 	if details := parseDetails(report); details != nil {
 		if encoded, err := json.Marshal(details); err == nil {
@@ -301,7 +301,7 @@ func (s *Scheduler) runCrawlFor(ctx context.Context, p *Property) {
 		slog.Info(fmt.Sprintf("mark crawl running for %s: %v", p.URL, err), slog.String("component", "scheduler"))
 	}
 
-	// Synchronous rather than a goroutine per update, which would leave detached
+	// Synchronous instead of a goroutine per update, which would leave detached
 	// writers contending for SQLite's single write lock on one column.
 	progress := func(pages int) {
 		if _, err := s.db.ExecContext(ctx,

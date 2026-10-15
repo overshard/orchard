@@ -61,7 +61,7 @@ func normalizeText(s string) string {
 
 // runChecks runs every check and returns one flat list. The order matters,
 // since the dashboard preserves it inside a group, and a check may dereference
-// HTML on anything in ctx.htmlPages, which is filtered rather than asserted.
+// HTML on anything in ctx.htmlPages, which is filtered instead of asserted.
 func runChecks(result *CrawlResult) []Insight {
 	var htmlPages []*Page
 	statusByURL := make(map[string]int, len(result.Pages))
@@ -345,7 +345,7 @@ func checkCanonicalOffDomain(ctx *checkCtx) []Insight {
 }
 
 // checkCanonicalBroken only fires for a canonical the crawl visited, since an
-// unvisited one is unknown rather than broken.
+// unvisited one is unknown, not broken.
 func checkCanonicalBroken(ctx *checkCtx) []Insight {
 	var out []Insight
 	for _, p := range ctx.htmlPages {
@@ -764,7 +764,7 @@ func checkSlowPages(ctx *checkCtx) []Insight {
 	return out
 }
 
-// checkMissingCompression probes the start URL only, since compression is a
+// checkMissingCompression looks at the start URL only, since compression is a
 // server-wide setting and one probe answers for the whole site.
 func checkMissingCompression(ctx *checkCtx) []Insight {
 	if ctx.compression != "" {

@@ -89,7 +89,7 @@ func (s *site) propertyPublic(w http.ResponseWriter, r *http.Request) {
 		slog.Info(fmt.Sprintf("property public toggle %s: %v", id, err))
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"success": false})
 	case !found:
-		// A 404 rather than a success carrying a made-up value.
+		// A 404 instead of a success carrying a made-up value.
 		writeJSON(w, http.StatusNotFound, map[string]any{"success": false, "error": "not_found"})
 	default:
 		writeJSON(w, http.StatusOK, map[string]any{"success": true, "is_public": isPublic})

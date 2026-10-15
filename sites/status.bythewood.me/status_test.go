@@ -390,7 +390,7 @@ func TestSecurityPosture(t *testing.T) {
 		v.applySecurityPosture(headers(map[string]string{
 			"strict-transport-security": "max-age=99999999999999999999999",
 		}))
-		// It does not parse as an int64, so it reports absent rather than wrapping
+		// It doesn't parse as an int64, so it reports absent instead of wrapping
 		// negative. A panic here is the failure.
 		_ = v.HasHSTS
 	})
@@ -504,7 +504,7 @@ func TestAlertStateIgnoresNonConsecutiveFailures(t *testing.T) {
 }
 
 // Two alert transitions that overlap. Under a deferred BEGIN the second to
-// write fails with SQLITE_BUSY rather than waiting, and loses its state change.
+// write fails with SQLITE_BUSY instead of waiting, and loses its state change.
 func TestOverlappingWritesWaitRatherThanFail(t *testing.T) {
 	db, id := freshDB(t)
 	ctx := context.Background()
@@ -982,7 +982,7 @@ func TestPropertyName(t *testing.T) {
 		"https://www.example.com/path": "example.com",
 		"https://example.com":          "example.com",
 		"https://example.com:8443/":    "example.com",
-		// Not a URL at all, so the whole string, rather than a blank row.
+		// Not a URL at all, so the whole string instead of a blank row.
 		"nonsense": "nonsense",
 	}
 	for in, want := range cases {
@@ -1037,10 +1037,9 @@ func TestIntcomma(t *testing.T) {
 }
 
 func TestJSONBlockCannotCloseTheScriptElement(t *testing.T) {
-	// The values here are what a crawled site can put in an error string, and
-	// they land in a <script type="application/json"> block. html/template does
-	// not escape inside that script type and template.JS turns its escaping off
-	// regardless, so encoding/json is the only thing holding the element shut.
+	// These are what a crawled site can put in an error string, and they land in
+	// a <script type="application/json"> block html/template doesn't escape, so
+	// encoding/json is the only thing holding the element shut.
 	in := map[string]string{"issue": `a <b> & "c" </script><img src=x onerror=alert(1)>`}
 	out, err := jsonBlock(in)
 	if err != nil {
@@ -1053,8 +1052,8 @@ func TestJSONBlockCannotCloseTheScriptElement(t *testing.T) {
 		}
 	}
 
-	// Escaping is transparent to the consumer: JSON.parse gives the browser the
-	// original string back, so nothing downstream has to know this happened.
+	// JSON.parse gives the browser the original string back, so nothing
+	// downstream has to know this happened.
 	var round map[string]string
 	if err := json.Unmarshal([]byte(out), &round); err != nil {
 		t.Fatalf("output is not valid JSON: %v", err)
@@ -1117,7 +1116,7 @@ func TestCrawlProgressStaysBelowComplete(t *testing.T) {
 }
 
 // reportTemplates is a package level Must(), so a broken report template takes
-// the whole binary down at init rather than one route.
+// the whole binary down at init instead of one route.
 func TestReportsParse(t *testing.T) {
 	var names []string
 	for _, tmpl := range reportTemplates.Templates() {
@@ -1218,9 +1217,8 @@ func TestOriginStaleIsPersistedNotJustReturned(t *testing.T) {
 }
 
 // Every template the server asks for has to exist. NewRenderer resolves the
-// list at boot rather than at build, so a page left listed after its file was
-// deleted compiles, ships, and then crash-loops the container on startup, which
-// is how it was found on repos.
+// list at boot, not at build, so a page left listed after its file was deleted
+// compiles, ships, and then crash-loops the container on startup.
 func TestEveryListedTemplateParses(t *testing.T) {
 	templates, err := fs.Sub(templateFS, "templates")
 	if err != nil {

@@ -9,8 +9,8 @@ import (
 	"time"
 )
 
-// PageData is everything every template needs. A struct rather than a map:
-// html/template errors on a missing field but renders nothing for a missing key.
+// PageData is everything every template needs. It's a struct instead of a map
+// since html/template errors on a missing field but renders nothing for a missing key.
 type PageData struct {
 	Title         string
 	Description   string
@@ -70,7 +70,7 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 		        (SELECT MIN(created_at) FROM checks)`).
 		Scan(&data.TotalChecks, &data.TotalProperties, &firstCheck)
 	if err != nil {
-		// These numbers are decoration, so an error renders zeros rather than a 500.
+		// These numbers are decoration, so an error renders zeros instead of a 500.
 		slog.Info(fmt.Sprintf("home totals: %v", err))
 	}
 	if firstCheck.Valid {
@@ -93,21 +93,18 @@ const faviconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
 <circle cx="30" cy="14" r="3.5" fill="#c9a84c"/>
 </svg>`
 
-// robots refuses the crawl on staging. Both this and the noindex meta tag in
-// base.html are needed: a crawler obeying robots.txt never fetches the tag.
+// robots refuses the crawl everywhere since nothing here is for a stranger. The
+// noindex tag in base.html is needed too, a crawler obeying robots.txt never sees it.
 func robots(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	// Explicit, because Cloudflare stamps its own TTL on a header-less response
 	// and a stale robots.txt at the edge is four hours of the wrong answer.
 	w.Header().Set("Cache-Control", "public, max-age=300")
-	// Nothing here is for a stranger, so the crawl is refused in production as
-	// well as on staging. Both this and the noindex meta tag are needed: a crawler
-	// that obeys robots.txt never fetches the page to see the tag.
 	_, _ = w.Write([]byte("User-agent: *\nDisallow: /\n"))
 }
 
 // sitemap lists the one public page. Property dashboards stay out even when
-// public: a status page is handed to somebody, not searched for.
+// public, since a status page is handed to somebody and not searched for.
 func sitemap(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
 	today := time.Now().UTC().Format("2006-01-02")

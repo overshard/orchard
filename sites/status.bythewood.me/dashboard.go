@@ -71,8 +71,8 @@ type InsightGroup struct {
 	Items []Insight
 }
 
-// ResponseTimePoint is one bar of the phase-breakdown chart. The four phases
-// are pointers because rows written before those columns existed have none.
+// ResponseTimePoint is one bar of the phase-breakdown chart. The phases are
+// pointers because rows written before those columns existed have none.
 type ResponseTimePoint struct {
 	Label string `json:"label"`
 	Total int64  `json:"total"`
@@ -147,8 +147,8 @@ func (s *site) buildPropertyView(ctx context.Context, p *Property) (*PropertyVie
 		UpdatedAt:  time.UnixMilli(p.UpdatedAt).UTC(),
 	}
 
-	// A property with no checks yet reads as 200 rather than 0, so a freshly
-	// added site is not a red zero until its first probe.
+	// A property with no checks yet reads as 200 instead of 0, so a freshly
+	// added site isn't a red zero until its first probe.
 	v.CurrentStatus = 200
 	if len(recent) > 0 {
 		v.CurrentStatus = recent[0].StatusCode
@@ -197,7 +197,7 @@ func (s *site) buildPropertyView(ctx context.Context, p *Property) (*PropertyVie
 
 var hstsMaxAge = regexp.MustCompile(`max-age=(\d+)`)
 
-// applySecurityPosture reads the latest response's headers rather than probing
+// applySecurityPosture reads the latest response's headers instead of probing
 // again, so it costs nothing and can be up to three minutes stale.
 func (v *PropertyView) applySecurityPosture(recent []Check) {
 	headers := map[string]string{}
@@ -221,8 +221,8 @@ func (v *PropertyView) applySecurityPosture(recent []Check) {
 		v.HasClickjackProtection = true
 	}
 
-	// Four spellings, because all four turn up in the wild and a server
-	// announcing its exact version is naming which CVEs to try.
+	// Every one of these spellings turns up in the wild, and a server announcing
+	// its exact version is naming which CVEs to try.
 	v.HidesServerVersion = true
 	for _, h := range []string{"server", "x-server", "powered-by", "x-powered-by"} {
 		if _, ok := headers[h]; ok {
@@ -251,8 +251,8 @@ func (v *PropertyView) applySecurityPosture(recent []Check) {
 		!v.HasHSTSPreload
 }
 
-// applyStoredJSON decodes the three JSON columns, each degrading to empty
-// rather than failing the request, so a malformed result costs one panel.
+// applyStoredJSON decodes the stored JSON columns, each degrading to empty
+// instead of failing the request, so a malformed result costs one panel.
 func (v *PropertyView) applyStoredJSON(p *Property) {
 	if p.CrawlerInsights != nil {
 		if err := json.Unmarshal([]byte(*p.CrawlerInsights), &v.CrawlerInsights); err != nil {
@@ -334,7 +334,7 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 
 	authed := s.auth.Authenticated(r)
 	if !p.IsPublic && !authed {
-		// A redirect to login rather than a 404, so a bookmark lands somewhere
+		// A redirect to login instead of a 404, so a bookmark lands somewhere
 		// useful. It leaks that the id exists, which is fine for a v4 UUID.
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
@@ -585,7 +585,7 @@ func (s *site) lookupForJSON(w http.ResponseWriter, r *http.Request) (*Property,
 	return p, true
 }
 
-// requeue is the shared body of the two "run it now" buttons. It runs nothing
+// requeue is the shared body of the "run it now" buttons. It runs nothing
 // itself, it moves the due time into the past for the scheduler to pick up.
 func (s *site) requeue(w http.ResponseWriter, r *http.Request, kind string) {
 	p, ok := s.lookupForJSON(w, r)

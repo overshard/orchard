@@ -54,7 +54,6 @@ func csp() string {
 	}, "; ")
 }
 
-// site is everything the handlers share.
 type site struct {
 	renderer *web.Renderer
 	db       *sql.DB
@@ -72,9 +71,8 @@ type site struct {
 	propsStyles []string
 }
 
-// The template sets, shared with the tests, which parse them for real. A page
-// listed here with no file behind it parses at boot and not at build, so
-// nothing but doing it catches a template that was deleted and left listed.
+// Shared with the tests, which parse them for real, since a page listed here
+// with no file behind it fails at boot and not at build.
 var (
 	layoutTemplates = []string{"base.html", "partials.html"}
 	pageTemplates   = []string{
@@ -90,7 +88,7 @@ func main() {
 	}
 }
 
-// realMain returns rather than exits, so its deferred closes and the log
+// realMain returns instead of exiting so the deferred closes and the log
 // shipper's flush run on every path out.
 func realMain() error {
 	web.SetupLogging()
@@ -108,8 +106,8 @@ func realMain() error {
 		return nil
 	}
 
-	// Tees onto the stdout handler rather than replacing it. Kept after the
-	// healthcheck branch, so a HEALTHCHECK never starts a queue it cannot flush.
+	// Tees onto the stdout handler instead of replacing it, and sits after the
+	// healthcheck branch so a HEALTHCHECK never starts a queue it can't flush.
 	shipper := web.ShipLogs("status", web.HTTPSink())
 	defer shipper.Close()
 
@@ -221,16 +219,15 @@ func realMain() error {
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		// EdgeCache fills in the site policy whenever a handler sets no
-		// Cache-Control of its own, so saying nothing here means the edge
-		// answers a liveness check out of cache long after this process has
-		// stopped serving.
+		// EdgeCache fills in the site policy when a handler sets no Cache-Control,
+		// and the edge would answer a liveness check out of cache long after this
+		// process stopped serving.
 		w.Header().Set("Cache-Control", "no-store")
 		_, _ = w.Write([]byte("ok\n"))
 	})
 
-	// Registered as "/" rather than "/{id}" so it cannot shadow /login and
-	// /properties, "/{id}" would also claim /nonsense-that-should-404.
+	// Registered as "/" instead of "/{id}" so every unmatched path, however many
+	// segments deep, gets the templated 404.
 	mux.HandleFunc("GET /", s.dashboardOrNotFound)
 
 	handler := web.Chain(mux,

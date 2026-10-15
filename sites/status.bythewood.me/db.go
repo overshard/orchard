@@ -13,8 +13,8 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// schema is IF NOT EXISTS throughout: pointing this at an existing database has
-// to be a no-op, since the property UUIDs in it are the addresses of live public
+// schema is IF NOT EXISTS throughout since pointing this at an existing database
+// has to be a no-op, the property UUIDs in it are the addresses of live public
 // status pages.
 const schema = `
 CREATE TABLE IF NOT EXISTS properties (
@@ -75,9 +75,9 @@ CREATE TABLE IF NOT EXISTS meta (
 );
 `
 
-// phaseColumns are in the CREATE TABLE above as well. SQLite has no ADD COLUMN
-// IF NOT EXISTS, and CREATE TABLE IF NOT EXISTS does not reconcile columns on a
-// table that already exists, so ensurePhaseColumns adds them by hand.
+// SQLite has no ADD COLUMN IF NOT EXISTS, and CREATE TABLE IF NOT EXISTS doesn't
+// reconcile columns on a table that already exists, so ensurePhaseColumns adds
+// these by hand.
 var phaseColumns = []addedColumn{
 	{"dns_ms", "INTEGER"},
 	{"tcp_ms", "INTEGER"},
@@ -114,7 +114,7 @@ func openDB(path string) (*sql.DB, error) {
 	}
 
 	// SQLite takes a database-wide write lock, so a pool larger than one buys
-	// nothing for writers. It is for readers, which WAL runs during a write.
+	// nothing for writers. The pool is for readers, which WAL runs during a write.
 	db.SetMaxOpenConns(8)
 	db.SetMaxIdleConns(8)
 	db.SetConnMaxLifetime(time.Hour)
@@ -169,7 +169,7 @@ func ensurePhaseColumns(db *sql.DB) error {
 
 func nowMS() int64 { return time.Now().UnixMilli() }
 
-// Property is one tracked URL. Every nullable column is a pointer rather than a
+// Property is one tracked URL. Every nullable column is a pointer instead of a
 // sql.NullInt64, so templates and JSON can test it with a plain nil check.
 type Property struct {
 	ID          uuid.UUID
@@ -207,7 +207,7 @@ type Property struct {
 	UpdatedAt int64
 }
 
-// Name is the hostname without a leading www. Parsed rather than split on "/",
+// Name is the hostname without a leading www. Parsed instead of split on "/",
 // because the URL is operator input and need not be well formed.
 func (p *Property) Name() string {
 	u, err := parseHTTPURL(p.URL)
@@ -340,8 +340,8 @@ func togglePublic(ctx context.Context, db *sql.DB, id uuid.UUID) (isPublic, foun
 	return next == 1, true, nil
 }
 
-// Check is one HTTP probe. The four phase timings are nullable, so the chart
-// skips nulls, response_ms is the canonical total.
+// Check is one HTTP probe. The phase timings are nullable, so the chart skips
+// nulls, response_ms is the canonical total.
 type Check struct {
 	StatusCode int64
 	ResponseMS int64
@@ -407,8 +407,8 @@ func countChecks(ctx context.Context, db *sql.DB, id uuid.UUID) (int64, error) {
 	return n, err
 }
 
-// countUptime returns the all-time up and down counts. The COALESCE is required:
-// SUM over zero rows is NULL, so a never-checked property would fail the scan.
+// countUptime returns the all-time up and down counts. The COALESCE is needed
+// since SUM over zero rows is NULL and a never-checked property would fail the scan.
 func countUptime(ctx context.Context, db *sql.DB, id uuid.UUID) (up, down int64, err error) {
 	err = db.QueryRowContext(ctx,
 		`SELECT COALESCE(SUM(CASE WHEN status_code = 200 THEN 1 ELSE 0 END), 0),

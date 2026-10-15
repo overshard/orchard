@@ -1,9 +1,6 @@
-// The read only JSON view of every property, for chat.bythewood.me's tools.
-//
-// It reuses buildStatusPayload rather than assembling its own shape, so what a
-// tool reads and what /properties/{id}/status reports cannot drift apart. The
-// only thing added is the identity of the property, since the per property
-// endpoint already knows which one it is and a list does not.
+// The read only JSON view of every property, for chat.bythewood.me's tools. It
+// reuses buildStatusPayload so it can't drift from /properties/{id}/status, and
+// adds the property's identity since a list doesn't know which one it is.
 package main
 
 import (

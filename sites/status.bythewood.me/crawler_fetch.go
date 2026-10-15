@@ -30,7 +30,7 @@ const (
 	CrawlDeadline = 540 * time.Second
 
 	// MaxBodyBytes caps one HTML body, because buffering a mislabeled download
-	// four times over could exhaust the container.
+	// once per worker could exhaust the container.
 	MaxBodyBytes = 5 * 1024 * 1024
 
 	crawlerRequestTimeout = 15 * time.Second
@@ -139,7 +139,7 @@ func canonicalURL(u *url.URL) string {
 }
 
 // headStatus probes an external link. A 403, 405 or 501 usually means the
-// server refuses HEAD rather than that the link is broken, so those retry.
+// server refuses HEAD and the link is fine, so those retry as a GET.
 func headStatus(ctx context.Context, client *http.Client, rawURL string) int {
 	ctx, cancel := context.WithTimeout(ctx, externalLinkTimeout)
 	defer cancel()

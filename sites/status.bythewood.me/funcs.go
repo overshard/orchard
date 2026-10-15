@@ -46,11 +46,9 @@ func dict(pairs ...any) (map[string]any, error) {
 	return out, nil
 }
 
-// jsonBlock renders a value for a <script type="application/json"> block.
-// HTML escaping stays on so a value containing "</script>" cannot close the
-// block. html/template cannot work that out inside a non-JavaScript script
-// type, and template.JS turns its escaping off anyway, so this is the only
-// thing standing between a stored string and the end of the element.
+// jsonBlock renders a value for a <script type="application/json"> block. Marshal's
+// HTML escaping is all that keeps a stored "</script>" from closing the element,
+// since html/template can't help inside a non-JavaScript script type.
 func jsonBlock(v any) (template.JS, error) {
 	buf, err := json.Marshal(v)
 	if err != nil {
@@ -67,14 +65,14 @@ func naturalTime(t *time.Time) string {
 	}
 
 	d := time.Since(*t)
-	// Future timestamps are normal here: next_run_at is one.
+	// Future timestamps are normal here, next_run_at is one.
 	suffix := "ago"
 	if d < 0 {
 		d = -d
 		suffix = "from now"
 	}
 
-	// Rounded, not truncated: 47h59m59.9s truncates to "1 day from now".
+	// Rounded, since truncating turns 47h59m59.9s into "1 day from now".
 	switch secs := int64(math.Round(d.Seconds())); {
 	case secs < 60:
 		if suffix == "ago" {
@@ -194,8 +192,8 @@ func pct1(v *float64) string {
 	return strconv.FormatFloat(*v, 'f', 1, 64)
 }
 
-// seq is a counted loop, which templates otherwise cannot express: range needs
-// something to range over.
+// seq is a counted loop, which a template can't otherwise express since range
+// needs something to range over.
 func seq(n int) []struct{} { return make([]struct{}, n) }
 
 // uptimeClass bands a recent-uptime percentage, higher is better. It takes a
@@ -215,9 +213,9 @@ func uptimeClass(pct *float64) string {
 	}
 }
 
-// lighthouseClass bands the average of the four Lighthouse scores. 90 and 80,
-// not Lighthouse's 90 and 50, because an average of 60 across four categories is
-// worse than 60 in one, scoreClass keeps Lighthouse's bands.
+// lighthouseClass bands the average of the Lighthouse scores at 90 and 80 instead
+// of Lighthouse's 90 and 50, since an average of 60 across four categories is
+// worse than 60 in one. scoreClass keeps Lighthouse's bands.
 func lighthouseClass(score *int64) string {
 	if score == nil {
 		return "muted"
