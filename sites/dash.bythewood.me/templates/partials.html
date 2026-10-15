@@ -64,7 +64,7 @@
       </div>
     </div>
     <a class="go" href="{{$s.URL}}" aria-label="Open article" rel="noopener noreferrer" target="_blank">↗</a>
-    {{if or $s.Read $s.Said}}<div class="talk" hidden>{{if $s.Read}}<p class="talk-read" data-at="{{$s.ReadAt}}">{{$s.Read}}</p>{{end}}{{range $s.Said}}<p class="talk-said">{{.}}</p>{{end}}</div>{{end}}
+    {{if or $s.Gist $s.Read $s.Said}}<div class="talk" hidden>{{if $s.Gist}}<p class="talk-gist" data-at="{{$s.ReadAt}}">{{$s.Gist}}</p>{{end}}{{if $s.Read}}<p class="talk-read" data-at="{{$s.ReadAt}}">{{$s.Read}}</p>{{end}}{{range $s.Said}}<p class="talk-said">{{.}}</p>{{end}}</div>{{end}}
   </li>
   {{end}}{{end}}
   {{template "blank-rows" (len .)}}
@@ -114,6 +114,7 @@
       <div class="meta">{{template "brief-links" $p.Links}}{{if $p.Coverage}}<span class="cov">{{$p.Coverage}}</span>{{end}}{{if $p.Note}}<span class="note">{{$p.Note}}</span>{{end}}</div>
     </div>
     {{with $p.Links}}<a class="go" href="{{(index . 0).URL}}" aria-label="Open {{(index . 0).Source}} article" rel="noopener noreferrer" target="_blank">↗</a>{{else}}<span class="go"></span>{{end}}
+    {{if $p.Gist}}<div class="talk" hidden><p class="talk-gist">{{$p.Gist}}</p></div>{{end}}
   </li>
   {{end}}{{end}}
   {{template "blank-rows" (len .Points)}}

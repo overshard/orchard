@@ -79,16 +79,24 @@ function section(head, nodes) {
   return box;
 }
 
-// What the commenters on a feed row are saying, the brief's read of them and
-// the top few comments, which the row carries hidden.
+// What a row's card says beyond its links, which the row carries hidden: a
+// TL;DR of the article or of every outlet's report, then on a feed row the
+// brief's read of the commenters and the top few comments.
 function talk(row) {
   const out = [];
+  const gist = row.querySelector(".talk .talk-gist");
+  if (gist) {
+    const p = document.createElement("p");
+    p.className = "tip-read";
+    p.textContent = gist.textContent;
+    out.push(section(gist.dataset.at ? `TL;DR / READ ${gist.dataset.at}` : "TL;DR", [p]));
+  }
   const read = row.querySelector(".talk .talk-read");
   if (read) {
     const p = document.createElement("p");
     p.className = "tip-read";
     p.textContent = read.textContent;
-    out.push(section(read.dataset.at ? `COMMENTERS / READ ${read.dataset.at}` : "COMMENTERS", [p]));
+    out.push(section(gist ? "COMMENTERS" : read.dataset.at ? `COMMENTERS / READ ${read.dataset.at}` : "COMMENTERS", [p]));
   }
   const said = [...row.querySelectorAll(".talk .talk-said")].map((c) => {
     const p = document.createElement("p");
@@ -123,8 +131,8 @@ function extras(el) {
     if (age) meta.push(age.textContent);
     links.push(cardLink(go.href, "ARTICLE", host ? host.textContent : new URL(go.href).host));
     links.push(cardLink(cmt.dataset.href, "COMMENTS", new URL(cmt.dataset.href).host));
-    talks.push(...talk(row));
   }
+  talks.push(...talk(row));
   for (const s of row.querySelectorAll(".meta .cov, .meta .note")) meta.push(s.textContent);
   for (const a of row.querySelectorAll(".meta a.src")) links.push(cardLink(a.href, a.dataset.tipLabel || a.textContent, a.dataset.tip || a.href));
   return [meta, links, talks];

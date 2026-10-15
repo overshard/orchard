@@ -220,6 +220,17 @@ onto the rows by URL with the time it was read. A thread that turned up after
 the last slot has comments and no read. A read that doesn't end on a full stop
 was cut at the cap and gets one retry, since `whole` would keep "while others."
 
+**The cards' TL;DRs come off the article pages, read at each slot.** The feeds
+desk fetches each row's link and the news desk every outlet a TODAY point links
+to, and `article.go` pulls the text out with regexps since dash has no
+dependencies: the paragraphs in `<article>` or else the page, with script, nav,
+header, footer, aside, form and figure cut first, and the meta description when
+that leaves under 400 characters. Google News links only redirect with script
+and are skipped, so AP and Reuters fall back to their feed description. Every
+site shares one `articles` budget and never trips the breaker, since one
+paywall's 403 says nothing about the next site. About four in five HN and
+Lobsters links give a TL;DR.
+
 **Nasdaq only fills in an evening report once its date has passed,** so an after
 hours print is heard about the next morning at the earliest. A quick check asks
 for today and the weekday before every quarter hour from 6am to 8pm on weekdays,

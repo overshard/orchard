@@ -39,6 +39,7 @@ type Story struct {
 	// read in them, for the card the row opens.
 	Said   []string `json:"said,omitempty"`
 	Read   string   `json:"read,omitempty"`
+	Gist   string   `json:"gist,omitempty"`
 	ReadAt string   `json:"read_at,omitempty"`
 
 	// Its id on the site, which the comments are fetched by.

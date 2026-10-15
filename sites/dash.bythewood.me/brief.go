@@ -137,6 +137,9 @@ type Point struct {
 	Coverage string `json:"coverage,omitempty"`
 	Note     string `json:"note,omitempty"`
 
+	// A TODAY point's TL;DR, from every outlet it links to.
+	Gist string `json:"gist,omitempty"`
+
 	// A glance line's level, and the panel it points at.
 	Level  string `json:"level,omitempty"`
 	Anchor string `json:"anchor,omitempty"`
@@ -155,6 +158,8 @@ type Read struct {
 type ThreadRead struct {
 	URL  string `json:"url"`
 	Read string `json:"read"`
+	// A TL;DR of the article the thread is about.
+	Gist string `json:"gist,omitempty"`
 }
 
 type Link struct {
@@ -835,6 +840,7 @@ func (b *Briefer) compileNews(ctx context.Context, slot briefSlot, at time.Time)
 		if pt.Text == "" || len(pt.Links) == 0 {
 			continue
 		}
+		pt.Gist = b.eventTLDR(ctx, events, p.Sources, pt.Links)
 		brief.Points = append(brief.Points, pt)
 	}
 	if len(brief.Points) < 2 {

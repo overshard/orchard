@@ -39,7 +39,10 @@ var budgets = map[string]budget{
 	"lobsters": {perHour: 120, pace: 2 * time.Second},
 	// A request per comment, three on every row as it turns over and eight on
 	// each row at a brief slot, which is about 120 calls in the slot's hour.
-	"hnitem":    {perHour: 300, pace: 250 * time.Millisecond},
+	"hnitem": {perHour: 300, pace: 250 * time.Millisecond},
+	// The pages behind the feed rows and TODAY's sources, read at each brief
+	// slot for the TL;DRs, about sixty and every one a different site.
+	"articles":  {perHour: 150, pace: 300 * time.Millisecond},
 	"openmeteo": {perHour: 120, pace: 2 * time.Second},
 	"npr":       {perHour: 120, pace: 2 * time.Second},
 	"bbc":       {perHour: 60, pace: 2 * time.Second},
@@ -311,6 +314,7 @@ var feedOrder = []struct{ key, label string }{
 	{"algolia", "HN"},
 	{"hnitem", "HN THREADS"},
 	{"lobsters", "LOBSTERS"},
+	{"articles", "ARTICLES"},
 	{"npr", "NPR"},
 	{"bbc", "BBC"},
 	{"googlenews", "AP / REUTERS"},

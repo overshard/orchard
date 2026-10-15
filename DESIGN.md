@@ -510,8 +510,10 @@ TODAY. A headline is never a link and nothing waits on a long press, since a
 phone keeps long press for its own link menu and the two raced. Nothing else on
 a feed row is a link either, `CMT` included, so a tap anywhere on a row but the
 ↗ opens its card. The ↗ is the full height of the row and 32px wide so a thumb
-finds it. A feed row's card also carries COMMENTERS, the brief's read of the
-thread, and TOP COMMENTS, each under a small amber head, and when that runs
+finds it. A card opens on TL;DR when there is one, of the article on a feed row
+and of every outlet's report on TODAY, and a feed row's card then carries
+COMMENTERS, the brief's read of the thread, and TOP COMMENTS, each under a small
+amber head, with the links last. When that runs
 taller than the room the card's body scrolls, never the card itself, since the
 brackets and the leader sit just outside it. `data-full` text
 elsewhere opens only when it's actually cut, and a source tag's `data-tip`
