@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"chat.bythewood.me/tools"
 )
 
 // scriptStub answers each tool round with the next set of calls in script, then
@@ -79,8 +81,8 @@ func TestAfterAPageIsReadNothingPrivateRuns(t *testing.T) {
 	if len(s.offered) < 2 {
 		t.Fatalf("only %d tool rounds ran", len(s.offered))
 	}
-	for _, name := range privateTools {
-		if strings.Contains(s.offered[1], " "+name+" ") {
+	for _, name := range tools.Default().Names() {
+		if tools.Of(name).Is(tools.Private) && strings.Contains(s.offered[1], " "+name+" ") {
 			t.Errorf("%s was still offered after the page: %q", name, s.offered[1])
 		}
 	}
