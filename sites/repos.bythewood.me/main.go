@@ -226,6 +226,7 @@ func realMain() error {
 		web.Recovered,
 		web.Logged,
 		refuseMeta,
+		refuseFakeBrowsers,
 		web.SecurityHeaders(csp()),
 		web.SameOrigin(),
 		// Browse pages branch on LoggedIn and the logged-in half names internal
