@@ -135,38 +135,17 @@ func refuseMeta(next http.Handler) http.Handler {
 // this and refuseCrawlers holds any crawler that names itself to it.
 var disallowed = []string{"/"}
 
-// Every Chrome since 80 and Firefox since 90 sends Sec-Fetch-Mode, so a browser
-// UA without it is a script wearing one. A named crawler is refused only where
-// robots.txt says no, so one that reads it and leaves never sees a 403.
+// A named crawler is refused only where robots.txt says no, so one that reads it
+// and leaves never sees a 403.
 func refuseCrawlers(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if fakeBrowser(r) || (announcedBot(r.UserAgent()) && robotsDisallow(r.URL.Path)) {
+		if announcedBot(r.UserAgent()) && robotsDisallow(r.URL.Path) {
 			w.Header().Set("Cache-Control", "no-store")
 			http.Error(w, "forbidden, see /robots.txt", http.StatusForbidden)
 			return
 		}
 		next.ServeHTTP(w, r)
 	})
-}
-
-var browsePages = map[string]bool{
-	"tree": true, "blob": true, "raw": true, "log": true, "commit": true,
-	"branches": true, "tags": true, "archive": true,
-}
-
-func fakeBrowser(r *http.Request) bool {
-	if r.Header.Get("Sec-Fetch-Mode") != "" {
-		return false
-	}
-	parts := strings.SplitN(strings.TrimPrefix(r.URL.Path, "/"), "/", 3)
-	if len(parts) < 2 || !browsePages[parts[1]] {
-		return false
-	}
-	ua := r.UserAgent()
-	if !strings.Contains(ua, "Chrome/") && !strings.Contains(ua, "Firefox/") {
-		return false
-	}
-	return !announcedBot(ua)
 }
 
 // No browser puts any of these in its user agent, and every crawler that wants to

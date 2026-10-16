@@ -182,10 +182,8 @@ func TestRefuseCrawlers(t *testing.T) {
 		path, ua, mode string
 		want           int
 	}{
-		{"/orchard/blob/abc123/go.mod", chrome, "", http.StatusForbidden},
-		{"/orchard/log/main/sites/status.bythewood.me/go.sum", chrome, "", http.StatusForbidden},
-		{"/orchard/tree/main", firefox, "", http.StatusForbidden},
-		{"/orchard/blob/abc123/go.mod", chrome, "navigate", http.StatusOK},
+		{"/orchard/blob/abc123/go.mod", chrome, "", http.StatusOK},
+		{"/orchard/tree/main", firefox, "", http.StatusOK},
 		{"/robots.txt", googlebot, "", http.StatusOK},
 		{"/robots.txt", oaiSearch, "", http.StatusOK},
 		{"/robots.txt", claudeBot, "", http.StatusOK},
