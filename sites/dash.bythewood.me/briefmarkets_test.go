@@ -34,6 +34,11 @@ func TestMarketLines(t *testing.T) {
 	check("thursday morning", marketLines(h, "pre", time.Date(2026, 10, 8, 7, 0, 0, 0, et)), []want{
 		{"YESTERDAY", "down", "0.98%"}, {"TODAY", "", ""}, {"TOMORROW", "", ""},
 	})
+	// The 9am brief is still before the bell, so it's the same three answers
+	// with the 8:30 data out.
+	check("thursday pre-open", marketLines(h, "pre", time.Date(2026, 10, 8, 9, 0, 0, 0, et)), []want{
+		{"YESTERDAY", "down", "0.98%"}, {"TODAY", "", ""}, {"TOMORROW", "", ""},
+	})
 	check("thursday midday", marketLines(h, "regular", time.Date(2026, 10, 8, 11, 0, 0, 0, et)), []want{
 		{"YESTERDAY", "down", "0.98%"}, {"TODAY", "up", "0.50% SO FAR"}, {"TOMORROW", "", ""},
 	})

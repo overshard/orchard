@@ -41,7 +41,7 @@ var budgets = map[string]budget{
 	"openmeteo": {perHour: 120, pace: 2 * time.Second},
 	"npr":       {perHour: 120, pace: 2 * time.Second},
 	"bbc":       {perHour: 60, pace: 2 * time.Second},
-	// The brief feeds are read three times a day, a few requests each.
+	// The brief feeds are read four times a day, a few requests each.
 	"googlenews": {perHour: 30, pace: 2 * time.Second},
 	"dowjones":   {perHour: 30, pace: 2 * time.Second},
 	"thehill":    {perHour: 30, pace: 2 * time.Second},

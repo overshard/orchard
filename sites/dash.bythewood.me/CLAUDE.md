@@ -124,8 +124,8 @@ move is its symbol, its day and its rung on a ladder, a warning is its VTEC even
 number rather than the NWS id that changes with every update, and a headline is
 its URL, which is what keeps a restart or a reconnect from notifying twice.
 
-**The briefs are the one thing on dash a model writes.** At 7:00, 11:00 and
-16:05 New York time `briefnews.go` and `briefmarkets.go` read sixteen news feeds
+**The briefs are the one thing on dash a model writes.** At 7:00, 9:00, 11:00
+and 16:05 New York time `briefnews.go` and `briefmarkets.go` read sixteen news feeds
 and seven market feeds, `briefstories.go` groups the same event across outlets
 and ranks the groups by how many outlets carried them, and the two desks ask
 llm.bythewood.me for a markets line and a TODAY summary under a JSON schema,
@@ -188,7 +188,10 @@ the day after its session and logged as `brief lean scored` with the running
 record, so how often the leans are right is a query and not a guess. Every
 slot before a session makes a call on it and only the last one counts, and a
 forward line is kept as it was while the S&P's price hasn't moved, since asked
-again over a weekend with the same prices the 9B flips its lean. `LLM_KEY` in `.env` from `make dash-key`, and
+again over a weekend with the same prices the 9B flips its lean. The 9:00 slot
+is there because CPI, PPI and the other 8:30 releases are out by then and it
+still lands before the open, so its TODAY is a lean like 7:00's and the calendar
+tells it which releases already came out. `LLM_KEY` in `.env` from `make dash-key`, and
 without it the panels say the briefs are off.
 
 **A brief never loads a model onto a card the desktop is using.** Each slot asks

@@ -9,7 +9,7 @@ import (
 )
 
 // archived is one line of briefs.jsonl, every brief a desk has written, so a
-// morning brief can still be read back after the 11am one replaces it.
+// morning brief can still be read back after the 9am one replaces it.
 type archived struct {
 	Desk  string `json:"desk"`
 	Brief Brief  `json:"brief"`

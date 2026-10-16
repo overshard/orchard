@@ -131,8 +131,8 @@ func glanceMarkets(st State, releases []release, now time.Time) glanceSlot {
 	if weekend(now) || now.Hour() >= 16 {
 		day = nextWeekday(now)
 	}
-	for _, n := range sessionNotes(day, releases, 0) {
-		if strings.Contains(n, "comes out") || strings.Contains(n, "rate decision") {
+	for _, n := range sessionNotes(day, releases, 0, now) {
+		if strings.Contains(n, "comes out") || strings.Contains(n, "came out") || strings.Contains(n, "rate decision") {
 			g.level = higher(g.level, levelWatch)
 			first, _, _ := strings.Cut(n, ".")
 			g.why = append(g.why, day.Format("Monday")+": "+first)

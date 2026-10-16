@@ -141,6 +141,7 @@ func (b *Briefer) compileNews(ctx context.Context, slot briefSlot, at time.Time)
 
 	task := map[string]string{
 		"morning": "Summarise what happened yesterday and overnight.",
+		"preopen": "Summarise what happened yesterday, overnight and this morning.",
 		"midday":  "Summarise the news so far today.",
 		"close":   "Summarise how the day went in the news.",
 	}[slot.kind]
@@ -275,7 +276,8 @@ func (b *Briefer) read(ctx context.Context, slot briefSlot, at time.Time, all []
 - Use only what the event lines say. Never add a name, title or fact from memory, since yours may be out of date.
 - Never say how many or which outlets carried it.`
 
-	when := map[string]string{"morning": "yesterday and overnight", "midday": "so far today", "close": "today"}[slot.kind]
+	when := map[string]string{"morning": "yesterday and overnight", "preopen": "yesterday, overnight and this morning",
+		"midday": "so far today", "close": "today"}[slot.kind]
 	user := fmt.Sprintf("It is %s Eastern. The most widely carried news %s.\n\nEvents:\n%s",
 		at.In(easternTime()).Format("15:04 on Monday, January 2 2006"), when, clusterList(events, now))
 

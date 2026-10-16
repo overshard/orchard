@@ -38,13 +38,18 @@ func TestTurnOfMonth(t *testing.T) {
 func TestSessionNotes(t *testing.T) {
 	et := easternTime()
 	cpi := release{time.Date(2026, 10, 28, 8, 30, 0, 0, et), "CPI inflation", "CPI"}
-	notes := strings.Join(sessionNotes(time.Date(2026, 10, 28, 9, 0, 0, 0, et), []release{cpi}, 15.9), "\n")
+	day := time.Date(2026, 10, 28, 9, 0, 0, 0, et)
+	notes := strings.Join(sessionNotes(day, []release{cpi}, 15.9, day.Add(-2*time.Hour)), "\n")
 	for _, want := range []string{"CPI inflation comes out at 8:30am", "rate decision at 2pm", "about 1.0% either way"} {
 		if !strings.Contains(notes, want) {
 			t.Errorf("missing %q in\n%s", want, notes)
 		}
 	}
-	if eve := sessionNotes(time.Date(2026, 10, 27, 9, 0, 0, 0, et), nil, 0); len(eve) != 1 || !strings.Contains(eve[0], "decision the next day") {
+	// By the 9am brief the print is out, and the lean should know it.
+	if notes := strings.Join(sessionNotes(day, []release{cpi}, 0, day), "\n"); !strings.Contains(notes, "CPI inflation came out at 8:30am") || strings.Contains(notes, "comes out") {
+		t.Errorf("at 9am:\n%s", notes)
+	}
+	if eve := sessionNotes(time.Date(2026, 10, 27, 9, 0, 0, 0, et), nil, 0, day); len(eve) != 1 || !strings.Contains(eve[0], "decision the next day") {
 		t.Errorf("the day before: %v", eve)
 	}
 }
@@ -72,6 +77,9 @@ func TestAhead(t *testing.T) {
 
 func TestNextBrief(t *testing.T) {
 	et := easternTime()
+	if got := nextBrief(time.Date(2026, 10, 8, 7, 30, 0, 0, et)); got != "09:00 IN 1H 30M" {
+		t.Errorf("early: %s", got)
+	}
 	if got := nextBrief(time.Date(2026, 10, 8, 9, 20, 0, 0, et)); got != "11:00 IN 1H 40M" {
 		t.Errorf("morning: %s", got)
 	}

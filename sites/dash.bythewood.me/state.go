@@ -60,7 +60,7 @@ type Store struct {
 	past *twitchPast
 
 	// The BLS and BEA calendars, which the footer reads every minute and the
-	// markets brief reads three times a day.
+	// markets brief reads four times a day.
 	releases []release
 
 	// Which game held the top of Steam each day, nil in tests.
