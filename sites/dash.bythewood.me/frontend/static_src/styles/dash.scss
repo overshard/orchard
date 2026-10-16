@@ -264,7 +264,8 @@ a:hover { color: #ffc84d; }
 // A readout that is also a switch keeps the readout's shape and grows a hover
 // and a menu rather than a slot.
 .readout.notify,
-.readout.quick-open {
+.readout.quick-open,
+.readout.rebuild {
   position: relative;
   padding: 0;
 
@@ -291,6 +292,28 @@ a:hover { color: #ffc84d; }
 }
 
 .readout.quick-open .readout-val { color: var(--amber); }
+
+// Amber while it can be pressed or is running, then the result in the colours
+// LINK uses, held until the cooldown lets it be pressed again.
+.readout.rebuild {
+  .readout-btn:disabled { cursor: default; }
+  .readout-btn:disabled:hover { background: none; }
+
+  &[data-state="ready"] .readout-val { color: var(--amber); }
+  &[data-state="ready"] .pip { background: var(--amber); }
+  &[data-state="running"] {
+    .readout-val { color: var(--amber); }
+    .pip { background: var(--amber); animation: breathe 1.2s ease-in-out infinite; }
+  }
+  &[data-state="done"] {
+    .readout-val { color: var(--up); }
+    .pip { background: var(--up); }
+  }
+  &[data-state="failed"] {
+    .readout-val { color: var(--down); }
+    .pip { background: var(--down); }
+  }
+}
 
 .readout.notify {
   &[data-state="on"] {
@@ -3102,6 +3125,10 @@ main {
 @media (max-width: 1560px) {
   .cards { grid-template-columns: repeat(4, 1fr); }
   .market-band { grid-template-columns: 1fr 1fr; }
+
+  // Seven readouts squeeze below here, so BRIEFS keeps the time and its colour
+  // and drops the word.
+  .readout.rebuild .rb-word { display: none; }
 }
 
 @media (max-width: 1340px) {

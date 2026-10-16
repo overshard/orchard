@@ -74,10 +74,11 @@ type site struct {
 	hub      *Hub
 	guard    *Guard
 
-	// Only the quick chat reads these. Nothing else on the page knows or
-	// cares who is looking at it.
-	auth *web.Authenticator
-	chat string
+	// Only the quick chat and the briefs rerun read these. Nothing else on the
+	// page knows or cares who is looking at it.
+	auth    *web.Authenticator
+	chat    string
+	briefer *Briefer
 
 	script string
 	styles []string
@@ -157,6 +158,7 @@ func realMain() error {
 	defer stopPolling()
 
 	briefer := NewBriefer(store, guard, NewModel(dir("LLM_URL", "http://orchard-llm:8000"), os.Getenv("LLM_KEY")), dataDir)
+	s.briefer = briefer
 
 	store.Prime(pollCtx, guard)
 	go func() {
@@ -182,6 +184,8 @@ func realMain() error {
 	mux.HandleFunc("GET /api/state", s.state)
 	mux.HandleFunc("GET /api/quick", s.quick)
 	mux.HandleFunc("POST /api/quick/send", s.quickSend)
+	mux.HandleFunc("GET /api/rebuild", s.rebuildState)
+	mux.HandleFunc("POST /api/rebuild", s.rebuildStart)
 
 	mux.HandleFunc("GET /favicon.ico", favicon)
 	mux.HandleFunc("GET /favicon.svg", favicon)

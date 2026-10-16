@@ -96,6 +96,13 @@
           <span class="readout-val" data-quick-key>CTRL K</span>
         </button>
       </div>
+      {{/* Shown only once /api/rebuild says the visitor is signed in, the same as CHAT. */}}
+      <div class="readout rebuild" data-rebuild data-state="ready" hidden>
+        <button type="button" class="readout-btn" data-rebuild-button>
+          <span class="readout-key">BRIEFS</span>
+          <span class="readout-val" aria-live="polite"><span class="pip"></span><span data-rebuild-label>RERUN</span></span>
+        </button>
+      </div>
       <div class="readout link" data-live data-state="connecting">
         <span class="readout-key">LINK</span>
         <span class="readout-val"><span class="pip"></span><span data-live-label>INIT</span></span>
