@@ -226,7 +226,7 @@ func realMain() error {
 		web.Recovered,
 		web.Logged,
 		refuseMeta,
-		refuseFakeBrowsers,
+		refuseCrawlers,
 		web.SecurityHeaders(csp()),
 		web.SameOrigin(),
 		// Browse pages branch on LoggedIn and the logged-in half names internal
@@ -273,10 +273,12 @@ func robots(w http.ResponseWriter, r *http.Request) {
 	// Explicit, because Cloudflare stamps its own TTL on a header-less response
 	// and a stale robots.txt at the edge is four hours of the wrong answer.
 	w.Header().Set("Cache-Control", "public, max-age=300")
-	// A mirror of a GitHub account, for one person. There is nothing here a search
-	// engine should hold a copy of, and a crawler walking every blob at every
-	// revision is one git subprocess per request.
-	_, _ = w.Write([]byte("User-agent: *\nDisallow: /\n"))
+	var b strings.Builder
+	b.WriteString("User-agent: *\n")
+	for _, p := range disallowed {
+		b.WriteString("Disallow: " + p + "\n")
+	}
+	_, _ = w.Write([]byte(b.String()))
 }
 
 func favicon(w http.ResponseWriter, r *http.Request) {
