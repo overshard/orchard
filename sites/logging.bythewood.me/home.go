@@ -44,8 +44,8 @@ func favicon(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(faviconSVG))
 }
 
-// robots refuses every crawler, in production as well as on staging, since
-// nothing here is for a stranger. base.html carries a noindex tag too.
+// robots refuses every crawler, since nothing here is for a stranger.
+// base.html carries a noindex tag too.
 func robots(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	// Explicit, because Cloudflare stamps its own TTL on a header-less response

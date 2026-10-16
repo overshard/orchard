@@ -63,17 +63,11 @@ func favicon(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(faviconSVG))
 }
 
-// robots keeps a staging hostname out of the index. It duplicates the noindex
-// meta tag, which a crawler told not to fetch the page never sees.
 func robots(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	// Explicit, because Cloudflare stamps its own TTL on a header-less response
 	// and a stale robots.txt at the edge is four hours of the wrong answer.
 	w.Header().Set("Cache-Control", "public, max-age=300")
-	if Staging {
-		_, _ = fmt.Fprint(w, "User-agent: *\nDisallow: /\n")
-		return
-	}
 	_, _ = fmt.Fprintf(w, "User-agent: *\nAllow: /\n\nSitemap: %s/sitemap.xml\n", baseURL)
 }
 

@@ -18,7 +18,6 @@ type PageData struct {
 	Description   string
 	Path          string
 	Canonical     string
-	Staging       bool
 	Authenticated bool
 	Year          int
 	BaseURL       string
@@ -29,9 +28,6 @@ type PageData struct {
 	OGImage string
 	JSONLD  template.JS
 
-	// Off on staging, so phantom sessions are not filed against the real
-	// analytics property.
-	Analytics   bool
 	AnalyticsID string
 
 	Script string

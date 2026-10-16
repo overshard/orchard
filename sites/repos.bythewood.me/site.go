@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 )
 
@@ -26,9 +25,6 @@ const (
 // cloudflareBodyLimit is Cloudflare's ceiling on a proxied request body, 100MB on
 // Free and Pro. A tunnel hostname must stay proxied, so nothing here can raise it.
 const cloudflareBodyLimit = 100 << 20
-
-// Staging keeps a test hostname out of search results.
-var Staging = !strings.HasSuffix(baseURL, "//repos.bythewood.me")
 
 // Config is everything the environment sets.
 type Config struct {

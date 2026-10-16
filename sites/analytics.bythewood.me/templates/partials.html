@@ -40,9 +40,6 @@
 <meta name="twitter:image" content="{{ .OGImage }}">
 {{ end }}
 
-{{/* Self-tracking. CollectorID is empty on staging, which renders nothing at
-     all rather than filing phantom sessions into the property the production
-     dashboard reads. */}}
 {{ define "collector" }}
 {{ if .CollectorID }}
 <script>

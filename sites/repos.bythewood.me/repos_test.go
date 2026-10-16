@@ -1039,9 +1039,6 @@ func TestAnalyticsWiring(t *testing.T) {
 	}
 
 	p := (&site{}).page(httptest.NewRequest(http.MethodGet, "/", nil), "t", "d", nil)
-	if !p.Analytics {
-		t.Error("page.Analytics is false on the real hostname, so the snippet never renders")
-	}
 	if p.AnalyticsID != analyticsID {
 		t.Errorf("page.AnalyticsID = %q, want %q", p.AnalyticsID, analyticsID)
 	}

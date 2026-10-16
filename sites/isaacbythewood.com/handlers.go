@@ -20,8 +20,6 @@ type PageData struct {
 	JSONLD      template.JS
 	Page        string
 	Num         string
-	Staging     bool
-	Analytics   bool
 	LoaderWaits bool
 	GridArea    template.CSS
 
@@ -128,13 +126,11 @@ func (s *site) page(name, title, description string) PageData {
 		ThemeColor:  themeColor,
 		Page:        name,
 		Num:         num,
-		Staging:     Staging,
 		// Off on the test hostname so it doesn't report into the real ID.
-		Analytics: !Staging,
-		Script:    s.script,
-		Styles:    s.styles,
-		NavPages:  navPages,
-		TopLinks:  topLinks,
+		Script:   s.script,
+		Styles:   s.styles,
+		NavPages: navPages,
+		TopLinks: topLinks,
 		// The menu panel is 40vw wide but full height, and cover on a 4:3
 		// source means height drives the scale, so it needs the wider file.
 		AvatarSrc:  avatarURL(),
@@ -255,14 +251,8 @@ func (s *site) notFound(w http.ResponseWriter, r *http.Request) {
 	s.renderer.Render(w, http.StatusNotFound, "notfound.html", data)
 }
 
-// robots keeps a staging hostname out of search results, since a noindex meta
-// tag only works if the crawler fetches the page.
 func (s *site) robots(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	if Staging {
-		fmt.Fprintf(w, "User-agent: *\nDisallow: /\n")
-		return
-	}
 	fmt.Fprintf(w, "User-agent: *\nDisallow:\n\nSitemap: %s/sitemap.xml\n", baseURL)
 }
 

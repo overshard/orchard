@@ -31,7 +31,6 @@ type PageData struct {
 	Description   string
 	Path          string
 	Canonical     string
-	Staging       bool
 	Authenticated bool
 	Year          int
 	BaseURL       string

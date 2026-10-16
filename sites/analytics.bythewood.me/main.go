@@ -258,7 +258,7 @@ func realMain() error {
 		web.SameOrigin("/collect", "/collect/"),
 	)
 
-	slog.Info(fmt.Sprintf("analytics serving %s (staging=%t, property=%s)", baseURL, Staging, analyticsID))
+	slog.Info(fmt.Sprintf("analytics serving %s (property=%s)", baseURL, analyticsID))
 	return web.Serve(listenAddr, handler)
 }
 
@@ -299,7 +299,6 @@ func (s *site) page(r *http.Request, title, description string) PageData {
 		Description:   description,
 		Path:          r.URL.Path,
 		Canonical:     baseURL + r.URL.Path,
-		Staging:       Staging,
 		Authenticated: s.auth.Authenticated(r),
 		Year:          time.Now().Year(),
 		BaseURL:       baseURL,
@@ -313,7 +312,7 @@ func (s *site) page(r *http.Request, title, description string) PageData {
 
 		// The collector posts to whatever origin served the page, so an empty
 		// server works in dev and in production alike.
-		CollectorID:     collectorID(),
+		CollectorID:     analyticsID,
 		CollectorServer: "",
 	}
 }

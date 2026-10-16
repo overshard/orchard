@@ -40,7 +40,6 @@ func fullPageData(t *testing.T) PageData {
 		Description:   "A description.",
 		Path:          "/",
 		Canonical:     baseURL + "/",
-		Staging:       true,
 		Authenticated: true,
 		Year:          now.Year(),
 		BaseURL:       baseURL,

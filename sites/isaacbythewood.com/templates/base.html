@@ -34,11 +34,6 @@
     <title>{{ .Title }}</title>
     <meta name="description" content="{{ .Description }}" />
     <link rel="canonical" href="{{ .Canonical }}" />
-    {{- if .Staging }}
-    <!-- The test hostname must never be indexed: it would compete with the
-         real site as a byte-for-byte duplicate. -->
-    <meta name="robots" content="noindex, nofollow" />
-    {{- end }}
 
     <meta name="theme-color" content="{{ .ThemeColor }}" />
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
@@ -70,7 +65,6 @@
     <link rel="stylesheet" href="{{ . }}" />
     {{- end }}
     <script type="module" src="{{ .Script }}"></script>
-    {{- if .Analytics }}
     <script>
       (function (m, e, t, r, i, c, s) {
         m.collectorQueue = m.collectorQueue || r;
@@ -83,7 +77,6 @@
          "https://analytics.bythewood.me",
          "30e69c06-9beb-4283-8919-8c7a686ab013");
     </script>
-    {{- end }}
   </head>
 
   <body data-page="{{ .Page }}">

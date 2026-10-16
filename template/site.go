@@ -1,7 +1,5 @@
 package main
 
-import "strings"
-
 // Identity is hardcoded, never configured. Only secrets and paths a Dockerfile
 // sets come from the environment.
 const (
@@ -16,9 +14,5 @@ const (
 	// there. It is in the page source by design, so it is not a secret.
 	analyticsID = ""
 )
-
-// Staging is true on any hostname but the real one, and keeps it out of search
-// results.
-var Staging = !strings.HasSuffix(baseURL, "//__SITE__")
 
 const sourceURL = "https://github.com/overshard/orchard/tree/main/sites/__SITE__"

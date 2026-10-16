@@ -171,8 +171,8 @@ func realMain() error {
 
 	handler := s.handler()
 
-	slog.Info(fmt.Sprintf("auth serving %s (staging=%t, cookie domain=%q)",
-		baseURL, Staging, cookieDomain()))
+	slog.Info(fmt.Sprintf("auth serving %s (cookie domain=%q)",
+		baseURL, cookieDomain()))
 	return web.Serve(listenAddr, handler)
 }
 

@@ -205,6 +205,6 @@ func realMain() error {
 		web.SameOrigin(),
 	)
 
-	slog.Info(fmt.Sprintf("dash serving %s (staging=%t)", baseURL, Staging))
+	slog.Info(fmt.Sprintf("dash serving %s", baseURL))
 	return web.Serve(listenAddr, handler)
 }
