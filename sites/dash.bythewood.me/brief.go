@@ -110,6 +110,10 @@ type Read struct {
 	Spread string `json:"spread"`
 	Text   string `json:"text"`
 	Links  []Link `json:"links"`
+
+	// The 1 to 5 rating TODAY ranks by, for the most carried story when the read
+	// opens on it.
+	Impact int `json:"impact,omitempty"`
 }
 
 type ThreadRead struct {

@@ -81,6 +81,27 @@ func onAirNotices(o OnAir) []Notice {
 	}}
 }
 
+// bigStory is the impact a story every newsroom leads on needs to be a notice,
+// since a story can be everywhere and change nothing, like a celebrity's death.
+const bigStory = 4
+
+// briefNotices is TODAY's lead story on a major day. Its title and link are the
+// outlet's own, so nothing the model wrote reaches the phone.
+func briefNotices(b Brief) []Notice {
+	r := b.Read
+	if r == nil || r.Level != "major" || r.Impact < bigStory || len(r.Links) == 0 {
+		return nil
+	}
+	lead := r.Links[0]
+	return []Notice{{
+		ID:    "news:" + lead.URL,
+		Kind:  "news",
+		Title: lead.Title,
+		Body:  lead.Source + ", " + strings.ToLower(r.Spread),
+		URL:   lead.URL,
+	}}
+}
+
 // marketNotices is the glance's act bars on the live cards, since the glance
 // holds at its slot while futures move. The S&P and the Nasdaq share a notice
 // per session and direction, as a selloff takes both across within minutes.

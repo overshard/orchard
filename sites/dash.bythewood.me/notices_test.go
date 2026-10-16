@@ -144,6 +144,27 @@ func TestOnlySevereAlertsNotify(t *testing.T) {
 	}
 }
 
+// A story has to be everywhere and matter before it's a notice, and the same
+// lead read again at the next slot is the same id.
+func TestNewsNoticesOnlyForAMajorStory(t *testing.T) {
+	lead := Link{Source: "AP", URL: "https://apnews.com/a", Title: "US strikes Iranian nuclear sites"}
+	read := func(level string, impact int) Brief {
+		return Brief{Slot: 1, Read: &Read{Level: level, Spread: "TOP STORY ON 9 OF 11 OUTLETS", Impact: impact, Links: []Link{lead}}}
+	}
+	for _, b := range []Brief{{}, read("steady", 5), read("major", 3), read("major", 0)} {
+		if got := briefNotices(b); len(got) != 0 {
+			t.Errorf("%+v notified %v", b.Read, noticeIDs(got))
+		}
+	}
+	got, again := briefNotices(read("major", 4)), briefNotices(read("major", 5))
+	if len(got) != 1 || got[0].ID != "news:https://apnews.com/a" || got[0].ID != again[0].ID {
+		t.Fatalf("a major story gave %v and %v", noticeIDs(got), noticeIDs(again))
+	}
+	if got[0].Title != lead.Title || got[0].Body != "AP, top story on 9 of 11 outlets" || got[0].URL != lead.URL {
+		t.Errorf("notice = %+v", got[0])
+	}
+}
+
 func TestChangedReports(t *testing.T) {
 	known := []Earning{{Symbol: "UNH", date: "2026-10-13", Verdict: "MISS", Actual: "$2.92", Forecast: "$4.12"}}
 	if got := changedReports(known, known); len(got) != 0 {
