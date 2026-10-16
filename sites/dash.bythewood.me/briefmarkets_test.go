@@ -151,3 +151,44 @@ func TestClosedLineSessions(t *testing.T) {
 		t.Errorf("week: %s", week.ask)
 	}
 }
+
+// On 10-13 YESTERDAY cited nothing and blamed Monday on Tuesday's bank
+// earnings, so an uncited closed line is now only what the closes say.
+func TestUncitedClosedLineIsPlain(t *testing.T) {
+	events := []cluster{{stories: []story{{title: "Chipmakers fall", url: "https://reuters.test/1", source: "REUTERS", lean: "C"}}}}
+	yesterday := closedLine("YESTERDAY", 99.53, 100, "why")
+	guess := marketAnswer{Lean: "none", Text: "Bank earnings disappointed Monday."}
+
+	for _, p := range []marketAnswer{guess, {Lean: "none", Text: guess.Text, Sources: []int{7}}, {}} {
+		pt, ok := marketPoint(yesterday, p, events)
+		if !ok || pt.Text != "The S&P 500 fell 0.47%, and no story gave a reason." || len(pt.Links) != 0 {
+			t.Errorf("sources %v: %+v", p.Sources, pt)
+		}
+		if pt.Label != "YESTERDAY" || pt.Lean != "down" || pt.Move != "0.47%" {
+			t.Errorf("sources %v lost its move: %+v", p.Sources, pt)
+		}
+	}
+
+	pt, _ := marketPoint(yesterday, marketAnswer{Lean: "none", Text: "Chipmakers fell.", Sources: []int{1}}, events)
+	if pt.Text != "Chipmakers fell." || len(pt.Links) != 1 {
+		t.Errorf("a cited line was replaced: %+v", pt)
+	}
+	// A forward line is a lean and never had to cite anything.
+	ahead := marketLine{label: "TOMORROW", forward: true}
+	if pt, _ := marketPoint(ahead, marketAnswer{Lean: "higher", Text: "Futures are up."}, events); pt.Text != "Futures are up." || pt.Lean != "higher" {
+		t.Errorf("a forward line was replaced: %+v", pt)
+	}
+
+	for _, c := range []struct {
+		l    marketLine
+		want string
+	}{
+		{closedLine("LAST WEEK", 101.2, 100, ""), "The S&P 500 rose 1.20% on the week, and no story gave a reason."},
+		{closedLine("FRIDAY", 100.05, 100, ""), "The S&P 500 ended about flat, and no story gave a reason."},
+		{marketLine{dir: "up", move: "0.40% SO FAR"}, "The S&P 500 is up 0.40% so far, and no story gives a reason yet."},
+	} {
+		if got := c.l.plain(); got != c.want {
+			t.Errorf("%s %s: %q", c.l.label, c.l.move, got)
+		}
+	}
+}

@@ -153,25 +153,65 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 				continue
 			}
 		}
-		p := out[fmt.Sprintf("line%d", i+1)]
-		pt := cite(events, p.Sources)
-		pt.Text = tidy(p.Text)
-		if pt.Text == "" {
-			continue
+		if pt, ok := marketPoint(l, out[fmt.Sprintf("line%d", i+1)], events); ok {
+			brief.Points = append(brief.Points, pt)
 		}
-		pt.Label = l.label
-		switch {
-		case l.move != "":
-			pt.Lean, pt.Move = l.dir, l.move
-		case l.forward:
-			pt.Lean = p.Lean
-		}
-		brief.Points = append(brief.Points, pt)
 	}
 	if len(brief.Points) == 0 {
 		return Brief{}, fmt.Errorf("no lines")
 	}
 	return brief, nil
+}
+
+// marketPoint is one line as the page shows it. A closed line that cites no
+// story is written in Go from the move alone, since the 9B's uncited reasons
+// for a past session have come from the wrong day.
+func marketPoint(l marketLine, p marketAnswer, events []cluster) (Point, bool) {
+	pt := cite(events, p.Sources)
+	pt.Text = tidy(p.Text)
+	if !l.forward && (len(pt.Links) == 0 || pt.Text == "") {
+		if pt.Text != "" {
+			slog.Info("brief markets line uncited", slog.String("component", "brief"),
+				slog.String("label", l.label), slog.String("raw", pt.Text))
+		}
+		pt = Point{Text: l.plain()}
+	}
+	if pt.Text == "" {
+		return Point{}, false
+	}
+	pt.Label = l.label
+	switch {
+	case l.move != "":
+		pt.Lean, pt.Move = l.dir, l.move
+	case l.forward:
+		pt.Lean = p.Lean
+	}
+	return pt, true
+}
+
+// plain says what a closed session did and that nothing explained it.
+func (l marketLine) plain() string {
+	pct, live := strings.CutSuffix(l.move, " SO FAR")
+	if live {
+		switch l.dir {
+		case "up":
+			return "The S&P 500 is up " + pct + " so far, and no story gives a reason yet."
+		case "down":
+			return "The S&P 500 is down " + pct + " so far, and no story gives a reason yet."
+		}
+		return "The S&P 500 is about flat so far, and no story gives a reason yet."
+	}
+	week := ""
+	if l.label == "LAST WEEK" {
+		week = " on the week"
+	}
+	switch l.dir {
+	case "up":
+		return "The S&P 500 rose " + pct + week + ", and no story gave a reason."
+	case "down":
+		return "The S&P 500 fell " + pct + week + ", and no story gave a reason."
+	}
+	return "The S&P 500 ended about flat" + week + ", and no story gave a reason."
 }
 
 // spBasis is the S&P card's price, which over a weekend is Friday's last
