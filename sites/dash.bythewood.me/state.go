@@ -324,7 +324,6 @@ func (s *Store) refreshEarnings(ctx context.Context, g *Guard) {
 	logReports(changedReports(rows.recent, known))
 	s.update(func(st *State) {
 		st.Earnings = rows
-		st.setNotices("earnings", earningsNotices(rows.recent))
 	})
 }
 

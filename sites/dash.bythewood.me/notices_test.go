@@ -123,23 +123,6 @@ func TestOnlySevereAlertsNotify(t *testing.T) {
 	}
 }
 
-func TestEarningsNoticeIDsUseTheDate(t *testing.T) {
-	row := Earning{Symbol: "NVDA", Name: "NVIDIA", Day: "TODAY", Verdict: "BEAT", Actual: "$1.64", Forecast: "$1.60", date: "2026-09-28"}
-	next := row
-	next.Day = "YESTERDAY"
-
-	a, b := earningsNotices([]Earning{row}), earningsNotices([]Earning{next})
-	if len(a) != 1 || a[0].ID != b[0].ID || a[0].ID != "earnings:NVDA:2026-09-28" {
-		t.Fatalf("ids %v and %v", noticeIDs(a), noticeIDs(b))
-	}
-	if a[0].Title != "NVDA beat" || a[0].Body != "NVIDIA, $1.64 a share against $1.60 expected" {
-		t.Errorf("notice = %+v", a[0])
-	}
-	if got := earningsNotices([]Earning{{Symbol: "COST", date: "2026-09-28"}}); len(got) != 0 {
-		t.Errorf("an unreported row notified: %+v", got)
-	}
-}
-
 func TestChangedReports(t *testing.T) {
 	known := []Earning{{Symbol: "UNH", date: "2026-10-13", Verdict: "MISS", Actual: "$2.92", Forecast: "$4.12"}}
 	if got := changedReports(known, known); len(got) != 0 {

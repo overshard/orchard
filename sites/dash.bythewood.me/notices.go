@@ -12,7 +12,7 @@ import (
 // and every restart names an event the same way.
 type Notice struct {
 	ID    string `json:"id"`
-	Kind  string `json:"kind"` // market, weather, earnings, news, live
+	Kind  string `json:"kind"` // market, weather, news, live
 	Title string `json:"title"`
 	Body  string `json:"body"`
 	URL   string `json:"url,omitempty"`
@@ -79,26 +79,6 @@ func onAirNotices(o OnAir) []Notice {
 		Body:  o.Title,
 		URL:   o.URL,
 	}}
-}
-
-func earningsNotices(rows []Earning) []Notice {
-	var out []Notice
-	for _, r := range rows {
-		if r.Verdict == "" || r.date == "" {
-			continue
-		}
-		verb := map[string]string{"BEAT": "beat", "MISS": "missed", "MET": "met"}[r.Verdict]
-		if verb == "" {
-			continue
-		}
-		out = append(out, Notice{
-			ID:    "earnings:" + r.Symbol + ":" + r.date,
-			Kind:  "earnings",
-			Title: r.Symbol + " " + verb,
-			Body:  fmt.Sprintf("%s, %s a share against %s expected", r.Name, r.Actual, r.Forecast),
-		})
-	}
-	return out
 }
 
 // Moves worth a notice, in percent, day from the close and swing inside
