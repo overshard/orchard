@@ -3,12 +3,14 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 )
@@ -190,11 +192,37 @@ type Briefer struct {
 	next time.Time
 
 	compile func(ctx context.Context, desk string, slot briefSlot, at time.Time) (Brief, error)
+
+	// A run asked for from the page waits here for Run's loop, so it never
+	// overlaps a scheduled one.
+	force chan struct{}
+
+	mu       sync.Mutex
+	queued   bool
+	running  bool
+	started  time.Time
+	finished time.Time
+	forced   time.Time
+	failed   []string
 }
+
+// A run from the page spends the same article and comment budgets as a slot,
+// so it can't be asked for again until this long after the last one ended.
+const rebuildCooldown = 10 * time.Minute
+
+var (
+	errBriefsOff  = errors.New("briefs are off")
+	errBriefsBusy = errors.New("briefs are already running")
+	errBriefsCool = errors.New("briefs ran a moment ago")
+)
+
+// briefDesks is every desk in the order they run. The glance is last, since
+// it reads what the others just wrote.
+var briefDesks = []string{"markets", "news", "feeds", "glance"}
 
 func NewBriefer(store *Store, g *Guard, m *Model, dataDir string) *Briefer {
 	b := &Briefer{store: store, guard: g, path: filepath.Join(dataDir, "briefs.json"), leans: openLeanBook(dataDir),
-		archive: openArchive(dataDir)}
+		archive: openArchive(dataDir), force: make(chan struct{}, 1)}
 	b.compile = b.compileDesk
 	if m != nil {
 		b.model = m
@@ -236,8 +264,107 @@ func (b *Briefer) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-t.C:
+		case <-b.force:
+			b.rebuild(ctx, time.Now())
 		}
 	}
+}
+
+// Force queues a run of every desk for Run's loop, refusing while one is going
+// or inside the cooldown after the last one asked for.
+func (b *Briefer) Force(now time.Time) error {
+	if b.model == nil {
+		return errBriefsOff
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.queued || b.running {
+		return errBriefsBusy
+	}
+	if !b.forced.IsZero() && now.Before(b.forced.Add(rebuildCooldown)) {
+		return errBriefsCool
+	}
+	b.queued = true
+	select {
+	case b.force <- struct{}{}:
+	default:
+	}
+	return nil
+}
+
+// RebuildStatus is what the page's BRIEFS readout shows.
+type RebuildStatus struct {
+	Running  bool     `json:"running"`
+	Elapsed  int      `json:"elapsed,omitempty"`
+	Finished string   `json:"finished,omitempty"`
+	Failed   []string `json:"failed,omitempty"`
+	ReadyIn  int      `json:"ready_in"`
+}
+
+func (b *Briefer) Status(now time.Time) RebuildStatus {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	st := RebuildStatus{Running: b.queued || b.running, Failed: b.failed}
+	if b.running {
+		st.Elapsed = int(now.Sub(b.started).Seconds())
+	}
+	if !b.finished.IsZero() {
+		st.Finished = b.finished.In(easternTime()).Format("15:04")
+	}
+	if left := b.forced.Add(rebuildCooldown).Sub(now); !b.forced.IsZero() && left > 0 {
+		st.ReadyIn = int(left.Round(time.Second).Seconds())
+	}
+	return st
+}
+
+// begin marks a run as going. A scheduled one gives way to a forced one that
+// is already queued.
+func (b *Briefer) begin(now time.Time, forced bool) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.queued && !forced {
+		return false
+	}
+	b.queued, b.running, b.started = false, true, now
+	return true
+}
+
+// idle ends a scheduled run that never got as far as the model.
+func (b *Briefer) idle() {
+	b.mu.Lock()
+	b.running = false
+	b.mu.Unlock()
+}
+
+func (b *Briefer) end(forced bool, failed []string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.running, b.finished, b.failed = false, time.Now(), failed
+	if forced {
+		b.forced = b.finished
+	}
+}
+
+// rebuild runs every desk because somebody asked. A busy card is used anyway,
+// since he's the one using it, and weights this put on still come off.
+func (b *Briefer) rebuild(ctx context.Context, now time.Time) {
+	b.begin(now, true)
+	gpu, err := b.model.GPU(ctx)
+	if err != nil {
+		slog.Warn("brief could not ask about the card", slog.String("component", "brief"), slog.Any("err", err))
+	}
+	failed := b.runDesks(ctx, forcedSlot(now), now, briefDesks, err == nil && !gpu.Loaded, true)
+	b.end(true, failed)
+}
+
+// forcedSlot is the slot a run asked for at now is framed as. Before the first
+// slot of the day the latest is yesterday's close, and the morning reads right.
+func forcedSlot(now time.Time) briefSlot {
+	slot, at := latestSlot(now)
+	if at.Format("2006-01-02") != now.In(easternTime()).Format("2006-01-02") {
+		return briefSlots[0]
+	}
+	return slot
 }
 
 // tick runs every desk back to back on one model load when a slot is owed,
@@ -252,21 +379,18 @@ func (b *Briefer) tick(ctx context.Context, now time.Time) {
 
 	slot, at := latestSlot(now)
 	cur := b.store.Snapshot().Briefs
+	slots := map[string]int64{"markets": cur.Markets.Slot, "news": cur.News.Slot, "feeds": cur.Feeds.Slot, "glance": cur.Glance.Slot}
 	var due []string
-	if cur.Markets.Slot < at.Unix() {
-		due = append(due, "markets")
-	}
-	if cur.News.Slot < at.Unix() {
-		due = append(due, "news")
-	}
-	if cur.Feeds.Slot < at.Unix() {
-		due = append(due, "feeds")
-	}
-	// Last, since it reads what the other desks just wrote.
-	if cur.Glance.Slot < at.Unix() {
-		due = append(due, "glance")
+	for _, desk := range briefDesks {
+		if slots[desk] < at.Unix() {
+			due = append(due, desk)
+		}
 	}
 	if len(due) == 0 || now.Before(b.next) {
+		return
+	}
+	// A run asked for from the page is next in the loop and covers every desk.
+	if !b.begin(now, false) {
 		return
 	}
 
@@ -274,6 +398,7 @@ func (b *Briefer) tick(ctx context.Context, now time.Time) {
 	if err != nil {
 		b.next = now.Add(briefRetry)
 		slog.Warn("brief could not ask about the card", slog.String("component", "brief"), slog.Any("err", err))
+		b.idle()
 		return
 	}
 	if gpu.Busy {
@@ -281,11 +406,22 @@ func (b *Briefer) tick(ctx context.Context, now time.Time) {
 		slog.Info("brief deferred", slog.String("component", "brief"), slog.String("slot", slot.kind),
 			slog.String("reason", gpu.Reason), slog.Time("next", b.next))
 		b.waiting(fmt.Sprintf("CARD IN USE, NEXT TRY %s", b.next.In(easternTime()).Format("15:04")))
+		b.idle()
 		return
 	}
+	failed := b.runDesks(ctx, slot, at, due, !gpu.Loaded, false)
+	if len(failed) > 0 {
+		b.next = now.Add(briefRetry)
+	}
+	b.end(false, failed)
+}
+
+// runDesks writes each desk in turn on one model load and returns the ones
+// that failed.
+func (b *Briefer) runDesks(ctx context.Context, slot briefSlot, at time.Time, desks []string, unload, forced bool) []string {
 	// Only weights this run put on the card come off it. A model already there
 	// is somebody's conversation, and its own idle timer is theirs.
-	if !gpu.Loaded {
+	if unload {
 		defer func() {
 			if err := b.model.Unload(context.WithoutCancel(ctx)); err != nil {
 				slog.Warn("brief could not unload", slog.String("component", "brief"), slog.Any("err", err))
@@ -293,18 +429,18 @@ func (b *Briefer) tick(ctx context.Context, now time.Time) {
 		}()
 	}
 
-	failed := false
-	for _, desk := range due {
+	var failed []string
+	for _, desk := range desks {
 		started := time.Now()
 		brief, err := b.compile(ctx, desk, slot, at)
 		if err != nil {
-			failed = true
+			failed = append(failed, desk)
 			slog.Warn("brief failed", slog.String("component", "brief"), slog.String("desk", desk),
-				slog.String("slot", slot.kind), slog.Any("err", err))
+				slog.String("slot", slot.kind), slog.Bool("forced", forced), slog.Any("err", err))
 			continue
 		}
 		slog.Info("brief written", slog.String("component", "brief"), slog.String("desk", desk),
-			slog.String("slot", slot.kind), slog.Int("stories", brief.Stories),
+			slog.String("slot", slot.kind), slog.Bool("forced", forced), slog.Int("stories", brief.Stories),
 			slog.Duration("took", time.Since(started).Round(time.Second)))
 		logPoints(desk, slot.kind, brief)
 		b.archive.add(desk, brief)
@@ -314,11 +450,9 @@ func (b *Briefer) tick(ctx context.Context, now time.Time) {
 
 		b.store.update(func(st *State) { st.setBrief(desk, brief) })
 	}
-	if failed {
-		b.next = now.Add(briefRetry)
-	}
 	b.waiting("")
 	b.save()
+	return failed
 }
 
 func (st *State) setBrief(desk string, brief Brief) {

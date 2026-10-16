@@ -56,13 +56,14 @@ idle drop.
 blanket one in `(site)`, because a compressed `text/event-stream` buffers. Both
 streams are in it, `/events` and `/api/quick/send`.
 
-**The quick chat is the one thing on dash that knows who is looking.** The home
-page can come out of Cloudflare's cache, so it is the same for everybody and
-`GET /api/quick` answers `no-store` whether the `bw_session` cookie is live.
-`POST /api/quick/send` checks the session itself, refuses a `Sec-Fetch-Site`
-other than `same-origin` because another bythewood.me host is same site and
-carries the cookie, and relays to chat over the bridge with that cookie and
-nothing else of the caller's, so chat needs no CORS.
+**The quick chat and the BRIEFS rerun are the only things on dash that know who
+is looking.** The home page can come out of Cloudflare's cache, so it is the
+same for everybody and `GET /api/quick` and `GET /api/rebuild` answer `no-store`
+whether the `bw_session` cookie is live. `POST /api/quick/send` and `POST
+/api/rebuild` check the session themselves, refuse anything but JSON, and refuse
+a `Sec-Fetch-Site` other than `same-origin` because another bythewood.me host is
+same site and carries the cookie. The quick chat relays to chat over the bridge
+with that cookie and nothing else of the caller's, so chat needs no CORS.
 
 **Every card on the strip is drawn against one New York trading day.** It runs
 9:30 to 16:00 and rolls at the open rather than at midnight, weekends included,
@@ -202,6 +203,16 @@ too, pointed at the week ahead. Every desk shares one load, and the weights come
 `/v1/unload` straight after, unless a model was already resident, which is
 somebody's chat and is left to its own idle timer. The sidecar exists because the
 gateway is a scratch image and the injected `nvidia-smi` needs glibc.
+
+**BRIEFS in the rail reruns every desk now, signed in only.** The POST queues a
+run for the briefer's own loop, so it never overlaps a slot, and a slot that
+comes due while one is queued leaves it to that run. It skips the GPU gate,
+since the person asking is the one at the desktop, but still unloads what it
+loaded. It's refused while any run is going and for ten minutes after the last
+forced one finished, since a run spends most of an hour's article and comment
+budget. A forced brief's `slot` is the time it ran, so the slot it beat isn't
+owed again, and its lean is just the latest call on that session, which is the
+one `record()` counts. Before 7am it's framed as a morning.
 
 **The on air banner reads YouTube first and Twitch only when YouTube has
 nothing.** YouTube is a scrape of `@theburntpeanut/live`, which is the watch page
