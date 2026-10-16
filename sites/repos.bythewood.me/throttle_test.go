@@ -167,3 +167,47 @@ func TestRefuseMetaLeavesEveryoneElse(t *testing.T) {
 		}
 	}
 }
+
+func TestRefuseFakeBrowsers(t *testing.T) {
+	const (
+		chrome    = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+		firefox   = "Mozilla/5.0 (X11; Linux x86_64; rv:133.0) Gecko/20100101 Firefox/133.0"
+		googlebot = "Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.7390.122 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+		oaiSearch = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36; compatible; OAI-SearchBot/1.3; +https://openai.com/searchbot"
+		claudeBot = "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; ClaudeBot/1.0; +claudebot@anthropic.com)"
+		status    = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.115 Safari/537.36 Status/2.0.0"
+	)
+	h := refuseFakeBrowsers(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	for _, c := range []struct {
+		path, ua, mode string
+		want           int
+	}{
+		{"/orchard/blob/abc123/go.mod", chrome, "", http.StatusForbidden},
+		{"/orchard/log/main/sites/status.bythewood.me/go.sum", chrome, "", http.StatusForbidden},
+		{"/orchard/tree/main", firefox, "", http.StatusForbidden},
+		{"/orchard/blob/abc123/go.mod", chrome, "navigate", http.StatusOK},
+		{"/orchard/blob/abc123/go.mod", googlebot, "", http.StatusOK},
+		{"/orchard/blob/abc123/go.mod", oaiSearch, "", http.StatusOK},
+		{"/orchard/blob/abc123/go.mod", claudeBot, "", http.StatusOK},
+		{"/orchard/blob/abc123/go.mod", "git/2.47.3", "", http.StatusOK},
+		{"/orchard/blob/abc123/go.mod", "curl/8.14.1", "", http.StatusOK},
+		{"/", status, "", http.StatusOK},
+		{"/orchard", chrome, "", http.StatusOK},
+		{"/orchard/atom.xml", chrome, "", http.StatusOK},
+		{"/orchard.git/info/refs", chrome, "", http.StatusOK},
+	} {
+		r := httptest.NewRequest("GET", c.path, nil)
+		r.Header.Set("User-Agent", c.ua)
+		if c.mode != "" {
+			r.Header.Set("Sec-Fetch-Mode", c.mode)
+		}
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		if w.Code != c.want {
+			t.Errorf("%s as %.40q = %d, want %d", c.path, c.ua, w.Code, c.want)
+		}
+		if c.want == http.StatusForbidden && w.Header().Get("Cache-Control") != "no-store" {
+			t.Errorf("a refusal the edge could cache: %q", w.Header().Get("Cache-Control"))
+		}
+	}
+}

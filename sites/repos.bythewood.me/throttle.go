@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/netip"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -127,4 +128,39 @@ func refuseMeta(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+var browsePages = map[string]bool{
+	"tree": true, "blob": true, "raw": true, "log": true, "commit": true,
+	"branches": true, "tags": true, "archive": true,
+}
+
+// Every Chrome since 80 and Firefox since 90 sends Sec-Fetch-Mode on a page load,
+// so a browser UA without it is a script wearing one. A crawler that names itself
+// says "compatible" or "bot" and is left to robots.txt.
+func refuseFakeBrowsers(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if fakeBrowser(r) {
+			w.Header().Set("Cache-Control", "no-store")
+			http.Error(w, "forbidden, see /robots.txt", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func fakeBrowser(r *http.Request) bool {
+	if r.Header.Get("Sec-Fetch-Mode") != "" {
+		return false
+	}
+	parts := strings.SplitN(strings.TrimPrefix(r.URL.Path, "/"), "/", 3)
+	if len(parts) < 2 || !browsePages[parts[1]] {
+		return false
+	}
+	ua := r.UserAgent()
+	if !strings.Contains(ua, "Chrome/") && !strings.Contains(ua, "Firefox/") {
+		return false
+	}
+	lower := strings.ToLower(ua)
+	return !strings.Contains(lower, "compatible") && !strings.Contains(lower, "bot")
 }
