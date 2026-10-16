@@ -14,7 +14,6 @@ const KNOWN = "dash-notify-known";
 const GROUP = {
   market: "Markets",
   weather: "Severe weather",
-  earnings: "Earnings",
   news: "Headlines",
   live: "TheBurntPeanut",
 };
@@ -23,9 +22,11 @@ const GROUP = {
 // shows a notification from a service worker, so it gets no switch at all.
 const supported = "Notification" in window && !/Android/i.test(navigator.userAgent);
 
+// A stored kind the menu no longer has is dropped, or a browser left with only
+// that one on would read ON and never hear anything.
 function kinds() {
   try {
-    return new Set(JSON.parse(localStorage.getItem(KINDS) || "[]"));
+    return new Set(JSON.parse(localStorage.getItem(KINDS) || "[]").filter((k) => k in GROUP));
   } catch {
     return new Set();
   }
@@ -68,7 +69,7 @@ function paint() {
   button.title =
     state === "blocked"
       ? "Notifications are blocked for this site in the browser's settings"
-      : "Browser notifications for severe weather, big market moves, earnings, headlines and TheBurntPeanut going live";
+      : "Browser notifications for severe weather, big market moves, headlines and TheBurntPeanut going live";
   for (const box of boxes) box.checked = chosen.has(box.value);
 }
 
