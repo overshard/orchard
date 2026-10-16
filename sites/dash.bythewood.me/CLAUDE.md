@@ -149,7 +149,9 @@ ten highest rated and the writer only rewrites them as headlines, so the
 order on the page is the impact order. The markets line is always the last
 session, today and the next, and on a weekend it's the week just gone and a lean
 on the week ahead, scored against that week's move. A session that already happened gets its up or down
-from the daily closes in Go, and the forward lines lean on the Fed's meeting
+from the daily closes in Go, and when its line cites no story Go writes the line
+too, as the move and "no story gave a reason", since uncited it blamed one day
+on the next day's news. The forward lines lean on the Fed's meeting
 dates (copied into `calendar.go`, add next year's in December), the BLS and BEA
 release calendars and two documented patterns, the turn of the month and the
 drift into a Fed decision. Above TODAY's headlines sits a read of the day, its
