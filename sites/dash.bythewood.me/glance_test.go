@@ -182,3 +182,22 @@ func TestGlanceVerdict(t *testing.T) {
 		t.Error("an ordinary summary was caught")
 	}
 }
+
+func TestMarketLevels(t *testing.T) {
+	cards := []Card{
+		{Key: "sp500", Percent: "-0.40%"},
+		{Key: "nasdaq", Percent: "-2.61%"},
+		{Key: "dow", Percent: "-3.10%"},
+		{Key: "vix", Price: "31.20", Percent: "+18.00%"},
+		{Key: "bitcoin", Percent: "+12.40%"},
+		{Key: "oil", Percent: "-6.00%"},
+	}
+	var got []string
+	for _, l := range marketLevels(cards) {
+		got = append(got, l.card.Key+" "+l.level+" "+l.why)
+	}
+	want := "nasdaq act the Nasdaq moved -2.61%, vix act the VIX is 31.2, bitcoin watch bitcoin moved +12.40%"
+	if strings.Join(got, ", ") != want {
+		t.Errorf("levels\n %s\nwant\n %s", strings.Join(got, ", "), want)
+	}
+}

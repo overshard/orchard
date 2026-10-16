@@ -58,56 +58,24 @@ func glanceSlots(st State, releases []release, now time.Time) []glanceSlot {
 func glanceMarkets(st State, releases []release, now time.Time) glanceSlot {
 	g := glanceSlot{label: "MARKETS", anchor: "markets", level: levelQuiet}
 	g.facts = append(g.facts, "Session: "+st.Market.Session)
-	var spx, ndx, vix float64
 	var movers []string
 	for _, c := range st.Market.Cards {
 		if c.Unavailable {
 			continue
 		}
 		g.facts = append(g.facts, fmt.Sprintf("%s %s, %s on the day", c.Label, c.Price, c.Percent))
-		pct, _ := strconv.ParseFloat(strings.TrimSuffix(strings.TrimPrefix(c.Percent, "+"), "%"), 64)
 		switch c.Key {
 		case "sp500":
-			spx = pct
 			movers = append(movers, "S&P 500 "+c.Percent)
 		case "nasdaq":
-			ndx = pct
 			movers = append(movers, "Nasdaq "+c.Percent)
 		case "vix":
-			vix, _ = strconv.ParseFloat(strings.ReplaceAll(c.Price, ",", ""), 64)
 			movers = append(movers, "VIX "+c.Price)
-		case "bitcoin":
-			if math.Abs(pct) >= 7 {
-				g.level = higher(g.level, levelWatch)
-				g.why = append(g.why, "bitcoin moved "+c.Percent)
-			}
 		}
 	}
-	switch {
-	case math.Abs(spx) >= 2:
-		g.level = levelAct
-		g.why = append(g.why, fmt.Sprintf("the S&P 500 moved %+.2f%%", spx))
-	case math.Abs(spx) >= 1:
-		g.level = higher(g.level, levelWatch)
-		g.why = append(g.why, fmt.Sprintf("the S&P 500 moved %+.2f%%", spx))
-	}
-	// The Nasdaq runs about a third hotter than the S&P, so a tech selloff can
-	// be a big day while the S&P is only down a percent.
-	switch {
-	case math.Abs(ndx) >= 2.5:
-		g.level = levelAct
-		g.why = append(g.why, fmt.Sprintf("the Nasdaq moved %+.2f%%", ndx))
-	case math.Abs(ndx) >= 1.5:
-		g.level = higher(g.level, levelWatch)
-		g.why = append(g.why, fmt.Sprintf("the Nasdaq moved %+.2f%%", ndx))
-	}
-	switch {
-	case vix >= 30:
-		g.level = levelAct
-		g.why = append(g.why, fmt.Sprintf("the VIX is %.1f", vix))
-	case vix >= 22:
-		g.level = higher(g.level, levelWatch)
-		g.why = append(g.why, fmt.Sprintf("the VIX is %.1f", vix))
+	for _, l := range marketLevels(st.Market.Cards) {
+		g.level = higher(g.level, l.level)
+		g.why = append(g.why, l.why)
 	}
 	if st.Signal.Level == "stress" {
 		g.level = higher(g.level, levelWatch)
@@ -141,6 +109,70 @@ func glanceMarkets(st State, releases []release, now time.Time) glanceSlot {
 	}
 	g.fallback = strings.Join(movers, ", ") + "."
 	return g
+}
+
+// marketBar is how far a card has to go for the glance to call it watch and
+// then act, in percent on the day, or for the VIX in its level. A bar with no
+// act only ever gets to watch.
+type marketBar struct {
+	name       string
+	watch, act float64
+	level      bool
+}
+
+var marketBars = map[string]marketBar{
+	"sp500": {name: "the S&P 500", watch: 1, act: 2},
+	// The Nasdaq runs about a third hotter than the S&P, so a tech selloff can
+	// be a big day while the S&P is only down a percent.
+	"nasdaq":  {name: "the Nasdaq", watch: 1.5, act: 2.5},
+	"vix":     {name: "the VIX", watch: 22, act: 30, level: true},
+	"bitcoin": {name: "bitcoin", watch: 7},
+}
+
+// cardLevel is a card past its watch bar, and value is the figure the bar read.
+type cardLevel struct {
+	card  Card
+	level string
+	value float64
+	why   string
+}
+
+// marketLevels reads the cards against marketBars. The glance asks at its slot
+// and the market notices on every poll, so a push and the chip agree on what
+// counts.
+func marketLevels(cards []Card) []cardLevel {
+	var out []cardLevel
+	for _, c := range cards {
+		bar, ok := marketBars[c.Key]
+		if !ok || c.Unavailable {
+			continue
+		}
+		v := cardFigure(c.Percent)
+		if bar.level {
+			v = cardFigure(c.Price)
+		}
+		var level string
+		switch {
+		case bar.act > 0 && math.Abs(v) >= bar.act:
+			level = levelAct
+		case math.Abs(v) >= bar.watch:
+			level = levelWatch
+		default:
+			continue
+		}
+		why := fmt.Sprintf("%s moved %+.2f%%", bar.name, v)
+		if bar.level {
+			why = fmt.Sprintf("%s is %.1f", bar.name, v)
+		}
+		out = append(out, cardLevel{card: c, level: level, value: v, why: why})
+	}
+	return out
+}
+
+// cardFigure reads a card's "+1.23%" or "7,859.75" back into a number.
+func cardFigure(s string) float64 {
+	v, _ := strconv.ParseFloat(strings.NewReplacer("+", "", "%", "", ",", "").Replace(s), 64)
+	return v
 }
 
 func glanceNews(st State) glanceSlot {
