@@ -41,55 +41,76 @@ func sessionQuote(symbol string, prev float64, closes []float64, start time.Time
 		AsOf: time.Unix(times[len(times)-1], 0), Closes: closes, Times: times}
 }
 
-// The day ladder starts at 2% for the S&P and notifies once per rung, so the
-// same fall read on the next poll is the same id and a deeper one is a new one.
-func TestMarketNoticesClimbTheLadder(t *testing.T) {
-	open := at(t, "2026-09-28 09:30")
-	now := at(t, "2026-09-28 11:00")
+// A notice comes at the glance's act bar, keeps its id while the fall deepens,
+// and takes in the Nasdaq when it follows, since that's the same afternoon.
+func TestMarketNoticesAtTheActBar(t *testing.T) {
+	open := at(t, "2026-09-29 09:30")
+	now := at(t, "2026-09-29 11:00")
+	quotes := func(spx, ndx []float64) map[string]Quote {
+		return map[string]Quote{
+			"^GSPC": sessionQuote("^GSPC", 100, spx, open),
+			"^IXIC": sessionQuote("^IXIC", 100, ndx, open),
+		}
+	}
 
-	quiet := buildMarket(map[string]Quote{"^GSPC": sessionQuote("^GSPC", 100, []float64{98.5, 98.3, 98.2, 98.1}, open)}, now)
+	quiet := buildMarket(quotes([]float64{98.5, 98.3, 98.2, 98.1}, []float64{98, 97.8, 97.7, 97.6}), now)
 	if len(quiet.notices) != 0 {
 		t.Errorf("a 1.9%% day raised %v", noticeIDs(quiet.notices))
 	}
 
-	two := buildMarket(map[string]Quote{"^GSPC": sessionQuote("^GSPC", 100, []float64{98.2, 98.0, 97.9, 97.9}, open)}, now)
-	again := buildMarket(map[string]Quote{"^GSPC": sessionQuote("^GSPC", 100, []float64{98.2, 98.0, 97.8, 97.7}, open)}, now)
-	three := buildMarket(map[string]Quote{"^GSPC": sessionQuote("^GSPC", 100, []float64{98.2, 98.0, 97.3, 96.9}, open)}, now)
-
-	if len(two.notices) != 1 || !strings.Contains(two.notices[0].Title, "down 2.1% today") {
+	two := buildMarket(quotes([]float64{98.2, 98.0, 97.9, 97.9}, []float64{98, 97.8, 97.7, 97.6}), now)
+	both := buildMarket(quotes([]float64{98.2, 98.0, 97.3, 96.9}, []float64{98, 97.8, 97.2, 97.1}), now)
+	if len(two.notices) != 1 || two.notices[0].Title != "S&P 500 down 2.1% today" {
 		t.Fatalf("a 2.1%% fall gave %+v", two.notices)
 	}
-	if two.notices[0].ID != again.notices[0].ID {
-		t.Errorf("the same rung was given two ids, %s and %s", two.notices[0].ID, again.notices[0].ID)
+	if two.notices[0].ID != "market:stocks:2026-09-28:down" {
+		t.Errorf("id = %s", two.notices[0].ID)
 	}
-	if three.notices[0].ID == two.notices[0].ID {
-		t.Error("a fall past 3% reused the 2% id")
+	if len(both.notices) != 1 || both.notices[0].ID != two.notices[0].ID {
+		t.Fatalf("a deeper fall with the Nasdaq gave %v, want the same id", noticeIDs(both.notices))
 	}
-}
-
-// A fall from a morning high is news even on a day that is still only down a
-// little from the close.
-func TestMarketNoticesCatchASwing(t *testing.T) {
-	open := at(t, "2026-09-28 09:30")
-	now := at(t, "2026-09-28 11:30")
-	q := sessionQuote("^GSPC", 100, []float64{100.2, 100.8, 100.1, 99.5, 99.2}, open)
-
-	m := buildMarket(map[string]Quote{"^GSPC": q}, now)
-	if len(m.notices) != 1 || !strings.Contains(m.notices[0].ID, ":swing:down:") {
-		t.Fatalf("a 1.6%% slide in two hours gave %+v", m.notices)
+	if got := both.notices[0].Title; got != "S&P 500 down 3.1% and Nasdaq down 2.9% today" {
+		t.Errorf("title = %q", got)
 	}
-	if !strings.Contains(m.notices[0].Title, "in two hours") {
-		t.Errorf("title = %q", m.notices[0].Title)
+	if !strings.Contains(both.notices[0].Body, "S&P -3.10%, Nasdaq -2.90%") {
+		t.Errorf("body = %q", both.notices[0].Body)
 	}
 }
 
-func TestSwingLooksOnlyInsideTheWindow(t *testing.T) {
-	base := time.Date(2026, 9, 28, 14, 0, 0, 0, time.UTC).Unix()
-	closes := []float64{120, 100, 100.5, 101}
-	times := []int64{base - 3*3600, base - 3600, base - 1800, base}
-	pct, ok := swing(closes, times, 2*time.Hour)
-	if !ok || pct < 0.99 || pct > 1.01 {
-		t.Errorf("swing = %.2f, %v, want +1%% off the low inside the window", pct, ok)
+// Evening futures still carry the day, so they're the same move as the cash
+// index that closed down, and after midnight they're measured from that close.
+func TestMarketNoticesForFutures(t *testing.T) {
+	card := func(asOf string, pct string) []Card {
+		return []Card{{Key: "sp500", Label: "S&P 500", Symbol: "ES=F", Percent: pct, asOf: at(t, asOf)}}
+	}
+	cash := marketNotices([]Card{{Key: "sp500", Label: "S&P 500", Symbol: "^GSPC", Percent: "-2.40%", asOf: at(t, "2026-09-29 15:59")}}, "regular")
+	evening := marketNotices(card("2026-09-29 20:00", "-2.60%"), "closed")
+	if len(cash) != 1 || len(evening) != 1 || cash[0].ID != evening[0].ID {
+		t.Fatalf("cash %v and evening futures %v", noticeIDs(cash), noticeIDs(evening))
+	}
+	if evening[0].Title != "S&P 500 futures down 2.6% since Monday's close" {
+		t.Errorf("title = %q", evening[0].Title)
+	}
+	if late := marketNotices(card("2026-09-30 01:00", "-2.10%"), "closed"); len(late) != 1 || late[0].ID != "market:stocks:2026-09-29:down" {
+		t.Errorf("an overnight fall gave %v", noticeIDs(late))
+	}
+	if sunday := marketNotices(card("2026-10-04 19:00", "+2.20%"), "closed"); len(sunday) != 1 || sunday[0].ID != "market:stocks:2026-10-02:up" {
+		t.Errorf("sunday night gave %v", noticeIDs(sunday))
+	}
+}
+
+// A VIX that closed past 30 is still past it the next day, and only the day it
+// crossed is a notice.
+func TestVIXNoticeOnlyOnTheCross(t *testing.T) {
+	vix := func(price, change string) []Card {
+		return []Card{{Key: "vix", Label: "VIX", Symbol: "^VIX", Price: price, Change: change, asOf: at(t, "2026-09-29 14:00")}}
+	}
+	got := marketNotices(vix("31.20", "+4.80"), "regular")
+	if len(got) != 1 || got[0].ID != "market:vix:2026-09-28" || got[0].Title != "VIX up to 31.20 from 26.40" {
+		t.Errorf("a cross gave %+v", got)
+	}
+	if got := marketNotices(vix("33.00", "+1.50"), "regular"); len(got) != 0 {
+		t.Errorf("a VIX already past the bar gave %v", noticeIDs(got))
 	}
 }
 

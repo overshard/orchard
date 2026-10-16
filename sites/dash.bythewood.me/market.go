@@ -488,7 +488,7 @@ func buildMarket(quotes map[string]Quote, now time.Time) Market {
 	}
 
 	m.Ticker = tabTicker(m)
-	m.notices = moveNotices(rows, session)
+	m.notices = marketNotices(m.Cards, session)
 
 	// Drawdown from the 52 week high, the number Isaac acts on. The payload
 	// carries the 52 week high and not the all time one, so that's what the

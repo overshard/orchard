@@ -81,95 +81,70 @@ func onAirNotices(o OnAir) []Notice {
 	}}
 }
 
-// Moves worth a notice, in percent, day from the close and swing inside
-// swingWindow, each the first rung of a ladder that notifies every half step
-// further. The Dow, the Russell and the VIX are left to the S&P and the Nasdaq.
-var moveBands = map[string]struct{ day, swing float64 }{
-	"sp500":   {2, 1.5},
-	"nasdaq":  {2.5, 2},
-	"gold":    {2.5, 2},
-	"oil":     {5, 3},
-	"bitcoin": {6, 4},
-}
-
-const swingWindow = 2 * time.Hour
-
-// rung is how far up the ladder a move is, and 2 is the first one that counts.
-func rung(pct, first float64) int {
-	return int(math.Abs(pct) / (first / 2))
-}
-
-// swing is the largest move from the high or the low of the last window to the
-// latest bar, signed, so a fall from a morning high reads as negative however
-// the day as a whole is doing.
-func swing(closes []float64, times []int64, window time.Duration) (float64, bool) {
-	n := len(closes)
-	if n < 2 || len(times) != n {
-		return 0, false
-	}
-	last, from := closes[n-1], times[n-1]-int64(window/time.Second)
-	hi, lo := last, last
-	for i := n - 1; i >= 0 && times[i] >= from; i-- {
-		hi, lo = max(hi, closes[i]), min(lo, closes[i])
-	}
-	if hi <= 0 || lo <= 0 {
-		return 0, false
-	}
-	fall, rise := (last-hi)/hi*100, (last-lo)/lo*100
-	if -fall > rise {
-		return fall, true
-	}
-	return rise, true
-}
-
-func moveNotices(rows []stripRow, session string) []Notice {
-	byKey := map[string]stripRow{}
-	for _, r := range rows {
-		byKey[r.in.Key] = r
-	}
-
+// marketNotices is the glance's act bars on the live cards, since the glance
+// holds at its slot while futures move. The S&P and the Nasdaq share a notice
+// per session and direction, as a selloff takes both across within minutes.
+func marketNotices(cards []Card, session string) []Notice {
+	body := marketContext(cards)
 	var out []Notice
-	for _, r := range rows {
-		band, ok := moveBands[r.in.Key]
-		n := len(r.quote.Times)
-		if !ok || r.missing || n == 0 {
+	var ids []string
+	moves := map[string][]string{}
+	since := map[string]string{}
+	for _, l := range marketLevels(cards) {
+		c := l.card
+		if l.level != levelAct || c.asOf.IsZero() {
 			continue
 		}
-		name := r.in.Label
-		if r.symbol == r.in.Future {
-			name = r.in.FutureLabel
-		}
-		date := time.Unix(r.quote.Times[n-1], 0).In(easternTime()).Format("2006-01-02")
-		body := moveContext(r, byKey)
-
-		if !r.nobase {
-			pct := r.quote.percent()
-			if step := rung(pct, band.day); step >= 2 {
-				since := "since the close"
-				if session == "regular" && !roundClock(r.symbol) {
-					since = "today"
-				}
+		from := movedFrom(c.asOf)
+		if c.Key == "vix" {
+			// A VIX that closed past the bar is still there the next morning,
+			// and only the session that takes it across is news.
+			was := cardFigure(c.Price) - cardFigure(c.Change)
+			if was < marketBars["vix"].act {
 				out = append(out, Notice{
-					ID:    fmt.Sprintf("market:%s:%s:day:%s:%d", r.symbol, date, direction(pct), step),
+					ID:    "market:vix:" + from.Format("2006-01-02"),
 					Kind:  "market",
-					Title: fmt.Sprintf("%s %s %.1f%% %s", name, upDown(pct), math.Abs(pct), since),
+					Title: fmt.Sprintf("VIX up to %s from %.2f", c.Price, was),
 					Body:  body,
 				})
 			}
+			continue
 		}
-
-		if pct, ok := swing(r.quote.Closes, r.quote.Times, swingWindow); ok {
-			if step := rung(pct, band.swing); step >= 2 {
-				out = append(out, Notice{
-					ID:    fmt.Sprintf("market:%s:%s:swing:%s:%d", r.symbol, date, direction(pct), step),
-					Kind:  "market",
-					Title: fmt.Sprintf("%s %s %.1f%% in two hours", name, upDown(pct), math.Abs(pct)),
-					Body:  body,
-				})
+		id := "market:stocks:" + from.Format("2006-01-02") + ":" + upDown(l.value)
+		if moves[id] == nil {
+			ids = append(ids, id)
+			since[id] = "since " + from.Format("Monday") + "'s close"
+			if session == "regular" && !roundClock(c.Symbol) {
+				since[id] = "today"
 			}
 		}
+		moves[id] = append(moves[id], fmt.Sprintf("%s %s %.1f%%", cardName(c), upDown(l.value), math.Abs(l.value)))
+	}
+	for _, id := range ids {
+		out = append(out, Notice{ID: id, Kind: "market", Title: strings.Join(moves[id], " and ") + " " + since[id], Body: body})
 	}
 	return out
+}
+
+// movedFrom is the weekday of the close a card's move is measured from, and so
+// which move it is. Evening futures still carry the day just gone, and Sunday
+// night's carry Friday's.
+func movedFrom(asOf time.Time) time.Time {
+	t := asOf.In(easternTime())
+	from := lastBell(time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location()))
+	for weekend(from) {
+		from = from.AddDate(0, 0, -1)
+	}
+	return from
+}
+
+func cardName(c Card) string {
+	for _, in := range instruments {
+		if in.Key == c.Key && in.Future != "" && c.Symbol == in.Future {
+			return in.FutureLabel
+		}
+	}
+	return c.Label
 }
 
 func upDown(pct float64) string {
@@ -179,26 +154,21 @@ func upDown(pct float64) string {
 	return "up"
 }
 
-// moveContext is the rest of the market beside a move, since one index falling
-// alone and every index falling together are different afternoons.
-func moveContext(r stripRow, byKey map[string]stripRow) string {
-	switch r.in.Key {
-	case "sp500", "nasdaq":
-	default:
-		return "Now " + formatNumber(r.quote.Price, r.in.Decimals)
-	}
+// marketContext is the rest of the market beside a move, since one index
+// falling alone and every index falling together are different afternoons.
+func marketContext(cards []Card) string {
 	var parts []string
-	for _, k := range []string{"sp500", "nasdaq", "dow", "russell"} {
-		c, ok := byKey[k]
-		if !ok || c.missing || c.nobase {
-			continue
+	for _, c := range cards {
+		name, ok := shortName[c.Key]
+		switch {
+		case !ok || c.Unavailable:
+		case c.Key == "vix":
+			parts = append(parts, name+" "+c.Price)
+		case c.Percent != "":
+			parts = append(parts, name+" "+c.Percent)
 		}
-		parts = append(parts, fmt.Sprintf("%s %s%%", shortName[k], signed(c.quote.percent(), 1)))
-	}
-	if v, ok := byKey["vix"]; ok && !v.missing {
-		parts = append(parts, "VIX "+formatNumber(v.quote.Price, 1))
 	}
 	return strings.Join(parts, ", ")
 }
 
-var shortName = map[string]string{"sp500": "S&P", "nasdaq": "Nasdaq", "dow": "Dow", "russell": "Russell"}
+var shortName = map[string]string{"sp500": "S&P", "nasdaq": "Nasdaq", "dow": "Dow", "russell": "Russell", "vix": "VIX"}
