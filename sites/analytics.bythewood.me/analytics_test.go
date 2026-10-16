@@ -260,12 +260,6 @@ func TestSelfTrackingID(t *testing.T) {
 	if _, err := uuid.Parse(analyticsID); err != nil {
 		t.Errorf("analyticsID is not a uuid, so collect would reject it: %v", err)
 	}
-	// Staging renders no snippet instead of posting an id it has no row for.
-	if got := collectorID(); Staging && got != "" {
-		t.Errorf("collectorID() = %q on staging, want empty", got)
-	} else if !Staging && got != analyticsID {
-		t.Errorf("collectorID() = %q, want %q", got, analyticsID)
-	}
 }
 
 // NewRenderer resolves the list at boot and not at build, so a page left listed

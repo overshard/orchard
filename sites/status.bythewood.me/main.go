@@ -237,7 +237,7 @@ func realMain() error {
 		web.SameOrigin(),
 	)
 
-	slog.Info(fmt.Sprintf("status serving %s (staging=%t)", baseURL, Staging))
+	slog.Info(fmt.Sprintf("status serving %s", baseURL))
 	return web.Serve(listenAddr, handler)
 }
 
@@ -271,8 +271,6 @@ func (s *site) page(r *http.Request, title, description string) PageData {
 		Description:   description,
 		Path:          r.URL.Path,
 		Canonical:     baseURL + r.URL.Path,
-		Staging:       Staging,
-		Analytics:     !Staging,
 		AnalyticsID:   analyticsID,
 		Authenticated: s.auth.Authenticated(r),
 		Year:          time.Now().Year(),

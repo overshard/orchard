@@ -5,14 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ .Title }} · {{ .SiteName }}</title>
   <meta name="description" content="{{ .Description }}">
-  {{- if .Staging }}
-  <meta name="robots" content="noindex, nofollow">
-  {{- end }}
   <meta name="theme-color" content="#0e0d0a">
 
   {{ range .Styles }}<link href="{{ . }}" rel="stylesheet">{{ end }}
 
-  {{- if and .AnalyticsID (not .Staging) }}
+  {{- if .AnalyticsID }}
   <script>
     (function (m, e, t, r, i, c, s) {
       m.collectorQueue = m.collectorQueue || r;

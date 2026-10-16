@@ -8,12 +8,6 @@
   <title>{{ .Title }}</title>
   <meta name="description" content="{{ .Description }}">
   <link rel="canonical" href="{{ .Canonical }}">
-  {{- if .Staging }}
-  <!-- The test hostname must never be indexed, or it competes with the real
-       blog as a duplicate. robots.txt has to say it too, since a crawler that
-       obeys robots.txt never reads this tag. -->
-  <meta name="robots" content="noindex, nofollow">
-  {{- end }}
 
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 
@@ -43,7 +37,6 @@
   <link href="{{ . }}" rel="stylesheet">
   {{- end }}
 
-  {{- if .Analytics }}
   <script>
     (function (m, e, t, r, i, c, s) {
       m.collectorQueue = m.collectorQueue || r;
@@ -55,7 +48,6 @@
     })(window, document, "script", [], "/static/collector.js",
        "https://analytics.bythewood.me", "{{ .AnalyticsID }}");
   </script>
-  {{- end }}
 </head>
 
 <body>

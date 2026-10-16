@@ -6,13 +6,8 @@
   <title>{{ .Title }} · {{ .SiteName }}</title>
   <meta name="description" content="{{ .Description }}">
   <link rel="canonical" href="{{ .Canonical }}">
-  {{/* The staging hostname is a complete duplicate of the real site, which is
-       the one way it can damage it. robots.txt refuses the crawl and this
-       refuses the index, because either alone has a hole: a crawler that
-       ignores robots.txt still sees the meta tag, and one that obeys it never
-       fetches the page to read the tag. */}}
-  <!-- Not a public site. Unconditional, not staging only: a search engine
-       holding a copy of this is a thing nobody asked for. -->
+  <!-- Not a public site, a search engine holding a copy of this is a thing
+       nobody asked for. -->
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" type="image/svg+xml" href="/favicon.ico">
 
@@ -23,7 +18,6 @@
   {{ range .Styles }}<link href="{{ . }}" rel="stylesheet">{{ end }}
   {{ template "extra_css" . }}
 
-  {{- if .Analytics }}
   <script>
     (function (m, e, t, r, i, c, s) {
       m.collectorQueue = m.collectorQueue || r;
@@ -35,7 +29,6 @@
     })(window, document, "script", [], "/static/collector.js",
        "https://analytics.bythewood.me", "{{ .AnalyticsID }}");
   </script>
-  {{- end }}
 </head>
 
 <body>

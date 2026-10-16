@@ -35,10 +35,6 @@ type page struct {
 	Script      string
 	Styles      []string
 	LoggedIn    bool
-	Staging     bool
-	// Analytics gates the collector snippet, so staging never files traffic under
-	// the real property.
-	Analytics   bool
 	AnalyticsID string
 	SiteName    string
 	SiteTagline string
@@ -61,8 +57,6 @@ func (s *site) page(r *http.Request, title, description string, data any) page {
 		Script:      s.script,
 		Styles:      s.styles,
 		LoggedIn:    s.auth.Authenticated(r),
-		Staging:     Staging,
-		Analytics:   !Staging,
 		AnalyticsID: analyticsID,
 		SiteName:    siteName,
 		SiteTagline: siteTagline,

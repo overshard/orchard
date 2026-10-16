@@ -15,7 +15,6 @@ type PageData struct {
 	Title       string
 	Description string
 	Canonical   string
-	Staging     bool
 	Year        int
 	BaseURL     string
 	SourceURL   string
@@ -24,7 +23,6 @@ type PageData struct {
 	Script      string
 	Styles      []string
 	Favicon     string
-	Analytics   bool
 	AnalyticsID string
 
 	// The tab's own wording, handed to the page so the script that keeps the
@@ -39,7 +37,6 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 		Title:       "",
 		Description: "Markets, news and the state of everything " + authorName + " runs, on one page.",
 		Canonical:   baseURL + "/",
-		Staging:     Staging,
 		Year:        time.Now().Year(),
 		BaseURL:     baseURL,
 		SourceURL:   sourceURL,
@@ -48,7 +45,6 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 		Script:      s.script,
 		Styles:      s.styles,
 		Favicon:     faviconHref,
-		Analytics:   !Staging,
 		AnalyticsID: analyticsID,
 		TitleBase:   titleBase,
 		State:       s.store.Snapshot(),
@@ -166,7 +162,6 @@ func (s *site) notFound(w http.ResponseWriter, r *http.Request) {
 		Title:       "404",
 		Description: "That page does not exist.",
 		Canonical:   baseURL + r.URL.Path,
-		Staging:     Staging,
 		Year:        time.Now().Year(),
 		BaseURL:     baseURL,
 		SourceURL:   sourceURL,
@@ -175,7 +170,6 @@ func (s *site) notFound(w http.ResponseWriter, r *http.Request) {
 		Script:      s.script,
 		Styles:      s.styles,
 		Favicon:     faviconHref,
-		Analytics:   !Staging,
 		AnalyticsID: analyticsID,
 		TitleBase:   titleBase,
 	}

@@ -1,9 +1,6 @@
 package main
 
-import "strings"
-
-// Identity is hardcoded instead of configured, and Staging derives from baseURL
-// so that one line also drives the noindex and the robots.txt Disallow.
+// Identity is hardcoded instead of configured.
 const (
 	baseURL     = "https://isaacbythewood.com"
 	siteTitle   = "Isaac Bythewood"
@@ -13,10 +10,6 @@ const (
 	monorepo    = "orchard"
 	contactMail = "isaac@bythewood.me"
 )
-
-// Staging drives both robots.txt and the noindex meta tag, since a meta tag
-// alone is useless on a URL robots.txt told the crawler not to fetch.
-var Staging = !strings.HasSuffix(baseURL, "//isaacbythewood.com")
 
 // The container name first, since the blog is a sibling on the same bridge and
 // the public hostname would route out through Cloudflare and back down the

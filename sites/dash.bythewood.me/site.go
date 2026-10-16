@@ -1,7 +1,5 @@
 package main
 
-import "strings"
-
 // Identity is hardcoded. Every panel is public data, so the environment only
 // carries the model gateway and where the data lives.
 const (
@@ -22,9 +20,6 @@ const (
 	// site's traffic under the site it was copied from.
 	analyticsID = "0b09f0d1-3016-411c-a003-f15ea72b20fa"
 )
-
-// Staging is true on any hostname but the real one, and keeps it out of search results.
-var Staging = !strings.HasSuffix(baseURL, "//dash.bythewood.me")
 
 const sourceURL = "https://github.com/" + githubUser + "/orchard/tree/main/sites/dash.bythewood.me"
 

@@ -267,8 +267,8 @@ func realMain() error {
 		web.SameOrigin(),
 	)
 
-	slog.Info(fmt.Sprintf("logging serving %s (staging=%t, retention=%dd)",
-		baseURL, Staging, int(rawRetention/(24*time.Hour))))
+	slog.Info(fmt.Sprintf("logging serving %s (retention=%dd)",
+		baseURL, int(rawRetention/(24*time.Hour))))
 	return web.Serve(listenAddr, handler)
 }
 
@@ -297,7 +297,6 @@ func (s *site) page(r *http.Request, title, description string) PageData {
 		Description:   description,
 		Path:          r.URL.Path,
 		Canonical:     baseURL + r.URL.Path,
-		Staging:       Staging,
 		Authenticated: s.auth.Authenticated(r),
 		Year:          time.Now().Year(),
 		BaseURL:       baseURL,
@@ -309,7 +308,6 @@ func (s *site) page(r *http.Request, title, description string) PageData {
 		Script:        s.baseScript,
 		Styles:        s.baseStyles,
 
-		Analytics:   !Staging,
 		AnalyticsID: analyticsID,
 	}
 }

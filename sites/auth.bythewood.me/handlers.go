@@ -14,7 +14,6 @@ type PageData struct {
 	Description string
 	Path        string
 	Canonical   string
-	Staging     bool
 	Year        int
 	BaseURL     string
 	SourceURL   string
@@ -24,7 +23,6 @@ type PageData struct {
 	Styles      []string
 	PageScript  string
 	PageStyles  []string
-	Analytics   bool
 	AnalyticsID string
 
 	Authenticated bool
@@ -56,7 +54,6 @@ func (s *site) page(r *http.Request, title, description string) PageData {
 		Description:   description,
 		Path:          r.URL.Path,
 		Canonical:     baseURL + r.URL.Path,
-		Staging:       Staging,
 		Authenticated: err == nil,
 		Username:      name,
 		Year:          time.Now().Year(),
@@ -68,7 +65,6 @@ func (s *site) page(r *http.Request, title, description string) PageData {
 		Styles:        s.baseStyles,
 		PageScript:    s.pagesScript,
 		PageStyles:    s.pagesStyles,
-		Analytics:     !Staging,
 		AnalyticsID:   analyticsID,
 	}
 }

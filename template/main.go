@@ -80,7 +80,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	slog.Info(fmt.Sprintf("%s serving %s (staging=%t)", selfSource, baseURL, Staging))
+	slog.Info(fmt.Sprintf("%s serving %s", selfSource, baseURL))
 	if err := web.Serve(listenAddr, s.handler()); err != nil {
 		slog.Error("startup failed", slog.Any("err", err))
 		os.Exit(1)
@@ -129,7 +129,6 @@ type page struct {
 	Description string
 	SiteName    string
 	SourceURL   string
-	Staging     bool
 	AnalyticsID string
 	Script      string
 	Styles      []string
@@ -142,7 +141,6 @@ func (s *site) page(title, description string) page {
 		Description: description,
 		SiteName:    siteName,
 		SourceURL:   sourceURL,
-		Staging:     Staging,
 		AnalyticsID: analyticsID,
 		Script:      s.assets.Script("src/index.js"),
 		Styles:      s.assets.Styles("src/index.js"),
@@ -159,14 +157,8 @@ func (s *site) notFound(w http.ResponseWriter, r *http.Request) {
 		s.page("Not Found", "That page does not exist."))
 }
 
-// robots keeps a staging hostname out of search results, since a noindex meta
-// tag only works if the crawler fetches the page.
 func robots(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	if Staging {
-		_, _ = w.Write([]byte("User-agent: *\nDisallow: /\n"))
-		return
-	}
 	_, _ = w.Write([]byte("User-agent: *\nDisallow:\n"))
 }
 
