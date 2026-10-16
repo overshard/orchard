@@ -168,7 +168,7 @@ func TestRefuseMetaLeavesEveryoneElse(t *testing.T) {
 	}
 }
 
-func TestRefuseFakeBrowsers(t *testing.T) {
+func TestRefuseCrawlers(t *testing.T) {
 	const (
 		chrome    = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
 		firefox   = "Mozilla/5.0 (X11; Linux x86_64; rv:133.0) Gecko/20100101 Firefox/133.0"
@@ -177,7 +177,7 @@ func TestRefuseFakeBrowsers(t *testing.T) {
 		claudeBot = "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; ClaudeBot/1.0; +claudebot@anthropic.com)"
 		status    = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.115 Safari/537.36 Status/2.0.0"
 	)
-	h := refuseFakeBrowsers(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	h := refuseCrawlers(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	for _, c := range []struct {
 		path, ua, mode string
 		want           int
@@ -186,9 +186,13 @@ func TestRefuseFakeBrowsers(t *testing.T) {
 		{"/orchard/log/main/sites/status.bythewood.me/go.sum", chrome, "", http.StatusForbidden},
 		{"/orchard/tree/main", firefox, "", http.StatusForbidden},
 		{"/orchard/blob/abc123/go.mod", chrome, "navigate", http.StatusOK},
-		{"/orchard/blob/abc123/go.mod", googlebot, "", http.StatusOK},
-		{"/orchard/blob/abc123/go.mod", oaiSearch, "", http.StatusOK},
-		{"/orchard/blob/abc123/go.mod", claudeBot, "", http.StatusOK},
+		{"/robots.txt", googlebot, "", http.StatusOK},
+		{"/robots.txt", oaiSearch, "", http.StatusOK},
+		{"/robots.txt", claudeBot, "", http.StatusOK},
+		{"/orchard/blob/abc123/go.mod", googlebot, "", http.StatusForbidden},
+		{"/orchard/blob/abc123/go.mod", oaiSearch, "", http.StatusForbidden},
+		{"/", claudeBot, "", http.StatusForbidden},
+		{"/orchard/atom.xml", "Feedly/1.0 (+http://www.feedly.com/fetcher.html)", "", http.StatusOK},
 		{"/orchard/blob/abc123/go.mod", "git/2.47.3", "", http.StatusOK},
 		{"/orchard/blob/abc123/go.mod", "curl/8.14.1", "", http.StatusOK},
 		{"/", status, "", http.StatusOK},

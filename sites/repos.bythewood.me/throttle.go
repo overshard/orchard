@@ -130,23 +130,28 @@ func refuseMeta(next http.Handler) http.Handler {
 	})
 }
 
-var browsePages = map[string]bool{
-	"tree": true, "blob": true, "raw": true, "log": true, "commit": true,
-	"branches": true, "tags": true, "archive": true,
-}
+// There is nothing in a one person GitHub mirror a search engine should hold, and
+// every blob at every revision is a git subprocess. robots.txt is written from
+// this and refuseCrawlers holds any crawler that names itself to it.
+var disallowed = []string{"/"}
 
-// Every Chrome since 80 and Firefox since 90 sends Sec-Fetch-Mode on a page load,
-// so a browser UA without it is a script wearing one. A crawler that names itself
-// says "compatible" or "bot" and is left to robots.txt.
-func refuseFakeBrowsers(next http.Handler) http.Handler {
+// Every Chrome since 80 and Firefox since 90 sends Sec-Fetch-Mode, so a browser
+// UA without it is a script wearing one. A named crawler is refused only where
+// robots.txt says no, so one that reads it and leaves never sees a 403.
+func refuseCrawlers(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if fakeBrowser(r) {
+		if fakeBrowser(r) || (announcedBot(r.UserAgent()) && robotsDisallow(r.URL.Path)) {
 			w.Header().Set("Cache-Control", "no-store")
 			http.Error(w, "forbidden, see /robots.txt", http.StatusForbidden)
 			return
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+var browsePages = map[string]bool{
+	"tree": true, "blob": true, "raw": true, "log": true, "commit": true,
+	"branches": true, "tags": true, "archive": true,
 }
 
 func fakeBrowser(r *http.Request) bool {
@@ -161,6 +166,33 @@ func fakeBrowser(r *http.Request) bool {
 	if !strings.Contains(ua, "Chrome/") && !strings.Contains(ua, "Firefox/") {
 		return false
 	}
+	return !announcedBot(ua)
+}
+
+// No browser puts any of these in its user agent, and every crawler that wants to
+// be recognised puts at least one.
+var botMarks = []string{"bot", "crawl", "spider", "compatible", "externalhit", "+http"}
+
+func announcedBot(ua string) bool {
 	lower := strings.ToLower(ua)
-	return !strings.Contains(lower, "compatible") && !strings.Contains(lower, "bot")
+	for _, m := range botMarks {
+		if strings.Contains(lower, m) {
+			return true
+		}
+	}
+	return false
+}
+
+// A feed reader fetches on behalf of somebody who subscribed, so it isn't held
+// to robots.txt.
+func robotsDisallow(path string) bool {
+	if path == "/robots.txt" || strings.HasSuffix(path, "/atom.xml") {
+		return false
+	}
+	for _, p := range disallowed {
+		if strings.HasPrefix(path, p) {
+			return true
+		}
+	}
+	return false
 }
