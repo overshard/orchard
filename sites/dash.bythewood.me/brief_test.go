@@ -21,12 +21,15 @@ func TestLatestSlot(t *testing.T) {
 	cases := []struct{ now, kind, at string }{
 		{"2026-10-07 06:59", "close", "2026-10-06 16:05"},
 		{"2026-10-07 07:00", "morning", "2026-10-07 07:00"},
-		{"2026-10-07 10:30", "morning", "2026-10-07 07:00"},
+		{"2026-10-07 08:59", "morning", "2026-10-07 07:00"},
+		{"2026-10-07 09:00", "preopen", "2026-10-07 09:00"},
+		{"2026-10-07 10:30", "preopen", "2026-10-07 09:00"},
 		{"2026-10-07 11:00", "midday", "2026-10-07 11:00"},
 		{"2026-10-07 16:04", "midday", "2026-10-07 11:00"},
 		{"2026-10-07 16:05", "close", "2026-10-07 16:05"},
 		// Weekends run like any other day.
 		{"2026-10-10 08:00", "morning", "2026-10-10 07:00"},
+		{"2026-10-10 09:30", "preopen", "2026-10-10 09:00"},
 		{"2026-10-12 06:00", "close", "2026-10-11 16:05"},
 	}
 	for _, c := range cases {
@@ -98,8 +101,8 @@ func TestBriefDefersAnHourWhenTheCardIsBusy(t *testing.T) {
 		t.Errorf("still waiting %q after a run", w)
 	}
 
-	// Done for this slot, so nothing more until 11.
-	b.tick(context.Background(), now.Add(2*time.Hour))
+	// Done for this slot, so nothing more until 9.
+	b.tick(context.Background(), now.Add(119*time.Minute))
 	if f.asked != 2 {
 		t.Errorf("asked again with nothing owed")
 	}

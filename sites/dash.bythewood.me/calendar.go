@@ -145,18 +145,23 @@ func parseICSTime(v string) time.Time {
 }
 
 // sessionNotes is what the calendar and the documented patterns say about one
-// session. Weekdays stand in for trading days since there is no holiday list,
-// which puts the turn of the month a day off around a holiday at worst.
-func sessionNotes(day time.Time, releases []release, vix float64) []string {
+// session, as of now. Weekdays stand in for trading days since there is no
+// holiday list, which puts the turn of the month a day off around a holiday.
+func sessionNotes(day time.Time, releases []release, vix float64, now time.Time) []string {
 	day = day.In(easternTime())
 	date := day.Format("2006-01-02")
 	var notes []string
 
 	for _, r := range releases {
-		if r.at.In(easternTime()).Format("2006-01-02") == date {
-			notes = append(notes, fmt.Sprintf("%s comes out at %s Eastern. Big release days have historically had larger moves in both directions and a higher average return.",
-				r.name, r.at.In(easternTime()).Format("3:04pm")))
+		at := r.at.In(easternTime())
+		if at.Format("2006-01-02") != date {
+			continue
 		}
+		when := fmt.Sprintf("%s comes out at %s Eastern.", r.name, at.Format("3:04pm"))
+		if !at.After(now) {
+			when = fmt.Sprintf("%s came out at %s Eastern. The futures already reflect it, and a story since then may say what it showed.", r.name, at.Format("3:04pm"))
+		}
+		notes = append(notes, when+" Big release days have historically had larger moves in both directions and a higher average return.")
 	}
 
 	if sep, ok := fomcDecisions[date]; ok {
@@ -181,11 +186,11 @@ func sessionNotes(day time.Time, releases []release, vix float64) []string {
 
 // weekNotes is the calendar for a week ahead line, day by day from Monday, with
 // the VIX given once as a weekly move instead of on every day.
-func weekNotes(monday time.Time, releases []release, vix float64) string {
+func weekNotes(monday time.Time, releases []release, vix float64, now time.Time) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s, the week of %s:\n", weekAhead, monday.Format("Monday January 2"))
 	for d := monday; !weekend(d); d = d.AddDate(0, 0, 1) {
-		for _, n := range sessionNotes(d, releases, 0) {
+		for _, n := range sessionNotes(d, releases, 0, now) {
 			fmt.Fprintf(&b, "- %s: %s\n", d.Format("Monday"), n)
 		}
 	}

@@ -13,7 +13,7 @@ import (
 	"unicode"
 )
 
-// Three times a day the local model writes a brief for each desk. Headlines are
+// Four times a day the local model writes a brief for each desk. Headlines are
 // written to be clicked, so the news is told to restate what happened instead
 // of how an outlet framed it.
 
@@ -29,6 +29,9 @@ type briefSlot struct {
 
 var briefSlots = []briefSlot{
 	{kind: "morning", hour: 7, reach: 24 * time.Hour},
+	// The 8:30 releases like CPI and PPI are out by now, and it lands before
+	// the 9:30 open.
+	{kind: "preopen", hour: 9, reach: 24 * time.Hour},
 	{kind: "midday", hour: 11, reach: 6 * time.Hour},
 	{kind: "close", hour: 16, minute: 5, reach: 11 * time.Hour},
 }
@@ -131,6 +134,8 @@ func (s briefSlot) title() string {
 	switch s.kind {
 	case "morning":
 		return "MORNING"
+	case "preopen":
+		return "PRE-OPEN"
 	case "midday":
 		return "MIDDAY"
 	}
@@ -172,7 +177,7 @@ type briefModel interface {
 const briefDefer = time.Hour
 
 // Briefer owns the schedule and the file the latest briefs are kept in, so a
-// deploy at 9am still shows the morning one instead of nothing until 11.
+// deploy at 10am still shows the 9am one instead of nothing until 11.
 type Briefer struct {
 	store   *Store
 	guard   *Guard

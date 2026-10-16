@@ -2,7 +2,7 @@
 
 A public dashboard. Markets off Yahoo, Hacker News and Lobsters, the weather,
 earnings, whether the other sites are answering, and a markets line and news
-summary the local model writes three times a day. One poller per source pushes
+summary the local model writes four times a day. One poller per source pushes
 the whole state to every open browser over server sent events, so ten tabs cost
 the upstreams the same as one.
 

@@ -29,7 +29,7 @@ type leanCall struct {
 	Move string `json:"move,omitempty"`
 }
 
-// A year of three slots a day with two forward lines each, with room over.
+// A year of four slots a day at one or two forward lines each, with room over.
 const leanKeep = 2500
 
 type leanBook struct {

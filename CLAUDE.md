@@ -24,7 +24,7 @@ tunnel rather than a rented server.
 | `sites/status.bythewood.me/` | Self hosted uptime monitoring. SQLite, Lighthouse audits, crawler |
 | `sites/logging.bythewood.me/` | Self hosted log aggregation. Every other site ships its slog records here. SQLite, retention and rollups, Typst PDF reports |
 | `sites/repos.bythewood.me/` | Self hosted git remote. Push to it over HTTPS with a token, and it mirrors the GitHub account as a backup. Everything git is a subprocess |
-| `sites/dash.bythewood.me/` | Dashboard. Markets off Yahoo, a markets line and a news summary the local model writes three times a day, Hacker News and Lobsters, the weather, and whether the other sites are answering. One poller, server sent events out, no database |
+| `sites/dash.bythewood.me/` | Dashboard. Markets off Yahoo, a markets line and a news summary the local model writes four times a day, Hacker News and Lobsters, the weather, and whether the other sites are answering. One poller, server sent events out, no database |
 | `sites/auth.bythewood.me/` | The front door. One account, a six digit code pushed over ntfy, and an opaque session every other site checks against it |
 | `sites/chat.bythewood.me/` | A conversation with a local model, with tools, attachments, pictures, history in SQLite and an incognito mode that writes nothing. It also answers a house out of public records, which used to be a dashboard of its own. Beside it an offline Wikipedia, served by kiwix off a 12.5GB ZIM |
 | `sites/llm.bythewood.me/` | The model gateway. One card behind an API key, Ornith for chat and FLUX.2 klein for pictures taking turns on it, with every prompt and completion logged unless the caller marks the call incognito |

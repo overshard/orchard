@@ -83,11 +83,11 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 			continue
 		}
 		if l.week {
-			calendar.WriteString(weekNotes(l.day, releases, vixLevel(st)))
+			calendar.WriteString(weekNotes(l.day, releases, vixLevel(st), at))
 			continue
 		}
 		fmt.Fprintf(&calendar, "%s, %s:\n", l.label, l.day.Format("Monday January 2"))
-		notes := sessionNotes(l.day, releases, vixLevel(st))
+		notes := sessionNotes(l.day, releases, vixLevel(st), at)
 		if len(notes) == 0 {
 			calendar.WriteString("- Nothing scheduled and no calendar pattern.\n")
 		}
