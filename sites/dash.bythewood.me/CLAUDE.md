@@ -122,14 +122,18 @@ the outlook.
 carries `notices`, each poller rebuilding its own kind, and the browser remembers
 which ids it has shown and counts the ones on the page at load as seen. A market
 move is the close it's measured from and its direction, a warning is its VTEC event
-number rather than the NWS id that changes with every update, and a headline is
-its URL, which is what keeps a restart or a reconnect from notifying twice.
+number rather than the NWS id that changes with every update, and a major story is
+its lead's URL, which is what keeps a restart or a reconnect from notifying twice.
 Market notices are the glance's act bars, `marketBars` in `glance.go`, read off
 the live cards on every poll, since the glance's own chip holds at its slot while
 futures move. Watch is never pushed, because a 1% S&P day or a VIX of 22 is an
 ordinary week. The S&P and the Nasdaq share one notice a session per direction,
 evening futures count as the day they still carry, and the VIX only notifies on
 the session it crosses 30, or a week above it would be a notice every morning.
+News only notifies when TODAY's read is major, seven in ten outlets on one story,
+and the rater gave that story a 4 or 5, since a story can be everywhere and
+change nothing. The notice is the outlet's own headline and link, and a lead that
+changes outlet between slots can notify a second time.
 
 **The briefs are the one thing on dash a model writes.** At 7:00, 9:00, 11:00
 and 16:05 New York time `briefnews.go` and `briefmarkets.go` read sixteen news feeds

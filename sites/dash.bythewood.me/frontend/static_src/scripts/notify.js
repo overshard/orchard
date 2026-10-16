@@ -14,7 +14,7 @@ const KNOWN = "dash-notify-known";
 const GROUP = {
   market: "Markets",
   weather: "Severe weather",
-  news: "Headlines",
+  news: "Major news",
   live: "TheBurntPeanut",
 };
 
@@ -69,7 +69,7 @@ function paint() {
   button.title =
     state === "blocked"
       ? "Notifications are blocked for this site in the browser's settings"
-      : "Browser notifications for severe weather, big market moves, headlines and TheBurntPeanut going live";
+      : "Browser notifications for severe weather, big market moves, major news and TheBurntPeanut going live";
   for (const box of boxes) box.checked = chosen.has(box.value);
 }
 

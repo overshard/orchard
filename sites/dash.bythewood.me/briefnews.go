@@ -29,16 +29,6 @@ var newsFeeds = []briefFeed{
 	{"EXAMINER", "R", "examiner", "https://www.washingtonexaminer.com/feed/"},
 }
 
-func briefNotices(b Brief) []Notice {
-	if len(b.Points) == 0 {
-		return nil
-	}
-	return []Notice{{
-		ID: fmt.Sprintf("brief:%d", b.Slot), Kind: "news",
-		Title: "TODAY, " + b.Title, Body: b.Points[0].Text, URL: baseURL + "/",
-	}}
-}
-
 // widelyCarried drops the events only one outlet ran once there are enough
 // that two or more did. A story nobody else picked up is rarely the one that
 // matters, and a 9B model handed fifty will reach for some of them.
@@ -315,6 +305,11 @@ func (b *Briefer) read(ctx context.Context, slot briefSlot, at time.Time, all []
 	text := strings.Join(parts, " ")
 	r := &Read{Level: level, Label: label, Spread: fmt.Sprintf("TOP STORY ON %d OF %d OUTLETS", top, outlets),
 		Text: text, Links: links}
+	// Only a read that opens on the most carried story carries its rating, since
+	// that's the story the level was counted from.
+	if cited[0] == 1 && events[0].lead().url == all[0].lead().url {
+		r.Impact = rated[all[0].lead().url].Impact
+	}
 	slog.Info("brief read", slog.String("component", "brief"), slog.String("slot", slot.kind),
 		slog.String("level", level), slog.Int("top", top), slog.Int("outlets", outlets),
 		slog.String("lead", all[0].lead().title), slog.String("text", text))
