@@ -22,7 +22,7 @@ func TestGlanceLevels(t *testing.T) {
 
 	st.Market.Cards[0].Percent = "-2.30%"
 	st.Briefs.News.Read.Level = "major"
-	st.Alerts = []Alert{{Event: "Flood Watch", Severity: "Moderate"}}
+	st.Alerts = []Alert{{Event: "FLOOD WATCH", Severity: "moderate"}}
 	st.HNPulse = Pulse{Level: "hot", Label: "BLOWING UP"}
 	want := map[string]string{"MARKETS": levelAct, "NEWS": levelQuiet, "TECH": levelWatch, "WEATHER": levelWatch, "PLAY": levelQuiet}
 	for _, s := range glanceSlots(st, nil, saturday) {
@@ -31,7 +31,7 @@ func TestGlanceLevels(t *testing.T) {
 		}
 	}
 
-	st.Alerts = []Alert{{Event: "Tornado Warning", Severity: "Severe"}}
+	st.Alerts = []Alert{{Event: "TORNADO WARNING", Severity: "severe"}}
 	if s := glanceWeather(st); s.level != levelAct {
 		t.Errorf("a tornado warning is only %s", s.level)
 	}

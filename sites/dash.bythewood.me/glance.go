@@ -238,7 +238,7 @@ func glanceWeather(st State) glanceSlot {
 	g := glanceSlot{label: "WEATHER", anchor: "weather", level: levelQuiet}
 	for _, a := range st.Alerts {
 		lvl := levelWatch
-		if a.Severity == "Extreme" || a.Severity == "Severe" && strings.Contains(a.Event, "Warning") {
+		if a.Severity == "extreme" || a.Severity == "severe" && strings.HasSuffix(a.Event, " WARNING") {
 			lvl = levelAct
 		}
 		g.level = higher(g.level, lvl)
