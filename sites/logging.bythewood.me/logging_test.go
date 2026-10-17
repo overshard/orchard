@@ -1109,7 +1109,7 @@ func testWatchdog(t *testing.T, db *sql.DB, clock *time.Time) (*Watchdog, *[]rec
 // Every kind renders and an unknown kind is refused. The click URL has to be
 // absolute, since it's opened from a phone with no idea what the origin is.
 func TestRenderAlertKinds(t *testing.T) {
-	for _, kind := range []string{"silence", "resumed", "restart"} {
+	for _, kind := range []string{"silence", "resumed", "restart", "crash"} {
 		body, ok := renderAlert(kind, AlertContext{Source: "blog", Silent: 7 * time.Minute})
 		if !ok {
 			t.Fatalf("%s: not rendered", kind)
@@ -1264,6 +1264,39 @@ func TestWatchdogDetectsUncleanRestart(t *testing.T) {
 	}
 	if !strings.Contains((*fired)[0].ctx.Detail, "Previous start") {
 		t.Errorf("detail = %q, want it to say when the previous start was", (*fired)[0].ctx.Detail)
+	}
+}
+
+// This site's own unclean start is the host going down, and it has to alert
+// inside the grace window since that window always covers it.
+func TestWatchdogAlertsOnOwnCrash(t *testing.T) {
+	db := testDB(t)
+	clock := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)
+	w, fired := testWatchdog(t, db, &clock)
+	w.startedAt = clock
+	ctx := context.Background()
+
+	w.handleLifecycle(ctx, lifecycleEvent{source: selfSource, up: true, at: clock})
+	if _, err := db.Exec(`INSERT INTO records (source, ts, level, msg) VALUES ('blog', ?, 'INFO', 'x')`,
+		clock.Add(time.Hour).UnixMilli()); err != nil {
+		t.Fatal(err)
+	}
+
+	clock = clock.Add(time.Hour + 10*time.Minute)
+	w.startedAt = clock
+	w.handleLifecycle(ctx, lifecycleEvent{source: selfSource, up: true, at: clock})
+	if len(*fired) != 1 || (*fired)[0].kind != "crash" {
+		t.Fatalf("alerts = %v, want one crash", *fired)
+	}
+	if got := (*fired)[0].ctx.Silent; got != 10*time.Minute {
+		t.Errorf("outage = %v, want 10m from the last record", got)
+	}
+
+	clock = clock.Add(time.Hour)
+	w.handleLifecycle(ctx, lifecycleEvent{source: selfSource, up: false, at: clock})
+	w.handleLifecycle(ctx, lifecycleEvent{source: selfSource, up: true, at: clock.Add(time.Second)})
+	if len(*fired) != 1 {
+		t.Fatalf("a clean restart of this site alerted: %v", (*fired)[1:])
 	}
 }
 
