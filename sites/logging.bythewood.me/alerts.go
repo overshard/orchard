@@ -68,6 +68,20 @@ func renderAlert(kind string, ctx AlertContext) (ntfy.Message, bool) {
 			Label:    "Open logs",
 		}, true
 
+	case "crash":
+		body := "It stopped with no shutting-down record, which usually means the whole PC crashed or lost power and every site went down with it."
+		if ctx.Silent > 0 {
+			body += fmt.Sprintf("\nNothing was logged for %s.", humanDuration(ctx.Silent))
+		}
+		return ntfy.Message{
+			Title:    ctx.Source + " came back after an unclean shutdown",
+			Body:     body,
+			Priority: "high",
+			Tags:     "rotating_light",
+			Link:     link,
+			Label:    "Open logs",
+		}, true
+
 	case "restart":
 		return ntfy.Message{
 			Title: ctx.Source + " restarted without a clean shutdown",

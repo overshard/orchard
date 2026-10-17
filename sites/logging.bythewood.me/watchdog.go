@@ -263,6 +263,12 @@ func (w *Watchdog) handleLifecycle(ctx context.Context, ev lifecycleEvent) {
 	if !ev.up || !known || !prevUp {
 		return
 	}
+	// This site dying uncleanly almost always means the whole host went down,
+	// which is exactly the restart the grace below would hide.
+	if ev.source == selfSource {
+		w.notify("crash", AlertContext{Source: ev.source, Silent: w.outage(ctx, ev.at)})
+		return
+	}
 	if w.now().Sub(w.startedAt) < startupGrace {
 		return
 	}
@@ -272,6 +278,17 @@ func (w *Watchdog) handleLifecycle(ctx context.Context, ev lifecycleEvent) {
 		detail = fmt.Sprintf("Previous start was %s ago.", humanDuration(ev.at.Sub(prevAt)))
 	}
 	w.notify("restart", AlertContext{Source: ev.source, Detail: detail})
+}
+
+// outage is how long nothing was written before start, zero when unknown.
+func (w *Watchdog) outage(ctx context.Context, start time.Time) time.Duration {
+	var last sql.NullInt64
+	err := w.db.QueryRowContext(ctx,
+		`SELECT MAX(ts) FROM records WHERE ts < ?`, start.UnixMilli()).Scan(&last)
+	if err != nil || !last.Valid {
+		return 0
+	}
+	return start.Sub(time.UnixMilli(last.Int64))
 }
 
 // The meta value is "up|<unix millis>" or "down|<unix millis>".
