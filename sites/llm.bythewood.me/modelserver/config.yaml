@@ -9,6 +9,11 @@ healthCheckTimeout: 600
 logLevel: info
 startPort: 10001
 
+# The GPU monitor keeps nvidia-smi polling the card every few seconds,
+# which can stutter a game running on the same card.
+performance:
+  disabled: true
+
 models:
   # Every caller asks for "local", so this name is the contract across the
   # whole estate and swapping the weights underneath is one line here.
