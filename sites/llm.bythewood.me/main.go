@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -52,6 +53,7 @@ type site struct {
 	gpuProbe string
 	model    string
 	retain   time.Duration
+	card     cardGate
 }
 
 func env(k, def string) string {
@@ -124,6 +126,8 @@ func realMain() error {
 		// runs past any value worth picking and the caller's own context bounds it.
 		client: &http.Client{},
 	}
+	s.card.loadGaming(filepath.Dir(*dbPath))
+	s.card.started = time.Now()
 	if err := s.loadTemplates(); err != nil {
 		return fmt.Errorf("templates: %w", err)
 	}
@@ -147,6 +151,7 @@ func realMain() error {
 	mux.HandleFunc("POST /keys", s.auth.RequireAuth(s.keyCreate))
 	mux.HandleFunc("POST /keys/{id}/revoke", s.auth.RequireAuth(s.keyRevoke))
 	mux.HandleFunc("POST /keys/{id}/delete", s.auth.RequireAuth(s.keyDelete))
+	mux.HandleFunc("POST /gaming", s.auth.RequireAuth(s.gamingSet))
 
 	// The gateway. A key, not a cookie, because the callers are containers.
 	mux.HandleFunc("POST /v1/chat/completions", s.requireKey(s.completions))
@@ -285,8 +290,14 @@ func (s *site) overview(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	var gamingLeft string
+	if until := s.card.gaming(time.Now()); !until.IsZero() {
+		left := time.Until(until).Round(time.Minute)
+		gamingLeft = fmt.Sprintf("%dh %dm", int(left.Hours()), int(left.Minutes())%60)
+	}
+
 	s.render(w, "overview.html", map[string]any{
-		"Keys": keys, "Usage": usage, "Recent": recent,
+		"Keys": keys, "Usage": usage, "Recent": recent, "GamingLeft": gamingLeft,
 		"Fresh": fresh, "NKeys": nKeys, "NCalls": nCalls, "Title": "Overview",
 		"Upstream": s.upstream, "Retain": s.retain,
 	})

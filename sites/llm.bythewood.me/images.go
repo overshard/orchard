@@ -55,6 +55,9 @@ func (s *site) images(w http.ResponseWriter, r *http.Request, k Key) {
 	}
 	up.Header.Set("Content-Type", r.Header.Get("Content-Type"))
 
+	s.card.inflight.Add(1)
+	defer s.card.inflight.Add(-1)
+	s.card.background.Store(false)
 	resp, err := s.client.Do(up)
 	if err != nil {
 		call.Err = err.Error()
