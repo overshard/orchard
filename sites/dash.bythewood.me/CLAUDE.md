@@ -209,12 +209,19 @@ without it the panels say the briefs are off.
 
 **A brief never loads a model onto a card the desktop is using.** Each slot asks
 the gateway's `GET /v1/gpu` first, which reads `nvidia-smi` through the
-`orchard-llm-gpu` sidecar, and a busy card, 55% or 3000MiB with none of our
-models on it, defers the slot an hour and says so on the panels. Weekends run
-too, pointed at the week ahead. Every desk shares one load, and the weights come off with
-`/v1/unload` straight after, unless a model was already resident, which is
-somebody's chat and is left to its own idle timer. The sidecar exists because the
-gateway is a scratch image and the injected `nvidia-smi` needs glibc.
+`orchard-llm-gpu` sidecar, and a busy card defers the slot an hour and says so on
+the panels. Busy is 55% or 3000MiB with none of our models on it, or with one on
+it a card within 512MiB of full or busy while none of our calls run. The gaming
+switch on llm's overview and the 15 minutes after the gateway starts are busy
+too, and those say when they end, so the slot is tried then instead. A slot run
+marks every call `X-Background: 1` through `scheduledRun`, so a game started
+partway through gets the next call turned away with a 503, the run stops, the
+desk it was on isn't written, and the gateway unloads what the run loaded.
+Weekends run too, pointed at the week ahead. Every desk shares one load, and the
+weights come off with `/v1/unload` straight after, unless a model was already
+resident, which is somebody's chat and is left to its own idle timer. The sidecar
+exists because the gateway is a scratch image and the injected `nvidia-smi`
+needs glibc.
 
 **BRIEFS in the rail reruns every desk now, signed in only.** The POST queues a
 run for the briefer's own loop, so it never overlaps a slot, and a slot that
