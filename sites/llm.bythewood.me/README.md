@@ -27,7 +27,7 @@ make clean    delete that binary
 `proxy.go` checks the key and forwards OpenAI style calls upstream, `db.go`
 holds the keys and the log, `images.go` the picture calls and `gpu.go` asks the
 probe whether the desktop is using the card and turns away calls marked
-`X-Background: 1` while it is, along with the gaming switch on the overview. `modelserver/` builds llama.cpp,
+`X-Background: 1` while it is. `modelserver/` builds llama.cpp,
 stable-diffusion.cpp and llama-swap, and `gpuprobe/` is the `nvidia-smi`
 sidecar. Templates and `static/` are written by hand, with no Vite.
 
@@ -40,7 +40,5 @@ sidecar. Templates and `static/` are written by hand, with no Vite.
 - Background calls are turned away for 15 minutes after the gateway starts,
   since a start is usually a reboot and the game comes back after the
   containers. A deploy does the same, and chat isn't affected.
-- The gaming switch is kept in `gaming` beside the database, so it survives a
-  restart until it runs out.
 - The model server is built for a 3070's sm_86, and another card means changing
   `CMAKE_CUDA_ARCHITECTURES` in its Dockerfile.
