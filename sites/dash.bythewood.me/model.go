@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -63,6 +65,10 @@ func (m *Model) Structured(ctx context.Context, system, user string, schema map[
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+m.key)
+	gate := gateOf(ctx)
+	if gate != nil {
+		req.Header.Set("X-Background", "1")
+	}
 
 	resp, err := m.http.Do(req)
 	if err != nil {
@@ -72,6 +78,10 @@ func (m *Model) Structured(ctx context.Context, system, user string, schema map[
 
 	if resp.StatusCode != http.StatusOK {
 		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		if busy := cardBusy(resp, msg); busy != nil && gate != nil {
+			gate.refused(*busy)
+			return busy
+		}
 		return fmt.Errorf("model: http %d: %s", resp.StatusCode, strings.TrimSpace(string(msg)))
 	}
 
@@ -100,13 +110,77 @@ func (m *Model) Structured(ctx context.Context, system, user string, schema map[
 	return json.Unmarshal([]byte(text), out)
 }
 
-// GPUState is the gateway's read of the card before anything is loaded.
+// GPUState is the gateway's read of the card. RetryAt is set when it knows how
+// long the card is spoken for, like the gaming switch or the wait after a start.
 type GPUState struct {
 	Busy    bool   `json:"busy"`
 	Reason  string `json:"reason"`
 	Loaded  bool   `json:"loaded"`
+	RetryAt int64  `json:"retry_at"`
 	UtilAvg int    `json:"util_avg"`
 	UsedMiB int    `json:"used_mib"`
+}
+
+// CardBusy is the gateway turning a scheduled call away because the desktop
+// took the card partway through a run.
+type CardBusy struct {
+	Until  time.Time
+	Reason string
+}
+
+func (c *CardBusy) Error() string { return "model: card in use: " + c.Reason }
+
+func cardBusy(resp *http.Response, body []byte) *CardBusy {
+	var e struct {
+		Error struct {
+			Message string `json:"message"`
+			Type    string `json:"type"`
+		} `json:"error"`
+	}
+	if resp.StatusCode != http.StatusServiceUnavailable || json.Unmarshal(body, &e) != nil || e.Error.Type != "card_busy" {
+		return nil
+	}
+	wait := briefDefer
+	if n, err := strconv.Atoi(resp.Header.Get("Retry-After")); err == nil && n > 0 {
+		wait = time.Duration(n) * time.Second
+	}
+	return &CardBusy{Until: time.Now().Add(wait), Reason: e.Error.Message}
+}
+
+// runGate rides a scheduled run's context, so its calls are marked background
+// and the first one turned away cancels the rest.
+type runGate struct {
+	stop context.CancelFunc
+	mu   sync.Mutex
+	busy *CardBusy
+}
+
+type runGateKey struct{}
+
+func scheduledRun(ctx context.Context) (context.Context, *runGate) {
+	ctx, cancel := context.WithCancel(ctx)
+	g := &runGate{stop: cancel}
+	return context.WithValue(ctx, runGateKey{}, g), g
+}
+
+func gateOf(ctx context.Context) *runGate {
+	g, _ := ctx.Value(runGateKey{}).(*runGate)
+	return g
+}
+
+func (g *runGate) refused(b CardBusy) {
+	g.mu.Lock()
+	if g.busy == nil {
+		g.busy = &b
+	}
+	g.mu.Unlock()
+	g.stop()
+}
+
+func (g *runGate) Busy() *CardBusy {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.busy
 }
 
 func (m *Model) GPU(ctx context.Context) (GPUState, error) {

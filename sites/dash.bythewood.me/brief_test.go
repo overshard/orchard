@@ -108,6 +108,56 @@ func TestBriefDefersAnHourWhenTheCardIsBusy(t *testing.T) {
 	}
 }
 
+// A game started partway through a slot: the gateway turns the news desk away,
+// nothing after it runs, the short desk isn't written, and the slot waits out
+// what the gateway said.
+func TestBriefStopsWhenTheGatewayTurnsACallAway(t *testing.T) {
+	f := &fakeGateway{gpu: GPUState{Reason: "card idle"}}
+	b := testBriefer(t, f, false)
+	now := inNY(t, "2026-10-10 16:05")
+	b.compile = func(ctx context.Context, desk string, slot briefSlot, at time.Time) (Brief, error) {
+		f.compiled = append(f.compiled, desk)
+		if desk == "news" {
+			busy := CardBusy{Until: now.Add(time.Hour), Reason: "card full"}
+			gateOf(ctx).refused(busy)
+			return Brief{Slot: at.Unix(), Points: []Point{{Text: "short"}}}, &busy
+		}
+		return Brief{Slot: at.Unix(), Title: slot.title(), Points: []Point{{Text: desk}}}, nil
+	}
+	b.tick(context.Background(), now)
+	if strings.Join(f.compiled, ",") != "markets,news" || f.unloads != 1 {
+		t.Fatalf("compiled %v, unloaded %d", f.compiled, f.unloads)
+	}
+	briefs := b.store.Snapshot().Briefs
+	if len(briefs.News.Points) != 0 || len(briefs.Markets.Points) != 1 {
+		t.Errorf("news %v, markets %v", briefs.News.Points, briefs.Markets.Points)
+	}
+	if briefs.News.Waiting != "CARD IN USE, NEXT TRY 17:05" {
+		t.Errorf("waiting %q", briefs.News.Waiting)
+	}
+	b.tick(context.Background(), now.Add(59*time.Minute))
+	if f.asked != 1 {
+		t.Errorf("asked again %d times before the hour was up", f.asked-1)
+	}
+}
+
+// The gaming switch and the wait after a start say when they end, and the slot
+// is tried then instead of an hour on.
+func TestBriefWaitsUntilTheGatewaySays(t *testing.T) {
+	now := inNY(t, "2026-10-10 07:00")
+	f := &fakeGateway{gpu: GPUState{Busy: true, Reason: "the gateway just started", RetryAt: now.Add(10 * time.Minute).Unix()}}
+	b := testBriefer(t, f, false)
+	b.tick(context.Background(), now)
+	if w := b.store.Snapshot().Briefs.News.Waiting; w != "CARD IN USE, NEXT TRY 07:10" {
+		t.Errorf("waiting %q", w)
+	}
+	f.gpu = GPUState{Reason: "card idle"}
+	b.tick(context.Background(), now.Add(10*time.Minute))
+	if f.asked != 2 || len(f.compiled) != 4 {
+		t.Errorf("asked %d, compiled %v", f.asked, f.compiled)
+	}
+}
+
 // A model already on the card is somebody's chat, and pulling it would kill
 // their turn, so the brief uses it and leaves it.
 func TestBriefLeavesAResidentModelAlone(t *testing.T) {

@@ -406,18 +406,34 @@ func (b *Briefer) tick(ctx context.Context, now time.Time) {
 		return
 	}
 	if gpu.Busy {
-		b.next = now.Add(briefDefer)
-		slog.Info("brief deferred", slog.String("component", "brief"), slog.String("slot", slot.kind),
-			slog.String("reason", gpu.Reason), slog.Time("next", b.next))
-		b.waiting(fmt.Sprintf("CARD IN USE, NEXT TRY %s", b.next.In(easternTime()).Format("15:04")))
+		until := now.Add(briefDefer)
+		if gpu.RetryAt > 0 {
+			until = time.Unix(gpu.RetryAt, 0)
+		}
+		b.deferSlot(slot, until, gpu.Reason)
 		b.idle()
 		return
 	}
-	failed := b.runDesks(ctx, slot, at, due, !gpu.Loaded, false)
+	runCtx, gate := scheduledRun(ctx)
+	defer gate.stop()
+	failed := b.runDesks(runCtx, slot, at, due, !gpu.Loaded, false)
+	if busy := gate.Busy(); busy != nil {
+		b.deferSlot(slot, busy.Until, busy.Reason)
+		b.end(false, nil)
+		return
+	}
 	if len(failed) > 0 {
 		b.next = now.Add(briefRetry)
 	}
 	b.end(false, failed)
+}
+
+// deferSlot leaves an owed slot until the card is free and says so on every panel.
+func (b *Briefer) deferSlot(slot briefSlot, until time.Time, reason string) {
+	b.next = until
+	slog.Info("brief deferred", slog.String("component", "brief"), slog.String("slot", slot.kind),
+		slog.String("reason", reason), slog.Time("next", b.next))
+	b.waiting(fmt.Sprintf("CARD IN USE, NEXT TRY %s", b.next.In(easternTime()).Format("15:04")))
 }
 
 // runDesks writes each desk in turn on one model load and returns the ones
@@ -437,6 +453,10 @@ func (b *Briefer) runDesks(ctx context.Context, slot briefSlot, at time.Time, de
 	for _, desk := range desks {
 		started := time.Now()
 		brief, err := b.compile(ctx, desk, slot, at)
+		// The desktop took the card partway through, so this desk came back short.
+		if g := gateOf(ctx); g != nil && g.Busy() != nil {
+			break
+		}
 		if err != nil {
 			failed = append(failed, desk)
 			slog.Warn("brief failed", slog.String("component", "brief"), slog.String("desk", desk),
