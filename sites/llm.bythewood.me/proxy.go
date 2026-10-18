@@ -67,6 +67,10 @@ func (s *site) requireKey(next func(http.ResponseWriter, *http.Request, Key)) ht
 // caller that streams is the one whose output is most worth keeping.
 func (s *site) completions(w http.ResponseWriter, r *http.Request, k Key) {
 	started := time.Now()
+	background := r.Header.Get(backgroundHeader) == "1"
+	if background && s.refuseBackground(w, r, k) {
+		return
+	}
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxRequestBytes))
 	if err != nil {
 		http.Error(w, "request too large", http.StatusRequestEntityTooLarge)
@@ -103,6 +107,9 @@ func (s *site) completions(w http.ResponseWriter, r *http.Request, k Key) {
 	}
 	up.Header.Set("Content-Type", "application/json")
 
+	s.card.inflight.Add(1)
+	defer s.card.inflight.Add(-1)
+	s.card.background.Store(background)
 	resp, err := s.client.Do(up)
 	if err != nil {
 		call.Err = err.Error()
