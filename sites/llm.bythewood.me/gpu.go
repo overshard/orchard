@@ -7,10 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -54,22 +51,18 @@ type gpuAnswer struct {
 	Busy    bool   `json:"busy"`
 	Reason  string `json:"reason"`
 	Loaded  bool   `json:"loaded"`
-	Gaming  bool   `json:"gaming"`
 	RetryAt int64  `json:"retry_at,omitempty"`
 	gpuReading
 }
 
 // cardGate is what the gateway knows about the card between calls. Its zero
-// value is a gate with no switch, no grace and nothing read yet.
+// value is a gate with no grace and nothing read yet.
 type cardGate struct {
-	mu          sync.Mutex
-	reading     gpuReading
-	readAt      time.Time
-	readBusy    bool
-	gamingUntil time.Time
-
-	path    string
-	started time.Time
+	mu       sync.Mutex
+	reading  gpuReading
+	readAt   time.Time
+	readBusy bool
+	started  time.Time
 
 	inflight   atomic.Int32
 	background atomic.Bool
@@ -98,14 +91,10 @@ func judgeLoaded(r gpuReading, ours bool) (bool, string) {
 	return false, "a model is on the card and there's room"
 }
 
-// cardState is what a background caller is told. The switch and the startup
-// grace answer without touching nvidia-smi.
+// cardState is what a background caller is told. The startup grace answers
+// without touching nvidia-smi.
 func (s *site) cardState(ctx context.Context, now time.Time) (gpuAnswer, error) {
 	var out gpuAnswer
-	if until := s.card.gaming(now); !until.IsZero() {
-		out.Busy, out.Gaming, out.RetryAt, out.Reason = true, true, until.Unix(), "gaming switch is on"
-		return out, nil
-	}
 	if !s.card.started.IsZero() && now.Before(s.card.started.Add(startupGrace)) {
 		out.Busy, out.RetryAt, out.Reason = true, s.card.started.Add(startupGrace).Unix(), "the gateway just started"
 		return out, nil
@@ -201,71 +190,6 @@ func (s *site) refuseBackground(w http.ResponseWriter, r *http.Request, k Key) b
 		"message": "the desktop is using the card: " + st.Reason, "type": "card_busy",
 	}})
 	return true
-}
-
-// gaming says until when the switch is on, or zero when it's off.
-func (g *cardGate) gaming(now time.Time) time.Time {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	if now.Before(g.gamingUntil) {
-		return g.gamingUntil
-	}
-	return time.Time{}
-}
-
-// setGaming turns the switch on until a time, or off with the zero time. It's
-// kept in a file beside the database so a reboot mid game doesn't drop it.
-func (g *cardGate) setGaming(until time.Time) error {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	g.gamingUntil = until
-	if g.path == "" {
-		return nil
-	}
-	if until.IsZero() {
-		if err := os.Remove(g.path); err != nil && !os.IsNotExist(err) {
-			return err
-		}
-		return nil
-	}
-	tmp := g.path + ".tmp"
-	if err := os.WriteFile(tmp, []byte(strconv.FormatInt(until.Unix(), 10)), 0o600); err != nil {
-		return err
-	}
-	return os.Rename(tmp, g.path)
-}
-
-func (g *cardGate) loadGaming(dir string) {
-	g.path = filepath.Join(dir, "gaming")
-	raw, err := os.ReadFile(g.path)
-	if err != nil {
-		return
-	}
-	if n, err := strconv.ParseInt(strings.TrimSpace(string(raw)), 10, 64); err == nil {
-		g.gamingUntil = time.Unix(n, 0)
-	}
-}
-
-// gamingSet is the switch on the overview. Turning it on also takes the model
-// off now, since it means he's about to use the card.
-func (s *site) gamingSet(w http.ResponseWriter, r *http.Request) {
-	hours, _ := strconv.Atoi(r.FormValue("hours"))
-	hours = min(max(hours, 0), 12)
-	var until time.Time
-	if hours > 0 {
-		until = time.Now().Add(time.Duration(hours) * time.Hour)
-	}
-	if err := s.card.setGaming(until); err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	slog.Info("gaming switch", "hours", hours)
-	if hours > 0 {
-		if err := s.swap(r.Context(), swapUnload, nil); err != nil {
-			slog.Error("unloading for the gaming switch", "err", err)
-		}
-	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 func (s *site) probeGPU(ctx context.Context) (gpuReading, error) {

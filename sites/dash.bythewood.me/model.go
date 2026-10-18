@@ -111,7 +111,7 @@ func (m *Model) Structured(ctx context.Context, system, user string, schema map[
 }
 
 // GPUState is the gateway's read of the card. RetryAt is set when it knows how
-// long the card is spoken for, like the gaming switch or the wait after a start.
+// long the card is spoken for, like the wait after the gateway starts.
 type GPUState struct {
 	Busy    bool   `json:"busy"`
 	Reason  string `json:"reason"`

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -203,35 +202,6 @@ func TestStartupGrace(t *testing.T) {
 	}
 	if rec := complete(t, s, secret, false); rec.Code != 200 {
 		t.Errorf("chat inside the grace: status %d", rec.Code)
-	}
-}
-
-// The switch survives a restart and turns background calls away until it runs
-// out, without a probe.
-func TestGamingSwitch(t *testing.T) {
-	s, secret, f := gpuSite(t, `{"running":[]}`, gpuReading{UtilAvg: 10, UsedMiB: 1600, TotalMiB: 8192})
-	dir := t.TempDir()
-	s.card.loadGaming(dir)
-	if err := s.card.setGaming(time.Now().Add(4 * time.Hour)); err != nil {
-		t.Fatal(err)
-	}
-	var again cardGate
-	again.loadGaming(dir)
-	if again.gaming(time.Now()).IsZero() || !again.gaming(time.Now().Add(5*time.Hour)).IsZero() {
-		t.Fatal("the switch didn't survive a restart or didn't run out")
-	}
-	rec := complete(t, s, secret, true)
-	if rec.Code != http.StatusServiceUnavailable || f.probed != 0 {
-		t.Fatalf("status %d after %d probes", rec.Code, f.probed)
-	}
-	if n, _ := strconv.Atoi(rec.Header().Get("Retry-After")); n < 4*3600-60 {
-		t.Errorf("retry after %ds", n)
-	}
-	if err := s.card.setGaming(time.Time{}); err != nil {
-		t.Fatal(err)
-	}
-	if rec := complete(t, s, secret, true); rec.Code != 200 {
-		t.Errorf("switch off: status %d", rec.Code)
 	}
 }
 

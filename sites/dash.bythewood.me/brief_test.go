@@ -141,8 +141,8 @@ func TestBriefStopsWhenTheGatewayTurnsACallAway(t *testing.T) {
 	}
 }
 
-// The gaming switch and the wait after a start say when they end, and the slot
-// is tried then instead of an hour on.
+// The wait after the gateway starts says when it ends, and the slot is tried
+// then instead of an hour on.
 func TestBriefWaitsUntilTheGatewaySays(t *testing.T) {
 	now := inNY(t, "2026-10-10 07:00")
 	f := &fakeGateway{gpu: GPUState{Busy: true, Reason: "the gateway just started", RetryAt: now.Add(10 * time.Minute).Unix()}}

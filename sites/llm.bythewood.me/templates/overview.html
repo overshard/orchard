@@ -14,17 +14,6 @@
   <div class="stat"><span class="num">{{.Retain}}</span><span class="label">Retention</span></div>
 </section>
 
-<h2>Gaming</h2>
-<form class="newkey" method="post" action="/gaming">
-{{if .GamingLeft}}
-  <p class="how">On for another {{.GamingLeft}}. Scheduled callers like dash are turned away and chat still answers.</p>
-  <button type="submit" name="hours" value="0">Turn off</button>
-{{else}}
-  <p class="how">Off. Turn it on before a game and scheduled callers like dash wait it out, while chat still answers. It takes the model off the card now.</p>
-  <button type="submit" name="hours" value="4">On for 4 hours</button>
-{{end}}
-</form>
-
 <h2>Last 24 hours</h2>
 {{if .Usage}}
 <table>
