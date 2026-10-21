@@ -468,6 +468,13 @@ input[type="text"], input[type="password"], input[type="url"] {
 
 .repolist { list-style: none; padding: 0; margin: 0; }
 
+.archivedrepos {
+  margin-top: 3rem;
+
+  .repolist { opacity: 0.6; transition: opacity 0.15s; }
+  .repolist:hover { opacity: 1; }
+}
+
 .repocard {
   border-top: 1px solid var(--line);
   padding: 0.85rem 0;

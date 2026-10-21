@@ -164,10 +164,16 @@ func (s *site) index(w http.ResponseWriter, r *http.Request) {
 		return cards[i].LastPush.After(cards[j].LastPush)
 	})
 
+	var active, archived []RepoCard
 	var totalSize int64
 	var mirrors int
 	var newest time.Time
 	for _, c := range cards {
+		if c.Archived {
+			archived = append(archived, c)
+		} else {
+			active = append(active, c)
+		}
 		totalSize += c.Size
 		if c.Mirror {
 			mirrors++
@@ -179,6 +185,8 @@ func (s *site) index(w http.ResponseWriter, r *http.Request) {
 
 	s.renderer.Render(w, http.StatusOK, "index.html", s.page(r, "", siteTagline, map[string]any{
 		"Repos":     cards,
+		"Active":    active,
+		"Archived":  archived,
 		"HasTokens": s.db.HasTokens(),
 		"CloneURL":  strings.TrimSuffix(baseURL, "/"),
 		"Bridge":    containerName,
