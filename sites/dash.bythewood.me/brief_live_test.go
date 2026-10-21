@@ -24,8 +24,8 @@ func TestBriefLive(t *testing.T) {
 	g := NewGuard(t.TempDir())
 	store := NewStore(NewHub())
 	store.Prime(ctx, g)
-	// BRIEF_STATE is a saved /api/state, so the glance desk sees the weather,
-	// Steam and the rest that Prime doesn't fetch.
+	// BRIEF_STATE is a saved /api/state, so the desks see the feeds and the
+	// rest that Prime doesn't fetch.
 	if path := os.Getenv("BRIEF_STATE"); path != "" {
 		raw, err := os.ReadFile(path)
 		if err != nil {
@@ -39,8 +39,8 @@ func TestBriefLive(t *testing.T) {
 	}
 	store.refreshBoard(ctx, g)
 	store.refreshEarnings(ctx, g)
-	// BRIEF_DATA points at a copy of the volume, so a lone desk like glance
-	// has the other briefs to read.
+	// BRIEF_DATA points at a copy of the volume, so a lone desk starts from
+	// the briefs already written.
 	b := NewBriefer(store, g, m, env("BRIEF_DATA", t.TempDir()))
 
 	slot, at := latestSlot(time.Now())
@@ -53,7 +53,7 @@ func TestBriefLive(t *testing.T) {
 		}
 	}
 
-	for _, desk := range []string{"markets", "news", "feeds", "glance"} {
+	for _, desk := range briefDesks {
 		if d := os.Getenv("BRIEF_DESK"); d != "" && d != desk {
 			continue
 		}
@@ -87,8 +87,8 @@ func TestBriefTickLive(t *testing.T) {
 	g := NewGuard(t.TempDir())
 	store := NewStore(NewHub())
 	store.Prime(ctx, g)
-	// BRIEF_STATE is a saved /api/state, so the glance desk sees the weather,
-	// Steam and the rest that Prime doesn't fetch.
+	// BRIEF_STATE is a saved /api/state, so the desks see the feeds and the
+	// rest that Prime doesn't fetch.
 	if path := os.Getenv("BRIEF_STATE"); path != "" {
 		raw, err := os.ReadFile(path)
 		if err != nil {
@@ -102,8 +102,8 @@ func TestBriefTickLive(t *testing.T) {
 	}
 	store.refreshBoard(ctx, g)
 	store.refreshEarnings(ctx, g)
-	// BRIEF_DATA points at a copy of the volume, so a lone desk like glance
-	// has the other briefs to read.
+	// BRIEF_DATA points at a copy of the volume, so a lone desk starts from
+	// the briefs already written.
 	b := NewBriefer(store, g, m, env("BRIEF_DATA", t.TempDir()))
 
 	before, err := m.GPU(ctx)

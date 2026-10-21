@@ -35,24 +35,12 @@
   {{- end}}{{end -}}
 </div>
 
-<section class="panel glance" data-panel="glance">
-  <div class="bracket tl"></div><div class="bracket tr"></div>
-  <div class="bracket bl"></div><div class="bracket br"></div>
-  <header class="panel-head">
-    <span class="idx">01</span>
-    <h2>AT A GLANCE</h2>
-    <span class="rule"></span>
-    <span class="panel-meta" data-glance-meta>{{with .State.Briefs.Glance}}{{if .Read}}{{.Title}} / {{.Compiled}}{{end}}{{end}}</span>
-  </header>
-  <div data-glance>{{template "glance" .State.Briefs.Glance}}</div>
-</section>
-
 <section class="panel markets" data-panel="markets" id="markets">
   <div class="bracket tl"></div><div class="bracket tr"></div>
   <div class="bracket bl"></div><div class="bracket br"></div>
 
   <header class="panel-head">
-    <span class="idx">02</span>
+    <span class="idx">01</span>
     <h2>MARKETS</h2>
     <span class="rule"></span>
     <span class="session" data-session="{{.State.Market.Session}}">
@@ -79,7 +67,7 @@
     <div class="bracket tl"></div><div class="bracket tr"></div>
     <div class="bracket bl"></div><div class="bracket br"></div>
     <header class="panel-head">
-      <span class="idx">03</span>
+      <span class="idx">02</span>
       <h2>RATES</h2>
       <span class="rule"></span>
       <span class="panel-meta">TREASURY</span>
@@ -106,7 +94,7 @@
     <div class="bracket tl"></div><div class="bracket tr"></div>
     <div class="bracket bl"></div><div class="bracket br"></div>
     <header class="panel-head">
-      <span class="idx">04</span>
+      <span class="idx">03</span>
       <h2>SECTORS</h2>
       <span class="rule"></span>
       <span class="panel-meta">BEST TO WORST</span>
@@ -125,7 +113,7 @@
     <div class="bracket tl"></div><div class="bracket tr"></div>
     <div class="bracket bl"></div><div class="bracket br"></div>
     <header class="panel-head">
-      <span class="idx">05</span>
+      <span class="idx">04</span>
       <h2>CONDITIONS</h2>
       <span class="rule"></span>
       <span class="panel-meta">S&amp;P 500</span>
@@ -144,7 +132,7 @@
   <div class="bracket tl"></div><div class="bracket tr"></div>
   <div class="bracket bl"></div><div class="bracket br"></div>
   <header class="panel-head">
-    <span class="idx">06</span>
+    <span class="idx">05</span>
     <h2>EARNINGS</h2>
     <span class="rule"></span>
     <span class="panel-meta">TOP 100 OF THE S&amp;P 500</span>
@@ -163,7 +151,7 @@
       <div class="bracket tl"></div><div class="bracket tr"></div>
       <div class="bracket bl"></div><div class="bracket br"></div>
       <header class="panel-head">
-        <span class="idx">07</span>
+        <span class="idx">06</span>
         <h2>ATMOS</h2>
         <span class="rule"></span>
         <span class="panel-meta">{{.State.Weather.Place}}</span>
@@ -228,7 +216,7 @@
       <div class="bracket tl"></div><div class="bracket tr"></div>
       <div class="bracket bl"></div><div class="bracket br"></div>
       <header class="panel-head">
-        <span class="idx">08</span>
+        <span class="idx">07</span>
         <h2>OUT</h2>
         <span class="rule"></span>
         <span class="panel-meta">WEEKEND</span>
@@ -243,7 +231,7 @@
       <div class="bracket tl"></div><div class="bracket tr"></div>
       <div class="bracket bl"></div><div class="bracket br"></div>
       <header class="panel-head">
-        <span class="idx">09</span>
+        <span class="idx">08</span>
         <h2>STEAM</h2>
         <span class="rule"></span>
         <span class="panel-meta">TOP SELLERS</span>
@@ -257,7 +245,7 @@
       <div class="bracket tl"></div><div class="bracket tr"></div>
       <div class="bracket bl"></div><div class="bracket br"></div>
       <header class="panel-head">
-        <span class="idx">10</span>
+        <span class="idx">09</span>
         <h2>STREAMING</h2>
         <span class="rule"></span>
         <span class="panel-meta">TRENDING</span>
@@ -272,7 +260,7 @@
       <div class="bracket tl"></div><div class="bracket tr"></div>
       <div class="bracket bl"></div><div class="bracket br"></div>
       <header class="panel-head">
-        <span class="idx">11</span>
+        <span class="idx">10</span>
         <h2>ON AIR</h2>
         <span class="rule"></span>
         <span class="panel-meta">TWITCH</span>
@@ -287,7 +275,7 @@
       <div class="bracket tl"></div><div class="bracket tr"></div>
       <div class="bracket bl"></div><div class="bracket br"></div>
       <header class="panel-head">
-        <span class="idx">12</span>
+        <span class="idx">11</span>
         <h2>SYSTEMS</h2>
         <span class="rule"></span>
         <span class="panel-meta" data-systems-summary>{{.State.Systems.Up}}/{{.State.Systems.Total}} UP</span>
@@ -316,7 +304,7 @@
     <div class="bracket tl"></div><div class="bracket tr"></div>
     <div class="bracket bl"></div><div class="bracket br"></div>
     <header class="panel-head">
-      <span class="idx">13</span>
+      <span class="idx">12</span>
       <h2>TODAY</h2>
       <span class="rule"></span>
       <span class="panel-meta" data-news-brief-meta>{{with .State.Briefs.News}}{{if .Points}}{{.Title}} / {{.Compiled}}{{end}}{{end}}</span>
@@ -328,7 +316,7 @@
     <div class="bracket tl"></div><div class="bracket tr"></div>
     <div class="bracket bl"></div><div class="bracket br"></div>
     <header class="panel-head">
-      <span class="idx">14</span>
+      <span class="idx">13</span>
       <h2>HACKER NEWS</h2>
       <span class="rule"></span>
       <a class="panel-meta" href="https://news.ycombinator.com" rel="noopener noreferrer" target="_blank">NEWS.YCOMBINATOR.COM</a>
@@ -342,7 +330,7 @@
     <div class="bracket tl"></div><div class="bracket tr"></div>
     <div class="bracket bl"></div><div class="bracket br"></div>
     <header class="panel-head">
-      <span class="idx">15</span>
+      <span class="idx">14</span>
       <h2>LOBSTERS</h2>
       <span class="rule"></span>
       <a class="panel-meta" href="https://lobste.rs" rel="noopener noreferrer" target="_blank">LOBSTE.RS</a>
@@ -359,7 +347,7 @@
     <div class="bracket tl"></div><div class="bracket tr"></div>
     <div class="bracket bl"></div><div class="bracket br"></div>
     <header class="panel-head">
-      <span class="idx">16</span>
+      <span class="idx">15</span>
       <h2>UPLINK</h2>
       <span class="rule"></span>
       <span class="panel-meta">UPSTREAM</span>

@@ -41,7 +41,7 @@ func sessionQuote(symbol string, prev float64, closes []float64, start time.Time
 		AsOf: time.Unix(times[len(times)-1], 0), Closes: closes, Times: times}
 }
 
-// A notice comes at the glance's act bar, keeps its id while the fall deepens,
+// A notice comes at the act bar, keeps its id while the fall deepens,
 // and takes in the Nasdaq when it follows, since that's the same afternoon.
 func TestMarketNoticesAtTheActBar(t *testing.T) {
 	open := at(t, "2026-09-29 09:30")
@@ -209,5 +209,24 @@ func TestReportingHours(t *testing.T) {
 		if got := reportingHours(at(t, when)); got != want {
 			t.Errorf("%s: %v, want %v", when, got, want)
 		}
+	}
+}
+
+func TestMarketLevels(t *testing.T) {
+	cards := []Card{
+		{Key: "sp500", Percent: "-0.40%"},
+		{Key: "nasdaq", Percent: "-2.61%"},
+		{Key: "dow", Percent: "-3.10%"},
+		{Key: "vix", Price: "31.20", Percent: "+18.00%"},
+		{Key: "bitcoin", Percent: "+12.40%"},
+		{Key: "oil", Percent: "-6.00%"},
+	}
+	var got []string
+	for _, l := range marketLevels(cards) {
+		got = append(got, l.card.Key+" "+l.level+" "+l.why)
+	}
+	want := "nasdaq act the Nasdaq moved -2.61%, vix act the VIX is 31.2, bitcoin watch bitcoin moved +12.40%"
+	if strings.Join(got, ", ") != want {
+		t.Errorf("levels\n %s\nwant\n %s", strings.Join(got, ", "), want)
 	}
 }

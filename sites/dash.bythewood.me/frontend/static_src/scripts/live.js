@@ -744,46 +744,6 @@ function renderNewsBrief(brief) {
   host.replaceChildren(top, ol, foot);
 }
 
-// Mirrors marked in Go: text, with **double asterisks** as bold and nothing
-// else treated as markup.
-function marked(text) {
-  const parts = String(text || "").split("**");
-  const out = [];
-  parts.forEach((p, i) => {
-    if (i % 2 === 1 && i < parts.length - 1) out.push(el("b", "", p));
-    else out.push((i % 2 === 1 ? "**" : "") + p);
-  });
-  return out;
-}
-
-function renderGlance(brief) {
-  const host = document.querySelector("[data-glance]");
-  const head = document.querySelector("[data-glance-meta]");
-  if (!host) return;
-  if (head) head.textContent = brief && brief.read ? `${brief.title} / ${brief.compiled}` : "";
-  if (!brief || brief.status === "off" || !brief.read) {
-    host.replaceChildren(brief && brief.status === "off" ? briefEmpty(brief) : el("p", "empty", (brief && brief.waiting) || "AWAITING FIRST READ"));
-    return;
-  }
-  const read = el("div", "glance-read");
-  read.dataset.level = brief.read.level;
-  const txt = el("p", "txt");
-  txt.append(...marked(brief.read.text));
-  read.append(el("span", "lvl", brief.read.label), txt);
-  const ul = el("ul", "glance-lines");
-  for (const p of brief.points || []) {
-    const li = el("li");
-    li.dataset.level = p.level || "";
-    const tag = el("a", "tag", p.label);
-    tag.href = `#${p.anchor || ""}`;
-    const line = el("span", "txt", p.text);
-    line.dataset.full = p.text;
-    li.append(tag, el("span", "lvl", (p.level || "").toUpperCase()), line);
-    ul.append(li);
-  }
-  host.replaceChildren(read, ul);
-}
-
 function renderConditions(signal) {
   if (!signal) return;
 
@@ -1276,7 +1236,6 @@ function render(state) {
   if (changed("steam", state.steam)) renderSteam(state.steam);
   if (changed("brief-markets", state.briefs && state.briefs.markets)) renderMarketBrief(state.briefs && state.briefs.markets);
   if (changed("brief-news", state.briefs && state.briefs.news)) renderNewsBrief(state.briefs && state.briefs.news);
-  if (changed("brief-glance", state.briefs && state.briefs.glance)) renderGlance(state.briefs && state.briefs.glance);
   if (changed("feeds", state.feeds)) renderFeeds(state.feeds);
   if (changed("hn", state.hn)) renderStories("[data-hn]", state.hn);
   if (changed("lobsters", state.lobsters)) renderStories("[data-lobsters]", state.lobsters);

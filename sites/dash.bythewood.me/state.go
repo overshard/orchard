@@ -30,7 +30,6 @@ type State struct {
 	OnAir         OnAir      `json:"onair"`
 	Outlook       Outlook    `json:"outlook"`
 	Steam         []Game     `json:"steam"`
-	SteamUsual    string     `json:"steam_usual"`
 	Streaming     []Title    `json:"streaming"`
 	Systems       Systems    `json:"systems"`
 	Feeds         []Feed     `json:"feeds"`
@@ -62,9 +61,6 @@ type Store struct {
 	// The BLS and BEA calendars, which the footer reads every minute and the
 	// markets brief reads four times a day.
 	releases []release
-
-	// Which game held the top of Steam each day, nil in tests.
-	chart *steamChart
 
 	// The top comments on each feed row, nil in tests.
 	comments *commentBook
@@ -203,9 +199,9 @@ func (s *Store) Prime(ctx context.Context, g *Guard) {
 	s.update(func(st *State) { st.NextBrief = nextBrief(time.Now()) })
 }
 
-// awaitFirstRound holds until the pollers Prime doesn't run have filled in,
-// since a slot owed at start would otherwise write the glance without weather
-// or Steam. A source that never answers only costs the wait.
+// awaitFirstRound holds until HN has filled in, since Prime doesn't poll it and
+// a slot owed at start would otherwise brief the feeds with nothing to read. A
+// source that never answers only costs the wait.
 func (s *Store) awaitFirstRound(ctx context.Context, most time.Duration) {
 	ctx, cancel := context.WithTimeout(ctx, most)
 	defer cancel()
@@ -213,7 +209,7 @@ func (s *Store) awaitFirstRound(ctx context.Context, most time.Duration) {
 	defer t.Stop()
 	for {
 		st := s.Snapshot()
-		if (st.Weather.Condition != "" || st.Weather.Unavailable) && len(st.Steam) > 0 && len(st.HN) > 0 {
+		if len(st.HN) > 0 {
 			return
 		}
 		select {
@@ -453,9 +449,6 @@ func (s *Store) refreshSteam(ctx context.Context, g *Guard) {
 	s.update(func(st *State) {
 		if keepSteam(games, st.Steam) {
 			st.Steam = games
-		}
-		if s.chart != nil {
-			st.SteamUsual = s.chart.record(st.Steam, time.Now())
 		}
 	})
 }
