@@ -443,11 +443,13 @@ same height so their edges line up. The footer is a rating plate, the sticker on
 the back of old gear, starting at `SER. NO. 0830-26` (the day dash was built) and
 then next brief, the dates ahead, guard and source. MODEL is on the 00 plate only.
 Past 1900px both fold into a 236px spine down the left, DASH running up a void
-strip with the plate and four amber stripes under it, sticky when the window is
-at least 820px tall so its bottom can always be reached. It is one piece of
-markup: `.console` is `display: contents` below 1900px, which makes the two
-panels the frame's first and last rows, and a column above it, so nothing is
-duplicated per breakpoint. Below 1900 the chrome scrolls away with the page.
+strip with the plate and four amber stripes under it. The spine sits on main's
+rows, SYSTEM beside MARKETS and the market band and STATUS beside the local band,
+so every gutter on the left lines up with one on the right, and it's sticky when
+the window is at least 1180px tall so its bottom can always be reached. It is one
+piece of markup: `.console` is `display: contents` below 1900px, which makes the
+two panels the frame's first and last rows, and a subgrid column above it with
+main as `display: contents`, so nothing is duplicated per breakpoint. Below 1900 the chrome scrolls away with the page.
 
 **A row of unequal strings is a stack, not a flex line.** dash's severe weather
 alerts were an event name that could not wrap, an NWS headline of 114 characters
