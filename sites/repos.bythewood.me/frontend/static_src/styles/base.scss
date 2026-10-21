@@ -471,8 +471,8 @@ input[type="text"], input[type="password"], input[type="url"] {
 .archivedrepos {
   margin-top: 3rem;
 
-  .repolist { opacity: 0.6; transition: opacity 0.15s; }
-  .repolist:hover { opacity: 1; }
+  .repocard { opacity: 0.6; transition: opacity 0.15s; }
+  .repocard:hover { opacity: 1; }
 }
 
 .repocard {
