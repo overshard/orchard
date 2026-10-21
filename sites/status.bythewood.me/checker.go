@@ -150,6 +150,12 @@ func runCheck(ctx context.Context, db *sql.DB, p *Property) (int64, error) {
 		if looksLikeTLSError(err) {
 			code = 526
 		}
+		slog.Warn("probe failed",
+			slog.String("component", "checker"),
+			slog.String("url", p.URL),
+			slog.Int64("status", code),
+			slog.String("error", err.Error()),
+		)
 		// Record how long the failure took. An NXDOMAIN fails in milliseconds
 		// and charting it as the full timeout would poison the average.
 		outcome = &probeOutcome{
