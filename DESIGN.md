@@ -351,6 +351,10 @@ That page does not exist.
 ← Home                 ghost button
 ```
 
+`repos` has a second one for history and anything at a commit SHA asked for
+signed out, the same skeleton with `404 · SIGNED IN ONLY`, a clone command and a
+ghost button back to the repository.
+
 Left aligned like every other page here. `logging` centred its own version with
 a different sentence and a filled button until 2026-09-01, and `repos` had a
 bare `404` with an inline link.

@@ -18,7 +18,7 @@
   </nav>
   <span class="stat">{{humanBytes $d.Size}}{{if $d.Lines}} &middot; {{$d.Lines}} lines{{end}}{{if $d.Language}} &middot; {{$d.Language}}{{end}}</span>
   <a class="btn" href="/{{$c.Repo.Name}}/raw/{{$c.Rev}}/{{urlPath $d.Path}}">Raw</a>
-  <a class="btn" href="/{{$c.Repo.Name}}/log/{{$c.Rev}}/{{urlPath $d.Path}}">History</a>
+  {{if $c.SignedIn}}<a class="btn" href="/{{$c.Repo.Name}}/log/{{$c.Rev}}/{{urlPath $d.Path}}">History</a>{{end}}
 </div>
 
 {{if $d.TooLarge}}

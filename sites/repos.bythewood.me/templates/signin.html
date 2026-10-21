@@ -1,0 +1,10 @@
+{{define "content"}}
+{{$c := .Data.Ctx}}
+<div class="notfound">
+  <div class="section-label">404 &middot; signed in only</div>
+  <h1>Not shown signed out</h1>
+  <p>{{.Description}}</p>
+  <pre class="cmd">git clone {{$c.CloneURL}}</pre>
+  <a href="/{{$c.Repo.Name}}" class="btn btn-ghost btn-sm">&larr; {{$c.Repo.Name}}</a>
+</div>
+{{end}}

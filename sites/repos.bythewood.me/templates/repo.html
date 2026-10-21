@@ -59,6 +59,7 @@ git push -u origin main</pre>
     </article>
   {{end}}
 
+  {{if $c.SignedIn}}
   <section class="recent">
     <h2>Recent commits</h2>
     <ul class="commits">
@@ -66,6 +67,7 @@ git push -u origin main</pre>
     </ul>
     <a href="/{{$c.Repo.Name}}/log/{{$c.Rev}}">All commits</a>
   </section>
+  {{end}}
 {{end}}
 
 {{template "clonebox" $d}}

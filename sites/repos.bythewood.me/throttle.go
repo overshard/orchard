@@ -18,7 +18,7 @@ import (
 // only route here that costs real work. A signed in request skips all of this, so
 // these only have to be generous to a stranger reading the site.
 var (
-	// Reading commits, raw files and history. A person clicking through a
+	// Raw files. A person clicking through a
 	// repository doesn't come near this.
 	pageLimit = rate{burst: 40, per: time.Minute, refill: 20}
 

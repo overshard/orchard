@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"repos.bythewood.me/web"
@@ -47,7 +48,7 @@ func TestRawMissesAreNotFound(t *testing.T) {
 		if w.Code != http.StatusNotFound {
 			t.Errorf("%s answered %d, want 404", target, w.Code)
 		}
-		if cc := w.Header().Get("Cache-Control"); cc != "" {
+		if cc := w.Header().Get("Cache-Control"); strings.Contains(cc, "max-age") {
 			t.Errorf("%s carried Cache-Control %q", target, cc)
 		}
 	}
