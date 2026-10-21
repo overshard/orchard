@@ -48,7 +48,7 @@ var (
 	pageTemplates   = []string{
 		"index.html", "repo.html", "tree.html", "blob.html",
 		"log.html", "commit.html", "branches.html", "tags.html",
-		"settings.html", "notfound.html",
+		"settings.html", "notfound.html", "signin.html",
 	}
 )
 
@@ -184,17 +184,17 @@ func realMain() error {
 	mux.HandleFunc("GET /{name}/tree/{rev}/{path...}", s.tree)
 	mux.HandleFunc("GET /{name}/blob/{rev}/{path...}", s.blob)
 
-	// raw, log, commit and archive are rate limited for anyone not signed in,
-	// see throttle.go for why.
+	// raw and archive are rate limited for anyone not signed in, see throttle.go
+	// for why. log and commit are signed in only.
 	pages, archives := newThrottle(pageLimit), newThrottle(archiveLimit)
 
 	mux.HandleFunc("GET /{name}/raw/{rev}/{path...}", s.limited(pages, s.raw))
 
-	mux.HandleFunc("GET /{name}/log", s.limited(pages, s.log))
-	mux.HandleFunc("GET /{name}/log/{rev}", s.limited(pages, s.log))
-	mux.HandleFunc("GET /{name}/log/{rev}/{path...}", s.limited(pages, s.log))
+	mux.HandleFunc("GET /{name}/log", s.log)
+	mux.HandleFunc("GET /{name}/log/{rev}", s.log)
+	mux.HandleFunc("GET /{name}/log/{rev}/{path...}", s.log)
 
-	mux.HandleFunc("GET /{name}/commit/{sha}", s.limited(pages, s.commit))
+	mux.HandleFunc("GET /{name}/commit/{sha}", s.commit)
 	mux.HandleFunc("GET /{name}/branches", s.refsPage("branches.html"))
 	mux.HandleFunc("GET /{name}/tags", s.refsPage("tags.html"))
 	// The format rides as a file extension so a browser and a shell both get a

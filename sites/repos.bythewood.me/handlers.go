@@ -51,12 +51,18 @@ type page struct {
 }
 
 func (s *site) page(r *http.Request, title, description string, data any) page {
+	return s.pageAs(r, s.auth.Authenticated(r), title, description, data)
+}
+
+// pageAs is page for a caller that already asked auth, since every ask is a
+// round trip to another container.
+func (s *site) pageAs(r *http.Request, loggedIn bool, title, description string, data any) page {
 	return page{
 		Title:       title,
 		Description: description,
 		Script:      s.script,
 		Styles:      s.styles,
-		LoggedIn:    s.auth.Authenticated(r),
+		LoggedIn:    loggedIn,
 		AnalyticsID: analyticsID,
 		SiteName:    siteName,
 		SiteTagline: siteTagline,
@@ -70,7 +76,7 @@ func (s *site) page(r *http.Request, title, description string, data any) page {
 
 // pageForRepo is page plus the repository header context.
 func (s *site) pageForRepo(r *http.Request, rc *repoContext, title, description string, data any) page {
-	p := s.page(r, title, description, data)
+	p := s.pageAs(r, rc.SignedIn, title, description, data)
 	p.RepoName = rc.Repo.Name
 	if !rc.Empty {
 		p.RepoRev = rc.Rev
@@ -82,6 +88,18 @@ func (s *site) notFound(w http.ResponseWriter, r *http.Request) {
 	p := s.page(r, "404", "That page does not exist.", nil)
 	p.Crumb = "404"
 	s.renderer.Render(w, http.StatusNotFound, "notfound.html", p)
+}
+
+// signedInOnly answers a signed out request for history or for anything pinned
+// to a commit. Never cached, since the same URL is a real page for the owner.
+func (s *site) signedInOnly(w http.ResponseWriter, r *http.Request, rc *repoContext) {
+	w.Header().Set("Cache-Control", "no-store")
+	p := s.pageForRepo(r, rc, "Signed in only",
+		"Commit history, diffs and files at a past commit are only shown signed in, "+
+			"and signing in is for the owner. A clone has all of it.",
+		map[string]any{"Ctx": rc})
+	p.Crumb = "signed in only"
+	s.renderer.Render(w, http.StatusNotFound, "signin.html", p)
 }
 
 // requireLogin gates the routes that change something.
@@ -181,6 +199,7 @@ type repoContext struct {
 	Tags     []Ref
 	Empty    bool
 	Size     int64
+	SignedIn bool
 
 	CloneURL  string
 	BridgeURL string
@@ -216,6 +235,7 @@ func (s *site) resolveRepo(w http.ResponseWriter, r *http.Request) (*repoContext
 		CloneURL:        cloneURL(baseURL, name),
 		BridgeURL:       bridgeCloneURL(containerName, name),
 		BridgeContainer: containerName,
+		SignedIn:        s.auth.Authenticated(r),
 	}
 	rc.OverLimit = rc.Size > cloudflareBodyLimit
 	rc.PushPercent = percentOf(rc.Size, cloudflareBodyLimit)
@@ -242,6 +262,28 @@ func (s *site) resolveRepo(w http.ResponseWriter, r *http.Request) (*repoContext
 	return rc, true
 }
 
+// named reports whether rev is a branch or tag. Signed out, pages are only served
+// at one of these, since every commit SHA is another copy of the whole tree for a
+// crawler to walk and the crawler on repos walks every one of them.
+func (rc *repoContext) named(rev string) bool {
+	for _, b := range rc.Branches {
+		if b.Name == rev {
+			return true
+		}
+	}
+	for _, t := range rc.Tags {
+		if t.Name == rev {
+			return true
+		}
+	}
+	return false
+}
+
+// public reports whether this request may see a page at rev.
+func (rc *repoContext) public(rev string) bool {
+	return rc.SignedIn || rc.named(rev)
+}
+
 func (s *site) repo(w http.ResponseWriter, r *http.Request) {
 	rc, ok := s.resolveRepo(w, r)
 	if !ok {
@@ -256,8 +298,10 @@ func (s *site) repo(w http.ResponseWriter, r *http.Request) {
 			s.notFound(w, r)
 			return
 		}
-		commits, _ := s.store.Log(ctx, rc.Repo, rc.Rev, 0, 10)
-		data["Commits"] = commits
+		if rc.SignedIn {
+			commits, _ := s.store.Log(ctx, rc.Repo, rc.Rev, 0, 10)
+			data["Commits"] = commits
+		}
 		data["CommitCount"] = s.store.CountCommits(ctx, rc.Repo, rc.Rev)
 
 		entries, err := s.store.Tree(ctx, rc.Repo, rc.Rev, "")
@@ -313,6 +357,10 @@ func (s *site) tree(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if !rc.public(rc.Rev) {
+		s.signedInOnly(w, r, rc)
+		return
+	}
 	ctx := r.Context()
 
 	if _, err := s.store.Resolve(ctx, rc.Repo, rc.Rev); err != nil {
@@ -340,6 +388,10 @@ func (s *site) tree(w http.ResponseWriter, r *http.Request) {
 func (s *site) blob(w http.ResponseWriter, r *http.Request) {
 	rc, ok := s.resolveRepo(w, r)
 	if !ok {
+		return
+	}
+	if !rc.public(rc.Rev) {
+		s.signedInOnly(w, r, rc)
 		return
 	}
 	ctx := r.Context()
@@ -393,6 +445,10 @@ func (s *site) raw(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if !rc.public(rc.Rev) {
+		s.signedInOnly(w, r, rc)
+		return
+	}
 	ctx := r.Context()
 
 	sha, err := s.store.Resolve(ctx, rc.Repo, rc.Rev)
@@ -409,9 +465,10 @@ func (s *site) raw(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	// A blob at a resolved SHA can't change, at a branch name it can.
+	// A blob at a resolved SHA can't change, at a branch name it can. Private,
+	// since only the owner gets one at a SHA and Cloudflare caches by extension.
 	if sha == rc.Rev {
-		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
 	} else {
 		w.Header().Set("Cache-Control", "public, max-age=300")
 	}
@@ -426,6 +483,10 @@ func (s *site) raw(w http.ResponseWriter, r *http.Request) {
 func (s *site) log(w http.ResponseWriter, r *http.Request) {
 	rc, ok := s.resolveRepo(w, r)
 	if !ok {
+		return
+	}
+	if !rc.SignedIn {
+		s.signedInOnly(w, r, rc)
 		return
 	}
 	ctx := r.Context()
@@ -484,6 +545,10 @@ func (s *site) commit(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if !rc.SignedIn {
+		s.signedInOnly(w, r, rc)
+		return
+	}
 	ctx := r.Context()
 
 	sha, err := s.store.Resolve(ctx, rc.Repo, r.PathValue("sha"))
@@ -538,6 +603,10 @@ func (s *site) archive(w http.ResponseWriter, r *http.Request) {
 		rev, format = strings.TrimSuffix(rev, ".zip"), "zip"
 	default:
 		s.notFound(w, r)
+		return
+	}
+	if !rc.public(rev) {
+		s.signedInOnly(w, r, rc)
 		return
 	}
 
@@ -709,12 +778,14 @@ func (s *site) atom(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, `  <link rel="self" href="%s/atom.xml"/>`+"\n", xmlEscape(repoURL))
 	fmt.Fprintf(w, "  <updated>%s</updated>\n", updated.Format(time.RFC3339))
 
+	// Entries link to the repository instead of the commit, since a commit page
+	// is signed in only and the feed is public. The id is a tag URI so it holds no
+	// URL for a crawler to follow.
 	for _, c := range commits {
-		url := repoURL + "/commit/" + c.SHA
 		fmt.Fprintf(w, "  <entry>\n")
 		fmt.Fprintf(w, "    <title>%s</title>\n", xmlEscape(c.Subject))
-		fmt.Fprintf(w, "    <id>%s</id>\n", xmlEscape(url))
-		fmt.Fprintf(w, `    <link href="%s"/>`+"\n", xmlEscape(url))
+		fmt.Fprintf(w, "    <id>tag:%s,2026:%s:%s</id>\n", strings.TrimPrefix(baseURL, "https://"), xmlEscape(rc.Repo.Name), c.SHA)
+		fmt.Fprintf(w, `    <link href="%s"/>`+"\n", xmlEscape(repoURL))
 		fmt.Fprintf(w, "    <updated>%s</updated>\n", c.Commit.Format(time.RFC3339))
 		fmt.Fprintf(w, "    <author><name>%s</name></author>\n", xmlEscape(c.Author))
 		fmt.Fprintf(w, "    <content type=\"text\">%s</content>\n", xmlEscape(c.Body))

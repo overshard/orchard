@@ -41,7 +41,7 @@
   */}}
   <nav class="repotabs">
     <a href="/{{$c.Repo.Name}}"{{if eq $tab "files"}} aria-current="page"{{end}}>Files</a>
-    <a href="/{{$c.Repo.Name}}/log/{{$c.Rev}}"{{if eq $tab "log"}} aria-current="page"{{end}}>Commits</a>
+    {{if $c.SignedIn}}<a href="/{{$c.Repo.Name}}/log/{{$c.Rev}}"{{if eq $tab "log"}} aria-current="page"{{end}}>Commits</a>{{end}}
     <a href="/{{$c.Repo.Name}}/branches"{{if eq $tab "branches"}} aria-current="page"{{end}}>Branches{{if $c.Branches}} <span class="count">{{len $c.Branches}}</span>{{end}}</a>
     <a href="/{{$c.Repo.Name}}/tags"{{if eq $tab "tags"}} aria-current="page"{{end}}>Tags{{if $c.Tags}} <span class="count">{{len $c.Tags}}</span>{{end}}</a>
     <a href="/{{$c.Repo.Name}}/atom.xml">Feed</a>
@@ -74,12 +74,20 @@
   <h3>Clone</h3>
   <input type="text" readonly value="git clone {{$c.CloneURL}}" onclick="this.select()">
 
+  {{if not $c.SignedIn}}
+    <p class="hint">
+      Signed out this shows the files on every branch and tag. Commit history,
+      diffs and files at a past commit are only shown signed in, and signing in
+      is for the owner, but a clone has all of it.
+    </p>
+  {{end}}
+
   {{if $c.Meta.Mirror}}
     <p class="hint">
       This is a mirror of <a href="{{$c.Meta.Upstream}}">upstream</a> and does not
       accept pushes. Cloning from it is how a copy is recovered.
     </p>
-  {{else if $.LoggedIn}}
+  {{else if $c.SignedIn}}
     {{/*
       Push instructions, the size meter and the limit guidance are all for the
       one person who can push, and the guidance names internal container

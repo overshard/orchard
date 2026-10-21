@@ -37,3 +37,7 @@ limit on the routes a crawler could walk forever. Repositories live in
   anything a visitor typed. Keep it that way in `git.go`.
 - Hiding a repository only takes it off the index. Anyone with the URL can
   still read and clone it, so nothing private belongs here.
+- Signed out, pages are only served at a branch or tag name, and history,
+  diffs and anything at a commit SHA answer a signed in only 404. Every SHA is
+  another copy of the tree for a crawler, so a signed out page must never link
+  to one.
