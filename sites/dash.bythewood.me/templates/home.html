@@ -1,6 +1,6 @@
 {{define "content"}}
 <div class="alerts" data-alerts aria-live="polite">
-  {{range .State.Alerts}}
+  {{- range .State.Alerts}}
   <div class="alert" data-severity="{{.Severity}}" data-urgency="{{.Urgency}}">
     <div class="alert-head">
       <span class="pip"></span>
@@ -16,7 +16,7 @@
       {{if .Office}}<span class="m"><span class="k">NWS</span><span class="v">{{.Office}}</span></span>{{end}}
     </div>
   </div>
-  {{end}}
+  {{- end -}}
 </div>
 
 <div class="onair-host" data-onair>
