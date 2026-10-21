@@ -123,20 +123,6 @@
 {{- end}}
 {{end}}
 
-{{define "glance"}}
-{{- if eq .Status "off"}}<p class="empty">BRIEF OFF, NO MODEL KEY</p>
-{{- else if .Read}}
-<div class="glance-read" data-level="{{.Read.Level}}">
-  <span class="lvl">{{.Read.Label}}</span>
-  <p class="txt">{{marked .Read.Text}}</p>
-</div>
-<ul class="glance-lines">
-  {{range .Points}}<li data-level="{{.Level}}"><a class="tag" href="#{{.Anchor}}">{{.Label}}</a><span class="lvl">{{upper .Level}}</span><span class="txt" data-full="{{.Text}}">{{.Text}}</span></li>
-  {{end}}
-</ul>
-{{- else}}<p class="empty">{{if .Waiting}}{{.Waiting}}{{else}}AWAITING FIRST READ{{end}}</p>{{end}}
-{{end}}
-
 {{define "condition"}}
 <li data-state="{{.State}}">
   <span class="k">{{.Label}}</span>

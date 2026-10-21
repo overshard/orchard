@@ -96,10 +96,6 @@ type Point struct {
 
 	// A TODAY point's TL;DR, from every outlet it links to.
 	Gist string `json:"gist,omitempty"`
-
-	// A glance line's level, and the panel it points at.
-	Level  string `json:"level,omitempty"`
-	Anchor string `json:"anchor,omitempty"`
 }
 
 // Read says whether anything big is going on, judged by how many newsrooms are
@@ -133,7 +129,6 @@ type Briefs struct {
 	Markets Brief `json:"markets"`
 	News    Brief `json:"news"`
 	Feeds   Brief `json:"feeds"`
-	Glance  Brief `json:"glance"`
 }
 
 func (s briefSlot) title() string {
@@ -220,9 +215,8 @@ var (
 	errBriefsCool = errors.New("briefs ran a moment ago")
 )
 
-// briefDesks is every desk in the order they run. The glance is last, since
-// it reads what the others just wrote.
-var briefDesks = []string{"markets", "news", "feeds", "glance"}
+// briefDesks is every desk in the order they run.
+var briefDesks = []string{"markets", "news", "feeds"}
 
 func NewBriefer(store *Store, g *Guard, m *Model, dataDir string) *Briefer {
 	b := &Briefer{store: store, guard: g, path: filepath.Join(dataDir, "briefs.json"), leans: openLeanBook(dataDir),
@@ -238,15 +232,15 @@ func NewBriefer(store *Store, g *Guard, m *Model, dataDir string) *Briefer {
 			slog.Warn("briefs file unreadable", slog.String("component", "brief"), slog.Any("err", err))
 		}
 	}
-	saved.Markets.Waiting, saved.News.Waiting, saved.Feeds.Waiting, saved.Glance.Waiting = "", "", "", ""
+	saved.Markets.Waiting, saved.News.Waiting, saved.Feeds.Waiting = "", "", ""
 	if m == nil {
-		saved.Markets.Status, saved.News.Status, saved.Glance.Status = "off", "off", "off"
+		saved.Markets.Status, saved.News.Status = "off", "off"
 	}
 	store.update(func(st *State) { st.Briefs = saved })
 	if b.leans.add(saved.Markets) {
 		b.leans.save()
 	}
-	for desk, br := range map[string]Brief{"markets": saved.Markets, "news": saved.News, "feeds": saved.Feeds, "glance": saved.Glance} {
+	for desk, br := range map[string]Brief{"markets": saved.Markets, "news": saved.News, "feeds": saved.Feeds} {
 		if len(br.Points) > 0 && br.Slot > 0 && !b.archive.has(desk, br.Slot) {
 			b.archive.add(desk, br)
 		}
@@ -383,7 +377,7 @@ func (b *Briefer) tick(ctx context.Context, now time.Time) {
 
 	slot, at := latestSlot(now)
 	cur := b.store.Snapshot().Briefs
-	slots := map[string]int64{"markets": cur.Markets.Slot, "news": cur.News.Slot, "feeds": cur.Feeds.Slot, "glance": cur.Glance.Slot}
+	slots := map[string]int64{"markets": cur.Markets.Slot, "news": cur.News.Slot, "feeds": cur.Feeds.Slot}
 	var due []string
 	for _, desk := range briefDesks {
 		if slots[desk] < at.Unix() {
@@ -486,8 +480,6 @@ func (st *State) setBrief(desk string, brief Brief) {
 	case "feeds":
 		st.Briefs.Feeds = brief
 		st.attachFeedReads()
-	case "glance":
-		st.Briefs.Glance = brief
 	default:
 		st.Briefs.News = brief
 		st.setNotices("news", briefNotices(brief))
@@ -500,8 +492,6 @@ func (b *Briefer) compileDesk(ctx context.Context, desk string, slot briefSlot, 
 		return b.compileMarkets(ctx, slot, at)
 	case "feeds":
 		return b.compileFeeds(ctx, slot, at)
-	case "glance":
-		return b.compileGlance(ctx, slot, at)
 	}
 	return b.compileNews(ctx, slot, at)
 }
@@ -509,7 +499,7 @@ func (b *Briefer) compileDesk(ctx context.Context, desk string, slot briefSlot, 
 // waiting says on every brief panel why the last brief is still up.
 func (b *Briefer) waiting(why string) {
 	b.store.update(func(st *State) {
-		st.Briefs.Markets.Waiting, st.Briefs.News.Waiting, st.Briefs.Feeds.Waiting, st.Briefs.Glance.Waiting = why, why, why, why
+		st.Briefs.Markets.Waiting, st.Briefs.News.Waiting, st.Briefs.Feeds.Waiting = why, why, why
 	})
 }
 

@@ -720,72 +720,6 @@ main {
   }
 }
 
-// Glance ---------------------------------------------------------------------
-
-// The read at the top. The level is Go's, so its colour is the one thing here
-// that can be trusted at a glance: dim when quiet, amber to watch, red to act.
-.glance {
-  .glance-read {
-    display: flex;
-    align-items: baseline;
-    gap: 12px;
-    padding: 2px 0 10px;
-    border-bottom: 1px solid var(--line-hot);
-  }
-
-  .glance-read .lvl {
-    flex: none;
-    padding: 2px 7px;
-    border: 1px solid var(--line-hot);
-    font-size: 10px;
-    letter-spacing: var(--track);
-    color: var(--muted);
-  }
-  .glance-read[data-level="watch"] .lvl { color: var(--amber); border-color: var(--amber-dim); }
-  .glance-read[data-level="act"] .lvl { color: var(--down); border-color: var(--down); }
-
-  .glance-read .txt {
-    margin: 0;
-    color: var(--text);
-    font-size: 15px;
-    line-height: 1.45;
-    b { color: var(--amber); font-weight: 600; }
-  }
-
-  .glance-lines {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-
-    li {
-      display: grid;
-      grid-template-columns: 76px 52px minmax(0, 1fr);
-      align-items: baseline;
-      gap: 10px;
-      padding: 6px 0;
-      border-bottom: 1px solid var(--line);
-      &:last-child { border-bottom: 0; }
-    }
-
-    .tag { font-size: 10px; letter-spacing: var(--track); color: var(--amber-dim); }
-    .tag:hover { color: var(--amber); }
-    .lvl { font-size: 9px; letter-spacing: var(--track); color: var(--faint); }
-    li[data-level="watch"] .lvl { color: var(--amber); }
-    li[data-level="act"] .lvl { color: var(--down); }
-
-    .txt {
-      color: var(--muted);
-      font-size: 13px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    li[data-level="watch"] .txt, li[data-level="act"] .txt { color: var(--text); }
-  }
-
-  .empty { margin: 0; color: var(--dim); font-size: 11px; letter-spacing: var(--track); }
-}
-
 // Readout card -----------------------------------------------------------------
 
 // The full text of a line the page cut short, framed like a panel and labelled
@@ -3174,11 +3108,6 @@ main {
 // things worth knowing before scrolling, and drops the rest.
 @media (max-width: 620px) {
   :root { --gap: 8px; --pad: 10px; }
-
-  // The line drops under its label, since a third of a phone is not a sentence.
-  .glance .glance-lines li { grid-template-columns: auto 1fr; }
-  .glance .glance-lines .txt { grid-column: 1 / -1; white-space: normal; }
-  .glance .glance-read { flex-direction: column; gap: 6px; }
 
   .news-band { grid-template-columns: 1fr; }
 

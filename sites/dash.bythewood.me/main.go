@@ -139,7 +139,6 @@ func realMain() error {
 	hub := NewHub()
 	guard := NewGuard(dataDir)
 	store := NewStore(hub)
-	store.chart = openSteamChart(dataDir)
 
 	s := &site{
 		renderer: renderer,

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -102,9 +103,9 @@ func briefNotices(b Brief) []Notice {
 	}}
 }
 
-// marketNotices is the glance's act bars on the live cards, since the glance
-// holds at its slot while futures move. The S&P and the Nasdaq share a notice
-// per session and direction, as a selloff takes both across within minutes.
+// marketNotices is the act bars on the live cards. The S&P and the Nasdaq share
+// a notice per session and direction, as a selloff takes both across within
+// minutes.
 func marketNotices(cards []Card, session string) []Notice {
 	body := marketContext(cards)
 	var out []Notice
@@ -193,3 +194,69 @@ func marketContext(cards []Card) string {
 }
 
 var shortName = map[string]string{"sp500": "S&P", "nasdaq": "Nasdaq", "dow": "Dow", "russell": "Russell", "vix": "VIX"}
+
+const (
+	levelWatch = "watch"
+	levelAct   = "act"
+)
+
+// marketBar is how far a card has to go to count as watch and then act, in percent on the day, or for the VIX in its level. A bar with no
+// act only ever gets to watch.
+type marketBar struct {
+	name       string
+	watch, act float64
+	level      bool
+}
+
+var marketBars = map[string]marketBar{
+	"sp500": {name: "the S&P 500", watch: 1, act: 2},
+	// The Nasdaq runs about a third hotter than the S&P, so a tech selloff can
+	// be a big day while the S&P is only down a percent.
+	"nasdaq":  {name: "the Nasdaq", watch: 1.5, act: 2.5},
+	"vix":     {name: "the VIX", watch: 22, act: 30, level: true},
+	"bitcoin": {name: "bitcoin", watch: 7},
+}
+
+// cardLevel is a card past its watch bar, and value is the figure the bar read.
+type cardLevel struct {
+	card  Card
+	level string
+	value float64
+	why   string
+}
+
+// marketLevels reads the cards against marketBars.
+func marketLevels(cards []Card) []cardLevel {
+	var out []cardLevel
+	for _, c := range cards {
+		bar, ok := marketBars[c.Key]
+		if !ok || c.Unavailable {
+			continue
+		}
+		v := cardFigure(c.Percent)
+		if bar.level {
+			v = cardFigure(c.Price)
+		}
+		var level string
+		switch {
+		case bar.act > 0 && math.Abs(v) >= bar.act:
+			level = levelAct
+		case math.Abs(v) >= bar.watch:
+			level = levelWatch
+		default:
+			continue
+		}
+		why := fmt.Sprintf("%s moved %+.2f%%", bar.name, v)
+		if bar.level {
+			why = fmt.Sprintf("%s is %.1f", bar.name, v)
+		}
+		out = append(out, cardLevel{card: c, level: level, value: v, why: why})
+	}
+	return out
+}
+
+// cardFigure reads a card's "+1.23%" or "7,859.75" back into a number.
+func cardFigure(s string) float64 {
+	v, _ := strconv.ParseFloat(strings.NewReplacer("+", "", "%", "", ",", "").Replace(s), 64)
+	return v
+}

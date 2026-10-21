@@ -25,7 +25,7 @@ make clean    delete build/ and node_modules
 each poll one thing into the store in `state.go`, which broadcasts it on
 `/events`. `sources.go` lists every poller with its interval, so a new panel is
 one entry there. `brief.go` runs the briefs on the model, and each desk writes
-its own in `briefmarkets.go`, `briefnews.go`, `feeds.go` and `glance.go`, with
+its own in `briefmarkets.go`, `briefnews.go` and `feeds.go`, with
 `briefstories.go` grouping the outlets' stories into events for the first two.
 `quick.go` relays the quick chat to chat.bythewood.me, and `guard.go` fences
 every upstream with a budget and a breaker. There's no database, just JSON files

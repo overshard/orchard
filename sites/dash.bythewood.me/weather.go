@@ -34,16 +34,6 @@ type Weather struct {
 	// acts on. It comes out of the same request the rest of this panel already
 	// makes, so it costs nothing.
 	Hours []Hour `json:"hours"`
-
-	// Today and tomorrow, for the glance read, since a day of heavy rain and
-	// wind with no NWS alert out is still not a quiet day.
-	Days []WeatherDay `json:"days"`
-}
-
-type WeatherDay struct {
-	Rain      float64 `json:"rain"`
-	RainHours float64 `json:"rain_hours"`
-	Gusts     float64 `json:"gusts"`
 }
 
 // Hour is one column of the strip. Rain is a chance and not a depth, since a
@@ -71,9 +61,6 @@ type weatherPayload struct {
 		Max          []float64 `json:"temperature_2m_max"`
 		Min          []float64 `json:"temperature_2m_min"`
 		PrecipChance []int     `json:"precipitation_probability_max"`
-		Precip       []float64 `json:"precipitation_sum"`
-		PrecipHours  []float64 `json:"precipitation_hours"`
-		Gusts        []float64 `json:"wind_gusts_10m_max"`
 		Sunrise      []string  `json:"sunrise"`
 		Sunset       []string  `json:"sunset"`
 		UVMax        []float64 `json:"uv_index_max"`
@@ -85,7 +72,7 @@ func fetchWeather(ctx context.Context, g *Guard) (Weather, error) {
 		"%s?latitude=%.2f&longitude=%.2f"+
 			"&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m"+
 			"&hourly=temperature_2m,precipitation_probability"+
-			"&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,precipitation_hours,wind_gusts_10m_max,sunrise,sunset,uv_index_max"+
+			"&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset,uv_index_max"+
 			"&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch"+
 			// Two days, because the strip runs past midnight for most of the
 			// evening and one day of hours would run out at 11pm.
@@ -135,9 +122,6 @@ func fetchWeather(ctx context.Context, g *Guard) (Weather, error) {
 		}
 	}
 	w.Hours = buildHours(payload, time.Now())
-	for i := range payload.Daily.Precip {
-		w.Days = append(w.Days, WeatherDay{Rain: payload.Daily.Precip[i], RainHours: nth(payload.Daily.PrecipHours, i), Gusts: nth(payload.Daily.Gusts, i)})
-	}
 	return w, nil
 }
 

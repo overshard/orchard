@@ -124,9 +124,8 @@ which ids it has shown and counts the ones on the page at load as seen. A market
 move is the close it's measured from and its direction, a warning is its VTEC event
 number rather than the NWS id that changes with every update, and a major story is
 its lead's URL, which is what keeps a restart or a reconnect from notifying twice.
-Market notices are the glance's act bars, `marketBars` in `glance.go`, read off
-the live cards on every poll, since the glance's own chip holds at its slot while
-futures move. Watch is never pushed, because a 1% S&P day or a VIX of 22 is an
+Market notices are the act bars in `marketBars` in `notices.go`, read off the
+live cards on every poll. Watch is never pushed, because a 1% S&P day or a VIX of 22 is an
 ordinary week. The S&P and the Nasdaq share one notice a session per direction,
 evening futures count as the day they still carry, and the VIX only notifies on
 the session it crosses 30, or a week above it would be a notice every morning.
@@ -179,18 +178,7 @@ Hacker News' numbers. Under it sits a third desk, `feeds.go`, which at each slot
 reads both front pages plus the top three comments on the five busiest threads
 (Firebase for HN, since it lists replies in the site's rank order and Algolia
 doesn't) and writes a read of about thirty words on
-what the page as a whole is about and what the commenters make of it. A fourth
-desk, `glance.go`, runs last and reads everything on the page into AT A GLANCE,
-a sentence or two and one line each for markets, news, tech, weather and play.
-Each line's level, quiet, watch or act, is a threshold in Go and the model only
-phrases it, a figure in its text that the facts don't carry swaps the line for
-one Go writes, and bold only lands on a phrase the facts carry. WEATHER
-watches an inch of rain, or half an inch over ten hours, or 30mph gusts today or
-tomorrow even with no NWS alert out, and PLAY watches a game out under a month in
-Steam's top three or a No. 1 that isn't the usual one, which `steam.json` on the
-volume keeps by day since Steam publishes no chart history. A story every
-outlet runs doesn't raise the level, since being everywhere isn't the same as
-touching him. The 9B
+what the page as a whole is about and what the commenters make of it. The 9B
 writes right up to whatever `maxLength` it gets, so the cap sits well past the
 asked length and `whole` keeps a cut line up to its last whole clause. BLS answers 403 to any User-Agent without a contact
 address in it, browsers included. The latest brief per desk lives

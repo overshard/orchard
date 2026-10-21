@@ -436,7 +436,7 @@ dashboard pages go full width inside it. dash broke the same rule until
 2026-10-09 with a rail and a status line running edge to edge past a capped
 `main`.
 
-**dash's chrome is panel 00 and panel 17.** The header is a panel like any other,
+**dash's chrome is panel 00 and panel 16.** The header is a panel like any other,
 DASH large with a boxed `MODEL BW-07 / SERIES ORCHARD` plate under it and the
 readouts as tiles on the market cards' hairline grid, the two blocks exactly the
 same height so their edges line up. The footer is a rating plate, the sticker on
@@ -525,19 +525,11 @@ brackets and the leader sit just outside it. `data-full` text
 elsewhere opens only when it's actually cut, and a source tag's `data-tip`
 shows its headline on hover and focus and is just a link on a phone.
 
-**AT A GLANCE is panel 01, above MARKETS and under the alerts and ON AIR.** One
-sentence or two first, with a level chip of `QUIET`, `WATCH` or `ACT`, then one
-line each for MARKETS, NEWS, TECH, WEATHER and PLAY, each tagged with its own
-level and linking down to its panel. The levels come from thresholds in Go and
-the model only phrases them, so a quiet chip is grey, watch is amber and act is
-red, and a quiet line is muted so a watch line stands out. Bold is the one
-markup a model's text gets, at most two phrases, and only ones the facts carry.
-
 **UPLINK goes at the bottom, full width.** It grew to more rows than any
 readout beside it and stretched the whole local band to match, so it moved under
 the news band on its own and runs its rows as many across as fit. That leaves the
 local band six panels, six wide from 1900px where `main` widens, then three and
-then two, so no width leaves a hole. Panel 17 under it doesn't list the sources again, since
+then two, so no width leaves a hole. Panel 16 under it doesn't list the sources again, since
 UPLINK names them all. It says when the next brief is due and the next four
 market moving dates, CPI, PPI, jobs, JOLTS, GDP, PCE and the Fed, with the label
 in amber.
@@ -561,6 +553,6 @@ A reader only ever has the repo.
 | `repos` | green | Hand written CSS, no Bootstrap, since it is dense text. Newsreader on repository names |
 | `chat` | green | Hand written CSS, no Bootstrap. A conversation, so it reads at the longest length on the estate. Citation pills and a source row under each answer, and widget panels above one when a ticker or a forecast was looked up. A picture draws behind a panel listing its stages, each with a count and a guess from the last few, and replaces it once it has loaded. An unread dot on a conversation that finished a turn off screen, and the place in line of every turn still waiting |
 | `llm` | green | Hand written CSS, no Bootstrap. Behind the landing is a dashboard of keys, usage and the call log |
-| `dash` | amber | Hand written CSS. Scanlines, vignette, JetBrains Mono and Space Grotesk. Panel 00 and panel 17 for chrome, a spine past 1900px. A `NOTIFY` switch in panel 00, and a `CHAT` readout beside it that only appears signed in |
+| `dash` | amber | Hand written CSS. Scanlines, vignette, JetBrains Mono and Space Grotesk. Panel 00 and panel 16 for chrome, a spine past 1900px. A `NOTIFY` switch in panel 00, and a `CHAT` readout beside it that only appears signed in |
 | `blog`, `isaacbythewood.com` | neither | Separate identities. Nothing here applies to them |
 
