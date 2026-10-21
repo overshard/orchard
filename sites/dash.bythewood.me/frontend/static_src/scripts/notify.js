@@ -73,6 +73,19 @@ function paint() {
   for (const box of boxes) box.checked = chosen.has(box.value);
 }
 
+// Set by a press that asked for permission, so a grant that arrives any other
+// way still switches everything on.
+let asked = false;
+
+// Chrome can close its prompt without settling the promise the press waits on,
+// and a grant from the address bar never touches it, so this catches the answer.
+function settle() {
+  if (Notification.permission === "default") return;
+  if (asked && Notification.permission === "granted" && !kinds().size) saveKinds(new Set(Object.keys(GROUP)));
+  asked = false;
+  paint();
+}
+
 function openMenu(open) {
   menu.hidden = !open;
   button.setAttribute("aria-expanded", String(open));
@@ -86,7 +99,10 @@ if (root && supported) {
   // A browser only asks for permission from inside a press, which is why this
   // is a switch and not something the page does on load.
   button.addEventListener("click", async () => {
-    if (Notification.permission === "default") await Notification.requestPermission();
+    if (Notification.permission === "default") {
+      asked = true;
+      await Notification.requestPermission();
+    }
     if (Notification.permission !== "granted") {
       paint();
       return;
@@ -124,6 +140,11 @@ if (root && supported) {
   window.addEventListener("storage", (e) => {
     if (e.key === KINDS) paint();
   });
+  window.addEventListener("focus", settle);
+  navigator.permissions
+    ?.query({ name: "notifications" })
+    .then((status) => status.addEventListener("change", settle))
+    .catch(() => {});
 }
 
 // Two tabs on one browser get the same frame. Whichever takes the lock first
