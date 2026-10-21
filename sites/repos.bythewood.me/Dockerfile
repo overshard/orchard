@@ -8,7 +8,7 @@ RUN bun install --frozen-lockfile
 COPY frontend/ ./
 RUN bun run build
 
-FROM golang:1.27-trixie@sha256:2f84bc93ecfb2689f782b153fdcd368b5a7ab96c1386c65cdaccf35e726d6a44 AS build
+FROM golang:1.27-trixie@sha256:fbb7ae40b62ff8afe31662df570d39b4f5052ac32b90dae8e60d7657a20a74f4 AS build
 WORKDIR /src
 
 COPY go.mod go.su[m] ./

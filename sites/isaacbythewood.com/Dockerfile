@@ -59,7 +59,7 @@ COPY --from=resume /resume-isaac-bythewood.pdf ./public/pdfs/resume-isaac-bythew
 COPY --from=card /card.png ./public/og/card.png
 RUN bun run vite
 
-FROM golang:1.27-trixie@sha256:2f84bc93ecfb2689f782b153fdcd368b5a7ab96c1386c65cdaccf35e726d6a44 AS build
+FROM golang:1.27-trixie@sha256:fbb7ae40b62ff8afe31662df570d39b4f5052ac32b90dae8e60d7657a20a74f4 AS build
 WORKDIR /src
 # The bracket glob makes go.sum optional, since a plain COPY go.sum fails the
 # build outright for a module with no third party dependency.
