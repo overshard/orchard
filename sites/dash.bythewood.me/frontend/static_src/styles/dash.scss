@@ -2931,23 +2931,43 @@ main {
   .card .price { font-size: 22px; }
 
   // Past 1900 the chrome folds into a spine down the left. main still gets
-  // 1828px of a 2100px frame, which is more than a laptop gives it.
+  // 1828px of a 2100px frame, which is more than a laptop gives it. main's
+  // panels join the frame's rows so the spine's panels end on the same lines,
+  // SYSTEM beside everything down to the market band and STATUS beside the
+  // local band.
   .frame {
     max-width: 2100px;
     grid-template-columns: 236px minmax(0, 1fr);
-    grid-template-rows: auto;
-    grid-template-areas: "console main";
-    align-items: start;
+    grid-template-rows: none;
+    grid-template-areas: none;
   }
+
+  main { display: contents; }
+  main > * { grid-column: 2; min-width: 0; }
 
   .console {
-    grid-area: console;
-    display: flex;
-    flex-direction: column;
-    gap: var(--gap);
+    grid-column: 1;
+    grid-row: 1 / span 3;
+    display: grid;
+    grid-template-rows: subgrid;
   }
 
-  .system, .status { grid-area: auto; }
+  .system { grid-area: auto; grid-row: span 2; }
+  .status { grid-area: auto; }
+
+  // A weather alert or ON AIR card is a row of its own above MARKETS, and
+  // SYSTEM takes it in too.
+  .frame:has(.alerts > *), .frame:has(.onair-host > *) {
+    .console { grid-row: 1 / span 4; }
+    .system { grid-row: span 3; }
+  }
+  .frame:has(.alerts > *):has(.onair-host > *) {
+    .console { grid-row: 1 / span 5; }
+    .system { grid-row: span 4; }
+  }
+
+  .system, .status { display: flex; flex-direction: column; }
+  .system .sys-row, .status .rating { flex: 1; }
 
   // 236px holds the title and its rule but not the meta beside them, so the
   // meta drops to its own line.
@@ -3027,7 +3047,7 @@ main {
   .rating {
     flex-direction: column;
 
-    .cell.ahead { flex: none; }
+    .cell { flex: 1 0 auto; }
     .v { white-space: normal; }
     .ahead .ev { display: block; }
     .ev + .ev { margin-left: 0; }
@@ -3035,8 +3055,8 @@ main {
 }
 
 // Sticky only where the spine fits on screen, or its bottom could never be
-// scrolled to.
-@media (min-width: 1900px) and (min-height: 820px) {
+// scrolled to. It runs as tall as the local band's foot, about 1130px.
+@media (min-width: 1900px) and (min-height: 1180px) {
   .console {
     position: sticky;
     top: var(--gap);
