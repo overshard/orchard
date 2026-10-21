@@ -130,7 +130,7 @@ which is what it is for.
 `repos` shows its hero to signed out visitors only, because signed in that page
 is a working repository list and an advert would be in the way every visit.
 Repositories archived upstream sit below the rest under their own Archived
-heading at 0.6 opacity, back to full on hover, so old code reads as old.
+heading at 0.6 opacity, each card back to full on hover, so old code reads as old.
 
 chat and llm have no Bootstrap and no Vite, so their landing pages write the
 skeleton out by hand in a `.landing-body` block in `static/app.css`.
