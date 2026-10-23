@@ -159,7 +159,6 @@ func (s *Scheduler) enqueueChecks(ctx context.Context) error {
 			case <-ctx.Done():
 				return
 			}
-			slog.Info(fmt.Sprintf("checking %s", p.URL), slog.String("component", "scheduler"))
 			if err := processCheck(ctx, s.db, s.notifier, p); err != nil && !errors.Is(err, context.Canceled) {
 				slog.Error(fmt.Sprintf("check failed for %s: %v", p.URL, err), slog.String("component", "scheduler"))
 			}
