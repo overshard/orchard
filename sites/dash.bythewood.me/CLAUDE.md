@@ -135,7 +135,7 @@ change nothing. The notice is the outlet's own headline and link, and a lead tha
 changes outlet between slots can notify a second time.
 
 **The briefs are the one thing on dash a model writes.** At 7:00, 9:00, 11:00
-and 16:05 New York time `briefnews.go` and `briefmarkets.go` read sixteen news feeds
+and 16:05 New York time `briefnews.go` and `briefmarkets.go` read eighteen news feeds
 and seven market feeds, `briefstories.go` groups the same event across outlets
 and ranks the groups by how many outlets carried them, and the two desks ask
 llm.bythewood.me for a markets line and a TODAY summary under a JSON schema,
