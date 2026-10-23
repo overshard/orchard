@@ -239,7 +239,10 @@ cache keyed by discussion URL and only looks again after 45 minutes, since every
 HN comment is its own Firebase request. The feeds desk fetches eight for each of
 the ten rows and writes one or two sentences per thread on what most of the
 commenters think and where they split, kept on the brief as `threads` and copied
-onto the rows by URL with the time it was read. A thread that turned up after
+onto the rows by URL with the time it was read. A thread the last slot read
+keeps that read until it has half again the comments it was read from, and its
+article's TL;DR for good, since most of the front page is still there a slot
+later and the model calls are most of the desk's time. A thread that turned up after
 the last slot has comments and no read. A read that doesn't end on a full stop
 was cut at the cap and gets one retry, since `whole` would keep "while others."
 
