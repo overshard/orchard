@@ -395,7 +395,9 @@ The rest mean what they say.
 
 // mostImpact drops events rated as changing nothing and minor ones unless
 // mainstream or rated 4 or 5, since market stories get filed as incidents, then
-// keeps the top rated up to limit. Unrated counts as middling.
+// keeps the top rated up to limit. Unrated counts as middling. A rated event only
+// one outlet ran needs a 4, or half the panel ends up one outlet's picks and its
+// opinion pieces.
 func mostImpact(events []cluster, ratings []eventRating, limit int) []cluster {
 	type ranked struct {
 		c      cluster
@@ -404,10 +406,12 @@ func mostImpact(events []cluster, ratings []eventRating, limit int) []cluster {
 	var keep []ranked
 	for i, c := range events {
 		r := eventRating{Impact: 3}
-		if i < len(ratings) && ratings[i].N != 0 {
+		rated := i < len(ratings) && ratings[i].N != 0
+		if rated {
 			r = ratings[i]
 		}
-		drop := (slices.Contains(minor, r.Label) && r.Impact <= 3 && len(c.outlets()) < mainstream) || r.Impact <= 1
+		drop := (slices.Contains(minor, r.Label) && r.Impact <= 3 && len(c.outlets()) < mainstream) || r.Impact <= 1 ||
+			rated && len(c.outlets()) == 1 && r.Impact < 4
 		msg := "brief event kept"
 		if drop {
 			msg = "brief event dropped"
