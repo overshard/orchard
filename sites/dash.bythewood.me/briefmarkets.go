@@ -34,12 +34,23 @@ func marketSchema(lines []marketLine) map[string]any {
 			leans = []string{"higher", "lower", "mixed"}
 		}
 		key := fmt.Sprintf("line%d", i+1)
+		sources := map[string]any{"type": "array", "maxItems": 3, "items": map[string]any{"type": "integer"}}
+		if !l.forward {
+			// Told which session a story is for, it still explained yesterday
+			// with today's news more often than not, so the grammar only lets
+			// a closed line cite its own session's stories.
+			if len(l.cites) == 0 {
+				sources["maxItems"] = 0
+			} else {
+				sources["items"] = map[string]any{"type": "integer", "enum": l.cites}
+			}
+		}
 		props[key] = map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"verdict": map[string]any{"type": "string", "enum": leans},
 				"text":    map[string]any{"type": "string", "maxLength": 300},
-				"sources": map[string]any{"type": "array", "maxItems": 3, "items": map[string]any{"type": "integer"}},
+				"sources": sources,
 			},
 			"required":             []string{"verdict", "text", "sources"},
 			"additionalProperties": false,
@@ -80,6 +91,12 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 	for i, l := range lines {
 		asks[i] = l.ask
 		if !l.forward {
+			for n, e := range events {
+				if l.covers(e.session) {
+					lines[i].cites = append(lines[i].cites, n+1)
+				}
+			}
+			asks[i] += l.citable(lines[i].cites)
 			continue
 		}
 		if l.week {
@@ -343,6 +360,24 @@ type marketLine struct {
 	// The sessions a closed line covers, after the close before it through
 	// its own, so a holiday's news still counts for the next session.
 	after, through time.Time
+
+	// The stories a closed line may cite, by number, which are the ones
+	// marked for its sessions.
+	cites []int
+}
+
+// citable tells the model which stories a closed line may cite, since the
+// schema refuses the rest and a line written around one it can't cite has no
+// source left.
+func (l marketLine) citable(cites []int) string {
+	if len(cites) == 0 {
+		return ", and no story is about that session so it cites nothing"
+	}
+	var nums []string
+	for _, n := range cites {
+		nums = append(nums, fmt.Sprintf("[%d]", n))
+	}
+	return ", citing only " + strings.Join(nums, " ")
 }
 
 const weekAhead = "WEEK AHEAD"
