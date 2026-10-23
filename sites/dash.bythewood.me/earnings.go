@@ -43,6 +43,10 @@ const (
 	// A move this size is the market having an opinion. Under it a beat and a
 	// red close is noise and not a story about the outlook.
 	earningsMoveBand = 1.5
+
+	// Nasdaq's first actual for a print arrives with no surprise figure and is
+	// usually revised a few hours later, often from a miss to a beat.
+	earningsPrelim = "PRELIM"
 )
 
 // Earning is one row. A reported row and an upcoming row are the same shape
@@ -293,6 +297,9 @@ func earningsDay(ctx context.Context, g *Guard, day, today time.Time, caps map[s
 		switch {
 		case hasActual && hasForecast:
 			e.Verdict = epsVerdict(actual, forecast, r.Surprise)
+			if provisional(r.Surprise, day, today) {
+				e.Verdict = earningsPrelim
+			}
 			e.Actual = money(actual)
 			e.Forecast = money(forecast)
 			e.surprise = strings.TrimSpace(r.Surprise)
@@ -459,6 +466,16 @@ func earningsNote(verdict string, move float64) string {
 		return "BOUGHT THE MISS"
 	}
 	return ""
+}
+
+// provisional is a recent print Nasdaq hasn't put a surprise figure on yet.
+// Past the weekday before today a missing surprise is a quarter that had no
+// estimate a year ago, and the two figures are all there will ever be.
+func provisional(surprise string, day, today time.Time) bool {
+	if _, err := strconv.ParseFloat(strings.TrimSpace(surprise), 64); err == nil {
+		return false
+	}
+	return day.Format("2006-01-02") >= lastWeekday(today).Format("2006-01-02")
 }
 
 func epsVerdict(actual, forecast float64, surprise string) string {

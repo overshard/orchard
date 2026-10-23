@@ -977,6 +977,27 @@ func TestEPSVerdict(t *testing.T) {
 	}
 }
 
+// Nasdaq's first actual comes with no surprise figure and is usually revised, so
+// a recent one is held back and an old one is computed from the two figures.
+func TestProvisionalPrint(t *testing.T) {
+	ny := easternTime()
+	fri := time.Date(2026, 10, 23, 7, 0, 0, 0, ny)
+	thu := fri.AddDate(0, 0, -1)
+	if !provisional("N/A", thu, fri) || !provisional("", fri, fri) {
+		t.Error("a recent print with no surprise should be provisional")
+	}
+	if provisional("6.1", thu, fri) {
+		t.Error("a print with a surprise figure is settled")
+	}
+	if provisional("N/A", fri.AddDate(0, 0, -2), fri) {
+		t.Error("an older print with no surprise is all there will be")
+	}
+	mon := time.Date(2026, 10, 26, 7, 0, 0, 0, ny)
+	if !provisional("N/A", fri, mon) {
+		t.Error("Friday is the weekday before Monday")
+	}
+}
+
 // The panel is the top of the index and not the top of the market, which is why
 // the membership list is carried at all.
 func TestIndexMembership(t *testing.T) {
