@@ -302,8 +302,12 @@ func marketFacts(st State, h *history, at time.Time) string {
 		fmt.Fprintf(&b, "Sectors best to worst: %s\n", strings.Join(sectors, ", "))
 	}
 	for _, e := range st.Earnings.Reported {
+		verdict := strings.ToLower(e.Verdict)
+		if e.Verdict == earningsPrelim {
+			verdict = "early figure that may still be revised"
+		}
 		fmt.Fprintf(&b, "%s (%s) reported %s %s: EPS %s against %s forecast, %s, stock %s\n",
-			e.Name, e.Symbol, strings.ToLower(e.Day), session(e.When), e.Actual, e.Forecast, strings.ToLower(e.Verdict), e.Move)
+			e.Name, e.Symbol, strings.ToLower(e.Day), session(e.When), e.Actual, e.Forecast, verdict, e.Move)
 	}
 	for _, e := range st.Earnings.Upcoming {
 		fmt.Fprintf(&b, "%s (%s) reports %s %s, EPS estimate %s\n", e.Name, e.Symbol, strings.ToLower(e.Day), session(e.When), e.Est)
