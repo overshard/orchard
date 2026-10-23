@@ -117,6 +117,11 @@ type ThreadRead struct {
 	Read string `json:"read"`
 	// A TL;DR of the article the thread is about.
 	Gist string `json:"gist,omitempty"`
+
+	// How many comments the read was written from, and when, so a later slot
+	// can carry it over while the thread hasn't moved on.
+	Comments int    `json:"comments,omitempty"`
+	At       string `json:"at,omitempty"`
 }
 
 type Link struct {

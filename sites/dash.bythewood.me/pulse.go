@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
 	"strings"
@@ -41,7 +42,7 @@ func (st *State) attachFeedReads() {
 			t := reads[list[i].Comments]
 			list[i].Read, list[i].Gist, list[i].ReadAt = t.Read, t.Gist, ""
 			if t.Read != "" || t.Gist != "" {
-				list[i].ReadAt = st.Briefs.Feeds.Compiled
+				list[i].ReadAt = cmp.Or(t.At, st.Briefs.Feeds.Compiled)
 			}
 		}
 	}

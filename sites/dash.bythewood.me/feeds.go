@@ -232,6 +232,10 @@ func (b *Briefer) compileFeeds(ctx context.Context, slot briefSlot, at time.Time
 	now := time.Now()
 	brief := Brief{Kind: slot.kind, Title: slot.title(), Slot: at.Unix(),
 		Compiled: time.Now().In(easternTime()).Format("15:04 MST")}
+	prev := map[string]ThreadRead{}
+	for _, t := range b.store.Snapshot().Briefs.Feeds.Threads {
+		prev[t.URL] = t
+	}
 	for _, site := range []struct {
 		label, name string
 		fetch       func(context.Context, *Guard, time.Time) ([]thread, error)
@@ -252,8 +256,14 @@ func (b *Briefer) compileFeeds(ctx context.Context, slot briefSlot, at time.Time
 				brief.Stories += len(ts)
 			}
 			for _, t := range ts[:min(len(ts), storiesShown)] {
-				tr := ThreadRead{URL: t.discuss, Read: b.threadRead(ctx, site.name, t)}
-				tr.Gist = b.articleTLDR(ctx, t.title, fetchArticle(ctx, b.guard, t.link))
+				tr := carriedRead(prev[t.discuss], t)
+				if tr.Read == "" {
+					tr = ThreadRead{URL: t.discuss, Read: b.threadRead(ctx, site.name, t),
+						Comments: t.comments, At: brief.Compiled, Gist: tr.Gist}
+				}
+				if tr.Gist == "" {
+					tr.Gist = b.articleTLDR(ctx, t.title, fetchArticle(ctx, b.guard, t.link))
+				}
 				if tr.Read != "" || tr.Gist != "" {
 					brief.Threads = append(brief.Threads, tr)
 				}
@@ -320,6 +330,20 @@ func (b *Briefer) feedRead(ctx context.Context, name string, ts []thread) (Point
 		return Point{}, fmt.Errorf("no read")
 	}
 	return pt, nil
+}
+
+// carriedRead is the last slot's read of a thread, kept while the thread has
+// gained under half again the comments it was read from, since most of the
+// front page is still there a slot later and the top comments rarely change.
+// The article's TL;DR is kept whatever the comments did.
+func carriedRead(was ThreadRead, t thread) ThreadRead {
+	if was.URL == "" {
+		return ThreadRead{}
+	}
+	if was.Comments == 0 || t.comments*2 > was.Comments*3 {
+		return ThreadRead{URL: was.URL, Gist: was.Gist}
+	}
+	return was
 }
 
 // Room past the asked 25 words, for the same reason as feedReadMax.
