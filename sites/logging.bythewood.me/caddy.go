@@ -114,7 +114,14 @@ func (s *site) readCaddyLog(conn net.Conn) {
 		}
 
 		if rec, ok := parseCaddyLine(line); ok {
-			rows = append(rows, toRow(caddySource, rec))
+			r := toRow(caddySource, rec)
+			// The site behind a hostname logs the same request itself, so
+			// Caddy's copy only goes to the rollups. A 5xx stays, since that
+			// is usually Caddy answering for a site that couldn't.
+			if r.status < 500 && s.watchdog.Shipping(hostSource(r.host)) {
+				r.rollupOnly = true
+			}
+			rows = append(rows, r)
 			recs = append(recs, rec)
 		}
 		// Flushing once nothing else is buffered keeps a burst to one
@@ -157,6 +164,16 @@ type caddyEntry struct {
 // parseCaddyLine converts one entry into the record web.Logged would have
 // written for the same request, so the attribute names the storage lifts into
 // columns are the ones it already knows.
+// hostSource is the source a hostname's site ships under, its first label, the
+// same word the container is named by.
+func hostSource(host string) string {
+	if i := strings.LastIndexByte(host, ':'); i >= 0 {
+		host = host[:i]
+	}
+	label, _, _ := strings.Cut(strings.ToLower(host), ".")
+	return label
+}
+
 func parseCaddyLine(line []byte) (web.Record, bool) {
 	var e caddyEntry
 	if err := json.Unmarshal(line, &e); err != nil || e.Request == nil {
