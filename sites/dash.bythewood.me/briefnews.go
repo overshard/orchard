@@ -25,7 +25,9 @@ var newsFeeds = []briefFeed{
 	{"NPR", "L", "npr", "https://feeds.npr.org/1006/rss.xml"},
 	{"PBS", "L", "pbs", "https://www.pbs.org/newshour/feeds/rss/headlines"},
 	{"CBS", "L", "cbs", "https://www.cbsnews.com/latest/rss/main"},
-	{"FOX", "R", "fox", "https://moxie.foxnews.com/google-publisher/latest.xml"},
+	{"FOX", "R", "fox", "https://moxie.foxnews.com/google-publisher/politics.xml"},
+	{"FOX", "R", "fox", "https://moxie.foxnews.com/google-publisher/us.xml"},
+	{"FOX", "R", "fox", "https://moxie.foxnews.com/google-publisher/world.xml"},
 	{"EXAMINER", "R", "examiner", "https://www.washingtonexaminer.com/feed/"},
 }
 
