@@ -147,12 +147,13 @@ func (lb *leanBook) score(h *history, now time.Time) bool {
 			c.Dir, c.Move = l.dir, l.move
 		}
 		changed = true
-		hits, calls := lb.record()
+		r := lb.record()
 		slog.Info("brief lean scored", slog.String("component", "brief"),
 			slog.String("day", c.Day), slog.String("kind", c.Kind), slog.String("label", c.Label),
 			slog.String("lean", c.Lean), slog.String("dir", c.Dir), slog.String("move", c.Move),
 			slog.Bool("hit", leanHit(c.Lean, c.Dir)), slog.Bool("counted", last[c.Day+c.From] == i),
-			slog.Int("hits", hits), slog.Int("calls", calls))
+			slog.Int("hits", r.hits), slog.Int("calls", r.calls),
+			slog.Int("passes", r.passes), slog.Int("up_calls", r.upCalls))
 	}
 	return changed
 }
@@ -162,9 +163,11 @@ func dateOf(date string) time.Time {
 	return t
 }
 
-// leanHit is higher on an up day, lower on a down day, and mixed on a flat one.
+// leanHit is higher on an up day and lower on a down day. A flat day is within
+// a tenth of a percent, which a handful of sessions a month land in, so mixed
+// is a pass and never a hit.
 func leanHit(lean, dir string) bool {
-	return lean == "higher" && dir == "up" || lean == "lower" && dir == "down" || lean == "mixed" && dir == "flat"
+	return lean == "higher" && dir == "up" || lean == "lower" && dir == "down"
 }
 
 // lastCalls is the index of the latest call for each session or week. Every
@@ -179,21 +182,33 @@ func (lb *leanBook) lastCalls() map[string]int {
 	return last
 }
 
-// record is how many scored leans were right, out of how many were scored,
-// counting one call per session or week so a lean that flipped between slots
-// can't score both ways.
-func (lb *leanBook) record() (hits, calls int) {
+// leanRecord counts one call per session or week, so a lean that flipped
+// between slots can't score both ways. upCalls is how many of the calls landed
+// on an up session, which is what always saying higher would have scored.
+type leanRecord struct {
+	hits, calls, passes, upCalls int
+}
+
+func (lb *leanBook) record() leanRecord {
+	var r leanRecord
 	last := lb.lastCalls()
 	for i, c := range lb.calls {
 		if last[c.Day+c.From] != i || c.Dir == "" || c.Dir == "closed" {
 			continue
 		}
-		calls++
+		if c.Lean == "mixed" {
+			r.passes++
+			continue
+		}
+		r.calls++
 		if leanHit(c.Lean, c.Dir) {
-			hits++
+			r.hits++
+		}
+		if c.Dir == "up" {
+			r.upCalls++
 		}
 	}
-	return hits, calls
+	return r
 }
 
 func (lb *leanBook) save() {

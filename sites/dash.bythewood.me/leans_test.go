@@ -46,8 +46,8 @@ func TestLeanBookScoresClosedDaysOnly(t *testing.T) {
 	if lb.calls[0].Dir != "" || lb.calls[1].Dir != "" {
 		t.Error("scored a session that hasn't closed")
 	}
-	if hits, calls := lb.record(); hits != 1 || calls != 1 {
-		t.Errorf("record %d of %d", hits, calls)
+	if r := lb.record(); r.hits != 1 || r.calls != 1 {
+		t.Errorf("record %d of %d", r.hits, r.calls)
 	}
 	if lb.score(h, time.Date(2026, 10, 9, 8, 1, 0, 0, et)) {
 		t.Error("scored the same lean twice")
@@ -60,8 +60,8 @@ func TestLeanBookScoresClosedDaysOnly(t *testing.T) {
 	if lb.calls[0].Dir != "closed" || lb.calls[1].Dir != "flat" {
 		t.Errorf("friday %q, monday %q", lb.calls[0].Dir, lb.calls[1].Dir)
 	}
-	if hits, calls := lb.record(); hits != 2 || calls != 2 {
-		t.Errorf("record %d of %d, want the flat monday a mixed hit", hits, calls)
+	if r := lb.record(); r.hits != 1 || r.calls != 1 || r.passes != 1 || r.upCalls != 0 {
+		t.Errorf("record %+v, want the mixed monday a pass and not a call", r)
 	}
 
 	lb.save()
@@ -178,8 +178,8 @@ func TestLeanRecordCountsTheLastCallPerSession(t *testing.T) {
 	if lb.calls[0].Dir != "up" || lb.calls[1].Dir != "up" {
 		t.Fatalf("both calls should still be scored, got %+v", lb.calls)
 	}
-	if hits, calls := lb.record(); hits != 1 || calls != 1 {
-		t.Errorf("record %d of %d, want only the morning call", hits, calls)
+	if r := lb.record(); r.hits != 1 || r.calls != 1 || r.upCalls != 1 {
+		t.Errorf("record %+v, want only the morning call", r)
 	}
 }
 
