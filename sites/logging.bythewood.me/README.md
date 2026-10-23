@@ -36,5 +36,8 @@ tell ntfy, and `aggregate.go` is the counts dash shows. `queries.go`,
 - This site gives itself a local sink, since posting its own records to
   `/ingest` would log a request that becomes another ingest.
 - Caddy refuses `/ingest` and `/aggregate` on the public hostname.
+- Caddy's line for a hostname whose site is shipping only goes to the rollups,
+  since the site logged the same request, so searching `caddy` finds the 5xx
+  and the hostnames nothing behind ships for, like the apex and ntfy.
 - A rollup row is an hour, so a window that doesn't start on the hour has to
   floor its start or it drops that first bucket whole.

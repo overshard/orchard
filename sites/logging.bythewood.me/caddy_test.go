@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"logging.bythewood.me/web"
 )
 
 // One real line off the wire, with the Caddyfile's filter already applied, so
@@ -261,5 +263,64 @@ func TestCaddyRowsCarryAComponent(t *testing.T) {
 	}
 	if got := rec.Attrs["component"]; got != "edge" {
 		t.Errorf("component = %v, want edge by default", got)
+	}
+}
+
+// A site that ships logs its own request line, so Caddy's copy is counted and
+// not stored, unless it's a 5xx or for a hostname nothing behind ships.
+func TestCaddyCopyOfAShippingSiteIsRollupOnly(t *testing.T) {
+	db := testDB(t)
+	s := testSite(t, db)
+	s.watchdog = NewWatchdog(db, nil)
+	s.watchdog.Observe("blog", []web.Record{{Msg: "request"}})
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go s.serveCaddyLogs(ctx, ln)
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	apex := strings.Replace(caddyLine, `"host":"blog.bythewood.me"`, `"host":"bythewood.me"`, 1)
+	failed := strings.Replace(caddyLine, `"status":200`, `"status":502`, 1)
+	for _, line := range []string{caddyLine, apex, failed} {
+		if _, err := fmt.Fprintln(conn, line); err != nil {
+			t.Fatal(err)
+		}
+	}
+	conn.Close()
+
+	if got := waitForCaddyRows(t, db, 2); got != 2 {
+		t.Errorf("records = %d, want the apex and the 502", got)
+	}
+	var counted int
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) && counted < 3 {
+		if err := db.QueryRow(`SELECT COALESCE(SUM(count), 0) FROM rollups WHERE source = 'caddy'`).Scan(&counted); err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if counted != 3 {
+		t.Errorf("rollups count %d, want all three", counted)
+	}
+}
+
+func TestHostSource(t *testing.T) {
+	for host, want := range map[string]string{
+		"blog.bythewood.me":    "blog",
+		"isaacbythewood.com":   "isaacbythewood",
+		"www.bythewood.me:443": "www",
+		"Repos.Bythewood.me":   "repos",
+		"":                     "",
+	} {
+		if got := hostSource(host); got != want {
+			t.Errorf("hostSource(%q) = %q, want %q", host, got, want)
+		}
 	}
 }

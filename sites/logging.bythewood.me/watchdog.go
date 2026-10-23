@@ -108,6 +108,17 @@ func (w *Watchdog) Observe(source string, records []web.Record) {
 	}
 }
 
+// Shipping is whether a source has sent anything inside the silence window.
+func (w *Watchdog) Shipping(source string) bool {
+	if w == nil {
+		return false
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	at, ok := w.seen[source]
+	return ok && w.now().Sub(at) < silenceAfter
+}
+
 // recordTime falls back to now, so a record with a broken clock still counts as
 // a transition.
 func recordTime(rec web.Record, fallback time.Time) time.Time {
