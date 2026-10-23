@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -22,7 +23,36 @@ const (
 
 	// Past this a response was being held open, not worked on.
 	heldOpenMS = 60_000
+
+	// dash asks every minute, and a week's baseline or a day's p95 over raw
+	// rows barely moves in five.
+	slowAggregateTTL = 5 * time.Minute
 )
+
+// slowAggregates holds the baselines and p95s between calls, since they're
+// most of the cost of /aggregate and the counts and up flags beside them are
+// what has to be fresh.
+type slowAggregates struct {
+	mu       sync.Mutex
+	at       time.Time
+	baseline map[string]float64
+	p95      map[string]float64
+}
+
+func (c *slowAggregates) fill(ctx context.Context, db *sql.DB, out []aggregateSource) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.baseline == nil || time.Since(c.at) > slowAggregateTTL {
+		// A caller hanging up mid query would otherwise leave five minutes of
+		// blanks behind it.
+		ctx = context.WithoutCancel(ctx)
+		c.baseline, c.p95, c.at = baselines(ctx, db), responseTimes(ctx, db), time.Now()
+	}
+	for i := range out {
+		out[i].BaselineDaily = c.baseline[out[i].Source]
+		out[i].P95MS = c.p95[out[i].Source]
+	}
+}
 
 type aggregateSource struct {
 	Source    string `json:"source"`
@@ -77,8 +107,7 @@ func (s *site) aggregate(w http.ResponseWriter, r *http.Request) {
 	for i := range out {
 		out[i].Up, out[i].UpKnown = lifecycleState(ctx, s.db, out[i].Source)
 	}
-	baselines(ctx, s.db, out)
-	responseTimes(ctx, s.db, out)
+	s.slow.fill(ctx, s.db, out)
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
@@ -104,7 +133,7 @@ func lifecycleState(ctx context.Context, db *sql.DB, source string) (up, known b
 // baselines fills in the per-day request average over the week before the
 // window. The window itself is excluded so today is measured against normal and
 // not against itself.
-func baselines(ctx context.Context, db *sql.DB, out []aggregateSource) {
+func baselines(ctx context.Context, db *sql.DB) map[string]float64 {
 	now := time.Now()
 	windowStart := now.Add(-aggregateWindow).Truncate(time.Hour).UnixMilli()
 	baselineStart := now.Add(-aggregateWindow - baselineWindow).Truncate(time.Hour).UnixMilli()
@@ -120,7 +149,7 @@ func baselines(ctx context.Context, db *sql.DB, out []aggregateSource) {
 		GROUP BY source`, baselineStart, windowStart)
 	if err != nil {
 		queryFailed("aggregate baseline", err)
-		return
+		return nil
 	}
 	defer rows.Close()
 
@@ -140,26 +169,26 @@ func baselines(ctx context.Context, db *sql.DB, out []aggregateSource) {
 	}
 	queryFailed("aggregate baseline rows", rows.Err())
 
-	for i := range out {
-		sp, ok := totals[out[i].Source]
-		if !ok || sp.earliest <= 0 {
+	daily := map[string]float64{}
+	for source, sp := range totals {
+		if sp.earliest <= 0 {
 			continue
 		}
-
 		days := float64(windowStart-sp.earliest) / float64(24*time.Hour/time.Millisecond)
 		// Under a day of history is not a baseline, and calling it one would
 		// divide by a fraction and report a wild number.
 		if days < 1 {
 			continue
 		}
-		out[i].BaselineDaily = float64(sp.requests) / days
+		daily[source] = float64(sp.requests) / days
 	}
+	return daily
 }
 
 // responseTimes reads raw rows since a percentile needs the distribution and the
 // rollups only carry a sum, count and max. healthz and stream aren't work, and
 // heldOpenMS drops the streams Caddy proxies, since it has no handler to tag them.
-func responseTimes(ctx context.Context, db *sql.DB, out []aggregateSource) {
+func responseTimes(ctx context.Context, db *sql.DB) map[string]float64 {
 	since := time.Now().Add(-aggregateWindow).UnixMilli()
 
 	rows, err := db.QueryContext(ctx, `
@@ -174,7 +203,7 @@ func responseTimes(ctx context.Context, db *sql.DB, out []aggregateSource) {
 		FROM d GROUP BY source`, since, heldOpenMS)
 	if err != nil {
 		queryFailed("aggregate p95", err)
-		return
+		return nil
 	}
 	defer rows.Close()
 
@@ -191,8 +220,5 @@ func responseTimes(ctx context.Context, db *sql.DB, out []aggregateSource) {
 		}
 	}
 	queryFailed("aggregate p95 rows", rows.Err())
-
-	for i := range out {
-		out[i].P95MS = p95[out[i].Source]
-	}
+	return p95
 }

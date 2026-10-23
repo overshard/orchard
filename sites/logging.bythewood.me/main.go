@@ -63,6 +63,8 @@ type site struct {
 
 	auth *web.Authenticator
 
+	slow slowAggregates
+
 	baseScript  string
 	baseStyles  []string
 	pagesScript string
