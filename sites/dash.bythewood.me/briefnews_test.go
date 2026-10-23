@@ -31,12 +31,13 @@ func TestMostImpact(t *testing.T) {
 	fed := cluster{stories: []story{{source: "AP", title: "Fed holds"}, {source: "WSJ"}}}
 	poland := cluster{stories: []story{{source: "REUTERS", title: "One dead, two injured in school attack"}}}
 	envoy := cluster{stories: []story{{source: "NPR", title: "Envoy recalled"}}}
+	column := cluster{stories: []story{{source: "EXAMINER", title: "A column"}}}
 	skipped := cluster{stories: []story{{source: "BBC", title: "Not rated"}}}
 
-	events := []cluster{trial, clancy, fed, poland, envoy, skipped}
+	events := []cluster{trial, clancy, fed, poland, envoy, column, skipped}
 	ratings := []eventRating{
 		{1, "crime_or_court", 2}, {2, "crime_or_court", 2}, {3, "economy", 5},
-		{4, "world", 1}, {5, "world", 4}, {},
+		{4, "world", 1}, {5, "world", 4}, {6, "us_politics", 3}, {},
 	}
 	got := mostImpact(events, ratings, 3)
 	var titles []string
@@ -48,6 +49,6 @@ func TestMostImpact(t *testing.T) {
 		t.Errorf("got %q, want %q", titles, want)
 	}
 	if got := mostImpact(events, ratings, 10); len(got) != 4 {
-		t.Errorf("kept %d, want the trial everyone ran too but not the trial or the attack", len(got))
+		t.Errorf("kept %d, want the trial everyone ran too but not the trial, the attack or the column", len(got))
 	}
 }
