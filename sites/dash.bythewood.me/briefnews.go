@@ -273,9 +273,33 @@ func (b *Briefer) read(ctx context.Context, slot briefSlot, at time.Time, all []
 	user := fmt.Sprintf("It is %s Eastern. The most widely carried news %s.\n\nEvents:\n%s",
 		at.In(easternTime()).Format("15:04 on Monday, January 2 2006"), when, clusterList(events, now))
 
+	// The prompt rule against handing back a title is often ignored, so a copy
+	// gets one retry naming it and is dropped if it comes back.
 	var out map[string]string
-	if err := b.model.Structured(ctx, system, user, schema, 300, &out); err != nil {
-		return nil, nil, err
+	var copied []int
+	for try := 1; try <= 2; try++ {
+		ask := user
+		if len(copied) > 0 {
+			var nums []string
+			for _, n := range copied {
+				nums = append(nums, fmt.Sprintf("event%d", n))
+			}
+			ask += "\n\nLast time " + strings.Join(nums, " and ") + " repeated the event's own title. Write those in different words."
+		}
+		out = nil
+		if err := b.model.Structured(ctx, system, ask, schema, 300, &out); err != nil {
+			return nil, nil, err
+		}
+		copied = nil
+		for i, c := range events {
+			if copiesTitle(out[fmt.Sprintf("event%d", i+1)], c) {
+				copied = append(copied, i+1)
+			}
+		}
+		if len(copied) == 0 {
+			break
+		}
+		slog.Info("brief read copied a title", slog.String("component", "brief"), slog.Any("events", copied), slog.Int("try", try))
 	}
 	var parts []string
 	if opener != "" {
@@ -288,7 +312,7 @@ func (b *Briefer) read(ctx context.Context, slot briefSlot, at time.Time, all []
 			limit = 2 * readMax
 		}
 		t := whole(out[fmt.Sprintf("event%d", i+1)], limit)
-		if t == "" {
+		if t == "" || slices.Contains(copied, i+1) {
 			continue
 		}
 		parts = append(parts, t)
@@ -320,6 +344,39 @@ func (b *Briefer) read(ctx context.Context, slot briefSlot, at time.Time, all []
 		covered = append(covered, events[n-1])
 	}
 	return r, covered, nil
+}
+
+// copiesTitle is a headline that is one of the event's own titles, or six or
+// more of its words in a row, once case and punctuation are ignored.
+func copiesTitle(line string, c cluster) bool {
+	l := plainWords(line)
+	if l == "" {
+		return false
+	}
+	for _, s := range c.stories {
+		t := plainWords(s.title)
+		short := l
+		if len(t) < len(short) {
+			short = t
+		}
+		if l == t || len(strings.Fields(short)) >= 6 && (strings.Contains(t, l) || strings.Contains(l, t)) {
+			return true
+		}
+	}
+	return false
+}
+
+func plainWords(s string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(s) {
+		switch {
+		case r >= 'a' && r <= 'z' || r >= '0' && r <= '9':
+			b.WriteRune(r)
+		case r == ' ' || r == '-':
+			b.WriteRune(' ')
+		}
+	}
+	return strings.Join(strings.Fields(b.String()), " ")
 }
 
 // eventRating is the model's read of one event. Each carries its number back,

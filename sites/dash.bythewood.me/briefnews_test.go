@@ -52,3 +52,28 @@ func TestMostImpact(t *testing.T) {
 		t.Errorf("kept %d, want the trial everyone ran too but not the trial, the attack or the column", len(got))
 	}
 }
+
+func TestCopiesTitle(t *testing.T) {
+	c := cluster{stories: []story{
+		{source: "WSJ", title: "Trump Must Sit for Deposition in BBC Lawsuit, Judge Orders"},
+		{source: "AP", title: "Judge orders Trump deposition"},
+	}}
+	for _, line := range []string{
+		"Trump Must Sit for Deposition in BBC Lawsuit, Judge Orders.",
+		"trump must sit for deposition in bbc lawsuit",
+		"Judge orders Trump deposition.",
+	} {
+		if !copiesTitle(line, c) {
+			t.Errorf("%q should count as a copy", line)
+		}
+	}
+	for _, line := range []string{
+		"A judge ordered Trump to give a deposition in his BBC suit.",
+		"Trump deposition ordered.",
+		"",
+	} {
+		if copiesTitle(line, c) {
+			t.Errorf("%q is not a copy", line)
+		}
+	}
+}
