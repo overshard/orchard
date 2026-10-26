@@ -452,11 +452,12 @@ The rest mean what they say.
 
 // mostImpact drops anything rated 1 and keeps the top rated up to limit, unrated
 // counting as a 3. Minor ones need mainstream or a 4 since market stories get
-// filed as incidents, and one outlet alone needs a 4 or its opinion pieces win.
+// filed as incidents, and one outlet's 3s only fill in after everything else.
 func mostImpact(events []cluster, ratings []eventRating, limit int) []cluster {
 	type ranked struct {
 		c      cluster
 		impact int
+		filler bool
 	}
 	var keep []ranked
 	for i, c := range events {
@@ -465,8 +466,9 @@ func mostImpact(events []cluster, ratings []eventRating, limit int) []cluster {
 		if rated {
 			r = ratings[i]
 		}
+		single := rated && len(c.outlets()) == 1
 		drop := (slices.Contains(minor, r.Label) && r.Impact <= 3 && len(c.outlets()) < mainstream) || r.Impact <= 1 ||
-			rated && len(c.outlets()) == 1 && r.Impact < 4
+			single && r.Impact < 3
 		msg := "brief event kept"
 		if drop {
 			msg = "brief event dropped"
@@ -474,10 +476,15 @@ func mostImpact(events []cluster, ratings []eventRating, limit int) []cluster {
 		slog.Info(msg, slog.String("component", "brief"), slog.String("category", r.Label),
 			slog.Int("impact", r.Impact), slog.Int("outlets", len(c.outlets())), slog.String("title", c.lead().title))
 		if !drop {
-			keep = append(keep, ranked{c, r.Impact})
+			keep = append(keep, ranked{c, r.Impact, single && r.Impact < 4})
 		}
 	}
-	sort.SliceStable(keep, func(i, j int) bool { return keep[i].impact > keep[j].impact })
+	sort.SliceStable(keep, func(i, j int) bool {
+		if keep[i].filler != keep[j].filler {
+			return !keep[i].filler
+		}
+		return keep[i].impact > keep[j].impact
+	})
 	var out []cluster
 	for _, k := range keep[:min(len(keep), limit)] {
 		out = append(out, k.c)
