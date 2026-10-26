@@ -63,6 +63,7 @@ type site struct {
 	typst    *Typst
 
 	auth        *web.Authenticator
+	collects    ipLimiter
 	baseScript  string
 	baseStyles  []string
 	pagesScript string
