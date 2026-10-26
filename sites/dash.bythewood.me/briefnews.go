@@ -450,11 +450,9 @@ The rest mean what they say.
 	return ratings, nil
 }
 
-// mostImpact drops events rated as changing nothing and minor ones unless
-// mainstream or rated 4 or 5, since market stories get filed as incidents, then
-// keeps the top rated up to limit. Unrated counts as middling. A rated event only
-// one outlet ran needs a 4, or half the panel ends up one outlet's picks and its
-// opinion pieces.
+// mostImpact drops anything rated 1 and keeps the top rated up to limit, unrated
+// counting as a 3. Minor ones need mainstream or a 4 since market stories get
+// filed as incidents, and one outlet alone needs a 4 or its opinion pieces win.
 func mostImpact(events []cluster, ratings []eventRating, limit int) []cluster {
 	type ranked struct {
 		c      cluster

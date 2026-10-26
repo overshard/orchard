@@ -161,9 +161,6 @@ type caddyEntry struct {
 	} `json:"request"`
 }
 
-// parseCaddyLine converts one entry into the record web.Logged would have
-// written for the same request, so the attribute names the storage lifts into
-// columns are the ones it already knows.
 // hostSource is the source a hostname's site ships under, its first label, the
 // same word the container is named by.
 func hostSource(host string) string {
@@ -174,6 +171,8 @@ func hostSource(host string) string {
 	return label
 }
 
+// parseCaddyLine converts one entry into the record web.Logged would have
+// written for it, so storage lifts the attribute names it already knows.
 func parseCaddyLine(line []byte) (web.Record, bool) {
 	var e caddyEntry
 	if err := json.Unmarshal(line, &e); err != nil || e.Request == nil {

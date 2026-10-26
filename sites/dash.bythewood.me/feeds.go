@@ -332,10 +332,9 @@ func (b *Briefer) feedRead(ctx context.Context, name string, ts []thread) (Point
 	return pt, nil
 }
 
-// carriedRead is the last slot's read of a thread, kept while the thread has
-// gained under half again the comments it was read from, since most of the
-// front page is still there a slot later and the top comments rarely change.
-// The article's TL;DR is kept whatever the comments did.
+// carriedRead keeps the last slot's read of a thread until it gains half again
+// its comments, since the top comments rarely change a slot later. The article's
+// TL;DR is kept whatever the comments did.
 func carriedRead(was ThreadRead, t thread) ThreadRead {
 	if was.URL == "" {
 		return ThreadRead{}
