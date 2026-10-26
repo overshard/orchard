@@ -39,6 +39,10 @@ type collectRequest struct {
 // collect records one event, answering 204 with no body. It never says whether
 // the event was filed as a bot, which would give a bot something to tune against.
 func (s *site) collect(w http.ResponseWriter, r *http.Request) {
+	if !s.collects.allow(web.ClientIP(r), time.Now()) {
+		corsStatus(w, r, http.StatusTooManyRequests)
+		return
+	}
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxCollectBody))
 	if err != nil || len(body) == 0 {
 		corsStatus(w, r, http.StatusBadRequest)
