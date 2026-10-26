@@ -12,6 +12,17 @@ services:
     networks: [edge]
     security_opt:
       - no-new-privileges:true
+    read_only: true
+    # The caddy binary carries this file capability and won't exec without it.
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    # Nothing Caddy writes is worth keeping, since Cloudflare holds the certificates.
+    tmpfs: [/data, /config, /tmp]
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          pids: 256
     # Caddy access-logs every request for every hostname, so without this the
     # container log is the one unbounded thing in the system.
     logging:
@@ -35,6 +46,13 @@ services:
     networks: [edge]
     security_opt:
       - no-new-privileges:true
+    read_only: true
+    cap_drop: [ALL]
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          pids: 256
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:8000/v1/health"]
       interval: 30s
@@ -58,6 +76,13 @@ services:
     depends_on: [caddy]
     security_opt:
       - no-new-privileges:true
+    read_only: true
+    cap_drop: [ALL]
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          pids: 256
     logging:
       driver: json-file
       options:
