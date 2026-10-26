@@ -356,6 +356,7 @@ http://ntfy.bythewood.me {
 	handle @client {
 		reverse_proxy orchard-ntfy:8000 {
 			import hold
+			header_up X-Real-IP {client_ip}
 		}
 	}
 

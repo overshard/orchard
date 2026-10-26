@@ -31,10 +31,11 @@ auth-default-access: "deny-all"
 # of it.
 web-root: "disable"
 
-# X-Forwarded-For is NOT trusted, even though Caddy sets it, since trusting it
-# would let a publisher spoof its own address. Rate limits count against the peer
-# address instead, the bridge for publishers and Caddy for readers.
-behind-proxy: false
+# Caddy overwrites X-Real-IP with the Cloudflare client address, so readers are
+# limited one by one. X-Forwarded-For carries whatever the client sent and isn't
+# used. Publishers on the bridge send no header and count against their own address.
+behind-proxy: true
+proxy-forwarded-header: "X-Real-IP"
 
 # Machine to machine, and every publish is already recorded by the site that made
 # it.
