@@ -120,6 +120,7 @@ func (a *weatherArgs) params() []param {
 
 var Weather = Define(Tool{
 	Name:        "weather",
+	Traits:      Outbound,
 	Description: "Daily forecast for a place, up to 14 days out, in Fahrenheit and mph.",
 }, func(ctx context.Context, d *Turn, a weatherArgs) (any, error) {
 	g, err := geocode(ctx, d.Deps, a.Location)

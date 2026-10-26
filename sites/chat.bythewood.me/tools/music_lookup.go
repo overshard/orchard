@@ -22,7 +22,8 @@ func (a *musicLookupArgs) params() []param {
 }
 
 var MusicLookup = Define(Tool{
-	Name: "music_lookup",
+	Name:   "music_lookup",
+	Traits: Outbound,
 	Description: "Check that a song or artist actually exists and get its album and year, from the " +
 		"iTunes catalogue. Use it before listing songs you are not certain about, since an invented " +
 		"track is the one mistake in a playlist a reader cannot see. " +

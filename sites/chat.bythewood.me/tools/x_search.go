@@ -27,7 +27,7 @@ func (a *xSearchArgs) params() []param {
 
 var XSearch = Define(Tool{
 	Name:   "x_search",
-	Traits: Untrusted,
+	Traits: Untrusted | Outbound,
 	Description: "Find public posts on X, formerly Twitter, through a web search of x.com. " +
 		"Use it when Isaac asks what someone posted or what is being said on X. " +
 		"It reads what a search engine has indexed rather than X itself, so it covers public " +

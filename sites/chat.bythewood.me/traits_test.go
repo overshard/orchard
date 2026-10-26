@@ -25,10 +25,12 @@ var traitTools = map[tools.Trait][]string{
 	tools.Tickers: {"markets"},
 	tools.Sums:    {"calc"},
 	tools.Clock:   {"now"},
+	tools.Outbound: {"web_search", "web_fetch", "x_search", "markets", "property",
+		"dictionary", "music_lookup", "odds", "weather"},
 }
 
 func TestEveryToolHasExactlyItsTraits(t *testing.T) {
-	for tr := tools.Trait(1); tr <= tools.Clock; tr <<= 1 {
+	for tr := tools.Trait(1); tr <= tools.Outbound; tr <<= 1 {
 		if _, ok := traitTools[tr]; !ok {
 			t.Errorf("trait %d has no pinned list of tools", tr)
 		}
