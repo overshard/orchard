@@ -153,8 +153,9 @@ sport, celebrity and local stories are dropped in Go unless seven or more
 outlets ran them, because told to skip a trial in the summary prompt it writes
 one up anyway and calls it politics, and so is anything rated 1. A minor label
 rated 4 or 5 is kept anyway, since the rater files futures falling after an
-attack under incident. An event only one outlet ran needs a 4 or 5 too, or
-half the panel was one outlet's picks, opinion columns included. Go keeps the
+attack under incident. An event only one outlet ran needs a 3, and its 3s
+rank after everything else, since dropping them all left TODAY three points long
+and letting them rank freely made half the panel one outlet's picks. Go keeps the
 ten highest rated and the writer only rewrites them as headlines, so the
 order on the page is the impact order. The markets line is always the last
 session, today and the next, and on a weekend it's the week just gone and a lean

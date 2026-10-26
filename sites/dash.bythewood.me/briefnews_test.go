@@ -48,8 +48,16 @@ func TestMostImpact(t *testing.T) {
 	if !slices.Equal(titles, want) {
 		t.Errorf("got %q, want %q", titles, want)
 	}
+	got = mostImpact(events, ratings, 10)
+	if len(got) != 5 {
+		t.Errorf("kept %d, want the trial everyone ran and the column but not the trial or the attack", len(got))
+	}
+	if last := got[len(got)-1].lead().title; last != "A column" {
+		t.Errorf("one outlet's 3 should come last, got %q", last)
+	}
+	ratings[5].Impact = 2
 	if got := mostImpact(events, ratings, 10); len(got) != 4 {
-		t.Errorf("kept %d, want the trial everyone ran too but not the trial, the attack or the column", len(got))
+		t.Errorf("kept %d, one outlet's 2 should be dropped", len(got))
 	}
 }
 
