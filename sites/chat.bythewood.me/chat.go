@@ -350,6 +350,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	// a build year in no tool result, and a prompt can't stop that.
 	settled := calledWith(used, tools.Settles)
 	untrusted := readUntrusted(used)
+	exposed := readPrivate(used)
 	var stats Stats
 	schemas := e.reg.Schemas()
 
@@ -408,12 +409,15 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 			msgs = append(msgs, Message{Role: RoleUser, Content: budgetNote(used)})
 			break
 		}
-		// Taken at the top of the round, so a private call made alongside a
-		// fetch in the same reply was decided before the page was read.
-		closed := untrusted
+		// Taken at the top of the round, since calls made side by side in one
+		// reply were all decided before any of them answered.
+		closed, sealed := untrusted, exposed
 		offer := schemas
 		if closed {
 			offer = tools.WithoutAny(offer, tools.Private)
+		}
+		if sealed {
+			offer = tools.WithoutAny(offer, tools.Outbound)
 		}
 		for name := range ranOnce {
 			offer = tools.Without(offer, name)
@@ -594,9 +598,22 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 				tr.Add(Step{Kind: "tool", Label: tc.Function.Name + " refused after web content", In: tc.Function.Arguments, Bad: true})
 				continue
 			}
+			if sealed && tool.Is(tools.Outbound) {
+				id := tc.ID
+				if id == "" {
+					id = tc.Function.Name
+				}
+				msgs = append(msgs, Message{Role: RoleTool, ToolCallID: id, Name: tc.Function.Name,
+					Content: `{"note":"that tool is off for the rest of this turn because his private data was read. Answer with what you have."}`})
+				tr.Add(Step{Kind: "tool", Label: tc.Function.Name + " refused after private data", In: tc.Function.Arguments, Bad: true})
+				continue
+			}
 			emit(Event{Kind: "tool", Tool: tc.Function.Name, Args: shortArgs(tc.Function.Arguments)})
 			if tool.Is(tools.Untrusted) {
 				untrusted = true
+			}
+			if tool.Is(tools.Private) {
+				exposed = true
 			}
 			if tool.Is(tools.Once) {
 				ranOnce[tc.Function.Name] = true

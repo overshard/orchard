@@ -20,7 +20,8 @@ func (a *oddsArgs) params() []param {
 }
 
 var Odds = Define(Tool{
-	Name: "odds",
+	Name:   "odds",
+	Traits: Outbound,
 	Description: "What a Polymarket prediction market implies about an event, as a percentage. " +
 		"This is a price people are paying, not a forecast, and it should be said that way. " +
 		"Only for things people bet on: an election, a match, a nomination, a rate decision. " +

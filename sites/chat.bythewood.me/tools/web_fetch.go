@@ -26,7 +26,7 @@ func (a *webFetchArgs) params() []param {
 
 var WebFetch = Define(Tool{
 	Name:        "web_fetch",
-	Traits:      Untrusted | OpenWeb,
+	Traits:      Untrusted | OpenWeb | Outbound,
 	Cites:       fetchedPage,
 	Description: "Fetch one url and return its readable text. Use it after web_search when a snippet is not enough.",
 }, func(ctx context.Context, d *Turn, a webFetchArgs) (any, error) {

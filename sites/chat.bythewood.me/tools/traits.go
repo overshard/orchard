@@ -10,7 +10,8 @@ const (
 	// Untrusted reads text a stranger wrote, which can tell the model to leak
 	// whatever it reads next, so nothing Private is offered after one answers.
 	Untrusted Trait = 1 << iota
-	// Private reads Isaac's own data.
+	// Private reads Isaac's own data, and strangers write some of it through
+	// request paths and /collect, so nothing Outbound is offered after one answers.
 	Private
 	// Estate reads one of his own sites, which are the record of themselves,
 	// so the gate never sends its answer off to be checked on the web.
@@ -38,6 +39,8 @@ const (
 	Sums
 	// Clock reads the time, and a countdown in a draft is checked against it.
 	Clock
+	// Outbound puts what the model wrote into a request to somebody else's server.
+	Outbound
 )
 
 // Cited is one page behind a result, for the numbered sources an answer links.

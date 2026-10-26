@@ -30,7 +30,7 @@ func (a *webSearchArgs) params() []param {
 
 var WebSearch = Define(Tool{
 	Name:   "web_search",
-	Traits: Untrusted | OpenWeb | Lookup,
+	Traits: Untrusted | OpenWeb | Lookup | Outbound,
 	Cites:  searchHits,
 	Description: "Search the web and get back titles, urls and snippets. Use it for anything current, " +
 		"local, priced or contested. Snippets are short, so follow up with web_fetch when you need what a page actually says.",

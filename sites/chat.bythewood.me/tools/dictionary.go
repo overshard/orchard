@@ -23,7 +23,8 @@ func (a *dictionaryArgs) params() []param {
 // Dictionary reads Wiktionary since a word isn't an article, and asking
 // wikipedia to define "program" lands on a disambiguation page.
 var Dictionary = Define(Tool{
-	Name: "dictionary",
+	Name:   "dictionary",
+	Traits: Outbound,
 	Description: "What a word or a short phrase means, from Wiktionary, with its part of speech and an example. " +
 		"Use it to define a word or say what a term means, and use wikipedia for a person, place, thing or event.",
 }, func(ctx context.Context, d *Turn, a dictionaryArgs) (any, error) {
