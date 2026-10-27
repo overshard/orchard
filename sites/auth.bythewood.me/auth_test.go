@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/fstest"
 	"time"
 
 	"auth.bythewood.me/ntfy"
@@ -28,10 +29,13 @@ func newTestSite(t *testing.T) (*site, *stubNtfy) {
 	}
 	t.Cleanup(func() { db.Close() })
 
-	dist := distFS()
+	// A stub manifest, so a fresh clone runs these without a Vite build.
+	dist := fstest.MapFS{".vite/manifest.json": {Data: []byte(`{
+		"static_src/base/index.js": {"file": "assets/base.js", "isEntry": true, "css": ["assets/base.css"]}
+	}`)}}
 	assets, err := web.LoadAssets(dist)
 	if err != nil {
-		t.Fatalf("load assets (run `make build SITE=auth.bythewood.me` first): %v", err)
+		t.Fatalf("load assets: %v", err)
 	}
 
 	templates, err := templateSub()
