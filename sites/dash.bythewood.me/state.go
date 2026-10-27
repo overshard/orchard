@@ -112,13 +112,21 @@ func NewHub() *Hub {
 	}
 }
 
-// Subscribe returns a channel of frames and the function that closes it. A
-// browser that can't keep up with a state this size is gone, so a full buffer
-// drops the frame instead of holding the broadcast.
-func (h *Hub) Subscribe() (<-chan []byte, func()) {
+// maxWatchers bounds what open streams can hold against the container's memory,
+// since each one keeps a buffer of whole state frames.
+const maxWatchers = 200
+
+// Subscribe returns a channel of frames and the function that closes it, or
+// false when maxWatchers are already open. A browser that can't keep up is gone,
+// so a full buffer drops the frame instead of holding the broadcast.
+func (h *Hub) Subscribe() (<-chan []byte, func(), bool) {
 	ch := make(chan []byte, 4)
 
 	h.mu.Lock()
+	if len(h.clients) >= maxWatchers {
+		h.mu.Unlock()
+		return nil, nil, false
+	}
 	first := len(h.clients) == 0
 	h.clients[ch] = struct{}{}
 	last := h.last
@@ -144,7 +152,7 @@ func (h *Hub) Subscribe() (<-chan []byte, func()) {
 			close(ch)
 		}
 		h.mu.Unlock()
-	}
+	}, true
 }
 
 func (h *Hub) Broadcast(b []byte) {
