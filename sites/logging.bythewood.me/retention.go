@@ -55,6 +55,9 @@ func (s *Sweeper) Run(ctx context.Context) {
 			return
 		case <-t.C:
 			s.sweep(ctx)
+			if _, err := s.db.ExecContext(ctx, "PRAGMA optimize"); err != nil {
+				slog.Warn("pragma optimize failed", slog.String("component", "retention"), slog.Any("err", err))
+			}
 		}
 	}
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
@@ -91,6 +92,11 @@ func openDB(path string) (*sql.DB, error) {
 	}
 	if _, err := db.Exec(schema); err != nil {
 		return nil, fmt.Errorf("apply schema: %w", err)
+	}
+	// SQLite's advice for a long lived connection, with a bare optimize after
+	// each sweep. Stale statistics only cost a worse plan, so a failure is not fatal.
+	if _, err := db.Exec("PRAGMA optimize=0x10002"); err != nil {
+		slog.Warn("pragma optimize failed", slog.String("component", "db"), slog.Any("err", err))
 	}
 	return db, nil
 }
