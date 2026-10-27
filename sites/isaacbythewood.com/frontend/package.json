@@ -8,10 +8,10 @@
     "dev": "vite build --watch"
   },
   "devDependencies": {
-    "sharp": "^0.35.3",
-    "vite": "^8.2.2"
+    "sharp": "^0.35.5",
+    "vite": "^8.3.5"
   },
   "dependencies": {
-    "geist": "^1.7.2"
+    "geist": "^1.8.2"
   }
 }
