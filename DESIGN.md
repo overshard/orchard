@@ -248,22 +248,21 @@ to read the computed style off a rendered page. They agree today.
 | Ghost | 1px `rgba(221, 215, 205, 0.28)`, text `#ddd7cd` |
 | Primary | 1px `#6b9e78` on `rgba(107, 158, 120, 0.16)`, text `#7db88c` |
 
-`repos` defined its buttons only inside `.hero-ctas` until 2026-09-01, so the
-one on its 404 fell back to a bare element rule and matched nothing.
+Define the buttons at the top level of the stylesheet and not inside a page
+section, or a button anywhere else falls back to a bare element rule.
 
 **Borders, in three weights.** `0.2` for a rule between bands, `0.3` for the
 navbar and the edges of a page section, and `0.42` for a card or panel. Nothing
-sits below `0.2`. The navbar was on `0.06` and the footer bar on `0.04` until
-2026-09-01, which is invisible rather than subtle.
+sits below `0.2`, since anything fainter is invisible on this background.
 
 **Caps labels are one solid amber,** `#c9a84c`, at `0.7rem` and `0.12em`
 tracking. The footer headings ran at `0.55` alpha and the section labels at
 `0.75`, which read as two different colours side by side.
 
 **Focus and selection.** `:focus-visible` is a 2px `#6b9e78` outline at 2px
-offset, and `::selection` is `rgba(107, 158, 120, 0.3)`. Only `repos` had either
-until 2026-09-01, so tabbing through a form on the other four got whatever
-Bootstrap did per component.
+offset, and `::selection` is `rgba(107, 158, 120, 0.3)`. Every site sets both,
+since without them tabbing through a form gets whatever Bootstrap does per
+component.
 
 **Citations are boxed.** `chat` boxes the number on its
 own, 1px `rgba(65, 78, 65, 0.55)` on `--panel` at `0.62rem`, raised `0.32em`,
@@ -357,9 +356,7 @@ That page does not exist.
 signed out, the same skeleton with `404 · SIGNED IN ONLY`, a clone command and a
 ghost button back to the repository.
 
-Left aligned like every other page here. `logging` centred its own version with
-a different sentence and a filled button until 2026-09-01, and `repos` had a
-bare `404` with an inline link.
+Left aligned like every other page here.
 
 ## Rules that are easy to get wrong
 
@@ -422,7 +419,7 @@ reads their own marketing copy. When a stack changes, grep the templates.
 **`num` is the thousands separator, on every site.** It takes `any`, because a
 template handing an `int` to a function declared `int64` fails at render time
 with `wrong type for value`, which compiles, passes every test, and 500s the
-home page. status called it `intcomma` until 2026-09-01.
+home page.
 
 **A template listed with no file behind it crash-loops.** Deleting a page means
 deleting it from `pageTemplates` in the same commit. `web.NewRenderer` resolves
