@@ -65,7 +65,7 @@ func fetchArticle(ctx context.Context, g *Guard, raw string) string {
 	}
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Accept", "text/html")
-	resp, err := client.Do(req)
+	resp, err := articleClient.Do(req)
 	if err != nil {
 		return ""
 	}
