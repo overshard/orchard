@@ -26,7 +26,7 @@ RUN typst compile --root /resume /resume/resume.typ /resume-isaac-bythewood.pdf
 
 # Its own stage because both the frontend build and the card need node_modules,
 # and having the card read it out of the frontend stage would be a cycle.
-FROM oven/bun:1-debian@sha256:923bedb355f7746666659f71e724998159a5c8c54bd1cb1030e1975a0698415b AS deps
+FROM oven/bun:1-debian@sha256:93d5032fe06d163427822dc1598f420363759bb18155c9cc90eb1be05a64a19e AS deps
 WORKDIR /src
 # bunfig.toml has to arrive before install runs, or install.peer = false
 # silently does nothing.

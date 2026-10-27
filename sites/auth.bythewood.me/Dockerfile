@@ -1,7 +1,7 @@
 # Build context is this directory alone: the site is its own Go module with its
 # own copy of web/. Base images are pinned by digest because :1-debian floats.
 
-FROM oven/bun:1-debian@sha256:923bedb355f7746666659f71e724998159a5c8c54bd1cb1030e1975a0698415b AS frontend
+FROM oven/bun:1-debian@sha256:93d5032fe06d163427822dc1598f420363759bb18155c9cc90eb1be05a64a19e AS frontend
 WORKDIR /src
 # bunfig.toml has to arrive before install runs, or install.peer = false
 # silently does nothing.
