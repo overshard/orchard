@@ -29,8 +29,8 @@ calls regular hours means the clock is wrong.
 
 **The health strip asks the bridge first and the public hostname only as a
 fallback.** Cloudflare will serve a cached 200 for `/healthz` long after the
-origin behind it has stopped answering, and two of these sites do exactly that
-right now, so a public probe is not evidence a site is up. A row built from the
+origin behind it has stopped answering, so a public probe is not evidence a site
+is up. A row built from the
 fallback says `cached` rather than `up`.
 
 **What logging hands over is counts and nothing else.** `/aggregate` returns a
@@ -46,8 +46,8 @@ source writes into a store and the store broadcasts the whole state as JSON over
 drops from 30 seconds to 5 minutes when nobody is connected, which keeps the
 page warm for the first visitor without polling Yahoo all night for no one.
 
-**`web/server.go` here sets `WriteTimeout: 0`,** the third version of that file
-in this repo. Go's write bound covers the whole response, so any value at all is
+**`web/server.go` here sets `WriteTimeout: 0`,** which makes it dash's own
+variant of that file. Go's write bound covers the whole response, so any value at all is
 a ceiling on how long a stream may stay open. An idle stream is held up by a
 comment frame every 25 seconds instead, which is inside Cloudflare's 100 second
 idle drop.
@@ -100,9 +100,7 @@ still two batches because the split lands under the ten symbol limit either way.
 **The earnings panel is the top hundred of the S&P 500, and that takes two
 sources.** Nasdaq's screener answers every US listing sorted by market cap in one
 call, and `sp500.go` holds the index membership, because a cap floor on its own
-fills the panel with ASML, TSM and ARM. The hundredth name is worth about $120B
-right now, so the old $10B floor was twelve times too loose and the panel was
-showing companies nobody has heard of.
+fills the panel with ASML, TSM and ARM.
 
 **Nasdaq drops the time of day once a date is in the past.** An upcoming row says
 `time-pre-market` or `time-after-hours` and the same row a week later says
@@ -180,7 +178,7 @@ Hacker News' numbers. Under it sits a third desk, `feeds.go`, which at each slot
 reads both front pages plus the top three comments on the five busiest threads
 (Firebase for HN, since it lists replies in the site's rank order and Algolia
 doesn't) and writes a read of about thirty words on
-what the page as a whole is about and what the commenters make of it. The 9B
+what the page as a whole is about and what the commenters make of it. The model
 writes right up to whatever `maxLength` it gets, so the cap sits well past the
 asked length and `whole` keeps a cut line up to its last whole clause. BLS answers 403 to any User-Agent without a contact
 address in it, browsers included. The latest brief per desk lives
@@ -191,7 +189,7 @@ the day after its session and logged as `brief lean scored` with the running
 record, so how often the leans are right is a query and not a guess. Every
 slot before a session makes a call on it and only the last one counts, and a
 forward line is kept as it was while the S&P's price hasn't moved, since asked
-again over a weekend with the same prices the 9B flips its lean. The 9:00 slot
+again over a weekend with the same prices the model flips its lean. The 9:00 slot
 is there because CPI, PPI and the other 8:30 releases are out by then and it
 still lands before the open, so its TODAY is a lean like 7:00's and the calendar
 tells it which releases already came out. `LLM_KEY` in `.env` from `make dash-key`, and
@@ -268,10 +266,9 @@ with Nasdaq's figures, because the panel only holds the latest version and a row
 that read MISS in the morning and BEAT the next day left nothing to look at.
 
 **`range=1d` for BTC-USD is the UTC day and not the last 24 hours.** It rolls at
-8pm New York, so a poll at 8:05pm came back with six bars and drew a straight
-line across the card. That is what `carrySparks` was written for, and the wider
-range fixes it at the source, but it stays as a guard against Yahoo
-having a moment. It keeps the previous shape when a poll returns fewer than five
+8pm New York, so a `1d` poll just after that has a handful of bars and draws a
+straight line across the card, which is why bitcoin is in the `5d` batch.
+`carrySparks` stays as a guard against Yahoo having a moment, and it keeps the previous shape when a poll returns fewer than five
 points and the last one had more, within one symbol and one trading day so a card
 never shows yesterday's chart or the other instrument's. Only the shape is held
 back, the price and the percent are always fresh.
