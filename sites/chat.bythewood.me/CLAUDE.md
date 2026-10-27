@@ -5,9 +5,9 @@ Working detail for this site. The repo-wide rules are in `CLAUDE.md` at the root
 ## The house lookups
 
 `internal/property/` answers what a house at an address would be like to live in and what
-it would cost, from public records and nothing else. It was a dashboard of its own
-before this, and a dashboard can draw everything about a house at once and cannot
-answer a question, while every question about a house is a follow up: what about
+it would cost, from public records and nothing else. It lives in chat because a
+dashboard can draw everything about a house at once and cannot answer a
+question, while every question about a house is a follow up: what about
 the flood zone, what if we put ten percent down, what would USDA cost.
 
 **Every fact comes from a free public service and each one is guarded.** FEMA's
@@ -120,8 +120,7 @@ are separate lists for the same reason a failed lookup never moves a score.
 free and instant at api.data.gov, and without it every crime line says it has no
 figures rather than guessing.
 
-**Everything personal is in `data/property.json`,** gitignored like house's was,
-with `property.example.json` committed carrying placeholders. A work address, a
+**Everything personal is in `data/property.json`,** gitignored, with `property.example.json` committed carrying placeholders. A work address, a
 budget and a child's school run are not facts to publish, and a missing config is
 not fatal: the reports run on defaults and say which config they used.
 
@@ -132,15 +131,13 @@ layer on all four and they share the NAME and State columns, so one where clause
 queries all of them.
 
 **Race and religion are shown and never scored.** Nothing here ranks a house at
-all any more, which removes the way that could have gone wrong, and the published
-figures are on the page because they are public and were asked for.
+all, so there is no score for them to move, and the published figures are on the page because they are public and were asked for.
 
 **A gap without a reason is worth nothing.** `Resting` names which upstreams have
 asked us to slow down and until when, because "no schools found nearby" and "the
 schools server is refusing us this hour" are not the same fact.
 
-**A model decides when to call this, and that is the new risk.** The dashboard it
-came from had a person clicking a button. A turn here gets six tool rounds and a
+**A model decides when to call this.** A turn here gets six tool rounds and a
 nudge to keep going, so one question can become six addresses, and a model that
 misreads a street name will spell it six ways. One cold address costs about forty
 requests, measured: ten routes, five and four to the two county GIS boxes, four
@@ -150,11 +147,9 @@ because a restart handing back a fresh allowance is how a limit becomes a
 suggestion and a deploy is a restart. An address already in the cache costs one
 read and is not counted, so a conversation about one house never runs it down.
 
-**No endpoint budget is a four figure number any more.** They were sized for a
-nightly refresh over a grid of listings and this is a person asking now and then,
-so every one was cut against the measured per address cost: 150 for OSRM, 80 for a
-county GIS box, 40 per Overpass mirror, 60 for the rest, and `GuardOpts` defaults
-to 60 with a 1.5 second gap so an endpoint somebody adds without thinking gets the
+**Every endpoint budget is sized for a person asking now and then,** against the
+per address cost: 150 for OSRM, 80 for a county GIS box, 40 per Overpass mirror,
+60 for the rest, and `GuardOpts` defaults to 60 with a 1.5 second gap so an endpoint somebody adds without thinking gets the
 cautious numbers rather than the convenient ones. A test asserts all of it,
 because a budget that drifts up is exactly the change nobody notices.
 
@@ -164,6 +159,5 @@ sometimes next door, and a tax roll carrying land and no buildings is a vacant l
 record against a house standing on it. Both produce a percentage precise enough
 for a model to repeat as a finding, so `parcelCaveat` leaves the figure out
 entirely and says what is wrong with the record instead, and a parcel next door
-takes its acreage with it. Handed the number with the caveat beside it, the
-model led with the number. The case that showed it was an
-$11,100 assessment against a $289,900 asking price.
+takes its acreage with it. Handed the number with the caveat beside it, a
+model leads with the number.
