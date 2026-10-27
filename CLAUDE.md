@@ -26,7 +26,7 @@ tunnel rather than a rented server.
 | `sites/repos.bythewood.me/` | Self hosted git remote. Push to it over HTTPS with a token, and it mirrors the GitHub account as a backup. Everything git is a subprocess |
 | `sites/dash.bythewood.me/` | Dashboard. Markets off Yahoo, a markets line and a news summary the local model writes four times a day, Hacker News and Lobsters, the weather, and whether the other sites are answering. One poller, server sent events out, no database |
 | `sites/auth.bythewood.me/` | The front door. One account, a six digit code pushed over ntfy, and an opaque session every other site checks against it |
-| `sites/chat.bythewood.me/` | A conversation with a local model, with tools, attachments, pictures, history in SQLite and an incognito mode that writes nothing. It also answers a house out of public records, which used to be a dashboard of its own. Beside it an offline Wikipedia, served by kiwix off a 12.5GB ZIM |
+| `sites/chat.bythewood.me/` | A conversation with a local model, with tools, attachments, pictures, history in SQLite and an incognito mode that writes nothing. It also answers a house out of public records. Beside it an offline Wikipedia, served by kiwix off a 12.5GB ZIM |
 | `sites/llm.bythewood.me/` | The model gateway. One card behind an API key, Ornith for chat and FLUX.2 klein for pictures taking turns on it, with every prompt and completion logged unless the caller marks the call incognito |
 | `edge/` | The shared `cloudflared` tunnel, the Caddy that reverse proxies to each site, and the ntfy every alert is published to |
 
@@ -82,7 +82,7 @@ make down                            stop everything
 
 make run SITE=blog.bythewood.me      vite watch + go run
 make build SITE=blog.bythewood.me
-make check                           gofmt, shared copy drift, the template, vet, govulncheck and build
+make check                           gofmt, shared copy drift, the template, voice, vet, govulncheck and build
 make test                            every site's tests, including its own web/ copy
 make deps                            update every site's direct Go modules together
 make new SITE=notes.bythewood.me     a new site from template/, ready to run
@@ -214,9 +214,9 @@ and `kiwix-serve`), where the base is theirs to pick. Reach for a new base image
 and the answer is no: add the package to `edge/util` or to the runtime stage.
 
 **Containers run as UID 65532, and runtime base images are pinned by digest.** The
-five Debian sites create a real user at that UID with `groupadd`/`useradd` and the
-seven scratch ones use the bare number, since there is no `/etc/passwd` to name
-one in. A `/data` volume created root-owned stays root-owned, so a new one has to
+Debian sites create a real user at that UID with `groupadd`/`useradd` and the
+scratch ones use the bare number, since there is no `/etc/passwd` to name one
+in. A `/data` volume created root-owned stays root-owned, so a new one has to
 be chown'd once.
 
 **The binary is its own health check.** `-healthcheck` does a loopback GET
@@ -440,11 +440,12 @@ does nothing.
 
 `make test` runs every site's suite plus its `web/` copy. There
 are no linter configs, and `make check` is gofmt, the drift check on `web/`,
-`guard/` and `ntfy/`, vet, govulncheck and build.
+`guard/` and `ntfy/`, the template scaffold, `make voice`, vet, govulncheck and
+build.
 govulncheck also checks the local Go, so it fails when webdev's Go is behind
 the `golang:1.27-trixie` the images build with. The portfolio
-has no Go tests of its own, being templates and handlers over static data, and
-is covered by its `web/` package plus browser checks.
+is templates and handlers over static data, so its own tests cover the template
+list and the image lookup and browser checks cover the rest.
 
 `web/shipper_test.go` is identical in every site and covers the parts
 easy to get quietly wrong: that a record reaches both the original handler and
