@@ -10,8 +10,7 @@ import (
 )
 
 // `all:` is required, or embed skips every entry whose name starts with a dot,
-// and .vite/manifest.json is one, so the server would refuse to start on a
-// manifest it could not find.
+// and .vite/manifest.json is one, so the server would refuse to start.
 //
 //go:embed all:build/dist
 var buildFS embed.FS
