@@ -23,10 +23,6 @@ type rssFeed struct {
 	} `xml:"channel"`
 }
 
-// Four words in common is enough to be one story, and rare enough that two
-// stories about the same person on the same day do not collide.
-const sameStoryWords = 4
-
 // The words long enough to carry a story and common enough to say nothing.
 var filler = []string{"about", "after", "against", "amid", "been", "before", "could", "does", "during", "from", "have", "into", "more", "over", "said", "says", "than", "that", "their", "them", "then", "there", "these", "they", "this", "were", "what", "when", "which", "will", "with", "would", "your"}
 
@@ -49,16 +45,6 @@ func significant(title string) []string {
 		}
 	}
 	return out
-}
-
-func sameStory(a, b []string) bool {
-	shared := 0
-	for _, w := range a {
-		if slices.Contains(b, w) {
-			shared++
-		}
-	}
-	return shared >= sameStoryWords
 }
 
 // promoted is the genre Isaac asked to keep off the panel: advertising that
