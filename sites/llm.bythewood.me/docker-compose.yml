@@ -117,5 +117,7 @@ networks:
   edge:
     name: orchard-edge
     external: true
+  # Internal, since the weights are on the volume and nothing here needs the internet.
   model:
     name: orchard-llm-model
+    internal: true
