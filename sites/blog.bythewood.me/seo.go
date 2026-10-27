@@ -36,12 +36,6 @@ func wrapTitle(title string, maxChars, maxLines int) []string {
 	return lines
 }
 
-func xmlEscape(s string) string {
-	var buf bytes.Buffer
-	_ = xml.EscapeText(&buf, []byte(s))
-	return buf.String()
-}
-
 // The green stop is the stylesheet's $green, so change them together.
 const faviconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 16 16">
   <defs>
