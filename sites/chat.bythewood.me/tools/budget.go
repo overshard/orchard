@@ -29,9 +29,8 @@ var budgets = map[string]budget{
 	"query2.finance.yahoo.com":       {gap: 3 * time.Second, minute: 15, hour: 120, day: 900},
 	"api.open-meteo.com":             {gap: 500 * time.Millisecond, minute: 40, hour: 400, day: 3000},
 	"air-quality-api.open-meteo.com": {gap: 500 * time.Millisecond, minute: 40, hour: 400, day: 3000},
-	// Unofficial and the only pollen there is, so it's paced well under what dash
-	// already asks of it.
-	"www.pollen.com": {gap: 2 * time.Second, minute: 10, hour: 60, day: 400},
+	// A county's web server, and dash already asks it every three hours.
+	"www.co.forsyth.nc.us": {gap: 2 * time.Second, minute: 10, hour: 60, day: 400},
 	// Nominatim's usage policy is one request a second at most.
 	"nominatim.openstreetmap.org": {gap: 1500 * time.Millisecond, minute: 10, hour: 60, day: 300},
 }

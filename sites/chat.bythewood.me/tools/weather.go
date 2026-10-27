@@ -40,12 +40,10 @@ func geocode(ctx context.Context, d *Deps, place string) (g geo, err error) {
 		seen[strings.ToLower(c)] = true
 		var out struct {
 			Results []struct {
-				Latitude  float64  `json:"latitude"`
-				Longitude float64  `json:"longitude"`
-				Name      string   `json:"name"`
-				Admin1    string   `json:"admin1"`
-				Country   string   `json:"country_code"`
-				Postcodes []string `json:"postcodes"`
+				Latitude  float64 `json:"latitude"`
+				Longitude float64 `json:"longitude"`
+				Name      string  `json:"name"`
+				Admin1    string  `json:"admin1"`
 			} `json:"results"`
 		}
 		u := "https://geocoding-api.open-meteo.com/v1/search?count=1&language=en&name=" + url.QueryEscape(c)
@@ -55,13 +53,8 @@ func geocode(ctx context.Context, d *Deps, place string) (g geo, err error) {
 		}
 		if len(out.Results) > 0 {
 			r := out.Results[0]
-			g = geo{Lat: r.Latitude, Lon: r.Longitude,
-				Name:    strings.TrimSuffix(r.Name+", "+r.Admin1, ", "),
-				Country: strings.ToUpper(r.Country)}
-			if len(r.Postcodes) > 0 {
-				g.Zip = r.Postcodes[0]
-			}
-			return g, nil
+			return geo{Lat: r.Latitude, Lon: r.Longitude,
+				Name: strings.TrimSuffix(r.Name+", "+r.Admin1, ", ")}, nil
 		}
 	}
 	// Open-Meteo only knows towns, so a gorge, a park or a trailhead would answer
@@ -93,17 +86,12 @@ func nominatim(ctx context.Context, d *Deps, place string) (geo, bool) {
 	if parts := strings.Split(out[0].Display, ", "); len(parts) >= 2 {
 		name = strings.Join(parts[:2], ", ")
 	}
-	return geo{Lat: lat, Lon: lon, Name: name, Country: "US"}, true
+	return geo{Lat: lat, Lon: lon, Name: name}, true
 }
 
-// The postcode is carried because pollen.com is keyed on a US zip and this is the
-// only call that ever knows one, and the country says whether asking for pollen
-// is worth a request at all.
 type geo struct {
 	Lat, Lon float64
 	Name     string
-	Zip      string
-	Country  string
 }
 
 type weatherArgs struct {
@@ -128,8 +116,7 @@ var Weather = Define(Tool{
 		return nil, err
 	}
 	lat, lon, name := g.Lat, g.Lon, g.Name
-	d.Widgets.Add(Widget{Kind: "weather", Place: name, Lat: lat, Lon: lon,
-		Zip: g.Zip, Country: g.Country})
+	d.Widgets.Add(Widget{Kind: "weather", Place: name, Lat: lat, Lon: lon})
 	days := a.Days
 	if days < 1 || days > 14 {
 		days = 7
