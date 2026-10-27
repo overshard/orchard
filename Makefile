@@ -5,7 +5,7 @@
 #
 #   make install                         tunnel, secrets, containers, alerts
 #
-# Three cover the running system after that:
+# These cover the running system after that:
 #
 #   make up                              bring everything up, from nothing or from broken
 #   make deploy SITE=blog.bythewood.me   rebuild one site and replace it
