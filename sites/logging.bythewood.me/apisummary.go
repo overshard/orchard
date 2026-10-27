@@ -105,7 +105,9 @@ func (s *site) apiSources(ctx context.Context, since int64) []apiSource {
 		       SUM(CASE WHEN status >= 500 THEN count ELSE 0 END)
 		FROM rollups
 		WHERE hour >= ? AND component != 'healthz'
-		GROUP BY source ORDER BY SUM(count) DESC`, since)
+		-- The + keeps the planner on the primary key's hour range instead of
+		-- reading all of rollups_source_hour to skip a sort.
+		GROUP BY +source ORDER BY SUM(count) DESC`, since)
 	if err != nil {
 		queryFailed("api sources", err)
 		return []apiSource{}

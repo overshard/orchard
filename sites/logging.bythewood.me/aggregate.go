@@ -85,7 +85,9 @@ func (s *site) aggregate(w http.ResponseWriter, r *http.Request) {
 		       SUM(CASE WHEN status >= 500 THEN count ELSE 0 END)
 		FROM rollups
 		WHERE hour >= ? AND component != 'healthz'
-		GROUP BY source ORDER BY source`, since)
+		-- The + keeps the planner on the primary key's hour range instead of
+		-- reading all of rollups_source_hour to skip a sort.
+		GROUP BY +source ORDER BY source`, since)
 	if err != nil {
 		queryFailed("aggregate", err)
 		http.Error(w, "unavailable", http.StatusServiceUnavailable)
@@ -146,7 +148,9 @@ func baselines(ctx context.Context, db *sql.DB) map[string]float64 {
 		       MIN(hour)
 		FROM rollups
 		WHERE hour >= ? AND hour < ? AND component != 'healthz'
-		GROUP BY source`, baselineStart, windowStart)
+		-- The + keeps the planner on the primary key's hour range instead of
+		-- reading all of rollups_source_hour to skip a sort.
+		GROUP BY +source`, baselineStart, windowStart)
 	if err != nil {
 		queryFailed("aggregate baseline", err)
 		return nil
