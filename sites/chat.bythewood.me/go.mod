@@ -3,7 +3,7 @@ module chat.bythewood.me
 go 1.27.0
 
 require (
-	github.com/ledongthuc/pdf v0.0.0-20260903153007-b3c860c23753
+	github.com/ledongthuc/pdf v0.0.0-20261020125853-5e46805f718e
 	github.com/yuin/goldmark v1.8.6
 	golang.org/x/image v0.46.0
 	modernc.org/sqlite v1.61.0
