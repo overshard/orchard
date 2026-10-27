@@ -97,6 +97,9 @@ func Open(path string) (*Store, error) {
 	}
 	migrate(db)
 	migrateIDs(db)
+	// SQLite's advice for a long lived connection. A failure only costs the
+	// planner its statistics, so it isn't fatal.
+	_, _ = db.Exec("PRAGMA optimize=0x10002")
 	return &Store{db: db}, nil
 }
 

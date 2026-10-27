@@ -123,6 +123,9 @@ func OpenDB(dir string) (*DB, error) {
 	if _, err := conn.Exec(schema); err != nil {
 		return nil, fmt.Errorf("apply schema: %w", err)
 	}
+	// SQLite's advice for a long lived connection. A failure only costs the
+	// planner its statistics, so it isn't fatal.
+	_, _ = conn.Exec("PRAGMA optimize=0x10002")
 	return &DB{sql: conn}, nil
 }
 
