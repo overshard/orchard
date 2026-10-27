@@ -345,7 +345,7 @@ func TestGuardConfigurationIsPinned(t *testing.T) {
 		"articles": "150/300ms", "openmeteo": "120/2s", "npr": "120/2s", "bbc": "60/2s",
 		"googlenews": "30/2s", "dowjones": "30/2s", "thehill": "30/2s", "newsnation": "30/2s",
 		"pbs": "30/2s", "cbs": "30/2s", "fox": "30/2s", "examiner": "30/2s", "cnbc": "30/2s",
-		"bls": "10/2s", "bea": "10/2s", "nasdaq": "120/2s", "nws": "120/2s", "pollen": "60/2s",
+		"bls": "10/2s", "bea": "10/2s", "nasdaq": "120/2s", "nws": "120/2s", "forsyth": "60/2s",
 		"steam": "240/1s", "justwatch": "60/2s", "youtube": "90/2s", "twitch": "90/2s",
 		"twitchvods": "30/2s", "uptime": "900/0s", "logging": "900/0s",
 	}

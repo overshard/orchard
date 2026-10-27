@@ -392,7 +392,7 @@ func pollenRow(cells []string, skip, col int) (map[string]int, bool) {
 }
 
 func fetchPollen(ctx context.Context, g *Guard, now time.Time) (PollenReading, error) {
-	page, err := getPage(ctx, g, "pollen", pollenURL)
+	page, err := getPage(ctx, g, "forsyth", pollenURL)
 	if err != nil {
 		return PollenReading{}, err
 	}
