@@ -37,7 +37,7 @@ VOLUME=orchard-cloudflared
 TUNNEL=orchard
 IMAGE=cloudflare/cloudflared:latest
 # cloudflared's image is distroless, so poking at the volume borrows a shell.
-HELPER=debian@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a
+HELPER=debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad
 # Every hostname the tunnel serves, matching the ingress rules in
 # cloudflared/config.yml. These span two zones and cert.pem covers one at a time,
 # so routing all of them means logging in once per zone and running `up` again.
