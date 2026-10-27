@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -39,6 +40,47 @@ const (
 // only part of the URL that holds still across Valve's CDN hosts and path
 // shapes.
 var steamAppID = regexp.MustCompile(`/apps/(\d+)/`)
+
+// Prices and review scores move far slower than the chart does, so each app's
+// details and reviews are reused for steamLookupFor and only the search and
+// the player counts go out every poll.
+const steamLookupFor = 12 * time.Hour
+
+type steamLookup[T any] struct {
+	at time.Time
+	v  T
+}
+
+var steamCache = struct {
+	sync.Mutex
+	details map[int]steamLookup[*appDetails]
+	reviews map[int]steamLookup[reviewSummary]
+}{
+	details: map[int]steamLookup[*appDetails]{},
+	reviews: map[int]steamLookup[reviewSummary]{},
+}
+
+func steamCached[T any](m map[int]steamLookup[T], id int) (T, bool) {
+	steamCache.Lock()
+	defer steamCache.Unlock()
+	e, ok := m[id]
+	if !ok || time.Since(e.at) > steamLookupFor {
+		var zero T
+		return zero, false
+	}
+	return e.v, true
+}
+
+func steamKeep[T any](m map[int]steamLookup[T], id int, v T) {
+	steamCache.Lock()
+	defer steamCache.Unlock()
+	for k, e := range m {
+		if time.Since(e.at) > steamLookupFor {
+			delete(m, k)
+		}
+	}
+	m[id] = steamLookup[T]{at: time.Now(), v: v}
+}
 
 type Game struct {
 	Name     string   `json:"name"`
@@ -172,6 +214,9 @@ func keepSteam(fresh, shown []Game) bool {
 // landed on something that isn't a game, and an error is one that didn't land,
 // which the caller mustn't read as an empty chart.
 func details(ctx context.Context, g *Guard, id int) (*appDetails, error) {
+	if d, ok := steamCached(steamCache.details, id); ok {
+		return d, nil
+	}
 	var payload map[string]appDetails
 	if err := getJSON(ctx, g, "steam", detailsURL+strconv.Itoa(id), &payload); err != nil {
 		return nil, err
@@ -182,8 +227,10 @@ func details(ctx context.Context, g *Guard, id int) (*appDetails, error) {
 	// for an app the store will not show this region, and neither is a row.
 	d, ok := payload[strconv.Itoa(id)]
 	if !ok || !d.Success || d.Data.Type != "game" {
+		steamKeep[*appDetails](steamCache.details, id, nil)
 		return nil, nil
 	}
+	steamKeep(steamCache.details, id, &d)
 	return &d, nil
 }
 
@@ -211,9 +258,12 @@ func discount(d *appDetails) int {
 // Under ten reviews a game gets none, since Valve doesn't call that a verdict
 // either and "100% POSITIVE" off three reviews would mislead.
 func rating(ctx context.Context, g *Guard, id int, game *Game) {
-	var payload reviewSummary
-	if err := getJSON(ctx, g, "steam", fmt.Sprintf(reviewsURL, id), &payload); err != nil {
-		return
+	payload, ok := steamCached(steamCache.reviews, id)
+	if !ok {
+		if err := getJSON(ctx, g, "steam", fmt.Sprintf(reviewsURL, id), &payload); err != nil {
+			return
+		}
+		steamKeep(steamCache.reviews, id, payload)
 	}
 
 	q := payload.Summary
