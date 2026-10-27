@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"sync"
 	"time"
@@ -407,19 +406,21 @@ func (s *Store) refreshAir(ctx context.Context, g *Guard) {
 		return
 	}
 
-	// Pollen is the unofficial source here, so it losing its footing costs its
-	// own row and not the air quality beside it.
-	if index, top, err := fetchPollen(ctx, g); err != nil {
-		pollFailed(ctx, "pollen", "local", err)
-	} else {
-		air.Pollen = fmt.Sprintf("%.1f", index)
-		air.PollenState = pollenBand(index)
-		air.PollenTop = top
-		air.PollenKnown = true
-		air.PollenFill, air.PollenLevel = gauge(index, 9.7, 2.5, 4.9, 7.3)
-	}
+	s.update(func(st *State) {
+		air.PollenReading = st.Air.PollenReading
+		st.Air = air
+	})
+}
 
-	s.update(func(st *State) { st.Air = air })
+// refreshPollen clears the row on a failure rather than keeping the last one,
+// since the county stops counting for the winter and a stale reading would
+// sit there until spring.
+func (s *Store) refreshPollen(ctx context.Context, g *Guard) {
+	p, err := fetchPollen(ctx, g, time.Now())
+	if err != nil {
+		pollFailed(ctx, "pollen", "local", err)
+	}
+	s.update(func(st *State) { st.Air.PollenReading = p })
 }
 
 func (s *Store) refreshStreaming(ctx context.Context, g *Guard) {

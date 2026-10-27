@@ -31,6 +31,7 @@ var sources = []Source{
 	{Name: "reports", Every: reportsEvery, Run: (*Store).refreshReports},
 	{Name: "alerts", Every: alertsEvery, Run: (*Store).refreshAlerts},
 	{Name: "air", Every: airEvery, Run: (*Store).refreshAir},
+	{Name: "pollen", Every: pollenEvery, Run: (*Store).refreshPollen},
 	{Name: "outdoors", Every: outdoorsEvery, Run: (*Store).refreshOutlook},
 	{Name: "steam", Every: steamEvery, Run: (*Store).refreshSteam},
 	{Name: "streaming", Every: streamingEvery, Run: (*Store).refreshStreaming},

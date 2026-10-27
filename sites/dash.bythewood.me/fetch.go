@@ -87,6 +87,42 @@ func getJSONHeaders(ctx context.Context, g *Guard, endpoint, url string, headers
 	return nil
 }
 
+// getPage is getJSON for the one upstream that only publishes HTML. It names
+// the program, since that's a county's web server on the other end.
+func getPage(ctx context.Context, g *Guard, endpoint, url string) (string, error) {
+	if err := g.Reserve(ctx, endpoint); err != nil {
+		return "", err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("User-Agent", feedAgent)
+	req.Header.Set("Accept", "text/html")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		g.Fail(endpoint, 0, 0)
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		g.Fail(endpoint, resp.StatusCode, parseRetryAfter(resp.Header.Get("Retry-After")))
+		return "", fmt.Errorf("%s: http %d", endpoint, resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxBody))
+	if err != nil {
+		g.Fail(endpoint, resp.StatusCode, 0)
+		return "", fmt.Errorf("%s: %w", endpoint, err)
+	}
+
+	g.Succeed(endpoint)
+	return string(body), nil
+}
+
 // postJSON is getJSON for the upstreams that only speak GraphQL. Guarded
 // identically, since a POST to somebody else's endpoint is no cheaper than a
 // GET.

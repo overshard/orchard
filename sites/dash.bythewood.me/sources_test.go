@@ -24,6 +24,7 @@ func TestSourceSchedule(t *testing.T) {
 		{"reports", 15 * time.Minute, 0, false},
 		{"alerts", 10 * time.Minute, 0, false},
 		{"air", 30 * time.Minute, 0, false},
+		{"pollen", 3 * time.Hour, 0, false},
 		{"outdoors", 3 * time.Hour, 0, false},
 		{"steam", time.Hour, 0, false},
 		{"streaming", 3 * time.Hour, 0, false},
