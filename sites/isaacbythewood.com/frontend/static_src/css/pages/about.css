@@ -104,14 +104,12 @@
   z-index: 1;
 }
 
-.about-wordAppearActive > .about-wordText,
 .about-wordEnterActive > .about-wordText {
   animation-name: about-quickFadeIn;
   animation-duration: 1000ms;
   animation-fill-mode: forwards;
 }
 
-.about-wordAppearActive > .about-wordText::before,
 .about-wordEnterActive > .about-wordText::before {
   animation-name: about-slideLeft;
   animation-duration: 1000ms;
