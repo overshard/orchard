@@ -15,7 +15,7 @@ COPY . .
 # environment is set.
 RUN CGO_ENABLED=0 go build -tags embed -trimpath -ldflags="-s -w" -o /app .
 
-FROM debian@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a
+FROM debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad
 
 # poppler-utils is pdftotext and nothing else here needs a shell. ca-certificates
 # because every tool fetches over TLS, and tzdata because the ambient block

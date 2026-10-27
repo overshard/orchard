@@ -8,7 +8,7 @@
 # Typst is copied into the runtime image rather than discarded after the build,
 # because a report describes a live monitoring state that changes every three
 # minutes, so there is nothing finite to precompile. See typst.go.
-FROM debian@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a AS typst
+FROM debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad AS typst
 ARG TYPST_VERSION=0.14.0
 ARG TYPST_SHA256=99816d2982de08d2b091bac56b59b2faa523a10e1378ad3cdd68e35b8eb74b3d
 RUN apt-get update && \
@@ -64,7 +64,7 @@ COPY --from=card /card.png ./build/dist/og/card.png
 RUN CGO_ENABLED=0 go build -tags embed -trimpath -ldflags="-s -w" \
     -o /app .
 
-FROM debian@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a
+FROM debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad
 
 # chromium is for Lighthouse and nothing else, and typst wants the font packages
 # instead. No nodejs and no npm anywhere, because `bun run --bun` symlinks node

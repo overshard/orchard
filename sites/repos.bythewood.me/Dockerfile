@@ -23,7 +23,7 @@ RUN CGO_ENABLED=0 go build -tags embed -trimpath -ldflags="-s -w" -o /app .
 # debian, not scratch: the clone and push wire is git itself. `git http-backend`
 # is git's own CGI and has to be on disk to serve a single clone, and every page
 # read is a git plumbing subprocess.
-FROM debian@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a
+FROM debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad
 
 # Debian's git package ships git-http-backend under /usr/lib/git-core, which
 # wire.go probes for, so a clone works without a second package.

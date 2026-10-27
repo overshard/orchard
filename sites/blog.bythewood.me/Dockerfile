@@ -4,7 +4,7 @@
 # Typst runs here at build time and never reaches the runtime image. Posts load
 # once at startup and cannot change while the process runs, so every PDF the
 # site will ever serve is known before it boots.
-FROM debian@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a AS typst
+FROM debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad AS typst
 ARG TYPST_VERSION=0.14.0
 ARG TYPST_SHA256=99816d2982de08d2b091bac56b59b2faa523a10e1378ad3cdd68e35b8eb74b3d
 RUN apt-get update && \
