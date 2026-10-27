@@ -52,6 +52,8 @@ services:
       - models:/models
     deploy:
       resources:
+        limits:
+          pids: 256
         reservations:
           devices:
             - driver: nvidia
