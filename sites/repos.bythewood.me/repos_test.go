@@ -1031,7 +1031,7 @@ func TestAnalyticsWiring(t *testing.T) {
 	}
 
 	policy := csp()
-	for _, need := range []string{"'unsafe-inline'", "https://analytics.bythewood.me"} {
+	for _, need := range []string{"'unsafe-inline'", "https://analytics.bythewood.me/static/collector.js"} {
 		if !strings.Contains(policy, need) {
 			t.Errorf("CSP is missing %s, so the collector would be blocked: %s",
 				need, policy)

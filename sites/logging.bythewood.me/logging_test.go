@@ -967,7 +967,7 @@ func TestAnalyticsSnippetIsRendered(t *testing.T) {
 	// And the CSP actually permits what the snippet needs, which is easy to
 	// get wrong when the two are edited separately.
 	policy := csp()
-	for _, need := range []string{"'unsafe-inline'", "https://analytics.bythewood.me"} {
+	for _, need := range []string{"'unsafe-inline'", "https://analytics.bythewood.me/static/collector.js"} {
 		if !strings.Contains(policy, need) {
 			t.Errorf("CSP is missing %s, so the collector would be blocked: %s", need, policy)
 		}
