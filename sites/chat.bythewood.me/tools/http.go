@@ -26,8 +26,8 @@ func get(ctx context.Context, d *Deps, url string, accept string) ([]byte, error
 	return getWith(ctx, d, url, accept, nil)
 }
 
-// getWith takes per host headers because pollen.com refuses a request without a
-// Referer naming the page its own front end would have been on.
+// getWith takes per host headers because Nominatim and Forsyth County want an
+// agent that names the program instead of a browser's.
 func getWith(ctx context.Context, d *Deps, url string, accept string, extra map[string]string) ([]byte, error) {
 	host := hostOf(url)
 	if blocked, left := d.Guard.Blocked(host); blocked {

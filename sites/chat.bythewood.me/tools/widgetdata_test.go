@@ -2,7 +2,9 @@ package tools
 
 import (
 	"encoding/json"
+	"os"
 	"testing"
+	"time"
 )
 
 func chartJSON(t *testing.T, price, prev float64, closes []any, stamps []int64) chartPayload {
@@ -99,9 +101,9 @@ func TestBands(t *testing.T) {
 		}
 	}
 	for _, c := range []struct {
-		v    float64
+		v    int
 		want string
-	}{{0, "low"}, {2.4, "low-medium"}, {4.8, "medium"}, {7.2, "medium-high"}, {9.7, "high"}} {
+	}{{0, "absent"}, {1, "low"}, {26, "moderate"}, {51, "high"}, {76, "very high"}} {
 		if got := pollenBand(c.v); got != c.want {
 			t.Errorf("pollenBand(%v) = %q, want %q", c.v, got, c.want)
 		}
@@ -127,5 +129,33 @@ func TestNilSinkIsSafe(t *testing.T) {
 	s.Add(Widget{Kind: "ticker", Symbol: "VTI"})
 	if s.List() != nil {
 		t.Fatal("a nil sink should list nothing")
+	}
+}
+
+// The fixture is Forsyth County's page from Monday 10-26, with weeds at 7 posted
+// and a forecast of 1, 1 and 10 for Tuesday.
+func TestParsePollen(t *testing.T) {
+	raw, err := os.ReadFile("testdata/pollen.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	day := func(d int) time.Time { return time.Date(2026, 10, d, 12, 0, 0, 0, time.UTC) }
+	if got, err := parsePollen(string(raw), day(26)); err != nil || got["Weeds"] != 7 {
+		t.Fatalf("Monday = %v, %v, want the posted count", got, err)
+	}
+	if got, err := parsePollen(string(raw), day(27)); err != nil || got["Weeds"] != 10 || got["Trees"] != 1 {
+		t.Fatalf("Tuesday = %v, %v, want the forecast", got, err)
+	}
+	if _, err := parsePollen(string(raw), day(31)); err == nil {
+		t.Fatal("a day past the forecast should have no reading")
+	}
+}
+
+func TestPollenRadius(t *testing.T) {
+	if m := milesBetween(36.13, -80.66, pollenLat, pollenLon); m > 30 {
+		t.Errorf("Yadkinville is %.0f miles from the sampler", m)
+	}
+	if m := milesBetween(36.22, -81.67, pollenLat, pollenLon); m < pollenMaxMiles {
+		t.Errorf("Boone is %.0f miles out and inside the radius", m)
 	}
 }

@@ -274,10 +274,10 @@ func TestGuardPaceIsPinned(t *testing.T) {
 		t.Errorf("the second call waited %s, want the 500ms gap", waited)
 	}
 
-	g.Wait("www.pollen.com")
+	g.Wait("www.co.forsyth.nc.us")
 	done := make(chan struct{})
 	go func() {
-		g.Wait("www.pollen.com")
+		g.Wait("www.co.forsyth.nc.us")
 		close(done)
 	}()
 	time.Sleep(100 * time.Millisecond)
@@ -300,7 +300,7 @@ func TestGuardGapsArePinned(t *testing.T) {
 		"query2.finance.yahoo.com":       3 * time.Second,
 		"api.open-meteo.com":             500 * time.Millisecond,
 		"air-quality-api.open-meteo.com": 500 * time.Millisecond,
-		"www.pollen.com":                 2 * time.Second,
+		"www.co.forsyth.nc.us":           2 * time.Second,
 		"nominatim.openstreetmap.org":    1500 * time.Millisecond,
 		"anything.else":                  400 * time.Millisecond,
 	}

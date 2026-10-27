@@ -37,8 +37,7 @@ func (s *site) widgetWeather(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	days, _ := strconv.Atoi(q.Get("days"))
-	rep, err := tools.Forecast(r.Context(), s.engine.Deps(), lat, lon,
-		q.Get("place"), q.Get("zip"), q.Get("country"), days)
+	rep, err := tools.Forecast(r.Context(), s.engine.Deps(), lat, lon, q.Get("place"), days)
 	if err != nil {
 		widgetErr(w, err)
 		return

@@ -15,13 +15,10 @@ type Widget struct {
 	// ticker
 	Symbol string `json:"symbol,omitempty"`
 
-	// weather. pollen.com is keyed on Zip and Country decides whether there is
-	// any pollen to ask for at all.
-	Place   string  `json:"place,omitempty"`
-	Lat     float64 `json:"lat,omitempty"`
-	Lon     float64 `json:"lon,omitempty"`
-	Zip     string  `json:"zip,omitempty"`
-	Country string  `json:"country,omitempty"`
+	// weather
+	Place string  `json:"place,omitempty"`
+	Lat   float64 `json:"lat,omitempty"`
+	Lon   float64 `json:"lon,omitempty"`
 
 	Label string `json:"label,omitempty"`
 

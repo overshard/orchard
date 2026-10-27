@@ -319,8 +319,7 @@
     root.innerHTML = `<p class="wdg-msg">loading</p>`;
 
     const q = new URLSearchParams({
-      lat: spec.lat, lon: spec.lon, place: spec.place || "",
-      zip: spec.zip || "", country: spec.country || "", days: "7",
+      lat: spec.lat, lon: spec.lon, place: spec.place || "", days: "7",
     });
 
     fetch("/api/widget/weather?" + q)
@@ -332,13 +331,13 @@
       const days = d.days || [];
       // The tiles are the readings that are not a temperature, and each one is
       // dropped rather than shown empty when its source had nothing. Pollen is
-      // the one that is often missing, since it is a US only source.
+      // the one that is often missing, since it only counts near Winston-Salem.
       const tiles = [
         tile("rain", (days[0] ? Math.round(days[0].precip_pct) : 0) + "%", "today"),
         tile("uv", days[0] ? days[0].uv.toFixed(1) : "0", uvBand(days[0] ? days[0].uv : 0)),
       ];
       if (d.has_air) tiles.push(tile("aqi", Math.round(d.aqi), d.aqi_band, aqiDir(d.aqi)));
-      if (d.has_pollen) tiles.push(tile("pollen", d.pollen.toFixed(1), d.pollen_band, pollenDir(d.pollen)));
+      if (d.has_pollen) tiles.push(tile("pollen", d.pollen, d.pollen_band, pollenDir(d.pollen)));
       if (d.humidity) tiles.push(tile("humidity", Math.round(d.humidity) + "%", ""));
       if (d.wind_mph) tiles.push(tile("wind", Math.round(d.wind_mph), "mph"));
 
@@ -374,7 +373,7 @@
 
   const uvBand = (v) => (v < 3 ? "low" : v < 6 ? "moderate" : v < 8 ? "high" : v < 11 ? "very high" : "extreme");
   const aqiDir = (v) => (v <= 50 ? "up" : v <= 100 ? "flat" : "down");
-  const pollenDir = (v) => (v < 4.8 ? "up" : v < 7.2 ? "flat" : "down");
+  const pollenDir = (v) => (v <= 25 ? "up" : v <= 50 ? "flat" : "down");
 
   // ---------------------------------------------------------------- registry
 

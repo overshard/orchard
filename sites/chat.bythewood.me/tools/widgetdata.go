@@ -3,9 +3,12 @@ package tools
 import (
 	"context"
 	"fmt"
+	"html"
 	"math"
 	"net/url"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -182,16 +185,16 @@ type Report struct {
 	PM25    float64 `json:"pm25"`
 	HasAir  bool    `json:"has_air"`
 
-	Pollen     float64 `json:"pollen"`
-	PollenBand string  `json:"pollen_band,omitempty"`
-	PollenTop  string  `json:"pollen_top,omitempty"`
-	HasPollen  bool    `json:"has_pollen"`
+	Pollen     int    `json:"pollen"`
+	PollenBand string `json:"pollen_band,omitempty"`
+	PollenTop  string `json:"pollen_top,omitempty"`
+	HasPollen  bool   `json:"has_pollen"`
 }
 
 // Forecast is the daily outlook plus the two readings that are not in it. The air
 // call and the pollen call are separate hosts and either can be missing without
 // the panel being wrong, so each failure only costs its own tile.
-func Forecast(ctx context.Context, d *Deps, lat, lon float64, place, zip, country string, days int) (Report, error) {
+func Forecast(ctx context.Context, d *Deps, lat, lon float64, place string, days int) (Report, error) {
 	if days < 1 || days > 14 {
 		days = 7
 	}
@@ -249,7 +252,7 @@ func Forecast(ctx context.Context, d *Deps, lat, lon float64, place, zip, countr
 	}
 
 	rep.airQuality(ctx, d, lat, lon)
-	rep.pollen(ctx, d, zip, country)
+	rep.pollen(ctx, d, lat, lon)
 	return rep, nil
 }
 
@@ -272,60 +275,148 @@ func (rep *Report) airQuality(ctx context.Context, d *Deps, lat, lon float64) {
 	}
 }
 
-// pollen reads pollen.com, keyed on the zip the geocode already knew, since
-// open-meteo returns null pollen for every US location. It refuses a request
-// that arrives without a Referer.
-func (rep *Report) pollen(ctx context.Context, d *Deps, zip, country string) {
-	if zip == "" || (country != "" && country != "US") {
+// Forsyth County's sampler sits downtown in Winston-Salem, and its count is
+// only worth showing for somewhere within a drive of it. open-meteo returns null
+// pollen for every US location.
+const (
+	pollenURL      = "https://www.co.forsyth.nc.us/eap/pollen.aspx"
+	pollenLat      = 36.0985
+	pollenLon      = -80.2420
+	pollenMaxMiles = 50
+)
+
+func (rep *Report) pollen(ctx context.Context, d *Deps, lat, lon float64) {
+	if milesBetween(lat, lon, pollenLat, pollenLon) > pollenMaxMiles {
 		return
 	}
-	var p struct {
-		Location struct {
-			Periods []struct {
-				Type     string  `json:"Type"`
-				Index    float64 `json:"Index"`
-				Triggers []struct {
-					Name string `json:"Name"`
-				} `json:"Triggers"`
-			} `json:"periods"`
-		} `json:"Location"`
-	}
-	u := "https://www.pollen.com/api/forecast/current/pollen/" + url.PathEscape(zip)
-	if err := getJSONHeaders(ctx, d, u, map[string]string{
-		"Referer": "https://www.pollen.com/forecast/current/pollen/" + zip,
-	}, &p); err != nil {
+	raw, err := getWith(ctx, d, pollenURL, "text/html", map[string]string{"User-Agent": "chat.bythewood.me"})
+	if err != nil {
 		return
 	}
-	for _, per := range p.Location.Periods {
-		if !strings.EqualFold(per.Type, "Today") {
-			continue
+	counts, err := parsePollen(string(raw), time.Now().In(newYork()))
+	if err != nil {
+		return
+	}
+	names := make([]string, 0, len(counts))
+	for name, n := range counts {
+		rep.Pollen = max(rep.Pollen, n)
+		if n > 0 {
+			names = append(names, strings.ToLower(name))
 		}
-		rep.Pollen, rep.HasPollen = round1(per.Index), true
-		rep.PollenBand = pollenBand(per.Index)
-		names := make([]string, 0, len(per.Triggers))
-		for _, t := range per.Triggers {
-			names = append(names, t.Name)
+	}
+	sort.Strings(names)
+	rep.HasPollen, rep.PollenBand, rep.PollenTop = true, pollenBand(rep.Pollen), strings.Join(names, ", ")
+}
+
+var (
+	pollenCell    = regexp.MustCompile(`(?s)<t[hd][^>]*>(.*?)</t[hd]>`)
+	pollenCaption = regexp.MustCompile(`(?s)<caption>(.*?)</caption>`)
+	pollenDate    = regexp.MustCompile(`\d{2}/\d{2}/\d{4}`)
+	pollenTag     = regexp.MustCompile(`<[^>]+>`)
+)
+
+var pollenTypes = []string{"Trees", "Grasses", "Weeds"}
+
+// pollenTable is the table with this id, cut out of the page.
+func pollenTable(page, id string) string {
+	i := strings.Index(page, `id="`+id+`"`)
+	if i < 0 {
+		return ""
+	}
+	page = page[i:]
+	if j := strings.Index(page, "</table>"); j >= 0 {
+		page = page[:j]
+	}
+	return page
+}
+
+func pollenText(s string) string {
+	return strings.Join(strings.Fields(html.UnescapeString(pollenTag.ReplaceAllString(s, " "))), " ")
+}
+
+func pollenCells(table string) []string {
+	var cells []string
+	for _, m := range pollenCell.FindAllStringSubmatch(table, -1) {
+		cells = append(cells, pollenText(m[1]))
+	}
+	return cells
+}
+
+// parsePollen reads the Pollen Rating Scale for each type on the given day. The
+// count is used once it's posted for that day, and the forecast until then.
+// dash reads the same page the same way.
+func parsePollen(page string, day time.Time) (map[string]int, error) {
+	want := day.Format("01/02/2006")
+
+	if m := pollenCaption.FindStringSubmatch(pollenTable(page, "Graph")); m != nil {
+		posted, err := time.Parse("Monday, January 2, 2006", pollenText(m[1]))
+		if err == nil && posted.Format("01/02/2006") == want {
+			if counts, ok := pollenRow(pollenCells(pollenTable(page, "Statistics")), 1, 0); ok {
+				return counts, nil
+			}
 		}
-		sort.Strings(names)
-		rep.PollenTop = strings.Join(names, ", ")
-		return
+	}
+
+	cells := pollenCells(pollenTable(page, "Forecast"))
+	col := -1
+	for i, c := range cells {
+		if pollenDate.FindString(c) == want {
+			// Less one for the empty corner cell.
+			col = i - 1
+			break
+		}
+	}
+	if col < 0 {
+		return nil, fmt.Errorf("pollen: no reading for %s", want)
+	}
+	if counts, ok := pollenRow(cells, 0, col); ok {
+		return counts, nil
+	}
+	return nil, fmt.Errorf("pollen: forecast table has no %s column", want)
+}
+
+// pollenRow finds each type's row label and reads the PRS that sits skip cells
+// and then col columns after it.
+func pollenRow(cells []string, skip, col int) (map[string]int, bool) {
+	counts := map[string]int{}
+	for i, c := range cells {
+		for _, name := range pollenTypes {
+			if c != name || i+1+skip+col >= len(cells) {
+				continue
+			}
+			n, err := strconv.Atoi(cells[i+1+skip+col])
+			if err != nil {
+				return nil, false
+			}
+			counts[name] = n
+		}
+	}
+	return counts, len(counts) == len(pollenTypes)
+}
+
+// pollenBand is Forsyth County's own Pollen Rating Scale.
+func pollenBand(prs int) string {
+	switch {
+	case prs <= 0:
+		return "absent"
+	case prs <= 25:
+		return "low"
+	case prs <= 50:
+		return "moderate"
+	case prs <= 75:
+		return "high"
+	default:
+		return "very high"
 	}
 }
 
-// pollenBand is pollen.com's own 0 to 12 scale, the same bands dash reads it on.
-func pollenBand(i float64) string {
-	switch {
-	case i < 2.4:
-		return "low"
-	case i < 4.8:
-		return "low-medium"
-	case i < 7.2:
-		return "medium"
-	case i < 9.7:
-		return "medium-high"
-	default:
-		return "high"
-	}
+// milesBetween is a straight line, which is all a fifty mile radius needs.
+func milesBetween(lat1, lon1, lat2, lon2 float64) float64 {
+	const r = 3958.8
+	rad := math.Pi / 180
+	dlat, dlon := (lat2-lat1)*rad, (lon2-lon1)*rad
+	a := math.Sin(dlat/2)*math.Sin(dlat/2) + math.Cos(lat1*rad)*math.Cos(lat2*rad)*math.Sin(dlon/2)*math.Sin(dlon/2)
+	return 2 * r * math.Asin(math.Sqrt(a))
 }
 
 // aqiBand is the EPA's own naming for the US AQI breakpoints.
