@@ -37,7 +37,7 @@ export GOWORK = off
 SUDO   ?= sudo
 DOCKER ?= $(SUDO) docker
 
-GOVULNCHECK = golang.org/x/vuln/cmd/govulncheck@v1.8.0
+GOVULNCHECK = golang.org/x/vuln/cmd/govulncheck@v1.9.0
 
 SITES    = $(notdir $(wildcard sites/*))
 SITE_DIR = sites/$(SITE)
