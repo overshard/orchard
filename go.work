@@ -1,10 +1,5 @@
-// One independent module per site. This file exists so `go build ./...`,
-// `go vet ./...` and `go test ./...` work from the repo root and an editor
-// resolves every site at once. `make new` adds a site here.
-//
-// Nothing depends on it. Each site builds on its own from its own directory,
-// and its Docker build context is that directory alone, so a site can be moved
-// to its own repository by copying the folder.
+// For the editor only, so it resolves every site at once. Nothing builds or
+// tests through it, and `make new` adds a site here.
 go 1.27.0
 
 use (
