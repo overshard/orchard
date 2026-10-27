@@ -79,11 +79,6 @@ func splitStrip() (session, extended []string) {
 	return session, extended
 }
 
-type tradingWindow struct {
-	Start int64 `json:"start"`
-	End   int64 `json:"end"`
-}
-
 type sparkMeta struct {
 	Symbol             string  `json:"symbol"`
 	Currency           string  `json:"currency"`
