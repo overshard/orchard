@@ -226,6 +226,10 @@ http://analytics.bythewood.me {
 http://auth.bythewood.me {
 	import site
 
+	request_body {
+		max_size 64KB
+	}
+
 	# The wildcard catches /verify/ too.
 	handle /verify* {
 		respond "not here" 404
