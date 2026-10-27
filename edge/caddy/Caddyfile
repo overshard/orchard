@@ -83,9 +83,8 @@
 # as an origin error and counts it against origin health. A 404 is what these
 # paths already returned.
 #
-# The same list exists at Cloudflare, which catches these first and more cheaply.
-# Those four rules are in cloudflare-rules.txt beside this file, since a
-# dashboard rule is not in version control.
+# This is the full list. Cloudflare catches only the high volume families first,
+# recorded in cloudflare-rules.txt beside this file.
 #
 # Some of these clauses look wrong and are not.
 #
