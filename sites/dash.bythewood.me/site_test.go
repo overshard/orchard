@@ -682,8 +682,8 @@ func TestBands(t *testing.T) {
 	if got := aqiBand(160); got != "UNHEALTHY" {
 		t.Errorf("aqiBand(160) = %q", got)
 	}
-	if got := pollenBand(8.8); got != "MED-HIGH" {
-		t.Errorf("pollenBand(8.8) = %q", got)
+	if got := pollenBand(51); got != "HIGH" {
+		t.Errorf("pollenBand(51) = %q", got)
 	}
 	if got := uvBand(7.15); got != "HIGH" {
 		t.Errorf("uvBand(7.15) = %q", got)

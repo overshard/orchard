@@ -3,9 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"html"
 	"math"
 	"net/url"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -23,12 +26,11 @@ const (
 	airURL   = "https://air-quality-api.open-meteo.com/v1/air-quality"
 	airEvery = 30 * time.Minute
 
-	// pollen.com's own front end calls this, and it refuses a request without a
-	// Referer pointing back at the matching page. Unofficial, so when it breaks
-	// the panel drops the row and not the section.
-	pollenURL   = "https://www.pollen.com/api/forecast/current/pollen/"
-	pollenZip   = "27055"
-	pollenEvery = 6 * time.Hour
+	// Forsyth County counts pollen off a sampler in downtown Winston-Salem and
+	// posts it by 3:30pm each business day, with a three day forecast that
+	// carries the weekend. It's an HTML page, so when it changes the row drops.
+	pollenURL   = "https://www.co.forsyth.nc.us/eap/pollen.aspx"
+	pollenEvery = 3 * time.Hour
 )
 
 // Alert is one active NWS warning.
@@ -210,23 +212,29 @@ func fetchAlerts(ctx context.Context, g *Guard) ([]Alert, error) {
 	return alerts, nil
 }
 
-// Air is the air quality panel, and pollen when the unofficial source answers.
+// Air is the air quality panel, and pollen when the county has a reading.
 type Air struct {
 	AQI      int    `json:"aqi"`
 	AQIState string `json:"aqi_state"`
 	PM25     string `json:"pm25"`
 	Known    bool   `json:"known"`
 
-	Pollen      string `json:"pollen"`
-	PollenState string `json:"pollen_state"`
-	PollenTop   string `json:"pollen_top"`
-	PollenKnown bool   `json:"pollen_known"`
-
 	// Each reading placed on its own scale, so UV, air quality and pollen read
 	// as three of the same instrument instead of three unrelated numbers. Level
 	// is the severity step the colour comes from.
-	AQIFill     float64 `json:"aqi_fill"`
-	AQILevel    int     `json:"aqi_level"`
+	AQIFill  float64 `json:"aqi_fill"`
+	AQILevel int     `json:"aqi_level"`
+
+	PollenReading
+}
+
+// PollenReading polls on its own slower clock, so it sits inside Air but is
+// swapped as a whole.
+type PollenReading struct {
+	Pollen      string  `json:"pollen"`
+	PollenState string  `json:"pollen_state"`
+	PollenTop   string  `json:"pollen_top"`
+	PollenKnown bool    `json:"pollen_known"`
 	PollenFill  float64 `json:"pollen_fill"`
 	PollenLevel int     `json:"pollen_level"`
 }
@@ -297,58 +305,150 @@ func aqiBand(aqi int) string {
 	}
 }
 
-type pollenPayload struct {
-	Location struct {
-		Periods []struct {
-			Type     string  `json:"Type"`
-			Index    float64 `json:"Index"`
-			Triggers []struct {
-				Name string `json:"Name"`
-			} `json:"Triggers"`
-		} `json:"periods"`
-	} `json:"Location"`
+var (
+	pollenCell    = regexp.MustCompile(`(?s)<t[hd][^>]*>(.*?)</t[hd]>`)
+	pollenCaption = regexp.MustCompile(`(?s)<caption>(.*?)</caption>`)
+	pollenDate    = regexp.MustCompile(`\d{2}/\d{2}/\d{4}`)
+	pollenTag     = regexp.MustCompile(`<[^>]+>`)
+)
+
+var pollenTypes = []string{"Trees", "Grasses", "Weeds"}
+
+// pollenTable is the table with this id, cut out of the page.
+func pollenTable(page, id string) string {
+	i := strings.Index(page, `id="`+id+`"`)
+	if i < 0 {
+		return ""
+	}
+	page = page[i:]
+	if j := strings.Index(page, "</table>"); j >= 0 {
+		page = page[:j]
+	}
+	return page
 }
 
-// fetchPollen returns today's index. open-meteo carries pollen for Europe only,
-// so there is no keyless first party source for North America and this is the
-// one the pollen.com front end uses.
-func fetchPollen(ctx context.Context, g *Guard) (index float64, top string, err error) {
-	var payload pollenPayload
-	if err := getJSONHeaders(ctx, g, "pollen", pollenURL+pollenZip, map[string]string{
-		"Referer": "https://www.pollen.com/forecast/current/pollen/" + pollenZip,
-	}, &payload); err != nil {
-		return 0, "", err
-	}
+func pollenText(s string) string {
+	return strings.Join(strings.Fields(html.UnescapeString(pollenTag.ReplaceAllString(s, " "))), " ")
+}
 
-	for _, p := range payload.Location.Periods {
-		if !strings.EqualFold(p.Type, "Today") {
-			continue
-		}
-		// Two, because a third wraps the cell onto a second line.
-		names := make([]string, 0, 2)
-		for _, t := range p.Triggers {
-			if len(names) == 2 {
-				break
+func pollenCells(table string) []string {
+	var cells []string
+	for _, m := range pollenCell.FindAllStringSubmatch(table, -1) {
+		cells = append(cells, pollenText(m[1]))
+	}
+	return cells
+}
+
+// parsePollen reads the Pollen Rating Scale for each type on the given day. The
+// count is used once it's posted for that day, and the forecast until then.
+func parsePollen(page string, day time.Time) (map[string]int, error) {
+	want := day.Format("01/02/2006")
+
+	if m := pollenCaption.FindStringSubmatch(pollenTable(page, "Graph")); m != nil {
+		posted, err := time.Parse("Monday, January 2, 2006", pollenText(m[1]))
+		if err == nil && posted.Format("01/02/2006") == want {
+			cells := pollenCells(pollenTable(page, "Statistics"))
+			if counts, ok := pollenRow(cells, 1, 0); ok {
+				return counts, nil
 			}
-			names = append(names, strings.ToUpper(t.Name))
 		}
-		return p.Index, strings.Join(names, " · "), nil
 	}
-	return 0, "", fmt.Errorf("pollen: no reading for today")
+
+	cells := pollenCells(pollenTable(page, "Forecast"))
+	col := -1
+	for i, c := range cells {
+		if pollenDate.FindString(c) == want {
+			// Less one for the empty corner cell.
+			col = i - 1
+			break
+		}
+	}
+	if col < 0 {
+		return nil, fmt.Errorf("pollen: no reading for %s", want)
+	}
+	if counts, ok := pollenRow(cells, 0, col); ok {
+		return counts, nil
+	}
+	return nil, fmt.Errorf("pollen: forecast table has no %s column", want)
 }
 
-// pollenBand is pollen.com's own 0 to 12 scale.
-func pollenBand(index float64) string {
+// pollenRow finds each type's row label and reads the PRS that sits skip cells
+// and then col columns after it.
+func pollenRow(cells []string, skip, col int) (map[string]int, bool) {
+	counts := map[string]int{}
+	for i, c := range cells {
+		for _, name := range pollenTypes {
+			if c != name || i+1+skip+col >= len(cells) {
+				continue
+			}
+			n, err := strconv.Atoi(cells[i+1+skip+col])
+			if err != nil {
+				return nil, false
+			}
+			counts[name] = n
+		}
+	}
+	return counts, len(counts) == len(pollenTypes)
+}
+
+func fetchPollen(ctx context.Context, g *Guard, now time.Time) (PollenReading, error) {
+	page, err := getPage(ctx, g, "pollen", pollenURL)
+	if err != nil {
+		return PollenReading{}, err
+	}
+	counts, err := parsePollen(page, now.In(easternTime()))
+	if err != nil {
+		return PollenReading{}, err
+	}
+	return pollenSummary(counts), nil
+}
+
+// pollenSummary reads the worst type as the reading, and names up to two types
+// that have any pollen at all, since a third wraps the cell onto a second line.
+func pollenSummary(counts map[string]int) PollenReading {
+	names := make([]string, 0, len(counts))
+	worst := 0
+	for name, n := range counts {
+		worst = max(worst, n)
+		if n > 0 {
+			names = append(names, name)
+		}
+	}
+	sort.Slice(names, func(i, j int) bool {
+		if counts[names[i]] != counts[names[j]] {
+			return counts[names[i]] > counts[names[j]]
+		}
+		return names[i] < names[j]
+	})
+	if len(names) > 2 {
+		names = names[:2]
+	}
+	for i := range names {
+		names[i] = strings.ToUpper(names[i])
+	}
+
+	p := PollenReading{
+		Pollen:      strconv.Itoa(worst),
+		PollenState: pollenBand(worst),
+		PollenTop:   strings.Join(names, " · "),
+		PollenKnown: true,
+	}
+	p.PollenFill, p.PollenLevel = gauge(float64(worst), 76, 26, 51, 76)
+	return p
+}
+
+// pollenBand is Forsyth County's own Pollen Rating Scale.
+func pollenBand(prs int) string {
 	switch {
-	case index < 2.5:
+	case prs <= 0:
+		return "ABSENT"
+	case prs <= 25:
 		return "LOW"
-	case index < 4.9:
-		return "LOW-MED"
-	case index < 7.3:
-		return "MEDIUM"
-	case index < 9.7:
-		return "MED-HIGH"
-	default:
+	case prs <= 50:
+		return "MODERATE"
+	case prs <= 75:
 		return "HIGH"
+	default:
+		return "VERY HIGH"
 	}
 }
