@@ -239,7 +239,7 @@ func TestHubReplaysTheLatestFrameToANewSubscriber(t *testing.T) {
 	h := NewHub()
 	h.Broadcast([]byte("first"))
 
-	frames, unsubscribe := h.Subscribe()
+	frames, unsubscribe, _ := h.Subscribe()
 	defer unsubscribe()
 
 	select {
@@ -255,7 +255,7 @@ func TestHubReplaysTheLatestFrameToANewSubscriber(t *testing.T) {
 // A browser that cannot keep up must not hold the broadcast for everyone else.
 func TestHubDropsRatherThanBlocking(t *testing.T) {
 	h := NewHub()
-	_, unsubscribe := h.Subscribe()
+	_, unsubscribe, _ := h.Subscribe()
 	defer unsubscribe()
 
 	done := make(chan struct{})
@@ -275,7 +275,7 @@ func TestHubDropsRatherThanBlocking(t *testing.T) {
 
 func TestHubUnsubscribeIsIdempotent(t *testing.T) {
 	h := NewHub()
-	_, unsubscribe := h.Subscribe()
+	_, unsubscribe, _ := h.Subscribe()
 
 	unsubscribe()
 	unsubscribe()
@@ -303,7 +303,7 @@ func TestIsLoopback(t *testing.T) {
 func TestHubWakesOnTheFirstSubscriber(t *testing.T) {
 	h := NewHub()
 
-	frames, unsubscribe := h.Subscribe()
+	frames, unsubscribe, _ := h.Subscribe()
 	_ = frames
 	select {
 	case <-h.wake:
@@ -313,7 +313,7 @@ func TestHubWakesOnTheFirstSubscriber(t *testing.T) {
 
 	// A second viewer while one is already connected is not a quiet spell
 	// ending, so it must not force another fetch.
-	_, unsubscribe2 := h.Subscribe()
+	_, unsubscribe2, _ := h.Subscribe()
 	select {
 	case <-h.wake:
 		t.Error("a second concurrent subscriber woke the poller as well")
@@ -324,7 +324,7 @@ func TestHubWakesOnTheFirstSubscriber(t *testing.T) {
 	unsubscribe2()
 
 	// Back to nobody, so the next arrival is a fresh wake.
-	_, unsubscribe3 := h.Subscribe()
+	_, unsubscribe3, _ := h.Subscribe()
 	defer unsubscribe3()
 	select {
 	case <-h.wake:
@@ -340,7 +340,7 @@ func TestHubWakeDoesNotBlockAConnectingClient(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		for i := 0; i < 50; i++ {
-			_, unsubscribe := h.Subscribe()
+			_, unsubscribe, _ := h.Subscribe()
 			unsubscribe()
 		}
 		close(done)
@@ -1077,5 +1077,30 @@ func TestWalkSkipsADayThatFails(t *testing.T) {
 	}
 	if got := walkEarnings(day, today, 1, earningsNextDays, upcomingRow); len(got) != earningsShown {
 		t.Errorf("upcoming = %d rows, want %d", len(got), earningsShown)
+	}
+}
+
+func TestEventsRefusesPastTheWatcherCap(t *testing.T) {
+	h := NewHub()
+	for i := 0; i < maxWatchers; i++ {
+		_, unsubscribe, ok := h.Subscribe()
+		if !ok {
+			t.Fatalf("subscriber %d was refused under the cap", i+1)
+		}
+		defer unsubscribe()
+	}
+	if _, _, ok := h.Subscribe(); ok {
+		t.Fatal("the hub took a subscriber past the cap")
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc((&site{hub: h}).events))
+	defer srv.Close()
+	resp, err := srv.Client().Get(srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Errorf("status %d past the cap, want 503", resp.StatusCode)
 	}
 }

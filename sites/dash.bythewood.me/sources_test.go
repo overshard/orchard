@@ -90,7 +90,7 @@ func TestLoopWakesForTheFirstViewer(t *testing.T) {
 	if runs() != 0 {
 		t.Fatalf("idle source ran %d times before anyone looked", runs())
 	}
-	_, done := hub.Subscribe()
+	_, done, _ := hub.Subscribe()
 	defer done()
 	deadline := time.Now().Add(time.Second)
 	for runs() == 0 && time.Now().Before(deadline) {
@@ -105,7 +105,7 @@ func TestLoopSkipsAWakeRightAfterARun(t *testing.T) {
 	hub := NewHub()
 	runs := runLoop(t, NewStore(hub), Source{Every: time.Hour, Idle: time.Hour})
 	time.Sleep(20 * time.Millisecond)
-	_, done := hub.Subscribe()
+	_, done, _ := hub.Subscribe()
 	defer done()
 	time.Sleep(50 * time.Millisecond)
 	if runs() != 1 {

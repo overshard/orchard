@@ -81,6 +81,15 @@ func (s *site) events(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	frames, unsubscribe, ok := s.hub.Subscribe()
+	if !ok {
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Retry-After", "30")
+		http.Error(w, "too many open streams", http.StatusServiceUnavailable)
+		return
+	}
+	defer unsubscribe()
+
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Connection", "keep-alive")
@@ -90,9 +99,6 @@ func (s *site) events(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
 	_ = rc.Flush()
-
-	frames, unsubscribe := s.hub.Subscribe()
-	defer unsubscribe()
 
 	// Cloudflare drops an idle connection at 100 seconds, so a comment goes out
 	// well inside that whenever there is nothing else to send. The browser
