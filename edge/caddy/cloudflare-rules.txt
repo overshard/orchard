@@ -3,9 +3,9 @@ version control and does not come back on a rebuild. Nothing reads this file.
 
 Every rule is action Block. Rule 1 is pasted identically into the bythewood.me
 and isaacbythewood.com zones, and a clause landing in one zone and not the other
-has happened three times, so probe both after an edit. Rule 2 is bythewood.me
-only. The free plan allows five per zone and caps each at 4,096 characters, and
-the zone also holds an auth login origins block that isn't recorded here yet.
+has happened three times, so probe both after an edit. Rules 2 and 3 are
+bythewood.me only. The free plan allows five per zone and caps each at 4,096
+characters.
 
 Cloudflare only takes the high volume families, so they never cross the tunnel.
 Caddy's scanners snippets are the full list and catch the rest with a 404, so a
@@ -97,3 +97,12 @@ repos already answers these with a 404 to anyone signed out, so this only stops
 the residential proxy crawl at the edge. Commits and history at a SHA under
 blob, raw and tree need regex to tell from a branch view, so they still reach
 repos.
+
+Rule 3, "auth login origins", bythewood.me only:
+
+  (http.host eq "auth.bythewood.me"
+   and http.request.uri.path in {"/login" "/code" "/recovery"}
+   and ip.src.country ne "US")
+
+Signing in is only ever Isaac, from the US. Travelling abroad means turning this
+off first, or the code login and recovery are both unreachable.
