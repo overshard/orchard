@@ -198,8 +198,8 @@ func realMain() error {
 		return err
 	}
 	images := http.StripPrefix("/content/images/",
-		cacheControl("public, max-age=86400",
-			web.NoDirs(http.FileServer(http.FS(contentImages)))))
+		cacheControl("public, max-age=86400", web.Tagged(contentImages,
+			web.NoDirs(http.FileServer(http.FS(contentImages))))))
 	mux.Handle("GET /content/images/", images)
 
 	// Wagtail rendition URLs, still arriving from feeds and search indexes.
