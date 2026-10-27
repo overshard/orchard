@@ -17,8 +17,7 @@ const (
 	conformingLimit2026 = 832750.0
 
 	// Of the conforming limit. Every county in the search area sits at the floor.
-	fhaFloorPct   = 0.65
-	fhaCeilingPct = 1.50
+	fhaFloorPct = 0.65
 
 	// HUD's annual MIP schedule steps here, the 2023 conforming limit, unmoved
 	// since ML 2023-05.
