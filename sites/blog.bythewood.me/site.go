@@ -5,7 +5,6 @@ package main
 const (
 	baseURL     = "https://blog.bythewood.me"
 	siteName    = "Isaac Bythewood's Blog"
-	siteTagline = "Blog"
 	authorName  = "Isaac Bythewood"
 	githubUser  = "overshard"
 	analyticsID = "0d379e18-9ea7-4228-a8bf-82369c25ab84"
