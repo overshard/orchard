@@ -44,6 +44,13 @@ func csp() string {
 	}, "; ")
 }
 
+// Shared with the tests, which parse them for real, since a page listed here
+// with no file behind it only fails at boot and never at build.
+var (
+	layoutTemplates = []string{"base.html"}
+	pageTemplates   = []string{"index.html", "about.html", "code.html", "art.html", "contact.html", "notfound.html"}
+)
+
 func main() {
 	if err := realMain(); err != nil {
 		slog.Error("exiting", slog.Any("err", err))
@@ -85,12 +92,7 @@ func realMain() error {
 		return err
 	}
 
-	renderer, err := web.NewRenderer(
-		templates,
-		nil,
-		[]string{"base.html"},
-		[]string{"index.html", "about.html", "code.html", "art.html", "contact.html", "notfound.html"},
-	)
+	renderer, err := web.NewRenderer(templates, nil, layoutTemplates, pageTemplates)
 	if err != nil {
 		return err
 	}

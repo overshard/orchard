@@ -1,9 +1,12 @@
 package main
 
 import (
+	"io/fs"
 	"strings"
 	"testing"
 	"time"
+
+	"blog.bythewood.me/web"
 )
 
 // A mistake in the Markdown to Typst walker is quiet, the page still renders
@@ -211,5 +214,17 @@ func TestRelativeImagesResolveToContent(t *testing.T) {
 				t.Fatalf("%s: rewrote an absolute destination %q: %s", name, dest, out)
 			}
 		}
+	}
+}
+
+// NewRenderer resolves the list at boot and not at build, so a page left listed
+// after its file was deleted compiles, ships, and then crash-loops on startup.
+func TestEveryListedTemplateParses(t *testing.T) {
+	templates, err := fs.Sub(templateFS, "templates")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := web.NewRenderer(templates, templateFuncs, layoutTemplates, pageTemplates); err != nil {
+		t.Fatalf("the template set does not parse: %v", err)
 	}
 }

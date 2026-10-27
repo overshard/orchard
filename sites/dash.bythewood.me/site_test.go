@@ -111,9 +111,7 @@ func newTestSite(t *testing.T) *site {
 	if err != nil {
 		t.Fatal(err)
 	}
-	renderer, err := web.NewRenderer(templates, templateFuncs,
-		[]string{"base.html", "partials.html"},
-		[]string{"home.html", "notfound.html"})
+	renderer, err := web.NewRenderer(templates, templateFuncs, layoutTemplates, pageTemplates)
 	if err != nil {
 		t.Fatal(err)
 	}
