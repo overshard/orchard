@@ -46,13 +46,6 @@ var topLinks = []TopLink{
 	{Label: "GitHub", Href: "https://github.com/overshard"},
 }
 
-type Word struct {
-	Text string
-	Slot int
-}
-
-var heroWords = []string{"AI Agents", "Automation", "DevOps", "Architecture"}
-
 var aboutWords = []string{
 	"AI Agents", "DevOps", "Full-Stack", "Testing", "Cloud",
 	"Security", "Developer", "Automation", "Architecture",
