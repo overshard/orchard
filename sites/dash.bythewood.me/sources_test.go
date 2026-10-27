@@ -19,7 +19,7 @@ func TestSourceSchedule(t *testing.T) {
 		{"broadcasts", time.Hour, 0, false},
 		{"news", 5 * time.Minute, 0, false},
 		{"signal", time.Hour, 0, true},
-		{"board", 5 * time.Minute, 0, false},
+		{"board", 15 * time.Minute, 0, false},
 		{"earnings", 6 * time.Hour, 0, false},
 		{"reports", 15 * time.Minute, 0, false},
 		{"alerts", 10 * time.Minute, 0, false},
