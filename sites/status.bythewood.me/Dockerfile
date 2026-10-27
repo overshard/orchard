@@ -20,7 +20,7 @@ RUN apt-get update && \
     tar -xJf /tmp/typst.tar.xz -C /tmp && \
     mv /tmp/typst-x86_64-unknown-linux-musl/typst /usr/local/bin/typst
 
-FROM oven/bun:1-debian@sha256:923bedb355f7746666659f71e724998159a5c8c54bd1cb1030e1975a0698415b AS frontend
+FROM oven/bun:1-debian@sha256:93d5032fe06d163427822dc1598f420363759bb18155c9cc90eb1be05a64a19e AS frontend
 WORKDIR /src
 # bunfig.toml has to arrive before install runs, or install.peer = false
 # silently does nothing.
@@ -31,7 +31,7 @@ RUN bun run build
 
 # Its own stage so a CSS change does not reinstall the Lighthouse dependency
 # tree, which changes only when the Lighthouse version does.
-FROM oven/bun:1-debian@sha256:923bedb355f7746666659f71e724998159a5c8c54bd1cb1030e1975a0698415b AS lighthouse
+FROM oven/bun:1-debian@sha256:93d5032fe06d163427822dc1598f420363759bb18155c9cc90eb1be05a64a19e AS lighthouse
 WORKDIR /src
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
@@ -80,7 +80,7 @@ RUN apt-get update && \
       && rm -rf /var/lib/apt/lists/* && \
     fc-cache -f
 
-COPY --from=oven/bun:1-debian@sha256:923bedb355f7746666659f71e724998159a5c8c54bd1cb1030e1975a0698415b /usr/local/bin/bun /usr/local/bin/bun
+COPY --from=oven/bun:1-debian@sha256:93d5032fe06d163427822dc1598f420363759bb18155c9cc90eb1be05a64a19e /usr/local/bin/bun /usr/local/bin/bun
 COPY --from=typst /usr/local/bin/typst /usr/local/bin/typst
 COPY --from=build /app /app
 
