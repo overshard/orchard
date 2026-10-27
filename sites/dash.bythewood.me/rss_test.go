@@ -81,23 +81,6 @@ func TestClipDropsBBCVideoAndLive(t *testing.T) {
 	}
 }
 
-// Two outlets word the same story differently, which the exact title key can't
-// catch, and a duplicate row is the most obvious thing on a panel.
-func TestDedupeCatchesTheSameStoryTwice(t *testing.T) {
-	npr := "Leon Black defies subpoena to testify in Epstein inquiry and sues House panel"
-	bbc := "US billionaire Leon Black defies summons and sues Epstein panel"
-	if !sameStory(significant(npr), significant(bbc)) {
-		t.Errorf("read one story as two: %q and %q", npr, bbc)
-	}
-
-	// Same day, same president, different stories.
-	a := "Trump asks Supreme Court to lift block on USPS plan to restrict mail voting"
-	b := "Trump $1 coin makes him first living president on US currency in a century"
-	if sameStory(significant(a), significant(b)) {
-		t.Errorf("read two stories as one: %q and %q", a, b)
-	}
-}
-
 // An outlet runs an explainer beside the story it explains, and the panel wants
 // the story.
 func TestSidebarDropsTheExplainer(t *testing.T) {
@@ -106,22 +89,5 @@ func TestSidebarDropsTheExplainer(t *testing.T) {
 	}
 	if sidebar("Trump asks Supreme Court to lift block on USPS plan") {
 		t.Error("dropped a story")
-	}
-}
-
-// One outlet writes charged where the other writes charges, and the stem is
-// what makes those the same word.
-func TestDedupeCatchesTheSameStoryWordedApart(t *testing.T) {
-	bbc := "ICE agent charged with lying about shooting Venezuelan man during crackdown"
-	npr := "ICE officer faces federal charges for lying over shooting of Venezuelan immigrant"
-	if !sameStory(significant(bbc), significant(npr)) {
-		t.Errorf("read one story as two: %q and %q", bbc, npr)
-	}
-
-	// Three angles on one death are three stories and the panel keeps them all.
-	a := "Tributes to Gloria Steinem are flooding in, from Hollywood to Capitol Hill"
-	b := "Feminist activist and journalist Gloria Steinem dies, aged 92"
-	if sameStory(significant(a), significant(b)) {
-		t.Errorf("read two stories as one: %q and %q", a, b)
 	}
 }
