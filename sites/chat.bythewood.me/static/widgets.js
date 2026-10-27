@@ -357,9 +357,6 @@
     }
 
     function dayCell(x, i) {
-      // The bar is the day's spread placed on the week's, so a cool day is
-      // short and low and a hot one is long and high. Reading seven pairs of
-      // numbers is what this replaces.
       return `<li class="wdg-day" title="${esc(x.summary || "")}">
         <span class="wdg-day-k">${i === 0 ? "Today" : esc(x.weekday)}</span>
         <span class="wdg-day-rain" data-wet="${x.precip_pct >= 30 ? "yes" : "no"}">${Math.round(x.precip_pct)}%</span>
