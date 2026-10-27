@@ -34,7 +34,8 @@ own README.
 ## Things that will bite you
 
 - The masters are about 84MB of scans and most of why the repo packs to
-  roughly 95MB, against the 100MB Cloudflare allows in one push to
-  repos.bythewood.me. Add to them with care.
+  about 100.4MiB, over the 100MB Cloudflare allows in one push to
+  repos.bythewood.me, so a first push or a reseed there has to go over the
+  Docker bridge. Add to them with care.
 - The images are AVIF only, so a browser older than Safari 16.4 gets none.
 - GitHub is asked without a token, so it's 60 requests an hour from this IP.

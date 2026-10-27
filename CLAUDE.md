@@ -174,8 +174,8 @@ Two ways past it, in order of least effort:
    then a final `git push origin main`.
 
 The repository page meters each repo against the limit and names which route to
-use once one is over it. `orchard` itself packs to about 95MB, so it is the one
-to watch.
+use once one is over it. `orchard` itself packs to about 100.4MiB, which is over
+the limit, so a first push or a reseed of it to repos has to go over the bridge.
 
 **Secrets are a `.env` beside each site's compose file.** Compose reads it
 because that directory is the project directory, so nothing is exported in a
