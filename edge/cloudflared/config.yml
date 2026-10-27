@@ -40,6 +40,6 @@ ingress:
 
   - service: http_status:404
 
-# Lets the origin be probed from inside the bridge, which separates "my tunnel
-# dropped" from "Cloudflare or DNS is wrong".
-metrics: 0.0.0.0:2000
+# Loopback only, since the same port serves /debug/pprof, /config and
+# /diag/tunnel to anything that can reach it.
+metrics: 127.0.0.1:2000
