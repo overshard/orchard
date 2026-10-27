@@ -129,6 +129,48 @@ func TestStaticCachePolicy(t *testing.T) {
 	})
 }
 
+func TestStaticRevalidatesWithAnETag(t *testing.T) {
+	dist := fstest.MapFS{
+		".vite/manifest.json": &fstest.MapFile{Data: []byte(`{}`)},
+		"pdfs/cv.pdf":         &fstest.MapFile{Data: []byte("%PDF one")},
+		"pdfs/other.pdf":      &fstest.MapFile{Data: []byte("%PDF two")},
+	}
+	assets, err := LoadAssets(dist)
+	if err != nil {
+		t.Fatalf("LoadAssets: %v", err)
+	}
+	handler := Static(dist, assets)
+
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/static/pdfs/cv.pdf", nil))
+	tag := w.Header().Get("ETag")
+	if w.Code != http.StatusOK || !strings.HasPrefix(tag, `"`) {
+		t.Fatalf("status %d with ETag %q, want 200 and a strong tag", w.Code, tag)
+	}
+
+	other := httptest.NewRecorder()
+	handler.ServeHTTP(other, httptest.NewRequest(http.MethodGet, "/static/pdfs/other.pdf", nil))
+	if other.Header().Get("ETag") == tag {
+		t.Error("two files with different bytes got the same ETag")
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/static/pdfs/cv.pdf", nil)
+	req.Header.Set("If-None-Match", tag)
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	if w.Code != http.StatusNotModified || w.Body.Len() != 0 {
+		t.Errorf("a matching If-None-Match got %d with %d bytes, want an empty 304", w.Code, w.Body.Len())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/static/pdfs/cv.pdf", nil)
+	req.Header.Set("If-None-Match", `"stale"`)
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("a stale If-None-Match got %d, want 200", w.Code)
+	}
+}
+
 // A handler with its own Cache-Control keeps it, and every /healthz relies on
 // that to say no-store, or the edge answers a liveness check out of cache long
 // after the origin has stopped.
