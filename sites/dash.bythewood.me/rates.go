@@ -7,9 +7,9 @@ import (
 	"time"
 )
 
-// boardEvery is the rates and sector poll, which is finer than either number
+// boardEvery is the rates and sector poll, which is as fine as either number
 // deserves.
-const boardEvery = 5 * time.Minute
+const boardEvery = 15 * time.Minute
 
 // Treasury yields and the sector board, which share a poll of their own.
 
