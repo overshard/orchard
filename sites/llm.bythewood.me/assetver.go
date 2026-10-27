@@ -16,9 +16,8 @@ var (
 	assetVers map[string]string
 )
 
-// assetURL is the template function. A missing file falls through to the bare
-// path instead of failing the render, since a broken stylesheet link is easier
-// to read than a blank page.
+// A missing file falls through to the bare path instead of failing the render,
+// since a broken stylesheet link is easier to read than a blank page.
 func assetURL(path string) string {
 	assetOnce.Do(loadAssetVersions)
 	if v, ok := assetVers[path]; ok {
@@ -43,8 +42,8 @@ func loadAssetVersions() {
 	})
 }
 
-// resetAssetVersions lets the development reload path change the url after a
-// CSS edit instead of serving the version read at boot.
+// The development reload path calls this so a CSS edit off disk changes the url
+// instead of serving the version hashed at boot.
 func resetAssetVersions() {
 	assetOnce = sync.Once{}
 }

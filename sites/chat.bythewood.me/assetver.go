@@ -7,7 +7,7 @@ import (
 	"sync"
 )
 
-// app.css and app.js sit at fixed paths instead of Vite's hashed names, so
+// app.css and app.js sit at fixed paths instead of content hashed names, so
 // `immutable` would have Cloudflare hold the old file for a year. A hash of the
 // bytes in the query string fixes that, since Cloudflare keys on the url.
 
