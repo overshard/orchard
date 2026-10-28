@@ -94,7 +94,7 @@ func TestBriefDefersAnHourWhenTheCardIsBusy(t *testing.T) {
 
 	f.gpu = GPUState{Reason: "card idle"}
 	b.tick(context.Background(), now.Add(time.Hour))
-	if f.asked != 2 || strings.Join(f.compiled, ",") != "markets,news,feeds" || f.unloads != 1 {
+	if f.asked != 2 || strings.Join(f.compiled, ",") != "markets,news,feeds,forecast" || f.unloads != 1 {
 		t.Fatalf("at 8am: asked %d, compiled %v, unloaded %d", f.asked, f.compiled, f.unloads)
 	}
 	if w := b.store.Snapshot().Briefs.News.Waiting; w != "" {
@@ -153,7 +153,7 @@ func TestBriefWaitsUntilTheGatewaySays(t *testing.T) {
 	}
 	f.gpu = GPUState{Reason: "card idle"}
 	b.tick(context.Background(), now.Add(10*time.Minute))
-	if f.asked != 2 || len(f.compiled) != 3 {
+	if f.asked != 2 || len(f.compiled) != len(briefDesks) {
 		t.Errorf("asked %d, compiled %v", f.asked, f.compiled)
 	}
 }
@@ -164,7 +164,7 @@ func TestBriefLeavesAResidentModelAlone(t *testing.T) {
 	f := &fakeGateway{gpu: GPUState{Loaded: true}}
 	b := testBriefer(t, f, false)
 	b.tick(context.Background(), inNY(t, "2026-10-07 11:00"))
-	if len(f.compiled) != 3 || f.unloads != 0 {
+	if len(f.compiled) != len(briefDesks) || f.unloads != 0 {
 		t.Errorf("compiled %v, unloaded %d", f.compiled, f.unloads)
 	}
 }

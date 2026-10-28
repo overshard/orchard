@@ -169,9 +169,10 @@ const eventSystem = "You write a TL;DR of one news event for one reader in the U
 - If the outlets report different facts or figures, say so briefly and name them.
 - Use only the reports given.`
 
-// eventTLDR reads every outlet a TODAY point links to, its page when it can be
-// fetched and its feed's description when it can't.
-func (b *Briefer) eventTLDR(ctx context.Context, events []cluster, nums []int, links []Link) string {
+// eventReports reads every outlet a TODAY point links to, its page when it can
+// be fetched and its feed's description when it can't. read is whether there
+// was anything past the titles.
+func (b *Briefer) eventReports(ctx context.Context, events []cluster, nums []int, links []Link) (text string, read bool) {
 	byURL := map[string]story{}
 	for _, n := range nums {
 		if n >= 1 && n <= len(events) {
@@ -181,25 +182,25 @@ func (b *Briefer) eventTLDR(ctx context.Context, events []cluster, nums []int, l
 		}
 	}
 	var u strings.Builder
-	have := false
 	for _, l := range links {
 		s := byURL[l.URL]
 		fmt.Fprintf(&u, "[%s] %s\n", l.Source, l.Title)
 		if s.desc != "" {
 			u.WriteString("Summary: " + s.desc + "\n")
-			have = true
+			read = true
 		}
 		if text := fetchArticle(ctx, b.guard, l.URL); text != "" {
 			if r := []rune(text); len(r) > eventRunes {
 				text = string(r[:eventRunes])
 			}
 			u.WriteString("Text: " + text + "\n")
-			have = true
+			read = true
 		}
 		u.WriteString("\n")
 	}
-	if !have {
-		return ""
-	}
-	return b.tldr(ctx, eventSystem, "Reports of one news event:\n\n"+u.String())
+	return u.String(), read
+}
+
+func (b *Briefer) eventTLDR(ctx context.Context, reports string) string {
+	return b.tldr(ctx, eventSystem, "Reports of one news event:\n\n"+reports)
 }

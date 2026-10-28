@@ -60,21 +60,23 @@ func TestMarketLines(t *testing.T) {
 }
 
 func TestMarketProblems(t *testing.T) {
-	et := easternTime()
-	monday := time.Date(2026, 10, 12, 0, 0, 0, 0, et)
-	lines := []marketLine{{label: "LAST WEEK"}, {label: weekAhead, forward: true, week: true, day: monday}}
-	releases := []release{{at: time.Date(2026, 10, 14, 8, 30, 0, 0, et), short: "CPI"}}
+	lines := []marketLine{{label: lastWeek}, {label: weekAhead, forward: true, week: true}}
+	source := "S&P 500 (^GSPC): 7,736.73, +14.13, +0.18%\nThe Fed announces its rate decision at 2pm Eastern.\n"
 	same := "Retailers trimmed assortments and Apple cut iPhone orders on soft demand."
 
-	bad := marketProblems(lines, map[string]marketAnswer{"line1": {Text: same}, "line2": {Text: same}}, nil, releases)
+	bad := marketProblems(lines, map[string]marketAnswer{"line1": {Text: same}, "line2": {Text: same}}, nil, source)
 	if !strings.Contains(bad["line2"], "repeats line1") || bad["line1"] != "" {
 		t.Errorf("a copied week ahead: %v", bad)
 	}
-	bad = marketProblems(lines, map[string]marketAnswer{"line1": {Text: "Stocks rose."}, "line2": {Text: "Apple cut iPhone orders."}}, nil, releases)
-	if !strings.Contains(bad["line2"], "CPI") {
-		t.Errorf("a week ahead without the CPI: %v", bad)
+	bad = marketProblems(lines, map[string]marketAnswer{"line2": {Text: "The Fed decision on Wednesday weighs."}}, nil, source)
+	if !strings.Contains(bad["line2"], "wednesday") {
+		t.Errorf("a weekday in a forward line: %v", bad)
 	}
-	if bad = marketProblems(lines, map[string]marketAnswer{"line1": {Text: "Stocks rose."}, "line2": {Text: "CPI on Wednesday weighs."}}, nil, releases); len(bad) != 0 {
+	bad = marketProblems(lines, map[string]marketAnswer{"line2": {Text: "Futures rose as Nvidia rallied 4%."}}, nil, source)
+	if !strings.Contains(bad["line2"], "Nvidia") || !strings.Contains(bad["line2"], "4") {
+		t.Errorf("a name and a figure from nowhere: %v", bad)
+	}
+	if bad = marketProblems(lines, map[string]marketAnswer{"line2": {Text: "The Fed decision and a firm S&P 500 point both ways."}}, nil, source); len(bad) != 0 {
 		t.Errorf("a good week ahead flagged: %v", bad)
 	}
 }
@@ -120,21 +122,21 @@ func TestMarketsKeepSessionsApart(t *testing.T) {
 	bad := marketProblems(lines, map[string]marketAnswer{
 		"line1": {Text: "Chipmakers fell as bank earnings rolled in.", Sources: []int{tues}},
 		"line2": {Text: "Banks reported earnings.", Sources: []int{tues}},
-	}, events, nil)
+	}, events, "")
 	if !strings.Contains(bad["line1"], "Tuesday's session") || bad["line2"] != "" {
 		t.Errorf("yesterday cited today's story: %v", bad)
 	}
 	bad = marketProblems(lines, map[string]marketAnswer{
 		"line1": {Text: "Chipmakers fell, leaving the S&P 500 flat Monday.", Sources: []int{mon}},
 		"line2": {Text: "Chipmakers fell, leaving the S&P 500 flat Tuesday.", Sources: []int{tues}},
-	}, events, nil)
+	}, events, "")
 	if !strings.Contains(bad["line2"], "repeats line1") {
 		t.Errorf("today copied yesterday: %v", bad)
 	}
 	if bad = marketProblems(lines, map[string]marketAnswer{
 		"line1": {Text: "Chipmakers fell.", Sources: []int{mon}},
 		"line2": {Text: "Bank earnings rolled in.", Sources: []int{tues}},
-	}, events, nil); len(bad) != 0 {
+	}, events, ""); len(bad) != 0 {
 		t.Errorf("a good pair flagged: %v", bad)
 	}
 }
@@ -152,16 +154,16 @@ func TestClosedLineSessions(t *testing.T) {
 	}
 }
 
-// On 10-13 YESTERDAY cited nothing and blamed Monday on Tuesday's bank
-// earnings, so an uncited closed line is now only what the closes say.
-func TestUncitedClosedLineIsPlain(t *testing.T) {
+// An uncited closed line is only the move, since uncited reasons for a past
+// session come from the wrong day.
+func TestUncitedClosedLineIsTheMove(t *testing.T) {
 	events := []cluster{{stories: []story{{title: "Chipmakers fall", url: "https://reuters.test/1", source: "REUTERS", lean: "C"}}}}
 	yesterday := closedLine("YESTERDAY", 99.53, 100, "why")
 	guess := marketAnswer{Lean: "none", Text: "Bank earnings disappointed Monday."}
 
 	for _, p := range []marketAnswer{guess, {Lean: "none", Text: guess.Text, Sources: []int{7}}, {}} {
 		pt, ok := marketPoint(yesterday, p, events)
-		if !ok || pt.Text != "The S&P 500 fell 0.47%, and no story gave a reason." || len(pt.Links) != 0 {
+		if !ok || pt.Text != "" || len(pt.Links) != 0 {
 			t.Errorf("sources %v: %+v", p.Sources, pt)
 		}
 		if pt.Label != "YESTERDAY" || pt.Lean != "down" || pt.Move != "0.47%" {
@@ -178,17 +180,7 @@ func TestUncitedClosedLineIsPlain(t *testing.T) {
 	if pt, _ := marketPoint(ahead, marketAnswer{Lean: "higher", Text: "Futures are up."}, events); pt.Text != "Futures are up." || pt.Lean != "higher" {
 		t.Errorf("a forward line was replaced: %+v", pt)
 	}
-
-	for _, c := range []struct {
-		l    marketLine
-		want string
-	}{
-		{closedLine("LAST WEEK", 101.2, 100, ""), "The S&P 500 rose 1.20% on the week, and no story gave a reason."},
-		{closedLine("FRIDAY", 100.05, 100, ""), "The S&P 500 ended about flat, and no story gave a reason."},
-		{marketLine{dir: "up", move: "0.40% SO FAR"}, "The S&P 500 is up 0.40% so far, and no story gives a reason yet."},
-	} {
-		if got := c.l.plain(); got != c.want {
-			t.Errorf("%s %s: %q", c.l.label, c.l.move, got)
-		}
+	if _, ok := marketPoint(ahead, marketAnswer{}, events); ok {
+		t.Error("a forward line with nothing written was kept")
 	}
 }

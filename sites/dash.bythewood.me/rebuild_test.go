@@ -146,7 +146,7 @@ func TestRebuildRefusesWhileRunningAndCoolingDown(t *testing.T) {
 	if err := b.Force(time.Now().Add(rebuildCooldown + time.Second)); err != nil {
 		t.Errorf("after the cooldown: %v", err)
 	}
-	if len(f.compiled) != 3 {
+	if len(f.compiled) != len(briefDesks) {
 		t.Errorf("compiled %v, want one run of every desk", f.compiled)
 	}
 
@@ -165,7 +165,7 @@ func TestForcedRunSkipsTheGateAndUnloads(t *testing.T) {
 	b := testBriefer(t, f, false)
 	now := inNY(t, "2026-10-10 14:20")
 	b.rebuild(context.Background(), now)
-	if strings.Join(f.compiled, ",") != "markets,news,feeds" || f.unloads != 1 {
+	if strings.Join(f.compiled, ",") != "markets,news,feeds,forecast" || f.unloads != 1 {
 		t.Fatalf("compiled %v, unloaded %d", f.compiled, f.unloads)
 	}
 	if st := b.store.Snapshot().Briefs; st.News.Slot != now.Unix() || st.News.Title != "MIDDAY" {
@@ -174,7 +174,7 @@ func TestForcedRunSkipsTheGateAndUnloads(t *testing.T) {
 
 	// Every desk now answers a moment after the 11am slot, so it isn't owed.
 	b.tick(context.Background(), now.Add(time.Minute))
-	if f.asked != 1 || len(f.compiled) != 3 {
+	if f.asked != 1 || len(f.compiled) != len(briefDesks) {
 		t.Errorf("a tick after a forced run asked %d and compiled %v", f.asked, f.compiled)
 	}
 

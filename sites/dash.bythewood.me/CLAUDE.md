@@ -158,9 +158,8 @@ ten highest rated and the writer only rewrites them as headlines, so the
 order on the page is the impact order. The markets line is always the last
 session, today and the next, and on a weekend it's the week just gone and a lean
 on the week ahead, scored against that week's move. A session that already happened gets its up or down
-from the daily closes in Go, and when its line cites no story Go writes the line
-too, as the move and "no story gave a reason", since uncited it blamed one day
-on the next day's news. The forward lines lean on the Fed's meeting
+from the daily closes in Go, and when its line cites no story the line is only
+that move, since uncited it blamed one day on the next day's news. The forward lines lean on the Fed's meeting
 dates (copied into `calendar.go`, add next year's in December), the BLS and BEA
 release calendars and two documented patterns, the turn of the month and the
 drift into a Fed decision. Above TODAY's headlines sits a read of the day, its
@@ -177,7 +176,7 @@ thread from yesterday is only a big thread, and Lobsters runs on about a tenth o
 Hacker News' numbers. Under it sits a third desk, `feeds.go`, which at each slot
 reads both front pages plus the top three comments on the five busiest threads
 (Firebase for HN, since it lists replies in the site's rank order and Algolia
-doesn't) and writes a read of about thirty words on
+doesn't) and writes a read of about twenty words on
 what the page as a whole is about and what the commenters make of it. The model
 writes right up to whatever `maxLength` it gets, so the cap sits well past the
 asked length and `whole` keeps a cut line up to its last whole clause. BLS answers 403 to any User-Agent without a contact
@@ -194,6 +193,37 @@ is there because CPI, PPI and the other 8:30 releases are out by then and it
 still lands before the open, so its TODAY is a lean like 7:00's and the calendar
 tells it which releases already came out. `LLM_KEY` in `.env` from `make dash-key`, and
 without it the panels say the briefs are off.
+
+**A line has to be in its sources before it ships.** The 9B writes names,
+parties and days from memory, so `checks.go` holds every number and capitalised
+name in a line to the text it was written from, the events it cites for a TODAY
+point, its own event for a read field and the numbers, calendar and cited
+stories for a market line. A line that fails, or a read field or point that
+isn't about the event it cites, gets one retry naming the problem and is
+dropped after. A party tag the source doesn't carry is cut, and links follow
+only the cited events a point is about. Every point and read field that passes
+then gets a yes or no from the model against the reports it came from, in the
+same load. Market lines never name a day, since the model got the Fed's wrong
+for days running, so Go writes each forward line's calendar beside it (`FED 2PM
+· GDP 8:30AM`) and the move the VIX prices for it, VIX over the root of 252 for
+a session and 52 for a week.
+
+**Over a weekend the markets desk runs twice.** Saturday at 7:00 looks back on
+the week off the archive's closed lines, since the feeds have dropped most of the
+week's stories by then, and Sunday at 18:15 once futures have opened. Sunday
+keeps Saturday's LAST WEEK. The page shows the lean record beside what always
+saying higher would have scored on the same calls.
+
+**TODAY reads the archive too.** A point is NEW when the last brief didn't
+have it and UPDATED when an outlet has reported on it since, its card shows
+what TODAY said about it on up to four earlier days in the last five, and the
+head line carries thirty days of the top story's share of outlets. The first two
+match stories by a shared link or three words of substance.
+
+**ATMOS carries the forecast discussion,** a fourth desk that reads the
+Blacksburg office's Area Forecast Discussion off api.weather.gov, keeps the key
+messages and the discussion sections, and puts them in two or three plain
+sentences. It's only rewritten when the office puts out a new one.
 
 **A brief never loads a model onto a card the desktop is using.** Each slot asks
 the gateway's `GET /v1/gpu` first, which reads `nvidia-smi` through the
