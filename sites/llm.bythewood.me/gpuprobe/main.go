@@ -19,6 +19,10 @@ import (
 
 const addr = ":8092"
 
+// The container toolkit links nvidia-smi into the Windows driver store. After a
+// driver update the spec can name a store that's gone and the link dangles.
+const driverLink = "/usr/bin/nvidia-smi"
+
 // Utilisation is an instant reading and a game's frame pacing swings it, so one
 // sample can land in a gap but several over a couple of seconds can't.
 const (
@@ -98,9 +102,13 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(got)
 	})
-	// Says the process is up and nothing about the card, so the healthcheck
-	// doesn't run nvidia-smi every thirty seconds.
+	// Says whether the driver is attached by its link alone, so the
+	// healthcheck doesn't run nvidia-smi every thirty seconds.
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		if _, err := os.Stat(driverLink); err != nil {
+			http.Error(w, "driver not attached", http.StatusServiceUnavailable)
+			return
+		}
 		_, _ = w.Write([]byte("ok"))
 	})
 
