@@ -203,8 +203,8 @@ isn't about the event it cites, gets one retry naming the problem and is
 dropped after. A party tag the source doesn't carry is cut, and links follow
 only the cited events a point is about. Every point and read field that passes
 then gets a yes or no from the model against the reports it came from, in the
-same load. Market lines never name a day, since the model got the Fed's wrong
-for days running, so Go writes each forward line's calendar beside it (`FED 2PM
+same load. A forward market line never names a day ahead, since the model got
+the Fed's wrong for days running, so Go writes each one's calendar beside it (`FED 2PM
 · GDP 8:30AM`) and the move the VIX prices for it, VIX over the root of 252 for
 a session and 52 for a week.
 

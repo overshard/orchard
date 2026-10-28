@@ -64,20 +64,28 @@ func TestMarketProblems(t *testing.T) {
 	source := "S&P 500 (^GSPC): 7,736.73, +14.13, +0.18%\nThe Fed announces its rate decision at 2pm Eastern.\n"
 	same := "Retailers trimmed assortments and Apple cut iPhone orders on soft demand."
 
-	bad := marketProblems(lines, map[string]marketAnswer{"line1": {Text: same}, "line2": {Text: same}}, nil, source)
+	bad := marketProblems(lines, map[string]marketAnswer{"line1": {Text: same}, "line2": {Text: same}}, nil, source, inNY(t, "2026-10-24 07:00"))
 	if !strings.Contains(bad["line2"], "repeats line1") || bad["line1"] != "" {
 		t.Errorf("a copied week ahead: %v", bad)
 	}
-	bad = marketProblems(lines, map[string]marketAnswer{"line2": {Text: "The Fed decision on Wednesday weighs."}}, nil, source)
+	bad = marketProblems(lines, map[string]marketAnswer{"line2": {Text: "The Fed decision on Wednesday weighs."}}, nil, source, inNY(t, "2026-10-24 07:00"))
 	if !strings.Contains(bad["line2"], "wednesday") {
 		t.Errorf("a weekday in a forward line: %v", bad)
 	}
-	bad = marketProblems(lines, map[string]marketAnswer{"line2": {Text: "Futures rose as Nvidia rallied 4%."}}, nil, source)
+	bad = marketProblems(lines, map[string]marketAnswer{"line2": {Text: "Futures rose as Nvidia rallied 4%."}}, nil, source, inNY(t, "2026-10-24 07:00"))
 	if !strings.Contains(bad["line2"], "Nvidia") || !strings.Contains(bad["line2"], "4") {
 		t.Errorf("a name and a figure from nowhere: %v", bad)
 	}
-	if bad = marketProblems(lines, map[string]marketAnswer{"line2": {Text: "The Fed decision and a firm S&P 500 point both ways."}}, nil, source); len(bad) != 0 {
+	if bad = marketProblems(lines, map[string]marketAnswer{"line2": {Text: "The Fed decision and a firm S&P 500 point both ways."}}, nil, source, inNY(t, "2026-10-24 07:00")); len(bad) != 0 {
 		t.Errorf("a good week ahead flagged: %v", bad)
+	}
+	// On Wednesday a line about tomorrow can name today's decision.
+	tomorrow := []marketLine{{label: "TOMORROW", forward: true}}
+	if bad = marketProblems(tomorrow, map[string]marketAnswer{"line1": {Text: "Wednesday's Fed decision weighs."}}, nil, source, inNY(t, "2026-10-28 13:00")); len(bad) != 0 {
+		t.Errorf("today named in a forward line: %v", bad)
+	}
+	if bad = marketProblems(tomorrow, map[string]marketAnswer{"line1": {Text: "Thursday's Fed decision weighs."}}, nil, source, inNY(t, "2026-10-28 13:00")); len(bad) == 0 {
+		t.Error("a day ahead named in a forward line")
 	}
 }
 
@@ -122,21 +130,21 @@ func TestMarketsKeepSessionsApart(t *testing.T) {
 	bad := marketProblems(lines, map[string]marketAnswer{
 		"line1": {Text: "Chipmakers fell as bank earnings rolled in.", Sources: []int{tues}},
 		"line2": {Text: "Banks reported earnings.", Sources: []int{tues}},
-	}, events, "")
+	}, events, "", inNY(t, "2026-10-13 16:30"))
 	if !strings.Contains(bad["line1"], "Tuesday's session") || bad["line2"] != "" {
 		t.Errorf("yesterday cited today's story: %v", bad)
 	}
 	bad = marketProblems(lines, map[string]marketAnswer{
 		"line1": {Text: "Chipmakers fell, leaving the S&P 500 flat Monday.", Sources: []int{mon}},
 		"line2": {Text: "Chipmakers fell, leaving the S&P 500 flat Tuesday.", Sources: []int{tues}},
-	}, events, "")
+	}, events, "", inNY(t, "2026-10-13 16:30"))
 	if !strings.Contains(bad["line2"], "repeats line1") {
 		t.Errorf("today copied yesterday: %v", bad)
 	}
 	if bad = marketProblems(lines, map[string]marketAnswer{
 		"line1": {Text: "Chipmakers fell.", Sources: []int{mon}},
 		"line2": {Text: "Bank earnings rolled in.", Sources: []int{tues}},
-	}, events, ""); len(bad) != 0 {
+	}, events, "", inNY(t, "2026-10-13 16:30")); len(bad) != 0 {
 		t.Errorf("a good pair flagged: %v", bad)
 	}
 }
