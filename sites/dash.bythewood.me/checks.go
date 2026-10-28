@@ -27,13 +27,6 @@ var plainCaps = []string{"u.s", "us", "u.k", "uk", "america", "americans", "amer
 	"minister", "prime", "chancellor", "speaker", "leader", "mayor", "judge", "justice", "chief",
 	"attorney", "general", "director", "chair", "chairman", "chairwoman", "ceo", "mr", "mrs", "ms", "dr", "gen", "lt", "jr"}
 
-// openers are the words a sentence starts with that aren't names. Any other
-// first word is checked like a name, since a line can open on one.
-var openers = []string{"a", "an", "the", "in", "on", "at", "after", "before", "as", "with", "for", "from", "by",
-	"to", "of", "and", "but", "while", "amid", "over", "under", "during", "some", "most", "many", "more",
-	"several", "its", "their", "his", "her", "this", "that", "these", "those", "new", "two", "three", "four",
-	"five", "no", "one", "if", "when", "once", "despite", "following", "ahead"}
-
 var weekdays = []string{"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"}
 
 var smallNumbers = []string{"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"}
@@ -89,8 +82,9 @@ func unsupported(line, source string) []string {
 	return missing
 }
 
-// capitalised is the words in line that start with a capital, apart from a
-// sentence's ordinary first word, with a possessive and punctuation cut off.
+// capitalised is the words in line that start with a capital and don't start a
+// sentence, with a possessive and punctuation cut off. A name opening a
+// sentence is left to the grounding check, since prose opens on any word.
 func capitalised(line string) []string {
 	var out []string
 	start := true
@@ -100,8 +94,7 @@ func capitalised(line string) []string {
 			w = strings.TrimSuffix(strings.TrimSuffix(w, "'s"), "’s")
 			w = strings.TrimSuffix(w, ".")
 			first := []rune(strings.TrimLeft(part, "\"'(“"))
-			opener := start && slices.Contains(openers, strings.ToLower(w))
-			if w != "" && !opener && len(first) > 0 && unicode.IsUpper(first[0]) {
+			if w != "" && !start && len(first) > 0 && unicode.IsUpper(first[0]) {
 				out = append(out, w)
 			}
 		}
