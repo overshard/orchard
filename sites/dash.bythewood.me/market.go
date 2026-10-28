@@ -588,8 +588,10 @@ func equitySession(now time.Time) (session, phase string) {
 		return "regular", "Open, closes " + until(mins, regularShut)
 	case mins < postShut:
 		return "post", "After hours, ends " + until(mins, postShut)
+	case t.Weekday() == time.Friday:
+		return "closed", "Opens Monday"
 	default:
-		return "closed", "Closed"
+		return "closed", "Opens " + until(mins, 24*60+preOpen)
 	}
 }
 
