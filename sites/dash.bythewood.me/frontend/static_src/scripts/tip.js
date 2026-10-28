@@ -105,6 +105,15 @@ function talk(row) {
     return p;
   });
   if (said.length) out.push(section("TOP COMMENTS", said));
+  const steps = [...row.querySelectorAll(".talk .talk-step")].map((c) => {
+    const p = document.createElement("p");
+    p.className = "tip-said";
+    const day = document.createElement("b");
+    day.textContent = `${c.dataset.day} `;
+    p.append(day, c.textContent);
+    return p;
+  });
+  if (steps.length) out.push(section("EARLIER", steps));
   return out;
 }
 
@@ -118,7 +127,7 @@ function extras(el) {
   if (!row) return [meta, links, talks];
   if (row.classList.contains("lede")) {
     const head = row.querySelector(".head");
-    if (head) meta.push(head.textContent.trim());
+    if (head) meta.push([...head.children].map((c) => c.textContent.trim()).filter(Boolean).join(" "));
   }
   const go = row.querySelector(":scope > a.go");
   const cmt = row.querySelector(".cmt[data-href]");
@@ -133,7 +142,7 @@ function extras(el) {
     links.push(cardLink(cmt.dataset.href, "COMMENTS", new URL(cmt.dataset.href).host));
   }
   talks.push(...talk(row));
-  for (const s of row.querySelectorAll(".meta .cov, .meta .note")) meta.push(s.textContent);
+  for (const s of row.querySelectorAll(".meta .mark, .meta .cov, .meta .note")) meta.push(s.textContent);
   for (const a of row.querySelectorAll(".meta a.src")) links.push(cardLink(a.href, a.dataset.tipLabel || a.textContent, a.dataset.tip || a.href));
   return [meta, links, talks];
 }

@@ -298,7 +298,7 @@ function blankRows(have) {
     const body = el("div", "body");
     body.append(el("span", "title", "\u00a0"), el("div", "meta", "\u00a0"));
     const li = el("li", "blank");
-    li.append(el("span", "rank", "--"), body);
+    li.append(el("span", "rank", "\u00a0"), body);
     out.push(li);
   }
   return out;
@@ -364,7 +364,7 @@ function renderPulse(selector, pulse) {
   const host = document.querySelector(selector);
   if (!host) return;
   const head = [el("span", "lvl", (pulse && pulse.label) || "AWAITING FEED")];
-  if (pulse && pulse.text) head.push(` ${pulse.text}`);
+  if (pulse && pulse.text) head.push(el("span", "spread", pulse.text));
   host.replaceChildren(lede(pulse && pulse.level, head, pulse && pulse.read, pulse && pulse.links));
 }
 
@@ -694,14 +694,16 @@ function renderMarketBrief(brief) {
       lean.dataset.lean = p.lean;
       txt.append(lean, " ");
     }
-    txt.append(p.text);
+    if (p.range) txt.append(el("span", "range", `VIX ${p.range}`), " ");
+    if (p.calendar) txt.append(el("span", "cal", p.calendar), " ");
+    txt.append(p.text || "");
     li.append(el("span", "tag", p.label || ""), txt);
     const srcs = el("span", "srcs");
     srcs.append(...briefLinks(p.links));
     li.append(srcs);
     ul.append(li);
   }
-  const meta = el("p", "brief-meta", `${brief.title} BRIEF / COMPILED ${brief.compiled} / ${brief.stories} STORIES / LOCAL MODEL / A LEAN IS A READ, NOT A FORECAST${brief.waiting ? ` / ${brief.waiting}` : ""}`);
+  const meta = el("p", "brief-meta", `${brief.title} BRIEF / COMPILED ${brief.compiled} / ${brief.stories} STORIES / LOCAL MODEL, MAY MISSTATE SOURCES / A LEAN IS A READ, NOT A FORECAST${brief.record ? ` / ${brief.record}` : ""}${brief.waiting ? ` / ${brief.waiting}` : ""}`);
   host.replaceChildren(ul, meta);
 }
 
@@ -717,7 +719,7 @@ function renderNewsBrief(brief) {
   }
   const read = points.length && brief.read;
   const top = read
-    ? lede(read.level, [el("span", "lvl", read.label), ` ${read.spread}`], read.text, read.links)
+    ? lede(read.level, [el("span", "lvl", read.label), el("span", "spread", read.spread), ...intensityStrip(brief.intensity)], read.text, read.links)
     : lede("", [el("span", "lvl", (brief && brief.waiting) || "AWAITING BRIEF")], "", []);
   const ol = el("ol", "rows brief");
   points.forEach((p, i) => {
@@ -725,23 +727,60 @@ function renderNewsBrief(brief) {
     const body = el("div", "body");
     body.append(cardLine("title", p.text));
     const meta = el("div", "meta");
+    if (p.mark) meta.append(el("span", "mark", p.mark));
     meta.append(...briefLinks(p.links));
     if (p.coverage) meta.append(el("span", "cov", p.coverage));
     if (p.note) meta.append(el("span", "note", p.note));
     body.append(meta);
     const first = (p.links || [])[0];
     li.append(el("span", "rank", String(i + 1).padStart(2, "0")), body, goLink(first && first.url, first ? `Open ${first.source} article` : ""));
-    if (p.gist) {
+    if (p.gist || (p.timeline && p.timeline.length)) {
       const talk = el("div", "talk");
       talk.hidden = true;
-      talk.append(el("p", "talk-gist", p.gist));
+      if (p.gist) talk.append(el("p", "talk-gist", p.gist));
+      for (const step of p.timeline || []) {
+        const s = el("p", "talk-step", step.text);
+        s.dataset.day = step.day;
+        talk.append(s);
+      }
       li.append(talk);
     }
     ol.append(li);
   });
   ol.append(...blankRows(points.length));
-  const foot = el("p", "footnote", `${brief && brief.waiting ? `${brief.waiting}. ` : ""}SUMMARISED BY A LOCAL MODEL FROM ${(brief && brief.stories) || 0} STORIES, MOST IMPACT FIRST. L C R COUNTS THE OUTLETS THAT CARRIED IT BY ALLSIDES LEAN.`);
+  const foot = el("p", "footnote", `${brief && brief.waiting ? `${brief.waiting}. ` : ""}LOCAL MODEL, MAY MISSTATE SOURCES. ${(brief && brief.stories) || 0} STORIES, MOST IMPACT FIRST. L C R IS WHO CARRIED IT BY ALLSIDES LEAN.`);
   host.replaceChildren(top, ol, foot);
+}
+
+// Thirty days of how much of the news the top story had, as bars in TODAY's
+// head line, so a big day reads against the month around it.
+function intensityStrip(days) {
+  if (!days || !days.length) return [];
+  const strip = el("span", "intensity");
+  strip.setAttribute("aria-label", `Top story's share of outlets, last ${days.length} days`);
+  for (const d of days) {
+    const bar = el("i");
+    if (d.level) bar.dataset.level = d.level;
+    bar.style.height = `${d.share}%`;
+    bar.title = `${d.day} ${d.share}%`;
+    strip.append(bar);
+  }
+  return [strip];
+}
+
+function renderForecast(brief) {
+  const host = document.querySelector("[data-forecast]");
+  if (!host) return;
+  const p = brief && brief.points && brief.points[0];
+  if (!p) {
+    host.replaceChildren();
+    return;
+  }
+  const box = el("div", "afd");
+  const head = el("p", "afd-head");
+  head.append(el("span", "k", "FORECAST DISCUSSION"), ...briefLinks(p.links));
+  box.append(head, el("p", "afd-txt", p.text));
+  host.replaceChildren(box);
 }
 
 function renderConditions(signal) {
@@ -1236,6 +1275,7 @@ function render(state) {
   if (changed("steam", state.steam)) renderSteam(state.steam);
   if (changed("brief-markets", state.briefs && state.briefs.markets)) renderMarketBrief(state.briefs && state.briefs.markets);
   if (changed("brief-news", state.briefs && state.briefs.news)) renderNewsBrief(state.briefs && state.briefs.news);
+  if (changed("brief-forecast", state.briefs && state.briefs.forecast)) renderForecast(state.briefs && state.briefs.forecast);
   if (changed("feeds", state.feeds)) renderFeeds(state.feeds);
   if (changed("hn", state.hn)) renderStories("[data-hn]", state.hn);
   if (changed("lobsters", state.lobsters)) renderStories("[data-lobsters]", state.lobsters);
