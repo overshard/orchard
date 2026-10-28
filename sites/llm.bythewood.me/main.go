@@ -175,12 +175,7 @@ func realMain() error {
 		_, _ = w.Write([]byte("User-agent: *\nDisallow: /\n"))
 	})
 
-	// Unkeyed and says nothing but whether this process is up, since asking the
-	// upstream would wake the weights every thirty seconds and defeat the idle unload.
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "no-store")
-		fmt.Fprintln(w, "ok")
-	})
+	mux.HandleFunc("GET /healthz", s.healthz)
 
 	slog.Info("llm listening", "addr", *addr, "upstream", s.upstream, "model", s.model)
 	return web.Serve(*addr, web.Chain(mux, web.Recovered, web.Logged, web.SecurityHeaders(csp()), web.SameOrigin()))

@@ -42,3 +42,7 @@ sidecar. Templates and `static/` are written by hand, with no Vite.
   containers. A deploy does the same, and chat isn't affected.
 - The model server is built for a 3070's sm_86, and another card means changing
   `CMAKE_CUDA_ARCHITECTURES` in its Dockerfile.
+- A Windows NVIDIA driver update moves the driver store, and a container started
+  before the CDI spec is regenerated runs the model on the CPU. Health fails
+  when that happens, and the host's `nvidia-cdi-refresh-wsl.timer` from
+  taproot's `make wsl` regenerates the spec and restarts what's unhealthy.

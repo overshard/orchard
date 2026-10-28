@@ -25,6 +25,8 @@ services:
     depends_on:
       swap:
         condition: service_healthy
+      gpu:
+        condition: service_healthy
     deploy:
       resources:
         limits:
@@ -60,9 +62,10 @@ services:
               count: all
               capabilities: [gpu]
     # /v1/models answers from llama-swap's own config and loads nothing, so this
-    # never keeps the model awake and defeats the idle unload.
+    # never keeps the model awake. libcuda is in the driver store only while the
+    # CDI spec names the store Windows has now.
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8091/v1/models"]
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8091/v1/models >/dev/null && test -e /usr/lib/wsl/drivers/*/libcuda.so.1"]
       interval: 30s
       timeout: 5s
       retries: 3

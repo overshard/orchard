@@ -34,6 +34,7 @@ func TestJudge(t *testing.T) {
 // gpuSite fakes llama-swap and the probe in one server. A completion or an
 // unload is counted, and anything else would be a model load nobody asked for.
 type fakeCard struct {
+	detached  bool
 	running   string
 	reading   gpuReading
 	probed    int
@@ -48,6 +49,10 @@ func gpuSite(t *testing.T, running string, reading gpuReading) (*site, string, *
 		switch r.URL.Path {
 		case "/running":
 			fmt.Fprint(w, f.running)
+		case "/healthz":
+			if f.detached {
+				http.Error(w, "driver not attached", http.StatusServiceUnavailable)
+			}
 		case "/gpu":
 			f.probed++
 			_ = json.NewEncoder(w).Encode(f.reading)
@@ -211,5 +216,22 @@ func TestGPUNeedsAKey(t *testing.T) {
 	s.requireKey(s.gpu)(rec, httptest.NewRequest("GET", "/v1/gpu", nil))
 	if rec.Code != http.StatusUnauthorized {
 		t.Errorf("status %d without a key", rec.Code)
+	}
+}
+
+// A driver update can leave the card unattached and the model on the CPU, which
+// still answers, so health asks the probe and fails instead of reading fine.
+func TestHealthzFailsWithoutTheDriver(t *testing.T) {
+	s, _, f := gpuSite(t, `{"running":[]}`, gpuReading{})
+	rec := httptest.NewRecorder()
+	s.healthz(rec, httptest.NewRequest("GET", "/healthz", nil))
+	if rec.Code != http.StatusOK {
+		t.Errorf("attached: %d", rec.Code)
+	}
+	f.detached = true
+	rec = httptest.NewRecorder()
+	s.healthz(rec, httptest.NewRequest("GET", "/healthz", nil))
+	if rec.Code != http.StatusServiceUnavailable || f.probed != 0 {
+		t.Errorf("detached: %d after %d probes", rec.Code, f.probed)
 	}
 }
