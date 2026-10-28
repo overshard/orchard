@@ -151,7 +151,7 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 		if err := b.model.Structured(ctx, system, ask, marketSchema(lines), 900, &out); err != nil {
 			return Brief{}, err
 		}
-		bad := marketProblems(lines, out, events, source)
+		bad := marketProblems(lines, out, events, source, at)
 		if len(bad) == 0 {
 			break
 		}
@@ -463,10 +463,10 @@ type marketAnswer struct {
 	Sources []int  `json:"sources"`
 }
 
-// marketProblems is what's wrong with each line, by key: one that repeats an
-// earlier line, a past session explained by another session's story, a day
-// named when Go writes the calendar, and a name or figure from nowhere.
-func marketProblems(lines []marketLine, out map[string]marketAnswer, events []cluster, source string) map[string]string {
+// marketProblems is what's wrong with each line, by key: a repeat, a past
+// session explained by another session's story, a day ahead in a forward line,
+// and a name or figure from nowhere.
+func marketProblems(lines []marketLine, out map[string]marketAnswer, events []cluster, source string, at time.Time) map[string]string {
 	bad := map[string]string{}
 	for i, l := range lines {
 		key := fmt.Sprintf("line%d", i+1)
@@ -499,8 +499,8 @@ func marketProblems(lines []marketLine, out map[string]marketAnswer, events []cl
 				continue
 			}
 		}
-		if day := namesWeekday(text); day != "" {
-			bad[key] = fmt.Sprintf("%s names %s, leave days, dates and times out since the page shows them", key, day)
+		if day := namesWeekday(text); l.forward && day != "" && !pastDay(day, at) {
+			bad[key] = fmt.Sprintf("%s names %s, leave the days ahead out since the page shows the calendar", key, day)
 			continue
 		}
 		if miss := unsupported(text, source+eventText(picks(events, ans.Sources)...)); len(miss) > 0 {
@@ -508,6 +508,21 @@ func marketProblems(lines []marketLine, out map[string]marketAnswer, events []cl
 		}
 	}
 	return bad
+}
+
+// pastDay is a weekday from earlier in the week at falls in, or at's own, which
+// a forward line can name for news that already happened.
+func pastDay(day string, at time.Time) bool {
+	t := at.In(easternTime())
+	if weekend(t) {
+		return false
+	}
+	for d := weekStart(t); !d.After(t); d = d.AddDate(0, 0, 1) {
+		if strings.ToLower(d.Format("Monday")) == day {
+			return true
+		}
+	}
+	return false
 }
 
 func wordOverlap(a, b string) float64 {
