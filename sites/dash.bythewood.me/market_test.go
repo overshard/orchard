@@ -39,6 +39,13 @@ func TestEquitySession(t *testing.T) {
 			t.Errorf("%s: session %q, want %q", c.when, got, c.want)
 		}
 	}
+	// The badge already says closed, so the phase says when it opens.
+	if _, phase := equitySession(at(t, "2026-08-27 20:30")); phase != "Opens in 7h 30m" {
+		t.Errorf("thursday night: %q", phase)
+	}
+	if _, phase := equitySession(at(t, "2026-08-28 21:00")); phase != "Opens Monday" {
+		t.Errorf("friday night: %q", phase)
+	}
 }
 
 func TestBuildMarketSwapsToFuturesOutsideRegularHours(t *testing.T) {
