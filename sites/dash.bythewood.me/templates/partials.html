@@ -71,25 +71,32 @@
 </ol>
 {{end}}
 
-{{define "blank-rows"}}{{range blanks .}}<li class="blank"><span class="rank">--</span><div class="body"><span class="title">&nbsp;</span><div class="meta">&nbsp;</div></div></li>{{end}}{{end}}
+{{define "blank-rows"}}{{range blanks .}}<li class="blank"><span class="rank">&nbsp;</span><div class="body"><span class="title">&nbsp;</span><div class="meta">&nbsp;</div></div></li>{{end}}{{end}}
 
 {{define "ahead"}}{{if .}}{{range .}}<span class="ev"><b>{{.Label}}</b> {{.When}}</span>{{end}}{{end}}{{end}}
 
 {{define "pulse"}}<div class="lede" data-level="{{.Level}}">
-  <p class="head"><span class="lvl">{{or .Label "AWAITING FEED"}}</span>{{if .Text}} {{.Text}}{{end}}</p>
+  <p class="head"><span class="lvl">{{or .Label "AWAITING FEED"}}</span>{{if .Text}}<span class="spread">{{.Text}}</span>{{end}}</p>
   {{if .Read}}<p class="txt" data-card role="button" tabindex="0" aria-controls="tip" aria-expanded="false">{{.Read}}</p>{{else}}<p class="txt none">AWAITING READ</p>{{end}}
   <div class="meta">{{template "brief-links" .Links}}</div>
 </div>{{end}}
+
+{{define "intensity"}}{{if .}}<span class="intensity" aria-label="Top story's share of outlets, last {{len .}} days">{{range .}}<i data-level="{{.Level}}" style="height:{{.Share}}%" title="{{.Day}} {{.Share}}%"></i>{{end}}</span>{{end}}{{end}}
+
+{{define "forecast"}}{{with .Points}}{{with index . 0}}<div class="afd">
+  <p class="afd-head"><span class="k">FORECAST DISCUSSION</span>{{template "brief-links" .Links}}</p>
+  <p class="afd-txt">{{.Text}}</p>
+</div>{{end}}{{end}}{{end}}
 
 {{define "brief-links"}}{{range .}}<a class="src" href="{{.URL}}" data-tip="{{.Title}}" data-tip-label="{{.Source}}" rel="noopener noreferrer" target="_blank">{{.Source}}</a>{{end}}{{end}}
 
 {{define "market-brief"}}
 {{- if .Points}}
 <ul class="brief-lines">
-  {{range .Points}}<li><span class="tag">{{.Label}}</span><span class="txt">{{if .Move}}<span class="lean" data-lean="{{.Lean}}">{{upper .Lean}} {{.Move}}</span> {{else if .Lean}}<span class="lean" data-lean="{{.Lean}}">LEANS {{upper .Lean}}</span> {{end}}{{.Text}}</span><span class="srcs">{{template "brief-links" .Links}}</span></li>
+  {{range .Points}}<li><span class="tag">{{.Label}}</span><span class="txt">{{if .Move}}<span class="lean" data-lean="{{.Lean}}">{{upper .Lean}} {{.Move}}</span> {{else if .Lean}}<span class="lean" data-lean="{{.Lean}}">LEANS {{upper .Lean}}</span> {{end}}{{if .Range}}<span class="range">VIX {{.Range}}</span> {{end}}{{if .Calendar}}<span class="cal">{{.Calendar}}</span> {{end}}{{.Text}}</span><span class="srcs">{{template "brief-links" .Links}}</span></li>
   {{end}}
 </ul>
-<p class="brief-meta">{{.Title}} BRIEF / COMPILED {{.Compiled}} / {{.Stories}} STORIES / LOCAL MODEL / A LEAN IS A READ, NOT A FORECAST{{if .Waiting}} / {{.Waiting}}{{end}}</p>
+<p class="brief-meta">{{.Title}} BRIEF / COMPILED {{.Compiled}} / {{.Stories}} STORIES / LOCAL MODEL, MAY MISSTATE SOURCES / A LEAN IS A READ, NOT A FORECAST{{if .Record}} / {{.Record}}{{end}}{{if .Waiting}} / {{.Waiting}}{{end}}</p>
 {{- else if eq .Status "off"}}<p class="empty">BRIEF OFF, NO MODEL KEY</p>
 {{- else}}<p class="empty">{{if .Waiting}}{{.Waiting}}{{else}}AWAITING BRIEF{{end}}</p>{{end}}
 {{end}}
@@ -97,8 +104,8 @@
 {{define "news-brief"}}
 {{- if eq .Status "off"}}<p class="empty">BRIEF OFF, NO MODEL KEY</p>
 {{- else}}
-{{with .Read}}<div class="lede" data-level="{{.Level}}">
-  <p class="head"><span class="lvl">{{.Label}}</span> {{.Spread}}</p>
+{{$days := .Intensity}}{{with .Read}}<div class="lede" data-level="{{.Level}}">
+  <p class="head"><span class="lvl">{{.Label}}</span><span class="spread">{{.Spread}}</span>{{template "intensity" $days}}</p>
   <p class="txt" data-card role="button" tabindex="0" aria-controls="tip" aria-expanded="false">{{.Text}}</p>
   <div class="meta">{{template "brief-links" .Links}}</div>
 </div>{{else}}<div class="lede">
@@ -111,15 +118,15 @@
     <span class="rank">{{printf "%02d" (inc $i)}}</span>
     <div class="body">
       <p class="title" data-card role="button" tabindex="0" aria-controls="tip" aria-expanded="false">{{$p.Text}}</p>
-      <div class="meta">{{template "brief-links" $p.Links}}{{if $p.Coverage}}<span class="cov">{{$p.Coverage}}</span>{{end}}{{if $p.Note}}<span class="note">{{$p.Note}}</span>{{end}}</div>
+      <div class="meta">{{if $p.Mark}}<span class="mark">{{$p.Mark}}</span>{{end}}{{template "brief-links" $p.Links}}{{if $p.Coverage}}<span class="cov">{{$p.Coverage}}</span>{{end}}{{if $p.Note}}<span class="note">{{$p.Note}}</span>{{end}}</div>
     </div>
     {{with $p.Links}}<a class="go" href="{{(index . 0).URL}}" aria-label="Open {{(index . 0).Source}} article" rel="noopener noreferrer" target="_blank">↗</a>{{else}}<span class="go"></span>{{end}}
-    {{if $p.Gist}}<div class="talk" hidden><p class="talk-gist">{{$p.Gist}}</p></div>{{end}}
+    {{if or $p.Gist $p.Timeline}}<div class="talk" hidden>{{if $p.Gist}}<p class="talk-gist">{{$p.Gist}}</p>{{end}}{{range $p.Timeline}}<p class="talk-step" data-day="{{.Day}}">{{.Text}}</p>{{end}}</div>{{end}}
   </li>
   {{end}}{{end}}
   {{template "blank-rows" (len .Points)}}
 </ol>
-<p class="footnote">{{if .Waiting}}{{.Waiting}}. {{end}}SUMMARISED BY A LOCAL MODEL FROM {{.Stories}} STORIES, MOST IMPACT FIRST. L C R COUNTS THE OUTLETS THAT CARRIED IT BY ALLSIDES LEAN.</p>
+<p class="footnote">{{if .Waiting}}{{.Waiting}}. {{end}}LOCAL MODEL, MAY MISSTATE SOURCES. {{.Stories}} STORIES, MOST IMPACT FIRST. L C R IS WHO CARRIED IT BY ALLSIDES LEAN.</p>
 {{- end}}
 {{end}}
 

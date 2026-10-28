@@ -204,6 +204,8 @@
         </div>
       </div>
 
+      <div class="afd-host" data-forecast>{{template "forecast" .State.Briefs.Forecast}}</div>
+
       <div class="daylight" data-daylight>
         <span class="t">{{.State.Weather.Sunrise}}</span>
         <span class="track"><i style="width:{{.State.Weather.DayPercent}}%"></i></span>

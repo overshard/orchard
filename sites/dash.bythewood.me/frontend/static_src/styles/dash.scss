@@ -1156,6 +1156,25 @@ main {
   &[data-warm="0"] .hv { color: var(--dim); }
 }
 
+// The forecaster's discussion in plain words, the one line of prose in ATMOS.
+.afd {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+
+  .afd-head {
+    display: flex;
+    gap: 9px;
+    margin: 0;
+    font-size: 9px;
+    letter-spacing: var(--track);
+    color: var(--dim);
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .afd-txt { margin: 5px 0 0; color: var(--text); font-size: 12px; line-height: 1.45; }
+}
+
 .daylight {
   display: flex;
   align-items: center;
@@ -2297,6 +2316,16 @@ main {
   &[data-lean="mixed"], &[data-lean="flat"] { color: var(--amber); }
 }
 
+// Go's facts beside a forward line, dimmer than the lean since they're what the
+// line is about and not what it says.
+.brief-lines .range,
+.brief-lines .cal {
+  font-size: 9px;
+  letter-spacing: var(--track);
+  color: var(--dim);
+}
+.brief-lines .cal { color: var(--muted); }
+
 .brief-meta {
   margin: 6px 0 0;
   font-size: 9px;
@@ -2307,6 +2336,7 @@ main {
 // Ranked by the model's impact score, most first, so the number means
 // something here where on the feeds it is the site's own order.
 .brief .meta {
+  .mark { font-size: 9px; letter-spacing: var(--track); color: var(--amber); }
   .cov { font-size: 9px; letter-spacing: var(--track); color: var(--dim); }
   .note { font-size: 9px; letter-spacing: var(--track); color: var(--amber); }
 }
@@ -2321,6 +2351,9 @@ main {
   border-bottom: 1px solid var(--line-hot);
 
   .head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     margin: 0;
     height: 14px;
     font-size: 9px;
@@ -2330,9 +2363,21 @@ main {
     color: var(--dim);
     white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis;
   }
-  .lvl { margin-right: 4px; color: var(--muted); }
+  .lvl { flex: none; color: var(--muted); }
+  .spread { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+  // A month of the top story's share, amber where one story had everyone.
+  .intensity {
+    flex: none;
+    display: flex;
+    align-items: flex-end;
+    gap: 1px;
+    height: 10px;
+    i { width: 3px; min-height: 1px; background: var(--faint); }
+    i[data-level="major"] { background: var(--amber); }
+    i[data-level="quiet"] { background: var(--line-hot); }
+  }
   &[data-level="major"] .lvl, &[data-level="hot"] .lvl { color: var(--amber); }
   &[data-level="quiet"] .lvl { color: var(--dim); }
 
@@ -2368,11 +2413,9 @@ main {
     margin: auto 0 0;
     padding-top: 10px;
     font-size: 9px;
+    line-height: 1.5;
     letter-spacing: var(--track);
     color: var(--dim);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 }
 
@@ -3129,7 +3172,13 @@ main {
 @media (max-width: 620px) {
   :root { --gap: 8px; --pad: 10px; }
 
-  .news-band { grid-template-columns: 1fr; }
+  // TODAY is the model's work, so it comes up under the market band instead of
+  // five screens down, and the feeds keep their place after the local band.
+  main > * { order: 2; }
+  .alerts, .onair-host, .markets, .market-band { order: 0; }
+  .news-band { display: contents; }
+  .news-band > .panel { order: 2; }
+  .news-band > .today { order: 1; }
 
   .panel { padding: 11px; }
 
