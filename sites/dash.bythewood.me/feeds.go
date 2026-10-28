@@ -224,9 +224,9 @@ func threadList(ts []thread) string {
 	return b.String()
 }
 
-// Room past the asked 30 words so the model finishes the sentence on its own
-// instead of running into the cap mid clause.
-const feedReadMax = 240
+// Room past the asked 22 words so the model finishes the sentence on its own
+// instead of running into the cap mid clause. The panel shows three lines.
+const feedReadMax = 190
 
 func (b *Briefer) compileFeeds(ctx context.Context, slot briefSlot, at time.Time) (Brief, error) {
 	now := time.Now()
@@ -281,7 +281,7 @@ func (b *Briefer) compileFeeds(ctx context.Context, slot briefSlot, at time.Time
 
 func (b *Briefer) feedRead(ctx context.Context, name string, ts []thread) (Point, error) {
 	system := `You write a short read for one reader of what a tech community's front page is like today, from its titles and the top comments on its busiest threads.
-- "read" is one or two sentences, at most 30 words in all. Name the two or three subjects that run through more than one thread, then say what the commenters broadly make of them.
+- "read" is one or two sentences, at most 22 words in all. Name the two or three subjects that run through more than one thread in a few words, and spend the rest on what the commenters broadly make of them.
 - If nothing runs through more than one thread, say the page is all over the place and give the argument on the busiest thread instead.
 - Don't list titles back, since the reader sees them. Describe the page as a whole.
 - Use only the titles and the listed comments. No outside knowledge, no opinion of your own, no hype words like buzzing, hot, or exploding.
@@ -311,7 +311,7 @@ func (b *Briefer) feedRead(ctx context.Context, name string, ts []thread) (Point
 		read = whole(out.Read, feedReadMax)
 		if out.Read != "" && read == "" {
 			slog.Info("brief line cut", slog.String("component", "brief"), slog.String("feed", name), slog.Int("try", try+1), slog.String("raw", out.Read))
-			ask = user + "\n\nYour last read ran past the length limit and was cut off mid sentence. Write two short sentences, at most 30 words in all."
+			ask = user + "\n\nYour last read ran past the length limit and was cut off mid sentence. Write two short sentences, at most 22 words in all."
 		}
 	}
 	pt := Point{Text: read}
