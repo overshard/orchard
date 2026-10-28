@@ -64,14 +64,15 @@ func TestEventTLDRUsesDescriptions(t *testing.T) {
 		{source: "NPR", title: "Bridge to close", url: "https://news.google.com/rss/articles/b"},
 	}}}
 	links := []Link{{Source: "AP", URL: "https://news.google.com/rss/articles/a", Title: "Council closes bridge"}, {Source: "NPR", URL: "https://news.google.com/rss/articles/b", Title: "Bridge to close"}}
-	if got := b.eventTLDR(context.Background(), events, []int{1}, links); got != "The council voted to close the bridge for two years." {
+	reports, read := b.eventReports(context.Background(), events, []int{1}, links)
+	if got := b.eventTLDR(context.Background(), reports); !read || got != "The council voted to close the bridge for two years." {
 		t.Errorf("%q", got)
 	}
 	if !strings.Contains(m.asks[0], "[AP] Council closes bridge\nSummary: The council voted 7-2.") || !strings.Contains(m.asks[0], "[NPR] Bridge to close") {
 		t.Errorf("ask: %s", m.asks[0])
 	}
 	events[0].stories[0].desc = ""
-	if got := b.eventTLDR(context.Background(), events, []int{1}, links); got != "" || len(m.asks) != 1 {
-		t.Errorf("headlines alone gave %q", got)
+	if _, read := b.eventReports(context.Background(), events, []int{1}, links); read {
+		t.Error("headlines alone counted as something to read")
 	}
 }

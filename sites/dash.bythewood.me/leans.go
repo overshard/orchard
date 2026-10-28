@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -209,6 +210,15 @@ func (lb *leanBook) record() leanRecord {
 		}
 	}
 	return r
+}
+
+// String is the record as the markets panel shows it, beside what always
+// saying higher would have scored on the same calls.
+func (r leanRecord) String() string {
+	if r.calls == 0 {
+		return ""
+	}
+	return fmt.Sprintf("LEANS RIGHT %d OF %d, ALWAYS HIGHER %d OF %d", r.hits, r.calls, r.upCalls, r.calls)
 }
 
 func (lb *leanBook) save() {

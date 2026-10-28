@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
 	"slices"
 	"sort"
 	"strings"
@@ -91,11 +92,53 @@ func newsSchema(events int) map[string]any {
 	}
 }
 
+type modelPoint struct {
+	Text    string `json:"text"`
+	Sources []int  `json:"sources"`
+}
+
 type modelPoints struct {
-	Points []struct {
-		Text    string `json:"text"`
-		Sources []int  `json:"sources"`
-	} `json:"points"`
+	Points []modelPoint `json:"points"`
+}
+
+// picks is the events a point cites, skipping numbers that aren't events.
+func picks(events []cluster, nums []int) []cluster {
+	var out []cluster
+	for _, n := range nums {
+		if n >= 1 && n <= len(events) {
+			out = append(out, events[n-1])
+		}
+	}
+	return out
+}
+
+// related is the cited events a point is actually about, so its links follow
+// what it says and not a number the model wrote by mistake.
+func related(text string, events []cluster, nums []int) []int {
+	var out []int
+	for _, n := range nums {
+		if n >= 1 && n <= len(events) && relates(text, events[n-1]) && !slices.Contains(out, n) {
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
+// pointProblems is what's wrong with each point, by its index: one about none
+// of the events it cites, or one naming something those events don't have.
+func pointProblems(events []cluster, out modelPoints) map[int]string {
+	bad := map[int]string{}
+	for i, p := range out.Points {
+		nums := related(p.Text, events, p.Sources)
+		if len(nums) == 0 {
+			bad[i] = fmt.Sprintf("%q isn't about the events it cites, cite the event it's about", p.Text)
+			continue
+		}
+		if miss := unsupported(p.Text, eventText(picks(events, nums)...)); len(miss) > 0 {
+			bad[i] = fmt.Sprintf("%q has %s, which its events don't say, use only what they say", p.Text, strings.Join(miss, ", "))
+		}
+	}
+	return bad
 }
 
 func (b *Briefer) compileNews(ctx context.Context, slot briefSlot, at time.Time) (Brief, error) {
@@ -145,9 +188,22 @@ func (b *Briefer) compileNews(ctx context.Context, slot briefSlot, at time.Time)
 
 	user := fmt.Sprintf("It is %s Eastern. %s\n\nEvents:\n%s", at.In(easternTime()).Format("15:04 on Monday, January 2 2006"), task, clusterList(events, now))
 
+	// One retry with the problems named, then a point that still has one is
+	// dropped.
 	var out modelPoints
-	if err := b.model.Structured(ctx, system, user, newsSchema(len(events)), 1300, &out); err != nil {
-		return Brief{}, err
+	var bad map[int]string
+	ask := user
+	for try := 0; try < 2; try++ {
+		out = modelPoints{}
+		if err := b.model.Structured(ctx, system, ask, newsSchema(len(events)), 1300, &out); err != nil {
+			return Brief{}, err
+		}
+		if bad = pointProblems(events, out); len(bad) == 0 {
+			break
+		}
+		problems := slices.Collect(maps.Values(bad))
+		slog.Info("brief news retried", slog.String("component", "brief"), slog.Int("try", try+1), slog.String("problems", strings.Join(problems, "; ")))
+		ask = user + "\n\nYour last answer had problems, fix them:\n- " + strings.Join(problems, "\n- ")
 	}
 	// The events are already ranked, so a point goes where its first event is
 	// whatever order the model wrote them in.
@@ -160,22 +216,41 @@ func (b *Briefer) compileNews(ctx context.Context, slot briefSlot, at time.Time)
 		}
 		return m
 	}
-	sort.SliceStable(out.Points, func(i, j int) bool { return first(out.Points[i].Sources) < first(out.Points[j].Sources) })
+	var written []modelPoint
+	for i, p := range out.Points {
+		if _, ok := bad[i]; !ok {
+			p.Sources = related(p.Text, events, p.Sources)
+			written = append(written, p)
+		}
+	}
+	sort.SliceStable(written, func(i, j int) bool { return first(written[i].Sources) < first(written[j].Sources) })
 
+	prev := b.store.Snapshot().Briefs.News
+	past := b.archive.since("news", now.AddDate(0, 0, -timelineDays))
 	brief := newBrief(slot, at, events)
-	for _, p := range out.Points {
+	for _, p := range written {
 		pt := cite(events, p.Sources)
-		pt.Text = whole(p.Text, newsMax)
+		source := eventText(picks(events, p.Sources)...)
+		pt.Text = stripParties(whole(p.Text, newsMax), source)
 		// A point the model could not tie to a story is one it may have made up.
 		if pt.Text == "" || len(pt.Links) == 0 {
 			continue
 		}
-		pt.Gist = b.eventTLDR(ctx, events, p.Sources, pt.Links)
+		reports, fetched := b.eventReports(ctx, events, p.Sources, pt.Links)
+		if !b.grounded(ctx, pt.Text, reports) {
+			continue
+		}
+		if fetched {
+			pt.Gist = stripParties(b.eventTLDR(ctx, reports), reports)
+		}
+		pt.Mark = mark(prev, pt, picks(events, p.Sources))
+		pt.Timeline = timeline(past, pt, at)
 		brief.Points = append(brief.Points, pt)
 	}
 	if len(brief.Points) < 2 {
 		return Brief{}, fmt.Errorf("only %d cited points", len(brief.Points))
 	}
+	brief.Intensity = intensity(append(past, Brief{Slot: at.Unix(), Read: read}), at)
 	brief.Read = read
 	return brief, nil
 }
@@ -273,33 +348,24 @@ func (b *Briefer) read(ctx context.Context, slot briefSlot, at time.Time, all []
 	user := fmt.Sprintf("It is %s Eastern. The most widely carried news %s.\n\nEvents:\n%s",
 		at.In(easternTime()).Format("15:04 on Monday, January 2 2006"), when, clusterList(events, now))
 
-	// The prompt rule against handing back a title is often ignored, so a copy
-	// gets one retry naming it and is dropped if it comes back.
+	// A copied title, a field about another event, or a name or number the
+	// event doesn't have gets one retry naming it, and is dropped if it comes back.
 	var out map[string]string
-	var copied []int
+	var bad map[int]string
 	for try := 1; try <= 2; try++ {
 		ask := user
-		if len(copied) > 0 {
-			var nums []string
-			for _, n := range copied {
-				nums = append(nums, fmt.Sprintf("event%d", n))
-			}
-			ask += "\n\nLast time " + strings.Join(nums, " and ") + " repeated the event's own title. Write those in different words."
+		if len(bad) > 0 {
+			ask += "\n\nYour last answer had problems, fix them:\n- " + strings.Join(slices.Collect(maps.Values(bad)), "\n- ")
 		}
 		out = nil
 		if err := b.model.Structured(ctx, system, ask, schema, 300, &out); err != nil {
 			return nil, nil, err
 		}
-		copied = nil
-		for i, c := range events {
-			if copiesTitle(out[fmt.Sprintf("event%d", i+1)], c) {
-				copied = append(copied, i+1)
-			}
-		}
-		if len(copied) == 0 {
+		bad = readProblems(events, out)
+		if len(bad) == 0 {
 			break
 		}
-		slog.Info("brief read copied a title", slog.String("component", "brief"), slog.Any("events", copied), slog.Int("try", try))
+		slog.Info("brief read retried", slog.String("component", "brief"), slog.Int("try", try), slog.String("problems", strings.Join(slices.Collect(maps.Values(bad)), "; ")))
 	}
 	var parts []string
 	if opener != "" {
@@ -311,8 +377,9 @@ func (b *Briefer) read(ctx context.Context, slot briefSlot, at time.Time, all []
 		if i == 0 && level == "major" {
 			limit = 2 * readMax
 		}
-		t := whole(out[fmt.Sprintf("event%d", i+1)], limit)
-		if t == "" || slices.Contains(copied, i+1) {
+		source := eventText(events[i])
+		t := stripParties(whole(out[fmt.Sprintf("event%d", i+1)], limit), source)
+		if _, ok := bad[i+1]; ok || t == "" || !b.grounded(ctx, t, source) {
 			continue
 		}
 		parts = append(parts, t)
@@ -344,6 +411,27 @@ func (b *Briefer) read(ctx context.Context, slot briefSlot, at time.Time, all []
 		covered = append(covered, events[n-1])
 	}
 	return r, covered, nil
+}
+
+// readProblems is what's wrong with each read field, by its event number.
+func readProblems(events []cluster, out map[string]string) map[int]string {
+	bad := map[int]string{}
+	for i, c := range events {
+		key := fmt.Sprintf("event%d", i+1)
+		t := out[key]
+		switch {
+		case t == "":
+		case copiesTitle(t, c):
+			bad[i+1] = key + " repeated the event's own title, write it in different words"
+		case !relates(t, c):
+			bad[i+1] = key + " isn't about event " + fmt.Sprint(i+1) + ", write each field about the event with its number"
+		default:
+			if miss := unsupported(t, eventText(c)); len(miss) > 0 {
+				bad[i+1] = fmt.Sprintf("%s has %s, which event %d doesn't say, use only what it says", key, strings.Join(miss, ", "), i+1)
+			}
+		}
+	}
+	return bad
 }
 
 // copiesTitle is a headline that is one of the event's own titles, or six or

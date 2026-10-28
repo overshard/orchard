@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -36,6 +37,24 @@ var briefSlots = []briefSlot{
 	{kind: "preopen", hour: 9, reach: 24 * time.Hour},
 	{kind: "midday", hour: 11, reach: 6 * time.Hour},
 	{kind: "close", hour: 16, minute: 5, reach: 11 * time.Hour},
+}
+
+// futuresSlot is Sunday's markets brief, once futures have opened on the week.
+var futuresSlot = briefSlot{kind: "futures", hour: 18, minute: 15, reach: 24 * time.Hour}
+
+// slotsOn is the slots a desk runs on day, and every slot for an empty desk.
+// Over a weekend markets only runs Saturday morning and once futures open
+// Sunday, since nothing trades between them to change the lines.
+func slotsOn(desk string, day time.Time) []briefSlot {
+	switch wd := day.Weekday(); {
+	case desk == "markets" && wd == time.Saturday:
+		return briefSlots[:1]
+	case desk == "markets" && wd == time.Sunday:
+		return []briefSlot{futuresSlot}
+	case desk == "" && wd == time.Sunday:
+		return append(slices.Clone(briefSlots), futuresSlot)
+	}
+	return briefSlots
 }
 
 const (
@@ -76,8 +95,15 @@ type Brief struct {
 	// whether it is owed a run.
 	Slot int64 `json:"slot"`
 
-	// The S&P price a markets brief was written against.
+	// The S&P price a markets brief was written against, and the product id of
+	// the forecast discussion a forecast brief was written from.
 	Basis string `json:"basis,omitempty"`
+
+	// How big the news was each of the last thirty days, for TODAY.
+	Intensity []DayShare `json:"intensity,omitempty"`
+
+	// How the counted leans have done against always saying higher.
+	Record string `json:"record,omitempty"`
 }
 
 type Point struct {
@@ -96,6 +122,16 @@ type Point struct {
 
 	// A TODAY point's TL;DR, from every outlet it links to.
 	Gist string `json:"gist,omitempty"`
+
+	// NEW or UPDATED against the brief before it, and what TODAY said about the
+	// story on the days before.
+	Mark     string `json:"mark,omitempty"`
+	Timeline []Step `json:"timeline,omitempty"`
+
+	// A forward market line's calendar, written in Go since the model gets the
+	// day wrong, and the move the VIX prices for its session or week.
+	Calendar string `json:"calendar,omitempty"`
+	Range    string `json:"range,omitempty"`
 }
 
 // Read says whether anything big is going on, judged by how many newsrooms are
@@ -131,9 +167,10 @@ type Link struct {
 }
 
 type Briefs struct {
-	Markets Brief `json:"markets"`
-	News    Brief `json:"news"`
-	Feeds   Brief `json:"feeds"`
+	Markets  Brief `json:"markets"`
+	News     Brief `json:"news"`
+	Feeds    Brief `json:"feeds"`
+	Forecast Brief `json:"forecast"`
 }
 
 func (s briefSlot) title() string {
@@ -144,6 +181,8 @@ func (s briefSlot) title() string {
 		return "PRE-OPEN"
 	case "midday":
 		return "MIDDAY"
+	case "futures":
+		return "FUTURES"
 	}
 	return "CLOSE"
 }
@@ -151,11 +190,17 @@ func (s briefSlot) title() string {
 // latestSlot is the most recent slot at or before now. Weekends run too,
 // since a Sunday read of the week is a read of what Monday has coming.
 func latestSlot(now time.Time) (briefSlot, time.Time) {
+	return deskSlot("news", now)
+}
+
+// deskSlot is the most recent slot a desk owes at or before now.
+func deskSlot(desk string, now time.Time) (briefSlot, time.Time) {
 	now = now.In(easternTime())
-	for back := 0; back < 2; back++ {
+	for back := 0; back < 3; back++ {
 		day := now.AddDate(0, 0, -back)
-		for i := len(briefSlots) - 1; i >= 0; i-- {
-			s := briefSlots[i]
+		slots := slotsOn(desk, day)
+		for i := len(slots) - 1; i >= 0; i-- {
+			s := slots[i]
 			at := time.Date(day.Year(), day.Month(), day.Day(), s.hour, s.minute, 0, 0, day.Location())
 			if !at.After(now) {
 				return s, at
@@ -221,7 +266,14 @@ var (
 )
 
 // briefDesks is every desk in the order they run.
-var briefDesks = []string{"markets", "news", "feeds"}
+var briefDesks = []string{"markets", "news", "feeds", "forecast"}
+
+// deskRun is one desk owed one slot.
+type deskRun struct {
+	desk string
+	slot briefSlot
+	at   time.Time
+}
 
 func NewBriefer(store *Store, g *Guard, m *Model, dataDir string) *Briefer {
 	b := &Briefer{store: store, guard: g, path: filepath.Join(dataDir, "briefs.json"), leans: openLeanBook(dataDir),
@@ -237,15 +289,16 @@ func NewBriefer(store *Store, g *Guard, m *Model, dataDir string) *Briefer {
 			slog.Warn("briefs file unreadable", slog.String("component", "brief"), slog.Any("err", err))
 		}
 	}
-	saved.Markets.Waiting, saved.News.Waiting, saved.Feeds.Waiting = "", "", ""
+	saved.Markets.Waiting, saved.News.Waiting, saved.Feeds.Waiting, saved.Forecast.Waiting = "", "", "", ""
 	if m == nil {
-		saved.Markets.Status, saved.News.Status = "off", "off"
+		saved.Markets.Status, saved.News.Status, saved.Forecast.Status = "off", "off", "off"
 	}
+	saved.Markets.Record = b.leans.record().String()
 	store.update(func(st *State) { st.Briefs = saved })
 	if b.leans.add(saved.Markets) {
 		b.leans.save()
 	}
-	for desk, br := range map[string]Brief{"markets": saved.Markets, "news": saved.News, "feeds": saved.Feeds} {
+	for desk, br := range map[string]Brief{"markets": saved.Markets, "news": saved.News, "feeds": saved.Feeds, "forecast": saved.Forecast} {
 		if len(br.Points) > 0 && br.Slot > 0 && !b.archive.has(desk, br.Slot) {
 			b.archive.add(desk, br)
 		}
@@ -356,7 +409,11 @@ func (b *Briefer) rebuild(ctx context.Context, now time.Time) {
 	if err != nil {
 		slog.Warn("brief could not ask about the card", slog.String("component", "brief"), slog.Any("err", err))
 	}
-	failed := b.runDesks(ctx, forcedSlot(now), now, briefDesks, err == nil && !gpu.Loaded, true)
+	var runs []deskRun
+	for _, desk := range briefDesks {
+		runs = append(runs, deskRun{desk, forcedSlot(now), now})
+	}
+	failed := b.runDesks(ctx, runs, err == nil && !gpu.Loaded, true)
 	b.end(true, failed)
 }
 
@@ -378,15 +435,16 @@ func (b *Briefer) tick(ctx context.Context, now time.Time) {
 	b.store.mu.RUnlock()
 	if b.leans.score(h, now) {
 		b.leans.save()
+		record := b.leans.record().String()
+		b.store.update(func(st *State) { st.Briefs.Markets.Record = record })
 	}
 
-	slot, at := latestSlot(now)
 	cur := b.store.Snapshot().Briefs
-	slots := map[string]int64{"markets": cur.Markets.Slot, "news": cur.News.Slot, "feeds": cur.Feeds.Slot}
-	var due []string
+	slots := map[string]int64{"markets": cur.Markets.Slot, "news": cur.News.Slot, "feeds": cur.Feeds.Slot, "forecast": cur.Forecast.Slot}
+	var due []deskRun
 	for _, desk := range briefDesks {
-		if slots[desk] < at.Unix() {
-			due = append(due, desk)
+		if slot, at := deskSlot(desk, now); slots[desk] < at.Unix() {
+			due = append(due, deskRun{desk, slot, at})
 		}
 	}
 	if len(due) == 0 || now.Before(b.next) {
@@ -409,15 +467,15 @@ func (b *Briefer) tick(ctx context.Context, now time.Time) {
 		if gpu.RetryAt > 0 {
 			until = time.Unix(gpu.RetryAt, 0)
 		}
-		b.deferSlot(slot, until, gpu.Reason)
+		b.deferSlot(due[0].slot, until, gpu.Reason)
 		b.idle()
 		return
 	}
 	runCtx, gate := scheduledRun(ctx)
 	defer gate.stop()
-	failed := b.runDesks(runCtx, slot, at, due, !gpu.Loaded, false)
+	failed := b.runDesks(runCtx, due, !gpu.Loaded, false)
 	if busy := gate.Busy(); busy != nil {
-		b.deferSlot(slot, busy.Until, busy.Reason)
+		b.deferSlot(due[0].slot, busy.Until, busy.Reason)
 		b.end(false, nil)
 		return
 	}
@@ -437,7 +495,7 @@ func (b *Briefer) deferSlot(slot briefSlot, until time.Time, reason string) {
 
 // runDesks writes each desk in turn on one model load and returns the ones
 // that failed.
-func (b *Briefer) runDesks(ctx context.Context, slot briefSlot, at time.Time, desks []string, unload, forced bool) []string {
+func (b *Briefer) runDesks(ctx context.Context, runs []deskRun, unload, forced bool) []string {
 	// Only weights this run put on the card come off it. A model already there
 	// is somebody's conversation, and its own idle timer is theirs.
 	if unload {
@@ -449,9 +507,10 @@ func (b *Briefer) runDesks(ctx context.Context, slot briefSlot, at time.Time, de
 	}
 
 	var failed []string
-	for _, desk := range desks {
+	for _, run := range runs {
+		desk, slot := run.desk, run.slot
 		started := time.Now()
-		brief, err := b.compile(ctx, desk, slot, at)
+		brief, err := b.compile(ctx, desk, slot, run.at)
 		// The desktop took the card partway through, so this desk came back short.
 		if g := gateOf(ctx); g != nil && g.Busy() != nil {
 			break
@@ -467,8 +526,11 @@ func (b *Briefer) runDesks(ctx context.Context, slot briefSlot, at time.Time, de
 			slog.Duration("took", time.Since(started).Round(time.Second)))
 		logPoints(desk, slot.kind, brief)
 		b.archive.add(desk, brief)
-		if desk == "markets" && b.leans.add(brief) {
-			b.leans.save()
+		if desk == "markets" {
+			if b.leans.add(brief) {
+				b.leans.save()
+			}
+			brief.Record = b.leans.record().String()
 		}
 
 		b.store.update(func(st *State) { st.setBrief(desk, brief) })
@@ -485,6 +547,8 @@ func (st *State) setBrief(desk string, brief Brief) {
 	case "feeds":
 		st.Briefs.Feeds = brief
 		st.attachFeedReads()
+	case "forecast":
+		st.Briefs.Forecast = brief
 	default:
 		st.Briefs.News = brief
 		st.setNotices("news", briefNotices(brief))
@@ -497,6 +561,8 @@ func (b *Briefer) compileDesk(ctx context.Context, desk string, slot briefSlot, 
 		return b.compileMarkets(ctx, slot, at)
 	case "feeds":
 		return b.compileFeeds(ctx, slot, at)
+	case "forecast":
+		return b.compileForecast(ctx, slot, at)
 	}
 	return b.compileNews(ctx, slot, at)
 }
@@ -504,7 +570,7 @@ func (b *Briefer) compileDesk(ctx context.Context, desk string, slot briefSlot, 
 // waiting says on every brief panel why the last brief is still up.
 func (b *Briefer) waiting(why string) {
 	b.store.update(func(st *State) {
-		st.Briefs.Markets.Waiting, st.Briefs.News.Waiting, st.Briefs.Feeds.Waiting = why, why, why
+		st.Briefs.Markets.Waiting, st.Briefs.News.Waiting, st.Briefs.Feeds.Waiting, st.Briefs.Forecast.Waiting = why, why, why, why
 	})
 }
 
@@ -543,7 +609,7 @@ const neutralRules = `Rules:
 - Write in AP wire style. Past tense, who did what and when, no adjectives that judge.
 - Restate what happened in your own plain words. Never copy a headline's framing.
 - Neutral verbs only: said, announced, voted, proposed, ruled, filed. Never slammed, blasted, admitted, claimed, touted, doubled down, or words like chaos, radical, extreme, shocking, historic, unless quoting someone by name.
-- Name people by office and party, like "Sen. Jane Doe (R-Texas)". No labels like far-right or far-left unless quoting someone by name.
+- Name people by the office the stories give them. Add a party like (R-Texas) only when a story gives it, never from memory. No labels like far-right or far-left unless quoting someone by name.
 - Attribute every claim, accusation or prediction to whoever made it. Never state one side's description of events as fact.
 - On a contested political story, give each side's stated position in one clause each, of about equal length.
 - If the stories disagree on a fact, say reports differ.
@@ -622,7 +688,7 @@ func nextSlot(now time.Time) time.Time {
 	now = now.In(easternTime())
 	for day := 0; day < 2; day++ {
 		d := now.AddDate(0, 0, day)
-		for _, s := range briefSlots {
+		for _, s := range slotsOn("", d) {
 			at := time.Date(d.Year(), d.Month(), d.Day(), s.hour, s.minute, 0, 0, d.Location())
 			if at.After(now) {
 				return at

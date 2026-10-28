@@ -172,6 +172,8 @@ func sessionNotes(day time.Time, releases []release, vix float64, now time.Time)
 		notes = append(notes, n+". Stocks have historically drifted higher into a Fed decision, though less since 2015, and the afternoon can swing either way.")
 	} else if _, ok := fomcDecisions[day.AddDate(0, 0, 1).Format("2006-01-02")]; ok {
 		notes = append(notes, "The Fed meets, with its decision the next day. The day before a decision has historically leaned higher.")
+	} else if _, ok := fomcDecisions[day.AddDate(0, 0, -1).Format("2006-01-02")]; ok {
+		notes = append(notes, "The Fed announced its rate decision the afternoon before, and stories since then say what it decided.")
 	}
 
 	if turnOfMonth(day) {
@@ -191,7 +193,7 @@ func weekNotes(monday time.Time, releases []release, vix float64, now time.Time)
 	fmt.Fprintf(&b, "%s, the week of %s:\n", weekAhead, monday.Format("Monday January 2"))
 	for d := monday; !weekend(d); d = d.AddDate(0, 0, 1) {
 		for _, n := range sessionNotes(d, releases, 0, now) {
-			fmt.Fprintf(&b, "- %s: %s\n", d.Format("Monday"), n)
+			fmt.Fprintf(&b, "- %s\n", n)
 		}
 	}
 	if vix > 0 {
@@ -216,6 +218,71 @@ func turnOfMonth(day time.Time) bool {
 		}
 	}
 	return n <= 3
+}
+
+// calendarClause is a forward line's calendar as the page shows it beside the
+// line, like FED 2PM · GDP 8:30AM, or each day's for the week ahead.
+func calendarClause(l marketLine, releases []release, now time.Time) string {
+	var parts []string
+	day := l.day.In(easternTime())
+	for d := day; ; d = d.AddDate(0, 0, 1) {
+		prefix := ""
+		if l.week {
+			prefix = strings.ToUpper(d.Format("Mon")) + " "
+		}
+		parts = append(parts, dayEvents(d, releases, now, prefix)...)
+		if !l.week || d.Weekday() == time.Friday {
+			break
+		}
+	}
+	if len(parts) == 0 {
+		return "NOTHING MAJOR SCHEDULED"
+	}
+	return strings.Join(parts, " · ")
+}
+
+func dayEvents(day time.Time, releases []release, now time.Time, prefix string) []string {
+	date := day.Format("2006-01-02")
+	events := slices.Clone(releases)
+	if _, ok := fomcDecisions[date]; ok {
+		events = append(events, release{at: time.Date(day.Year(), day.Month(), day.Day(), 14, 0, 0, 0, easternTime()), short: "FED"})
+	}
+	slices.SortStableFunc(events, func(a, b release) int { return a.at.Compare(b.at) })
+	var out, seen []string
+	for _, e := range events {
+		at := e.at.In(easternTime())
+		if at.Format("2006-01-02") != date || slices.Contains(seen, e.short) {
+			continue
+		}
+		seen = append(seen, e.short)
+		when := clock(at)
+		if !at.After(now) {
+			when = "OUT"
+		}
+		out = append(out, prefix+e.short+" "+when)
+	}
+	return out
+}
+
+// clock is 8:30AM or 2PM.
+func clock(t time.Time) string {
+	if t.Minute() == 0 {
+		return strings.ToUpper(t.Format("3PM"))
+	}
+	return strings.ToUpper(t.Format("3:04PM"))
+}
+
+// impliedMove is the typical move the VIX prices for a session, or a week,
+// which is a fact beside the lean where the lean is a read.
+func impliedMove(vix float64, week bool) string {
+	if vix <= 0 {
+		return ""
+	}
+	days := 252.0
+	if week {
+		days = 52
+	}
+	return fmt.Sprintf("±%.2f%%", vix/math.Sqrt(days))
 }
 
 // Upcoming is one entry on the footer's AHEAD line.

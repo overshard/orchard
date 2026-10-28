@@ -77,6 +77,10 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 	if len(events) < briefFloor {
 		return Brief{}, fmt.Errorf("only %d events", len(events))
 	}
+	if weekend(at) {
+		monday := weekStart(at.In(easternTime()))
+		events = append(events, weekReview(b.archive.since("markets", monday), monday)...)
+	}
 
 	b.store.refreshSignal(ctx, b.guard)
 	b.store.mu.RLock()
@@ -103,7 +107,7 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 			calendar.WriteString(weekNotes(l.day, releases, vixLevel(st), at))
 			continue
 		}
-		fmt.Fprintf(&calendar, "%s, %s:\n", l.label, l.day.Format("Monday January 2"))
+		fmt.Fprintf(&calendar, "%s:\n", l.label)
 		notes := sessionNotes(l.day, releases, vixLevel(st), at)
 		if len(notes) == 0 {
 			calendar.WriteString("- Nothing scheduled and no calendar pattern.\n")
@@ -125,15 +129,18 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 - No advice, nothing like "investors should".
 - A line asking which way things lean is about the whole market, never single companies. Its reasons come from market-wide drivers: futures, Treasury yields and the Fed, the calendar and patterns listed for that day, oil, the VIX and the recent trend, and geopolitical news. A scheduled Fed decision or big release always gets named. The patterns are mild tilts, so they settle a close call and never outweigh the news. Mention a company only if it is one of the very largest in the S&P 500. It sets "verdict" to higher, lower or mixed, for which way the reasons in its text point on balance, and names each reason and which way it pushes, like "Futures are flat, but yields at multi-decade highs and a rising VIX weigh on stocks."
 - Do not write the lean itself into the text, the page shows it beside the line. The text is only the reasons.
-- The line for the next session names what the calendar has for that day, or says nothing major is scheduled, and never repeats the line before it.
-- The line for the week ahead names the biggest things on that week's calendar, and any weekend news that bears on Monday's open.
+- Never name a day of the week, a date or a time. The page shows each line's calendar beside it, so a line only says which way things push.
+- The line for the next session never repeats the line before it.
+- The line for the week ahead weighs that week's calendar and any weekend news that bears on Monday's open.
 - A line about a session that already happened gives the main reason for its move, and leaves out the direction and the percent, since the page shows them beside it.
 - A line asking which way things lean never leads with one company's news, and when no story speaks to that day it leans on the futures, yields, the VIX, the trend and the calendar in the numbers.
 - Every line that is not asking which way things lean sets "verdict" to none and makes no prediction.`
 
+	facts := marketFacts(st, h, at)
 	user := fmt.Sprintf("It is %s Eastern.\n\n%s\nNumbers right now:\n%s\nCalendar and patterns:\n%s\nStories, most widely covered first:\n%s",
 		at.In(easternTime()).Format("15:04 on Monday, January 2 2006"), want.String(),
-		marketFacts(st, h, at), calendar.String(), clusterList(events, now))
+		facts, calendar.String(), clusterList(events, now))
+	source := facts + calendar.String()
 
 	// One retry with the problem named, since the 9B now and then copies one
 	// line into the next or writes the week ahead about a single company.
@@ -144,7 +151,7 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 		if err := b.model.Structured(ctx, system, ask, marketSchema(lines), 900, &out); err != nil {
 			return Brief{}, err
 		}
-		bad := marketProblems(lines, out, events, releases)
+		bad := marketProblems(lines, out, events, source)
 		if len(bad) == 0 {
 			break
 		}
@@ -163,14 +170,23 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 	if weekend(at) {
 		brief.Title = "WEEKEND"
 	}
+	vix := vixLevel(st)
 	for i, l := range lines {
-		if l.forward {
-			if pt, ok := heldLine(st.Briefs.Markets, brief, l.label); ok {
-				brief.Points = append(brief.Points, pt)
-				continue
-			}
+		held, ok := heldLine(st.Briefs.Markets, brief, l.label)
+		if !ok && l.label == lastWeek {
+			held, ok = heldWeek(st.Briefs.Markets, at)
 		}
-		if pt, ok := marketPoint(l, out[fmt.Sprintf("line%d", i+1)], events); ok {
+		if ok {
+			brief.Points = append(brief.Points, held)
+			continue
+		}
+		ans := out[fmt.Sprintf("line%d", i+1)]
+		ans.Text = stripParties(ans.Text, source+eventText(picks(events, ans.Sources)...))
+		if pt, ok := marketPoint(l, ans, events); ok {
+			if l.forward {
+				pt.Calendar = calendarClause(l, releases, at)
+				pt.Range = impliedMove(vix, l.week)
+			}
 			brief.Points = append(brief.Points, pt)
 		}
 	}
@@ -181,8 +197,8 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 }
 
 // marketPoint is one line as the page shows it. A closed line that cites no
-// story is written in Go from the move alone, since the 9B's uncited reasons
-// for a past session have come from the wrong day.
+// story is the move alone, since the 9B's uncited reasons for a past session
+// have come from the wrong day.
 func marketPoint(l marketLine, p marketAnswer, events []cluster) (Point, bool) {
 	pt := cite(events, p.Sources)
 	pt.Text = tidy(p.Text)
@@ -191,9 +207,9 @@ func marketPoint(l marketLine, p marketAnswer, events []cluster) (Point, bool) {
 			slog.Info("brief markets line uncited", slog.String("component", "brief"),
 				slog.String("label", l.label), slog.String("raw", pt.Text))
 		}
-		pt = Point{Text: l.plain()}
+		pt = Point{}
 	}
-	if pt.Text == "" {
+	if pt.Text == "" && l.forward {
 		return Point{}, false
 	}
 	pt.Label = l.label
@@ -206,31 +222,6 @@ func marketPoint(l marketLine, p marketAnswer, events []cluster) (Point, bool) {
 	return pt, true
 }
 
-// plain says what a closed session did and that nothing explained it.
-func (l marketLine) plain() string {
-	pct, live := strings.CutSuffix(l.move, " SO FAR")
-	if live {
-		switch l.dir {
-		case "up":
-			return "The S&P 500 is up " + pct + " so far, and no story gives a reason yet."
-		case "down":
-			return "The S&P 500 is down " + pct + " so far, and no story gives a reason yet."
-		}
-		return "The S&P 500 is about flat so far, and no story gives a reason yet."
-	}
-	week := ""
-	if l.label == "LAST WEEK" {
-		week = " on the week"
-	}
-	switch l.dir {
-	case "up":
-		return "The S&P 500 rose " + pct + week + ", and no story gave a reason."
-	case "down":
-		return "The S&P 500 fell " + pct + week + ", and no story gave a reason."
-	}
-	return "The S&P 500 ended about flat" + week + ", and no story gave a reason."
-}
-
 // spBasis is the S&P card's price, which over a weekend is Friday's last
 // futures print and doesn't move until they reopen Sunday evening.
 func spBasis(m Market) string {
@@ -240,6 +231,20 @@ func spBasis(m Market) string {
 		}
 	}
 	return ""
+}
+
+// heldWeek is Saturday's look back at the week, kept through Sunday since
+// nothing has traded since and the feeds have dropped the week's stories.
+func heldWeek(prev Brief, at time.Time) (Point, bool) {
+	if prev.Slot == 0 || !weekend(time.Unix(prev.Slot, 0)) || at.Sub(time.Unix(prev.Slot, 0)) > 48*time.Hour {
+		return Point{}, false
+	}
+	for _, p := range prev.Points {
+		if p.Label == lastWeek && len(p.Links) > 0 {
+			return p, true
+		}
+	}
+	return Point{}, false
 }
 
 // heldLine is the last brief's line for the same session or week when nothing
@@ -380,7 +385,10 @@ func (l marketLine) citable(cites []int) string {
 	return ", citing only " + strings.Join(nums, " ")
 }
 
-const weekAhead = "WEEK AHEAD"
+const (
+	weekAhead = "WEEK AHEAD"
+	lastWeek  = "LAST WEEK"
+)
 
 func weekStart(t time.Time) time.Time {
 	return t.AddDate(0, 0, -(int(t.Weekday())+6)%7)
@@ -419,7 +427,7 @@ func marketLines(h *history, session string, at time.Time) []marketLine {
 		var lines []marketLine
 		if n := len(past); n > 0 {
 			if i := lastBefore(past, weekStart(past[n-1].day)); i >= 0 {
-				lines = append(lines, closedLine("LAST WEEK", past[n-1].close, past[i].close,
+				lines = append(lines, closedLine(lastWeek, past[n-1].close, past[i].close,
 					"the two or three main reasons given for how stocks did over the past week").between(past[i].day, past[n-1].day))
 			}
 		}
@@ -456,57 +464,50 @@ type marketAnswer struct {
 }
 
 // marketProblems is what's wrong with each line, by key: one that repeats an
-// earlier line, a past session explained by another session's story, and a
-// week ahead that leaves out the week's scheduled releases.
-func marketProblems(lines []marketLine, out map[string]marketAnswer, events []cluster, releases []release) map[string]string {
+// earlier line, a past session explained by another session's story, a day
+// named when Go writes the calendar, and a name or figure from nowhere.
+func marketProblems(lines []marketLine, out map[string]marketAnswer, events []cluster, source string) map[string]string {
 	bad := map[string]string{}
 	for i, l := range lines {
 		key := fmt.Sprintf("line%d", i+1)
-		text := out[key].Text
+		ans := out[key]
+		text := ans.Text
 		for j := range i {
 			if other := out[fmt.Sprintf("line%d", j+1)].Text; text != "" && wordOverlap(text, other) > 0.6 {
 				bad[key] = fmt.Sprintf("%s repeats %s, write it about %s instead", key, fmt.Sprintf("line%d", j+1), lines[i].label)
 			}
 		}
-		if _, dup := bad[key]; dup {
+		if _, dup := bad[key]; dup || text == "" {
 			continue
 		}
 		if !l.forward {
-			for _, n := range out[key].Sources {
+			if len(ans.Sources) == 0 {
+				continue
+			}
+			for _, n := range ans.Sources {
 				if n >= 1 && n <= len(events) && !l.covers(events[n-1].session) {
 					bad[key] = fmt.Sprintf("%s cites [%d], which is news for %s's session, so explain %s%s, or if none of them gives a reason say what moved and cite nothing",
 						key, n, events[n-1].session.Format("Monday"), l.label, l.only())
 					break
 				}
 			}
+			if _, ok := bad[key]; ok {
+				continue
+			}
+			if lower := strings.ToLower(text); strings.Contains(lower, "no reason") || strings.Contains(lower, "no story") {
+				bad[key] = key + " cites a story and says no story gave a reason, give the reason that story gives or cite nothing"
+				continue
+			}
+		}
+		if day := namesWeekday(text); day != "" {
+			bad[key] = fmt.Sprintf("%s names %s, leave days, dates and times out since the page shows them", key, day)
 			continue
 		}
-		if !l.week {
-			continue
-		}
-		want := weekReleases(l.day, releases)
-		if len(want) > 0 && !slices.ContainsFunc(want, func(w string) bool { return strings.Contains(strings.ToLower(text), strings.ToLower(w)) }) {
-			bad[key] = fmt.Sprintf("%s has to name the week's scheduled %s", key, strings.Join(want, " and "))
+		if miss := unsupported(text, source+eventText(picks(events, ans.Sources)...)); len(miss) > 0 {
+			bad[key] = fmt.Sprintf("%s has %s, which isn't in the numbers, the calendar or the stories it cites", key, strings.Join(miss, ", "))
 		}
 	}
 	return bad
-}
-
-// weekReleases is the short names of what's scheduled Monday to Friday.
-func weekReleases(monday time.Time, releases []release) []string {
-	var out []string
-	for d := monday; !weekend(d); d = d.AddDate(0, 0, 1) {
-		date := d.Format("2006-01-02")
-		for _, r := range releases {
-			if r.at.In(easternTime()).Format("2006-01-02") == date && r.short != "" && !slices.Contains(out, r.short) {
-				out = append(out, r.short)
-			}
-		}
-		if _, ok := fomcDecisions[date]; ok && !slices.Contains(out, "Fed") {
-			out = append(out, "Fed")
-		}
-	}
-	return out
 }
 
 func wordOverlap(a, b string) float64 {
