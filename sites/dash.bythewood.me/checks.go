@@ -22,7 +22,7 @@ var (
 
 // Words a line may capitalise without its source having them, which are the
 // offices the prompt asks for and the country the reader lives in.
-var plainCaps = []string{"u.s", "us", "u.k", "uk", "america", "americans", "american", "eastern",
+var plainCaps = []string{"u.s", "us", "united", "states", "u.k", "uk", "america", "americans", "american", "eastern",
 	"president", "pres", "vice", "sen", "senator", "rep", "representative", "gov", "governor", "secretary",
 	"minister", "prime", "chancellor", "speaker", "leader", "mayor", "judge", "justice", "chief",
 	"attorney", "general", "director", "chair", "chairman", "chairwoman", "ceo", "mr", "mrs", "ms", "dr", "gen", "lt", "jr"}
