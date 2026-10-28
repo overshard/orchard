@@ -24,7 +24,8 @@ func TestUnsupported(t *testing.T) {
 		{"Lula won a fourth term with 51.2% of the vote in Brazil.", nil},
 		{"Brazilian voters returned Lula, and three were hurt.", nil},
 		{"Pres. Lula won as 3 were hurt.", nil},
-		{"Bolsonaro conceded to Lula in Brazil.", []string{"Bolsonaro"}},
+		{"In Brazil, Bolsonaro conceded to Lula.", []string{"Bolsonaro"}},
+		{"Stay dry, since Lula won.", nil},
 		{"Lula won with 54% of the vote.", []string{"54"}},
 		{"Lula won on Tuesday.", []string{"Tuesday"}},
 	}
