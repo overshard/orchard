@@ -85,7 +85,7 @@
 
 {{define "forecast"}}{{with .Points}}{{with index . 0}}<div class="afd">
   <p class="afd-head"><span class="k">FORECAST DISCUSSION</span>{{template "brief-links" .Links}}</p>
-  <p class="afd-txt">{{.Text}}</p>
+  <p class="afd-txt" data-card data-tip-label="FORECAST DISCUSSION" role="button" tabindex="0" aria-controls="tip" aria-expanded="false">{{.Text}}</p>
 </div>{{end}}{{end}}{{end}}
 
 {{define "brief-links"}}{{range .}}<a class="src" href="{{.URL}}" data-tip="{{.Title}}" data-tip-label="{{.Source}}" rel="noopener noreferrer" target="_blank">{{.Source}}</a>{{end}}{{end}}
