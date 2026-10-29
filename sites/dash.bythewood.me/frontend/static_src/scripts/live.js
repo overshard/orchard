@@ -779,7 +779,9 @@ function renderForecast(brief) {
   const box = el("div", "afd");
   const head = el("p", "afd-head");
   head.append(el("span", "k", "FORECAST DISCUSSION"), ...briefLinks(p.links));
-  box.append(head, el("p", "afd-txt", p.text));
+  const txt = cardLine("afd-txt", p.text);
+  txt.dataset.tipLabel = "FORECAST DISCUSSION";
+  box.append(head, txt);
   host.replaceChildren(box);
 }
 

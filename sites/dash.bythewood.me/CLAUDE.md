@@ -220,10 +220,11 @@ what TODAY said about it on up to four earlier days in the last five, and the
 head line carries thirty days of the top story's share of outlets. The first two
 match stories by a shared link or three words of substance.
 
-**ATMOS carries the forecast discussion,** a fourth desk that reads the
+**OUT carries the forecast discussion,** a fourth desk that reads the
 Blacksburg office's Area Forecast Discussion off api.weather.gov, keeps the key
 messages and the discussion sections, and puts them in two or three plain
-sentences. It's only rewritten when the office puts out a new one.
+sentences, clamped to two lines under the days with the rest on a tap. It's
+only rewritten when the office puts out a new one.
 
 **A brief never loads a model onto a card the desktop is using.** Each slot asks
 the gateway's `GET /v1/gpu` first, which reads `nvidia-smi` through the

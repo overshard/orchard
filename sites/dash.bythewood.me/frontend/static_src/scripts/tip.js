@@ -123,7 +123,7 @@ function extras(el) {
   const meta = [];
   const links = [];
   const talks = [];
-  const row = el.closest(".lede") || el.closest("li");
+  const row = el.closest(".lede, .afd") || el.closest("li");
   if (!row) return [meta, links, talks];
   if (row.classList.contains("lede")) {
     const head = row.querySelector(".head");
@@ -143,7 +143,7 @@ function extras(el) {
   }
   talks.push(...talk(row));
   for (const s of row.querySelectorAll(".meta .mark, .meta .cov, .meta .note")) meta.push(s.textContent);
-  for (const a of row.querySelectorAll(".meta a.src")) links.push(cardLink(a.href, a.dataset.tipLabel || a.textContent, a.dataset.tip || a.href));
+  for (const a of row.querySelectorAll(".meta a.src, .afd-head a.src")) links.push(cardLink(a.href, a.dataset.tipLabel || a.textContent, a.dataset.tip || a.href));
   return [meta, links, talks];
 }
 
