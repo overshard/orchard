@@ -74,7 +74,8 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 	if weekend(at) {
 		reach = max(reach, 72*time.Hour)
 	}
-	events := clusterBy(gather(ctx, b.guard, marketFeeds, at.Add(-reach), now), marketEvents, func(s story) time.Time { return tradingDay(s.at) })
+	all := gather(ctx, b.guard, marketFeeds, at.Add(-reach), now)
+	events := perSession(clusterBy(all, len(all), marketSession), marketEvents)
 	if len(events) < briefFloor {
 		return Brief{}, fmt.Errorf("only %d events", len(events))
 	}
@@ -632,6 +633,7 @@ func (l marketLine) only() string {
 }
 
 var (
+	closePat      = regexp.MustCompile(`(?i)\b(ends|ended|closes|closed|finishes|finished|settles|settled)\b`)
 	usMarketPat   = regexp.MustCompile(`(?i)\b(stocks?|shares|s&p|dow|nasdaq|wall street|fed|federal reserve|treasury|treasuries|yields?|futures|investors)\b`)
 	afterHoursPat = regexp.MustCompile(`(?i)\b(after[- ]hours|extended trading|after the bell|post-?market|late trading)\b`)
 )
@@ -650,6 +652,55 @@ func explainsClose(c cluster) bool {
 		}
 	}
 	return false
+}
+
+// marketSession is tradingDay, except that a wrap of the close filed that
+// evening or overnight is about the session that closed and not the next one.
+func marketSession(s story) time.Time {
+	day := tradingDay(s.at)
+	text := s.title + " " + s.desc
+	if !closePat.MatchString(text) || !usMarketPat.MatchString(text) {
+		return day
+	}
+	t := s.at.In(easternTime())
+	closed := t
+	switch {
+	case weekend(t) || t.Before(time.Date(t.Year(), t.Month(), t.Day(), 9, 30, 0, 0, t.Location())):
+		closed = prevWeekday(t)
+	case t.Hour() < 16:
+		return day
+	}
+	return time.Date(closed.Year(), closed.Month(), closed.Day(), 0, 0, 0, 0, closed.Location())
+}
+
+// perSession keeps the limit highest ranked events, but first up to a third of
+// it for each session from the ones that can explain a close, since an
+// evening's stories are about the next session and would otherwise fill it.
+func perSession(cs []cluster, limit int) []cluster {
+	keep := make([]bool, len(cs))
+	per := map[string]int{}
+	n := 0
+	for i, c := range cs {
+		day := c.session.Format("2006-01-02")
+		if n < limit && per[day] < limit/3 && explainsClose(c) {
+			keep[i] = true
+			per[day]++
+			n++
+		}
+	}
+	for i := range cs {
+		if n < limit && !keep[i] {
+			keep[i] = true
+			n++
+		}
+	}
+	var out []cluster
+	for i, c := range cs {
+		if keep[i] {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 // lastSessionNews is when news for the session before at's starts, 6pm on the

@@ -166,7 +166,10 @@ uncited it blamed one day on the next day's news and by the next midday the
 feeds have dropped most of that session's stories. A closed line can only cite
 an event about US stocks or the Fed, and not an after hours report on the
 session it followed, since it blamed a Wednesday on the UK Budget and a close on
-Amazon's results from after the bell. The forward lines lean on the Fed's meeting
+Amazon's results from after the bell. Each session gets up to a third of the
+events before the rest are filled by rank, since an evening's stories are all
+the next session's and crowded the last one out, and a wrap of the close filed
+that evening or overnight counts for the session that closed. The forward lines lean on the Fed's meeting
 dates (copied into `calendar.go`, add next year's in December), the BLS and BEA
 release calendars and two documented patterns, the turn of the month and the
 drift into a Fed decision. Above TODAY's headlines sits a read of the day, its

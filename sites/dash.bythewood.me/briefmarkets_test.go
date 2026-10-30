@@ -274,3 +274,37 @@ func TestExplainsClose(t *testing.T) {
 		}
 	}
 }
+
+// Reuters filed Thursday's close wrap after 6pm, which made it Friday's news
+// and the reason for TOMORROW.
+func TestMarketSessionKeepsCloseWraps(t *testing.T) {
+	cases := []struct{ at, title, want string }{
+		{"2026-10-29 19:30", "Wall Street ends lower as Alphabet revenue miss revives AI capex jitters", "2026-10-29"},
+		{"2026-10-30 06:00", "Stocks closed lower on Alphabet", "2026-10-29"},
+		{"2026-10-31 10:00", "Wall Street ends the week higher", "2026-10-30"},
+		{"2026-10-29 19:30", "Amazon AWS posts 39% revenue growth", "2026-10-30"},
+		{"2026-10-29 12:00", "Oil settles higher as stocks slip", "2026-10-29"},
+	}
+	for _, c := range cases {
+		if got := marketSession(story{title: c.title, at: inNY(t, c.at)}).Format("2006-01-02"); got != c.want {
+			t.Errorf("%s %q: got %s, want %s", c.at, c.title, got, c.want)
+		}
+	}
+}
+
+func TestPerSessionKeepsEachSessionsShare(t *testing.T) {
+	wed, fri := inNY(t, "2026-10-28 00:00"), inNY(t, "2026-10-30 00:00")
+	var cs []cluster
+	for range 9 {
+		cs = append(cs, cluster{session: fri, stories: []story{{title: "Stocks set to open lower"}}})
+	}
+	cs = append(cs, cluster{session: wed, stories: []story{{title: "Healey unveils a Budget"}}},
+		cluster{session: wed, stories: []story{{title: "Fed holds interest rates steady"}}})
+	got := perSession(cs, 6)
+	if len(got) != 6 || !slices.ContainsFunc(got, func(c cluster) bool { return c.stories[0].title == "Fed holds interest rates steady" }) {
+		t.Errorf("Wednesday's Fed story was crowded out: %d events", len(got))
+	}
+	if got[len(got)-1].session != wed {
+		t.Error("the ranking order changed")
+	}
+}
