@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"maps"
 	"math"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -96,7 +97,7 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 		asks[i] = l.ask
 		if !l.forward {
 			for n, e := range events {
-				if l.covers(e.session) {
+				if l.covers(e.session) && explainsClose(e) {
 					lines[i].cites = append(lines[i].cites, n+1)
 				}
 			}
@@ -628,6 +629,27 @@ func (l marketLine) only() string {
 		names = []string{strings.Join(names[:len(names)-1], ", ") + " or " + names[len(names)-1]}
 	}
 	return ", using only stories marked " + names[0] + "'s session"
+}
+
+var (
+	usMarketPat   = regexp.MustCompile(`(?i)\b(stocks?|shares|s&p|dow|nasdaq|wall street|fed|federal reserve|treasury|treasuries|yields?|futures|investors)\b`)
+	afterHoursPat = regexp.MustCompile(`(?i)\b(after[- ]hours|extended trading|after the bell|post-?market|late trading)\b`)
+)
+
+// explainsClose is an event that can say why US stocks closed where they did,
+// one about them or the Fed, since otherwise the 9B picks the most carried
+// story of the day, and not an after hours report on the session it followed.
+func explainsClose(c cluster) bool {
+	for _, s := range c.stories {
+		text := s.title + " " + s.desc
+		if h := s.at.In(easternTime()).Hour(); h >= 16 && h < 18 && afterHoursPat.MatchString(text) {
+			continue
+		}
+		if usMarketPat.MatchString(text) {
+			return true
+		}
+	}
+	return false
 }
 
 // lastSessionNews is when news for the session before at's starts, 6pm on the

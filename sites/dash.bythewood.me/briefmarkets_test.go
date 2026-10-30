@@ -251,3 +251,26 @@ func TestLastSessionNews(t *testing.T) {
 		t.Error("6pm Tuesday should be news for Wednesday")
 	}
 }
+
+// Wednesday's most carried story was the UK Budget and Thursday's close got
+// blamed on Amazon's results from after the bell.
+func TestExplainsClose(t *testing.T) {
+	ev := func(at, title, desc string) cluster {
+		return cluster{stories: []story{{title: title, desc: desc, at: inNY(t, at)}}}
+	}
+	cases := []struct {
+		c    cluster
+		want bool
+	}{
+		{ev("2026-10-28 14:04", "Fed holds interest rates steady even as inflation remains stubborn", ""), true},
+		{ev("2026-10-28 14:45", "Healey unveils £100 for energy bills and bank tax in first Budget", "The chancellor set out his plans."), false},
+		{ev("2026-10-29 16:20", "Amazon AWS posts 39% revenue growth as cloud rivals also accelerate", "Shares rose in extended trading."), false},
+		{ev("2026-10-29 16:10", "Wall Street slides as Alphabet revenue miss revives AI capex jitters", ""), true},
+		{ev("2026-10-30 07:00", "Amazon shares jump after hours on cloud growth", ""), true},
+	}
+	for _, c := range cases {
+		if got := explainsClose(c.c); got != c.want {
+			t.Errorf("%q: got %v", c.c.stories[0].title, got)
+		}
+	}
+}
