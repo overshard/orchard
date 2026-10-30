@@ -163,7 +163,10 @@ on the week ahead, scored against that week's move. A session that already happe
 from the daily closes in Go, and when its line cites no story it carries what
 the brief after that session's close said, or else is only the move, since
 uncited it blamed one day on the next day's news and by the next midday the
-feeds have dropped most of that session's stories. The forward lines lean on the Fed's meeting
+feeds have dropped most of that session's stories. A closed line can only cite
+an event about US stocks or the Fed, and not an after hours report on the
+session it followed, since it blamed a Wednesday on the UK Budget and a close on
+Amazon's results from after the bell. The forward lines lean on the Fed's meeting
 dates (copied into `calendar.go`, add next year's in December), the BLS and BEA
 release calendars and two documented patterns, the turn of the month and the
 drift into a Fed decision. Above TODAY's headlines sits a read of the day, its
