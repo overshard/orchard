@@ -233,3 +233,21 @@ func TestCloseLineCarriesTheSessionsClose(t *testing.T) {
 		t.Error("TODAY carried from the archive")
 	}
 }
+
+// From a Thursday evening rerun the reach has to cover Wednesday's 2pm Fed
+// decision, and on a Monday morning all of Friday.
+func TestLastSessionNews(t *testing.T) {
+	cases := []struct{ at, want string }{
+		{"2026-10-29 21:18", "2026-10-27 18:00"},
+		{"2026-10-29 07:00", "2026-10-27 18:00"},
+		{"2026-11-02 07:00", "2026-10-29 18:00"},
+	}
+	for _, c := range cases {
+		if got := lastSessionNews(inNY(t, c.at)); !got.Equal(inNY(t, c.want)) {
+			t.Errorf("%s: got %s, want %s", c.at, got.In(easternTime()).Format("2006-01-02 15:04"), c.want)
+		}
+	}
+	if tradingDay(inNY(t, "2026-10-27 18:00")).Weekday() != time.Wednesday {
+		t.Error("6pm Tuesday should be news for Wednesday")
+	}
+}
