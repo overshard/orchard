@@ -367,7 +367,7 @@ func addReactions(ctx context.Context, g *Guard, rows []Earning, today time.Time
 		if err != nil {
 			continue
 		}
-		pct, ok := reaction(series[rows[i].Symbol], day)
+		pct, ok := reaction(series[rows[i].Symbol], day, today)
 		if !ok {
 			continue
 		}
@@ -413,6 +413,13 @@ func fetchDailyCloses(ctx context.Context, g *Guard, symbols []string) (map[stri
 			at := time.Unix(s.Timestamp[i], 0).In(easternTime())
 			days = append(days, dailyClose{date: at.Format("2006-01-02"), close: *c})
 		}
+		// Yahoo's daily bars can lag a session behind its own last price.
+		if m := s.Meta; m.RegularMarketTime > 0 && m.RegularMarketPrice > 0 {
+			d := time.Unix(m.RegularMarketTime, 0).In(easternTime()).Format("2006-01-02")
+			if len(days) == 0 || days[len(days)-1].date < d {
+				days = append(days, dailyClose{date: d, close: m.RegularMarketPrice})
+			}
+		}
 		out[strings.ToUpper(r.Symbol)] = days
 	}
 	return out, nil
@@ -421,7 +428,7 @@ func fetchDailyCloses(ctx context.Context, g *Guard, symbols []string) (map[stri
 // reaction is what the stock did on the announcement, as a percent. Nasdaq
 // drops the pre-market or after-hours flag once a date is past, so the session
 // that moved is taken as the one that heard the news.
-func reaction(days []dailyClose, report time.Time) (float64, bool) {
+func reaction(days []dailyClose, report, today time.Time) (float64, bool) {
 	stamp := report.Format("2006-01-02")
 
 	var before, on, after float64
@@ -437,9 +444,10 @@ func reaction(days []dailyClose, report time.Time) (float64, bool) {
 	}
 
 	// Reported this morning before the bell, so the session it moved is still
-	// open and today's close is the last one there is.
+	// open and today's close is the last one there is. An earlier report with
+	// no session since was after hours and hasn't traded on the news yet.
 	if after == 0 {
-		if before == 0 || on == 0 {
+		if before == 0 || on == 0 || stamp != today.Format("2006-01-02") {
 			return 0, false
 		}
 		return (on/before - 1) * 100, true
