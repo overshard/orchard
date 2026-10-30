@@ -904,7 +904,7 @@ func TestReactionPicksTheSessionThatMoved(t *testing.T) {
 		{"2026-09-04", 100.61},
 	}
 
-	pct, ok := reaction(days, report)
+	pct, ok := reaction(days, report, report)
 	if !ok {
 		t.Fatal("no reaction from three closes")
 	}
@@ -918,7 +918,7 @@ func TestReactionPicksTheSessionThatMoved(t *testing.T) {
 		{"2026-09-02", 354.16},
 		{"2026-09-03", 317.46},
 		{"2026-09-04", 321.00},
-	}, report)
+	}, report, report)
 	if !ok {
 		t.Fatal("no reaction from three closes")
 	}
@@ -931,12 +931,16 @@ func TestReactionPicksTheSessionThatMoved(t *testing.T) {
 // window is the one that is still open.
 func TestReactionOnAnUnfinishedSession(t *testing.T) {
 	report := time.Date(2026, 9, 4, 0, 0, 0, 0, time.UTC)
-	pct, ok := reaction([]dailyClose{{"2026-09-03", 100}, {"2026-09-04", 105}}, report)
+	pct, ok := reaction([]dailyClose{{"2026-09-03", 100}, {"2026-09-04", 105}}, report, report)
 	if !ok || math.Abs(pct-5) > 0.001 {
 		t.Errorf("reaction = %v %v, want 5 true", pct, ok)
 	}
-	if _, ok := reaction([]dailyClose{{"2026-09-04", 105}}, report); ok {
+	if _, ok := reaction([]dailyClose{{"2026-09-04", 105}}, report, report); ok {
 		t.Error("one close cannot be a reaction")
+	}
+	// Last night's print the next morning, before the session that hears it.
+	if _, ok := reaction([]dailyClose{{"2026-09-03", 100}, {"2026-09-04", 105}}, report, report.AddDate(0, 0, 1)); ok {
+		t.Error("an after hours print took the session before the news")
 	}
 }
 
@@ -1104,3 +1108,4 @@ func TestEventsRefusesPastTheWatcherCap(t *testing.T) {
 		t.Errorf("status %d past the cap, want 503", resp.StatusCode)
 	}
 }
+
