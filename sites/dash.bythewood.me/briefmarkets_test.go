@@ -192,3 +192,44 @@ func TestUncitedClosedLineIsTheMove(t *testing.T) {
 		t.Error("a forward line with nothing written was kept")
 	}
 }
+
+// A closed line can name its own session and quote its own move, since the 9B
+// does both whatever the prompt says and the page shows the same figures.
+func TestMarketLinesNameTheirOwnDays(t *testing.T) {
+	yesterday := closedLine("YESTERDAY", 100.28, 100, "why").between(inNY(t, "2026-10-27 09:30"), inNY(t, "2026-10-28 09:30"))
+	today := closedLine("TODAY", 99.7, 100, "why").between(inNY(t, "2026-10-28 09:30"), inNY(t, "2026-10-29 16:05"))
+	at := inNY(t, "2026-10-29 16:05")
+	lines := []marketLine{yesterday, today}
+	if bad := marketProblems(lines, map[string]marketAnswer{
+		"line1": {Text: "The S&P 500 rose 0.28% Wednesday."},
+		"line2": {Text: "Stocks fell 0.30% Thursday."},
+	}, nil, "", at); len(bad) != 0 {
+		t.Errorf("own sessions flagged: %v", bad)
+	}
+	if bad := marketProblems(lines, map[string]marketAnswer{"line1": {Text: "Stocks rose Tuesday.", Sources: []int{1}}},
+		[]cluster{{session: inNY(t, "2026-10-28 00:00"), stories: []story{{title: "Stocks rise"}}}}, "", at); bad["line1"] == "" {
+		t.Error("another session's day named in a closed line")
+	}
+	forward := []marketLine{{label: "TOMORROW", forward: true}}
+	if bad := marketProblems(forward, map[string]marketAnswer{"line1": {Text: "Thursday's GDP report and Wednesday's Fed hold weigh."}}, nil, "GDP and the Fed", at); len(bad) != 0 {
+		t.Errorf("the week so far named in a forward line: %v", bad)
+	}
+}
+
+func TestCloseLineCarriesTheSessionsClose(t *testing.T) {
+	link := []Link{{Source: "WSJ", URL: "https://wsj.test/1", Title: "Stocks rise after Fed"}}
+	past := []Brief{
+		{Slot: inNY(t, "2026-10-28 11:00").Unix(), Points: []Point{{Label: "TODAY", Move: "0.05% SO FAR", Text: "Midday.", Links: link}}},
+		{Slot: inNY(t, "2026-10-28 16:05").Unix(), Points: []Point{{Label: "TODAY", Move: "0.28%", Lean: "up", Text: "Stocks rose after the Fed held.", Links: link}}},
+		{Slot: inNY(t, "2026-10-29 07:00").Unix(), Points: []Point{{Label: "YESTERDAY", Move: "0.28%"}}},
+	}
+	l := closedLine("YESTERDAY", 100.28, 100, "why").between(inNY(t, "2026-10-27 09:30"), inNY(t, "2026-10-28 09:30"))
+	p, ok := closeLine(past, l)
+	if !ok || p.Label != "YESTERDAY" || p.Text != "Stocks rose after the Fed held." || p.Move != "0.28%" {
+		t.Errorf("got %+v, %v", p, ok)
+	}
+	today := closedLine("TODAY", 100.28, 100, "why").between(inNY(t, "2026-10-27 09:30"), inNY(t, "2026-10-28 16:05"))
+	if _, ok := closeLine(past, today); ok {
+		t.Error("TODAY carried from the archive")
+	}
+}

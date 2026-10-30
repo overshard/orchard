@@ -183,6 +183,9 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 		ans := out[fmt.Sprintf("line%d", i+1)]
 		ans.Text = stripParties(ans.Text, source+eventText(picks(events, ans.Sources)...))
 		if pt, ok := marketPoint(l, ans, events); ok {
+			if closed, ok := closeLine(b.archive.since("markets", l.through.AddDate(0, 0, -1)), l); ok && pt.Text == "" {
+				pt = closed
+			}
 			if l.forward {
 				pt.Calendar = calendarClause(l, releases, at)
 				pt.Range = impliedMove(vix, l.week)
@@ -220,6 +223,27 @@ func marketPoint(l marketLine, p marketAnswer, events []cluster) (Point, bool) {
 		pt.Lean = p.Lean
 	}
 	return pt, true
+}
+
+// closeLine is what the last brief written after a past session's close said
+// about it, since by the next midday the feeds have dropped most of its stories.
+func closeLine(past []Brief, l marketLine) (Point, bool) {
+	if l.forward || l.label == "TODAY" || l.label == lastWeek {
+		return Point{}, false
+	}
+	day := l.through.In(easternTime()).Format("2006-01-02")
+	for _, b := range slices.Backward(past) {
+		if time.Unix(b.Slot, 0).In(easternTime()).Format("2006-01-02") != day {
+			continue
+		}
+		for _, p := range b.Points {
+			if p.Label == "TODAY" && p.Move != "" && !strings.HasSuffix(p.Move, " SO FAR") && p.Text != "" && len(p.Links) > 0 {
+				p.Label, p.Lean, p.Move = l.label, l.dir, l.move
+				return p, true
+			}
+		}
+	}
+	return Point{}, false
 }
 
 // spBasis is the S&P card's price, which over a weekend is Friday's last
@@ -503,11 +527,26 @@ func marketProblems(lines []marketLine, out map[string]marketAnswer, events []cl
 			bad[key] = fmt.Sprintf("%s names %s, leave the days ahead out since the page shows the calendar", key, day)
 			continue
 		}
-		if miss := unsupported(text, source+eventText(picks(events, ans.Sources)...)); len(miss) > 0 {
+		if miss := unsupported(text, source+l.sayable(at)+eventText(picks(events, ans.Sources)...)); len(miss) > 0 {
 			bad[key] = fmt.Sprintf("%s has %s, which isn't in the numbers, the calendar or the stories it cites", key, strings.Join(miss, ", "))
 		}
 	}
 	return bad
+}
+
+// sayable is what a line may name without a story having it, its own
+// sessions and move when it's closed and the week so far when it's forward.
+func (l marketLine) sayable(at time.Time) string {
+	var names []string
+	if l.forward {
+		names = slices.DeleteFunc(slices.Clone(weekdays), func(d string) bool { return !pastDay(d, at) })
+	} else {
+		for d := l.after.AddDate(0, 0, 1); l.covers(d); d = d.AddDate(0, 0, 1) {
+			names = append(names, d.Format("Monday"))
+		}
+		names = append(names, l.move)
+	}
+	return "\n" + strings.Join(names, " ") + "\n"
 }
 
 // pastDay is a weekday from earlier in the week at falls in, or at's own, which
