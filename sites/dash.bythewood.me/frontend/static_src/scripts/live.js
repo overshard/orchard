@@ -894,7 +894,7 @@ function reportedRow(r) {
   const call = el("b", null, r.verdict);
   call.dataset.verdict = r.verdict;
   detail.append(call);
-  detail.append(el("span", "figs", `${r.actual} v ${r.forecast}`));
+  detail.append(el("span", "figs", r.actual ? `${r.actual} v ${r.forecast}` : r.est ? `EST ${r.est}` : ""));
   detail.append(el("span", "on", r.day));
   if (r.note) detail.append(el("span", "note", r.note));
   li.append(detail);

@@ -47,6 +47,7 @@ const (
 	// Nasdaq's first actual for a print arrives with no surprise figure and is
 	// usually revised a few hours later, often from a miss to a beat.
 	earningsPrelim = "PRELIM"
+	earningsOut    = "OUT"
 )
 
 // Earning is one row. A reported row and an upcoming row are the same shape
@@ -196,7 +197,7 @@ func recentReports(day func(time.Time) ([]Earning, bool), today time.Time) []Ear
 	for _, d := range []time.Time{today, lastWeekday(today)} {
 		rows, _ := day(d)
 		for _, r := range rows {
-			if reportedRow(r) {
+			if reportedRow(r) && r.Verdict != earningsOut {
 				out = append(out, r)
 			}
 		}
@@ -306,6 +307,9 @@ func earningsDay(ctx context.Context, g *Guard, day, today time.Time, caps map[s
 		case hasForecast:
 			e.Est = money(forecast)
 			e.Ests = strings.TrimSpace(r.NoOfEsts)
+		}
+		if e.Verdict == "" && printed(e.When, day, today) {
+			e.Verdict = earningsOut
 		}
 
 		out = append(out, e)
@@ -474,6 +478,15 @@ func earningsNote(verdict string, move float64) string {
 		return "BOUGHT THE MISS"
 	}
 	return ""
+}
+
+// printed is a report that has happened before Nasdaq has its figures, which
+// it fills in around 2am the next day: a before the bell one once the session
+// opens, and any from the weekday before.
+func printed(when string, day, today time.Time) bool {
+	d, t := day.Format("2006-01-02"), today.Format("2006-01-02")
+	open := time.Date(today.Year(), today.Month(), today.Day(), 9, 30, 0, 0, today.Location())
+	return d == lastWeekday(today).Format("2006-01-02") || d == t && when == "PRE" && !today.Before(open)
 }
 
 // provisional is a recent print Nasdaq hasn't put a surprise figure on yet.

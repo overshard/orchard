@@ -107,9 +107,11 @@ fills the panel with ASML, TSM and ARM.
 `time-not-supplied`, so which of the two sessions around a report carried it is
 not knowable from the calendar. The reaction takes the one that moved, which is
 right for both cases and does not matter when neither moved. The presence of an
-actual EPS is also what sorts a row into reported or upcoming, rather than
-comparing its date to today, so a company that reported before the bell this
-morning reads correctly.
+actual EPS is what sorts a row into reported or upcoming, except that Nasdaq
+only fills the actual in around 2am the next day, so a before the bell row past
+9:30 and any row from the weekday before with no actual reads OUT, reported with
+its estimate and a move. An after hours print gets no move until the session
+that hears it has traded, since the only one there is came before the news.
 
 **Nothing free publishes guidance.** A beat the market sold is the closest this
 gets, so a row where the result and the move disagree by more than 1.5% is
