@@ -278,7 +278,8 @@ onto the rows by URL with the time it was read. A thread the last slot read
 keeps that read until it has half again the comments it was read from, and its
 article's TL;DR for good, since most of the front page is still there a slot
 later and the model calls are most of the desk's time. A thread that turned up after
-the last slot has comments and no read. A read that doesn't end on a full stop
+the last slot has comments and no read, and its card says the next brief will
+write it. A read that doesn't end on a full stop
 was cut at the cap and gets one retry, since `whole` would keep "while others."
 
 **The cards' TL;DRs come off the article pages, read at each slot.** The feeds
