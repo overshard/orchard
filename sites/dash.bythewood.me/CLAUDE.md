@@ -158,8 +158,10 @@ ten highest rated and the writer only rewrites them as headlines, so the
 order on the page is the impact order. The markets line is always the last
 session, today and the next, and on a weekend it's the week just gone and a lean
 on the week ahead, scored against that week's move. A session that already happened gets its up or down
-from the daily closes in Go, and when its line cites no story the line is only
-that move, since uncited it blamed one day on the next day's news. The forward lines lean on the Fed's meeting
+from the daily closes in Go, and when its line cites no story it carries what
+the brief after that session's close said, or else is only the move, since
+uncited it blamed one day on the next day's news and by the next midday the
+feeds have dropped most of that session's stories. The forward lines lean on the Fed's meeting
 dates (copied into `calendar.go`, add next year's in December), the BLS and BEA
 release calendars and two documented patterns, the turn of the month and the
 drift into a Fed decision. Above TODAY's headlines sits a read of the day, its
@@ -203,7 +205,8 @@ isn't about the event it cites, gets one retry naming the problem and is
 dropped after. A party tag the source doesn't carry is cut, and links follow
 only the cited events a point is about. Every point and read field that passes
 then gets a yes or no from the model against the reports it came from, in the
-same load. A forward market line never names a day ahead, since the model got
+same load. A market line may name its own sessions' weekdays and its own move, and a
+forward one the week so far, without a story having them. A forward market line never names a day ahead, since the model got
 the Fed's wrong for days running, so Go writes each one's calendar beside it (`FED 2PM
 · GDP 8:30AM`) and the move the VIX prices for it, VIX over the root of 252 for
 a session and 52 for a week.
