@@ -114,7 +114,26 @@ function talk(row) {
     return p;
   });
   if (steps.length) out.push(section("EARLIER", steps));
+  const pending = waiting(row, !gist, !read);
+  if (pending) out.unshift(pending);
   return out;
+}
+
+// A feed row that came onto the page after the last brief has no TL;DR or read
+// until the next one, which the card says instead of leaving them out.
+function waiting(row, noGist, noRead) {
+  const cmt = row.querySelector(".cmt[data-href]");
+  if (!cmt || !row.querySelector(":scope > a.go")) return null;
+  noRead = noRead && cmt.firstChild.textContent.trim() !== "0";
+  if (!noGist && !noRead) return null;
+  const what = noGist && noRead ? "The TL;DR and the comment read" : noGist ? "The TL;DR" : "The comment read";
+  const next = document.querySelector("[data-next-brief]");
+  const p = document.createElement("p");
+  p.className = "tip-read";
+  p.textContent = noGist && noRead
+    ? `${what} haven't been written yet, they come with the next brief.`
+    : `${what} hasn't been written yet, it comes with the next brief.`;
+  return section(next && next.textContent ? `NOT READ YET / NEXT BRIEF ${next.textContent}` : "NOT READ YET", [p]);
 }
 
 // A story row carries its article and comments, a brief row or a read carries
