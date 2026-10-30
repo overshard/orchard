@@ -231,3 +231,24 @@ func TestReadDropsAFieldAboutAnotherEvent(t *testing.T) {
 		t.Errorf("%+v %d asks %v", r, len(covered), m.asks)
 	}
 }
+
+// The 9B calls a line unsupported for detail the reports have and the line
+// never claimed, so only a phrase it can point to in the line drops it.
+func TestGroundedNeedsAPhraseInTheLine(t *testing.T) {
+	line := "A judge blocked the Medicaid work requirement rule."
+	m := &scriptedModel{answers: []string{
+		`{"reason": "The reports don't mention the lawsuit or the 25 states.", "unbacked": ["the lawsuit", "25 states"], "verdict": "unsupported"}`,
+		`{"reason": "No report says a ship burned.", "unbacked": ["A ship burned"], "verdict": "unsupported"}`,
+		`{"reason": "Fine.", "unbacked": [], "verdict": "supported"}`,
+	}}
+	b := &Briefer{model: m}
+	if !b.grounded(context.Background(), line, "reports") {
+		t.Error("dropped over detail the line never claimed")
+	}
+	if b.grounded(context.Background(), "A ship burned after Iran said tankers hit mines.", "reports") {
+		t.Error("kept a line with an unbacked phrase in it")
+	}
+	if !b.grounded(context.Background(), line, "reports") {
+		t.Error("dropped a supported line")
+	}
+}
