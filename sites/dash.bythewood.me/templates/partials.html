@@ -149,7 +149,7 @@
   <span class="move">{{.Move}}</span>
   <span class="detail">
     <b data-verdict="{{.Verdict}}">{{.Verdict}}</b>
-    <span class="figs">{{.Actual}} v {{.Forecast}}</span>
+    <span class="figs">{{if .Actual}}{{.Actual}} v {{.Forecast}}{{else if .Est}}EST {{.Est}}{{end}}</span>
     <span class="on">{{.Day}}</span>
     {{if .Note}}<span class="note">{{.Note}}</span>{{end}}
   </span>

@@ -1812,7 +1812,7 @@ main {
 
   b[data-verdict="BEAT"] { color: var(--up); }
   b[data-verdict="MISS"] { color: var(--down); }
-  b[data-verdict="MET"] { color: var(--muted); }
+  b[data-verdict="MET"], b[data-verdict="OUT"] { color: var(--muted); }
 
   li[data-dir="up"] .move { color: var(--up); }
   li[data-dir="down"] .move { color: var(--down); }

@@ -1109,3 +1109,38 @@ func TestEventsRefusesPastTheWatcherCap(t *testing.T) {
 	}
 }
 
+// Nasdaq only has the figures the morning after, so a print that has happened
+// counts as out before they land.
+func TestPrinted(t *testing.T) {
+	et := easternTime()
+	thu := time.Date(2026, 10, 29, 0, 0, 0, 0, et)
+	cases := []struct {
+		when string
+		day  time.Time
+		now  time.Time
+		want bool
+	}{
+		{"PRE", thu, time.Date(2026, 10, 29, 9, 0, 0, 0, et), false},
+		{"PRE", thu, time.Date(2026, 10, 29, 9, 30, 0, 0, et), true},
+		{"POST", thu, time.Date(2026, 10, 29, 21, 0, 0, 0, et), false},
+		{"POST", thu, time.Date(2026, 10, 30, 6, 0, 0, 0, et), true},
+		{"", time.Date(2026, 10, 23, 0, 0, 0, 0, et), time.Date(2026, 10, 26, 6, 0, 0, 0, et), true},
+		{"", time.Date(2026, 10, 22, 0, 0, 0, 0, et), time.Date(2026, 10, 26, 6, 0, 0, 0, et), false},
+		{"PRE", time.Date(2026, 10, 30, 0, 0, 0, 0, et), time.Date(2026, 10, 29, 21, 0, 0, 0, et), false},
+	}
+	for _, c := range cases {
+		if got := printed(c.when, c.day, c.now); got != c.want {
+			t.Errorf("%s %s at %s: got %v", c.when, c.day.Format("Jan 2"), c.now.Format("Jan 2 15:04"), got)
+		}
+	}
+}
+
+func TestRecentReportsSkipsOut(t *testing.T) {
+	day := func(time.Time) ([]Earning, bool) {
+		return []Earning{{Symbol: "LLY", Verdict: earningsOut}, {Symbol: "MSFT", Verdict: "BEAT"}, {Symbol: "AMZN"}}, true
+	}
+	got := recentReports(day, time.Date(2026, 10, 29, 12, 0, 0, 0, easternTime()))
+	if len(got) != 2 || got[0].Symbol != "MSFT" {
+		t.Errorf("got %+v", got)
+	}
+}
