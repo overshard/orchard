@@ -67,9 +67,9 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 	b.store.refreshBoard(ctx, b.guard)
 
 	now := time.Now()
-	// YESTERDAY needs the stories about yesterday's close whatever the slot,
+	// YESTERDAY needs every story about the last session whatever the slot,
 	// and a weekend brief reads back to Friday morning.
-	reach := max(slot.reach, 30*time.Hour)
+	reach := max(slot.reach, at.Sub(lastSessionNews(at)))
 	if weekend(at) {
 		reach = max(reach, 72*time.Hour)
 	}
@@ -628,6 +628,13 @@ func (l marketLine) only() string {
 		names = []string{strings.Join(names[:len(names)-1], ", ") + " or " + names[len(names)-1]}
 	}
 	return ", using only stories marked " + names[0] + "'s session"
+}
+
+// lastSessionNews is when news for the session before at's starts, 6pm on the
+// weekday before it, which is where tradingDay rolls.
+func lastSessionNews(at time.Time) time.Time {
+	d := prevWeekday(prevWeekday(at.In(easternTime())))
+	return time.Date(d.Year(), d.Month(), d.Day(), 18, 0, 0, 0, d.Location())
 }
 
 // tradingDay is the session a story is news for. Futures reopen at 6pm New
