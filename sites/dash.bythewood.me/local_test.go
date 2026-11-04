@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"testing"
 	"time"
@@ -93,7 +94,23 @@ func TestParsePollenUnpaddedAndHidden(t *testing.T) {
 	if err != nil || got["Trees"] != 1 || got["Weeds"] != 3 {
 		t.Fatalf("11/1 = %v, %v, want the forecast", got, err)
 	}
-	if got, err := parsePollen(page, day(3)); err == nil {
-		t.Fatalf("hidden 11/3 = %v, want no reading", got)
+	if got, err := parsePollen(page, day(3)); err == nil || errors.Is(err, errPollenOff) {
+		t.Fatalf("hidden 11/3 = %v, %v, want no reading", got, err)
+	}
+
+	last := page + `<p>TODAY IS THE LAST DAY OF OUR CY2026 POLLEN MONITORING AND REPORTING SEASON.</p>`
+	if _, err := parsePollen(last, day(1)); err != nil {
+		t.Fatalf("the last report's forecast should still read, got %v", err)
+	}
+	if _, err := parsePollen(last, day(3)); !errors.Is(err, errPollenOff) {
+		t.Fatalf("after the last report = %v, want off season", err)
+	}
+
+	stale := `<table id="Graph"><caption>Friday, October 30, 2026</caption></table>` + page
+	if _, err := parsePollen(stale, day(5)); errors.Is(err, errPollenOff) {
+		t.Fatal("a report six days old is not off season")
+	}
+	if _, err := parsePollen(stale, day(9)); !errors.Is(err, errPollenOff) {
+		t.Fatalf("a report ten days old = %v, want off season", err)
 	}
 }

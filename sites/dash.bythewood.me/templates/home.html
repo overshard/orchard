@@ -186,7 +186,7 @@
       <div class="gauges" data-air>
         {{template "gauge" dict "Key" "UV" "Value" .State.Weather.UV "Band" .State.Weather.UVState "Fill" .State.Weather.UVFill "Level" .State.Weather.UVLevel "Known" true}}
         {{template "gauge" dict "Key" "AQI" "Value" .State.Air.AQI "Band" .State.Air.AQIState "Fill" .State.Air.AQIFill "Level" .State.Air.AQILevel "Known" .State.Air.Known}}
-        {{template "gauge" dict "Key" "POLLEN" "Value" .State.Air.Pollen "Band" .State.Air.PollenState "Fill" .State.Air.PollenFill "Level" .State.Air.PollenLevel "Known" .State.Air.PollenKnown}}
+        {{template "gauge" dict "Key" "POLLEN" "Value" .State.Air.Pollen "Band" .State.Air.PollenState "Fill" .State.Air.PollenFill "Level" .State.Air.PollenLevel "Known" .State.Air.PollenKnown "Off" .State.Air.PollenOff}}
       </div>
 
       <div class="hours" data-hours>

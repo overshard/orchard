@@ -486,7 +486,7 @@ function renderAir(weather, air) {
   const host = document.querySelector("[data-air]");
   if (!host) return;
 
-  const gauge = (key, value, band, fill, level, known, note) => {
+  const gauge = (key, value, band, fill, level, known, note, off) => {
     const box = el("div", "gauge");
     box.dataset.level = String(level || 0);
     box.append(el("span", "gk", key));
@@ -494,7 +494,7 @@ function renderAir(weather, air) {
     if (!known) {
       box.append(el("span", "gv dim", "—"));
       box.append(el("span", "gbar"));
-      box.append(el("span", "gb", "NO SIGNAL"));
+      box.append(el("span", "gb", off ? "OFF SEASON" : "NO SIGNAL"));
       return box;
     }
 
@@ -516,7 +516,7 @@ function renderAir(weather, air) {
       air && air.aqi_fill, air && air.aqi_level, Boolean(air && air.known)),
     gauge("POLLEN", air && air.pollen, air && air.pollen_state,
       air && air.pollen_fill, air && air.pollen_level,
-      Boolean(air && air.pollen_known)),
+      Boolean(air && air.pollen_known), "", Boolean(air && air.pollen_off)),
   );
 }
 
