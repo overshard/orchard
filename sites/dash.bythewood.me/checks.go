@@ -156,6 +156,7 @@ const groundSystem = `You check one news headline against the reports it was wri
 - "reason" is one short sentence on whether every fact in the headline is in the reports.
 - "unbacked" is each phrase of the headline the reports don't back, copied word for word from the headline, and empty when they back all of it.
 - "verdict" is "supported" when the reports say what the headline says, and "unsupported" when the headline adds a fact, a name, a number or an outcome the reports don't give, or says something the reports contradict.
+- The reports are several outlets on one story. A fact any one report gives is backed, even when the others leave it out or tell a different part.
 - Wording doesn't matter, only facts. A headline that leaves things out is still supported.`
 
 // grounded asks the model whether the reports back line. A failed call keeps
