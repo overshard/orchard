@@ -77,3 +77,23 @@ func TestParsePollen(t *testing.T) {
 		t.Fatalf("summary = %+v", p)
 	}
 }
+
+// The county writes November 1st as 11/1/2026, and keeps a day it hasn't
+// forecast yet as a hidden column of zeros.
+func TestParsePollenUnpaddedAndHidden(t *testing.T) {
+	page := `<table id="Forecast"><thead><tr><td class="empty"></td>
+<th scope="col"> Sunday<br/>11/1/2026 </th>
+<th scope="col" style="display: none;"> Tuesday<br/>11/3/2026 </th></tr></thead>
+<tbody><tr><th scope="row">Trees </th><td> 1 </td><td style="display: none;"> 0 </td></tr>
+<tr><th scope="row">Grasses </th><td> 2 </td><td style="display: none;"> 0 </td></tr>
+<tr><th scope="row">Weeds </th><td> 3 </td><td style="display: none;"> 0 </td></tr></tbody></table>`
+	day := func(d int) time.Time { return time.Date(2026, 11, d, 12, 0, 0, 0, time.UTC) }
+
+	got, err := parsePollen(page, day(1))
+	if err != nil || got["Trees"] != 1 || got["Weeds"] != 3 {
+		t.Fatalf("11/1 = %v, %v, want the forecast", got, err)
+	}
+	if got, err := parsePollen(page, day(3)); err == nil {
+		t.Fatalf("hidden 11/3 = %v, want no reading", got)
+	}
+}
