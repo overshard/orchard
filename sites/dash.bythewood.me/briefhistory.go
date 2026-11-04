@@ -156,12 +156,17 @@ func intensity(past []Brief, at time.Time) []DayShare {
 	return out
 }
 
-// weekReview is the week's closed sessions as the markets desk explained them,
-// one event a session, so Saturday's look back still has the reasons after the
-// feeds have moved on.
-func weekReview(past []Brief, monday time.Time) []cluster {
+// sessionPoint is one closed session's line as a markets brief wrote it.
+type sessionPoint struct {
+	day, slot time.Time
+	point     Point
+}
+
+// weekSessions is each closed session from monday on as the markets desk last
+// explained it with a citation, oldest first.
+func weekSessions(past []Brief, monday time.Time) []sessionPoint {
 	et := easternTime()
-	byDay := map[string]cluster{}
+	byDay := map[string]sessionPoint{}
 	var days []string
 	for _, b := range past {
 		slot := time.Unix(b.Slot, 0).In(et)
@@ -177,25 +182,37 @@ func weekReview(past []Brief, monday time.Time) []cluster {
 			if day.Before(monday) || weekend(day) {
 				continue
 			}
-			c := cluster{session: day, newest: slot}
-			for i, l := range p.Links {
-				s := story{title: l.Title, url: l.URL, source: l.Source, lean: outletLean(l.Source), at: slot, words: significant(l.Title)}
-				if i == 0 {
-					s.desc = fmt.Sprintf("The S&P 500 was %s %s, explained then as: %s", p.Lean, p.Move, p.Text)
-				}
-				c.stories = append(c.stories, s)
-			}
 			key := day.Format("2006-01-02")
 			if _, ok := byDay[key]; !ok {
 				days = append(days, key)
 			}
-			byDay[key] = c
+			byDay[key] = sessionPoint{day: day, slot: slot, point: p}
 		}
 	}
 	slices.Sort(days)
-	var out []cluster
+	var out []sessionPoint
 	for _, d := range days {
 		out = append(out, byDay[d])
+	}
+	return out
+}
+
+// weekReview is the week's closed sessions as the markets desk explained them,
+// one event a session, so Saturday's look back still has the reasons after the
+// feeds have moved on.
+func weekReview(past []Brief, monday time.Time) []cluster {
+	var out []cluster
+	for _, sp := range weekSessions(past, monday) {
+		p := sp.point
+		c := cluster{session: sp.day, newest: sp.slot}
+		for i, l := range p.Links {
+			s := story{title: l.Title, url: l.URL, source: l.Source, lean: outletLean(l.Source), at: sp.slot, words: significant(l.Title)}
+			if i == 0 {
+				s.desc = fmt.Sprintf("The S&P 500 was %s %s, explained then as: %s", p.Lean, p.Move, p.Text)
+			}
+			c.stories = append(c.stories, s)
+		}
+		out = append(out, c)
 	}
 	return out
 }

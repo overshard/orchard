@@ -214,6 +214,31 @@ func TestWeekReviewAndHeldWeek(t *testing.T) {
 	}
 }
 
+// LAST WEEK falls back to the week's biggest session when the 9B's own line
+// fails its checks, and a line with only the move isn't held over.
+func TestWeekLineAndEmptyHeld(t *testing.T) {
+	link := []Link{{Source: "WSJ", URL: "https://wsj.test/1", Title: "Stocks fall"}}
+	past := []Brief{
+		{Slot: inNY(t, "2026-10-27 16:05").Unix(), Points: []Point{{Label: "TODAY", Lean: "up", Move: "0.40%", Text: "Banks rose.", Links: link}}},
+		{Slot: inNY(t, "2026-10-29 16:05").Unix(), Points: []Point{{Label: "TODAY", Lean: "down", Move: "1.20%", Text: "The Fed held.", Links: link}}},
+		{Slot: inNY(t, "2026-10-30 16:05").Unix(), Points: []Point{{Label: "TODAY", Lean: "down", Move: "0.30%"}}},
+	}
+	l := closedLine(lastWeek, 99, 100, "").between(inNY(t, "2026-10-23 00:00"), inNY(t, "2026-10-30 00:00"))
+	pt, ok := weekLine(past, l)
+	if !ok || pt.Text != "Thursday was the biggest day, down 1.20%. The Fed held." || pt.Move != "1.00%" || pt.Lean != "down" || len(pt.Links) != 1 {
+		t.Fatalf("weekLine = %+v, %v", pt, ok)
+	}
+	if _, ok := weekLine(nil, l); ok {
+		t.Error("no sessions should give no line")
+	}
+
+	sat := inNY(t, "2026-10-31 07:00").Unix()
+	prev := Brief{Slot: sat, Basis: "6,800", Points: []Point{{Label: lastWeek, Lean: "down", Move: "1.00%"}}}
+	if _, ok := heldLine(prev, Brief{Slot: sat + 3600, Basis: "6,800"}, lastWeek); ok {
+		t.Error("held a LAST WEEK with no text")
+	}
+}
+
 // A read field about the wrong event gets a retry naming it, and one still
 // wrong after is left out of the read and its links.
 func TestReadDropsAFieldAboutAnotherEvent(t *testing.T) {
