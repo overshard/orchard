@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"html"
 	"math"
@@ -235,6 +236,7 @@ type PollenReading struct {
 	PollenState string  `json:"pollen_state"`
 	PollenTop   string  `json:"pollen_top"`
 	PollenKnown bool    `json:"pollen_known"`
+	PollenOff   bool    `json:"pollen_off"`
 	PollenFill  float64 `json:"pollen_fill"`
 	PollenLevel int     `json:"pollen_level"`
 }
@@ -314,6 +316,19 @@ var (
 
 var pollenTypes = []string{"Trees", "Grasses", "Weeds"}
 
+// errPollenOff is the county between seasons, which it ends with a last report
+// in late October and doesn't sample again until February.
+var errPollenOff = errors.New("pollen: off season")
+
+// pollenOff is whether a page with no reading for day is between seasons, by
+// the last report saying so or by being a week old.
+func pollenOff(page string, posted, day time.Time) bool {
+	if strings.Contains(strings.ToLower(page), "last day of our") {
+		return true
+	}
+	return !posted.IsZero() && day.Sub(posted) > 7*24*time.Hour
+}
+
 // pollenTable is the table with this id, cut out of the page.
 func pollenTable(page, id string) string {
 	i := strings.Index(page, `id="`+id+`"`)
@@ -350,9 +365,10 @@ func pollenCells(table string) []string {
 func parsePollen(page string, day time.Time) (map[string]int, error) {
 	want := day.Format("01/02/2006")
 
+	var posted time.Time
 	if m := pollenCaption.FindStringSubmatch(pollenTable(page, "Graph")); m != nil {
-		posted, err := time.Parse("Monday, January 2, 2006", pollenText(m[1]))
-		if err == nil && posted.Format("01/02/2006") == want {
+		posted, _ = time.Parse("Monday, January 2, 2006", pollenText(m[1]))
+		if posted.Format("01/02/2006") == want {
 			cells := pollenCells(pollenTable(page, "Statistics"))
 			if counts, ok := pollenRow(cells, 1, 0); ok {
 				return counts, nil
@@ -369,6 +385,9 @@ func parsePollen(page string, day time.Time) (map[string]int, error) {
 			col = i - 1
 			break
 		}
+	}
+	if col < 0 && pollenOff(page, posted, day) {
+		return nil, errPollenOff
 	}
 	if col < 0 {
 		return nil, fmt.Errorf("pollen: no reading for %s", want)
@@ -404,6 +423,9 @@ func fetchPollen(ctx context.Context, g *Guard, now time.Time) (PollenReading, e
 		return PollenReading{}, err
 	}
 	counts, err := parsePollen(page, now.In(easternTime()))
+	if errors.Is(err, errPollenOff) {
+		return PollenReading{PollenOff: true}, nil
+	}
 	if err != nil {
 		return PollenReading{}, err
 	}
