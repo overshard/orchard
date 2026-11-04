@@ -306,9 +306,9 @@ func aqiBand(aqi int) string {
 }
 
 var (
-	pollenCell    = regexp.MustCompile(`(?s)<t[hd][^>]*>(.*?)</t[hd]>`)
+	pollenCell    = regexp.MustCompile(`(?s)<t[hd]([^>]*)>(.*?)</t[hd]>`)
 	pollenCaption = regexp.MustCompile(`(?s)<caption>(.*?)</caption>`)
-	pollenDate    = regexp.MustCompile(`\d{2}/\d{2}/\d{4}`)
+	pollenDate    = regexp.MustCompile(`\d{1,2}/\d{1,2}/\d{4}`)
 	pollenTag     = regexp.MustCompile(`<[^>]+>`)
 )
 
@@ -331,10 +331,16 @@ func pollenText(s string) string {
 	return strings.Join(strings.Fields(html.UnescapeString(pollenTag.ReplaceAllString(s, " "))), " ")
 }
 
+// pollenCells is each cell's text, with a hidden one left empty, since the
+// county keeps a day it hasn't forecast yet in the table as hidden zeros.
 func pollenCells(table string) []string {
 	var cells []string
 	for _, m := range pollenCell.FindAllStringSubmatch(table, -1) {
-		cells = append(cells, pollenText(m[1]))
+		if strings.Contains(strings.ReplaceAll(m[1], " ", ""), "display:none") {
+			cells = append(cells, "")
+			continue
+		}
+		cells = append(cells, pollenText(m[2]))
 	}
 	return cells
 }
@@ -357,7 +363,8 @@ func parsePollen(page string, day time.Time) (map[string]int, error) {
 	cells := pollenCells(pollenTable(page, "Forecast"))
 	col := -1
 	for i, c := range cells {
-		if pollenDate.FindString(c) == want {
+		d, err := time.Parse("1/2/2006", pollenDate.FindString(c))
+		if err == nil && d.Format("01/02/2006") == want {
 			// Less one for the empty corner cell.
 			col = i - 1
 			break
