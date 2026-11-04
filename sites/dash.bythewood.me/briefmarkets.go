@@ -188,6 +188,11 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 			if closed, ok := closeLine(b.archive.since("markets", l.through.AddDate(0, 0, -1)), l); ok && pt.Text == "" {
 				pt = closed
 			}
+			if l.label == lastWeek && pt.Text == "" {
+				if week, ok := weekLine(b.archive.since("markets", l.after), l); ok {
+					pt = week
+				}
+			}
 			if l.forward {
 				pt.Calendar = calendarClause(l, releases, at)
 				pt.Range = impliedMove(vix, l.week)
@@ -248,6 +253,29 @@ func closeLine(past []Brief, l marketLine) (Point, bool) {
 	return Point{}, false
 }
 
+// weekLine is the week's biggest session as the brief after it explained it,
+// for when the 9B's own look back fails its checks.
+func weekLine(past []Brief, l marketLine) (Point, bool) {
+	var best Point
+	var bestDay time.Time
+	most := -1.0
+	for _, sp := range weekSessions(past, l.after.AddDate(0, 0, 1)) {
+		if sp.day.After(l.through) {
+			continue
+		}
+		pct, err := strconv.ParseFloat(strings.TrimSuffix(sp.point.Move, "%"), 64)
+		if err == nil && pct > most {
+			best, bestDay, most = sp.point, sp.day, pct
+		}
+	}
+	if most < 0 {
+		return Point{}, false
+	}
+	best.Text = fmt.Sprintf("%s was the biggest day, %s %s. %s", bestDay.Format("Monday"), best.Lean, best.Move, best.Text)
+	best.Label, best.Lean, best.Move = l.label, l.dir, l.move
+	return best, true
+}
+
 // spBasis is the S&P card's price, which over a weekend is Friday's last
 // futures print and doesn't move until they reopen Sunday evening.
 func spBasis(m Market) string {
@@ -285,7 +313,7 @@ func heldLine(prev, b Brief, label string) (Point, bool) {
 		return Point{}, false
 	}
 	for _, p := range prev.Points {
-		if p.Label == label && p.Lean != "" {
+		if p.Label == label && p.Lean != "" && p.Text != "" {
 			return p, true
 		}
 	}
