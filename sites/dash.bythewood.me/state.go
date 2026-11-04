@@ -318,13 +318,13 @@ func (s *Store) refreshSignal(ctx context.Context, g *Guard) {
 }
 
 func (s *Store) refreshEarnings(ctx context.Context, g *Guard) {
-	known := s.Snapshot().Earnings.recent
-	rows, err := fetchEarnings(ctx, g, time.Now())
+	e := s.Snapshot().Earnings
+	rows, err := fetchEarnings(ctx, g, time.Now(), e.sessions)
 	if err != nil {
 		pollFailed(ctx, "earnings", "earnings", err)
 		return
 	}
-	logReports(changedReports(rows.recent, known))
+	logReports(changedReports(rows.recent, e.recent))
 	s.update(func(st *State) {
 		st.Earnings = rows
 	})

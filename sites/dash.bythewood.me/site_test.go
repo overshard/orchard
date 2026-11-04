@@ -904,7 +904,7 @@ func TestReactionPicksTheSessionThatMoved(t *testing.T) {
 		{"2026-09-04", 100.61},
 	}
 
-	pct, ok := reaction(days, report, report)
+	pct, ok := reaction(days, report, report, "")
 	if !ok {
 		t.Fatal("no reaction from three closes")
 	}
@@ -918,7 +918,7 @@ func TestReactionPicksTheSessionThatMoved(t *testing.T) {
 		{"2026-09-02", 354.16},
 		{"2026-09-03", 317.46},
 		{"2026-09-04", 321.00},
-	}, report, report)
+	}, report, report, "")
 	if !ok {
 		t.Fatal("no reaction from three closes")
 	}
@@ -931,16 +931,55 @@ func TestReactionPicksTheSessionThatMoved(t *testing.T) {
 // window is the one that is still open.
 func TestReactionOnAnUnfinishedSession(t *testing.T) {
 	report := time.Date(2026, 9, 4, 0, 0, 0, 0, time.UTC)
-	pct, ok := reaction([]dailyClose{{"2026-09-03", 100}, {"2026-09-04", 105}}, report, report)
+	pct, ok := reaction([]dailyClose{{"2026-09-03", 100}, {"2026-09-04", 105}}, report, report, "")
 	if !ok || math.Abs(pct-5) > 0.001 {
 		t.Errorf("reaction = %v %v, want 5 true", pct, ok)
 	}
-	if _, ok := reaction([]dailyClose{{"2026-09-04", 105}}, report, report); ok {
+	if _, ok := reaction([]dailyClose{{"2026-09-04", 105}}, report, report, ""); ok {
 		t.Error("one close cannot be a reaction")
 	}
 	// Last night's print the next morning, before the session that hears it.
-	if _, ok := reaction([]dailyClose{{"2026-09-03", 100}, {"2026-09-04", 105}}, report, report.AddDate(0, 0, 1)); ok {
+	if _, ok := reaction([]dailyClose{{"2026-09-03", 100}, {"2026-09-04", 105}}, report, report.AddDate(0, 0, 1), ""); ok {
 		t.Error("an after hours print took the session before the news")
+	}
+}
+
+// Friday's before the bell print still has its move on the weekend, when there
+// is no session after it and Nasdaq has stopped saying it was PRE.
+func TestReactionUsesTheRememberedSession(t *testing.T) {
+	friday := time.Date(2026, 10, 30, 0, 0, 0, 0, time.UTC)
+	sunday := friday.AddDate(0, 0, 2)
+	days := []dailyClose{{"2026-10-29", 100}, {"2026-10-30", 102}}
+
+	if pct, ok := reaction(days, friday, sunday, "PRE"); !ok || math.Abs(pct-2) > 0.001 {
+		t.Errorf("PRE on Sunday = %v %v, want 2 true", pct, ok)
+	}
+	for _, when := range []string{"POST", ""} {
+		if _, ok := reaction(days, friday, sunday, when); ok {
+			t.Errorf("%q on Sunday took Friday's session", when)
+		}
+	}
+
+	// A flag beats the bigger move.
+	days = append(days, dailyClose{"2026-11-02", 112.2})
+	if pct, _ := reaction(days, friday, sunday, "PRE"); math.Abs(pct-2) > 0.001 {
+		t.Errorf("PRE with Monday's close = %v, want 2", pct)
+	}
+}
+
+func TestRememberSessions(t *testing.T) {
+	today := time.Date(2026, 11, 3, 0, 0, 0, 0, time.UTC)
+	known := map[string]string{"XOM2026-10-30": "PRE", "OLD2026-09-01": "POST"}
+	fetched := map[string][]Earning{"2026-11-03": {
+		{Symbol: "AMD", date: "2026-11-03", When: "POST"},
+		{Symbol: "XOM", date: "2026-10-30"},
+	}}
+	got := rememberSessions(known, fetched, today)
+	if got["XOM2026-10-30"] != "PRE" || got["AMD2026-11-03"] != "POST" {
+		t.Errorf("sessions = %v", got)
+	}
+	if _, ok := got["OLD2026-09-01"]; ok {
+		t.Error("a print past the walk back was kept")
 	}
 }
 

@@ -94,6 +94,10 @@ type Earnings struct {
 	// check between full polls filters against.
 	recent []Earning
 	caps   map[string]float64
+
+	// PRE or POST for each print by symbol and date, kept from the polls that
+	// saw it, since Nasdaq stops saying once the date is past.
+	sessions map[string]string
 }
 
 func (e Earnings) empty() bool { return len(e.Reported) == 0 && len(e.Upcoming) == 0 }
@@ -124,7 +128,7 @@ type nasdaqScreener struct {
 	} `json:"data"`
 }
 
-func fetchEarnings(ctx context.Context, g *Guard, now time.Time) (Earnings, error) {
+func fetchEarnings(ctx context.Context, g *Guard, now time.Time, known map[string]string) (Earnings, error) {
 	caps, err := fetchIndexCaps(ctx, g)
 	if err != nil {
 		return Earnings{}, err
@@ -151,6 +155,12 @@ func fetchEarnings(ctx context.Context, g *Guard, now time.Time) (Earnings, erro
 	out.Reported = walkEarnings(day, today, -1, earningsBackDays, reportedRow)
 	out.Upcoming = walkEarnings(day, today, 1, earningsNextDays, upcomingRow)
 	out.recent = recentReports(day, today)
+	out.sessions = rememberSessions(known, fetched, today)
+	for i := range out.Reported {
+		if r := &out.Reported[i]; r.When == "" {
+			r.When = out.sessions[r.Symbol+r.date]
+		}
+	}
 
 	// Today's pre-market names land in Reported ahead of yesterday's, and the
 	// walk visits days newest first, so the halves are already in the order they
@@ -161,6 +171,24 @@ func fetchEarnings(ctx context.Context, g *Guard, now time.Time) (Earnings, erro
 		return Earnings{}, fmt.Errorf("nasdaq: no top %d name reports in the window", earningsRank)
 	}
 	return out, nil
+}
+
+func rememberSessions(known map[string]string, fetched map[string][]Earning, today time.Time) map[string]string {
+	oldest := today.AddDate(0, 0, -earningsBackDays).Format("2006-01-02")
+	out := map[string]string{}
+	for k, when := range known {
+		if k[len(k)-len(oldest):] >= oldest {
+			out[k] = when
+		}
+	}
+	for _, rows := range fetched {
+		for _, r := range rows {
+			if r.When != "" {
+				out[r.Symbol+r.date] = r.When
+			}
+		}
+	}
+	return out
 }
 
 func reportedRow(e Earning) bool { return e.Verdict != "" }
@@ -371,7 +399,7 @@ func addReactions(ctx context.Context, g *Guard, rows []Earning, today time.Time
 		if err != nil {
 			continue
 		}
-		pct, ok := reaction(series[rows[i].Symbol], day, today)
+		pct, ok := reaction(series[rows[i].Symbol], day, today, rows[i].When)
 		if !ok {
 			continue
 		}
@@ -429,10 +457,10 @@ func fetchDailyCloses(ctx context.Context, g *Guard, symbols []string) (map[stri
 	return out, nil
 }
 
-// reaction is what the stock did on the announcement, as a percent. Nasdaq
-// drops the pre-market or after-hours flag once a date is past, so the session
-// that moved is taken as the one that heard the news.
-func reaction(days []dailyClose, report, today time.Time) (float64, bool) {
+// reaction is what the stock did on the announcement, as a percent. With no
+// PRE or POST flag remembered for it, the session that moved is taken as the
+// one that heard the news.
+func reaction(days []dailyClose, report, today time.Time, when string) (float64, bool) {
 	stamp := report.Format("2006-01-02")
 
 	var before, on, after float64
@@ -447,22 +475,27 @@ func reaction(days []dailyClose, report, today time.Time) (float64, bool) {
 		}
 	}
 
-	// Reported this morning before the bell, so the session it moved is still
-	// open and today's close is the last one there is. An earlier report with
-	// no session since was after hours and hasn't traded on the news yet.
-	if after == 0 {
-		if before == 0 || on == 0 || stamp != today.Format("2006-01-02") {
-			return 0, false
-		}
-		return (on/before - 1) * 100, true
-	}
 	if before == 0 || on == 0 {
 		return 0, false
 	}
-
 	pre := (on/before - 1) * 100
+
+	// With no session after the report day, an unflagged report from an
+	// earlier day is taken as after hours, which hasn't traded on the news yet.
+	if after == 0 {
+		if when == "PRE" || when == "" && stamp == today.Format("2006-01-02") {
+			return pre, true
+		}
+		return 0, false
+	}
+
 	post := (after/on - 1) * 100
-	if math.Abs(pre) > math.Abs(post) {
+	switch {
+	case when == "PRE":
+		return pre, true
+	case when == "POST":
+		return post, true
+	case math.Abs(pre) > math.Abs(post):
 		return pre, true
 	}
 	return post, true
