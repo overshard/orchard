@@ -208,10 +208,12 @@ that zone, which does not matter when the CNAME already exists.
 is `debian:trixie-slim`, `golang:1.27-trixie` or `oven/bun:1-debian`, pinned by
 digest, and a site with nothing to exec ends at `FROM scratch` instead. Nothing
 pulls Alpine, `curlimages/curl` or any other base, including the throwaway
-containers the Makefile runs, which use `orchard-util` out of `edge/util`. The
-exceptions are the vendor images we do not build (`caddy`, `ntfy`, `cloudflared`
-and `kiwix-serve`), where the base is theirs to pick. Reach for a new base image
-and the answer is no: add the package to `edge/util` or to the runtime stage.
+containers the Makefile runs, which use `orchard-util` out of `edge/util`.
+Vendor software goes the same way. `caddy`, `ntfy`, `cloudflared` and
+`kiwix-serve` are static binaries, so their Dockerfiles `COPY --from` the pinned
+upstream image into `debian:trixie-slim` and nothing runs on Alpine or distroless.
+Reach for a new base image and the answer is no: add the package to `edge/util`
+or to the runtime stage.
 
 **Containers run as UID 65532, and runtime base images are pinned by digest.** The
 Debian sites create a real user at that UID with `groupadd`/`useradd` and the

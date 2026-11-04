@@ -35,8 +35,10 @@ docker() { ${SUDO} "$DOCKER_BIN" "$@"; }
 
 VOLUME=orchard-cloudflared
 TUNNEL=orchard
-IMAGE=cloudflare/cloudflared:latest
-# cloudflared's image is distroless, so poking at the volume borrows a shell.
+# The same image compose builds out of cloudflared/, so login and the tunnel
+# commands run the version the tunnel does.
+IMAGE=orchard-edge-cloudflared
+# That image runs as 65532, so chowning the volume borrows plain Debian as root.
 HELPER=debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad
 # Every hostname the tunnel serves, matching the ingress rules in
 # cloudflared/config.yml. These span two zones and cert.pem covers one at a time,
@@ -63,6 +65,8 @@ ensure_volume() {
 	# burning a one-time callback token.
 	volume_sh "chown -R 65532:65532 /etc/cloudflared"
 }
+
+docker build --quiet --tag "$IMAGE" cloudflared >/dev/null
 
 case "${1:-}" in
 login)
