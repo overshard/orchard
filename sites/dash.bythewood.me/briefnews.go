@@ -404,7 +404,7 @@ func (b *Briefer) read(ctx context.Context, slot briefSlot, at time.Time, all []
 		r.Impact = rated[all[0].lead().url].Impact
 	}
 	slog.Info("brief read", slog.String("component", "brief"), slog.String("slot", slot.kind),
-		slog.String("level", level), slog.Int("top", top), slog.Int("outlets", outlets),
+		slog.String("read_level", level), slog.Int("top", top), slog.Int("outlets", outlets),
 		slog.String("lead", all[0].lead().title), slog.String("text", text))
 	var covered []cluster
 	for _, n := range cited {
