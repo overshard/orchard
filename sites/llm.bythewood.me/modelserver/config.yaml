@@ -17,14 +17,14 @@ models:
   # Every caller asks for "local", so this name is the contract across the
   # whole estate and swapping the weights underneath is one line here.
   "local":
-    name: "Ornith 1.5 9B uncensored"
+    name: "Ornith 1.5 9B heretic"
     ttl: 180
     # 64k with a q4_0 cache is what fits on the 8GB card beside a live desktop.
     # A q8_0 cache is no faster, and it or 128k crowds out the desktop's own use.
     #
-    # junafinity's abliterated build in mradermacher's static Q4_K_M, so it
-    # answers instead of refusing or hedging. Q5_K_M is 820 MiB heavier, which
-    # would cap context near 16k. The stock GGUF is still on the volume.
+    # Thunder13240's Heretic build at Q4_K_M, so it answers instead of refusing
+    # or hedging, even under chat's system prompt. Q5_K_M would cap context near
+    # 16k. The stock GGUF is still on the volume.
     #
     # A path on the volume rather than -hf, so the one service every other one
     # depends on does not need HuggingFace to be reachable to start.
@@ -38,7 +38,7 @@ models:
     cmd: >
       llama-server
       --host 127.0.0.1 --port ${PORT}
-      -m /models/ornith/Ornith-1.5-9B-uncensored.Q4_K_M.gguf
+      -m /models/ornith/Ornith-1.5-9B-heretic-Q4_K_M.gguf
       --n-gpu-layers 999
       --flash-attn on
       --parallel 1
