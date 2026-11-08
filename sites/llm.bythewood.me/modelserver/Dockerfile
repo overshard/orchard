@@ -105,6 +105,7 @@ COPY --from=build /tmp/build/bin/llama-server /usr/local/bin/llama-server
 COPY --from=sd /tmp/sd/build/bin/sd-server /usr/local/bin/sd-server
 COPY --from=swap /usr/local/bin/llama-swap /usr/local/bin/llama-swap
 COPY config.yaml /etc/llama-swap/config.yaml
+COPY ornith.jinja /etc/llama-swap/ornith.jinja
 
 # A malformed config would otherwise surface as a container that starts and
 # then exits during a deploy. This turns it into a failed build instead.

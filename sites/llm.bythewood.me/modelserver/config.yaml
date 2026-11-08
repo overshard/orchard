@@ -17,28 +17,33 @@ models:
   # Every caller asks for "local", so this name is the contract across the
   # whole estate and swapping the weights underneath is one line here.
   "local":
-    name: "Ornith 1.5 9B"
+    name: "Ornith 1.5 9B uncensored"
     ttl: 180
     # 64k with a q4_0 cache is what fits on the 8GB card beside a live desktop.
     # A q8_0 cache is no faster, and it or 128k crowds out the desktop's own use.
     #
-    # Q4_K_M because it is the smallest quant this model's publisher ships.
-    # There is no Unsloth dynamic build for 1.5, and Q5_K_M is 820 MiB heavier,
-    # which would cap context near 16k.
+    # junafinity's abliterated build in mradermacher's static Q4_K_M, so it
+    # answers instead of refusing or hedging. Q5_K_M is 820 MiB heavier, which
+    # would cap context near 16k. The stock GGUF is still on the volume.
     #
     # A path on the volume rather than -hf, so the one service every other one
     # depends on does not need HuggingFace to be reachable to start.
     #
     # Reasoning off unless a caller asks for it with enable_thinking, so one
     # that never says gets a plain answer and not a chain of thought.
+    #
+    # The template is the one ornith-ai's own GGUF carries, since the
+    # abliterated one ships the plain upstream template that raises on a
+    # system message anywhere but first.
     cmd: >
       llama-server
       --host 127.0.0.1 --port ${PORT}
-      -m /models/ornith/Ornith-1.5-9B-Q4_K_M.gguf
+      -m /models/ornith/Ornith-1.5-9B-uncensored.Q4_K_M.gguf
       --n-gpu-layers 999
       --flash-attn on
       --parallel 1
       --jinja
+      --chat-template-file /etc/llama-swap/ornith.jinja
       --reasoning off
       --ctx-size 65536
       --cache-type-k q4_0
