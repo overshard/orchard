@@ -3184,13 +3184,7 @@ main {
 @media (max-width: 620px) {
   :root { --gap: 8px; --pad: 10px; }
 
-  // TODAY is the model's work, so it comes up under the market band instead of
-  // five screens down, and the feeds keep their place after the local band.
-  main > * { order: 2; }
-  .alerts, .onair-host, .markets, .market-band { order: 0; }
-  .news-band { display: contents; }
-  .news-band > .panel { order: 2; }
-  .news-band > .today { order: 1; }
+  .news-band { grid-template-columns: 1fr; }
 
   .panel { padding: 11px; }
 
