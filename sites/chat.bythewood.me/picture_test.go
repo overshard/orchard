@@ -426,8 +426,8 @@ func TestAPictureCallStraightAfterOneChangesIt(t *testing.T) {
 	if p, _ := f.lastImage["prompt"].(string); strings.Contains(p, "imagined") || !strings.Contains(p, "muddy") {
 		t.Errorf("prompt = %q, want his words and not the model's", p)
 	}
-	if f.lastImage["size"] == "1080x1080" {
-		t.Error("came back square")
+	if f.lastImage["size"] == "1920x1080" {
+		t.Error("came back the default shape and not the picture's")
 	}
 }
 
@@ -534,7 +534,7 @@ func TestASizeHeAskedForIsTheShape(t *testing.T) {
 		"make it 1080 x 1920 for my phone": "portrait",
 		"widescreen please":                "landscape",
 		"as a phone wallpaper":             "portrait",
-		"square it off, 1:1":               "square",
+		"square it off, 1:1":               "",
 		"make the sofa blue":               "",
 		"a portrait of a golden retriever": "",
 	} {

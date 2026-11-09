@@ -51,7 +51,7 @@ type ImageProgress struct {
 	Err         string `json:"error,omitempty"`
 }
 
-var imageShapes = map[string]bool{"square": true, "portrait": true, "landscape": true, "same": true}
+var imageShapes = map[string]bool{"portrait": true, "landscape": true, "same": true}
 
 type imageArgs struct {
 	Prompt     string
@@ -62,9 +62,9 @@ type imageArgs struct {
 func (a *imageArgs) params() []param {
 	return []param{
 		strArg(&a.Prompt, "prompt", "what to draw, or what to do to the picture it starts from, written out in full").required(),
-		strArg(&a.Shape, "shape", "landscape unless the subject wants otherwise, portrait for a person or a phone wallpaper, "+
-			"square only when he asks for it, same to keep the shape of the picture it starts from").
-			oneOf("square", "portrait", "landscape", "same"),
+		strArg(&a.Shape, "shape", "landscape unless he asks for portrait or a phone wallpaper, "+
+			"same to keep the shape of the picture it starts from").
+			oneOf("portrait", "landscape", "same"),
 		boolArg(&a.ChangeLast, "change_last", "true to change the last picture in this conversation rather than draw a new one"),
 	}
 }
