@@ -62,8 +62,8 @@ type imageArgs struct {
 func (a *imageArgs) params() []param {
 	return []param{
 		strArg(&a.Prompt, "prompt", "what to draw, or what to do to the picture it starts from, written out in full").required(),
-		strArg(&a.Shape, "shape", "square unless the subject wants otherwise, portrait for a person or a phone wallpaper, "+
-			"landscape for a scene, same to keep the shape of the picture it starts from").
+		strArg(&a.Shape, "shape", "landscape unless the subject wants otherwise, portrait for a person or a phone wallpaper, "+
+			"square only when he asks for it, same to keep the shape of the picture it starts from").
 			oneOf("square", "portrait", "landscape", "same"),
 		boolArg(&a.ChangeLast, "change_last", "true to change the last picture in this conversation rather than draw a new one"),
 	}
@@ -101,7 +101,7 @@ var Image = Define(Tool{
 	}
 	shape := a.Shape
 	if !imageShapes[shape] || shape == "same" && len(start) == 0 {
-		shape = "square"
+		shape = "landscape"
 		if len(start) > 0 {
 			shape = "same"
 		}

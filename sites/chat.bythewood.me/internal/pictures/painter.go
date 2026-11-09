@@ -56,10 +56,10 @@ CREATE TABLE IF NOT EXISTS image_runs (
 // forever.
 const drawLimit = 4 * time.Minute
 
-// Close to a megapixel each since the model was trained around that. sd-server
-// rounds 1080 up to 1088 and cropTo trims it back.
+// 1080p, since that's what he wants pictures at. sd-server rounds 1080 up to
+// 1088 and cropTo trims it back.
 var shapes = map[string][2]int{
-	"square":    {1024, 1024},
+	"square":    {1080, 1080},
 	"portrait":  {1080, 1920},
 	"landscape": {1920, 1080},
 }
@@ -104,9 +104,9 @@ func NewID() string {
 }
 
 // Expect is the picture before its prompt exists. The size is not known until
-// the chat model picks a shape, so the guesses are for a square.
+// the chat model picks a shape, so the guesses are for landscape.
 func (p *Painter) Expect() tools.ImageProgress {
-	w, h := shapes["square"][0], shapes["square"][1]
+	w, h := shapes["landscape"][0], shapes["landscape"][1]
 	g := p.imageGuess(p.name, w*h)
 	return tools.ImageProgress{ID: NewID(), Stage: "prompt", Model: p.name, Width: w, Height: h,
 		StageAt: time.Now().UnixMilli(), PromptGuess: g.Prompt, LoadGuess: g.Load, DrawGuess: g.Draw}
