@@ -79,10 +79,9 @@ var newView = regexp.MustCompile(`(?i)\b(from (the )?(outside|inside|above|below
 // A size or an orientation he asked for, which beats whatever shape the chat
 // model picks and whatever shape the picture being changed already has.
 var (
-	pixelSize  = regexp.MustCompile(`\b(\d{3,4})\s*(?:x|×|by)\s*(\d{3,4})\b`)
-	wideWord   = regexp.MustCompile(`(?i)\b(landscape|widescreen|wide ?screen|horizontal|16:9|desktop wallpaper|wider)\b`)
-	tallWord   = regexp.MustCompile(`(?i)\b(vertical|9:16|phone wallpaper|portrait (orientation|mode|shape))\b`)
-	squareWord = regexp.MustCompile(`(?i)\b(square|1:1)\b`)
+	pixelSize = regexp.MustCompile(`\b(\d{3,4})\s*(?:x|×|by)\s*(\d{3,4})\b`)
+	wideWord  = regexp.MustCompile(`(?i)\b(landscape|widescreen|wide ?screen|horizontal|16:9|desktop wallpaper|wider)\b`)
+	tallWord  = regexp.MustCompile(`(?i)\b(vertical|9:16|phone wallpaper|portrait (orientation|mode|shape))\b`)
 )
 
 // askedShape is the shape his words ask for, or empty when they ask for none.
@@ -95,8 +94,6 @@ func askedShape(m string) string {
 			return "landscape"
 		case h > w:
 			return "portrait"
-		default:
-			return "square"
 		}
 	}
 	switch {
@@ -104,8 +101,6 @@ func askedShape(m string) string {
 		return "landscape"
 	case tallWord.MatchString(m):
 		return "portrait"
-	case squareWord.MatchString(m):
-		return "square"
 	}
 	return ""
 }

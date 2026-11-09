@@ -59,7 +59,6 @@ const drawLimit = 4 * time.Minute
 // 1080p, since that's what he wants pictures at. sd-server rounds 1080 up to
 // 1088 and cropTo trims it back.
 var shapes = map[string][2]int{
-	"square":    {1080, 1080},
 	"portrait":  {1080, 1920},
 	"landscape": {1920, 1080},
 }
@@ -124,13 +123,11 @@ func (p *Painter) Draw(ctx context.Context, prompt, shape string, startFrom []st
 	}
 	size, ok := shapes[shape]
 	if !ok {
-		size = shapes["square"]
+		size = shapes["landscape"]
 	}
 	w, h := size[0], size[1]
 	if len(refs) > 0 {
-		if shape == "same" || shape == "square" {
-			// Square is what a model asks for when it has no reason to, and
-			// the picture it starts from is the reason.
+		if shape == "same" {
 			w, h = refs[0].w, refs[0].h
 		}
 		w, h = sizeLike(w, h, editPixels)
