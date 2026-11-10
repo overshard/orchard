@@ -129,3 +129,25 @@ func TestLarderLimitAndStamps(t *testing.T) {
 		t.Errorf("a mask stamp took %d times in 2000", stamped)
 	}
 }
+
+func TestFennSellsEachOnce(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	give(t, s, id, 5000)
+	b, err := s.buy(id, shopFenn, 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(b.Pond.Furniture) != 1 || b.Pond.Furniture[0] != "f_lantern" {
+		t.Errorf("furniture after buying the lantern: %v", b.Pond.Furniture)
+	}
+	for _, it := range b.Pond.Items {
+		if it.Kind == "f_lantern" {
+			t.Errorf("the lantern is in the purse")
+		}
+	}
+	*clock = clock.Add(48 * time.Hour)
+	if _, err := s.buy(id, shopFenn, 4); !errors.Is(err, errSoldOut) {
+		t.Errorf("bought a second lantern: %v", err)
+	}
+}

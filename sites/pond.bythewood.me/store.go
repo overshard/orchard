@@ -523,6 +523,8 @@ type view struct {
 	Bank    bankView            `json:"bank"`
 	Kitchen kitchenView         `json:"kitchen"`
 	Shops   map[string]shopView `json:"shops"`
+	// What Fenn sold this pond, drawn on the water.
+	Furniture []string `json:"furniture"`
 
 	held  map[string]int
 	Nudge bool `json:"nudge"`
@@ -611,6 +613,7 @@ func viewOf(q querier, p pond, now time.Time) (*view, error) {
 	v.Share.Power = powerOf(v.Frog.Rarity, found, p.DiveBest)
 
 	v.Items = []itemView{}
+	v.Furniture = []string{}
 	v.held = map[string]int{}
 	rows, err = q.Query(`SELECT kind, count FROM items WHERE pond_id = ? AND count > 0`, p.ID)
 	if err != nil {
@@ -623,6 +626,10 @@ func viewOf(q querier, p pond, now time.Time) (*view, error) {
 			return nil, err
 		}
 		v.held[it.Kind] = it.Count
+		if strings.HasPrefix(it.Kind, "f_") {
+			v.Furniture = append(v.Furniture, it.Kind)
+			continue
+		}
 		if _, food := ingredientOf(it.Kind); food || strings.HasPrefix(it.Kind, "dish_") {
 			continue
 		}

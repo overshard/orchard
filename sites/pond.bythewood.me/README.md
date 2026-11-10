@@ -35,7 +35,8 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
 - `bank.go` is the bank, the gravel bar and the garden plots, and the kitchen
   that turns two things from the garden into a dish. `kitchen.go` has the
   ingredients, what grows in which month and every dish.
-- `shop.go` is Wren's hats, Brindle's larder and Old Moss's curios. Stock is
+- `shop.go` is Wren's hats, Brindle's larder, Old Moss's curios and Fenn's
+  furniture, which the page draws on the water. Stock is
   dealt from the day so everybody sees the same shelf, and `bought` counts
   what each pond took off it.
 - `genome.go` turns a seed into a frog's name, look and rarity, and
