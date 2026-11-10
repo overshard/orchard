@@ -136,6 +136,12 @@ func main() {
 	go sweepHourly(db)
 	go db.day.poll(context.Background())
 	go windEvery(db)
+	loadTales(filepath.Dir(path))
+	llmURL := os.Getenv("LLM_URL")
+	if llmURL == "" {
+		llmURL = "http://orchard-llm:8000"
+	}
+	go (&nightly{m: newModel(llmURL, os.Getenv("LLM_KEY")), dir: filepath.Dir(path)}).run(context.Background())
 
 	s, err := newSite(distFS(), db)
 	if err != nil {

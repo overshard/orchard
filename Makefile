@@ -65,7 +65,7 @@ COMPOSE_DOWN = $(DOCKER) compose
 .DEFAULT_GOAL := help
 .PHONY: help install up up-one deploy edge doctor down down-one run build check shared-check frog-check template-check new fmt fmt-check vet vuln deps test \
 	env password tunnel tunnel-login tunnel-status ntfy ntfy-token ntfy-status ntfy-passwd \
-	auth-init auth-recovery chat-key dash-key llm-key wiki util require-site require-env require-tunnel
+	auth-init auth-recovery chat-key dash-key pond-key llm-key wiki util require-site require-env require-tunnel
 
 help:
 	@echo "running system"
@@ -93,6 +93,7 @@ help:
 	@echo "  make auth-init             create the login account, printing its recovery codes"
 	@echo "  make chat-key              mint chat's gateway key into its .env, if it has none"
 	@echo "  make dash-key              the same for dash, which writes the daily briefs with it"
+	@echo "  make pond-key              the same for pond, which writes its nightly lines with it"
 	@echo "  make llm-key NAME=chat     mint an api key for the model gateway, printed once"
 	@echo "  make wiki                  download the offline wikipedia into its volume, 12.5GB"
 	@echo "  make auth-recovery         replace the recovery codes when locked out"
@@ -305,6 +306,7 @@ install: tunnel-login tunnel env
 	-$(MAKE) --no-print-directory up
 	$(MAKE) --no-print-directory chat-key
 	$(MAKE) --no-print-directory dash-key
+	$(MAKE) --no-print-directory pond-key
 	$(MAKE) --no-print-directory ntfy
 	$(MAKE) --no-print-directory ntfy-token
 	$(MAKE) --no-print-directory up
@@ -444,6 +446,9 @@ chat-key:
 
 dash-key:
 	$(call mint-key,dash.bythewood.me,dash)
+
+pond-key:
+	$(call mint-key,pond.bythewood.me,pond)
 
 llm-key:
 	@$(DOCKER) ps --filter "name=^orchard-llm$$" --format '{{.Names}}' 2>/dev/null | grep -q . || { \

@@ -54,7 +54,7 @@ func (s *store) greet(id int64, first bool) (*greeting, error) {
 		g.Line = greetLine(gen, stage, away)
 		if stage != "egg" {
 			r := s.day.reading(now)
-			if l := moodLine(r, dayOfReading(r, now).Mood, p.Seed, dayOf(now)); l != "" {
+			if l := moodLine(r, dayOfReading(r, now).Mood, p.Seed, gen.Nature, dayOf(now)); l != "" {
 				g.Line += " " + l
 			}
 			m, err := marketOf(tx, p, r, now)
@@ -85,6 +85,9 @@ func (s *store) greet(id int64, first bool) (*greeting, error) {
 		// What's waiting to be collected is left to the page's chips, which
 		// follow the pond as it changes, and this list never does.
 		g.Missed = append(g.Missed, kept...)
+		if stage != "egg" && dayOf(time.Unix(p.LastSeenAt, 0)) != dayOf(now) {
+			g.Missed = append(g.Missed, [2]string{"Dream", dreamOf(p.Seed, dayOf(now))})
+		}
 
 		if gap := now.Sub(time.Unix(p.LastGiftAt, 0)); gap >= giftGap {
 			z := rollGift(gap)

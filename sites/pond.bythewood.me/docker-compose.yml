@@ -19,6 +19,9 @@ services:
       # Keys are stored hashed under this, so it has to outlive the database.
       # Lose it and no pond key opens anything.
       POND_PEPPER: ${POND_PEPPER:?put a long random POND_PEPPER in .env, see .env.example}
+      # Without a key the nightly lines are off and the hand written ones carry on.
+      LLM_URL: http://orchard-llm:8000
+      LLM_KEY: ${LLM_KEY:-}
     volumes:
       - data:/data
     # A ceiling to fail against rather than a target, since this machine is also
