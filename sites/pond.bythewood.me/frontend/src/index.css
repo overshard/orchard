@@ -877,6 +877,10 @@ body:has(.tabs) main {
   font-size: 11px;
 }
 
+.reed .ate {
+  color: #5ddc82;
+}
+
 .reed .on {
   color: var(--amber);
   letter-spacing: var(--track);

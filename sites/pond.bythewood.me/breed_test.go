@@ -215,3 +215,55 @@ func TestEyeDrops(t *testing.T) {
 		t.Error("red drops on a red eyed frog counted as drops")
 	}
 }
+
+func TestAFedFrogLaysABetterEgg(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	v, _ := s.view(id)
+	f := v.Frogs[0].ID
+	pie := dishOf(10, 10).kind()
+	if _, err := s.feed(id, f, pie); !errors.Is(err, errNotYet) {
+		t.Errorf("fed an egg: %v", err)
+	}
+	*clock = clock.Add(12 * 24 * time.Hour)
+	if _, err := s.feed(id, f, pie); !errors.Is(err, errNotHeld) {
+		t.Errorf("fed a dish it doesn't have: %v", err)
+	}
+	if _, err := s.feed(id, f, "duckweed"); !errors.Is(err, errNotHeld) {
+		t.Errorf("fed something that isn't a dish: %v", err)
+	}
+	if err := s.write(func(tx *sql.Tx) error { return addItem(tx, id, pie, 2) }); err != nil {
+		t.Fatal(err)
+	}
+	v, err := s.feed(id, f, pie)
+	if err != nil || v.Frogs[0].Fed == nil || v.Frogs[0].Fed.Tier != 4 || v.Frogs[0].Fed.Takes != 1 {
+		t.Fatalf("feed: %v %+v", err, v.Frogs[0].Fed)
+	}
+	if _, err := s.feed(id, f, pie); !errors.Is(err, errFed) {
+		t.Errorf("ate twice: %v", err)
+	}
+	if err := s.write(func(tx *sql.Tx) error { return addItem(tx, id, "dye_blue", 1) }); err != nil {
+		t.Fatal(err)
+	}
+	l, err := s.lay(id, f, "dye_blue", "", "")
+	if err != nil || l.Frog.Mods.Morph != "BLUE" || l.Pond.Frogs[0].Fed != nil {
+		t.Fatalf("a legendary meal and a dye: %v %+v fed %+v", err, l.Frog.Mods, l.Pond.Frogs[0].Fed)
+	}
+}
+
+func TestAMealLeansTheEgg(t *testing.T) {
+	parent := lookOf(1207)
+	const n = 3000
+	eyes := 0
+	for range n {
+		if m := breedFed(parent, randomSeed(), "dye_blue", "", "", 4); m.Morph != "BLUE" {
+			t.Fatal("a legendary meal and a dye didn't take")
+		}
+		if m := breedFed(parent, randomSeed(), "", "", "", 4); m.Iris != "" && m.Iris != parent.iris {
+			eyes++
+		}
+	}
+	if eyes < n*18/100 || eyes > n*32/100 {
+		t.Errorf("odd eyes from a legendary meal %d times in %d", eyes, n)
+	}
+}

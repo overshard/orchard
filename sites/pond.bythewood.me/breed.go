@@ -85,9 +85,26 @@ func padCost(have int) int { return 400 << (have - startingPads) }
 
 func clamp(v, lo, hi float64) float64 { return max(lo, min(hi, v)) }
 
+// A fed frog lays a better egg. The meal's tier sets how often a dye, stamp
+// or drops take, and a rare meal or better can give the egg odd eyes alone.
+var (
+	mealTakes = [tierCount]float64{0.74, 0.80, 0.86, 0.92, 1}
+	mealEyes  = [tierCount]float64{0, 0, 0.05, 0.12, 0.25}
+)
+
 // breed lays an egg from a parent with a new seed. dye, stamp and drop are ""
 // or one of dyeMorph's, stamps' or drops' keys.
 func breed(parent look, seed uint32, dye, stamp, drop string) mods {
+	return breedFed(parent, seed, dye, stamp, drop, -1)
+}
+
+// breedFed is breed from a parent that ate a meal of the given tier, -1 for
+// none.
+func breedFed(parent look, seed uint32, dye, stamp, drop string, meal int) mods {
+	takes := dyeTakes
+	if meal >= 0 {
+		takes = mealTakes[meal]
+	}
 	child := lookOf(seed)
 	nudge := func(by float64) float64 { return (rand.Float64()*2 - 1) * by }
 	m := mods{
@@ -104,19 +121,22 @@ func breed(parent look, seed uint32, dye, stamp, drop string) mods {
 		m.Iris = ""
 		m.Took = append(m.Took, "throwback")
 	}
-	if name, ok := dyeMorph[dye]; ok && rand.Float64() < dyeTakes {
+	if name, ok := dyeMorph[dye]; ok && rand.Float64() < takes {
 		d := morphNamed(name)
 		m.Morph, m.Hue, m.Sat, m.Lit = d.Name, (d.H[0]+d.H[1])/2, (d.S[0]+d.S[1])/2, (d.L[0]+d.L[1])/2
 		m.Iris = ""
 		m.Took = append(m.Took, "dye")
 	}
-	if pat, ok := stamps[stamp]; ok && rand.Float64() < dyeTakes {
+	if pat, ok := stamps[stamp]; ok && rand.Float64() < takes {
 		m.Pattern = pat
 		m.Took = append(m.Took, "stamp")
 	}
-	if iris, ok := drops[drop]; ok && rand.Float64() < dyeTakes {
+	if iris, ok := drops[drop]; ok && rand.Float64() < takes {
 		m.Iris = iris
 		m.Took = append(m.Took, "drops")
+	} else if meal >= 0 && m.Iris == "" && rand.Float64() < mealEyes[meal] {
+		m.Iris = randomDrops()
+		m.Took = append(m.Took, "meal")
 	}
 	// Drops the colour the morph already has are no drops at all.
 	if m.Iris == morphEye[m.Morph] {
@@ -140,10 +160,12 @@ type frogRow struct {
 	Front     bool
 	Hat       hat
 	Name      string
+	// Fed is the kind of the dish it last ate, "" when it's hungry.
+	Fed string
 }
 
 func loadFrogs(q querier, pondID int64) ([]frogRow, error) {
-	rows, err := q.Query(`SELECT id, seed, genome_json, hatched_at, laid_at, out_front, hat_shape, hat_colour, name
+	rows, err := q.Query(`SELECT id, seed, genome_json, hatched_at, laid_at, out_front, hat_shape, hat_colour, name, fed
 		FROM frogs WHERE pond_id = ? ORDER BY id`, pondID)
 	if err != nil {
 		return nil, err
@@ -153,7 +175,7 @@ func loadFrogs(q querier, pondID int64) ([]frogRow, error) {
 	for rows.Next() {
 		var f frogRow
 		var raw string
-		if err := rows.Scan(&f.ID, &f.Seed, &raw, &f.HatchedAt, &f.LaidAt, &f.Front, &f.Hat.Shape, &f.Hat.Colour, &f.Name); err != nil {
+		if err := rows.Scan(&f.ID, &f.Seed, &raw, &f.HatchedAt, &f.LaidAt, &f.Front, &f.Hat.Shape, &f.Hat.Colour, &f.Name, &f.Fed); err != nil {
 			return nil, err
 		}
 		f.Mods = parseMods(raw)
@@ -218,9 +240,13 @@ func (s *store) lay(id, frogID int64, dye, stamp, drop string) (*laid, error) {
 			}
 		}
 		seed := randomSeed()
-		m := breed(lookFor(parent.Seed, parent.Mods), seed, dye, stamp, drop)
+		meal := -1
+		if d, ok := dishOfKind(parent.Fed); ok {
+			meal = d.tier
+		}
+		m := breedFed(lookFor(parent.Seed, parent.Mods), seed, dye, stamp, drop, meal)
 		raw, _ := json.Marshal(m)
-		if _, err := tx.Exec(`UPDATE frogs SET laid_at = ? WHERE id = ?`, now.Unix(), parent.ID); err != nil {
+		if _, err := tx.Exec(`UPDATE frogs SET laid_at = ?, fed = '' WHERE id = ?`, now.Unix(), parent.ID); err != nil {
 			return err
 		}
 		g := genomeOf(seed, &m)
@@ -233,6 +259,33 @@ func (s *store) lay(id, frogID int64, dye, stamp, drop string) (*laid, error) {
 	})
 	out.Pond = v
 	return out, err
+}
+
+// feed gives a frog a dish from the bag, and it keeps it in mind until it
+// lays. A frog that's still full won't take another.
+func (s *store) feed(id, frogID int64, kind string) (*view, error) {
+	if _, ok := dishOfKind(kind); !ok {
+		return nil, errNotHeld
+	}
+	return s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
+		var fed string
+		var hatched int64
+		err := tx.QueryRow(`SELECT fed, hatched_at FROM frogs WHERE pond_id = ? AND id = ?`, p.ID, frogID).Scan(&fed, &hatched)
+		if err != nil {
+			return errNotHeld
+		}
+		if stage, _ := stageOf(now.Sub(time.Unix(hatched, 0))); stage == "egg" {
+			return errNotYet
+		}
+		if fed != "" {
+			return errFed
+		}
+		if err := takeItem(tx, p.ID, kind, 1); err != nil {
+			return err
+		}
+		_, err = tx.Exec(`UPDATE frogs SET fed = ? WHERE id = ?`, kind, frogID)
+		return err
+	})
 }
 
 // front brings a frog out front, and the one that was there goes to the reeds
