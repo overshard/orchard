@@ -11,15 +11,17 @@ import (
 // seed can't rebuild, so what changed is kept beside the seed as mods. The
 // seed still gives it a name, a pupil, a nature and a call of its own.
 type mods struct {
-	Morph   string   `json:"morph"`
-	Pattern string   `json:"pattern"`
-	Hue     float64  `json:"hue"`
-	Sat     float64  `json:"sat"`
-	Lit     float64  `json:"lit"`
-	BW      float64  `json:"bw"`
-	BH      float64  `json:"bh"`
-	Eye     float64  `json:"eye"`
-	Took    []string `json:"took,omitempty"`
+	Morph   string  `json:"morph"`
+	Pattern string  `json:"pattern"`
+	Hue     float64 `json:"hue"`
+	Sat     float64 `json:"sat"`
+	Lit     float64 `json:"lit"`
+	BW      float64 `json:"bw"`
+	BH      float64 `json:"bh"`
+	Eye     float64 `json:"eye"`
+	// Iris is an eye colour from drops, "" for the morph's own.
+	Iris string   `json:"iris,omitempty"`
+	Took []string `json:"took,omitempty"`
 }
 
 func parseMods(raw string) *mods {
@@ -46,6 +48,7 @@ func genomeOf(seed uint32, m *mods) genome {
 	g := newGenome(seed)
 	if m != nil {
 		g.Morph, g.weight, g.Pattern = m.Morph, morphNamed(m.Morph).W, m.Pattern
+		g.drops = m.Iris != ""
 	}
 	return g
 }
@@ -55,6 +58,7 @@ func lookFor(seed uint32, m *mods) look {
 	if m != nil {
 		l.morph, l.pattern = *morphNamed(m.Morph), m.Pattern
 		l.hue, l.sat, l.lit, l.bw, l.bh, l.eye = m.Hue, m.Sat, m.Lit, m.BW, m.BH, m.Eye
+		l.iris = m.Iris
 	}
 	return l
 }
@@ -81,32 +85,42 @@ func padCost(have int) int { return 400 << (have - startingPads) }
 
 func clamp(v, lo, hi float64) float64 { return max(lo, min(hi, v)) }
 
-// breed lays an egg from a parent with a new seed. dye is "" or one of
-// dyeMorph's keys and stamp is "" or one of stamps' keys.
-func breed(parent look, seed uint32, dye, stamp string) mods {
+// breed lays an egg from a parent with a new seed. dye, stamp and drop are ""
+// or one of dyeMorph's, stamps' or drops' keys.
+func breed(parent look, seed uint32, dye, stamp, drop string) mods {
 	child := lookOf(seed)
 	nudge := func(by float64) float64 { return (rand.Float64()*2 - 1) * by }
 	m := mods{
 		Morph: parent.morph.Name, Pattern: parent.pattern, Sat: parent.sat,
 		Hue: parent.hue + nudge(7), Lit: parent.lit + nudge(3),
 		BW: clamp(parent.bw+nudge(0.8), 10, 15.5), BH: clamp(parent.bh+nudge(0.6), 6.6, 10.4),
-		Eye: clamp(parent.eye+nudge(0.3), 2.3, 4.4),
+		Eye: clamp(parent.eye+nudge(0.3), 2.3, 4.4), Iris: parent.iris,
 	}
 	if rand.Float64() < 0.2 {
 		m.Pattern = child.pattern
 	}
 	if rand.Float64() < throwback {
 		m.Morph, m.Hue, m.Sat, m.Lit = child.morph.Name, child.hue, child.sat, child.lit
+		m.Iris = ""
 		m.Took = append(m.Took, "throwback")
 	}
 	if name, ok := dyeMorph[dye]; ok && rand.Float64() < dyeTakes {
 		d := morphNamed(name)
 		m.Morph, m.Hue, m.Sat, m.Lit = d.Name, (d.H[0]+d.H[1])/2, (d.S[0]+d.S[1])/2, (d.L[0]+d.L[1])/2
+		m.Iris = ""
 		m.Took = append(m.Took, "dye")
 	}
 	if pat, ok := stamps[stamp]; ok && rand.Float64() < dyeTakes {
 		m.Pattern = pat
 		m.Took = append(m.Took, "stamp")
+	}
+	if iris, ok := drops[drop]; ok && rand.Float64() < dyeTakes {
+		m.Iris = iris
+		m.Took = append(m.Took, "drops")
+	}
+	// Drops the colour the morph already has are no drops at all.
+	if m.Iris == morphEye[m.Morph] {
+		m.Iris = ""
 	}
 	// Colour drifts over generations but stays near what its morph looks like.
 	d := morphNamed(m.Morph)
@@ -163,7 +177,7 @@ type laid struct {
 	Pond *view    `json:"pond"`
 }
 
-func (s *store) lay(id, frogID int64, dye, stamp string) (*laid, error) {
+func (s *store) lay(id, frogID int64, dye, stamp, drop string) (*laid, error) {
 	out := &laid{}
 	v, err := s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
 		frogs, err := loadFrogs(tx, p.ID)
@@ -191,7 +205,10 @@ func (s *store) lay(id, frogID int64, dye, stamp string) (*laid, error) {
 		if _, ok := stamps[stamp]; stamp != "" && !ok {
 			return errNotHeld
 		}
-		for _, k := range []string{dye, stamp} {
+		if _, ok := drops[drop]; drop != "" && !ok {
+			return errNotHeld
+		}
+		for _, k := range []string{dye, stamp, drop} {
 			if k == "" {
 				continue
 			}
@@ -200,7 +217,7 @@ func (s *store) lay(id, frogID int64, dye, stamp string) (*laid, error) {
 			}
 		}
 		seed := randomSeed()
-		m := breed(lookFor(parent.Seed, parent.Mods), seed, dye, stamp)
+		m := breed(lookFor(parent.Seed, parent.Mods), seed, dye, stamp, drop)
 		raw, _ := json.Marshal(m)
 		if _, err := tx.Exec(`UPDATE frogs SET laid_at = ? WHERE id = ?`, now.Unix(), parent.ID); err != nil {
 			return err

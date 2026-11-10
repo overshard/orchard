@@ -49,6 +49,9 @@ const (
 	mossRestocks = 3
 )
 
+// Eye drops and the colour they turn an egg's eyes.
+var drops = map[string]string{"drops_red": "#e2412d", "drops_pale": "#9fd8e8"}
+
 var stamps = map[string]string{
 	"stamp_spots": "SPOTS", "stamp_bands": "BANDS", "stamp_speckled": "SPECKLED",
 	"stamp_mask": "MASK", "stamp_stripe": "BACK STRIPE",
@@ -63,6 +66,8 @@ func init() {
 	itemNames["stamp_speckled"] = "Speckled stamp"
 	itemNames["stamp_mask"] = "Mask stamp"
 	itemNames["stamp_stripe"] = "Back stripe stamp"
+	itemNames["drops_red"] = "Red eye drops"
+	itemNames["drops_pale"] = "Pale eye drops"
 }
 
 var mossRocks = []struct {
@@ -76,6 +81,7 @@ var mossRocks = []struct {
 
 const (
 	stampPrice = 450
+	dropsPrice = 650
 	dyePrice   = 900
 	// Now and then Moss has a dye going cheap.
 	bargainPrice = 280
@@ -184,7 +190,8 @@ func mossRestock(now time.Time) (string, time.Time) {
 	return fmt.Sprintf("%s#%d", day, n), next
 }
 
-// mossStock is a rock, a stamp or a dye, and sometimes a dye going cheap.
+// mossStock is a rock and a stamp, eye drops or a dye, and sometimes a dye
+// going cheap.
 func mossStock(key string) []shopLine {
 	r := shopRand("moss " + key)
 	sum := 0
@@ -201,11 +208,16 @@ func mossStock(key string) []shopLine {
 		roll -= x.w
 	}
 	out := []shopLine{{Slot: 0, Kind: rock.kind, Name: itemNames[rock.kind], Price: rock.price, Limit: 1}}
-	if r.IntN(2) == 0 {
+	switch r.IntN(3) {
+	case 0:
 		keys := sortedKeys(stamps)
 		k := keys[r.IntN(len(keys))]
 		out = append(out, shopLine{Slot: 1, Kind: k, Name: itemNames[k], Price: stampPrice, Limit: 1})
-	} else {
+	case 1:
+		keys := sortedKeys(drops)
+		k := keys[r.IntN(len(keys))]
+		out = append(out, shopLine{Slot: 1, Kind: k, Name: itemNames[k], Price: dropsPrice, Limit: 1})
+	default:
 		k := wheelDyes[r.IntN(len(wheelDyes))]
 		out = append(out, shopLine{Slot: 1, Kind: k, Name: itemNames[k], Price: dyePrice, Limit: 1})
 	}

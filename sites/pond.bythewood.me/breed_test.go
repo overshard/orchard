@@ -15,36 +15,36 @@ func TestTheEggBench(t *testing.T) {
 	if len(v.Frogs) != 1 || !first.Front || first.LayIn != -1 || v.Pads != startingPads || v.PadCost != 400 {
 		t.Fatalf("a new pond: %+v pads %d cost %d", v.Frogs, v.Pads, v.PadCost)
 	}
-	if _, err := s.lay(id, first.ID, "", ""); !errors.Is(err, errNotYet) {
+	if _, err := s.lay(id, first.ID, "", "", ""); !errors.Is(err, errNotYet) {
 		t.Fatalf("an egg laid an egg: %v", err)
 	}
 
 	// Grown on day 13, it lays once and then waits a week.
 	*clock = clock.Add(12 * 24 * time.Hour)
-	l, err := s.lay(id, first.ID, "", "")
+	l, err := s.lay(id, first.ID, "", "", "")
 	if err != nil || l.Frog.Stage != "egg" || l.Frog.Mods == nil || len(l.Pond.Frogs) != 2 {
 		t.Fatalf("lay: %+v %v", l, err)
 	}
 	if l.Pond.Frogs[1].Front || l.Pond.Frog.Seed != first.Seed {
 		t.Error("the new egg came out front")
 	}
-	if _, err := s.lay(id, first.ID, "", ""); !errors.Is(err, errNotYet) {
+	if _, err := s.lay(id, first.ID, "", "", ""); !errors.Is(err, errNotYet) {
 		t.Errorf("laid twice in a week: %v", err)
 	}
 	*clock = clock.Add(layEvery)
-	if _, err := s.lay(id, first.ID, "dye_gold", ""); !errors.Is(err, errNotHeld) {
+	if _, err := s.lay(id, first.ID, "dye_gold", "", ""); !errors.Is(err, errNotHeld) {
 		t.Errorf("laid with a dye it doesn't have: %v", err)
 	}
 	if err := s.write(func(tx *sql.Tx) error { return addItem(tx, id, "dye_gold", 1) }); err != nil {
 		t.Fatal(err)
 	}
-	if l, err = s.lay(id, first.ID, "dye_gold", ""); err != nil || len(l.Pond.Items) != 0 {
+	if l, err = s.lay(id, first.ID, "dye_gold", "", ""); err != nil || len(l.Pond.Items) != 0 {
 		t.Fatalf("lay with a dye: %v, items %+v", err, l.Pond.Items)
 	}
 
 	// Three frogs fill three pads, and a fourth pad costs pebbles.
 	*clock = clock.Add(layEvery)
-	if _, err := s.lay(id, first.ID, "", ""); !errors.Is(err, errFullPads) {
+	if _, err := s.lay(id, first.ID, "", "", ""); !errors.Is(err, errFullPads) {
 		t.Errorf("laid onto a full pond: %v", err)
 	}
 	if _, err := s.buyPad(id); !errors.Is(err, errPoor) {
@@ -59,7 +59,7 @@ func TestTheEggBench(t *testing.T) {
 	if v, err = s.buyPad(id); err != nil || v.Pads != 4 || v.Pebbles != 600 || v.PadCost != 800 {
 		t.Fatalf("buy a pad: %v pads %d pebbles %d", err, v.Pads, v.Pebbles)
 	}
-	if _, err := s.lay(id, first.ID, "", ""); err != nil {
+	if _, err := s.lay(id, first.ID, "", "", ""); err != nil {
 		t.Errorf("lay onto the new pad: %v", err)
 	}
 }
@@ -70,7 +70,7 @@ func TestBringingAFrogOutFront(t *testing.T) {
 	v, _ := s.view(id)
 	first := v.Frogs[0].ID
 	*clock = clock.Add(13 * 24 * time.Hour)
-	l, err := s.lay(id, first, "", "")
+	l, err := s.lay(id, first, "", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,14 +107,14 @@ func TestBreedingLeansAndDrifts(t *testing.T) {
 	const n = 3000
 	dyed, thrown := 0, 0
 	for range n {
-		m := breed(parent, randomSeed(), "dye_blue", "")
+		m := breed(parent, randomSeed(), "dye_blue", "", "")
 		if m.Morph == "BLUE" {
 			dyed++
 		}
 		if m.BW < 10 || m.BW > 15.5 || m.Eye < 2.3 || m.Eye > 4.4 {
 			t.Fatalf("a child out of shape: %+v", m)
 		}
-		m = breed(parent, randomSeed(), "", "")
+		m = breed(parent, randomSeed(), "", "", "")
 		for _, k := range m.Took {
 			if k == "throwback" {
 				thrown++
@@ -178,5 +178,40 @@ func TestAnOldDatabaseGainsTheNewColumns(t *testing.T) {
 	v, err := s.view(1)
 	if err != nil || v.Pads != startingPads || len(v.Frogs) != 1 || v.Frogs[0].Mods != nil {
 		t.Fatalf("old pond: %v %+v", err, v)
+	}
+}
+
+func TestEyeDrops(t *testing.T) {
+	parent := lookOf(1207)
+	took, kept := 0, 0
+	for range 2000 {
+		m := breed(parent, randomSeed(), "", "", "drops_pale")
+		if m.Iris == "#9fd8e8" {
+			took++
+			l := lookFor(1207, &m)
+			if spriteColours(l, hat{})[4] != rgb("#9fd8e8") {
+				t.Fatal("pale drops don't draw pale eyes")
+			}
+			if m.Morph != "RED EYE" {
+				// A child of a frog with drops keeps them unless its colour changed.
+				if c := breed(l, randomSeed(), "", "", ""); c.Iris == "#9fd8e8" {
+					kept++
+				}
+			}
+		}
+	}
+	if took < 1200 || took > 1600 {
+		t.Errorf("pale drops took %d times in 2000", took)
+	}
+	if kept < took*85/100 {
+		t.Errorf("%d of %d children kept their parent's drops", kept, took)
+	}
+	plain := genomeOf(1207, &mods{Morph: "GREEN", Pattern: "PLAIN"})
+	dropped := genomeOf(1207, &mods{Morph: "GREEN", Pattern: "PLAIN", Iris: "#e2412d"})
+	if rarityOf(dropped).N != rarityOf(plain).N*10 {
+		t.Errorf("drops made 1 in %d into 1 in %d", rarityOf(plain).N, rarityOf(dropped).N)
+	}
+	if m := breed(lookFor(1207, &mods{Morph: "RED EYE", Pattern: "PLAIN", Hue: 118, Sat: 63, Lit: 45, BW: 12, BH: 8, Eye: 3}), randomSeed(), "", "", "drops_red"); m.Iris != "" && m.Morph == "RED EYE" {
+		t.Error("red drops on a red eyed frog counted as drops")
 	}
 }

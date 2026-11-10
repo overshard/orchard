@@ -50,6 +50,7 @@ type genome struct {
 	Notes   int    `json:"notes"`
 
 	weight int
+	drops  bool
 }
 
 func mulberry32(a uint32) func() float64 {
@@ -110,6 +111,7 @@ type rarity struct {
 }
 
 // rarityOf is how often this colour, back and pupil come out of a plain egg.
+// Eye drops never come out of one, so a frog with them counts ten times rarer.
 func rarityOf(g genome) rarity {
 	pat, pup := 1.0/7, 0.25
 	if g.Pattern == "SPOTS" {
@@ -119,6 +121,9 @@ func rarityOf(g genome) rarity {
 		pup = 0.5
 	}
 	n := int(math.Floor(1/(float64(g.weight)/1000*pat*pup) + 0.5))
+	if g.drops {
+		n *= 10
+	}
 	t := 4
 	switch {
 	case n < 60:
