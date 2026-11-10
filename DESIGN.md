@@ -584,6 +584,11 @@ version of the old look and a handheld pet shell.
   a faceplate, with section heads in amber as below.
 - **Empty spots are hazard striped sunken trays** with a dim outline of what
   goes there. Stripes mean empty or locked and nothing else.
+- **Every game is a floppy disk** on Play, a 3.5 inch disk in its own colour
+  with a metal shutter, a write protect tab and the game's picture on a cream
+  label. A disk that still pays in full has a blinking amber LED, the rest are
+  faded, and the pay tag and best score sit under it. The wheel and the old log
+  stay as panels.
 - **The side games end like Dive.** Their title and results sit in a panel
   with a screen window, and the strip under every game is readout glass and an
   EJECT key.
@@ -622,7 +627,7 @@ version of the old look and a handheld pet shell.
   do is a row of glowing chips under it that go straight there.
 - **Dive is the whole window, on a phone and a desktop.** It covers the bar and
   the keys, the pond takes its depth and length from the window, and a strip
-  under the water holds three readout tiles and `EXIT`. Ten ghost frogs swim
+  under the water holds three readout tiles and `EJECT`. Ten ghost frogs swim
   each run a little behind at 60% alpha, with their names over them where
   the field is wide enough to read ten.
 - **Dive is a race.** Three red lights and GO start it, a standings column

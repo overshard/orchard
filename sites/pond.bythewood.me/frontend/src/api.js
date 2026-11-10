@@ -26,6 +26,11 @@ export function titled(name) {
   return name.toLowerCase().replace(/(^| )[a-z]/g, (c) => c.toUpperCase());
 }
 
+// The same words the Play cards use, short enough for a readout.
+export function payWord(a) {
+  return a.paid >= a.cap ? "Paid out" : a.runs < a.full ? "Full" : "Quarter";
+}
+
 export const TIERS = ["Common", "Uncommon", "Rare", "Epic", "Legendary"];
 
 // The page keeps one copy of the pond as the server last described it, and

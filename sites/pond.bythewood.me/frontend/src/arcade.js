@@ -1,9 +1,8 @@
-import { $, post, state, setPond, watch, room, onResize } from "./api.js";
+import { $, post, state, setPond, watch, room, onResize, payWord } from "./api.js";
 
 // The frame round a side game. A game is a fixed field W by H, drawn at twice
 // that and scaled to the window, with reset, step, draw, and input hooks. This
-// starts and finishes runs on the server and paints the title and results.
-const MONO = "500 8px 'JetBrains Mono', monospace", HEAD = "700 13px 'Space Grotesk', sans-serif";
+// starts and finishes runs on the server and shows the title and results.
 
 export function arcade(game) {
   const k = game.key, view = $("v-" + k), cv = $(k + "-cv"), cx = cv.getContext("2d");
@@ -17,7 +16,7 @@ export function arcade(game) {
     if (!a) return;
     $(k + "-best").textContent = a.best;
     $(k + "-today").textContent = a.paid + "/" + a.cap;
-    $(k + "-pays").textContent = a.paid >= a.cap ? "0" : a.runs < a.full ? "1" : "1/4";
+    $(k + "-pays").textContent = payWord(a);
   }
 
   function fit() {
@@ -28,26 +27,48 @@ export function arcade(game) {
     cv.style.width = Math.round(game.W * A.scale) + "px";
   }
 
-  function box(lines, sub) {
-    const W = game.W, ow = W - 24, oh = 26 + lines.length * 14 + sub.length * 11, ox = 12, oy = Math.round(game.H * 0.3);
-    cx.fillStyle = "rgba(10,9,8,0.85)"; cx.fillRect(ox, oy, ow, oh);
-    cx.fillStyle = "#ffb000"; cx.fillRect(ox, oy, 2, oh);
-    cx.textAlign = "center"; cx.fillStyle = "#ece5d8"; cx.font = HEAD;
-    lines.forEach((l, i) => cx.fillText(l, W / 2, oy + 20 + i * 14));
-    cx.fillStyle = "#bcaf99"; cx.font = MONO;
-    sub.forEach((l, i) => cx.fillText(l, W / 2, oy + 20 + lines.length * 14 + 4 + i * 11, ow - 8));
+  // The title and results are a panel over the field, the same as Dive's.
+  const card = document.createElement("section");
+  card.className = "arcade-card";
+  view.querySelector(".screen").append(card);
+
+  function el(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+
+  function showCard(now) {
+    card.hidden = A.state === "play";
+    if (card.hidden) return;
+    const win = el("div", "arcade-win"), art = el("canvas");
+    art.width = 168; art.height = 96;
+    const from = $("play-" + k + "-art");
+    if (from) art.getContext("2d").drawImage(from, 0, 0);
+    win.append(art);
+    const kids = [win];
+    if (A.state === "idle") {
+      kids.push(el("b", "", game.title));
+      game.help.filter((l) => l !== "TAP TO START").forEach((l) => kids.push(el("p", "dim", l)));
+      kids.push(el("p", "again", "Tap to start"));
+    } else {
+      kids.push(el("p", "why", game.why() || "Done"));
+      const r = el("span", "readout big");
+      r.append(el("span", "k", "Score"), el("span", "v", String(game.score())));
+      kids.push(r);
+      kids.push(el("p", A.paid ? "won" : "dim", A.paid === null ? "Counting..." : "+" + A.paid + " pebbles"));
+      if (A.best) kids.push(el("p", "won", "A new best"));
+      if (now - A.overAt > 900) kids.push(el("p", "again", "Tap to go again"));
+    }
+    card.replaceChildren(...kids);
   }
 
   function paint(now) {
     cx.setTransform(2, 0, 0, 2, 0, 0);
     cx.imageSmoothingEnabled = false;
     game.draw(cx, now);
-    if (A.state === "idle") box([game.title], game.help);
-    if (A.state === "over") {
-      const sub = [A.paid === null ? "COUNTING..." : "+" + A.paid + " PEBBLES" + (A.best ? ", A NEW BEST" : "")];
-      if (now - A.overAt > 900) sub.push("TAP TO GO AGAIN");
-      box([game.why() || "DONE", "SCORE " + game.score()], sub);
-    }
+    if (A.state !== "play") showCard(now);
   }
 
   function loop(now) {
@@ -74,6 +95,7 @@ export function arcade(game) {
   function start() {
     game.reset(state.g, state.pond);
     A.state = "play"; A.last = performance.now();
+    card.hidden = true;
     started = net = net.then(() => post("/api/arcade/start", { game: k })).then((d) => d.run, () => null);
     requestAnimationFrame(loop);
   }

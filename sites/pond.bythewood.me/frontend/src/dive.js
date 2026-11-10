@@ -1,4 +1,4 @@
-import { $, post, state, setPond, watch, room, onResize } from "./api.js";
+import { $, post, state, setPond, watch, room, onResize, payWord } from "./api.js";
 import { genome, sideCells, draw as drawCells, SW, SH } from "./frog.js";
 import { raceStart, raceOut, raceOrder, raceResults, raceHide, countdown, callout } from "./race.js";
 
@@ -310,7 +310,7 @@ function note(p) {
   const d = p.dive;
   $("dive-best").textContent = d.best;
   $("dive-today").textContent = d.paid + "/" + d.cap;
-  $("dive-pays").textContent = d.paid >= d.cap ? "0" : d.runs < d.full ? "1" : "1/4";
+  $("dive-pays").textContent = payWord(d);
 }
 
 export function initDive() {
