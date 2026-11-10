@@ -318,9 +318,11 @@ func TestPanelIsTheVisitorsOwnFrog(t *testing.T) {
 	if rec.Header().Get("Access-Control-Allow-Origin") != "" {
 		t.Error("the panel answered an origin it doesn't know")
 	}
-	rec = b.do(http.MethodGet, "/api/panel", "", "Origin", "https://dash.bythewood.me")
-	if rec.Header().Get("Access-Control-Allow-Origin") != "https://dash.bythewood.me" || rec.Header().Get("Access-Control-Allow-Credentials") != "true" {
-		t.Errorf("dash wasn't allowed the visitor's frog: %v", rec.Header())
+	for _, o := range []string{"https://dash.bythewood.me", "https://status.bythewood.me"} {
+		rec = b.do(http.MethodGet, "/api/panel", "", "Origin", o)
+		if rec.Header().Get("Access-Control-Allow-Origin") != o || rec.Header().Get("Access-Control-Allow-Credentials") != "true" {
+			t.Errorf("%s wasn't allowed the visitor's frog: %v", o, rec.Header())
+		}
 	}
 }
 
