@@ -176,6 +176,16 @@ function render(p) {
     larder.append(btn);
   });
   $("cook").disabled = picked.length !== 2;
+  const rec = $("recipe"), known = picked.length === 2 && k.cookbook.find((d) => (d.a === picked[0] && d.b === picked[1]) || (d.a === picked[1] && d.b === picked[0]));
+  rec.hidden = picked.length !== 2;
+  rec.classList.toggle("known", !!known);
+  rec.textContent = "";
+  if (known) {
+    const words = document.createElement("span"), name = document.createElement("b");
+    name.textContent = known.name;
+    words.append("In the cookbook", name, TIERS[known.tier] + ", Brindle pays " + known.worth);
+    rec.append(dishCanvas(known, 3), words);
+  } else if (picked.length === 2) rec.textContent = "Not in the cookbook yet. Cook it to see what it makes.";
   drawPot($("pot-art"), picked, p.day && p.day.night);
 
   const dishes = $("dishes");
