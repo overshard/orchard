@@ -3083,6 +3083,52 @@ button.big {
   margin: 0;
 }
 
+/* The flagship disk takes a whole row, with its blurb beside it. */
+.disk.flag {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+}
+
+/* Padding in percent would be of the whole row here, so it's set by hand to
+   match a disk in the grid. */
+.disk.flag .floppy {
+  flex: 0 0 calc(50% - 6px);
+  padding: 0 15px 13px;
+}
+
+@media (min-width: 30rem) {
+  .disk.flag .floppy {
+    flex-basis: calc(33.333% - 8px);
+  }
+}
+
+.disk.flag .dline {
+  flex: 1;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.dhead {
+  color: var(--amber);
+  font-family: var(--grotesk);
+  font-size: 24px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.dsub {
+  color: var(--text);
+}
+
+#play-fish-line {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 10px;
+}
+
 .chip.more {
   margin: 0 0 3px;
   font-weight: 500;

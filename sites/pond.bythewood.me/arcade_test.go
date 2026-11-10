@@ -69,3 +69,14 @@ func TestCrossingPaysHalf(t *testing.T) {
 		t.Errorf("a 61 point crossing paid %d, want 30", d.Paid)
 	}
 }
+
+// Every game the page can open has to be one the server will start.
+func TestNewSideGamesStart(t *testing.T) {
+	s, _ := testStore(t)
+	_, id := newPond(t, s)
+	for _, k := range []string{"fish", "stack", "shell", "skip"} {
+		if _, err := s.arcadeStart(id, k); err != nil {
+			t.Errorf("%s: %v", k, err)
+		}
+	}
+}

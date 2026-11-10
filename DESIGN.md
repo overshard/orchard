@@ -590,7 +590,8 @@ version of the old look and a handheld pet shell.
   with a metal shutter, a write protect tab and the game's picture on a cream
   label. A disk that still pays in full has a blinking amber LED, the rest are
   faded, and the pay tag and best score sit under it. The wheel and the old log
-  stay as panels.
+  stay as panels. Fishing is the flagship and its disk takes the whole first
+  row, with a big amber title and a line about it beside the disk.
 - **The side games end like Dive.** Their title and results sit in a panel
   with a screen window, and the strip under every game is readout glass and an
   EJECT key.

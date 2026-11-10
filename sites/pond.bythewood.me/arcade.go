@@ -25,6 +25,10 @@ var arcadeGames = []arcadeGame{
 	{"raft", "Raft run", 40, 4, 600, 1},
 	{"leap", "Lily leap", 40, 20, 3000, 4},
 	{"school", "Tadpoles", 40, 6, 600, 1},
+	{"fish", "Fishing", 80, 5, 400, 2},
+	{"stack", "Lily stack", 40, 6, 3000, 1},
+	{"shell", "Shell game", 40, 4, 2000, 1},
+	{"skip", "Pebble skip", 40, 12, 400, 2},
 }
 
 const arcadeFullRuns = 3
