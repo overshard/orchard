@@ -473,7 +473,8 @@ button:disabled {
 
 /* Dive is the whole window. The water fills it from the top and the readout
    and the way out sit under it. */
-#v-dive.full {
+#v-dive.full,
+.arcade.full {
   position: fixed;
   inset: 0;
   z-index: 10;
@@ -483,33 +484,39 @@ button:disabled {
   background: var(--void);
 }
 
-#v-dive.full .screen {
+#v-dive.full .screen,
+.arcade.full .screen {
   display: flex;
   justify-content: center;
   padding: 0;
   border: 0;
 }
 
-#v-dive.full .screen::after {
+#v-dive.full .screen::after,
+.arcade.full .screen::after {
   display: none;
 }
 
-#v-dive.full .screen::before {
+#v-dive.full .screen::before,
+.arcade.full .screen::before {
   display: none;
 }
 
-#v-dive.full .dive-hud {
+#v-dive.full .dive-hud,
+.arcade.full .dive-hud {
   flex: 1;
   align-items: flex-start;
   padding-bottom: calc(12px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--line-hot);
 }
 
-#v-dive.full .dive-hud > * {
+#v-dive.full .dive-hud > *,
+.arcade.full .dive-hud > * {
   height: 51px;
 }
 
-body:has(#v-dive.full) {
+body:has(#v-dive.full),
+body:has(.arcade.full) {
   overflow: hidden;
 }
 
@@ -2307,4 +2314,9 @@ button.big {
 .reed .job.full {
   border-color: var(--amber);
   color: var(--amber);
+}
+
+.arcade canvas {
+  image-rendering: pixelated;
+  touch-action: none;
 }
