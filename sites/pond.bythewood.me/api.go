@@ -597,3 +597,25 @@ func (s *site) apiGift(id int64, r *http.Request, w http.ResponseWriter) (any, e
 func (s *site) apiFavour(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
 	return s.store.favour(id)
 }
+
+func (s *site) apiArcadeStart(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	var in struct {
+		Game string `json:"game"`
+	}
+	if !readJSON(w, r, &in) {
+		return nil, nil
+	}
+	return s.store.arcadeStart(id, in.Game)
+}
+
+func (s *site) apiArcadeFinish(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	var in struct {
+		Game  string `json:"game"`
+		Run   string `json:"run"`
+		Score int    `json:"score"`
+	}
+	if !readJSON(w, r, &in) {
+		return nil, nil
+	}
+	return s.store.arcadeFinish(id, in.Game, in.Run, in.Score)
+}

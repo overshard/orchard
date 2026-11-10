@@ -151,6 +151,18 @@ CREATE TABLE IF NOT EXISTS neighbours (
     PRIMARY KEY (pond_id, who)
 ) WITHOUT ROWID;
 
+CREATE TABLE IF NOT EXISTS arcade (
+    pond_id    INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
+    game       TEXT NOT NULL,
+    day        TEXT NOT NULL DEFAULT '',
+    runs       INTEGER NOT NULL DEFAULT 0,
+    paid       INTEGER NOT NULL DEFAULT 0,
+    best       INTEGER NOT NULL DEFAULT 0,
+    run        TEXT NOT NULL DEFAULT '',
+    started_at INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (pond_id, game)
+) WITHOUT ROWID;
+
 CREATE TABLE IF NOT EXISTS growth (
     id    INTEGER PRIMARY KEY CHECK (id = 1),
     at    INTEGER NOT NULL,
@@ -642,6 +654,7 @@ type view struct {
 	Rocks      []rockView          `json:"rocks"`
 	Keepsakes  []keepsakeView      `json:"keepsakes"`
 	Neighbours neighboursView      `json:"neighbours"`
+	Arcade     []arcadeView        `json:"arcade"`
 	// What Fenn sold this pond, drawn on the water.
 	Furniture []string   `json:"furniture"`
 	Bag       []bagThing `json:"bag"`
@@ -856,6 +869,9 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 		return err
 	}
 	if v.Neighbours, err = neighboursOf(q, p.ID, now); err != nil {
+		return err
+	}
+	if v.Arcade, err = arcadeViews(q, p.ID, now); err != nil {
 		return err
 	}
 	v.Bag = bagOf(v.held, v.Hats, v.Hoods)
