@@ -165,9 +165,14 @@ function render(p) {
     btn.setAttribute("aria-pressed", times ? "true" : "false");
     btn.disabled = it.count === 0;
     name.textContent = it.name + (times === 2 ? " x2" : "");
-    n.className = it.count ? "n" : "n off";
-    n.textContent = it.count ? it.count : it.season ? "IN SEASON" : "NOT NOW";
-    btn.append(iconCanvas(it.kind, 2), name, n);
+    n.className = "held";
+    n.textContent = it.count || "";
+    n.hidden = !it.count;
+    const dot = document.createElement("i");
+    dot.className = "season" + (it.season ? " on" : "");
+    dot.title = it.season ? "In season" : "Not in season";
+    dot.setAttribute("aria-label", dot.title);
+    btn.append(iconCanvas(it.kind, 2), name, dot, n);
     larder.append(btn);
   });
   $("cook").disabled = picked.length !== 2;
