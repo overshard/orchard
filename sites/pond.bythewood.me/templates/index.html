@@ -32,7 +32,7 @@
     <div class="disks">
       <a class="disk flag" href="#fish" id="play-fish" style="--disk: #1f7a7a">
         <span class="floppy"><span class="sticker"><canvas id="play-fish-art" width="168" height="96" aria-hidden="true"></canvas><b>Fishing</b></span></span>
-        <span class="dline"><b class="dhead">Fishing</b><span class="dsub">Forty five seconds off the jetty. Cast, strike and reel in what you can.</span><span id="play-fish-line"></span></span>
+        <span class="dline"><b class="dhead">Fishing</b><span class="dsub">A minute off the jetty. Cast, strike and reel in what you can.</span><span id="play-fish-line"></span></span>
       </a>
       <a class="disk" href="#dive" id="play-dive" style="--disk: #2b5fa8">
         <span class="floppy"><span class="sticker"><canvas id="play-dive-art" width="168" height="96" aria-hidden="true"></canvas><b>Dive</b></span></span>
@@ -95,6 +95,7 @@
         <div class="callouts" id="callouts" aria-live="polite"></div>
         <div class="countdown" id="countdown" hidden><span class="lights"><i></i><i></i><i></i></span><b id="count-word">3</b></div>
         <div class="confetti" id="confetti"></div>
+        <section class="arcade-card" id="dive-card" hidden></section>
         <section class="results" id="results" hidden>
           <p class="why" id="res-why"></p>
           <p class="bigplace"><b id="res-place">1</b><i id="res-sfx">ST</i><span id="res-of">OF 10</span></p>
@@ -237,12 +238,20 @@
   </section>
 
   <section class="view" id="v-bag" hidden>
+    <div class="places pair" role="group" aria-label="In the bag">
+      <button type="button" data-go="bag" aria-pressed="true"><canvas data-icon="i_bag" width="40" height="40"></canvas>Holding</button>
+      <button type="button" data-go="collect" aria-pressed="false"><canvas data-icon="i_star" width="40" height="40"></canvas>Collection</button>
+    </div>
     <div class="chiprow" id="bag-sorts" role="group" aria-label="Show"></div>
     <div class="slots" id="bag-grid"></div>
     <p class="empty" id="bag-none" hidden>Nothing in here yet. Spin the wheel, turn over the log or open a box in town.</p>
   </section>
 
   <section class="view" id="v-collect" hidden>
+    <div class="places pair" role="group" aria-label="In the bag">
+      <button type="button" data-go="bag" aria-pressed="false"><canvas data-icon="i_bag" width="40" height="40"></canvas>Holding</button>
+      <button type="button" data-go="collect" aria-pressed="true"><canvas data-icon="i_star" width="40" height="40"></canvas>Collection</button>
+    </div>
     <div class="total">
       <b id="col-pct">0%</b>
       <span class="meter"><i id="col-bar"></i></span>
@@ -291,8 +300,9 @@
 
     <h2>Kitchen</h2>
     <div class="screen pot"><canvas id="pot-art" width="360" height="132" aria-label="The kitchen pot"></canvas></div>
-    <p class="help" hidden>Any two things from the garden make a dish. Every dish you find goes in the cookbook in Collect, and Brindle buys whatever you cook.</p>
+    <p class="help" hidden>Any two things from the garden make a dish. Every dish you find goes in the cookbook in your collection, and Brindle buys whatever you cook.</p>
     <div class="larder seg" id="larder" aria-label="Pick two"></div>
+    <p class="recipe" id="recipe" hidden></p>
     <div class="row"><button type="button" class="primary" id="cook">Cook</button></div>
     <p class="line" id="cook-out" role="status"></p>
     <ul class="things dishes" id="dishes"></ul>
@@ -350,8 +360,8 @@
 
   <section class="view" id="v-town" hidden>
     <div class="places" id="town-tabs" role="group" aria-label="In town">
-      <button type="button" data-town="shops" aria-pressed="true"><canvas data-icon="i_shops" width="40" height="40"></canvas>Shops</button>
-      <button type="button" data-town="neighbours" aria-pressed="false"><canvas data-icon="i_folk" width="40" height="40"></canvas>Neighbours</button>
+      <button type="button" data-town="neighbours" aria-pressed="true"><canvas data-icon="i_folk" width="40" height="40"></canvas>Neighbours</button>
+      <button type="button" data-town="shops" aria-pressed="false"><canvas data-icon="i_shops" width="40" height="40"></canvas>Shops</button>
       <button type="button" data-town="stall" aria-pressed="false"><canvas data-icon="i_stall" width="40" height="40"></canvas>Stall</button>
       <button type="button" data-town="wizard" aria-pressed="false"><canvas data-icon="i_wizard" width="40" height="40"></canvas>Wizard</button>
       <button type="button" data-town="market" aria-pressed="false"><canvas data-icon="i_market" width="40" height="40"></canvas>Market</button>
@@ -370,7 +380,7 @@
       <p class="line" id="mkt-out" role="status"></p>
     </div>
 
-    <div id="town-shops">
+    <div id="town-shops" hidden>
       <h2>Wren's Hats</h2>
       <p class="dim" id="wren-note"></p>
       <div class="boxbuy">
@@ -401,7 +411,7 @@
       <p class="line" id="shop-out-moss" role="status"></p>
     </div>
 
-    <div id="town-neighbours" hidden>
+    <div id="town-neighbours">
       <h2>Today's favour</h2>
       <div class="boxbuy favour" id="favour"></div>
       <p class="line" id="neigh-out" role="status"></p>
@@ -507,7 +517,6 @@
   <button type="button" data-view="pond" aria-pressed="true"><canvas data-icon="i_pond" width="24" height="24"></canvas>Pond</button>
   <button type="button" data-view="play" aria-pressed="false"><canvas data-icon="i_play" width="24" height="24"></canvas>Play</button>
   <button type="button" data-view="bag" aria-pressed="false"><canvas data-icon="i_bag" width="24" height="24"></canvas>Bag</button>
-  <button type="button" data-view="collect" aria-pressed="false"><canvas data-icon="i_star" width="24" height="24"></canvas>Collect</button>
   <button type="button" data-view="reeds" aria-pressed="false"><canvas data-icon="f_reeds" width="24" height="24"></canvas>Reeds</button>
   <button type="button" data-view="garden" aria-pressed="false"><canvas data-icon="watercress" width="24" height="24"></canvas>Garden</button>
   <button type="button" data-view="bank" aria-pressed="false"><canvas data-icon="i_bank" width="24" height="24"></canvas>Bank</button>

@@ -231,22 +231,30 @@ canvas {
   height: 14px;
 }
 
-/* The settings readout is a key, since it opens something. */
-a.readout {
-  border: 0;
+/* Settings is a square key with a gear on it, lit while it's open. */
+.gearkey {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  margin-bottom: 3px;
+  border-radius: 3px;
   background: var(--cap);
   box-shadow: var(--raised);
-  margin-bottom: 3px;
-}
-
-a.readout .k {
   color: var(--print);
 }
 
-a.readout:active,
-a.readout.lit {
+.gearkey svg {
+  display: block;
+}
+
+.gearkey:active,
+.gearkey.lit {
   transform: translateY(3px);
   box-shadow: var(--pressed);
+}
+
+.gearkey.lit {
+  color: var(--amber);
 }
 
 @media (max-width: 26rem) {
@@ -699,7 +707,7 @@ div.hattile {
   bottom: 0;
   z-index: 2;
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
+  grid-template-columns: repeat(7, 1fr);
   width: 100%;
   max-width: 34rem;
   margin: 0 auto;
@@ -1814,6 +1822,46 @@ h2 .count {
   grid-template-columns: repeat(5, 1fr);
   gap: 4px;
   margin: 0 0 14px;
+}
+
+/* What two picked things make, once the cookbook has it. */
+.recipe {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.recipe.known {
+  padding: 8px 10px;
+  border: 1px solid #000;
+  border-radius: 3px;
+  background: var(--glass);
+  box-shadow: var(--sunk);
+  color: var(--glass-k);
+}
+
+.recipe span {
+  display: flex;
+  flex-direction: column;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.recipe b {
+  color: var(--digit);
+  font-family: var(--mono);
+  font-size: 14px;
+  letter-spacing: 0;
+  text-shadow: var(--glow);
+  text-transform: none;
+}
+
+.places.pair {
+  grid-template-columns: repeat(2, 1fr);
 }
 
 .places button {
@@ -3326,6 +3374,81 @@ button.big {
   font-style: italic;
 }
 
+.reed .fav {
+  color: #e2567a;
+}
+
+/* A neighbour's sheet: how friendly it is, then what's known about it. */
+.friend {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 4px 10px;
+  margin: 10px 0;
+}
+
+.friend b.hearts {
+  color: #e2567a;
+  font-size: 20px;
+  letter-spacing: 0.1em;
+}
+
+.friend .dim {
+  grid-column: 1 / -1;
+  font-size: 11px;
+}
+
+.friend .bar {
+  height: 8px;
+  border: 1px solid #000;
+  border-radius: 2px;
+  background: var(--glass);
+  box-shadow: var(--sunk);
+  overflow: hidden;
+}
+
+.friend .bar i {
+  display: block;
+  height: 100%;
+  background: #e2567a;
+}
+
+.facts {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.fact {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 3px;
+  background: var(--panel-2);
+  box-shadow: var(--moulded);
+}
+
+.fact canvas {
+  flex-shrink: 0;
+}
+
+.fact .k {
+  color: var(--amber);
+  font-size: 9px;
+  letter-spacing: var(--track);
+  text-transform: uppercase;
+}
+
+.fact p {
+  margin: 1px 0 0;
+  font-size: 13px;
+}
+
+.fact p.dim {
+  font-size: 11px;
+}
+
 /* A neighbour's thought is a cloud over it, trailing two puffs down to it. */
 .reed .thought {
   position: relative;
@@ -3361,7 +3484,7 @@ button.big {
   height: 4px;
 }
 
-.reed .paper {
+.reed .press {
   justify-self: start;
   padding: 1px 6px;
   border-radius: 2px;

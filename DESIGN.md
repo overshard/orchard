@@ -617,12 +617,12 @@ version of the old look and a handheld pet shell.
   surface, `#fff6dc` cream, `#ffe27a` yellow and `#e2567a` pink.
 - **Panel 00 is the faceplate**, POND in Space Grotesk, a `MODEL FR-01 / SERIES
   ORCHARD` plate that drops out on a narrow phone, and the readouts as tiles on
-  a hairline grid, `PEBBLES` and a `SETTINGS` key with a pixel gear, which opens the
+  a hairline grid, `PEBBLES` and a square key with a pixel gear and no word, which opens the
   settings (the name, the pond key, frog power).
 - A section head is an amber index chip, a caps title and a rule out to the
   edge, the same as a dash panel head.
-- **Eight places are transport keys along the bottom**, each a pixel icon over
-  a word, where a thumb is: Pond, Play, Bag, Collect, Reeds, Garden, Bank and
+- **Seven places are transport keys along the bottom**, each a pixel icon over
+  a word, where a thumb is: Pond, Play, Bag, Reeds, Garden, Bank and
   Town. The lit one stays pushed in like a tape deck's PLAY, and a key with
   something waiting behind it has a small amber LED. Dive
   and the wheel open from Play and light it. The content column stops at
@@ -674,7 +674,7 @@ version of the old look and a handheld pet shell.
   gazette names it. What it says to you is a speech bubble on its sheet.
 - **The reeds** are every frog as a card, the one out front first with an
   amber border and OUT FRONT, the rest with a key to swap. The egg bench and
-  the pads sit under them. The register of looks is in Collect.
+  the pads sit under them. The register of looks is in the bag's collection.
 - **A frog's public page** is the frog in its screen, its power as one big
   amber Space Grotesk number with the rank beside it, the parts that make it
   up, and a QR code for the link. It ends on getting a frog of your own.
