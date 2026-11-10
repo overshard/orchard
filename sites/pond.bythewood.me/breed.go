@@ -139,10 +139,11 @@ type frogRow struct {
 	LaidAt    int64
 	Front     bool
 	Hat       hat
+	Name      string
 }
 
 func loadFrogs(q querier, pondID int64) ([]frogRow, error) {
-	rows, err := q.Query(`SELECT id, seed, genome_json, hatched_at, laid_at, out_front, hat_shape, hat_colour
+	rows, err := q.Query(`SELECT id, seed, genome_json, hatched_at, laid_at, out_front, hat_shape, hat_colour, name
 		FROM frogs WHERE pond_id = ? ORDER BY id`, pondID)
 	if err != nil {
 		return nil, err
@@ -152,7 +153,7 @@ func loadFrogs(q querier, pondID int64) ([]frogRow, error) {
 	for rows.Next() {
 		var f frogRow
 		var raw string
-		if err := rows.Scan(&f.ID, &f.Seed, &raw, &f.HatchedAt, &f.LaidAt, &f.Front, &f.Hat.Shape, &f.Hat.Colour); err != nil {
+		if err := rows.Scan(&f.ID, &f.Seed, &raw, &f.HatchedAt, &f.LaidAt, &f.Front, &f.Hat.Shape, &f.Hat.Colour, &f.Name); err != nil {
 			return nil, err
 		}
 		f.Mods = parseMods(raw)
@@ -253,8 +254,8 @@ func (s *store) front(id, frogID int64) (*view, error) {
 			return err
 		}
 		// savePond writes the hat back onto whichever frog is out front.
-		return tx.QueryRow(`SELECT id, seed, genome_json, hatched_at, hat_shape, hat_colour FROM frogs WHERE id = ?`, frogID).
-			Scan(&p.FrogID, &p.Seed, &p.ModsJSON, &p.HatchedAt, &p.Wearing.Shape, &p.Wearing.Colour)
+		return tx.QueryRow(`SELECT id, seed, genome_json, hatched_at, hat_shape, hat_colour, name FROM frogs WHERE id = ?`, frogID).
+			Scan(&p.FrogID, &p.Seed, &p.ModsJSON, &p.HatchedAt, &p.Wearing.Shape, &p.Wearing.Colour, &p.FrogName)
 	})
 }
 

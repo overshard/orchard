@@ -63,7 +63,7 @@ func fail(w http.ResponseWriter, r *http.Request, err error) {
 		writeError(w, http.StatusUnauthorized, "no pond")
 	case errors.Is(err, errFull):
 		writeError(w, http.StatusTooManyRequests, err.Error())
-	case errors.Is(err, errPoor), errors.Is(err, errNotYet), errors.Is(err, errNotHeld), errors.Is(err, errBadRun),
+	case errors.Is(err, errPoor), errors.Is(err, errNotYet), errors.Is(err, errNotHeld), errors.Is(err, errBadRun), errors.Is(err, errBadName), errors.Is(err, errBadPrice), errors.Is(err, errStallFull),
 		errors.Is(err, errFullPads), errors.Is(err, errMaxed), errors.Is(err, errSoldOut):
 		writeError(w, http.StatusConflict, err.Error())
 	default:
@@ -423,7 +423,7 @@ func (s *site) apiRestore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	setKeyCookie(w, key)
-	writeJSON(w, http.StatusOK, map[string]string{"name": titled(newGenome(p.Seed).Name)})
+	writeJSON(w, http.StatusOK, map[string]string{"name": titled(frogOf(p, s.store.now()).Name)})
 }
 
 func (s *site) apiRotate(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
@@ -507,4 +507,54 @@ func (s *site) apiDevDay(w http.ResponseWriter, r *http.Request) {
 		s.store.day.last.Store(in)
 	}
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+func (s *site) apiNames(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	return map[string][]string{"names": rollNames()}, nil
+}
+
+func (s *site) apiRename(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	var in struct {
+		Frog int64  `json:"frog"`
+		Name string `json:"name"`
+	}
+	if !readJSON(w, r, &in) {
+		return nil, nil
+	}
+	return s.store.rename(id, in.Frog, in.Name)
+}
+
+func (s *site) apiWizard(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	var in struct {
+		Kind string `json:"kind"`
+	}
+	if !readJSON(w, r, &in) {
+		return nil, nil
+	}
+	return s.store.wizard(id, in.Kind)
+}
+
+func (s *site) apiStallList(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	var in struct {
+		Kind  string `json:"kind"`
+		Price int    `json:"price"`
+	}
+	if !readJSON(w, r, &in) {
+		return nil, nil
+	}
+	return s.store.stallList(id, in.Kind, in.Price)
+}
+
+func (s *site) apiStallTake(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	var in struct {
+		Slot int `json:"slot"`
+	}
+	if !readJSON(w, r, &in) {
+		return nil, nil
+	}
+	return s.store.stallTake(id, in.Slot)
+}
+
+func (s *site) apiStallCollect(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	return s.store.stallCollect(id)
 }

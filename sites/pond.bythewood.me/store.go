@@ -122,6 +122,17 @@ CREATE TABLE IF NOT EXISTS keepsakes (
     PRIMARY KEY (pond_id, kind, day)
 ) WITHOUT ROWID;
 
+CREATE TABLE IF NOT EXISTS stall (
+    pond_id   INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
+    slot      INTEGER NOT NULL,
+    kind      TEXT NOT NULL,
+    price     INTEGER NOT NULL,
+    listed_at INTEGER NOT NULL,
+    sells_at  INTEGER NOT NULL,
+    buyer     TEXT NOT NULL,
+    PRIMARY KEY (pond_id, slot)
+) WITHOUT ROWID;
+
 CREATE TABLE IF NOT EXISTS growth (
     id    INTEGER PRIMARY KEY CHECK (id = 1),
     at    INTEGER NOT NULL,
@@ -178,14 +189,17 @@ func ensureColumns(db *sql.DB) error {
 }
 
 var (
-	errNoPond   = errors.New("no pond")
-	errFull     = errors.New("the pond is full for the moment, try again in a little while")
-	errPoor     = errors.New("not enough pebbles")
-	errNotYet   = errors.New("not yet")
-	errNotHeld  = errors.New("you don't have that one")
-	errBadRun   = errors.New("that run doesn't count")
-	errFullPads = errors.New("every pad has a frog on it, so the pond needs another pad first")
-	errSoldOut  = errors.New("you've bought all of that there is for now")
+	errNoPond    = errors.New("no pond")
+	errFull      = errors.New("the pond is full for the moment, try again in a little while")
+	errPoor      = errors.New("not enough pebbles")
+	errNotYet    = errors.New("not yet")
+	errNotHeld   = errors.New("you don't have that one")
+	errBadRun    = errors.New("that run doesn't count")
+	errFullPads  = errors.New("every pad has a frog on it, so the pond needs another pad first")
+	errSoldOut   = errors.New("you've bought all of that there is for now")
+	errBadName   = errors.New("that name isn't on the list")
+	errBadPrice  = errors.New("that price is off the scale")
+	errStallFull = errors.New("the stall is full")
 )
 
 // store keeps one writing connection and a small pool that only reads. Every
@@ -297,6 +311,7 @@ type pond struct {
 	ModsJSON  string
 	HatchedAt int64
 	Wearing   hat
+	FrogName  string
 }
 
 const pondColumns = `p.id, p.public_id, p.created_at, p.last_seen_at, p.last_gift_at,
@@ -305,7 +320,7 @@ const pondColumns = `p.id, p.public_id, p.created_at, p.last_seen_at, p.last_gif
 	p.dive_ghosts, p.dive_podium, p.pads, p.key_saved_at,
 	p.gravel_level, p.gravel_at, p.garden_level, p.dive_form,
 	p.dye_level, p.dye_at, p.dye_batch, p.trinkets_out, p.forage_day, f.id, f.seed, f.genome_json, f.hatched_at,
-	f.hat_shape, f.hat_colour`
+	f.hat_shape, f.hat_colour, f.name`
 
 func scanPond(row *sql.Row) (*pond, error) {
 	var p pond
@@ -315,7 +330,7 @@ func scanPond(row *sql.Row) (*pond, error) {
 		&p.DiveGhosts, &p.DivePodium, &p.Pads, &p.KeySavedAt,
 		&p.GravelLevel, &p.GravelAt, &p.GardenLevel, &p.DiveForm,
 		&p.DyeLevel, &p.DyeAt, &p.DyeBatch, &p.TrinketsOut, &p.ForageDay, &p.FrogID, &p.Seed, &p.ModsJSON, &p.HatchedAt,
-		&p.Wearing.Shape, &p.Wearing.Colour)
+		&p.Wearing.Shape, &p.Wearing.Colour, &p.FrogName)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, errNoPond
 	}
@@ -583,7 +598,14 @@ type view struct {
 	Rocks     []rockView          `json:"rocks"`
 	Keepsakes []keepsakeView      `json:"keepsakes"`
 	// What Fenn sold this pond, drawn on the water.
-	Furniture []string `json:"furniture"`
+	Furniture []string   `json:"furniture"`
+	Bag       []bagThing `json:"bag"`
+	Stall     stallView  `json:"stall"`
+	Wizard    struct {
+		Takes int `json:"takes"`
+		Up    int `json:"up"`
+		Same  int `json:"same"`
+	} `json:"wizard"`
 
 	held  map[string]int
 	found []hat
@@ -592,11 +614,14 @@ type view struct {
 }
 
 func frogOf(p *pond, now time.Time) frogView {
-	return frogViewOf(frogRow{Seed: p.Seed, Mods: parseMods(p.ModsJSON), HatchedAt: p.HatchedAt, Hat: p.Wearing}, now)
+	return frogViewOf(frogRow{Seed: p.Seed, Mods: parseMods(p.ModsJSON), HatchedAt: p.HatchedAt, Hat: p.Wearing, Name: p.FrogName}, now)
 }
 
 func frogViewOf(f frogRow, now time.Time) frogView {
 	g := genomeOf(f.Seed, f.Mods)
+	if f.Name != "" {
+		g.Name = f.Name
+	}
 	stage, day := stageOf(now.Sub(time.Unix(f.HatchedAt, 0)))
 	return frogView{genome: g, Mods: f.Mods, Stage: stage, Day: day, Rarity: rarityOf(g), Hat: f.Hat}
 }
@@ -764,6 +789,11 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	if v.Keepsakes, err = keepsakesOf(q, p.ID); err != nil {
 		return err
 	}
+	if v.Stall, err = stallOf(q, p.ID, now); err != nil {
+		return err
+	}
+	v.Bag = bagOf(v.held, v.Hats)
+	v.Wizard.Takes, v.Wizard.Up, v.Wizard.Same = wizardTakes, wizardOdds.up, wizardOdds.same
 	had := map[string]bool{}
 	for _, t := range v.Trinkets.All {
 		had[t.Kind] = t.Found

@@ -20,13 +20,6 @@ type foragedAll struct {
 	Pond  *view     `json:"pond"`
 }
 
-func thingName(kind string) string {
-	if i, ok := ingredientOf(kind); ok {
-		return ingredients[i].name
-	}
-	return itemNames[kind]
-}
-
 func forager(stage string) bool { return stage == "froglet" || stage == "frog" || stage == "elder" }
 
 func rollForage(nature string, now time.Time, rain bool) prize {
