@@ -11,6 +11,7 @@ use (
 	./sites/isaacbythewood.com
 	./sites/llm.bythewood.me
 	./sites/logging.bythewood.me
+	./sites/pond.bythewood.me
 	./sites/repos.bythewood.me
 	./sites/status.bythewood.me
 )
