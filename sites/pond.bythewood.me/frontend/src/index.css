@@ -242,7 +242,8 @@ button:hover:not(:disabled),
   border-color: var(--amber-dim);
 }
 
-button.primary {
+button.primary,
+.button.primary {
   border-color: var(--amber);
   background: var(--amber-glow);
   color: var(--amber);
@@ -767,4 +768,56 @@ body:has(.tabs) main {
   color: var(--muted);
   letter-spacing: 0;
   text-transform: none;
+}
+
+/* A frog's public page. */
+.power {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 4px 0 10px;
+}
+
+.power b {
+  color: var(--amber);
+  font-family: var(--grotesk);
+  font-size: clamp(2.6rem, 11vw, 3.6rem);
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.power span {
+  font-size: 12px;
+  letter-spacing: var(--track);
+}
+
+.sharelink {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.sharelink > div {
+  display: grid;
+  flex: 1;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sharelink #qr {
+  width: 132px;
+  flex: none;
+  margin: 0;
+  border-width: 6px;
+}
+
+.sharelink code {
+  padding: 10px;
+  border: 1px dashed var(--line-hot);
+  font-family: inherit;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  user-select: all;
 }

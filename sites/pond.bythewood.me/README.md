@@ -33,6 +33,9 @@ ahead. A release build has neither the fixed pepper nor the clock.
 - `genome.go` turns a seed into a frog's name, look and rarity, and
   `frontend/src/frog.js` is the same thing in JavaScript plus the drawing.
 - `key.go` and `words.txt` are the pond key.
+- `share.go` is a frog's public page at `/f/<name>-<code>`, its power, and the
+  PNG card a link unfurls with, drawn by `sprite.go` in the JetBrains Mono under
+  `fonts/`. The code is the pond's public id and can't open the pond.
 - `frontend/src/` has one file a view, `dive.js`, `wheel.js` and `hats.js`,
   with `index.js` for the pond itself and `key.js` and `k.js` for the key pages.
 - `web/` is this site's own copy of the HTTP layer every site here shares.
@@ -45,8 +48,9 @@ they have none, for other sites to draw.
 - `go run .` on its own exits at startup, because there's no Vite manifest
   until the frontend has built once. `make run` waits for it.
 - `genome.go` and `frog.js` have to make the same random draws in the same
-  order. After changing either run `bun fixture.js` in `frontend/` and then
-  `go test`, which checks the Go side against what that wrote.
+  order, and `sprite.go` has to draw the same cells as `frog.js`. After
+  changing any of them run `bun fixture.js` in `frontend/` and then `go test`,
+  which checks the Go side against what that wrote.
 - `words.txt` can never lose or reorder a word once a key is out, since a key
   is six words off it.
 - The server owns the clock and every earner has a daily cap in `game.go`. A

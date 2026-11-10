@@ -2,7 +2,7 @@
 // the Go port against. Run `bun fixture.js` here after changing genome() and
 // commit what it writes.
 import { writeFileSync, mkdirSync } from "fs";
-import { genome, rng } from "./src/frog.js";
+import { genome, rng, cells, colours } from "./src/frog.js";
 
 const seeds = [0, 1, 2, 7, 1207, 4242, 99999, 123456789, 2147483648, 4294967295];
 const r = rng(20261109);
@@ -18,3 +18,17 @@ const rows = seeds.map((seed) => {
 mkdirSync("../testdata", { recursive: true });
 writeFileSync("../testdata/genomes.json", JSON.stringify(rows, null, 1) + "\n");
 console.log(rows.length + " genomes written");
+
+// The same frogs drawn still at every stage, in a hat, for sprite_test.go.
+const STAGES = ["egg", "tadpole", "froglet", "frog", "elder"];
+const sprites = [];
+seeds.slice(0, 60).forEach((seed, i) => {
+  const g = genome(seed), hat = { shape: i % 16, colour: i % 4 };
+  STAGES.forEach((stage, k) => {
+    const day = stage === "tadpole" ? 3 + (i % 6) : 1;
+    const c = cells(g, stage, { hat: hat.shape, legs: day >= 6 });
+    sprites.push({ seed, stage, day, hat, cells: Array.from(c, (v) => v.toString(16)).join(""), colours: k ? undefined : colours(g, hat) });
+  });
+});
+writeFileSync("../testdata/sprites.json", JSON.stringify(sprites) + "\n");
+console.log(sprites.length + " sprites written");

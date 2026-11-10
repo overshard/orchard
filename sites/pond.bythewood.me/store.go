@@ -435,8 +435,12 @@ type view struct {
 	} `json:"box"`
 	Hats  []hatView  `json:"hats"`
 	Items []itemView `json:"items"`
-	Nudge bool       `json:"nudge"`
-	Dev   bool       `json:"dev"`
+	Share struct {
+		Path  string `json:"path"`
+		Power power  `json:"power"`
+	} `json:"share"`
+	Nudge bool `json:"nudge"`
+	Dev   bool `json:"dev"`
 }
 
 func frogOf(p *pond, now time.Time) frogView {
@@ -486,11 +490,17 @@ func viewOf(q querier, p pond, now time.Time) (*view, error) {
 	if err := rows.Close(); err != nil {
 		return nil, err
 	}
+	var found []hat
 	for t := range hatsByTier {
 		for _, h := range hatsByTier[t] {
 			v.Hats = append(v.Hats, hatView{h, h.name(), t, held[h], wrenPays(h)})
+			if held[h] > 0 {
+				found = append(found, h)
+			}
 		}
 	}
+	v.Share.Path = "/f/" + slug(v.Frog.Name, p.PublicID)
+	v.Share.Power = powerOf(v.Frog.Rarity, found, p.DiveBest)
 
 	v.Items = []itemView{}
 	rows, err = q.Query(`SELECT kind, count FROM items WHERE pond_id = ? AND count > 0`, p.ID)

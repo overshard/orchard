@@ -18,6 +18,7 @@ COPY web/ ./web/
 COPY *.go ./
 COPY templates/ ./templates/
 COPY words.txt ./
+COPY fonts/ ./fonts/
 # -tags embed reads build/dist at compile time, so the bundle has to land here
 # before the compile below.
 COPY --from=frontend /build/dist ./build/dist

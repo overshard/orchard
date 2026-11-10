@@ -111,6 +111,9 @@ function renderPond(p) {
   $("purse").hidden = false;
   $("purse-n").textContent = (p.pebbles - state.held).toLocaleString("en-US");
   $("nudge").hidden = !p.nudge;
+  $("power-n").textContent = p.share.power.total.toLocaleString("en-US");
+  $("power-rank").textContent = p.share.power.rank;
+  $("share-link").href = p.share.path;
   $("dev").hidden = !p.dev;
 
   if (!logTurned) {

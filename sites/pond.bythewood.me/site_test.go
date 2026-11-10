@@ -19,8 +19,10 @@ func testDist() fstest.MapFS {
 			"src/style.js": {"file": "assets/style-aaa111.js", "src": "src/style.js", "isEntry": true, "css": ["assets/style-def456.css"]},
 			"src/index.js": {"file": "assets/index-abc123.js", "src": "src/index.js", "isEntry": true},
 			"src/key.js": {"file": "assets/key-abc123.js", "src": "src/key.js", "isEntry": true},
-			"src/k.js": {"file": "assets/k-abc123.js", "src": "src/k.js", "isEntry": true}
+			"src/k.js": {"file": "assets/k-abc123.js", "src": "src/k.js", "isEntry": true},
+			"src/share.js": {"file": "assets/share-abc123.js", "src": "src/share.js", "isEntry": true}
 		}`)},
+		"assets/share-abc123.js":  {Data: []byte("")},
 		"assets/style-aaa111.js":  {Data: []byte("")},
 		"assets/index-abc123.js":  {Data: []byte("")},
 		"assets/key-abc123.js":    {Data: []byte("")},
@@ -372,5 +374,51 @@ func TestAVisitEndToEnd(t *testing.T) {
 	rec := b.do(http.MethodGet, "/api/pond", "")
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"slices"`) {
 		t.Errorf("pond: %d", rec.Code)
+	}
+}
+
+func TestShareTheFrog(t *testing.T) {
+	b, _, _ := testSite(t)
+	var g greeting
+	if code := b.post("/api/greet", "{}", &g); code != http.StatusOK {
+		t.Fatalf("greet: %d", code)
+	}
+	path := g.Pond.Share.Path
+	if !strings.HasPrefix(path, "/f/") || g.Pond.Share.Power.Total != g.Pond.Share.Power.Frog {
+		t.Fatalf("share: %+v", g.Pond.Share)
+	}
+
+	// The page is the same for whoever opens it, cookie or not.
+	key := b.cookie.Value
+	b.cookie = nil
+	rec := b.do(http.MethodGet, path, "")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `property="og:image" content="`+baseURL+path+"/card.png?p=") {
+		t.Fatalf("share page: %d\n%s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), strings.Split(key, "-")[0]+"-") {
+		t.Error("the share page carries a key")
+	}
+	rec = b.do(http.MethodGet, path+"/card.png", "")
+	if rec.Code != http.StatusOK || rec.Header().Get("Content-Type") != "image/png" || !strings.HasPrefix(rec.Body.String(), "\x89PNG") {
+		t.Errorf("card: %d %s", rec.Code, rec.Header().Get("Content-Type"))
+	}
+	code := path[strings.LastIndexByte(path, '-')+1:]
+	if rec = b.do(http.MethodGet, "/f/somebody-else-"+code, ""); rec.Code != http.StatusMovedPermanently || rec.Header().Get("Location") != path {
+		t.Errorf("an old name: %d %s", rec.Code, rec.Header().Get("Location"))
+	}
+	for _, bad := range []string{"/f/pip-0000000000000000", "/f/pip", "/f/pip-0000000000000000/card.png", "/f/pip-ZZZZ"} {
+		if rec = b.do(http.MethodGet, bad, ""); rec.Code != http.StatusNotFound {
+			t.Errorf("%s: %d", bad, rec.Code)
+		}
+	}
+}
+
+func TestPowerAddsUp(t *testing.T) {
+	p := powerOf(rarity{N: 32}, []hat{{3, hatGolden}, {8, 0}}, 23)
+	if p.Frog != 600 || p.Hats != 920 || p.Dive != 575 || p.Total != 2095 || p.Rank != "BANK BOSS" {
+		t.Errorf("power: %+v", p)
+	}
+	if p := powerOf(rarity{N: 10}, nil, 0); p.Rank != "NEW TO THE POND" {
+		t.Errorf("a new frog's rank: %+v", p)
 	}
 }
