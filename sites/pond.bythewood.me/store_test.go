@@ -579,6 +579,7 @@ func TestDivePodium(t *testing.T) {
 	}
 	s, clock := testStore(t)
 	_, id := newPond(t, s)
+	best := diveGhostFloor
 	finish := func(gates int) *dived {
 		t.Helper()
 		start, err := s.diveStart(id)
@@ -586,7 +587,7 @@ func TestDivePodium(t *testing.T) {
 			t.Fatalf("start: %+v %v", start, err)
 		}
 		for _, c := range start.Ghosts {
-			if c < 0 || c >= diveGhostBest {
+			if c < 0 || c > best*115/100 {
 				t.Fatalf("a ghost dealt %d gates", c)
 			}
 		}
@@ -595,12 +596,14 @@ func TestDivePodium(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		best = max(best, gates)
 		return d
 	}
 
-	// Clearing every gate a ghost can is first whatever the deal was.
+	// Clearing more gates than any ghost can is first whatever the deal was,
+	// and the ghosts are dealt around the best, so each first raises it.
 	before, _ := s.view(id)
-	d := finish(diveGhostBest)
+	d := finish(20)
 	if d.Place != 1 || d.Bonus != podiumPebbles[0] || d.Hat == nil || d.Hat.HatName == "" || d.Had {
 		t.Fatalf("first place: %+v", d)
 	}
@@ -610,18 +613,40 @@ func TestDivePodium(t *testing.T) {
 	if !d.Pond.Dive.Podium[0] || d.Pond.Dive.Podium[1] {
 		t.Errorf("podium after a first: %v", d.Pond.Dive.Podium)
 	}
-	if d = finish(diveGhostBest); d.Place != 1 || d.Bonus != 0 || d.Hat != nil || !d.Had {
+	if d = finish(30); d.Place != 1 || d.Bonus != 0 || d.Hat != nil || !d.Had {
 		t.Errorf("a second first place the same day: %+v", d)
 	}
 	*clock = clock.Add(24 * time.Hour)
-	if d = finish(diveGhostBest); d.Bonus != podiumPebbles[0] || d.Hat == nil {
+	if d = finish(40); d.Bonus != podiumPebbles[0] || d.Hat == nil {
 		t.Errorf("first place the next day: %+v", d)
 	}
 
 	// More gates than points is not a run, and pays nothing.
 	start, _ := s.diveStart(id)
 	*clock = clock.Add(2 * time.Minute)
-	if d, _ := s.diveFinish(id, start.Run, 5, diveGhostBest); d.Place != 0 || d.Bonus != 0 || d.Paid != 0 {
+	if d, _ := s.diveFinish(id, start.Run, 5, 30); d.Place != 0 || d.Bonus != 0 || d.Paid != 0 {
 		t.Errorf("thirty gates on five points: %+v", d)
+	}
+}
+
+func TestGhostDeal(t *testing.T) {
+	// Matching your best should win about half the time, and a run at three
+	// quarters of it should usually still make the podium.
+	const best, n = 24, 4000
+	firsts, podiums := 0, 0
+	for range n {
+		ghosts := dealGhosts(best)
+		if divePlace(best, ghosts) == 1 {
+			firsts++
+		}
+		if divePlace(best*3/4, ghosts) <= 3 {
+			podiums++
+		}
+	}
+	if firsts < n*35/100 || firsts > n*75/100 {
+		t.Errorf("matching the best was first %d times in %d", firsts, n)
+	}
+	if podiums < n*55/100 {
+		t.Errorf("three quarters of the best made the podium %d times in %d", podiums, n)
 	}
 }

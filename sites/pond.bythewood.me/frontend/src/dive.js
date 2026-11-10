@@ -59,7 +59,7 @@ function spawnOthers() {
 // Until the deal arrives a ghost clears everything, and the first gate is
 // seconds away, so it always has. With no answer the page deals its own.
 function deal(clears) {
-  others.forEach((o, i) => { o.clears = clears && clears[i] != null ? clears[i] : Math.floor(Math.random() * 30); });
+  others.forEach((o, i) => { o.clears = clears && clears[i] != null ? clears[i] : Math.floor(Math.random() * 12); });
 }
 
 const ORD = ["", "1ST", "2ND", "3RD"];

@@ -224,8 +224,9 @@ type diving struct {
 // diveStart hands out a run id that finish has to bring back, once, and
 // deals the ghosts for the run.
 func (s *store) diveStart(id int64) (*diving, error) {
-	out := &diving{Run: randomHex(8), Ghosts: dealGhosts()}
+	out := &diving{Run: randomHex(8)}
 	_, err := s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
+		out.Ghosts = dealGhosts(p.DiveBest)
 		deal := make([]string, len(out.Ghosts))
 		for i, c := range out.Ghosts {
 			deal[i] = strconv.Itoa(c)
