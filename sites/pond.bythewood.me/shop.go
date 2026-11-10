@@ -76,7 +76,7 @@ var mossRocks = []struct {
 	w     int
 }{
 	{"agate", 30, 30}, {"quartz", 60, 24}, {"geode", 90, 20},
-	{"amethyst", 140, 12}, {"banded", 220, 9}, {"fossil", 600, 5},
+	{"amethyst", 140, 12}, {"banded", 220, 9}, {"wood", 300, 7}, {"fossil", 600, 5},
 }
 
 const (

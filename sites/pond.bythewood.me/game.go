@@ -294,6 +294,7 @@ var (
 		{item: "agate", text: "A bit of river agate."},
 		{item: "quartz", text: "A lump of smoky quartz."},
 		{item: "feather", text: "A heron feather, which is a good one."},
+		{item: "wood", text: "A chip of petrified wood off the bank."},
 		{isHat: true, hatTier: 0},
 		{trinket: 1}, {trinket: 2},
 	}
@@ -302,6 +303,8 @@ var (
 		{item: "feather", text: "A heron feather, which is a good one."},
 		{item: "quartz", text: "A lump of smoky quartz."},
 		{item: "geode", text: "A geode it couldn't open."},
+		{item: "wood", text: "A chip of petrified wood off the bank."},
+		{item: "moonstone", text: "A moonstone. It won't say where from."},
 		{isHat: true, hatTier: 1}, {isHat: true, hatTier: 1},
 		{trinket: 2}, {trinket: 3},
 	}

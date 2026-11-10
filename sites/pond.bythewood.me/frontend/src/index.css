@@ -574,6 +574,12 @@ body:has(#v-dive.full) {
   height: 48px;
 }
 
+div.hattile {
+  border: 1px solid var(--line-hot);
+  background: var(--panel-2);
+  color: var(--text);
+}
+
 .hattile:disabled {
   border-style: dashed;
 }

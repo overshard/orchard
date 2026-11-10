@@ -108,6 +108,12 @@ CREATE TABLE IF NOT EXISTS trinkets_found (
     PRIMARY KEY (pond_id, kind)
 ) WITHOUT ROWID;
 
+CREATE TABLE IF NOT EXISTS rocks_found (
+    pond_id  INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
+    kind     TEXT NOT NULL,
+    PRIMARY KEY (pond_id, kind)
+) WITHOUT ROWID;
+
 CREATE TABLE IF NOT EXISTS growth (
     id    INTEGER PRIMARY KEY CHECK (id = 1),
     at    INTEGER NOT NULL,
@@ -202,6 +208,10 @@ func openStore(path string, pepper []byte) (*store, error) {
 		return nil, err
 	}
 	if err := ensureColumns(w); err != nil {
+		w.Close()
+		return nil, err
+	}
+	if err := backfillRocks(w); err != nil {
 		w.Close()
 		return nil, err
 	}
@@ -447,6 +457,11 @@ func addHat(tx *sql.Tx, id int64, h hat) (int, error) {
 }
 
 func addItem(tx *sql.Tx, id int64, kind string, n int) error {
+	if isRock(kind) {
+		if _, err := tx.Exec(`INSERT INTO rocks_found (pond_id, kind) VALUES (?, ?) ON CONFLICT DO NOTHING`, id, kind); err != nil {
+			return err
+		}
+	}
 	_, err := tx.Exec(`INSERT INTO items (pond_id, kind, count) VALUES (?, ?, ?)
 		ON CONFLICT (pond_id, kind) DO UPDATE SET count = count + excluded.count`, id, kind, n)
 	return err
@@ -553,6 +568,7 @@ type view struct {
 	Kitchen  kitchenView         `json:"kitchen"`
 	Shops    map[string]shopView `json:"shops"`
 	Trinkets trinketsView        `json:"trinkets"`
+	Rocks    []rockView          `json:"rocks"`
 	// What Fenn sold this pond, drawn on the water.
 	Furniture []string `json:"furniture"`
 
@@ -725,6 +741,9 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 		return err
 	}
 	if v.Trinkets, err = trinketsOf(q, p, v.held); err != nil {
+		return err
+	}
+	if v.Rocks, err = rocksOf(q, p.ID, v.held); err != nil {
 		return err
 	}
 	had := map[string]bool{}
