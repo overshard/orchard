@@ -1,0 +1,47 @@
+{{ define "head" }}
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="{{ .SiteName }}">
+  <meta property="og:title" content="{{ .Title }}">
+  <meta property="og:description" content="{{ .Description }}">
+  <meta property="og:url" content="{{ .Share.URL }}">
+  <meta property="og:image" content="{{ .Image }}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="{{ .Share.URL }}">
+{{ end }}
+
+{{ define "main" }}
+{{ with .Share }}
+<section class="view">
+  <button type="button" class="scene screen" id="scene-btn" aria-label="{{ .Frog.Name }}. Press it to hear its call.">
+    <canvas id="scene" width="352" height="272" data-seed="{{ .Frog.Seed }}" data-stage="{{ .Frog.Stage }}" data-day="{{ .Frog.Day }}" data-hat="{{ .Frog.Hat.Shape }}" data-colour="{{ .Frog.Hat.Colour }}"></canvas>
+  </button>
+  <div class="who">
+    <h1>{{ .Frog.Name }}</h1>
+    <p class="chips"><span class="tier t{{ .Frog.Rarity.Tier }}">{{ .Frog.Rarity.Label }}</span> <span>1 in {{ commas .Frog.Rarity.N }}</span></p>
+    <p class="dim">{{ $.Describe }}</p>
+  </div>
+
+  <h2 data-idx="01">Frog power</h2>
+  <p class="power"><b>{{ commas .Power.Total }}</b> <span>{{ .Power.Rank }}</span></p>
+  <dl class="missed">
+    <dt>The frog</dt><dd>{{ commas .Power.Frog }}, {{ lower .Frog.Rarity.Label }} at 1 in {{ commas .Frog.Rarity.N }}</dd>
+    <dt>Hats</dt><dd>{{ commas .Power.Hats }}, {{ .Power.HatsHeld }} of {{ hatsInGame }} found</dd>
+    <dt>Dive</dt><dd>{{ commas .Power.Dive }}, best of {{ .Power.DiveBest }} gates</dd>
+  </dl>
+
+  <h2 data-idx="02">Pass it on</h2>
+  <div class="sharelink">
+    <canvas id="qr" width="132" height="132" data-url="{{ .URL }}" aria-label="A QR code for this page"></canvas>
+    <div>
+      <code id="share-url">{{ .URL }}</code>
+      <button type="button" id="share-copy">Copy link</button>
+    </div>
+  </div>
+  <p class="dim">The link only shows the frog. Nobody can take it from here.</p>
+
+  <p><a href="/" class="button primary">Get a frog of your own</a></p>
+</section>
+{{ end }}
+{{ end }}

@@ -20,6 +20,7 @@ export default defineConfig({
         index: resolve(import.meta.dirname, "src/index.js"),
         key: resolve(import.meta.dirname, "src/key.js"),
         k: resolve(import.meta.dirname, "src/k.js"),
+        share: resolve(import.meta.dirname, "src/share.js"),
       },
       output: {
         entryFileNames: "assets/[name]-[hash].js",

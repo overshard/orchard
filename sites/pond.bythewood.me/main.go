@@ -6,6 +6,7 @@ import (
 	"embed"
 	"flag"
 	"fmt"
+	"html/template"
 	"io/fs"
 	"log/slog"
 	"net/http"
@@ -29,7 +30,7 @@ const listenAddr = ":8000"
 // listed here with no file behind it compiles and then fails at boot.
 var (
 	layoutTemplates = []string{"base.html"}
-	pageTemplates   = []string{"index.html", "key.html", "k.html", "notfound.html"}
+	pageTemplates   = []string{"index.html", "key.html", "k.html", "share.html", "notfound.html"}
 )
 
 // 'unsafe-inline' in script-src is for the analytics collector snippet, which
@@ -61,6 +62,12 @@ func keyCSP() string {
 		"form-action 'self'",
 		"frame-ancestors 'none'",
 	}, "; ")
+}
+
+var templateFuncs = template.FuncMap{
+	"commas":     commas,
+	"lower":      strings.ToLower,
+	"hatsInGame": func() int { return hatsInGame },
 }
 
 type site struct {
@@ -150,7 +157,7 @@ func newSite(dist fs.FS, db *store) (*site, error) {
 	if err != nil {
 		return nil, err
 	}
-	renderer, err := web.NewRenderer(templates, nil, layoutTemplates, pageTemplates)
+	renderer, err := web.NewRenderer(templates, templateFuncs, layoutTemplates, pageTemplates)
 	if err != nil {
 		return nil, err
 	}
@@ -166,6 +173,8 @@ func (s *site) handler() http.Handler {
 	mux.HandleFunc("GET /{$}", s.home)
 	mux.HandleFunc("GET /key", s.keyPage)
 	mux.HandleFunc("GET /k", s.keyLanding)
+	mux.HandleFunc("GET /f/{slug}", s.sharePage)
+	mux.HandleFunc("GET /f/{slug}/card.png", s.shareCard)
 	mux.HandleFunc("GET /robots.txt", robots)
 
 	mux.HandleFunc("GET /api/pond", s.apiPond)
@@ -201,6 +210,9 @@ func (s *site) handler() http.Handler {
 }
 
 type page struct {
+	Share       *shown
+	Describe    string
+	Image       string
 	Words       []string
 	KeyURL      string
 	FrogName    string
