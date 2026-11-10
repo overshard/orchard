@@ -15,12 +15,10 @@
   <canvas id="qr" width="264" height="264" data-url="{{ .KeyURL }}" aria-label="A QR code that opens this pond"></canvas>
 
   <h2>Saving it</h2>
-  <p>Write the words down, screenshot the QR code, or save them in your password manager with your frog's name.</p>
+  <p>Write the words down, screenshot the QR code, or save them in your password manager.</p>
   <form id="save" class="restore" action="/key" method="post">
-    <label for="save-name">Frog</label>
-    <input id="save-name" name="username" autocomplete="username" value="{{ .FrogName }}" readonly>
-    <label for="save-key">Pond key</label>
-    <input id="save-key" name="password" type="password" autocomplete="new-password" value="{{ range $i, $w := .Words }}{{ if $i }}-{{ end }}{{ $w }}{{ end }}" readonly>
+    <input class="vh" id="save-name" name="username" autocomplete="username" value="{{ .FrogName }}" tabindex="-1" aria-hidden="true" readonly>
+    <input class="vh" id="save-key" name="password" type="password" autocomplete="new-password" value="{{ range $i, $w := .Words }}{{ if $i }}-{{ end }}{{ $w }}{{ end }}" tabindex="-1" aria-hidden="true" readonly>
     <button type="submit" class="primary">Save in my password manager</button>
   </form>
   <p class="line" id="save-result" role="status"></p>
