@@ -593,7 +593,7 @@ version of the old look and a handheld pet shell.
   with a screen window, and the strip under every game is readout glass and an
   EJECT key.
 - **A press is felt.** Keys travel, LEDs blink, and with sound on there's a soft
-  clunk and click made in code like the croak. Sound is off until turned on.
+  clunk and click made in code like the croak. Sound is off until turned on, and so is a buzz on a bonk, both as keys in settings that stay in that browser.
 - **Colour lives on the screens, the icons and rarity.** The frog, the water,
   the wheel, Dive, the stall and the wizard are colour pixel art inside a
   window. Past that the only colour is the 8 by 8 pixel icons, a thing's tier

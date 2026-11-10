@@ -1,5 +1,6 @@
 import { $, post, state, setPond, watch, titled } from "./api.js";
 import { genome, bred, cells, colours, draw, W, H } from "./frog.js";
+import { soundOn, setSound, sfx } from "./sound.js";
 
 let which = 0, offers = [];
 
@@ -48,6 +49,16 @@ function render(p) {
 
 export function initSettings() {
   watch(render);
+  document.querySelectorAll("#sound-keys button").forEach((b) => {
+    const kind = b.dataset.sound;
+    if (kind === "buzz" && !navigator.vibrate) { b.hidden = true; return; }
+    b.setAttribute("aria-pressed", soundOn(kind) ? "true" : "false");
+    b.addEventListener("click", () => {
+      setSound(kind, !soundOn(kind));
+      b.setAttribute("aria-pressed", soundOn(kind) ? "true" : "false");
+      if (soundOn(kind)) sfx(kind === "buzz" ? "bonk" : "catch");
+    });
+  });
   $("name-roll").addEventListener("click", function () {
     this.disabled = true;
     post("/api/frogs/names").then((d) => {

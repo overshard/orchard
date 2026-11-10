@@ -1,3 +1,4 @@
+import { sfx } from "./sound.js";
 import { cells, colours, draw, W as FW, H as FH } from "./frog.js";
 
 // Tongue flick. The frog sits on a pad and bugs cross over it for thirty
@@ -59,7 +60,7 @@ export const flick = {
         if (hit) {
           G.bugs.splice(G.bugs.indexOf(hit), 1);
           if (hit.kind.k === "wasp") {
-            G.stun = 1.1; G.streak = 0;
+            G.stun = 1.1; G.streak = 0; sfx("bonk");
             G.pops.push({ x: tx, y: ty, s: "OW", c: "#e2412d", t: 0 });
           } else tg.bug = hit;
           tg.out = false;
@@ -73,6 +74,7 @@ export const flick = {
             if (G.streak % 5 === 0) pts += 5;
             G.score += pts;
             const m = mouth();
+            sfx("catch");
             G.pops.push({ x: m.x, y: m.y - 30, s: "+" + pts, c: G.streak % 5 === 0 ? "#ffb000" : "#ece5d8", t: 0 });
           } else if (G.stun === 0) G.streak = 0;
           G.tongue = null;

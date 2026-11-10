@@ -1,3 +1,4 @@
+import { sfx } from "./sound.js";
 import { colours } from "./frog.js";
 
 // Tadpoles. Lead a school round the shallows eating water fleas, and every
@@ -61,21 +62,21 @@ export const school = {
     const tail = G.body[G.body.length - 1];
     const intoTail = n.x === tail.x && n.y === tail.y && G.grow === 0;
     if (!intoTail && blocked(n.x, n.y)) {
-      G.dead = 0.01;
+      G.dead = 0.01; sfx("bonk");
       G.why = n.x < 0 || n.y < 0 || n.x >= COLS || n.y >= ROWS ? "INTO THE REEDS" : G.stones.some((s) => s.x === n.x && s.y === n.y) ? "BONK" : "TANGLED UP";
       return;
     }
     G.body.unshift(n);
     if (G.grow > 0) G.grow--; else G.body.pop();
     if (n.x === G.flea.x && n.y === G.flea.y) {
-      G.score++; G.grow++;
+      G.score++; G.grow++; sfx("catch");
       G.pops.push({ x: n.x * C + M, y: n.y * C, s: "+1", t: 0 });
       G.every = Math.max(0.085, G.every * 0.97);
       if (G.score % 6 === 0 && G.stones.length < 7) G.stones.push(free());
       G.flea = free();
       if (!G.gold && Math.random() < 0.18) G.gold = { ...free(), left: 6 };
     } else if (G.gold && n.x === G.gold.x && n.y === G.gold.y) {
-      G.score += 3; G.grow += 2;
+      G.score += 3; G.grow += 2; sfx("catch");
       G.pops.push({ x: n.x * C + M, y: n.y * C, s: "+3", t: 0 });
       G.gold = null;
     }
