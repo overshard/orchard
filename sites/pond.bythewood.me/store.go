@@ -909,16 +909,20 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	if v.Neighbours, err = neighboursOf(q, p.ID, now); err != nil {
 		return err
 	}
+	v.Gazette = gazetteFor(v.Day.Mood, now)
+	paper := inPaper(v.Gazette.Lines)
 	for i := range v.Neighbours.All {
+		n := &v.Neighbours.All[i]
 		for _, f := range v.Market.Firms {
 			if f.Key == residentFirm(i).Key {
-				v.Neighbours.All[i].Firm = f.Name
-				v.Neighbours.All[i].Talk = firmTalk(f, residents[i].seed)
+				n.Firm = f.Name
+				n.Talk = firmTalk(f, residents[i].seed)
 			}
 		}
-		v.Neighbours.All[i].Gossip = gossipOf(i, today)
+		n.Gossip = gossipOf(i, today)
+		n.Bio = folks[i].bio
+		n.Now = folkOf(i, n.Level, v.Day.Mood, paper, now)
 	}
-	v.Gazette = gazetteFor(v.Day.Mood, now)
 	if v.Day.Mood != moodSombre {
 		v.Gazette.Business = marketHeadline(v.Market.Firms, today)
 	}

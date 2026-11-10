@@ -3279,3 +3279,48 @@ button.big {
   color: var(--muted);
   font-style: italic;
 }
+
+/* A neighbour's thought is a cloud over it, trailing two puffs down to it. */
+.reed .thought {
+  position: relative;
+  margin-bottom: 8px;
+  padding: 6px 9px;
+  border-radius: 12px;
+  background: var(--panel-2);
+  box-shadow: var(--moulded);
+  color: var(--text);
+  font-size: 12px;
+  font-style: italic;
+}
+
+.reed .thought::before,
+.reed .thought::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  background: var(--panel-2);
+}
+
+.reed .thought::before {
+  bottom: -6px;
+  left: 18px;
+  width: 7px;
+  height: 7px;
+}
+
+.reed .thought::after {
+  bottom: -11px;
+  left: 13px;
+  width: 4px;
+  height: 4px;
+}
+
+.reed .paper {
+  justify-self: start;
+  padding: 1px 6px;
+  border-radius: 2px;
+  background: #efe4c6;
+  color: #2a2418;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 11px;
+}

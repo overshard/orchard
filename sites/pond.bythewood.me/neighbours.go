@@ -257,13 +257,15 @@ type neighbourView struct {
 	To     int    `json:"to"`
 	Fav    string `json:"fav"`
 	// Its favourite's two ingredients, once it's friendly enough to say.
-	FavA   string `json:"fav_a,omitempty"`
-	FavB   string `json:"fav_b,omitempty"`
-	Gave   bool   `json:"gave"`
-	Lodger bool   `json:"lodger"`
-	Firm   string `json:"firm"`
-	Talk   string `json:"talk"`
-	Gossip string `json:"gossip"`
+	FavA   string  `json:"fav_a,omitempty"`
+	FavB   string  `json:"fav_b,omitempty"`
+	Gave   bool    `json:"gave"`
+	Lodger bool    `json:"lodger"`
+	Firm   string  `json:"firm"`
+	Talk   string  `json:"talk"`
+	Gossip string  `json:"gossip"`
+	Bio    string  `json:"bio"`
+	Now    folkDay `json:"now"`
 }
 
 type favourView struct {

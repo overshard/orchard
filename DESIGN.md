@@ -668,6 +668,9 @@ version of the old look and a handheld pet shell.
   photo of a neighbour, two stories in columns and a Business story. Never a
   number past the date and issue. A dream is a row in the greeting's list on the first visit of a day,
   and a neighbour's gossip is an italic line at the top of its sheet.
+- **A neighbour's thought is a cloud over its card**, trailing two puffs down
+  to it, with what it's doing under its hearts and a newsprint tag when the
+  gazette names it. What it says to you is a speech bubble on its sheet.
 - **The reeds** are every frog as a card, the one out front first with an
   amber border and OUT FRONT, the rest with a key to swap. The egg bench and
   the pads sit under them. The register of looks is in Collect.
