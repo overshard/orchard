@@ -157,6 +157,41 @@ function tint() {
   return "";
 }
 
+// The mood of the day lays a faint wash over the water.
+const MOOD_TINT = {
+  bright: "rgba(255,214,120,0.07)",
+  gloom1: "rgba(70,80,100,0.10)",
+  gloom2: "rgba(60,66,84,0.18)",
+  gloom3: "rgba(40,44,60,0.26)",
+  jitters: "rgba(180,200,120,0.06)",
+  rain: "rgba(90,120,160,0.10)",
+  frost: "rgba(220,235,255,0.12)",
+  heat: "rgba(255,150,60,0.08)",
+  pollen: "rgba(240,220,90,0.10)",
+  sombre: "rgba(60,60,64,0.20)",
+};
+
+// What the frog is watching or playing today sits beside it on the pad.
+function drawHobby(h, t) {
+  const x = 262, y = 204;
+  if (h.kind === "tv") {
+    sx.fillStyle = "#3a2a1c"; sx.fillRect(x, y, 32, 24);
+    sx.fillStyle = "#5b4330"; sx.fillRect(x, y, 32, 4);
+    const glow = ["#6fb6d8", "#8ad0b0", "#c9a6e0"][Math.floor(t / 1.7) % 3];
+    sx.fillStyle = glow; sx.fillRect(x + 4, y + 4, 20, 16);
+    sx.fillStyle = "rgba(255,255,255,0.35)"; sx.fillRect(x + 4, y + 4 + (Math.floor(t * 6) % 4) * 4, 20, 2);
+    sx.fillStyle = "#c9b48a"; sx.fillRect(x + 26, y + 6, 4, 4); sx.fillRect(x + 26, y + 14, 4, 4);
+    sx.fillStyle = "#2a1e14"; sx.fillRect(x + 4, y + 24, 4, 4); sx.fillRect(x + 24, y + 24, 4, 4);
+    sx.fillStyle = "#9aa3ad"; sx.fillRect(x + 8, y - 8, 2, 8); sx.fillRect(x + 22, y - 8, 2, 8);
+    return;
+  }
+  sx.fillStyle = "#8a939e"; sx.fillRect(x + 4, y + 4, 24, 20);
+  sx.fillStyle = "#5b6470"; sx.fillRect(x + 4, y + 20, 24, 4);
+  sx.fillStyle = "#9bbc0f"; sx.fillRect(x + 8, y + 8, 16, 8);
+  sx.fillStyle = "#306230"; sx.fillRect(x + 10 + (Math.floor(t * 2) % 3) * 4, y + 12, 4, 2);
+  sx.fillStyle = "#2a2a2a"; sx.fillRect(x + 8, y + 18, 4, 2); sx.fillRect(x + 20, y + 18, 4, 2);
+}
+
 // And what goes over the frog.
 function drawOver(day, t) {
   if (day.water === "clear") for (let i = 0; i < 4; i++) {
@@ -167,6 +202,7 @@ function drawOver(day, t) {
   else if (t % 45 < 14) dragonfly(t, (t % 45) / 14);
   const warm = !day.night && tint();
   if (warm) { sx.fillStyle = warm; sx.fillRect(0, 0, 352, 272); }
+  if (MOOD_TINT[day.mood]) { sx.fillStyle = MOOD_TINT[day.mood]; sx.fillRect(0, 0, 352, 272); }
   if (day.rain) for (let i = 0; i < 26; i++) {
     const rx = scatter(i, 7) * 352, ry = (scatter(i, 8) * 272 + t * 160) % 272;
     sx.fillStyle = "rgba(200,230,240,0.45)"; sx.fillRect(Math.round(rx), Math.round(ry), 2, 8);
@@ -308,6 +344,7 @@ function drawScene(now) {
   if (grown(f.stage) && day.shelter) drawPad(day);
   // Trinkets sit in front of the frog at the pad's edge.
   if (grown(f.stage) && !day.shelter) {
+    if (day.hobby) drawHobby(day.hobby, t);
     if (out[0]) drawIcon(sx, out[0], 40, 236, 4);
     if (out[1]) drawIcon(sx, out[1], 280, 236, 4);
   }
@@ -604,6 +641,8 @@ const DAYS = {
   night: { has_temp: true, temp: 64, cond: "Clear", sunrise: "11:58pm", sunset: "11:59pm", has_sp: true, sp: 0.8 },
   cold: { has_temp: true, temp: 31, cond: "Clear", sunrise: "6:00am", sunset: "11:59pm", has_sp: true, sp: -1.2, vix: 30 },
   busy: { has_temp: true, temp: 70, cond: "Sunny", sunrise: "6:00am", sunset: "11:59pm", has_sp: true, sp: 1.1, vix: 23, swarm: true, major: true, down: "Blog", front: "CPI today" },
+  gloom: { has_temp: true, temp: 60, cond: "Cloudy", sunrise: "6:00am", sunset: "11:59pm", has_sp: true, sp: -2.8, has_hl: true, high: 62, low: 45, tomorrow: { high: 58, low: 40, rain: 80, cond: "Rain" } },
+  hobby: { has_temp: true, temp: 70, cond: "Clear", sunrise: "6:00am", sunset: "11:59pm", has_sp: true, sp: 0.7, has_hl: true, high: 74, low: 50, tomorrow: { high: 70, low: 31, rain: 0, cond: "Clear" }, shows: ["Bluey", "The Great British Baking Show"], games: ["Stardew Valley", "Unpacking"] },
   storm: { has_temp: true, temp: 66, cond: "Thunderstorms", rain: 100, sunrise: "6:00am", sunset: "11:59pm", alert: "Tornado Warning" },
 };
 

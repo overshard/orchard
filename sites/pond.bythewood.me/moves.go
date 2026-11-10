@@ -52,6 +52,12 @@ func (s *store) greet(id int64, first bool) (*greeting, error) {
 		}
 
 		g.Line = greetLine(gen, stage, away)
+		if stage != "egg" {
+			r := s.day.reading(now)
+			if l := moodLine(r, dayOfReading(r, now).Mood, p.Seed, dayOf(now)); l != "" {
+				g.Line += " " + l
+			}
+		}
 		if was, _ := stageOf(time.Unix(p.LastSeenAt, 0).Sub(hatched)); was != stage && away > 0 {
 			g.Missed = append(g.Missed, [2]string{"Grew", "from " + was + " to " + stage})
 		}
@@ -123,6 +129,9 @@ func (s *store) spin(id int64, paid bool) (*spun, error) {
 			p.FreeSpins--
 		}
 		out.Slice = rand.IntN(len(wheelSlices))
+		if wheelSlices[out.Slice] == "P25" && fortuneOf(p.ID, dayOf(now)).Luck == luckWheel {
+			out.Slice = rand.IntN(len(wheelSlices))
+		}
 		out.Prize = wheelPrize(wheelSlices[out.Slice], dayOf(now))
 		if err := award(tx, p, &out.Prize); err != nil {
 			return err
@@ -223,8 +232,12 @@ func (s *store) turnLog(id int64, pick int) (*turned, error) {
 		if err := markStarter(tx, p.ID, starterLog); err != nil {
 			return err
 		}
+		lucky := fortuneOf(p.ID, today).Luck == luckLog
 		for i := range out.Finds {
 			out.Finds[i] = rollFind()
+			if b := rollFind(); lucky && b.Pebbles > out.Finds[i].Pebbles {
+				out.Finds[i] = b
+			}
 		}
 		p.Pebbles += out.Finds[pick].Pebbles
 		return nil

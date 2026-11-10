@@ -79,6 +79,10 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
   turns the weather, the market, the VIX, Hacker News, the news and the health
   strip into what's on the water. It's the same day in every pond, and with
   dash down or a reading over three hours old it's an ordinary day.
+- `mood.go` boils that day down to one mood, which tints the water and picks
+  the line after the greeting, plus what the frog is watching or playing, Old
+  Clover's forecast for tomorrow and the fortune lily. No number from dash
+  ever reaches one of those lines, and a test holds it.
 - `share.go` is a frog's public page at `/f/<name>-<code>`, its power, and the
   PNG card a link unfurls with, drawn by `sprite.go` in the JetBrains Mono under
   `fonts/`. The code is the pond's public id and can't open the pond.

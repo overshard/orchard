@@ -38,6 +38,21 @@ type reading struct {
 	Major   bool      `json:"major"`
 	Down    string    `json:"down"`
 	Alert   string    `json:"alert"`
+	High    int       `json:"high"`
+	Low     int       `json:"low"`
+	HasHL   bool      `json:"has_hl"`
+	Pollen  int       `json:"pollen"`
+	// Tomorrow's high, low, chance of rain and sky, for the weatherman.
+	Tmr   *tomorrow `json:"tomorrow,omitempty"`
+	Shows []string  `json:"shows,omitempty"`
+	Games []string  `json:"games,omitempty"`
+}
+
+type tomorrow struct {
+	High int    `json:"high"`
+	Low  int    `json:"low"`
+	Rain int    `json:"rain"`
+	Cond string `json:"cond"`
 }
 
 type dashShape struct {
@@ -67,12 +82,31 @@ type dashShape struct {
 	} `json:"hn_pulse"`
 	Weather struct {
 		Temperature string `json:"temperature"`
+		High        string `json:"high"`
+		Low         string `json:"low"`
+		Tomorrow    *struct {
+			High      string `json:"high"`
+			Low       string `json:"low"`
+			Rain      int    `json:"rain"`
+			Condition string `json:"condition"`
+		} `json:"tomorrow"`
 		Rain        string `json:"rain"`
 		Condition   string `json:"condition"`
 		Sunrise     string `json:"sunrise"`
 		Sunset      string `json:"sunset"`
 		Unavailable bool   `json:"unavailable"`
 	} `json:"weather"`
+	Air struct {
+		PollenKnown bool `json:"pollen_known"`
+		PollenLevel int  `json:"pollen_level"`
+	} `json:"air"`
+	Steam []struct {
+		Name string   `json:"name"`
+		Tags []string `json:"tags"`
+	} `json:"steam"`
+	Streaming []struct {
+		Name string `json:"name"`
+	} `json:"streaming"`
 	Alerts []struct {
 		Event    string `json:"event"`
 		Severity string `json:"severity"`
@@ -101,6 +135,31 @@ func readDash(raw []byte, now time.Time) (reading, error) {
 		}
 		r.Rain, _ = strconv.Atoi(strings.TrimSuffix(w.Rain, "%"))
 		r.Cond, r.Sunrise, r.Sunset = w.Condition, w.Sunrise, w.Sunset
+		hi, err1 := strconv.Atoi(w.High)
+		lo, err2 := strconv.Atoi(w.Low)
+		if err1 == nil && err2 == nil {
+			r.High, r.Low, r.HasHL = hi, lo, true
+		}
+		if t := w.Tomorrow; t != nil {
+			hi, err1 := strconv.Atoi(t.High)
+			lo, err2 := strconv.Atoi(t.Low)
+			if err1 == nil && err2 == nil {
+				r.Tmr = &tomorrow{hi, lo, t.Rain, t.Condition}
+			}
+		}
+	}
+	if d.Air.PollenKnown {
+		r.Pollen = d.Air.PollenLevel
+	}
+	for _, g := range d.Steam {
+		if title, ok := fitTitle(g.Name, g.Tags); ok {
+			r.Games = append(r.Games, title)
+		}
+	}
+	for _, sh := range d.Streaming {
+		if title, ok := fitTitle(sh.Name, nil); ok {
+			r.Shows = append(r.Shows, title)
+		}
 	}
 	for _, c := range d.Market.Cards {
 		if c.Key == "sp500" && !c.Unavailable {
@@ -210,6 +269,8 @@ type dayView struct {
 	Moon      bool        `json:"moon"`
 	Fireflies bool        `json:"fireflies"`
 	Spawn     bool        `json:"spawn"`
+	Mood      string      `json:"mood"`
+	Hobby     *hobby      `json:"hobby"`
 	Lines     [][2]string `json:"lines"`
 }
 
@@ -226,7 +287,7 @@ func clockOn(s string, now time.Time) (time.Time, bool) {
 const coldBelow = 45
 
 func dayOfReading(r *reading, now time.Time) dayView {
-	v := dayView{Lines: [][2]string{}}
+	v := dayView{Mood: moodPlain, Lines: [][2]string{}}
 	if r == nil {
 		return v
 	}
@@ -292,6 +353,10 @@ func dayOfReading(r *reading, now time.Time) dayView {
 		v.Shelter = true
 		v.Lines = append(v.Lines, [2]string{"Shelter", "Under the pad until the " + strings.ToLower(r.Alert) + " passes."})
 	}
+	if l := forecastLine(r.Tmr, dayOf(now)); l != "" {
+		v.Lines = append(v.Lines, [2]string{"Forecast", l})
+	}
+	v.Mood = moodOf(r, v)
 	return v
 }
 

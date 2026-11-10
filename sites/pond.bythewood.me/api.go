@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/netip"
+	"reflect"
 	"slices"
 	"strings"
 	"sync"
@@ -530,7 +531,7 @@ func (s *site) apiDevDay(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &in) {
 		return
 	}
-	if in == nil || *in == (reading{}) {
+	if in == nil || reflect.DeepEqual(*in, reading{}) {
 		s.store.day.pinned.Store(false)
 		s.store.day.last.Store(nil)
 	} else {
