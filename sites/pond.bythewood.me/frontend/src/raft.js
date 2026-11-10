@@ -39,7 +39,11 @@ export const raft = {
 
   reset(g) {
     col = colours(g, null);
-    G = { t: 0, dist: 0, v: 52, fx: centre(56), want: null, keys: { left: false, right: false }, things: [], nextAt: 260, since: 0, lives: 3, safe: 0, shake: 0, bonus: 0, why: "", pops: [] };
+    G = { t: 0, dist: 0, v: 52, fx: centre(56), want: null, keys: { left: false, right: false }, things: [], nextAt: 230, since: 0, lives: 3, safe: 0, shake: 0, bonus: 0, why: "", pops: [] };
+    // A weir inside two seconds, with a line of pebbles to show the way through.
+    const wy = 150, gap = 40, gx = centre(wy) + (Math.random() < 0.5 ? -1 : 1) * 14 - gap / 2;
+    G.things.push({ k: "weir", y: wy, gap, gx });
+    for (let i = 1; i <= 4; i++) G.things.push({ k: "pebble", y: 56 + i * 20, x: G.fx + (gx + gap / 2 - G.fx) * i / 4 });
     while (G.nextAt < G.dist + H + 40) spawn();
   },
 
