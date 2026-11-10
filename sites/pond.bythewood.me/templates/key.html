@@ -18,7 +18,7 @@
   <ol class="steps">
     <li>Write the six words down on paper, in order.</li>
     <li>Or paste the one line above into a note on your phone.</li>
-    <li>Or screenshot the QR code. Pointing a camera at it later opens this pond.</li>
+    <li>Or screenshot the QR code. Pointing a camera at it later opens this pond, and so does picking the screenshot under Bring a frog back.</li>
     <li>Or, if you use a password manager, type the words into the box below and let it save them.</li>
   </ol>
 {{ else }}
@@ -28,6 +28,12 @@
 
   <h2>Bring a frog back</h2>
   <p>Type a pond key however you wrote it down, with spaces, dashes or one word a line.{{ if .Words }} This browser's frog is swapped for the one the key opens, so save the key above first.{{ end }}</p>
+  <div class="row">
+    <button type="button" id="scan-cam">Scan a QR code</button>
+    <label class="button" for="scan-file">Use a saved picture</label>
+    <input type="file" id="scan-file" accept="image/*" hidden>
+  </div>
+  <div class="screen" id="scan-view" hidden><video id="scan-video" playsinline muted></video></div>
   <form id="restore" class="restore" action="/key" method="post">
     <label for="key-name">Frog</label>
     <input id="key-name" name="username" autocomplete="username" value="{{ .FrogName }}" placeholder="Its name, if you remember">

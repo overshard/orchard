@@ -253,6 +253,8 @@ func (s *site) keyPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Security-Policy", keyCSP())
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	w.Header().Set("Cache-Control", "no-store")
+	// The one page that asks for the camera, to scan a pond key's QR code.
+	w.Header().Set("Permissions-Policy", "camera=(self), microphone=(), geolocation=(), interest-cohort=()")
 	s.renderer.Render(w, http.StatusOK, "key.html", p)
 }
 
