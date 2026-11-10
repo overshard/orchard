@@ -289,6 +289,20 @@ func (s *site) apiBuy(id int64, r *http.Request, w http.ResponseWriter) (any, er
 	return s.store.buy(id, in.Shop, in.Slot)
 }
 
+func (s *site) apiDyeLoad(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	var in struct {
+		Rocks []string `json:"rocks"`
+	}
+	if !readJSON(w, r, &in) {
+		return nil, nil
+	}
+	return s.store.dyeLoad(id, in.Rocks)
+}
+
+func (s *site) apiDyeCollect(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	return s.store.dyeCollect(id)
+}
+
 func (s *site) apiBuyPad(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
 	return s.store.buyPad(id)
 }

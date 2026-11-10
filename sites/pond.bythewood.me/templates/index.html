@@ -158,14 +158,30 @@
     </div>
     <p class="line" id="garden-out" role="status"></p>
 
-    <h2 data-idx="03">Kitchen</h2>
+    <h2 data-idx="03">Dye works</h2>
+    <div class="tiles">
+      <span class="readout"><span class="k">Level</span><span class="v" id="dye-level">0</span></span>
+      <span class="readout"><span class="k">A batch</span><span class="v" id="dye-hours">&mdash;</span></span>
+      <span class="readout"><span class="k">In the pot</span><span class="v" id="dye-state">&mdash;</span></span>
+    </div>
+    <p class="dim" id="dye-note"></p>
+    <div class="larder seg" id="dye-rocks" aria-label="Pick three rocks"></div>
+    <p class="dim" id="dye-odds"></p>
+    <div class="row">
+      <button type="button" class="primary" id="dye-load">Boil them down</button>
+      <button type="button" class="primary" id="dye-collect">Bottle it</button>
+      <button type="button" id="dye-build">Build</button>
+    </div>
+    <p class="line" id="dye-out" role="status"></p>
+
+    <h2 data-idx="04">Kitchen</h2>
     <p class="dim">Any two things from the garden make a dish. The cookbook fills in as you go, and Brindle buys whatever you cook.</p>
     <div class="larder seg" id="larder" aria-label="Pick two"></div>
     <div class="row"><button type="button" class="primary" id="cook">Cook</button></div>
     <p class="line" id="cook-out" role="status"></p>
     <ul class="things dishes" id="dishes"></ul>
 
-    <h2 data-idx="04">Cookbook <span class="count" id="cook-count"></span></h2>
+    <h2 data-idx="05">Cookbook <span class="count" id="cook-count"></span></h2>
     <ul class="cookbook" id="cookbook"></ul>
   </section>
 

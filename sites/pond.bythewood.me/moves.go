@@ -75,6 +75,9 @@ func (s *store) greet(id int64, first bool) (*greeting, error) {
 				g.Missed = append(g.Missed, [2]string{"Garden", plural(ready, "plot") + " ready to pick"})
 			}
 		}
+		if p.DyeBatch != "" && !now.Before(time.Unix(p.DyeAt, 0).Add(batchTime(p.DyeLevel))) {
+			g.Missed = append(g.Missed, [2]string{"Dye works", "a batch of " + strings.ToLower(itemNames[p.DyeBatch]) + " is done"})
+		}
 		if p.LogDay != dayOf(now) {
 			g.Missed = append(g.Missed, [2]string{"Old log", "not turned over yet today"})
 		}
