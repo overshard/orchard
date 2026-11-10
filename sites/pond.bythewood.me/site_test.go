@@ -424,11 +424,11 @@ func TestShareTheFrog(t *testing.T) {
 }
 
 func TestPowerAddsUp(t *testing.T) {
-	p := powerOf(rarity{N: 32}, []hat{{3, hatGolden}, {8, 0}}, map[string]bool{"t_acorn": true, "t_pearl": true, "moonstone": true, "k_frost": true}, 23)
+	p := powerOf(rarity{N: 32}, []hat{{3, hatGolden}, {8, 0}}, map[string]bool{"t_acorn": true, "t_pearl": true, "moonstone": true, "k_frost": true}, 23, 0)
 	if p.Frog != 600 || p.Hats != 920 || p.Trinkets != 820 || p.TrinketsFound != 2 || p.Rocks != 800 || p.Keepsakes != 50 || p.Dive != 575 || p.Total != 3765 || p.Rank != "MARSH BARON" {
 		t.Errorf("power: %+v", p)
 	}
-	if p := powerOf(rarity{N: 10}, nil, nil, 0); p.Rank != "NEW TO THE POND" {
+	if p := powerOf(rarity{N: 10}, nil, nil, 0, 0); p.Rank != "NEW TO THE POND" {
 		t.Errorf("a new frog's rank: %+v", p)
 	}
 }

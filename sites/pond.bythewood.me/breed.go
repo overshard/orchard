@@ -160,13 +160,20 @@ type frogRow struct {
 	Front     bool
 	Hat       hat
 	Name      string
-	// Fed is the kind of the dish it last ate, "" when it's hungry.
-	Fed string
+	// Fed is the kind of the dish it last ate and FedAt when, and it stays
+	// full for a while after.
+	Fed    string
+	FedAt  int64
+	Job    string
+	JobAt  int64
+	Recipe string
+	// Hours of crafting done toward the next thing.
+	Carry float64
 }
 
 func loadFrogs(q querier, pondID int64) ([]frogRow, error) {
-	rows, err := q.Query(`SELECT id, seed, genome_json, hatched_at, laid_at, out_front, hat_shape, hat_colour, name, fed
-		FROM frogs WHERE pond_id = ? ORDER BY id`, pondID)
+	rows, err := q.Query(`SELECT id, seed, genome_json, hatched_at, laid_at, out_front, hat_shape, hat_colour, name, fed, fed_at,
+		job, job_at, recipe, carry FROM frogs WHERE pond_id = ? ORDER BY id`, pondID)
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +182,8 @@ func loadFrogs(q querier, pondID int64) ([]frogRow, error) {
 	for rows.Next() {
 		var f frogRow
 		var raw string
-		if err := rows.Scan(&f.ID, &f.Seed, &raw, &f.HatchedAt, &f.LaidAt, &f.Front, &f.Hat.Shape, &f.Hat.Colour, &f.Name, &f.Fed); err != nil {
+		if err := rows.Scan(&f.ID, &f.Seed, &raw, &f.HatchedAt, &f.LaidAt, &f.Front, &f.Hat.Shape, &f.Hat.Colour, &f.Name, &f.Fed, &f.FedAt,
+			&f.Job, &f.JobAt, &f.Recipe, &f.Carry); err != nil {
 			return nil, err
 		}
 		f.Mods = parseMods(raw)
@@ -241,7 +249,7 @@ func (s *store) lay(id, frogID int64, dye, stamp, drop string) (*laid, error) {
 		}
 		seed := randomSeed()
 		meal := -1
-		if d, ok := dishOfKind(parent.Fed); ok {
+		if d, ok := dishOfKind(parent.Fed); ok && fullUntil(*parent) > now.Unix() {
 			meal = d.tier
 		}
 		m := breedFed(lookFor(parent.Seed, parent.Mods), seed, dye, stamp, drop, meal)
@@ -261,29 +269,40 @@ func (s *store) lay(id, frogID int64, dye, stamp, drop string) (*laid, error) {
 	return out, err
 }
 
-// feed gives a frog a dish from the bag, and it keeps it in mind until it
-// lays. A frog that's still full won't take another.
+// feed gives a frog a dish from the bag. A frog that's still full won't take
+// another, and laying uses the meal up.
 func (s *store) feed(id, frogID int64, kind string) (*view, error) {
 	if _, ok := dishOfKind(kind); !ok {
 		return nil, errNotHeld
 	}
 	return s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
-		var fed string
-		var hatched int64
-		err := tx.QueryRow(`SELECT fed, hatched_at FROM frogs WHERE pond_id = ? AND id = ?`, p.ID, frogID).Scan(&fed, &hatched)
+		var f frogRow
+		err := tx.QueryRow(`SELECT fed, fed_at, hatched_at FROM frogs WHERE pond_id = ? AND id = ?`, p.ID, frogID).Scan(&f.Fed, &f.FedAt, &f.HatchedAt)
 		if err != nil {
 			return errNotHeld
 		}
-		if stage, _ := stageOf(now.Sub(time.Unix(hatched, 0))); stage == "egg" {
+		if !canWork(f, now) {
 			return errNotYet
 		}
-		if fed != "" {
+		if fullUntil(f) > now.Unix() {
 			return errFed
 		}
 		if err := takeItem(tx, p.ID, kind, 1); err != nil {
 			return err
 		}
-		_, err = tx.Exec(`UPDATE frogs SET fed = ? WHERE id = ?`, kind, frogID)
+		// A worker's hours so far were on whatever it had before.
+		frogs, xp, held, err := jobState(tx, p.ID)
+		if err != nil {
+			return err
+		}
+		for _, w := range frogs {
+			if w.ID == frogID && w.Job != "" {
+				if _, err := collectWork(tx, p, w, xpOf(xp, w.ID), held, now, false); err != nil {
+					return err
+				}
+			}
+		}
+		_, err = tx.Exec(`UPDATE frogs SET fed = ?, fed_at = ? WHERE id = ?`, kind, now.Unix(), frogID)
 		return err
 	})
 }

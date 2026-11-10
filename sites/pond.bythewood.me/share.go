@@ -42,14 +42,20 @@ type power struct {
 	RocksFound    int    `json:"rocks_found"`
 	Keepsakes     int    `json:"keepsakes"`
 	KeepsakesHad  int    `json:"keepsakes_found"`
+	Jobs          int    `json:"jobs"`
+	JobsTotal     int    `json:"jobs_total"`
 	Dive          int    `json:"dive"`
 	DiveBest      int    `json:"dive_best"`
 }
 
 // had is every trinket, rock and keepsake kind the pond has ever had, since
 // none of them can be lost from the shelves.
-func powerOf(r rarity, held []hat, had map[string]bool, diveBest int) power {
+// jobsTotal is the pond's best level at every job added up, and each level past
+// the first is worth three.
+func powerOf(r rarity, held []hat, had map[string]bool, diveBest, jobsTotal int) power {
 	p := power{Frog: int(math.Round(120 * math.Log2(float64(r.N)))), DiveBest: diveBest, Dive: diveBest * 25}
+	p.JobsTotal = max(jobsTotal, len(jobs))
+	p.Jobs = (p.JobsTotal - len(jobs)) * 3
 	for _, h := range held {
 		p.Hats += hatPower[h.tier()]
 	}
@@ -72,7 +78,7 @@ func powerOf(r rarity, held []hat, had map[string]bool, diveBest int) power {
 			p.KeepsakesHad++
 		}
 	}
-	p.Total = p.Frog + p.Hats + p.Trinkets + p.Rocks + p.Keepsakes + p.Dive
+	p.Total = p.Frog + p.Hats + p.Trinkets + p.Rocks + p.Keepsakes + p.Jobs + p.Dive
 	for _, k := range ranks {
 		if p.Total >= k.at {
 			p.Rank = k.name
@@ -131,13 +137,17 @@ func (s *store) shownBy(publicID string) (*shown, error) {
 	if err != nil {
 		return nil, err
 	}
+	xp, err := loadXP(s.r, id)
+	if err != nil {
+		return nil, err
+	}
 	spots, err := spotsOut(s.r, p)
 	if err != nil {
 		return nil, err
 	}
 	f := frogOf(p, s.now())
 	sl := slug(f.Name, p.PublicID)
-	return &shown{Frog: f, Power: powerOf(f.Rarity, held, had, p.DiveBest), Slug: sl, URL: baseURL + "/f/" + sl, Spots: spots}, nil
+	return &shown{Frog: f, Power: powerOf(f.Rarity, held, had, p.DiveBest, bestLevels(xp)), Slug: sl, URL: baseURL + "/f/" + sl, Spots: spots}, nil
 }
 
 // publicIDOf takes the code off the end of a share slug.
