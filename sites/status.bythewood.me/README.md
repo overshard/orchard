@@ -27,7 +27,9 @@ make clean        delete build/, both node_modules and data/, the dev database
 `scheduler.go` runs the timers, `checker.go` does the probes, `lighthouse.go`
 and `process.go` the audits, and the `crawler*.go` files the SEO crawl.
 `alerts.go` words the alerts and `ntfy/` sends them, and `report.go` with
-`reports/` and `typst.go` writes the PDFs. The image is the heaviest here, since it carries Chromium, bun and
+`reports/` and `typst.go` writes the PDFs. The frog on the properties pages is the visitor's
+own from pond's `/api/panel`, drawn with a copy of pond's `frog.js` that
+`make check` holds to the original. The image is the heaviest here, since it carries Chromium, bun and
 Lighthouse as well as typst.
 
 ## Things that will bite you

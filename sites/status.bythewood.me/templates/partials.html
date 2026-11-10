@@ -138,3 +138,12 @@
   {{ end }}
 </div>
 {{ end }}
+
+{{/* The visitor's frog from pond.bythewood.me, drawn by pond.js once the
+     pond answers. It stays hidden if the pond can't be reached. */}}
+{{ define "pondFrog" }}
+<figure class="pond-frog d-print-none" data-pond data-down="{{ . }}" hidden>
+  <canvas aria-hidden="true"></canvas>
+  <figcaption data-pond-line></figcaption>
+</figure>
+{{ end }}
