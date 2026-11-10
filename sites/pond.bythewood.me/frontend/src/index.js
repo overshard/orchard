@@ -1,4 +1,4 @@
-import { $, post, state, setPond, watch, reduced, titled, heldNow, canBuild, TIERS } from "./api.js";
+import { $, post, state, setPond, watch, reduced, titled, heldNow, TIERS } from "./api.js";
 import { genome, bred, cells, sideCells, colours, draw, croak, W, H, SW, SH } from "./frog.js";
 import { drawIcon, iconCanvas, drawFurn } from "./icons.js";
 import { initDive, enterDive, leaveDive } from "./dive.js";
@@ -333,36 +333,14 @@ function renderPond(p) {
   renderPlay(p);
 }
 
-// What's waiting and what still pays today, as keys that go straight to it.
-// A game drops off once its full pay runs are used or it's hit the day's cap.
+// The server decides what's worth doing, and the gravel bar and rent count up
+// here between fetches, so a chip can appear or grow before the next one.
 function renderTodo(p) {
-  const todo = [], b = p.bank, has = (k) => (p.bag.find((t) => t.kind === k) || { count: 0 }).count;
-  const gravel = heldNow(b.gravel), rent = heldNow(b.burrows);
-  if (p.wheel.free > 0) todo.push(["i_play", p.wheel.free > 1 ? p.wheel.free + " free spins" : "Free spin", "wheel"]);
-  if (p.log.ready) todo.push(["wood", "Turn the old log", "play"]);
-  if (gravel >= 1) todo.push(["peb", gravel + " on the gravel bar", "bank"]);
-  if (rent >= 1) todo.push(["peb", rent + " in rent", "bank"]);
-  if (b.garden.level && b.garden.plots.some((x) => x.ready_in === 0)) todo.push(["watercress", "Garden's ready", "garden"]);
-  if (b.dye.busy && b.dye.ready_in <= 0) todo.push(["dye_blue", "Dye's ready", "bank"]);
-  if (p.frogs.some((f) => f.work && f.work.job && f.work.hours >= p.jobs.hold)) todo.push(["sticks", "A shift is done", "reeds"]);
-  if (p.stall.takings) todo.push(["i_town", "Stall sold " + p.stall.takings, "town"]);
-
-  const left = (g) => g.paid < g.cap ? Math.max(0, g.full - g.runs) : 0;
-  if (left(p.dive)) todo.push(["i_pond", "Dive, " + left(p.dive) + " full pay " + (left(p.dive) > 1 ? "runs" : "run") + " left", "dive"]);
-  (p.arcade || []).forEach((g) => { if (left(g)) todo.push(["i_play", g.name + ", " + left(g) + " full pay " + (left(g) > 1 ? "runs" : "run") + " left", g.key]); });
-  const f = p.neighbours.favour;
-  if (!f.done && has(f.kind) >= f.n) todo.push(["i_town", f.name + " needs " + f.n + " " + f.what.toLowerCase(), "town"]);
-  if (p.bag.some((t) => t.sort === "dish") && p.neighbours.all.some((n) => !n.gave)) todo.push(["i_town", "Bring a neighbour a dish", "town"]);
-  const idle = p.frogs.filter((x) => x.work && !x.work.job);
-  if (idle.length) todo.push(["sticks", idle.length > 1 ? idle.length + " frogs with no job" : titled(idle[0].name) + " has no job", "reeds"]);
-
-  // With nothing else to do, the next thing worth saving up for.
-  if (!todo.length) {
-    const builds = [["gravel", "the gravel bar"], ["garden", "the garden"], ["dye", "the dye works"], ["burrows", "the burrows"]];
-    const can = builds.find(([k]) => canBuild(p, b[k]));
-    if (can) todo.push(["i_bank", (b[can[0]].level ? "Level up " : "Build ") + can[1], can[0] === "garden" ? "garden" : "bank"]);
-    else if (p.pebbles >= p.box.cost) todo.push(["i_town", "Open a hat box for " + p.box.cost, "town"]);
-  }
+  const live = { gravel: [heldNow(p.bank.gravel), " on the gravel bar"], rent: [heldNow(p.bank.burrows), " in rent"] };
+  const counts = Object.values(live).filter(([n]) => n >= 1).map(([n, what]) => ["peb", n + what, "bank"]);
+  // A suggestion to save up only stands when nothing else is waiting.
+  const rest = p.todo.filter((t) => !live[t.kind] && !(counts.length && t.kind === "save"));
+  const todo = counts.concat(rest.map((t) => [t.icon, t.label, t.to]));
 
   const box = $("todo");
   box.textContent = "";

@@ -1,0 +1,138 @@
+package main
+
+import (
+	"fmt"
+	"strings"
+)
+
+// todo is one thing worth doing now, shown as a chip on the pond and as a
+// line on dash. To is the pond page's view it opens.
+type todo struct {
+	Kind  string `json:"kind"`
+	Icon  string `json:"icon"`
+	Label string `json:"label"`
+	To    string `json:"to"`
+}
+
+// todoOf is what's waiting to be collected and what still pays today. A game
+// drops off once its full pay runs are used or it's hit the day's cap, and
+// with nothing else it suggests the next thing to save for.
+func todoOf(v *view) []todo {
+	out := []todo{}
+	add := func(kind, icon, label, to string) { out = append(out, todo{kind, icon, label, to}) }
+	b := v.Bank
+	if v.Wheel.Free > 0 {
+		add("wheel", "i_play", plural(v.Wheel.Free, "free spin"), "wheel")
+	}
+	if v.Log.Ready {
+		add("log", "wood", "Turn the old log", "play")
+	}
+	if b.Gravel.Held >= 1 {
+		add("gravel", "peb", fmt.Sprintf("%d on the gravel bar", b.Gravel.Held), "bank")
+	}
+	if b.Burrows.Held >= 1 {
+		add("rent", "peb", fmt.Sprintf("%d in rent", b.Burrows.Held), "bank")
+	}
+	for _, pl := range b.Garden.Plots {
+		if pl.ReadyIn == 0 {
+			add("garden", "watercress", "Garden's ready", "garden")
+			break
+		}
+	}
+	if b.Dye.Busy && b.Dye.ReadyIn <= 0 {
+		add("dye", "dye_blue", "Dye's ready", "bank")
+	}
+	for _, f := range v.Frogs {
+		if f.Work != nil && f.Work.Job != "" && f.Work.Hours >= float64(v.Jobs.Hold) {
+			add("shift", "sticks", "A shift is done", "reeds")
+			break
+		}
+	}
+	if v.Stall.Takings > 0 {
+		add("stall", "i_town", fmt.Sprintf("Stall sold %d", v.Stall.Takings), "town")
+	}
+
+	left := func(paid, cap, runs, full int) int {
+		if paid >= cap {
+			return 0
+		}
+		return max(0, full-runs)
+	}
+	if n := left(v.Dive.Paid, v.Dive.Cap, v.Dive.Runs, v.Dive.Full); n > 0 {
+		add("dive", "i_pond", "Dive, "+plural(n, "full pay run")+" left", "dive")
+	}
+	for _, g := range v.Arcade {
+		if n := left(g.Paid, g.Cap, g.Runs, g.Full); n > 0 {
+			add(g.Key, "i_play", g.Name+", "+plural(n, "full pay run")+" left", g.Key)
+		}
+	}
+	if f := v.Neighbours.Favour; !f.Done && v.held[f.Kind] >= f.N {
+		add("favour", "i_town", fmt.Sprintf("%s needs %d %s", f.Name, f.N, strings.ToLower(f.What)), "town")
+	}
+	if hasDish(v.Bag) {
+		for _, n := range v.Neighbours.All {
+			if !n.Gave {
+				add("gift", "i_town", "Bring a neighbour a dish", "town")
+				break
+			}
+		}
+	}
+	idle := []string{}
+	for _, f := range v.Frogs {
+		if f.Work != nil && f.Work.Job == "" {
+			idle = append(idle, titled(f.Name))
+		}
+	}
+	switch {
+	case len(idle) == 1:
+		add("idle", "sticks", idle[0]+" has no job", "reeds")
+	case len(idle) > 1:
+		add("idle", "sticks", fmt.Sprintf("%d frogs with no job", len(idle)), "reeds")
+	}
+
+	if len(out) > 0 {
+		return out
+	}
+	builds := []struct {
+		key, name, to string
+		level, cost   int
+		mats          map[string]int
+	}{
+		{"gravel", "the gravel bar", "bank", b.Gravel.Level, b.Gravel.Cost, b.Gravel.Mats},
+		{"garden", "the garden", "garden", b.Garden.Level, b.Garden.Cost, b.Garden.Mats},
+		{"dye", "the dye works", "bank", b.Dye.Level, b.Dye.Cost, b.Dye.Mats},
+		{"burrows", "the burrows", "bank", b.Burrows.Level, b.Burrows.Cost, b.Burrows.Mats},
+	}
+	for _, bd := range builds {
+		if bd.cost > 0 && v.Pebbles >= bd.cost && hasAll(v.held, bd.mats) {
+			verb := "Build "
+			if bd.level > 0 {
+				verb = "Level up "
+			}
+			add("save", "i_bank", verb+bd.name, bd.to)
+			return out
+		}
+	}
+	if v.Pebbles >= v.Box.Cost {
+		add("save", "i_town", fmt.Sprintf("Open a hat box for %d", v.Box.Cost), "town")
+	}
+	return out
+}
+
+func hasAll(held, need map[string]int) bool {
+	for k, n := range need {
+		if held[k] < n {
+			return false
+		}
+	}
+	return true
+}
+
+func hasDish(bag []bagThing) bool {
+	for _, t := range bag {
+		if t.Sort == "dish" {
+			return true
+		}
+	}
+	return false
+}
