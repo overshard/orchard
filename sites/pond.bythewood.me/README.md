@@ -102,8 +102,8 @@ they have none, for other sites to draw.
   order, and `sprite.go` has to draw the same cells as `frog.js`. After
   changing any of them run `bun fixture.js` in `frontend/` and then `go test`,
   which checks the Go side against what that wrote.
-- dash and isaacbythewood.com draw frogs with copies of `frog.js`, so a change
-  to it is copied to both and all three deployed. `make check` fails on a stale copy.
+- dash, status and isaacbythewood.com draw frogs with copies of `frog.js`, so a
+  change to it is copied to all three and all four deployed. `make check` fails on a stale copy.
 - `words.txt` can never lose or reorder a word once a key is out, since a key
   is six words off it.
 - The server owns the clock and every earner has a daily cap in `game.go`. A

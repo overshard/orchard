@@ -563,7 +563,7 @@ shared-check:
 # dash and the portfolio draw frogs with a copy of pond's sprite code, so a
 # change to how a frog looks has to land in every copy.
 FROG = sites/pond.bythewood.me/frontend/src/frog.js
-FROG_COPIES = sites/dash.bythewood.me/frontend/static_src/scripts/frog.js sites/isaacbythewood.com/frontend/static_src/js/frog.js
+FROG_COPIES = sites/dash.bythewood.me/frontend/static_src/scripts/frog.js sites/isaacbythewood.com/frontend/static_src/js/frog.js sites/status.bythewood.me/frontend/static_src/properties/scripts/frog.js
 
 frog-check:
 	@for f in $(FROG_COPIES); do cmp -s $(FROG) $$f || { echo "frog.js differs in $$f, copy pond's over it" >&2; exit 1; }; done
