@@ -79,6 +79,19 @@ function show(n) {
   let what = n.title + ", " + hearts(n.level) + ". Its favourite is " + n.fav.toLowerCase() + ".";
   if (n.fav_a) what += " It told you how, " + nameOf(n.fav_a) + " and " + nameOf(n.fav_b) + ".";
   openSheet({ art: art(n, 4), name: n.name }, what, (body) => {
+    const bio = document.createElement("p");
+    bio.className = "dim"; bio.textContent = n.bio + " " + n.now.doing;
+    body.append(bio);
+    if (n.now.says) {
+      const q = document.createElement("p");
+      q.className = "bubble"; q.textContent = n.now.says;
+      body.append(q);
+    }
+    if (n.talk) {
+      const t = document.createElement("p");
+      t.className = "dim"; t.textContent = n.talk;
+      body.append(t);
+    }
     if (n.gossip) {
       const g = document.createElement("p");
       g.className = "gossip";
@@ -134,12 +147,23 @@ function render(p) {
   const grid = $("neigh-grid");
   grid.textContent = "";
   nb.all.forEach((n) => {
-    const c = document.createElement("button"), name = document.createElement("b"), h = document.createElement("span"), fav = document.createElement("span");
+    const c = document.createElement("button"), name = document.createElement("b"), h = document.createElement("span"), doing = document.createElement("span");
     c.type = "button"; c.className = "reed";
     name.textContent = n.name;
     h.className = "hearts"; h.textContent = hearts(n.level) + (n.lodger ? " · lodger" : n.gave ? " · fed today" : "");
-    fav.textContent = n.talk || "Loves " + n.fav.toLowerCase();
-    c.append(art(n, 3), name, h, fav);
+    doing.textContent = n.now.doing;
+    if (n.now.thinks) {
+      const t = document.createElement("span");
+      t.className = "thought"; t.textContent = n.now.thinks;
+      c.append(t);
+    }
+    c.append(art(n, 3), name, h);
+    if (n.now.paper) {
+      const pr = document.createElement("span");
+      pr.className = "paper"; pr.textContent = "In today's gazette";
+      c.append(pr);
+    }
+    c.append(doing);
     c.addEventListener("click", () => show(n));
     grid.append(c);
   });

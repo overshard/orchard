@@ -34,6 +34,8 @@ type tales struct {
 	Dream    []string                       `json:"dream"`
 	Gossip   []string                       `json:"gossip"`
 	Gazette  map[string][]string            `json:"gazette"`
+	// By resident name and then by what the line is for, doing or press.
+	Folk map[string]map[string][]string `json:"folk,omitempty"`
 }
 
 type taleBook struct{ cur atomic.Pointer[tales] }
@@ -92,9 +94,34 @@ func (b *taleBook) natured(kind, key, nature, day string, hand []string) []strin
 	return append(append([]string{}, hand...), extra...)
 }
 
+// folk is resident i's hand lines for field plus the model's.
+func (b *taleBook) folk(i int, field, day string, hand []string) []string {
+	t := b.current(day)
+	if t == nil {
+		return hand
+	}
+	extra := t.Folk[residents[i].name][field]
+	if len(extra) == 0 {
+		return hand
+	}
+	return append(append([]string{}, hand...), extra...)
+}
+
 // ---------------------------------------------------------------- checking
 
-const lineMax = 110
+const (
+	lineMax = 110
+	// A thought sits in a bubble over a small card.
+	thoughtMax = 80
+)
+
+// A resident's line can't name a neighbour or a shopkeeper, even at the start
+// of a sentence where a capital is allowed. Names that are plain words aren't here.
+var folkNames = map[string]bool{"sedge": true, "tully": true, "pip": true, "bramble": true,
+	"clover": true, "tansy": true, "wren": true, "brindle": true}
+
+// The words a line in the first person may capitalise past its first.
+var firstPerson = map[string]bool{"I": true, "I'm": true, "I've": true, "I'll": true, "I'd": true}
 
 var slotRe = regexp.MustCompile(`\{[a-z]+\}`)
 
@@ -135,7 +162,11 @@ func checkLine(l string, a taleAsk, seen map[string]bool) (string, bool) {
 	if a.stand != "" && !strings.Contains(l, a.must) && strings.Count(l, a.stand) == 1 {
 		l = strings.Replace(l, a.stand, a.must, 1)
 	}
-	if l == "" || len(l) > lineMax || strings.ContainsAny(l, "0123456789%$#*_<>\n\\|;—–") {
+	max := lineMax
+	if a.short {
+		max = thoughtMax
+	}
+	if l == "" || len(l) > max || strings.ContainsAny(l, "0123456789%$#*_<>\n\\|;—–") {
 		return "", false
 	}
 	for _, s := range slotRe.FindAllString(l, -1) {
@@ -168,8 +199,14 @@ func checkLine(l string, a taleAsk, seen map[string]bool) (string, bool) {
 			return "", false
 		}
 	}
+	if a.gerund && !strings.HasSuffix(strings.ToLower(strings.Trim(bare[0], ",.!?")), "ing") {
+		return "", false
+	}
 	// The model makes up names, and the only names a line may carry are slots.
-	for _, w := range bare[1:] {
+	for k, w := range bare[1:] {
+		if a.firstPerson && (firstPerson[strings.Trim(w, ",.!?")] || strings.ContainsAny(bare[k][len(bare[k])-1:], ".!?")) {
+			continue
+		}
 		if r := w[0]; r >= 'A' && r <= 'Z' {
 			return "", false
 		}
@@ -181,6 +218,9 @@ func checkLine(l string, a taleAsk, seen map[string]bool) (string, bool) {
 		return "", false
 	}
 	for _, w := range words {
+		if a.kind == "folk" && folkNames[w] {
+			return "", false
+		}
 		if bannedWord[w] || a.kind == "gazette" && (w == "you" || w == "your") {
 			return "", false
 		}
@@ -238,6 +278,9 @@ type taleAsk struct {
 	n     int
 	// When set the answer is an object of lines by nature.
 	natured bool
+	// A resident's ask, whose answer is an object of lines by folkFields.
+	who                        int
+	firstPerson, gerund, short bool
 }
 
 func taleAsks() []taleAsk {
@@ -270,7 +313,46 @@ func taleAsks() []taleAsk {
 		asks = append(asks, taleAsk{kind: "gazette", key: tone, n: 10, avoidStart: []string{"It", "It's"}, allowed: []string{"{resident}", "{other}"},
 			prompt: "Write newspaper headlines for the Pond Gazette about goings on around the pond, on " + feel + ". Sentence case with no full stop, like: Choir practice runs late again, nobody complains. The only names allowed are {resident} and {other} for one or two neighbour frogs. Keep it about frogs, the water, the reeds, food and the shops."})
 	}
+	for i := range residents {
+		asks = append(asks, taleAsk{kind: "folk", who: i, n: 3, prompt: folkPrompt(i)})
+	}
 	return asks
+}
+
+// What the model writes for each resident, read by folkOf.
+var folkFields = []string{"doing", "thinks", "says", "rain", "cold", "hot", "grey", "pollen", "press", "read"}
+
+const folkSystem = `You write short lines for one character in a cosy pixel art game about frogs living round a pond.
+Warm, gentle, a little silly, for all ages. Plain words, contractions are fine. The character's personality should come through in every line.
+Never write numbers, prices, money, the stock market, news, politics, people's names, brands, violence or anything sad about death.
+Never use the character's own name. Never make up a name for anybody or anything, the only name allowed is the slot {name} for another neighbour frog, written exactly with its braces.
+Never use quotation marks, dashes, semicolons or emoji. Write in sentence case, with a capital letter only at the start and on I.`
+
+func folkPrompt(i int) string {
+	return "The character is a frog who is " + folks[i].voice + ". It has a lily pad by the pond, there's a garden, a kitchen, shops, a choir and a little newspaper called the gazette. Write these, each line under 80 characters:\n" +
+		"doing: what it's busy doing right now, starting with a verb ending in ing, like: Sweeping leaves off the pads.\n" +
+		"thinks: a passing thought in its own head, in the first person, like: I wonder if the fish are talking about me.\n" +
+		"says: something it says to the player who just came over, in the first person, talking to you.\n" +
+		"rain, cold, hot, grey, pollen: a thought in the first person on a rainy day, a frosty day, a hot day, a grey gloomy day, and a day with pollen all over the water.\n" +
+		"press: what it says to you about being in today's gazette, in the first person.\n" +
+		"read: what it says to you about {name} being in today's gazette, in the first person, with {name} exactly once."
+}
+
+// folkRule is how a line for one of folkFields is checked.
+func folkRule(field string) (taleAsk, bool) {
+	a := taleAsk{kind: "folk", allowed: []string{"{name}"}, firstPerson: true}
+	switch field {
+	case "doing":
+		a.gerund, a.firstPerson, a.short = true, false, true
+	case "thinks", "rain", "cold", "hot", "grey", "pollen":
+		a.short = true
+	case "says", "press":
+	case "read":
+		a.must = "{name}"
+	default:
+		return a, false
+	}
+	return a, true
 }
 
 // ---------------------------------------------------------------- the model
@@ -291,24 +373,24 @@ var errCardBusy = errors.New("the card is in use")
 
 func (m *model) lines(ctx context.Context, a taleAsk) (any, error) {
 	arr := map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "minItems": a.n, "maxItems": a.n}
-	var schema map[string]any
+	keys, system := []string{"lines"}, taleSystem
 	if a.natured {
-		props, req := map[string]any{}, []string{}
-		for _, n := range taleNatures {
-			props[n] = arr
-			req = append(req, n)
-		}
-		schema = map[string]any{"type": "object", "properties": props, "required": req, "additionalProperties": false}
-	} else {
-		schema = map[string]any{"type": "object", "properties": map[string]any{"lines": arr}, "required": []string{"lines"}, "additionalProperties": false}
+		keys = taleNatures
+	} else if a.kind == "folk" {
+		keys, system = folkFields, folkSystem
 	}
+	props := map[string]any{}
+	for _, k := range keys {
+		props[k] = arr
+	}
+	schema := map[string]any{"type": "object", "properties": props, "required": keys, "additionalProperties": false}
 	body, err := json.Marshal(map[string]any{
 		"model": "local",
-		"messages": []map[string]string{{"role": "system", "content": taleSystem},
+		"messages": []map[string]string{{"role": "system", "content": system},
 			{"role": "user", "content": a.prompt + fmt.Sprintf(" Write %d lines.", a.n)}},
 		"temperature":          0.9,
 		"top_p":                0.95,
-		"max_tokens":           2500,
+		"max_tokens":           3500,
 		"chat_template_kwargs": map[string]any{"enable_thinking": false},
 		"response_format": map[string]any{"type": "json_schema",
 			"json_schema": map[string]any{"name": "lines", "strict": true, "schema": schema}},
@@ -352,7 +434,7 @@ func (m *model) lines(ctx context.Context, a taleAsk) (any, error) {
 	if i := strings.Index(text, "{"); i > 0 {
 		text = text[i:]
 	}
-	if a.natured {
+	if a.natured || a.kind == "folk" {
 		var out map[string][]string
 		return out, json.Unmarshal([]byte(text), &out)
 	}
@@ -511,7 +593,7 @@ func (n *nightly) tick(ctx context.Context, now time.Time) {
 func (n *nightly) write(ctx context.Context, day string) (*tales, int, int, error) {
 	seen := n.loadSeen(day)
 	t := &tales{Day: day, Greeting: map[string]map[string][]string{}, Watching: map[string][]string{},
-		Playing: map[string][]string{}, Gazette: map[string][]string{}}
+		Playing: map[string][]string{}, Gazette: map[string][]string{}, Folk: map[string]map[string][]string{}}
 	kept, dropped, failed := 0, 0, 0
 	var drops []string
 	perKind := map[string]int{}
@@ -548,12 +630,21 @@ func (n *nightly) write(ctx context.Context, day string) (*tales, int, int, erro
 		switch v := got.(type) {
 		case map[string][]string:
 			by := map[string][]string{}
-			for nature, ls := range v {
-				if ok := keep(a, ls); len(ok) > 0 {
-					by[nature] = ok
+			for key, ls := range v {
+				rule, known := a, true
+				if a.kind == "folk" {
+					rule, known = folkRule(key)
+				}
+				if !known {
+					continue
+				}
+				if ok := keep(rule, ls); len(ok) > 0 {
+					by[key] = ok
 				}
 			}
 			switch a.kind {
+			case "folk":
+				t.Folk[residents[a.who].name] = by
 			case "greeting":
 				t.Greeting[a.key] = by
 			case "watching":
@@ -610,7 +701,7 @@ func (n *nightly) loadSeen(day string) map[string]bool {
 		}
 		mark := func(ls []string) {
 			for _, l := range ls {
-				checkLine(l, taleAsk{allowed: []string{"{show}", "{game}", "{resident}", "{other}", "{name}"}}, seen)
+				checkLine(l, taleAsk{allowed: []string{"{show}", "{game}", "{resident}", "{other}", "{name}"}, firstPerson: true}, seen)
 			}
 		}
 		for _, by := range t.Greeting {
@@ -625,6 +716,11 @@ func (n *nightly) loadSeen(day string) map[string]bool {
 		}
 		mark(t.Dream)
 		mark(t.Gossip)
+		for _, by := range t.Folk {
+			for _, ls := range by {
+				mark(ls)
+			}
+		}
 	}
 	return seen
 }

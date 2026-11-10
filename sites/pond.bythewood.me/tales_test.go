@@ -169,6 +169,15 @@ func TestNightlyWritesAndChecks(t *testing.T) {
 			}
 			content = by
 		}
+		if strings.Contains(ask, "The character is a frog") {
+			by := map[string][]string{}
+			for _, f := range folkFields {
+				by[f] = []string{"I wonder if the fish think about " + f + " too."}
+			}
+			by["doing"] = []string{"Sweeping leaves off the pads.", "It sweeps the pads."}
+			by["read"] = []string{"Did you see {name} in the gazette today?"}
+			content = by
+		}
 		raw, _ := json.Marshal(content)
 		json.NewEncoder(w).Encode(map[string]any{"choices": []map[string]any{{"message": map[string]string{"content": string(raw)}}}})
 	}))
@@ -191,6 +200,9 @@ func TestNightlyWritesAndChecks(t *testing.T) {
 	}
 	if len(got.Gossip) != 1 || len(got.Watching) == 0 || len(got.Greeting) != len(moodWords) {
 		t.Errorf("night: %d gossip, %d watching, %d greeting moods", len(got.Gossip), len(got.Watching), len(got.Greeting))
+	}
+	if f := got.Folk[residents[0].name]; len(f["doing"]) != 1 || len(f["read"]) != 1 || len(f["thinks"]) != 1 {
+		t.Errorf("first resident's lines: %v", f)
 	}
 	if book.current("2026-11-11") == nil {
 		t.Error("the book wasn't updated")

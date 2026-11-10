@@ -95,6 +95,10 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
   every mood and kind, checks each one in Go and keeps the night in
   `tales-<day>.json` beside the database. The hand written lines are always
   in the pool, so with no `LLM_KEY` or a failed night nothing is missing.
+- `folk.go` gives each resident a personality, what it's doing and thinking
+  in each part of the day and what it says to you, coloured by the weather,
+  the mood and whether today's gazette names it. The nightly run writes a set
+  of lines for each resident in its own voice on top of the hand written ones.
 - `share.go` is a frog's public page at `/f/<name>-<code>`, its power, and the
   PNG card a link unfurls with, drawn by `sprite.go` in the JetBrains Mono under
   `fonts/`. The code is the pond's public id and can't open the pond.
