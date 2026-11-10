@@ -61,10 +61,18 @@ func todoOf(v *view) []todo {
 	if n := left(v.Dive.Paid, v.Dive.Cap, v.Dive.Runs, v.Dive.Full); n > 0 {
 		add("dive", "i_pond", "Dive, "+plural(n, "full pay run")+" left", "dive")
 	}
+	// One chip for the side games, since one each would push everything else off.
+	open, only := 0, arcadeView{}
 	for _, g := range v.Arcade {
-		if n := left(g.Paid, g.Cap, g.Runs, g.Full); n > 0 {
-			add(g.Key, "i_play", g.Name+", "+plural(n, "full pay run")+" left", g.Key)
+		if left(g.Paid, g.Cap, g.Runs, g.Full) > 0 {
+			open++
+			only = g
 		}
+	}
+	if open == 1 {
+		add("arcade", "i_play", only.Name+", "+plural(left(only.Paid, only.Cap, only.Runs, only.Full), "full pay run")+" left", only.Key)
+	} else if open > 1 {
+		add("arcade", "i_play", plural(open, "side game")+" still pay in full", "play")
 	}
 	if f := v.Neighbours.Favour; !f.Done && v.held[f.Kind] >= f.N {
 		add("favour", "i_town", fmt.Sprintf("%s needs %d %s", f.Name, f.N, strings.ToLower(f.What)), "town")
