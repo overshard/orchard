@@ -29,7 +29,7 @@ export const school = {
   reset(g) {
     col = colours(g, null);
     const cx = Math.floor(COLS / 2);
-    G = { t: 0, tick: 0, every: 0.2, dir: "up", turns: [], body: [{ x: cx, y: ROWS - 5 }, { x: cx, y: ROWS - 4 }, { x: cx, y: ROWS - 3 }], grow: 0, score: 0, stones: [], flea: null, gold: null, why: "", dead: 0, pops: [] };
+    G = { t: 0, tick: 0, every: 0.2, dir: "up", turns: [], body: [{ x: cx, y: ROWS - 5 }, { x: cx, y: ROWS - 4 }, { x: cx, y: ROWS - 3 }], from: null, grow: 0, score: 0, stones: [], flea: null, gold: null, why: "", dead: 0, pops: [] };
     G.flea = free();
   },
 
@@ -62,10 +62,11 @@ export const school = {
     const tail = G.body[G.body.length - 1];
     const intoTail = n.x === tail.x && n.y === tail.y && G.grow === 0;
     if (!intoTail && blocked(n.x, n.y)) {
-      G.dead = 0.01; sfx("bonk");
+      G.dead = 0.01; G.from = null; sfx("bonk");
       G.why = n.x < 0 || n.y < 0 || n.x >= COLS || n.y >= ROWS ? "INTO THE REEDS" : G.stones.some((s) => s.x === n.x && s.y === n.y) ? "BONK" : "TANGLED UP";
       return;
     }
+    G.from = G.body.map((b) => ({ x: b.x, y: b.y }));
     G.body.unshift(n);
     if (G.grow > 0) G.grow--; else G.body.pop();
     if (n.x === G.flea.x && n.y === G.flea.y) {
@@ -109,9 +110,12 @@ export const school = {
     }
     const flash = G.dead && Math.floor(G.dead * 12) % 2;
     // Each one is a tadpole, a round head and a tail that tapers and wiggles.
+    // The school moves a cell at a time, and each is drawn part way there.
+    const k = G.from ? Math.min(1, G.tick / G.every) : 1;
     for (let i = G.body.length - 1; i >= 0 && !flash; i--) {
-      const b = G.body[i], nx = G.body[i - 1] || { x: b.x + DIRS[G.dir][0], y: b.y + DIRS[G.dir][1] };
-      const dx = nx.x - b.x, dy = nx.y - b.y, cx = b.x * C + M, cy = b.y * C + M;
+      const b = G.body[i], was = (G.from && G.from[i]) || b;
+      const dx = b.x - was.x || (i ? 0 : DIRS[G.dir][0]), dy = b.y - was.y || (i || dx ? 0 : DIRS[G.dir][1]);
+      const cx = Math.round((was.x + (b.x - was.x) * k) * C + M), cy = Math.round((was.y + (b.y - was.y) * k) * C + M);
       for (let k = 1; k <= 3; k++) {
         const wig = Math.round(Math.sin(G.t * 14 + i - k) * k * 0.8), sz = 4 - k;
         const tx = cx - dx * (3 + k * 3) + (dy ? wig : 0), ty = cy - dy * (3 + k * 3) + (dx ? wig : 0);
