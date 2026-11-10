@@ -18,8 +18,13 @@ function show(next) {
   });
   if (next === "dive") enterDive();
   if (next === "wheel") enterWheel();
+  // A view's name is also the id of its canvas, and the browser scrolls to
+  // that when the address changes, a frame after this runs.
   window.scrollTo(0, 0);
+  requestAnimationFrame(() => window.scrollTo(0, 0));
 }
+
+window.addEventListener("load", () => window.scrollTo(0, 0));
 
 $("tabs").addEventListener("click", (e) => {
   const b = e.target.closest("button"), v = b && b.dataset.view;
