@@ -560,12 +560,13 @@ shared-check:
 	fi; \
 	echo "$(SHARED) copies match"
 
-# dash draws the visitor's frog with a copy of pond's sprite code, so a change
-# to how a frog looks has to land in both.
-FROGS = sites/pond.bythewood.me/frontend/src/frog.js sites/dash.bythewood.me/frontend/static_src/scripts/frog.js
+# dash and the portfolio draw frogs with a copy of pond's sprite code, so a
+# change to how a frog looks has to land in every copy.
+FROG = sites/pond.bythewood.me/frontend/src/frog.js
+FROG_COPIES = sites/dash.bythewood.me/frontend/static_src/scripts/frog.js sites/isaacbythewood.com/frontend/static_src/js/frog.js
 
 frog-check:
-	@cmp -s $(FROGS) || { echo "frog.js differs between pond and dash, copy pond's over dash's" >&2; exit 1; }
+	@for f in $(FROG_COPIES); do cmp -s $(FROG) $$f || { echo "frog.js differs in $$f, copy pond's over it" >&2; exit 1; }; done
 	@echo "frog.js copies match"
 
 # Reports stdlib issues against the local toolchain too, so an old Go in webdev

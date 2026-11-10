@@ -24,12 +24,14 @@ import { initHome } from "./js/pages/index.js";
 import { initAbout } from "./js/pages/about.js";
 import { initArt } from "./js/pages/art.js";
 import { initContact } from "./js/pages/contact.js";
+import { initCode } from "./js/pages/code.js";
 
 const PAGES = {
   index: initHome,
   about: initAbout,
   art: initArt,
   contact: initContact,
+  code: initCode,
 };
 
 // Each init is isolated. initLoader is what lifts the opening curtain, so a

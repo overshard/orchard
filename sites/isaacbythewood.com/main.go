@@ -103,7 +103,8 @@ func realMain() error {
 
 	// An archived repo doesn't change, so polling it would spend the rate limit
 	// re-reading the same commit.
-	targets := make([]CommitTarget, 0, len(sites)+len(projects))
+	targets := make([]CommitTarget, 0, len(sites)+len(projects)+1)
+	targets = append(targets, featured.CommitTarget())
 	for _, live := range sites {
 		targets = append(targets, live.CommitTarget())
 	}
