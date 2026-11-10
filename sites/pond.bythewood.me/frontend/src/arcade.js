@@ -35,7 +35,7 @@ export function arcade(game) {
     cx.textAlign = "center"; cx.fillStyle = "#ece5d8"; cx.font = HEAD;
     lines.forEach((l, i) => cx.fillText(l, W / 2, oy + 20 + i * 14));
     cx.fillStyle = "#bcaf99"; cx.font = MONO;
-    sub.forEach((l, i) => cx.fillText(l, W / 2, oy + 20 + lines.length * 14 + 4 + i * 11));
+    sub.forEach((l, i) => cx.fillText(l, W / 2, oy + 20 + lines.length * 14 + 4 + i * 11, ow - 8));
   }
 
   function paint(now) {
