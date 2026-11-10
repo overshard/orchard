@@ -575,15 +575,17 @@ version of the old look and a handheld pet shell.
   in one, so a number never looks like a key. That green is the one colour
   Deck adds.
 - **A chip is a key with a blinking amber LED**, and it takes you somewhere. A
-  filter or sub tab is a flat sunken switch with a lit bar along its top when
-  it's on, and is never raised.
+  filter is a small raised key that stays pushed in and amber while it's on,
+  since a sunken one read as disabled. The places in town are a row of five
+  keys with pixel art over the label like the tab bar, so they never wrap.
 - **Every screen gets a picture in a window.** The bank, the reeds, settings and
   the kitchen too, with their words under the picture and never instead of it.
   A screen window has a bezel and a screw at each top corner.
 - **Panel labels are printed on.** Small caps in warm grey like the lettering on
   a faceplate, with section heads in amber as below.
 - **Empty spots are hazard striped sunken trays** with a dim outline of what
-  goes there. Stripes mean empty or locked and nothing else.
+  goes there. Stripes mean empty or locked and nothing else. An empty spot you
+  can fill, like a stall spot, is a key with a dashed edge and a plus instead.
 - **Every game is a floppy disk** on Play, a 3.5 inch disk in its own colour
   with a metal shutter, a write protect tab and the game's picture on a cream
   label. A disk that still pays in full has a blinking amber LED, the rest are

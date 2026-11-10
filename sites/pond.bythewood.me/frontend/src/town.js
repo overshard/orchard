@@ -110,7 +110,7 @@ function renderStall(p) {
     row.className = "stallrow" + (r && r.sold ? " sold" : "");
     if (!r) {
       row.classList.add("empty");
-      const b = button("Empty spot, put something up", pickForStall);
+      const b = button("+ Put something up", pickForStall);
       b.prepend(ghost("i_bag"));
       row.append(b);
       box.append(row);
