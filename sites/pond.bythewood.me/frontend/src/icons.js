@@ -25,6 +25,8 @@ export const ICONS = {
   stamp_speckled: [["...aa...", "...aa...", "..bbbb..", "..bbbb..", "cccccccc", "cdcdccdc", "ccdccdcc", "dccdcdcc"], { a: "#8a5a2b", b: "#c9974f", c: "#3f9a4d", d: "#1f5a2c" }],
   stamp_mask: [["...aa...", "...aa...", "..bbbb..", "..bbbb..", "cccccccc", "dddccddd", "dddccddd", "cccccccc"], { a: "#8a5a2b", b: "#c9974f", c: "#3f9a4d", d: "#1f5a2c" }],
   stamp_stripe: [["...aa...", "...aa...", "..bbbb..", "..bbbb..", "cccddccc", "cccddccc", "cccddccc", "cccddccc"], { a: "#8a5a2b", b: "#c9974f", c: "#3f9a4d", d: "#e3c57a" }],
+  f_stones: [["........", "........", "...ab...", "..aaab..", ".bbbbb..", "....ab..", "...bbbbb", "........"], { a: "#8a939e", b: "#5b6470" }],
+  f_reeds: [["..b..b..", "..b.bb..", ".bb.bb.b", ".bb.a..b", ".a..a.bb", ".a.aa.a.", ".a.a..a.", ".aaa.aa."], { a: "#2f7a3f", b: "#6b4a2a" }],
   duckweed: [["........", "..aa....", ".aaba.a.", "..aa.aba", ".a....a.", "aba.aa..", ".a.abba.", "....aa.."], { a: "#58b85a", b: "#9fe08f" }],
   watercress: [["..a..a..", ".aba.aba", "..a.ca..", "...c.c..", "..aca...", ".abac...", "..a.c...", "....c..."], { a: "#3f9a4d", b: "#8fd88a", c: "#2f7a3f" }],
   mayfly: [["..a..a..", "..ba.ab.", "...bbb..", "..abba..", ".a.bb.a.", "...bb...", "..d..d..", ".d....d."], { a: "#e6e0f2", b: "#c9b25a", d: "#8a7a3a" }],
@@ -82,5 +84,38 @@ export function iconCanvas(key, s) {
   const cv = document.createElement("canvas");
   cv.width = cv.height = 8 * s;
   drawIcon(cv.getContext("2d"), key, 0, 0, s);
+  return cv;
+}
+
+// Fenn's furniture, drawn bigger than an icon on the pond itself.
+export const FURN = {
+  f_lilypad: [["....gggggg....", "..gGGGGGGGGg..", ".gGGGGGpGGGGg.", "gGGGGGpPpGGGGg", ".gGGGGGpGGGGg.", "..gggggg.ggg.."],
+    { g: "#1f5a2c", G: "#56b45f", p: "#f59ab3", P: "#fff6dc" }],
+  f_teacup: [["..wwwwwwww...", ".wbbbbbbbbw..", ".wccccckccwhh", ".wppppkpppw.h", "..wccckccw.h.", "...wcccwwhh..", "....wwww....."],
+    { w: "#e9e3d6", b: "#7fd6c2", c: "#fff6dc", p: "#e2567a", k: "#6d747a", h: "#e9e3d6" }],
+  f_toadstool: [["...rrrr...", ".rrwrrrrr.", "rrrrrrrwrr", "rwrrrrrrrr", ".rrrrwrrr.", "...cccc...", "...cccc...", "...ccdc...", "..cccccc.."],
+    { r: "#e2412d", w: "#fff6dc", c: "#e9dcc0", d: "#c9b896" }],
+  f_lantern: [["..kk..", ".k..k.", ".kkkk.", "wjjjjw", "wjyyjw", "wjyyjw", "wjjjjw", ".wwww."],
+    { k: "#6d747a", w: "#cfe3ea", j: "#9fd8e8", y: "#ffe27a" }],
+};
+
+export function drawFurn(ctx, key, x, y, s, lit) {
+  const [rows, col] = FURN[key];
+  rows.forEach((row, r) => {
+    for (let c = 0; c < row.length; c++) {
+      const ch = row.charAt(c);
+      if (ch === ".") continue;
+      ctx.fillStyle = ch === "y" && !lit ? "#c9b25a" : col[ch];
+      ctx.fillRect(x + c * s, y + r * s, s, s);
+    }
+  });
+}
+
+// Stones and bulrushes are drawn by hand on the pond, so the shop has icons.
+export function furnCanvas(key) {
+  if (!FURN[key]) return iconCanvas(key, 3);
+  const rows = FURN[key][0], cv = document.createElement("canvas");
+  cv.width = rows[0].length * 2; cv.height = rows.length * 2;
+  drawFurn(cv.getContext("2d"), key, 0, 0, 2, true);
   return cv;
 }

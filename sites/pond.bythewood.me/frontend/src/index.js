@@ -1,6 +1,6 @@
 import { $, post, state, setPond, watch, reduced, titled, TIERS } from "./api.js";
 import { genome, cells, colours, draw, croak, W, H } from "./frog.js";
-import { drawIcon, iconCanvas } from "./icons.js";
+import { drawIcon, iconCanvas, drawFurn } from "./icons.js";
 import { initDive, enterDive, leaveDive } from "./dive.js";
 import { initWheel, enterWheel } from "./wheel.js";
 import { initHats } from "./hats.js";
@@ -119,6 +119,52 @@ function drawOver(day, t) {
   }
 }
 
+// ---------------------------------------------------------------- furniture
+
+function sprite(key, x, y, lit) { drawFurn(sx, key, x, y, 4, lit); }
+
+// On the water, behind the frog.
+function drawFurnBack(has, day, t) {
+  if (has.f_stones) [[8, 132, 5], [32, 152, 3], [8, 168, 3]].forEach(([x, y, n]) => {
+    sx.fillStyle = "#5b6470"; sx.fillRect(x, y, n * 4, 8);
+    sx.fillStyle = "#8a939e"; sx.fillRect(x + 4, y - 4, (n - 2) * 4, 4);
+    sx.fillStyle = "rgba(127,214,194,0.3)"; sx.fillRect(x - 4, y + 8, (n + 2) * 4, 2);
+  });
+  if (has.f_lilypad) sprite("f_lilypad", 12, 36 + Math.round(Math.sin(t * 0.8) * 2) * 2, false);
+  if (has.f_teacup) sprite("f_teacup", 280, 28 + Math.round(Math.sin(t * 0.7 + 1)) * 4, false);
+  if (has.f_reeds) for (let i = 0; i < 5; i++) {
+    const x = 324 + i * 6 - (i % 2) * 2, top = 92 + ((i * 37) % 5) * 8, sway = Math.round(Math.sin(t * 0.9 + i) * (1 + (day.wind || 0)));
+    sx.fillStyle = "#2f7a3f"; sx.fillRect(x + sway, top, 2, 224 - top);
+    sx.fillStyle = "#6b4a2a"; sx.fillRect(x - 1 + sway, top + 6, 4, 14);
+    sx.fillStyle = "#3f9a4d"; sx.fillRect(x + sway - 3, top + 40 + i * 6, 3, 18);
+  }
+}
+
+// On the pad beside the frog, once there's a pad.
+function drawFurnPad(has, day, t) {
+  if (has.f_toadstool) sprite("f_toadstool", 304, 196, false);
+  if (has.f_lantern) sprite("f_lantern", 8, 208, false);
+}
+
+// After dark the lantern is lit over the night, and it brings fireflies
+// whatever the weather.
+function drawFurnNight(has, day, t, onPad) {
+  if (!has.f_lantern || !day.night) return;
+  if (onPad) {
+    const flick = Math.sin(t * 9) > 0.6 ? 0.03 : 0;
+    [[40, 0.1], [28, 0.12], [18, 0.16]].forEach(([r, a]) => {
+      sx.fillStyle = "rgba(255,226,122," + (a + flick) + ")";
+      sx.fillRect(20 - r, 224 - r, r * 2, r * 2);
+    });
+    sprite("f_lantern", 8, 208, true);
+  }
+  for (let i = 0; i < 4; i++) {
+    if (Math.sin(t * 2.4 + i * 2.1) < 0) continue;
+    const fx = 24 + Math.sin(t * 0.7 + i * 1.6) * 20, fy = 176 + Math.cos(t * 0.9 + i) * 18;
+    block(fx, fy, "#ffe27a");
+  }
+}
+
 function drawScene(now) {
   const p = state.pond, g = state.g;
   if (!p || !g) return;
@@ -131,7 +177,10 @@ function drawScene(now) {
     sx.fillRect(x, y, 20, 2); sx.fillRect(x + 20, y + 2, 12, 2);
   }
   drawBehind(day, t);
-  if (grown(f.stage) && !day.shelter) drawPad(day);
+  const has = {};
+  (p.furniture || []).forEach((k) => { has[k] = true; });
+  drawFurnBack(has, day, t);
+  if (grown(f.stage) && !day.shelter) { drawPad(day); drawFurnPad(has, day, t); }
   const o = { t: moving ? k * 6 : t, hat: f.hat.shape, legs: f.day >= 6 };
   let hop = 0, wig = 0;
   if (grown(f.stage)) {
@@ -162,6 +211,7 @@ function drawScene(now) {
   }
   sx.globalAlpha = 1;
   drawOver(day, t);
+  drawFurnNight(has, day, t, grown(f.stage) && !day.shelter);
 }
 
 function loop(now) {

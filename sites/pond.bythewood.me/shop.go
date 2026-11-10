@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"math/rand/v2"
@@ -15,7 +16,22 @@ const (
 	shopWren    = "wren"
 	shopBrindle = "brindle"
 	shopMoss    = "moss"
+	shopFenn    = "fenn"
 )
+
+// Fenn's furniture is for the whole pond, sold once each and drawn on the
+// water for good. The page draws each by its kind.
+var furniture = []struct {
+	kind, name string
+	price      int
+}{
+	{"f_lilypad", "A second lily pad", 90},
+	{"f_reeds", "Bulrushes", 150},
+	{"f_toadstool", "Toadstool to sit under", 240},
+	{"f_stones", "Stepping stones", 380},
+	{"f_lantern", "Jam jar lantern", 600},
+	{"f_teacup", "A cracked teacup", 1500},
+}
 
 // What Wren asks for a hat, by tier. Legendary hats are never on the shelf.
 var wrenSells = [tierCount]int{120, 350, 900, 5000, 0}
@@ -39,6 +55,9 @@ var stamps = map[string]string{
 }
 
 func init() {
+	for _, f := range furniture {
+		itemNames[f.kind] = f.name
+	}
 	itemNames["stamp_spots"] = "Spots stamp"
 	itemNames["stamp_bands"] = "Bands stamp"
 	itemNames["stamp_speckled"] = "Speckled stamp"
@@ -217,11 +236,31 @@ func (s *store) stockOf(shop string, now time.Time) ([]shopLine, string) {
 	case shopMoss:
 		key, _ := mossRestock(now)
 		return mossStock(key), "moss " + key
+	case shopFenn:
+		var out []shopLine
+		for i, f := range furniture {
+			out = append(out, shopLine{Slot: i, Kind: f.kind, Name: f.name, Price: f.price, Limit: 1})
+		}
+		return out, ""
 	}
 	return nil, ""
 }
 
+// boughtOf counts what a pond took off a stock, and for Fenn, whose stock
+// never changes, what it owns.
 func boughtOf(q querier, id int64, stock string) (map[int]int, error) {
+	if stock == "" {
+		out := map[int]int{}
+		for i, f := range furniture {
+			var n int
+			err := q.QueryRow(`SELECT count FROM items WHERE pond_id = ? AND kind = ?`, id, f.kind).Scan(&n)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				return nil, err
+			}
+			out[i] = n
+		}
+		return out, nil
+	}
 	rows, err := q.Query(`SELECT slot, n FROM bought WHERE pond_id = ? AND stock = ?`, id, stock)
 	if err != nil {
 		return nil, err
@@ -268,9 +307,12 @@ func (s *store) buy(id int64, shop string, slot int) (*bought, error) {
 			return errPoor
 		}
 		p.Pebbles -= line.Price
-		if _, err := tx.Exec(`INSERT INTO bought (pond_id, stock, slot, n, day) VALUES (?, ?, ?, 1, ?)
-			ON CONFLICT (pond_id, stock, slot) DO UPDATE SET n = n + 1`, p.ID, stock, slot, dayOf(now)); err != nil {
-			return err
+		// Fenn's stock has no key, owning the thing is the record.
+		if stock != "" {
+			if _, err := tx.Exec(`INSERT INTO bought (pond_id, stock, slot, n, day) VALUES (?, ?, ?, 1, ?)
+				ON CONFLICT (pond_id, stock, slot) DO UPDATE SET n = n + 1`, p.ID, stock, slot, dayOf(now)); err != nil {
+				return err
+			}
 		}
 		if line.Hat != nil {
 			n, err := addHat(tx, p.ID, *line.Hat)
@@ -300,7 +342,7 @@ func (s *store) shopsOf(q querier, id int64, now time.Time) (map[string]shopView
 	out := map[string]shopView{}
 	local := now.In(pondZone)
 	tomorrow := time.Date(local.Year(), local.Month(), local.Day()+1, 0, 0, 0, 0, pondZone)
-	for _, shop := range []string{shopWren, shopBrindle, shopMoss} {
+	for _, shop := range []string{shopWren, shopBrindle, shopMoss, shopFenn} {
 		lines, stock := s.stockOf(shop, now)
 		had, err := boughtOf(q, id, stock)
 		if err != nil {

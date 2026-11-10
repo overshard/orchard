@@ -1,8 +1,8 @@
 import { $, post, setPond, watch, TIERS } from "./api.js";
-import { iconCanvas } from "./icons.js";
+import { iconCanvas, furnCanvas } from "./icons.js";
 import { hatTile } from "./hats.js";
 
-const SHOPS = ["wren", "brindle", "moss"];
+const SHOPS = ["wren", "brindle", "fenn", "moss"];
 
 function hours(sec) {
   if (sec < 3600) return Math.max(1, Math.round(sec / 60)) + " min";
@@ -18,6 +18,7 @@ function tierChip(t) {
 function thanks(shop, l, d) {
   const name = l.name.toLowerCase();
   if (shop === "wren") return d.spare ? "Wren wraps the " + name + ". You had one already, so it's a spare." : "Wren wraps the " + name + ". It's in your hats.";
+  if (shop === "fenn") return "Fenn sets the " + name.replace(/^a /, "") + " down by the water. Go and have a look.";
   if (shop === "brindle") return "Brindle hands over the " + name + ". It's in the kitchen.";
   if (l.kind.startsWith("stamp_")) return "Old Moss blows the dust off the " + name + ". It's on the egg bench.";
   if (l.kind.startsWith("dye_")) return "Old Moss hands over the " + name + ". It's on the egg bench.";
@@ -40,7 +41,7 @@ function shelf(shop, sv, pebbles) {
       what.append(was);
     }
     li.className = left > 0 ? "" : "sold";
-    li.append(l.hat ? hatTile(l.hat, true) : iconCanvas(l.kind, 3), what);
+    li.append(l.hat ? hatTile(l.hat, true) : l.kind.startsWith("f_") ? furnCanvas(l.kind) : iconCanvas(l.kind, 3), what);
     if (left > 0) {
       buy.type = "button";
       buy.textContent = l.price.toLocaleString("en-US");
@@ -56,7 +57,7 @@ function shelf(shop, sv, pebbles) {
       li.append(buy);
     } else {
       const sold = document.createElement("span");
-      sold.className = "soldtag"; sold.textContent = "SOLD";
+      sold.className = "soldtag"; sold.textContent = l.kind.startsWith("f_") ? "YOURS" : "SOLD";
       li.append(sold);
     }
     ul.append(li);
