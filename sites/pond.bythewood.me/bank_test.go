@@ -51,9 +51,18 @@ func TestUpgradePaysOutFirst(t *testing.T) {
 	}
 	*clock = clock.Add(2 * time.Hour)
 	give(t, s, id, 250)
+	if _, err := s.build(id, "gravel"); !errors.Is(err, errShort) {
+		t.Fatalf("level two with no clay: %v", err)
+	}
+	if v, _ := s.view(id); v.Pebbles != 250 || v.Bank.Gravel.Mats["clay"] != 10 {
+		t.Fatalf("a short build took something, or says no clay: %d %v", v.Pebbles, v.Bank.Gravel.Mats)
+	}
+	if _, err := s.w.Exec(`INSERT INTO items (pond_id, kind, count) VALUES (?, 'clay', 1000), (?, 'sticks', 1000)`, id, id); err != nil {
+		t.Fatal(err)
+	}
 	v, err := s.build(id, "gravel")
-	if err != nil || v.Pebbles != 12 || v.Bank.Gravel.Level != 2 || v.Bank.Gravel.Rate != 12 {
-		t.Fatalf("%+v %v", v.Bank.Gravel, err)
+	if err != nil || v.Pebbles != 12 || v.Bank.Gravel.Level != 2 || v.Bank.Gravel.Rate != 12 || v.held["clay"] != 990 {
+		t.Fatalf("%+v %v clay %d", v.Bank.Gravel, err, v.held["clay"])
 	}
 	for range buildLevels {
 		give(t, s, id, 10000)
