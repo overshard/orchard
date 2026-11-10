@@ -5,8 +5,9 @@ import { initDive, enterDive, leaveDive } from "./dive.js";
 import { initWheel, enterWheel } from "./wheel.js";
 import { initHats } from "./hats.js";
 import { initReeds } from "./reeds.js";
+import { initBank, enterBank, leaveBank } from "./bank.js";
 
-const VIEWS = ["pond", "dive", "wheel", "hats", "reeds"];
+const VIEWS = ["pond", "dive", "wheel", "hats", "reeds", "bank"];
 let view = "pond";
 
 function show(next) {
@@ -19,6 +20,7 @@ function show(next) {
   });
   if (next === "dive") enterDive();
   if (next === "wheel") enterWheel();
+  if (next === "bank") enterBank(); else leaveBank();
   // A view's name is also the id of its canvas, and the browser scrolls to
   // that when the address changes, a frame after this runs.
   window.scrollTo(0, 0);
@@ -297,6 +299,7 @@ initDive();
 initWheel();
 initHats();
 initReeds();
+initBank();
 show(location.hash.slice(1));
 
 post("/api/greet").then((g) => {

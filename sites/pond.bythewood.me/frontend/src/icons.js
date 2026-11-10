@@ -20,7 +20,46 @@ export const ICONS = {
   pyrite: [["........", ".aaaa...", ".abbaaa.", ".abbabba", ".aaaabba", "...aaaa.", "........", "........"], { a: "#a87a12", b: "#ffe27a" }],
   banded: [["..aaaa..", ".bbbbbb.", "aaaaaaaa", "cccccccc", "aaaaaaaa", ".bbbbbb.", "..aaaa..", "........"], { a: "#b8642e", b: "#f6dcb0", c: "#e8a05a" }],
   fossil: [["........", "..aaaa..", ".abbbba.", ".abaaba.", ".ababba.", ".abbaaa.", "..aaaa..", "........"], { a: "#8a7a5a", b: "#e3d6b0" }],
+  duckweed: [["........", "..aa....", ".aaba.a.", "..aa.aba", ".a....a.", "aba.aa..", ".a.abba.", "....aa.."], { a: "#58b85a", b: "#9fe08f" }],
+  watercress: [["..a..a..", ".aba.aba", "..a.ca..", "...c.c..", "..aca...", ".abac...", "..a.c...", "....c..."], { a: "#3f9a4d", b: "#8fd88a", c: "#2f7a3f" }],
+  mayfly: [["..a..a..", "..ba.ab.", "...bbb..", "..abba..", ".a.bb.a.", "...bb...", "..d..d..", ".d....d."], { a: "#e6e0f2", b: "#c9b25a", d: "#8a7a3a" }],
+  lotus: [["..aaaa..", ".abbbba.", "abcbcbba", "abbcbcba", ".abbbba.", "..aaaa..", "...dd...", "...dd..."], { a: "#6f8f4a", b: "#a9c46a", c: "#3a4a22", d: "#4f6a32" }],
+  marigold: [["..a.a...", ".aaaaa..", ".aabaa..", ".aaaaa..", "..a.a...", "...c....", "..cc....", "...c...."], { a: "#ffd23a", b: "#e08a1a", c: "#2f7a3f" }],
+  firefly: [["........", "..a..a..", "...bb...", "..bbbb..", "..cccc..", ".dccccd.", "..dccd..", "...dd..."], { a: "#9aa0a6", b: "#5a4a38", c: "#ffe27a", d: "#fff6c8" }],
+  morel: [["...aa...", "..abba..", ".ababba.", ".abbaba.", "..abba..", "...cc...", "...cc...", "..cccc.."], { a: "#9a7448", b: "#5a3f24", c: "#e9dcc0" }],
 };
+
+// A dish is drawn as a bowl, a plate or a skewer in its two ingredients'
+// colours, with sparkles on the better ones.
+const DISH_SHAPES = {
+  bowl: ["........", "...s.s..", ".xxyyxy.", "bbbbbbbb", "bwwwwwwb", ".bwwwwb.", "..bbbb..", "........"],
+  plate: ["........", "..xxyy..", ".xyxyxy.", ".yxyxyx.", "..yyxx..", "bbbbbbbb", ".wwwwww.", "........"],
+  stick: ["......k.", ".....x..", "....xx..", "...yy...", "..yy....", ".xx.....", "kx......", "k......."],
+};
+
+export function drawDish(ctx, d, x, y, s) {
+  const shape = /skewer/i.test(d.name) ? "stick" : /soup|stew|tea|broth|jam/i.test(d.name) ? "bowl" : "plate";
+  const A = ICONS[d.a][1], B = ICONS[d.b][1];
+  const col = { x: A.a, y: B.b || B.a, b: "#d5d8dc", w: "#9aa0a6", s: "rgba(255,246,220,0.5)", k: "#c9974f" };
+  DISH_SHAPES[shape].forEach((row, r) => {
+    for (let c = 0; c < 8; c++) {
+      const ch = row.charAt(c);
+      if (ch !== ".") { ctx.fillStyle = col[ch]; ctx.fillRect(x + c * s, y + r * s, s, s); }
+    }
+  });
+  if (d.tier >= 3) {
+    ctx.fillStyle = "#fff6dc";
+    ctx.fillRect(x, y + s, s, s); ctx.fillRect(x + 7 * s, y, s, s);
+    if (d.tier === 4) ctx.fillRect(x + 6 * s, y + 5 * s, s, s);
+  }
+}
+
+export function dishCanvas(d, s) {
+  const cv = document.createElement("canvas");
+  cv.width = cv.height = 8 * s;
+  drawDish(cv.getContext("2d"), d, 0, 0, s);
+  return cv;
+}
 
 // The wheel names its slices in three letters.
 export const SLICE_ICON = { P25: "peb", P40: "peb", CRI: "cricket", AGA: "agate", QUA: "quartz", GEO: "geode", HAT: "hat", DYE: "dye_blue" };

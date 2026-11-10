@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"sort"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -35,6 +36,9 @@ CREATE TABLE IF NOT EXISTS ponds (
     dive_ghosts     TEXT NOT NULL DEFAULT '',
     dive_podium     INTEGER NOT NULL DEFAULT 0,
     pads            INTEGER NOT NULL DEFAULT 3,
+    gravel_level    INTEGER NOT NULL DEFAULT 0,
+    gravel_at       INTEGER NOT NULL DEFAULT 0,
+    garden_level    INTEGER NOT NULL DEFAULT 0,
     key_saved_at    INTEGER
 );
 CREATE INDEX IF NOT EXISTS ponds_created ON ponds(created_at);
@@ -67,6 +71,27 @@ CREATE TABLE IF NOT EXISTS items (
     count    INTEGER NOT NULL,
     PRIMARY KEY (pond_id, kind)
 ) WITHOUT ROWID;
+
+CREATE TABLE IF NOT EXISTS plots (
+    pond_id  INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
+    slot     INTEGER NOT NULL,
+    sown     REAL NOT NULL,
+    watered  INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (pond_id, slot)
+) WITHOUT ROWID;
+
+CREATE TABLE IF NOT EXISTS cookbook (
+    pond_id  INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
+    dish     TEXT NOT NULL,
+    first_at INTEGER NOT NULL,
+    PRIMARY KEY (pond_id, dish)
+) WITHOUT ROWID;
+
+CREATE TABLE IF NOT EXISTS growth (
+    id    INTEGER PRIMARY KEY CHECK (id = 1),
+    at    INTEGER NOT NULL,
+    total REAL NOT NULL
+);
 `
 
 // Columns added since the first deploy. CREATE TABLE IF NOT EXISTS leaves a
@@ -77,6 +102,9 @@ var addedColumns = []struct{ table, name, def string }{
 	{"ponds", "pads", "INTEGER NOT NULL DEFAULT 3"},
 	{"frogs", "genome_json", "TEXT NOT NULL DEFAULT ''"},
 	{"frogs", "laid_at", "INTEGER NOT NULL DEFAULT 0"},
+	{"ponds", "gravel_level", "INTEGER NOT NULL DEFAULT 0"},
+	{"ponds", "gravel_at", "INTEGER NOT NULL DEFAULT 0"},
+	{"ponds", "garden_level", "INTEGER NOT NULL DEFAULT 0"},
 }
 
 func ensureColumns(db *sql.DB) error {
@@ -208,6 +236,10 @@ type pond struct {
 	Pads       int
 	KeySavedAt sql.NullInt64
 
+	GravelLevel int
+	GravelAt    int64
+	GardenLevel int
+
 	FrogID    int64
 	Seed      uint32
 	ModsJSON  string
@@ -218,7 +250,8 @@ type pond struct {
 const pondColumns = `p.id, p.public_id, p.created_at, p.last_seen_at, p.last_gift_at,
 	p.pebbles, p.free_spins, p.spin_at, p.paid_spins, p.paid_spins_day, p.log_day,
 	p.dive_best, p.dive_day, p.dive_runs, p.dive_paid, p.dive_run, p.dive_started_at,
-	p.dive_ghosts, p.dive_podium, p.pads, p.key_saved_at, f.id, f.seed, f.genome_json, f.hatched_at,
+	p.dive_ghosts, p.dive_podium, p.pads, p.key_saved_at,
+	p.gravel_level, p.gravel_at, p.garden_level, f.id, f.seed, f.genome_json, f.hatched_at,
 	f.hat_shape, f.hat_colour`
 
 func scanPond(row *sql.Row) (*pond, error) {
@@ -226,7 +259,8 @@ func scanPond(row *sql.Row) (*pond, error) {
 	err := row.Scan(&p.ID, &p.PublicID, &p.CreatedAt, &p.LastSeenAt, &p.LastGiftAt,
 		&p.Pebbles, &p.FreeSpins, &p.SpinAt, &p.PaidSpins, &p.PaidDay, &p.LogDay,
 		&p.DiveBest, &p.DiveDay, &p.DiveRuns, &p.DivePaid, &p.DiveRun, &p.DiveStart,
-		&p.DiveGhosts, &p.DivePodium, &p.Pads, &p.KeySavedAt, &p.FrogID, &p.Seed, &p.ModsJSON, &p.HatchedAt,
+		&p.DiveGhosts, &p.DivePodium, &p.Pads, &p.KeySavedAt,
+		&p.GravelLevel, &p.GravelAt, &p.GardenLevel, &p.FrogID, &p.Seed, &p.ModsJSON, &p.HatchedAt,
 		&p.Wearing.Shape, &p.Wearing.Colour)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, errNoPond
@@ -246,10 +280,12 @@ func savePond(tx *sql.Tx, p *pond) error {
 	if _, err := tx.Exec(`UPDATE ponds SET last_seen_at = ?, last_gift_at = ?, pebbles = ?,
 		free_spins = ?, spin_at = ?, paid_spins = ?, paid_spins_day = ?, log_day = ?,
 		dive_best = ?, dive_day = ?, dive_runs = ?, dive_paid = ?, dive_run = ?,
-		dive_started_at = ?, dive_ghosts = ?, dive_podium = ?, pads = ?, key_saved_at = ? WHERE id = ?`,
+		dive_started_at = ?, dive_ghosts = ?, dive_podium = ?, pads = ?, key_saved_at = ?,
+		gravel_level = ?, gravel_at = ?, garden_level = ? WHERE id = ?`,
 		p.LastSeenAt, p.LastGiftAt, p.Pebbles, p.FreeSpins, p.SpinAt, p.PaidSpins, p.PaidDay,
 		p.LogDay, p.DiveBest, p.DiveDay, p.DiveRuns, p.DivePaid, p.DiveRun, p.DiveStart,
-		p.DiveGhosts, p.DivePodium, p.Pads, p.KeySavedAt, p.ID); err != nil {
+		p.DiveGhosts, p.DivePodium, p.Pads, p.KeySavedAt,
+		p.GravelLevel, p.GravelAt, p.GardenLevel, p.ID); err != nil {
 		return err
 	}
 	_, err := tx.Exec(`UPDATE frogs SET hat_shape = ?, hat_colour = ? WHERE id = ?`,
@@ -467,9 +503,13 @@ type view struct {
 		Path  string `json:"path"`
 		Power power  `json:"power"`
 	} `json:"share"`
-	Day   dayView `json:"day"`
-	Nudge bool    `json:"nudge"`
-	Dev   bool    `json:"dev"`
+	Day     dayView     `json:"day"`
+	Bank    bankView    `json:"bank"`
+	Kitchen kitchenView `json:"kitchen"`
+
+	held  map[string]int
+	Nudge bool `json:"nudge"`
+	Dev   bool `json:"dev"`
 }
 
 func frogOf(p *pond, now time.Time) frogView {
@@ -554,6 +594,7 @@ func viewOf(q querier, p pond, now time.Time) (*view, error) {
 	v.Share.Power = powerOf(v.Frog.Rarity, found, p.DiveBest)
 
 	v.Items = []itemView{}
+	v.held = map[string]int{}
 	rows, err = q.Query(`SELECT kind, count FROM items WHERE pond_id = ? AND count > 0`, p.ID)
 	if err != nil {
 		return nil, err
@@ -563,6 +604,10 @@ func viewOf(q querier, p pond, now time.Time) (*view, error) {
 		var it itemView
 		if err := rows.Scan(&it.Kind, &it.Count); err != nil {
 			return nil, err
+		}
+		v.held[it.Kind] = it.Count
+		if _, food := ingredientOf(it.Kind); food || strings.HasPrefix(it.Kind, "dish_") {
+			continue
 		}
 		it.Name = itemNames[it.Kind]
 		v.Items = append(v.Items, it)
@@ -578,10 +623,10 @@ func (s *store) view(id int64) (*view, error) {
 	}
 	now := s.now()
 	v, err := viewOf(s.r, *p, now)
-	if v != nil {
-		v.Day = dayOfReading(s.day.reading(now), now)
+	if err != nil {
+		return nil, err
 	}
-	return v, err
+	return v, s.fill(s.r, v, p, now)
 }
 
 // act runs one move on a pond: load it, settle it, let fn change it, save it,
@@ -602,10 +647,18 @@ func (s *store) act(id int64, fn func(tx *sql.Tx, p *pond, now time.Time) error)
 			return err
 		}
 		v, err = viewOf(tx, *p, now)
-		if v != nil {
-			v.Day = dayOfReading(s.day.reading(now), now)
+		if err != nil {
+			return err
 		}
-		return err
+		return s.fill(tx, v, p, now)
 	})
 	return v, err
+}
+
+// fill adds the parts of the view that read the real day.
+func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
+	v.Day = dayOfReading(s.day.reading(now), now)
+	var err error
+	v.Bank, v.Kitchen, err = s.bankOf(q, p, now, v.held)
+	return err
 }
