@@ -5,7 +5,7 @@ import { ICONS, SLICE_ICON, SLICE_NAME, drawIcon, iconCanvas } from "./icons.js"
 // The wheel is a lily pad the frog points at with its tongue. The server
 // picks the slice and this only turns the pad round to it.
 const OS = 140, OR = 68, CX = 260, CY = 338, SC = 3.3;
-const FONT = "'Silkscreen', monospace";
+const MONO = "'JetBrains Mono', monospace", GROTESK = "'Space Grotesk', sans-serif";
 let wc, wx, woff = null, slices = [], NS = 16, DA = Math.PI / 8;
 let wrot = -Math.PI / 2 - Math.PI / 20, spinning = false, tongue = 0, lastSlice = -1, wob = 0, freeAt = 0;
 
@@ -26,12 +26,20 @@ function build() {
     else {
       col = k === "DYE" ? (edge < 0.6 ? "#a87a12" : "#e3b23a") : k === "HAT" ? (edge < 0.6 ? "#8f3a63" : "#d8659a") : (edge < 0.6 ? "#1f5a2c" : i % 2 ? "#3f9a4d" : "#56b45f");
       if (edge >= 0.6 && r > OR - 7 && (i % 2 ? 0 : 1) && k !== "DYE" && k !== "HAT") col = "#63c26a";
-      const u = r - 51, v = (a - mid) * r, ic = ICONS[SLICE_ICON[k]], row = Math.floor((8 - u) / 2), cl = Math.floor((v + 8) / 2);
+      const u = r - 51, v = (a - mid) * r, ic = ICONS[iconOf(k)], row = Math.floor((8 - u) / 2), cl = Math.floor((v + 8) / 2);
       if (row >= 0 && row < 8 && cl >= 0 && cl < 8) { const ch = ic[0][row].charAt(cl); if (ch !== ".") col = ic[1][ch]; }
     }
     o.fillStyle = col; o.fillRect(x, y, 1, 1);
   }
 }
+
+// The hat and the dye change with the day, so their names and the dye's
+// colour come from the pond and not from a table here.
+function nameOf(k) {
+  const w = state.pond.wheel;
+  return k === "HAT" ? w.hat.name : k === "DYE" ? w.dye.name : SLICE_NAME[k];
+}
+function iconOf(k) { return k === "DYE" ? state.pond.wheel.dye.kind : SLICE_ICON[k]; }
 
 function under() {
   const a = (((-Math.PI / 2 - wrot) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
@@ -47,7 +55,7 @@ function drawWheel(now) {
   wx.strokeStyle = "rgba(127,214,194,0.16)"; wx.lineWidth = 3;
   for (let rr = 0; rr < 3; rr++) { wx.beginPath(); wx.arc(CX, CY, OR * SC + 14 + rr * 16 + ((now || 0) / 260) % 16, 0, 6.3); wx.stroke(); }
   wx.save(); wx.translate(CX, CY); wx.rotate(wrot); wx.drawImage(woff, -OS / 2 * SC, -OS / 2 * SC, OS * SC, OS * SC);
-  wx.textAlign = "center"; wx.textBaseline = "middle"; wx.font = "32px " + FONT;
+  wx.textAlign = "center"; wx.textBaseline = "middle"; wx.font = "700 30px " + GROTESK;
   for (let si = 0; si < NS; si++) {
     const k = slices[si]; if (k !== "P25" && k !== "P40") continue;
     wx.save(); wx.rotate((si + 0.5) * DA); wx.translate(31 * SC, 0); wx.rotate(Math.PI / 2);
@@ -56,10 +64,10 @@ function drawWheel(now) {
   wx.restore();
   // Name what the tongue is on, so nobody has to read the rim.
   const on = slices[under()];
-  wx.textBaseline = "alphabetic"; wx.textAlign = "left"; wx.font = "16px " + FONT;
-  wx.fillStyle = "#7fd6c2"; wx.fillText("TONGUE'S ON", 16, 26);
-  wx.fillStyle = "#fff6dc"; wx.fillText(SLICE_NAME[on].toUpperCase(), 16, 48);
-  drawIcon(wx, SLICE_ICON[on], 456, 6, 6);
+  wx.textBaseline = "alphabetic"; wx.textAlign = "left"; wx.font = "500 13px " + MONO;
+  wx.fillStyle = "#7fd6c2"; wx.fillText("TONGUE'S ON", 16, 24);
+  wx.fillStyle = "#fff6dc"; wx.font = "700 18px " + GROTESK; wx.fillText(nameOf(on).toUpperCase(), 16, 47);
+  drawIcon(wx, iconOf(on), 456, 6, 6);
   const g = state.g, f = state.pond.frog, grownUp = f.stage === "frog" || f.stage === "elder" || f.stage === "froglet";
   const c = cells(g, f.stage, { blink: tongue > 0, hat: f.hat.shape, legs: f.day >= 6, t: 0 });
   drawCells(wx, c, W, H, colours(g, f.hat), CX - 44 + Math.round(wob * 3), grownUp ? 6 : -4, 2);
@@ -91,7 +99,7 @@ function ui() {
       .then((np) => { if (np) setPond(np); }).finally(() => { setTimeout(() => { asking = false; }, 5000); });
   }
 }
-let asking = false;
+let asking = false, builtFor = "";
 
 function prizeText(z) {
   if (z.hat) return "A " + z.hat_name.toLowerCase() + " hat, " + TIERS[z.hat_tier].toLowerCase() + (z.spare ? ". You had one, so it's a spare." : ", and it's in your hat box.");
@@ -138,8 +146,8 @@ function legend() {
   slices.forEach((k) => { seen[k] = (seen[k] || 0) + 1; });
   Object.keys(seen).sort((a, b) => seen[b] - seen[a]).forEach((k) => {
     const li = document.createElement("li"), n = document.createElement("span"), o = document.createElement("span");
-    n.textContent = SLICE_NAME[k]; o.className = "o"; o.textContent = seen[k] + " in " + NS;
-    li.append(iconCanvas(SLICE_ICON[k], 3), n, o);
+    n.textContent = nameOf(k); o.className = "o"; o.textContent = seen[k] + " in " + NS;
+    li.append(iconCanvas(iconOf(k), 3), n, o);
     box.append(li);
   });
 }
@@ -147,7 +155,8 @@ function legend() {
 export function initWheel() {
   wc = $("wheel"); wx = wc.getContext("2d");
   watch((p) => {
-    if (!woff) { slices = p.wheel.slices; NS = slices.length; DA = Math.PI * 2 / NS; build(); legend(); }
+    const today = p.wheel.hat.name + p.wheel.dye.kind;
+    if (today !== builtFor) { builtFor = today; slices = p.wheel.slices; NS = slices.length; DA = Math.PI * 2 / NS; build(); legend(); }
     freeAt = performance.now() + p.wheel.next_in * 1000;
     ui();
     if (!spinning && !$("v-wheel").hidden) drawWheel(performance.now());

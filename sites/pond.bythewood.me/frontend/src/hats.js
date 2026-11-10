@@ -12,7 +12,7 @@ function hatTile(h, have) {
   for (let y = b.y0; y <= b.y1; y++) for (let x = b.x0; x <= b.x1; x++) {
     const v = b.c[y * W + x];
     if (v !== 10 && v !== 11) continue;
-    ctx.fillStyle = have ? col[v - 10] : (v === 10 ? "#1b4a4d" : "#22585b");
+    ctx.fillStyle = have ? col[v - 10] : (v === 10 ? "#2f2820" : "#3a3228");
     ctx.fillRect(ox + (x - b.x0) * 4, oy + (y - b.y0) * 4, 4, 4);
   }
   return cv;

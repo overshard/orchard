@@ -15,7 +15,8 @@ Terminals before colour used one of two coatings, P3 amber and P1 green, and
 that is the split the estate runs on.
 
 - **dash is amber.** It is the only public page with no login, it is glanced at
-  rather than read, and it is the one site allowed to be a costume.
+  rather than read, and it is the one site allowed to be a costume. pond is a
+  game and wears the same one.
 - **analytics, auth, chat, llm, logging, repos and status are green.** They are
   tools you read for minutes at a time. Green is the primary, and amber is
   chrome only, so caps labels, the hero eyebrow, and warnings. Amber is never
@@ -543,33 +544,37 @@ A reader only ever has the repo.
 
 ## pond
 
-pond is a game and not a tool, so it's its own identity and neither phosphor
-applies to it. It's colour pixel art on deep teal water, and nothing above about
-the palette, the grid, the home page skeleton or the footer holds there. The
-one thing it keeps from the estate is Monaspace Argon for body copy.
+pond is a game, and it's cassette futurism the way dash is: the same warm near
+black ground, the same amber for chrome, JetBrains Mono for everything read and
+Space Grotesk for anything large. It keeps its own stylesheet and its own
+variables, with dash's names and values for the ground, the lines, the text and
+the amber, so a change to those on dash is made here too.
 
-| Role | Value | Where it goes |
-|---|---|---|
-| Deep | `#0a1b1f` | The bottom of the page and the tab bar |
-| Water | `#0e2c30` | The page, the top bar |
-| Shallow | `#123a3d` | Cards, buttons, the top band of any scene |
-| Surface | `#7fd6c2` | The waterline, section headings, rules |
-| Cream | `#fff6dc` | Text, and the light pixel in any sprite |
-| Yellow | `#ffe27a` | The purse, the primary button, anything won |
-| Pink | `#e2567a` | Hearts, the tongue, a present |
-
-- **Silkscreen** for headings, labels, buttons and every word drawn on a canvas,
-  and Monaspace Argon for anything that's a sentence.
-- Every sprite is drawn per pixel from a seed in `frontend/src/frog.js`, and a
-  canvas is always `image-rendering: pixelated` at a whole number of screen
-  pixels a cell where it can be. There are no image files.
-- Borders are 2px and square. Nothing is rounded and nothing has a shadow.
-- It's built for a phone first. The four places are tabs along the bottom
-  where a thumb is, and the content column stops at `34rem` on a desktop.
+- **Colour lives on the screens and nowhere else.** A screen is a canvas in a
+  bezel, a 1px `--line-hot` border on `--void` with amber brackets at two
+  corners and faint scanlines over the picture only. The frog, the water, the
+  wheel and Dive are colour pixel art inside one. Everything round a screen is
+  amber, off white and black.
+- The water palette is for canvases: `#123a3d` down to `#0a1b1f`, a `#7fd6c2`
+  surface, `#fff6dc` cream, `#ffe27a` yellow and `#e2567a` pink.
+- **Panel 00 is the faceplate**, POND in Space Grotesk, a `MODEL FR-01 / SERIES
+  ORCHARD` plate that drops out on a narrow phone, and the readouts as tiles on
+  a hairline grid, `PEBBLES` and `KEY`.
+- A section head is an amber index chip, a caps title and a rule out to the
+  edge, the same as a dash panel head.
+- **The four places are transport keys along the bottom**, numbered 01 to 04,
+  where a thumb is. The lit one has an amber bar across its top. The content
+  column stops at `34rem` on a desktop.
+- **Dive is the whole screen on a phone.** Under 560px wide it covers the bar
+  and the keys, the pond is as deep as the screen allows, and a strip under the
+  water holds the readout and `EXIT`. On a desktop it's a screen like the rest
+  with the neighbours' rail beside it.
+- Every sprite is drawn per pixel from a seed in `frontend/src/frog.js`. There
+  are no image files, and a canvas is always `image-rendering: pixelated`.
+- No pixel font. A bitmap face at body size was hard to read, so words on a
+  canvas are the same two faces as the page.
 - Rarity is a word in a box as well as a colour: common grey, uncommon green,
-  rare blue, epic purple, legendary yellow.
-- When the frog reaches dash it's drawn there in dash's one bit amber and the
-  colour stays here.
+  rare blue, epic purple, legendary amber.
 
 ## Per site
 
@@ -583,6 +588,6 @@ one thing it keeps from the estate is Monaspace Argon for body copy.
 | `chat` | green | Hand written CSS, no Bootstrap. A conversation, so it reads at the longest length on the estate. Citation pills and a source row under each answer, and widget panels above one when a ticker or a forecast was looked up. A picture draws behind a panel listing its stages, each with a count and a guess from the last few, and replaces it once it has loaded. An unread dot on a conversation that finished a turn off screen, and the place in line of every turn still waiting |
 | `llm` | green | Hand written CSS, no Bootstrap. Behind the landing is a dashboard of keys, usage and the call log |
 | `dash` | amber | Hand written CSS. Scanlines, vignette, JetBrains Mono and Space Grotesk. Panel 00 and panel 16 for chrome, a spine past 1900px. A `NOTIFY` switch in panel 00, and a `CHAT` readout beside it that only appears signed in |
-| `pond` | neither | A game with its own identity, see below. Hand written CSS, no Bootstrap |
+| `pond` | amber | Hand written CSS. A game, with colour pixel art on its screens and dash's amber and type round them. Dive is full screen on a phone |
 | `blog`, `isaacbythewood.com` | neither | Separate identities. Nothing here applies to them |
 

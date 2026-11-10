@@ -1,20 +1,24 @@
-/* The pond is its own identity, colour pixel art on deep teal water. DESIGN.md
-   at the repo root has the row for it and is the authority on these values. */
+/* Cassette futurism, the way dash does it: warm near black, amber chrome, one
+   mono face and a grotesk for anything large. Colour lives only on the
+   screens, which are the canvases. DESIGN.md at the repo root is the
+   authority on these values. */
 :root {
-  --deep: #0a1b1f;
-  --water: #0e2c30;
-  --shallow: #123a3d;
-  --raised: #17484b;
-  --surface: #7fd6c2;
-  --foam: #bfeee2;
-  --cream: #fff6dc;
-  --muted: #a9cfc6;
-  --yellow: #ffe27a;
+  --void: #0a0908;
+  --bg: #0d0b09;
+  --panel: #12100d;
+  --panel-2: #171410;
+  --line: #2f2820;
+  --line-hot: #47392a;
+  --text: #ece5d8;
+  --muted: #bcaf99;
+  --dim: #9c8f79;
+  --amber: #ffb000;
+  --amber-dim: #b37b00;
+  --amber-glow: rgba(255, 176, 0, 0.16);
   --pink: #e2567a;
-  --pink-soft: #f59ab3;
-  --leaf: #56b45f;
-  --line: rgba(127, 214, 194, 0.42);
-  --pixel: "Silkscreen", "Monaspace Argon", ui-monospace, monospace;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --grotesk: "Space Grotesk", var(--mono);
+  --track: 0.14em;
 }
 
 * {
@@ -22,7 +26,7 @@
 }
 
 html {
-  background: var(--deep);
+  background: var(--bg);
 }
 
 body {
@@ -30,10 +34,15 @@ body {
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(var(--water), var(--deep) 60rem) var(--deep);
-  color: var(--cream);
-  font-family: "Monaspace Argon", ui-monospace, monospace;
-  font-size: 0.95rem;
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(rgba(255, 176, 0, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 176, 0, 0.022) 1px, transparent 1px);
+  background-size: 32px 32px;
+  background-position: center top;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 14px;
   line-height: 1.6;
   -webkit-tap-highlight-color: transparent;
 }
@@ -43,33 +52,51 @@ main {
   width: 100%;
   max-width: 34rem;
   margin: 0 auto;
-  padding: 0 16px 24px;
+  padding: 0 12px 24px;
 }
 
-h1,
-h2,
-.label,
-.mark,
-.tabs button,
-.tier,
-button,
-.button {
-  font-family: var(--pixel);
-  font-weight: 400;
+[hidden] {
+  display: none !important;
 }
 
 h1 {
   margin: 0;
-  font-size: 1.7rem;
-  line-height: 1.2;
+  font-family: var(--grotesk);
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  text-transform: uppercase;
 }
 
+/* A section head is an index chip, a caps title and a rule out to the edge. */
 h2 {
-  margin: 32px 0 8px;
-  color: var(--surface);
-  font-size: 0.85rem;
-  letter-spacing: 0.08em;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 28px 0 10px;
+  color: var(--amber);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: var(--track);
   text-transform: uppercase;
+}
+
+h2[data-idx]::before {
+  content: attr(data-idx);
+  padding: 2px 5px;
+  background: var(--amber-dim);
+  color: var(--void);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  line-height: 1;
+}
+
+h2::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line-hot);
 }
 
 p {
@@ -77,7 +104,7 @@ p {
 }
 
 a {
-  color: var(--yellow);
+  color: var(--amber);
 }
 
 canvas {
@@ -85,76 +112,111 @@ canvas {
   image-rendering: pixelated;
 }
 
-.sr {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-}
-
 .dim {
-  color: var(--muted);
-  font-size: 0.85rem;
+  color: var(--dim);
+  font-size: 12px;
 }
 
 .label {
   margin: 0 0 4px;
-  color: var(--yellow);
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
+  color: var(--amber);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: var(--track);
   text-transform: uppercase;
 }
 
 .line {
-  font-size: 1rem;
+  color: var(--text);
+  font-size: 15px;
 }
 
-/* The bar and the tabs are the only chrome, and both stay put. */
+/* Panel 00, the faceplate: the name, a model plate and the readouts. */
 .bar {
   position: sticky;
   top: 0;
   z-index: 2;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  align-items: stretch;
+  gap: 12px;
   width: 100%;
   max-width: 34rem;
   margin: 0 auto;
-  padding: 10px 16px;
-  background: var(--water);
-  border-bottom: 2px solid var(--surface);
+  padding: 10px 12px;
+  background: var(--void);
+  border-bottom: 1px solid var(--line-hot);
 }
 
 .mark {
-  color: var(--cream);
-  font-size: 1.3rem;
+  align-self: center;
+  color: var(--text);
+  font-family: var(--grotesk);
+  font-size: 1.7rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
   text-decoration: none;
+}
+
+.plate {
+  align-self: center;
+  padding: 4px 6px;
+  border: 1px solid var(--line-hot);
+  color: var(--dim);
+  font-size: 8px;
+  letter-spacing: var(--track);
+  line-height: 1.5;
+  white-space: nowrap;
 }
 
 .bar-right {
   display: flex;
-  align-items: center;
-  gap: 14px;
+  gap: 1px;
+  margin-left: auto;
+  background: var(--line);
+  border: 1px solid var(--line);
+  flex-shrink: 0;
 }
 
-.purse {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--pixel);
-  color: var(--yellow);
+.readout {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 64px;
+  padding: 4px 10px;
+  background: var(--panel);
+  color: var(--text);
+  text-decoration: none;
+  white-space: nowrap;
 }
 
-.purse canvas {
-  width: 16px;
-  height: 16px;
-}
-
-.keylink {
-  font-family: var(--pixel);
-  font-size: 0.8rem;
+.readout .k {
+  color: var(--dim);
+  font-size: 9px;
+  letter-spacing: var(--track);
   text-transform: uppercase;
+}
+
+.readout .v {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--amber);
+  font-family: var(--grotesk);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.readout canvas {
+  width: 14px;
+  height: 14px;
+}
+
+@media (max-width: 26rem) {
+  .plate {
+    display: none;
+  }
 }
 
 button,
@@ -162,11 +224,14 @@ button,
   display: inline-block;
   min-height: 44px;
   padding: 8px 14px;
-  border: 2px solid var(--line);
+  border: 1px solid var(--line-hot);
   border-radius: 0;
-  background: var(--shallow);
-  color: var(--cream);
-  font-size: 0.85rem;
+  background: var(--panel-2);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
   text-decoration: none;
   text-transform: uppercase;
   cursor: pointer;
@@ -174,26 +239,29 @@ button,
 
 button:hover:not(:disabled),
 .button:hover {
-  background: var(--raised);
+  border-color: var(--amber-dim);
 }
 
 button.primary {
-  border-color: var(--yellow);
-  color: var(--yellow);
+  border-color: var(--amber);
+  background: var(--amber-glow);
+  color: var(--amber);
 }
 
 button:disabled {
-  opacity: 0.45;
+  color: var(--dim);
+  border-color: var(--line);
+  background: var(--panel);
   cursor: default;
 }
 
 :focus-visible {
-  outline: 2px solid var(--yellow);
+  outline: 2px solid var(--amber);
   outline-offset: 2px;
 }
 
 ::selection {
-  background: rgba(255, 226, 122, 0.3);
+  background: rgba(255, 176, 0, 0.3);
 }
 
 .row {
@@ -210,31 +278,50 @@ button:disabled {
 .card {
   margin: 16px 0;
   padding: 12px 14px;
-  border: 2px solid var(--line);
-  background: var(--shallow);
-}
-
-[hidden] {
-  display: none !important;
+  border: 1px solid var(--line-hot);
+  border-left: 3px solid var(--amber);
+  background: var(--panel);
 }
 
 .view {
-  padding-top: 16px;
+  padding-top: 12px;
 }
 
-/* The pond */
-.scene {
+/* A screen is a canvas in a bezel with corner brackets, and the only place
+   colour shows. The faint scanlines sit over the picture and take no taps. */
+.screen {
+  position: relative;
   display: block;
   width: 100%;
   min-height: 0;
-  padding: 0;
-  border: 2px solid var(--line);
-  background: none;
+  padding: 6px;
+  border: 1px solid var(--line-hot);
+  background: var(--void);
 }
 
-.scene canvas,
-#dive,
-#wheel {
+.screen::before,
+.screen::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.screen::before {
+  inset: -1px;
+  background:
+    linear-gradient(var(--amber), var(--amber)) top left / 9px 1px,
+    linear-gradient(var(--amber), var(--amber)) top left / 1px 9px,
+    linear-gradient(var(--amber), var(--amber)) bottom right / 9px 1px,
+    linear-gradient(var(--amber), var(--amber)) bottom right / 1px 9px;
+  background-repeat: no-repeat;
+}
+
+.screen::after {
+  inset: 6px;
+  background: repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.13) 0 1px, transparent 1px 3px);
+}
+
+.screen canvas {
   width: 100%;
   height: auto;
 }
@@ -244,51 +331,59 @@ button:disabled {
 }
 
 .chips {
-  margin: 4px 0;
-  font-family: var(--pixel);
-  font-size: 0.8rem;
+  margin: 6px 0 4px;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .tier {
   display: inline-block;
   padding: 1px 6px;
-  border: 2px solid currentColor;
-  font-size: 0.7rem;
-  letter-spacing: 0.06em;
+  border: 1px solid currentColor;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: var(--track);
+  line-height: 1.5;
   text-transform: uppercase;
 }
 
-.t0 { color: #c9d6d2; }
-.t1 { color: #7fd87a; }
+.t0 { color: #bcaf99; }
+.t1 { color: #5ddc82; }
 .t2 { color: #6cb8ff; }
 .t3 { color: #cf9bff; }
-.t4 { color: var(--yellow); }
+.t4 { color: var(--amber); }
 
 .missed {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 2px 14px;
+  gap: 1px;
   margin: 12px 0;
-  font-size: 0.85rem;
+  background: var(--line);
+  border: 1px solid var(--line);
+  font-size: 12px;
+}
+
+.missed dt,
+.missed dd {
+  margin: 0;
+  padding: 5px 10px;
+  background: var(--panel);
 }
 
 .missed dt {
-  font-family: var(--pixel);
-  color: var(--surface);
+  color: var(--amber);
+  letter-spacing: var(--track);
   text-transform: uppercase;
 }
 
 .missed dd {
-  margin: 0;
   color: var(--muted);
 }
 
 .gift {
-  border-color: var(--pink);
-}
-
-.nudge {
-  border-color: var(--yellow);
+  border-left-color: var(--pink);
 }
 
 .logs {
@@ -299,13 +394,11 @@ button:disabled {
 
 .logs button {
   min-height: 64px;
-  border-color: #8a5a2b;
-  background: #4a3318;
 }
 
 .logs button[aria-pressed="true"] {
-  border-color: var(--yellow);
-  color: var(--yellow);
+  border-color: var(--amber);
+  color: var(--amber);
 }
 
 .things {
@@ -322,11 +415,13 @@ button:disabled {
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
-  border: 2px solid var(--line);
-  font-size: 0.8rem;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  font-size: 12px;
 }
 
-.things canvas {
+.things canvas,
+.legend canvas {
   flex: none;
   width: 24px;
   height: 24px;
@@ -336,72 +431,116 @@ button:disabled {
   min-height: 32px;
   margin-left: auto;
   padding: 2px 8px;
-  font-size: 0.7rem;
+  font-size: 11px;
 }
 
 .dev button {
   min-height: 32px;
-  font-size: 0.7rem;
+  font-size: 11px;
 }
 
-/* Dive takes a tap anywhere in its view, so the view fills the screen and the
-   browser is told not to scroll or zoom on it. */
+/* Dive takes a tap anywhere in its view, so the browser is told not to
+   scroll or zoom on it. */
 #v-dive {
-  min-height: calc(100dvh - 9rem);
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
 }
 
 #dive {
-  border: 2px solid var(--line);
   outline: none;
 }
 
-#wheel {
-  border: 2px solid var(--line);
+.dive-hud {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding-top: 8px;
+}
+
+.dive-hud p {
+  flex: 1;
+  margin: 0;
+}
+
+#dive-exit {
+  display: none;
+}
+
+/* On a phone Dive is the whole screen: the water fills it from the top and
+   the readout and the way out sit under it. */
+#v-dive.full {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  background: var(--void);
+}
+
+#v-dive.full .screen {
+  padding: 0;
+  border: 0;
+}
+
+#v-dive.full .screen::before {
+  display: none;
+}
+
+#v-dive.full .screen::after {
+  inset: 0;
+}
+
+#v-dive.full .dive-hud {
+  flex: 1;
+  align-items: center;
+  padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line-hot);
+}
+
+#v-dive.full #dive-exit {
+  display: block;
+}
+
+body:has(#v-dive.full) {
+  overflow: hidden;
 }
 
 .legend {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
-  gap: 6px 24px;
+  gap: 1px;
   margin: 0;
   padding: 0;
+  background: var(--line);
+  border: 1px solid var(--line);
   list-style: none;
-  font-size: 0.8rem;
+  font-size: 12px;
 }
 
 .legend li {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.legend canvas {
-  flex: none;
-  width: 24px;
-  height: 24px;
+  padding: 5px 8px;
+  background: var(--panel);
 }
 
 .legend .o {
   margin-left: auto;
-  color: var(--muted);
+  color: var(--dim);
 }
 
-/* Hats */
 .hatbox {
   display: flex;
   align-items: center;
   gap: 14px;
 }
 
-.hatbox canvas {
+.hatbox .screen {
   flex: none;
-  width: 176px;
-  height: 136px;
-  border: 2px solid var(--line);
-  background: var(--shallow);
+  width: 190px;
 }
 
 .hatgrid {
@@ -416,24 +555,26 @@ button:disabled {
   align-items: center;
   gap: 4px;
   padding: 6px 4px;
-  font-size: 0.6rem;
+  font-size: 10px;
+  letter-spacing: 0.04em;
   line-height: 1.3;
   text-align: center;
 }
 
-.hattile canvas {
+.hattile canvas,
+.spare canvas {
+  flex: none;
   width: 76px;
   height: 48px;
 }
 
 .hattile:disabled {
-  opacity: 1;
   border-style: dashed;
-  color: var(--muted);
 }
 
 .hattile[aria-pressed="true"] {
-  border-color: var(--yellow);
+  border-color: var(--amber);
+  background: var(--amber-glow);
 }
 
 .spare {
@@ -442,21 +583,16 @@ button:disabled {
   gap: 10px;
   margin: 8px 0;
   padding: 6px 8px;
-  border: 2px solid var(--line);
-  font-size: 0.8rem;
-}
-
-.spare canvas {
-  flex: none;
-  width: 76px;
-  height: 48px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  font-size: 12px;
 }
 
 .spare button {
   margin-left: auto;
 }
 
-/* The tabs sit at the bottom where a thumb is. */
+/* The transport keys along the bottom, where a thumb is. */
 .tabs {
   position: fixed;
   left: 0;
@@ -465,26 +601,40 @@ button:disabled {
   z-index: 2;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
   width: 100%;
   max-width: 34rem;
   margin: 0 auto;
   padding-bottom: env(safe-area-inset-bottom);
-  background: var(--deep);
-  border-top: 2px solid var(--surface);
+  background: var(--line-hot);
+  border-top: 1px solid var(--line-hot);
 }
 
 .tabs button {
-  min-height: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 54px;
   border: 0;
-  background: none;
-  color: var(--muted);
+  border-top: 3px solid transparent;
+  background: var(--void);
+  color: var(--dim);
+}
+
+.tabs .idx {
+  font-size: 9px;
+  letter-spacing: 0.08em;
 }
 
 .tabs button[aria-pressed="true"] {
-  color: var(--yellow);
-  background: var(--water);
+  border-top-color: var(--amber);
+  background: var(--panel-2);
+  color: var(--amber);
 }
 
+/* The rating plate, the sticker on the back of old gear. */
 footer {
   display: flex;
   justify-content: space-between;
@@ -492,9 +642,12 @@ footer {
   width: 100%;
   max-width: 34rem;
   margin: 0 auto;
-  padding: 16px;
-  color: var(--muted);
-  font-size: 0.75rem;
+  padding: 14px 12px;
+  border-top: 1px solid var(--line);
+  color: var(--dim);
+  font-size: 10px;
+  letter-spacing: var(--track);
+  text-transform: uppercase;
 }
 
 body:has(.tabs) footer {
@@ -506,12 +659,19 @@ body:has(.tabs) footer {
   margin-bottom: 12px;
 }
 
+.prose p,
+.steps {
+  color: var(--muted);
+}
+
 .keywords {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
+  gap: 1px;
   margin: 16px 0;
   padding: 0;
+  background: var(--line-hot);
+  border: 1px solid var(--line-hot);
   list-style: none;
   counter-reset: word;
 }
@@ -519,16 +679,19 @@ body:has(.tabs) footer {
 .keywords li {
   counter-increment: word;
   padding: 10px 12px;
-  border: 2px solid var(--line);
-  background: var(--shallow);
-  font-size: 1.15rem;
+  background: var(--panel);
+  font-family: var(--grotesk);
+  font-size: 1.25rem;
+  font-weight: 500;
 }
 
 .keywords li::before {
-  content: counter(word) " ";
-  color: var(--surface);
-  font-family: var(--pixel);
-  font-size: 0.75rem;
+  content: "0" counter(word) " ";
+  margin-right: 6px;
+  color: var(--amber-dim);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
 }
 
 .keyline {
@@ -540,9 +703,9 @@ body:has(.tabs) footer {
 .keyline code {
   flex: 1;
   padding: 10px;
-  border: 2px dashed var(--line);
+  border: 1px dashed var(--line-hot);
   font-family: inherit;
-  font-size: 0.8rem;
+  font-size: 12px;
   overflow-wrap: anywhere;
   user-select: all;
 }
@@ -552,11 +715,11 @@ body:has(.tabs) footer {
   max-width: 100%;
   height: auto;
   margin: 16px auto;
-  border: 8px solid var(--cream);
+  border: 8px solid #fff6dc;
 }
 
 .steps {
-  padding-left: 1.4rem;
+  padding-left: 1.6rem;
 }
 
 .restore {
@@ -565,9 +728,9 @@ body:has(.tabs) footer {
 }
 
 .restore label {
-  font-family: var(--pixel);
-  font-size: 0.75rem;
-  color: var(--surface);
+  color: var(--amber);
+  font-size: 11px;
+  letter-spacing: var(--track);
   text-transform: uppercase;
 }
 
@@ -575,15 +738,15 @@ body:has(.tabs) footer {
   width: 100%;
   min-height: 44px;
   padding: 8px 10px;
-  border: 2px solid var(--line);
+  border: 1px solid var(--line-hot);
   border-radius: 0;
-  background: var(--deep);
-  color: var(--cream);
+  background: var(--void);
+  color: var(--text);
   font: inherit;
 }
 
 .restore .check {
-  font-family: inherit;
-  text-transform: none;
   color: var(--muted);
+  letter-spacing: 0;
+  text-transform: none;
 }
