@@ -26,7 +26,7 @@ import { initSettings } from "./settings.js";
 
 const VIEWS = ["pond", "play", "dive", "cross", "flick", "raft", "leap", "school", "fish", "stack", "shell", "skip", "wheel", "bag", "collect", "reeds", "garden", "bank", "town", "settings"];
 // Places that open from another light that one's key.
-const TAB_OF = { dive: "play", wheel: "play", cross: "play", flick: "play", raft: "play", leap: "play", school: "play", fish: "play", stack: "play", shell: "play", skip: "play" };
+const TAB_OF = { collect: "bag", dive: "play", wheel: "play", cross: "play", flick: "play", raft: "play", leap: "play", school: "play", fish: "play", stack: "play", shell: "play", skip: "play" };
 let view = "pond", fetchedAt = Date.now();
 const GAMES = { flick: arcade(flick), cross: arcade(cross), raft: arcade(raft), leap: arcade(leap), school: arcade(school), fish: arcade(fish), stack: arcade(stack), shell: arcade(shell), skip: arcade(skip) };
 
@@ -41,6 +41,8 @@ function show(next) {
     b.setAttribute("aria-pressed", b.dataset.view === lit ? "true" : "false");
   });
   $("gear").classList.toggle("lit", next === "settings");
+  // A title card copies its art off the Play disks, so they're drawn first.
+  if (next === "dive" || GAMES[next]) drawPlay();
   if (next === "dive") enterDive();
   if (GAMES[next]) GAMES[next].enter();
   if (next === "wheel") enterWheel();
@@ -741,6 +743,8 @@ $("dev").addEventListener("click", (e) => {
 drawIcon($("purse-icon").getContext("2d"), "peb", 0, 0, 2);
 initUI();
 watch(renderPond);
+// A game opened straight off a link has no pond yet when its card is made.
+watch(() => { if (view === "dive" || GAMES[view]) drawPlay(); });
 initDive();
 initWheel();
 initReeds();
@@ -748,6 +752,7 @@ initBank();
 initShops();
 initBag();
 initCollect();
+document.querySelectorAll(".places.pair button").forEach((b) => b.addEventListener("click", () => { location.hash = "#" + b.dataset.go; }));
 initTown();
 initNeighbours();
 initSettings();
