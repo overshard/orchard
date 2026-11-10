@@ -357,20 +357,26 @@ func greetLine(g genome, stage string, away time.Duration) string {
 	return name + " comes over slower than it used to and gets there all the same. " + nature
 }
 
-// Ten ghost frogs swim every run, and each is dealt the number of gates it
+// Nine ghost frogs swim every run, and each is dealt the number of gates it
 // will clear before it hits one. The page plays them out and the server keeps
 // the deal, so a place on the podium is worked out here.
 const (
-	diveGhosts = 10
-	// A new pond's ghosts are dealt as if its best were this.
-	diveGhostFloor = 12
+	diveGhosts = 9
+	// A new pond starts on this form, and form never deals below it.
+	diveFormStart = 8.0
+	diveFormFloor = 4.0
 )
 
-// dealGhosts sets the three best ghosts around the pond's own best and the
-// rest well under it, so matching your best is about even odds for first and
-// a fair run makes the podium.
-func dealGhosts(best int) []int {
-	base := float64(max(best, diveGhostFloor))
+// diveForm follows the gates of recent runs, so ghosts come in closer while a
+// player keeps going out early and spread further as they do well.
+func diveForm(form float64, gates int) float64 {
+	return form*0.65 + float64(gates)*0.35
+}
+
+// dealGhosts sets the three best ghosts around the pond's form and the rest
+// well under it, so matching your form is about even odds for first.
+func dealGhosts(form float64) []int {
+	base := max(form, diveFormFloor)
 	band := func(lo, hi float64) int { return int(base * (lo + rand.Float64()*(hi-lo))) }
 	clears := []int{band(0.85, 1.15), band(0.65, 0.95), band(0.5, 0.8)}
 	for len(clears) < diveGhosts {

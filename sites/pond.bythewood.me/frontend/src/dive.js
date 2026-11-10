@@ -1,6 +1,6 @@
 import { $, post, state, setPond, watch } from "./api.js";
 import { genome, sideCells, draw as drawCells, SW, SH } from "./frog.js";
-import { raceStart, raceOut, raceResults, raceHide, countdown, callout } from "./race.js";
+import { raceStart, raceOut, raceOrder, raceResults, raceHide, countdown, callout } from "./race.js";
 
 // Dive is played in a 320 by 200 field and drawn at twice that. The frog
 // floats up by itself, a press kicks it down, and the numbers below are the
@@ -31,10 +31,10 @@ function frogCols(g) {
   return { 1: hsl(g.hue, g.sat, g.lit + 4), 2: hsl(g.hue + 18, g.sat * 0.45, Math.min(92, g.lit + 32)), 3: hsl(g.hue - 8, g.sat, g.lit - 14), 4: m.name === "ALBINO" ? "#f6c9cc" : "#fff6dc", 5: "#141210", 6: hsl(g.hue, g.sat * 0.6, 14), 8: m.limb != null ? hsl(m.limb, 70, 50) : hsl(g.hue, g.sat, g.lit - 7), 9: hsl(g.hue, g.sat * 0.5, 9) };
 }
 
-// Ten other frogs swim every run, a little behind. Nobody is steering them.
-// Each aims for the gaps, a little sloppily, and the server deals how many
-// gates each will clear before it hits one, which is how it knows who placed.
-const GHOSTS_IN = 10;
+// Nine other frogs swim every run, some ahead and some behind, drifting
+// through the pack. Each aims for the gaps a little sloppily, and the server
+// deals how many gates each will clear, which is how it knows who placed.
+const GHOSTS_IN = 9;
 let others = [];
 
 function ghostSprite(g, kick) {
@@ -50,12 +50,24 @@ function spawnOthers() {
     const g = genome(1 + Math.floor(Math.random() * 4294967295));
     others.push({
       id: i, g, name: g.name, spr: [ghostSprite(g, false), ghostSprite(g, true)],
-      x: FXP - 12 - i * Math.min(60, FXP - 24) / GHOSTS_IN - Math.random() * 3, y: TOP + 30 + Math.random() * (BOT - TOP - 60),
+      off: 0, want: 0, wantAt: 0, x: FXP, y: TOP + 30 + Math.random() * (BOT - TOP - 60),
       vy: 0, kick: 0, passed: 0, clears: 99, aim: Math.random() * 22 - 8,
       out: false, fade: 1,
     });
   }
+  // A grid on the line, so you start somewhere in the middle of it.
+  const order = others.map((o) => o).sort(() => Math.random() - 0.5), back = behind(), fwd = ahead();
+  order.forEach((o, i) => {
+    const slot = (i + 0.5) / GHOSTS_IN;
+    o.off = o.want = slot < 0.5 ? -back * (1 - slot * 2) : fwd * (slot * 2 - 1);
+    o.x = FXP + o.off;
+  });
 }
+
+// How far a ghost can drift behind or ahead of you, which on a narrow phone
+// field is less.
+function behind() { return Math.max(16, Math.min(56, FXP - 16)); }
+function ahead() { return Math.max(16, Math.min(60, PW - FXP - 40)); }
 
 // Until the deal arrives a ghost clears everything, and the first gate is
 // seconds away, so it always has. With no answer the page deals its own.
@@ -65,7 +77,12 @@ function deal(clears) {
 
 function stepOthers(dt, sp) {
   others.forEach((o) => {
-    if (o.out) { o.x -= sp * dt; o.y -= 18 * dt; o.fade -= dt * 1.4; return; }
+    if (o.out) return;
+    // Each one now and then picks a new spot in the pack and swims to it
+    // slowly, which is all an overtake is.
+    if (G.t > o.wantAt) { o.want = -behind() + Math.random() * (behind() + ahead()); o.wantAt = G.t + 2 + Math.random() * 4; }
+    o.off += Math.max(-9 * dt, Math.min(9 * dt, o.want - o.off));
+    o.x = FXP + o.off;
     const gate = G.gates.find((g) => g.x + OW > o.x - 8);
     // One that has cleared all it's going to drifts up into the stems.
     let want = (TOP + BOT) / 2 + o.aim * 3;
@@ -75,16 +92,24 @@ function stepOthers(dt, sp) {
     o.y += o.vy * dt; o.kick -= dt;
     if (o.y > BOT - 6) { o.y = BOT - 6; o.vy = Math.min(0, o.vy); }
     if (!gate) return;
-    if (gate.x + OW < o.x - 8 && gate.seen !== undefined && !gate.seen[o.name + o.x]) { gate.seen[o.name + o.x] = true; o.passed++; }
+    if (gate.x + OW < o.x - 8 && gate.seen !== undefined && !gate.seen[o.id]) { gate.seen[o.id] = true; o.passed++; }
     // Nothing touches a ghost before its dealt gate, so the race the page
     // shows is the one the server scores.
     const c = gateC(gate), hit = o.passed >= o.clears && o.x + 7 > gate.x && o.x - 8 < gate.x + OW && (o.y - 4 < c - gate.gap / 2 || o.y + 5 > c + gate.gap / 2);
     if (hit || (o.y < TOP + 5 && o.passed >= o.clears)) {
-      o.out = true;
+      o.out = true; o.fade = 0;
       if (G.state === "play") raceOut(o.id);
-      for (let i = 0; i < 4; i++) G.bub.push({ x: o.x - 6 + Math.random() * 12, y: o.y - 4 + Math.random() * 8, a: 0.9 });
+      for (let i = 0; i < 9; i++) G.bub.push({ x: o.x - 7 + Math.random() * 14, y: o.y - 6 + Math.random() * 12, a: 1 });
     }
   });
+  if (G.state === "play") raceOrder(liveOrder());
+}
+
+// Who's in front right now, by where they are on the water. A ghost level
+// with you counts as behind.
+function liveOrder() {
+  return others.filter((o) => !o.out).map((o) => ({ id: o.id, x: o.x }))
+    .concat([{ id: "you", x: FXP + 1 }]).sort((a, b) => b.x - a.x).map((r) => r.id);
 }
 
 function drawOthers() {
@@ -151,7 +176,7 @@ function press() {
   if (G.state !== "play") {
     if (G.state === "over" && performance.now() - G.overAt < 900) return;
     reset(); spawnOthers(); G.state = "count"; G.countAt = performance.now(); G.last = G.countAt;
-    raceStart(field().map((r) => ({ id: r.id, name: r.name, spr: r.spr, you: r.you })));
+    raceStart(field().map((r) => ({ id: r.id, name: r.name, spr: r.spr, you: r.you })), liveOrder());
     started = net = net.then(() => post("/api/dive/start")).then((d) => { deal(d.ghosts); return d.run; }, () => { deal(null); return null; });
     requestAnimationFrame(counting);
     return;
