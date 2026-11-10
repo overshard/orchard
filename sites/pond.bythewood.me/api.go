@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/netip"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -264,7 +265,16 @@ type panel struct {
 	DiveBest int      `json:"dive_best"`
 }
 
+// panelOrigins are the sites that draw the visitor's frog. Each is same site as
+// pond, so the Lax cookie rides along once the origin is allowed credentials.
+var panelOrigins = []string{"https://dash.bythewood.me"}
+
 func (s *site) apiPanel(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Vary", "Origin")
+	if o := r.Header.Get("Origin"); slices.Contains(panelOrigins, o) {
+		w.Header().Set("Access-Control-Allow-Origin", o)
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+	}
 	now := s.store.now()
 	if id, _, err := s.pondOf(r); err == nil {
 		if p, err := loadPond(s.store.r, id); err == nil {
