@@ -188,3 +188,29 @@ func TestStallSparesDontPayForTheBox(t *testing.T) {
 		t.Fatalf("a box's spares fetch %.1f on the stall", sum)
 	}
 }
+
+func TestStallSellsUnderTheShops(t *testing.T) {
+	for _, r := range mossRocks {
+		if w, _ := worthOf(r.kind); w >= r.price {
+			t.Errorf("%s goes for %d on the stall and %d at Moss's", r.kind, w, r.price)
+		}
+	}
+	for _, in := range ingredients {
+		if in.trinket {
+			continue
+		}
+		if w, _ := worthOf(in.kind); w >= salePrice(larderPrice[in.tier]) {
+			t.Errorf("%s goes for %d on the stall and %d on sale at Brindle's", in.kind, w, salePrice(larderPrice[in.tier]))
+		}
+	}
+	for k, price := range map[string]int{"stamp_spots": stampPrice, "drops_red": dropsPrice, "dye_blue": bargainPrice, "dye_gold": bargainPrice} {
+		if w, _ := worthOf(k); w >= price {
+			t.Errorf("%s goes for %d on the stall and %d at Moss's", k, w, price)
+		}
+	}
+	for t2, price := range wrenSells[:3] {
+		if w := int(float64(hatRate[t2]) * boxedShare); w >= price {
+			t.Errorf("a tier %d hat goes for %d on the stall and %d at Wren's", t2, w, price)
+		}
+	}
+}

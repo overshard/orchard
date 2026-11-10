@@ -27,6 +27,8 @@ const boxedShare = 0.35
 var (
 	thingWorth = [tierCount]int{10, 40, 100, 300, 900}
 	foodWorth  = [3]int{5, 15, 120}
+	// Under the 280 Moss asks for a dye going cheap.
+	benchWorth = [tierCount]int{10, 40, 100, 200, 200}
 )
 
 // worthOf is a thing's going rate on the stall, and false for what can't go
@@ -43,6 +45,9 @@ func worthOf(kind string) (int, bool) {
 	}
 	if i, ok := ingredientOf(kind); ok {
 		return foodWorth[ingredients[i].tier], true
+	}
+	if t, ok := benchTier[kind]; ok {
+		return benchWorth[t], true
 	}
 	if t, ok := wizardTier(kind); ok {
 		return thingWorth[t], true
@@ -69,6 +74,8 @@ type stallRow struct {
 	Sold   bool   `json:"sold"`
 	Buyer  string `json:"buyer,omitempty"`
 	Listed int64  `json:"listed"`
+	A      string `json:"a,omitempty"`
+	B      string `json:"b,omitempty"`
 }
 
 type stallView struct {
@@ -90,6 +97,16 @@ type bagThing struct {
 	Free  int    `json:"free"`
 	Worth int    `json:"worth"`
 	Hat   *hat   `json:"hat,omitempty"`
+	// A dish is drawn from its two ingredients.
+	A string `json:"a,omitempty"`
+	B string `json:"b,omitempty"`
+}
+
+func dishParts(kind string) (string, string) {
+	if d, ok := dishOfKind(kind); ok {
+		return ingredients[d.a].kind, ingredients[d.b].kind
+	}
+	return "", ""
 }
 
 func sortOf(kind string) string {
@@ -121,7 +138,8 @@ func bagOf(held map[string]int, hats []hatView) []bagThing {
 		if keepsOne(kind) {
 			free--
 		}
-		out = append(out, bagThing{kind, thingName(kind), t, sortOf(kind), n, free, w, h})
+		a, b := dishParts(kind)
+		out = append(out, bagThing{kind, thingName(kind), t, sortOf(kind), n, free, w, h, a, b})
 	}
 	for k, n := range held {
 		add(k, n, nil)
@@ -156,6 +174,7 @@ func stallOf(q querier, id int64, now time.Time) (stallView, error) {
 			return v, err
 		}
 		r.Name = thingName(r.Kind)
+		r.A, r.B = dishParts(r.Kind)
 		r.Tier, _ = wizardTier(r.Kind)
 		r.Worth, _ = worthOf(r.Kind)
 		if h, ok := hatOfKind(r.Kind); ok {
