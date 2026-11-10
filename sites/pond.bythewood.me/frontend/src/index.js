@@ -103,8 +103,10 @@ function renderPond(p) {
   tier.textContent = TIERS[f.rarity.tier]; tier.className = "tier t" + f.rarity.tier;
   $("frog-odds").textContent = "1 in " + f.rarity.n.toLocaleString("en-US");
   const stage = f.stage.charAt(0).toUpperCase() + f.stage.slice(1);
-  $("frog-what").textContent = stage + ", day " + f.day + ". " + NEXT[f.stage] + " " +
-    titled(f.morph) + ", " + f.pattern.toLowerCase() + " back, " + f.nature.toLowerCase() + ".";
+  // An egg doesn't say what colour or back it'll have. That's for hatching.
+  const look = f.stage === "egg" ? "" : titled(f.morph) + ", " + f.pattern.toLowerCase() + " back, ";
+  const what = look + f.nature.toLowerCase() + ".";
+  $("frog-what").textContent = stage + ", day " + f.day + ". " + NEXT[f.stage] + " " + what.charAt(0).toUpperCase() + what.slice(1);
 
   $("purse").hidden = false;
   $("purse-n").textContent = (p.pebbles - state.held).toLocaleString("en-US");
