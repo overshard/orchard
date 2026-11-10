@@ -17,7 +17,7 @@ import { initUI, reveal, thingArt, drawBox } from "./ui.js";
 import { initBag } from "./bag.js";
 import { initCollect } from "./collect.js";
 import { initTown, enterTown, leaveTown } from "./town.js";
-import { initNeighbours } from "./neighbours.js";
+import { initNeighbours, art as residentArt } from "./neighbours.js";
 import { initSettings } from "./settings.js";
 
 const VIEWS = ["pond", "play", "dive", "cross", "flick", "raft", "leap", "school", "wheel", "bag", "collect", "reeds", "garden", "bank", "town", "settings"];
@@ -406,23 +406,46 @@ function renderPond(p) {
     today.append(li);
   });
   $("today-head").hidden = today.hidden = lines.length === 0;
-  const news = (p.gazette && p.gazette.lines) || [], gz = $("gazette");
-  gz.textContent = "";
-  news.forEach((h) => {
-    const li = document.createElement("li");
-    li.textContent = h;
-    gz.append(li);
-  });
-  if (p.gazette && p.gazette.business) {
-    const li = document.createElement("li"), b = document.createElement("b");
-    b.textContent = "Business";
-    li.append(b, " " + p.gazette.business);
-    gz.append(li);
-  }
-  $("gazette-head").hidden = gz.hidden = gz.children.length === 0;
+  renderPaper(p.gazette, p.neighbours);
   renderTodo(p);
   renderStarter(p);
   renderPlay(p);
+}
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text) e.textContent = text;
+  return e;
+}
+
+// The Pond Gazette, a little front page under Today at the pond.
+function renderPaper(g, nb) {
+  const paper = $("gazette");
+  paper.textContent = "";
+  paper.hidden = !g || !g.lines || g.lines.length === 0;
+  if (paper.hidden) return;
+  const top = el("div", "paper-ear");
+  top.append(el("span", "", "Vol. I · No. " + g.issue), el("span", "", "One pebble"));
+  const date = el("div", "paper-date");
+  date.append(el("span", "", g.date), el("span", "", "Weather: " + g.sky));
+  paper.append(top, el("h3", "paper-head", "The Pond Gazette"), date);
+  const [lead, ...rest] = g.lines;
+  const who = nb && nb.all[g.photo];
+  if (who) {
+    const story = el("div", "paper-front"), fig = el("figure", "paper-photo");
+    fig.append(residentArt(who, 3), el("figcaption", "", g.pictured ? who.name + ", pictured" : "File photo"));
+    story.append(fig, el("p", "paper-lead", lead));
+    paper.append(story);
+  } else paper.append(el("p", "paper-lead", lead));
+  const cols = el("div", "paper-cols");
+  rest.forEach((h) => cols.append(el("p", "paper-story", h)));
+  paper.append(cols);
+  if (g.business) {
+    const biz = el("p", "paper-biz");
+    biz.append(el("b", "", "Business"), " " + g.business);
+    paper.append(biz);
+  }
 }
 
 // The server decides what's worth doing, and the gravel bar and rent count up

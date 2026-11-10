@@ -3,6 +3,7 @@ package main
 import (
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Dreams, gossip and the gazette. Each has a hand written pool that's always
@@ -147,12 +148,41 @@ func gossipOf(i int, day string) string {
 type gazette struct {
 	Lines    []string `json:"lines"`
 	Business string   `json:"business,omitempty"`
+	Issue    int      `json:"issue"`
+	Date     string   `json:"date"`
+	Sky      string   `json:"sky"`
+	Photo    int      `json:"photo"`
+	Pictured bool     `json:"pictured"`
+}
+
+// The first issue went out the day the gazette did.
+const gazetteFirst = "2026-11-10"
+
+var skyWords = map[string]string{
+	moodPlain: "Fair", moodBright: "Sunny", moodGloom1: "Grey", moodGloom2: "Grey",
+	moodGloom3: "Dark", moodJitters: "Windy", moodRain: "Rain", moodShowers: "Rain due",
+	moodFrost: "Frost", moodHeat: "Hot", moodPollen: "Pollen", moodSombre: "Still",
+}
+
+func gazetteFor(mood string, now time.Time) gazette {
+	today := dayOf(now)
+	lines, photo, named := gazetteWithPhoto(mood, today)
+	return gazette{Lines: lines, Photo: photo, Pictured: named, Issue: int(dayNumber(today)-dayNumber(gazetteFirst)) + 1,
+		Date: now.In(pondZone).Format("Monday, January 2, 2006"), Sky: skyWords[mood]}
 }
 
 // gazetteOf is the day's three headlines, the same in every pond, with a
 // weather mood's own headline first when it has one.
 func gazetteOf(mood, day string) []string {
+	out, _, _ := gazetteWithPhoto(mood, day)
+	return out
+}
+
+// gazetteWithPhoto also says which resident the lead's photo is of, and
+// whether the lead names it.
+func gazetteWithPhoto(mood, day string) ([]string, int, bool) {
 	var out []string
+	photo, named := -1, false
 	used := map[string]bool{}
 	add := func(pool []string, salt string) {
 		h := dayHash(day, salt)
@@ -161,6 +191,9 @@ func gazetteOf(mood, day string) []string {
 			if !used[l] {
 				used[l] = true
 				a := int((h / 3) % uint32(len(residents)))
+				if photo < 0 {
+					photo, named = a, strings.Contains(l, "{resident}")
+				}
 				out = append(out, fillNames(l, a, otherThan(a, h/17)))
 				return
 			}
@@ -174,7 +207,7 @@ func gazetteOf(mood, day string) []string {
 	for k := 0; len(out) < 3 && k < 3; k++ {
 		add(pool, "gazette"+strconv.Itoa(k))
 	}
-	return out
+	return out, photo, named
 }
 
 // marketHeadline is the gazette's business story, off whichever business

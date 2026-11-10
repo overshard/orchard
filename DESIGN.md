@@ -659,9 +659,12 @@ version of the old look and a handheld pet shell.
   beetles on the market, ripples quicken with the VIX, and a cold day has
   frost on the pad and the frog dozing. Each thing gets a line under Today at
   the pond saying why, so nothing on the water is a mystery.
-- **The Pond Gazette** is three headlines under Today at the pond in plain
-  text, plus a business story led by an amber Business label, and never a
-  number. A dream is a row in the greeting's list on the first visit of a day,
+- **The Pond Gazette is a little newspaper** under Today at the pond, the
+  one thing printed on paper. Cream newsprint with faint lines and a fold,
+  tilted a touch, in the system serif, with a masthead between double rules,
+  a dateline with the issue and the weather, a lead story beside a grey
+  photo of a neighbour, two stories in columns and a Business story. Never a
+  number past the date and issue. A dream is a row in the greeting's list on the first visit of a day,
   and a neighbour's gossip is an italic line at the top of its sheet.
 - **The reeds** are every frog as a card, the one out front first with an
   amber border and OUT FRONT, the rest with a key to swap. The egg bench and
