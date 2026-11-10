@@ -366,7 +366,7 @@ setInterval(() => { if (state.pond && view === "pond" && !document.hidden) rende
 // ---------------------------------------------------------------- play
 
 function renderPlay(p) {
-  $("play-dive-line").textContent = "Best " + p.dive.best + " · today " + p.dive.paid + "/" + p.dive.cap;
+  payLine("dive", p.dive);
   const w = p.wheel;
   $("play-wheel-line").textContent = w.free > 0 ? w.free + " free spin" + (w.free > 1 ? "s" : "") + " waiting" : "Next free spin soon";
   if (!logTurned) {
@@ -385,6 +385,17 @@ function drawLog(cv, open) {
   x.fillStyle = "#e3c57a"; x.fillRect(58, open ? 10 : 18, 2, 8);
   x.fillStyle = "#3f9a4d"; x.fillRect(12, open ? 0 : 8, 8, 4); x.fillRect(36, open ? 2 : 10, 4, 4);
   if (open) { x.fillStyle = "#2f2820"; x.fillRect(8, 28, 48, 10); }
+}
+
+// Each game card says whether a run still pays in full today, and lights up
+// when it does, so the ones worth playing stand out.
+function payLine(key, a) {
+  const left = a.paid >= a.cap ? 0 : Math.max(0, a.full - a.runs);
+  const tag = document.createElement("span");
+  tag.className = "pay " + (left ? "full" : a.paid >= a.cap ? "done" : "less");
+  tag.textContent = left ? "Full pay · " + left + (left > 1 ? " runs" : " run") + " left" : a.paid >= a.cap ? "Paid out today" : "Quarter pay";
+  $("play-" + key + "-line").replaceChildren(tag, document.createTextNode("Best " + a.best + " · today " + a.paid + "/" + a.cap));
+  $("play-" + key).classList.toggle("pays", left > 0);
 }
 
 function drawPlay() {
@@ -430,7 +441,7 @@ function drawPlay() {
   [[60, 48], [72, 48], [84, 48], [84, 36], [96, 36]].forEach(([x, y], i) => { sc.fillStyle = fc[3]; sc.fillRect(x, y, 8, 8); sc.fillStyle = fc[1]; sc.fillRect(x + 1, y + 1, 6, 6); if (i === 4) { sc.fillStyle = "#0a0908"; sc.fillRect(x + 6, y + 2, 1, 1); sc.fillRect(x + 6, y + 5, 1, 1); } });
   sc.fillStyle = "#e9e3d6"; sc.fillRect(124, 38, 5, 4);
   sc.fillStyle = "#8a9099"; sc.fillRect(30, 20, 10, 9); sc.fillRect(130, 70, 10, 9);
-  (p.arcade || []).forEach((a) => { $("play-" + a.key + "-line").textContent = "Best " + a.best + " · today " + a.paid + "/" + a.cap; });
+  (p.arcade || []).forEach((a) => payLine(a.key, a));
   const w = $("play-wheel-art").getContext("2d");
   w.fillStyle = "#0e2c30"; w.fillRect(0, 0, 168, 96);
   for (let y = 0; y < 96; y += 4) for (let x = 0; x < 168; x += 4) {
