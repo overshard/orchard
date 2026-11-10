@@ -393,7 +393,7 @@ function payLine(key, a) {
   const left = a.paid >= a.cap ? 0 : Math.max(0, a.full - a.runs);
   const tag = document.createElement("span");
   tag.className = "pay " + (left ? "full" : a.paid >= a.cap ? "done" : "less");
-  tag.textContent = left ? "Full pay · " + left + (left > 1 ? " runs" : " run") + " left" : a.paid >= a.cap ? "Paid out today" : "Quarter pay";
+  tag.textContent = left ? "Full pay · " + left + " left" : a.paid >= a.cap ? "Paid out today" : "Quarter pay";
   $("play-" + key + "-line").replaceChildren(tag, document.createTextNode("Best " + a.best + " · today " + a.paid + "/" + a.cap));
   $("play-" + key).classList.toggle("pays", left > 0);
 }
