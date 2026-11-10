@@ -29,7 +29,7 @@ func plural(n int, one string) string {
 func (s *store) greet(id int64, first bool) (*greeting, error) {
 	g := &greeting{First: first, Missed: [][2]string{}}
 	v, err := s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
-		gen := newGenome(p.Seed)
+		gen := frogOf(p, now).genome
 		hatched := time.Unix(p.HatchedAt, 0)
 		stage, _ := stageOf(now.Sub(hatched))
 		away := now.Sub(time.Unix(p.LastSeenAt, 0))
@@ -65,7 +65,7 @@ func (s *store) greet(id int64, first bool) (*greeting, error) {
 			born := time.Unix(f.HatchedAt, 0)
 			was, _ := stageOf(time.Unix(p.LastSeenAt, 0).Sub(born))
 			if is, _ := stageOf(now.Sub(born)); was != is {
-				g.Missed = append(g.Missed, [2]string{"Reeds", titled(newGenome(f.Seed).Name) + " grew from " + was + " to " + is})
+				g.Missed = append(g.Missed, [2]string{"Reeds", titled(frogViewOf(f, now).Name) + " grew from " + was + " to " + is})
 			}
 		}
 		if n := foragersReady(frogs, p, now); n > 0 {

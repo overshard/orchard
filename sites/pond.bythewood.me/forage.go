@@ -98,7 +98,7 @@ func (s *store) forage(id int64) (*foragedAll, error) {
 			if err := award(tx, p, &z); err != nil {
 				return err
 			}
-			out.Finds = append(out.Finds, foraged{titled(g.Name), z})
+			out.Finds = append(out.Finds, foraged{titled(frogViewOf(f, now).Name), z})
 		}
 		p.ForageDay = dayOf(now)
 		return nil
