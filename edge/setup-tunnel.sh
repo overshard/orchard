@@ -44,7 +44,7 @@ HELPER=debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b2
 # cloudflared/config.yml. These span two zones and cert.pem covers one at a time,
 # so routing all of them means logging in once per zone and running `up` again.
 # The per-host failures in between are expected.
-HOSTNAMES="isaacbythewood.com www.isaacbythewood.com bythewood.me www.bythewood.me blog.bythewood.me analytics.bythewood.me auth.bythewood.me status.bythewood.me logging.bythewood.me ntfy.bythewood.me repos.bythewood.me dash.bythewood.me chat.bythewood.me llm.bythewood.me"
+HOSTNAMES="isaacbythewood.com www.isaacbythewood.com bythewood.me www.bythewood.me blog.bythewood.me analytics.bythewood.me auth.bythewood.me status.bythewood.me logging.bythewood.me ntfy.bythewood.me repos.bythewood.me dash.bythewood.me chat.bythewood.me llm.bythewood.me pond.bythewood.me"
 
 volume_sh() {
 	docker run --rm -v "$VOLUME:/etc/cloudflared" "$HELPER" sh -c "$1"

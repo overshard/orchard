@@ -31,6 +31,8 @@ ingress:
     service: http://caddy:80
   - hostname: llm.bythewood.me
     service: http://caddy:80
+  - hostname: pond.bythewood.me
+    service: http://caddy:80
 
   # The apex has never served a site. Caddy owns the redirect to the portfolio.
   - hostname: bythewood.me
