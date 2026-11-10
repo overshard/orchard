@@ -28,6 +28,16 @@
       <span class="gtext"><b>Dive</b><span id="play-dive-line">Race nine frogs to the bottom.</span></span>
       <span class="go">Race</span>
     </a>
+    <a class="game" href="#cross" id="play-cross">
+      <canvas id="play-cross-art" width="168" height="96" aria-hidden="true"></canvas>
+      <span class="gtext"><b>Crossing</b><span id="play-cross-line">Hop the lane and the stream home.</span></span>
+      <span class="go">Hop</span>
+    </a>
+    <a class="game" href="#flick" id="play-flick">
+      <canvas id="play-flick-art" width="168" height="96" aria-hidden="true"></canvas>
+      <span class="gtext"><b>Tongue flick</b><span id="play-flick-line">Thirty seconds of bugs.</span></span>
+      <span class="go">Flick</span>
+    </a>
     <a class="game" href="#wheel" id="play-wheel">
       <canvas id="play-wheel-art" width="168" height="96" aria-hidden="true"></canvas>
       <span class="gtext"><b>Lily wheel</b><span id="play-wheel-line"></span></span>
@@ -69,6 +79,30 @@
         <span class="readout"><span class="k">A point pays</span><span class="v" id="dive-pays">1</span></span>
       </div>
       <button type="button" id="dive-exit">Exit</button>
+    </div>
+  </section>
+
+  <section class="view arcade" id="v-cross" hidden>
+    <div class="screen"><canvas id="cross-cv" width="360" height="540" tabindex="0" aria-label="Crossing. Swipe or use the arrow keys to hop."></canvas></div>
+    <div class="dive-hud">
+      <div class="tiles">
+        <span class="readout"><span class="k">Best</span><span class="v" id="cross-best">0</span></span>
+        <span class="readout"><span class="k">Today</span><span class="v" id="cross-today">0/0</span></span>
+        <span class="readout"><span class="k">A point pays</span><span class="v" id="cross-pays">1</span></span>
+      </div>
+      <button type="button" id="cross-exit">Exit</button>
+    </div>
+  </section>
+
+  <section class="view arcade" id="v-flick" hidden>
+    <div class="screen"><canvas id="flick-cv" width="360" height="540" tabindex="0" aria-label="Tongue flick. Tap a bug to catch it."></canvas></div>
+    <div class="dive-hud">
+      <div class="tiles">
+        <span class="readout"><span class="k">Best</span><span class="v" id="flick-best">0</span></span>
+        <span class="readout"><span class="k">Today</span><span class="v" id="flick-today">0/0</span></span>
+        <span class="readout"><span class="k">A point pays</span><span class="v" id="flick-pays">1</span></span>
+      </div>
+      <button type="button" id="flick-exit">Exit</button>
     </div>
   </section>
 

@@ -68,6 +68,10 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
   the last hat or trinket back for the collection.
 - `genome.go` turns a seed into a frog's name, look and rarity, and
   `frontend/src/frog.js` is the same thing in JavaScript plus the drawing.
+- `arcade.go` is the side games, tongue flick and crossing, which pay into the
+  purse like Dive with a cap a day each. `frontend/src/arcade.js` is the frame
+  round them and `flick.js` and `cross.js` are the games.
+- `neighbours.go` is the residents, friendship by dishes and a favour a day.
 - `key.go` and `words.txt` are the pond key.
 - `day.go` reads dash's `/api/state` over the bridge every ten minutes and
   turns the weather, the market, the VIX, Hacker News, the news and the health
