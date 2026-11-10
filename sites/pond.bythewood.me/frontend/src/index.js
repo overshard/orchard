@@ -1,5 +1,5 @@
 import { $, post, state, setPond, watch, reduced, titled, TIERS } from "./api.js";
-import { genome, cells, colours, draw, croak, W, H } from "./frog.js";
+import { genome, bred, cells, sideCells, colours, draw, croak, W, H, SW, SH } from "./frog.js";
 import { drawIcon, iconCanvas, drawFurn } from "./icons.js";
 import { initDive, enterDive, leaveDive } from "./dive.js";
 import { initWheel, enterWheel } from "./wheel.js";
@@ -167,6 +167,44 @@ function drawFurnNight(has, day, t, onPad) {
   }
 }
 
+// ---------------------------------------------------------------- the reeds
+
+// Frogs in the reeds swim across the back of the pond now and then, and
+// sleep in the mud on a cold day like the one out front dozes.
+const swimSprites = new Map();
+
+function swimmer(f) {
+  const key = f.id + f.stage + JSON.stringify(f.mods || null);
+  let s = swimSprites.get(key);
+  if (!s) {
+    const g = bred(genome(f.seed), f.mods), col = colours(g, null);
+    s = [false, true].map((kick) => {
+      const cv = document.createElement("canvas");
+      cv.width = SW * 2; cv.height = SH * 2;
+      draw(cv.getContext("2d"), sideCells(g, f.stage, kick), SW, SH, col, 0, 0, 2);
+      return cv;
+    });
+    swimSprites.set(key, s);
+  }
+  return s;
+}
+
+function drawSwimmers(p, day, t) {
+  if (day.cold || day.shelter) return;
+  p.frogs.filter((f) => !f.front && f.stage !== "egg").slice(0, 7).forEach((f, i) => {
+    const period = 30 + scatter(i, 11) * 20, u = reduced ? 0.25 + i * 0.07 : ((t + scatter(i, 12) * period) % period) / period;
+    if (u > 0.7) return;
+    const dir = i % 2 ? -1 : 1, k = u / 0.7, x = dir > 0 ? -60 + k * 472 : 412 - k * 472;
+    const y = 8 + ((i * 17) % 44) + Math.round(Math.sin(t * 1.3 + i) * 2) * 2;
+    const spr = swimmer(f)[Math.floor(t * 2 + i) % 3 === 0 ? 1 : 0];
+    sx.save();
+    sx.translate(Math.round(x / 2) * 2, y);
+    if (dir < 0) sx.scale(-1, 1);
+    sx.drawImage(spr, dir < 0 ? -SW * 2 : 0, 0);
+    sx.restore();
+  });
+}
+
 function drawScene(now) {
   const p = state.pond, g = state.g;
   if (!p || !g) return;
@@ -179,6 +217,7 @@ function drawScene(now) {
     sx.fillRect(x, y, 20, 2); sx.fillRect(x + 20, y + 2, 12, 2);
   }
   drawBehind(day, t);
+  drawSwimmers(p, day, t);
   const has = {};
   (p.furniture || []).forEach((k) => { has[k] = true; });
   drawFurnBack(has, day, t);

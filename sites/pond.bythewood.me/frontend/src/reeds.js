@@ -48,7 +48,7 @@ function render(p) {
   [front].concat(p.frogs.filter((f) => !f.front)).forEach((f) => box.append(card(f)));
   say("reeds-line", p.frogs.length === 1
     ? name + " has the whole pond to itself for now. Once it's grown it can lay an egg, and the egg grows up here beside it."
-    : p.frogs.length + " frogs live here. One is out front and the rest are in the reeds, and any of them can swap.");
+    : p.frogs.length + " frogs live here. One is out front and the rest are in the reeds, and swim past now and then. Any of them can swap.");
 
   // The bench lays from whoever is out front.
   const full = p.frogs.length >= p.pads, lay = $("lay");
