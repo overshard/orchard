@@ -163,6 +163,21 @@ CREATE TABLE IF NOT EXISTS arcade (
     PRIMARY KEY (pond_id, game)
 ) WITHOUT ROWID;
 
+CREATE TABLE IF NOT EXISTS market_days (
+    day    TEXT NOT NULL,
+    key    TEXT NOT NULL,
+    close  REAL NOT NULL,
+    PRIMARY KEY (key, day)
+) WITHOUT ROWID;
+
+CREATE TABLE IF NOT EXISTS shares (
+    pond_id  INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
+    key      TEXT NOT NULL,
+    count    INTEGER NOT NULL,
+    cost     INTEGER NOT NULL,
+    PRIMARY KEY (pond_id, key)
+) WITHOUT ROWID;
+
 CREATE TABLE IF NOT EXISTS growth (
     id    INTEGER PRIMARY KEY CHECK (id = 1),
     at    INTEGER NOT NULL,
@@ -652,6 +667,7 @@ type view struct {
 		Power power  `json:"power"`
 	} `json:"share"`
 	Day        dayView             `json:"day"`
+	Market     marketView          `json:"market"`
 	Bank       bankView            `json:"bank"`
 	Kitchen    kitchenView         `json:"kitchen"`
 	Shops      map[string]shopView `json:"shops"`
@@ -886,8 +902,19 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	if v.Stall, err = stallOf(q, p.ID, now); err != nil {
 		return err
 	}
+	if v.Market, err = marketOf(q, p, r, now); err != nil {
+		return err
+	}
 	if v.Neighbours, err = neighboursOf(q, p.ID, now); err != nil {
 		return err
+	}
+	for i := range v.Neighbours.All {
+		for _, f := range v.Market.Firms {
+			if f.Key == residentFirm(i).Key {
+				v.Neighbours.All[i].Firm = f.Name
+				v.Neighbours.All[i].Talk = firmTalk(f, residents[i].seed)
+			}
+		}
 	}
 	if v.Arcade, err = arcadeViews(q, p.ID, now); err != nil {
 		return err

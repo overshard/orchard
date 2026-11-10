@@ -45,7 +45,10 @@ type reading struct {
 	// Tomorrow's high, low, chance of rain and sky, for the weatherman.
 	Tmr   *tomorrow `json:"tomorrow,omitempty"`
 	Shows []string  `json:"shows,omitempty"`
-	Games []string  `json:"games,omitempty"`
+	// Each market series' percent today, and dash's session for the stocks.
+	Markets map[string]float64 `json:"markets,omitempty"`
+	Session string             `json:"session,omitempty"`
+	Games   []string           `json:"games,omitempty"`
 }
 
 type tomorrow struct {
@@ -57,7 +60,8 @@ type tomorrow struct {
 
 type dashShape struct {
 	Market struct {
-		Cards []struct {
+		Session string `json:"session"`
+		Cards   []struct {
 			Key         string `json:"key"`
 			Percent     string `json:"percent"`
 			Unavailable bool   `json:"unavailable"`
@@ -161,11 +165,21 @@ func readDash(raw []byte, now time.Time) (reading, error) {
 			r.Shows = append(r.Shows, title)
 		}
 	}
+	r.Session = d.Market.Session
 	for _, c := range d.Market.Cards {
-		if c.Key == "sp500" && !c.Unavailable {
-			if p, err := strconv.ParseFloat(strings.TrimSuffix(c.Percent, "%"), 64); err == nil {
-				r.SP, r.HasSP = p, true
-			}
+		if c.Unavailable {
+			continue
+		}
+		p, err := strconv.ParseFloat(strings.TrimSuffix(c.Percent, "%"), 64)
+		if err != nil {
+			continue
+		}
+		if r.Markets == nil {
+			r.Markets = map[string]float64{}
+		}
+		r.Markets[c.Key] = p
+		if c.Key == "sp500" {
+			r.SP, r.HasSP = p, true
 		}
 	}
 	for _, c := range d.Signal.Conditions {

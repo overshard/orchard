@@ -132,7 +132,7 @@ function render(p) {
     c.type = "button"; c.className = "reed";
     name.textContent = n.name;
     h.className = "hearts"; h.textContent = hearts(n.level) + (n.lodger ? " · lodger" : n.gave ? " · fed today" : "");
-    fav.textContent = "Loves " + n.fav.toLowerCase();
+    fav.textContent = n.talk || "Loves " + n.fav.toLowerCase();
     c.append(art(n, 3), name, h, fav);
     c.addEventListener("click", () => show(n));
     grid.append(c);

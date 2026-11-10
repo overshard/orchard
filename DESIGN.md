@@ -592,6 +592,15 @@ version of the old look and a handheld pet shell.
 - **The side games end like Dive.** Their title and results sit in a panel
   with a screen window, and the strip under every game is readout glass and an
   EJECT key.
+- **The market is a board.** A ticker of pebble prices scrolls along the top in
+  readout glass, still under reduced motion, each business is a pixel
+  shopfront in its own awning colour with its price in glass, and a day down
+  turns that price pink. The chart in a business's sheet is a stepped pixel
+  line in glass, amber over thirty days that ended up and pink when down.
+  Only pebble prices are ever shown, never the real percent.
+- **The day has a mood.** A faint wash over the water per mood, grey on a down
+  market, pale on a frost, warm on a bright one, and the frog has a tiny TV
+  or handheld on the pad on a day it's watching or playing something.
 - **A press is felt.** Keys travel, LEDs blink, and with sound on there's a soft
   clunk and click made in code like the croak. Sound is off until turned on, and so is a buzz on a bonk, both as keys in settings that stay in that browser.
 - **Colour lives on the screens, the icons and rarity.** The frog, the water,

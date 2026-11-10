@@ -66,7 +66,7 @@ func fail(w http.ResponseWriter, r *http.Request, err error) {
 		writeError(w, http.StatusTooManyRequests, err.Error())
 	case errors.Is(err, errPoor), errors.Is(err, errNotYet), errors.Is(err, errNotHeld), errors.Is(err, errBadRun), errors.Is(err, errBadName), errors.Is(err, errBadPrice), errors.Is(err, errStallFull),
 		errors.Is(err, errFullPads), errors.Is(err, errMaxed), errors.Is(err, errSoldOut), errors.Is(err, errFed), errors.Is(err, errLevel), errors.Is(err, errShort), errors.Is(err, errGiven),
-		errors.Is(err, errNoBurrow), errors.Is(err, errNotLodge):
+		errors.Is(err, errNoBurrow), errors.Is(err, errNotLodge), errors.Is(err, errCap), errors.Is(err, errFirm), errors.Is(err, errCount):
 		writeError(w, http.StatusConflict, err.Error())
 	default:
 		slog.Error("pond", slog.String("path", r.URL.Path), slog.Any("err", err))
@@ -538,6 +538,10 @@ func (s *site) apiDevDay(w http.ResponseWriter, r *http.Request) {
 		in.At = time.Now()
 		s.store.day.pinned.Store(true)
 		s.store.day.last.Store(in)
+		if err := s.store.lockMarket(); err != nil {
+			fail(w, r, err)
+			return
+		}
 	}
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
@@ -586,6 +590,21 @@ func (s *site) apiStallTake(id int64, r *http.Request, w http.ResponseWriter) (a
 		return nil, nil
 	}
 	return s.store.stallTake(id, in.Slot)
+}
+
+func (s *site) apiShares(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	var in struct {
+		Key  string `json:"key"`
+		N    int    `json:"n"`
+		Sell bool   `json:"sell"`
+	}
+	if !readJSON(w, r, &in) {
+		return nil, nil
+	}
+	if in.Sell {
+		return s.store.sellShares(id, in.Key, in.N)
+	}
+	return s.store.buyShares(id, in.Key, in.N)
 }
 
 func (s *site) apiStallCollect(id int64, r *http.Request, w http.ResponseWriter) (any, error) {

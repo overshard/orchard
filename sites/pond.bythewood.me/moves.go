@@ -57,6 +57,13 @@ func (s *store) greet(id int64, first bool) (*greeting, error) {
 			if l := moodLine(r, dayOfReading(r, now).Mood, p.Seed, dayOf(now)); l != "" {
 				g.Line += " " + l
 			}
+			m, err := marketOf(tx, p, r, now)
+			if err != nil {
+				return err
+			}
+			if l := marketMood(m); l != "" {
+				g.Line += " " + l
+			}
 		}
 		if was, _ := stageOf(time.Unix(p.LastSeenAt, 0).Sub(hatched)); was != stage && away > 0 {
 			g.Missed = append(g.Missed, [2]string{"Grew", "from " + was + " to " + stage})

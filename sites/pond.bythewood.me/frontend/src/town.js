@@ -2,13 +2,14 @@ import { $, post, state, setPond, watch, reduced, TIERS } from "./api.js";
 import { genome, cells, colours, draw, W, H } from "./frog.js";
 import { drawIcon } from "./icons.js";
 import { presentsFrom } from "./neighbours.js";
+import { initMarket } from "./market.js";
 import { slot, thingArt, openSheet, closeSheet, sheetSay, button, reveal, ghost, TIER_GLOW } from "./ui.js";
 
 let tab = "shops";
 
 function showTab(next) {
   tab = next;
-  ["shops", "neighbours", "stall", "wizard"].forEach((k) => { $("town-" + k).hidden = k !== next; });
+  ["shops", "neighbours", "stall", "wizard", "market"].forEach((k) => { $("town-" + k).hidden = k !== next; });
   document.querySelectorAll("#town-tabs button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.town === next ? "true" : "false"));
   if (next === "wizard") { wizOn = true; cancelAnimationFrame(wizRaf); wizRaf = requestAnimationFrame(wizTick); } else wizOn = false;
   if (next === "stall") drawStall();
@@ -289,6 +290,7 @@ export function initTown() {
   watch(renderBoxes);
   watch(renderStall);
   watch(renderWizard);
+  initMarket();
   boxBuy("box-open", "/api/hats/box", "Wren");
   boxBuy("trinket-box", "/api/trinkets/box", "Old Moss");
   $("town-tabs").addEventListener("click", (e) => {
