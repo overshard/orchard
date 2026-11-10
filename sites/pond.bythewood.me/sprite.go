@@ -436,9 +436,9 @@ func spriteCells(g look, stage string, day int, hatShape int) []uint8 {
 }
 
 var (
-	hatMain = [][2]string{{}, {"#1b1a22", "#b3222f"}, {"#e8559a", "#ffe27a"}, {"#f2c230", "#d8402f"}, {"#4f9a4a", "#2f6b33"}, {"#d8402f", "#f3e4c2"}, {"#f3e4c2", "#f2c230"}, {"#8a5a2b", "#3a2412"}, {"#4b3fa8", "#ffe27a"}, {"#d8402f", "#fff6dc"}, {"#9aa0a6", "#f3e4c2"}, {"#fff6dc", "#c9ccd0"}, {"#3d8fd6", "#f2c230"}, {"#ffe27a", "#fff6dc"}, {"#e8559a", "#b3306d"}, {"#e3c57a", "#d8402f"}}
+	hatMain  = [][2]string{{}, {"#1b1a22", "#b3222f"}, {"#e8559a", "#ffe27a"}, {"#f2c230", "#d8402f"}, {"#4f9a4a", "#2f6b33"}, {"#d8402f", "#f3e4c2"}, {"#f3e4c2", "#f2c230"}, {"#8a5a2b", "#3a2412"}, {"#4b3fa8", "#ffe27a"}, {"#d8402f", "#fff6dc"}, {"#9aa0a6", "#f3e4c2"}, {"#fff6dc", "#c9ccd0"}, {"#3d8fd6", "#f2c230"}, {"#ffe27a", "#fff6dc"}, {"#e8559a", "#b3306d"}, {"#e3c57a", "#d8402f"}}
 	hoodCols = [][2]string{{"#4f9a4a", "#f2c230"}, {"#2f6b6b", "#ffe27a"}, {"#8a5a2b", "#e3c57a"}, {"#8a8a3a", "#f3e4c2"}, {"#5a3f24", "#e8a05a"}, {"#3d5a8a", "#e9e3d6"}, {"#6b3fa8", "#f2c230"}}
-	hatWays = [][2]string{{}, {"#4f9a4a", "#cfe8a0"}, {"#b03a8c", "#ffd0ea"}, {"#f2c230", "#fff6dc"}}
+	hatWays  = [][2]string{{}, {"#4f9a4a", "#cfe8a0"}, {"#b03a8c", "#ffd0ea"}, {"#f2c230", "#fff6dc"}}
 )
 
 func rgb(s string) color.RGBA {
