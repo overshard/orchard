@@ -34,6 +34,16 @@ type Weather struct {
 	// acts on. It comes out of the same request the rest of this panel already
 	// makes, so it costs nothing.
 	Hours []Hour `json:"hours"`
+
+	// Tomorrow is for pond, whose weatherman reads it out.
+	Tomorrow *Tomorrow `json:"tomorrow,omitempty"`
+}
+
+type Tomorrow struct {
+	High      string `json:"high"`
+	Low       string `json:"low"`
+	Rain      int    `json:"rain"`
+	Condition string `json:"condition"`
 }
 
 // Hour is one column of the strip. Rain is a chance and not a depth, since a
@@ -64,6 +74,7 @@ type weatherPayload struct {
 		Sunrise      []string  `json:"sunrise"`
 		Sunset       []string  `json:"sunset"`
 		UVMax        []float64 `json:"uv_index_max"`
+		Code         []int     `json:"weather_code"`
 	} `json:"daily"`
 }
 
@@ -72,7 +83,7 @@ func fetchWeather(ctx context.Context, g *Guard) (Weather, error) {
 		"%s?latitude=%.2f&longitude=%.2f"+
 			"&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m"+
 			"&hourly=temperature_2m,precipitation_probability"+
-			"&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset,uv_index_max"+
+			"&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset,uv_index_max,weather_code"+
 			"&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch"+
 			// Two days, because the strip runs past midnight for most of the
 			// evening and one day of hours would run out at 11pm.
@@ -122,7 +133,21 @@ func fetchWeather(ctx context.Context, g *Guard) (Weather, error) {
 		}
 	}
 	w.Hours = buildHours(payload, time.Now())
+	w.Tomorrow = tomorrowOf(payload)
 	return w, nil
+}
+
+func tomorrowOf(p weatherPayload) *Tomorrow {
+	d := p.Daily
+	if len(d.Max) < 2 || len(d.Min) < 2 || len(d.PrecipChance) < 2 || len(d.Code) < 2 {
+		return nil
+	}
+	return &Tomorrow{
+		High:      fmt.Sprintf("%.0f", d.Max[1]),
+		Low:       fmt.Sprintf("%.0f", d.Min[1]),
+		Rain:      d.PrecipChance[1],
+		Condition: describeWeather(d.Code[1]),
+	}
 }
 
 // hoursShown is how far ahead the strip looks. Eight covers the rest of an
