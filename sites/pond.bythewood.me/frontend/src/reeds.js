@@ -1,3 +1,4 @@
+import { drawReeds } from "./scenes.js";
 import { $, post, state, setPond, watch, titled, TIERS } from "./api.js";
 import { genome, bred, cells, colours, draw, W, H } from "./frog.js";
 import { iconCanvas } from "./icons.js";
@@ -184,6 +185,7 @@ function card(f) {
 function render(p) {
   const front = p.frogs.find((f) => f.front), name = titled(front.name);
   frontID = front.id;
+  drawReeds($("reeds-art"), p);
   const box = $("reeds");
   box.textContent = "";
   [front].concat(p.frogs.filter((f) => !f.front)).forEach((f) => box.append(card(f)));

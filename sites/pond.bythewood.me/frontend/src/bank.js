@@ -1,3 +1,4 @@
+import { drawBank, drawPot } from "./scenes.js";
 import { $, post, state, setPond, watch, reduced, heldNow, canBuild, TIERS } from "./api.js";
 import { iconCanvas, dishCanvas } from "./icons.js";
 import { genome, cells, colours, draw, W, H } from "./frog.js";
@@ -115,6 +116,7 @@ function tick(now) {
 function render(p) {
   const b = p.bank, gv = b.gravel, gd = b.garden;
 
+  drawBank($("bank-art"), p);
   const built = (gv.level ? 1 : 0) + (gd.level ? 1 : 0);
   say("bank-line", built ? "" : "Build the gravel bar first. It makes pebbles while you're away.");
 
@@ -169,6 +171,7 @@ function render(p) {
     larder.append(btn);
   });
   $("cook").disabled = picked.length !== 2;
+  drawPot($("pot-art"), picked, p.day && p.day.night);
 
   const dishes = $("dishes");
   dishes.textContent = "";
