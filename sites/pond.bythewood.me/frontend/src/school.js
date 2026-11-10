@@ -3,7 +3,7 @@ import { colours } from "./frog.js";
 // Tadpoles. Lead a school round the shallows eating water fleas, and every
 // flea adds a tadpole to the tail. Swipe or tap to turn, and running into the
 // reeds, a stone or your own school ends it.
-const C = 12, COLS = 15, ROWS = 22, W = C * COLS, H = C * ROWS;
+const C = 16, COLS = 11, ROWS = 16, W = C * COLS, H = C * ROWS, M = C / 2;
 const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 
 let G = null, col = null;
@@ -28,7 +28,7 @@ export const school = {
   reset(g) {
     col = colours(g, null);
     const cx = Math.floor(COLS / 2);
-    G = { t: 0, tick: 0, every: 0.2, dir: "up", turns: [], body: [{ x: cx, y: 15 }, { x: cx, y: 16 }, { x: cx, y: 17 }], grow: 0, score: 0, stones: [], flea: null, gold: null, why: "", dead: 0, pops: [] };
+    G = { t: 0, tick: 0, every: 0.2, dir: "up", turns: [], body: [{ x: cx, y: ROWS - 5 }, { x: cx, y: ROWS - 4 }, { x: cx, y: ROWS - 3 }], grow: 0, score: 0, stones: [], flea: null, gold: null, why: "", dead: 0, pops: [] };
     G.flea = free();
   },
 
@@ -69,14 +69,14 @@ export const school = {
     if (G.grow > 0) G.grow--; else G.body.pop();
     if (n.x === G.flea.x && n.y === G.flea.y) {
       G.score++; G.grow++;
-      G.pops.push({ x: n.x * C + 6, y: n.y * C, s: "+1", t: 0 });
+      G.pops.push({ x: n.x * C + M, y: n.y * C, s: "+1", t: 0 });
       G.every = Math.max(0.085, G.every * 0.97);
-      if (G.score % 6 === 0 && G.stones.length < 10) G.stones.push(free());
+      if (G.score % 6 === 0 && G.stones.length < 7) G.stones.push(free());
       G.flea = free();
       if (!G.gold && Math.random() < 0.18) G.gold = { ...free(), left: 6 };
     } else if (G.gold && n.x === G.gold.x && n.y === G.gold.y) {
       G.score += 3; G.grow += 2;
-      G.pops.push({ x: n.x * C + 6, y: n.y * C, s: "+3", t: 0 });
+      G.pops.push({ x: n.x * C + M, y: n.y * C, s: "+3", t: 0 });
       G.gold = null;
     }
   },
@@ -95,32 +95,34 @@ export const school = {
     for (let i = 0; i < H; i += 5) { x.fillRect(0, i, 4, 2); x.fillRect(W - 4, i + 2, 4, 2); }
     if (!G) return;
     for (const s of G.stones) {
-      x.fillStyle = "#3a3f46"; x.fillRect(s.x * C + 1, s.y * C + 2, C - 2, C - 3);
-      x.fillStyle = "#8a9099"; x.fillRect(s.x * C + 2, s.y * C + 1, C - 4, C - 4);
-      x.fillStyle = "#b6bcc4"; x.fillRect(s.x * C + 3, s.y * C + 2, 3, 2);
+      x.fillStyle = "#3a3f46"; x.fillRect(s.x * C + 1, s.y * C + 3, C - 2, C - 4);
+      x.fillStyle = "#8a9099"; x.fillRect(s.x * C + 2, s.y * C + 2, C - 4, C - 6);
+      x.fillStyle = "#b6bcc4"; x.fillRect(s.x * C + 4, s.y * C + 3, 4, 2);
     }
-    const bob = Math.floor(G.t * 6) % 2;
-    x.fillStyle = "#e9e3d6"; x.fillRect(G.flea.x * C + 4, G.flea.y * C + 4 + bob, 4, 3);
-    x.fillStyle = "#3a3f46"; x.fillRect(G.flea.x * C + 5, G.flea.y * C + 5 + bob, 2, 1);
+    const bob = Math.floor(G.t * 6) % 2, fx = G.flea.x * C, fy = G.flea.y * C + bob;
+    x.fillStyle = "#e9e3d6"; x.fillRect(fx + 5, fy + 6, 6, 4); x.fillRect(fx + 6, fy + 5, 4, 6);
+    x.fillStyle = "#3a3f46"; x.fillRect(fx + 7, fy + 7, 2, 2); x.fillRect(fx + 4, fy + 4, 1, 2); x.fillRect(fx + 11, fy + 4, 1, 2);
     if (G.gold && (G.gold.left > 2 || Math.floor(G.gold.left * 8) % 2)) {
       x.fillStyle = "rgba(255,226,122,0.3)"; x.fillRect(G.gold.x * C, G.gold.y * C, C, C);
-      x.fillStyle = "#ffe27a"; x.fillRect(G.gold.x * C + 3, G.gold.y * C + 4 + bob, 6, 4);
+      x.fillStyle = "#ffe27a"; x.fillRect(G.gold.x * C + 4, G.gold.y * C + 5 + bob, 8, 6);
     }
     const flash = G.dead && Math.floor(G.dead * 12) % 2;
-    G.body.forEach((b, i) => {
-      if (flash) return;
-      const nx = G.body[i - 1] || { x: b.x + DIRS[G.dir][0], y: b.y + DIRS[G.dir][1] };
-      const dx = nx.x - b.x, dy = nx.y - b.y, cx = b.x * C + 6, cy = b.y * C + 6, wig = Math.round(Math.sin(G.t * 14 + i) * 1.5);
-      const tx = cx - dx * 4 + (dy ? wig : 0), ty = cy - dy * 4 + (dx ? wig : 0);
-      x.fillStyle = col[3]; x.fillRect(Math.round(tx) - 1, Math.round(ty) - 1, 2, 2);
-      x.fillStyle = col[3]; x.fillRect(cx - 3, cy - 3, 6, 6);
-      x.fillStyle = col[1]; x.fillRect(cx - 2, cy - 2, 4, 4);
-      if (i === 0) {
-        x.fillStyle = "#0a0908";
-        if (dx) { x.fillRect(cx + dx * 2, cy - 2, 1, 1); x.fillRect(cx + dx * 2, cy + 1, 1, 1); }
-        else { x.fillRect(cx - 2, cy + dy * 2, 1, 1); x.fillRect(cx + 1, cy + dy * 2, 1, 1); }
+    // Each one is a tadpole, a round head and a tail that tapers and wiggles.
+    for (let i = G.body.length - 1; i >= 0 && !flash; i--) {
+      const b = G.body[i], nx = G.body[i - 1] || { x: b.x + DIRS[G.dir][0], y: b.y + DIRS[G.dir][1] };
+      const dx = nx.x - b.x, dy = nx.y - b.y, cx = b.x * C + M, cy = b.y * C + M;
+      for (let k = 1; k <= 3; k++) {
+        const wig = Math.round(Math.sin(G.t * 14 + i - k) * k * 0.8), sz = 4 - k;
+        const tx = cx - dx * (3 + k * 3) + (dy ? wig : 0), ty = cy - dy * (3 + k * 3) + (dx ? wig : 0);
+        x.fillStyle = col[3]; x.fillRect(Math.round(tx - sz / 2), Math.round(ty - sz / 2), sz + 1, sz + 1);
       }
-    });
+      x.fillStyle = col[3]; x.fillRect(cx - 4, cy - 3, 8, 6); x.fillRect(cx - 3, cy - 4, 6, 8);
+      x.fillStyle = col[1]; x.fillRect(cx - 3, cy - 2, 6, 4); x.fillRect(cx - 2, cy - 3, 4, 6);
+      x.fillStyle = "rgba(255,246,220,0.45)"; x.fillRect(cx - 2 - dy, cy - 2 + dx, 2, 1);
+      x.fillStyle = "#0a0908";
+      if (dx) { x.fillRect(cx + dx * 2, cy - 2, 1, 1); x.fillRect(cx + dx * 2, cy + 1, 1, 1); }
+      else { x.fillRect(cx - 2, cy + dy * 2, 1, 1); x.fillRect(cx + 1, cy + dy * 2, 1, 1); }
+    }
     x.font = "700 12px 'Space Grotesk', sans-serif"; x.textAlign = "center";
     G.pops.forEach((p) => { x.fillStyle = "#ffb000"; x.fillText(p.s, p.x, p.y); });
     x.textAlign = "left"; x.fillStyle = "#ece5d8"; x.fillText(String(G.score), 6, 15);
