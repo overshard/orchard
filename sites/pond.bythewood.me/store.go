@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS ponds (
     dye_at          INTEGER NOT NULL DEFAULT 0,
     dye_batch       TEXT NOT NULL DEFAULT '',
     trinkets_out    TEXT NOT NULL DEFAULT '',
+    forage_day      TEXT NOT NULL DEFAULT '',
     key_saved_at    INTEGER
 );
 CREATE INDEX IF NOT EXISTS ponds_created ON ponds(created_at);
@@ -137,6 +138,7 @@ var addedColumns = []struct{ table, name, def string }{
 	{"ponds", "dye_at", "INTEGER NOT NULL DEFAULT 0"},
 	{"ponds", "dye_batch", "TEXT NOT NULL DEFAULT ''"},
 	{"ponds", "trinkets_out", "TEXT NOT NULL DEFAULT ''"},
+	{"ponds", "forage_day", "TEXT NOT NULL DEFAULT ''"},
 }
 
 func ensureColumns(db *sql.DB) error {
@@ -281,6 +283,7 @@ type pond struct {
 	DyeAt       int64
 	DyeBatch    string
 	TrinketsOut string
+	ForageDay   string
 
 	FrogID    int64
 	Seed      uint32
@@ -294,7 +297,7 @@ const pondColumns = `p.id, p.public_id, p.created_at, p.last_seen_at, p.last_gif
 	p.dive_best, p.dive_day, p.dive_runs, p.dive_paid, p.dive_run, p.dive_started_at,
 	p.dive_ghosts, p.dive_podium, p.pads, p.key_saved_at,
 	p.gravel_level, p.gravel_at, p.garden_level, p.dive_form,
-	p.dye_level, p.dye_at, p.dye_batch, p.trinkets_out, f.id, f.seed, f.genome_json, f.hatched_at,
+	p.dye_level, p.dye_at, p.dye_batch, p.trinkets_out, p.forage_day, f.id, f.seed, f.genome_json, f.hatched_at,
 	f.hat_shape, f.hat_colour`
 
 func scanPond(row *sql.Row) (*pond, error) {
@@ -304,7 +307,7 @@ func scanPond(row *sql.Row) (*pond, error) {
 		&p.DiveBest, &p.DiveDay, &p.DiveRuns, &p.DivePaid, &p.DiveRun, &p.DiveStart,
 		&p.DiveGhosts, &p.DivePodium, &p.Pads, &p.KeySavedAt,
 		&p.GravelLevel, &p.GravelAt, &p.GardenLevel, &p.DiveForm,
-		&p.DyeLevel, &p.DyeAt, &p.DyeBatch, &p.TrinketsOut, &p.FrogID, &p.Seed, &p.ModsJSON, &p.HatchedAt,
+		&p.DyeLevel, &p.DyeAt, &p.DyeBatch, &p.TrinketsOut, &p.ForageDay, &p.FrogID, &p.Seed, &p.ModsJSON, &p.HatchedAt,
 		&p.Wearing.Shape, &p.Wearing.Colour)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, errNoPond
@@ -326,12 +329,12 @@ func savePond(tx *sql.Tx, p *pond) error {
 		dive_best = ?, dive_day = ?, dive_runs = ?, dive_paid = ?, dive_run = ?,
 		dive_started_at = ?, dive_ghosts = ?, dive_podium = ?, pads = ?, key_saved_at = ?,
 		gravel_level = ?, gravel_at = ?, garden_level = ?, dive_form = ?,
-		dye_level = ?, dye_at = ?, dye_batch = ?, trinkets_out = ? WHERE id = ?`,
+		dye_level = ?, dye_at = ?, dye_batch = ?, trinkets_out = ?, forage_day = ? WHERE id = ?`,
 		p.LastSeenAt, p.LastGiftAt, p.Pebbles, p.FreeSpins, p.SpinAt, p.PaidSpins, p.PaidDay,
 		p.LogDay, p.DiveBest, p.DiveDay, p.DiveRuns, p.DivePaid, p.DiveRun, p.DiveStart,
 		p.DiveGhosts, p.DivePodium, p.Pads, p.KeySavedAt,
 		p.GravelLevel, p.GravelAt, p.GardenLevel, p.DiveForm,
-		p.DyeLevel, p.DyeAt, p.DyeBatch, p.TrinketsOut, p.ID); err != nil {
+		p.DyeLevel, p.DyeAt, p.DyeBatch, p.TrinketsOut, p.ForageDay, p.ID); err != nil {
 		return err
 	}
 	_, err := tx.Exec(`UPDATE frogs SET hat_shape = ?, hat_colour = ? WHERE id = ?`,
@@ -554,8 +557,10 @@ type view struct {
 		Cost int            `json:"cost"`
 		Odds [tierCount]int `json:"odds"`
 	} `json:"box"`
-	Frogs   []reedView `json:"frogs"`
-	Pads    int        `json:"pads"`
+	Frogs []reedView `json:"frogs"`
+	Pads  int        `json:"pads"`
+	// How many frogs in the reeds can forage right now.
+	Forage  int        `json:"forage"`
 	PadCost int        `json:"pad_cost"`
 	Hats    []hatView  `json:"hats"`
 	Items   []itemView `json:"items"`
@@ -652,6 +657,7 @@ func viewOf(q querier, p pond, now time.Time) (*view, error) {
 		}
 		v.Frogs = append(v.Frogs, reedView{frogView: frogViewOf(f, now), ID: f.ID, Front: f.Front, LayIn: int64(in)})
 	}
+	v.Forage = foragersReady(frogs, &p, now)
 	v.Pads = p.Pads
 	if p.Pads < mostPads {
 		v.PadCost = padCost(p.Pads)

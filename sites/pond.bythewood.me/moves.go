@@ -62,6 +62,9 @@ func (s *store) greet(id int64, first bool) (*greeting, error) {
 				g.Missed = append(g.Missed, [2]string{"Reeds", titled(newGenome(f.Seed).Name) + " grew from " + was + " to " + is})
 			}
 		}
+		if n := foragersReady(frogs, p, now); n > 0 {
+			g.Missed = append(g.Missed, [2]string{"Reeds", plural(n, "frog") + " back from foraging"})
+		}
 		if p.FreeSpins > 0 {
 			g.Missed = append(g.Missed, [2]string{"Wheel", plural(p.FreeSpins, "free spin") + " saved"})
 		}

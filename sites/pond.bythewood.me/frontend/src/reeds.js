@@ -18,7 +18,7 @@ function card(f) {
   draw(cv.getContext("2d"), cells(g, f.stage, { hat: f.hat.shape, legs: f.day >= 6 }), W, H, colours(g, f.hat), 0, 0, 3);
   const name = document.createElement("b"), what = document.createElement("span"), tier = document.createElement("span");
   name.textContent = titled(f.name);
-  what.textContent = f.stage.charAt(0).toUpperCase() + f.stage.slice(1) + ", day " + f.day;
+  what.textContent = f.stage.charAt(0).toUpperCase() + f.stage.slice(1) + ", day " + f.day + (f.stage === "egg" ? "" : ", " + f.nature.toLowerCase());
   tier.className = "tier t" + f.rarity.tier; tier.textContent = TIERS[f.rarity.tier];
   div.append(cv, name, what, tier);
   if (f.front) {
@@ -48,7 +48,9 @@ function render(p) {
   [front].concat(p.frogs.filter((f) => !f.front)).forEach((f) => box.append(card(f)));
   say("reeds-line", p.frogs.length === 1
     ? name + " has the whole pond to itself for now. Once it's grown it can lay an egg, and the egg grows up here beside it."
-    : p.frogs.length + " frogs live here. One is out front and the rest are in the reeds, and swim past now and then. Any of them can swap.");
+    : p.frogs.length + " frogs live here. One is out front and the rest are in the reeds, and swim past now and then. Any of them can swap. Once a day the ones old enough go foraging, and what they find depends on their nature.");
+  $("forage-row").hidden = !p.forage;
+  $("forage").textContent = "See what " + (p.forage === 1 ? "it" : "they") + " brought in";
 
   // The bench lays from whoever is out front.
   const full = p.frogs.length >= p.pads, lay = $("lay");
@@ -172,6 +174,22 @@ export function initReeds() {
       say("bench-out", msg);
       setPond(d.pond);
     }, (e) => { say("bench-out", e.message); lay.disabled = false; });
+  });
+  $("forage").addEventListener("click", function () {
+    this.disabled = true;
+    post("/api/reeds/forage").then((d) => {
+      const out = $("forage-out");
+      out.textContent = "";
+      d.finds.forEach((x) => {
+        const dt = document.createElement("dt"), dd = document.createElement("dd");
+        dt.textContent = x.frog;
+        dd.textContent = x.prize.text;
+        out.append(dt, dd);
+      });
+      out.hidden = false;
+      this.disabled = false;
+      setPond(d.pond);
+    }, (e) => { say("reeds-out", e.message); this.disabled = false; });
   });
   $("pad-buy").addEventListener("click", () => {
     post("/api/pads/buy").then(setPond, (e) => say("pads-line", e.message));

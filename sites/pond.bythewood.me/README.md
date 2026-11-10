@@ -32,6 +32,8 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
   a visitor can do to one, and `game.go` is the rules and the odds.
 - `breed.go` is the egg bench, the reeds and pads. A frog off the bench keeps
   how it differs from its seed as JSON in `frogs.genome_json`.
+- `forage.go` is the reeds frogs going out once a day, each bringing back
+  something that follows its nature.
 - `bank.go` is the bank, the gravel bar and the garden plots, and the kitchen
   that turns two things from the garden into a dish. `kitchen.go` has the
   ingredients, what grows in which month and every dish.
@@ -42,6 +44,8 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
   the pad. They're items with a `t_` prefix, and `trinkets_found` remembers
   every one a pond has had. The cookable ones are also on the end of
   `ingredients`.
+- `rocks.go` is the rock shelf, and `rocks_found` remembers every rock a pond
+  has had since the dye works boils them away.
 - `shop.go` is Wren's hats, Brindle's larder, Old Moss's curios and Fenn's
   furniture, which the page draws on the water. Stock is
   dealt from the day so everybody sees the same shelf, and `bought` counts
