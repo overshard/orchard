@@ -1,3 +1,4 @@
+import { sfx } from "./sound.js";
 import { colours } from "./frog.js";
 import { drawTop } from "./top.js";
 
@@ -48,7 +49,7 @@ function under() {
 }
 
 function lose(why) {
-  G.lives--; G.flash = 0.6; G.why = why;
+  G.lives--; G.flash = 0.6; G.why = why; sfx("bonk");
   if (G.lives > 0) { G.fx = Math.floor(COLS / 2); G.row = START; G.hop = 0; }
 }
 
@@ -73,16 +74,16 @@ export const cross = {
     const nx = Math.round(G.fx) + d[0], nr = G.row + d[1];
     if (nx < 0 || nx >= COLS || nr > START || nr < HOME) return;
     G.fx = d[0] ? nx : Math.max(0, Math.min(COLS - 1, Math.round(G.fx)));
-    G.row = nr; G.hop = HOP; G.face = dir;
+    G.row = nr; G.hop = HOP; G.face = dir; sfx("hop");
     if (G.row < G.best) { G.best = G.row; G.score++; }
     if (G.pebble && G.pebble.row === G.row && G.pebble.col === Math.round(G.fx)) {
-      G.score += 3; G.pops.push({ x: G.fx * C + 7, y: G.row * C, s: "+3", t: 0 }); G.pebble = null;
+      sfx("catch"); G.score += 3; G.pops.push({ x: G.fx * C + 7, y: G.row * C, s: "+3", t: 0 }); G.pebble = null;
     }
     if (G.row === HOME) {
       let pts = 10;
       if (G.fly === Math.round(G.fx)) pts += 5;
       G.score += pts; G.trip++;
-      G.pops.push({ x: G.fx * C + 7, y: G.row * C + 4, s: "+" + pts, t: 0 });
+      G.pops.push({ x: G.fx * C + 7, y: G.row * C + 4, s: "+" + pts, t: 0 }); sfx("catch");
       home(); scatter();
     }
   },

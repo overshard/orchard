@@ -1,3 +1,4 @@
+import { sfx } from "./sound.js";
 import { colours } from "./frog.js";
 import { drawTop } from "./top.js";
 
@@ -30,7 +31,7 @@ function spawn() {
 
 function bump(why) {
   if (G.safe > 0) return;
-  G.lives--; G.safe = 1.2; G.why = why; G.shake = 0.25;
+  G.lives--; G.safe = 1.2; G.why = why; G.shake = 0.25; sfx("bonk");
 }
 
 export const raft = {
@@ -71,12 +72,12 @@ export const raft = {
       if (t.k === "weir" && fy >= t.y) {
         t.done = true;
         if (G.fx - 5 > t.gx && G.fx + 5 < t.gx + t.gap) {
-          G.bonus++; G.pops.push({ x: G.fx, y: FY - 12, s: "+1", t: 0 });
+          sfx("catch"); G.bonus++; G.pops.push({ x: G.fx, y: FY - 12, s: "+1", t: 0 });
         } else bump("IN THE REEDS");
       } else if (t.k === "rock" && Math.abs(fy - t.y) < t.r + 5 && Math.abs(G.fx - t.x) < t.r + 5) {
         t.done = true; bump("ON A ROCK");
       } else if (t.k === "pebble" && Math.abs(fy - t.y) < 8 && Math.abs(G.fx - t.x) < 9) {
-        t.done = true; G.bonus += 2; G.pops.push({ x: t.x, y: FY - 12, s: "+2", t: 0 });
+        t.done = true; sfx("catch"); G.bonus += 2; G.pops.push({ x: t.x, y: FY - 12, s: "+2", t: 0 });
       }
     }
     G.things = G.things.filter((t) => screenY(t.y) < H + 20);

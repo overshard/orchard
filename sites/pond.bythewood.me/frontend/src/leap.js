@@ -1,3 +1,4 @@
+import { sfx } from "./sound.js";
 import { cells, colours, draw, W as FW, H as FH } from "./frog.js";
 
 // Lily leap. The frog bounces off every pad it lands on and climbs as high as
@@ -58,17 +59,17 @@ export const leap = {
       if (p.v) { p.x += p.v * dt; if (p.x < 0 || p.x > W - PW) p.v = -p.v; }
       if (p.gone) { p.gone += dt; p.y += 40 * dt; continue; }
       if (G.vy > 0 && was <= p.y && G.y >= p.y && G.x + FOOT > p.x && G.x - FOOT < p.x + PW) {
-        G.y = p.y; G.vy = -BOUNCE;
+        G.y = p.y; G.vy = -BOUNCE; sfx("hop");
         if (p.kind === "sink") p.gone = 0.01;
-        if (p.fly) { p.fly = false; G.vy = -LAUNCH; G.pops.push({ x: G.x, y: G.y - 30, s: "WHEE", t: 0 }); }
-        if (p.bug) { p.bug = false; G.bonus += 2; G.pops.push({ x: G.x, y: G.y - 30, s: "+2 M", t: 0 }); }
+        if (p.fly) { sfx("catch"); p.fly = false; G.vy = -LAUNCH; G.pops.push({ x: G.x, y: G.y - 30, s: "WHEE", t: 0 }); }
+        if (p.bug) { sfx("catch"); p.bug = false; G.bonus += 2; G.pops.push({ x: G.x, y: G.y - 30, s: "+2 M", t: 0 }); }
       }
     }
     G.cam = Math.min(G.cam, G.y - H * 0.45);
     G.top = Math.max(G.top, H - 40 - G.y);
     G.pads = G.pads.filter((p) => p.y - G.cam < H + 20 && p.gone < 1.5);
     fill();
-    if (G.y - G.cam > H + 10) { G.fell = 0.01; G.why = "SPLASH"; }
+    if (G.y - G.cam > H + 10) { G.fell = 0.01; G.why = "SPLASH"; sfx("bonk"); }
     G.pops.forEach((p) => { p.t += dt; p.y -= dt * 20; });
     G.pops = G.pops.filter((p) => p.t < 0.8);
   },
