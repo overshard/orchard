@@ -22,7 +22,7 @@ function show(next) {
 }
 
 $("tabs").addEventListener("click", (e) => {
-  const v = e.target.dataset && e.target.dataset.view;
+  const b = e.target.closest("button"), v = b && b.dataset.view;
   if (v) { history.replaceState(null, "", v === "pond" ? location.pathname : "#" + v); show(v); }
 });
 

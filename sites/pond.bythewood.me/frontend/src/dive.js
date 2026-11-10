@@ -4,11 +4,14 @@ import { sideCells, draw as drawCells, SW, SH } from "./frog.js";
 // Dive is played in a 320 by 200 field and drawn at twice that. The frog
 // floats up by itself, a press kicks it down, and the numbers below are the
 // feel of the game, so they change together or not at all.
-const GW = 320, GH = 200, TOP = 20, BOT = 186, FXP = 70, OW = 16, RAILW = 54;
+const GW = 320, TOP = 20, FXP = 70, OW = 16, RAILW = 54;
+// The field is 200 deep on a desktop. A phone held upright gets a deeper
+// pond, since the width is what sets the scale and the rest would be empty.
+let GH = 200, BOT = 186;
 const BUOY = 330, RISE_MAX = 150, KICK = 138, GATE_EVERY = 118;
 const GN = ["DOT", "PIP", "MOSS", "BEAN", "WREN", "TULLY", "FENN", "BRINDLE"];
 const GF = [0.3, 0.46, 0.62, 0.78, 0.94, 1.1, 1.3, 1.62];
-const FONT = "'Silkscreen', monospace";
+const MONO = "500 8px 'JetBrains Mono', monospace", BIG = "700 22px 'Space Grotesk', sans-serif", HEAD = "700 13px 'Space Grotesk', sans-serif";
 
 let rail = true, gc, gx, GHOSTS = [], RMAX = 20, spr = null, sprKey = "", net = Promise.resolve();
 const G = { state: "idle", score: 0, fy: 100, vy: 0, kick: 0, gates: [], bub: [], dist: 0, next: 0, last: 0, overAt: 0, rank: 0, t: 0, why: "", lastC: 100, flash: 0, paid: null, best: false };
@@ -38,7 +41,7 @@ function frogCols(g) {
 }
 
 function reset() {
-  G.fy = 96; G.vy = 0; G.kick = 0; G.gates = []; G.bub = []; G.dist = 0; G.next = 150; G.score = 0; G.t = 0; G.lastC = 100; G.flash = 0; G.paid = null; G.best = false;
+  G.fy = 96; G.vy = 0; G.kick = 0; G.gates = []; G.bub = []; G.dist = 0; G.next = 150; G.score = 0; G.t = 0; G.lastC = GH / 2; G.flash = 0; G.paid = null; G.best = false;
 }
 
 let started = null;
@@ -112,7 +115,8 @@ function draw(now) {
   if (!state.pond) return;
   gx.setTransform(2, 0, 0, 2, 0, 0);
   const PW = GW - RAILW, bands = ["#123a3d", "#103336", "#0e2c30", "#0c262a", "#0b2024", "#0a1b1f"];
-  for (let b = 0; b < 6; b++) { gx.fillStyle = bands[b]; gx.fillRect(0, TOP + b * 28, PW, 28); }
+  const bh = (BOT - TOP) / 6;
+  for (let b = 0; b < 6; b++) { gx.fillStyle = bands[b]; gx.fillRect(0, Math.floor(TOP + b * bh), PW, Math.ceil(bh) + 1); }
   // The sky strip, where the heron's legs wade past slowly.
   gx.fillStyle = "#1c2a33"; gx.fillRect(0, 0, PW, TOP);
   const hx = ((PW + 60 - (G.dist * 0.5) % (PW + 120)) + PW + 120) % (PW + 120) - 30;
@@ -147,7 +151,7 @@ function draw(now) {
   gx.fillStyle = "#bfeee2"; G.bub.forEach((bb) => { gx.globalAlpha = Math.max(0, bb.a) * 0.8; px(bb.x, bb.y, 2, 2); }); gx.globalAlpha = 1;
   const show = G.state !== "over" || now - G.overAt > 500 || Math.floor((now - G.overAt) / 80) % 2 === 0;
   if (show) drawCells(gx, sprites()[G.kick > 0 ? 1 : 0], SW, SH, frogCols(state.g), Math.round(FXP - 15), Math.round(G.fy - 9), 1);
-  gx.textAlign = "center"; gx.font = "22px " + FONT;
+  gx.textAlign = "center"; gx.font = BIG;
   gx.fillStyle = "#0a1b1f"; gx.fillText(G.score, PW / 2 + 1, 48); gx.fillStyle = G.flash > 0 ? "#ffe27a" : "#fff6dc"; gx.fillText(G.score, PW / 2, 47);
   if (rail) drawRail(PW);
   overlay(PW);
@@ -158,7 +162,7 @@ function draw(now) {
 function drawRail(PW) {
   gx.fillStyle = "#0a0908"; gx.fillRect(PW, 0, RAILW, GH);
   gx.fillStyle = "#2f2820"; gx.fillRect(GW - 12, 40, 1, 133);
-  gx.fillStyle = "#9c8f79"; gx.font = "8px " + FONT; gx.textAlign = "right";
+  gx.fillStyle = "#9c8f79"; gx.font = MONO; gx.textAlign = "right";
   let ly = 999;
   GHOSTS.forEach((sc, i) => { const y = railY(sc); gx.fillRect(GW - 16, y, 9, 1); if (ly - y >= 9) { gx.fillText(GN[i], GW - 19, y + 3); ly = y; } });
   gx.fillStyle = "#ffe27a"; gx.fillRect(GW - 20, railY(G.score) - 1, 13, 3);
@@ -166,21 +170,22 @@ function drawRail(PW) {
 }
 
 function overlay(PW) {
-  if (G.state !== "play") {
-    gx.fillStyle = "rgba(10,27,31,0.78)"; gx.fillRect(10, 62, PW - 20, 70);
-    gx.textAlign = "center"; gx.fillStyle = "#fff6dc"; gx.font = "16px " + FONT;
-    if (G.state === "idle") {
-      gx.fillText("TAP TO KICK DOWN", PW / 2, 86);
-      gx.fillStyle = "#bfeee2"; gx.font = "8px " + FONT;
-      gx.fillText("THE FROG FLOATS UP BY ITSELF", PW / 2, 102); gx.fillText("STAY UNDER THE SURFACE", PW / 2, 116);
-    } else {
-      gx.fillText(G.why, PW / 2, 84);
-      gx.fillStyle = "#bfeee2"; gx.font = "8px " + FONT;
-      const pay = G.paid == null ? "COUNTING PEBBLES" : "+" + G.paid + (G.paid === 1 ? " PEBBLE" : " PEBBLES") + (G.best ? ", A NEW BEST" : "");
-      gx.fillText(G.score + (G.score === 1 ? " POINT, " : " POINTS, ") + pay, PW / 2, 98);
-      gx.fillText("AHEAD OF " + G.rank + " OF " + GHOSTS.length + " NEIGHBOURS", PW / 2, 109);
-      gx.fillStyle = "#ffe27a"; gx.fillText("TAP TO GO AGAIN", PW / 2, 122);
-    }
+  if (G.state === "play") return;
+  const oy = Math.round(GH * 0.31);
+  gx.fillStyle = "rgba(10,9,8,0.82)"; gx.fillRect(10, oy, PW - 20, 70);
+  gx.fillStyle = "#ffb000"; gx.fillRect(10, oy, 2, 70);
+  gx.textAlign = "center"; gx.fillStyle = "#ece5d8"; gx.font = HEAD;
+  if (G.state === "idle") {
+    gx.fillText("TAP TO KICK DOWN", PW / 2, oy + 24);
+    gx.fillStyle = "#bcaf99"; gx.font = MONO;
+    gx.fillText("THE FROG FLOATS UP BY ITSELF", PW / 2, oy + 40); gx.fillText("STAY UNDER THE SURFACE", PW / 2, oy + 54);
+  } else {
+    gx.fillText(G.why, PW / 2, oy + 22);
+    gx.fillStyle = "#bcaf99"; gx.font = MONO;
+    const pay = G.paid == null ? "COUNTING PEBBLES" : "+" + G.paid + (G.paid === 1 ? " PEBBLE" : " PEBBLES") + (G.best ? ", A NEW BEST" : "");
+    gx.fillText(G.score + (G.score === 1 ? " POINT, " : " POINTS, ") + pay, PW / 2, oy + 36);
+    gx.fillText("AHEAD OF " + G.rank + " OF " + GHOSTS.length + " NEIGHBOURS", PW / 2, oy + 47);
+    gx.fillStyle = "#ffb000"; gx.fillText("TAP TO GO AGAIN", PW / 2, oy + 60);
   }
 }
 
@@ -199,6 +204,9 @@ export function initDive() {
   rail = window.innerWidth >= 560;
   gc.width = (rail ? GW : GW - RAILW) * 2;
   reset();
+  // The way out is a button, so a press on it must not also be a kick.
+  $("dive-exit").addEventListener("pointerdown", (e) => e.stopPropagation());
+  $("dive-exit").addEventListener("click", () => document.querySelector("#tabs [data-view=pond]").click());
   watch((p) => { note(p); if (G.state !== "play") { tune(); if (!$("v-dive").hidden) draw(performance.now()); } });
   $("v-dive").addEventListener("pointerdown", (e) => { e.preventDefault(); press(); });
   $("v-dive").addEventListener("contextmenu", (e) => e.preventDefault());
@@ -209,7 +217,22 @@ export function initDive() {
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (G.state !== "play" && !$("v-dive").hidden) draw(performance.now()); });
 }
 
-export function enterDive() { tune(); draw(performance.now()); }
+// On a phone Dive takes the whole screen, and the pond is as deep as the
+// screen is tall once the width has set the scale. The strip left under it holds the readout and the way out.
+function fit() {
+  if (rail) return;
+  $("v-dive").classList.add("full");
+  const scale = window.innerWidth / (GW - RAILW);
+  GH = Math.max(200, Math.min(520, Math.floor((window.innerHeight - 72) / scale)));
+  BOT = GH - 14;
+  gc.height = GH * 2;
+  reset();
+}
+
+export function enterDive() { if (G.state !== "play") fit(); tune(); draw(performance.now()); }
 
 // Leaving the view mid run ends it, so the points still count.
-export function leaveDive() { if (G.state === "play") die(performance.now(), "CLIMBED OUT"); }
+export function leaveDive() {
+  if (G.state === "play") die(performance.now(), "CLIMBED OUT");
+  $("v-dive").classList.remove("full");
+}
