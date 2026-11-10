@@ -19,8 +19,9 @@ import (
 	"golang.org/x/image/math/fixed"
 )
 
-// Power only ever goes up, since a frog's rarity is fixed, a found hat is
-// never lost and the best Dive is a best.
+// Power only ever goes up, since a frog's rarity is fixed, a found hat or
+// trinket is never lost and the best Dive is a best. Trinkets count the same
+// as hats by tier.
 var (
 	hatPower = [tierCount]int{20, 50, 120, 300, 800}
 	ranks    = []struct {
@@ -30,22 +31,30 @@ var (
 )
 
 type power struct {
-	Total    int    `json:"total"`
-	Rank     string `json:"rank"`
-	Frog     int    `json:"frog"`
-	Hats     int    `json:"hats"`
-	HatsHeld int    `json:"hats_held"`
-	Dive     int    `json:"dive"`
-	DiveBest int    `json:"dive_best"`
+	Total         int    `json:"total"`
+	Rank          string `json:"rank"`
+	Frog          int    `json:"frog"`
+	Hats          int    `json:"hats"`
+	HatsHeld      int    `json:"hats_held"`
+	Trinkets      int    `json:"trinkets"`
+	TrinketsFound int    `json:"trinkets_found"`
+	Dive          int    `json:"dive"`
+	DiveBest      int    `json:"dive_best"`
 }
 
-func powerOf(r rarity, held []hat, diveBest int) power {
+func powerOf(r rarity, held []hat, trinketsHad map[string]bool, diveBest int) power {
 	p := power{Frog: int(math.Round(120 * math.Log2(float64(r.N)))), DiveBest: diveBest, Dive: diveBest * 25}
 	for _, h := range held {
 		p.Hats += hatPower[h.tier()]
 	}
 	p.HatsHeld = len(held)
-	p.Total = p.Frog + p.Hats + p.Dive
+	for _, t := range trinkets {
+		if trinketsHad[t.kind] {
+			p.Trinkets += hatPower[t.tier]
+			p.TrinketsFound++
+		}
+	}
+	p.Total = p.Frog + p.Hats + p.Trinkets + p.Dive
 	for _, k := range ranks {
 		if p.Total >= k.at {
 			p.Rank = k.name
@@ -82,6 +91,8 @@ type shown struct {
 	Power power
 	Slug  string
 	URL   string
+	// What's set out round the pad, by spot, "" for an empty one.
+	Spots []string
 }
 
 func (s *store) shownBy(publicID string) (*shown, error) {
@@ -98,9 +109,17 @@ func (s *store) shownBy(publicID string) (*shown, error) {
 	if err != nil {
 		return nil, err
 	}
+	had, err := foundTrinkets(s.r, id)
+	if err != nil {
+		return nil, err
+	}
+	spots, err := spotsOut(s.r, p)
+	if err != nil {
+		return nil, err
+	}
 	f := frogOf(p, s.now())
 	sl := slug(f.Name, p.PublicID)
-	return &shown{Frog: f, Power: powerOf(f.Rarity, held, p.DiveBest), Slug: sl, URL: baseURL + "/f/" + sl}, nil
+	return &shown{Frog: f, Power: powerOf(f.Rarity, held, had, p.DiveBest), Slug: sl, URL: baseURL + "/f/" + sl, Spots: spots}, nil
 }
 
 // publicIDOf takes the code off the end of a share slug.
@@ -269,11 +288,23 @@ func drawCard(sh *shown) *image.RGBA {
 	}
 	f := sh.Frog
 	ox, oy := sx+(sw-spriteW*px)/2, sy+sh0-spriteH*px-70
-	if f.Stage == "froglet" || f.Stage == "frog" || f.Stage == "elder" {
+	grown := f.Stage == "froglet" || f.Stage == "frog" || f.Stage == "elder"
+	// Trinkets sit where the pond page puts them, in its 352 by 272 scene.
+	at := func(spot, x, y int) {
+		if spot < len(sh.Spots) {
+			drawTrinket(img, sh.Spots[spot], ox+x*px/8, oy+y*px/8, px/2)
+		}
+	}
+	at(2, 160, 12)
+	if grown {
 		lilyPad(img, ox, oy, px)
 	}
 	g := lookFor(f.Seed, f.Mods)
 	drawSprite(img, spriteCells(g, f.Stage, f.Day, f.Hat.Shape), spriteColours(g, f.Hat), ox, oy, px)
+	if grown {
+		at(0, 40, 236)
+		at(1, 280, 236)
+	}
 	for i := 0; i < sh0; i += 4 {
 		for x := sx; x < sx+sw; x++ {
 			c := img.RGBAAt(x, sy+i)
@@ -306,6 +337,20 @@ func drawCard(sh *shown) *image.RGBA {
 	fill(img, x, 548, 480, 1, cardLine)
 	text(img, face(fontRegular, 18), cardDim, x, 580, "pond.bythewood.me", 0)
 	return img
+}
+
+func drawTrinket(img *image.RGBA, kind string, x, y, s int) {
+	ic, ok := trinketIcons[kind]
+	if !ok {
+		return
+	}
+	for r, row := range ic.rows {
+		for c := range len(row) {
+			if hex, ok := ic.col[row[c]]; ok {
+				fill(img, x+c*s, y+r*s, s, s, rgb(hex))
+			}
+		}
+	}
 }
 
 // bracket draws an amber corner, top left when flip is false and bottom right

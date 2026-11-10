@@ -181,20 +181,8 @@ type trinketsView struct {
 
 func trinketsOf(q querier, p *pond, held map[string]int) (trinketsView, error) {
 	tv := trinketsView{BoxCost: trinketBoxCost, SpotName: trinketSpots}
-	found := map[string]bool{}
-	rows, err := q.Query(`SELECT kind FROM trinkets_found WHERE pond_id = ?`, p.ID)
+	found, err := foundTrinkets(q, p.ID)
 	if err != nil {
-		return tv, err
-	}
-	for rows.Next() {
-		var k string
-		if err := rows.Scan(&k); err != nil {
-			rows.Close()
-			return tv, err
-		}
-		found[k] = true
-	}
-	if err := rows.Close(); err != nil {
 		return tv, err
 	}
 	for _, t := range trinkets {
@@ -209,4 +197,68 @@ func trinketsOf(q querier, p *pond, held map[string]int) (trinketsView, error) {
 		}
 	}
 	return tv, nil
+}
+
+// foundTrinkets is every trinket a pond has ever had, which is what the set
+// and frog power count.
+func foundTrinkets(q querier, id int64) (map[string]bool, error) {
+	found := map[string]bool{}
+	rows, err := q.Query(`SELECT kind FROM trinkets_found WHERE pond_id = ?`, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var k string
+		if err := rows.Scan(&k); err != nil {
+			return nil, err
+		}
+		found[k] = true
+	}
+	return found, rows.Err()
+}
+
+// spotsOut is what's sitting round the pad for the share page, with a spot
+// whose trinket ran out shown empty.
+func spotsOut(q querier, p *pond) ([]string, error) {
+	spots := parseSpots(p.TrinketsOut)
+	for i, k := range spots {
+		if k == "" {
+			continue
+		}
+		var n int
+		if err := q.QueryRow(`SELECT COALESCE(SUM(count), 0) FROM items WHERE pond_id = ? AND kind = ?`, p.ID, k).Scan(&n); err != nil {
+			return nil, err
+		}
+		if n < 1 {
+			spots[i] = ""
+		}
+	}
+	return spots, nil
+}
+
+// trinketIcons are the share card's copy of the trinkets in icons.js, which
+// a test holds them to.
+var trinketIcons = map[string]struct {
+	rows [8]string
+	col  map[byte]string
+}{
+	"t_acorn":       {[8]string{"...a....", ".bbbbb..", "bcbcbcb.", "bbbbbbb.", ".ddddd..", ".ddedd..", "..ddd...", "...d...."}, map[byte]string{'a': "#6b4a2a", 'b': "#8a5a2b", 'c': "#5a3f24", 'd': "#c9974f", 'e': "#e3c57a"}},
+	"t_pinecone":    {[8]string{"...a....", "..bcb...", ".bcbcb..", ".cbcbc..", ".bcbcb..", ".cbcbc..", "..bcb...", "...b...."}, map[byte]string{'a': "#3f9a4d", 'b': "#8a5a2b", 'c': "#5a3f24"}},
+	"t_marble":      {[8]string{"........", "..aaa...", ".abcaa..", ".acbba..", ".aabba..", "..aaa...", "........", "........"}, map[byte]string{'a': "#3d8fd6", 'b': "#b5dcff", 'c': "#e2567a"}},
+	"t_button":      {[8]string{"........", "..aaaa..", ".aaaaaa.", ".abaaba.", "..cccc..", "...cc...", "...cc...", "..cccc.."}, map[byte]string{'a': "#e9dcc0", 'b': "#c9b896", 'c': "#fff6dc"}},
+	"t_boat":        {[8]string{"........", "...a....", "...ab...", "...abb..", "aaaaaaaa", ".aaaaaa.", "..aaaa..", "cccccccc"}, map[byte]string{'a': "#e9e3d6", 'b': "#c9c3b6", 'c': "#7fd6c2"}},
+	"t_duck":        {[8]string{"..aa....", ".aaba...", ".aaaacc.", "..aa....", "aaaaaaa.", "aaaaaaa.", ".aaaaa..", "........"}, map[byte]string{'a': "#f2c230", 'b': "#1a1a1a", 'c': "#e08a1a"}},
+	"t_cone":        {[8]string{"...a....", "...a....", "..bbb...", "..aaa...", ".aaaaa..", ".bbbbb..", "aaaaaaa.", "cccccccc"}, map[byte]string{'a': "#e86a1a", 'b': "#fff6dc", 'c': "#3a3a3a"}},
+	"t_chanterelle": {[8]string{"........", ".aaaaaa.", "aabbbbaa", "..aaaa..", "...aa...", "...aa...", "..aaaa..", "........"}, map[byte]string{'a': "#f2a23a", 'b': "#c9741a"}},
+	"t_clover":      {[8]string{"..a.a...", ".aaaaa..", "..aba...", ".aaaaa..", "..a.a...", "...c....", "....c...", "........"}, map[byte]string{'a': "#3f9a4d", 'b': "#9fe08f", 'c': "#2f7a3f"}},
+	"t_earring":     {[8]string{"...a....", "..a.a...", "...a....", "...b....", "..bcb...", ".bcccb..", "..bcb...", "...b...."}, map[byte]string{'a': "#ffe27a", 'b': "#c9b25a", 'c': "#3d8fd6"}},
+	"t_globe":       {[8]string{".aaaaaa.", "abbcbbba", "abbbbcba", "abcdddba", "abbdddba", ".aaaaaa.", "eeeeeeee", ".eeeeee."}, map[byte]string{'a': "#cfe3ea", 'b': "#3b5a6a", 'c': "#ffffff", 'd': "#3f9a4d", 'e': "#8a5a2b"}},
+	"t_gnome":       {[8]string{"...a....", "..aaa...", ".aaaaa..", "..bbb...", ".bdddb..", ".eddde..", ".eeeee..", "..f.f..."}, map[byte]string{'a': "#e2412d", 'b': "#f6dcb0", 'd': "#fff6dc", 'e': "#3d8fd6", 'f': "#5a3f24"}},
+	"t_agaric":      {[8]string{"..aaaa..", ".abaaba.", "aaaabaaa", "abaaaaba", "..cccc..", "...cc...", "...cc...", "..cccc.."}, map[byte]string{'a': "#e2412d", 'b': "#fff6dc", 'c': "#e9dcc0"}},
+	"t_robot":       {[8]string{"...a....", "..bbbb..", "..bcbc..", "..bbbb..", ".dbbbbd.", ".dbeebd.", "..bbbb..", "..b..b.."}, map[byte]string{'a': "#e2412d", 'b': "#9aa0a6", 'c': "#ffe27a", 'd': "#6d747a", 'e': "#3d8fd6"}},
+	"t_disco":       {[8]string{"...a....", "..bcbc..", ".bcdcbc.", ".cbcbcb.", ".bcbcdc.", "..cbcb..", "........", "........"}, map[byte]string{'a': "#6d747a", 'b': "#e9e3d6", 'c': "#9aa0a6", 'd': "#ffffff"}},
+	"t_jar":         {[8]string{"..aaaa..", ".b....b.", ".bcbbcb.", ".bbcbbb.", ".bbbbcb.", ".bcbbbb.", ".bbbbbb.", "..bbbb.."}, map[byte]string{'a': "#6d747a", 'b': "#2a4a5a", 'c': "#ffe27a"}},
+	"t_goldmorel":   {[8]string{"...aa...", "..abba..", ".ababba.", ".abbaba.", "..abba..", "...cc...", "...cc...", "..cccc.."}, map[byte]string{'a': "#ffe27a", 'b': "#a87a12", 'c': "#fff6dc"}},
+	"t_pearl":       {[8]string{"........", "........", "..aaa...", ".abaaa..", ".aaaac..", "..acc...", "dddddddd", ".dddddd."}, map[byte]string{'a': "#f6f0e6", 'b': "#ffffff", 'c': "#cfc7b8", 'd': "#e3c57a"}},
 }
