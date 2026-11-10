@@ -38,23 +38,41 @@ type power struct {
 	HatsHeld      int    `json:"hats_held"`
 	Trinkets      int    `json:"trinkets"`
 	TrinketsFound int    `json:"trinkets_found"`
+	Rocks         int    `json:"rocks"`
+	RocksFound    int    `json:"rocks_found"`
+	Keepsakes     int    `json:"keepsakes"`
+	KeepsakesHad  int    `json:"keepsakes_found"`
 	Dive          int    `json:"dive"`
 	DiveBest      int    `json:"dive_best"`
 }
 
-func powerOf(r rarity, held []hat, trinketsHad map[string]bool, diveBest int) power {
+// had is every trinket, rock and keepsake kind the pond has ever had, since
+// none of them can be lost from the shelves.
+func powerOf(r rarity, held []hat, had map[string]bool, diveBest int) power {
 	p := power{Frog: int(math.Round(120 * math.Log2(float64(r.N)))), DiveBest: diveBest, Dive: diveBest * 25}
 	for _, h := range held {
 		p.Hats += hatPower[h.tier()]
 	}
 	p.HatsHeld = len(held)
 	for _, t := range trinkets {
-		if trinketsHad[t.kind] {
+		if had[t.kind] {
 			p.Trinkets += hatPower[t.tier]
 			p.TrinketsFound++
 		}
 	}
-	p.Total = p.Frog + p.Hats + p.Trinkets + p.Dive
+	for _, k := range rocks {
+		if had[k.kind] {
+			p.Rocks += hatPower[k.tier]
+			p.RocksFound++
+		}
+	}
+	for _, k := range keepsakes {
+		if had[k.kind] {
+			p.Keepsakes += hatPower[k.tier]
+			p.KeepsakesHad++
+		}
+	}
+	p.Total = p.Frog + p.Hats + p.Trinkets + p.Rocks + p.Keepsakes + p.Dive
 	for _, k := range ranks {
 		if p.Total >= k.at {
 			p.Rank = k.name
@@ -109,7 +127,7 @@ func (s *store) shownBy(publicID string) (*shown, error) {
 	if err != nil {
 		return nil, err
 	}
-	had, err := foundTrinkets(s.r, id)
+	had, err := everHad(s.r, id)
 	if err != nil {
 		return nil, err
 	}

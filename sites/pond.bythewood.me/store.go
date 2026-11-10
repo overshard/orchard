@@ -798,6 +798,12 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	for _, t := range v.Trinkets.All {
 		had[t.Kind] = t.Found
 	}
+	for _, r := range v.Rocks {
+		had[r.Kind] = r.Found
+	}
+	for _, k := range v.Keepsakes {
+		had[k.Kind] = k.First != ""
+	}
 	v.Share.Power = powerOf(v.Frog.Rarity, v.found, had, p.DiveBest)
 	return nil
 }
