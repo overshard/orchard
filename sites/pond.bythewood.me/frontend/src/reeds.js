@@ -1,7 +1,7 @@
 import { $, post, setPond, watch, titled, TIERS } from "./api.js";
 import { genome, bred, cells, colours, draw, W, H } from "./frog.js";
 
-let dye = "", frontID = 0;
+let dye = "", stamp = "", frontID = 0;
 
 function days(sec) {
   const d = Math.ceil(sec / 86400);
@@ -73,6 +73,19 @@ function render(p) {
   });
   seg.hidden = dyes.length === 0;
 
+  const stamps = p.items.filter((it) => it.kind.startsWith("stamp_"));
+  if (stamp && !stamps.some((d) => d.kind === stamp)) stamp = "";
+  const sseg = $("bench-stamps");
+  sseg.textContent = "";
+  [{ kind: "", name: "No stamp", count: 0 }].concat(stamps).forEach((d) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.dataset.stamp = d.kind;
+    b.textContent = d.name + (d.count > 1 ? " x" + d.count : "");
+    b.setAttribute("aria-pressed", d.kind === stamp ? "true" : "false");
+    sseg.append(b);
+  });
+  sseg.hidden = stamps.length === 0;
+
   say("pads-line", p.frogs.length + " of " + p.pads + " pads have a frog on them." + (p.pad_cost ? "" : " That's as many pads as the pond holds."));
   const buy = $("pad-buy");
   buy.hidden = !p.pad_cost;
@@ -88,14 +101,22 @@ export function initReeds() {
     dye = b.dataset.dye;
     document.querySelectorAll("#bench-dyes button").forEach((x) => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
   });
+  $("bench-stamps").addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    stamp = b.dataset.stamp;
+    document.querySelectorAll("#bench-stamps button").forEach((x) => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
+  });
   $("lay").addEventListener("click", () => {
     const lay = $("lay");
     lay.disabled = true;
-    post("/api/frogs/lay", { frog: frontID, dye }).then((d) => {
+    post("/api/frogs/lay", { frog: frontID, dye, stamp }).then((d) => {
       const took = d.frog.mods && d.frog.mods.took ? d.frog.mods.took : [];
       let msg = "An egg, and it's on a pad in the reeds. It'll be " + titled(d.frog.name) + ".";
       if (took.includes("dye")) msg += " The dye took.";
       else if (dye) msg += " The dye didn't take this time.";
+      if (took.includes("stamp")) msg += " The stamp took.";
+      else if (stamp) msg += " The stamp didn't take this time.";
       if (took.includes("throwback")) msg += " Something about it looks like nobody in the family.";
       say("bench-out", msg);
       setPond(d.pond);

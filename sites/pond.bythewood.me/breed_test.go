@@ -15,36 +15,36 @@ func TestTheEggBench(t *testing.T) {
 	if len(v.Frogs) != 1 || !first.Front || first.LayIn != -1 || v.Pads != startingPads || v.PadCost != 400 {
 		t.Fatalf("a new pond: %+v pads %d cost %d", v.Frogs, v.Pads, v.PadCost)
 	}
-	if _, err := s.lay(id, first.ID, ""); !errors.Is(err, errNotYet) {
+	if _, err := s.lay(id, first.ID, "", ""); !errors.Is(err, errNotYet) {
 		t.Fatalf("an egg laid an egg: %v", err)
 	}
 
 	// Grown on day 13, it lays once and then waits a week.
 	*clock = clock.Add(12 * 24 * time.Hour)
-	l, err := s.lay(id, first.ID, "")
+	l, err := s.lay(id, first.ID, "", "")
 	if err != nil || l.Frog.Stage != "egg" || l.Frog.Mods == nil || len(l.Pond.Frogs) != 2 {
 		t.Fatalf("lay: %+v %v", l, err)
 	}
 	if l.Pond.Frogs[1].Front || l.Pond.Frog.Seed != first.Seed {
 		t.Error("the new egg came out front")
 	}
-	if _, err := s.lay(id, first.ID, ""); !errors.Is(err, errNotYet) {
+	if _, err := s.lay(id, first.ID, "", ""); !errors.Is(err, errNotYet) {
 		t.Errorf("laid twice in a week: %v", err)
 	}
 	*clock = clock.Add(layEvery)
-	if _, err := s.lay(id, first.ID, "dye_gold"); !errors.Is(err, errNotHeld) {
+	if _, err := s.lay(id, first.ID, "dye_gold", ""); !errors.Is(err, errNotHeld) {
 		t.Errorf("laid with a dye it doesn't have: %v", err)
 	}
 	if err := s.write(func(tx *sql.Tx) error { return addItem(tx, id, "dye_gold", 1) }); err != nil {
 		t.Fatal(err)
 	}
-	if l, err = s.lay(id, first.ID, "dye_gold"); err != nil || len(l.Pond.Items) != 0 {
+	if l, err = s.lay(id, first.ID, "dye_gold", ""); err != nil || len(l.Pond.Items) != 0 {
 		t.Fatalf("lay with a dye: %v, items %+v", err, l.Pond.Items)
 	}
 
 	// Three frogs fill three pads, and a fourth pad costs pebbles.
 	*clock = clock.Add(layEvery)
-	if _, err := s.lay(id, first.ID, ""); !errors.Is(err, errFullPads) {
+	if _, err := s.lay(id, first.ID, "", ""); !errors.Is(err, errFullPads) {
 		t.Errorf("laid onto a full pond: %v", err)
 	}
 	if _, err := s.buyPad(id); !errors.Is(err, errPoor) {
@@ -59,7 +59,7 @@ func TestTheEggBench(t *testing.T) {
 	if v, err = s.buyPad(id); err != nil || v.Pads != 4 || v.Pebbles != 600 || v.PadCost != 800 {
 		t.Fatalf("buy a pad: %v pads %d pebbles %d", err, v.Pads, v.Pebbles)
 	}
-	if _, err := s.lay(id, first.ID, ""); err != nil {
+	if _, err := s.lay(id, first.ID, "", ""); err != nil {
 		t.Errorf("lay onto the new pad: %v", err)
 	}
 }
@@ -70,7 +70,7 @@ func TestBringingAFrogOutFront(t *testing.T) {
 	v, _ := s.view(id)
 	first := v.Frogs[0].ID
 	*clock = clock.Add(13 * 24 * time.Hour)
-	l, err := s.lay(id, first, "")
+	l, err := s.lay(id, first, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,14 +107,14 @@ func TestBreedingLeansAndDrifts(t *testing.T) {
 	const n = 3000
 	dyed, thrown := 0, 0
 	for range n {
-		m := breed(parent, randomSeed(), "dye_blue")
+		m := breed(parent, randomSeed(), "dye_blue", "")
 		if m.Morph == "BLUE" {
 			dyed++
 		}
 		if m.BW < 10 || m.BW > 15.5 || m.Eye < 2.3 || m.Eye > 4.4 {
 			t.Fatalf("a child out of shape: %+v", m)
 		}
-		m = breed(parent, randomSeed(), "")
+		m = breed(parent, randomSeed(), "", "")
 		for _, k := range m.Took {
 			if k == "throwback" {
 				thrown++

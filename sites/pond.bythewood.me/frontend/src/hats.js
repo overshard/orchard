@@ -4,7 +4,7 @@ import { cells, colours, draw as drawCells, hatCells, hatColours, W, H } from ".
 const boxes = {};
 
 // A hat by itself, in its colours when found and as a shadow when not.
-function hatTile(h, have) {
+export function hatTile(h, have) {
   const cv = document.createElement("canvas"), ctx = cv.getContext("2d");
   cv.width = 76; cv.height = 48;
   const b = boxes[h.shape] || (boxes[h.shape] = hatCells(h.shape)), col = hatColours(h);

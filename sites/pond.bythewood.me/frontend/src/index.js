@@ -6,8 +6,9 @@ import { initWheel, enterWheel } from "./wheel.js";
 import { initHats } from "./hats.js";
 import { initReeds } from "./reeds.js";
 import { initBank, enterBank, leaveBank } from "./bank.js";
+import { initShops } from "./shops.js";
 
-const VIEWS = ["pond", "dive", "wheel", "hats", "reeds", "bank"];
+const VIEWS = ["pond", "dive", "wheel", "hats", "reeds", "bank", "shops"];
 let view = "pond";
 
 function show(next) {
@@ -300,6 +301,7 @@ initWheel();
 initHats();
 initReeds();
 initBank();
+initShops();
 show(location.hash.slice(1));
 
 post("/api/greet").then((g) => {

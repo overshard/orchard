@@ -88,6 +88,16 @@ CREATE TABLE IF NOT EXISTS cookbook (
     PRIMARY KEY (pond_id, dish)
 ) WITHOUT ROWID;
 
+CREATE TABLE IF NOT EXISTS bought (
+    pond_id  INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
+    stock    TEXT NOT NULL,
+    slot     INTEGER NOT NULL,
+    n        INTEGER NOT NULL,
+    day      TEXT NOT NULL,
+    PRIMARY KEY (pond_id, stock, slot)
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS bought_day ON bought(day);
+
 CREATE TABLE IF NOT EXISTS growth (
     id    INTEGER PRIMARY KEY CHECK (id = 1),
     at    INTEGER NOT NULL,
@@ -146,6 +156,7 @@ var (
 	errNotHeld  = errors.New("you don't have that one")
 	errBadRun   = errors.New("that run doesn't count")
 	errFullPads = errors.New("every pad has a frog on it, so the pond needs another pad first")
+	errSoldOut  = errors.New("you've bought all of that there is for now")
 )
 
 // store keeps one writing connection and a small pool that only reads. Every
@@ -398,7 +409,9 @@ func (s *store) sweep() (int64, error) {
 			return err
 		}
 		gone, _ = res.RowsAffected()
-		return nil
+		// What was bought only counts against today's stock.
+		_, err = tx.Exec(`DELETE FROM bought WHERE day < ?`, dayOf(s.now().AddDate(0, 0, -2)))
+		return err
 	})
 	return gone, err
 }
@@ -506,9 +519,10 @@ type view struct {
 		Path  string `json:"path"`
 		Power power  `json:"power"`
 	} `json:"share"`
-	Day     dayView     `json:"day"`
-	Bank    bankView    `json:"bank"`
-	Kitchen kitchenView `json:"kitchen"`
+	Day     dayView             `json:"day"`
+	Bank    bankView            `json:"bank"`
+	Kitchen kitchenView         `json:"kitchen"`
+	Shops   map[string]shopView `json:"shops"`
 
 	held  map[string]int
 	Nudge bool `json:"nudge"`
@@ -663,5 +677,9 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	v.Day = dayOfReading(s.day.reading(now), now)
 	var err error
 	v.Bank, v.Kitchen, err = s.bankOf(q, p, now, v.held)
+	if err != nil {
+		return err
+	}
+	v.Shops, err = s.shopsOf(q, p.ID, now)
 	return err
 }

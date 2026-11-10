@@ -35,6 +35,9 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
 - `bank.go` is the bank, the gravel bar and the garden plots, and the kitchen
   that turns two things from the garden into a dish. `kitchen.go` has the
   ingredients, what grows in which month and every dish.
+- `shop.go` is Wren's hats, Brindle's larder and Old Moss's curios. Stock is
+  dealt from the day so everybody sees the same shelf, and `bought` counts
+  what each pond took off it.
 - `genome.go` turns a seed into a frog's name, look and rarity, and
   `frontend/src/frog.js` is the same thing in JavaScript plus the drawing.
 - `key.go` and `words.txt` are the pond key.
@@ -46,8 +49,8 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
   PNG card a link unfurls with, drawn by `sprite.go` in the JetBrains Mono under
   `fonts/`. The code is the pond's public id and can't open the pond.
 - `frontend/src/` has one file a view, `dive.js` (with `race.js` for the
-  standings and results laid over it), `wheel.js`, `hats.js`, `reeds.js` and
-  `bank.js`,
+  standings and results laid over it), `wheel.js`, `hats.js`, `reeds.js`,
+  `bank.js` and `shops.js`,
   with `index.js` for the pond itself, `share.js` for a frog's public page
   and `key.js` and `k.js` for the key pages.
 - `web/` is this site's own copy of the HTTP layer every site here shares.
@@ -75,6 +78,9 @@ they have none, for other sites to draw.
   plot is sown at a reading of that clock, so nothing walks every garden.
 - A dish's kind is `dish_<a>_<b>` by position in `ingredients`, so a new
   ingredient only ever goes on the end of that list.
+- Brindle's prices have to stay above what a dish sells for, sale or not, or
+  buying and cooking mints pebbles. A test holds it, so run it after touching
+  a price.
 - A new column goes in `addedColumns` in `store.go` as well as the schema,
   since the live tables already exist.
 - A bred frog's seed only names it and gives it a voice and a pupil. Anything

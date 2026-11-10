@@ -64,7 +64,7 @@ func fail(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, errFull):
 		writeError(w, http.StatusTooManyRequests, err.Error())
 	case errors.Is(err, errPoor), errors.Is(err, errNotYet), errors.Is(err, errNotHeld), errors.Is(err, errBadRun),
-		errors.Is(err, errFullPads), errors.Is(err, errMaxed):
+		errors.Is(err, errFullPads), errors.Is(err, errMaxed), errors.Is(err, errSoldOut):
 		writeError(w, http.StatusConflict, err.Error())
 	default:
 		slog.Error("pond", slog.String("path", r.URL.Path), slog.Any("err", err))
@@ -268,13 +268,25 @@ func (s *site) apiFront(id int64, r *http.Request, w http.ResponseWriter) (any, 
 
 func (s *site) apiLay(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
 	var in struct {
-		Frog int64  `json:"frog"`
-		Dye  string `json:"dye"`
+		Frog  int64  `json:"frog"`
+		Dye   string `json:"dye"`
+		Stamp string `json:"stamp"`
 	}
 	if !readJSON(w, r, &in) {
 		return nil, nil
 	}
-	return s.store.lay(id, in.Frog, in.Dye)
+	return s.store.lay(id, in.Frog, in.Dye, in.Stamp)
+}
+
+func (s *site) apiBuy(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	var in struct {
+		Shop string `json:"shop"`
+		Slot int    `json:"slot"`
+	}
+	if !readJSON(w, r, &in) {
+		return nil, nil
+	}
+	return s.store.buy(id, in.Shop, in.Slot)
 }
 
 func (s *site) apiBuyPad(id int64, r *http.Request, w http.ResponseWriter) (any, error) {

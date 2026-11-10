@@ -121,8 +121,9 @@
 
     <h2 data-idx="01">The egg bench</h2>
     <p id="bench-line"></p>
-    <p class="dim">An egg is its parent with the numbers nudged, and about one in sixteen throws back to something else. A dye from the wheel takes about two times in three and is used up either way.</p>
+    <p class="dim">An egg is its parent with the numbers nudged, and about one in sixteen throws back to something else. A dye or a stamp takes about two times in three and is used up either way. Old Moss sells both.</p>
     <div class="row seg" id="bench-dyes" aria-label="Dye"></div>
+    <div class="row seg" id="bench-stamps" aria-label="Stamp"></div>
     <div class="row"><button type="button" class="primary" id="lay">Lay an egg</button></div>
     <p class="line" id="bench-out" role="status"></p>
 
@@ -167,6 +168,25 @@
     <h2 data-idx="04">Cookbook <span class="count" id="cook-count"></span></h2>
     <ul class="cookbook" id="cookbook"></ul>
   </section>
+
+  <section class="view" id="v-shops" hidden>
+    <p class="line">Three shops on the far bank. Everybody sees the same stock, and what you buy only comes out of yours.</p>
+
+    <h2 data-idx="01">Wren's Hats</h2>
+    <p class="dim" id="wren-note"></p>
+    <ul class="shelf" id="shelf-wren"></ul>
+    <p class="line" id="shop-out-wren" role="status"></p>
+
+    <h2 data-idx="02">Brindle's Larder</h2>
+    <p class="dim" id="brindle-note"></p>
+    <ul class="shelf" id="shelf-brindle"></ul>
+    <p class="line" id="shop-out-brindle" role="status"></p>
+
+    <h2 data-idx="03">Old Moss's Curios</h2>
+    <p class="dim">Rocks, dyes and stamps for the egg bench. Moss restocks a few times a day whenever he feels like it, and now and then something's going cheap.</p>
+    <ul class="shelf" id="shelf-moss"></ul>
+    <p class="line" id="shop-out-moss" role="status"></p>
+  </section>
 </div>
 
 <nav class="tabs" id="tabs" aria-label="Places in the pond">
@@ -176,6 +196,7 @@
   <button type="button" data-view="hats" aria-pressed="false"><span class="idx">04</span>Hats</button>
   <button type="button" data-view="reeds" aria-pressed="false"><span class="idx">05</span>Reeds</button>
   <button type="button" data-view="bank" aria-pressed="false"><span class="idx">06</span>Bank</button>
+  <button type="button" data-view="shops" aria-pressed="false"><span class="idx">07</span>Shops</button>
 </nav>
 {{ end }}
 

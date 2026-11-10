@@ -606,7 +606,7 @@ body:has(#v-dive.full) {
   bottom: 0;
   z-index: 2;
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(7, 1fr);
   gap: 1px;
   width: 100%;
   max-width: 34rem;
@@ -623,8 +623,11 @@ body:has(#v-dive.full) {
   justify-content: center;
   gap: 3px;
   min-height: 54px;
+  padding: 8px 0;
   border: 0;
   border-top: 3px solid transparent;
+  font-size: 11px;
+  letter-spacing: 0.04em;
   background: var(--void);
   color: var(--dim);
 }
@@ -1370,4 +1373,72 @@ h2 .count {
 
 .things.dishes {
   grid-template-columns: 1fr;
+}
+
+/* A shop's shelf, one line a thing with its price on the button. */
+.shelf {
+  display: grid;
+  gap: 1px;
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+
+.shelf li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 4px 10px;
+  background: var(--panel);
+  font-size: 12px;
+}
+
+.shelf canvas {
+  flex: none;
+  width: 38px;
+  height: 24px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.shelf .what {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-width: 0;
+}
+
+.shelf .what b {
+  font-weight: 500;
+}
+
+.shelf s {
+  color: var(--dim);
+}
+
+.shelf button {
+  min-width: 64px;
+  min-height: 36px;
+  margin-left: auto;
+  padding: 2px 10px;
+  font-size: 12px;
+}
+
+.shelf .sold {
+  color: var(--dim);
+}
+
+.shelf .sold canvas {
+  opacity: 0.4;
+}
+
+.shelf .soldtag {
+  margin-left: auto;
+  color: var(--dim);
+  font-size: 10px;
+  letter-spacing: var(--track);
 }
