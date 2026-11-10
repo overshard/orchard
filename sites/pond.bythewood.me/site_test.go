@@ -218,6 +218,9 @@ func TestKeyPageAndBringingAFrogBack(t *testing.T) {
 		if csp := rec.Header().Get("Content-Security-Policy"); strings.Contains(csp, "analytics") || strings.Contains(csp, "script-src 'self' 'unsafe-inline'") {
 			t.Errorf("%s allows a script that is not its own: %s", name, csp)
 		}
+		if name == "/key" && !strings.Contains(rec.Header().Get("Permissions-Policy"), "camera=(self)") {
+			t.Error("/key cannot ask for the camera to scan a key")
+		}
 		if rec.Header().Get("Referrer-Policy") != "no-referrer" {
 			t.Errorf("%s sends a referrer", name)
 		}
