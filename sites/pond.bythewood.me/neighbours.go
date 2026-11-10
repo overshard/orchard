@@ -246,9 +246,10 @@ type neighbourView struct {
 	To     int    `json:"to"`
 	Fav    string `json:"fav"`
 	// Its favourite's two ingredients, once it's friendly enough to say.
-	FavA string `json:"fav_a,omitempty"`
-	FavB string `json:"fav_b,omitempty"`
-	Gave bool   `json:"gave"`
+	FavA   string `json:"fav_a,omitempty"`
+	FavB   string `json:"fav_b,omitempty"`
+	Gave   bool   `json:"gave"`
+	Lodger bool   `json:"lodger"`
 }
 
 type favourView struct {
@@ -272,13 +273,18 @@ func neighboursOf(q querier, id int64, now time.Time) (neighboursView, error) {
 	if err != nil {
 		return v, err
 	}
+	b, err := loadBurrows(q, id)
+	if err != nil {
+		return v, err
+	}
 	today := dayOf(now)
 	for i, r := range residents {
 		f := friends[i]
 		l := friendLevel(f.points)
 		d := r.favDish()
 		nv := neighbourView{ID: i, Name: r.name, Seed: r.seed, Hat: hat{Shape: r.hat}, Level: l, Title: friendNames[l],
-			Points: f.points, From: friendAt[l], To: friendAt[min(l+1, len(friendAt)-1)], Fav: d.name, Gave: f.giftDay == today}
+			Points: f.points, From: friendAt[l], To: friendAt[min(l+1, len(friendAt)-1)], Fav: d.name, Gave: f.giftDay == today,
+			Lodger: b.lodging(i)}
 		if l >= recipeAt {
 			nv.FavA, nv.FavB = ingredients[d.a].kind, ingredients[d.b].kind
 		}

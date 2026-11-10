@@ -72,6 +72,8 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
   purse like Dive with a cap a day each. `frontend/src/arcade.js` is the frame
   round them and `flick.js` and `cross.js` are the games.
 - `neighbours.go` is the residents, friendship by dishes and a favour a day.
+- `burrow.go` is the bank's burrows. Each level adds a pad that doesn't count
+  toward the ones you buy, and a friendly neighbour can lodge in one and pay rent.
 - `key.go` and `words.txt` are the pond key.
 - `day.go` reads dash's `/api/state` over the bridge every ten minutes and
   turns the weather, the market, the VIX, Hacker News, the news and the health

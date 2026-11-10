@@ -256,6 +256,8 @@ func (s *store) build(id int64, what string) (*view, error) {
 			}
 			p.Pebbles -= cost
 			p.DyeLevel++
+		case "burrow":
+			return s.buildBurrow(tx, p, now)
 		default:
 			return errNotHeld
 		}
@@ -464,7 +466,8 @@ type bankView struct {
 		Speed    float64 `json:"speed"`
 		Gardener string  `json:"gardener,omitempty"`
 	} `json:"garden"`
-	Dye dyeView `json:"dye"`
+	Dye     dyeView    `json:"dye"`
+	Burrows burrowView `json:"burrows"`
 }
 
 type plotView struct {
@@ -570,6 +573,10 @@ func (s *store) bankOf(q querier, p *pond, now time.Time, held map[string]int) (
 	}
 
 	b.Dye = dyeViewOf(p, now, held)
+	var err error
+	if b.Burrows, err = burrowViewOf(q, p.ID, now); err != nil {
+		return b, k, err
+	}
 
 	rain := dayOfReading(s.day.reading(now), now).Rain
 	w := seasonWeights(now, rain)
