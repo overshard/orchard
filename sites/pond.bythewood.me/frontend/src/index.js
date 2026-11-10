@@ -3,15 +3,18 @@ import { genome, bred, cells, sideCells, colours, draw, croak, W, H, SW, SH } fr
 import { drawIcon, iconCanvas, drawFurn } from "./icons.js";
 import { initDive, enterDive, leaveDive } from "./dive.js";
 import { initWheel, enterWheel } from "./wheel.js";
-import { initHats } from "./hats.js";
 import { initReeds } from "./reeds.js";
 import { initBank, enterBank, leaveBank } from "./bank.js";
 import { initShops } from "./shops.js";
-import { initTrinkets } from "./trinkets.js";
-import { initRocks } from "./rocks.js";
-import { initKeepsakes } from "./keepsakes.js";
+import { initUI, reveal, thingArt, drawBox } from "./ui.js";
+import { initBag } from "./bag.js";
+import { initCollect } from "./collect.js";
+import { initTown, enterTown, leaveTown } from "./town.js";
+import { initSettings } from "./settings.js";
 
-const VIEWS = ["pond", "dive", "wheel", "hats", "reeds", "bank", "shops"];
+const VIEWS = ["pond", "play", "dive", "wheel", "bag", "collect", "reeds", "garden", "bank", "town", "settings"];
+// Places that open from another light that one's key.
+const TAB_OF = { dive: "play", wheel: "play" };
 let view = "pond";
 
 function show(next) {
@@ -19,12 +22,16 @@ function show(next) {
   if (view === "dive" && next !== "dive") leaveDive();
   view = next;
   VIEWS.forEach((v) => { $("v-" + v).hidden = v !== next; });
+  const lit = TAB_OF[next] || next;
   document.querySelectorAll("#tabs button").forEach((b) => {
-    b.setAttribute("aria-pressed", b.dataset.view === next ? "true" : "false");
+    b.setAttribute("aria-pressed", b.dataset.view === lit ? "true" : "false");
   });
+  $("gear").classList.toggle("lit", next === "settings");
   if (next === "dive") enterDive();
   if (next === "wheel") enterWheel();
-  if (next === "bank") enterBank(); else leaveBank();
+  if (next === "play") drawPlay();
+  if (next === "garden") enterBank(); else leaveBank();
+  if (next === "town") enterTown(); else leaveTown();
   // A view's name is also the id of its canvas, and the browser scrolls to
   // that when the address changes, a frame after this runs.
   window.scrollTo(0, 0);
@@ -44,10 +51,6 @@ window.addEventListener("hashchange", () => show(location.hash.slice(1)));
 
 const scene = $("scene"), sx = scene.getContext("2d");
 const HEART = ["01010", "11111", "11111", "01110", "00100"];
-const NEXT = {
-  egg: "A tadpole tomorrow.", tadpole: "A froglet on day 9.", froglet: "A frog on day 13.",
-  frog: "An elder on day 29.", elder: "Here for good.",
-};
 let greetAt = 0, croakUntil = 0, lastTick = 0;
 
 function grown(stage) { return stage === "froglet" || stage === "frog" || stage === "elder"; }
@@ -291,17 +294,20 @@ $("scene-btn").addEventListener("click", () => {
   if (reduced) { drawScene(performance.now()); setTimeout(() => drawScene(performance.now()), croakUntil - performance.now() + 50); }
 });
 
+const STAGE = { egg: "Egg", tadpole: "Tadpole", froglet: "Froglet", frog: "Frog", elder: "Elder" };
+const NEXT_DAY = { egg: 2, tadpole: 9, froglet: 13, frog: 29 };
+
 function renderPond(p) {
   const f = p.frog;
   $("frog-name").textContent = titled(f.name);
   const tier = $("frog-tier");
   tier.textContent = TIERS[f.rarity.tier]; tier.className = "tier t" + f.rarity.tier;
   $("frog-odds").textContent = "1 in " + f.rarity.n.toLocaleString("en-US");
-  const stage = f.stage.charAt(0).toUpperCase() + f.stage.slice(1);
   // An egg doesn't say what colour or back it'll have. That's for hatching.
-  const look = f.stage === "egg" ? "" : titled(f.morph) + ", " + f.pattern.toLowerCase() + " back, ";
-  const what = look + f.nature.toLowerCase() + ".";
-  $("frog-what").textContent = stage + ", day " + f.day + ". " + NEXT[f.stage] + " " + what.charAt(0).toUpperCase() + what.slice(1);
+  const bits = [STAGE[f.stage], "Day " + f.day];
+  if (f.stage !== "egg") bits.push(titled(f.morph), titled(f.nature));
+  if (NEXT_DAY[f.stage]) bits.push("grows on day " + NEXT_DAY[f.stage]);
+  $("frog-what").textContent = bits.join(" · ");
 
   $("purse").hidden = false;
   $("purse-n").textContent = (p.pebbles - state.held).toLocaleString("en-US");
@@ -309,63 +315,103 @@ function renderPond(p) {
   const lines = (p.day && p.day.lines) || [], today = $("today");
   today.textContent = "";
   lines.forEach((row) => {
-    const dt = document.createElement("dt"), dd = document.createElement("dd");
-    dt.textContent = row[0]; dd.textContent = row[1];
-    today.append(dt, dd);
+    const li = document.createElement("li"), b = document.createElement("b");
+    b.textContent = row[0];
+    li.append(b, " " + row[1]);
+    today.append(li);
   });
   $("today-head").hidden = today.hidden = lines.length === 0;
-  $("power-n").textContent = p.share.power.total.toLocaleString("en-US");
-  $("power-rank").textContent = p.share.power.rank;
-  $("share-link").href = p.share.path;
-  $("dev").hidden = !p.dev;
+  renderTodo(p);
+  renderPlay(p);
+}
 
-  if (!logTurned) {
-    document.querySelectorAll("#logs button").forEach((b) => { b.disabled = !p.log.ready; });
-    if (!p.log.ready) $("log-out").textContent = "Turned over for today. It's back tomorrow.";
-  }
-
-  const box = $("things");
+// What's ready to do, as keys that go straight to it.
+function renderTodo(p) {
+  const todo = [], b = p.bank;
+  if (p.wheel.free > 0) todo.push(["i_play", p.wheel.free > 1 ? p.wheel.free + " free spins" : "Free spin", "wheel"]);
+  if (p.log.ready) todo.push(["wood", "Old log", "play"]);
+  if (p.dive.paid < p.dive.cap) todo.push(["i_pond", "Race in Dive", "dive"]);
+  if (b.gravel.level && b.gravel.held >= 1) todo.push(["peb", b.gravel.held + " on the gravel bar", "bank"]);
+  if (b.garden.level && b.garden.plots.some((x) => x.ready_in === 0)) todo.push(["watercress", "Garden's ready", "garden"]);
+  if (b.dye.busy && b.dye.ready_in <= 0) todo.push(["dye_blue", "Dye's ready", "bank"]);
+  if (p.forage > 0) todo.push(["f_reeds", "Foraging's back", "reeds"]);
+  if (p.stall.takings) todo.push(["i_town", "Stall sold " + p.stall.takings, "town"]);
+  const box = $("todo");
   box.textContent = "";
-  $("things-none").hidden = p.items.length > 0;
-  p.items.forEach((it) => {
-    const li = document.createElement("li"), name = document.createElement("span");
-    name.textContent = it.name + (it.count > 1 ? " x" + it.count : "");
-    li.append(iconCanvas(it.kind, 3), name);
-    if (it.kind === "geode") {
-      const b = document.createElement("button");
-      b.type = "button"; b.textContent = "Crack";
-      b.addEventListener("click", () => {
-        b.disabled = true;
-        post("/api/geode").then((d) => { $("thing-out").textContent = d.prize.text; setPond(d.pond); },
-          (e) => { $("thing-out").textContent = e.message; b.disabled = false; });
-      });
-      li.append(b);
-    }
-    box.append(li);
+  todo.forEach(([icon, label, to]) => {
+    const a = document.createElement("a");
+    a.href = "#" + to; a.className = "chip";
+    a.append(iconCanvas(icon, 2), label);
+    box.append(a);
   });
 }
 
-let logTurned = false;
+// ---------------------------------------------------------------- play
+
+function renderPlay(p) {
+  $("play-dive-line").textContent = "Best " + p.dive.best + " · today " + p.dive.paid + "/" + p.dive.cap;
+  const w = p.wheel;
+  $("play-wheel-line").textContent = w.free > 0 ? w.free + " free spin" + (w.free > 1 ? "s" : "") + " waiting" : "Next free spin soon";
+  if (!logTurned) {
+    document.querySelectorAll("#logs button").forEach((b) => { b.disabled = !p.log.ready; });
+    if (!p.log.ready) $("log-out").textContent = "Turned over for today. Back tomorrow.";
+  }
+  if (view === "play") drawPlay();
+}
+
+function drawLog(cv, open) {
+  const x = cv.getContext("2d");
+  x.clearRect(0, 0, 64, 40);
+  x.fillStyle = "#6b4a2a"; x.fillRect(4, open ? 4 : 12, 56, 20);
+  x.fillStyle = "#8a6230"; x.fillRect(4, open ? 8 : 16, 56, 4); x.fillRect(4, open ? 18 : 26, 56, 2);
+  x.fillStyle = "#c9974f"; x.fillRect(56, open ? 4 : 12, 6, 20);
+  x.fillStyle = "#e3c57a"; x.fillRect(58, open ? 10 : 18, 2, 8);
+  x.fillStyle = "#3f9a4d"; x.fillRect(12, open ? 0 : 8, 8, 4); x.fillRect(36, open ? 2 : 10, 4, 4);
+  if (open) { x.fillStyle = "#2f2820"; x.fillRect(8, 28, 48, 10); }
+}
+
+function drawPlay() {
+  const p = state.pond, g = state.g;
+  if (!p || !g) return;
+  const d = $("play-dive-art").getContext("2d");
+  ["#123a3d", "#0e2c30", "#0a1b1f"].forEach((c, i) => { d.fillStyle = c; d.fillRect(0, i * 32, 168, 32); });
+  d.fillStyle = "#7fd6c2"; d.fillRect(0, 0, 168, 3);
+  d.fillStyle = "#2f7a3f"; d.fillRect(120, 0, 10, 40); d.fillStyle = "#5b6470"; d.fillRect(118, 66, 14, 30);
+  d.fillStyle = "#3f9a4d"; d.fillRect(70, 0, 10, 28); d.fillStyle = "#5b6470"; d.fillRect(68, 56, 14, 40);
+  draw(d, sideCells(g, p.frog.stage === "egg" ? "tadpole" : p.frog.stage, true), SW, SH, colours(g, null), 22, 40, 2);
+  d.fillStyle = "rgba(255,246,220,0.6)"; d.fillRect(12, 30, 4, 4); d.fillRect(8, 22, 2, 2);
+  const w = $("play-wheel-art").getContext("2d");
+  w.fillStyle = "#0e2c30"; w.fillRect(0, 0, 168, 96);
+  for (let y = 0; y < 96; y += 4) for (let x = 0; x < 168; x += 4) {
+    const dx = (x + 2 - 84) / 44, dy = (y + 2 - 48) / 44, r = dx * dx + dy * dy;
+    if (r > 1) continue;
+    const a = Math.atan2(dy, dx), sl = Math.floor(((a + Math.PI) / (Math.PI * 2)) * 16);
+    w.fillStyle = r > 0.86 ? "#1f5a2c" : r < 0.06 ? "#ffe27a" : sl % 2 ? "#3f9a4d" : "#56b45f";
+    if (sl === 3 && r > 0.06 && r <= 0.86) w.fillStyle = "#d8659a";
+    if (sl === 11 && r > 0.06 && r <= 0.86) w.fillStyle = "#e3b23a";
+    w.fillRect(x, y, 4, 4);
+  }
+  document.querySelectorAll("#logs canvas").forEach((cv, i) => drawLog(cv, logTurned && logPick === i));
+}
+
+let logTurned = false, logPick = -1;
 $("logs").addEventListener("click", (e) => {
   const b = e.target.closest("button");
   if (!b || b.disabled || logTurned) return;
   const all = document.querySelectorAll("#logs button");
   all.forEach((x) => { x.disabled = true; });
   post("/api/log", { pick: +b.dataset.pick }).then((d) => {
-    logTurned = true;
-    all.forEach((x, i) => { x.textContent = d.finds[i].pebbles + " pebbles"; });
+    logTurned = true; logPick = d.pick;
     b.setAttribute("aria-pressed", "true");
-    $("log-out").textContent = d.finds[d.pick].text;
+    $("log-out").textContent = d.finds.map((f, i) => (i === d.pick ? "You: " : "") + f.pebbles).join(" · ");
     setPond(d.pond);
+    drawPlay();
+    reveal({ kick: "Under the log", art: iconCanvas("peb", 8), name: d.finds[d.pick].pebbles + " pebbles", line: d.finds[d.pick].text });
   }, (err) => { $("log-out").textContent = err.message; setPondAgain(); });
 });
 
 function setPondAgain() {
   fetch("/api/pond", { credentials: "same-origin" }).then((r) => r.ok ? r.json() : null).then((p) => { if (p) setPond(p); });
-}
-
-function hatLine(z) {
-  return "A hat. " + z.hat_name + ", " + TIERS[z.hat_tier].toLowerCase() + ", and it's in your hat box" + (z.spare ? " as a spare." : ".");
 }
 
 function greet(g) {
@@ -377,15 +423,23 @@ function greet(g) {
     dt.textContent = row[0]; dd.textContent = row[1];
     dl.append(dt, dd);
   });
+  dl.hidden = g.missed.length === 0;
   if (g.present) {
     const z = g.present, name = titled(g.pond.frog.name);
     $("gift").hidden = false;
-    $("gift-line").textContent = name + " has something for you behind its back.";
-    $("gift-open").addEventListener("click", function () {
-      this.hidden = true;
-      $("gift-line").textContent = z.hat ? hatLine(z) : z.text;
+    drawBox($("gift-box").getContext("2d"), "#e2567a", 6);
+    $("gift-line").textContent = name + " has a present for you.";
+    $("gift-open").addEventListener("click", () => {
+      $("gift").hidden = true;
       state.held = 0;
       setPond(state.pond);
+      reveal({
+        kick: "A present from " + name,
+        art: z.hat ? thingArt({ hat: z.hat }, 8) : thingArt({ kind: z.item || "peb" }, 8),
+        name: z.hat ? z.hat_name : z.pebbles ? z.pebbles + " pebbles" : z.text,
+        tier: z.hat || (z.item && z.item.startsWith("t_")) ? z.hat_tier : undefined,
+        line: z.hat ? (z.spare ? "A spare, Wren will buy it." : "It's in your bag.") : z.text,
+      });
     }, { once: true });
   }
   if (!reduced) greetAt = performance.now();
@@ -410,16 +464,17 @@ $("dev").addEventListener("click", (e) => {
 // ---------------------------------------------------------------- boot
 
 drawIcon($("purse-icon").getContext("2d"), "peb", 0, 0, 2);
+initUI();
 watch(renderPond);
 initDive();
 initWheel();
-initHats();
 initReeds();
 initBank();
 initShops();
-initTrinkets();
-initRocks();
-initKeepsakes();
+initBag();
+initCollect();
+initTown();
+initSettings();
 show(location.hash.slice(1));
 
 post("/api/greet").then((g) => {

@@ -7,73 +7,39 @@
     <div class="who">
       <h1 id="frog-name">&nbsp;</h1>
       <p class="chips"><span class="tier" id="frog-tier"></span> <span id="frog-odds"></span></p>
-      <p class="dim" id="frog-what"></p>
+      <p class="stats" id="frog-what"></p>
     </div>
-    <p class="line" id="greet-line">Looking for your frog.</p>
-    <dl class="missed" id="greet-missed"></dl>
+    <p class="bubble" id="greet-line">Looking for your frog.</p>
     <div class="card gift" id="gift" hidden>
+      <canvas id="gift-box" width="48" height="48" aria-hidden="true"></canvas>
       <p id="gift-line"></p>
       <button type="button" class="primary" id="gift-open">Unwrap it</button>
     </div>
-    <h2 data-idx="01" id="today-head" hidden>Today at the pond</h2>
-    <dl class="missed" id="today" hidden></dl>
-    <p class="card nudge" id="nudge" hidden>Your frog lives in this browser. <a href="/key">Write down its pond key</a> so you can always get back to it.</p>
+    <div class="todo" id="todo"></div>
+    <dl class="missed" id="greet-missed" hidden></dl>
+    <h2 id="today-head" hidden>Today at the pond</h2>
+    <ul class="today" id="today" hidden></ul>
+    <p class="card nudge" id="nudge" hidden>Your frog lives in this browser. <a href="/key">Save its pond key</a> so you never lose it.</p>
+  </section>
 
-    <h2 data-idx="02">The old log</h2>
-    <p class="dim" id="log-out">Turn one over. It pays once a day.</p>
-    <div class="logs" id="logs">
-      <button type="button" data-pick="0">Log 1</button>
-      <button type="button" data-pick="1">Log 2</button>
-      <button type="button" data-pick="2">Log 3</button>
-    </div>
-
-    <h2 data-idx="03">Purse</h2>
-    <p class="dim" id="things-none">Pebbles and nothing else yet. The wheel and your frog's presents put things here.</p>
-    <ul class="things" id="things"></ul>
-    <p class="dim" id="thing-out"></p>
-
-    <h2 data-idx="04">Rock shelf <span class="count" id="rock-count"></span></h2>
-    <p class="dim">Every rock you've had stays on the shelf, even once the dye works has boiled it down.</p>
-    <div class="hatgrid" id="rock-grid"></div>
-
-    <h2 data-idx="05">Keepsakes <span class="count" id="keep-count"></span></h2>
-    <p class="dim">Your frog keeps something from a day when something happened, a frost or a full moon or a bad day on the market, and it's stamped with the day. Come by on one to get it.</p>
-    <div class="hatgrid" id="keep-grid"></div>
-
-    <h2 data-idx="06">Around the pad <span class="count" id="trinket-count"></span></h2>
-    <p class="dim">Trinkets to set out round the pad, three spots at a time. A few can go in the pot too, and the set remembers every one you've had.</p>
-    <div class="row seg" id="spot-pick" aria-label="Spot">
-      <button type="button" data-spot="0" aria-pressed="true">Left</button>
-      <button type="button" data-spot="1" aria-pressed="false">Right</button>
-      <button type="button" data-spot="2" aria-pressed="false">Water</button>
-    </div>
-    <div class="row">
-      <button type="button" class="primary" id="trinket-box">Open a trinket box</button>
-      <button type="button" id="trinket-clear">Clear this spot</button>
-    </div>
-    <p class="line" id="trinket-out" role="status"></p>
-    <div class="hatgrid" id="trinket-grid"></div>
-    <p class="label" id="trinket-spares-head" hidden>Spares</p>
-    <div id="trinket-spares"></div>
-
-    <h2 data-idx="07">Show off</h2>
-    <p class="power"><b id="power-n">0</b> <span id="power-rank"></span></p>
-    <p class="dim">Frog power counts how rare your frog is, the hats and trinkets you've found and your best Dive, and it only goes up. Its page is safe to share, the link has nothing to do with your pond key.</p>
-    <p><a class="button" id="share-link" href="/">Your frog's page</a></p>
-
-    <div class="card dev" id="dev" hidden>
-      <p class="label">Dev clock</p>
-      <button type="button" data-hours="1">+1 hour</button>
-      <button type="button" data-hours="4">+4 hours</button>
-      <button type="button" data-hours="24">+1 day</button>
-      <button type="button" data-hours="168">+1 week</button>
-      <p class="label">Dev day</p>
-      <button type="button" data-day="live">Live</button>
-      <button type="button" data-day="rain">Rain</button>
-      <button type="button" data-day="night">Night</button>
-      <button type="button" data-day="cold">Cold</button>
-      <button type="button" data-day="busy">Busy</button>
-      <button type="button" data-day="storm">Storm</button>
+  <section class="view" id="v-play" hidden>
+    <a class="game" href="#dive" id="play-dive">
+      <canvas id="play-dive-art" width="168" height="96" aria-hidden="true"></canvas>
+      <span class="gtext"><b>Dive</b><span id="play-dive-line">Race nine frogs to the bottom.</span></span>
+      <span class="go">Race</span>
+    </a>
+    <a class="game" href="#wheel" id="play-wheel">
+      <canvas id="play-wheel-art" width="168" height="96" aria-hidden="true"></canvas>
+      <span class="gtext"><b>Lily wheel</b><span id="play-wheel-line"></span></span>
+      <span class="go">Spin</span>
+    </a>
+    <div class="game log">
+      <span class="gtext"><b>The old log</b><span id="log-out">Pick one. Once a day.</span></span>
+      <div class="logs" id="logs">
+        <button type="button" data-pick="0" aria-label="Log 1"><canvas width="64" height="40"></canvas></button>
+        <button type="button" data-pick="1" aria-label="Log 2"><canvas width="64" height="40"></canvas></button>
+        <button type="button" data-pick="2" aria-label="Log 3"><canvas width="64" height="40"></canvas></button>
+      </div>
     </div>
   </section>
 
@@ -107,6 +73,7 @@
   </section>
 
   <section class="view" id="v-wheel" hidden>
+    <a class="back" href="#play">&larr; Play</a>
     <div class="screen"><canvas id="wheel" width="520" height="580" aria-label="The lily pad wheel"></canvas></div>
     <div class="row">
       <button type="button" class="primary" id="spin-free">Free spin</button>
@@ -114,28 +81,25 @@
     </div>
     <p class="line" id="wheel-out">Every slice is a prize.</p>
     <p class="dim" id="wheel-note"></p>
-    <h2 data-idx="01">What's on it today</h2>
+    <h2>On the wheel today</h2>
     <ul class="legend" id="wheel-legend"></ul>
   </section>
 
-  <section class="view" id="v-hats" hidden>
-    <div class="hatbox">
-      <div class="screen"><canvas id="hat-preview" width="176" height="136"></canvas></div>
-      <div>
-        <p class="label" id="hat-count"></p>
-        <p id="hat-wearing">No hat on.</p>
-        <button type="button" id="hat-off" hidden>Take it off</button>
-      </div>
+  <section class="view" id="v-bag" hidden>
+    <div class="chiprow" id="bag-sorts" role="group" aria-label="Show"></div>
+    <div class="slots" id="bag-grid"></div>
+    <p class="empty" id="bag-none" hidden>Nothing in here yet. Spin the wheel, turn over the log or open a box in town.</p>
+  </section>
+
+  <section class="view" id="v-collect" hidden>
+    <div class="total">
+      <b id="col-pct">0%</b>
+      <span class="meter"><i id="col-bar"></i></span>
+      <span class="dim" id="col-n"></span>
     </div>
-    <div class="row">
-      <button type="button" class="primary" id="box-open">Open a hat box, 40</button>
-    </div>
-    <p class="line" id="box-out">A box has one hat in it. A second copy of a hat is a spare you can sell.</p>
-    <p class="dim" id="box-odds"></p>
-    <h2 data-idx="01">Spares</h2>
-    <div id="spares"></div>
-    <h2 data-idx="02">Collection</h2>
-    <div class="hatgrid" id="hatgrid"></div>
+    <div class="cats" id="col-cats"></div>
+    <h2 id="col-head"></h2>
+    <div class="slots big" id="col-grid"></div>
   </section>
 
   <section class="view" id="v-reeds" hidden>
@@ -145,28 +109,42 @@
     <div class="row" id="forage-row" hidden><button type="button" class="primary" id="forage">See what they brought in</button></div>
     <dl class="missed" id="forage-out" hidden></dl>
 
-    <h2 data-idx="01">The egg bench</h2>
+    <h2>Egg bench</h2>
+    <p class="help" hidden>An egg is its parent with the numbers nudged, and about one in sixteen throws back to something else. A dye, a stamp or eye drops take about two times in three and are used up either way. Drops make a frog ten times rarer. Old Moss in town sells all three.</p>
     <p id="bench-line"></p>
-    <p class="dim">An egg is its parent with the numbers nudged, and about one in sixteen throws back to something else. A dye, a stamp or eye drops take about two times in three and are used up either way. Drops make a frog ten times rarer and its eggs mostly keep them. Old Moss sells all three.</p>
     <div class="row seg" id="bench-dyes" aria-label="Dye"></div>
     <div class="row seg" id="bench-stamps" aria-label="Stamp"></div>
     <div class="row seg" id="bench-drops" aria-label="Eye drops"></div>
     <div class="row"><button type="button" class="primary" id="lay">Lay an egg</button></div>
     <p class="line" id="bench-out" role="status"></p>
 
-    <h2 data-idx="02">Pads</h2>
+    <h2>Pads</h2>
     <p id="pads-line"></p>
     <div class="row"><button type="button" id="pad-buy">Another pad</button></div>
+  </section>
 
-    <h2 data-idx="03">The register <span class="count" id="reg-count"></span></h2>
-    <p class="dim">Every colour, back and pupil a frog of yours has grown up with. An egg counts once it hatches.</p>
-    <div id="register"></div>
+  <section class="view" id="v-garden" hidden>
+    <div class="screen"><canvas id="garden" width="528" height="216" aria-label="The garden plots by the water"></canvas></div>
+    <p class="dim" id="garden-note"></p>
+    <div class="row">
+      <button type="button" class="primary" id="garden-pick">Pick</button>
+      <button type="button" id="garden-water">Water</button>
+      <button type="button" id="garden-build">Build</button>
+    </div>
+    <p class="line" id="garden-out" role="status"></p>
+
+    <h2>Kitchen</h2>
+    <p class="help" hidden>Any two things from the garden make a dish. Every dish you find goes in the cookbook in Collect, and Brindle buys whatever you cook.</p>
+    <div class="larder seg" id="larder" aria-label="Pick two"></div>
+    <div class="row"><button type="button" class="primary" id="cook">Cook</button></div>
+    <p class="line" id="cook-out" role="status"></p>
+    <ul class="things dishes" id="dishes"></ul>
   </section>
 
   <section class="view" id="v-bank" hidden>
     <p class="line" id="bank-line"></p>
-
-    <h2 data-idx="01">Gravel bar</h2>
+    <h2>Gravel bar</h2>
+    <p class="help" hidden>Makes pebbles by itself while you're away and holds eight hours of them. 6 an hour at first and 30 by level 5.</p>
     <div class="tiles">
       <span class="readout"><span class="k">Level</span><span class="v" id="gravel-level">0</span></span>
       <span class="readout"><span class="k">Makes</span><span class="v" id="gravel-rate">&mdash;</span></span>
@@ -179,17 +157,8 @@
     </div>
     <p class="line" id="gravel-out" role="status"></p>
 
-    <h2 data-idx="02">Garden</h2>
-    <div class="screen"><canvas id="garden" width="528" height="216" aria-label="The garden plots by the water"></canvas></div>
-    <p class="dim" id="garden-note"></p>
-    <div class="row">
-      <button type="button" class="primary" id="garden-pick">Pick what's ready</button>
-      <button type="button" id="garden-water">Water</button>
-      <button type="button" id="garden-build">Build</button>
-    </div>
-    <p class="line" id="garden-out" role="status"></p>
-
-    <h2 data-idx="03">Dye works</h2>
+    <h2>Dye works</h2>
+    <p class="help" hidden>Boils three rocks down into a dye for the egg bench. Each rock leans the colour, and the odds for the three you pick show under them.</p>
     <div class="tiles">
       <span class="readout"><span class="k">Level</span><span class="v" id="dye-level">0</span></span>
       <span class="readout"><span class="k">A batch</span><span class="v" id="dye-hours">&mdash;</span></span>
@@ -204,51 +173,140 @@
       <button type="button" id="dye-build">Build</button>
     </div>
     <p class="line" id="dye-out" role="status"></p>
-
-    <h2 data-idx="04">Kitchen</h2>
-    <p class="dim">Any two things from the garden make a dish. The cookbook fills in as you go, and Brindle buys whatever you cook.</p>
-    <div class="larder seg" id="larder" aria-label="Pick two"></div>
-    <div class="row"><button type="button" class="primary" id="cook">Cook</button></div>
-    <p class="line" id="cook-out" role="status"></p>
-    <ul class="things dishes" id="dishes"></ul>
-
-    <h2 data-idx="05">Cookbook <span class="count" id="cook-count"></span></h2>
-    <ul class="cookbook" id="cookbook"></ul>
   </section>
 
-  <section class="view" id="v-shops" hidden>
-    <p class="line">Four shops on the far bank. Everybody sees the same stock, and what you buy only comes out of yours.</p>
+  <section class="view" id="v-town" hidden>
+    <div class="chiprow sub" id="town-tabs" role="group" aria-label="In town">
+      <button type="button" data-town="shops" aria-pressed="true">Shops</button>
+      <button type="button" data-town="stall" aria-pressed="false">Your stall</button>
+      <button type="button" data-town="wizard" aria-pressed="false">Wizard</button>
+    </div>
 
-    <h2 data-idx="01">Wren's Hats</h2>
-    <p class="dim" id="wren-note"></p>
-    <ul class="shelf" id="shelf-wren"></ul>
-    <p class="line" id="shop-out-wren" role="status"></p>
+    <div id="town-shops">
+      <h2>Wren's Hats</h2>
+      <p class="dim" id="wren-note"></p>
+      <div class="boxbuy">
+        <canvas class="boxart" data-tint="#e2567a" width="48" height="48" aria-hidden="true"></canvas>
+        <span><b>Mystery hat box</b><span class="dim" id="box-odds"></span></span>
+        <button type="button" class="primary" id="box-open">40</button>
+      </div>
+      <ul class="shelf" id="shelf-wren"></ul>
+      <p class="line" id="shop-out-wren" role="status"></p>
 
-    <h2 data-idx="02">Brindle's Larder</h2>
-    <p class="dim" id="brindle-note"></p>
-    <ul class="shelf" id="shelf-brindle"></ul>
-    <p class="line" id="shop-out-brindle" role="status"></p>
+      <h2>Brindle's Larder</h2>
+      <p class="dim" id="brindle-note"></p>
+      <ul class="shelf" id="shelf-brindle"></ul>
+      <p class="line" id="shop-out-brindle" role="status"></p>
 
-    <h2 data-idx="03">Fenn's Pad and Reed</h2>
-    <p class="dim">Furniture for the whole pond. Each one is for good and goes straight onto the water.</p>
-    <ul class="shelf" id="shelf-fenn"></ul>
-    <p class="line" id="shop-out-fenn" role="status"></p>
+      <h2>Fenn's Pad and Reed</h2>
+      <ul class="shelf" id="shelf-fenn"></ul>
+      <p class="line" id="shop-out-fenn" role="status"></p>
 
-    <h2 data-idx="04">Old Moss's Curios</h2>
-    <p class="dim">Rocks, dyes, stamps and eye drops for the egg bench. Moss restocks a few times a day whenever he feels like it, and now and then something's going cheap.</p>
-    <ul class="shelf" id="shelf-moss"></ul>
-    <p class="line" id="shop-out-moss" role="status"></p>
+      <h2>Old Moss's Curios</h2>
+      <p class="dim">Restocks whenever he feels like it.</p>
+      <div class="boxbuy">
+        <canvas class="boxart" data-tint="#7fd6c2" width="48" height="48" aria-hidden="true"></canvas>
+        <span><b>Mystery trinket box</b><span class="dim">Same odds as a hat box</span></span>
+        <button type="button" class="primary" id="trinket-box">60</button>
+      </div>
+      <ul class="shelf" id="shelf-moss"></ul>
+      <p class="line" id="shop-out-moss" role="status"></p>
+    </div>
+
+    <div id="town-stall" hidden>
+      <div class="stallart screen"><canvas id="stall-art" width="352" height="128" aria-hidden="true"></canvas></div>
+      <p class="help" hidden>Put up to three things on your stall. Neighbours wander by and buy, in a few hours at a bargain, about a day at the going rate and weeks if it's dear. A hat or trinket has to be a spare.</p>
+      <h2>Your stall</h2>
+      <div class="stall" id="stall-rows"></div>
+      <div class="row">
+        <button type="button" class="primary" id="stall-collect">Collect</button>
+      </div>
+      <p class="line" id="stall-out" role="status"></p>
+    </div>
+
+    <div id="town-wizard" hidden>
+      <div class="screen"><canvas id="wiz-art" width="352" height="232" aria-hidden="true"></canvas></div>
+      <p class="bubble" id="wiz-line">Bring me three of a thing and I'll make it something else. Probably worse.</p>
+      <div class="odds" id="wiz-odds"></div>
+      <h2>Three of a kind</h2>
+      <div class="slots" id="wiz-grid"></div>
+      <p class="empty" id="wiz-none" hidden>You need three of the same thing. Rocks from the wheel and spare hats are a good start.</p>
+      <div class="row"><button type="button" class="primary big" id="wiz-cast" disabled>Pick three of something</button></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-settings" hidden>
+    <h2>Name</h2>
+    <div class="namebox">
+      <canvas id="name-frog" width="132" height="102" aria-hidden="true"></canvas>
+      <div>
+        <div class="row seg" id="name-which" aria-label="Which frog"></div>
+        <b id="name-now"></b>
+      </div>
+    </div>
+    <div class="chiprow names" id="name-picks"></div>
+    <div class="row"><button type="button" id="name-roll">Roll new names</button></div>
+    <p class="line" id="name-out" role="status"></p>
+
+    <h2>Pond key</h2>
+    <p>Six words that bring your frog back on any device. There's no account, so keep them safe.</p>
+    <p><a class="button primary" href="/key">See and save your key</a></p>
+
+    <h2>Frog power</h2>
+    <p class="power"><b id="power-n">0</b> <span id="power-rank"></span></p>
+    <p class="help" hidden>Power counts how rare your frog is, the hats and trinkets you've found and your best Dive, and it only goes up. Its page is safe to share, the link has nothing to do with your pond key.</p>
+    <p><a class="button" id="share-link" href="/">Your frog's page</a></p>
+
+    <div class="card dev" id="dev" hidden>
+      <p class="label">Dev clock</p>
+      <button type="button" data-hours="1">+1 hour</button>
+      <button type="button" data-hours="4">+4 hours</button>
+      <button type="button" data-hours="24">+1 day</button>
+      <button type="button" data-hours="168">+1 week</button>
+      <p class="label">Dev day</p>
+      <button type="button" data-day="live">Live</button>
+      <button type="button" data-day="rain">Rain</button>
+      <button type="button" data-day="night">Night</button>
+      <button type="button" data-day="cold">Cold</button>
+      <button type="button" data-day="busy">Busy</button>
+      <button type="button" data-day="storm">Storm</button>
+    </div>
   </section>
 </div>
 
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="sheet-name">
+    <button type="button" class="x" id="sheet-x" aria-label="Close">&times;</button>
+    <div class="sheet-art" id="sheet-art"></div>
+    <b id="sheet-name"></b>
+    <span class="tier" id="sheet-tier"></span>
+    <p class="dim" id="sheet-what"></p>
+    <div class="sheet-body" id="sheet-body"></div>
+    <p class="line" id="sheet-out" role="status"></p>
+  </div>
+</div>
+
+<div class="reveal" id="reveal" hidden>
+  <div class="reveal-card" id="reveal-card">
+    <span class="rays" aria-hidden="true"></span>
+    <p class="reveal-kick" id="reveal-kick"></p>
+    <div class="reveal-art" id="reveal-art"></div>
+    <b id="reveal-name"></b>
+    <span class="tier" id="reveal-tier"></span>
+    <p id="reveal-line"></p>
+    <button type="button" class="primary" id="reveal-ok">Nice</button>
+  </div>
+</div>
+
 <nav class="tabs" id="tabs" aria-label="Places in the pond">
-  <button type="button" data-view="pond" aria-pressed="true"><span class="idx">01</span>Pond</button>
-  <button type="button" data-view="dive" aria-pressed="false"><span class="idx">02</span>Dive</button>
-  <button type="button" data-view="wheel" aria-pressed="false"><span class="idx">03</span>Wheel</button>
-  <button type="button" data-view="hats" aria-pressed="false"><span class="idx">04</span>Hats</button>
-  <button type="button" data-view="reeds" aria-pressed="false"><span class="idx">05</span>Reeds</button>
-  <button type="button" data-view="bank" aria-pressed="false"><span class="idx">06</span>Bank</button>
-  <button type="button" data-view="shops" aria-pressed="false"><span class="idx">07</span>Shops</button>
+  <button type="button" data-view="pond" aria-pressed="true"><canvas data-icon="i_pond" width="24" height="24"></canvas>Pond</button>
+  <button type="button" data-view="play" aria-pressed="false"><canvas data-icon="i_play" width="24" height="24"></canvas>Play</button>
+  <button type="button" data-view="bag" aria-pressed="false"><canvas data-icon="i_bag" width="24" height="24"></canvas>Bag</button>
+  <button type="button" data-view="collect" aria-pressed="false"><canvas data-icon="i_star" width="24" height="24"></canvas>Collect</button>
+  <button type="button" data-view="reeds" aria-pressed="false"><canvas data-icon="f_reeds" width="24" height="24"></canvas>Reeds</button>
+  <button type="button" data-view="garden" aria-pressed="false"><canvas data-icon="watercress" width="24" height="24"></canvas>Garden</button>
+  <button type="button" data-view="bank" aria-pressed="false"><canvas data-icon="i_bank" width="24" height="24"></canvas>Bank</button>
+  <button type="button" data-view="town" aria-pressed="false"><canvas data-icon="i_town" width="24" height="24"></canvas>Town</button>
 </nav>
 {{ end }}
 

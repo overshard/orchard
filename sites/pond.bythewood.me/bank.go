@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"sort"
 	"time"
 )
 
@@ -396,7 +397,21 @@ type kitchenView struct {
 	Dishes      []dishView       `json:"dishes"`
 	Cookbook    []dishView       `json:"cookbook"`
 	Of          int              `json:"of"`
+	// The tier of every dish there is, so the collection can show what's
+	// still to find without naming it.
+	Tiers []int `json:"tiers"`
 }
+
+var dishTiers = func() []int {
+	var out []int
+	for a := range ingredients {
+		for b := a; b < len(ingredients); b++ {
+			out = append(out, dishOf(a, b).tier)
+		}
+	}
+	sort.Ints(out)
+	return out
+}()
 
 type ingredientView struct {
 	Kind  string `json:"kind"`
@@ -485,6 +500,7 @@ func (s *store) bankOf(q querier, p *pond, now time.Time, held map[string]int) (
 	}
 	k.Cookbook = []dishView{}
 	k.Of = dishCount
+	k.Tiers = dishTiers
 	rows, err := q.Query(`SELECT dish FROM cookbook WHERE pond_id = ? ORDER BY first_at`, p.ID)
 	if err != nil {
 		return b, k, err

@@ -558,21 +558,38 @@ Space Grotesk for anything large. It keeps its own stylesheet and its own
 variables, with dash's names and values for the ground, the lines, the text and
 the amber, so a change to those on dash is made here too.
 
-- **Colour lives on the screens and nowhere else.** A screen is a canvas in a
-  bezel, a 1px `--line-hot` border on `--void` with amber brackets at two
+- **Colour lives on the screens, the icons and rarity.** A screen is a canvas
+  in a bezel, a 1px `--line-hot` border on `--void` with amber brackets at two
   corners and faint scanlines over the picture only. The frog, the water, the
-  wheel and Dive are colour pixel art inside one. Everything round a screen is
-  amber, off white and black.
+  wheel, Dive, the stall and the wizard are colour pixel art inside one. Past
+  that the only colour is the 8 by 8 pixel icons and a thing's tier, and
+  everything else round them is amber, off white and black.
+- **It plays like a game and reads like one.** Words are kept to a line, and
+  anything that explains a place sits behind a round `?` on its head. Things
+  are pictures in slots, not rows of text.
 - The water palette is for canvases: `#123a3d` down to `#0a1b1f`, a `#7fd6c2`
   surface, `#fff6dc` cream, `#ffe27a` yellow and `#e2567a` pink.
 - **Panel 00 is the faceplate**, POND in Space Grotesk, a `MODEL FR-01 / SERIES
   ORCHARD` plate that drops out on a narrow phone, and the readouts as tiles on
-  a hairline grid, `PEBBLES` and `KEY`.
+  a hairline grid, `PEBBLES` and `FROG` with a pixel gear, which opens the
+  settings (the name, the pond key, frog power).
 - A section head is an amber index chip, a caps title and a rule out to the
   edge, the same as a dash panel head.
-- **The five places are transport keys along the bottom**, numbered 01 to 05,
-  where a thumb is. The lit one has an amber bar across its top. The content
-  column stops at `34rem` on a desktop.
+- **Eight places are transport keys along the bottom**, each a pixel icon over
+  a word, where a thumb is: Pond, Play, Bag, Collect, Reeds, Garden, Bank and
+  Town. The lit one has an amber bar across its top and its icon lifts. Dive
+  and the wheel open from Play and light it. The content column stops at
+  `34rem` on a desktop.
+- **A slot is how a thing is drawn**, a rounded square with its picture, a
+  count in the corner and its tier as the border colour. One not found yet is
+  its shape in the dark with `???` and a dashed border, so a collection shows
+  how much there is without giving it away. Tapping a slot opens a bottom
+  sheet with the thing big and what can be done with it.
+- **A prize pops up in the middle** with slow rays behind it in its tier's
+  colour, and stays until it's tapped away. A bad turn of the wizard's gets no
+  rays.
+- What the frog says is a speech bubble pointing up at it, and what's ready to
+  do is a row of glowing chips under it that go straight there.
 - **Dive is the whole window, on a phone and a desktop.** It covers the bar and
   the keys, the pond takes its depth and length from the window, and a strip
   under the water holds three readout tiles and `EXIT`. Ten ghost frogs swim
@@ -600,7 +617,7 @@ the amber, so a change to those on dash is made here too.
   the pond saying why, so nothing on the water is a mystery.
 - **The reeds** are every frog as a card, the one out front first with an
   amber border and OUT FRONT, the rest with a key to swap. The egg bench and
-  the pads sit under them.
+  the pads sit under them. The register of looks is in Collect.
 - **A frog's public page** is the frog in its screen, its power as one big
   amber Space Grotesk number with the rank beside it, the parts that make it
   up, and a QR code for the link. It ends on getting a frog of your own.
