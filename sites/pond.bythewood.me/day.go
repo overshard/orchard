@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -260,10 +259,10 @@ func dayOfReading(r *reading, now time.Time) dayView {
 		switch {
 		case r.SP >= 0.5:
 			v.Water = "clear"
-			v.Lines = append(v.Lines, [2]string{"Water", fmt.Sprintf("Clear, with mayflies. The market's up %.1f%%.", r.SP)})
+			v.Lines = append(v.Lines, [2]string{"Water", "Clear, with mayflies."})
 		case r.SP <= -0.5:
 			v.Water = "murky"
-			v.Lines = append(v.Lines, [2]string{"Water", fmt.Sprintf("Murky, and the beetles like it. The market's down %.1f%%.", math.Abs(r.SP))})
+			v.Lines = append(v.Lines, [2]string{"Water", "Murky, and the beetles like it."})
 		}
 	}
 	switch {
