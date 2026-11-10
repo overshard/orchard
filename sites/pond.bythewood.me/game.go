@@ -361,15 +361,22 @@ func greetLine(g genome, stage string, away time.Duration) string {
 // will clear before it hits one. The page plays them out and the server keeps
 // the deal, so a place on the podium is worked out here.
 const (
-	diveGhosts    = 10
-	diveGhostBest = 30
+	diveGhosts = 10
+	// A new pond's ghosts are dealt as if its best were this.
+	diveGhostFloor = 12
 )
 
-func dealGhosts() []int {
-	clears := make([]int, diveGhosts)
-	for i := range clears {
-		clears[i] = rand.IntN(diveGhostBest)
+// dealGhosts sets the three best ghosts around the pond's own best and the
+// rest well under it, so matching your best is about even odds for first and
+// a fair run makes the podium.
+func dealGhosts(best int) []int {
+	base := float64(max(best, diveGhostFloor))
+	band := func(lo, hi float64) int { return int(base * (lo + rand.Float64()*(hi-lo))) }
+	clears := []int{band(0.85, 1.15), band(0.65, 0.95), band(0.5, 0.8)}
+	for len(clears) < diveGhosts {
+		clears = append(clears, band(0, 0.6))
 	}
+	rand.Shuffle(len(clears), func(i, j int) { clears[i], clears[j] = clears[j], clears[i] })
 	return clears
 }
 
