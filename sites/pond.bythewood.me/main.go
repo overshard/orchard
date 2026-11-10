@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"flag"
 	"fmt"
@@ -124,6 +125,7 @@ func main() {
 	}
 	defer db.Close()
 	go sweepHourly(db)
+	go db.day.poll(context.Background())
 
 	s, err := newSite(distFS(), db)
 	if err != nil {
@@ -192,6 +194,7 @@ func (s *site) handler() http.Handler {
 	mux.HandleFunc("POST /api/hats/sell", s.played(s.apiSell))
 	if devBuild {
 		mux.HandleFunc("POST /api/dev/clock", post(s.apiDevClock))
+		mux.HandleFunc("POST /api/dev/day", post(s.apiDevDay))
 	}
 	mux.HandleFunc("GET /healthz", healthz)
 	mux.Handle("GET /static/", web.Static(s.dist, s.assets))

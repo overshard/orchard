@@ -114,6 +114,7 @@ var (
 type store struct {
 	w, r   *sql.DB
 	pepper []byte
+	day    almanac
 	now    func() time.Time
 
 	// Seconds added to the clock, moved by the dev route and nothing else.
@@ -439,8 +440,9 @@ type view struct {
 		Path  string `json:"path"`
 		Power power  `json:"power"`
 	} `json:"share"`
-	Nudge bool `json:"nudge"`
-	Dev   bool `json:"dev"`
+	Day   dayView `json:"day"`
+	Nudge bool    `json:"nudge"`
+	Dev   bool    `json:"dev"`
 }
 
 func frogOf(p *pond, now time.Time) frogView {
@@ -525,7 +527,12 @@ func (s *store) view(id int64) (*view, error) {
 	if err != nil {
 		return nil, err
 	}
-	return viewOf(s.r, *p, s.now())
+	now := s.now()
+	v, err := viewOf(s.r, *p, now)
+	if v != nil {
+		v.Day = dayOfReading(s.day.reading(now), now)
+	}
+	return v, err
 }
 
 // act runs one move on a pond: load it, settle it, let fn change it, save it,
@@ -546,6 +553,9 @@ func (s *store) act(id int64, fn func(tx *sql.Tx, p *pond, now time.Time) error)
 			return err
 		}
 		v, err = viewOf(tx, *p, now)
+		if v != nil {
+			v.Day = dayOfReading(s.day.reading(now), now)
+		}
 		return err
 	})
 	return v, err

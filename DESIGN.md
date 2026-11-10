@@ -578,6 +578,11 @@ the amber, so a change to those on dash is made here too.
   canvas are the same two faces as the page.
 - Rarity is a word in a box as well as a colour: common grey, uncommon green,
   rare blue, epic purple, legendary amber.
+- **The real day is on the pond's screen.** Night darkens it with fireflies,
+  rain falls over it, the water runs clear with mayflies or murky with
+  beetles on the market, ripples quicken with the VIX, and a cold day has
+  frost on the pad and the frog dozing. Each thing gets a line under Today at
+  the pond saying why, so nothing on the water is a mystery.
 - **A frog's public page** is the frog in its screen, its power as one big
   amber Space Grotesk number with the rank beside it, the parts that make it
   up, and a QR code for the link. It ends on getting a frog of your own.
