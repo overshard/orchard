@@ -1739,7 +1739,7 @@ a.game:hover {
   text-transform: uppercase;
 }
 
-.go {
+.cta {
   padding: 8px 14px;
   border-radius: 20px;
   background: var(--amber);
