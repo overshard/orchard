@@ -34,6 +34,11 @@ func (s *store) greet(id int64, first bool) (*greeting, error) {
 		stage, _ := stageOf(now.Sub(hatched))
 		away := now.Sub(time.Unix(p.LastSeenAt, 0))
 
+		kept, err := stampKeepsakes(tx, p.ID, s.day.reading(now), now)
+		if err != nil {
+			return err
+		}
+
 		if first {
 			g.Line = "Hello. This one's yours. Its name is " + titled(gen.Name) + " and it has decided it likes you."
 			g.Missed = [][2]string{
@@ -41,6 +46,7 @@ func (s *store) greet(id int64, first bool) (*greeting, error) {
 				{"Purse", plural(starterPebbles, "pebble") + " to start"},
 				{"Wheel", "one free spin waiting"},
 			}
+			g.Missed = append(g.Missed, kept...)
 			return nil
 		}
 
@@ -84,6 +90,8 @@ func (s *store) greet(id int64, first bool) (*greeting, error) {
 		if p.LogDay != dayOf(now) {
 			g.Missed = append(g.Missed, [2]string{"Old log", "not turned over yet today"})
 		}
+
+		g.Missed = append(g.Missed, kept...)
 
 		if gap := now.Sub(time.Unix(p.LastGiftAt, 0)); gap >= giftGap {
 			z := rollGift(gap)

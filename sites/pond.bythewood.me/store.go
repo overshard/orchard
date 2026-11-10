@@ -115,6 +115,13 @@ CREATE TABLE IF NOT EXISTS rocks_found (
     PRIMARY KEY (pond_id, kind)
 ) WITHOUT ROWID;
 
+CREATE TABLE IF NOT EXISTS keepsakes (
+    pond_id  INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
+    kind     TEXT NOT NULL,
+    day      TEXT NOT NULL,
+    PRIMARY KEY (pond_id, kind, day)
+) WITHOUT ROWID;
+
 CREATE TABLE IF NOT EXISTS growth (
     id    INTEGER PRIMARY KEY CHECK (id = 1),
     at    INTEGER NOT NULL,
@@ -568,12 +575,13 @@ type view struct {
 		Path  string `json:"path"`
 		Power power  `json:"power"`
 	} `json:"share"`
-	Day      dayView             `json:"day"`
-	Bank     bankView            `json:"bank"`
-	Kitchen  kitchenView         `json:"kitchen"`
-	Shops    map[string]shopView `json:"shops"`
-	Trinkets trinketsView        `json:"trinkets"`
-	Rocks    []rockView          `json:"rocks"`
+	Day       dayView             `json:"day"`
+	Bank      bankView            `json:"bank"`
+	Kitchen   kitchenView         `json:"kitchen"`
+	Shops     map[string]shopView `json:"shops"`
+	Trinkets  trinketsView        `json:"trinkets"`
+	Rocks     []rockView          `json:"rocks"`
+	Keepsakes []keepsakeView      `json:"keepsakes"`
 	// What Fenn sold this pond, drawn on the water.
 	Furniture []string `json:"furniture"`
 
@@ -750,6 +758,9 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 		return err
 	}
 	if v.Rocks, err = rocksOf(q, p.ID, v.held); err != nil {
+		return err
+	}
+	if v.Keepsakes, err = keepsakesOf(q, p.ID); err != nil {
 		return err
 	}
 	had := map[string]bool{}

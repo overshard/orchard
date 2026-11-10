@@ -9,6 +9,7 @@ import { initBank, enterBank, leaveBank } from "./bank.js";
 import { initShops } from "./shops.js";
 import { initTrinkets } from "./trinkets.js";
 import { initRocks } from "./rocks.js";
+import { initKeepsakes } from "./keepsakes.js";
 
 const VIEWS = ["pond", "dive", "wheel", "hats", "reeds", "bank", "shops"];
 let view = "pond";
@@ -402,6 +403,7 @@ initBank();
 initShops();
 initTrinkets();
 initRocks();
+initKeepsakes();
 show(location.hash.slice(1));
 
 post("/api/greet").then((g) => {
