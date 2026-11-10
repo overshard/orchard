@@ -382,6 +382,22 @@ func TestOddsLandNearWhatThePageSays(t *testing.T) {
 		t.Errorf("%d slices on the wheel, want 16", len(wheelSlices))
 	}
 
+	// The hat and the dye hold for a day and change across days.
+	hats, dyes := map[hat]bool{}, map[string]bool{}
+	day := time.Date(2026, 11, 1, 12, 0, 0, 0, pondZone)
+	for i := range 60 {
+		d := dayOf(day.AddDate(0, 0, i))
+		h, dye := wheelOfDay(d)
+		h2, dye2 := wheelOfDay(d)
+		if h != h2 || dye != dye2 || !h.valid() || itemNames[dye] == "" || h.tier() > 2 {
+			t.Fatalf("%s: wheel of the day %+v %q then %+v %q", d, h, dye, h2, dye2)
+		}
+		hats[h], dyes[dye] = true, true
+	}
+	if len(hats) < 15 || len(dyes) < len(wheelDyes) {
+		t.Errorf("60 days put %d hats and %d dyes on the wheel", len(hats), len(dyes))
+	}
+
 	total := 0
 	for _, f := range finds {
 		total += f.w

@@ -7,6 +7,11 @@ export const ICONS = {
   geode: [["..aaaa..", ".aabbaa.", "aabccbaa", "abccccba", "aabccbaa", ".aabbaa.", "..aaaa..", "........"], { a: "#5b534a", b: "#b88ae0", c: "#ecdcff" }],
   hat: [["..a.a...", ".aaaaa..", "..aba...", ".aaaaa..", "..a.a...", "...c....", "...c....", "........"], { a: "#fff6dc", b: "#f2c230", c: "#2f7a3f" }],
   dye_blue: [["..cc....", "..cc....", ".aaaa...", ".abaa...", ".abaa...", ".aaaa...", ".aaaa...", "........"], { a: "#3d8fd6", b: "#b5dcff", c: "#d5d8dc" }],
+  dye_gold: [["..cc....", "..cc....", ".aaaa...", ".abaa...", ".abaa...", ".aaaa...", ".aaaa...", "........"], { a: "#f2c230", b: "#fff6dc", c: "#d5d8dc" }],
+  dye_berry: [["..cc....", "..cc....", ".aaaa...", ".abaa...", ".abaa...", ".aaaa...", ".aaaa...", "........"], { a: "#e2567a", b: "#ffd0ea", c: "#d5d8dc" }],
+  dye_olive: [["..cc....", "..cc....", ".aaaa...", ".abaa...", ".abaa...", ".aaaa...", ".aaaa...", "........"], { a: "#8a9a3a", b: "#d6e08f", c: "#d5d8dc" }],
+  dye_brown: [["..cc....", "..cc....", ".aaaa...", ".abaa...", ".abaa...", ".aaaa...", ".aaaa...", "........"], { a: "#8a5a2b", b: "#e3c57a", c: "#d5d8dc" }],
+  dye_grey: [["..cc....", "..cc....", ".aaaa...", ".abaa...", ".abaa...", ".aaaa...", ".aaaa...", "........"], { a: "#9aa0a6", b: "#e9e3d6", c: "#d5d8dc" }],
   snail: [["........", "..aaa...", ".abbba..", ".ababa.c", ".abbba.c", "..aaaccc", ".ccccccc", "........"], { a: "#8a5a2b", b: "#e3c57a", c: "#cfc7a8" }],
   cap: [["........", "..aaaa..", ".abbbba.", "abbccbba", "abbccbba", ".abbbba.", "..aaaa..", "........"], { a: "#6d747a", b: "#d5d8dc", c: "#e2567a" }],
   feather: [["......a.", ".....ab.", "....abb.", "...abba.", "..abba..", ".caba...", ".cc.....", "c......."], { a: "#9aa0a6", b: "#e9e3d6", c: "#6d747a" }],
@@ -19,7 +24,7 @@ export const ICONS = {
 
 // The wheel names its slices in three letters.
 export const SLICE_ICON = { P25: "peb", P40: "peb", CRI: "cricket", AGA: "agate", QUA: "quartz", GEO: "geode", HAT: "hat", DYE: "dye_blue" };
-export const SLICE_NAME = { P25: "25 pebbles", P40: "40 pebbles", CRI: "Cricket", AGA: "River agate", QUA: "Smoky quartz", GEO: "Geode", HAT: "Daisy hat", DYE: "Blue dye" };
+export const SLICE_NAME = { P25: "25 pebbles", P40: "40 pebbles", CRI: "Cricket", AGA: "River agate", QUA: "Smoky quartz", GEO: "Geode", HAT: "Hat of the day", DYE: "Dye of the day" };
 
 export function drawIcon(ctx, key, x, y, s) {
   const ic = ICONS[key] || ICONS.peb;

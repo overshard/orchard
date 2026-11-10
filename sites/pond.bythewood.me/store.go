@@ -369,6 +369,8 @@ type view struct {
 	Pebbles int      `json:"pebbles"`
 	Wheel   struct {
 		Slices   []string `json:"slices"`
+		Hat      hatView  `json:"hat"`
+		Dye      itemView `json:"dye"`
 		Free     int      `json:"free"`
 		NextIn   int64    `json:"next_in"`
 		PaidLeft int      `json:"paid_left"`
@@ -405,6 +407,9 @@ func viewOf(q querier, p pond, now time.Time) (*view, error) {
 	p.settle(now)
 	v := &view{Frog: frogOf(&p, now), Pebbles: p.Pebbles, Dev: devBuild}
 	v.Wheel.Slices = wheelSlices
+	dayHat, dayDye := wheelOfDay(dayOf(now))
+	v.Wheel.Hat = hatView{hat: dayHat, Name: dayHat.name(), Tier: dayHat.tier()}
+	v.Wheel.Dye = itemView{Kind: dayDye, Name: itemNames[dayDye]}
 	v.Wheel.Free = p.FreeSpins
 	if p.FreeSpins < maxFreeSpins {
 		v.Wheel.NextIn = p.SpinAt + int64(spinEvery/time.Second) - now.Unix()
