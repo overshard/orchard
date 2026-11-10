@@ -15,6 +15,11 @@
       <p id="gift-line"></p>
       <button type="button" class="primary" id="gift-open">Unwrap it</button>
     </div>
+    <section class="card starter" id="starter" hidden>
+      <p class="label">First day</p>
+      <ol class="steps-list" id="starter-steps"></ol>
+      <button type="button" class="primary" id="starter-claim" hidden>Claim it</button>
+    </section>
     <div class="todo" id="todo"></div>
     <dl class="missed" id="greet-missed" hidden></dl>
     <h2 id="today-head" hidden>Today at the pond</h2>
@@ -25,27 +30,27 @@
   <section class="view" id="v-play" hidden>
     <div class="disks">
       <a class="disk" href="#dive" id="play-dive" style="--disk: #2b5fa8">
-        <span class="floppy"><span class="label"><canvas id="play-dive-art" width="168" height="96" aria-hidden="true"></canvas><b>Dive</b></span></span>
+        <span class="floppy"><span class="sticker"><canvas id="play-dive-art" width="168" height="96" aria-hidden="true"></canvas><b>Dive</b></span></span>
         <span class="dline" id="play-dive-line">Race nine frogs to the bottom.</span>
       </a>
       <a class="disk" href="#cross" id="play-cross" style="--disk: #b8392b">
-        <span class="floppy"><span class="label"><canvas id="play-cross-art" width="168" height="96" aria-hidden="true"></canvas><b>Crossing</b></span></span>
+        <span class="floppy"><span class="sticker"><canvas id="play-cross-art" width="168" height="96" aria-hidden="true"></canvas><b>Crossing</b></span></span>
         <span class="dline" id="play-cross-line">Hop the lane and the stream home.</span>
       </a>
       <a class="disk" href="#flick" id="play-flick" style="--disk: #3f8a45">
-        <span class="floppy"><span class="label"><canvas id="play-flick-art" width="168" height="96" aria-hidden="true"></canvas><b>Tongue flick</b></span></span>
+        <span class="floppy"><span class="sticker"><canvas id="play-flick-art" width="168" height="96" aria-hidden="true"></canvas><b>Tongue flick</b></span></span>
         <span class="dline" id="play-flick-line">Thirty seconds of bugs.</span>
       </a>
       <a class="disk" href="#raft" id="play-raft" style="--disk: #d0951c">
-        <span class="floppy"><span class="label"><canvas id="play-raft-art" width="168" height="96" aria-hidden="true"></canvas><b>Raft run</b></span></span>
+        <span class="floppy"><span class="sticker"><canvas id="play-raft-art" width="168" height="96" aria-hidden="true"></canvas><b>Raft run</b></span></span>
         <span class="dline" id="play-raft-line">Steer a leaf down the river.</span>
       </a>
       <a class="disk" href="#leap" id="play-leap" style="--disk: #7d52c0">
-        <span class="floppy"><span class="label"><canvas id="play-leap-art" width="168" height="96" aria-hidden="true"></canvas><b>Lily leap</b></span></span>
+        <span class="floppy"><span class="sticker"><canvas id="play-leap-art" width="168" height="96" aria-hidden="true"></canvas><b>Lily leap</b></span></span>
         <span class="dline" id="play-leap-line">Bounce as high as the pads go.</span>
       </a>
       <a class="disk" href="#school" id="play-school" style="--disk: #2a2a30">
-        <span class="floppy"><span class="label"><canvas id="play-school-art" width="168" height="96" aria-hidden="true"></canvas><b>Tadpoles</b></span></span>
+        <span class="floppy"><span class="sticker"><canvas id="play-school-art" width="168" height="96" aria-hidden="true"></canvas><b>Tadpoles</b></span></span>
         <span class="dline" id="play-school-line">Lead a school round the shallows.</span>
       </a>
     </div>

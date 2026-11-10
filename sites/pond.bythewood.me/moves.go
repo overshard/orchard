@@ -99,6 +99,9 @@ type spun struct {
 func (s *store) spin(id int64, paid bool) (*spun, error) {
 	out := &spun{}
 	v, err := s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
+		if err := markStarter(tx, p.ID, starterSpin); err != nil {
+			return err
+		}
 		if paid {
 			if p.PaidSpins >= paidSpinsADay {
 				return errNotYet
@@ -217,6 +220,9 @@ func (s *store) turnLog(id int64, pick int) (*turned, error) {
 			return errNotYet
 		}
 		p.LogDay = today
+		if err := markStarter(tx, p.ID, starterLog); err != nil {
+			return err
+		}
 		for i := range out.Finds {
 			out.Finds[i] = rollFind()
 		}
@@ -292,6 +298,9 @@ func (s *store) diveFinish(id int64, run string, score, gates int) (*dived, erro
 	v, err := s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
 		if run == "" || run != p.DiveRun {
 			return errBadRun
+		}
+		if err := markStarter(tx, p.ID, starterDive); err != nil {
+			return err
 		}
 		took := now.Sub(time.Unix(p.DiveStart, 0))
 		var ghosts []int

@@ -370,11 +370,41 @@ function renderPond(p) {
   });
   $("today-head").hidden = today.hidden = lines.length === 0;
   renderTodo(p);
+  renderStarter(p);
   renderPlay(p);
 }
 
 // The server decides what's worth doing, and the gravel bar and rent count up
 // here between fetches, so a chip can appear or grow before the next one.
+// A new pond's first day, each step a lit LED once done and the prize at the end.
+function renderStarter(p) {
+  const st = p.starter;
+  $("starter").hidden = !st;
+  if (!st) return;
+  const list = $("starter-steps");
+  list.textContent = "";
+  st.steps.forEach((s) => {
+    const li = document.createElement("li"), a = document.createElement("a");
+    li.className = s.done ? "done" : "";
+    a.href = s.to === "key" ? "/key" : "#" + s.to;
+    a.textContent = s.label;
+    li.append(a);
+    list.append(li);
+  });
+  const claim = $("starter-claim");
+  claim.hidden = !st.ready;
+  claim.textContent = "Claim " + st.prize + " pebbles";
+}
+
+$("starter-claim").addEventListener("click", () => {
+  $("starter-claim").disabled = true;
+  const prize = state.pond.starter.prize;
+  post("/api/starter").then((v) => {
+    setPond(v);
+    reveal({ kick: "First day done", art: thingArt({ kind: "peb" }, 8), name: "+" + prize + " pebbles", line: "That's the pond. It keeps going while you're away." });
+  }, () => {}).then(() => { $("starter-claim").disabled = false; });
+});
+
 let allChips = false;
 
 function renderTodo(p) {
