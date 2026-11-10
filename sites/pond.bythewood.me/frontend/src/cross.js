@@ -21,7 +21,7 @@ const LANES = {
   3: { kind: "pads", v: 1.6, run: [[2, 4], [2, 3]], c: "#56b45f" },
   2: { kind: "log", v: -1.1, run: [[3, 3], [2, 4]], c: "#8a5a2b" },
 };
-const WRAP = COLS + 6;
+const WRAP = COLS + 6, CARS = ["#e2412d", "#ffb000", "#3d8fd6", "#e2567a", "#e9e3d6"];
 
 let G = null, col = null;
 
@@ -34,7 +34,7 @@ function build() {
     let x = Math.random() * 3, i = 0;
     while (x < WRAP) {
       const [len, gap] = l.run[i++ % l.run.length];
-      G.things.push({ row: +row, x, len, lane: l });
+      G.things.push({ row: +row, x, len, lane: l, c: l.kind === "car" ? CARS[Math.floor(Math.random() * CARS.length)] : l.c });
       x += len + gap;
     }
   }
@@ -123,35 +123,14 @@ export const cross = {
     }
     x.fillStyle = "#0e2c30"; x.fillRect(0, 0, W, C - 3);
     x.fillStyle = "#3f9a4d"; for (let c = 0; c < W; c += 5) x.fillRect(c, HOME * C - 3, 2, 5);
+    x.fillStyle = "#2c2c31"; x.fillRect(0, 8 * C, W, 1); x.fillRect(0, 12 * C - 1, W, 1);
+    x.fillStyle = "rgba(127,214,194,0.18)"; for (let r = 2; r <= 6; r++) for (let c = (r * 5) % 11; c < W; c += 22) x.fillRect(c, r * C + 6 + (r % 2) * 3, 5, 1);
     x.fillStyle = "#cfc7a8"; for (let r = 8; r < 11; r++) for (let c = 2; c < W; c += 14) x.fillRect(c, (r + 1) * C - 1, 7, 1);
     x.fillStyle = "#6c8a3a"; for (let c = 3; c < W; c += 9) { x.fillRect(c, VERGE * C + 4, 1, 3); x.fillRect(c + 4, START * C + 8, 1, 3); }
     if (!G) return;
     if (G.fly >= 0) { x.fillStyle = "#3a3f46"; x.fillRect(G.fly * C + 5, HOME * C + 5, 4, 3); x.fillStyle = "#cfe3ea"; x.fillRect(G.fly * C + 5, HOME * C + 3, 4, 2); }
     if (G.pebble) { x.fillStyle = "#d5d8dc"; x.fillRect(G.pebble.col * C + 4, G.pebble.row * C + 5, 6, 4); x.fillStyle = "#9aa0a6"; x.fillRect(G.pebble.col * C + 6, G.pebble.row * C + 7, 4, 2); }
-    G.things.forEach((t) => {
-      const px = Math.round(t.x * C), py = t.row * C, w = t.len * C, l = t.lane;
-      if (l.kind === "log") {
-        x.fillStyle = l.c; x.fillRect(px, py + 2, w, C - 4);
-        x.fillStyle = "#c9974f"; x.fillRect(px + w - 3, py + 3, 3, C - 6);
-        x.fillStyle = "#5a3f24"; x.fillRect(px + 2, py + 5, w - 6, 1); x.fillRect(px + 4, py + 9, w - 10, 1);
-      } else if (l.kind === "pads") {
-        for (let i = 0; i < t.len; i++) {
-          x.fillStyle = "#1f5a2c"; x.fillRect(px + i * C + 1, py + 2, C - 2, C - 4);
-          x.fillStyle = l.c; x.fillRect(px + i * C + 2, py + 3, C - 4, C - 6);
-          x.fillStyle = "#1f5a2c"; x.fillRect(px + i * C + 7, py + 3, 1, 4);
-        }
-      } else if (l.kind === "bike") {
-        x.fillStyle = "#1a1a1a"; x.fillRect(px + 1, py + 8, 4, 4); x.fillRect(px + 9, py + 8, 4, 4);
-        x.fillStyle = l.c; x.fillRect(px + 3, py + 6, 8, 2); x.fillRect(px + 6, py + 2, 3, 5);
-      } else {
-        const dir = l.v > 0;
-        x.fillStyle = "#1a1a1a"; x.fillRect(px + 2, py + 10, 4, 3); x.fillRect(px + w - 6, py + 10, 4, 3);
-        x.fillStyle = l.c; x.fillRect(px + 1, py + 3, w - 2, 8);
-        x.fillStyle = "#9fd8e8"; x.fillRect(dir ? px + w - 6 : px + 2, py + 4, 4, 3);
-        if (l.kind === "tractor") { x.fillStyle = "#1a1a1a"; x.fillRect(dir ? px + 2 : px + w - 9, py + 6, 7, 7); x.fillStyle = "#ffe27a"; x.fillRect(dir ? px + w - 2 : px, py + 5, 2, 2); }
-        if (l.kind === "van") { x.fillStyle = "#c9c3b6"; x.fillRect(px + 3, py + 5, w - 12, 1); }
-      }
-    });
+    G.things.forEach((t) => drawThing(x, t));
     if (G.lives > 0 && !(G.flash > 0 && Math.floor(G.flash * 12) % 2)) {
       drawTop(x, col, Math.round(G.fx * C) + 1, G.row * C + 1 - (G.hop > 0 ? 2 : 0), G.face === "down");
     }
@@ -162,3 +141,56 @@ export const cross = {
     x.textAlign = "center"; x.font = "500 8px 'JetBrains Mono', monospace"; x.fillStyle = "#bcaf99"; x.fillText("TRIP " + (G.trip + 1), W / 2, 9);
   },
 };
+
+// Everything in a lane is drawn facing right and flipped for the lanes that
+// run left, so f takes an offset from the back of the thing.
+function drawThing(x, t) {
+  const px = Math.round(t.x * C), py = t.row * C, w = t.len * C, l = t.lane, dir = l.v > 0;
+  const f = (c, ox, oy, ww, hh) => { x.fillStyle = c; x.fillRect(dir ? px + ox : px + w - ox - ww, py + oy, ww, hh); };
+  const wheel = (ox, oy, s) => { f("#141414", ox + 1, oy, s - 2, s); f("#141414", ox, oy + 1, s, s - 2); f("#8a9099", ox + (s >> 1) - 1, oy + (s >> 1) - 1, 2, 2); };
+  const DARK = "rgba(0,0,0,0.28)", GLASS = "#9fd8e8", LAMP = "#ffe27a";
+  if (l.kind === "log") {
+    f(l.c, 1, 2, w - 2, C - 4); f(l.c, 0, 3, w, C - 6);
+    f("rgba(255,255,255,0.14)", 2, 2, w - 4, 1); f(DARK, 1, C - 4, w - 2, 2);
+    f("#5a3f24", 4, 5, w - 14, 1); f("#5a3f24", 9, 8, w - 16, 1); f("#5a3f24", w - 12, 6, 3, 2);
+    f("#c9974f", w - 3, 3, 3, C - 6); f("#8a5a2b", w - 2, 5, 1, C - 10);
+    f("#5a3f24", 0, 3, 1, C - 6);
+  } else if (l.kind === "pads") {
+    for (let i = 0; i < t.len; i++) {
+      const o = i * C;
+      f("#1f5a2c", o + 2, 1, C - 4, C - 2); f("#1f5a2c", o + 1, 2, C - 2, C - 4);
+      f(l.c, o + 3, 2, C - 6, C - 4); f(l.c, o + 2, 3, C - 4, C - 6);
+      f("#7fd87a", o + 4, 3, 4, 1); f("#1d5163", o + 7, 1, 2, 4);
+      f("#2f7a3f", o + 6, 7, 1, 4); f("#2f7a3f", o + 4, 9, 5, 1);
+      if ((i + t.row) % 3 === 0) { f("#f3a9c6", o + 9, 8, 3, 3); f("#ffe27a", o + 10, 9, 1, 1); }
+    }
+  } else if (l.kind === "bike") {
+    f(DARK, 1, 12, 12, 1);
+    wheel(0, 7, 5); wheel(9, 7, 5);
+    f(l.c, 3, 7, 7, 1); f(l.c, 5, 5, 2, 3); f(l.c, 10, 5, 1, 3); f("#141414", 9, 4, 3, 1);
+    f("#56b45f", 5, 2, 3, 4); f("#56b45f", 7, 4, 3, 1); f("#62bf6a", 5, 0, 3, 2); f("#0a0908", 7, 0, 1, 1);
+    f("#141414", 4, 5, 3, 1);
+  } else if (l.kind === "car") {
+    f(DARK, 1, 12, 12, 1);
+    f(t.c, 3, 2, 7, 5); f(t.c, 0, 6, 14, 5); f(t.c, 2, 3, 1, 3);
+    f(GLASS, 4, 3, 2, 3); f(GLASS, 7, 3, 3, 3); f("#eaf7fb", 7, 3, 1, 1);
+    f(DARK, 0, 10, 14, 1); f(DARK, 6, 6, 1, 4);
+    f(LAMP, 13, 7, 1, 2); f("#7a1410", 0, 7, 1, 2);
+    wheel(1, 9, 4); wheel(9, 9, 4);
+  } else if (l.kind === "van") {
+    f(DARK, 1, 12, w - 2, 1);
+    f(l.c, 0, 1, 20, 10); f(l.c, 20, 3, 6, 8); f(l.c, 26, 6, 2, 5);
+    f(GLASS, 21, 4, 4, 3); f("#eaf7fb", 21, 4, 1, 1);
+    f("#3d8fd6", 0, 6, 20, 2); f("#c9c3b6", 0, 1, 20, 1); f(DARK, 0, 10, w, 1); f(DARK, 19, 2, 1, 8); f(DARK, 10, 2, 1, 4);
+    f(LAMP, 27, 7, 1, 2); f("#7a1410", 0, 8, 1, 2);
+    wheel(3, 9, 4); wheel(21, 9, 4);
+  } else {
+    f(DARK, 1, 13, w - 2, 1);
+    f(l.c, 5, 0, 9, 7); f(GLASS, 7, 1, 6, 4); f("#2a6a35", 5, 0, 9, 1); f(l.c, 9, 1, 1, 4);
+    f(l.c, 10, 5, 15, 5); f("#2a6a35", 10, 9, 15, 1); f("#62bf6a", 14, 5, 11, 1);
+    f("#2a2a2a", 20, 1, 1, 4); f("#bcaf99", 20 - (Math.floor(G.t * 4) % 3), -1, 2, 2);
+    f(LAMP, 25, 6, 1, 2); f("#1f5a2c", 16, 7, 6, 1);
+    wheel(1, 5, 9); f("#ffb000", 4, 8, 3, 3); f("#141414", 5, 9, 1, 1);
+    wheel(20, 9, 5);
+  }
+}
