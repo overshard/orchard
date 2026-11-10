@@ -61,7 +61,7 @@ export const leap = {
         G.y = p.y; G.vy = -BOUNCE;
         if (p.kind === "sink") p.gone = 0.01;
         if (p.fly) { p.fly = false; G.vy = -LAUNCH; G.pops.push({ x: G.x, y: G.y - 30, s: "WHEE", t: 0 }); }
-        if (p.bug) { p.bug = false; G.bonus += 2; G.pops.push({ x: G.x, y: G.y - 30, s: "+2", t: 0 }); }
+        if (p.bug) { p.bug = false; G.bonus += 2; G.pops.push({ x: G.x, y: G.y - 30, s: "+2 M", t: 0 }); }
       }
     }
     G.cam = Math.min(G.cam, G.y - H * 0.45);
@@ -74,7 +74,7 @@ export const leap = {
   },
 
   over() { return G && G.fell > 0.6; },
-  score() { return G ? Math.floor(G.top / 150) + G.bonus : 0; },
+  score() { return G ? Math.floor(G.top / 10) + G.bonus : 0; },
   why() { return G ? G.why : ""; },
 
   draw(x) {
@@ -109,8 +109,6 @@ export const leap = {
     if (fx + FW > W) draw(x, spr, FW, FH, col, fx - W - 20, fy, 1);
     x.font = "700 13px 'Space Grotesk', sans-serif"; x.textAlign = "center";
     G.pops.forEach((p) => { x.fillStyle = "#ffb000"; x.fillText(p.s, p.x, p.y - cam); });
-    x.textAlign = "left"; x.fillStyle = "#ece5d8"; x.fillText(String(leap.score()), 6, 16);
-    x.textAlign = "right"; x.font = "500 8px 'JetBrains Mono', monospace"; x.fillStyle = "#bcaf99";
-    x.fillText(Math.floor(G.top / 10) + " M", W - 6, 14);
+    x.textAlign = "left"; x.fillStyle = "#ece5d8"; x.fillText(leap.score() + " M", 6, 16);
   },
 };
