@@ -17,7 +17,7 @@ function nameOf(kind) {
 }
 
 // Each present pops up in turn after the last is closed.
-function presents(n, zs) {
+export function presents(n, zs) {
   if (!zs.length) return;
   const [z, ...rest] = zs;
   reveal({
@@ -37,11 +37,31 @@ function done(id, d, sayIn) {
   if (d.prizes.length) { closeSheet(); presents(n, d.prizes); }
 }
 
+// A neighbour two hearts in can be asked into a free burrow, and asked out.
+function lodging(p, n, body) {
+  const bw = p.bank.burrows;
+  let label = "";
+  if (n.lodger) label = "Move out of the burrow";
+  else if (n.level >= bw.lodge_at && bw.lodgers.length < bw.level) label = "Ask it to move into a burrow";
+  if (!label) return;
+  const r = document.createElement("div");
+  r.className = "row";
+  r.append(button(label, (b) => {
+    b.disabled = true;
+    post("/api/burrows/lodge", { who: n.id, in: !n.lodger }).then((v) => {
+      setPond(v);
+      sheetSay(n.lodger ? n.name + " has gone home. Any rent it owed is in your purse." : n.name + " has moved in. Rent's 4 pebbles an hour, in the bank.");
+    }, (e) => { sheetSay(e.message); b.disabled = false; });
+  }));
+  body.append(r);
+}
+
 function show(n) {
   const p = state.pond;
   let what = n.title + ", " + hearts(n.level) + ". Its favourite is " + n.fav.toLowerCase() + ".";
   if (n.fav_a) what += " It told you how, " + nameOf(n.fav_a) + " and " + nameOf(n.fav_b) + ".";
   openSheet({ art: art(n, 4), name: n.name }, what, (body) => {
+    lodging(p, n, body);
     if (n.gave) {
       const s = document.createElement("p");
       s.className = "dim"; s.textContent = "It's had something from you today. Come back tomorrow.";
@@ -93,7 +113,7 @@ function render(p) {
     const c = document.createElement("button"), name = document.createElement("b"), h = document.createElement("span"), fav = document.createElement("span");
     c.type = "button"; c.className = "reed";
     name.textContent = n.name;
-    h.className = "hearts"; h.textContent = hearts(n.level) + (n.gave ? " · fed today" : "");
+    h.className = "hearts"; h.textContent = hearts(n.level) + (n.lodger ? " · lodger" : n.gave ? " · fed today" : "");
     fav.textContent = "Loves " + n.fav.toLowerCase();
     c.append(art(n, 3), name, h, fav);
     c.addEventListener("click", () => show(n));

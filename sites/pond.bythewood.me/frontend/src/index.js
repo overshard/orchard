@@ -341,6 +341,7 @@ function renderTodo(p) {
   if (p.dive.paid < p.dive.cap) todo.push(["i_pond", "Race in Dive", "dive"]);
   if (b.gravel.level && b.gravel.held >= 1) todo.push(["peb", b.gravel.held + " on the gravel bar", "bank"]);
   if (b.garden.level && b.garden.plots.some((x) => x.ready_in === 0)) todo.push(["watercress", "Garden's ready", "garden"]);
+  if (b.burrows.held >= 1) todo.push(["peb", b.burrows.held + " in rent", "bank"]);
   if (b.dye.busy && b.dye.ready_in <= 0) todo.push(["dye_blue", "Dye's ready", "bank"]);
   if (p.frogs.some((f) => f.work && f.work.job && f.work.hours >= p.jobs.hold)) todo.push(["sticks", "A shift is done", "reeds"]);
   if (p.stall.takings) todo.push(["i_town", "Stall sold " + p.stall.takings, "town"]);
