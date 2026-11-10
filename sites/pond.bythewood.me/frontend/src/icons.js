@@ -20,6 +20,8 @@ export const ICONS = {
   pyrite: [["........", ".aaaa...", ".abbaaa.", ".abbabba", ".aaaabba", "...aaaa.", "........", "........"], { a: "#a87a12", b: "#ffe27a" }],
   banded: [["..aaaa..", ".bbbbbb.", "aaaaaaaa", "cccccccc", "aaaaaaaa", ".bbbbbb.", "..aaaa..", "........"], { a: "#b8642e", b: "#f6dcb0", c: "#e8a05a" }],
   fossil: [["........", "..aaaa..", ".abbbba.", ".abaaba.", ".ababba.", ".abbaaa.", "..aaaa..", "........"], { a: "#8a7a5a", b: "#e3d6b0" }],
+  wood: [["........", ".aaaaaa.", "abbcbbba", "abcccbba", "abbcbbca", "abbbbcba", ".aaaaaa.", "........"], { a: "#6b4a2a", b: "#b08a5a", c: "#8a6a42" }],
+  moonstone: [["........", "..aaaa..", ".abbcca.", "abbbccca", "abbbbcca", ".abbbba.", "..aaaa..", "........"], { a: "#8fa3b8", b: "#e6eef6", c: "#b5dcff" }],
   drops_red: [["...c....", "..ccc...", "...c....", "..aaa...", ".aabaa..", ".abaaa..", ".aaaaa..", "..aaa..."], { a: "#e2412d", b: "#ffd0c8", c: "#d5d8dc" }],
   drops_pale: [["...c....", "..ccc...", "...c....", "..aaa...", ".aabaa..", ".abaaa..", ".aaaaa..", "..aaa..."], { a: "#9fd8e8", b: "#ffffff", c: "#d5d8dc" }],
   stamp_spots: [["...aa...", "...aa...", "..bbbb..", "..bbbb..", "cccccccc", "cdccdccc", "ccccccdc", "cdcccccc"], { a: "#8a5a2b", b: "#c9974f", c: "#3f9a4d", d: "#1f5a2c" }],

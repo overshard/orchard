@@ -24,13 +24,15 @@ var (
 // Which way each rock leans the pot. Every colour a level can make keeps a
 // little chance whatever goes in.
 var rockLeans = map[string]map[string]int{
-	"agate":    {"dye_brown": 2, "dye_berry": 1},
-	"quartz":   {"dye_grey": 2, "dye_olive": 1},
-	"calcite":  {"dye_grey": 1, "dye_olive": 2},
-	"pyrite":   {"dye_gold": 3},
-	"amethyst": {"dye_blue": 2, "dye_berry": 1},
-	"banded":   {"dye_brown": 1, "dye_berry": 2},
-	"fossil":   {"dye_gold": 2, "dye_blue": 2},
+	"agate":     {"dye_brown": 2, "dye_berry": 1},
+	"quartz":    {"dye_grey": 2, "dye_olive": 1},
+	"calcite":   {"dye_grey": 1, "dye_olive": 2},
+	"pyrite":    {"dye_gold": 3},
+	"amethyst":  {"dye_blue": 2, "dye_berry": 1},
+	"banded":    {"dye_brown": 1, "dye_berry": 2},
+	"fossil":    {"dye_gold": 2, "dye_blue": 2},
+	"wood":      {"dye_brown": 3, "dye_olive": 1},
+	"moonstone": {"dye_blue": 3, "dye_grey": 2},
 }
 
 const rocksABatch = 3
@@ -149,8 +151,8 @@ func dyeViewOf(p *pond, now time.Time, held map[string]int) dyeView {
 		d.Busy = true
 		d.ReadyIn = max(0, int64(time.Unix(p.DyeAt, 0).Add(batchTime(p.DyeLevel)).Sub(now)/time.Second))
 	}
-	for _, r := range []string{"agate", "quartz", "calcite", "pyrite", "amethyst", "banded", "fossil"} {
-		d.Rocks = append(d.Rocks, itemView{Kind: r, Name: itemNames[r], Count: held[r]})
+	for _, r := range rocks {
+		d.Rocks = append(d.Rocks, itemView{Kind: r.kind, Name: itemNames[r.kind], Count: held[r.kind]})
 	}
 	return d
 }
