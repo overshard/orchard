@@ -46,6 +46,9 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
   `ingredients`.
 - `rocks.go` is the rock shelf, and `rocks_found` remembers every rock a pond
   has had since the dye works boils them away.
+- `keepsake.go` is the keepsake shelf, one thing for each kind of real day
+  (a frost, a full moon, a bad day on the market) handed over on a visit that
+  day and kept in `keepsakes` with the date. They're never spent.
 - `shop.go` is Wren's hats, Brindle's larder, Old Moss's curios and Fenn's
   furniture, which the page draws on the water. Stock is
   dealt from the day so everybody sees the same shelf, and `bought` counts
