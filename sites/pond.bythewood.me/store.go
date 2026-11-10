@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS ponds (
     gravel_level    INTEGER NOT NULL DEFAULT 0,
     gravel_at       INTEGER NOT NULL DEFAULT 0,
     garden_level    INTEGER NOT NULL DEFAULT 0,
+    dive_form       REAL NOT NULL DEFAULT 0,
     key_saved_at    INTEGER
 );
 CREATE INDEX IF NOT EXISTS ponds_created ON ponds(created_at);
@@ -105,6 +106,7 @@ var addedColumns = []struct{ table, name, def string }{
 	{"ponds", "gravel_level", "INTEGER NOT NULL DEFAULT 0"},
 	{"ponds", "gravel_at", "INTEGER NOT NULL DEFAULT 0"},
 	{"ponds", "garden_level", "INTEGER NOT NULL DEFAULT 0"},
+	{"ponds", "dive_form", "REAL NOT NULL DEFAULT 0"},
 }
 
 func ensureColumns(db *sql.DB) error {
@@ -239,6 +241,7 @@ type pond struct {
 	GravelLevel int
 	GravelAt    int64
 	GardenLevel int
+	DiveForm    float64
 
 	FrogID    int64
 	Seed      uint32
@@ -251,7 +254,7 @@ const pondColumns = `p.id, p.public_id, p.created_at, p.last_seen_at, p.last_gif
 	p.pebbles, p.free_spins, p.spin_at, p.paid_spins, p.paid_spins_day, p.log_day,
 	p.dive_best, p.dive_day, p.dive_runs, p.dive_paid, p.dive_run, p.dive_started_at,
 	p.dive_ghosts, p.dive_podium, p.pads, p.key_saved_at,
-	p.gravel_level, p.gravel_at, p.garden_level, f.id, f.seed, f.genome_json, f.hatched_at,
+	p.gravel_level, p.gravel_at, p.garden_level, p.dive_form, f.id, f.seed, f.genome_json, f.hatched_at,
 	f.hat_shape, f.hat_colour`
 
 func scanPond(row *sql.Row) (*pond, error) {
@@ -260,7 +263,7 @@ func scanPond(row *sql.Row) (*pond, error) {
 		&p.Pebbles, &p.FreeSpins, &p.SpinAt, &p.PaidSpins, &p.PaidDay, &p.LogDay,
 		&p.DiveBest, &p.DiveDay, &p.DiveRuns, &p.DivePaid, &p.DiveRun, &p.DiveStart,
 		&p.DiveGhosts, &p.DivePodium, &p.Pads, &p.KeySavedAt,
-		&p.GravelLevel, &p.GravelAt, &p.GardenLevel, &p.FrogID, &p.Seed, &p.ModsJSON, &p.HatchedAt,
+		&p.GravelLevel, &p.GravelAt, &p.GardenLevel, &p.DiveForm, &p.FrogID, &p.Seed, &p.ModsJSON, &p.HatchedAt,
 		&p.Wearing.Shape, &p.Wearing.Colour)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, errNoPond
@@ -281,11 +284,11 @@ func savePond(tx *sql.Tx, p *pond) error {
 		free_spins = ?, spin_at = ?, paid_spins = ?, paid_spins_day = ?, log_day = ?,
 		dive_best = ?, dive_day = ?, dive_runs = ?, dive_paid = ?, dive_run = ?,
 		dive_started_at = ?, dive_ghosts = ?, dive_podium = ?, pads = ?, key_saved_at = ?,
-		gravel_level = ?, gravel_at = ?, garden_level = ? WHERE id = ?`,
+		gravel_level = ?, gravel_at = ?, garden_level = ?, dive_form = ? WHERE id = ?`,
 		p.LastSeenAt, p.LastGiftAt, p.Pebbles, p.FreeSpins, p.SpinAt, p.PaidSpins, p.PaidDay,
 		p.LogDay, p.DiveBest, p.DiveDay, p.DiveRuns, p.DivePaid, p.DiveRun, p.DiveStart,
 		p.DiveGhosts, p.DivePodium, p.Pads, p.KeySavedAt,
-		p.GravelLevel, p.GravelAt, p.GardenLevel, p.ID); err != nil {
+		p.GravelLevel, p.GravelAt, p.GardenLevel, p.DiveForm, p.ID); err != nil {
 		return err
 	}
 	_, err := tx.Exec(`UPDATE frogs SET hat_shape = ?, hat_colour = ? WHERE id = ?`,

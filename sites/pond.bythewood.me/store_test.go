@@ -580,7 +580,7 @@ func TestDivePodium(t *testing.T) {
 	}
 	s, clock := testStore(t)
 	_, id := newPond(t, s)
-	best := diveGhostFloor
+	form := diveFormStart
 	finish := func(gates int) *dived {
 		t.Helper()
 		start, err := s.diveStart(id)
@@ -588,7 +588,7 @@ func TestDivePodium(t *testing.T) {
 			t.Fatalf("start: %+v %v", start, err)
 		}
 		for _, c := range start.Ghosts {
-			if c < 0 || c > best*115/100 {
+			if c < 0 || float64(c) > max(form, diveFormFloor)*1.15 {
 				t.Fatalf("a ghost dealt %d gates", c)
 			}
 		}
@@ -597,12 +597,12 @@ func TestDivePodium(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		best = max(best, gates)
+		form = diveForm(form, gates)
 		return d
 	}
 
 	// Clearing more gates than any ghost can is first whatever the deal was,
-	// and the ghosts are dealt around the best, so each first raises it.
+	// and the ghosts are dealt around recent form, so each first raises it.
 	before, _ := s.view(id)
 	d := finish(20)
 	if d.Place != 1 || d.Bonus != podiumPebbles[0] || d.Hat == nil || d.Hat.HatName == "" || d.Had {
@@ -631,7 +631,7 @@ func TestDivePodium(t *testing.T) {
 }
 
 func TestGhostDeal(t *testing.T) {
-	// Matching your best should win about half the time, and a run at three
+	// Matching your form should win about half the time, and a run at three
 	// quarters of it should usually still make the podium.
 	const best, n = 24, 4000
 	firsts, podiums := 0, 0
@@ -649,5 +649,26 @@ func TestGhostDeal(t *testing.T) {
 	}
 	if podiums < n*55/100 {
 		t.Errorf("three quarters of the best made the podium %d times in %d", podiums, n)
+	}
+}
+
+func TestFormFollowsTheRuns(t *testing.T) {
+	form := 20.0
+	for range 6 {
+		form = diveForm(form, 2)
+	}
+	if form > 5 {
+		t.Errorf("six runs out at gate two left form at %.1f", form)
+	}
+	for range 6 {
+		form = diveForm(form, 30)
+	}
+	if form < 25 {
+		t.Errorf("six runs of thirty gates left form at %.1f", form)
+	}
+	for _, c := range dealGhosts(0) {
+		if float64(c) > diveFormFloor*1.15 {
+			t.Errorf("a ghost dealt %d under the floor", c)
+		}
 	}
 }
