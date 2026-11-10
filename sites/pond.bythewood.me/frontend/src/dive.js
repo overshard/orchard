@@ -1,5 +1,6 @@
 import { $, post, state, setPond, watch } from "./api.js";
 import { genome, sideCells, draw as drawCells, SW, SH } from "./frog.js";
+import { raceStart, raceOut, raceResults, raceHide, countdown, callout } from "./race.js";
 
 // Dive is played in a 320 by 200 field and drawn at twice that. The frog
 // floats up by itself, a press kicks it down, and the numbers below are the
@@ -48,7 +49,7 @@ function spawnOthers() {
   for (let i = 0; i < GHOSTS_IN; i++) {
     const g = genome(1 + Math.floor(Math.random() * 4294967295));
     others.push({
-      name: g.name, spr: [ghostSprite(g, false), ghostSprite(g, true)],
+      id: i, g, name: g.name, spr: [ghostSprite(g, false), ghostSprite(g, true)],
       x: FXP - 12 - i * Math.min(60, FXP - 24) / GHOSTS_IN - Math.random() * 3, y: TOP + 30 + Math.random() * (BOT - TOP - 60),
       vy: 0, kick: 0, passed: 0, clears: 99, aim: Math.random() * 22 - 8,
       out: false, fade: 1,
@@ -61,9 +62,6 @@ function spawnOthers() {
 function deal(clears) {
   others.forEach((o, i) => { o.clears = clears && clears[i] != null ? clears[i] : Math.floor(Math.random() * 12); });
 }
-
-const ORD = ["", "1ST", "2ND", "3RD"];
-function ordinal(n) { return ORD[n] || n + "TH"; }
 
 function stepOthers(dt, sp) {
   others.forEach((o) => {
@@ -78,9 +76,12 @@ function stepOthers(dt, sp) {
     if (o.y > BOT - 6) { o.y = BOT - 6; o.vy = Math.min(0, o.vy); }
     if (!gate) return;
     if (gate.x + OW < o.x - 8 && gate.seen !== undefined && !gate.seen[o.name + o.x]) { gate.seen[o.name + o.x] = true; o.passed++; }
-    const c = gateC(gate), hit = o.x + 7 > gate.x && o.x - 8 < gate.x + OW && (o.y - 4 < c - gate.gap / 2 || o.y + 5 > c + gate.gap / 2);
-    if (hit || o.y < TOP + 5) {
+    // Nothing touches a ghost before its dealt gate, so the race the page
+    // shows is the one the server scores.
+    const c = gateC(gate), hit = o.passed >= o.clears && o.x + 7 > gate.x && o.x - 8 < gate.x + OW && (o.y - 4 < c - gate.gap / 2 || o.y + 5 > c + gate.gap / 2);
+    if (hit || (o.y < TOP + 5 && o.passed >= o.clears)) {
       o.out = true;
+      if (G.state === "play") raceOut(o.id);
       for (let i = 0; i < 4; i++) G.bub.push({ x: o.x - 6 + Math.random() * 12, y: o.y - 4 + Math.random() * 8, a: 0.9 });
     }
   });
@@ -96,41 +97,82 @@ function drawOthers() {
     if (PW >= 400) gx.fillText(o.name, Math.round(o.x), Math.round(o.y - 12));
   });
   gx.globalAlpha = 1;
-  if (G.state === "idle") return;
-  const still = others.filter((o) => !o.out).length;
-  gx.textAlign = "left"; gx.font = MONO; gx.fillStyle = "#bfeee2";
-  gx.fillText(still + " OF " + others.length + " STILL IN", 6, TOP + 12);
 }
 
 function reset() {
-  G.fy = 96; G.vy = 0; G.kick = 0; G.gates = []; G.bub = []; G.dist = 0; G.next = 150; G.score = 0; G.cleared = 0; G.place = 0; G.bonus = 0; G.hat = null; G.had = false; G.t = 0; G.lastC = GH / 2; G.flash = 0; G.paid = null; G.best = false;
+  G.fy = 96; G.vy = 0; G.kick = 0; G.gates = []; G.bub = []; G.dist = 0; G.next = 150; G.score = 0; G.cleared = 0; G.place = 0; G.bonus = 0; G.hat = null; G.had = false; G.t = 0; G.lastC = GH / 2; G.flash = 0; G.paid = null; G.best = false; G.toldBest = false;
 }
 
 let started = null;
 
+// Everybody in the run as the results want them. A ghost still swimming when
+// you went out finishes on its dealt gate count, the way the server scores it.
+function field() {
+  const f = state.pond.frog;
+  const you = { id: "you", you: true, name: f.name, g: state.g, stage: f.stage, hat: f.hat, spr: youIcon(), gates: G.cleared };
+  return [you].concat(others.map((o) => ({ id: o.id, name: o.name, g: o.g, stage: f.stage, hat: null, spr: o.spr[0], gates: Math.min(o.clears, 999) })));
+}
+
+function youIcon() {
+  const cv = document.createElement("canvas");
+  cv.width = SW; cv.height = SH;
+  drawCells(cv.getContext("2d"), sprites()[0], SW, SH, frogCols(state.g), 0, 0, 1);
+  return cv;
+}
+
+function results(again) {
+  if ($("v-dive").hidden) return;
+  raceResults({ racers: field(), why: G.why, place: G.place, paid: G.paid, best: G.best, bonus: G.bonus, hat: G.hat, had: G.had, score: G.score, again });
+}
+
 function die(now, why) {
   G.state = "over"; G.overAt = now; G.why = why;
-  G.rank = others.filter((o) => o.out).length;
   const score = G.score, gates = G.cleared;
+  // The flash of the frog going out plays first, then the results come up.
+  setTimeout(() => { if (G.state === "over" && G.overAt === now) results(false); }, 650);
   // Requests go one after another, so a finish always lands before the start
   // of the run after it.
   net = started.then((run) => run ? post("/api/dive/finish", { run, score, gates }) : null).then((d) => {
     if (!d) { G.paid = 0; return; }
     G.paid = d.paid; G.best = d.best; G.place = d.place; G.bonus = d.bonus; G.hat = d.hat; G.had = d.had;
     setPond(d.pond);
-  }, () => { G.paid = 0; }).then(() => { if (G.state === "over") draw(performance.now()); });
+  }, () => { G.paid = 0; }).then(() => {
+    if (G.state !== "over" || G.overAt !== now) return;
+    if (performance.now() - now >= 650) results(true);
+    draw(performance.now());
+  });
 }
 
+// Three lights and GO, with everybody bobbing on the line.
+const COUNT_STEP = 600;
+
 function press() {
-  if (!state.pond) return;
+  if (!state.pond || G.state === "count") return;
   if (G.state !== "play") {
-    if (G.state === "over" && performance.now() - G.overAt < 500) return;
-    reset(); spawnOthers(); G.state = "play"; G.last = performance.now();
+    if (G.state === "over" && performance.now() - G.overAt < 900) return;
+    reset(); spawnOthers(); G.state = "count"; G.countAt = performance.now(); G.last = G.countAt;
+    raceStart(field().map((r) => ({ id: r.id, name: r.name, spr: r.spr, you: r.you })));
     started = net = net.then(() => post("/api/dive/start")).then((d) => { deal(d.ghosts); return d.run; }, () => { deal(null); return null; });
-    requestAnimationFrame(step);
+    requestAnimationFrame(counting);
+    return;
   }
   G.vy = KICK; G.kick = 0.16;
   for (let i = 0; i < 3; i++) G.bub.push({ x: FXP - 10 - Math.random() * 6, y: G.fy - 2 + Math.random() * 6, a: 1 });
+}
+
+function counting(now) {
+  if (G.state !== "count") return;
+  const k = Math.floor((now - G.countAt) / COUNT_STEP);
+  countdown(Math.min(k, 3));
+  G.t = (now - G.countAt) / 1000;
+  G.fy = 96 + Math.sin(G.t * 4) * 3;
+  others.forEach((o, i) => { o.y += Math.sin(G.t * 4 + i) * 0.2; });
+  if (k >= 3) {
+    G.state = "play"; G.last = now; G.t = 0;
+    setTimeout(() => { if (G.state !== "count") countdown(-1); }, 450);
+    requestAnimationFrame(step);
+  } else requestAnimationFrame(counting);
+  draw(now);
 }
 
 function speed() { return 84 + Math.min(46, G.score * 1.6); }
@@ -162,6 +204,7 @@ function step(now) {
     if (FXP + 7 > g.x && FXP - 8 < g.x + OW && (G.fy - 4 < topEnd || G.fy + 5 > botStart)) dead = G.fy - 4 < topEnd ? "TANGLED IN THE STEMS" : "BONKED A ROCK";
     if (g.bug && Math.abs(g.x + OW / 2 - FXP) < 9 && Math.abs(c + g.bug * (g.gap / 2 - 9) - G.fy) < 9) { g.bug = 0; G.score++; G.flash = 0.25; }
     if (!g.done && g.x + OW < FXP - 8) { g.done = true; G.score++; G.cleared++; }
+    if (!G.toldBest && best() > 0 && G.score > best()) { G.toldBest = true; callout("New best", "up"); }
   }
   for (let q = G.bub.length - 1; q >= 0; q--) { const b = G.bub[q]; b.x -= sp * dt; b.y -= 26 * dt; b.a -= dt * 1.5; if (b.a <= 0) G.bub.splice(q, 1); }
   stepOthers(dt, sp);
@@ -221,18 +264,8 @@ function draw(now) {
   if (G.state === "over" && now - G.overAt < 600) requestAnimationFrame(draw);
 }
 
-// What the end card says about the podium: the place, and what it added.
-function placeLine() {
-  const place = G.place || 1 + others.filter((o) => !o.out).length;
-  let line = ordinal(place) + " OF " + (others.length + 1);
-  if (G.paid == null || place > 3) return line;
-  if (G.had) return line + ", THAT PRIZE IS WON FOR TODAY";
-  if (G.bonus) line += ", +" + G.bonus + " PEBBLES" + (G.hat ? " AND A HAT" : "");
-  return line;
-}
-
 function overlay() {
-  if (G.state === "play") return;
+  if (G.state !== "idle") return;
   const oy = Math.round(GH * 0.31), tall = G.state === "over" && G.hat ? 84 : 72;
   const ow = Math.min(PW - 20, 260), ox = Math.round((PW - ow) / 2);
   gx.fillStyle = "rgba(10,9,8,0.82)"; gx.fillRect(ox, oy, ow, tall);
@@ -244,15 +277,6 @@ function overlay() {
     gx.fillText("THE FROG FLOATS UP BY ITSELF", PW / 2, oy + 40); gx.fillText("OUTLAST THE OTHERS FOR A PRIZE", PW / 2, oy + 54);
     return;
   }
-  gx.fillText(G.why, PW / 2, oy + 22);
-  gx.fillStyle = "#bcaf99"; gx.font = MONO;
-  const pay = G.paid == null ? "COUNTING PEBBLES" : "+" + G.paid + (G.paid === 1 ? " PEBBLE" : " PEBBLES") + (G.best ? ", A NEW BEST" : "");
-  gx.fillText(G.score + (G.score === 1 ? " POINT, " : " POINTS, ") + pay, PW / 2, oy + 36);
-  gx.fillStyle = (G.place || 9) <= 3 ? "#ffe27a" : "#bcaf99";
-  gx.fillText(placeLine(), PW / 2, oy + 48);
-  let y = oy + 62;
-  if (G.hat) { gx.fillText(G.hat.hat_name.toUpperCase() + (G.hat.spare ? ", A SPARE" : ", NEW"), PW / 2, oy + 60); y += 12; }
-  gx.fillStyle = "#ffb000"; gx.fillText("TAP TO GO AGAIN", PW / 2, y);
 }
 
 // The strip under the water: the best run, pebbles earned against the day's
@@ -295,10 +319,15 @@ function fit() {
   reset();
 }
 
-export function enterDive() { if (G.state !== "play") fit(); draw(performance.now()); }
+export function enterDive() {
+  if (G.state !== "play") { G.state = "idle"; raceHide(); fit(); }
+  draw(performance.now());
+}
 
 // Leaving the view mid run ends it, so the points still count.
 export function leaveDive() {
   if (G.state === "play") die(performance.now(), "CLIMBED OUT");
+  if (G.state === "count") G.state = "idle";
+  raceHide();
   $("v-dive").classList.remove("full");
 }
