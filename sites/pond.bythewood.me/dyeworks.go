@@ -127,10 +127,11 @@ func (s *store) dyeCollect(id int64) (*dyed, error) {
 }
 
 type dyeView struct {
-	Level int  `json:"level"`
-	Cost  int  `json:"cost"`
-	Hours int  `json:"hours"`
-	Busy  bool `json:"busy"`
+	Level int            `json:"level"`
+	Cost  int            `json:"cost"`
+	Mats  map[string]int `json:"mats,omitempty"`
+	Hours int            `json:"hours"`
+	Busy  bool           `json:"busy"`
 	// Seconds until the batch is done, 0 once it is.
 	ReadyIn int64                     `json:"ready_in"`
 	Pool    []string                  `json:"pool"`
@@ -143,6 +144,7 @@ func dyeViewOf(p *pond, now time.Time, held map[string]int) dyeView {
 	if d.Level < buildLevels {
 		d.Cost = dyeCost[d.Level]
 	}
+	d.Mats = matsFor("dye", d.Level)
 	if d.Level > 0 {
 		d.Hours = dyeHours[d.Level-1]
 		d.Pool = dyePool[d.Level-1]

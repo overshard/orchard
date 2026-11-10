@@ -30,6 +30,43 @@ const (
 
 var errMaxed = errors.New("that's built as far as it goes")
 
+var errShort = errors.New("not enough sticks, reeds or clay for that")
+
+// What each level past the first takes in materials as well as pebbles, so
+// the first level of anything is open before a frog can work.
+var buildMats = map[string][buildLevels]map[string]int{
+	"gravel": {nil, {"clay": 10}, {"clay": 40}, {"clay": 100, "sticks": 40}, {"clay": 250, "sticks": 100}},
+	"garden": {nil, {"sticks": 20}, {"sticks": 60}, {"sticks": 150, "reeds": 40}, {"sticks": 350, "reeds": 100}},
+	"dye":    {nil, {"reeds": 20}, {"reeds": 60}, {"reeds": 150, "clay": 40}, {"reeds": 350, "clay": 100}},
+}
+
+func matsFor(what string, level int) map[string]int {
+	if level >= buildLevels {
+		return nil
+	}
+	return buildMats[what][level]
+}
+
+// payMats takes a level's materials, or none of them if any are short.
+func payMats(tx *sql.Tx, id int64, what string, level int) error {
+	need := matsFor(what, level)
+	held, err := heldItems(tx, id)
+	if err != nil {
+		return err
+	}
+	for k, n := range need {
+		if held[k] < n {
+			return errShort
+		}
+	}
+	for k, n := range need {
+		if err := takeItem(tx, id, k, n); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // gravelHeld is what the bar has made since it was last emptied, and when it
 // was last emptied once whole pebbles are taken out.
 func gravelHeld(level int, at int64, now time.Time) (int, int64) {
@@ -148,6 +185,9 @@ func (s *store) build(id int64, what string) (*view, error) {
 			if p.Pebbles < cost {
 				return errPoor
 			}
+			if err := payMats(tx, p.ID, "gravel", p.GravelLevel); err != nil {
+				return err
+			}
 			// What the bar holds is paid out first, so a new level never eats it.
 			if p.GravelLevel > 0 {
 				n, at := gravelHeld(p.GravelLevel, p.GravelAt, now)
@@ -165,6 +205,9 @@ func (s *store) build(id int64, what string) (*view, error) {
 			cost := gardenCost[p.GardenLevel]
 			if p.Pebbles < cost {
 				return errPoor
+			}
+			if err := payMats(tx, p.ID, "garden", p.GardenLevel); err != nil {
+				return err
 			}
 			clock, err := s.growth(tx, now)
 			if err != nil {
@@ -184,6 +227,9 @@ func (s *store) build(id int64, what string) (*view, error) {
 			cost := dyeCost[p.DyeLevel]
 			if p.Pebbles < cost {
 				return errPoor
+			}
+			if err := payMats(tx, p.ID, "dye", p.DyeLevel); err != nil {
+				return err
 			}
 			p.Pebbles -= cost
 			p.DyeLevel++
@@ -372,15 +418,17 @@ type bankView struct {
 		Held  int `json:"held"`
 		Holds int `json:"holds"`
 		// Seconds until the next pebble, 0 while it's full.
-		NextIn int64 `json:"next_in"`
-		Cost   int   `json:"cost"`
+		NextIn int64          `json:"next_in"`
+		Cost   int            `json:"cost"`
+		Mats   map[string]int `json:"mats,omitempty"`
 	} `json:"gravel"`
 	Garden struct {
-		Level int        `json:"level"`
-		Cost  int        `json:"cost"`
-		Rate  float64    `json:"rate"`
-		Why   string     `json:"why"`
-		Plots []plotView `json:"plots"`
+		Level int            `json:"level"`
+		Cost  int            `json:"cost"`
+		Mats  map[string]int `json:"mats,omitempty"`
+		Rate  float64        `json:"rate"`
+		Why   string         `json:"why"`
+		Plots []plotView     `json:"plots"`
 	} `json:"garden"`
 	Dye dyeView `json:"dye"`
 }
@@ -454,12 +502,14 @@ func (s *store) bankOf(q querier, p *pond, now time.Time, held map[string]int) (
 	if g.Level < buildLevels {
 		g.Cost = gravelCost[g.Level]
 	}
+	g.Mats = matsFor("gravel", g.Level)
 
 	gd := &b.Garden
 	gd.Level = p.GardenLevel
 	if gd.Level < buildLevels {
 		gd.Cost = gardenCost[gd.Level]
 	}
+	gd.Mats = matsFor("garden", gd.Level)
 	gd.Rate, gd.Why = growRate(s.day.reading(now), now)
 	gd.Plots = []plotView{}
 	if gd.Level > 0 {

@@ -13,9 +13,19 @@ function hours(sec) {
   return (h < 10 ? h.toFixed(1).replace(/\.0$/, "") : Math.round(h)) + " h";
 }
 
-function build(label, level, cost) {
+function build(label, level, cost, mats) {
   if (!cost) return label + ", built all the way";
-  return (level ? "Level " + (level + 1) : "Build it") + ", " + cost.toLocaleString("en-US");
+  const more = Object.entries(mats || {}).map(([k, n]) => " + " + n + " " + k).join("");
+  return (level ? "Level " + (level + 1) : "Build it") + ", " + cost.toLocaleString("en-US") + more;
+}
+
+// canBuild is whether the pond has the pebbles and the materials for it.
+function canBuild(p, b) {
+  if (!b.cost || p.pebbles < b.cost) return false;
+  return Object.entries(b.mats || {}).every(([k, n]) => {
+    const t = p.bag.find((x) => x.kind === k);
+    return t && t.count >= n;
+  });
 }
 
 // ---------------------------------------------------------------- the garden
@@ -112,8 +122,8 @@ function render(p) {
       : "The next pebble in " + hours(gv.next_in) + ". It holds eight hours' worth.");
   $("gravel-collect").hidden = !gv.level;
   $("gravel-collect").disabled = gv.held < 1;
-  $("gravel-build").textContent = build("Gravel bar", gv.level, gv.cost);
-  $("gravel-build").disabled = !gv.cost || p.pebbles < gv.cost;
+  $("gravel-build").textContent = build("Gravel bar", gv.level, gv.cost, gv.mats);
+  $("gravel-build").disabled = !canBuild(p, gv);
 
   growing = gd.plots;
   seenAt = performance.now();
@@ -130,8 +140,8 @@ function render(p) {
   $("garden-pick").disabled = !gd.plots.some((x) => x.ready_in === 0);
   $("garden-water").hidden = !gd.level || gd.rate !== 1;
   $("garden-water").disabled = !gd.plots.some((x) => !x.watered && x.grown < 1);
-  $("garden-build").textContent = build("Garden", gd.level, gd.cost);
-  $("garden-build").disabled = !gd.cost || p.pebbles < gd.cost;
+  $("garden-build").textContent = build("Garden", gd.level, gd.cost, gd.mats);
+  $("garden-build").disabled = !canBuild(p, gd);
 
   renderDye(p);
 
@@ -224,8 +234,8 @@ function renderDye(p) {
   $("dye-load").textContent = "Boil them down" + (rocks.length < 3 ? ", " + rocks.length + "/3" : "");
   $("dye-collect").hidden = !d.busy;
   $("dye-collect").disabled = d.ready_in > 0;
-  $("dye-build").textContent = build("Dye works", d.level, d.cost);
-  $("dye-build").disabled = !d.cost || p.pebbles < d.cost;
+  $("dye-build").textContent = build("Dye works", d.level, d.cost, d.mats);
+  $("dye-build").disabled = !canBuild(p, d);
 }
 
 function nameOf(kind) {
