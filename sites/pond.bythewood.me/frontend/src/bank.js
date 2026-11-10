@@ -135,6 +135,7 @@ function render(p) {
     const next = gd.plots.filter((x) => x.ready_in > 0).map((x) => x.ready_in).sort((a, c) => a - c)[0];
     note = gd.plots.length + " plots." + (next ? " The next is ready in " + hours(next) + "." : " Everything's ready.");
   }
+  if (gd.level && gd.gardener && gd.speed > 1.01) note += " " + gd.gardener + " is tending them, so they grow " + gd.speed.toFixed(1).replace(/\.0$/, "") + " times as fast.";
   say("garden-note", note);
   $("garden-pick").hidden = !gd.level;
   $("garden-pick").disabled = !gd.plots.some((x) => x.ready_in === 0);

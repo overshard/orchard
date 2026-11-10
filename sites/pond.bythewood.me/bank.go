@@ -164,12 +164,35 @@ func loadPlots(q querier, id int64) ([]plot, error) {
 	return out, rows.Err()
 }
 
-func (p plot) grown(clock float64) float64 {
+func (p plot) grown(clock, speed float64) float64 {
 	g := clock - p.Sown
 	if p.Watered {
 		g += waterAdd
 	}
-	return min(1, max(0, g/growFor))
+	return min(1, max(0, g*speed/growFor))
+}
+
+// gardenSpeed is how much faster the plots grow with a frog tending them, by
+// the best gardener at work, up to twice as fast at 99.
+func gardenSpeed(q querier, id int64, now time.Time) (float64, string, error) {
+	frogs, err := loadFrogs(q, id)
+	if err != nil {
+		return 1, "", err
+	}
+	xp, err := loadXP(q, id)
+	if err != nil {
+		return 1, "", err
+	}
+	speed, who := 1.0, ""
+	for _, f := range frogs {
+		if f.Job != "garden" || !canWork(f, now) {
+			continue
+		}
+		if sp := speedAt(levelOf(xp[f.ID]["garden"])); sp > speed || who == "" {
+			speed, who = sp, titled(frogViewOf(f, now).Name)
+		}
+	}
+	return speed, who, nil
 }
 
 // ---------------------------------------------------------------- moves
@@ -289,9 +312,13 @@ func (s *store) pick(id int64) (*picked, error) {
 		if err != nil {
 			return err
 		}
+		speed, _, err := gardenSpeed(tx, p.ID, now)
+		if err != nil {
+			return err
+		}
 		rain := dayOfReading(s.day.reading(now), now).Rain
 		for _, pl := range plots {
-			if pl.grown(clock) < 1 {
+			if pl.grown(clock, speed) < 1 {
 				continue
 			}
 			g := ingredients[rollCrop(now, rain)]
@@ -324,8 +351,12 @@ func (s *store) water(id int64) (*view, error) {
 		if err != nil {
 			return err
 		}
+		speed, _, err := gardenSpeed(tx, p.ID, now)
+		if err != nil {
+			return err
+		}
 		res, err := tx.Exec(`UPDATE plots SET watered = 1 WHERE pond_id = ? AND watered = 0 AND ? - sown < ?`,
-			p.ID, clock, growFor)
+			p.ID, clock, growFor/speed)
 		if err != nil {
 			return err
 		}
@@ -429,6 +460,9 @@ type bankView struct {
 		Rate  float64        `json:"rate"`
 		Why   string         `json:"why"`
 		Plots []plotView     `json:"plots"`
+		// How much faster a gardening frog makes them grow, and its name.
+		Speed    float64 `json:"speed"`
+		Gardener string  `json:"gardener,omitempty"`
 	} `json:"garden"`
 	Dye dyeView `json:"dye"`
 }
@@ -521,12 +555,15 @@ func (s *store) bankOf(q querier, p *pond, now time.Time, held map[string]int) (
 		if err != nil {
 			return b, k, err
 		}
+		if gd.Speed, gd.Gardener, err = gardenSpeed(q, p.ID, now); err != nil {
+			return b, k, err
+		}
 		for _, pl := range plots {
-			v := plotView{Grown: pl.grown(clock), Watered: pl.Watered, ReadyIn: -1}
+			v := plotView{Grown: pl.grown(clock, gd.Speed), Watered: pl.Watered, ReadyIn: -1}
 			if v.Grown >= 1 {
 				v.ReadyIn = 0
 			} else if gd.Rate > 0 {
-				v.ReadyIn = int64(math.Ceil((1 - v.Grown) * growFor / gd.Rate))
+				v.ReadyIn = int64(math.Ceil((1 - v.Grown) * growFor / gd.Speed / gd.Rate))
 			}
 			gd.Plots = append(gd.Plots, v)
 		}
@@ -586,9 +623,13 @@ func (s *store) readyPlots(q querier, id int64, now time.Time) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	speed, _, err := gardenSpeed(q, id, now)
+	if err != nil {
+		return 0, err
+	}
 	n := 0
 	for _, pl := range plots {
-		if pl.grown(clock) >= 1 {
+		if pl.grown(clock, speed) >= 1 {
 			n++
 		}
 	}
