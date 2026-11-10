@@ -329,6 +329,10 @@ func (s *site) apiSellTrinket(id int64, r *http.Request, w http.ResponseWriter) 
 	return s.store.sellTrinket(id, in.Kind)
 }
 
+func (s *site) apiForage(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	return s.store.forage(id)
+}
+
 func (s *site) apiBuyPad(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
 	return s.store.buyPad(id)
 }
