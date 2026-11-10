@@ -10,6 +10,7 @@ import { initUI, reveal, thingArt, drawBox } from "./ui.js";
 import { initBag } from "./bag.js";
 import { initCollect } from "./collect.js";
 import { initTown, enterTown, leaveTown } from "./town.js";
+import { initNeighbours } from "./neighbours.js";
 import { initSettings } from "./settings.js";
 
 const VIEWS = ["pond", "play", "dive", "wheel", "bag", "collect", "reeds", "garden", "bank", "town", "settings"];
@@ -486,6 +487,7 @@ initShops();
 initBag();
 initCollect();
 initTown();
+initNeighbours();
 initSettings();
 show(location.hash.slice(1));
 

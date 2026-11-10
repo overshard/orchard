@@ -7,7 +7,7 @@ let tab = "shops";
 
 function showTab(next) {
   tab = next;
-  ["shops", "stall", "wizard"].forEach((k) => { $("town-" + k).hidden = k !== next; });
+  ["shops", "neighbours", "stall", "wizard"].forEach((k) => { $("town-" + k).hidden = k !== next; });
   document.querySelectorAll("#town-tabs button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.town === next ? "true" : "false"));
   if (next === "wizard") { wizOn = true; cancelAnimationFrame(wizRaf); wizRaf = requestAnimationFrame(wizTick); } else wizOn = false;
   if (next === "stall") drawStall();

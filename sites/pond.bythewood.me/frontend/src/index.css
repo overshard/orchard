@@ -886,6 +886,25 @@ body:has(.tabs) main {
   letter-spacing: var(--track);
 }
 
+.reed .hearts {
+  color: #e2567a;
+  letter-spacing: 1px;
+}
+
+button.reed {
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.favour canvas {
+  width: 64px;
+  height: 64px;
+  background: #0e2c30;
+  image-rendering: pixelated;
+}
+
 .register {
   display: flex;
   flex-wrap: wrap;

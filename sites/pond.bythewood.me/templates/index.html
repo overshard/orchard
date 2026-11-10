@@ -182,6 +182,7 @@
   <section class="view" id="v-town" hidden>
     <div class="chiprow sub" id="town-tabs" role="group" aria-label="In town">
       <button type="button" data-town="shops" aria-pressed="true">Shops</button>
+      <button type="button" data-town="neighbours" aria-pressed="false">Neighbours</button>
       <button type="button" data-town="stall" aria-pressed="false">Your stall</button>
       <button type="button" data-town="wizard" aria-pressed="false">Wizard</button>
     </div>
@@ -215,6 +216,15 @@
       </div>
       <ul class="shelf" id="shelf-moss"></ul>
       <p class="line" id="shop-out-moss" role="status"></p>
+    </div>
+
+    <div id="town-neighbours" hidden>
+      <h2>Today's favour</h2>
+      <div class="boxbuy favour" id="favour"></div>
+      <p class="line" id="neigh-out" role="status"></p>
+      <h2>Neighbours</h2>
+      <p class="help" hidden>The neighbours are frogs who live round the pond, run by the pond itself and the same for everybody. Bring each one a dish a day and it gets friendlier, three times as fast with its favourite, and it gives you something at every heart. At two hearts it tells you how to cook its favourite. One of them asks a small favour each day, and ignoring it costs nothing.</p>
+      <div class="reeds" id="neigh-grid"></div>
     </div>
 
     <div id="town-stall" hidden>
