@@ -194,6 +194,10 @@ var addedColumns = []struct{ table, name, def string }{
 	{"frogs", "recipe", "TEXT NOT NULL DEFAULT ''"},
 	{"frogs", "carry", "REAL NOT NULL DEFAULT 0"},
 	{"ponds", "favour_day", "TEXT NOT NULL DEFAULT ''"},
+	{"ponds", "burrow_level", "INTEGER NOT NULL DEFAULT 0"},
+	{"ponds", "burrow_at", "INTEGER NOT NULL DEFAULT 0"},
+	{"ponds", "lodgers", "TEXT NOT NULL DEFAULT ''"},
+	{"ponds", "rent_day", "TEXT NOT NULL DEFAULT ''"},
 }
 
 func ensureColumns(db *sql.DB) error {
@@ -768,8 +772,12 @@ func viewOf(q querier, p pond, now time.Time) (*view, error) {
 		v.Frogs = append(v.Frogs, rv)
 	}
 	v.Pads = p.Pads
-	if p.Pads < mostPads {
-		v.PadCost = padCost(p.Pads)
+	bought, err := boughtPads(q, &p)
+	if err != nil {
+		return nil, err
+	}
+	if bought < mostPads {
+		v.PadCost = padCost(bought)
 	}
 	v.Share.Path = "/f/" + slug(v.Frog.Name, p.PublicID)
 	v.found = found

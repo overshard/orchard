@@ -83,6 +83,14 @@ const (
 // padCost doubles with every pad past the three a pond starts with.
 func padCost(have int) int { return 400 << (have - startingPads) }
 
+// boughtPads leaves out the pad each burrow came with, so digging never
+// makes the next pad dearer.
+func boughtPads(q querier, p *pond) (int, error) {
+	var dug int
+	err := q.QueryRow(`SELECT burrow_level FROM ponds WHERE id = ?`, p.ID).Scan(&dug)
+	return p.Pads - dug, err
+}
+
 func clamp(v, lo, hi float64) float64 { return max(lo, min(hi, v)) }
 
 // A fed frog lays a better egg. The meal's tier sets how often a dye, stamp
@@ -333,10 +341,14 @@ func (s *store) front(id, frogID int64) (*view, error) {
 
 func (s *store) buyPad(id int64) (*view, error) {
 	return s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
-		if p.Pads >= mostPads {
+		bought, err := boughtPads(tx, p)
+		if err != nil {
+			return err
+		}
+		if bought >= mostPads {
 			return errNotYet
 		}
-		cost := padCost(p.Pads)
+		cost := padCost(bought)
 		if p.Pebbles < cost {
 			return errPoor
 		}
