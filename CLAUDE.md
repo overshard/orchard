@@ -28,6 +28,7 @@ tunnel rather than a rented server.
 | `sites/auth.bythewood.me/` | The front door. One account, a six digit code pushed over ntfy, and an opaque session every other site checks against it |
 | `sites/chat.bythewood.me/` | A conversation with a local model, with tools, attachments, pictures, history in SQLite and an incognito mode that writes nothing. It also answers a house out of public records. Beside it an offline Wikipedia, served by kiwix off a 12.5GB ZIM |
 | `sites/llm.bythewood.me/` | The model gateway. One card behind an API key, Ornith for chat and FLUX.2 klein for pictures taking turns on it, with every prompt and completion logged unless the caller marks the call incognito |
+| `sites/pond.bythewood.me/` | A virtual pet game where every visitor gets a frog of their own. No accounts, a frog is kept by six words in a host only cookie and stored as an HMAC under a pepper in `.env`. SQLite, with every rule and every clock on the server |
 | `edge/` | The shared `cloudflared` tunnel, the Caddy that reverse proxies to each site, and the ntfy every alert is published to |
 
 ## The one structural rule
@@ -114,7 +115,7 @@ reachable on the bridge and nowhere else.
 **Everything is named `orchard-<first label>`.** `orchard-caddy` and
 `orchard-cloudflared` for the edge, then `orchard-blog`, `orchard-analytics`,
 `orchard-status`, `orchard-isaacbythewood`, `orchard-logging`, `orchard-repos`,
-`orchard-auth`, `orchard-chat`, `orchard-llm`
+`orchard-auth`, `orchard-chat`, `orchard-llm`, `orchard-pond`
 and `orchard-dash`, plus an `orchard-<label>-data` volume for each site with
 SQLite. One prefix, so `docker ps --filter name=orchard` is the whole system
 and the Makefile derives a container name from a site directory without a
