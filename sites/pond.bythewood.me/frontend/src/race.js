@@ -7,7 +7,7 @@ import { cells, colours, draw, W, H } from "./frog.js";
 const ORD = { 1: "ST", 2: "ND", 3: "RD" };
 export function suffix(n) { return n % 100 > 10 && n % 100 < 14 ? "TH" : ORD[n % 10] || "TH"; }
 
-let racers = [], gone = [], rows = {}, shown = 0;
+let racers = [], gone = [], rows = {}, shown = 0, live = [], liveKey = "";
 
 function icon(src) {
   const cv = document.createElement("canvas");
@@ -17,8 +17,8 @@ function icon(src) {
 }
 
 // racers is everybody in the run as { id, name, spr, you }, in lineup order.
-export function raceStart(list) {
-  racers = list; gone = []; rows = {};
+export function raceStart(list, order) {
+  racers = list; gone = []; rows = {}; live = order || list.map((r) => r.id); liveKey = "";
   const ol = $("standings");
   ol.textContent = "";
   racers.forEach((r) => {
@@ -36,10 +36,22 @@ export function raceStart(list) {
   $("confetti").textContent = "";
 }
 
-// Still in first in lineup order, then you, then whoever went out most lately.
+// Whoever is still in by where they are on the water, then whoever went out
+// most lately.
 function order() {
-  const still = racers.filter((r) => !r.you && !gone.includes(r.id)), you = racers.filter((r) => r.you);
-  return still.concat(you, gone.slice().reverse().map((id) => racers.find((r) => r.id === id)));
+  const still = live.filter((id) => !gone.includes(id)).map((id) => racers.find((r) => r.id === id));
+  return still.concat(gone.slice().reverse().map((id) => racers.find((r) => r.id === id)));
+}
+
+// raceOrder takes the ids still in, front first, every frame, and only moves
+// anything when it changed.
+export function raceOrder(ids) {
+  const key = ids.join(",");
+  if (key === liveKey) return;
+  liveKey = key; live = ids;
+  const before = shown;
+  layout();
+  if (shown < before && shown <= 3) callout(shown === 1 ? "You're in front" : shown === 2 ? "Up to 2nd" : "Onto the podium", "up");
 }
 
 function layout(list) {
@@ -49,7 +61,7 @@ function layout(list) {
     row.pos.textContent = i + 1;
     row.li.classList.toggle("out", gone.includes(r.id));
   });
-  setPlace(1 + racers.filter((r) => !r.you && !gone.includes(r.id)).length);
+  setPlace(1 + Math.max(0, live.filter((id) => !gone.includes(id)).indexOf("you")));
 }
 
 function setPlace(n) {
@@ -76,10 +88,9 @@ export function callout(text, kind) {
 export function raceOut(id) {
   if (gone.includes(id)) return;
   gone.push(id);
-  const r = racers.find((x) => x.id === id), before = shown;
+  const r = racers.find((x) => x.id === id);
   layout();
   callout(r.name + " is out", "out");
-  if (shown < before && shown <= 3) callout(shown === 1 ? "You're in front" : suffix(shown) === "ND" ? "Up to 2nd" : "Onto the podium", "up");
 }
 
 export function countdown(step) {
