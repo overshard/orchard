@@ -143,6 +143,14 @@ CREATE TABLE IF NOT EXISTS job_xp (
 ) WITHOUT ROWID;
 CREATE INDEX IF NOT EXISTS job_xp_pond ON job_xp(pond_id);
 
+CREATE TABLE IF NOT EXISTS neighbours (
+    pond_id  INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
+    who      INTEGER NOT NULL,
+    points   INTEGER NOT NULL DEFAULT 0,
+    gift_day TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (pond_id, who)
+) WITHOUT ROWID;
+
 CREATE TABLE IF NOT EXISTS growth (
     id    INTEGER PRIMARY KEY CHECK (id = 1),
     at    INTEGER NOT NULL,
@@ -173,6 +181,7 @@ var addedColumns = []struct{ table, name, def string }{
 	{"frogs", "job_at", "INTEGER NOT NULL DEFAULT 0"},
 	{"frogs", "recipe", "TEXT NOT NULL DEFAULT ''"},
 	{"frogs", "carry", "REAL NOT NULL DEFAULT 0"},
+	{"ponds", "favour_day", "TEXT NOT NULL DEFAULT ''"},
 }
 
 func ensureColumns(db *sql.DB) error {
@@ -625,13 +634,14 @@ type view struct {
 		Path  string `json:"path"`
 		Power power  `json:"power"`
 	} `json:"share"`
-	Day       dayView             `json:"day"`
-	Bank      bankView            `json:"bank"`
-	Kitchen   kitchenView         `json:"kitchen"`
-	Shops     map[string]shopView `json:"shops"`
-	Trinkets  trinketsView        `json:"trinkets"`
-	Rocks     []rockView          `json:"rocks"`
-	Keepsakes []keepsakeView      `json:"keepsakes"`
+	Day        dayView             `json:"day"`
+	Bank       bankView            `json:"bank"`
+	Kitchen    kitchenView         `json:"kitchen"`
+	Shops      map[string]shopView `json:"shops"`
+	Trinkets   trinketsView        `json:"trinkets"`
+	Rocks      []rockView          `json:"rocks"`
+	Keepsakes  []keepsakeView      `json:"keepsakes"`
+	Neighbours neighboursView      `json:"neighbours"`
 	// What Fenn sold this pond, drawn on the water.
 	Furniture []string   `json:"furniture"`
 	Bag       []bagThing `json:"bag"`
@@ -843,6 +853,9 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 		return err
 	}
 	if v.Stall, err = stallOf(q, p.ID, now); err != nil {
+		return err
+	}
+	if v.Neighbours, err = neighboursOf(q, p.ID, now); err != nil {
 		return err
 	}
 	v.Bag = bagOf(v.held, v.Hats, v.Hoods)
