@@ -1,0 +1,253 @@
+import { $, post, state, setPond, watch, reduced, TIERS } from "./api.js";
+import { iconCanvas, dishCanvas } from "./icons.js";
+
+const gx = $("garden").getContext("2d");
+const GW = 176, S = 3;
+let picked = [], growing = [], seenAt = 0, raf = 0, on = false;
+
+function say(id, msg) { $(id).textContent = msg; }
+
+function hours(sec) {
+  if (sec < 3600) return Math.max(1, Math.round(sec / 60)) + " min";
+  const h = sec / 3600;
+  return (h < 10 ? h.toFixed(1).replace(/\.0$/, "") : Math.round(h)) + " h";
+}
+
+function build(label, level, cost) {
+  if (!cost) return label + ", built all the way";
+  return (level ? "Level " + (level + 1) : "Build it") + ", " + cost.toLocaleString("en-US");
+}
+
+// ---------------------------------------------------------------- the garden
+
+// The server says how far along each plot was when it answered, and the page
+// carries it on at the same rate so a plot fills while you watch.
+function plotsNow() {
+  const dt = (performance.now() - seenAt) / 1000;
+  return growing.map((p) => {
+    if (p.ready_in <= 0) return Math.min(1, p.grown);
+    return Math.min(1, p.grown + (1 - p.grown) * dt / p.ready_in);
+  });
+}
+
+function drawGarden(now) {
+  const p = state.pond, why = p.bank.garden.why, wet = why === "rain";
+  gx.setTransform(S, 0, 0, S, 0, 0);
+  gx.imageSmoothingEnabled = false;
+  gx.fillStyle = wet ? "#27323c" : why === "frost" ? "#3a4654" : p.day.night ? "#141c2a" : "#3b5a6a";
+  gx.fillRect(0, 0, GW, 34);
+  if (!p.day.night) {
+    gx.fillStyle = why ? "#9fb0bd" : "#ffd98a";
+    gx.fillRect(150, 6, 10, 10); gx.fillRect(148, 8, 14, 6); gx.fillRect(152, 4, 6, 14);
+  }
+  if (why) {
+    gx.fillStyle = wet ? "#55626e" : "#c9d3dc";
+    gx.fillRect(20, 6, 40, 7); gx.fillRect(28, 3, 22, 4); gx.fillRect(96, 9, 34, 6); gx.fillRect(104, 6, 16, 4);
+  }
+  gx.fillStyle = "#2f5a3a";
+  for (let r = 0; r < GW; r += 7) gx.fillRect(r, 30 - ((r * 13) % 5), 2, 6 + ((r * 13) % 5));
+  gx.fillStyle = "#5a4630"; gx.fillRect(0, 34, GW, 26);
+  gx.fillStyle = "#6c5538";
+  for (let d = 3; d < GW; d += 11) gx.fillRect(d, 37 + (d % 3) * 6, 3, 1);
+  gx.fillStyle = "#123a3d"; gx.fillRect(0, 60, GW, 12);
+  gx.fillStyle = "#7fd6c2";
+  for (let w = (Math.floor(now / 400) % 2) * 4; w < GW; w += 16) gx.fillRect(w, 61, 7, 1);
+
+  const g = plotsNow(), n = Math.max(g.length, 1), span = Math.floor((GW - 8) / n), pw = Math.min(34, span - 6);
+  g.forEach((k, i) => {
+    const x = 4 + i * span + Math.floor((span - pw) / 2), cx = x + Math.floor(pw / 2);
+    const damp = wet || growing[i].watered;
+    gx.fillStyle = damp ? "#3a2c1c" : "#4a3824"; gx.fillRect(x, 46, pw, 9);
+    gx.fillStyle = damp ? "#2e2216" : "#3d2e1d";
+    for (let f = 2; f < pw; f += 6) gx.fillRect(x + f, 48, 3, 1);
+    if (why === "frost") { gx.fillStyle = "#dfe9f2"; for (let q = 1; q < pw; q += 5) gx.fillRect(x + q, 46, 2, 1); }
+    if (k < 0.3) { gx.fillStyle = "#c9b25a"; gx.fillRect(cx - 1, 49, 2, 2); }
+    else if (k < 0.65) { gx.fillStyle = "#58b85a"; gx.fillRect(cx, 42, 1, 5); gx.fillRect(cx - 2, 42, 2, 1); gx.fillRect(cx + 1, 43, 2, 1); }
+    else if (k < 1) { gx.fillStyle = "#3f9a4d"; gx.fillRect(cx, 36, 1, 11); gx.fillStyle = "#58b85a"; gx.fillRect(cx - 3, 39, 3, 2); gx.fillRect(cx + 1, 37, 3, 2); gx.fillRect(cx - 2, 43, 2, 1); }
+    else {
+      // Ready, and what it is stays a surprise until it's picked.
+      gx.fillStyle = "#3f9a4d"; gx.fillRect(cx, 40, 1, 7);
+      gx.fillStyle = "#ffe27a"; const bob = reduced ? 0 : Math.floor(now / 300 + i) % 2;
+      gx.fillRect(cx - 2, 33 - bob, 5, 5); gx.fillStyle = "#fff6dc"; gx.fillRect(cx - 1, 34 - bob, 2, 2);
+    }
+    if (!damp && !why && k < 1) { gx.fillStyle = "#7eaab8"; gx.fillRect(x + pw - 5, 40, 2, 3); gx.fillRect(x + pw - 6, 42, 4, 2); }
+  });
+  if (!growing.length) {
+    gx.fillStyle = "#3d2e1d";
+    for (let i = 0; i < 4; i++) gx.fillRect(10 + i * 42, 52, 34, 1);
+  }
+  if (wet && !reduced) {
+    gx.fillStyle = "#8fb6c9";
+    for (let i = 0; i < 40; i++) gx.fillRect((i * 37 + Math.floor(now / 60) * 3) % GW, (i * 23 + Math.floor(now / 60) * 5) % 58, 1, 3);
+  }
+  if (why === "frost" && !reduced) {
+    gx.fillStyle = "#eef4f9";
+    for (let i = 0; i < 14; i++) gx.fillRect((i * 41 + Math.floor(now / 500)) % GW, (i * 17 + Math.floor(now / 250)) % 46, 1, 1);
+  }
+}
+
+function tick(now) {
+  if (!on) return;
+  if (state.pond) {
+    drawGarden(now);
+    $("garden-pick").disabled = !plotsNow().some((k) => k >= 1);
+  }
+  raf = requestAnimationFrame(tick);
+}
+
+// ---------------------------------------------------------------- render
+
+function render(p) {
+  const b = p.bank, gv = b.gravel, gd = b.garden;
+
+  const built = (gv.level ? 1 : 0) + (gd.level ? 1 : 0);
+  say("bank-line", built
+    ? "The bank round the pond is yours to build on. Everything here makes something by itself and holds eight hours of it, and nothing rots."
+    : "The bank round the pond is yours to build on. Start with the gravel bar, it makes pebbles by itself while you're away.");
+
+  $("gravel-level").textContent = gv.level ? gv.level + "/5" : "0";
+  $("gravel-rate").textContent = gv.level ? gv.rate + "/h" : "—";
+  $("gravel-held").textContent = gv.level ? gv.held + "/" + gv.holds : "—";
+  say("gravel-note", !gv.level
+    ? "Nothing built here yet. It makes 6 pebbles an hour at first and 30 by level 5."
+    : gv.held >= gv.holds ? "Full. It stops making more until it's collected."
+      : "The next pebble in " + hours(gv.next_in) + ". It holds eight hours' worth.");
+  $("gravel-collect").hidden = !gv.level;
+  $("gravel-collect").disabled = gv.held < 1;
+  $("gravel-build").textContent = build("Gravel bar", gv.level, gv.cost);
+  $("gravel-build").disabled = !gv.cost || p.pebbles < gv.cost;
+
+  growing = gd.plots;
+  seenAt = performance.now();
+  let note;
+  if (!gd.level) note = "No plots yet. They grow pond plants and bugs for the kitchen over real hours, by the real weather.";
+  else if (gd.why === "frost") note = "Frost. Nothing grows and nothing is lost, the plots wait for it to lift.";
+  else if (gd.why === "rain") note = "Rain, so the plots are watered and growing twice as fast.";
+  else {
+    const next = gd.plots.filter((x) => x.ready_in > 0).map((x) => x.ready_in).sort((a, c) => a - c)[0];
+    note = gd.plots.length + " plots." + (next ? " The next is ready in " + hours(next) + "." : " Everything's ready.");
+  }
+  say("garden-note", note);
+  $("garden-pick").hidden = !gd.level;
+  $("garden-pick").disabled = !gd.plots.some((x) => x.ready_in === 0);
+  $("garden-water").hidden = !gd.level || gd.rate !== 1;
+  $("garden-water").disabled = !gd.plots.some((x) => !x.watered && x.grown < 1);
+  $("garden-build").textContent = build("Garden", gd.level, gd.cost);
+  $("garden-build").disabled = !gd.cost || p.pebbles < gd.cost;
+
+  const k = p.kitchen, larder = $("larder");
+  picked = picked.filter((kind) => k.ingredients.some((i) => i.kind === kind && i.count > 0));
+  if (picked.length === 2 && picked[0] === picked[1] && k.ingredients.find((i) => i.kind === picked[0]).count < 2) picked.pop();
+  larder.textContent = "";
+  k.ingredients.forEach((it) => {
+    const btn = document.createElement("button"), name = document.createElement("span"), n = document.createElement("span");
+    btn.type = "button"; btn.dataset.kind = it.kind;
+    const times = picked.filter((x) => x === it.kind).length;
+    btn.setAttribute("aria-pressed", times ? "true" : "false");
+    btn.disabled = it.count === 0;
+    name.textContent = it.name + (times === 2 ? " x2" : "");
+    n.className = it.count ? "n" : "n off";
+    n.textContent = it.count ? it.count : it.season ? "IN SEASON" : "NOT NOW";
+    btn.append(iconCanvas(it.kind, 2), name, n);
+    larder.append(btn);
+  });
+  $("cook").disabled = picked.length !== 2;
+
+  const dishes = $("dishes");
+  dishes.textContent = "";
+  k.dishes.forEach((d) => {
+    const li = document.createElement("li"), name = document.createElement("span"), sell = document.createElement("button");
+    name.textContent = d.name + (d.count > 1 ? " x" + d.count : "");
+    sell.type = "button"; sell.textContent = "Sell " + d.worth;
+    sell.addEventListener("click", () => {
+      sell.disabled = true;
+      post("/api/kitchen/sell", { dish: d.kind }).then((v) => {
+        say("cook-out", "Brindle took the " + d.name.toLowerCase() + " for " + d.worth + " pebbles.");
+        setPond(v);
+      }, (e) => { say("cook-out", e.message); sell.disabled = false; });
+    });
+    li.append(dishCanvas(d, 3), name, sell);
+    dishes.append(li);
+  });
+
+  $("cook-count").textContent = k.cookbook.length + " OF " + k.of;
+  const book = $("cookbook");
+  book.textContent = "";
+  k.cookbook.slice().sort((a, c) => c.tier - a.tier).forEach((d) => {
+    const li = document.createElement("li"), name = document.createElement("span"), t = document.createElement("span");
+    name.textContent = d.name;
+    t.className = "tier t" + d.tier; t.textContent = TIERS[d.tier];
+    li.append(dishCanvas(d, 2), name, t);
+    book.append(li);
+  });
+  if (!k.cookbook.length) {
+    const li = document.createElement("li");
+    li.textContent = "Nothing cooked yet.";
+    book.append(li);
+  }
+}
+
+function nameOf(kind) {
+  const it = state.pond.kitchen.ingredients.find((i) => i.kind === kind);
+  return it ? it.name.toLowerCase() : kind;
+}
+
+export function enterBank() {
+  on = true;
+  cancelAnimationFrame(raf);
+  raf = requestAnimationFrame(tick);
+}
+
+export function leaveBank() { on = false; }
+
+export function initBank() {
+  watch(render);
+  $("gravel-collect").addEventListener("click", () => {
+    $("gravel-collect").disabled = true;
+    post("/api/bank/collect").then((d) => {
+      say("gravel-out", d.pebbles + " pebbles off the gravel bar.");
+      setPond(d.pond);
+    }, (e) => say("gravel-out", e.message));
+  });
+  const builder = (what, out) => () => {
+    post("/api/bank/build", { build: what }).then((v) => {
+      const lv = what === "gravel" ? v.bank.gravel.level : v.bank.garden.level;
+      say(out, lv === 1 ? "Built." : "Up to level " + lv + ".");
+      setPond(v);
+    }, (e) => say(out, e.message));
+  };
+  $("gravel-build").addEventListener("click", builder("gravel", "gravel-out"));
+  $("garden-build").addEventListener("click", builder("garden", "garden-out"));
+  $("garden-pick").addEventListener("click", () => {
+    $("garden-pick").disabled = true;
+    post("/api/garden/pick").then((d) => {
+      const names = d.got.map(nameOf);
+      say("garden-out", "Picked " + (names.length > 1 ? names.slice(0, -1).join(", ") + " and " + names[names.length - 1] : names[0]) + ", and sowed again.");
+      setPond(d.pond);
+    }, (e) => say("garden-out", e.message));
+  });
+  $("garden-water").addEventListener("click", () => {
+    post("/api/garden/water").then((v) => {
+      say("garden-out", "Watered. That's an hour and a half off everything growing.");
+      setPond(v);
+    }, (e) => say("garden-out", e.message));
+  });
+  $("larder").addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b || b.disabled) return;
+    if (picked.length >= 2) picked = [];
+    picked.push(b.dataset.kind);
+    render(state.pond);
+  });
+  $("cook").addEventListener("click", () => {
+    if (picked.length !== 2) return;
+    const [a, b] = picked;
+    picked = [];
+    $("cook").disabled = true;
+    post("/api/kitchen/cook", { a, b }).then((d) => {
+      say("cook-out", (d.new ? "New dish. " : "") + d.dish.name + ", " + TIERS[d.tier].toLowerCase() + ".");
+      setPond(d.pond);
+    }, (e) => { say("cook-out", e.message); render(state.pond); });
+  });
+}
+

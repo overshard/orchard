@@ -130,6 +130,43 @@
     <p id="pads-line"></p>
     <div class="row"><button type="button" id="pad-buy">Another pad</button></div>
   </section>
+
+  <section class="view" id="v-bank" hidden>
+    <p class="line" id="bank-line"></p>
+
+    <h2 data-idx="01">Gravel bar</h2>
+    <div class="tiles">
+      <span class="readout"><span class="k">Level</span><span class="v" id="gravel-level">0</span></span>
+      <span class="readout"><span class="k">Makes</span><span class="v" id="gravel-rate">&mdash;</span></span>
+      <span class="readout"><span class="k">Waiting</span><span class="v" id="gravel-held">&mdash;</span></span>
+    </div>
+    <p class="dim" id="gravel-note"></p>
+    <div class="row">
+      <button type="button" class="primary" id="gravel-collect">Collect</button>
+      <button type="button" id="gravel-build">Build</button>
+    </div>
+    <p class="line" id="gravel-out" role="status"></p>
+
+    <h2 data-idx="02">Garden</h2>
+    <div class="screen"><canvas id="garden" width="528" height="216" aria-label="The garden plots by the water"></canvas></div>
+    <p class="dim" id="garden-note"></p>
+    <div class="row">
+      <button type="button" class="primary" id="garden-pick">Pick what's ready</button>
+      <button type="button" id="garden-water">Water</button>
+      <button type="button" id="garden-build">Build</button>
+    </div>
+    <p class="line" id="garden-out" role="status"></p>
+
+    <h2 data-idx="03">Kitchen</h2>
+    <p class="dim">Any two things from the garden make a dish. The cookbook fills in as you go, and Brindle buys whatever you cook.</p>
+    <div class="larder seg" id="larder" aria-label="Pick two"></div>
+    <div class="row"><button type="button" class="primary" id="cook">Cook</button></div>
+    <p class="line" id="cook-out" role="status"></p>
+    <ul class="things dishes" id="dishes"></ul>
+
+    <h2 data-idx="04">Cookbook <span class="count" id="cook-count"></span></h2>
+    <ul class="cookbook" id="cookbook"></ul>
+  </section>
 </div>
 
 <nav class="tabs" id="tabs" aria-label="Places in the pond">
@@ -138,6 +175,7 @@
   <button type="button" data-view="wheel" aria-pressed="false"><span class="idx">03</span>Wheel</button>
   <button type="button" data-view="hats" aria-pressed="false"><span class="idx">04</span>Hats</button>
   <button type="button" data-view="reeds" aria-pressed="false"><span class="idx">05</span>Reeds</button>
+  <button type="button" data-view="bank" aria-pressed="false"><span class="idx">06</span>Bank</button>
 </nav>
 {{ end }}
 

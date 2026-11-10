@@ -131,6 +131,7 @@ func main() {
 	defer db.Close()
 	go sweepHourly(db)
 	go db.day.poll(context.Background())
+	go windEvery(db)
 
 	s, err := newSite(distFS(), db)
 	if err != nil {
@@ -200,6 +201,12 @@ func (s *site) handler() http.Handler {
 	mux.HandleFunc("POST /api/frogs/front", s.played(s.apiFront))
 	mux.HandleFunc("POST /api/frogs/lay", s.played(s.apiLay))
 	mux.HandleFunc("POST /api/pads/buy", s.played(s.apiBuyPad))
+	mux.HandleFunc("POST /api/bank/build", s.played(s.apiBuild))
+	mux.HandleFunc("POST /api/bank/collect", s.played(s.apiCollect))
+	mux.HandleFunc("POST /api/garden/pick", s.played(s.apiPick))
+	mux.HandleFunc("POST /api/garden/water", s.played(s.apiWater))
+	mux.HandleFunc("POST /api/kitchen/cook", s.played(s.apiCook))
+	mux.HandleFunc("POST /api/kitchen/sell", s.played(s.apiSellDish))
 	if devBuild {
 		mux.HandleFunc("POST /api/dev/clock", post(s.apiDevClock))
 		mux.HandleFunc("POST /api/dev/day", post(s.apiDevDay))

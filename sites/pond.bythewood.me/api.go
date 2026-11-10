@@ -64,7 +64,7 @@ func fail(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, errFull):
 		writeError(w, http.StatusTooManyRequests, err.Error())
 	case errors.Is(err, errPoor), errors.Is(err, errNotYet), errors.Is(err, errNotHeld), errors.Is(err, errBadRun),
-		errors.Is(err, errFullPads):
+		errors.Is(err, errFullPads), errors.Is(err, errMaxed):
 		writeError(w, http.StatusConflict, err.Error())
 	default:
 		slog.Error("pond", slog.String("path", r.URL.Path), slog.Any("err", err))
@@ -183,6 +183,49 @@ func (s *site) apiBox(id int64, r *http.Request, w http.ResponseWriter) (any, er
 
 func (s *site) apiCrack(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
 	return s.store.crack(id)
+}
+
+func (s *site) apiBuild(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	var in struct {
+		Build string `json:"build"`
+	}
+	if !readJSON(w, r, &in) {
+		return nil, nil
+	}
+	return s.store.build(id, in.Build)
+}
+
+func (s *site) apiCollect(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	return s.store.collect(id)
+}
+
+func (s *site) apiPick(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	return s.store.pick(id)
+}
+
+func (s *site) apiWater(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	return s.store.water(id)
+}
+
+func (s *site) apiCook(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	var in struct {
+		A string `json:"a"`
+		B string `json:"b"`
+	}
+	if !readJSON(w, r, &in) {
+		return nil, nil
+	}
+	return s.store.cook(id, in.A, in.B)
+}
+
+func (s *site) apiSellDish(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	var in struct {
+		Dish string `json:"dish"`
+	}
+	if !readJSON(w, r, &in) {
+		return nil, nil
+	}
+	return s.store.sellDish(id, in.Dish)
 }
 
 func readHat(w http.ResponseWriter, r *http.Request, bare bool) (hat, bool) {

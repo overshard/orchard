@@ -460,7 +460,7 @@ button:disabled {
   padding: 12px;
 }
 
-.dive-hud .tiles {
+.tiles {
   display: flex;
   gap: 1px;
   background: var(--line);
@@ -606,7 +606,7 @@ body:has(#v-dive.full) {
   bottom: 0;
   z-index: 2;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 1px;
   width: 100%;
   max-width: 34rem;
@@ -1291,4 +1291,83 @@ body:has(.tabs) main {
   .confetti {
     display: none;
   }
+}
+
+/* The bank. The larder is a button per ingredient and two can be pressed. */
+.larder {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.larder button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 4px 8px;
+  font-size: 12px;
+  text-align: left;
+}
+
+.larder canvas {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  image-rendering: pixelated;
+}
+
+.larder .n {
+  margin-left: auto;
+  color: var(--dim);
+}
+
+.larder .off {
+  color: var(--dim);
+  font-size: 10px;
+  letter-spacing: var(--track);
+}
+
+h2 .count {
+  margin-left: 8px;
+  color: var(--dim);
+  font-size: 11px;
+}
+
+.cookbook {
+  display: grid;
+  gap: 1px;
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+  background: var(--line);
+  border: 1px solid var(--line);
+  font-size: 12px;
+}
+
+.cookbook li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  background: var(--panel);
+}
+
+.cookbook canvas {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.cookbook .tier {
+  margin-left: auto;
+}
+
+.tiles .readout {
+  flex: 1;
+}
+
+.things.dishes {
+  grid-template-columns: 1fr;
 }

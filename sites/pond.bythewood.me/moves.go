@@ -65,6 +65,16 @@ func (s *store) greet(id int64, first bool) (*greeting, error) {
 		if p.FreeSpins > 0 {
 			g.Missed = append(g.Missed, [2]string{"Wheel", plural(p.FreeSpins, "free spin") + " saved"})
 		}
+		if p.GravelLevel > 0 {
+			g.Missed = append(g.Missed, [2]string{"Gravel bar", gravelLine(p.GravelLevel, p.GravelAt, now)})
+		}
+		if p.GardenLevel > 0 {
+			if ready, err := s.readyPlots(tx, p.ID, now); err != nil {
+				return err
+			} else if ready > 0 {
+				g.Missed = append(g.Missed, [2]string{"Garden", plural(ready, "plot") + " ready to pick"})
+			}
+		}
 		if p.LogDay != dayOf(now) {
 			g.Missed = append(g.Missed, [2]string{"Old log", "not turned over yet today"})
 		}
