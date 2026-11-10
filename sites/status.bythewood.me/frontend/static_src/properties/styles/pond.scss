@@ -1,0 +1,23 @@
+@use "../../base/styles/variables" as *;
+
+.pond-frog {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.75rem 0 0;
+
+  canvas {
+    width: 128px;
+    height: 76px;
+    image-rendering: pixelated;
+    border: 1px solid $gray-700;
+    border-radius: 4px;
+    cursor: pointer;
+    flex: none;
+  }
+
+  figcaption {
+    color: $gray-500;
+    font-size: 0.8rem;
+  }
+}
