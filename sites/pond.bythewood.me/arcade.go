@@ -7,21 +7,24 @@ import (
 )
 
 // Side games pay into the same purse as Dive, each with its own day's cap.
-// A run pays a pebble a point for the first few of a day and a quarter after.
+// A run pays in full for the first few of a day and a quarter after.
 type arcadeGame struct {
 	key, name string
 	cap       int
 	// The most points a second of play can make, and the most a run can.
 	rate float64
 	most int
+	// Points to a pebble, for the games that score fast enough to fill their
+	// cap in one run at a pebble a point. Lily leap scores in metres.
+	per int
 }
 
 var arcadeGames = []arcadeGame{
-	{"flick", "Tongue flick", 50, 5, 400},
-	{"cross", "Crossing", 60, 8, 1500},
-	{"raft", "Raft run", 40, 4, 600},
-	{"leap", "Lily leap", 40, 6, 800},
-	{"school", "Tadpoles", 40, 6, 600},
+	{"flick", "Tongue flick", 50, 5, 400, 1},
+	{"cross", "Crossing", 60, 8, 1500, 2},
+	{"raft", "Raft run", 40, 4, 600, 1},
+	{"leap", "Lily leap", 40, 20, 3000, 4},
+	{"school", "Tadpoles", 40, 6, 600, 1},
 }
 
 const arcadeFullRuns = 3
@@ -118,9 +121,9 @@ func (s *store) arcadeFinish(id int64, key, run string, score int) (*arcadeDone,
 			return saveArcade(tx, p.ID, key, r)
 		}
 		r.runs++
-		pay := score
+		pay := score / g.per
 		if r.runs > arcadeFullRuns {
-			pay = score / 4
+			pay = score / (4 * g.per)
 		}
 		out.Paid = max(0, min(pay, g.cap-r.paid))
 		r.paid += out.Paid

@@ -51,3 +51,21 @@ func TestArcadePaysAndCaps(t *testing.T) {
 		t.Errorf("a new day: %+v", v.Arcade[0])
 	}
 }
+
+// A crossing run that would have filled the day's cap pays half of it.
+func TestCrossingPaysHalf(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	st, err := s.arcadeStart(id, "cross")
+	if err != nil {
+		t.Fatal(err)
+	}
+	*clock = clock.Add(60 * time.Second)
+	d, err := s.arcadeFinish(id, "cross", st.Run, 61)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d.Paid != 30 {
+		t.Errorf("a 61 point crossing paid %d, want 30", d.Paid)
+	}
+}
