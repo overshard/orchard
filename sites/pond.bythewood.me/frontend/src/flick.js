@@ -73,7 +73,7 @@ export const flick = {
             if (G.streak % 5 === 0) pts += 5;
             G.score += pts;
             const m = mouth();
-            G.pops.push({ x: m.x, y: m.y - 20, s: "+" + pts, c: G.streak % 5 === 0 ? "#ffb000" : "#ece5d8", t: 0 });
+            G.pops.push({ x: m.x, y: m.y - 30, s: "+" + pts, c: G.streak % 5 === 0 ? "#ffb000" : "#ece5d8", t: 0 });
           } else if (G.stun === 0) G.streak = 0;
           G.tongue = null;
         }
@@ -118,7 +118,8 @@ export const flick = {
       if (tg.bug) { x.fillStyle = tg.bug.kind.c; x.fillRect(Math.round(tx) - 4, Math.round(ty) - 2, 8, 4); }
     }
     x.font = "700 13px 'Space Grotesk', sans-serif"; x.textAlign = "center";
-    G.pops.forEach((p) => { x.fillStyle = p.c; x.fillText(p.s, p.x, p.y); });
+    x.lineWidth = 3; x.strokeStyle = "#0a0908";
+    G.pops.forEach((p) => { x.strokeText(p.s, p.x, p.y); x.fillStyle = p.c; x.fillText(p.s, p.x, p.y); });
     x.fillStyle = "#0a0908"; x.fillRect(0, 0, W, 4);
     x.fillStyle = "#ffb000"; x.fillRect(0, 0, Math.round(W * Math.max(0, 1 - G.t / ROUND)), 4);
     x.textAlign = "left"; x.fillStyle = "#ece5d8"; x.fillText(String(G.score), 6, 20);
