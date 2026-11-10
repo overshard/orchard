@@ -339,6 +339,8 @@ function renderPond(p) {
 
 // The server decides what's worth doing, and the gravel bar and rent count up
 // here between fetches, so a chip can appear or grow before the next one.
+let allChips = false;
+
 function renderTodo(p) {
   const live = { gravel: [heldNow(p.bank.gravel), " on the gravel bar"], rent: [heldNow(p.bank.burrows), " in rent"] };
   const counts = Object.values(live).filter(([n]) => n >= 1).map(([n, what]) => ["peb", n + what, "bank"]);
@@ -351,12 +353,20 @@ function renderTodo(p) {
 
   const box = $("todo");
   box.textContent = "";
-  todo.forEach(([icon, label, to]) => {
+  const shown = allChips || todo.length <= 4 ? todo : todo.slice(0, 3);
+  shown.forEach(([icon, label, to]) => {
     const a = document.createElement("a");
     a.href = "#" + to; a.className = "chip";
     a.append(iconCanvas(icon, 2), label);
     box.append(a);
   });
+  if (shown.length < todo.length) {
+    const more = document.createElement("button");
+    more.type = "button"; more.className = "chip more";
+    more.textContent = "+" + (todo.length - shown.length) + " more";
+    more.addEventListener("click", () => { allChips = true; renderTodo(state.pond); });
+    box.append(more);
+  }
   if (!todo.length) {
     const s = document.createElement("p");
     s.className = "dim";
