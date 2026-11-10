@@ -746,6 +746,7 @@ func (s *store) act(id int64, fn func(tx *sql.Tx, p *pond, now time.Time) error)
 // fill adds the parts of the view that read the real day.
 func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	v.Day = dayOfReading(s.day.reading(now), now)
+	season(&v.Day, now)
 	var err error
 	v.Bank, v.Kitchen, err = s.bankOf(q, p, now, v.held)
 	if err != nil {

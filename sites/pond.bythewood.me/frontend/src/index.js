@@ -79,7 +79,16 @@ function drawPad(day) {
 }
 
 // What the real day puts on the water behind the frog.
+const MOON = ["..aaa..", ".aabaa.", "aaaaaba", "abaaaaa", "aaaabaa", ".aaaaa.", "..aaa.."];
+const SPAWN = [[8, 152], [300, 132], [36, 64]];
+
 function drawBehind(day, t) {
+  if (day.spawn) SPAWN.forEach(([x, y], n) => {
+    for (let i = 0; i < 9; i++) {
+      const ex = x + (i % 3) * 12 + (Math.floor(i / 3) % 2) * 4, ey = y + Math.floor(i / 3) * 12;
+      block(ex, ey, "rgba(230,240,232,0.55)", 2); block(ex + 4, ey + 4, "#0a0908");
+    }
+  });
   if (day.heron) {
     const hx = ((t * 9) % 560) - 120;
     sx.fillStyle = "rgba(0,0,0,0.22)";
@@ -114,7 +123,14 @@ function drawOver(day, t) {
   }
   if (day.night) {
     sx.fillStyle = "rgba(4,6,18,0.55)"; sx.fillRect(0, 0, 352, 272);
-    if (!day.cold && !day.rain) for (let i = 0; i < 7; i++) {
+    if (day.moon && !day.rain) {
+      MOON.forEach((r, y) => [...r].forEach((ch, x) => { if (ch !== ".") block(292 + x * 4, 16 + y * 4, ch === "a" ? "#f4f1e6" : "#c9cfd6"); }));
+      for (let i = 0; i < 6; i++) {
+        const w = 28 - i * 3 + Math.round(Math.sin(t * 1.3 + i) * 3);
+        sx.fillStyle = "rgba(230,238,246," + (0.32 - i * 0.04) + ")"; sx.fillRect(Math.round(306 - w / 2), 60 + i * 30, w, 3);
+      }
+    }
+    if (!day.cold && !day.rain) for (let i = 0; i < (day.fireflies ? 22 : 7); i++) {
       if (Math.sin(t * 2 + i * 1.9) < 0.2) continue;
       const fx = scatter(i, 9) * 330 + Math.sin(t * 0.5 + i) * 10, fy = 30 + scatter(i, 10) * 160 + Math.cos(t * 0.6 + i) * 8;
       block(fx, fy, "#ffe27a"); sx.fillStyle = "rgba(255,226,122,0.18)"; sx.fillRect(Math.round(fx / 4) * 4 - 4, Math.round(fy / 4) * 4 - 4, 12, 12);

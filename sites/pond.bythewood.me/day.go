@@ -208,6 +208,9 @@ type dayView struct {
 	Dragonfly bool        `json:"dragonfly"`
 	Heron     bool        `json:"heron"`
 	Shelter   bool        `json:"shelter"`
+	Moon      bool        `json:"moon"`
+	Fireflies bool        `json:"fireflies"`
+	Spawn     bool        `json:"spawn"`
 	Lines     [][2]string `json:"lines"`
 }
 
@@ -291,4 +294,32 @@ func dayOfReading(r *reading, now time.Time) dayView {
 		v.Lines = append(v.Lines, [2]string{"Shelter", "Under the pad until the " + strings.ToLower(r.Alert) + " passes."})
 	}
 	return v
+}
+
+// season adds what the calendar brings, which needs nothing from dash.
+func season(v *dayView, now time.Time) {
+	n := now.In(pondZone)
+	m, d := n.Month(), n.Day()
+	if fullMoon(now) {
+		v.Moon = true
+		v.Lines = append(v.Lines, [2]string{"Moon", "Full tonight, and it lays a silver path across the water."})
+	}
+	switch {
+	case near(now, time.March, 20):
+		v.Lines = append(v.Lines, [2]string{"Calendar", "The spring equinox, as much day as night."})
+	case near(now, time.June, 21):
+		v.Lines = append(v.Lines, [2]string{"Calendar", "Midsummer, the longest day of the year."})
+	case near(now, time.September, 22):
+		v.Lines = append(v.Lines, [2]string{"Calendar", "The autumn equinox, and harvest supper on the bank."})
+	case near(now, time.December, 21):
+		v.Lines = append(v.Lines, [2]string{"Calendar", "Midwinter, the longest night of the year."})
+	}
+	if (m == time.June && d >= 5) || (m == time.July && d <= 10) {
+		v.Fireflies = true
+		v.Lines = append(v.Lines, [2]string{"Fireflies", "Firefly season, so after dark there are hundreds of them."})
+	}
+	if spawnSeason(now) {
+		v.Spawn = true
+		v.Lines = append(v.Lines, [2]string{"Shallows", "Frogspawn season, and the shallows are full of it."})
+	}
 }
