@@ -36,5 +36,8 @@ whole blog and the image ends at `FROM scratch`.
 - Publishing is a deploy, since posts load once at startup. A future
   `publish_date` doesn't need one though, the post appears on its own that day.
 - Without typst a local checkout answers 404 for every PDF.
+- The frog under each post is the visitor's own from pond's `/api/panel`, drawn
+  with a copy of pond's `frog.js` that `make check` holds to the original. It
+  stays hidden on localhost since pond only answers the live origin.
 - The cards and PDFs need Geist's TrueType files, which only exist after
   `make frontend` has installed the bun package.
