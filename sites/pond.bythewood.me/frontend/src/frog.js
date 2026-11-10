@@ -179,17 +179,24 @@ function tadCells(g, o) {
   return c;
 }
 
+// The egg is frogspawn, a few balls of jelly with a dark dot and the frog's
+// colour in each. sprite.go draws the same balls.
+const SPAWN_BALLS = [[-5, -3.2], [4.6, -3.8], [-0.4, 3.6], [8.4, 3.8]];
+
 function eggCells(g, o) {
   const c = new Uint8Array(W * H), cx = W / 2, cy = 19, t = o.t || 0;
-  const wob = Math.sin(t * 2) * 0.6;
+  const wob = Math.sin(t * 2) * 0.5;
   for (let py = 0; py < H; py++) for (let px = 0; px < W; px++) {
     const x = px + 0.5, y = py + 0.5;
     let v = 0;
-    const d = Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
-    if (d < 10) v = 7;
-    if (d < 10 && d > 8.8) v = 8;
-    if (ell(x, y, cx + wob, cy + 0.5, 4.2, 3.6)) v = 1;
-    if (ell(x, y, cx + wob - 1.2, cy - 0.6, 1, 1)) v = 5;
+    SPAWN_BALLS.forEach(([dx, dy], i) => {
+      const bx = cx + dx, by = cy + dy, d = Math.sqrt((x - bx) * (x - bx) + (y - by) * (y - by)), w = i % 2 ? wob : -wob;
+      if (d >= 5.2) return;
+      v = d > 4.2 ? 8 : 7;
+      if (ell(x, y, bx - 2.1, by - 2.1, 0.7, 0.7)) v = 2;
+      if (ell(x, y, bx + 0.2 + w, by + 0.3, 1.6, 1.3)) v = 1;
+      if (ell(x, y, bx - 0.4 + w, by, 0.6, 0.6)) v = 5;
+    });
     if (o.hat) v = hatCell(o.hat, x - cx, cy - 9.4 - y) || v;
     c[py * W + px] = v;
   }

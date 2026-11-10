@@ -389,6 +389,9 @@ func tadCells(legs bool, hatShape int) []uint8 {
 	return c
 }
 
+// spawnBalls are frog.js's SPAWN_BALLS, the jelly balls an egg is drawn as.
+var spawnBalls = [][2]float64{{-5, -3.2}, {4.6, -3.8}, {-0.4, 3.6}, {8.4, 3.8}}
+
 func eggCells(hatShape int) []uint8 {
 	c := make([]uint8, spriteW*spriteH)
 	const cx, cy = float64(spriteW) / 2, 19.0
@@ -396,18 +399,25 @@ func eggCells(hatShape int) []uint8 {
 		for px := range spriteW {
 			x, y := float64(px)+0.5, float64(py)+0.5
 			var v uint8
-			d := math.Sqrt((x-cx)*(x-cx) + (y-cy)*(y-cy))
-			if d < 10 {
+			for _, b := range spawnBalls {
+				bx, by := cx+b[0], cy+b[1]
+				d := math.Sqrt((x-bx)*(x-bx) + (y-by)*(y-by))
+				if d >= 5.2 {
+					continue
+				}
 				v = 7
-			}
-			if d < 10 && d > 8.8 {
-				v = 8
-			}
-			if ell(x, y, cx, cy+0.5, 4.2, 3.6) {
-				v = 1
-			}
-			if ell(x, y, cx-1.2, cy-0.6, 1, 1) {
-				v = 5
+				if d > 4.2 {
+					v = 8
+				}
+				if ell(x, y, bx-2.1, by-2.1, 0.7, 0.7) {
+					v = 2
+				}
+				if ell(x, y, bx+0.2, by+0.3, 1.6, 1.3) {
+					v = 1
+				}
+				if ell(x, y, bx-0.4, by, 0.6, 0.6) {
+					v = 5
+				}
 			}
 			if hatShape != 0 {
 				if h := hatCell(hatShape, x-cx, cy-9.4-y); h != 0 {
