@@ -335,7 +335,7 @@ function renderTodo(p) {
   if (b.gravel.level && b.gravel.held >= 1) todo.push(["peb", b.gravel.held + " on the gravel bar", "bank"]);
   if (b.garden.level && b.garden.plots.some((x) => x.ready_in === 0)) todo.push(["watercress", "Garden's ready", "garden"]);
   if (b.dye.busy && b.dye.ready_in <= 0) todo.push(["dye_blue", "Dye's ready", "bank"]);
-  if (p.forage > 0) todo.push(["f_reeds", "Foraging's back", "reeds"]);
+  if (p.frogs.some((f) => f.work && f.work.job && f.work.hours >= p.jobs.hold)) todo.push(["sticks", "A shift is done", "reeds"]);
   if (p.stall.takings) todo.push(["i_town", "Stall sold " + p.stall.takings, "town"]);
   const box = $("todo");
   box.textContent = "";

@@ -33,8 +33,11 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
   a visitor can do to one, and `game.go` is the rules and the odds.
 - `breed.go` is the egg bench, the reeds and pads. A frog off the bench keeps
   how it differs from its seed as JSON in `frogs.genome_json`.
-- `forage.go` is the reeds frogs going out once a day, each bringing back
-  something that follows its nature.
+- `jobs.go` is frog jobs. Every frog past the egg works one, the work piles
+  up for twelve hours on the server's clock, and each frog has a level from 1
+  to 99 in every job in `job_xp`, on RuneScape's xp table. Crafting is a job
+  that turns sticks, reeds and clay into trinkets and stamps. A frog fed a
+  dish is full for some hours by its tier and works harder while it is.
 - `bank.go` is the bank, the gravel bar and the garden plots, and the kitchen
   that turns two things from the garden into a dish. `kitchen.go` has the
   ingredients, what grows in which month and every dish.

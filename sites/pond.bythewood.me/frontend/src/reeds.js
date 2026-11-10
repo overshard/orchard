@@ -1,5 +1,9 @@
-import { $, post, setPond, watch, titled, TIERS } from "./api.js";
+import { $, post, state, setPond, watch, titled, TIERS } from "./api.js";
 import { genome, bred, cells, colours, draw, W, H } from "./frog.js";
+import { iconCanvas } from "./icons.js";
+import { openSheet, closeSheet, sheetSay, button, tierTag } from "./ui.js";
+
+const JOB_ICON = { garden: "watercress", bugs: "cricket", sticks: "sticks", reeds: "reeds", mud: "clay", pebbles: "peb", craft: "t_basket" };
 
 let dye = "", stamp = "", drop = "", frontID = 0;
 
@@ -9,6 +13,108 @@ function days(sec) {
 }
 
 function say(id, msg) { $(id).textContent = msg; }
+
+function plural(n) { return n === 1 ? "One frog" : n + " frogs"; }
+
+function hours(h) {
+  if (h < 1) return Math.max(1, Math.round(h * 60)) + "m";
+  return (Math.round(h * 10) / 10) + "h";
+}
+
+function frogArt(f, s) {
+  const cv = document.createElement("canvas"), g = bred(genome(f.seed), f.mods);
+  cv.width = W * s; cv.height = H * s;
+  draw(cv.getContext("2d"), cells(g, f.stage, { hat: f.hat.shape, legs: f.day >= 6 }), W, H, colours(g, f.hat), 0, 0, s);
+  return cv;
+}
+
+function levelOf(f, key) { return f.work.levels.find((l) => l.job === key); }
+
+function jobName(key) {
+  const d = state.pond.jobs.defs.find((x) => x.key === key);
+  return d ? d.name : "";
+}
+
+function setJob(f, job, recipe) {
+  return (b) => {
+    b.disabled = true;
+    post("/api/jobs/set", { frog: f.id, job, recipe: recipe || "" }).then((d) => {
+      setPond(d.pond);
+      if (d.done.length) showDone(d.done);
+      closeSheet();
+      say("reeds-out", job ? titled(f.name) + " is " + state.pond.jobs.defs.find((x) => x.key === job).verb + " now." : titled(f.name) + " is taking it easy.");
+    }, (e) => { sheetSay(e.message); b.disabled = false; });
+  };
+}
+
+// The job sheet lists every job with the frog's level and how far to the next.
+function jobSheet(f) {
+  const p = state.pond;
+  openSheet({ art: frogArt(f, 4), name: titled(f.name) }, "Total level " + f.work.total + ". Pick what it does all day.", (body) => {
+    p.jobs.defs.forEach((d) => {
+      const l = levelOf(f, d.key), b = document.createElement("button");
+      b.type = "button"; b.className = "jobrow" + (f.work.job === d.key ? " on" : "");
+      const name = document.createElement("b"), lv = document.createElement("span"), bar = document.createElement("span"), fill = document.createElement("i");
+      name.textContent = d.name + (d.nature && f.nature === d.nature ? " ★" : "");
+      lv.className = "lv"; lv.textContent = l.level;
+      bar.className = "meter";
+      fill.style.transform = "scaleX(" + (l.level >= 99 ? 1 : (l.xp - l.from) / Math.max(1, l.to - l.from)) + ")";
+      bar.append(fill);
+      b.append(iconCanvas(JOB_ICON[d.key], 3), name, lv, bar);
+      b.addEventListener("click", d.key === "craft" ? () => craftSheet(f) : () => { if (f.work.job !== d.key) setJob(f, d.key)(b); });
+      body.append(b);
+    });
+    if (f.work.job) {
+      const r = document.createElement("div"); r.className = "row";
+      r.append(button("No job", setJob(f, "")));
+      body.append(r);
+    }
+  });
+}
+
+function craftSheet(f) {
+  const p = state.pond, lvl = levelOf(f, "craft").level, held = {};
+  p.bag.forEach((t) => { held[t.kind] = t.count; });
+  openSheet({ art: iconCanvas("t_basket", 6), name: "Craft bench" }, titled(f.name) + " is level " + lvl + " at crafting. What should it make?", (body) => {
+    p.jobs.recipes.forEach((r) => {
+      const b = document.createElement("button"), name = document.createElement("b"), need = document.createElement("span");
+      b.type = "button"; b.className = "jobrow" + (f.work.recipe === r.kind ? " on" : "");
+      name.textContent = r.name;
+      need.className = "need";
+      need.textContent = lvl < r.level ? "Level " + r.level
+        : Object.entries(r.in).map(([k, n]) => n + " " + k + ((held[k] || 0) < n ? " (" + (held[k] || 0) + ")" : "")).join(", ") + ", " + hours(r.hours / (1 + (lvl - 1) / 98));
+      b.append(iconCanvas(r.kind, 3), name, tierTag(r.tier), need);
+      b.disabled = lvl < r.level;
+      b.addEventListener("click", () => setJob(f, "craft", r.kind)(b));
+      body.append(b);
+    });
+  });
+}
+
+function showDone(done) {
+  const out = $("jobs-out");
+  out.textContent = "";
+  done.forEach((w) => {
+    const dt = document.createElement("dt"), dd = document.createElement("dd");
+    const got = Object.entries(w.got).map(([k, n]) => n + " " + (n > 1 ? many(nameOf(k)) : nameOf(k)));
+    if (w.pebbles) got.unshift(w.pebbles + " pebbles");
+    let line = got.length ? got.join(", ") + "." : w.short ? "Ran out of materials." : "Nothing this time.";
+    if (w.up) line += " " + w.job + " is " + w.level + " now!";
+    dt.textContent = w.frog;
+    dd.textContent = line;
+    out.append(dt, dd);
+  });
+  out.hidden = false;
+}
+
+function many(name) { return name.endsWith("s") ? name : name + "s"; }
+
+function nameOf(kind) {
+  const p = state.pond, t = p.bag.find((x) => x.kind === kind);
+  if (t) return t.name.toLowerCase();
+  const r = p.jobs.recipes.find((x) => x.kind === kind);
+  return r ? r.name.toLowerCase() : kind;
+}
 
 function card(f) {
   const div = document.createElement("div"), cv = document.createElement("canvas"), g = bred(genome(f.seed), f.mods);
@@ -23,8 +129,19 @@ function card(f) {
   div.append(cv, name, what, tier);
   if (f.fed) {
     const ate = document.createElement("span");
-    ate.className = "ate"; ate.textContent = "Full of " + f.fed.name.toLowerCase();
+    ate.className = "ate"; ate.textContent = "Full for " + hours(f.fed.left / 3600);
     div.append(ate);
+  }
+  if (f.work) {
+    const job = document.createElement("button");
+    job.type = "button"; job.className = "job";
+    if (f.work.job) {
+      const l = levelOf(f, f.work.job);
+      job.textContent = jobName(f.work.job) + " " + l.level + (f.work.hours >= 1 / 60 ? " · " + hours(f.work.hours) : "");
+      job.classList.toggle("full", f.work.hours >= state.pond.jobs.hold);
+    } else job.textContent = "Give it a job";
+    job.addEventListener("click", () => jobSheet(f));
+    div.append(job);
   }
   if (f.front) {
     const on = document.createElement("span");
@@ -53,9 +170,12 @@ function render(p) {
   [front].concat(p.frogs.filter((f) => !f.front)).forEach((f) => box.append(card(f)));
   say("reeds-line", p.frogs.length === 1
     ? name + " has the whole pond to itself for now. Once it's grown it can lay an egg, and the egg grows up here beside it."
-    : p.frogs.length + " frogs live here. One is out front and the rest are in the reeds, and swim past now and then. Any of them can swap. Once a day the ones old enough go foraging, and what they find depends on their nature.");
-  $("forage-row").hidden = !p.forage;
-  $("forage").textContent = "See what " + (p.forage === 1 ? "it" : "they") + " brought in";
+    : p.frogs.length + " frogs live here. One is out front and the rest are in the reeds, and swim past now and then. Any of them can swap.");
+
+  const working = p.frogs.filter((f) => f.work && f.work.job).length;
+  say("jobs-line", working ? plural(working) + " working. Pond total level " + p.jobs.total + "." : "Nobody's working. Tap a frog's job button to give it one. Pond total level " + p.jobs.total + ".");
+  $("jobs-row").hidden = p.jobs.waiting < 1 / 60;
+  $("jobs-collect").textContent = "Collect " + hours(p.jobs.waiting) + " of work";
 
   // The bench lays from whoever is out front.
   const full = p.frogs.length >= p.pads, lay = $("lay");
@@ -68,7 +188,7 @@ function render(p) {
     const m = front.fed;
     if (!m) line += " Feed it a dish from your bag first and the egg comes out better.";
     else {
-      line += " It ate " + m.name.toLowerCase() + ", so dyes, stamps and drops take " + (m.takes >= 1 ? "every time" : Math.round(m.takes * 100) + "% of the time");
+      line += " It's full of " + m.name.toLowerCase() + " for " + hours(m.left / 3600) + ", so dyes, stamps and drops take " + (m.takes >= 1 ? "every time" : Math.round(m.takes * 100) + "% of the time");
       line += m.eyes ? " and about 1 egg in " + Math.round(1 / m.eyes) + " gets odd eyes." : ".";
     }
   }
@@ -159,20 +279,12 @@ export function initReeds() {
       setPond(d.pond);
     }, (e) => { say("bench-out", e.message); lay.disabled = false; });
   });
-  $("forage").addEventListener("click", function () {
+  $("jobs-collect").addEventListener("click", function () {
     this.disabled = true;
-    post("/api/reeds/forage").then((d) => {
-      const out = $("forage-out");
-      out.textContent = "";
-      d.finds.forEach((x) => {
-        const dt = document.createElement("dt"), dd = document.createElement("dd");
-        dt.textContent = x.frog;
-        dd.textContent = x.prize.text;
-        out.append(dt, dd);
-      });
-      out.hidden = false;
-      this.disabled = false;
+    post("/api/jobs/collect").then((d) => {
       setPond(d.pond);
+      showDone(d.done);
+      this.disabled = false;
     }, (e) => { say("reeds-out", e.message); this.disabled = false; });
   });
   $("pad-buy").addEventListener("click", () => {

@@ -2,7 +2,7 @@ import { $, post, state, setPond, watch, titled } from "./api.js";
 import { slot, thingArt, openSheet, closeSheet, sheetSay, button, reveal } from "./ui.js";
 import { pricePicker, toWizard } from "./town.js";
 
-const SORTS = [["all", "All"], ["hat", "Hats"], ["trinket", "Trinkets"], ["rock", "Rocks"], ["food", "Food"], ["dish", "Dishes"], ["thing", "Other"]];
+const SORTS = [["all", "All"], ["hat", "Hats"], ["trinket", "Trinkets"], ["rock", "Rocks"], ["food", "Food"], ["dish", "Dishes"], ["material", "Materials"], ["thing", "Other"]];
 const SPOTS = ["Left", "Right", "Water"];
 let sort = "all";
 
@@ -10,6 +10,7 @@ const USE = {
   food: "Cook it in the garden.",
   rock: "Boil three in the dye works for a dye.",
   dye: "Use it on the egg bench in the reeds.",
+  material: "A frog at the craft bench makes things out of it.",
 };
 
 function useOf(t) {
@@ -87,7 +88,7 @@ export function show(t) {
     if (t.free > 0) {
       const r = row();
       r.append(button("Put it on your stall", () => { body.textContent = ""; pricePicker(body, t); }));
-      if (t.free >= p.wizard.takes) r.append(button("Take three to the wizard", () => { closeSheet(); toWizard(t.kind); }));
+      if (t.free >= p.wizard.takes && t.sort !== "material") r.append(button("Take three to the wizard", () => { closeSheet(); toWizard(t.kind); }));
     }
   });
 }
