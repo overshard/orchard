@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"math/rand/v2"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -464,6 +465,7 @@ func TestNinetyDaysDoNotRunAway(t *testing.T) {
 		for range 4 {
 			dive(t, s, clock, id, 12+day%9)
 		}
+		playMarket(t, s, id)
 		after, _ := s.view(id)
 		minted += after.Pebbles - before.Pebbles
 
@@ -490,6 +492,33 @@ func TestNinetyDaysDoNotRunAway(t *testing.T) {
 	}
 	if v.Pebbles > 2*perDay+boxCost {
 		t.Errorf("the purse is at %d after 90 days with boxes to spend it on", v.Pebbles)
+	}
+}
+
+// playMarket walks every business a day at a slight upward drift, then buys
+// whatever has room and sells anything that's up.
+func playMarket(t *testing.T, s *store, id int64) {
+	t.Helper()
+	r := reading{At: s.now(), Session: "regular", Markets: map[string]float64{}}
+	for _, b := range businesses {
+		r.Markets[b.Key] = rand.NormFloat64()*1.2 + 0.04
+	}
+	s.day.pinned.Store(true)
+	s.day.last.Store(&r)
+	if err := s.lockMarket(); err != nil {
+		t.Fatal(err)
+	}
+	v, _ := s.view(id)
+	for _, f := range v.Market.Firms {
+		if f.Held > 0 && f.Worth > f.Cost {
+			if _, err := s.sellShares(id, f.Key, f.Held); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	f := v.Market.Firms[rand.IntN(len(v.Market.Firms))]
+	if _, err := s.buyShares(id, f.Key, 1); err != nil && !errors.Is(err, errPoor) && !errors.Is(err, errCap) {
+		t.Fatal(err)
 	}
 }
 

@@ -289,6 +289,20 @@
       <button type="button" data-town="neighbours" aria-pressed="false">Neighbours</button>
       <button type="button" data-town="stall" aria-pressed="false">Your stall</button>
       <button type="button" data-town="wizard" aria-pressed="false">Wizard</button>
+      <button type="button" data-town="market" aria-pressed="false">Market</button>
+    </div>
+
+    <div id="town-market" hidden>
+      <div class="ticker" aria-hidden="true"><div class="tape" id="mkt-tape"></div></div>
+      <div class="tiles">
+        <span class="readout"><span class="k">In shares</span><span class="v" id="mkt-worth">0</span></span>
+        <span class="readout"><span class="k">Bank lets you</span><span class="v" id="mkt-room">0</span></span>
+        <span class="readout"><span class="k">Board</span><span class="v" id="mkt-open">Shut</span></span>
+      </div>
+      <h2>The pond market</h2>
+      <p class="help" id="mkt-help" hidden></p>
+      <ul class="shelf market" id="mkt-list"></ul>
+      <p class="line" id="mkt-out" role="status"></p>
     </div>
 
     <div id="town-shops">

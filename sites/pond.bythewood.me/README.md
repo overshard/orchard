@@ -74,6 +74,10 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
 - `neighbours.go` is the residents, friendship by dishes and a favour a day.
 - `burrow.go` is the bank's burrows. Each level adds a pad that doesn't count
   toward the ones you buy, and a friendly neighbour can lodge in one and pay rent.
+- `market.go` is the pond market, a business for each of dash's market
+  series. A share moves three times the real day's percent in pebbles, the
+  day's last reading in the regular session is kept as its close in
+  `market_days`, and a pond's shares are in `shares` at what it paid.
 - `key.go` and `words.txt` are the pond key.
 - `day.go` reads dash's `/api/state` over the bridge every ten minutes and
   turns the weather, the market, the VIX, Hacker News, the news and the health
@@ -137,5 +141,9 @@ they have none, for other sites to draw.
   pebbles. A box's spares are held under the box's price the same way, and the
   wizard has to hand back less worth than the three it took. Tests hold all
   three.
+- Outside the regular session dash's market cards are futures, so the pond
+  market only writes a close while dash says `regular`, apart from Glowworm
+  Coin. Buying and selling both take a fee so a round trip always loses, and
+  the 90 day purse test plays the market with a random walk.
 - `web/` has to stay byte identical to every other site's copy, and
   `make check` at the root fails when it isn't.

@@ -136,6 +136,9 @@ func windEvery(db *store) {
 		if err := db.windGrowth(); err != nil {
 			slog.Error("growth", slog.Any("err", err))
 		}
+		if err := db.lockMarket(); err != nil {
+			slog.Error("market", slog.Any("err", err))
+		}
 		time.Sleep(dayEvery)
 	}
 }

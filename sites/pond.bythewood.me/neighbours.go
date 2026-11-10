@@ -261,6 +261,8 @@ type neighbourView struct {
 	FavB   string `json:"fav_b,omitempty"`
 	Gave   bool   `json:"gave"`
 	Lodger bool   `json:"lodger"`
+	Firm   string `json:"firm"`
+	Talk   string `json:"talk"`
 }
 
 type favourView struct {

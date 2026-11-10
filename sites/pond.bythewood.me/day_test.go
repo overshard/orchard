@@ -34,7 +34,7 @@ func TestReadingTheRealDay(t *testing.T) {
 		Sunset: "5:18pm", SP: -1.24, HasSP: true, VIX: 29.4, Front: "CPI today", Swarm: true,
 		Major: true, Down: "Chat", Alert: "Tornado Warning", High: 44, Low: 30, HasHL: true, Pollen: 2,
 		Tmr: &tomorrow{51, 33, 80, "Rain showers"}, Games: []string{"Apex Legends"},
-		Shows: []string{"The Great British Baking Show"}}
+		Shows: []string{"The Great British Baking Show"}, Markets: map[string]float64{"sp500": -1.24, "vix": 9}}
 	if !reflect.DeepEqual(r, want) {
 		t.Fatalf("got %+v\nwant %+v", r, want)
 	}
