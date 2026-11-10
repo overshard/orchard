@@ -200,6 +200,13 @@ http://blog.bythewood.me {
 	}
 }
 
+http://pond.bythewood.me {
+	import site
+	reverse_proxy orchard-pond:8000 {
+		import hold
+	}
+}
+
 # The collector is the one route here an anonymous stranger can POST to. The app
 # caps the body at 16KB itself, and this is the second fence.
 http://analytics.bythewood.me {
