@@ -38,6 +38,21 @@
       <span class="gtext"><b>Tongue flick</b><span id="play-flick-line">Thirty seconds of bugs.</span></span>
       <span class="cta">Flick</span>
     </a>
+    <a class="game" href="#raft" id="play-raft">
+      <canvas id="play-raft-art" width="168" height="96" aria-hidden="true"></canvas>
+      <span class="gtext"><b>Raft run</b><span id="play-raft-line">Steer a leaf down the river.</span></span>
+      <span class="cta">Ride</span>
+    </a>
+    <a class="game" href="#leap" id="play-leap">
+      <canvas id="play-leap-art" width="168" height="96" aria-hidden="true"></canvas>
+      <span class="gtext"><b>Lily leap</b><span id="play-leap-line">Bounce as high as the pads go.</span></span>
+      <span class="cta">Leap</span>
+    </a>
+    <a class="game" href="#school" id="play-school">
+      <canvas id="play-school-art" width="168" height="96" aria-hidden="true"></canvas>
+      <span class="gtext"><b>Tadpoles</b><span id="play-school-line">Lead a school round the shallows.</span></span>
+      <span class="cta">Swim</span>
+    </a>
     <a class="game" href="#wheel" id="play-wheel">
       <canvas id="play-wheel-art" width="168" height="96" aria-hidden="true"></canvas>
       <span class="gtext"><b>Lily wheel</b><span id="play-wheel-line"></span></span>
@@ -103,6 +118,42 @@
         <span class="readout"><span class="k">A point pays</span><span class="v" id="flick-pays">1</span></span>
       </div>
       <button type="button" id="flick-exit">Exit</button>
+    </div>
+  </section>
+
+  <section class="view arcade" id="v-raft" hidden>
+    <div class="screen"><canvas id="raft-cv" width="360" height="540" tabindex="0" aria-label="Raft run. Hold where the raft should go, or use the arrow keys."></canvas></div>
+    <div class="dive-hud">
+      <div class="tiles">
+        <span class="readout"><span class="k">Best</span><span class="v" id="raft-best">0</span></span>
+        <span class="readout"><span class="k">Today</span><span class="v" id="raft-today">0/0</span></span>
+        <span class="readout"><span class="k">A point pays</span><span class="v" id="raft-pays">1</span></span>
+      </div>
+      <button type="button" id="raft-exit">Exit</button>
+    </div>
+  </section>
+
+  <section class="view arcade" id="v-leap" hidden>
+    <div class="screen"><canvas id="leap-cv" width="360" height="540" tabindex="0" aria-label="Lily leap. Hold left or right, or use the arrow keys, to steer."></canvas></div>
+    <div class="dive-hud">
+      <div class="tiles">
+        <span class="readout"><span class="k">Best</span><span class="v" id="leap-best">0</span></span>
+        <span class="readout"><span class="k">Today</span><span class="v" id="leap-today">0/0</span></span>
+        <span class="readout"><span class="k">A point pays</span><span class="v" id="leap-pays">1</span></span>
+      </div>
+      <button type="button" id="leap-exit">Exit</button>
+    </div>
+  </section>
+
+  <section class="view arcade" id="v-school" hidden>
+    <div class="screen"><canvas id="school-cv" width="360" height="540" tabindex="0" aria-label="Tadpoles. Swipe, tap or use the arrow keys to turn."></canvas></div>
+    <div class="dive-hud">
+      <div class="tiles">
+        <span class="readout"><span class="k">Best</span><span class="v" id="school-best">0</span></span>
+        <span class="readout"><span class="k">Today</span><span class="v" id="school-today">0/0</span></span>
+        <span class="readout"><span class="k">A point pays</span><span class="v" id="school-pays">1</span></span>
+      </div>
+      <button type="button" id="school-exit">Exit</button>
     </div>
   </section>
 
