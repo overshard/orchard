@@ -15,7 +15,7 @@ import { initSettings } from "./settings.js";
 const VIEWS = ["pond", "play", "dive", "wheel", "bag", "collect", "reeds", "garden", "bank", "town", "settings"];
 // Places that open from another light that one's key.
 const TAB_OF = { dive: "play", wheel: "play" };
-let view = "pond";
+let view = "pond", fetchedAt = Date.now();
 
 function show(next) {
   if (!VIEWS.includes(next)) next = "pond";
@@ -32,6 +32,7 @@ function show(next) {
   if (next === "play") drawPlay();
   if (next === "garden") enterBank(); else leaveBank();
   if (next === "town") enterTown(); else leaveTown();
+  freshen();
   // A view's name is also the id of its canvas, and the browser scrolls to
   // that when the address changes, a frame after this runs.
   window.scrollTo(0, 0);
@@ -411,8 +412,19 @@ $("logs").addEventListener("click", (e) => {
 });
 
 function setPondAgain() {
+  fetchedAt = Date.now();
   fetch("/api/pond", { credentials: "same-origin" }).then((r) => r.ok ? r.json() : null).then((p) => { if (p) setPond(p); });
 }
+
+// Stall sales, the gravel bar and the garden move on the server's clock, so a
+// page left open picks them up on its own. Not in a dive or a spin, which
+// hand the pond over when they finish.
+function freshen() {
+  if (document.hidden || view === "dive" || view === "wheel" || Date.now() - fetchedAt < 60000) return;
+  setPondAgain();
+}
+setInterval(freshen, 15000);
+document.addEventListener("visibilitychange", freshen);
 
 function greet(g) {
   $("greet-line").textContent = g.line;
