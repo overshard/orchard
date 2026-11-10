@@ -552,20 +552,49 @@ A reader only ever has the repo.
 
 ## pond
 
-pond is a game, and it's cassette futurism the way dash is: the same warm near
-black ground, the same amber for chrome, JetBrains Mono for everything read and
-Space Grotesk for anything large. It keeps its own stylesheet and its own
-variables, with dash's names and values for the ground, the lines, the text and
-the amber, so a change to those on dash is made here too.
+pond is a game, and it's cassette futurism taken further than dash takes it,
+pond as a piece of 80s kit, a tape deck crossed with a field instrument. It
+keeps dash's warm near black, the amber, JetBrains Mono for everything read and
+Space Grotesk for anything large, with dash's names and values for the ground,
+the lines, the text and the amber, so a change to those on dash is made here
+too. The direction is called Deck and was picked on 2026-11-10 over a tidier
+version of the old look and a handheld pet shell.
 
-- **Colour lives on the screens, the icons and rarity.** A screen is a canvas
-  in a bezel, a 1px `--line-hot` border on `--void` with amber brackets at two
-  corners and faint scanlines over the picture only. The frog, the water, the
-  wheel, Dive, the stall and the wizard are colour pixel art inside one. Past
-  that the only colour is the 8 by 8 pixel icons and a thing's tier, and
-  everything else round them is amber, off white and black.
+- **Three surfaces and no others.** Dark moulded plastic for panels, with a
+  very fine brushed grain, sunken glass windows for screens and readouts, and
+  keycaps that stand proud of the panel. Every texture has a job, and
+  scanlines go on screens only, never on a control.
+- **Corners are 3px on plastic and keys and 4px on a window.** Round is for
+  LEDs, the `?` key and nothing else.
+- **A key is a cap with a top highlight and a dark lip** that travels 3px down
+  when pressed. The one main key on a screen is amber plastic, the rest are
+  dark. A shop price is a key, amber lettered when you can afford it and
+  sunken and dim when you can't.
+- **A number lives in readout glass**, a sunken window of very dark green with
+  amber digits that glow a little. Pebbles, levels, rates and counts all sit
+  in one, so a number never looks like a key. That green is the one colour
+  Deck adds.
+- **A chip is a key with a blinking amber LED**, and it takes you somewhere. A
+  filter or sub tab is a flat sunken switch with a lit bar along its top when
+  it's on, and is never raised.
+- **Every screen gets a picture in a window.** The bank, the reeds, settings and
+  the kitchen too, with their words under the picture and never instead of it.
+  A screen window has a bezel and a screw at each top corner.
+- **Panel labels are printed on.** Small caps in warm grey like the lettering on
+  a faceplate, with section heads in amber as below.
+- **Empty spots are hazard striped sunken trays** with a dim outline of what
+  goes there. Stripes mean empty or locked and nothing else.
+- **The side games end like Dive.** Their title and results sit in a panel
+  with a screen window, and the strip under every game is readout glass and an
+  EJECT key.
+- **A press is felt.** Keys travel, LEDs blink, and with sound on there's a soft
+  clunk and click made in code like the croak. Sound is off until turned on.
+- **Colour lives on the screens, the icons and rarity.** The frog, the water,
+  the wheel, Dive, the stall and the wizard are colour pixel art inside a
+  window. Past that the only colour is the 8 by 8 pixel icons, a thing's tier
+  and the readout green, and everything else is amber, off white and black.
 - **It plays like a game and reads like one.** Words are kept to a line, and
-  anything that explains a place sits behind a round `?` on its head. Things
+  anything that explains a place sits behind the `?` key on its head. Things
   are pictures in slots, not rows of text.
 - The water palette is for canvases: `#123a3d` down to `#0a1b1f`, a `#7fd6c2`
   surface, `#fff6dc` cream, `#ffe27a` yellow and `#e2567a` pink.
@@ -577,7 +606,8 @@ the amber, so a change to those on dash is made here too.
   edge, the same as a dash panel head.
 - **Eight places are transport keys along the bottom**, each a pixel icon over
   a word, where a thumb is: Pond, Play, Bag, Collect, Reeds, Garden, Bank and
-  Town. The lit one has an amber bar across its top and its icon lifts. Dive
+  Town. The lit one stays pushed in like a tape deck's PLAY, and a key with
+  something waiting behind it has a small amber LED. Dive
   and the wheel open from Play and light it. The content column stops at
   `34rem` on a desktop.
 - **A slot is how a thing is drawn**, a rounded square with its picture, a
@@ -637,6 +667,6 @@ the amber, so a change to those on dash is made here too.
 | `chat` | green | Hand written CSS, no Bootstrap. A conversation, so it reads at the longest length on the estate. Citation pills and a source row under each answer, and widget panels above one when a ticker or a forecast was looked up. A picture draws behind a panel listing its stages, each with a count and a guess from the last few, and replaces it once it has loaded. An unread dot on a conversation that finished a turn off screen, and the place in line of every turn still waiting |
 | `llm` | green | Hand written CSS, no Bootstrap. Behind the landing is a dashboard of keys, usage and the call log |
 | `dash` | amber | Hand written CSS. Scanlines, vignette, JetBrains Mono and Space Grotesk. Panel 00 and panel 16 for chrome, a spine past 1900px. A `NOTIFY` switch in panel 00, and a `CHAT` readout beside it that only appears signed in |
-| `pond` | amber | Hand written CSS. A game, with colour pixel art on its screens and dash's amber and type round them. Dive is full screen on a phone |
+| `pond` | amber | Hand written CSS. A game in the Deck direction, 80s hardware with keycaps, readout glass and colour pixel art in its screen windows. Dive is full screen on a phone |
 | `blog`, `isaacbythewood.com` | neither | Separate identities. Nothing here applies to them |
 
