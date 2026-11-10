@@ -42,9 +42,10 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
 - `share.go` is a frog's public page at `/f/<name>-<code>`, its power, and the
   PNG card a link unfurls with, drawn by `sprite.go` in the JetBrains Mono under
   `fonts/`. The code is the pond's public id and can't open the pond.
-- `frontend/src/` has one file a view, `dive.js`, `wheel.js`, `hats.js` and
-  `reeds.js`, with `index.js` for the pond itself, `share.js` for a frog's
-  public page and `key.js` and `k.js` for the key pages.
+- `frontend/src/` has one file a view, `dive.js` (with `race.js` for the
+  standings and results laid over it), `wheel.js`, `hats.js` and `reeds.js`,
+  with `index.js` for the pond itself, `share.js` for a frog's public page
+  and `key.js` and `k.js` for the key pages.
 - `web/` is this site's own copy of the HTTP layer every site here shares.
 
 `GET /api/panel` answers with the visitor's frog as JSON, or a house frog when

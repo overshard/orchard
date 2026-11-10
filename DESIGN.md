@@ -570,6 +570,13 @@ the amber, so a change to those on dash is made here too.
   under the water holds three readout tiles and `EXIT`. Ten ghost frogs swim
   each run a little behind at 60% alpha, with their names over them where
   the field is wide enough to read ten.
+- **Dive is a race.** Three red lights and GO start it, a standings column
+  down the left drops each frog to the bottom as it goes out, your place is a
+  big italic number in the bottom right that pops as it climbs, and who just
+  went out is called at the top. The results are a podium in gold, silver and
+  bronze, the whole finishing order with you in amber, and the winnings
+  counting up, with confetti for a podium place. All of it is HTML over the
+  canvas, animates transform and opacity only, and takes no taps.
 - The game page has no footer. The copyright and the source link are on the
   key page.
 - Every sprite is drawn per pixel from a seed in `frontend/src/frog.js`. There
