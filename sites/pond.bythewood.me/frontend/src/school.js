@@ -23,7 +23,7 @@ function blocked(x, y) {
 
 export const school = {
   key: "school", W, H, title: "TADPOLES",
-  help: ["SWIPE OR TAP TO TURN", "EAT FLEAS, GROW THE SCHOOL", "MISS THE REEDS, STONES AND TAIL", "TAP TO START"],
+  help: ["SWIPE OR TAP TO TURN", "EAT FLEAS, GROW THE SCHOOL", "MISS REEDS, STONES AND TAIL", "TAP TO START"],
 
   reset(g) {
     col = colours(g, null);
