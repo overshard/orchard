@@ -1,7 +1,7 @@
 import { $, post, state, setPond, watch, reduced, heldNow, canBuild, TIERS } from "./api.js";
 import { iconCanvas, dishCanvas } from "./icons.js";
 import { genome, cells, colours, draw, W, H } from "./frog.js";
-import { presents } from "./neighbours.js";
+import { presentsFrom } from "./neighbours.js";
 
 const gx = $("garden").getContext("2d");
 const GW = 176, S = 3;
@@ -302,23 +302,6 @@ function renderBurrows(p) {
   $("burrow-build").disabled = !canBuild(p, bw);
 }
 
-// Presents from lodgers come one neighbour at a time.
-function rentPresents(d) {
-  const by = [];
-  d.from.forEach((who, i) => {
-    const last = by[by.length - 1];
-    if (last && last[0] === who) last[1].push(d.prizes[i]);
-    else by.push([who, [d.prizes[i]]]);
-  });
-  const next = () => {
-    const step = by.shift();
-    if (!step) return;
-    presents(d.pond.neighbours.all[step[0]], step[1]);
-    if (by.length) $("reveal-ok").addEventListener("click", next, { once: true });
-  };
-  next();
-}
-
 function nameOf(kind) {
   const it = state.pond.kitchen.ingredients.find((i) => i.kind === kind);
   return it ? it.name.toLowerCase() : kind;
@@ -362,7 +345,7 @@ export function initBank() {
     post("/api/burrows/collect").then((d) => {
       say("burrow-out", d.line);
       setPond(d.pond);
-      if (d.prizes.length) rentPresents(d);
+      presentsFrom(d);
     }, (e) => say("burrow-out", e.message));
   });
   $("dye-rocks").addEventListener("click", (e) => {

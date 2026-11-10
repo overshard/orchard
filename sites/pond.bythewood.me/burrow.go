@@ -154,7 +154,8 @@ func (s *store) lodge(id int64, who int, in bool) (*view, error) {
 	})
 }
 
-type rentPaid struct {
+// paidOut is pebbles collected, with any presents from neighbours it brought.
+type paidOut struct {
 	Pebbles int     `json:"pebbles"`
 	Line    string  `json:"line"`
 	Prizes  []prize `json:"prizes"`
@@ -165,8 +166,8 @@ type rentPaid struct {
 
 // collectRent takes the rent, and the first time each day every lodger gets a
 // little friendlier for being there.
-func (s *store) collectRent(id int64) (*rentPaid, error) {
-	out := &rentPaid{Prizes: []prize{}, From: []int{}}
+func (s *store) collectRent(id int64) (*paidOut, error) {
+	out := &paidOut{Prizes: []prize{}, From: []int{}}
 	v, err := s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
 		b, err := loadBurrows(tx, p.ID)
 		if err != nil {

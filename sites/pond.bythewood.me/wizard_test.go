@@ -151,12 +151,20 @@ func TestStallSellsAndCollects(t *testing.T) {
 		t.Fatalf("collected before a sale, %v", err)
 	}
 	*clock = clock.Add(7 * time.Hour)
-	v, err = s.stallCollect(id)
+	paid, err := s.stallCollect(id)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if v.Pebbles != before+w/2+1+w/2+2 || len(v.Stall.Rows) != 0 {
+	v = paid.Pond
+	if v.Pebbles != before+w/2+1+w/2+2 || paid.Pebbles != w/2+1+w/2+2 || len(v.Stall.Rows) != 0 {
 		t.Fatalf("pebbles %d from %d, %d still up", v.Pebbles, before, len(v.Stall.Rows))
+	}
+	met := 0
+	for _, f := range v.Neighbours.All {
+		met += f.Points
+	}
+	if met != 2 {
+		t.Fatalf("two sales made %d friendship points", met)
 	}
 
 	h := hatKind(hat{Shape: 4, Colour: 0})

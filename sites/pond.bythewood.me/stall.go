@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"math"
 	"math/rand/v2"
 	"sort"
@@ -320,7 +321,7 @@ func (s *store) stallList(id int64, kind string, price int) (*view, error) {
 		}
 		sells := now.Add(sellsIn(price, worth)).Unix()
 		_, err = tx.Exec(`INSERT INTO stall (pond_id, slot, kind, price, listed_at, sells_at, buyer) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			p.ID, slot, kind, price, now.Unix(), sells, titled(rollName()))
+			p.ID, slot, kind, price, now.Unix(), sells, residents[rand.IntN(len(residents))].name)
 		return err
 	})
 }
@@ -349,20 +350,51 @@ func (s *store) stallTake(id int64, slot int) (*view, error) {
 	})
 }
 
-// stallCollect takes the pebbles for everything sold.
-func (s *store) stallCollect(id int64) (*view, error) {
-	return s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
-		var sum sql.NullInt64
-		if err := tx.QueryRow(`SELECT SUM(price) FROM stall WHERE pond_id = ? AND sells_at <= ?`, p.ID, now.Unix()).Scan(&sum); err != nil {
+// stallCollect takes the pebbles for everything sold, and every neighbour who
+// bought something gets a little friendlier for it.
+func (s *store) stallCollect(id int64) (*paidOut, error) {
+	out := &paidOut{Prizes: []prize{}, From: []int{}}
+	v, err := s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
+		rows, err := tx.Query(`SELECT price, buyer FROM stall WHERE pond_id = ? AND sells_at <= ? ORDER BY slot`, p.ID, now.Unix())
+		if err != nil {
 			return err
 		}
-		if !sum.Valid || sum.Int64 == 0 {
+		var buyers []int
+		for rows.Next() {
+			var price int
+			var buyer string
+			if err := rows.Scan(&price, &buyer); err != nil {
+				rows.Close()
+				return err
+			}
+			out.Pebbles += price
+			if who := residentNamed(buyer); who >= 0 {
+				buyers = append(buyers, who)
+			}
+		}
+		if err := rows.Close(); err != nil {
+			return err
+		}
+		if out.Pebbles == 0 {
 			return errNotYet
 		}
 		if _, err := tx.Exec(`DELETE FROM stall WHERE pond_id = ? AND sells_at <= ?`, p.ID, now.Unix()); err != nil {
 			return err
 		}
-		p.Pebbles += int(sum.Int64)
+		p.Pebbles += out.Pebbles
+		out.Line = fmt.Sprintf("+%d pebbles.", out.Pebbles)
+		for _, who := range buyers {
+			zs, err := befriend(tx, p, who, 1, "")
+			if err != nil {
+				return err
+			}
+			for _, z := range zs {
+				out.Prizes = append(out.Prizes, z)
+				out.From = append(out.From, who)
+			}
+		}
 		return nil
 	})
+	out.Pond = v
+	return out, err
 }

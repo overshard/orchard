@@ -1,6 +1,7 @@
 import { $, post, state, setPond, watch, reduced, TIERS } from "./api.js";
 import { genome, cells, colours, draw, W, H } from "./frog.js";
 import { drawIcon } from "./icons.js";
+import { presentsFrom } from "./neighbours.js";
 import { slot, thingArt, openSheet, closeSheet, sheetSay, button, reveal, TIER_GLOW } from "./ui.js";
 
 let tab = "shops";
@@ -293,8 +294,7 @@ export function initTown() {
   });
   $("stall-collect").addEventListener("click", function () {
     this.disabled = true;
-    const n = state.pond.stall.takings;
-    post("/api/stall/collect").then((v) => { setPond(v); $("stall-out").textContent = "+" + n + " pebbles."; this.disabled = false; },
+    post("/api/stall/collect").then((d) => { setPond(d.pond); $("stall-out").textContent = d.line; this.disabled = false; presentsFrom(d); },
       (e) => { $("stall-out").textContent = e.message; this.disabled = false; });
   });
   $("wiz-cast").addEventListener("click", cast);
