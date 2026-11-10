@@ -81,7 +81,7 @@ function drawWheel(now) {
   wx.textAlign = "center"; wx.textBaseline = "middle"; wx.font = "700 30px " + GROTESK;
   for (let si = 0; si < NS; si++) {
     const k = slices[si]; if (k !== "P25" && k !== "P40") continue;
-    wx.save(); wx.rotate((si + 0.5) * DA); wx.translate(31 * SC, 0); wx.rotate(Math.PI / 2);
+    wx.save(); wx.rotate((si + 0.5) * DA); wx.translate(31 * SC, 0); wx.rotate(-wrot - (si + 0.5) * DA);
     wx.fillStyle = "#123a1c"; wx.fillText(k.slice(1), 2, 2); wx.fillStyle = "#fff6dc"; wx.fillText(k.slice(1), 0, 0); wx.restore();
   }
   wx.restore();
