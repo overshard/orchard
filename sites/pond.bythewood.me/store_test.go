@@ -467,18 +467,19 @@ func TestNinetyDaysDoNotRunAway(t *testing.T) {
 		after, _ := s.view(id)
 		minted += after.Pebbles - before.Pebbles
 
-		for after.Pebbles >= boxCost {
-			if _, err := s.box(id); err != nil {
-				t.Fatal(err)
-			}
-			after, _ = s.view(id)
-		}
 		for _, h := range after.Hats {
 			for n := h.Count; n > 1; n-- {
 				if _, err := s.sell(id, h.hat); err != nil {
 					t.Fatal(err)
 				}
 			}
+		}
+		after, _ = s.view(id)
+		for after.Pebbles >= boxCost {
+			if _, err := s.box(id); err != nil {
+				t.Fatal(err)
+			}
+			after, _ = s.view(id)
 		}
 	}
 	v, _ := s.view(id)

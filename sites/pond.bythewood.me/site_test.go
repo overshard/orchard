@@ -370,7 +370,8 @@ func TestAVisitEndToEnd(t *testing.T) {
 	if code := b.post("/api/hats/wear", string(worn), &v); code != http.StatusOK || v.Frog.Hat != *bx.Prize.Hat {
 		t.Errorf("wear: %d %+v", code, v.Frog.Hat)
 	}
-	if code := b.post("/api/hats/sell", string(worn), nil); code != http.StatusConflict {
+	// The wheel can hand out the same hat first, and then the box's copy is a spare.
+	if code := b.post("/api/hats/sell", string(worn), nil); !bx.Prize.Spare && code != http.StatusConflict {
 		t.Errorf("sold the only copy of a hat: %d", code)
 	}
 	if code := b.post("/api/hats/wear", `{"shape":99,"colour":0}`, nil); code != http.StatusBadRequest {
