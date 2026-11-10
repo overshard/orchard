@@ -2,6 +2,9 @@ import { $, post, state, setPond, watch, reduced, titled, TIERS } from "./api.js
 import { genome, bred, cells, sideCells, colours, draw, croak, W, H, SW, SH } from "./frog.js";
 import { drawIcon, iconCanvas, drawFurn } from "./icons.js";
 import { initDive, enterDive, leaveDive } from "./dive.js";
+import { arcade } from "./arcade.js";
+import { flick } from "./flick.js";
+import { cross } from "./cross.js";
 import { initWheel, enterWheel } from "./wheel.js";
 import { initReeds } from "./reeds.js";
 import { initBank, enterBank, leaveBank } from "./bank.js";
@@ -13,14 +16,16 @@ import { initTown, enterTown, leaveTown } from "./town.js";
 import { initNeighbours } from "./neighbours.js";
 import { initSettings } from "./settings.js";
 
-const VIEWS = ["pond", "play", "dive", "wheel", "bag", "collect", "reeds", "garden", "bank", "town", "settings"];
+const VIEWS = ["pond", "play", "dive", "cross", "flick", "wheel", "bag", "collect", "reeds", "garden", "bank", "town", "settings"];
 // Places that open from another light that one's key.
-const TAB_OF = { dive: "play", wheel: "play" };
+const TAB_OF = { dive: "play", wheel: "play", cross: "play", flick: "play" };
 let view = "pond", fetchedAt = Date.now();
+const GAMES = { flick: arcade(flick), cross: arcade(cross) };
 
 function show(next) {
   if (!VIEWS.includes(next)) next = "pond";
   if (view === "dive" && next !== "dive") leaveDive();
+  if (GAMES[view] && next !== view) GAMES[view].leave();
   view = next;
   VIEWS.forEach((v) => { $("v-" + v).hidden = v !== next; });
   const lit = TAB_OF[next] || next;
@@ -29,6 +34,7 @@ function show(next) {
   });
   $("gear").classList.toggle("lit", next === "settings");
   if (next === "dive") enterDive();
+  if (GAMES[next]) GAMES[next].enter();
   if (next === "wheel") enterWheel();
   if (next === "play") drawPlay();
   if (next === "garden") enterBank(); else leaveBank();
@@ -382,6 +388,20 @@ function drawPlay() {
   d.fillStyle = "#3f9a4d"; d.fillRect(70, 0, 10, 28); d.fillStyle = "#5b6470"; d.fillRect(68, 56, 14, 40);
   draw(d, sideCells(g, p.frog.stage === "egg" ? "tadpole" : p.frog.stage, true), SW, SH, colours(g, null), 22, 40, 2);
   d.fillStyle = "rgba(255,246,220,0.6)"; d.fillRect(12, 30, 4, 4); d.fillRect(8, 22, 2, 2);
+  const c = $("play-cross-art").getContext("2d");
+  ["#4f9a4a", "#3a3a40", "#3a3a40", "#4f9a4a", "#1b4a5a", "#1d5163", "#2f6b33"].reverse().forEach((col, i) => { c.fillStyle = col; c.fillRect(0, i * 14 - 2, 168, 14); });
+  c.fillStyle = "#cfc7a8"; for (let x = 4; x < 168; x += 16) c.fillRect(x, 67, 8, 1);
+  c.fillStyle = "#e2412d"; c.fillRect(30, 58, 22, 8); c.fillStyle = "#3d8fd6"; c.fillRect(110, 72, 12, 6);
+  c.fillStyle = "#8a5a2b"; c.fillRect(60, 30, 44, 10); c.fillStyle = "#56b45f"; c.fillRect(20, 44, 12, 10); c.fillRect(34, 44, 12, 10);
+  c.fillStyle = colours(g, null)[1]; c.fillRect(78, 84, 10, 9);
+  const f = $("play-flick-art").getContext("2d");
+  f.fillStyle = "#1b3a4a"; f.fillRect(0, 0, 168, 96);
+  f.fillStyle = "#56b45f"; f.fillRect(54, 84, 60, 8);
+  draw(f, cells(g, ["egg", "tadpole"].includes(p.frog.stage) ? "froglet" : p.frog.stage, {}), W, H, colours(g, null), 62, 52, 1);
+  f.fillStyle = "#e2567a"; for (let i = 0; i < 14; i++) f.fillRect(84 + i * 3, 70 - i * 3, 2, 2);
+  f.fillStyle = "#3a3f46"; f.fillRect(126, 26, 5, 3); f.fillStyle = "#cfe3ea"; f.fillRect(126, 23, 2, 2); f.fillRect(129, 23, 2, 2);
+  f.fillStyle = "#ffe27a"; f.fillRect(30, 30, 4, 3); f.fillRect(140, 60, 4, 3);
+  (p.arcade || []).forEach((a) => { $("play-" + a.key + "-line").textContent = "Best " + a.best + " · today " + a.paid + "/" + a.cap; });
   const w = $("play-wheel-art").getContext("2d");
   w.fillStyle = "#0e2c30"; w.fillRect(0, 0, 168, 96);
   for (let y = 0; y < 96; y += 4) for (let x = 0; x < 168; x += 4) {
@@ -421,7 +441,7 @@ function setPondAgain() {
 // page left open picks them up on its own. Not in a dive or a spin, which
 // hand the pond over when they finish.
 function freshen() {
-  if (document.hidden || view === "dive" || view === "wheel" || Date.now() - fetchedAt < 60000) return;
+  if (document.hidden || view === "dive" || view === "wheel" || GAMES[view] || Date.now() - fetchedAt < 60000) return;
   setPondAgain();
 }
 setInterval(freshen, 15000);
