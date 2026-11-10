@@ -453,22 +453,25 @@ button:disabled {
 
 .dive-hud {
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
+  justify-content: space-between;
   gap: 12px;
-  padding-top: 8px;
+  padding: 12px;
 }
 
-.dive-hud p {
-  flex: 1;
-  margin: 0;
+.dive-hud .tiles {
+  display: flex;
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
 }
 
-#dive-exit {
-  display: none;
+.dive-hud button {
+  min-width: 76px;
 }
 
-/* On a phone Dive is the whole screen: the water fills it from the top and
-   the readout and the way out sit under it. */
+/* Dive is the whole window. The water fills it from the top and the readout
+   and the way out sit under it. */
 #v-dive.full {
   position: fixed;
   inset: 0;
@@ -480,27 +483,29 @@ button:disabled {
 }
 
 #v-dive.full .screen {
+  display: flex;
+  justify-content: center;
   padding: 0;
   border: 0;
+}
+
+#v-dive.full .screen::after {
+  display: none;
 }
 
 #v-dive.full .screen::before {
   display: none;
 }
 
-#v-dive.full .screen::after {
-  inset: 0;
-}
-
 #v-dive.full .dive-hud {
   flex: 1;
-  align-items: center;
-  padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+  align-items: flex-start;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--line-hot);
 }
 
-#v-dive.full #dive-exit {
-  display: block;
+#v-dive.full .dive-hud > * {
+  height: 51px;
 }
 
 body:has(#v-dive.full) {
@@ -650,8 +655,8 @@ footer {
   text-transform: uppercase;
 }
 
-body:has(.tabs) footer {
-  padding-bottom: calc(72px + env(safe-area-inset-bottom));
+body:has(.tabs) main {
+  padding-bottom: calc(80px + env(safe-area-inset-bottom));
 }
 
 /* The key pages */
@@ -720,6 +725,19 @@ body:has(.tabs) footer {
 
 .steps {
   padding-left: 1.6rem;
+}
+
+.row .button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+#scan-video {
+  display: block;
+  width: 100%;
 }
 
 .restore {

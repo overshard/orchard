@@ -565,10 +565,12 @@ the amber, so a change to those on dash is made here too.
 - **The four places are transport keys along the bottom**, numbered 01 to 04,
   where a thumb is. The lit one has an amber bar across its top. The content
   column stops at `34rem` on a desktop.
-- **Dive is the whole screen on a phone.** Under 560px wide it covers the bar
-  and the keys, the pond is as deep as the screen allows, and a strip under the
-  water holds the readout and `EXIT`. On a desktop it's a screen like the rest
-  with the neighbours' rail beside it.
+- **Dive is the whole window, on a phone and a desktop.** It covers the bar and
+  the keys, the pond takes its depth and length from the window, and a strip
+  under the water holds three readout tiles and `EXIT`. Ten ghost frogs swim
+  each run at 42% alpha with their names over them.
+- The game page has no footer. The copyright and the source link are on the
+  key page.
 - Every sprite is drawn per pixel from a seed in `frontend/src/frog.js`. There
   are no image files, and a canvas is always `image-rendering: pixelated`.
 - No pixel font. A bitmap face at body size was hard to read, so words on a
