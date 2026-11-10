@@ -1,7 +1,8 @@
 import { $, post, state, setPond, watch, titled, TIERS } from "./api.js";
 import { genome, bred, cells, colours, draw, W, H } from "./frog.js";
 import { iconCanvas } from "./icons.js";
-import { openSheet, closeSheet, sheetSay, button, tierTag } from "./ui.js";
+import { openSheet, closeSheet, sheetSay, button, tierTag, reveal } from "./ui.js";
+import { hatTile } from "./hats.js";
 
 const JOB_ICON = { garden: "watercress", bugs: "cricket", sticks: "sticks", reeds: "reeds", mud: "clay", pebbles: "peb", craft: "t_basket" };
 
@@ -105,6 +106,24 @@ function showDone(done) {
     out.append(dt, dd);
   });
   out.hidden = false;
+  big(done);
+}
+
+// A pet or a hood is rare enough to pop up like a prize.
+function big(done) {
+  const p = state.pond;
+  for (const w of done) {
+    const pet = Object.keys(w.got).map((k) => p.trinkets.all.find((t) => t.kind === k && t.pet)).find(Boolean);
+    if (pet) {
+      reveal({ kick: "A pet!", art: iconCanvas(pet.kind, 8), name: pet.name, tier: pet.tier, line: w.frog + " found it while " + p.jobs.defs.find((d) => d.name === w.job).verb + ". It's in your bag." });
+      return;
+    }
+    const hood = w.up && w.level === 99 && p.hoods.find((h) => h.name.startsWith(w.job));
+    if (hood) {
+      reveal({ kick: "Level 99!", art: hatTile(hood, true), name: hood.name, tier: 4, line: w.frog + " maxed " + w.job.toLowerCase() + ". Any frog can wear the hood, it's in your bag." });
+      return;
+    }
+  }
 }
 
 function many(name) { return name.endsWith("s") ? name : name + "s"; }

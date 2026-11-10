@@ -96,6 +96,12 @@ function hatCell(shape, hx, hy) {
     case 13: if (ell(hx, hy, 0, 4.4, 5.2, 1.6) && !ell(hx, hy, 0, 4.4, 3.4, 0.6)) v = hy > 4.6 ? 11 : 10; break;
     case 14: if (hy > 0.4 && hy < 4.8 && ax < 5.6 && Math.abs(hy - 2.6) < ax * 0.5 + 0.3) v = 10; if (ax < 1.1 && Math.abs(hy - 2.6) < 1.1) v = 11; break;
     case 15: if (hy > 0 && hy < 1.1 && ax < 8.2) v = 10; if (hy >= 1 && ell(hx, hy, 0, 1, 4.2, 3.4)) v = hy < 2.1 ? 11 : 10; break;
+    default:
+      if (shape > HOOD) {
+        if (hy > 0 && ell(hx, hy, 0, 0.4, 6.2, 5)) v = hy < 1.2 ? 11 : 10;
+        if (hy >= 4 && hy < 7.6 && ax < (7.6 - hy) * 0.7) v = 10;
+        if (ell(hx, hy, 0, 3.1, 1.2, 1.2)) v = 11;
+      }
   }
   return v;
 }
@@ -234,10 +240,14 @@ export function sideCells(g, stage, kick) {
 
 // Each shape's own two colours, then the three colourways any shape comes in.
 const HATC = [null, ["#1b1a22", "#b3222f"], ["#e8559a", "#ffe27a"], ["#f2c230", "#d8402f"], ["#4f9a4a", "#2f6b33"], ["#d8402f", "#f3e4c2"], ["#f3e4c2", "#f2c230"], ["#8a5a2b", "#3a2412"], ["#4b3fa8", "#ffe27a"], ["#d8402f", "#fff6dc"], ["#9aa0a6", "#f3e4c2"], ["#fff6dc", "#c9ccd0"], ["#3d8fd6", "#f2c230"], ["#ffe27a", "#fff6dc"], ["#e8559a", "#b3306d"], ["#e3c57a", "#d8402f"]];
+// A hood is the hat a 99 at a job earns, one for each job in the server's order.
+const HOOD = 100;
+const HOODC = [["#4f9a4a", "#f2c230"], ["#2f6b6b", "#ffe27a"], ["#8a5a2b", "#e3c57a"], ["#8a8a3a", "#f3e4c2"], ["#5a3f24", "#e8a05a"], ["#3d5a8a", "#e9e3d6"], ["#6b3fa8", "#f2c230"]];
 const CWC = [null, ["#4f9a4a", "#cfe8a0"], ["#b03a8c", "#ffd0ea"], ["#f2c230", "#fff6dc"]];
 
 export function hatColours(hat) {
   if (!hat || !hat.shape) return null;
+  if (hat.shape > HOOD) return HOODC[hat.shape - HOOD - 1];
   return hat.colour ? CWC[hat.colour] : HATC[hat.shape];
 }
 

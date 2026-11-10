@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"errors"
+	"slices"
 	"sort"
 	"strings"
 	"sync/atomic"
@@ -618,6 +619,7 @@ type view struct {
 	Jobs    jobsView   `json:"jobs"`
 	PadCost int        `json:"pad_cost"`
 	Hats    []hatView  `json:"hats"`
+	Hoods   []hoodView `json:"hoods"`
 	Items   []itemView `json:"items"`
 	Share   struct {
 		Path  string `json:"path"`
@@ -718,6 +720,12 @@ func viewOf(q querier, p pond, now time.Time) (*view, error) {
 		return nil, err
 	}
 	v.Jobs = jobsView{Defs: jobDefs(), Recipes: recipeViews(), Hold: int(workHold / time.Hour), Total: bestLevels(xp)}
+	earned := hoodsEarned(xp)
+	found = append(found, earned...)
+	for i, j := range jobs {
+		h := hoodFor(i)
+		v.Hoods = append(v.Hoods, hoodView{h, h.name(), j.key, slices.Contains(earned, h)})
+	}
 	for _, f := range frogs {
 		if f.Front {
 			f.Hat = p.Wearing
@@ -837,7 +845,7 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	if v.Stall, err = stallOf(q, p.ID, now); err != nil {
 		return err
 	}
-	v.Bag = bagOf(v.held, v.Hats)
+	v.Bag = bagOf(v.held, v.Hats, v.Hoods)
 	v.Wizard.Takes, v.Wizard.Up, v.Wizard.Same = wizardTakes, wizardOdds.up, wizardOdds.same
 	had := map[string]bool{}
 	for _, t := range v.Trinkets.All {
