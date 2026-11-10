@@ -1,0 +1,12 @@
+{{/* The edge sets its own Referrer-Policy over the one this page sends, and a
+     meta tag is the one it cannot replace. */}}
+{{ define "head" }}<meta name="referrer" content="no-referrer">{{ end }}
+
+{{ define "main" }}
+<section class="view prose">
+  <h1>Bringing a frog back</h1>
+  <p class="line" id="k-out" role="status">Opening the pond.</p>
+  <p class="dim">If this opened inside another app, open it in your phone's real browser instead. A frog brought back in here won't be in your browser next time.</p>
+  <p><a href="/key" class="button">Type the key instead</a></p>
+</section>
+{{ end }}

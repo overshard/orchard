@@ -1,0 +1,86 @@
+{{ define "main" }}
+<div id="app">
+  <section class="view" id="v-pond">
+    <button type="button" class="scene" id="scene-btn" aria-label="Your frog. Press it to hear its call.">
+      <canvas id="scene" width="352" height="272"></canvas>
+    </button>
+    <div class="who">
+      <h1 id="frog-name">&nbsp;</h1>
+      <p class="chips"><span class="tier" id="frog-tier"></span> <span id="frog-odds"></span></p>
+      <p class="dim" id="frog-what"></p>
+    </div>
+    <p class="line" id="greet-line">Looking for your frog.</p>
+    <dl class="missed" id="greet-missed"></dl>
+    <div class="card gift" id="gift" hidden>
+      <p id="gift-line"></p>
+      <button type="button" class="primary" id="gift-open">Unwrap it</button>
+    </div>
+    <p class="card nudge" id="nudge" hidden>Your frog lives in this browser. <a href="/key">Write down its pond key</a> so you can always get back to it.</p>
+
+    <h2>The old log</h2>
+    <p class="dim" id="log-out">Turn one over. It pays once a day.</p>
+    <div class="logs" id="logs">
+      <button type="button" data-pick="0">Log 1</button>
+      <button type="button" data-pick="1">Log 2</button>
+      <button type="button" data-pick="2">Log 3</button>
+    </div>
+
+    <h2>Purse</h2>
+    <p class="dim" id="things-none">Pebbles and nothing else yet. The wheel and your frog's presents put things here.</p>
+    <ul class="things" id="things"></ul>
+    <p class="dim" id="thing-out"></p>
+
+    <div class="card dev" id="dev" hidden>
+      <p class="label">Dev clock</p>
+      <button type="button" data-hours="1">+1 hour</button>
+      <button type="button" data-hours="4">+4 hours</button>
+      <button type="button" data-hours="24">+1 day</button>
+      <button type="button" data-hours="168">+1 week</button>
+    </div>
+  </section>
+
+  <section class="view" id="v-dive" hidden>
+    <canvas id="dive" width="640" height="400" tabindex="0" aria-label="Dive. Tap anywhere or press space to kick down."></canvas>
+    <p class="dim" id="dive-note">Tap anywhere to kick down. The frog floats up by itself.</p>
+  </section>
+
+  <section class="view" id="v-wheel" hidden>
+    <canvas id="wheel" width="520" height="580" aria-label="The lily pad wheel"></canvas>
+    <div class="row">
+      <button type="button" class="primary" id="spin-free">Free spin</button>
+      <button type="button" id="spin-paid">Spin for 25</button>
+    </div>
+    <p class="line" id="wheel-out">Every slice is a prize.</p>
+    <p class="dim" id="wheel-note"></p>
+    <h2>What's on it</h2>
+    <ul class="legend" id="wheel-legend"></ul>
+  </section>
+
+  <section class="view" id="v-hats" hidden>
+    <div class="hatbox">
+      <canvas id="hat-preview" width="176" height="136"></canvas>
+      <div>
+        <p class="label" id="hat-count"></p>
+        <p id="hat-wearing">No hat on.</p>
+        <button type="button" id="hat-off" hidden>Take it off</button>
+      </div>
+    </div>
+    <div class="row">
+      <button type="button" class="primary" id="box-open">Open a hat box, 40</button>
+    </div>
+    <p class="line" id="box-out">A box has one hat in it. A second copy of a hat is a spare you can sell.</p>
+    <p class="dim" id="box-odds"></p>
+    <h2>Spares</h2>
+    <div id="spares"></div>
+    <h2>Collection</h2>
+    <div class="hatgrid" id="hatgrid"></div>
+  </section>
+</div>
+
+<nav class="tabs" id="tabs" aria-label="Places in the pond">
+  <button type="button" data-view="pond" aria-pressed="true">Pond</button>
+  <button type="button" data-view="dive" aria-pressed="false">Dive</button>
+  <button type="button" data-view="wheel" aria-pressed="false">Wheel</button>
+  <button type="button" data-view="hats" aria-pressed="false">Hats</button>
+</nav>
+{{ end }}

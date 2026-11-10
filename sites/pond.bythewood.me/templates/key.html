@@ -1,0 +1,48 @@
+{{/* The edge sets its own Referrer-Policy over the one this page sends, and a
+     meta tag is the one it cannot replace. */}}
+{{ define "head" }}<meta name="referrer" content="no-referrer">{{ end }}
+
+{{ define "main" }}
+<section class="view prose">
+{{ if .Words }}
+  <h1>{{ .FrogName }}'s pond key</h1>
+  <p>These six words are the only way back to your frog. There's no account and no email, so whoever has the words has the frog. Keep them somewhere.</p>
+  <ol class="keywords">{{ range .Words }}<li>{{ . }}</li>{{ end }}</ol>
+  <div class="keyline">
+    <code id="key-line">{{ range $i, $w := .Words }}{{ if $i }}-{{ end }}{{ $w }}{{ end }}</code>
+    <button type="button" id="key-copy">Copy</button>
+  </div>
+  <canvas id="qr" width="264" height="264" data-url="{{ .KeyURL }}" aria-label="A QR code that opens this pond"></canvas>
+
+  <h2>Saving it</h2>
+  <ol class="steps">
+    <li>Write the six words down on paper, in order.</li>
+    <li>Or paste the one line above into a note on your phone.</li>
+    <li>Or screenshot the QR code. Pointing a camera at it later opens this pond.</li>
+    <li>Or, if you use a password manager, type the words into the box below and let it save them.</li>
+  </ol>
+{{ else }}
+  <h1>Pond key</h1>
+  <p>A pond key is the six words that open a pond. This browser doesn't have a frog yet, so <a href="/">go and meet one</a>, or bring one back below.</p>
+{{ end }}
+
+  <h2>Bring a frog back</h2>
+  <p>Type a pond key however you wrote it down, with spaces, dashes or one word a line.{{ if .Words }} This browser's frog is swapped for the one the key opens, so save the key above first.{{ end }}</p>
+  <form id="restore" class="restore" action="/key" method="post">
+    <label for="key-name">Frog</label>
+    <input id="key-name" name="username" autocomplete="username" value="{{ .FrogName }}" placeholder="Its name, if you remember">
+    <label for="key-in">Pond key</label>
+    <input id="key-in" name="password" type="password" autocomplete="current-password" autocapitalize="none" spellcheck="false" required>
+    <label class="check"><input type="checkbox" id="key-show"> Show the words</label>
+    <button type="submit" class="primary">Bring it back</button>
+  </form>
+  <p class="line" id="key-result" role="status"></p>
+
+{{ if .Words }}
+  <h2>Change the lock</h2>
+  <p>This makes six new words. The old words and any QR code you saved stop working straight away, which is what you want if somebody else has seen them.</p>
+  <button type="button" id="key-new">Change the lock</button>
+{{ end }}
+  <p><a href="/" class="button">&larr; Back to the pond</a></p>
+</section>
+{{ end }}

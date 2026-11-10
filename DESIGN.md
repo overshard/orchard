@@ -541,6 +541,36 @@ which is the counties, the forecast office and how long is left.
 **Do not cite this file, or anything outside this repository, from a comment.**
 A reader only ever has the repo.
 
+## pond
+
+pond is a game and not a tool, so it's its own identity and neither phosphor
+applies to it. It's colour pixel art on deep teal water, and nothing above about
+the palette, the grid, the home page skeleton or the footer holds there. The
+one thing it keeps from the estate is Monaspace Argon for body copy.
+
+| Role | Value | Where it goes |
+|---|---|---|
+| Deep | `#0a1b1f` | The bottom of the page and the tab bar |
+| Water | `#0e2c30` | The page, the top bar |
+| Shallow | `#123a3d` | Cards, buttons, the top band of any scene |
+| Surface | `#7fd6c2` | The waterline, section headings, rules |
+| Cream | `#fff6dc` | Text, and the light pixel in any sprite |
+| Yellow | `#ffe27a` | The purse, the primary button, anything won |
+| Pink | `#e2567a` | Hearts, the tongue, a present |
+
+- **Silkscreen** for headings, labels, buttons and every word drawn on a canvas,
+  and Monaspace Argon for anything that's a sentence.
+- Every sprite is drawn per pixel from a seed in `frontend/src/frog.js`, and a
+  canvas is always `image-rendering: pixelated` at a whole number of screen
+  pixels a cell where it can be. There are no image files.
+- Borders are 2px and square. Nothing is rounded and nothing has a shadow.
+- It's built for a phone first. The four places are tabs along the bottom
+  where a thumb is, and the content column stops at `34rem` on a desktop.
+- Rarity is a word in a box as well as a colour: common grey, uncommon green,
+  rare blue, epic purple, legendary yellow.
+- When the frog reaches dash it's drawn there in dash's one bit amber and the
+  colour stays here.
+
 ## Per site
 
 | Site | Phosphor | Notes |
@@ -553,5 +583,6 @@ A reader only ever has the repo.
 | `chat` | green | Hand written CSS, no Bootstrap. A conversation, so it reads at the longest length on the estate. Citation pills and a source row under each answer, and widget panels above one when a ticker or a forecast was looked up. A picture draws behind a panel listing its stages, each with a count and a guess from the last few, and replaces it once it has loaded. An unread dot on a conversation that finished a turn off screen, and the place in line of every turn still waiting |
 | `llm` | green | Hand written CSS, no Bootstrap. Behind the landing is a dashboard of keys, usage and the call log |
 | `dash` | amber | Hand written CSS. Scanlines, vignette, JetBrains Mono and Space Grotesk. Panel 00 and panel 16 for chrome, a spine past 1900px. A `NOTIFY` switch in panel 00, and a `CHAT` readout beside it that only appears signed in |
+| `pond` | neither | A game with its own identity, see below. Hand written CSS, no Bootstrap |
 | `blog`, `isaacbythewood.com` | neither | Separate identities. Nothing here applies to them |
 

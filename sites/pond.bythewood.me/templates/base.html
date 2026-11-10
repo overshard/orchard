@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{{ .Title }} · {{ .SiteName }}</title>
+  <meta name="description" content="{{ .Description }}">
+  <meta name="theme-color" content="#0a1b1f">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'><path fill='%230e2c30' d='M0 0h8v8H0z'/><path fill='%2356b45f' d='M1 2h2v1H1zM5 2h2v1H5zM1 3h6v3H1zM0 6h2v1H0zM6 6h2v1H6z'/><path fill='%23fff6dc' d='M1 2h1v1H1zM6 2h1v1H6z'/><path fill='%230a0908' d='M2 2h1v1H2zM5 2h1v1H5zM2 5h4v1H2z'/></svg>">
+
+  {{ block "head" . }}{{ end }}
+  {{ range .Styles }}<link href="{{ . }}" rel="stylesheet">{{ end }}
+
+  {{- if .AnalyticsID }}
+  <script>
+    (function (m, e, t, r, i, c, s) {
+      m.collectorQueue = m.collectorQueue || r;
+      m.collectorServer = c;
+      m.collectorId = s;
+      m.collectorScript = e.createElement(t);
+      m.collectorScript.src = c + i;
+      e.head.appendChild(m.collectorScript);
+    })(window, document, "script", [], "/static/collector.js",
+       "https://analytics.bythewood.me", "{{ .AnalyticsID }}");
+  </script>
+  {{- end }}
+</head>
+
+<body>
+  <header class="bar">
+    <a class="mark" href="/">pond</a>
+    <span class="bar-right">
+      <span class="purse" id="purse" hidden><canvas id="purse-icon" width="16" height="16" aria-hidden="true"></canvas><b id="purse-n">0</b><span class="sr"> pebbles</span></span>
+      <a class="keylink" href="/key">key</a>
+    </span>
+  </header>
+
+  <main>
+    {{ template "main" . }}
+  </main>
+
+  <footer>
+    <span>&copy; {{ .Year }} Isaac Bythewood</span>
+    <a href="{{ .SourceURL }}">Source</a>
+  </footer>
+
+  <script type="module" src="{{ .Script }}"></script>
+</body>
+</html>

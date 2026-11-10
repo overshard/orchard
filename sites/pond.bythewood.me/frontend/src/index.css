@@ -1,0 +1,589 @@
+/* The pond is its own identity, colour pixel art on deep teal water. DESIGN.md
+   at the repo root has the row for it and is the authority on these values. */
+:root {
+  --deep: #0a1b1f;
+  --water: #0e2c30;
+  --shallow: #123a3d;
+  --raised: #17484b;
+  --surface: #7fd6c2;
+  --foam: #bfeee2;
+  --cream: #fff6dc;
+  --muted: #a9cfc6;
+  --yellow: #ffe27a;
+  --pink: #e2567a;
+  --pink-soft: #f59ab3;
+  --leaf: #56b45f;
+  --line: rgba(127, 214, 194, 0.42);
+  --pixel: "Silkscreen", "Monaspace Argon", ui-monospace, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--deep);
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(var(--water), var(--deep) 60rem) var(--deep);
+  color: var(--cream);
+  font-family: "Monaspace Argon", ui-monospace, monospace;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  -webkit-tap-highlight-color: transparent;
+}
+
+main {
+  flex: 1;
+  width: 100%;
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 0 16px 24px;
+}
+
+h1,
+h2,
+.label,
+.mark,
+.tabs button,
+.tier,
+button,
+.button {
+  font-family: var(--pixel);
+  font-weight: 400;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.7rem;
+  line-height: 1.2;
+}
+
+h2 {
+  margin: 32px 0 8px;
+  color: var(--surface);
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+p {
+  margin: 8px 0;
+}
+
+a {
+  color: var(--yellow);
+}
+
+canvas {
+  display: block;
+  image-rendering: pixelated;
+}
+
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.dim {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.label {
+  margin: 0 0 4px;
+  color: var(--yellow);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.line {
+  font-size: 1rem;
+}
+
+/* The bar and the tabs are the only chrome, and both stay put. */
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 10px 16px;
+  background: var(--water);
+  border-bottom: 2px solid var(--surface);
+}
+
+.mark {
+  color: var(--cream);
+  font-size: 1.3rem;
+  text-decoration: none;
+}
+
+.bar-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.purse {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--pixel);
+  color: var(--yellow);
+}
+
+.purse canvas {
+  width: 16px;
+  height: 16px;
+}
+
+.keylink {
+  font-family: var(--pixel);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+button,
+.button {
+  display: inline-block;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 2px solid var(--line);
+  border-radius: 0;
+  background: var(--shallow);
+  color: var(--cream);
+  font-size: 0.85rem;
+  text-decoration: none;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled),
+.button:hover {
+  background: var(--raised);
+}
+
+button.primary {
+  border-color: var(--yellow);
+  color: var(--yellow);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+:focus-visible {
+  outline: 2px solid var(--yellow);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: rgba(255, 226, 122, 0.3);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.row button {
+  flex: 1;
+}
+
+.card {
+  margin: 16px 0;
+  padding: 12px 14px;
+  border: 2px solid var(--line);
+  background: var(--shallow);
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.view {
+  padding-top: 16px;
+}
+
+/* The pond */
+.scene {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  padding: 0;
+  border: 2px solid var(--line);
+  background: none;
+}
+
+.scene canvas,
+#dive,
+#wheel {
+  width: 100%;
+  height: auto;
+}
+
+.who {
+  margin: 14px 0 6px;
+}
+
+.chips {
+  margin: 4px 0;
+  font-family: var(--pixel);
+  font-size: 0.8rem;
+}
+
+.tier {
+  display: inline-block;
+  padding: 1px 6px;
+  border: 2px solid currentColor;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.t0 { color: #c9d6d2; }
+.t1 { color: #7fd87a; }
+.t2 { color: #6cb8ff; }
+.t3 { color: #cf9bff; }
+.t4 { color: var(--yellow); }
+
+.missed {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 14px;
+  margin: 12px 0;
+  font-size: 0.85rem;
+}
+
+.missed dt {
+  font-family: var(--pixel);
+  color: var(--surface);
+  text-transform: uppercase;
+}
+
+.missed dd {
+  margin: 0;
+  color: var(--muted);
+}
+
+.gift {
+  border-color: var(--pink);
+}
+
+.nudge {
+  border-color: var(--yellow);
+}
+
+.logs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.logs button {
+  min-height: 64px;
+  border-color: #8a5a2b;
+  background: #4a3318;
+}
+
+.logs button[aria-pressed="true"] {
+  border-color: var(--yellow);
+  color: var(--yellow);
+}
+
+.things {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.things li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 2px solid var(--line);
+  font-size: 0.8rem;
+}
+
+.things canvas {
+  flex: none;
+  width: 24px;
+  height: 24px;
+}
+
+.things button {
+  min-height: 32px;
+  margin-left: auto;
+  padding: 2px 8px;
+  font-size: 0.7rem;
+}
+
+.dev button {
+  min-height: 32px;
+  font-size: 0.7rem;
+}
+
+/* Dive takes a tap anywhere in its view, so the view fills the screen and the
+   browser is told not to scroll or zoom on it. */
+#v-dive {
+  min-height: calc(100dvh - 9rem);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#dive {
+  border: 2px solid var(--line);
+  outline: none;
+}
+
+#wheel {
+  border: 2px solid var(--line);
+}
+
+.legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  gap: 6px 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8rem;
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend canvas {
+  flex: none;
+  width: 24px;
+  height: 24px;
+}
+
+.legend .o {
+  margin-left: auto;
+  color: var(--muted);
+}
+
+/* Hats */
+.hatbox {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.hatbox canvas {
+  flex: none;
+  width: 176px;
+  height: 136px;
+  border: 2px solid var(--line);
+  background: var(--shallow);
+}
+
+.hatgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+}
+
+.hattile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 4px;
+  font-size: 0.6rem;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.hattile canvas {
+  width: 76px;
+  height: 48px;
+}
+
+.hattile:disabled {
+  opacity: 1;
+  border-style: dashed;
+  color: var(--muted);
+}
+
+.hattile[aria-pressed="true"] {
+  border-color: var(--yellow);
+}
+
+.spare {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+  padding: 6px 8px;
+  border: 2px solid var(--line);
+  font-size: 0.8rem;
+}
+
+.spare canvas {
+  flex: none;
+  width: 76px;
+  height: 48px;
+}
+
+.spare button {
+  margin-left: auto;
+}
+
+/* The tabs sit at the bottom where a thumb is. */
+.tabs {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  width: 100%;
+  max-width: 34rem;
+  margin: 0 auto;
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--deep);
+  border-top: 2px solid var(--surface);
+}
+
+.tabs button {
+  min-height: 52px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+}
+
+.tabs button[aria-pressed="true"] {
+  color: var(--yellow);
+  background: var(--water);
+}
+
+footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 16px;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+body:has(.tabs) footer {
+  padding-bottom: calc(72px + env(safe-area-inset-bottom));
+}
+
+/* The key pages */
+.prose h1 {
+  margin-bottom: 12px;
+}
+
+.keywords {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin: 16px 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: word;
+}
+
+.keywords li {
+  counter-increment: word;
+  padding: 10px 12px;
+  border: 2px solid var(--line);
+  background: var(--shallow);
+  font-size: 1.15rem;
+}
+
+.keywords li::before {
+  content: counter(word) " ";
+  color: var(--surface);
+  font-family: var(--pixel);
+  font-size: 0.75rem;
+}
+
+.keyline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.keyline code {
+  flex: 1;
+  padding: 10px;
+  border: 2px dashed var(--line);
+  font-family: inherit;
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+#qr {
+  width: 264px;
+  max-width: 100%;
+  height: auto;
+  margin: 16px auto;
+  border: 8px solid var(--cream);
+}
+
+.steps {
+  padding-left: 1.4rem;
+}
+
+.restore {
+  display: grid;
+  gap: 6px;
+}
+
+.restore label {
+  font-family: var(--pixel);
+  font-size: 0.75rem;
+  color: var(--surface);
+  text-transform: uppercase;
+}
+
+.restore input:not([type="checkbox"]) {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 2px solid var(--line);
+  border-radius: 0;
+  background: var(--deep);
+  color: var(--cream);
+  font: inherit;
+}
+
+.restore .check {
+  font-family: inherit;
+  text-transform: none;
+  color: var(--muted);
+}
