@@ -59,3 +59,17 @@ export function setPond(pond) {
   if (key !== gKey) { gKey = key; state.g = bred(genome(pond.frog.seed), pond.frog.mods); }
   watchers.forEach((fn) => fn(pond));
 }
+
+// The room a full window game has for its field, measured off the laid out
+// view since a phone's toolbar makes window.innerHeight unreliable.
+export function room(view) {
+  const hud = view.querySelector(".dive-hud");
+  return { w: view.clientWidth, h: view.clientHeight - (hud ? hud.offsetHeight : 0) };
+}
+
+export function onResize(fn) {
+  let t = 0;
+  const go = () => { clearTimeout(t); t = setTimeout(fn, 120); };
+  window.addEventListener("resize", go);
+  if (window.visualViewport) window.visualViewport.addEventListener("resize", go);
+}
