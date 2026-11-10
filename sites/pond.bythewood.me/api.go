@@ -271,11 +271,12 @@ func (s *site) apiLay(id int64, r *http.Request, w http.ResponseWriter) (any, er
 		Frog  int64  `json:"frog"`
 		Dye   string `json:"dye"`
 		Stamp string `json:"stamp"`
+		Drops string `json:"drops"`
 	}
 	if !readJSON(w, r, &in) {
 		return nil, nil
 	}
-	return s.store.lay(id, in.Frog, in.Dye, in.Stamp)
+	return s.store.lay(id, in.Frog, in.Dye, in.Stamp, in.Drops)
 }
 
 func (s *site) apiBuy(id int64, r *http.Request, w http.ResponseWriter) (any, error) {

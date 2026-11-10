@@ -124,7 +124,7 @@ func TestLarderLimitAndStamps(t *testing.T) {
 	parent := lookOf(1207)
 	stamped := 0
 	for range 2000 {
-		if m := breed(parent, randomSeed(), "", "stamp_mask"); m.Pattern == "MASK" {
+		if m := breed(parent, randomSeed(), "", "stamp_mask", ""); m.Pattern == "MASK" {
 			stamped++
 		}
 	}

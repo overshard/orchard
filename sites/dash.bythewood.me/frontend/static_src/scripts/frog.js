@@ -67,7 +67,8 @@ export function genome(seed) {
 // changed and its seed only names it and gives it a voice.
 export function bred(g, m) {
   if (!m) return g;
-  const morph = MORPHS.find((x) => x.name === m.morph) || g.morph;
+  let morph = MORPHS.find((x) => x.name === m.morph) || g.morph;
+  if (m.iris) morph = Object.assign({}, morph, { eye: m.iris });
   return Object.assign({}, g, { morph, pattern: m.pattern, hue: m.hue, sat: m.sat, lit: m.lit, bw: m.bw, bh: m.bh, eye: m.eye });
 }
 

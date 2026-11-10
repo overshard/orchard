@@ -30,7 +30,7 @@ type look struct {
 	morph                                 morph
 	hue, sat, lit, bw, bh, eye, gap, freq float64
 	phase                                 float64
-	pupil, pattern                        string
+	pupil, pattern, iris                  string
 	pseed                                 int
 	spots                                 []spot
 }
@@ -456,9 +456,13 @@ func hsl(h, s, l float64) color.RGBA {
 }
 
 func spriteColours(g look, h hat) map[uint8]color.RGBA {
+	eye := morphEye[g.morph.Name]
+	if g.iris != "" {
+		eye = g.iris
+	}
 	col := map[uint8]color.RGBA{
 		1: hsl(g.hue, g.sat, g.lit), 2: hsl(g.hue+18, g.sat*0.45, math.Min(92, g.lit+30)),
-		3: hsl(g.hue-8, g.sat, g.lit-17), 4: rgb(morphEye[g.morph.Name]), 5: rgb("#0a0908"),
+		3: hsl(g.hue-8, g.sat, g.lit-17), 4: rgb(eye), 5: rgb("#0a0908"),
 		6: hsl(g.hue, g.sat*0.6, 12), 7: hsl(g.hue+24, g.sat*0.4, math.Min(94, g.lit+38)),
 		8: hsl(g.hue, g.sat, g.lit-8), 9: hsl(g.hue, g.sat*0.5, 9),
 	}

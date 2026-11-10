@@ -20,6 +20,7 @@ function thanks(shop, l, d) {
   if (shop === "wren") return d.spare ? "Wren wraps the " + name + ". You had one already, so it's a spare." : "Wren wraps the " + name + ". It's in your hats.";
   if (shop === "fenn") return "Fenn sets the " + name.replace(/^a /, "") + " down by the water. Go and have a look.";
   if (shop === "brindle") return "Brindle hands over the " + name + ". It's in the kitchen.";
+  if (l.kind.startsWith("drops_")) return "Old Moss holds the " + name + " up to the light. They're on the egg bench.";
   if (l.kind.startsWith("stamp_")) return "Old Moss blows the dust off the " + name + ". It's on the egg bench.";
   if (l.kind.startsWith("dye_")) return "Old Moss hands over the " + name + ". It's on the egg bench.";
   return "Old Moss hands over the " + name + ". It's in your purse.";
