@@ -48,6 +48,20 @@ func (s *store) greet(id int64, first bool) (*greeting, error) {
 		if was, _ := stageOf(time.Unix(p.LastSeenAt, 0).Sub(hatched)); was != stage && away > 0 {
 			g.Missed = append(g.Missed, [2]string{"Grew", "from " + was + " to " + stage})
 		}
+		frogs, err := loadFrogs(tx, p.ID)
+		if err != nil {
+			return err
+		}
+		for _, f := range frogs {
+			if f.Front {
+				continue
+			}
+			born := time.Unix(f.HatchedAt, 0)
+			was, _ := stageOf(time.Unix(p.LastSeenAt, 0).Sub(born))
+			if is, _ := stageOf(now.Sub(born)); was != is {
+				g.Missed = append(g.Missed, [2]string{"Reeds", titled(newGenome(f.Seed).Name) + " grew from " + was + " to " + is})
+			}
+		}
 		if p.FreeSpins > 0 {
 			g.Missed = append(g.Missed, [2]string{"Wheel", plural(p.FreeSpins, "free spin") + " saved"})
 		}

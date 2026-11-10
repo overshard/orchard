@@ -562,7 +562,7 @@ the amber, so a change to those on dash is made here too.
   a hairline grid, `PEBBLES` and `KEY`.
 - A section head is an amber index chip, a caps title and a rule out to the
   edge, the same as a dash panel head.
-- **The four places are transport keys along the bottom**, numbered 01 to 04,
+- **The five places are transport keys along the bottom**, numbered 01 to 05,
   where a thumb is. The lit one has an amber bar across its top. The content
   column stops at `34rem` on a desktop.
 - **Dive is the whole window, on a phone and a desktop.** It covers the bar and
@@ -583,6 +583,9 @@ the amber, so a change to those on dash is made here too.
   beetles on the market, ripples quicken with the VIX, and a cold day has
   frost on the pad and the frog dozing. Each thing gets a line under Today at
   the pond saying why, so nothing on the water is a mystery.
+- **The reeds** are every frog as a card, the one out front first with an
+  amber border and OUT FRONT, the rest with a key to swap. The egg bench and
+  the pads sit under them.
 - **A frog's public page** is the frog in its screen, its power as one big
   amber Space Grotesk number with the rank beside it, the parts that make it
   up, and a QR code for the link. It ends on getting a frog of your own.

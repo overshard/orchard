@@ -63,6 +63,14 @@ export function genome(seed) {
   return g;
 }
 
+// A frog off the egg bench is its parent nudged, so the server sends what
+// changed and its seed only names it and gives it a voice.
+export function bred(g, m) {
+  if (!m) return g;
+  const morph = MORPHS.find((x) => x.name === m.morph) || g.morph;
+  return Object.assign({}, g, { morph, pattern: m.pattern, hue: m.hue, sat: m.sat, lit: m.lit, bw: m.bw, bh: m.bh, eye: m.eye });
+}
+
 function ell(x, y, cx, cy, rx, ry) { const a = (x - cx) / rx, b = (y - cy) / ry; return a * a + b * b <= 1; }
 
 // A hat is drawn from the top of whatever head it sits on, hx across from the

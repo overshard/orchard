@@ -1,8 +1,8 @@
 import qrcode from "qrcode-generator";
-import { genome, cells, colours, draw, croak, W, H } from "./frog.js";
+import { genome, bred, cells, colours, draw, croak, W, H } from "./frog.js";
 
 const scene = document.getElementById("scene"), sx = scene.getContext("2d"), d = scene.dataset;
-const g = genome(+d.seed), stage = d.stage, hat = { shape: +d.hat, colour: +d.colour };
+const g = bred(genome(+d.seed), d.mods ? JSON.parse(d.mods) : null), stage = d.stage, hat = { shape: +d.hat, colour: +d.colour };
 const grown = stage === "froglet" || stage === "frog" || stage === "elder";
 const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 let croakUntil = 0;

@@ -15,7 +15,7 @@
 {{ with .Share }}
 <section class="view">
   <button type="button" class="scene screen" id="scene-btn" aria-label="{{ .Frog.Name }}. Press it to hear its call.">
-    <canvas id="scene" width="352" height="272" data-seed="{{ .Frog.Seed }}" data-stage="{{ .Frog.Stage }}" data-day="{{ .Frog.Day }}" data-hat="{{ .Frog.Hat.Shape }}" data-colour="{{ .Frog.Hat.Colour }}"></canvas>
+    <canvas id="scene" width="352" height="272" data-seed="{{ .Frog.Seed }}" data-stage="{{ .Frog.Stage }}" data-day="{{ .Frog.Day }}" data-hat="{{ .Frog.Hat.Shape }}" data-colour="{{ .Frog.Hat.Colour }}"{{ with .Frog.Mods }} data-mods="{{ json . }}"{{ end }}></canvas>
   </button>
   <div class="who">
     <h1>{{ .Frog.Name }}</h1>

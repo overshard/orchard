@@ -4,8 +4,9 @@ import { drawIcon, iconCanvas } from "./icons.js";
 import { initDive, enterDive, leaveDive } from "./dive.js";
 import { initWheel, enterWheel } from "./wheel.js";
 import { initHats } from "./hats.js";
+import { initReeds } from "./reeds.js";
 
-const VIEWS = ["pond", "dive", "wheel", "hats"];
+const VIEWS = ["pond", "dive", "wheel", "hats", "reeds"];
 let view = "pond";
 
 function show(next) {
@@ -295,10 +296,10 @@ watch(renderPond);
 initDive();
 initWheel();
 initHats();
+initReeds();
 show(location.hash.slice(1));
 
 post("/api/greet").then((g) => {
-  state.g = genome(g.pond.frog.seed);
   if (g.present && g.present.pebbles) state.held = g.present.pebbles;
   setPond(g.pond);
   greet(g);

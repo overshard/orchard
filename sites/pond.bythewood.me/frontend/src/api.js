@@ -1,3 +1,5 @@
+import { genome, bred } from "./frog.js";
+
 // Every route that changes anything takes JSON and nothing else.
 export async function post(path, body) {
   const res = await fetch(path, {
@@ -31,7 +33,10 @@ export const TIERS = ["Common", "Uncommon", "Rare", "Epic", "Legendary"];
 export const state = { pond: null, g: null, held: 0 };
 const watchers = [];
 export function watch(fn) { watchers.push(fn); }
+let gKey = "";
 export function setPond(pond) {
   state.pond = pond;
+  const key = pond.frog.seed + JSON.stringify(pond.frog.mods);
+  if (key !== gKey) { gKey = key; state.g = bred(genome(pond.frog.seed), pond.frog.mods); }
   watchers.forEach((fn) => fn(pond));
 }

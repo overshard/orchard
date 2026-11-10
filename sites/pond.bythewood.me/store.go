@@ -32,6 +32,9 @@ CREATE TABLE IF NOT EXISTS ponds (
     dive_paid       INTEGER NOT NULL DEFAULT 0,
     dive_run        TEXT NOT NULL DEFAULT '',
     dive_started_at INTEGER NOT NULL DEFAULT 0,
+    dive_ghosts     TEXT NOT NULL DEFAULT '',
+    dive_podium     INTEGER NOT NULL DEFAULT 0,
+    pads            INTEGER NOT NULL DEFAULT 3,
     key_saved_at    INTEGER
 );
 CREATE INDEX IF NOT EXISTS ponds_created ON ponds(created_at);
@@ -44,7 +47,9 @@ CREATE TABLE IF NOT EXISTS frogs (
     hatched_at  INTEGER NOT NULL,
     out_front   INTEGER NOT NULL DEFAULT 1,
     hat_shape   INTEGER NOT NULL DEFAULT 0,
-    hat_colour  INTEGER NOT NULL DEFAULT 0
+    hat_colour  INTEGER NOT NULL DEFAULT 0,
+    genome_json TEXT NOT NULL DEFAULT '',
+    laid_at     INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS frogs_pond ON frogs(pond_id);
 
@@ -66,14 +71,18 @@ CREATE TABLE IF NOT EXISTS items (
 
 // Columns added since the first deploy. CREATE TABLE IF NOT EXISTS leaves a
 // table that is already there alone, so these are added by hand.
-var addedColumns = []struct{ name, def string }{
-	{"dive_ghosts", "TEXT NOT NULL DEFAULT ''"},
-	{"dive_podium", "INTEGER NOT NULL DEFAULT 0"},
+var addedColumns = []struct{ table, name, def string }{
+	{"ponds", "dive_ghosts", "TEXT NOT NULL DEFAULT ''"},
+	{"ponds", "dive_podium", "INTEGER NOT NULL DEFAULT 0"},
+	{"ponds", "pads", "INTEGER NOT NULL DEFAULT 3"},
+	{"frogs", "genome_json", "TEXT NOT NULL DEFAULT ''"},
+	{"frogs", "laid_at", "INTEGER NOT NULL DEFAULT 0"},
 }
 
 func ensureColumns(db *sql.DB) error {
 	have := map[string]bool{}
-	rows, err := db.Query(`SELECT name FROM pragma_table_info('ponds')`)
+	rows, err := db.Query(`SELECT m.name || '.' || c.name FROM sqlite_schema m
+		JOIN pragma_table_info(m.name) c WHERE m.type = 'table'`)
 	if err != nil {
 		return err
 	}
@@ -89,10 +98,10 @@ func ensureColumns(db *sql.DB) error {
 		return err
 	}
 	for _, c := range addedColumns {
-		if have[c.name] {
+		if have[c.table+"."+c.name] {
 			continue
 		}
-		if _, err := db.Exec("ALTER TABLE ponds ADD COLUMN " + c.name + " " + c.def); err != nil {
+		if _, err := db.Exec("ALTER TABLE " + c.table + " ADD COLUMN " + c.name + " " + c.def); err != nil {
 			return err
 		}
 	}
@@ -100,12 +109,13 @@ func ensureColumns(db *sql.DB) error {
 }
 
 var (
-	errNoPond  = errors.New("no pond")
-	errFull    = errors.New("the pond is full for the moment, try again in a little while")
-	errPoor    = errors.New("not enough pebbles")
-	errNotYet  = errors.New("not yet")
-	errNotHeld = errors.New("you don't have that one")
-	errBadRun  = errors.New("that run doesn't count")
+	errNoPond   = errors.New("no pond")
+	errFull     = errors.New("the pond is full for the moment, try again in a little while")
+	errPoor     = errors.New("not enough pebbles")
+	errNotYet   = errors.New("not yet")
+	errNotHeld  = errors.New("you don't have that one")
+	errBadRun   = errors.New("that run doesn't count")
+	errFullPads = errors.New("every pad has a frog on it, so the pond needs another pad first")
 )
 
 // store keeps one writing connection and a small pool that only reads. Every
@@ -195,10 +205,12 @@ type pond struct {
 	DiveStart  int64
 	DiveGhosts string
 	DivePodium int
+	Pads       int
 	KeySavedAt sql.NullInt64
 
 	FrogID    int64
 	Seed      uint32
+	ModsJSON  string
 	HatchedAt int64
 	Wearing   hat
 }
@@ -206,14 +218,16 @@ type pond struct {
 const pondColumns = `p.id, p.public_id, p.created_at, p.last_seen_at, p.last_gift_at,
 	p.pebbles, p.free_spins, p.spin_at, p.paid_spins, p.paid_spins_day, p.log_day,
 	p.dive_best, p.dive_day, p.dive_runs, p.dive_paid, p.dive_run, p.dive_started_at,
-	p.dive_ghosts, p.dive_podium, p.key_saved_at, f.id, f.seed, f.hatched_at, f.hat_shape, f.hat_colour`
+	p.dive_ghosts, p.dive_podium, p.pads, p.key_saved_at, f.id, f.seed, f.genome_json, f.hatched_at,
+	f.hat_shape, f.hat_colour`
 
 func scanPond(row *sql.Row) (*pond, error) {
 	var p pond
 	err := row.Scan(&p.ID, &p.PublicID, &p.CreatedAt, &p.LastSeenAt, &p.LastGiftAt,
 		&p.Pebbles, &p.FreeSpins, &p.SpinAt, &p.PaidSpins, &p.PaidDay, &p.LogDay,
 		&p.DiveBest, &p.DiveDay, &p.DiveRuns, &p.DivePaid, &p.DiveRun, &p.DiveStart,
-		&p.DiveGhosts, &p.DivePodium, &p.KeySavedAt, &p.FrogID, &p.Seed, &p.HatchedAt, &p.Wearing.Shape, &p.Wearing.Colour)
+		&p.DiveGhosts, &p.DivePodium, &p.Pads, &p.KeySavedAt, &p.FrogID, &p.Seed, &p.ModsJSON, &p.HatchedAt,
+		&p.Wearing.Shape, &p.Wearing.Colour)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, errNoPond
 	}
@@ -232,10 +246,10 @@ func savePond(tx *sql.Tx, p *pond) error {
 	if _, err := tx.Exec(`UPDATE ponds SET last_seen_at = ?, last_gift_at = ?, pebbles = ?,
 		free_spins = ?, spin_at = ?, paid_spins = ?, paid_spins_day = ?, log_day = ?,
 		dive_best = ?, dive_day = ?, dive_runs = ?, dive_paid = ?, dive_run = ?,
-		dive_started_at = ?, dive_ghosts = ?, dive_podium = ?, key_saved_at = ? WHERE id = ?`,
+		dive_started_at = ?, dive_ghosts = ?, dive_podium = ?, pads = ?, key_saved_at = ? WHERE id = ?`,
 		p.LastSeenAt, p.LastGiftAt, p.Pebbles, p.FreeSpins, p.SpinAt, p.PaidSpins, p.PaidDay,
 		p.LogDay, p.DiveBest, p.DiveDay, p.DiveRuns, p.DivePaid, p.DiveRun, p.DiveStart,
-		p.DiveGhosts, p.DivePodium, p.KeySavedAt, p.ID); err != nil {
+		p.DiveGhosts, p.DivePodium, p.Pads, p.KeySavedAt, p.ID); err != nil {
 		return err
 	}
 	_, err := tx.Exec(`UPDATE frogs SET hat_shape = ?, hat_colour = ? WHERE id = ?`,
@@ -400,10 +414,20 @@ type itemView struct {
 
 type frogView struct {
 	genome
+	Mods   *mods  `json:"mods"`
 	Stage  string `json:"stage"`
 	Day    int    `json:"day"`
 	Rarity rarity `json:"rarity"`
 	Hat    hat    `json:"hat"`
+}
+
+// reedView is a frog in the collection, out front or not.
+type reedView struct {
+	frogView
+	ID    int64 `json:"id"`
+	Front bool  `json:"front"`
+	// Seconds until it can lay, 0 for now and -1 while it's too young.
+	LayIn int64 `json:"lay_in"`
 }
 
 type view struct {
@@ -434,9 +458,12 @@ type view struct {
 		Cost int            `json:"cost"`
 		Odds [tierCount]int `json:"odds"`
 	} `json:"box"`
-	Hats  []hatView  `json:"hats"`
-	Items []itemView `json:"items"`
-	Share struct {
+	Frogs   []reedView `json:"frogs"`
+	Pads    int        `json:"pads"`
+	PadCost int        `json:"pad_cost"`
+	Hats    []hatView  `json:"hats"`
+	Items   []itemView `json:"items"`
+	Share   struct {
 		Path  string `json:"path"`
 		Power power  `json:"power"`
 	} `json:"share"`
@@ -446,9 +473,13 @@ type view struct {
 }
 
 func frogOf(p *pond, now time.Time) frogView {
-	g := newGenome(p.Seed)
-	stage, day := stageOf(now.Sub(time.Unix(p.HatchedAt, 0)))
-	return frogView{genome: g, Stage: stage, Day: day, Rarity: rarityOf(g), Hat: p.Wearing}
+	return frogViewOf(frogRow{Seed: p.Seed, Mods: parseMods(p.ModsJSON), HatchedAt: p.HatchedAt, Hat: p.Wearing}, now)
+}
+
+func frogViewOf(f frogRow, now time.Time) frogView {
+	g := genomeOf(f.Seed, f.Mods)
+	stage, day := stageOf(now.Sub(time.Unix(f.HatchedAt, 0)))
+	return frogView{genome: g, Mods: f.Mods, Stage: stage, Day: day, Rarity: rarityOf(g), Hat: f.Hat}
 }
 
 // viewOf settles a copy, so reading a pond never writes to it.
@@ -500,6 +531,24 @@ func viewOf(q querier, p pond, now time.Time) (*view, error) {
 				found = append(found, h)
 			}
 		}
+	}
+	frogs, err := loadFrogs(q, p.ID)
+	if err != nil {
+		return nil, err
+	}
+	for _, f := range frogs {
+		if f.Front {
+			f.Hat = p.Wearing
+		}
+		in := layIn(f, now)
+		if in > 0 {
+			in = in/time.Second + 1
+		}
+		v.Frogs = append(v.Frogs, reedView{frogView: frogViewOf(f, now), ID: f.ID, Front: f.Front, LayIn: int64(in)})
+	}
+	v.Pads = p.Pads
+	if p.Pads < mostPads {
+		v.PadCost = padCost(p.Pads)
 	}
 	v.Share.Path = "/f/" + slug(v.Frog.Name, p.PublicID)
 	v.Share.Power = powerOf(v.Frog.Rarity, found, p.DiveBest)
