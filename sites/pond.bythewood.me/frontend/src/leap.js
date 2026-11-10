@@ -1,0 +1,116 @@
+import { cells, colours, draw, W as FW, H as FH } from "./frog.js";
+
+// Lily leap. The frog bounces off every pad it lands on and climbs as high as
+// it can. Hold a finger to one side, or the arrow keys, to steer, and the
+// field wraps at the edges. Brown pads sink once used and dragonflies launch.
+const W = 220, H = 330, GRAV = 560, BOUNCE = 340, LAUNCH = 620, RUN = 190;
+const PW = 36, FOOT = 12;
+
+let G = null, spr = null, col = null;
+
+function pad(y) {
+  const up = G ? G.top : 0, r = Math.random();
+  const kind = up > 600 && r < Math.min(0.3, up / 8000) ? "sink" : up > 300 && r < 0.45 ? "drift" : "pad";
+  const p = { x: 10 + Math.random() * (W - PW - 20), y, kind, v: kind === "drift" ? (Math.random() < 0.5 ? -1 : 1) * (24 + Math.random() * 30) : 0, gone: 0 };
+  if (Math.random() < 0.07) p.fly = true;
+  else if (Math.random() < 0.12) p.bug = true;
+  return p;
+}
+
+function fill() {
+  while (G.highest > G.cam - 40) {
+    const gap = Math.min(96, 46 + G.top / 90) * (0.6 + Math.random() * 0.4);
+    G.highest -= gap;
+    G.pads.push(pad(G.highest));
+  }
+}
+
+export const leap = {
+  key: "leap", W, H, title: "LILY LEAP",
+  help: ["HOLD LEFT OR RIGHT TO STEER", "BOUNCE UP THE PADS", "BROWN PADS SINK, DRAGONFLIES LAUNCH", "TAP TO START"],
+
+  reset(g, p) {
+    const stage = ["egg", "tadpole"].includes(p.frog.stage) ? "froglet" : p.frog.stage;
+    spr = cells(g, stage, { hat: p.frog.hat.shape });
+    col = colours(g, p.frog.hat);
+    G = { t: 0, x: W / 2, y: H - 40, vx: 0, vy: -BOUNCE, cam: 0, top: 0, highest: H - 30, pads: [], dir: 0, want: null, keys: { left: false, right: false }, bonus: 0, pops: [], why: "", fell: 0 };
+    G.pads.push({ x: W / 2 - PW / 2, y: H - 30, kind: "pad", v: 0, gone: 0 });
+    fill();
+  },
+
+  drag(x) { if (G) G.want = x; },
+  release() { if (G) G.want = null; },
+  hold(dir, on) { if (G) G.keys[dir] = on; },
+
+  step(dt) {
+    G.t += dt;
+    if (G.fell > 0) { G.fell += dt; G.vy += GRAV * dt; G.y += G.vy * dt; return; }
+    let steer = (G.keys.right ? 1 : 0) - (G.keys.left ? 1 : 0);
+    if (G.want !== null) steer = Math.max(-1, Math.min(1, (G.want - G.x) / 24));
+    G.vx += (steer * RUN - G.vx) * Math.min(1, dt * 10);
+    G.x += G.vx * dt;
+    if (G.x < -10) G.x += W + 20;
+    if (G.x > W + 10) G.x -= W + 20;
+    const was = G.y;
+    G.vy += GRAV * dt;
+    G.y += G.vy * dt;
+    for (const p of G.pads) {
+      if (p.v) { p.x += p.v * dt; if (p.x < 0 || p.x > W - PW) p.v = -p.v; }
+      if (p.gone) { p.gone += dt; p.y += 40 * dt; continue; }
+      if (G.vy > 0 && was <= p.y && G.y >= p.y && G.x + FOOT > p.x && G.x - FOOT < p.x + PW) {
+        G.y = p.y; G.vy = -BOUNCE;
+        if (p.kind === "sink") p.gone = 0.01;
+        if (p.fly) { p.fly = false; G.vy = -LAUNCH; G.pops.push({ x: G.x, y: G.y - 30, s: "WHEE", t: 0 }); }
+        if (p.bug) { p.bug = false; G.bonus += 2; G.pops.push({ x: G.x, y: G.y - 30, s: "+2", t: 0 }); }
+      }
+    }
+    G.cam = Math.min(G.cam, G.y - H * 0.45);
+    G.top = Math.max(G.top, H - 40 - G.y);
+    G.pads = G.pads.filter((p) => p.y - G.cam < H + 20 && p.gone < 1.5);
+    fill();
+    if (G.y - G.cam > H + 10) { G.fell = 0.01; G.why = "SPLASH"; }
+    G.pops.forEach((p) => { p.t += dt; p.y -= dt * 20; });
+    G.pops = G.pops.filter((p) => p.t < 0.8);
+  },
+
+  over() { return G && G.fell > 0.6; },
+  score() { return G ? Math.floor(G.top / 150) + G.bonus : 0; },
+  why() { return G ? G.why : ""; },
+
+  draw(x) {
+    const cam = G ? G.cam : 0;
+    x.fillStyle = "#123a3d"; x.fillRect(0, 0, W, H);
+    x.fillStyle = "#0e2c30";
+    for (let i = 0; i < 9; i++) { const y = ((i * 47 - cam * 0.4) % H + H) % H; x.fillRect(0, Math.round(y), W, 10); }
+    x.fillStyle = "#1d5163";
+    for (let i = 0; i < 14; i++) { const y = ((i * 31 - cam * 0.7) % H + H) % H; x.fillRect((i * 53) % W, Math.round(y), 8, 1); }
+    if (!G) return;
+    for (const p of G.pads) {
+      const px = Math.round(p.x), py = Math.round(p.y - cam);
+      if (p.gone) x.globalAlpha = Math.max(0, 1 - p.gone / 1.5);
+      x.fillStyle = "#0a1b1f"; x.fillRect(px + 2, py + 3, PW - 2, 5);
+      x.fillStyle = p.kind === "sink" ? "#6b4a2a" : p.kind === "drift" ? "#3f9a4d" : "#1f5a2c"; x.fillRect(px, py, PW, 6);
+      x.fillStyle = p.kind === "sink" ? "#8a5a2b" : "#56b45f"; x.fillRect(px + 2, py - 1, PW - 4, 5);
+      x.fillStyle = "#123a3d"; x.fillRect(px + PW / 2, py - 1, 4, 3);
+      x.globalAlpha = 1;
+      if (p.fly) {
+        const f = Math.floor(G.t * 16) % 2;
+        x.fillStyle = "#3d8fd6"; x.fillRect(px + 10, py - 8, 14, 3);
+        x.fillStyle = "#cfe3ea"; x.fillRect(px + 13, py - 12 + f, 4, 3); x.fillRect(px + 18, py - 12 + f, 4, 3);
+      }
+      if (p.bug) {
+        x.fillStyle = "rgba(255,226,122,0.3)"; x.fillRect(px + 22, py - 14, 10, 10);
+        x.fillStyle = "#ffe27a"; x.fillRect(px + 25, py - 11 + Math.round(Math.sin(G.t * 5)), 4, 3);
+      }
+    }
+    const fx = Math.round(G.x - FW / 2), fy = Math.round(G.y - cam - FH);
+    draw(x, spr, FW, FH, col, fx, fy, 1);
+    if (fx < 0) draw(x, spr, FW, FH, col, fx + W + 20, fy, 1);
+    if (fx + FW > W) draw(x, spr, FW, FH, col, fx - W - 20, fy, 1);
+    x.font = "700 13px 'Space Grotesk', sans-serif"; x.textAlign = "center";
+    G.pops.forEach((p) => { x.fillStyle = "#ffb000"; x.fillText(p.s, p.x, p.y - cam); });
+    x.textAlign = "left"; x.fillStyle = "#ece5d8"; x.fillText(String(leap.score()), 6, 16);
+    x.textAlign = "right"; x.font = "500 8px 'JetBrains Mono', monospace"; x.fillStyle = "#bcaf99";
+    x.fillText(Math.floor(G.top / 10) + " M", W - 6, 14);
+  },
+};

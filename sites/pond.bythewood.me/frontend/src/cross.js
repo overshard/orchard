@@ -1,4 +1,5 @@
 import { colours } from "./frog.js";
+import { drawTop } from "./top.js";
 
 // Crossing. The frog starts on the field side of a lane and wants the pond
 // on the far side of a stream. Hop a row at a time, past traffic on the lane
@@ -20,22 +21,6 @@ const LANES = {
   2: { kind: "log", v: -1.1, run: [[3, 3], [2, 4]], c: "#8a5a2b" },
 };
 const WRAP = COLS + 6;
-
-// A frog from above, by colour class, 12 wide.
-const TOP = [
-  "8..........8",
-  "88..4114..88",
-  ".8.415514.8.",
-  "..11111111..",
-  ".1113113111.",
-  ".1111111111.",
-  ".1131111311.",
-  "..11222211..",
-  "..81111118..",
-  ".88.1111.88.",
-  "88........88",
-  "8..........8",
-];
 
 let G = null, col = null;
 
@@ -167,12 +152,7 @@ export const cross = {
       }
     });
     if (G.lives > 0 && !(G.flash > 0 && Math.floor(G.flash * 12) % 2)) {
-      const ox = Math.round(G.fx * C) + 1, oy = G.row * C + 1 - (G.hop > 0 ? 2 : 0), flip = G.face === "down";
-      TOP.forEach((row, ry) => [...row].forEach((ch, rx) => {
-        if (ch === ".") return;
-        x.fillStyle = col[ch];
-        x.fillRect(ox + rx, oy + (flip ? 11 - ry : ry), 1, 1);
-      }));
+      drawTop(x, col, Math.round(G.fx * C) + 1, G.row * C + 1 - (G.hop > 0 ? 2 : 0), G.face === "down");
     }
     x.font = "700 13px 'Space Grotesk', sans-serif"; x.textAlign = "center";
     G.pops.forEach((p) => { x.fillStyle = "#ffb000"; x.fillText(p.s, p.x, p.y); });

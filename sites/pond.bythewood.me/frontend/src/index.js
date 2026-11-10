@@ -5,6 +5,10 @@ import { initDive, enterDive, leaveDive } from "./dive.js";
 import { arcade } from "./arcade.js";
 import { flick } from "./flick.js";
 import { cross } from "./cross.js";
+import { raft } from "./raft.js";
+import { leap } from "./leap.js";
+import { school } from "./school.js";
+import { drawTop } from "./top.js";
 import { initWheel, enterWheel } from "./wheel.js";
 import { initReeds } from "./reeds.js";
 import { initBank, enterBank, leaveBank } from "./bank.js";
@@ -16,11 +20,11 @@ import { initTown, enterTown, leaveTown } from "./town.js";
 import { initNeighbours } from "./neighbours.js";
 import { initSettings } from "./settings.js";
 
-const VIEWS = ["pond", "play", "dive", "cross", "flick", "wheel", "bag", "collect", "reeds", "garden", "bank", "town", "settings"];
+const VIEWS = ["pond", "play", "dive", "cross", "flick", "raft", "leap", "school", "wheel", "bag", "collect", "reeds", "garden", "bank", "town", "settings"];
 // Places that open from another light that one's key.
-const TAB_OF = { dive: "play", wheel: "play", cross: "play", flick: "play" };
+const TAB_OF = { dive: "play", wheel: "play", cross: "play", flick: "play", raft: "play", leap: "play", school: "play" };
 let view = "pond", fetchedAt = Date.now();
-const GAMES = { flick: arcade(flick), cross: arcade(cross) };
+const GAMES = { flick: arcade(flick), cross: arcade(cross), raft: arcade(raft), leap: arcade(leap), school: arcade(school) };
 
 function show(next) {
   if (!VIEWS.includes(next)) next = "pond";
@@ -406,6 +410,26 @@ function drawPlay() {
   f.fillStyle = "#e2567a"; for (let i = 0; i < 14; i++) f.fillRect(84 + i * 3, 70 - i * 3, 2, 2);
   f.fillStyle = "#3a3f46"; f.fillRect(126, 26, 5, 3); f.fillStyle = "#cfe3ea"; f.fillRect(126, 23, 2, 2); f.fillRect(129, 23, 2, 2);
   f.fillStyle = "#ffe27a"; f.fillRect(30, 30, 4, 3); f.fillRect(140, 60, 4, 3);
+  const fc = colours(g, null);
+  const r = $("play-raft-art").getContext("2d");
+  r.fillStyle = "#3f8a44"; r.fillRect(0, 0, 168, 96);
+  for (let y = 0; y < 96; y += 2) { const c = 84 + Math.sin(y / 18) * 14; r.fillStyle = "#1d5163"; r.fillRect(Math.round(c - 46), y, 92, 2); }
+  r.fillStyle = "#56b45f"; for (let x = 40; x < 130; x += 3) if (x < 74 || x > 98) r.fillRect(x, 26, 2, 10);
+  r.fillStyle = "#8a5a2b"; for (let x = 41; x < 130; x += 6) if (x < 74 || x > 98) r.fillRect(x, 23, 2, 4);
+  r.fillStyle = "#8a9099"; r.fillRect(104, 56, 10, 8);
+  r.fillStyle = "#56b45f"; r.fillRect(76, 66, 16, 20);
+  drawTop(r, fc, 78, 70, false);
+  const l = $("play-leap-art").getContext("2d");
+  l.fillStyle = "#123a3d"; l.fillRect(0, 0, 168, 96);
+  [[20, 84], [70, 62], [112, 38], [40, 22]].forEach(([x, y], i) => { l.fillStyle = i === 3 ? "#8a5a2b" : "#56b45f"; l.fillRect(x, y, 32, 5); });
+  draw(l, cells(g, ["egg", "tadpole"].includes(p.frog.stage) ? "froglet" : p.frog.stage, {}), W, H, fc, 64, 20, 1);
+  l.fillStyle = "#3d8fd6"; l.fillRect(118, 30, 14, 3); l.fillStyle = "#cfe3ea"; l.fillRect(121, 26, 4, 3); l.fillRect(126, 26, 4, 3);
+  const sc = $("play-school-art").getContext("2d");
+  sc.fillStyle = "#2f6b33"; sc.fillRect(0, 0, 168, 96);
+  sc.fillStyle = "#1d5163"; sc.fillRect(4, 4, 160, 88);
+  [[60, 48], [72, 48], [84, 48], [84, 36], [96, 36]].forEach(([x, y], i) => { sc.fillStyle = fc[3]; sc.fillRect(x, y, 8, 8); sc.fillStyle = fc[1]; sc.fillRect(x + 1, y + 1, 6, 6); if (i === 4) { sc.fillStyle = "#0a0908"; sc.fillRect(x + 6, y + 2, 1, 1); sc.fillRect(x + 6, y + 5, 1, 1); } });
+  sc.fillStyle = "#e9e3d6"; sc.fillRect(124, 38, 5, 4);
+  sc.fillStyle = "#8a9099"; sc.fillRect(30, 20, 10, 9); sc.fillRect(130, 70, 10, 9);
   (p.arcade || []).forEach((a) => { $("play-" + a.key + "-line").textContent = "Best " + a.best + " · today " + a.paid + "/" + a.cap; });
   const w = $("play-wheel-art").getContext("2d");
   w.fillStyle = "#0e2c30"; w.fillRect(0, 0, 168, 96);
