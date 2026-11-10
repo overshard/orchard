@@ -125,6 +125,9 @@ var firstPerson = map[string]bool{"I": true, "I'm": true, "I've": true, "I'll": 
 
 var slotRe = regexp.MustCompile(`\{[a-z]+\}`)
 
+// The model sometimes heads a resident's line with what it's for, like Thinks:
+var folkLabel = regexp.MustCompile(`^(?i)(thinks|says|press|read|doing|rain|cold|hot|grey|pollen)\s*:\s*`)
+
 // A word starting with one of bannedPrefix, or equal to one of bannedWord,
 // drops the line. The market and money words keep the real day's numbers off
 // the pond too.
@@ -149,6 +152,9 @@ func checkLine(l string, a taleAsk, seen map[string]bool) (string, bool) {
 	allowed, must := a.allowed, a.must
 	l = strings.TrimSpace(l)
 	l = strings.TrimSpace(strings.Trim(l, `"'`))
+	if a.kind == "folk" {
+		l = strings.TrimSpace(folkLabel.ReplaceAllString(l, ""))
+	}
 	if l != "" && l[0] >= 'a' && l[0] <= 'z' {
 		l = strings.ToUpper(l[:1]) + l[1:]
 	}

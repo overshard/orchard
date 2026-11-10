@@ -52,6 +52,7 @@ func TestCheckLineForFolk(t *testing.T) {
 		{"read", "Did you see the gazette this morning?", false},
 		{"says", "Hello there. Sedge says you cook.", false},
 		{"says", "Hello there. Tell me, do you cook?", true},
+		{"thinks", "Thinks: I hope the rain keeps everybody cosy tonight.", true},
 		{"thinks", "I keep thinking about the very long walk round the whole pond and back again, slowly.", false},
 	}
 	for _, c := range cases {
