@@ -202,8 +202,19 @@ func trinketsOf(q querier, p *pond, held map[string]int) (trinketsView, error) {
 // foundTrinkets is every trinket a pond has ever had, which is what the set
 // and frog power count.
 func foundTrinkets(q querier, id int64) (map[string]bool, error) {
+	return kindsOf(q, `SELECT kind FROM trinkets_found WHERE pond_id = ?1`, id)
+}
+
+// everHad is every trinket, rock and keepsake a pond has had.
+func everHad(q querier, id int64) (map[string]bool, error) {
+	return kindsOf(q, `SELECT kind FROM trinkets_found WHERE pond_id = ?1
+		UNION SELECT kind FROM rocks_found WHERE pond_id = ?1
+		UNION SELECT kind FROM keepsakes WHERE pond_id = ?1`, id)
+}
+
+func kindsOf(q querier, query string, id int64) (map[string]bool, error) {
 	found := map[string]bool{}
-	rows, err := q.Query(`SELECT kind FROM trinkets_found WHERE pond_id = ?`, id)
+	rows, err := q.Query(query, id)
 	if err != nil {
 		return nil, err
 	}
