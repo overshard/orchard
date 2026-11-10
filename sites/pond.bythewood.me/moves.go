@@ -250,7 +250,14 @@ type diving struct {
 func (s *store) diveStart(id int64) (*diving, error) {
 	out := &diving{Run: randomHex(8)}
 	_, err := s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
-		out.Ghosts = dealGhosts(p.DiveBest)
+		if p.DiveForm == 0 {
+			// Ponds from before form was kept start from their best.
+			p.DiveForm = diveFormStart
+			if p.DiveBest > 0 {
+				p.DiveForm = max(diveFormStart, float64(p.DiveBest)*0.7)
+			}
+		}
+		out.Ghosts = dealGhosts(p.DiveForm)
 		deal := make([]string, len(out.Ghosts))
 		for i, c := range out.Ghosts {
 			deal[i] = strconv.Itoa(c)
@@ -297,6 +304,7 @@ func (s *store) diveFinish(id int64, run string, score, gates int) (*dived, erro
 			return nil
 		}
 		p.DiveRuns++
+		p.DiveForm = diveForm(p.DiveForm, gates)
 		out.Paid = min(divePays(score, p.DiveRuns), diveCap-p.DivePaid)
 		p.DivePaid += out.Paid
 		p.Pebbles += out.Paid
