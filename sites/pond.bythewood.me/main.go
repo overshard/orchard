@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"embed"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"html/template"
@@ -69,6 +70,10 @@ var templateFuncs = template.FuncMap{
 	"commas":     commas,
 	"lower":      strings.ToLower,
 	"hatsInGame": func() int { return hatsInGame },
+	"json": func(v any) (string, error) {
+		b, err := json.Marshal(v)
+		return string(b), err
+	},
 }
 
 type site struct {
@@ -192,6 +197,9 @@ func (s *site) handler() http.Handler {
 	mux.HandleFunc("POST /api/hats/box", s.played(s.apiBox))
 	mux.HandleFunc("POST /api/hats/wear", s.played(s.apiWear))
 	mux.HandleFunc("POST /api/hats/sell", s.played(s.apiSell))
+	mux.HandleFunc("POST /api/frogs/front", s.played(s.apiFront))
+	mux.HandleFunc("POST /api/frogs/lay", s.played(s.apiLay))
+	mux.HandleFunc("POST /api/pads/buy", s.played(s.apiBuyPad))
 	if devBuild {
 		mux.HandleFunc("POST /api/dev/clock", post(s.apiDevClock))
 		mux.HandleFunc("POST /api/dev/day", post(s.apiDevDay))

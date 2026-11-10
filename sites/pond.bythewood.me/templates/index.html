@@ -96,6 +96,23 @@
     <h2 data-idx="02">Collection</h2>
     <div class="hatgrid" id="hatgrid"></div>
   </section>
+
+  <section class="view" id="v-reeds" hidden>
+    <p class="line" id="reeds-line"></p>
+    <div class="reeds" id="reeds"></div>
+    <p class="dim" id="reeds-out" role="status"></p>
+
+    <h2 data-idx="01">The egg bench</h2>
+    <p id="bench-line"></p>
+    <p class="dim">An egg is its parent with the numbers nudged, and about one in sixteen throws back to something else. A dye from the wheel takes about two times in three and is used up either way.</p>
+    <div class="row seg" id="bench-dyes" aria-label="Dye"></div>
+    <div class="row"><button type="button" class="primary" id="lay">Lay an egg</button></div>
+    <p class="line" id="bench-out" role="status"></p>
+
+    <h2 data-idx="02">Pads</h2>
+    <p id="pads-line"></p>
+    <div class="row"><button type="button" id="pad-buy">Another pad</button></div>
+  </section>
 </div>
 
 <nav class="tabs" id="tabs" aria-label="Places in the pond">
@@ -103,6 +120,7 @@
   <button type="button" data-view="dive" aria-pressed="false"><span class="idx">02</span>Dive</button>
   <button type="button" data-view="wheel" aria-pressed="false"><span class="idx">03</span>Wheel</button>
   <button type="button" data-view="hats" aria-pressed="false"><span class="idx">04</span>Hats</button>
+  <button type="button" data-view="reeds" aria-pressed="false"><span class="idx">05</span>Reeds</button>
 </nav>
 {{ end }}
 

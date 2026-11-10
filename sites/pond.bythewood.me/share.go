@@ -272,7 +272,7 @@ func drawCard(sh *shown) *image.RGBA {
 	if f.Stage == "froglet" || f.Stage == "frog" || f.Stage == "elder" {
 		lilyPad(img, ox, oy, px)
 	}
-	g := lookOf(f.Seed)
+	g := lookFor(f.Seed, f.Mods)
 	drawSprite(img, spriteCells(g, f.Stage, f.Day, f.Hat.Shape), spriteColours(g, f.Hat), ox, oy, px)
 	for i := 0; i < sh0; i += 4 {
 		for x := sx; x < sx+sw; x++ {

@@ -30,6 +30,8 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
 - `main.go` wires the routes and the pages, `api.go` is the JSON handlers.
 - `store.go` opens SQLite and loads and saves a pond, `moves.go` is each thing
   a visitor can do to one, and `game.go` is the rules and the odds.
+- `breed.go` is the egg bench, the reeds and pads. A frog off the bench keeps
+  how it differs from its seed as JSON in `frogs.genome_json`.
 - `genome.go` turns a seed into a frog's name, look and rarity, and
   `frontend/src/frog.js` is the same thing in JavaScript plus the drawing.
 - `key.go` and `words.txt` are the pond key.
@@ -40,8 +42,9 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
 - `share.go` is a frog's public page at `/f/<name>-<code>`, its power, and the
   PNG card a link unfurls with, drawn by `sprite.go` in the JetBrains Mono under
   `fonts/`. The code is the pond's public id and can't open the pond.
-- `frontend/src/` has one file a view, `dive.js`, `wheel.js` and `hats.js`,
-  with `index.js` for the pond itself and `key.js` and `k.js` for the key pages.
+- `frontend/src/` has one file a view, `dive.js`, `wheel.js`, `hats.js` and
+  `reeds.js`, with `index.js` for the pond itself, `share.js` for a frog's
+  public page and `key.js` and `k.js` for the key pages.
 - `web/` is this site's own copy of the HTTP layer every site here shares.
 
 `GET /api/panel` answers with the visitor's frog as JSON, or a house frog when
@@ -62,8 +65,11 @@ they have none, for other sites to draw.
   a price or a prize.
 - The ghosts in Dive are dealt by `POST /api/dive/start`, which is how the
   server knows a podium place at the finish. The page only plays them out.
-- A new column on `ponds` goes in `addedColumns` in `store.go` as well as the
-  schema, since the live table already exists.
+- A new column goes in `addedColumns` in `store.go` as well as the schema,
+  since the live tables already exist.
+- A bred frog's seed only names it and gives it a voice and a pupil. Anything
+  that draws or rates a frog has to apply its mods, `genomeOf` and `lookFor`
+  here and `bred` in `frog.js`.
 - The egg is laid by `POST /api/greet` from the page's script and not by the
   page load, so crawlers don't fill the database with eggs.
 - `/key` and `/k` show or carry a pond key, so they load no analytics and send

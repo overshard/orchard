@@ -606,7 +606,7 @@ body:has(#v-dive.full) {
   bottom: 0;
   z-index: 2;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 1px;
   width: 100%;
   max-width: 34rem;
@@ -820,4 +820,53 @@ body:has(.tabs) main {
   font-size: 12px;
   overflow-wrap: anywhere;
   user-select: all;
+}
+
+/* The reeds, every frog in the pond with the one out front first. */
+.reeds {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.reed {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  padding: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.reed.front {
+  border-color: var(--amber-dim);
+}
+
+.reed canvas {
+  width: 100%;
+  height: auto;
+  background: #0e2c30;
+  image-rendering: pixelated;
+}
+
+.reed b {
+  font-family: var(--grotesk);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.reed span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.reed .on {
+  color: var(--amber);
+  letter-spacing: var(--track);
+}
+
+.seg button[aria-pressed="true"] {
+  border-color: var(--amber);
+  color: var(--amber);
 }
