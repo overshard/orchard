@@ -49,6 +49,9 @@ func worthOf(kind string) (int, bool) {
 	if t, ok := benchTier[kind]; ok {
 		return benchWorth[t], true
 	}
+	if isMaterial(kind) {
+		return materialWorth, true
+	}
 	if t, ok := wizardTier(kind); ok {
 		return thingWorth[t], true
 	}
@@ -158,6 +161,8 @@ func sortOf(kind string) string {
 		return "dish"
 	case isRock(kind):
 		return "rock"
+	case isMaterial(kind):
+		return "material"
 	}
 	if _, ok := ingredientOf(kind); ok {
 		return "food"

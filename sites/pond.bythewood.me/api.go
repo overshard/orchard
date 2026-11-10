@@ -340,8 +340,20 @@ func (s *site) apiSellTrinket(id int64, r *http.Request, w http.ResponseWriter) 
 	return s.store.sellTrinket(id, in.Kind)
 }
 
-func (s *site) apiForage(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
-	return s.store.forage(id)
+func (s *site) apiJobsCollect(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	return s.store.collectJobs(id)
+}
+
+func (s *site) apiJob(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	var in struct {
+		Frog   int64  `json:"frog"`
+		Job    string `json:"job"`
+		Recipe string `json:"recipe"`
+	}
+	if !readJSON(w, r, &in) {
+		return nil, nil
+	}
+	return s.store.setJob(id, in.Frog, in.Job, in.Recipe)
 }
 
 func (s *site) apiBuyPad(id int64, r *http.Request, w http.ResponseWriter) (any, error) {

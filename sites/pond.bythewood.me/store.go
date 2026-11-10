@@ -133,6 +133,15 @@ CREATE TABLE IF NOT EXISTS stall (
     PRIMARY KEY (pond_id, slot)
 ) WITHOUT ROWID;
 
+CREATE TABLE IF NOT EXISTS job_xp (
+    pond_id  INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
+    frog_id  INTEGER NOT NULL REFERENCES frogs(id) ON DELETE CASCADE,
+    job      TEXT NOT NULL,
+    xp       INTEGER NOT NULL,
+    PRIMARY KEY (frog_id, job)
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS job_xp_pond ON job_xp(pond_id);
+
 CREATE TABLE IF NOT EXISTS growth (
     id    INTEGER PRIMARY KEY CHECK (id = 1),
     at    INTEGER NOT NULL,
@@ -158,6 +167,11 @@ var addedColumns = []struct{ table, name, def string }{
 	{"ponds", "trinkets_out", "TEXT NOT NULL DEFAULT ''"},
 	{"ponds", "forage_day", "TEXT NOT NULL DEFAULT ''"},
 	{"frogs", "fed", "TEXT NOT NULL DEFAULT ''"},
+	{"frogs", "fed_at", "INTEGER NOT NULL DEFAULT 0"},
+	{"frogs", "job", "TEXT NOT NULL DEFAULT ''"},
+	{"frogs", "job_at", "INTEGER NOT NULL DEFAULT 0"},
+	{"frogs", "recipe", "TEXT NOT NULL DEFAULT ''"},
+	{"frogs", "carry", "REAL NOT NULL DEFAULT 0"},
 }
 
 func ensureColumns(db *sql.DB) error {
@@ -237,6 +251,11 @@ func openStore(path string, pepper []byte) (*store, error) {
 		return nil, err
 	}
 	if err := backfillRocks(w); err != nil {
+		w.Close()
+		return nil, err
+	}
+	// A frog fed before meals ran on a clock is full from now.
+	if _, err := w.Exec(`UPDATE frogs SET fed_at = unixepoch() WHERE fed != '' AND fed_at = 0`); err != nil {
 		w.Close()
 		return nil, err
 	}
@@ -552,6 +571,7 @@ type reedView struct {
 	// Seconds until it can lay, 0 for now and -1 while it's too young.
 	LayIn int64     `json:"lay_in"`
 	Fed   *mealView `json:"fed,omitempty"`
+	Work  *workView `json:"work,omitempty"`
 }
 
 type mealView struct {
@@ -560,6 +580,9 @@ type mealView struct {
 	Tier  int     `json:"tier"`
 	Takes float64 `json:"takes"`
 	Eyes  float64 `json:"eyes"`
+	Boost float64 `json:"boost"`
+	// Seconds until it's hungry again.
+	Left int64 `json:"left"`
 }
 
 type view struct {
@@ -590,10 +613,9 @@ type view struct {
 		Cost int            `json:"cost"`
 		Odds [tierCount]int `json:"odds"`
 	} `json:"box"`
-	Frogs []reedView `json:"frogs"`
-	Pads  int        `json:"pads"`
-	// How many frogs in the reeds can forage right now.
-	Forage  int        `json:"forage"`
+	Frogs   []reedView `json:"frogs"`
+	Pads    int        `json:"pads"`
+	Jobs    jobsView   `json:"jobs"`
 	PadCost int        `json:"pad_cost"`
 	Hats    []hatView  `json:"hats"`
 	Items   []itemView `json:"items"`
@@ -691,6 +713,11 @@ func viewOf(q querier, p pond, now time.Time) (*view, error) {
 	if err != nil {
 		return nil, err
 	}
+	xp, err := loadXP(q, p.ID)
+	if err != nil {
+		return nil, err
+	}
+	v.Jobs = jobsView{Defs: jobDefs(), Recipes: recipeViews(), Hold: int(workHold / time.Hour), Total: bestLevels(xp)}
 	for _, f := range frogs {
 		if f.Front {
 			f.Hat = p.Wearing
@@ -700,12 +727,15 @@ func viewOf(q querier, p pond, now time.Time) (*view, error) {
 			in = in/time.Second + 1
 		}
 		rv := reedView{frogView: frogViewOf(f, now), ID: f.ID, Front: f.Front, LayIn: int64(in)}
-		if d, ok := dishOfKind(f.Fed); ok {
-			rv.Fed = &mealView{f.Fed, d.name, d.tier, mealTakes[d.tier], mealEyes[d.tier]}
+		if d, ok := dishOfKind(f.Fed); ok && fullUntil(f) > now.Unix() {
+			rv.Fed = &mealView{f.Fed, d.name, d.tier, mealTakes[d.tier], mealEyes[d.tier], mealBoost[d.tier], fullUntil(f) - now.Unix()}
+		}
+		if canWork(f, now) {
+			rv.Work = workOf(f, xpOf(xp, f.ID), now)
+			v.Jobs.Waiting += rv.Work.Hours
 		}
 		v.Frogs = append(v.Frogs, rv)
 	}
-	v.Forage = foragersReady(frogs, &p, now)
 	v.Pads = p.Pads
 	if p.Pads < mostPads {
 		v.PadCost = padCost(p.Pads)
@@ -819,6 +849,6 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	for _, k := range v.Keepsakes {
 		had[k.Kind] = k.First != ""
 	}
-	v.Share.Power = powerOf(v.Frog.Rarity, v.found, had, p.DiveBest)
+	v.Share.Power = powerOf(v.Frog.Rarity, v.found, had, p.DiveBest, v.Jobs.Total)
 	return nil
 }

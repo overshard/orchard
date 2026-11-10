@@ -34,6 +34,11 @@ var trinkets = []trinket{
 	{"t_jar", "Jar of fireflies", 3},
 	{"t_goldmorel", "Golden morel", 4},
 	{"t_pearl", "Pearl", 4},
+	{"t_raft", "Stick raft", 0},
+	{"t_basket", "Reed basket", 0},
+	{"t_pot", "Clay pot", 1},
+	{"t_flute", "Reed flute", 2},
+	{"t_statue", "Clay frog statue", 3},
 }
 
 const trinketBoxCost = 60
@@ -272,4 +277,9 @@ var trinketIcons = map[string]struct {
 	"t_jar":         {[8]string{"..aaaa..", ".b....b.", ".bcbbcb.", ".bbcbbb.", ".bbbbcb.", ".bcbbbb.", ".bbbbbb.", "..bbbb.."}, map[byte]string{'a': "#6d747a", 'b': "#2a4a5a", 'c': "#ffe27a"}},
 	"t_goldmorel":   {[8]string{"...aa...", "..abba..", ".ababba.", ".abbaba.", "..abba..", "...cc...", "...cc...", "..cccc.."}, map[byte]string{'a': "#ffe27a", 'b': "#a87a12", 'c': "#fff6dc"}},
 	"t_pearl":       {[8]string{"........", "........", "..aaa...", ".abaaa..", ".aaaac..", "..acc...", "dddddddd", ".dddddd."}, map[byte]string{'a': "#f6f0e6", 'b': "#ffffff", 'c': "#cfc7b8", 'd': "#e3c57a"}},
+	"t_raft":        {[8]string{"........", "...c....", "...cd...", "...cdd..", "aaaaaaaa", "babababa", "aaaaaaaa", "eeeeeeee"}, map[byte]string{'a': "#8a5a2b", 'b': "#6b4a2a", 'c': "#e9e3d6", 'd': "#c9c3b6", 'e': "#7fd6c2"}},
+	"t_basket":      {[8]string{"........", "..aaaa..", ".a....a.", "bbbbbbbb", "bcbcbcbc", "cbcbcbcb", ".bcbcbc.", "..bbbb.."}, map[byte]string{'a': "#b08a5a", 'b': "#c9974f", 'c': "#8a6230"}},
+	"t_pot":         {[8]string{"........", "..aaaa..", "...bb...", "..bbbb..", ".bbcbbb.", ".bbbbbb.", "..bbbb..", "...bb..."}, map[byte]string{'a': "#a8642e", 'b': "#c9743a", 'c': "#e8a05a"}},
+	"t_flute":       {[8]string{"......aa", ".....aba", "....aba.", "...aba..", "..aba...", ".aba....", "aba.....", "aa......"}, map[byte]string{'a': "#8a7a3a", 'b': "#d6c88f"}},
+	"t_statue":      {[8]string{"........", ".a....a.", "abaaaaba", "aaaaaaaa", "aacaacaa", ".aaaaaa.", "dddddddd", ".dddddd."}, map[byte]string{'a': "#b8642e", 'b': "#1a1a1a", 'c': "#e8a05a", 'd': "#8a939e"}},
 }
