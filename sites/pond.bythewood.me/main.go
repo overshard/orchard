@@ -289,7 +289,7 @@ func (s *site) keyPage(w http.ResponseWriter, r *http.Request) {
 		if pond, err := loadPond(s.store.r, id); err == nil {
 			p.Words = strings.Split(key, "-")
 			p.KeyURL = baseURL + "/k#" + key
-			p.FrogName = titled(newGenome(pond.Seed).Name)
+			p.FrogName = titled(frogOf(pond, s.store.now()).Name)
 			if err := s.store.keySeen(id); err != nil {
 				slog.Error("pond", slog.String("path", r.URL.Path), slog.Any("err", err))
 			}
