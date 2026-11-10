@@ -21,7 +21,7 @@ function pick() {
 
 function spawn() {
   const kind = pick(), right = Math.random() < 0.5, v = kind.v[0] + Math.random() * (kind.v[1] - kind.v[0]);
-  G.bugs.push({ kind, x: right ? W + 6 : -6, y0: 24 + Math.random() * 150, vx: right ? -v : v, amp: 4 + Math.random() * 10, ph: Math.random() * 6, t: 0, y: 0 });
+  G.bugs.push({ kind, x: right ? W + 12 : -12, y0: 24 + Math.random() * 150, vx: right ? -v : v, amp: 4 + Math.random() * 10, ph: Math.random() * 6, t: 0, y: 0 });
 }
 
 function mouth() { return { x: W / 2, y: H - 58 }; }
@@ -49,13 +49,13 @@ export const flick = {
     G.next -= dt;
     if (G.next <= 0) { spawn(); G.next = 0.45 + Math.random() * 0.45 - Math.min(0.2, G.t / 100); }
     G.bugs.forEach((b) => { b.t += dt; b.x += b.vx * dt; b.y = b.y0 + Math.sin(b.t * 3 + b.ph) * b.amp; });
-    G.bugs = G.bugs.filter((b) => b.x > -12 && b.x < W + 12);
+    G.bugs = G.bugs.filter((b) => b.x > -16 && b.x < W + 16);
     const tg = G.tongue;
     if (tg) {
       if (tg.out) {
         tg.k = Math.min(1, tg.k + dt / OUT);
         const m = mouth(), tx = m.x + tg.ux * tg.len * tg.k, ty = m.y + tg.uy * tg.len * tg.k;
-        const hit = G.bugs.find((b) => Math.hypot(b.x - tx, b.y - ty) < 9);
+        const hit = G.bugs.find((b) => Math.hypot(b.x - tx, b.y - ty) < 13);
         if (hit) {
           G.bugs.splice(G.bugs.indexOf(hit), 1);
           if (hit.kind.k === "wasp") {
@@ -97,12 +97,16 @@ export const flick = {
     x.fillStyle = "#56b45f"; x.fillRect(W / 2 - 42, H - 32, 84, 10);
     if (!G) return;
     G.bugs.forEach((b) => {
-      const flap = Math.floor(b.t * 18) % 2, bx = Math.round(b.x), by = Math.round(b.y);
-      if (b.kind.k === "firefly") { x.fillStyle = "rgba(255,226,122,0.25)"; x.fillRect(bx - 7, by - 7, 14, 14); }
-      x.fillStyle = b.kind.wing; x.fillRect(bx - 4, by - 5 - flap, 3, 3); x.fillRect(bx + 1, by - 5 - flap, 3, 3);
-      x.fillStyle = b.kind.c; x.fillRect(bx - 4, by - 2, 8, 4);
-      x.fillStyle = "#1a1a1a"; x.fillRect(b.vx > 0 ? bx + 3 : bx - 4, by - 2, 1, 2);
-      if (b.kind.k === "wasp") { x.fillRect(bx - 2, by - 2, 1, 4); x.fillRect(bx + 1, by - 2, 1, 4); x.fillRect(b.vx > 0 ? bx - 5 : bx + 4, by, 1, 1); }
+      const flap = Math.floor(b.t * 18) % 2;
+      // Drawn on a grid of 2, so a bug is twice the size of a frog pixel.
+      x.save(); x.translate(Math.round(b.x), Math.round(b.y)); x.scale(2, 2);
+      if (b.kind.k === "firefly") { x.fillStyle = "rgba(255,226,122,0.25)"; x.fillRect(-6, -6, 12, 12); }
+      x.fillStyle = b.kind.wing;
+      if (flap) { x.fillRect(-4, -5, 3, 3); x.fillRect(1, -5, 3, 3); } else { x.fillRect(-5, -3, 4, 1); x.fillRect(1, -3, 4, 1); }
+      x.fillStyle = b.kind.c; x.fillRect(-4, -2, 8, 4);
+      x.fillStyle = "#1a1a1a"; x.fillRect(b.vx > 0 ? 3 : -4, -2, 1, 2);
+      if (b.kind.k === "wasp") { x.fillRect(-2, -2, 1, 4); x.fillRect(1, -2, 1, 4); x.fillRect(b.vx > 0 ? -5 : 4, 0, 1, 1); }
+      x.restore();
     });
     const fx = Math.round(W / 2 - FW), fy = H - 30 - FH * 2 + 4;
     if (G.stun > 0 && Math.floor(G.stun * 10) % 2) x.globalAlpha = 0.5;
