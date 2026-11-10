@@ -197,3 +197,27 @@ func TestSomethingAlwaysGrows(t *testing.T) {
 		}
 	}
 }
+
+func TestAGardenerSpeedsThePlots(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	give(t, s, id, 150)
+	if _, err := s.build(id, "garden"); err != nil {
+		t.Fatal(err)
+	}
+	*clock = clock.Add(2 * 24 * time.Hour)
+	v, _ := s.view(id)
+	slow := v.Bank.Garden.Plots[0].ReadyIn
+	f := v.Frogs[0].ID
+	if _, err := s.setJob(id, f, "garden", ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.w.Exec(`INSERT INTO job_xp (pond_id, frog_id, job, xp) VALUES (?, ?, 'garden', ?)`, id, f, xpFor[maxLevel]); err != nil {
+		t.Fatal(err)
+	}
+	v, _ = s.view(id)
+	g := v.Bank.Garden
+	if g.Speed != 2 || g.Gardener == "" || (slow > 0 && g.Plots[0].ReadyIn >= slow) {
+		t.Errorf("a 99 gardener: speed %v by %q, ready in %d against %d", g.Speed, g.Gardener, g.Plots[0].ReadyIn, slow)
+	}
+}
