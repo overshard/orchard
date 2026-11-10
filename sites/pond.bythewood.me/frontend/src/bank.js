@@ -1,4 +1,4 @@
-import { $, post, state, setPond, watch, reduced, TIERS } from "./api.js";
+import { $, post, state, setPond, watch, reduced, heldNow, canBuild, TIERS } from "./api.js";
 import { iconCanvas, dishCanvas } from "./icons.js";
 import { genome, cells, colours, draw, W, H } from "./frog.js";
 import { presents } from "./neighbours.js";
@@ -21,14 +21,6 @@ function build(label, level, cost, mats) {
   return (level ? "Level " + (level + 1) : "Build it") + ", " + cost.toLocaleString("en-US") + more;
 }
 
-// canBuild is whether the pond has the pebbles and the materials for it.
-function canBuild(p, b) {
-  if (!b.cost || p.pebbles < b.cost) return false;
-  return Object.entries(b.mats || {}).every(([k, n]) => {
-    const t = p.bag.find((x) => x.kind === k);
-    return t && t.count >= n;
-  });
-}
 
 // ---------------------------------------------------------------- the garden
 
@@ -102,6 +94,17 @@ function tick(now) {
   if (!on) return;
   if (state.pond) {
     drawGarden(now);
+    const gv = state.pond.bank.gravel, bw = state.pond.bank.burrows;
+    if (gv.level) {
+      const n = heldNow(gv);
+      $("gravel-held").textContent = n + "/" + gv.holds;
+      $("gravel-collect").disabled = n < 1;
+    }
+    if (bw.rate) {
+      const n = heldNow(bw);
+      $("burrow-held").textContent = n + "/" + bw.holds;
+      $("burrow-collect").disabled = n < 1;
+    }
     $("garden-pick").disabled = !plotsNow().some((k) => k >= 1);
   }
   raf = requestAnimationFrame(tick);

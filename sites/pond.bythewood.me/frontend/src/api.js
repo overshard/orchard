@@ -32,10 +32,29 @@ export const TIERS = ["Common", "Uncommon", "Rare", "Epic", "Legendary"];
 // every view redraws from it when it changes.
 export const state = { pond: null, g: null, held: 0 };
 const watchers = [];
+// canBuild is whether the pond has the pebbles and the materials for it.
+export function canBuild(p, b) {
+  if (!b.cost || p.pebbles < b.cost) return false;
+  return Object.entries(b.mats || {}).every(([k, n]) => {
+    const t = p.bag.find((x) => x.kind === k);
+    return t && t.count >= n;
+  });
+}
+
+// heldNow carries a collector like the gravel bar on from what the server
+// said, so the count climbs between fetches.
+export function heldNow(c) {
+  if (!c.rate || c.held >= c.holds) return c.held;
+  const t = (performance.now() - state.at) / 1000;
+  if (t < c.next_in) return c.held;
+  return Math.min(c.holds, c.held + 1 + Math.floor((t - c.next_in) * c.rate / 3600));
+}
+
 export function watch(fn) { watchers.push(fn); }
 let gKey = "";
 export function setPond(pond) {
   state.pond = pond;
+  state.at = performance.now();
   const key = pond.frog.seed + JSON.stringify(pond.frog.mods);
   if (key !== gKey) { gKey = key; state.g = bred(genome(pond.frog.seed), pond.frog.mods); }
   watchers.forEach((fn) => fn(pond));
