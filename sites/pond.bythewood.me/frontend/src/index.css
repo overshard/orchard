@@ -1468,3 +1468,11 @@ h2 .count {
   font-size: 10px;
   letter-spacing: var(--track);
 }
+
+.lost {
+  display: block;
+  width: 216px;
+  height: 180px;
+  margin: 8px 0 4px;
+  image-rendering: pixelated;
+}
