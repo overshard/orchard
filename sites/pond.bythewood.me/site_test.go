@@ -307,6 +307,9 @@ func TestPanelIsTheVisitorsOwnFrog(t *testing.T) {
 	if mine.House || mine.Frog.Seed != g.Pond.Frog.Seed || mine.Frog.Name == "" {
 		t.Errorf("with a cookie: %+v", mine)
 	}
+	if mine.Pebbles != g.Pond.Pebbles || len(mine.Todo) == 0 || mine.Todo[0].Kind != "wheel" {
+		t.Errorf("the panel's pebbles and todo: %+v", mine)
+	}
 	if rec.Header().Get("Access-Control-Allow-Origin") != "" {
 		t.Error("the panel answered cross origin with no Origin sent")
 	}

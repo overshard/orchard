@@ -384,9 +384,12 @@ const houseSeed = 1207
 var houseHatched = time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
 
 type panel struct {
-	House    bool     `json:"house"`
-	Frog     frogView `json:"frog"`
-	DiveBest int      `json:"dive_best"`
+	House   bool     `json:"house"`
+	Frog    frogView `json:"frog"`
+	Pebbles int      `json:"pebbles"`
+	Power   int      `json:"power"`
+	Rank    string   `json:"rank"`
+	Todo    []todo   `json:"todo"`
 }
 
 // panelOrigins are the sites that draw the visitor's frog. Each is same site as
@@ -401,13 +404,13 @@ func (s *site) apiPanel(w http.ResponseWriter, r *http.Request) {
 	}
 	now := s.store.now()
 	if id, _, err := s.pondOf(r); err == nil {
-		if p, err := loadPond(s.store.r, id); err == nil {
-			writeJSON(w, http.StatusOK, panel{Frog: frogOf(p, now), DiveBest: p.DiveBest})
+		if v, err := s.store.view(id); err == nil {
+			writeJSON(w, http.StatusOK, panel{Frog: v.Frog, Pebbles: v.Pebbles, Power: v.Share.Power.Total, Rank: v.Share.Power.Rank, Todo: v.Todo})
 			return
 		}
 	}
 	house := &pond{Seed: houseSeed, HatchedAt: houseHatched.Unix()}
-	writeJSON(w, http.StatusOK, panel{House: true, Frog: frogOf(house, now)})
+	writeJSON(w, http.StatusOK, panel{House: true, Frog: frogOf(house, now), Todo: []todo{}})
 }
 
 // ---------------------------------------------------------------- the key
