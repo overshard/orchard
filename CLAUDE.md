@@ -129,9 +129,10 @@ lookup table.
 `web/session.go` in every site asks `http://orchard-auth:8000/verify`,
 `ntfy/ntfy.go` in status, logging and auth publishes to `http://orchard-ntfy:8000`,
 `sites/dash.bythewood.me/systems.go` reads `http://orchard-logging:8000/aggregate`
-and probes every other site at `http://orchard-<label>:8000/healthz`, and
+and probes every other site at `http://orchard-<label>:8000/healthz`,
 `sites/dash.bythewood.me/quick.go` relays the quick chat to
-`http://orchard-chat:8000/api/send`. None of those reads the name at runtime,
+`http://orchard-chat:8000/api/send`, and `sites/pond.bythewood.me/day.go` reads
+`http://orchard-dash:8000/api/state`. None of those reads the name at runtime,
 so renaming a container means rebuilding Caddy, the portfolio and every site,
 not just editing a compose file. No SQLite database refers to a container name.
 

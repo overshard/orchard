@@ -23,7 +23,7 @@ make clean    delete build/ and node_modules
 From the repo root `make deploy SITE=pond.bythewood.me` builds the image and
 replaces `orchard-pond`. A dev run keeps its database in `data/pond.db`, uses a
 fixed pepper, and has a dev clock on the pond page for jumping hours and days
-ahead. A release build has neither the fixed pepper nor the clock.
+ahead, with made up days beside it since a dev run can't reach dash. A release build has neither the fixed pepper nor the clock.
 
 ## Layout
 
@@ -33,6 +33,10 @@ ahead. A release build has neither the fixed pepper nor the clock.
 - `genome.go` turns a seed into a frog's name, look and rarity, and
   `frontend/src/frog.js` is the same thing in JavaScript plus the drawing.
 - `key.go` and `words.txt` are the pond key.
+- `day.go` reads dash's `/api/state` over the bridge every ten minutes and
+  turns the weather, the market, the VIX, Hacker News, the news and the health
+  strip into what's on the water. It's the same day in every pond, and with
+  dash down or a reading over three hours old it's an ordinary day.
 - `share.go` is a frog's public page at `/f/<name>-<code>`, its power, and the
   PNG card a link unfurls with, drawn by `sprite.go` in the JetBrains Mono under
   `fonts/`. The code is the pond's public id and can't open the pond.

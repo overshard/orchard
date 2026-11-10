@@ -356,3 +356,20 @@ func (s *site) apiDevClock(w http.ResponseWriter, r *http.Request) {
 	s.store.skew.Add(int64(in.Hours * 3600))
 	writeJSON(w, http.StatusOK, map[string]int64{"skew": s.store.skew.Load()})
 }
+
+// apiDevDay pins a made up day, or with no reading goes back to dash's.
+func (s *site) apiDevDay(w http.ResponseWriter, r *http.Request) {
+	var in *reading
+	if !readJSON(w, r, &in) {
+		return
+	}
+	if in == nil || *in == (reading{}) {
+		s.store.day.pinned.Store(false)
+		s.store.day.last.Store(nil)
+	} else {
+		in.At = time.Now()
+		s.store.day.pinned.Store(true)
+		s.store.day.last.Store(in)
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
