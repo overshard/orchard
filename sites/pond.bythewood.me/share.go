@@ -48,10 +48,8 @@ type power struct {
 	DiveBest      int    `json:"dive_best"`
 }
 
-// had is every trinket, rock and keepsake kind the pond has ever had, since
-// none of them can be lost from the shelves.
-// jobsTotal is the pond's best level at every job added up, and each level past
-// the first is worth three.
+// had is every trinket, rock and keepsake kind the pond has ever had, and
+// jobsTotal is its best level at every job added up.
 func powerOf(r rarity, held []hat, had map[string]bool, diveBest, jobsTotal int) power {
 	p := power{Frog: int(math.Round(120 * math.Log2(float64(r.N)))), DiveBest: diveBest, Dive: diveBest * 25}
 	p.JobsTotal = max(jobsTotal, len(jobs))

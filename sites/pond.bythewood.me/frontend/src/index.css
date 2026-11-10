@@ -2229,3 +2229,63 @@ button.big {
   clip-path: inset(50%);
   opacity: 0;
 }
+
+/* A job or a recipe in the frog's sheet, its icon, name, level and bar. */
+.jobrow {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  align-items: center;
+  gap: 4px 10px;
+  width: 100%;
+  margin-top: 6px;
+  text-align: left;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.jobrow canvas {
+  grid-row: span 2;
+  width: 24px;
+  image-rendering: pixelated;
+}
+
+.jobrow b {
+  font-family: var(--grotesk);
+  font-size: 14px;
+}
+
+.jobrow .lv {
+  color: var(--amber);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.jobrow .meter,
+.jobrow .need {
+  grid-column: 2 / 4;
+}
+
+.jobrow .need {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.jobrow .tier {
+  justify-self: end;
+}
+
+.jobrow.on {
+  border-color: var(--amber);
+  background: var(--amber-glow);
+}
+
+.reed .job {
+  min-height: 36px;
+  padding: 6px 8px;
+  font-size: 11px;
+}
+
+.reed .job.full {
+  border-color: var(--amber);
+  color: var(--amber);
+}

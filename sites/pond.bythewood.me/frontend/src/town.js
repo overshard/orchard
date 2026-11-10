@@ -263,7 +263,7 @@ function cast() {
 }
 
 function renderWizard(p) {
-  const wz = p.wizard, can = p.bag.filter((t) => t.free >= wz.takes);
+  const wz = p.wizard, can = p.bag.filter((t) => t.free >= wz.takes && t.sort !== "material");
   if (pick && !can.some((t) => t.kind === pick)) pick = "";
   const odds = $("wiz-odds");
   odds.textContent = "";
