@@ -54,7 +54,7 @@ function hoursLike(h) {
 }
 
 export function pricePicker(body, t) {
-  const lo = Math.max(1, Math.ceil(t.worth * 0.5)), hi = Math.floor(t.worth * 3);
+  const lo = Math.max(1, Math.ceil(t.worth * 0.5)), hi = t.max;
   const wrap = document.createElement("div"), price = document.createElement("b"), when = document.createElement("span"), range = document.createElement("input");
   wrap.className = "pricer";
   range.type = "range"; range.min = lo; range.max = hi; range.value = t.worth; range.step = 1;
@@ -121,9 +121,11 @@ function renderStall(p) {
     row.append(thingArt(r, 3), what, price);
     row.append(button(r.sold ? "Collect" : "Take back", (b) => {
       b.disabled = true;
+      const before = state.pond.pebbles;
       post("/api/stall/take", { slot: r.slot }).then((v) => {
         setPond(v);
-        $("stall-out").textContent = r.sold ? "+" + r.price + " pebbles." : r.name + " is back in your bag.";
+        // It may have sold since the page last heard.
+        $("stall-out").textContent = v.pebbles > before ? "Sold! +" + (v.pebbles - before) + " pebbles." : r.name + " is back in your bag.";
       }, (e) => { $("stall-out").textContent = e.message; b.disabled = false; });
     }, r.sold ? "primary" : ""));
     box.append(row);

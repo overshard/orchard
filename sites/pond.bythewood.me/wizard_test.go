@@ -214,3 +214,30 @@ func TestStallSellsUnderTheShops(t *testing.T) {
 		}
 	}
 }
+
+func TestStallCapsUnderEveryShop(t *testing.T) {
+	kinds := []string{}
+	for _, sorts := range wizardPool {
+		for _, ks := range sorts {
+			kinds = append(kinds, ks...)
+		}
+	}
+	for _, k := range kinds {
+		w, _ := worthOf(k)
+		hi := stallCap(k, w)
+		if p, ok := shopFloor(k); ok && hi >= p {
+			t.Errorf("%s can go up for %d and a shop sells it for %d", k, hi, p)
+		}
+	}
+	for _, r := range mossRocks {
+		if _, ok := shopFloor(r.kind); !ok {
+			t.Errorf("%s is at Moss's and has no floor", r.kind)
+		}
+	}
+	s, _ := testStore(t)
+	_, id := newPond(t, s)
+	stock(t, s, id, "dye_blue", 1)
+	if _, err := s.stallList(id, "dye_blue", bargainPrice); !errors.Is(err, errBadPrice) {
+		t.Fatalf("a blue dye went up for Moss's bargain price, %v", err)
+	}
+}

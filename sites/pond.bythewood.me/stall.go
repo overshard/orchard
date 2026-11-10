@@ -55,6 +55,44 @@ func worthOf(kind string) (int, bool) {
 	return 0, false
 }
 
+// stallCap is the most a thing can be put up for, three times its going rate
+// and always under what any shop asks for it, so nothing bought can be
+// resold for more.
+func stallCap(kind string, worth int) int {
+	hi := int(float64(worth) * stallHigh)
+	if p, ok := shopFloor(kind); ok {
+		hi = min(hi, p-1)
+	}
+	return max(hi, max(1, int(math.Ceil(float64(worth)*stallLow))))
+}
+
+// shopFloor is the least any shop ever asks for a kind.
+func shopFloor(kind string) (int, bool) {
+	if h, ok := hatOfKind(kind); ok {
+		if p := wrenSells[h.tier()]; p > 0 {
+			return p, true
+		}
+		return 0, false
+	}
+	for _, r := range mossRocks {
+		if r.kind == kind {
+			return r.price, true
+		}
+	}
+	switch {
+	case strings.HasPrefix(kind, "dye_"):
+		return bargainPrice, true
+	case strings.HasPrefix(kind, "stamp_"):
+		return stampPrice, true
+	case strings.HasPrefix(kind, "drops_"):
+		return dropsPrice, true
+	}
+	if i, ok := ingredientOf(kind); ok && !ingredients[i].trinket {
+		return salePrice(larderPrice[ingredients[i].tier]), true
+	}
+	return 0, false
+}
+
 // sellsIn is how long a neighbour takes to buy at a price, a day at the
 // going rate, hours for a bargain and weeks at three times.
 func sellsIn(price, worth int) time.Duration {
@@ -96,6 +134,7 @@ type bagThing struct {
 	Count int    `json:"count"`
 	Free  int    `json:"free"`
 	Worth int    `json:"worth"`
+	Max   int    `json:"max"`
 	Hat   *hat   `json:"hat,omitempty"`
 	// A dish is drawn from its two ingredients.
 	A string `json:"a,omitempty"`
@@ -139,7 +178,7 @@ func bagOf(held map[string]int, hats []hatView) []bagThing {
 			free--
 		}
 		a, b := dishParts(kind)
-		out = append(out, bagThing{kind, thingName(kind), t, sortOf(kind), n, free, w, h, a, b})
+		out = append(out, bagThing{kind, thingName(kind), t, sortOf(kind), n, free, w, stallCap(kind, w), h, a, b})
 	}
 	for k, n := range held {
 		add(k, n, nil)
@@ -234,7 +273,7 @@ func (s *store) stallList(id int64, kind string, price int) (*view, error) {
 	if !ok || strings.HasPrefix(kind, "f_") {
 		return nil, errNotHeld
 	}
-	lo, hi := max(1, int(math.Ceil(float64(worth)*stallLow))), int(float64(worth)*stallHigh)
+	lo, hi := max(1, int(math.Ceil(float64(worth)*stallLow))), stallCap(kind, worth)
 	if price < lo || price > hi {
 		return nil, errBadPrice
 	}
