@@ -169,7 +169,7 @@ func TestEveryDishHasAKindAndAName(t *testing.T) {
 	if len(seen) != dishCount {
 		t.Errorf("%d dishes, want %d", len(seen), dishCount)
 	}
-	for _, bad := range []string{"dish_1_0", "dish_0_8", "dish_01_2", "dish_-1_2", "agate"} {
+	for _, bad := range []string{"dish_1_0", "dish_0_99", "dish_01_2", "dish_-1_2", "agate"} {
 		if _, ok := dishOfKind(bad); ok {
 			t.Errorf("%q read as a dish", bad)
 		}

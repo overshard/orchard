@@ -141,7 +141,7 @@ function render(p) {
   picked = picked.filter((kind) => k.ingredients.some((i) => i.kind === kind && i.count > 0));
   if (picked.length === 2 && picked[0] === picked[1] && k.ingredients.find((i) => i.kind === picked[0]).count < 2) picked.pop();
   larder.textContent = "";
-  k.ingredients.forEach((it) => {
+  k.ingredients.filter((it) => !it.trinket || it.count > 0).forEach((it) => {
     const btn = document.createElement("button"), name = document.createElement("span"), n = document.createElement("span");
     btn.type = "button"; btn.dataset.kind = it.kind;
     const times = picked.filter((x) => x === it.kind).length;

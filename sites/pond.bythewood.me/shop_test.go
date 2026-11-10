@@ -11,6 +11,9 @@ import (
 func TestLarderCantBeFarmed(t *testing.T) {
 	for a := range ingredients {
 		for b := a; b < len(ingredients); b++ {
+			if ingredients[a].trinket || ingredients[b].trinket {
+				continue
+			}
 			cost := salePrice(larderPrice[ingredients[a].tier]) + salePrice(larderPrice[ingredients[b].tier])
 			if d := dishOf(a, b); dishWorth[d.tier] > cost {
 				t.Errorf("%s costs %d and sells for %d", d.name, cost, dishWorth[d.tier])

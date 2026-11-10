@@ -38,6 +38,10 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
 - `dyeworks.go` is the dye works in the bank, three rocks boiled down into a
   dye. Each rock leans the colour and `bank.js` works out the same odds to
   show them.
+- `trinket.go` is the second collection, trinkets set out in three spots round
+  the pad. They're items with a `t_` prefix, and `trinkets_found` remembers
+  every one a pond has had. The cookable ones are also on the end of
+  `ingredients`.
 - `shop.go` is Wren's hats, Brindle's larder, Old Moss's curios and Fenn's
   furniture, which the page draws on the water. Stock is
   dealt from the day so everybody sees the same shelf, and `bought` counts

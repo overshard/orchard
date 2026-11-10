@@ -32,7 +32,23 @@
     <ul class="things" id="things"></ul>
     <p class="dim" id="thing-out"></p>
 
-    <h2 data-idx="04">Show off</h2>
+    <h2 data-idx="04">Around the pad <span class="count" id="trinket-count"></span></h2>
+    <p class="dim">Trinkets to set out round the pad, three spots at a time. A few can go in the pot too, and the set remembers every one you've had.</p>
+    <div class="row seg" id="spot-pick" aria-label="Spot">
+      <button type="button" data-spot="0" aria-pressed="true">Left</button>
+      <button type="button" data-spot="1" aria-pressed="false">Right</button>
+      <button type="button" data-spot="2" aria-pressed="false">Water</button>
+    </div>
+    <div class="row">
+      <button type="button" class="primary" id="trinket-box">Open a trinket box</button>
+      <button type="button" id="trinket-clear">Clear this spot</button>
+    </div>
+    <p class="line" id="trinket-out" role="status"></p>
+    <div class="hatgrid" id="trinket-grid"></div>
+    <p class="label" id="trinket-spares-head" hidden>Spares</p>
+    <div id="trinket-spares"></div>
+
+    <h2 data-idx="05">Show off</h2>
     <p class="power"><b id="power-n">0</b> <span id="power-rank"></span></p>
     <p class="dim">Frog power counts how rare your frog is, the hats you've found and your best Dive, and it only goes up. Its page is safe to share, the link has nothing to do with your pond key.</p>
     <p><a class="button" id="share-link" href="/">Your frog's page</a></p>
