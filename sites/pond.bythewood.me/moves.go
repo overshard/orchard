@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"math/rand/v2"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -214,34 +216,58 @@ func (s *store) crack(id int64) (*opened, error) {
 	return out, err
 }
 
-// diveStart hands out a run id that finish has to bring back, once.
-func (s *store) diveStart(id int64) (string, error) {
-	run := randomHex(8)
+type diving struct {
+	Run    string `json:"run"`
+	Ghosts []int  `json:"ghosts"`
+}
+
+// diveStart hands out a run id that finish has to bring back, once, and
+// deals the ghosts for the run.
+func (s *store) diveStart(id int64) (*diving, error) {
+	out := &diving{Run: randomHex(8), Ghosts: dealGhosts()}
 	_, err := s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
-		p.DiveRun, p.DiveStart = run, now.Unix()
+		deal := make([]string, len(out.Ghosts))
+		for i, c := range out.Ghosts {
+			deal[i] = strconv.Itoa(c)
+		}
+		p.DiveRun, p.DiveStart, p.DiveGhosts = out.Run, now.Unix(), strings.Join(deal, ",")
 		return nil
 	})
-	return run, err
+	return out, err
 }
 
 type dived struct {
-	Score int   `json:"score"`
-	Paid  int   `json:"paid"`
-	Best  bool  `json:"best"`
-	Pond  *view `json:"pond"`
+	Score int  `json:"score"`
+	Paid  int  `json:"paid"`
+	Best  bool `json:"best"`
+	Place int  `json:"place"`
+	Of    int  `json:"of"`
+	// What a podium place added on top. Bonus is pebbles, Hat comes with
+	// first, and Had says the place had already paid today.
+	Bonus int    `json:"bonus"`
+	Hat   *prize `json:"hat"`
+	Had   bool   `json:"had"`
+	Pond  *view  `json:"pond"`
 }
 
-func (s *store) diveFinish(id int64, run string, score int) (*dived, error) {
-	out := &dived{Score: score}
+func (s *store) diveFinish(id int64, run string, score, gates int) (*dived, error) {
+	out := &dived{Score: score, Of: diveGhosts + 1}
 	v, err := s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
 		if run == "" || run != p.DiveRun {
 			return errBadRun
 		}
 		took := now.Sub(time.Unix(p.DiveStart, 0))
-		p.DiveRun, p.DiveStart = "", 0
+		var ghosts []int
+		for _, f := range strings.Split(p.DiveGhosts, ",") {
+			if c, err := strconv.Atoi(f); err == nil {
+				ghosts = append(ghosts, c)
+			}
+		}
+		p.DiveRun, p.DiveStart, p.DiveGhosts = "", 0, ""
 		// The run id is spent either way, so the save below has to happen and
-		// an impossible score just pays nothing.
-		if !divePlausible(score, took+time.Second) {
+		// an impossible score just pays nothing. A gate is a point, so there
+		// can't be more gates than points.
+		if !divePlausible(score, took+time.Second) || gates < 0 || gates > score {
 			out.Score = 0
 			return nil
 		}
@@ -251,6 +277,24 @@ func (s *store) diveFinish(id int64, run string, score int) (*dived, error) {
 		p.Pebbles += out.Paid
 		if score > p.DiveBest {
 			p.DiveBest, out.Best = score, true
+		}
+
+		out.Place = divePlace(gates, ghosts)
+		if out.Place > len(podiumPebbles) || len(ghosts) == 0 {
+			return nil
+		}
+		bit := 1 << (out.Place - 1)
+		if p.DivePodium&bit != 0 {
+			out.Had = true
+			return nil
+		}
+		p.DivePodium |= bit
+		out.Bonus = podiumPebbles[out.Place-1]
+		p.Pebbles += out.Bonus
+		if out.Place == 1 {
+			h := rollBox()
+			out.Hat = &prize{Hat: &h}
+			return award(tx, p, out.Hat)
 		}
 		return nil
 	})

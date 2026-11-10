@@ -212,19 +212,19 @@ func (s *site) apiSell(id int64, r *http.Request, w http.ResponseWriter) (any, e
 }
 
 func (s *site) apiDiveStart(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
-	run, err := s.store.diveStart(id)
-	return map[string]string{"run": run}, err
+	return s.store.diveStart(id)
 }
 
 func (s *site) apiDiveFinish(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
 	var in struct {
 		Run   string `json:"run"`
 		Score int    `json:"score"`
+		Gates int    `json:"gates"`
 	}
 	if !readJSON(w, r, &in) {
 		return nil, nil
 	}
-	return s.store.diveFinish(id, in.Run, in.Score)
+	return s.store.diveFinish(id, in.Run, in.Score, in.Gates)
 }
 
 // The frog other sites draw when a visitor has none of their own.

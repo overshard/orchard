@@ -357,6 +357,38 @@ func greetLine(g genome, stage string, away time.Duration) string {
 	return name + " comes over slower than it used to and gets there all the same. " + nature
 }
 
+// Ten ghost frogs swim every run, and each is dealt the number of gates it
+// will clear before it hits one. The page plays them out and the server keeps
+// the deal, so a place on the podium is worked out here.
+const (
+	diveGhosts    = 10
+	diveGhostBest = 30
+)
+
+func dealGhosts() []int {
+	clears := make([]int, diveGhosts)
+	for i := range clears {
+		clears[i] = rand.IntN(diveGhostBest)
+	}
+	return clears
+}
+
+// divePlace is where a run that cleared this many gates came among the
+// ghosts, first being 1. A ghost that went out at the same gate is behind.
+func divePlace(gates int, ghosts []int) int {
+	place := 1
+	for _, c := range ghosts {
+		if c > gates {
+			place++
+		}
+	}
+	return place
+}
+
+// Extra pebbles for first, second and third, each once a day. First also
+// gets a hat.
+var podiumPebbles = [3]int{25, 25, 10}
+
 // divePays is what a run earns before the day's cap. Run counts from 1.
 func divePays(score, run int) int {
 	if run > diveFullRuns {

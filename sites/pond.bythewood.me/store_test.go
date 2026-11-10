@@ -233,7 +233,7 @@ func dive(t *testing.T, s *store, clock *time.Time, id int64, score int) *dived 
 		t.Fatal(err)
 	}
 	*clock = clock.Add(time.Duration(score)*time.Second + 5*time.Second)
-	d, err := s.diveFinish(id, run, score)
+	d, err := s.diveFinish(id, run.Run, score, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -267,16 +267,17 @@ func TestDiveRefusesWhatCannotBe(t *testing.T) {
 	s, clock := testStore(t)
 	_, id := newPond(t, s)
 
-	run, _ := s.diveStart(id)
+	start, _ := s.diveStart(id)
+	run := start.Run
 	*clock = clock.Add(2 * time.Second)
-	d, err := s.diveFinish(id, run, 300)
+	d, err := s.diveFinish(id, run, 300, 0)
 	if err != nil || d.Paid != 0 || d.Pond.Dive.Best != 0 {
 		t.Errorf("300 points in two seconds paid %d, best %d (%v)", d.Paid, d.Pond.Dive.Best, err)
 	}
-	if _, err := s.diveFinish(id, run, 1); !errors.Is(err, errBadRun) {
+	if _, err := s.diveFinish(id, run, 1, 0); !errors.Is(err, errBadRun) {
 		t.Errorf("a run id worked twice: %v", err)
 	}
-	if _, err := s.diveFinish(id, "made up", 5); !errors.Is(err, errBadRun) {
+	if _, err := s.diveFinish(id, "made up", 5, 0); !errors.Is(err, errBadRun) {
 		t.Errorf("a made up run id worked: %v", err)
 	}
 }
@@ -569,5 +570,58 @@ func TestGrowingShowsInTheGreeting(t *testing.T) {
 	}
 	if !grew {
 		t.Errorf("the greeting did not say it grew: %v", g.Missed)
+	}
+}
+
+func TestDivePodium(t *testing.T) {
+	if got := divePlace(10, []int{3, 10, 11, 29}); got != 3 {
+		t.Errorf("ten gates among 3, 10, 11 and 29 placed %d, want 3", got)
+	}
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	finish := func(gates int) *dived {
+		t.Helper()
+		start, err := s.diveStart(id)
+		if err != nil || len(start.Ghosts) != diveGhosts {
+			t.Fatalf("start: %+v %v", start, err)
+		}
+		for _, c := range start.Ghosts {
+			if c < 0 || c >= diveGhostBest {
+				t.Fatalf("a ghost dealt %d gates", c)
+			}
+		}
+		*clock = clock.Add(2 * time.Minute)
+		d, err := s.diveFinish(id, start.Run, gates, gates)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return d
+	}
+
+	// Clearing every gate a ghost can is first whatever the deal was.
+	before, _ := s.view(id)
+	d := finish(diveGhostBest)
+	if d.Place != 1 || d.Bonus != podiumPebbles[0] || d.Hat == nil || d.Hat.HatName == "" || d.Had {
+		t.Fatalf("first place: %+v", d)
+	}
+	if got := d.Pond.Pebbles - before.Pebbles; got != d.Paid+d.Bonus {
+		t.Errorf("first place moved the purse by %d, want %d", got, d.Paid+d.Bonus)
+	}
+	if !d.Pond.Dive.Podium[0] || d.Pond.Dive.Podium[1] {
+		t.Errorf("podium after a first: %v", d.Pond.Dive.Podium)
+	}
+	if d = finish(diveGhostBest); d.Place != 1 || d.Bonus != 0 || d.Hat != nil || !d.Had {
+		t.Errorf("a second first place the same day: %+v", d)
+	}
+	*clock = clock.Add(24 * time.Hour)
+	if d = finish(diveGhostBest); d.Bonus != podiumPebbles[0] || d.Hat == nil {
+		t.Errorf("first place the next day: %+v", d)
+	}
+
+	// More gates than points is not a run, and pays nothing.
+	start, _ := s.diveStart(id)
+	*clock = clock.Add(2 * time.Minute)
+	if d, _ := s.diveFinish(id, start.Run, 5, diveGhostBest); d.Place != 0 || d.Bonus != 0 || d.Paid != 0 {
+		t.Errorf("thirty gates on five points: %+v", d)
 	}
 }

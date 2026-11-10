@@ -64,6 +64,41 @@ CREATE TABLE IF NOT EXISTS items (
 ) WITHOUT ROWID;
 `
 
+// Columns added since the first deploy. CREATE TABLE IF NOT EXISTS leaves a
+// table that is already there alone, so these are added by hand.
+var addedColumns = []struct{ name, def string }{
+	{"dive_ghosts", "TEXT NOT NULL DEFAULT ''"},
+	{"dive_podium", "INTEGER NOT NULL DEFAULT 0"},
+}
+
+func ensureColumns(db *sql.DB) error {
+	have := map[string]bool{}
+	rows, err := db.Query(`SELECT name FROM pragma_table_info('ponds')`)
+	if err != nil {
+		return err
+	}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			rows.Close()
+			return err
+		}
+		have[name] = true
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+	for _, c := range addedColumns {
+		if have[c.name] {
+			continue
+		}
+		if _, err := db.Exec("ALTER TABLE ponds ADD COLUMN " + c.name + " " + c.def); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 var (
 	errNoPond  = errors.New("no pond")
 	errFull    = errors.New("the pond is full for the moment, try again in a little while")
@@ -97,6 +132,10 @@ func openStore(path string, pepper []byte) (*store, error) {
 	}
 	w.SetMaxOpenConns(1)
 	if _, err := w.Exec(schema); err != nil {
+		w.Close()
+		return nil, err
+	}
+	if err := ensureColumns(w); err != nil {
 		w.Close()
 		return nil, err
 	}
@@ -153,6 +192,8 @@ type pond struct {
 	DivePaid   int
 	DiveRun    string
 	DiveStart  int64
+	DiveGhosts string
+	DivePodium int
 	KeySavedAt sql.NullInt64
 
 	FrogID    int64
@@ -164,14 +205,14 @@ type pond struct {
 const pondColumns = `p.id, p.public_id, p.created_at, p.last_seen_at, p.last_gift_at,
 	p.pebbles, p.free_spins, p.spin_at, p.paid_spins, p.paid_spins_day, p.log_day,
 	p.dive_best, p.dive_day, p.dive_runs, p.dive_paid, p.dive_run, p.dive_started_at,
-	p.key_saved_at, f.id, f.seed, f.hatched_at, f.hat_shape, f.hat_colour`
+	p.dive_ghosts, p.dive_podium, p.key_saved_at, f.id, f.seed, f.hatched_at, f.hat_shape, f.hat_colour`
 
 func scanPond(row *sql.Row) (*pond, error) {
 	var p pond
 	err := row.Scan(&p.ID, &p.PublicID, &p.CreatedAt, &p.LastSeenAt, &p.LastGiftAt,
 		&p.Pebbles, &p.FreeSpins, &p.SpinAt, &p.PaidSpins, &p.PaidDay, &p.LogDay,
 		&p.DiveBest, &p.DiveDay, &p.DiveRuns, &p.DivePaid, &p.DiveRun, &p.DiveStart,
-		&p.KeySavedAt, &p.FrogID, &p.Seed, &p.HatchedAt, &p.Wearing.Shape, &p.Wearing.Colour)
+		&p.DiveGhosts, &p.DivePodium, &p.KeySavedAt, &p.FrogID, &p.Seed, &p.HatchedAt, &p.Wearing.Shape, &p.Wearing.Colour)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, errNoPond
 	}
@@ -190,10 +231,10 @@ func savePond(tx *sql.Tx, p *pond) error {
 	if _, err := tx.Exec(`UPDATE ponds SET last_seen_at = ?, last_gift_at = ?, pebbles = ?,
 		free_spins = ?, spin_at = ?, paid_spins = ?, paid_spins_day = ?, log_day = ?,
 		dive_best = ?, dive_day = ?, dive_runs = ?, dive_paid = ?, dive_run = ?,
-		dive_started_at = ?, key_saved_at = ? WHERE id = ?`,
+		dive_started_at = ?, dive_ghosts = ?, dive_podium = ?, key_saved_at = ? WHERE id = ?`,
 		p.LastSeenAt, p.LastGiftAt, p.Pebbles, p.FreeSpins, p.SpinAt, p.PaidSpins, p.PaidDay,
 		p.LogDay, p.DiveBest, p.DiveDay, p.DiveRuns, p.DivePaid, p.DiveRun, p.DiveStart,
-		p.KeySavedAt, p.ID); err != nil {
+		p.DiveGhosts, p.DivePodium, p.KeySavedAt, p.ID); err != nil {
 		return err
 	}
 	_, err := tx.Exec(`UPDATE frogs SET hat_shape = ?, hat_colour = ? WHERE id = ?`,
@@ -220,7 +261,7 @@ func (p *pond) settle(now time.Time) {
 		p.PaidDay, p.PaidSpins = today, 0
 	}
 	if p.DiveDay != today {
-		p.DiveDay, p.DiveRuns, p.DivePaid = today, 0, 0
+		p.DiveDay, p.DiveRuns, p.DivePaid, p.DivePodium = today, 0, 0, 0
 	}
 }
 
@@ -385,6 +426,8 @@ type view struct {
 		Cap  int `json:"cap"`
 		Runs int `json:"runs"`
 		Full int `json:"full"`
+		// Which of first, second and third have paid their prize today.
+		Podium [3]bool `json:"podium"`
 	} `json:"dive"`
 	Box struct {
 		Cost int            `json:"cost"`
@@ -419,6 +462,9 @@ func viewOf(q querier, p pond, now time.Time) (*view, error) {
 	v.Log.Ready = p.LogDay != dayOf(now)
 	v.Dive.Best, v.Dive.Paid, v.Dive.Cap = p.DiveBest, p.DivePaid, diveCap
 	v.Dive.Runs, v.Dive.Full = p.DiveRuns, diveFullRuns
+	for i := range v.Dive.Podium {
+		v.Dive.Podium[i] = p.DivePodium&(1<<i) != 0
+	}
 	v.Box.Cost, v.Box.Odds = boxCost, boxOdds
 	// Three days in, the page says once to save the key, until it has been.
 	v.Nudge = !p.KeySavedAt.Valid && now.Unix()-p.CreatedAt >= 3*86400
