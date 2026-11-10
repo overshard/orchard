@@ -11,7 +11,9 @@ is kept by six words in a cookie called its pond key.
 
 Go and bun. It needs one secret, `POND_PEPPER`, in a `.env` beside the compose
 file, and `.env.example` says how to make one. Pond keys are stored hashed
-under it, so losing it or changing it locks every frog out for good.
+under it, so losing it or changing it locks every frog out for good. An
+`LLM_KEY` for the nightly lines is optional, `make pond-key` at the root mints
+one.
 
 ## Running it
 
@@ -87,6 +89,12 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
   the line after the greeting, plus what the frog is watching or playing, Old
   Clover's forecast for tomorrow and the fortune lily. No number from dash
   ever reaches one of those lines, and a test holds it.
+- `tales.go` is the frog's dream on the first visit of a day, each
+  neighbour's gossip and the Pond Gazette's headlines, all off hand written
+  pools. `nightly.go` asks the model gateway once a night for more lines for
+  every mood and kind, checks each one in Go and keeps the night in
+  `tales-<day>.json` beside the database. The hand written lines are always
+  in the pool, so with no `LLM_KEY` or a failed night nothing is missing.
 - `share.go` is a frog's public page at `/f/<name>-<code>`, its power, and the
   PNG card a link unfurls with, drawn by `sprite.go` in the JetBrains Mono under
   `fonts/`. The code is the pond's public id and can't open the pond.
@@ -145,5 +153,9 @@ they have none, for other sites to draw.
   market only writes a close while dash says `regular`, apart from Glowworm
   Coin. Buying and selling both take a fee so a round trip always loses, and
   the 90 day purse test plays the market with a random walk.
+- The nightly run only goes between 22:30 and 6:00 pond time, skips while the
+  gateway says the card is busy or under 3GB is free, and never runs off a
+  visitor. A model line with a digit, a banned word or a slot it wasn't given
+  is dropped, so add a slot to `taleAsk.allowed` before a pool can use it.
 - `web/` has to stay byte identical to every other site's copy, and
   `make check` at the root fails when it isn't.

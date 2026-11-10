@@ -406,6 +406,20 @@ function renderPond(p) {
     today.append(li);
   });
   $("today-head").hidden = today.hidden = lines.length === 0;
+  const news = (p.gazette && p.gazette.lines) || [], gz = $("gazette");
+  gz.textContent = "";
+  news.forEach((h) => {
+    const li = document.createElement("li");
+    li.textContent = h;
+    gz.append(li);
+  });
+  if (p.gazette && p.gazette.business) {
+    const li = document.createElement("li"), b = document.createElement("b");
+    b.textContent = "Business";
+    li.append(b, " " + p.gazette.business);
+    gz.append(li);
+  }
+  $("gazette-head").hidden = gz.hidden = gz.children.length === 0;
   renderTodo(p);
   renderStarter(p);
   renderPlay(p);

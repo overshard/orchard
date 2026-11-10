@@ -148,7 +148,7 @@ func TestHobbies(t *testing.T) {
 	r := &reading{Shows: []string{"Bluey"}, Games: []string{"Stardew Valley"}}
 	seen := map[string]int{}
 	for seed := range uint32(400) {
-		h := hobbyOf(r, moodPlain, seed, "2026-11-10")
+		h := hobbyOf(r, moodPlain, seed, "BOLD", "2026-11-10")
 		if h == nil {
 			seen[""]++
 			continue
@@ -157,14 +157,14 @@ func TestHobbies(t *testing.T) {
 		if !strings.Contains(h.Line, h.Title) {
 			t.Errorf("hobby line misses its title: %+v", h)
 		}
-		if hobbyOf(r, moodSombre, seed, "2026-11-10") != nil {
+		if hobbyOf(r, moodSombre, seed, "BOLD", "2026-11-10") != nil {
 			t.Error("a hobby on a sombre day")
 		}
 	}
 	if seen["tv"] < 50 || seen["game"] < 50 || seen[""] < 200 {
 		t.Errorf("hobby split: %v", seen)
 	}
-	if hobbyOf(&reading{}, moodPlain, 0, "2026-11-10") != nil {
+	if hobbyOf(&reading{}, moodPlain, 0, "BOLD", "2026-11-10") != nil {
 		t.Error("a hobby with nothing to watch or play")
 	}
 }

@@ -79,6 +79,12 @@ function show(n) {
   let what = n.title + ", " + hearts(n.level) + ". Its favourite is " + n.fav.toLowerCase() + ".";
   if (n.fav_a) what += " It told you how, " + nameOf(n.fav_a) + " and " + nameOf(n.fav_b) + ".";
   openSheet({ art: art(n, 4), name: n.name }, what, (body) => {
+    if (n.gossip) {
+      const g = document.createElement("p");
+      g.className = "gossip";
+      g.textContent = n.gossip;
+      body.append(g);
+    }
     lodging(p, n, body);
     if (n.gave) {
       const s = document.createElement("p");

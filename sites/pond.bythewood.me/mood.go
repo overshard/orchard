@@ -244,7 +244,7 @@ type hobby struct {
 
 // hobbyOf is what the frog is watching or playing today, on about two days
 // in five, and never on a sombre day.
-func hobbyOf(r *reading, mood string, seed uint32, day string) *hobby {
+func hobbyOf(r *reading, mood string, seed uint32, nature, day string) *hobby {
 	if r == nil || mood == moodSombre {
 		return nil
 	}
@@ -261,22 +261,22 @@ func hobbyOf(r *reading, mood string, seed uint32, day string) *hobby {
 		return nil
 	}
 	title := list[(h/10)%uint32(len(list))]
-	pool := hobbyLines[kind]
+	pool := book.natured(map[string]string{"tv": "watching", "game": "playing"}[kind], "", nature, day, hobbyLines[kind])
 	line := pool[(h/1000)%uint32(len(pool))]
 	line = strings.NewReplacer("{show}", title, "{game}", title).Replace(line)
 	return &hobby{Kind: kind, Title: title, Line: line}
 }
 
 // moodLine is what follows the greeting today, the hobby when there is one.
-func moodLine(r *reading, mood string, seed uint32, day string) string {
-	if h := hobbyOf(r, mood, seed, day); h != nil {
+func moodLine(r *reading, mood string, seed uint32, nature, day string) string {
+	if h := hobbyOf(r, mood, seed, nature, day); h != nil {
 		return h.Line
 	}
 	var shows, games []string
 	if r != nil {
 		shows, games = r.Shows, r.Games
 	}
-	return pickLine(moodLines[mood], seed, day, shows, games)
+	return pickLine(book.natured("greeting", mood, nature, day, moodLines[mood]), seed, day, shows, games)
 }
 
 // ---------------------------------------------------------------- the weatherman

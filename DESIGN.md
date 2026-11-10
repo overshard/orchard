@@ -659,6 +659,10 @@ version of the old look and a handheld pet shell.
   beetles on the market, ripples quicken with the VIX, and a cold day has
   frost on the pad and the frog dozing. Each thing gets a line under Today at
   the pond saying why, so nothing on the water is a mystery.
+- **The Pond Gazette** is three headlines under Today at the pond in plain
+  text, plus a business story led by an amber Business label, and never a
+  number. A dream is a row in the greeting's list on the first visit of a day,
+  and a neighbour's gossip is an italic line at the top of its sheet.
 - **The reeds** are every frog as a card, the one out front first with an
   amber border and OUT FRONT, the rest with a key to swap. The egg bench and
   the pads sit under them. The register of looks is in Collect.

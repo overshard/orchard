@@ -668,6 +668,7 @@ type view struct {
 	} `json:"share"`
 	Day        dayView             `json:"day"`
 	Market     marketView          `json:"market"`
+	Gazette    gazette             `json:"gazette"`
 	Bank       bankView            `json:"bank"`
 	Kitchen    kitchenView         `json:"kitchen"`
 	Shops      map[string]shopView `json:"shops"`
@@ -879,7 +880,7 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	season(&v.Day, now)
 	today := dayOf(now)
 	if v.Frog.Stage != "egg" {
-		v.Day.Hobby = hobbyOf(r, v.Day.Mood, p.Seed, today)
+		v.Day.Hobby = hobbyOf(r, v.Day.Mood, p.Seed, frogOf(p, now).genome.Nature, today)
 	}
 	v.Day.Lines = append(v.Day.Lines, [2]string{"Fortune", fortuneOf(p.ID, today).Line})
 	var err error
@@ -915,6 +916,11 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 				v.Neighbours.All[i].Talk = firmTalk(f, residents[i].seed)
 			}
 		}
+		v.Neighbours.All[i].Gossip = gossipOf(i, today)
+	}
+	v.Gazette.Lines = gazetteOf(v.Day.Mood, today)
+	if v.Day.Mood != moodSombre {
+		v.Gazette.Business = marketHeadline(v.Market.Firms, today)
 	}
 	if v.Arcade, err = arcadeViews(q, p.ID, now); err != nil {
 		return err

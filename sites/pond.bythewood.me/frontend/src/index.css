@@ -1835,6 +1835,10 @@ h2 .count {
   font-weight: 500;
 }
 
+.gazette li {
+  color: var(--text);
+}
+
 h2 .q {
   flex: none;
   order: 3;
@@ -3114,4 +3118,9 @@ button.big {
   border-radius: 3px;
   box-shadow: var(--sunk);
   image-rendering: pixelated;
+}
+
+.gossip {
+  color: var(--muted);
+  font-style: italic;
 }
