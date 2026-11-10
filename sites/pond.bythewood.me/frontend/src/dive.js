@@ -10,7 +10,7 @@ const TOP = 20, OW = 16;
 // GH how deep, and FXP where the frog swims.
 let PW = 266, FXP = 70, GH = 200, BOT = 186;
 const BUOY = 330, RISE_MAX = 150, KICK = 138, GATE_EVERY = 118;
-const MONO = "500 8px 'JetBrains Mono', monospace", BIG = "700 22px 'Space Grotesk', sans-serif", HEAD = "700 13px 'Space Grotesk', sans-serif";
+const BIG = "700 22px 'Space Grotesk', sans-serif";
 
 let gc, gx, spr = null, sprKey = "", net = Promise.resolve();
 const G = { state: "idle", score: 0, fy: 100, vy: 0, kick: 0, gates: [], bub: [], dist: 0, next: 0, last: 0, overAt: 0, rank: 0, t: 0, why: "", lastC: 100, flash: 0, paid: null, best: false };
@@ -51,7 +51,7 @@ function spawnOthers() {
     others.push({
       id: i, g, name: g.name, spr: [ghostSprite(g, false), ghostSprite(g, true)],
       off: 0, want: 0, wantAt: 0, x: FXP, y: TOP + 30 + Math.random() * (BOT - TOP - 60),
-      vy: 0, kick: 0, passed: 0, clears: 99, aim: Math.random() * 22 - 8,
+      vy: 0, kick: 0, passed: 0, clears: 99, aim: Math.random() * 4,
       out: false, fade: 1,
     });
   }
@@ -86,7 +86,8 @@ function stepOthers(dt, sp) {
     const gate = G.gates.find((g) => g.x + OW > o.x - 8);
     // One that has cleared all it's going to drifts up into the stems.
     let want = (TOP + BOT) / 2 + o.aim * 3;
-    if (gate) want = o.passed >= o.clears ? gateC(gate) - gate.gap / 2 - 10 : gateC(gate) - 9 + o.aim;
+    // A kick carries about 29 down, so this keeps the whole bob in the gap.
+    if (gate) want = o.passed >= o.clears ? gateC(gate) - gate.gap / 2 - 10 : gateC(gate) - gate.gap / 2 + 6 + o.aim;
     o.vy -= BUOY * dt; if (o.vy < -RISE_MAX) o.vy = -RISE_MAX;
     if (o.y < want && o.vy < 30) { o.vy = KICK; o.kick = 0.16; }
     o.y += o.vy * dt; o.kick -= dt;
@@ -95,7 +96,9 @@ function stepOthers(dt, sp) {
     if (gate.x + OW < o.x - 8 && gate.seen !== undefined && !gate.seen[o.id]) { gate.seen[o.id] = true; o.passed++; }
     // Nothing touches a ghost before its dealt gate, so the race the page
     // shows is the one the server scores.
-    const c = gateC(gate), hit = o.passed >= o.clears && o.x + 7 > gate.x && o.x - 8 < gate.x + OW && (o.y - 4 < c - gate.gap / 2 || o.y + 5 > c + gate.gap / 2);
+    const c = gateC(gate), at = o.x + 7 > gate.x && o.x - 8 < gate.x + OW;
+    if (at && o.passed < o.clears) o.y = Math.max(c - gate.gap / 2 + 4, Math.min(c + gate.gap / 2 - 5, o.y));
+    const hit = at && o.passed >= o.clears && (o.y - 4 < c - gate.gap / 2 || o.y + 5 > c + gate.gap / 2);
     if (hit || (o.y < TOP + 5 && o.passed >= o.clears)) {
       o.out = true; o.fade = 0;
       if (G.state === "play") raceOut(o.id);
@@ -105,18 +108,17 @@ function stepOthers(dt, sp) {
   if (G.state === "play") raceOrder(liveOrder());
 }
 
-// Who's in front right now, by where they are on the water. A ghost level
-// with you counts as behind.
+// Everybody still in, with you last, since going out now would place you
+// behind all of them.
 function liveOrder() {
-  return others.filter((o) => !o.out).map((o) => ({ id: o.id, x: o.x }))
-    .concat([{ id: "you", x: FXP + 1 }]).sort((a, b) => b.x - a.x).map((r) => r.id);
+  return others.filter((o) => !o.out).map((o) => o.id).concat(["you"]);
 }
 
 function drawOthers() {
   gx.font = "500 6px 'JetBrains Mono', monospace"; gx.textAlign = "center"; gx.fillStyle = "#ece5d8";
   others.forEach((o) => {
     if (o.fade <= 0) return;
-    gx.globalAlpha = 0.28 * o.fade;
+    gx.globalAlpha = 0.14 * o.fade;
     gx.drawImage(o.spr[o.kick > 0 ? 1 : 0], Math.round(o.x - 15), Math.round(o.y - 9));
     // On a phone they swim too close together for ten names to be read.
     if (PW >= 400) gx.fillText(o.name, Math.round(o.x), Math.round(o.y - 12));
@@ -289,19 +291,19 @@ function draw(now) {
   if (G.state === "over" && now - G.overAt < 600) requestAnimationFrame(draw);
 }
 
+// The title is the same card the side games open on.
 function overlay() {
-  if (G.state !== "idle") return;
-  const oy = Math.round(GH * 0.31), tall = G.state === "over" && G.hat ? 84 : 72;
-  const ow = Math.min(PW - 20, 260), ox = Math.round((PW - ow) / 2);
-  gx.fillStyle = "rgba(10,9,8,0.82)"; gx.fillRect(ox, oy, ow, tall);
-  gx.fillStyle = "#ffb000"; gx.fillRect(ox, oy, 2, tall);
-  gx.textAlign = "center"; gx.fillStyle = "#ece5d8"; gx.font = HEAD;
-  if (G.state === "idle") {
-    gx.fillText("TAP TO KICK DOWN", PW / 2, oy + 24);
-    gx.fillStyle = "#bcaf99"; gx.font = MONO;
-    gx.fillText("THE FROG FLOATS UP BY ITSELF", PW / 2, oy + 40); gx.fillText("OUTLAST THE OTHERS FOR A PRIZE", PW / 2, oy + 54);
-    return;
-  }
+  const card = $("dive-card");
+  card.hidden = G.state !== "idle";
+  if (card.hidden) return;
+  if (card.firstChild) { card.querySelector("canvas").getContext("2d").drawImage($("play-dive-art"), 0, 0); return; }
+  const win = document.createElement("div"), art = document.createElement("canvas");
+  win.className = "arcade-win"; art.width = 168; art.height = 96;
+  art.getContext("2d").drawImage($("play-dive-art"), 0, 0);
+  win.append(art);
+  const line = (tag, cls, text) => { const e = document.createElement(tag); e.className = cls; e.textContent = text; return e; };
+  card.append(win, line("b", "", "DIVE"), line("p", "dim", "Tap to kick down"), line("p", "dim", "The frog floats up by itself"),
+    line("p", "dim", "Outlast the others for a prize"), line("p", "again", "Tap to start"));
 }
 
 // The strip under the water: the best run, pebbles earned against the day's
@@ -310,7 +312,7 @@ function note(p) {
   const d = p.dive;
   $("dive-best").textContent = d.best;
   $("dive-today").textContent = d.paid + "/" + d.cap;
-  $("dive-pays").textContent = payWord(d);
+  $("dive-pays").textContent = payWord(d, "Half");
 }
 
 export function initDive() {

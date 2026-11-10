@@ -245,8 +245,8 @@ func TestDivePaysToTheCap(t *testing.T) {
 	s, clock := testStore(t)
 	_, id := newPond(t, s)
 	total := 0
-	for i, want := range []int{30, 30, 30, 7, 7} {
-		d := dive(t, s, clock, id, 30)
+	for i, want := range []int{20, 20, 20, 5, 5} {
+		d := dive(t, s, clock, id, 10)
 		if d.Paid != want {
 			t.Errorf("run %d paid %d, want %d", i+1, d.Paid, want)
 		}
@@ -259,8 +259,8 @@ func TestDivePaysToTheCap(t *testing.T) {
 		t.Errorf("a day of diving paid %d, want the cap of %d", total, diveCap)
 	}
 	*clock = clock.Add(24 * time.Hour)
-	if d := dive(t, s, clock, id, 30); d.Paid != 30 {
-		t.Errorf("the first run of the next day paid %d, want 30", d.Paid)
+	if d := dive(t, s, clock, id, 30); d.Paid != 60 {
+		t.Errorf("the first run of the next day paid %d, want 60", d.Paid)
 	}
 }
 
