@@ -69,29 +69,8 @@ func (s *store) greet(id int64, first bool) (*greeting, error) {
 				g.Missed = append(g.Missed, [2]string{"Reeds", titled(frogViewOf(f, now).Name) + " grew from " + was + " to " + is})
 			}
 		}
-		if n := workersDone(frogs, now); n > 0 {
-			g.Missed = append(g.Missed, [2]string{"Jobs", plural(n, "frog") + " done a full shift"})
-		}
-		if p.FreeSpins > 0 {
-			g.Missed = append(g.Missed, [2]string{"Wheel", plural(p.FreeSpins, "free spin") + " saved"})
-		}
-		if p.GravelLevel > 0 {
-			g.Missed = append(g.Missed, [2]string{"Gravel bar", gravelLine(p.GravelLevel, p.GravelAt, now)})
-		}
-		if p.GardenLevel > 0 {
-			if ready, err := s.readyPlots(tx, p.ID, now); err != nil {
-				return err
-			} else if ready > 0 {
-				g.Missed = append(g.Missed, [2]string{"Garden", plural(ready, "plot") + " ready to pick"})
-			}
-		}
-		if p.DyeBatch != "" && !now.Before(time.Unix(p.DyeAt, 0).Add(batchTime(p.DyeLevel))) {
-			g.Missed = append(g.Missed, [2]string{"Dye works", "a batch of " + strings.ToLower(itemNames[p.DyeBatch]) + " is done"})
-		}
-		if p.LogDay != dayOf(now) {
-			g.Missed = append(g.Missed, [2]string{"Old log", "not turned over yet today"})
-		}
-
+		// What's waiting to be collected is left to the page's chips, which
+		// follow the pond as it changes, and this list never does.
 		g.Missed = append(g.Missed, kept...)
 
 		if gap := now.Sub(time.Unix(p.LastGiftAt, 0)); gap >= giftGap {

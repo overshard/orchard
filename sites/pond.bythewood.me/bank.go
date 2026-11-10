@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"log/slog"
 	"math"
 	"sort"
@@ -610,15 +609,6 @@ func (s *store) bankOf(q querier, p *pond, now time.Time, held map[string]int) (
 		}
 	}
 	return b, k, rows.Err()
-}
-
-func gravelLine(level int, at int64, now time.Time) string {
-	n, _ := gravelHeld(level, at, now)
-	limit := gravelRate[level-1] * int(holdFor/time.Hour)
-	if n >= limit {
-		return fmt.Sprintf("%d of %d, full", n, limit)
-	}
-	return fmt.Sprintf("%d of %d", n, limit)
 }
 
 func (s *store) readyPlots(q querier, id int64, now time.Time) (int, error) {
