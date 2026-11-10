@@ -378,17 +378,6 @@ func heldItems(q querier, id int64) (map[string]int, error) {
 	return out, rows.Err()
 }
 
-// workersDone counts the frogs whose shift is full and waiting.
-func workersDone(frogs []frogRow, now time.Time) int {
-	n := 0
-	for _, f := range frogs {
-		if h, _ := worked(f, now); h >= workHold.Hours() {
-			n++
-		}
-	}
-	return n
-}
-
 func canWork(f frogRow, now time.Time) bool {
 	stage, _ := stageOf(now.Sub(time.Unix(f.HatchedAt, 0)))
 	return stage != "egg"
