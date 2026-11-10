@@ -1,4 +1,4 @@
-import { $, post, state, setPond, watch } from "./api.js";
+import { $, post, state, setPond, watch, titled } from "./api.js";
 import { slot, thingArt, openSheet, closeSheet, sheetSay, button, reveal } from "./ui.js";
 import { pricePicker, toWizard } from "./town.js";
 
@@ -17,7 +17,7 @@ function useOf(t) {
   if (/^(dye|stamp|drops)_/.test(t.kind)) return USE.dye;
   if (t.sort === "hat") return "Put it on your frog.";
   if (t.sort === "trinket") return "Set it out round the pad.";
-  if (t.sort === "dish") return "Brindle buys anything you cook.";
+  if (t.sort === "dish") return "A frog that eats one lays a better egg, and Brindle buys anything you cook.";
   return USE[t.sort] || "";
 }
 
@@ -76,6 +76,12 @@ export function show(t) {
       }, "primary"));
     }
     if (t.sort === "dish") {
+      const hungry = p.frogs.filter((f) => f.stage !== "egg" && !f.fed).sort((a, b) => b.front - a.front);
+      if (hungry.length) {
+        const r = row();
+        hungry.forEach((f, i) => r.append(button("Feed " + titled(f.name), act("/api/frogs/feed", { frog: f.id, dish: t.kind },
+          () => sheetSay(titled(f.name) + " ate it up.")), i === 0 ? "primary" : "")));
+      }
       row().append(button("Sell to Brindle, " + t.worth, act("/api/kitchen/sell", { dish: t.kind }, () => sheetSay("Brindle took it."))));
     }
     if (t.free > 0) {

@@ -157,6 +157,7 @@ var addedColumns = []struct{ table, name, def string }{
 	{"ponds", "dye_batch", "TEXT NOT NULL DEFAULT ''"},
 	{"ponds", "trinkets_out", "TEXT NOT NULL DEFAULT ''"},
 	{"ponds", "forage_day", "TEXT NOT NULL DEFAULT ''"},
+	{"frogs", "fed", "TEXT NOT NULL DEFAULT ''"},
 }
 
 func ensureColumns(db *sql.DB) error {
@@ -198,6 +199,7 @@ var (
 	errFullPads  = errors.New("every pad has a frog on it, so the pond needs another pad first")
 	errSoldOut   = errors.New("you've bought all of that there is for now")
 	errBadName   = errors.New("that name isn't on the list")
+	errFed       = errors.New("it's still full from its last meal")
 	errBadPrice  = errors.New("that price is off the scale")
 	errStallFull = errors.New("the stall is full")
 )
@@ -548,7 +550,16 @@ type reedView struct {
 	ID    int64 `json:"id"`
 	Front bool  `json:"front"`
 	// Seconds until it can lay, 0 for now and -1 while it's too young.
-	LayIn int64 `json:"lay_in"`
+	LayIn int64     `json:"lay_in"`
+	Fed   *mealView `json:"fed,omitempty"`
+}
+
+type mealView struct {
+	Kind  string  `json:"kind"`
+	Name  string  `json:"name"`
+	Tier  int     `json:"tier"`
+	Takes float64 `json:"takes"`
+	Eyes  float64 `json:"eyes"`
 }
 
 type view struct {
@@ -688,7 +699,11 @@ func viewOf(q querier, p pond, now time.Time) (*view, error) {
 		if in > 0 {
 			in = in/time.Second + 1
 		}
-		v.Frogs = append(v.Frogs, reedView{frogView: frogViewOf(f, now), ID: f.ID, Front: f.Front, LayIn: int64(in)})
+		rv := reedView{frogView: frogViewOf(f, now), ID: f.ID, Front: f.Front, LayIn: int64(in)}
+		if d, ok := dishOfKind(f.Fed); ok {
+			rv.Fed = &mealView{f.Fed, d.name, d.tier, mealTakes[d.tier], mealEyes[d.tier]}
+		}
+		v.Frogs = append(v.Frogs, rv)
 	}
 	v.Forage = foragersReady(frogs, &p, now)
 	v.Pads = p.Pads

@@ -21,6 +21,11 @@ function card(f) {
   what.textContent = f.stage.charAt(0).toUpperCase() + f.stage.slice(1) + ", day " + f.day + (f.stage === "egg" ? "" : ", " + f.nature.toLowerCase());
   tier.className = "tier t" + f.rarity.tier; tier.textContent = TIERS[f.rarity.tier];
   div.append(cv, name, what, tier);
+  if (f.fed) {
+    const ate = document.createElement("span");
+    ate.className = "ate"; ate.textContent = "Full of " + f.fed.name.toLowerCase();
+    div.append(ate);
+  }
   if (f.front) {
     const on = document.createElement("span");
     on.className = "on"; on.textContent = "OUT FRONT";
@@ -59,6 +64,14 @@ function render(p) {
   else if (front.lay_in > 0) line = name + " laid not long ago and can lay again " + days(front.lay_in) + ".";
   else if (full) line = name + " is ready to lay, but every pad has a frog on it.";
   else line = name + " is ready to lay an egg.";
+  if (front.lay_in >= 0) {
+    const m = front.fed;
+    if (!m) line += " Feed it a dish from your bag first and the egg comes out better.";
+    else {
+      line += " It ate " + m.name.toLowerCase() + ", so dyes, stamps and drops take " + (m.takes >= 1 ? "every time" : Math.round(m.takes * 100) + "% of the time");
+      line += m.eyes ? " and about 1 egg in " + Math.round(1 / m.eyes) + " gets odd eyes." : ".";
+    }
+  }
   say("bench-line", line);
   lay.disabled = front.lay_in !== 0 || full;
 
@@ -140,6 +153,7 @@ export function initReeds() {
       else if (stamp) msg += " The stamp didn't take this time.";
       if (took.includes("drops")) msg += " The drops took.";
       else if (drop) msg += " The drops didn't take this time.";
+      if (took.includes("meal")) msg += " It has odd eyes from the meal.";
       if (took.includes("throwback")) msg += " Something about it looks like nobody in the family.";
       say("bench-out", msg);
       setPond(d.pond);

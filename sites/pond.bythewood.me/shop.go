@@ -52,6 +52,13 @@ const (
 // Eye drops and the colour they turn an egg's eyes.
 var drops = map[string]string{"drops_red": "#e2412d", "drops_pale": "#9fd8e8"}
 
+func randomDrops() string {
+	if rand.IntN(2) == 0 {
+		return drops["drops_red"]
+	}
+	return drops["drops_pale"]
+}
+
 var stamps = map[string]string{
 	"stamp_spots": "SPOTS", "stamp_bands": "BANDS", "stamp_speckled": "SPECKLED",
 	"stamp_mask": "MASK", "stamp_stripe": "BACK STRIPE",

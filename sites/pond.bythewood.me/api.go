@@ -279,6 +279,17 @@ func (s *site) apiLay(id int64, r *http.Request, w http.ResponseWriter) (any, er
 	return s.store.lay(id, in.Frog, in.Dye, in.Stamp, in.Drops)
 }
 
+func (s *site) apiFeed(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	var in struct {
+		Frog int64  `json:"frog"`
+		Dish string `json:"dish"`
+	}
+	if !readJSON(w, r, &in) {
+		return nil, nil
+	}
+	return s.store.feed(id, in.Frog, in.Dish)
+}
+
 func (s *site) apiBuy(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
 	var in struct {
 		Shop string `json:"shop"`
