@@ -1,6 +1,7 @@
 package main
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -12,7 +13,11 @@ const dashSample = `{
   "signal": {"conditions": [{"label": "VIX", "value": "29.4", "known": true}]},
   "briefs": {"news": {"read": {"level": "major"}}},
   "hn_pulse": {"level": "hot"},
-  "weather": {"temperature": "38", "rain": "70%", "condition": "Light Rain", "sunrise": "6:54am", "sunset": "5:18pm"},
+  "weather": {"temperature": "38", "high": "44", "low": "30", "rain": "70%", "condition": "Light Rain", "sunrise": "6:54am", "sunset": "5:18pm",
+    "tomorrow": {"high": "51", "low": "33", "rain": 80, "condition": "Rain showers"}},
+  "air": {"pollen_known": true, "pollen_level": 2},
+  "steam": [{"name": "Apex Legends™", "tags": ["ACTION"]}, {"name": "Call of Duty®: Modern Warfare® 4", "tags": ["ACTION"]}],
+  "streaming": [{"name": "The Great British Baking Show"}, {"name": "Murder in the Hills"}],
   "alerts": [{"event": "Frost Advisory", "severity": "Minor"}, {"event": "Tornado Warning", "severity": "Extreme"}],
   "systems": {"rows": [{"label": "Blog", "state": "up"}, {"label": "Chat", "state": "down"}]},
   "ahead": [{"label": "CPI", "when": "TODAY 8:30AM"}],
@@ -27,8 +32,10 @@ func TestReadingTheRealDay(t *testing.T) {
 	}
 	want := reading{At: now, Temp: 38, HasTemp: true, Cond: "Light Rain", Rain: 70, Sunrise: "6:54am",
 		Sunset: "5:18pm", SP: -1.24, HasSP: true, VIX: 29.4, Front: "CPI today", Swarm: true,
-		Major: true, Down: "Chat", Alert: "Tornado Warning"}
-	if r != want {
+		Major: true, Down: "Chat", Alert: "Tornado Warning", High: 44, Low: 30, HasHL: true, Pollen: 2,
+		Tmr: &tomorrow{51, 33, 80, "Rain showers"}, Games: []string{"Apex Legends"},
+		Shows: []string{"The Great British Baking Show"}}
+	if !reflect.DeepEqual(r, want) {
 		t.Fatalf("got %+v\nwant %+v", r, want)
 	}
 
@@ -37,7 +44,7 @@ func TestReadingTheRealDay(t *testing.T) {
 	if v.Night || !v.Cold || !v.Rain || v.Water != "murky" || v.Wind != 2 || !v.Swarm || !v.Dragonfly || !v.Heron || !v.Shelter {
 		t.Errorf("day: %+v", v)
 	}
-	if len(v.Lines) != 8 || !strings.Contains(v.Lines[0][1], "38°") {
+	if len(v.Lines) != 9 || !strings.Contains(v.Lines[0][1], "38°") {
 		t.Errorf("lines: %v", v.Lines)
 	}
 	if v := dayOfReading(&r, now.Add(9*time.Hour)); !v.Night {
