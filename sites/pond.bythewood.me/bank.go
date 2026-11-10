@@ -176,6 +176,16 @@ func (s *store) build(id int64, what string) (*view, error) {
 					return err
 				}
 			}
+		case "dye":
+			if p.DyeLevel >= buildLevels {
+				return errMaxed
+			}
+			cost := dyeCost[p.DyeLevel]
+			if p.Pebbles < cost {
+				return errPoor
+			}
+			p.Pebbles -= cost
+			p.DyeLevel++
 		default:
 			return errNotHeld
 		}
@@ -371,6 +381,7 @@ type bankView struct {
 		Why   string     `json:"why"`
 		Plots []plotView `json:"plots"`
 	} `json:"garden"`
+	Dye dyeView `json:"dye"`
 }
 
 type plotView struct {
@@ -454,6 +465,8 @@ func (s *store) bankOf(q querier, p *pond, now time.Time, held map[string]int) (
 			gd.Plots = append(gd.Plots, v)
 		}
 	}
+
+	b.Dye = dyeViewOf(p, now, held)
 
 	rain := dayOfReading(s.day.reading(now), now).Rain
 	w := seasonWeights(now, rain)

@@ -35,6 +35,9 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
 - `bank.go` is the bank, the gravel bar and the garden plots, and the kitchen
   that turns two things from the garden into a dish. `kitchen.go` has the
   ingredients, what grows in which month and every dish.
+- `dyeworks.go` is the dye works in the bank, three rocks boiled down into a
+  dye. Each rock leans the colour and `bank.js` works out the same odds to
+  show them.
 - `shop.go` is Wren's hats, Brindle's larder, Old Moss's curios and Fenn's
   furniture, which the page draws on the water. Stock is
   dealt from the day so everybody sees the same shelf, and `bought` counts

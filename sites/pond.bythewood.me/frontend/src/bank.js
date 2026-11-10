@@ -135,6 +135,8 @@ function render(p) {
   $("garden-build").textContent = build("Garden", gd.level, gd.cost);
   $("garden-build").disabled = !gd.cost || p.pebbles < gd.cost;
 
+  renderDye(p);
+
   const k = p.kitchen, larder = $("larder");
   picked = picked.filter((kind) => k.ingredients.some((i) => i.kind === kind && i.count > 0));
   if (picked.length === 2 && picked[0] === picked[1] && k.ingredients.find((i) => i.kind === picked[0]).count < 2) picked.pop();
@@ -187,6 +189,63 @@ function render(p) {
   }
 }
 
+// ---------------------------------------------------------------- dye works
+
+let rocks = [];
+
+const DYE_NAME = { dye_olive: "Olive", dye_brown: "Wood brown", dye_grey: "Grey", dye_gold: "Golden", dye_berry: "Strawberry", dye_blue: "Blue" };
+
+// The same sum as the server's, so the odds shown are the odds.
+function dyeOdds(d) {
+  const w = {}, top = d.level === 5;
+  d.pool.forEach((k, i) => { w[k] = top && i >= Math.floor(d.pool.length / 2) ? 2 : 1; });
+  rocks.forEach((r) => Object.entries(d.leans[r] || {}).forEach(([k, n]) => { if (k in w) w[k] += n * 2; }));
+  const sum = d.pool.reduce((a, k) => a + w[k], 0);
+  return d.pool.map((k) => [k, w[k] / sum]).sort((a, b) => b[1] - a[1]);
+}
+
+function renderDye(p) {
+  const d = p.bank.dye;
+  $("dye-level").textContent = d.level ? d.level + "/5" : "0";
+  $("dye-hours").textContent = d.level ? d.hours + " h" : "—";
+  $("dye-state").textContent = !d.busy ? (d.level ? "Empty" : "—") : d.ready_in > 0 ? hours(d.ready_in) : "Done";
+  let note;
+  if (!d.level) note = "Nothing built here yet. It boils three rocks down into a dye for the egg bench, and each level is quicker and makes rarer colours.";
+  else if (d.busy && d.ready_in > 0) note = "Boiling. It'll be ready in " + hours(d.ready_in) + ", and what colour stays a surprise till it's bottled.";
+  else if (d.busy) note = "Done, and ready to bottle.";
+  else note = "Pick three rocks. Each one leans the pot toward its own colours. It can make " + d.pool.map((k) => DYE_NAME[k].toLowerCase()).join(", ") + ".";
+  say("dye-note", note);
+
+  const have = {};
+  d.rocks.forEach((r) => { have[r.kind] = r.count; });
+  rocks = rocks.filter((k, i) => rocks.slice(0, i + 1).filter((x) => x === k).length <= (have[k] || 0));
+  const box = $("dye-rocks");
+  box.textContent = "";
+  box.hidden = !d.level || d.busy;
+  d.rocks.forEach((r) => {
+    const btn = document.createElement("button"), name = document.createElement("span"), n = document.createElement("span");
+    const times = rocks.filter((x) => x === r.kind).length;
+    btn.type = "button"; btn.dataset.kind = r.kind;
+    btn.setAttribute("aria-pressed", times ? "true" : "false");
+    btn.disabled = r.count === 0;
+    name.textContent = r.name + (times > 1 ? " x" + times : "");
+    n.className = r.count ? "n" : "n off";
+    n.textContent = r.count ? r.count : "NONE";
+    btn.append(iconCanvas(r.kind, 2), name, n);
+    box.append(btn);
+  });
+  const odds = $("dye-odds");
+  odds.hidden = !d.level || d.busy || !rocks.length;
+  if (!odds.hidden) odds.textContent = "Likely " + dyeOdds(d).slice(0, 3).map(([k, f]) => DYE_NAME[k].toLowerCase() + " " + Math.round(f * 100) + "%").join(", ") + ".";
+  $("dye-load").hidden = !d.level || d.busy;
+  $("dye-load").disabled = rocks.length !== 3;
+  $("dye-load").textContent = "Boil them down" + (rocks.length < 3 ? ", " + rocks.length + "/3" : "");
+  $("dye-collect").hidden = !d.busy;
+  $("dye-collect").disabled = d.ready_in > 0;
+  $("dye-build").textContent = build("Dye works", d.level, d.cost);
+  $("dye-build").disabled = !d.cost || p.pebbles < d.cost;
+}
+
 function nameOf(kind) {
   const it = state.pond.kitchen.ingredients.find((i) => i.kind === kind);
   return it ? it.name.toLowerCase() : kind;
@@ -211,13 +270,39 @@ export function initBank() {
   });
   const builder = (what, out) => () => {
     post("/api/bank/build", { build: what }).then((v) => {
-      const lv = what === "gravel" ? v.bank.gravel.level : v.bank.garden.level;
+      const lv = v.bank[what].level;
       say(out, lv === 1 ? "Built." : "Up to level " + lv + ".");
       setPond(v);
     }, (e) => say(out, e.message));
   };
   $("gravel-build").addEventListener("click", builder("gravel", "gravel-out"));
   $("garden-build").addEventListener("click", builder("garden", "garden-out"));
+  $("dye-build").addEventListener("click", builder("dye", "dye-out"));
+  $("dye-rocks").addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b || b.disabled) return;
+    const k = b.dataset.kind, have = state.pond.bank.dye.rocks.find((r) => r.kind === k).count;
+    if (rocks.length >= 3) rocks = [];
+    if (rocks.filter((x) => x === k).length < have) rocks.push(k);
+    renderDye(state.pond);
+  });
+  $("dye-load").addEventListener("click", () => {
+    if (rocks.length !== 3) return;
+    const sent = rocks;
+    rocks = [];
+    $("dye-load").disabled = true;
+    post("/api/dye/load", { rocks: sent }).then((v) => {
+      say("dye-out", "In the pot. Come back in " + v.bank.dye.hours + " hours.");
+      setPond(v);
+    }, (e) => { say("dye-out", e.message); renderDye(state.pond); });
+  });
+  $("dye-collect").addEventListener("click", () => {
+    $("dye-collect").disabled = true;
+    post("/api/dye/collect").then((d) => {
+      say("dye-out", "A bottle of " + d.dye.name.toLowerCase() + ". It's on the egg bench.");
+      setPond(d.pond);
+    }, (e) => say("dye-out", e.message));
+  });
   $("garden-pick").addEventListener("click", () => {
     $("garden-pick").disabled = true;
     post("/api/garden/pick").then((d) => {
