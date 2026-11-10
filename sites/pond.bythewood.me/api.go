@@ -164,6 +164,10 @@ func (s *site) apiSpin(id int64, r *http.Request, w http.ResponseWriter) (any, e
 	return s.store.spin(id, in.Paid)
 }
 
+func (s *site) apiStarter(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	return s.store.starterClaim(id)
+}
+
 func (s *site) apiLog(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
 	var in struct {
 		Pick int `json:"pick"`

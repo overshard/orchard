@@ -2871,7 +2871,7 @@ button.big {
   animation: led 1.6s steps(2) infinite;
 }
 
-.label {
+.sticker {
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -2882,13 +2882,13 @@ button.big {
   color: #2a2016;
 }
 
-.label canvas {
+.sticker canvas {
   width: 100%;
   height: auto;
   border-radius: 1px;
 }
 
-.label b {
+.sticker b {
   overflow: hidden;
   font-family: var(--grotesk);
   font-size: 15px;
@@ -2998,4 +2998,54 @@ button.big {
 
 .arcade-card {
   z-index: 1;
+}
+
+/* The first day list, a lit LED for each step done. */
+.starter .label {
+  color: var(--print);
+}
+
+.steps-list {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.steps-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.steps-list li::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2e2a24;
+  box-shadow: var(--sunk);
+}
+
+.steps-list li.done::before {
+  background: #5ddc82;
+  box-shadow: 0 0 6px #5ddc82;
+}
+
+.steps-list a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.steps-list li.done a {
+  color: var(--dim);
+  text-decoration: line-through;
+}
+
+.starter button {
+  width: 100%;
+  margin-top: 6px;
 }

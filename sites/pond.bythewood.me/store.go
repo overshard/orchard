@@ -198,6 +198,7 @@ var addedColumns = []struct{ table, name, def string }{
 	{"ponds", "burrow_at", "INTEGER NOT NULL DEFAULT 0"},
 	{"ponds", "lodgers", "TEXT NOT NULL DEFAULT ''"},
 	{"ponds", "rent_day", "TEXT NOT NULL DEFAULT ''"},
+	{"ponds", "starter", "INTEGER NOT NULL DEFAULT 16"},
 }
 
 func ensureColumns(db *sql.DB) error {
@@ -466,7 +467,7 @@ func (s *store) create() (string, int64, error) {
 			return errFull
 		}
 		res, err := tx.Exec(`INSERT INTO ponds (key_hmac, public_id, created_at, last_seen_at,
-			last_gift_at, pebbles, free_spins, spin_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?)`,
+			last_gift_at, pebbles, free_spins, spin_at, starter) VALUES (?, ?, ?, ?, ?, ?, 1, ?, 0)`,
 			keyHMAC(s.pepper, key), randomHex(8), now, now, now, starterPebbles, now)
 		if err != nil {
 			return err
@@ -669,7 +670,8 @@ type view struct {
 		Same  int `json:"same"`
 	} `json:"wizard"`
 
-	Todo []todo `json:"todo"`
+	Todo    []todo       `json:"todo"`
+	Starter *starterView `json:"starter,omitempty"`
 
 	held  map[string]int
 	found []hat
@@ -898,5 +900,8 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	}
 	v.Share.Power = powerOf(v.Frog.Rarity, v.found, had, p.DiveBest, v.Jobs.Total)
 	v.Todo = todoOf(v)
+	if v.Starter, err = starterOf(q, p); err != nil {
+		return err
+	}
 	return nil
 }
