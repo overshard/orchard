@@ -568,7 +568,8 @@ the amber, so a change to those on dash is made here too.
 - **Dive is the whole window, on a phone and a desktop.** It covers the bar and
   the keys, the pond takes its depth and length from the window, and a strip
   under the water holds three readout tiles and `EXIT`. Ten ghost frogs swim
-  each run at 42% alpha with their names over them.
+  each run a little behind at 60% alpha, with their names over them where
+  the field is wide enough to read ten.
 - The game page has no footer. The copyright and the source link are on the
   key page.
 - Every sprite is drawn per pixel from a seed in `frontend/src/frog.js`. There

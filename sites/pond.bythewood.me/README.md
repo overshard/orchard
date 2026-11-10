@@ -52,6 +52,10 @@ they have none, for other sites to draw.
 - The server owns the clock and every earner has a daily cap in `game.go`. A
   test plays 90 days and fails if the purse runs away, so run it after touching
   a price or a prize.
+- The ghosts in Dive are dealt by `POST /api/dive/start`, which is how the
+  server knows a podium place at the finish. The page only plays them out.
+- A new column on `ponds` goes in `addedColumns` in `store.go` as well as the
+  schema, since the live table already exists.
 - The egg is laid by `POST /api/greet` from the page's script and not by the
   page load, so crawlers don't fill the database with eggs.
 - `/key` and `/k` show or carry a pond key, so they load no analytics and send

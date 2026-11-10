@@ -30,16 +30,16 @@ function frogCols(g) {
   return { 1: hsl(g.hue, g.sat, g.lit + 4), 2: hsl(g.hue + 18, g.sat * 0.45, Math.min(92, g.lit + 32)), 3: hsl(g.hue - 8, g.sat, g.lit - 14), 4: m.name === "ALBINO" ? "#f6c9cc" : "#fff6dc", 5: "#141210", 6: hsl(g.hue, g.sat * 0.6, 14), 8: m.limb != null ? hsl(m.limb, 70, 50) : hsl(g.hue, g.sat, g.lit - 7), 9: hsl(g.hue, g.sat * 0.5, 9) };
 }
 
-// Ten other frogs swim every run. Nobody is steering them. Each one aims for
-// the gaps, a little sloppily, and is fated to hit a gate somewhere in the
-// first thirty, so the water feels shared without anybody else being there.
+// Ten other frogs swim every run, a little behind. Nobody is steering them.
+// Each aims for the gaps, a little sloppily, and the server deals how many
+// gates each will clear before it hits one, which is how it knows who placed.
 const GHOSTS_IN = 10;
 let others = [];
 
 function ghostSprite(g, kick) {
   const cv = document.createElement("canvas");
   cv.width = SW; cv.height = SH;
-  drawCells(cv.getContext("2d"), sideCells(g, "frog", kick), SW, SH, frogCols(g), 0, 0, 1);
+  drawCells(cv.getContext("2d"), sideCells(g, state.pond.frog.stage, kick), SW, SH, frogCols(g), 0, 0, 1);
   return cv;
 }
 
@@ -49,12 +49,21 @@ function spawnOthers() {
     const g = genome(1 + Math.floor(Math.random() * 4294967295));
     others.push({
       name: g.name, spr: [ghostSprite(g, false), ghostSprite(g, true)],
-      x: 14 + i * (FXP + 50) / GHOSTS_IN + Math.random() * 8, y: TOP + 30 + Math.random() * (BOT - TOP - 60),
-      vy: 0, kick: 0, passed: 0, clears: Math.floor(Math.random() * 30), aim: Math.random() * 22 - 8,
+      x: FXP - 12 - i * Math.min(60, FXP - 24) / GHOSTS_IN - Math.random() * 3, y: TOP + 30 + Math.random() * (BOT - TOP - 60),
+      vy: 0, kick: 0, passed: 0, clears: 99, aim: Math.random() * 22 - 8,
       out: false, fade: 1,
     });
   }
 }
+
+// Until the deal arrives a ghost clears everything, and the first gate is
+// seconds away, so it always has. With no answer the page deals its own.
+function deal(clears) {
+  others.forEach((o, i) => { o.clears = clears && clears[i] != null ? clears[i] : Math.floor(Math.random() * 30); });
+}
+
+const ORD = ["", "1ST", "2ND", "3RD"];
+function ordinal(n) { return ORD[n] || n + "TH"; }
 
 function stepOthers(dt, sp) {
   others.forEach((o) => {
@@ -81,9 +90,10 @@ function drawOthers() {
   gx.font = "500 6px 'JetBrains Mono', monospace"; gx.textAlign = "center"; gx.fillStyle = "#ece5d8";
   others.forEach((o) => {
     if (o.fade <= 0) return;
-    gx.globalAlpha = 0.42 * o.fade;
+    gx.globalAlpha = 0.6 * o.fade;
     gx.drawImage(o.spr[o.kick > 0 ? 1 : 0], Math.round(o.x - 15), Math.round(o.y - 9));
-    gx.fillText(o.name, Math.round(o.x), Math.round(o.y - 12));
+    // On a phone they swim too close together for ten names to be read.
+    if (PW >= 400) gx.fillText(o.name, Math.round(o.x), Math.round(o.y - 12));
   });
   gx.globalAlpha = 1;
   if (G.state === "idle") return;
@@ -93,7 +103,7 @@ function drawOthers() {
 }
 
 function reset() {
-  G.fy = 96; G.vy = 0; G.kick = 0; G.gates = []; G.bub = []; G.dist = 0; G.next = 150; G.score = 0; G.t = 0; G.lastC = GH / 2; G.flash = 0; G.paid = null; G.best = false;
+  G.fy = 96; G.vy = 0; G.kick = 0; G.gates = []; G.bub = []; G.dist = 0; G.next = 150; G.score = 0; G.cleared = 0; G.place = 0; G.bonus = 0; G.hat = null; G.had = false; G.t = 0; G.lastC = GH / 2; G.flash = 0; G.paid = null; G.best = false;
 }
 
 let started = null;
@@ -101,12 +111,12 @@ let started = null;
 function die(now, why) {
   G.state = "over"; G.overAt = now; G.why = why;
   G.rank = others.filter((o) => o.out).length;
-  const score = G.score;
+  const score = G.score, gates = G.cleared;
   // Requests go one after another, so a finish always lands before the start
   // of the run after it.
-  net = started.then((run) => run ? post("/api/dive/finish", { run, score }) : null).then((d) => {
+  net = started.then((run) => run ? post("/api/dive/finish", { run, score, gates }) : null).then((d) => {
     if (!d) { G.paid = 0; return; }
-    G.paid = d.paid; G.best = d.best;
+    G.paid = d.paid; G.best = d.best; G.place = d.place; G.bonus = d.bonus; G.hat = d.hat; G.had = d.had;
     setPond(d.pond);
   }, () => { G.paid = 0; }).then(() => { if (G.state === "over") draw(performance.now()); });
 }
@@ -116,7 +126,7 @@ function press() {
   if (G.state !== "play") {
     if (G.state === "over" && performance.now() - G.overAt < 500) return;
     reset(); spawnOthers(); G.state = "play"; G.last = performance.now();
-    started = net = net.then(() => post("/api/dive/start")).then((d) => d.run, () => null);
+    started = net = net.then(() => post("/api/dive/start")).then((d) => { deal(d.ghosts); return d.run; }, () => { deal(null); return null; });
     requestAnimationFrame(step);
   }
   G.vy = KICK; G.kick = 0.16;
@@ -151,7 +161,7 @@ function step(now) {
     const c = gateC(g), topEnd = c - g.gap / 2, botStart = c + g.gap / 2;
     if (FXP + 7 > g.x && FXP - 8 < g.x + OW && (G.fy - 4 < topEnd || G.fy + 5 > botStart)) dead = G.fy - 4 < topEnd ? "TANGLED IN THE STEMS" : "BONKED A ROCK";
     if (g.bug && Math.abs(g.x + OW / 2 - FXP) < 9 && Math.abs(c + g.bug * (g.gap / 2 - 9) - G.fy) < 9) { g.bug = 0; G.score++; G.flash = 0.25; }
-    if (!g.done && g.x + OW < FXP - 8) { g.done = true; G.score++; }
+    if (!g.done && g.x + OW < FXP - 8) { g.done = true; G.score++; G.cleared++; }
   }
   for (let q = G.bub.length - 1; q >= 0; q--) { const b = G.bub[q]; b.x -= sp * dt; b.y -= 26 * dt; b.a -= dt * 1.5; if (b.a <= 0) G.bub.splice(q, 1); }
   stepOthers(dt, sp);
@@ -165,6 +175,8 @@ function px(x, y, w, h) { gx.fillRect(Math.round(x), Math.round(y), w, h); }
 function draw(now) {
   if (!state.pond) return;
   gx.setTransform(2, 0, 0, 2, 0, 0);
+  // Off, or a ghost drawn from its own small canvas comes out smeared.
+  gx.imageSmoothingEnabled = false;
   const bands = ["#123a3d", "#103336", "#0e2c30", "#0c262a", "#0b2024", "#0a1b1f"];
   const bh = (BOT - TOP) / 6;
   for (let b = 0; b < 6; b++) { gx.fillStyle = bands[b]; gx.fillRect(0, Math.floor(TOP + b * bh), PW, Math.ceil(bh) + 1); }
@@ -209,25 +221,38 @@ function draw(now) {
   if (G.state === "over" && now - G.overAt < 600) requestAnimationFrame(draw);
 }
 
+// What the end card says about the podium: the place, and what it added.
+function placeLine() {
+  const place = G.place || 1 + others.filter((o) => !o.out).length;
+  let line = ordinal(place) + " OF " + (others.length + 1);
+  if (G.paid == null || place > 3) return line;
+  if (G.had) return line + ", THAT PRIZE IS WON FOR TODAY";
+  if (G.bonus) line += ", +" + G.bonus + " PEBBLES" + (G.hat ? " AND A HAT" : "");
+  return line;
+}
+
 function overlay() {
   if (G.state === "play") return;
-  const oy = Math.round(GH * 0.31);
+  const oy = Math.round(GH * 0.31), tall = G.state === "over" && G.hat ? 84 : 72;
   const ow = Math.min(PW - 20, 260), ox = Math.round((PW - ow) / 2);
-  gx.fillStyle = "rgba(10,9,8,0.82)"; gx.fillRect(ox, oy, ow, 70);
-  gx.fillStyle = "#ffb000"; gx.fillRect(ox, oy, 2, 70);
+  gx.fillStyle = "rgba(10,9,8,0.82)"; gx.fillRect(ox, oy, ow, tall);
+  gx.fillStyle = "#ffb000"; gx.fillRect(ox, oy, 2, tall);
   gx.textAlign = "center"; gx.fillStyle = "#ece5d8"; gx.font = HEAD;
   if (G.state === "idle") {
     gx.fillText("TAP TO KICK DOWN", PW / 2, oy + 24);
     gx.fillStyle = "#bcaf99"; gx.font = MONO;
-    gx.fillText("THE FROG FLOATS UP BY ITSELF", PW / 2, oy + 40); gx.fillText("STAY UNDER THE SURFACE", PW / 2, oy + 54);
-  } else {
-    gx.fillText(G.why, PW / 2, oy + 22);
-    gx.fillStyle = "#bcaf99"; gx.font = MONO;
-    const pay = G.paid == null ? "COUNTING PEBBLES" : "+" + G.paid + (G.paid === 1 ? " PEBBLE" : " PEBBLES") + (G.best ? ", A NEW BEST" : "");
-    gx.fillText(G.score + (G.score === 1 ? " POINT, " : " POINTS, ") + pay, PW / 2, oy + 36);
-    gx.fillText("OUTLASTED " + G.rank + " OF " + others.length, PW / 2, oy + 47);
-    gx.fillStyle = "#ffb000"; gx.fillText("TAP TO GO AGAIN", PW / 2, oy + 60);
+    gx.fillText("THE FROG FLOATS UP BY ITSELF", PW / 2, oy + 40); gx.fillText("OUTLAST THE OTHERS FOR A PRIZE", PW / 2, oy + 54);
+    return;
   }
+  gx.fillText(G.why, PW / 2, oy + 22);
+  gx.fillStyle = "#bcaf99"; gx.font = MONO;
+  const pay = G.paid == null ? "COUNTING PEBBLES" : "+" + G.paid + (G.paid === 1 ? " PEBBLE" : " PEBBLES") + (G.best ? ", A NEW BEST" : "");
+  gx.fillText(G.score + (G.score === 1 ? " POINT, " : " POINTS, ") + pay, PW / 2, oy + 36);
+  gx.fillStyle = (G.place || 9) <= 3 ? "#ffe27a" : "#bcaf99";
+  gx.fillText(placeLine(), PW / 2, oy + 48);
+  let y = oy + 62;
+  if (G.hat) { gx.fillText(G.hat.hat_name.toUpperCase() + (G.hat.spare ? ", A SPARE" : ", NEW"), PW / 2, oy + 60); y += 12; }
+  gx.fillStyle = "#ffb000"; gx.fillText("TAP TO GO AGAIN", PW / 2, y);
 }
 
 // The strip under the water: the best run, pebbles earned against the day's

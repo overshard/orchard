@@ -335,11 +335,11 @@ func TestAVisitEndToEnd(t *testing.T) {
 		t.Errorf("log 7: %d", code)
 	}
 
-	var run struct{ Run string }
+	var run diving
 	b.post("/api/dive/start", "{}", &run)
 	*clock = clock.Add(40 * time.Second)
 	var dv dived
-	body, _ := json.Marshal(map[string]any{"run": run.Run, "score": 18})
+	body, _ := json.Marshal(map[string]any{"run": run.Run, "score": 18, "gates": 12})
 	if code := b.post("/api/dive/finish", string(body), &dv); code != http.StatusOK || dv.Paid != 18 || !dv.Best {
 		t.Errorf("dive: %d %+v", code, dv)
 	}
