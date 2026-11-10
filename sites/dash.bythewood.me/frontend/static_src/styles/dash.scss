@@ -1326,6 +1326,64 @@ main {
   }
 }
 
+// UPLINK keeps the width and POND takes a narrow column beside it.
+.uplink-band {
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.28fr);
+}
+
+.pond {
+  .pond-body {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex: 1;
+  }
+
+  // Drawn at 3px a cell and never smoothed, so the cells stay square.
+  .pond-frog {
+    flex: none;
+    width: 132px;
+    height: 102px;
+    image-rendering: pixelated;
+    background: var(--void);
+    border: 1px solid var(--line);
+    cursor: pointer;
+  }
+
+  .pond-read {
+    margin: 0;
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+
+    div { min-width: 0; }
+    dt { font-size: 9px; letter-spacing: var(--track); color: var(--dim); }
+    dd {
+      margin: 0;
+      font-size: 11px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    [data-pond-name] { color: var(--amber); }
+  }
+
+  .pond-down { display: none; margin: 0; font-size: 11px; color: var(--dim); letter-spacing: var(--track); }
+
+  .pond-go {
+    margin-top: 10px;
+    font-size: 10px;
+    letter-spacing: var(--track);
+  }
+
+  &[data-state="loading"] .pond-go { visibility: hidden; }
+  &[data-state="down"] {
+    .pond-body { display: none; }
+    .pond-down { display: block; }
+  }
+}
+
 // Alerts ---------------------------------------------------------------------
 
 // Above everything, and absent entirely when there is nothing active, because a

@@ -63,7 +63,7 @@ COMPOSE      = $(DOCKER) compose
 COMPOSE_DOWN = $(DOCKER) compose
 
 .DEFAULT_GOAL := help
-.PHONY: help install up up-one deploy edge doctor down down-one run build check shared-check template-check new fmt fmt-check vet vuln deps test \
+.PHONY: help install up up-one deploy edge doctor down down-one run build check shared-check frog-check template-check new fmt fmt-check vet vuln deps test \
 	env password tunnel tunnel-login tunnel-status ntfy ntfy-token ntfy-status ntfy-passwd \
 	auth-init auth-recovery chat-key dash-key llm-key wiki util require-site require-env require-tunnel
 
@@ -524,7 +524,7 @@ build: require-site
 # the working directory, and build/ is gitignored.
 # check reports and does not repair, so it must not depend on fmt, which runs
 # gofmt -w and would make the answer yes by rewriting. Use `make fmt` for that.
-check: fmt-check shared-check template-check vet vuln
+check: fmt-check shared-check frog-check template-check vet vuln
 	for s in $(SITES); do echo "build $$s"; \
 		(cd sites/$$s && mkdir -p build && go build -o build/ ./...) || exit 1; done
 
@@ -559,6 +559,14 @@ shared-check:
 		exit 1; \
 	fi; \
 	echo "$(SHARED) copies match"
+
+# dash draws the visitor's frog with a copy of pond's sprite code, so a change
+# to how a frog looks has to land in both.
+FROGS = sites/pond.bythewood.me/frontend/src/frog.js sites/dash.bythewood.me/frontend/static_src/scripts/frog.js
+
+frog-check:
+	@cmp -s $(FROGS) || { echo "frog.js differs between pond and dash, copy pond's over dash's" >&2; exit 1; }
+	@echo "frog.js copies match"
 
 # Reports stdlib issues against the local toolchain too, so an old Go in webdev
 # shows up here until taproot's GO_VERSION is bumped.

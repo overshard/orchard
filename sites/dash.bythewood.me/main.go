@@ -61,7 +61,7 @@ func csp() string {
 		"style-src 'self' 'unsafe-inline'",
 		"img-src 'self' data:",
 		"font-src 'self'",
-		"connect-src 'self' https://analytics.bythewood.me",
+		"connect-src 'self' https://analytics.bythewood.me https://pond.bythewood.me",
 		"base-uri 'self'",
 		"form-action 'self'",
 		"frame-ancestors 'self'",
