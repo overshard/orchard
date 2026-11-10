@@ -422,3 +422,13 @@ func TestPowerAddsUp(t *testing.T) {
 		t.Errorf("a new frog's rank: %+v", p)
 	}
 }
+
+func TestOnlyTheKeyPageHasAFooter(t *testing.T) {
+	b, _, _ := testSite(t)
+	if body := b.do(http.MethodGet, "/", "").Body.String(); strings.Contains(body, "<footer") {
+		t.Error("the game page has a footer")
+	}
+	if body := b.do(http.MethodGet, "/key", "").Body.String(); !strings.Contains(body, "<footer") {
+		t.Error("the key page lost its footer")
+	}
+}

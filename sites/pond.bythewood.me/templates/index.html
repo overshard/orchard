@@ -106,5 +106,6 @@
 </nav>
 {{ end }}
 
-{{/* The game has no footer. The key page carries it. */}}
-{{ define "foot" }}{{ end }}
+{{/* The game has no footer, the key page carries it. A define with nothing in
+     it doesn't replace a block, so this one has to hold something. */}}
+{{ define "foot" }}{{ if false }}{{ end }}{{ end }}
