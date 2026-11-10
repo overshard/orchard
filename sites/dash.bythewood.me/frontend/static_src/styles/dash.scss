@@ -1369,6 +1369,29 @@ main {
     [data-pond-name] { color: var(--amber); }
   }
 
+  // What's waiting at the pond, each a link straight to it.
+  .pond-todo {
+    list-style: none;
+    margin: 12px 0 0;
+    padding: 10px 0 0;
+    border-top: 1px solid var(--line);
+    display: grid;
+    gap: 5px;
+    font-size: 10px;
+    letter-spacing: var(--track);
+
+    a, span {
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    a { color: var(--amber); text-decoration: none; }
+    a::before { content: "\25B8  "; color: var(--amber-dim); }
+    a:hover { text-decoration: underline; }
+    span { color: var(--dim); }
+  }
+
   .pond-down { display: none; margin: 0; font-size: 11px; color: var(--dim); letter-spacing: var(--track); }
 
   .pond-go {

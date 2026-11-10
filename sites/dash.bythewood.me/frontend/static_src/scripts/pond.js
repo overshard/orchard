@@ -26,17 +26,37 @@ function paint(ctx, c, px, ink) {
   }
 }
 
+const SHOWN = 4;
+
+function todo(d) {
+  const ul = panel.querySelector("[data-pond-todo]");
+  if (!ul || d.house) return;
+  ul.textContent = "";
+  const item = (el) => { const li = document.createElement("li"); li.append(el); ul.append(li); };
+  d.todo.slice(0, SHOWN).forEach((t) => {
+    const a = document.createElement("a");
+    a.href = POND + "/#" + t.to; a.target = "_blank"; a.rel = "noopener";
+    a.textContent = t.label.toUpperCase();
+    item(a);
+  });
+  const more = d.todo.length - SHOWN, s = document.createElement("span");
+  if (more > 0) { s.textContent = "+" + more + " MORE AT THE POND"; item(s); }
+  if (!d.todo.length) { s.textContent = "NOTHING WAITING TODAY"; item(s); }
+  ul.hidden = false;
+}
+
 function show(d) {
   const f = d.frog, g = bred(genome(f.seed), f.mods), hat = f.hat && f.hat.shape ? f.hat.shape : 0;
   const cv = panel.querySelector("canvas"), ctx = cv.getContext("2d"), px = cv.width / W;
   const set = (k, v) => { const el = panel.querySelector("[data-pond-" + k + "]"); if (el) el.textContent = v; };
 
-  set("meta", d.house ? "HOUSE FROG" : "YOUR FROG");
+  set("meta", d.house ? "HOUSE FROG" : f.rarity.label.toUpperCase() + " / 1 IN " + f.rarity.n.toLocaleString("en-US"));
   set("name", f.name);
   set("stage", (STAGES[f.stage] || f.stage.toUpperCase()) + " / DAY " + f.day);
-  set("rarity", "1 IN " + f.rarity.n.toLocaleString("en-US") + " " + f.rarity.label);
-  set("best", d.dive_best ? d.dive_best + " GATES" : "—");
+  set("pebbles", d.house ? "—" : d.pebbles.toLocaleString("en-US"));
+  set("power", d.house ? "—" : d.power.toLocaleString("en-US") + (d.rank ? " / " + d.rank.toUpperCase() : ""));
   set("go", d.house ? "GET A FROG OF YOUR OWN ↗" : "VISIT THE POND ↗");
+  todo(d);
   panel.dataset.state = "ready";
 
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
