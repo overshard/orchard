@@ -34,11 +34,17 @@ const SFX = {
   bonk: () => tone("sawtooth", 160, 60, 0.18, 0.09),
   click: () => tone("triangle", 1800, 900, 0.025, 0.05),
   clunk: () => tone("triangle", 140, 70, 0.06, 0.12),
+  cast: () => tone("triangle", 900, 260, 0.14, 0.04),
+  plop: () => tone("sine", 520, 140, 0.09, 0.08),
+  bite: () => tone("square", 1250, 1000, 0.06, 0.05),
+  reel: () => tone("triangle", 2600, 2200, 0.012, 0.02),
+  snap: () => tone("sawtooth", 520, 70, 0.2, 0.08),
+  land: () => { tone("square", 660, 990, 0.07, 0.05); setTimeout(() => tone("square", 990, 1480, 0.09, 0.05), 70); },
 };
 
 export function sfx(kind) {
   if (on.sound && SFX[kind]) SFX[kind]();
-  if (kind === "bonk" && on.buzz && navigator.vibrate) navigator.vibrate(40);
+  if ((kind === "bonk" || kind === "snap") && on.buzz && navigator.vibrate) navigator.vibrate(40);
 }
 
 // A key goes down with a click, and the main key with a clunk.
