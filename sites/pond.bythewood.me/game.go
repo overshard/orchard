@@ -91,6 +91,9 @@ func (h hat) valid() bool {
 }
 
 func (h hat) tier() int {
+	if _, ok := h.hood(); ok {
+		return tierCount - 1
+	}
 	if h.Colour == hatGolden {
 		return tierCount - 1
 	}
@@ -101,7 +104,40 @@ func (h hat) tier() int {
 	return min(t, tierCount-1)
 }
 
-func (h hat) name() string { return hatColours[h.Colour] + hatNames[h.Shape] }
+func (h hat) name() string {
+	if j, ok := h.hood(); ok {
+		return j.name + " hood"
+	}
+	return hatColours[h.Colour] + hatNames[h.Shape]
+}
+
+// A 99 at a job earns the pond that job's hood. It's worn like a hat but
+// never held, so it can't be sold, listed or taken to the wizard.
+const hoodBase = 100
+
+func hoodFor(i int) hat { return hat{Shape: hoodBase + 1 + i} }
+
+func (h hat) hood() (job, bool) {
+	i := h.Shape - hoodBase - 1
+	if h.Colour != 0 || i < 0 || i >= len(jobs) {
+		return job{}, false
+	}
+	return jobs[i], true
+}
+
+// hoodsEarned is every hood a pond's frogs have earned between them.
+func hoodsEarned(xp jobXP) []hat {
+	var out []hat
+	for i, j := range jobs {
+		for _, m := range xp {
+			if levelOf(m[j.key]) >= maxLevel {
+				out = append(out, hoodFor(i))
+				break
+			}
+		}
+	}
+	return out
+}
 
 func wrenPays(h hat) int { return hatRate[h.tier()] / 4 }
 

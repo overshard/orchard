@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"math/rand/v2"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -178,6 +179,17 @@ func (s *store) wear(id int64, h hat) (*view, error) {
 	return s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
 		if h.Shape == 0 {
 			p.Wearing = hat{}
+			return nil
+		}
+		if _, ok := h.hood(); ok {
+			xp, err := loadXP(tx, p.ID)
+			if err != nil {
+				return err
+			}
+			if !slices.Contains(hoodsEarned(xp), h) {
+				return errNotHeld
+			}
+			p.Wearing = h
 			return nil
 		}
 		var count int

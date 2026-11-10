@@ -233,6 +233,21 @@ func hatCell(shape int, hx, hy float64) uint8 {
 				v = 11
 			}
 		}
+	default:
+		if shape > hoodBase {
+			if hy > 0 && ell(hx, hy, 0, 0.4, 6.2, 5) {
+				v = 10
+				if hy < 1.2 {
+					v = 11
+				}
+			}
+			if hy >= 4 && hy < 7.6 && ax < (7.6-hy)*0.7 {
+				v = 10
+			}
+			if ell(hx, hy, 0, 3.1, 1.2, 1.2) {
+				v = 11
+			}
+		}
 	}
 	return v
 }
@@ -422,6 +437,7 @@ func spriteCells(g look, stage string, day int, hatShape int) []uint8 {
 
 var (
 	hatMain = [][2]string{{}, {"#1b1a22", "#b3222f"}, {"#e8559a", "#ffe27a"}, {"#f2c230", "#d8402f"}, {"#4f9a4a", "#2f6b33"}, {"#d8402f", "#f3e4c2"}, {"#f3e4c2", "#f2c230"}, {"#8a5a2b", "#3a2412"}, {"#4b3fa8", "#ffe27a"}, {"#d8402f", "#fff6dc"}, {"#9aa0a6", "#f3e4c2"}, {"#fff6dc", "#c9ccd0"}, {"#3d8fd6", "#f2c230"}, {"#ffe27a", "#fff6dc"}, {"#e8559a", "#b3306d"}, {"#e3c57a", "#d8402f"}}
+	hoodCols = [][2]string{{"#4f9a4a", "#f2c230"}, {"#2f6b6b", "#ffe27a"}, {"#8a5a2b", "#e3c57a"}, {"#8a8a3a", "#f3e4c2"}, {"#5a3f24", "#e8a05a"}, {"#3d5a8a", "#e9e3d6"}, {"#6b3fa8", "#f2c230"}}
 	hatWays = [][2]string{{}, {"#4f9a4a", "#cfe8a0"}, {"#b03a8c", "#ffd0ea"}, {"#f2c230", "#fff6dc"}}
 )
 
@@ -473,9 +489,13 @@ func spriteColours(g look, h hat) map[uint8]color.RGBA {
 		col[5] = rgb("#b3222f")
 	}
 	if h.Shape != 0 {
-		pair := hatMain[h.Shape]
-		if h.Colour != 0 {
+		var pair [2]string
+		if _, ok := h.hood(); ok {
+			pair = hoodCols[h.Shape-hoodBase-1]
+		} else if h.Colour != 0 {
 			pair = hatWays[h.Colour]
+		} else {
+			pair = hatMain[h.Shape]
 		}
 		col[10], col[11] = rgb(pair[0]), rgb(pair[1])
 	}

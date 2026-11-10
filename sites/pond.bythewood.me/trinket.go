@@ -39,7 +39,28 @@ var trinkets = []trinket{
 	{"t_pot", "Clay pot", 1},
 	{"t_flute", "Reed flute", 2},
 	{"t_statue", "Clay frog statue", 3},
+	{"t_bee", "Bumblebee", 4},
+	{"t_ladybird", "Ladybird", 4},
+	{"t_hedgehog", "Hedgehog", 4},
+	{"t_dragonfly", "Dragonfly", 4},
+	{"t_newt", "Newt", 4},
+	{"t_crayfish", "Crayfish", 4},
+	{"t_mouse", "Workshop mouse", 4},
 }
+
+// Pets only turn up at work, by job, so no box, present or wizard hands one out.
+var pets = map[string]string{
+	"t_bee":       "garden",
+	"t_ladybird":  "bugs",
+	"t_hedgehog":  "sticks",
+	"t_dragonfly": "reeds",
+	"t_newt":      "mud",
+	"t_crayfish":  "pebbles",
+	"t_mouse":     "craft",
+}
+
+// petEvery is the work hours between pets at level 1, half that at 99.
+const petEvery = 3000
 
 const trinketBoxCost = 60
 
@@ -65,7 +86,7 @@ func trinketOf(kind string) (trinket, bool) {
 func trinketOfTier(t int) trinket {
 	var pool []trinket
 	for _, x := range trinkets {
-		if x.tier == t {
+		if x.tier == t && pets[x.kind] == "" {
 			pool = append(pool, x)
 		}
 	}
@@ -175,6 +196,8 @@ type trinketView struct {
 	Found bool   `json:"found"`
 	Cook  bool   `json:"cook"`
 	Moss  int    `json:"moss"`
+	// The job a pet turns up at, by name.
+	Pet string `json:"pet,omitempty"`
 }
 
 type trinketsView struct {
@@ -192,7 +215,11 @@ func trinketsOf(q querier, p *pond, held map[string]int) (trinketsView, error) {
 	}
 	for _, t := range trinkets {
 		_, cook := ingredientOf(t.kind)
-		tv.All = append(tv.All, trinketView{t.kind, t.name, t.tier, held[t.kind], found[t.kind], cook, hatRate[t.tier] / 4})
+		var pet string
+		if j, ok := jobOf(pets[t.kind]); ok {
+			pet = j.name
+		}
+		tv.All = append(tv.All, trinketView{t.kind, t.name, t.tier, held[t.kind], found[t.kind], cook, hatRate[t.tier] / 4, pet})
 	}
 	// A trinket cooked or sold down to none leaves its spot empty.
 	tv.Spots = parseSpots(p.TrinketsOut)
@@ -282,4 +309,11 @@ var trinketIcons = map[string]struct {
 	"t_pot":         {[8]string{"........", "..aaaa..", "...bb...", "..bbbb..", ".bbcbbb.", ".bbbbbb.", "..bbbb..", "...bb..."}, map[byte]string{'a': "#a8642e", 'b': "#c9743a", 'c': "#e8a05a"}},
 	"t_flute":       {[8]string{"......aa", ".....aba", "....aba.", "...aba..", "..aba...", ".aba....", "aba.....", "aa......"}, map[byte]string{'a': "#8a7a3a", 'b': "#d6c88f"}},
 	"t_statue":      {[8]string{"........", ".a....a.", "abaaaaba", "aaaaaaaa", "aacaacaa", ".aaaaaa.", "dddddddd", ".dddddd."}, map[byte]string{'a': "#b8642e", 'b': "#1a1a1a", 'c': "#e8a05a", 'd': "#8a939e"}},
+	"t_bee":         {[8]string{"..c.c...", ".ccccc..", "..ccc...", ".babab..", "bababab.", ".babab..", "..a.a...", "........"}, map[byte]string{'a': "#1a1a1a", 'b': "#f2c230", 'c': "#cfe3ea"}},
+	"t_ladybird":    {[8]string{"...bb...", "..bbbb..", ".aabbaa.", "abaaaaba", "aaaaaaaa", "aabaabaa", ".aaaaaa.", "..b..b.."}, map[byte]string{'a': "#e2412d", 'b': "#1a1a1a"}},
+	"t_hedgehog":    {[8]string{"........", "...a.a..", "..aaaaa.", ".aaaaaaa", "cdaaaaaa", "bccaaaaa", ".cc.c.c.", "........"}, map[byte]string{'a': "#6b4a2a", 'b': "#1a1a1a", 'c': "#e3c57a", 'd': "#1a1a1a"}},
+	"t_dragonfly":   {[8]string{"...cc...", "bbbaabbb", ".bbaabb.", "bbbaabbb", "...aa...", "...aa...", "...aa...", "....a..."}, map[byte]string{'a': "#3d8fd6", 'b': "#cfe3ea", 'c': "#1a1a1a"}},
+	"t_newt":        {[8]string{"........", ".aa.....", "abaa....", "aaaacaa.", ".aaaaaaa", ".c..c..a", "........", "........"}, map[byte]string{'a': "#e8742a", 'b': "#1a1a1a", 'c': "#f2c230"}},
+	"t_crayfish":    {[8]string{"a......a", "aa....aa", ".a.cc.a.", "..aaaa..", "..abba..", "..aaaa..", "...ab...", "..aaaa.."}, map[byte]string{'a': "#c9432d", 'b': "#8a2a1a", 'c': "#1a1a1a"}},
+	"t_mouse":       {[8]string{"........", ".aa.....", "abaa....", "acaaaa..", "aaaaaaa.", ".aaaaaad", "..b..b.d", "......d."}, map[byte]string{'a': "#a8865a", 'b': "#e9dcc0", 'c': "#1a1a1a", 'd': "#e3a0a0"}},
 }

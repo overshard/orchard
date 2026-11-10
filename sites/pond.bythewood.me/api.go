@@ -233,7 +233,8 @@ func readHat(w http.ResponseWriter, r *http.Request, bare bool) (hat, bool) {
 	if !readJSON(w, r, &h) {
 		return h, false
 	}
-	if !h.valid() && !(bare && h.Shape == 0) {
+	_, hood := h.hood()
+	if !h.valid() && !(bare && (h.Shape == 0 || hood)) {
 		writeError(w, http.StatusBadRequest, "no such hat")
 		return h, false
 	}

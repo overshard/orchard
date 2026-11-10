@@ -37,7 +37,9 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
   up for twelve hours on the server's clock, and each frog has a level from 1
   to 99 in every job in `job_xp`, on RuneScape's xp table. Crafting is a job
   that turns sticks, reeds and clay into trinkets and stamps. A frog fed a
-  dish is full for some hours by its tier and works harder while it is.
+  dish is full for some hours by its tier and works harder while it is. A 99
+  earns the pond that job's hood, a hat with shape 101 and up that's worn
+  but never held, and each job has a pet trinket that only work turns up.
 - `bank.go` is the bank, the gravel bar and the garden plots, and the kitchen
   that turns two things from the garden into a dish. `kitchen.go` has the
   ingredients, what grows in which month and every dish.

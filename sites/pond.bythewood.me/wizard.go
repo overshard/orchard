@@ -86,6 +86,9 @@ var wizardPool = func() [tierCount][][]string {
 		rk[r.tier] = append(rk[r.tier], r.kind)
 	}
 	for _, t := range trinkets {
+		if pets[t.kind] != "" {
+			continue
+		}
 		tk[t.tier] = append(tk[t.tier], t.kind)
 	}
 	for _, in := range ingredients {

@@ -117,3 +117,66 @@ func TestAFullFrogWorksHarder(t *testing.T) {
 		t.Errorf("a meal running out mid shift counted %v hours", fed)
 	}
 }
+
+func TestA99EarnsTheHood(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	*clock = clock.Add(2 * 24 * time.Hour)
+	v, _ := s.view(id)
+	f := v.Frogs[0].ID
+	hood := hoodFor(2)
+	if hood.name() != "Stick gathering hood" || hood.tier() != tierCount-1 {
+		t.Errorf("hood %q tier %d", hood.name(), hood.tier())
+	}
+	if _, err := s.wear(id, hood); !errors.Is(err, errNotHeld) {
+		t.Fatalf("wore a hood at level 1: %v", err)
+	}
+	before := v.Share.Power.Total
+	if err := s.write(func(tx *sql.Tx) error { return addXP(tx, id, f, "sticks", xpFor[maxLevel]) }); err != nil {
+		t.Fatal(err)
+	}
+	v, err := s.wear(id, hood)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v.Frog.Hat != hood || !v.Hoods[2].Got || v.Hoods[0].Got {
+		t.Errorf("wearing %+v, hoods %+v", v.Frog.Hat, v.Hoods)
+	}
+	if got := v.Share.Power.Total - before; got != hatPower[tierCount-1]+(maxLevel-1)*3 {
+		t.Errorf("a 99 and its hood added %d power", got)
+	}
+	var inBag bool
+	for _, b := range v.Bag {
+		if b.Hat != nil && *b.Hat == hood {
+			inBag = b.Free == 0 && b.Count == 1
+		}
+	}
+	if !inBag {
+		t.Error("the hood isn't in the bag to wear, or it can be sold")
+	}
+	if _, err := s.stallList(id, hatKind(hood), 10); err == nil {
+		t.Error("a hood went on the stall")
+	}
+}
+
+func TestPetsOnlyComeFromWork(t *testing.T) {
+	for range 2000 {
+		if k := rollTrinket().kind; pets[k] != "" {
+			t.Fatalf("a box gave %s", k)
+		}
+	}
+	for _, sorts := range wizardPool {
+		for _, kinds := range sorts {
+			for _, k := range kinds {
+				if pets[k] != "" {
+					t.Fatalf("the wizard can make %s", k)
+				}
+			}
+		}
+	}
+	for _, j := range jobs {
+		if petFor(j.key) == "" {
+			t.Errorf("no pet for %s", j.key)
+		}
+	}
+}

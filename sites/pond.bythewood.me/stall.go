@@ -170,7 +170,7 @@ func sortOf(kind string) string {
 	return "thing"
 }
 
-func bagOf(held map[string]int, hats []hatView) []bagThing {
+func bagOf(held map[string]int, hats []hatView, hoods []hoodView) []bagThing {
 	out := []bagThing{}
 	add := func(kind string, n int, h *hat) {
 		t, _ := wizardTier(kind)
@@ -191,6 +191,12 @@ func bagOf(held map[string]int, hats []hatView) []bagThing {
 	for _, h := range hats {
 		hh := h.hat
 		add(hatKind(hh), h.Count, &hh)
+	}
+	for _, h := range hoods {
+		if h.Got {
+			hh := h.hat
+			out = append(out, bagThing{Kind: hatKind(hh), Name: h.Name, Tier: hh.tier(), Sort: "hat", Count: 1, Hat: &hh})
+		}
 	}
 	sort.Slice(out, func(a, b int) bool {
 		if out[a].Sort != out[b].Sort {

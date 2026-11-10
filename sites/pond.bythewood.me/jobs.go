@@ -81,6 +81,15 @@ var jobs = []job{
 	{jobCraft, "Crafting", "at the craft bench", "", 0, nil, nil},
 }
 
+func petFor(jobKey string) string {
+	for k, j := range pets {
+		if j == jobKey {
+			return k
+		}
+	}
+	return ""
+}
+
 func jobOf(key string) (job, bool) {
 	for _, j := range jobs {
 		if j.key == key {
@@ -336,6 +345,12 @@ func collectWork(tx *sql.Tx, p *pond, f frogRow, xp map[string]int, held map[str
 		}
 		gained = int(eff * xpPerHour)
 	}
+	if pet := petFor(j.key); pet != "" && roll(eff*speedAt(before)/petEvery) > 0 {
+		if err := giveN(tx, p, pet, 1); err != nil {
+			return w, err
+		}
+		w.Got[pet]++
+	}
 	if err := addXP(tx, p.ID, f.ID, f.Job, gained); err != nil {
 		return w, err
 	}
@@ -487,6 +502,13 @@ func (s *store) setJob(id, frogID int64, key, rec string) (*workCollected, error
 }
 
 // ---------------------------------------------------------------- the view
+
+type hoodView struct {
+	hat
+	Name string `json:"name"`
+	Job  string `json:"job"`
+	Got  bool   `json:"got"`
+}
 
 type jobLevel struct {
 	Job   string `json:"job"`
