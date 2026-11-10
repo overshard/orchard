@@ -63,6 +63,16 @@ type Site struct {
 	Visit string
 }
 
+// featured gets the wide card at the top of the code page, above the rest of
+// what's live.
+var featured = Site{
+	Name:        "pond",
+	Dir:         "pond.bythewood.me",
+	Description: "A virtual pet game where everybody who opens it gets a frog of their own, drawn from a seed as pixel art. There are no accounts, a frog is kept by six words, and you raise it, put it to work and spend pebbles on hats. Click the frog for another one.",
+	Tech:        []string{"Go", "SQLite", "Canvas"},
+	Visit:       "https://pond.bythewood.me",
+}
+
 // Newest first, same as the archived list, which puts the ones built from
 // scratch above the ports.
 var sites = []Site{

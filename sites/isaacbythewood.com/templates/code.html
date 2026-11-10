@@ -16,6 +16,40 @@
   padded numbering as the sidebar.
 */ -}}
 
+{{- with .Featured }}
+<div class="code-sectionHead">
+  <h2 class="code-sectionTitle">Featured</h2>
+  <span class="code-sectionRule"></span>
+</div>
+<div class="code-projects">
+  <div class="code-project code-project-live code-project-featured" style="{{ .Delay }}">
+    <figure class="code-featuredArt">
+      <canvas data-pond-frog width="264" height="204" aria-label="A frog from the pond. Click it for another."></canvas>
+      <figcaption data-pond-name></figcaption>
+    </figure>
+    <div class="code-featuredBody">
+      <h3 class="code-projectHeading">{{ .Name }}</h3>
+      <div class="code-tags">
+        {{- range .Tech }}
+        <span class="code-tag">{{ . }}</span>
+        {{- end }}
+      </div>
+      <p class="code-projectParagraph">{{ .Description }}</p>
+      {{- if .Commit }}
+      <pre class="code-projectCommit">{{ .Commit }}</pre>
+      {{- end }}
+      <div class="code-projectButtons">
+        <a class="code-projectButton" href="{{ .Visit }}" rel="noopener noreferrer" target="_blank">Visit</a>
+        <a class="code-projectButton code-projectButton-secondary" href="{{ .Source }}" rel="noopener noreferrer" target="_blank">
+          {{ template "githubMark" }}
+          Source
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{{- end }}
+
 {{- with .Live }}
 <div class="code-sectionHead">
   <h2 class="code-sectionTitle">Live</h2>

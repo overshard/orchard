@@ -37,6 +37,7 @@ type PageData struct {
 
 	Latest     *LatestPost
 	Words      []AboutWord
+	Featured   *SiteView
 	Live       []SiteView
 	Active     []ProjectView
 	Archived   []ProjectView
@@ -188,6 +189,13 @@ func (s *site) code(w http.ResponseWriter, r *http.Request) {
 		style := template.CSS(fmt.Sprintf("animation-delay: %dms", delay*100))
 		delay++
 		return style
+	}
+
+	data.Featured = &SiteView{
+		Site:   featured,
+		Source: "https://github.com/" + githubUser + "/" + monorepo + "/tree/main/" + featured.SourcePath(),
+		Commit: s.commits.JSON(featured.SourcePath()),
+		Delay:  nextDelay(),
 	}
 
 	data.Live = make([]SiteView, 0, len(sites))
