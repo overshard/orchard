@@ -37,10 +37,11 @@ func TestTrinketsPlaceAndCook(t *testing.T) {
 	}
 
 	// A golden morel cooks into a legendary dish, and the set still has it.
-	if _, err := s.w.Exec(`INSERT INTO items (pond_id, kind, count) VALUES (?, 't_goldmorel', 1), (?, 'duckweed', 1)`, id, id); err != nil {
+	if _, err := s.w.Exec(`INSERT INTO items (pond_id, kind, count) VALUES (?, 't_goldmorel', 1), (?, 'duckweed', 1)
+		ON CONFLICT (pond_id, kind) DO UPDATE SET count = count + 1`, id, id); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.w.Exec(`INSERT INTO trinkets_found (pond_id, kind) VALUES (?, 't_goldmorel')`, id); err != nil {
+	if _, err := s.w.Exec(`INSERT OR IGNORE INTO trinkets_found (pond_id, kind) VALUES (?, 't_goldmorel')`, id); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.place(id, 1, "t_goldmorel"); err != nil {
