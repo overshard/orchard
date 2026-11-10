@@ -1,4 +1,4 @@
-// Panel 17, the visitor's frog from the pond. The page is the same for everybody
+// Panel 16, the visitor's frog from the pond. The page is the same for everybody
 // and can come out of the edge's cache, so the frog is fetched after load. pond
 // is same site, so its cookie rides along and a visitor with no frog gets the
 // house frog.
