@@ -23,7 +23,7 @@ export function tierTag(t) {
 }
 
 // A slot is a square with the picture in it, a count in the corner and the
-// tier as its border. An unfound one is a dark shape and three question marks.
+// tier as its border. An unfound one is a dim shape and three question marks.
 export function slot(art, opts) {
   const b = document.createElement(opts.onClick ? "button" : "div");
   if (opts.onClick) { b.type = "button"; b.addEventListener("click", opts.onClick); }
@@ -48,12 +48,13 @@ export function slot(art, opts) {
   return b;
 }
 
-// What's not found yet is its outline in the dark.
+// What's not found yet is a very dim version of itself, so hats of one shape
+// still tell apart by colour.
 export function shade(cv) {
   const ctx = cv.getContext && cv.getContext("2d");
   if (!ctx) return cv;
   ctx.globalCompositeOperation = "source-atop";
-  ctx.fillStyle = "#3a3026"; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.fillStyle = "rgba(20, 16, 12, 0.74)"; ctx.fillRect(0, 0, cv.width, cv.height);
   ctx.globalCompositeOperation = "source-over";
   return cv;
 }

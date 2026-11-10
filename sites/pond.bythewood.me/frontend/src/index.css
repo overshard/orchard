@@ -2922,3 +2922,65 @@ button.big {
 .dline .pay {
   margin: 0;
 }
+
+.chip.more {
+  margin: 0 0 3px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.chip.more::before {
+  background: var(--dim);
+  box-shadow: none;
+  animation: none;
+}
+
+/* A kitchen tile: a green LED when it's in season and the count held. */
+.larder button {
+  position: relative;
+}
+
+.larder .season {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: #2e2a24;
+}
+
+.larder .season.on {
+  background: #5ddc82;
+  box-shadow: 0 0 5px #5ddc82;
+}
+
+.larder .held {
+  position: absolute;
+  top: 2px;
+  right: 3px;
+  padding: 0 3px;
+  border-radius: 2px;
+  background: var(--glass);
+  color: var(--digit);
+  font-size: 10px;
+  line-height: 1.4;
+  text-shadow: var(--glow);
+}
+
+#larder .held ~ .season,
+#larder .season:has(+ .held:not([hidden])) {
+  margin-right: 16px;
+}
+
+/* A faint light tile behind list icons, so a navy top hat still shows. */
+.shelf canvas,
+.things canvas,
+.cookbook canvas,
+.larder canvas,
+.legend canvas {
+  box-sizing: content-box;
+  padding: 2px;
+  border-radius: 2px;
+  background: radial-gradient(circle, rgba(255, 246, 220, 0.2), rgba(255, 246, 220, 0.06));
+}
