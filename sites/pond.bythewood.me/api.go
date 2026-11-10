@@ -399,7 +399,7 @@ type panel struct {
 
 // panelOrigins are the sites that draw the visitor's frog. Each is same site as
 // pond, so the Lax cookie rides along once the origin is allowed credentials.
-var panelOrigins = []string{"https://dash.bythewood.me", "https://status.bythewood.me"}
+var panelOrigins = []string{"https://dash.bythewood.me", "https://status.bythewood.me", "https://blog.bythewood.me"}
 
 func (s *site) apiPanel(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Vary", "Origin")
