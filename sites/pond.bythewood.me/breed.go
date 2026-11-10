@@ -81,9 +81,9 @@ func padCost(have int) int { return 400 << (have - startingPads) }
 
 func clamp(v, lo, hi float64) float64 { return max(lo, min(hi, v)) }
 
-// breed lays an egg from a parent with a new seed, and dye is "" or one of
-// dyeMorph's keys.
-func breed(parent look, seed uint32, dye string) mods {
+// breed lays an egg from a parent with a new seed. dye is "" or one of
+// dyeMorph's keys and stamp is "" or one of stamps' keys.
+func breed(parent look, seed uint32, dye, stamp string) mods {
 	child := lookOf(seed)
 	nudge := func(by float64) float64 { return (rand.Float64()*2 - 1) * by }
 	m := mods{
@@ -103,6 +103,10 @@ func breed(parent look, seed uint32, dye string) mods {
 		d := morphNamed(name)
 		m.Morph, m.Hue, m.Sat, m.Lit = d.Name, (d.H[0]+d.H[1])/2, (d.S[0]+d.S[1])/2, (d.L[0]+d.L[1])/2
 		m.Took = append(m.Took, "dye")
+	}
+	if pat, ok := stamps[stamp]; ok && rand.Float64() < dyeTakes {
+		m.Pattern = pat
+		m.Took = append(m.Took, "stamp")
 	}
 	// Colour drifts over generations but stays near what its morph looks like.
 	d := morphNamed(m.Morph)
@@ -159,7 +163,7 @@ type laid struct {
 	Pond *view    `json:"pond"`
 }
 
-func (s *store) lay(id, frogID int64, dye string) (*laid, error) {
+func (s *store) lay(id, frogID int64, dye, stamp string) (*laid, error) {
 	out := &laid{}
 	v, err := s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
 		frogs, err := loadFrogs(tx, p.ID)
@@ -181,20 +185,22 @@ func (s *store) lay(id, frogID int64, dye string) (*laid, error) {
 		if layIn(*parent, now) != 0 {
 			return errNotYet
 		}
-		if dye != "" {
-			if _, ok := dyeMorph[dye]; !ok {
-				return errNotHeld
+		if _, ok := dyeMorph[dye]; dye != "" && !ok {
+			return errNotHeld
+		}
+		if _, ok := stamps[stamp]; stamp != "" && !ok {
+			return errNotHeld
+		}
+		for _, k := range []string{dye, stamp} {
+			if k == "" {
+				continue
 			}
-			res, err := tx.Exec(`UPDATE items SET count = count - 1 WHERE pond_id = ? AND kind = ? AND count > 0`, p.ID, dye)
-			if err != nil {
+			if err := takeItem(tx, p.ID, k, 1); err != nil {
 				return err
-			}
-			if n, _ := res.RowsAffected(); n == 0 {
-				return errNotHeld
 			}
 		}
 		seed := randomSeed()
-		m := breed(lookFor(parent.Seed, parent.Mods), seed, dye)
+		m := breed(lookFor(parent.Seed, parent.Mods), seed, dye, stamp)
 		raw, _ := json.Marshal(m)
 		if _, err := tx.Exec(`UPDATE frogs SET laid_at = ? WHERE id = ?`, now.Unix(), parent.ID); err != nil {
 			return err
