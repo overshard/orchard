@@ -669,6 +669,8 @@ type view struct {
 		Same  int `json:"same"`
 	} `json:"wizard"`
 
+	Todo []todo `json:"todo"`
+
 	held  map[string]int
 	found []hat
 	Nudge bool `json:"nudge"`
@@ -895,5 +897,6 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 		had[k.Kind] = k.First != ""
 	}
 	v.Share.Power = powerOf(v.Frog.Rarity, v.found, had, p.DiveBest, v.Jobs.Total)
+	v.Todo = todoOf(v)
 	return nil
 }
