@@ -308,7 +308,16 @@ func TestPanelIsTheVisitorsOwnFrog(t *testing.T) {
 		t.Errorf("with a cookie: %+v", mine)
 	}
 	if rec.Header().Get("Access-Control-Allow-Origin") != "" {
-		t.Error("the panel answers cross origin before any site has been named")
+		t.Error("the panel answered cross origin with no Origin sent")
+	}
+
+	rec = b.do(http.MethodGet, "/api/panel", "", "Origin", "https://evil.example")
+	if rec.Header().Get("Access-Control-Allow-Origin") != "" {
+		t.Error("the panel answered an origin it doesn't know")
+	}
+	rec = b.do(http.MethodGet, "/api/panel", "", "Origin", "https://dash.bythewood.me")
+	if rec.Header().Get("Access-Control-Allow-Origin") != "https://dash.bythewood.me" || rec.Header().Get("Access-Control-Allow-Credentials") != "true" {
+		t.Errorf("dash wasn't allowed the visitor's frog: %v", rec.Header())
 	}
 }
 
