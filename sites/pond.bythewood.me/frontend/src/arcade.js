@@ -74,6 +74,7 @@ export function arcade(game) {
       const r = el("span", "readout big");
       r.append(el("span", "k", "Score"), el("span", "v", String(game.score())));
       kids.push(r);
+      if (game.tally) game.tally().forEach((l) => kids.push(el("p", "dim", l)));
       kids.push(el("p", A.paid ? "won" : "dim", A.paid === null ? "Counting..." : "+" + A.paid + " pebbles"));
       if (A.best) kids.push(el("p", "won", "A new best"));
       if (now - A.overAt > 900) kids.push(el("p", "again", "Tap to go again"));
@@ -168,11 +169,15 @@ export function arcade(game) {
     if (dir || e.code === "Space" || e.code === "Enter") e.preventDefault();
     if (e.repeat) return;
     if (A.state !== "play") { if (dir || e.code === "Space" || e.code === "Enter") press(null); return; }
+    // A game with its own keys gets every one, down and up.
+    if (game.keys) { game.keys(e.code, true); return; }
     if (dir && game.hold) game.hold(dir, true);
     if (dir && game.swipe) game.swipe(dir);
     else if ((e.code === "Space" || e.code === "Enter") && game.keyPress) game.keyPress();
   });
   document.addEventListener("keyup", (e) => {
+    if (view.hidden) return;
+    if (game.keys) { if (A.state === "play") game.keys(e.code, false); return; }
     const dir = { ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right" }[e.code];
     if (dir && game.hold) game.hold(dir, false);
   });
