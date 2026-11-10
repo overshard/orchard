@@ -25,6 +25,23 @@ export function arcade(game) {
     A.scale = Math.min(w / game.W, h / game.H);
     cv.width = game.W * 2; cv.height = game.H * 2;
     cv.style.width = Math.round(game.W * A.scale) + "px";
+    back.width = screen.clientWidth; back.height = screen.clientHeight;
+  }
+
+  // A tall phone has room over and under the field, and the field's top and
+  // bottom rows are stretched into it so the scene carries on to the edges.
+  const screen = view.querySelector(".screen"), back = document.createElement("canvas"), bx = back.getContext("2d");
+  back.className = "arcade-back";
+  back.setAttribute("aria-hidden", "true");
+  screen.prepend(back);
+
+  function backdrop() {
+    const bw = back.width, bh = back.height, w = game.W * A.scale, h = game.H * A.scale;
+    const left = (bw - w) / 2, gap = Math.ceil((bh - h) / 2) + 1;
+    if (gap < 2) return;
+    bx.imageSmoothingEnabled = false;
+    bx.drawImage(cv, 0, 0, cv.width, 2, left, 0, w, gap);
+    bx.drawImage(cv, 0, cv.height - 2, cv.width, 2, left, bh - gap, w, gap);
   }
 
   // The title and results are a panel over the field, the same as Dive's.
@@ -68,6 +85,7 @@ export function arcade(game) {
     cx.setTransform(2, 0, 0, 2, 0, 0);
     cx.imageSmoothingEnabled = false;
     game.draw(cx, now);
+    backdrop();
     if (A.state !== "play") showCard(now);
   }
 
