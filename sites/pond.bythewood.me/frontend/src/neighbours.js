@@ -2,7 +2,7 @@ import { $, post, state, setPond, watch } from "./api.js";
 import { genome, cells, colours, draw, W, H } from "./frog.js";
 import { openSheet, closeSheet, sheetSay, button, reveal, thingArt } from "./ui.js";
 
-function art(n, s) {
+export function art(n, s) {
   const cv = document.createElement("canvas"), g = genome(n.seed);
   cv.width = W * s; cv.height = H * s;
   draw(cv.getContext("2d"), cells(g, "frog", { hat: n.hat.shape }), W, H, colours(g, n.hat), 0, 0, s);

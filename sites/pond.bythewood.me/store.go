@@ -918,7 +918,7 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 		}
 		v.Neighbours.All[i].Gossip = gossipOf(i, today)
 	}
-	v.Gazette.Lines = gazetteOf(v.Day.Mood, today)
+	v.Gazette = gazetteFor(v.Day.Mood, now)
 	if v.Day.Mood != moodSombre {
 		v.Gazette.Business = marketHeadline(v.Market.Firms, today)
 	}
