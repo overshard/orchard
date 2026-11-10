@@ -35,17 +35,14 @@ function wear(h) {
 function render(p) {
   const f = p.frog, g = state.g;
   if (!g) return;
-  // The preview is always the grown frog, since that's the shape hats were
-  // drawn for and a hat on an egg hides most of the egg.
+  // The frog as it is today, so an egg keeps what it'll grow into to itself.
   const pv = $("hat-preview").getContext("2d");
   pv.clearRect(0, 0, 176, 136);
-  drawCells(pv, cells(g, "frog", { hat: f.hat.shape }), W, H, colours(g, f.hat), 0, 0, 4);
+  drawCells(pv, cells(g, f.stage, { hat: f.hat.shape, legs: f.day >= 6 }), W, H, colours(g, f.hat), 0, 0, 4);
 
   const found = p.hats.filter((h) => h.count > 0).length, worn = p.hats.find((h) => same(h, f.hat));
   $("hat-count").textContent = found + " of " + p.hats.length + " hats";
-  const young = f.stage === "egg" || f.stage === "tadpole" || f.stage === "froglet";
-  $("hat-wearing").textContent = (worn ? titled(f.name) + " is wearing the " + worn.name.toLowerCase() + "." : "No hat on.") +
-    (young ? " This is how it'll look grown." : "");
+  $("hat-wearing").textContent = worn ? titled(f.name) + " is wearing the " + worn.name.toLowerCase() + "." : "No hat on.";
   $("hat-off").hidden = !worn;
 
   const open = $("box-open");
