@@ -130,7 +130,9 @@ func larderStock(day string, sale bool) []shopLine {
 	r := shopRand("brindle " + day)
 	var by [3][]int
 	for i, g := range ingredients {
-		by[g.tier] = append(by[g.tier], i)
+		if !g.trinket {
+			by[g.tier] = append(by[g.tier], i)
+		}
 	}
 	pick := func(t int, not int) int {
 		for {

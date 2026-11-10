@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS ponds (
     dye_level       INTEGER NOT NULL DEFAULT 0,
     dye_at          INTEGER NOT NULL DEFAULT 0,
     dye_batch       TEXT NOT NULL DEFAULT '',
+    trinkets_out    TEXT NOT NULL DEFAULT '',
     key_saved_at    INTEGER
 );
 CREATE INDEX IF NOT EXISTS ponds_created ON ponds(created_at);
@@ -101,6 +102,12 @@ CREATE TABLE IF NOT EXISTS bought (
 ) WITHOUT ROWID;
 CREATE INDEX IF NOT EXISTS bought_day ON bought(day);
 
+CREATE TABLE IF NOT EXISTS trinkets_found (
+    pond_id  INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
+    kind     TEXT NOT NULL,
+    PRIMARY KEY (pond_id, kind)
+) WITHOUT ROWID;
+
 CREATE TABLE IF NOT EXISTS growth (
     id    INTEGER PRIMARY KEY CHECK (id = 1),
     at    INTEGER NOT NULL,
@@ -123,6 +130,7 @@ var addedColumns = []struct{ table, name, def string }{
 	{"ponds", "dye_level", "INTEGER NOT NULL DEFAULT 0"},
 	{"ponds", "dye_at", "INTEGER NOT NULL DEFAULT 0"},
 	{"ponds", "dye_batch", "TEXT NOT NULL DEFAULT ''"},
+	{"ponds", "trinkets_out", "TEXT NOT NULL DEFAULT ''"},
 }
 
 func ensureColumns(db *sql.DB) error {
@@ -262,6 +270,7 @@ type pond struct {
 	DyeLevel    int
 	DyeAt       int64
 	DyeBatch    string
+	TrinketsOut string
 
 	FrogID    int64
 	Seed      uint32
@@ -275,7 +284,7 @@ const pondColumns = `p.id, p.public_id, p.created_at, p.last_seen_at, p.last_gif
 	p.dive_best, p.dive_day, p.dive_runs, p.dive_paid, p.dive_run, p.dive_started_at,
 	p.dive_ghosts, p.dive_podium, p.pads, p.key_saved_at,
 	p.gravel_level, p.gravel_at, p.garden_level, p.dive_form,
-	p.dye_level, p.dye_at, p.dye_batch, f.id, f.seed, f.genome_json, f.hatched_at,
+	p.dye_level, p.dye_at, p.dye_batch, p.trinkets_out, f.id, f.seed, f.genome_json, f.hatched_at,
 	f.hat_shape, f.hat_colour`
 
 func scanPond(row *sql.Row) (*pond, error) {
@@ -285,7 +294,7 @@ func scanPond(row *sql.Row) (*pond, error) {
 		&p.DiveBest, &p.DiveDay, &p.DiveRuns, &p.DivePaid, &p.DiveRun, &p.DiveStart,
 		&p.DiveGhosts, &p.DivePodium, &p.Pads, &p.KeySavedAt,
 		&p.GravelLevel, &p.GravelAt, &p.GardenLevel, &p.DiveForm,
-		&p.DyeLevel, &p.DyeAt, &p.DyeBatch, &p.FrogID, &p.Seed, &p.ModsJSON, &p.HatchedAt,
+		&p.DyeLevel, &p.DyeAt, &p.DyeBatch, &p.TrinketsOut, &p.FrogID, &p.Seed, &p.ModsJSON, &p.HatchedAt,
 		&p.Wearing.Shape, &p.Wearing.Colour)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, errNoPond
@@ -307,12 +316,12 @@ func savePond(tx *sql.Tx, p *pond) error {
 		dive_best = ?, dive_day = ?, dive_runs = ?, dive_paid = ?, dive_run = ?,
 		dive_started_at = ?, dive_ghosts = ?, dive_podium = ?, pads = ?, key_saved_at = ?,
 		gravel_level = ?, gravel_at = ?, garden_level = ?, dive_form = ?,
-		dye_level = ?, dye_at = ?, dye_batch = ? WHERE id = ?`,
+		dye_level = ?, dye_at = ?, dye_batch = ?, trinkets_out = ? WHERE id = ?`,
 		p.LastSeenAt, p.LastGiftAt, p.Pebbles, p.FreeSpins, p.SpinAt, p.PaidSpins, p.PaidDay,
 		p.LogDay, p.DiveBest, p.DiveDay, p.DiveRuns, p.DivePaid, p.DiveRun, p.DiveStart,
 		p.DiveGhosts, p.DivePodium, p.Pads, p.KeySavedAt,
 		p.GravelLevel, p.GravelAt, p.GardenLevel, p.DiveForm,
-		p.DyeLevel, p.DyeAt, p.DyeBatch, p.ID); err != nil {
+		p.DyeLevel, p.DyeAt, p.DyeBatch, p.TrinketsOut, p.ID); err != nil {
 		return err
 	}
 	_, err := tx.Exec(`UPDATE frogs SET hat_shape = ?, hat_colour = ? WHERE id = ?`,
@@ -453,6 +462,13 @@ func award(tx *sql.Tx, p *pond, z *prize) error {
 			return err
 		}
 		z.HatName, z.HatTier, z.Spare = z.Hat.name(), z.Hat.tier(), count > 1
+	case strings.HasPrefix(z.Item, "t_"):
+		count, err := addTrinket(tx, p.ID, z.Item)
+		if err != nil {
+			return err
+		}
+		t, _ := trinketOf(z.Item)
+		z.HatTier, z.Spare = t.tier, count > 1
 	case z.Item != "":
 		return addItem(tx, p.ID, z.Item, 1)
 	default:
@@ -532,10 +548,11 @@ type view struct {
 		Path  string `json:"path"`
 		Power power  `json:"power"`
 	} `json:"share"`
-	Day     dayView             `json:"day"`
-	Bank    bankView            `json:"bank"`
-	Kitchen kitchenView         `json:"kitchen"`
-	Shops   map[string]shopView `json:"shops"`
+	Day      dayView             `json:"day"`
+	Bank     bankView            `json:"bank"`
+	Kitchen  kitchenView         `json:"kitchen"`
+	Shops    map[string]shopView `json:"shops"`
+	Trinkets trinketsView        `json:"trinkets"`
 	// What Fenn sold this pond, drawn on the water.
 	Furniture []string `json:"furniture"`
 
@@ -639,6 +656,9 @@ func viewOf(q querier, p pond, now time.Time) (*view, error) {
 			return nil, err
 		}
 		v.held[it.Kind] = it.Count
+		if strings.HasPrefix(it.Kind, "t_") {
+			continue
+		}
 		if strings.HasPrefix(it.Kind, "f_") {
 			v.Furniture = append(v.Furniture, it.Kind)
 			continue
@@ -700,6 +720,9 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	if err != nil {
 		return err
 	}
-	v.Shops, err = s.shopsOf(q, p.ID, now)
+	if v.Shops, err = s.shopsOf(q, p.ID, now); err != nil {
+		return err
+	}
+	v.Trinkets, err = trinketsOf(q, p, v.held)
 	return err
 }

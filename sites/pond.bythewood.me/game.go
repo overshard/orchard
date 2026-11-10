@@ -275,6 +275,8 @@ type gift struct {
 	text    string
 	hatTier int
 	isHat   bool
+	// A trinket of this tier plus one, so zero is none.
+	trinket int
 }
 
 var (
@@ -284,6 +286,7 @@ var (
 		{item: "snail", text: "A snail shell it found on the bank."},
 		{item: "cap", text: "A bottle cap, very shiny."},
 		{item: "agate", text: "A bit of river agate."},
+		{trinket: 1},
 	}
 	giftsDays = []gift{
 		{pebbles: 60}, {pebbles: 80},
@@ -292,6 +295,7 @@ var (
 		{item: "quartz", text: "A lump of smoky quartz."},
 		{item: "feather", text: "A heron feather, which is a good one."},
 		{isHat: true, hatTier: 0},
+		{trinket: 1}, {trinket: 2},
 	}
 	giftsWeek = []gift{
 		{pebbles: 120},
@@ -299,6 +303,7 @@ var (
 		{item: "quartz", text: "A lump of smoky quartz."},
 		{item: "geode", text: "A geode it couldn't open."},
 		{isHat: true, hatTier: 1}, {isHat: true, hatTier: 1},
+		{trinket: 2}, {trinket: 3},
 	}
 )
 
@@ -313,6 +318,9 @@ func rollGift(gap time.Duration) prize {
 	}
 	g := table[rand.IntN(len(table))]
 	switch {
+	case g.trinket > 0:
+		t := trinketOfTier(g.trinket - 1)
+		return prize{Item: t.kind, Text: t.name + ", for round the pad."}
 	case g.isHat:
 		h := hatOfTier(g.hatTier)
 		return prize{Hat: &h}

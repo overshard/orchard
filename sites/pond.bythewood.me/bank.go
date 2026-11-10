@@ -404,7 +404,8 @@ type ingredientView struct {
 	Tier  int    `json:"tier"`
 	Count int    `json:"count"`
 	// In season means it can come up in a plot this month.
-	Season bool `json:"season"`
+	Season  bool `json:"season"`
+	Trinket bool `json:"trinket,omitempty"`
 }
 
 type dishView struct {
@@ -471,7 +472,7 @@ func (s *store) bankOf(q querier, p *pond, now time.Time, held map[string]int) (
 	rain := dayOfReading(s.day.reading(now), now).Rain
 	w := seasonWeights(now, rain)
 	for i, in := range ingredients {
-		k.Ingredients = append(k.Ingredients, ingredientView{in.kind, in.name, in.tier, held[in.kind], w[i] > 0})
+		k.Ingredients = append(k.Ingredients, ingredientView{in.kind, in.name, in.tier, held[in.kind], w[i] > 0, in.trinket})
 	}
 	k.Dishes = []dishView{}
 	for a := range ingredients {

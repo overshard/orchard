@@ -14,18 +14,23 @@ type ingredient struct {
 	name string
 	tier int
 	bug  bool
+	// A trinket that can go in the pot. It never grows or sells at the larder.
+	trinket bool
 }
 
 // The order is part of every dish's kind, so new ones only ever go on the end.
 var ingredients = []ingredient{
-	{"duckweed", "Duckweed", 0, false},
-	{"watercress", "Watercress", 0, false},
-	{"cricket", "Cricket", 0, true},
-	{"mayfly", "Mayfly", 1, true},
-	{"lotus", "Lotus seed", 1, false},
-	{"marigold", "Marsh marigold", 1, false},
-	{"firefly", "Firefly", 2, true},
-	{"morel", "Morel", 2, false},
+	{"duckweed", "Duckweed", 0, false, false},
+	{"watercress", "Watercress", 0, false, false},
+	{"cricket", "Cricket", 0, true, false},
+	{"mayfly", "Mayfly", 1, true, false},
+	{"lotus", "Lotus seed", 1, false, false},
+	{"marigold", "Marsh marigold", 1, false, false},
+	{"firefly", "Firefly", 2, true, false},
+	{"morel", "Morel", 2, false, false},
+	{"t_button", "Button mushroom", 0, false, true},
+	{"t_chanterelle", "Chanterelle", 1, false, true},
+	{"t_goldmorel", "Golden morel", 4, false, true},
 }
 
 func ingredientOf(kind string) (int, bool) {
@@ -49,7 +54,8 @@ func seasonWeights(now time.Time, rain bool) []int {
 		}
 		return false
 	}
-	w := []int{30, 8, 5, 0, 0, 2, 0, 1}
+	w := make([]int, len(ingredients))
+	copy(w, []int{30, 8, 5, 0, 0, 2, 0, 1})
 	if in(time.March, time.April, time.May, time.September, time.October, time.November) {
 		w[1] = 25
 	}
@@ -103,17 +109,20 @@ var namedDishes = map[[2]int]struct {
 	name string
 	tier int
 }{
-	{0, 0}: {"Pond soup", 0},
-	{1, 2}: {"Cricket sandwich", 1},
-	{3, 4}: {"Mayfly brittle", 2},
-	{4, 6}: {"Lantern cake", 3},
-	{5, 7}: {"Bank holiday pie", 3},
-	{6, 7}: {"Midnight broth", 4},
-	{6, 6}: {"Midsummer jam", 4},
-	{2, 7}: {"Cricket and morel pasty", 3},
+	{0, 0}:   {"Pond soup", 0},
+	{1, 2}:   {"Cricket sandwich", 1},
+	{3, 4}:   {"Mayfly brittle", 2},
+	{4, 6}:   {"Lantern cake", 3},
+	{5, 7}:   {"Bank holiday pie", 3},
+	{6, 7}:   {"Midnight broth", 4},
+	{6, 6}:   {"Midsummer jam", 4},
+	{2, 7}:   {"Cricket and morel pasty", 3},
+	{7, 10}:  {"Morel king's supper", 4},
+	{10, 10}: {"Golden mushroom pie", 4},
+	{8, 9}:   {"Forest floor soup", 2},
 }
 
-const dishCount = 36
+var dishCount = len(ingredients) * (len(ingredients) + 1) / 2
 
 // What Brindle pays for a dish, by tier.
 var dishWorth = [tierCount]int{8, 25, 70, 200, 600}
@@ -146,6 +155,10 @@ func dishOf(a, b int) dish {
 		name = "Double " + strings.ToLower(A.name) + " " + form
 	}
 	t := max(A.tier, B.tier)
+	// Only a rare trinket makes a dish past epic.
+	if t >= 3 {
+		return dish{a, b, name, t}
+	}
 	if A.tier > 0 && B.tier > 0 {
 		t++
 	}

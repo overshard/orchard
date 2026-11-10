@@ -7,6 +7,7 @@ import { initHats } from "./hats.js";
 import { initReeds } from "./reeds.js";
 import { initBank, enterBank, leaveBank } from "./bank.js";
 import { initShops } from "./shops.js";
+import { initTrinkets } from "./trinkets.js";
 
 const VIEWS = ["pond", "dive", "wheel", "hats", "reeds", "bank", "shops"];
 let view = "pond";
@@ -180,6 +181,8 @@ function drawScene(now) {
   const has = {};
   (p.furniture || []).forEach((k) => { has[k] = true; });
   drawFurnBack(has, day, t);
+  const out = (p.trinkets && p.trinkets.spots) || [];
+  if (out[2]) drawIcon(sx, out[2], 160, 12 + Math.round(Math.sin(t * 0.9 + 2)) * 4, 4);
   if (grown(f.stage) && !day.shelter) { drawPad(day); drawFurnPad(has, day, t); }
   const o = { t: moving ? k * 6 : t, hat: f.hat.shape, legs: f.day >= 6 };
   let hop = 0, wig = 0;
@@ -195,6 +198,11 @@ function drawScene(now) {
   // Sheltering, it sits low with the pad pulled over it.
   draw(sx, cells(g, f.stage, o), W, H, colours(g, f.hat), Math.round(wig), -Math.round(hop) + (day.shelter ? 40 : 0), 8);
   if (grown(f.stage) && day.shelter) drawPad(day);
+  // Trinkets sit in front of the frog at the pad's edge.
+  if (grown(f.stage) && !day.shelter) {
+    if (out[0]) drawIcon(sx, out[0], 40, 236, 4);
+    if (out[1]) drawIcon(sx, out[1], 280, 236, 4);
+  }
   if (grown(f.stage) && day.cold && !moving && now >= croakUntil) for (let i = 0; i < 3; i++) {
     const zt = (t * 0.5 + i / 3) % 1, zx = 250 + zt * 30 + i * 4, zy = 70 - zt * 50;
     sx.globalAlpha = 1 - zt; sx.fillStyle = "#fff6dc";
@@ -352,6 +360,7 @@ initHats();
 initReeds();
 initBank();
 initShops();
+initTrinkets();
 show(location.hash.slice(1));
 
 post("/api/greet").then((g) => {

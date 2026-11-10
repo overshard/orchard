@@ -303,6 +303,31 @@ func (s *site) apiDyeCollect(id int64, r *http.Request, w http.ResponseWriter) (
 	return s.store.dyeCollect(id)
 }
 
+func (s *site) apiTrinketBox(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	return s.store.trinketBox(id)
+}
+
+func (s *site) apiPlace(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	var in struct {
+		Spot int    `json:"spot"`
+		Kind string `json:"kind"`
+	}
+	if !readJSON(w, r, &in) {
+		return nil, nil
+	}
+	return s.store.place(id, in.Spot, in.Kind)
+}
+
+func (s *site) apiSellTrinket(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	var in struct {
+		Kind string `json:"kind"`
+	}
+	if !readJSON(w, r, &in) {
+		return nil, nil
+	}
+	return s.store.sellTrinket(id, in.Kind)
+}
+
 func (s *site) apiBuyPad(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
 	return s.store.buyPad(id)
 }
