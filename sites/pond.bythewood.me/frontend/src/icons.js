@@ -95,6 +95,11 @@ export const ICONS = {
   i_star: [["...a....", "...a....", "..aba...", "aaabaaa.", ".abbba..", "..aaa...", ".aa.aa..", "aa...aa."], { a: "#ffe27a", b: "#fff6dc" }],
   i_bank: [["........", "........", "...ab...", "..aabb..", ".cabbcc.", "ccaabbcc", "cccccccc", "........"], { a: "#d5d8dc", b: "#9aa0a6", c: "#6d747a" }],
   i_town: [["...aa...", "..aaaa..", ".aaaaaa.", "bcbcbcbc", "d.dddd.d", "d.deed.d", "d.deed.d", "dddddddd"], { a: "#e2567a", b: "#fff6dc", c: "#e2567a", d: "#8a5a2b", e: "#ffe27a" }],
+  i_shops: [["aaaaaaaa", "babababa", ".cccccc.", ".cddcee.", ".cddcee.", ".ccccee.", ".ccccee.", "ffffffff"], { a: "#4fae5b", b: "#fff6dc", c: "#c9974f", d: "#9fd8e8", e: "#6b4422", f: "#5b534a" }],
+  i_folk: [[".bb..bb.", "bcbaabcb", "abbaabba", "aaaaaaaa", "adaaaada", "aaddddaa", ".aaaaaa.", "........"], { a: "#b0773a", b: "#fff6dc", c: "#0a0908", d: "#6b4422" }],
+  i_stall: [["abababab", "abababab", "c......c", "c..dd..c", "eeeeeeee", "effffffe", "e......e", "e......e"], { a: "#e2567a", b: "#fff6dc", c: "#8a5a2b", d: "#56b45f", e: "#c9974f", f: "#8a5a2b" }],
+  i_wizard: [["....a...", "...aa...", "...aba..", "..aaaa..", "..abaa..", ".aaaaab.", "cccccccc", "........"], { a: "#8a5ccf", b: "#ffe27a", c: "#4a2f78" }],
+  i_market: [["aaaaaaaa", "abbbbbca", "abbbbcba", "abbcbcba", "abcbcbba", "acbbbbba", "abbbbbba", "aaaaaaaa"], { a: "#5b534a", b: "#0b1006", c: "#7fd67f" }],
   i_gear: [["...aa...", ".a.aa.a.", "..aaaa..", "aaa..aaa", "aaa..aaa", "..aaaa..", ".a.aa.a.", "...aa..."], { a: "#ffb000" }],
 };
 

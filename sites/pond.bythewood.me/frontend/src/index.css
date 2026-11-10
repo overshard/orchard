@@ -1772,23 +1772,16 @@ h2 .count {
   50% { opacity: 0.3; }
 }
 
-/* A filter or sub tab is a flat sunken switch, lit along its top when on. */
+/* A filter is a small key that stays pushed in and lit while it's on, since
+   a sunken one reads as disabled. */
 .chiprow button {
   position: relative;
   min-height: 36px;
-  margin: 0;
+  margin: 0 0 3px;
   padding: 4px 14px;
-  border: 1px solid #000;
-  background: var(--well);
-  box-shadow: var(--sunk);
-  color: var(--dim);
+  color: var(--print);
   font-size: 11px;
   letter-spacing: 0.1em;
-}
-
-.chiprow button:active:not(:disabled) {
-  transform: none;
-  box-shadow: var(--sunk);
 }
 
 .chip canvas {
@@ -1797,6 +1790,9 @@ h2 .count {
 }
 
 .chiprow button[aria-pressed="true"] {
+  transform: translateY(3px);
+  background: linear-gradient(#1f1b16, #24201a);
+  box-shadow: var(--pressed);
   color: var(--amber);
 }
 
@@ -1812,8 +1808,50 @@ h2 .count {
   box-shadow: 0 0 6px var(--amber);
 }
 
-.chiprow.sub {
-  margin-top: 0;
+/* Places in town, a row of keys like the tab bar so they never wrap. */
+.places {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  margin: 0 0 14px;
+}
+
+.places button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  min-height: 58px;
+  margin: 0 0 3px;
+  padding: 7px 0 5px;
+  color: var(--print);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.places canvas {
+  width: 24px;
+  height: 24px;
+  opacity: 0.7;
+}
+
+.places button[aria-pressed="true"] {
+  transform: translateY(3px);
+  background: linear-gradient(#1f1b16, #24201a);
+  box-shadow: var(--pressed);
+  color: var(--amber);
+}
+
+.places button[aria-pressed="true"] canvas {
+  opacity: 1;
+}
+
+@media (max-width: 360px) {
+  .places button {
+    font-size: 9px;
+  }
 }
 
 .today {
@@ -2602,8 +2640,8 @@ div.slot {
 .stallrow.empty {
   grid-template-columns: 1fr;
   padding: 0;
-  background: var(--hazard);
-  box-shadow: var(--sunk);
+  background: none;
+  box-shadow: none;
 }
 
 .stallrow.empty button {
@@ -2611,10 +2649,9 @@ div.slot {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  margin: 0;
-  background: none;
-  box-shadow: none;
-  color: var(--dim);
+  margin: 0 0 3px;
+  border: 1px dashed var(--line-hot);
+  color: var(--print);
 }
 
 .stallrow.empty button .ghost {
