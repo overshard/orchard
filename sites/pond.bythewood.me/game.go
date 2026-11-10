@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"hash/fnv"
 	"math/rand/v2"
+	"strings"
 	"time"
 	_ "time/tzdata"
 )
@@ -71,7 +73,6 @@ var hatColours = []string{"", "Moss ", "Berry ", "Golden "}
 
 const (
 	hatShapes  = 15
-	hatDaisy   = 6
 	hatGolden  = 3
 	tierCount  = 5
 	hatsInGame = hatShapes * 4
@@ -135,19 +136,24 @@ func hatOfTier(t int) hat { return hatsByTier[t][rand.IntN(len(hatsByTier[t]))] 
 
 // Everything a pond can hold that is not a pebble or a hat.
 var itemNames = map[string]string{
-	"cricket":  "Cricket",
-	"agate":    "River agate",
-	"quartz":   "Smoky quartz",
-	"geode":    "Geode",
-	"dye_blue": "Blue dye",
-	"snail":    "Snail shell",
-	"cap":      "Bottle cap",
-	"feather":  "Heron feather",
-	"amethyst": "Amethyst",
-	"calcite":  "White calcite",
-	"pyrite":   "Fool's gold",
-	"banded":   "Banded agate",
-	"fossil":   "Fossil shell",
+	"cricket":   "Cricket",
+	"agate":     "River agate",
+	"quartz":    "Smoky quartz",
+	"geode":     "Geode",
+	"dye_blue":  "Blue dye",
+	"dye_gold":  "Golden dye",
+	"dye_berry": "Strawberry dye",
+	"dye_olive": "Olive dye",
+	"dye_brown": "Wood brown dye",
+	"dye_grey":  "Grey dye",
+	"snail":     "Snail shell",
+	"cap":       "Bottle cap",
+	"feather":   "Heron feather",
+	"amethyst":  "Amethyst",
+	"calcite":   "White calcite",
+	"pyrite":    "Fool's gold",
+	"banded":    "Banded agate",
+	"fossil":    "Fossil shell",
 }
 
 // A prize is pebbles, a thing or a hat, and only one of the three is set.
@@ -167,7 +173,27 @@ type prize struct {
 // draws the wheel from this list.
 var wheelSlices = []string{"P25", "CRI", "P40", "AGA", "P25", "GEO", "P40", "CRI", "P25", "HAT", "P40", "AGA", "P25", "QUA", "CRI", "DYE"}
 
-func wheelPrize(slice string) prize {
+var wheelDyes = []string{"dye_blue", "dye_gold", "dye_berry", "dye_olive", "dye_brown", "dye_grey"}
+
+// The hat and the dye on the wheel change with the day and are the same for
+// everybody that day. Most days the hat is a common one and now and then rare.
+func wheelOfDay(day string) (hat, string) {
+	h := fnv.New32a()
+	h.Write([]byte("wheel " + day))
+	n := h.Sum32()
+	tier := 0
+	switch r := n % 100; {
+	case r >= 85:
+		tier = 2
+	case r >= 55:
+		tier = 1
+	}
+	pool := hatsByTier[tier]
+	return pool[(n/100)%uint32(len(pool))], wheelDyes[(n/100000)%uint32(len(wheelDyes))]
+}
+
+func wheelPrize(slice, day string) prize {
+	dayHat, dayDye := wheelOfDay(day)
 	switch slice {
 	case "P25":
 		return prize{Pebbles: 25, Text: "25 pebbles."}
@@ -182,9 +208,9 @@ func wheelPrize(slice string) prize {
 	case "GEO":
 		return prize{Item: "geode", Text: "A geode. Crack it open from your purse."}
 	case "DYE":
-		return prize{Item: "dye_blue", Text: "A bottle of blue dye, for an egg some day."}
+		return prize{Item: dayDye, Text: "A bottle of " + strings.ToLower(itemNames[dayDye]) + ", for an egg some day."}
 	}
-	return prize{Hat: &hat{hatDaisy, 0}}
+	return prize{Hat: &dayHat}
 }
 
 // Out of 100.

@@ -100,7 +100,7 @@ func (s *store) spin(id int64, paid bool) (*spun, error) {
 			p.FreeSpins--
 		}
 		out.Slice = rand.IntN(len(wheelSlices))
-		out.Prize = wheelPrize(wheelSlices[out.Slice])
+		out.Prize = wheelPrize(wheelSlices[out.Slice], dayOf(now))
 		if err := award(tx, p, &out.Prize); err != nil {
 			return err
 		}
