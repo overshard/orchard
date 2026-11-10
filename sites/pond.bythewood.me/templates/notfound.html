@@ -1,8 +1,9 @@
 {{ define "main" }}
 <section class="view prose">
   <div class="label">404 · Not found</div>
+  <canvas id="lost" class="lost" width="216" height="180" aria-hidden="true"></canvas>
   <h1>No such page</h1>
-  <p>{{ .Description }}</p>
+  <p>{{ .Description }} This frog took the same wrong turn and is still looking around.</p>
   <a href="/" class="button">&larr; Back to the pond</a>
 </section>
 {{ end }}
