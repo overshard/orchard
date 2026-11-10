@@ -15,19 +15,22 @@
   <canvas id="qr" width="264" height="264" data-url="{{ .KeyURL }}" aria-label="A QR code that opens this pond"></canvas>
 
   <h2>Saving it</h2>
-  <ol class="steps">
-    <li>Write the six words down on paper, in order.</li>
-    <li>Or paste the one line above into a note on your phone.</li>
-    <li>Or screenshot the QR code. Pointing a camera at it later opens this pond, and so does picking the screenshot under Bring a frog back.</li>
-    <li>Or, if you use a password manager, type the words into the box below and let it save them.</li>
-  </ol>
+  <p>Write the words down, screenshot the QR code, or save them in your password manager with your frog's name.</p>
+  <form id="save" class="restore" action="/key" method="post">
+    <label for="save-name">Frog</label>
+    <input id="save-name" name="username" autocomplete="username" value="{{ .FrogName }}" readonly>
+    <label for="save-key">Pond key</label>
+    <input id="save-key" name="password" type="password" autocomplete="new-password" value="{{ range $i, $w := .Words }}{{ if $i }}-{{ end }}{{ $w }}{{ end }}" readonly>
+    <button type="submit" class="primary">Save in my password manager</button>
+  </form>
+  <p class="line" id="save-result" role="status"></p>
 {{ else }}
   <h1>Pond key</h1>
   <p>A pond key is the six words that open a pond. This browser doesn't have a frog yet, so <a href="/">go and meet one</a>, or bring one back below.</p>
 {{ end }}
 
   <h2>Bring a frog back</h2>
-  <p>Type a pond key however you wrote it down, with spaces, dashes or one word a line.{{ if .Words }} This browser's frog is swapped for the one the key opens, so save the key above first.{{ end }}</p>
+  <p>Type the six words however you wrote them down, or scan the QR code.{{ if .Words }} This swaps out the frog in this browser, so save its key first.{{ end }}</p>
   <div class="row">
     <button type="button" id="scan-cam">Scan a QR code</button>
     <label class="button" for="scan-file">Use a saved picture</label>
@@ -35,8 +38,7 @@
   </div>
   <div class="screen" id="scan-view" hidden><video id="scan-video" playsinline muted></video></div>
   <form id="restore" class="restore" action="/key" method="post">
-    <label for="key-name">Frog</label>
-    <input id="key-name" name="username" autocomplete="username" value="{{ .FrogName }}" placeholder="Its name, if you remember">
+    <input class="vh" name="username" autocomplete="username" tabindex="-1" aria-hidden="true">
     <label for="key-in">Pond key</label>
     <input id="key-in" name="password" type="password" autocomplete="current-password" autocapitalize="none" spellcheck="false" required>
     <label class="check"><input type="checkbox" id="key-show"> Show the words</label>

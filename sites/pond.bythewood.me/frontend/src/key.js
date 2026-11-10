@@ -31,6 +31,19 @@ function restore() {
 
 $("restore").addEventListener("submit", (e) => { e.preventDefault(); restore(); });
 
+// Chrome saves through the credentials API, and others offer to save when a
+// form with a password field is submitted, so the form posts nowhere.
+const save = $("save");
+if (save) save.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const out = $("save-result"), id = $("save-name").value, password = $("save-key").value;
+  if (window.PasswordCredential) {
+    navigator.credentials.store(new window.PasswordCredential({ id, password, name: id })).then(
+      () => { out.textContent = "Your browser should have offered to save it."; },
+      () => { out.textContent = "Your browser said no. Copy the words instead."; });
+  } else out.textContent = "If your password manager didn't offer to save it, copy the words instead.";
+});
+
 // A pond key's QR code holds the address of /k with the words after the #.
 // Scanning one here reads the words out and never opens that address.
 const pad = document.createElement("canvas"), pctx = pad.getContext("2d", { willReadFrequently: true });
