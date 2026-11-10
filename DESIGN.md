@@ -605,7 +605,7 @@ version of the old look and a handheld pet shell.
   surface, `#fff6dc` cream, `#ffe27a` yellow and `#e2567a` pink.
 - **Panel 00 is the faceplate**, POND in Space Grotesk, a `MODEL FR-01 / SERIES
   ORCHARD` plate that drops out on a narrow phone, and the readouts as tiles on
-  a hairline grid, `PEBBLES` and `FROG` with a pixel gear, which opens the
+  a hairline grid, `PEBBLES` and a `SETTINGS` key with a pixel gear, which opens the
   settings (the name, the pond key, frog power).
 - A section head is an amber index chip, a caps title and a rule out to the
   edge, the same as a dash panel head.
