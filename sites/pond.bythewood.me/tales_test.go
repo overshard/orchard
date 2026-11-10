@@ -85,20 +85,26 @@ func TestCheckLine(t *testing.T) {
 		ok         bool
 	}{
 		{"It sat on the pad and watched the clouds go by.", "", nil, true},
-		{"It sat on the pad and watched the clouds go by!", "", nil, false},
+		{"it sat on the pad and watched the stars come out", "", nil, true},
 		{"It counted 12 flies before lunch.", "", nil, false},
 		{"It thinks the stock board looks funny today.", "", nil, false},
 		{"It's watching {show} under a blanket.", "{show}", []string{"{show}"}, true},
 		{"It's watching a cartoon under a blanket.", "{show}", []string{"{show}"}, false},
+		{"It's watching the show under a blanket again.", "{show}", []string{"{show}"}, true},
 		{"It's watching {show} with {name} tonight.", "{show}", []string{"{show}"}, false},
 		{"It heard the dead leaves rustle all night.", "", nil, false},
 		{"It ate a dieffenbachia leaf by mistake, oops.", "", nil, true},
 		{"It sang — loudly.", "", nil, false},
 		{"Short line.", "", nil, false},
+		{"It met Mossy by the reeds and they shared a fly.", "", nil, false},
 		{strings.Repeat("It hopped about a lot ", 6) + ".", "", nil, false},
 	}
 	for _, c := range cases {
-		if _, ok := checkLine(c.line, c.allowed, c.must, seen); ok != c.ok {
+		stand := ""
+		if c.must == "{show}" {
+			stand = "the show"
+		}
+		if _, ok := checkLine(c.line, taleAsk{allowed: c.allowed, must: c.must, stand: stand}, seen); ok != c.ok {
 			t.Errorf("%q: got %v", c.line, ok)
 		}
 	}
@@ -147,10 +153,10 @@ func TestNightlyWritesAndChecks(t *testing.T) {
 		ask := req.Messages[1].Content
 		line := "It had a lovely quiet time by the water today."
 		switch {
-		case strings.Contains(ask, "{show}"):
-			line = "It watched {show} with its feet up."
-		case strings.Contains(ask, "{game}"):
-			line = "It played {game} until the fireflies came out."
+		case strings.Contains(ask, "the show"):
+			line = "It watched the show with its feet up."
+		case strings.Contains(ask, "the game"):
+			line = "It played the game until the fireflies came out."
 		case strings.Contains(ask, "{name}"):
 			line = "Heard {name} has been humming in the reeds."
 		}

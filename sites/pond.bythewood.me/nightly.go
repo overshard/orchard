@@ -118,9 +118,23 @@ var bannedWord = map[string]bool{
 
 // checkLine says whether a line the model wrote can be used, given the slots
 // it may carry and the one it has to. seen is lines used in recent weeks.
-func checkLine(l string, allowed []string, must string, seen map[string]bool) (string, bool) {
+func checkLine(l string, a taleAsk, seen map[string]bool) (string, bool) {
+	allowed, must := a.allowed, a.must
 	l = strings.TrimSpace(l)
-	l = strings.Trim(l, `"'`)
+	l = strings.TrimSpace(strings.Trim(l, `"'`))
+	if l != "" && l[0] >= 'a' && l[0] <= 'z' {
+		l = strings.ToUpper(l[:1]) + l[1:]
+	}
+	if a.kind == "gazette" {
+		l = strings.TrimSuffix(l, ".")
+	} else if l != "" && !strings.ContainsAny(l[len(l)-1:], ".!?") {
+		l += "."
+	}
+	// Asked for a slot in braces the model leaves it out, so it writes the
+	// plain words and the slot goes in here.
+	if a.stand != "" && !strings.Contains(l, a.must) && strings.Count(l, a.stand) == 1 {
+		l = strings.Replace(l, a.stand, a.must, 1)
+	}
 	if l == "" || len(l) > lineMax || strings.ContainsAny(l, "0123456789%$#*_<>\n\\|;—–") {
 		return "", false
 	}
@@ -139,6 +153,27 @@ func checkLine(l string, allowed []string, must string, seen map[string]bool) (s
 	if must != "" && strings.Count(l, must) != 1 {
 		return "", false
 	}
+	for _, s := range a.avoidStart {
+		if strings.HasPrefix(l, s+" ") {
+			return "", false
+		}
+	}
+	bare := strings.Fields(slotRe.ReplaceAllString(l, "x"))
+	if len(a.starts) > 0 {
+		ok := false
+		for _, s := range a.starts {
+			ok = ok || strings.HasPrefix(l, s+" ")
+		}
+		if !ok {
+			return "", false
+		}
+	}
+	// The model makes up names, and the only names a line may carry are slots.
+	for _, w := range bare[1:] {
+		if r := w[0]; r >= 'A' && r <= 'Z' {
+			return "", false
+		}
+	}
 	words := strings.FieldsFunc(strings.ToLower(slotRe.ReplaceAllString(l, " ")), func(r rune) bool {
 		return !(r >= 'a' && r <= 'z')
 	})
@@ -146,7 +181,7 @@ func checkLine(l string, allowed []string, must string, seen map[string]bool) (s
 		return "", false
 	}
 	for _, w := range words {
-		if bannedWord[w] {
+		if bannedWord[w] || a.kind == "gazette" && (w == "you" || w == "your") {
 			return "", false
 		}
 		for _, b := range bannedPrefix {
@@ -183,17 +218,24 @@ var moodWords = map[string]string{
 }
 
 const taleSystem = `You write short lines for a cosy pixel art game about pet frogs living in a pond.
-Every line is one plain sentence about the frog, in the third person, calling the frog "it".
+Every line is one plain sentence about the frog, in the third person, starting with It or It's and calling the frog "it", never by a name or its nature. Speak of the owner as "you".
 Warm, gentle, a little silly, for all ages. Plain words, contractions are fine.
 Never write numbers, prices, money, the stock market, news, politics, people's names, brands, violence or anything sad about death.
 Never use quotation marks, dashes, semicolons or emoji. Each line under 100 characters.
-Use a slot like {show} only when asked to, written exactly with its braces.`
+Never make up a name for anybody or anything. Write in sentence case, with a capital letter only at the start.
+Use a slot like {show} only when asked to, written exactly with its braces and in lower case.`
 
 type taleAsk struct {
 	kind, key, prompt string
 	allowed           []string
 	must              string
-	n                 int
+	// A line has to open with one of these words.
+	starts []string
+	// A line can't open with one of these words.
+	avoidStart []string
+	// The plain words the model writes where must goes.
+	stand string
+	n     int
 	// When set the answer is an object of lines by nature.
 	natured bool
 }
@@ -207,24 +249,26 @@ func taleAsks() []taleAsk {
 	sort.Strings(moods)
 	natures := "BOLD (brave, loud), SHY (timid, sweet), NIGHT OWL (sleepy by day, lively at night), GLUTTON (always thinking about food), SINGER (always humming or croaking a tune), DRIFTER (dreamy, floats about)"
 	for _, m := range moods {
-		asks = append(asks, taleAsk{kind: "greeting", key: m, natured: true, n: 3,
+		asks = append(asks, taleAsk{kind: "greeting", key: m, natured: true, n: 3, starts: []string{"It", "It's"},
 			prompt: "Today is " + moodWords[m] + ". Write lines saying what the frog has been up to today or how it feels, as said to its owner who just arrived. " +
-				"Write separate lines for each frog nature: " + natures + "."})
+				"Write separate lines for each frog nature: " + natures + ". The nature only changes how it sounds, never name it."})
 	}
 	asks = append(asks,
-		taleAsk{kind: "watching", natured: true, n: 2, allowed: []string{"{show}"}, must: "{show}",
-			prompt: "Write lines about the frog watching a TV show, written as {show} where the title goes. Write separate lines for each frog nature: " + natures + "."},
-		taleAsk{kind: "playing", natured: true, n: 2, allowed: []string{"{game}"}, must: "{game}",
-			prompt: "Write lines about the frog playing a video game, written as {game} where the title goes. Write separate lines for each frog nature: " + natures + "."},
-		taleAsk{kind: "dream", n: 20, allowed: []string{"{resident}"},
+		taleAsk{kind: "watching", natured: true, n: 2, starts: []string{"It", "It's"}, allowed: []string{"{show}"}, must: "{show}",
+			stand:  "the show",
+			prompt: "Write lines about the frog watching a TV show, calling it exactly the show, like: It's halfway through the show and won't say what happens. Write separate lines for each frog nature: " + natures + "."},
+		taleAsk{kind: "playing", natured: true, n: 2, starts: []string{"It", "It's"}, allowed: []string{"{game}"}, must: "{game}",
+			stand:  "the game",
+			prompt: "Write lines about the frog playing a video game, calling it exactly the game, like: It keeps saying one more go of the game. Write separate lines for each frog nature: " + natures + "."},
+		taleAsk{kind: "dream", n: 20, starts: []string{"It"}, allowed: []string{"{resident}"},
 			prompt: "Write lines about what the frog dreamt last night, each starting with \"It dreamt\". Dreams can be weird and surreal. Some can mention a neighbour frog, written as {resident}."},
-		taleAsk{kind: "gossip", n: 20, allowed: []string{"{name}"}, must: "{name}",
-			prompt: "A neighbour frog is passing on a harmless, silly rumour about another frog, written as {name}. Start each with Heard, Says or Thinks, with no subject before it, like: Heard {name} has been practising a new croak."},
+		taleAsk{kind: "gossip", n: 20, starts: []string{"Heard", "Says", "Thinks", "Swears"}, allowed: []string{"{name}"}, must: "{name}",
+			prompt: "A neighbour frog is passing on a harmless, silly rumour about another frog, written as {name}. Start each with Heard, Says or Thinks, with no subject before it, and say what {name} did, like: Heard {name} has been practising a new croak. Or: Says {name} ate two dinners and denied the second one."},
 	)
 	for _, tone := range []string{"fair", "grey", "quiet"} {
 		feel := map[string]string{"fair": "a good, ordinary day", "grey": "a grey, slow day where everybody stays close", "quiet": "a quiet, sombre day, gentle with no jokes"}[tone]
-		asks = append(asks, taleAsk{kind: "gazette", key: tone, n: 10, allowed: []string{"{resident}", "{other}"},
-			prompt: "Write newspaper headlines for the Pond Gazette about goings on around the pond, on " + feel + ". Headline style with no full stop. Some can name a frog as {resident}, or two frogs as {resident} and {other}."})
+		asks = append(asks, taleAsk{kind: "gazette", key: tone, n: 10, avoidStart: []string{"It", "It's"}, allowed: []string{"{resident}", "{other}"},
+			prompt: "Write newspaper headlines for the Pond Gazette about goings on around the pond, on " + feel + ". Sentence case with no full stop, like: Choir practice runs late again, nobody complains. The only names allowed are {resident} and {other} for one or two neighbour frogs. Keep it about frogs, the water, the reeds, food and the shops."})
 	}
 	return asks
 }
@@ -469,14 +513,24 @@ func (n *nightly) write(ctx context.Context, day string) (*tales, int, int, erro
 	t := &tales{Day: day, Greeting: map[string]map[string][]string{}, Watching: map[string][]string{},
 		Playing: map[string][]string{}, Gazette: map[string][]string{}}
 	kept, dropped, failed := 0, 0, 0
+	var drops []string
+	perKind := map[string]int{}
+	defer func() {
+		if len(drops) > 0 {
+			slog.Info("nightly lines dropped", slog.Any("sample", drops))
+		}
+	}()
 	keep := func(a taleAsk, ls []string) []string {
 		var out []string
 		for _, l := range ls {
-			if c, ok := checkLine(l, a.allowed, a.must, seen); ok {
+			if c, ok := checkLine(l, a, seen); ok {
 				out = append(out, c)
 				kept++
 			} else {
 				dropped++
+				if perKind[a.kind]++; perKind[a.kind] <= 3 {
+					drops = append(drops, a.kind+": "+l)
+				}
 			}
 		}
 		return out
@@ -556,7 +610,7 @@ func (n *nightly) loadSeen(day string) map[string]bool {
 		}
 		mark := func(ls []string) {
 			for _, l := range ls {
-				checkLine(l, []string{"{show}", "{game}", "{resident}", "{other}", "{name}"}, "", seen)
+				checkLine(l, taleAsk{allowed: []string{"{show}", "{game}", "{resident}", "{other}", "{name}"}}, seen)
 			}
 		}
 		for _, by := range t.Greeting {
