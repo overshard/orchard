@@ -67,9 +67,11 @@ func keyCSP() string {
 }
 
 var templateFuncs = template.FuncMap{
-	"commas":     commas,
-	"lower":      strings.ToLower,
-	"hatsInGame": func() int { return hatsInGame },
+	"commas":         commas,
+	"lower":          strings.ToLower,
+	"hatsInGame":     func() int { return hatsInGame },
+	"trinketsInGame": func() int { return len(trinkets) },
+	"join":           strings.Join,
 	"json": func(v any) (string, error) {
 		b, err := json.Marshal(v)
 		return string(b), err

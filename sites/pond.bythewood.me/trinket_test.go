@@ -2,6 +2,9 @@ package main
 
 import (
 	"errors"
+	"os"
+	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -58,6 +61,19 @@ func TestTrinketsPlaceAndCook(t *testing.T) {
 			t.Errorf("after cooking: %+v", tv)
 		}
 	}
+
+	// The share page shows what's out and still counts the eaten morel.
+	var code string
+	if err := s.r.QueryRow(`SELECT public_id FROM ponds WHERE id = ?`, id).Scan(&code); err != nil {
+		t.Fatal(err)
+	}
+	sh, err := s.shownBy(code)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sh.Spots[0] != got || sh.Spots[1] != "" || sh.Power.Trinkets < hatPower[tierCount-1] || sh.Power != c.Pond.Share.Power {
+		t.Errorf("shown %v with %+v, the pond has %+v", sh.Spots, sh.Power, c.Pond.Share.Power)
+	}
 }
 
 func TestTrinketSpares(t *testing.T) {
@@ -72,5 +88,34 @@ func TestTrinketSpares(t *testing.T) {
 	}
 	if _, err := s.sellTrinket(id, "t_duck"); !errors.Is(err, errNotHeld) {
 		t.Errorf("sold the last duck: %v", err)
+	}
+}
+
+// The card draws trinkets from its own copy of the page's icons.
+func TestTrinketIconsMatchThePage(t *testing.T) {
+	raw, err := os.ReadFile("frontend/src/icons.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	line := regexp.MustCompile(`(?m)^\s+(t_\w+): \[\[(.*?)\], \{(.*?)\}\],$`)
+	seen := 0
+	for _, m := range line.FindAllStringSubmatch(string(raw), -1) {
+		seen++
+		ic, ok := trinketIcons[m[1]]
+		if !ok {
+			t.Errorf("%s has no icon on the card", m[1])
+			continue
+		}
+		if got := `"` + strings.Join(ic.rows[:], `", "`) + `"`; got != m[2] {
+			t.Errorf("%s rows differ", m[1])
+		}
+		for _, c := range regexp.MustCompile(`(\w): "(#\w+)"`).FindAllStringSubmatch(m[3], -1) {
+			if ic.col[c[1][0]] != c[2] {
+				t.Errorf("%s colour %s differs", m[1], c[1])
+			}
+		}
+	}
+	if seen != len(trinkets) || len(trinketIcons) != len(trinkets) {
+		t.Errorf("%d icons in the page, %d on the card, %d trinkets", seen, len(trinketIcons), len(trinkets))
 	}
 }

@@ -557,6 +557,7 @@ type view struct {
 	Furniture []string `json:"furniture"`
 
 	held  map[string]int
+	found []hat
 	Nudge bool `json:"nudge"`
 	Dev   bool `json:"dev"`
 }
@@ -640,7 +641,7 @@ func viewOf(q querier, p pond, now time.Time) (*view, error) {
 		v.PadCost = padCost(p.Pads)
 	}
 	v.Share.Path = "/f/" + slug(v.Frog.Name, p.PublicID)
-	v.Share.Power = powerOf(v.Frog.Rarity, found, p.DiveBest)
+	v.found = found
 
 	v.Items = []itemView{}
 	v.Furniture = []string{}
@@ -723,6 +724,13 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	if v.Shops, err = s.shopsOf(q, p.ID, now); err != nil {
 		return err
 	}
-	v.Trinkets, err = trinketsOf(q, p, v.held)
-	return err
+	if v.Trinkets, err = trinketsOf(q, p, v.held); err != nil {
+		return err
+	}
+	had := map[string]bool{}
+	for _, t := range v.Trinkets.All {
+		had[t.Kind] = t.Found
+	}
+	v.Share.Power = powerOf(v.Frog.Rarity, v.found, had, p.DiveBest)
+	return nil
 }

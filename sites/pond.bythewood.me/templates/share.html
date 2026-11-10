@@ -15,7 +15,7 @@
 {{ with .Share }}
 <section class="view">
   <button type="button" class="scene screen" id="scene-btn" aria-label="{{ .Frog.Name }}. Press it to hear its call.">
-    <canvas id="scene" width="352" height="272" data-seed="{{ .Frog.Seed }}" data-stage="{{ .Frog.Stage }}" data-day="{{ .Frog.Day }}" data-hat="{{ .Frog.Hat.Shape }}" data-colour="{{ .Frog.Hat.Colour }}"{{ with .Frog.Mods }} data-mods="{{ json . }}"{{ end }}></canvas>
+    <canvas id="scene" width="352" height="272" data-seed="{{ .Frog.Seed }}" data-stage="{{ .Frog.Stage }}" data-day="{{ .Frog.Day }}" data-hat="{{ .Frog.Hat.Shape }}" data-colour="{{ .Frog.Hat.Colour }}" data-spots="{{ join .Spots "," }}"{{ with .Frog.Mods }} data-mods="{{ json . }}"{{ end }}></canvas>
   </button>
   <div class="who">
     <h1>{{ .Frog.Name }}</h1>
@@ -28,6 +28,7 @@
   <dl class="missed">
     <dt>The frog</dt><dd>{{ commas .Power.Frog }}, {{ lower .Frog.Rarity.Label }} at 1 in {{ commas .Frog.Rarity.N }}</dd>
     <dt>Hats</dt><dd>{{ commas .Power.Hats }}, {{ .Power.HatsHeld }} of {{ hatsInGame }} found</dd>
+    <dt>Trinkets</dt><dd>{{ commas .Power.Trinkets }}, {{ .Power.TrinketsFound }} of {{ trinketsInGame }} found</dd>
     <dt>Dive</dt><dd>{{ commas .Power.Dive }}, best of {{ .Power.DiveBest }} gates</dd>
   </dl>
 

@@ -1,8 +1,10 @@
 import qrcode from "qrcode-generator";
 import { genome, bred, cells, colours, draw, croak, W, H } from "./frog.js";
+import { drawIcon } from "./icons.js";
 
 const scene = document.getElementById("scene"), sx = scene.getContext("2d"), d = scene.dataset;
 const g = bred(genome(+d.seed), d.mods ? JSON.parse(d.mods) : null), stage = d.stage, hat = { shape: +d.hat, colour: +d.colour };
+const spots = (d.spots || "").split(",");
 const grown = stage === "froglet" || stage === "frog" || stage === "elder";
 const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 let croakUntil = 0;
@@ -10,6 +12,7 @@ let croakUntil = 0;
 function frame(now) {
   const t = now / 1000;
   ["#123a3d", "#103336", "#0e2c30", "#0c262a"].forEach((c, i) => { sx.fillStyle = c; sx.fillRect(0, i * 68, 352, 68); });
+  if (spots[2]) drawIcon(sx, spots[2], 160, 12 + Math.round(Math.sin(t * 0.9 + 2)) * 4, 4);
   if (grown) {
     for (let y = 222; y < 268; y += 4) for (let x = 20; x < 332; x += 4) {
       const a = (x + 2 - 176) / 150, b = (y + 2 - 246) / 20, dd = a * a + b * b;
@@ -25,6 +28,8 @@ function frame(now) {
     if (now < croakUntil) o.croak = 0.55 + 0.45 * Math.abs(Math.sin(t * g.rate * 0.5));
   }
   draw(sx, cells(g, stage, o), W, H, colours(g, hat), 0, 0, 8);
+  if (grown && spots[0]) drawIcon(sx, spots[0], 40, 236, 4);
+  if (grown && spots[1]) drawIcon(sx, spots[1], 280, 236, 4);
 }
 
 let last = 0;
