@@ -1,5 +1,7 @@
 import { $, post, state, setPond, watch, reduced, TIERS } from "./api.js";
 import { iconCanvas, dishCanvas } from "./icons.js";
+import { genome, cells, colours, draw, W, H } from "./frog.js";
+import { presents } from "./neighbours.js";
 
 const gx = $("garden").getContext("2d");
 const GW = 176, S = 3;
@@ -145,6 +147,7 @@ function render(p) {
   $("garden-build").disabled = !canBuild(p, gd);
 
   renderDye(p);
+  renderBurrows(p);
 
   const k = p.kitchen, larder = $("larder");
   picked = picked.filter((kind) => k.ingredients.some((i) => i.kind === kind && i.count > 0));
@@ -239,6 +242,80 @@ function renderDye(p) {
   $("dye-build").disabled = !canBuild(p, d);
 }
 
+// ---------------------------------------------------------------- burrows
+
+const BW = 56, BH = 40;
+
+function burrowArt(n) {
+  const cv = document.createElement("canvas"), g = cv.getContext("2d"), s = 2;
+  cv.width = BW * s; cv.height = BH * s;
+  g.setTransform(s, 0, 0, s, 0, 0);
+  g.fillStyle = "#3b5a6a"; g.fillRect(0, 0, BW, BH);
+  g.fillStyle = "#5a4630";
+  for (let y = 6; y < BH; y++) {
+    const w = Math.min(BW, Math.round(Math.sqrt(Math.max(0, (y - 4) * 90))));
+    g.fillRect(Math.floor((BW - w) / 2), y, w, 1);
+  }
+  g.fillStyle = "#2f5a3a";
+  for (let x = 6; x < BW - 6; x += 5) g.fillRect(x, 6 + Math.abs(x - BW / 2) / 3, 2, 3);
+  g.fillStyle = "#6c5538"; g.fillRect(20, 15, 16, 1); g.fillRect(18, 16, 20, 1);
+  g.fillStyle = "#1a120b";
+  for (let y = 17; y < 34; y++) {
+    const w = y < 20 ? 12 + (y - 17) * 2 : 18;
+    g.fillRect(Math.floor((BW - w) / 2), y, w, 1);
+  }
+  g.fillStyle = "#123a3d"; g.fillRect(0, 34, BW, 6);
+  if (n) {
+    const ge = genome(n.seed);
+    draw(g, cells(ge, "frog", { hat: n.hat.shape }), W, H, colours(ge, n.hat), Math.floor((BW - W) / 2), BH - H - 2, 1);
+  }
+  return cv;
+}
+
+function renderBurrows(p) {
+  const bw = p.bank.burrows, all = p.neighbours.all;
+  $("burrow-level").textContent = bw.level ? bw.level + "/5" : "0";
+  $("burrow-rate").textContent = bw.rate ? bw.rate + "/h" : "—";
+  $("burrow-held").textContent = bw.rate ? bw.held + "/" + bw.holds : "—";
+  const row = $("burrow-row");
+  row.textContent = "";
+  for (let i = 0; i < bw.level; i++) {
+    const n = all[bw.lodgers[i]], fig = document.createElement("figure"), cap = document.createElement("figcaption");
+    cap.textContent = n ? n.name : "Empty";
+    fig.append(burrowArt(n), cap);
+    row.append(fig);
+  }
+  row.hidden = !bw.level;
+  let note;
+  if (!bw.level) note = "Not dug yet. Each burrow comes with a lily pad.";
+  else if (!bw.lodgers.length) note = "Nobody's moved in. A neighbour with two hearts will, if you ask it in town.";
+  else if (bw.held >= bw.holds) note = "Full. The rent stops piling up until it's collected.";
+  else note = "The next pebble in " + hours(bw.next_in) + (bw.chatted ? "." : ". Collect today and everyone in the burrows gets a little friendlier.");
+  if (bw.level && bw.lodgers.length && bw.lodgers.length < bw.level) note += " There's room for " + (bw.level - bw.lodgers.length) + " more.";
+  say("burrow-note", note);
+  $("burrow-collect").hidden = !bw.lodgers.length;
+  $("burrow-collect").disabled = bw.held < 1;
+  $("burrow-build").textContent = build("Burrows", bw.level, bw.cost, bw.mats);
+  $("burrow-build").disabled = !canBuild(p, bw);
+}
+
+// Presents from lodgers come one neighbour at a time.
+function rentPresents(d) {
+  const by = [];
+  d.from.forEach((who, i) => {
+    const last = by[by.length - 1];
+    if (last && last[0] === who) last[1].push(d.prizes[i]);
+    else by.push([who, [d.prizes[i]]]);
+  });
+  const next = () => {
+    const step = by.shift();
+    if (!step) return;
+    presents(d.pond.neighbours.all[step[0]], step[1]);
+    if (by.length) $("reveal-ok").addEventListener("click", next, { once: true });
+  };
+  next();
+}
+
 function nameOf(kind) {
   const it = state.pond.kitchen.ingredients.find((i) => i.kind === kind);
   return it ? it.name.toLowerCase() : kind;
@@ -271,6 +348,20 @@ export function initBank() {
   $("gravel-build").addEventListener("click", builder("gravel", "gravel-out"));
   $("garden-build").addEventListener("click", builder("garden", "garden-out"));
   $("dye-build").addEventListener("click", builder("dye", "dye-out"));
+  $("burrow-build").addEventListener("click", () => {
+    post("/api/bank/build", { build: "burrow" }).then((v) => {
+      say("burrow-out", "Dug a burrow, and a lily pad came with it.");
+      setPond(v);
+    }, (e) => say("burrow-out", e.message));
+  });
+  $("burrow-collect").addEventListener("click", () => {
+    $("burrow-collect").disabled = true;
+    post("/api/burrows/collect").then((d) => {
+      say("burrow-out", d.line);
+      setPond(d.pond);
+      if (d.prizes.length) rentPresents(d);
+    }, (e) => say("burrow-out", e.message));
+  });
   $("dye-rocks").addEventListener("click", (e) => {
     const b = e.target.closest("button");
     if (!b || b.disabled) return;

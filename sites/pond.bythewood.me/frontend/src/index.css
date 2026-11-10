@@ -2320,3 +2320,30 @@ button.big {
   image-rendering: pixelated;
   touch-action: none;
 }
+
+/* A burrow each, with its lodger in the doorway. */
+.lodgers {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.lodgers figure {
+  margin: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.lodgers canvas {
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+  border: 1px solid var(--line);
+}
+
+.lodgers figcaption {
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+}
