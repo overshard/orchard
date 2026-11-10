@@ -1,4 +1,4 @@
-import { $, post, state, setPond, watch } from "./api.js";
+import { $, post, state, setPond, watch, room, onResize } from "./api.js";
 import { genome, sideCells, draw as drawCells, SW, SH } from "./frog.js";
 import { raceStart, raceOut, raceOrder, raceResults, raceHide, countdown, callout } from "./race.js";
 
@@ -318,7 +318,7 @@ export function initDive() {
   reset();
   // The way out is a button, so a press on it must not also be a kick.
   $("dive-exit").addEventListener("pointerdown", (e) => e.stopPropagation());
-  $("dive-exit").addEventListener("click", () => document.querySelector("#tabs [data-view=pond]").click());
+  $("dive-exit").addEventListener("click", () => { location.hash = "#play"; });
   watch((p) => { note(p); if (G.state !== "play" && !$("v-dive").hidden) draw(performance.now()); });
   $("v-dive").addEventListener("pointerdown", (e) => { e.preventDefault(); press(); });
   $("v-dive").addEventListener("contextmenu", (e) => e.preventDefault());
@@ -334,7 +334,7 @@ export function initDive() {
 // The strip left under the water holds the readout and the way out.
 function fit() {
   $("v-dive").classList.add("full");
-  const w = window.innerWidth, h = window.innerHeight - 76, scale = Math.min(w / 266, h / 300);
+  const { w, h } = room($("v-dive")), scale = Math.min(w / 266, h / 300);
   PW = Math.min(640, Math.floor(w / scale));
   GH = Math.max(200, Math.min(520, Math.floor(h / scale)));
   BOT = GH - 14;
@@ -343,6 +343,14 @@ function fit() {
   gc.style.width = Math.round(PW * scale) + "px";
   reset();
 }
+
+// Mid run only the drawn size follows the window, since a refit resets the water.
+onResize(() => {
+  if ($("v-dive").hidden) return;
+  if (G.state === "idle") { fit(); draw(performance.now()); return; }
+  const { w, h } = room($("v-dive"));
+  gc.style.width = Math.round(PW * Math.min(w / PW, h / GH)) + "px";
+});
 
 export function enterDive() {
   if (G.state !== "play") { G.state = "idle"; raceHide(); fit(); }

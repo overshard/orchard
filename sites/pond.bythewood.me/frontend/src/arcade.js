@@ -1,4 +1,4 @@
-import { $, post, state, setPond, watch } from "./api.js";
+import { $, post, state, setPond, watch, room, onResize } from "./api.js";
 
 // The frame round a side game. A game is a fixed field W by H, drawn at twice
 // that and scaled to the window, with reset, step, draw, and input hooks. This
@@ -22,7 +22,7 @@ export function arcade(game) {
 
   function fit() {
     view.classList.add("full");
-    const w = window.innerWidth, h = window.innerHeight - 76;
+    const { w, h } = room(view);
     A.scale = Math.min(w / game.W, h / game.H);
     cv.width = game.W * 2; cv.height = game.H * 2;
     cv.style.width = Math.round(game.W * A.scale) + "px";
@@ -87,24 +87,40 @@ export function arcade(game) {
     if (!state.pond) return;
     if (A.state === "over" && performance.now() - A.overAt < 900) return;
     if (A.state !== "play") { start(); return; }
-    if (e) down = point(e);
+    if (e) { down = point(e); down.moved = false; }
     if (e && game.press) game.press(down.x, down.y);
+    if (e && game.drag) game.drag(down.x, down.y);
   }
 
-  // A swipe is a press that moved, for games that read a direction.
+  // A swipe fires as soon as the finger has gone far enough, so a drag can
+  // turn more than once before it lifts.
+  function move(e) {
+    if (A.state !== "play" || !down) return;
+    const p = point(e);
+    if (game.drag) game.drag(p.x, p.y);
+    if (!game.swipe) return;
+    const dx = p.x - down.x, dy = p.y - down.y;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) * A.scale < 18) return;
+    game.swipe(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up"));
+    down = { x: p.x, y: p.y, moved: true };
+  }
+
   function lift(e) {
+    if (game.release) game.release();
     if (A.state !== "play" || !down || !game.swipe) { down = null; return; }
-    const p = point(e), dx = p.x - down.x, dy = p.y - down.y;
+    const p = point(e), moved = down.moved;
     down = null;
-    if (Math.max(Math.abs(dx), Math.abs(dy)) * A.scale < 18) game.swipe("up");
-    else if (Math.abs(dx) > Math.abs(dy)) game.swipe(dx > 0 ? "right" : "left");
-    else game.swipe(dy > 0 ? "down" : "up");
+    if (moved) return;
+    if (game.tap) game.tap(p.x, p.y);
+    else game.swipe("up");
   }
 
   $(k + "-exit").addEventListener("pointerdown", (e) => e.stopPropagation());
   $(k + "-exit").addEventListener("click", () => { location.hash = "#play"; });
   view.addEventListener("pointerdown", (e) => { e.preventDefault(); press(e); });
+  view.addEventListener("pointermove", move);
   view.addEventListener("pointerup", lift);
+  view.addEventListener("pointercancel", lift);
   view.addEventListener("contextmenu", (e) => e.preventDefault());
   document.addEventListener("keydown", (e) => {
     if (view.hidden) return;
@@ -112,8 +128,13 @@ export function arcade(game) {
     if (dir || e.code === "Space" || e.code === "Enter") e.preventDefault();
     if (e.repeat) return;
     if (A.state !== "play") { if (dir || e.code === "Space" || e.code === "Enter") press(null); return; }
+    if (dir && game.hold) game.hold(dir, true);
     if (dir && game.swipe) game.swipe(dir);
     else if ((e.code === "Space" || e.code === "Enter") && game.keyPress) game.keyPress();
+  });
+  document.addEventListener("keyup", (e) => {
+    const dir = { ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right" }[e.code];
+    if (dir && game.hold) game.hold(dir, false);
   });
   watch(() => {
     note();
@@ -121,6 +142,7 @@ export function arcade(game) {
     if (A.state === "idle") game.reset(state.g, state.pond);
     paint(performance.now());
   });
+  onResize(() => { if (!view.hidden) { fit(); if (A.state !== "play") paint(performance.now()); } });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (!view.hidden && A.state !== "play") paint(performance.now()); });
 
   return {
