@@ -5,7 +5,7 @@ import { presentsFrom } from "./neighbours.js";
 import { initMarket } from "./market.js";
 import { slot, thingArt, openSheet, closeSheet, sheetSay, button, reveal, ghost, TIER_GLOW } from "./ui.js";
 
-let tab = "shops";
+let tab = "neighbours";
 
 function showTab(next) {
   tab = next;

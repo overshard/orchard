@@ -1,5 +1,6 @@
 import { $, post, state, setPond, watch } from "./api.js";
 import { genome, cells, colours, draw, W, H } from "./frog.js";
+import { dishCanvas } from "./icons.js";
 import { openSheet, closeSheet, sheetSay, button, reveal, thingArt } from "./ui.js";
 
 export function art(n, s) {
@@ -74,30 +75,40 @@ function lodging(p, n, body) {
   body.append(r);
 }
 
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text) e.textContent = text;
+  return e;
+}
+
+// A labelled box on a neighbour's sheet, with a picture when there is one.
+function fact(label, text, pic, sub) {
+  const box = el("div", "fact"), words = el("div");
+  words.append(el("span", "k", label), el("p", "", text));
+  if (sub) words.append(el("p", "dim", sub));
+  if (pic) box.append(pic);
+  box.append(words);
+  return box;
+}
+
 function show(n) {
   const p = state.pond;
-  let what = n.title + ", " + hearts(n.level) + ". Its favourite is " + n.fav.toLowerCase() + ".";
-  if (n.fav_a) what += " It told you how, " + nameOf(n.fav_a) + " and " + nameOf(n.fav_b) + ".";
-  openSheet({ art: art(n, 4), name: n.name }, what, (body) => {
-    const bio = document.createElement("p");
-    bio.className = "dim"; bio.textContent = n.bio + " " + n.now.doing;
-    body.append(bio);
-    if (n.now.says) {
-      const q = document.createElement("p");
-      q.className = "bubble"; q.textContent = n.now.says;
-      body.append(q);
-    }
-    if (n.talk) {
-      const t = document.createElement("p");
-      t.className = "dim"; t.textContent = n.talk;
-      body.append(t);
-    }
-    if (n.gossip) {
-      const g = document.createElement("p");
-      g.className = "gossip";
-      g.textContent = n.gossip;
-      body.append(g);
-    }
+  openSheet({ art: art(n, 4), name: n.name }, n.title, (body) => {
+    if (n.now.says || n.talk) body.append(el("p", "bubble", n.now.says || n.talk));
+    const fr = el("div", "friend"), bar = el("span", "bar"), fill = el("i"), top = n.level >= 5 || n.to <= n.from;
+    fill.style.width = (top ? 100 : Math.round(100 * (n.points - n.from) / (n.to - n.from))) + "%";
+    bar.append(fill);
+    fr.append(el("b", "hearts", hearts(n.level)), bar, el("span", "dim", top ? "Best of friends" : n.to - n.points + " to the next heart"));
+    body.append(fr);
+    const facts = el("div", "facts");
+    facts.append(fact("Right now", n.now.doing));
+    facts.append(fact("Favourite dish", n.fav, n.fav_a ? dishCanvas({ a: n.fav_a, b: n.fav_b, name: n.fav }, 4) : null,
+      n.fav_a ? nameOf(n.fav_a) + " and " + nameOf(n.fav_b) : "It'll say how to cook it at two hearts"));
+    if (n.gossip) facts.append(fact("Heard", n.gossip));
+    facts.append(fact("About", n.bio));
+    body.append(facts);
+    if (n.now.says && n.talk) body.append(el("p", "dim", n.talk));
     lodging(p, n, body);
     if (n.gave) {
       const s = document.createElement("p");
@@ -157,13 +168,13 @@ function render(p) {
       t.className = "thought"; t.textContent = n.now.thinks;
       c.append(t);
     }
-    c.append(art(n, 3), name, h);
+    c.append(art(n, 3), name, h, el("span", "fav", "Likes " + n.fav.toLowerCase()));
+    c.append(doing);
     if (n.now.paper) {
       const pr = document.createElement("span");
-      pr.className = "paper"; pr.textContent = "In today's gazette";
+      pr.className = "press"; pr.textContent = "In today's gazette";
       c.append(pr);
     }
-    c.append(doing);
     c.addEventListener("click", () => show(n));
     grid.append(c);
   });
