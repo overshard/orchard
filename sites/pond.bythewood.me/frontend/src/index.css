@@ -875,6 +875,26 @@ body:has(.tabs) main {
   letter-spacing: var(--track);
 }
 
+.register {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 14px;
+}
+
+.register span {
+  padding: 3px 7px;
+  border: 1px dashed var(--line);
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: var(--track);
+}
+
+.register .on {
+  border: 1px solid var(--amber-dim);
+  color: var(--amber);
+}
+
 .seg button[aria-pressed="true"] {
   border-color: var(--amber);
   color: var(--amber);
