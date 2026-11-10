@@ -86,10 +86,13 @@ func fullMoon(now time.Time) bool {
 }
 
 // Frogspawn in Georgia comes on the first warm rain of late winter.
-func spawning(r *reading, now time.Time) bool {
+func spawnSeason(now time.Time) bool {
 	n := now.In(pondZone)
-	late := (n.Month() == time.February && n.Day() >= 10) || (n.Month() == time.March && n.Day() <= 20)
-	return late && r.HasTemp && r.Temp >= 50 && (r.Rain >= 60 || condHas(r, "rain", "shower", "drizzle"))
+	return (n.Month() == time.February && n.Day() >= 10) || (n.Month() == time.March && n.Day() <= 20)
+}
+
+func spawning(r *reading, now time.Time) bool {
+	return spawnSeason(now) && r.HasTemp && r.Temp >= 50 && (r.Rain >= 60 || condHas(r, "rain", "shower", "drizzle"))
 }
 
 // stampKeepsakes hands over whatever today brings that the pond hasn't had

@@ -56,3 +56,22 @@ func TestAnOldReadingIsDropped(t *testing.T) {
 		t.Error("a stale reading was used")
 	}
 }
+
+func TestSeasonLines(t *testing.T) {
+	at := func(s string) time.Time { d, _ := time.ParseInLocation("2006-01-02 15", s, pondZone); return d }
+	var v dayView
+	season(&v, at("2026-06-21 12"))
+	if !v.Fireflies || len(v.Lines) != 2 {
+		t.Fatalf("midsummer = %+v, want fireflies and the longest day", v)
+	}
+	v = dayView{}
+	season(&v, at("2026-11-24 21"))
+	if !v.Moon || v.Fireflies || v.Spawn {
+		t.Fatalf("the full moon on 2026-11-24 = %+v", v)
+	}
+	v = dayView{}
+	season(&v, at("2026-03-01 12"))
+	if !v.Spawn {
+		t.Fatal("no frogspawn on 1 March")
+	}
+}
