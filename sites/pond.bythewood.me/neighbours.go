@@ -36,6 +36,17 @@ var residents = []resident{
 
 func (r resident) favDish() dish { return dishOf(r.fav[0], r.fav[1]) }
 
+// residentNamed is -1 for a name that isn't a resident's, like the rolled
+// names stalls sold to before the residents did the buying.
+func residentNamed(name string) int {
+	for i, r := range residents {
+		if r.name == name {
+			return i
+		}
+	}
+	return -1
+}
+
 var (
 	// Points a dish is worth by tier, three times over for a favourite.
 	giftPoints = [tierCount]int{1, 2, 4, 8, 16}

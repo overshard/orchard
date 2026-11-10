@@ -30,6 +30,24 @@ export function presents(n, zs) {
   if (rest.length) $("reveal-ok").addEventListener("click", () => presents(n, rest), { once: true });
 }
 
+// Presents from several neighbours at once, a rent or a stall collect, come one
+// neighbour at a time. d.from says who each of d.prizes is from.
+export function presentsFrom(d) {
+  const by = [];
+  d.from.forEach((who, i) => {
+    const last = by[by.length - 1];
+    if (last && last[0] === who) last[1].push(d.prizes[i]);
+    else by.push([who, [d.prizes[i]]]);
+  });
+  const next = () => {
+    const step = by.shift();
+    if (!step) return;
+    presents(d.pond.neighbours.all[step[0]], step[1]);
+    if (by.length) $("reveal-ok").addEventListener("click", next, { once: true });
+  };
+  next();
+}
+
 function done(id, d, sayIn) {
   setPond(d.pond);
   const n = d.pond.neighbours.all[id];
