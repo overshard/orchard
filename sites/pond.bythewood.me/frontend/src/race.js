@@ -36,22 +36,21 @@ export function raceStart(list, order) {
   $("confetti").textContent = "";
 }
 
-// Whoever is still in by where they are on the water, then whoever went out
-// most lately.
+// Whoever is still in, then whoever went out most lately.
 function order() {
   const still = live.filter((id) => !gone.includes(id)).map((id) => racers.find((r) => r.id === id));
   return still.concat(gone.slice().reverse().map((id) => racers.find((r) => r.id === id)));
 }
 
-// raceOrder takes the ids still in, front first, every frame, and only moves
-// anything when it changed.
+// raceOrder takes the ids still in every frame, and only moves anything when
+// it changed.
 export function raceOrder(ids) {
   const key = ids.join(",");
   if (key === liveKey) return;
   liveKey = key; live = ids;
   const before = shown;
   layout();
-  if (shown < before && shown <= 3) callout(shown === 1 ? "You're in front" : shown === 2 ? "Up to 2nd" : "Onto the podium", "up");
+  if (shown < before && shown <= 3) callout(shown === 1 ? "Last one in" : shown === 2 ? "Up to 2nd" : "Onto the podium", "up");
 }
 
 function layout(list) {

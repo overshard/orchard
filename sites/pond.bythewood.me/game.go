@@ -24,7 +24,7 @@ const (
 
 	boxCost = 40
 
-	// The first runs of a day pay a pebble a point, later ones a quarter, and
+	// The first runs of a day pay two pebbles a point, later ones a half, and
 	// the cap is on the day whatever the runs were.
 	diveFullRuns = 3
 	diveCap      = 120
@@ -452,9 +452,9 @@ var podiumPebbles = [3]int{25, 25, 10}
 // divePays is what a run earns before the day's cap. Run counts from 1.
 func divePays(score, run int) int {
 	if run > diveFullRuns {
-		return score / 4
+		return score / 2
 	}
-	return score
+	return score * 2
 }
 
 // A run cannot score faster than gates and bugs arrive at top speed, which is
