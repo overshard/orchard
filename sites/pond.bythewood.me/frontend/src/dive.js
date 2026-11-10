@@ -116,7 +116,7 @@ function drawOthers() {
   gx.font = "500 6px 'JetBrains Mono', monospace"; gx.textAlign = "center"; gx.fillStyle = "#ece5d8";
   others.forEach((o) => {
     if (o.fade <= 0) return;
-    gx.globalAlpha = 0.6 * o.fade;
+    gx.globalAlpha = 0.28 * o.fade;
     gx.drawImage(o.spr[o.kick > 0 ? 1 : 0], Math.round(o.x - 15), Math.round(o.y - 9));
     // On a phone they swim too close together for ten names to be read.
     if (PW >= 400) gx.fillText(o.name, Math.round(o.x), Math.round(o.y - 12));
