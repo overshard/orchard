@@ -120,18 +120,53 @@ function drawBehind(day, t) {
   }
 }
 
+// The pond is never empty: reeds at its edges, a stray pad, a fish now and
+// then, and a dragonfly crossing whatever the day.
+function drawAmbient(day, t) {
+  const sway = Math.round(Math.sin(t * 0.8) * 1);
+  [[4, 6], [16, 9], [26, 5], [318, 7], [330, 10], [342, 6]].forEach(([x, h], i) => {
+    const top = 272 - h * 12, lean = i % 2 ? sway : -sway;
+    sx.fillStyle = "#2f6b33"; sx.fillRect(x, top, 4, h * 12);
+    sx.fillStyle = "#3f8a45"; sx.fillRect(x + lean * 4, top - 4, 4, 8);
+    if (h > 8) { sx.fillStyle = "#6b4a2a"; sx.fillRect(x + lean * 4, top - 16, 4, 12); }
+  });
+  const px = 40 + Math.sin(t * 0.07) * 16, py = 36 + Math.cos(t * 0.05) * 6;
+  sx.fillStyle = "#1f5a2c"; sx.fillRect(Math.round(px / 4) * 4, Math.round(py / 4) * 4 + 4, 40, 8);
+  sx.fillStyle = "#3f9a4d"; sx.fillRect(Math.round(px / 4) * 4 + 4, Math.round(py / 4) * 4, 32, 8);
+  sx.fillStyle = WATER[day.water || ""][0]; sx.fillRect(Math.round(px / 4) * 4 + 20, Math.round(py / 4) * 4, 4, 8);
+  const ft = t % 9;
+  if (ft < 1.6) {
+    const n = Math.floor(t / 9), rx = 90 + scatter(n, 11) * 180, ry = 110 + scatter(n, 12) * 80, r = 4 + ft * 18;
+    sx.strokeStyle = "rgba(127,214,194," + (0.5 - ft * 0.3) + ")"; sx.lineWidth = 2;
+    sx.beginPath(); sx.ellipse(rx, ry, r, r * 0.4, 0, 0, Math.PI * 2); sx.stroke();
+  }
+}
+
+function dragonfly(t, k) {
+  const dx = -40 + k * 440, dy = 40 + Math.sin(k * 9) * 20;
+  block(dx, dy, "#3d8fd6", 1); block(dx - 4, dy, "#3d8fd6"); block(dx - 8, dy, "#2b6aa8"); block(dx - 12, dy, "#2b6aa8");
+  const up = Math.floor(t * 20) % 2 ? -4 : 4;
+  block(dx - 4, dy + up, "rgba(220,240,255,0.7)"); block(dx - 4, dy - up, "rgba(220,240,255,0.7)");
+}
+
+// A warm cast on the water at dawn and dusk, by the visitor's own clock.
+function tint() {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 8) return "rgba(255,170,120,0.09)";
+  if (h >= 17 && h < 20) return "rgba(255,130,50,0.11)";
+  return "";
+}
+
 // And what goes over the frog.
 function drawOver(day, t) {
   if (day.water === "clear") for (let i = 0; i < 4; i++) {
     const mx = (scatter(i, 1) * 352 + t * 12 * (i % 2 ? 1 : -1) + 352) % 352, my = 30 + scatter(i, 2) * 90 + Math.sin(t * 3 + i) * 6;
     block(mx, my, "#fff6dc"); if (Math.floor(t * 8 + i) % 2) block(mx, my - 4, "rgba(255,246,220,0.6)");
   }
-  if (day.dragonfly) {
-    const k = (t % 14) / 14, dx = -40 + k * 440, dy = 40 + Math.sin(k * 9) * 20;
-    block(dx, dy, "#3d8fd6", 1); block(dx - 4, dy, "#3d8fd6"); block(dx - 8, dy, "#2b6aa8"); block(dx - 12, dy, "#2b6aa8");
-    const up = Math.floor(t * 20) % 2 ? -4 : 4;
-    block(dx - 4, dy + up, "rgba(220,240,255,0.7)"); block(dx - 4, dy - up, "rgba(220,240,255,0.7)");
-  }
+  if (day.dragonfly) dragonfly(t, (t % 14) / 14);
+  else if (t % 45 < 14) dragonfly(t, (t % 45) / 14);
+  const warm = !day.night && tint();
+  if (warm) { sx.fillStyle = warm; sx.fillRect(0, 0, 352, 272); }
   if (day.rain) for (let i = 0; i < 26; i++) {
     const rx = scatter(i, 7) * 352, ry = (scatter(i, 8) * 272 + t * 160) % 272;
     sx.fillStyle = "rgba(200,230,240,0.45)"; sx.fillRect(Math.round(rx), Math.round(ry), 2, 8);
@@ -249,6 +284,7 @@ function drawScene(now) {
     sx.fillRect(x, y, 20, 2); sx.fillRect(x + 20, y + 2, 12, 2);
   }
   drawBehind(day, t);
+  drawAmbient(day, t);
   drawSwimmers(p, day, t);
   const has = {};
   (p.furniture || []).forEach((k) => { has[k] = true; });
