@@ -101,15 +101,13 @@ function render(p) {
   const b = p.bank, gv = b.gravel, gd = b.garden;
 
   const built = (gv.level ? 1 : 0) + (gd.level ? 1 : 0);
-  say("bank-line", built
-    ? "The bank round the pond is yours to build on. Everything here makes something by itself and holds eight hours of it, and nothing rots."
-    : "The bank round the pond is yours to build on. Start with the gravel bar, it makes pebbles by itself while you're away.");
+  say("bank-line", built ? "" : "Build the gravel bar first. It makes pebbles while you're away.");
 
   $("gravel-level").textContent = gv.level ? gv.level + "/5" : "0";
   $("gravel-rate").textContent = gv.level ? gv.rate + "/h" : "—";
   $("gravel-held").textContent = gv.level ? gv.held + "/" + gv.holds : "—";
   say("gravel-note", !gv.level
-    ? "Nothing built here yet. It makes 6 pebbles an hour at first and 30 by level 5."
+    ? "Not built yet."
     : gv.held >= gv.holds ? "Full. It stops making more until it's collected."
       : "The next pebble in " + hours(gv.next_in) + ". It holds eight hours' worth.");
   $("gravel-collect").hidden = !gv.level;
@@ -120,7 +118,7 @@ function render(p) {
   growing = gd.plots;
   seenAt = performance.now();
   let note;
-  if (!gd.level) note = "No plots yet. They grow pond plants and bugs for the kitchen over real hours, by the real weather.";
+  if (!gd.level) note = "No plots yet. They grow things for the kitchen in real hours.";
   else if (gd.why === "frost") note = "Frost. Nothing grows and nothing is lost, the plots wait for it to lift.";
   else if (gd.why === "rain") note = "Rain, so the plots are watered and growing twice as fast.";
   else {
@@ -171,22 +169,6 @@ function render(p) {
     li.append(dishCanvas(d, 3), name, sell);
     dishes.append(li);
   });
-
-  $("cook-count").textContent = k.cookbook.length + " OF " + k.of;
-  const book = $("cookbook");
-  book.textContent = "";
-  k.cookbook.slice().sort((a, c) => c.tier - a.tier).forEach((d) => {
-    const li = document.createElement("li"), name = document.createElement("span"), t = document.createElement("span");
-    name.textContent = d.name;
-    t.className = "tier t" + d.tier; t.textContent = TIERS[d.tier];
-    li.append(dishCanvas(d, 2), name, t);
-    book.append(li);
-  });
-  if (!k.cookbook.length) {
-    const li = document.createElement("li");
-    li.textContent = "Nothing cooked yet.";
-    book.append(li);
-  }
 }
 
 // ---------------------------------------------------------------- dye works
@@ -210,7 +192,7 @@ function renderDye(p) {
   $("dye-hours").textContent = d.level ? d.hours + " h" : "—";
   $("dye-state").textContent = !d.busy ? (d.level ? "Empty" : "—") : d.ready_in > 0 ? hours(d.ready_in) : "Done";
   let note;
-  if (!d.level) note = "Nothing built here yet. It boils three rocks down into a dye for the egg bench, and each level is quicker and makes rarer colours.";
+  if (!d.level) note = "Not built yet.";
   else if (d.busy && d.ready_in > 0) note = "Boiling. It'll be ready in " + hours(d.ready_in) + ", and what colour stays a surprise till it's bottled.";
   else if (d.busy) note = "Done, and ready to bottle.";
   else note = "Pick three rocks. Each one leans the pot toward its own colours. It can make " + d.pool.map((k) => DYE_NAME[k].toLowerCase()).join(", ") + ".";

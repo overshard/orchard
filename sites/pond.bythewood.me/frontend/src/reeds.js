@@ -1,5 +1,5 @@
 import { $, post, setPond, watch, titled, TIERS } from "./api.js";
-import { genome, bred, cells, colours, draw, W, H, MORPHS } from "./frog.js";
+import { genome, bred, cells, colours, draw, W, H } from "./frog.js";
 
 let dye = "", stamp = "", drop = "", frontID = 0;
 
@@ -108,37 +108,7 @@ function render(p) {
   buy.disabled = p.pebbles < p.pad_cost;
 }
 
-const BACKS = ["PLAIN", "SPOTS", "BANDS", "SPECKLED", "MASK", "BACK STRIPE"];
-const PUPILS = ["BAR", "ROUND", "SLIT"];
-
-function renderRegister(p) {
-  const seen = { colour: new Set(), back: new Set(), pupil: new Set() };
-  p.frogs.filter((f) => f.stage !== "egg").forEach((f) => {
-    const g = bred(genome(f.seed), f.mods);
-    seen.colour.add(g.morph.name); seen.back.add(g.pattern); seen.pupil.add(g.pupil);
-  });
-  const rows = [["Colours", "colour", MORPHS.map((m) => m.name)], ["Backs", "back", BACKS], ["Pupils", "pupil", PUPILS]];
-  const box = $("register");
-  box.textContent = "";
-  let have = 0, all = 0;
-  rows.forEach(([label, key, names]) => {
-    const n = names.filter((x) => seen[key].has(x)).length, head = document.createElement("p"), list = document.createElement("p");
-    have += n; all += names.length;
-    head.className = "label"; head.textContent = label + ", " + n + " of " + names.length;
-    list.className = "register";
-    names.forEach((x) => {
-      const c = document.createElement("span");
-      c.className = seen[key].has(x) ? "on" : "";
-      c.textContent = x;
-      list.append(c);
-    });
-    box.append(head, list);
-  });
-  $("reg-count").textContent = have + " OF " + all;
-}
-
 export function initReeds() {
-  watch(renderRegister);
   watch(render);
   $("bench-dyes").addEventListener("click", (e) => {
     const b = e.target.closest("button");

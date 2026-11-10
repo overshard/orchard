@@ -3,8 +3,9 @@
 A virtual pet game where everybody who opens it gets a frog of their own. The
 frog is drawn from a seed as pixel art, grows up over about a month on the
 server's clock and then stays for good. You earn pebbles diving, spinning a
-wheel and turning over a log, and spend them on hat boxes. There are no
-accounts, a frog is kept by six words in a cookie called its pond key.
+wheel and turning over a log, and spend them in town on boxes, hats, food and
+furniture, or sell your own things off a stall. There are no accounts, a frog
+is kept by six words in a cookie called its pond key.
 
 ## Requirements
 
@@ -53,6 +54,13 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
   furniture, which the page draws on the water. Stock is
   dealt from the day so everybody sees the same shelf, and `bought` counts
   what each pond took off it.
+- `names.go` is the list a frog's name is rolled off. Nobody types a name, so
+  renaming only takes one that's on it.
+- `wizard.go` turns three of a thing into one thing of any sort, mostly a tier
+  down, and `stall.go` is the pond's own stall, where neighbours buy what's put
+  up sooner or later by price. Both work on anything in the bag, a hat as
+  `hat_<shape>_<colour>` and everything else by its item kind, and both keep
+  the last hat or trinket back for the collection.
 - `genome.go` turns a seed into a frog's name, look and rarity, and
   `frontend/src/frog.js` is the same thing in JavaScript plus the drawing.
 - `key.go` and `words.txt` are the pond key.
@@ -63,11 +71,13 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
 - `share.go` is a frog's public page at `/f/<name>-<code>`, its power, and the
   PNG card a link unfurls with, drawn by `sprite.go` in the JetBrains Mono under
   `fonts/`. The code is the pond's public id and can't open the pond.
-- `frontend/src/` has one file a view, `dive.js` (with `race.js` for the
-  standings and results laid over it), `wheel.js`, `hats.js`, `reeds.js`,
-  `bank.js` and `shops.js`,
-  with `index.js` for the pond itself, `share.js` for a frog's public page
-  and `key.js` and `k.js` for the key pages.
+- `frontend/src/` has one file a place, `dive.js` (with `race.js` for the
+  standings and results laid over it), `wheel.js`, `bag.js`, `collect.js`,
+  `reeds.js`, `bank.js` (the garden and kitchen too), `shops.js`, `town.js`
+  (the boxes, the stall and the wizard) and `settings.js`, with `index.js` for
+  the pond itself and the tabs. `ui.js` is the bottom sheet a thing opens in,
+  the reveal a prize pops up in, and the slot every collectable is drawn as.
+  `share.js` is a frog's public page and `key.js` and `k.js` the key pages.
 - `web/` is this site's own copy of the HTTP layer every site here shares.
 
 `GET /api/panel` answers with the visitor's frog as JSON, or a house frog when
@@ -105,5 +115,10 @@ they have none, for other sites to draw.
   page load, so crawlers don't fill the database with eggs.
 - `/key` and `/k` show or carry a pond key, so they load no analytics and send
   no referrer. Keep it that way.
+- Anything sold to the stall has a going rate in `worthOf`, and it has to sit
+  under what any shop asks for the same thing or buying to resell mints
+  pebbles. A box's spares are held under the box's price the same way, and the
+  wizard has to hand back less worth than the three it took. Tests hold all
+  three.
 - `web/` has to stay byte identical to every other site's copy, and
   `make check` at the root fails when it isn't.
