@@ -42,7 +42,11 @@
   <section class="view" id="v-dive" hidden>
     <div class="screen"><canvas id="dive" width="640" height="400" tabindex="0" aria-label="Dive. Tap anywhere or press space to kick down."></canvas></div>
     <div class="dive-hud">
-      <p class="dim" id="dive-note">Tap anywhere to kick down. The frog floats up by itself.</p>
+      <div class="tiles">
+        <span class="readout"><span class="k">Best</span><span class="v" id="dive-best">0</span></span>
+        <span class="readout"><span class="k">Today</span><span class="v" id="dive-today">0/120</span></span>
+        <span class="readout"><span class="k">A point pays</span><span class="v" id="dive-pays">1</span></span>
+      </div>
       <button type="button" id="dive-exit">Exit</button>
     </div>
   </section>
@@ -87,3 +91,6 @@
   <button type="button" data-view="hats" aria-pressed="false"><span class="idx">04</span>Hats</button>
 </nav>
 {{ end }}
+
+{{/* The game has no footer. The key page carries it. */}}
+{{ define "foot" }}{{ end }}

@@ -40,10 +40,12 @@
     {{ template "main" . }}
   </main>
 
+  {{ block "foot" . }}
   <footer>
     <span>&copy; {{ .Year }} Isaac Bythewood</span>
     <a href="{{ .SourceURL }}">Source</a>
   </footer>
+  {{ end }}
 
   <script type="module" src="{{ .Script }}"></script>
 </body>

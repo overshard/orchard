@@ -1,30 +1,20 @@
 import { $, post, state, setPond, watch } from "./api.js";
-import { sideCells, draw as drawCells, SW, SH } from "./frog.js";
+import { genome, sideCells, draw as drawCells, SW, SH } from "./frog.js";
 
 // Dive is played in a 320 by 200 field and drawn at twice that. The frog
 // floats up by itself, a press kicks it down, and the numbers below are the
 // feel of the game, so they change together or not at all.
-const GW = 320, TOP = 20, FXP = 70, OW = 16, RAILW = 54;
-// The field is 200 deep on a desktop. A phone held upright gets a deeper
-// pond, since the width is what sets the scale and the rest would be empty.
-let GH = 200, BOT = 186;
+const TOP = 20, OW = 16;
+// The field takes its size from the window, see fit. PW is how wide it is,
+// GH how deep, and FXP where the frog swims.
+let PW = 266, FXP = 70, GH = 200, BOT = 186;
 const BUOY = 330, RISE_MAX = 150, KICK = 138, GATE_EVERY = 118;
-const GN = ["DOT", "PIP", "MOSS", "BEAN", "WREN", "TULLY", "FENN", "BRINDLE"];
-const GF = [0.3, 0.46, 0.62, 0.78, 0.94, 1.1, 1.3, 1.62];
 const MONO = "500 8px 'JetBrains Mono', monospace", BIG = "700 22px 'Space Grotesk', sans-serif", HEAD = "700 13px 'Space Grotesk', sans-serif";
 
-let rail = true, gc, gx, GHOSTS = [], RMAX = 20, spr = null, sprKey = "", net = Promise.resolve();
+let gc, gx, spr = null, sprKey = "", net = Promise.resolve();
 const G = { state: "idle", score: 0, fy: 100, vy: 0, kick: 0, gates: [], bub: [], dist: 0, next: 0, last: 0, overAt: 0, rank: 0, t: 0, why: "", lastC: 100, flash: 0, paid: null, best: false };
 
 function best() { return state.pond ? state.pond.dive.best : 0; }
-
-// The neighbours sit around the player's best, with a floor so a first run
-// has somebody to chase.
-function tune() {
-  const b = Math.max(8, best());
-  GHOSTS = GF.map((f, i) => Math.round(b * f + (i % 3)));
-  RMAX = Math.max(14, Math.round(GHOSTS[GHOSTS.length - 1] * 1.08));
-}
 
 function sprites() {
   const f = state.pond.frog, key = f.seed + f.stage;
@@ -40,6 +30,68 @@ function frogCols(g) {
   return { 1: hsl(g.hue, g.sat, g.lit + 4), 2: hsl(g.hue + 18, g.sat * 0.45, Math.min(92, g.lit + 32)), 3: hsl(g.hue - 8, g.sat, g.lit - 14), 4: m.name === "ALBINO" ? "#f6c9cc" : "#fff6dc", 5: "#141210", 6: hsl(g.hue, g.sat * 0.6, 14), 8: m.limb != null ? hsl(m.limb, 70, 50) : hsl(g.hue, g.sat, g.lit - 7), 9: hsl(g.hue, g.sat * 0.5, 9) };
 }
 
+// Ten other frogs swim every run. Nobody is steering them. Each one aims for
+// the gaps, a little sloppily, and is fated to hit a gate somewhere in the
+// first thirty, so the water feels shared without anybody else being there.
+const GHOSTS_IN = 10;
+let others = [];
+
+function ghostSprite(g, kick) {
+  const cv = document.createElement("canvas");
+  cv.width = SW; cv.height = SH;
+  drawCells(cv.getContext("2d"), sideCells(g, "frog", kick), SW, SH, frogCols(g), 0, 0, 1);
+  return cv;
+}
+
+function spawnOthers() {
+  others = [];
+  for (let i = 0; i < GHOSTS_IN; i++) {
+    const g = genome(1 + Math.floor(Math.random() * 4294967295));
+    others.push({
+      name: g.name, spr: [ghostSprite(g, false), ghostSprite(g, true)],
+      x: 14 + i * (FXP + 50) / GHOSTS_IN + Math.random() * 8, y: TOP + 30 + Math.random() * (BOT - TOP - 60),
+      vy: 0, kick: 0, passed: 0, clears: Math.floor(Math.random() * 30), aim: Math.random() * 22 - 8,
+      out: false, fade: 1,
+    });
+  }
+}
+
+function stepOthers(dt, sp) {
+  others.forEach((o) => {
+    if (o.out) { o.x -= sp * dt; o.y -= 18 * dt; o.fade -= dt * 1.4; return; }
+    const gate = G.gates.find((g) => g.x + OW > o.x - 8);
+    // One that has cleared all it's going to drifts up into the stems.
+    let want = (TOP + BOT) / 2 + o.aim * 3;
+    if (gate) want = o.passed >= o.clears ? gateC(gate) - gate.gap / 2 - 10 : gateC(gate) - 9 + o.aim;
+    o.vy -= BUOY * dt; if (o.vy < -RISE_MAX) o.vy = -RISE_MAX;
+    if (o.y < want && o.vy < 30) { o.vy = KICK; o.kick = 0.16; }
+    o.y += o.vy * dt; o.kick -= dt;
+    if (o.y > BOT - 6) { o.y = BOT - 6; o.vy = Math.min(0, o.vy); }
+    if (!gate) return;
+    if (gate.x + OW < o.x - 8 && gate.seen !== undefined && !gate.seen[o.name + o.x]) { gate.seen[o.name + o.x] = true; o.passed++; }
+    const c = gateC(gate), hit = o.x + 7 > gate.x && o.x - 8 < gate.x + OW && (o.y - 4 < c - gate.gap / 2 || o.y + 5 > c + gate.gap / 2);
+    if (hit || o.y < TOP + 5) {
+      o.out = true;
+      for (let i = 0; i < 4; i++) G.bub.push({ x: o.x - 6 + Math.random() * 12, y: o.y - 4 + Math.random() * 8, a: 0.9 });
+    }
+  });
+}
+
+function drawOthers() {
+  gx.font = "500 6px 'JetBrains Mono', monospace"; gx.textAlign = "center"; gx.fillStyle = "#ece5d8";
+  others.forEach((o) => {
+    if (o.fade <= 0) return;
+    gx.globalAlpha = 0.42 * o.fade;
+    gx.drawImage(o.spr[o.kick > 0 ? 1 : 0], Math.round(o.x - 15), Math.round(o.y - 9));
+    gx.fillText(o.name, Math.round(o.x), Math.round(o.y - 12));
+  });
+  gx.globalAlpha = 1;
+  if (G.state === "idle") return;
+  const still = others.filter((o) => !o.out).length;
+  gx.textAlign = "left"; gx.font = MONO; gx.fillStyle = "#bfeee2";
+  gx.fillText(still + " OF " + others.length + " STILL IN", 6, TOP + 12);
+}
+
 function reset() {
   G.fy = 96; G.vy = 0; G.kick = 0; G.gates = []; G.bub = []; G.dist = 0; G.next = 150; G.score = 0; G.t = 0; G.lastC = GH / 2; G.flash = 0; G.paid = null; G.best = false;
 }
@@ -48,7 +100,7 @@ let started = null;
 
 function die(now, why) {
   G.state = "over"; G.overAt = now; G.why = why;
-  G.rank = GHOSTS.filter((s) => G.score > s).length;
+  G.rank = others.filter((o) => o.out).length;
   const score = G.score;
   // Requests go one after another, so a finish always lands before the start
   // of the run after it.
@@ -56,7 +108,6 @@ function die(now, why) {
     if (!d) { G.paid = 0; return; }
     G.paid = d.paid; G.best = d.best;
     setPond(d.pond);
-    tune();
   }, () => { G.paid = 0; }).then(() => { if (G.state === "over") draw(performance.now()); });
 }
 
@@ -64,7 +115,7 @@ function press() {
   if (!state.pond) return;
   if (G.state !== "play") {
     if (G.state === "over" && performance.now() - G.overAt < 500) return;
-    reset(); G.state = "play"; G.last = performance.now();
+    reset(); spawnOthers(); G.state = "play"; G.last = performance.now();
     started = net = net.then(() => post("/api/dive/start")).then((d) => d.run, () => null);
     requestAnimationFrame(step);
   }
@@ -78,7 +129,7 @@ function addGate() {
   const gap = Math.max(44, 60 - G.score * 0.6), lo = TOP + 16 + gap / 2, hi = BOT - 16 - gap / 2;
   let c = G.lastC + (Math.random() * 2 - 1) * 62;
   c = Math.max(lo, Math.min(hi, c)); G.lastC = c;
-  G.gates.push({ x: GW + 10, c: c, gap: gap, bob: G.score > 12 ? 6 + Math.random() * 8 : 0, ph: Math.random() * 6, done: false, bug: Math.random() < 0.6 ? (Math.random() < 0.5 ? -1 : 1) : 0 });
+  G.gates.push({ x: PW + 10, c: c, gap: gap, bob: G.score > 12 ? 6 + Math.random() * 8 : 0, ph: Math.random() * 6, done: false, bug: Math.random() < 0.6 ? (Math.random() < 0.5 ? -1 : 1) : 0, seen: {} });
 }
 
 function gateC(g) { return g.c + (g.bob ? Math.sin(G.t * 1.7 + g.ph) * g.bob : 0); }
@@ -103,18 +154,18 @@ function step(now) {
     if (!g.done && g.x + OW < FXP - 8) { g.done = true; G.score++; }
   }
   for (let q = G.bub.length - 1; q >= 0; q--) { const b = G.bub[q]; b.x -= sp * dt; b.y -= 26 * dt; b.a -= dt * 1.5; if (b.a <= 0) G.bub.splice(q, 1); }
+  stepOthers(dt, sp);
   if (dead) die(now, dead);
   draw(now);
   if (G.state === "play") requestAnimationFrame(step);
 }
 
-function railY(s) { return 172 - Math.min(RMAX, s) / RMAX * 130; }
 function px(x, y, w, h) { gx.fillRect(Math.round(x), Math.round(y), w, h); }
 
 function draw(now) {
   if (!state.pond) return;
   gx.setTransform(2, 0, 0, 2, 0, 0);
-  const PW = GW - RAILW, bands = ["#123a3d", "#103336", "#0e2c30", "#0c262a", "#0b2024", "#0a1b1f"];
+  const bands = ["#123a3d", "#103336", "#0e2c30", "#0c262a", "#0b2024", "#0a1b1f"];
   const bh = (BOT - TOP) / 6;
   for (let b = 0; b < 6; b++) { gx.fillStyle = bands[b]; gx.fillRect(0, Math.floor(TOP + b * bh), PW, Math.ceil(bh) + 1); }
   // The sky strip, where the heron's legs wade past slowly.
@@ -149,31 +200,21 @@ function draw(now) {
     }
   });
   gx.fillStyle = "#bfeee2"; G.bub.forEach((bb) => { gx.globalAlpha = Math.max(0, bb.a) * 0.8; px(bb.x, bb.y, 2, 2); }); gx.globalAlpha = 1;
+  drawOthers();
   const show = G.state !== "over" || now - G.overAt > 500 || Math.floor((now - G.overAt) / 80) % 2 === 0;
   if (show) drawCells(gx, sprites()[G.kick > 0 ? 1 : 0], SW, SH, frogCols(state.g), Math.round(FXP - 15), Math.round(G.fy - 9), 1);
   gx.textAlign = "center"; gx.font = BIG;
   gx.fillStyle = "#0a1b1f"; gx.fillText(G.score, PW / 2 + 1, 48); gx.fillStyle = G.flash > 0 ? "#ffe27a" : "#fff6dc"; gx.fillText(G.score, PW / 2, 47);
-  if (rail) drawRail(PW);
-  overlay(PW);
+  overlay();
   if (G.state === "over" && now - G.overAt < 600) requestAnimationFrame(draw);
 }
 
-// The rail down the right is where the neighbours got to.
-function drawRail(PW) {
-  gx.fillStyle = "#0a0908"; gx.fillRect(PW, 0, RAILW, GH);
-  gx.fillStyle = "#2f2820"; gx.fillRect(GW - 12, 40, 1, 133);
-  gx.fillStyle = "#9c8f79"; gx.font = MONO; gx.textAlign = "right";
-  let ly = 999;
-  GHOSTS.forEach((sc, i) => { const y = railY(sc); gx.fillRect(GW - 16, y, 9, 1); if (ly - y >= 9) { gx.fillText(GN[i], GW - 19, y + 3); ly = y; } });
-  gx.fillStyle = "#ffe27a"; gx.fillRect(GW - 20, railY(G.score) - 1, 13, 3);
-  gx.fillStyle = "#9c8f79"; gx.textAlign = "center"; gx.fillText("POND", PW + RAILW / 2, 16); gx.fillText("BESTS", PW + RAILW / 2, 26);
-}
-
-function overlay(PW) {
+function overlay() {
   if (G.state === "play") return;
   const oy = Math.round(GH * 0.31);
-  gx.fillStyle = "rgba(10,9,8,0.82)"; gx.fillRect(10, oy, PW - 20, 70);
-  gx.fillStyle = "#ffb000"; gx.fillRect(10, oy, 2, 70);
+  const ow = Math.min(PW - 20, 260), ox = Math.round((PW - ow) / 2);
+  gx.fillStyle = "rgba(10,9,8,0.82)"; gx.fillRect(ox, oy, ow, 70);
+  gx.fillStyle = "#ffb000"; gx.fillRect(ox, oy, 2, 70);
   gx.textAlign = "center"; gx.fillStyle = "#ece5d8"; gx.font = HEAD;
   if (G.state === "idle") {
     gx.fillText("TAP TO KICK DOWN", PW / 2, oy + 24);
@@ -184,30 +225,27 @@ function overlay(PW) {
     gx.fillStyle = "#bcaf99"; gx.font = MONO;
     const pay = G.paid == null ? "COUNTING PEBBLES" : "+" + G.paid + (G.paid === 1 ? " PEBBLE" : " PEBBLES") + (G.best ? ", A NEW BEST" : "");
     gx.fillText(G.score + (G.score === 1 ? " POINT, " : " POINTS, ") + pay, PW / 2, oy + 36);
-    gx.fillText("AHEAD OF " + G.rank + " OF " + GHOSTS.length + " NEIGHBOURS", PW / 2, oy + 47);
+    gx.fillText("OUTLASTED " + G.rank + " OF " + others.length, PW / 2, oy + 47);
     gx.fillStyle = "#ffb000"; gx.fillText("TAP TO GO AGAIN", PW / 2, oy + 60);
   }
 }
 
+// The strip under the water: the best run, pebbles earned against the day's
+// cap, and what a point is worth on the next run.
 function note(p) {
-  const d = p.dive, left = d.cap - d.paid;
-  let s = "Best " + d.best + ". ";
-  if (left <= 0) s += "Today's " + d.cap + " pebbles from diving are all earned, so runs are for the score now.";
-  else s += d.paid + " of " + d.cap + " pebbles earned today. " + (d.runs < d.full ? "A pebble a point for the first " + d.full + " runs of a day, a quarter after." : "Runs pay a quarter for the rest of today.");
-  $("dive-note").textContent = s;
+  const d = p.dive;
+  $("dive-best").textContent = d.best;
+  $("dive-today").textContent = d.paid + "/" + d.cap;
+  $("dive-pays").textContent = d.paid >= d.cap ? "0" : d.runs < d.full ? "1" : "1/4";
 }
 
 export function initDive() {
   gc = $("dive"); gx = gc.getContext("2d");
-  // A phone gives the whole width to the water. The field is the same size
-  // either way, so the game plays the same.
-  rail = window.innerWidth >= 560;
-  gc.width = (rail ? GW : GW - RAILW) * 2;
   reset();
   // The way out is a button, so a press on it must not also be a kick.
   $("dive-exit").addEventListener("pointerdown", (e) => e.stopPropagation());
   $("dive-exit").addEventListener("click", () => document.querySelector("#tabs [data-view=pond]").click());
-  watch((p) => { note(p); if (G.state !== "play") { tune(); if (!$("v-dive").hidden) draw(performance.now()); } });
+  watch((p) => { note(p); if (G.state !== "play" && !$("v-dive").hidden) draw(performance.now()); });
   $("v-dive").addEventListener("pointerdown", (e) => { e.preventDefault(); press(); });
   $("v-dive").addEventListener("contextmenu", (e) => e.preventDefault());
   document.addEventListener("keydown", (e) => {
@@ -217,19 +255,22 @@ export function initDive() {
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (G.state !== "play" && !$("v-dive").hidden) draw(performance.now()); });
 }
 
-// On a phone Dive takes the whole screen, and the pond is as deep as the
-// screen is tall once the width has set the scale. The strip left under it holds the readout and the way out.
+// Dive takes the whole window. A tall phone sets the scale by its width and
+// gets a deep pond, a wide desktop sets it by its height and gets a long one.
+// The strip left under the water holds the readout and the way out.
 function fit() {
-  if (rail) return;
   $("v-dive").classList.add("full");
-  const scale = window.innerWidth / (GW - RAILW);
-  GH = Math.max(200, Math.min(520, Math.floor((window.innerHeight - 72) / scale)));
+  const w = window.innerWidth, h = window.innerHeight - 76, scale = Math.min(w / 266, h / 300);
+  PW = Math.min(640, Math.floor(w / scale));
+  GH = Math.max(200, Math.min(520, Math.floor(h / scale)));
   BOT = GH - 14;
-  gc.height = GH * 2;
+  FXP = Math.max(70, Math.round(PW * 0.22));
+  gc.width = PW * 2; gc.height = GH * 2;
+  gc.style.width = Math.round(PW * scale) + "px";
   reset();
 }
 
-export function enterDive() { if (G.state !== "play") fit(); tune(); draw(performance.now()); }
+export function enterDive() { if (G.state !== "play") fit(); draw(performance.now()); }
 
 // Leaving the view mid run ends it, so the points still count.
 export function leaveDive() {
