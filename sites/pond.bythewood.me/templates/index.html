@@ -30,6 +30,10 @@
 
   <section class="view" id="v-play" hidden>
     <div class="disks">
+      <a class="disk flag" href="#fish" id="play-fish" style="--disk: #1f7a7a">
+        <span class="floppy"><span class="sticker"><canvas id="play-fish-art" width="168" height="96" aria-hidden="true"></canvas><b>Fishing</b></span></span>
+        <span class="dline"><b class="dhead">Fishing</b><span class="dsub">Forty five seconds off the jetty. Cast, strike and reel in what you can.</span><span id="play-fish-line"></span></span>
+      </a>
       <a class="disk" href="#dive" id="play-dive" style="--disk: #2b5fa8">
         <span class="floppy"><span class="sticker"><canvas id="play-dive-art" width="168" height="96" aria-hidden="true"></canvas><b>Dive</b></span></span>
         <span class="dline" id="play-dive-line">Race nine frogs to the bottom.</span>
@@ -53,6 +57,18 @@
       <a class="disk" href="#school" id="play-school" style="--disk: #2a2a30">
         <span class="floppy"><span class="sticker"><canvas id="play-school-art" width="168" height="96" aria-hidden="true"></canvas><b>Tadpoles</b></span></span>
         <span class="dline" id="play-school-line">Lead a school round the shallows.</span>
+      </a>
+      <a class="disk" href="#stack" id="play-stack" style="--disk: #c0507a">
+        <span class="floppy"><span class="sticker"><canvas id="play-stack-art" width="168" height="96" aria-hidden="true"></canvas><b>Lily stack</b></span></span>
+        <span class="dline" id="play-stack-line">Stack pads as high as they go.</span>
+      </a>
+      <a class="disk" href="#shell" id="play-shell" style="--disk: #8a5a2b">
+        <span class="floppy"><span class="sticker"><canvas id="play-shell-art" width="168" height="96" aria-hidden="true"></canvas><b>Shell game</b></span></span>
+        <span class="dline" id="play-shell-line">Follow the tadpole under the shells.</span>
+      </a>
+      <a class="disk" href="#skip" id="play-skip" style="--disk: #5b6470">
+        <span class="floppy"><span class="sticker"><canvas id="play-skip-art" width="168" height="96" aria-hidden="true"></canvas><b>Pebble skip</b></span></span>
+        <span class="dline" id="play-skip-line">Skip three pebbles across the pond.</span>
       </a>
     </div>
     <a class="game" href="#wheel" id="play-wheel">
@@ -108,6 +124,54 @@
         <span class="readout"><span class="k">Pay</span><span class="v" id="cross-pays">Full</span></span>
       </div>
       <button type="button" id="cross-exit" class="eject">Eject</button>
+    </div>
+  </section>
+
+  <section class="view arcade" id="v-fish" hidden>
+    <div class="screen"><canvas id="fish-cv" width="360" height="540" tabindex="0" aria-label="Fishing. Tap the water to cast, tap on a bite, hold to reel."></canvas></div>
+    <div class="dive-hud">
+      <div class="tiles">
+        <span class="readout"><span class="k">Best</span><span class="v" id="fish-best">0</span></span>
+        <span class="readout"><span class="k">Today</span><span class="v" id="fish-today">0/0</span></span>
+        <span class="readout"><span class="k">Pay</span><span class="v" id="fish-pays">Full</span></span>
+      </div>
+      <button type="button" id="fish-exit" class="eject">Eject</button>
+    </div>
+  </section>
+
+  <section class="view arcade" id="v-stack" hidden>
+    <div class="screen"><canvas id="stack-cv" width="360" height="540" tabindex="0" aria-label="Lily stack. Tap to drop the pad."></canvas></div>
+    <div class="dive-hud">
+      <div class="tiles">
+        <span class="readout"><span class="k">Best</span><span class="v" id="stack-best">0</span></span>
+        <span class="readout"><span class="k">Today</span><span class="v" id="stack-today">0/0</span></span>
+        <span class="readout"><span class="k">Pay</span><span class="v" id="stack-pays">Full</span></span>
+      </div>
+      <button type="button" id="stack-exit" class="eject">Eject</button>
+    </div>
+  </section>
+
+  <section class="view arcade" id="v-shell" hidden>
+    <div class="screen"><canvas id="shell-cv" width="360" height="540" tabindex="0" aria-label="Shell game. Tap the shell the tadpole is under."></canvas></div>
+    <div class="dive-hud">
+      <div class="tiles">
+        <span class="readout"><span class="k">Best</span><span class="v" id="shell-best">0</span></span>
+        <span class="readout"><span class="k">Today</span><span class="v" id="shell-today">0/0</span></span>
+        <span class="readout"><span class="k">Pay</span><span class="v" id="shell-pays">Full</span></span>
+      </div>
+      <button type="button" id="shell-exit" class="eject">Eject</button>
+    </div>
+  </section>
+
+  <section class="view arcade" id="v-skip" hidden>
+    <div class="screen"><canvas id="skip-cv" width="360" height="540" tabindex="0" aria-label="Pebble skip. Drag back and let go to throw."></canvas></div>
+    <div class="dive-hud">
+      <div class="tiles">
+        <span class="readout"><span class="k">Best</span><span class="v" id="skip-best">0</span></span>
+        <span class="readout"><span class="k">Today</span><span class="v" id="skip-today">0/0</span></span>
+        <span class="readout"><span class="k">Pay</span><span class="v" id="skip-pays">Full</span></span>
+      </div>
+      <button type="button" id="skip-exit" class="eject">Eject</button>
     </div>
   </section>
 

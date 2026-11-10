@@ -70,8 +70,10 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
   the last hat or trinket back for the collection.
 - `genome.go` turns a seed into a frog's name, look and rarity, and
   `frontend/src/frog.js` is the same thing in JavaScript plus the drawing.
-- `arcade.go` is the side games, tongue flick, crossing, raft run, lily leap
-  and tadpoles, which pay into the purse like Dive with a cap a day each.
+- `arcade.go` is the side games, fishing, tongue flick, crossing, raft run,
+  lily leap, tadpoles, lily stack, the shell game and pebble skip, which pay
+  into the purse like Dive with a cap a day each. A score over a game's `most`
+  pays nothing, so keep it well past what a person could reach.
   `frontend/src/arcade.js` is the frame round them, one file per game beside it.
 - `neighbours.go` is the residents, friendship by dishes and a favour a day.
 - `burrow.go` is the bank's burrows. Each level adds a pad that doesn't count
