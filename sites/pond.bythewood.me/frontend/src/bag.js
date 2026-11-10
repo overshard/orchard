@@ -1,5 +1,5 @@
 import { $, post, state, setPond, watch, titled } from "./api.js";
-import { slot, thingArt, openSheet, closeSheet, sheetSay, button, reveal } from "./ui.js";
+import { slot, thingArt, openSheet, closeSheet, sheetSay, button, reveal, ghost } from "./ui.js";
 import { pricePicker, toWizard } from "./town.js";
 
 const SORTS = [["all", "All"], ["hat", "Hats"], ["trinket", "Trinkets"], ["rock", "Rocks"], ["food", "Food"], ["dish", "Dishes"], ["material", "Materials"], ["thing", "Other"]];
@@ -117,4 +117,4 @@ function render(p) {
   $("bag-none").hidden = p.bag.length > 0;
 }
 
-export function initBag() { watch(render); }
+export function initBag() { $("bag-none").prepend(ghost("i_bag")); watch(render); }

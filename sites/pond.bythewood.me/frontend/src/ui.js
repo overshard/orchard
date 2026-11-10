@@ -83,6 +83,14 @@ export function closeSheet() {
 
 export function sheetSay(msg) { $("sheet-out").textContent = msg; }
 
+// The dim outline of what goes in an empty spot.
+export function ghost(key) {
+  const c = iconCanvas(key, 5);
+  c.className = "ghost";
+  c.setAttribute("aria-hidden", "true");
+  return c;
+}
+
 export function button(label, fn, cls) {
   const b = document.createElement("button");
   b.type = "button"; b.textContent = label;

@@ -2,7 +2,7 @@ import { $, post, state, setPond, watch, reduced, TIERS } from "./api.js";
 import { genome, cells, colours, draw, W, H } from "./frog.js";
 import { drawIcon } from "./icons.js";
 import { presentsFrom } from "./neighbours.js";
-import { slot, thingArt, openSheet, closeSheet, sheetSay, button, reveal, TIER_GLOW } from "./ui.js";
+import { slot, thingArt, openSheet, closeSheet, sheetSay, button, reveal, ghost, TIER_GLOW } from "./ui.js";
 
 let tab = "shops";
 
@@ -109,7 +109,9 @@ function renderStall(p) {
     row.className = "stallrow" + (r && r.sold ? " sold" : "");
     if (!r) {
       row.classList.add("empty");
-      row.append(button("Empty spot, put something up", pickForStall));
+      const b = button("Empty spot, put something up", pickForStall);
+      b.prepend(ghost("i_bag"));
+      row.append(b);
       box.append(row);
       continue;
     }
@@ -283,6 +285,7 @@ function renderWizard(p) {
 }
 
 export function initTown() {
+  $("wiz-none").prepend(ghost("i_star"));
   watch(renderBoxes);
   watch(renderStall);
   watch(renderWizard);

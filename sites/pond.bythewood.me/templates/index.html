@@ -23,36 +23,32 @@
   </section>
 
   <section class="view" id="v-play" hidden>
-    <a class="game" href="#dive" id="play-dive">
-      <canvas id="play-dive-art" width="168" height="96" aria-hidden="true"></canvas>
-      <span class="gtext"><b>Dive</b><span id="play-dive-line">Race nine frogs to the bottom.</span></span>
-      <span class="cta">Race</span>
-    </a>
-    <a class="game" href="#cross" id="play-cross">
-      <canvas id="play-cross-art" width="168" height="96" aria-hidden="true"></canvas>
-      <span class="gtext"><b>Crossing</b><span id="play-cross-line">Hop the lane and the stream home.</span></span>
-      <span class="cta">Hop</span>
-    </a>
-    <a class="game" href="#flick" id="play-flick">
-      <canvas id="play-flick-art" width="168" height="96" aria-hidden="true"></canvas>
-      <span class="gtext"><b>Tongue flick</b><span id="play-flick-line">Thirty seconds of bugs.</span></span>
-      <span class="cta">Flick</span>
-    </a>
-    <a class="game" href="#raft" id="play-raft">
-      <canvas id="play-raft-art" width="168" height="96" aria-hidden="true"></canvas>
-      <span class="gtext"><b>Raft run</b><span id="play-raft-line">Steer a leaf down the river.</span></span>
-      <span class="cta">Ride</span>
-    </a>
-    <a class="game" href="#leap" id="play-leap">
-      <canvas id="play-leap-art" width="168" height="96" aria-hidden="true"></canvas>
-      <span class="gtext"><b>Lily leap</b><span id="play-leap-line">Bounce as high as the pads go.</span></span>
-      <span class="cta">Leap</span>
-    </a>
-    <a class="game" href="#school" id="play-school">
-      <canvas id="play-school-art" width="168" height="96" aria-hidden="true"></canvas>
-      <span class="gtext"><b>Tadpoles</b><span id="play-school-line">Lead a school round the shallows.</span></span>
-      <span class="cta">Swim</span>
-    </a>
+    <div class="disks">
+      <a class="disk" href="#dive" id="play-dive" style="--disk: #2b5fa8">
+        <span class="floppy"><span class="label"><canvas id="play-dive-art" width="168" height="96" aria-hidden="true"></canvas><b>Dive</b></span></span>
+        <span class="dline" id="play-dive-line">Race nine frogs to the bottom.</span>
+      </a>
+      <a class="disk" href="#cross" id="play-cross" style="--disk: #b8392b">
+        <span class="floppy"><span class="label"><canvas id="play-cross-art" width="168" height="96" aria-hidden="true"></canvas><b>Crossing</b></span></span>
+        <span class="dline" id="play-cross-line">Hop the lane and the stream home.</span>
+      </a>
+      <a class="disk" href="#flick" id="play-flick" style="--disk: #3f8a45">
+        <span class="floppy"><span class="label"><canvas id="play-flick-art" width="168" height="96" aria-hidden="true"></canvas><b>Tongue flick</b></span></span>
+        <span class="dline" id="play-flick-line">Thirty seconds of bugs.</span>
+      </a>
+      <a class="disk" href="#raft" id="play-raft" style="--disk: #d0951c">
+        <span class="floppy"><span class="label"><canvas id="play-raft-art" width="168" height="96" aria-hidden="true"></canvas><b>Raft run</b></span></span>
+        <span class="dline" id="play-raft-line">Steer a leaf down the river.</span>
+      </a>
+      <a class="disk" href="#leap" id="play-leap" style="--disk: #7d52c0">
+        <span class="floppy"><span class="label"><canvas id="play-leap-art" width="168" height="96" aria-hidden="true"></canvas><b>Lily leap</b></span></span>
+        <span class="dline" id="play-leap-line">Bounce as high as the pads go.</span>
+      </a>
+      <a class="disk" href="#school" id="play-school" style="--disk: #2a2a30">
+        <span class="floppy"><span class="label"><canvas id="play-school-art" width="168" height="96" aria-hidden="true"></canvas><b>Tadpoles</b></span></span>
+        <span class="dline" id="play-school-line">Lead a school round the shallows.</span>
+      </a>
+    </div>
     <a class="game" href="#wheel" id="play-wheel">
       <canvas id="play-wheel-art" width="168" height="96" aria-hidden="true"></canvas>
       <span class="gtext"><b>Lily wheel</b><span id="play-wheel-line"></span></span>
@@ -91,9 +87,9 @@
       <div class="tiles">
         <span class="readout"><span class="k">Best</span><span class="v" id="dive-best">0</span></span>
         <span class="readout"><span class="k">Today</span><span class="v" id="dive-today">0/120</span></span>
-        <span class="readout"><span class="k">A point pays</span><span class="v" id="dive-pays">1</span></span>
+        <span class="readout"><span class="k">Pay</span><span class="v" id="dive-pays">Full</span></span>
       </div>
-      <button type="button" id="dive-exit">Exit</button>
+      <button type="button" id="dive-exit" class="eject">Eject</button>
     </div>
   </section>
 
@@ -103,9 +99,9 @@
       <div class="tiles">
         <span class="readout"><span class="k">Best</span><span class="v" id="cross-best">0</span></span>
         <span class="readout"><span class="k">Today</span><span class="v" id="cross-today">0/0</span></span>
-        <span class="readout"><span class="k">A point pays</span><span class="v" id="cross-pays">1</span></span>
+        <span class="readout"><span class="k">Pay</span><span class="v" id="cross-pays">Full</span></span>
       </div>
-      <button type="button" id="cross-exit">Exit</button>
+      <button type="button" id="cross-exit" class="eject">Eject</button>
     </div>
   </section>
 
@@ -115,9 +111,9 @@
       <div class="tiles">
         <span class="readout"><span class="k">Best</span><span class="v" id="flick-best">0</span></span>
         <span class="readout"><span class="k">Today</span><span class="v" id="flick-today">0/0</span></span>
-        <span class="readout"><span class="k">A point pays</span><span class="v" id="flick-pays">1</span></span>
+        <span class="readout"><span class="k">Pay</span><span class="v" id="flick-pays">Full</span></span>
       </div>
-      <button type="button" id="flick-exit">Exit</button>
+      <button type="button" id="flick-exit" class="eject">Eject</button>
     </div>
   </section>
 
@@ -127,9 +123,9 @@
       <div class="tiles">
         <span class="readout"><span class="k">Best</span><span class="v" id="raft-best">0</span></span>
         <span class="readout"><span class="k">Today</span><span class="v" id="raft-today">0/0</span></span>
-        <span class="readout"><span class="k">A point pays</span><span class="v" id="raft-pays">1</span></span>
+        <span class="readout"><span class="k">Pay</span><span class="v" id="raft-pays">Full</span></span>
       </div>
-      <button type="button" id="raft-exit">Exit</button>
+      <button type="button" id="raft-exit" class="eject">Eject</button>
     </div>
   </section>
 
@@ -139,9 +135,9 @@
       <div class="tiles">
         <span class="readout"><span class="k">Best</span><span class="v" id="leap-best">0</span></span>
         <span class="readout"><span class="k">Today</span><span class="v" id="leap-today">0/0</span></span>
-        <span class="readout"><span class="k">A point pays</span><span class="v" id="leap-pays">1</span></span>
+        <span class="readout"><span class="k">Pay</span><span class="v" id="leap-pays">Full</span></span>
       </div>
-      <button type="button" id="leap-exit">Exit</button>
+      <button type="button" id="leap-exit" class="eject">Eject</button>
     </div>
   </section>
 
@@ -151,9 +147,9 @@
       <div class="tiles">
         <span class="readout"><span class="k">Best</span><span class="v" id="school-best">0</span></span>
         <span class="readout"><span class="k">Today</span><span class="v" id="school-today">0/0</span></span>
-        <span class="readout"><span class="k">A point pays</span><span class="v" id="school-pays">1</span></span>
+        <span class="readout"><span class="k">Pay</span><span class="v" id="school-pays">Full</span></span>
       </div>
-      <button type="button" id="school-exit">Exit</button>
+      <button type="button" id="school-exit" class="eject">Eject</button>
     </div>
   </section>
 
@@ -188,6 +184,7 @@
   </section>
 
   <section class="view" id="v-reeds" hidden>
+    <div class="screen"><canvas id="reeds-art" width="384" height="84" aria-label="Every frog on its lily pad"></canvas></div>
     <p class="line" id="reeds-line"></p>
     <div class="reeds" id="reeds"></div>
     <p class="dim" id="reeds-out" role="status"></p>
@@ -223,6 +220,7 @@
     <p class="line" id="garden-out" role="status"></p>
 
     <h2>Kitchen</h2>
+    <div class="screen pot"><canvas id="pot-art" width="360" height="132" aria-label="The kitchen pot"></canvas></div>
     <p class="help" hidden>Any two things from the garden make a dish. Every dish you find goes in the cookbook in Collect, and Brindle buys whatever you cook.</p>
     <div class="larder seg" id="larder" aria-label="Pick two"></div>
     <div class="row"><button type="button" class="primary" id="cook">Cook</button></div>
@@ -231,6 +229,7 @@
   </section>
 
   <section class="view" id="v-bank" hidden>
+    <div class="screen"><canvas id="bank-art" width="528" height="192" aria-label="The gravel bar, the dye works and the burrows"></canvas></div>
     <p class="line" id="bank-line"></p>
     <h2>Gravel bar</h2>
     <p class="help" hidden>Makes pebbles by itself while you're away and holds eight hours of them. 6 an hour at first and 30 by level 5.</p>

@@ -1,21 +1,35 @@
-/* Cassette futurism, the way dash does it: warm near black, amber chrome, one
-   mono face and a grotesk for anything large. Colour lives only on the
-   screens, which are the canvases. DESIGN.md at the repo root is the
-   authority on these values. */
+/* pond as a piece of 80s kit, the Deck direction in DESIGN.md, which is the
+   authority on these values. Three surfaces only: moulded plastic for panels,
+   sunken glass for screens and readouts, and keycaps that stand proud. Colour
+   lives on the screens, the icons and rarity. */
 :root {
   --void: #0a0908;
-  --bg: #0d0b09;
-  --panel: #12100d;
-  --panel-2: #171410;
+  --bg: #14120f;
+  --panel: #1b1814;
+  --panel-2: #211d18;
+  --well: #0f0d0a;
+  --lip: #050404;
   --line: #2f2820;
   --line-hot: #47392a;
   --text: #ece5d8;
   --muted: #bcaf99;
   --dim: #9c8f79;
+  --print: #d4c7ad;
   --amber: #ffb000;
   --amber-dim: #b37b00;
   --amber-glow: rgba(255, 176, 0, 0.16);
   --pink: #e2567a;
+  --glass: #0b1006;
+  --glass-k: #7d8d62;
+  --digit: #ffc23d;
+  --cap: linear-gradient(#2c2721, #1f1b16);
+  --cap-amber: linear-gradient(#ffc23d, #e59a00);
+  --raised: 0 3px 0 var(--lip), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  --pressed: 0 0 0 var(--lip), inset 0 2px 3px rgba(0, 0, 0, 0.55);
+  --sunk: inset 0 2px 4px rgba(0, 0, 0, 0.8);
+  --moulded: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 2px 0 var(--lip);
+  --glow: 0 0 6px rgba(255, 176, 0, 0.55);
+  --hazard: repeating-linear-gradient(-45deg, #15120e 0 6px, #201a12 6px 12px);
   --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
   --grotesk: "Space Grotesk", var(--mono);
   --track: 0.14em;
@@ -29,17 +43,14 @@ html {
   background: var(--bg);
 }
 
+/* The panel's brushed grain, faint enough to only read up close. */
 body {
   margin: 0;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
   background-color: var(--bg);
-  background-image:
-    linear-gradient(rgba(255, 176, 0, 0.022) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 176, 0, 0.022) 1px, transparent 1px);
-  background-size: 32px 32px;
-  background-position: center top;
+  background-image: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.012) 0 1px, transparent 1px 3px);
   color: var(--text);
   font-family: var(--mono);
   font-size: 14px;
@@ -142,9 +153,10 @@ canvas {
   width: 100%;
   max-width: 34rem;
   margin: 0 auto;
-  padding: 10px 12px;
-  background: var(--void);
-  border-bottom: 1px solid var(--line-hot);
+  padding: 8px 12px;
+  background: var(--panel);
+  border-bottom: 2px solid var(--lip);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .mark {
@@ -160,8 +172,10 @@ canvas {
 
 .plate {
   align-self: center;
-  padding: 4px 6px;
-  border: 1px solid var(--line-hot);
+  padding: 3px 6px;
+  border-radius: 3px;
+  background: var(--well);
+  box-shadow: var(--sunk);
   color: var(--dim);
   font-size: 8px;
   letter-spacing: var(--track);
@@ -171,27 +185,29 @@ canvas {
 
 .bar-right {
   display: flex;
-  gap: 1px;
+  gap: 6px;
   margin-left: auto;
-  background: var(--line);
-  border: 1px solid var(--line);
   flex-shrink: 0;
 }
 
+/* A number lives in readout glass, dark green with amber digits that glow. */
 .readout {
   display: flex;
   flex-direction: column;
   justify-content: center;
   min-width: 64px;
   padding: 4px 10px;
-  background: var(--panel);
+  border: 1px solid #000;
+  border-radius: 3px;
+  background: var(--glass);
+  box-shadow: var(--sunk);
   color: var(--text);
   text-decoration: none;
   white-space: nowrap;
 }
 
 .readout .k {
-  color: var(--dim);
+  color: var(--glass-k);
   font-size: 9px;
   letter-spacing: var(--track);
   text-transform: uppercase;
@@ -201,16 +217,36 @@ canvas {
   display: flex;
   align-items: center;
   gap: 5px;
-  color: var(--amber);
-  font-family: var(--grotesk);
-  font-size: 17px;
+  color: var(--digit);
+  font-family: var(--mono);
+  font-size: 16px;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.25;
+  text-shadow: var(--glow);
+  font-variant-numeric: tabular-nums;
 }
 
 .readout canvas {
   width: 14px;
   height: 14px;
+}
+
+/* The settings readout is a key, since it opens something. */
+a.readout {
+  border: 0;
+  background: var(--cap);
+  box-shadow: var(--raised);
+  margin-bottom: 3px;
+}
+
+a.readout .k {
+  color: var(--print);
+}
+
+a.readout:active,
+a.readout.lit {
+  transform: translateY(3px);
+  box-shadow: var(--pressed);
 }
 
 @media (max-width: 26rem) {
@@ -219,40 +255,56 @@ canvas {
   }
 }
 
+/* A key is a cap with a highlight and a dark lip, and it travels 3px. */
 button,
 .button {
   display: inline-block;
   min-height: 44px;
+  margin-bottom: 3px;
   padding: 8px 14px;
-  border: 1px solid var(--line-hot);
-  border-radius: 0;
-  background: var(--panel-2);
+  border: 0;
+  border-radius: 3px;
+  background: var(--cap);
+  box-shadow: var(--raised);
   color: var(--text);
   font-family: var(--mono);
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-decoration: none;
   text-transform: uppercase;
   cursor: pointer;
+  transition: transform 0.06s, box-shadow 0.06s;
 }
 
 button:hover:not(:disabled),
 .button:hover {
-  border-color: var(--amber-dim);
+  color: #fff6dc;
+}
+
+button:active:not(:disabled),
+.button:active {
+  transform: translateY(3px);
+  box-shadow: var(--pressed);
 }
 
 button.primary,
 .button.primary {
-  border-color: var(--amber);
-  background: var(--amber-glow);
-  color: var(--amber);
+  background: var(--cap-amber);
+  box-shadow: 0 3px 0 #7a5200, inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  color: #1a1000;
 }
 
+button.primary:hover:not(:disabled),
+.button.primary:hover {
+  color: #1a1000;
+}
+
+/* A key that can't be pressed sinks into the panel. */
 button:disabled {
+  background: var(--well);
+  box-shadow: var(--sunk);
   color: var(--dim);
-  border-color: var(--line);
-  background: var(--panel);
   cursor: default;
 }
 
@@ -279,25 +331,33 @@ button:disabled {
 .card {
   margin: 16px 0;
   padding: 12px 14px;
-  border: 1px solid var(--line-hot);
-  border-left: 3px solid var(--amber);
+  border-radius: 3px;
   background: var(--panel);
+  box-shadow: var(--moulded);
 }
 
 .view {
   padding-top: 12px;
 }
 
-/* A screen is a canvas in a bezel with corner brackets, and the only place
-   colour shows. The faint scanlines sit over the picture and take no taps. */
+/* A screen window: a bezel with a screw at each top corner, and scanlines
+   over the picture only. Neither takes a tap. */
 .screen {
   position: relative;
   display: block;
   width: 100%;
   min-height: 0;
-  padding: 6px;
-  border: 1px solid var(--line-hot);
-  background: var(--void);
+  margin-bottom: 0;
+  padding: 10px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--lip);
+  box-shadow: inset 0 0 0 1px #000, inset 0 0 0 4px #24201a, 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+button.screen:active {
+  transform: none;
+  box-shadow: inset 0 0 0 1px #000, inset 0 0 0 4px #24201a, 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .screen::before,
@@ -308,23 +368,21 @@ button:disabled {
 }
 
 .screen::before {
-  inset: -1px;
+  inset: 0;
   background:
-    linear-gradient(var(--amber), var(--amber)) top left / 9px 1px,
-    linear-gradient(var(--amber), var(--amber)) top left / 1px 9px,
-    linear-gradient(var(--amber), var(--amber)) bottom right / 9px 1px,
-    linear-gradient(var(--amber), var(--amber)) bottom right / 1px 9px;
-  background-repeat: no-repeat;
+    radial-gradient(circle at 5px 5px, #4a4136 0 1.5px, #2a241d 2px, transparent 2.6px),
+    radial-gradient(circle at calc(100% - 5px) 5px, #4a4136 0 1.5px, #2a241d 2px, transparent 2.6px);
 }
 
 .screen::after {
-  inset: 6px;
+  inset: 10px;
   background: repeating-linear-gradient(180deg, rgba(0, 0, 0, 0.13) 0 1px, transparent 1px 3px);
 }
 
 .screen canvas {
   width: 100%;
   height: auto;
+  border-radius: 2px;
 }
 
 .who {
@@ -361,8 +419,10 @@ button:disabled {
   grid-template-columns: auto 1fr;
   gap: 1px;
   margin: 12px 0;
-  background: var(--line);
-  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--lip);
+  box-shadow: var(--moulded);
+  overflow: hidden;
   font-size: 12px;
 }
 
@@ -374,7 +434,7 @@ button:disabled {
 }
 
 .missed dt {
-  color: var(--amber);
+  color: var(--print);
   letter-spacing: var(--track);
   text-transform: uppercase;
 }
@@ -384,7 +444,7 @@ button:disabled {
 }
 
 .gift {
-  border-left-color: var(--pink);
+  box-shadow: var(--moulded), inset 3px 0 0 var(--pink);
 }
 
 .logs {
@@ -393,12 +453,9 @@ button:disabled {
   gap: 8px;
 }
 
-.logs button {
-  min-height: 64px;
-}
-
 .logs button[aria-pressed="true"] {
-  border-color: var(--amber);
+  transform: translateY(3px);
+  box-shadow: var(--pressed);
   color: var(--amber);
 }
 
@@ -416,8 +473,9 @@ button:disabled {
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
-  border: 1px solid var(--line);
+  border-radius: 3px;
   background: var(--panel);
+  box-shadow: var(--moulded);
   font-size: 12px;
 }
 
@@ -463,8 +521,17 @@ button:disabled {
 .tiles {
   display: flex;
   gap: 1px;
-  background: var(--line);
-  border: 1px solid var(--line);
+  border: 1px solid #000;
+  border-radius: 3px;
+  background: #050803;
+  box-shadow: var(--sunk);
+  overflow: hidden;
+}
+
+.tiles .readout {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .dive-hud button {
@@ -534,8 +601,10 @@ body:has(.arcade.full) {
   gap: 1px;
   margin: 0;
   padding: 0;
-  background: var(--line);
-  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--lip);
+  box-shadow: var(--moulded);
+  overflow: hidden;
   list-style: none;
   font-size: 12px;
 }
@@ -590,18 +659,20 @@ body:has(.arcade.full) {
 }
 
 div.hattile {
-  border: 1px solid var(--line-hot);
-  background: var(--panel-2);
+  border-radius: 3px;
+  background: var(--panel);
+  box-shadow: var(--moulded);
   color: var(--text);
 }
 
 .hattile:disabled {
-  border-style: dashed;
+  background: var(--hazard);
 }
 
 .hattile[aria-pressed="true"] {
-  border-color: var(--amber);
-  background: var(--amber-glow);
+  transform: translateY(3px);
+  box-shadow: var(--pressed);
+  color: var(--amber);
 }
 
 .spare {
@@ -610,8 +681,9 @@ div.hattile {
   gap: 10px;
   margin: 8px 0;
   padding: 6px 8px;
-  border: 1px solid var(--line);
+  border-radius: 3px;
   background: var(--panel);
+  box-shadow: var(--moulded);
   font-size: 12px;
 }
 
@@ -631,48 +703,58 @@ div.hattile {
   width: 100%;
   max-width: 34rem;
   margin: 0 auto;
-  gap: 0;
-  padding-bottom: env(safe-area-inset-bottom);
-  background: var(--void);
-  border-top: 1px solid var(--line-hot);
+  gap: 3px;
+  padding: 5px 4px calc(4px + env(safe-area-inset-bottom));
+  background: var(--panel);
+  border-top: 2px solid var(--lip);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .tabs button {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  min-height: 56px;
-  padding: 6px 0 5px;
-  border: 0;
-  border-top: 3px solid transparent;
-  border-left: 1px solid var(--line-hot);
-  font-size: 9px;
-  letter-spacing: 0.02em;
-  background: var(--void);
-  color: var(--dim);
+  gap: 1px;
+  min-width: 0;
+  min-height: 52px;
+  padding: 5px 0 4px;
+  font-size: 8.5px;
+  letter-spacing: 0;
+  color: var(--print);
 }
 
-.tabs button:first-child {
-  border-left: 0;
+/* An LED pip on a key with something waiting behind it. */
+.tabs button.wait::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 5px var(--amber);
 }
+
+
 
 .tabs canvas {
   width: 24px;
   height: 24px;
-  opacity: 0.55;
-  transition: transform 0.15s, opacity 0.15s;
+  opacity: 0.6;
 }
 
 .tabs button[aria-pressed="true"] canvas {
   opacity: 1;
-  transform: translateY(-2px) scale(1.12);
 }
 
+/* The lit place stays pushed in, like a tape deck's PLAY. */
 .tabs button[aria-pressed="true"] {
-  border-top-color: var(--amber);
-  background: var(--panel-2);
+  transform: translateY(3px);
+  background: linear-gradient(#1f1b16, #24201a);
+  box-shadow: var(--pressed);
   color: var(--amber);
 }
 
@@ -712,8 +794,11 @@ body:has(.tabs) main {
   gap: 1px;
   margin: 16px 0;
   padding: 0;
-  background: var(--line-hot);
-  border: 1px solid var(--line-hot);
+  border: 1px solid #000;
+  border-radius: 4px;
+  background: #050803;
+  box-shadow: var(--sunk);
+  overflow: hidden;
   list-style: none;
   counter-reset: word;
 }
@@ -721,19 +806,22 @@ body:has(.tabs) main {
 .keywords li {
   counter-increment: word;
   padding: 10px 12px;
-  background: var(--panel);
+  background: var(--glass);
+  color: var(--digit);
   font-family: var(--grotesk);
   font-size: 1.25rem;
   font-weight: 500;
+  text-shadow: var(--glow);
 }
 
 .keywords li::before {
   content: "0" counter(word) " ";
   margin-right: 6px;
-  color: var(--amber-dim);
+  color: var(--glass-k);
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.08em;
+  text-shadow: none;
 }
 
 .keyline {
@@ -745,7 +833,9 @@ body:has(.tabs) main {
 .keyline code {
   flex: 1;
   padding: 10px;
-  border: 1px dashed var(--line-hot);
+  border-radius: 3px;
+  background: var(--well);
+  box-shadow: var(--sunk);
   font-family: inherit;
   font-size: 12px;
   overflow-wrap: anywhere;
@@ -783,7 +873,7 @@ body:has(.tabs) main {
 }
 
 .restore label {
-  color: var(--amber);
+  color: var(--print);
   font-size: 11px;
   letter-spacing: var(--track);
   text-transform: uppercase;
@@ -793,9 +883,10 @@ body:has(.tabs) main {
   width: 100%;
   min-height: 44px;
   padding: 8px 10px;
-  border: 1px solid var(--line-hot);
-  border-radius: 0;
-  background: var(--void);
+  border: 1px solid #000;
+  border-radius: 3px;
+  background: var(--well);
+  box-shadow: var(--sunk);
   color: var(--text);
   font: inherit;
 }
@@ -816,11 +907,17 @@ body:has(.tabs) main {
 }
 
 .power b {
-  color: var(--amber);
+  padding: 4px 12px;
+  border: 1px solid #000;
+  border-radius: 4px;
+  background: var(--glass);
+  box-shadow: var(--sunk);
+  color: var(--digit);
   font-family: var(--grotesk);
   font-size: clamp(2.6rem, 11vw, 3.6rem);
   font-weight: 700;
   line-height: 1;
+  text-shadow: var(--glow);
   font-variant-numeric: tabular-nums;
 }
 
@@ -851,7 +948,9 @@ body:has(.tabs) main {
 
 .sharelink code {
   padding: 10px;
-  border: 1px dashed var(--line-hot);
+  border-radius: 3px;
+  background: var(--well);
+  box-shadow: var(--sunk);
   font-family: inherit;
   font-size: 12px;
   overflow-wrap: anywhere;
@@ -871,18 +970,21 @@ body:has(.tabs) main {
   gap: 6px;
   align-content: start;
   padding: 8px;
-  border: 1px solid var(--line);
+  border-radius: 3px;
   background: var(--panel);
+  box-shadow: var(--moulded);
 }
 
 .reed.front {
-  border-color: var(--amber-dim);
+  box-shadow: var(--moulded), inset 0 0 0 1px var(--amber-dim);
 }
 
 .reed canvas {
   width: 100%;
   height: auto;
+  border-radius: 2px;
   background: #0e2c30;
+  box-shadow: 0 0 0 3px var(--lip);
   image-rendering: pixelated;
 }
 
@@ -906,6 +1008,18 @@ body:has(.tabs) main {
   letter-spacing: var(--track);
 }
 
+.reed .on::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 6px var(--amber);
+  vertical-align: 1px;
+}
+
 .reed .hearts {
   color: #e2567a;
   letter-spacing: 1px;
@@ -915,13 +1029,18 @@ button.reed {
   text-align: left;
   color: inherit;
   font: inherit;
+  text-transform: none;
+  letter-spacing: 0;
   cursor: pointer;
+  box-shadow: var(--raised);
 }
 
 .favour canvas {
   width: 64px;
   height: 64px;
+  border-radius: 2px;
   background: #0e2c30;
+  box-shadow: 0 0 0 3px var(--lip);
   image-rendering: pixelated;
 }
 
@@ -934,19 +1053,24 @@ button.reed {
 
 .register span {
   padding: 3px 7px;
-  border: 1px dashed var(--line);
-  color: var(--muted);
+  border-radius: 3px;
+  background: var(--hazard);
+  box-shadow: var(--sunk);
+  color: var(--dim);
   font-size: 11px;
   letter-spacing: var(--track);
 }
 
 .register .on {
-  border: 1px solid var(--amber-dim);
-  color: var(--amber);
+  background: var(--glass);
+  color: var(--digit);
+  text-shadow: var(--glow);
 }
 
+/* A picked key latches down and lights. */
 .seg button[aria-pressed="true"] {
-  border-color: var(--amber);
+  transform: translateY(3px);
+  box-shadow: var(--pressed), inset 0 2px 0 var(--amber);
   color: var(--amber);
 }
 
@@ -1420,8 +1544,10 @@ h2 .count {
   margin: 8px 0;
   padding: 0;
   list-style: none;
-  background: var(--line);
-  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--lip);
+  box-shadow: var(--moulded);
+  overflow: hidden;
   font-size: 12px;
 }
 
@@ -1458,17 +1584,20 @@ h2 .count {
   margin: 8px 0;
   padding: 0;
   list-style: none;
-  background: var(--line);
-  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--lip);
+  box-shadow: var(--moulded);
+  overflow: hidden;
 }
 
 .shelf li {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 52px;
-  padding: 4px 10px;
+  min-height: 56px;
+  padding: 6px 10px;
   background: var(--panel);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   font-size: 12px;
 }
 
@@ -1496,11 +1625,13 @@ h2 .count {
   color: var(--dim);
 }
 
+/* A price is a key, amber lettered when it can be paid. */
 .shelf button {
   min-width: 64px;
   min-height: 36px;
   margin-left: auto;
   padding: 2px 10px;
+  color: var(--amber);
   font-size: 12px;
 }
 
@@ -1536,10 +1667,6 @@ h2 .count {
   color: var(--amber);
 }
 
-#gear.lit {
-  background: var(--amber-glow);
-}
-
 .stats {
   margin: 2px 0;
   color: var(--muted);
@@ -1551,9 +1678,9 @@ h2 .count {
   position: relative;
   margin: 14px 0 10px;
   padding: 10px 14px;
-  border: 1px solid var(--line-hot);
-  border-radius: 14px;
+  border-radius: 4px;
   background: var(--panel-2);
+  box-shadow: var(--moulded);
   color: var(--text);
   font-size: 14px;
 }
@@ -1561,13 +1688,12 @@ h2 .count {
 .bubble::before {
   content: "";
   position: absolute;
-  top: -7px;
+  top: -6px;
   left: 28px;
   width: 12px;
   height: 12px;
-  border-top: 1px solid var(--line-hot);
-  border-left: 1px solid var(--line-hot);
   background: var(--panel-2);
+  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.05);
   transform: rotate(45deg);
 }
 
@@ -1575,7 +1701,7 @@ h2 .count {
   display: flex;
   align-items: center;
   gap: 12px;
-  border-left-color: var(--pink);
+  box-shadow: var(--moulded), inset 3px 0 0 var(--pink);
 }
 
 .gift p {
@@ -1605,32 +1731,63 @@ h2 .count {
   margin: 12px 0;
 }
 
-.chip,
-.chiprow button {
+/* A chip is a key with a blinking LED, and it takes you somewhere. */
+.chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-height: 36px;
-  padding: 4px 12px 4px 8px;
-  border: 1px solid var(--line-hot);
-  border-radius: 18px;
-  background: var(--panel-2);
+  gap: 7px;
+  min-height: 38px;
+  margin-bottom: 3px;
+  padding: 4px 12px 4px 10px;
+  border-radius: 3px;
+  background: var(--cap);
+  box-shadow: var(--raised);
   color: var(--text);
   font-family: var(--mono);
   font-size: 12px;
   text-decoration: none;
-  text-transform: none;
-  letter-spacing: 0;
   cursor: pointer;
+  transition: transform 0.06s, box-shadow 0.06s;
 }
 
+/* The LED keeps blinking under reduced motion, since it's a signal. */
+.chip::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 6px var(--amber);
+  animation: led 1.6s steps(2) infinite;
+}
+
+.chip:active {
+  transform: translateY(3px);
+  box-shadow: var(--pressed);
+}
+
+@keyframes led {
+  50% { opacity: 0.3; }
+}
+
+/* A filter or sub tab is a flat sunken switch, lit along its top when on. */
 .chiprow button {
+  position: relative;
+  min-height: 36px;
+  margin: 0;
   padding: 4px 14px;
+  border: 1px solid #000;
+  background: var(--well);
+  box-shadow: var(--sunk);
+  color: var(--dim);
+  font-size: 11px;
+  letter-spacing: 0.1em;
 }
 
-.chip {
-  border-color: var(--amber-dim);
-  animation: glow 2.4s ease-in-out infinite;
+.chiprow button:active:not(:disabled) {
+  transform: none;
+  box-shadow: var(--sunk);
 }
 
 .chip canvas {
@@ -1638,15 +1795,20 @@ h2 .count {
   height: 16px;
 }
 
-@keyframes glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 176, 0, 0); }
-  50% { box-shadow: 0 0 10px 0 rgba(255, 176, 0, 0.28); }
+.chiprow button[aria-pressed="true"] {
+  color: var(--amber);
 }
 
-.chiprow button[aria-pressed="true"] {
-  border-color: var(--amber);
+.chiprow button[aria-pressed="true"]::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  width: 14px;
+  height: 2px;
+  margin-left: -7px;
   background: var(--amber);
-  color: var(--void);
+  box-shadow: 0 0 6px var(--amber);
 }
 
 .chiprow.sub {
@@ -1663,7 +1825,8 @@ h2 .count {
 
 .today li {
   padding: 4px 0;
-  border-bottom: 1px dashed var(--line);
+  border-bottom: 1px solid var(--lip);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .today b {
@@ -1677,21 +1840,26 @@ h2 .q {
   width: 22px;
   min-height: 22px;
   height: 22px;
+  margin-bottom: 2px;
   padding: 0;
   border-radius: 50%;
+  box-shadow: 0 2px 0 var(--lip), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  color: var(--muted);
   font-size: 11px;
   line-height: 1;
 }
 
 h2 .q[aria-expanded="true"] {
-  border-color: var(--amber);
+  transform: translateY(2px);
+  box-shadow: var(--pressed);
   color: var(--amber);
 }
 
 .help {
   padding: 8px 10px;
-  border-left: 2px solid var(--amber-dim);
-  background: var(--panel);
+  border-radius: 3px;
+  background: var(--well);
+  box-shadow: var(--sunk);
   color: var(--muted);
   font-size: 12px;
 }
@@ -1705,11 +1873,26 @@ h2 .q[aria-expanded="true"] {
   letter-spacing: 0.08em;
 }
 
+/* An empty spot is a hazard striped tray with a dim outline of the thing. */
 .empty {
-  padding: 24px 12px;
-  border: 1px dashed var(--line-hot);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 12px;
+  border: 1px solid #000;
+  border-radius: 3px;
+  background: var(--hazard);
+  box-shadow: var(--sunk);
   color: var(--dim);
   text-align: center;
+}
+
+.ghost {
+  width: 40px;
+  height: 40px;
+  opacity: 0.22;
+  filter: grayscale(1) brightness(1.6);
 }
 
 /* Play: a big card for each game. */
@@ -1718,28 +1901,37 @@ h2 .q[aria-expanded="true"] {
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 12px;
-  margin: 0 0 12px;
+  margin: 0 0 14px;
   padding: 10px;
-  border: 1px solid var(--line-hot);
-  border-radius: 10px;
+  border-radius: 4px;
   background: var(--panel);
+  box-shadow: var(--moulded);
   color: var(--text);
   text-decoration: none;
+  transition: transform 0.06s, box-shadow 0.06s;
 }
 
-a.game:hover {
-  border-color: var(--amber);
+a.game {
+  box-shadow: var(--raised);
+}
+
+a.game:active {
+  transform: translateY(3px);
+  box-shadow: var(--pressed);
+}
+
+a.game:hover .gtext b {
+  color: #fff6dc;
 }
 
 a.game.pays {
-  border-color: var(--amber-dim);
-  background: var(--amber-glow);
+  box-shadow: var(--raised), inset 0 0 0 1px var(--amber-dim);
 }
 
 a.game:not(.pays) .cta {
-  background: transparent;
+  background: var(--cap);
+  box-shadow: var(--raised);
   color: var(--muted);
-  box-shadow: inset 0 0 0 1px var(--line-hot);
 }
 
 .pay {
@@ -1747,7 +1939,7 @@ a.game:not(.pays) .cta {
   width: fit-content;
   margin-bottom: 2px;
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: 3px;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -1756,24 +1948,29 @@ a.game:not(.pays) .cta {
 }
 
 .pay.full {
-  background: var(--amber);
-  color: var(--void);
+  background: var(--glass);
+  box-shadow: var(--sunk);
+  color: var(--digit);
+  text-shadow: var(--glow);
 }
 
 .pay.less {
-  border: 1px solid var(--line-hot);
-  color: var(--muted);
+  background: var(--glass);
+  box-shadow: var(--sunk);
+  color: var(--glass-k);
 }
 
 .pay.done {
+  background: var(--hazard);
+  box-shadow: var(--sunk);
   color: var(--dim);
-  border: 1px solid var(--line);
 }
 
 .game canvas {
   width: 120px;
   height: 69px;
-  border-radius: 6px;
+  border-radius: 2px;
+  box-shadow: 0 0 0 3px var(--lip), 0 0 0 4px #24201a;
 }
 
 @media (max-width: 380px) {
@@ -1809,9 +2006,10 @@ a.game:not(.pays) .cta {
 
 .cta {
   padding: 8px 14px;
-  border-radius: 20px;
-  background: var(--amber);
-  color: var(--void);
+  border-radius: 3px;
+  background: var(--cap-amber);
+  box-shadow: 0 3px 0 #7a5200, inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  color: #1a1000;
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
@@ -1826,7 +2024,6 @@ a.game:not(.pays) .cta {
   display: flex;
   justify-content: center;
   min-height: 64px;
-  border-radius: 8px;
 }
 
 .logs canvas {
@@ -1850,6 +2047,7 @@ a.game:not(.pays) .cta {
   min-height: 80px;
 }
 
+/* A slot is a sunken well with the thing in it and its tier along the edge. */
 .slot {
   position: relative;
   display: flex;
@@ -1858,14 +2056,22 @@ a.game:not(.pays) .cta {
   justify-content: center;
   gap: 4px;
   min-height: 92px;
+  margin: 0;
   padding: 8px 4px 6px;
-  border: 2px solid currentColor;
-  border-radius: 10px;
-  background: radial-gradient(circle at 50% 38%, rgba(255, 246, 220, 0.07), transparent 65%), var(--panel-2);
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  background: radial-gradient(circle at 50% 38%, rgba(255, 246, 220, 0.06), transparent 65%), var(--well);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.8), inset 0 -3px 0 currentColor;
   font-family: var(--mono);
+  font-weight: 500;
   text-transform: none;
   letter-spacing: 0;
   cursor: pointer;
+}
+
+button.slot:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.9), inset 0 -3px 0 currentColor;
 }
 
 div.slot {
@@ -1894,11 +2100,16 @@ div.slot {
 .slot i {
   position: absolute;
   top: 3px;
-  right: 5px;
-  color: var(--text);
+  right: 3px;
+  padding: 0 3px;
+  border-radius: 2px;
+  background: var(--glass);
+  color: var(--digit);
   font-size: 10px;
   font-style: normal;
   font-weight: 700;
+  line-height: 1.4;
+  text-shadow: var(--glow);
 }
 
 .slot.on {
@@ -1907,8 +2118,8 @@ div.slot {
 
 .slot.unfound {
   border-style: dashed;
-  border-width: 1px;
-  background: var(--panel);
+  background: var(--well);
+  box-shadow: var(--sunk);
   opacity: 0.85;
 }
 
@@ -1919,7 +2130,7 @@ div.slot {
 
 .slot.t3:not(.unfound),
 .slot.t4:not(.unfound) {
-  box-shadow: inset 0 0 18px -6px currentColor;
+  box-shadow: inset 0 0 18px -6px currentColor, inset 0 -3px 0 currentColor;
 }
 
 /* Collect */
@@ -1933,25 +2144,33 @@ div.slot {
 
 .total b {
   grid-row: span 2;
-  color: var(--amber);
-  font-family: var(--grotesk);
-  font-size: 44px;
-  line-height: 1;
+  padding: 4px 10px;
+  border: 1px solid #000;
+  border-radius: 4px;
+  background: var(--glass);
+  box-shadow: var(--sunk);
+  color: var(--digit);
+  font-family: var(--mono);
+  font-size: 34px;
+  line-height: 1.1;
+  text-shadow: var(--glow);
 }
 
 .meter {
   display: block;
   height: 10px;
-  border: 1px solid var(--line-hot);
-  border-radius: 6px;
-  background: var(--void);
+  border: 1px solid #000;
+  border-radius: 2px;
+  background: var(--glass);
+  box-shadow: var(--sunk);
   overflow: hidden;
 }
 
 .meter i {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, var(--amber-dim), var(--amber));
+  background: repeating-linear-gradient(90deg, var(--digit) 0 4px, transparent 4px 5px);
+  box-shadow: var(--glow);
   transform-origin: left;
   transform: scaleX(0);
   transition: transform 0.6s;
@@ -1969,8 +2188,8 @@ div.slot {
   align-items: center;
   gap: 4px 8px;
   padding: 8px 10px;
-  border-radius: 10px;
   text-align: left;
+  font-weight: 500;
   text-transform: none;
   letter-spacing: 0;
 }
@@ -1996,12 +2215,12 @@ div.slot {
 }
 
 .cat[aria-pressed="true"] {
-  border-color: var(--amber);
-  background: var(--amber-glow);
+  transform: translateY(3px);
+  box-shadow: var(--pressed), inset 0 2px 0 var(--amber);
 }
 
 .cat.done .meter i {
-  background: #5ddc82;
+  background: repeating-linear-gradient(90deg, #5ddc82 0 4px, transparent 4px 5px);
 }
 
 /* The bottom sheet for one thing, and the reveal for a prize. */
@@ -2027,10 +2246,11 @@ div.slot {
   max-height: 88dvh;
   overflow-y: auto;
   padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
-  border: 1px solid var(--line-hot);
-  border-bottom: 0;
-  border-radius: 18px 18px 0 0;
-  background: var(--panel);
+  border-top: 2px solid var(--lip);
+  border-radius: 4px 4px 0 0;
+  background-color: var(--panel);
+  background-image: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.012) 0 1px, transparent 1px 3px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
   animation: rise 0.2s ease-out;
 }
 
@@ -2052,11 +2272,18 @@ div.slot {
   width: 40px;
   min-height: 40px;
   padding: 0;
-  border-radius: 50%;
   font-size: 20px;
 }
 
+.sheet-art {
+  padding: 10px;
+  border-radius: 4px;
+  background: var(--lip);
+  box-shadow: inset 0 0 0 1px #000, inset 0 0 0 4px #24201a;
+}
+
 .sheet-art canvas {
+  display: block;
   max-width: 220px;
   height: auto;
 }
@@ -2078,9 +2305,16 @@ div.slot {
 }
 
 .pricer b {
-  color: var(--amber);
-  font-family: var(--grotesk);
-  font-size: 32px;
+  justify-self: center;
+  padding: 2px 14px;
+  border: 1px solid #000;
+  border-radius: 4px;
+  background: var(--glass);
+  box-shadow: var(--sunk);
+  color: var(--digit);
+  font-family: var(--mono);
+  font-size: 28px;
+  text-shadow: var(--glow);
 }
 
 .pricer input {
@@ -2108,8 +2342,9 @@ div.slot {
   max-width: 22rem;
   padding: 22px 18px 18px;
   border: 2px solid currentColor;
-  border-radius: 18px;
+  border-radius: 4px;
   background: var(--panel);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 0 var(--lip);
   overflow: hidden;
   text-align: center;
 }
@@ -2179,9 +2414,9 @@ div.slot {
   gap: 12px;
   margin: 8px 0;
   padding: 10px;
-  border: 1px solid var(--amber-dim);
-  border-radius: 10px;
-  background: var(--amber-glow);
+  border-radius: 4px;
+  background: var(--panel);
+  box-shadow: var(--moulded), inset 0 0 0 1px var(--amber-dim);
 }
 
 .boxbuy canvas {
@@ -2211,9 +2446,9 @@ div.slot {
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
-  border: 1px solid var(--line-hot);
-  border-radius: 10px;
+  border-radius: 3px;
   background: var(--panel);
+  box-shadow: var(--moulded);
 }
 
 .stallrow canvas {
@@ -2228,23 +2463,40 @@ div.slot {
 }
 
 .stallrow .price {
-  color: var(--amber);
+  padding: 2px 8px;
+  border-radius: 3px;
+  background: var(--glass);
+  box-shadow: var(--sunk);
+  color: var(--digit);
   font-weight: 700;
+  text-shadow: var(--glow);
 }
 
 .stallrow.sold {
-  border-color: #5ddc82;
+  box-shadow: var(--moulded), inset 0 0 0 1px #5ddc82;
 }
 
 .stallrow.empty {
   grid-template-columns: 1fr;
-  border-style: dashed;
+  padding: 0;
+  background: var(--hazard);
+  box-shadow: var(--sunk);
 }
 
 .stallrow.empty button {
-  border: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 0;
   background: none;
+  box-shadow: none;
   color: var(--dim);
+}
+
+.stallrow.empty button .ghost {
+  width: 24px;
+  height: 24px;
 }
 
 .odds {
@@ -2258,16 +2510,19 @@ div.slot {
   flex-direction: column;
   align-items: center;
   padding: 6px;
-  border: 1px solid currentColor;
-  border-radius: 10px;
+  border: 1px solid #000;
+  border-radius: 3px;
+  background: var(--glass);
+  box-shadow: var(--sunk);
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 
 .odd b {
-  font-family: var(--grotesk);
-  font-size: 22px;
+  font-family: var(--mono);
+  font-size: 20px;
+  text-shadow: 0 0 6px currentColor;
 }
 
 .odd.up { color: #5ddc82; }
@@ -2302,7 +2557,6 @@ button.big {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .chip,
   .gift canvas,
   .boxbuy canvas,
   .reveal-card .rays,
@@ -2349,9 +2603,14 @@ button.big {
 }
 
 .jobrow .lv {
-  color: var(--amber);
-  font-size: 16px;
+  padding: 0 6px;
+  border-radius: 3px;
+  background: var(--glass);
+  box-shadow: var(--sunk);
+  color: var(--digit);
+  font-size: 15px;
   font-weight: 700;
+  text-shadow: var(--glow);
 }
 
 .jobrow .meter,
@@ -2369,8 +2628,8 @@ button.big {
 }
 
 .jobrow.on {
-  border-color: var(--amber);
-  background: var(--amber-glow);
+  transform: translateY(3px);
+  box-shadow: var(--pressed), inset 0 2px 0 var(--amber);
 }
 
 .reed .job {
@@ -2380,7 +2639,6 @@ button.big {
 }
 
 .reed .job.full {
-  border-color: var(--amber);
   color: var(--amber);
 }
 
@@ -2411,11 +2669,256 @@ button.big {
   width: 100%;
   height: auto;
   image-rendering: pixelated;
-  border: 1px solid var(--line);
+  border-radius: 2px;
+  box-shadow: 0 0 0 3px var(--lip);
 }
 
 .lodgers figcaption {
   font-size: 11px;
   color: var(--muted);
   text-align: center;
+}
+
+/* A side game's title and results, a panel with a screen window over the
+   field. It takes no taps, so a press anywhere still starts a run. */
+.arcade-card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: min(86%, 19rem);
+  padding: 14px 14px 12px;
+  border-radius: 4px;
+  background-color: var(--panel);
+  background-image: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.012) 0 1px, transparent 1px 3px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 0 var(--lip), 0 10px 30px rgba(0, 0, 0, 0.6);
+  color: var(--text);
+  text-align: center;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  animation: rise 0.25s ease-out;
+}
+
+.arcade-card p {
+  margin: 0;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.arcade-card > b {
+  font-family: var(--grotesk);
+  font-size: 22px;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.arcade-card .why {
+  color: var(--amber);
+  font-size: 11px;
+  letter-spacing: var(--track);
+}
+
+.arcade-card .won {
+  color: var(--amber);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.arcade-card .again {
+  margin-top: 4px;
+  color: var(--amber);
+  animation: blink 1.2s steps(2) infinite;
+}
+
+.arcade-win {
+  width: 100%;
+  margin-bottom: 4px;
+  padding: 8px;
+  border-radius: 4px;
+  background: var(--lip);
+  box-shadow: inset 0 0 0 1px #000, inset 0 0 0 4px #24201a;
+}
+
+.arcade-win canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.readout.big {
+  align-items: center;
+  min-width: 8rem;
+}
+
+.readout.big .v {
+  font-size: 28px;
+}
+
+/* The strip under a full window game is readout glass and an EJECT key. */
+#v-dive.full .dive-hud,
+.arcade.full .dive-hud {
+  background: var(--panel);
+  border-top: 2px solid var(--lip);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.dive-hud .tiles {
+  flex: 1;
+  min-width: 0;
+}
+
+.dive-hud .readout {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+}
+
+.dive-hud .readout .v {
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+}
+
+.eject {
+  min-width: 72px;
+  font-size: 11px;
+}
+
+.screen.pot {
+  max-width: 20rem;
+  margin: 0 auto 8px;
+}
+
+/* Settings shows the frog in a window of its own. */
+.namebox canvas {
+  box-sizing: content-box;
+  padding: 8px;
+  border-radius: 4px;
+  background: #0e2c30;
+  box-shadow: inset 0 0 0 1px #000, inset 0 0 0 4px #24201a;
+}
+
+/* Each game is a 3.5 inch floppy in its own colour, with a metal shutter,
+   a write protect tab and the game's picture on the label. */
+.disks {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px 12px;
+  margin: 0 0 18px;
+}
+
+@media (min-width: 30rem) {
+  .disks {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.disk {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.floppy {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  aspect-ratio: 1 / 1.03;
+  padding: 0 9% 8%;
+  background:
+    linear-gradient(#0a0a0c, #0a0a0c) no-repeat 5px calc(100% - 5px) / 7px 9px,
+    linear-gradient(160deg, rgba(255, 255, 255, 0.16), transparent 40%, rgba(0, 0, 0, 0.3)),
+    var(--disk);
+  clip-path: polygon(0 0, calc(100% - 9%) 0, 100% 9%, 100% 100%, 0 100%);
+  border-radius: 3px;
+  transition: transform 0.06s, filter 0.06s;
+}
+
+/* The shutter, brushed metal with the slot that shows the disk. */
+.floppy::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 24%;
+  width: 50%;
+  height: 33%;
+  background:
+    linear-gradient(#1e1e22, #1e1e22) no-repeat 72% 45% / 20% 62%,
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 3px),
+    linear-gradient(#d4d7dc, #8f949c);
+  border-radius: 0 0 2px 2px;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+}
+
+.disk.pays .floppy::after {
+  content: "";
+  position: absolute;
+  top: 8%;
+  left: 8%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 6px var(--amber);
+  animation: led 1.6s steps(2) infinite;
+}
+
+.label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 5px 5px 4px;
+  border-radius: 2px;
+  background: linear-gradient(#f3ead4, #e3d8bd);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+  color: #2a2016;
+}
+
+.label canvas {
+  width: 100%;
+  height: auto;
+  border-radius: 1px;
+}
+
+.label b {
+  overflow: hidden;
+  font-family: var(--grotesk);
+  font-size: 15px;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.disk:hover .floppy {
+  filter: brightness(1.08);
+}
+
+.disk:active .floppy {
+  transform: translateY(3px);
+}
+
+.disk:not(.pays) .floppy {
+  filter: saturate(0.55) brightness(0.8);
+}
+
+.dline {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.dline .pay {
+  margin: 0;
 }

@@ -346,6 +346,9 @@ function renderTodo(p) {
   const rest = p.todo.filter((t) => !live[t.kind] && !(counts.length && t.kind === "save"));
   const todo = counts.concat(rest.map((t) => [t.icon, t.label, t.to]));
 
+  const waiting = new Set(todo.map(([, , to]) => TAB_OF[to] || to));
+  document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("wait", waiting.has(b.dataset.view)));
+
   const box = $("todo");
   box.textContent = "";
   todo.forEach(([icon, label, to]) => {
@@ -361,7 +364,7 @@ function renderTodo(p) {
     box.append(s);
   }
 }
-setInterval(() => { if (state.pond && view === "pond" && !document.hidden) renderTodo(state.pond); }, 20000);
+setInterval(() => { if (state.pond && !document.hidden) renderTodo(state.pond); }, 20000);
 
 // ---------------------------------------------------------------- play
 
