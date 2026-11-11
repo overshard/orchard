@@ -655,6 +655,10 @@ version of the old look and a handheld pet shell.
   when it lands or catches. Reduced motion gets no shake and no squash, and
   every game takes this from `feel.js` so they all feel the same.
   A near miss says CLOSE in the surface green.
+- **The older arcade games have a moment every ten seconds or so**, shown
+  before it lands. In Dive the heron leans over the water ahead with a dotted
+  amber line down to where its beak reaches, and stabs as it passes over the
+  frog.
 - **The last pebble takes its time.** In pebble drop the fifth pebble falls
   at half speed through the reeds and slower again over the pots, and the
   pegs sit a little differently each day.

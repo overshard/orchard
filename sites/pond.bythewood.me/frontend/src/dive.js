@@ -16,6 +16,9 @@ const BIG = "700 22px 'Space Grotesk', sans-serif";
 // The frog is hit well inside its sprite, this far ahead, behind, over and
 // under where it swims. NEAR is how close a gate can pass and get a CLOSE.
 const AHEAD = 5, BEHIND = 6, OVER = 3, UNDER = 4, NEAR = 4;
+// Every ten seconds or so the heron leans over the water ahead, and its beak
+// stabs down DEPTH under the surface as it passes over the frog.
+const HERON = 10, DEPTH = 46, STAB = 0.7;
 // A run that won nothing new ends on a short card that a tap clears.
 const QUICK_AT = 350, QUICK_LOCK = 450, LOCK = 900;
 
@@ -159,7 +162,7 @@ function drawOthers() {
 
 function reset() {
   F.reset(); G.quick = false;
-  G.fy = 96; G.vy = 0; G.kick = 0; G.gates = []; G.bub = []; G.dist = 0; G.next = 150; G.score = 0; G.cleared = 0; G.place = 0; G.bonus = 0; G.hat = null; G.had = false; G.t = 0; G.lastC = GH / 2; G.flash = 0; G.paid = null; G.rested = 0; G.best = false; G.toldBest = false; G.aims = []; G.made = 0; G.lastF = 0.5; G.prize = 0; G.board = false;
+  G.fy = 96; G.vy = 0; G.kick = 0; G.gates = []; G.bub = []; G.dist = 0; G.next = 150; G.score = 0; G.cleared = 0; G.place = 0; G.bonus = 0; G.hat = null; G.had = false; G.t = 0; G.lastC = GH / 2; G.flash = 0; G.paid = null; G.rested = 0; G.best = false; G.toldBest = false; G.aims = []; G.made = 0; G.lastF = 0.5; G.prize = 0; G.board = false; G.heronAt = 7 + Math.random() * 3; G.beak = null;
 }
 
 let started = null;
@@ -301,6 +304,24 @@ function step(now) {
   if (G.next <= 0) { addGate(); G.next = GATE_EVERY; }
   let dead = "";
   if (G.fy < TOP + 5) dead = "THE HERON SAW YOU";
+  if (G.t >= G.heronAt && !G.beak) {
+    let x = FXP + sp * 1.6;
+    const near = G.gates.find((g) => Math.abs(g.x + OW / 2 - x) < 30);
+    if (near) x = near.x + OW / 2 + GATE_EVERY / 2;
+    G.beak = { x, t: -1, d: 0 };
+    sfx("warn");
+  }
+  const bk = G.beak;
+  if (bk) {
+    bk.x -= sp * dt;
+    if (bk.t < 0 && bk.x <= FXP + 28) bk.t = 0;
+    if (bk.t >= 0) {
+      bk.t += dt;
+      bk.d = depth() * Math.min(1, bk.t / 0.12, Math.max(0, (STAB - bk.t) / 0.2));
+      if (Math.abs(bk.x - FXP) < 9 && G.fy - OVER < TOP + bk.d) dead = "THE HERON GOT YOU";
+      if (bk.t >= STAB) { G.beak = null; G.heronAt = G.t + HERON - 1 + Math.random() * 2; }
+    }
+  }
   for (let i = G.gates.length - 1; i >= 0; i--) {
     const g = G.gates[i]; g.x -= sp * dt;
     if (g.x + OW < -6) { G.gates.splice(i, 1); continue; }
@@ -330,6 +351,22 @@ function step(now) {
 
 function px(x, y, w, h) { gx.fillRect(Math.round(x), Math.round(y), w, h); }
 
+// The heron's neck and head over the spot, a dotted line blinking down to how
+// deep the beak goes while it waits, and the beak in the water as it stabs.
+function heron(b, now) {
+  const x = Math.round(b.x), d = depth();
+  gx.fillStyle = "#e9e3d6"; px(x - 1, 0, 4, TOP - 10); px(x - 6, TOP - 14, 12, 7); px(x - 3, TOP - 16, 7, 2);
+  gx.fillStyle = "#1c2a33"; px(x - 4, TOP - 12, 2, 2); px(x + 2, TOP - 16, 4, 1);
+  gx.fillStyle = "#ffb000"; px(x - 1, TOP - 7, 3, 7 + b.d); px(x, TOP + b.d, 1, 3);
+  if (b.t < 0) {
+    gx.fillStyle = Math.floor(now / 140) % 2 ? "rgba(255,176,0,0.8)" : "rgba(255,176,0,0.35)";
+    for (let y = TOP + 3; y < TOP + d; y += 5) px(x, y, 1, 2);
+    px(x - 3, TOP + d, 7, 1);
+  }
+}
+
+function depth() { return Math.max(DEPTH, (BOT - TOP) * 0.25); }
+
 function draw(now) {
   if (!state.pond) return;
   // Nothing else steps the bits and the shake once the run is over.
@@ -346,6 +383,7 @@ function draw(now) {
   gx.fillStyle = "#1c2a33"; gx.fillRect(0, 0, PW, TOP);
   const hx = ((PW + 60 - (G.dist * 0.5) % (PW + 120)) + PW + 120) % (PW + 120) - 30;
   gx.fillStyle = "#d9c9a8"; px(hx, 4, 2, 44); px(hx + 9, 8, 2, 36); gx.fillStyle = "#e9e3d6"; px(hx - 4, 0, 22, 6);
+  if (G.beak) heron(G.beak, now);
   gx.fillStyle = "#7fd6c2"; const so = G.dist % 16;
   for (let x = -so; x < PW; x += 16) { px(x, TOP, 9, 1); px(x + 9, TOP + 1, 7, 1); }
   gx.fillStyle = "rgba(160,230,210,0.045)";
@@ -423,7 +461,7 @@ function overlay(now) {
     line("p", "dim", rc.place ? "On the board " + rc.place + suffix(rc.place) + " with " + rc.gates + " gates, the rest is practice" : "Your first run today goes on the board"),
     line("p", "dim", "The top three win a prize"), line("p", "again", "Tap to start"));
   else card.replaceChildren(win, line("b", "", "DIVE"), line("p", "dim", "Tap to kick down"), line("p", "dim", "The frog floats up by itself"),
-    line("p", "dim", "Outlast the others for a prize"), aimList(aims), line("p", "again", "Tap to start"));
+    line("p", "dim", "Outlast the others for a prize"), line("p", "dim", "Keep under the heron's beak"), aimList(aims), line("p", "again", "Tap to start"));
 }
 
 // The strip under the water: the best run, pebbles earned against the day's
