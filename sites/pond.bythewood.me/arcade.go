@@ -38,6 +38,7 @@ var arcadeGames = []arcadeGame{
 	{"putt", "Pad putt", 40, 5, puttMost, 3},
 	{"jar", "Spawn jar", 40, 25, jarMost, 25},
 	{"lash", "Tongue lash", 40, 12, lashMost, 8},
+	{"swarm", "Swarm season", 40, 12, swarmMost, 20},
 }
 
 // Every beat of chorus right on time is all a song can score, before a
@@ -51,6 +52,10 @@ const jarMost = 60000
 // A round of tongue lash that gulps every bug in long lashes stays well under
 // this, so it only stops a number no round could reach.
 const lashMost = 1200
+
+// Every bug a round of swarm season sends and all the dew they drop come to
+// well under this, so it only stops a number no round could reach.
+const swarmMost = 1500
 
 // A game with no rate is played out on the server a tap at a time, so it
 // never takes a score from the page. It pays once a day and is never the

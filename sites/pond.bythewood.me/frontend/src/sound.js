@@ -59,6 +59,17 @@ const SFX = {
     tone("sine", 360, 150, 0.1, 0.1);
     setTimeout(() => { bend = b; tone("square", 700, 1180, 0.06, 0.04); bend = 1; }, 90);
   },
+  lick: () => tone("sine", 1100, 2100, 0.035, 0.03),
+  pip: () => tone("square", 1250, 760, 0.03, 0.022),
+  dew: () => tone("sine", 1500, 2300, 0.05, 0.035),
+  thump: () => tone("sine", 150, 55, 0.16, 0.12),
+  zap: () => tone("sawtooth", 2600, 1900, 0.03, 0.015),
+  chomp: () => tone("square", 420, 180, 0.08, 0.06),
+  perk: () => {
+    tone("triangle", 660, 660, 0.07, 0.05);
+    setTimeout(() => tone("triangle", 880, 880, 0.07, 0.05), 70);
+    setTimeout(() => tone("triangle", 1320, 1320, 0.12, 0.05), 140);
+  },
 };
 
 // The same blip twice running is bent a little, so a row of them isn't one note.
