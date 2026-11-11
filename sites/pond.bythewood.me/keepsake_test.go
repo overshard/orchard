@@ -84,3 +84,65 @@ func TestEveryKeepsakeHasAnIcon(t *testing.T) {
 		}
 	}
 }
+
+func TestDaysAtThePond(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	visit := func() *greeting {
+		g, err := s.greet(id, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return g
+	}
+	// The same day twice is one day.
+	*clock = clock.Add(time.Hour)
+	if g := visit(); g.Pond.Visited != 1 {
+		t.Fatalf("%d days after two visits on the first", g.Pond.Visited)
+	}
+	for range 5 {
+		*clock = clock.Add(24 * time.Hour)
+		visit()
+	}
+	// A fortnight away takes nothing back, and the seventh day brings the pebble.
+	*clock = clock.Add(14 * 24 * time.Hour)
+	g := visit()
+	if g.Pond.Visited != 7 || !hasLine(g.Missed, "Worn pebble, for seven days at the pond") {
+		t.Fatalf("day %d: %v", g.Pond.Visited, g.Missed)
+	}
+	*clock = clock.Add(24 * time.Hour)
+	if g := visit(); g.Pond.Visited != 8 || hasLine(g.Missed, "Worn pebble, for seven days at the pond") {
+		t.Fatalf("day %d handed the pebble over again: %v", g.Pond.Visited, g.Missed)
+	}
+	for range 365 - 8 {
+		*clock = clock.Add(24 * time.Hour)
+		visit()
+	}
+	v, _ := s.view(id)
+	got := 0
+	for _, k := range v.Keepsakes {
+		if k.Set == "visits" {
+			got++
+			if k.Days != 1 {
+				t.Errorf("%s was kept on %d days", k.Name, k.Days)
+			}
+		}
+	}
+	if v.Visited != 365 || got != 4 {
+		t.Errorf("%d days and %d of the four keepsakes", v.Visited, got)
+	}
+}
+
+// A kind is stored by name and the shelf is drawn in this order, so a new
+// keepsake only ever goes on the end.
+func TestTheDayKeepsakesAreOnTheEnd(t *testing.T) {
+	want := []string{"k_days7", "k_days30", "k_days100", "k_days365"}
+	for i, k := range keepsakes[len(keepsakes)-len(want):] {
+		if k.kind != want[i] || k.days == 0 {
+			t.Errorf("%s is where %s goes", k.kind, want[i])
+		}
+	}
+	if keepsakes[16].kind != "k_spawn" {
+		t.Errorf("the list moved, %s is seventeenth", keepsakes[16].kind)
+	}
+}

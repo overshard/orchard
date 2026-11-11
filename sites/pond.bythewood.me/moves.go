@@ -35,7 +35,12 @@ func (s *store) greet(id int64, first bool) (*greeting, error) {
 		stage, _ := stageOf(now.Sub(hatched))
 		away := now.Sub(time.Unix(p.LastSeenAt, 0))
 
-		kept, err := stampKeepsakes(tx, p.ID, s.day.reading(now), now)
+		// A day at the pond counts once, and a day missed takes nothing back.
+		if today := dayOf(now); p.VisitDay != today {
+			p.VisitDay = today
+			p.DaysVisited++
+		}
+		kept, err := stampKeepsakes(tx, p.ID, p.DaysVisited, s.day.reading(now), now)
 		if err != nil {
 			return err
 		}

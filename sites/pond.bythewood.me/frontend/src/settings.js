@@ -41,6 +41,10 @@ function render(p) {
     picks.append(b);
   });
 
+  $("days-n").textContent = p.visited.toLocaleString("en-US");
+  const mark = [7, 30, 100, 365].find((n) => n > p.visited);
+  $("days-what").textContent = mark ? "A keepsake comes at " + mark + ". They don't have to be in a row." : "Every one of them counted.";
+
   $("power-n").textContent = p.share.power.total.toLocaleString("en-US");
   const pw = p.share.power;
   $("power-rank").textContent = pw.rank;

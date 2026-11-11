@@ -714,6 +714,9 @@ version of the old look and a handheld pet shell.
   rays.
 - What the frog says is a speech bubble pointing up at it, with the Next strip
   under it.
+- **Days at the pond are a count and never a streak.** It's in settings in
+  readout glass with a line saying when the next keepsake comes, and nothing
+  anywhere says how many days were in a row or that one was missed.
 - **The frog can be rubbed.** A drag back and forth over it shuts its eyes and
   throws pink pixel hearts, more of them on its favourite spot, and an egg
   only wobbles. Its bond is five small hearts over the top left corner of the
