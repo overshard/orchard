@@ -306,7 +306,7 @@ var unkind = regexp.MustCompile(`(?i)\b(sad|hungry|starv\w*|cross|angry|lonely|a
 func TestTheDiaryPoolsAreKind(t *testing.T) {
 	slots := regexp.MustCompile(`\{[a-z_]+\}`)
 	allowed := map[string][]string{"grew": {"{a_stage}"}, "fish": {"{score}"}, "record": {"{game}", "{score}"}, "hat": {"{hat}"}, "friend": {"{who}"}, "keepsake": {"{keepsake}"}, "memento": {"{who}", "{thing}"}, "set": {"{set}", "{thing}"}, "pin": {"{badge}"},
-		"biggest": {"{a_fish}", "{fish}", "{who}"}, "catch": {"{a_fish}", "{fish}"}, "firstgo": {"{target}"}, "mastered": {"{target}"}}
+		"biggest": {"{a_fish}", "{fish}", "{who}"}, "catch": {"{a_fish}", "{fish}"}, "firstgo": {"{target}"}, "mastered": {"{target}"}, "rank": {"{rank}"}}
 	for kind, pool := range diaryLines {
 		for _, nature := range natures {
 			if n := len(pool.any) + len(pool.by[nature]); n < 3 {
@@ -344,5 +344,63 @@ func TestTheDiaryPoolsAreKind(t *testing.T) {
 		if n := len(diaryLines["quiet"].any) + len(diaryLines["quiet"].by[nature]); n <= diaryWeek {
 			t.Errorf("%d quiet lines for %s, and a week is %d", n, nature, diaryWeek)
 		}
+	}
+}
+
+// A new rung is a reveal and a line in the next day's diary.
+func TestARankUpIsNotedForTheDiary(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	*clock = clock.Add(3 * 24 * time.Hour)
+	if _, err := s.wear(id, hat{}); err != nil {
+		t.Fatal(err)
+	}
+	// Every badge, fish and memento is enough for the second rung.
+	for _, b := range badges {
+		if _, err := s.w.Exec(`INSERT INTO badges (pond_id, kind, day) VALUES (?, ?, '2026-11-01') ON CONFLICT DO NOTHING`, id, b.kind); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, f := range fishKinds {
+		if _, err := s.w.Exec(`INSERT INTO fish (pond_id, kind, count, best, first_day) VALUES (?, ?, 1, 20, '2026-11-01')`, id, f.kind); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, m := range mementos {
+		if _, err := s.w.Exec(`INSERT INTO mementos (pond_id, kind, day) VALUES (?, ?, '2026-11-01')`, id, m.kind); err != nil {
+			t.Fatal(err)
+		}
+	}
+	v, err := s.wear(id, hat{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := v.Share.Power.Rise
+	if r == nil || r.Rank != v.Share.Power.Rank || v.Share.Power.at < 1 {
+		t.Fatalf("at %d: %+v", v.Share.Power.Total, r)
+	}
+	var day string
+	var top int
+	if err := s.r.QueryRow(`SELECT rank_top, rank_day FROM ponds WHERE id = ?`, id).Scan(&top, &day); err != nil || top != v.Share.Power.at || day != dayOf(*clock) {
+		t.Errorf("kept rung %d on %q (%v)", top, day, err)
+	}
+	p, _ := loadPond(s.r, id)
+	f, _ := loadFrogs(s.r, id)
+	n := clock.In(pondZone)
+	from := time.Date(n.Year(), n.Month(), n.Day(), 0, 0, 0, 0, pondZone)
+	facts := []diaryFact{}
+	if err := s.write(func(tx *sql.Tx) error {
+		var err error
+		facts, err = diaryFacts(tx, p, f[0], day, from, from.AddDate(0, 0, 1))
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, x := range facts {
+		found = found || (x.kind == "rank" && x.slots[1] == titled(r.Rank))
+	}
+	if !found {
+		t.Errorf("no rank in the diary's facts: %+v", facts)
 	}
 }

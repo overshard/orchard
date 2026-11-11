@@ -153,6 +153,18 @@ var diaryLines = map[string]diaryPool{
 		"There's a new pin on the board from yesterday, the {badge} one, and I think it's the best looking so far.",
 		"Yesterday we earned the {badge} pin, and I went over and looked at it twice.",
 	}},
+	"rank": {
+		any: []string{
+			"We're {rank} as of yesterday, and I sat up a bit straighter when I heard.",
+			"Somebody called me {rank} yesterday and they meant it, since that's what we are now.",
+			"We made {rank} yesterday, which is a long way from being an egg.",
+		},
+		by: map[string][]string{
+			"BOLD":   {"We're {rank} now, as of yesterday, and I'd like the whole pond to know it."},
+			"SHY":    {"We got to {rank} yesterday and I've only told the lily so far."},
+			"SINGER": {"I've written a short song called {rank}, since that's what we are as of yesterday."},
+		},
+	},
 	"firstgo": {any: []string{
 		"Had my first go at {target} yesterday, and I think I've got the knack of it.",
 		"Yesterday I tried {target} for the first time and came home with something to show for it.",
@@ -414,6 +426,12 @@ func diaryFacts(tx *sql.Tx, p *pond, f frogRow, day string, from, to time.Time) 
 				out = append(out, diaryFact{"pin", []string{"{badge}", strings.ToLower(b.name)}})
 			}
 		}
+	}
+	var rung int
+	if err := tx.QueryRow(`SELECT rank_top FROM ponds WHERE id = ? AND rank_day = ?`, p.ID, day).Scan(&rung); err == nil && rung < len(ranks) {
+		out = append(out, diaryFact{"rank", []string{"{rank}", titled(ranks[rung].name)}})
+	} else if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, err
 	}
 	kept, err := tx.Query(`SELECT kind FROM keepsakes WHERE pond_id = ? AND day = ?`, p.ID, day)
 	if err != nil {
