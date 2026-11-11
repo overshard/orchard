@@ -142,6 +142,7 @@ export const jar = {
   over() { return G && G.end; },
   score() { return G ? G.score : 0; },
   why() { return G ? "THE JAR IS FULL" : ""; },
+  report() { return { counts: { elders: G.made[4], frogs: G.made[3], froglets: G.made[2] } }; },
   tally() {
     if (!G) return [];
     const l = [];

@@ -38,7 +38,7 @@ export const leap = {
     const stage = ["egg", "tadpole"].includes(p.frog.stage) ? "froglet" : p.frog.stage;
     spr = cells(g, stage, { hat: p.frog.hat.shape });
     col = colours(g, p.frog.hat);
-    G = { t: 0, x: W / 2, y: H - 40, vx: 0, vy: -BOUNCE, cam: 0, top: 0, highest: H - 30, pads: [], dir: 0, want: null, keys: { left: false, right: false }, bonus: 0, why: "", fell: 0, row: 0, last: null, downAt: -9, lift: 0 };
+    G = { t: 0, x: W / 2, y: H - 40, vx: 0, vy: -BOUNCE, cam: 0, top: 0, highest: H - 30, pads: [], dir: 0, want: null, keys: { left: false, right: false }, bonus: 0, why: "", fell: 0, row: 0, last: null, downAt: -9, lift: 0, bugs: 0, flies: 0 };
     G.pads.push({ x: W / 2 - PW / 2, y: H - 30, kind: "pad", v: 0, gone: 0 });
     fill();
   },
@@ -80,8 +80,8 @@ export const leap = {
         G.last = p;
         sfx("hop", G.row); F.squash(0.8);
         if (p.kind === "sink") p.gone = 0.01;
-        if (p.fly) { p.fly = false; G.vy = -LAUNCH; F.got(G.x, G.y - 20, "WHEE", { big: true }); }
-        if (p.bug) { p.bug = false; G.bonus += 2; F.got(G.x, G.y - 20, "+2 M", { streak: G.row }); }
+        if (p.fly) { p.fly = false; G.flies++; G.vy = -LAUNCH; F.got(G.x, G.y - 20, "WHEE", { big: true }); }
+        if (p.bug) { p.bug = false; G.bonus += 2; G.bugs++; F.got(G.x, G.y - 20, "+2 M", { streak: G.row }); }
       }
     }
     G.cam = Math.min(G.cam, G.y - H * 0.45);
@@ -94,6 +94,7 @@ export const leap = {
   over() { return G && G.fell > 0.45; },
   score() { return G ? Math.floor(G.top / 10) + G.bonus : 0; },
   why() { return G ? G.why : ""; },
+  report() { return { counts: { top: Math.floor(G.top / 10), bugs: G.bugs, flies: G.flies } }; },
 
   draw(x) {
     const cam = G ? G.cam : 0;

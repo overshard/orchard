@@ -36,6 +36,7 @@ function spawn() {
 
 function bump(why) {
   if (G.safe > 0) return;
+  if (G.clean < 0) G.clean = raft.score();
   G.lives--; G.safe = 1.2; G.why = why; G.row = 0;
   if (G.lives <= 0) G.dead = 0.01;
   F.crash(G.fx, FY);
@@ -48,7 +49,7 @@ export const raft = {
 
   reset(g) {
     col = colours(g, null);
-    G = { t: 0, dist: 0, v: speed(0), fx: centre(56), want: null, keys: { left: false, right: false }, things: [], nextAt: 230, since: 0, lives: 3, safe: 0, dead: 0, row: 0, bonus: 0, why: "" };
+    G = { t: 0, dist: 0, v: speed(0), fx: centre(56), want: null, keys: { left: false, right: false }, things: [], nextAt: 230, since: 0, lives: 3, safe: 0, dead: 0, row: 0, bonus: 0, why: "", weirs: 0, pebbles: 0, clean: -1 };
     // A weir inside two seconds, with a line of pebbles to show the way through.
     const wy = 150, gap = 40, gx = centre(wy) + (Math.random() < 0.5 ? -1 : 1) * 14 - gap / 2;
     G.things.push({ k: "weir", y: wy, gap, gx });
@@ -86,7 +87,7 @@ export const raft = {
         t.done = true;
         const room = Math.min(G.fx - BODY - t.gx, t.gx + t.gap - G.fx - BODY);
         if (room > 0) {
-          G.bonus++;
+          G.bonus++; G.weirs++;
           F.got(G.fx, FY - 2, "+1", { streak: ++G.row });
           if (room < NEAR) F.close(G.fx, FY - 26);
         } else bump("IN THE REEDS");
@@ -96,7 +97,7 @@ export const raft = {
         t.done = true;
         if (Math.abs(G.fx - t.x) < t.r + BODY + NEAR && G.safe === 0) F.close(G.fx, FY - 26);
       } else if (t.k === "pebble" && Math.abs(fy - t.y) < 8 && Math.abs(G.fx - t.x) < 9) {
-        t.done = true; G.bonus += 2;
+        t.done = true; G.bonus += 2; G.pebbles++;
         F.got(t.x, FY - 2, "+2", { streak: ++G.row });
       }
     }
@@ -106,6 +107,7 @@ export const raft = {
   over() { return G && G.dead > 0.45; },
   score() { return G ? Math.floor(G.dist / 150) + G.bonus : 0; },
   why() { return G ? G.why : ""; },
+  report() { return { counts: { weirs: G.weirs, pebbles: G.pebbles, clean: G.clean < 0 ? raft.score() : G.clean } }; },
 
   draw(x) {
     const dist = G ? G.dist : 0;

@@ -104,7 +104,7 @@ export const cross = {
 
   reset(g, p) {
     col = colours(g, null);
-    G = { score: 0, lives: 3, trip: 0, flash: 0, why: "", t: 0 };
+    G = { score: 0, lives: 3, trip: 0, flash: 0, why: "", t: 0, pebbles: 0, flies: 0, clean: 0 };
     build(); home(); scatter();
   },
 
@@ -125,13 +125,14 @@ export const cross = {
     sfx("hop", fresh ? START - G.row : 0);
     if (fresh) { G.best = G.row; G.score++; }
     if (G.pebble && G.pebble.row === G.row && G.pebble.col === Math.round(G.fx)) {
-      G.score += 3; G.pebble = null;
+      G.score += 3; G.pebble = null; G.pebbles++;
       F.got(G.fx * C + 7, G.row * C + 7, "+3");
     }
     if (G.row === HOME) {
       let pts = 10;
-      if (G.fly === Math.round(G.fx)) pts += 5;
+      if (G.fly === Math.round(G.fx)) { pts += 5; G.flies++; }
       G.score += pts; G.trip++;
+      if (G.lives === 3) G.clean = G.trip;
       F.got(G.fx * C + 7, G.row * C + 10, "+" + pts, { big: true, streak: G.trip });
       home(); scatter();
     }
@@ -166,6 +167,7 @@ export const cross = {
   over() { return G && G.lives <= 0 && G.flash === 0; },
   score() { return G ? G.score : 0; },
   why() { return G ? G.why : ""; },
+  report() { return { counts: { trips: G.trip, pebbles: G.pebbles, flies: G.flies, clean: G.clean } }; },
 
   draw(x) {
     for (let r = 0; r < ROWS; r++) {

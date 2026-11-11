@@ -127,6 +127,10 @@ export const putt = {
   over() { return G && G.st === "done" && G.st_t > 0.5; },
   score() { return G ? G.score : 0; },
   why() { return !G || !G.holes ? "" : G.total + " HOPS, PAR " + G.par; },
+  report() {
+    const done = G.card.filter((c) => c), under = G.holes ? G.card.filter((c, i) => c && c < G.holes[i].par).length : 0;
+    return { counts: { holes: done.length, under, beat: done.length === 9 ? Math.max(0, G.par - G.total) : 0 } };
+  },
   tally() { return G ? [G.card.filter((c) => c).length + " of 9 holes reached"] : []; },
 
   // The scorecard, a box a hole with its par over its hops, amber under par.

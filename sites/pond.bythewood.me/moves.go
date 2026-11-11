@@ -374,8 +374,10 @@ type dived struct {
 	Hat   *prize `json:"hat"`
 	Had   bool   `json:"had"`
 	// Rested is how much of Paid was for being well rested.
-	Rested int   `json:"rested"`
-	Pond   *view `json:"pond"`
+	Rested int `json:"rested"`
+	// Aims is the day's goals this run met for the first time.
+	Aims []string `json:"aims,omitempty"`
+	Pond *view    `json:"pond"`
 }
 
 func (s *store) diveFinish(id int64, run string, score, gates int) (*dived, error) {
@@ -410,7 +412,18 @@ func (s *store) diveFinish(id int64, run string, score, gates int) (*dived, erro
 			return err
 		}
 		p.DiveForm = diveForm(p.DiveForm, gates)
-		out.Paid, out.Rested = p.payRun(divePays(score, p.DiveRuns), diveCap-p.DivePaid, now)
+		out.Place = divePlace(gates, ghosts)
+		first := 0
+		if out.Place == 1 && len(ghosts) > 0 {
+			first = 1
+		}
+		counts := map[string]int{"gates": gates, "bugs": score - gates, "first": first}
+		aims, more, err := meetAims(tx, p.ID, "dive", score, counts, now)
+		if err != nil {
+			return err
+		}
+		out.Aims = aims
+		out.Paid, out.Rested = p.payRun(divePays(score, p.DiveRuns)+more, diveCap-p.DivePaid, now)
 		p.DivePaid += out.Paid
 		p.Pebbles += out.Paid
 		if score > p.DiveBest {
@@ -420,7 +433,6 @@ func (s *store) diveFinish(id int64, run string, score, gates int) (*dived, erro
 			p.DiveBest, out.Best = score, true
 		}
 
-		out.Place = divePlace(gates, ghosts)
 		if out.Place > len(podiumPebbles) || len(ghosts) == 0 {
 			return nil
 		}

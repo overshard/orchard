@@ -267,7 +267,9 @@ type bugTapped struct {
 	Paid   int   `json:"paid"`
 	Rested int   `json:"rested"`
 	Best   bool  `json:"best"`
-	Pond   *view `json:"pond,omitempty"`
+	// Aims is the day's goals this go met for the first time.
+	Aims []string `json:"aims,omitempty"`
+	Pond *view    `json:"pond,omitempty"`
 }
 
 var errBugOver = errors.New("that tap ends the go")
@@ -340,16 +342,28 @@ func (s *store) bugTap(id int64, run string, pad int) (*bugTapped, error) {
 			return err
 		}
 		a = a.settled(now)
+		cleared := 0
+		if b.state == bugWon {
+			cleared = 1
+		}
+		aims, pay, err := meetAims(tx, id, g.key, b.opened, map[string]int{"cleared": cleared, "pads": b.opened}, now)
+		if err != nil {
+			return err
+		}
+		out.Aims = aims
 		if r.daily {
-			pay := bugClear
 			if b.state == bugLost {
-				pay = bugPart * b.opened / bugSafe
+				pay += bugPart * b.opened / bugSafe
+			} else {
+				pay += bugClear
 			}
-			out.Paid, out.Rested = p.payRun(pay, g.cap-a.paid, now)
 			a.runs++
+			r.dayState, r.daySecs, r.dayTaps, r.dayOpen = b.state, out.Secs, out.Taps, b.opened
+		}
+		if pay > 0 {
+			out.Paid, out.Rested = p.payRun(pay, g.cap-a.paid, now)
 			a.paid += out.Paid
 			p.Pebbles += out.Paid
-			r.dayState, r.daySecs, r.dayTaps, r.dayOpen = b.state, out.Secs, out.Taps, b.opened
 		}
 		a.plays++
 		if b.opened > a.best {

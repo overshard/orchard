@@ -362,6 +362,13 @@ CREATE TABLE IF NOT EXISTS growth (
     at    INTEGER NOT NULL,
     total REAL NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS aims (
+    pond_id INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
+    day     TEXT NOT NULL,
+    aim     TEXT NOT NULL,
+    PRIMARY KEY (pond_id, day, aim)
+) WITHOUT ROWID;
 `
 
 // Columns added since the first deploy. CREATE TABLE IF NOT EXISTS leaves a
@@ -910,7 +917,8 @@ type view struct {
 		Runs int `json:"runs"`
 		Full int `json:"full"`
 		// Which of first, second and third have paid their prize today.
-		Podium [3]bool `json:"podium"`
+		Podium [3]bool   `json:"podium"`
+		Aims   []aimView `json:"aims"`
 	} `json:"dive"`
 	Box struct {
 		Cost int            `json:"cost"`
@@ -1269,6 +1277,14 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	}
 	if v.Arcade, err = arcadeViews(q, p.ID, now); err != nil {
 		return err
+	}
+	aimed, err := aimsMet(q, p.ID, dayOf(now))
+	if err != nil {
+		return err
+	}
+	v.Dive.Aims = aimViews(aimed, dayOf(now), "dive")
+	for i := range v.Arcade {
+		v.Arcade[i].Aims = aimViews(aimed, dayOf(now), v.Arcade[i].Key)
 	}
 	if v.Fishing, err = fishingOf(q, p.ID, fishDayOf(r, now)); err != nil {
 		return err
