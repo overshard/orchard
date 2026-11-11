@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"math"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 
@@ -27,25 +28,73 @@ var (
 	ranks    = []struct {
 		at   int
 		name string
-	}{{0, "NEW TO THE POND"}, {900, "POND REGULAR"}, {1500, "BANK BOSS"}, {2600, "MARSH BARON"}, {4500, "SWAMP LEGEND"}}
+	}{{0, "NEW TO THE POND"}, {900, "POND REGULAR"}, {1500, "LILY LORD"}, {2600, "MARSH BARON"}, {4500, "SWAMP LEGEND"}}
 )
 
+type rankView struct {
+	At   int    `json:"at"`
+	Name string `json:"name"`
+	Got  bool   `json:"got"`
+}
+
+var tierLabels = [tierCount]string{"Common", "Uncommon", "Rare", "Epic", "Legendary"}
+
+// A found thing on a frog's page, a hat when Hat is set.
+type found struct {
+	Kind  string
+	Name  string
+	Tier  int
+	Label string
+	Hat   *hat
+}
+
+// bestFinds is the rarest of what a pond has found, hats first among equals.
+func bestFinds(held []hat, had map[string]bool, n int) []found {
+	out := []found{}
+	for _, h := range held {
+		hh := h
+		out = append(out, found{hatKind(h), h.name(), h.tier(), tierLabels[h.tier()], &hh})
+	}
+	add := func(kind string, tier int) {
+		if had[kind] {
+			out = append(out, found{kind, thingName(kind), tier, tierLabels[tier], nil})
+		}
+	}
+	for _, t := range trinkets {
+		add(t.kind, t.tier)
+	}
+	for _, k := range keepsakes {
+		add(k.kind, k.tier)
+	}
+	for _, k := range rocks {
+		add(k.kind, k.tier)
+	}
+	sort.SliceStable(out, func(a, b int) bool { return out[a].Tier > out[b].Tier })
+	return out[:min(n, len(out))]
+}
+
 type power struct {
-	Total         int    `json:"total"`
-	Rank          string `json:"rank"`
-	Frog          int    `json:"frog"`
-	Hats          int    `json:"hats"`
-	HatsHeld      int    `json:"hats_held"`
-	Trinkets      int    `json:"trinkets"`
-	TrinketsFound int    `json:"trinkets_found"`
-	Rocks         int    `json:"rocks"`
-	RocksFound    int    `json:"rocks_found"`
-	Keepsakes     int    `json:"keepsakes"`
-	KeepsakesHad  int    `json:"keepsakes_found"`
-	Jobs          int    `json:"jobs"`
-	JobsTotal     int    `json:"jobs_total"`
-	Dive          int    `json:"dive"`
-	DiveBest      int    `json:"dive_best"`
+	Total int    `json:"total"`
+	Rank  string `json:"rank"`
+	// The whole ladder, how far to the next rung and how full the bar is, in
+	// a hundred, with every rung the same width and the top one filling it.
+	Ranks         []rankView `json:"ranks"`
+	Next          int        `json:"next"`
+	NextName      string     `json:"next_name"`
+	Fill          int        `json:"fill"`
+	Frog          int        `json:"frog"`
+	Hats          int        `json:"hats"`
+	HatsHeld      int        `json:"hats_held"`
+	Trinkets      int        `json:"trinkets"`
+	TrinketsFound int        `json:"trinkets_found"`
+	Rocks         int        `json:"rocks"`
+	RocksFound    int        `json:"rocks_found"`
+	Keepsakes     int        `json:"keepsakes"`
+	KeepsakesHad  int        `json:"keepsakes_found"`
+	Jobs          int        `json:"jobs"`
+	JobsTotal     int        `json:"jobs_total"`
+	Dive          int        `json:"dive"`
+	DiveBest      int        `json:"dive_best"`
 }
 
 // had is every trinket, rock and keepsake kind the pond has ever had, and
@@ -77,9 +126,17 @@ func powerOf(r rarity, held []hat, had map[string]bool, diveBest, jobsTotal int)
 		}
 	}
 	p.Total = p.Frog + p.Hats + p.Trinkets + p.Rocks + p.Keepsakes + p.Jobs + p.Dive
-	for _, k := range ranks {
-		if p.Total >= k.at {
+	for i, k := range ranks {
+		got := p.Total >= k.at
+		p.Ranks = append(p.Ranks, rankView{k.at, k.name, got})
+		if got {
 			p.Rank = k.name
+			p.Fill = 100
+			if i+1 < len(ranks) {
+				nx := ranks[i+1]
+				p.Next, p.NextName = nx.at-p.Total, nx.name
+				p.Fill = (100*i + 100*(p.Total-k.at)/(nx.at-k.at)) / len(ranks)
+			}
 		}
 	}
 	return p
@@ -115,6 +172,7 @@ type shown struct {
 	URL   string
 	// What's set out round the pad, by spot, "" for an empty one.
 	Spots []string
+	Best  []found
 }
 
 func (s *store) shownBy(publicID string) (*shown, error) {
@@ -146,7 +204,7 @@ func (s *store) shownBy(publicID string) (*shown, error) {
 	f := frogOf(p, s.now())
 	sl := slug(f.Name, p.PublicID)
 	held = append(held, hoodsEarned(xp)...)
-	return &shown{Frog: f, Power: powerOf(f.Rarity, held, had, p.DiveBest, bestLevels(xp)), Slug: sl, URL: baseURL + "/f/" + sl, Spots: spots}, nil
+	return &shown{Frog: f, Power: powerOf(f.Rarity, held, had, p.DiveBest, bestLevels(xp)), Slug: sl, URL: baseURL + "/f/" + sl, Spots: spots, Best: bestFinds(held, had, 8)}, nil
 }
 
 // publicIDOf takes the code off the end of a share slug.

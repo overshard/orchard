@@ -1,6 +1,7 @@
 import qrcode from "qrcode-generator";
 import { genome, bred, cells, colours, draw, croak, W, H } from "./frog.js";
 import { drawIcon } from "./icons.js";
+import { hatTile } from "./hats.js";
 
 const scene = document.getElementById("scene"), sx = scene.getContext("2d"), d = scene.dataset;
 const g = bred(genome(+d.seed), d.mods ? JSON.parse(d.mods) : null), stage = d.stage, hat = { shape: +d.hat, colour: +d.colour };
@@ -54,4 +55,11 @@ for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) qx.f
 const copy = document.getElementById("share-copy");
 copy.addEventListener("click", () => {
   navigator.clipboard.writeText(qr.dataset.url).then(() => { copy.textContent = "Copied"; }, () => { copy.textContent = "Select it above"; });
+});
+
+// Best finds are drawn the way the bag draws them.
+document.querySelectorAll("canvas.find").forEach((cv) => {
+  const f = cv.dataset;
+  if (f.shape !== undefined) { const t = hatTile({ shape: +f.shape, colour: +f.colour }, true); t.setAttribute("aria-hidden", "true"); cv.replaceWith(t); }
+  else drawIcon(cv.getContext("2d"), f.kind, 0, 0, 4);
 });

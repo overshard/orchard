@@ -68,6 +68,7 @@ func keyCSP() string {
 
 var templateFuncs = template.FuncMap{
 	"commas":          commas,
+	"pct":             func(n, of int) int { return 100 * n / max(1, of) },
 	"lower":           strings.ToLower,
 	"hatsInGame":      func() int { return hatsInGame },
 	"trinketsInGame":  func() int { return len(trinkets) },

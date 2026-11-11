@@ -42,7 +42,17 @@ function render(p) {
   });
 
   $("power-n").textContent = p.share.power.total.toLocaleString("en-US");
-  $("power-rank").textContent = p.share.power.rank;
+  const pw = p.share.power;
+  $("power-rank").textContent = pw.rank;
+  $("power-bar").style.width = pw.fill + "%";
+  $("power-next").textContent = pw.next ? pw.next.toLocaleString("en-US") + " more to " + pw.next_name + "." : "The top of the ladder.";
+  $("power-ranks").replaceChildren(...pw.ranks.map((r) => {
+    const li = document.createElement("li"), b = document.createElement("b"), at = document.createElement("span");
+    li.className = r.got ? "got" : "";
+    b.textContent = r.name; at.textContent = r.at.toLocaleString("en-US");
+    li.append(b, at);
+    return li;
+  }));
   $("share-link").href = p.share.path;
   $("dev").hidden = !p.dev;
 }
