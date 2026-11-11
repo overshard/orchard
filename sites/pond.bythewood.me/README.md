@@ -185,5 +185,7 @@ they have none, for other sites to draw.
 - The tap that starts a run is handed to the game's `drag` and not to its
   `press`, so a held finger steers from the first frame and a tap game doesn't
   act on it.
+- A change that lets a game score faster needs its `rate` in `arcade.go`
+  checked against a bot, since a run past `rate` points a second pays nothing.
 - `web/` has to stay byte identical to every other site's copy, and
   `make check` at the root fails when it isn't.
