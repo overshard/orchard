@@ -6,7 +6,7 @@ import { arcade } from "./arcade.js";
 import { buildPlay, drawDisks, DISKS } from "./play.js";
 import { initWheel, enterWheel } from "./wheel.js";
 import { initReeds } from "./reeds.js";
-import { initJob, enterJob, leaveJob } from "./work.js";
+import { initJob, enterJob, leaveJob, greetAway } from "./work.js";
 import { initBank, enterBank, leaveBank } from "./bank.js";
 import { drawWorks } from "./scenes.js";
 import { initShops } from "./shops.js";
@@ -907,5 +907,6 @@ post("/api/greet").then((g) => {
   if (g.present && g.present.pebbles) state.held = g.present.pebbles;
   setPond(g.pond);
   greet(g);
+  if (!g.first && g.pond.open && g.pond.open.works) greetAway(g.pond);
   requestAnimationFrame(loop);
 }, (err) => { $("greet-line").textContent = err.message; });
