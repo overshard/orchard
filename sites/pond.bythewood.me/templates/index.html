@@ -131,7 +131,7 @@
   </section>
 
   <section class="view arcade" id="v-fish" hidden>
-    <div class="screen"><canvas id="fish-cv" width="360" height="540" tabindex="0" aria-label="Fishing. Tap the water to cast, tap on a bite, hold to reel."></canvas></div>
+    <div class="screen"><canvas id="fish-cv" width="360" height="540" tabindex="0" aria-label="Fishing. Tap the water to cast, tap on a bite, hold to reel, or tap to reel with that turned on in settings."></canvas></div>
     <div class="dive-hud">
       <div class="tiles">
         <span class="readout"><span class="k">Best</span><span class="v" id="fish-best">0</span></span>
@@ -479,10 +479,11 @@
     <h2>Days at the pond</h2>
     <p class="daysat"><span class="readout"><span class="k">Days</span><span class="v" id="days-n">0</span></span> <span id="days-what"></span></p>
 
-    <h2>Sound</h2>
+    <h2>Sound and touch</h2>
     <div class="row seg" id="sound-keys">
       <button type="button" data-sound="sound" aria-pressed="false">Sound</button>
       <button type="button" data-sound="buzz" aria-pressed="false">Buzz</button>
+      <button type="button" id="tap-reel" aria-pressed="false">Tap to reel</button>
     </div>
 
     <h2>Pond key</h2>

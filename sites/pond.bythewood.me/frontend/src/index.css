@@ -2691,6 +2691,7 @@ div.slot {
   font-size: 12px;
   line-height: 1.25;
   text-align: center;
+  overflow-wrap: anywhere;
 }
 
 .slot .sub {
@@ -3438,6 +3439,11 @@ button.big {
 
 .arcade-card .sedge b {
   color: var(--amber);
+}
+
+/* A third row of fish takes the picture's room on a short phone. */
+.arcade-card:has(.fishrow > :nth-child(9)) .arcade-win {
+  display: none;
 }
 
 .fishrow button {

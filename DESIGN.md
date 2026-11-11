@@ -673,6 +673,9 @@ version of the old look and a handheld pet shell.
   or handheld on the pad on a day it's watching or playing something.
 - **A press is felt.** Keys travel, LEDs blink, and with sound on there's a soft
   clunk and click made in code like the croak. Sound is off until turned on, and so is a buzz on a bonk, both as keys in settings that stay in that browser.
+  Tap to reel is a third key beside them, for anybody who'd sooner not hold a
+  finger down. With it on a tap starts the fishing reel and another stops it,
+  and the reel says REELING or STOPPED under the strain meter.
 - **Colour lives on the screens, the icons and rarity.** The frog, the water,
   the wheel, Dive, the stall and the wizard are colour pixel art inside a
   window. Past that the only colour is the 8 by 8 pixel icons, a thing's tier,
