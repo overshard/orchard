@@ -45,14 +45,16 @@
   {{ end }}
 
   <h2 data-idx="03">Where it comes from</h2>
-  {{- range groups .Power.Parts }}
-  <h3>{{ .Name }}</h3>
-  <ul class="tally">
-    {{- range .Parts }}
-    <li><b>{{ .Name }}</b><span>{{ commas .Have }} of {{ commas .All }}</span><em>{{ commas .Pts }}</em><i style="width: {{ pct .Pts .Of }}%"></i></li>
+  <div class="parts">
+    {{- range groups .Power.Parts }}
+    <h3>{{ .Name }}</h3>
+    <ul class="tally">
+      {{- range .Parts }}
+      <li><b>{{ .Name }}</b><span>{{ .Says }}</span><em>{{ commas .Pts }}</em><i style="width: {{ pct .Pts .Of }}%"></i></li>
+      {{- end }}
+    </ul>
     {{- end }}
-  </ul>
-  {{- end }}
+  </div>
 
   <h2 data-idx="04">Pass it on</h2>
   <div class="sharelink">

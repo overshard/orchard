@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"slices"
 	"sort"
@@ -100,9 +101,25 @@ type powerPart struct {
 	Group string `json:"group"`
 	Pts   int    `json:"pts"`
 	Of    int    `json:"of"`
-	// How much of the part there is to have, in things, levels or points.
-	Have int `json:"have"`
-	All  int `json:"all"`
+	// How much of the part there is to have, in things, levels or points,
+	// and that said as a line.
+	Have int    `json:"have"`
+	All  int    `json:"all"`
+	Says string `json:"says"`
+}
+
+func (x powerPart) says() string {
+	switch {
+	case x.Key == "rarity":
+		return "1 in " + commas(x.Have)
+	case x.Key == "bond":
+		return fmt.Sprintf("%d of %d hearts", x.Have, x.All)
+	case x.Key == "jobs":
+		return "level " + commas(x.Have) + " of " + commas(x.All)
+	case strings.HasPrefix(x.Key, "game_"):
+		return "best " + commas(x.Have) + " of " + commas(x.All)
+	}
+	return commas(x.Have) + " of " + commas(x.All)
 }
 
 type rankView struct {
@@ -157,7 +174,9 @@ func powerOf(in powerIn, top int) power {
 	var p power
 	add := func(key, name, group string, weight, have, all int, share float64) {
 		pts := int(math.Round(float64(weight) * clamp(share, 0, 1)))
-		p.Parts = append(p.Parts, powerPart{key, name, group, pts, weight, have, all})
+		x := powerPart{key, name, group, pts, weight, have, all, ""}
+		x.Says = x.says()
+		p.Parts = append(p.Parts, x)
 		p.Total += pts
 	}
 	for _, w := range powerWeights {
@@ -183,12 +202,12 @@ func powerOf(in powerIn, top int) power {
 			n := 0
 			for _, j := range jobs {
 				for _, t := range j.targets {
-					have += min(masteryTop, max(1, in.mastery[masteryKey(j.key, t.key)]))
+					have += min(masteryTop, max(1, in.mastery[masteryKey(j.key, t.key)])) - 1
 					n++
 				}
 			}
-			all = n * masteryTop
-			share = float64(have-n) / float64(all-n)
+			all = n * (masteryTop - 1)
+			share = float64(have) / float64(all)
 		case "front":
 			var got float64
 			for _, t := range in.front {
@@ -467,6 +486,8 @@ type powerRise struct {
 	From int    `json:"from"`
 	To   int    `json:"to"`
 	Line string `json:"line"`
+	// What is the line without the number, for a page that adds rises up.
+	What string `json:"what"`
 	// Rank is the rung's name when this rise reached a new one.
 	Rank string `json:"rank,omitempty"`
 }
@@ -514,10 +535,11 @@ func risen(seen seenPower, p power) *powerRise {
 	}
 	r := &powerRise{From: seen.Total, To: p.Total}
 	if best != "" {
-		r.Line = "+" + commas(p.Total-seen.Total) + ", " + riseWord(best)
+		r.What = riseWord(best)
 		if n > 1 {
-			r.Line += " and more"
+			r.What += " and more"
 		}
+		r.Line = "+" + commas(p.Total-seen.Total) + ", " + r.What
 	}
 	return r
 }
