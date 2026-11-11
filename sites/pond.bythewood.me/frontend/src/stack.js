@@ -1,5 +1,6 @@
 import { sfx } from "./sound.js";
 import { sideCells, colours, draw, SW, SH } from "./frog.js";
+import { feel } from "./feel.js";
 
 // Lily stack. A pad slides over the stack and a tap drops it, and whatever
 // hangs past the pad below falls in the pond. Three perfect drops in a row
@@ -7,6 +8,7 @@ import { sideCells, colours, draw, SW, SH } from "./frog.js";
 const W = 180, H = 300, T = 10, BASE = 84, Y0 = H - 46, NEAR = 2.5;
 
 let G = null, spr = null, col = null;
+const F = feel();
 
 function top() { return G.pads[G.pads.length - 1]; }
 
@@ -20,7 +22,8 @@ function drop() {
   const y = Y0 - G.pads.length * T;
   if (hi - lo <= 0) {
     G.falls.push({ x: b.x, w: b.w, y, vy: 0 });
-    G.mv = null; G.dead = 0.01; G.why = "SPLASH"; sfx("bonk");
+    G.mv = null; G.dead = 0.01; G.why = "SPLASH";
+    F.crash(b.x + b.w / 2, y + T / 2);
     return;
   }
   let pts = 1;
@@ -28,9 +31,8 @@ function drop() {
     G.perf++; pts = 2;
     b.x = a.x;
     if (G.perf >= 3) { const w = Math.min(BASE, a.w + 6); b.x = a.x - (w - a.w) / 2; b.w = w; }
-    G.pops.push({ x: b.x + b.w / 2, y: y - 18, s: G.perf >= 3 ? "PERFECT +" : "PERFECT", c: "#ffb000", t: 0 });
+    F.got(b.x + b.w / 2, y - 4, G.perf >= 3 ? "PERFECT +" : "PERFECT", { streak: G.perf, big: G.perf >= 3 });
     G.ring = 0.01;
-    sfx("catch");
   } else {
     G.perf = 0;
     G.falls.push(b.x < a.x ? { x: b.x, w: a.x - b.x, y, vy: 0 } : { x: hi, w: b.x + b.w - hi, y, vy: 0 });
@@ -44,13 +46,13 @@ function drop() {
 }
 
 export const stack = {
-  key: "stack", W, H, title: "LILY STACK",
+  key: "stack", W, H, title: "LILY STACK", feel: F,
   help: ["TAP TO DROP THE PAD", "WHAT HANGS OVER FALLS OFF", "LINE THEM UP FOR A PERFECT", "TAP TO START"],
 
   reset(g, p) {
     spr = sideCells(g, p.frog.stage === "egg" ? "tadpole" : p.frog.stage, false);
     col = colours(g, p.frog.hat);
-    G = { t: 0, pads: [{ x: (W - BASE) / 2, w: BASE }], mv: null, falls: [], pops: [], score: 0, perf: 0, cam: 0, hop: 0, dead: 0, ring: 0, why: "" };
+    G = { t: 0, pads: [{ x: (W - BASE) / 2, w: BASE }], mv: null, falls: [], score: 0, perf: 0, cam: 0, hop: 0, dead: 0, ring: 0, why: "" };
     next();
   },
 
@@ -68,15 +70,14 @@ export const stack = {
     }
     G.falls.forEach((f) => { f.vy += 700 * dt; f.y += f.vy * dt; });
     G.falls = G.falls.filter((f) => f.y + G.cam < H + 30);
-    if (G.hop) G.hop = G.hop >= 1 ? 0 : Math.min(1, G.hop + dt / 0.22);
+    if (G.hop >= 1) { G.hop = 0; F.squash(0.7); }
+    else if (G.hop) G.hop = Math.min(1, G.hop + dt / 0.22);
     if (G.ring) G.ring = G.ring > 0.6 ? 0 : G.ring + dt;
     const want = Math.max(0, G.pads.length * T - (Y0 - H * 0.5));
     G.cam += (want - G.cam) * Math.min(1, dt * 6);
-    G.pops.forEach((p) => { p.t += dt; p.y -= dt * 20; });
-    G.pops = G.pops.filter((p) => p.t < 0.8);
   },
 
-  over() { return G && G.dead > 0.9; },
+  over() { return G && G.dead > 0.5; },
   score() { return G ? G.score : 0; },
   why() { return G ? G.why : ""; },
   tally() { return G ? [plural(G.pads.length - 1, "pad") + " high"] : []; },
@@ -101,15 +102,13 @@ export const stack = {
     if (G.mv) pad(x, G.mv.x, Y0 - G.pads.length * T + cam, G.mv.w, G.pads.length, false);
     G.falls.forEach((f) => pad(x, f.x, f.y + cam, f.w, 1, false));
     const t = top(), fy = Y0 - (G.pads.length - 1) * T + cam - SH + 1 - (G.hop ? Math.sin(Math.PI * G.hop) * 10 : 0);
-    draw(x, spr, SW, SH, col, Math.round(t.x + t.w / 2 - SW / 2), Math.round(fy), 1);
+    F.squashed(x, t.x + t.w / 2, fy + SH, () => draw(x, spr, SW, SH, col, Math.round(t.x + t.w / 2 - SW / 2), Math.round(fy), 1));
     if (G.ring) {
       const s = Math.round(G.ring * 40), y = Math.round(Y0 - (G.pads.length - 1) * T + cam + 4);
       x.fillStyle = "rgba(255,176,0," + (1 - G.ring / 0.6) + ")";
       x.fillRect(Math.round(t.x - s), y, Math.round(t.w + s * 2), 1);
     }
-    x.font = "700 13px 'Space Grotesk', sans-serif"; x.textAlign = "center";
-    x.lineWidth = 3; x.strokeStyle = "#0a0908";
-    G.pops.forEach((p) => { x.strokeText(p.s, p.x, p.y + cam); x.fillStyle = p.c; x.fillText(p.s, p.x, p.y + cam); });
+    F.draw(x, 0, cam);
     x.textAlign = "left"; x.fillStyle = "#ece5d8"; x.fillText(String(G.score), 6, 18);
     x.textAlign = "right"; x.font = "500 8px 'JetBrains Mono', monospace"; x.fillStyle = "#bcaf99";
     if (G.perf > 1) x.fillText(G.perf + " PERFECT", W - 6, 16);
