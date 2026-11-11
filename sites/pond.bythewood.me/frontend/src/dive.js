@@ -188,7 +188,9 @@ function kick() {
 const COUNT_STEP = 600;
 
 function press() {
-  if (!state.pond || G.state === "count") return;
+  if (!state.pond) return;
+  // A kick a touch before GO is kept for it.
+  if (G.state === "count") { F.buffer(1); return; }
   if (G.state === "paused") {
     G.state = "play"; G.last = performance.now();
     requestAnimationFrame(step);
@@ -214,6 +216,7 @@ function counting(now) {
   others.forEach((o, i) => { o.y += Math.sin(G.t * 4 + i) * 0.2; });
   if (k >= 3) {
     G.state = "play"; G.last = now; G.t = 0;
+    if (F.take()) kick();
     setTimeout(() => { if (G.state !== "count") countdown(-1); }, 450);
     requestAnimationFrame(step);
   } else requestAnimationFrame(counting);

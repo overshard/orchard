@@ -108,7 +108,9 @@ export const cross = {
   },
 
   swipe(dir) {
-    if (!G || G.lives <= 0 || G.hop > 0 || G.flash > 0.3) return;
+    if (!G || G.lives <= 0 || G.flash > 0.3) return;
+    // A swipe that lands just before the hop is over waits for it.
+    if (G.hop > 0) { F.buffer(dir); return; }
     const d = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[dir];
     const nx = Math.round(G.fx) + d[0], nr = G.row + d[1];
     if (nx < 0 || nx >= COLS || nr > START || nr < HOME) return;
@@ -137,6 +139,8 @@ export const cross = {
     const mid = G.hop > 0;
     G.hop = Math.max(0, G.hop - dt);
     if (mid && G.hop === 0) F.squash(0.6);
+    const early = G.hop === 0 && F.take();
+    if (early) cross.swipe(early);
     G.flash = Math.max(0, G.flash - dt);
     const fast = 1 + G.trip * 0.12;
     G.things.forEach((t) => {
