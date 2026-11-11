@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 )
 
 // goal is a part of the game the pond hasn't used much, shown under what's
@@ -44,8 +45,10 @@ func goalsOf(v *view, p *pond) []goal {
 		}
 		return out
 	}
+	near, far := collecting(v)
+	out = append(out, near...)
 	add := func(kind, icon, label, to, count string) {
-		if len(out) < goalsShown && v.Open.has(to) {
+		if len(out) < goalsShown+len(near) && v.Open.has(to) {
 			out = append(out, goal{Kind: kind, Icon: icon, Label: label, To: to, Count: count})
 		}
 	}
@@ -109,5 +112,54 @@ func goalsOf(v *view, p *pond) []goal {
 	if n := v.Fishing.Found; n > 0 && n < len(fishKinds) {
 		add("book", "i_fish", "Land a fish that's new to the book", "fish", fmt.Sprintf("%d/%d", n, len(fishKinds)))
 	}
-	return out
+	return append(out, far...)
+}
+
+// collecting is the set and the badge nearest to done, a row each at most,
+// the nearer of the two first. One a single step from done goes over the
+// things to try as near, and the rest go under them as far.
+func collecting(v *view) (near, far []goal) {
+	type row struct {
+		g        goal
+		have, of int
+	}
+	var rows []row
+	var s *setView
+	for i := range v.Sets {
+		if x := &v.Sets[i]; !x.Done && (s == nil || x.Have > s.Have) {
+			s = x
+		}
+	}
+	if s != nil {
+		n := len(s.Members)
+		rows = append(rows, row{goal{Kind: "set", Icon: "i_set", Label: "Finish the " + setWord(s.Name) + " set", To: "collect", Count: fmt.Sprintf("%d/%d", s.Have, n)}, s.Have, n})
+	}
+	var b *badgeView
+	for i := range v.Badges {
+		x := &v.Badges[i]
+		if x.Got || !v.Open.has(x.to) {
+			continue
+		}
+		if b == nil || x.Have*b.Of > b.Have*x.Of {
+			b = x
+		}
+	}
+	if b != nil {
+		g := goal{Kind: "badge", Icon: "i_pin", Label: strings.TrimSuffix(b.How, "."), To: b.to}
+		if b.Of > 1 {
+			g.Count = fmt.Sprintf("%d/%d", b.Have, b.Of)
+		}
+		rows = append(rows, row{g, b.Have, b.Of})
+	}
+	if len(rows) == 2 && rows[1].have*rows[0].of > rows[0].have*rows[1].of {
+		rows[0], rows[1] = rows[1], rows[0]
+	}
+	for _, r := range rows {
+		if r.of > 1 && r.of-r.have == 1 {
+			near = append(near, r.g)
+		} else {
+			far = append(far, r.g)
+		}
+	}
+	return near, far
 }

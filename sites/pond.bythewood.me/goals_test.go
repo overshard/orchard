@@ -54,7 +54,7 @@ func TestGoalsForAWeekOldPond(t *testing.T) {
 	exec(t, s, `UPDATE ponds SET starter = ? WHERE id = ?`, starterTaken, id)
 	age(t, s, id, 7*24*time.Hour)
 	v, _ := s.view(id)
-	if got := goalKinds(v.Goals); got != "idle bar gift" {
+	if got := goalKinds(v.Goals); got != "idle bar gift badge set" {
 		t.Errorf("a week old pond that's done nothing: %s", got)
 	}
 	if g := v.Goals[1]; g.Count != "20/100" || g.To != "bank" {
@@ -78,7 +78,7 @@ func TestGoalsForAWellUsedPond(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := goalKinds(v.Goals); got != "cook" {
+	if got := goalKinds(v.Goals); got != "cook badge set" {
 		t.Fatalf("a well used pond: %s", got)
 	}
 	if g := v.Goals[0]; !strings.HasPrefix(g.Count, "0/") || g.To != "garden" {
@@ -89,8 +89,8 @@ func TestGoalsForAWellUsedPond(t *testing.T) {
 			exec(t, s, `INSERT INTO cookbook (pond_id, dish, first_at) VALUES (?, ?, 0)`, id, dishOf(a, b).kind())
 		}
 	}
-	if v, _ := s.view(id); len(v.Goals) != 0 {
-		t.Errorf("a pond that's done it all: %+v", v.Goals)
+	if v, _ := s.view(id); goalKinds(v.Goals) != "badge set" {
+		t.Errorf("a pond that's tried it all: %+v", v.Goals)
 	}
 }
 
@@ -112,7 +112,7 @@ func TestNoGoalPointsAtAClosedPlace(t *testing.T) {
 				t.Errorf("%v in, a todo points at a closed place: %+v", by, td)
 			}
 		}
-		if len(v.Goals) == 0 || len(v.Goals) > goalsShown {
+		if len(v.Goals) == 0 || len(v.Goals) > goalsShown+2 {
 			t.Errorf("%v in: %s", by, goalKinds(v.Goals))
 		}
 		if shares(v) && !v.Open.Market {

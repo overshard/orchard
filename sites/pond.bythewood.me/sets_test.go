@@ -126,3 +126,39 @@ func TestASetMarksTheDishItsWaitingOn(t *testing.T) {
 		t.Error("still marked once the soup's been made")
 	}
 }
+
+func TestTheNearestSetAndBadgeAreGoals(t *testing.T) {
+	s, _ := testStore(t)
+	_, id := newPond(t, s)
+	exec(t, s, `UPDATE ponds SET starter = ? WHERE id = ?`, starterTaken, id)
+	v, _ := s.view(id)
+	kinds := strings.Fields(goalKinds(v.Goals))
+	if n := len(kinds); n < 3 || kinds[n-2] != "badge" || kinds[n-1] != "set" {
+		t.Fatalf("a pond with nothing found: %v", kinds)
+	}
+	// Three of a set is a step from done, so it goes over the things to try.
+	exec(t, s, `INSERT INTO trinkets_found (pond_id, kind) VALUES (?, 't_marble'), (?, 't_earring'), (?, 't_raft')`, id, id, id)
+	exec(t, s, `INSERT INTO rocks_found (pond_id, kind) VALUES (?, 'pyrite')`, id)
+	v, _ = s.view(id)
+	if g := v.Goals[0]; g.Kind != "set" || g.Label != "Finish the shiny things set" || g.Count != "3/4" || g.To != "collect" {
+		t.Errorf("three of the shiny things: %+v", g)
+	}
+	for h := 1; h <= 9; h++ {
+		exec(t, s, `INSERT INTO hats (pond_id, shape, colour, count) VALUES (?, ?, 0, 1)`, id, h)
+	}
+	v, _ = s.view(id)
+	if got := goalKinds(v.Goals[:2]); got != "badge set" {
+		t.Fatalf("nine hats and three of a set: %s", goalKinds(v.Goals))
+	}
+	if g := v.Goals[0]; g.Label != "Find ten hats" || g.Count != "9/10" {
+		t.Errorf("nine hats: %+v", g)
+	}
+	sets, pins := 0, 0
+	for _, g := range v.Goals {
+		sets += one(g.Kind == "set")
+		pins += one(g.Kind == "badge")
+	}
+	if sets != 1 || pins != 1 {
+		t.Errorf("%d set rows and %d badge rows: %s", sets, pins, goalKinds(v.Goals))
+	}
+}
