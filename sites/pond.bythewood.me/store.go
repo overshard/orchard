@@ -344,6 +344,18 @@ CREATE TABLE IF NOT EXISTS tastes (
     PRIMARY KEY (frog_id, kind)
 ) WITHOUT ROWID;
 
+CREATE TABLE IF NOT EXISTS black_buys (
+    pond_id  INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
+    window   TEXT NOT NULL,
+    slot     INTEGER NOT NULL,
+    outcome  TEXT NOT NULL,
+    kind     TEXT NOT NULL,
+    n        INTEGER NOT NULL,
+    coins    INTEGER NOT NULL,
+    day      TEXT NOT NULL,
+    PRIMARY KEY (pond_id, window, slot)
+) WITHOUT ROWID;
+
 CREATE TABLE IF NOT EXISTS growth (
     id    INTEGER PRIMARY KEY CHECK (id = 1),
     at    INTEGER NOT NULL,
@@ -918,6 +930,7 @@ type view struct {
 	} `json:"share"`
 	Day        dayView             `json:"day"`
 	Market     marketView          `json:"market"`
+	Black      blackView           `json:"black"`
 	Gazette    gazette             `json:"gazette"`
 	Bank       bankView            `json:"bank"`
 	Kitchen    kitchenView         `json:"kitchen"`
@@ -1211,6 +1224,9 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 		return err
 	}
 	if v.Market, err = marketOf(q, p, now); err != nil {
+		return err
+	}
+	if v.Black, err = s.blackOf(q, p.ID, now); err != nil {
 		return err
 	}
 	if v.Neighbours, err = neighboursOf(q, p.ID, now); err != nil {
