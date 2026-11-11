@@ -25,7 +25,7 @@ func most() *tally {
 		hats: hatsInGame, trinkets: len(trinkets), rocks: len(rocks), keepsakes: len(keepsakes), sets: len(sets),
 		power: powerWhole, rank: len(ranks) - 1, gravel: buildLevels, garden: buildLevels, built: 4, dishes: dishCount, lodgers: 1,
 		furniture: len(furniture), friends: len(residents), mementos: len(mementos), stall: 1, share: 1, days: 365, sites: len(siteHats), key: 1, swept: bugSafe, dropped: dropMost,
-		crickets: 100, fireflies: 1, mastered: 1}
+		crickets: 100, fireflies: 1, mastered: 1, dealt: 1, steals: 1, stung: 1}
 	for _, f := range fishKinds {
 		t.bigFish += one(f.tier >= 3)
 	}
@@ -41,7 +41,7 @@ func TestEveryBadgeCanBeEarned(t *testing.T) {
 	seen := map[string]bool{}
 	places := []string{"fish", "dive", "sweep", "drop", "play", "pond", "reeds", "collect", "settings", "bank", "garden", "neighbours", "stall", "market", "shops", "key", "job"}
 	none, all := badgesOf(tallyOf(&view{}, &pond{}), nil), badgesOf(most(), nil)
-	if len(badges) < 38 || len(badges) > 50 || len(all) != len(badges) {
+	if len(badges) < 38 || len(badges) > 56 || len(all) != len(badges) {
 		t.Fatalf("%d badges", len(badges))
 	}
 	for i, b := range badges {

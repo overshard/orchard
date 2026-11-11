@@ -52,6 +52,9 @@ const PINS = {
   drop_five: ["play", "...ss...", "..ssss..", "...ss...", "........", "y.w..w.y", "y.wssw.y", "y.wssw.y", "yyyyyyyy"],
   crickets_100: ["works", "......w.", ".....w..", "..yyyw..", ".yyyyyy.", "yykyyyy.", ".w.w.w..", "w..w..w.", "........"],
   first_firefly: ["works", "..w..w..", "...ww...", "..wkkw..", "..kkkk..", "..kyyk..", ".yyyyyy.", "y.yyyy.y", "...yy..."],
+  back_door: ["town", "..oooo..", ".okkkko.", ".okkkko.", ".okkkko.", ".okkkyo.", ".okkkko.", ".okkkko.", "oooooooo"],
+  steal: ["town", "...w....", "..yyy..w", ".yywyy..", "yywyyyy.", ".yyyyy..", "..yyy...", "...y....", "........"],
+  stung: ["town", "...k....", "...k....", "..kkk...", ".kkkkk..", ".kykyk..", "kkkkkkk.", "kkkkkkk.", "kkkkkkk."],
   mastered: ["works", "...y....", "...y....", "yyywyyy.", ".yywyy..", "..yyy...", ".yy.yy..", "y.....y.", "........"],
 };
 
