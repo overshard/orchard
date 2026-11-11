@@ -85,7 +85,13 @@ export function show(t) {
         r.append(b);
       });
       const tv = p.trinkets.all.find((x) => x.kind === t.kind);
-      if (t.free > 0 && tv) row().append(button("Sell to Moth, " + tv.moss, act("/api/trinkets/sell", { kind: t.kind }, () => sheetSay("Moth took it for " + tv.moss + "."))));
+      if (t.free > 0 && tv) {
+        const pays = offer("moss", tv.moss), b = button("Sell to Moth, " + pays, act("/api/trinkets/sell", { kind: t.kind }, () => sheetSay("Moth took it for " + pays + ".")));
+        b.disabled = !pays;
+        row().append(b);
+        line(body, p.room.moss ? "Moth spends up to " + p.sell_room + " a day on trinkets, and has " + p.room.moss + " left today."
+          : "Moth has bought all the trinkets there's room for today. Try again tomorrow.");
+      }
     }
     if (t.kind === "geode") {
       row().append(button("Crack it", (b) => {

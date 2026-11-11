@@ -67,7 +67,7 @@ func fail(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, errPoor), errors.Is(err, errNotYet), errors.Is(err, errNotHeld), errors.Is(err, errBadRun), errors.Is(err, errBadTap), errors.Is(err, errBadName), errors.Is(err, errBadPrice), errors.Is(err, errStallFull),
 		errors.Is(err, errFullPads), errors.Is(err, errMaxed), errors.Is(err, errSoldOut), errors.Is(err, errFed), errors.Is(err, errLevel), errors.Is(err, errToolLevel), errors.Is(err, errShort), errors.Is(err, errGiven),
 		errors.Is(err, errNoBurrow), errors.Is(err, errNotLodge), errors.Is(err, errHaveIt), errors.Is(err, errCap), errors.Is(err, errFirm), errors.Is(err, errCount),
-		errors.Is(err, errBeanFull), errors.Is(err, errStallPaid):
+		errors.Is(err, errBeanFull), errors.Is(err, errStallPaid), errors.Is(err, errMothFull):
 		writeError(w, http.StatusConflict, err.Error())
 	default:
 		slog.Error("pond", slog.String("path", r.URL.Path), slog.Any("err", err))
