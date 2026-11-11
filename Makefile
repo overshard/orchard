@@ -63,7 +63,7 @@ COMPOSE      = $(DOCKER) compose
 COMPOSE_DOWN = $(DOCKER) compose
 
 .DEFAULT_GOAL := help
-.PHONY: help install up up-one deploy edge doctor down down-one run build check shared-check frog-check template-check new fmt fmt-check vet vuln deps test \
+.PHONY: help install up up-one deploy edge doctor down down-one run build check shared-check frog frog-check template-check new fmt fmt-check vet vuln deps test \
 	env password tunnel tunnel-login tunnel-status ntfy ntfy-token ntfy-status ntfy-passwd \
 	auth-init auth-recovery chat-key dash-key pond-key llm-key wiki util require-site require-env require-tunnel
 
@@ -565,14 +565,35 @@ shared-check:
 	fi; \
 	echo "$(SHARED) copies match"
 
-# dash and the portfolio draw frogs with a copy of pond's sprite code, so a
-# change to how a frog looks has to land in every copy.
+# The other sites draw frogs with a copy of pond's sprite code, so a change to
+# how a frog looks has to land in every copy. `make frog` copies pond's over
+# them all. chat and llm have no bundler, so theirs is the two files in one.
 FROG = sites/pond.bythewood.me/frontend/src/frog.js
-FROG_COPIES = sites/dash.bythewood.me/frontend/static_src/scripts/frog.js sites/isaacbythewood.com/frontend/static_src/js/frog.js sites/status.bythewood.me/frontend/static_src/properties/scripts/frog.js sites/blog.bythewood.me/frontend/static_src/scripts/frog.js
+GUEST = sites/pond.bythewood.me/frontend/src/guest.js
+GUEST_DIRS = sites/analytics.bythewood.me/frontend/static_src/base/scripts \
+	sites/auth.bythewood.me/frontend/static_src/base/scripts \
+	sites/logging.bythewood.me/frontend/static_src/base/scripts \
+	sites/repos.bythewood.me/frontend/static_src/scripts \
+	sites/status.bythewood.me/frontend/static_src/properties/scripts \
+	sites/blog.bythewood.me/frontend/static_src/scripts
+FROG_COPIES = sites/dash.bythewood.me/frontend/static_src/scripts/frog.js \
+	sites/isaacbythewood.com/frontend/static_src/js/frog.js \
+	$(addsuffix /frog.js,$(GUEST_DIRS))
+GUEST_COPIES = $(addsuffix /guest.js,$(GUEST_DIRS))
+GUEST_BUNDLES = sites/chat.bythewood.me/static/guest.js sites/llm.bythewood.me/static/guest.js
+GUEST_BUNDLE = { cat $(FROG); grep -v '^import .* from "./frog.js";$$' $(GUEST); }
+
+frog:
+	@for f in $(FROG_COPIES); do cp $(FROG) $$f; done
+	@for f in $(GUEST_COPIES); do cp $(GUEST) $$f; done
+	@for f in $(GUEST_BUNDLES); do $(GUEST_BUNDLE) > $$f; done
+	@echo "frog.js and guest.js copied"
 
 frog-check:
-	@for f in $(FROG_COPIES); do cmp -s $(FROG) $$f || { echo "frog.js differs in $$f, copy pond's over it" >&2; exit 1; }; done
-	@echo "frog.js copies match"
+	@for f in $(FROG_COPIES); do cmp -s $(FROG) $$f || { echo "frog.js differs in $$f, run make frog" >&2; exit 1; }; done
+	@for f in $(GUEST_COPIES); do cmp -s $(GUEST) $$f || { echo "guest.js differs in $$f, run make frog" >&2; exit 1; }; done
+	@for f in $(GUEST_BUNDLES); do $(GUEST_BUNDLE) | cmp -s - $$f || { echo "$$f is stale, run make frog" >&2; exit 1; }; done
+	@echo "frog.js and guest.js copies match"
 
 # Reports stdlib issues against the local toolchain too, so an old Go in webdev
 # shows up here until taproot's GO_VERSION is bumped.
