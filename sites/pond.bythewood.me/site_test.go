@@ -412,7 +412,7 @@ func TestAFrogFindsASitesHatOnce(t *testing.T) {
 			t.Errorf("%s should be common and worn, never held", h.name())
 		}
 	}
-	if pw := powerOf(rarity{N: 2}, []hat{siteHatFor(0)}, nil, 0, 0); pw.Hats != 20 {
+	if pw := powerOf(rarity{N: 2}, []hat{siteHatFor(0)}, nil, 0, 0, 0); pw.Hats != 20 {
 		t.Errorf("a site hat counts %d power, want 20", pw.Hats)
 	}
 }
@@ -520,18 +520,21 @@ func TestShareTheFrog(t *testing.T) {
 }
 
 func TestPowerAddsUp(t *testing.T) {
-	p := powerOf(rarity{N: 32}, []hat{{3, hatGolden}, {8, 0}}, map[string]bool{"t_acorn": true, "t_pearl": true, "moonstone": true, "k_frost": true}, 23, 0)
+	p := powerOf(rarity{N: 32}, []hat{{3, hatGolden}, {8, 0}}, map[string]bool{"t_acorn": true, "t_pearl": true, "moonstone": true, "k_frost": true}, 23, 0, 0)
 	if p.Frog != 600 || p.Hats != 920 || p.Trinkets != 410 || p.TrinketsFound != 2 || p.Rocks != 800 || p.Keepsakes != 50 || p.Dive != 575 || p.Total != 3355 || p.Rank != "POND REGULAR" {
 		t.Errorf("power: %+v", p)
 	}
 	if p.Next != 5000-3355 || p.NextName != "LILY LORD" {
 		t.Errorf("the next rung: %d more to %s", p.Next, p.NextName)
 	}
-	if p := powerOf(rarity{N: 10}, nil, nil, 0, 0); p.Rank != "NEW TO THE POND" {
+	if p := powerOf(rarity{N: 10}, nil, nil, 0, 0, 0); p.Rank != "NEW TO THE POND" {
 		t.Errorf("a new frog's rank: %+v", p)
 	}
-	if p := powerOf(rarity{N: 10}, nil, nil, 500, 0); p.Dive != diveCounts*divePower {
+	if p := powerOf(rarity{N: 10}, nil, nil, 500, 0, 0); p.Dive != diveCounts*divePower {
 		t.Errorf("a best Dive of 500 counts %d", p.Dive)
+	}
+	if p := powerOf(rarity{N: 32}, nil, nil, 0, 0, 9); p.Bond != bondHearts*bondPower || p.Total != 600+p.Bond {
+		t.Errorf("five hearts and no more count: %+v", p)
 	}
 }
 
@@ -557,12 +560,13 @@ func fullPower() power {
 	for _, x := range keepsakes {
 		had[x.kind] = true
 	}
-	return powerOf(rarity{N: 5600}, held, had, diveCounts, len(jobs)*maxLevel)
+	return powerOf(rarity{N: 5600}, held, had, diveCounts, len(jobs)*maxLevel, bondHearts)
 }
 
 func TestTheTopRungIsTheTop(t *testing.T) {
 	p := fullPower()
 	top := ranks[len(ranks)-1]
+	t.Logf("a full collection is %d, and the top rung is %d%% of it", p.Total, 100*top.at/p.Total)
 	if p.Rank != top.name || p.Next != 0 || p.NextName != "" || p.Fill != 100 {
 		t.Errorf("a full collection: %d, %s, %d more to %q, bar at %d", p.Total, p.Rank, p.Next, p.NextName, p.Fill)
 	}

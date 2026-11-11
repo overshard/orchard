@@ -62,7 +62,11 @@ CREATE TABLE IF NOT EXISTS frogs (
     hat_shape   INTEGER NOT NULL DEFAULT 0,
     hat_colour  INTEGER NOT NULL DEFAULT 0,
     genome_json TEXT NOT NULL DEFAULT '',
-    laid_at     INTEGER NOT NULL DEFAULT 0
+    laid_at     INTEGER NOT NULL DEFAULT 0,
+    bond        INTEGER NOT NULL DEFAULT 0,
+    bond_day    TEXT NOT NULL DEFAULT '',
+    bond_today  INTEGER NOT NULL DEFAULT 0,
+    heart_day   TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS frogs_pond ON frogs(pond_id);
 
@@ -248,6 +252,10 @@ var addedColumns = []struct{ table, name, def string }{
 	{"ponds", "starter", "INTEGER NOT NULL DEFAULT 16"},
 	{"ponds", "staged", "INTEGER NOT NULL DEFAULT 0"},
 	{"ponds", "tried", "INTEGER NOT NULL DEFAULT 0"},
+	{"frogs", "bond", "INTEGER NOT NULL DEFAULT 0"},
+	{"frogs", "bond_day", "TEXT NOT NULL DEFAULT ''"},
+	{"frogs", "bond_today", "INTEGER NOT NULL DEFAULT 0"},
+	{"frogs", "heart_day", "TEXT NOT NULL DEFAULT ''"},
 }
 
 func ensureColumns(db *sql.DB) error {
@@ -672,6 +680,7 @@ type mealView struct {
 
 type view struct {
 	Frog    frogView `json:"frog"`
+	Bond    bondView `json:"bond"`
 	Pebbles int      `json:"pebbles"`
 	Wheel   struct {
 		Slices   []string `json:"slices"`
@@ -811,6 +820,11 @@ func viewOf(q querier, p pond, now time.Time) (*view, error) {
 	if err != nil {
 		return nil, err
 	}
+	b, err := loadBond(q, p.ID)
+	if err != nil {
+		return nil, err
+	}
+	v.Bond = bondOf(b.points, b.day, b.today, now)
 	xp, err := loadXP(q, p.ID)
 	if err != nil {
 		return nil, err
@@ -1009,7 +1023,7 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	for _, k := range v.Keepsakes {
 		had[k.Kind] = k.First != ""
 	}
-	v.Share.Power = powerOf(v.Frog.Rarity, v.found, had, p.DiveBest, v.Jobs.Total)
+	v.Share.Power = powerOf(v.Frog.Rarity, v.found, had, p.DiveBest, v.Jobs.Total, v.Bond.Hearts)
 	v.Today = dayOf(now)
 	v.Open = openOf(p, now)
 	v.Gazette.Notice = openingNotice(p, now)

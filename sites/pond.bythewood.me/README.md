@@ -86,6 +86,11 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
   `squashed` draws the frog squashed, `buffer` and `take` keep an early press
   for 90ms, and the game calls `draw` where its popups belong. A game's
   `demo()` gives the ghost finger its first input.
+- `bond.go` is petting. A rub of the frog out front is `POST /api/frogs/pet`,
+  which adds to that frog's bond up to a day's worth and never takes any
+  away. A heart is a hundred points, and each frog has a favourite spot off
+  its seed that counts double. `frontend/src/pet.js` is the rub, the hearts
+  and what the frog does at each heart, drawn over and around the sprite.
 - `neighbours.go` is the residents, friendship by dishes and a favour a day.
 - `burrow.go` is the bank's burrows. Each level adds a pad that doesn't count
   toward the ones you buy, and a friendly neighbour can lodge in one and pay rent.
@@ -211,5 +216,10 @@ they have none, for other sites to draw.
   has seen it gone.
 - The page keeps what's open in localStorage as `pond-open` so the keys are
   right before the pond loads. With nothing kept it starts on four keys.
+- The pet route is called as fast as a finger rubs. It has to stay one read
+  for a frog that's had its day's worth, with no row added anywhere.
+- The frog's screen is a button with `touch-action: pan-y`, so a sideways
+  drag is a rub and the click after one is swallowed. Anything new on the
+  screen goes beside the button in `.frogscreen`, not inside it.
 - `web/` has to stay byte identical to every other site's copy, and
   `make check` at the root fails when it isn't.

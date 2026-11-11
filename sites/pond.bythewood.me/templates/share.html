@@ -53,6 +53,7 @@
     <li><b>Keepsakes</b><span>{{ .Power.KeepsakesHad }} of {{ keepsakesInGame }}</span><em>{{ commas .Power.Keepsakes }}</em><i style="width: {{ pct .Power.KeepsakesHad keepsakesInGame }}%"></i></li>
     <li><b>Jobs</b><span>total level {{ .Power.JobsTotal }}</span><em>{{ commas .Power.Jobs }}</em></li>
     <li><b>Dive</b><span>best of {{ .Power.DiveBest }}</span><em>{{ commas .Power.Dive }}</em></li>
+    <li><b>Bond</b><span>{{ .Power.Hearts }} of 5 hearts</span><em>{{ commas .Power.Bond }}</em><i style="width: {{ pct .Power.Hearts 5 }}%"></i></li>
   </ul>
 
   <h2 data-idx="04">Pass it on</h2>

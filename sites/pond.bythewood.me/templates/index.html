@@ -1,9 +1,12 @@
 {{ define "main" }}
 <div id="app">
   <section class="view" id="v-pond">
-    <button type="button" class="scene screen" id="scene-btn" aria-label="Your frog. Press it to hear its call.">
-      <canvas id="scene" width="352" height="272"></canvas>
-    </button>
+    <div class="frogscreen">
+      <button type="button" class="scene screen" id="scene-btn" aria-label="Your frog. Press it to hear its call, or rub it.">
+        <canvas id="scene" width="352" height="272"></canvas>
+      </button>
+      <canvas class="bond" id="bond" width="39" height="6" role="img" aria-label="0 of 5 hearts"></canvas>
+    </div>
     <div class="who">
       <h1 id="frog-name">&nbsp;</h1>
       <p class="chips"><span class="tier" id="frog-tier"></span> <span id="frog-odds"></span></p>
@@ -477,7 +480,7 @@
     <p class="power"><b id="power-n">0</b> <span id="power-rank"></span></p>
     <div class="ladder"><div class="rail"><i id="power-bar"></i></div><ol id="power-ranks"></ol></div>
     <p class="dim" id="power-next"></p>
-    <p class="help" hidden>Power counts how rare your frog is, the hats, trinkets, rocks and keepsakes you've found, your frogs' job levels and your best Dive up to 60, and it only goes up. A trinket counts half a hat. The rank is how far up the ladder that is. Its page is safe to share, the link has nothing to do with your pond key.</p>
+    <p class="help" hidden>Power counts how rare your frog is, the hats, trinkets, rocks and keepsakes you've found, your frogs' job levels, your best Dive up to 60 and the hearts of the frog out front, and it only goes up. A trinket counts half a hat. The rank is how far up the ladder that is. Its page is safe to share, the link has nothing to do with your pond key.</p>
     <div class="row"><a class="button" id="share-link" href="/">Your frog's page</a></div>
 
     <div class="card dev" id="dev" hidden>
