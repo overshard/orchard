@@ -187,6 +187,11 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   order of `residents`. They're rows in `mementos` with the day and never
   items, and count in power at half an epic hat each. A neighbour that was
   already a best friend hands its one over at the next greeting.
+- `farbank.go` is the far bank, the one thing to buy with no end, kept as a
+  count in `ponds.far`. A patch starts at 500 and each is 15% dearer, and it
+  does nothing but stand one more piece of scenery on the bank along the top
+  of the pond's glass. `frontend/src/farbank.js` draws the thirty pieces and
+  places them, and past the thirtieth a sign counts the rest.
 - `burrow.go` is the bank's burrows. Each level adds a pad that doesn't count
   toward the ones you buy, and a friendly neighbour can lodge in one and pay rent.
   It also keeps `ponds.paint`, the pieces of four pond paintings, one for
@@ -355,6 +360,10 @@ they have none, for other sites to draw.
   never runs a query of its own, since the check runs after every move.
 - A rub of the frog doesn't go through `act`, so a badge for hearts lands on
   the next move or greeting and not on the rub.
+- The far bank's pieces stand between the hearts and the camera key, which
+  at 360 wide reach about 100 and 310 across the 352 wide scene. Swimmers
+  in the reeds drop below the bank when it's there, and set pieces, the
+  floating trinket and the teacup draw over it.
 - Scenery is placed by hand in `scenery.js` to clear a grown frog, the
   furniture, the trinket spots and both top corners of the glass, so look at
   the pond with everything out after moving any of it.

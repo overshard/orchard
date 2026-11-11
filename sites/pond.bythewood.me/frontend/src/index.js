@@ -20,6 +20,7 @@ import { initSettings } from "./settings.js";
 import { initPower, seePower } from "./power.js";
 import { initPostcard } from "./postcard.js";
 import { drawScenery, drawSceneryNight } from "./scenery.js";
+import { drawFarBank, FAR_DEPTH } from "./farbank.js";
 import { footprint, visitorReveal, stampsReveal, paintingReveal } from "./company.js";
 import { initPet, setBox, pose, over as petOver, busy as petBusy, wasRub, tapTrick, arrive, drawBond } from "./pet.js";
 
@@ -405,7 +406,7 @@ function drawSwimmers(p, day, t) {
     const period = 30 + scatter(i, 11) * 20, u = reduced ? 0.25 + i * 0.07 : ((t + scatter(i, 12) * period) % period) / period;
     if (u > 0.7) return;
     const dir = i % 2 ? -1 : 1, k = u / 0.7, x = dir > 0 ? -60 + k * 472 : 412 - k * 472;
-    const y = 8 + ((i * 17) % 44) + Math.round(Math.sin(t * 1.3 + i) * 2) * 2;
+    const y = 8 + (p.bank.far.patches ? FAR_DEPTH : 0) + ((i * 17) % 44) + Math.round(Math.sin(t * 1.3 + i) * 2) * 2;
     const spr = swimmer(f)[Math.floor(t * 2 + i) % 3 === 0 ? 1 : 0];
     sx.save();
     sx.translate(Math.round(x / 2) * 2, y);
@@ -461,6 +462,7 @@ function drawScene(now) {
     const x = Math.round(((i * 67 + t * drift) % 392) - 20), y = 14 + (i * 97) % 240;
     sx.fillRect(x, y, 20, 2); sx.fillRect(x + 20, y + 2, 12, 2);
   }
+  drawFarBank(sx, p.bank.far.patches);
   drawBehind(day, t);
   drawAmbient(day, t);
   drawSwimmers(p, day, t);

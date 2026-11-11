@@ -455,6 +455,7 @@ func (s *store) sellDish(id int64, kind string) (*view, error) {
 // ---------------------------------------------------------------- the view
 
 type bankView struct {
+	Far    farView `json:"far"`
 	Gravel struct {
 		Level int `json:"level"`
 		Rate  int `json:"rate"`
@@ -585,6 +586,9 @@ func (s *store) bankOf(q querier, p *pond, now time.Time, held map[string]int) (
 
 	b.Dye = dyeViewOf(p, now, held)
 	var err error
+	if b.Far, err = farOf(q, p.ID); err != nil {
+		return b, k, err
+	}
 	if b.Burrows, err = burrowViewOf(q, p.ID, now); err != nil {
 		return b, k, err
 	}

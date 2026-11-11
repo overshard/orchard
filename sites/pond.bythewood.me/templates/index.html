@@ -269,6 +269,17 @@
       <button type="button" id="burrow-build">Build</button>
     </div>
     <p class="line" id="burrow-out" role="status"></p>
+
+    <h2>The far bank</h2>
+    <p class="help" hidden>The bank across the water, bought a patch at a time. Each patch puts one more thing on it, behind your frog on the pond, and that's all it does. A patch costs about a sixth more than the one before.</p>
+    <div class="screen"><canvas id="far-art" width="220" height="36" aria-label="The far bank across the water"></canvas></div>
+    <div class="tiles">
+      <span class="readout"><span class="k">Patches</span><span class="v" id="far-n">0</span></span>
+      <span class="readout"><span class="k">Next</span><span class="v" id="far-cost">&mdash;</span></span>
+    </div>
+    <p class="dim" id="far-note"></p>
+    <div class="row"><button type="button" id="far-buy">Buy a patch</button></div>
+    <p class="line" id="far-out" role="status"></p>
     </div>
     <div id="bank-market" hidden>
       <div class="ticker" aria-hidden="true"><div class="tape" id="mkt-tape"></div></div>
