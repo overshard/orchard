@@ -78,7 +78,7 @@ func TestAFrogWorksActions(t *testing.T) {
 	if d.Actions != 36 || d.Got["sticks"] != w.Basket[0].N || d.XP != w.XP || d.Stop != "full" {
 		t.Errorf("collected %+v from a basket of %+v", d, w)
 	}
-	if d.Level != levelOf(36*1650) || d.Up != d.Level-1 {
+	if twigs, _ := jobs[2].target("twigs"); d.Level != levelOf(36*twigs.xp) || d.Up != d.Level-1 {
 		t.Errorf("level after a basket: %+v", d)
 	}
 	if _, err := s.collectJobs(id); !errors.Is(err, errNotYet) {
@@ -253,6 +253,12 @@ func TestCraftingUsesWhatItHas(t *testing.T) {
 	if _, err := s.setJob(id, f, jobCraft, ""); !errors.Is(err, errNotHeld) {
 		t.Errorf("crafting nothing: %v", err)
 	}
+	if _, err := s.setJob(id, f, jobCraft, "t_raft"); !errors.Is(err, errLevel) {
+		t.Errorf("a raft at level 1: %v", err)
+	}
+	if err := s.write(func(tx *sql.Tx) error { return addXP(tx, id, f, jobCraft, xpFor[4]) }); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := s.setJob(id, f, jobCraft, "t_raft"); err != nil {
 		t.Fatal(err)
 	}
@@ -280,7 +286,7 @@ func TestCraftingUsesWhatItHas(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if d := c.Done[0]; d.Got["t_raft"] != 2 || d.Actions != 2 || d.XP != 2*craftXP {
+	if d := c.Done[0]; d.Got["t_raft"] != 2 || d.Actions != 2 || d.XP != 2*mustRecipe(t, "t_raft").xp {
 		t.Errorf("crafted %+v", d)
 	}
 	held := map[string]int{}
@@ -507,5 +513,95 @@ func TestPetsOnlyComeFromWork(t *testing.T) {
 		if petFor(j.key) == "" {
 			t.Errorf("no pet for %s", j.key)
 		}
+	}
+}
+
+func mustRecipe(t *testing.T, key string) target {
+	t.Helper()
+	j, _ := jobOf(jobCraft)
+	r, ok := j.target(key)
+	if !ok {
+		t.Fatalf("no recipe %s", key)
+	}
+	return r
+}
+
+// player is somebody working one frog at one job, collecting after each gap
+// in turn.
+type player struct {
+	name string
+	gaps []time.Duration
+}
+
+var (
+	ordinary = player{"ordinary", []time.Duration{10 * time.Hour, 14 * time.Hour}}
+	keen     = player{"keen", []time.Duration{workHold}}
+)
+
+// paceOf plays a frog at a job from level 1 on what each action pays on
+// average, moving to the newest target at every collect, and says on which
+// day each level came.
+func paceOf(j job, pl player) [maxLevel + 1]float64 {
+	var day [maxLevel + 1]float64
+	xp, hours := 0.0, 0.0
+	for i := 0; levelOf(int(xp)) < maxLevel; i++ {
+		gap := pl.gaps[i%len(pl.gaps)]
+		level := levelOf(int(xp))
+		t := j.best(level)
+		act := actSecs(t, level, false)
+		n := int(int64(min(gap, workHold)/time.Second) / act)
+		xp += float64(n) * ((1-t.miss)*float64(t.xp) + t.miss*float64(t.xp/missShare))
+		hours += gap.Hours()
+		for l := level + 1; l <= levelOf(int(xp)); l++ {
+			day[l] = hours / 24
+		}
+	}
+	return day
+}
+
+// A level is earned: about 10 at the end of the first day, 30 in a week, 50
+// in a month and 99 in four to six months, for every job.
+func TestTheJobsPace(t *testing.T) {
+	for _, j := range jobs {
+		if j.key == jobCraft {
+			continue
+		}
+		o, k := paceOf(j, ordinary), paceOf(j, keen)
+		t.Logf("%-8s ordinary %4.1f %4.1f %5.1f %5.1f %5.1f   keen %4.1f %4.1f %5.1f %5.1f %5.1f", j.key, o[10], o[30], o[50], o[70], o[99], k[10], k[30], k[50], k[70], k[99])
+		within := func(what string, got, lo, hi float64) {
+			if got < lo || got > hi {
+				t.Errorf("%s: %s on day %.1f, want %.0f to %.0f", j.key, what, got, lo, hi)
+			}
+		}
+		within("10", o[10], 0.5, 1.6)
+		within("30", o[30], 5, 9)
+		within("50", o[50], 22, 40)
+		within("99", o[99], 120, 200)
+		within("a keen 99", k[99], 100, o[99])
+		for _, l := range []int{30, 50, 70, 99} {
+			if k[l] > o[l] {
+				t.Errorf("%s: a keen frog got to %d after an ordinary one", j.key, l)
+			}
+		}
+	}
+}
+
+// Old levels stay where they are, whatever an action pays now.
+func TestXPNeverDrops(t *testing.T) {
+	s, clock, id, f := working(t, "bugs", "")
+	if err := s.write(func(tx *sql.Tx) error { return addXP(tx, id, f, "bugs", xpFor[60]+5) }); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.write(func(tx *sql.Tx) error { return addXP(tx, id, f, "bugs", -xpFor[60]) }); err != nil {
+		t.Fatal(err)
+	}
+	*clock = clock.Add(5 * time.Hour)
+	c, err := s.collectJobs(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	l := c.Pond.Frogs[0].Work.Levels[1]
+	if l.Level < 60 || l.XP < xpFor[60]+5 || l.XP != xpFor[60]+5+c.Done[0].XP {
+		t.Errorf("a level 60 catcher after a basket: %+v", l)
 	}
 }

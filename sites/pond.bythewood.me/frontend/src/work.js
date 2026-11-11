@@ -57,7 +57,8 @@ function yieldLine(t) {
   if (t.kind === "peb") return t.n + (t.n === 1 ? " pebble" : " pebbles");
   if (t.kind === "clay") return t.n + " clay";
   if (t.kind === "sticks" || t.kind === "reeds") return t.n + " " + (t.n === 1 ? t.kind.slice(0, -1) : t.kind);
-  return t.n + " " + t.name.toLowerCase().replace(/ies$/, "y").replace(/([^s])s$/, "$1");
+  const one = t.thing.toLowerCase();
+  return t.n + " " + (t.n === 1 || /(cress|weed)$/.test(one) ? one : one.replace(/y$/, "ie") + "s");
 }
 
 // openJob shows a frog's job screen, for the job it's at or one to look over.
