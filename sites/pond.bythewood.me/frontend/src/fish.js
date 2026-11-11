@@ -15,6 +15,18 @@ const TELL = 0.55, PERFECT = 0.3, SLACK = 1.8;
 const BOOT = { k: "boot", one: "old boot", many: "old boots", pts: 2, len: 10, heavy: 1.3 };
 
 let G = null, spr = null, col = null;
+// With tap to reel on, a tap starts the reel and another stops it, for
+// anybody who'd sooner not hold a finger down. It stays in the browser.
+let tapReel = false;
+try { tapReel = localStorage.getItem("pond-tapreel") === "1"; } catch (e) { /* private window */ }
+
+export function tapsToReel() { return tapReel; }
+
+export function setTapReel(v) {
+  tapReel = v;
+  try { localStorage.setItem("pond-tapreel", v ? "1" : "0"); } catch (e) { /* private window */ }
+}
+
 // What the server made of the last round, each kind with its biggest, and
 // what Sedge said if a pond record went.
 let last = null, sedge = "";
@@ -158,7 +170,9 @@ function fight(dt) {
 export const fish = {
   key: "fish", W, H, title: "FISHING", feel: F, timed: true,
   edge: ["#2a5163", "#2a2218"],
-  help: ["TAP THE WATER TO CAST", "TAP WHEN THE BOBBER GOES UNDER", "HOLD TO REEL, LET GO WHEN IT RUNS", "TAP TO START"],
+  get help() {
+    return ["TAP THE WATER TO CAST", "TAP WHEN THE BOBBER GOES UNDER", tapReel ? "TAP TO REEL, TAP AGAIN WHEN IT RUNS" : "HOLD TO REEL, LET GO WHEN IT RUNS", "TAP TO START"];
+  },
 
   reset(g, p) {
     const stage = ["egg", "tadpole"].includes(p.frog.stage) ? "froglet" : p.frog.stage;
@@ -182,7 +196,7 @@ export const fish = {
 
   press(x, y) {
     if (!G || G.end) return;
-    if (G.st === "fight") { G.hold = true; return; }
+    if (G.st === "fight") { G.hold = tapReel ? !G.hold : true; return; }
     if (G.st === "land" || G.st === "lost" || G.st === "fly") return;
     if (G.t >= ROUND) return;
     const f = G.taker;
@@ -191,7 +205,7 @@ export const fish = {
     cast(x, y);
   },
 
-  release() { if (G) G.hold = false; },
+  release() { if (G && !tapReel) G.hold = false; },
 
   keys(code, down) {
     if (!G) return;
@@ -393,8 +407,8 @@ function hint(x) {
   if (G.st === "ready") s = "TAP THE WATER TO CAST";
   else if (G.st === "wait" && f && f.st === "bite") s = "TAP NOW";
   else if (G.st === "wait") s = "WAIT FOR THE BOBBER TO GO UNDER";
-  else if (G.st === "fight" && f && (f.ph === "tell" || f.ph === "run")) s = "IT'S RUNNING, LET GO";
-  else if (G.st === "fight") s = "HOLD TO REEL IT IN";
+  else if (G.st === "fight" && f && (f.ph === "tell" || f.ph === "run")) s = !tapReel ? "IT'S RUNNING, LET GO" : G.hold ? "IT'S RUNNING, TAP TO STOP" : "WAIT FOR IT TO TIRE";
+  else if (G.st === "fight") s = !tapReel ? "HOLD TO REEL IT IN" : G.hold ? "REELING IT IN" : "TAP TO REEL IT IN";
   if (!s) return;
   x.font = "500 8px 'JetBrains Mono', monospace"; x.textAlign = "center";
   x.lineWidth = 3; x.strokeStyle = "#0a0908"; x.strokeText(s, W / 2, H - 22);
@@ -479,6 +493,11 @@ function meter(x) {
   x.fillStyle = G.ten > 0.82 ? "#e2412d" : G.ten > 0.6 ? "#ffb000" : "#56b45f";
   x.fillRect(mx, top + h - f, 4, f);
   if (G.slack > 0.3 && Math.floor(G.t * 10) % 2) { x.fillStyle = "#bcaf99"; x.fillRect(mx, top + h - 2, 4, 2); }
+  if (!tapReel) return;
+  // With no finger held down, the reel has to say whether it's turning.
+  x.font = "500 8px 'JetBrains Mono', monospace"; x.textAlign = "right";
+  x.lineWidth = 3; x.strokeStyle = "#0a0908"; x.strokeText(G.hold ? "REELING" : "STOPPED", W - 4, top + h + 12);
+  x.fillStyle = G.hold ? "#ffb000" : "#bcaf99"; x.fillText(G.hold ? "REELING" : "STOPPED", W - 4, top + h + 12);
 }
 
 function drawBoot(x, bx, by) {

@@ -241,6 +241,9 @@ they have none, for other sites to draw.
 - The tap that starts a run is handed to the game's `drag` and not to its
   `press`, so a held finger steers from the first frame and a tap game doesn't
   act on it.
+- Tap to reel is `pond-tapreel` in localStorage, read by `fish.js`. With it
+  on a press toggles the reel and a release does nothing, so anything that
+  lifts the finger for the player, like a pause, leaves the reel as it was.
 - A change that lets a game score faster needs its `rate` in `arcade.go`
   checked against a bot, since a run past `rate` points a second pays nothing.
 - `index.css` is one flat file and the share page loads it too, so look for a

@@ -4,6 +4,7 @@ import { soundOn, setSound, sfx } from "./sound.js";
 import { dishCanvas } from "./icons.js";
 import { hatTile } from "./hats.js";
 import { slot } from "./ui.js";
+import { tapsToReel, setTapReel } from "./fish.js";
 
 let which = 0, offers = [];
 // The diary on the page, whose it is and the day it was read.
@@ -109,7 +110,12 @@ function render(p) {
 
 export function initSettings() {
   watch(render);
-  document.querySelectorAll("#sound-keys button").forEach((b) => {
+  $("tap-reel").setAttribute("aria-pressed", tapsToReel() ? "true" : "false");
+  $("tap-reel").addEventListener("click", function () {
+    setTapReel(!tapsToReel());
+    this.setAttribute("aria-pressed", tapsToReel() ? "true" : "false");
+  });
+  document.querySelectorAll("#sound-keys button[data-sound]").forEach((b) => {
     const kind = b.dataset.sound;
     if (kind === "buzz" && !navigator.vibrate) { b.hidden = true; return; }
     b.setAttribute("aria-pressed", soundOn(kind) ? "true" : "false");
