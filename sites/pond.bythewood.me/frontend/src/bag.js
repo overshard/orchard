@@ -74,7 +74,13 @@ export function show(t) {
       if (same(t.hat, p.frog.hat)) r.append(button("Take it off", act("/api/hats/wear", { shape: 0, colour: 0 })));
       else r.append(button("Wear it", act("/api/hats/wear", t.hat), "primary"));
       const hv = p.hats.find((h) => same(h, t.hat));
-      if (t.free > 0 && hv) r.append(button("Sell to Little Tully, " + hv.wren, act("/api/hats/sell", t.hat, (d) => sheetSay("Little Tully took it for " + hv.wren + "." + toward(d.pond || d)))));
+      if (t.free > 0 && hv) {
+        const pays = offer("wren", hv.wren), b = button("Sell to Little Tully, " + pays, act("/api/hats/sell", t.hat, (d) => sheetSay("Little Tully took it for " + pays + "." + toward(d.pond || d))));
+        b.disabled = !pays;
+        r.append(b);
+        line(body, p.room.wren ? "Little Tully spends up to " + p.sell_room + " a day on hats, and has " + p.room.wren + " left today."
+          : "Little Tully has bought all the hats he can today. He buys again tomorrow.");
+      }
     }
     if (t.sort === "trinket") {
       const r = row(), spots = p.trinkets.spots;

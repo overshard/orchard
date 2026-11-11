@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"testing"
+	"time"
 )
 
 // spares puts n of a found hat in the pond, one to keep and the rest to sell.
@@ -30,7 +31,7 @@ func TestTheWantedBarAndPriceByTier(t *testing.T) {
 }
 
 func TestAWantedHatFillsFromSparesAndGoesOnTheShelf(t *testing.T) {
-	s, _ := testStore(t)
+	s, clock := testStore(t)
 	_, id := newPond(t, s)
 	wanted, spare := hatsByTier[2][0], hatsByTier[2][1]
 	spares(t, s, id, spare, 8)
@@ -43,6 +44,7 @@ func TestAWantedHatFillsFromSparesAndGoesOnTheShelf(t *testing.T) {
 		t.Fatalf("%d lines on the shelf with the bar empty", n)
 	}
 	for i := range 6 {
+		*clock = clock.Add(24 * time.Hour)
 		if v, err = s.sell(id, spare); err != nil {
 			t.Fatal(err)
 		}
@@ -66,6 +68,7 @@ func TestAWantedHatFillsFromSparesAndGoesOnTheShelf(t *testing.T) {
 		t.Fatalf("bought a 900 pebble hat on %d: %v", v.Pebbles, err)
 	}
 	// One more spare goes over the bar and isn't lost.
+	*clock = clock.Add(24 * time.Hour)
 	if v, err = s.sell(id, spare); err != nil || v.Want.Fill != 280 {
 		t.Fatalf("a seventh spare: %d (%v)", v.Want.Fill, err)
 	}

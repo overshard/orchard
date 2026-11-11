@@ -253,9 +253,9 @@ they have none, for other sites to draw.
 - Big Bean's prices have to stay above what a dish sells for, sale or not, or
   buying and cooking mints pebbles. A test holds it, so run it after touching
   a price.
-- Big Bean pays a pond at most `sellRoom` a New York day for dishes and Moth
-  as much for trinkets, kept in the `sold` table, since jobs bring in things
-  without end. The stall pays
+- Big Bean pays a pond at most `sellRoom` a New York day for dishes, Moth as
+  much for trinkets and Little Tully for hats, kept in the `sold` table, since
+  jobs bring in things without end and the wizard rolls them into hats. The stall pays
   out the same room a day and what's sold past it waits on the stall, with
   its price brought down by what's been paid. Anything new that buys a
   pond's things pays through `payOut` or work turns straight into pebbles.
@@ -278,7 +278,7 @@ they have none, for other sites to draw.
   or uncommon to a rare. Rolled among the rares, epics and legendaries it put
   a box's spares over the box's price on the stall, so `boxWorth` in the tests
   counts the meter in and has to stay under 40.
-- `want_fill` counts every spare sold to Little Tully whether or not a hat is
+- `want_fill` counts what Little Tully pays for spares whether or not a hat is
   asked for, and buying the hat only takes its bar off it. Nothing else may
   lower it, since the page tells the player the bar is never lost.
 - A memento's kind starts `m_` and must never reach `addItem`, since an
