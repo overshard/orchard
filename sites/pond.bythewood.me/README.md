@@ -95,6 +95,10 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
   away. A heart is a hundred points, and each frog has a favourite spot off
   its seed that counts double. `frontend/src/pet.js` is the rub, the hearts
   and what the frog does at each heart, drawn over and around the sprite.
+- `favourite.go` is a frog's favourite dish and hat, settled at the greeting
+  once it's a frog from what it ate and wore most, counted in `tastes`, or
+  off its seed. They never change after, and its favourite dish keeps it
+  full half as long again.
 - `neighbours.go` is the residents, friendship by dishes and a favour a day.
 - `burrow.go` is the bank's burrows. Each level adds a pad that doesn't count
   toward the ones you buy, and a friendly neighbour can lodge in one and pay rent.

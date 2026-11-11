@@ -152,8 +152,9 @@ func levelOf(xp int) int {
 	return l
 }
 
-// A meal is the potion. A frog stays full longer on a better dish, and while
-// it's full it works faster, lays a better egg and learns quicker.
+// A meal is the potion. A frog stays full longer on a better dish and half
+// as long again on its favourite, and while it's full it works faster, lays
+// a better egg and learns quicker.
 var (
 	mealHours = [tierCount]float64{8, 12, 18, 24, 48}
 	mealBoost = [tierCount]float64{0.1, 0.2, 0.3, 0.4, 0.5}
@@ -164,7 +165,11 @@ func fullUntil(f frogRow) int64 {
 	if !ok {
 		return 0
 	}
-	return f.FedAt + int64(mealHours[d.tier]*3600)
+	hours := mealHours[d.tier]
+	if f.Fed == f.FavDish {
+		hours *= favFull
+	}
+	return f.FedAt + int64(hours*3600)
 }
 
 // worked is the hours of work held since `at`, and how many of them were on a

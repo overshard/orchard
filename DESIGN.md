@@ -722,6 +722,10 @@ version of the old look and a handheld pet shell.
   more, the frog's Zs drift off it and four pixel sparkles twinkle round it
   until a game is played. The result of that run says well rested beside the
   pebbles. It takes no room of its own on the pond.
+- **A frog's favourites are two slots in settings**, its dish and its hat
+  drawn the way the bag draws them, under its name. The bubble names one on
+  about a day in three in place of the day's line, so it never gets longer,
+  and the key that feeds a frog says so when the dish is its favourite.
 - **The frog can be rubbed.** A drag back and forth over it shuts its eyes and
   throws pink pixel hearts, more of them on its favourite spot, and an egg
   only wobbles. Its bond is five small hearts over the top left corner of the

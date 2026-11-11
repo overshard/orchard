@@ -177,11 +177,13 @@ type frogRow struct {
 	Recipe string
 	// Hours of crafting done toward the next thing.
 	Carry float64
+	// Its favourite dish and hat by kind, empty until it's a frog.
+	FavDish, FavHat string
 }
 
 func loadFrogs(q querier, pondID int64) ([]frogRow, error) {
 	rows, err := q.Query(`SELECT id, seed, genome_json, hatched_at, laid_at, out_front, hat_shape, hat_colour, name, fed, fed_at,
-		job, job_at, recipe, carry FROM frogs WHERE pond_id = ? ORDER BY id`, pondID)
+		job, job_at, recipe, carry, fav_dish, fav_hat FROM frogs WHERE pond_id = ? ORDER BY id`, pondID)
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +193,7 @@ func loadFrogs(q querier, pondID int64) ([]frogRow, error) {
 		var f frogRow
 		var raw string
 		if err := rows.Scan(&f.ID, &f.Seed, &raw, &f.HatchedAt, &f.LaidAt, &f.Front, &f.Hat.Shape, &f.Hat.Colour, &f.Name, &f.Fed, &f.FedAt,
-			&f.Job, &f.JobAt, &f.Recipe, &f.Carry); err != nil {
+			&f.Job, &f.JobAt, &f.Recipe, &f.Carry, &f.FavDish, &f.FavHat); err != nil {
 			return nil, err
 		}
 		f.Mods = parseMods(raw)
@@ -285,7 +287,8 @@ func (s *store) feed(id, frogID int64, kind string) (*view, error) {
 	}
 	return s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
 		var f frogRow
-		err := tx.QueryRow(`SELECT fed, fed_at, hatched_at FROM frogs WHERE pond_id = ? AND id = ?`, p.ID, frogID).Scan(&f.Fed, &f.FedAt, &f.HatchedAt)
+		err := tx.QueryRow(`SELECT fed, fed_at, hatched_at, fav_dish FROM frogs WHERE pond_id = ? AND id = ?`, p.ID, frogID).
+			Scan(&f.Fed, &f.FedAt, &f.HatchedAt, &f.FavDish)
 		if err != nil {
 			return errNotHeld
 		}
@@ -310,8 +313,10 @@ func (s *store) feed(id, frogID int64, kind string) (*view, error) {
 				}
 			}
 		}
-		_, err = tx.Exec(`UPDATE frogs SET fed = ?, fed_at = ? WHERE id = ?`, kind, now.Unix(), frogID)
-		return err
+		if _, err := tx.Exec(`UPDATE frogs SET fed = ?, fed_at = ? WHERE id = ?`, kind, now.Unix(), frogID); err != nil {
+			return err
+		}
+		return noteTaste(tx, frogID, kind)
 	})
 }
 

@@ -80,7 +80,7 @@ export function show(t) {
       const hungry = p.frogs.filter((f) => f.stage !== "egg" && !f.fed).sort((a, b) => b.front - a.front);
       if (hungry.length) {
         const r = row();
-        hungry.forEach((f, i) => r.append(button("Feed " + titled(f.name), act("/api/frogs/feed", { frog: f.id, dish: t.kind },
+        hungry.forEach((f, i) => r.append(button("Feed " + titled(f.name) + (f.fav && f.fav.dish.kind === t.kind ? ", its favourite" : ""), act("/api/frogs/feed", { frog: f.id, dish: t.kind },
           () => sheetSay(titled(f.name) + " ate it up.")), i === 0 ? "primary" : "")));
       }
       row().append(button("Sell to Big Bean, " + t.worth, act("/api/kitchen/sell", { dish: t.kind }, () => sheetSay("Big Bean took it."))));

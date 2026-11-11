@@ -149,7 +149,7 @@ function card(f) {
   div.append(cv, name, what, tier);
   if (f.fed) {
     const ate = document.createElement("span");
-    ate.className = "ate"; ate.textContent = "Full for " + hours(f.fed.left / 3600);
+    ate.className = "ate"; ate.textContent = "Full for " + hours(f.fed.left / 3600) + (f.fed.fav ? ", its favourite" : "");
     div.append(ate);
   }
   if (f.work) {

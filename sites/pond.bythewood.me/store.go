@@ -69,7 +69,9 @@ CREATE TABLE IF NOT EXISTS frogs (
     bond        INTEGER NOT NULL DEFAULT 0,
     bond_day    TEXT NOT NULL DEFAULT '',
     bond_today  INTEGER NOT NULL DEFAULT 0,
-    heart_day   TEXT NOT NULL DEFAULT ''
+    heart_day   TEXT NOT NULL DEFAULT '',
+    fav_dish    TEXT NOT NULL DEFAULT '',
+    fav_hat     TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS frogs_pond ON frogs(pond_id);
 
@@ -215,6 +217,13 @@ CREATE TABLE IF NOT EXISTS shares (
     PRIMARY KEY (pond_id, key)
 ) WITHOUT ROWID;
 
+CREATE TABLE IF NOT EXISTS tastes (
+    frog_id  INTEGER NOT NULL REFERENCES frogs(id) ON DELETE CASCADE,
+    kind     TEXT NOT NULL,
+    n        INTEGER NOT NULL,
+    PRIMARY KEY (frog_id, kind)
+) WITHOUT ROWID;
+
 CREATE TABLE IF NOT EXISTS growth (
     id    INTEGER PRIMARY KEY CHECK (id = 1),
     at    INTEGER NOT NULL,
@@ -262,6 +271,8 @@ var addedColumns = []struct{ table, name, def string }{
 	{"frogs", "bond_day", "TEXT NOT NULL DEFAULT ''"},
 	{"frogs", "bond_today", "INTEGER NOT NULL DEFAULT 0"},
 	{"frogs", "heart_day", "TEXT NOT NULL DEFAULT ''"},
+	{"frogs", "fav_dish", "TEXT NOT NULL DEFAULT ''"},
+	{"frogs", "fav_hat", "TEXT NOT NULL DEFAULT ''"},
 }
 
 func ensureColumns(db *sql.DB) error {
@@ -678,6 +689,7 @@ type reedView struct {
 	LayIn int64     `json:"lay_in"`
 	Fed   *mealView `json:"fed,omitempty"`
 	Work  *workView `json:"work,omitempty"`
+	Fav   *favView  `json:"fav,omitempty"`
 }
 
 type mealView struct {
@@ -689,6 +701,8 @@ type mealView struct {
 	Boost float64 `json:"boost"`
 	// Seconds until it's hungry again.
 	Left int64 `json:"left"`
+	// Fav is its favourite dish, which keeps it full for longer.
+	Fav bool `json:"fav"`
 }
 
 type view struct {
@@ -869,9 +883,9 @@ func viewOf(q querier, p pond, now time.Time) (*view, error) {
 		if in > 0 {
 			in = in/time.Second + 1
 		}
-		rv := reedView{frogView: frogViewOf(f, now), ID: f.ID, Front: f.Front, LayIn: int64(in)}
+		rv := reedView{frogView: frogViewOf(f, now), ID: f.ID, Front: f.Front, LayIn: int64(in), Fav: favOf(f)}
 		if d, ok := dishOfKind(f.Fed); ok && fullUntil(f) > now.Unix() {
-			rv.Fed = &mealView{f.Fed, d.name, d.tier, mealTakes[d.tier], mealEyes[d.tier], mealBoost[d.tier], fullUntil(f) - now.Unix()}
+			rv.Fed = &mealView{f.Fed, d.name, d.tier, mealTakes[d.tier], mealEyes[d.tier], mealBoost[d.tier], fullUntil(f) - now.Unix(), f.Fed == f.FavDish}
 		}
 		if canWork(f, now) {
 			rv.Work = workOf(f, xpOf(xp, f.ID), now)
