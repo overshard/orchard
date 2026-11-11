@@ -16,9 +16,10 @@ import (
 const (
 	slotLen  = 10 * time.Minute
 	daySlots = 144
-	// Flow is compared with the week before, and kept a little longer.
+	// Flow is compared with the week before, and kept a little longer so the
+	// day before's news can still be worked out at a close.
 	flowWeek = 7
-	flowKeep = 9
+	flowKeep = 10
 	// Added to both sides of a flow's ratio, so a quiet market barely moves.
 	flowDamp = 10.0
 )
@@ -102,7 +103,7 @@ func dayShift(day string, by int) string {
 }
 
 func loadFlows(q querier, day string) (flowBook, error) {
-	rows, err := q.Query(`SELECT key, day, hour, n FROM market_flow WHERE day >= ? AND day <= ?`, dayShift(day, -flowWeek-1), day)
+	rows, err := q.Query(`SELECT key, day, hour, n FROM market_flow WHERE day >= ? AND day <= ?`, dayShift(day, -flowWeek-2), day)
 	if err != nil {
 		return nil, err
 	}
@@ -210,6 +211,9 @@ func priceAt(a asset, d draw, book flowBook, day string, open float64, at time.T
 	x := walk(t, d, n)
 	pull := book.pull(a, day, at, full)
 	x += t.beta * pull / math.Ln2
+	if a.Kind == kindShare {
+		x += newsMove(book.newsOn(day), a.Key, frac)
+	}
 	switch {
 	case a.Kind == kindCoin && open < coinFloor:
 		x += coinLean * frac * math.Log(coinFloor/open)

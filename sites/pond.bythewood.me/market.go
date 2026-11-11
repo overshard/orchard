@@ -415,6 +415,8 @@ type marketView struct {
 	// Worth of the shares and coin held at today's price and at the last close.
 	Worth     int `json:"worth"`
 	WorthPrev int `json:"worth_prev"`
+	// News is the story in today's paper that moves a share, if there is one.
+	News *news `json:"news,omitempty"`
 }
 
 func marketOf(q querier, p *pond, now time.Time) (marketView, error) {
@@ -424,6 +426,9 @@ func marketOf(q querier, p *pond, now time.Time) (marketView, error) {
 		return marketView{}, err
 	}
 	v := marketView{Cap: marketCap(p, rank), Lot: lot, Firms: []firmView{}}
+	if v.News, err = newsFor(q, day); err != nil {
+		return v, err
+	}
 	v.Fees.Share, v.Fees.Good, v.Fees.Coin = int(shareFee*100), int(goodFee*100), int(coinFee*100)
 	if v.Room, err = roomLeft(q, p.ID, buyerMarket, day); err != nil {
 		return v, err
