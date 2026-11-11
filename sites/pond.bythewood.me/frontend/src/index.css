@@ -39,8 +39,11 @@
   box-sizing: border-box;
 }
 
+/* Anything that sticks out on Firefox Android would widen the layout viewport
+   and stretch every fixed layer with it, the games and the gazette included. */
 html {
   background: var(--bg);
+  overflow-x: clip;
 }
 
 /* The panel's brushed grain, faint enough to only read up close. */
