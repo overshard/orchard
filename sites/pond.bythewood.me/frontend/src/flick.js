@@ -1,5 +1,5 @@
-import { sfx } from "./sound.js";
 import { cells, colours, draw, W as FW, H as FH } from "./frog.js";
+import { feel } from "./feel.js";
 
 // Tongue flick. The frog sits on a pad and bugs cross over it for thirty
 // seconds. A tap shoots the tongue at that spot, a bug near the tip comes
@@ -13,6 +13,7 @@ const KINDS = [
 ];
 
 let G = null, spr = null, col = null;
+const F = feel();
 
 function pick() {
   let r = Math.random() * KINDS.reduce((a, b) => a + b.w, 0);
@@ -28,7 +29,7 @@ function spawn() {
 function mouth() { return { x: W / 2, y: H - 58 }; }
 
 export const flick = {
-  key: "flick", W, H, title: "TONGUE FLICK",
+  key: "flick", W, H, title: "TONGUE FLICK", feel: F,
   edge: ["#24485a", "#0e2c30"],
   help: ["TAP A BUG TO FLICK AT IT", "FIREFLIES PAY THE MOST", "WASPS STING", "TAP TO START"],
 
@@ -36,7 +37,7 @@ export const flick = {
     const stage = ["egg", "tadpole"].includes(p.frog.stage) ? "froglet" : p.frog.stage;
     spr = cells(g, stage, { hat: p.frog.hat.shape });
     col = colours(g, p.frog.hat);
-    G = { t: 0, bugs: [], next: 0.3, tongue: null, streak: 0, score: 0, stun: 0, pops: [], why: "" };
+    G = { t: 0, bugs: [], next: 0.3, tongue: null, streak: 0, score: 0, stun: 0, why: "" };
   },
 
   press(x, y) {
@@ -61,8 +62,8 @@ export const flick = {
         if (hit) {
           G.bugs.splice(G.bugs.indexOf(hit), 1);
           if (hit.kind.k === "wasp") {
-            G.stun = 1.1; G.streak = 0; sfx("bonk");
-            G.pops.push({ x: tx, y: ty, s: "OW", c: "#e2412d", t: 0 });
+            G.stun = 1.1; G.streak = 0;
+            F.crash(tx, ty, { s: "OW" });
           } else tg.bug = hit;
           tg.out = false;
         } else if (tg.k >= 1) tg.out = false;
@@ -74,16 +75,13 @@ export const flick = {
             let pts = tg.bug.kind.pts;
             if (G.streak % 5 === 0) pts += 5;
             G.score += pts;
-            const m = mouth();
-            sfx("catch");
-            G.pops.push({ x: m.x, y: m.y - 30, s: "+" + pts, c: G.streak % 5 === 0 ? "#ffb000" : "#ece5d8", t: 0 });
+            const m = mouth(), five = G.streak % 5 === 0;
+            F.got(m.x, m.y - 20, "+" + pts, { streak: G.streak, big: five, c: five ? "#ffb000" : "#ece5d8" });
           } else if (G.stun === 0) G.streak = 0;
           G.tongue = null;
         }
       }
     }
-    G.pops.forEach((p) => { p.t += dt; p.y -= dt * 20; });
-    G.pops = G.pops.filter((p) => p.t < 0.8);
     if (G.t >= ROUND) G.why = "TIME'S UP";
   },
 
@@ -113,7 +111,7 @@ export const flick = {
     });
     const fx = Math.round(W / 2 - FW), fy = H - 30 - FH * 2 + 4;
     if (G.stun > 0 && Math.floor(G.stun * 10) % 2) x.globalAlpha = 0.5;
-    draw(x, spr, FW, FH, col, fx, fy, 2);
+    F.squashed(x, W / 2, fy + FH * 2, () => draw(x, spr, FW, FH, col, fx, fy, 2));
     x.globalAlpha = 1;
     const tg = G.tongue;
     if (tg) {
@@ -124,9 +122,7 @@ export const flick = {
       x.fillStyle = "#b3306d"; x.fillRect(Math.round(tx) - 2, Math.round(ty) - 2, 4, 4);
       if (tg.bug) { x.fillStyle = tg.bug.kind.c; x.fillRect(Math.round(tx) - 4, Math.round(ty) - 2, 8, 4); }
     }
-    x.font = "700 13px 'Space Grotesk', sans-serif"; x.textAlign = "center";
-    x.lineWidth = 3; x.strokeStyle = "#0a0908";
-    G.pops.forEach((p) => { x.strokeText(p.s, p.x, p.y); x.fillStyle = p.c; x.fillText(p.s, p.x, p.y); });
+    F.draw(x);
     x.fillStyle = "#0a0908"; x.fillRect(0, 0, W, 4);
     x.fillStyle = "#ffb000"; x.fillRect(0, 0, Math.round(W * Math.max(0, 1 - G.t / ROUND)), 4);
     x.textAlign = "left"; x.fillStyle = "#ece5d8"; x.fillText(String(G.score), 6, 20);
