@@ -17,6 +17,7 @@ function tierChip(t) {
 
 function thanks(shop, l, d) {
   const name = l.name.toLowerCase();
+  if (shop === "wren" && l.wanted) return "Little Tully found the " + name + " you asked for. It's in your hats.";
   if (shop === "wren") return d.spare ? "Little Tully wraps the " + name + ". You had one already, so it's a spare." : "Little Tully wraps the " + name + ". It's in your hats.";
   if (shop === "fenn") return "Tansy sets the " + name.replace(/^a /, "") + " down by the water. Go and have a look.";
   if (shop === "brindle") return "Big Bean hands over the " + name + ". It's in the kitchen.";
@@ -36,6 +37,11 @@ function shelf(shop, sv, pebbles) {
     what.className = "what";
     what.append(name);
     if (l.hat) what.append(tierChip(l.tier));
+    if (l.wanted) {
+      const tag = document.createElement("span");
+      tag.className = "wantedtag"; tag.textContent = "WANTED";
+      what.append(tag);
+    }
     if (l.was) {
       const was = document.createElement("s");
       was.textContent = l.was.toLocaleString("en-US");
@@ -68,6 +74,9 @@ function shelf(shop, sv, pebbles) {
 function render(p) {
   SHOPS.forEach((shop) => shelf(shop, p.shops[shop], p.pebbles));
   $("wren-note").textContent = "New hats at midnight, in " + hours(p.shops.wren.next_in) + ". One of each.";
+  const w = p.want, note = $("wren-want");
+  note.hidden = !w.hat || w.ready;
+  if (w.hat && !w.ready) note.textContent = "Looking out for the hat you asked for. " + w.fill.toLocaleString("en-US") + " of " + w.bar.toLocaleString("en-US") + " in spares so far.";
   $("brindle-note").textContent = p.shops.brindle.sale
     ? "The market's down today, so everything's a quarter off. New stock at midnight."
     : "Prices follow the market, and a down day is a sale. New stock at midnight.";

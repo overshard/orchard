@@ -56,6 +56,10 @@ func todoOf(v *view) []todo {
 		add("stall", "i_town", fmt.Sprintf("Stall sold %d", v.Stall.Takings), "town")
 	}
 
+	if w := v.Want; w.Ready && v.Pebbles >= w.Price {
+		add("wanted", "hat", "Little Tully has your "+strings.ToLower(w.Hat.Name), "town")
+	}
+
 	left := func(paid, cap, runs, full int) int {
 		if paid >= cap {
 			return 0
