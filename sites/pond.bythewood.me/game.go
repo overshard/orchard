@@ -1,6 +1,8 @@
 package main
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"math/rand/v2"
@@ -214,16 +216,25 @@ func sitesSeen(q querier, id int64) ([]hat, error) {
 	return out, rows.Err()
 }
 
+// A site can draw more than one frog on a page, so the visit that finds a hat
+// stays news for a minute and each of them hears about it.
+const visitNews = time.Minute
+
 // visit marks a pond's frog as having turned up on a site, and says whether
-// that was the first time.
+// that only just happened.
 func (s *store) visit(id int64, site int) (bool, error) {
-	res, err := s.w.Exec(`INSERT INTO visits (pond_id, host, at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING`,
-		id, siteHats[site].host, s.now().Unix())
-	if err != nil {
+	now := s.now()
+	var at int64
+	err := s.r.QueryRow(`SELECT at FROM visits WHERE pond_id = ? AND host = ?`, id, siteHats[site].host).Scan(&at)
+	if err == nil {
+		return now.Sub(time.Unix(at, 0)) < visitNews, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
 		return false, err
 	}
-	n, err := res.RowsAffected()
-	return n > 0, err
+	_, err = s.w.Exec(`INSERT INTO visits (pond_id, host, at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING`,
+		id, siteHats[site].host, now.Unix())
+	return err == nil, err
 }
 
 func wrenPays(h hat) int { return hatRate[h.tier()] / 4 }

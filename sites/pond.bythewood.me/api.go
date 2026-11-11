@@ -411,8 +411,8 @@ func (s *site) apiPanel(w http.ResponseWriter, r *http.Request) {
 	if id, _, err := s.pondOf(r); err == nil {
 		if v, err := s.store.view(id); err == nil {
 			out := panel{Frog: v.Frog, Pebbles: v.Pebbles, Power: v.Share.Power.Total, Rank: v.Share.Power.Rank, Todo: v.Todo}
-			if from >= 0 && !v.Sites[from].Got {
-				if first, err := s.store.visit(id, from); err == nil && first {
+			if from >= 0 {
+				if news, err := s.store.visit(id, from); err == nil && news {
 					st := v.Sites[from]
 					st.Got = true
 					out.Found = &st
