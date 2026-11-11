@@ -256,16 +256,51 @@ var hatsByTier = func() [tierCount][]hat {
 // Out of 100, common first. The hats page prints these.
 var boxOdds = [tierCount]int{50, 28, 14, 6, 2}
 
-func rollBox() hat {
+const (
+	tierRare = 2
+	// A pond that opens this many boxes of a sort in a row with no rare in
+	// them gets a rare in the next. A box that was going to be better than
+	// rare anyway still is, so the meter never takes anything away.
+	pityAt = 10
+)
+
+func rollTier() int {
 	r, acc := rand.IntN(100), 0
 	for t, w := range boxOdds {
 		acc += w
 		if r < acc {
-			return hatOfTier(t)
+			return t
 		}
 	}
-	return hatOfTier(0)
+	return 0
 }
+
+// boxTier is the tier of the next box for a pond that has gone pity boxes
+// without a rare, and what its meter reads after.
+func boxTier(pity int) (int, int) {
+	t := rollTier()
+	if pity >= pityAt {
+		t = max(t, tierRare)
+	}
+	if t >= tierRare {
+		return t, 0
+	}
+	return t, pity + 1
+}
+
+type pityView struct {
+	Count int `json:"count"`
+	At    int `json:"at"`
+	// Boxes until one is sure to be a rare or better, 1 for the next.
+	In int `json:"in"`
+}
+
+func pityOf(n int) pityView {
+	n = min(n, pityAt)
+	return pityView{n, pityAt, pityAt - n + 1}
+}
+
+func rollBox() hat { return hatOfTier(rollTier()) }
 
 func hatOfTier(t int) hat { return hatsByTier[t][rand.IntN(len(hatsByTier[t]))] }
 

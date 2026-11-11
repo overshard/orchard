@@ -200,7 +200,9 @@ func (s *store) box(id int64) (*opened, error) {
 			return errPoor
 		}
 		p.Pebbles -= boxCost
-		h := rollBox()
+		var tier int
+		tier, p.HatPity = boxTier(p.HatPity)
+		h := hatOfTier(tier)
 		out.Prize = prize{Hat: &h}
 		return award(tx, p, &out.Prize)
 	})

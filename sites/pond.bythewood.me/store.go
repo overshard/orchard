@@ -51,6 +51,8 @@ CREATE TABLE IF NOT EXISTS ponds (
     days_visited    INTEGER NOT NULL DEFAULT 0,
     visit_day       TEXT NOT NULL DEFAULT '',
     played_at       INTEGER NOT NULL DEFAULT 0,
+    hat_pity        INTEGER NOT NULL DEFAULT 0,
+    trinket_pity    INTEGER NOT NULL DEFAULT 0,
     key_saved_at    INTEGER
 );
 CREATE INDEX IF NOT EXISTS ponds_created ON ponds(created_at);
@@ -303,6 +305,8 @@ var addedColumns = []struct{ table, name, def string }{
 	{"frogs", "fav_hat", "TEXT NOT NULL DEFAULT ''"},
 	{"arcade", "keep", "TEXT NOT NULL DEFAULT ''"},
 	{"arcade", "kept", "INTEGER NOT NULL DEFAULT 0"},
+	{"ponds", "hat_pity", "INTEGER NOT NULL DEFAULT 0"},
+	{"ponds", "trinket_pity", "INTEGER NOT NULL DEFAULT 0"},
 }
 
 func ensureColumns(db *sql.DB) error {
@@ -461,6 +465,8 @@ type pond struct {
 	VisitDay    string
 	// PlayedAt is when the last run of any game finished.
 	PlayedAt int64
+	// Boxes of each sort opened in a row with no rare in them.
+	HatPity, TrinketPity int
 	// today is the pond's date in the move being made, for what's kept by day.
 	today string
 
@@ -487,7 +493,7 @@ const pondColumns = `p.id, p.public_id, p.created_at, p.last_seen_at, p.last_gif
 	p.dive_best, p.dive_day, p.dive_runs, p.dive_paid, p.dive_run, p.dive_started_at,
 	p.dive_ghosts, p.dive_podium, p.pads, p.key_saved_at,
 	p.gravel_level, p.gravel_at, p.garden_level, p.dive_form,
-	p.dye_level, p.dye_at, p.dye_batch, p.trinkets_out, p.forage_day, p.staged, p.tried, p.days_visited, p.visit_day, p.played_at, f.id, f.seed, f.genome_json, f.hatched_at,
+	p.dye_level, p.dye_at, p.dye_batch, p.trinkets_out, p.forage_day, p.staged, p.tried, p.days_visited, p.visit_day, p.played_at, p.hat_pity, p.trinket_pity, f.id, f.seed, f.genome_json, f.hatched_at,
 	f.hat_shape, f.hat_colour, f.name`
 
 func scanPond(row *sql.Row) (*pond, error) {
@@ -497,7 +503,7 @@ func scanPond(row *sql.Row) (*pond, error) {
 		&p.DiveBest, &p.DiveDay, &p.DiveRuns, &p.DivePaid, &p.DiveRun, &p.DiveStart,
 		&p.DiveGhosts, &p.DivePodium, &p.Pads, &p.KeySavedAt,
 		&p.GravelLevel, &p.GravelAt, &p.GardenLevel, &p.DiveForm,
-		&p.DyeLevel, &p.DyeAt, &p.DyeBatch, &p.TrinketsOut, &p.ForageDay, &p.Staged, &p.Tried, &p.DaysVisited, &p.VisitDay, &p.PlayedAt, &p.FrogID, &p.Seed, &p.ModsJSON, &p.HatchedAt,
+		&p.DyeLevel, &p.DyeAt, &p.DyeBatch, &p.TrinketsOut, &p.ForageDay, &p.Staged, &p.Tried, &p.DaysVisited, &p.VisitDay, &p.PlayedAt, &p.HatPity, &p.TrinketPity, &p.FrogID, &p.Seed, &p.ModsJSON, &p.HatchedAt,
 		&p.Wearing.Shape, &p.Wearing.Colour, &p.FrogName)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, errNoPond
@@ -520,13 +526,13 @@ func savePond(tx *sql.Tx, p *pond) error {
 		dive_started_at = ?, dive_ghosts = ?, dive_podium = ?, pads = ?, key_saved_at = ?,
 		gravel_level = ?, gravel_at = ?, garden_level = ?, dive_form = ?,
 		dye_level = ?, dye_at = ?, dye_batch = ?, trinkets_out = ?, forage_day = ?,
-		days_visited = ?, visit_day = ?, played_at = ? WHERE id = ?`,
+		days_visited = ?, visit_day = ?, played_at = ?, hat_pity = ?, trinket_pity = ? WHERE id = ?`,
 		p.LastSeenAt, p.LastGiftAt, p.Pebbles, p.FreeSpins, p.SpinAt, p.PaidSpins, p.PaidDay,
 		p.LogDay, p.DiveBest, p.DiveDay, p.DiveRuns, p.DivePaid, p.DiveRun, p.DiveStart,
 		p.DiveGhosts, p.DivePodium, p.Pads, p.KeySavedAt,
 		p.GravelLevel, p.GravelAt, p.GardenLevel, p.DiveForm,
 		p.DyeLevel, p.DyeAt, p.DyeBatch, p.TrinketsOut, p.ForageDay,
-		p.DaysVisited, p.VisitDay, p.PlayedAt, p.ID); err != nil {
+		p.DaysVisited, p.VisitDay, p.PlayedAt, p.HatPity, p.TrinketPity, p.ID); err != nil {
 		return err
 	}
 	_, err := tx.Exec(`UPDATE frogs SET hat_shape = ?, hat_colour = ? WHERE id = ?`,
@@ -766,6 +772,7 @@ type view struct {
 	Box struct {
 		Cost int            `json:"cost"`
 		Odds [tierCount]int `json:"odds"`
+		Pity pityView       `json:"pity"`
 	} `json:"box"`
 	Frogs   []reedView `json:"frogs"`
 	Pads    int        `json:"pads"`
@@ -850,7 +857,7 @@ func viewOf(q querier, p pond, now time.Time) (*view, error) {
 	for i := range v.Dive.Podium {
 		v.Dive.Podium[i] = p.DivePodium&(1<<i) != 0
 	}
-	v.Box.Cost, v.Box.Odds = boxCost, boxOdds
+	v.Box.Cost, v.Box.Odds, v.Box.Pity = boxCost, boxOdds, pityOf(p.HatPity)
 	// Three days in, the page says once to save the key, until it has been.
 	v.Nudge = !p.KeySavedAt.Valid && now.Unix()-p.CreatedAt >= 3*86400
 

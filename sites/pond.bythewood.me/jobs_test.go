@@ -161,7 +161,7 @@ func TestA99EarnsTheHood(t *testing.T) {
 
 func TestPetsOnlyComeFromWork(t *testing.T) {
 	for range 2000 {
-		if k := rollTrinket().kind; pets[k] != "" {
+		if k := trinketOfTier(rollTier()).kind; pets[k] != "" {
 			t.Fatalf("a box gave %s", k)
 		}
 	}

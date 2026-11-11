@@ -454,10 +454,8 @@ func TestHatCatalogue(t *testing.T) {
 // What broke Neopets was money with nowhere to go. A box has to take out more
 // than selling everything in it puts back, or boxes mint pebbles.
 func TestABoxCostsMoreThanItsSparesSellFor(t *testing.T) {
-	back := 0.0
-	for tier, hats := range hatsByTier {
-		back += float64(boxOdds[tier]) / 100 * float64(wrenPays(hats[0]))
-	}
+	back := boxWorth(func(tier int) float64 { return float64(wrenPays(hatsByTier[tier][0])) })
+	t.Logf("a box's spares sell back to Little Tully for %.1f", back)
 	if back >= boxCost {
 		t.Errorf("a box costs %d and sells back for %.1f on average", boxCost, back)
 	}

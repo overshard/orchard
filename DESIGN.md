@@ -728,6 +728,10 @@ version of the old look and a handheld pet shell.
   Sedge, and a slot says RECORD in amber once the pond has beaten it. The
   round that does it gets a line from Sedge under the catch, in his own
   words and not in caps, and a line in the paper's Records the day after.
+- **A box has a meter.** The hat box and the trinket box each have a bar of
+  the same lit notches as the collection's, under the odds, with one line
+  saying how many boxes until a rare or better is sure. It fills a notch a
+  plain box and empties on a rare, and the odds line says the rule.
 - **A prize pops up in the middle** with slow rays behind it in its tier's
   colour, and stays until it's tapped away. A bad turn of the wizard's gets no
   rays.

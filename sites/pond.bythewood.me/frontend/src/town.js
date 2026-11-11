@@ -38,11 +38,21 @@ function boxBuy(id, path, shop) {
   });
 }
 
+// A meter fills a notch a box with no rare in it, and a full one makes the
+// next box a rare or better.
+function pity(id, m) {
+  $(id).style.transform = "scaleX(" + m.count / m.at + ")";
+  $(id + "-n").textContent = m.in <= 1 ? "The next box is a sure rare or better." : "Sure rare or better in " + m.in + " boxes.";
+}
+
 function renderBoxes(p) {
   const hb = $("box-open"), tb = $("trinket-box");
   hb.textContent = p.box.cost; hb.disabled = p.pebbles < p.box.cost;
   tb.textContent = p.trinkets.box_cost; tb.disabled = p.pebbles < p.trinkets.box_cost;
-  $("box-odds").textContent = p.box.odds.map((o, t) => o + "% " + TIERS[t].toLowerCase()).slice(2).join(", ");
+  $("box-odds").textContent = p.box.odds.map((o, t) => o + "% " + TIERS[t].toLowerCase()).slice(2).join(", ")
+    + ". A rare or better every " + (p.box.pity.at + 1) + " boxes at worst.";
+  pity("box-pity", p.box.pity);
+  pity("trinket-pity", p.trinkets.pity);
 }
 
 // ---------------------------------------------------------------- the stall

@@ -220,10 +220,8 @@ func TestStallOddsFollowThePrice(t *testing.T) {
 }
 
 func TestStallSparesDontPayForTheBox(t *testing.T) {
-	sum := 0.0
-	for tier, o := range boxOdds {
-		sum += float64(o) / 100 * float64(int(float64(hatRate[tier])*boxedShare))
-	}
+	sum := boxWorth(func(tier int) float64 { return float64(int(float64(hatRate[tier]) * boxedShare)) })
+	t.Logf("a box's spares fetch %.1f on the stall", sum)
 	if sum >= boxCost || sum >= trinketBoxCost {
 		t.Fatalf("a box's spares fetch %.1f on the stall", sum)
 	}
