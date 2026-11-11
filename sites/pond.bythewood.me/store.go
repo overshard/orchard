@@ -947,9 +947,11 @@ type view struct {
 	Arcade  []arcadeView `json:"arcade"`
 	Fishing fishingView  `json:"fishing"`
 	// What Tansy sold this pond, drawn on the water.
-	Furniture []string   `json:"furniture"`
-	Bag       []bagThing `json:"bag"`
-	Stall     stallView  `json:"stall"`
+	Furniture []string `json:"furniture"`
+	// Frames is what Marsh sold this pond for the postcard.
+	Frames []string   `json:"frames"`
+	Bag    []bagThing `json:"bag"`
+	Stall  stallView  `json:"stall"`
 	// Room is what's left of each buyer's day, by shop key, out of SellRoom.
 	Room     map[string]int `json:"room"`
 	SellRoom int            `json:"sell_room"`
@@ -1111,6 +1113,7 @@ func viewOf(q querier, p pond, now time.Time, key []byte) (*view, error) {
 
 	v.Items = []itemView{}
 	v.Furniture = []string{}
+	v.Frames = []string{}
 	v.held = map[string]int{}
 	rows, err = q.Query(`SELECT kind, count FROM items WHERE pond_id = ? AND count > 0`, p.ID)
 	if err != nil {
@@ -1128,6 +1131,10 @@ func viewOf(q querier, p pond, now time.Time, key []byte) (*view, error) {
 		}
 		if strings.HasPrefix(it.Kind, "f_") {
 			v.Furniture = append(v.Furniture, it.Kind)
+			continue
+		}
+		if isFrame(it.Kind) {
+			v.Frames = append(v.Frames, it.Kind)
 			continue
 		}
 		if _, food := ingredientOf(it.Kind); food || strings.HasPrefix(it.Kind, "dish_") {

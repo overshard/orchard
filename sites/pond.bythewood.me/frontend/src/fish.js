@@ -191,6 +191,7 @@ export const fish = {
   dealt(d) {
     if (!d.fish) return;
     table = d.fish;
+    if (d.bait) pop(W / 2, SURF - 30, d.bait === "bait_lure" ? "GLOW LURE ON" : "WORMS ON", "#ffe27a");
     if (G) G.fish = G.fish.filter((f) => f.st !== "swim" || table[f.sp.k] > 0);
   },
 

@@ -429,7 +429,7 @@ var strategies = []strategy{
 				continue
 			}
 			if f.Held > 0 && f.Worth > f.Cost*21/20 {
-				if _, err := s.trade(id, f.Key, f.Held, true); err != nil {
+				if _, err := s.trade(id, f.Key, min(f.Held, 100), true); err != nil {
 					t.Fatal(err)
 				}
 			} else if f.Price*50 < f.Prev*49 {
