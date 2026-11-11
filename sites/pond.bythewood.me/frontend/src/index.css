@@ -4578,6 +4578,32 @@ button.big {
   color: #ff8a8a;
 }
 
+/* Dividends waiting are a row like the Next strip's, collected in place. */
+#mkt-div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: 3px;
+  background: var(--panel);
+  box-shadow: var(--raised);
+  font-size: 14px;
+}
+
+#mkt-div[hidden] {
+  display: none;
+}
+
+#mkt-div .what {
+  flex: 1;
+  min-width: 0;
+}
+
+#mkt-div button {
+  margin: 0 0 3px;
+}
+
 #mkt-tiles .v,
 .sheet .tiles .v {
   font-size: 13px;

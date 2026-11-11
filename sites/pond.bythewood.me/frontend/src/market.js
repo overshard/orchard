@@ -1,5 +1,6 @@
 import { $, post, setPond, watch, reduced } from "./api.js";
 import { openSheet, sheetSay, button } from "./ui.js";
+import { iconCanvas } from "./icons.js";
 
 // Each business has its own awning colour and a mark on its sign.
 const LOOK = {
@@ -9,30 +10,64 @@ const LOOK = {
   russell: ["#2fa59a", "T"],
   gold: ["#e0b030", "G"],
   oil: ["#4a3a2a", "O"],
-  bitcoin: ["#b8e05a", "C"],
   vix: ["#7a8798", "S"],
+  guild: ["#b8e05a", "B"],
+  reedcut: ["#6b9a3f", "R"],
+  claypit: ["#a8642e", "C"],
+  gatherers: ["#8a5a2b", "S"],
+  divers: ["#63a9c9", "D"],
+  fishery: ["#9fb7c0", "F"],
+  gardens: ["#58b85a", "G"],
 };
 
 const GLYPH = {
   L: ["1..", "1..", "1..", "111"], B: ["11.", "111", "1.1", "111"], R: ["11.", "1.1", "11.", "1.1"],
   T: ["111", ".1.", ".1.", ".1."], G: [".11", "1..", "1.1", ".11"], O: [".1.", "1.1", "1.1", ".1."],
-  C: [".11", "1..", "1..", ".11"], S: [".11", ".1.", "..1", "11."],
+  C: [".11", "1..", "1..", ".11"], S: [".11", ".1.", "..1", "11."], D: ["11.", "1.1", "1.1", "11."],
+  F: ["111", "1..", "11.", "1.."],
 };
+
+const BUCKETS = [["share", "Shares"], ["good", "Goods"], ["coin", "Coin"]];
+let bucket = "share";
+
+function canvas(w, h, s) {
+  const cv = document.createElement("canvas");
+  cv.width = w * s; cv.height = h * s;
+  cv.setAttribute("aria-hidden", "true");
+  const x = cv.getContext("2d");
+  return [cv, (c, r, ww, hh, f) => { x.fillStyle = f; x.fillRect(c * s, r * s, ww * s, hh * s); }];
+}
 
 // A shopfront in pixels, an awning in its colour over a door and its sign.
 function front(key, s) {
   const [col, g] = LOOK[key] || ["#888", "?"];
-  const cv = document.createElement("canvas");
-  cv.width = 19 * s; cv.height = 12 * s;
-  const x = cv.getContext("2d"), px = (c, r, w, h, f) => { x.fillStyle = f; x.fillRect(c * s, r * s, w * s, h * s); };
+  const [cv, px] = canvas(19, 12, s);
   px(1, 3, 17, 9, "#c9b48a");
   for (let i = 0; i < 19; i += 2) { px(i, 1, 1, 3, col); px(i + 1, 1, 1, 3, "#f4f1e6"); }
   px(0, 0, 19, 1, col);
   px(3, 6, 4, 6, "#3a2a1c"); px(6, 9, 1, 1, "#e0b030");
   px(9, 5, 8, 6, "#1b1814");
   (GLYPH[g] || []).forEach((row, r) => [...row].forEach((ch, c) => { if (ch === "1") px(11 + c, 6 + r, 1, 1, col); }));
-  cv.setAttribute("aria-hidden", "true");
   return cv;
+}
+
+// Glowworm Coin, a gold coin with a glowworm curled on its face.
+const COIN = [
+  "...aaaaaa...", "..abbbbbba..", ".abbcccccba.", "abbcbbbbbcba", "abcbbddbbcba", "abcbdeedbcba",
+  "abcbdeedbcba", "abcbbdbbbcba", "abbcbbbbbcba", ".abbcccccba.", "..abbbbbba..", "...aaaaaa...",
+];
+const COIN_INK = { a: "#6b4a10", b: "#e0b030", c: "#ffe27a", d: "#7fd67f", e: "#d8ffb0" };
+
+function coinArt(s) {
+  const [cv, px] = canvas(12, 12, s);
+  COIN.forEach((row, r) => [...row].forEach((ch, c) => { if (COIN_INK[ch]) px(c, r, 1, 1, COIN_INK[ch]); }));
+  return cv;
+}
+
+function art(f, s) {
+  if (f.kind === "coin") return coinArt(s);
+  if (f.kind === "good") { const cv = iconCanvas(f.item, s); cv.setAttribute("aria-hidden", "true"); return cv; }
+  return front(f.key, s);
 }
 
 // The closes so far and then today's prices as a stepped pixel line in
@@ -46,7 +81,7 @@ function chart(f, h) {
   x.fillStyle = "#0b1006"; x.fillRect(0, 0, W, h);
   x.fillStyle = "rgba(125,141,98,0.18)";
   for (let y = 12; y < h; y += 20) x.fillRect(0, y, W, 1);
-  const paid = f.held ? f.cost / f.held : 0;
+  const paid = f.held && f.kind !== "good" ? f.cost / f.held : 0;
   const lo = Math.min(...pts, paid || Infinity), hi = Math.max(...pts, paid), span = Math.max(4, hi - lo), step = (W - 8) / Math.max(1, pts.length - 1);
   const yOf = (v) => h - 10 - Math.round(((v - lo) / span) * (h - 24) / 4) * 4;
   if (paid) { x.fillStyle = "rgba(236,229,216,0.35)"; for (let xx = 0; xx < W; xx += 8) x.fillRect(xx, yOf(paid) + 1, 4, 1); }
@@ -69,6 +104,9 @@ function arrow(f) { return f.price > f.prev ? "▲" : f.price < f.prev ? "▼" :
 function signed(n, unit) { return (n > 0 ? "+" : "") + n + (unit || ""); }
 function dayPct(f) { return f.prev ? Math.round((f.price - f.prev) / f.prev * 1000) / 10 : 0; }
 function gainPct(worth, cost) { return cost ? Math.round((worth - cost) / cost * 1000) / 10 : 0; }
+function lots(f) { return Math.floor(f.held / state.lot); }
+
+const state = { lot: 10, fees: {} };
 
 function tile(k, v, cls) {
   const box = document.createElement("span"), kk = document.createElement("span"), vv = document.createElement("span");
@@ -78,13 +116,20 @@ function tile(k, v, cls) {
   return box;
 }
 
+function tiles(...ts) {
+  const t = document.createElement("div");
+  t.className = "tiles";
+  t.append(...ts);
+  return t;
+}
+
 function trade(f, n, sell, b) {
   b.disabled = true;
   post("/api/market", { key: f.key, n, sell }).then((v) => {
     setPond(v);
-    const now = v.market.firms.find((x) => x.key === f.key);
-    show(now);
-    sheetSay(sell ? "Sold " + n + "." : "Bought " + n + ".");
+    show(v.market.firms.find((x) => x.key === f.key));
+    const what = f.kind === "good" ? (n === 1 ? "a lot" : n + " lots") : String(n);
+    sheetSay((sell ? "Sold " : "Bought ") + what + ".");
   }, (e) => { sheetSay(e.message); b.disabled = false; });
 }
 
@@ -99,74 +144,120 @@ function keys(...btns) {
 function sell(f, n, b) {
   const back = f.sell * n, paid = Math.round(f.cost * n / f.held);
   if (back >= paid) return trade(f, n, true, b);
-  openSheet({ art: front(f.key, 4), name: f.name }, "That's " + back + " back for shares that cost " + paid + ", " + gainPct(back, paid) + "%. Prices come back as often as not.", (body) => {
+  openSheet({ art: art(f, 4), name: f.name }, "That's " + back + " back for what cost " + paid + ", " + gainPct(back, paid) + "%. Prices come back as often as not.", (body) => {
     body.append(keys(button("Wait", () => show(f), "primary"), button("Sell anyway", (bb) => trade(f, n, true, bb))));
   });
 }
 
 function holding(f) {
-  const t = document.createElement("div"), g = f.worth - f.cost;
-  t.className = "tiles";
-  t.append(tile("Held", f.held), tile("Paid", f.cost), tile("Worth now", f.worth), tile("If sold", signed(g) + " · " + signed(gainPct(f.worth, f.cost), "%"), g < 0 ? "down" : "up"));
-  return t;
+  const g = f.worth - f.cost;
+  return tiles(tile(f.kind === "coin" ? "Coins" : "Held", f.held), tile("Paid", f.cost), tile("Worth now", f.worth),
+    tile("If sold", signed(g) + " · " + signed(gainPct(f.worth, f.cost), "%"), g < 0 ? "down" : "up"));
+}
+
+function sayOf(f) {
+  const today = signed(dayPct(f), "%") + " today.";
+  if (f.kind === "good") return "The more " + f.moves + " every pond brings in, the cheaper it gets. A lot of " + state.lot + " is " + f.price + ", " + today;
+  if (f.kind === "coin") return "Swings far more than anything else on the board. A coin is " + f.price + ", " + today;
+  return "Moves with " + f.moves + " across every pond. A share is " + f.price + ", " + today;
 }
 
 function show(f) {
-  const what = "Follows " + f.follows + ". A share is " + f.price + ", " + signed(dayPct(f), "%") + " today.";
-  openSheet({ art: front(f.key, 4), name: f.name }, what, (body) => {
+  openSheet({ art: art(f, 4), name: f.name }, sayOf(f), (body) => {
     body.append(chart(f, 96));
-    if (f.held) body.append(holding(f));
-    const btns = [button("Buy 1 for " + f.buy, (b) => trade(f, 1, false, b), "primary"), button("Buy 5 for " + f.buy * 5, (b) => trade(f, 5, false, b))];
-    if (f.held) btns.push(button("Sell 1 for " + f.sell, (b) => sell(f, 1, b)));
-    if (f.held > 1) btns.push(button("Sell all for " + f.worth, (b) => sell(f, f.held, b)));
+    let btns;
+    if (f.kind === "good") {
+      body.append(tiles(tile("In the bag", f.held), tile("Lots", lots(f)), tile("Lot to buy", f.buy), tile("Sells for", f.sell)));
+      btns = [button("Buy a lot for " + f.buy, (b) => trade(f, 1, false, b), "primary"), button("Buy 5 for " + f.buy * 5, (b) => trade(f, 5, false, b))];
+      if (lots(f)) btns.push(button("Sell a lot for " + f.sell, (b) => trade(f, 1, true, b)));
+      if (lots(f) > 1) btns.push(button("Sell " + Math.min(lots(f), 100) + " lots", (b) => trade(f, Math.min(lots(f), 100), true, b)));
+    } else {
+      if (f.kind === "share") body.append(tiles(tile("A share pays", f.div.toFixed(2)), tile("A day held", (f.div * f.held).toFixed(1))));
+      if (f.held) body.append(holding(f));
+      btns = [button("Buy 1 for " + f.buy, (b) => trade(f, 1, false, b), "primary"), button("Buy 5 for " + f.buy * 5, (b) => trade(f, 5, false, b))];
+      if (f.held) btns.push(button("Sell 1 for " + f.sell, (b) => sell(f, 1, b)));
+      if (f.held > 1) btns.push(button("Sell all for " + f.worth, (b) => sell(f, Math.min(f.held, 100), b)));
+    }
     body.append(keys(...btns));
   });
 }
 
+function collect(b) {
+  b.disabled = true;
+  post("/api/market", { collect: true }).then((r) => {
+    setPond(r.pond);
+    $("mkt-out").textContent = r.pebbles ? "Collected " + r.pebbles + " in dividends." : "";
+  }, (e) => { $("mkt-out").textContent = e.message; b.disabled = false; });
+}
+
+function card(f) {
+  const li = document.createElement("li"), head = document.createElement("div"), what = document.createElement("span"), name = document.createElement("b"), sub = document.createElement("span");
+  head.className = "firm";
+  what.className = "what";
+  name.textContent = f.name;
+  sub.className = "dim";
+  sub.textContent = f.kind === "good" ? f.held + " in the bag" : f.kind === "coin" ? "swings hard" : "moves with " + f.moves;
+  what.append(name, sub);
+  const price = document.createElement("span"), dir = f.price > f.prev ? "up" : f.price < f.prev ? "down" : "";
+  price.className = "readout px " + dir;
+  price.innerHTML = '<span class="v"></span><span class="k"></span>';
+  price.firstChild.textContent = f.price + " " + arrow(f);
+  price.lastChild.textContent = signed(dayPct(f), "%") + (f.kind === "good" ? " a lot" : " today");
+  head.append(art(f, f.kind === "share" ? 2 : 4), what, price);
+  li.append(head, chart(f, f.kind === "coin" ? 120 : 56));
+  if (f.held && f.kind !== "good") {
+    const own = document.createElement("p"), gain = f.worth - f.cost;
+    own.className = "own " + (gain < 0 ? "down" : "up");
+    own.textContent = f.held + " held · paid " + f.cost + " · worth " + f.worth + " · " + signed(gain) + " (" + signed(gainPct(f.worth, f.cost), "%") + ")";
+    if (f.kind === "share" && f.div) own.textContent += " · pays " + (f.div * f.held).toFixed(1) + " a day";
+    li.append(own);
+  }
+  li.tabIndex = 0;
+  li.setAttribute("role", "button");
+  li.addEventListener("click", () => show(f));
+  li.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); show(f); } });
+  return li;
+}
+
+const LINE = {
+  share: () => "Shares in the town's businesses. Each pays a little every evening it's held.",
+  good: (m) => "Goods by the lot of " + m.lot + ", into the bag and out of it. The market pays " + m.room + " more for goods today.",
+  coin: () => "Glowworm Coin. Big days both ways, and no telling which.",
+};
+
 function render(p) {
   const m = p.market;
   if (!m) return;
-  const g = m.worth - m.in, tiles = $("mkt-tiles");
-  tiles.replaceChildren(tile("Worth now", m.worth), tile("Paid", m.in), tile("Gain", m.in ? signed(g) + " · " + signed(gainPct(m.worth, m.in), "%") : "None", g < 0 ? "down" : "up"),
+  state.lot = m.lot; state.fees = m.fees;
+  const g = m.worth - m.in;
+  $("mkt-tiles").replaceChildren(tile("Worth now", m.worth), tile("Paid", m.in), tile("Gain", m.in ? signed(g) + " · " + signed(gainPct(m.worth, m.in), "%") : "None", g < 0 ? "down" : "up"),
     tile("Room", Math.max(0, m.cap - m.in)));
-  $("mkt-open").textContent = m.open ? "The board is open." : "The board is shut, only Glowworm Coin moves.";
-  $("mkt-help").textContent = "Eight businesses round the pond, each following something real: " +
-    m.firms.map((f) => f.name + " follows " + f.follows).join(", ") +
-    ". A share moves three times the real day and the close is kept each evening. Glowworm Coin trades every day and the rest on weekdays. " +
-    "Buying and selling each cost " + m.fee + " in a hundred, and how much you can hold grows with the bank. Prices can fall, and so can what you put in.";
+  const due = $("mkt-div");
+  due.hidden = !m.due && !m.daily;
+  if (!due.hidden) {
+    const say = document.createElement("span"), key = button("Collect", collect, "primary");
+    say.className = "what";
+    say.textContent = m.due ? m.due + " in dividends" : "Dividends come each evening";
+    key.disabled = !m.due;
+    due.replaceChildren(iconCanvas("peb", 3), say, tile("A day", m.daily.toFixed(1)), key);
+  }
+  $("mkt-help").textContent = "Shares are the businesses round the pond, and each one moves with what every pond did in its line of work that day, plus a little drift nobody can see coming. " +
+    "A share pays a dividend every evening off how its business did, collected here. Goods are bought and sold by the lot of " + m.lot + ", straight into the bag and out of it, and the more of a thing ponds bring in the cheaper it gets. " +
+    "Glowworm Coin swings far more than anything else and is worth about what it costs over time, so it's a gamble. " +
+    "Buying and selling cost " + m.fees.share + " in a hundred on shares, " + m.fees.good + " on goods and " + m.fees.coin + " on the coin. " +
+    "How much you can hold in shares and coin grows with the bank and with frog power. This is the one place pebbles can be lost to chance.";
+  const sorts = $("mkt-sorts");
+  sorts.replaceChildren(...BUCKETS.map(([k, label]) => {
+    const b = button(label, () => { bucket = k; render(p); });
+    b.setAttribute("aria-pressed", k === bucket ? "true" : "false");
+    return b;
+  }));
+  $("mkt-open").textContent = LINE[bucket](m);
   const tape = $("mkt-tape");
-  const bits = m.firms.map((f) => f.name.toUpperCase() + " " + f.price + " " + arrow(f));
+  const bits = m.firms.filter((f) => f.kind !== "good").map((f) => f.name.toUpperCase() + " " + f.price + " " + arrow(f));
   tape.textContent = bits.join("   ·   ") + "   ·   " + bits.join("   ·   ");
   tape.classList.toggle("still", reduced);
-  const list = $("mkt-list");
-  list.textContent = "";
-  m.firms.forEach((f) => {
-    const li = document.createElement("li"), head = document.createElement("div"), what = document.createElement("span"), name = document.createElement("b"), sub = document.createElement("span");
-    head.className = "firm";
-    what.className = "what";
-    name.textContent = f.name;
-    sub.className = "dim";
-    sub.textContent = "follows " + f.follows;
-    what.append(name, sub);
-    const price = document.createElement("span"), dir = f.price > f.prev ? "up" : f.price < f.prev ? "down" : "";
-    price.className = "readout px " + dir;
-    price.innerHTML = '<span class="v"></span><span class="k"></span>';
-    price.firstChild.textContent = f.price + " " + arrow(f);
-    price.lastChild.textContent = signed(dayPct(f), "%") + " today";
-    head.append(front(f.key, 2), what, price);
-    li.append(head, chart(f, 56));
-    if (f.held) {
-      const own = document.createElement("p"), gain = f.worth - f.cost;
-      own.className = "own " + (gain < 0 ? "down" : "up");
-      own.textContent = f.held + " held · paid " + f.cost + " · worth " + f.worth + " · " + signed(gain) + " (" + signed(gainPct(f.worth, f.cost), "%") + ")";
-      li.append(own);
-    }
-    li.tabIndex = 0;
-    li.setAttribute("role", "button");
-    li.addEventListener("click", () => show(f));
-    li.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); show(f); } });
-    list.append(li);
-  });
+  $("mkt-list").replaceChildren(...m.firms.filter((f) => f.kind === bucket).map(card));
 }
 
 export function initMarket() { watch(render); }

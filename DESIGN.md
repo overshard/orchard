@@ -713,7 +713,11 @@ version of the old look and a handheld pet shell.
   shopfront in its own awning colour with its price in glass, and a day down
   turns that price pink. The chart in a business's sheet is a stepped pixel
   line in glass, amber over thirty days that ended up and pink when down.
-  Only pebble prices are ever shown, never the real percent.
+  Three filter keys pick Shares, Goods or Coin. A good is its bag icon with
+  what's in the bag under its name and its price a lot, and Glowworm Coin is
+  a pixel gold coin over a taller chart. Dividends waiting are a row under the
+  tiles like a Next strip row, with what the shares pay a day in glass and an
+  amber COLLECT key, dark while there's nothing to take.
 - **The day has a mood.** A faint wash over the water per mood, grey on a down
   market, pale on a frost, warm on a bright one, and the frog has a tiny TV
   or handheld on the pad on a day it's watching or playing something.

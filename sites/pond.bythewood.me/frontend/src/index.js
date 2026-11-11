@@ -74,7 +74,7 @@ function seeOpen() {
 
 // What comes round every day is new each day, and the stall is new again
 // each time it sells more. The rest is new until it's been seen once.
-const DAILY = ["log", "dive", "arcade", "favour", "gift", "rested"];
+const DAILY = ["log", "dive", "arcade", "favour", "gift", "rested", "dividend"];
 
 function sortPips(p, todo) {
   if (seen.pond !== p.share.path) seen = { pond: p.share.path };
