@@ -68,7 +68,7 @@ func fail(w http.ResponseWriter, r *http.Request, err error) {
 		errors.Is(err, errFullPads), errors.Is(err, errMaxed), errors.Is(err, errSoldOut), errors.Is(err, errFed), errors.Is(err, errLevel), errors.Is(err, errToolLevel), errors.Is(err, errShort), errors.Is(err, errGiven),
 		errors.Is(err, errNoBurrow), errors.Is(err, errNotLodge), errors.Is(err, errHaveIt), errors.Is(err, errCap), errors.Is(err, errFirm), errors.Is(err, errCount),
 		errors.Is(err, errBeanFull), errors.Is(err, errStallPaid), errors.Is(err, errMothFull), errors.Is(err, errTullyFull),
-		errors.Is(err, errMarketFull), errors.Is(err, errNoLot):
+		errors.Is(err, errMarketFull), errors.Is(err, errNoLot), errors.Is(err, errBlackShut), errors.Is(err, errDealt), errors.Is(err, errNoCoin):
 		writeError(w, http.StatusConflict, err.Error())
 	default:
 		slog.Error("pond", slog.String("path", r.URL.Path), slog.Any("err", err))
@@ -666,6 +666,16 @@ func (s *site) apiShares(id int64, r *http.Request, w http.ResponseWriter) (any,
 		return s.store.collectDividends(id)
 	}
 	return s.store.trade(id, in.Key, in.N, in.Sell)
+}
+
+func (s *site) apiBlack(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	var in struct {
+		Slot int `json:"slot"`
+	}
+	if !readJSON(w, r, &in) {
+		return nil, nil
+	}
+	return s.store.blackBuy(id, in.Slot)
 }
 
 func (s *site) apiStallCollect(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
