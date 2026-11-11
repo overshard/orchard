@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"image/png"
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
@@ -130,6 +131,47 @@ func TestRoutes(t *testing.T) {
 		}
 		if !strings.Contains(rec.Body.String(), "/static/assets/style-def456.css") {
 			t.Errorf("%s does not link the stylesheet", c.path)
+		}
+	}
+}
+
+// The page links a manifest the policy lets it load, with icons of the size
+// they say they are and no service worker anywhere.
+func TestInstallsToAHomeScreen(t *testing.T) {
+	b, _, _ := testSite(t)
+	home := b.do(http.MethodGet, "/", "")
+	if !strings.Contains(home.Body.String(), `<link rel="manifest" href="/manifest.webmanifest">`) {
+		t.Error("the page doesn't link the manifest")
+	}
+	if strings.Contains(home.Body.String(), "serviceWorker") {
+		t.Error("the page registers a service worker")
+	}
+	policy := home.Header().Get("Content-Security-Policy")
+	if !strings.Contains(policy, "default-src 'self'") || strings.Contains(policy, "manifest-src 'none'") {
+		t.Errorf("the policy would block the manifest: %s", policy)
+	}
+	rec := b.do(http.MethodGet, "/manifest.webmanifest", "")
+	var m struct {
+		Display string `json:"display"`
+		Start   string `json:"start_url"`
+		Icons   []struct {
+			Src, Sizes, Type, Purpose string
+		} `json:"icons"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &m); err != nil {
+		t.Fatal(err)
+	}
+	if rec.Header().Get("Content-Type") != "application/manifest+json" || m.Display != "standalone" || m.Start != "/" || len(m.Icons) == 0 {
+		t.Errorf("the manifest: %s %+v", rec.Header().Get("Content-Type"), m)
+	}
+	for _, ic := range m.Icons {
+		rec := b.do(http.MethodGet, ic.Src, "")
+		img, err := png.Decode(rec.Body)
+		if err != nil {
+			t.Fatalf("%s: %v", ic.Src, err)
+		}
+		if got := fmt.Sprintf("%dx%d", img.Bounds().Dx(), img.Bounds().Dy()); got != ic.Sizes || rec.Header().Get("Content-Type") != ic.Type {
+			t.Errorf("%s is %s %s, the manifest says %s %s", ic.Src, got, rec.Header().Get("Content-Type"), ic.Sizes, ic.Type)
 		}
 	}
 }
