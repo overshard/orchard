@@ -3727,6 +3727,11 @@ button.big {
   min-height: 72px;
 }
 
+.slots .wk-empty {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
 .wk-lv-line {
   display: flex;
   align-items: center;
