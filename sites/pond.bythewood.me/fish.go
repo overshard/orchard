@@ -45,9 +45,8 @@ func always(w float64) func(fishDay) float64 {
 }
 
 // A fish is worth pts in a round and counts in power by its tier. bite is how
-// often it turns up on a given day, and hint says so in the fish book. Sizes
-// are in tenths of an inch. The page has the same kinds and points in
-// fishes.js and a test holds the two together.
+// often it turns up on a given day, and sizes are in tenths of an inch. The
+// page has the same kinds and points in fishes.js, held to these by a test.
 type fishKind struct {
 	kind, name string
 	pts, tier  int

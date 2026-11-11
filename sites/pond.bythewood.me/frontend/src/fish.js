@@ -36,8 +36,8 @@ const F = feel();
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 
-// What's biting and how often comes with the start of a run. Until it does
-// the water has the fish that bite on any day.
+// What's biting and how often comes with the pond and again at the start of
+// a run. Until either does the water has the fish that bite on any day.
 let table = { minnow: 26, gudgeon: 16, roach: 20, rudd: 14, perch: 18, bream: 13 };
 
 function pick() {
@@ -180,6 +180,7 @@ export const fish = {
     col = colours(g, p.frog.hat);
     G = { t: 0, score: 0, streak: 0, caught: 0, st: "ready", hook: { x: TIP.x, y: TIP.y, ty: 0, k: 1 }, fish: [], boots: [], taker: null, landed: null,
       hold: false, ten: 0, slack: 0, tick: 0, lt: 0, perfect: false, rings: [], bag: {}, why: "", end: false, aim: { x: 150, y: SURF + 90 }, kb: false };
+    if (p.fishing) { table = {}; p.fishing.all.forEach((f) => { if (f.w > 0) table[f.kind] = f.w; }); }
     last = null; sedge = ""; keeps = 0; kept = null;
     for (let i = 0; i < SCHOOL; i++) spawn(false);
     if (Math.random() < 0.6) G.boots.push({ x: rnd(100, W - 20), y: BOT - 4 });
