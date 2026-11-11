@@ -79,6 +79,7 @@ var aimList = []aim{
 	{"pu_three", "putt", "Three strokes under par for the round", map[string]int{"beat": 3}, nil, 0},
 
 	{"ja_elder", "jar", "An elder in the jar", map[string]int{"elders": 1}, nil, 0},
+	{"ja_king", "jar", "A pond king in the jar", map[string]int{"kings": 1}, nil, 0},
 	{"ja_frogs", "jar", "Grow three frogs", map[string]int{"frogs": 3}, nil, 0},
 	{"ja_froglets", "jar", "Grow eight froglets", map[string]int{"froglets": 8}, nil, 0},
 
@@ -102,7 +103,7 @@ var aimWorth = map[string]map[string]int{
 	"drop":   {"mid": 8, "pots": 1},
 	"chorus": {"right": 3, "row": 2},
 	"putt":   {"holes": 2, "under": 12, "beat": 1},
-	"jar":    {"elders": 40, "frogs": 15, "froglets": 6},
+	"jar":    {"kings": 60, "elders": 25, "frogs": 8, "froglets": 4},
 }
 
 // aimsOf is a game's two goals for a day, the same in every pond.
