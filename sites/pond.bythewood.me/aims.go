@@ -36,6 +36,7 @@ var aimList = []aim{
 	{"fl_fire", "flick", "Catch three fireflies", map[string]int{"fireflies": 3}, nil, 0},
 	{"fl_row", "flick", "Catch ten bugs in a row", map[string]int{"row": 10}, nil, 0},
 	{"fl_wasp", "flick", "Score 30 and never touch a wasp", nil, []string{"wasps"}, 30},
+	{"fl_gold", "flick", "Catch a golden fly", map[string]int{"golden": 1}, nil, 0},
 
 	{"cr_trips", "cross", "Get home three times", map[string]int{"trips": 3}, nil, 0},
 	{"cr_peb", "cross", "Pick up two pebbles", map[string]int{"pebbles": 2}, nil, 0},
@@ -89,7 +90,7 @@ var aimList = []aim{
 var aimWorth = map[string]map[string]int{
 	"dive":   {"gates": 1, "bugs": 1},
 	"fish":   {"perfect": 2, "cool": 1},
-	"flick":  {"fireflies": 3, "row": 1},
+	"flick":  {"fireflies": 3, "row": 1, "golden": 8},
 	"cross":  {"trips": 10, "pebbles": 3, "flies": 5, "clean": 10},
 	"raft":   {"weirs": 1, "pebbles": 2, "clean": 1},
 	"leap":   {"top": 1, "bugs": 2},

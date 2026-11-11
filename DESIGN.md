@@ -659,7 +659,8 @@ version of the old look and a handheld pet shell.
   before it lands. In Dive the heron leans over the water ahead with a dotted
   amber line down to where its beak reaches, and stabs as it passes over the
   frog. In crossing one road lane blinks amber at the end it comes from and
-  says CONVOY, and three yellow tractors run down it fast.
+  says CONVOY, and three yellow tractors run down it fast. In tongue flick a
+  golden fly twinkles at its edge of the field and zips across for 8.
 - **The last pebble takes its time.** In pebble drop the fifth pebble falls
   at half speed through the reeds and slower again over the pots, and the
   pegs sit a little differently each day.
