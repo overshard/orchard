@@ -152,6 +152,7 @@ export function arcade(game) {
   }
 
   function finish(now) {
+    if (game.pause) game.pause();
     const score = game.score(), a = info();
     A.state = "over"; A.overAt = now; A.paid = null; A.best = false; A.rested = 0;
     A.quick = !game.full && !!a && score <= a.best;
@@ -185,6 +186,7 @@ export function arcade(game) {
   function pause() {
     if (A.state !== "play") return;
     A.state = "paused"; down = null;
+    if (game.pause) game.pause();
     if (game.release) game.release();
     if (game.hold) { game.hold("left", false); game.hold("right", false); }
     paint(performance.now());

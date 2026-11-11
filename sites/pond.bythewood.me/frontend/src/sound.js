@@ -73,3 +73,57 @@ document.addEventListener("pointerdown", (e) => {
   if (!k || k.disabled) return;
   sfx(k.classList.contains("primary") || k.classList.contains("disk") ? "clunk" : "click");
 });
+
+// The audio clock runs whether sound is on or not, so a game that keeps time
+// with its own song can read it. It's null until the browser lets it run.
+export function audioClock() {
+  try {
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    if (ac.state === "suspended") ac.resume();
+    return ac.state === "running" ? ac : null;
+  } catch (e) { return null; }
+}
+
+// croakAt is a short croak at a set pitch, played at a time on the audio clock.
+export function croakAt(pitch, when, vol) {
+  if (!on.sound || !ac) return;
+  try {
+    const len = 0.13, o = ac.createOscillator(), f = ac.createBiquadFilter(), env = ac.createGain(), lfo = ac.createOscillator(), lg = ac.createGain(), am = ac.createGain();
+    o.type = "sawtooth";
+    o.frequency.setValueAtTime(pitch * 0.94, when);
+    o.frequency.linearRampToValueAtTime(pitch * 1.04, when + len);
+    f.type = "bandpass"; f.frequency.value = pitch * 1.7; f.Q.value = 2.5;
+    lfo.type = "square"; lfo.frequency.value = 38; lg.gain.value = 0.45; am.gain.value = 0.55;
+    lfo.connect(lg); lg.connect(am.gain);
+    env.gain.setValueAtTime(0, when);
+    env.gain.linearRampToValueAtTime(vol || 0.2, when + 0.012);
+    env.gain.setValueAtTime(vol || 0.2, when + len - 0.03);
+    env.gain.linearRampToValueAtTime(0, when + len);
+    o.connect(f); f.connect(am); am.connect(env); env.connect(ac.destination);
+    o.start(when); lfo.start(when); o.stop(when + len + 0.02); lfo.stop(when + len + 0.02);
+  } catch (e) { /* no audio here */ }
+}
+
+let rainSrc = null, rainGain = null;
+
+// rain is a bed of filtered noise at a level from 0 to 1, and 0 stops it.
+export function rain(level) {
+  if (!on.sound || !ac || level <= 0) {
+    if (rainSrc) { try { rainSrc.stop(); } catch (e) { /* already stopped */ } }
+    rainSrc = null;
+    return;
+  }
+  try {
+    if (!rainSrc) {
+      const buf = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      const f = ac.createBiquadFilter();
+      f.type = "bandpass"; f.frequency.value = 2400; f.Q.value = 0.5;
+      rainSrc = ac.createBufferSource(); rainSrc.buffer = buf; rainSrc.loop = true;
+      rainGain = ac.createGain(); rainGain.gain.value = 0;
+      rainSrc.connect(f); f.connect(rainGain); rainGain.connect(ac.destination);
+      rainSrc.start();
+    }
+    rainGain.gain.setTargetAtTime(0.012 + level * 0.06, ac.currentTime, 0.4);
+  } catch (e) { /* no audio here */ }
+}

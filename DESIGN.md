@@ -654,6 +654,14 @@ version of the old look and a handheld pet shell.
 - **The last pebble takes its time.** In pebble drop the fifth pebble falls
   at half speed through the reeds and slower again over the pots, and the
   pegs sit a little differently each day.
+- **Chorus is four frogs on a log at night**, the player's frog on the right
+  with an amber mark under it, and the rain coming down harder each round.
+  Under the log is a sequencer in readout glass, a row a frog with its colour
+  at the head and a column a step, with a cream playhead sweeping across.
+  The player's row is amber, dim while the bar is one to listen to and open
+  rings while it's their part, and a ring fills amber when it's sung right
+  on the beat. A miss costs one of three lilies in the corner and twelve in
+  a row grows one back. The frog only ever sings or sits.
 - **Bug sweep is the day's puzzle.** Eight pads by ten on flat water, a
   closed pad green and an open one dark with its number in a colour of its
   own, pale blue for one up to red. A marked pad has a pink bud on it, and a

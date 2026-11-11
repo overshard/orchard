@@ -11,6 +11,7 @@ import { shell } from "./shell.js";
 import { skip } from "./skip.js";
 import { drop, dropArt } from "./drop.js";
 import { sweep, sweepArt } from "./sweep.js";
+import { chorus, chorusArt } from "./chorus.js";
 
 // Every disk on Play. A disk is a key, a name, the plastic's colour, one
 // line, the picture on its label and the game the frame runs. A new game is
@@ -28,6 +29,7 @@ export const SHELVES = [
     { key: "stack", name: "Lily stack", colour: "#c0507a", line: "Stack pads as high as they go.", art: stackArt, game: stack },
     { key: "skip", name: "Pebble skip", colour: "#5b6470", line: "Skip three pebbles across the pond.", art: skipArt, game: skip },
     { key: "drop", name: "Pebble drop", colour: "#d8cfb8", line: "Drop five pebbles through the reeds.", art: dropArt, game: drop },
+    { key: "chorus", name: "Chorus", colour: "#d8642a", line: "Sing your part with the frogs on the log.", art: chorusArt, game: chorus },
   ] },
   { name: "Puzzles", disks: [
     { key: "shell", name: "Shell game", colour: "#8a5a2b", line: "Follow the tadpole under the shells.", art: shellArt, game: shell },
