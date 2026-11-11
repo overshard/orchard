@@ -13,8 +13,7 @@ import (
 
 // A stall on the bank where the pond's own things go up for sale. A neighbour
 // looks it over once an hour for a day and buys or doesn't, nearly always at
-// the going rate and hardly ever at ten times it. What's listed leaves the
-// bag until it sells or comes back off the shelf.
+// the going rate and hardly ever at ten times it.
 const (
 	stallSlots = 8
 	// The price can go from half a thing's worth to ten times it.
