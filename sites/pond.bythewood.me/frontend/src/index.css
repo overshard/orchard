@@ -55,6 +55,7 @@ body {
   font-family: var(--mono);
   font-size: 14px;
   line-height: 1.6;
+  overflow-wrap: anywhere;
   -webkit-tap-highlight-color: transparent;
 }
 
