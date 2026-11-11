@@ -178,6 +178,20 @@ CREATE TABLE IF NOT EXISTS stall (
     PRIMARY KEY (pond_id, slot)
 ) WITHOUT ROWID;
 
+CREATE TABLE IF NOT EXISTS bugsweep (
+    pond_id    INTEGER PRIMARY KEY REFERENCES ponds(id) ON DELETE CASCADE,
+    day        TEXT NOT NULL DEFAULT '',
+    run        TEXT NOT NULL DEFAULT '',
+    seed       TEXT NOT NULL DEFAULT '',
+    taps       TEXT NOT NULL DEFAULT '',
+    daily      INTEGER NOT NULL DEFAULT 0,
+    started_at INTEGER NOT NULL DEFAULT 0,
+    day_state  INTEGER NOT NULL DEFAULT 0,
+    day_secs   INTEGER NOT NULL DEFAULT 0,
+    day_taps   INTEGER NOT NULL DEFAULT 0,
+    day_open   INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS records (
     pond_id INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
     game    TEXT NOT NULL,
@@ -1162,6 +1176,9 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	v.Badges = badgesOf(tallyOf(v, p), pins)
 	markBag(v)
 	v.Gazette.Notice = openingNotice(p, now)
+	if v.Gazette.Sweep, err = bugNoteOf(q, p.ID, now); err != nil {
+		return err
+	}
 	v.Todo = todoOf(v)
 	if v.Starter, err = starterOf(q, p); err != nil {
 		return err

@@ -108,6 +108,13 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   `squashed` draws the frog squashed, `buffer` and `take` keep an early press
   for 90ms, and the game calls `draw` where its popups belong. A game's
   `demo()` gives the ghost finger its first input.
+- `bugsweep.go` is bug sweep, a grid of lily pads with wasps under some. The
+  day's grid is the same in every pond and pays once, and every go after it
+  is a fresh grid that pays nothing. `POST /api/sweep/start` hands over a go
+  and `POST /api/sweep/tap` opens one pad of it. The board is never stored,
+  the go's taps are kept in `bugsweep` and played back on each one.
+  `frontend/src/sweep.js` draws what the server says opened, and makes the
+  share card in the page the way the postcard is made.
 - `fish.go` is the fish, each with its points, its tier and the days it bites
   on. `POST /api/arcade/start` deals fishing the day's table off the real
   day, so the page never decides what's in the water. The fish that bite any
@@ -294,6 +301,16 @@ they have none, for other sites to draw.
   lifts the finger for the player, like a pause, leaves the reel as it was.
 - A change that lets a game score faster needs its `rate` in `arcade.go`
   checked against a bot, since a run past `rate` points a second pays nothing.
+- Bug sweep's day grid is dealt from the pepper and the date, so it can't be
+  worked out from this repository. Nothing sent before a go is over may say
+  where a wasp is, and a test reads every answer for it. A tap takes one pad,
+  since a batch that stopped part way would say which of its pads was safe.
+- A game with no `rate` in `arcade.go` is played out on the server and is
+  refused by the plain start and finish. On the page it has `begin` and `end`
+  in place of those two calls, and it's never the disk of the day.
+- A first tap in bug sweep moves any wasp on it or next to it along the
+  seed's shuffle. Moving them anywhere fixed, like the first free pad, would
+  tell every player where the spare wasps went.
 - Pebble drop's bounces are the page's, so the server only holds a score to
   `dropMost`, five pebbles in the middle pot. The day's peg rows go out on the
   view as that game's `deal`, and a change to the pots or the pebbles a round

@@ -159,6 +159,8 @@ type gazette struct {
 	Records []string `json:"records,omitempty"`
 	// Notice is this pond's own news, a place that opened today.
 	Notice string `json:"notice,omitempty"`
+	// Sweep is how this pond stands with the day's bug sweep.
+	Sweep *bugNote `json:"sweep,omitempty"`
 }
 
 // noteRecord keeps a day's best new best at a game. A game's first score

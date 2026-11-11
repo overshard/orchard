@@ -33,7 +33,13 @@ var arcadeGames = []arcadeGame{
 	{"shell", "Shell game", 40, 4, 2000, 1},
 	{"skip", "Pebble skip", 40, 12, 400, 2},
 	{"drop", "Pebble drop", 40, 4, dropMost, 2},
+	{"sweep", "Bug sweep", 40, 0, bugSafe, 1},
 }
+
+// A game with no rate is played out on the server a tap at a time, so it
+// never takes a score from the page. It pays once a day and is never the
+// disk of the day.
+func (g arcadeGame) replayed() bool { return g.rate == 0 }
 
 // Five pebbles a round and eight for the middle pot is all pebble drop has.
 const dropMost, dropRows = 40, 9
@@ -75,12 +81,21 @@ func (p *pond) payRun(pay, room int, now time.Time) (paid, bonus int) {
 // One side game a day is the disk of the day, the same for everybody, and
 // pays in full for one run more. Its cap is the same as any other day's.
 func diskOfDay(day string) string {
+	var keys []string
+	for _, g := range arcadeGames {
+		if !g.replayed() {
+			keys = append(keys, g.key)
+		}
+	}
 	h := fnv.New32a()
 	h.Write([]byte("disk " + day))
-	return arcadeGames[h.Sum32()%uint32(len(arcadeGames))].key
+	return keys[h.Sum32()%uint32(len(keys))]
 }
 
 func fullRuns(key string, now time.Time) int {
+	if g, _ := arcadeOf(key); g.replayed() {
+		return 1
+	}
 	if key == diskOfDay(dayOf(now)) {
 		return arcadeFullRuns + 1
 	}
@@ -139,7 +154,7 @@ type arcadeStarted struct {
 }
 
 func (s *store) arcadeStart(id int64, key string) (*arcadeStarted, error) {
-	if _, ok := arcadeOf(key); !ok {
+	if g, ok := arcadeOf(key); !ok || g.replayed() {
 		return nil, errNotHeld
 	}
 	out := &arcadeStarted{Run: randomHex(8)}
@@ -177,7 +192,7 @@ type arcadeDone struct {
 // landed is what a round of fishing says it caught, by kind.
 func (s *store) arcadeFinish(id int64, key, run string, score int, landed map[string]int) (*arcadeDone, error) {
 	g, ok := arcadeOf(key)
-	if !ok {
+	if !ok || g.replayed() {
 		return nil, errNotHeld
 	}
 	out := &arcadeDone{Score: score}
@@ -248,6 +263,8 @@ type arcadeView struct {
 	Day bool `json:"day"`
 	// Deal is the day's peg rows, for pebble drop.
 	Deal []int `json:"deal,omitempty"`
+	// Daily is a game with one paid go a day and free ones after.
+	Daily bool `json:"daily,omitempty"`
 }
 
 func arcadeViews(q querier, id int64, now time.Time) ([]arcadeView, error) {
@@ -259,7 +276,7 @@ func arcadeViews(q querier, id int64, now time.Time) ([]arcadeView, error) {
 		}
 		r = r.settled(now)
 		full := fullRuns(g.key, now)
-		a := arcadeView{Key: g.key, Name: g.name, Best: r.best, Paid: r.paid, Cap: g.cap, Runs: r.runs, Full: full, Day: full > arcadeFullRuns}
+		a := arcadeView{Key: g.key, Name: g.name, Best: r.best, Paid: r.paid, Cap: g.cap, Runs: r.runs, Full: full, Day: full > arcadeFullRuns, Daily: g.replayed()}
 		if g.key == "drop" {
 			a.Deal = dropDeal(dayOf(now))
 		}

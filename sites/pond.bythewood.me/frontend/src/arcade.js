@@ -154,9 +154,11 @@ export function arcade(game) {
   function finish(now) {
     const score = game.score(), a = info();
     A.state = "over"; A.overAt = now; A.paid = null; A.best = false; A.rested = 0;
-    A.quick = !!a && score <= a.best;
+    A.quick = !game.full && !!a && score <= a.best;
     const more = game.report ? game.report() : {};
-    net = started.then((run) => run ? post("/api/arcade/finish", Object.assign({ game: k, run, score }, more)) : null).then((d) => {
+    // A game the server plays out a tap at a time begins and ends its own run.
+    const done = (run) => game.end ? game.end(run) : post("/api/arcade/finish", Object.assign({ game: k, run, score }, more));
+    net = started.then((run) => run ? done(run) : null).then((d) => {
       if (!d) { A.paid = 0; return; }
       A.paid = d.paid; A.best = d.best; A.rested = d.rested;
       // A game can have news of its own that's worth the whole results.
@@ -171,7 +173,7 @@ export function arcade(game) {
     game.reset(state.g, state.pond);
     A.state = "play"; A.last = performance.now();
     card.hidden = true;
-    started = net = net.then(() => post("/api/arcade/start", { game: k })).then((d) => {
+    started = net = net.then(() => game.begin ? game.begin() : post("/api/arcade/start", { game: k })).then((d) => {
       if (game.dealt) game.dealt(d);
       return d.run;
     }, () => null);
