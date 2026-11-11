@@ -194,7 +194,7 @@ function live(p, f, force) {
     const box = $("job-basket");
     box.textContent = "";
     n.basket.forEach((x) => box.append(slot(iconCanvas(iconOf(x.kind), 4), { tier: x.tier, name: x.name, count: x.n, sub: x.find ? "find" : "" })));
-    if (!n.basket.length) box.append(el("p", "dim", n.misses ? "Nothing yet, " + n.misses + " missed." : "Empty for now."));
+    if (!n.basket.length) box.append(el("p", "dim wk-empty", n.misses ? "Nothing yet, " + n.misses + " missed." : "Empty for now."));
     $("job-tally").textContent = n.n + (n.n === 1 ? " action" : " actions") + (n.misses ? ", " + n.misses + " missed" : "") + ", " + n.xp.toLocaleString("en-US") + " xp waiting";
     $("job-take").disabled = n.n === 0;
   }
