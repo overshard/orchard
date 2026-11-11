@@ -94,7 +94,7 @@ function tools(shop, p) {
     what.className = "what";
     const sub = document.createElement("span");
     sub.className = "sub";
-    sub.textContent = d.name + " " + t.level + ". " + cutWords(t) + ".";
+    sub.textContent = d.name + ", level " + t.level + ". " + cutWords(t) + ".";
     what.append(name, sub);
     li.append(iconCanvas("tool_" + d.key + "_" + t.tier, 3), what);
     const have = owned >= t.tier, short = bestAt(p, d.key) < t.level;

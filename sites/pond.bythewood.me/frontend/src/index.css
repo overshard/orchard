@@ -1870,6 +1870,7 @@ h2 .count {
 
 .shelf .soldtag {
   margin-left: auto;
+  white-space: nowrap;
   color: var(--dim);
   font-size: 10px;
   letter-spacing: var(--track);
