@@ -273,7 +273,7 @@ func payDividends(tx *sql.Tx, p *pond) (int, error) {
 		n = int(due)
 		p.Pebbles += n
 	}
-	_, err = tx.Exec(`UPDATE ponds SET div_day = ?, div_carry = ? WHERE id = ?`, p.today, due-float64(n), p.ID)
+	_, err = tx.Exec(`UPDATE ponds SET div_day = ?, div_carry = ?, div_total = div_total + ? WHERE id = ?`, p.today, due-float64(n), n, p.ID)
 	return n, err
 }
 
@@ -415,6 +415,8 @@ type marketView struct {
 	// Worth of the shares and coin held at today's price and at the last close.
 	Worth     int `json:"worth"`
 	WorthPrev int `json:"worth_prev"`
+	// Earned is every dividend this pond has been paid.
+	Earned int `json:"earned"`
 	// News is the story in today's paper that moves a share, if there is one.
 	News *news `json:"news,omitempty"`
 }
@@ -431,6 +433,9 @@ func marketOf(q querier, p *pond, now time.Time) (marketView, error) {
 	}
 	v.Fees.Share, v.Fees.Good, v.Fees.Coin = int(shareFee*100), int(goodFee*100), int(coinFee*100)
 	if v.Room, err = roomLeft(q, p.ID, buyerMarket, day); err != nil {
+		return v, err
+	}
+	if err := q.QueryRow(`SELECT div_total FROM ponds WHERE id = ?`, p.ID).Scan(&v.Earned); err != nil {
 		return v, err
 	}
 	due, since, err := dividendsDue(q, p.ID, day)
