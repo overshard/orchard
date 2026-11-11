@@ -197,6 +197,9 @@ func (s *site) handler() http.Handler {
 	mux.HandleFunc("GET /f/{slug}", s.sharePage)
 	mux.HandleFunc("GET /f/{slug}/card.png", s.shareCard)
 	mux.HandleFunc("GET /robots.txt", robots)
+	mux.HandleFunc("GET /manifest.webmanifest", webManifest)
+	mux.HandleFunc("GET /icon-192.png", icon(192))
+	mux.HandleFunc("GET /icon-512.png", icon(512))
 
 	mux.HandleFunc("GET /api/pond", s.apiPond)
 	mux.HandleFunc("GET /api/panel", s.apiPanel)

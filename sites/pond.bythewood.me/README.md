@@ -114,6 +114,8 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
   the pond itself and the tabs. `ui.js` is the bottom sheet a thing opens in,
   the reveal a prize pops up in, and the slot every collectable is drawn as.
   `share.js` is a frog's public page and `key.js` and `k.js` the key pages.
+- `icon.go` is the web app manifest and the home screen icons, which are
+  drawn in Go like the share card since there are no image files.
 - `web/` is this site's own copy of the HTTP layer every site here shares.
 
 `GET /api/panel` answers with the visitor's frog as JSON, or a house frog when
@@ -167,5 +169,8 @@ they have none, for other sites to draw.
   gateway says the card is busy or under 3GB is free, and never runs off a
   visitor. A model line with a digit, a banned word or a slot it wasn't given
   is dropped, so add a slot to `taleAsk.allowed` before a pool can use it.
+- There's no service worker, so an installed pond needs the network like the
+  page does. On an iPhone it also keeps its own cookies apart from Safari's,
+  so it opens on a new egg until the pond key is brought over.
 - `web/` has to stay byte identical to every other site's copy, and
   `make check` at the root fails when it isn't.
