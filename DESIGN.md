@@ -340,6 +340,20 @@ prefix in amber caps.
 Then a footer bar with `© <year> <author> · Some rights reserved` on the left
 and the GitHub mark on the right, linking to that site's own source.
 
+**The visitor's frog sits under the first column's paragraph**, under a hairline,
+88 by 68 with one muted line beside it, linking to the pond. `guest.js` asks
+pond for it. The line says the frog came along, or that it found this site's hat
+on the visit that finds it, or for the house frog that hatching one finds a hat
+here. status draws its own scene in the same place, 128 by 76, asleep on a pad
+or under the log. auth has no columns, so its frog is in the sign in card on the
+home page. dash says the hat was found in its pond panel.
+
+**A frog never moves the page.** Its slot is in the markup from the start with
+the canvas at its final size and a stock line beside it, and nothing about it is
+hidden and then shown. If pond can't be reached the slot draws the house frog,
+so it's never left empty either. It goes where the page already has a place for
+it, the footer column or a panel of its own, and not in beside a heading.
+
 ## The 404
 
 Identical on the four Bootstrap sites, and it uses the description the handler
@@ -348,10 +362,13 @@ rather than writing its own line:
 
 ```
 404 · NOT FOUND        amber caps section label
+(a lost frog)          216 by 180, a different frog each time
 No such page           heading
-That page does not exist.
+That page does not exist. This frog took the same wrong turn and is still looking around.
 ← Home                 ghost button
 ```
+
+The frog is `guest.js` again, off a random seed, so it needs nothing from pond.
 
 `repos` has a second one for history and anything at a commit SHA asked for
 signed out, the same skeleton with `404 · SIGNED IN ONLY`, a clone command and a
