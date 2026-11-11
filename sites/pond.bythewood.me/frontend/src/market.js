@@ -1,5 +1,5 @@
 import { $, post, setPond, watch, reduced } from "./api.js";
-import { openSheet, sheetSay, button } from "./ui.js";
+import { openSheet, sheetSay, button, reveal } from "./ui.js";
 import { iconCanvas } from "./icons.js";
 import { renderBlack, showBlack } from "./black.js";
 
@@ -158,8 +158,10 @@ function holding(f) {
     tile("If sold", signed(g) + " · " + signed(gainPct(f.worth, f.cost), "%"), g < 0 ? "down" : "up"));
 }
 
+let story = null;
+
 function sayOf(f) {
-  const today = signed(dayPct(f), "%") + " today.";
+  const today = signed(dayPct(f), "%") + " today." + (story && story.key === f.key ? " In the paper: " + story.line + "." : "");
   if (f.kind === "good") return "The more " + f.moves + " every pond brings in, the cheaper it gets. A lot of " + state.lot + " is " + f.price + ", " + today;
   if (f.kind === "coin") return "Swings far more than anything else on the board. A coin is " + f.price + ", " + today;
   return "Moves with " + f.moves + " across every pond. A share is " + f.price + ", " + today;
@@ -201,6 +203,12 @@ function card(f) {
   sub.className = "dim";
   sub.textContent = f.kind === "good" ? "a lot of " + state.lot + " · " + f.held + " in the bag" : f.kind === "coin" ? "swings hard" : "moves with " + f.moves;
   what.append(name, sub);
+  if (story && story.key === f.key) {
+    const tag = document.createElement("span");
+    tag.className = "newstag " + (story.up ? "up" : "down");
+    tag.textContent = "IN THE PAPER";
+    what.append(tag);
+  }
   const price = document.createElement("span"), dir = f.price > f.prev ? "up" : f.price < f.prev ? "down" : "";
   price.className = "readout px " + dir;
   price.innerHTML = '<span class="v"></span><span class="k"></span>';
@@ -229,10 +237,73 @@ const LINE = {
   black: () => "",
 };
 
+// The tape runs the day's story and then the biggest movers either way.
+function tape(m) {
+  const el = $("mkt-tape"), bits = [];
+  if (m.news) bits.push(["IN THE PAPER  " + m.news.line.toUpperCase(), m.news.up ? "up" : "down"]);
+  m.firms.filter((f) => f.prev).sort((a, b) => Math.abs(dayPct(b)) - Math.abs(dayPct(a))).slice(0, 6)
+    .forEach((f) => bits.push([f.name.toUpperCase() + " " + f.price + " " + arrow(f) + " " + signed(dayPct(f), "%"), f.price > f.prev ? "up" : f.price < f.prev ? "down" : ""]));
+  el.replaceChildren();
+  for (let twice = 0; twice < 2; twice++) bits.forEach(([text, cls]) => {
+    const b = document.createElement("span");
+    b.className = cls; b.textContent = text + "   ·   ";
+    el.append(b);
+  });
+  el.classList.toggle("still", reduced);
+}
+
+// A held thing that has a very good day pops up once that day.
+function bigDay(p) {
+  let seen = {};
+  try { seen = JSON.parse(localStorage.getItem("pond-bigday")) || {}; } catch (e) { /* private window */ }
+  if (seen.day !== p.today) seen = { day: p.today, keys: [] };
+  const big = p.market.firms.filter((f) => f.held && f.kind !== "good" && dayPct(f) >= (f.kind === "coin" ? 12 : 4) && !seen.keys.includes(f.key));
+  big.forEach((f) => {
+    seen.keys.push(f.key);
+    const more = f.held * (f.price - f.prev);
+    reveal({ kick: "A big day", art: art(f, 6), name: f.name, glow: 4,
+      line: "Up " + dayPct(f) + "% today, so your " + f.held + " are worth about " + more + " more than last night.", ok: "Nice" });
+  });
+  if (big.length) try { localStorage.setItem("pond-bigday", JSON.stringify(seen)); } catch (e) { /* private window */ }
+}
+
+// The portfolio is everything held, what it's made and the best of it.
+function portfolio(m) {
+  const held = m.firms.filter((f) => f.held && f.kind !== "good");
+  const best = held.slice().sort((a, b) => gainPct(b.worth, b.cost) - gainPct(a.worth, a.cost))[0];
+  const g = m.worth - m.in;
+  openSheet({ bare: true, name: "Your holdings" }, "", (body) => {
+    body.append(tiles(tile("Worth now", m.worth), tile("Gain", signed(g), g < 0 ? "down" : "up"),
+      tile("On paid", signed(gainPct(m.worth, m.in), "%"), g < 0 ? "down" : "up"), tile("Dividends", m.earned)));
+    const say = document.createElement("p");
+    say.className = "line";
+    say.textContent = best ? "The best of it is " + best.name + ", " + signed(gainPct(best.worth, best.cost), "%") + " on what you paid." : "Nothing held yet. Buy a share or a coin and it shows here.";
+    body.append(say);
+    const ul = document.createElement("ul");
+    ul.className = "shelf";
+    held.forEach((f) => {
+      const li = document.createElement("li"), what = document.createElement("span"), b = document.createElement("b"), sub = document.createElement("span"), gain = f.worth - f.cost;
+      what.className = "what"; sub.className = "sub";
+      b.textContent = f.name;
+      sub.textContent = f.held + " held · paid " + f.cost + " · worth " + f.worth;
+      what.append(b, sub);
+      const glass = tile(f === best ? "Best" : "Gain", signed(gain), gain < 0 ? "down" : "up");
+      li.append(art(f, f.kind === "share" ? 2 : 3), what, glass);
+      li.addEventListener("click", () => show(f));
+      ul.append(li);
+    });
+    if (held.length) body.append(ul);
+  });
+}
+
+let latest = null;
+
 function render(p) {
+  latest = p;
   const m = p.market;
   if (!m) return;
   state.lot = m.lot; state.fees = m.fees;
+  story = m.news || null;
   const g = m.worth - m.in;
   $("mkt-tiles").replaceChildren(tile("Worth now", m.worth), tile("Paid", m.in), tile("Gain", m.in ? signed(g) + " · " + signed(gainPct(m.worth, m.in), "%") : "None", g < 0 ? "down" : "up"),
     tile("Room", Math.max(0, m.cap - m.in)));
@@ -249,7 +320,7 @@ function render(p) {
     "A share pays a dividend every evening off how its business did, collected here. Goods are bought and sold by the lot of " + m.lot + ", straight into the bag and out of it, and the more of a thing ponds bring in the cheaper it gets. " +
     "Glowworm Coin swings far more than anything else and is worth about what it costs over time, so it's a gamble. " +
     "Buying and selling cost " + m.fees.share + " in a hundred on shares, " + m.fees.good + " on goods and " + m.fees.coin + " on the coin. " +
-    "How much you can hold in shares and coin grows with the bank and with frog power. This and the back door are the places pebbles can be lost to chance.";
+    "Tap the readouts at the top for everything you hold. How much you can hold in shares and coin grows with the bank and with frog power. This and the back door are the places pebbles can be lost to chance.";
   const sorts = $("mkt-sorts");
   sorts.replaceChildren(...BUCKETS.map(([k, label]) => {
     const b = button(label, () => { bucket = k; render(p); });
@@ -257,10 +328,8 @@ function render(p) {
     return b;
   }));
   $("mkt-open").textContent = LINE[bucket](m);
-  const tape = $("mkt-tape");
-  const bits = m.firms.filter((f) => f.kind !== "good").map((f) => f.name.toUpperCase() + " " + f.price + " " + arrow(f));
-  tape.textContent = bits.join("   ·   ") + "   ·   " + bits.join("   ·   ");
-  tape.classList.toggle("still", reduced);
+  tape(m);
+  bigDay(p);
   $("mkt-list").replaceChildren(...m.firms.filter((f) => f.kind === bucket).map(card));
   const back = bucket === "black";
   $("mkt-open").hidden = back;
@@ -269,4 +338,8 @@ function render(p) {
   showBlack(back);
 }
 
-export function initMarket() { watch(render); }
+export function initMarket() {
+  watch(render);
+  const t = $("mkt-tiles");
+  t.addEventListener("click", () => { const p = latest; if (p) portfolio(p.market); });
+}

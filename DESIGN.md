@@ -712,8 +712,13 @@ version of the old look and a handheld pet shell.
   camera key opens a sheet of small copies of the card in each frame it owns,
   the plain one first, and a tap makes that one. A frame only changes the
   card round the picture and the colour of the words on it.
-- **The market is a board.** A ticker of pebble prices scrolls along the top in
-  readout glass, still under reduced motion, each business is a pixel
+- **The market is a board.** A ticker scrolls along the top in readout glass,
+  still under reduced motion, with the day's story from the paper first and
+  then the six biggest movers either way, green up and pink down. The
+  readouts under it are one key that opens the holdings, every share and coin
+  held with what it's made, the dividends ever paid and the best of them. A
+  business in the paper wears an IN THE PAPER tag on its card, and a holding
+  that has a big day pops a reveal once that day, each business is a pixel
   shopfront in its own awning colour with its price in glass, and a day down
   turns that price pink. The chart in a business's sheet is a stepped pixel
   line in glass, amber over thirty days that ended up and pink when down.

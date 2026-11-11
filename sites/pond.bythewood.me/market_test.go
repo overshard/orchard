@@ -315,8 +315,8 @@ func TestDividendsArePaidOnceADay(t *testing.T) {
 		exec(t, s, `INSERT INTO market_days (day, key, close, open, div) VALUES (?, 'guild', 40, 40, 0.15)`, dayOf(clock.AddDate(0, 0, i)))
 	}
 	*clock = clock.Add(7 * 24 * time.Hour)
-	if paid, _ = s.collectDividends(id); paid.Pebbles != 11 {
-		t.Errorf("a week away paid %d, want 11", paid.Pebbles)
+	if paid, _ = s.collectDividends(id); paid.Pebbles != 11 || paid.Pond.Market.Earned != 12 {
+		t.Errorf("a week away paid %d, want 11, and %d in all", paid.Pebbles, paid.Pond.Market.Earned)
 	}
 }
 

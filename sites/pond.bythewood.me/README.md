@@ -181,6 +181,10 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   and dealt with what each really is off an HMAC of the pepper. What a pond
   bought is in `black_buys`, and `black.js` draws the hooded frog over any
   frog's cells instead of a sprite of its own.
+- `news.go` is the paper's Business story. A line of work whose day before
+  was well over or under its week makes the paper, and the same full day of
+  flow moves its share through the morning, so the story never leads a move
+  nobody could have read.
 - `prices.go` is how a price moves. Every ten minute slot of the day is a
   step off an HMAC of the pepper, and what every pond did is counted by the
   hour in `market_flow` by `addFlow` and weighed against the week before.

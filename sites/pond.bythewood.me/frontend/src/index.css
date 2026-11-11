@@ -4502,6 +4502,14 @@ button.big {
   animation: tape 60s linear infinite;
 }
 
+.ticker .tape .up {
+  color: #5ddc82;
+}
+
+.ticker .tape .down {
+  color: #ff8a8a;
+}
+
 .ticker .tape.still {
   animation: none;
 }
@@ -4607,6 +4615,36 @@ button.big {
 #mkt-tiles .v,
 .sheet .tiles .v {
   font-size: 13px;
+}
+
+/* The tiles over the board are a key that opens the holdings. */
+button#mkt-tiles,
+button#mkt-tiles:active {
+  width: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #000;
+  background: #050803;
+  box-shadow: var(--sunk);
+  transform: none;
+  text-align: left;
+}
+
+.newstag {
+  font-size: 12px;
+  letter-spacing: var(--track);
+  color: #5ddc82;
+}
+
+.newstag.down {
+  color: #ff8a8a;
+}
+
+.shelf .readout {
+  flex: none;
+  min-width: 72px;
+  margin-left: auto;
 }
 
 /* Marsh's frames to pick from, each a small copy of the card it makes. */

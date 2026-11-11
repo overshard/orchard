@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS ponds (
     rank_day        TEXT NOT NULL DEFAULT '',
     div_day         TEXT NOT NULL DEFAULT '',
     div_carry       REAL NOT NULL DEFAULT 0,
+    div_total       INTEGER NOT NULL DEFAULT 0,
     key_saved_at    INTEGER
 );
 CREATE INDEX IF NOT EXISTS ponds_created ON ponds(created_at);
@@ -426,6 +427,7 @@ var addedColumns = []struct{ table, name, def string }{
 	{"market_days", "div", "REAL NOT NULL DEFAULT 0"},
 	{"ponds", "div_day", "TEXT NOT NULL DEFAULT ''"},
 	{"ponds", "div_carry", "REAL NOT NULL DEFAULT 0"},
+	{"ponds", "div_total", "INTEGER NOT NULL DEFAULT 0"},
 }
 
 func ensureColumns(db *sql.DB) (map[string]bool, error) {
