@@ -17,6 +17,7 @@ import { initCollect } from "./collect.js";
 import { initTown, enterTown, leaveTown } from "./town.js";
 import { initNeighbours, art as residentArt, presentsFrom } from "./neighbours.js";
 import { initSettings } from "./settings.js";
+import { initPower, seePower } from "./power.js";
 import { initPostcard } from "./postcard.js";
 import { drawScenery, drawSceneryNight } from "./scenery.js";
 import { initPet, setBox, pose, over as petOver, busy as petBusy, wasRub, tapTrick, arrive, drawBond } from "./pet.js";
@@ -144,6 +145,7 @@ function show(next) {
   if (next === "garden") enterBank(); else leaveBank();
   if (next === "job") enterJob(); else leaveJob();
   if (next === "town") enterTown(key); else leaveTown();
+  if (next === "pond") seePower();
   seeOpen();
   freshen();
   // A view's name is also the id of its canvas, and the browser scrolls to
@@ -900,6 +902,7 @@ initTown();
 $("town-tabs").addEventListener("click", seeOpen);
 initNeighbours();
 initSettings();
+initPower();
 applyOpen(open);
 show(location.hash.slice(1));
 

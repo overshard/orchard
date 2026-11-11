@@ -840,7 +840,7 @@ version of the old look and a handheld pet shell.
   throws pink pixel hearts, more of them on its favourite spot, and an egg
   only wobbles. Its bond is five small hearts over the top left corner of the
   glass, the one being worked on filled from the left. Nothing else is drawn
-  in that corner or the top right one.
+  in that corner or the top right one, and the bottom middle is the power plate's.
 - **It does a thing for each heart.** It waves when the pond opens at one, and
   a tap croaks as ever and then does the newest thing it knows, a hop at two,
   a spin at three and at four something that suits its nature, a song, a big
@@ -848,7 +848,8 @@ version of the old look and a handheld pet shell.
   it comes after a finger held on the water. All of it is the scene moving
   the same sprite, so `frog.js` stays as it is. Reduced motion gets the shut
   eyes and whatever is drawn over the frog, with no hop, tip or spin.
-- **The pond fits a phone with no scroll.** The frog's screen, its name with
+- **The pond fits a phone with no scroll.** The frog's screen with its power
+  plate, its name with
   the rarity beside it, the bubble and the Next strip all sit above the keys
   at 412 by 915. Under 780 tall the screen narrows to `19rem` and the rows
   drop from 40px to 34px to keep them there. The folded gazette, Today at the pond and anything longer go below.
@@ -931,10 +932,28 @@ version of the old look and a handheld pet shell.
 - **A working frog shows it.** In the reeds strip a frog at a job has its
   tool beside it, and in the Works picture the frog by the lodge holds its
   tool with the job's thing at its feet.
+- **Frog power is a plate on the pond's screen.** A small glass plate sits
+  on the bottom bezel of the frog's screen, half over the glass, with the
+  rank in printed caps, the number in amber and a hairline of lit glass
+  along its foot for how far to the next rung. It takes no height of its
+  own. A tap opens the breakdown in the bare sheet, the number big in glass
+  with the rank, a rail to the next rung, and every part as a row under
+  Finds, Frogs and work and Games, its name, a line like 12 of 60 or best 40
+  of 80, its points in amber and a bar along its foot for how much of that
+  part is had.
+- **Power only counts up.** When it rises the plate counts up to the new
+  number once the pond is in view and no prize is over it, with a glass
+  line over the plate saying what from, like +120, a new hat, that fades
+  after a moment. A fall, like a game's reference rising, just shows the new
+  number. A new rung is a reveal with amber rays, the rung's name and the
+  number in a glass readout, after the count. Reduced motion gets the new
+  number and the line with no count.
 - **A frog's public page** is the frog in its screen, its power as one big
   amber Space Grotesk number with the rank beside it, the parts that make it
-  up, and a QR code for the link. The ranks are a ladder under the number, the
-  top rung first and amber up to where the frog stands, the same in settings. It ends on getting a frog of your own.
+  up in the same three groups as the sheet, and a QR code for the link. The
+  ranks are a ladder of nine under the number, the top rung first and amber
+  up to where the frog stands, the same in settings. It ends on getting a
+  frog of your own.
 - The card a share link unfurls with is a 1200 by 630 PNG drawn on the server,
   the screen on the left and the name, rarity and power on the right in
   JetBrains Mono, since that's the face the server has a TrueType file of.
