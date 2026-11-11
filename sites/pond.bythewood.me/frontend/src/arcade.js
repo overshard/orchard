@@ -3,10 +3,12 @@ import { $, post, state, setPond, watch, room, onResize, payWord } from "./api.j
 // The frame round a side game. A game is a fixed field W by H, drawn at twice
 // that and scaled to the window, with reset, step, draw, and input hooks. This
 // starts and finishes runs on the server and shows the title and results.
+// A game with a feel gets its freezes and shake run from here.
 
 export function arcade(game) {
   const k = game.key, view = $("v-" + k), cv = $(k + "-cv"), cx = cv.getContext("2d");
   const A = { state: "idle", last: 0, overAt: 0, paid: null, best: false, scale: 1 };
+  const F = game.feel;
   let net = Promise.resolve(), started = null, down = null;
 
   function info() { return state.pond && state.pond.arcade.find((a) => a.key === k); }
@@ -93,7 +95,8 @@ export function arcade(game) {
   }
 
   function paint(now) {
-    cx.setTransform(2, 0, 0, 2, 0, 0);
+    const [sx, sy] = F ? F.offset() : [0, 0];
+    cx.setTransform(2, 0, 0, 2, sx * 2, sy * 2);
     cx.imageSmoothingEnabled = false;
     game.draw(cx, now);
     backdrop();
@@ -104,7 +107,7 @@ export function arcade(game) {
     if (A.state !== "play" || view.hidden) return;
     const dt = Math.min(0.05, (now - A.last) / 1000);
     A.last = now;
-    game.step(dt);
+    if (!F || F.tick(dt)) game.step(dt);
     if (game.over()) finish(now);
     paint(now);
     if (A.state === "play") requestAnimationFrame(loop);
@@ -122,6 +125,7 @@ export function arcade(game) {
   }
 
   function start() {
+    if (F) F.reset();
     game.reset(state.g, state.pond);
     A.state = "play"; A.last = performance.now();
     card.hidden = true;
@@ -226,6 +230,7 @@ export function arcade(game) {
   return {
     enter() {
       if (A.state !== "play") A.state = "idle";
+      if (F && A.state === "idle") F.reset();
       fit();
       if (A.state === "idle" && state.pond) game.reset(state.g, state.pond);
       note(); paint(performance.now());

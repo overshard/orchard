@@ -629,6 +629,11 @@ version of the old look and a handheld pet shell.
 - **The side games end like Dive.** Their title and results sit in a panel
   with a screen window, and the strip under every game is readout glass and an
   EJECT key.
+- **A catch and a crash are felt.** A catch stops the game for two or three
+  frames with a burst of square bits and the points popping up over it, and a
+  crash stops it for six and shakes the field a few pixels. The frog squashes
+  when it lands or catches. Reduced motion gets no shake and no squash, and
+  every game takes this from `feel.js` so they all feel the same.
 - **The market is a board.** A ticker of pebble prices scrolls along the top in
   readout glass, still under reduced motion, each business is a pixel
   shopfront in its own awning colour with its price in glass, and a day down
