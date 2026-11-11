@@ -935,7 +935,8 @@ body:has(.tabs) main {
   letter-spacing: var(--track);
 }
 
-/* The ranks as a ladder laid flat, every rung the same width. */
+/* The ranks as a ladder, the top rung at the top, with a rail over it that
+   fills a step at a time. */
 .ladder {
   margin: 4px 0 6px;
 }
@@ -957,23 +958,22 @@ body:has(.tabs) main {
 }
 
 .ladder ol {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  margin: 6px 0 0;
+  display: flex;
+  flex-direction: column-reverse;
+  margin: 8px 0 0;
   padding: 0;
   list-style: none;
 }
 
 .ladder li {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding-right: 4px;
-  border-left: 1px solid var(--lip);
-  padding-left: 4px;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 3px 0 3px 8px;
+  border-left: 2px solid var(--lip);
   color: var(--muted);
-  font-size: 9px;
-  line-height: 1.2;
+  font-size: 14px;
+  line-height: 1.3;
 }
 
 .ladder li b {
@@ -981,13 +981,13 @@ body:has(.tabs) main {
   letter-spacing: 0.04em;
 }
 
+.ladder li span {
+  font-variant-numeric: tabular-nums;
+}
+
 .ladder li.got {
   border-left-color: var(--amber);
   color: var(--amber);
-}
-
-.ladder li:last-child {
-  grid-column: 5;
 }
 
 /* Where a frog's power comes from, a bar behind each row for how much of

@@ -21,14 +21,24 @@ import (
 )
 
 // Power only ever goes up, since a frog's rarity is fixed, a found hat or
-// trinket is never lost and the best Dive is a best. Trinkets count the same
-// as hats by tier.
+// trinket is never lost and the best Dive is a best. A trinket counts half a
+// hat of its tier, and Dive stops counting at diveCounts, so the sixty hats
+// stay the biggest part of it.
 var (
-	hatPower = [tierCount]int{20, 50, 120, 300, 800}
-	ranks    = []struct {
+	hatPower     = [tierCount]int{20, 50, 120, 300, 800}
+	trinketPower = [tierCount]int{10, 25, 60, 150, 400}
+	ranks        = []struct {
 		at   int
 		name string
-	}{{0, "NEW TO THE POND"}, {900, "POND REGULAR"}, {1500, "LILY LORD"}, {2600, "MARSH BARON"}, {4500, "SWAMP LEGEND"}}
+	}{
+		{0, "NEW TO THE POND"}, {2000, "POND REGULAR"}, {5000, "LILY LORD"}, {9000, "MARSH BARON"},
+		{14000, "FEN DUKE"}, {21000, "BOG MONARCH"}, {30000, "SWAMP LEGEND"},
+	}
+)
+
+const (
+	divePower  = 25
+	diveCounts = 60
 )
 
 type rankView struct {
@@ -77,7 +87,7 @@ type power struct {
 	Total int    `json:"total"`
 	Rank  string `json:"rank"`
 	// The whole ladder, how far to the next rung and how full the bar is, in
-	// a hundred, with every rung the same width and the top one filling it.
+	// a hundred, with every step the same width and the top rung filling it.
 	Ranks         []rankView `json:"ranks"`
 	Next          int        `json:"next"`
 	NextName      string     `json:"next_name"`
@@ -100,7 +110,7 @@ type power struct {
 // had is every trinket, rock and keepsake kind the pond has ever had, and
 // jobsTotal is its best level at every job added up.
 func powerOf(r rarity, held []hat, had map[string]bool, diveBest, jobsTotal int) power {
-	p := power{Frog: int(math.Round(120 * math.Log2(float64(r.N)))), DiveBest: diveBest, Dive: diveBest * 25}
+	p := power{Frog: int(math.Round(120 * math.Log2(float64(r.N)))), DiveBest: diveBest, Dive: min(diveBest, diveCounts) * divePower}
 	p.JobsTotal = max(jobsTotal, len(jobs))
 	p.Jobs = (p.JobsTotal - len(jobs)) * 3
 	for _, h := range held {
@@ -109,7 +119,7 @@ func powerOf(r rarity, held []hat, had map[string]bool, diveBest, jobsTotal int)
 	p.HatsHeld = len(held)
 	for _, t := range trinkets {
 		if had[t.kind] {
-			p.Trinkets += hatPower[t.tier]
+			p.Trinkets += trinketPower[t.tier]
 			p.TrinketsFound++
 		}
 	}
@@ -126,20 +136,26 @@ func powerOf(r rarity, held []hat, had map[string]bool, diveBest, jobsTotal int)
 		}
 	}
 	p.Total = p.Frog + p.Hats + p.Trinkets + p.Rocks + p.Keepsakes + p.Jobs + p.Dive
+	p.climb()
+	return p
+}
+
+// climb finds the rung a total stands on. The top one has no next.
+func (p *power) climb() {
 	for i, k := range ranks {
 		got := p.Total >= k.at
 		p.Ranks = append(p.Ranks, rankView{k.at, k.name, got})
-		if got {
-			p.Rank = k.name
-			p.Fill = 100
-			if i+1 < len(ranks) {
-				nx := ranks[i+1]
-				p.Next, p.NextName = nx.at-p.Total, nx.name
-				p.Fill = (100*i + 100*(p.Total-k.at)/(nx.at-k.at)) / len(ranks)
-			}
+		if !got {
+			continue
+		}
+		p.Rank = k.name
+		p.Next, p.NextName, p.Fill = 0, "", 100
+		if i+1 < len(ranks) {
+			nx := ranks[i+1]
+			p.Next, p.NextName = nx.at-p.Total, nx.name
+			p.Fill = (100*i + 100*(p.Total-k.at)/(nx.at-k.at)) / (len(ranks) - 1)
 		}
 	}
-	return p
 }
 
 func heldHats(q querier, id int64) ([]hat, error) {

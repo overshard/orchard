@@ -705,7 +705,8 @@ version of the old look and a handheld pet shell.
   the pads sit under them. The register of looks is in the bag's collection.
 - **A frog's public page** is the frog in its screen, its power as one big
   amber Space Grotesk number with the rank beside it, the parts that make it
-  up, and a QR code for the link. It ends on getting a frog of your own.
+  up, and a QR code for the link. The ranks are a ladder under the number, the
+  top rung first and amber up to where the frog stands, the same in settings. It ends on getting a frog of your own.
 - The card a share link unfurls with is a 1200 by 630 PNG drawn on the server,
   the screen on the left and the name, rarity and power on the right in
   JetBrains Mono, since that's the face the server has a TrueType file of.
