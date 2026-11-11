@@ -80,6 +80,11 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
   `frontend/src/arcade.js` is the frame round them, one file per game beside it.
   It reads a game's `W` and `H` each time, since Crossing changes its `H` to
   fit the window between runs.
+  `frontend/src/feel.js` is how a game feels, one made with `feel()` and set
+  as the game's `feel`. `got` is a catch and `crash` a bonk, with the blip, the
+  freeze, the bits and the popup in one call, `close` is a near miss,
+  `squashed` draws the frog squashed, `buffer` and `take` keep an early press
+  for 90ms, and the game calls `draw` where its popups belong.
 - `neighbours.go` is the residents, friendship by dishes and a favour a day.
 - `burrow.go` is the bank's burrows. Each level adds a pad that doesn't count
   toward the ones you buy, and a friendly neighbour can lodge in one and pay rent.
@@ -174,5 +179,8 @@ they have none, for other sites to draw.
 - There's no service worker, so an installed pond needs the network like the
   page does. On an iPhone it also keeps its own cookies apart from Safari's,
   so it opens on a new egg until the pond key is brought over.
+- The frame skips a game's `step` while its feel is frozen, and a hidden page
+  stops the frame, so a game keeps all its time in `step` and never in a
+  timer of its own.
 - `web/` has to stay byte identical to every other site's copy, and
   `make check` at the root fails when it isn't.
