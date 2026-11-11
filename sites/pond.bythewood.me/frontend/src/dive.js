@@ -13,6 +13,9 @@ const TOP = 20, OW = 16;
 let PW = 266, FXP = 70, GH = 200, BOT = 186;
 const BUOY = 330, RISE_MAX = 150, KICK = 138, GATE_EVERY = 118;
 const BIG = "700 22px 'Space Grotesk', sans-serif";
+// The frog is hit well inside its sprite, this far ahead, behind, over and
+// under where it swims. NEAR is how close a gate can pass and get a CLOSE.
+const AHEAD = 5, BEHIND = 6, OVER = 3, UNDER = 4, NEAR = 4;
 
 const F = feel();
 let gc, gx, spr = null, sprKey = "", net = Promise.resolve();
@@ -223,7 +226,7 @@ function addGate() {
   const gap = Math.max(44, 60 - G.score * 0.6), lo = TOP + 16 + gap / 2, hi = BOT - 16 - gap / 2;
   let c = G.lastC + (Math.random() * 2 - 1) * 62;
   c = Math.max(lo, Math.min(hi, c)); G.lastC = c;
-  G.gates.push({ x: PW + 10, c: c, gap: gap, bob: G.score > 12 ? 6 + Math.random() * 8 : 0, ph: Math.random() * 6, done: false, bug: Math.random() < 0.6 ? (Math.random() < 0.5 ? -1 : 1) : 0, seen: {} });
+  G.gates.push({ x: PW + 10, c: c, gap: gap, bob: G.score > 12 ? 6 + Math.random() * 8 : 0, ph: Math.random() * 6, done: false, bug: Math.random() < 0.6 ? (Math.random() < 0.5 ? -1 : 1) : 0, seen: {}, room: 99 });
 }
 
 function gateC(g) { return g.c + (g.bob ? Math.sin(G.t * 1.7 + g.ph) * g.bob : 0); }
@@ -245,7 +248,11 @@ function step(now) {
     const g = G.gates[i]; g.x -= sp * dt;
     if (g.x + OW < -6) { G.gates.splice(i, 1); continue; }
     const c = gateC(g), topEnd = c - g.gap / 2, botStart = c + g.gap / 2;
-    if (FXP + 7 > g.x && FXP - 8 < g.x + OW && (G.fy - 4 < topEnd || G.fy + 5 > botStart)) dead = G.fy - 4 < topEnd ? "TANGLED IN THE STEMS" : "BONKED A ROCK";
+    if (FXP + AHEAD > g.x && FXP - BEHIND < g.x + OW) {
+      const room = Math.min(G.fy - OVER - topEnd, botStart - G.fy - UNDER);
+      g.room = Math.min(g.room, room);
+      if (room < 0) dead = G.fy - OVER < topEnd ? "TANGLED IN THE STEMS" : "BONKED A ROCK";
+    }
     if (g.bug && Math.abs(g.x + OW / 2 - FXP) < 9 && Math.abs(c + g.bug * (g.gap / 2 - 9) - G.fy) < 9) {
       F.got(g.x + OW / 2, c + g.bug * (g.gap / 2 - 9), "+1", { streak: G.cleared + 1 });
       g.bug = 0; G.score++; G.flash = 0.25;
@@ -253,6 +260,7 @@ function step(now) {
     if (!g.done && g.x + OW < FXP - 8) {
       g.done = true; G.score++; G.cleared++;
       sfx("catch", G.cleared);
+      if (g.room < NEAR && !dead) F.close(FXP, G.fy - 16);
     }
     if (!G.toldBest && best() > 0 && G.score > best()) { G.toldBest = true; callout("New best", "up"); }
   }

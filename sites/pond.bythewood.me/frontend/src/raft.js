@@ -6,6 +6,8 @@ import { feel } from "./feel.js";
 // finger where it should go, or the arrow keys, and thread the gaps in the
 // reed weirs while missing rocks and the banks. Three bumps and it's over.
 const W = 180, H = 270, FY = H - 56, STEER = 150, KEYS = 120;
+// The frog is hit a few pixels inside its leaf, and NEAR is how close a miss gets a CLOSE.
+const BODY = 3, NEAR = 4;
 
 let G = null, col = null;
 const F = feel();
@@ -70,17 +72,22 @@ export const raft = {
     if (G.keys.right) G.fx += KEYS * dt;
     while (G.nextAt < G.dist + H + 40) spawn();
     const fy = G.dist + (H - FY), c = centre(fy), h = half(fy);
-    if (Math.abs(G.fx - c) > h - 7) { bump("ON THE BANK"); G.fx = c + Math.sign(G.fx - c) * (h - 9); }
+    if (Math.abs(G.fx - c) > h - 5) { bump("ON THE BANK"); G.fx = c + Math.sign(G.fx - c) * (h - 9); }
     for (const t of G.things) {
       if (t.done) continue;
       if (t.k === "weir" && fy >= t.y) {
         t.done = true;
-        if (G.fx - 5 > t.gx && G.fx + 5 < t.gx + t.gap) {
+        const room = Math.min(G.fx - BODY - t.gx, t.gx + t.gap - G.fx - BODY);
+        if (room > 0) {
           G.bonus++;
           F.got(G.fx, FY - 2, "+1", { streak: ++G.row });
+          if (room < NEAR) F.close(G.fx, FY - 26);
         } else bump("IN THE REEDS");
-      } else if (t.k === "rock" && Math.abs(fy - t.y) < t.r + 5 && Math.abs(G.fx - t.x) < t.r + 5) {
+      } else if (t.k === "rock" && Math.abs(fy - t.y) < t.r + BODY && Math.abs(G.fx - t.x) < t.r + BODY) {
         t.done = true; bump("ON A ROCK");
+      } else if (t.k === "rock" && fy > t.y + t.r + BODY) {
+        t.done = true;
+        if (Math.abs(G.fx - t.x) < t.r + BODY + NEAR && G.safe === 0) F.close(G.fx, FY - 26);
       } else if (t.k === "pebble" && Math.abs(fy - t.y) < 8 && Math.abs(G.fx - t.x) < 9) {
         t.done = true; G.bonus += 2;
         F.got(t.x, FY - 2, "+2", { streak: ++G.row });

@@ -30,6 +30,9 @@ const WRAP = COLS + 6, CARS = ["#e2412d", "#ffb000", "#3d8fd6", "#e2567a", "#e9e
 
 let G = null, col = null, LANES = {};
 const F = feel();
+// A wheel has to be this far into the frog to count, and a log holds a frog
+// hanging this far off its end. NEAR is how close a miss gets a CLOSE.
+const INSIDE = 0.14, HANG = 0.2, NEAR = 0.75;
 
 // From the pond down it's a stream, a verge, a lane and a verge, over again
 // for as many rows as there are.
@@ -64,7 +67,15 @@ function home() {
 }
 
 function under() {
-  return G.things.find((t) => t.row === G.row && G.fx + 0.5 > t.x && G.fx + 0.5 < t.x + t.len);
+  const m = water(G.row) ? -HANG : INSIDE;
+  return G.things.find((t) => t.row === G.row && G.fx + 0.5 > t.x + m && G.fx + 0.5 < t.x + t.len - m);
+}
+
+// How far the frog's middle is from the nearest thing on a lane, in cells.
+function gap(row) {
+  if (!road(row)) return 9;
+  const c = G.fx + 0.5;
+  return Math.min(9, ...G.things.filter((t) => t.row === row).map((t) => Math.max(t.x - c, c - t.x - t.len, 0)));
 }
 
 function lose(why) {
@@ -101,8 +112,10 @@ export const cross = {
     const d = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[dir];
     const nx = Math.round(G.fx) + d[0], nr = G.row + d[1];
     if (nx < 0 || nx >= COLS || nr > START || nr < HOME) return;
+    const left = gap(G.row);
     G.fx = d[0] ? nx : Math.max(0, Math.min(COLS - 1, Math.round(G.fx)));
     G.row = nr; G.hop = HOP; G.face = dir;
+    if (Math.min(left, under() ? 9 : gap(G.row)) < NEAR) F.close(G.fx * C + 7, G.row * C - 4);
     const fresh = G.row < G.best;
     sfx("hop", fresh ? START - G.row : 0);
     if (fresh) { G.best = G.row; G.score++; }

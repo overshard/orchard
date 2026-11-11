@@ -634,6 +634,7 @@ version of the old look and a handheld pet shell.
   crash stops it for six and shakes the field a few pixels. The frog squashes
   when it lands or catches. Reduced motion gets no shake and no squash, and
   every game takes this from `feel.js` so they all feel the same.
+  A near miss says CLOSE in the surface green.
 - **The market is a board.** A ticker of pebble prices scrolls along the top in
   readout glass, still under reduced motion, each business is a pixel
   shopfront in its own awning colour with its price in glass, and a day down
