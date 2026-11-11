@@ -670,6 +670,13 @@ version of the old look and a handheld pet shell.
   with no wind, so reading the wind is the player's part. A splash puts the
   frog back where it hopped from. The results have a scorecard, a glass box
   a hole with its par small over its hops, amber under par.
+- **The spawn jar is a glass jar on a shelf by the pond**, the frog over it
+  from above like pebble drop's, the next one in the top corner, and a
+  dashed line across the glass that blinks red while something rests over
+  it. Each stage is round so it stacks, an egg a pale ball of jelly with a
+  dark yolk, a tadpole in its jelly, a froglet green with a tail stub, a frog
+  in the player's frog's colours and an elder in brown and cream with white
+  whiskers.
 - **Bug sweep is the day's puzzle.** Eight pads by ten on flat water, a
   closed pad green and an open one dark with its number in a colour of its
   own, pale blue for one up to red. A marked pad has a pink bud on it, and a

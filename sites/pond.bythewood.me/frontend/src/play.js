@@ -13,6 +13,7 @@ import { drop, dropArt } from "./drop.js";
 import { sweep, sweepArt } from "./sweep.js";
 import { chorus, chorusArt } from "./chorus.js";
 import { putt, puttArt } from "./putt.js";
+import { jar, jarArt } from "./jar.js";
 
 // Every disk on Play. A disk is a key, a name, the plastic's colour, one
 // line, the picture on its label and the game the frame runs. A new game is
@@ -36,6 +37,7 @@ export const SHELVES = [
     { key: "shell", name: "Shell game", colour: "#8a5a2b", line: "Follow the tadpole under the shells.", art: shellArt, game: shell },
     { key: "sweep", name: "Bug sweep", colour: "#8fa832", line: "Clear the pads and mind the wasps.", art: sweepArt, game: sweep },
     { key: "putt", name: "Pad putt", colour: "#4fa8d8", line: "Hop nine holes of pads to the flag.", art: puttArt, game: putt },
+    { key: "jar", name: "Spawn jar", colour: "#8fc9b4", line: "Grow frogspawn up to elders in a jar.", art: jarArt, game: jar },
   ] },
 ];
 

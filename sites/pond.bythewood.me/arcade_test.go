@@ -378,3 +378,40 @@ func TestPuttIsBounded(t *testing.T) {
 		t.Errorf("a day of perfect rounds paid %d against a cap of %d", v.Pebbles-start, g.cap)
 	}
 }
+
+// The spawn jar's score is the page's, so the server holds it to how fast
+// spawn can be dropped and a jar's worth, and a day of it to the cap.
+func TestSpawnJarIsBounded(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	g, _ := arcadeOf("jar")
+	play := func(score int, secs time.Duration) *arcadeDone {
+		t.Helper()
+		st, err := s.arcadeStart(id, "jar")
+		if err != nil {
+			t.Fatal(err)
+		}
+		*clock = clock.Add(secs * time.Second)
+		d, err := s.arcadeFinish(id, "jar", st.Run, score, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return d
+	}
+	if d := play(jarMost+1, 600); d.Paid != 0 {
+		t.Errorf("more than a jar can hold paid: %+v", d)
+	}
+	if d := play(800, 10); d.Paid != 0 {
+		t.Errorf("800 in ten seconds paid: %+v", d)
+	}
+	start := play(0, 60).Pond.Pebbles
+	if d := play(800, 90); d.Paid != 800/g.per {
+		t.Errorf("a good jar paid %d, want %d", d.Paid, 800/g.per)
+	}
+	for range 10 {
+		play(jarMost, 600)
+	}
+	if v, _ := s.view(id); v.Pebbles-start != g.cap {
+		t.Errorf("a day of jars paid %d against a cap of %d", v.Pebbles-start, g.cap)
+	}
+}
