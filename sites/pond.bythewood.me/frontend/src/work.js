@@ -43,12 +43,25 @@ export function defOf(key) { return state.pond.jobs.defs.find((d) => d.key === k
 
 function levelOf(f, key) { return f.work.levels.find((l) => l.job === key); }
 
-// How long an action takes this frog, the same sum the server does.
+function mastOf(f, job, key) { return f.work.targets.find((m) => m.job === job && m.target === key); }
+
+// How long an action takes this frog, off the speeds the server sent.
 function actMins(f, d, t) {
-  const l = levelOf(f, d.key).level;
-  let m = t.mins / (1 + (l - 1) / 98);
-  if (d.nature && f.nature === d.nature) m /= 1.25;
-  return Math.max(1, m);
+  const m = mastOf(f, d.key, t.key);
+  return Math.max(1, t.mins / levelOf(f, d.key).speed / (m ? m.speed : 1));
+}
+
+// A target's mastery bar fills to the next level, and stays full while the
+// frog's level holds it at the cap.
+function mastBar(f, d, x) {
+  const m = mastOf(f, d.key, x.key) || { level: 1, hours: 0 }, at = state.pond.jobs.mastery_at;
+  const cap = levelOf(f, d.key).mcap, top = m.level >= cap;
+  const row = el("span", "wk-m" + (top ? " top" : "")), bar = el("span", "meter"), fill = document.createElement("i");
+  fill.style.transform = "scaleX(" + (top ? 1 : Math.min(1, (m.hours - at[m.level]) / (at[m.level + 1] - at[m.level]))) + ")";
+  bar.append(fill);
+  row.append(bar, el("span", "wk-mlv", "M" + m.level));
+  row.title = "Mastery " + m.level + (m.level < 10 && top ? ", held at " + cap + " until a higher level" : "");
+  return row;
 }
 
 function yieldLine(t) {
@@ -171,7 +184,7 @@ function targetRow(f, d, x, level, cur) {
   if (open) {
     const bits = [mins(actMins(f, d, x)), x.xp.toLocaleString("en-US") + " xp", yieldLine(x)];
     if (x.miss) bits.push(Math.round(x.miss * 10) + " in 10 missed");
-    text.append(el("span", "", bits.join(" · ")));
+    text.append(el("span", "", bits.join(" · ")), mastBar(f, d, x));
   } else text.append(el("span", "", "Opens at level " + x.level));
   b.append(art, text, el("span", "wk-lv", x.level));
   b.disabled = !open;
@@ -264,6 +277,7 @@ export function awayCard(rows, took) {
       lv.firstChild.append(el("span", "k", "xp"), el("span", "v", "+" + r.xp.toLocaleString("en-US")));
       lv.append(el("span", "", r.up ? "Up " + r.up + (r.up === 1 ? " level" : " levels") + " to " + r.level + "!" : "Level " + r.level));
       if (r.up) lv.lastChild.className = "up";
+      if (r.mastery_up) lv.append(el("span", "up", "Mastery " + r.mastery));
       box.append(lv);
       if (!took && r.stop === "full") box.append(el("p", "wk-stop", "Basket full, collect to keep " + r.keep));
       if (r.stop === "short") box.append(el("p", "wk-stop", "Ran out of " + (r.short || "materials") + "."));

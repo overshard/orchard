@@ -399,7 +399,7 @@ func TestADaysMaterialsStayPut(t *testing.T) {
 					continue
 				}
 				for _, suited := range []bool{false, true} {
-					act := actSecs(tg, level, suited)
+					act := actSecs(tg, pace{level, 1, suited})
 					day := 86400 / float64(act) * float64(tg.n) * (1 - tg.miss)
 					was := 24 * rate * speedAt(level)
 					if suited {
@@ -414,7 +414,7 @@ func TestADaysMaterialsStayPut(t *testing.T) {
 	}
 	j, _ := jobOf("sticks")
 	r := &run{f: frogRow{ID: 3, WorkAt: 1}, j: j, t: j.targets[1], level: 30}
-	r.act = actSecs(r.t, 30, false)
+	r.act = actSecs(r.t, pace{30, 1, false})
 	got := 0
 	n := int(30 * 86400 / r.act)
 	for i := range n {
@@ -431,7 +431,7 @@ func TestFindsComeByTheHour(t *testing.T) {
 	j, _ := jobOf("mud")
 	for _, tg := range j.targets {
 		r := &run{f: frogRow{ID: 11, WorkAt: 1}, j: j, t: tg, level: 99}
-		r.act = actSecs(tg, 99, false)
+		r.act = actSecs(tg, pace{99, 1, false})
 		agates, found := 0, 0
 		n := int(4000 * 3600 / r.act)
 		for i := range n {
@@ -538,19 +538,24 @@ var (
 	keen     = player{"keen", []time.Duration{workHold}}
 )
 
-// paceOf plays a frog at a job from level 1 on what each action pays on
+// playJob plays a frog at a job from level 1 on what each action pays on
 // average, moving to the newest target at every collect, and says on which
 // day each level came.
-func paceOf(j job, pl player) [maxLevel + 1]float64 {
+func playJob(j job, pl player) [maxLevel + 1]float64 {
 	var day [maxLevel + 1]float64
 	xp, hours := 0.0, 0.0
+	done := map[string]mastered{}
 	for i := 0; levelOf(int(xp)) < maxLevel; i++ {
 		gap := pl.gaps[i%len(pl.gaps)]
 		level := levelOf(int(xp))
 		t := j.best(level)
-		act := actSecs(t, level, false)
+		m := masteryOf(done[t.key].hours(t), masteryCap(level))
+		act := actSecs(t, pace{level, m, false})
 		n := int(int64(min(gap, workHold)/time.Second) / act)
-		xp += float64(n) * ((1-t.miss)*float64(t.xp) + t.miss*float64(t.xp/missShare))
+		miss := t.miss * (1 - masteryMiss*float64(m-1))
+		hit := float64(t.xp) * (1 + masteryTwo*float64(m-1))
+		xp += float64(n) * ((1-miss)*hit + miss*float64(t.xp/missShare))
+		done[t.key] = mastered{done[t.key].acts + n, 0}
 		hours += gap.Hours()
 		for l := level + 1; l <= levelOf(int(xp)); l++ {
 			day[l] = hours / 24
@@ -566,7 +571,7 @@ func TestTheJobsPace(t *testing.T) {
 		if j.key == jobCraft {
 			continue
 		}
-		o, k := paceOf(j, ordinary), paceOf(j, keen)
+		o, k := playJob(j, ordinary), playJob(j, keen)
 		t.Logf("%-8s ordinary %4.1f %4.1f %5.1f %5.1f %5.1f   keen %4.1f %4.1f %5.1f %5.1f %5.1f", j.key, o[10], o[30], o[50], o[70], o[99], k[10], k[30], k[50], k[70], k[99])
 		within := func(what string, got, lo, hi float64) {
 			if got < lo || got > hi {
@@ -603,5 +608,71 @@ func TestXPNeverDrops(t *testing.T) {
 	l := c.Pond.Frogs[0].Work.Levels[1]
 	if l.Level < 60 || l.XP < xpFor[60]+5 || l.XP != xpFor[60]+5+c.Done[0].XP {
 		t.Errorf("a level 60 catcher after a basket: %+v", l)
+	}
+}
+
+// Mastery climbs with base hours at a target, held to what the frog's level
+// allows, and each level makes the target quicker, surer and likelier to
+// bring two.
+func TestMasteryCapsAndWhatItChanges(t *testing.T) {
+	if masteryCap(1) != 2 || masteryCap(11) != 3 || masteryCap(88) != masteryTop || masteryCap(99) != masteryTop {
+		t.Errorf("caps: %d %d %d", masteryCap(1), masteryCap(11), masteryCap(88))
+	}
+	if masteryOf(0, 2) != 1 || masteryOf(masteryAt(2), 2) != 2 || masteryOf(1e9, 2) != 2 || masteryOf(1e9, masteryCap(99)) != masteryTop {
+		t.Error("masteryOf is off")
+	}
+	j, _ := jobOf("bugs")
+	tg := j.targets[0]
+	if a, b := actSecs(tg, pace{50, 1, false}), actSecs(tg, pace{50, masteryTop, false}); float64(a)/float64(b) < 1.2 || float64(a)/float64(b) > 1.25 {
+		t.Errorf("mastery 10 takes an action from %ds to %ds", a, b)
+	}
+	count := func(m int) (miss, two float64) {
+		r := &run{f: frogRow{ID: 5, WorkAt: 1}, j: j, t: tg, level: 50, act: 1800, mastery: m}
+		const n = 20000
+		for i := range n {
+			d := r.dealAt([]byte("k"), i)
+			if d.miss {
+				miss++
+			} else if d.n == 2 {
+				two++
+			}
+		}
+		return miss / n, two / (n - miss)
+	}
+	miss1, two1 := count(1)
+	miss10, two10 := count(masteryTop)
+	if math.Abs(miss1-tg.miss) > 0.02 || two1 != 0 {
+		t.Errorf("mastery 1 missed %.2f and doubled %.2f", miss1, two1)
+	}
+	if math.Abs(miss10-tg.miss*(1-9*masteryMiss)) > 0.02 || math.Abs(two10-9*masteryTwo) > 0.02 {
+		t.Errorf("mastery 10 missed %.2f and doubled %.2f", miss10, two10)
+	}
+}
+
+// Mastery is stored when a basket is paid and only counts from the next one,
+// so the basket on show never changes under the page.
+func TestMasteryComesWithTheBasket(t *testing.T) {
+	s, clock, id, _ := working(t, "sticks", "")
+	*clock = clock.Add(13 * time.Hour)
+	v, _ := s.view(id)
+	if w := v.Frogs[0].Work; w.Mastery != 1 || len(w.Targets) != 0 {
+		t.Fatalf("mastery before a collect: %+v", w)
+	}
+	c, err := s.collectJobs(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := c.Done[0]
+	w := c.Pond.Frogs[0].Work
+	if len(w.Targets) != 1 || w.Targets[0].Target != "twigs" || w.Targets[0].Got != d.Got["sticks"] {
+		t.Fatalf("mastery after a basket of %d: %+v", d.Actions, w.Targets)
+	}
+	if d.Mastery != 2 || d.MasteryUp != 1 || w.Mastery != 2 || w.Act >= 1200 {
+		t.Errorf("36 twigs, 12 base hours, gave %+v and the next basket %+v", d, w)
+	}
+	var first string
+	s.r.QueryRow(`SELECT first_day FROM mastery WHERE pond_id = ?`, id).Scan(&first)
+	if first == "" {
+		t.Error("no day for the first twig")
 	}
 }

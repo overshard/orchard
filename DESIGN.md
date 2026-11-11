@@ -906,7 +906,9 @@ version of the old look and a handheld pet shell.
   action bar in readout glass with the time to the next one, then the basket
   as slots with counts and an amber key to take it, the level with a bar to
   the next and what that level opens, and the targets as keys with their
-  time, xp, yield and misses. A locked target is its dark shape on hazard
+  time, xp, yield and misses. Each open target has a thin mastery bar under
+  its numbers with its mastery in glass beside it, the bar dimmed while the
+  frog's level holds it at the cap. A locked target is its dark shape on hazard
   stripes with the level that opens it. The bar only fills and the basket
   only gains what the server dealt, and a full basket stops the bar and says
   so in amber and as a Next strip row.

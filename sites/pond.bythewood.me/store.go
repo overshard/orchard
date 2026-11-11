@@ -217,6 +217,19 @@ CREATE TABLE IF NOT EXISTS job_xp (
 ) WITHOUT ROWID;
 CREATE INDEX IF NOT EXISTS job_xp_pond ON job_xp(pond_id);
 
+CREATE TABLE IF NOT EXISTS mastery (
+    pond_id   INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
+    frog_id   INTEGER NOT NULL REFERENCES frogs(id) ON DELETE CASCADE,
+    job       TEXT NOT NULL,
+    target    TEXT NOT NULL,
+    acts      INTEGER NOT NULL DEFAULT 0,
+    got       INTEGER NOT NULL DEFAULT 0,
+    first_day TEXT NOT NULL DEFAULT '',
+    top_day   TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (frog_id, job, target)
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS mastery_pond ON mastery(pond_id);
+
 CREATE TABLE IF NOT EXISTS neighbours (
     pond_id  INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
     who      INTEGER NOT NULL,
@@ -962,12 +975,16 @@ func viewOf(q querier, p pond, now time.Time, key []byte) (*view, error) {
 	if err != nil {
 		return nil, err
 	}
-	v.Jobs = jobsView{Defs: jobDefs(), Hold: int(workHold / time.Hour), Total: bestLevels(xp)}
+	v.Jobs = jobsView{Defs: jobDefs(), Hold: int(workHold / time.Hour), Total: bestLevels(xp), MasteryAt: masteryLevels()}
 	items, err := heldItems(q, p.ID)
 	if err != nil {
 		return nil, err
 	}
-	work := runs(key, frogs, xp, items, now)
+	mast, err := loadMastery(q, p.ID)
+	if err != nil {
+		return nil, err
+	}
+	work := runs(key, frogs, xp, mast, items, now)
 	earned := hoodsEarned(xp)
 	found = append(found, earned...)
 	for i, j := range jobs {
@@ -996,7 +1013,7 @@ func viewOf(q querier, p pond, now time.Time, key []byte) (*view, error) {
 			rv.Fed = &mealView{f.Fed, d.name, d.tier, mealTakes[d.tier], mealEyes[d.tier], mealBoost[d.tier], fullUntil(f) - now.Unix(), f.Fed == f.FavDish}
 		}
 		if canWork(f, now) {
-			rv.Work = workOf(f, xpOf(xp, f.ID), work[f.ID], now)
+			rv.Work = workOf(f, xpOf(xp, f.ID), mast[f.ID], work[f.ID], now)
 			if rv.Work.Done > 0 {
 				v.Jobs.Baskets++
 			}
