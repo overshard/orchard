@@ -71,14 +71,65 @@ function shelf(shop, sv, pebbles) {
   });
 }
 
+export const KEEPER = { wren: "Little Tully", brindle: "Big Bean", fenn: "Tansy", moss: "Moth" };
+const CUTS = { 0.9: "a tenth", 0.8: "a fifth", 0.75: "a quarter" };
+
+export function cutWords(t) { return "Cuts " + (CUTS[t.cut] || Math.round((1 - t.cut) * 100) + "%") + " off every action"; }
+
+// bestAt is the pond's best level at a job, which is what a tool asks for.
+export function bestAt(p, job) {
+  return Math.max(1, ...p.frogs.filter((f) => f.work).map((f) => f.work.levels.find((l) => l.job === job).level));
+}
+
+// Each keeper has a tool line a job they sell for, the next tier the pond
+// hasn't got, or the top one once it has them all.
+function tools(shop, p) {
+  const ul = $("shelf-" + shop);
+  p.jobs.defs.forEach((d) => {
+    const all = d.tools.filter((t) => t.shop === shop);
+    if (!all.length) return;
+    const owned = p.jobs.tools[d.key] || 0, t = all.find((x) => x.tier === owned + 1) || all[all.length - 1];
+    const li = document.createElement("li"), what = document.createElement("span"), name = document.createElement("b");
+    name.textContent = t.name;
+    what.className = "what";
+    const sub = document.createElement("span");
+    sub.className = "sub";
+    sub.textContent = d.name + " " + t.level + ". " + cutWords(t) + ".";
+    what.append(name, sub);
+    li.append(iconCanvas("tool_" + d.key + "_" + t.tier, 3), what);
+    const have = owned >= t.tier, short = bestAt(p, d.key) < t.level;
+    li.className = have ? "sold" : "";
+    if (have || short) {
+      const tag = document.createElement("span");
+      tag.className = "soldtag"; tag.textContent = have ? "YOURS" : "LEVEL " + t.level;
+      li.append(tag);
+    } else {
+      const buy = document.createElement("button");
+      buy.type = "button";
+      buy.textContent = t.price.toLocaleString("en-US");
+      buy.setAttribute("aria-label", "Buy the " + t.name.toLowerCase() + " for " + t.price + " pebbles");
+      buy.disabled = p.pebbles < t.price;
+      buy.addEventListener("click", () => {
+        buy.disabled = true;
+        post("/api/tools/buy", { job: d.key }).then((r) => {
+          $("shop-out-" + shop).textContent = KEEPER[shop] + " hands over the " + t.name.toLowerCase() + ". Every frog at " + d.name.toLowerCase() + " takes it up with its next basket.";
+          setPond(r.pond);
+        }, (e) => { $("shop-out-" + shop).textContent = e.message; buy.disabled = false; });
+      });
+      li.append(buy);
+    }
+    ul.append(li);
+  });
+}
+
 function render(p) {
-  SHOPS.forEach((shop) => shelf(shop, p.shops[shop], p.pebbles));
+  SHOPS.forEach((shop) => { shelf(shop, p.shops[shop], p.pebbles); tools(shop, p); });
   $("wren-note").textContent = "New hats at midnight, in " + hours(p.shops.wren.next_in) + ". One of each.";
   const w = p.want, note = $("wren-want");
   note.hidden = !w.hat || w.ready;
   if (w.hat && !w.ready) note.textContent = "Looking out for the hat you asked for. " + w.fill.toLocaleString("en-US") + " of " + w.bar.toLocaleString("en-US") + " in spares so far.";
   $("brindle-note").textContent = p.shops.brindle.sale
-    ? "The market's down today, so everything's a quarter off. New stock at midnight."
+    ? "The market's down today, so the food's a quarter off. New stock at midnight."
     : "Prices follow the market, and a down day is a sale. New stock at midnight.";
 }
 

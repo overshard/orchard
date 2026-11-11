@@ -86,7 +86,7 @@ func tg(key, name string, level int, mins float64, kind string, n int, miss floa
 var xpLadder = []struct {
 	level int
 	rate  float64
-}{{1, 56}, {6, 64}, {12, 74}, {20, 86}, {30, 100}, {42, 145}, {55, 420}, {70, 1400}, {85, 5600}, {99, 5600}}
+}{{1, 56}, {6, 64}, {12, 74}, {20, 86}, {30, 100}, {42, 145}, {55, 360}, {70, 1050}, {85, 3600}, {99, 3600}}
 
 func xpRate(level int) float64 {
 	for i := 1; i < len(xpLadder); i++ {
@@ -331,13 +331,13 @@ func speedAt(level int) float64 { return 1 + float64(level-1)/98 }
 
 // pace is everything about one frog that sets how quick its actions are.
 type pace struct {
-	level, mastery int
-	suited         bool
+	level, mastery, tool int
+	suited               bool
 }
 
 // speed leaves mastery out, since that's the target's and not the job's.
 func (p pace) speed() float64 {
-	s := speedAt(p.level)
+	s := speedAt(p.level) / toolCut[p.tool]
 	if p.suited {
 		s *= natureSpeed
 	}
@@ -578,7 +578,7 @@ func runOf(key []byte, f frogRow, xp map[string]int, mast map[string]mastered, l
 	}
 	r := &run{f: f, j: j, t: t, level: levelOf(xp[f.Job]), had: mast[masteryKey(j.key, t.key)]}
 	r.mastery = masteryOf(r.had.hours(t), masteryCap(r.level))
-	r.act = actSecs(t, paceOf(f, j, r.level, r.mastery))
+	r.act = actSecs(t, pace{r.level, r.mastery, min(f.WorkTool, toolTiers), suits(f, j)})
 	r.cap = max(1, int(int64(workHold/time.Second)/r.act))
 	done := min(r.cap, int(max(0, now.Unix()-f.WorkAt)/r.act))
 	for i := range done {
@@ -621,23 +621,47 @@ func suits(f frogRow, j job) bool {
 	return j.nature != "" && genomeOf(f.Seed, f.Mods).Nature == j.nature
 }
 
-func paceOf(f frogRow, j job, level, mastery int) pace {
-	return pace{level, mastery, suits(f, j)}
-}
-
 // startOf is when the action in progress began.
 func (r *run) startOf() int64 { return r.f.WorkAt + int64(len(r.deals))*r.act }
 
+// crew is everything a pond's frogs bring to their jobs.
+type crew struct {
+	frogs []frogRow
+	xp    jobXP
+	mast  masteryMap
+	held  map[string]int
+	tools map[string]int
+}
+
+func crewOf(q querier, pondID int64) (*crew, error) {
+	c := &crew{}
+	var err error
+	if c.frogs, err = loadFrogs(q, pondID); err != nil {
+		return nil, err
+	}
+	if c.xp, err = loadXP(q, pondID); err != nil {
+		return nil, err
+	}
+	if c.mast, err = loadMastery(q, pondID); err != nil {
+		return nil, err
+	}
+	if c.held, err = heldItems(q, pondID); err != nil {
+		return nil, err
+	}
+	c.tools, err = loadTools(q, pondID)
+	return c, err
+}
+
 // runs works out every frog's basket in the pond's order, crafters sharing
 // what the pond holds first come first.
-func runs(key []byte, frogs []frogRow, xp jobXP, mast masteryMap, held map[string]int, now time.Time) map[int64]*run {
+func (c *crew) runs(key []byte, now time.Time) map[int64]*run {
 	left := map[string]int{}
 	for k := range materials {
-		left[k] = held[k]
+		left[k] = c.held[k]
 	}
 	out := map[int64]*run{}
-	for _, f := range frogs {
-		if r, ok := runOf(key, f, xpOf(xp, f.ID), mast[f.ID], left, now); ok {
+	for _, f := range c.frogs {
+		if r, ok := runOf(key, f, xpOf(c.xp, f.ID), c.mast[f.ID], left, now); ok {
 			out[f.ID] = r
 		}
 	}
@@ -673,7 +697,7 @@ type workCollected struct {
 
 // pay hands over everything in a frog's basket and starts the next one where
 // the action in progress began, or from now when the frog had stopped.
-func pay(tx *sql.Tx, p *pond, r *run, xp map[string]int, now time.Time) (workDone, error) {
+func pay(tx *sql.Tx, p *pond, r *run, xp map[string]int, tools map[string]int, now time.Time) (workDone, error) {
 	before := levelOf(xp[r.f.Job])
 	w := workDone{Frog: titled(frogViewOf(r.f, now).Name), Job: r.j.name, Target: r.t.title(), Actions: len(r.deals),
 		Got: map[string]int{}, Finds: map[string]int{}, Things: basketOf(r.deals), Why: r.t.why, Level: before, Stop: r.stop}
@@ -709,14 +733,15 @@ func pay(tx *sql.Tx, p *pond, r *run, xp map[string]int, now time.Time) (workDon
 	if r.stop != "" {
 		at = now.Unix()
 	}
-	if _, err := tx.Exec(`UPDATE frogs SET work_at = ?, work_n = work_n + ? WHERE id = ?`, at, len(r.deals), r.f.ID); err != nil {
-		return w, err
-	}
 	if err := addXP(tx, p.ID, r.f.ID, r.f.Job, w.XP); err != nil {
 		return w, err
 	}
 	xp[r.f.Job] += w.XP
 	w.Level = levelOf(xp[r.f.Job])
+	if _, err := tx.Exec(`UPDATE frogs SET work_at = ?, work_n = work_n + ?, work_tool = ? WHERE id = ?`,
+		at, len(r.deals), toolFor(tools[r.j.key], w.Level), r.f.ID); err != nil {
+		return w, err
+	}
 	w.Up = w.Level - before
 	got := 0
 	for _, d := range r.deals {
@@ -767,17 +792,17 @@ func canWork(f frogRow, now time.Time) bool {
 func (s *store) collectJobs(id int64) (*workCollected, error) {
 	out := &workCollected{Done: []workDone{}}
 	v, err := s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
-		frogs, xp, mast, held, err := jobState(tx, p.ID)
+		c, err := crewOf(tx, p.ID)
 		if err != nil {
 			return err
 		}
-		all := runs(s.pepper, frogs, xp, mast, held, now)
-		for _, f := range frogs {
+		all := c.runs(s.pepper, now)
+		for _, f := range c.frogs {
 			r := all[f.ID]
 			if r == nil || len(r.deals) == 0 {
 				continue
 			}
-			w, err := pay(tx, p, r, xpOf(xp, f.ID), now)
+			w, err := pay(tx, p, r, xpOf(c.xp, f.ID), c.tools, now)
 			if err != nil {
 				return err
 			}
@@ -795,33 +820,16 @@ func (s *store) collectJobs(id int64) (*workCollected, error) {
 // settle pays one frog's basket, for when something is about to change what
 // its unpaid actions would bring.
 func (s *store) settle(tx *sql.Tx, p *pond, frogID int64, now time.Time) (*workDone, error) {
-	frogs, xp, mast, held, err := jobState(tx, p.ID)
+	c, err := crewOf(tx, p.ID)
 	if err != nil {
 		return nil, err
 	}
-	r := runs(s.pepper, frogs, xp, mast, held, now)[frogID]
+	r := c.runs(s.pepper, now)[frogID]
 	if r == nil || len(r.deals) == 0 {
 		return nil, nil
 	}
-	w, err := pay(tx, p, r, xpOf(xp, frogID), now)
+	w, err := pay(tx, p, r, xpOf(c.xp, frogID), c.tools, now)
 	return &w, err
-}
-
-func jobState(tx *sql.Tx, pondID int64) ([]frogRow, jobXP, masteryMap, map[string]int, error) {
-	frogs, err := loadFrogs(tx, pondID)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-	xp, err := loadXP(tx, pondID)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-	mast, err := loadMastery(tx, pondID)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-	held, err := heldItems(tx, pondID)
-	return frogs, xp, mast, held, err
 }
 
 func xpOf(all jobXP, frogID int64) map[string]int {
@@ -843,14 +851,14 @@ func (s *store) setJob(id, frogID int64, key, tkey string) (*workCollected, erro
 	}
 	out := &workCollected{Done: []workDone{}}
 	v, err := s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
-		frogs, xp, _, _, err := jobState(tx, p.ID)
+		c, err := crewOf(tx, p.ID)
 		if err != nil {
 			return err
 		}
 		var f *frogRow
-		for i := range frogs {
-			if frogs[i].ID == frogID {
-				f = &frogs[i]
+		for i := range c.frogs {
+			if c.frogs[i].ID == frogID {
+				f = &c.frogs[i]
 			}
 		}
 		if f == nil {
@@ -859,7 +867,7 @@ func (s *store) setJob(id, frogID int64, key, tkey string) (*workCollected, erro
 		if !canWork(*f, now) {
 			return errNotYet
 		}
-		level := levelOf(xpOf(xp, f.ID)[key])
+		level := levelOf(xpOf(c.xp, f.ID)[key])
 		if key != "" {
 			if tkey == "" && key != jobCraft {
 				tkey = j.best(level).key
@@ -888,7 +896,7 @@ func (s *store) setJob(id, frogID int64, key, tkey string) (*workCollected, erro
 		if key == "" {
 			at = 0
 		}
-		_, err = tx.Exec(`UPDATE frogs SET job = ?, target = ?, work_at = ? WHERE id = ?`, key, tkey, at, f.ID)
+		_, err = tx.Exec(`UPDATE frogs SET job = ?, target = ?, work_at = ?, work_tool = ? WHERE id = ?`, key, tkey, at, toolFor(c.tools[key], level), f.ID)
 		return err
 	})
 	out.Pond = v
@@ -968,6 +976,8 @@ type jobLevel struct {
 	// before a target's mastery.
 	MCap  int     `json:"mcap"`
 	Speed float64 `json:"speed"`
+	// The tool its next basket takes up.
+	Tool int `json:"tool"`
 }
 
 // masteryView is a target a frog has worked. Hours are base hours, the ones
@@ -1018,8 +1028,9 @@ type workView struct {
 	// on time, and whether the frog runs short after them.
 	Ahead      []dealView `json:"ahead"`
 	AheadShort bool       `json:"ahead_short,omitempty"`
-	// The mastery this basket is worked at.
+	// The mastery and the tool this basket is worked at.
 	Mastery int           `json:"mastery"`
+	Tool    int           `json:"tool"`
 	Targets []masteryView `json:"targets"`
 }
 
@@ -1054,6 +1065,7 @@ type jobDef struct {
 	Nature  string       `json:"nature"`
 	Targets []targetView `json:"targets"`
 	Finds   []findView   `json:"finds"`
+	Tools   []tool       `json:"tools"`
 }
 
 type jobsView struct {
@@ -1063,8 +1075,10 @@ type jobsView struct {
 	Baskets int `json:"baskets"`
 	// The pond's best level at each job, added up.
 	Total int `json:"total"`
-	// Where each mastery level starts, in base hours.
-	MasteryAt []float64 `json:"mastery_at"`
+	// Where each mastery level starts, in base hours, and each job's tool
+	// tier the pond owns.
+	MasteryAt []float64      `json:"mastery_at"`
+	Tools     map[string]int `json:"tools"`
 }
 
 func tierOf(kind string) int {
@@ -1077,7 +1091,7 @@ func tierOf(kind string) int {
 var jobDefs = sync.OnceValue(func() []jobDef {
 	out := make([]jobDef, 0, len(jobs))
 	for _, j := range jobs {
-		d := jobDef{j.key, j.name, j.verb, j.keep, j.nature, []targetView{}, []findView{}}
+		d := jobDef{j.key, j.name, j.verb, j.keep, j.nature, []targetView{}, []findView{}, toolsFor(j.key)}
 		for _, t := range j.targets {
 			kind := t.kind
 			if kind == "" {
@@ -1125,7 +1139,7 @@ func basketOf(deals []deal) []thingView {
 	return out
 }
 
-func workOf(f frogRow, xp map[string]int, mast map[string]mastered, r *run, now time.Time) *workView {
+func workOf(f frogRow, xp map[string]int, mast map[string]mastered, tools map[string]int, r *run, now time.Time) *workView {
 	w := &workView{Job: f.Job, Target: f.Target, Basket: []thingView{}, Ahead: []dealView{}, Targets: []masteryView{}}
 	for _, j := range jobs {
 		x := xp[j.key]
@@ -1134,7 +1148,8 @@ func workOf(f frogRow, xp map[string]int, mast map[string]mastered, r *run, now 
 		if l == maxLevel {
 			to = xpFor[maxLevel]
 		}
-		w.Levels = append(w.Levels, jobLevel{j.key, l, x, xpFor[l], to, masteryCap(l), paceOf(f, j, l, 1).speed()})
+		tl := toolFor(tools[j.key], l)
+		w.Levels = append(w.Levels, jobLevel{j.key, l, x, xpFor[l], to, masteryCap(l), pace{l, 1, tl, suits(f, j)}.speed(), tl})
 		w.Total += l
 		for _, t := range j.targets {
 			m, ok := mast[masteryKey(j.key, t.key)]
@@ -1148,7 +1163,7 @@ func workOf(f frogRow, xp map[string]int, mast map[string]mastered, r *run, now 
 	if r == nil {
 		return w
 	}
-	w.Mastery = r.mastery
+	w.Mastery, w.Tool = r.mastery, min(f.WorkTool, toolTiers)
 	w.Act, w.Cap, w.Done, w.Stop, w.Short, w.AheadShort = r.act, r.cap, len(r.deals), r.stop, r.short, r.aheadShort
 	w.Since = now.Unix() - f.WorkAt
 	if r.stop == "" {

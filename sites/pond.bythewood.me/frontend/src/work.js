@@ -4,6 +4,7 @@ import { openSheet, closeSheet, slot, shade, reveal } from "./ui.js";
 import { drawJob, JOB_THING } from "./scenes.js";
 import { hatTile } from "./hats.js";
 import { genome, bred, cells, colours, draw, W, H } from "./frog.js";
+import { KEEPER, cutWords } from "./shops.js";
 
 // A frog's job as its own screen: the frog at it in a window, the action
 // bar, the basket and the targets. The server deals every action, and this
@@ -169,9 +170,33 @@ function render(p) {
     if (!got) finds.lastChild.querySelector(".nm").textContent = "Level " + x.level;
   });
   $("job-finds-head").hidden = d.finds.length === 0;
+  toolRow(p, f, d, l, at);
   shown = "";
   lastN = -1;
   live(p, f, true);
+}
+
+// The tool the frog works with at this job, the one it takes up next, or
+// who sells the first one.
+function toolRow(p, f, d, l, at) {
+  const box = $("job-tool"), owned = p.jobs.tools[d.key] || 0;
+  const using = at ? f.work.tool : l.tool, t = d.tools[Math.max(using, l.tool) - 1], better = d.tools[owned];
+  let line;
+  if (t) line = (l.tool > using ? "From its next basket. " : "") + cutWords(t) + ".";
+  else if (owned) line = "The pond's " + d.tools[owned - 1].name.toLowerCase() + " needs level " + d.tools[owned - 1].level + ".";
+  else line = KEEPER[better.shop] + " sells a " + better.name.toLowerCase() + " for frogs at level " + better.level + ".";
+  if (t && better) line += " " + KEEPER[better.shop] + " has a " + better.name.toLowerCase() + " for level " + better.level + ".";
+  const art = iconCanvas("tool_" + d.key + "_" + (t ? t.tier : 1), 4), text = el("span", "wk-what");
+  if (!t) shade(art);
+  text.append(el("b", "", t ? t.name : "No tool yet"), el("span", "", line));
+  box.textContent = "";
+  box.append(art, text);
+  if (better) {
+    const go = el("button", "", "Shop");
+    go.type = "button";
+    go.addEventListener("click", () => { location.hash = "#shops"; });
+    box.append(go);
+  }
 }
 
 function targetRow(f, d, x, level, cur) {

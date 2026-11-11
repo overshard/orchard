@@ -702,6 +702,12 @@ version of the old look and a handheld pet shell.
 - **A game's first open has a ghost finger and no title.** A cream pixel hand
   does the game's first input over the field, a tap, a hold or a drag, until
   the player has done it once. It shows once a browser.
+- **A tool is a line on its keeper's shelf**, after the day's stock, one a
+  job they sell for: Moth's nets and goggles, Big Bean's garden things and
+  Tansy's blades and spades. It shows the next tier the pond hasn't got,
+  with the job and level under its name and what it cuts, a price key, a
+  dim LEVEL tag until a frog is good enough, and YOURS once the top one is
+  bought. Each job has one picture, in plain wood, then iron, then brass.
 - **The market is a board.** A ticker of pebble prices scrolls along the top in
   readout glass, still under reduced motion, each business is a pixel
   shopfront in its own awning colour with its price in glass, and a day down
@@ -908,7 +914,10 @@ version of the old look and a handheld pet shell.
   the next and what that level opens, and the targets as keys with their
   time, xp, yield and misses. Each open target has a thin mastery bar under
   its numbers with its mastery in glass beside it, the bar dimmed while the
-  frog's level holds it at the cap. A locked target is its dark shape on hazard
+  frog's level holds it at the cap. Under the level sits the tool the frog
+  works with, its picture, name and what it cuts, with a Shop key while
+  there's a better one to buy, and a shaded one with who sells it before the
+  pond has any. A locked target is its dark shape on hazard
   stripes with the level that opens it. The bar only fills and the basket
   only gains what the server dealt, and a full basket stops the bar and says
   so in amber and as a Next strip row.

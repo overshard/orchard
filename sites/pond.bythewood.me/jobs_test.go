@@ -401,7 +401,7 @@ func TestADaysMaterialsStayPut(t *testing.T) {
 					continue
 				}
 				for _, suited := range []bool{false, true} {
-					act := actSecs(tg, pace{level, 1, suited})
+					act := actSecs(tg, pace{level, 1, 0, suited})
 					day := 86400 / float64(act) * float64(tg.n) * (1 - tg.miss)
 					was := 24 * rate * speedAt(level)
 					if suited {
@@ -416,7 +416,7 @@ func TestADaysMaterialsStayPut(t *testing.T) {
 	}
 	j, _ := jobOf("sticks")
 	r := &run{f: frogRow{ID: 3, WorkAt: 1}, j: j, t: j.targets[1], level: 30}
-	r.act = actSecs(r.t, pace{30, 1, false})
+	r.act = actSecs(r.t, pace{30, 1, 0, false})
 	got := 0
 	n := int(30 * 86400 / r.act)
 	for i := range n {
@@ -433,7 +433,7 @@ func TestFindsComeByTheHour(t *testing.T) {
 	j, _ := jobOf("mud")
 	for _, tg := range j.targets {
 		r := &run{f: frogRow{ID: 11, WorkAt: 1}, j: j, t: tg, level: 99}
-		r.act = actSecs(tg, pace{99, 1, false})
+		r.act = actSecs(tg, pace{99, 1, 0, false})
 		agates, found := 0, 0
 		n := int(4000 * 3600 / r.act)
 		for i := range n {
@@ -533,11 +533,13 @@ func mustRecipe(t *testing.T, key string) target {
 type player struct {
 	name string
 	gaps []time.Duration
+	// Whether each tool is bought as soon as a frog can use it.
+	tools bool
 }
 
 var (
-	ordinary = player{"ordinary", []time.Duration{10 * time.Hour, 14 * time.Hour}}
-	keen     = player{"keen", []time.Duration{workHold}}
+	ordinary = player{"ordinary", []time.Duration{10 * time.Hour, 14 * time.Hour}, false}
+	keen     = player{"keen", []time.Duration{workHold}, true}
 )
 
 // playJob plays a frog at a job from level 1 on what each action pays on
@@ -552,7 +554,11 @@ func playJob(j job, pl player) [maxLevel + 1]float64 {
 		level := levelOf(int(xp))
 		t := j.best(level)
 		m := masteryOf(done[t.key].hours(t), masteryCap(level))
-		act := actSecs(t, pace{level, m, false})
+		tool := 0
+		if pl.tools {
+			tool = toolFor(toolTiers, level)
+		}
+		act := actSecs(t, pace{level, m, tool, false})
 		n := int(int64(min(gap, workHold)/time.Second) / act)
 		miss := t.miss * (1 - masteryMiss*float64(m-1))
 		hit := float64(t.xp) * (1 + masteryTwo*float64(m-1))
@@ -582,8 +588,8 @@ func TestTheJobsPace(t *testing.T) {
 		}
 		within("10", o[10], 0.5, 1.6)
 		within("30", o[30], 5, 9)
-		within("50", o[50], 22, 40)
-		within("99", o[99], 120, 200)
+		within("50", o[50], 22, 36)
+		within("99", o[99], 140, 190)
 		within("a keen 99", k[99], 100, o[99])
 		for _, l := range []int{30, 50, 70, 99} {
 			if k[l] > o[l] {
@@ -625,7 +631,7 @@ func TestMasteryCapsAndWhatItChanges(t *testing.T) {
 	}
 	j, _ := jobOf("bugs")
 	tg := j.targets[0]
-	if a, b := actSecs(tg, pace{50, 1, false}), actSecs(tg, pace{50, masteryTop, false}); float64(a)/float64(b) < 1.2 || float64(a)/float64(b) > 1.25 {
+	if a, b := actSecs(tg, pace{50, 1, 0, false}), actSecs(tg, pace{50, masteryTop, 0, false}); float64(a)/float64(b) < 1.2 || float64(a)/float64(b) > 1.25 {
 		t.Errorf("mastery 10 takes an action from %ds to %ds", a, b)
 	}
 	count := func(m int) (miss, two float64) {
@@ -698,5 +704,126 @@ func TestThePagePicksATarget(t *testing.T) {
 	body = fmt.Sprintf(`{"frog":%d,"job":"craft","target":"t_boat"}`, f)
 	if code := b.post("/api/jobs/set", body, &c); code != http.StatusOK || c.Pond.Frogs[0].Work.Target != "t_boat" {
 		t.Errorf("set to boats: %d %+v", code, c.Pond.Frogs[0].Work)
+	}
+}
+
+// perHour is what a frog at its best target brings in an hour of work, on
+// average, with mastery as far as its level lets it go.
+func perHour(j job, level, tool int) float64 {
+	t := j.best(level)
+	m := masteryCap(level)
+	act := float64(actSecs(t, pace{level, m, tool, false}))
+	hit := 1 - t.miss*(1-masteryMiss*float64(m-1))
+	return 3600 / act * hit * float64(t.n) * (1 + masteryTwo*float64(m-1))
+}
+
+// A tool can't buy itself back fast. Pebbles off pebble diving take a month
+// of nonstop work at the best target and full mastery to pay back what a
+// tier adds, and sticks, reeds and clay made into things for Moth two weeks.
+func TestToolsCantMintPebbles(t *testing.T) {
+	mat := 0.0
+	for _, r := range recipes {
+		if tr, ok := trinketOf(r.key); ok {
+			n := 0
+			for _, k := range r.in {
+				n += k
+			}
+			mat = max(mat, float64(hatRate[tr.tier]/4)/float64(n))
+		}
+	}
+	if mat >= materialWorth {
+		t.Errorf("Moth pays %.2f a material made into something, over the stall's %d", mat, materialWorth)
+	}
+	worth := map[string]float64{"pebbles": 1, "sticks": mat, "reeds": mat, "mud": mat}
+	least := map[string]float64{"pebbles": 30, "sticks": 14, "reeds": 14, "mud": 14}
+	for _, j := range jobs {
+		w, ok := worth[j.key]
+		if !ok {
+			continue
+		}
+		for tier := 1; tier <= toolTiers; tier++ {
+			for _, level := range []int{toolLevel[tier], maxLevel} {
+				gain := (perHour(j, level, tier) - perHour(j, level, tier-1)) * w
+				days := float64(toolPrices[tier]) / gain / 24
+				if level == maxLevel {
+					t.Logf("%-7s tier %d at 99: %.2f an hour, %.2f more than the tier before, worth %.2f pebbles, paid back in %.0f days", j.key, tier, perHour(j, level, tier), gain/w, gain, days)
+				}
+				if days < least[j.key] {
+					t.Errorf("%s tier %d at %d pays back in %.0f days", j.key, tier, level, days)
+				}
+			}
+		}
+		// The stall sells a handful a day, and a frog brings in more than
+		// that with no tool at all, so a tool adds nothing it can sell.
+		if j.key != "pebbles" && perHour(j, 1, 0)*24 < stallSlots {
+			t.Errorf("%s brings in %.0f a day at level 1, under the stall's %d", j.key, perHour(j, 1, 0)*24, stallSlots)
+		}
+	}
+	bugs, _ := jobOf("bugs")
+	t.Logf("Moth pays at most %.2f a material, fireflies an hour at 99: %.2f with every tool and %.2f with none", mat, perHour(bugs, maxLevel, toolTiers), perHour(bugs, maxLevel, 0))
+}
+
+// A tool is the pond's once bought, needs a frog at its level, and only
+// changes a basket from its next one.
+func TestAToolIsBoughtOnceAndKept(t *testing.T) {
+	s, clock, id, f := working(t, "bugs", "")
+	exec(t, s, `UPDATE ponds SET pebbles = 100000 WHERE id = ?`, id)
+	if _, err := s.buyTool(id, "bugs"); !errors.Is(err, errToolLevel) {
+		t.Errorf("a net at level 1: %v", err)
+	}
+	if _, err := s.buyTool(id, "juggling"); !errors.Is(err, errNotHeld) {
+		t.Errorf("a tool for no job: %v", err)
+	}
+	if err := s.write(func(tx *sql.Tx) error { return addXP(tx, id, f, "bugs", xpFor[toolLevel[1]]) }); err != nil {
+		t.Fatal(err)
+	}
+	*clock = clock.Add(time.Hour)
+	before, _ := s.view(id)
+	b, err := s.buyTool(id, "bugs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.Tool.Name != "Twig net" || b.Tool.Shop != shopMoss || b.Pond.Pebbles != before.Pebbles-toolPrices[1] || b.Pond.Jobs.Tools["bugs"] != 1 {
+		t.Errorf("bought %+v, purse %d to %d", b.Tool, before.Pebbles, b.Pond.Pebbles)
+	}
+	w := b.Pond.Frogs[0].Work
+	if w.Tool != 0 || w.Act != before.Frogs[0].Work.Act || w.Done != before.Frogs[0].Work.Done {
+		t.Errorf("the basket on the go changed: %+v", w)
+	}
+	if _, err := s.buyTool(id, "bugs"); !errors.Is(err, errToolLevel) {
+		t.Errorf("a reed net at level 10: %v", err)
+	}
+	c, err := s.collectJobs(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if w := c.Pond.Frogs[0].Work; w.Tool != 1 || w.Act >= before.Frogs[0].Work.Act {
+		t.Errorf("the next basket took no net: %+v", w)
+	}
+	if err := s.write(func(tx *sql.Tx) error { return addXP(tx, id, f, "bugs", xpFor[maxLevel]) }); err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		if _, err := s.buyTool(id, "bugs"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := s.buyTool(id, "bugs"); !errors.Is(err, errSoldOut) {
+		t.Errorf("a fourth net: %v", err)
+	}
+	// A new frog at level 1 can't use the fine net, and works with nothing.
+	exec(t, s, `INSERT INTO frogs (pond_id, seed, name, hatched_at, out_front) VALUES (?, 7, 'PIP', ?, 0)`, id, clock.Add(-48*time.Hour).Unix())
+	v, _ := s.view(id)
+	if _, err := s.setJob(id, v.Frogs[1].ID, "bugs", ""); err != nil {
+		t.Fatal(err)
+	}
+	v, _ = s.view(id)
+	if v.Frogs[1].Work.Tool != 0 || v.Frogs[1].Work.Levels[1].Tool != 0 || v.Jobs.Tools["bugs"] != toolTiers {
+		t.Errorf("a new catcher with the fine net: %+v", v.Frogs[1].Work)
+	}
+	for _, it := range v.Items {
+		if it.Kind == "Fine net" || it.Kind == "tool" {
+			t.Errorf("a tool in the bag: %+v", it)
+		}
 	}
 }
