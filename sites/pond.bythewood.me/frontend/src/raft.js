@@ -1,6 +1,6 @@
-import { sfx } from "./sound.js";
 import { colours } from "./frog.js";
 import { drawTop } from "./top.js";
+import { feel } from "./feel.js";
 
 // Raft run. The frog rides a leaf down a river that keeps narrowing. Hold a
 // finger where it should go, or the arrow keys, and thread the gaps in the
@@ -8,9 +8,11 @@ import { drawTop } from "./top.js";
 const W = 180, H = 270, FY = H - 56, STEER = 150, KEYS = 120;
 
 let G = null, col = null;
+const F = feel();
 
 function centre(y) { return W / 2 + Math.sin(y / 170) * 30 + Math.sin(y / 53) * 9; }
 function half(y) { return Math.max(40, 74 - y / 260); }
+function speed(t) { return Math.min(118, 52 + t * 1.6); }
 function screenY(wy) { return H - (wy - G.dist); }
 
 function spawn() {
@@ -31,16 +33,18 @@ function spawn() {
 
 function bump(why) {
   if (G.safe > 0) return;
-  G.lives--; G.safe = 1.2; G.why = why; G.shake = 0.25; sfx("bonk");
+  G.lives--; G.safe = 1.2; G.why = why; G.row = 0;
+  if (G.lives <= 0) G.dead = 0.01;
+  F.crash(G.fx, FY);
 }
 
 export const raft = {
-  key: "raft", W, H, title: "RAFT RUN",
+  key: "raft", W, H, title: "RAFT RUN", feel: F,
   help: ["HOLD WHERE THE RAFT SHOULD GO", "THREAD THE GAPS IN THE REEDS", "THREE BUMPS AND YOU'RE OUT", "TAP TO START"],
 
   reset(g) {
     col = colours(g, null);
-    G = { t: 0, dist: 0, v: 52, fx: centre(56), want: null, keys: { left: false, right: false }, things: [], nextAt: 230, since: 0, lives: 3, safe: 0, shake: 0, bonus: 0, why: "", pops: [] };
+    G = { t: 0, dist: 0, v: speed(0), fx: centre(56), want: null, keys: { left: false, right: false }, things: [], nextAt: 230, since: 0, lives: 3, safe: 0, dead: 0, row: 0, bonus: 0, why: "" };
     // A weir inside two seconds, with a line of pebbles to show the way through.
     const wy = 150, gap = 40, gx = centre(wy) + (Math.random() < 0.5 ? -1 : 1) * 14 - gap / 2;
     G.things.push({ k: "weir", y: wy, gap, gx });
@@ -54,10 +58,10 @@ export const raft = {
 
   step(dt) {
     G.t += dt;
-    G.v = Math.min(118, 52 + G.t * 1.6);
+    if (G.dead) { G.dead += dt; return; }
+    G.v = speed(G.t);
     G.dist += G.v * dt;
     G.safe = Math.max(0, G.safe - dt);
-    G.shake = Math.max(0, G.shake - dt);
     if (G.want !== null) {
       const d = G.want - G.fx;
       G.fx += Math.sign(d) * Math.min(Math.abs(d), STEER * dt);
@@ -72,26 +76,25 @@ export const raft = {
       if (t.k === "weir" && fy >= t.y) {
         t.done = true;
         if (G.fx - 5 > t.gx && G.fx + 5 < t.gx + t.gap) {
-          sfx("catch"); G.bonus++; G.pops.push({ x: G.fx, y: FY - 12, s: "+1", t: 0 });
+          G.bonus++;
+          F.got(G.fx, FY - 2, "+1", { streak: ++G.row });
         } else bump("IN THE REEDS");
       } else if (t.k === "rock" && Math.abs(fy - t.y) < t.r + 5 && Math.abs(G.fx - t.x) < t.r + 5) {
         t.done = true; bump("ON A ROCK");
       } else if (t.k === "pebble" && Math.abs(fy - t.y) < 8 && Math.abs(G.fx - t.x) < 9) {
-        t.done = true; sfx("catch"); G.bonus += 2; G.pops.push({ x: t.x, y: FY - 12, s: "+2", t: 0 });
+        t.done = true; G.bonus += 2;
+        F.got(t.x, FY - 2, "+2", { streak: ++G.row });
       }
     }
     G.things = G.things.filter((t) => screenY(t.y) < H + 20);
-    G.pops.forEach((p) => { p.t += dt; p.y -= dt * 20; });
-    G.pops = G.pops.filter((p) => p.t < 0.8);
   },
 
-  over() { return G && G.lives <= 0 && G.shake === 0; },
+  over() { return G && G.dead > 0.45; },
   score() { return G ? Math.floor(G.dist / 150) + G.bonus : 0; },
   why() { return G ? G.why : ""; },
 
   draw(x) {
-    const dist = G ? G.dist : 0, sh = G && G.shake > 0 ? Math.round(Math.sin(G.shake * 60) * 2) : 0;
-    x.save(); x.translate(sh, 0);
+    const dist = G ? G.dist : 0;
     x.fillStyle = "#3f8a44"; x.fillRect(-4, 0, W + 8, H);
     for (let s = 0; s < H; s += 2) {
       const wy = dist + (H - s), c = centre(wy), h = half(wy);
@@ -100,7 +103,7 @@ export const raft = {
       if (Math.floor(wy / 2) % 23 === 0) { x.fillStyle = "#4f9a4a"; x.fillRect(Math.round(c - h - 14), s, 2, 4); x.fillRect(Math.round(c + h + 12), s, 2, 4); }
       if (Math.floor(wy / 2) % 17 === 0) { x.fillStyle = "#7fd6c2"; x.fillRect(Math.round(c - h / 2 + Math.sin(wy) * h / 3), s, 6, 1); }
     }
-    if (!G) { x.restore(); return; }
+    if (!G) return;
     for (const t of G.things) {
       const sy = Math.round(screenY(t.y));
       if (t.k === "rock") {
@@ -122,15 +125,15 @@ export const raft = {
     }
     if (G.lives > 0 && !(G.safe > 0 && Math.floor(G.safe * 10) % 2)) {
       const fx = Math.round(G.fx);
-      x.fillStyle = "#1f5a2c"; x.fillRect(fx - 9, FY - 6, 18, 20);
-      x.fillStyle = "#56b45f"; x.fillRect(fx - 8, FY - 7, 16, 20);
-      x.fillStyle = "#3f9a4d"; x.fillRect(fx, FY - 6, 1, 18);
       x.fillStyle = "#7fd6c2"; x.fillRect(fx - 7, FY + 14 + (Math.floor(G.t * 8) % 2), 3, 1); x.fillRect(fx + 4, FY + 14 + (Math.floor(G.t * 8 + 1) % 2), 3, 1);
-      drawTop(x, col, fx - 6, FY - 4, false);
+      F.squashed(x, fx, FY + 4, () => {
+        x.fillStyle = "#1f5a2c"; x.fillRect(fx - 9, FY - 6, 18, 20);
+        x.fillStyle = "#56b45f"; x.fillRect(fx - 8, FY - 7, 16, 20);
+        x.fillStyle = "#3f9a4d"; x.fillRect(fx, FY - 6, 1, 18);
+        drawTop(x, col, fx - 6, FY - 4, false);
+      });
     }
-    x.font = "700 13px 'Space Grotesk', sans-serif"; x.textAlign = "center";
-    G.pops.forEach((p) => { x.fillStyle = "#ffb000"; x.fillText(p.s, p.x, p.y); });
-    x.restore();
+    F.draw(x);
     x.textAlign = "left"; x.fillStyle = "#ece5d8"; x.font = "700 13px 'Space Grotesk', sans-serif"; x.fillText(String(raft.score()), 6, 16);
     x.fillStyle = "#e2567a"; for (let i = 0; i < G.lives; i++) x.fillRect(W - 12 - i * 9, 6, 6, 6);
   },
