@@ -935,6 +935,111 @@ body:has(.tabs) main {
   letter-spacing: var(--track);
 }
 
+/* The ranks as a ladder laid flat, every rung the same width. */
+.ladder {
+  margin: 4px 0 6px;
+}
+
+.ladder .rail {
+  height: 10px;
+  border: 1px solid #000;
+  border-radius: 2px;
+  background: var(--glass);
+  box-shadow: var(--sunk);
+  overflow: hidden;
+}
+
+.ladder .rail i {
+  display: block;
+  height: 100%;
+  background: repeating-linear-gradient(90deg, var(--digit) 0 4px, transparent 4px 5px);
+  box-shadow: var(--glow);
+}
+
+.ladder ol {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ladder li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-right: 4px;
+  border-left: 1px solid var(--lip);
+  padding-left: 4px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+.ladder li b {
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.ladder li.got {
+  border-left-color: var(--amber);
+  color: var(--amber);
+}
+
+.ladder li:last-child {
+  grid-column: 5;
+}
+
+/* Where a frog's power comes from, a bar behind each row for how much of
+   that collection is found. */
+.tally {
+  display: grid;
+  gap: 4px;
+  margin: 10px 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+}
+
+.tally li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 6.5rem 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 3px;
+  background: var(--panel);
+  box-shadow: var(--moulded);
+  overflow: hidden;
+}
+
+.tally b {
+  color: var(--print);
+  font-weight: 500;
+  letter-spacing: var(--track);
+  text-transform: uppercase;
+}
+
+.tally span {
+  color: var(--muted);
+}
+
+.tally em {
+  color: var(--digit);
+  font-style: normal;
+  font-weight: 700;
+  text-shadow: var(--glow);
+}
+
+.tally i {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--amber);
+}
+
 .sharelink {
   display: flex;
   align-items: center;
@@ -3470,7 +3575,7 @@ button.big {
   font-size: 11px;
 }
 
-.friend .bar {
+.friend .rail {
   height: 8px;
   border: 1px solid #000;
   border-radius: 2px;
@@ -3479,7 +3584,7 @@ button.big {
   overflow: hidden;
 }
 
-.friend .bar i {
+.friend .rail i {
   display: block;
   height: 100%;
   background: #e2567a;

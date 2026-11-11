@@ -96,7 +96,7 @@ function show(n) {
   const p = state.pond;
   openSheet({ art: art(n, 4), name: n.name }, n.title, (body) => {
     if (n.now.says || n.talk) body.append(el("p", "bubble", n.now.says || n.talk));
-    const fr = el("div", "friend"), bar = el("span", "bar"), fill = el("i"), top = n.level >= 5 || n.to <= n.from;
+    const fr = el("div", "friend"), bar = el("span", "rail"), fill = el("i"), top = n.level >= 5 || n.to <= n.from;
     fill.style.width = (top ? 100 : Math.round(100 * (n.points - n.from) / (n.to - n.from))) + "%";
     bar.append(fill);
     fr.append(el("b", "hearts", hearts(n.level)), bar, el("span", "dim", top ? "Best of friends" : n.to - n.points + " to the next heart"));
