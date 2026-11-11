@@ -3,6 +3,7 @@ import { genome, bred, cells, colours, draw, croak, W, H } from "./frog.js";
 import { drawIcon } from "./icons.js";
 import { hatTile } from "./hats.js";
 import { fishArt } from "./fishes.js";
+import { stampArt } from "./company.js";
 
 const scene = document.getElementById("scene"), sx = scene.getContext("2d"), d = scene.dataset;
 const g = bred(genome(+d.seed), d.mods ? JSON.parse(d.mods) : null), stage = d.stage, hat = { shape: +d.hat, colour: +d.colour };
@@ -65,3 +66,33 @@ document.querySelectorAll("canvas.find").forEach((cv) => {
   else if (f.kind.startsWith("fish_")) { const t = fishArt(f.kind.slice(5)); t.setAttribute("aria-hidden", "true"); cv.replaceWith(t); }
   else drawIcon(cv.getContext("2d"), f.kind, 0, 0, 4);
 });
+
+// The page is the same cached copy for everybody, so what this visitor can
+// stamp is asked for once it's open.
+const keys = document.getElementById("stamps"), stampLine = document.getElementById("stamp-line");
+const SAYS = {
+  none: "Stamps are left by frogs. Get one of your own and come back to press one.",
+  own: "Your frog's page. Stamps left here turn up when you next open the pond.",
+  open: "Press one to leave it, once a day. The owner sees your frog's name and look.",
+  done: "Stamped. Come back tomorrow for another.",
+  spent: "That's all the stamping for today.",
+};
+
+function showStamps(st) {
+  keys.querySelectorAll("button").forEach((b) => {
+    b.disabled = st.state !== "open";
+    b.setAttribute("aria-pressed", st.stamp === b.dataset.stamp ? "true" : "false");
+  });
+  stampLine.textContent = SAYS[st.state] || "";
+}
+
+keys.querySelectorAll("button").forEach((b) => {
+  b.querySelector("canvas").replaceWith(stampArt(b.dataset.stamp, 4));
+  b.addEventListener("click", () => {
+    keys.querySelectorAll("button").forEach((x) => { x.disabled = true; });
+    fetch("/api/stamp", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ page: keys.dataset.page, stamp: b.dataset.stamp }) })
+      .then((r) => r.json().then((d) => (r.ok ? showStamps(d) : (stampLine.textContent = d.error || "That didn't work."))));
+  });
+});
+fetch("/api/stamps?f=" + encodeURIComponent(keys.dataset.page), { credentials: "same-origin" })
+  .then((r) => (r.ok ? r.json() : null)).then((st) => { if (st) showStamps(st); });

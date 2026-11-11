@@ -144,6 +144,11 @@ var diaryLines = map[string]diaryPool{
 		"{who} dropped in while you were away, and I showed them round the pad.",
 		"I woke up to find {who} had been by, and there was a footprint to prove it.",
 	}},
+	"stamped": {any: []string{
+		"{who} came by my page yesterday and left a stamp on it, which I've been admiring.",
+		"Somebody called {who} stamped my page yesterday, so I'm a bit famous now.",
+		"There's a stamp on my page from {who} as of yesterday, and I stamped my foot back.",
+	}},
 	"memento": {any: []string{
 		"{who}'s {thing} is ours to keep as of yesterday, which is the sort of thing you only give a best friend.",
 		"We came home with {who}'s {thing} yesterday, and I've put it where it can see the water.",
@@ -417,6 +422,18 @@ func diaryFacts(tx *sql.Tx, p *pond, f frogRow, day string, from, to time.Time) 
 	if err == nil && who >= 0 && who < len(residents) {
 		out = append(out, diaryFact{"friend", []string{"{who}", residents[who].name}})
 	} else if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, err
+	}
+	var stamper int64
+	err = tx.QueryRow(`SELECT s.from_id FROM stamps s JOIN ponds q ON q.id = s.from_id
+		WHERE s.page_id = ? AND s.day = ? AND q.hidden = 0 ORDER BY s.from_id LIMIT 1`, p.ID, day).Scan(&stamper)
+	if err == nil {
+		if c, err := frontOf(tx, stamper, to); err != nil {
+			return nil, err
+		} else if c != nil {
+			out = append(out, diaryFact{"stamped", []string{"{who}", c.Name}})
+		}
+	} else if !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
 	if tg, err := workDay(tx, f.ID, "first_day", day); err != nil {

@@ -23,7 +23,15 @@
     <p class="dim">{{ $.Describe }}</p>
   </div>
 
-  <h2 data-idx="01">Frog power</h2>
+  <h2 data-idx="01">Stamps</h2>
+  <div class="stampkeys" id="stamps" role="group" aria-label="Leave a stamp" data-page="{{ .Slug }}">
+    {{- range stamps }}
+    <button type="button" data-stamp="{{ . }}" aria-label="{{ titled . }}" aria-pressed="false" disabled><canvas width="32" height="32" aria-hidden="true"></canvas></button>
+    {{- end }}
+  </div>
+  <p class="dim" id="stamp-line" role="status">&nbsp;</p>
+
+  <h2 data-idx="02">Frog power</h2>
   <p class="power"><b>{{ commas .Power.Total }}</b> <span>{{ .Power.Rank }}</span></p>
   <div class="ladder">
     <div class="rail"><i style="width: {{ .Power.Fill }}%"></i></div>
@@ -36,7 +44,7 @@
   <p class="dim">{{ if .Power.Next }}{{ commas .Power.Next }} more to {{ .Power.NextName }}.{{ else }}The top of the ladder.{{ end }}</p>
 
   {{ if .Best }}
-  <h2 data-idx="02">Best finds</h2>
+  <h2 data-idx="03">Best finds</h2>
   <div class="slots">
     {{- range .Best }}
     <div class="slot t{{ .Tier }}"><canvas class="find" width="32" height="32" data-kind="{{ .Kind }}"{{ with .Hat }} data-shape="{{ .Shape }}" data-colour="{{ .Colour }}"{{ end }} aria-hidden="true"></canvas><span class="pips" aria-hidden="true">{{ range pips .Tier }}<span></span>{{ end }}</span><span class="nm">{{ .Name }}</span><span class="sub">{{ .Label }}</span></div>
@@ -44,7 +52,7 @@
   </div>
   {{ end }}
 
-  <h2 data-idx="03">Where it comes from</h2>
+  <h2 data-idx="04">Where it comes from</h2>
   <div class="parts">
     {{- range groups .Power.Parts }}
     <h3>{{ .Name }}</h3>
@@ -56,7 +64,7 @@
     {{- end }}
   </div>
 
-  <h2 data-idx="04">Pass it on</h2>
+  <h2 data-idx="05">Pass it on</h2>
   <div class="sharelink">
     <canvas id="qr" width="132" height="132" data-url="{{ .URL }}" aria-label="A QR code for this page"></canvas>
     <div>

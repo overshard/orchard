@@ -23,7 +23,9 @@ type greeting struct {
 	// Visitor is the frog that came by while the pond was shut, on the first
 	// greeting of a day.
 	Visitor *visitorView `json:"visitor,omitempty"`
-	Pond    *view        `json:"pond"`
+	// Stamps left on the frog's page since the last greeting.
+	Stamps []stampView `json:"stamps"`
+	Pond   *view       `json:"pond"`
 }
 
 func plural(n int, one string) string {
@@ -36,7 +38,7 @@ func plural(n int, one string) string {
 // greet is the one call a visit makes. A present is handed over when the last
 // one was long enough ago and stamped there and then, so a reload finds none.
 func (s *store) greet(id int64, first bool) (*greeting, error) {
-	g := &greeting{First: first, Missed: [][2]string{}, Prizes: []prize{}, From: []int{}}
+	g := &greeting{First: first, Missed: [][2]string{}, Prizes: []prize{}, From: []int{}, Stamps: []stampView{}}
 	v, err := s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
 		gen := frogOf(p, now).genome
 		hatched := time.Unix(p.HatchedAt, 0)
@@ -141,6 +143,12 @@ func (s *store) greet(id int64, first bool) (*greeting, error) {
 			if g.Visitor != nil {
 				g.Missed = append(g.Missed, [2]string{"Visitor", g.Visitor.Name + " came by and left " + g.Visitor.Gift.Text})
 			}
+		}
+		if g.Stamps, err = stampsIn(tx, p, now); err != nil {
+			return err
+		}
+		if n := len(g.Stamps); n > 0 {
+			g.Missed = append(g.Missed, [2]string{"Stamps", plural(n, "stamp") + " on your frog's page"})
 		}
 
 		if gap := now.Sub(time.Unix(p.LastGiftAt, 0)); gap >= giftGap {

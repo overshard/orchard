@@ -1002,6 +1002,12 @@ version of the old look and a handheld pet shell.
   ranks are a ladder of nine under the number, the top rung first and amber
   up to where the frog stands, the same in settings. It ends on getting a
   frog of your own.
+- **A frog's page has six stamps** under its name, a heart, a fly, a wave, a
+  star, a leaf and a pebble, as a row of square keys with the stamp's pixel
+  art on each. A visitor with a pond of its own presses one a day and it
+  latches down, and the line under the row says what a visitor can do. The
+  owner's next greeting pops up the stamps as a reveal, each stamper's frog
+  with its stamp at its feet, and a frog kept home stamps as a dark shape.
 - The card a share link unfurls with is a 1200 by 630 PNG drawn on the server,
   the screen on the left and the name, rarity and power on the right in
   JetBrains Mono, since that's the face the server has a TrueType file of.

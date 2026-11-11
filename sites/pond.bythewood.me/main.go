@@ -72,6 +72,8 @@ var templateFuncs = template.FuncMap{
 	"lower":  strings.ToLower,
 	"groups": powerGroups,
 	"join":   strings.Join,
+	"titled": titled,
+	"stamps": func() []string { return stampKinds },
 	// One pip for a common thing up to five for a legendary one.
 	"pips": func(tier int) []struct{} { return make([]struct{}, tier+1) },
 	"json": func(v any) (string, error) {
@@ -254,6 +256,8 @@ func (s *site) handler() http.Handler {
 	mux.HandleFunc("POST /api/burrows/lodge", s.played(s.apiLodge))
 	mux.HandleFunc("POST /api/burrows/collect", s.played(s.apiRent))
 	mux.HandleFunc("POST /api/home", s.played(s.apiHome))
+	mux.HandleFunc("GET /api/stamps", s.apiStamps)
+	mux.HandleFunc("POST /api/stamp", s.played(s.apiStamp))
 	if devBuild {
 		mux.HandleFunc("POST /api/dev/clock", post(s.apiDevClock))
 		mux.HandleFunc("POST /api/dev/day", post(s.apiDevDay))
