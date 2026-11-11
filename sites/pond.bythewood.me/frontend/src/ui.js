@@ -69,10 +69,12 @@ export function shade(cv) {
 
 // ---------------------------------------------------------------- the sheet
 
+// A bare sheet is only its body, for something that isn't a thing in a slot.
 export function openSheet(t, what, build) {
   const art = $("sheet-art");
   art.textContent = "";
-  art.append(t.art || thingArt(t, 6));
+  $("sheet").classList.toggle("bare", !!t.bare);
+  if (!t.bare) art.append(t.art || thingArt(t, 6));
   $("sheet-name").textContent = t.name;
   const tier = $("sheet-tier");
   tier.hidden = t.tier === undefined;
