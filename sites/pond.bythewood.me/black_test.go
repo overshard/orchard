@@ -15,20 +15,18 @@ func nyAt(day string, h, m int) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), h, m, 0, 0, pondZone)
 }
 
-func TestTheBackDoorKeepsOddHours(t *testing.T) {
+func TestTheBackDoorKeepsEveningHours(t *testing.T) {
 	cases := []struct {
 		h, m   int
 		open   bool
 		window string
 	}{
-		{4, 59, false, "2026-11-12 dawn"},
-		{5, 0, true, "2026-11-12 dawn"},
-		{6, 29, true, "2026-11-12 dawn"},
-		{6, 30, false, "2026-11-12 night"},
-		{15, 0, false, "2026-11-12 night"},
-		{23, 0, true, "2026-11-12 night"},
-		{1, 59, true, "2026-11-11 night"},
-		{2, 0, false, "2026-11-12 dawn"},
+		{6, 0, false, "2026-11-12 evening"},
+		{15, 59, false, "2026-11-12 evening"},
+		{16, 0, true, "2026-11-12 evening"},
+		{20, 29, true, "2026-11-12 evening"},
+		{20, 30, false, "2026-11-13 evening"},
+		{23, 0, false, "2026-11-13 evening"},
 	}
 	for _, c := range cases {
 		now := nyAt("2026-11-12", c.h, c.m)
@@ -37,22 +35,17 @@ func TestTheBackDoorKeepsOddHours(t *testing.T) {
 			t.Errorf("%02d:%02d: %s open %v until %v", c.h, c.m, w, open, edge)
 		}
 	}
-	// The night the clocks go back it still shuts at 2am on the clock.
-	w, _, edge := blackWindow(nyAt("2026-10-31", 23, 30))
-	if w != "2026-10-31 night" || edge.In(pondZone).Hour() != 2 {
-		t.Errorf("the night the clocks change: %s shuts %v", w, edge)
-	}
 }
 
 func TestDealsAreTheSameForEveryPondAndHidden(t *testing.T) {
 	s, clock := testStore(t)
 	_, a := newPond(t, s)
 	_, b := newPond(t, s)
-	*clock = nyAt("2026-11-10", 23, 30)
+	*clock = nyAt("2026-11-10", 17, 30)
 	va, _ := s.view(a)
 	vb, _ := s.view(b)
 	if !va.Black.Open || len(va.Black.Deals) != blackDeals {
-		t.Fatalf("at half eleven: %+v", va.Black)
+		t.Fatalf("at half five: %+v", va.Black)
 	}
 	ja, _ := json.Marshal(va.Black.Deals)
 	jb, _ := json.Marshal(vb.Black.Deals)
@@ -60,8 +53,8 @@ func TestDealsAreTheSameForEveryPondAndHidden(t *testing.T) {
 		t.Errorf("two ponds see different deals:\n%+v\n%+v", va.Black.Deals, vb.Black.Deals)
 	}
 	// Another pepper deals something else, so the source alone can't say.
-	other := dealsOf([]byte("some other pepper altogether"), "2026-11-10 night", 100)
-	mine := dealsOf(s.pepper, "2026-11-10 night", 100)
+	other := dealsOf([]byte("some other pepper altogether"), "2026-11-10 evening", 100)
+	mine := dealsOf(s.pepper, "2026-11-10 evening", 100)
 	if fmt.Sprint(other) == fmt.Sprint(mine) {
 		t.Error("two peppers dealt the same night")
 	}
@@ -74,7 +67,7 @@ func TestDealsAreTheSameForEveryPondAndHidden(t *testing.T) {
 	// Shut, there's nothing on the crate at all.
 	*clock = nyAt("2026-11-11", 12, 0)
 	v, _ := s.view(a)
-	if v.Black.Open || len(v.Black.Deals) != 0 || v.Black.Back != "11pm" || v.Black.Edge != 11*3600 {
+	if v.Black.Open || len(v.Black.Deals) != 0 || v.Black.Back != "4pm" || v.Black.Edge != 4*3600 {
 		t.Errorf("at noon: %+v", v.Black)
 	}
 }
@@ -87,7 +80,7 @@ func TestADealIsBoughtOnceWithCoin(t *testing.T) {
 	if _, err := s.blackBuy(id, 0); !errors.Is(err, errBlackShut) {
 		t.Errorf("at noon: %v", err)
 	}
-	*clock = nyAt("2026-11-10", 23, 10)
+	*clock = nyAt("2026-11-10", 17, 10)
 	if _, err := s.blackBuy(id, 0); !errors.Is(err, errNoCoin) {
 		t.Errorf("with no coin: %v", err)
 	}
@@ -182,7 +175,7 @@ func TestTheBackDoorCostsInTheLongRun(t *testing.T) {
 		day := "2026-01-01"
 		paid, worth, resale, n := make([]float64, len(blackPlans)), make([]float64, len(blackPlans)), make([]float64, len(blackPlans)), make([]int, len(blackPlans))
 		odds := map[string]int{}
-		for range 2000 {
+		for range 4000 {
 			for _, h := range blackHours {
 				for _, d := range dealsOf([]byte(pepper), day+" "+h.tag, coin) {
 					odds[d.outcome]++
@@ -219,7 +212,7 @@ func TestNinetyDaysAtTheBackDoor(t *testing.T) {
 	exec(t, s, `UPDATE ponds SET pebbles = ?, staged = 0, rank_top = 8, gravel_level = 5, garden_level = 5, dye_level = 5 WHERE id = ?`, purse, id)
 	day := "2026-11-11"
 	for range 90 {
-		for _, at := range [][2]int{{5, 10}, {23, 10}} {
+		for _, at := range [][2]int{{16, 10}} {
 			*clock = nyAt(day, at[0], at[1])
 			lock(t, s)
 			v, _ := s.view(id)
