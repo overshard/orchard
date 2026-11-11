@@ -196,6 +196,15 @@ CREATE TABLE IF NOT EXISTS arcade (
     PRIMARY KEY (pond_id, game)
 ) WITHOUT ROWID;
 
+CREATE TABLE IF NOT EXISTS fish (
+    pond_id   INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
+    kind      TEXT NOT NULL,
+    count     INTEGER NOT NULL,
+    best      INTEGER NOT NULL,
+    first_day TEXT NOT NULL,
+    PRIMARY KEY (pond_id, kind)
+) WITHOUT ROWID;
+
 CREATE TABLE IF NOT EXISTS market_days (
     day    TEXT NOT NULL,
     key    TEXT NOT NULL,
@@ -777,6 +786,7 @@ type view struct {
 	Keepsakes  []keepsakeView      `json:"keepsakes"`
 	Neighbours neighboursView      `json:"neighbours"`
 	Arcade     []arcadeView        `json:"arcade"`
+	Fishing    fishingView         `json:"fishing"`
 	// What Tansy sold this pond, drawn on the water.
 	Furniture []string   `json:"furniture"`
 	Bag       []bagThing `json:"bag"`
@@ -1052,6 +1062,9 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 		v.Gazette.Business = marketHeadline(v.Market.Firms, today)
 	}
 	if v.Arcade, err = arcadeViews(q, p.ID, now); err != nil {
+		return err
+	}
+	if v.Fishing, err = fishingOf(q, p.ID, fishDayOf(r, now)); err != nil {
 		return err
 	}
 	listed, err := stallListed(q, now)

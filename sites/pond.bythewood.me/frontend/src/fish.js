@@ -1,7 +1,8 @@
 import { sfx } from "./sound.js";
 import { cells, colours, draw, W as FW, H as FH } from "./frog.js";
 import { feel } from "./feel.js";
-import { KINDS, drawFish } from "./fishes.js";
+import { KINDS, drawFish, fishArt, inches } from "./fishes.js";
+import { slot } from "./ui.js";
 
 // Fishing. Tap the water to cast and the hook sinks to where you tapped. A fish
 // that notices nibbles a time or two and then takes it, which is when to tap.
@@ -13,6 +14,8 @@ const TELL = 0.55, PERFECT = 0.3, SLACK = 1.8;
 const BOOT = { k: "boot", one: "old boot", many: "old boots", pts: 2, len: 10, heavy: 1.3 };
 
 let G = null, spr = null, col = null;
+// What the server made of the last round, each kind with its biggest.
+let last = null;
 const F = feel();
 
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -159,6 +162,7 @@ export const fish = {
     col = colours(g, p.frog.hat);
     G = { t: 0, score: 0, streak: 0, caught: 0, st: "ready", hook: { x: TIP.x, y: TIP.y, ty: 0, k: 1 }, fish: [], boots: [], taker: null, landed: null,
       hold: false, ten: 0, slack: 0, tick: 0, lt: 0, perfect: false, rings: [], bag: {}, why: "", end: false, aim: { x: 150, y: SURF + 90 }, kb: false };
+    last = null;
     for (let i = 0; i < SCHOOL; i++) spawn(false);
     if (Math.random() < 0.6) G.boots.push({ x: rnd(100, W - 20), y: BOT - 4 });
   },
@@ -237,6 +241,35 @@ export const fish = {
   over() { return G && G.end; },
   score() { return G ? G.score : 0; },
   why() { return G ? G.why : ""; },
+
+  // The page says what it landed and the server rolls how big each one was.
+  report() {
+    const fish = {};
+    KINDS.forEach((k) => { if (G && G.bag[k.k]) fish[k.k] = G.bag[k.k]; });
+    return { fish };
+  },
+
+  result(d) {
+    last = d.catch || [];
+    return last.some((c) => c.first);
+  },
+
+  // The catch as slots, or only the fish on the short card.
+  card(quick) {
+    if (!last || !last.length) return null;
+    const row = document.createElement("div");
+    row.className = "fishrow" + (quick ? " small" : "");
+    last.forEach((c) => {
+      const s = slot(fishArt(c.kind), { tier: c.tier, name: quick ? "" : c.name, count: c.n, sub: quick ? "" : inches(c.size) });
+      if (!quick && (c.first || c.best)) {
+        const tag = document.createElement("em");
+        tag.textContent = c.first ? "NEW" : "BEST";
+        s.append(tag);
+      }
+      row.append(s);
+    });
+    return row;
+  },
 
   tally() {
     if (!G) return [];

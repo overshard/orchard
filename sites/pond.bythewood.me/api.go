@@ -691,9 +691,11 @@ func (s *site) apiArcadeFinish(id int64, r *http.Request, w http.ResponseWriter)
 		Game  string `json:"game"`
 		Run   string `json:"run"`
 		Score int    `json:"score"`
+		// What a round of fishing landed, by kind.
+		Fish map[string]int `json:"fish"`
 	}
 	if !readJSON(w, r, &in) {
 		return nil, nil
 	}
-	return s.store.arcadeFinish(id, in.Game, in.Run, in.Score)
+	return s.store.arcadeFinish(id, in.Game, in.Run, in.Score, in.Fish)
 }

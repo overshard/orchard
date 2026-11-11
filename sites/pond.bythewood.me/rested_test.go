@@ -12,7 +12,7 @@ func play(t *testing.T, s *store, clock *time.Time, id int64, key string, score 
 		t.Fatal(err)
 	}
 	*clock = clock.Add(2 * time.Minute)
-	out, err := s.arcadeFinish(id, key, st.Run, score)
+	out, err := s.arcadeFinish(id, key, st.Run, score, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

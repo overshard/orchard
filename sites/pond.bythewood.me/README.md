@@ -95,6 +95,10 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   day, so the page never decides what's in the water. The fish that bite any
   time are always in it. `frontend/src/fishes.js` has the same fish with how
   each looks and fights, and a test holds the two lists together.
+  The finish says what a round landed by kind. The server checks those
+  fish's points fit under the score, rolls a size for each and keeps the
+  count, the biggest and the first day in `fish`. A kind that wasn't biting
+  is dropped.
 - `bond.go` is petting. A rub of the frog out front is `POST /api/frogs/pet`,
   which adds to that frog's bond up to a day's worth and never takes any
   away. A heart is a hundred points, and each frog has a favourite spot off

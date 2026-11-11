@@ -5,7 +5,8 @@ import { finger, unseen, sawIt } from "./feel.js";
 // that and scaled to the window, with reset, step, draw, and input hooks. This
 // starts and finishes runs on the server and shows the title and results.
 // A game with a feel gets its freezes and shake run from here, and one with a
-// demo gets a ghost finger doing it the first time it's opened.
+// demo gets a ghost finger doing it the first time it's opened. A game's
+// report goes up with its score, and its card is its own part of the results.
 const LOCK = 900, QUICK = 300;
 
 export function arcade(game) {
@@ -84,7 +85,8 @@ export function arcade(game) {
     if (A.state === "over" && A.quick) {
       const r = el("span", "readout big");
       r.append(el("span", "k", game.why() || "Score"), el("span", "v", String(game.score())));
-      card.replaceChildren(r, el("p", A.paid ? "won" : "dim", payWords()), el("b", "key", "AGAIN"));
+      const extra = game.card && game.card(true);
+      card.replaceChildren(...[r, el("p", A.paid ? "won" : "dim", payWords()), extra, el("b", "key", "AGAIN")].filter(Boolean));
       return;
     }
     const win = el("div", "arcade-win"), art = el("canvas");
@@ -104,7 +106,9 @@ export function arcade(game) {
       const r = el("span", "readout big");
       r.append(el("span", "k", "Score"), el("span", "v", String(game.score())));
       kids.push(r);
-      if (game.tally) game.tally().forEach((l) => kids.push(el("p", "dim", l)));
+      const extra = game.card && game.card(false);
+      if (extra) kids.push(extra);
+      else if (game.tally) game.tally().forEach((l) => kids.push(el("p", "dim", l)));
       kids.push(el("p", A.paid ? "won" : "dim", payWords()));
       if (A.best) kids.push(el("p", "won", "A new best"));
       if (now - A.overAt > LOCK) kids.push(el("p", "again", "Tap to go again"));
@@ -151,9 +155,12 @@ export function arcade(game) {
     const score = game.score(), a = info();
     A.state = "over"; A.overAt = now; A.paid = null; A.best = false; A.rested = 0;
     A.quick = !!a && score <= a.best;
-    net = started.then((run) => run ? post("/api/arcade/finish", { game: k, run, score }) : null).then((d) => {
+    const more = game.report ? game.report() : {};
+    net = started.then((run) => run ? post("/api/arcade/finish", Object.assign({ game: k, run, score }, more)) : null).then((d) => {
       if (!d) { A.paid = 0; return; }
       A.paid = d.paid; A.best = d.best; A.rested = d.rested;
+      // A game can have news of its own that's worth the whole results.
+      if (game.result && game.result(d)) A.quick = false;
       setPond(d.pond);
     }, () => { A.paid = 0; }).then(() => { if (A.state === "over") paint(performance.now()); });
     setTimeout(() => { if (A.state === "over") paint(performance.now()); }, LOCK + 50);

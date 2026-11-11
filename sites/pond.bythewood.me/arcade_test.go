@@ -9,7 +9,7 @@ import (
 func TestArcadePaysAndCaps(t *testing.T) {
 	s, clock := testStore(t)
 	_, id := newPond(t, s)
-	if _, err := s.arcadeFinish(id, "flick", "nope", 10); !errors.Is(err, errBadRun) {
+	if _, err := s.arcadeFinish(id, "flick", "nope", 10, nil); !errors.Is(err, errBadRun) {
 		t.Fatalf("a run never started: %v", err)
 	}
 	if _, err := s.arcadeStart(id, "pinball"); !errors.Is(err, errNotHeld) {
@@ -22,7 +22,7 @@ func TestArcadePaysAndCaps(t *testing.T) {
 			t.Fatal(err)
 		}
 		*clock = clock.Add(secs * time.Second)
-		d, err := s.arcadeFinish(id, "flick", st.Run, score)
+		d, err := s.arcadeFinish(id, "flick", st.Run, score, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -61,7 +61,7 @@ func TestCrossingPaysHalf(t *testing.T) {
 		t.Fatal(err)
 	}
 	*clock = clock.Add(60 * time.Second)
-	d, err := s.arcadeFinish(id, "cross", st.Run, 61)
+	d, err := s.arcadeFinish(id, "cross", st.Run, 61, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +90,7 @@ func TestAPausedRunStillPays(t *testing.T) {
 		t.Fatal(err)
 	}
 	*clock = clock.Add(time.Hour)
-	if d, err := s.arcadeFinish(id, "flick", st.Run, 12); err != nil || d.Paid != 12 {
+	if d, err := s.arcadeFinish(id, "flick", st.Run, 12, nil); err != nil || d.Paid != 12 {
 		t.Errorf("a paused flick: %v %+v", err, d)
 	}
 	run, err := s.diveStart(id)
@@ -118,7 +118,7 @@ func TestDiskOfTheDay(t *testing.T) {
 			t.Fatal(err)
 		}
 		*clock = clock.Add(30 * time.Second)
-		d, err := s.arcadeFinish(id, k, st.Run, score)
+		d, err := s.arcadeFinish(id, k, st.Run, score, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

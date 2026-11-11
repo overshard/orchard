@@ -1,6 +1,10 @@
 package main
 
 import (
+	"database/sql"
+	"errors"
+	"math"
+	"math/rand/v2"
 	"time"
 )
 
@@ -94,4 +98,122 @@ func fishTable(d fishDay) map[string]float64 {
 
 func (s *store) fishTableAt(at time.Time) map[string]float64 {
 	return fishTable(fishDayOf(s.day.reading(at), at))
+}
+
+// rollSize is a fish's length in tenths of an inch. Most come out near the
+// small end, so a big one is something to see.
+func rollSize(f fishKind) int {
+	return f.lo + int(math.Round(float64(f.hi-f.lo)*math.Pow(rand.Float64(), 2.2)))
+}
+
+// More fish than a round has time to land.
+const fishMost = 40
+
+// caught is one kind out of a round, with the biggest of them.
+type caught struct {
+	Kind string `json:"kind"`
+	Name string `json:"name"`
+	Tier int    `json:"tier"`
+	N    int    `json:"n"`
+	Size int    `json:"size"`
+	// First is the first of its kind, and Best one bigger than the book had.
+	First bool `json:"first,omitempty"`
+	Best  bool `json:"best,omitempty"`
+}
+
+// landFish puts a round's catch in the fish book and rolls each one's size.
+// The book pays nothing, so the only check is that the fish's points fit
+// under the score. A kind that wasn't biting is left out.
+func landFish(tx *sql.Tx, p *pond, landed map[string]int, score int, tables []map[string]float64) ([]caught, error) {
+	pts, n := 0, 0
+	for _, f := range fishKinds {
+		c := landed[f.kind]
+		if c < 0 {
+			return nil, nil
+		}
+		pts += c * f.pts
+		n += c
+	}
+	if pts > score || n > fishMost {
+		return nil, nil
+	}
+	var out []caught
+	for _, f := range fishKinds {
+		c := landed[f.kind]
+		biting := false
+		for _, t := range tables {
+			biting = biting || t[f.kind] > 0
+		}
+		if c == 0 || !biting {
+			continue
+		}
+		size := 0
+		for range c {
+			size = max(size, rollSize(f))
+		}
+		var had int
+		err := tx.QueryRow(`SELECT best FROM fish WHERE pond_id = ? AND kind = ?`, p.ID, f.kind).Scan(&had)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return nil, err
+		}
+		if _, err := tx.Exec(`INSERT INTO fish (pond_id, kind, count, best, first_day) VALUES (?, ?, ?, ?, ?)
+			ON CONFLICT (pond_id, kind) DO UPDATE SET count = count + excluded.count, best = MAX(best, excluded.best)`,
+			p.ID, f.kind, c, size, p.today); err != nil {
+			return nil, err
+		}
+		out = append(out, caught{Kind: f.kind, Name: f.name, Tier: f.tier, N: c, Size: size, First: had == 0, Best: had > 0 && size > had})
+	}
+	return out, nil
+}
+
+// fishSlot is a fish in the book. W is how often it's biting right now, and
+// Up says the day is one it likes.
+type fishSlot struct {
+	Kind  string  `json:"kind"`
+	Name  string  `json:"name"`
+	Tier  int     `json:"tier"`
+	Count int     `json:"count"`
+	Best  int     `json:"best"`
+	First string  `json:"first"`
+	Hint  string  `json:"hint"`
+	W     float64 `json:"w"`
+	Up    bool    `json:"up,omitempty"`
+}
+
+type fishingView struct {
+	All   []fishSlot `json:"all"`
+	Found int        `json:"found"`
+}
+
+func fishingOf(q querier, id int64, d fishDay) (fishingView, error) {
+	v := fishingView{}
+	type row struct {
+		count, best int
+		first       string
+	}
+	got := map[string]row{}
+	rows, err := q.Query(`SELECT kind, count, best, first_day FROM fish WHERE pond_id = ?`, id)
+	if err != nil {
+		return v, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var k string
+		var r row
+		if err := rows.Scan(&k, &r.count, &r.best, &r.first); err != nil {
+			return v, err
+		}
+		got[k] = r
+	}
+	if err := rows.Err(); err != nil {
+		return v, err
+	}
+	for _, f := range fishKinds {
+		r, w := got[f.kind], f.bite(d)
+		if r.count > 0 {
+			v.Found++
+		}
+		v.All = append(v.All, fishSlot{f.kind, f.name, f.tier, r.count, r.best, r.first, f.hint, w, w > f.bite(fishDay{})})
+	}
+	return v, nil
 }

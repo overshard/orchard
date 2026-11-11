@@ -142,11 +142,14 @@ type arcadeDone struct {
 	Paid  int  `json:"paid"`
 	Best  bool `json:"best"`
 	// Rested is how much of Paid was for being well rested.
-	Rested int   `json:"rested"`
-	Pond   *view `json:"pond"`
+	Rested int `json:"rested"`
+	// Catch is what a round of fishing put in the fish book.
+	Catch []caught `json:"catch,omitempty"`
+	Pond  *view    `json:"pond"`
 }
 
-func (s *store) arcadeFinish(id int64, key, run string, score int) (*arcadeDone, error) {
+// landed is what a round of fishing says it caught, by kind.
+func (s *store) arcadeFinish(id int64, key, run string, score int, landed map[string]int) (*arcadeDone, error) {
 	g, ok := arcadeOf(key)
 	if !ok {
 		return nil, errNotHeld
@@ -160,7 +163,8 @@ func (s *store) arcadeFinish(id int64, key, run string, score int) (*arcadeDone,
 		if run == "" || run != r.run {
 			return errBadRun
 		}
-		took := now.Sub(time.Unix(r.startedAt, 0)) + time.Second
+		began := time.Unix(r.startedAt, 0)
+		took := now.Sub(began) + time.Second
 		r = r.settled(now)
 		r.run, r.startedAt = "", 0
 		// The run is spent either way, and an impossible score pays nothing.
@@ -181,6 +185,13 @@ func (s *store) arcadeFinish(id int64, key, run string, score int) (*arcadeDone,
 				return err
 			}
 			r.best, out.Best = score, true
+		}
+		if key == "fish" {
+			// The day can turn over mid round, so a fish biting at either end counts.
+			tables := []map[string]float64{s.fishTableAt(began), s.fishTableAt(now)}
+			if out.Catch, err = landFish(tx, p, landed, score, tables); err != nil {
+				return err
+			}
 		}
 		return saveArcade(tx, p.ID, key, r)
 	})
