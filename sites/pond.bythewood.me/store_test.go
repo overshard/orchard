@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"errors"
 	"math/rand/v2"
 	"path/filepath"
@@ -768,5 +769,31 @@ func TestFormFollowsTheRuns(t *testing.T) {
 		if float64(c) > diveFormFloor*1.15 {
 			t.Errorf("a ghost dealt %d under the floor", c)
 		}
+	}
+}
+
+func TestAPanicInAWriteLeavesTheStoreWritable(t *testing.T) {
+	s, _ := testStore(t)
+	func() {
+		defer func() { _ = recover() }()
+		_ = s.write(func(tx *sql.Tx) error {
+			if _, err := tx.Exec(`UPDATE ponds SET pebbles = pebbles`); err != nil {
+				return err
+			}
+			panic("boom")
+		})
+	}()
+	done := make(chan error, 1)
+	go func() {
+		done <- s.write(func(tx *sql.Tx) error { _, err := tx.Exec(`UPDATE ponds SET pebbles = pebbles`); return err })
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(5 * time.Second):
+		// A Fatal would hang in cleanup, since closing the store waits on the stuck connection.
+		panic("the write after a panic never got the connection")
 	}
 }
