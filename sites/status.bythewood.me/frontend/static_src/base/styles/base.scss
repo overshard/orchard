@@ -828,3 +828,12 @@ footer {
     gap: 0.4rem;
   }
 }
+
+// The lost frog on the 404, drawn by guest.js.
+.pond-lost {
+  display: block;
+  width: 216px;
+  height: 180px;
+  margin-bottom: 1rem;
+  image-rendering: pixelated;
+}

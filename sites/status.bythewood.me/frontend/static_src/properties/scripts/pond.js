@@ -1,5 +1,5 @@
-// The visitor's frog from the pond, asleep on a lily pad while everything on the
-// page is up and hiding under a log while anything is down. pond is same site,
+// The visitor's frog from the pond in the footer, asleep on a lily pad while
+// everything on the page is up and hiding under a log while anything is down. pond is same site,
 // so its cookie rides along, and a visitor with no frog gets the house frog.
 import { W, H, genome, bred, cells, colours, draw } from "./frog.js";
 
@@ -59,18 +59,21 @@ function zees(ctx, t) {
   }
 }
 
+// What the slot shows when the pond can't be reached, so it's never left empty.
+const HOUSE = { house: true, frog: { seed: 1207, name: genome(1207).name, stage: "frog", day: 30 } };
+
 function show(el, d) {
   const f = d.frog, g = bred(genome(f.seed), f.mods), hat = f.hat && f.hat.shape ? f.hat : null;
-  const col = colours(g, hat), down = el.dataset.down === "true" ? 1 : Number(el.dataset.down) || 0;
+  const told = document.querySelector("[data-pond-down]"), says = told ? told.dataset.pondDown : "";
+  const col = colours(g, hat), down = says === "true" ? 1 : Number(says) || 0;
   const cv = el.querySelector("canvas"), ctx = cv.getContext("2d");
-  cv.width = SW * PX; cv.height = SH * PX;
   const name = f.name.charAt(0) + f.name.slice(1).toLowerCase();
-  const line = down
-    ? name + " is under the log until " + (down === 1 ? "it's" : "they're") + " back up"
-    : name + " is asleep, everything's up";
-  el.querySelector("[data-pond-line]").textContent = line;
-  cv.title = line;
-  el.hidden = false;
+  const line = d.found
+    ? name + " found the " + d.found.name + " here, and it's in your bag at the pond"
+    : down
+      ? name + " is under the log until " + (down === 1 ? "it's" : "they're") + " back up"
+      : name + (told ? " is asleep, everything's up" : " is asleep on its pad");
+  el.querySelector("[data-pond-line]").textContent = line + ".";
 
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
   let blinkAt = 0;
@@ -97,13 +100,12 @@ function show(el, d) {
     if (!still) requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
-  cv.addEventListener("click", () => { window.open(POND, "_blank", "noopener"); });
 }
 
 const el = document.querySelector("[data-pond]");
 if (el) {
   fetch(POND + "/api/panel", { credentials: "include" })
     .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
-    .then((d) => show(el, d))
-    .catch(() => {});
+    .catch(() => HOUSE)
+    .then((d) => show(el, d));
 }

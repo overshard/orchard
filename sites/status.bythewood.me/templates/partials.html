@@ -75,6 +75,10 @@
         <p>Self-hosted website monitoring by <a href="https://isaacbythewood.com/">{{ .AuthorName }}</a>.
           HTTP checks every three minutes, with Lighthouse audits, an SEO
           crawler, and security header analysis. Alerts go out over ntfy.</p>
+        <a class="pond-frog" href="https://pond.bythewood.me/" data-pond>
+          <canvas width="128" height="76" aria-hidden="true"></canvas>
+          <span data-pond-line>A frog from the pond.</span>
+        </a>
       </div>
       <div class="col-6 col-lg-2">
         <div class="h5 mb-3">// Elsewhere</div>
@@ -139,11 +143,6 @@
 </div>
 {{ end }}
 
-{{/* The visitor's frog from pond.bythewood.me, drawn by pond.js once the
-     pond answers. It stays hidden if the pond can't be reached. */}}
-{{ define "pondFrog" }}
-<figure class="pond-frog d-print-none" data-pond data-down="{{ . }}" hidden>
-  <canvas aria-hidden="true"></canvas>
-  <figcaption data-pond-line></figcaption>
-</figure>
-{{ end }}
+{{/* Tells the frog in the footer how many things on this page are down, so it
+     knows whether to sleep on its pad or hide under the log. */}}
+{{ define "pondFrog" }}<span data-pond-down="{{ . }}" hidden></span>{{ end }}
