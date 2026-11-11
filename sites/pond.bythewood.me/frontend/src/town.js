@@ -15,7 +15,7 @@ function showTab(next) {
   if (next === "stall") drawStall();
 }
 
-export function enterTown() { showTab(tab); }
+export function enterTown(which) { showTab(which || tab); }
 export function leaveTown() { wizOn = false; }
 
 // ---------------------------------------------------------------- boxes

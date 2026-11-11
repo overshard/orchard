@@ -66,7 +66,7 @@ func goalsOf(v *view, p *pond) []goal {
 		add("idle", "sticks", "Put a frog to work", "reeds", "")
 	}
 	if b.Gravel.Level == 0 {
-		add("gravel", "i_bank", "Build the gravel bar", "bank", saved(b.Gravel.Cost))
+		add("bar", "i_bank", "Build the gravel bar", "bank", saved(b.Gravel.Cost))
 	}
 	friends := 0
 	for _, n := range v.Neighbours.All {
@@ -75,10 +75,10 @@ func goalsOf(v *view, p *pond) []goal {
 		}
 	}
 	if friends == 0 {
-		add("gift", "i_folk", "Give a neighbour a dish", "town", "")
+		add("gift", "i_folk", "Give a neighbour a dish", "neighbours", "")
 	}
 	if p.Tried&triedStall == 0 && len(v.Stall.Rows) == 0 && v.Stall.Takings == 0 {
-		add("stall", "i_stall", "List something on the stall", "town", "")
+		add("stall", "i_stall", "List something on the stall", "stall", "")
 	}
 	played, next := 0, arcadeView{}
 	for _, g := range append([]arcadeView{{Key: "dive", Name: "Dive", Best: v.Dive.Best}}, v.Arcade...) {
@@ -92,7 +92,7 @@ func goalsOf(v *view, p *pond) []goal {
 		add("disk", "i_play", "Try "+next.Name, next.Key, fmt.Sprintf("%d/%d", played, len(v.Arcade)+1))
 	}
 	if b.Gravel.Level > 0 && b.Garden.Level == 0 {
-		add("garden", "watercress", "Build the garden", "garden", saved(b.Garden.Cost))
+		add("plots", "watercress", "Build the garden", "garden", saved(b.Garden.Cost))
 	}
 	if len(v.Frogs) == 1 && v.Frogs[0].LayIn >= 0 {
 		add("egg", "f_reeds", "Lay an egg on the bench", "reeds", "")

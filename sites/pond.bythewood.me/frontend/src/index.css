@@ -1884,7 +1884,6 @@ h2 .count {
   92% { transform: rotate(-4deg); }
 }
 
-.todo,
 .chiprow {
   display: flex;
   flex-wrap: wrap;
@@ -1892,27 +1891,37 @@ h2 .count {
   margin: 12px 0;
 }
 
-/* A chip is a key with a blinking LED, and it takes you somewhere. */
-.chip {
-  display: inline-flex;
+/* The Next strip, a key a row. An amber LED blinks on a thing that's
+   waiting and a green one sits on a goal, lit once it's done. */
+.nextup {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 12px;
+}
+
+.nrow {
+  display: flex;
   align-items: center;
-  gap: 7px;
-  min-height: 38px;
-  margin-bottom: 3px;
-  padding: 4px 12px 4px 10px;
+  gap: 9px;
+  width: 100%;
+  min-height: 40px;
+  margin: 0 0 3px;
+  padding: 3px 8px 3px 11px;
   border-radius: 3px;
   background: var(--cap);
   box-shadow: var(--raised);
   color: var(--text);
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 14px;
+  line-height: 1.2;
+  text-align: left;
   text-decoration: none;
   cursor: pointer;
   transition: transform 0.06s, box-shadow 0.06s;
 }
 
 /* The LED keeps blinking under reduced motion, since it's a signal. */
-.chip::before {
+a.nrow::before {
   content: "";
   flex: none;
   width: 6px;
@@ -1923,9 +1932,90 @@ h2 .count {
   animation: led 1.6s steps(2) infinite;
 }
 
-.chip:active {
+.nrow.goal::before {
+  width: 8px;
+  height: 8px;
+  background: #1d3a26;
+  box-shadow: inset 0 0 0 1px #5ddc82;
+  animation: none;
+}
+
+.nrow.done {
+  background: linear-gradient(#1f1b16, #24201a);
+  box-shadow: var(--pressed);
+}
+
+.nrow.done::before {
+  background: #5ddc82;
+  box-shadow: 0 0 6px #5ddc82;
+}
+
+.nrow:active {
   transform: translateY(3px);
   box-shadow: var(--pressed);
+}
+
+.nrow canvas {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.nrow-what {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nrow.done .nrow-what {
+  color: var(--dim);
+  text-decoration: line-through;
+}
+
+.nrow-n {
+  flex: none;
+  padding: 2px 7px;
+  border: 1px solid #000;
+  border-radius: 3px;
+  background: var(--glass);
+  box-shadow: var(--sunk);
+  color: var(--digit);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-shadow: var(--glow);
+}
+
+button.nrow.primary {
+  justify-content: center;
+  font-size: 12px;
+}
+
+.nrow.more {
+  justify-content: center;
+  min-height: 28px;
+  color: var(--print);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+@media (max-height: 780px) and (max-width: 34rem) {
+  .nextup {
+    gap: 4px;
+    margin: -4px 0 10px;
+  }
+
+  .nrow {
+    min-height: 34px;
+  }
+
+  .nrow.more {
+    min-height: 24px;
+  }
 }
 
 @keyframes led {
@@ -1942,11 +2032,6 @@ h2 .count {
   color: var(--print);
   font-size: 12px;
   letter-spacing: 0.1em;
-}
-
-.chip canvas {
-  width: 16px;
-  height: 16px;
 }
 
 .chiprow button[aria-pressed="true"] {
@@ -3493,19 +3578,6 @@ button.big {
   font-size: 12px;
 }
 
-.chip.more {
-  margin: 0 0 3px;
-  font-weight: 500;
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-.chip.more::before {
-  background: var(--dim);
-  box-shadow: none;
-  animation: none;
-}
-
 /* A kitchen tile: a green LED when it's in season and the count held. */
 .larder button {
   position: relative;
@@ -3568,62 +3640,6 @@ button.big {
 
 .arcade-card {
   z-index: 1;
-}
-
-/* The first day list, a lit LED for each step done. */
-.starter .label {
-  color: var(--print);
-}
-
-.steps-list {
-  display: grid;
-  gap: 6px;
-  margin: 8px 0;
-  padding: 0;
-  list-style: none;
-  font-size: 14px;
-}
-
-@media (min-width: 380px) {
-  .steps-list {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-.steps-list li {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.steps-list li::before {
-  content: "";
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #2e2a24;
-  box-shadow: var(--sunk);
-}
-
-.steps-list li.done::before {
-  background: #5ddc82;
-  box-shadow: 0 0 6px #5ddc82;
-}
-
-.steps-list a {
-  color: var(--text);
-  text-decoration: none;
-}
-
-.steps-list li.done a {
-  color: var(--dim);
-  text-decoration: line-through;
-}
-
-.starter button {
-  width: 100%;
-  margin-top: 6px;
 }
 
 /* The market's ticker runs along the top in readout glass. */

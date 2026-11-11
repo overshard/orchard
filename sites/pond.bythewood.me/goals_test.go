@@ -54,7 +54,7 @@ func TestGoalsForAWeekOldPond(t *testing.T) {
 	exec(t, s, `UPDATE ponds SET starter = ? WHERE id = ?`, starterTaken, id)
 	age(t, s, id, 7*24*time.Hour)
 	v, _ := s.view(id)
-	if got := goalKinds(v.Goals); got != "idle gravel gift" {
+	if got := goalKinds(v.Goals); got != "idle bar gift" {
 		t.Errorf("a week old pond that's done nothing: %s", got)
 	}
 	if g := v.Goals[1]; g.Count != "20/100" || g.To != "bank" {

@@ -602,9 +602,15 @@ version of the old look and a handheld pet shell.
   amber digits that glow a little. Pebbles, levels, rates and counts all sit
   in one, so a number never looks like a key. That green is the one colour
   Deck adds.
-- **A chip is a key with a blinking amber LED**, and it takes you somewhere. A
-  filter is a small raised key that stays pushed in and amber while it's on,
-  since a sunken one read as disabled. The places in town are a row of five
+- **The Next strip is what to do, a key a row**, under the bubble on the
+  pond. Each row is an icon and a line and goes straight to its place. A thing
+  that's waiting has a blinking amber LED, and a goal, a part of the game the
+  pond hasn't tried, has a green one, a ring until it's done and lit after,
+  with any count in readout glass at the end of the row. A new pond's goals
+  are its four first day steps, and their prize is one amber key at the top.
+  Three rows show and a short `+N more` key opens the rest.
+- **A filter is a small raised key** that stays pushed in and amber while it's
+  on, since a sunken one read as disabled. The places in town are a row of five
   keys with pixel art over the label like the tab bar, so they never wrap.
 - **Every screen gets a picture in a window.** Works, the reeds, settings and
   the kitchen too, with their words under the picture and never instead of it.
@@ -660,8 +666,9 @@ version of the old look and a handheld pet shell.
   clunk and click made in code like the croak. Sound is off until turned on, and so is a buzz on a bonk, both as keys in settings that stay in that browser.
 - **Colour lives on the screens, the icons and rarity.** The frog, the water,
   the wheel, Dive, the stall and the wizard are colour pixel art inside a
-  window. Past that the only colour is the 8 by 8 pixel icons, a thing's tier
-  and the readout green, and everything else is amber, off white and black.
+  window. Past that the only colour is the 8 by 8 pixel icons, a thing's tier,
+  the readout green and the green LED on a goal, and everything else is amber,
+  off white and black.
 - **It plays like a game and reads like one.** Words are kept to a line, and
   anything that explains a place sits behind the `?` key on its head. Things
   are pictures in slots, not rows of text.
@@ -698,12 +705,12 @@ version of the old look and a handheld pet shell.
 - **A prize pops up in the middle** with slow rays behind it in its tier's
   colour, and stays until it's tapped away. A bad turn of the wizard's gets no
   rays.
-- What the frog says is a speech bubble pointing up at it, and what's ready to
-  do is a row of glowing chips under it that go straight there.
+- What the frog says is a speech bubble pointing up at it, with the Next strip
+  under it.
 - **The pond fits a phone with no scroll.** The frog's screen, its name with
-  the rarity beside it, the bubble and what to do next all sit above the keys
-  at 412 by 915. Under 780 tall the screen narrows to `19rem` to keep them
-  there. The folded gazette, Today at the pond and anything longer go below.
+  the rarity beside it, the bubble and the Next strip all sit above the keys
+  at 412 by 915. Under 780 tall the screen narrows to `19rem` and the rows
+  drop from 40px to 34px to keep them there. The folded gazette, Today at the pond and anything longer go below.
 - **Dive is the whole window, on a phone and a desktop.** It covers the bar and
   the keys, the pond takes its depth and length from the window, and a strip
   under the water holds three readout tiles and `EJECT`. Ten ghost frogs swim

@@ -97,6 +97,8 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
   never tried, both sent with the view. A new pond's goals are the four first
   day steps in `starter.go`, and after their prize it's the first few down a
   list. `ponds.tried` has a bit for a thing that leaves no trace once done.
+  A row's `to` is a hash the page opens, a view, a key in town or `market`,
+  and `index.js` draws both lists as the Next strip.
 - `opening.go` is how a new pond opens up, Works a day in and the market
   three days after that, sent with the view as `open`. The page hides the keys
   for a closed place and the gazette carries a notice the day one opens.
