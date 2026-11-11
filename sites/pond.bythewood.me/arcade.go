@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"errors"
+	"hash/fnv"
 	"time"
 )
 
@@ -32,6 +33,21 @@ var arcadeGames = []arcadeGame{
 }
 
 const arcadeFullRuns = 3
+
+// One side game a day is the disk of the day, the same for everybody, and
+// pays in full for one run more. Its cap is the same as any other day's.
+func diskOfDay(day string) string {
+	h := fnv.New32a()
+	h.Write([]byte("disk " + day))
+	return arcadeGames[h.Sum32()%uint32(len(arcadeGames))].key
+}
+
+func fullRuns(key string, now time.Time) int {
+	if key == diskOfDay(dayOf(now)) {
+		return arcadeFullRuns + 1
+	}
+	return arcadeFullRuns
+}
 
 func arcadeOf(key string) (arcadeGame, bool) {
 	for _, g := range arcadeGames {
@@ -126,7 +142,7 @@ func (s *store) arcadeFinish(id int64, key, run string, score int) (*arcadeDone,
 		}
 		r.runs++
 		pay := score / g.per
-		if r.runs > arcadeFullRuns {
+		if r.runs > fullRuns(key, now) {
 			pay = score / (4 * g.per)
 		}
 		out.Paid = max(0, min(pay, g.cap-r.paid))
@@ -152,6 +168,8 @@ type arcadeView struct {
 	Cap  int    `json:"cap"`
 	Runs int    `json:"runs"`
 	Full int    `json:"full"`
+	// Day is set on the disk of the day.
+	Day bool `json:"day"`
 }
 
 func arcadeViews(q querier, id int64, now time.Time) ([]arcadeView, error) {
@@ -162,7 +180,8 @@ func arcadeViews(q querier, id int64, now time.Time) ([]arcadeView, error) {
 			return nil, err
 		}
 		r = r.settled(now)
-		out = append(out, arcadeView{g.key, g.name, r.best, r.paid, g.cap, r.runs, arcadeFullRuns})
+		full := fullRuns(g.key, now)
+		out = append(out, arcadeView{g.key, g.name, r.best, r.paid, g.cap, r.runs, full, full > arcadeFullRuns})
 	}
 	return out, nil
 }

@@ -102,3 +102,72 @@ func TestAPausedRunStillPays(t *testing.T) {
 		t.Errorf("a paused dive: %v %+v", err, d)
 	}
 }
+
+// The disk of the day pays in full a fourth time, under the same cap, and
+// it's the same disk for every pond that day.
+func TestDiskOfTheDay(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	_, other := newPond(t, s)
+	key := diskOfDay(dayOf(*clock))
+	g, _ := arcadeOf(key)
+	play := func(k string, score int) *arcadeDone {
+		t.Helper()
+		st, err := s.arcadeStart(id, k)
+		if err != nil {
+			t.Fatal(err)
+		}
+		*clock = clock.Add(30 * time.Second)
+		d, err := s.arcadeFinish(id, k, st.Run, score)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return d
+	}
+	plain := arcadeGames[0]
+	if plain.key == key {
+		plain = arcadeGames[1]
+	}
+	one := 4 * g.per
+	for i := 1; i <= 5; i++ {
+		want := 4
+		if i == 5 {
+			want = 1
+		}
+		if d := play(key, one); d.Paid != want {
+			t.Errorf("run %d of the disk of the day paid %d, want %d", i, d.Paid, want)
+		}
+	}
+	for i := 1; i <= 4; i++ {
+		want := 4
+		if i == 4 {
+			want = 1
+		}
+		if d := play(plain.key, 4*plain.per); d.Paid != want {
+			t.Errorf("run %d of %s paid %d, want %d", i, plain.key, d.Paid, want)
+		}
+	}
+	days, total := 0, 0
+	for _, pid := range []int64{id, other} {
+		v, _ := s.view(pid)
+		for _, a := range v.Arcade {
+			if a.Day {
+				days++
+				if a.Key != key || a.Full != arcadeFullRuns+1 || a.Cap != g.cap {
+					t.Errorf("the disk of the day on the view: %+v", a)
+				}
+			}
+			total++
+		}
+	}
+	if days != 2 || total != 2*len(arcadeGames) {
+		t.Errorf("%d disks of the day across two ponds", days)
+	}
+	seen := map[string]bool{}
+	for i := range 120 {
+		seen[diskOfDay(dayOf(clock.Add(time.Duration(i)*24*time.Hour)))] = true
+	}
+	if len(seen) != len(arcadeGames) {
+		t.Errorf("only %d of %d games were ever the disk of the day", len(seen), len(arcadeGames))
+	}
+}

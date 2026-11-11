@@ -74,7 +74,9 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
 - `arcade.go` is the side games, fishing, tongue flick, crossing, raft run,
   lily leap, tadpoles, lily stack, the shell game and pebble skip, which pay
   into the purse like Dive with a cap a day each. A score over a game's `most`
-  pays nothing, so keep it well past what a person could reach.
+  pays nothing, so keep it well past what a person could reach. One game a
+  day, off a hash of the date, is the disk of the day and pays in full a
+  fourth time under the same cap.
   `frontend/src/arcade.js` is the frame round them, one file per game beside it.
 - `neighbours.go` is the residents, friendship by dishes and a favour a day.
 - `burrow.go` is the bank's burrows. Each level adds a pad that doesn't count

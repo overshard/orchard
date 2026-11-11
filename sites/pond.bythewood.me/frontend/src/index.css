@@ -3248,6 +3248,27 @@ button.big {
   white-space: nowrap;
 }
 
+/* The disk of the day's sticker, stuck on a little crooked over the corner
+   of the label. */
+.daytag {
+  position: absolute;
+  top: 27%;
+  right: 4%;
+  width: 6.2em;
+  padding: 3px 4px;
+  border-radius: 3px;
+  background: var(--amber);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
+  color: #1a1408;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+  transform: rotate(7deg);
+}
+
 .disk:hover .floppy {
   filter: brightness(1.08);
 }
