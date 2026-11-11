@@ -100,13 +100,49 @@ export function buildPlay(shelves, after) {
     const row = el("div", "disks");
     s.disks.forEach((d) => row.append(disk(d)));
     shelves.append(el("h2", "", s.name), row);
+    if (s.name === "Arcade") shelves.append(raceCard());
   });
   after.after(...DISKS.filter((d) => d.game).map(gameView));
+}
+
+// The daily race opens Dive on the day's course, from a card under the
+// Arcade disks like the wheel's.
+function raceCard() {
+  const a = el("a", "game pays"), art = el("canvas"), text = el("span", "gtext"), line = el("span");
+  a.href = "#race"; a.id = "play-race";
+  art.id = "play-race-art"; art.width = 168; art.height = 96;
+  art.setAttribute("aria-hidden", "true");
+  line.id = "play-race-line";
+  text.append(el("b", "", "Daily race"), line);
+  a.append(art, text, el("span", "cta", "Race"));
+  return a;
+}
+
+// raceLine says where the pond is on today's board, or who's out front.
+export function raceLine(r) {
+  const top = r.board.reduce((a, b) => (b.gates > a.gates ? b : a));
+  $("play-race").classList.toggle("pays", !r.place);
+  $("play-race-line").textContent = r.place ? "On the board " + r.place + ordinal(r.place) + " of " + r.of + " today" : top.name + " leads on " + top.gates + " gates";
+}
+
+function ordinal(n) { return n % 100 > 10 && n % 100 < 14 ? "th" : { 1: "st", 2: "nd", 3: "rd" }[n % 10] || "th"; }
+
+function $(id) { return document.getElementById(id); }
+
+export function raceArt(r, g, p) {
+  ["#123a3d", "#0e2c30", "#0a1b1f"].forEach((c, i) => { r.fillStyle = c; r.fillRect(0, i * 32, 168, 32); });
+  r.fillStyle = "#7fd6c2"; r.fillRect(0, 0, 168, 3);
+  for (let y = 0; y < 8; y++) for (let x = 0; x < 4; x++) { r.fillStyle = (x + y) % 2 ? "#0a0908" : "#fff6dc"; r.fillRect(150 + x * 4, 8 + y * 4, 4, 4); }
+  r.fillStyle = "#5b6470"; r.fillRect(148, 8, 2, 88);
+  [[10, 30, 0.35], [40, 62, 0.35], [70, 20, 0.35]].forEach(([x, y, a]) => { r.globalAlpha = a; draw(r, side(g, p, false), SW, SH, colours(g, null), x, y, 1); });
+  r.globalAlpha = 1;
+  draw(r, side(g, p, true), SW, SH, colours(g, null), 96, 44, 1);
 }
 
 // drawDisks paints every label, which a game's title card copies its art off.
 export function drawDisks(g, p) {
   DISKS.forEach((d) => d.art(document.getElementById("play-" + d.key + "-art").getContext("2d"), g, p));
+  raceArt(document.getElementById("play-race-art").getContext("2d"), g, p);
 }
 
 function grown(p) { return ["egg", "tadpole"].includes(p.frog.stage) ? "froglet" : p.frog.stage; }

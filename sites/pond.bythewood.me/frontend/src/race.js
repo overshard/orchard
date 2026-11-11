@@ -187,7 +187,15 @@ export function raceResults(r) {
     if (typeof v === "number") countUp(dd, v, "+"); else dd.textContent = v;
     dd.style.animationDelay = dt.style.animationDelay = 0.7 + win.children.length * 0.06 + "s";
   };
-  if (r.paid == null) add("Pebbles", "counting");
+  if (r.race) {
+    if (r.paid == null) add("Board", "counting");
+    else {
+      add("Board", r.race.board ? "on today's board" : "practice, the board keeps your first", r.race.board ? "gold" : "");
+      if (r.race.prize) add(suffix(place) === "ST" ? "Winner" : "Podium", r.race.prize - (r.rested || 0), "gold");
+      if (r.rested) add("Well rested", r.rested, "gold");
+      add("Gates", String(list.find((x) => x.you).gates));
+    }
+  } else if (r.paid == null) add("Pebbles", "counting");
   else {
     add("Run", r.paid - (r.rested || 0));
     if (r.rested) add("Well rested", r.rested, "gold");

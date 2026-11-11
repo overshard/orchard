@@ -885,6 +885,12 @@ version of the old look and a handheld pet shell.
   under the water holds three readout tiles and `EJECT`. Ten ghost frogs swim
   each run a little behind at 60% alpha, with their names over them where
   the field is wide enough to read ten.
+- **The daily race is a card under the Arcade disks**, like the wheel's,
+  with a chequered flag over the water, and it opens Dive on the day's
+  course with the twelve residents as the ghosts and their names on the
+  standings. Its title says whether this run goes on the board, and its
+  results are the board, the whole finishing order with you in amber and
+  a line saying whether the run was on the board or practice.
 - **Dive is a race.** Three red lights and GO start it, a standings column
   down the left drops each frog to the bottom as it goes out, your place is a
   big italic number in the bottom right that pops as it climbs, and who just

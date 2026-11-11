@@ -124,6 +124,12 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   its goals read as `counts`, Dive and bug sweep work theirs out on the
   server, and a goal met for the first time that day is a row in `aims` and
   pays `aimPebbles` with the run, inside the game's cap.
+- `race.go` is the daily race, Dive on one course a day against the
+  residents. `POST /api/race/start` deals the day's seed, which the page
+  turns into the gates, and the board, each resident's gate count off a hash
+  of the date with Rush second or better. The first run a day that finishes
+  is the pond's place on the board, kept in `race`, and a podium place pays
+  out of Dive's cap. Every run after it is practice.
 - `bugsweep.go` is bug sweep, a grid of lily pads with wasps under some. The
   day's grid is the same in every pond and pays once, and every go after it
   is a fresh grid that pays nothing. `POST /api/sweep/start` hands over a go
@@ -275,6 +281,11 @@ they have none, for other sites to draw.
   a price or a prize.
 - The ghosts in Dive are dealt by `POST /api/dive/start`, which is how the
   server knows a podium place at the finish. The page only plays them out.
+- The race's gates are made in `dive.js` off the server's seed, a fixed
+  number of draws a gate and in a band of the same depth on any window, so
+  a change to how a gate is drawn there changes every pond's course at once.
+  The server only holds a run to the gates the course could have given in
+  its time.
 - Every garden grows off one clock in the `growth` table, wound every ten
   minutes at the rate the real day gives (rain doubles it, frost stops it). A
   plot is sown at a reading of that clock, so nothing walks every garden.

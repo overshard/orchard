@@ -433,6 +433,22 @@ func (s *site) apiDiveFinish(id int64, r *http.Request, w http.ResponseWriter) (
 	return s.store.diveFinish(id, in.Run, in.Score, in.Gates)
 }
 
+func (s *site) apiRaceStart(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	return s.store.raceStart(id)
+}
+
+func (s *site) apiRaceFinish(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	var in struct {
+		Run   string `json:"run"`
+		Score int    `json:"score"`
+		Gates int    `json:"gates"`
+	}
+	if !readJSON(w, r, &in) {
+		return nil, nil
+	}
+	return s.store.raceFinish(id, in.Run, in.Score, in.Gates)
+}
+
 // The frog other sites draw when a visitor has none of their own.
 const houseSeed = 1207
 

@@ -1,9 +1,9 @@
 import { $, post, state, setPond, watch, reduced, titled, heldNow, TIERS } from "./api.js";
 import { genome, bred, cells, sideCells, colours, draw, croak, W, H, SW, SH } from "./frog.js";
 import { drawIcon, iconCanvas, drawFurn } from "./icons.js";
-import { initDive, enterDive, leaveDive } from "./dive.js";
+import { initDive, enterDive, leaveDive, diveMode } from "./dive.js";
 import { arcade } from "./arcade.js";
-import { buildPlay, drawDisks, DISKS } from "./play.js";
+import { buildPlay, drawDisks, DISKS, raceLine } from "./play.js";
 import { initWheel, enterWheel } from "./wheel.js";
 import { initReeds } from "./reeds.js";
 import { initJob, enterJob, leaveJob, greetAway } from "./work.js";
@@ -120,6 +120,8 @@ function show(next) {
   if (!isOpen(next)) { wanted = next; next = "pond"; history.replaceState(null, "", location.pathname); }
   const market = next === "market", key = TOWN.includes(next) ? next : "";
   next = placeOf(market ? "bank" : key ? "town" : next);
+  // The daily race is Dive on the day's course.
+  if (next === "race" || next === "dive") { diveMode(next); next = "dive"; }
   if (!VIEWS.includes(next)) next = "pond";
   if (market) bankTab("market");
   if (WORKS.includes(next)) worksAt = next;
@@ -741,6 +743,7 @@ setInterval(() => {
 
 function renderPlay(p) {
   payLine("dive", p.dive);
+  raceLine(p.dive.race);
   const w = p.wheel;
   $("play-wheel-line").textContent = w.free > 0 ? w.free + " free spin" + (w.free > 1 ? "s" : "") + " waiting" : "Next free spin soon";
   if (!logTurned) {
