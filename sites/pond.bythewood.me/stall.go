@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"hash/fnv"
 	"math"
 	"math/rand/v2"
 	"sort"
@@ -10,15 +11,17 @@ import (
 	"time"
 )
 
-// A stall on the bank where the pond's own things go up for sale. Neighbours
-// wander by and buy, sooner when the price is low and later when it's dear.
-// What's listed leaves the bag until it sells or comes back off the shelf.
+// A stall on the bank where the pond's own things go up for sale. A neighbour
+// looks it over once an hour for a day and buys or doesn't, nearly always at
+// the going rate and hardly ever at ten times it. What's listed leaves the
+// bag until it sells or comes back off the shelf.
 const (
-	stallSlots = 3
-	// The price can go from half the going rate to three times it.
-	stallLow, stallHigh = 0.5, 3.0
-	// At the going rate a thing sells in about this long.
-	stallDay = 24 * time.Hour
+	stallSlots = 8
+	// The price can go from half a thing's worth to ten times it.
+	stallLow, stallHigh = 0.5, 10.0
+	stallLooks          = 24
+	// Listings of a kind count against its rate for this long.
+	stallGlut = 48 * time.Hour
 )
 
 // A hat or trinket goes for this share of its rate, low enough that a box's
@@ -59,8 +62,8 @@ func worthOf(kind string) (int, bool) {
 	return 0, false
 }
 
-// stallCap is the most a thing can be put up for, three times its going rate
-// and always under what any shop asks for it, so nothing bought can be
+// stallCap is the most a thing can be put up for, ten times its worth and
+// always under what any shop asks for it, so nothing bought can be
 // resold for more.
 func stallCap(kind string, worth int) int {
 	hi := int(float64(worth) * stallHigh)
@@ -97,27 +100,89 @@ func shopFloor(kind string) (int, bool) {
 	return 0, false
 }
 
-// sellsIn is how long a neighbour takes to buy at a price, a day at the
-// going rate, hours for a bargain and weeks at three times.
-func sellsIn(price, worth int) time.Duration {
-	r := float64(price) / float64(worth)
-	h := 24 * math.Pow(r, 2.6) * (0.75 + rand.Float64()*0.5)
-	return max(time.Hour, time.Duration(h*float64(time.Hour)))
+// stallWant is how keen the neighbours are on a kind today, which changes
+// with the day and now and then doubles.
+func stallWant(kind string, now time.Time) float64 {
+	h := fnv.New32a()
+	h.Write([]byte(kind + now.In(pondZone).Format("2006-01-02")))
+	u := float64(h.Sum32()%1000) / 1000
+	if u > 0.94 {
+		return 2
+	}
+	return 0.7 + u*0.85
+}
+
+// stallRate is what a kind goes for today, its worth moved by how wanted it
+// is and by how many of it have gone up lately on anybody's stall.
+func stallRate(kind string, worth, listed int, now time.Time) int {
+	r := float64(worth) * stallWant(kind, now) / math.Sqrt(1+float64(listed)/6)
+	return max(1, int(math.Round(r)))
+}
+
+// stallChance is the odds a look ends in a sale. It falls with the cube of
+// the price over the rate, so twice the rate is one look in nine.
+func stallChance(price, rate int) float64 {
+	r := float64(price) / float64(rate)
+	return min(0.95, max(0.0005, 0.9/(r*r*r)))
+}
+
+// stallFee is paid to put a thing up for more than the rate, a tenth of
+// what's over, and it isn't given back. Asking the earth has to cost
+// something or everything would sit at ten times until it sold.
+func stallFee(price, rate int) int {
+	if price <= rate {
+		return 0
+	}
+	return (price - rate + 9) / 10
+}
+
+// stallSells rolls a listing's looks up front and says when it sells, or 0
+// for a day with no takers.
+func stallSells(chance float64, listed time.Time) int64 {
+	for k := 1; k <= stallLooks; k++ {
+		if rand.Float64() < chance {
+			return listed.Add(time.Duration(k) * time.Hour).Unix()
+		}
+	}
+	return 0
+}
+
+// stallListed counts each kind put up lately across every pond.
+func stallListed(q querier, now time.Time) (map[string]int, error) {
+	out := map[string]int{}
+	rows, err := q.Query(`SELECT kind, COUNT(*) FROM stall_log WHERE at > ? GROUP BY kind`, now.Add(-stallGlut).Unix())
+	if err != nil {
+		return out, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var k string
+		var n int
+		if err := rows.Scan(&k, &n); err != nil {
+			return out, err
+		}
+		out[k] = n
+	}
+	return out, rows.Err()
 }
 
 type stallRow struct {
-	Slot   int    `json:"slot"`
-	Kind   string `json:"kind"`
-	Name   string `json:"name"`
-	Tier   int    `json:"tier"`
-	Hat    *hat   `json:"hat,omitempty"`
-	Price  int    `json:"price"`
-	Worth  int    `json:"worth"`
-	Sold   bool   `json:"sold"`
-	Buyer  string `json:"buyer,omitempty"`
-	Listed int64  `json:"listed"`
-	A      string `json:"a,omitempty"`
-	B      string `json:"b,omitempty"`
+	Slot  int    `json:"slot"`
+	Kind  string `json:"kind"`
+	Name  string `json:"name"`
+	Tier  int    `json:"tier"`
+	Hat   *hat   `json:"hat,omitempty"`
+	Price int    `json:"price"`
+	Worth int    `json:"worth"`
+	Sold  bool   `json:"sold"`
+	// Over is a day gone with no takers. Chance is the odds of each look.
+	Over   bool    `json:"over"`
+	Chance float64 `json:"chance"`
+	Ends   int64   `json:"ends"`
+	Buyer  string  `json:"buyer,omitempty"`
+	Listed int64   `json:"listed"`
+	A      string  `json:"a,omitempty"`
+	B      string  `json:"b,omitempty"`
 }
 
 type stallView struct {
@@ -138,8 +203,10 @@ type bagThing struct {
 	Count int    `json:"count"`
 	Free  int    `json:"free"`
 	Worth int    `json:"worth"`
-	Max   int    `json:"max"`
-	Hat   *hat   `json:"hat,omitempty"`
+	// Rate is what it goes for on the stall today.
+	Rate int  `json:"rate"`
+	Max  int  `json:"max"`
+	Hat  *hat `json:"hat,omitempty"`
 	// A dish is drawn from its two ingredients.
 	A string `json:"a,omitempty"`
 	B string `json:"b,omitempty"`
@@ -171,7 +238,7 @@ func sortOf(kind string) string {
 	return "thing"
 }
 
-func bagOf(held map[string]int, hats []hatView, hoods []hoodView) []bagThing {
+func bagOf(held map[string]int, hats []hatView, hoods []hoodView, listed map[string]int, now time.Time) []bagThing {
 	out := []bagThing{}
 	add := func(kind string, n int, h *hat) {
 		t, _ := wizardTier(kind)
@@ -184,7 +251,7 @@ func bagOf(held map[string]int, hats []hatView, hoods []hoodView) []bagThing {
 			free--
 		}
 		a, b := dishParts(kind)
-		out = append(out, bagThing{kind, thingName(kind), t, sortOf(kind), n, free, w, stallCap(kind, w), h, a, b})
+		out = append(out, bagThing{kind, thingName(kind), t, sortOf(kind), n, free, w, stallRate(kind, w, listed[kind], now), stallCap(kind, w), h, a, b})
 	}
 	for k, n := range held {
 		add(k, n, nil)
@@ -213,7 +280,7 @@ func bagOf(held map[string]int, hats []hatView, hoods []hoodView) []bagThing {
 
 func stallOf(q querier, id int64, now time.Time) (stallView, error) {
 	v := stallView{Slots: stallSlots, Rows: []stallRow{}}
-	rows, err := q.Query(`SELECT slot, kind, price, listed_at, sells_at, buyer FROM stall WHERE pond_id = ? ORDER BY slot`, id)
+	rows, err := q.Query(`SELECT slot, kind, price, listed_at, sells_at, buyer, chance, ends_at FROM stall WHERE pond_id = ? ORDER BY slot`, id)
 	if err != nil {
 		return v, err
 	}
@@ -221,7 +288,7 @@ func stallOf(q querier, id int64, now time.Time) (stallView, error) {
 	for rows.Next() {
 		var r stallRow
 		var sells int64
-		if err := rows.Scan(&r.Slot, &r.Kind, &r.Price, &r.Listed, &sells, &r.Buyer); err != nil {
+		if err := rows.Scan(&r.Slot, &r.Kind, &r.Price, &r.Listed, &sells, &r.Buyer, &r.Chance, &r.Ends); err != nil {
 			return v, err
 		}
 		r.Name = thingName(r.Kind)
@@ -231,7 +298,8 @@ func stallOf(q querier, id int64, now time.Time) (stallView, error) {
 		if h, ok := hatOfKind(r.Kind); ok {
 			r.Hat = &h
 		}
-		r.Sold = sells <= now.Unix()
+		r.Sold = sells > 0 && sells <= now.Unix()
+		r.Over = !r.Sold && r.Ends > 0 && r.Ends <= now.Unix()
 		if r.Sold {
 			v.Takings += r.Price
 		} else {
@@ -316,12 +384,29 @@ func (s *store) stallList(id int64, kind string, price int) (*view, error) {
 		if slot < 0 {
 			return errStallFull
 		}
+		listed, err := stallListed(tx, now)
+		if err != nil {
+			return err
+		}
+		rate := stallRate(kind, worth, listed[kind], now)
+		fee := stallFee(price, rate)
+		if p.Pebbles < fee {
+			return errPoor
+		}
 		if err := takeThing(tx, p.ID, kind); err != nil {
 			return err
 		}
-		sells := now.Add(sellsIn(price, worth)).Unix()
-		_, err = tx.Exec(`INSERT INTO stall (pond_id, slot, kind, price, listed_at, sells_at, buyer) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			p.ID, slot, kind, price, now.Unix(), sells, residents[rand.IntN(len(residents))].name)
+		p.Pebbles -= fee
+		chance := stallChance(price, rate)
+		if _, err := tx.Exec(`DELETE FROM stall_log WHERE at <= ?`, now.Add(-stallGlut).Unix()); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`INSERT INTO stall_log (kind, at) VALUES (?, ?)`, kind, now.Unix()); err != nil {
+			return err
+		}
+		_, err = tx.Exec(`INSERT INTO stall (pond_id, slot, kind, price, listed_at, sells_at, buyer, chance, ends_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			p.ID, slot, kind, price, now.Unix(), stallSells(chance, now), residents[rand.IntN(len(residents))].name,
+			chance, now.Add(stallLooks*time.Hour).Unix())
 		return err
 	})
 }
@@ -342,7 +427,7 @@ func (s *store) stallTake(id int64, slot int) (*view, error) {
 		if _, err := tx.Exec(`DELETE FROM stall WHERE pond_id = ? AND slot = ?`, p.ID, slot); err != nil {
 			return err
 		}
-		if sells <= now.Unix() {
+		if sells > 0 && sells <= now.Unix() {
 			p.Pebbles += price
 			return nil
 		}
@@ -355,7 +440,7 @@ func (s *store) stallTake(id int64, slot int) (*view, error) {
 func (s *store) stallCollect(id int64) (*paidOut, error) {
 	out := &paidOut{Prizes: []prize{}, From: []int{}}
 	v, err := s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
-		rows, err := tx.Query(`SELECT price, buyer FROM stall WHERE pond_id = ? AND sells_at <= ? ORDER BY slot`, p.ID, now.Unix())
+		rows, err := tx.Query(`SELECT price, buyer FROM stall WHERE pond_id = ? AND sells_at > 0 AND sells_at <= ? ORDER BY slot`, p.ID, now.Unix())
 		if err != nil {
 			return err
 		}
@@ -378,7 +463,7 @@ func (s *store) stallCollect(id int64) (*paidOut, error) {
 		if out.Pebbles == 0 {
 			return errNotYet
 		}
-		if _, err := tx.Exec(`DELETE FROM stall WHERE pond_id = ? AND sells_at <= ?`, p.ID, now.Unix()); err != nil {
+		if _, err := tx.Exec(`DELETE FROM stall WHERE pond_id = ? AND sells_at > 0 AND sells_at <= ?`, p.ID, now.Unix()); err != nil {
 			return err
 		}
 		p.Pebbles += out.Pebbles

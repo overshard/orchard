@@ -47,31 +47,55 @@ function renderBoxes(p) {
 
 // ---------------------------------------------------------------- the stall
 
-function hoursLike(h) {
-  if (h < 1.5) return "about an hour";
-  if (h < 20) return "about " + Math.round(h) + " hours";
-  if (h < 36) return "about a day";
-  if (h < 24 * 10) return "about " + Math.round(h / 24) + " days";
-  return "a few weeks";
+// The same sums the server does when a thing goes up.
+function stallChance(price, rate) { return Math.min(0.95, Math.max(0.0005, 0.9 / Math.pow(price / rate, 3))); }
+function stallFee(price, rate) { return price <= rate ? 0 : Math.floor((price - rate + 9) / 10); }
+function pct(c) { return c >= 0.095 ? Math.round(c * 100) + "%" : c >= 0.01 ? (c * 100).toFixed(1) + "%" : "under 1%"; }
+
+// How wanted a thing is today, as a word for its tile.
+function demand(t) {
+  const d = t.rate / t.worth;
+  return d >= 1.5 ? "In demand" : d >= 1.15 ? "Wanted" : d <= 0.7 ? "Flooded" : d <= 0.9 ? "Slow" : "";
 }
 
 export function pricePicker(body, t) {
   const lo = Math.max(1, Math.ceil(t.worth * 0.5)), hi = t.max;
-  const wrap = document.createElement("div"), price = document.createElement("b"), when = document.createElement("span"), range = document.createElement("input");
+  // The slider steps finely near the rate and coarsely toward ten times.
+  const steps = [];
+  for (let m = 0.5; m <= 10.001; m += m < 2 ? 0.05 : m < 5 ? 0.25 : 0.5) {
+    const v = Math.max(lo, Math.min(hi, Math.round(t.worth * m)));
+    if (steps[steps.length - 1] !== v) steps.push(v);
+  }
+  if (!steps.includes(t.rate) && t.rate >= lo && t.rate <= hi) { steps.push(t.rate); steps.sort((a, b) => a - b); }
+  const near = steps.reduce((a, v, i) => (Math.abs(v - t.rate) < Math.abs(steps[a] - t.rate) ? i : a), 0);
+  const wrap = document.createElement("div"), price = document.createElement("b"), range = document.createElement("input"), odds = document.createElement("div");
   wrap.className = "pricer";
-  range.type = "range"; range.min = lo; range.max = hi; range.value = t.worth; range.step = 1;
+  odds.className = "tiles";
+  range.type = "range"; range.min = 0; range.max = steps.length - 1; range.value = near; range.step = 1;
   range.setAttribute("aria-label", "Price");
+  const tile = (k) => {
+    const box = document.createElement("span"), kk = document.createElement("span"), v = document.createElement("span");
+    box.className = "readout"; kk.className = "k"; v.className = "v"; kk.textContent = k;
+    box.append(kk, v); odds.append(box);
+    return v;
+  };
+  const hour = tile("Each hour"), day = tile("Today"), fee = tile("Fee"), word = document.createElement("span");
+  let go = null;
   const upd = () => {
-    const v = +range.value, r = v / t.worth;
+    const v = steps[+range.value], c = stallChance(v, t.rate), f = stallFee(v, t.rate), r = v / t.rate;
     price.textContent = v.toLocaleString("en-US");
-    when.textContent = "Sells in " + hoursLike(24 * Math.pow(r, 2.6)) + (Math.abs(r - 1) < 0.05 ? ", the going rate" : r < 1 ? ", a bargain" : "");
+    hour.textContent = pct(c); day.textContent = pct(1 - Math.pow(1 - c, 24)); fee.textContent = f || "None";
+    const want = demand(t);
+    word.textContent = (want ? want + " today. " : "") + "Goes for about " + t.rate.toLocaleString("en-US") + ". "
+      + (r < 0.95 ? "A bargain." : r < 1.05 ? "The going rate." : r < 2 ? "A bit dear." : r < 4 ? "A long shot." : "Somebody might be daft enough.")
+      + (f ? " The fee isn't given back." : "");
+    if (go) go.disabled = f > state.pond.pebbles;
   };
   range.addEventListener("input", upd);
-  upd();
-  wrap.append(price, range, when);
-  const go = button("Put it up", (b) => {
+  wrap.append(price, range, odds, word);
+  const put = button("Put it up", (b) => {
     b.disabled = true;
-    post("/api/stall/list", { kind: t.kind, price: +range.value }).then((v) => {
+    post("/api/stall/list", { kind: t.kind, price: steps[+range.value] }).then((v) => {
       setPond(v);
       closeSheet();
       location.hash = "town";
@@ -79,7 +103,9 @@ export function pricePicker(body, t) {
       $("stall-out").textContent = t.name + " is on your stall.";
     }, (e) => { sheetSay(e.message); b.disabled = false; });
   }, "primary");
-  body.append(wrap, go);
+  go = put;
+  upd();
+  body.append(wrap, put);
 }
 
 function pickForStall() {
@@ -87,39 +113,32 @@ function pickForStall() {
   openSheet({ kind: "i_town", name: "Your stall" }, can.length ? "Pick something to sell." : "Nothing to sell yet. A hat or trinket has to be a spare.", (body) => {
     const grid = document.createElement("div");
     grid.className = "slots";
-    can.forEach((t) => grid.append(slot(thingArt(t, 4), { tier: t.tier, name: t.name, count: t.free, onClick: () => {
+    can.sort((a, b) => b.rate / b.worth - a.rate / a.worth);
+    can.forEach((t) => grid.append(slot(thingArt(t, 4), { tier: t.tier, name: demand(t) ? t.name + " · " + demand(t) : t.name, count: t.free, onClick: () => {
       body.textContent = "";
       $("sheet-name").textContent = t.name;
+      $("sheet-art").replaceChildren(thingArt(t, 6));
+      $("sheet-what").textContent = "";
       pricePicker(body, t);
     } })));
     body.append(grid);
   });
 }
 
-function ago(sec) {
-  if (sec < 3600) return "just now";
-  if (sec < 86400) return Math.round(sec / 3600) + "h ago";
-  return Math.round(sec / 86400) + "d ago";
-}
-
 function renderStall(p) {
   const st = p.stall, box = $("stall-rows");
   box.textContent = "";
+  const free = st.slots - st.rows.length, now = Math.floor(Date.now() / 1000);
+  $("stall-n").textContent = st.rows.length + " of " + st.slots + " up";
   for (let i = 0; i < st.slots; i++) {
     const r = st.rows.find((x) => x.slot === i), row = document.createElement("div");
-    row.className = "stallrow" + (r && r.sold ? " sold" : "");
-    if (!r) {
-      row.classList.add("empty");
-      const b = button("+ Put something up", pickForStall);
-      b.prepend(ghost("i_bag"));
-      row.append(b);
-      box.append(row);
-      continue;
-    }
+    if (!r) continue;
+    row.className = "stallrow" + (r.sold ? " sold" : r.over ? " over" : "");
     const what = document.createElement("span"), name = document.createElement("b"), note = document.createElement("span"), price = document.createElement("span");
     name.textContent = r.name;
     note.className = "dim";
-    note.textContent = r.sold ? "Sold to " + r.buyer + "!" : "Up " + ago(Math.floor(Date.now() / 1000) - r.listed);
+    note.textContent = r.sold ? "Sold to " + r.buyer + "!" : r.over ? "No takers at that price"
+      : r.ends ? pct(r.chance) + " an hour · " + Math.max(1, Math.ceil((r.ends - now) / 3600)) + "h left" : "Up for sale";
     what.append(name, note);
     price.className = "price"; price.textContent = r.price.toLocaleString("en-US");
     row.append(thingArt(r, 3), what, price);
@@ -132,6 +151,13 @@ function renderStall(p) {
         $("stall-out").textContent = v.pebbles > before ? "Sold! +" + (v.pebbles - before) + " pebbles." : r.name + " is back in your bag.";
       }, (e) => { $("stall-out").textContent = e.message; b.disabled = false; });
     }, r.sold ? "primary" : ""));
+    box.append(row);
+  }
+  if (free > 0) {
+    const row = document.createElement("div"), b = button("+ Put something up", pickForStall);
+    row.className = "stallrow empty";
+    b.prepend(ghost("i_bag"));
+    row.append(b);
     box.append(row);
   }
   $("stall-collect").hidden = !st.takings;

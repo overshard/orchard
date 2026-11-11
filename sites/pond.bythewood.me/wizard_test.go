@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"errors"
+	"math"
 	"testing"
 	"time"
 )
@@ -128,29 +129,41 @@ func TestStallSellsAndCollects(t *testing.T) {
 	_, id := newPond(t, s)
 	stock(t, s, id, "fossil", 4)
 	w, _ := worthOf("fossil")
-	if _, err := s.stallList(id, "fossil", w*4); !errors.Is(err, errBadPrice) {
-		t.Fatalf("listed at four times, %v", err)
+	stock(t, s, id, "moonstone", stallSlots)
+	if _, err := s.stallList(id, "fossil", w*11); !errors.Is(err, errBadPrice) {
+		t.Fatalf("listed at eleven times, %v", err)
 	}
-	for i := range stallSlots {
+	for i := range 3 {
 		if _, err := s.stallList(id, "fossil", w/2+i); err != nil {
 			t.Fatal(err)
 		}
 	}
+	aw, _ := worthOf("moonstone")
+	for range stallSlots - 3 {
+		if _, err := s.stallList(id, "moonstone", aw/2); err != nil {
+			t.Fatal(err)
+		}
+	}
 	if _, err := s.stallList(id, "fossil", w); !errors.Is(err, errStallFull) {
-		t.Fatalf("a fourth went up, %v", err)
+		t.Fatalf("one too many went up, %v", err)
+	}
+	for i := 3; i < stallSlots; i++ {
+		if _, err := s.stallTake(id, i); err != nil {
+			t.Fatal(err)
+		}
 	}
 	v, err := s.stallTake(id, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if v.held["fossil"] != 2 || len(v.Stall.Rows) != stallSlots-1 {
+	if v.held["fossil"] != 2 || len(v.Stall.Rows) != 2 {
 		t.Fatalf("taking it back left %d held and %d up", v.held["fossil"], len(v.Stall.Rows))
 	}
 	before := v.Pebbles
 	if _, err := s.stallCollect(id); !errors.Is(err, errNotYet) {
 		t.Fatalf("collected before a sale, %v", err)
 	}
-	*clock = clock.Add(7 * time.Hour)
+	*clock = clock.Add(25 * time.Hour)
 	paid, err := s.stallCollect(id)
 	if err != nil {
 		t.Fatal(err)
@@ -178,12 +191,28 @@ func TestStallSellsAndCollects(t *testing.T) {
 	}
 }
 
-func TestStallTimesFollowThePrice(t *testing.T) {
-	for range 200 {
-		cheap, fair, dear := sellsIn(50, 100), sellsIn(100, 100), sellsIn(300, 100)
-		if cheap > 6*time.Hour || fair < 17*time.Hour || fair > 31*time.Hour || dear < 10*24*time.Hour {
-			t.Fatalf("cheap %v, fair %v, dear %v", cheap, fair, dear)
+func TestStallOddsFollowThePrice(t *testing.T) {
+	if c := stallChance(100, 100); c < 0.85 {
+		t.Errorf("the going rate sells %.2f of the time", c)
+	}
+	if c := stallChance(1000, 100); c > 0.01 {
+		t.Errorf("ten times the rate sells %.4f of the time", c)
+	}
+	if stallFee(100, 100) != 0 || stallFee(50, 100) != 0 || stallFee(300, 100) != 20 {
+		t.Errorf("fees %d %d %d", stallFee(100, 100), stallFee(50, 100), stallFee(300, 100))
+	}
+	// Whatever is asked, what's left after the fees of every day it takes
+	// to sell stays under four times the rate.
+	for price := 100; price <= 1000; price += 25 {
+		c := stallChance(price, 100)
+		day := 1 - math.Pow(1-c, stallLooks)
+		if net := float64(price) - float64(stallFee(price, 100))/day; net > 400 {
+			t.Errorf("asking %d clears %.0f after fees", price, net)
 		}
+	}
+	now := time.Date(2026, 11, 10, 12, 0, 0, 0, pondZone)
+	if a, b := stallRate("fossil", 100, 0, now), stallRate("fossil", 100, 18, now); b*2 > a+1 {
+		t.Errorf("eighteen up lately moved the rate from %d to %d", a, b)
 	}
 }
 
