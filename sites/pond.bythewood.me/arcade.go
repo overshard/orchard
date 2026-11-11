@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"hash/fnv"
@@ -31,6 +32,21 @@ var arcadeGames = []arcadeGame{
 	{"stack", "Lily stack", 40, 6, 3000, 1},
 	{"shell", "Shell game", 40, 4, 2000, 1},
 	{"skip", "Pebble skip", 40, 12, 400, 2},
+	{"drop", "Pebble drop", 40, 4, dropMost, 2},
+}
+
+// Five pebbles a round and eight for the middle pot is all pebble drop has.
+const dropMost, dropRows = 40, 9
+
+// dropDeal is how many pixels each row of pebble drop's pegs sits off its
+// place for a day, the same for everybody, so no spot is the best one for good.
+func dropDeal(day string) []int {
+	sum := sha256.Sum256([]byte("drop " + day))
+	out := make([]int, dropRows)
+	for r := range out {
+		out[r] = int(sum[r])%17 - 8
+	}
+	return out
 }
 
 const arcadeFullRuns = 3
@@ -230,6 +246,8 @@ type arcadeView struct {
 	Full int    `json:"full"`
 	// Day is set on the disk of the day.
 	Day bool `json:"day"`
+	// Deal is the day's peg rows, for pebble drop.
+	Deal []int `json:"deal,omitempty"`
 }
 
 func arcadeViews(q querier, id int64, now time.Time) ([]arcadeView, error) {
@@ -241,7 +259,11 @@ func arcadeViews(q querier, id int64, now time.Time) ([]arcadeView, error) {
 		}
 		r = r.settled(now)
 		full := fullRuns(g.key, now)
-		out = append(out, arcadeView{g.key, g.name, r.best, r.paid, g.cap, r.runs, full, full > arcadeFullRuns})
+		a := arcadeView{Key: g.key, Name: g.name, Best: r.best, Paid: r.paid, Cap: g.cap, Runs: r.runs, Full: full, Day: full > arcadeFullRuns}
+		if g.key == "drop" {
+			a.Deal = dropDeal(dayOf(now))
+		}
+		out = append(out, a)
 	}
 	return out, nil
 }
