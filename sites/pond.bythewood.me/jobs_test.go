@@ -944,3 +944,145 @@ func TestAnIdlePondIsToldToWork(t *testing.T) {
 		}
 	}
 }
+
+// wizardToTully is what one thing of a tier comes to on average at Little
+// Tully's by way of the wizard, with every roll that isn't a hat taken back.
+func wizardToTully() [tierCount]float64 {
+	var w [tierCount]float64
+	for range 100 {
+		var next [tierCount]float64
+		for from := range tierCount {
+			for _, o := range []struct{ by, pct int }{{1, wizardOdds.up}, {0, wizardOdds.same}, {-1, 100 - wizardOdds.up - wizardOdds.same}} {
+				to, p := min(from+o.by, tierCount-1), float64(o.pct)/100
+				if to < 0 {
+					next[from] += p * wizardDust / wizardTakes
+					continue
+				}
+				hats := 1 / float64(len(wizardPool[to]))
+				next[from] += p * (hats*float64(hatRate[to]/4) + (1-hats)*w[to]) / wizardTakes
+			}
+		}
+		w = next
+	}
+	return w
+}
+
+// A bug catcher at 99 with every tool, full mastery, the nature for it and a
+// legendary meal in it all day can't sell a day's catch for more than the
+// day's room at any buyer, the wizard's hats included.
+func TestADaysCatchSellsForNoMoreThanTheRoom(t *testing.T) {
+	bugs, _ := jobOf("bugs")
+	tg := bugs.best(maxLevel)
+	m := masteryCap(maxLevel)
+	boost := mealBoost[tierCount-1]
+	act := float64(actSecs(tg, pace{maxLevel, m, toolTiers, true}))
+	hit := 1 - tg.miss*(1-masteryMiss*float64(m-1))
+	day := 24 * 3600 / act * hit * float64(tg.n) * (1 + masteryTwo*float64(m-1) + boost)
+	n := int(math.Ceil(day/2)) * 2
+	finds := map[string]float64{petFor("bugs"): 24 * speedAt(maxLevel) * (1 + boost) / petEvery}
+	for _, x := range bugs.finds {
+		finds[x.kind] = 24 * (1 + boost) / float64(x.per)
+	}
+
+	s, _ := testStore(t)
+	_, id := newPond(t, s)
+	give(t, s, id, 100000)
+	purse := func() int { v, _ := s.view(id); return v.Pebbles }
+
+	stock(t, s, id, tg.kind, n)
+	for range n / 2 {
+		if _, err := s.cook(id, tg.kind, tg.kind); err != nil {
+			t.Fatal(err)
+		}
+	}
+	jam, before := dishOf(6, 6).kind(), purse()
+	for range n / 2 {
+		if _, err := s.sellDish(id, jam); errors.Is(err, errBeanFull) {
+			break
+		} else if err != nil {
+			t.Fatal(err)
+		}
+	}
+	bean := purse() - before
+
+	stock(t, s, id, tg.kind, n)
+	w, _ := worthOf(tg.kind)
+	stall, left := 0, n
+	for left > 0 {
+		v, _ := s.view(id)
+		for range v.Stall.Slots - len(v.Stall.Rows) {
+			if left == 0 {
+				break
+			}
+			if _, err := s.stallList(id, tg.kind, stallCap(tg.kind, w)); err != nil {
+				t.Fatal(err)
+			}
+			left--
+		}
+		exec(t, s, `UPDATE stall SET sells_at = ? WHERE pond_id = ?`, s.now().Unix(), id)
+		paid, err := s.stallCollect(id)
+		if errors.Is(err, errStallPaid) {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		stall += paid.Pebbles
+	}
+
+	moth := 0
+	for k := range finds {
+		if _, ok := trinketOf(k); !ok {
+			continue
+		}
+		stock(t, s, id, k, 1+int(math.Ceil(finds[k])))
+		for {
+			before := purse()
+			if _, err := s.sellTrinket(id, k); err != nil {
+				break
+			}
+			moth += purse() - before
+		}
+	}
+
+	wiz := wizardToTully()
+	tier, _ := wizardTier(tg.kind)
+	unlimited := day * wiz[tier]
+	for k, per := range finds {
+		if t, ok := wizardTier(k); ok {
+			unlimited += per * wiz[t]
+		}
+	}
+	// A pond with every hat already, so all the wizard turns out is a spare.
+	for _, hs := range hatsByTier {
+		for _, h := range hs {
+			stock(t, s, id, hatKind(h), 1)
+		}
+	}
+	stock(t, s, id, tg.kind, n)
+	for range n / wizardTakes {
+		if _, err := s.wizard(id, tg.kind); err != nil {
+			t.Fatal(err)
+		}
+	}
+	tully := 0
+	v, _ := s.view(id)
+	for _, h := range v.Hats {
+		for range h.Count - 1 {
+			before := purse()
+			if _, err := s.sell(id, h.hat); err != nil {
+				break
+			}
+			tully += purse() - before
+		}
+	}
+
+	t.Logf("%.1f %s a day, which Big Bean would have paid %d for as jam with no limit", day, tg.kind, n/2*dishWorth[4])
+	t.Logf("through the wizard Little Tully would pay about %.0f for a day with no limit", unlimited)
+	t.Logf("a day's catch sold for %d at Big Bean's, %d off the stall, %d at Moth's and %d at Little Tully's", bean, stall, moth, tully)
+	for route, got := range map[string]int{"Big Bean": bean, "the stall": stall, "Moth": moth, "Little Tully": tully} {
+		if got > sellRoom {
+			t.Errorf("%s paid %d for a day's catch, over the room of %d", route, got, sellRoom)
+		}
+	}
+}
