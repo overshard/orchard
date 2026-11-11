@@ -43,9 +43,9 @@ var arcadeGames = []arcadeGame{
 // singer's quarter.
 const chorusMost = 601
 
-// The spawn jar fills up long before this, since the elders it grows never
-// leave, and nobody drops fast enough to get near it.
-const jarMost = 3000
+// Two pond kings popping clear the jar, so a run has no end of its own and
+// its rate is what holds it. This only stops a number no run could reach.
+const jarMost = 60000
 
 // A game with no rate is played out on the server a tap at a time, so it
 // never takes a score from the page. It pays once a day and is never the
