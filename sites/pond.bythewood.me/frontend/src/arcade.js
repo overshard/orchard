@@ -4,10 +4,11 @@ import { $, post, state, setPond, watch, room, onResize, payWord } from "./api.j
 // that and scaled to the window, with reset, step, draw, and input hooks. This
 // starts and finishes runs on the server and shows the title and results.
 // A game with a feel gets its freezes and shake run from here.
+const LOCK = 900, QUICK = 300;
 
 export function arcade(game) {
   const k = game.key, view = $("v-" + k), cv = $(k + "-cv"), cx = cv.getContext("2d");
-  const A = { state: "idle", last: 0, overAt: 0, paid: null, best: false, scale: 1 };
+  const A = { state: "idle", last: 0, overAt: 0, paid: null, best: false, scale: 1, quick: false };
   const F = game.feel;
   let net = Promise.resolve(), started = null, down = null;
 
@@ -66,9 +67,20 @@ export function arcade(game) {
     return e;
   }
 
+  // A run that beat nothing gets a short card that a tap clears straight away.
+  // A game on a timer ends mid tap, so it keeps the longer wait.
+  function lock() { return A.quick && !game.timed ? QUICK : LOCK; }
+
   function showCard(now) {
     card.hidden = A.state === "play";
     if (card.hidden) return;
+    card.classList.toggle("quick", A.state === "over" && A.quick);
+    if (A.state === "over" && A.quick) {
+      const r = el("span", "readout big");
+      r.append(el("span", "k", game.why() || "Score"), el("span", "v", String(game.score())));
+      card.replaceChildren(r, el("p", A.paid ? "won" : "dim", A.paid === null ? "Counting..." : "+" + A.paid + " pebbles"), el("b", "key", "AGAIN"));
+      return;
+    }
     const win = el("div", "arcade-win"), art = el("canvas");
     art.width = 168; art.height = 96;
     const from = $("play-" + k + "-art");
@@ -89,7 +101,7 @@ export function arcade(game) {
       if (game.tally) game.tally().forEach((l) => kids.push(el("p", "dim", l)));
       kids.push(el("p", A.paid ? "won" : "dim", A.paid === null ? "Counting..." : "+" + A.paid + " pebbles"));
       if (A.best) kids.push(el("p", "won", "A new best"));
-      if (now - A.overAt > 900) kids.push(el("p", "again", "Tap to go again"));
+      if (now - A.overAt > LOCK) kids.push(el("p", "again", "Tap to go again"));
     }
     card.replaceChildren(...kids);
   }
@@ -114,14 +126,15 @@ export function arcade(game) {
   }
 
   function finish(now) {
+    const score = game.score(), a = info();
     A.state = "over"; A.overAt = now; A.paid = null; A.best = false;
-    const score = game.score();
+    A.quick = !!a && score <= a.best;
     net = started.then((run) => run ? post("/api/arcade/finish", { game: k, run, score }) : null).then((d) => {
       if (!d) { A.paid = 0; return; }
       A.paid = d.paid; A.best = d.best;
       setPond(d.pond);
     }, () => { A.paid = 0; }).then(() => { if (A.state === "over") paint(performance.now()); });
-    setTimeout(() => { if (A.state === "over") paint(performance.now()); }, 950);
+    setTimeout(() => { if (A.state === "over") paint(performance.now()); }, LOCK + 50);
   }
 
   function start() {
@@ -156,9 +169,14 @@ export function arcade(game) {
 
   function press(e) {
     if (!state.pond) return;
-    if (A.state === "over" && performance.now() - A.overAt < 900) return;
+    if (A.state === "over" && performance.now() - A.overAt < lock()) return;
     if (A.state === "paused") { resume(); return; }
-    if (A.state !== "play") { start(); return; }
+    if (A.state !== "play") {
+      start();
+      // The tap that starts a run goes on steering it if it's held.
+      if (e && game.drag) { down = point(e); down.moved = true; game.drag(down.x, down.y); }
+      return;
+    }
     if (e) { down = point(e); down.moved = false; }
     if (e && game.press) game.press(down.x, down.y);
     if (e && game.drag) game.drag(down.x, down.y);

@@ -160,7 +160,7 @@ function fight(dt) {
 }
 
 export const fish = {
-  key: "fish", W, H, title: "FISHING", feel: F,
+  key: "fish", W, H, title: "FISHING", feel: F, timed: true,
   edge: ["#2a5163", "#2a2218"],
   help: ["TAP THE WATER TO CAST", "TAP WHEN THE BOBBER GOES UNDER", "HOLD TO REEL, LET GO WHEN IT RUNS", "TAP TO START"],
 

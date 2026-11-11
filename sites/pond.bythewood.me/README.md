@@ -182,5 +182,8 @@ they have none, for other sites to draw.
 - The frame skips a game's `step` while its feel is frozen, and a hidden page
   stops the frame, so a game keeps all its time in `step` and never in a
   timer of its own.
+- The tap that starts a run is handed to the game's `drag` and not to its
+  `press`, so a held finger steers from the first frame and a tap game doesn't
+  act on it.
 - `web/` has to stay byte identical to every other site's copy, and
   `make check` at the root fails when it isn't.

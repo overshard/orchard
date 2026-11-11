@@ -29,7 +29,7 @@ function spawn() {
 function mouth() { return { x: W / 2, y: H - 58 }; }
 
 export const flick = {
-  key: "flick", W, H, title: "TONGUE FLICK", feel: F,
+  key: "flick", W, H, title: "TONGUE FLICK", feel: F, timed: true,
   edge: ["#24485a", "#0e2c30"],
   help: ["TAP A BUG TO FLICK AT IT", "FIREFLIES PAY THE MOST", "WASPS STING", "TAP TO START"],
 
