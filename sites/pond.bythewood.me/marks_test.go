@@ -106,41 +106,86 @@ func TestAFavouriteDishIsMarkedUntilItsGiven(t *testing.T) {
 	}
 }
 
-func TestAnUncookedRecipeMarksBothHalves(t *testing.T) {
+// cooks is the lines the kitchen put on a thing, without the day's favour.
+func cooks(lines []string) []string {
+	var out []string
+	for _, l := range lines {
+		if strings.Contains(l, "named dish") {
+			out = append(out, l)
+		}
+	}
+	return out
+}
+
+func TestAnUnmadeNamedDishMarksItsHalves(t *testing.T) {
 	s, _ := testStore(t)
 	_, id := newPond(t, s)
 	hold(t, s, id, "duckweed", 2)
 	hold(t, s, id, "mayfly", 1)
+	hold(t, s, id, "watercress", 1)
+	hold(t, s, id, "cricket", 1)
 	v, _ := s.view(id)
 	if got := marksOn(v, "duckweed"); len(got) != 0 {
 		t.Fatalf("marked before the kitchen's open: %q", got)
 	}
-	if _, err := s.w.Exec(`UPDATE ponds SET staged = 0`); err != nil {
-		t.Fatal(err)
-	}
+	exec(t, s, `UPDATE ponds SET staged = 0`)
 	v, _ = s.view(id)
-	duck, fly := marksOn(v, "duckweed"), marksOn(v, "mayfly")
-	if len(duck) != 2 || duck[0] != "Two of these cook into a dish you haven't made." || duck[1] != "Cooks into a dish you haven't made with mayfly." {
-		t.Errorf("duckweed: %q", duck)
+	// A cricket sandwich is a tier over pond soup, so it's the one marked.
+	cress, cricket := cooks(marksOn(v, "watercress")), cooks(marksOn(v, "cricket"))
+	if len(cress) != 1 || cress[0] != "Cooks with cricket into a named dish you haven't made." {
+		t.Errorf("watercress: %q", cress)
 	}
-	if len(fly) != 1 || fly[0] != "Cooks into a dish you haven't made with duckweed." {
-		t.Errorf("mayfly: %q", fly)
+	if len(cricket) != 1 || cricket[0] != "Cooks with watercress into a named dish you haven't made." {
+		t.Errorf("cricket: %q", cricket)
 	}
-	for _, line := range append(duck, fly...) {
-		if strings.Contains(line, "soup") || strings.Contains(line, "stew") {
+	if duck, fly := cooks(marksOn(v, "duckweed")), cooks(marksOn(v, "mayfly")); len(duck) != 0 || len(fly) != 0 {
+		t.Errorf("a plainer dish is marked too: %q %q", duck, fly)
+	}
+	for _, line := range append(cress, cricket...) {
+		if strings.Contains(line, "sandwich") {
 			t.Errorf("the line names the dish: %q", line)
 		}
 	}
-	for _, d := range []dish{dishOf(0, 0), dishOf(0, 3)} {
-		if _, err := s.w.Exec(`INSERT INTO cookbook (pond_id, dish, first_at) VALUES (?, ?, 0)`, id, d.kind()); err != nil {
-			t.Fatal(err)
+	exec(t, s, `INSERT INTO cookbook (pond_id, dish, first_at) VALUES (?, ?, 0)`, id, dishOf(1, 2).kind())
+	v, _ = s.view(id)
+	if got := cooks(marksOn(v, "duckweed")); len(got) != 1 || got[0] != "Two of these cook into a named dish you haven't made." {
+		t.Errorf("duckweed once the sandwich is made: %q", got)
+	}
+	exec(t, s, `INSERT INTO cookbook (pond_id, dish, first_at) VALUES (?, ?, 0)`, id, dishOf(0, 0).kind())
+	v, _ = s.view(id)
+	for _, b := range v.Bag {
+		if got := cooks(b.Wanted); len(got) != 0 {
+			t.Errorf("%s with every named dish made: %q", b.Kind, got)
 		}
 	}
-	if v, _ = s.view(id); len(marksOn(v, "duckweed")) != 0 || len(marksOn(v, "mayfly")) != 0 {
-		t.Errorf("after cooking both: %q %q", marksOn(v, "duckweed"), marksOn(v, "mayfly"))
+}
+
+// A young pond's bag is a bit of everything from the garden and a few
+// trinkets, and the lamps only mean something while a few of them are lit.
+func TestAYoungBagHasFewMarks(t *testing.T) {
+	s, _ := testStore(t)
+	_, id := newPond(t, s)
+	exec(t, s, `UPDATE ponds SET staged = 0`)
+	for _, g := range ingredients {
+		hold(t, s, id, g.kind, 3)
 	}
-	if got := anyOf([]string{"a", "b", "c", "d"}); got != "a, b, c and more" {
-		t.Errorf("four names: %q", got)
+	for _, k := range []string{"t_acorn", "t_duck", "sticks", "reeds", "clay", "agate", "quartz", dishOf(0, 1).kind(), dishOf(2, 3).kind()} {
+		hold(t, s, id, k, 2)
+	}
+	exec(t, s, `INSERT INTO hats (pond_id, shape, colour, count) VALUES (?, 4, 0, 2), (?, 6, 0, 1)`, id, id)
+	v, _ := s.view(id)
+	marked := 0
+	for _, b := range v.Bag {
+		if len(b.Wanted) > 0 {
+			marked++
+		}
+	}
+	if len(v.Bag) < 20 {
+		t.Fatalf("the bag only has %d things in it", len(v.Bag))
+	}
+	// Two halves of one dish and whatever today's favour is after.
+	if marked == 0 || marked > 3 {
+		t.Errorf("%d of %d slots in a young bag are marked", marked, len(v.Bag))
 	}
 }
 
