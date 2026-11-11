@@ -862,6 +862,12 @@ version of the old look and a handheld pet shell.
   drawn the way the bag draws them, under its name. The bubble names one on
   about a day in three in place of the day's line, so it never gets longer,
   and the key that feeds a frog says so when the dish is its favourite.
+- **A visitor comes once a day while the pond is shut.** The first visit of
+  a day pops it up as a reveal with the frog drawn the way `frog.js` draws
+  any frog and the common thing it left by its feet, and a row in the
+  greeting's list says who. A small muddy footprint sits on the front edge
+  of the pad, by the frog's left foot, until the next day's visitor. A Stay
+  home key in settings keeps a pond's own frog off everybody else's.
 - **A frog's diary is in settings**, under its favourites. One line a day in
   the frog's own words about the day before, the day in printed caps down the
   left and the line beside it, newest first with a key for older days. It

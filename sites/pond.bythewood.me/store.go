@@ -63,6 +63,8 @@ CREATE TABLE IF NOT EXISTS ponds (
     div_carry       REAL NOT NULL DEFAULT 0,
     div_total       INTEGER NOT NULL DEFAULT 0,
     hidden          INTEGER NOT NULL DEFAULT 0,
+    visitor         TEXT NOT NULL DEFAULT '',
+    visitor_day     TEXT NOT NULL DEFAULT '',
     key_saved_at    INTEGER
 );
 CREATE INDEX IF NOT EXISTS ponds_created ON ponds(created_at);
@@ -446,6 +448,8 @@ var addedColumns = []struct{ table, name, def string }{
 	{"ponds", "div_carry", "REAL NOT NULL DEFAULT 0"},
 	{"ponds", "div_total", "INTEGER NOT NULL DEFAULT 0"},
 	{"ponds", "hidden", "INTEGER NOT NULL DEFAULT 0"},
+	{"ponds", "visitor", "TEXT NOT NULL DEFAULT ''"},
+	{"ponds", "visitor_day", "TEXT NOT NULL DEFAULT ''"},
 }
 
 func ensureColumns(db *sql.DB) (map[string]bool, error) {
@@ -524,6 +528,11 @@ func openStore(path string, pepper []byte) (*store, error) {
 	}
 	added, err := ensureColumns(w)
 	if err != nil {
+		w.Close()
+		return nil, err
+	}
+	// Visitors are picked off the ponds open on a day.
+	if _, err := w.Exec(`CREATE INDEX IF NOT EXISTS ponds_visit ON ponds(visit_day)`); err != nil {
 		w.Close()
 		return nil, err
 	}
@@ -989,6 +998,8 @@ type view struct {
 	// Rested says the next run of any game pays a quarter more.
 	Rested bool     `json:"rested"`
 	Open   openView `json:"open"`
+	// Visitor is today's, which leaves a footprint on the pad all day.
+	Visitor *visitorView `json:"visitor,omitempty"`
 	// Home keeps the frog off every other pond.
 	Home    bool         `json:"home"`
 	Todo    []todo       `json:"todo"`
@@ -1335,8 +1346,12 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	v.had = had
 	v.Today = dayOf(now)
 	v.Open = openOf(p, now)
-	if err := q.QueryRow(`SELECT hidden FROM ponds WHERE id = ?`, p.ID).Scan(&v.Home); err != nil {
+	var seen, seenDay string
+	if err := q.QueryRow(`SELECT hidden, visitor, visitor_day FROM ponds WHERE id = ?`, p.ID).Scan(&v.Home, &seen, &seenDay); err != nil {
 		return err
+	}
+	if seenDay == v.Today {
+		v.Visitor = parseVisitor(seen)
 	}
 	pins, done, err := kept(q, p.ID)
 	if err != nil {

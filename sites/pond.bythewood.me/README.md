@@ -171,6 +171,13 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   `mastery.first_day` and `top_day` and the day's weather in `skies`, and picks a hand written line by the
   frog's nature that the last week hasn't used. `GET /api/diary` reads it.
 - `neighbours.go` is the residents, friendship by dishes and a favour a day.
+- `visitor.go` is the frog that comes by once a New York day while the pond
+  is shut, dealt at the first greeting of the day and kept in
+  `ponds.visitor` as JSON until the next one. It's another pond's frog out
+  front when one was open that day or the day before, picked off the public
+  ids, and otherwise a resident or a frog off a seed, and it leaves one
+  common thing. `ponds.hidden` is the Stay home key, which keeps a pond's
+  frog off every other pond. `frontend/src/company.js` draws it.
 - `memento.go` is the one thing each resident gives a best friend, in the
   order of `residents`. They're rows in `mementos` with the day and never
   items, and count in power at half an epic hat each. A neighbour that was
@@ -468,5 +475,9 @@ they have none, for other sites to draw.
   the badges earned. A rung reached is kept, so a game's reference rising
   can lower a pond's total but never its rank, and the page never counts a
   fall.
+- Another pond's frog only ever leaves the server as a `caller`, its name,
+  seed, mods, stage, day and hat. Never its pond's id, public id or key, and
+  never at all from a pond that keeps its frog home, so anything new that
+  shows one frog to another pond goes through `frontOf`.
 - `web/` has to stay byte identical to every other site's copy, and
   `make check` at the root fails when it isn't.

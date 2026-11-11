@@ -138,6 +138,12 @@ var diaryLines = map[string]diaryPool{
 		"{who} called over to say hello yesterday, and I called back.",
 		"I've decided {who} is a good neighbour, and yesterday settled it.",
 	}},
+	"visitor": {any: []string{
+		"{who} came by in the night and left muddy feet on my pad, which I didn't mind one bit.",
+		"We had a visitor yesterday, {who}, who didn't stay long but left something behind.",
+		"{who} dropped in while you were away, and I showed them round the pad.",
+		"I woke up to find {who} had been by, and there was a footprint to prove it.",
+	}},
 	"memento": {any: []string{
 		"{who}'s {thing} is ours to keep as of yesterday, which is the sort of thing you only give a best friend.",
 		"We came home with {who}'s {thing} yesterday, and I've put it where it can see the water.",
@@ -462,6 +468,13 @@ func diaryFacts(tx *sql.Tx, p *pond, f frogRow, day string, from, to time.Time) 
 		return nil, err
 	} else if _, ok := diaryLines[sky]; ok {
 		out = append(out, diaryFact{kind: sky})
+	}
+	// A resident or a stranger comes most days, so only another pond's frog
+	// is news.
+	if raw, err := one(`SELECT visitor FROM ponds WHERE id = ? AND visitor_day = ?`, p.ID, day); err != nil {
+		return nil, err
+	} else if v := parseVisitor(raw); v != nil && v.From == "pond" {
+		out = append(out, diaryFact{"visitor", []string{"{who}", v.Name}})
 	}
 	return append(out, diaryFact{kind: "quiet"}), nil
 }

@@ -20,7 +20,10 @@ type greeting struct {
 	// each is from.
 	Prizes []prize `json:"prizes"`
 	From   []int   `json:"from"`
-	Pond   *view   `json:"pond"`
+	// Visitor is the frog that came by while the pond was shut, on the first
+	// greeting of a day.
+	Visitor *visitorView `json:"visitor,omitempty"`
+	Pond    *view        `json:"pond"`
 }
 
 func plural(n int, one string) string {
@@ -44,6 +47,7 @@ func (s *store) greet(id int64, first bool) (*greeting, error) {
 		if err != nil {
 			return err
 		}
+		newDay := p.VisitDay != dayOf(now)
 		// A day at the pond counts once, and a day missed takes nothing back.
 		if today := dayOf(now); p.VisitDay != today {
 			p.VisitDay = today
@@ -129,6 +133,14 @@ func (s *store) greet(id int64, first bool) (*greeting, error) {
 		g.Missed = append(g.Missed, kept...)
 		if stage != "egg" && dayOf(time.Unix(p.LastSeenAt, 0)) != dayOf(now) {
 			g.Missed = append(g.Missed, [2]string{"Dream", dreamOf(p.Seed, dayOf(now))})
+		}
+		if newDay {
+			if g.Visitor, err = dealVisitor(tx, p, now); err != nil {
+				return err
+			}
+			if g.Visitor != nil {
+				g.Missed = append(g.Missed, [2]string{"Visitor", g.Visitor.Name + " came by and left " + g.Visitor.Gift.Text})
+			}
 		}
 
 		if gap := now.Sub(time.Unix(p.LastGiftAt, 0)); gap >= giftGap {
