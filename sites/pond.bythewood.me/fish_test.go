@@ -1,9 +1,11 @@
 package main
 
 import (
+	"database/sql"
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -288,5 +290,114 @@ func TestTheFishBookIsAGoal(t *testing.T) {
 	}
 	if got == nil || got.To != "fish" || got.Count != "1/20" {
 		t.Errorf("the fish book goal = %+v out of %+v", got, goalsOf(v, p))
+	}
+}
+
+func TestPondRecordsAreMostlySedges(t *testing.T) {
+	sedge := 0
+	for _, f := range fishKinds {
+		size, who := pondRecord(f)
+		t.Logf("%s: %s inches, %s", f.name, inches(size), residents[who].name)
+		if size <= f.lo+(f.hi-f.lo)*3/4 || size >= f.hi {
+			t.Errorf("the %s record is %d between %d and %d", f.kind, size, f.lo, f.hi)
+		}
+		if who == 0 {
+			sedge++
+		}
+		for _, w := range []int{0, 3} {
+			if l := sedgeSays(f, w); strings.ContainsAny(l, "—–;:!") || !strings.HasSuffix(l, ".") {
+				t.Errorf("sedge on %s: %s", f.kind, l)
+			}
+		}
+	}
+	if sedge <= len(fishKinds)/2 || sedge == len(fishKinds) {
+		t.Errorf("sedge holds %d of %d records", sedge, len(fishKinds))
+	}
+}
+
+func TestBeatingAPondRecord(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	roach, _ := fishOf("roach")
+	rec, who := pondRecord(roach)
+	// Rounds of roach until one is over the record, which doesn't take long.
+	var d *arcadeDone
+	for range 400 {
+		d = goFishing(t, s, clock, id, 200, map[string]int{"roach": 40})
+		if d.Catch[0].Record {
+			break
+		}
+		if d.Sedge != "" || len(bookOf(t, s, id)["roach"].Holder) == 0 || bookOf(t, s, id)["roach"].Yours {
+			t.Fatalf("no record and %+v, %q", bookOf(t, s, id)["roach"], d.Sedge)
+		}
+	}
+	got := d.Catch[0]
+	if !got.Record || got.Size <= rec || got.From != residents[who].name || d.Sedge == "" {
+		t.Fatalf("the record round = %+v, sedge %q", got, d.Sedge)
+	}
+	if b := bookOf(t, s, id)["roach"]; !b.Yours || b.Record != rec || b.Best != got.Size {
+		t.Errorf("the book after = %+v", b)
+	}
+	if v, _ := s.view(id); len(v.Gazette.Records) != 0 {
+		t.Errorf("today's record is in today's paper, %v", v.Gazette.Records)
+	}
+	// Once it's the pond's a bigger one is only a best.
+	for range 30 {
+		for _, c := range goFishing(t, s, clock, id, 200, map[string]int{"roach": 40}).Catch {
+			if c.Record {
+				t.Fatalf("the record went twice, %+v", c)
+			}
+		}
+	}
+	*clock = clock.Add(24 * time.Hour)
+	v, _ := s.view(id)
+	want := "landed a roach of " + inches(bookOf(t, s, id)["roach"].Best)
+	found := false
+	for _, l := range v.Gazette.Records {
+		found = found || (strings.Contains(l, "took the pond record off "+residents[who].name+".") && strings.Contains(l, "a roach of "))
+	}
+	if !found {
+		t.Errorf("the paper says %v, want something like %q", v.Gazette.Records, want)
+	}
+}
+
+func TestTheDiaryKeepsFishingNews(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	// Clear of midwinter, a full moon and the keepsakes for days at the pond.
+	*clock = clock.Add(47 * 24 * time.Hour)
+	s.write(func(tx *sql.Tx) error {
+		_, err := tx.Exec(`UPDATE ponds SET days_visited = 8, last_gift_at = ? WHERE id = ?`, clock.Add(30*24*time.Hour).Unix(), id)
+		return err
+	})
+	s.greet(id, false)
+	next := func() string {
+		t.Helper()
+		*clock = clock.Add(24 * time.Hour)
+		if _, err := s.greet(id, false); err != nil {
+			t.Fatal(err)
+		}
+		all := diaryAll(t, s, id)
+		return all[len(all)-1].Line
+	}
+	next()
+	goFishing(t, s, clock, id, 60, map[string]int{"minnow": 2, "eel": 1})
+	if l := next(); kindOf(l) != "catch" || !strings.Contains(l, "eel") || strings.Contains(l, "a eel") {
+		t.Errorf("after a first eel: %s", l)
+	}
+	// The same fish again is no news, and a lower score is no best.
+	goFishing(t, s, clock, id, 50, map[string]int{"minnow": 1})
+	if l := next(); kindOf(l) != "quiet" {
+		t.Errorf("after fish already in the book: %s", l)
+	}
+	minnow, _ := fishOf("minnow")
+	_, who := pondRecord(minnow)
+	for range 400 {
+		if goFishing(t, s, clock, id, 55, map[string]int{"minnow": 25}).Sedge != "" {
+			break
+		}
+	}
+	if l := next(); kindOf(l) != "biggest" || !strings.Contains(l, "minnow") || !strings.Contains(l, residents[who].name) {
+		t.Errorf("after a pond record: %s", l)
 	}
 }

@@ -93,6 +93,17 @@ var diaryLines = map[string]diaryPool{
 		"It was our best day off the jetty so far with {score}, and I'm told I helped.",
 		"We got {score} at fishing yesterday, which is a new best, and the fish were very good about it.",
 	}},
+	"biggest": {any: []string{
+		"We landed {a_fish} bigger than {who}'s yesterday, so the pond record is ours now and I've told everybody.",
+		"The biggest {fish} this pond has seen came up on our line yesterday, and {who} came over to look at it.",
+		"Yesterday we took the {fish} record off {who}, and I measured it twice to be sure.",
+	}},
+	"catch": {any: []string{
+		"We landed {a_fish} yesterday, the first one I've ever seen up close, and it looked right at me.",
+		"There's {a_fish} in the fish book now, our first, and I helped by keeping very still.",
+		"Up came {a_fish} on the line yesterday and we'd never had one before, so I had a good look.",
+		"Our first {fish} yesterday, and I've been telling the lily about it since.",
+	}},
 	"record": {
 		any: []string{
 			"A new best at {game} yesterday, {score}, and I watched the whole thing.",
@@ -213,6 +224,14 @@ type diaryFact struct {
 	slots []string
 }
 
+func aFish(f fishKind) string {
+	name := strings.ToLower(f.name)
+	if strings.ContainsRune("aeiou", rune(name[0])) {
+		return "an " + name
+	}
+	return "a " + name
+}
+
 func aStage(stage string) string {
 	if stage == "elder" {
 		return "an elder"
@@ -249,16 +268,27 @@ func diaryFacts(tx *sql.Tx, p *pond, f frogRow, day string, from, to time.Time) 
 	} else if d == day {
 		out = append(out, diaryFact{kind: "heart"})
 	}
-	rows, err := tx.Query(`SELECT game, score FROM records WHERE pond_id = ? AND day = ? ORDER BY game = 'fish' DESC, game`, p.ID, day)
+	// A pond record comes first, then a best at fishing, then any other best.
+	rows, err := tx.Query(`SELECT game, score FROM records WHERE pond_id = ? AND day = ?
+		ORDER BY substr(game, 1, 4) = 'rec_' DESC, game = 'fish' DESC, score DESC, game`, p.ID, day)
 	if err != nil {
 		return nil, err
 	}
+	told := false
 	for rows.Next() {
 		var game string
 		var score int
 		if err := rows.Scan(&game, &score); err != nil {
 			rows.Close()
 			return nil, err
+		}
+		if kind, ok := strings.CutPrefix(game, recordGame); ok {
+			if f, ok := fishOf(kind); ok && !told {
+				_, who := pondRecord(f)
+				told = true
+				out = append(out, diaryFact{"biggest", []string{"{a_fish}", aFish(f), "{fish}", strings.ToLower(f.name), "{who}", residents[who].name}})
+			}
+			continue
 		}
 		name := "Dive"
 		if g, ok := arcadeOf(game); ok {
@@ -272,6 +302,27 @@ func diaryFacts(tx *sql.Tx, p *pond, f frogRow, day string, from, to time.Time) 
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
+	}
+	first, err := tx.Query(`SELECT kind FROM fish WHERE pond_id = ? AND first_day = ?`, p.ID, day)
+	if err != nil {
+		return nil, err
+	}
+	var rarest *fishKind
+	for first.Next() {
+		var k string
+		if err := first.Scan(&k); err != nil {
+			first.Close()
+			return nil, err
+		}
+		if f, ok := fishOf(k); ok && (rarest == nil || f.tier > rarest.tier || (f.tier == rarest.tier && f.pts > rarest.pts)) {
+			rarest = &f
+		}
+	}
+	if err := first.Close(); err != nil {
+		return nil, err
+	}
+	if rarest != nil {
+		out = append(out, diaryFact{"catch", []string{"{a_fish}", aFish(*rarest), "{fish}", strings.ToLower(rarest.name)}})
 	}
 	rows, err = tx.Query(`SELECT shape, colour FROM hats WHERE pond_id = ? AND first_day = ?`, p.ID, day)
 	if err != nil {

@@ -145,7 +145,9 @@ type arcadeDone struct {
 	Rested int `json:"rested"`
 	// Catch is what a round of fishing put in the fish book.
 	Catch []caught `json:"catch,omitempty"`
-	Pond  *view    `json:"pond"`
+	// Sedge has something to say when a pond record goes.
+	Sedge string `json:"sedge,omitempty"`
+	Pond  *view  `json:"pond"`
 }
 
 // landed is what a round of fishing says it caught, by kind.
@@ -191,6 +193,11 @@ func (s *store) arcadeFinish(id int64, key, run string, score int, landed map[st
 			tables := []map[string]float64{s.fishTableAt(began), s.fishTableAt(now)}
 			if out.Catch, err = landFish(tx, p, landed, score, tables); err != nil {
 				return err
+			}
+			for _, c := range out.Catch {
+				if f, _ := fishOf(c.Kind); c.Record {
+					out.Sedge = sedgeSays(f, residentNamed(c.From))
+				}
 			}
 		}
 		return saveArcade(tx, p.ID, key, r)

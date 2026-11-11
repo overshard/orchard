@@ -186,6 +186,14 @@ func recordsOf(q querier, id int64, name string, now time.Time) ([]string, error
 		if err := rows.Scan(&game, &score); err != nil {
 			return nil, err
 		}
+		if kind, ok := strings.CutPrefix(game, recordGame); ok {
+			if f, ok := fishOf(kind); ok {
+				_, who := pondRecord(f)
+				out = append(out, fmt.Sprintf("%s landed %s of %s inches yesterday and took the pond record off %s.",
+					name, aFish(f), inches(score), residents[who].name))
+			}
+			continue
+		}
 		what := "Dive"
 		if g, ok := arcadeOf(game); ok {
 			what = g.name

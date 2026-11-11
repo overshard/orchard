@@ -58,10 +58,11 @@ function cookbook(p) {
 function fishBook(p) {
   return p.fishing.all.map((f) => {
     const now = f.up ? " It's biting well right now." : "";
+    const rec = f.yours ? " The pond record is yours." : " The pond record is " + inches(f.record) + ", held by " + f.holder + ".";
     return {
       art: (big) => fishArt(f.kind, big ? 200 : 56), name: f.name, tier: f.tier, found: f.count > 0, count: f.count,
-      sub: f.count ? inches(f.best) : "", what: f.hint + now,
-      note: "Landed " + f.count + ", the biggest " + inches(f.best) + ". First one " + f.first + ". " + f.hint + now,
+      sub: f.count ? inches(f.best) : "", what: f.hint + now + rec, tag: f.yours ? "RECORD" : "",
+      note: "Landed " + f.count + ", the biggest " + inches(f.best) + ". First one " + f.first + "." + rec + " " + f.hint + now,
     };
   });
 }
@@ -113,7 +114,7 @@ function render(p) {
   grid.textContent = "";
   c.all.forEach((x) => {
     const art = x.art();
-    grid.append(slot(art, {
+    const s = slot(art, {
       tier: x.tier, name: x.name, found: x.found, count: x.count, sub: x.found ? x.sub : TIERS[x.tier],
       onClick: () => {
         const big = x.art(true);
@@ -121,7 +122,13 @@ function render(p) {
         openSheet({ art: x.found ? big : shade(big), name: x.found ? x.name : "???", tier: x.tier },
           x.found ? (x.note || (x.sub ? "First kept " + x.sub + "." : "Found.")) : x.what, () => {});
       },
-    }));
+    });
+    if (x.tag) {
+      const tag = document.createElement("em");
+      tag.textContent = x.tag;
+      s.append(tag);
+    }
+    grid.append(s);
   });
 }
 
