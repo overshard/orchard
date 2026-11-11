@@ -224,6 +224,11 @@ they have none, for other sites to draw.
   pebbles. A box's spares are held under the box's price the same way, and the
   wizard has to hand back less worth than the three it took. Tests hold all
   three.
+- Each box has a meter, `ponds.hat_pity` and `trinket_pity`, and ten plain
+  boxes in a row make the next a rare or better. That box only lifts a common
+  or uncommon to a rare. Rolled among the rares, epics and legendaries it put
+  a box's spares over the box's price on the stall, so `boxWorth` in the tests
+  counts the meter in and has to stay under 40.
 - Outside the regular session dash's market cards are futures, so the pond
   market only writes a close while dash says `regular`, apart from Glowworm
   Coin. Buying and selling both take a fee so a round trip always loses, and

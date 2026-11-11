@@ -93,18 +93,6 @@ func trinketOfTier(t int) trinket {
 	return pool[rand.IntN(len(pool))]
 }
 
-// A trinket box has the hat box's odds.
-func rollTrinket() trinket {
-	r, acc := rand.IntN(100), 0
-	for t, w := range boxOdds {
-		acc += w
-		if r < acc {
-			return trinketOfTier(t)
-		}
-	}
-	return trinketOfTier(0)
-}
-
 func addTrinket(tx *sql.Tx, id int64, kind string) (int, error) {
 	if _, err := tx.Exec(`INSERT INTO trinkets_found (pond_id, kind) VALUES (?, ?) ON CONFLICT DO NOTHING`, id, kind); err != nil {
 		return 0, err
@@ -122,7 +110,10 @@ func (s *store) trinketBox(id int64) (*opened, error) {
 			return errPoor
 		}
 		p.Pebbles -= trinketBoxCost
-		t := rollTrinket()
+		// A trinket box has the hat box's odds and a meter of its own.
+		var tier int
+		tier, p.TrinketPity = boxTier(p.TrinketPity)
+		t := trinketOfTier(tier)
 		out.Prize = prize{Item: t.kind, Text: t.name}
 		return award(tx, p, &out.Prize)
 	})
@@ -204,11 +195,12 @@ type trinketsView struct {
 	All      []trinketView `json:"all"`
 	Spots    []string      `json:"spots"`
 	BoxCost  int           `json:"box_cost"`
+	Pity     pityView      `json:"pity"`
 	SpotName []string      `json:"spot_names"`
 }
 
 func trinketsOf(q querier, p *pond, held map[string]int) (trinketsView, error) {
-	tv := trinketsView{BoxCost: trinketBoxCost, SpotName: trinketSpots}
+	tv := trinketsView{BoxCost: trinketBoxCost, Pity: pityOf(p.TrinketPity), SpotName: trinketSpots}
 	found, err := foundTrinkets(q, p.ID)
 	if err != nil {
 		return tv, err
