@@ -19,11 +19,24 @@ func TestTheLevelTableIsRuneScapes(t *testing.T) {
 	}
 }
 
+// unsuited gives the pond's frogs a seed whose nature isn't the one a job
+// suits, since a new frog's nature is random and a suited one works faster.
+func unsuited(t *testing.T, s *store, id int64, job string) {
+	t.Helper()
+	j, _ := jobOf(job)
+	seed := uint32(1)
+	for genomeOf(seed, nil).Nature == j.nature {
+		seed++
+	}
+	exec(t, s, `UPDATE frogs SET seed = ? WHERE pond_id = ?`, seed, id)
+}
+
 // working hatches the pond's frog and sets it to a target.
 func working(t *testing.T, job, target string) (*store, *time.Time, int64, int64) {
 	t.Helper()
 	s, clock := testStore(t)
 	_, id := newPond(t, s)
+	unsuited(t, s, id, job)
 	*clock = clock.Add(2 * 24 * time.Hour)
 	v, _ := s.view(id)
 	f := v.Frogs[0].ID
@@ -36,6 +49,7 @@ func working(t *testing.T, job, target string) (*store, *time.Time, int64, int64
 func TestAFrogWorksActions(t *testing.T) {
 	s, clock := testStore(t)
 	_, id := newPond(t, s)
+	unsuited(t, s, id, "sticks")
 	v, _ := s.view(id)
 	f := v.Frogs[0].ID
 	if _, err := s.setJob(id, f, "sticks", ""); !errors.Is(err, errNotYet) {
