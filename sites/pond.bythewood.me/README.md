@@ -221,6 +221,9 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   `work.js` is a frog's job screen at `#job`, lit under Works too, and the
   card that says what came in. `workNow` in `api.js` counts a basket on
   between fetches off the actions the server dealt ahead and nothing else.
+- `frontend/src/power.js` is frog power on the pond, the plate on the
+  screen's bezel, its breakdown sheet and the count up when a move says it
+  rose. It holds a rise until the pond is in view with no reveal up.
 - `frontend/src/postcard.js` is the camera key on the pond's screen. The
   card is drawn in the page off the scene canvas and opened from a blob in a
   new tab, or saved as a file when the browser won't open one.
