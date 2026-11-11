@@ -682,8 +682,8 @@ version of the old look and a handheld pet shell.
   edge, the same as a dash panel head.
 - **Five places are transport keys along the bottom**, each a pixel icon over
   a word, where a thumb is: Pond, Play, Bag, Works and Town. The lit one stays
-  pushed in like a tape deck's PLAY, and a key with something waiting behind
-  it has a small amber LED. Dive and the wheel open from Play and light it.
+  pushed in like a tape deck's PLAY, and a key with something new behind it
+  has a small amber LED. Dive and the wheel open from Play and light it.
   The content column stops at `34rem` on a desktop.
 - **A new pond opens up over its first days.** It starts with four keys,
   Pond, Play, Bag and Town, and every disk, the wheel and the log are in Play
@@ -694,8 +694,14 @@ version of the old look and a handheld pet shell.
   before this has everything.
 - **Works is the reeds, the garden and the bank** behind a row of three keys
   like the places in town, and it opens on the one that was open last. A key
-  with something waiting has the same LED as a tab, and the market stays
+  with something new has the same LED as a tab, and the market stays
   behind the bank's own pair of keys.
+- **An LED pip means new, never just waiting.** It lights when a thing turned
+  up since that key was last opened and goes out on opening it, on the tabs
+  and on the keys inside Works and Town alike. A daily thing is new once a
+  day, the stall each time it sells more, and the gravel bar and the rent
+  only once they're full. What was seen is kept in the browser. The lit
+  windows in the Works picture are the other half, lit for anything ready.
 - **A slot is how a thing is drawn**, a rounded square with its picture, a
   count in the corner and its tier as the border colour and as one to five
   small diamonds in the other corner, so tier isn't colour alone. One not found yet is

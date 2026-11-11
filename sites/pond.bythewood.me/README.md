@@ -205,6 +205,9 @@ they have none, for other sites to draw.
 - A closed place is only hidden, every move behind it still works. Anything
   that links somewhere, a todo row or a line in the gazette, has to ask
   `Open.has` first, and only `create` sets `staged`, so an older pond is open.
+- A key's pip is lit off `pond-pips` in localStorage, what was waiting behind
+  each key when it was last opened. A new kind of todo that comes round daily
+  goes in `DAILY` in `index.js`, or its pip lights once and never again.
 - The page keeps what's open in localStorage as `pond-open` so the keys are
   right before the pond loads. With nothing kept it starts on four keys.
 - `web/` has to stay byte identical to every other site's copy, and

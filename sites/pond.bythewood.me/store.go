@@ -731,6 +731,8 @@ type view struct {
 		Same  int `json:"same"`
 	} `json:"wizard"`
 
+	// Today is the pond's date, which the page keys what it has seen by.
+	Today   string       `json:"today"`
 	Open    openView     `json:"open"`
 	Todo    []todo       `json:"todo"`
 	Goals   []goal       `json:"goals"`
@@ -1008,6 +1010,7 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 		had[k.Kind] = k.First != ""
 	}
 	v.Share.Power = powerOf(v.Frog.Rarity, v.found, had, p.DiveBest, v.Jobs.Total)
+	v.Today = dayOf(now)
 	v.Open = openOf(p, now)
 	v.Gazette.Notice = openingNotice(p, now)
 	v.Todo = todoOf(v)

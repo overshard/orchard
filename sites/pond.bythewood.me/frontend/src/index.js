@@ -46,6 +46,47 @@ function placeOf(next) {
   return worksAt || WORKS.find((w) => waitingAt.has(w)) || WORKS[0];
 }
 
+// A key's pip lights for a thing that turned up since the key was last
+// opened. What was waiting behind each key then is kept in this browser.
+let seen = {}, behind = {};
+try { seen = JSON.parse(localStorage.getItem("pond-pips")) || {}; } catch (e) { /* private window */ }
+
+function drawPips() {
+  const lit = (key) => (behind[key] || []).some((t) => !(seen[key] || []).includes(t));
+  document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("wait", lit(b.dataset.view)));
+  document.querySelectorAll("#works-tabs button").forEach((b) => b.classList.toggle("wait", lit(b.dataset.go)));
+  document.querySelectorAll("#town-tabs button").forEach((b) => b.classList.toggle("wait", lit(b.dataset.town)));
+}
+
+// Everything behind the keys that are open now has been seen.
+function seeOpen() {
+  const keys = [TAB_OF[view] || view];
+  if (WORKS.includes(view)) keys.push(view);
+  const town = view === "town" && document.querySelector('#town-tabs button[aria-pressed="true"]');
+  if (town) keys.push(town.dataset.town);
+  keys.forEach((k) => { if (behind[k]) seen[k] = behind[k]; });
+  try { localStorage.setItem("pond-pips", JSON.stringify(seen)); } catch (e) { /* private window */ }
+  drawPips();
+}
+
+// What comes round every day is new each day, and the stall is new again
+// each time it sells more. The rest is new until it's been seen once.
+const DAILY = ["log", "dive", "arcade", "favour", "gift"];
+
+function sortPips(p, todo) {
+  if (seen.pond !== p.share.path) seen = { pond: p.share.path };
+  behind = {};
+  const put = (key, t) => { if (key) (behind[key] = behind[key] || []).push(t); };
+  todo.forEach((t) => {
+    const token = t.kind + ":" + (t.kind === "stall" ? t.label : DAILY.includes(t.kind) ? p.today : ""), tab = TAB_OF[t.to] || t.to;
+    put(tab, token);
+    put(tab === "works" ? t.to : tab === "town" ? TOWN_KEY[t.kind] : "", token);
+  });
+  // A thing that went away is new again when it comes back.
+  Object.keys(seen).forEach((k) => { if (k !== "pond") seen[k] = [].concat(seen[k]).filter((t) => (behind[k] || []).includes(t)); });
+  seeOpen();
+}
+
 function isOpen(v) {
   if (v === "market") return open.works && open.market;
   return v === "works" || WORKS.includes(v) ? open.works : true;
@@ -100,6 +141,7 @@ function show(next) {
   if (next === "play") drawPlay();
   if (next === "garden") enterBank(); else leaveBank();
   if (next === "town") enterTown(key); else leaveTown();
+  seeOpen();
   freshen();
   // A view's name is also the id of its canvas, and the browser scrolls to
   // that when the address changes, a frame after this runs.
@@ -575,9 +617,9 @@ function renderNext(p) {
   const todo = counts.concat(p.todo.filter((t) => !live[t.kind] && !(counts.length && t.kind === "save")));
 
   waitingAt = new Set(todo.map((t) => t.to));
-  const waiting = new Set([...waitingAt].map((to) => TAB_OF[to] || to));
-  document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("wait", waiting.has(b.dataset.view)));
-  document.querySelectorAll("#works-tabs button").forEach((b) => b.classList.toggle("wait", waitingAt.has(b.dataset.go)));
+  // The gravel bar and the rent always have a little, so they're news when full.
+  const full = { gravel: p.bank.gravel, rent: p.bank.burrows };
+  sortPips(p, todo.filter((t) => !full[t.kind] || heldNow(full[t.kind]) >= full[t.kind].holds));
 
   // A goal stands in for the waiting row that says the same thing.
   const goals = p.goals.map((g) => ({ ...g, goal: true })), ready = p.starter && p.starter.ready;
@@ -844,6 +886,7 @@ initCollect();
 document.querySelectorAll(".places button[data-go]").forEach((b) => b.addEventListener("click", () => { location.hash = "#" + b.dataset.go; }));
 document.querySelectorAll("#bank-tabs button").forEach((b) => b.addEventListener("click", () => bankTab(b.dataset.bank)));
 initTown();
+$("town-tabs").addEventListener("click", seeOpen);
 initNeighbours();
 initSettings();
 applyOpen(open);
