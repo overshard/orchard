@@ -13,7 +13,12 @@ export function setSound(kind, v) {
   try { localStorage.setItem("pond-" + kind, v ? "1" : "0"); } catch (e) { /* private window */ }
 }
 
+// A streak walks the blip up a major scale, a semitone or two a catch.
+const SCALE = [0, 2, 4, 5, 7, 9, 11, 12, 14, 16, 17, 19];
+let bend = 1, lastKey = "";
+
 function tone(type, f0, f1, len, vol) {
+  f0 *= bend; f1 *= bend;
   try {
     ac = ac || new (window.AudioContext || window.webkitAudioContext)();
     if (ac.state === "suspended") ac.resume();
@@ -39,11 +44,25 @@ const SFX = {
   bite: () => tone("square", 1250, 1000, 0.06, 0.05),
   reel: () => tone("triangle", 2600, 2200, 0.012, 0.02),
   snap: () => tone("sawtooth", 520, 70, 0.2, 0.08),
-  land: () => { tone("square", 660, 990, 0.07, 0.05); setTimeout(() => tone("square", 990, 1480, 0.09, 0.05), 70); },
+  close: () => tone("triangle", 1500, 2100, 0.05, 0.05),
+  kick: () => tone("sine", 300, 180, 0.04, 0.05),
+  land: () => {
+    const b = bend;
+    tone("square", 660, 990, 0.07, 0.05);
+    setTimeout(() => { bend = b; tone("square", 990, 1480, 0.09, 0.05); bend = 1; }, 70);
+  },
 };
 
-export function sfx(kind) {
-  if (on.sound && SFX[kind]) SFX[kind]();
+// The same blip twice running is bent a little, so a row of them isn't one note.
+export function sfx(kind, streak) {
+  if (on.sound && SFX[kind]) {
+    const key = kind + (streak || 0);
+    bend = Math.pow(2, SCALE[Math.min(SCALE.length - 1, Math.max(0, (streak || 1) - 1))] / 12);
+    if (key === lastKey) bend *= 1 + (Math.random() - 0.5) * 0.07;
+    lastKey = key;
+    SFX[kind]();
+    bend = 1;
+  }
   if ((kind === "bonk" || kind === "snap") && on.buzz && navigator.vibrate) navigator.vibrate(40);
 }
 
