@@ -62,10 +62,11 @@
     {{ .BodyHTML }}
     <hr class="mt-5" style="height: 2px; max-width: 600px; margin-left: auto; margin-right: auto; border-color: rgba(255,255,255,0.06);">
   </article>
-  {{/* Drawn by pond.js once pond.bythewood.me answers, hidden if it can't. */}}
-  <figure class="pond-frog d-print-none" data-pond data-minutes="{{ .ReadTime }}" hidden>
-    <a href="https://pond.bythewood.me" target="_blank" rel="noopener" aria-label="The pond"><canvas aria-hidden="true"></canvas></a>
-    <figcaption data-pond-line></figcaption>
+  {{/* Drawn by pond.js once pond.bythewood.me answers. The canvas is sized
+       here so the page doesn't move when it does. */}}
+  <figure class="pond-frog d-print-none" data-pond data-minutes="{{ .ReadTime }}">
+    <a href="https://pond.bythewood.me" target="_blank" rel="noopener" aria-label="The pond"><canvas width="128" height="76" aria-hidden="true"></canvas></a>
+    <figcaption data-pond-line>A frog is reading along.</figcaption>
   </figure>
 </div>
 {{- end }}
