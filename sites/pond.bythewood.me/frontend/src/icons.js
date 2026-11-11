@@ -95,6 +95,7 @@ export const ICONS = {
   firefly: [["........", "..a..a..", "...bb...", "..bbbb..", "..cccc..", ".dccccd.", "..dccd..", "...dd..."], { a: "#9aa0a6", b: "#5a4a38", c: "#ffe27a", d: "#fff6c8" }],
   morel: [["...aa...", "..abba..", ".ababba.", ".abbaba.", "..abba..", "...cc...", "...cc...", "..cccc.."], { a: "#9a7448", b: "#5a3f24", c: "#e9dcc0" }],
   i_pond: [[".bb..bb.", "bcbaabcb", "abbaabba", "aaaaaaaa", "adaaaada", "aaddddaa", ".aaaaaa.", "........"], { a: "#56b45f", b: "#fff6dc", c: "#0a0908", d: "#1f5a2c" }],
+  i_rest: [["aaaa....", "..a.....", ".a...b.b", "aaaa..b.", ".....b.b", ".cc.....", "..c.....", ".cc....."], { a: "#fff6dc", b: "#ffe27a", c: "#cfe3ea" }],
   i_play: [["........", ".aaaaaa.", "aabaaaca", "abbbacaa", "aabaaaaa", "aaa..aaa", ".a....a.", "........"], { a: "#9aa0a6", b: "#2f2820", c: "#e2567a" }],
   i_bag: [["...bb...", "..b..b..", "..aaaa..", ".aaaaaa.", "aaacaaaa", "aacccaaa", "aaacaaaa", ".aaaaaa."], { a: "#c9974f", b: "#8a6230", c: "#fff6dc" }],
   i_star: [["...a....", "...a....", "..aba...", "aaabaaa.", ".abbba..", "..aaa...", ".aa.aa..", "aa...aa."], { a: "#ffe27a", b: "#fff6dc" }],

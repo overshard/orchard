@@ -259,8 +259,9 @@ func TestDivePaysToTheCap(t *testing.T) {
 		t.Errorf("a day of diving paid %d, want the cap of %d", total, diveCap)
 	}
 	*clock = clock.Add(24 * time.Hour)
-	if d := dive(t, s, clock, id, 30); d.Paid != 60 {
-		t.Errorf("the first run of the next day paid %d, want 60", d.Paid)
+	// A day off is a rest, so the first run back is sixty and a quarter more.
+	if d := dive(t, s, clock, id, 30); d.Paid != 75 || d.Rested != 15 {
+		t.Errorf("the first run of the next day paid %d, want 75", d.Paid)
 	}
 }
 

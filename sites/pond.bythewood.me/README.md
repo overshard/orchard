@@ -78,7 +78,9 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
   into the purse like Dive with a cap a day each. A score over a game's `most`
   pays nothing, so keep it well past what a person could reach. One game a
   day, off a hash of the date, is the disk of the day and pays in full a
-  fourth time under the same cap.
+  fourth time under the same cap. Eight hours after the last run of any game
+  the pond is well rested and the next run pays a quarter more, still under
+  that game's cap, with `ponds.played_at` keeping when.
   `frontend/src/arcade.js` is the frame round them, one file per game beside it.
   It reads a game's `W` and `H` each time, since Crossing changes its `H` to
   fit the window between runs.

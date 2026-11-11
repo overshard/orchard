@@ -72,7 +72,7 @@ function seeOpen() {
 
 // What comes round every day is new each day, and the stall is new again
 // each time it sells more. The rest is new until it's been seen once.
-const DAILY = ["log", "dive", "arcade", "favour", "gift"];
+const DAILY = ["log", "dive", "arcade", "favour", "gift", "rested"];
 
 function sortPips(p, todo) {
   if (seen.pond !== p.share.path) seen = { pond: p.share.path };
@@ -422,6 +422,27 @@ function frogBox(c, oy) {
   return { x0: x0 * 8, y0: y0 * 8 + oy, x1: x1 * 8 + 8, y1: y1 * 8 + 8 + oy };
 }
 
+let restedAt = 0;
+
+function drawZs(t, a) {
+  for (let i = 0; i < 3; i++) {
+    const zt = (t * 0.5 + i / 3) % 1, zx = 250 + zt * 30 + i * 4, zy = 70 - zt * 50;
+    sx.globalAlpha = (1 - zt) * a; sx.fillStyle = "#fff6dc";
+    sx.fillRect(Math.round(zx), Math.round(zy), 12, 3); sx.fillRect(Math.round(zx) + 6, Math.round(zy) + 3, 3, 3);
+    sx.fillRect(Math.round(zx) + 3, Math.round(zy) + 6, 3, 3); sx.fillRect(Math.round(zx), Math.round(zy) + 9, 12, 3);
+  }
+  sx.globalAlpha = 1;
+}
+
+function drawSparkles(t, b) {
+  [[b.x0 - 4, b.y0 + 36], [b.x1 - 8, b.y0 + 4], [b.x0 + 36, b.y0 - 16], [b.x1 + 4, b.y0 + 72]].forEach(([x, y], i) => {
+    const k = reduced ? (i % 2 ? 1 : 0.5) : (Math.sin(t * 2.4 + i * 1.7) + 1) / 2, c = i % 2 ? "#ffe27a" : "#fff6dc";
+    if (k < 0.25) return;
+    block(x, y, c);
+    if (k > 0.6) [[-4, 0], [4, 0], [0, -4], [0, 4]].forEach(([dx, dy]) => block(x + dx, y + dy, c));
+  });
+}
+
 function drawScene(now) {
   const p = state.pond, g = state.g;
   if (!p || !g) return;
@@ -480,11 +501,14 @@ function drawScene(now) {
     if (out[0]) drawIcon(sx, out[0], 40, 236, 4);
     if (out[1]) drawIcon(sx, out[1], 280, 236, 4);
   }
-  if (grown(f.stage) && day.cold && !moving && now >= croakUntil) for (let i = 0; i < 3; i++) {
-    const zt = (t * 0.5 + i / 3) % 1, zx = 250 + zt * 30 + i * 4, zy = 70 - zt * 50;
-    sx.globalAlpha = 1 - zt; sx.fillStyle = "#fff6dc";
-    sx.fillRect(Math.round(zx), Math.round(zy), 12, 3); sx.fillRect(Math.round(zx) + 6, Math.round(zy) + 3, 3, 3);
-    sx.fillRect(Math.round(zx) + 3, Math.round(zy) + 6, 3, 3); sx.fillRect(Math.round(zx), Math.round(zy) + 9, 12, 3);
+  const dozing = grown(f.stage) && day.cold && !moving && now >= croakUntil;
+  if (dozing) drawZs(t, 1);
+  if (p.rested && !moving) {
+    // Well rested, the last of its Zs drift off and it's left with a sparkle.
+    if (!restedAt) restedAt = now;
+    const k = (now - restedAt) / 3200;
+    if (k < 1 && !dozing && !reduced) drawZs(t, 1 - k);
+    drawSparkles(t, bx);
   }
   sx.globalAlpha = 1;
   if (moving) for (let i = 0; i < 5; i++) {

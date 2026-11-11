@@ -62,6 +62,14 @@ func todoOf(v *view) []todo {
 		}
 		return max(0, full-runs)
 	}
+	// Well rested only says so while some game has room under its cap.
+	room := v.Dive.Paid < v.Dive.Cap
+	for _, g := range v.Arcade {
+		room = room || g.Paid < g.Cap
+	}
+	if v.Rested && room {
+		add("rested", "i_rest", "Well rested, next game pays +25%", "play")
+	}
 	if n := left(v.Dive.Paid, v.Dive.Cap, v.Dive.Runs, v.Dive.Full); n > 0 {
 		add("dive", "i_pond", "Dive, "+plural(n, "full pay run")+" left", "dive")
 	}

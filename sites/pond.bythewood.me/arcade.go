@@ -34,6 +34,27 @@ var arcadeGames = []arcadeGame{
 
 const arcadeFullRuns = 3
 
+// A frog that hasn't played anything for restAfter is well rested, and the
+// next run of any game pays a quarter more, inside that game's cap for the day.
+const restAfter = 8 * time.Hour
+
+func (p *pond) rested(now time.Time) bool {
+	return now.Sub(time.Unix(p.PlayedAt, 0)) >= restAfter
+}
+
+// payRun is what a run's pay comes to with room left under the cap, and how
+// much of it was for being rested. It marks the pond as having played.
+func (p *pond) payRun(pay, room int, now time.Time) (paid, bonus int) {
+	room = max(0, room)
+	plain := min(pay, room)
+	paid = plain
+	if p.rested(now) {
+		paid = min(pay+pay/4, room)
+	}
+	p.PlayedAt = now.Unix()
+	return paid, paid - plain
+}
+
 // One side game a day is the disk of the day, the same for everybody, and
 // pays in full for one run more. Its cap is the same as any other day's.
 func diskOfDay(day string) string {
@@ -112,10 +133,12 @@ func (s *store) arcadeStart(id int64, key string) (*arcadeStarted, error) {
 }
 
 type arcadeDone struct {
-	Score int   `json:"score"`
-	Paid  int   `json:"paid"`
-	Best  bool  `json:"best"`
-	Pond  *view `json:"pond"`
+	Score int  `json:"score"`
+	Paid  int  `json:"paid"`
+	Best  bool `json:"best"`
+	// Rested is how much of Paid was for being well rested.
+	Rested int   `json:"rested"`
+	Pond   *view `json:"pond"`
 }
 
 func (s *store) arcadeFinish(id int64, key, run string, score int) (*arcadeDone, error) {
@@ -145,7 +168,7 @@ func (s *store) arcadeFinish(id int64, key, run string, score int) (*arcadeDone,
 		if r.runs > fullRuns(key, now) {
 			pay = score / (4 * g.per)
 		}
-		out.Paid = max(0, min(pay, g.cap-r.paid))
+		out.Paid, out.Rested = p.payRun(pay, g.cap-r.paid, now)
 		r.paid += out.Paid
 		p.Pebbles += out.Paid
 		if score > r.best {

@@ -717,6 +717,11 @@ version of the old look and a handheld pet shell.
 - **Days at the pond are a count and never a streak.** It's in settings in
   readout glass with a line saying when the next keepsake comes, and nothing
   anywhere says how many days were in a row or that one was missed.
+- **Well rested is a row and a sparkle.** After eight hours with no game
+  played the Next strip gets a waiting row saying the next game pays a quarter
+  more, the frog's Zs drift off it and four pixel sparkles twinkle round it
+  until a game is played. The result of that run says well rested beside the
+  pebbles. It takes no room of its own on the pond.
 - **The frog can be rubbed.** A drag back and forth over it shuts its eyes and
   throws pink pixel hearts, more of them on its favourite spot, and an egg
   only wobbles. Its bond is five small hearts over the top left corner of the
