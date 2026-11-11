@@ -10,9 +10,9 @@ const (
 	// Must match the first hostname label, like every other source label.
 	selfSource = "pond"
 
-	// The property id from analytics.bythewood.me, and empty until one is made
-	// there. It is in the page source by design, so it is not a secret.
-	analyticsID = ""
+	// The property id from analytics.bythewood.me. It is in the page source by
+	// design, so it is not a secret.
+	analyticsID = "e89471b9-1904-4761-a53f-1d92ef294569"
 )
 
 const sourceURL = "https://github.com/overshard/orchard/tree/main/sites/pond.bythewood.me"
