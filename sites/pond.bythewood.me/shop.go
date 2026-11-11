@@ -336,7 +336,7 @@ func (s *store) buy(id int64, shop string, slot int) (*bought, error) {
 			}
 		}
 		if line.Hat != nil {
-			n, err := addHat(tx, p.ID, *line.Hat)
+			n, err := addHat(tx, p.ID, *line.Hat, p.today)
 			if err != nil {
 				return err
 			}

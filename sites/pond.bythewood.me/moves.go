@@ -56,6 +56,9 @@ func (s *store) greet(id int64, first bool) (*greeting, error) {
 		if err := settleFavourites(tx, frogs, now); err != nil {
 			return err
 		}
+		if err := noteSky(tx, s.day.reading(now), now); err != nil {
+			return err
+		}
 		kept, err := stampKeepsakes(tx, p.ID, p.DaysVisited, s.day.reading(now), now)
 		if err != nil {
 			return err
@@ -75,8 +78,12 @@ func (s *store) greet(id int64, first bool) (*greeting, error) {
 		g.Line = greetLine(gen, stage, away)
 		fav := ""
 		for _, f := range frogs {
-			if f.Front {
-				fav = favLine(f, p.ID, dayOf(now), now)
+			if !f.Front {
+				continue
+			}
+			fav = favLine(f, p.ID, dayOf(now), now)
+			if err := writeDiary(tx, p, f, now); err != nil {
+				return err
 			}
 		}
 		if fav != "" {

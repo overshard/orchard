@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/netip"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -293,6 +294,22 @@ func (s *site) apiFeed(id int64, r *http.Request, w http.ResponseWriter) (any, e
 		return nil, nil
 	}
 	return s.store.feed(id, in.Frog, in.Dish)
+}
+
+// apiDiary is a page of one frog's diary, newest first.
+func (s *site) apiDiary(w http.ResponseWriter, r *http.Request) {
+	id, _, err := s.pondOf(r)
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	frog, _ := strconv.ParseInt(r.URL.Query().Get("frog"), 10, 64)
+	d, err := s.store.diaryOf(id, frog, r.URL.Query().Get("before"))
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, d)
 }
 
 func (s *site) apiPet(id int64, r *http.Request, w http.ResponseWriter) (any, error) {

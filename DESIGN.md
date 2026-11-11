@@ -726,6 +726,10 @@ version of the old look and a handheld pet shell.
   drawn the way the bag draws them, under its name. The bubble names one on
   about a day in three in place of the day's line, so it never gets longer,
   and the key that feeds a frog says so when the dish is its favourite.
+- **A frog's diary is in settings**, under its favourites. One line a day in
+  the frog's own words about the day before, the day in printed caps down the
+  left and the line beside it, newest first with a key for older days. It
+  only says what happened and a day nobody came by reads as a quiet day.
 - **The frog can be rubbed.** A drag back and forth over it shuts its eyes and
   throws pink pixel hearts, more of them on its favourite spot, and an egg
   only wobbles. Its bond is five small hearts over the top left corner of the

@@ -203,6 +203,7 @@ func (s *site) handler() http.Handler {
 
 	mux.HandleFunc("GET /api/pond", s.apiPond)
 	mux.HandleFunc("GET /api/panel", s.apiPanel)
+	mux.HandleFunc("GET /api/diary", s.apiDiary)
 	mux.HandleFunc("POST /api/greet", post(s.apiGreet))
 	mux.HandleFunc("POST /api/key/restore", post(s.apiRestore))
 	mux.HandleFunc("POST /api/key/rotate", s.played(s.apiRotate))

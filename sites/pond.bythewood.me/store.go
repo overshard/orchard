@@ -80,6 +80,7 @@ CREATE TABLE IF NOT EXISTS hats (
     shape    INTEGER NOT NULL,
     colour   INTEGER NOT NULL,
     count    INTEGER NOT NULL,
+    first_day TEXT NOT NULL DEFAULT '',
     PRIMARY KEY (pond_id, shape, colour)
 ) WITHOUT ROWID;
 
@@ -179,6 +180,7 @@ CREATE TABLE IF NOT EXISTS neighbours (
     who      INTEGER NOT NULL,
     points   INTEGER NOT NULL DEFAULT 0,
     gift_day TEXT NOT NULL DEFAULT '',
+    heart_day TEXT NOT NULL DEFAULT '',
     PRIMARY KEY (pond_id, who)
 ) WITHOUT ROWID;
 
@@ -215,6 +217,19 @@ CREATE TABLE IF NOT EXISTS shares (
     count    INTEGER NOT NULL,
     cost     INTEGER NOT NULL,
     PRIMARY KEY (pond_id, key)
+) WITHOUT ROWID;
+
+CREATE TABLE IF NOT EXISTS diary (
+    pond_id  INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
+    frog_id  INTEGER NOT NULL,
+    day      TEXT NOT NULL,
+    line     TEXT NOT NULL,
+    PRIMARY KEY (pond_id, day)
+) WITHOUT ROWID;
+
+CREATE TABLE IF NOT EXISTS skies (
+    day  TEXT PRIMARY KEY,
+    sky  TEXT NOT NULL
 ) WITHOUT ROWID;
 
 CREATE TABLE IF NOT EXISTS tastes (
@@ -271,6 +286,8 @@ var addedColumns = []struct{ table, name, def string }{
 	{"frogs", "bond_day", "TEXT NOT NULL DEFAULT ''"},
 	{"frogs", "bond_today", "INTEGER NOT NULL DEFAULT 0"},
 	{"frogs", "heart_day", "TEXT NOT NULL DEFAULT ''"},
+	{"hats", "first_day", "TEXT NOT NULL DEFAULT ''"},
+	{"neighbours", "heart_day", "TEXT NOT NULL DEFAULT ''"},
 	{"frogs", "fav_dish", "TEXT NOT NULL DEFAULT ''"},
 	{"frogs", "fav_hat", "TEXT NOT NULL DEFAULT ''"},
 }
@@ -431,6 +448,8 @@ type pond struct {
 	VisitDay    string
 	// PlayedAt is when the last run of any game finished.
 	PlayedAt int64
+	// today is the pond's date in the move being made, for what's kept by day.
+	today string
 
 	GravelLevel int
 	GravelAt    int64
@@ -611,11 +630,12 @@ func (s *store) sweep() (int64, error) {
 	return gone, err
 }
 
-func addHat(tx *sql.Tx, id int64, h hat) (int, error) {
+// addHat keeps the day a hat was first found, for the diary.
+func addHat(tx *sql.Tx, id int64, h hat, day string) (int, error) {
 	var count int
-	err := tx.QueryRow(`INSERT INTO hats (pond_id, shape, colour, count) VALUES (?, ?, ?, 1)
+	err := tx.QueryRow(`INSERT INTO hats (pond_id, shape, colour, count, first_day) VALUES (?, ?, ?, 1, ?)
 		ON CONFLICT (pond_id, shape, colour) DO UPDATE SET count = count + 1
-		RETURNING count`, id, h.Shape, h.Colour).Scan(&count)
+		RETURNING count`, id, h.Shape, h.Colour, day).Scan(&count)
 	return count, err
 }
 
@@ -635,7 +655,7 @@ func addItem(tx *sql.Tx, id int64, kind string, n int) error {
 func award(tx *sql.Tx, p *pond, z *prize) error {
 	switch {
 	case z.Hat != nil:
-		count, err := addHat(tx, p.ID, *z.Hat)
+		count, err := addHat(tx, p.ID, *z.Hat, p.today)
 		if err != nil {
 			return err
 		}
@@ -959,6 +979,7 @@ func (s *store) act(id int64, fn func(tx *sql.Tx, p *pond, now time.Time) error)
 		}
 		now := s.now()
 		p.settle(now)
+		p.today = dayOf(now)
 		if err := fn(tx, p, now); err != nil {
 			return err
 		}
