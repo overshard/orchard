@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS ponds (
     div_day         TEXT NOT NULL DEFAULT '',
     div_carry       REAL NOT NULL DEFAULT 0,
     div_total       INTEGER NOT NULL DEFAULT 0,
+    hidden          INTEGER NOT NULL DEFAULT 0,
     key_saved_at    INTEGER
 );
 CREATE INDEX IF NOT EXISTS ponds_created ON ponds(created_at);
@@ -444,6 +445,7 @@ var addedColumns = []struct{ table, name, def string }{
 	{"ponds", "div_day", "TEXT NOT NULL DEFAULT ''"},
 	{"ponds", "div_carry", "REAL NOT NULL DEFAULT 0"},
 	{"ponds", "div_total", "INTEGER NOT NULL DEFAULT 0"},
+	{"ponds", "hidden", "INTEGER NOT NULL DEFAULT 0"},
 }
 
 func ensureColumns(db *sql.DB) (map[string]bool, error) {
@@ -985,8 +987,10 @@ type view struct {
 	Today   string `json:"today"`
 	Visited int    `json:"visited"`
 	// Rested says the next run of any game pays a quarter more.
-	Rested  bool         `json:"rested"`
-	Open    openView     `json:"open"`
+	Rested bool     `json:"rested"`
+	Open   openView `json:"open"`
+	// Home keeps the frog off every other pond.
+	Home    bool         `json:"home"`
 	Todo    []todo       `json:"todo"`
 	Goals   []goal       `json:"goals"`
 	Starter *starterView `json:"starter,omitempty"`
@@ -1331,6 +1335,9 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	v.had = had
 	v.Today = dayOf(now)
 	v.Open = openOf(p, now)
+	if err := q.QueryRow(`SELECT hidden FROM ponds WHERE id = ?`, p.ID).Scan(&v.Home); err != nil {
+		return err
+	}
 	pins, done, err := kept(q, p.ID)
 	if err != nil {
 		return err

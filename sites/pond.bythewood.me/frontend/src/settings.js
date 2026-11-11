@@ -104,6 +104,7 @@ function render(p) {
     li.append(b, at);
     return li;
   }));
+  $("stay-home").setAttribute("aria-pressed", p.home ? "true" : "false");
   $("share-link").href = p.share.path;
   $("dev").hidden = !p.dev;
 }
@@ -124,6 +125,10 @@ export function initSettings() {
       b.setAttribute("aria-pressed", soundOn(kind) ? "true" : "false");
       if (soundOn(kind)) sfx(kind === "buzz" ? "bonk" : "catch");
     });
+  });
+  $("stay-home").addEventListener("click", function () {
+    this.disabled = true;
+    post("/api/home", { home: !state.pond.home }).then((v) => { this.disabled = false; setPond(v); }, () => { this.disabled = false; });
   });
   $("diary-more").addEventListener("click", () => readDiary(true));
   $("name-roll").addEventListener("click", function () {

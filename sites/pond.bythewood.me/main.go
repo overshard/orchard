@@ -253,6 +253,7 @@ func (s *site) handler() http.Handler {
 	mux.HandleFunc("POST /api/neighbours/favour", s.played(s.apiFavour))
 	mux.HandleFunc("POST /api/burrows/lodge", s.played(s.apiLodge))
 	mux.HandleFunc("POST /api/burrows/collect", s.played(s.apiRent))
+	mux.HandleFunc("POST /api/home", s.played(s.apiHome))
 	if devBuild {
 		mux.HandleFunc("POST /api/dev/clock", post(s.apiDevClock))
 		mux.HandleFunc("POST /api/dev/day", post(s.apiDevDay))
