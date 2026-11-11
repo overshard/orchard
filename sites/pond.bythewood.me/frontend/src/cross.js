@@ -5,28 +5,45 @@ import { drawTop } from "./top.js";
 // Crossing. The frog starts on the field side of a lane and wants the pond
 // on the far side of a stream. Hop a row at a time, past traffic on the lane
 // and over logs and pads on the water, and every trip home goes a bit faster.
-const C = 14, COLS = 13, ROWS = 14, W = C * COLS, H = C * ROWS, HOP = 0.11;
-const HOME = 1, START = 12, VERGE = 7;
+const C = 14, COLS = 13, W = C * COLS, HOP = 0.11, HOME = 1;
+// A tall window gets more rows, so the field fills it at the same cell size.
+const FEWEST = 14, MOST = 26;
+let ROWS = FEWEST, START = ROWS - 2;
 
-// Each lane is a row, a speed in cells a second, and what's in it, as runs of
-// length and gap the lane repeats across a wrap a little wider than the field.
-const LANES = {
-  11: { kind: "car", v: -1.6, run: [[1, 4], [1, 3], [1, 5]], c: "#e2412d" },
-  10: { kind: "tractor", v: 0.8, run: [[2, 6], [2, 5]], c: "#3f9a4d" },
-  9: { kind: "bike", v: 2.6, run: [[1, 6], [1, 7]], c: "#3d8fd6" },
-  8: { kind: "van", v: -1.2, run: [[2, 4], [2, 5]], c: "#e9e3d6" },
-  6: { kind: "log", v: 1.0, run: [[3, 3], [3, 4]], c: "#8a5a2b" },
-  5: { kind: "pads", v: -1.4, run: [[2, 3], [3, 3]], c: "#56b45f" },
-  4: { kind: "log", v: 0.7, run: [[4, 3], [3, 4]], c: "#6b4a2a" },
-  3: { kind: "pads", v: 1.6, run: [[2, 4], [2, 3]], c: "#56b45f" },
-  2: { kind: "log", v: -1.1, run: [[3, 3], [2, 4]], c: "#8a5a2b" },
-};
+// Each lane is a speed in cells a second and what's in it, as runs of length
+// and gap the lane repeats across a wrap a little wider than the field.
+const STREAM = [
+  { kind: "log", v: -1.1, run: [[3, 3], [2, 4]], c: "#8a5a2b" },
+  { kind: "pads", v: 1.6, run: [[2, 4], [2, 3]], c: "#56b45f" },
+  { kind: "log", v: 0.7, run: [[4, 3], [3, 4]], c: "#6b4a2a" },
+  { kind: "pads", v: -1.4, run: [[2, 3], [3, 3]], c: "#56b45f" },
+  { kind: "log", v: 1.0, run: [[3, 3], [3, 4]], c: "#8a5a2b" },
+];
+const LANE = [
+  { kind: "van", v: -1.2, run: [[2, 4], [2, 5]], c: "#e9e3d6" },
+  { kind: "bike", v: 2.6, run: [[1, 6], [1, 7]], c: "#3d8fd6" },
+  { kind: "tractor", v: 0.8, run: [[2, 6], [2, 5]], c: "#3f9a4d" },
+  { kind: "car", v: -1.6, run: [[1, 4], [1, 3], [1, 5]], c: "#e2412d" },
+];
 const WRAP = COLS + 6, CARS = ["#e2412d", "#ffb000", "#3d8fd6", "#e2567a", "#e9e3d6"];
 
-let G = null, col = null;
+let G = null, col = null, LANES = {};
 
-function water(row) { return row >= 2 && row <= 6; }
-function road(row) { return row >= 8 && row <= 11; }
+// From the pond down it's a stream, a verge, a lane and a verge, over again
+// for as many rows as there are.
+function lay(rows) {
+  ROWS = rows; START = rows - 2; LANES = {};
+  const every = STREAM.length + LANE.length + 2;
+  for (let r = HOME + 1; r < START; r++) {
+    const i = (r - HOME - 1) % every;
+    if (i < STREAM.length) LANES[r] = STREAM[i];
+    else if (i > STREAM.length && i < every - 1) LANES[r] = LANE[i - STREAM.length - 1];
+  }
+}
+lay(FEWEST);
+
+function water(row) { const l = LANES[row]; return !!l && (l.kind === "log" || l.kind === "pads"); }
+function road(row) { return !!LANES[row] && !water(row); }
 
 function build() {
   G.things = [];
@@ -54,12 +71,20 @@ function lose(why) {
 }
 
 function scatter() {
-  G.pebble = Math.random() < 0.6 ? { col: Math.floor(Math.random() * COLS), row: [7, 8, 9, 10, 11][Math.floor(Math.random() * 5)] } : null;
+  const dry = [];
+  for (let r = HOME + 1; r < START; r++) if (!water(r)) dry.push(r);
+  G.pebble = Math.random() < 0.6 ? { col: Math.floor(Math.random() * COLS), row: dry[Math.floor(Math.random() * dry.length)] } : null;
   G.fly = Math.random() < 0.5 ? Math.floor(Math.random() * COLS) : -1;
 }
 
 export const cross = {
-  key: "cross", W, H, title: "CROSSING",
+  key: "cross", W, H: C * FEWEST, title: "CROSSING",
+  edge: ["#0e2c30", "#4f9a4a"],
+
+  fit(w, h) {
+    lay(Math.max(FEWEST, Math.min(MOST, Math.floor(h / (w / COLS)))));
+    cross.H = C * ROWS;
+  },
   help: ["SWIPE OR TAP TO HOP", "GET TO THE POND UP TOP", "THREE LIVES, IT SPEEDS UP", "TAP TO START"],
 
   reset(g, p) {
@@ -123,10 +148,20 @@ export const cross = {
     }
     x.fillStyle = "#0e2c30"; x.fillRect(0, 0, W, C - 3);
     x.fillStyle = "#3f9a4d"; for (let c = 0; c < W; c += 5) x.fillRect(c, HOME * C - 3, 2, 5);
-    x.fillStyle = "#2c2c31"; x.fillRect(0, 8 * C, W, 1); x.fillRect(0, 12 * C - 1, W, 1);
-    x.fillStyle = "rgba(127,214,194,0.18)"; for (let r = 2; r <= 6; r++) for (let c = (r * 5) % 11; c < W; c += 22) x.fillRect(c, r * C + 6 + (r % 2) * 3, 5, 1);
-    x.fillStyle = "#cfc7a8"; for (let r = 8; r < 11; r++) for (let c = 2; c < W; c += 14) x.fillRect(c, (r + 1) * C - 1, 7, 1);
-    x.fillStyle = "#6c8a3a"; for (let c = 3; c < W; c += 9) { x.fillRect(c, VERGE * C + 4, 1, 3); x.fillRect(c + 4, START * C + 8, 1, 3); }
+    for (let r = HOME + 1; r < ROWS; r++) {
+      if (water(r)) {
+        x.fillStyle = "rgba(127,214,194,0.18)";
+        for (let c = (r * 5) % 11; c < W; c += 22) x.fillRect(c, r * C + 6 + (r % 2) * 3, 5, 1);
+      } else if (road(r)) {
+        x.fillStyle = "#2c2c31";
+        if (!road(r - 1)) x.fillRect(0, r * C, W, 1);
+        if (!road(r + 1)) x.fillRect(0, (r + 1) * C - 1, W, 1);
+        else { x.fillStyle = "#cfc7a8"; for (let c = 2; c < W; c += 14) x.fillRect(c, (r + 1) * C - 1, 7, 1); }
+      } else {
+        x.fillStyle = "#6c8a3a";
+        for (let c = 3 + (r % 2) * 4; c < W; c += 9) x.fillRect(c, r * C + 4 + (r % 2) * 4, 1, 3);
+      }
+    }
     if (!G) return;
     if (G.fly >= 0) { x.fillStyle = "#3a3f46"; x.fillRect(G.fly * C + 5, HOME * C + 5, 4, 3); x.fillStyle = "#cfe3ea"; x.fillRect(G.fly * C + 5, HOME * C + 3, 4, 2); }
     if (G.pebble) { x.fillStyle = "#d5d8dc"; x.fillRect(G.pebble.col * C + 4, G.pebble.row * C + 5, 6, 4); x.fillStyle = "#9aa0a6"; x.fillRect(G.pebble.col * C + 6, G.pebble.row * C + 7, 4, 2); }
