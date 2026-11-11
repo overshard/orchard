@@ -772,6 +772,10 @@ function payLine(key, a) {
   $("play-" + key).classList.toggle("pays", left > 0);
   // The disk of the day has a sticker stuck on it.
   const floppy = $("play-" + key).querySelector(".floppy"), had = floppy.querySelector(".daytag");
+  let ticks = floppy.querySelector(".aimticks");
+  if (!ticks) { ticks = document.createElement("span"); ticks.className = "aimticks"; floppy.append(ticks); }
+  ticks.replaceChildren(...(a.aims || []).map((m) => { const i = document.createElement("i"); if (m.done) i.className = "done"; return i; }));
+  ticks.title = (a.aims || []).map((m) => (m.done ? "Done: " : "") + m.line).join("\n");
   if (a.day && !had) {
     const tag = document.createElement("span");
     tag.className = "daytag"; tag.textContent = "Disk of the day";

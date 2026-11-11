@@ -116,6 +116,7 @@ export const shell = {
   over() { return G && G.end; },
   score() { return G ? G.score : 0; },
   why() { return G ? G.why : ""; },
+  report() { return { counts: { won: G.won } }; },
   tally() { return G ? ["Found it " + G.won + (G.won === 1 ? " time" : " times")] : []; },
 
   draw(x) {

@@ -123,7 +123,7 @@ func goFishing(t *testing.T, s *store, clock *time.Time, id int64, score int, la
 		t.Fatal(err)
 	}
 	*clock = clock.Add(61 * time.Second)
-	d, err := s.arcadeFinish(id, "fish", st.Run, score, landed)
+	d, err := s.arcadeFinish(id, "fish", st.Run, score, landed, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

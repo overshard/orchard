@@ -119,6 +119,11 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   `squashed` draws the frog squashed, `buffer` and `take` keep an early press
   for 90ms, and the game calls `draw` where its popups belong. A game's
   `demo()` gives the ghost finger its first input.
+- `aims.go` is each disk's two goals for the day, dealt off a hash of the
+  date from `aimList` so every pond has the same ones. A run sends the counts
+  its goals read as `counts`, Dive and bug sweep work theirs out on the
+  server, and a goal met for the first time that day is a row in `aims` and
+  pays `aimPebbles` with the run, inside the game's cap.
 - `bugsweep.go` is bug sweep, a grid of lily pads with wasps under some. The
   day's grid is the same in every pond and pays once, and every go after it
   is a fresh grid that pays nothing. `POST /api/sweep/start` hands over a go
@@ -368,6 +373,9 @@ they have none, for other sites to draw.
   worked out from this repository. Nothing sent before a go is over may say
   where a wasp is, and a test reads every answer for it. A tap takes one pad,
   since a batch that stopped part way would say which of its pads was safe.
+- A goal's count is held to the score by `aimWorth`, the least points one of
+  it can be worth, so a new count needs a line there or it's only held to
+  being sane. A goal is kept by its key, so a key never changes.
 - A game with no `rate` in `arcade.go` is played out on the server and is
   refused by the plain start and finish. On the page it has `begin` and `end`
   in place of those two calls, and it's never the disk of the day.

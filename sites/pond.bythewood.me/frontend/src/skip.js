@@ -53,7 +53,7 @@ function touch() {
     p.vx *= (hit ? 0.95 : good ? 0.9 : 0.82) * chop;
     p.y = SURF; p.skips++;
     const pts = (good ? 2 : 1) + (hit ? 2 : 0);
-    if (hit) hit.used = true;
+    if (hit) { hit.used = true; G.pads++; }
     G.score += pts;
     if (hit || good) F.got(p.x, SURF - 4, hit ? "PAD +" + pts : "NICE +2", { streak: p.skips, big: !!hit });
     else {
@@ -78,7 +78,7 @@ export const skip = {
   reset(g, p) {
     spr = sideCells(g, p.frog.stage === "egg" ? "tadpole" : p.frog.stage, false);
     col = colours(g, p.frog.hat);
-    G = { t: 0, st: "aim", st_t: 0, cam: 0, peb: null, aim: null, rings: [], score: 0, thrown: 0, best: 0, far: 0, tapAt: null, why: "", end: false, kang: 0.2, charge: -1, things: [] };
+    G = { t: 0, st: "aim", st_t: 0, cam: 0, peb: null, aim: null, rings: [], score: 0, thrown: 0, best: 0, far: 0, tapAt: null, why: "", end: false, kang: 0.2, charge: -1, things: [], pads: 0 };
     deal();
   },
 
@@ -131,6 +131,7 @@ export const skip = {
   over() { return G && G.end; },
   score() { return G ? G.score : 0; },
   why() { return G ? G.why : ""; },
+  report() { return { counts: { best: G.best, pads: G.pads, far: G.far } }; },
   tally() { return G && G.best ? ["Best throw " + G.best + " skips, farthest " + G.far + "m"] : []; },
 
   draw(x) {

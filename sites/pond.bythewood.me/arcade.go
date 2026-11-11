@@ -217,12 +217,15 @@ type arcadeDone struct {
 	Sedge string `json:"sedge,omitempty"`
 	// Keeps is how many more fish can be kept for the kitchen today, when
 	// this round landed one that can.
-	Keeps int   `json:"keeps,omitempty"`
-	Pond  *view `json:"pond"`
+	Keeps int `json:"keeps,omitempty"`
+	// Aims is the day's goals this run met for the first time.
+	Aims []string `json:"aims,omitempty"`
+	Pond *view    `json:"pond"`
 }
 
-// landed is what a round of fishing says it caught, by kind.
-func (s *store) arcadeFinish(id int64, key, run string, score int, landed map[string]int) (*arcadeDone, error) {
+// landed is what a round of fishing says it caught, by kind, and counts are
+// what the run says it did for the day's goals.
+func (s *store) arcadeFinish(id int64, key, run string, score int, landed, counts map[string]int) (*arcadeDone, error) {
 	g, ok := arcadeOf(key)
 	if !ok || g.replayed() {
 		return nil, errNotHeld
@@ -260,7 +263,20 @@ func (s *store) arcadeFinish(id int64, key, run string, score int, landed map[st
 		if r.runs > fullRuns(key, now) {
 			pay = score / (4 * g.per)
 		}
-		out.Paid, out.Rested = p.payRun(pay, g.cap-r.paid, now)
+		if key == "fish" {
+			// The day can turn over mid round, so a fish biting at either end counts.
+			tables := []map[string]float64{s.fishTableAt(began), s.fishTableAt(now)}
+			if out.Catch, err = landFish(tx, p, landed, score, tables); err != nil {
+				return err
+			}
+			counts = fishCounts(counts, out.Catch)
+		}
+		aims, more, err := meetAims(tx, p.ID, key, score, counts, now)
+		if err != nil {
+			return err
+		}
+		out.Aims = aims
+		out.Paid, out.Rested = p.payRun(pay+more, g.cap-r.paid, now)
 		r.paid += out.Paid
 		p.Pebbles += out.Paid
 		if score > r.best {
@@ -270,11 +286,6 @@ func (s *store) arcadeFinish(id int64, key, run string, score int, landed map[st
 			r.best, out.Best = score, true
 		}
 		if key == "fish" {
-			// The day can turn over mid round, so a fish biting at either end counts.
-			tables := []map[string]float64{s.fishTableAt(began), s.fishTableAt(now)}
-			if out.Catch, err = landFish(tx, p, landed, score, tables); err != nil {
-				return err
-			}
 			var kinds []string
 			for _, c := range out.Catch {
 				if f, _ := fishOf(c.Kind); c.Record {
@@ -306,7 +317,8 @@ type arcadeView struct {
 	// Deal is the day's peg rows, for pebble drop.
 	Deal []int `json:"deal,omitempty"`
 	// Daily is a game with one paid go a day and free ones after.
-	Daily bool `json:"daily,omitempty"`
+	Daily bool      `json:"daily,omitempty"`
+	Aims  []aimView `json:"aims"`
 }
 
 func arcadeViews(q querier, id int64, now time.Time) ([]arcadeView, error) {

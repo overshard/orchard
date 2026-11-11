@@ -12,7 +12,7 @@ import (
 func TestArcadePaysAndCaps(t *testing.T) {
 	s, clock := testStore(t)
 	_, id := newPond(t, s)
-	if _, err := s.arcadeFinish(id, "flick", "nope", 10, nil); !errors.Is(err, errBadRun) {
+	if _, err := s.arcadeFinish(id, "flick", "nope", 10, nil, nil); !errors.Is(err, errBadRun) {
 		t.Fatalf("a run never started: %v", err)
 	}
 	if _, err := s.arcadeStart(id, "pinball"); !errors.Is(err, errNotHeld) {
@@ -25,7 +25,7 @@ func TestArcadePaysAndCaps(t *testing.T) {
 			t.Fatal(err)
 		}
 		*clock = clock.Add(secs * time.Second)
-		d, err := s.arcadeFinish(id, "flick", st.Run, score, nil)
+		d, err := s.arcadeFinish(id, "flick", st.Run, score, nil, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -64,7 +64,7 @@ func TestCrossingPaysHalf(t *testing.T) {
 		t.Fatal(err)
 	}
 	*clock = clock.Add(60 * time.Second)
-	d, err := s.arcadeFinish(id, "cross", st.Run, 61, nil)
+	d, err := s.arcadeFinish(id, "cross", st.Run, 61, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +93,7 @@ func TestAPausedRunStillPays(t *testing.T) {
 		t.Fatal(err)
 	}
 	*clock = clock.Add(time.Hour)
-	if d, err := s.arcadeFinish(id, "flick", st.Run, 12, nil); err != nil || d.Paid != 12 {
+	if d, err := s.arcadeFinish(id, "flick", st.Run, 12, nil, nil); err != nil || d.Paid != 12 {
 		t.Errorf("a paused flick: %v %+v", err, d)
 	}
 	run, err := s.diveStart(id)
@@ -121,7 +121,7 @@ func TestDiskOfTheDay(t *testing.T) {
 			t.Fatal(err)
 		}
 		*clock = clock.Add(30 * time.Second)
-		d, err := s.arcadeFinish(id, k, st.Run, score, nil)
+		d, err := s.arcadeFinish(id, k, st.Run, score, nil, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -189,7 +189,7 @@ func TestPebbleDropIsBounded(t *testing.T) {
 			t.Fatal(err)
 		}
 		*clock = clock.Add(secs * time.Second)
-		d, err := s.arcadeFinish(id, "drop", st.Run, score, nil)
+		d, err := s.arcadeFinish(id, "drop", st.Run, score, nil, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -262,7 +262,7 @@ func TestChorusIsBounded(t *testing.T) {
 			t.Fatal(err)
 		}
 		*clock = clock.Add(secs * time.Second)
-		d, err := s.arcadeFinish(id, "chorus", st.Run, score, nil)
+		d, err := s.arcadeFinish(id, "chorus", st.Run, score, nil, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -355,7 +355,7 @@ func TestPuttIsBounded(t *testing.T) {
 			t.Fatalf("a start dealt %d holes", len(st.Putt))
 		}
 		*clock = clock.Add(secs * time.Second)
-		d, err := s.arcadeFinish(id, "putt", st.Run, score, nil)
+		d, err := s.arcadeFinish(id, "putt", st.Run, score, nil, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -392,7 +392,7 @@ func TestSpawnJarIsBounded(t *testing.T) {
 			t.Fatal(err)
 		}
 		*clock = clock.Add(secs * time.Second)
-		d, err := s.arcadeFinish(id, "jar", st.Run, score, nil)
+		d, err := s.arcadeFinish(id, "jar", st.Run, score, nil, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

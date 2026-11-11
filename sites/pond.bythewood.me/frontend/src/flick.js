@@ -38,7 +38,7 @@ export const flick = {
     const stage = ["egg", "tadpole"].includes(p.frog.stage) ? "froglet" : p.frog.stage;
     spr = cells(g, stage, { hat: p.frog.hat.shape });
     col = colours(g, p.frog.hat);
-    G = { t: 0, bugs: [], next: 0.3, tongue: null, streak: 0, score: 0, stun: 0, why: "" };
+    G = { t: 0, bugs: [], next: 0.3, tongue: null, streak: 0, score: 0, stun: 0, why: "", fireflies: 0, row: 0, wasps: 0 };
   },
 
   demo() {
@@ -68,7 +68,7 @@ export const flick = {
         if (hit) {
           G.bugs.splice(G.bugs.indexOf(hit), 1);
           if (hit.kind.k === "wasp") {
-            G.stun = 1.1; G.streak = 0;
+            G.stun = 1.1; G.streak = 0; G.wasps++;
             F.crash(tx, ty, { s: "OW" });
           } else tg.bug = hit;
           tg.out = false;
@@ -77,7 +77,8 @@ export const flick = {
         tg.k = Math.max(0, tg.k - dt / BACK);
         if (tg.k <= 0) {
           if (tg.bug) {
-            G.streak++;
+            G.streak++; G.row = Math.max(G.row, G.streak);
+            if (tg.bug.kind.k === "firefly") G.fireflies++;
             let pts = tg.bug.kind.pts;
             if (G.streak % 5 === 0) pts += 5;
             G.score += pts;
@@ -94,6 +95,7 @@ export const flick = {
   over() { return G && G.t >= ROUND; },
   score() { return G ? G.score : 0; },
   why() { return G ? G.why : ""; },
+  report() { return { counts: { fireflies: G.fireflies, row: G.row, wasps: G.wasps } }; },
 
   draw(x) {
     x.fillStyle = "#1b3a4a"; x.fillRect(0, 0, W, H);

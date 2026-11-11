@@ -149,7 +149,7 @@ func TestBugSweepRefusesABadTap(t *testing.T) {
 	if _, err := s.arcadeStart(id, "sweep"); !errors.Is(err, errNotHeld) {
 		t.Errorf("bug sweep started as a plain run: %v", err)
 	}
-	if _, err := s.arcadeFinish(id, "sweep", "", bugSafe, nil); !errors.Is(err, errNotHeld) {
+	if _, err := s.arcadeFinish(id, "sweep", "", bugSafe, nil, nil); !errors.Is(err, errNotHeld) {
 		t.Errorf("bug sweep took a score from the page: %v", err)
 	}
 }
@@ -162,19 +162,21 @@ func TestBugSweepPaysOnceADay(t *testing.T) {
 	play(t, s, clock, id, "flick", 0)
 	before, _ := s.view(id)
 	out := clearBugs(t, s, id, "", 0)
-	if out.State != "won" || !out.Daily || out.Paid != bugClear || out.Pads != bugSafe || out.Pond.Pebbles != before.Pebbles+bugClear {
+	// The day's goals are met on the same go and pay inside the cap.
+	day := min(g.cap, bugClear+len(out.Aims)*aimPebbles)
+	if out.State != "won" || !out.Daily || out.Paid != day || out.Pads != bugSafe || out.Pond.Pebbles != before.Pebbles+day {
 		t.Fatalf("clearing the day's grid: %+v", out)
 	}
 	if n := out.Pond.Gazette.Sweep; n == nil || n.State != "won" || n.Taps != out.Taps {
 		t.Errorf("the paper after a clear: %+v", n)
 	}
 	for range 3 {
-		if out = clearBugs(t, s, id, "", 0); out.Daily || out.Paid != 0 || out.Pond.Pebbles != before.Pebbles+bugClear {
+		if out = clearBugs(t, s, id, "", 0); out.Daily || out.Paid != 0 || out.Pond.Pebbles != before.Pebbles+day {
 			t.Fatalf("a free go: %+v", out)
 		}
 	}
 	for _, a := range out.Pond.Arcade {
-		if a.Key == "sweep" && (a.Runs != 1 || a.Full != 1 || a.Paid != bugClear || a.Best != bugSafe || !a.Daily || a.Day) {
+		if a.Key == "sweep" && (a.Runs != 1 || a.Full != 1 || a.Paid != day || a.Best != bugSafe || !a.Daily || a.Day) {
 			t.Errorf("bug sweep on the view: %+v", a)
 		}
 	}
@@ -187,12 +189,12 @@ func TestBugSweepPaysOnceADay(t *testing.T) {
 	if out.State != "lost" || !out.Daily || out.Paid != want || want >= bugPart || out.Pond.Pebbles != before.Pebbles+want {
 		t.Fatalf("a wasp on the day's grid: %+v, want %d", out, want)
 	}
-	if out = clearBugs(t, s, id, "", 0); out.Daily || out.Paid != 0 {
-		t.Errorf("the go after a wasp: %+v", out)
+	if out = clearBugs(t, s, id, "", 0); out.Daily || out.Paid != len(out.Aims)*aimPebbles {
+		t.Errorf("the go after a wasp pays only its goals: %+v", out)
 	}
 	// Well rested, the clear pays a quarter more and that's the cap.
 	*clock = clock.Add(24 * time.Hour)
-	if out = clearBugs(t, s, id, "", 0); out.Paid != g.cap || out.Rested != g.cap-bugClear {
+	if out = clearBugs(t, s, id, "", 0); out.Paid != g.cap || out.Rested != g.cap-min(g.cap, bugClear+len(out.Aims)*aimPebbles) {
 		t.Errorf("a well rested clear paid %d with %d for the rest", out.Paid, out.Rested)
 	}
 }

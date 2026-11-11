@@ -31,6 +31,21 @@ export function payWord(a, low) {
   return a.paid >= a.cap ? "Paid out" : a.runs < a.full ? "Full" : a.daily ? "Free" : low || "Quarter";
 }
 
+// A disk's goals for the day, a green LED each, ringed until met and lit
+// after, with met naming the ones this run just ticked.
+export function aimList(aims, met) {
+  const ul = document.createElement("ul");
+  ul.className = "aims";
+  (aims || []).forEach((a) => {
+    const li = document.createElement("li");
+    li.className = a.done ? "done" : "";
+    if (met && met.includes(a.line)) li.className = "done new";
+    li.textContent = a.line;
+    ul.append(li);
+  });
+  return ul;
+}
+
 export const TIERS = ["Common", "Uncommon", "Rare", "Epic", "Legendary"];
 
 // The page keeps one copy of the pond as the server last described it, and

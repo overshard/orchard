@@ -12,7 +12,7 @@ func play(t *testing.T, s *store, clock *time.Time, id int64, key string, score 
 		t.Fatal(err)
 	}
 	*clock = clock.Add(2 * time.Minute)
-	out, err := s.arcadeFinish(id, key, st.Run, score, nil)
+	out, err := s.arcadeFinish(id, key, st.Run, score, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +48,8 @@ func TestWellRestedPaysAQuarterMoreOnce(t *testing.T) {
 		t.Fatalf("rested %v and the strip says so %v", v.Rested, said)
 	}
 	d := dive(t, s, clock, id, 16)
-	if d.Paid != 40 || d.Rested != 8 || d.Pond.Rested {
+	base := 32 + len(d.Aims)*aimPebbles
+	if d.Paid != base+base/4 || d.Rested != base/4 || d.Pond.Rested {
 		t.Fatalf("a rested dive: paid %d with %d for the rest", d.Paid, d.Rested)
 	}
 }

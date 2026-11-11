@@ -28,7 +28,7 @@ function drop() {
   }
   let pts = 1;
   if (Math.abs(b.x - a.x) <= NEAR) {
-    G.perf++; pts = 2;
+    G.perf++; pts = 2; G.perfect++; G.row = Math.max(G.row, G.perf);
     b.x = a.x;
     if (G.perf >= 3) { const w = Math.min(BASE, a.w + 6); b.x = a.x - (w - a.w) / 2; b.w = w; }
     F.got(b.x + b.w / 2, y - 4, G.perf >= 3 ? "PERFECT +" : "PERFECT", { streak: G.perf, big: G.perf >= 3 });
@@ -53,7 +53,7 @@ export const stack = {
   reset(g, p) {
     spr = sideCells(g, p.frog.stage === "egg" ? "tadpole" : p.frog.stage, false);
     col = colours(g, p.frog.hat);
-    G = { t: 0, pads: [{ x: (W - BASE) / 2, w: BASE }], mv: null, falls: [], score: 0, perf: 0, cam: 0, hop: 0, dead: 0, ring: 0, why: "" };
+    G = { t: 0, pads: [{ x: (W - BASE) / 2, w: BASE }], mv: null, falls: [], score: 0, perf: 0, cam: 0, hop: 0, dead: 0, ring: 0, why: "", perfect: 0, row: 0 };
     next();
   },
 
@@ -83,6 +83,7 @@ export const stack = {
   over() { return G && G.dead > 0.5; },
   score() { return G ? G.score : 0; },
   why() { return G ? G.why : ""; },
+  report() { return { counts: { pads: G.pads.length - 1, perfect: G.perfect, row: G.row } }; },
   tally() { return G ? [plural(G.pads.length - 1, "pad") + " high"] : []; },
 
   draw(x) {

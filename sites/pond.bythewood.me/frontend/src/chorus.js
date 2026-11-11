@@ -172,7 +172,7 @@ export const chorus = {
   raw() { return G ? G.score : 0; },
   score() { const s = chorus.raw(); return singer ? s + Math.floor(s / 4) : s; },
   // The server adds the singer's quarter itself, so it's sent the plain score.
-  report() { return { score: chorus.raw() }; },
+  report() { return { score: chorus.raw(), counts: { right: G.right, row: G.long } }; },
   why() { return G ? G.why : ""; },
   tally() {
     if (!G) return [];

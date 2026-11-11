@@ -1,4 +1,4 @@
-import { $, post, state, setPond, watch, room, onResize, payWord } from "./api.js";
+import { $, post, state, setPond, watch, room, onResize, payWord, aimList } from "./api.js";
 import { genome, sideCells, draw as drawCells, SW, SH } from "./frog.js";
 import { raceStart, raceOut, raceOrder, raceResults, raceHide, countdown, callout, suffix } from "./race.js";
 import { feel, finger, unseen, sawIt } from "./feel.js";
@@ -136,7 +136,7 @@ function drawOthers() {
 
 function reset() {
   F.reset(); G.quick = false;
-  G.fy = 96; G.vy = 0; G.kick = 0; G.gates = []; G.bub = []; G.dist = 0; G.next = 150; G.score = 0; G.cleared = 0; G.place = 0; G.bonus = 0; G.hat = null; G.had = false; G.t = 0; G.lastC = GH / 2; G.flash = 0; G.paid = null; G.rested = 0; G.best = false; G.toldBest = false;
+  G.fy = 96; G.vy = 0; G.kick = 0; G.gates = []; G.bub = []; G.dist = 0; G.next = 150; G.score = 0; G.cleared = 0; G.place = 0; G.bonus = 0; G.hat = null; G.had = false; G.t = 0; G.lastC = GH / 2; G.flash = 0; G.paid = null; G.rested = 0; G.best = false; G.toldBest = false; G.aims = [];
 }
 
 let started = null;
@@ -158,7 +158,7 @@ function youIcon() {
 
 function results(again) {
   if ($("v-dive").hidden) return;
-  raceResults({ racers: field(), why: G.why, place: G.place, paid: G.paid, rested: G.rested, best: G.best, bonus: G.bonus, hat: G.hat, had: G.had, score: G.score, again });
+  raceResults({ racers: field(), why: G.why, place: G.place, paid: G.paid, rested: G.rested, best: G.best, bonus: G.bonus, hat: G.hat, had: G.had, score: G.score, aims: G.aims, again });
 }
 
 function die(now, why) {
@@ -172,12 +172,12 @@ function die(now, why) {
   // of the run after it.
   net = started.then((run) => run ? post("/api/dive/finish", { run, score, gates }) : null).then((d) => {
     if (!d) { G.paid = 0; return; }
-    G.paid = d.paid; G.rested = d.rested; G.best = d.best; G.place = d.place; G.bonus = d.bonus; G.hat = d.hat; G.had = d.had;
+    G.paid = d.paid; G.rested = d.rested; G.best = d.best; G.place = d.place; G.bonus = d.bonus; G.hat = d.hat; G.had = d.had; G.aims = d.aims || [];
     setPond(d.pond);
   }, () => { G.paid = 0; }).then(() => {
     if (G.state !== "over" || G.overAt !== now) return;
     // A prize the page didn't see coming still gets the whole card.
-    if (G.quick && (G.best || G.bonus || G.hat)) G.quick = false;
+    if (G.quick && (G.best || G.bonus || G.hat || G.aims.length)) G.quick = false;
     if (!G.quick && performance.now() - now >= 650) results(true);
     draw(performance.now());
   });
@@ -365,8 +365,9 @@ function overlay(now) {
     card.replaceChildren(r, p, key);
   }
   if (again) return;
-  if (card.dataset.shows === want) { card.querySelector("canvas").getContext("2d").drawImage($("play-dive-art"), 0, 0); return; }
-  card.dataset.shows = want;
+  const aims = state.pond.dive.aims || [], shows = want + aims.map((a) => a.done ? 1 : 0).join("");
+  if (card.dataset.shows === shows) { card.querySelector("canvas").getContext("2d").drawImage($("play-dive-art"), 0, 0); return; }
+  card.dataset.shows = shows;
   const win = document.createElement("div"), art = document.createElement("canvas");
   win.className = "arcade-win"; art.width = 168; art.height = 96;
   art.getContext("2d").drawImage($("play-dive-art"), 0, 0);
@@ -374,7 +375,7 @@ function overlay(now) {
   const line = (tag, cls, text) => { const e = document.createElement(tag); e.className = cls; e.textContent = text; return e; };
   if (want === "paused") card.replaceChildren(win, line("b", "", "PAUSED"), line("p", "again", "Tap to carry on"));
   else card.replaceChildren(win, line("b", "", "DIVE"), line("p", "dim", "Tap to kick down"), line("p", "dim", "The frog floats up by itself"),
-    line("p", "dim", "Outlast the others for a prize"), line("p", "again", "Tap to start"));
+    line("p", "dim", "Outlast the others for a prize"), aimList(aims), line("p", "again", "Tap to start"));
 }
 
 // The strip under the water: the best run, pebbles earned against the day's

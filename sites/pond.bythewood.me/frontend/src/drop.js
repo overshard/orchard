@@ -124,6 +124,7 @@ export const drop = {
   over() { return G && G.end; },
   score() { return G ? G.score : 0; },
   why() { return !G ? "" : G.mid === PEBBLES ? "FIVE IN THE MIDDLE" : "ALL FIVE DOWN"; },
+  report() { return { counts: { mid: G.mid, pots: G.pots.filter((n) => n).length } }; },
   tally() { return G ? [G.mid + " of " + PEBBLES + " in the middle pot"] : []; },
 
   draw(x) {

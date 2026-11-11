@@ -447,7 +447,7 @@ func TestAVisitEndToEnd(t *testing.T) {
 	*clock = clock.Add(40 * time.Second)
 	var dv dived
 	body, _ := json.Marshal(map[string]any{"run": run.Run, "score": 18, "gates": 12})
-	if code := b.post("/api/dive/finish", string(body), &dv); code != http.StatusOK || dv.Paid != 36 || !dv.Best {
+	if code := b.post("/api/dive/finish", string(body), &dv); code != http.StatusOK || dv.Paid != 36+len(dv.Aims)*aimPebbles || !dv.Best {
 		t.Errorf("dive: %d %+v", code, dv)
 	}
 

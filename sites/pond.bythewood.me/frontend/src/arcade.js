@@ -1,4 +1,4 @@
-import { $, post, state, setPond, watch, room, onResize, payWord } from "./api.js";
+import { $, post, state, setPond, watch, room, onResize, payWord, aimList } from "./api.js";
 import { finger, unseen, sawIt } from "./feel.js";
 
 // The frame round a side game. A game is a fixed field W by H, drawn at twice
@@ -11,7 +11,7 @@ const LOCK = 900, QUICK = 300;
 
 export function arcade(game) {
   const k = game.key, view = $("v-" + k), cv = $(k + "-cv"), cx = cv.getContext("2d");
-  const A = { state: "idle", last: 0, overAt: 0, paid: null, best: false, scale: 1, quick: false };
+  const A = { state: "idle", last: 0, overAt: 0, paid: null, best: false, scale: 1, quick: false, aims: [] };
   const F = game.feel;
   let net = Promise.resolve(), started = null, down = null, first = !!game.demo && unseen(k);
 
@@ -100,6 +100,8 @@ export function arcade(game) {
     } else if (A.state === "idle") {
       kids.push(el("b", "", game.title));
       game.help.filter((l) => l !== "TAP TO START").forEach((l) => kids.push(el("p", "dim", l)));
+      const a = info();
+      if (a && a.aims && a.aims.length) kids.push(aimList(a.aims));
       kids.push(el("p", "again", "Tap to start"));
     } else {
       kids.push(el("p", "why", game.why() || "Done"));
@@ -110,6 +112,8 @@ export function arcade(game) {
       if (extra) kids.push(extra);
       else if (game.tally) game.tally().forEach((l) => kids.push(el("p", "dim", l)));
       kids.push(el("p", A.paid ? "won" : "dim", payWords()));
+      const a = info();
+      if (a && a.aims && a.aims.length) kids.push(aimList(a.aims, A.aims));
       if (A.best) kids.push(el("p", "won", "A new best"));
       if (now - A.overAt > LOCK) kids.push(el("p", "again", "Tap to go again"));
     }
@@ -154,16 +158,17 @@ export function arcade(game) {
   function finish(now) {
     if (game.pause) game.pause();
     const score = game.score(), a = info();
-    A.state = "over"; A.overAt = now; A.paid = null; A.best = false; A.rested = 0;
+    A.state = "over"; A.overAt = now; A.paid = null; A.best = false; A.rested = 0; A.aims = [];
     A.quick = !game.full && !!a && score <= a.best;
     const more = game.report ? game.report() : {};
     // A game the server plays out a tap at a time begins and ends its own run.
     const done = (run) => game.end ? game.end(run) : post("/api/arcade/finish", Object.assign({ game: k, run, score }, more));
     net = started.then((run) => run ? done(run) : null).then((d) => {
       if (!d) { A.paid = 0; return; }
-      A.paid = d.paid; A.best = d.best; A.rested = d.rested;
-      // A game can have news of its own that's worth the whole results.
-      if (game.result && game.result(d)) A.quick = false;
+      A.paid = d.paid; A.best = d.best; A.rested = d.rested; A.aims = d.aims || [];
+      // A goal met, or news of the game's own, is worth the whole results.
+      const news = game.result && game.result(d);
+      if (news || A.aims.length) A.quick = false;
       setPond(d.pond);
     }, () => { A.paid = 0; }).then(() => { if (A.state === "over") paint(performance.now()); });
     setTimeout(() => { if (A.state === "over") paint(performance.now()); }, LOCK + 50);

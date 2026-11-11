@@ -34,7 +34,7 @@ export const school = {
   reset(g) {
     col = colours(g, null);
     const cx = Math.floor(COLS / 2);
-    G = { t: 0, tick: 0, every: SLOW, dir: "up", turns: [], body: [{ x: cx, y: ROWS - 5 }, { x: cx, y: ROWS - 4 }, { x: cx, y: ROWS - 3 }], from: null, grow: 0, score: 0, stones: [], flea: null, gold: null, why: "", dead: 0, fleas: 0, row: 0, ateAt: -9 };
+    G = { t: 0, tick: 0, every: SLOW, dir: "up", turns: [], body: [{ x: cx, y: ROWS - 5 }, { x: cx, y: ROWS - 4 }, { x: cx, y: ROWS - 3 }], from: null, grow: 0, score: 0, stones: [], flea: null, gold: null, why: "", dead: 0, fleas: 0, row: 0, ateAt: -9, golds: 0 };
     G.flea = free();
   },
 
@@ -90,7 +90,7 @@ export const school = {
       G.flea = free();
       if (!G.gold && Math.random() < 0.18) G.gold = { ...free(), left: 6 };
     } else if (G.gold && n.x === G.gold.x && n.y === G.gold.y) {
-      G.score += 3; G.grow += 2;
+      G.score += 3; G.grow += 2; G.golds++;
       F.got(n.x * C + M, n.y * C + M, "+3", { big: true, streak: G.row });
       G.gold = null;
     }
@@ -99,6 +99,7 @@ export const school = {
   over() { return G && G.dead > 0.45; },
   score() { return G ? G.score : 0; },
   why() { return G ? G.why : ""; },
+  report() { return { counts: { fleas: G.fleas, golds: G.golds, long: G.body.length + G.grow } }; },
 
   draw(x) {
     x.fillStyle = "#2f6b33"; x.fillRect(0, 0, W, H);

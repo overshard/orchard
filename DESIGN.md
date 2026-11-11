@@ -642,6 +642,10 @@ version of the old look and a handheld pet shell.
   bottom rows stretched where that carries the scene on. Crossing takes more
   rows in place of either. A run pauses when the page is hidden, and the title
   panel says PAUSED until it's tapped.
+- **Every disk has two goals a day**, the same for every pond. They're two
+  small green LEDs on the disk's plastic by the shutter, ringed until met and
+  lit after, and lines in readout glass on its title card with the same LED
+  each. A run that meets one gets the whole results, with that line lit green.
 - **The side games end like Dive.** Their title and results sit in a panel
   with a screen window, and the strip under every game is readout glass and an
   EJECT key.

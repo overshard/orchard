@@ -194,6 +194,7 @@ export function raceResults(r) {
     if (r.bonus) add(suffix(place) === "ST" ? "Winner" : "Podium", r.bonus, "gold");
     else if (r.had && place <= 3) add("Podium", "won already today");
     if (r.hat) add("Hat", r.hat.hat_name + (r.hat.spare ? ", a spare" : ", new"), "gold");
+    (r.aims || []).forEach((a) => add("Goal", a, "gold"));
     if (r.best) add("Best", r.score + " points, a new best", "gold");
     else add("Points", String(r.score));
   }

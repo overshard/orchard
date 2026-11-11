@@ -73,7 +73,7 @@ function flee(f) {
 
 function hookIt(f) {
   G.perfect = f.t < PERFECT;
-  G.st = "fight"; G.hold = true; G.ten = 0.2; G.slack = 0;
+  G.st = "fight"; G.hold = true; G.ten = 0.2; G.slack = 0; G.red = false;
   f.st = "hooked"; f.ph = "rest"; f.pt = rnd(f.sp.rest[0], f.sp.rest[1]) * 0.6; f.stam = f.sp.stam * rnd(0.8, 1.2);
   F.got(G.hook.x, SURF - 4, G.perfect ? "PERFECT" : "HOOKED", { big: G.perfect, c: G.perfect ? "#ffb000" : "#ece5d8" });
 }
@@ -90,6 +90,7 @@ function land() {
   G.streak++;
   const pts = sp.pts + (G.perfect ? 2 : 0) + 2 * Math.max(0, Math.min(3, G.streak - 2));
   G.score += pts; G.caught++;
+  if (!f.boot) { if (G.perfect) G.perfects++; if (!G.red) G.cool++; }
   G.bag[sp.k] = (G.bag[sp.k] || 0) + 1;
   G.st = "land"; G.lt = 0; G.hold = false;
   G.fish.splice(G.fish.indexOf(f), 1);
@@ -161,6 +162,7 @@ function fight(dt) {
   }
   f.x = Math.max(4, Math.min(W - 4, f.x));
   f.y = Math.max(SURF + 3, Math.min(BOT - 3, f.y));
+  if (G.ten > 0.82) G.red = true;
   if (G.ten >= 1) lose("SNAP");
   else if (G.slack > SLACK) lose("SHOOK OFF");
   else if (Math.hypot(f.x - TIP.x, f.y - TIP.y) > LINE) lose("LINE OUT");
@@ -180,7 +182,7 @@ export const fish = {
     spr = cells(g, stage, { hat: p.frog.hat.shape });
     col = colours(g, p.frog.hat);
     G = { t: 0, score: 0, streak: 0, caught: 0, st: "ready", hook: { x: TIP.x, y: TIP.y, ty: 0, k: 1 }, fish: [], boots: [], taker: null, landed: null,
-      hold: false, ten: 0, slack: 0, tick: 0, lt: 0, perfect: false, rings: [], bag: {}, why: "", end: false, aim: { x: 150, y: SURF + 90 }, kb: false };
+      hold: false, ten: 0, slack: 0, tick: 0, lt: 0, perfect: false, red: false, perfects: 0, cool: 0, rings: [], bag: {}, why: "", end: false, aim: { x: 150, y: SURF + 90 }, kb: false };
     if (p.fishing) { table = {}; p.fishing.all.forEach((f) => { if (f.w > 0) table[f.kind] = f.w; }); }
     last = null; sedge = ""; keeps = 0; kept = null;
     for (let i = 0; i < SCHOOL; i++) spawn(false);
@@ -267,7 +269,7 @@ export const fish = {
   report() {
     const fish = {};
     KINDS.forEach((k) => { if (G && G.bag[k.k]) fish[k.k] = G.bag[k.k]; });
-    return { fish };
+    return { fish, counts: { perfect: G ? G.perfects : 0, cool: G ? G.cool : 0 } };
   },
 
   result(d) {

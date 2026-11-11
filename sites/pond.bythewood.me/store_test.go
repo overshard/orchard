@@ -247,7 +247,7 @@ func TestDivePaysToTheCap(t *testing.T) {
 	total := 0
 	for i, want := range []int{20, 20, 20, 5, 5} {
 		d := dive(t, s, clock, id, 10)
-		if d.Paid != want {
+		if d.Paid-len(d.Aims)*aimPebbles != want {
 			t.Errorf("run %d paid %d, want %d", i+1, d.Paid, want)
 		}
 		total += d.Paid
@@ -259,9 +259,10 @@ func TestDivePaysToTheCap(t *testing.T) {
 		t.Errorf("a day of diving paid %d, want the cap of %d", total, diveCap)
 	}
 	*clock = clock.Add(24 * time.Hour)
-	// A day off is a rest, so the first run back is sixty and a quarter more.
-	if d := dive(t, s, clock, id, 30); d.Paid != 75 || d.Rested != 15 {
-		t.Errorf("the first run of the next day paid %d, want 75", d.Paid)
+	// A day off is a rest, so the first run back is sixty and a quarter more,
+	// and so is any goal it met.
+	if d := dive(t, s, clock, id, 30); d.Paid != 75+len(d.Aims)*aimPebbles*5/4 || d.Rested != (60+len(d.Aims)*aimPebbles)/4 {
+		t.Errorf("the first run of the next day paid %d with %d goals, want 75 and theirs", d.Paid, len(d.Aims))
 	}
 }
 
@@ -490,6 +491,9 @@ func TestNinetyDaysDoNotRunAway(t *testing.T) {
 		for range 4 {
 			dive(t, s, clock, id, 12+day%9)
 		}
+		for _, k := range []int{day, day + 5, day + 9} {
+			playForAims(t, s, clock, id, aimedGames[k%len(aimedGames)])
+		}
 		playMarket(t, s, id)
 		after, _ := s.view(id)
 		minted += after.Pebbles - before.Pebbles
@@ -523,6 +527,44 @@ func TestNinetyDaysDoNotRunAway(t *testing.T) {
 	if v.Pebbles > 2*perDay+boxCost {
 		t.Errorf("the purse is at %d after 90 days with boxes to spend it on", v.Pebbles)
 	}
+}
+
+// The side games that take their goals' counts from the page.
+var aimedGames = []string{"flick", "cross", "raft", "leap", "school", "stack", "shell", "skip", "drop", "chorus", "putt", "jar"}
+
+// playForAims plays one run of a game that meets both its goals for the day
+// with the least score that can.
+func playForAims(t *testing.T, s *store, clock *time.Time, id int64, game string) *arcadeDone {
+	t.Helper()
+	g, _ := arcadeOf(game)
+	counts, score := map[string]int{}, 0
+	for _, a := range aimsOf(dayOf(*clock), game) {
+		for k, n := range a.need {
+			counts[k] = max(counts[k], n)
+		}
+		for _, k := range a.none {
+			counts[k] = 0
+		}
+		score = max(score, a.score)
+	}
+	least := 0
+	for k, n := range counts {
+		least += n * aimWorth[game][k]
+	}
+	score = min(g.most, max(score, least))
+	st, err := s.arcadeStart(id, game)
+	if err != nil {
+		t.Fatal(err)
+	}
+	*clock = clock.Add(time.Duration(float64(score)/g.rate+2) * time.Second)
+	d, err := s.arcadeFinish(id, game, st.Run, score, nil, counts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(d.Aims) != len(aimsOf(dayOf(*clock), game)) {
+		t.Fatalf("%s met %v with %v at %d", game, d.Aims, counts, score)
+	}
+	return d
 }
 
 // playMarket locks the day's prices, collects dividends, sells anything
