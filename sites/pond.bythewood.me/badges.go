@@ -28,6 +28,8 @@ type tally struct {
 	days, sites, key              int
 	// The best go at bug sweep in pads and the best round of pebble drop.
 	swept, dropped int
+	// Crickets and fireflies brought in at work, and targets at full mastery.
+	crickets, fireflies, mastered int
 }
 
 var stageRank = map[string]int{"egg": 0, "tadpole": 1, "froglet": 2, "frog": 3, "elder": 4}
@@ -66,6 +68,17 @@ func tallyOf(v *view, p *pond) *tally {
 		}
 		for _, l := range f.Work.Levels {
 			t.jobBest = max(t.jobBest, l.Level)
+		}
+		for _, m := range f.Work.Targets {
+			j, _ := jobOf(m.Job)
+			tg, _ := j.target(m.Target)
+			switch tg.kind {
+			case "cricket":
+				t.crickets += m.Got
+			case "firefly":
+				t.fireflies += m.Got
+			}
+			t.mastered += one(m.Level == masteryTop)
 		}
 	}
 	for _, h := range v.Hoods {
@@ -159,6 +172,9 @@ var badges = []badge{
 	{"key", "Key kept safe", "Save your pond key", "key", upTo(func(t *tally) int { return t.key }, 1)},
 	{"sweep_clear", "Clean sweep", "Clear a grid in bug sweep", "sweep", upTo(func(t *tally) int { return t.swept / bugSafe }, 1)},
 	{"drop_five", "Five in the middle", "Land all five pebbles in the middle pot", "drop", upTo(func(t *tally) int { return t.dropped / dropMost }, 1)},
+	{"crickets_100", "A hundred crickets", "Catch a hundred crickets at work", "job", upTo(func(t *tally) int { return t.crickets }, 100)},
+	{"first_firefly", "First firefly", "Catch a firefly at work", "job", upTo(func(t *tally) int { return t.fireflies }, 1)},
+	{"mastered", "Mastered", "Get a target to mastery 10", "job", upTo(func(t *tally) int { return t.mastered }, 1)},
 }
 
 type badgeView struct {

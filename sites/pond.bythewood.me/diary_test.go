@@ -259,6 +259,22 @@ func TestTheDiaryWritesWhatHappened(t *testing.T) {
 	if l := next(); kindOf(l) != "memento" || !strings.Contains(l, "Bramble") || !strings.Contains(l, "old trowel") {
 		t.Errorf("after a memento: %s", l)
 	}
+
+	v, _ := s.view(id)
+	if _, err := s.setJob(id, v.Frogs[0].ID, "sticks", ""); err != nil {
+		t.Fatal(err)
+	}
+	*clock = clock.Add(3 * time.Hour)
+	if _, err := s.collectJobs(id); err != nil {
+		t.Fatal(err)
+	}
+	if l := next(); kindOf(l) != "firstgo" || !strings.Contains(l, "twigs") {
+		t.Errorf("after the first twigs: %s", l)
+	}
+	exec(t, s, `UPDATE mastery SET top_day = ? WHERE pond_id = ?`, dayOf(*clock), id)
+	if l := next(); kindOf(l) != "mastered" || !strings.Contains(l, "twigs") {
+		t.Errorf("after mastering twigs: %s", l)
+	}
 }
 
 func TestTheDiaryDoesntRepeatInAWeek(t *testing.T) {
@@ -290,7 +306,7 @@ var unkind = regexp.MustCompile(`(?i)\b(sad|hungry|starv\w*|cross|angry|lonely|a
 func TestTheDiaryPoolsAreKind(t *testing.T) {
 	slots := regexp.MustCompile(`\{[a-z_]+\}`)
 	allowed := map[string][]string{"grew": {"{a_stage}"}, "fish": {"{score}"}, "record": {"{game}", "{score}"}, "hat": {"{hat}"}, "friend": {"{who}"}, "keepsake": {"{keepsake}"}, "memento": {"{who}", "{thing}"}, "set": {"{set}", "{thing}"}, "pin": {"{badge}"},
-		"biggest": {"{a_fish}", "{fish}", "{who}"}, "catch": {"{a_fish}", "{fish}"}}
+		"biggest": {"{a_fish}", "{fish}", "{who}"}, "catch": {"{a_fish}", "{fish}"}, "firstgo": {"{target}"}, "mastered": {"{target}"}}
 	for kind, pool := range diaryLines {
 		for _, nature := range natures {
 			if n := len(pool.any) + len(pool.by[nature]); n < 3 {
