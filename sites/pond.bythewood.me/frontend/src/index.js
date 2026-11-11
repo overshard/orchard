@@ -28,7 +28,10 @@ import { initSettings } from "./settings.js";
 const VIEWS = ["pond", "play", "dive", "cross", "flick", "raft", "leap", "school", "fish", "stack", "shell", "skip", "wheel", "bag", "collect", "reeds", "garden", "bank", "town", "settings"];
 // Places that open from another light that one's key.
 const WORKS = ["reeds", "garden", "bank"];
-const TAB_OF = { reeds: "works", garden: "works", bank: "works", collect: "bag", dive: "play", wheel: "play", cross: "play", flick: "play", raft: "play", leap: "play", school: "play", fish: "play", stack: "play", shell: "play", skip: "play" };
+const TOWN = ["neighbours", "shops", "stall", "wizard"];
+// The key in town a waiting thing is behind, by its kind.
+const TOWN_KEY = { stall: "stall", favour: "neighbours", gift: "neighbours" };
+const TAB_OF = { neighbours: "town", shops: "town", stall: "town", wizard: "town", market: "works", reeds: "works", garden: "works", bank: "works", collect: "bag", dive: "play", wheel: "play", cross: "play", flick: "play", raft: "play", leap: "play", school: "play", fish: "play", stack: "play", shell: "play", skip: "play" };
 let view = "pond", fetchedAt = Date.now(), worksAt = "", waitingAt = new Set();
 // What the server last said is open, kept so the keys are right before the
 // pond has loaded. A browser with nothing kept is most likely a new egg.
@@ -71,8 +74,8 @@ function show(next) {
   // case the pond loads and says it's open after all.
   wanted = "";
   if (!isOpen(next)) { wanted = next; next = "pond"; history.replaceState(null, "", location.pathname); }
-  const market = next === "market";
-  next = placeOf(market ? "bank" : next);
+  const market = next === "market", key = TOWN.includes(next) ? next : "";
+  next = placeOf(market ? "bank" : key ? "town" : next);
   if (!VIEWS.includes(next)) next = "pond";
   if (market) bankTab("market");
   if (WORKS.includes(next)) worksAt = next;
@@ -96,7 +99,7 @@ function show(next) {
   if (next === "wheel") enterWheel();
   if (next === "play") drawPlay();
   if (next === "garden") enterBank(); else leaveBank();
-  if (next === "town") enterTown(); else leaveTown();
+  if (next === "town") enterTown(key); else leaveTown();
   freshen();
   // A view's name is also the id of its canvas, and the browser scrolls to
   // that when the address changes, a frame after this runs.
@@ -462,9 +465,8 @@ function renderPond(p) {
   });
   $("today-head").hidden = today.hidden = lines.length === 0;
   renderPaper(p.gazette);
-  renderTodo(p);
+  renderNext(p);
   renderWorks(p);
-  renderStarter(p);
   renderPlay(p);
 }
 
@@ -526,37 +528,6 @@ $("gazette").addEventListener("click", () => {
   openSheet({ bare: true, name: "The Pond Gazette" }, "", (body) => body.append(paper(p.gazette, p.neighbours)));
 });
 
-// The server decides what's worth doing, and the gravel bar and rent count up
-// here between fetches, so a chip can appear or grow before the next one.
-// A new pond's first day, each step a lit LED once done and the prize at the end.
-function renderStarter(p) {
-  const st = p.starter;
-  $("starter").hidden = !st;
-  if (!st) return;
-  const list = $("starter-steps");
-  list.textContent = "";
-  p.goals.filter((s) => s.first).forEach((s) => {
-    const li = document.createElement("li"), a = document.createElement("a");
-    li.className = s.done ? "done" : "";
-    a.href = s.to === "key" ? "/key" : "#" + s.to;
-    a.textContent = s.label;
-    li.append(a);
-    list.append(li);
-  });
-  const claim = $("starter-claim");
-  claim.hidden = !st.ready;
-  claim.textContent = "Claim " + st.prize + " pebbles";
-}
-
-$("starter-claim").addEventListener("click", () => {
-  $("starter-claim").disabled = true;
-  const prize = state.pond.starter.prize;
-  post("/api/starter").then((v) => {
-    setPond(v);
-    reveal({ kick: "First day done", art: thingArt({ kind: "peb" }, 8), name: "+" + prize + " pebbles", line: "That's the pond. It keeps going while you're away." });
-  }, () => {}).then(() => { $("starter-claim").disabled = false; });
-});
-
 // The picture over Works lights a window for each kind of thing that's ready.
 function renderWorks(p) {
   const ready = new Set(p.todo.map((t) => t.kind));
@@ -571,46 +542,65 @@ $("works-art").addEventListener("click", (e) => {
   location.hash = "#" + (k < 0.2 ? "reeds" : k < 0.41 ? "garden" : "bank");
 });
 
-let allChips = false;
+let allRows = false;
 
-function renderTodo(p) {
+function claimRow(st) {
+  const b = el("button", "nrow primary", "Claim " + st.prize + " pebbles");
+  b.type = "button";
+  b.addEventListener("click", () => {
+    b.disabled = true;
+    post("/api/starter").then((v) => {
+      setPond(v);
+      reveal({ kick: "First day done", art: thingArt({ kind: "peb" }, 8), name: "+" + st.prize + " pebbles", line: "That's the pond. It keeps going while you're away." });
+    }, () => { b.disabled = false; });
+  });
+  return b;
+}
+
+function nextRow(r) {
+  const a = el("a", "nrow" + (r.goal ? " goal" : "") + (r.done ? " done" : ""));
+  a.href = r.to === "key" ? "/key" : "#" + ((r.to === "town" && TOWN_KEY[r.kind]) || r.to);
+  a.append(iconCanvas(r.icon, 2), el("span", "nrow-what", r.label));
+  if (r.count) a.append(el("span", "nrow-n", r.count));
+  return a;
+}
+
+// The Next strip is what's waiting in amber and then goals in green, three
+// rows and a key for the rest. The server decides both lists, and the gravel
+// bar and rent count up here between fetches.
+function renderNext(p) {
   const live = { gravel: [heldNow(p.bank.gravel), " on the gravel bar"], rent: [heldNow(p.bank.burrows), " in rent"] };
-  const counts = Object.values(live).filter(([n]) => n >= 1).map(([n, what]) => ["peb", n + what, "bank"]);
+  const counts = Object.entries(live).filter(([, [n]]) => n >= 1).map(([kind, [n, what]]) => ({ kind, icon: "peb", label: n + what, to: "bank" }));
   // A suggestion to save up only stands when nothing else is waiting.
-  const rest = p.todo.filter((t) => !live[t.kind] && !(counts.length && t.kind === "save"));
-  const todo = counts.concat(rest.map((t) => [t.icon, t.label, t.to]));
+  const todo = counts.concat(p.todo.filter((t) => !live[t.kind] && !(counts.length && t.kind === "save")));
 
-  waitingAt = new Set(todo.map(([, , to]) => to));
+  waitingAt = new Set(todo.map((t) => t.to));
   const waiting = new Set([...waitingAt].map((to) => TAB_OF[to] || to));
   document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("wait", waiting.has(b.dataset.view)));
   document.querySelectorAll("#works-tabs button").forEach((b) => b.classList.toggle("wait", waitingAt.has(b.dataset.go)));
 
-  const box = $("todo");
+  // A goal stands in for the waiting row that says the same thing.
+  const goals = p.goals.map((g) => ({ ...g, goal: true })), ready = p.starter && p.starter.ready;
+  const said = (t) => goals.some((g) => !g.done && (g.kind === t.kind || g.label === t.label));
+  const first = ready ? [] : goals.filter((g) => g.first);
+  const rows = first.filter((g) => !g.done).concat(first.filter((g) => g.done), todo.filter((t) => !said(t)), goals.filter((g) => !g.first));
+
+  const box = $("nextup");
   box.textContent = "";
-  const shown = allChips || todo.length <= 4 ? todo : todo.slice(0, 3);
-  shown.forEach(([icon, label, to]) => {
-    const a = document.createElement("a");
-    a.href = "#" + to; a.className = "chip";
-    a.append(iconCanvas(icon, 2), label);
-    box.append(a);
-  });
-  if (shown.length < todo.length) {
-    const more = document.createElement("button");
-    more.type = "button"; more.className = "chip more";
-    more.textContent = "+" + (todo.length - shown.length) + " more";
-    more.addEventListener("click", () => { allChips = true; renderTodo(state.pond); });
+  if (ready) box.append(claimRow(p.starter));
+  const room = ready ? 2 : 3, shown = allRows || rows.length <= room ? rows : rows.slice(0, room);
+  shown.forEach((r) => box.append(nextRow(r)));
+  if (shown.length < rows.length) {
+    const more = el("button", "nrow more", "+" + (rows.length - shown.length) + " more");
+    more.type = "button";
+    more.addEventListener("click", () => { allRows = true; renderNext(state.pond); });
     box.append(more);
   }
-  if (!todo.length) {
-    const s = document.createElement("p");
-    s.className = "dim";
-    s.textContent = "That's everything for today. The bank and the garden keep going while you're away.";
-    box.append(s);
-  }
+  if (!rows.length && !ready) box.append(el("p", "dim", "That's everything for today. The pond keeps going while you're away."));
 }
 setInterval(() => {
   if (!state.pond || document.hidden) return;
-  renderTodo(state.pond);
+  renderNext(state.pond);
   renderWorks(state.pond);
 }, 20000);
 
