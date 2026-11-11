@@ -1,6 +1,9 @@
 import { $, post, state, setPond, watch, titled } from "./api.js";
 import { genome, bred, cells, colours, draw, W, H } from "./frog.js";
 import { soundOn, setSound, sfx } from "./sound.js";
+import { dishCanvas } from "./icons.js";
+import { hatTile } from "./hats.js";
+import { slot } from "./ui.js";
 
 let which = 0, offers = [];
 
@@ -40,6 +43,16 @@ function render(p) {
     });
     picks.append(b);
   });
+
+  const favs = $("frog-favs");
+  favs.textContent = "";
+  favs.hidden = !f.fav;
+  $("frog-favs-none").hidden = !!f.fav;
+  if (f.fav) {
+    const full = f.fed && f.fed.fav ? "Full of it now" : "Full half as long again";
+    favs.append(slot(dishCanvas(f.fav.dish, 4), { tier: f.fav.dish.tier, name: f.fav.dish.name, sub: full }),
+      slot(hatTile(f.fav.hat, true), { tier: f.fav.hat_tier, name: f.fav.hat_name, sub: f.hat.shape === f.fav.hat.shape && f.hat.colour === f.fav.hat.colour ? "Wearing it now" : "" }));
+  }
 
   $("days-n").textContent = p.visited.toLocaleString("en-US");
   const mark = [7, 30, 100, 365].find((n) => n > p.visited);

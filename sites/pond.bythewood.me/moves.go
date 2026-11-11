@@ -35,10 +35,26 @@ func (s *store) greet(id int64, first bool) (*greeting, error) {
 		stage, _ := stageOf(now.Sub(hatched))
 		away := now.Sub(time.Unix(p.LastSeenAt, 0))
 
+		frogs, err := loadFrogs(tx, p.ID)
+		if err != nil {
+			return err
+		}
 		// A day at the pond counts once, and a day missed takes nothing back.
 		if today := dayOf(now); p.VisitDay != today {
 			p.VisitDay = today
 			p.DaysVisited++
+			for _, f := range frogs {
+				// A hood or a site hat isn't one a favourite can be.
+				if !f.Hat.valid() {
+					continue
+				}
+				if err := noteTaste(tx, f.ID, hatKind(f.Hat)); err != nil {
+					return err
+				}
+			}
+		}
+		if err := settleFavourites(tx, frogs, now); err != nil {
+			return err
 		}
 		kept, err := stampKeepsakes(tx, p.ID, p.DaysVisited, s.day.reading(now), now)
 		if err != nil {
@@ -57,7 +73,16 @@ func (s *store) greet(id int64, first bool) (*greeting, error) {
 		}
 
 		g.Line = greetLine(gen, stage, away)
-		if stage != "egg" {
+		fav := ""
+		for _, f := range frogs {
+			if f.Front {
+				fav = favLine(f, p.ID, dayOf(now), now)
+			}
+		}
+		if fav != "" {
+			// A favourite takes the day's turn in the bubble, so it stays short.
+			g.Line += " " + fav
+		} else if stage != "egg" {
 			r := s.day.reading(now)
 			if l := moodLine(r, dayOfReading(r, now).Mood, p.Seed, gen.Nature, dayOf(now)); l != "" {
 				g.Line += " " + l
@@ -72,10 +97,6 @@ func (s *store) greet(id int64, first bool) (*greeting, error) {
 		}
 		if was, _ := stageOf(time.Unix(p.LastSeenAt, 0).Sub(hatched)); was != stage && away > 0 {
 			g.Missed = append(g.Missed, [2]string{"Grew", "from " + was + " to " + stage})
-		}
-		frogs, err := loadFrogs(tx, p.ID)
-		if err != nil {
-			return err
 		}
 		for _, f := range frogs {
 			if f.Front {
