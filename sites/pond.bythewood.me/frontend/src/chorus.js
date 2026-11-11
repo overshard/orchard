@@ -5,8 +5,8 @@ import { feel } from "./feel.js";
 // Chorus. Four frogs on a log sing a few bars through once, then twice more
 // with the player's frog left to tap its own part. The song keeps time off the
 // audio clock, and the lamps under the log keep the same time with sound off.
-const W = 200, H = 300, STEPS = 8, ROUNDS = 10, LIVES = 3, REGROW = 12;
-const PERFECT = 0.05, GOOD = 0.12, NEAR = 0.25, LEAD = 1.2, AHEAD = 0.12;
+const W = 200, H = 300, STEPS = 8, ROUNDS = 10, LIVES = 5, REGROW = 8;
+const PERFECT = 0.06, GOOD = 0.15, NEAR = 0.25, LEAD = 1.2, AHEAD = 0.12;
 const LOG = 150, SEATS = [6, 54, 102, 150], ME = 3, PITCH = [131, 196, 262, 392];
 const SEEDS = [5021, 77, 31337], GX = 34, GY = 200, CW = 19, RH = 17;
 const FONT = "700 13px 'Space Grotesk', sans-serif";
@@ -36,7 +36,7 @@ function song() {
   const bars = [], targets = [], notes = [];
   let t = LEAD;
   for (let r = 0; r < ROUNDS; r++) {
-    const step = 30 / (88 + r * 4), n = 1 + Math.floor(r / 4), parts = [];
+    const step = 30 / (76 + r * 3), n = 1 + Math.floor(r / 4), parts = [];
     for (let b = 0; b < n; b++) parts.push(bar(r));
     ["listen", "play", "play"].forEach((phase) => parts.forEach((p, b) => {
       bars.push({ t, step, r, phase, b, n, p });
