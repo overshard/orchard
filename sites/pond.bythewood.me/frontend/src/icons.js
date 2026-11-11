@@ -108,6 +108,8 @@ export const ICONS = {
   i_stall: [["abababab", "abababab", "c......c", "c..dd..c", "eeeeeeee", "effffffe", "e......e", "e......e"], { a: "#e2567a", b: "#fff6dc", c: "#8a5a2b", d: "#56b45f", e: "#c9974f", f: "#8a5a2b" }],
   i_wizard: [["....a...", "...aa...", "...aba..", "..aaaa..", "..abaa..", ".aaaaab.", "cccccccc", "........"], { a: "#8a5ccf", b: "#ffe27a", c: "#4a2f78" }],
   i_market: [["aaaaaaaa", "abbbbbca", "abbbbcba", "abbcbcba", "abcbcbba", "acbbbbba", "abbbbbba", "aaaaaaaa"], { a: "#5b534a", b: "#0b1006", c: "#7fd67f" }],
+  smallfry: [["........", ".aab.a..", "aaaaaa..", ".aab.a..", "........", "..aab.a.", ".aaaaaa.", "..aab.a."], { a: "#9fb7c0", b: "#dfe9ec" }],
+  fillet: [["........", "..aaaa..", ".abbbba.", "abbcbbba", "abbbcbba", ".abbbba.", "..aaaa..", "........"], { a: "#c9744f", b: "#f2b8a0", c: "#fff6dc" }],
   i_fish: [["........", "a....bb.", "aa.bbbbb", "aabbbbcb", "aabddddb", "aa.dddd.", "a....d..", "........"], { a: "#d2553a", b: "#c9b04a", c: "#0a0908", d: "#efe2a0" }],
   i_gear: [["...aa...", ".a.aa.a.", "..aaaa..", "aaa..aaa", "aaa..aaa", "..aaaa..", ".a.aa.a.", "...aa..."], { a: "#ffb000" }],
 };

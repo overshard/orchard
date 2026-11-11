@@ -47,7 +47,7 @@ func TestAFavouriteComesOffTheSeedWithNothingElse(t *testing.T) {
 		t.Fatalf("favourites %q and %q, want the seed's %q and %q", f.FavDish, f.FavHat, seedDish(f.Seed), seedHat(f.Seed))
 	}
 	d, _ := dishOfKind(f.FavDish)
-	if ingredients[d.a].trinket || ingredients[d.b].trinket {
+	if !ingredients[d.a].grows() || !ingredients[d.b].grows() {
 		t.Errorf("%s can't be cooked out of a garden", d.name)
 	}
 	if h, _ := hatOfKind(f.FavHat); !h.valid() || h.tier() > 2 {

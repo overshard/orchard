@@ -105,6 +105,10 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   Sedge. A pond holds one when its best is over it, so nothing more is
   stored, and the day it's beaten goes in `records` as `rec_<kind>` for the
   paper and the diary.
+  One fish a round can be kept for the kitchen with `POST /api/fish/keep`,
+  three a day, and it turns into small fry or a fish fillet. Both are on the
+  end of `ingredients` with a `fish` flag, so they never grow, sell at the
+  larder, go on the stall or to the wizard.
 - `bond.go` is petting. A rub of the frog out front is `POST /api/frogs/pet`,
   which adds to that frog's bond up to a day's worth and never takes any
   away. A heart is a hundred points, and each frog has a favourite spot off
@@ -199,6 +203,10 @@ they have none, for other sites to draw.
   plot is sown at a reading of that clock, so nothing walks every garden.
 - A dish's kind is `dish_<a>_<b>` by position in `ingredients`, so a new
   ingredient only ever goes on the end of that list.
+- A round of fishing can be played all day, so the fish kept off it are
+  capped at three a day and a fish dish only gets a better tier for two
+  fish. A test holds what a day's kept fish cook into under half of
+  fishing's cap, so run it after naming a fish dish or changing the keeps.
 - Big Bean's prices have to stay above what a dish sells for, sale or not, or
   buying and cooking mints pebbles. A test holds it, so run it after touching
   a price.

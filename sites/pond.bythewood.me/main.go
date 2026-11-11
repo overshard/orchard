@@ -212,6 +212,7 @@ func (s *site) handler() http.Handler {
 	mux.HandleFunc("POST /api/dive/finish", s.played(s.apiDiveFinish))
 	mux.HandleFunc("POST /api/arcade/start", s.played(s.apiArcadeStart))
 	mux.HandleFunc("POST /api/arcade/finish", s.played(s.apiArcadeFinish))
+	mux.HandleFunc("POST /api/fish/keep", s.played(s.apiFishKeep))
 	mux.HandleFunc("POST /api/wheel/spin", s.played(s.apiSpin))
 	mux.HandleFunc("POST /api/log", s.played(s.apiLog))
 	mux.HandleFunc("POST /api/starter", s.played(s.apiStarter))

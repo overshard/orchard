@@ -236,7 +236,7 @@ func TestStallSellsUnderTheShops(t *testing.T) {
 		}
 	}
 	for _, in := range ingredients {
-		if in.trinket {
+		if !in.grows() {
 			continue
 		}
 		if w, _ := worthOf(in.kind); w >= salePrice(larderPrice[in.tier]) {

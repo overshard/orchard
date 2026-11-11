@@ -654,6 +654,11 @@ version of the old look and a handheld pet shell.
   over an amber AGAIN key, sat a third of the way down so the crash still
   shows under it, and one tap is the next run. A new best or a place on Dive's
   podium gets the whole results.
+- **A round of fishing ends on its catch**, a slot a kind with the biggest
+  one's length, and a new fish or a pond record gets the whole results. While
+  there are keeps left today the slots are keys, and a tap on one keeps that
+  fish for the kitchen. The short card has the same fish as small slots over
+  AGAIN, so a round that keeps nothing is still one tap from the next.
 - **A game's first open has a ghost finger and no title.** A cream pixel hand
   does the game's first input over the field, a tap, a hold or a drag, until
   the player has done it once. It shows once a browser.

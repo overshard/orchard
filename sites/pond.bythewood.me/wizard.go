@@ -47,7 +47,7 @@ func wizardTier(kind string) (int, bool) {
 		return t.tier, true
 	}
 	if i, ok := ingredientOf(kind); ok {
-		return ingredients[i].tier, true
+		return ingredients[i].tier, !ingredients[i].fish
 	}
 	if d, ok := dishOfKind(kind); ok {
 		return d.tier, true
@@ -92,7 +92,7 @@ var wizardPool = func() [tierCount][][]string {
 		tk[t.tier] = append(tk[t.tier], t.kind)
 	}
 	for _, in := range ingredients {
-		if !in.trinket {
+		if in.grows() {
 			ik[in.tier] = append(ik[in.tier], in.kind)
 		}
 	}

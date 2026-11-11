@@ -47,7 +47,7 @@ func worthOf(kind string) (int, bool) {
 		return dishWorth[d.tier], true
 	}
 	if i, ok := ingredientOf(kind); ok {
-		return foodWorth[ingredients[i].tier], true
+		return foodWorth[ingredients[i].tier], !ingredients[i].fish
 	}
 	if t, ok := benchTier[kind]; ok {
 		return benchWorth[t], true
@@ -93,7 +93,7 @@ func shopFloor(kind string) (int, bool) {
 	case strings.HasPrefix(kind, "drops_"):
 		return dropsPrice, true
 	}
-	if i, ok := ingredientOf(kind); ok && !ingredients[i].trinket {
+	if i, ok := ingredientOf(kind); ok && ingredients[i].grows() {
 		return salePrice(larderPrice[ingredients[i].tier]), true
 	}
 	return 0, false
@@ -240,6 +240,11 @@ func sortOf(kind string) string {
 func bagOf(held map[string]int, hats []hatView, hoods []hoodView, listed map[string]int, now time.Time) []bagThing {
 	out := []bagThing{}
 	add := func(kind string, n int, h *hat) {
+		// A kept fish is in the bag to be cooked and has nothing free to sell.
+		if i, ok := ingredientOf(kind); ok && ingredients[i].fish && n > 0 {
+			out = append(out, bagThing{Kind: kind, Name: ingredients[i].name, Sort: "food", Count: n})
+			return
+		}
 		t, _ := wizardTier(kind)
 		w, ok := worthOf(kind)
 		if !ok || n <= 0 {

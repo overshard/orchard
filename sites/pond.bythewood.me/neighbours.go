@@ -44,6 +44,18 @@ var shopkeepers = map[string]string{
 
 func (r resident) favDish() dish { return dishOf(r.fav[0], r.fav[1]) }
 
+// A few of them like a fish dish nearly as much, which counts double.
+var alsoLikes = map[string][2]int{
+	"Sedge":    {12, 12},
+	"Big Bean": {11, 12},
+	"Moth":     {11, 11},
+}
+
+func (r resident) alsoDish() (dish, bool) {
+	a, ok := alsoLikes[r.name]
+	return dishOf(a[0], a[1]), ok
+}
+
 // residentNamed is -1 for a name that isn't a resident's, like the rolled
 // names stalls sold to before the residents did the buying.
 func residentNamed(name string) int {
@@ -209,6 +221,9 @@ func (s *store) gift(id int64, who int, kind string) (*befriended, error) {
 		if d == r.favDish() {
 			pts *= 3
 			out.Line = r.name + " loves it. That's its favourite."
+		} else if also, ok := r.alsoDish(); ok && d == also {
+			pts *= 2
+			out.Line = r.name + " is very pleased. It likes that nearly best of all."
 		} else {
 			out.Line = r.name + " says thank you, and eats it on the spot."
 		}
@@ -270,8 +285,12 @@ type neighbourView struct {
 	To     int    `json:"to"`
 	Fav    string `json:"fav"`
 	// Its favourite's two ingredients, once it's friendly enough to say.
-	FavA   string `json:"fav_a,omitempty"`
-	FavB   string `json:"fav_b,omitempty"`
+	FavA string `json:"fav_a,omitempty"`
+	FavB string `json:"fav_b,omitempty"`
+	// A fish dish it likes nearly as much, for the few that have one.
+	Also   string `json:"also,omitempty"`
+	AlsoA  string `json:"also_a,omitempty"`
+	AlsoB  string `json:"also_b,omitempty"`
 	Gave   bool   `json:"gave"`
 	Lodger bool   `json:"lodger"`
 	Firm   string `json:"firm"`
@@ -316,8 +335,15 @@ func neighboursOf(q querier, id int64, now time.Time) (neighboursView, error) {
 		nv := neighbourView{ID: i, Name: r.name, Seed: r.seed, Hat: hat{Shape: r.hat}, Level: l, Title: friendNames[l],
 			Points: f.points, From: friendAt[l], To: friendAt[min(l+1, len(friendAt)-1)], Fav: d.name, Shop: shopkeepers[r.name], Gave: f.giftDay == today,
 			Lodger: b.lodging(i)}
+		also, hasAlso := r.alsoDish()
+		if hasAlso {
+			nv.Also = also.name
+		}
 		if l >= recipeAt {
 			nv.FavA, nv.FavB = ingredients[d.a].kind, ingredients[d.b].kind
+			if hasAlso {
+				nv.AlsoA, nv.AlsoB = ingredients[also.a].kind, ingredients[also.b].kind
+			}
 		}
 		v.All = append(v.All, nv)
 	}

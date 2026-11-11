@@ -158,7 +158,7 @@ function render(p) {
   picked = picked.filter((kind) => k.ingredients.some((i) => i.kind === kind && i.count > 0));
   if (picked.length === 2 && picked[0] === picked[1] && k.ingredients.find((i) => i.kind === picked[0]).count < 2) picked.pop();
   larder.textContent = "";
-  k.ingredients.filter((it) => !it.trinket || it.count > 0).forEach((it) => {
+  k.ingredients.filter((it) => (!it.trinket && !it.fish) || it.count > 0).forEach((it) => {
     const btn = document.createElement("button"), name = document.createElement("span"), n = document.createElement("span");
     btn.type = "button"; btn.dataset.kind = it.kind;
     const times = picked.filter((x) => x === it.kind).length;
@@ -172,6 +172,7 @@ function render(p) {
     dot.className = "season" + (it.season ? " on" : "");
     dot.title = it.season ? "In season" : "Not in season";
     dot.setAttribute("aria-label", dot.title);
+    dot.hidden = !!it.fish;
     btn.append(iconCanvas(it.kind, 2), name, dot, n);
     larder.append(btn);
   });

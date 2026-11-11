@@ -3440,6 +3440,10 @@ button.big {
   color: var(--amber);
 }
 
+.fishrow button {
+  pointer-events: auto;
+}
+
 .fishrow.small {
   grid-template-columns: repeat(auto-fit, 44px);
   justify-content: center;

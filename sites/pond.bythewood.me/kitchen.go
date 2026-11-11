@@ -16,21 +16,29 @@ type ingredient struct {
 	bug  bool
 	// A trinket that can go in the pot. It never grows or sells at the larder.
 	trinket bool
+	// A fish kept from a round of fishing, which is the only place one comes
+	// from. It can't go on the stall or to the wizard either.
+	fish bool
 }
+
+// grows says a plot can turn it up and the larder can sell it.
+func (g ingredient) grows() bool { return !g.trinket && !g.fish }
 
 // The order is part of every dish's kind, so new ones only ever go on the end.
 var ingredients = []ingredient{
-	{"duckweed", "Duckweed", 0, false, false},
-	{"watercress", "Watercress", 0, false, false},
-	{"cricket", "Cricket", 0, true, false},
-	{"mayfly", "Mayfly", 1, true, false},
-	{"lotus", "Lotus seed", 1, false, false},
-	{"marigold", "Marsh marigold", 1, false, false},
-	{"firefly", "Firefly", 2, true, false},
-	{"morel", "Morel", 2, false, false},
-	{"t_button", "Button mushroom", 0, false, true},
-	{"t_chanterelle", "Chanterelle", 1, false, true},
-	{"t_goldmorel", "Golden morel", 4, false, true},
+	{"duckweed", "Duckweed", 0, false, false, false},
+	{"watercress", "Watercress", 0, false, false, false},
+	{"cricket", "Cricket", 0, true, false, false},
+	{"mayfly", "Mayfly", 1, true, false, false},
+	{"lotus", "Lotus seed", 1, false, false, false},
+	{"marigold", "Marsh marigold", 1, false, false, false},
+	{"firefly", "Firefly", 2, true, false, false},
+	{"morel", "Morel", 2, false, false, false},
+	{"t_button", "Button mushroom", 0, false, true, false},
+	{"t_chanterelle", "Chanterelle", 1, false, true, false},
+	{"t_goldmorel", "Golden morel", 4, false, true, false},
+	{"smallfry", "Small fry", 0, false, false, true},
+	{"fillet", "Fish fillet", 0, false, false, true},
 }
 
 func ingredientOf(kind string) (int, bool) {
@@ -104,7 +112,8 @@ func rollCrop(now time.Time, rain bool) int {
 // ---------------------------------------------------------------- dishes
 
 // Any two ingredients make a dish, so eight make 36. A few pairs have a name
-// of their own and a better tier.
+// of their own and most of those a better tier. A fish dish only gets one for
+// two fish, so a kept fish is never worth much more than a duckweed.
 var namedDishes = map[[2]int]struct {
 	name string
 	tier int
@@ -120,6 +129,11 @@ var namedDishes = map[[2]int]struct {
 	{7, 10}:  {"Morel king's supper", 4},
 	{10, 10}: {"Golden mushroom pie", 4},
 	{8, 9}:   {"Forest floor soup", 2},
+	{11, 11}: {"Fried whitebait", 0},
+	{12, 12}: {"Fish supper", 1},
+	{11, 12}: {"Fisher's pie", 1},
+	{1, 12}:  {"Fishcakes and cress", 0},
+	{7, 12}:  {"Riverbank pie", 2},
 }
 
 var dishCount = len(ingredients) * (len(ingredients) + 1) / 2
@@ -143,6 +157,7 @@ func dishOf(a, b int) dish {
 	A, B := ingredients[a], ingredients[b]
 	form := "stew"
 	switch {
+	case A.fish || B.fish:
 	case A.bug && B.bug:
 		form = "skewer"
 	case !A.bug && !B.bug && a == b:
