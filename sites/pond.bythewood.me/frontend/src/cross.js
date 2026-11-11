@@ -30,6 +30,9 @@ const WRAP = COLS + 6, CARS = ["#e2412d", "#ffb000", "#3d8fd6", "#e2567a", "#e9e
 
 let G = null, col = null, LANES = {};
 const F = feel();
+// Every ten seconds or so a convoy of three fast tractors runs down one road
+// lane, after its edge has blinked amber for WARN seconds.
+const CONVOY = 10, WARN = 1.3, CONVOY_V = 3.6;
 // A wheel has to be this far into the frog to count, and a log holds a frog
 // hanging this far off its end. NEAR is how close a miss gets a CLOSE.
 const INSIDE = 0.14, HANG = 0.2, NEAR = 0.75;
@@ -100,11 +103,11 @@ export const cross = {
     lay(Math.max(FEWEST, Math.min(MOST, Math.floor(h / (w / COLS)))));
     cross.H = C * ROWS;
   },
-  help: ["SWIPE OR TAP TO HOP", "GET TO THE POND UP TOP", "THREE LIVES, IT SPEEDS UP", "TAP TO START"],
+  help: ["SWIPE OR TAP TO HOP", "GET TO THE POND UP TOP", "THREE LIVES, IT SPEEDS UP", "A BLINKING LANE MEANS TRACTORS", "TAP TO START"],
 
   reset(g, p) {
     col = colours(g, null);
-    G = { score: 0, lives: 3, trip: 0, flash: 0, why: "", t: 0, pebbles: 0, flies: 0, clean: 0 };
+    G = { score: 0, lives: 3, trip: 0, flash: 0, why: "", t: 0, pebbles: 0, flies: 0, clean: 0, convoy: { at: 7 + Math.random() * 2, row: -1 } };
     build(); home(); scatter();
   },
 
@@ -146,12 +149,24 @@ export const cross = {
     const early = G.hop === 0 && F.take();
     if (early) cross.swipe(early);
     G.flash = Math.max(0, G.flash - dt);
-    const fast = 1 + G.trip * 0.12;
+    const fast = 1 + G.trip * 0.12, cv = G.convoy;
+    if (cv.row < 0 && G.t >= cv.at - WARN) {
+      const roads = Object.keys(LANES).map(Number).filter(road);
+      cv.row = roads[Math.floor(Math.random() * roads.length)]; cv.dir = Math.sign(LANES[cv.row].v);
+      sfx("warn"); F.pop(cv.dir > 0 ? 24 : W - 24, cv.row * C + 4, "CONVOY", "#ffb000");
+    }
+    if (cv.row >= 0 && G.t >= cv.at) {
+      const lane = { kind: "tractor", v: cv.dir * CONVOY_V, c: "#e2b23a" };
+      for (let i = 0; i < 3; i++) G.things.push({ row: cv.row, x: cv.dir > 0 ? -3 - i * 3.5 : COLS + 1 + i * 3.5, len: 2, lane, c: lane.c, convoy: true });
+      G.convoy = { at: G.t + CONVOY - 1 + Math.random() * 2, row: -1 };
+    }
     G.things.forEach((t) => {
-      t.x += t.lane.v * fast * dt;
+      t.x += t.lane.v * (t.convoy ? 1 : fast) * dt;
+      if (t.convoy) return;
       if (t.x > WRAP - 3) t.x -= WRAP;
       if (t.x < -3 - t.len + 0) t.x += WRAP;
     });
+    G.things = G.things.filter((t) => !t.convoy || (t.x > -14 && t.x < COLS + 14));
     if (G.lives <= 0 || G.flash > 0.3) return;
     const on = under();
     if (road(G.row) && on) lose("BONK");
@@ -193,6 +208,13 @@ export const cross = {
     if (!G) return;
     if (G.fly >= 0) { x.fillStyle = "#3a3f46"; x.fillRect(G.fly * C + 5, HOME * C + 5, 4, 3); x.fillStyle = "#cfe3ea"; x.fillRect(G.fly * C + 5, HOME * C + 3, 4, 2); }
     if (G.pebble) { x.fillStyle = "#d5d8dc"; x.fillRect(G.pebble.col * C + 4, G.pebble.row * C + 5, 6, 4); x.fillStyle = "#9aa0a6"; x.fillRect(G.pebble.col * C + 6, G.pebble.row * C + 7, 4, 2); }
+    // The lane a convoy is coming down blinks amber at the end it comes from.
+    const cv = G.convoy;
+    if (cv.row >= 0 && Math.floor(G.t * 8) % 2) {
+      const ex = cv.dir > 0 ? 0 : W - 4;
+      x.fillStyle = "rgba(255,176,0,0.16)"; x.fillRect(0, cv.row * C, W, C);
+      x.fillStyle = "#ffb000"; x.fillRect(ex, cv.row * C + 2, 4, C - 4);
+    }
     G.things.forEach((t) => drawThing(x, t));
     if (G.lives > 0 && !(G.flash > 0 && Math.floor(G.flash * 12) % 2)) {
       const fx = Math.round(G.fx * C) + 1, fy = G.row * C + 1 - (G.hop > 0 ? 2 : 0);
