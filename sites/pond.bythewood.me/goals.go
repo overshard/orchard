@@ -66,7 +66,7 @@ func goalsOf(v *view, p *pond) []goal {
 		}
 	}
 	if hands > 0 && working == 0 {
-		add("idle", "sticks", "Put a frog to work", "reeds", "")
+		add("idle", "sticks", "Put a frog to work", "job", "")
 	}
 	if b.Gravel.Level == 0 {
 		add("bar", "i_bank", "Build the gravel bar", "bank", saved(b.Gravel.Cost))

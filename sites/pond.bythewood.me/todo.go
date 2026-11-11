@@ -119,13 +119,18 @@ func todoOf(v *view) []todo {
 			}
 		}
 	}
-	idle := []string{}
+	idle, working := []string{}, 0
 	for _, f := range v.Frogs {
 		if f.Work != nil && f.Work.Job == "" {
 			idle = append(idle, titled(f.Name))
+		} else if f.Work != nil {
+			working++
 		}
 	}
+	// With nobody working the job screen opens on an idle frog, ready to pick.
 	switch {
+	case len(idle) == 1 && working == 0:
+		add("idle", "sticks", "Put "+idle[0]+" to work", "job")
 	case len(idle) == 1:
 		add("idle", "sticks", idle[0]+" has no job", "reeds")
 	case len(idle) > 1:
