@@ -133,6 +133,9 @@ func (s *store) arcadeFinish(id int64, key, run string, score int) (*arcadeDone,
 		r.paid += out.Paid
 		p.Pebbles += out.Paid
 		if score > r.best {
+			if err := noteRecord(tx, p.ID, key, score, r.best, now); err != nil {
+				return err
+			}
 			r.best, out.Best = score, true
 		}
 		return saveArcade(tx, p.ID, key, r)

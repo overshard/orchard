@@ -452,6 +452,11 @@ function renderPaper(g, nb) {
     biz.append(el("b", "", "Business"), " " + g.business);
     paper.append(biz);
   }
+  if (g.records && g.records.length) {
+    const rec = el("p", "paper-biz");
+    rec.append(el("b", "", "Records"), " " + g.records.join(" "));
+    paper.append(rec);
+  }
 }
 
 // The server decides what's worth doing, and the gravel bar and rent count up
