@@ -23,7 +23,7 @@ type arcadeGame struct {
 }
 
 var arcadeGames = []arcadeGame{
-	{"flick", "Tongue flick", 50, 5, 400, 1},
+	{"flick", "Tongue flick", 50, 6, 400, 1},
 	{"cross", "Crossing", 60, 8, 1500, 2},
 	{"raft", "Raft run", 40, 4, 600, 1},
 	{"leap", "Lily leap", 40, 20, 3000, 4},

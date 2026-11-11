@@ -1,9 +1,10 @@
 import { cells, colours, draw, W as FW, H as FH } from "./frog.js";
 import { feel } from "./feel.js";
+import { sfx } from "./sound.js";
 
-// Tongue flick. The frog sits on a pad and bugs cross over it for thirty
-// seconds. A tap shoots the tongue at that spot, a bug near the tip comes
-// back, and a wasp stings and stops the tongue for a moment.
+// Tongue flick. Bugs cross over the frog for thirty seconds, a tap shoots the
+// tongue at that spot and a wasp stings it still for a moment. Every ten
+// seconds or so a golden fly zips across, twinkling at its side first.
 const W = 180, H = 270, ROUND = 30, REACH = 210, OUT = 0.1, BACK = 0.13;
 const KINDS = [
   { k: "fly", pts: 1, w: 52, v: [34, 58], c: "#3a3f46", wing: "#cfe3ea" },
@@ -11,6 +12,9 @@ const KINDS = [
   { k: "firefly", pts: 3, w: 10, v: [40, 56], c: "#ffe27a", wing: "#fff6dc" },
   { k: "wasp", pts: 0, w: 18, v: [44, 70], c: "#f2c230", wing: "#cfe3ea" },
 ];
+const GOLDEN = { k: "golden", pts: 8, w: 0, v: [100, 116], c: "#ffb000", wing: "#fff6dc" };
+// How long the twinkle shows before the golden fly comes, and the gap between them.
+const WARN = 0.9, EVERY = 10;
 
 let G = null, spr = null, col = null;
 const F = feel();
@@ -26,19 +30,24 @@ function spawn() {
   G.bugs.push({ kind, x: right ? W + 12 : -12, y0: 24 + Math.random() * 150, vx: right ? -v : v, amp: 4 + Math.random() * 10, ph: Math.random() * 6, t: 0, y: 0 });
 }
 
+function golden() {
+  const a = G.gold, v = GOLDEN.v[0] + Math.random() * (GOLDEN.v[1] - GOLDEN.v[0]);
+  G.bugs.push({ kind: GOLDEN, x: a.right ? W + 12 : -12, y0: a.y, vx: a.right ? -v : v, amp: 3, ph: 0, t: 0, y: a.y });
+}
+
 function mouth() { return { x: W / 2, y: H - 58 }; }
 
 export const flick = {
   key: "flick", W, H, title: "TONGUE FLICK", feel: F, timed: true,
   aria: "Tap a bug to catch it.",
   edge: ["#24485a", "#0e2c30"],
-  help: ["TAP A BUG TO FLICK AT IT", "FIREFLIES PAY THE MOST", "WASPS STING", "TAP TO START"],
+  help: ["TAP A BUG TO FLICK AT IT", "A GOLDEN FLY PAYS THE MOST", "WASPS STING", "TAP TO START"],
 
   reset(g, p) {
     const stage = ["egg", "tadpole"].includes(p.frog.stage) ? "froglet" : p.frog.stage;
     spr = cells(g, stage, { hat: p.frog.hat.shape });
     col = colours(g, p.frog.hat);
-    G = { t: 0, bugs: [], next: 0.3, tongue: null, streak: 0, score: 0, stun: 0, why: "", fireflies: 0, row: 0, wasps: 0 };
+    G = { t: 0, bugs: [], next: 0.3, tongue: null, streak: 0, score: 0, stun: 0, why: "", fireflies: 0, row: 0, wasps: 0, golden: 0, gold: { at: 6 + Math.random() * 2, right: Math.random() < 0.5, y: 40 + Math.random() * 100 } };
   },
 
   demo() {
@@ -57,6 +66,9 @@ export const flick = {
     G.stun = Math.max(0, G.stun - dt);
     G.next -= dt;
     if (G.next <= 0) { spawn(); G.next = 0.45 + Math.random() * 0.45 - Math.min(0.2, G.t / 100); }
+    const a = G.gold;
+    if (G.t >= a.at - WARN && !a.warned) { a.warned = true; sfx("warn"); }
+    if (G.t >= a.at) { golden(); G.gold = { at: a.at + EVERY - 1 + Math.random() * 2, right: Math.random() < 0.5, y: 40 + Math.random() * 100 }; }
     G.bugs.forEach((b) => { b.t += dt; b.x += b.vx * dt; b.y = b.y0 + Math.sin(b.t * 3 + b.ph) * b.amp; });
     G.bugs = G.bugs.filter((b) => b.x > -16 && b.x < W + 16);
     const tg = G.tongue;
@@ -79,11 +91,12 @@ export const flick = {
           if (tg.bug) {
             G.streak++; G.row = Math.max(G.row, G.streak);
             if (tg.bug.kind.k === "firefly") G.fireflies++;
+            if (tg.bug.kind.k === "golden") G.golden++;
             let pts = tg.bug.kind.pts;
             if (G.streak % 5 === 0) pts += 5;
             G.score += pts;
-            const m = mouth(), five = G.streak % 5 === 0;
-            F.got(m.x, m.y - 20, "+" + pts, { streak: G.streak, big: five, c: five ? "#ffb000" : "#ece5d8" });
+            const m = mouth(), big = G.streak % 5 === 0 || tg.bug.kind === GOLDEN;
+            F.got(m.x, m.y - 20, "+" + pts, { streak: G.streak, big, c: big ? "#ffb000" : "#ece5d8" });
           } else if (G.stun === 0) G.streak = 0;
           G.tongue = null;
         }
@@ -95,7 +108,7 @@ export const flick = {
   over() { return G && G.t >= ROUND; },
   score() { return G ? G.score : 0; },
   why() { return G ? G.why : ""; },
-  report() { return { counts: { fireflies: G.fireflies, row: G.row, wasps: G.wasps } }; },
+  report() { return { counts: { fireflies: G.fireflies, row: G.row, wasps: G.wasps, golden: G.golden } }; },
 
   draw(x) {
     x.fillStyle = "#1b3a4a"; x.fillRect(0, 0, W, H);
@@ -105,11 +118,23 @@ export const flick = {
     x.fillStyle = "#1f5a2c"; x.fillRect(W / 2 - 46, H - 30, 92, 12);
     x.fillStyle = "#56b45f"; x.fillRect(W / 2 - 42, H - 32, 84, 10);
     if (!G) return;
+    // The twinkle where the golden fly is about to come in.
+    const a = G.gold;
+    if (G.t >= a.at - WARN && Math.floor(G.t * 10) % 2) {
+      const ex = a.right ? W - 6 : 6;
+      x.fillStyle = "#ffe27a"; x.fillRect(ex - 1, a.y - 5, 2, 10); x.fillRect(ex - 5, a.y - 1, 10, 2);
+      x.fillStyle = "#fff6dc"; x.fillRect(ex - 1, a.y - 1, 2, 2);
+    }
     G.bugs.forEach((b) => {
       const flap = Math.floor(b.t * 18) % 2;
       // Drawn on a grid of 2, so a bug is twice the size of a frog pixel.
       x.save(); x.translate(Math.round(b.x), Math.round(b.y)); x.scale(2, 2);
       if (b.kind.k === "firefly") { x.fillStyle = "rgba(255,226,122,0.25)"; x.fillRect(-6, -6, 12, 12); }
+      if (b.kind === GOLDEN) {
+        const back = b.vx > 0 ? -1 : 1, tw = Math.floor(b.t * 12) % 2;
+        x.fillStyle = "rgba(255,176,0,0.35)"; x.fillRect(-7, -7, 14, 14);
+        x.fillStyle = "#fff6dc"; x.fillRect(back * (9 + tw), -1, 2, 1); x.fillRect(back * (13 - tw), 1, 1, 1); x.fillRect(back * 16, -2 + tw * 3, 1, 1);
+      }
       x.fillStyle = b.kind.wing;
       if (flap) { x.fillRect(-4, -5, 3, 3); x.fillRect(1, -5, 3, 3); } else { x.fillRect(-5, -3, 4, 1); x.fillRect(1, -3, 4, 1); }
       x.fillStyle = b.kind.c; x.fillRect(-4, -2, 8, 4);
