@@ -46,6 +46,7 @@ var aimList = []aim{
 	{"ra_weirs", "raft", "Thread ten reed weirs", map[string]int{"weirs": 10}, nil, 0},
 	{"ra_peb", "raft", "Pick up five pebbles", map[string]int{"pebbles": 5}, nil, 0},
 	{"ra_clean", "raft", "Score 20 before the first bump", map[string]int{"clean": 20}, nil, 0},
+	{"ra_whirl", "raft", "Spin round two whirlpools", map[string]int{"whirls": 2}, nil, 0},
 
 	{"le_high", "leap", "Leap up past 100 M", map[string]int{"top": 100}, nil, 0},
 	{"le_bugs", "leap", "Eat four bugs on the way up", map[string]int{"bugs": 4}, nil, 0},
@@ -92,7 +93,7 @@ var aimWorth = map[string]map[string]int{
 	"fish":   {"perfect": 2, "cool": 1},
 	"flick":  {"fireflies": 3, "row": 1, "golden": 8},
 	"cross":  {"trips": 10, "pebbles": 3, "flies": 5, "clean": 10},
-	"raft":   {"weirs": 1, "pebbles": 2, "clean": 1},
+	"raft":   {"weirs": 1, "pebbles": 2, "clean": 1, "whirls": 3},
 	"leap":   {"top": 1, "bugs": 2},
 	"school": {"fleas": 1, "golds": 3, "long": 1},
 	"stack":  {"pads": 1, "row": 2, "perfect": 2},

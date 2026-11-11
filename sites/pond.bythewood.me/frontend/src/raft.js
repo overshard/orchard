@@ -1,6 +1,7 @@
 import { colours } from "./frog.js";
 import { drawTop } from "./top.js";
 import { feel } from "./feel.js";
+import { sfx } from "./sound.js";
 
 // Raft run. The frog rides a leaf down a river that keeps narrowing. Hold a
 // finger where it should go, or the arrow keys, and thread the gaps in the
@@ -8,6 +9,9 @@ import { feel } from "./feel.js";
 const W = 180, H = 270, FY = H - 56, STEER = 150, KEYS = 120;
 // The frog is hit a few pixels inside its leaf, and NEAR is how close a miss gets a CLOSE.
 const BODY = 3, NEAR = 4;
+// Every ten seconds or so a whirlpool turns up ahead. It drags the leaf in,
+// its eye is a bump and getting past inside its ring pays SPUN.
+const WHIRL = 10, RING = 20, EYE = 5, PULL = 75, SPUN = 3;
 
 let G = null, col = null;
 const F = feel();
@@ -45,11 +49,11 @@ function bump(why) {
 export const raft = {
   key: "raft", W, H, title: "RAFT RUN", feel: F,
   aria: "Hold where the raft should go, or use the arrow keys.",
-  help: ["HOLD WHERE THE RAFT SHOULD GO", "THREAD THE GAPS IN THE REEDS", "THREE BUMPS AND YOU'RE OUT", "TAP TO START"],
+  help: ["HOLD WHERE THE RAFT SHOULD GO", "THREAD THE GAPS IN THE REEDS", "SKIM A WHIRLPOOL, MISS ITS EYE", "THREE BUMPS AND YOU'RE OUT", "TAP TO START"],
 
   reset(g) {
     col = colours(g, null);
-    G = { t: 0, dist: 0, v: speed(0), fx: centre(56), want: null, keys: { left: false, right: false }, things: [], nextAt: 230, since: 0, lives: 3, safe: 0, dead: 0, row: 0, bonus: 0, why: "", weirs: 0, pebbles: 0, clean: -1 };
+    G = { t: 0, dist: 0, v: speed(0), fx: centre(56), want: null, keys: { left: false, right: false }, things: [], nextAt: 230, since: 0, lives: 3, safe: 0, dead: 0, row: 0, bonus: 0, why: "", weirs: 0, pebbles: 0, clean: -1, whirlAt: 8 + Math.random() * 2, whirls: 0 };
     // A weir inside two seconds, with a line of pebbles to show the way through.
     const wy = 150, gap = 40, gx = centre(wy) + (Math.random() < 0.5 ? -1 : 1) * 14 - gap / 2;
     G.things.push({ k: "weir", y: wy, gap, gx });
@@ -79,7 +83,18 @@ export const raft = {
     if (G.keys.left) G.fx -= KEYS * dt;
     if (G.keys.right) G.fx += KEYS * dt;
     while (G.nextAt < G.dist + H + 40) spawn();
+    if (G.t >= G.whirlAt) {
+      const y = G.nextAt + 10, wc = centre(y);
+      G.things.push({ k: "whirl", y, x: wc + (Math.random() * 2 - 1) * half(y) / 3 });
+      G.nextAt += 80;
+      G.whirlAt = G.t + WHIRL - 1 + Math.random() * 2;
+      sfx("warn");
+    }
     const fy = G.dist + (H - FY), c = centre(fy), h = half(fy);
+    for (const t of G.things) {
+      if (t.k !== "whirl" || t.done || Math.abs(fy - t.y) > RING + 10 || Math.abs(G.fx - t.x) > RING + 12) continue;
+      G.fx += Math.sign(t.x - G.fx) * Math.min(Math.abs(t.x - G.fx), PULL * dt);
+    }
     if (Math.abs(G.fx - c) > h - 5) { bump("ON THE BANK"); G.fx = c + Math.sign(G.fx - c) * (h - 9); }
     for (const t of G.things) {
       if (t.done) continue;
@@ -96,6 +111,11 @@ export const raft = {
       } else if (t.k === "rock" && fy > t.y + t.r + BODY) {
         t.done = true;
         if (Math.abs(G.fx - t.x) < t.r + BODY + NEAR && G.safe === 0) F.close(G.fx, FY - 26);
+      } else if (t.k === "whirl" && fy >= t.y) {
+        t.done = true;
+        const d = Math.abs(G.fx - t.x);
+        if (d < EYE) bump("IN THE WHIRLPOOL");
+        else if (d < RING && G.safe === 0) { G.bonus += SPUN; G.whirls++; F.got(G.fx, FY - 2, "SPUN +" + SPUN, { big: true, streak: ++G.row }); }
       } else if (t.k === "pebble" && Math.abs(fy - t.y) < 8 && Math.abs(G.fx - t.x) < 9) {
         t.done = true; G.bonus += 2; G.pebbles++;
         F.got(t.x, FY - 2, "+2", { streak: ++G.row });
@@ -107,7 +127,7 @@ export const raft = {
   over() { return G && G.dead > 0.45; },
   score() { return G ? Math.floor(G.dist / 150) + G.bonus : 0; },
   why() { return G ? G.why : ""; },
-  report() { return { counts: { weirs: G.weirs, pebbles: G.pebbles, clean: G.clean < 0 ? raft.score() : G.clean } }; },
+  report() { return { counts: { weirs: G.weirs, pebbles: G.pebbles, clean: G.clean < 0 ? raft.score() : G.clean, whirls: G.whirls } }; },
 
   draw(x) {
     const dist = G ? G.dist : 0;
@@ -122,7 +142,9 @@ export const raft = {
     if (!G) return;
     for (const t of G.things) {
       const sy = Math.round(screenY(t.y));
-      if (t.k === "rock") {
+      if (t.k === "whirl") {
+        drawWhirl(x, t.x, sy, G.t);
+      } else if (t.k === "rock") {
         x.fillStyle = "#3a3f46"; x.fillRect(Math.round(t.x - t.r), sy - t.r + 2, t.r * 2, t.r * 2 - 2);
         x.fillStyle = "#8a9099"; x.fillRect(Math.round(t.x - t.r + 1), sy - t.r, t.r * 2 - 2, t.r * 2 - 3);
         x.fillStyle = "#b6bcc4"; x.fillRect(Math.round(t.x - t.r + 2), sy - t.r + 1, 3, 2);
@@ -154,3 +176,21 @@ export const raft = {
     x.fillStyle = "#e2567a"; for (let i = 0; i < G.lives; i++) x.fillRect(W - 12 - i * 9, 6, 6, 6);
   },
 };
+
+// A whirlpool is rings of pale water turning round a dark eye, drawn a dash
+// at a time so it reads as pixels.
+function drawWhirl(x, wx, wy, t) {
+  for (let dy = -RING / 2; dy < RING / 2; dy++) {
+    const k = (dy + 0.5) / (RING / 2), hw = Math.round(RING * Math.sqrt(1 - k * k));
+    x.fillStyle = Math.abs(k) < 0.45 && hw > RING * 0.7 ? "#123a44" : "#16404d";
+    x.fillRect(Math.round(wx) - hw, Math.round(wy) + dy, hw * 2, 1);
+  }
+  x.fillStyle = "#0a1b1f"; x.fillRect(Math.round(wx - EYE), Math.round(wy - 2), EYE * 2, 4);
+  x.fillStyle = "#7fd6c2";
+  for (let r = 7; r <= RING; r += 6) {
+    for (let k = 0; k < 3; k++) {
+      const a = t * (4 - r / 8) + k * 2.1 + r;
+      x.fillRect(Math.round(wx + Math.cos(a) * r), Math.round(wy + Math.sin(a) * r / 2), 3, 1);
+    }
+  }
+}

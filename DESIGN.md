@@ -660,7 +660,10 @@ version of the old look and a handheld pet shell.
   amber line down to where its beak reaches, and stabs as it passes over the
   frog. In crossing one road lane blinks amber at the end it comes from and
   says CONVOY, and three yellow tractors run down it fast. In tongue flick a
-  golden fly twinkles at its edge of the field and zips across for 8.
+  golden fly twinkles at its edge of the field and zips across for 8. In
+  raft run a whirlpool turns in the river ahead, pale rings round a dark eye,
+  and drags the leaf in. Its eye is a bump and getting past inside its rings
+  says SPUN for 3.
 - **The last pebble takes its time.** In pebble drop the fifth pebble falls
   at half speed through the reeds and slower again over the pots, and the
   pegs sit a little differently each day.
