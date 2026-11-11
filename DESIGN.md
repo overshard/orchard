@@ -924,7 +924,10 @@ version of the old look and a handheld pet shell.
 - **Coming back is one card.** Taking baskets, and the greeting when one is
   full or half way there, opens a card in the bare sheet with a block a frog,
   how many actions and misses, what came in as slots, and the xp in readout
-  glass beside the level. A pet or a 99 still pops its reveal after.
+  glass beside the level. A level up pops a reveal after it with amber rays,
+  the jump in readout glass over a slot for everything it opened, a target,
+  a recipe, a find, a tool in town or the next step of mastery, each with
+  what it is under its name. A pet or a 99 still pops its reveal after.
 - **A working frog shows it.** In the reeds strip a frog at a job has its
   tool beside it, and in the Works picture the frog by the lodge holds its
   tool with the job's thing at its feet.

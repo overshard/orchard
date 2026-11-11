@@ -140,6 +140,7 @@ const TOOL_SHAPES = {
   craft: ["aaaaa...", "aaaaa...", "..b.....", "..b.....", "..b.....", "..b.....", "..b.....", "........"],
 };
 const TOOL_METAL = ["#c9974f", "#cfd3d6", "#f2c230"];
+ICONS.mastery = [["...a....", "...a....", ".aabaa..", "aabbbaa.", ".abbba..", ".ab.ba..", "aa...aa.", "........"], { a: "#ffb000", b: "#ffe27a" }];
 Object.entries(TOOL_SHAPES).forEach(([job, rows]) => TOOL_METAL.forEach((a, i) => {
   ICONS["tool_" + job + "_" + (i + 1)] = [rows, { a, b: "#8a5a2b", c: "#4a3318", d: "#7fd6c2" }];
 }));
