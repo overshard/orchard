@@ -718,11 +718,11 @@ version of the old look and a handheld pet shell.
   readouts under it are one key that opens the holdings, every share and coin
   held with what it's made, the dividends ever paid and the best of them. A
   business in the paper wears an IN THE PAPER tag on its card, and a holding
-  that has a big day pops a reveal once that day, each business is a pixel
+  that has a big day pops a reveal once that day. Each business is a pixel
   shopfront in its own awning colour with its price in glass, and a day down
   turns that price pink. The chart in a business's sheet is a stepped pixel
   line in glass, amber over thirty days that ended up and pink when down.
-  Three filter keys pick Shares, Goods or Coin. A good is its bag icon with
+  Four filter keys pick Shares, Goods, Coin or the back door. A good is its bag icon with
   what's in the bag under its name and its price a lot, and Glowworm Coin is
   a pixel gold coin over a taller chart. Dividends waiting are a row under the
   tiles like a Next strip row, with what the shares pay a day in glass and an
