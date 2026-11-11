@@ -730,6 +730,12 @@ version of the old look and a handheld pet shell.
   the frog's own words about the day before, the day in printed caps down the
   left and the line beside it, newest first with a key for older days. It
   only says what happened and a day nobody came by reads as a quiet day.
+- **A camera key makes a postcard.** A small dark key with an amber pixel
+  camera sits over the top right corner of the glass. It draws the screen as
+  it stands at twice the size on a cream card, with the frog's name in Space
+  Grotesk, the pond's date and the gazette's weather word in JetBrains Mono
+  and a pebble postmark, and opens it as a picture in a new tab. The hearts
+  and the key aren't on the card.
 - **The frog can be rubbed.** A drag back and forth over it shuts its eyes and
   throws pink pixel hearts, more of them on its favourite spot, and an egg
   only wobbles. Its bond is five small hearts over the top left corner of the

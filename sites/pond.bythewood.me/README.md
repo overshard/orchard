@@ -151,6 +151,9 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
   `share.js` is a frog's public page and `key.js` and `k.js` the key pages.
   Reeds, Garden and Bank are still views of their own, lit under the Works
   key, and `scenes.js` draws the picture over them and the smaller ones.
+- `frontend/src/postcard.js` is the camera key on the pond's screen. The
+  card is drawn in the page off the scene canvas and opened from a blob in a
+  new tab, or saved as a file when the browser won't open one.
 - `icon.go` is the web app manifest and the home screen icons, which are
   drawn in Go like the share card since there are no image files.
 - `web/` is this site's own copy of the HTTP layer every site here shares.

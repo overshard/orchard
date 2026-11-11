@@ -24,6 +24,7 @@ import { initCollect } from "./collect.js";
 import { initTown, enterTown, leaveTown } from "./town.js";
 import { initNeighbours, art as residentArt } from "./neighbours.js";
 import { initSettings } from "./settings.js";
+import { initPostcard } from "./postcard.js";
 import { initPet, setBox, pose, over as petOver, busy as petBusy, wasRub, tapTrick, arrive, drawBond } from "./pet.js";
 
 const VIEWS = ["pond", "play", "dive", "cross", "flick", "raft", "leap", "school", "fish", "stack", "shell", "skip", "wheel", "bag", "collect", "reeds", "garden", "bank", "town", "settings"];
@@ -310,10 +311,10 @@ function drawOver(day, t) {
   if (day.night) {
     sx.fillStyle = "rgba(4,6,18,0.55)"; sx.fillRect(0, 0, 352, 272);
     if (day.moon && !day.rain) {
-      MOON.forEach((r, y) => [...r].forEach((ch, x) => { if (ch !== ".") block(292 + x * 4, 16 + y * 4, ch === "a" ? "#f4f1e6" : "#c9cfd6"); }));
+      MOON.forEach((r, y) => [...r].forEach((ch, x) => { if (ch !== ".") block(256 + x * 4, 16 + y * 4, ch === "a" ? "#f4f1e6" : "#c9cfd6"); }));
       for (let i = 0; i < 6; i++) {
         const w = 28 - i * 3 + Math.round(Math.sin(t * 1.3 + i) * 3);
-        sx.fillStyle = "rgba(230,238,246," + (0.32 - i * 0.04) + ")"; sx.fillRect(Math.round(306 - w / 2), 60 + i * 30, w, 3);
+        sx.fillStyle = "rgba(230,238,246," + (0.32 - i * 0.04) + ")"; sx.fillRect(Math.round(270 - w / 2), 60 + i * 30, w, 3);
       }
     }
     if (!day.cold && !day.rain) for (let i = 0; i < (day.fireflies ? 22 : 7); i++) {
@@ -532,6 +533,7 @@ function loop(now) {
 }
 
 initPet(scene, $("scene-btn"), () => drawScene(performance.now()));
+initPostcard(scene, $("snap"), () => drawScene(performance.now()));
 
 $("scene-btn").addEventListener("click", () => {
   if (!state.g || wasRub()) return;
