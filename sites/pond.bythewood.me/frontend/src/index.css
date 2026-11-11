@@ -783,8 +783,10 @@ button.powerplate:active:not(:disabled) {
 .arcade.full {
   position: fixed;
   top: 0;
-  right: 0;
   left: 0;
+  /* The screen's width and not the page's, so a page that's wider can't
+     stretch the game off the side. 100vw alone counts a desktop scrollbar. */
+  width: min(100vw, 100%);
   /* Firefox on Android lays a fixed inset 0 box out under its toolbar too. */
   height: 100dvh;
   z-index: 10;
@@ -2522,6 +2524,8 @@ button.nrow.primary {
 
 .paper {
   --ink: #2b241a;
+  align-self: stretch;
+  min-width: 0;
   margin: 0 4px 8px;
   padding: 12px 14px 14px;
   background:
@@ -3416,7 +3420,10 @@ div.slot {
 .sheet,
 .reveal {
   position: fixed;
-  inset: 0;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: min(100vw, 100%);
   z-index: 10;
   display: flex;
   align-items: flex-end;
@@ -3433,6 +3440,7 @@ div.slot {
   width: 100%;
   max-width: 34rem;
   max-height: 88dvh;
+  overflow-x: clip;
   overflow-y: auto;
   padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
   border-top: 2px solid var(--lip);
