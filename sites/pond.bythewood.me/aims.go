@@ -74,9 +74,9 @@ var aimList = []aim{
 	{"ch_right", "chorus", "Sing twenty right on the beat", map[string]int{"right": 20}, nil, 0},
 	{"ch_row", "chorus", "Sing thirty in a row", map[string]int{"row": 30}, nil, 0},
 
-	{"pu_nine", "putt", "Reach all nine flags", map[string]int{"holes": 9}, nil, 0},
+	{"pu_nine", "putt", "Sink all nine holes", map[string]int{"holes": 9}, nil, 0},
 	{"pu_under", "putt", "Beat par on two holes", map[string]int{"under": 2}, nil, 0},
-	{"pu_three", "putt", "Three hops under par for the round", map[string]int{"beat": 3}, nil, 0},
+	{"pu_three", "putt", "Three strokes under par for the round", map[string]int{"beat": 3}, nil, 0},
 
 	{"ja_elder", "jar", "An elder in the jar", map[string]int{"elders": 1}, nil, 0},
 	{"ja_frogs", "jar", "Grow three frogs", map[string]int{"frogs": 3}, nil, 0},
