@@ -678,6 +678,13 @@ version of the old look and a handheld pet shell.
   pushed in like a tape deck's PLAY, and a key with something waiting behind
   it has a small amber LED. Dive and the wheel open from Play and light it.
   The content column stops at `34rem` on a desktop.
+- **A new pond opens up over its first days.** It starts with four keys,
+  Pond, Play, Bag and Town, and every disk, the wheel and the log are in Play
+  from the start. Works gets its key when the egg hatches a day in, and the
+  bank's Market key shows three days after that. The gazette says so that day,
+  as an Opening today notice over the lead and as the line on the folded
+  strip. A link to a place that isn't open lands on the pond, and a pond made
+  before this has everything.
 - **Works is the reeds, the garden and the bank** behind a row of three keys
   like the places in town, and it opens on the one that was open last. A key
   with something waiting has the same LED as a tab, and the market stays

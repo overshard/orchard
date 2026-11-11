@@ -93,6 +93,9 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
   series. A share moves three times the real day's percent in pebbles, the
   day's last reading in the regular session is kept as its close in
   `market_days`, and a pond's shares are in `shares` at what it paid.
+- `opening.go` is how a new pond opens up, Works a day in and the market
+  three days after that, sent with the view as `open`. The page hides the keys
+  for a closed place and the gazette carries a notice the day one opens.
 - `key.go` and `words.txt` are the pond key.
 - `day.go` reads dash's `/api/state` over the bridge every ten minutes and
   turns the weather, the market, the VIX, Hacker News, the news and the health
@@ -193,5 +196,10 @@ they have none, for other sites to draw.
 - `index.css` is one flat file and the share page loads it too, so look for a
   class name in it before using one. `place` is already Dive's standings and
   `who` and `scene` are on the share page as well as the pond.
+- A closed place is only hidden, every move behind it still works. Anything
+  that links somewhere, a todo row or a line in the gazette, has to ask
+  `Open.has` first, and only `create` sets `staged`, so an older pond is open.
+- The page keeps what's open in localStorage as `pond-open` so the keys are
+  right before the pond loads. With nothing kept it starts on four keys.
 - `web/` has to stay byte identical to every other site's copy, and
   `make check` at the root fails when it isn't.

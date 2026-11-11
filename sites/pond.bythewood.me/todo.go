@@ -19,7 +19,11 @@ type todo struct {
 // with nothing else it suggests the next thing to save for.
 func todoOf(v *view) []todo {
 	out := []todo{}
-	add := func(kind, icon, label, to string) { out = append(out, todo{kind, icon, label, to}) }
+	add := func(kind, icon, label, to string) {
+		if v.Open.has(to) {
+			out = append(out, todo{kind, icon, label, to})
+		}
+	}
 	b := v.Bank
 	if v.Wheel.Free > 0 {
 		add("wheel", "i_play", plural(v.Wheel.Free, "free spin"), "wheel")
@@ -112,7 +116,7 @@ func todoOf(v *view) []todo {
 		{"burrows", "the burrows", "bank", b.Burrows.Level, b.Burrows.Cost, b.Burrows.Mats},
 	}
 	for _, bd := range builds {
-		if bd.cost > 0 && v.Pebbles >= bd.cost && hasAll(v.held, bd.mats) {
+		if v.Open.has(bd.to) && bd.cost > 0 && v.Pebbles >= bd.cost && hasAll(v.held, bd.mats) {
 			verb := "Build "
 			if bd.level > 0 {
 				verb = "Level up "
