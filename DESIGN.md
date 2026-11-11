@@ -693,6 +693,10 @@ version of the old look and a handheld pet shell.
   rays.
 - What the frog says is a speech bubble pointing up at it, and what's ready to
   do is a row of glowing chips under it that go straight there.
+- **The pond fits a phone with no scroll.** The frog's screen, its name with
+  the rarity beside it, the bubble and what to do next all sit above the keys
+  at 412 by 915. Under 780 tall the screen narrows to `19rem` to keep them
+  there. The folded gazette, Today at the pond and anything longer go below.
 - **Dive is the whole window, on a phone and a desktop.** It covers the bar and
   the keys, the pond takes its depth and length from the window, and a strip
   under the water holds three readout tiles and `EJECT`. Ten ghost frogs swim

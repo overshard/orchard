@@ -397,6 +397,37 @@ button.screen:active {
   margin: 14px 0 6px;
 }
 
+/* The name and its rarity share a line, so the pond fits a phone's screen. */
+#v-pond .who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 12px;
+  margin: 12px 0 4px;
+}
+
+#v-pond .who .chips {
+  margin: 4px 0;
+}
+
+#v-pond .who .stats {
+  flex: 0 0 100%;
+}
+
+@media (max-width: 380px) {
+  #v-pond .who h1 {
+    font-size: 1.7rem;
+  }
+}
+
+/* A short phone gets a smaller screen, so what to do next stays in view. */
+@media (max-height: 780px) and (max-width: 34rem) {
+  #v-pond .scene {
+    max-width: 19rem;
+    margin: 0 auto;
+  }
+}
+
 .chips {
   margin: 6px 0 4px;
   color: var(--muted);
@@ -3543,6 +3574,12 @@ button.big {
   padding: 0;
   list-style: none;
   font-size: 14px;
+}
+
+@media (min-width: 380px) {
+  .steps-list {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 .steps-list li {
