@@ -662,6 +662,14 @@ version of the old look and a handheld pet shell.
   rings while it's their part, and a ring fills amber when it's sung right
   on the beat. A miss costs one of three lilies in the corner and twelve in
   a row grows one back. The frog only ever sings or sits.
+- **Pad putt is open water from above**, lily pads with a notch cut out,
+  the flag a pink pennant on a reed that streams the way the wind blows and
+  hangs on a calm day, and a windsock and the day's wind word in the bottom
+  corner. Each hole opens on a strip saying the hole and its par. A drag
+  back draws dots out from the frog to a cream square where it would land
+  with no wind, so reading the wind is the player's part. A splash puts the
+  frog back where it hopped from. The results have a scorecard, a glass box
+  a hole with its par small over its hops, amber under par.
 - **Bug sweep is the day's puzzle.** Eight pads by ten on flat water, a
   closed pad green and an open one dark with its number in a colour of its
   own, pale blue for one up to red. A marked pad has a pink bud on it, and a
