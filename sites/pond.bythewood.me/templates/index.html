@@ -134,10 +134,9 @@
     <p class="dim" id="reeds-out" role="status"></p>
 
     <h2>Jobs</h2>
-    <p class="help" hidden>Every frog past the egg can work one job. Work piles up for 12 hours and then waits for you. Levels go to 99 and only go up, a better frog brings in more, and a frog gets a quarter more at the job its nature suits. Rarer finds turn up at higher levels. Crafting turns sticks, reeds and clay into things, and a frog that's full from a dish works harder and learns faster. A gardener also makes the plots grow faster. A 99 earns the pond that job's hood, and once in a long while a frog brings home a pet.</p>
+    <p class="help" hidden>Every frog past the egg can work one job, at one target the job opens by level. A job is a run of actions, and each one that finishes puts its thing in the frog's basket and pays xp for it, or a fifth of that when it misses. The basket holds 12 hours of actions and then the frog stops until you take it. Levels go to 99 and only go up, a better frog works faster, and a frog works a quarter faster at the job its nature suits. Finds turn up at higher levels. Crafting makes one thing an action out of sticks, reeds and clay, and a frog that's full from a dish sometimes brings in two. A gardener also makes the plots grow faster. A 99 earns the pond that job's hood, and once in a long while a frog brings home a pet.</p>
     <p id="jobs-line"></p>
-    <div class="row" id="jobs-row" hidden><button type="button" class="primary" id="jobs-collect">Collect the work</button></div>
-    <dl class="missed" id="jobs-out" hidden></dl>
+    <div class="row" id="jobs-row" hidden><button type="button" class="primary" id="jobs-collect">Take the basket</button></div>
 
     <h2>Egg bench</h2>
     <p class="help" hidden>An egg is its parent with the numbers nudged, and about one in sixteen throws back to something else. A dye, a stamp or eye drops take about two times in three and are used up either way. A frog fed a dish first does better, the rarer the dish the more often they take, and a rare one or better can give odd eyes on its own. Drops make a frog ten times rarer. Moth in town sells all three.</p>
@@ -151,6 +150,41 @@
     <h2>Pads</h2>
     <p id="pads-line"></p>
     <div class="row"><button type="button" id="pad-buy">Another pad</button></div>
+  </section>
+
+  <section class="view" id="v-job" hidden>
+    <a class="back" href="#reeds">&larr; Reeds</a>
+    <div class="wk-top">
+      <b id="job-name"></b>
+      <span id="job-what"></span>
+    </div>
+    <div class="screen"><canvas id="job-art" width="384" height="168"></canvas></div>
+    <div class="wk-bar" id="job-work">
+      <span class="meter wk-act"><i id="job-act"></i></span>
+      <span class="readout"><span class="k">Next</span><span class="v" id="job-left">0:00</span></span>
+    </div>
+    <p class="line" id="job-pick" hidden></p>
+    <div id="job-basket-box">
+      <h2>Basket</h2>
+      <p class="line" id="job-line" role="status"></p>
+      <div class="wk-bar">
+        <span class="readout"><span class="k">Basket</span><span class="v" id="job-count">0/0</span></span>
+        <span class="dim" id="job-tally"></span>
+      </div>
+      <div class="slots" id="job-basket"></div>
+      <div class="row"><button type="button" class="primary" id="job-take">Take the basket</button><button type="button" id="job-change">Change job</button></div>
+    </div>
+    <p class="dim" id="job-out" role="status"></p>
+    <h2>Level</h2>
+    <div class="wk-bar">
+      <span class="readout"><span class="k">Level</span><span class="v" id="job-level">1</span></span>
+      <span class="meter wk-xp"><i id="job-xp"></i></span>
+    </div>
+    <p id="job-next"></p>
+    <h2>Targets</h2>
+    <div id="job-targets"></div>
+    <h2 id="job-finds-head">Finds</h2>
+    <div class="slots" id="job-finds"></div>
   </section>
 
   <section class="view inworks" id="v-garden" hidden>

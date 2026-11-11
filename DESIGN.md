@@ -898,6 +898,25 @@ version of the old look and a handheld pet shell.
 - **The reeds** are every frog as a card, the one out front first with an
   amber border and OUT FRONT, the rest with a key to swap. The egg bench and
   the pads sit under them. The register of looks is in the bag's collection.
+- **A job is its own screen**, opened off a frog's card in the reeds. The frog
+  works in a window drawn for the job, a net and bugs, a sickle in the reeds,
+  a spade in the mud, a watering can in the beds, a dive for pebbles, a
+  hammer at the craft bench, and it squashes as each action lands while the
+  thing it got hops into a basket in the corner. Under the window is the
+  action bar in readout glass with the time to the next one, then the basket
+  as slots with counts and an amber key to take it, the level with a bar to
+  the next and what that level opens, and the targets as keys with their
+  time, xp, yield and misses. A locked target is its dark shape on hazard
+  stripes with the level that opens it. The bar only fills and the basket
+  only gains what the server dealt, and a full basket stops the bar and says
+  so in amber and as a Next strip row.
+- **Coming back is one card.** Taking baskets, and the greeting when one is
+  full or half way there, opens a card in the bare sheet with a block a frog,
+  how many actions and misses, what came in as slots, and the xp in readout
+  glass beside the level. A pet or a 99 still pops its reveal after.
+- **A working frog shows it.** In the reeds strip a frog at a job has its
+  tool beside it, and in the Works picture the frog by the lodge holds its
+  tool with the job's thing at its feet.
 - **A frog's public page** is the frog in its screen, its power as one big
   amber Space Grotesk number with the rank beside it, the parts that make it
   up, and a QR code for the link. The ranks are a ladder under the number, the

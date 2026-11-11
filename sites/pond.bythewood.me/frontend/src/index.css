@@ -3571,6 +3571,173 @@ button.big {
   box-shadow: var(--pressed), inset 0 2px 0 var(--amber);
 }
 
+/* The job screen: the frog at it, the action bar and readouts in a row. */
+.wk-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin-bottom: 8px;
+}
+
+.wk-top b {
+  font-family: var(--grotesk);
+  font-size: 20px;
+}
+
+.wk-top span {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.wk-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.wk-bar .meter {
+  flex: 1;
+}
+
+.wk-bar .readout {
+  min-width: 72px;
+}
+
+/* The action fills on every frame, so it can't ease behind itself. */
+.meter.wk-act {
+  height: 16px;
+}
+
+.meter.wk-act i {
+  transition: none;
+}
+
+#job-line.stop {
+  color: var(--amber);
+}
+
+/* A target is a key: its thing, its name and numbers, and its level. */
+.wk-tgt {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 6px;
+  text-align: left;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.wk-tgt canvas {
+  width: 24px;
+  image-rendering: pixelated;
+}
+
+.wk-what {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wk-what b {
+  font-family: var(--grotesk);
+  font-size: 14px;
+}
+
+.wk-what span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.wk-lv {
+  padding: 0 6px;
+  border-radius: 3px;
+  background: var(--glass);
+  box-shadow: var(--sunk);
+  color: var(--digit);
+  font-size: 14px;
+  font-weight: 700;
+  text-shadow: var(--glow);
+}
+
+.wk-tgt.on {
+  transform: translateY(3px);
+  box-shadow: var(--pressed), inset 0 2px 0 var(--amber);
+}
+
+.wk-tgt:disabled {
+  background: var(--hazard);
+  box-shadow: var(--sunk);
+}
+
+.wk-tgt:disabled .wk-lv {
+  color: var(--dim);
+  text-shadow: none;
+}
+
+/* The away card, a block a frog in the bare sheet. */
+.wk-head {
+  margin: 0 0 8px;
+  color: var(--amber);
+  font-family: var(--grotesk);
+  font-size: 18px;
+}
+
+.wk-away {
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+
+.wk-away p {
+  margin: 6px 0;
+  font-size: 14px;
+}
+
+.wk-who {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.wk-who canvas {
+  width: 44px;
+  image-rendering: pixelated;
+}
+
+.wk-who span {
+  display: flex;
+  flex-direction: column;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.wk-who b {
+  color: var(--text);
+  font-family: var(--grotesk);
+}
+
+.slots.wk-slots {
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+}
+
+.wk-slots .slot {
+  min-height: 72px;
+}
+
+.wk-lv-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.wk-lv-line .up,
+.wk-stop {
+  color: var(--amber);
+}
+
 .reed .job {
   min-height: 36px;
   padding: 6px 8px;

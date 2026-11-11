@@ -1,11 +1,7 @@
 import { drawReeds } from "./scenes.js";
-import { $, post, state, setPond, watch, titled, TIERS } from "./api.js";
+import { $, post, state, setPond, watch, titled, workNow, TIERS } from "./api.js";
 import { genome, bred, cells, colours, draw, W, H } from "./frog.js";
-import { iconCanvas } from "./icons.js";
-import { openSheet, closeSheet, sheetSay, button, tierTag, reveal } from "./ui.js";
-import { hatTile } from "./hats.js";
-
-const JOB_ICON = { garden: "watercress", bugs: "cricket", sticks: "sticks", reeds: "reeds", mud: "clay", pebbles: "peb", craft: "t_basket" };
+import { openJob, jobSheet, collect } from "./work.js";
 
 let dye = "", stamp = "", drop = "", frontID = 0;
 
@@ -37,105 +33,6 @@ function jobName(key) {
   return d ? d.name : "";
 }
 
-function setJob(f, job, recipe) {
-  return (b) => {
-    b.disabled = true;
-    post("/api/jobs/set", { frog: f.id, job, recipe: recipe || "" }).then((d) => {
-      setPond(d.pond);
-      if (d.done.length) showDone(d.done);
-      closeSheet();
-      say("reeds-out", job ? titled(f.name) + " is " + state.pond.jobs.defs.find((x) => x.key === job).verb + " now." : titled(f.name) + " is taking it easy.");
-    }, (e) => { sheetSay(e.message); b.disabled = false; });
-  };
-}
-
-// The job sheet lists every job with the frog's level and how far to the next.
-function jobSheet(f) {
-  const p = state.pond;
-  openSheet({ art: frogArt(f, 4), name: titled(f.name) }, "Total level " + f.work.total + ". Pick what it does all day.", (body) => {
-    p.jobs.defs.forEach((d) => {
-      const l = levelOf(f, d.key), b = document.createElement("button");
-      b.type = "button"; b.className = "jobrow" + (f.work.job === d.key ? " on" : "");
-      const name = document.createElement("b"), lv = document.createElement("span"), bar = document.createElement("span"), fill = document.createElement("i");
-      name.textContent = d.name + (d.nature && f.nature === d.nature ? " ★" : "");
-      lv.className = "lv"; lv.textContent = l.level;
-      bar.className = "meter";
-      fill.style.transform = "scaleX(" + (l.level >= 99 ? 1 : (l.xp - l.from) / Math.max(1, l.to - l.from)) + ")";
-      bar.append(fill);
-      b.append(iconCanvas(JOB_ICON[d.key], 3), name, lv, bar);
-      b.addEventListener("click", d.key === "craft" ? () => craftSheet(f) : () => { if (f.work.job !== d.key) setJob(f, d.key)(b); });
-      body.append(b);
-    });
-    if (f.work.job) {
-      const r = document.createElement("div"); r.className = "row";
-      r.append(button("No job", setJob(f, "")));
-      body.append(r);
-    }
-  });
-}
-
-function craftSheet(f) {
-  const p = state.pond, lvl = levelOf(f, "craft").level, held = {};
-  p.bag.forEach((t) => { held[t.kind] = t.count; });
-  openSheet({ art: iconCanvas("t_basket", 6), name: "Craft bench" }, titled(f.name) + " is level " + lvl + " at crafting. What should it make?", (body) => {
-    p.jobs.recipes.forEach((r) => {
-      const b = document.createElement("button"), name = document.createElement("b"), need = document.createElement("span");
-      b.type = "button"; b.className = "jobrow" + (f.work.recipe === r.kind ? " on" : "");
-      name.textContent = r.name;
-      need.className = "need";
-      need.textContent = lvl < r.level ? "Level " + r.level
-        : Object.entries(r.in).map(([k, n]) => n + " " + k + ((held[k] || 0) < n ? " (" + (held[k] || 0) + ")" : "")).join(", ") + ", " + hours(r.hours / (1 + (lvl - 1) / 98));
-      b.append(iconCanvas(r.kind, 3), name, tierTag(r.tier), need);
-      b.disabled = lvl < r.level;
-      b.addEventListener("click", () => setJob(f, "craft", r.kind)(b));
-      body.append(b);
-    });
-  });
-}
-
-function showDone(done) {
-  const out = $("jobs-out");
-  out.textContent = "";
-  done.forEach((w) => {
-    const dt = document.createElement("dt"), dd = document.createElement("dd");
-    const got = Object.entries(w.got).map(([k, n]) => n + " " + (n > 1 ? many(nameOf(k)) : nameOf(k)));
-    if (w.pebbles) got.unshift(w.pebbles + " pebbles");
-    let line = got.length ? got.join(", ") + "." : w.short ? "Ran out of materials." : "Nothing this time.";
-    if (w.up) line += " " + w.job + " is " + w.level + " now!";
-    dt.textContent = w.frog;
-    dd.textContent = line;
-    out.append(dt, dd);
-  });
-  out.hidden = false;
-  big(done);
-}
-
-// A pet or a hood is rare enough to pop up like a prize.
-function big(done) {
-  const p = state.pond;
-  for (const w of done) {
-    const pet = Object.keys(w.got).map((k) => p.trinkets.all.find((t) => t.kind === k && t.pet)).find(Boolean);
-    if (pet) {
-      reveal({ kick: "A pet!", art: iconCanvas(pet.kind, 8), name: pet.name, tier: pet.tier, line: w.frog + " found it while " + p.jobs.defs.find((d) => d.name === w.job).verb + ". It's in your bag." });
-      return;
-    }
-    const hood = w.up && w.level === 99 && p.hoods.find((h) => h.name.startsWith(w.job));
-    if (hood) {
-      reveal({ kick: "Level 99!", art: hatTile(hood, true), name: hood.name, tier: 4, line: w.frog + " maxed " + w.job.toLowerCase() + ". Any frog can wear the hood, it's in your bag." });
-      return;
-    }
-  }
-}
-
-function many(name) { return name.endsWith("s") ? name : name + "s"; }
-
-function nameOf(kind) {
-  const p = state.pond, t = p.bag.find((x) => x.kind === kind);
-  if (t) return t.name.toLowerCase();
-  const r = p.jobs.recipes.find((x) => x.kind === kind);
-  return r ? r.name.toLowerCase() : kind;
-}
-
 function card(f) {
   const div = document.createElement("div"), cv = document.createElement("canvas"), g = bred(genome(f.seed), f.mods);
   div.className = "reed" + (f.front ? " front" : "");
@@ -156,11 +53,14 @@ function card(f) {
     const job = document.createElement("button");
     job.type = "button"; job.className = "job";
     if (f.work.job) {
-      const l = levelOf(f, f.work.job);
-      job.textContent = jobName(f.work.job) + " " + l.level + (f.work.hours >= 1 / 60 ? " · " + hours(f.work.hours) : "");
-      job.classList.toggle("full", f.work.hours >= state.pond.jobs.hold);
-    } else job.textContent = "Give it a job";
-    job.addEventListener("click", () => jobSheet(f));
+      const l = levelOf(f, f.work.job), n = f.work.act ? workNow(f.work) : null;
+      job.textContent = jobName(f.work.job) + " " + l.level + (n ? " · " + (n.stop === "full" ? "full" : n.n + "/" + f.work.cap) : "");
+      job.classList.toggle("full", !!(n && n.stop));
+      job.addEventListener("click", () => openJob(f));
+    } else {
+      job.textContent = "Give it a job";
+      job.addEventListener("click", () => jobSheet(f));
+    }
     div.append(job);
   }
   if (f.front) {
@@ -195,8 +95,9 @@ function render(p) {
 
   const working = p.frogs.filter((f) => f.work && f.work.job).length;
   say("jobs-line", working ? plural(working) + " working. Pond total level " + p.jobs.total + "." : "Nobody's working. Tap a frog's job button to give it one. Pond total level " + p.jobs.total + ".");
-  $("jobs-row").hidden = p.jobs.waiting < 1 / 60;
-  $("jobs-collect").textContent = "Collect " + hours(p.jobs.waiting) + " of work";
+  const baskets = p.frogs.filter((f) => f.work && f.work.act && workNow(f.work).n > 0).length;
+  $("jobs-row").hidden = baskets === 0;
+  $("jobs-collect").textContent = baskets === 1 ? "Take the basket" : "Take " + baskets + " baskets";
 
   // The bench lays from whoever is out front.
   const full = p.frogs.length >= p.pads, lay = $("lay");
@@ -301,12 +202,7 @@ export function initReeds() {
     }, (e) => { say("bench-out", e.message); lay.disabled = false; });
   });
   $("jobs-collect").addEventListener("click", function () {
-    this.disabled = true;
-    post("/api/jobs/collect").then((d) => {
-      setPond(d.pond);
-      showDone(d.done);
-      this.disabled = false;
-    }, (e) => { say("reeds-out", e.message); this.disabled = false; });
+    collect(this).then(() => { this.disabled = false; });
   });
   $("pad-buy").addEventListener("click", () => {
     post("/api/pads/buy").then(setPond, (e) => say("pads-line", e.message));

@@ -6,6 +6,7 @@ import { arcade } from "./arcade.js";
 import { buildPlay, drawDisks, DISKS } from "./play.js";
 import { initWheel, enterWheel } from "./wheel.js";
 import { initReeds } from "./reeds.js";
+import { initJob, enterJob, leaveJob } from "./work.js";
 import { initBank, enterBank, leaveBank } from "./bank.js";
 import { drawWorks } from "./scenes.js";
 import { initShops } from "./shops.js";
@@ -22,13 +23,13 @@ import { initPet, setBox, pose, over as petOver, busy as petBusy, wasRub, tapTri
 
 buildPlay($("shelves"), $("v-dive"));
 const SIDE = DISKS.filter((d) => d.game);
-const VIEWS = ["pond", "play", "dive", ...SIDE.map((d) => d.key), "wheel", "bag", "collect", "reeds", "garden", "bank", "town", "settings"];
+const VIEWS = ["pond", "play", "dive", ...SIDE.map((d) => d.key), "wheel", "bag", "collect", "reeds", "job", "garden", "bank", "town", "settings"];
 // Places that open from another light that one's key.
 const WORKS = ["reeds", "garden", "bank"];
 const TOWN = ["neighbours", "shops", "stall", "wizard"];
 // The key in town a waiting thing is behind, by its kind.
 const TOWN_KEY = { stall: "stall", favour: "neighbours", gift: "neighbours" };
-const TAB_OF = { neighbours: "town", shops: "town", stall: "town", wizard: "town", market: "works", reeds: "works", garden: "works", bank: "works", collect: "bag", dive: "play", wheel: "play" };
+const TAB_OF = { neighbours: "town", shops: "town", stall: "town", wizard: "town", market: "works", reeds: "works", job: "works", garden: "works", bank: "works", collect: "bag", dive: "play", wheel: "play" };
 SIDE.forEach((d) => { TAB_OF[d.key] = "play"; });
 let view = "pond", fetchedAt = Date.now(), worksAt = "", waitingAt = new Set();
 // What the server last said is open, kept so the keys are right before the
@@ -90,7 +91,7 @@ function sortPips(p, todo) {
 
 function isOpen(v) {
   if (v === "market") return open.works && open.market;
-  return v === "works" || WORKS.includes(v) ? open.works : true;
+  return v === "works" || v === "job" || WORKS.includes(v) ? open.works : true;
 }
 
 function bankTab(which) {
@@ -141,6 +142,7 @@ function show(next) {
   if (next === "wheel") enterWheel();
   if (next === "play") drawPlay();
   if (next === "garden") enterBank(); else leaveBank();
+  if (next === "job") enterJob(); else leaveJob();
   if (next === "town") enterTown(key); else leaveTown();
   seeOpen();
   freshen();
@@ -887,6 +889,7 @@ watch(renderPond);
 initDive();
 initWheel();
 initReeds();
+initJob();
 initBank();
 initShops();
 initBag();

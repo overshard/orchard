@@ -1,6 +1,9 @@
 import { genome, bred, cells, colours, draw, W, H } from "./frog.js";
 import { drawIcon } from "./icons.js";
 
+// The thing each job brings, for an icon.
+export const JOB_THING = { garden: "watercress", bugs: "cricket", sticks: "sticks", reeds: "reeds", mud: "clay", pebbles: "peb", craft: "t_basket" };
+
 // The pictures that sit over the text screens, so Works, the reeds and the
 // kitchen each have something to look at above their words.
 
@@ -15,6 +18,23 @@ function setup(cv, w, h, s) {
 }
 
 const WKW = 184, WKH = 60;
+
+// The tool each job is done with, small enough to sit by a frog anywhere.
+const TOOLS = {
+  bugs: [[".aaa..", "a...a.", "a...a.", ".aaa..", "...b..", "....b.", ".....b"], { a: "#fff6dc", b: "#8a5a2b" }],
+  reeds: [[".aaa.", "a...a", "....a", "...b.", "..b..", ".b..."], { a: "#cfd3d6", b: "#8a5a2b" }],
+  sticks: [["b....", ".b..b", "..bb.", "..bb.", ".b..b", "b...."], { b: "#8a5a2b" }],
+  mud: [["..b..", "..b..", "..b..", ".aaa.", ".aaa.", "..a.."], { a: "#cfd3d6", b: "#8a5a2b" }],
+  garden: [["a....", ".a.bb", "..bbbb", "..bbbb", "..bbbb"], { a: "#5aa9e6", b: "#3a6a9a" }],
+  pebbles: [[".a...", "a.a..", ".a.a.", "...a.", "..a.a", "...a."], { a: "#7fd6c2" }],
+  craft: [["aaa.", "aaa.", ".b..", ".b..", ".b.."], { a: "#cfd3d6", b: "#8a5a2b" }],
+};
+
+export function tool(g, job, x, y, s) {
+  const t = TOOLS[job];
+  if (!t) return;
+  t[0].forEach((row, r) => [...row].forEach((ch, c) => { if (ch !== ".") px(g, t[1][ch], x + c * s, y + r * s, s, s); }));
+}
 
 // A window or a lamp, lit when the thing behind it is ready.
 function lamp(g, x, y, w, h, lit) {
@@ -56,6 +76,11 @@ export function drawWorks(cv, p, ready) {
     px(g, colours(ge, null)[1], 13, 47, 8, 5);
     px(g, "#fff6dc", 13, 45, 3, 3); px(g, "#fff6dc", 18, 45, 3, 3);
     px(g, "#0a0908", 14, 46, 1, 1); px(g, "#0a0908", 19, 46, 1, 1);
+  }
+  const busy = p.frogs.find((x) => x.work && x.work.job);
+  if (busy) {
+    tool(g, busy.work.job, 23, 43, 1);
+    drawIcon(g, JOB_THING[busy.work.job], 27, 47, 1);
   }
 
   // The garden, a shed and a bed for each row of plots with what's coming up.
@@ -122,6 +147,7 @@ export function drawReeds(cv, p) {
     const ge = bred(genome(f.seed), f.mods);
     draw(g, cells(ge, f.stage, { hat: f.hat.shape, legs: f.day >= 6 }), W, H, colours(ge, f.hat), x + 2, sh - H - 6, 1);
     if (f.front) px(g, "#ffb000", x + sw / 2 - 1, 1, 3, 3);
+    if (f.work && f.work.job) tool(g, f.work.job, x + sw - 9, sh - 16, 1);
   }
 }
 
@@ -136,4 +162,114 @@ export function drawPot(cv, picked, night) {
   px(g, "#e2412d", 50, 34, 4, 3); px(g, "#ffb000", 55, 33, 6, 4); px(g, "#ffe27a", 57, 34, 2, 2); px(g, "#e2412d", 62, 34, 5, 3); px(g, "#8a5a2b", 48, 37, 22, 2);
   picked.forEach((k, i) => drawIcon(g, k, 44 + i * 18, 2, 2));
   if (picked.length === 2) for (let s = 0; s < 3; s++) px(g, "rgba(255,246,220,0.5)", 52 + s * 7, 14 - (s % 2) * 3, 2, 3);
+}
+
+const JW = 128, JH = 56;
+const frogBuf = document.createElement("canvas");
+let frogKey = "";
+
+function frogSprite(f) {
+  const key = f.id + ":" + f.stage + ":" + f.hat.shape + ":" + f.hat.colour;
+  if (key !== frogKey) {
+    frogKey = key;
+    frogBuf.width = W; frogBuf.height = H;
+    const g = frogBuf.getContext("2d"), ge = bred(genome(f.seed), f.mods);
+    g.clearRect(0, 0, W, H);
+    draw(g, cells(ge, f.stage, { hat: f.hat.shape, legs: f.day >= 6 }), W, H, colours(ge, f.hat), 0, 0, 1);
+  }
+  return frogBuf;
+}
+
+// The ground each job is worked on, drawn behind the frog.
+function ground(g, job, night) {
+  const sky = night ? "#141c2a" : "#3b5a6a";
+  switch (job) {
+    case "bugs":
+      px(g, night ? "#101624" : "#2a3a4a", 0, 0, JW, JH);
+      px(g, "#2f6b33", 0, 44, JW, 12);
+      for (let x = 0; x < JW; x += 3) px(g, x % 2 ? "#3f9a4d" : "#2f6b33", x, 36 + (x * 7) % 8, 1, 10);
+      break;
+    case "reeds":
+      px(g, sky, 0, 0, JW, 30);
+      px(g, "#123a3d", 0, 30, JW, 26);
+      for (let w = 0; w < JW; w += 16) px(g, "#7fd6c2", w + 5, 31, 7, 1);
+      for (let x = 66; x < JW; x += 4) { px(g, "#2f7a3f", x, 12 + (x * 5) % 9, 1, 40); px(g, "#6b4a2a", x, 9 + (x * 5) % 9, 1, 4); }
+      break;
+    case "sticks":
+      px(g, sky, 0, 0, JW, 40);
+      px(g, "#3a2a1c", 96, 0, 10, 46); px(g, "#2f5a3a", 82, 0, 40, 10);
+      px(g, "#5a4630", 0, 46, JW, 10);
+      [[70, 50], [80, 52], [62, 53]].forEach(([x, y]) => px(g, "#8a5a2b", x, y, 7, 1));
+      break;
+    case "mud":
+      px(g, sky, 0, 0, JW, 36);
+      px(g, "#6c5538", 0, 36, JW, 20);
+      px(g, "#4a3318", 60, 44, 30, 8); px(g, "#a8642e", 64, 46, 6, 3); px(g, "#a8642e", 76, 47, 5, 3);
+      px(g, "#123a3d", 100, 40, 28, 16);
+      break;
+    case "garden":
+      px(g, sky, 0, 0, JW, 36);
+      px(g, "#5a4630", 0, 36, JW, 20);
+      for (let r = 0; r < 3; r++) {
+        px(g, "#3a2a1c", 60, 40 + r * 5, 60, 3);
+        for (let x = 62; x < 120; x += 6) px(g, "#56b45f", x, 38 + r * 5, 1, 2);
+      }
+      break;
+    case "pebbles":
+      px(g, sky, 0, 0, JW, 14);
+      px(g, "#123a3d", 0, 14, JW, 36); px(g, "#0e2c30", 0, 34, JW, 16);
+      for (let w = 0; w < JW; w += 16) px(g, "#7fd6c2", w + 3, 14, 7, 1);
+      px(g, "#8f7a52", 0, 50, JW, 6);
+      for (let x = 4; x < JW; x += 9) px(g, x % 2 ? "#b8bcc2" : "#8f949c", x, 50 + (x % 3), 2, 1);
+      break;
+    default:
+      px(g, "#2f241a", 0, 0, JW, JH);
+      for (let y = 0; y < 40; y += 8) px(g, "#3a2c1f", 0, y, JW, 1);
+      px(g, "#3a2c1f", 0, 50, JW, 6);
+      px(g, "#8a6230", 58, 38, 40, 4); px(g, "#6b4a2a", 61, 42, 3, 8); px(g, "#6b4a2a", 92, 42, 3, 8);
+  }
+}
+
+// A frog at its job in a window. k is how far through the action it is, pop
+// counts down from 1 as the last one lands, and the basket sits on the right
+// with a heap for what's in it.
+export function drawJob(cv, o) {
+  const g = setup(cv, JW, JH, 3), job = o.job, f = o.frog;
+  ground(g, job, o.night);
+  const t = o.still ? 0 : o.t;
+  const sway = o.working && !o.still ? Math.round(Math.sin(t * 5)) : 0;
+  let fy = JH - H - 6;
+  if (job === "pebbles") fy = 12 + (o.working && !o.still ? Math.round(Math.sin(o.k * Math.PI) * 14) : 0);
+  const sq = o.still ? 0 : o.pop * 0.18, h = Math.round(H * (1 - sq));
+  if (f.stage !== "egg") g.drawImage(frogSprite(f), 14, fy + (H - h), W, h);
+
+  // The tool, swung in time with the action.
+  if (o.working) {
+    const tx = 52, ty = fy + 12 + sway;
+    tool(g, job, tx, ty, 2);
+  }
+  // What it's after: bugs flit about, the rest wait to be picked up.
+  const thing = o.thing;
+  if (o.working && thing) {
+    if (job === "bugs") {
+      for (let i = 0; i < 3; i++) {
+        const a = t * (0.7 + i * 0.3) + i * 2;
+        drawIcon(g, thing, 72 + Math.round(Math.cos(a) * 10) + i * 8, 10 + Math.round(Math.sin(a * 1.3) * 6) + i * 6, 1);
+      }
+    } else if (job !== "pebbles" && job !== "craft") {
+      drawIcon(g, thing, 70, JH - 16, 1);
+    } else if (job === "craft") {
+      drawIcon(g, thing, 78, 29, 1);
+    }
+    // The last thing in rises off the work into the basket.
+    if (o.pop > 0 && !o.still) drawIcon(g, o.got || thing, 82 + Math.round((1 - o.pop) * 22), 24 - Math.round(Math.sin((1 - o.pop) * Math.PI) * 12), 1);
+  }
+
+  // The basket, a heap showing over its rim as it fills.
+  const bx = 104, by = JH - 14;
+  const heap = Math.round(Math.min(1, o.fill) * 6);
+  if (heap && thing) for (let i = 0; i < heap; i++) drawIcon(g, thing, bx + (i % 3) * 5 - 2, by - 4 - Math.floor(i / 3) * 3, 1);
+  px(g, "#8a5a2b", bx, by, 18, 10); px(g, "#c9974f", bx, by, 18, 2);
+  for (let x = bx + 2; x < bx + 18; x += 4) px(g, "#6b4a2a", x, by + 3, 2, 6);
+  if (o.full) px(g, "#ffb000", bx + 7, by - 12, 3, 3);
 }
