@@ -25,6 +25,7 @@ import { initTown, enterTown, leaveTown } from "./town.js";
 import { initNeighbours, art as residentArt, presentsFrom } from "./neighbours.js";
 import { initSettings } from "./settings.js";
 import { initPostcard } from "./postcard.js";
+import { drawScenery, drawSceneryNight } from "./scenery.js";
 import { initPet, setBox, pose, over as petOver, busy as petBusy, wasRub, tapTrick, arrive, drawBond } from "./pet.js";
 
 const VIEWS = ["pond", "play", "dive", "cross", "flick", "raft", "leap", "school", "fish", "stack", "shell", "skip", "wheel", "bag", "collect", "reeds", "garden", "bank", "town", "settings"];
@@ -461,6 +462,7 @@ function drawScene(now) {
   const has = {};
   (p.furniture || []).forEach((k) => { has[k] = true; });
   drawFurnBack(has, day, t);
+  drawScenery(sx, p.sets, day, t);
   const out = (p.trinkets && p.trinkets.spots) || [];
   if (out[2]) drawIcon(sx, out[2], 160, 12 + Math.round(Math.sin(t * 0.9 + 2)) * 4, 4);
   if (grown(f.stage) && !day.shelter) { drawPad(day); drawFurnPad(has, day, t); }
@@ -523,6 +525,7 @@ function drawScene(now) {
   petOver(sx, now, col);
   drawOver(day, t);
   drawFurnNight(has, day, t, grown(f.stage) && !day.shelter);
+  drawSceneryNight(sx, p.sets, day);
 }
 
 function loop(now) {

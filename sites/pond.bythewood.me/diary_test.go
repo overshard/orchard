@@ -280,7 +280,7 @@ var unkind = regexp.MustCompile(`(?i)\b(sad|hungry|starv\w*|cross|angry|lonely|a
 
 func TestTheDiaryPoolsAreKind(t *testing.T) {
 	slots := regexp.MustCompile(`\{[a-z_]+\}`)
-	allowed := map[string][]string{"grew": {"{a_stage}"}, "fish": {"{score}"}, "record": {"{game}", "{score}"}, "hat": {"{hat}"}, "friend": {"{who}"}, "keepsake": {"{keepsake}"}, "memento": {"{who}", "{thing}"},
+	allowed := map[string][]string{"grew": {"{a_stage}"}, "fish": {"{score}"}, "record": {"{game}", "{score}"}, "hat": {"{hat}"}, "friend": {"{who}"}, "keepsake": {"{keepsake}"}, "memento": {"{who}", "{thing}"}, "set": {"{set}", "{thing}"},
 		"biggest": {"{a_fish}", "{fish}", "{who}"}, "catch": {"{a_fish}", "{fish}"}}
 	for kind, pool := range diaryLines {
 		for _, nature := range natures {

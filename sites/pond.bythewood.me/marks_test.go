@@ -166,10 +166,10 @@ func TestAYoungBagHasFewMarks(t *testing.T) {
 	s, _ := testStore(t)
 	_, id := newPond(t, s)
 	exec(t, s, `UPDATE ponds SET staged = 0`)
-	for _, g := range ingredients {
+	for _, g := range ingredients[:6] {
 		hold(t, s, id, g.kind, 3)
 	}
-	for _, k := range []string{"t_acorn", "t_duck", "sticks", "reeds", "clay", "agate", "quartz", dishOf(0, 1).kind(), dishOf(2, 3).kind()} {
+	for _, k := range []string{"t_acorn", "t_duck", "t_button", "sticks", "reeds", "clay", "agate", "quartz", dishOf(0, 2).kind(), dishOf(0, 3).kind()} {
 		hold(t, s, id, k, 2)
 	}
 	exec(t, s, `INSERT INTO hats (pond_id, shape, colour, count) VALUES (?, 4, 0, 2), (?, 6, 0, 1)`, id, id)
@@ -180,11 +180,11 @@ func TestAYoungBagHasFewMarks(t *testing.T) {
 			marked++
 		}
 	}
-	if len(v.Bag) < 20 {
+	if len(v.Bag) < 15 {
 		t.Fatalf("the bag only has %d things in it", len(v.Bag))
 	}
-	// Two halves of one dish and whatever today's favour is after.
-	if marked == 0 || marked > 3 {
+	// The halves of a named dish, of a dish a set wants, and today's favour.
+	if marked == 0 || marked > 4 {
 		t.Errorf("%d of %d slots in a young bag are marked", marked, len(v.Bag))
 	}
 }

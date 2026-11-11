@@ -746,7 +746,20 @@ version of the old look and a handheld pet shell.
   line each with the same lamp, over the keys.
 - **A prize pops up in the middle** with slow rays behind it in its tier's
   colour, and stays until it's tapped away. A bad turn of the wizard's gets no
-  rays.
+  rays. One that comes while another is up waits its turn.
+- **A set is a panel on the Sets shelf.** What it puts on the water is on
+  the head, dim until the set is finished, with its name, one line and how
+  many are found in readout glass, and its four members are slots under it.
+  One not found is a shadow like any other, and its sheet says where it
+  comes from and which set is waiting on it, here and on its own shelf.
+- **A finished set is on the water for good.** A mushroom ring, a second
+  lantern on a post, a little bridge, a scarecrow, a weathervane and a wind
+  chime hung from the top of the glass, each in a place of its own behind
+  the frog that clears the furniture, the trinket spots and both top
+  corners. The chime and the vane move with the wind and the lantern is lit
+  after dark. Reduced motion holds them still.
+- **A finished set pops up** like a prize, with amber rays. More than two at
+  once share one card.
 - What the frog says is a speech bubble pointing up at it, with the Next strip
   under it.
 - **Days at the pond are a count and never a streak.** It's in settings in

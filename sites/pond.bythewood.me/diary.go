@@ -143,6 +143,11 @@ var diaryLines = map[string]diaryPool{
 		"We came home with {who}'s {thing} yesterday, and I've put it where it can see the water.",
 		"{who} handed over the {thing} yesterday and said to look after it, so I am.",
 	}},
+	"set": {any: []string{
+		"We finished the {set} set yesterday and now there's {thing} on the water, which I've been looking at ever since.",
+		"There's {thing} on the pond as of yesterday, for finishing the {set} set, and it's staying for good.",
+		"The {set} set is all found, so yesterday {thing} turned up on the water and I like it very much.",
+	}},
 	"keepsake": {any: []string{
 		"We were given a {keepsake} yesterday to remember the day by, and I've put it where I can see it.",
 		"There's a {keepsake} on the shelf now, from yesterday, and I keep going over to look at it.",
@@ -336,6 +341,15 @@ func diaryFacts(tx *sql.Tx, p *pond, f frogRow, day string, from, to time.Time) 
 		for who, m := range mementos {
 			if m.kind == k {
 				out = append(out, diaryFact{"memento", []string{"{who}", residents[who].name, "{thing}", m.thing}})
+			}
+		}
+	}
+	if k, err := one(`SELECT kind FROM sets WHERE pond_id = ? AND day = ? ORDER BY kind LIMIT 1`, p.ID, day); err != nil {
+		return nil, err
+	} else if k != "" {
+		for _, s := range sets {
+			if s.kind == k {
+				out = append(out, diaryFact{"set", []string{"{set}", setWord(s.name), "{thing}", strings.ToLower(s.gives)}})
 			}
 		}
 	}

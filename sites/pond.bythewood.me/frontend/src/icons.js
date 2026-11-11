@@ -99,6 +99,7 @@ export const ICONS = {
   i_rest: [["aaaa....", "..a.....", ".a...b.b", "aaaa..b.", ".....b.b", ".cc.....", "..c.....", ".cc....."], { a: "#fff6dc", b: "#ffe27a", c: "#cfe3ea" }],
   i_play: [["........", ".aaaaaa.", "aabaaaca", "abbbacaa", "aabaaaaa", "aaa..aaa", ".a....a.", "........"], { a: "#9aa0a6", b: "#2f2820", c: "#e2567a" }],
   i_bag: [["...bb...", "..b..b..", "..aaaa..", ".aaaaaa.", "aaacaaaa", "aacccaaa", "aaacaaaa", ".aaaaaa."], { a: "#c9974f", b: "#8a6230", c: "#fff6dc" }],
+  i_set: [["aaa.bbb.", "aaa.bbb.", "aaa.bbb.", "........", "ccc.ddd.", "ccc.ddd.", "ccc.ddd.", "........"], { a: "#fff6dc", b: "#ffe27a", c: "#f59ab3", d: "#9fd8e8" }],
   i_star: [["...a....", "...a....", "..aba...", "aaabaaa.", ".abbba..", "..aaa...", ".aa.aa..", "aa...aa."], { a: "#ffe27a", b: "#fff6dc" }],
   i_bank: [["........", "........", "...ab...", "..aabb..", ".cabbcc.", "ccaabbcc", "cccccccc", "........"], { a: "#d5d8dc", b: "#9aa0a6", c: "#6d747a" }],
   i_works: [["......b.", "......b.", "a.a.a.b.", "aaaaaab.", "cccccccc", "cdcdcdcc", "cccccccc", "........"], { a: "#b8456a", b: "#9aa0a6", c: "#8a5a2b", d: "#ffe27a" }],

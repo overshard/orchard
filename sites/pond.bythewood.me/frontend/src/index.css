@@ -2946,6 +2946,70 @@ div.slot {
   background: repeating-linear-gradient(90deg, #5ddc82 0 4px, transparent 4px 5px);
 }
 
+/* A set is a panel like the wanted hat's, what it gives on the head and its
+   four members under it. */
+.setbox {
+  margin: 8px 0 12px;
+  padding: 10px 10px 2px;
+  border-radius: 4px;
+  background: var(--panel);
+  box-shadow: var(--moulded), inset 0 0 0 1px var(--line-hot);
+}
+
+.setbox.done {
+  box-shadow: var(--moulded), inset 0 0 0 1px var(--amber-dim);
+}
+
+.setbox-head {
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.setbox-head canvas {
+  justify-self: center;
+  max-width: 56px;
+  max-height: 52px;
+  image-rendering: pixelated;
+}
+
+.setbox-head > span:not(.setbox-n) {
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+}
+
+.setbox-n {
+  padding: 2px 6px;
+  border-radius: 2px;
+  background: var(--glass);
+  box-shadow: var(--sunk);
+  color: var(--digit);
+  font-size: 12px;
+  font-weight: 700;
+  text-shadow: var(--glow);
+}
+
+.setbox .slots {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+/* Several sets landing at once share one card. */
+.pinrow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  max-width: 280px;
+}
+
+.reveal-art .pinrow canvas {
+  filter: none;
+  image-rendering: pixelated;
+}
+
 /* The bottom sheet for one thing, and the reveal for a prize. */
 .sheet,
 .reveal {
