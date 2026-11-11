@@ -45,19 +45,42 @@ function frogCols(g) {
 const GHOSTS_IN = 9;
 let others = [];
 
+// The daily race is Dive against the residents on the day's course. Its
+// gates come off the server's seed, so every pond meets the same ones.
+let mode = "dive", rng = Math.random;
+const RACE_BAND = 140;
+export function diveMode(m) { if (G.state !== "play" && G.state !== "count") mode = m; }
+
+function seeded(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function board() { return state.pond.dive.race.board; }
+
+// The residents are grown frogs, and a pond's own ghosts are its frog's age.
+function rivalStage() { return mode === "race" ? "frog" : state.pond.frog.stage; }
+
 function ghostSprite(g, kick) {
   const cv = document.createElement("canvas");
   cv.width = SW; cv.height = SH;
-  drawCells(cv.getContext("2d"), sideCells(g, state.pond.frog.stage, kick), SW, SH, frogCols(g), 0, 0, 1);
+  drawCells(cv.getContext("2d"), sideCells(g, rivalStage(), kick), SW, SH, frogCols(g), 0, 0, 1);
   return cv;
 }
 
 function spawnOthers() {
   others = [];
-  for (let i = 0; i < GHOSTS_IN; i++) {
-    const g = genome(1 + Math.floor(Math.random() * 4294967295));
+  const rivals = mode === "race" ? board() : null, n = rivals ? rivals.length : GHOSTS_IN;
+  for (let i = 0; i < n; i++) {
+    const g = genome(rivals ? rivals[i].seed : 1 + Math.floor(Math.random() * 4294967295));
     others.push({
-      id: i, g, name: g.name, spr: [ghostSprite(g, false), ghostSprite(g, true)],
+      id: i, g, name: rivals ? rivals[i].name.toUpperCase() : g.name, spr: [ghostSprite(g, false), ghostSprite(g, true)],
       off: 0, want: 0, wantAt: 0, x: FXP, y: TOP + 30 + Math.random() * (BOT - TOP - 60),
       vy: 0, kick: 0, passed: 0, clears: 99, aim: Math.random() * 4,
       out: false, fade: 1,
@@ -66,7 +89,7 @@ function spawnOthers() {
   // A grid on the line, so you start somewhere in the middle of it.
   const order = others.map((o) => o).sort(() => Math.random() - 0.5), back = behind(), fwd = ahead();
   order.forEach((o, i) => {
-    const slot = (i + 0.5) / GHOSTS_IN;
+    const slot = (i + 0.5) / others.length;
     o.off = o.want = slot < 0.5 ? -back * (1 - slot * 2) : fwd * (slot * 2 - 1);
     o.x = FXP + o.off;
   });
@@ -136,7 +159,7 @@ function drawOthers() {
 
 function reset() {
   F.reset(); G.quick = false;
-  G.fy = 96; G.vy = 0; G.kick = 0; G.gates = []; G.bub = []; G.dist = 0; G.next = 150; G.score = 0; G.cleared = 0; G.place = 0; G.bonus = 0; G.hat = null; G.had = false; G.t = 0; G.lastC = GH / 2; G.flash = 0; G.paid = null; G.rested = 0; G.best = false; G.toldBest = false; G.aims = [];
+  G.fy = 96; G.vy = 0; G.kick = 0; G.gates = []; G.bub = []; G.dist = 0; G.next = 150; G.score = 0; G.cleared = 0; G.place = 0; G.bonus = 0; G.hat = null; G.had = false; G.t = 0; G.lastC = GH / 2; G.flash = 0; G.paid = null; G.rested = 0; G.best = false; G.toldBest = false; G.aims = []; G.made = 0; G.lastF = 0.5; G.prize = 0; G.board = false;
 }
 
 let started = null;
@@ -146,7 +169,7 @@ let started = null;
 function field() {
   const f = state.pond.frog;
   const you = { id: "you", you: true, name: f.name, g: state.g, stage: f.stage, hat: f.hat, spr: youIcon(), gates: G.cleared };
-  return [you].concat(others.map((o) => ({ id: o.id, name: o.name, g: o.g, stage: f.stage, hat: null, spr: o.spr[0], gates: Math.min(o.clears, 999) })));
+  return [you].concat(others.map((o) => ({ id: o.id, name: o.name, g: o.g, stage: rivalStage(), hat: null, spr: o.spr[0], gates: Math.min(o.clears, 999) })));
 }
 
 function youIcon() {
@@ -158,20 +181,26 @@ function youIcon() {
 
 function results(again) {
   if ($("v-dive").hidden) return;
-  raceResults({ racers: field(), why: G.why, place: G.place, paid: G.paid, rested: G.rested, best: G.best, bonus: G.bonus, hat: G.hat, had: G.had, score: G.score, aims: G.aims, again });
+  raceResults({ racers: field(), why: G.why, place: G.place, paid: G.paid, rested: G.rested, best: G.best, bonus: G.bonus, hat: G.hat, had: G.had, score: G.score, aims: G.aims, race: mode === "race" ? { live: G.live, prize: G.prize, board: G.board } : null, again });
 }
 
 function die(now, why) {
   G.state = "over"; G.overAt = now; G.why = why;
   const score = G.score, gates = G.cleared;
-  G.quick = score <= best() && place() > 3;
+  G.quick = mode === "race" ? !G.live && place() > 3 : score <= best() && place() > 3;
   F.crash(FXP, G.fy);
   // The flash of the frog going out plays first, then the results come up.
   setTimeout(() => { if (G.state === "over" && G.overAt === now && !G.quick) results(false); }, 650);
   // Requests go one after another, so a finish always lands before the start
   // of the run after it.
-  net = started.then((run) => run ? post("/api/dive/finish", { run, score, gates }) : null).then((d) => {
+  const finish = mode === "race" ? "/api/race/finish" : "/api/dive/finish";
+  net = started.then((run) => run ? post(finish, { run, score, gates }) : null).then((d) => {
     if (!d) { G.paid = 0; return; }
+    if (mode === "race") {
+      G.paid = d.prize; G.prize = d.prize; G.rested = d.rested; G.place = d.place; G.board = d.live; G.live = false;
+      setPond(d.pond);
+      return;
+    }
     G.paid = d.paid; G.rested = d.rested; G.best = d.best; G.place = d.place; G.bonus = d.bonus; G.hat = d.hat; G.had = d.had; G.aims = d.aims || [];
     setPond(d.pond);
   }, () => { G.paid = 0; }).then(() => {
@@ -209,7 +238,15 @@ function press() {
     if (G.state === "over" && performance.now() - G.overAt < (G.quick ? QUICK_LOCK : LOCK)) return;
     reset(); spawnOthers(); G.state = "count"; G.countAt = performance.now(); G.last = G.countAt;
     raceStart(field().map((r) => ({ id: r.id, name: r.name, spr: r.spr, you: r.you })), liveOrder());
-    started = net = net.then(() => post("/api/dive/start")).then((d) => { deal(d.ghosts); return d.run; }, () => { deal(null); return null; });
+    rng = Math.random;
+    if (mode === "race") {
+      G.live = !state.pond.dive.race.place;
+      started = net = net.then(() => post("/api/race/start")).then((d) => {
+        rng = seeded(d.seed); G.live = d.live;
+        deal(d.race.board.map((r) => r.gates));
+        return d.run;
+      }, () => { deal(board().map((r) => r.gates)); return null; });
+    } else started = net = net.then(() => post("/api/dive/start")).then((d) => { deal(d.ghosts); return d.run; }, () => { deal(null); return null; });
     requestAnimationFrame(counting);
     return;
   }
@@ -234,11 +271,19 @@ function counting(now) {
 
 function speed() { return 84 + Math.min(46, G.score * 1.6); }
 
+// A race gate sits in a band of the same depth on any window, so every pond
+// has the same course, and it narrows by its place in the course.
 function addGate() {
-  const gap = Math.max(44, 60 - G.score * 0.6), lo = TOP + 16 + gap / 2, hi = BOT - 16 - gap / 2;
-  let c = G.lastC + (Math.random() * 2 - 1) * 62;
-  c = Math.max(lo, Math.min(hi, c)); G.lastC = c;
-  G.gates.push({ x: PW + 10, c: c, gap: gap, bob: G.score > 12 ? 6 + Math.random() * 8 : 0, ph: Math.random() * 6, done: false, bug: Math.random() < 0.6 ? (Math.random() < 0.5 ? -1 : 1) : 0, seen: {}, room: 99 });
+  const race = mode === "race", k = race ? G.made : G.score, gap = Math.max(44, 60 - k * 0.6), lo = TOP + 16 + gap / 2, hi = BOT - 16 - gap / 2;
+  const r = [rng(), rng(), rng(), rng(), rng()];
+  let c;
+  if (race) {
+    G.lastF = Math.max(0, Math.min(1, G.lastF + (r[0] * 2 - 1) * 0.45));
+    const span = Math.min(hi - lo, RACE_BAND);
+    c = (lo + hi - span) / 2 + span * G.lastF;
+  } else c = Math.max(lo, Math.min(hi, G.lastC + (r[0] * 2 - 1) * 62));
+  G.lastC = c; G.made++;
+  G.gates.push({ x: PW + 10, c: c, gap: gap, bob: k > 12 ? 6 + r[1] * 8 : 0, ph: r[2] * 6, done: false, bug: r[3] < 0.6 ? (r[4] < 0.5 ? -1 : 1) : 0, seen: {}, room: 99 });
 }
 
 function gateC(g) { return g.c + (g.bob ? Math.sin(G.t * 1.7 + g.ph) * g.bob : 0); }
@@ -359,21 +404,24 @@ function overlay(now) {
     card.dataset.shows = want;
     const span = (cls, text) => { const e = document.createElement("span"); e.className = cls; e.textContent = text; return e; };
     const r = span("readout big", ""), p = document.createElement("p"), key = document.createElement("b"), n = place();
-    r.append(span("k", n + suffix(n) + " of " + (GHOSTS_IN + 1)), span("v", String(G.score)));
-    p.className = G.paid ? "won" : "dim"; p.textContent = G.paid === null ? "Counting..." : "+" + G.paid + " pebbles" + (G.rested ? ", well rested" : "");
+    r.append(span("k", n + suffix(n) + " of " + (others.length + 1)), span("v", String(G.score)));
+    p.className = G.paid ? "won" : "dim"; p.textContent = G.paid === null ? "Counting..." : mode === "race" && !G.board && !G.paid ? "Practice" : "+" + G.paid + " pebbles" + (G.rested ? ", well rested" : "");
     key.className = "key"; key.textContent = "AGAIN";
     card.replaceChildren(r, p, key);
   }
   if (again) return;
-  const aims = state.pond.dive.aims || [], shows = want + aims.map((a) => a.done ? 1 : 0).join("");
-  if (card.dataset.shows === shows) { card.querySelector("canvas").getContext("2d").drawImage($("play-dive-art"), 0, 0); return; }
+  const aims = state.pond.dive.aims || [], rc = state.pond.dive.race, shows = want + mode + rc.place + aims.map((a) => a.done ? 1 : 0).join("");
+  if (card.dataset.shows === shows) { card.querySelector("canvas").getContext("2d").drawImage($(mode === "race" ? "play-race-art" : "play-dive-art"), 0, 0); return; }
   card.dataset.shows = shows;
   const win = document.createElement("div"), art = document.createElement("canvas");
   win.className = "arcade-win"; art.width = 168; art.height = 96;
-  art.getContext("2d").drawImage($("play-dive-art"), 0, 0);
+  art.getContext("2d").drawImage($(mode === "race" ? "play-race-art" : "play-dive-art"), 0, 0);
   win.append(art);
   const line = (tag, cls, text) => { const e = document.createElement(tag); e.className = cls; e.textContent = text; return e; };
   if (want === "paused") card.replaceChildren(win, line("b", "", "PAUSED"), line("p", "again", "Tap to carry on"));
+  else if (mode === "race") card.replaceChildren(win, line("b", "", "DAILY RACE"), line("p", "dim", "Today's course, the same for every pond"),
+    line("p", "dim", rc.place ? "On the board " + rc.place + suffix(rc.place) + " with " + rc.gates + " gates, the rest is practice" : "Your first run today goes on the board"),
+    line("p", "dim", "The top three win a prize"), line("p", "again", "Tap to start"));
   else card.replaceChildren(win, line("b", "", "DIVE"), line("p", "dim", "Tap to kick down"), line("p", "dim", "The frog floats up by itself"),
     line("p", "dim", "Outlast the others for a prize"), aimList(aims), line("p", "again", "Tap to start"));
 }
