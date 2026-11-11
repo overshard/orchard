@@ -56,7 +56,9 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
   has had since the dye works boils them away.
 - `keepsake.go` is the keepsake shelf, one thing for each kind of real day
   (a frost, a full moon, a bad day on the market) handed over on a visit that
-  day and kept in `keepsakes` with the date. They're never spent.
+  day and kept in `keepsakes` with the date. They're never spent. The last
+  four are for 7, 30, 100 and 365 days at the pond, counted in
+  `ponds.days_visited` once a New York day at the greeting.
 - `shop.go` is Little Tully's hats, Big Bean's larder, Moth's curios and Tansy's
   furniture, which the page draws on the water. Stock is
   dealt from the day so everybody sees the same shelf, and `bought` counts

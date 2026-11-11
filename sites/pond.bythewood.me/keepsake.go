@@ -14,43 +14,49 @@ type keepsake struct {
 	tier            int
 	line            string
 	on              func(r *reading, now time.Time) bool
+	// A keepsake for days at the pond is handed over once, on reaching them.
+	days int
 }
 
 var keepsakes = []keepsake{
 	{"k_frost", "Frosted leaf", "weather", 1, "a hard frost",
-		func(r *reading, _ time.Time) bool { return r != nil && r.HasTemp && r.Temp <= 32 }},
+		func(r *reading, _ time.Time) bool { return r != nil && r.HasTemp && r.Temp <= 32 }, 0},
 	{"k_web", "Dewy web", "weather", 1, "a foggy morning",
-		func(r *reading, _ time.Time) bool { return r != nil && condHas(r, "fog", "mist", "haze") }},
+		func(r *reading, _ time.Time) bool { return r != nil && condHas(r, "fog", "mist", "haze") }, 0},
 	{"k_storm", "Storm twig", "weather", 2, "a thunderstorm",
-		func(r *reading, _ time.Time) bool { return r != nil && condHas(r, "thunder") }},
+		func(r *reading, _ time.Time) bool { return r != nil && condHas(r, "thunder") }, 0},
 	{"k_shell", "Sunbaked shell", "weather", 2, "a scorcher over 92°",
-		func(r *reading, _ time.Time) bool { return r != nil && r.HasTemp && r.Temp >= 92 }},
+		func(r *reading, _ time.Time) bool { return r != nil && r.HasTemp && r.Temp >= 92 }, 0},
 	{"k_snow", "Tiny snowball", "weather", 3, "snow",
-		func(r *reading, _ time.Time) bool { return r != nil && condHas(r, "snow", "flurr") }},
+		func(r *reading, _ time.Time) bool { return r != nil && condHas(r, "snow", "flurr") }, 0},
 	{"k_lily", "Lucky lily", "market", 2, "a big up day on the market",
-		func(r *reading, _ time.Time) bool { return r != nil && r.HasSP && r.SP >= 1.5 }},
+		func(r *reading, _ time.Time) bool { return r != nil && r.HasSP && r.SP >= 1.5 }, 0},
 	{"k_penny", "Sunk penny", "market", 2, "a big down day on the market",
-		func(r *reading, _ time.Time) bool { return r != nil && r.HasSP && r.SP <= -1.5 }},
+		func(r *reading, _ time.Time) bool { return r != nil && r.HasSP && r.SP <= -1.5 }, 0},
 	{"k_kite", "Kite string", "market", 3, "the VIX over 30",
-		func(r *reading, _ time.Time) bool { return r != nil && r.VIX >= 30 }},
+		func(r *reading, _ time.Time) bool { return r != nil && r.VIX >= 30 }, 0},
 	{"k_wing", "Dragonfly wing", "news", 1, "a big news day",
-		func(r *reading, _ time.Time) bool { return r != nil && r.Major }},
+		func(r *reading, _ time.Time) bool { return r != nil && r.Major }, 0},
 	{"k_amber", "Gnat in amber", "news", 1, "a swarm on Hacker News",
-		func(r *reading, _ time.Time) bool { return r != nil && r.Swarm }},
+		func(r *reading, _ time.Time) bool { return r != nil && r.Swarm }, 0},
 	{"k_heron", "Heron feather", "news", 2, "one of the sites going down",
-		func(r *reading, _ time.Time) bool { return r != nil && r.Down != "" }},
+		func(r *reading, _ time.Time) bool { return r != nil && r.Down != "" }, 0},
 	{"k_moon", "Moonlit petal", "calendar", 1, "a full moon",
-		func(_ *reading, now time.Time) bool { return fullMoon(now) }},
+		func(_ *reading, now time.Time) bool { return fullMoon(now) }, 0},
 	{"k_blossom", "Cherry blossom", "calendar", 2, "the spring equinox",
-		func(_ *reading, now time.Time) bool { return near(now, time.March, 20) }},
+		func(_ *reading, now time.Time) bool { return near(now, time.March, 20) }, 0},
 	{"k_daisy", "Midsummer daisy", "calendar", 2, "midsummer",
-		func(_ *reading, now time.Time) bool { return near(now, time.June, 21) }},
+		func(_ *reading, now time.Time) bool { return near(now, time.June, 21) }, 0},
 	{"k_maple", "Red maple leaf", "calendar", 2, "the autumn equinox",
-		func(_ *reading, now time.Time) bool { return near(now, time.September, 22) }},
+		func(_ *reading, now time.Time) bool { return near(now, time.September, 22) }, 0},
 	{"k_holly", "Holly sprig", "calendar", 2, "midwinter",
-		func(_ *reading, now time.Time) bool { return near(now, time.December, 21) }},
+		func(_ *reading, now time.Time) bool { return near(now, time.December, 21) }, 0},
 	{"k_spawn", "Frogspawn bead", "calendar", 3, "a warm rain in late winter",
-		func(r *reading, now time.Time) bool { return r != nil && spawning(r, now) }},
+		func(r *reading, now time.Time) bool { return r != nil && spawning(r, now) }, 0},
+	{"k_days7", "Worn pebble", "visits", 1, "seven days at the pond", nil, 7},
+	{"k_days30", "Pressed reed", "visits", 2, "thirty days at the pond", nil, 30},
+	{"k_days100", "Jar of pond water", "visits", 3, "a hundred days at the pond", nil, 100},
+	{"k_days365", "Year ring", "visits", 4, "a year of days at the pond", nil, 365},
 }
 
 func condHas(r *reading, words ...string) bool {
@@ -96,15 +102,22 @@ func spawning(r *reading, now time.Time) bool {
 }
 
 // stampKeepsakes hands over whatever today brings that the pond hasn't had
-// today, and returns the lines for the greeting.
-func stampKeepsakes(tx *sql.Tx, id int64, r *reading, now time.Time) ([][2]string, error) {
+// today, and returns the lines for the greeting. visited is its days here.
+func stampKeepsakes(tx *sql.Tx, id int64, visited int, r *reading, now time.Time) ([][2]string, error) {
 	out := [][2]string{}
 	day := dayOf(now)
 	for _, k := range keepsakes {
-		if !k.on(r, now) {
+		var res sql.Result
+		var err error
+		switch {
+		case k.days > 0 && visited >= k.days:
+			res, err = tx.Exec(`INSERT INTO keepsakes (pond_id, kind, day) SELECT ?1, ?2, ?3
+				WHERE NOT EXISTS (SELECT 1 FROM keepsakes WHERE pond_id = ?1 AND kind = ?2)`, id, k.kind, day)
+		case k.days == 0 && k.on(r, now):
+			res, err = tx.Exec(`INSERT INTO keepsakes (pond_id, kind, day) VALUES (?, ?, ?) ON CONFLICT DO NOTHING`, id, k.kind, day)
+		default:
 			continue
 		}
-		res, err := tx.Exec(`INSERT INTO keepsakes (pond_id, kind, day) VALUES (?, ?, ?) ON CONFLICT DO NOTHING`, id, k.kind, day)
 		if err != nil {
 			return nil, err
 		}

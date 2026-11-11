@@ -393,6 +393,14 @@ button.screen:active {
   border-radius: 2px;
 }
 
+/* Days at the pond in settings, the count in glass and a line beside it. */
+.daysat {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
 /* The hearts sit over a top corner of the glass, where nothing on the
    water is drawn. A sideways drag on the screen is a rub, so only an up and
    down one scrolls the page. */
