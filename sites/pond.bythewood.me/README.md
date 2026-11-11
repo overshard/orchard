@@ -101,6 +101,10 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   is dropped.
   The book is a shelf in the collection and counts in power at the hat rate
   by tier, as `fish_<kind>` wherever found things are kept together.
+  Every fish has a pond record off a hash, held by a neighbour and mostly by
+  Sedge. A pond holds one when its best is over it, so nothing more is
+  stored, and the day it's beaten goes in `records` as `rec_<kind>` for the
+  paper and the diary.
 - `bond.go` is petting. A rub of the frog out front is `POST /api/frogs/pet`,
   which adds to that frog's bond up to a day's worth and never takes any
   away. A heart is a hundred points, and each frog has a favourite spot off

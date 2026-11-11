@@ -716,7 +716,10 @@ version of the old look and a handheld pet shell.
   colours as big as the slot allows, with how many in the corner and the
   biggest one's length under its name. One not landed yet is its dark shape,
   and its sheet says when it bites, so the book gives away the day to try and
-  never the fish.
+  never the fish. Each fish has a pond record a neighbour holds, mostly
+  Sedge, and a slot says RECORD in amber once the pond has beaten it. The
+  round that does it gets a line from Sedge under the catch, in his own
+  words and not in caps, and a line in the paper's Records the day after.
 - **A prize pops up in the middle** with slow rays behind it in its tier's
   colour, and stays until it's tapped away. A bad turn of the wizard's gets no
   rays.

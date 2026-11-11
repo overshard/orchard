@@ -14,8 +14,9 @@ const TELL = 0.55, PERFECT = 0.3, SLACK = 1.8;
 const BOOT = { k: "boot", one: "old boot", many: "old boots", pts: 2, len: 10, heavy: 1.3 };
 
 let G = null, spr = null, col = null;
-// What the server made of the last round, each kind with its biggest.
-let last = null;
+// What the server made of the last round, each kind with its biggest, and
+// what Sedge said if a pond record went.
+let last = null, sedge = "";
 const F = feel();
 
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -162,7 +163,7 @@ export const fish = {
     col = colours(g, p.frog.hat);
     G = { t: 0, score: 0, streak: 0, caught: 0, st: "ready", hook: { x: TIP.x, y: TIP.y, ty: 0, k: 1 }, fish: [], boots: [], taker: null, landed: null,
       hold: false, ten: 0, slack: 0, tick: 0, lt: 0, perfect: false, rings: [], bag: {}, why: "", end: false, aim: { x: 150, y: SURF + 90 }, kb: false };
-    last = null;
+    last = null; sedge = "";
     for (let i = 0; i < SCHOOL; i++) spawn(false);
     if (Math.random() < 0.6) G.boots.push({ x: rnd(100, W - 20), y: BOT - 4 });
   },
@@ -251,24 +252,33 @@ export const fish = {
 
   result(d) {
     last = d.catch || [];
-    return last.some((c) => c.first);
+    sedge = d.sedge || "";
+    return last.some((c) => c.first || c.record);
   },
 
   // The catch as slots, or only the fish on the short card.
   card(quick) {
     if (!last || !last.length) return null;
-    const row = document.createElement("div");
+    const box = document.createElement("div"), row = document.createElement("div");
+    box.className = "fishcard";
     row.className = "fishrow" + (quick ? " small" : "");
     last.forEach((c) => {
       const s = slot(fishArt(c.kind), { tier: c.tier, name: quick ? "" : c.name, count: c.n, sub: quick ? "" : inches(c.size) });
-      if (!quick && (c.first || c.best)) {
+      if (!quick && (c.first || c.best || c.record)) {
         const tag = document.createElement("em");
-        tag.textContent = c.first ? "NEW" : "BEST";
+        tag.textContent = c.record ? "RECORD" : c.first ? "NEW" : "BEST";
         s.append(tag);
       }
       row.append(s);
     });
-    return row;
+    box.append(row);
+    if (sedge && !quick) {
+      const p = document.createElement("p"), who = document.createElement("b");
+      p.className = "sedge"; who.textContent = "Sedge";
+      p.append(who, " " + sedge);
+      box.append(p);
+    }
+    return box;
   },
 
   tally() {

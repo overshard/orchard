@@ -3,8 +3,11 @@ package main
 import (
 	"database/sql"
 	"errors"
+	"fmt"
+	"hash/fnv"
 	"math"
 	"math/rand/v2"
+	"strings"
 	"time"
 )
 
@@ -123,6 +126,45 @@ type caught struct {
 	// First is the first of its kind, and Best one bigger than the book had.
 	First bool `json:"first,omitempty"`
 	Best  bool `json:"best,omitempty"`
+	// Record is one that took the pond record, off the neighbour in From.
+	Record bool   `json:"record,omitempty"`
+	From   string `json:"from,omitempty"`
+}
+
+// recordGame is a pond record's row in records, with the kind after it and
+// the size as its score.
+const recordGame = "rec_"
+
+// pondRecord is the size to beat for a kind and the neighbour who holds it,
+// the same in every pond. Sedge fishes all day, so most of them are Sedge's.
+func pondRecord(f fishKind) (size, who int) {
+	h := fnv.New32a()
+	h.Write([]byte("record " + f.kind))
+	n := h.Sum32()
+	size = f.lo + (f.hi-f.lo)*(800+int(n%150))/1000
+	if (n>>8)%5 >= 3 {
+		who = 1 + int((n>>12)%uint32(len(residents)-1))
+	}
+	return size, who
+}
+
+// sedgeSays is Sedge on losing a record, or on somebody else losing one.
+func sedgeSays(f fishKind, who int) string {
+	fish := strings.ToLower(f.name)
+	lines := []string{
+		"That was my " + fish + " record. Fine, it's yours, so look after it.",
+		"I held that " + fish + " record a long time. Don't let it go to your head.",
+		strings.ToUpper(aFish(f)[:1]) + aFish(f)[1:] + " that size, off my pond. I suppose somebody had to.",
+	}
+	if who != 0 {
+		name := residents[who].name
+		lines = []string{
+			"Bigger than " + name + "'s " + fish + ". I never liked that record anyway.",
+			name + " won't enjoy hearing about that " + fish + ", so I'll be the one to say.",
+			"That beats " + name + "'s " + fish + ". Not bad, and I don't say that.",
+		}
+	}
+	return lines[seedPick(uint32(f.lo+f.hi), "sedge "+f.kind, len(lines))]
 }
 
 // landFish puts a round's catch in the fish book and rolls each one's size.
@@ -165,7 +207,16 @@ func landFish(tx *sql.Tx, p *pond, landed map[string]int, score int, tables []ma
 			p.ID, f.kind, c, size, p.today); err != nil {
 			return nil, err
 		}
-		out = append(out, caught{Kind: f.kind, Name: f.name, Tier: f.tier, N: c, Size: size, First: had == 0, Best: had > 0 && size > had})
+		got := caught{Kind: f.kind, Name: f.name, Tier: f.tier, N: c, Size: size, First: had == 0, Best: had > 0 && size > had}
+		if rec, who := pondRecord(f); size > rec && had <= rec {
+			got.Record, got.From = true, residents[who].name
+			if _, err := tx.Exec(`INSERT INTO records (pond_id, game, day, score) VALUES (?, ?, ?, ?)
+				ON CONFLICT (pond_id, game, day) DO UPDATE SET score = MAX(score, excluded.score)`,
+				p.ID, recordGame+f.kind, p.today, size); err != nil {
+				return nil, err
+			}
+		}
+		out = append(out, got)
 	}
 	return out, nil
 }
@@ -182,7 +233,14 @@ type fishSlot struct {
 	Hint  string  `json:"hint"`
 	W     float64 `json:"w"`
 	Up    bool    `json:"up,omitempty"`
+	// The pond record, who holds it, and whether this pond has beaten it.
+	Record int    `json:"record"`
+	Holder string `json:"holder"`
+	Yours  bool   `json:"yours,omitempty"`
 }
+
+// inches is a size the way the paper prints it.
+func inches(size int) string { return fmt.Sprintf("%d.%d", size/10, size%10) }
 
 type fishingView struct {
 	All   []fishSlot `json:"all"`
@@ -217,7 +275,9 @@ func fishingOf(q querier, id int64, d fishDay) (fishingView, error) {
 		if r.count > 0 {
 			v.Found++
 		}
-		v.All = append(v.All, fishSlot{f.kind, f.name, f.tier, r.count, r.best, r.first, f.hint, w, w > f.bite(fishDay{})})
+		rec, who := pondRecord(f)
+		v.All = append(v.All, fishSlot{f.kind, f.name, f.tier, r.count, r.best, r.first, f.hint, w, w > f.bite(fishDay{}),
+			rec, residents[who].name, r.best > rec})
 	}
 	return v, nil
 }

@@ -2730,6 +2730,15 @@ div.slot {
   transform: rotate(45deg);
 }
 
+/* A word under a slot for news about it, a new fish or a pond record. */
+.slot em {
+  color: var(--amber);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
 .slot.on {
   box-shadow: 0 0 0 2px var(--void), 0 0 0 4px currentColor;
 }
@@ -3412,12 +3421,23 @@ button.big {
   color: var(--muted);
 }
 
-.fishrow .slot em {
+.fishcard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+/* What Sedge says when a pond record goes, in his own words and not in caps. */
+.arcade-card .sedge {
+  color: var(--muted);
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+}
+
+.arcade-card .sedge b {
   color: var(--amber);
-  font-size: 12px;
-  font-style: normal;
-  font-weight: 700;
-  letter-spacing: var(--track);
 }
 
 .fishrow.small {
