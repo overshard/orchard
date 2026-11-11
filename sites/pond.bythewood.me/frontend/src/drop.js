@@ -8,7 +8,7 @@ import { feel } from "./feel.js";
 // pays most, and the day's deal nudges each row so no spot is best for good.
 const W = 200, H = 320, TOP = 44, ROW0 = 74, ROWS = 9, GAP = 18, PITCH = 20;
 const RIM = 262, FLOOR = 312, POT = W / 5, PAYS = [1, 3, 8, 3, 1], PEBBLES = 5;
-const GRAV = 420, R = 4, PEG = 3, BOUNCE = 0.4, GRIP = 0.75, STEP = 1 / 240;
+const GRAV = 420, R = 4, PEG = 3, BOUNCE = 0.4, GRIP = 0.75, STEP = 1 / 240, KICK = 70, AIM = 14;
 
 let G = null, col = null;
 const F = feel();
@@ -20,7 +20,7 @@ function pegsOf(deal) {
     const dx = (deal && deal[r]) || 0;
     for (let i = -1; i < 12; i++) {
       const x = (r % 2 ? 0 : PITCH / 2) + i * PITCH + dx;
-      if (x >= 12 && x <= W - 12) out.push({ x, y: ROW0 + r * GAP, hit: 0 });
+      if (x >= 8 && x <= W - 8) out.push({ x, y: ROW0 + r * GAP, hit: 0 });
     }
   }
   return out;
@@ -56,8 +56,9 @@ function land(p) {
 function fall(p) {
   p.vy += GRAV * STEP;
   p.x += p.vx * STEP; p.y += p.vy * STEP;
-  if (p.x < R) { p.x = R; p.vx = Math.abs(p.vx) * BOUNCE; }
-  if (p.x > W - R) { p.x = W - R; p.vx = -Math.abs(p.vx) * BOUNCE; }
+  // The walls push back out, so nothing slides down the side past the reeds.
+  if (p.x < R) { p.x = R; p.vx = Math.max(KICK, Math.abs(p.vx) * BOUNCE); }
+  if (p.x > W - R) { p.x = W - R; p.vx = -Math.max(KICK, Math.abs(p.vx) * BOUNCE); }
   G.pegs.forEach((q) => {
     if (bounce(p, q.x, q.y, PEG)) { q.hit = 0.18; sfx("kick", 1 + (G.ticks++ % 8)); }
   });
@@ -68,7 +69,7 @@ function fall(p) {
   }
   // One sat still on a stub gets a nudge off it.
   p.still = Math.hypot(p.vx, p.vy) < 14 ? p.still + STEP : 0;
-  if (p.still > 0.25) { p.vx += Math.random() < 0.5 ? -34 : 34; p.still = 0; }
+  if (p.still > 0.25) { p.vx += p.x < 20 ? 34 : p.x > W - 20 ? -34 : Math.random() < 0.5 ? -34 : 34; p.still = 0; }
   if (p.y >= FLOOR - R) land(p);
 }
 
@@ -93,7 +94,7 @@ export const drop = {
   demo() { return G && G.st === "aim" && G.left === PEBBLES ? { x: 64, y: TOP - 4, to: [112, TOP - 4] } : null; },
 
   press() { if (G) G.armed = true; },
-  drag(x) { if (G) G.aim = Math.max(R + 2, Math.min(W - R - 2, x)); },
+  drag(x) { if (G) G.aim = Math.max(AIM, Math.min(W - AIM, x)); },
   release() {
     if (!G || !G.armed) return;
     G.armed = false;
@@ -109,7 +110,7 @@ export const drop = {
 
   step(dt) {
     G.t += dt; G.st_t += dt;
-    G.aim = Math.max(R + 2, Math.min(W - R - 2, G.aim + G.dir * 90 * dt));
+    G.aim = Math.max(AIM, Math.min(W - AIM, G.aim + G.dir * 90 * dt));
     G.pegs.forEach((q) => { q.hit = Math.max(0, q.hit - dt); });
     if (G.st === "fall") {
       // The last pebble falls slowly, and slower still over the pots.
