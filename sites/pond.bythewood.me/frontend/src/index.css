@@ -3090,6 +3090,28 @@ button.big {
   animation: blink 1.2s steps(2) infinite;
 }
 
+/* A run that beat nothing ends on a short card, the score in glass over an
+   amber key, so one tap is the next run. */
+.arcade-card.quick {
+  top: 30%;
+  width: auto;
+  min-width: 10rem;
+  gap: 8px;
+}
+
+.arcade-card .key {
+  width: 100%;
+  padding: 9px 18px;
+  border-radius: 3px;
+  background: var(--cap-amber);
+  box-shadow: var(--raised);
+  color: var(--void);
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: var(--track);
+}
+
 .arcade-win {
   width: 100%;
   margin-bottom: 4px;

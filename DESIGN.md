@@ -635,6 +635,10 @@ version of the old look and a handheld pet shell.
   when it lands or catches. Reduced motion gets no shake and no squash, and
   every game takes this from `feel.js` so they all feel the same.
   A near miss says CLOSE in the surface green.
+- **A run that beat nothing ends on a short card**, the score in readout glass
+  over an amber AGAIN key, sat a third of the way down so the crash still
+  shows under it, and one tap is the next run. A new best or a place on Dive's
+  podium gets the whole results.
 - **The market is a board.** A ticker of pebble prices scrolls along the top in
   readout glass, still under reduced motion, each business is a pixel
   shopfront in its own awning colour with its price in glass, and a day down

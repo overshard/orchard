@@ -1,6 +1,6 @@
 import { $, post, state, setPond, watch, room, onResize, payWord } from "./api.js";
 import { genome, sideCells, draw as drawCells, SW, SH } from "./frog.js";
-import { raceStart, raceOut, raceOrder, raceResults, raceHide, countdown, callout } from "./race.js";
+import { raceStart, raceOut, raceOrder, raceResults, raceHide, countdown, callout, suffix } from "./race.js";
 import { feel } from "./feel.js";
 import { sfx } from "./sound.js";
 
@@ -16,6 +16,8 @@ const BIG = "700 22px 'Space Grotesk', sans-serif";
 // The frog is hit well inside its sprite, this far ahead, behind, over and
 // under where it swims. NEAR is how close a gate can pass and get a CLOSE.
 const AHEAD = 5, BEHIND = 6, OVER = 3, UNDER = 4, NEAR = 4;
+// A run that won nothing new ends on a short card that a tap clears.
+const QUICK_AT = 350, QUICK_LOCK = 450, LOCK = 900;
 
 const F = feel();
 let gc, gx, spr = null, sprKey = "", net = Promise.resolve();
@@ -133,7 +135,7 @@ function drawOthers() {
 }
 
 function reset() {
-  F.reset();
+  F.reset(); G.quick = false;
   G.fy = 96; G.vy = 0; G.kick = 0; G.gates = []; G.bub = []; G.dist = 0; G.next = 150; G.score = 0; G.cleared = 0; G.place = 0; G.bonus = 0; G.hat = null; G.had = false; G.t = 0; G.lastC = GH / 2; G.flash = 0; G.paid = null; G.best = false; G.toldBest = false;
 }
 
@@ -162,9 +164,10 @@ function results(again) {
 function die(now, why) {
   G.state = "over"; G.overAt = now; G.why = why;
   const score = G.score, gates = G.cleared;
+  G.quick = score <= best() && place() > 3;
   F.crash(FXP, G.fy);
   // The flash of the frog going out plays first, then the results come up.
-  setTimeout(() => { if (G.state === "over" && G.overAt === now) results(false); }, 650);
+  setTimeout(() => { if (G.state === "over" && G.overAt === now && !G.quick) results(false); }, 650);
   // Requests go one after another, so a finish always lands before the start
   // of the run after it.
   net = started.then((run) => run ? post("/api/dive/finish", { run, score, gates }) : null).then((d) => {
@@ -173,10 +176,15 @@ function die(now, why) {
     setPond(d.pond);
   }, () => { G.paid = 0; }).then(() => {
     if (G.state !== "over" || G.overAt !== now) return;
-    if (performance.now() - now >= 650) results(true);
+    // A prize the page didn't see coming still gets the whole card.
+    if (G.quick && (G.best || G.bonus || G.hat)) G.quick = false;
+    if (!G.quick && performance.now() - now >= 650) results(true);
     draw(performance.now());
   });
 }
+
+// Where this run would place if it ended now, off the deal.
+function place() { return 1 + others.filter((o) => o.clears > G.cleared).length; }
 
 function kick() {
   G.vy = KICK; G.kick = 0.16;
@@ -197,7 +205,7 @@ function press() {
     return;
   }
   if (G.state !== "play") {
-    if (G.state === "over" && performance.now() - G.overAt < 900) return;
+    if (G.state === "over" && performance.now() - G.overAt < (G.quick ? QUICK_LOCK : LOCK)) return;
     reset(); spawnOthers(); G.state = "count"; G.countAt = performance.now(); G.last = G.countAt;
     raceStart(field().map((r) => ({ id: r.id, name: r.name, spr: r.spr, you: r.you })), liveOrder());
     started = net = net.then(() => post("/api/dive/start")).then((d) => { deal(d.ghosts); return d.run; }, () => { deal(null); return null; });
@@ -326,16 +334,28 @@ function draw(now) {
   F.draw(gx);
   gx.textAlign = "center"; gx.font = BIG;
   gx.fillStyle = "#0a1b1f"; gx.fillText(G.score, PW / 2 + 1, 48); gx.fillStyle = G.flash > 0 ? "#ffe27a" : "#fff6dc"; gx.fillText(G.score, PW / 2, 47);
-  overlay();
+  overlay(now);
   if (G.state === "over" && now - G.overAt < 600) requestAnimationFrame(draw);
 }
 
 // The title is the same card the side games open on, and a paused run shows
 // in it too.
-function overlay() {
-  const card = $("dive-card"), want = G.state === "idle" || G.state === "paused" ? G.state : "";
+function overlay(now) {
+  const card = $("dive-card"), again = G.state === "over" && G.quick && now - G.overAt >= QUICK_AT;
+  const want = again ? "again" + G.paid : G.state === "idle" || G.state === "paused" ? G.state : "";
   card.hidden = !want;
   if (card.hidden) return;
+  card.classList.toggle("quick", again);
+  if (again && card.dataset.shows !== want) {
+    card.dataset.shows = want;
+    const span = (cls, text) => { const e = document.createElement("span"); e.className = cls; e.textContent = text; return e; };
+    const r = span("readout big", ""), p = document.createElement("p"), key = document.createElement("b"), n = place();
+    r.append(span("k", n + suffix(n) + " of " + (GHOSTS_IN + 1)), span("v", String(G.score)));
+    p.className = G.paid ? "won" : "dim"; p.textContent = G.paid === null ? "Counting..." : "+" + G.paid + " pebbles";
+    key.className = "key"; key.textContent = "AGAIN";
+    card.replaceChildren(r, p, key);
+  }
+  if (again) return;
   if (card.dataset.shows === want) { card.querySelector("canvas").getContext("2d").drawImage($("play-dive-art"), 0, 0); return; }
   card.dataset.shows = want;
   const win = document.createElement("div"), art = document.createElement("canvas");
