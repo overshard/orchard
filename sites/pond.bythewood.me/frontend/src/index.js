@@ -617,10 +617,11 @@ function paper(g, nb) {
     page.append(note);
   }
   const [lead, ...rest] = g.lines;
-  const who = nb && nb.all[g.photo];
+  // A photo only runs with a story about the frog in it.
+  const who = g.pictured && nb && nb.all[g.photo];
   if (who) {
     const story = el("div", "paper-front"), fig = el("figure", "paper-photo");
-    fig.append(residentArt(who, 3), el("figcaption", "", g.pictured ? who.name + ", pictured" : "File photo"));
+    fig.append(residentArt(who, 3), el("figcaption", "", who.name + ", pictured"));
     story.append(fig, el("p", "paper-lead", lead));
     page.append(story);
   } else page.append(el("p", "paper-lead", lead));
