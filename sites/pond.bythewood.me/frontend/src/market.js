@@ -1,6 +1,7 @@
 import { $, post, setPond, watch, reduced } from "./api.js";
 import { openSheet, sheetSay, button } from "./ui.js";
 import { iconCanvas } from "./icons.js";
+import { renderBlack, showBlack } from "./black.js";
 
 // Each business has its own awning colour and a mark on its sign.
 const LOOK = {
@@ -27,7 +28,7 @@ const GLYPH = {
   F: ["111", "1..", "11.", "1.."],
 };
 
-const BUCKETS = [["share", "Shares"], ["good", "Goods"], ["coin", "Coin"]];
+const BUCKETS = [["share", "Shares"], ["good", "Goods"], ["coin", "Coin"], ["black", "Back door"]];
 let bucket = "share";
 
 function canvas(w, h, s) {
@@ -223,6 +224,7 @@ const LINE = {
   share: () => "Shares in the town's businesses. Each pays a little every evening it's held.",
   good: (m) => "Goods by the lot of " + m.lot + ", into the bag and out of it. The market pays " + m.room + " more for goods today.",
   coin: () => "Glowworm Coin. Big days both ways, and no telling which.",
+  black: () => "",
 };
 
 function render(p) {
@@ -245,7 +247,7 @@ function render(p) {
     "A share pays a dividend every evening off how its business did, collected here. Goods are bought and sold by the lot of " + m.lot + ", straight into the bag and out of it, and the more of a thing ponds bring in the cheaper it gets. " +
     "Glowworm Coin swings far more than anything else and is worth about what it costs over time, so it's a gamble. " +
     "Buying and selling cost " + m.fees.share + " in a hundred on shares, " + m.fees.good + " on goods and " + m.fees.coin + " on the coin. " +
-    "How much you can hold in shares and coin grows with the bank and with frog power. This is the one place pebbles can be lost to chance.";
+    "How much you can hold in shares and coin grows with the bank and with frog power. This and the back door are the places pebbles can be lost to chance.";
   const sorts = $("mkt-sorts");
   sorts.replaceChildren(...BUCKETS.map(([k, label]) => {
     const b = button(label, () => { bucket = k; render(p); });
@@ -258,6 +260,11 @@ function render(p) {
   tape.textContent = bits.join("   ·   ") + "   ·   " + bits.join("   ·   ");
   tape.classList.toggle("still", reduced);
   $("mkt-list").replaceChildren(...m.firms.filter((f) => f.kind === bucket).map(card));
+  const back = bucket === "black";
+  $("mkt-open").hidden = back;
+  $("mkt-black").hidden = !back;
+  if (back) renderBlack(p, () => { bucket = "coin"; render(p); });
+  showBlack(back);
 }
 
 export function initMarket() { watch(render); }

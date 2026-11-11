@@ -718,6 +718,16 @@ version of the old look and a handheld pet shell.
   a pixel gold coin over a taller chart. Dividends waiting are a row under the
   tiles like a Next strip row, with what the shares pay a day in glass and an
   amber COLLECT key, dark while there's nothing to take.
+- **The back door is an alley.** A fourth filter key on the market opens a
+  screen of brick wall and a hanging lantern. While it's open a frog in a
+  black hood stands behind a crate under the lit lantern, its eyes and belly
+  the only colour on it, and while it's shut the door is closed with a card
+  hung crooked saying when it's back. Each deal is a shelf line with the name
+  as it's written on the sign, spelling and all, the hooded frog's patter in
+  quotes under it and a price key in COIN with what it comes to in pebbles
+  under that. A line under the screen says plainly that a deal is a gamble.
+  A bought deal says A STEAL in green, FAIR, or STUNG or FAKE in pink, and
+  its reveal is a joke for a fake, never a sad one.
 - **The day has a mood.** A faint wash over the water per mood, grey on a down
   market, pale on a frost, warm on a bright one, and the frog has a tiny TV
   or handheld on the pad on a day it's watching or playing something.

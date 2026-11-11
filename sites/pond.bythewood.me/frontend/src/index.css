@@ -4609,6 +4609,77 @@ button.big {
   font-size: 13px;
 }
 
+/* The market's four filters share a row, the back door included. */
+#mkt-sorts {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+
+#mkt-sorts button {
+  padding: 4px 2px;
+  letter-spacing: 0.04em;
+}
+
+/* The back door is the market's alley, the hooded frog behind a crate. */
+#mkt-black canvas#bm-art {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+}
+
+.bm-line {
+  margin: 10px 0 8px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.bm-coins {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bm-coins .readout {
+  flex: 1;
+}
+
+.bm-coins button {
+  margin: 0 0 3px;
+}
+
+.shelf.bm li {
+  align-items: flex-start;
+  padding: 10px;
+}
+
+.shelf.bm .patter {
+  color: var(--dim);
+}
+
+/* A coin price is a key with what it comes to in pebbles under it. */
+.shelf .coinkey {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: none;
+  min-width: 76px;
+}
+
+.shelf .coinkey span {
+  color: var(--dim);
+  font-size: 12px;
+}
+
+.shelf.bm .great .soldtag {
+  color: #5ddc82;
+}
+
+.shelf.bm .scam .soldtag,
+.shelf.bm .fake .soldtag {
+  color: #ff8a8a;
+}
+
 /* Four trade keys in a square, far enough apart for a thumb. */
 .trade {
   display: grid;

@@ -24,8 +24,8 @@ var blackHours = []struct {
 	tag      string
 	from, to int
 }{
-	{"dawn", 5 * 60, 6*60 + 30},
 	{"night", 23 * 60, 26 * 60},
+	{"dawn", 5 * 60, 6*60 + 30},
 }
 
 // What a deal turns out to be.
@@ -222,6 +222,14 @@ func fakeOf(kind string) string {
 	return "peb"
 }
 
+// lotName is a good's name for a lot of it.
+func lotName(name string) string {
+	if name == "Cricket" {
+		return "Crickets"
+	}
+	return name
+}
+
 // misspell swaps two letters in the middle of the name's longest word.
 func misspell(name string, r *rand.Rand) string {
 	words := strings.Fields(name)
@@ -259,7 +267,7 @@ func dealsOf(pepper []byte, window string, coin float64) []offer {
 		d := offer{Slot: slot, Kind: kind, N: n, Tier: tier, worth: worth, outcome: o.outcome, gotKind: kind, gotN: n}
 		d.Name = thingName(kind)
 		if n > 1 {
-			d.Name = fmt.Sprintf("%d %s", n, strings.ToLower(d.Name))
+			d.Name = fmt.Sprintf("%d %s", n, strings.ToLower(lotName(d.Name)))
 		}
 		if r.IntN(100) < o.misspelt {
 			d.Name, d.misspelt = misspell(d.Name, r), true
