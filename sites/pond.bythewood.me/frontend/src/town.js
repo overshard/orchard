@@ -152,7 +152,7 @@ function renderStall(p) {
     what.append(name, note);
     price.className = "price"; price.textContent = r.price.toLocaleString("en-US");
     row.append(thingArt(r, 3), what, price);
-    row.append(button(r.sold ? "Collect" : "Take back", (b) => {
+    const take = button(r.sold ? "Collect" : "Take back", (b) => {
       b.disabled = true;
       const before = state.pond.pebbles;
       post("/api/stall/take", { slot: r.slot }).then((v) => {
@@ -160,7 +160,9 @@ function renderStall(p) {
         // It may have sold since the page last heard.
         $("stall-out").textContent = v.pebbles > before ? "Sold! +" + (v.pebbles - before) + " pebbles." : r.name + " is back in your bag.";
       }, (e) => { $("stall-out").textContent = e.message; b.disabled = false; });
-    }, r.sold ? "primary" : ""));
+    }, r.sold ? "primary" : "");
+    take.disabled = r.sold && !st.room;
+    row.append(take);
     box.append(row);
   }
   if (free > 0) {
@@ -339,7 +341,7 @@ export function initTown() {
   });
   $("stall-collect").addEventListener("click", function () {
     this.disabled = true;
-    post("/api/stall/collect").then((d) => { setPond(d.pond); $("stall-out").textContent = d.line; this.disabled = false; presentsFrom(d); },
+    post("/api/stall/collect").then((d) => { this.disabled = false; setPond(d.pond); $("stall-out").textContent = d.line; presentsFrom(d); },
       (e) => { $("stall-out").textContent = e.message; this.disabled = false; });
   });
   $("wiz-cast").addEventListener("click", cast);
