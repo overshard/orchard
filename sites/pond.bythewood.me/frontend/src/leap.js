@@ -1,5 +1,6 @@
 import { sfx } from "./sound.js";
 import { cells, colours, draw, W as FW, H as FH } from "./frog.js";
+import { feel } from "./feel.js";
 
 // Lily leap. The frog bounces off every pad it lands on and climbs as high as
 // it can. Hold a finger to one side, or the arrow keys, to steer, and the
@@ -8,6 +9,7 @@ const W = 220, H = 330, GRAV = 560, BOUNCE = 340, LAUNCH = 620, RUN = 190;
 const PW = 36, FOOT = 12;
 
 let G = null, spr = null, col = null;
+const F = feel();
 
 function pad(y) {
   const up = G ? G.top : 0, r = Math.random();
@@ -27,7 +29,7 @@ function fill() {
 }
 
 export const leap = {
-  key: "leap", W, H, title: "LILY LEAP",
+  key: "leap", W, H, title: "LILY LEAP", feel: F,
   edge: ["#123a3d", "#123a3d"],
   help: ["HOLD LEFT OR RIGHT TO STEER", "BOUNCE UP THE PADS", "BROWN PADS SINK, DRAGONFLIES LAUNCH", "TAP TO START"],
 
@@ -35,7 +37,7 @@ export const leap = {
     const stage = ["egg", "tadpole"].includes(p.frog.stage) ? "froglet" : p.frog.stage;
     spr = cells(g, stage, { hat: p.frog.hat.shape });
     col = colours(g, p.frog.hat);
-    G = { t: 0, x: W / 2, y: H - 40, vx: 0, vy: -BOUNCE, cam: 0, top: 0, highest: H - 30, pads: [], dir: 0, want: null, keys: { left: false, right: false }, bonus: 0, pops: [], why: "", fell: 0 };
+    G = { t: 0, x: W / 2, y: H - 40, vx: 0, vy: -BOUNCE, cam: 0, top: 0, highest: H - 30, pads: [], dir: 0, want: null, keys: { left: false, right: false }, bonus: 0, why: "", fell: 0, row: 0, last: null };
     G.pads.push({ x: W / 2 - PW / 2, y: H - 30, kind: "pad", v: 0, gone: 0 });
     fill();
   },
@@ -60,22 +62,24 @@ export const leap = {
       if (p.v) { p.x += p.v * dt; if (p.x < 0 || p.x > W - PW) p.v = -p.v; }
       if (p.gone) { p.gone += dt; p.y += 40 * dt; continue; }
       if (G.vy > 0 && was <= p.y && G.y >= p.y && G.x + FOOT > p.x && G.x - FOOT < p.x + PW) {
-        G.y = p.y; G.vy = -BOUNCE; sfx("hop");
+        G.y = p.y; G.vy = -BOUNCE;
+        // A pad higher than the last one carries the run of notes on.
+        G.row = G.last && p.y < G.last.y ? G.row % 8 + 1 : 1;
+        G.last = p;
+        sfx("hop", G.row); F.squash(0.8);
         if (p.kind === "sink") p.gone = 0.01;
-        if (p.fly) { sfx("catch"); p.fly = false; G.vy = -LAUNCH; G.pops.push({ x: G.x, y: G.y - 30, s: "WHEE", t: 0 }); }
-        if (p.bug) { sfx("catch"); p.bug = false; G.bonus += 2; G.pops.push({ x: G.x, y: G.y - 30, s: "+2 M", t: 0 }); }
+        if (p.fly) { p.fly = false; G.vy = -LAUNCH; F.got(G.x, G.y - 20, "WHEE", { big: true }); }
+        if (p.bug) { p.bug = false; G.bonus += 2; F.got(G.x, G.y - 20, "+2 M", { streak: G.row }); }
       }
     }
     G.cam = Math.min(G.cam, G.y - H * 0.45);
     G.top = Math.max(G.top, H - 40 - G.y);
     G.pads = G.pads.filter((p) => p.y - G.cam < H + 20 && p.gone < 1.5);
     fill();
-    if (G.y - G.cam > H + 10) { G.fell = 0.01; G.why = "SPLASH"; sfx("bonk"); }
-    G.pops.forEach((p) => { p.t += dt; p.y -= dt * 20; });
-    G.pops = G.pops.filter((p) => p.t < 0.8);
+    if (G.y - G.cam > H + 10) { G.fell = 0.01; G.why = "SPLASH"; F.crash(G.x, G.cam + H - 8); }
   },
 
-  over() { return G && G.fell > 0.6; },
+  over() { return G && G.fell > 0.45; },
   score() { return G ? Math.floor(G.top / 10) + G.bonus : 0; },
   why() { return G ? G.why : ""; },
 
@@ -106,11 +110,10 @@ export const leap = {
       }
     }
     const fx = Math.round(G.x - FW / 2), fy = Math.round(G.y - cam - FH);
-    draw(x, spr, FW, FH, col, fx, fy, 1);
-    if (fx < 0) draw(x, spr, FW, FH, col, fx + W + 20, fy, 1);
-    if (fx + FW > W) draw(x, spr, FW, FH, col, fx - W - 20, fy, 1);
-    x.font = "700 13px 'Space Grotesk', sans-serif"; x.textAlign = "center";
-    G.pops.forEach((p) => { x.fillStyle = "#ffb000"; x.fillText(p.s, p.x, p.y - cam); });
+    [0, W + 20, -W - 20].forEach((o) => {
+      if (fx + o + FW > 0 && fx + o < W) F.squashed(x, fx + o + FW / 2, fy + FH, () => draw(x, spr, FW, FH, col, fx + o, fy, 1));
+    });
+    F.draw(x, 0, -cam);
     x.textAlign = "left"; x.fillStyle = "#ece5d8"; x.fillText(leap.score() + " M", 6, 16);
   },
 };
