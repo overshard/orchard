@@ -57,16 +57,17 @@ function book(ctx, x, y, open, turn) {
   }
 }
 
+// What the slot shows when the pond can't be reached, so it's never left empty.
+const HOUSE = { house: true, frog: { seed: 1207, name: genome(1207).name, stage: "frog", day: 30 } };
+
 function show(el, d) {
   const f = d.frog, g = bred(genome(f.seed), f.mods), hat = f.hat && f.hat.shape ? f.hat : null;
   const col = colours(g, hat), young = f.stage === "egg" || f.stage === "tadpole";
   const cv = el.querySelector("canvas"), ctx = cv.getContext("2d"), line = el.querySelector("[data-pond-line]");
-  cv.width = SW * PX; cv.height = SH * PX;
   const name = f.name.charAt(0) + f.name.slice(1).toLowerCase();
   const mins = Number(el.dataset.minutes) || 0;
   let done = false, hopAt = 0;
   line.textContent = name + " is reading along.";
-  el.hidden = false;
 
   function finish() {
     if (done) return;
@@ -107,6 +108,6 @@ const el = document.querySelector("[data-pond]");
 if (el) {
   fetch(POND + "/api/panel", { credentials: "include" })
     .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
-    .then((d) => show(el, d))
-    .catch(() => {});
+    .catch(() => HOUSE)
+    .then((d) => show(el, d));
 }
