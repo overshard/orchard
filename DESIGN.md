@@ -554,13 +554,20 @@ UPLINK names them all. It says when the next brief is due and the next four
 market moving dates, CPI, PPI, jobs, JOLTS, GDP, PCE and the Fed, with the label
 in amber.
 
-**POND, panel 17, sits beside UPLINK** in a column of its own, since adding a
+**POND, panel 16, sits beside UPLINK** in a column of its own, since adding a
 seventh to the local band would leave a hole at every width. It's the visitor's
 frog from pond, or the house frog when they have none, drawn from a copy of
 pond's `frog.js` at 3px a cell in amber with dim amber for the belly and legs,
-so the colour stays pond's reason to be opened. The frog hops once as it loads,
-breathes and blinks, and croaks only when tapped. Four readouts beside it and a
-link to the pond. On a tablet and phone it drops under UPLINK full width.
+so the colour stays pond's reason to be opened. The frog is on a screen across
+the panel, a void ground with a waterline under it, its name on the glass in
+Space Grotesk and its stage, day and odds in the other corner. It hops once as
+it loads, breathes and blinks, and croaks only when tapped. Under the screen is
+a plate in STATUS's hairline cells, pebbles, power and a count of what's waiting
+that links to the first of them, and for the house frog its morph and rarity.
+The link to the pond is the panel's meta. It replaced a thumbnail with a label
+over value list beside it, which no other panel used, and a list of links that
+made the panel taller than UPLINK. On a tablet and phone it drops under UPLINK
+full width.
 
 **Say a thing once.** That NWS headline was the event name and the end time
 again in a sentence, so the longest string on the page was mostly a repeat of
