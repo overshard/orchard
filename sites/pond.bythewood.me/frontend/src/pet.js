@@ -13,7 +13,7 @@ const FOURTH = { SINGER: "song", BOLD: "leap", SHY: "peek", "NIGHT OWL": "stars"
 
 let box = { x0: 96, y0: 80, x1: 256, y1: 250 }, bits = [];
 let trick = null, turn = 0, squintUntil = 0, busyUntil = 0;
-let rub = null, swallow = false, lastPet = 0, asking = false, streak = 0;
+let press = null, lastPet = 0, lastRub = 0, asking = false, streak = 0;
 let follow = null, fx = 0;
 let redraw = () => {};
 
@@ -108,44 +108,49 @@ function onFrog(x, y, pad) {
   return x > box.x0 - pad + fx && x < box.x1 + pad + fx && y > box.y0 - pad && y < box.y1 + pad;
 }
 
-export function initPet(scene, btn, again) {
+// A stroke pets once for every RUB it travels over the frog, in scene units.
+const RUB = 90, TAP = 10;
+
+// A press on the frog is a pet, so a tap counts and a stroke any way pets as
+// it goes. One that starts off the frog leaves the page to scroll.
+export function initPet(scene, btn, again, tap) {
   redraw = again;
+  btn.addEventListener("touchstart", (e) => {
+    const t = e.touches[0];
+    if (state.pond && e.touches.length === 1 && onFrog(...at(t, scene), 8)) e.preventDefault();
+  }, { passive: false });
+  btn.addEventListener("contextmenu", (e) => e.preventDefault());
   btn.addEventListener("pointerdown", (e) => {
-    if (!state.pond) return;
+    if (!state.pond || !e.isPrimary) return;
     const [x, y] = at(e, scene);
     streak = 0;
-    if (onFrog(x, y, 8)) rub = { x, dir: 0, travel: 0, turns: 0, did: false };
-    else if (hearts() >= 5 && limbs()) { follow = { x }; swallow = true; }
+    press = { x, y, lx: x, ly: y, moved: 0, path: 0, frog: onFrog(x, y, 8) };
+    if (!press.frog && hearts() >= 5 && limbs()) follow = { x };
     try { btn.setPointerCapture(e.pointerId); } catch (err) { /* an old browser */ }
   });
   btn.addEventListener("pointermove", (e) => {
-    const [x, y] = at(e, scene), now = performance.now();
+    if (!press || !e.isPrimary) return;
+    const [x, y] = at(e, scene), now = performance.now(), d = Math.hypot(x - press.lx, y - press.ly);
+    press.lx = x; press.ly = y;
+    press.moved = Math.max(press.moved, Math.hypot(x - press.x, y - press.y));
     if (follow) { follow.x = x; return; }
-    if (!rub || !onFrog(x, y, 28)) return;
-    const dx = x - rub.x;
-    if (Math.abs(dx) < 2) return;
-    const dir = Math.sign(dx);
-    if (rub.dir && dir !== rub.dir && rub.travel >= 14) {
-      rub.turns++; rub.travel = 0; rub.did = true;
-      squintUntil = now + 700; keep(now, 800);
-      if (rub.turns >= 2) { rub.turns = 0; petted(x, y, now); }
-    }
-    rub.dir = dir; rub.travel += Math.abs(dx); rub.x = x;
+    if (!press.frog || !onFrog(x, y, 28)) return;
+    press.path += d;
+    squintUntil = now + 700; keep(now, 800);
+    if (press.path >= RUB && now - lastRub > 300) { press.path = 0; lastRub = now; petted(x, y, now); }
   });
-  const up = () => {
-    if (rub && rub.did) swallow = true;
-    rub = null; follow = null;
-    keep(performance.now(), 900);
-  };
-  btn.addEventListener("pointerup", up);
-  btn.addEventListener("pointercancel", () => { up(); swallow = false; });
-}
-
-// A rub or a drag ends in a click like a tap does, and that one isn't a tap.
-export function wasRub() {
-  const s = swallow;
-  swallow = false;
-  return s;
+  btn.addEventListener("pointerup", (e) => {
+    if (!press || !e.isPrimary) return;
+    const p = press, now = performance.now();
+    press = null; follow = null;
+    keep(now, 900);
+    if (p.moved >= TAP) return;
+    if (p.frog) petted(p.x, p.y, now);
+    tap();
+  });
+  btn.addEventListener("pointercancel", () => { press = null; follow = null; });
+  // Only a key press arrives as a click with no pointer before it.
+  btn.addEventListener("click", (e) => { if (e.detail === 0) tap(); });
 }
 
 // pose is how the frog is drawn this frame: moved by x and y, tipped by
