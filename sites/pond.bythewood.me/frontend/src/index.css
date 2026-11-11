@@ -412,6 +412,27 @@ button.screen:active {
   touch-action: pan-y;
 }
 
+/* The camera key is a small cap in the other top corner of the glass. */
+.frogscreen .snap {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  min-width: 0;
+  height: 28px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.frogscreen .snap canvas {
+  width: 16px;
+  height: 16px;
+  image-rendering: pixelated;
+}
+
 .frogscreen .bond {
   position: absolute;
   top: 16px;
