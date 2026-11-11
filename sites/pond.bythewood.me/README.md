@@ -447,14 +447,17 @@ they have none, for other sites to draw.
   hops at the longest reach less that hole's wind, so a frog that reads the
   wind well can now and then beat it. `puttMost` is twelve a hole, the most
   a hole under par pays, and the hops and splashes are the page's.
-- The spawn jar's circles are the page's own physics in `jar.js`, small
-  fixed steps of gravity and then each pair and the walls pushed apart a few
-  times over. Only overlap past a small slop is corrected, the floor grips
-  anything only nudged along it, and a ball drawn only moves once it's most
-  of a pixel from where it was drawn. Those three keep a resting pile from
-  shivering or creeping apart, so look at a still jar after changing any of
-  the numbers. Elders never merge, so the jar always fills
-  and a run always ends.
+- The spawn jar's physics are in `frontend/src/jarworld.js`, which never
+  touches the page, so a script can drop a whole run through it with bun.
+  Each small step solves every touch for its push and friction a few times
+  over, starting from the push it ended the last step on, and friction at
+  the rim is what spins a ball. A touch slower than a set speed doesn't
+  bounce, anything barely moving in a pile is let stop, and a ball is only
+  redrawn once it's most of a pixel or a turn from where it was drawn.
+  Those keep a resting pile from shivering or creeping, so look at a still
+  jar after changing any of the numbers. Two pond kings pop and leave, so a
+  run has no end of its own and `jarMost` only stops the impossible, with
+  the rate holding the rest.
 - `index.css` is one flat file and the share page loads it too, so look for a
   class name in it before using one. `place` is already Dive's standings and
   `who` and `scene` are on the share page as well as the pond.
