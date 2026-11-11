@@ -48,6 +48,8 @@ const PINS = {
   days_100: ["days", "wwwwwww.", ".w...w..", "..wyw...", "...y....", "..w.w...", ".w.y.w..", "wyyyyyw.", "wwwwwww."],
   sites: ["days", "w..w..w.", ".w.w.w..", "..www...", "...w....", "...w....", "...w....", "..www...", ".wwwww.."],
   key: ["days", "..yyy...", ".y...y..", ".y...y..", "..yyy...", "...y....", "...yy...", "...y....", "...yy..."],
+  sweep_clear: ["play", "..gggg..", ".gllllg.", "gllllg..", "gllll...", "gllllg..", ".gllllg.", "..gggg..", "........"],
+  drop_five: ["play", "...ss...", "..ssss..", "...ss...", "........", "y.w..w.y", "y.wssw.y", "y.wssw.y", "yyyyyyyy"],
 };
 
 // A pin at s pixels a cell. One not earned yet is only its shape in the dark.

@@ -24,7 +24,7 @@ func most() *tally {
 		stage: stageRank["elder"], frogs: 3, hearts: bondHearts, jobBest: maxLevel, hoods: len(jobs), pets: len(pets),
 		hats: hatsInGame, trinkets: len(trinkets), rocks: len(rocks), keepsakes: len(keepsakes), sets: len(sets),
 		power: fullPower().Total, gravel: buildLevels, garden: buildLevels, built: 4, dishes: dishCount, lodgers: 1,
-		furniture: len(furniture), friends: len(residents), mementos: len(mementos), stall: 1, share: 1, days: 365, sites: len(siteHats), key: 1}
+		furniture: len(furniture), friends: len(residents), mementos: len(mementos), stall: 1, share: 1, days: 365, sites: len(siteHats), key: 1, swept: bugSafe, dropped: dropMost}
 	for _, f := range fishKinds {
 		t.bigFish += one(f.tier >= 3)
 	}
@@ -38,7 +38,7 @@ func most() *tally {
 // here for a badge to ask.
 func TestEveryBadgeCanBeEarned(t *testing.T) {
 	seen := map[string]bool{}
-	places := []string{"fish", "dive", "play", "pond", "reeds", "collect", "settings", "bank", "garden", "neighbours", "stall", "market", "shops", "key"}
+	places := []string{"fish", "dive", "sweep", "drop", "play", "pond", "reeds", "collect", "settings", "bank", "garden", "neighbours", "stall", "market", "shops", "key"}
 	none, all := badgesOf(tallyOf(&view{}, &pond{}), nil), badgesOf(most(), nil)
 	if len(badges) < 38 || len(badges) > 45 || len(all) != len(badges) {
 		t.Fatalf("%d badges", len(badges))
