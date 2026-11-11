@@ -30,6 +30,7 @@ function fill() {
 
 export const leap = {
   key: "leap", W, H, title: "LILY LEAP", feel: F,
+  aria: "Hold left or right, or use the arrow keys, to steer.",
   edge: ["#123a3d", "#123a3d"],
   help: ["HOLD LEFT OR RIGHT TO STEER", "BOUNCE UP THE PADS", "BROWN PADS SINK, DRAGONFLIES LAUNCH", "TAP TO START"],
 

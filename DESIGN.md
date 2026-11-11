@@ -631,9 +631,12 @@ version of the old look and a handheld pet shell.
   with a metal shutter, a write protect tab and the game's picture on a cream
   label. A disk that still pays in full has a blinking amber LED, the rest are
   faded, and the pay tag and best score sit under it. One disk a day is the
-  disk of the day, with an amber sticker stuck on crooked. The wheel and the old log
-  stay as panels. Fishing is the flagship and its disk takes the whole first
-  row, with a big amber title and a line about it beside the disk.
+  disk of the day, with an amber sticker stuck on crooked. Fishing is the
+  flagship and its disk takes the whole first row, with a big amber title and
+  a line about it beside the disk.
+- **Play is shelves.** Under the flagship the disks sit on an Arcade shelf for
+  the quick games and a Puzzles shelf for the slower thinking ones, each under
+  a section head. The wheel and the old log stay as panels under the shelves.
 - **A side game fills a tall phone.** The field sits in the middle and the
   room over and under it is a flat colour the game names, or its top and
   bottom rows stretched where that carries the scene on. Crossing takes more

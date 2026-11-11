@@ -53,6 +53,7 @@ function pick(i) {
 
 export const shell = {
   key: "shell", W, H, title: "SHELL GAME", feel: F,
+  aria: "Tap the shell the tadpole is under.",
   help: ["WATCH THE SHELL THE TADPOLE'S UNDER", "TAP IT AFTER THE SHUFFLE", "ONE WRONG PICK ENDS IT", "TAP TO START"],
 
   reset(g, p) {

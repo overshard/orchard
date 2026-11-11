@@ -47,6 +47,7 @@ function drop() {
 
 export const stack = {
   key: "stack", W, H, title: "LILY STACK", feel: F,
+  aria: "Tap to drop the pad.",
   help: ["TAP TO DROP THE PAD", "WHAT HANGS OVER FALLS OFF", "LINE THEM UP FOR A PERFECT", "TAP TO START"],
 
   reset(g, p) {
