@@ -18,14 +18,13 @@ import (
 // the source can't read it ahead and the page learns it only once bought.
 const blackDeals = 3
 
-// Opening hours on the pond's clock, in minutes from midnight. The night one
-// runs on past midnight and goes by the day it opened.
+// Opening hours on the pond's clock, in minutes from midnight. After school
+// and work and shut by bedtime, so nobody stays up or gets up early for a deal.
 var blackHours = []struct {
 	tag      string
 	from, to int
 }{
-	{"night", 23 * 60, 26 * 60},
-	{"dawn", 5 * 60, 6*60 + 30},
+	{"evening", 16 * 60, 20*60 + 30},
 }
 
 // What a deal turns out to be.
@@ -57,7 +56,7 @@ var dealOdds = []struct {
 // fake and smooth to a scam, and bored says nothing either way.
 var patter = [4][]string{
 	{"Fell off the back of a heron. Don't ask where the heron is.",
-		"I need it gone before sunup, so it's cheap.",
+		"I need it gone before bedtime, so it's cheap.",
 		"Somebody's uncle left it behind and he isn't coming back for it.",
 		"Keep your voice down, the owner's still out looking for it."},
 	{"One hundred percent real. Ask anyone. Actually don't ask anyone.",

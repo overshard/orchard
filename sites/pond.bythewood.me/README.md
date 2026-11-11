@@ -207,7 +207,7 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   that run through `shop.go` like the others. A bait is used up by the next
   round of fishing and only changes what bites, and each shop moves a share
   through a `shop:` flow on every sale.
-- `black.go` is the market's back door, open 11pm to 2am and 5am to 6:30am
+- `black.go` is the market's back door, open 4pm to 8:30pm
   pond time. Three deals a window, the same for every pond, priced in coin
   and dealt with what each really is off an HMAC of the pepper. What a pond
   bought is in `black_buys`, and `black.js` draws the hooded frog over any
