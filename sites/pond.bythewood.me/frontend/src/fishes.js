@@ -24,15 +24,19 @@ export const KINDS = [
   { k: "moonkoi", one: "moon koi", many: "moon koi", pts: 45, d: [0.1, 0.9], len: 15, c: "#e6eef6", b: "#ffffff", c2: "#8fa3b8", pat: "patch", v: [22, 32], win: 0.65, nib: 2, pull: 1.6, run: [0.5, 0.9], rest: [0.5, 0.9], rv: 82, stam: 2.6, heavy: 1, shy: 0.9, glint: true },
 ];
 
-// A fish is drawn a column at a time from the nose back, then its tail.
-export function drawFish(x, sp, cx, cy, dir, t, flash) {
+// A fish is drawn a column at a time from the nose back, then its tail. In
+// the water it's only a shadow, so its size is all there is to go on.
+const SHADOW = "#041118";
+
+export function drawFish(x, sp, cx, cy, dir, t, flash, shadow) {
   const L = sp.len, hh = Math.max(3, Math.round(L * (sp.fat || 0.42))), x0 = Math.round(cx), y0 = Math.round(cy), half = Math.round(L / 2);
   const at = (i) => x0 + (dir > 0 ? half - i : i - half);
   const tall = (i) => Math.max(2, Math.round(hh * Math.pow(Math.sin(Math.PI * (i + 0.6) / (L + 0.4)), 0.55)));
+  const flat = flash ? "#fff6dc" : shadow ? SHADOW : "";
   for (let i = 0; i < L; i++) {
     const h = tall(i), px = at(i), top = y0 - Math.floor(h / 2), belly = Math.max(1, Math.floor(h / 3));
-    x.fillStyle = flash ? "#fff6dc" : sp.c; x.fillRect(px, top, 1, h);
-    if (flash) continue;
+    x.fillStyle = flat || sp.c; x.fillRect(px, top, 1, h);
+    if (flat) continue;
     x.fillStyle = sp.b; x.fillRect(px, top + h - belly, 1, belly);
     x.fillStyle = sp.c2;
     if (sp.pat === "line" && i > 1 && i < L - 1) x.fillRect(px, y0, 1, 1);
@@ -44,9 +48,10 @@ export function drawFish(x, sp, cx, cy, dir, t, flash) {
     else if (sp.pat === "patch" && i > 2 && i % 5 < 2) x.fillRect(px, top, 1, Math.ceil(h / 2));
   }
   const wag = Math.round(Math.sin(t * 12) * (sp.huge ? 2 : 1)), fins = Math.max(3, Math.round(L / 7));
-  x.fillStyle = flash ? "#fff6dc" : sp.fin || sp.c;
+  x.fillStyle = flat || sp.fin || sp.c;
   for (let j = 0; j < fins; j++) { const h = 2 + j * 2; x.fillRect(at(L + j), y0 - Math.floor(h / 2) + wag, 1, h); }
-  if (sp.huge && !flash) { x.fillStyle = sp.c; for (let j = 0; j < 4; j++) x.fillRect(at(Math.round(L * 0.45) + j), y0 - Math.floor(tall(Math.round(L * 0.45)) / 2) - 1 - Math.min(j, 2), 1, 2); }
+  if (sp.huge && !flash) { x.fillStyle = flat || sp.c; for (let j = 0; j < 4; j++) x.fillRect(at(Math.round(L * 0.45) + j), y0 - Math.floor(tall(Math.round(L * 0.45)) / 2) - 1 - Math.min(j, 2), 1, 2); }
+  if (flat) return;
   const ei = L > 30 ? 4 : L > 10 ? 2 : 1;
   x.fillStyle = "#0a0908"; x.fillRect(at(ei), y0 - Math.floor(tall(ei) / 2) + 1, sp.huge ? 2 : 1, sp.huge ? 2 : 1);
   if (sp.whisk) {
