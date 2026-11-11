@@ -68,11 +68,42 @@ type target struct {
 	mins  float64
 	kind  string
 	n     int
-	xp    int
 	miss  float64
 	why   string
 	// What a crafter uses up for each one made.
 	in map[string]int
+	xp int
+}
+
+// tg is a target paying the ladder's xp for its level.
+func tg(key, name string, level int, mins float64, kind string, n int, miss float64, why string) target {
+	return target{key, name, level, mins, kind, n, miss, why, nil, actionXP(level, mins, miss)}
+}
+
+// xpLadder is the xp an hour a target pays a level 1 frog, by the level it
+// opens at. It climbs slowly to the forties and steeply after, so 50 comes
+// in about a month and 99 in four to six.
+var xpLadder = []struct {
+	level int
+	rate  float64
+}{{1, 56}, {6, 64}, {12, 74}, {20, 86}, {30, 100}, {42, 145}, {55, 420}, {70, 1400}, {85, 5600}, {99, 5600}}
+
+func xpRate(level int) float64 {
+	for i := 1; i < len(xpLadder); i++ {
+		a, b := xpLadder[i-1], xpLadder[i]
+		if level <= b.level {
+			k := float64(level-a.level) / float64(b.level-a.level)
+			return a.rate * math.Pow(b.rate/a.rate, max(0, k))
+		}
+	}
+	return xpLadder[len(xpLadder)-1].rate
+}
+
+// actionXP is an action's xp, set so its misses still average out to the
+// ladder's rate an hour.
+func actionXP(level int, mins, miss float64) int {
+	hit := 1 - miss + miss/missShare
+	return max(1, int(math.Round(xpRate(level)*mins/60/hit)))
 }
 
 type job struct {
@@ -85,42 +116,76 @@ type job struct {
 	finds   []jobFind
 }
 
+// Every job's targets open on the same rungs, so no job levels faster than
+// another. A thing or a material comes in at the same rate an hour whichever
+// target brings it, and only the xp climbs.
 var jobs = []job{
 	{"garden", "Gardening", "tending the plots", "tending", "GLUTTON", []target{
-		{inSeason, "What's in season", 1, 60, inSeason, 1, 5000, 0, "", nil},
-		{"watercress", "Watercress", 10, 45, "watercress", 1, 4100, 0, "", nil},
-		{"lotus", "Lotus seeds", 25, 80, "lotus", 1, 8300, 0.2, "the seed head was empty", nil},
-		{"morel", "Morels", 45, 180, "morel", 1, 21700, 0.5, "no morels under the log yet", nil},
-	}, []jobFind{{25, "t_button", 40}, {50, "t_chanterelle", 90}, {99, "t_goldmorel", 2500}}},
+		tg(inSeason, "What's in season", 1, 60, inSeason, 1, 0, ""),
+		tg("duckweed", "Duckweed", 6, 45, "duckweed", 1, 0, ""),
+		tg("watercress", "Watercress", 12, 45, "watercress", 1, 0, ""),
+		tg("marigold", "Marsh marigolds", 20, 80, "marigold", 1, 0.2, "the buds hadn't opened"),
+		tg("lotus", "Lotus seeds", 30, 80, "lotus", 1, 0.2, "the seed head was empty"),
+		tg("beds", "The cress beds", 42, 90, "watercress", 2, 0, ""),
+		tg("morel", "Morels", 55, 180, "morel", 1, 0.5, "no morels under the log yet"),
+		tg("lilies", "The lotus pond", 70, 160, "lotus", 2, 0.2, "the seed heads were empty"),
+		tg("woods", "The old wood", 85, 360, "morel", 2, 0.5, "a slug got to the morels first"),
+	}, []jobFind{{25, "t_button", 40}, {50, "t_chanterelle", 90}, {92, "t_goldmorel", 2500}}},
 	{"bugs", "Bug catching", "catching bugs", "catching", "NIGHT OWL", []target{
-		{"cricket", "Crickets", 1, 30, "cricket", 1, 2500, 0.5, "the cricket hopped off", nil},
-		{"mayfly", "Mayflies", 10, 40, "mayfly", 1, 3650, 0.4, "the mayfly got away", nil},
-		{"firefly", "Fireflies", 25, 120, "firefly", 1, 12500, 0.5, "the firefly went dark", nil},
-		{"snail", "Snails", 40, 45, "snail", 1, 5200, 0.2, "the snail pulled in and dropped off", nil},
-	}, []jobFind{{75, "t_jar", 1500}}},
+		tg("cricket", "Crickets", 1, 30, "cricket", 1, 0.5, "the cricket hopped off"),
+		tg("mayfly", "Mayflies", 6, 40, "mayfly", 1, 0.4, "the mayfly got away"),
+		tg("snail", "Snails", 12, 45, "snail", 1, 0.2, "the snail pulled in and dropped off"),
+		tg("firefly", "Fireflies", 20, 120, "firefly", 1, 0.5, "the firefly went dark"),
+		tg("chorus", "A cricket chorus", 30, 60, "cricket", 2, 0.5, "the crickets all went quiet"),
+		tg("hatch", "A mayfly hatch", 42, 80, "mayfly", 2, 0.4, "the hatch blew over"),
+		tg("rain", "Snails after rain", 55, 90, "snail", 2, 0.2, "the snails stayed in"),
+		tg("meadow", "The firefly meadow", 70, 240, "firefly", 2, 0.5, "the meadow stayed dark"),
+		tg("swarm", "A firefly swarm", 85, 360, "firefly", 3, 0.5, "the swarm went over the trees"),
+	}, []jobFind{{80, "t_jar", 1500}}},
 	{"sticks", "Stick gathering", "gathering sticks", "gathering", "DRIFTER", []target{
-		{"twigs", "Twigs", 1, 20, "sticks", 1, 1650, 0, "", nil},
-		{"branches", "Fallen branches", 15, 40, "sticks", 2, 3800, 0, "", nil},
-		{"driftwood", "Driftwood", 30, 60, "sticks", 3, 6500, 0, "", nil},
-		{"fence", "An old fence", 50, 100, "sticks", 5, 12500, 0, "", nil},
+		tg("twigs", "Twigs", 1, 20, "sticks", 1, 0, ""),
+		tg("branches", "Fallen branches", 6, 40, "sticks", 2, 0, ""),
+		tg("driftwood", "Driftwood", 12, 60, "sticks", 3, 0, ""),
+		tg("beaver", "A beaver's leftovers", 20, 80, "sticks", 4, 0, ""),
+		tg("fence", "An old fence", 30, 100, "sticks", 5, 0, ""),
+		tg("storm", "After a storm", 42, 100, "sticks", 5, 0, ""),
+		tg("boathouse", "The old boathouse", 55, 120, "sticks", 6, 0, ""),
+		tg("willow", "A fallen willow", 70, 140, "sticks", 7, 0, ""),
+		tg("wood", "The far wood", 85, 160, "sticks", 8, 0, ""),
 	}, []jobFind{{10, "t_acorn", 30}, {25, "t_pinecone", 30}, {50, "wood", 150}}},
 	{"reeds", "Reed cutting", "cutting reeds", "cutting", "SINGER", []target{
-		{"green", "Green reeds", 1, 20, "reeds", 1, 1650, 0, "", nil},
-		{"tall", "Tall reeds", 15, 40, "reeds", 2, 3800, 0, "", nil},
-		{"bulrush", "Bulrushes", 30, 60, "reeds", 3, 6500, 0, "", nil},
-		{"farbank", "The far bank", 50, 100, "reeds", 5, 12500, 0, "", nil},
-	}, []jobFind{{10, "feather", 40}, {25, "t_boat", 60}, {75, "t_duck", 300}}},
+		tg("green", "Green reeds", 1, 20, "reeds", 1, 0, ""),
+		tg("tall", "Tall reeds", 6, 40, "reeds", 2, 0, ""),
+		tg("bulrush", "Bulrushes", 12, 60, "reeds", 3, 0, ""),
+		tg("flag", "Sweet flag", 20, 80, "reeds", 4, 0, ""),
+		tg("farbank", "The far bank", 30, 100, "reeds", 5, 0, ""),
+		tg("island", "The reed island", 42, 100, "reeds", 5, 0, ""),
+		tg("millrace", "The mill race", 55, 120, "reeds", 6, 0, ""),
+		tg("fen", "The fen", 70, 140, "reeds", 7, 0, ""),
+		tg("broad", "The broad", 85, 160, "reeds", 8, 0, ""),
+	}, []jobFind{{10, "feather", 40}, {25, "t_boat", 60}, {80, "t_duck", 300}}},
 	{"mud", "Mud digging", "digging in the mud", "digging", "SHY", []target{
-		{"soft", "Soft mud", 1, 30, "clay", 1, 2500, 0, "", nil},
-		{"bank", "Bank clay", 15, 60, "clay", 2, 5700, 0, "", nil},
-		{"grey", "Grey clay", 30, 90, "clay", 3, 9700, 0, "", nil},
-		{"deep", "Deep clay", 50, 150, "clay", 5, 18700, 0, "", nil},
-	}, []jobFind{{10, "agate", 10}, {25, "quartz", 20}, {40, "calcite", 40}, {50, "fossil", 200}, {75, "geode", 100}, {99, "moonstone", 1500}}},
+		tg("soft", "Soft mud", 1, 30, "clay", 1, 0, ""),
+		tg("bank", "Bank clay", 6, 60, "clay", 2, 0, ""),
+		tg("grey", "Grey clay", 12, 90, "clay", 3, 0, ""),
+		tg("red", "Red clay", 20, 120, "clay", 4, 0, ""),
+		tg("deep", "Deep clay", 30, 150, "clay", 5, 0, ""),
+		tg("blue", "Blue clay", 42, 150, "clay", 5, 0, ""),
+		tg("riverbed", "The riverbed", 55, 180, "clay", 6, 0, ""),
+		tg("brickworks", "The old brickworks", 70, 210, "clay", 7, 0, ""),
+		tg("bottom", "The bottom of the pond", 85, 240, "clay", 8, 0, ""),
+	}, []jobFind{{10, "agate", 10}, {25, "quartz", 20}, {40, "calcite", 40}, {50, "fossil", 200}, {80, "geode", 100}, {92, "moonstone", 1500}}},
 	{"pebbles", "Pebble diving", "diving for pebbles", "diving", "BOLD", []target{
-		{"shallows", "The shallows", 1, 30, "", 1, 2500, 0.5, "only mud down there", nil},
-		{"pads", "Under the pads", 20, 60, "", 2, 6000, 0.5, "a fish got there first", nil},
-		{"deep", "The deep end", 50, 120, "", 4, 15000, 0.5, "too deep this time", nil},
-	}, []jobFind{{25, "geode", 150}, {50, "t_marble", 80}, {75, "t_earring", 400}, {99, "t_pearl", 3000}}},
+		tg("shallows", "The shallows", 1, 30, "", 1, 0.5, "only mud down there"),
+		tg("reedbed", "Among the reeds", 6, 60, "", 2, 0.5, "it got tangled in the reeds"),
+		tg("pads", "Under the pads", 12, 60, "", 2, 0.5, "a fish got there first"),
+		tg("jetty", "Off the jetty", 20, 90, "", 3, 0.5, "too dark under the jetty"),
+		tg("deep", "The deep end", 30, 120, "", 4, 0.5, "too deep this time"),
+		tg("log", "The sunken log", 42, 120, "", 4, 0.5, "an eel lives in the log"),
+		tg("weir", "Below the weir", 55, 150, "", 5, 0.5, "the water ran too fast"),
+		tg("drop", "The drop off", 70, 180, "", 6, 0.5, "too cold that far down"),
+		tg("floor", "The very bottom", 85, 210, "", 7, 0.5, "couldn't reach the bottom this time"),
+	}, []jobFind{{25, "geode", 150}, {50, "t_marble", 80}, {80, "t_earring", 400}, {92, "t_pearl", 3000}}},
 	{jobCraft, "Crafting", "at the craft bench", "crafting", "", nil, nil},
 }
 
@@ -181,26 +246,25 @@ type recipe struct {
 
 var recipes = []recipe{
 	{"t_boat", 1, 0.5, map[string]int{"reeds": 3}},
-	{"t_raft", 1, 1, map[string]int{"sticks": 6, "reeds": 2}},
+	{"t_raft", 4, 1, map[string]int{"sticks": 6, "reeds": 2}},
 	{"t_basket", 8, 1, map[string]int{"reeds": 8}},
-	{"t_pot", 15, 2, map[string]int{"clay": 6}},
-	{"stamp_spots", 20, 2, map[string]int{"clay": 10}},
-	{"stamp_bands", 30, 2, map[string]int{"clay": 10, "sticks": 2}},
-	{"stamp_speckled", 40, 3, map[string]int{"clay": 12, "sticks": 2}},
-	{"t_flute", 50, 4, map[string]int{"reeds": 20, "sticks": 4}},
-	{"stamp_mask", 55, 3, map[string]int{"clay": 14, "reeds": 4}},
-	{"t_gnome", 60, 6, map[string]int{"clay": 30, "sticks": 6}},
-	{"stamp_stripe", 70, 3, map[string]int{"clay": 16, "reeds": 6}},
-	{"t_statue", 80, 8, map[string]int{"clay": 40, "sticks": 20}},
+	{"t_pot", 13, 2, map[string]int{"clay": 6}},
+	{"stamp_spots", 18, 2, map[string]int{"clay": 10}},
+	{"stamp_bands", 24, 2, map[string]int{"clay": 10, "sticks": 2}},
+	{"stamp_speckled", 31, 3, map[string]int{"clay": 12, "sticks": 2}},
+	{"t_flute", 38, 4, map[string]int{"reeds": 20, "sticks": 4}},
+	{"stamp_mask", 46, 3, map[string]int{"clay": 14, "reeds": 4}},
+	{"t_gnome", 55, 6, map[string]int{"clay": 30, "sticks": 6}},
+	{"stamp_stripe", 66, 3, map[string]int{"clay": 16, "reeds": 6}},
+	{"t_statue", 78, 8, map[string]int{"clay": 40, "sticks": 20}},
 }
-
-// craftXP is what a recipe's hour of work at level 1 pays.
-const craftXP = 5000
 
 func craftTargets() []target {
 	out := make([]target, 0, len(recipes))
 	for _, r := range recipes {
-		out = append(out, target{r.key, "", r.level, r.hours * 60, r.key, 1, int(r.hours * craftXP), 0, "", r.in})
+		t := tg(r.key, "", r.level, r.hours*60, r.key, 1, 0, "")
+		t.in = r.in
+		out = append(out, t)
 	}
 	return out
 }
@@ -840,14 +904,15 @@ type targetView struct {
 	Name  string  `json:"name"`
 	Level int     `json:"level"`
 	Mins  float64 `json:"mins"`
-	// What it brings, "season" for whatever's in season.
-	Kind string         `json:"kind"`
-	Tier int            `json:"tier"`
-	N    int            `json:"n"`
-	XP   int            `json:"xp"`
-	Miss float64        `json:"miss"`
-	Why  string         `json:"why,omitempty"`
-	In   map[string]int `json:"in,omitempty"`
+	// What it brings, "season" for whatever's in season, and what one is called.
+	Kind  string         `json:"kind"`
+	Thing string         `json:"thing"`
+	Tier  int            `json:"tier"`
+	N     int            `json:"n"`
+	XP    int            `json:"xp"`
+	Miss  float64        `json:"miss"`
+	Why   string         `json:"why,omitempty"`
+	In    map[string]int `json:"in,omitempty"`
 }
 
 type jobDef struct {
@@ -885,7 +950,7 @@ var jobDefs = sync.OnceValue(func() []jobDef {
 			if kind == "" {
 				kind = "peb"
 			}
-			d.Targets = append(d.Targets, targetView{t.key, t.title(), t.level, t.mins, kind, tierOf(t.kind), t.n, t.xp, t.miss, t.why, t.in})
+			d.Targets = append(d.Targets, targetView{t.key, t.title(), t.level, t.mins, kind, thingName(t.kind), tierOf(t.kind), t.n, t.xp, t.miss, t.why, t.in})
 		}
 		for _, x := range j.finds {
 			d.Finds = append(d.Finds, findView{x.level, x.kind, thingName(x.kind), tierOf(x.kind)})
