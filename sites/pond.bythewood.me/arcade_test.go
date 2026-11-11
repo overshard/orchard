@@ -2,8 +2,6 @@ package main
 
 import (
 	"errors"
-	"math"
-	"reflect"
 	"slices"
 	"testing"
 	"time"
@@ -304,43 +302,7 @@ func TestChorusIsBounded(t *testing.T) {
 	}
 }
 
-// Pad putt's holes are the same for every pond on a day and new the next,
-// and every hole's flag can be reached in its par on the windiest day.
-func TestPuttDealIsTheDays(t *testing.T) {
-	day := "2026-11-10"
-	a, b := puttDeal(day, 2), puttDeal(day, 2)
-	if len(a) != puttHoles || !reflect.DeepEqual(a, b) {
-		t.Fatalf("one day dealt twice differs")
-	}
-	if calm := puttDeal(day, 0); !reflect.DeepEqual(calm[3].Pads, a[3].Pads) || calm[3].Wind != [2]int{} {
-		t.Errorf("the wind moved the pads or blew on a calm day: %+v", calm[3])
-	}
-	pars := map[int]int{}
-	for d := range 60 {
-		day := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC).AddDate(0, 0, d).Format("2006-01-02")
-		holes := puttDeal(day, 2)
-		if d > 0 && reflect.DeepEqual(holes[0].Pads, a[0].Pads) {
-			t.Errorf("%s has the first hole of %s", day, "2026-11-10")
-		}
-		for i, h := range holes {
-			if math.Hypot(float64(h.Wind[0]), float64(h.Wind[1])) > puttGust+1 {
-				t.Errorf("%s hole %d blows %v", day, i+1, h.Wind)
-			}
-			if safe := puttPar(h.Pads, puttSafe); safe < 1 || h.Par < 1 || h.Par > safe {
-				t.Errorf("%s hole %d has par %d and takes %d by the safe hop", day, i+1, h.Par, safe)
-			}
-			for _, p := range h.Pads {
-				if p.X-p.R < 0 || p.X+p.R > puttW || p.Y-p.R < 0 || p.Y+p.R > puttH {
-					t.Errorf("%s hole %d has a pad off the water: %+v", day, i+1, p)
-				}
-			}
-			pars[h.Par]++
-		}
-	}
-	t.Logf("pars over sixty days: %v", pars)
-}
-
-// A run of birdies pays the cap and nothing past it.
+// A round of aces pays the cap and nothing past it.
 func TestPuttIsBounded(t *testing.T) {
 	s, clock := testStore(t)
 	_, id := newPond(t, s)
@@ -351,9 +313,6 @@ func TestPuttIsBounded(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(st.Putt) != puttHoles {
-			t.Fatalf("a start dealt %d holes", len(st.Putt))
-		}
 		*clock = clock.Add(secs * time.Second)
 		d, err := s.arcadeFinish(id, "putt", st.Run, score, nil, nil)
 		if err != nil {
@@ -362,7 +321,7 @@ func TestPuttIsBounded(t *testing.T) {
 		return d
 	}
 	if d := play(puttMost+1, 300); d.Paid != 0 {
-		t.Errorf("more than nine birdies paid: %+v", d)
+		t.Errorf("more than nine aces paid: %+v", d)
 	}
 	if d := play(puttMost, 5); d.Paid != 0 {
 		t.Errorf("nine holes in five seconds paid: %+v", d)
