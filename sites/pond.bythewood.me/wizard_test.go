@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"math"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -276,5 +277,28 @@ func TestStallCapsUnderEveryShop(t *testing.T) {
 	stock(t, s, id, "dye_blue", 1)
 	if _, err := s.stallList(id, "dye_blue", bargainPrice); !errors.Is(err, errBadPrice) {
 		t.Fatalf("a blue dye went up for Moth's bargain price, %v", err)
+	}
+}
+
+func TestOldStallRowsComeDown(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "pond.db")
+	pepper := []byte("a pepper for tests, long enough to pass")
+	s, err := openStore(path, pepper)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, id := newPond(t, s)
+	if _, err := s.w.Exec(`INSERT INTO stall (pond_id, slot, kind, price, listed_at, sells_at, buyer) VALUES (?, 0, 'pebble', 5, 1000, 0, '')`, id); err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+	s, err = openStore(path, pepper)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	v, err := stallOf(s.r, id, time.Now())
+	if err != nil || len(v.Rows) != 1 || !v.Rows[0].Over {
+		t.Fatalf("old row: %v %+v", err, v.Rows)
 	}
 }
