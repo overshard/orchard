@@ -1996,6 +1996,11 @@ h2 .count {
   padding-top: 12px;
 }
 
+.workshead .screen {
+  margin-bottom: 12px;
+  cursor: pointer;
+}
+
 .view.inworks {
   padding-top: 0;
 }

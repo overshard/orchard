@@ -1,4 +1,4 @@
-import { drawBank, drawPot } from "./scenes.js";
+import { drawPot } from "./scenes.js";
 import { $, post, state, setPond, watch, reduced, heldNow, canBuild, TIERS } from "./api.js";
 import { iconCanvas, dishCanvas } from "./icons.js";
 import { slot } from "./ui.js";
@@ -117,7 +117,6 @@ function tick(now) {
 function render(p) {
   const b = p.bank, gv = b.gravel, gd = b.garden;
 
-  drawBank($("bank-art"), p);
   const built = (gv.level ? 1 : 0) + (gd.level ? 1 : 0);
   say("bank-line", built ? "" : "Build the gravel bar first. It makes pebbles while you're away.");
 
