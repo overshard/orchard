@@ -338,7 +338,7 @@ function fit() {
   $("v-dive").classList.add("full");
   const { w, h } = room($("v-dive")), scale = Math.min(w / 266, h / 300);
   PW = Math.min(640, Math.floor(w / scale));
-  GH = Math.max(200, Math.min(520, Math.floor(h / scale)));
+  GH = Math.max(200, Math.min(800, Math.floor(h / scale)));
   BOT = GH - 14;
   FXP = Math.max(70, Math.round(PW * 0.22));
   gc.width = PW * 2; gc.height = GH * 2;
