@@ -1,5 +1,6 @@
 import { sfx } from "./sound.js";
 import { cells, colours, draw, W as FW, H as FH } from "./frog.js";
+import { feel } from "./feel.js";
 
 // Fishing. Tap the water to cast and the hook sinks to where you tapped. A fish
 // that notices nibbles a time or two and then takes it, which is when to tap.
@@ -28,6 +29,7 @@ const KINDS = [
 const BOOT = { k: "boot", one: "old boot", many: "old boots", pts: 2, len: 10, heavy: 1.3 };
 
 let G = null, spr = null, col = null;
+const F = feel();
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 
@@ -44,7 +46,7 @@ function spawn(edge) {
   G.fish.push({ sp, x, y, y0: y, dir, v: rnd(sp.v[0], sp.v[1]), ph: Math.random() * 6, st: "swim", t: 0, dip: 0 });
 }
 
-function pop(x, y, s, c) { G.pops.push({ x, y, s, c: c || "#ece5d8", t: 0 }); }
+function pop(x, y, s, c) { F.pop(x, y, s, c || "#ece5d8"); }
 function ring(x) { G.rings.push({ x, t: 0 }); }
 
 function cast(x, y) {
@@ -65,16 +67,14 @@ function hookIt(f) {
   G.perfect = f.t < PERFECT;
   G.st = "fight"; G.hold = true; G.ten = 0.2; G.slack = 0;
   f.st = "hooked"; f.ph = "rest"; f.pt = rnd(f.sp.rest[0], f.sp.rest[1]) * 0.6; f.stam = f.sp.stam * rnd(0.8, 1.2);
-  pop(G.hook.x, SURF - 14, G.perfect ? "PERFECT" : "HOOKED", G.perfect ? "#ffb000" : "#ece5d8");
-  sfx("catch");
+  F.got(G.hook.x, SURF - 4, G.perfect ? "PERFECT" : "HOOKED", { big: G.perfect, c: G.perfect ? "#ffb000" : "#ece5d8" });
 }
 
 function lose(why) {
   const f = G.taker;
   G.st = "lost"; G.lt = 0; G.streak = 0; G.hold = false; G.taker = null;
   if (f.boot) { G.boots.push({ x: f.x, y: BOT - 4 }); G.fish.splice(G.fish.indexOf(f), 1); } else flee(f);
-  pop(f.x, f.y - 12, why, "#e2412d");
-  sfx(why === "SNAP" ? "snap" : "bonk");
+  F.crash(f.x, f.y - 2, { s: why, sound: why === "SNAP" ? "snap" : "bonk" });
 }
 
 function land() {
@@ -86,9 +86,9 @@ function land() {
   G.st = "land"; G.lt = 0; G.hold = false;
   G.fish.splice(G.fish.indexOf(f), 1);
   G.landed = f; G.taker = null;
-  pop(LAND.x + 10, SURF - 30, "+" + pts + " " + sp.one.toUpperCase(), sp.huge || sp.k === "koi" ? "#ffb000" : "#ece5d8");
+  const big = sp.huge || sp.k === "koi";
+  F.got(LAND.x + 10, SURF - 20, "+" + pts + " " + sp.one.toUpperCase(), { sound: "land", streak: G.streak, big, c: big ? "#ffb000" : "#ece5d8" });
   if (sp.huge) pop(LAND.x + 10, SURF - 46, "HUGE", "#ffb000");
-  sfx("land");
 }
 
 function swim(f, dt) {
@@ -160,7 +160,7 @@ function fight(dt) {
 }
 
 export const fish = {
-  key: "fish", W, H, title: "FISHING",
+  key: "fish", W, H, title: "FISHING", feel: F,
   edge: ["#2a5163", "#2a2218"],
   help: ["TAP THE WATER TO CAST", "TAP WHEN THE BOBBER GOES UNDER", "HOLD TO REEL, LET GO WHEN IT RUNS", "TAP TO START"],
 
@@ -169,7 +169,7 @@ export const fish = {
     spr = cells(g, stage, { hat: p.frog.hat.shape });
     col = colours(g, p.frog.hat);
     G = { t: 0, score: 0, streak: 0, caught: 0, st: "ready", hook: { x: TIP.x, y: TIP.y, ty: 0, k: 1 }, fish: [], boots: [], taker: null, landed: null,
-      hold: false, ten: 0, slack: 0, tick: 0, lt: 0, perfect: false, pops: [], rings: [], bag: {}, why: "", end: false, aim: { x: 150, y: SURF + 90 }, kb: false };
+      hold: false, ten: 0, slack: 0, tick: 0, lt: 0, perfect: false, rings: [], bag: {}, why: "", end: false, aim: { x: 150, y: SURF + 90 }, kb: false };
     for (let i = 0; i < SCHOOL; i++) spawn(false);
     if (Math.random() < 0.6) G.boots.push({ x: rnd(100, W - 20), y: BOT - 4 });
   },
@@ -232,8 +232,6 @@ export const fish = {
     }
     G.rings.forEach((r) => { r.t += dt; });
     G.rings = G.rings.filter((r) => r.t < 0.9);
-    G.pops.forEach((p) => { p.t += dt; p.y -= dt * 14; });
-    G.pops = G.pops.filter((p) => p.t < 1.3);
     const busy = G.st === "fight" || G.st === "land";
     if ((G.t >= ROUND && !busy) || G.t >= ROUND + GRACE) { G.end = true; G.why = G.caught ? "TIME'S UP" : "NOTHING BIT"; }
   },
@@ -259,7 +257,7 @@ export const fish = {
       drawFish(x, f.sp, f.x, f.y, f.dir, f.t, false);
       x.globalAlpha = 1;
     });
-    draw(x, spr, FW, FH, col, 6, JY - FH + 3, 1);
+    F.squashed(x, 6 + FW / 2, JY + 3, () => draw(x, spr, FW, FH, col, 6, JY - FH + 3, 1));
     rod(x);
     const h = G.hook, f = G.taker;
     if (G.st === "fly") {
@@ -304,9 +302,7 @@ export const fish = {
       x.fillStyle = "rgba(207,227,234," + (0.8 - r.t * 0.8) + ")";
       x.fillRect(Math.round(r.x) - s, SURF, s - 1, 1); x.fillRect(Math.round(r.x) + 2, SURF, s - 1, 1);
     });
-    x.font = "700 13px 'Space Grotesk', sans-serif"; x.textAlign = "center";
-    x.lineWidth = 3; x.strokeStyle = "#0a0908";
-    G.pops.forEach((p) => { x.strokeText(p.s, p.x, p.y); x.fillStyle = p.c; x.fillText(p.s, p.x, p.y); });
+    F.draw(x);
     hint(x);
     // The top row is left as sky, since a tall phone stretches it into the gap above.
     x.fillStyle = "#0a0908"; x.fillRect(0, 1, W, 4);
