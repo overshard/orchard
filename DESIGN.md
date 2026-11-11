@@ -656,7 +656,8 @@ version of the old look and a handheld pet shell.
   and the wheel open from Play and light it. The content column stops at
   `34rem` on a desktop.
 - **A slot is how a thing is drawn**, a rounded square with its picture, a
-  count in the corner and its tier as the border colour. One not found yet is
+  count in the corner and its tier as the border colour and as one to five
+  small diamonds in the other corner, so tier isn't colour alone. One not found yet is
   its shape in the dark with `???` and a dashed border, so a collection shows
   how much there is without giving it away. Tapping a slot opens a bottom
   sheet with the thing big and what can be done with it.
