@@ -68,7 +68,8 @@ func fail(w http.ResponseWriter, r *http.Request, err error) {
 		errors.Is(err, errFullPads), errors.Is(err, errMaxed), errors.Is(err, errSoldOut), errors.Is(err, errFed), errors.Is(err, errLevel), errors.Is(err, errToolLevel), errors.Is(err, errShort), errors.Is(err, errGiven),
 		errors.Is(err, errNoBurrow), errors.Is(err, errNotLodge), errors.Is(err, errHaveIt), errors.Is(err, errCap), errors.Is(err, errFirm), errors.Is(err, errCount),
 		errors.Is(err, errBeanFull), errors.Is(err, errStallPaid), errors.Is(err, errMothFull), errors.Is(err, errTullyFull),
-		errors.Is(err, errMarketFull), errors.Is(err, errNoLot), errors.Is(err, errBlackShut), errors.Is(err, errDealt), errors.Is(err, errNoCoin):
+		errors.Is(err, errMarketFull), errors.Is(err, errNoLot), errors.Is(err, errBlackShut), errors.Is(err, errDealt), errors.Is(err, errNoCoin),
+		errors.Is(err, errOwnPage), errors.Is(err, errStamped), errors.Is(err, errStampsDone), errors.Is(err, errStampsFull):
 		writeError(w, http.StatusConflict, err.Error())
 	default:
 		slog.Error("pond", slog.String("path", r.URL.Path), slog.Any("err", err))
@@ -732,6 +733,52 @@ func (s *site) apiHome(id int64, r *http.Request, w http.ResponseWriter) (any, e
 		return nil, nil
 	}
 	return s.store.keepHome(id, in.Home)
+}
+
+// apiStamps says what this visitor can do on a frog's page. The page is the
+// same cached copy for everybody, so this is asked for once it's open.
+func (s *site) apiStamps(w http.ResponseWriter, r *http.Request) {
+	code, ok := publicIDOf(r.URL.Query().Get("f"))
+	if !ok {
+		writeError(w, http.StatusNotFound, "no such frog")
+		return
+	}
+	from, _, err := s.pondOf(r)
+	if err != nil && !errors.Is(err, errNoPond) {
+		fail(w, r, err)
+		return
+	}
+	st, err := s.store.stampsFor(from, code)
+	if errors.Is(err, errNoPond) {
+		writeError(w, http.StatusNotFound, "no such frog")
+		return
+	}
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, st)
+}
+
+func (s *site) apiStamp(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	var in struct {
+		Page  string `json:"page"`
+		Stamp string `json:"stamp"`
+	}
+	if !readJSON(w, r, &in) {
+		return nil, nil
+	}
+	code, ok := publicIDOf(in.Page)
+	if !ok {
+		writeError(w, http.StatusNotFound, "no such frog")
+		return nil, nil
+	}
+	st, err := s.store.stamp(id, code, in.Stamp)
+	if errors.Is(err, errNoPond) {
+		writeError(w, http.StatusNotFound, "no such frog")
+		return nil, nil
+	}
+	return st, err
 }
 
 func (s *site) apiFavour(id int64, r *http.Request, w http.ResponseWriter) (any, error) {

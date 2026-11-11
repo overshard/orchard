@@ -1307,6 +1307,40 @@ body:has(.tabs) main {
   user-select: all;
 }
 
+/* Six stamp keys on a frog's page. The one pressed today latches down. */
+.stampkeys {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.stampkeys button {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  padding: 8px 0;
+}
+
+.stampkeys canvas {
+  width: 32px;
+  height: 32px;
+  image-rendering: pixelated;
+}
+
+.stampkeys button:disabled canvas {
+  opacity: 0.45;
+}
+
+.stampkeys button[aria-pressed="true"] {
+  transform: translateY(3px);
+  box-shadow: var(--pressed), inset 0 2px 0 var(--amber);
+  opacity: 1;
+}
+
+.stampkeys button[aria-pressed="true"] canvas {
+  opacity: 1;
+}
+
 /* The reeds, every frog in the pond with the one out front first. */
 .reeds {
   display: grid;
@@ -3290,6 +3324,30 @@ div.slot {
 .reveal-art .pinrow canvas {
   filter: none;
   image-rendering: pixelated;
+}
+
+/* Stamps at the greeting, each frog with the stamp it left at its feet. */
+.stamped {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  justify-content: center;
+  gap: 6px 12px;
+}
+
+.stamped figure {
+  position: relative;
+  margin: 0;
+}
+
+.reveal-art .stamped canvas {
+  filter: none;
+  image-rendering: pixelated;
+}
+
+.reveal-art .stamped canvas + canvas {
+  position: absolute;
+  right: -6px;
+  bottom: -4px;
 }
 
 /* A level up, the jump in glass over a slot for each thing it opened. */

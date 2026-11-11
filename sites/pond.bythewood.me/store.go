@@ -375,6 +375,16 @@ CREATE TABLE IF NOT EXISTS race (
     started_at INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS stamps (
+    page_id INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
+    from_id INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
+    day     TEXT NOT NULL,
+    stamp   INTEGER NOT NULL,
+    seen    INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (page_id, from_id, day)
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS stamps_from ON stamps(from_id, day);
+
 CREATE TABLE IF NOT EXISTS aims (
     pond_id INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
     day     TEXT NOT NULL,
@@ -809,6 +819,12 @@ func (s *store) sweep() (int64, error) {
 			return err
 		}
 		gone, _ = res.RowsAffected()
+		// A stamp is kept through the day after it's seen, for once a day a
+		// page, and one never seen goes after a month.
+		if _, err = tx.Exec(`DELETE FROM stamps WHERE (seen = 1 AND day < ?) OR day < ?`,
+			dayOf(s.now().AddDate(0, 0, -2)), dayOf(s.now().AddDate(0, 0, -30))); err != nil {
+			return err
+		}
 		// What was bought only counts against today's stock.
 		if _, err = tx.Exec(`DELETE FROM bought WHERE day < ?`, dayOf(s.now().AddDate(0, 0, -2))); err != nil {
 			return err

@@ -178,6 +178,11 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   ids, and otherwise a resident or a frog off a seed, and it leaves one
   common thing. `ponds.hidden` is the Stay home key, which keeps a pond's
   frog off every other pond. `frontend/src/company.js` draws it.
+- `stamps.go` is the six stamps on a frog's share page. A pond with a cookie
+  can stamp a page once a New York day and `stampsADay` pages in all, never
+  its own, and a page holds `stampsHeld` unseen. The owner's next greeting
+  hands them over with each stamper's frog, and the sweep clears a seen
+  stamp after two days and any stamp after a month.
 - `memento.go` is the one thing each resident gives a best friend, in the
   order of `residents`. They're rows in `mementos` with the day and never
   items, and count in power at half an epic hat each. A neighbour that was
@@ -475,6 +480,9 @@ they have none, for other sites to draw.
   the badges earned. A rung reached is kept, so a game's reference rising
   can lower a pond's total but never its rank, and the page never counts a
   fall.
+- Share pages are cached at the edge, so nothing about who's looking can
+  be in one. The stamp keys come off `GET /api/stamps` once the page is open,
+  which is `no-store` like every answer under `/api/`.
 - Another pond's frog only ever leaves the server as a `caller`, its name,
   seed, mods, stage, day and hat. Never its pond's id, public id or key, and
   never at all from a pond that keeps its frog home, so anything new that
