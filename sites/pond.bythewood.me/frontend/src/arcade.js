@@ -73,7 +73,9 @@ export function arcade(game) {
     if (from) art.getContext("2d").drawImage(from, 0, 0);
     win.append(art);
     const kids = [win];
-    if (A.state === "idle") {
+    if (A.state === "paused") {
+      kids.push(el("b", "", "PAUSED"), el("p", "again", "Tap to carry on"));
+    } else if (A.state === "idle") {
       kids.push(el("b", "", game.title));
       game.help.filter((l) => l !== "TAP TO START").forEach((l) => kids.push(el("p", "dim", l)));
       kids.push(el("p", "again", "Tap to start"));
@@ -127,6 +129,22 @@ export function arcade(game) {
     requestAnimationFrame(loop);
   }
 
+  // A run stops while the page is hidden and waits for a tap, so coming back
+  // to the tab never drops the frog straight into trouble.
+  function pause() {
+    if (A.state !== "play") return;
+    A.state = "paused"; down = null;
+    if (game.release) game.release();
+    if (game.hold) { game.hold("left", false); game.hold("right", false); }
+    paint(performance.now());
+  }
+
+  function resume() {
+    A.state = "play"; A.last = performance.now();
+    card.hidden = true;
+    requestAnimationFrame(loop);
+  }
+
   function point(e) {
     const r = cv.getBoundingClientRect();
     return { x: (e.clientX - r.left) / r.width * game.W, y: (e.clientY - r.top) / r.height * game.H };
@@ -135,6 +153,7 @@ export function arcade(game) {
   function press(e) {
     if (!state.pond) return;
     if (A.state === "over" && performance.now() - A.overAt < 900) return;
+    if (A.state === "paused") { resume(); return; }
     if (A.state !== "play") { start(); return; }
     if (e) { down = point(e); down.moved = false; }
     if (e && game.press) game.press(down.x, down.y);
@@ -189,6 +208,7 @@ export function arcade(game) {
     const dir = { ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right" }[e.code];
     if (dir && game.hold) game.hold(dir, false);
   });
+  document.addEventListener("visibilitychange", () => { if (document.hidden) pause(); });
   watch(() => {
     note();
     if (A.state === "play" || view.hidden) return;
@@ -212,7 +232,7 @@ export function arcade(game) {
     },
     // Leaving mid run ends it, so the points still count.
     leave() {
-      if (A.state === "play") finish(performance.now());
+      if (A.state === "play" || A.state === "paused") finish(performance.now());
       view.classList.remove("full");
     },
   };

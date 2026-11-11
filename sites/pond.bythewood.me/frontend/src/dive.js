@@ -175,6 +175,11 @@ const COUNT_STEP = 600;
 
 function press() {
   if (!state.pond || G.state === "count") return;
+  if (G.state === "paused") {
+    G.state = "play"; G.last = performance.now();
+    requestAnimationFrame(step);
+    return;
+  }
   if (G.state !== "play") {
     if (G.state === "over" && performance.now() - G.overAt < 900) return;
     reset(); spawnOthers(); G.state = "count"; G.countAt = performance.now(); G.last = G.countAt;
@@ -291,18 +296,21 @@ function draw(now) {
   if (G.state === "over" && now - G.overAt < 600) requestAnimationFrame(draw);
 }
 
-// The title is the same card the side games open on.
+// The title is the same card the side games open on, and a paused run shows
+// in it too.
 function overlay() {
-  const card = $("dive-card");
-  card.hidden = G.state !== "idle";
+  const card = $("dive-card"), want = G.state === "idle" || G.state === "paused" ? G.state : "";
+  card.hidden = !want;
   if (card.hidden) return;
-  if (card.firstChild) { card.querySelector("canvas").getContext("2d").drawImage($("play-dive-art"), 0, 0); return; }
+  if (card.dataset.shows === want) { card.querySelector("canvas").getContext("2d").drawImage($("play-dive-art"), 0, 0); return; }
+  card.dataset.shows = want;
   const win = document.createElement("div"), art = document.createElement("canvas");
   win.className = "arcade-win"; art.width = 168; art.height = 96;
   art.getContext("2d").drawImage($("play-dive-art"), 0, 0);
   win.append(art);
   const line = (tag, cls, text) => { const e = document.createElement(tag); e.className = cls; e.textContent = text; return e; };
-  card.append(win, line("b", "", "DIVE"), line("p", "dim", "Tap to kick down"), line("p", "dim", "The frog floats up by itself"),
+  if (want === "paused") card.replaceChildren(win, line("b", "", "PAUSED"), line("p", "again", "Tap to carry on"));
+  else card.replaceChildren(win, line("b", "", "DIVE"), line("p", "dim", "Tap to kick down"), line("p", "dim", "The frog floats up by itself"),
     line("p", "dim", "Outlast the others for a prize"), line("p", "again", "Tap to start"));
 }
 
@@ -329,6 +337,12 @@ export function initDive() {
     if (e.code === "Space" || e.key === " " || e.key === "Enter" || e.key === "ArrowDown") { e.preventDefault(); if (!e.repeat) press(); }
   });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (G.state !== "play" && !$("v-dive").hidden) draw(performance.now()); });
+  // A run stops while the page is hidden and waits for a tap. The lights
+  // start over, since they'd have run out behind the hidden page.
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden && G.state === "play") { G.state = "paused"; draw(performance.now()); }
+    if (!document.hidden && G.state === "count") G.countAt = performance.now();
+  });
 }
 
 // Dive takes the whole window. A tall phone sets the scale by its width and
@@ -361,7 +375,7 @@ export function enterDive() {
 
 // Leaving the view mid run ends it, so the points still count.
 export function leaveDive() {
-  if (G.state === "play") die(performance.now(), "CLIMBED OUT");
+  if (G.state === "play" || G.state === "paused") die(performance.now(), "CLIMBED OUT");
   if (G.state === "count") G.state = "idle";
   raceHide();
   $("v-dive").classList.remove("full");
