@@ -758,8 +758,14 @@ version of the old look and a handheld pet shell.
   the frog that clears the furniture, the trinket spots and both top
   corners. The chime and the vane move with the wind and the lantern is lit
   after dark. Reduced motion holds them still.
-- **A finished set pops up** like a prize, with amber rays. More than two at
-  once share one card.
+- **Badges are enamel pins on a board**, a sunken tray on the Badges shelf.
+  A pin is a pixel disc with a gold rim, a picture and enamel in the colour
+  of its part of the game. One not earned is its shape in the dark with how
+  far along it is under it, and a tap says what earns it.
+- **A badge or a set pops up when it lands**, a badge with green rays and a
+  set with amber ones. More than two at once share one card with a row of
+  small pins, so a pond that had earned a lot already isn't walked through
+  them one at a time.
 - What the frog says is a speech bubble pointing up at it, with the Next strip
   under it.
 - **Days at the pond are a count and never a streak.** It's in settings in

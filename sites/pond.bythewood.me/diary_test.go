@@ -112,6 +112,11 @@ func TestTheDiaryMakesNothingUp(t *testing.T) {
 					name = k.name
 				}
 			}
+			for _, k := range badges {
+				if k.kind == a {
+					name = k.name
+				}
+			}
 			if strings.Contains(line, strings.ToLower(name)) {
 				return true
 			}
@@ -127,6 +132,10 @@ func TestTheDiaryMakesNothingUp(t *testing.T) {
 		case "keepsake":
 			if !has(`SELECT kind, '' FROM keepsakes WHERE pond_id = ? AND day = ?`, r.Day, r.Line) {
 				t.Errorf("%s: no keepsake was kept that day: %s", r.Day, r.Line)
+			}
+		case "pin":
+			if !has(`SELECT kind, '' FROM badges WHERE pond_id = ? AND day = ?`, r.Day, r.Line) {
+				t.Errorf("%s: no badge was earned that day: %s", r.Day, r.Line)
 			}
 		case "hat":
 			if !has(`SELECT shape, colour FROM hats WHERE pond_id = ? AND first_day = ?`, r.Day, r.Line) {
@@ -280,7 +289,7 @@ var unkind = regexp.MustCompile(`(?i)\b(sad|hungry|starv\w*|cross|angry|lonely|a
 
 func TestTheDiaryPoolsAreKind(t *testing.T) {
 	slots := regexp.MustCompile(`\{[a-z_]+\}`)
-	allowed := map[string][]string{"grew": {"{a_stage}"}, "fish": {"{score}"}, "record": {"{game}", "{score}"}, "hat": {"{hat}"}, "friend": {"{who}"}, "keepsake": {"{keepsake}"}, "memento": {"{who}", "{thing}"}, "set": {"{set}", "{thing}"},
+	allowed := map[string][]string{"grew": {"{a_stage}"}, "fish": {"{score}"}, "record": {"{game}", "{score}"}, "hat": {"{hat}"}, "friend": {"{who}"}, "keepsake": {"{keepsake}"}, "memento": {"{who}", "{thing}"}, "set": {"{set}", "{thing}"}, "pin": {"{badge}"},
 		"biggest": {"{a_fish}", "{fish}", "{who}"}, "catch": {"{a_fish}", "{fish}"}}
 	for kind, pool := range diaryLines {
 		for _, nature := range natures {

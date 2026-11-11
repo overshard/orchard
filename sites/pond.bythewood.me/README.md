@@ -73,9 +73,11 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
 - `sets.go` is the sets, four things each from across the collections, read
   off the found tables so a thing cooked or sold since still counts. A
   finished one is kept in `sets` with the day and puts a piece of scenery on
-  the water, which `frontend/src/scenery.js` draws and places. `land` keeps
-  it after the move that finished it and sends it as `landed`, which
-  `collect.js` pops up.
+  the water, which `frontend/src/scenery.js` draws and places.
+- `badges.go` is the badges, small goals worked out from the view a move
+  already built, kept in `badges` with the day. `frontend/src/pins.js` is
+  each one's pin. `land` in `sets.go` keeps both after every move and sends
+  what's new as `landed`, which `collect.js` pops up.
 - `names.go` is the list a frog's name is rolled off. Nobody types a name, so
   renaming only takes one that's on it.
 - `wizard.go` turns three of a thing into one thing of any sort, mostly a tier
@@ -254,8 +256,14 @@ they have none, for other sites to draw.
   that gives one, and a new collection counted in power has to be added in
   `powerOf`, `bestFinds`, `everHad`, `store.fill`, `fullPower` in the tests,
   the share page's rows and `collect.js`.
-- A set is stored by its kind, so a new one only ever goes on the end of the
-  list, and it needs its scenery on the page.
+- A set or a badge is stored by its kind, so a new one only ever goes on the
+  end of its list, and each needs its scenery or its pin on the page. A test
+  holds the page to the lists.
+- A badge only reads the `tally`, which is counted once off the view. One
+  that needs something new adds it to `tallyOf` from what the view holds and
+  never runs a query of its own, since the check runs after every move.
+- A rub of the frog doesn't go through `act`, so a badge for hearts lands on
+  the next move or greeting and not on the rub.
 - Scenery is placed by hand in `scenery.js` to clear a grown frog, the
   furniture, the trinket spots and both top corners of the glass, so look at
   the pond with everything out after moving any of it.

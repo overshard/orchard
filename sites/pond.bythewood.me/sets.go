@@ -167,43 +167,66 @@ func setWord(name string) string {
 	return strings.TrimPrefix(strings.ToLower(name), "the ")
 }
 
-// kept reads the day every finished set was kept.
-func kept(q querier, id int64) (map[string]string, error) {
-	done := map[string]string{}
-	rows, err := q.Query(`SELECT kind, day FROM sets WHERE pond_id = ?`, id)
+// kept reads the day of every badge and finished set in one go.
+func kept(q querier, id int64) (badges, done map[string]string, err error) {
+	badges, done = map[string]string{}, map[string]string{}
+	rows, err := q.Query(`SELECT 0, kind, day FROM badges WHERE pond_id = ?1
+		UNION ALL SELECT 1, kind, day FROM sets WHERE pond_id = ?1`, id)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
+		var which int
 		var kind, day string
-		if err := rows.Scan(&kind, &day); err != nil {
-			return nil, err
+		if err := rows.Scan(&which, &kind, &day); err != nil {
+			return nil, nil, err
 		}
-		done[kind] = day
+		if which == 0 {
+			badges[kind] = day
+		} else {
+			done[kind] = day
+		}
 	}
-	return done, rows.Err()
+	return badges, done, rows.Err()
 }
 
 // landedView is what a move only just earned, for the page to pop up.
 type landedView struct {
-	Sets []string `json:"sets"`
+	Sets   []string `json:"sets"`
+	Badges []string `json:"badges"`
 }
 
-// land keeps every set the view says is finished and has no day yet. It
-// writes nothing on a move that finished nothing.
+// land keeps every set and badge the view says is earned and has no day
+// yet. It writes nothing on a move that earned nothing.
 func land(tx *sql.Tx, v *view, p *pond) error {
-	l := landedView{Sets: []string{}}
+	l := landedView{Sets: []string{}, Badges: []string{}}
 	for i := range v.Sets {
 		if s := &v.Sets[i]; s.Done && s.Day == "" {
 			s.Day = p.today
 			l.Sets = append(l.Sets, s.Kind)
-			if _, err := tx.Exec(`INSERT INTO sets (pond_id, kind, day) VALUES (?, ?, ?) ON CONFLICT DO NOTHING`, p.ID, s.Kind, p.today); err != nil {
-				return err
-			}
 		}
 	}
-	if len(l.Sets) > 0 {
+	for i := range v.Badges {
+		if b := &v.Badges[i]; b.Got && b.Day == "" {
+			b.Day = p.today
+			l.Badges = append(l.Badges, b.Kind)
+		}
+	}
+	for table, kinds := range map[string][]string{"sets": l.Sets, "badges": l.Badges} {
+		if len(kinds) == 0 {
+			continue
+		}
+		args := []any{}
+		for _, k := range kinds {
+			args = append(args, p.ID, k, p.today)
+		}
+		rows := strings.TrimSuffix(strings.Repeat("(?, ?, ?),", len(kinds)), ",")
+		if _, err := tx.Exec(`INSERT INTO `+table+` (pond_id, kind, day) VALUES `+rows+` ON CONFLICT DO NOTHING`, args...); err != nil {
+			return err
+		}
+	}
+	if len(l.Sets)+len(l.Badges) > 0 {
 		v.Landed = &l
 	}
 	return nil

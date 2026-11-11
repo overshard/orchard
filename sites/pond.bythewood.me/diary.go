@@ -148,6 +148,11 @@ var diaryLines = map[string]diaryPool{
 		"There's {thing} on the pond as of yesterday, for finishing the {set} set, and it's staying for good.",
 		"The {set} set is all found, so yesterday {thing} turned up on the water and I like it very much.",
 	}},
+	"pin": {any: []string{
+		"We got a pin yesterday, the {badge} one, and it's up on the board with the others.",
+		"There's a new pin on the board from yesterday, the {badge} one, and I think it's the best looking so far.",
+		"Yesterday we earned the {badge} pin, and I went over and looked at it twice.",
+	}},
 	"keepsake": {any: []string{
 		"We were given a {keepsake} yesterday to remember the day by, and I've put it where I can see it.",
 		"There's a {keepsake} on the shelf now, from yesterday, and I keep going over to look at it.",
@@ -380,6 +385,15 @@ func diaryFacts(tx *sql.Tx, p *pond, f frogRow, day string, from, to time.Time) 
 		out = append(out, diaryFact{"friend", []string{"{who}", residents[who].name}})
 	} else if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
+	}
+	if k, err := one(`SELECT kind FROM badges WHERE pond_id = ? AND day = ? ORDER BY kind LIMIT 1`, p.ID, day); err != nil {
+		return nil, err
+	} else if k != "" {
+		for _, b := range badges {
+			if b.kind == k {
+				out = append(out, diaryFact{"pin", []string{"{badge}", strings.ToLower(b.name)}})
+			}
+		}
 	}
 	kept, err := tx.Query(`SELECT kind FROM keepsakes WHERE pond_id = ? AND day = ?`, p.ID, day)
 	if err != nil {
