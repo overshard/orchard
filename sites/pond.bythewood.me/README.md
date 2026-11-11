@@ -89,8 +89,8 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
 - `genome.go` turns a seed into a frog's name, look and rarity, and
   `frontend/src/frog.js` is the same thing in JavaScript plus the drawing.
 - `arcade.go` is the side games, fishing, tongue flick, crossing, raft run,
-  lily leap, tadpoles, lily stack, the shell game and pebble skip, which pay
-  into the purse like Dive with a cap a day each. A score over a game's `most`
+  lily leap, tadpoles, lily stack, the shell game, pebble skip and pebble
+  drop, which pay into the purse like Dive with a cap a day each. A score over a game's `most`
   pays nothing, so keep it well past what a person could reach. One game a
   day, off a hash of the date, is the disk of the day and pays in full a
   fourth time under the same cap. Eight hours after the last run of any game
@@ -294,6 +294,10 @@ they have none, for other sites to draw.
   lifts the finger for the player, like a pause, leaves the reel as it was.
 - A change that lets a game score faster needs its `rate` in `arcade.go`
   checked against a bot, since a run past `rate` points a second pays nothing.
+- Pebble drop's bounces are the page's, so the server only holds a score to
+  `dropMost`, five pebbles in the middle pot. The day's peg rows go out on the
+  view as that game's `deal`, and a change to the pots or the pebbles a round
+  has to change `dropMost` with it.
 - `index.css` is one flat file and the share page loads it too, so look for a
   class name in it before using one. `place` is already Dive's standings and
   `who` and `scene` are on the share page as well as the pond.

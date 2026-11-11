@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"slices"
 	"testing"
 	"time"
 )
@@ -169,5 +170,78 @@ func TestDiskOfTheDay(t *testing.T) {
 	}
 	if len(seen) != len(arcadeGames) {
 		t.Errorf("only %d of %d games were ever the disk of the day", len(seen), len(arcadeGames))
+	}
+}
+
+// The page runs pebble drop's bounces, so the server only holds the score
+// to what five pebbles can make and how fast they can fall.
+func TestPebbleDropIsBounded(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	g, _ := arcadeOf("drop")
+	play := func(score int, secs time.Duration) *arcadeDone {
+		t.Helper()
+		st, err := s.arcadeStart(id, "drop")
+		if err != nil {
+			t.Fatal(err)
+		}
+		*clock = clock.Add(secs * time.Second)
+		d, err := s.arcadeFinish(id, "drop", st.Run, score, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return d
+	}
+	if d := play(dropMost+1, 60); d.Score != 0 || d.Paid != 0 {
+		t.Errorf("more than five in the middle paid: %+v", d)
+	}
+	if d := play(dropMost, 3); d.Score != 0 || d.Paid != 0 {
+		t.Errorf("five pebbles down in three seconds paid: %+v", d)
+	}
+	start := play(0, 20).Pond.Pebbles
+	if d := play(dropMost, 20); d.Paid != dropMost/g.per {
+		t.Errorf("a perfect round paid %d, want %d", d.Paid, dropMost/g.per)
+	}
+	for range 20 {
+		play(dropMost, 20)
+	}
+	v, _ := s.view(id)
+	if got := v.Pebbles - start; got != g.cap || g.cap != 40 {
+		t.Errorf("a day of perfect rounds paid %d against a cap of %d", got, g.cap)
+	}
+}
+
+// The pegs sit the same for every pond on a day and move overnight.
+func TestPebbleDropDealIsTheDays(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	_, other := newPond(t, s)
+	deal := func(pid int64) []int {
+		v, _ := s.view(pid)
+		for _, a := range v.Arcade {
+			if a.Key == "drop" {
+				return a.Deal
+			}
+		}
+		return nil
+	}
+	today := deal(id)
+	if len(today) != dropRows || !slices.Equal(today, deal(other)) {
+		t.Fatalf("today's rows: %v and %v", today, deal(other))
+	}
+	for _, dx := range today {
+		if dx < -8 || dx > 8 {
+			t.Errorf("a row sits %d off, which can push a peg into the next one's place", dx)
+		}
+	}
+	same := 0
+	for i := 1; i <= 30; i++ {
+		*clock = clock.Add(24 * time.Hour)
+		if slices.Equal(today, deal(id)) {
+			same++
+		}
+	}
+	if same > 0 {
+		t.Errorf("%d of the next thirty days have today's rows", same)
 	}
 }
