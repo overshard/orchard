@@ -68,7 +68,7 @@ func TestAGoalPaysOnceInsideTheCap(t *testing.T) {
 		}
 		return d
 	}
-	all := map[string]int{"elders": 1, "frogs": 3, "froglets": 8}
+	all := map[string]int{"kings": 1, "elders": 1, "frogs": 3, "froglets": 8}
 	// Counts that need more than the score can't meet anything.
 	if d := run(25, all); len(d.Aims) != 0 || d.Paid != 1 {
 		t.Errorf("counts past the score: %+v", d)
