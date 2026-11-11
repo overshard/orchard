@@ -6,9 +6,8 @@ import (
 )
 
 // A pond can ask Little Tully to look out for one hat it hasn't found. Every
-// spare he buys counts toward it, and once they add up to the hat's bar he
-// has it on his shelf for that pond at the shop price for its tier. It's the
-// only way a legendary is ever sold.
+// spare he buys counts toward it, and once they add up to the hat's bar it's
+// on his shelf for that pond at its tier's price, a legendary included.
 
 // wantSlot is the wanted hat's place on the shelf, past any the day deals.
 const wantSlot = 9
