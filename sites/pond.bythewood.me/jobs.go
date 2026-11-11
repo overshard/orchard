@@ -766,6 +766,9 @@ func pay(tx *sql.Tx, p *pond, r *run, xp map[string]int, tools map[string]int, n
 		}
 	}
 	p.Pebbles += w.Pebbles
+	if err := w.flow(tx, p, r.j.key); err != nil {
+		return w, err
+	}
 	for _, m := range []map[string]int{w.Got, w.Finds} {
 		for k, n := range m {
 			if err := giveN(tx, p, k, n); err != nil {
@@ -813,6 +816,25 @@ func pay(tx *sql.Tx, p *pond, r *run, xp map[string]int, tools map[string]int, n
 		top_day = CASE WHEN top_day = '' THEN excluded.top_day ELSE top_day END`,
 		p.ID, r.f.ID, r.j.key, r.t.key, len(r.deals), got, first, top)
 	return w, err
+}
+
+// flow counts a basket toward the market, its actions for the job's
+// business and what came in for the job's good.
+func (w workDone) flow(tx *sql.Tx, p *pond, job string) error {
+	got, finds := 0, 0
+	for _, n := range w.Got {
+		got += n
+	}
+	for _, n := range w.Finds {
+		finds += n
+	}
+	if err := addFlow(tx, p, "job:"+job, w.Actions); err != nil {
+		return err
+	}
+	if err := addFlow(tx, p, "finds", finds); err != nil {
+		return err
+	}
+	return addFlow(tx, p, jobGood[job], got)
 }
 
 func heldItems(q querier, id int64) (map[string]int, error) {

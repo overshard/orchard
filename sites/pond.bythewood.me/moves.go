@@ -103,7 +103,7 @@ func (s *store) greet(id int64, first bool) (*greeting, error) {
 			if l := moodLine(r, dayOfReading(r, now).Mood, p.Seed, gen.Nature, dayOf(now)); l != "" {
 				g.Line += " " + l
 			}
-			m, err := marketOf(tx, p, r, now)
+			m, err := marketOf(tx, p, now)
 			if err != nil {
 				return err
 			}
@@ -403,6 +403,9 @@ func (s *store) diveFinish(id int64, run string, score, gates int) (*dived, erro
 			return nil
 		}
 		p.DiveRuns++
+		if err := addFlow(tx, p, "played", 1); err != nil {
+			return err
+		}
 		if _, err := tx.Exec(`UPDATE ponds SET dive_plays = dive_plays + 1 WHERE id = ?`, p.ID); err != nil {
 			return err
 		}

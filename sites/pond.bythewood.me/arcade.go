@@ -241,6 +241,9 @@ func (s *store) arcadeFinish(id int64, key, run string, score int, landed map[st
 		}
 		r.runs++
 		r.plays++
+		if err := addFlow(tx, p, "played", 1); err != nil {
+			return err
+		}
 		pay := score / g.per
 		if r.runs > fullRuns(key, now) {
 			pay = score / (4 * g.per)

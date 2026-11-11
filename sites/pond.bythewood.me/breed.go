@@ -275,7 +275,7 @@ func (s *store) lay(id, frogID int64, dye, stamp, drop string) (*laid, error) {
 			return err
 		}
 		out.Frog = frogViewOf(frogRow{Seed: seed, Mods: &m, HatchedAt: now.Unix()}, now)
-		return nil
+		return addFlow(tx, p, "fed", 1)
 	})
 	out.Pond = v
 	return out, err
@@ -308,6 +308,9 @@ func (s *store) feed(id, frogID int64, kind string) (*view, error) {
 			return err
 		}
 		if _, err := tx.Exec(`UPDATE frogs SET fed = ?, fed_at = ? WHERE id = ?`, kind, now.Unix(), frogID); err != nil {
+			return err
+		}
+		if err := addFlow(tx, p, "fed", 1); err != nil {
 			return err
 		}
 		return noteTaste(tx, frogID, kind)

@@ -59,6 +59,8 @@ CREATE TABLE IF NOT EXISTS ponds (
     power_seen      TEXT NOT NULL DEFAULT '',
     rank_top        INTEGER NOT NULL DEFAULT 0,
     rank_day        TEXT NOT NULL DEFAULT '',
+    div_day         TEXT NOT NULL DEFAULT '',
+    div_carry       REAL NOT NULL DEFAULT 0,
     key_saved_at    INTEGER
 );
 CREATE INDEX IF NOT EXISTS ponds_created ON ponds(created_at);
@@ -293,7 +295,17 @@ CREATE TABLE IF NOT EXISTS market_days (
     day    TEXT NOT NULL,
     key    TEXT NOT NULL,
     close  REAL NOT NULL,
+    open   REAL NOT NULL DEFAULT 0,
+    div    REAL NOT NULL DEFAULT 0,
     PRIMARY KEY (key, day)
+) WITHOUT ROWID;
+
+CREATE TABLE IF NOT EXISTS market_flow (
+    key    TEXT NOT NULL,
+    day    TEXT NOT NULL,
+    hour   INTEGER NOT NULL,
+    n      INTEGER NOT NULL,
+    PRIMARY KEY (key, day, hour)
 ) WITHOUT ROWID;
 
 CREATE TABLE IF NOT EXISTS market_ticks (
@@ -398,6 +410,10 @@ var addedColumns = []struct{ table, name, def string }{
 	{"ponds", "power_seen", "TEXT NOT NULL DEFAULT ''"},
 	{"ponds", "rank_top", "INTEGER NOT NULL DEFAULT 0"},
 	{"ponds", "rank_day", "TEXT NOT NULL DEFAULT ''"},
+	{"market_days", "open", "REAL NOT NULL DEFAULT 0"},
+	{"market_days", "div", "REAL NOT NULL DEFAULT 0"},
+	{"ponds", "div_day", "TEXT NOT NULL DEFAULT ''"},
+	{"ponds", "div_carry", "REAL NOT NULL DEFAULT 0"},
 }
 
 func ensureColumns(db *sql.DB) (map[string]bool, error) {
@@ -575,8 +591,10 @@ type pond struct {
 	// WantFill what the pond's spares have sold to him for since.
 	WantHat  string
 	WantFill int
-	// today is the pond's date in the move being made, for what's kept by day.
+	// today is the pond's date in the move being made, for what's kept by day,
+	// and at the moment of it.
 	today string
+	at    time.Time
 
 	GravelLevel int
 	GravelAt    int64
@@ -1133,7 +1151,7 @@ func (s *store) act(id int64, fn func(tx *sql.Tx, p *pond, now time.Time) error)
 		}
 		now := s.now()
 		p.settle(now)
-		p.today = dayOf(now)
+		p.today, p.at = dayOf(now), now
 		if err := fn(tx, p, now); err != nil {
 			return err
 		}
@@ -1192,7 +1210,7 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	if v.Room, err = roomsOf(q, p.ID, dayOf(now)); err != nil {
 		return err
 	}
-	if v.Market, err = marketOf(q, p, r, now); err != nil {
+	if v.Market, err = marketOf(q, p, now); err != nil {
 		return err
 	}
 	if v.Neighbours, err = neighboursOf(q, p.ID, now); err != nil {

@@ -63,13 +63,13 @@ func TestGazetteHasThreeDifferentHeadlines(t *testing.T) {
 }
 
 func TestMarketHeadline(t *testing.T) {
-	quiet := marketHeadline([]firmView{{business: business{Name: "Ribbit Labs"}, Price: 100, Prev: 100}}, "2026-11-10")
+	quiet := marketHeadline([]firmView{{asset: asset{Name: "Ribbit Labs"}, Price: 100, Prev: 100}}, "2026-11-10")
 	if !strings.Contains(quiet, "quiet") {
 		t.Errorf("flat board: %q", quiet)
 	}
 	firms := []firmView{
-		{business: business{Name: "Ribbit Labs"}, Price: 101, Prev: 100},
-		{business: business{Name: "Bog Oil & Peat"}, Price: 90, Prev: 100},
+		{asset: asset{Name: "Ribbit Labs"}, Price: 101, Prev: 100},
+		{asset: asset{Name: "Bog Oil & Peat"}, Price: 90, Prev: 100},
 	}
 	h := marketHeadline(firms, "2026-11-10")
 	if !strings.Contains(h, "Bog Oil & Peat") || strings.ContainsAny(h, "0123456789%") {

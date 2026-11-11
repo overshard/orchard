@@ -260,14 +260,14 @@ func gazetteWithPhoto(mood, day string) ([]string, int, bool) {
 	return out, photo, named
 }
 
-// marketHeadline is the gazette's business story, off whichever business
-// moved furthest in pebbles today. Like every other line it carries no number.
+// marketHeadline is the gazette's business story, off whichever business or
+// coin moved furthest in pebbles today. Like every other line it carries no number.
 func marketHeadline(firms []firmView, day string) string {
 	var best *firmView
 	bestMove := 0.0
 	for i := range firms {
 		f := &firms[i]
-		if f.Prev == 0 {
+		if f.Prev == 0 || f.Kind == kindGood {
 			continue
 		}
 		m := float64(f.Price-f.Prev) / float64(f.Prev)

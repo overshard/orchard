@@ -217,6 +217,9 @@ func landFish(tx *sql.Tx, p *pond, landed map[string]int, score int, tables []ma
 			}
 		}
 		out = append(out, got)
+		if err := addFlow(tx, p, "g_fish", c); err != nil {
+			return nil, err
+		}
 	}
 	return out, nil
 }
