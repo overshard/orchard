@@ -85,6 +85,11 @@ var aimList = []aim{
 
 	{"sw_clear", "sweep", "Clear a whole grid", map[string]int{"cleared": 1}, nil, 0},
 	{"sw_forty", "sweep", "Open forty pads in one go", map[string]int{"pads": 40}, nil, 0},
+
+	{"tl_five", "lash", "Gulp five bugs in one lash", map[string]int{"combo": 5}, nil, 0},
+	{"tl_gold", "lash", "Snap a golden beetle", map[string]int{"golden": 1}, nil, 0},
+	{"tl_drag", "lash", "Snap four dragonflies", map[string]int{"dragonflies": 4}, nil, 0},
+	{"tl_clean", "lash", "Score 120 and never touch a wasp", nil, []string{"wasps"}, 120},
 }
 
 // The least score each count says a run made, so a page can't report more of
@@ -104,6 +109,7 @@ var aimWorth = map[string]map[string]int{
 	"chorus": {"right": 3, "row": 2},
 	"putt":   {"holes": 2, "under": 12, "beat": 1},
 	"jar":    {"kings": 60, "elders": 25, "frogs": 8, "froglets": 4},
+	"lash":   {"combo": 2, "golden": 10, "dragonflies": 3, "bugs": 1},
 }
 
 // aimsOf is a game's two goals for a day, the same in every pond.

@@ -702,6 +702,15 @@ version of the old look and a handheld pet shell.
   bullfrog olive with a yellow throat and brown ears, an elder in brown and
   cream with white whiskers and brows, a great frog deep teal with gold
   spots and orange eyes, and a pond king bright green with a gold crown.
+- **Tongue lash is dusk over the far bank**, the frog on a pad between two
+  reed beds and bugs tossed up out of the reeds in arcs. A swipe drags the
+  tongue along the finger, a fat pink line from the mouth through every spot
+  it went, and lifting reels it in from the tip with whatever stuck riding on
+  it, all gulped at once. Flies, gnats in threes, moths that sway, dragonflies
+  that dart across and beetles that come up fast and drop are drawn on a grid
+  of 2 like the frog. A swarm's reed bed glows amber and says SWARM before it
+  goes up together, and a golden beetle twinkles where it'll come up. A wasp
+  costs one of three lilies in the corner and ten gulps in a row grow one back.
 - **Bug sweep is the day's puzzle.** Eight pads by ten on flat water, a
   closed pad green and an open one dark with its number in a colour of its
   own, pale blue for one up to red. A marked pad has a pink bud on it, and a

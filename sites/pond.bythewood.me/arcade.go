@@ -37,6 +37,7 @@ var arcadeGames = []arcadeGame{
 	{"chorus", "Chorus", 40, 7, chorusMost, 15},
 	{"putt", "Pad putt", 40, 5, puttMost, 3},
 	{"jar", "Spawn jar", 40, 25, jarMost, 25},
+	{"lash", "Tongue lash", 40, 12, lashMost, 8},
 }
 
 // Every beat of chorus right on time is all a song can score, before a
@@ -46,6 +47,10 @@ const chorusMost = 601
 // Two pond kings popping clear the jar, so a run has no end of its own and
 // its rate is what holds it. This only stops a number no run could reach.
 const jarMost = 60000
+
+// A round of tongue lash that gulps every bug in long lashes stays well under
+// this, so it only stops a number no round could reach.
+const lashMost = 1200
 
 // A game with no rate is played out on the server a tap at a time, so it
 // never takes a score from the page. It pays once a day and is never the

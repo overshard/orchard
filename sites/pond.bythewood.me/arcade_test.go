@@ -378,3 +378,43 @@ func TestSpawnJarIsBounded(t *testing.T) {
 		t.Errorf("a day of jars paid %d against a cap of %d", v.Pebbles-start, g.cap)
 	}
 }
+
+// Tongue lash is a timed round the page plays out, so the server holds it to
+// its rate and its most, and a day of it to the cap.
+func TestTongueLashIsBounded(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	g, _ := arcadeOf("lash")
+	play := func(score int, secs time.Duration) *arcadeDone {
+		t.Helper()
+		st, err := s.arcadeStart(id, "lash")
+		if err != nil {
+			t.Fatal(err)
+		}
+		*clock = clock.Add(secs * time.Second)
+		d, err := s.arcadeFinish(id, "lash", st.Run, score, nil, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return d
+	}
+	if d := play(lashMost+1, 7200); d.Paid != 0 {
+		t.Errorf("more than a round can score paid: %+v", d)
+	}
+	if d := play(600, 20); d.Paid != 0 {
+		t.Errorf("600 in twenty seconds paid: %+v", d)
+	}
+	start := play(0, 76).Pond.Pebbles
+	if d := play(120, 76); d.Paid != 120/g.per {
+		t.Errorf("a good round paid %d, want %d", d.Paid, 120/g.per)
+	}
+	if d := play(600, 76); d.Paid == 0 {
+		t.Errorf("a great round paid nothing: %+v", d)
+	}
+	for range 10 {
+		play(600, 76)
+	}
+	if v, _ := s.view(id); v.Pebbles-start != g.cap {
+		t.Errorf("a day of rounds paid %d against a cap of %d", v.Pebbles-start, g.cap)
+	}
+}
