@@ -525,29 +525,26 @@ func TestNinetyDaysDoNotRunAway(t *testing.T) {
 	}
 }
 
-// playMarket walks every business a day at a slight upward drift, then buys
-// whatever has room and sells anything that's up.
+// playMarket locks the day's prices, collects dividends, sells anything
+// that's up and buys one of something.
 func playMarket(t *testing.T, s *store, id int64) {
 	t.Helper()
-	r := reading{At: s.now(), Session: "regular", Markets: map[string]float64{}}
-	for _, b := range businesses {
-		r.Markets[b.Key] = rand.NormFloat64()*1.2 + 0.04
-	}
-	s.day.pinned.Store(true)
-	s.day.last.Store(&r)
 	if err := s.lockMarket(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.collectDividends(id); err != nil {
 		t.Fatal(err)
 	}
 	v, _ := s.view(id)
 	for _, f := range v.Market.Firms {
-		if f.Held > 0 && f.Worth > f.Cost {
-			if _, err := s.sellShares(id, f.Key, f.Held); err != nil {
+		if f.Held > 0 && f.Kind != kindGood && f.Worth > f.Cost {
+			if _, err := s.trade(id, f.Key, f.Held, true); err != nil {
 				t.Fatal(err)
 			}
 		}
 	}
 	f := v.Market.Firms[rand.IntN(len(v.Market.Firms))]
-	if _, err := s.buyShares(id, f.Key, 1); err != nil && !errors.Is(err, errPoor) && !errors.Is(err, errCap) {
+	if _, err := s.trade(id, f.Key, 1, false); err != nil && !errors.Is(err, errPoor) && !errors.Is(err, errCap) {
 		t.Fatal(err)
 	}
 }

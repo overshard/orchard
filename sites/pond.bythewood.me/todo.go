@@ -69,6 +69,9 @@ func todoOf(v *view) []todo {
 	for _, f := range short {
 		add("short", f.Work.Short, titled(f.Name)+" ran out of "+f.Work.Short, "job")
 	}
+	if v.Market.Due > 0 {
+		add("dividend", "peb", fmt.Sprintf("%d in dividends", v.Market.Due), "market")
+	}
 	if v.Stall.Takings > 0 {
 		add("stall", "i_town", fmt.Sprintf("Stall sold %d", v.Stall.Takings), "town")
 	}

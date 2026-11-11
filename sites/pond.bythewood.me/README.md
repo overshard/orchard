@@ -166,10 +166,15 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   already a best friend hands its one over at the next greeting.
 - `burrow.go` is the bank's burrows. Each level adds a pad that doesn't count
   toward the ones you buy, and a friendly neighbour can lodge in one and pay rent.
-- `market.go` is the pond market, a business for each of dash's market
-  series. A share moves three times the real day's percent in pebbles, the
-  day's last reading in the regular session is kept as its close in
-  `market_days`, and a pond's shares are in `shares` at what it paid.
+- `market.go` is the pond market, in three sorts. Shares in the town's
+  businesses, each moved by one line of work across every pond, goods that are
+  bought into the bag and sold out of it by the lot, and Glowworm Coin. A
+  pond's shares and coin are in `shares` at what it paid, each day's open,
+  close and dividend a share in `market_days`, and dividends are paid from
+  `ponds.div_day` on.
+- `prices.go` is how a price moves. Every ten minute slot of the day is a
+  step off an HMAC of the pepper, and what every pond did is counted by the
+  hour in `market_flow` by `addFlow` and weighed against the week before.
 - `todo.go` is what's waiting right now and `goals.go` is what the pond has
   never tried, both sent with the view. A new pond's goals are the four first
   day steps in `starter.go`, and after their prize it's the first few down a
@@ -311,10 +316,19 @@ they have none, for other sites to draw.
   the pond with everything out after moving any of it.
 - A reveal that comes while another is up waits in a queue in `ui.js`, so
   nothing should hide `#reveal` itself.
-- Outside the regular session dash's market cards are futures, so the pond
-  market only writes a close while dash says `regular`, apart from Glowworm
-  Coin. Buying and selling both take a fee so a round trip always loses, and
-  the 90 day purse test plays the market with a random walk.
+- Nothing in the market reads dash. The first eight keys in `assets` once
+  followed its markets, and a `market_days` row with no open is a real close,
+  which is carried on from and never worked out again. Keys are kept for good
+  since holdings are kept by them.
+- Each step of a price is worth what it cost on average, so nobody can buy
+  ahead of a move, and that's why the coin drifts down in the middle while
+  its average holds. A good is held to a band round its base so two of it
+  always cost more than any dish made only of goods, and the market pays for
+  goods through `payOut` with a room of its own. `TestMarketStrategies`
+  plays five ways of trading for 90 days, so run it after touching a fee, the
+  yield or a tune.
+- A new thing ponds do that should move a business needs `addFlow` where it
+  happens, inside the move so it's counted on the pond's day.
 - The nightly run only goes between 22:30 and 6:00 pond time, skips while the
   gateway says the card is busy or under 3GB is free, and never runs off a
   visitor. A model line with a digit, a banned word or a slot it wasn't given

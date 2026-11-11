@@ -415,6 +415,9 @@ func (s *store) cook(id int64, a, b string) (*cooked, error) {
 		if err := addItem(tx, p.ID, d.kind(), 1); err != nil {
 			return err
 		}
+		if err := addFlow(tx, p, "cooked", 1); err != nil {
+			return err
+		}
 		res, err := tx.Exec(`INSERT INTO cookbook (pond_id, dish, first_at) VALUES (?, ?, ?)
 			ON CONFLICT DO NOTHING`, p.ID, d.kind(), now.Unix())
 		if err != nil {
