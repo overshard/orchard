@@ -26,12 +26,26 @@ import { initSettings } from "./settings.js";
 
 const VIEWS = ["pond", "play", "dive", "cross", "flick", "raft", "leap", "school", "fish", "stack", "shell", "skip", "wheel", "bag", "collect", "reeds", "garden", "bank", "town", "settings"];
 // Places that open from another light that one's key.
-const TAB_OF = { collect: "bag", dive: "play", wheel: "play", cross: "play", flick: "play", raft: "play", leap: "play", school: "play", fish: "play", stack: "play", shell: "play", skip: "play" };
-let view = "pond", fetchedAt = Date.now();
+const WORKS = ["reeds", "garden", "bank"];
+const TAB_OF = { reeds: "works", garden: "works", bank: "works", collect: "bag", dive: "play", wheel: "play", cross: "play", flick: "play", raft: "play", leap: "play", school: "play", fish: "play", stack: "play", shell: "play", skip: "play" };
+let view = "pond", fetchedAt = Date.now(), worksAt = "", waitingAt = new Set();
 const GAMES = { flick: arcade(flick), cross: arcade(cross), raft: arcade(raft), leap: arcade(leap), school: arcade(school), fish: arcade(fish), stack: arcade(stack), shell: arcade(shell), skip: arcade(skip) };
 
+// The Works key opens the place in it that was open last, and the first time
+// one with something waiting.
+function placeOf(next) {
+  if (next !== "works") return next;
+  return worksAt || WORKS.find((w) => waitingAt.has(w)) || WORKS[0];
+}
+
 function show(next) {
+  next = placeOf(next);
   if (!VIEWS.includes(next)) next = "pond";
+  if (WORKS.includes(next)) worksAt = next;
+  $("works-head").hidden = !WORKS.includes(next);
+  document.querySelectorAll("#works-tabs button").forEach((b) => {
+    b.setAttribute("aria-pressed", b.dataset.go === next ? "true" : "false");
+  });
   if (view === "dive" && next !== "dive") leaveDive();
   if (GAMES[view] && next !== view) GAMES[view].leave();
   view = next;
@@ -59,7 +73,7 @@ function show(next) {
 window.addEventListener("load", () => window.scrollTo(0, 0));
 
 $("tabs").addEventListener("click", (e) => {
-  const b = e.target.closest("button"), v = b && b.dataset.view;
+  const b = e.target.closest("button"), v = b && placeOf(b.dataset.view);
   if (v) { history.replaceState(null, "", v === "pond" ? location.pathname : "#" + v); show(v); }
 });
 
@@ -499,8 +513,10 @@ function renderTodo(p) {
   const rest = p.todo.filter((t) => !live[t.kind] && !(counts.length && t.kind === "save"));
   const todo = counts.concat(rest.map((t) => [t.icon, t.label, t.to]));
 
-  const waiting = new Set(todo.map(([, , to]) => TAB_OF[to] || to));
+  waitingAt = new Set(todo.map(([, , to]) => to));
+  const waiting = new Set([...waitingAt].map((to) => TAB_OF[to] || to));
   document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("wait", waiting.has(b.dataset.view)));
+  document.querySelectorAll("#works-tabs button").forEach((b) => b.classList.toggle("wait", waitingAt.has(b.dataset.go)));
 
   const box = $("todo");
   box.textContent = "";
@@ -764,7 +780,7 @@ initBank();
 initShops();
 initBag();
 initCollect();
-document.querySelectorAll(".places.pair button[data-go]").forEach((b) => b.addEventListener("click", () => { location.hash = "#" + b.dataset.go; }));
+document.querySelectorAll(".places button[data-go]").forEach((b) => b.addEventListener("click", () => { location.hash = "#" + b.dataset.go; }));
 document.querySelectorAll("#bank-tabs button").forEach((b) => b.addEventListener("click", () => {
   document.querySelectorAll("#bank-tabs button").forEach((x) => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
   $("bank-works").hidden = b.dataset.bank !== "works";

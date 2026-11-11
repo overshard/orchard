@@ -668,12 +668,15 @@ version of the old look and a handheld pet shell.
   settings (the name, the pond key, frog power).
 - A section head is an amber index chip, a caps title and a rule out to the
   edge, the same as a dash panel head.
-- **Seven places are transport keys along the bottom**, each a pixel icon over
-  a word, where a thumb is: Pond, Play, Bag, Reeds, Garden, Bank and
-  Town. The lit one stays pushed in like a tape deck's PLAY, and a key with
-  something waiting behind it has a small amber LED. Dive
-  and the wheel open from Play and light it. The content column stops at
-  `34rem` on a desktop.
+- **Five places are transport keys along the bottom**, each a pixel icon over
+  a word, where a thumb is: Pond, Play, Bag, Works and Town. The lit one stays
+  pushed in like a tape deck's PLAY, and a key with something waiting behind
+  it has a small amber LED. Dive and the wheel open from Play and light it.
+  The content column stops at `34rem` on a desktop.
+- **Works is the reeds, the garden and the bank** behind a row of three keys
+  like the places in town, and it opens on the one that was open last. A key
+  with something waiting has the same LED as a tab, and the market stays
+  behind the bank's own pair of keys.
 - **A slot is how a thing is drawn**, a rounded square with its picture, a
   count in the corner and its tier as the border colour and as one to five
   small diamonds in the other corner, so tier isn't colour alone. One not found yet is
