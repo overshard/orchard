@@ -33,6 +33,11 @@ function todo(d) {
   if (!ul || d.house) return;
   ul.textContent = "";
   const item = (el) => { const li = document.createElement("li"); li.append(el); ul.append(li); };
+  if (d.found) {
+    const s = document.createElement("span");
+    s.textContent = "FOUND THE " + d.found.name.toUpperCase() + " HERE, IT'S IN YOUR BAG";
+    item(s);
+  }
   d.todo.slice(0, SHOWN).forEach((t) => {
     const a = document.createElement("a");
     a.href = POND + "/#" + t.to; a.target = "_blank"; a.rel = "noopener";
