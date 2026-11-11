@@ -597,8 +597,9 @@ func (s *store) write(fn func(tx *sql.Tx) error) error {
 	if err != nil {
 		return err
 	}
+	// The single write connection stays locked if a panic skips the rollback.
+	defer tx.Rollback()
 	if err := fn(tx); err != nil {
-		_ = tx.Rollback()
 		return err
 	}
 	return tx.Commit()
