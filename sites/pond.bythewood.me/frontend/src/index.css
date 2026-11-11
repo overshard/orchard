@@ -87,7 +87,7 @@ h2 {
   gap: 10px;
   margin: 28px 0 10px;
   color: var(--amber);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: var(--track);
   text-transform: uppercase;
@@ -125,13 +125,13 @@ canvas {
 
 .dim {
   color: var(--dim);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .label {
   margin: 0 0 4px;
   color: var(--amber);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: var(--track);
   text-transform: uppercase;
@@ -208,7 +208,7 @@ canvas {
 
 .readout .k {
   color: var(--glass-k);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: var(--track);
   text-transform: uppercase;
 }
@@ -400,7 +400,7 @@ button.screen:active {
 .chips {
   margin: 6px 0 4px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -431,7 +431,7 @@ button.screen:active {
   background: var(--lip);
   box-shadow: var(--moulded);
   overflow: hidden;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .missed dt,
@@ -484,7 +484,7 @@ button.screen:active {
   border-radius: 3px;
   background: var(--panel);
   box-shadow: var(--moulded);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .things canvas,
@@ -498,7 +498,7 @@ button.screen:active {
   min-height: 32px;
   margin-left: auto;
   padding: 2px 8px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .dev button {
@@ -623,7 +623,7 @@ body:has(.arcade.full) {
   box-shadow: var(--moulded);
   overflow: hidden;
   list-style: none;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .legend li {
@@ -662,7 +662,7 @@ body:has(.arcade.full) {
   align-items: center;
   gap: 4px;
   padding: 6px 4px;
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.04em;
   line-height: 1.3;
   text-align: center;
@@ -701,7 +701,7 @@ div.hattile {
   border-radius: 3px;
   background: var(--panel);
   box-shadow: var(--moulded);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .spare button {
@@ -787,7 +787,7 @@ footer {
   padding: 14px 12px;
   border-top: 1px solid var(--line);
   color: var(--dim);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: var(--track);
   text-transform: uppercase;
 }
@@ -855,7 +855,7 @@ body:has(.tabs) main {
   background: var(--well);
   box-shadow: var(--sunk);
   font-family: inherit;
-  font-size: 12px;
+  font-size: 14px;
   overflow-wrap: anywhere;
   user-select: all;
 }
@@ -892,7 +892,7 @@ body:has(.tabs) main {
 
 .restore label {
   color: var(--print);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: var(--track);
   text-transform: uppercase;
 }
@@ -940,7 +940,7 @@ body:has(.tabs) main {
 }
 
 .power span {
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: var(--track);
 }
 
@@ -1007,7 +1007,7 @@ body:has(.tabs) main {
   margin: 10px 0;
   padding: 0;
   list-style: none;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .tally li {
@@ -1075,7 +1075,7 @@ body:has(.tabs) main {
   background: var(--well);
   box-shadow: var(--sunk);
   font-family: inherit;
-  font-size: 12px;
+  font-size: 14px;
   overflow-wrap: anywhere;
   user-select: all;
 }
@@ -1119,7 +1119,11 @@ body:has(.tabs) main {
 
 .reed span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 14px;
+}
+
+.reed .tier {
+  font-size: 10px;
 }
 
 .reed .ate {
@@ -1128,6 +1132,7 @@ body:has(.tabs) main {
 
 .reed .on {
   color: var(--amber);
+  font-size: 12px;
   letter-spacing: var(--track);
 }
 
@@ -1180,7 +1185,7 @@ button.reed {
   background: var(--hazard);
   box-shadow: var(--sunk);
   color: var(--dim);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: var(--track);
 }
 
@@ -1339,7 +1344,7 @@ button.reed {
   background: rgba(10, 9, 8, 0.8);
   border-left: 3px solid var(--dim);
   color: var(--text);
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: var(--track);
   animation: slide 1.8s ease-out forwards;
 }
@@ -1426,7 +1431,7 @@ button.reed {
 .results .why {
   margin: 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: var(--track);
 }
 
@@ -1445,7 +1450,7 @@ button.reed {
   display: block;
   color: var(--dim);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   font-style: normal;
   letter-spacing: var(--track);
 }
@@ -1482,7 +1487,7 @@ button.reed {
 .podium span {
   max-width: 100%;
   overflow: hidden;
-  font-size: 10px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
@@ -1510,7 +1515,7 @@ button.reed {
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .final li {
@@ -1551,7 +1556,7 @@ button.reed {
   grid-template-columns: auto auto;
   gap: 2px 14px;
   margin: 0;
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 0.08em;
 }
 
@@ -1579,7 +1584,7 @@ button.reed {
 .results .again {
   margin: 4px 0 0;
   color: var(--amber);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: var(--track);
   animation: blink 1.2s steps(2) infinite;
 }
@@ -1658,7 +1663,7 @@ button.reed {
 h2 .count {
   margin-left: 8px;
   color: var(--dim);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .cookbook {
@@ -1671,7 +1676,7 @@ h2 .count {
   background: var(--lip);
   box-shadow: var(--moulded);
   overflow: hidden;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .cookbook li {
@@ -1721,7 +1726,7 @@ h2 .count {
   padding: 6px 10px;
   background: var(--panel);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .shelf canvas {
@@ -1793,7 +1798,7 @@ h2 .count {
 .stats {
   margin: 2px 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 /* What the frog says sits in a speech bubble pointing up at it. */
@@ -1902,7 +1907,7 @@ h2 .count {
   margin: 0 0 3px;
   padding: 4px 14px;
   color: var(--print);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.1em;
 }
 
@@ -1945,7 +1950,7 @@ h2 .count {
   gap: 10px;
   margin: 8px 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .recipe.known {
@@ -1960,7 +1965,7 @@ h2 .count {
 .recipe span {
   display: flex;
   flex-direction: column;
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -2025,7 +2030,7 @@ h2 .count {
   padding: 0;
   list-style: none;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .today li {
@@ -2108,7 +2113,7 @@ h2 .count {
 .paper-photo {
   flex: none;
   margin: 0;
-  font-size: 9px;
+  font-size: 10px;
   font-style: italic;
   text-align: center;
 }
@@ -2134,7 +2139,7 @@ h2 .count {
 .paper-story {
   margin: 0;
   padding: 7px 8px 0 0;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   line-height: 1.25;
 }
@@ -2148,7 +2153,7 @@ h2 .count {
   margin: 10px 0 0;
   padding-top: 6px;
   border-top: 1px solid var(--ink);
-  font-size: 12px;
+  font-size: 14px;
   font-style: italic;
   line-height: 1.3;
 }
@@ -2188,13 +2193,13 @@ h2 .q[aria-expanded="true"] {
   background: var(--well);
   box-shadow: var(--sunk);
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .back {
   display: inline-block;
   margin-bottom: 8px;
-  font-size: 12px;
+  font-size: 14px;
   text-decoration: none;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -2320,7 +2325,7 @@ a.game:not(.pays) .cta {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--muted);
 }
 
@@ -2413,13 +2418,13 @@ div.slot {
 
 .slot .nm {
   color: var(--text);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.25;
   text-align: center;
 }
 
 .slot .sub {
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -2549,7 +2554,7 @@ div.slot {
 
 .cat span:not(.meter) {
   color: var(--dim);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .cat .meter {
@@ -2667,7 +2672,7 @@ div.slot {
 
 .pricer > span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .pricer .tiles {
@@ -2735,7 +2740,7 @@ div.slot {
 .reveal-kick {
   margin: 0;
   color: var(--amber);
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: var(--track);
   text-transform: uppercase;
 }
@@ -2749,7 +2754,7 @@ div.slot {
 .reveal-card p {
   margin: 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .reveal-card button {
@@ -2779,7 +2784,7 @@ div.slot {
 .boxbuy > span {
   display: flex;
   flex-direction: column;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .boxbuy button {
@@ -2810,7 +2815,7 @@ div.slot {
 .stallrow > span:first-of-type {
   display: flex;
   flex-direction: column;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .stallrow .price {
@@ -2864,7 +2869,7 @@ div.slot {
   border-radius: 3px;
   background: var(--glass);
   box-shadow: var(--sunk);
-  font-size: 11px;
+  font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
@@ -2970,7 +2975,7 @@ button.big {
 
 .jobrow .need {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .jobrow .tier {
@@ -2985,7 +2990,7 @@ button.big {
 .reed .job {
   min-height: 36px;
   padding: 6px 8px;
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .reed .job.full {
@@ -3024,7 +3029,7 @@ button.big {
 }
 
 .lodgers figcaption {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   text-align: center;
 }
@@ -3054,9 +3059,10 @@ button.big {
 
 .arcade-card p {
   margin: 0;
-  font-size: 10px;
+  font-size: 14px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  text-wrap: balance;
 }
 
 .arcade-card > b {
@@ -3068,13 +3074,13 @@ button.big {
 
 .arcade-card .why {
   color: var(--amber);
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: var(--track);
 }
 
 .arcade-card .won {
   color: var(--amber);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -3135,7 +3141,7 @@ button.big {
 
 .eject {
   min-width: 72px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .screen.pot {
@@ -3286,7 +3292,7 @@ button.big {
   flex-direction: column;
   gap: 3px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.3;
 }
 
@@ -3318,7 +3324,7 @@ button.big {
 .disk.flag .dline {
   flex: 1;
   gap: 8px;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .dhead {
@@ -3337,7 +3343,7 @@ button.big {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .chip.more {
@@ -3428,7 +3434,7 @@ button.big {
   margin: 8px 0;
   padding: 0;
   list-style: none;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .steps-list li {
@@ -3527,7 +3533,7 @@ button.big {
   flex-direction: column;
   gap: 2px;
   min-width: 0;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .market .readout {
@@ -3557,7 +3563,7 @@ button.big {
 
 .market .own {
   margin: 0;
-  font-size: 11px;
+  font-size: 14px;
   color: #5ddc82;
 }
 
@@ -3622,7 +3628,7 @@ button.big {
 
 .friend .dim {
   grid-column: 1 / -1;
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .friend .rail {
@@ -3662,18 +3668,18 @@ button.big {
 
 .fact .k {
   color: var(--amber);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: var(--track);
   text-transform: uppercase;
 }
 
 .fact p {
   margin: 1px 0 0;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .fact p.dim {
-  font-size: 11px;
+  font-size: 14px;
 }
 
 /* A neighbour's thought is a cloud over it, trailing two puffs down to it. */
@@ -3685,7 +3691,7 @@ button.big {
   background: var(--panel-2);
   box-shadow: var(--moulded);
   color: var(--text);
-  font-size: 12px;
+  font-size: 14px;
   font-style: italic;
 }
 
@@ -3718,5 +3724,5 @@ button.big {
   background: #efe4c6;
   color: #2a2418;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 11px;
+  font-size: 12px;
 }
