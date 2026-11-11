@@ -28,6 +28,7 @@ function fill() {
 
 export const leap = {
   key: "leap", W, H, title: "LILY LEAP",
+  edge: ["#123a3d", "#123a3d"],
   help: ["HOLD LEFT OR RIGHT TO STEER", "BOUNCE UP THE PADS", "BROWN PADS SINK, DRAGONFLIES LAUNCH", "TAP TO START"],
 
   reset(g, p) {
