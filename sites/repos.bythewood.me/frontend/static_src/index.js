@@ -6,3 +6,4 @@ import "@fontsource/newsreader/600.css";
 import "./styles/base.scss";
 
 import "./scripts/refswitch.js";
+import "./scripts/guest.js";

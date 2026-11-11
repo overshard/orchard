@@ -269,3 +269,36 @@ footer {
   }
 }
 
+
+// The visitor's frog from pond.bythewood.me and the lost one on the 404, both
+// drawn by guest.js. The canvas is sized here so the page doesn't move when it fills.
+.pond-guest {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 68px;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(221, 215, 205, 0.08);
+  color: rgba(221, 215, 205, 0.5);
+  font-size: 0.8125rem;
+  text-decoration: none;
+
+  &:hover { color: rgba(221, 215, 205, 0.75); }
+  &:hover span { text-decoration: underline; }
+}
+
+.pond-guest canvas {
+  flex: none;
+  width: 88px;
+  height: 68px;
+  image-rendering: pixelated;
+}
+
+.pond-lost {
+  display: block;
+  width: 216px;
+  height: 180px;
+  image-rendering: pixelated;
+  margin-bottom: 1rem;
+}
