@@ -33,7 +33,6 @@
           <span class="property-url-text">{{ .URL }}</span>
           <span class="property-url-arrow" aria-hidden="true">↗</span>
         </a>
-        {{ template "pondFrog" (ne .CurrentStatus 200) }}
       </div>
       <div class="col-12 col-lg-5 d-flex flex-wrap gap-2 justify-content-lg-end align-items-center d-print-none">
         {{ if $authed }}

@@ -72,6 +72,10 @@
         <span><b id="stat-msgs">{{.Stats.Messages}}</b> messages</span>
       </div>
       <button class="wipe" id="wipe">Delete all history</button>
+      <div class="pond-guest side-frog" data-pond-foot>
+        <small data-pond-line>A frog from the pond</small>
+        <a href="https://pond.bythewood.me/" aria-label="The pond"><canvas width="44" height="34" aria-hidden="true"></canvas></a>
+      </div>
     </div>
   </aside>
 
@@ -203,5 +207,6 @@
 
 <script src="{{asset "static/widgets.js"}}" defer></script>
 <script src="{{asset "static/app.js"}}" defer></script>
+<script type="module" src="{{asset "static/guest.js"}}"></script>
 </body>
 </html>
