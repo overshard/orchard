@@ -899,3 +899,23 @@ func TestThereIsAlwaysSomethingToCome(t *testing.T) {
 		}
 	}
 }
+
+// The work badges count what came in at every target that brings the thing.
+func TestTheWorkBadgesLand(t *testing.T) {
+	s, _, id, f := working(t, "bugs", "")
+	exec(t, s, `INSERT INTO mastery (pond_id, frog_id, job, target, acts, got) VALUES (?, ?, 'bugs', 'cricket', 150, 60), (?, ?, 'bugs', 'chorus', 50, 40), (?, ?, 'bugs', 'meadow', 3, 1)`, id, f, id, f, id, f)
+	v, _ := s.view(id)
+	if !badgeOf(v, "crickets_100").Got || !badgeOf(v, "first_firefly").Got || badgeOf(v, "mastered").Got {
+		t.Errorf("crickets %+v, firefly %+v, mastered %+v", badgeOf(v, "crickets_100"), badgeOf(v, "first_firefly"), badgeOf(v, "mastered"))
+	}
+	exec(t, s, `UPDATE mastery SET acts = 100000 WHERE target = 'cricket'`)
+	if v, _ = s.view(id); badgeOf(v, "mastered").Got {
+		t.Error("mastered at level 1, past the cap")
+	}
+	if err := s.write(func(tx *sql.Tx) error { return addXP(tx, id, f, "bugs", xpFor[88]) }); err != nil {
+		t.Fatal(err)
+	}
+	if v, _ = s.view(id); !badgeOf(v, "mastered").Got {
+		t.Errorf("not mastered at 88: %+v", v.Frogs[0].Work.Targets)
+	}
+}

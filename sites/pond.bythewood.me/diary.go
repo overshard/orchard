@@ -153,6 +153,16 @@ var diaryLines = map[string]diaryPool{
 		"There's a new pin on the board from yesterday, the {badge} one, and I think it's the best looking so far.",
 		"Yesterday we earned the {badge} pin, and I went over and looked at it twice.",
 	}},
+	"firstgo": {any: []string{
+		"Had my first go at {target} yesterday, and I think I've got the knack of it.",
+		"Yesterday I tried {target} for the first time and came home with something to show for it.",
+		"First time at {target} yesterday, and it went better than I thought it would.",
+	}},
+	"mastered": {any: []string{
+		"I've got {target} down to a fine art now, and yesterday I knew it.",
+		"Nobody does {target} like I do, not since yesterday anyway.",
+		"I could do {target} in my sleep now, and yesterday I nearly did.",
+	}},
 	"keepsake": {any: []string{
 		"We were given a {keepsake} yesterday to remember the day by, and I've put it where I can see it.",
 		"There's a {keepsake} on the shelf now, from yesterday, and I keep going over to look at it.",
@@ -339,6 +349,11 @@ func diaryFacts(tx *sql.Tx, p *pond, f frogRow, day string, from, to time.Time) 
 	if rarest != nil {
 		out = append(out, diaryFact{"catch", []string{"{a_fish}", aFish(*rarest), "{fish}", strings.ToLower(rarest.name)}})
 	}
+	if tg, err := workDay(tx, f.ID, "top_day", day); err != nil {
+		return nil, err
+	} else if tg != "" {
+		out = append(out, diaryFact{"mastered", []string{"{target}", tg}})
+	}
 	// A best friend's memento comes with a hat, and it's the bigger news.
 	if k, err := one(`SELECT kind FROM mementos WHERE pond_id = ? AND day = ? ORDER BY kind LIMIT 1`, p.ID, day); err != nil {
 		return nil, err
@@ -386,6 +401,11 @@ func diaryFacts(tx *sql.Tx, p *pond, f frogRow, day string, from, to time.Time) 
 	} else if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
+	if tg, err := workDay(tx, f.ID, "first_day", day); err != nil {
+		return nil, err
+	} else if tg != "" {
+		out = append(out, diaryFact{"firstgo", []string{"{target}", tg}})
+	}
 	if k, err := one(`SELECT kind FROM badges WHERE pond_id = ? AND day = ? ORDER BY kind LIMIT 1`, p.ID, day); err != nil {
 		return nil, err
 	} else if k != "" {
@@ -426,6 +446,36 @@ func diaryFacts(tx *sql.Tx, p *pond, f frogRow, day string, from, to time.Time) 
 		out = append(out, diaryFact{kind: sky})
 	}
 	return append(out, diaryFact{kind: "quiet"}), nil
+}
+
+// workDay is the target the frog first brought something in from, or
+// mastered, on a day, as the diary says it.
+func workDay(tx *sql.Tx, frogID int64, col, day string) (string, error) {
+	var j, t string
+	err := tx.QueryRow(`SELECT job, target FROM mastery WHERE frog_id = ? AND `+col+` = ? ORDER BY job, target LIMIT 1`, frogID, day).Scan(&j, &t)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	jb, _ := jobOf(j)
+	tg, ok := jb.target(t)
+	if !ok {
+		return "", nil
+	}
+	if jb.key == jobCraft {
+		return "making " + aThing(tg.title()), nil
+	}
+	return strings.ToLower(tg.title()), nil
+}
+
+func aThing(name string) string {
+	name = strings.ToLower(name)
+	if strings.ContainsRune("aeiou", rune(name[0])) {
+		return "an " + name
+	}
+	return "a " + name
 }
 
 // diaryWeek is how many days back a line isn't said again.
