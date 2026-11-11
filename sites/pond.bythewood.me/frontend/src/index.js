@@ -21,6 +21,7 @@ import { initPower, seePower } from "./power.js";
 import { initPostcard } from "./postcard.js";
 import { drawScenery, drawSceneryNight } from "./scenery.js";
 import { drawFarBank, FAR_DEPTH } from "./farbank.js";
+import { badge } from "./badge.js";
 import { footprint, visitorReveal, stampsReveal, paintingReveal } from "./company.js";
 import { initPet, setBox, pose, over as petOver, busy as petBusy, wasRub, tapTrick, arrive, drawBond } from "./pet.js";
 
@@ -710,6 +711,7 @@ function renderNext(p) {
   const todo = counts.concat(p.todo.filter((t) => !live[t.kind] && !(counts.length && t.kind === "save")));
 
   waitingAt = new Set(todo.map((t) => t.to));
+  badge(todo.filter((t) => t.kind !== "save").length);
   // The gravel bar and the rent always have a little, so they're news when full.
   const full = { gravel: p.bank.gravel, rent: p.bank.burrows };
   sortPips(p, todo.filter((t) => !full[t.kind] || heldNow(full[t.kind]) >= full[t.kind].holds));
