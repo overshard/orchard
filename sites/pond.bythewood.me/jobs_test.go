@@ -3,7 +3,9 @@ package main
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"math"
+	"net/http"
 	"testing"
 	"time"
 )
@@ -674,5 +676,27 @@ func TestMasteryComesWithTheBasket(t *testing.T) {
 	s.r.QueryRow(`SELECT first_day FROM mastery WHERE pond_id = ?`, id).Scan(&first)
 	if first == "" {
 		t.Error("no day for the first twig")
+	}
+}
+
+// The page names the target it wants, and the route takes that one.
+func TestThePagePicksATarget(t *testing.T) {
+	b, db, clock := testSite(t)
+	var g greeting
+	b.post("/api/greet", "{}", &g)
+	*clock = clock.Add(2 * 24 * time.Hour)
+	b.post("/api/greet", "{}", &g)
+	f := g.Pond.Frogs[0].ID
+	if _, err := db.w.Exec(`INSERT INTO job_xp (pond_id, frog_id, job, xp) SELECT pond_id, id, 'bugs', ? FROM frogs`, xpFor[20]); err != nil {
+		t.Fatal(err)
+	}
+	var c workCollected
+	body := fmt.Sprintf(`{"frog":%d,"job":"bugs","target":"mayfly"}`, f)
+	if code := b.post("/api/jobs/set", body, &c); code != http.StatusOK || c.Pond.Frogs[0].Work.Target != "mayfly" {
+		t.Errorf("set to mayflies: %d %+v", code, c.Pond.Frogs[0].Work)
+	}
+	body = fmt.Sprintf(`{"frog":%d,"job":"craft","target":"t_boat"}`, f)
+	if code := b.post("/api/jobs/set", body, &c); code != http.StatusOK || c.Pond.Frogs[0].Work.Target != "t_boat" {
+		t.Errorf("set to boats: %d %+v", code, c.Pond.Frogs[0].Work)
 	}
 }
