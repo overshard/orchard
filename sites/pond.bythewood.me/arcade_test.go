@@ -246,3 +246,58 @@ func TestPebbleDropDealIsTheDays(t *testing.T) {
 		t.Errorf("%d of the next thirty days have today's rows", same)
 	}
 }
+
+// A perfect song pays the day's cap and no more, and a singer out front
+// scores a quarter more without the page saying so.
+func TestChorusIsBounded(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	g, _ := arcadeOf("chorus")
+	play := func(score int, secs time.Duration) *arcadeDone {
+		t.Helper()
+		st, err := s.arcadeStart(id, "chorus")
+		if err != nil {
+			t.Fatal(err)
+		}
+		*clock = clock.Add(secs * time.Second)
+		d, err := s.arcadeFinish(id, "chorus", st.Run, score, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return d
+	}
+	var plain, singer uint32
+	for seed := uint32(1); plain == 0 || singer == 0; seed++ {
+		if genomeOf(seed, nil).Nature == "SINGER" {
+			singer = seed
+		} else {
+			plain = seed
+		}
+	}
+	exec(t, s, `UPDATE frogs SET seed = ? WHERE pond_id = ?`, plain, id)
+	if d := play(chorusMost+1, 200); d.Paid != 0 {
+		t.Errorf("more than a perfect song paid: %+v", d)
+	}
+	if d := play(chorusMost, 30); d.Paid != 0 {
+		t.Errorf("a perfect song in thirty seconds paid: %+v", d)
+	}
+	start := play(0, 120).Pond.Pebbles
+	if d := play(chorusMost, 121); d.Paid != g.cap || d.Score != chorusMost || d.Singer {
+		t.Errorf("a perfect song paid %d for %d, want the cap of %d", d.Paid, d.Score, g.cap)
+	}
+	for range 10 {
+		play(chorusMost, 121)
+	}
+	if v, _ := s.view(id); v.Pebbles-start != g.cap {
+		t.Errorf("a day of perfect songs paid %d against a cap of %d", v.Pebbles-start, g.cap)
+	}
+	*clock = clock.Add(24 * time.Hour)
+	play(0, 120)
+	exec(t, s, `UPDATE frogs SET seed = ? WHERE pond_id = ?`, singer, id)
+	if d := play(200, 100); d.Score != 250 || !d.Singer || d.Paid != 250/g.per {
+		t.Errorf("a singer's 200: %+v", d)
+	}
+	if d := play(chorusMost, 30); d.Paid != 0 || d.Singer {
+		t.Errorf("a singer still has to sing in time: %+v", d)
+	}
+}

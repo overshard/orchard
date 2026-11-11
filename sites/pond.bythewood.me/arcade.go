@@ -34,7 +34,12 @@ var arcadeGames = []arcadeGame{
 	{"skip", "Pebble skip", 40, 12, 400, 2},
 	{"drop", "Pebble drop", 40, 4, dropMost, 2},
 	{"sweep", "Bug sweep", 40, 0, bugSafe, 1},
+	{"chorus", "Chorus", 40, 7, chorusMost, 15},
 }
+
+// Every beat of chorus right on time is all a song can score, before a
+// singer's quarter.
+const chorusMost = 601
 
 // A game with no rate is played out on the server a tap at a time, so it
 // never takes a score from the page. It pays once a day and is never the
@@ -179,6 +184,8 @@ type arcadeDone struct {
 	Best  bool `json:"best"`
 	// Rested is how much of Paid was for being well rested.
 	Rested int `json:"rested"`
+	// Singer is a chorus scored a quarter more for the frog out front.
+	Singer bool `json:"singer,omitempty"`
 	// Catch is what a round of fishing put in the fish book.
 	Catch []caught `json:"catch,omitempty"`
 	// Sedge has something to say when a pond record goes.
@@ -212,6 +219,12 @@ func (s *store) arcadeFinish(id int64, key, run string, score int, landed map[st
 		if score < 0 || score > g.most || float64(score) > took.Seconds()*g.rate+5 {
 			out.Score = 0
 			return saveArcade(tx, p.ID, key, r)
+		}
+		// A singer out front scores a quarter more, added here so the page
+		// can't claim it for a frog that isn't one.
+		if key == "chorus" && frogOf(p, now).genome.Nature == "SINGER" {
+			score += score / 4
+			out.Score, out.Singer = score, true
 		}
 		r.runs++
 		pay := score / g.per
