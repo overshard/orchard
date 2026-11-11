@@ -1,5 +1,5 @@
-import { sfx } from "./sound.js";
 import { colours } from "./frog.js";
+import { feel } from "./feel.js";
 
 // Tadpoles. Lead a school round the shallows eating water fleas, and every
 // flea adds a tadpole to the tail. Swipe or tap to turn, and running into the
@@ -8,6 +8,7 @@ const C = 16, COLS = 11, ROWS = 16, W = C * COLS, H = C * ROWS, M = C / 2;
 const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 
 let G = null, col = null;
+const F = feel();
 
 function free() {
   for (let i = 0; i < 200; i++) {
@@ -23,14 +24,14 @@ function blocked(x, y) {
 }
 
 export const school = {
-  key: "school", W, H, title: "TADPOLES",
+  key: "school", W, H, title: "TADPOLES", feel: F,
   edge: ["#2f6b33", "#2f6b33"],
   help: ["SWIPE OR TAP TO TURN", "EAT FLEAS, GROW THE SCHOOL", "MISS REEDS, STONES AND TAIL", "TAP TO START"],
 
   reset(g) {
     col = colours(g, null);
     const cx = Math.floor(COLS / 2);
-    G = { t: 0, tick: 0, every: 0.2, dir: "up", turns: [], body: [{ x: cx, y: ROWS - 5 }, { x: cx, y: ROWS - 4 }, { x: cx, y: ROWS - 3 }], from: null, grow: 0, score: 0, stones: [], flea: null, gold: null, why: "", dead: 0, pops: [] };
+    G = { t: 0, tick: 0, every: 0.2, dir: "up", turns: [], body: [{ x: cx, y: ROWS - 5 }, { x: cx, y: ROWS - 4 }, { x: cx, y: ROWS - 3 }], from: null, grow: 0, score: 0, stones: [], flea: null, gold: null, why: "", dead: 0, row: 0, ateAt: -9 };
     G.flea = free();
   },
 
@@ -51,8 +52,6 @@ export const school = {
 
   step(dt) {
     G.t += dt;
-    G.pops.forEach((p) => { p.t += dt; p.y -= dt * 18; });
-    G.pops = G.pops.filter((p) => p.t < 0.8);
     if (G.dead) { G.dead += dt; return; }
     if (G.gold) { G.gold.left -= dt; if (G.gold.left <= 0) G.gold = null; }
     G.tick += dt;
@@ -63,7 +62,8 @@ export const school = {
     const tail = G.body[G.body.length - 1];
     const intoTail = n.x === tail.x && n.y === tail.y && G.grow === 0;
     if (!intoTail && blocked(n.x, n.y)) {
-      G.dead = 0.01; G.from = null; sfx("bonk");
+      G.dead = 0.01; G.from = null;
+      F.crash(h.x * C + M, h.y * C + M);
       G.why = n.x < 0 || n.y < 0 || n.x >= COLS || n.y >= ROWS ? "INTO THE REEDS" : G.stones.some((s) => s.x === n.x && s.y === n.y) ? "BONK" : "TANGLED UP";
       return;
     }
@@ -71,20 +71,23 @@ export const school = {
     G.body.unshift(n);
     if (G.grow > 0) G.grow--; else G.body.pop();
     if (n.x === G.flea.x && n.y === G.flea.y) {
-      G.score++; G.grow++; sfx("catch");
-      G.pops.push({ x: n.x * C + M, y: n.y * C, s: "+1", t: 0 });
+      G.score++; G.grow++;
+      // Fleas eaten one soon after another carry the run of notes on.
+      G.row = G.t - G.ateAt < 4 ? G.row % 8 + 1 : 1;
+      G.ateAt = G.t;
+      F.got(n.x * C + M, n.y * C + M, "+1", { streak: G.row });
       G.every = Math.max(0.085, G.every * 0.97);
       if (G.score % 6 === 0 && G.stones.length < 7) G.stones.push(free());
       G.flea = free();
       if (!G.gold && Math.random() < 0.18) G.gold = { ...free(), left: 6 };
     } else if (G.gold && n.x === G.gold.x && n.y === G.gold.y) {
-      G.score += 3; G.grow += 2; sfx("catch");
-      G.pops.push({ x: n.x * C + M, y: n.y * C, s: "+3", t: 0 });
+      G.score += 3; G.grow += 2;
+      F.got(n.x * C + M, n.y * C + M, "+3", { big: true, streak: G.row });
       G.gold = null;
     }
   },
 
-  over() { return G && G.dead > 0.7; },
+  over() { return G && G.dead > 0.45; },
   score() { return G ? G.score : 0; },
   why() { return G ? G.why : ""; },
 
@@ -117,20 +120,22 @@ export const school = {
       const b = G.body[i], was = (G.from && G.from[i]) || b;
       const dx = b.x - was.x || (i ? 0 : DIRS[G.dir][0]), dy = b.y - was.y || (i || dx ? 0 : DIRS[G.dir][1]);
       const cx = Math.round((was.x + (b.x - was.x) * k) * C + M), cy = Math.round((was.y + (b.y - was.y) * k) * C + M);
-      for (let k = 1; k <= 3; k++) {
-        const wig = Math.round(Math.sin(G.t * 14 + i - k) * k * 0.8), sz = 4 - k;
-        const tx = cx - dx * (3 + k * 3) + (dy ? wig : 0), ty = cy - dy * (3 + k * 3) + (dx ? wig : 0);
-        x.fillStyle = col[3]; x.fillRect(Math.round(tx - sz / 2), Math.round(ty - sz / 2), sz + 1, sz + 1);
-      }
-      x.fillStyle = col[3]; x.fillRect(cx - 4, cy - 3, 8, 6); x.fillRect(cx - 3, cy - 4, 6, 8);
-      x.fillStyle = col[1]; x.fillRect(cx - 3, cy - 2, 6, 4); x.fillRect(cx - 2, cy - 3, 4, 6);
-      x.fillStyle = "rgba(255,246,220,0.45)"; x.fillRect(cx - 2 - dy, cy - 2 + dx, 2, 1);
-      x.fillStyle = "#0a0908";
-      if (dx) { x.fillRect(cx + dx * 2, cy - 2, 1, 1); x.fillRect(cx + dx * 2, cy + 1, 1, 1); }
-      else { x.fillRect(cx - 2, cy + dy * 2, 1, 1); x.fillRect(cx + 1, cy + dy * 2, 1, 1); }
+      const one = () => {
+        for (let k = 1; k <= 3; k++) {
+          const wig = Math.round(Math.sin(G.t * 14 + i - k) * k * 0.8), sz = 4 - k;
+          const tx = cx - dx * (3 + k * 3) + (dy ? wig : 0), ty = cy - dy * (3 + k * 3) + (dx ? wig : 0);
+          x.fillStyle = col[3]; x.fillRect(Math.round(tx - sz / 2), Math.round(ty - sz / 2), sz + 1, sz + 1);
+        }
+        x.fillStyle = col[3]; x.fillRect(cx - 4, cy - 3, 8, 6); x.fillRect(cx - 3, cy - 4, 6, 8);
+        x.fillStyle = col[1]; x.fillRect(cx - 3, cy - 2, 6, 4); x.fillRect(cx - 2, cy - 3, 4, 6);
+        x.fillStyle = "rgba(255,246,220,0.45)"; x.fillRect(cx - 2 - dy, cy - 2 + dx, 2, 1);
+        x.fillStyle = "#0a0908";
+        if (dx) { x.fillRect(cx + dx * 2, cy - 2, 1, 1); x.fillRect(cx + dx * 2, cy + 1, 1, 1); }
+        else { x.fillRect(cx - 2, cy + dy * 2, 1, 1); x.fillRect(cx + 1, cy + dy * 2, 1, 1); }
+      };
+      if (i) one(); else F.squashed(x, cx, cy + 4, one);
     }
-    x.font = "700 12px 'Space Grotesk', sans-serif"; x.textAlign = "center";
-    G.pops.forEach((p) => { x.fillStyle = "#ffb000"; x.fillText(p.s, p.x, p.y); });
-    x.textAlign = "left"; x.fillStyle = "#ece5d8"; x.fillText(String(G.score), 6, 15);
+    F.draw(x);
+    x.font = "700 12px 'Space Grotesk', sans-serif"; x.textAlign = "left"; x.fillStyle = "#ece5d8"; x.fillText(String(G.score), 6, 15);
   },
 };
