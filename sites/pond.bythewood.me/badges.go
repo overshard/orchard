@@ -26,6 +26,8 @@ type tally struct {
 	friends, mementos             int
 	stall, share                  int
 	days, sites, key              int
+	// The best go at bug sweep in pads and the best round of pebble drop.
+	swept, dropped int
 }
 
 var stageRank = map[string]int{"egg": 0, "tadpole": 1, "froglet": 2, "frog": 3, "elder": 4}
@@ -49,6 +51,12 @@ func tallyOf(v *view, p *pond) *tally {
 	t.games, t.played = len(v.Arcade)+1, one(v.Dive.Best > 0)
 	for _, g := range v.Arcade {
 		t.played += one(g.Best > 0)
+		switch g.Key {
+		case "sweep":
+			t.swept = g.Best
+		case "drop":
+			t.dropped = g.Best
+		}
 	}
 	for _, f := range v.Frogs {
 		t.stage = max(t.stage, stageRank[f.Stage])
@@ -149,6 +157,8 @@ var badges = []badge{
 	{"days_100", "A hundred days", "Spend a hundred days at the pond", "pond", upTo(func(t *tally) int { return t.days }, 100)},
 	{"sites", "Out and about", "Have your frog turn up on another site", "collect", upTo(func(t *tally) int { return t.sites }, 1)},
 	{"key", "Key kept safe", "Save your pond key", "key", upTo(func(t *tally) int { return t.key }, 1)},
+	{"sweep_clear", "Clean sweep", "Clear a grid in bug sweep", "sweep", upTo(func(t *tally) int { return t.swept / bugSafe }, 1)},
+	{"drop_five", "Five in the middle", "Land all five pebbles in the middle pot", "drop", upTo(func(t *tally) int { return t.dropped / dropMost }, 1)},
 }
 
 type badgeView struct {
