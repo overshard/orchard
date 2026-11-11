@@ -5,6 +5,7 @@ import { dishCanvas } from "./icons.js";
 import { hatTile } from "./hats.js";
 import { slot } from "./ui.js";
 import { tapsToReel, setTapReel } from "./fish.js";
+import { badgeCan, badgeOn, setBadgeOn } from "./badge.js";
 
 let which = 0, offers = [];
 // The diary on the page, whose it is and the day it was read.
@@ -115,6 +116,14 @@ export function initSettings() {
   $("tap-reel").addEventListener("click", function () {
     setTapReel(!tapsToReel());
     this.setAttribute("aria-pressed", tapsToReel() ? "true" : "false");
+  });
+  const bk = $("app-badge");
+  bk.hidden = $("badge-line").hidden = !badgeCan();
+  bk.setAttribute("aria-pressed", badgeOn() ? "true" : "false");
+  bk.addEventListener("click", () => {
+    setBadgeOn(!badgeOn());
+    bk.setAttribute("aria-pressed", badgeOn() ? "true" : "false");
+    if (badgeOn() && state.pond) setPond(state.pond);
   });
   document.querySelectorAll("#sound-keys button[data-sound]").forEach((b) => {
     const kind = b.dataset.sound;

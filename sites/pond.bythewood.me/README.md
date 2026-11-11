@@ -399,6 +399,10 @@ they have none, for other sites to draw.
 - The tap that starts a run is handed to the game's `drag` and not to its
   `press`, so a held finger steers from the first frame and a tap game doesn't
   act on it.
+- The Badge key is `pond-badge` in localStorage, read by
+  `frontend/src/badge.js`, which sets the installed icon's count off the
+  Next strip's waiting rows whenever it's drawn. With no push and no service
+  worker it only moves while a pond page is open.
 - Tap to reel is `pond-tapreel` in localStorage, read by `fish.js`. With it
   on a press toggles the reel and a release does nothing, so anything that
   lifts the finger for the player, like a pause, leaves the reel as it was.
