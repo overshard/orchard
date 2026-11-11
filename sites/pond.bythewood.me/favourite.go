@@ -24,7 +24,7 @@ func seedPick(seed uint32, salt string, n int) int {
 func seedDish(seed uint32) string {
 	var plain []int
 	for i, in := range ingredients {
-		if !in.trinket {
+		if in.grows() {
 			plain = append(plain, i)
 		}
 	}

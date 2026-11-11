@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"os"
 	"regexp"
 	"strconv"
@@ -381,12 +382,16 @@ func TestTheDiaryKeepsFishingNews(t *testing.T) {
 		return all[len(all)-1].Line
 	}
 	next()
-	goFishing(t, s, clock, id, 60, map[string]int{"minnow": 2, "eel": 1})
+	// Put in by hand at the smallest size, since a rolled one can be a record.
+	s.write(func(tx *sql.Tx) error {
+		_, err := tx.Exec(`INSERT INTO fish (pond_id, kind, count, best, first_day) VALUES (?1, 'minnow', 2, 15, ?2), (?1, 'eel', 1, 160, ?2)`, id, dayOf(*clock))
+		return err
+	})
 	if l := next(); kindOf(l) != "catch" || !strings.Contains(l, "eel") || strings.Contains(l, "a eel") {
 		t.Errorf("after a first eel: %s", l)
 	}
 	// The same fish again is no news, and a lower score is no best.
-	goFishing(t, s, clock, id, 50, map[string]int{"minnow": 1})
+	goFishing(t, s, clock, id, 50, nil)
 	if l := next(); kindOf(l) != "quiet" {
 		t.Errorf("after fish already in the book: %s", l)
 	}
@@ -399,5 +404,215 @@ func TestTheDiaryKeepsFishingNews(t *testing.T) {
 	}
 	if l := next(); kindOf(l) != "biggest" || !strings.Contains(l, "minnow") || !strings.Contains(l, residents[who].name) {
 		t.Errorf("after a pond record: %s", l)
+	}
+}
+
+func TestKeepingAFishForTheKitchen(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	if _, err := s.keepFish(id, "perch"); !errors.Is(err, errNotHeld) {
+		t.Fatalf("a fish with no round behind it: %v", err)
+	}
+	// The kitchen is in the works, which a new pond doesn't have yet.
+	if d := goFishing(t, s, clock, id, 60, map[string]int{"perch": 1}); d.Keeps != 0 {
+		t.Fatalf("a pond on its first day was offered %d keeps", d.Keeps)
+	}
+	*clock = clock.Add(worksOpenAfter + 24*time.Hour)
+	if d := goFishing(t, s, clock, id, 60, map[string]int{"perch": 1, "pike": 1}); d.Keeps != fishKeeps {
+		t.Fatalf("a round with fish offered %d keeps", d.Keeps)
+	}
+	if _, err := s.keepFish(id, "carp"); !errors.Is(err, errNotHeld) {
+		t.Fatalf("a fish the round didn't land: %v", err)
+	}
+	k, err := s.keepFish(id, "pike")
+	if err != nil || k.Kept != "Fish fillet" || k.Left != fishKeeps-1 {
+		t.Fatalf("keeping the pike = %+v, %v", k, err)
+	}
+	if _, err := s.keepFish(id, "perch"); !errors.Is(err, errNotHeld) {
+		t.Fatalf("a second fish off one round: %v", err)
+	}
+	// Starting again gives up the pick, and a round with nothing has none.
+	goFishing(t, s, clock, id, 60, map[string]int{"perch": 1})
+	if d := goFishing(t, s, clock, id, 60, nil); d.Keeps != 0 {
+		t.Fatalf("an empty round offered %d keeps", d.Keeps)
+	}
+	if _, err := s.keepFish(id, "perch"); !errors.Is(err, errNotHeld) {
+		t.Fatalf("a fish from a round before the last: %v", err)
+	}
+	for i := 1; i < fishKeeps; i++ {
+		if d := goFishing(t, s, clock, id, 60, map[string]int{"perch": 1}); d.Keeps != fishKeeps-i {
+			t.Fatalf("round %d offered %d keeps", i, d.Keeps)
+		}
+		if k, err := s.keepFish(id, "perch"); err != nil || k.Kept != "Small fry" {
+			t.Fatalf("keeping a perch = %+v, %v", k, err)
+		}
+	}
+	if d := goFishing(t, s, clock, id, 60, map[string]int{"perch": 1}); d.Keeps != 0 {
+		t.Fatalf("a round past the day's keeps offered %d", d.Keeps)
+	}
+	if _, err := s.keepFish(id, "perch"); !errors.Is(err, errNotHeld) {
+		t.Fatalf("a keep past the day's: %v", err)
+	}
+	v, _ := s.view(id)
+	if v.held["fillet"] != 1 || v.held["smallfry"] != 2 {
+		t.Fatalf("the bag holds %v", v.held)
+	}
+	// A fish is in the bag to cook and nowhere to sell.
+	for _, b := range v.Bag {
+		if b.Kind == "fillet" && (b.Free != 0 || b.Count != 1 || b.Sort != "food") {
+			t.Errorf("a fillet in the bag = %+v", b)
+		}
+	}
+	if _, err := s.stallList(id, "fillet", 5); err == nil {
+		t.Error("a fillet went on the stall")
+	}
+	if _, err := s.wizard(id, "smallfry"); err == nil {
+		t.Error("the wizard took small fry")
+	}
+	before := v.Pebbles
+	c, err := s.cook(id, "smallfry", "fillet")
+	if err != nil || c.Dish.Name != "Fisher's pie" || !c.New {
+		t.Fatalf("cooking the two = %+v, %v", c, err)
+	}
+	v, err = s.sellDish(id, c.Dish.Kind)
+	if err != nil || v.Pebbles != before+dishWorth[1] {
+		t.Fatalf("Big Bean paid %d for it, %v", v.Pebbles-before, err)
+	}
+	*clock = clock.Add(24 * time.Hour)
+	if d := goFishing(t, s, clock, id, 60, map[string]int{"perch": 1}); d.Keeps != fishKeeps {
+		t.Fatalf("a new day offered %d keeps", d.Keeps)
+	}
+}
+
+// What one kept fish adds to a dish over a duckweed in its place, which is
+// free out of any garden. A day's keeps have to stay well under fishing's cap.
+func TestAKeptFishIsWorthLittle(t *testing.T) {
+	most := 0.0
+	for a, A := range ingredients {
+		for b := a; b < len(ingredients); b++ {
+			B := ingredients[b]
+			d := dishOf(a, b)
+			var each float64
+			switch {
+			case A.fish && B.fish:
+				each = float64(dishWorth[d.tier]) / 2
+			case B.fish:
+				each = float64(dishWorth[d.tier] - dishWorth[dishOf(0, a).tier])
+			default:
+				continue
+			}
+			if each > most {
+				most = each
+				t.Logf("%s is worth %d, %.1f a fish", d.name, dishWorth[d.tier], each)
+			}
+		}
+	}
+	g, _ := arcadeOf("fish")
+	if day := most * fishKeeps; day > float64(g.cap)/2 {
+		t.Errorf("a day's kept fish cook into %.0f pebbles and fishing's cap is %d", day, g.cap)
+	}
+	for _, in := range ingredients {
+		if !in.fish {
+			continue
+		}
+		if in.tier != 0 || in.grows() {
+			t.Errorf("%s is tier %d and grows %v", in.kind, in.tier, in.grows())
+		}
+		if _, ok := worthOf(in.kind); ok {
+			t.Errorf("%s has a going rate on the stall", in.kind)
+		}
+		if _, ok := wizardTier(in.kind); ok {
+			t.Errorf("the wizard takes %s", in.kind)
+		}
+		if _, ok := shopFloor(in.kind); ok {
+			t.Errorf("a shop sells %s", in.kind)
+		}
+	}
+	for day := range 400 {
+		for _, l := range larderStock(dayOf(time.Date(2026, 1, 1, 12, 0, 0, 0, pondZone).AddDate(0, 0, day)), false) {
+			if i, _ := ingredientOf(l.Kind); !ingredients[i].grows() {
+				t.Fatalf("Big Bean has %s on the shelf", l.Kind)
+			}
+		}
+	}
+	for seed := range uint32(3000) {
+		d, _ := dishOfKind(seedDish(seed))
+		if ingredients[d.a].fish || ingredients[d.b].fish {
+			t.Fatalf("seed %d's favourite off its seed is %s", seed, d.name)
+		}
+	}
+	if w := seasonWeights(time.Now(), true); w[len(w)-1] != 0 || w[len(w)-2] != 0 {
+		t.Errorf("a fish can come up in a plot, %v", w)
+	}
+}
+
+func TestAFewNeighboursLikeAFishDish(t *testing.T) {
+	s, _ := testStore(t)
+	_, id := newPond(t, s)
+	for name, pair := range alsoLikes {
+		i := residentNamed(name)
+		if i < 0 || !ingredients[pair[0]].fish || !ingredients[pair[1]].fish {
+			t.Fatalf("%s also likes %v", name, pair)
+		}
+		also, _ := residents[i].alsoDish()
+		if also == residents[i].favDish() {
+			t.Errorf("%s's second favourite is its first", name)
+		}
+	}
+	sedge := residentNamed("Sedge")
+	supper, _ := residents[sedge].alsoDish()
+	stock(t, s, id, supper.kind(), 1)
+	b, err := s.gift(id, sedge, supper.kind())
+	if err != nil || !strings.Contains(b.Line, "nearly best") {
+		t.Fatalf("a fish supper for Sedge = %+v, %v", b, err)
+	}
+	v, _ := s.view(id)
+	if n := v.Neighbours.All[sedge]; n.Points != 2*giftPoints[supper.tier] || n.Also != "Fish supper" || n.AlsoA != "" {
+		t.Errorf("Sedge after = %+v", n)
+	}
+	if n := v.Neighbours.All[residentNamed("Dot")]; n.Also != "" {
+		t.Errorf("Dot also likes %s", n.Also)
+	}
+}
+
+// Ninety days of fishing to the cap, keeping a fish off every round that
+// offers one, cooking them in pairs and selling Big Bean the lot.
+func TestNinetyDaysOfKeptFish(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	g, _ := arcadeOf("fish")
+	paid, cooked, kept := 0, 0, 0
+	for range 90 {
+		*clock = clock.Add(20 * time.Hour)
+		for range 6 {
+			d := goFishing(t, s, clock, id, 110, map[string]int{"perch": 4, "pike": 2, "minnow": 2})
+			paid += d.Paid
+			if d.Keeps == 0 {
+				continue
+			}
+			if _, err := s.keepFish(id, "pike"); err != nil {
+				t.Fatal(err)
+			}
+			kept++
+		}
+		v, _ := s.view(id)
+		for n := v.held["fillet"]; n >= 2; n -= 2 {
+			c, err := s.cook(id, "fillet", "fillet")
+			if err != nil {
+				t.Fatal(err)
+			}
+			before := v.Pebbles
+			if v, err = s.sellDish(id, c.Dish.Kind); err != nil {
+				t.Fatal(err)
+			}
+			cooked += v.Pebbles - before
+		}
+	}
+	t.Logf("fishing paid %d a day, and %d kept fish cooked into %d a day more", paid/90, kept, cooked/90)
+	if paid/90 > g.cap {
+		t.Errorf("fishing paid %d a day over a cap of %d", paid/90, g.cap)
+	}
+	if kept > 90*fishKeeps || cooked/90 > g.cap/2 {
+		t.Errorf("%d kept fish cooked into %d pebbles a day", kept, cooked/90)
 	}
 }

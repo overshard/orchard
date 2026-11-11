@@ -1,3 +1,4 @@
+import { post, setPond, state } from "./api.js";
 import { sfx } from "./sound.js";
 import { cells, colours, draw, W as FW, H as FH } from "./frog.js";
 import { feel } from "./feel.js";
@@ -17,6 +18,8 @@ let G = null, spr = null, col = null;
 // What the server made of the last round, each kind with its biggest, and
 // what Sedge said if a pond record went.
 let last = null, sedge = "";
+// How many fish can still be kept today, and the one this round kept.
+let keeps = 0, kept = null, asking = false;
 const F = feel();
 
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -163,7 +166,7 @@ export const fish = {
     col = colours(g, p.frog.hat);
     G = { t: 0, score: 0, streak: 0, caught: 0, st: "ready", hook: { x: TIP.x, y: TIP.y, ty: 0, k: 1 }, fish: [], boots: [], taker: null, landed: null,
       hold: false, ten: 0, slack: 0, tick: 0, lt: 0, perfect: false, rings: [], bag: {}, why: "", end: false, aim: { x: 150, y: SURF + 90 }, kb: false };
-    last = null; sedge = "";
+    last = null; sedge = ""; keeps = 0; kept = null;
     for (let i = 0; i < SCHOOL; i++) spawn(false);
     if (Math.random() < 0.6) G.boots.push({ x: rnd(100, W - 20), y: BOT - 4 });
   },
@@ -253,6 +256,7 @@ export const fish = {
   result(d) {
     last = d.catch || [];
     sedge = d.sedge || "";
+    keeps = d.keeps || 0; kept = null;
     return last.some((c) => c.first || c.record);
   },
 
@@ -262,8 +266,16 @@ export const fish = {
     const box = document.createElement("div"), row = document.createElement("div");
     box.className = "fishcard";
     row.className = "fishrow" + (quick ? " small" : "");
+    const can = keeps > 0 && !kept;
+    if (kept) box.append(note("won", "Kept, " + kept.name.toLowerCase() + " for the kitchen"));
+    else if (can) box.append(note("dim", quick ? "Keep one for the kitchen" : "Tap one to keep it for the kitchen, " + keeps + " left today"));
     last.forEach((c) => {
-      const s = slot(fishArt(c.kind), { tier: c.tier, name: quick ? "" : c.name, count: c.n, sub: quick ? "" : inches(c.size) });
+      const s = slot(fishArt(c.kind), { tier: c.tier, name: quick ? "" : c.name, count: c.n, sub: quick ? "" : inches(c.size), on: !!kept && kept.kind === c.kind, onClick: can ? () => {} : null });
+      if (can) {
+        s.setAttribute("aria-label", "Keep the " + c.name.toLowerCase() + " for the kitchen");
+        s.addEventListener("pointerdown", (e) => { e.stopPropagation(); e.preventDefault(); keep(c.kind); });
+        s.addEventListener("keydown", (e) => { if (e.code === "Enter" || e.code === "Space") { e.stopPropagation(); e.preventDefault(); keep(c.kind); } });
+      }
       if (!quick && (c.first || c.best || c.record)) {
         const tag = document.createElement("em");
         tag.textContent = c.record ? "RECORD" : c.first ? "NEW" : "BEST";
@@ -354,6 +366,24 @@ export const fish = {
     else if (G.streak > 1) x.fillText(G.streak + " IN A ROW", W - 6, 18);
   },
 };
+
+function note(cls, text) {
+  const p = document.createElement("p");
+  p.className = cls; p.textContent = text;
+  return p;
+}
+
+// The tap is on the results, where any other tap starts the next round, so
+// it's taken on the way down and goes no further.
+function keep(kind) {
+  if (asking || !keeps || kept) return;
+  asking = true;
+  post("/api/fish/keep", { kind }).then((d) => {
+    asking = false; kept = { kind, name: d.kept };
+    sfx("catch");
+    setPond(d.pond);
+  }, () => { asking = false; keeps = 0; setPond(state.pond); });
+}
 
 // The first fish of a run gets told what to do at each step.
 function hint(x) {

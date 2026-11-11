@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"hash/fnv"
+	"strings"
 	"time"
 )
 
@@ -83,12 +84,16 @@ type arcadeRow struct {
 	day, run         string
 	runs, paid, best int
 	startedAt        int64
+	// Fishing's last round can keep one of these kinds for the kitchen, and
+	// kept is how many it has kept today.
+	keep string
+	kept int
 }
 
 func loadArcade(q querier, id int64, key string) (arcadeRow, error) {
 	var r arcadeRow
-	err := q.QueryRow(`SELECT day, runs, paid, best, run, started_at FROM arcade WHERE pond_id = ? AND game = ?`, id, key).
-		Scan(&r.day, &r.runs, &r.paid, &r.best, &r.run, &r.startedAt)
+	err := q.QueryRow(`SELECT day, runs, paid, best, run, started_at, keep, kept FROM arcade WHERE pond_id = ? AND game = ?`, id, key).
+		Scan(&r.day, &r.runs, &r.paid, &r.best, &r.run, &r.startedAt, &r.keep, &r.kept)
 	if errors.Is(err, sql.ErrNoRows) {
 		return r, nil
 	}
@@ -96,17 +101,17 @@ func loadArcade(q querier, id int64, key string) (arcadeRow, error) {
 }
 
 func saveArcade(tx *sql.Tx, id int64, key string, r arcadeRow) error {
-	_, err := tx.Exec(`INSERT INTO arcade (pond_id, game, day, runs, paid, best, run, started_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	_, err := tx.Exec(`INSERT INTO arcade (pond_id, game, day, runs, paid, best, run, started_at, keep, kept) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (pond_id, game) DO UPDATE SET day = excluded.day, runs = excluded.runs, paid = excluded.paid,
-		best = excluded.best, run = excluded.run, started_at = excluded.started_at`,
-		id, key, r.day, r.runs, r.paid, r.best, r.run, r.startedAt)
+		best = excluded.best, run = excluded.run, started_at = excluded.started_at, keep = excluded.keep, kept = excluded.kept`,
+		id, key, r.day, r.runs, r.paid, r.best, r.run, r.startedAt, r.keep, r.kept)
 	return err
 }
 
 // settled starts the day's counts again on a new day.
 func (r arcadeRow) settled(now time.Time) arcadeRow {
 	if d := dayOf(now); r.day != d {
-		r.day, r.runs, r.paid = d, 0, 0
+		r.day, r.runs, r.paid, r.kept = d, 0, 0, 0
 	}
 	return r
 }
@@ -128,7 +133,7 @@ func (s *store) arcadeStart(id int64, key string) (*arcadeStarted, error) {
 			return err
 		}
 		r = r.settled(now)
-		r.run, r.startedAt = out.Run, now.Unix()
+		r.run, r.startedAt, r.keep = out.Run, now.Unix(), ""
 		if key == "fish" {
 			out.Fish = s.fishTableAt(now)
 		}
@@ -147,7 +152,10 @@ type arcadeDone struct {
 	Catch []caught `json:"catch,omitempty"`
 	// Sedge has something to say when a pond record goes.
 	Sedge string `json:"sedge,omitempty"`
-	Pond  *view  `json:"pond"`
+	// Keeps is how many more fish can be kept for the kitchen today, when
+	// this round landed one that can.
+	Keeps int   `json:"keeps,omitempty"`
+	Pond  *view `json:"pond"`
 }
 
 // landed is what a round of fishing says it caught, by kind.
@@ -168,7 +176,7 @@ func (s *store) arcadeFinish(id int64, key, run string, score int, landed map[st
 		began := time.Unix(r.startedAt, 0)
 		took := now.Sub(began) + time.Second
 		r = r.settled(now)
-		r.run, r.startedAt = "", 0
+		r.run, r.startedAt, r.keep = "", 0, ""
 		// The run is spent either way, and an impossible score pays nothing.
 		if score < 0 || score > g.most || float64(score) > took.Seconds()*g.rate+5 {
 			out.Score = 0
@@ -194,10 +202,16 @@ func (s *store) arcadeFinish(id int64, key, run string, score int, landed map[st
 			if out.Catch, err = landFish(tx, p, landed, score, tables); err != nil {
 				return err
 			}
+			var kinds []string
 			for _, c := range out.Catch {
 				if f, _ := fishOf(c.Kind); c.Record {
 					out.Sedge = sedgeSays(f, residentNamed(c.From))
 				}
+				kinds = append(kinds, c.Kind)
+			}
+			// The kitchen is in the works, so nothing is offered before they open.
+			if r.kept < fishKeeps && len(kinds) > 0 && openOf(p, now).Works {
+				r.keep, out.Keeps = strings.Join(kinds, ","), fishKeeps-r.kept
 			}
 		}
 		return saveArcade(tx, p.ID, key, r)

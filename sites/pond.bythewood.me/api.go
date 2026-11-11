@@ -686,6 +686,16 @@ func (s *site) apiArcadeStart(id int64, r *http.Request, w http.ResponseWriter) 
 	return s.store.arcadeStart(id, in.Game)
 }
 
+func (s *site) apiFishKeep(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	var in struct {
+		Kind string `json:"kind"`
+	}
+	if !readJSON(w, r, &in) {
+		return nil, nil
+	}
+	return s.store.keepFish(id, in.Kind)
+}
+
 func (s *site) apiArcadeFinish(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
 	var in struct {
 		Game  string `json:"game"`

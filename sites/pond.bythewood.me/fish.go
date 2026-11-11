@@ -7,6 +7,7 @@ import (
 	"hash/fnv"
 	"math"
 	"math/rand/v2"
+	"slices"
 	"strings"
 	"time"
 )
@@ -280,4 +281,55 @@ func fishingOf(q querier, id int64, d fishDay) (fishingView, error) {
 			rec, residents[who].name, r.best > rec})
 	}
 	return v, nil
+}
+
+// One fish a round can be kept for the kitchen, and this many a day. A round
+// can be played over and over, so without it fish would be pebbles for free.
+const fishKeeps = 3
+
+// keptAs is the ingredient a kept fish turns into, by how much there is of it.
+func keptAs(f fishKind) string {
+	if f.pts < 12 {
+		return "smallfry"
+	}
+	return "fillet"
+}
+
+type keptFish struct {
+	// Kept is what went in the bag, by name.
+	Kept string `json:"kept"`
+	Left int    `json:"left"`
+	Pond *view  `json:"pond"`
+}
+
+// keepFish puts one fish from the round just finished in the bag.
+func (s *store) keepFish(id int64, kind string) (*keptFish, error) {
+	f, ok := fishOf(kind)
+	if !ok {
+		return nil, errNotHeld
+	}
+	out := &keptFish{}
+	v, err := s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
+		r, err := loadArcade(tx, p.ID, "fish")
+		if err != nil {
+			return err
+		}
+		r = r.settled(now)
+		if !slices.Contains(strings.Split(r.keep, ","), kind) {
+			return errNotHeld
+		}
+		if r.kept >= fishKeeps {
+			return errNotYet
+		}
+		r.keep = ""
+		r.kept++
+		i, _ := ingredientOf(keptAs(f))
+		out.Kept, out.Left = ingredients[i].name, fishKeeps-r.kept
+		if err := addItem(tx, p.ID, ingredients[i].kind, 1); err != nil {
+			return err
+		}
+		return saveArcade(tx, p.ID, "fish", r)
+	})
+	out.Pond = v
+	return out, err
 }

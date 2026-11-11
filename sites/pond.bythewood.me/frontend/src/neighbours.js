@@ -105,6 +105,8 @@ function show(n) {
     facts.append(fact("Right now", n.now.doing));
     facts.append(fact("Favourite dish", n.fav, n.fav_a ? dishCanvas({ a: n.fav_a, b: n.fav_b, name: n.fav }, 4) : null,
       n.fav_a ? nameOf(n.fav_a) + " and " + nameOf(n.fav_b) : "It'll say how to cook it at two hearts"));
+    if (n.also) facts.append(fact("Also likes", n.also, n.also_a ? dishCanvas({ a: n.also_a, b: n.also_b, name: n.also }, 4) : null,
+      n.also_a ? nameOf(n.also_a) + " and " + nameOf(n.also_b) + ", from fish you've kept" : "A fish dish, and it'll say which fish at two hearts"));
     if (n.shop) facts.append(fact("Keeps shop", n.shop));
     if (n.gossip) facts.append(fact("Heard", n.gossip));
     facts.append(fact("About", n.bio));

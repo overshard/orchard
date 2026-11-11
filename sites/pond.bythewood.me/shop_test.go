@@ -11,7 +11,7 @@ import (
 func TestLarderCantBeFarmed(t *testing.T) {
 	for a := range ingredients {
 		for b := a; b < len(ingredients); b++ {
-			if ingredients[a].trinket || ingredients[b].trinket {
+			if !ingredients[a].grows() || !ingredients[b].grows() {
 				continue
 			}
 			cost := salePrice(larderPrice[ingredients[a].tier]) + salePrice(larderPrice[ingredients[b].tier])

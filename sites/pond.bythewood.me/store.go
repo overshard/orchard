@@ -193,6 +193,8 @@ CREATE TABLE IF NOT EXISTS arcade (
     best       INTEGER NOT NULL DEFAULT 0,
     run        TEXT NOT NULL DEFAULT '',
     started_at INTEGER NOT NULL DEFAULT 0,
+    keep       TEXT NOT NULL DEFAULT '',
+    kept       INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (pond_id, game)
 ) WITHOUT ROWID;
 
@@ -299,6 +301,8 @@ var addedColumns = []struct{ table, name, def string }{
 	{"neighbours", "heart_day", "TEXT NOT NULL DEFAULT ''"},
 	{"frogs", "fav_dish", "TEXT NOT NULL DEFAULT ''"},
 	{"frogs", "fav_hat", "TEXT NOT NULL DEFAULT ''"},
+	{"arcade", "keep", "TEXT NOT NULL DEFAULT ''"},
+	{"arcade", "kept", "INTEGER NOT NULL DEFAULT 0"},
 }
 
 func ensureColumns(db *sql.DB) error {
