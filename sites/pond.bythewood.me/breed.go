@@ -177,13 +177,15 @@ type frogRow struct {
 	// When its unpaid actions began, and how many it had been paid for before.
 	WorkAt int64
 	WorkN  int
+	// The tool tier its basket is worked with, set when the basket starts.
+	WorkTool int
 	// Its favourite dish and hat by kind, empty until it's a frog.
 	FavDish, FavHat string
 }
 
 func loadFrogs(q querier, pondID int64) ([]frogRow, error) {
 	rows, err := q.Query(`SELECT id, seed, genome_json, hatched_at, laid_at, out_front, hat_shape, hat_colour, name, fed, fed_at,
-		job, target, work_at, work_n, fav_dish, fav_hat FROM frogs WHERE pond_id = ? ORDER BY id`, pondID)
+		job, target, work_at, work_n, work_tool, fav_dish, fav_hat FROM frogs WHERE pond_id = ? ORDER BY id`, pondID)
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +195,7 @@ func loadFrogs(q querier, pondID int64) ([]frogRow, error) {
 		var f frogRow
 		var raw string
 		if err := rows.Scan(&f.ID, &f.Seed, &raw, &f.HatchedAt, &f.LaidAt, &f.Front, &f.Hat.Shape, &f.Hat.Colour, &f.Name, &f.Fed, &f.FedAt,
-			&f.Job, &f.Target, &f.WorkAt, &f.WorkN, &f.FavDish, &f.FavHat); err != nil {
+			&f.Job, &f.Target, &f.WorkAt, &f.WorkN, &f.WorkTool, &f.FavDish, &f.FavHat); err != nil {
 			return nil, err
 		}
 		f.Mods = parseMods(raw)

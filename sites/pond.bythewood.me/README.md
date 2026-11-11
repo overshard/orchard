@@ -49,6 +49,10 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   by its tier and has a chance of bringing in two while it is. A 99 earns
   the pond that job's hood, a hat with shape 101 and up that's worn but
   never held, and each job has a pet trinket that only work turns up.
+- `tools.go` is a tool for each job in three tiers, sold on Moth's, Big
+  Bean's and Tansy's shelves and kept in `tools` as the pond's best tier.
+  A frog takes the best one its level allows up at the start of a basket,
+  into `frogs.work_tool`, so buying one never changes a basket on the go.
 - `bank.go` is the bank, the gravel bar and the garden plots, and the kitchen
   that turns two things from the garden into a dish. `kitchen.go` has the
   ingredients, what grows in which month and every dish.

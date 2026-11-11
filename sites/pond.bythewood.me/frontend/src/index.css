@@ -1863,6 +1863,11 @@ h2 .count {
   opacity: 0.4;
 }
 
+.shelf .what .sub {
+  flex-basis: 100%;
+  color: var(--muted);
+}
+
 .shelf .soldtag {
   margin-left: auto;
   color: var(--dim);
@@ -3705,6 +3710,29 @@ button.big {
 .wk-tgt:disabled .wk-lv {
   color: var(--dim);
   text-shadow: none;
+}
+
+/* The tool a frog works with, its picture, name and what it does, and a key
+   to the shop when there's a better one. */
+.wk-tool {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.wk-tool canvas {
+  flex: none;
+  width: 32px;
+  image-rendering: pixelated;
+}
+
+.wk-tool .wk-what span {
+  font-size: 14px;
+}
+
+.wk-tool button {
+  margin-left: auto;
 }
 
 /* The away card, a block a frog in the bare sheet. */

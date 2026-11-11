@@ -78,7 +78,8 @@ CREATE TABLE IF NOT EXISTS frogs (
     fav_hat     TEXT NOT NULL DEFAULT '',
     target      TEXT NOT NULL DEFAULT '',
     work_at     INTEGER NOT NULL DEFAULT 0,
-    work_n      INTEGER NOT NULL DEFAULT 0
+    work_n      INTEGER NOT NULL DEFAULT 0,
+    work_tool   INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS frogs_pond ON frogs(pond_id);
 
@@ -230,6 +231,13 @@ CREATE TABLE IF NOT EXISTS mastery (
 ) WITHOUT ROWID;
 CREATE INDEX IF NOT EXISTS mastery_pond ON mastery(pond_id);
 
+CREATE TABLE IF NOT EXISTS tools (
+    pond_id INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
+    job     TEXT NOT NULL,
+    tier    INTEGER NOT NULL,
+    PRIMARY KEY (pond_id, job)
+) WITHOUT ROWID;
+
 CREATE TABLE IF NOT EXISTS neighbours (
     pond_id  INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
     who      INTEGER NOT NULL,
@@ -365,6 +373,7 @@ var addedColumns = []struct{ table, name, def string }{
 	{"frogs", "target", "TEXT NOT NULL DEFAULT ''"},
 	{"frogs", "work_at", "INTEGER NOT NULL DEFAULT 0"},
 	{"frogs", "work_n", "INTEGER NOT NULL DEFAULT 0"},
+	{"frogs", "work_tool", "INTEGER NOT NULL DEFAULT 0"},
 }
 
 func ensureColumns(db *sql.DB) error {
@@ -971,20 +980,13 @@ func viewOf(q querier, p pond, now time.Time, key []byte) (*view, error) {
 		return nil, err
 	}
 	v.Bond = bondOf(b.points, b.day, b.today, now)
-	xp, err := loadXP(q, p.ID)
+	c, err := crewOf(q, p.ID)
 	if err != nil {
 		return nil, err
 	}
-	v.Jobs = jobsView{Defs: jobDefs(), Hold: int(workHold / time.Hour), Total: bestLevels(xp), MasteryAt: masteryLevels()}
-	items, err := heldItems(q, p.ID)
-	if err != nil {
-		return nil, err
-	}
-	mast, err := loadMastery(q, p.ID)
-	if err != nil {
-		return nil, err
-	}
-	work := runs(key, frogs, xp, mast, items, now)
+	xp := c.xp
+	v.Jobs = jobsView{Defs: jobDefs(), Hold: int(workHold / time.Hour), Total: bestLevels(xp), MasteryAt: masteryLevels(), Tools: c.tools}
+	work := c.runs(key, now)
 	earned := hoodsEarned(xp)
 	found = append(found, earned...)
 	for i, j := range jobs {
@@ -1013,7 +1015,7 @@ func viewOf(q querier, p pond, now time.Time, key []byte) (*view, error) {
 			rv.Fed = &mealView{f.Fed, d.name, d.tier, mealTakes[d.tier], mealEyes[d.tier], mealBoost[d.tier], fullUntil(f) - now.Unix(), f.Fed == f.FavDish}
 		}
 		if canWork(f, now) {
-			rv.Work = workOf(f, xpOf(xp, f.ID), mast[f.ID], work[f.ID], now)
+			rv.Work = workOf(f, xpOf(xp, f.ID), c.mast[f.ID], c.tools, work[f.ID], now)
 			if rv.Work.Done > 0 {
 				v.Jobs.Baskets++
 			}

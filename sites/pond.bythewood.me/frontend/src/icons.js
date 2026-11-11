@@ -128,6 +128,22 @@ export const ICONS = {
   m_shiny: [["...a....", "...a..b.", "..aca...", "aacccaa.", "..aca...", "...a....", ".b.a....", "........"], { a: "#ffe27a", b: "#b5dcff", c: "#ffffff" }],
 };
 
+// A job's tool is one shape a job, its working part in the tier's metal: a
+// twig or plain wood, then iron, then brass. Each is tool_<job>_<tier>.
+const TOOL_SHAPES = {
+  bugs: ["..aaaa..", ".acacaa.", ".aacaca.", ".acacaa.", "..aaaa..", "...b....", "....b...", ".....b.."],
+  pebbles: ["........", "c......c", "caaaaaac", "addaadda", "addaadda", ".aa..aa.", "........", "........"],
+  garden: ["........", "..bbb...", ".b...b..", "aaaaa..a", "aaaaaaa.", "aaaaaa..", "aaaaa...", "........"],
+  sticks: ["..aaa...", ".aaab...", "aaa.b...", "....b...", "....b...", "....b...", "....b...", "........"],
+  reeds: ["..aaa...", ".a...a..", "......a.", "......a.", ".....a..", "....b...", "...b....", "..b....."],
+  mud: ["....b...", "...bbb..", "....b...", "....b...", "...aaa..", "...aaa..", "...aaa..", "....a..."],
+  craft: ["aaaaa...", "aaaaa...", "..b.....", "..b.....", "..b.....", "..b.....", "..b.....", "........"],
+};
+const TOOL_METAL = ["#c9974f", "#cfd3d6", "#f2c230"];
+Object.entries(TOOL_SHAPES).forEach(([job, rows]) => TOOL_METAL.forEach((a, i) => {
+  ICONS["tool_" + job + "_" + (i + 1)] = [rows, { a, b: "#8a5a2b", c: "#4a3318", d: "#7fd6c2" }];
+}));
+
 // A dish is drawn as a bowl, a plate or a skewer in its two ingredients'
 // colours, with sparkles on the better ones.
 const DISH_SHAPES = {
