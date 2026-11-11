@@ -1,6 +1,7 @@
 import { sfx } from "./sound.js";
 import { colours } from "./frog.js";
 import { drawTop } from "./top.js";
+import { feel } from "./feel.js";
 
 // Crossing. The frog starts on the field side of a lane and wants the pond
 // on the far side of a stream. Hop a row at a time, past traffic on the lane
@@ -28,6 +29,7 @@ const LANE = [
 const WRAP = COLS + 6, CARS = ["#e2412d", "#ffb000", "#3d8fd6", "#e2567a", "#e9e3d6"];
 
 let G = null, col = null, LANES = {};
+const F = feel();
 
 // From the pond down it's a stream, a verge, a lane and a verge, over again
 // for as many rows as there are.
@@ -66,7 +68,8 @@ function under() {
 }
 
 function lose(why) {
-  G.lives--; G.flash = 0.6; G.why = why; sfx("bonk");
+  G.lives--; G.flash = G.lives > 0 ? 0.6 : 0.45; G.why = why;
+  F.crash(G.fx * C + 7, G.row * C + 7);
   if (G.lives > 0) { G.fx = Math.floor(COLS / 2); G.row = START; G.hop = 0; }
 }
 
@@ -78,7 +81,7 @@ function scatter() {
 }
 
 export const cross = {
-  key: "cross", W, H: C * FEWEST, title: "CROSSING",
+  key: "cross", W, H: C * FEWEST, title: "CROSSING", feel: F,
   edge: ["#0e2c30", "#4f9a4a"],
 
   fit(w, h) {
@@ -89,7 +92,7 @@ export const cross = {
 
   reset(g, p) {
     col = colours(g, null);
-    G = { score: 0, lives: 3, trip: 0, flash: 0, why: "", pops: [], t: 0 };
+    G = { score: 0, lives: 3, trip: 0, flash: 0, why: "", t: 0 };
     build(); home(); scatter();
   },
 
@@ -99,23 +102,28 @@ export const cross = {
     const nx = Math.round(G.fx) + d[0], nr = G.row + d[1];
     if (nx < 0 || nx >= COLS || nr > START || nr < HOME) return;
     G.fx = d[0] ? nx : Math.max(0, Math.min(COLS - 1, Math.round(G.fx)));
-    G.row = nr; G.hop = HOP; G.face = dir; sfx("hop");
-    if (G.row < G.best) { G.best = G.row; G.score++; }
+    G.row = nr; G.hop = HOP; G.face = dir;
+    const fresh = G.row < G.best;
+    sfx("hop", fresh ? START - G.row : 0);
+    if (fresh) { G.best = G.row; G.score++; }
     if (G.pebble && G.pebble.row === G.row && G.pebble.col === Math.round(G.fx)) {
-      sfx("catch"); G.score += 3; G.pops.push({ x: G.fx * C + 7, y: G.row * C, s: "+3", t: 0 }); G.pebble = null;
+      G.score += 3; G.pebble = null;
+      F.got(G.fx * C + 7, G.row * C + 7, "+3");
     }
     if (G.row === HOME) {
       let pts = 10;
       if (G.fly === Math.round(G.fx)) pts += 5;
       G.score += pts; G.trip++;
-      G.pops.push({ x: G.fx * C + 7, y: G.row * C + 4, s: "+" + pts, t: 0 }); sfx("catch");
+      F.got(G.fx * C + 7, G.row * C + 10, "+" + pts, { big: true, streak: G.trip });
       home(); scatter();
     }
   },
 
   step(dt) {
     G.t += dt;
+    const mid = G.hop > 0;
     G.hop = Math.max(0, G.hop - dt);
+    if (mid && G.hop === 0) F.squash(0.6);
     G.flash = Math.max(0, G.flash - dt);
     const fast = 1 + G.trip * 0.12;
     G.things.forEach((t) => {
@@ -123,8 +131,6 @@ export const cross = {
       if (t.x > WRAP - 3) t.x -= WRAP;
       if (t.x < -3 - t.len + 0) t.x += WRAP;
     });
-    G.pops.forEach((p) => { p.t += dt; p.y -= dt * 18; });
-    G.pops = G.pops.filter((p) => p.t < 0.8);
     if (G.lives <= 0 || G.flash > 0.3) return;
     const on = under();
     if (road(G.row) && on) lose("BONK");
@@ -167,10 +173,10 @@ export const cross = {
     if (G.pebble) { x.fillStyle = "#d5d8dc"; x.fillRect(G.pebble.col * C + 4, G.pebble.row * C + 5, 6, 4); x.fillStyle = "#9aa0a6"; x.fillRect(G.pebble.col * C + 6, G.pebble.row * C + 7, 4, 2); }
     G.things.forEach((t) => drawThing(x, t));
     if (G.lives > 0 && !(G.flash > 0 && Math.floor(G.flash * 12) % 2)) {
-      drawTop(x, col, Math.round(G.fx * C) + 1, G.row * C + 1 - (G.hop > 0 ? 2 : 0), G.face === "down");
+      const fx = Math.round(G.fx * C) + 1, fy = G.row * C + 1 - (G.hop > 0 ? 2 : 0);
+      F.squashed(x, fx + 6, fy + 12, () => drawTop(x, col, fx, fy, G.face === "down"));
     }
-    x.font = "700 13px 'Space Grotesk', sans-serif"; x.textAlign = "center";
-    G.pops.forEach((p) => { x.fillStyle = "#ffb000"; x.fillText(p.s, p.x, p.y); });
+    F.draw(x);
     x.textAlign = "left"; x.fillStyle = "#ece5d8"; x.font = "700 10px 'Space Grotesk', sans-serif"; x.fillText(String(G.score), 4, 9);
     x.fillStyle = "#e2567a"; for (let i = 0; i < G.lives; i++) x.fillRect(W - 10 - i * 8, 3, 5, 5);
     x.textAlign = "center"; x.font = "500 8px 'JetBrains Mono', monospace"; x.fillStyle = "#bcaf99"; x.fillText("TRIP " + (G.trip + 1), W / 2, 9);
