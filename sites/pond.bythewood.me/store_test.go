@@ -3,7 +3,9 @@ package main
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"math/rand/v2"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -793,7 +795,8 @@ func TestAPanicInAWriteLeavesTheStoreWritable(t *testing.T) {
 			t.Fatal(err)
 		}
 	case <-time.After(5 * time.Second):
-		// A Fatal would hang in cleanup, since closing the store waits on the stuck connection.
-		panic("the write after a panic never got the connection")
+		// Fatal and panic both hang in cleanup, since closing the store waits on the stuck connection.
+		fmt.Fprintln(os.Stderr, "the write after a panic never got the connection")
+		os.Exit(1)
 	}
 }
