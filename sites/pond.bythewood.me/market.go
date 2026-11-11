@@ -93,6 +93,10 @@ func (s *store) lockMarket() error {
 	}
 	day := dayOf(now)
 	return s.write(func(tx *sql.Tx) error {
+		// Today's prices as they came, for the chart. Only today's are kept.
+		if _, err := tx.Exec(`DELETE FROM market_ticks WHERE day < ?`, day); err != nil {
+			return err
+		}
 		for _, b := range businesses {
 			pct, ok := r.Markets[b.Key]
 			if !ok || (r.Session != "regular" && b.Key != alwaysOpen) {
@@ -105,6 +109,10 @@ func (s *store) lockMarket() error {
 			price := max(1, prev*(1+marketLever*pct/100))
 			if _, err := tx.Exec(`INSERT INTO market_days (day, key, close) VALUES (?, ?, ?)
 				ON CONFLICT (day, key) DO UPDATE SET close = excluded.close`, day, b.Key, price); err != nil {
+				return err
+			}
+			if _, err := tx.Exec(`INSERT OR REPLACE INTO market_ticks (key, at, day, price) VALUES (?, ?, ?, ?)`,
+				b.Key, now.Unix(), day, price); err != nil {
 				return err
 			}
 		}
@@ -206,14 +214,17 @@ func (s *store) sellShares(id int64, key string, n int) (*view, error) {
 
 type firmView struct {
 	business
-	Price int   `json:"price"`
-	Prev  int   `json:"prev"`
-	Buy   int   `json:"buy"`
-	Sell  int   `json:"sell"`
-	Held  int   `json:"held"`
-	Cost  int   `json:"cost"`
-	Worth int   `json:"worth"`
+	Price int `json:"price"`
+	Prev  int `json:"prev"`
+	Buy   int `json:"buy"`
+	Sell  int `json:"sell"`
+	Held  int `json:"held"`
+	Cost  int `json:"cost"`
+	Worth int `json:"worth"`
+	// Days is each close before today, oldest first and opening on the launch
+	// price while there are few, and Ticks is today's prices as they came.
 	Days  []int `json:"days"`
+	Ticks []int `json:"ticks"`
 }
 
 type marketView struct {
@@ -246,13 +257,13 @@ func marketOf(q querier, p *pond, r *reading, now time.Time) (marketView, error)
 			return v, err
 		}
 		f := firmView{business: b, Price: int(math.Round(price)), Prev: int(math.Round(prev)),
-			Buy: buyCost(price, 1), Sell: sellPays(price, 1), Days: []int{}}
+			Buy: buyCost(price, 1), Sell: sellPays(price, 1), Days: []int{}, Ticks: []int{}}
 		if h, ok := sh[b.Key]; ok {
 			f.Held, f.Cost, f.Worth = h.count, h.cost, sellPays(price, h.count)
 			v.Worth += f.Worth
 			v.WorthPrev += sellPays(prev, h.count)
 		}
-		rows, err := q.Query(`SELECT close FROM (SELECT day, close FROM market_days WHERE key = ? AND day <= ?
+		rows, err := q.Query(`SELECT close FROM (SELECT day, close FROM market_days WHERE key = ? AND day < ?
 			ORDER BY day DESC LIMIT ?) ORDER BY day`, b.Key, day, marketDays)
 		if err != nil {
 			return v, err
@@ -264,6 +275,22 @@ func marketOf(q querier, p *pond, r *reading, now time.Time) (marketView, error)
 				return v, err
 			}
 			f.Days = append(f.Days, int(math.Round(c)))
+		}
+		rows.Close()
+		if len(f.Days) < marketDays {
+			f.Days = append([]int{int(marketStart)}, f.Days...)
+		}
+		rows, err = q.Query(`SELECT price FROM market_ticks WHERE key = ? AND day = ? ORDER BY at`, b.Key, day)
+		if err != nil {
+			return v, err
+		}
+		for rows.Next() {
+			var c float64
+			if err := rows.Scan(&c); err != nil {
+				rows.Close()
+				return v, err
+			}
+			f.Ticks = append(f.Ticks, int(math.Round(c)))
 		}
 		rows.Close()
 		v.Firms = append(v.Firms, f)

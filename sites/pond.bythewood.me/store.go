@@ -175,6 +175,14 @@ CREATE TABLE IF NOT EXISTS market_days (
     PRIMARY KEY (key, day)
 ) WITHOUT ROWID;
 
+CREATE TABLE IF NOT EXISTS market_ticks (
+    key    TEXT NOT NULL,
+    at     INTEGER NOT NULL,
+    day    TEXT NOT NULL,
+    price  REAL NOT NULL,
+    PRIMARY KEY (key, at)
+) WITHOUT ROWID;
+
 CREATE TABLE IF NOT EXISTS shares (
     pond_id  INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
     key      TEXT NOT NULL,

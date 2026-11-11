@@ -3342,34 +3342,94 @@ button.big {
   to { transform: translateX(-50%); }
 }
 
+/* Each business is a card with its chart on it, and tapping it trades. */
+.market {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+}
+
 .market li {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 3px;
+  background: var(--panel);
+  box-shadow: var(--raised);
   cursor: pointer;
 }
 
+.market .firm {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .market .what {
+  display: flex;
   flex-direction: column;
-  align-items: flex-start;
   gap: 2px;
+  min-width: 0;
+  font-size: 13px;
 }
 
 .market .readout {
-  min-width: 72px;
+  min-width: 84px;
   margin-left: auto;
   align-items: flex-end;
 }
 
 .market .readout .v {
-  font-size: 14px;
+  font-size: 15px;
 }
 
-.market .readout.down .v {
+.readout.down .v,
+.market .readout.down .k {
   color: #ff8a8a;
+}
+
+.market canvas.chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid #000;
+  border-radius: 3px;
+  box-shadow: var(--sunk);
+  image-rendering: pixelated;
+}
+
+.market .own {
+  margin: 0;
+  font-size: 11px;
+  color: #5ddc82;
+}
+
+.market .own.down {
+  color: #ff8a8a;
+}
+
+#mkt-tiles .v,
+.sheet .tiles .v {
+  font-size: 13px;
+}
+
+/* Four trade keys in a square, far enough apart for a thumb. */
+.trade {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 12px 0 4px;
+}
+
+.trade button {
+  margin: 0 0 3px;
 }
 
 .sheet canvas.chart {
   display: block;
   width: 100%;
-  max-width: 320px;
   margin: 0 auto 10px;
   border: 1px solid #000;
   border-radius: 3px;
