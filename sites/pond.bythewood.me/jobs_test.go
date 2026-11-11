@@ -864,3 +864,24 @@ func TestALevelUpSaysWhatItOpened(t *testing.T) {
 		}
 	}
 }
+
+// Something opens every few levels early on and every week or two later.
+func TestThereIsAlwaysSomethingToCome(t *testing.T) {
+	for _, j := range jobs {
+		if j.key == jobCraft {
+			continue
+		}
+		day := playJob(j, ordinary)
+		last := 1
+		for _, o := range append(openings(j), opening{Level: maxLevel}) {
+			if o.Level == last {
+				continue
+			}
+			wait := day[o.Level] - day[last]
+			if o.Level <= 30 && o.Level-last > 6 || wait > 30 {
+				t.Errorf("%s: nothing between %d and %d, %.0f days", j.key, last, o.Level, wait)
+			}
+			last = o.Level
+		}
+	}
+}
