@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestTrinketsPlaceAndCook(t *testing.T) {
@@ -89,6 +90,36 @@ func TestTrinketSpares(t *testing.T) {
 	}
 	if _, err := s.sellTrinket(id, "t_duck"); !errors.Is(err, errNotHeld) {
 		t.Errorf("sold the last duck: %v", err)
+	}
+}
+
+// Moth pays out the day's room for crafted things and no more, and has it
+// all again the next day.
+func TestMothBuysADaysWorth(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	stock(t, s, id, "t_statue", 6)
+	worth, _ := trinketOf("t_statue")
+	each := hatRate[worth.tier] / 4
+	v, _ := s.view(id)
+	before := v.Pebbles
+	for {
+		after, err := s.sellTrinket(id, "t_statue")
+		if errors.Is(err, errMothFull) {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		v = after
+	}
+	if v.Pebbles-before != min(sellRoom, 5*each) || v.Room[shopMoss] != max(0, sellRoom-5*each) {
+		t.Fatalf("a day of statues paid %d with %d left", v.Pebbles-before, v.Room[shopMoss])
+	}
+	*clock = clock.Add(24 * time.Hour)
+	before = v.Pebbles
+	if v, err := s.sellTrinket(id, "t_statue"); err != nil || v.Pebbles-before != min(each, sellRoom) {
+		t.Fatalf("a statue the next day paid %d, %v", v.Pebbles-before, err)
 	}
 }
 

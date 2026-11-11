@@ -12,10 +12,11 @@ const sellRoom = 150
 
 const buyerStall = "stall"
 
-var buyers = []string{shopBrindle, buyerStall}
+var buyers = []string{shopBrindle, shopMoss, buyerStall}
 
 var (
 	errBeanFull  = errors.New("Big Bean has bought all the dishes he can today, and he buys again tomorrow")
+	errMothFull  = errors.New("Moth has bought all the trinkets there's room for today, so try again tomorrow")
 	errStallPaid = errors.New("the neighbours have paid all they will today, and the rest comes tomorrow")
 )
 

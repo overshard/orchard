@@ -253,8 +253,9 @@ they have none, for other sites to draw.
 - Big Bean's prices have to stay above what a dish sells for, sale or not, or
   buying and cooking mints pebbles. A test holds it, so run it after touching
   a price.
-- Big Bean pays a pond at most `sellRoom` a New York day for dishes, kept in
-  the `sold` table, since jobs bring in things without end. The stall pays
+- Big Bean pays a pond at most `sellRoom` a New York day for dishes and Moth
+  as much for trinkets, kept in the `sold` table, since jobs bring in things
+  without end. The stall pays
   out the same room a day and what's sold past it waits on the stall, with
   its price brought down by what's been paid. Anything new that buys a
   pond's things pays through `payOut` or work turns straight into pebbles.
