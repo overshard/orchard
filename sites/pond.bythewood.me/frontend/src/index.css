@@ -3663,6 +3663,35 @@ button.big {
   text-shadow: var(--glow);
 }
 
+/* A target's mastery, a thin bar and its level in glass, the bar dim while
+   the frog's level holds it at the cap. */
+.wk-m {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.wk-m .meter {
+  flex: 1;
+  height: 6px;
+}
+
+.wk-what .wk-mlv {
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--glass);
+  box-shadow: var(--sunk);
+  color: var(--digit);
+  font-size: 12px;
+  font-weight: 700;
+  text-shadow: var(--glow);
+}
+
+.wk-m.top .meter i {
+  opacity: 0.45;
+}
+
 .wk-tgt.on {
   transform: translateY(3px);
   box-shadow: var(--pressed), inset 0 2px 0 var(--amber);

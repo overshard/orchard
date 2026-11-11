@@ -41,7 +41,10 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   it, and a basket holds twelve hours of actions before the frog stops. Each
   frog has a level from 1 to 99 in every job in `job_xp`, on RuneScape's xp
   table. Every job opens its targets on the same levels, and what an action
-  pays comes off `xpLadder` by the level its target opens at. Crafting is a job whose targets are recipes, one thing made from
+  pays comes off `xpLadder` by the level its target opens at. `mastery` keeps
+  each frog's actions at each target, and its level, held under a cap the
+  job level sets, makes that target quicker, surer and likelier to bring
+  two. Crafting is a job whose targets are recipes, one thing made from
   sticks, reeds and clay an action. A frog fed a dish is full for some hours
   by its tier and has a chance of bringing in two while it is. A 99 earns
   the pond that job's hood, a hat with shape 101 and up that's worn but
@@ -375,7 +378,8 @@ they have none, for other sites to draw.
   agree. Anything that changes what an unpaid action brings, a meal or a
   level, has to pay the basket out first, the way `feed` and `setJob` call
   `settle`, and collecting starts the next basket where the action in
-  progress began. Crafters share the pond's materials in frog order.
+  progress began. Mastery is only written when a basket is paid, so it never
+  changes one on show. Crafters share the pond's materials in frog order.
 - How long a level takes is set by `xpLadder` against each target's minutes
   and misses, for about level 10 the first day, 50 in a month and 99 in four
   to six. `TestTheJobsPace` plays an ordinary and a keen player through every
