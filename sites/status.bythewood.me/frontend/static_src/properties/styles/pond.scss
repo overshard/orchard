@@ -4,20 +4,23 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  margin: 0.75rem 0 0;
+  min-height: 76px;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(221, 215, 205, 0.08);
+  color: rgba(221, 215, 205, 0.5);
+  font-size: 0.8125rem;
+  text-decoration: none;
+
+  &:hover { color: rgba(221, 215, 205, 0.75); }
+  &:hover span { text-decoration: underline; }
 
   canvas {
+    flex: none;
     width: 128px;
     height: 76px;
     image-rendering: pixelated;
     border: 1px solid $gray-700;
     border-radius: 4px;
-    cursor: pointer;
-    flex: none;
-  }
-
-  figcaption {
-    color: $gray-500;
-    font-size: 0.8rem;
   }
 }
