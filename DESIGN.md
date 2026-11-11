@@ -712,6 +712,11 @@ version of the old look and a handheld pet shell.
   its shape in the dark with `???` and a dashed border, so a collection shows
   how much there is without giving it away. Tapping a slot opens a bottom
   sheet with the thing big and what can be done with it.
+- **The fish book is a shelf in the collection.** A slot a fish, drawn in its
+  colours as big as the slot allows, with how many in the corner and the
+  biggest one's length under its name. One not landed yet is its dark shape,
+  and its sheet says when it bites, so the book gives away the day to try and
+  never the fish.
 - **A prize pops up in the middle** with slow rays behind it in its tier's
   colour, and stays until it's tapped away. A bad turn of the wizard's gets no
   rays.

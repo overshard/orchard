@@ -80,6 +80,11 @@ func bestFinds(held []hat, had map[string]bool, n int) []found {
 	for _, k := range rocks {
 		add(k.kind, k.tier)
 	}
+	for _, f := range fishKinds {
+		if had[fishHad+f.kind] {
+			out = append(out, found{fishHad + f.kind, f.name, f.tier, tierLabels[f.tier], nil})
+		}
+	}
 	sort.SliceStable(out, func(a, b int) bool { return out[a].Tier > out[b].Tier })
 	return out[:min(n, len(out))]
 }
@@ -102,6 +107,8 @@ type power struct {
 	RocksFound    int        `json:"rocks_found"`
 	Keepsakes     int        `json:"keepsakes"`
 	KeepsakesHad  int        `json:"keepsakes_found"`
+	Fish          int        `json:"fish"`
+	FishFound     int        `json:"fish_found"`
 	Jobs          int        `json:"jobs"`
 	JobsTotal     int        `json:"jobs_total"`
 	Dive          int        `json:"dive"`
@@ -110,7 +117,7 @@ type power struct {
 	Hearts        int        `json:"hearts"`
 }
 
-// had is every trinket, rock and keepsake kind the pond has ever had,
+// had is every trinket, rock, keepsake and fish the pond has ever had,
 // jobsTotal is its best level at every job added up and hearts is the bond
 // of the frog out front.
 func powerOf(r rarity, held []hat, had map[string]bool, diveBest, jobsTotal, hearts int) power {
@@ -141,7 +148,13 @@ func powerOf(r rarity, held []hat, had map[string]bool, diveBest, jobsTotal, hea
 			p.KeepsakesHad++
 		}
 	}
-	p.Total = p.Frog + p.Hats + p.Trinkets + p.Rocks + p.Keepsakes + p.Jobs + p.Dive + p.Bond
+	for _, f := range fishKinds {
+		if had[fishHad+f.kind] {
+			p.Fish += hatPower[f.tier]
+			p.FishFound++
+		}
+	}
+	p.Total = p.Frog + p.Hats + p.Trinkets + p.Rocks + p.Keepsakes + p.Fish + p.Jobs + p.Dive + p.Bond
 	p.climb()
 	return p
 }

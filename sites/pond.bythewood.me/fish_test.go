@@ -228,3 +228,65 @@ func TestSizesLeanSmall(t *testing.T) {
 		t.Errorf("%d of %d pike were in the top tenth", top, n)
 	}
 }
+
+func TestTheFishBookCountsInPower(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	before, _ := s.view(id)
+	goFishing(t, s, clock, id, 200, map[string]int{"minnow": 1, "trout": 1, "carp": 2, "koi": 1, "wels": 1})
+	v, _ := s.view(id)
+	want := hatPower[0] + hatPower[1] + hatPower[2] + hatPower[3] + hatPower[4]
+	pw := v.Share.Power
+	if pw.Fish != want || pw.FishFound != 5 || pw.Total != before.Share.Power.Total+want {
+		t.Errorf("five fish count %d of %d found, total %d from %d", pw.Fish, pw.FishFound, pw.Total, before.Share.Power.Total)
+	}
+	var public string
+	if err := s.r.QueryRow(`SELECT public_id FROM ponds WHERE id = ?`, id).Scan(&public); err != nil {
+		t.Fatal(err)
+	}
+	sh, err := s.shownBy(public)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sh.Power.Fish != want || sh.Power.Total != pw.Total {
+		t.Errorf("the frog's page counts %d for fish and the pond %d", sh.Power.Fish, want)
+	}
+	if len(sh.Best) == 0 || sh.Best[0].Kind != fishHad+"wels" {
+		t.Errorf("the best find = %+v", sh.Best)
+	}
+	full := 0
+	for _, f := range fishKinds {
+		full += hatPower[f.tier]
+	}
+	if got := fullPower().Fish; got != full {
+		t.Errorf("a full book counts %d, want %d", got, full)
+	}
+}
+
+func TestTheFishBookIsAGoal(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	goFishing(t, s, clock, id, 20, map[string]int{"minnow": 1})
+	v, _ := s.view(id)
+	v.Starter = nil
+	p, _ := loadPond(s.r, id)
+	var got *goal
+	for len(v.Kitchen.Cookbook) < v.Kitchen.Of {
+		v.Kitchen.Cookbook = append(v.Kitchen.Cookbook, dishView{})
+	}
+	v.Bank.Gravel.Level, v.Bank.Garden.Level, v.Bank.Burrows.Level = 1, 1, 0
+	for i := range v.Arcade {
+		v.Arcade[i].Best = 1
+	}
+	v.Dive.Best = 1
+	p.Tried = triedStall | triedShare
+	v.Neighbours.All[0].Points = 1
+	for _, g := range goalsOf(v, p) {
+		if g.Kind == "book" {
+			got = &g
+		}
+	}
+	if got == nil || got.To != "fish" || got.Count != "1/20" {
+		t.Errorf("the fish book goal = %+v out of %+v", got, goalsOf(v, p))
+	}
+}

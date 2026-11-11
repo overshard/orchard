@@ -1087,6 +1087,9 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	for _, k := range v.Keepsakes {
 		had[k.Kind] = k.First != ""
 	}
+	for _, f := range v.Fishing.All {
+		had[fishHad+f.Kind] = f.Count > 0
+	}
 	v.Share.Power = powerOf(v.Frog.Rarity, v.found, had, p.DiveBest, v.Jobs.Total, v.Bond.Hearts)
 	v.Today = dayOf(now)
 	v.Open = openOf(p, now)
