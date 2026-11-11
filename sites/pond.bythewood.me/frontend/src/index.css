@@ -603,6 +603,15 @@ body:has(.arcade.full) {
   overflow: hidden;
 }
 
+/* A downward drag on the strip under a game would pull the page to refresh.
+   The viewport takes this from the root, and older browsers from the body. */
+html:has(#v-dive.full),
+html:has(.arcade.full),
+body:has(#v-dive.full),
+body:has(.arcade.full) {
+  overscroll-behavior: none;
+}
+
 .legend {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
