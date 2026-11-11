@@ -172,6 +172,11 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   pond's shares and coin are in `shares` at what it paid, each day's open,
   close and dividend a share in `market_days`, and dividends are paid from
   `ponds.div_day` on.
+- `black.go` is the market's back door, open 11pm to 2am and 5am to 6:30am
+  pond time. Three deals a window, the same for every pond, priced in coin
+  and dealt with what each really is off an HMAC of the pepper. What a pond
+  bought is in `black_buys`, and `black.js` draws the hooded frog over any
+  frog's cells instead of a sprite of its own.
 - `prices.go` is how a price moves. Every ten minute slot of the day is a
   step off an HMAC of the pepper, and what every pond did is counted by the
   hour in `market_flow` by `addFlow` and weighed against the week before.
@@ -327,6 +332,10 @@ they have none, for other sites to draw.
   goods through `payOut` with a room of its own. `TestMarketStrategies`
   plays five ways of trading for 90 days, so run it after touching a fee, the
   yield or a tune.
+- A back door deal's outcome must never be in the view before it's bought,
+  and `TestDealsAreTheSameForEveryPondAndHidden` reads the JSON for it. Its
+  hints only lean, and `TestTheBackDoorCostsInTheLongRun` holds every way of
+  reading them under what it paid, so run it after touching `dealOdds`.
 - A new thing ponds do that should move a business needs `addFlow` where it
   happens, inside the move so it's counted on the pond's day.
 - The nightly run only goes between 22:30 and 6:00 pond time, skips while the
