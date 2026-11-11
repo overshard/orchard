@@ -138,6 +138,11 @@ var diaryLines = map[string]diaryPool{
 		"{who} called over to say hello yesterday, and I called back.",
 		"I've decided {who} is a good neighbour, and yesterday settled it.",
 	}},
+	"memento": {any: []string{
+		"{who}'s {thing} is ours to keep as of yesterday, which is the sort of thing you only give a best friend.",
+		"We came home with {who}'s {thing} yesterday, and I've put it where it can see the water.",
+		"{who} handed over the {thing} yesterday and said to look after it, so I am.",
+	}},
 	"keepsake": {any: []string{
 		"We were given a {keepsake} yesterday to remember the day by, and I've put it where I can see it.",
 		"There's a {keepsake} on the shelf now, from yesterday, and I keep going over to look at it.",
@@ -323,6 +328,16 @@ func diaryFacts(tx *sql.Tx, p *pond, f frogRow, day string, from, to time.Time) 
 	}
 	if rarest != nil {
 		out = append(out, diaryFact{"catch", []string{"{a_fish}", aFish(*rarest), "{fish}", strings.ToLower(rarest.name)}})
+	}
+	// A best friend's memento comes with a hat, and it's the bigger news.
+	if k, err := one(`SELECT kind FROM mementos WHERE pond_id = ? AND day = ? ORDER BY kind LIMIT 1`, p.ID, day); err != nil {
+		return nil, err
+	} else if k != "" {
+		for who, m := range mementos {
+			if m.kind == k {
+				out = append(out, diaryFact{"memento", []string{"{who}", residents[who].name, "{thing}", m.thing}})
+			}
+		}
 	}
 	rows, err = tx.Query(`SELECT shape, colour FROM hats WHERE pond_id = ? AND first_day = ?`, p.ID, day)
 	if err != nil {

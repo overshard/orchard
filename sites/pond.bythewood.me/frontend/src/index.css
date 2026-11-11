@@ -4021,6 +4021,22 @@ button.big {
   color: var(--amber);
 }
 
+/* The memento a best friend gave, on its card. */
+.reed .keptmemento {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+}
+
+.reed .keptmemento canvas {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  background: none;
+  box-shadow: none;
+}
+
 /* A neighbour's sheet: how friendly it is, then what's known about it. */
 .friend {
   display: grid;

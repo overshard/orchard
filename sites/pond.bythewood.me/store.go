@@ -139,6 +139,13 @@ CREATE TABLE IF NOT EXISTS keepsakes (
     PRIMARY KEY (pond_id, kind, day)
 ) WITHOUT ROWID;
 
+CREATE TABLE IF NOT EXISTS mementos (
+    pond_id  INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
+    kind     TEXT NOT NULL,
+    day      TEXT NOT NULL,
+    PRIMARY KEY (pond_id, kind)
+) WITHOUT ROWID;
+
 CREATE TABLE IF NOT EXISTS visits (
     pond_id  INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
     host     TEXT NOT NULL,
@@ -806,6 +813,7 @@ type view struct {
 	Trinkets   trinketsView        `json:"trinkets"`
 	Rocks      []rockView          `json:"rocks"`
 	Keepsakes  []keepsakeView      `json:"keepsakes"`
+	Mementos   []mementoView       `json:"mementos"`
 	Neighbours neighboursView      `json:"neighbours"`
 	Arcade     []arcadeView        `json:"arcade"`
 	Fishing    fishingView         `json:"fishing"`
@@ -1055,6 +1063,9 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	if v.Keepsakes, err = keepsakesOf(q, p.ID); err != nil {
 		return err
 	}
+	if v.Mementos, err = mementosOf(q, p.ID); err != nil {
+		return err
+	}
 	if v.Stall, err = stallOf(q, p.ID, now); err != nil {
 		return err
 	}
@@ -1076,6 +1087,9 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 				n.Firm = f.Name
 				n.Talk = firmTalk(f, residents[i].seed)
 			}
+		}
+		if v.Mementos[i].Day != "" {
+			n.Memento = v.Mementos[i].Kind
 		}
 		n.Gossip = gossipOf(i, today)
 		n.Bio = folks[i].bio
@@ -1112,6 +1126,9 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	}
 	for _, f := range v.Fishing.All {
 		had[fishHad+f.Kind] = f.Count > 0
+	}
+	for _, m := range v.Mementos {
+		had[m.Kind] = m.Day != ""
 	}
 	v.Share.Power = powerOf(v.Frog.Rarity, v.found, had, p.DiveBest, v.Jobs.Total, v.Bond.Hearts)
 	v.Today = dayOf(now)

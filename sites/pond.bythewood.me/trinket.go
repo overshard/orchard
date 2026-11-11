@@ -229,12 +229,13 @@ func foundTrinkets(q querier, id int64) (map[string]bool, error) {
 	return kindsOf(q, `SELECT kind FROM trinkets_found WHERE pond_id = ?1`, id)
 }
 
-// everHad is every trinket, rock and keepsake a pond has had, and every fish
-// in its book under fishHad.
+// everHad is every trinket, rock, keepsake and memento a pond has had, and
+// every fish in its book under fishHad.
 func everHad(q querier, id int64) (map[string]bool, error) {
 	return kindsOf(q, `SELECT kind FROM trinkets_found WHERE pond_id = ?1
 		UNION SELECT kind FROM rocks_found WHERE pond_id = ?1
 		UNION SELECT kind FROM keepsakes WHERE pond_id = ?1
+		UNION SELECT kind FROM mementos WHERE pond_id = ?1
 		UNION SELECT '`+fishHad+`' || kind FROM fish WHERE pond_id = ?1`, id)
 }
 

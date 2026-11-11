@@ -44,7 +44,7 @@ func (d dish) has(held map[string]int) bool {
 func favouriteMarks(v *view) []mark {
 	var out []mark
 	for _, n := range v.Neighbours.All {
-		if n.Gave || n.Level >= len(friendAt)-1 {
+		if n.Gave || n.Level >= bestFriend {
 			continue
 		}
 		r := residents[n.ID]

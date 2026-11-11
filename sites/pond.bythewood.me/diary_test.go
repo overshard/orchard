@@ -240,6 +240,16 @@ func TestTheDiaryWritesWhatHappened(t *testing.T) {
 	if l := next(); kindOf(l) != "heart" {
 		t.Errorf("after a new heart: %s", l)
 	}
+
+	if _, err := s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
+		_, err := befriend(tx, p, 4, friendAt[bestFriend], "")
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if l := next(); kindOf(l) != "memento" || !strings.Contains(l, "Bramble") || !strings.Contains(l, "old trowel") {
+		t.Errorf("after a memento: %s", l)
+	}
 }
 
 func TestTheDiaryDoesntRepeatInAWeek(t *testing.T) {
@@ -270,7 +280,7 @@ var unkind = regexp.MustCompile(`(?i)\b(sad|hungry|starv\w*|cross|angry|lonely|a
 
 func TestTheDiaryPoolsAreKind(t *testing.T) {
 	slots := regexp.MustCompile(`\{[a-z_]+\}`)
-	allowed := map[string][]string{"grew": {"{a_stage}"}, "fish": {"{score}"}, "record": {"{game}", "{score}"}, "hat": {"{hat}"}, "friend": {"{who}"}, "keepsake": {"{keepsake}"},
+	allowed := map[string][]string{"grew": {"{a_stage}"}, "fish": {"{score}"}, "record": {"{game}", "{score}"}, "hat": {"{hat}"}, "friend": {"{who}"}, "keepsake": {"{keepsake}"}, "memento": {"{who}", "{thing}"},
 		"biggest": {"{a_fish}", "{fish}", "{who}"}, "catch": {"{a_fish}", "{fish}"}}
 	for kind, pool := range diaryLines {
 		for _, nature := range natures {

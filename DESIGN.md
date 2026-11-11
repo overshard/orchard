@@ -827,6 +827,12 @@ version of the old look and a handheld pet shell.
 - **A neighbour's thought is a cloud over its card**, trailing two puffs down
   to it, with what it's doing under its hearts and a newsprint tag when the
   gazette names it. What it says to you is a speech bubble on its sheet.
+- **A best friend gives a memento.** At five hearts a neighbour hands over
+  one thing of its own, in a reveal with epic rays and what it says as the
+  line. It shows on that neighbour's card as a small icon and its name under
+  the dish it likes, as a Memento box on its sheet, and in a Mementos shelf
+  in the collection, where one not given yet is a dark shape that only says
+  who it comes from.
 - **The reeds** are every frog as a card, the one out front first with an
   amber border and OUT FRONT, the rest with a key to swap. The egg bench and
   the pads sit under them. The register of looks is in the bag's collection.

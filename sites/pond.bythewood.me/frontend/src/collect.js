@@ -138,6 +138,7 @@ function cats(p) {
     { key: "sites", name: "Site hats", icon: "i_site", all: p.sites.map((h) => ({ art: () => hatTile(h, true), name: h.name, tier: 0, found: h.got, what: "Your frog finds it the first time you open " + h.host + "." })) },
     { key: "rocks", name: "Rocks", icon: "agate", all: p.rocks.map((r) => ({ art: () => iconCanvas(r.kind, 4), name: r.name, tier: r.tier, found: r.found, what: "The wheel, the reeds and Moth." })) },
     { key: "keepsakes", name: "Keepsakes", icon: "k_frost", all: p.keepsakes.map((k) => ({ art: () => iconCanvas(k.kind, 4), name: k.name, tier: k.tier, found: k.days > 0, what: k.hint, sub: k.days ? k.first : "" })) },
+    { key: "mementos", name: "Mementos", icon: "m_medal", all: p.mementos.map((m) => ({ art: () => iconCanvas(m.kind, 4), name: m.name, tier: m.tier, found: !!m.day, what: m.from + " gives it to a best friend.", sub: m.day, note: "From " + m.from + ", for being best friends. Kept since " + m.day + "." })) },
     { key: "fish", name: "Fish", icon: "i_fish", all: fishBook(p) },
     { key: "frogs", name: "Frog looks", icon: "i_pond", all: register(p) },
     { key: "dishes", name: "Cookbook", icon: "lotus", all: cookbook(p) },

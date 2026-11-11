@@ -15,7 +15,11 @@ type greeting struct {
 	Line    string      `json:"line"`
 	Missed  [][2]string `json:"missed"`
 	Present *prize      `json:"present"`
-	Pond    *view       `json:"pond"`
+	// Mementos owed by neighbours who were best friends already, and who
+	// each is from.
+	Prizes []prize `json:"prizes"`
+	From   []int   `json:"from"`
+	Pond   *view   `json:"pond"`
 }
 
 func plural(n int, one string) string {
@@ -28,7 +32,7 @@ func plural(n int, one string) string {
 // greet is the one call a visit makes. A present is handed over when the last
 // one was long enough ago and stamped there and then, so a reload finds none.
 func (s *store) greet(id int64, first bool) (*greeting, error) {
-	g := &greeting{First: first, Missed: [][2]string{}}
+	g := &greeting{First: first, Missed: [][2]string{}, Prizes: []prize{}, From: []int{}}
 	v, err := s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
 		gen := frogOf(p, now).genome
 		hatched := time.Unix(p.HatchedAt, 0)
@@ -61,6 +65,10 @@ func (s *store) greet(id int64, first bool) (*greeting, error) {
 		}
 		kept, err := stampKeepsakes(tx, p.ID, p.DaysVisited, s.day.reading(now), now)
 		if err != nil {
+			return err
+		}
+
+		if g.Prizes, g.From, err = owedMementos(tx, p); err != nil {
 			return err
 		}
 
