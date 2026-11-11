@@ -46,6 +46,7 @@ const SFX = {
   snap: () => tone("sawtooth", 520, 70, 0.2, 0.08),
   close: () => tone("triangle", 1500, 2100, 0.05, 0.05),
   kick: () => tone("sine", 300, 180, 0.04, 0.05),
+  boing: () => tone("square", 240, 720, 0.09, 0.05),
   warn: () => tone("square", 640, 640, 0.1, 0.035),
   land: () => {
     const b = bend;

@@ -2,99 +2,121 @@ import { sfx } from "./sound.js";
 import { colours } from "./frog.js";
 import { drawTop } from "./top.js";
 import { feel } from "./feel.js";
+import { HOLES, R, CUP, CAP, PULL, DT, newBall, hit, roll, putBack, cupAt, driftAt, paddles, wheelShut, firstHit, rollFor, speedFor, pointsFor } from "./course.js";
 
-// Pad putt. Nine holes of lily pads dealt by the server for the day, and the
-// frog hops pad to pad to the flag. Drag back and let go to hop, the longer
-// the pull the longer the hop, and the day's wind carries it a little.
-const W = 200, H = 320, REACH = 120, PULL = 1.5, LEAST = 10, OVER = 4;
+// Pad putt. Nine holes of mini golf on the mud banks round the pond, each
+// with one new thing on it. Drag back from anywhere and let go, and the frog
+// flicks the ball with its tongue the other way.
+const W = 200, H = 320, LEAST = 5, TRAIL = 9;
 const FONT = "700 13px 'Space Grotesk', sans-serif";
 
 let G = null, col = null;
 const F = feel();
 
-function hole() { return G.holes && G.holes[G.hi]; }
-function pad(i) { return hole().pads[i]; }
-
-// Each hole pays most in its par and two less a hop past it, down to 2.
-function pointsFor(hops, par) { return Math.max(2, Math.min(12, 10 - 2 * (hops - par))); }
-
-function windWord(w) { const m = Math.hypot(w[0], w[1]); return m < 1 ? "CALM" : m < 15 ? "BREEZY" : "WINDY"; }
+function hole() { return HOLES[G.hi]; }
 
 function startHole() {
-  const p = pad(0);
-  G.st = "intro"; G.st_t = 0; G.at = 0; G.hops = 0; G.fx = p.x; G.fy = p.y; G.armed = false;
+  const h = hole();
+  G.ball = newBall(h, 0); G.hs = { open: false }; G.ht = 0; G.acc = 0;
+  G.st = "intro"; G.st_t = 0; G.strokes = 0; G.trail = []; G.rings = []; G.flash = {};
+  G.armed = false; G.keyed = false; G.hop = 0;
+  G.ka = toCup(); G.kk = 0.5;
+  G.frog = spot(G.ka);
 }
+
+function toCup() {
+  const c = cupAt(hole(), G.ht);
+  return Math.atan2(c.y - G.ball.y, c.x - G.ball.x);
+}
+
+// The frog sits behind the ball, facing the way it's about to go.
+function spot(a) { return { x: G.ball.x - Math.cos(a) * 10, y: G.ball.y - Math.sin(a) * 10, a }; }
 
 function aim() {
   if (G.armed) {
-    const dx = G.from[0] - G.to[0], dy = G.from[1] - G.to[1], len = Math.hypot(dx, dy) * PULL;
-    return len < LEAST ? null : { a: Math.atan2(dy, dx), len: Math.min(REACH, len) };
+    const dx = G.from[0] - G.to[0], dy = G.from[1] - G.to[1], len = Math.hypot(dx, dy);
+    return len < LEAST ? null : { a: Math.atan2(dy, dx), k: Math.min(1, len / PULL) };
   }
-  return G.keyed ? { a: G.ka, len: G.kl } : null;
+  return G.keyed ? { a: G.ka, k: G.kk } : null;
 }
 
-function hop(a) {
+function stroke(a) {
   if (!a || G.st !== "aim") return;
-  const w = hole().wind, k = a.len / REACH;
-  G.fly = { x0: G.fx, y0: G.fy, x1: G.fx + Math.cos(a.a) * a.len + w[0] * k, y1: G.fy + Math.sin(a.a) * a.len + w[1] * k, t: 0, dur: 0.32 + 0.38 * k, len: a.len };
-  G.hops++; G.total++; G.st = "fly"; G.st_t = 0; G.keyed = false;
-  sfx("hop", Math.min(8, G.hops)); F.squash(0.6);
+  G.frog = spot(a.a);
+  hit(G.ball, a.a, a.k, G.ht, hole());
+  G.strokes++; G.total++; G.st = "roll"; G.st_t = 0; G.keyed = false; G.lick = 0.14; G.trail = [];
+  G.ka = a.a; G.kk = a.k;
+  sfx("hop", 1 + Math.round(a.k * 6)); F.squash(0.3 + a.k * 0.5);
 }
 
-function landed() {
-  const f = G.fly, h = hole(), last = h.pads.length - 1;
-  G.fx = f.x1; G.fy = f.y1; G.fly = null; G.st_t = 0;
-  const i = h.pads.findIndex((p) => Math.hypot(p.x - G.fx, p.y - G.fy) <= p.r + 3);
-  if (i < 0) {
-    G.st = "splash";
-    sfx("plop"); F.burst(G.fx, G.fy, "#cfe3ea", 8); F.pop(G.fx, G.fy - 8, "SPLASH", "#7fd6c2");
-    return;
+function sunk(x, y) {
+  const h = hole(), pts = pointsFor(G.strokes, h.par);
+  G.card[G.hi] = G.strokes; G.score += pts; G.st = "sink"; G.st_t = 0; G.sinkAt = [x, y];
+  F.got(x, y, "+" + pts, { big: G.strokes < h.par, streak: G.hi + 1, sound: "land" });
+  if (G.strokes === 1) F.pop(x, y - 28, "HOLE IN ONE", "#ffb000");
+  else if (G.strokes < h.par) F.pop(x, y - 28, "UNDER PAR", "#ffb000");
+}
+
+function settle() {
+  const c = cupAt(hole(), G.ht), b = G.ball;
+  if (Math.hypot(c.x - b.x, c.y - b.y) < CUP + 8) F.close(b.x, b.y - 14);
+  if (G.strokes >= CAP) { G.st = "out"; G.st_t = 0; return; }
+  G.st = "aim"; G.st_t = 0;
+  G.ka = toCup();
+  G.hopFrom = { x: G.frog.x, y: G.frog.y }; G.hop = 0.24;
+}
+
+function events(ev) {
+  for (const [kind, x, y, n] of ev) {
+    if (kind === "wall" || kind === "rim" || kind === "pad") {
+      sfx("kick", 1 + Math.min(7, Math.floor(n / 50)));
+      F.squash(Math.min(0.8, n / 350));
+      if (n > 140) F.burst(x, y, kind === "pad" ? "#56b45f" : "#c9974f", 3);
+    } else if (kind === "bump") {
+      sfx("boing"); F.freeze(2); F.hit(0.15);
+      F.burst(x, y, "#fff6dc", 6);
+      G.flash[x + "," + y] = 0.2;
+    } else if (kind === "launch") sfx("hop", 5);
+    else if (kind === "land") { sfx("plop"); F.burst(x, y, "#56b45f", 4); }
+    else if (kind === "warp") { sfx("cast"); F.burst(x, y, "#8a5a2b", 5); }
+    else if (kind === "out") { F.burst(x, y, "#c9974f", 5); G.trail = []; }
+    else if (kind === "open") { sfx("land"); F.burst(x, y, "#ffe27a", 6); F.pop(x, y - 12, "OPEN", "#7fd6c2"); }
+    else if (kind === "lip") { sfx("close"); F.pop(x, y - 12, "LIPPED", "#7fd6c2"); }
+    else if (kind === "sink") sunk(x, y);
+    else if (kind === "water") {
+      G.strokes++; G.total++; G.st = "splash"; G.st_t = 0; G.rings.push({ x, y, t: 0 });
+      sfx("plop"); F.burst(x, y, "#cfe3ea", 8); F.pop(x, y - 10, "SPLASH +1", "#7fd6c2");
+    } else if (kind === "rest") settle();
   }
-  // The frog settles onto the pad, never hanging off its edge.
-  const p = h.pads[i], d = Math.hypot(G.fx - p.x, G.fy - p.y), room = Math.max(0, p.r - 4);
-  if (d > room) { G.fx = p.x + (G.fx - p.x) / d * room; G.fy = p.y + (G.fy - p.y) / d * room; }
-  G.at = i;
-  if (i === last) {
-    const pts = pointsFor(G.hops, h.par);
-    G.card[G.hi] = G.hops; G.score += pts; G.st = "holed";
-    F.got(p.x, p.y, "+" + pts, { big: G.hops <= h.par, streak: G.hi + 1, sound: "land" });
-    if (G.hops < h.par) F.pop(p.x, p.y - 26, "UNDER PAR", "#ffb000");
-    return;
-  }
-  F.squash(0.8); F.burst(G.fx, G.fy + 4, "#56b45f", 4); sfx("kick");
-  if (Math.hypot(h.pads[last].x - G.fx, h.pads[last].y - G.fy) < 60 && G.hops === 1) F.close(G.fx, G.fy - 16);
-  G.st = G.hops >= h.par + OVER ? "out" : "aim";
 }
 
 export const putt = {
   key: "putt", W, H, title: "PAD PUTT", feel: F, edge: ["#123a3d", "#123a3d"],
-  aria: "Drag back from anywhere and let go to hop pad to pad to the flag, or turn with the arrow keys and press space.",
-  help: ["DRAG BACK AND LET GO TO HOP", "REACH THE FLAG IN FEW HOPS", "THE WIND CARRIES A HOP", "TAP TO START"],
+  aria: "Drag back from anywhere and let go to putt the ball the other way, or turn with the left and right keys, set the power with up and down and press space.",
+  help: ["DRAG BACK AND LET GO TO PUTT", "A LONGER PULL HITS HARDER", "WATER COSTS A STROKE", "TAP TO START"],
 
   reset(g, p) {
     col = colours(g, p.frog.hat);
-    G = { st: "wait", st_t: 0, t: 0, holes: null, hi: 0, at: 0, hops: 0, total: 0, par: 0, score: 0, card: [], fx: W / 2, fy: H - 30, armed: false, from: [0, 0], to: [0, 0], keyed: false, ka: -Math.PI / 2, kl: 70, turn: 0, push: 0, fly: null };
-  },
-
-  dealt(d) {
-    if (!G || !d || !d.putt) return;
-    G.holes = d.putt; G.par = d.putt.reduce((a, h) => a + h.par, 0);
-    G.card = d.putt.map(() => null);
+    G = { t: 0, hi: 0, total: 0, score: 0, par: HOLES.reduce((a, h) => a + h.par, 0), card: HOLES.map(() => null), from: [0, 0], to: [0, 0], turn: 0, push: 0, lick: 0 };
     startHole();
   },
 
   demo() {
-    if (!G || G.hi || G.hops || (G.st !== "aim" && G.st !== "wait" && G.st !== "intro")) return null;
-    return { x: G.fx - 30, y: G.fy - 76, to: [G.fx - 24, G.fy - 40] };
+    if (!G || G.hi || G.strokes || (G.st !== "aim" && G.st !== "intro")) return null;
+    return { x: G.ball.x + 14, y: G.ball.y - 30, to: [G.ball.x + 14, G.ball.y + 4] };
   },
 
-  press(x, y) { if (G && G.st === "aim") { G.armed = true; G.from = [x, y]; G.to = [x, y]; G.keyed = false; } },
+  press(x, y) {
+    if (!G) return;
+    if (G.st === "intro") { G.st = "aim"; G.st_t = 0; }
+    if (G.st === "aim") { G.armed = true; G.from = [x, y]; G.to = [x, y]; G.keyed = false; }
+  },
   drag(x, y) { if (G && G.armed) G.to = [x, y]; },
   release() {
     if (!G || !G.armed) return;
     const a = aim();
     G.armed = false;
-    hop(a);
+    stroke(a);
   },
 
   keys(code, down) {
@@ -102,45 +124,59 @@ export const putt = {
     const turn = { ArrowLeft: -1, KeyA: -1, ArrowRight: 1, KeyD: 1 }[code], push = { ArrowUp: 1, KeyW: 1, ArrowDown: -1, KeyS: -1 }[code];
     if (turn) G.turn = down ? turn : G.turn === turn ? 0 : G.turn;
     if (push) G.push = down ? push : G.push === push ? 0 : G.push;
-    if ((turn || push) && down) G.keyed = true;
-    if (down && (code === "Space" || code === "Enter")) hop(aim());
+    if ((turn || push) && down) { G.keyed = true; if (G.st === "intro") G.st = "aim"; }
+    if (down && (code === "Space" || code === "Enter")) stroke(aim());
   },
 
   step(dt) {
+    const h = hole();
     G.t += dt; G.st_t += dt;
-    G.ka += G.turn * 1.6 * dt;
-    G.kl = Math.max(LEAST, Math.min(REACH, G.kl + G.push * 60 * dt));
+    G.ka += G.turn * 1.4 * dt;
+    G.kk = Math.max(0.1, Math.min(1, G.kk + G.push * 0.6 * dt));
+    G.lick = Math.max(0, G.lick - dt); G.hop = Math.max(0, G.hop - dt);
+    for (const k in G.flash) G.flash[k] = Math.max(0, G.flash[k] - dt);
+    G.rings.forEach((r) => { r.t += dt; });
+    G.rings = G.rings.filter((r) => r.t < 0.8);
+    if (G.st === "done") return;
+    G.acc += dt;
+    while (G.acc >= DT) {
+      G.acc -= DT; G.ht += DT;
+      if (G.st === "sink" || G.st === "splash" || G.st === "out") continue;
+      const ev = [], was = G.st;
+      roll(h, G.hs, G.ball, G.ht, ev);
+      if (was === "roll") events(ev);
+    }
+    if (G.st === "roll" && Math.floor(G.t * 60) !== G.lastDot) {
+      G.lastDot = Math.floor(G.t * 60);
+      G.trail.push([G.ball.x, G.ball.y, G.ball.air > 0]);
+      if (G.trail.length > TRAIL) G.trail.shift();
+    }
     if (G.st === "intro" && G.st_t > 1.1) { G.st = "aim"; G.st_t = 0; }
-    if (G.st === "fly") {
-      G.fly.t += dt;
-      if (G.fly.t >= G.fly.dur) landed();
+    if (G.st === "splash" && G.st_t > 0.8) {
+      putBack(h, G.ball, G.ht); G.trail = [];
+      if (G.strokes >= CAP) { G.st = "out"; G.st_t = 0; } else { G.st = "aim"; G.st_t = 0; G.frog = spot(toCup()); }
     }
-    if (G.st === "splash" && G.st_t > 0.7) {
-      const p = pad(G.at);
-      G.fx = p.x; G.fy = p.y;
-      G.st = G.hops >= hole().par + OVER ? "out" : "aim"; G.st_t = 0;
-    }
-    if (G.st === "out" && G.st_t > 0.9) { G.card[G.hi] = 0; next(); }
-    if (G.st === "holed" && G.st_t > 1.2) next();
+    if (G.st === "out" && G.st_t > 1) { G.card[G.hi] = 0; next(); }
+    if (G.st === "sink" && G.st_t > 1.3) next();
   },
 
   over() { return G && G.st === "done" && G.st_t > 0.5; },
   score() { return G ? G.score : 0; },
-  why() { return !G || !G.holes ? "" : G.total + " HOPS, PAR " + G.par; },
+  why() { return !G ? "" : G.total + " STROKES, PAR " + G.par; },
   report() {
-    const done = G.card.filter((c) => c), under = G.holes ? G.card.filter((c, i) => c && c < G.holes[i].par).length : 0;
+    const done = G.card.filter((c) => c), under = G.card.filter((c, i) => c && c < HOLES[i].par).length;
     return { counts: { holes: done.length, under, beat: done.length === 9 ? Math.max(0, G.par - G.total) : 0 } };
   },
-  tally() { return G ? [G.card.filter((c) => c).length + " of 9 holes reached"] : []; },
+  tally() { return G ? [G.card.filter((c) => c).length + " of 9 holes sunk"] : []; },
 
-  // The scorecard, a box a hole with its par over its hops, amber under par.
+  // The scorecard, a box a hole with its par over its strokes, amber under par.
   card() {
-    if (!G || !G.holes) return null;
+    if (!G) return null;
     const c = document.createElement("canvas"), x = c.getContext("2d"), cw = 58;
     c.width = cw * 9 + 4; c.height = 84;
     c.style.width = (c.width / 2) + "px";
     x.textAlign = "center";
-    G.holes.forEach((h, i) => {
+    HOLES.forEach((h, i) => {
       const n = G.card[i], l = 2 + i * cw;
       x.fillStyle = "#0b1f17"; x.fillRect(l, 0, cw - 4, 84);
       x.fillStyle = "#7d9a90"; x.font = "700 24px 'JetBrains Mono', monospace"; x.fillText(String(h.par), l + cw / 2 - 2, 28);
@@ -151,106 +187,300 @@ export const putt = {
   },
 
   draw(x) {
-    water(x, G ? G.t : 0, G && G.holes ? hole().wind : [0, 0]);
+    water(x, G ? G.t : 0);
     if (!G) return;
-    if (!G.holes) { lily(x, W / 2, H - 30, 13, 0, true); frog(x, G.fx, G.fy, 0); return; }
-    const h = hole(), last = h.pads.length - 1;
-    h.pads.forEach((p, i) => lily(x, p.x, p.y, p.r, i, i === 0));
-    flag(x, h.pads[last], h.wind, G.t);
+    const h = hole(), t = G.ht, b = G.ball;
+    course(x, h, G.hs, t, G.t, G.flash);
+    G.rings.forEach((r) => ring(x, r.x, r.y, 3 + r.t * 18, 1 - r.t / 0.8));
     const a = G.st === "aim" && aim();
-    if (a) {
-      const ex = G.fx + Math.cos(a.a) * a.len, ey = G.fy + Math.sin(a.a) * a.len;
-      x.fillStyle = "rgba(255,246,220,0.7)";
-      for (let d = 10; d < a.len - 4; d += 6) x.fillRect(Math.round(G.fx + Math.cos(a.a) * d), Math.round(G.fy + Math.sin(a.a) * d), 2, 2);
-      x.strokeStyle = "#fff6dc"; x.lineWidth = 1; x.strokeRect(Math.round(ex) - 3.5, Math.round(ey) - 3.5, 7, 7);
+    if (a) guide(x, h, a, t);
+    G.trail.forEach(([px, py, air], i) => {
+      x.globalAlpha = (i + 1) / (TRAIL + 2) * 0.6;
+      x.fillStyle = air ? "#0a1b1f" : "#fff6dc"; x.fillRect(Math.round(px) - 1, Math.round(py) - 1, 2, 2);
+    });
+    x.globalAlpha = 1;
+    frogAt(x, a);
+    if (G.st === "sink") {
+      const k = Math.max(0, 1 - G.st_t / 0.25);
+      if (k > 0) ballAt(x, G.sinkAt[0], G.sinkAt[1], k);
+    } else if (G.st !== "splash") {
+      const up = b.air > 0 ? Math.sin(Math.PI * (1 - b.air / b.flight)) * 14 : 0;
+      if (up) { x.fillStyle = "rgba(10,27,31,0.5)"; x.fillRect(Math.round(b.x) - 2, Math.round(b.y) - 1, 5, 3); }
+      F.squashed(x, b.x, b.y + R, () => ballAt(x, b.x, b.y - up, 1 + up / 30));
     }
-    if (G.fly) {
-      const k = Math.min(1, G.fly.t / G.fly.dur), up = Math.sin(Math.PI * k) * (6 + G.fly.len * 0.12);
-      const fx = G.fly.x0 + (G.fly.x1 - G.fly.x0) * k, fy = G.fly.y0 + (G.fly.y1 - G.fly.y0) * k;
-      x.fillStyle = "rgba(10,27,31,0.5)"; x.fillRect(Math.round(fx) - 5, Math.round(fy) - 2, 10, 5);
-      frog(x, fx, fy, up);
-    } else if (G.st !== "splash") F.squashed(x, G.fx, G.fy + 6, () => frog(x, G.fx, G.fy, 0));
     F.draw(x);
-    hud(x, h);
-    if (G.st === "intro") banner(x, "HOLE " + (G.hi + 1), "PAR " + h.par);
-    if (G.st === "out") banner(x, "NEXT HOLE", "");
+    hud(x, h, a);
+    if (G.st === "intro") banner(x, "HOLE " + (G.hi + 1), h.name + "   PAR " + h.par);
+    if (G.st === "out") banner(x, "SIX STROKES", "ON TO THE NEXT HOLE");
   },
 };
 
 function next() {
   G.hi++;
-  if (G.hi >= G.holes.length) { G.hi--; G.st = "done"; G.st_t = 0; return; }
+  if (G.hi >= HOLES.length) { G.hi--; G.st = "done"; G.st_t = 0; return; }
   startHole();
 }
 
-function frog(x, fx, fy, up) { drawTop(x, col, Math.round(fx) - 6, Math.round(fy - up) - 6, false); }
+// The aim, a band pulled back behind the ball for the power and dots out to
+// the first thing the ball would meet or as far as it would roll on the flat.
+function guide(x, h, a, t) {
+  const b = G.ball, dx = Math.cos(a.a), dy = Math.sin(a.a), most = rollFor(speedFor(a.k));
+  const to = firstHit(h, G.hs, b, a.a, Math.min(most, 400), t);
+  x.fillStyle = "rgba(255,246,220,0.75)";
+  for (let d = 7; d < to; d += 6) x.fillRect(Math.round(b.x + dx * d), Math.round(b.y + dy * d), 2, 2);
+  const ex = Math.round(b.x + dx * to), ey = Math.round(b.y + dy * to);
+  x.strokeStyle = "#fff6dc"; x.lineWidth = 1;
+  if (to < most) { x.fillStyle = "#fff6dc"; x.fillRect(ex - 1, ey - 1, 3, 3); } else x.strokeRect(ex - 2.5, ey - 2.5, 5, 5);
+  const band = 5 + a.k * 22;
+  for (let d = 5; d < band; d += 2) {
+    const k = d / 27;
+    x.fillStyle = k > 0.8 ? "#e2412d" : k > 0.5 ? "#ffb000" : "#ffe27a";
+    x.fillRect(Math.round(b.x - dx * d), Math.round(b.y - dy * d), 2, 2);
+  }
+}
 
-function hud(x, h) {
+function frogAt(x, a) {
+  let f = G.frog, up = 0;
+  if (G.st === "aim" || G.st === "intro") {
+    const want = spot(a ? a.a : G.ka);
+    if (G.hop > 0) {
+      const k = 1 - G.hop / 0.24;
+      f = { x: G.hopFrom.x + (want.x - G.hopFrom.x) * k, y: G.hopFrom.y + (want.y - G.hopFrom.y) * k, a: want.a };
+      up = Math.sin(Math.PI * k) * 8;
+      x.fillStyle = "rgba(10,27,31,0.4)"; x.fillRect(Math.round(f.x) - 4, Math.round(f.y) - 1, 9, 4);
+    } else f = want;
+    G.frog = f;
+  }
+  const flip = Math.sin(f.a) > 0.2;
+  if (G.lick > 0) {
+    const mx = f.x + Math.cos(f.a) * 5, my = f.y + Math.sin(f.a) * 5, bx = G.ball.from.x, by = G.ball.from.y;
+    x.fillStyle = "#e2567a";
+    for (let k = 0; k <= 1; k += 0.1) x.fillRect(Math.round(mx + (bx - mx) * k), Math.round(my + (by - my) * k), 2, 2);
+  }
+  F.squashed(x, f.x, f.y + 6, () => drawTop(x, col, Math.round(f.x) - 6, Math.round(f.y - up) - 6, flip));
+}
+
+function ballAt(x, bx, by, s) {
+  const r = Math.max(1, Math.round(R * s)), cx = Math.round(bx), cy = Math.round(by);
+  for (let y = -r; y <= r; y++) {
+    const hw = Math.round(Math.sqrt(r * r - y * y + r * 0.6));
+    x.fillStyle = y > r / 3 ? "#cfc6b0" : "#fff6dc"; x.fillRect(cx - hw, cy + y, hw * 2 + 1, 1);
+  }
+  x.fillStyle = "#ffffff"; x.fillRect(cx - 1, cy - r + 1, 1, 1);
+}
+
+function hud(x, h, a) {
+  x.fillStyle = "rgba(10,27,31,0.7)"; x.fillRect(0, 0, W, 20); x.fillRect(0, H - 18, W, 18);
   x.font = FONT; x.textAlign = "left"; x.fillStyle = "#ece5d8";
   x.fillText((G.hi + 1) + "/9", 6, 15);
   x.fillStyle = "#cfe3ea"; x.fillText("PAR " + h.par, 40, 15);
-  x.fillStyle = "#ffe27a"; x.fillText("HOP " + G.hops, 92, 15);
+  // A pip a stroke, out of the six a hole allows.
+  for (let i = 0; i < CAP; i++) {
+    x.fillStyle = i < G.strokes ? (i < h.par ? "#ffe27a" : "#e2567a") : "#2d4a4c";
+    x.fillRect(96 + i * 8, 7, 5, 5);
+  }
   x.textAlign = "right"; x.fillStyle = "#ece5d8"; x.fillText(String(G.score), W - 6, 15);
-  // The windsock in the bottom corner, pointing where the wind blows.
-  const m = Math.hypot(h.wind[0], h.wind[1]);
-  x.textAlign = "left"; x.fillStyle = "#cfe3ea"; x.fillText(windWord(h.wind), 22, H - 7);
-  x.fillStyle = "#8a5a2b"; x.fillRect(9, H - 20, 2, 16);
-  if (m < 1) { x.fillStyle = "#e2567a"; x.fillRect(10, H - 19, 2, 7); return; }
-  const ux = h.wind[0] / m, uy = h.wind[1] / m;
-  for (let i = 0; i < 4 + Math.round(m / 5); i++) { x.fillStyle = i % 2 ? "#fff6dc" : "#e2567a"; x.fillRect(Math.round(10 + ux * i * 1.5), Math.round(H - 18 + uy * i * 1.5), 2, 2); }
+  x.textAlign = "left"; x.fillStyle = "#cfe3ea"; x.fillText(h.name, 6, H - 5);
+  if (!a) return;
+  x.fillStyle = "#2d4a4c"; x.fillRect(W - 66, H - 12, 60, 6);
+  x.fillStyle = a.k > 0.8 ? "#e2412d" : a.k > 0.5 ? "#ffb000" : "#ffe27a"; x.fillRect(W - 66, H - 12, Math.round(60 * a.k), 6);
 }
 
+// The strip sits over the tee end, so the hole's new thing shows while it's up.
 function banner(x, a, b) {
-  x.fillStyle = "rgba(10,27,31,0.85)"; x.fillRect(0, H / 2 - 24, W, 42);
-  x.fillStyle = "#ffb000"; x.fillRect(0, H / 2 - 24, W, 1); x.fillRect(0, H / 2 + 17, W, 1);
-  x.textAlign = "center"; x.font = "700 18px 'Space Grotesk', sans-serif"; x.fillStyle = "#fff6dc"; x.fillText(a, W / 2, H / 2 - 2);
-  x.font = FONT; x.fillStyle = "#cfe3ea"; x.fillText(b, W / 2, H / 2 + 13);
+  const y = H - 60;
+  x.fillStyle = "rgba(10,27,31,0.88)"; x.fillRect(0, y, W, 42);
+  x.fillStyle = "#ffb000"; x.fillRect(0, y, W, 1); x.fillRect(0, y + 41, W, 1);
+  x.textAlign = "center"; x.font = "700 18px 'Space Grotesk', sans-serif"; x.fillStyle = "#fff6dc"; x.fillText(a, W / 2, y + 22);
+  x.font = FONT; x.fillStyle = "#cfe3ea"; x.fillText(b, W / 2, y + 37);
 }
 
-// Open water seen from above, with ripples drifting on the wind.
-function water(x, t, w) {
+// Open water seen from above, with ripples drifting by.
+function water(x, t) {
   x.fillStyle = "#123a3d"; x.fillRect(0, 0, W, H);
   x.fillStyle = "#103337";
   for (let i = 0, n = 7; i < 30; i++) { n = (n * 1103515245 + 12345) >>> 0; x.fillRect(n % W, (n >>> 10) % H, 10 + (n >>> 20) % 14, 2); }
-  const vx = 4 + w[0] * 1.2, vy = w[1] * 1.2;
-  x.fillStyle = "rgba(127,214,194,0.28)";
-  for (let i = 0; i < 26; i++) {
-    const px = ((i * 53 + t * vx) % W + W) % W, py = ((i * 97 + t * vy) % H + H) % H;
-    x.fillRect(Math.round(px), Math.round(py), 5, 1);
+  x.fillStyle = "rgba(127,214,194,0.22)";
+  for (let i = 0; i < 26; i++) x.fillRect(Math.round(((i * 53 + t * 4) % W + W) % W), (i * 97) % H, 5, 1);
+}
+
+function ring(x, cx, cy, r, a) {
+  x.globalAlpha = Math.max(0, a); x.fillStyle = "#cfe3ea";
+  for (let i = 0; i < 16; i++) x.fillRect(Math.round(cx + Math.cos(i * Math.PI / 8) * r), Math.round(cy + Math.sin(i * Math.PI / 8) * r * 0.7), 1, 1);
+  x.globalAlpha = 1;
+}
+
+// Moss on a mud bank, with the same speckle every time it's drawn.
+function moss(x, z) {
+  const [x0, y0, x1, y1] = z;
+  x.fillStyle = "#5a4630"; x.fillRect(x0 - 2, y0 - 2, x1 - x0 + 4, y1 - y0 + 5);
+  x.fillStyle = "#3f7f3e"; x.fillRect(x0, y0, x1 - x0, y1 - y0);
+  x.fillStyle = "#4a8f46";
+  for (let i = 0, n = x0 * 31 + y0; i < (x1 - x0) * (y1 - y0) / 90; i++) {
+    n = (n * 1103515245 + 12345) >>> 0;
+    x.fillRect(x0 + n % (x1 - x0 - 2), y0 + (n >>> 12) % (y1 - y0 - 1), 2, 1);
   }
 }
 
-// A lily pad from above, a disc with a notch cut out of it.
-function lily(x, cx, cy, r, i, tee) {
-  for (let y = -r; y <= r; y++) {
-    const hw = Math.round(Math.sqrt(r * r - y * y));
-    x.fillStyle = tee ? "#4f9a4a" : "#3f8a44"; x.fillRect(cx - hw, cy + y, hw * 2, 1);
+function pool(x, z, t) {
+  const [x0, y0, x1, y1] = z;
+  x.fillStyle = "#123a3d"; x.fillRect(x0, y0, x1 - x0, y1 - y0);
+  x.fillStyle = "rgba(127,214,194,0.3)";
+  for (let i = 0; i < (x1 - x0) * (y1 - y0) / 500; i++) x.fillRect(x0 + Math.round(((i * 37 + t * 5) % (x1 - x0 - 5) + (x1 - x0)) % (x1 - x0 - 5)), y0 + 3 + (i * 23) % Math.max(1, y1 - y0 - 6), 5, 1);
+}
+
+// A slope is paler moss with chevrons walking downhill, so it reads before a putt.
+function slope(x, z, t) {
+  const [x0, y0, x1, y1] = z.at, m = Math.hypot(z.push[0], z.push[1]), ux = z.push[0] / m, uy = z.push[1] / m;
+  x.fillStyle = "rgba(122,196,111,0.18)"; x.fillRect(x0, y0, x1 - x0, y1 - y0);
+  x.fillStyle = "#6fae5f";
+  const off = (t * 8) % 24;
+  for (let cy = y0 + 10; cy < y1 - 4; cy += 22) for (let cx = x0 + 12; cx < x1 - 6; cx += 24) {
+    const px = cx + ux * off - (ux ? 12 : 0), py = cy + uy * off - (uy ? 12 : 0);
+    if (px < x0 + 3 || px > x1 - 6 || py < y0 + 4 || py > y1 - 4) continue;
+    for (let i = -3; i <= 3; i++) {
+      const s = 3 - Math.abs(i);
+      x.fillRect(Math.round(px + ux * s - uy * i), Math.round(py + uy * s + ux * i), 2, 1);
+    }
   }
-  x.fillStyle = tee ? "#7ac46f" : "#56b45f";
+}
+
+function stream(x, z, t) {
+  const [x0, y0, x1, y1] = z.at, dir = Math.sign(z.push[0]) || 1;
+  x.fillStyle = "#1f5f66"; x.fillRect(x0, y0, x1 - x0, y1 - y0);
+  x.fillStyle = "#2a737a"; x.fillRect(x0, y0, x1 - x0, 1); x.fillRect(x0, y1 - 1, x1 - x0, 1);
+  x.fillStyle = "rgba(207,227,234,0.55)";
+  for (let i = 0; i < 14; i++) {
+    const w = x1 - x0, px = x0 + (((i * 41 + dir * t * 46) % w) + w) % w;
+    const py = y0 + 4 + (i * 13) % (y1 - y0 - 8);
+    x.fillRect(Math.round(px), py, 7, 1);
+    x.fillRect(Math.round(px) + (dir > 0 ? 5 : 0), py - 1, 2, 3);
+  }
+}
+
+// A log from above, a brown run with a pale top and cut rings at each end.
+function log(x, w) {
+  const [x1, y1, x2, y2] = w, l = Math.hypot(x2 - x1, y2 - y1), n = Math.max(1, Math.ceil(l / 2));
+  for (let i = 0; i <= n; i++) {
+    const px = Math.round(x1 + (x2 - x1) * i / n), py = Math.round(y1 + (y2 - y1) * i / n);
+    x.fillStyle = "#4a2e16"; x.fillRect(px - 3, py - 3, 6, 6);
+  }
+  for (let i = 0; i <= n; i++) {
+    const px = Math.round(x1 + (x2 - x1) * i / n), py = Math.round(y1 + (y2 - y1) * i / n);
+    x.fillStyle = "#8a5a2b"; x.fillRect(px - 2, py - 3, 4, 4);
+    if (i % 5 === 2) { x.fillStyle = "#6b4423"; x.fillRect(px - 2, py, 4, 1); }
+  }
+  [[x1, y1], [x2, y2]].forEach(([px, py]) => { x.fillStyle = "#c9974f"; x.fillRect(Math.round(px) - 2, Math.round(py) - 2, 4, 4); x.fillStyle = "#8a5a2b"; x.fillRect(Math.round(px) - 1, Math.round(py) - 1, 2, 2); });
+}
+
+// A mushroom cap from above, red with cream spots, lit for a moment when hit.
+function mushroom(x, cx, cy, r, lit) {
+  x.fillStyle = "rgba(10,27,31,0.4)"; disc(x, cx + 1, cy + 2, r);
+  x.fillStyle = lit ? "#ff8a6a" : "#c8402c"; disc(x, cx, cy, r);
+  x.fillStyle = lit ? "#ffb8a0" : "#e2563f"; disc(x, cx - 1, cy - 1, r - 3);
+  x.fillStyle = "#fff6dc";
+  [[-0.4, -0.3], [0.35, -0.45], [0.1, 0.35], [-0.5, 0.3], [0.55, 0.15]].forEach(([dx, dy]) => x.fillRect(Math.round(cx + dx * r), Math.round(cy + dy * r), 2, 2));
+}
+
+function disc(x, cx, cy, r) {
+  for (let y = -r; y <= r; y++) { const hw = Math.round(Math.sqrt(r * r - y * y)); x.fillRect(Math.round(cx) - hw, Math.round(cy) + y, hw * 2, 1); }
+}
+
+// A lily pad from above, a disc with a notch cut out of it.
+function lily(x, cx, cy, r, i) {
+  cx = Math.round(cx); cy = Math.round(cy);
+  x.fillStyle = "#2f6b33"; disc(x, cx, cy + 1, r);
+  x.fillStyle = "#3f8a44"; disc(x, cx, cy, r);
+  x.fillStyle = "#56b45f";
   for (let y = -r + 1; y < 0; y++) { const hw = Math.round(Math.sqrt((r - 2) * (r - 2) - y * y) * 0.7); x.fillRect(cx - hw - 2, cy + y, hw, 1); }
   const a = (i * 2.4) % (Math.PI * 2);
   x.fillStyle = "#123a3d";
   for (let d = 2; d <= r; d++) x.fillRect(Math.round(cx + Math.cos(a) * d), Math.round(cy + Math.sin(a) * d), 2, 2);
-  x.fillStyle = "#2f6b33"; x.fillRect(cx - r, cy + r, r * 2, 1);
 }
 
-// The flag streams the way the wind blows and hangs on a calm day.
-function flag(x, p, w, t) {
-  const bx = p.x + 2, top = p.y - 22, m = Math.hypot(w[0], w[1]), dir = w[0] < 0 ? -1 : 1;
-  x.fillStyle = "#3a2412"; x.fillRect(bx, top, 1, 23);
-  const long = m < 1 ? 5 : 7 + Math.round(m / 6), flap = m < 1 ? 0 : Math.round(Math.sin(t * (4 + m / 3)));
-  for (let i = 0; i < long; i++) {
-    x.fillStyle = i % 4 < 2 ? "#e2567a" : "#f59ab3";
-    x.fillRect(bx + dir * (i + 1), top + (m < 1 ? i : i > long / 2 ? flap : 0), 1, Math.max(1, Math.round(6 * (1 - i / long))));
+// The waterwheel turns over the gap, and a paddle down in it reads solid.
+function wheel(x, w, t) {
+  const { x: cx, y: cy, half } = w;
+  x.fillStyle = "#4a2e16"; x.fillRect(cx - half - 2, cy - 1, half * 2 + 4, 3);
+  paddles(w, t).forEach((a) => {
+    const down = Math.abs(a - Math.PI) < 0.42;
+    x.fillStyle = down ? "#c9974f" : Math.cos(a) > 0 ? "#8a5a2b" : "rgba(138,90,43,0.45)";
+    x.fillRect(cx - half, cy + Math.round(Math.sin(a) * 9) - 1, half * 2, down ? 4 : 2);
+  });
+  x.fillStyle = "#6b4423"; x.fillRect(cx - half - 4, cy - 10, 3, 20); x.fillRect(cx + half + 1, cy - 10, 3, 20);
+  x.fillStyle = wheelShut(w, t) ? "#e2567a" : "#56b45f"; x.fillRect(cx - half - 4, cy - 12, 3, 2); x.fillRect(cx + half + 1, cy - 12, 3, 2);
+}
+
+function hollow(x, cx, cy, dir) {
+  const v = dir === "up";
+  x.fillStyle = "#4a2e16"; x.fillRect(cx - 12, cy - 6, 24, 12);
+  x.fillStyle = "#8a5a2b"; x.fillRect(cx - 12, cy - 6, 24, 3);
+  x.fillStyle = "#c9974f"; x.fillRect(cx - 7, v ? cy - 6 : cy + 1, 14, 5);
+  x.fillStyle = "#0a1b1f"; x.fillRect(cx - 5, v ? cy - 5 : cy + 2, 10, 3);
+}
+
+function reeds(x, g, open, t) {
+  const [x1, y1, x2] = g;
+  for (let px = x1 + 2; px < x2 - 1; px += 4) {
+    if (open) { x.fillStyle = "#7d9a5a"; x.fillRect(px, y1 - 1, 3, 2); continue; }
+    const sway = Math.round(Math.sin(t * 2 + px) * 0.6);
+    x.fillStyle = "#2f6b33"; x.fillRect(px, y1 - 4, 2, 8);
+    x.fillStyle = "#8a5a2b"; x.fillRect(px + sway, y1 - 7, 2, 4);
   }
+}
+
+function cup(x, c, t) {
+  const cx = Math.round(c.x), cy = Math.round(c.y);
+  x.fillStyle = "#2f6b33"; disc(x, cx, cy, CUP + 1);
+  x.fillStyle = "#0a1b1f"; disc(x, cx, cy, CUP);
+  x.fillStyle = "#3a2412"; x.fillRect(cx, cy - 22, 1, 22);
+  const flap = Math.round(Math.sin(t * 3));
+  for (let i = 0; i < 8; i++) {
+    x.fillStyle = i % 4 < 2 ? "#e2567a" : "#f59ab3";
+    x.fillRect(cx + 1 + i, cy - 22 + (i > 4 ? flap : 0), 1, Math.max(1, Math.round(6 * (1 - i / 8))));
+  }
+}
+
+function course(x, h, s, t, now, flash) {
+  h.ground.forEach((z) => moss(x, z));
+  (h.streams || []).forEach((z) => stream(x, z, now));
+  (h.water || []).forEach((z) => pool(x, z, now));
+  (h.slopes || []).forEach((z) => slope(x, z, now));
+  if (h.ramp) {
+    const r = h.slopes[0].at;
+    x.fillStyle = "#6b4423"; x.fillRect(r[0], r[1], r[2] - r[0], r[3] - r[1]);
+    x.fillStyle = "#8a5a2b"; for (let y = r[1] + 1; y < r[3]; y += 5) x.fillRect(r[0], y, r[2] - r[0], 3);
+  }
+  if (h.pad) { const p = driftAt(h.pad, t); lily(x, p.x, p.y, p.r, 3); }
+  if (h.drift) { const d = driftAt(h.drift, t); lily(x, d.x, d.y, d.r, 1); }
+  if (h.button) {
+    const [bx, by, br] = h.button;
+    x.fillStyle = "#5b6470"; disc(x, bx, by, br);
+    x.fillStyle = s.open ? "#ffb000" : "#8a9099"; disc(x, bx, by - 1, br - 2);
+    x.fillStyle = s.open ? "#fff6dc" : "#e2567a"; x.fillRect(bx - 1, by - 2, 3, 3);
+  }
+  h.walls.forEach((w) => log(x, w));
+  if (h.gate) reeds(x, h.gate, s.open, now);
+  if (h.warp) {
+    const [ax, ay] = h.warp.from, [bx, by] = h.warp.to, n = Math.round(Math.hypot(bx - ax, by - ay) / 6);
+    x.fillStyle = "rgba(201,151,79,0.4)";
+    for (let i = 1; i < n; i++) x.fillRect(Math.round(ax + (bx - ax) * i / n), Math.round(ay + (by - ay) * i / n), 2, 2);
+    hollow(x, h.warp.from[0], h.warp.from[1] - 4, "down"); hollow(x, h.warp.to[0], h.warp.to[1] + 6, "up");
+  }
+  if (h.wheel) wheel(x, h.wheel, t);
+  (h.bumpers || []).forEach(([cx, cy, r]) => mushroom(x, cx, cy, r, flash[cx + "," + cy] > 0));
+  cup(x, cupAt(h, t), now);
 }
 
 // The label on the Play disk.
 export function puttArt(x, g) {
   x.fillStyle = "#123a3d"; x.fillRect(0, 0, 168, 96);
-  x.fillStyle = "#0e2c30"; for (let i = 0; i < 16; i++) x.fillRect((i * 67) % 168, (i * 41) % 96, 14, 3);
-  [[30, 78, 11], [76, 56, 9], [118, 34, 9], [146, 70, 7], [52, 22, 6]].forEach(([cx, cy, r], i) => lily(x, cx, cy, r, i, i === 0));
-  flag(x, { x: 118, y: 34 }, [8, 0], 0);
-  x.fillStyle = "rgba(255,246,220,0.7)"; for (let d = 0; d < 7; d++) x.fillRect(36 + d * 6, 70 - d * 3, 2, 2);
-  drawTop(x, colours(g, null), 24, 72, false);
+  moss(x, [10, 8, 158, 88]);
+  log(x, [10, 8, 158, 8]); log(x, [10, 88, 158, 88]); log(x, [10, 8, 10, 88]); log(x, [158, 8, 158, 88]);
+  log(x, [70, 8, 70, 56]);
+  mushroom(x, 104, 52, 8, false);
+  cup(x, { x: 132, y: 30 }, 0);
+  x.fillStyle = "rgba(255,246,220,0.75)"; for (let d = 0; d < 6; d++) x.fillRect(40 + d * 6, 68 - d * 3, 2, 2);
+  ballAt(x, 36, 70, 1);
+  drawTop(x, colours(g, null), 18, 70, false);
 }

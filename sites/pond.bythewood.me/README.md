@@ -108,6 +108,10 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   the pond is well rested and the next run pays a quarter more, still under
   that game's cap, with `ponds.played_at` keeping when.
   `frontend/src/arcade.js` is the frame round them, one file per game beside it.
+  Pad putt's nine holes and its roll are in `frontend/src/course.js`, which
+  never touches the page, so a script can play every hole through with bun.
+  The server only bounds its score, so a change to how a hole pays needs
+  `puttMost` in `putt.go` kept over the best a round can make.
   `frontend/src/play.js` is the shelves on Play. A disk is one line on its
   shelf there with its colour, its label art and its game, and the page makes
   the disk, the game's view and its place in the tabs from that line.
