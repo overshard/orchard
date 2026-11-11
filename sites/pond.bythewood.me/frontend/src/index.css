@@ -3382,6 +3382,58 @@ button.big {
   letter-spacing: var(--track);
 }
 
+/* A round of fishing's catch, a slot a kind with the biggest one's size. */
+.fishrow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  width: 100%;
+}
+
+.fishrow .slot {
+  min-height: 0;
+  padding: 16px 2px 5px;
+  gap: 2px;
+}
+
+.fishrow .slot canvas {
+  max-height: 24px;
+  width: auto;
+}
+
+.fishrow .slot .nm,
+.fishrow .slot .sub {
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.fishrow .slot .sub {
+  color: var(--muted);
+}
+
+.fishrow .slot em {
+  color: var(--amber);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: var(--track);
+}
+
+.fishrow.small {
+  grid-template-columns: repeat(auto-fit, 44px);
+  justify-content: center;
+  max-width: 14.5rem;
+}
+
+.fishrow.small .slot {
+  padding: 14px 2px 8px;
+}
+
+.fishrow.small .slot .pips {
+  display: none;
+}
+
 .arcade-win {
   width: 100%;
   margin-bottom: 4px;

@@ -112,3 +112,119 @@ func TestFishMatchThePage(t *testing.T) {
 		}
 	}
 }
+
+func goFishing(t *testing.T, s *store, clock *time.Time, id int64, score int, landed map[string]int) *arcadeDone {
+	t.Helper()
+	st, err := s.arcadeStart(id, "fish")
+	if err != nil {
+		t.Fatal(err)
+	}
+	*clock = clock.Add(61 * time.Second)
+	d, err := s.arcadeFinish(id, "fish", st.Run, score, landed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return d
+}
+
+func bookOf(t *testing.T, s *store, id int64) map[string]fishSlot {
+	t.Helper()
+	v, err := s.view(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := map[string]fishSlot{}
+	for _, f := range v.Fishing.All {
+		out[f.Kind] = f
+	}
+	return out
+}
+
+func TestACatchGoesInTheFishBook(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	d := goFishing(t, s, clock, id, 20, map[string]int{"perch": 2, "minnow": 1, "boot": 1})
+	if len(d.Catch) != 2 || d.Catch[0].Kind != "minnow" || d.Catch[1].Kind != "perch" || d.Catch[1].N != 2 {
+		t.Fatalf("the catch = %+v", d.Catch)
+	}
+	for _, c := range d.Catch {
+		f, _ := fishOf(c.Kind)
+		if c.Size < f.lo || c.Size > f.hi || !c.First || c.Best {
+			t.Errorf("%s came out as %+v", c.Kind, c)
+		}
+	}
+	book := bookOf(t, s, id)
+	if p := book["perch"]; p.Count != 2 || p.Best != d.Catch[1].Size || p.First != "2026-11-10" {
+		t.Errorf("perch in the book = %+v", p)
+	}
+	if v, _ := s.view(id); v.Fishing.Found != 2 || len(v.Fishing.All) != len(fishKinds) {
+		t.Errorf("the book has %d of %d", v.Fishing.Found, len(v.Fishing.All))
+	}
+	// Enough perch that one of them is all but sure to be bigger.
+	*clock = clock.Add(24 * time.Hour)
+	d = goFishing(t, s, clock, id, 200, map[string]int{"perch": 30})
+	after := bookOf(t, s, id)["perch"]
+	if after.Count != 32 || after.Best < book["perch"].Best || after.First != "2026-11-10" || d.Catch[0].First {
+		t.Errorf("perch after another round = %+v, %+v", after, d.Catch)
+	}
+	if d.Catch[0].Best != (after.Best > book["perch"].Best) {
+		t.Errorf("a best of %d after %d said %v", after.Best, book["perch"].Best, d.Catch[0].Best)
+	}
+}
+
+func TestTheCatchHasToFitTheScore(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	for name, landed := range map[string]map[string]int{
+		"more points than the score": {"wels": 2},
+		"more fish than a round":     {"minnow": fishMost + 1},
+		"a count under nothing":      {"minnow": -1, "perch": 1},
+	} {
+		if d := goFishing(t, s, clock, id, 100, landed); len(d.Catch) != 0 {
+			t.Errorf("%s was kept, %+v", name, d.Catch)
+		}
+	}
+	if d := goFishing(t, s, clock, id, 5000, map[string]int{"perch": 1}); len(d.Catch) != 0 || d.Score != 0 {
+		t.Errorf("a score that can't be kept its fish, %+v", d)
+	}
+	if v, _ := s.view(id); v.Fishing.Found != 0 {
+		t.Errorf("the book has %d fish", v.Fishing.Found)
+	}
+}
+
+func TestAFishThatWasntBitingIsDropped(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	d := goFishing(t, s, clock, id, 120, map[string]int{"moonkoi": 1, "tench": 1, "roach": 1, "kraken": 3})
+	if len(d.Catch) != 1 || d.Catch[0].Kind != "roach" {
+		t.Fatalf("a plain day's catch = %+v", d.Catch)
+	}
+	s.day.pinned.Store(true)
+	s.day.last.Store(&reading{At: s.now(), Moon: true})
+	d = goFishing(t, s, clock, id, 120, map[string]int{"moonkoi": 1, "tench": 1})
+	if len(d.Catch) != 1 || d.Catch[0].Kind != "moonkoi" {
+		t.Fatalf("a full moon's catch = %+v", d.Catch)
+	}
+}
+
+func TestSizesLeanSmall(t *testing.T) {
+	f, _ := fishOf("pike")
+	sum, top := 0, 0
+	const n = 20000
+	for range n {
+		size := rollSize(f)
+		if size < f.lo || size > f.hi {
+			t.Fatalf("a pike of %d", size)
+		}
+		sum += size
+		if size > f.lo+(f.hi-f.lo)*9/10 {
+			top++
+		}
+	}
+	if mean := sum / n; mean < f.lo+(f.hi-f.lo)/4 || mean > f.lo+(f.hi-f.lo)*4/10 {
+		t.Errorf("pike average %d between %d and %d", mean, f.lo, f.hi)
+	}
+	if top < n/50 || top > n/10 {
+		t.Errorf("%d of %d pike were in the top tenth", top, n)
+	}
+}
