@@ -67,6 +67,9 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   he pays for spares adds up in `ponds.want_fill`, and once that covers the
   hat's bar it's on his shelf for that pond alone, in slot 9, at its tier's
   price. It's the only way a legendary is sold.
+- `marks.go` works out which things in the bag somebody is after, and
+  sends a line for each on the thing as `wanted`. Each source is a func on
+  `markers` that reads the finished view, so a new one is one more func.
 - `names.go` is the list a frog's name is rolled off. Nobody types a name, so
   renaming only takes one that's on it.
 - `wizard.go` turns three of a thing into one thing of any sort, mostly a tier

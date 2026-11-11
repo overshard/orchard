@@ -55,6 +55,12 @@ export function show(t) {
   const p = state.pond;
   openSheet(t, (t.count > 1 ? "You have " + t.count + ". " : "") + useOf(t), (body) => {
     const row = () => { const r = document.createElement("div"); r.className = "row"; body.append(r); return r; };
+    if (t.wanted) {
+      const ul = document.createElement("ul");
+      ul.className = "wantlines";
+      t.wanted.forEach((line) => { const li = document.createElement("li"); li.textContent = line; ul.append(li); });
+      body.append(ul);
+    }
     if (t.hat) {
       const r = row();
       if (same(t.hat, p.frog.hat)) r.append(button("Take it off", act("/api/hats/wear", { shape: 0, colour: 0 })));
@@ -119,7 +125,16 @@ function render(p) {
   const wearing = p.frog.hat, out = p.trinkets.spots;
   p.bag.filter((t) => sort === "all" || t.sort === sort).forEach((t) => {
     const on = (t.hat && same(t.hat, wearing)) || (t.sort === "trinket" && out.includes(t.kind));
-    grid.append(slot(thingArt(t, 4), { tier: t.tier, name: t.name, count: t.count, on, onClick: () => show(t) }));
+    const s = slot(thingArt(t, 4), { tier: t.tier, name: t.name, count: t.count, on, onClick: () => show(t) });
+    if (t.wanted) {
+      // The lamp is the mark, and the slot's glow only pulses with motion on.
+      const lamp = document.createElement("span");
+      lamp.className = "wantlamp";
+      s.classList.add("wanted");
+      s.append(lamp);
+      s.setAttribute("aria-label", s.getAttribute("aria-label") + ", wanted");
+    }
+    grid.append(s);
   });
   $("bag-none").hidden = p.bag.length > 0;
 }

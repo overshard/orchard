@@ -209,6 +209,8 @@ type bagThing struct {
 	// A dish is drawn from its two ingredients.
 	A string `json:"a,omitempty"`
 	B string `json:"b,omitempty"`
+	// Wanted is a line for everything that's after it right now.
+	Wanted []string `json:"wanted,omitempty"`
 }
 
 func dishParts(kind string) (string, string) {
@@ -255,7 +257,7 @@ func bagOf(held map[string]int, hats []hatView, hoods []hoodView, listed map[str
 			free--
 		}
 		a, b := dishParts(kind)
-		out = append(out, bagThing{kind, thingName(kind), t, sortOf(kind), n, free, w, stallRate(kind, w, listed[kind], now), stallCap(kind, w), h, a, b})
+		out = append(out, bagThing{kind, thingName(kind), t, sortOf(kind), n, free, w, stallRate(kind, w, listed[kind], now), stallCap(kind, w), h, a, b, nil})
 	}
 	for k, n := range held {
 		add(k, n, nil)
