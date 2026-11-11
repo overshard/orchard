@@ -692,12 +692,16 @@ version of the old look and a handheld pet shell.
   goes back where it was played from. The results have a scorecard, a glass
   box a hole with its par small over its strokes, amber under par.
 - **The spawn jar is a glass jar on a shelf by the pond**, the frog over it
-  from above like pebble drop's, the next one in the top corner, and a
-  dashed line across the glass that blinks red while something rests over
-  it. Each stage is round so it stacks, an egg a pale ball of jelly with a
-  dark yolk, a tadpole in its jelly, a froglet green with a tail stub, a frog
-  in the player's frog's colours and an elder in brown and cream with white
-  whiskers.
+  from above like pebble drop's, the next one in the top corner, a faint
+  guide down to where it'll land, and a dashed line across the glass that
+  blinks red while something rests over it. Each stage is round so it stacks
+  and rolls, and the ball itself is never turned, only its eyes, spots and
+  belly go round with it, since pixel art turned at an angle breaks up. An
+  egg is a pale ball of jelly with a dark yolk, a tadpole in its jelly, a
+  froglet green with a tail stub, a frog in the player's frog's colours, a
+  bullfrog olive with a yellow throat and brown ears, an elder in brown and
+  cream with white whiskers and brows, a great frog deep teal with gold
+  spots and orange eyes, and a pond king bright green with a gold crown.
 - **Bug sweep is the day's puzzle.** Eight pads by ten on flat water, a
   closed pad green and an open one dark with its number in a colour of its
   own, pale blue for one up to red. A marked pad has a pink bud on it, and a

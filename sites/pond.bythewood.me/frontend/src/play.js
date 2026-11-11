@@ -37,7 +37,7 @@ export const SHELVES = [
     { key: "shell", name: "Shell game", colour: "#8a5a2b", line: "Follow the tadpole under the shells.", art: shellArt, game: shell },
     { key: "sweep", name: "Bug sweep", colour: "#8fa832", line: "Clear the pads and mind the wasps.", art: sweepArt, game: sweep },
     { key: "putt", name: "Pad putt", colour: "#4fa8d8", line: "Nine holes of mini golf round the pond.", art: puttArt, game: putt },
-    { key: "jar", name: "Spawn jar", colour: "#8fc9b4", line: "Grow frogspawn up to elders in a jar.", art: jarArt, game: jar },
+    { key: "jar", name: "Spawn jar", colour: "#8fc9b4", line: "Grow frogspawn up to a pond king in a jar.", art: jarArt, game: jar },
   ] },
 ];
 
