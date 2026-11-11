@@ -122,6 +122,8 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
   the pond itself and the tabs. `ui.js` is the bottom sheet a thing opens in,
   the reveal a prize pops up in, and the slot every collectable is drawn as.
   `share.js` is a frog's public page and `key.js` and `k.js` the key pages.
+  Reeds, Garden and Bank are still views of their own, lit under the Works
+  key, and `scenes.js` draws the picture over them and the smaller ones.
 - `icon.go` is the web app manifest and the home screen icons, which are
   drawn in Go like the share card since there are no image files.
 - `web/` is this site's own copy of the HTTP layer every site here shares.
@@ -188,5 +190,8 @@ they have none, for other sites to draw.
   act on it.
 - A change that lets a game score faster needs its `rate` in `arcade.go`
   checked against a bot, since a run past `rate` points a second pays nothing.
+- `index.css` is one flat file and the share page loads it too, so look for a
+  class name in it before using one. `place` is already Dive's standings and
+  `who` and `scene` are on the share page as well as the pond.
 - `web/` has to stay byte identical to every other site's copy, and
   `make check` at the root fails when it isn't.
