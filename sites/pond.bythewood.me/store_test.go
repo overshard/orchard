@@ -324,7 +324,7 @@ func TestLogPaysOnceADay(t *testing.T) {
 }
 
 func TestHatsBoxWearAndSell(t *testing.T) {
-	s, _ := testStore(t)
+	s, clock := testStore(t)
 	_, id := newPond(t, s)
 	if _, err := s.box(id); !errors.Is(err, errPoor) {
 		t.Fatalf("a box on %d pebbles: %v", starterPebbles, err)
@@ -354,22 +354,28 @@ func TestHatsBoxWearAndSell(t *testing.T) {
 		t.Fatalf("wearing %+v gave %+v (%v)", *spare, v.Frog.Hat, err)
 	}
 
-	// Selling runs a hat down to the one copy and stops there.
-	before := v.Pebbles
-	sold := 0
+	// Selling runs a hat down to the one copy and stops there, and a day's
+	// selling stops at the room.
+	before, want, room := v.Pebbles, 0, sellRoom
 	for {
 		v, err = s.sell(id, *spare)
 		if errors.Is(err, errNotHeld) {
 			break
 		}
+		if errors.Is(err, errTullyFull) {
+			*clock = clock.Add(24 * time.Hour)
+			room = sellRoom
+			continue
+		}
 		if err != nil {
 			t.Fatal(err)
 		}
-		sold++
+		want += min(wrenPays(*spare), room)
+		room = v.Room[shopWren]
 	}
 	v, _ = s.view(id)
-	if v.Pebbles != before+sold*wrenPays(*spare) {
-		t.Errorf("sold %d spares for %d, want %d each", sold, v.Pebbles-before, wrenPays(*spare))
+	if v.Pebbles != before+want {
+		t.Errorf("sold spares for %d, want %d", v.Pebbles-before, want)
 	}
 	for _, h := range v.Hats {
 		if h.hat == *spare && h.Count != 1 {
@@ -488,9 +494,14 @@ func TestNinetyDaysDoNotRunAway(t *testing.T) {
 		after, _ := s.view(id)
 		minted += after.Pebbles - before.Pebbles
 
+	sell:
 		for _, h := range after.Hats {
 			for n := h.Count; n > 1; n-- {
-				if _, err := s.sell(id, h.hat); err != nil {
+				_, err := s.sell(id, h.hat)
+				if errors.Is(err, errTullyFull) {
+					break sell
+				}
+				if err != nil {
 					t.Fatal(err)
 				}
 			}
