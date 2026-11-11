@@ -212,7 +212,7 @@ export function over(ctx, now, col) {
         const nt = reduced ? 0.3 + i * 0.12 : k * 1.6 - i * 0.18;
         if (nt <= 0 || nt >= 1) continue;
         ctx.globalAlpha = fade * (1 - nt);
-        bitmap(ctx, NOTE, mid + 30 + i * 14 + Math.sin(nt * 7 + i) * 8, mouth - 20 - nt * 90, 4, i % 2 ? "#ffe27a" : "#fff6dc");
+        bitmap(ctx, NOTE, box.x1 + fx - 52 + i * 12 + Math.sin(nt * 7 + i) * 8, box.y0 + 36 - nt * 80, 4, i % 2 ? "#ffe27a" : "#fff6dc");
       }
     } else if (kind === "peek") {
       px(ctx, mid - 56, mouth - 8, "#f59ab3", 2); px(ctx, mid + 48, mouth - 8, "#f59ab3", 2);
