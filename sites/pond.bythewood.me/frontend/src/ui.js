@@ -113,10 +113,14 @@ export function button(label, fn, cls) {
 // ---------------------------------------------------------------- the reveal
 
 // A prize comes up in the middle of the screen with rays behind it, coloured
-// by its tier, and stays until it's tapped away.
+// by its tier, and stays until it's tapped away. One that comes while another
+// is up waits its turn.
+const waiting = [];
+
 export function reveal(r) {
+  if (!$("reveal").hidden) { waiting.push(r); return; }
   const card = $("reveal-card");
-  card.className = "reveal-card t" + (r.tier || 0) + (r.bad ? " bad" : "");
+  card.className = "reveal-card t" + (r.glow || r.tier || 0) + (r.bad ? " bad" : "");
   $("reveal-kick").textContent = r.kick || "";
   const art = $("reveal-art");
   art.textContent = "";
@@ -133,7 +137,11 @@ export function reveal(r) {
   $("reveal-ok").focus();
 }
 
-function hideReveal() { $("reveal").hidden = true; }
+function hideReveal() {
+  $("reveal").hidden = true;
+  const next = waiting.shift();
+  if (next) reveal(next);
+}
 
 // A wrapped box drawn in a tint, for the gift and the shop boxes.
 export function drawBox(ctx, tint, s) {

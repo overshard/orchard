@@ -2,9 +2,10 @@ import { $, post, state, setPond, watch, TIERS } from "./api.js";
 import { genome, bred, cells, colours, draw, W, H, MORPHS } from "./frog.js";
 import { iconCanvas, dishCanvas, furnCanvas } from "./icons.js";
 import { hatTile } from "./hats.js";
-import { slot, openSheet, closeSheet, sheetSay, button, shade } from "./ui.js";
+import { slot, openSheet, closeSheet, sheetSay, button, shade, reveal } from "./ui.js";
 import { enterTown } from "./town.js";
 import { fishArt, inches } from "./fishes.js";
+import { sceneryCanvas } from "./scenery.js";
 
 const BACKS = ["PLAIN", "SPOTS", "BANDS", "SPECKLED", "MASK", "BACK STRIPE"];
 const PUPILS = ["BAR", "ROUND", "SLIT"];
@@ -61,7 +62,7 @@ function fishBook(p) {
     const now = f.up ? " It's biting well right now." : "";
     const rec = f.yours ? " The pond record is yours." : " The pond record is " + inches(f.record) + ", held by " + f.holder + ".";
     return {
-      art: (big) => fishArt(f.kind, big ? 200 : 56), name: f.name, tier: f.tier, found: f.count > 0, count: f.count,
+      kind: "fish_" + f.kind, art: (big) => fishArt(f.kind, big ? 200 : 56), name: f.name, tier: f.tier, found: f.count > 0, count: f.count,
       sub: f.count ? inches(f.best) : "", what: f.hint + now + rec, tag: f.yours ? "RECORD" : "",
       note: "Landed " + f.count + ", the biggest " + inches(f.best) + ". First one " + f.first + "." + rec + " " + f.hint + now,
     };
@@ -80,7 +81,7 @@ function hatShelf(p) {
     const asked = same(w.hat, h), found = h.count > 0;
     const takes = "It takes " + pebbles(w.bars[h.tier]) + " in spares sold to Little Tully, and then he sells it for " + pebbles(w.prices[h.tier]) + ".";
     return {
-      art: () => hatTile(h, true), name: h.name, tier: h.tier, found, tag: asked ? "WANTED" : "",
+      kind: "hat_" + h.shape + "_" + h.colour, art: () => hatTile(h, true), name: h.name, tier: h.tier, found, tag: asked ? "WANTED" : "",
       what: asked ? "Little Tully is looking out for this one. " + takes
         : "Boxes at Little Tully's, the wheel and presents. Or ask him to look out for it. " + takes
           + (w.hat ? " He looks for one hat at a time, and the bar keeps what your spares have added up to." : ""),
@@ -133,17 +134,87 @@ function cats(p) {
   const furn = (p.shops.fenn && p.shops.fenn.lines) || [];
   return [
     { key: "hats", name: "Hats", icon: "hat", all: hatShelf(p) },
-    { key: "trinkets", name: "Trinkets", icon: "t_duck", all: p.trinkets.all.map((t) => ({ art: () => iconCanvas(t.kind, 4), name: t.name, tier: t.tier, found: t.found, what: t.pet ? "A pet. Now and then a frog brings one home from " + t.pet.toLowerCase() + "." : "Boxes at Moth's and presents." })) },
+    { key: "trinkets", name: "Trinkets", icon: "t_duck", all: p.trinkets.all.map((t) => ({ kind: t.kind, art: () => iconCanvas(t.kind, 4), name: t.name, tier: t.tier, found: t.found, what: t.pet ? "A pet. Now and then a frog brings one home from " + t.pet.toLowerCase() + "." : "Boxes at Moth's and presents." })) },
     { key: "hoods", name: "Hoods", icon: "i_hood", all: p.hoods.map((h) => ({ art: () => hatTile(h, true), name: h.name, tier: 4, found: h.got, what: "A frog that gets to 99 at " + h.name.replace(" hood", "").toLowerCase() + " earns it." })) },
     { key: "sites", name: "Site hats", icon: "i_site", all: p.sites.map((h) => ({ art: () => hatTile(h, true), name: h.name, tier: 0, found: h.got, what: "Your frog finds it the first time you open " + h.host + "." })) },
-    { key: "rocks", name: "Rocks", icon: "agate", all: p.rocks.map((r) => ({ art: () => iconCanvas(r.kind, 4), name: r.name, tier: r.tier, found: r.found, what: "The wheel, the reeds and Moth." })) },
-    { key: "keepsakes", name: "Keepsakes", icon: "k_frost", all: p.keepsakes.map((k) => ({ art: () => iconCanvas(k.kind, 4), name: k.name, tier: k.tier, found: k.days > 0, what: k.hint, sub: k.days ? k.first : "" })) },
-    { key: "mementos", name: "Mementos", icon: "m_medal", all: p.mementos.map((m) => ({ art: () => iconCanvas(m.kind, 4), name: m.name, tier: m.tier, found: !!m.day, what: m.from + " gives it to a best friend.", sub: m.day, note: "From " + m.from + ", for being best friends. Kept since " + m.day + "." })) },
+    { key: "rocks", name: "Rocks", icon: "agate", all: p.rocks.map((r) => ({ kind: r.kind, art: () => iconCanvas(r.kind, 4), name: r.name, tier: r.tier, found: r.found, what: "The wheel, the reeds and Moth." })) },
+    { key: "keepsakes", name: "Keepsakes", icon: "k_frost", all: p.keepsakes.map((k) => ({ kind: k.kind, art: () => iconCanvas(k.kind, 4), name: k.name, tier: k.tier, found: k.days > 0, what: k.hint, sub: k.days ? k.first : "" })) },
+    { key: "mementos", name: "Mementos", icon: "m_medal", all: p.mementos.map((m) => ({ kind: m.kind, art: () => iconCanvas(m.kind, 4), name: m.name, tier: m.tier, found: !!m.day, what: m.from + " gives it to a best friend.", sub: m.day, note: "From " + m.from + ", for being best friends. Kept since " + m.day + "." })) },
     { key: "fish", name: "Fish", icon: "i_fish", all: fishBook(p) },
     { key: "frogs", name: "Frog looks", icon: "i_pond", all: register(p) },
     { key: "dishes", name: "Cookbook", icon: "lotus", all: cookbook(p) },
-    { key: "furniture", name: "Furniture", icon: "f_reeds", all: furn.map((l) => ({ art: () => furnCanvas(l.kind), name: l.name, tier: 0, found: p.furniture.includes(l.kind), what: "Tansy's Pad and Reed, in town." })) },
+    { key: "furniture", name: "Furniture", icon: "f_reeds", all: furn.map((l) => ({ kind: l.kind, art: () => furnCanvas(l.kind), name: l.name, tier: 0, found: p.furniture.includes(l.kind), what: "Tansy's Pad and Reed, in town." })) },
+    { key: "sets", name: "Sets", icon: "i_set", all: p.sets.map((x) => ({ found: x.done })) },
   ];
+}
+
+// "The night" as "night", for the middle of a sentence.
+function setWord(name) { return name.toLowerCase().replace(/^the /, ""); }
+
+// The set waiting on each thing the pond hasn't found, by the thing's kind.
+function waitingOn(p) {
+  const out = {};
+  p.sets.filter((x) => !x.done).forEach((x) => x.members.forEach((m) => { if (!m.found) out[m.kind] = x; }));
+  return out;
+}
+
+function memberArt(m, big) {
+  if (m.sort === "hat") return hatTile(m.hat, true);
+  if (m.sort === "dish") return dishCanvas(m, big ? 6 : 4);
+  if (m.sort === "fish") return fishArt(m.kind.slice(5), big ? 200 : 56);
+  if (m.sort === "furniture") return furnCanvas(m.kind);
+  return iconCanvas(m.kind, big ? 6 : 4);
+}
+
+// A set is a panel with what it puts on the water and its four members.
+function renderSets(p, box) {
+  box.textContent = "";
+  p.sets.forEach((x) => {
+    const panel = document.createElement("div"), head = document.createElement("div"), words = document.createElement("span");
+    const name = document.createElement("b"), gives = document.createElement("span"), n = document.createElement("span"), grid = document.createElement("div");
+    panel.className = "setbox" + (x.done ? " done" : "");
+    head.className = "setbox-head";
+    name.textContent = x.name;
+    gives.className = "dim";
+    gives.textContent = x.done ? x.gives + ", on the water since " + (x.day || p.today) + "." : x.gives + " for the water.";
+    n.className = "setbox-n"; n.textContent = x.have + "/" + x.members.length;
+    words.append(name, gives);
+    const art = sceneryCanvas(x.scene);
+    head.append(x.done ? art : shade(art), words, n);
+    grid.className = "slots big";
+    x.members.forEach((m) => {
+      grid.append(slot(memberArt(m), {
+        tier: m.tier, name: m.name, found: m.found, sub: m.found ? "" : TIERS[m.tier],
+        onClick: () => {
+          const big = memberArt(m, true);
+          big.classList.add("big");
+          openSheet({ art: m.found ? big : shade(big), name: m.found ? m.name : "???", tier: m.tier },
+            m.found ? "Found, for the " + setWord(x.name) + " set." : m.where + " The " + setWord(x.name) + " set is waiting on it.", () => {});
+        },
+      }));
+    });
+    panel.append(head, grid);
+    box.append(panel);
+  });
+}
+
+// A set a move only just finished pops up after anything the move itself
+// has to show. One or two get a card each and more than that share one.
+function landed(p) {
+  const l = p.landed;
+  if (!l) return;
+  delete p.landed;
+  const done = l.sets.map((k) => p.sets.find((x) => x.kind === k)).filter(Boolean);
+  const cards = [];
+  if (done.length > 2) {
+    const row = document.createElement("div");
+    row.className = "pinrow";
+    done.forEach((x) => row.append(sceneryCanvas(x.scene)));
+    cards.push({ kick: "For what you've found", art: row, glow: 4, name: done.length + " sets", line: "They're on the Sets shelf in your collection, and what they give is out on the water." });
+  } else {
+    done.forEach((x) => cards.push({ kick: "Set finished", art: sceneryCanvas(x.scene, 3), name: x.name, glow: 4, line: x.gives + " is on the water now, for good." }));
+  }
+  setTimeout(() => cards.forEach(reveal), 0);
 }
 
 function render(p) {
@@ -173,8 +244,11 @@ function render(p) {
   const c = all.find((x) => x.key === cat) || all[0];
   $("col-head").textContent = c.name;
   wantBox(p, c.key === "hats");
-  const grid = $("col-grid");
+  const grid = $("col-grid"), wants = waitingOn(p);
   grid.textContent = "";
+  grid.hidden = c.key === "sets";
+  $("col-sets").hidden = c.key !== "sets";
+  if (c.key === "sets") return renderSets(p, $("col-sets"));
   c.all.forEach((x) => {
     const art = x.art();
     const s = slot(art, {
@@ -183,7 +257,8 @@ function render(p) {
         const big = x.art(true);
         big.classList.add("big");
         openSheet({ art: x.found ? big : shade(big), name: x.found ? x.name : "???", tier: x.tier },
-          x.found ? (x.note || (x.sub ? "First kept " + x.sub + "." : "Found.")) : x.what, x.build || (() => {}));
+          x.found ? (x.note || (x.sub ? "First kept " + x.sub + "." : "Found."))
+            : x.what + (wants[x.kind] ? " The " + setWord(wants[x.kind].name) + " set is waiting on it." : ""), x.build || (() => {}));
       },
     });
     if (x.tag) {
@@ -195,4 +270,4 @@ function render(p) {
   });
 }
 
-export function initCollect() { watch(render); }
+export function initCollect() { watch(render); watch(landed); }

@@ -146,6 +146,13 @@ CREATE TABLE IF NOT EXISTS mementos (
     PRIMARY KEY (pond_id, kind)
 ) WITHOUT ROWID;
 
+CREATE TABLE IF NOT EXISTS sets (
+    pond_id  INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
+    kind     TEXT NOT NULL,
+    day      TEXT NOT NULL,
+    PRIMARY KEY (pond_id, kind)
+) WITHOUT ROWID;
+
 CREATE TABLE IF NOT EXISTS visits (
     pond_id  INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
     host     TEXT NOT NULL,
@@ -815,8 +822,11 @@ type view struct {
 	Keepsakes  []keepsakeView      `json:"keepsakes"`
 	Mementos   []mementoView       `json:"mementos"`
 	Neighbours neighboursView      `json:"neighbours"`
-	Arcade     []arcadeView        `json:"arcade"`
-	Fishing    fishingView         `json:"fishing"`
+	Sets       []setView           `json:"sets"`
+	// Landed is what this move earned, and nil on every other view.
+	Landed  *landedView  `json:"landed,omitempty"`
+	Arcade  []arcadeView `json:"arcade"`
+	Fishing fishingView  `json:"fishing"`
 	// What Tansy sold this pond, drawn on the water.
 	Furniture []string   `json:"furniture"`
 	Bag       []bagThing `json:"bag"`
@@ -1031,7 +1041,10 @@ func (s *store) act(id int64, fn func(tx *sql.Tx, p *pond, now time.Time) error)
 		if err != nil {
 			return err
 		}
-		return s.fill(tx, v, p, now)
+		if err := s.fill(tx, v, p, now); err != nil {
+			return err
+		}
+		return land(tx, v, p)
 	})
 	return v, err
 }
@@ -1133,6 +1146,11 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	v.Share.Power = powerOf(v.Frog.Rarity, v.found, had, p.DiveBest, v.Jobs.Total, v.Bond.Hearts)
 	v.Today = dayOf(now)
 	v.Open = openOf(p, now)
+	done, err := kept(q, p.ID)
+	if err != nil {
+		return err
+	}
+	v.Sets = setsOf(everFound(v, had), done)
 	markBag(v)
 	v.Gazette.Notice = openingNotice(p, now)
 	v.Todo = todoOf(v)

@@ -12,7 +12,7 @@ type mark struct{ kind, line string }
 // markers is everything that can want a thing. Each looks over the finished
 // view and says what it's after, and a new source is one more func on the
 // list. A mark for a thing the pond doesn't hold is dropped.
-var markers = []func(v *view) []mark{favouriteMarks, favourMarks, recipeMarks}
+var markers = []func(v *view) []mark{favouriteMarks, favourMarks, recipeMarks, setMarks}
 
 // markBag puts each thing's marks on it, in the order of markers.
 func markBag(v *view) {
