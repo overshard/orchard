@@ -393,6 +393,27 @@ button.screen:active {
   border-radius: 2px;
 }
 
+/* The hearts sit over a top corner of the glass, where nothing on the
+   water is drawn. A sideways drag on the screen is a rub, so only an up and
+   down one scrolls the page. */
+.frogscreen {
+  position: relative;
+}
+
+.frogscreen .scene {
+  touch-action: pan-y;
+}
+
+.frogscreen .bond {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  width: 78px;
+  height: 12px;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
 .who {
   margin: 14px 0 6px;
 }
@@ -422,7 +443,7 @@ button.screen:active {
 
 /* A short phone gets a smaller screen, so what to do next stays in view. */
 @media (max-height: 780px) and (max-width: 34rem) {
-  #v-pond .scene {
+  #v-pond .frogscreen {
     max-width: 19rem;
     margin: 0 auto;
   }

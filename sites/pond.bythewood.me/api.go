@@ -295,6 +295,16 @@ func (s *site) apiFeed(id int64, r *http.Request, w http.ResponseWriter) (any, e
 	return s.store.feed(id, in.Frog, in.Dish)
 }
 
+func (s *site) apiPet(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	var in struct {
+		Spot string `json:"spot"`
+	}
+	if !readJSON(w, r, &in) {
+		return nil, nil
+	}
+	return s.store.pet(id, in.Spot)
+}
+
 func (s *site) apiBuy(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
 	var in struct {
 		Shop string `json:"shop"`

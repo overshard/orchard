@@ -24,6 +24,7 @@ import { initCollect } from "./collect.js";
 import { initTown, enterTown, leaveTown } from "./town.js";
 import { initNeighbours, art as residentArt } from "./neighbours.js";
 import { initSettings } from "./settings.js";
+import { initPet, setBox, pose, over as petOver, busy as petBusy, wasRub, tapTrick, arrive, drawBond } from "./pet.js";
 
 const VIEWS = ["pond", "play", "dive", "cross", "flick", "raft", "leap", "school", "fish", "stack", "shell", "skip", "wheel", "bag", "collect", "reeds", "garden", "bank", "town", "settings"];
 // Places that open from another light that one's key.
@@ -407,6 +408,20 @@ function drawSwimmers(p, day, t) {
   });
 }
 
+// The frog is drawn here first on a frame it's moved, tipped or turned.
+const aside = document.createElement("canvas"), fx = aside.getContext("2d");
+aside.width = 352; aside.height = 272;
+let lastFrame = 0;
+
+// Where the frog is on the scene, so a rub knows its head from its chin.
+function frogBox(c, oy) {
+  let x0 = W, y0 = H, x1 = 0, y1 = 0;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (c[y * W + x]) {
+    x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+  }
+  return { x0: x0 * 8, y0: y0 * 8 + oy, x1: x1 * 8 + 8, y1: y1 * 8 + 8 + oy };
+}
+
 function drawScene(now) {
   const p = state.pond, g = state.g;
   if (!p || !g) return;
@@ -438,8 +453,26 @@ function drawScene(now) {
     else if (now < croakUntil) o.croak = 0.55 + 0.45 * Math.abs(Math.sin(t * g.rate * 0.5));
     if (moving) { hop = Math.abs(Math.sin(k * Math.PI * 3.5)) * 50 * (1 - k); wig = Math.sin(k * 44) * 4 * (1 - k); }
   } else if (moving) wig = Math.sin(k * 44) * 6 * (1 - k);
+  const ps = pose(now, Math.min(0.1, (now - lastFrame) / 1000));
+  lastFrame = now;
+  if (ps.squint) o.blink = true;
+  if (ps.open) o.croak = ps.open;
   // Sheltering, it sits low with the pad pulled over it.
-  draw(sx, cells(g, f.stage, o), W, H, colours(g, f.hat), Math.round(wig), -Math.round(hop) + (day.shelter ? 40 : 0), 8);
+  const c = cells(g, f.stage, o), col = colours(g, f.hat), oy = -Math.round(hop) + (day.shelter ? 40 : 0), bx = frogBox(c, oy);
+  setBox(bx);
+  if (ps.still) draw(sx, c, W, H, col, Math.round(wig), oy, 8);
+  else {
+    // Drawn aside and laid on whole, since cells drawn turned show seams.
+    fx.clearRect(0, 0, 352, 272);
+    draw(fx, c, W, H, col, 0, 0, 8);
+    const foot = bx.y1 - oy;
+    sx.save();
+    sx.imageSmoothingEnabled = false;
+    sx.translate(176 + ps.x, foot + oy + Math.round(ps.y));
+    sx.rotate(ps.tilt); sx.scale(ps.flip, ps.sy);
+    sx.drawImage(aside, -176, -foot);
+    sx.restore();
+  }
   if (grown(f.stage) && day.shelter) drawPad(day);
   // Trinkets sit in front of the frog at the pad's edge.
   if (grown(f.stage) && !day.shelter) {
@@ -462,19 +495,24 @@ function drawScene(now) {
     for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) if (HEART[r].charAt(c) === "1") sx.fillRect(Math.round(hx) + c * 4, Math.round(hy) + r * 4, 4, 4);
   }
   sx.globalAlpha = 1;
+  petOver(sx, now, col);
   drawOver(day, t);
   drawFurnNight(has, day, t, grown(f.stage) && !day.shelter);
 }
 
 function loop(now) {
   const greeting = greetAt && now - greetAt < 2100;
-  if (view === "pond" && (greeting || now - lastTick > 110)) { lastTick = now; drawScene(now); }
+  if (greetAt && !greeting) { greetAt = 0; arrive(now); }
+  if (view === "pond" && (greeting || petBusy(now) || now - lastTick > 110)) { lastTick = now; drawScene(now); }
   requestAnimationFrame(loop);
 }
 
+initPet(scene, $("scene-btn"), () => drawScene(performance.now()));
+
 $("scene-btn").addEventListener("click", () => {
-  if (!state.g) return;
+  if (!state.g || wasRub()) return;
   croakUntil = performance.now() + croak(state.g) * 1000;
+  tapTrick(performance.now());
   if (reduced) { drawScene(performance.now()); setTimeout(() => drawScene(performance.now()), croakUntil - performance.now() + 50); }
 });
 
@@ -494,6 +532,7 @@ function renderPond(p) {
   $("frog-what").textContent = bits.join(" · ");
 
   applyOpen(p.open);
+  drawBond();
   $("purse").hidden = false;
   $("purse-n").textContent = (p.pebbles - state.held).toLocaleString("en-US");
   $("nudge").hidden = !p.nudge;
@@ -853,6 +892,7 @@ function greet(g) {
     }, { once: true });
   }
   if (!reduced) greetAt = performance.now();
+  else arrive(performance.now());
 }
 
 // Made up days for the dev clock's panel, to see each thing on the water.

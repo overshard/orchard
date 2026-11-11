@@ -38,6 +38,8 @@ var (
 const (
 	divePower  = 25
 	diveCounts = 60
+	// What each heart of the frog out front's bond counts.
+	bondPower = 60
 )
 
 type rankView struct {
@@ -104,12 +106,17 @@ type power struct {
 	JobsTotal     int        `json:"jobs_total"`
 	Dive          int        `json:"dive"`
 	DiveBest      int        `json:"dive_best"`
+	Bond          int        `json:"bond"`
+	Hearts        int        `json:"hearts"`
 }
 
-// had is every trinket, rock and keepsake kind the pond has ever had, and
-// jobsTotal is its best level at every job added up.
-func powerOf(r rarity, held []hat, had map[string]bool, diveBest, jobsTotal int) power {
+// had is every trinket, rock and keepsake kind the pond has ever had,
+// jobsTotal is its best level at every job added up and hearts is the bond
+// of the frog out front.
+func powerOf(r rarity, held []hat, had map[string]bool, diveBest, jobsTotal, hearts int) power {
 	p := power{Frog: int(math.Round(120 * math.Log2(float64(r.N)))), DiveBest: diveBest, Dive: min(diveBest, diveCounts) * divePower}
+	p.Hearts = min(hearts, bondHearts)
+	p.Bond = p.Hearts * bondPower
 	p.JobsTotal = max(jobsTotal, len(jobs))
 	p.Jobs = (p.JobsTotal - len(jobs)) * 3
 	for _, h := range held {
@@ -134,7 +141,7 @@ func powerOf(r rarity, held []hat, had map[string]bool, diveBest, jobsTotal int)
 			p.KeepsakesHad++
 		}
 	}
-	p.Total = p.Frog + p.Hats + p.Trinkets + p.Rocks + p.Keepsakes + p.Jobs + p.Dive
+	p.Total = p.Frog + p.Hats + p.Trinkets + p.Rocks + p.Keepsakes + p.Jobs + p.Dive + p.Bond
 	p.climb()
 	return p
 }
@@ -224,7 +231,11 @@ func (s *store) shownBy(publicID string) (*shown, error) {
 		return nil, err
 	}
 	held = append(held, been...)
-	return &shown{Frog: f, Power: powerOf(f.Rarity, held, had, p.DiveBest, bestLevels(xp)), Slug: sl, URL: baseURL + "/f/" + sl, Spots: spots, Best: bestFinds(held, had, 8)}, nil
+	b, err := loadBond(s.r, id)
+	if err != nil {
+		return nil, err
+	}
+	return &shown{Frog: f, Power: powerOf(f.Rarity, held, had, p.DiveBest, bestLevels(xp), b.points/bondHeart), Slug: sl, URL: baseURL + "/f/" + sl, Spots: spots, Best: bestFinds(held, had, 8)}, nil
 }
 
 // publicIDOf takes the code off the end of a share slug.

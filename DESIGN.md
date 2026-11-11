@@ -714,6 +714,18 @@ version of the old look and a handheld pet shell.
   rays.
 - What the frog says is a speech bubble pointing up at it, with the Next strip
   under it.
+- **The frog can be rubbed.** A drag back and forth over it shuts its eyes and
+  throws pink pixel hearts, more of them on its favourite spot, and an egg
+  only wobbles. Its bond is five small hearts over the top left corner of the
+  glass, the one being worked on filled from the left. Nothing else is drawn
+  in that corner or the top right one.
+- **It does a thing for each heart.** It waves when the pond opens at one, and
+  a tap croaks as ever and then does the newest thing it knows, a hop at two,
+  a spin at three and at four something that suits its nature, a song, a big
+  leap, a blush, a yawn with stars, a fly off its tongue or a bubble. At five
+  it comes after a finger held on the water. All of it is the scene moving
+  the same sprite, so `frog.js` stays as it is. Reduced motion gets the shut
+  eyes and whatever is drawn over the frog, with no hop, tip or spin.
 - **The pond fits a phone with no scroll.** The frog's screen, its name with
   the rarity beside it, the bubble and the Next strip all sit above the keys
   at 412 by 915. Under 780 tall the screen narrows to `19rem` and the rows
