@@ -90,7 +90,7 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   `frontend/src/frog.js` is the same thing in JavaScript plus the drawing.
 - `arcade.go` is the side games, fishing, tongue flick, crossing, raft run,
   lily leap, tadpoles, lily stack, the shell game, pebble skip, pebble
-  drop, chorus and pad putt, which pay into the purse like Dive with a cap a day each. A score over a game's `most`
+  drop, chorus, pad putt and the spawn jar, which pay into the purse like Dive with a cap a day each. A score over a game's `most`
   pays nothing, so keep it well past what a person could reach. One game a
   day, off a hash of the date, is the disk of the day and pays in full a
   fourth time under the same cap. Eight hours after the last run of any game
@@ -333,6 +333,14 @@ they have none, for other sites to draw.
   hops at the longest reach less that hole's wind, so a frog that reads the
   wind well can now and then beat it. `puttMost` is twelve a hole, the most
   a hole under par pays, and the hops and splashes are the page's.
+- The spawn jar's circles are the page's own physics in `jar.js`, small
+  fixed steps of gravity and then each pair and the walls pushed apart a few
+  times over. Only overlap past a small slop is corrected, the floor grips
+  anything only nudged along it, and a ball drawn only moves once it's most
+  of a pixel from where it was drawn. Those three keep a resting pile from
+  shivering or creeping apart, so look at a still jar after changing any of
+  the numbers. Elders never merge, so the jar always fills
+  and a run always ends.
 - `index.css` is one flat file and the share page loads it too, so look for a
   class name in it before using one. `place` is already Dive's standings and
   `who` and `scene` are on the share page as well as the pond.

@@ -36,11 +36,16 @@ var arcadeGames = []arcadeGame{
 	{"sweep", "Bug sweep", 40, 0, bugSafe, 1},
 	{"chorus", "Chorus", 40, 7, chorusMost, 15},
 	{"putt", "Pad putt", 40, 5, puttMost, 3},
+	{"jar", "Spawn jar", 40, 25, jarMost, 25},
 }
 
 // Every beat of chorus right on time is all a song can score, before a
 // singer's quarter.
 const chorusMost = 601
+
+// The spawn jar fills up long before this, since the elders it grows never
+// leave, and nobody drops fast enough to get near it.
+const jarMost = 3000
 
 // A game with no rate is played out on the server a tap at a time, so it
 // never takes a score from the page. It pays once a day and is never the
