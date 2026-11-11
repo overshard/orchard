@@ -12,16 +12,17 @@ const BODY = 3, NEAR = 4;
 let G = null, col = null;
 const F = feel();
 
+// The river narrows and quickens over the first stretch and then holds.
 function centre(y) { return W / 2 + Math.sin(y / 170) * 30 + Math.sin(y / 53) * 9; }
-function half(y) { return Math.max(40, 74 - y / 260); }
-function speed(t) { return Math.min(118, 52 + t * 1.6); }
+function half(y) { return 40 + 34 * Math.exp(-y / 1500); }
+function speed(t) { return 118 - 62 * Math.exp(-t / 7); }
 function screenY(wy) { return H - (wy - G.dist); }
 
 function spawn() {
   const y = G.nextAt, c = centre(y), h = half(y);
   const r = Math.random();
   if (G.since >= 3 || r < 0.3) {
-    const gap = Math.max(26, 40 - G.dist / 500);
+    const gap = 26 + 14 * Math.exp(-G.dist / 1200);
     G.things.push({ k: "weir", y, gap, gx: c - h + 8 + Math.random() * (h * 2 - gap - 16) });
     G.since = 0;
   } else {

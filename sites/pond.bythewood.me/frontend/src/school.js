@@ -6,6 +6,8 @@ import { feel } from "./feel.js";
 // reeds, a stone or your own school ends it.
 const C = 16, COLS = 11, ROWS = 16, W = C * COLS, H = C * ROWS, M = C / 2;
 const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+// The school is at nearly its full speed within a dozen fleas and then holds.
+const SLOW = 0.2, FAST = 0.1, QUICKEN = 0.84;
 
 let G = null, col = null;
 const F = feel();
@@ -31,7 +33,7 @@ export const school = {
   reset(g) {
     col = colours(g, null);
     const cx = Math.floor(COLS / 2);
-    G = { t: 0, tick: 0, every: 0.2, dir: "up", turns: [], body: [{ x: cx, y: ROWS - 5 }, { x: cx, y: ROWS - 4 }, { x: cx, y: ROWS - 3 }], from: null, grow: 0, score: 0, stones: [], flea: null, gold: null, why: "", dead: 0, row: 0, ateAt: -9 };
+    G = { t: 0, tick: 0, every: SLOW, dir: "up", turns: [], body: [{ x: cx, y: ROWS - 5 }, { x: cx, y: ROWS - 4 }, { x: cx, y: ROWS - 3 }], from: null, grow: 0, score: 0, stones: [], flea: null, gold: null, why: "", dead: 0, fleas: 0, row: 0, ateAt: -9 };
     G.flea = free();
   },
 
@@ -71,12 +73,12 @@ export const school = {
     G.body.unshift(n);
     if (G.grow > 0) G.grow--; else G.body.pop();
     if (n.x === G.flea.x && n.y === G.flea.y) {
-      G.score++; G.grow++;
+      G.score++; G.grow++; G.fleas++;
       // Fleas eaten one soon after another carry the run of notes on.
       G.row = G.t - G.ateAt < 4 ? G.row % 8 + 1 : 1;
       G.ateAt = G.t;
       F.got(n.x * C + M, n.y * C + M, "+1", { streak: G.row });
-      G.every = Math.max(0.085, G.every * 0.97);
+      G.every = FAST + (SLOW - FAST) * Math.pow(QUICKEN, G.fleas);
       if (G.score % 6 === 0 && G.stones.length < 7) G.stones.push(free());
       G.flea = free();
       if (!G.gold && Math.random() < 0.18) G.gold = { ...free(), left: 6 };
