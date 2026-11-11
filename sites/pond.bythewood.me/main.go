@@ -334,7 +334,7 @@ func (s *site) keyLanding(w http.ResponseWriter, r *http.Request) {
 
 func (s *site) notFound(w http.ResponseWriter, r *http.Request) {
 	s.renderer.Render(w, http.StatusNotFound, "notfound.html",
-		s.pageFor("src/lost.js", "Not Found", "That page does not exist."))
+		s.pageFor("src/guest.js", "Not Found", "That page does not exist."))
 }
 
 func robots(w http.ResponseWriter, r *http.Request) {
