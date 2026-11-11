@@ -93,6 +93,7 @@ function scatter() {
 
 export const cross = {
   key: "cross", W, H: C * FEWEST, title: "CROSSING", feel: F,
+  aria: "Swipe or use the arrow keys to hop.",
   edge: ["#0e2c30", "#4f9a4a"],
 
   fit(w, h) {

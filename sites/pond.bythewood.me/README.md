@@ -97,6 +97,9 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   the pond is well rested and the next run pays a quarter more, still under
   that game's cap, with `ponds.played_at` keeping when.
   `frontend/src/arcade.js` is the frame round them, one file per game beside it.
+  `frontend/src/play.js` is the shelves on Play. A disk is one line on its
+  shelf there with its colour, its label art and its game, and the page makes
+  the disk, the game's view and its place in the tabs from that line.
   It reads a game's `W` and `H` each time, since Crossing changes its `H` to
   fit the window between runs.
   `frontend/src/feel.js` is how a game feels, one made with `feel()` and set

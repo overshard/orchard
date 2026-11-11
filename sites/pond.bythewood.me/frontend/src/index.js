@@ -3,16 +3,7 @@ import { genome, bred, cells, sideCells, colours, draw, croak, W, H, SW, SH } fr
 import { drawIcon, iconCanvas, drawFurn } from "./icons.js";
 import { initDive, enterDive, leaveDive } from "./dive.js";
 import { arcade } from "./arcade.js";
-import { flick } from "./flick.js";
-import { cross } from "./cross.js";
-import { raft } from "./raft.js";
-import { leap } from "./leap.js";
-import { school } from "./school.js";
-import { fish } from "./fish.js";
-import { stack } from "./stack.js";
-import { shell } from "./shell.js";
-import { skip } from "./skip.js";
-import { drawTop } from "./top.js";
+import { buildPlay, drawDisks, DISKS } from "./play.js";
 import { initWheel, enterWheel } from "./wheel.js";
 import { initReeds } from "./reeds.js";
 import { initBank, enterBank, leaveBank } from "./bank.js";
@@ -28,19 +19,22 @@ import { initPostcard } from "./postcard.js";
 import { drawScenery, drawSceneryNight } from "./scenery.js";
 import { initPet, setBox, pose, over as petOver, busy as petBusy, wasRub, tapTrick, arrive, drawBond } from "./pet.js";
 
-const VIEWS = ["pond", "play", "dive", "cross", "flick", "raft", "leap", "school", "fish", "stack", "shell", "skip", "wheel", "bag", "collect", "reeds", "garden", "bank", "town", "settings"];
+buildPlay($("shelves"), $("v-dive"));
+const SIDE = DISKS.filter((d) => d.game);
+const VIEWS = ["pond", "play", "dive", ...SIDE.map((d) => d.key), "wheel", "bag", "collect", "reeds", "garden", "bank", "town", "settings"];
 // Places that open from another light that one's key.
 const WORKS = ["reeds", "garden", "bank"];
 const TOWN = ["neighbours", "shops", "stall", "wizard"];
 // The key in town a waiting thing is behind, by its kind.
 const TOWN_KEY = { stall: "stall", favour: "neighbours", gift: "neighbours" };
-const TAB_OF = { neighbours: "town", shops: "town", stall: "town", wizard: "town", market: "works", reeds: "works", garden: "works", bank: "works", collect: "bag", dive: "play", wheel: "play", cross: "play", flick: "play", raft: "play", leap: "play", school: "play", fish: "play", stack: "play", shell: "play", skip: "play" };
+const TAB_OF = { neighbours: "town", shops: "town", stall: "town", wizard: "town", market: "works", reeds: "works", garden: "works", bank: "works", collect: "bag", dive: "play", wheel: "play" };
+SIDE.forEach((d) => { TAB_OF[d.key] = "play"; });
 let view = "pond", fetchedAt = Date.now(), worksAt = "", waitingAt = new Set();
 // What the server last said is open, kept so the keys are right before the
 // pond has loaded. A browser with nothing kept is most likely a new egg.
 let open = { works: false, market: false }, wanted = "";
 try { open = JSON.parse(localStorage.getItem("pond-open")) || open; } catch (e) { /* private window */ }
-const GAMES = { flick: arcade(flick), cross: arcade(cross), raft: arcade(raft), leap: arcade(leap), school: arcade(school), fish: arcade(fish), stack: arcade(stack), shell: arcade(shell), skip: arcade(skip) };
+const GAMES = Object.fromEntries(SIDE.map((d) => [d.key, arcade(d.game)]));
 
 // The Works key opens the place in it that was open last, and the first time
 // one with something waiting.
@@ -763,47 +757,7 @@ function payLine(key, a) {
 function drawPlay() {
   const p = state.pond, g = state.g;
   if (!p || !g) return;
-  const d = $("play-dive-art").getContext("2d");
-  ["#123a3d", "#0e2c30", "#0a1b1f"].forEach((c, i) => { d.fillStyle = c; d.fillRect(0, i * 32, 168, 32); });
-  d.fillStyle = "#7fd6c2"; d.fillRect(0, 0, 168, 3);
-  d.fillStyle = "#2f7a3f"; d.fillRect(120, 0, 10, 40); d.fillStyle = "#5b6470"; d.fillRect(118, 66, 14, 30);
-  d.fillStyle = "#3f9a4d"; d.fillRect(70, 0, 10, 28); d.fillStyle = "#5b6470"; d.fillRect(68, 56, 14, 40);
-  draw(d, sideCells(g, p.frog.stage === "egg" ? "tadpole" : p.frog.stage, true), SW, SH, colours(g, null), 22, 40, 2);
-  d.fillStyle = "rgba(255,246,220,0.6)"; d.fillRect(12, 30, 4, 4); d.fillRect(8, 22, 2, 2);
-  const c = $("play-cross-art").getContext("2d");
-  ["#4f9a4a", "#3a3a40", "#3a3a40", "#4f9a4a", "#1b4a5a", "#1d5163", "#2f6b33"].reverse().forEach((col, i) => { c.fillStyle = col; c.fillRect(0, i * 14 - 2, 168, 14); });
-  c.fillStyle = "#cfc7a8"; for (let x = 4; x < 168; x += 16) c.fillRect(x, 67, 8, 1);
-  c.fillStyle = "#e2412d"; c.fillRect(30, 58, 22, 8); c.fillStyle = "#3d8fd6"; c.fillRect(110, 72, 12, 6);
-  c.fillStyle = "#8a5a2b"; c.fillRect(60, 30, 44, 10); c.fillStyle = "#56b45f"; c.fillRect(20, 44, 12, 10); c.fillRect(34, 44, 12, 10);
-  c.fillStyle = colours(g, null)[1]; c.fillRect(78, 84, 10, 9);
-  const f = $("play-flick-art").getContext("2d");
-  f.fillStyle = "#1b3a4a"; f.fillRect(0, 0, 168, 96);
-  f.fillStyle = "#56b45f"; f.fillRect(54, 84, 60, 8);
-  draw(f, cells(g, ["egg", "tadpole"].includes(p.frog.stage) ? "froglet" : p.frog.stage, {}), W, H, colours(g, null), 62, 52, 1);
-  f.fillStyle = "#e2567a"; for (let i = 0; i < 14; i++) f.fillRect(84 + i * 3, 70 - i * 3, 2, 2);
-  f.fillStyle = "#3a3f46"; f.fillRect(126, 26, 5, 3); f.fillStyle = "#cfe3ea"; f.fillRect(126, 23, 2, 2); f.fillRect(129, 23, 2, 2);
-  f.fillStyle = "#ffe27a"; f.fillRect(30, 30, 4, 3); f.fillRect(140, 60, 4, 3);
-  const fc = colours(g, null);
-  const r = $("play-raft-art").getContext("2d");
-  r.fillStyle = "#3f8a44"; r.fillRect(0, 0, 168, 96);
-  for (let y = 0; y < 96; y += 2) { const c = 84 + Math.sin(y / 18) * 14; r.fillStyle = "#1d5163"; r.fillRect(Math.round(c - 46), y, 92, 2); }
-  r.fillStyle = "#56b45f"; for (let x = 40; x < 130; x += 3) if (x < 74 || x > 98) r.fillRect(x, 26, 2, 10);
-  r.fillStyle = "#8a5a2b"; for (let x = 41; x < 130; x += 6) if (x < 74 || x > 98) r.fillRect(x, 23, 2, 4);
-  r.fillStyle = "#8a9099"; r.fillRect(104, 56, 10, 8);
-  r.fillStyle = "#56b45f"; r.fillRect(76, 66, 16, 20);
-  drawTop(r, fc, 78, 70, false);
-  const l = $("play-leap-art").getContext("2d");
-  l.fillStyle = "#123a3d"; l.fillRect(0, 0, 168, 96);
-  [[20, 84], [70, 62], [112, 38], [40, 22]].forEach(([x, y], i) => { l.fillStyle = i === 3 ? "#8a5a2b" : "#56b45f"; l.fillRect(x, y, 32, 5); });
-  draw(l, cells(g, ["egg", "tadpole"].includes(p.frog.stage) ? "froglet" : p.frog.stage, {}), W, H, fc, 64, 20, 1);
-  l.fillStyle = "#3d8fd6"; l.fillRect(118, 30, 14, 3); l.fillStyle = "#cfe3ea"; l.fillRect(121, 26, 4, 3); l.fillRect(126, 26, 4, 3);
-  const sc = $("play-school-art").getContext("2d");
-  sc.fillStyle = "#2f6b33"; sc.fillRect(0, 0, 168, 96);
-  sc.fillStyle = "#1d5163"; sc.fillRect(4, 4, 160, 88);
-  [[60, 48], [72, 48], [84, 48], [84, 36], [96, 36]].forEach(([x, y], i) => { sc.fillStyle = fc[3]; sc.fillRect(x, y, 8, 8); sc.fillStyle = fc[1]; sc.fillRect(x + 1, y + 1, 6, 6); if (i === 4) { sc.fillStyle = "#0a0908"; sc.fillRect(x + 6, y + 2, 1, 1); sc.fillRect(x + 6, y + 5, 1, 1); } });
-  sc.fillStyle = "#e9e3d6"; sc.fillRect(124, 38, 5, 4);
-  sc.fillStyle = "#8a9099"; sc.fillRect(30, 20, 10, 9); sc.fillRect(130, 70, 10, 9);
-  drawNewDisks(g, p);
+  drawDisks(g, p);
   (p.arcade || []).forEach((a) => payLine(a.key, a));
   const w = $("play-wheel-art").getContext("2d");
   w.fillStyle = "#0e2c30"; w.fillRect(0, 0, 168, 96);
@@ -817,48 +771,6 @@ function drawPlay() {
     w.fillRect(x, y, 4, 4);
   }
   document.querySelectorAll("#logs canvas").forEach((cv, i) => drawLog(cv, logTurned && logPick === i));
-}
-
-function drawNewDisks(g, p) {
-  const fc = colours(g, null), front = cells(g, ["egg", "tadpole"].includes(p.frog.stage) ? "froglet" : p.frog.stage, {});
-  const side = sideCells(g, p.frog.stage === "egg" ? "tadpole" : p.frog.stage, false);
-  const f = $("play-fish-art").getContext("2d");
-  ["#2a5163", "#3f6f7a"].forEach((c, i) => { f.fillStyle = c; f.fillRect(0, i * 16, 168, 16); });
-  f.fillStyle = "#1f4a30"; for (let i = 0; i < 168; i += 4) f.fillRect(i, 26 - (i * 37) % 7, 4, 8 + (i * 37) % 7);
-  ["#1d5163", "#143c4a", "#0c2832"].forEach((c, i) => { f.fillStyle = c; f.fillRect(0, 34 + i * 21, 168, 21); });
-  f.fillStyle = "#8a5a2b"; f.fillRect(0, 30, 50, 3);
-  f.fillStyle = "#4a3018"; f.fillRect(8, 33, 3, 63); f.fillRect(40, 33, 3, 63);
-  draw(f, front, W, H, fc, 2, 0, 1);
-  f.fillStyle = "#c9974f"; for (let i = 0; i < 34; i++) f.fillRect(34 + i, 22 - Math.round(i * 0.55), 1, 1);
-  f.fillStyle = "#e9e3d6"; for (let i = 0; i < 44; i++) f.fillRect(68 + Math.round(i * 0.75), 4 + i * 1.4, 1, 1);
-  f.fillStyle = "#c9974f"; f.fillRect(100, 66, 18, 7); f.fillRect(118, 64, 4, 11); f.fillStyle = "#8a5a2b"; f.fillRect(100, 66, 18, 2);
-  f.fillStyle = "#0a0908"; f.fillRect(102, 68, 1, 1);
-  f.fillStyle = "#ffd23a"; f.fillRect(130, 82, 12, 5); f.fillRect(142, 81, 3, 7); f.fillStyle = "#f07a2a"; f.fillRect(134, 82, 3, 2);
-  f.fillStyle = "#e2412d"; f.fillRect(98, 32, 3, 2); f.fillStyle = "#fff6dc"; f.fillRect(98, 34, 3, 2);
-  const s = $("play-stack-art").getContext("2d");
-  s.fillStyle = "#123a3d"; s.fillRect(0, 0, 168, 96);
-  s.fillStyle = "#1d5163"; s.fillRect(0, 84, 168, 12);
-  [[44, 80], [48, 72], [50, 64], [52, 56], [54, 48], [54, 40]].forEach(([x, w], i) => { s.fillStyle = i % 2 ? "#1f5a2c" : "#2a6a35"; s.fillRect(x, 78 - i * 8, w, 8); s.fillStyle = i % 2 ? "#56b45f" : "#62bf6a"; s.fillRect(x, 78 - i * 8, w, 3); });
-  s.fillStyle = "#62bf6a"; s.fillRect(96, 22, 40, 8); s.fillStyle = "#2a6a35"; s.fillRect(96, 25, 40, 5);
-  draw(s, side, SW, SH, fc, 64, 20, 1);
-  const sh = $("play-shell-art").getContext("2d");
-  sh.fillStyle = "#3f6f7a"; sh.fillRect(0, 0, 168, 40); sh.fillStyle = "#1d5163"; sh.fillRect(0, 40, 168, 20);
-  sh.fillStyle = "#4a3a28"; sh.fillRect(0, 60, 168, 36);
-  [40, 84, 128].forEach((cx, i) => {
-    const by = i === 1 ? 64 : 80;
-    for (let k = 0; k < 14; k++) { const hw = Math.round(11 * Math.sqrt(1 - (k / 14) * (k / 14))); sh.fillStyle = "#c9974f"; sh.fillRect(cx - hw, by - k - 1, hw * 2, 1); }
-    sh.fillStyle = "#8a5a2b"; sh.fillRect(cx - 3, by - 8, 6, 1); sh.fillRect(cx - 1, by - 10, 4, 1); sh.fillRect(cx - 11, by - 1, 22, 1);
-  });
-  sh.fillStyle = fc[3]; sh.fillRect(80, 74, 8, 5); sh.fillStyle = fc[1]; sh.fillRect(81, 74, 5, 4); sh.fillRect(88, 76, 3, 2);
-  const k = $("play-skip-art").getContext("2d");
-  k.fillStyle = "#638e8a"; k.fillRect(0, 0, 168, 56);
-  k.fillStyle = "#2f5a3a"; for (let i = 0; i < 168; i += 4) k.fillRect(i, 46 - (i * 37) % 9, 4, 10 + (i * 37) % 9);
-  k.fillStyle = "#1d5163"; k.fillRect(0, 56, 168, 40);
-  k.fillStyle = "#4a3a28"; k.fillRect(0, 52, 30, 44); k.fillStyle = "#4f9a4a"; k.fillRect(0, 50, 30, 3);
-  draw(k, side, SW, SH, fc, 2, 33, 1);
-  k.fillStyle = "#cfe3ea"; [[46, 6], [78, 8], [104, 9], [124, 10], [140, 11]].forEach(([x, s]) => { k.fillRect(x - s, 57, s - 1, 1); k.fillRect(x + 2, 57, s - 1, 1); });
-  k.fillStyle = "rgba(255,246,220,0.5)"; [[56, 46], [62, 42], [90, 50], [96, 48], [114, 53]].forEach(([x, y]) => k.fillRect(x, y, 2, 1));
-  k.fillStyle = "#8a9099"; k.fillRect(150, 52, 4, 2); k.fillStyle = "#c9ccd0"; k.fillRect(151, 52, 2, 1);
 }
 
 let logTurned = false, logPick = -1;

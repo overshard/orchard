@@ -43,6 +43,7 @@ function bump(why) {
 
 export const raft = {
   key: "raft", W, H, title: "RAFT RUN", feel: F,
+  aria: "Hold where the raft should go, or use the arrow keys.",
   help: ["HOLD WHERE THE RAFT SHOULD GO", "THREAD THE GAPS IN THE REEDS", "THREE BUMPS AND YOU'RE OUT", "TAP TO START"],
 
   reset(g) {

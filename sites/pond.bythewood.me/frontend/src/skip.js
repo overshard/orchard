@@ -72,6 +72,7 @@ function touch() {
 
 export const skip = {
   key: "skip", W, H, title: "PEBBLE SKIP", feel: F,
+  aria: "Drag back and let go to throw.",
   help: ["DRAG BACK AND LET GO TO THROW", "FLAT AND HARD SKIPS BEST", "TAP AS IT HITS THE WATER FOR DOUBLE", "PADS PAY 3, DUCKS STOP IT", "TAP TO START"],
 
   reset(g, p) {

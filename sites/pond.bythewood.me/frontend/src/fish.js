@@ -169,6 +169,7 @@ function fight(dt) {
 
 export const fish = {
   key: "fish", W, H, title: "FISHING", feel: F, timed: true,
+  aria: "Tap the water to cast, tap on a bite, hold to reel, or tap to reel with that turned on in settings.",
   edge: ["#2a5163", "#2a2218"],
   get help() {
     return ["TAP THE WATER TO CAST", "TAP WHEN THE BOBBER GOES UNDER", tapReel ? "TAP TO REEL, TAP AGAIN WHEN IT RUNS" : "HOLD TO REEL, LET GO WHEN IT RUNS", "TAP TO START"];

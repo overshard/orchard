@@ -30,6 +30,7 @@ function mouth() { return { x: W / 2, y: H - 58 }; }
 
 export const flick = {
   key: "flick", W, H, title: "TONGUE FLICK", feel: F, timed: true,
+  aria: "Tap a bug to catch it.",
   edge: ["#24485a", "#0e2c30"],
   help: ["TAP A BUG TO FLICK AT IT", "FIREFLIES PAY THE MOST", "WASPS STING", "TAP TO START"],
 
