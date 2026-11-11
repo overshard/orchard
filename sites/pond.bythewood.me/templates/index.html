@@ -262,7 +262,15 @@
     <div class="slots big" id="col-grid"></div>
   </section>
 
-  <section class="view" id="v-reeds" hidden>
+  <div class="workshead" id="works-head" hidden>
+    <div class="places three" id="works-tabs" role="group" aria-label="In the works">
+      <button type="button" data-go="reeds" aria-pressed="false"><canvas data-icon="f_reeds" width="40" height="40"></canvas>Reeds</button>
+      <button type="button" data-go="garden" aria-pressed="false"><canvas data-icon="watercress" width="40" height="40"></canvas>Garden</button>
+      <button type="button" data-go="bank" aria-pressed="false"><canvas data-icon="i_bank" width="40" height="40"></canvas>Bank</button>
+    </div>
+  </div>
+
+  <section class="view inworks" id="v-reeds" hidden>
     <div class="screen"><canvas id="reeds-art" width="384" height="84" aria-label="Every frog on its lily pad"></canvas></div>
     <p class="line" id="reeds-line"></p>
     <div class="reeds" id="reeds"></div>
@@ -288,7 +296,7 @@
     <div class="row"><button type="button" id="pad-buy">Another pad</button></div>
   </section>
 
-  <section class="view" id="v-garden" hidden>
+  <section class="view inworks" id="v-garden" hidden>
     <div class="screen"><canvas id="garden" width="528" height="216" aria-label="The garden plots by the water"></canvas></div>
     <p class="dim" id="garden-note"></p>
     <div class="row">
@@ -308,7 +316,7 @@
     <ul class="things dishes" id="dishes"></ul>
   </section>
 
-  <section class="view" id="v-bank" hidden>
+  <section class="view inworks" id="v-bank" hidden>
     <div class="places pair" id="bank-tabs" role="group" aria-label="In the bank">
       <button type="button" data-bank="works" aria-pressed="true"><canvas data-icon="i_bank" width="40" height="40"></canvas>Bank</button>
       <button type="button" data-bank="market" aria-pressed="false"><canvas data-icon="i_market" width="40" height="40"></canvas>Market</button>
@@ -521,9 +529,7 @@
   <button type="button" data-view="pond" aria-pressed="true"><canvas data-icon="i_pond" width="24" height="24"></canvas>Pond</button>
   <button type="button" data-view="play" aria-pressed="false"><canvas data-icon="i_play" width="24" height="24"></canvas>Play</button>
   <button type="button" data-view="bag" aria-pressed="false"><canvas data-icon="i_bag" width="24" height="24"></canvas>Bag</button>
-  <button type="button" data-view="reeds" aria-pressed="false"><canvas data-icon="f_reeds" width="24" height="24"></canvas>Reeds</button>
-  <button type="button" data-view="garden" aria-pressed="false"><canvas data-icon="watercress" width="24" height="24"></canvas>Garden</button>
-  <button type="button" data-view="bank" aria-pressed="false"><canvas data-icon="i_bank" width="24" height="24"></canvas>Bank</button>
+  <button type="button" data-view="works" aria-pressed="false"><canvas data-icon="i_works" width="24" height="24"></canvas>Works</button>
   <button type="button" data-view="town" aria-pressed="false"><canvas data-icon="i_town" width="24" height="24"></canvas>Town</button>
 </nav>
 {{ end }}

@@ -95,6 +95,7 @@ export const ICONS = {
   i_bag: [["...bb...", "..b..b..", "..aaaa..", ".aaaaaa.", "aaacaaaa", "aacccaaa", "aaacaaaa", ".aaaaaa."], { a: "#c9974f", b: "#8a6230", c: "#fff6dc" }],
   i_star: [["...a....", "...a....", "..aba...", "aaabaaa.", ".abbba..", "..aaa...", ".aa.aa..", "aa...aa."], { a: "#ffe27a", b: "#fff6dc" }],
   i_bank: [["........", "........", "...ab...", "..aabb..", ".cabbcc.", "ccaabbcc", "cccccccc", "........"], { a: "#d5d8dc", b: "#9aa0a6", c: "#6d747a" }],
+  i_works: [["......b.", "......b.", "a.a.a.b.", "aaaaaab.", "cccccccc", "cdcdcdcc", "cccccccc", "........"], { a: "#b8456a", b: "#9aa0a6", c: "#8a5a2b", d: "#ffe27a" }],
   i_town: [["...aa...", "..aaaa..", ".aaaaaa.", "bcbcbcbc", "d.dddd.d", "d.deed.d", "d.deed.d", "dddddddd"], { a: "#e2567a", b: "#fff6dc", c: "#e2567a", d: "#8a5a2b", e: "#ffe27a" }],
   i_shops: [["aaaaaaaa", "babababa", ".cccccc.", ".cddcee.", ".cddcee.", ".ccccee.", ".ccccee.", "ffffffff"], { a: "#4fae5b", b: "#fff6dc", c: "#c9974f", d: "#9fd8e8", e: "#6b4422", f: "#5b534a" }],
   i_folk: [[".bb..bb.", "bcbaabcb", "abbaabba", "aaaaaaaa", "adaaaada", "aaddddaa", ".aaaaaa.", "........"], { a: "#b0773a", b: "#fff6dc", c: "#0a0908", d: "#6b4422" }],
