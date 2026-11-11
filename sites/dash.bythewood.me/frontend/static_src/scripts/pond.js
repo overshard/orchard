@@ -26,42 +26,38 @@ function paint(ctx, c, px, ink) {
   }
 }
 
-const SHOWN = 4;
-
-function todo(d) {
-  const ul = panel.querySelector("[data-pond-todo]");
-  if (!ul || d.house) return;
-  ul.textContent = "";
-  const item = (el) => { const li = document.createElement("li"); li.append(el); ul.append(li); };
-  if (d.found) {
-    const s = document.createElement("span");
-    s.textContent = "FOUND THE " + d.found.name.toUpperCase() + " HERE, IT'S IN YOUR BAG";
-    item(s);
-  }
-  d.todo.slice(0, SHOWN).forEach((t) => {
-    const a = document.createElement("a");
-    a.href = POND + "/#" + t.to; a.target = "_blank"; a.rel = "noopener";
-    a.textContent = t.label.toUpperCase();
-    item(a);
-  });
-  const more = d.todo.length - SHOWN, s = document.createElement("span");
-  if (more > 0) { s.textContent = "+" + more + " MORE AT THE POND"; item(s); }
-  if (!d.todo.length) { s.textContent = "NOTHING WAITING TODAY"; item(s); }
-  ul.hidden = false;
-}
-
 function show(d) {
   const f = d.frog, g = bred(genome(f.seed), f.mods), hat = f.hat && f.hat.shape ? f.hat.shape : 0;
   const cv = panel.querySelector("canvas"), ctx = cv.getContext("2d"), px = cv.width / W;
-  const set = (k, v) => { const el = panel.querySelector("[data-pond-" + k + "]"); if (el) el.textContent = v; };
+  const at = (k) => panel.querySelector("[data-pond-" + k + "]");
+  const set = (k, v) => { const el = at(k); if (el) el.textContent = v; };
+  const odds = "1 IN " + f.rarity.n.toLocaleString("en-US");
 
-  set("meta", d.house ? "HOUSE FROG" : f.rarity.label.toUpperCase() + " / 1 IN " + f.rarity.n.toLocaleString("en-US"));
   set("name", f.name);
-  set("stage", (STAGES[f.stage] || f.stage.toUpperCase()) + " / DAY " + f.day);
-  set("pebbles", d.house ? "—" : d.pebbles.toLocaleString("en-US"));
-  set("power", d.house ? "—" : d.power.toLocaleString("en-US") + (d.rank ? " / " + d.rank.toUpperCase() : ""));
-  set("go", d.house ? "GET A FROG OF YOUR OWN ↗" : "VISIT THE POND ↗");
-  todo(d);
+  set("stage", (STAGES[f.stage] || f.stage.toUpperCase()) + "\nDAY " + f.day + (d.house ? "" : "\n" + odds));
+  set("go", d.house ? "GET A FROG ↗" : "VISIT ↗");
+  if (d.house) {
+    set("k1", "HOUSE FROG"); set("v1", f.morph + " / " + f.pattern);
+    set("k2", "RARITY"); set("v2", odds);
+    // An empty cell drops out of the plate.
+    set("v3", "");
+  } else {
+    set("v1", d.pebbles.toLocaleString("en-US"));
+    set("v2", d.power.toLocaleString("en-US"));
+    const v3 = at("v3");
+    if (d.todo.length) {
+      const a = document.createElement("a");
+      a.href = POND + "/#" + d.todo[0].to; a.target = "_blank"; a.rel = "noopener";
+      a.textContent = d.todo.length + " ↗";
+      a.title = d.todo.map((t) => t.label).join(", ");
+      v3.replaceChildren(a);
+    } else v3.textContent = "NONE";
+  }
+  if (d.found) {
+    const p = at("found");
+    p.textContent = "FOUND THE " + d.found.name.toUpperCase() + " HERE, IT'S IN YOUR BAG";
+    p.hidden = false;
+  }
   panel.dataset.state = "ready";
 
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;

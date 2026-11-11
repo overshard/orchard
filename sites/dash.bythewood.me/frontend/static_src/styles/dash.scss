@@ -1332,78 +1332,98 @@ main {
 }
 
 .pond {
-  .pond-body {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    flex: 1;
+  // The frog's screen, with its name on the glass and a waterline under it.
+  .pond-screen {
+    position: relative;
+    height: 122px;
+    background: var(--void);
+    border: 1px solid var(--line);
+    border-bottom: 0;
+    overflow: hidden;
+
+    &::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(0deg, rgba(255, 176, 0, 0.05) 0 1px, transparent 1px 3px);
+      pointer-events: none;
+    }
+  }
+
+  .pond-water {
+    position: absolute;
+    inset: auto 0 0;
+    height: 15px;
+    border-top: 1px solid var(--amber-dim);
+    background:
+      repeating-linear-gradient(90deg, rgba(179, 123, 0, 0.5) 0 6px, transparent 6px 15px) 4px 5px / 100% 1px no-repeat,
+      repeating-linear-gradient(90deg, rgba(179, 123, 0, 0.3) 0 4px, transparent 4px 21px) 11px 10px / 100% 1px no-repeat;
   }
 
   // Drawn at 3px a cell and never smoothed, so the cells stay square.
   .pond-frog {
-    flex: none;
+    position: absolute;
+    left: 50%;
+    bottom: 9px;
+    margin-left: -66px;
     width: 132px;
     height: 102px;
     image-rendering: pixelated;
-    background: var(--void);
-    border: 1px solid var(--line);
     cursor: pointer;
   }
 
-  .pond-read {
-    margin: 0;
-    display: grid;
-    gap: 6px;
-    min-width: 0;
-
-    div { min-width: 0; }
-    dt { font-size: 9px; letter-spacing: var(--track); color: var(--dim); }
-    dd {
-      margin: 0;
-      font-size: 11px;
-      color: var(--muted);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    [data-pond-name] { color: var(--amber); }
+  .pond-name {
+    position: absolute;
+    top: 5px;
+    left: 10px;
+    font-family: var(--grotesk);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--amber);
   }
 
-  // What's waiting at the pond, each a link straight to it.
-  .pond-todo {
-    list-style: none;
-    margin: 12px 0 0;
-    padding: 10px 0 0;
-    border-top: 1px solid var(--line);
-    display: grid;
-    gap: 5px;
-    font-size: 10px;
+  .pond-stage {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    font-size: 9px;
+    line-height: 1.5;
     letter-spacing: var(--track);
+    color: var(--dim);
+    text-align: right;
+    white-space: pre-line;
+  }
 
-    a, span {
-      display: block;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
+  .pond-plate {
+    .cell { flex: 1; padding: 7px 10px 8px; }
+    .v { color: var(--text); }
     a { color: var(--amber); text-decoration: none; }
-    a::before { content: "\25B8  "; color: var(--amber-dim); }
     a:hover { text-decoration: underline; }
-    span { color: var(--dim); }
   }
 
-  .pond-down { display: none; margin: 0; font-size: 11px; color: var(--dim); letter-spacing: var(--track); }
+  .pond-found {
+    margin: 10px 0 0;
+    font-size: 9px;
+    letter-spacing: var(--track);
+    color: var(--dim);
+  }
 
-  .pond-go {
-    margin-top: 10px;
+  .pond-down {
+    display: none;
+    position: absolute;
+    inset: 0;
+    place-items: center;
     font-size: 10px;
     letter-spacing: var(--track);
+    color: var(--dim);
   }
 
-  &[data-state="loading"] .pond-go { visibility: hidden; }
+  a.panel-meta { color: var(--amber); }
+  &[data-state="loading"] a.panel-meta { visibility: hidden; }
   &[data-state="down"] {
-    .pond-body { display: none; }
-    .pond-down { display: block; }
+    .pond-frog, .pond-water { display: none; }
+    .pond-down { display: grid; }
   }
 }
 

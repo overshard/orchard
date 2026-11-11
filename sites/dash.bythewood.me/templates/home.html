@@ -375,20 +375,21 @@
       <span class="idx">16</span>
       <h2>POND</h2>
       <span class="rule"></span>
-      <span class="panel-meta" data-pond-meta>&mdash;</span>
+      <a class="panel-meta" href="https://pond.bythewood.me/" rel="noopener" target="_blank" data-pond-go>VISIT &#8599;</a>
     </header>
-    <div class="pond-body">
+    <div class="pond-screen">
+      <span class="pond-name" data-pond-name></span>
+      <span class="pond-stage" data-pond-stage></span>
+      <span class="pond-water"></span>
       <canvas class="pond-frog" width="132" height="102" aria-label="A frog from the pond. Tap it to hear its call."></canvas>
-      <dl class="pond-read">
-        <div><dt>NAME</dt><dd data-pond-name>&mdash;</dd></div>
-        <div><dt>STAGE</dt><dd data-pond-stage>&mdash;</dd></div>
-        <div><dt>PEBBLES</dt><dd data-pond-pebbles>&mdash;</dd></div>
-        <div><dt>POWER</dt><dd data-pond-power>&mdash;</dd></div>
-      </dl>
+      <span class="pond-down">NO SIGNAL FROM THE POND</span>
     </div>
-    <ul class="pond-todo" data-pond-todo hidden></ul>
-    <p class="pond-down">NO SIGNAL FROM THE POND</p>
-    <a class="pond-go" href="https://pond.bythewood.me/" rel="noopener" target="_blank" data-pond-go>VISIT THE POND &#8599;</a>
+    <div class="rating pond-plate">
+      <div class="cell"><span class="k" data-pond-k1>PEBBLES</span><span class="v" data-pond-v1>&mdash;</span></div>
+      <div class="cell"><span class="k" data-pond-k2>POWER</span><span class="v" data-pond-v2>&mdash;</span></div>
+      <div class="cell"><span class="k">WAITING</span><span class="v" data-pond-v3>&mdash;</span></div>
+    </div>
+    <p class="pond-found" data-pond-found hidden></p>
   </section>
 </div>
 {{end}}
