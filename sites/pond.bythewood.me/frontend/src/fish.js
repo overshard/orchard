@@ -174,6 +174,8 @@ export const fish = {
     if (Math.random() < 0.6) G.boots.push({ x: rnd(100, W - 20), y: BOT - 4 });
   },
 
+  demo() { return G && G.st === "ready" ? { x: 150, y: SURF + 70 } : null; },
+
   press(x, y) {
     if (!G || G.end) return;
     if (G.st === "fight") { G.hold = true; return; }

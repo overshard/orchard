@@ -107,6 +107,8 @@ export const cross = {
     build(); home(); scatter();
   },
 
+  demo() { return G ? { x: G.fx * C + 24, y: G.row * C + 7, to: [G.fx * C + 24, G.row * C - 21] } : null; },
+
   swipe(dir) {
     if (!G || G.lives <= 0 || G.flash > 0.3) return;
     // A swipe that lands just before the hop is over waits for it.

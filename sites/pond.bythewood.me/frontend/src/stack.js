@@ -56,6 +56,8 @@ export const stack = {
     next();
   },
 
+  demo() { return { x: W / 2, y: H - 70 }; },
+
   press() { if (G && G.mv && !G.dead) drop(); },
   keyPress() { stack.press(); },
 

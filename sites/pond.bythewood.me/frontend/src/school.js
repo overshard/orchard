@@ -37,6 +37,12 @@ export const school = {
     G.flea = free();
   },
 
+  demo() {
+    if (!G) return null;
+    const h = G.body[0], x = h.x * C + M, y = h.y * C + M + 34;
+    return { x, y, to: [x + (G.flea.x < h.x ? -36 : 36), y] };
+  },
+
   swipe(dir) {
     if (!G || G.dead) return;
     const last = G.turns.length ? G.turns[G.turns.length - 1] : G.dir, a = DIRS[last], b = DIRS[dir];

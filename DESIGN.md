@@ -639,6 +639,9 @@ version of the old look and a handheld pet shell.
   over an amber AGAIN key, sat a third of the way down so the crash still
   shows under it, and one tap is the next run. A new best or a place on Dive's
   podium gets the whole results.
+- **A game's first open has a ghost finger and no title.** A cream pixel hand
+  does the game's first input over the field, a tap, a hold or a drag, until
+  the player has done it once. It shows once a browser.
 - **The market is a board.** A ticker of pebble prices scrolls along the top in
   readout glass, still under reduced motion, each business is a pixel
   shopfront in its own awning colour with its price in glass, and a day down

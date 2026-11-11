@@ -1,7 +1,7 @@
 import { $, post, state, setPond, watch, room, onResize, payWord } from "./api.js";
 import { genome, sideCells, draw as drawCells, SW, SH } from "./frog.js";
 import { raceStart, raceOut, raceOrder, raceResults, raceHide, countdown, callout, suffix } from "./race.js";
-import { feel } from "./feel.js";
+import { feel, finger, unseen, sawIt } from "./feel.js";
 import { sfx } from "./sound.js";
 
 // Dive is played in a 320 by 200 field and drawn at twice that. The frog
@@ -20,7 +20,7 @@ const AHEAD = 5, BEHIND = 6, OVER = 3, UNDER = 4, NEAR = 4;
 const QUICK_AT = 350, QUICK_LOCK = 450, LOCK = 900;
 
 const F = feel();
-let gc, gx, spr = null, sprKey = "", net = Promise.resolve();
+let gc, gx, spr = null, sprKey = "", net = Promise.resolve(), first = unseen("dive");
 const G = { state: "idle", score: 0, fy: 100, vy: 0, kick: 0, gates: [], bub: [], dist: 0, next: 0, last: 0, overAt: 0, rank: 0, t: 0, why: "", lastC: 100, flash: 0, paid: null, best: false };
 
 function best() { return state.pond ? state.pond.dive.best : 0; }
@@ -189,6 +189,7 @@ function place() { return 1 + others.filter((o) => o.clears > G.cleared).length;
 function kick() {
   G.vy = KICK; G.kick = 0.16;
   sfx("kick"); F.squash(0.4);
+  if (first) { first = false; sawIt("dive"); }
   for (let i = 0; i < 3; i++) G.bub.push({ x: FXP - 10 - Math.random() * 6, y: G.fy - 2 + Math.random() * 6, a: 1 });
 }
 
@@ -332,17 +333,25 @@ function draw(now) {
   const show = G.state !== "over" || now - G.overAt > 500 || Math.floor((now - G.overAt) / 80) % 2 === 0;
   if (show) F.squashed(gx, FXP, G.fy + 9, () => drawCells(gx, sprites()[G.kick > 0 ? 1 : 0], SW, SH, frogCols(state.g), Math.round(FXP - 15), Math.round(G.fy - 9), 1));
   F.draw(gx);
+  if (first && G.state !== "over" && G.state !== "paused") finger(gx, { x: Math.round(PW * 0.62), y: Math.round(GH * 0.62) }, now / 1000);
   gx.textAlign = "center"; gx.font = BIG;
   gx.fillStyle = "#0a1b1f"; gx.fillText(G.score, PW / 2 + 1, 48); gx.fillStyle = G.flash > 0 ? "#ffe27a" : "#fff6dc"; gx.fillText(G.score, PW / 2, 47);
   overlay(now);
   if (G.state === "over" && now - G.overAt < 600) requestAnimationFrame(draw);
 }
 
+// The finger taps over the still water until a tap starts the lights.
+function demo(now) {
+  if (!first || G.state !== "idle" || $("v-dive").hidden) return;
+  draw(now);
+  requestAnimationFrame(demo);
+}
+
 // The title is the same card the side games open on, and a paused run shows
 // in it too.
 function overlay(now) {
   const card = $("dive-card"), again = G.state === "over" && G.quick && now - G.overAt >= QUICK_AT;
-  const want = again ? "again" + G.paid : G.state === "idle" || G.state === "paused" ? G.state : "";
+  const want = again ? "again" + G.paid : (G.state === "idle" && !first) || G.state === "paused" ? G.state : "";
   card.hidden = !want;
   if (card.hidden) return;
   card.classList.toggle("quick", again);
@@ -425,6 +434,7 @@ onResize(() => {
 export function enterDive() {
   if (G.state !== "play") { G.state = "idle"; raceHide(); fit(); }
   draw(performance.now());
+  requestAnimationFrame(demo);
 }
 
 // Leaving the view mid run ends it, so the points still count.

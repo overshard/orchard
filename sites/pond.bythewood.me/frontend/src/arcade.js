@@ -1,16 +1,18 @@
 import { $, post, state, setPond, watch, room, onResize, payWord } from "./api.js";
+import { finger, unseen, sawIt } from "./feel.js";
 
 // The frame round a side game. A game is a fixed field W by H, drawn at twice
 // that and scaled to the window, with reset, step, draw, and input hooks. This
 // starts and finishes runs on the server and shows the title and results.
-// A game with a feel gets its freezes and shake run from here.
+// A game with a feel gets its freezes and shake run from here, and one with a
+// demo gets a ghost finger doing it the first time it's opened.
 const LOCK = 900, QUICK = 300;
 
 export function arcade(game) {
   const k = game.key, view = $("v-" + k), cv = $(k + "-cv"), cx = cv.getContext("2d");
   const A = { state: "idle", last: 0, overAt: 0, paid: null, best: false, scale: 1, quick: false };
   const F = game.feel;
-  let net = Promise.resolve(), started = null, down = null;
+  let net = Promise.resolve(), started = null, down = null, first = !!game.demo && unseen(k);
 
   function info() { return state.pond && state.pond.arcade.find((a) => a.key === k); }
 
@@ -72,7 +74,7 @@ export function arcade(game) {
   function lock() { return A.quick && !game.timed ? QUICK : LOCK; }
 
   function showCard(now) {
-    card.hidden = A.state === "play";
+    card.hidden = A.state === "play" || (first && A.state === "idle");
     if (card.hidden) return;
     card.classList.toggle("quick", A.state === "over" && A.quick);
     if (A.state === "over" && A.quick) {
@@ -111,8 +113,24 @@ export function arcade(game) {
     cx.setTransform(2, 0, 0, 2, sx * 2, sy * 2);
     cx.imageSmoothingEnabled = false;
     game.draw(cx, now);
+    const d = first && A.state !== "over" && A.state !== "paused" && game.demo();
+    if (d) finger(cx, d, now / 1000);
     backdrop();
     if (A.state !== "play") showCard(now);
+  }
+
+  // The finger goes on over the still field until a tap starts the run, and
+  // then over the run until the first thing the player does.
+  function demo(now) {
+    if (!first || A.state !== "idle" || view.hidden) return;
+    paint(now);
+    requestAnimationFrame(demo);
+  }
+
+  function used() {
+    if (!first) return;
+    first = false;
+    sawIt(k);
   }
 
   function loop(now) {
@@ -177,6 +195,7 @@ export function arcade(game) {
       if (e && game.drag) { down = point(e); down.moved = true; game.drag(down.x, down.y); }
       return;
     }
+    used();
     if (e) { down = point(e); down.moved = false; }
     if (e && game.press) game.press(down.x, down.y);
     if (e && game.drag) game.drag(down.x, down.y);
@@ -187,7 +206,7 @@ export function arcade(game) {
   function move(e) {
     if (A.state !== "play" || !down) return;
     const p = point(e);
-    if (game.drag) game.drag(p.x, p.y);
+    if (game.drag) { used(); game.drag(p.x, p.y); }
     if (!game.swipe) return;
     const dx = p.x - down.x, dy = p.y - down.y;
     if (Math.max(Math.abs(dx), Math.abs(dy)) * A.scale < 18) return;
@@ -218,6 +237,7 @@ export function arcade(game) {
     if (dir || e.code === "Space" || e.code === "Enter") e.preventDefault();
     if (e.repeat) return;
     if (A.state !== "play") { if (dir || e.code === "Space" || e.code === "Enter") press(null); return; }
+    used();
     // A game with its own keys gets every one, down and up.
     if (game.keys) { game.keys(e.code, true); return; }
     if (dir && game.hold) game.hold(dir, true);
@@ -252,6 +272,7 @@ export function arcade(game) {
       fit();
       if (A.state === "idle" && state.pond) game.reset(state.g, state.pond);
       note(); paint(performance.now());
+      requestAnimationFrame(demo);
     },
     // Leaving mid run ends it, so the points still count.
     leave() {

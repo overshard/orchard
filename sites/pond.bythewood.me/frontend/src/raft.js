@@ -55,6 +55,11 @@ export const raft = {
     while (G.nextAt < G.dist + H + 40) spawn();
   },
 
+  demo() {
+    const w = G && G.things.find((t) => t.k === "weir" && !t.done);
+    return w ? { x: w.gx + w.gap / 2, y: FY - 30, hold: true } : null;
+  },
+
   drag(x) { if (G) G.want = x; },
   release() { if (G) G.want = null; },
   hold(dir, on) { if (G) G.keys[dir] = on; },

@@ -81,6 +81,8 @@ export const skip = {
     deal();
   },
 
+  demo() { return G && G.st === "aim" && !G.aim ? { x: 124, y: 150, to: [64, 172] } : null; },
+
   press(x, y) {
     if (!G) return;
     if (G.st === "aim") G.aim = { p0: { x, y }, p1: { x, y } };
