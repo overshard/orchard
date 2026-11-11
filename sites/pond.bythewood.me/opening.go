@@ -27,7 +27,7 @@ func openOf(p *pond, now time.Time) openView {
 // has says whether the page's view a row points at is open.
 func (o openView) has(to string) bool {
 	switch to {
-	case "reeds", "garden", "bank":
+	case "reeds", "job", "garden", "bank":
 		return o.Works
 	case "market":
 		return o.Works && o.Market

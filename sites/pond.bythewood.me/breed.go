@@ -173,17 +173,17 @@ type frogRow struct {
 	Fed    string
 	FedAt  int64
 	Job    string
-	JobAt  int64
-	Recipe string
-	// Hours of crafting done toward the next thing.
-	Carry float64
+	Target string
+	// When its unpaid actions began, and how many it had been paid for before.
+	WorkAt int64
+	WorkN  int
 	// Its favourite dish and hat by kind, empty until it's a frog.
 	FavDish, FavHat string
 }
 
 func loadFrogs(q querier, pondID int64) ([]frogRow, error) {
 	rows, err := q.Query(`SELECT id, seed, genome_json, hatched_at, laid_at, out_front, hat_shape, hat_colour, name, fed, fed_at,
-		job, job_at, recipe, carry, fav_dish, fav_hat FROM frogs WHERE pond_id = ? ORDER BY id`, pondID)
+		job, target, work_at, work_n, fav_dish, fav_hat FROM frogs WHERE pond_id = ? ORDER BY id`, pondID)
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +193,7 @@ func loadFrogs(q querier, pondID int64) ([]frogRow, error) {
 		var f frogRow
 		var raw string
 		if err := rows.Scan(&f.ID, &f.Seed, &raw, &f.HatchedAt, &f.LaidAt, &f.Front, &f.Hat.Shape, &f.Hat.Colour, &f.Name, &f.Fed, &f.FedAt,
-			&f.Job, &f.JobAt, &f.Recipe, &f.Carry, &f.FavDish, &f.FavHat); err != nil {
+			&f.Job, &f.Target, &f.WorkAt, &f.WorkN, &f.FavDish, &f.FavHat); err != nil {
 			return nil, err
 		}
 		f.Mods = parseMods(raw)
@@ -301,17 +301,9 @@ func (s *store) feed(id, frogID int64, kind string) (*view, error) {
 		if err := takeItem(tx, p.ID, kind, 1); err != nil {
 			return err
 		}
-		// A worker's hours so far were on whatever it had before.
-		frogs, xp, held, err := jobState(tx, p.ID)
-		if err != nil {
+		// What it did before this meal is paid as it stands.
+		if _, err := s.settle(tx, p, frogID, now); err != nil {
 			return err
-		}
-		for _, w := range frogs {
-			if w.ID == frogID && w.Job != "" {
-				if _, err := collectWork(tx, p, w, xpOf(xp, w.ID), held, now, false); err != nil {
-					return err
-				}
-			}
 		}
 		if _, err := tx.Exec(`UPDATE frogs SET fed = ?, fed_at = ? WHERE id = ?`, kind, now.Unix(), frogID); err != nil {
 			return err

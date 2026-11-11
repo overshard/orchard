@@ -93,13 +93,17 @@ func seasonWeights(now time.Time, rain bool) []int {
 	return w
 }
 
-func rollCrop(now time.Time, rain bool) int {
+func rollCrop(now time.Time, rain bool) int { return cropOf(now, rain, rand.IntN) }
+
+// cropOf picks what comes up this month, with draw giving a number under its
+// argument.
+func cropOf(now time.Time, rain bool, draw func(int) int) int {
 	w := seasonWeights(now, rain)
 	sum := 0
 	for _, x := range w {
 		sum += x
 	}
-	r := rand.IntN(sum)
+	r := draw(sum)
 	for i, x := range w {
 		if r < x {
 			return i
