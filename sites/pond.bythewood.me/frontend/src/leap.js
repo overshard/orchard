@@ -42,6 +42,11 @@ export const leap = {
     fill();
   },
 
+  demo() {
+    const p = G && G.pads.filter((q) => q.y < G.y - 20).sort((a, b) => b.y - a.y)[0];
+    return p ? { x: p.x + PW / 2, y: H - 70, hold: true } : null;
+  },
+
   press() { if (G) { G.downAt = G.t; G.lift = 0; } },
   drag(x) { if (G) G.want = x; },
   // A tap too quick to steer by still pulls for a moment.

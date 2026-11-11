@@ -61,6 +61,8 @@ export const shell = {
     round();
   },
 
+  demo() { return G && G.st === "pick" ? { x: slotX(1, G.shells.length), y: GROUND - 6 } : null; },
+
   press(x, y) {
     if (!G || G.st !== "pick" || y < GROUND - 50 || y > GROUND + 20) return;
     const n = G.shells.length, gap = Math.min(56, 168 / (n - 1));

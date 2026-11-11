@@ -40,6 +40,11 @@ export const flick = {
     G = { t: 0, bugs: [], next: 0.3, tongue: null, streak: 0, score: 0, stun: 0, why: "" };
   },
 
+  demo() {
+    const b = G && G.bugs.find((q) => q.kind.k !== "wasp" && q.x > 20 && q.x < W - 20);
+    return b ? { x: b.x, y: b.y } : { x: W / 2 + 30, y: 90 };
+  },
+
   press(x, y) {
     if (!G || G.tongue || G.stun > 0) return;
     const m = mouth(), dx = x - m.x, dy = Math.min(y - m.y, -4), d = Math.hypot(dx, dy);

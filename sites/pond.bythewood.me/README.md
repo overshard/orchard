@@ -84,7 +84,8 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
   as the game's `feel`. `got` is a catch and `crash` a bonk, with the blip, the
   freeze, the bits and the popup in one call, `close` is a near miss,
   `squashed` draws the frog squashed, `buffer` and `take` keep an early press
-  for 90ms, and the game calls `draw` where its popups belong.
+  for 90ms, and the game calls `draw` where its popups belong. A game's
+  `demo()` gives the ghost finger its first input.
 - `neighbours.go` is the residents, friendship by dishes and a favour a day.
 - `burrow.go` is the bank's burrows. Each level adds a pad that doesn't count
   toward the ones you buy, and a friendly neighbour can lodge in one and pay rent.
