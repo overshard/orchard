@@ -387,6 +387,8 @@ func TestTheDiaryKeepsFishingNews(t *testing.T) {
 		_, err := tx.Exec(`INSERT INTO fish (pond_id, kind, count, best, first_day) VALUES (?1, 'minnow', 2, 15, ?2), (?1, 'eel', 1, 160, ?2)`, id, dayOf(*clock))
 		return err
 	})
+	// The badge for a first fish lands with the catch, as it would off a round.
+	s.greet(id, false)
 	if l := next(); kindOf(l) != "catch" || !strings.Contains(l, "eel") || strings.Contains(l, "a eel") {
 		t.Errorf("after a first eel: %s", l)
 	}

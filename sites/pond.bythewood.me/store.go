@@ -146,6 +146,13 @@ CREATE TABLE IF NOT EXISTS mementos (
     PRIMARY KEY (pond_id, kind)
 ) WITHOUT ROWID;
 
+CREATE TABLE IF NOT EXISTS badges (
+    pond_id  INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
+    kind     TEXT NOT NULL,
+    day      TEXT NOT NULL,
+    PRIMARY KEY (pond_id, kind)
+) WITHOUT ROWID;
+
 CREATE TABLE IF NOT EXISTS sets (
     pond_id  INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
     kind     TEXT NOT NULL,
@@ -823,6 +830,7 @@ type view struct {
 	Mementos   []mementoView       `json:"mementos"`
 	Neighbours neighboursView      `json:"neighbours"`
 	Sets       []setView           `json:"sets"`
+	Badges     []badgeView         `json:"badges"`
 	// Landed is what this move earned, and nil on every other view.
 	Landed  *landedView  `json:"landed,omitempty"`
 	Arcade  []arcadeView `json:"arcade"`
@@ -1146,11 +1154,12 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	v.Share.Power = powerOf(v.Frog.Rarity, v.found, had, p.DiveBest, v.Jobs.Total, v.Bond.Hearts)
 	v.Today = dayOf(now)
 	v.Open = openOf(p, now)
-	done, err := kept(q, p.ID)
+	pins, done, err := kept(q, p.ID)
 	if err != nil {
 		return err
 	}
 	v.Sets = setsOf(everFound(v, had), done)
+	v.Badges = badgesOf(tallyOf(v, p), pins)
 	markBag(v)
 	v.Gazette.Notice = openingNotice(p, now)
 	v.Todo = todoOf(v)

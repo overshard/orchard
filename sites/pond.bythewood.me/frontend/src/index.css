@@ -2995,7 +2995,66 @@ div.slot {
   grid-template-columns: repeat(4, 1fr);
 }
 
-/* Several sets landing at once share one card. */
+/* The pin board is a sunken tray, a pin a key with its name under it. */
+.pinboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  gap: 10px 6px;
+  margin: 10px 0;
+  padding: 12px 8px;
+  border: 1px solid #000;
+  border-radius: 4px;
+  background: var(--well);
+  box-shadow: var(--sunk);
+}
+
+.pinboard[hidden] {
+  display: none;
+}
+
+.pin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: 0;
+  text-transform: none;
+  text-align: center;
+  cursor: pointer;
+}
+
+.pin canvas {
+  width: 48px;
+  height: 48px;
+  image-rendering: pixelated;
+}
+
+.pin.got {
+  color: var(--text);
+}
+
+.pin.got canvas {
+  filter: drop-shadow(0 2px 0 var(--lip));
+}
+
+.pin:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: none;
+}
+
+/* Several badges landing at once share one card. */
 .pinrow {
   display: flex;
   flex-wrap: wrap;

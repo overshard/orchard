@@ -6,6 +6,7 @@ import { slot, openSheet, closeSheet, sheetSay, button, shade, reveal } from "./
 import { enterTown } from "./town.js";
 import { fishArt, inches } from "./fishes.js";
 import { sceneryCanvas } from "./scenery.js";
+import { pinCanvas } from "./pins.js";
 
 const BACKS = ["PLAIN", "SPOTS", "BANDS", "SPECKLED", "MASK", "BACK STRIPE"];
 const PUPILS = ["BAR", "ROUND", "SLIT"];
@@ -145,6 +146,7 @@ function cats(p) {
     { key: "dishes", name: "Cookbook", icon: "lotus", all: cookbook(p) },
     { key: "furniture", name: "Furniture", icon: "f_reeds", all: furn.map((l) => ({ kind: l.kind, art: () => furnCanvas(l.kind), name: l.name, tier: 0, found: p.furniture.includes(l.kind), what: "Tansy's Pad and Reed, in town." })) },
     { key: "sets", name: "Sets", icon: "i_set", all: p.sets.map((x) => ({ found: x.done })) },
+    { key: "badges", name: "Badges", icon: "i_pin", all: p.badges.map((b) => ({ found: b.got })) },
   ];
 }
 
@@ -198,21 +200,48 @@ function renderSets(p, box) {
   });
 }
 
-// A set a move only just finished pops up after anything the move itself
-// has to show. One or two get a card each and more than that share one.
+function pinSheet(b) {
+  const far = b.of > 1 && !b.got ? " You're at " + b.have.toLocaleString("en-US") + " of " + b.of.toLocaleString("en-US") + "." : "";
+  openSheet({ art: pinCanvas(b.kind, b.got, 12), name: b.name }, b.got ? b.how + " Earned " + (b.day || "today") + "." : b.how + far, () => {});
+}
+
+// The board is every badge as a pin, the ones not earned yet in the dark.
+function renderPins(p, box) {
+  box.textContent = "";
+  p.badges.forEach((b) => {
+    const pin = document.createElement("button"), nm = document.createElement("span");
+    pin.type = "button"; pin.className = "pin" + (b.got ? " got" : "");
+    nm.textContent = b.got ? b.name : b.of > 1 ? b.have.toLocaleString("en-US") + "/" + b.of.toLocaleString("en-US") : "???";
+    pin.append(pinCanvas(b.kind, b.got, 4), nm);
+    pin.setAttribute("aria-label", b.got ? b.name + ", earned" : "Not earned yet. " + b.how);
+    pin.addEventListener("click", () => pinSheet(b));
+    box.append(pin);
+  });
+}
+
+// What a move only just earned pops up after anything the move itself has
+// to show. One or two get a card each and more than that share one.
 function landed(p) {
   const l = p.landed;
   if (!l) return;
   delete p.landed;
   const done = l.sets.map((k) => p.sets.find((x) => x.kind === k)).filter(Boolean);
+  const pins = l.badges.map((k) => p.badges.find((b) => b.kind === k)).filter(Boolean);
   const cards = [];
-  if (done.length > 2) {
+  if (done.length + pins.length > 2) {
     const row = document.createElement("div");
     row.className = "pinrow";
     done.forEach((x) => row.append(sceneryCanvas(x.scene)));
-    cards.push({ kick: "For what you've found", art: row, glow: 4, name: done.length + " sets", line: "They're on the Sets shelf in your collection, and what they give is out on the water." });
+    pins.slice(0, 24).forEach((b) => row.append(pinCanvas(b.kind, true, 3)));
+    const count = (n, one) => n + " " + one + (n === 1 ? "" : "s");
+    cards.push({
+      kick: "For what you've done", art: row, glow: 4,
+      name: [done.length && count(done.length, "set"), pins.length && count(pins.length, "badge")].filter(Boolean).join(" and "),
+      line: "They're on the Sets and Badges shelves in your collection." + (done.length ? " What the sets give is out on the water." : ""),
+    });
   } else {
     done.forEach((x) => cards.push({ kick: "Set finished", art: sceneryCanvas(x.scene, 3), name: x.name, glow: 4, line: x.gives + " is on the water now, for good." }));
+    pins.forEach((b) => cards.push({ kick: "Badge earned", art: pinCanvas(b.kind, true, 10), name: b.name, glow: 1, line: b.how }));
   }
   setTimeout(() => cards.forEach(reveal), 0);
 }
@@ -246,9 +275,11 @@ function render(p) {
   wantBox(p, c.key === "hats");
   const grid = $("col-grid"), wants = waitingOn(p);
   grid.textContent = "";
-  grid.hidden = c.key === "sets";
+  grid.hidden = c.key === "sets" || c.key === "badges";
   $("col-sets").hidden = c.key !== "sets";
+  $("col-pins").hidden = c.key !== "badges";
   if (c.key === "sets") return renderSets(p, $("col-sets"));
+  if (c.key === "badges") return renderPins(p, $("col-pins"));
   c.all.forEach((x) => {
     const art = x.art();
     const s = slot(art, {
