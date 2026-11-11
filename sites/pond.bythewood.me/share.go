@@ -20,10 +20,9 @@ import (
 	"golang.org/x/image/math/fixed"
 )
 
-// Power only ever goes up, since a frog's rarity is fixed, a found hat or
-// trinket is never lost and the best Dive is a best. A trinket counts half a
-// hat of its tier, and Dive stops counting at diveCounts, so the sixty hats
-// stay the biggest part of it.
+// Power only ever goes up, since nothing found is lost and a best is a best.
+// A trinket counts half a hat of its tier and Dive stops counting at
+// diveCounts, so the sixty hats stay the biggest part of it.
 var (
 	hatPower     = [tierCount]int{20, 50, 120, 300, 800}
 	trinketPower = [tierCount]int{10, 25, 60, 150, 400}
