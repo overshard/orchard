@@ -446,7 +446,6 @@ button.linkish {
   color: var(--muted);
   padding: 0;
   font-size: var(--t-sm);
-  &:hover { color: var(--text); background: none; text-decoration: underline; }
 }
 
 form.inline { display: inline-flex; gap: 0.5rem; align-items: center; }
@@ -1229,34 +1228,26 @@ section > h2 {
   .stat-value-sm { font-size: 1.05rem; }
 }
 
-// The visitor's frog from pond.bythewood.me and the lost one on the 404, both
-// drawn by guest.js. The canvas is sized here so the page doesn't move when it fills.
+// The visitor's frog from pond.bythewood.me as a mark in the footer bar, and
+// the lost one on the 404, both drawn by guest.js. The mark is drawn in the
+// colour set here and sized here so nothing moves when it fills.
 .pond-guest {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.75rem;
-  min-height: 68px;
-  margin-top: 1.25rem;
-  padding-top: 1rem;
-  border-top: 1px solid rgba(221, 215, 205, 0.08);
-  color: inherit;
-  font-size: 0.8125rem;
-  text-decoration: none;
+  gap: 0.6rem;
+  margin-right: 1rem;
+  color: var(--faint);
 
-  &:hover span { text-decoration: underline; }
-}
-
-.pond-guest canvas {
-  flex: none;
-  width: 88px;
-  height: 68px;
-  image-rendering: pixelated;
+  a { display: block; margin: -7px 0; line-height: 0; }
+  canvas { width: 44px; height: 34px; image-rendering: pixelated; }
 }
 
 .pond-lost {
   display: block;
   width: 216px;
   height: 180px;
-  image-rendering: pixelated;
   margin-bottom: 1rem;
+  image-rendering: pixelated;
 }
+
+.footer-bar-end { display: inline-flex; align-items: center; }

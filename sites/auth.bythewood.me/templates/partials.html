@@ -98,7 +98,11 @@
       <div class="col-sm-6 d-flex align-items-center justify-content-center justify-content-sm-start order-1 order-sm-0">
         <small>&copy; {{ .Year }} {{ .AuthorName }} · All times UTC</small>
       </div>
-      <div class="col-sm-6 d-flex justify-content-center justify-content-sm-end py-3 py-sm-0">
+      <div class="col-sm-6 d-flex align-items-center justify-content-center justify-content-sm-end py-3 py-sm-0">
+        <span class="pond-guest" data-pond-foot>
+          <small data-pond-line>A frog from the pond</small>
+          <a href="https://pond.bythewood.me/" aria-label="The pond"><canvas width="44" height="34" aria-hidden="true"></canvas></a>
+        </span>
         <a href="{{ .SourceURL }}" target="_blank" rel="noopener" class="footer-bar-link">Source</a>
       </div>
     </div>

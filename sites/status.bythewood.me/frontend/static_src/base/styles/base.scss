@@ -829,7 +829,20 @@ footer {
   }
 }
 
-// The lost frog on the 404, drawn by guest.js.
+// The visitor's frog from pond.bythewood.me as a mark in the footer bar, and
+// the lost one on the 404, both drawn by guest.js. The mark is drawn in the
+// colour set here and sized here so nothing moves when it fills.
+.pond-guest {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-right: 1rem;
+  color: rgba(221, 215, 205, 0.3);
+
+  a { display: block; margin: -7px 0; line-height: 0; }
+  canvas { width: 44px; height: 34px; image-rendering: pixelated; }
+}
+
 .pond-lost {
   display: block;
   width: 216px;

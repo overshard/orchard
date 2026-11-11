@@ -430,8 +430,12 @@ button.danger { background: var(--terracotta); }
   .stat { flex: 1 1 6rem; padding: 0.55rem 0.7rem; }
 }
 
-/* The visitor's frog from pond.bythewood.me, drawn by guest.js. The canvas is
-   sized here so the page doesn't move when it fills. */
-.pond-guest { display: flex; align-items: center; gap: 0.75rem; min-height: 68px; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid rgba(221, 215, 205, 0.08); color: rgba(221, 215, 205, 0.5); font-size: 0.8125rem; text-decoration: none; }
-.pond-guest:hover span { text-decoration: underline; }
-.pond-guest canvas { flex: none; width: 88px; height: 68px; image-rendering: pixelated; }
+/* The visitor's frog from pond.bythewood.me as a mark in one ink, drawn by
+   guest.js in the colour set here. The canvas is sized here so nothing moves
+   when it fills. */
+.pond-guest { display: inline-flex; align-items: center; gap: 0.6rem; margin-right: 1rem; color: rgba(221, 215, 205, 0.3); }
+.pond-guest a { display: block; margin: -7px 0; line-height: 0; }
+.pond-guest canvas { width: 44px; height: 34px; image-rendering: pixelated; }
+.footer-bar-end { display: inline-flex; align-items: center; }
+.foot .pond-guest { color: var(--faint); }
+.foot .footer-bar-end { margin: -0.5rem 0; }

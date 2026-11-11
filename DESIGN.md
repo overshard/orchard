@@ -340,19 +340,22 @@ prefix in amber caps.
 Then a footer bar with `© <year> <author> · Some rights reserved` on the left
 and the GitHub mark on the right, linking to that site's own source.
 
-**The visitor's frog sits under the first column's paragraph**, under a hairline,
-88 by 68 with one muted line beside it, linking to the pond. `guest.js` asks
-pond for it. The line says the frog came along, or that it found this site's hat
-on the visit that finds it, or for the house frog that hatching one finds a hat
-here. status draws its own scene in the same place, 128 by 76, asleep on a pad
-or under the log. auth has no columns, so its frog is in the sign in card on the
-home page. dash says the hat was found in its pond panel.
+**The visitor's frog is a mark in the footer bar**, to the left of the GitHub
+mark, 44 by 34 and drawn in one ink, the bar's own muted colour, so it reads as
+another glyph there and not as a picture. A short line in the bar's `small`
+sits to its left, that the frog came along, or that it found this site's hat on
+the visit that finds it, or for the house frog that hatching one finds a hat
+here. Only the mark links to the pond and nothing about it changes on hover.
+`guest.js` asks pond for the frog. The bar is on every page, signed in or not,
+so a hat is found wherever a visitor lands. chat's app has no bar, so its mark
+is the last row of the sidebar, and llm's is in its one line foot. dash says the
+hat was found in its pond panel.
 
 **A frog never moves the page.** Its slot is in the markup from the start with
 the canvas at its final size and a stock line beside it, and nothing about it is
 hidden and then shown. If pond can't be reached the slot draws the house frog,
 so it's never left empty either. It goes where the page already has a place for
-it, the footer column or a panel of its own, and not in beside a heading.
+a mark, and takes its colour from the page.
 
 ## The 404
 

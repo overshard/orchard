@@ -36,8 +36,15 @@
 </main>
 <footer class="foot">
   <span>One model, one card, every service.</span>
-  <a href="{{.Source}}" target="_blank" rel="noopener">View source</a>
+  <span class="footer-bar-end">
+    <span class="pond-guest" data-pond-foot>
+      <small data-pond-line>A frog from the pond</small>
+      <a href="https://pond.bythewood.me/" aria-label="The pond"><canvas width="44" height="34" aria-hidden="true"></canvas></a>
+    </span>
+    <a href="{{.Source}}" target="_blank" rel="noopener">View source</a>
+  </span>
 </footer>
+<script type="module" src="{{asset "static/guest.js"}}"></script>
 </body>
 </html>
 {{end}}
