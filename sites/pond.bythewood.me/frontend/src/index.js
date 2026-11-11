@@ -757,7 +757,12 @@ initBank();
 initShops();
 initBag();
 initCollect();
-document.querySelectorAll(".places.pair button").forEach((b) => b.addEventListener("click", () => { location.hash = "#" + b.dataset.go; }));
+document.querySelectorAll(".places.pair button[data-go]").forEach((b) => b.addEventListener("click", () => { location.hash = "#" + b.dataset.go; }));
+document.querySelectorAll("#bank-tabs button").forEach((b) => b.addEventListener("click", () => {
+  document.querySelectorAll("#bank-tabs button").forEach((x) => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
+  $("bank-works").hidden = b.dataset.bank !== "works";
+  $("bank-market").hidden = b.dataset.bank !== "market";
+}));
 initTown();
 initNeighbours();
 initSettings();

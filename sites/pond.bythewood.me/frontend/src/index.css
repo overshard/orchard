@@ -1969,6 +1969,10 @@ h2 .count {
   grid-template-columns: repeat(2, 1fr);
 }
 
+.places.four {
+  grid-template-columns: repeat(4, 1fr);
+}
+
 .places button {
   display: flex;
   flex-direction: column;
