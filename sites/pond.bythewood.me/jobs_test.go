@@ -919,3 +919,28 @@ func TestTheWorkBadgesLand(t *testing.T) {
 		t.Errorf("not mastered at 88: %+v", v.Frogs[0].Work.Targets)
 	}
 }
+
+// A pond with nobody at work is told to put a frog to work, and the row
+// opens the job screen, where the frog is ready to pick a target.
+func TestAnIdlePondIsToldToWork(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	*clock = clock.Add(2 * 24 * time.Hour)
+	v, _ := s.view(id)
+	name := titled(v.Frogs[0].Name)
+	todo, goal := false, false
+	for _, r := range v.Todo {
+		todo = todo || r.Kind == "idle" && r.Label == "Put "+name+" to work" && r.To == "job"
+	}
+	for _, g := range v.Goals {
+		goal = goal || g.Kind == "idle" && g.To == "job"
+	}
+	if !todo || (!goal && v.Starter == nil) {
+		t.Errorf("an idle pond: todo %+v, goals %+v", v.Todo, v.Goals)
+	}
+	for _, r := range v.Todo {
+		if (r.Kind == "shift" || r.Kind == "short") && r.To != "job" {
+			t.Errorf("%s points at %s", r.Kind, r.To)
+		}
+	}
+}
