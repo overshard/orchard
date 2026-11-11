@@ -39,7 +39,7 @@
   <h2 data-idx="02">Best finds</h2>
   <div class="slots">
     {{- range .Best }}
-    <div class="slot t{{ .Tier }}"><canvas class="find" width="32" height="32" data-kind="{{ .Kind }}"{{ with .Hat }} data-shape="{{ .Shape }}" data-colour="{{ .Colour }}"{{ end }} aria-hidden="true"></canvas><span class="nm">{{ .Name }}</span><span class="sub">{{ .Label }}</span></div>
+    <div class="slot t{{ .Tier }}"><canvas class="find" width="32" height="32" data-kind="{{ .Kind }}"{{ with .Hat }} data-shape="{{ .Shape }}" data-colour="{{ .Colour }}"{{ end }} aria-hidden="true"></canvas><span class="pips" aria-hidden="true">{{ range pips .Tier }}<span></span>{{ end }}</span><span class="nm">{{ .Name }}</span><span class="sub">{{ .Label }}</span></div>
     {{- end }}
   </div>
   {{ end }}

@@ -2439,6 +2439,22 @@ div.slot {
   text-shadow: var(--glow);
 }
 
+/* The tier again as pips, one for common up to five for legendary. */
+.slot .pips {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  display: flex;
+  gap: 3px;
+}
+
+.slot .pips span {
+  width: 5px;
+  height: 5px;
+  background: currentColor;
+  transform: rotate(45deg);
+}
+
 .slot.on {
   box-shadow: 0 0 0 2px var(--void), 0 0 0 4px currentColor;
 }

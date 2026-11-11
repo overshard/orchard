@@ -23,13 +23,21 @@ export function tierTag(t) {
 }
 
 // A slot is a square with the picture in it, a count in the corner and the
-// tier as its border. An unfound one is a dim shape and three question marks.
+// tier as its border and as one to five pips, so tier isn't told by colour
+// alone. An unfound one is a dim shape and three question marks.
 export function slot(art, opts) {
   const b = document.createElement(opts.onClick ? "button" : "div");
   if (opts.onClick) { b.type = "button"; b.addEventListener("click", opts.onClick); }
   b.className = "slot t" + opts.tier + (opts.found === false ? " unfound" : "") + (opts.on ? " on" : "");
   if (opts.found === false) shade(art);
   b.append(art);
+  if (opts.tier >= 0) {
+    const pips = document.createElement("span");
+    pips.className = "pips";
+    pips.setAttribute("aria-hidden", "true");
+    for (let i = 0; i <= opts.tier; i++) pips.append(document.createElement("span"));
+    b.append(pips);
+  }
   if (opts.count > 1) {
     const n = document.createElement("i");
     n.textContent = "x" + opts.count;
