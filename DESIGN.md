@@ -1002,6 +1002,13 @@ version of the old look and a handheld pet shell.
   ranks are a ladder of nine under the number, the top rung first and amber
   up to where the frog stands, the same in settings. It ends on getting a
   frog of your own.
+- **Visitors and stamps paint pictures.** Each one is a piece of a pond
+  painting, twelve to a painting and four in all, the pond at dawn, in the
+  rain, by lantern light and in the snow, each a small pixel scene in a
+  wooden frame. Under the burrows the four sit in a row, a piece showing as
+  a square of the picture over bare canvas and the frame gilding round from
+  the top left as it fills. A finished one pops up as a reveal and hangs on
+  the burrow wall in the Works picture as a small gold frame.
 - **A frog's page has six stamps** under its name, a heart, a fly, a wave, a
   star, a leaf and a pebble, as a row of square keys with the stamp's pixel
   art on each. A visitor with a pond of its own presses one a day and it

@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS ponds (
     hidden          INTEGER NOT NULL DEFAULT 0,
     visitor         TEXT NOT NULL DEFAULT '',
     visitor_day     TEXT NOT NULL DEFAULT '',
+    paint           INTEGER NOT NULL DEFAULT 0,
     key_saved_at    INTEGER
 );
 CREATE INDEX IF NOT EXISTS ponds_created ON ponds(created_at);
@@ -460,6 +461,7 @@ var addedColumns = []struct{ table, name, def string }{
 	{"ponds", "hidden", "INTEGER NOT NULL DEFAULT 0"},
 	{"ponds", "visitor", "TEXT NOT NULL DEFAULT ''"},
 	{"ponds", "visitor_day", "TEXT NOT NULL DEFAULT ''"},
+	{"ponds", "paint", "INTEGER NOT NULL DEFAULT 0"},
 }
 
 func ensureColumns(db *sql.DB) (map[string]bool, error) {

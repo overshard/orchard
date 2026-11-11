@@ -122,6 +122,11 @@ export function drawWorks(cv, p, ready) {
     px(g, "#6c5538", mx + 17 - Math.floor(w / 2), 24 + y, w, 1);
   }
   for (let x = mx + 5; x < mx + 30; x += 5) px(g, "#2f5a3a", x, 25 + Math.abs(x - mx - 17) / 3, 2, 2);
+  // A finished painting hangs on the burrow wall over the doors.
+  const hung = bl ? Math.min(4, Math.floor((b.burrows.paint || 0) / 12)) : 0;
+  ["#f6c48a", "#8a939e", "#141c2a", "#e6eef6"].slice(0, hung).forEach((c, i) => {
+    px(g, "#e3b23a", mx + 7 + i * 5, 31, 4, 4); px(g, c, mx + 8 + i * 5, 32, 2, 2);
+  });
   const doors = Math.max(bl, 1);
   for (let i = 0; i < doors; i++) lamp(g, mx + 17 - doors * 3 + i * 6 + 1, 38, 4, 7, ready.has("rent"));
 
