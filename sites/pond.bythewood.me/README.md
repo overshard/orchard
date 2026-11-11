@@ -254,9 +254,10 @@ they have none, for other sites to draw.
   buying and cooking mints pebbles. A test holds it, so run it after touching
   a price.
 - Big Bean pays a pond at most `sellRoom` a New York day for dishes, kept in
-  the `sold` table, since jobs bring in ingredients without end. Anything new
-  that buys a pond's things pays through `payOut` or work turns straight into
-  pebbles.
+  the `sold` table, since jobs bring in things without end. The stall pays
+  out the same room a day and what's sold past it waits on the stall, with
+  its price brought down by what's been paid. Anything new that buys a
+  pond's things pays through `payOut` or work turns straight into pebbles.
 - A new column goes in `addedColumns` in `store.go` as well as the schema,
   since the live tables already exist.
 - A bred frog's seed only names it and gives it a voice and a pupil. Anything

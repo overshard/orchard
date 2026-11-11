@@ -170,8 +170,12 @@ function renderStall(p) {
     row.append(b);
     box.append(row);
   }
+  const can = Math.min(st.takings, st.room);
   $("stall-collect").hidden = !st.takings;
-  $("stall-collect").textContent = "Collect " + st.takings.toLocaleString("en-US");
+  $("stall-collect").disabled = !can;
+  $("stall-collect").textContent = can ? "Collect " + can.toLocaleString("en-US") : "Paid out for today";
+  $("stall-room").hidden = can === st.takings;
+  $("stall-room").textContent = "The neighbours pay up to " + p.sell_room + " a day between them, so the rest waits on the stall until tomorrow.";
   drawStall();
 }
 

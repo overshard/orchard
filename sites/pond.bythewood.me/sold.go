@@ -10,9 +10,14 @@ import (
 // end, so with no limit a frog at work would turn straight into pebbles.
 const sellRoom = 150
 
-var buyers = []string{shopBrindle}
+const buyerStall = "stall"
 
-var errBeanFull = errors.New("Big Bean has bought all the dishes he can today, and he buys again tomorrow")
+var buyers = []string{shopBrindle, buyerStall}
+
+var (
+	errBeanFull  = errors.New("Big Bean has bought all the dishes he can today, and he buys again tomorrow")
+	errStallPaid = errors.New("the neighbours have paid all they will today, and the rest comes tomorrow")
+)
 
 // roomsOf is what's left of each buyer's day for a pond.
 func roomsOf(q querier, id int64, day string) (map[string]int, error) {
