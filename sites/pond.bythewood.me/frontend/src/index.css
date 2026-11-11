@@ -2829,6 +2829,7 @@ a.game:not(.pays) .cta {
 .pay {
   display: block;
   width: fit-content;
+  max-width: 100%;
   margin-bottom: 2px;
   padding: 1px 6px;
   border-radius: 3px;
@@ -2836,7 +2837,6 @@ a.game:not(.pays) .cta {
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  white-space: nowrap;
 }
 
 .pay.full {
@@ -4345,6 +4345,7 @@ button.big {
 .floppy {
   position: relative;
   display: flex;
+  min-width: 0;
   flex-direction: column;
   justify-content: flex-end;
   aspect-ratio: 1 / 1.03;
@@ -4544,6 +4545,7 @@ button.big {
 
 .disk.flag .dline {
   flex: 1;
+  min-width: 0;
   gap: 8px;
   font-size: 14px;
 }
