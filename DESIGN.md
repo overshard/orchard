@@ -675,14 +675,22 @@ version of the old look and a handheld pet shell.
   rings while it's their part, and a ring fills amber when it's sung right
   on the beat. A miss costs one of three lilies in the corner and twelve in
   a row grows one back. The frog only ever sings or sits.
-- **Pad putt is open water from above**, lily pads with a notch cut out,
-  the flag a pink pennant on a reed that streams the way the wind blows and
-  hangs on a calm day, and a windsock and the day's wind word in the bottom
-  corner. Each hole opens on a strip saying the hole and its par. A drag
-  back draws dots out from the frog to a cream square where it would land
-  with no wind, so reading the wind is the player's part. A splash puts the
-  frog back where it hopped from. The results have a scorecard, a glass box
-  a hole with its par small over its hops, amber under par.
+- **Pad putt is mini golf on the mud banks**, seen from above. The greens
+  are moss walled in by logs with cut rings at the ends, and the cup is a dark
+  hole with the pink pennant on a reed. It's nine fixed holes, each with one
+  new thing, a bank, a slope, mushrooms, a waterwheel, the pond, a stream,
+  hollow logs, a reed gate and a drifting pad, and the later ones mix them.
+  Anything that pushes the ball draws which way, chevrons walking downhill on
+  a slope and streaks running down a stream. The frog sits behind the ball
+  facing the putt and flicks it with its tongue, and hops after it once it
+  stops. A drag back draws a band behind the ball going yellow, amber and
+  red with the power, a power bar in the bottom strip, and dots out to the
+  first thing the ball meets or as far as it rolls on the flat, so a bank
+  shot's second leg is the player's part. Each hole opens on a strip over
+  the tee end saying the hole, its name and its par, and the top strip has a
+  pip a stroke out of six. Water is a splash ring and a stroke, and the ball
+  goes back where it was played from. The results have a scorecard, a glass
+  box a hole with its par small over its strokes, amber under par.
 - **The spawn jar is a glass jar on a shelf by the pond**, the frog over it
   from above like pebble drop's, the next one in the top corner, and a
   dashed line across the glass that blinks red while something rests over
