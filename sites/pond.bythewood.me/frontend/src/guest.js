@@ -23,7 +23,6 @@ function lost(cv) {
   const ctx = cv.getContext("2d"), g = genome(Math.floor(Math.random() * 2 ** 31));
   const col = colours(g, null);
   col.q = "#fff6dc";
-  cv.width = 216; cv.height = 180;
   run((t) => {
     const left = Math.floor(t / 2.6) % 2 === 1;
     ctx.clearRect(0, 0, cv.width, cv.height);
@@ -38,18 +37,20 @@ function lost(cv) {
   });
 }
 
-// The visitor's frog, in the hat this site hands out on the visit that finds it.
+// What a slot shows when the pond can't be reached, so it's never left empty.
+const HOUSE = { house: true, frog: { seed: 1207, name: genome(1207).name, stage: "frog", day: 30 } };
+
+// The visitor's frog, in the hat this site hands out on the visit that finds
+// it. The canvas keeps the size the page gave it, so nothing moves when it fills.
 function foot(el, d) {
   const f = d.frog, g = bred(genome(f.seed), f.mods);
   const hat = d.found || (f.hat && f.hat.shape ? f.hat : null);
   const col = colours(g, hat), cv = el.querySelector("canvas"), ctx = cv.getContext("2d");
   const name = f.name.charAt(0) + f.name.slice(1).toLowerCase();
-  cv.width = W * 2; cv.height = H * 2;
   el.querySelector("[data-pond-line]").textContent = d.house
     ? "No frog of your own yet. Hatch one at the pond and it finds a hat here."
     : d.found ? name + " found the " + d.found.name + " here, and it's in your bag at the pond."
     : name + " came along from the pond.";
-  el.hidden = false;
   run((t) => {
     ctx.clearRect(0, 0, cv.width, cv.height);
     const blink = !still && f.stage !== "egg" && (t % 3.7) < 0.16;
@@ -63,6 +64,6 @@ const el = document.querySelector("[data-pond-foot]");
 if (el) {
   fetch(POND + "/api/panel", { credentials: "include" })
     .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
-    .then((d) => foot(el, d))
-    .catch(() => {});
+    .catch(() => HOUSE)
+    .then((d) => foot(el, d));
 }
