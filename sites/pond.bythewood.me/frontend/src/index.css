@@ -642,7 +642,7 @@ button.powerplate:active:not(:disabled) {
 
 .missed {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr);
   gap: 1px;
   margin: 12px 0;
   border-radius: 3px;
@@ -684,7 +684,7 @@ button.powerplate:active:not(:disabled) {
 
 .logs {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -696,7 +696,7 @@ button.powerplate:active:not(:disabled) {
 
 .things {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   margin: 8px 0;
   padding: 0;
@@ -944,7 +944,7 @@ div.hattile {
   z-index: 2;
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: 1fr;
+  grid-auto-columns: minmax(0, 1fr);
   width: 100%;
   max-width: 34rem;
   margin: 0 auto;
@@ -1037,7 +1037,7 @@ body:has(.tabs) main {
 
 .keywords {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1px;
   margin: 16px 0;
   padding: 0;
@@ -1242,7 +1242,7 @@ body:has(.tabs) main {
 .tally li {
   position: relative;
   display: grid;
-  grid-template-columns: 6.5rem 1fr auto;
+  grid-template-columns: 6.5rem minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   padding: 7px 10px;
@@ -1813,7 +1813,7 @@ button.reed {
 
 .final li {
   display: grid;
-  grid-template-columns: 2.6em 24px 1fr auto;
+  grid-template-columns: 2.6em 24px minmax(0, 1fr) auto;
   align-items: center;
   gap: 6px;
   padding: 2px 6px;
@@ -1920,7 +1920,7 @@ button.reed {
 /* The bank. The larder is a button per ingredient and two can be pressed. */
 .larder {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   margin: 12px 0;
 }
@@ -1995,7 +1995,7 @@ h2 .count {
 }
 
 .things.dishes {
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 /* A shop's shelf, one line a thing with its price on the button. */
@@ -2323,7 +2323,7 @@ button.nrow.primary {
 /* Places in town, a row of keys like the tab bar so they never wrap. */
 .places {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 4px;
   margin: 0 0 14px;
 }
@@ -2365,15 +2365,15 @@ button.nrow.primary {
 }
 
 .places.pair {
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .places.four {
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .places.three {
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .workshead {
@@ -2602,7 +2602,7 @@ button.nrow.primary {
 
 .paper-cols {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   border-top: 1px solid var(--ink);
 }
 
@@ -2668,7 +2668,7 @@ button.nrow.primary {
 
 .paper-puzzle button:first-child {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr);
   flex: 1;
   align-items: center;
   gap: 0 10px;
@@ -2789,7 +2789,7 @@ h2 .q[aria-expanded="true"] {
 /* Play: a big card for each game. */
 .game {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
   margin: 0 0 14px;
@@ -2908,7 +2908,7 @@ a.game:not(.pays) .cta {
 }
 
 .game.log {
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .logs button {
@@ -3111,7 +3111,7 @@ div.slot {
 /* Collect */
 .total {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 4px 14px;
   margin: 4px 0 14px;
@@ -3134,7 +3134,7 @@ div.slot {
 /* The hat Little Tully is looking out for, over the hats. */
 .wantbox {
   display: grid;
-  grid-template-columns: 56px 1fr auto;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
   margin: 8px 0 12px;
@@ -3190,13 +3190,13 @@ div.slot {
 
 .cats {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 8px;
 }
 
 .cat {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 4px 8px;
   padding: 8px 10px;
@@ -3251,7 +3251,7 @@ div.slot {
 
 .setbox-head {
   display: grid;
-  grid-template-columns: 56px 1fr auto;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
 }
@@ -3281,7 +3281,7 @@ div.slot {
 }
 
 .setbox .slots {
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 /* The pin board is a sunken tray, a pin a key with its name under it. */
@@ -3602,7 +3602,7 @@ div.slot {
 /* Town */
 .boxbuy {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
   margin: 8px 0;
@@ -3639,7 +3639,7 @@ div.slot {
 
 .stallrow {
   display: grid;
-  grid-template-columns: auto 1fr auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
@@ -3674,7 +3674,7 @@ div.slot {
 }
 
 .stallrow.empty {
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   padding: 0;
   background: none;
   box-shadow: none;
@@ -3697,7 +3697,7 @@ div.slot {
 
 .odds {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -3777,7 +3777,7 @@ button.big {
 /* A job or a recipe in the frog's sheet, its icon, name, level and bar. */
 .jobrow {
   display: grid;
-  grid-template-columns: 24px 1fr auto;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
   align-items: center;
   gap: 4px 10px;
   width: 100%;
@@ -3878,7 +3878,7 @@ button.big {
 /* A target is a key: its thing, its name and numbers, and its level. */
 .wk-tgt {
   display: grid;
-  grid-template-columns: 24px 1fr auto;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   width: 100%;
@@ -4180,7 +4180,7 @@ button.big {
 /* A round of fishing's catch, a slot a kind with the biggest one's size. */
 .fishrow {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
   width: 100%;
 }
@@ -4321,14 +4321,14 @@ button.big {
    a write protect tab and the game's picture on the label. */
 .disks {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px 12px;
   margin: 0 0 18px;
 }
 
 @media (min-width: 30rem) {
   .disks {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -4671,6 +4671,7 @@ button.big {
 /* Each business is a card with its chart on it, and tapping it trades. */
 .market {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
   margin: 8px 0;
   padding: 0;
@@ -4679,6 +4680,7 @@ button.big {
 
 .market li {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
   padding: 10px;
   border-radius: 3px;
@@ -4800,7 +4802,7 @@ button#mkt-tiles:active {
 /* Marsh's frames to pick from, each a small copy of the card it makes. */
 .framepick {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px;
 }
 
@@ -4819,7 +4821,7 @@ button#mkt-tiles:active {
 /* The market's four filters share a row, the back door included. */
 #mkt-sorts {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 #mkt-sorts button {
@@ -4890,7 +4892,7 @@ button#mkt-tiles:active {
 /* Four trade keys in a square, far enough apart for a thumb. */
 .trade {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px;
   margin: 12px 0 4px;
 }
@@ -4941,7 +4943,7 @@ button#mkt-tiles:active {
 /* A neighbour's sheet: how friendly it is, then what's known about it. */
 .friend {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 4px 10px;
   margin: 10px 0;
