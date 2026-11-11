@@ -1,5 +1,6 @@
 import { sfx } from "./sound.js";
 import { colours } from "./frog.js";
+import { feel } from "./feel.js";
 
 // Shell game. A tadpole hides under one snail shell, the shells shuffle, and
 // a tap picks one. Each round shuffles more and faster, a fourth shell joins at
@@ -7,6 +8,7 @@ import { colours } from "./frog.js";
 const W = 200, H = 300, GROUND = 196;
 
 let G = null, col = null;
+const F = feel();
 
 function count(r) { return r < 4 ? 3 : r < 8 ? 4 : 5; }
 function slotX(i, n) { const gap = Math.min(56, 168 / (n - 1)); return W / 2 + (i - (n - 1) / 2) * gap; }
@@ -42,21 +44,20 @@ function pick(i) {
   const s = at(i);
   if (G.shells.indexOf(s) === G.prize) {
     G.score += G.r; G.won++;
-    G.pops.push({ x: slotX(i, G.shells.length), y: GROUND - 40, s: "+" + G.r, c: "#ffb000", t: 0 });
-    sfx("catch");
+    F.got(slotX(i, G.shells.length), GROUND - 10, "+" + G.r, { streak: G.won, big: G.r % 4 === 0 });
   } else {
     G.why = "IT WAS THIS ONE";
-    sfx("bonk");
+    F.crash(slotX(i, G.shells.length), GROUND - 10);
   }
 }
 
 export const shell = {
-  key: "shell", W, H, title: "SHELL GAME",
+  key: "shell", W, H, title: "SHELL GAME", feel: F,
   help: ["WATCH THE SHELL THE TADPOLE'S UNDER", "TAP IT AFTER THE SHUFFLE", "ONE WRONG PICK ENDS IT", "TAP TO START"],
 
   reset(g, p) {
     col = colours(g, p.frog.hat);
-    G = { t: 0, r: 1, shells: [], prize: 0, swaps: [], st: "show", st_t: 0, picked: -1, cur: 1, score: 0, won: 0, pops: [], why: "", end: 0 };
+    G = { t: 0, r: 1, shells: [], prize: 0, swaps: [], st: "show", st_t: 0, picked: -1, cur: 1, score: 0, won: 0, why: "", end: 0 };
     round();
   },
 
@@ -104,11 +105,9 @@ export const shell = {
       s.lift = Math.min(1, t / 0.2);
       if (!right && t > 0.4) G.shells[G.prize].lift = Math.min(1, (t - 0.4) / 0.2);
       if (right && t > 0.9) { G.r++; round(); }
-      if (!right && t > 1.6) G.end = 1;
+      if (!right && t > 0.8) G.end = 1;
     }
     G.shells.forEach((s) => { if (G.st !== "shuffle" || !G.swaps[0] || !G.swaps[0].from || !G.swaps[0].from.flat().includes(s)) { s.x = slotX(s.slot, n); s.dy = 0; } });
-    G.pops.forEach((p) => { p.t += dt; p.y -= dt * 20; });
-    G.pops = G.pops.filter((p) => p.t < 0.8);
   },
 
   over() { return G && G.end; },
@@ -134,9 +133,7 @@ export const shell = {
       const cx = Math.round(slotX(G.cur, G.shells.length));
       x.fillStyle = "#ffb000"; x.fillRect(cx - 3, GROUND + 8, 7, 2); x.fillRect(cx - 1, GROUND + 6, 3, 2);
     }
-    x.font = "700 13px 'Space Grotesk', sans-serif"; x.textAlign = "center";
-    x.lineWidth = 3; x.strokeStyle = "#0a0908";
-    G.pops.forEach((p) => { x.strokeText(p.s, p.x, p.y); x.fillStyle = p.c; x.fillText(p.s, p.x, p.y); });
+    F.draw(x);
     x.textAlign = "left"; x.fillStyle = "#ece5d8"; x.fillText(String(G.score), 6, 18);
     x.textAlign = "right"; x.font = "500 8px 'JetBrains Mono', monospace"; x.fillStyle = "#bcaf99"; x.fillText("ROUND " + G.r, W - 6, 16);
     const s = G.st === "show" ? "WATCH THE TADPOLE" : G.st === "pick" ? "WHICH SHELL?" : "";
