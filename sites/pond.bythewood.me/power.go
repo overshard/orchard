@@ -389,10 +389,9 @@ func looksOf(frogs []reedView) []piece {
 
 // ---------------------------------------------------------------- references
 
-// A game counts against the typical best of the ponds that really play it,
-// the median best of those with refRuns runs or more, once there are
-// refPonds of them. A median is what most keen players reach, where a
-// higher percentile would leave the games' share to the few best players.
+// A game counts against the median best of the ponds with refRuns runs of
+// it, once there are refPonds of them. A higher percentile would leave the
+// games' share to the few best players.
 const (
 	refRuns  = 5
 	refPonds = 10
