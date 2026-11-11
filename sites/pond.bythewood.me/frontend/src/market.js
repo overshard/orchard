@@ -35,35 +35,48 @@ function front(key, s) {
   return cv;
 }
 
-// Thirty days of closes as a stepped pixel line in readout glass.
-function chart(days) {
+// The closes so far and then today's prices as a stepped pixel line in
+// readout glass, with a faint line where the holder paid.
+function chart(f, h) {
+  const pts = f.days.concat(f.ticks.length ? f.ticks : [f.price]), W = 320;
+  if (pts[pts.length - 1] !== f.price) pts.push(f.price);
   const cv = document.createElement("canvas");
-  cv.width = 240; cv.height = 96; cv.className = "chart";
+  cv.width = W; cv.height = h; cv.className = "chart";
   const x = cv.getContext("2d");
-  x.fillStyle = "#0b1006"; x.fillRect(0, 0, 240, 96);
+  x.fillStyle = "#0b1006"; x.fillRect(0, 0, W, h);
   x.fillStyle = "rgba(125,141,98,0.18)";
-  for (let y = 16; y < 96; y += 24) x.fillRect(0, y, 240, 1);
-  if (days.length < 2) {
-    x.fillStyle = "#7d8d62"; x.font = "12px 'JetBrains Mono', monospace";
-    x.fillText("A chart after two days", 44, 52);
-    return cv;
-  }
-  const lo = Math.min(...days), hi = Math.max(...days), span = Math.max(1, hi - lo), step = 240 / (days.length - 1);
-  const yOf = (v) => 84 - Math.round(((v - lo) / span) * 72 / 4) * 4;
-  x.fillStyle = days[days.length - 1] >= days[0] ? "#ffb000" : "#e2567a";
-  for (let i = 0; i < days.length; i++) {
-    const x0 = Math.round(i * step / 4) * 4, y0 = yOf(days[i]);
-    x.fillRect(x0 - 2, y0, 4, 4);
+  for (let y = 12; y < h; y += 20) x.fillRect(0, y, W, 1);
+  const paid = f.held ? f.cost / f.held : 0;
+  const lo = Math.min(...pts, paid || Infinity), hi = Math.max(...pts, paid), span = Math.max(4, hi - lo), step = (W - 8) / Math.max(1, pts.length - 1);
+  const yOf = (v) => h - 10 - Math.round(((v - lo) / span) * (h - 24) / 4) * 4;
+  if (paid) { x.fillStyle = "rgba(236,229,216,0.35)"; for (let xx = 0; xx < W; xx += 8) x.fillRect(xx, yOf(paid) + 1, 4, 1); }
+  x.fillStyle = pts[pts.length - 1] >= pts[0] ? "#ffb000" : "#e2567a";
+  for (let i = 0; i < pts.length; i++) {
+    const x0 = Math.round(i * step / 4) * 4 + 2, y0 = yOf(pts[i]);
+    x.fillRect(x0, y0, 4, 4);
     if (i > 0) {
-      const xp = Math.round((i - 1) * step / 4) * 4, yp = yOf(days[i - 1]);
+      const xp = Math.round((i - 1) * step / 4) * 4 + 2, yp = yOf(pts[i - 1]);
       for (let xx = xp; xx < x0; xx += 4) x.fillRect(xx, yp, 4, 4);
-      for (let yy = Math.min(yp, y0); yy <= Math.max(yp, y0); yy += 4) x.fillRect(x0 - 2, yy, 4, 4);
+      for (let yy = Math.min(yp, y0); yy <= Math.max(yp, y0); yy += 4) x.fillRect(x0, yy, 4, 4);
     }
   }
+  x.fillStyle = "#7d8d62"; x.font = "10px 'JetBrains Mono', monospace";
+  x.fillText(String(hi), 4, 10); x.fillText(String(lo), 4, h - 2);
   return cv;
 }
 
 function arrow(f) { return f.price > f.prev ? "▲" : f.price < f.prev ? "▼" : "·"; }
+function signed(n, unit) { return (n > 0 ? "+" : "") + n + (unit || ""); }
+function dayPct(f) { return f.prev ? Math.round((f.price - f.prev) / f.prev * 1000) / 10 : 0; }
+function gainPct(worth, cost) { return cost ? Math.round((worth - cost) / cost * 1000) / 10 : 0; }
+
+function tile(k, v, cls) {
+  const box = document.createElement("span"), kk = document.createElement("span"), vv = document.createElement("span");
+  box.className = "readout " + (cls || ""); kk.className = "k"; vv.className = "v";
+  kk.textContent = k; vv.textContent = v;
+  box.append(kk, vv);
+  return box;
+}
 
 function trade(f, n, sell, b) {
   b.disabled = true;
@@ -75,34 +88,48 @@ function trade(f, n, sell, b) {
   }, (e) => { sheetSay(e.message); b.disabled = false; });
 }
 
+function keys(...btns) {
+  const r = document.createElement("div");
+  r.className = "trade";
+  r.append(...btns);
+  return r;
+}
+
 // Selling under what was paid asks first, with waiting as the big key.
 function sell(f, n, b) {
   const back = f.sell * n, paid = Math.round(f.cost * n / f.held);
   if (back >= paid) return trade(f, n, true, b);
-  openSheet({ art: front(f.key, 4), name: f.name }, "That's " + back + " back for shares that cost " + paid + ". Prices come back as often as not.", (body) => {
-    body.append(button("Wait", () => show(f), "primary"), button("Sell anyway", (bb) => trade(f, n, true, bb)));
+  openSheet({ art: front(f.key, 4), name: f.name }, "That's " + back + " back for shares that cost " + paid + ", " + gainPct(back, paid) + "%. Prices come back as often as not.", (body) => {
+    body.append(keys(button("Wait", () => show(f), "primary"), button("Sell anyway", (bb) => trade(f, n, true, bb))));
   });
 }
 
+function holding(f) {
+  const t = document.createElement("div"), g = f.worth - f.cost;
+  t.className = "tiles";
+  t.append(tile("Held", f.held), tile("Paid", f.cost), tile("Worth now", f.worth), tile("If sold", signed(g) + " · " + signed(gainPct(f.worth, f.cost), "%"), g < 0 ? "down" : "up"));
+  return t;
+}
+
 function show(f) {
-  const what = f.held
-    ? "You hold " + f.held + ", paid " + f.cost + ", worth " + f.worth + " if sold now."
-    : "Follows " + f.follows + ". A share is " + f.price + " and costs " + f.buy + " with the fee.";
+  const what = "Follows " + f.follows + ". A share is " + f.price + ", " + signed(dayPct(f), "%") + " today.";
   openSheet({ art: front(f.key, 4), name: f.name }, what, (body) => {
-    body.append(chart(f.days));
-    body.append(button("Buy 1 for " + f.buy, (b) => trade(f, 1, false, b), "primary"));
-    body.append(button("Buy 5", (b) => trade(f, 5, false, b)));
-    if (f.held) body.append(button("Sell 1 for " + f.sell, (b) => sell(f, 1, b)));
-    if (f.held > 1) body.append(button("Sell all " + f.held, (b) => sell(f, f.held, b)));
+    body.append(chart(f, 96));
+    if (f.held) body.append(holding(f));
+    const btns = [button("Buy 1 for " + f.buy, (b) => trade(f, 1, false, b), "primary"), button("Buy 5 for " + f.buy * 5, (b) => trade(f, 5, false, b))];
+    if (f.held) btns.push(button("Sell 1 for " + f.sell, (b) => sell(f, 1, b)));
+    if (f.held > 1) btns.push(button("Sell all for " + f.worth, (b) => sell(f, f.held, b)));
+    body.append(keys(...btns));
   });
 }
 
 function render(p) {
   const m = p.market;
   if (!m) return;
-  $("mkt-worth").textContent = m.worth;
-  $("mkt-room").textContent = Math.max(0, m.cap - m.in);
-  $("mkt-open").textContent = m.open ? "Open" : "Shut";
+  const g = m.worth - m.in, tiles = $("mkt-tiles");
+  tiles.replaceChildren(tile("Worth now", m.worth), tile("Paid", m.in), tile("Gain", m.in ? signed(g) + " · " + signed(gainPct(m.worth, m.in), "%") : "None", g < 0 ? "down" : "up"),
+    tile("Room", Math.max(0, m.cap - m.in)));
+  $("mkt-open").textContent = m.open ? "The board is open." : "The board is shut, only Glowworm Coin moves.";
   $("mkt-help").textContent = "Eight businesses round the pond, each following something real: " +
     m.firms.map((f) => f.name + " follows " + f.follows).join(", ") +
     ". A share moves three times the real day and the close is kept each evening. Glowworm Coin trades every day and the rest on weekdays. " +
@@ -114,17 +141,26 @@ function render(p) {
   const list = $("mkt-list");
   list.textContent = "";
   m.firms.forEach((f) => {
-    const li = document.createElement("li"), what = document.createElement("span"), name = document.createElement("b"), sub = document.createElement("span");
+    const li = document.createElement("li"), head = document.createElement("div"), what = document.createElement("span"), name = document.createElement("b"), sub = document.createElement("span");
+    head.className = "firm";
     what.className = "what";
     name.textContent = f.name;
     sub.className = "dim";
-    sub.textContent = f.held ? f.held + " held, worth " + f.worth : "follows " + f.follows;
+    sub.textContent = "follows " + f.follows;
     what.append(name, sub);
-    const price = document.createElement("span");
-    price.className = "readout px " + (f.price > f.prev ? "up" : f.price < f.prev ? "down" : "");
-    price.innerHTML = '<span class="v"></span>';
+    const price = document.createElement("span"), dir = f.price > f.prev ? "up" : f.price < f.prev ? "down" : "";
+    price.className = "readout px " + dir;
+    price.innerHTML = '<span class="v"></span><span class="k"></span>';
     price.firstChild.textContent = f.price + " " + arrow(f);
-    li.append(front(f.key, 2), what, price);
+    price.lastChild.textContent = signed(dayPct(f), "%") + " today";
+    head.append(front(f.key, 2), what, price);
+    li.append(head, chart(f, 56));
+    if (f.held) {
+      const own = document.createElement("p"), gain = f.worth - f.cost;
+      own.className = "own " + (gain < 0 ? "down" : "up");
+      own.textContent = f.held + " held · paid " + f.cost + " · worth " + f.worth + " · " + signed(gain) + " (" + signed(gainPct(f.worth, f.cost), "%") + ")";
+      li.append(own);
+    }
     li.tabIndex = 0;
     li.setAttribute("role", "button");
     li.addEventListener("click", () => show(f));

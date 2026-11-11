@@ -30,7 +30,7 @@ func priceOf(t *testing.T, s *store, id int64, key string) firmView {
 func TestMarketFollowsTheRealDay(t *testing.T) {
 	s, clock := testStore(t)
 	_, id := newPond(t, s)
-	if f := priceOf(t, s, id, "sp500"); f.Price != 100 || len(f.Days) != 0 {
+	if f := priceOf(t, s, id, "sp500"); f.Price != 100 || len(f.Days) != 1 {
 		t.Fatalf("launch: %+v", f)
 	}
 
