@@ -103,7 +103,7 @@ const TAG = { great: "A STEAL", fair: "FAIR", scam: "STUNG", fake: "FAKE" };
 // Each outcome has its own reveal, and a fake is a joke at nobody's expense.
 function told(d) {
   const g = d.got, what = g.kind === "peb" ? { kind: "peb" } : g.hat ? { hat: g.hat } : dishOf(g.kind) || { kind: g.kind };
-  const r = { art: thingArt(what, 8), name: g.n > 1 ? g.n + " " + g.name.toLowerCase() : g.name, tier: g.tier };
+  const r = { art: thingArt(what, 8), name: g.n > 1 ? g.n + " " + (g.name === "Cricket" ? "crickets" : g.name.toLowerCase()) : g.name, tier: g.tier };
   if (g.outcome === "great") {
     const better = g.kind !== d.kind || g.n > d.n;
     return Object.assign(r, { kick: "A steal!", line: better ? "It isn't even what the sign said, it's better. The hooded frog looks like it wants it back." : "It's the real thing for a fraction of what the shops ask. The hooded frog is already wondering why it did that.", ok: "Run" });
@@ -111,7 +111,7 @@ function told(d) {
   if (g.outcome === "fair") return Object.assign(r, { kick: "Fair enough", line: "It's real, and you paid about what it's worth. Nobody's quite sure how that happened back here.", ok: "Fine" });
   if (g.outcome === "scam") return Object.assign(r, { kick: "Stung", bad: true, line: "It's real, but the shops ask about a tenth of what you paid. The hooded frog has already gone round the corner.", ok: "Oh well" });
   const fake = g.kind === "peb" ? "Under all that wrapping is one pebble. It's a nice pebble, at least." :
-    g.hat ? "It was a leaf all along. Your frog has put it on and looks delighted with it." :
+    g.hat ? "It was a leaf all along. Your frog thinks it makes a lovely hat anyway." :
     "The paint comes off on your fingers. Underneath it's a river agate, and not a very good one.";
   return Object.assign(r, { kick: "It's a fake", bad: true, tier: undefined, line: fake, ok: "Ha" });
 }
