@@ -201,7 +201,7 @@ function render(p) {
     const li = document.createElement("li"), name = document.createElement("span"), sell = document.createElement("button");
     name.textContent = d.name + (d.count > 1 ? " x" + d.count : "");
     const pays = offer("brindle", d.worth);
-    sell.type = "button"; sell.textContent = "Sell " + pays; sell.disabled = !pays;
+    sell.type = "button"; sell.textContent = pays ? "Sell " + pays : "Sell"; sell.disabled = !pays;
     sell.addEventListener("click", () => {
       sell.disabled = true;
       const before = state.pond.pebbles;
