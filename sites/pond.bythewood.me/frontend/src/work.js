@@ -208,7 +208,8 @@ function targetRow(f, d, x, level, cur) {
   text.append(el("b", "", open ? x.name : "???"));
   if (open) {
     const bits = [mins(actMins(f, d, x)), x.xp.toLocaleString("en-US") + " xp", yieldLine(x)];
-    if (x.miss) bits.push(Math.round(x.miss * 10) + " in 10 missed");
+    const m = mastOf(f, d.key, x.key);
+    if (x.miss) bits.push(Math.round(x.miss * (m ? m.miss : 1) * 10) + " in 10 missed");
     text.append(el("span", "", bits.join(" · ")), mastBar(f, d, x));
   } else text.append(el("span", "", "Opens at level " + x.level));
   b.append(art, text, el("span", "wk-lv", x.level));

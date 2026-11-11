@@ -1039,6 +1039,8 @@ type masteryView struct {
 	Hours  float64 `json:"hours"`
 	Got    int     `json:"got"`
 	Speed  float64 `json:"speed"`
+	// What it leaves of the target's miss chance.
+	Miss float64 `json:"miss"`
 }
 
 // thingView is a thing in a basket, "peb" for pebbles.
@@ -1208,7 +1210,7 @@ func workOf(f frogRow, xp map[string]int, mast map[string]mastered, tools map[st
 				continue
 			}
 			ml := masteryOf(m.hours(t), masteryCap(l))
-			w.Targets = append(w.Targets, masteryView{j.key, t.key, ml, m.hours(t), m.got, masterySpeed(ml)})
+			w.Targets = append(w.Targets, masteryView{j.key, t.key, ml, m.hours(t), m.got, masterySpeed(ml), 1 - masteryMiss*float64(ml-1)})
 		}
 	}
 	if r == nil {
