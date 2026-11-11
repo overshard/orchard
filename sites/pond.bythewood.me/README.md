@@ -156,8 +156,8 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   full half as long again.
 - `diary.go` is the frog's diary, a line a day in `diary` written at the
   greeting about the day before and kept for good. It reads `records`,
-  `keepsakes`, `mementos`, `hats.first_day`, `neighbours.heart_day`, `frogs.heart_day`
-  and the day's weather in `skies`, and picks a hand written line by the
+  `keepsakes`, `mementos`, `hats.first_day`, `neighbours.heart_day`, `frogs.heart_day`,
+  `mastery.first_day` and `top_day` and the day's weather in `skies`, and picks a hand written line by the
   frog's nature that the last week hasn't used. `GET /api/diary` reads it.
 - `neighbours.go` is the residents, friendship by dishes and a favour a day.
 - `memento.go` is the one thing each resident gives a best friend, in the
