@@ -131,7 +131,7 @@ var jobs = []job{
 		tg("morel", "Morels", 55, 180, "morel", 1, 0.5, "no morels under the log yet"),
 		tg("lilies", "The lotus pond", 70, 160, "lotus", 2, 0.2, "the seed heads were empty"),
 		tg("woods", "The old wood", 85, 360, "morel", 2, 0.5, "a slug got to the morels first"),
-	}, []jobFind{{25, "t_button", 40}, {50, "t_chanterelle", 90}, {92, "t_goldmorel", 2500}}},
+	}, []jobFind{{16, "t_button", 40}, {26, "t_chanterelle", 90}, {80, "t_agaric", 400}, {94, "t_goldmorel", 2500}}},
 	{"bugs", "Bug catching", "catching bugs", "catching", "NIGHT OWL", []target{
 		tg("cricket", "Crickets", 1, 30, "cricket", 1, 0.5, "the cricket hopped off"),
 		tg("mayfly", "Mayflies", 6, 40, "mayfly", 1, 0.4, "the mayfly got away"),
@@ -142,7 +142,7 @@ var jobs = []job{
 		tg("rain", "Snails after rain", 55, 90, "snail", 2, 0.2, "the snails stayed in"),
 		tg("meadow", "The firefly meadow", 70, 240, "firefly", 2, 0.5, "the meadow stayed dark"),
 		tg("swarm", "A firefly swarm", 85, 360, "firefly", 3, 0.5, "the swarm went over the trees"),
-	}, []jobFind{{80, "t_jar", 1500}}},
+	}, []jobFind{{16, "t_clover", 60}, {26, "cap", 20}, {80, "t_jar", 1500}, {94, "t_disco", 2000}}},
 	{"sticks", "Stick gathering", "gathering sticks", "gathering", "DRIFTER", []target{
 		tg("twigs", "Twigs", 1, 20, "sticks", 1, 0, ""),
 		tg("branches", "Fallen branches", 6, 40, "sticks", 2, 0, ""),
@@ -153,7 +153,7 @@ var jobs = []job{
 		tg("boathouse", "The old boathouse", 55, 120, "sticks", 6, 0, ""),
 		tg("willow", "A fallen willow", 70, 140, "sticks", 7, 0, ""),
 		tg("wood", "The far wood", 85, 160, "sticks", 8, 0, ""),
-	}, []jobFind{{10, "t_acorn", 30}, {25, "t_pinecone", 30}, {50, "wood", 150}}},
+	}, []jobFind{{16, "t_acorn", 30}, {26, "t_pinecone", 30}, {50, "wood", 150}, {80, "t_cone", 200}, {94, "t_robot", 600}}},
 	{"reeds", "Reed cutting", "cutting reeds", "cutting", "SINGER", []target{
 		tg("green", "Green reeds", 1, 20, "reeds", 1, 0, ""),
 		tg("tall", "Tall reeds", 6, 40, "reeds", 2, 0, ""),
@@ -164,7 +164,7 @@ var jobs = []job{
 		tg("millrace", "The mill race", 55, 120, "reeds", 6, 0, ""),
 		tg("fen", "The fen", 70, 140, "reeds", 7, 0, ""),
 		tg("broad", "The broad", 85, 160, "reeds", 8, 0, ""),
-	}, []jobFind{{10, "feather", 40}, {25, "t_boat", 60}, {80, "t_duck", 300}}},
+	}, []jobFind{{16, "feather", 40}, {26, "t_boat", 60}, {80, "t_duck", 300}, {94, "t_globe", 800}}},
 	{"mud", "Mud digging", "digging in the mud", "digging", "SHY", []target{
 		tg("soft", "Soft mud", 1, 30, "clay", 1, 0, ""),
 		tg("bank", "Bank clay", 6, 60, "clay", 2, 0, ""),
@@ -175,7 +175,7 @@ var jobs = []job{
 		tg("riverbed", "The riverbed", 55, 180, "clay", 6, 0, ""),
 		tg("brickworks", "The old brickworks", 70, 210, "clay", 7, 0, ""),
 		tg("bottom", "The bottom of the pond", 85, 240, "clay", 8, 0, ""),
-	}, []jobFind{{10, "agate", 10}, {25, "quartz", 20}, {40, "calcite", 40}, {50, "fossil", 200}, {80, "geode", 100}, {92, "moonstone", 1500}}},
+	}, []jobFind{{10, "agate", 10}, {16, "quartz", 20}, {26, "calcite", 40}, {50, "fossil", 200}, {80, "geode", 100}, {94, "moonstone", 1500}}},
 	{"pebbles", "Pebble diving", "diving for pebbles", "diving", "BOLD", []target{
 		tg("shallows", "The shallows", 1, 30, "", 1, 0.5, "only mud down there"),
 		tg("reedbed", "Among the reeds", 6, 60, "", 2, 0.5, "it got tangled in the reeds"),
@@ -186,7 +186,7 @@ var jobs = []job{
 		tg("weir", "Below the weir", 55, 150, "", 5, 0.5, "the water ran too fast"),
 		tg("drop", "The drop off", 70, 180, "", 6, 0.5, "too cold that far down"),
 		tg("floor", "The very bottom", 85, 210, "", 7, 0.5, "couldn't reach the bottom this time"),
-	}, []jobFind{{25, "geode", 150}, {50, "t_marble", 80}, {80, "t_earring", 400}, {92, "t_pearl", 3000}}},
+	}, []jobFind{{16, "t_marble", 80}, {26, "geode", 150}, {80, "t_earring", 400}, {94, "t_pearl", 3000}}},
 	{jobCraft, "Crafting", "at the craft bench", "crafting", "", nil, nil},
 }
 
