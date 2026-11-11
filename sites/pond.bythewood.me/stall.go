@@ -187,8 +187,9 @@ type stallRow struct {
 type stallView struct {
 	Slots int        `json:"slots"`
 	Rows  []stallRow `json:"rows"`
-	// Pebbles waiting from what's sold.
+	// Pebbles waiting from what's sold, and how much of it can be paid today.
 	Takings int `json:"takings"`
+	Room    int `json:"room"`
 }
 
 // bagThing is anything a pond holds, hats included, with what can be done
@@ -286,6 +287,10 @@ func bagOf(held map[string]int, hats []hatView, hoods []hoodView, listed map[str
 
 func stallOf(q querier, id int64, now time.Time) (stallView, error) {
 	v := stallView{Slots: stallSlots, Rows: []stallRow{}}
+	var err error
+	if v.Room, err = roomLeft(q, id, buyerStall, dayOf(now)); err != nil {
+		return v, err
+	}
 	rows, err := q.Query(`SELECT slot, kind, price, listed_at, sells_at, buyer, chance, ends_at FROM stall WHERE pond_id = ? ORDER BY slot`, id)
 	if err != nil {
 		return v, err
@@ -433,15 +438,33 @@ func (s *store) stallTake(id int64, slot int) (*view, error) {
 		if err != nil {
 			return err
 		}
+		if sells > 0 && sells <= now.Unix() {
+			paid, err := stallPay(tx, p, slot, price)
+			if err == nil && paid == 0 {
+				err = errStallPaid
+			}
+			return err
+		}
 		if _, err := tx.Exec(`DELETE FROM stall WHERE pond_id = ? AND slot = ?`, p.ID, slot); err != nil {
 			return err
 		}
-		if sells > 0 && sells <= now.Unix() {
-			p.Pebbles += price
-			return nil
-		}
 		return giveThing(tx, p.ID, kind)
 	})
+}
+
+// stallPay takes what's left of the day's room off a sold thing, and it comes
+// down once it's paid in full.
+func stallPay(tx *sql.Tx, p *pond, slot, price int) (int, error) {
+	paid, err := payOut(tx, p, buyerStall, price)
+	if err != nil || paid == 0 {
+		return 0, err
+	}
+	if paid < price {
+		_, err = tx.Exec(`UPDATE stall SET price = price - ? WHERE pond_id = ? AND slot = ?`, paid, p.ID, slot)
+	} else {
+		_, err = tx.Exec(`DELETE FROM stall WHERE pond_id = ? AND slot = ?`, p.ID, slot)
+	}
+	return paid, err
 }
 
 // stallCollect takes the pebbles for everything sold, and every neighbour who
@@ -449,34 +472,52 @@ func (s *store) stallTake(id int64, slot int) (*view, error) {
 func (s *store) stallCollect(id int64) (*paidOut, error) {
 	out := &paidOut{Prizes: []prize{}, From: []int{}}
 	v, err := s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
-		rows, err := tx.Query(`SELECT price, buyer FROM stall WHERE pond_id = ? AND sells_at > 0 AND sells_at <= ? ORDER BY slot`, p.ID, now.Unix())
+		rows, err := tx.Query(`SELECT slot, price, buyer FROM stall WHERE pond_id = ? AND sells_at > 0 AND sells_at <= ? ORDER BY slot`, p.ID, now.Unix())
 		if err != nil {
 			return err
 		}
-		var buyers []int
+		type sale struct {
+			slot, price int
+			buyer       string
+		}
+		var sales []sale
 		for rows.Next() {
-			var price int
-			var buyer string
-			if err := rows.Scan(&price, &buyer); err != nil {
+			var x sale
+			if err := rows.Scan(&x.slot, &x.price, &x.buyer); err != nil {
 				rows.Close()
 				return err
 			}
-			out.Pebbles += price
-			if who := residentNamed(buyer); who >= 0 {
-				buyers = append(buyers, who)
-			}
+			sales = append(sales, x)
 		}
 		if err := rows.Close(); err != nil {
 			return err
 		}
-		if out.Pebbles == 0 {
+		if len(sales) == 0 {
 			return errNotYet
 		}
-		if _, err := tx.Exec(`DELETE FROM stall WHERE pond_id = ? AND sells_at > 0 AND sells_at <= ?`, p.ID, now.Unix()); err != nil {
-			return err
+		var buyers []int
+		waiting := false
+		for _, x := range sales {
+			paid, err := stallPay(tx, p, x.slot, x.price)
+			if err != nil {
+				return err
+			}
+			out.Pebbles += paid
+			if paid < x.price {
+				waiting = true
+				break
+			}
+			if who := residentNamed(x.buyer); who >= 0 {
+				buyers = append(buyers, who)
+			}
 		}
-		p.Pebbles += out.Pebbles
+		if out.Pebbles == 0 {
+			return errStallPaid
+		}
 		out.Line = fmt.Sprintf("+%d pebbles.", out.Pebbles)
+		if waiting {
+			out.Line += " The rest comes tomorrow."
+		}
 		for _, who := range buyers {
 			zs, err := befriend(tx, p, who, 1, "")
 			if err != nil {

@@ -167,13 +167,17 @@ func TestStallSellsAndCollects(t *testing.T) {
 		t.Fatalf("collected before a sale, %v", err)
 	}
 	*clock = clock.Add(25 * time.Hour)
-	paid, err := s.stallCollect(id)
-	if err != nil {
-		t.Fatal(err)
+	got := 0
+	for len(v.Stall.Rows) > 0 {
+		paid, err := s.stallCollect(id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		v, got = paid.Pond, got+paid.Pebbles
+		*clock = clock.Add(24 * time.Hour)
 	}
-	v = paid.Pond
-	if v.Pebbles != before+w/2+1+w/2+2 || paid.Pebbles != w/2+1+w/2+2 || len(v.Stall.Rows) != 0 {
-		t.Fatalf("pebbles %d from %d, %d still up", v.Pebbles, before, len(v.Stall.Rows))
+	if v.Pebbles != before+w/2+1+w/2+2 || got != w/2+1+w/2+2 {
+		t.Fatalf("pebbles %d from %d, %d collected", v.Pebbles, before, got)
 	}
 	met := 0
 	for _, f := range v.Neighbours.All {
@@ -191,6 +195,40 @@ func TestStallSellsAndCollects(t *testing.T) {
 	}
 	if _, err := s.stallList(id, "f_lantern", 10); !errors.Is(err, errNotHeld) {
 		t.Fatalf("sold the furniture, %v", err)
+	}
+}
+
+// Eight jams sold off the stall pay out the day's room and no more, the rest
+// waits on the stall, and the next day pays the next room's worth of it.
+func TestStallPaysADaysWorth(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	jam := dishOf(6, 6).kind()
+	stock(t, s, id, jam, stallSlots)
+	for range stallSlots {
+		if _, err := s.stallList(id, jam, dishWorth[4]/2); err != nil {
+			t.Fatal(err)
+		}
+	}
+	exec(t, s, `UPDATE stall SET sells_at = ? WHERE pond_id = ?`, clock.Unix(), id)
+	v, _ := s.view(id)
+	before, owed := v.Pebbles, v.Stall.Takings
+	paid, err := s.stallCollect(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if paid.Pebbles != sellRoom || paid.Pond.Pebbles-before != sellRoom || paid.Pond.Stall.Takings != owed-sellRoom {
+		t.Fatalf("collected %d, purse moved %d, %d still waiting of %d", paid.Pebbles, paid.Pond.Pebbles-before, paid.Pond.Stall.Takings, owed)
+	}
+	if _, err := s.stallCollect(id); !errors.Is(err, errStallPaid) {
+		t.Fatalf("collected twice in a day, %v", err)
+	}
+	if _, err := s.stallTake(id, paid.Pond.Stall.Rows[0].Slot); !errors.Is(err, errStallPaid) {
+		t.Fatalf("took a sold thing past the room, %v", err)
+	}
+	*clock = clock.Add(24 * time.Hour)
+	if paid, err = s.stallCollect(id); err != nil || paid.Pebbles != sellRoom {
+		t.Fatalf("the next day collected %d, %v", paid.Pebbles, err)
 	}
 }
 

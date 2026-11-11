@@ -326,12 +326,13 @@
 
     <div id="town-stall" hidden>
       <div class="stallart screen"><canvas id="stall-art" width="352" height="128" aria-hidden="true"></canvas></div>
-      <p class="help" hidden>Put up to eight things on your stall for a day. Neighbours wander by all day and somebody nearly always buys within the hour at the going rate, and the chance drops fast as the price goes up. What a thing goes for changes with the day and falls as more of it is put up. Asking over the rate costs a small fee that isn't given back. A hat or trinket has to be a spare, and whoever buys likes you a little more for it.</p>
+      <p class="help" hidden>Put up to eight things on your stall for a day. Neighbours wander by all day and somebody nearly always buys within the hour at the going rate, and the chance drops fast as the price goes up. What a thing goes for changes with the day and falls as more of it is put up. Asking over the rate costs a small fee that isn't given back. A hat or trinket has to be a spare, and whoever buys likes you a little more for it. The neighbours only pay out so much a day, and anything sold past that waits on the stall until the next.</p>
       <h2>Your stall <span class="dim" id="stall-n"></span></h2>
       <div class="stall" id="stall-rows"></div>
       <div class="row">
         <button type="button" class="primary" id="stall-collect">Collect</button>
       </div>
+      <p class="dim" id="stall-room" hidden></p>
       <p class="line" id="stall-out" role="status"></p>
     </div>
 
