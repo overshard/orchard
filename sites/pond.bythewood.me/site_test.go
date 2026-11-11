@@ -365,6 +365,14 @@ func TestAFrogFindsASitesHatOnce(t *testing.T) {
 	if got != 1 || len(v.Sites) != len(siteHats) {
 		t.Errorf("sites on the view: %+v", v.Sites)
 	}
+	for i := range siteHats {
+		if h := siteHatFor(i); h.tier() != 0 || !h.earned() {
+			t.Errorf("%s should be common and worn, never held", h.name())
+		}
+	}
+	if pw := powerOf(rarity{N: 2}, []hat{siteHatFor(0)}, nil, 0, 0); pw.Hats != 20 {
+		t.Errorf("a site hat counts %d power, want 20", pw.Hats)
+	}
 }
 
 // One pass through everything a visit can do, over HTTP.
