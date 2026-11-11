@@ -204,9 +204,8 @@ func TestARankIsKept(t *testing.T) {
 }
 
 // plainPond is a pond played a little every day, at a day, a week, a month
-// and three months. Hats are what the ninety day purse sim finds by then
-// and job levels what TestTheJobsPace gives an ordinary player, with a new
-// frog on the bench every week or two working the next job along.
+// and three months. Hats are what the purse sim finds by then, job levels
+// TestTheJobsPace's ordinary player's, with a new frog on the next job along.
 var plainPond = []struct {
 	day                                          int
 	hats, trinkets, rocks, keepsakes, fish, dish int
