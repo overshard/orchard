@@ -111,6 +111,8 @@ func TestWizardTakesThreeAndKeepsTheLastHat(t *testing.T) {
 	if w.Pond.held["agate"] != 0 && w.Kind != "agate" {
 		t.Fatalf("left %d agate", w.Pond.held["agate"])
 	}
+	// A new pond, since the wizard may just have handed the first one this hat.
+	_, id = newPond(t, s)
 	h := hatKind(hat{Shape: 4, Colour: 0})
 	stock(t, s, id, h, 3)
 	if _, err := s.wizard(id, h); !errors.Is(err, errNotHeld) {
