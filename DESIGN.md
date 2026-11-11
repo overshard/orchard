@@ -564,6 +564,7 @@ Space Grotesk and its stage, day and odds in the other corner. It hops once as
 it loads, breathes and blinks, and croaks only when tapped. Under the screen is
 a plate in STATUS's hairline cells, pebbles, power and a count of what's waiting
 that links to the first of them, and for the house frog its morph and rarity.
+The plate is one row at every width, where STATUS's own goes to a column or a grid.
 The link to the pond is the panel's meta. It replaced a thumbnail with a label
 over value list beside it, which no other panel used, and a list of links that
 made the panel taller than UPLINK. On a tablet and phone it drops under UPLINK
