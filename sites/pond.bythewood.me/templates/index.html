@@ -309,6 +309,11 @@
   </section>
 
   <section class="view" id="v-bank" hidden>
+    <div class="places pair" id="bank-tabs" role="group" aria-label="In the bank">
+      <button type="button" data-bank="works" aria-pressed="true"><canvas data-icon="i_bank" width="40" height="40"></canvas>Bank</button>
+      <button type="button" data-bank="market" aria-pressed="false"><canvas data-icon="i_market" width="40" height="40"></canvas>Market</button>
+    </div>
+    <div id="bank-works">
     <div class="screen"><canvas id="bank-art" width="528" height="192" aria-label="The gravel bar, the dye works and the burrows"></canvas></div>
     <p class="line" id="bank-line"></p>
     <h2>Gravel bar</h2>
@@ -356,18 +361,8 @@
       <button type="button" id="burrow-build">Build</button>
     </div>
     <p class="line" id="burrow-out" role="status"></p>
-  </section>
-
-  <section class="view" id="v-town" hidden>
-    <div class="places" id="town-tabs" role="group" aria-label="In town">
-      <button type="button" data-town="neighbours" aria-pressed="true"><canvas data-icon="i_folk" width="40" height="40"></canvas>Neighbours</button>
-      <button type="button" data-town="shops" aria-pressed="false"><canvas data-icon="i_shops" width="40" height="40"></canvas>Shops</button>
-      <button type="button" data-town="stall" aria-pressed="false"><canvas data-icon="i_stall" width="40" height="40"></canvas>Stall</button>
-      <button type="button" data-town="wizard" aria-pressed="false"><canvas data-icon="i_wizard" width="40" height="40"></canvas>Wizard</button>
-      <button type="button" data-town="market" aria-pressed="false"><canvas data-icon="i_market" width="40" height="40"></canvas>Market</button>
     </div>
-
-    <div id="town-market" hidden>
+    <div id="bank-market" hidden>
       <div class="ticker" aria-hidden="true"><div class="tape" id="mkt-tape"></div></div>
       <div class="tiles" id="mkt-tiles"></div>
       <h2>The pond market</h2>
@@ -375,6 +370,15 @@
       <p class="dim" id="mkt-open"></p>
       <ul class="market" id="mkt-list"></ul>
       <p class="line" id="mkt-out" role="status"></p>
+    </div>
+  </section>
+
+  <section class="view" id="v-town" hidden>
+    <div class="places four" id="town-tabs" role="group" aria-label="In town">
+      <button type="button" data-town="neighbours" aria-pressed="true"><canvas data-icon="i_folk" width="40" height="40"></canvas>Neighbours</button>
+      <button type="button" data-town="shops" aria-pressed="false"><canvas data-icon="i_shops" width="40" height="40"></canvas>Shops</button>
+      <button type="button" data-town="stall" aria-pressed="false"><canvas data-icon="i_stall" width="40" height="40"></canvas>Stall</button>
+      <button type="button" data-town="wizard" aria-pressed="false"><canvas data-icon="i_wizard" width="40" height="40"></canvas>Wizard</button>
     </div>
 
     <div id="town-shops" hidden>
