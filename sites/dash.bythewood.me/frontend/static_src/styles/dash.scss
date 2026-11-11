@@ -1395,8 +1395,13 @@ main {
     white-space: pre-line;
   }
 
+  // Always one row. The status plate goes to a column or a grid at some widths
+  // and this one has three short cells that fit anywhere.
   .pond-plate {
-    .cell { flex: 1; padding: 7px 10px 8px; }
+    display: flex;
+    flex-flow: row nowrap;
+
+    .cell { flex: 1 1 0; padding: 7px 10px 8px; }
     .v { color: var(--text); }
     a { color: var(--amber); text-decoration: none; }
     a:hover { text-decoration: underline; }
