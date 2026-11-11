@@ -22,8 +22,8 @@ console.log(rows.length + " genomes written");
 // The same frogs drawn still at every stage, in a hat, for sprite_test.go.
 const STAGES = ["egg", "tadpole", "froglet", "frog", "elder"];
 const sprites = [];
-seeds.slice(0, 60).forEach((seed, i) => {
-  const g = genome(seed), hat = i >= 53 ? { shape: 101 + i - 53, colour: 0 } : { shape: i % 16, colour: i % 4 };
+seeds.slice(0, 69).forEach((seed, i) => {
+  const g = genome(seed), hat = i >= 60 ? { shape: 201 + i - 60, colour: 0 } : i >= 53 ? { shape: 101 + i - 53, colour: 0 } : { shape: i % 16, colour: i % 4 };
   STAGES.forEach((stage, k) => {
     const day = stage === "tadpole" ? 3 + (i % 6) : 1;
     const c = cells(g, stage, { hat: hat.shape, legs: day >= 6 });
