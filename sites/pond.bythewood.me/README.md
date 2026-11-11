@@ -78,6 +78,8 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
   day, off a hash of the date, is the disk of the day and pays in full a
   fourth time under the same cap.
   `frontend/src/arcade.js` is the frame round them, one file per game beside it.
+  It reads a game's `W` and `H` each time, since Crossing changes its `H` to
+  fit the window between runs.
 - `neighbours.go` is the residents, friendship by dishes and a favour a day.
 - `burrow.go` is the bank's burrows. Each level adds a pad that doesn't count
   toward the ones you buy, and a friendly neighbour can lodge in one and pay rent.

@@ -621,6 +621,11 @@ version of the old look and a handheld pet shell.
   disk of the day, with an amber sticker stuck on crooked. The wheel and the old log
   stay as panels. Fishing is the flagship and its disk takes the whole first
   row, with a big amber title and a line about it beside the disk.
+- **A side game fills a tall phone.** The field sits in the middle and the
+  room over and under it is a flat colour the game names, or its top and
+  bottom rows stretched where that carries the scene on. Crossing takes more
+  rows in place of either. A run pauses when the page is hidden, and the title
+  panel says PAUSED until it's tapped.
 - **The side games end like Dive.** Their title and results sit in a panel
   with a screen window, and the strip under every game is readout glass and an
   EJECT key.
@@ -685,6 +690,9 @@ version of the old look and a handheld pet shell.
   are no image files, and a canvas is always `image-rendering: pixelated`.
 - No pixel font. A bitmap face at body size was hard to read, so words on a
   canvas are the same two faces as the page.
+- **Anything read is 14px or more.** 10px is for the labels on readout glass,
+  the tab keys and a tier's box, and 12px for a key's legend and the caption
+  under a picture in a slot or a disk, which would wrap at 14.
 - Rarity is a word in a box as well as a colour: common grey, uncommon green,
   rare blue, epic purple, legendary amber.
 - **The real day is on the pond's screen.** Night darkens it with fireflies,
