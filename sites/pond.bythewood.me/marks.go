@@ -86,9 +86,9 @@ func favourMarks(v *view) []mark {
 	return []mark{{f.Kind, line}}
 }
 
-// recipeMarks is every ingredient that would cook into a dish the pond has
-// never made with something else it's holding. The line names the other half
-// and never the dish.
+// recipeMarks is the best named dish the pond has never made and holds both
+// halves of. One dish at a time keeps the lamps few enough to mean something.
+// The line names the other half and never the dish.
 func recipeMarks(v *view) []mark {
 	if !v.Open.has("garden") {
 		return nil
@@ -97,41 +97,31 @@ func recipeMarks(v *view) []mark {
 	for _, d := range v.Kitchen.Cookbook {
 		cooked[d.Kind] = true
 	}
-	with := make([][]string, len(ingredients))
-	twice := make([]bool, len(ingredients))
+	var best *dish
 	for a := range ingredients {
 		for b := a; b < len(ingredients); b++ {
+			if _, named := namedDishes[[2]int{a, b}]; !named {
+				continue
+			}
 			d := dishOf(a, b)
 			if cooked[d.kind()] || !d.has(v.held) {
 				continue
 			}
-			if a == b {
-				twice[a] = true
-				continue
+			if best == nil || d.tier > best.tier {
+				best = &d
 			}
-			with[a] = append(with[a], strings.ToLower(ingredients[b].name))
-			with[b] = append(with[b], strings.ToLower(ingredients[a].name))
 		}
 	}
-	var out []mark
-	for i, g := range ingredients {
-		if twice[i] {
-			out = append(out, mark{g.kind, "Two of these cook into a dish you haven't made."})
-		}
-		if len(with[i]) > 0 {
-			out = append(out, mark{g.kind, "Cooks into a dish you haven't made with " + anyOf(with[i]) + "."})
-		}
+	if best == nil {
+		return nil
 	}
-	return out
-}
-
-// anyOf lists up to three names and says when there are more.
-func anyOf(names []string) string {
-	switch {
-	case len(names) == 1:
-		return names[0]
-	case len(names) <= 3:
-		return strings.Join(names[:len(names)-1], ", ") + " or " + names[len(names)-1]
+	A, B := ingredients[best.a], ingredients[best.b]
+	if best.a == best.b {
+		return []mark{{A.kind, "Two of these cook into a named dish you haven't made."}}
 	}
-	return strings.Join(names[:3], ", ") + " and more"
+	line := "Cooks with %s into a named dish you haven't made."
+	return []mark{
+		{A.kind, fmt.Sprintf(line, strings.ToLower(B.name))},
+		{B.kind, fmt.Sprintf(line, strings.ToLower(A.name))},
+	}
 }

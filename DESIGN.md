@@ -739,8 +739,9 @@ version of the old look and a handheld pet shell.
   line names his price and an amber SHOP key goes there, where the hat is on
   his shelf in its colours with WANTED under its name.
 - **A wanted thing has a lamp.** A slot in the bag that somebody is after, a
-  neighbour, today's favour or a dish not cooked yet, has a small amber lamp
-  under its pips and an amber glow round it that breathes, opacity only.
+  neighbour, today's favour or the one named dish it could cook next, has a
+  small amber lamp under its pips and an amber glow round it that breathes,
+  opacity only.
   Reduced motion gets the lamp and no glow. Its sheet says who wants it, a
   line each with the same lamp, over the keys.
 - **A prize pops up in the middle** with slow rays behind it in its tier's
