@@ -20,6 +20,7 @@ import { initSettings } from "./settings.js";
 import { initPower, seePower } from "./power.js";
 import { initPostcard } from "./postcard.js";
 import { drawScenery, drawSceneryNight } from "./scenery.js";
+import { footprint, visitorReveal } from "./company.js";
 import { initPet, setBox, pose, over as petOver, busy as petBusy, wasRub, tapTrick, arrive, drawBond } from "./pet.js";
 
 buildPlay($("shelves"), $("v-dive"));
@@ -505,6 +506,7 @@ function drawScene(now) {
   // Trinkets sit in front of the frog at the pad's edge.
   if (grown(f.stage) && !day.shelter) {
     if (day.hobby) drawHobby(day.hobby, t);
+    if (p.visitor) footprint(sx, 88, 252);
     if (out[0]) drawIcon(sx, out[0], 40, 236, 4);
     if (out[1]) drawIcon(sx, out[1], 280, 236, 4);
   }
@@ -864,6 +866,7 @@ function greet(g) {
       });
     }, { once: true });
   }
+  if (g.visitor) reveal(visitorReveal(g.visitor));
   // A best friend from before there were mementos hands its one over now.
   if (g.prizes && g.prizes.length) presentsFrom(g);
   if (!reduced) greetAt = performance.now();
