@@ -57,11 +57,12 @@ const dropMost, dropRows = 40, 9
 
 // dropDeal is how many pixels each row of pebble drop's pegs sits off its
 // place for a day, the same for everybody, so no spot is the best one for good.
+// Kept to 3 either way so the rows always stay staggered.
 func dropDeal(day string) []int {
 	sum := sha256.Sum256([]byte("drop " + day))
 	out := make([]int, dropRows)
 	for r := range out {
-		out[r] = int(sum[r])%17 - 8
+		out[r] = int(sum[r])%7 - 3
 	}
 	return out
 }
