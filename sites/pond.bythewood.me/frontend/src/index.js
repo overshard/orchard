@@ -633,10 +633,14 @@ function renderNext(p) {
   const room = ready ? 2 : 3, shown = allRows || rows.length <= room ? rows : rows.slice(0, room);
   shown.forEach((r) => box.append(nextRow(r)));
   if (shown.length < rows.length) {
-    const more = el("button", "nrow more", "+" + (rows.length - shown.length) + " more");
+    // The key for the rest sits on the end of the last row, so the strip
+    // is never taller than its rows.
+    const n = rows.length - shown.length, more = el("button", "nrow more", "+" + n), last = el("div", "nrow-last");
     more.type = "button";
+    more.setAttribute("aria-label", "Show " + n + " more");
     more.addEventListener("click", () => { allRows = true; renderNext(state.pond); });
-    box.append(more);
+    last.append(box.lastElementChild, more);
+    box.append(last);
   }
   if (!rows.length && !ready) box.append(el("p", "dim", "That's everything for today. The pond keeps going while you're away."));
 }

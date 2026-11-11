@@ -1993,28 +1993,29 @@ button.nrow.primary {
   font-size: 12px;
 }
 
+.nrow-last {
+  display: flex;
+  gap: 6px;
+}
+
 .nrow.more {
+  flex: none;
   justify-content: center;
-  min-height: 28px;
+  width: auto;
+  min-width: 48px;
+  padding: 3px 10px;
   color: var(--print);
   font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0;
-  text-transform: none;
 }
 
 @media (max-height: 780px) and (max-width: 34rem) {
   .nextup {
     gap: 4px;
-    margin: -4px 0 10px;
+    margin: 6px 0 10px;
   }
 
   .nrow {
     min-height: 34px;
-  }
-
-  .nrow.more {
-    min-height: 24px;
   }
 }
 
