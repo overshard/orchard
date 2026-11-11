@@ -75,6 +75,10 @@ var fishKinds = []fishKind{
 	{"moonkoi", "Moon koi", 45, 4, when(func(d fishDay) bool { return d.moon }, 3, 0), "Only on the day of a full moon.", 140, 320},
 }
 
+// A fish in the book goes by this in front of its kind wherever found things
+// of every sort are kept together, since a fish isn't an item.
+const fishHad = "fish_"
+
 func fishOf(kind string) (fishKind, bool) {
 	for _, f := range fishKinds {
 		if f.kind == kind {

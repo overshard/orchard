@@ -106,5 +106,8 @@ func goalsOf(v *view, p *pond) []goal {
 	if n := len(v.Kitchen.Cookbook); b.Garden.Level > 0 && n < v.Kitchen.Of {
 		add("cook", "bowl", "Cook something new", "garden", fmt.Sprintf("%d/%d", n, v.Kitchen.Of))
 	}
+	if n := v.Fishing.Found; n > 0 && n < len(fishKinds) {
+		add("book", "i_fish", "Land a fish that's new to the book", "fish", fmt.Sprintf("%d/%d", n, len(fishKinds)))
+	}
 	return out
 }

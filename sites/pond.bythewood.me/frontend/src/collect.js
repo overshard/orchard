@@ -3,6 +3,7 @@ import { genome, bred, cells, colours, draw, W, H, MORPHS } from "./frog.js";
 import { iconCanvas, dishCanvas, furnCanvas } from "./icons.js";
 import { hatTile } from "./hats.js";
 import { slot, openSheet, shade } from "./ui.js";
+import { fishArt, inches } from "./fishes.js";
 
 const BACKS = ["PLAIN", "SPOTS", "BANDS", "SPECKLED", "MASK", "BACK STRIPE"];
 const PUPILS = ["BAR", "ROUND", "SLIT"];
@@ -52,6 +53,19 @@ function cookbook(p) {
   return out;
 }
 
+// A fish says how many and how big once it's in the book, and when it bites
+// either way.
+function fishBook(p) {
+  return p.fishing.all.map((f) => {
+    const now = f.up ? " It's biting well right now." : "";
+    return {
+      art: (big) => fishArt(f.kind, big ? 200 : 56), name: f.name, tier: f.tier, found: f.count > 0, count: f.count,
+      sub: f.count ? inches(f.best) : "", what: f.hint + now,
+      note: "Landed " + f.count + ", the biggest " + inches(f.best) + ". First one " + f.first + ". " + f.hint + now,
+    };
+  });
+}
+
 // Every collection, each a list of what there is, found or not.
 function cats(p) {
   const furn = (p.shops.fenn && p.shops.fenn.lines) || [];
@@ -62,6 +76,7 @@ function cats(p) {
     { key: "sites", name: "Site hats", icon: "i_site", all: p.sites.map((h) => ({ art: () => hatTile(h, true), name: h.name, tier: 0, found: h.got, what: "Your frog finds it the first time you open " + h.host + "." })) },
     { key: "rocks", name: "Rocks", icon: "agate", all: p.rocks.map((r) => ({ art: () => iconCanvas(r.kind, 4), name: r.name, tier: r.tier, found: r.found, what: "The wheel, the reeds and Moth." })) },
     { key: "keepsakes", name: "Keepsakes", icon: "k_frost", all: p.keepsakes.map((k) => ({ art: () => iconCanvas(k.kind, 4), name: k.name, tier: k.tier, found: k.days > 0, what: k.hint, sub: k.days ? k.first : "" })) },
+    { key: "fish", name: "Fish", icon: "i_fish", all: fishBook(p) },
     { key: "frogs", name: "Frog looks", icon: "i_pond", all: register(p) },
     { key: "dishes", name: "Cookbook", icon: "lotus", all: cookbook(p) },
     { key: "furniture", name: "Furniture", icon: "f_reeds", all: furn.map((l) => ({ art: () => furnCanvas(l.kind), name: l.name, tier: 0, found: p.furniture.includes(l.kind), what: "Tansy's Pad and Reed, in town." })) },
@@ -99,12 +114,12 @@ function render(p) {
   c.all.forEach((x) => {
     const art = x.art();
     grid.append(slot(art, {
-      tier: x.tier, name: x.name, found: x.found, sub: x.found ? x.sub : TIERS[x.tier],
+      tier: x.tier, name: x.name, found: x.found, count: x.count, sub: x.found ? x.sub : TIERS[x.tier],
       onClick: () => {
-        const big = x.art();
+        const big = x.art(true);
         big.classList.add("big");
         openSheet({ art: x.found ? big : shade(big), name: x.found ? x.name : "???", tier: x.tier },
-          x.found ? (x.sub ? "First kept " + x.sub + "." : "Found.") : x.what, () => {});
+          x.found ? (x.note || (x.sub ? "First kept " + x.sub + "." : "Found.")) : x.what, () => {});
       },
     }));
   });

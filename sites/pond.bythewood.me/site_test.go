@@ -560,6 +560,9 @@ func fullPower() power {
 	for _, x := range keepsakes {
 		had[x.kind] = true
 	}
+	for _, x := range fishKinds {
+		had[fishHad+x.kind] = true
+	}
 	return powerOf(rarity{N: 5600}, held, had, diveCounts, len(jobs)*maxLevel, bondHearts)
 }
 

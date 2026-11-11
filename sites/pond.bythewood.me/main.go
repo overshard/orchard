@@ -74,6 +74,7 @@ var templateFuncs = template.FuncMap{
 	"trinketsInGame":  func() int { return len(trinkets) },
 	"rocksInGame":     func() int { return len(rocks) },
 	"keepsakesInGame": func() int { return len(keepsakes) },
+	"fishInGame":      func() int { return len(fishKinds) },
 	"join":            strings.Join,
 	// One pip for a common thing up to five for a legendary one.
 	"pips": func(tier int) []struct{} { return make([]struct{}, tier+1) },

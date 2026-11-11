@@ -63,11 +63,11 @@ export function drawFish(x, sp, cx, cy, dir, t, flash, shadow) {
 
 export function fishOf(kind) { return KINDS.find((k) => k.k === kind); }
 
-// A fish on a canvas of its own, as big as fits about 56px across.
-export function fishArt(kind) {
+// A fish on a canvas of its own, as big as fits across, 56px unless told.
+export function fishArt(kind, across) {
   const sp = fishOf(kind), cv = document.createElement("canvas"), x = cv.getContext("2d");
   const L = sp.len, fins = Math.max(3, Math.round(L / 7)), hh = Math.max(3, Math.round(L * (sp.fat || 0.42)));
-  const w = L + fins + 4 + (sp.whisk ? (sp.huge ? 6 : 3) : 0), h = hh + (sp.huge ? 10 : 6) + (sp.whisk ? 4 : 0), s = Math.max(1, Math.floor(56 / w));
+  const w = L + fins + 4 + (sp.whisk ? (sp.huge ? 6 : 3) : 0), h = hh + (sp.huge ? 10 : 6) + (sp.whisk ? 4 : 0), s = Math.max(1, Math.floor((across || 56) / w));
   cv.width = w * s; cv.height = h * s;
   x.scale(s, s);
   drawFish(x, sp, L + fins + 1 - Math.round(L / 2), Math.round(h / 2) + (sp.huge ? 1 : 0), 1, 0, false, false);
