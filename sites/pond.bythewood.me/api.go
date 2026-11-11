@@ -724,6 +724,16 @@ func (s *site) apiRent(id int64, r *http.Request, w http.ResponseWriter) (any, e
 	return s.store.collectRent(id)
 }
 
+func (s *site) apiHome(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	var in struct {
+		Home bool `json:"home"`
+	}
+	if !readJSON(w, r, &in) {
+		return nil, nil
+	}
+	return s.store.keepHome(id, in.Home)
+}
+
 func (s *site) apiFavour(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
 	return s.store.favour(id)
 }
