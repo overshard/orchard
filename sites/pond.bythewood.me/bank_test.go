@@ -130,8 +130,48 @@ func TestGardenGrowsPicksAndCooks(t *testing.T) {
 	}
 	before := c.Pond.Pebbles
 	v, err = s.sellDish(id, c.Dish.Kind)
-	if err != nil || v.Pebbles != before+600 || len(v.Kitchen.Dishes) != 0 || len(v.Kitchen.Cookbook) != 1 {
+	if err != nil || v.Pebbles != before+min(600, sellRoom) || len(v.Kitchen.Dishes) != 0 || len(v.Kitchen.Cookbook) != 1 {
 		t.Fatalf("%+v %v", v.Kitchen, err)
+	}
+}
+
+// Big Bean pays out no more than his room in a day however much is cooked,
+// and has all of it again the next day.
+func TestBigBeanBuysADaysWorth(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	soup, jam := dishOf(0, 0).kind(), dishOf(6, 6).kind()
+	stock(t, s, id, soup, 40)
+	stock(t, s, id, jam, 2)
+	v, _ := s.view(id)
+	start, sold := v.Pebbles, 0
+	for {
+		after, err := s.sellDish(id, soup)
+		if errors.Is(err, errBeanFull) {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		sold++
+		v = after
+	}
+	if v.Pebbles-start != sellRoom || v.Room[shopBrindle] != 0 {
+		t.Fatalf("a day of soup paid %d with %d left, want %d", v.Pebbles-start, v.Room[shopBrindle], sellRoom)
+	}
+	if _, err := s.sellDish(id, jam); !errors.Is(err, errBeanFull) {
+		t.Fatalf("a jam sold past the room, %v", err)
+	}
+	if v, _ = s.view(id); v.held[jam] != 2 || v.held[soup] != 40-sold {
+		t.Fatalf("a refused sale took something, %d jam and %d soup", v.held[jam], v.held[soup])
+	}
+	*clock = clock.Add(24 * time.Hour)
+	if v, _ = s.view(id); v.Room[shopBrindle] != sellRoom {
+		t.Fatalf("the next day has %d of room", v.Room[shopBrindle])
+	}
+	before := v.Pebbles
+	if v, err := s.sellDish(id, jam); err != nil || v.Pebbles-before != min(dishWorth[4], sellRoom) {
+		t.Fatalf("a jam the next day paid %d, %v", v.Pebbles-before, err)
 	}
 }
 

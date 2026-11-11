@@ -1,6 +1,7 @@
-import { $, post, state, setPond, watch, titled } from "./api.js";
+import { $, post, state, setPond, watch, titled, offer } from "./api.js";
 import { slot, thingArt, openSheet, closeSheet, sheetSay, button, reveal, ghost } from "./ui.js";
 import { pricePicker, toWizard } from "./town.js";
+import { beanLine } from "./bank.js";
 
 const SORTS = [["all", "All"], ["hat", "Hats"], ["trinket", "Trinkets"], ["rock", "Rocks"], ["food", "Food"], ["dish", "Dishes"], ["material", "Materials"], ["thing", "Other"]];
 const SPOTS = ["Left", "Right", "Water"];
@@ -27,6 +28,13 @@ function toward(p) {
   const w = p.want;
   if (!w.hat) return "";
   return w.ready ? " The hat you asked for is on his shelf." : " That's " + w.fill + " of " + w.bar + " toward the hat you asked for.";
+}
+
+function line(body, text) {
+  const l = document.createElement("p");
+  l.className = "dim";
+  l.textContent = text;
+  body.append(l);
 }
 
 function same(h, w) { return h && w && h.shape === w.shape && h.colour === w.colour; }
@@ -96,7 +104,10 @@ export function show(t) {
         hungry.forEach((f, i) => r.append(button("Feed " + titled(f.name) + (f.fav && f.fav.dish.kind === t.kind ? ", its favourite" : ""), act("/api/frogs/feed", { frog: f.id, dish: t.kind },
           () => sheetSay(titled(f.name) + " ate it up.")), i === 0 ? "primary" : "")));
       }
-      row().append(button("Sell to Big Bean, " + t.worth, act("/api/kitchen/sell", { dish: t.kind }, () => sheetSay("Big Bean took it."))));
+      const pays = offer("brindle", t.worth), b = button("Sell to Big Bean, " + pays, act("/api/kitchen/sell", { dish: t.kind }, () => sheetSay("Big Bean took it for " + pays + ".")));
+      b.disabled = !pays;
+      row().append(b);
+      line(body, beanLine(p));
     }
     if (t.free > 0) {
       const r = row();

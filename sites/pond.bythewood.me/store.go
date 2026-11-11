@@ -261,6 +261,14 @@ CREATE TABLE IF NOT EXISTS arcade (
     PRIMARY KEY (pond_id, game)
 ) WITHOUT ROWID;
 
+CREATE TABLE IF NOT EXISTS sold (
+    pond_id INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
+    buyer   TEXT NOT NULL,
+    day     TEXT NOT NULL,
+    paid    INTEGER NOT NULL,
+    PRIMARY KEY (pond_id, buyer)
+) WITHOUT ROWID;
+
 CREATE TABLE IF NOT EXISTS fish (
     pond_id   INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
     kind      TEXT NOT NULL,
@@ -885,7 +893,10 @@ type view struct {
 	Furniture []string   `json:"furniture"`
 	Bag       []bagThing `json:"bag"`
 	Stall     stallView  `json:"stall"`
-	Wizard    struct {
+	// Room is what's left of each buyer's day, by shop key, out of SellRoom.
+	Room     map[string]int `json:"room"`
+	SellRoom int            `json:"sell_room"`
+	Wizard   struct {
 		Takes int `json:"takes"`
 		Up    int `json:"up"`
 		Same  int `json:"same"`
@@ -1138,6 +1149,10 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 		return err
 	}
 	if v.Stall, err = stallOf(q, p.ID, now); err != nil {
+		return err
+	}
+	v.SellRoom = sellRoom
+	if v.Room, err = roomsOf(q, p.ID, dayOf(now)); err != nil {
 		return err
 	}
 	if v.Market, err = marketOf(q, p, r, now); err != nil {
