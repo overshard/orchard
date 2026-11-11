@@ -1,7 +1,7 @@
 import { state, titled } from "./api.js";
 import { drawIcon } from "./icons.js";
 
-const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+export const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 // A postcard is the frog's screen as it stands, twice the size on a cream
 // card with its name, the pond's date and the day's weather under it.
@@ -31,18 +31,21 @@ function card(scene) {
 
 // The picture is made here and opened from a blob, since a new tab won't
 // go to a data address. With no new tab to be had it's saved as a file.
-function snap(scene) {
-  const p = state.pond;
-  if (!p) return;
-  const data = atob(card(scene).toDataURL("image/png").split(",")[1]), buf = new Uint8Array(data.length);
+export function openPicture(cv, name) {
+  const data = atob(cv.toDataURL("image/png").split(",")[1]), buf = new Uint8Array(data.length);
   for (let i = 0; i < data.length; i++) buf[i] = data.charCodeAt(i);
   const href = URL.createObjectURL(new Blob([buf], { type: "image/png" }));
   let tab = null;
   try { tab = window.open(href, "_blank"); } catch (e) { /* blocked */ }
   if (tab) return;
   const a = document.createElement("a");
-  a.href = href; a.download = p.frog.name.toLowerCase().replace(/ /g, "-") + "-" + p.today + ".png";
+  a.href = href; a.download = name + ".png";
   document.body.append(a); a.click(); a.remove();
+}
+
+function snap(scene) {
+  const p = state.pond;
+  if (p) openPicture(card(scene), p.frog.name.toLowerCase().replace(/ /g, "-") + "-" + p.today);
 }
 
 export function initPostcard(scene, key, redraw) {

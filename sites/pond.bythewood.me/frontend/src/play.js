@@ -10,6 +10,7 @@ import { stack } from "./stack.js";
 import { shell } from "./shell.js";
 import { skip } from "./skip.js";
 import { drop, dropArt } from "./drop.js";
+import { sweep, sweepArt } from "./sweep.js";
 
 // Every disk on Play. A disk is a key, a name, the plastic's colour, one
 // line, the picture on its label and the game the frame runs. A new game is
@@ -30,6 +31,7 @@ export const SHELVES = [
   ] },
   { name: "Puzzles", disks: [
     { key: "shell", name: "Shell game", colour: "#8a5a2b", line: "Follow the tadpole under the shells.", art: shellArt, game: shell },
+    { key: "sweep", name: "Bug sweep", colour: "#8fa832", line: "Clear the pads and mind the wasps.", art: sweepArt, game: sweep },
   ] },
 ];
 

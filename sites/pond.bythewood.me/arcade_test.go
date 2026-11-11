@@ -168,8 +168,9 @@ func TestDiskOfTheDay(t *testing.T) {
 	for i := range 120 {
 		seen[diskOfDay(dayOf(clock.Add(time.Duration(i)*24*time.Hour)))] = true
 	}
-	if len(seen) != len(arcadeGames) {
-		t.Errorf("only %d of %d games were ever the disk of the day", len(seen), len(arcadeGames))
+	// Bug sweep pays once a day, so it's never the disk.
+	if len(seen) != len(arcadeGames)-1 || seen["sweep"] {
+		t.Errorf("%d of %d games were ever the disk of the day", len(seen), len(arcadeGames))
 	}
 }
 

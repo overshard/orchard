@@ -9,7 +9,8 @@ import { initReeds } from "./reeds.js";
 import { initBank, enterBank, leaveBank } from "./bank.js";
 import { drawWorks } from "./scenes.js";
 import { initShops } from "./shops.js";
-import { initUI, openSheet, reveal, thingArt, drawBox } from "./ui.js";
+import { initUI, openSheet, closeSheet, reveal, thingArt, drawBox } from "./ui.js";
+import { sweepArt, shareKey } from "./sweep.js";
 import { initBag } from "./bag.js";
 import { initCollect } from "./collect.js";
 import { initTown, enterTown, leaveTown } from "./town.js";
@@ -614,6 +615,7 @@ function paper(g, nb) {
   const cols = el("div", "paper-cols");
   rest.forEach((h) => cols.append(el("p", "paper-story", h)));
   page.append(cols);
+  if (g.sweep) page.append(puzzleBox(g.sweep));
   if (g.business) {
     const biz = el("p", "paper-biz");
     biz.append(el("b", "", "Business"), " " + g.business);
@@ -625,6 +627,22 @@ function paper(g, nb) {
     page.append(rec);
   }
   return page;
+}
+
+// The day's bug sweep is a box in the paper that opens the game, with the
+// share key beside it once the day's go is over.
+const PUZZLE = { "": "Today's grid is out. Clear the pads and mind the wasps.", play: "Today's grid is part way cleared.", won: "Cleared today. Free goes are open.", lost: "A wasp got there first today. Free goes are open." };
+
+function puzzleBox(n) {
+  const box = el("div", "paper-puzzle"), b = el("button", ""), art = el("canvas");
+  art.width = 168; art.height = 96;
+  sweepArt(art.getContext("2d"));
+  b.type = "button";
+  b.append(art, el("b", "", "Bug sweep"), el("span", "", PUZZLE[n.state]));
+  b.addEventListener("click", () => { closeSheet(); location.hash = "#sweep"; });
+  box.append(b);
+  if (n.state === "won" || n.state === "lost") box.append(shareKey(n));
+  return box;
 }
 
 $("gazette").addEventListener("click", () => {
@@ -741,9 +759,9 @@ function drawLog(cv, open) {
 function payLine(key, a) {
   const left = a.paid >= a.cap ? 0 : Math.max(0, a.full - a.runs);
   const tag = document.createElement("span");
-  tag.className = "pay " + (left ? "full" : a.paid >= a.cap ? "done" : "less");
-  tag.textContent = left ? "Full pay · " + left + " left" : a.paid >= a.cap ? "Paid out today" : "Quarter pay";
-  $("play-" + key + "-line").replaceChildren(tag, document.createTextNode("Best " + a.best + " · today " + a.paid + "/" + a.cap));
+  tag.className = "pay " + (left ? "full" : a.paid >= a.cap || a.daily ? "done" : "less");
+  tag.textContent = left ? (a.daily ? "Today's grid" : "Full pay · " + left + " left") : a.paid >= a.cap ? "Paid out today" : a.daily ? "Free play" : "Quarter pay";
+  $("play-" + key + "-line").replaceChildren(tag, document.createTextNode("Best " + a.best + (a.daily ? " pads" : "") + " · today " + a.paid + "/" + a.cap));
   $("play-" + key).classList.toggle("pays", left > 0);
   // The disk of the day has a sticker stuck on it.
   const floppy = $("play-" + key).querySelector(".floppy"), had = floppy.querySelector(".daytag");

@@ -28,7 +28,7 @@ export function titled(name) {
 
 // The same words the Play cards use, short enough for a readout.
 export function payWord(a, low) {
-  return a.paid >= a.cap ? "Paid out" : a.runs < a.full ? "Full" : low || "Quarter";
+  return a.paid >= a.cap ? "Paid out" : a.runs < a.full ? "Full" : a.daily ? "Free" : low || "Quarter";
 }
 
 export const TIERS = ["Common", "Uncommon", "Rare", "Epic", "Legendary"];

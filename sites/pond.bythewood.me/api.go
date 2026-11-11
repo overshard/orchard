@@ -64,7 +64,7 @@ func fail(w http.ResponseWriter, r *http.Request, err error) {
 		writeError(w, http.StatusUnauthorized, "no pond")
 	case errors.Is(err, errFull):
 		writeError(w, http.StatusTooManyRequests, err.Error())
-	case errors.Is(err, errPoor), errors.Is(err, errNotYet), errors.Is(err, errNotHeld), errors.Is(err, errBadRun), errors.Is(err, errBadName), errors.Is(err, errBadPrice), errors.Is(err, errStallFull),
+	case errors.Is(err, errPoor), errors.Is(err, errNotYet), errors.Is(err, errNotHeld), errors.Is(err, errBadRun), errors.Is(err, errBadTap), errors.Is(err, errBadName), errors.Is(err, errBadPrice), errors.Is(err, errStallFull),
 		errors.Is(err, errFullPads), errors.Is(err, errMaxed), errors.Is(err, errSoldOut), errors.Is(err, errFed), errors.Is(err, errLevel), errors.Is(err, errShort), errors.Is(err, errGiven),
 		errors.Is(err, errNoBurrow), errors.Is(err, errNotLodge), errors.Is(err, errHaveIt), errors.Is(err, errCap), errors.Is(err, errFirm), errors.Is(err, errCount):
 		writeError(w, http.StatusConflict, err.Error())
@@ -721,4 +721,19 @@ func (s *site) apiArcadeFinish(id int64, r *http.Request, w http.ResponseWriter)
 		return nil, nil
 	}
 	return s.store.arcadeFinish(id, in.Game, in.Run, in.Score, in.Fish)
+}
+
+func (s *site) apiBugStart(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	return s.store.bugStart(id)
+}
+
+func (s *site) apiBugTap(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	var in struct {
+		Run string `json:"run"`
+		Pad int    `json:"pad"`
+	}
+	if !readJSON(w, r, &in) {
+		return nil, nil
+	}
+	return s.store.bugTap(id, in.Run, in.Pad)
 }

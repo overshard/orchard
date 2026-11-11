@@ -69,7 +69,8 @@ func todoOf(v *view) []todo {
 	// Well rested only says so while some game has room under its cap.
 	room := v.Dive.Paid < v.Dive.Cap
 	for _, g := range v.Arcade {
-		room = room || g.Paid < g.Cap
+		// A daily game that's had its paid go has nothing left to pay more of.
+		room = room || (g.Paid < g.Cap && !(g.Daily && g.Runs >= g.Full))
 	}
 	if v.Rested && room {
 		add("rested", "i_rest", "Well rested, next game pays +25%", "play")

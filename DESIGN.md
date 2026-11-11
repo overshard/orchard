@@ -654,6 +654,16 @@ version of the old look and a handheld pet shell.
 - **The last pebble takes its time.** In pebble drop the fifth pebble falls
   at half speed through the reeds and slower again over the pots, and the
   pegs sit a little differently each day.
+- **Bug sweep is the day's puzzle.** Eight pads by ten on flat water, a
+  closed pad green and an open one dark with its number in a colour of its
+  own, pale blue for one up to red. A marked pad has a pink bud on it, and a
+  two part key under the grid, LOOK and MARK, says what a tap does, with the
+  lit half amber. The wasps only show once the go is over, the one stepped on
+  over dark red.
+- **The day's result is a share card.** A SHARE key on the results and in the
+  paper opens a cream card like the postcard, with the date, the frog's name,
+  the time or the pads cleared, the taps, and a row of ten pads lit for each
+  tenth of the grid. It never shows where a wasp was.
 - **A fish is a shadow until it's landed.** In the water and on the line it's
   one dark shape, so its size is all there is to go on, and it comes up in
   its own colours with its name over it as it's landed.
@@ -847,8 +857,10 @@ version of the old look and a handheld pet shell.
   the other pages showing under it, tilted a touch. A tap opens the front
   page in a bottom sheet, in the system serif, with a masthead between double
   rules, a dateline with the issue and the weather, a lead story beside a grey
-  photo of a neighbour, two stories in columns and a Business story. Never a
-  number past the date and issue. A dream is a row in the greeting's list on
+  photo of a neighbour, two stories in columns and a Business story. Under
+  the stories a ruled box has the day's bug sweep, a grey picture of the grid
+  and a line on how the pond stands with it, and a tap on it opens the game.
+  Never a number past the date and issue. A dream is a row in the greeting's list on
   the first visit of a day, and a neighbour's gossip is an italic line at the
   top of its sheet.
 - **A neighbour's thought is a cloud over its card**, trailing two puffs down

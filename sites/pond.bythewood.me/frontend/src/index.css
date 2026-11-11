@@ -2436,6 +2436,88 @@ button.nrow.primary {
   text-transform: uppercase;
 }
 
+/* The day's puzzle is a ruled box in the paper, the grid beside a line. */
+.paper-puzzle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 6px;
+  border: 1px solid var(--ink);
+  outline: 1px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.paper-puzzle button {
+  min-height: 0;
+  margin: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--ink);
+  font-family: inherit;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.paper-puzzle button:first-child {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  flex: 1;
+  align-items: center;
+  gap: 0 10px;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 400;
+  font-style: italic;
+  line-height: 1.25;
+  text-align: left;
+}
+
+.paper-puzzle canvas {
+  grid-row: 1 / 3;
+  width: 72px;
+  height: auto;
+  border: 1px solid var(--ink);
+  image-rendering: pixelated;
+  filter: grayscale(1) sepia(0.35) contrast(1.15);
+}
+
+.paper-puzzle b {
+  align-self: end;
+  font-size: 10px;
+  font-style: normal;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.paper-puzzle span {
+  align-self: start;
+}
+
+.paper-puzzle .sharekey {
+  flex: none;
+  padding: 6px 8px;
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Bug sweep's part of the results. The card takes no taps, so the key that
+   opens the share card asks for its own. */
+.sweepcard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.sweepcard .sharekey {
+  min-height: 36px;
+  margin-top: 2px;
+  pointer-events: auto;
+}
+
 h2 .q {
   flex: none;
   order: 3;
