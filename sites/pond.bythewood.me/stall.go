@@ -357,6 +357,9 @@ func (s *store) stallList(id int64, kind string, price int) (*view, error) {
 		return nil, errBadPrice
 	}
 	return s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
+		if err := markTried(tx, p.ID, triedStall); err != nil {
+			return err
+		}
 		used := map[int]bool{}
 		rows, err := tx.Query(`SELECT slot FROM stall WHERE pond_id = ?`, p.ID)
 		if err != nil {

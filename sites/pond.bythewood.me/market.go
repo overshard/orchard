@@ -177,7 +177,10 @@ func (s *store) buyShares(id int64, key string, n int) (*view, error) {
 		_, err = tx.Exec(`INSERT INTO shares (pond_id, key, count, cost) VALUES (?, ?, ?, ?)
 			ON CONFLICT (pond_id, key) DO UPDATE SET count = count + excluded.count, cost = cost + excluded.cost`,
 			p.ID, key, n, cost)
-		return err
+		if err != nil {
+			return err
+		}
+		return markTried(tx, p.ID, triedShare)
 	})
 }
 

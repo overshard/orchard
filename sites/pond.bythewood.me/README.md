@@ -93,6 +93,10 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
   series. A share moves three times the real day's percent in pebbles, the
   day's last reading in the regular session is kept as its close in
   `market_days`, and a pond's shares are in `shares` at what it paid.
+- `todo.go` is what's waiting right now and `goals.go` is what the pond has
+  never tried, both sent with the view. A new pond's goals are the four first
+  day steps in `starter.go`, and after their prize it's the first few down a
+  list. `ponds.tried` has a bit for a thing that leaves no trace once done.
 - `opening.go` is how a new pond opens up, Works a day in and the market
   three days after that, sent with the view as `open`. The page hides the keys
   for a closed place and the gazette carries a notice the day one opens.

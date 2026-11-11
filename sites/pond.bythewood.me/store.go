@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS ponds (
     trinkets_out    TEXT NOT NULL DEFAULT '',
     forage_day      TEXT NOT NULL DEFAULT '',
     staged          INTEGER NOT NULL DEFAULT 0,
+    tried           INTEGER NOT NULL DEFAULT 0,
     key_saved_at    INTEGER
 );
 CREATE INDEX IF NOT EXISTS ponds_created ON ponds(created_at);
@@ -246,6 +247,7 @@ var addedColumns = []struct{ table, name, def string }{
 	{"ponds", "rent_day", "TEXT NOT NULL DEFAULT ''"},
 	{"ponds", "starter", "INTEGER NOT NULL DEFAULT 16"},
 	{"ponds", "staged", "INTEGER NOT NULL DEFAULT 0"},
+	{"ponds", "tried", "INTEGER NOT NULL DEFAULT 0"},
 }
 
 func ensureColumns(db *sql.DB) error {
@@ -397,6 +399,8 @@ type pond struct {
 	KeySavedAt sql.NullInt64
 	// Staged is set on a pond that opens up over its first days.
 	Staged bool
+	// Tried is a bit for each thing done once that leaves no other trace.
+	Tried int
 
 	GravelLevel int
 	GravelAt    int64
@@ -421,7 +425,7 @@ const pondColumns = `p.id, p.public_id, p.created_at, p.last_seen_at, p.last_gif
 	p.dive_best, p.dive_day, p.dive_runs, p.dive_paid, p.dive_run, p.dive_started_at,
 	p.dive_ghosts, p.dive_podium, p.pads, p.key_saved_at,
 	p.gravel_level, p.gravel_at, p.garden_level, p.dive_form,
-	p.dye_level, p.dye_at, p.dye_batch, p.trinkets_out, p.forage_day, p.staged, f.id, f.seed, f.genome_json, f.hatched_at,
+	p.dye_level, p.dye_at, p.dye_batch, p.trinkets_out, p.forage_day, p.staged, p.tried, f.id, f.seed, f.genome_json, f.hatched_at,
 	f.hat_shape, f.hat_colour, f.name`
 
 func scanPond(row *sql.Row) (*pond, error) {
@@ -431,7 +435,7 @@ func scanPond(row *sql.Row) (*pond, error) {
 		&p.DiveBest, &p.DiveDay, &p.DiveRuns, &p.DivePaid, &p.DiveRun, &p.DiveStart,
 		&p.DiveGhosts, &p.DivePodium, &p.Pads, &p.KeySavedAt,
 		&p.GravelLevel, &p.GravelAt, &p.GardenLevel, &p.DiveForm,
-		&p.DyeLevel, &p.DyeAt, &p.DyeBatch, &p.TrinketsOut, &p.ForageDay, &p.Staged, &p.FrogID, &p.Seed, &p.ModsJSON, &p.HatchedAt,
+		&p.DyeLevel, &p.DyeAt, &p.DyeBatch, &p.TrinketsOut, &p.ForageDay, &p.Staged, &p.Tried, &p.FrogID, &p.Seed, &p.ModsJSON, &p.HatchedAt,
 		&p.Wearing.Shape, &p.Wearing.Colour, &p.FrogName)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, errNoPond
@@ -729,6 +733,7 @@ type view struct {
 
 	Open    openView     `json:"open"`
 	Todo    []todo       `json:"todo"`
+	Goals   []goal       `json:"goals"`
 	Starter *starterView `json:"starter,omitempty"`
 
 	held  map[string]int
@@ -1009,5 +1014,6 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	if v.Starter, err = starterOf(q, p); err != nil {
 		return err
 	}
+	v.Goals = goalsOf(v, p)
 	return nil
 }

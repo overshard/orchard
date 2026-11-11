@@ -535,7 +535,7 @@ function renderStarter(p) {
   if (!st) return;
   const list = $("starter-steps");
   list.textContent = "";
-  st.steps.forEach((s) => {
+  p.goals.filter((s) => s.first).forEach((s) => {
     const li = document.createElement("li"), a = document.createElement("a");
     li.className = s.done ? "done" : "";
     a.href = s.to === "key" ? "/key" : "#" + s.to;

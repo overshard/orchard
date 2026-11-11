@@ -17,13 +17,13 @@ const (
 )
 
 type starterStep struct {
-	Label string `json:"label"`
-	To    string `json:"to"`
-	Done  bool   `json:"done"`
+	Kind, Icon, Label, To string
+	Done                  bool
 }
 
+// The page gets the steps as its first goals, so they aren't sent twice.
 type starterView struct {
-	Steps []starterStep `json:"steps"`
+	Steps []starterStep `json:"-"`
 	Ready bool          `json:"ready"`
 	Prize int           `json:"prize"`
 }
@@ -42,10 +42,10 @@ func starterOf(q querier, p *pond) (*starterView, error) {
 		return nil, nil
 	}
 	v := &starterView{Prize: starterPrize, Steps: []starterStep{
-		{"Spin the wheel", "wheel", bits&starterSpin != 0},
-		{"Turn the old log", "play", bits&starterLog != 0},
-		{"Race in Dive", "dive", bits&starterDive != 0},
-		{"Save your pond key", "key", p.KeySavedAt.Valid},
+		{"wheel", "i_play", "Spin the wheel", "wheel", bits&starterSpin != 0},
+		{"log", "wood", "Turn the old log", "play", bits&starterLog != 0},
+		{"dive", "i_pond", "Race in Dive", "dive", bits&starterDive != 0},
+		{"key", "i_gear", "Save your pond key", "key", p.KeySavedAt.Valid},
 	}}
 	v.Ready = true
 	for _, st := range v.Steps {
