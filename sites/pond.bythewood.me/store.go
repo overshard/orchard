@@ -319,6 +319,11 @@ func openStore(path string, pepper []byte) (*store, error) {
 		w.Close()
 		return nil, err
 	}
+	// A stall row from before listings ran out has no end, so it never comes down.
+	if _, err := w.Exec(`UPDATE stall SET ends_at = listed_at + 86400 WHERE ends_at = 0`); err != nil {
+		w.Close()
+		return nil, err
+	}
 	// A frog fed before meals ran on a clock is full from now.
 	if _, err := w.Exec(`UPDATE frogs SET fed_at = unixepoch() WHERE fed != '' AND fed_at = 0`); err != nil {
 		w.Close()
