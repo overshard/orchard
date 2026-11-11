@@ -1,6 +1,7 @@
 import { drawBank, drawPot } from "./scenes.js";
 import { $, post, state, setPond, watch, reduced, heldNow, canBuild, TIERS } from "./api.js";
 import { iconCanvas, dishCanvas } from "./icons.js";
+import { slot } from "./ui.js";
 import { genome, cells, colours, draw, W, H } from "./frog.js";
 import { presentsFrom } from "./neighbours.js";
 
@@ -221,6 +222,13 @@ function dyeOdds(d) {
   return d.pool.map((k) => [k, w[k] / sum]).sort((a, b) => b[1] - a[1]);
 }
 
+// A fourth pick starts the three over.
+function pickRock(k, have) {
+  if (rocks.length >= 3) rocks = [];
+  if (rocks.filter((x) => x === k).length < have) rocks.push(k);
+  renderDye(state.pond);
+}
+
 function renderDye(p) {
   const d = p.bank.dye;
   $("dye-level").textContent = d.level ? d.level + "/5" : "0";
@@ -236,21 +244,25 @@ function renderDye(p) {
   const have = {};
   d.rocks.forEach((r) => { have[r.kind] = r.count; });
   rocks = rocks.filter((k, i) => rocks.slice(0, i + 1).filter((x) => x === k).length <= (have[k] || 0));
-  const box = $("dye-rocks");
+  // Held rocks are slots to pick from, and the ones the pond has none of are
+  // a line under them.
+  const box = $("dye-rocks"), tier = {};
+  p.rocks.forEach((r) => { tier[r.kind] = r.tier; });
   box.textContent = "";
   box.hidden = !d.level || d.busy;
-  d.rocks.forEach((r) => {
-    const btn = document.createElement("button"), name = document.createElement("span"), n = document.createElement("span");
+  d.rocks.filter((r) => r.count > 0).forEach((r) => {
     const times = rocks.filter((x) => x === r.kind).length;
-    btn.type = "button"; btn.dataset.kind = r.kind;
-    btn.setAttribute("aria-pressed", times ? "true" : "false");
-    btn.disabled = r.count === 0;
-    name.textContent = r.name + (times > 1 ? " x" + times : "");
-    n.className = r.count ? "n" : "n off";
-    n.textContent = r.count ? r.count : "NONE";
-    btn.append(iconCanvas(r.kind, 2), name, n);
-    box.append(btn);
+    const b = slot(iconCanvas(r.kind, 4), {
+      tier: tier[r.kind] || 0, name: r.name, count: r.count, on: times > 0,
+      sub: times ? "In x" + times : "", onClick: () => pickRock(r.kind, r.count),
+    });
+    b.setAttribute("aria-pressed", times ? "true" : "false");
+    box.append(b);
   });
+  const none = d.rocks.filter((r) => r.count === 0).map((r) => r.name.toLowerCase()), rest = $("dye-rest");
+  rest.hidden = box.hidden || !none.length;
+  if (none.length === d.rocks.length) rest.textContent = "No rocks yet. The wheel, the reeds and Moth have them.";
+  else rest.textContent = "None held: " + none.join(", ") + ".";
   const odds = $("dye-odds");
   odds.hidden = !d.level || d.busy || !rocks.length;
   if (!odds.hidden) odds.textContent = "Likely " + dyeOdds(d).slice(0, 3).map(([k, f]) => DYE_NAME[k].toLowerCase() + " " + Math.round(f * 100) + "%").join(", ") + ".";
@@ -365,14 +377,6 @@ export function initBank() {
       setPond(d.pond);
       presentsFrom(d);
     }, (e) => say("burrow-out", e.message));
-  });
-  $("dye-rocks").addEventListener("click", (e) => {
-    const b = e.target.closest("button");
-    if (!b || b.disabled) return;
-    const k = b.dataset.kind, have = state.pond.bank.dye.rocks.find((r) => r.kind === k).count;
-    if (rocks.length >= 3) rocks = [];
-    if (rocks.filter((x) => x === k).length < have) rocks.push(k);
-    renderDye(state.pond);
   });
   $("dye-load").addEventListener("click", () => {
     if (rocks.length !== 3) return;
