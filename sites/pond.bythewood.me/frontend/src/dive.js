@@ -136,7 +136,7 @@ function drawOthers() {
 
 function reset() {
   F.reset(); G.quick = false;
-  G.fy = 96; G.vy = 0; G.kick = 0; G.gates = []; G.bub = []; G.dist = 0; G.next = 150; G.score = 0; G.cleared = 0; G.place = 0; G.bonus = 0; G.hat = null; G.had = false; G.t = 0; G.lastC = GH / 2; G.flash = 0; G.paid = null; G.best = false; G.toldBest = false;
+  G.fy = 96; G.vy = 0; G.kick = 0; G.gates = []; G.bub = []; G.dist = 0; G.next = 150; G.score = 0; G.cleared = 0; G.place = 0; G.bonus = 0; G.hat = null; G.had = false; G.t = 0; G.lastC = GH / 2; G.flash = 0; G.paid = null; G.rested = 0; G.best = false; G.toldBest = false;
 }
 
 let started = null;
@@ -158,7 +158,7 @@ function youIcon() {
 
 function results(again) {
   if ($("v-dive").hidden) return;
-  raceResults({ racers: field(), why: G.why, place: G.place, paid: G.paid, best: G.best, bonus: G.bonus, hat: G.hat, had: G.had, score: G.score, again });
+  raceResults({ racers: field(), why: G.why, place: G.place, paid: G.paid, rested: G.rested, best: G.best, bonus: G.bonus, hat: G.hat, had: G.had, score: G.score, again });
 }
 
 function die(now, why) {
@@ -172,7 +172,7 @@ function die(now, why) {
   // of the run after it.
   net = started.then((run) => run ? post("/api/dive/finish", { run, score, gates }) : null).then((d) => {
     if (!d) { G.paid = 0; return; }
-    G.paid = d.paid; G.best = d.best; G.place = d.place; G.bonus = d.bonus; G.hat = d.hat; G.had = d.had;
+    G.paid = d.paid; G.rested = d.rested; G.best = d.best; G.place = d.place; G.bonus = d.bonus; G.hat = d.hat; G.had = d.had;
     setPond(d.pond);
   }, () => { G.paid = 0; }).then(() => {
     if (G.state !== "over" || G.overAt !== now) return;
@@ -360,7 +360,7 @@ function overlay(now) {
     const span = (cls, text) => { const e = document.createElement("span"); e.className = cls; e.textContent = text; return e; };
     const r = span("readout big", ""), p = document.createElement("p"), key = document.createElement("b"), n = place();
     r.append(span("k", n + suffix(n) + " of " + (GHOSTS_IN + 1)), span("v", String(G.score)));
-    p.className = G.paid ? "won" : "dim"; p.textContent = G.paid === null ? "Counting..." : "+" + G.paid + " pebbles";
+    p.className = G.paid ? "won" : "dim"; p.textContent = G.paid === null ? "Counting..." : "+" + G.paid + " pebbles" + (G.rested ? ", well rested" : "");
     key.className = "key"; key.textContent = "AGAIN";
     card.replaceChildren(r, p, key);
   }

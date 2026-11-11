@@ -329,7 +329,9 @@ type dived struct {
 	Bonus int    `json:"bonus"`
 	Hat   *prize `json:"hat"`
 	Had   bool   `json:"had"`
-	Pond  *view  `json:"pond"`
+	// Rested is how much of Paid was for being well rested.
+	Rested int   `json:"rested"`
+	Pond   *view `json:"pond"`
 }
 
 func (s *store) diveFinish(id int64, run string, score, gates int) (*dived, error) {
@@ -358,7 +360,7 @@ func (s *store) diveFinish(id int64, run string, score, gates int) (*dived, erro
 		}
 		p.DiveRuns++
 		p.DiveForm = diveForm(p.DiveForm, gates)
-		out.Paid = min(divePays(score, p.DiveRuns), diveCap-p.DivePaid)
+		out.Paid, out.Rested = p.payRun(divePays(score, p.DiveRuns), diveCap-p.DivePaid, now)
 		p.DivePaid += out.Paid
 		p.Pebbles += out.Paid
 		if score > p.DiveBest {

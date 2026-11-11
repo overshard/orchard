@@ -189,7 +189,8 @@ export function raceResults(r) {
   };
   if (r.paid == null) add("Pebbles", "counting");
   else {
-    add("Run", r.paid);
+    add("Run", r.paid - (r.rested || 0));
+    if (r.rested) add("Well rested", r.rested, "gold");
     if (r.bonus) add(suffix(place) === "ST" ? "Winner" : "Podium", r.bonus, "gold");
     else if (r.had && place <= 3) add("Podium", "won already today");
     if (r.hat) add("Hat", r.hat.hat_name + (r.hat.spare ? ", a spare" : ", new"), "gold");

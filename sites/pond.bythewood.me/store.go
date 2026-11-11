@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS ponds (
     tried           INTEGER NOT NULL DEFAULT 0,
     days_visited    INTEGER NOT NULL DEFAULT 0,
     visit_day       TEXT NOT NULL DEFAULT '',
+    played_at       INTEGER NOT NULL DEFAULT 0,
     key_saved_at    INTEGER
 );
 CREATE INDEX IF NOT EXISTS ponds_created ON ponds(created_at);
@@ -256,6 +257,7 @@ var addedColumns = []struct{ table, name, def string }{
 	{"ponds", "tried", "INTEGER NOT NULL DEFAULT 0"},
 	{"ponds", "days_visited", "INTEGER NOT NULL DEFAULT 0"},
 	{"ponds", "visit_day", "TEXT NOT NULL DEFAULT ''"},
+	{"ponds", "played_at", "INTEGER NOT NULL DEFAULT 0"},
 	{"frogs", "bond", "INTEGER NOT NULL DEFAULT 0"},
 	{"frogs", "bond_day", "TEXT NOT NULL DEFAULT ''"},
 	{"frogs", "bond_today", "INTEGER NOT NULL DEFAULT 0"},
@@ -416,6 +418,8 @@ type pond struct {
 	// DaysVisited is every day the pond was opened, and VisitDay the last.
 	DaysVisited int
 	VisitDay    string
+	// PlayedAt is when the last run of any game finished.
+	PlayedAt int64
 
 	GravelLevel int
 	GravelAt    int64
@@ -440,7 +444,7 @@ const pondColumns = `p.id, p.public_id, p.created_at, p.last_seen_at, p.last_gif
 	p.dive_best, p.dive_day, p.dive_runs, p.dive_paid, p.dive_run, p.dive_started_at,
 	p.dive_ghosts, p.dive_podium, p.pads, p.key_saved_at,
 	p.gravel_level, p.gravel_at, p.garden_level, p.dive_form,
-	p.dye_level, p.dye_at, p.dye_batch, p.trinkets_out, p.forage_day, p.staged, p.tried, p.days_visited, p.visit_day, f.id, f.seed, f.genome_json, f.hatched_at,
+	p.dye_level, p.dye_at, p.dye_batch, p.trinkets_out, p.forage_day, p.staged, p.tried, p.days_visited, p.visit_day, p.played_at, f.id, f.seed, f.genome_json, f.hatched_at,
 	f.hat_shape, f.hat_colour, f.name`
 
 func scanPond(row *sql.Row) (*pond, error) {
@@ -450,7 +454,7 @@ func scanPond(row *sql.Row) (*pond, error) {
 		&p.DiveBest, &p.DiveDay, &p.DiveRuns, &p.DivePaid, &p.DiveRun, &p.DiveStart,
 		&p.DiveGhosts, &p.DivePodium, &p.Pads, &p.KeySavedAt,
 		&p.GravelLevel, &p.GravelAt, &p.GardenLevel, &p.DiveForm,
-		&p.DyeLevel, &p.DyeAt, &p.DyeBatch, &p.TrinketsOut, &p.ForageDay, &p.Staged, &p.Tried, &p.DaysVisited, &p.VisitDay, &p.FrogID, &p.Seed, &p.ModsJSON, &p.HatchedAt,
+		&p.DyeLevel, &p.DyeAt, &p.DyeBatch, &p.TrinketsOut, &p.ForageDay, &p.Staged, &p.Tried, &p.DaysVisited, &p.VisitDay, &p.PlayedAt, &p.FrogID, &p.Seed, &p.ModsJSON, &p.HatchedAt,
 		&p.Wearing.Shape, &p.Wearing.Colour, &p.FrogName)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, errNoPond
@@ -473,13 +477,13 @@ func savePond(tx *sql.Tx, p *pond) error {
 		dive_started_at = ?, dive_ghosts = ?, dive_podium = ?, pads = ?, key_saved_at = ?,
 		gravel_level = ?, gravel_at = ?, garden_level = ?, dive_form = ?,
 		dye_level = ?, dye_at = ?, dye_batch = ?, trinkets_out = ?, forage_day = ?,
-		days_visited = ?, visit_day = ? WHERE id = ?`,
+		days_visited = ?, visit_day = ?, played_at = ? WHERE id = ?`,
 		p.LastSeenAt, p.LastGiftAt, p.Pebbles, p.FreeSpins, p.SpinAt, p.PaidSpins, p.PaidDay,
 		p.LogDay, p.DiveBest, p.DiveDay, p.DiveRuns, p.DivePaid, p.DiveRun, p.DiveStart,
 		p.DiveGhosts, p.DivePodium, p.Pads, p.KeySavedAt,
 		p.GravelLevel, p.GravelAt, p.GardenLevel, p.DiveForm,
 		p.DyeLevel, p.DyeAt, p.DyeBatch, p.TrinketsOut, p.ForageDay,
-		p.DaysVisited, p.VisitDay, p.ID); err != nil {
+		p.DaysVisited, p.VisitDay, p.PlayedAt, p.ID); err != nil {
 		return err
 	}
 	_, err := tx.Exec(`UPDATE frogs SET hat_shape = ?, hat_colour = ? WHERE id = ?`,
@@ -542,8 +546,8 @@ func (s *store) create() (string, int64, error) {
 			return errFull
 		}
 		res, err := tx.Exec(`INSERT INTO ponds (key_hmac, public_id, created_at, last_seen_at,
-			last_gift_at, pebbles, free_spins, spin_at, starter, staged) VALUES (?, ?, ?, ?, ?, ?, 1, ?, 0, 1)`,
-			keyHMAC(s.pepper, key), randomHex(8), now, now, now, starterPebbles, now)
+			last_gift_at, pebbles, free_spins, spin_at, starter, staged, played_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?, 0, 1, ?)`,
+			keyHMAC(s.pepper, key), randomHex(8), now, now, now, starterPebbles, now, now)
 		if err != nil {
 			return err
 		}
@@ -750,8 +754,10 @@ type view struct {
 	} `json:"wizard"`
 
 	// Today is the pond's date, which the page keys what it has seen by.
-	Today   string       `json:"today"`
-	Visited int          `json:"visited"`
+	Today   string `json:"today"`
+	Visited int    `json:"visited"`
+	// Rested says the next run of any game pays a quarter more.
+	Rested  bool         `json:"rested"`
 	Open    openView     `json:"open"`
 	Todo    []todo       `json:"todo"`
 	Goals   []goal       `json:"goals"`
@@ -779,7 +785,7 @@ func frogViewOf(f frogRow, now time.Time) frogView {
 // viewOf settles a copy, so reading a pond never writes to it.
 func viewOf(q querier, p pond, now time.Time) (*view, error) {
 	p.settle(now)
-	v := &view{Frog: frogOf(&p, now), Pebbles: p.Pebbles, Visited: p.DaysVisited, Dev: devBuild}
+	v := &view{Frog: frogOf(&p, now), Pebbles: p.Pebbles, Visited: p.DaysVisited, Rested: p.rested(now), Dev: devBuild}
 	v.Wheel.Slices = wheelSlices
 	dayHat, dayDye := wheelOfDay(dayOf(now))
 	v.Wheel.Hat = hatView{hat: dayHat, Name: dayHat.name(), Tier: dayHat.tier()}

@@ -73,6 +73,10 @@ export function arcade(game) {
   // A game on a timer ends mid tap, so it keeps the longer wait.
   function lock() { return A.quick && !game.timed ? QUICK : LOCK; }
 
+  function payWords() {
+    return A.paid === null ? "Counting..." : "+" + A.paid + " pebbles" + (A.rested ? ", well rested" : "");
+  }
+
   function showCard(now) {
     card.hidden = A.state === "play" || (first && A.state === "idle");
     if (card.hidden) return;
@@ -80,7 +84,7 @@ export function arcade(game) {
     if (A.state === "over" && A.quick) {
       const r = el("span", "readout big");
       r.append(el("span", "k", game.why() || "Score"), el("span", "v", String(game.score())));
-      card.replaceChildren(r, el("p", A.paid ? "won" : "dim", A.paid === null ? "Counting..." : "+" + A.paid + " pebbles"), el("b", "key", "AGAIN"));
+      card.replaceChildren(r, el("p", A.paid ? "won" : "dim", payWords()), el("b", "key", "AGAIN"));
       return;
     }
     const win = el("div", "arcade-win"), art = el("canvas");
@@ -101,7 +105,7 @@ export function arcade(game) {
       r.append(el("span", "k", "Score"), el("span", "v", String(game.score())));
       kids.push(r);
       if (game.tally) game.tally().forEach((l) => kids.push(el("p", "dim", l)));
-      kids.push(el("p", A.paid ? "won" : "dim", A.paid === null ? "Counting..." : "+" + A.paid + " pebbles"));
+      kids.push(el("p", A.paid ? "won" : "dim", payWords()));
       if (A.best) kids.push(el("p", "won", "A new best"));
       if (now - A.overAt > LOCK) kids.push(el("p", "again", "Tap to go again"));
     }
@@ -145,11 +149,11 @@ export function arcade(game) {
 
   function finish(now) {
     const score = game.score(), a = info();
-    A.state = "over"; A.overAt = now; A.paid = null; A.best = false;
+    A.state = "over"; A.overAt = now; A.paid = null; A.best = false; A.rested = 0;
     A.quick = !!a && score <= a.best;
     net = started.then((run) => run ? post("/api/arcade/finish", { game: k, run, score }) : null).then((d) => {
       if (!d) { A.paid = 0; return; }
-      A.paid = d.paid; A.best = d.best;
+      A.paid = d.paid; A.best = d.best; A.rested = d.rested;
       setPond(d.pond);
     }, () => { A.paid = 0; }).then(() => { if (A.state === "over") paint(performance.now()); });
     setTimeout(() => { if (A.state === "over") paint(performance.now()); }, LOCK + 50);
