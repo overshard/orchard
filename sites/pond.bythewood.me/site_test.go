@@ -327,7 +327,7 @@ func TestPanelIsTheVisitorsOwnFrog(t *testing.T) {
 }
 
 func TestAFrogFindsASitesHatOnce(t *testing.T) {
-	b, _, _ := testSite(t)
+	b, _, clock := testSite(t)
 	var g greeting
 	b.post("/api/greet", "{}", &g)
 	ask := func(origin string) panel {
@@ -342,8 +342,12 @@ func TestAFrogFindsASitesHatOnce(t *testing.T) {
 	if p.Found == nil || p.Found.Name != "Forked twig" || p.Found.Host != "repos.bythewood.me" {
 		t.Fatalf("first time on repos: %+v", p.Found)
 	}
+	if p := ask("https://repos.bythewood.me"); p.Found == nil {
+		t.Error("a second frog on the same page didn't hear about the hat")
+	}
+	*clock = clock.Add(2 * visitNews)
 	if p := ask("https://repos.bythewood.me"); p.Found != nil {
-		t.Error("repos handed its hat out twice")
+		t.Error("repos' hat was still news later on")
 	}
 	var v view
 	if code := b.post("/api/hats/wear", `{"shape":205,"colour":0}`, &v); code != http.StatusOK || v.Frog.Hat.Shape != 205 {
