@@ -346,6 +346,9 @@ func (s *store) diveFinish(id int64, run string, score, gates int) (*dived, erro
 		p.DivePaid += out.Paid
 		p.Pebbles += out.Paid
 		if score > p.DiveBest {
+			if err := noteRecord(tx, p.ID, "dive", score, p.DiveBest, now); err != nil {
+				return err
+			}
 			p.DiveBest, out.Best = score, true
 		}
 

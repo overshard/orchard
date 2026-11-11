@@ -1,6 +1,8 @@
 package main
 
 import (
+	"database/sql"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -153,6 +155,42 @@ type gazette struct {
 	Sky      string   `json:"sky"`
 	Photo    int      `json:"photo"`
 	Pictured bool     `json:"pictured"`
+	// The pond's own new bests from the day before.
+	Records []string `json:"records,omitempty"`
+}
+
+// noteRecord keeps a day's best new best at a game. A game's first score
+// isn't one, since there was nothing to beat.
+func noteRecord(tx *sql.Tx, id int64, game string, score, was int, now time.Time) error {
+	if was <= 0 {
+		return nil
+	}
+	_, err := tx.Exec(`INSERT INTO records (pond_id, game, day, score) VALUES (?, ?, ?, ?)
+		ON CONFLICT (pond_id, game, day) DO UPDATE SET score = MAX(score, excluded.score)`, id, game, dayOf(now), score)
+	return err
+}
+
+// recordsOf is yesterday's new bests as lines for the paper.
+func recordsOf(q querier, id int64, name string, now time.Time) ([]string, error) {
+	rows, err := q.Query(`SELECT game, score FROM records WHERE pond_id = ? AND day = ? ORDER BY game`, id, dayOf(now.AddDate(0, 0, -1)))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var game string
+		var score int
+		if err := rows.Scan(&game, &score); err != nil {
+			return nil, err
+		}
+		what := "Dive"
+		if g, ok := arcadeOf(game); ok {
+			what = g.name
+		}
+		out = append(out, fmt.Sprintf("%s set a new best at %s yesterday, %s.", name, what, commas(score)))
+	}
+	return out, rows.Err()
 }
 
 // The first issue went out the day the gazette did.

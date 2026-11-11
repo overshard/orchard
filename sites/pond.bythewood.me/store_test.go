@@ -264,6 +264,26 @@ func TestDivePaysToTheCap(t *testing.T) {
 	}
 }
 
+func TestThePaperPrintsYesterdaysBests(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	dive(t, s, clock, id, 10)
+	*clock = clock.Add(24 * time.Hour)
+	if v := dive(t, s, clock, id, 5).Pond; len(v.Gazette.Records) != 0 {
+		t.Fatalf("a first score made the paper: %v", v.Gazette.Records)
+	}
+	dive(t, s, clock, id, 14)
+	v := dive(t, s, clock, id, 17).Pond
+	if len(v.Gazette.Records) != 0 {
+		t.Fatalf("today's best is in today's paper: %v", v.Gazette.Records)
+	}
+	*clock = clock.Add(24 * time.Hour)
+	v = dive(t, s, clock, id, 3).Pond
+	if len(v.Gazette.Records) != 1 || !strings.Contains(v.Gazette.Records[0], "Dive yesterday, 17.") {
+		t.Fatalf("the paper says %v", v.Gazette.Records)
+	}
+}
+
 func TestDiveRefusesWhatCannotBe(t *testing.T) {
 	s, clock := testStore(t)
 	_, id := newPond(t, s)

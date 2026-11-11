@@ -64,8 +64,9 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
 - `names.go` is the list a frog's name is rolled off. Nobody types a name, so
   renaming only takes one that's on it.
 - `wizard.go` turns three of a thing into one thing of any sort, mostly a tier
-  down, and `stall.go` is the pond's own stall, where neighbours buy what's put
-  up sooner or later by price. Both work on anything in the bag, a hat as
+  down, and `stall.go` is the pond's own stall, where a thing is up for a day
+  and its hourly chance of selling falls with the price over that day's rate.
+  Both work on anything in the bag, a hat as
   `hat_<shape>_<colour>` and everything else by its item kind, and both keep
   the last hat or trinket back for the collection.
 - `genome.go` turns a seed into a frog's name, look and rarity, and

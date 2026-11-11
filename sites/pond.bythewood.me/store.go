@@ -134,6 +134,14 @@ CREATE TABLE IF NOT EXISTS stall (
     PRIMARY KEY (pond_id, slot)
 ) WITHOUT ROWID;
 
+CREATE TABLE IF NOT EXISTS records (
+    pond_id INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
+    game    TEXT NOT NULL,
+    day     TEXT NOT NULL,
+    score   INTEGER NOT NULL,
+    PRIMARY KEY (pond_id, game, day)
+) WITHOUT ROWID;
+
 CREATE TABLE IF NOT EXISTS stall_log (
     kind TEXT NOT NULL,
     at   INTEGER NOT NULL
@@ -925,6 +933,9 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 		return err
 	}
 	v.Gazette = gazetteFor(v.Day.Mood, now)
+	if v.Gazette.Records, err = recordsOf(q, p.ID, titled(v.Frog.Name), now); err != nil {
+		return err
+	}
 	paper := inPaper(v.Gazette.Lines)
 	for i := range v.Neighbours.All {
 		n := &v.Neighbours.All[i]
