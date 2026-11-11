@@ -930,6 +930,8 @@ const DAYS = {
   busy: { has_temp: true, temp: 70, cond: "Sunny", sunrise: "6:00am", sunset: "11:59pm", has_sp: true, sp: 1.1, vix: 23, swarm: true, major: true, down: "Blog", front: "CPI today" },
   gloom: { has_temp: true, temp: 60, cond: "Cloudy", sunrise: "6:00am", sunset: "11:59pm", has_sp: true, sp: -2.8, has_hl: true, high: 62, low: 45, tomorrow: { high: 58, low: 40, rain: 80, cond: "Rain" } },
   hobby: { has_temp: true, temp: 70, cond: "Clear", sunrise: "6:00am", sunset: "11:59pm", has_sp: true, sp: 0.7, has_hl: true, high: 74, low: 50, tomorrow: { high: 70, low: 31, rain: 0, cond: "Clear" }, shows: ["Bluey", "The Great British Baking Show"], games: ["Stardew Valley", "Unpacking"] },
+  moon: { has_temp: true, temp: 62, cond: "Clear", sunrise: "11:58pm", sunset: "11:59pm", moon: true },
+  spawn: { has_temp: true, temp: 55, cond: "Rain", rain: 80, sunrise: "6:00am", sunset: "11:59pm", spawn: true },
   storm: { has_temp: true, temp: 66, cond: "Thunderstorms", rain: 100, sunrise: "6:00am", sunset: "11:59pm", alert: "Tornado Warning" },
 };
 
