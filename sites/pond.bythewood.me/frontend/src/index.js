@@ -30,6 +30,10 @@ const VIEWS = ["pond", "play", "dive", "cross", "flick", "raft", "leap", "school
 const WORKS = ["reeds", "garden", "bank"];
 const TAB_OF = { reeds: "works", garden: "works", bank: "works", collect: "bag", dive: "play", wheel: "play", cross: "play", flick: "play", raft: "play", leap: "play", school: "play", fish: "play", stack: "play", shell: "play", skip: "play" };
 let view = "pond", fetchedAt = Date.now(), worksAt = "", waitingAt = new Set();
+// What the server last said is open, kept so the keys are right before the
+// pond has loaded. A browser with nothing kept is most likely a new egg.
+let open = { works: false, market: false }, wanted = "";
+try { open = JSON.parse(localStorage.getItem("pond-open")) || open; } catch (e) { /* private window */ }
 const GAMES = { flick: arcade(flick), cross: arcade(cross), raft: arcade(raft), leap: arcade(leap), school: arcade(school), fish: arcade(fish), stack: arcade(stack), shell: arcade(shell), skip: arcade(skip) };
 
 // The Works key opens the place in it that was open last, and the first time
@@ -39,9 +43,38 @@ function placeOf(next) {
   return worksAt || WORKS.find((w) => waitingAt.has(w)) || WORKS[0];
 }
 
+function isOpen(v) {
+  if (v === "market") return open.works && open.market;
+  return v === "works" || WORKS.includes(v) ? open.works : true;
+}
+
+function bankTab(which) {
+  document.querySelectorAll("#bank-tabs button").forEach((x) => x.setAttribute("aria-pressed", x.dataset.bank === which ? "true" : "false"));
+  $("bank-works").hidden = which !== "works";
+  $("bank-market").hidden = which !== "market";
+}
+
+function applyOpen(o) {
+  const changed = o.works !== open.works || o.market !== open.market;
+  open = { works: o.works, market: o.market };
+  document.querySelector('#tabs button[data-view="works"]').hidden = !open.works;
+  $("bank-tabs").hidden = !open.market;
+  if (!open.market) bankTab("works");
+  if (!changed) return;
+  try { localStorage.setItem("pond-open", JSON.stringify(open)); } catch (e) { /* private window */ }
+  if (!isOpen(view)) show("pond");
+  else if (wanted && isOpen(wanted)) { history.replaceState(null, "", "#" + wanted); show(wanted); }
+}
+
 function show(next) {
-  next = placeOf(next);
+  // A link to a place that isn't open yet lands on the pond, and is kept in
+  // case the pond loads and says it's open after all.
+  wanted = "";
+  if (!isOpen(next)) { wanted = next; next = "pond"; history.replaceState(null, "", location.pathname); }
+  const market = next === "market";
+  next = placeOf(market ? "bank" : next);
   if (!VIEWS.includes(next)) next = "pond";
+  if (market) bankTab("market");
   if (WORKS.includes(next)) worksAt = next;
   $("works-head").hidden = !WORKS.includes(next);
   document.querySelectorAll("#works-tabs button").forEach((b) => {
@@ -415,6 +448,7 @@ function renderPond(p) {
   if (NEXT_DAY[f.stage]) bits.push("grows on day " + NEXT_DAY[f.stage]);
   $("frog-what").textContent = bits.join(" · ");
 
+  applyOpen(p.open);
   $("purse").hidden = false;
   $("purse-n").textContent = (p.pebbles - state.held).toLocaleString("en-US");
   $("nudge").hidden = !p.nudge;
@@ -448,7 +482,7 @@ function renderPaper(g) {
   fold.hidden = !g || !g.lines || g.lines.length === 0;
   if (fold.hidden) return;
   $("gazette-no").textContent = "No. " + g.issue;
-  $("gazette-lead").textContent = g.lines[0];
+  $("gazette-lead").textContent = g.notice || g.lines[0];
 }
 
 function paper(g, nb) {
@@ -458,6 +492,11 @@ function paper(g, nb) {
   const date = el("div", "paper-date");
   date.append(el("span", "", g.date), el("span", "", "Weather: " + g.sky));
   page.append(top, el("h3", "paper-head", "The Pond Gazette"), date);
+  if (g.notice) {
+    const note = el("p", "paper-biz paper-note");
+    note.append(el("b", "", "Opening today"), " " + g.notice);
+    page.append(note);
+  }
   const [lead, ...rest] = g.lines;
   const who = nb && nb.all[g.photo];
   if (who) {
@@ -813,14 +852,11 @@ initShops();
 initBag();
 initCollect();
 document.querySelectorAll(".places button[data-go]").forEach((b) => b.addEventListener("click", () => { location.hash = "#" + b.dataset.go; }));
-document.querySelectorAll("#bank-tabs button").forEach((b) => b.addEventListener("click", () => {
-  document.querySelectorAll("#bank-tabs button").forEach((x) => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
-  $("bank-works").hidden = b.dataset.bank !== "works";
-  $("bank-market").hidden = b.dataset.bank !== "market";
-}));
+document.querySelectorAll("#bank-tabs button").forEach((b) => b.addEventListener("click", () => bankTab(b.dataset.bank)));
 initTown();
 initNeighbours();
 initSettings();
+applyOpen(open);
 show(location.hash.slice(1));
 
 post("/api/greet").then((g) => {

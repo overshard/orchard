@@ -157,6 +157,8 @@ type gazette struct {
 	Pictured bool     `json:"pictured"`
 	// The pond's own new bests from the day before.
 	Records []string `json:"records,omitempty"`
+	// Notice is this pond's own news, a place that opened today.
+	Notice string `json:"notice,omitempty"`
 }
 
 // noteRecord keeps a day's best new best at a game. A game's first score

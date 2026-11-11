@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS ponds (
     dye_batch       TEXT NOT NULL DEFAULT '',
     trinkets_out    TEXT NOT NULL DEFAULT '',
     forage_day      TEXT NOT NULL DEFAULT '',
+    staged          INTEGER NOT NULL DEFAULT 0,
     key_saved_at    INTEGER
 );
 CREATE INDEX IF NOT EXISTS ponds_created ON ponds(created_at);
@@ -244,6 +245,7 @@ var addedColumns = []struct{ table, name, def string }{
 	{"ponds", "lodgers", "TEXT NOT NULL DEFAULT ''"},
 	{"ponds", "rent_day", "TEXT NOT NULL DEFAULT ''"},
 	{"ponds", "starter", "INTEGER NOT NULL DEFAULT 16"},
+	{"ponds", "staged", "INTEGER NOT NULL DEFAULT 0"},
 }
 
 func ensureColumns(db *sql.DB) error {
@@ -393,6 +395,8 @@ type pond struct {
 	DivePodium int
 	Pads       int
 	KeySavedAt sql.NullInt64
+	// Staged is set on a pond that opens up over its first days.
+	Staged bool
 
 	GravelLevel int
 	GravelAt    int64
@@ -417,7 +421,7 @@ const pondColumns = `p.id, p.public_id, p.created_at, p.last_seen_at, p.last_gif
 	p.dive_best, p.dive_day, p.dive_runs, p.dive_paid, p.dive_run, p.dive_started_at,
 	p.dive_ghosts, p.dive_podium, p.pads, p.key_saved_at,
 	p.gravel_level, p.gravel_at, p.garden_level, p.dive_form,
-	p.dye_level, p.dye_at, p.dye_batch, p.trinkets_out, p.forage_day, f.id, f.seed, f.genome_json, f.hatched_at,
+	p.dye_level, p.dye_at, p.dye_batch, p.trinkets_out, p.forage_day, p.staged, f.id, f.seed, f.genome_json, f.hatched_at,
 	f.hat_shape, f.hat_colour, f.name`
 
 func scanPond(row *sql.Row) (*pond, error) {
@@ -427,7 +431,7 @@ func scanPond(row *sql.Row) (*pond, error) {
 		&p.DiveBest, &p.DiveDay, &p.DiveRuns, &p.DivePaid, &p.DiveRun, &p.DiveStart,
 		&p.DiveGhosts, &p.DivePodium, &p.Pads, &p.KeySavedAt,
 		&p.GravelLevel, &p.GravelAt, &p.GardenLevel, &p.DiveForm,
-		&p.DyeLevel, &p.DyeAt, &p.DyeBatch, &p.TrinketsOut, &p.ForageDay, &p.FrogID, &p.Seed, &p.ModsJSON, &p.HatchedAt,
+		&p.DyeLevel, &p.DyeAt, &p.DyeBatch, &p.TrinketsOut, &p.ForageDay, &p.Staged, &p.FrogID, &p.Seed, &p.ModsJSON, &p.HatchedAt,
 		&p.Wearing.Shape, &p.Wearing.Colour, &p.FrogName)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, errNoPond
@@ -517,7 +521,7 @@ func (s *store) create() (string, int64, error) {
 			return errFull
 		}
 		res, err := tx.Exec(`INSERT INTO ponds (key_hmac, public_id, created_at, last_seen_at,
-			last_gift_at, pebbles, free_spins, spin_at, starter) VALUES (?, ?, ?, ?, ?, ?, 1, ?, 0)`,
+			last_gift_at, pebbles, free_spins, spin_at, starter, staged) VALUES (?, ?, ?, ?, ?, ?, 1, ?, 0, 1)`,
 			keyHMAC(s.pepper, key), randomHex(8), now, now, now, starterPebbles, now)
 		if err != nil {
 			return err
@@ -723,6 +727,7 @@ type view struct {
 		Same  int `json:"same"`
 	} `json:"wizard"`
 
+	Open    openView     `json:"open"`
 	Todo    []todo       `json:"todo"`
 	Starter *starterView `json:"starter,omitempty"`
 
@@ -998,6 +1003,8 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 		had[k.Kind] = k.First != ""
 	}
 	v.Share.Power = powerOf(v.Frog.Rarity, v.found, had, p.DiveBest, v.Jobs.Total)
+	v.Open = openOf(p, now)
+	v.Gazette.Notice = openingNotice(p, now)
 	v.Todo = todoOf(v)
 	if v.Starter, err = starterOf(q, p); err != nil {
 		return err
