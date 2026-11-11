@@ -468,9 +468,12 @@ they have none, for other sites to draw.
   `befriend` do it with the pond's `today`, and a slot in the test's list.
 - The pet route is called as fast as a finger rubs. It has to stay one read
   for a frog that's had its day's worth, with no row added anywhere.
-- The frog's screen is a button with `touch-action: pan-y`, so a sideways
-  drag is a rub and the click after one is swallowed. Anything new on the
-  screen goes beside the button in `.frogscreen`, not inside it.
+- The frog's screen is a button with `touch-action: pan-y`, and a touch that
+  starts on the frog cancels its `touchstart` so the page can't scroll or
+  zoom under a stroke. Taps are read off pointer events, since a cancelled
+  touch never clicks, and only a click from a key goes through `click`.
+  Anything new on the screen goes beside the button in `.frogscreen`, not
+  inside it.
 - Nothing about a basket is stored but the frog's target, when its unpaid
   actions began (`frogs.work_at`) and how many it was paid for before
   (`work_n`). Each action is dealt off an HMAC of the pepper, the frog, the

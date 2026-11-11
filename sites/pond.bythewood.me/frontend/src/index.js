@@ -23,7 +23,7 @@ import { drawScenery, drawSceneryNight } from "./scenery.js";
 import { drawFarBank, FAR_DEPTH } from "./farbank.js";
 import { badge } from "./badge.js";
 import { footprint, visitorReveal, stampsReveal, paintingReveal } from "./company.js";
-import { initPet, setBox, pose, over as petOver, busy as petBusy, wasRub, tapTrick, arrive, drawBond } from "./pet.js";
+import { initPet, setBox, pose, over as petOver, busy as petBusy, tapTrick, arrive, drawBond } from "./pet.js";
 
 buildPlay($("shelves"), $("v-dive"));
 const SIDE = DISKS.filter((d) => d.game);
@@ -544,15 +544,13 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 
-initPet(scene, $("scene-btn"), () => drawScene(performance.now()));
-initPostcard(scene, $("snap"), () => drawScene(performance.now()));
-
-$("scene-btn").addEventListener("click", () => {
-  if (!state.g || wasRub()) return;
+initPet(scene, $("scene-btn"), () => drawScene(performance.now()), () => {
+  if (!state.g) return;
   croakUntil = performance.now() + croak(state.g) * 1000;
   tapTrick(performance.now());
   if (reduced) { drawScene(performance.now()); setTimeout(() => drawScene(performance.now()), croakUntil - performance.now() + 50); }
 });
+initPostcard(scene, $("snap"), () => drawScene(performance.now()));
 
 const STAGE = { egg: "Egg", tadpole: "Tadpole", froglet: "Froglet", frog: "Frog", elder: "Elder" };
 const NEXT_DAY = { egg: 2, tadpole: 9, froglet: 13, frog: 29 };

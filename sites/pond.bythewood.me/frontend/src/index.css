@@ -402,10 +402,12 @@ button.screen:active {
 }
 
 /* The hearts sit over a top corner of the glass, where nothing on the
-   water is drawn. A sideways drag on the screen is a rub, so only an up and
-   down one scrolls the page. */
+   water is drawn. A drag that starts off the frog scrolls the page. */
 .frogscreen {
   position: relative;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .frogscreen .scene {
