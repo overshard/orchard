@@ -196,13 +196,13 @@ function card(f) {
   what.className = "what";
   name.textContent = f.name;
   sub.className = "dim";
-  sub.textContent = f.kind === "good" ? f.held + " in the bag" : f.kind === "coin" ? "swings hard" : "moves with " + f.moves;
+  sub.textContent = f.kind === "good" ? "a lot of " + state.lot + " · " + f.held + " in the bag" : f.kind === "coin" ? "swings hard" : "moves with " + f.moves;
   what.append(name, sub);
   const price = document.createElement("span"), dir = f.price > f.prev ? "up" : f.price < f.prev ? "down" : "";
   price.className = "readout px " + dir;
   price.innerHTML = '<span class="v"></span><span class="k"></span>';
   price.firstChild.textContent = f.price + " " + arrow(f);
-  price.lastChild.textContent = signed(dayPct(f), "%") + (f.kind === "good" ? " a lot" : " today");
+  price.lastChild.textContent = signed(dayPct(f), "%") + " today";
   head.append(art(f, f.kind === "share" ? 2 : 4), what, price);
   li.append(head, chart(f, f.kind === "coin" ? 120 : 56));
   if (f.held && f.kind !== "good") {
