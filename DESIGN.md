@@ -647,6 +647,9 @@ version of the old look and a handheld pet shell.
   when it lands or catches. Reduced motion gets no shake and no squash, and
   every game takes this from `feel.js` so they all feel the same.
   A near miss says CLOSE in the surface green.
+- **A fish is a shadow until it's landed.** In the water and on the line it's
+  one dark shape, so its size is all there is to go on, and it comes up in
+  its own colours with its name over it as it's landed.
 - **A run that beat nothing ends on a short card**, the score in readout glass
   over an amber AGAIN key, sat a third of the way down so the crash still
   shows under it, and one tap is the next run. A new best or a place on Dive's

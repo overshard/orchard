@@ -251,8 +251,8 @@ export const fish = {
     G.boots.forEach((b) => drawBoot(x, b.x, b.y));
     G.fish.forEach((f) => {
       if (f === G.taker && G.st === "fight") return;
-      x.globalAlpha = f.st === "flee" ? 0.7 : 1;
-      drawFish(x, f.sp, f.x, f.y, f.dir, f.t, false);
+      x.globalAlpha = f.st === "flee" ? 0.45 : 0.8;
+      drawFish(x, f.sp, f.x, f.y, f.dir, f.t, false, true);
       x.globalAlpha = 1;
     });
     F.squashed(x, 6 + FW / 2, JY + 3, () => draw(x, spr, FW, FH, col, 6, JY - FH + 3, 1));
@@ -273,7 +273,7 @@ export const fish = {
       const mx = f.x + f.dir * f.sp.len / 2, danger = G.ten > 0.82 && Math.floor(G.t * 14) % 2;
       line(x, TIP.x, TIP.y, mx, f.y, G.ten > 0.82 ? (danger ? "#e2412d" : "#ffb000") : G.ten > 0.6 ? "#ffb000" : "#e9e3d6");
       if (f.boot) drawBoot(x, f.x, f.y);
-      else drawFish(x, f.sp, f.x, f.y, f.dir, f.t * (f.ph === "run" ? 3 : 1), f.ph === "tell" && Math.floor(G.t * 20) % 2);
+      else drawFish(x, f.sp, f.x, f.y, f.dir, f.t * (f.ph === "run" ? 3 : 1), f.ph === "tell" && Math.floor(G.t * 20) % 2, true);
       if (f.ph === "tell") {
         const ty = Math.round(f.y - f.sp.len * (f.sp.fat || 0.42) / 2) - 16, tx = Math.round(f.x) - 2;
         x.fillStyle = "#0a0908"; x.fillRect(tx - 2, ty - 2, 8, 17);
