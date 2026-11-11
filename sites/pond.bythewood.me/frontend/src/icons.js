@@ -154,7 +154,7 @@ export function iconCanvas(key, s) {
   return cv;
 }
 
-// Fenn's furniture, drawn bigger than an icon on the pond itself.
+// Tansy's furniture, drawn bigger than an icon on the pond itself.
 export const FURN = {
   f_lilypad: [["....gggggg....", "..gGGGGGGGGg..", ".gGGGGGpGGGGg.", "gGGGGGpPpGGGGg", ".gGGGGGpGGGGg.", "..gggggg.ggg.."],
     { g: "#1f5a2c", G: "#56b45f", p: "#f59ab3", P: "#fff6dc" }],

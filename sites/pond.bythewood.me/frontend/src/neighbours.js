@@ -26,7 +26,7 @@ export function presents(n, zs) {
     art: z.hat ? thingArt({ hat: z.hat }, 8) : thingArt({ kind: z.item || "peb" }, 8),
     name: z.hat ? z.hat_name : z.pebbles ? z.pebbles + " pebbles" : z.text,
     tier: z.hat || (z.item && z.item.startsWith("t_")) ? z.hat_tier : undefined,
-    line: z.hat ? (z.spare ? "A spare, Wren will buy it." : "It's in your bag.") : z.text,
+    line: z.hat ? (z.spare ? "A spare, Little Tully will buy it." : "It's in your bag.") : z.text,
   });
   if (rest.length) $("reveal-ok").addEventListener("click", () => presents(n, rest), { once: true });
 }
@@ -105,6 +105,7 @@ function show(n) {
     facts.append(fact("Right now", n.now.doing));
     facts.append(fact("Favourite dish", n.fav, n.fav_a ? dishCanvas({ a: n.fav_a, b: n.fav_b, name: n.fav }, 4) : null,
       n.fav_a ? nameOf(n.fav_a) + " and " + nameOf(n.fav_b) : "It'll say how to cook it at two hearts"));
+    if (n.shop) facts.append(fact("Keeps shop", n.shop));
     if (n.gossip) facts.append(fact("Heard", n.gossip));
     facts.append(fact("About", n.bio));
     body.append(facts);
@@ -170,6 +171,7 @@ function render(p) {
     }
     c.append(art(n, 3), name, h, el("span", "fav", "Likes " + n.fav.toLowerCase()));
     c.append(doing);
+    if (n.shop) c.append(el("span", "keeps", "Keeps " + n.shop));
     if (n.now.paper) {
       const pr = document.createElement("span");
       pr.className = "press"; pr.textContent = "In today's gazette";

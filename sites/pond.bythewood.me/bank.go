@@ -429,7 +429,7 @@ func (s *store) cook(id int64, a, b string) (*cooked, error) {
 	return out, err
 }
 
-// sellDish is Brindle buying a dish at its worth.
+// sellDish is Big Bean buying a dish at its worth.
 func (s *store) sellDish(id int64, kind string) (*view, error) {
 	return s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
 		d, ok := dishOfKind(kind)

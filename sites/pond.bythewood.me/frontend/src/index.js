@@ -713,7 +713,7 @@ function greet(g) {
         art: z.hat ? thingArt({ hat: z.hat }, 8) : thingArt({ kind: z.item || "peb" }, 8),
         name: z.hat ? z.hat_name : z.pebbles ? z.pebbles + " pebbles" : z.text,
         tier: z.hat || (z.item && z.item.startsWith("t_")) ? z.hat_tier : undefined,
-        line: z.hat ? (z.spare ? "A spare, Wren will buy it." : "It's in your bag.") : z.text,
+        line: z.hat ? (z.spare ? "A spare, Little Tully will buy it." : "It's in your bag.") : z.text,
       });
     }, { once: true });
   }

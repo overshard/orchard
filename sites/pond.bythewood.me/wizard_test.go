@@ -229,7 +229,7 @@ func TestStallSparesDontPayForTheBox(t *testing.T) {
 func TestStallSellsUnderTheShops(t *testing.T) {
 	for _, r := range mossRocks {
 		if w, _ := worthOf(r.kind); w >= r.price {
-			t.Errorf("%s goes for %d on the stall and %d at Moss's", r.kind, w, r.price)
+			t.Errorf("%s goes for %d on the stall and %d at Moth's", r.kind, w, r.price)
 		}
 	}
 	for _, in := range ingredients {
@@ -237,17 +237,17 @@ func TestStallSellsUnderTheShops(t *testing.T) {
 			continue
 		}
 		if w, _ := worthOf(in.kind); w >= salePrice(larderPrice[in.tier]) {
-			t.Errorf("%s goes for %d on the stall and %d on sale at Brindle's", in.kind, w, salePrice(larderPrice[in.tier]))
+			t.Errorf("%s goes for %d on the stall and %d on sale at Big Bean's", in.kind, w, salePrice(larderPrice[in.tier]))
 		}
 	}
 	for k, price := range map[string]int{"stamp_spots": stampPrice, "drops_red": dropsPrice, "dye_blue": bargainPrice, "dye_gold": bargainPrice} {
 		if w, _ := worthOf(k); w >= price {
-			t.Errorf("%s goes for %d on the stall and %d at Moss's", k, w, price)
+			t.Errorf("%s goes for %d on the stall and %d at Moth's", k, w, price)
 		}
 	}
 	for t2, price := range wrenSells[:3] {
 		if w := int(float64(hatRate[t2]) * boxedShare); w >= price {
-			t.Errorf("a tier %d hat goes for %d on the stall and %d at Wren's", t2, w, price)
+			t.Errorf("a tier %d hat goes for %d on the stall and %d at Little Tully's", t2, w, price)
 		}
 	}
 }
@@ -268,13 +268,13 @@ func TestStallCapsUnderEveryShop(t *testing.T) {
 	}
 	for _, r := range mossRocks {
 		if _, ok := shopFloor(r.kind); !ok {
-			t.Errorf("%s is at Moss's and has no floor", r.kind)
+			t.Errorf("%s is at Moth's and has no floor", r.kind)
 		}
 	}
 	s, _ := testStore(t)
 	_, id := newPond(t, s)
 	stock(t, s, id, "dye_blue", 1)
 	if _, err := s.stallList(id, "dye_blue", bargainPrice); !errors.Is(err, errBadPrice) {
-		t.Fatalf("a blue dye went up for Moss's bargain price, %v", err)
+		t.Fatalf("a blue dye went up for Moth's bargain price, %v", err)
 	}
 }

@@ -56,14 +56,14 @@ function cookbook(p) {
 function cats(p) {
   const furn = (p.shops.fenn && p.shops.fenn.lines) || [];
   return [
-    { key: "hats", name: "Hats", icon: "hat", all: p.hats.map((h) => ({ art: () => hatTile(h, true), name: h.name, tier: h.tier, found: h.count > 0, what: "Boxes at Wren's, the wheel and presents." })) },
-    { key: "trinkets", name: "Trinkets", icon: "t_duck", all: p.trinkets.all.map((t) => ({ art: () => iconCanvas(t.kind, 4), name: t.name, tier: t.tier, found: t.found, what: t.pet ? "A pet. Now and then a frog brings one home from " + t.pet.toLowerCase() + "." : "Boxes at Old Moss's and presents." })) },
+    { key: "hats", name: "Hats", icon: "hat", all: p.hats.map((h) => ({ art: () => hatTile(h, true), name: h.name, tier: h.tier, found: h.count > 0, what: "Boxes at Little Tully's, the wheel and presents." })) },
+    { key: "trinkets", name: "Trinkets", icon: "t_duck", all: p.trinkets.all.map((t) => ({ art: () => iconCanvas(t.kind, 4), name: t.name, tier: t.tier, found: t.found, what: t.pet ? "A pet. Now and then a frog brings one home from " + t.pet.toLowerCase() + "." : "Boxes at Moth's and presents." })) },
     { key: "hoods", name: "Hoods", icon: "i_hood", all: p.hoods.map((h) => ({ art: () => hatTile(h, true), name: h.name, tier: 4, found: h.got, what: "A frog that gets to 99 at " + h.name.replace(" hood", "").toLowerCase() + " earns it." })) },
-    { key: "rocks", name: "Rocks", icon: "agate", all: p.rocks.map((r) => ({ art: () => iconCanvas(r.kind, 4), name: r.name, tier: r.tier, found: r.found, what: "The wheel, the reeds and Old Moss." })) },
+    { key: "rocks", name: "Rocks", icon: "agate", all: p.rocks.map((r) => ({ art: () => iconCanvas(r.kind, 4), name: r.name, tier: r.tier, found: r.found, what: "The wheel, the reeds and Moth." })) },
     { key: "keepsakes", name: "Keepsakes", icon: "k_frost", all: p.keepsakes.map((k) => ({ art: () => iconCanvas(k.kind, 4), name: k.name, tier: k.tier, found: k.days > 0, what: k.hint, sub: k.days ? k.first : "" })) },
     { key: "frogs", name: "Frog looks", icon: "i_pond", all: register(p) },
     { key: "dishes", name: "Cookbook", icon: "lotus", all: cookbook(p) },
-    { key: "furniture", name: "Furniture", icon: "f_reeds", all: furn.map((l) => ({ art: () => furnCanvas(l.kind), name: l.name, tier: 0, found: p.furniture.includes(l.kind), what: "Fenn's Pad and Reed, in town." })) },
+    { key: "furniture", name: "Furniture", icon: "f_reeds", all: furn.map((l) => ({ art: () => furnCanvas(l.kind), name: l.name, tier: 0, found: p.furniture.includes(l.kind), what: "Tansy's Pad and Reed, in town." })) },
   ];
 }
 

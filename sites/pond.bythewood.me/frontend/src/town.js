@@ -34,7 +34,7 @@ function boxBuy(id, path, shop) {
         tier: z.hat_tier,
         line: z.spare ? "You had one already, so " + shop + " will buy this one." : hat ? "It's in your bag. Tap it there to wear it." : "It's in your bag. Tap it there to set it out.",
       });
-    }, (e) => { $("shop-out-" + (shop === "Wren" ? "wren" : "moss")).textContent = e.message; this.disabled = false; });
+    }, (e) => { $("shop-out-" + (shop === "Little Tully" ? "wren" : "moss")).textContent = e.message; this.disabled = false; });
   });
 }
 
@@ -79,7 +79,7 @@ export function pricePicker(body, t) {
     box.append(kk, v); odds.append(box);
     return v;
   };
-  const hour = tile("Each hour"), day = tile("Today"), fee = tile("Fee"), word = document.createElement("span");
+  const hour = tile("Sells within the hour"), day = tile("Sells by tomorrow"), fee = tile("Fee"), word = document.createElement("span");
   let go = null;
   const upd = () => {
     const v = steps[+range.value], c = stallChance(v, t.rate), f = stallFee(v, t.rate), r = v / t.rate;
@@ -138,7 +138,7 @@ function renderStall(p) {
     name.textContent = r.name;
     note.className = "dim";
     note.textContent = r.sold ? "Sold to " + r.buyer + "!" : r.over ? "No takers at that price"
-      : r.ends ? pct(r.chance) + " an hour · " + Math.max(1, Math.ceil((r.ends - now) / 3600)) + "h left" : "Up for sale";
+      : r.ends ? pct(r.chance) + " to sell within the hour · " + Math.max(1, Math.ceil((r.ends - now) / 3600)) + "h left" : "Up for sale";
     what.append(name, note);
     price.className = "price"; price.textContent = r.price.toLocaleString("en-US");
     row.append(thingArt(r, 3), what, price);
@@ -317,8 +317,8 @@ export function initTown() {
   watch(renderStall);
   watch(renderWizard);
   initMarket();
-  boxBuy("box-open", "/api/hats/box", "Wren");
-  boxBuy("trinket-box", "/api/trinkets/box", "Old Moss");
+  boxBuy("box-open", "/api/hats/box", "Little Tully");
+  boxBuy("trinket-box", "/api/trinkets/box", "Moth");
   $("town-tabs").addEventListener("click", (e) => {
     const b = e.target.closest("button");
     if (b) showTab(b.dataset.town);

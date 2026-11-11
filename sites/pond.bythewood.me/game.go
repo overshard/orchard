@@ -78,7 +78,7 @@ const (
 	hatsInGame = hatShapes * 4
 )
 
-// What a spare is worth at the going rate. Wren pays a quarter of it.
+// What a spare is worth at the going rate. Little Tully pays a quarter of it.
 var hatRate = []int{20, 60, 160, 500, 1600}
 
 type hat struct {

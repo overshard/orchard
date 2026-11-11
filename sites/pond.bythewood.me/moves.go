@@ -207,7 +207,7 @@ func (s *store) wear(id int64, h hat) (*view, error) {
 	})
 }
 
-// sell lets Wren have a spare. The last copy of a hat is never a spare, so
+// sell lets Little Tully have a spare. The last copy of a hat is never a spare, so
 // nothing leaves the collection.
 func (s *store) sell(id int64, h hat) (*view, error) {
 	return s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {

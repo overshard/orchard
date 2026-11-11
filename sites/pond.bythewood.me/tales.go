@@ -51,7 +51,7 @@ var gossipPool = []string{
 	"Thinks {name} has been rehearsing for the frog choir.",
 	"Heard {name} lost a game of tadpoles to a real tadpole.",
 	"Says {name} found something shiny and won't show anybody.",
-	"Heard {name} tried to sell a rock to Old Moss and got told no.",
+	"Heard {name} tried to sell a rock at the curio shop and got told no.",
 	"Says {name} has a cousin in a much fancier pond.",
 }
 
@@ -73,7 +73,7 @@ var gazettePool = map[string][]string{
 		"Lily pad traffic at an all time high, says {resident}",
 		"Local frog claims to have seen the biggest fly yet",
 		"{resident} hosts supper on the bank, everybody brings a dish",
-		"Wren gets a new box of hats in and won't say what's in it",
+		"Little Tully gets a new box of hats in and won't say what's in it",
 		"Dragonfly sighting has the whole pond looking up",
 		"{resident} and {other} settle long running argument over the best rock",
 		"Garden beds doing very well this week, gardeners say",
@@ -85,7 +85,7 @@ var gazettePool = map[string][]string{
 		"{resident} says the water will clear soon and asks everyone to stay calm",
 		"Beetles enjoying the murky water, frogs less so",
 		"{resident} spends the day under a pad, friends bring snacks",
-		"Brindle offers a warm cup of something to anyone who asks",
+		"Big Bean offers a warm cup of something to anyone who asks",
 		"{resident} and {other} sit together and agree it'll pass",
 		"Choir sings a slow one this evening",
 		"Quiet day at the stall as neighbours stay in",

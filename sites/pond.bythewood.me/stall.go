@@ -31,7 +31,7 @@ const boxedShare = 0.35
 var (
 	thingWorth = [tierCount]int{10, 40, 100, 300, 900}
 	foodWorth  = [3]int{5, 15, 120}
-	// Under the 280 Moss asks for a dye going cheap.
+	// Under the 280 Moth asks for a dye going cheap.
 	benchWorth = [tierCount]int{10, 40, 100, 200, 200}
 )
 

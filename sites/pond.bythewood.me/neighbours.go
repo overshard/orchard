@@ -34,6 +34,14 @@ var residents = []resident{
 	{"Moth", 9001, 2, [2]int{6, 6}},
 }
 
+// Four of the neighbours keep the shops in town.
+var shopkeepers = map[string]string{
+	"Little Tully": "Little Tully's Hats",
+	"Big Bean":     "Big Bean's Larder",
+	"Tansy":        "Tansy's Pad and Reed",
+	"Moth":         "Moth's Curios",
+}
+
 func (r resident) favDish() dish { return dishOf(r.fav[0], r.fav[1]) }
 
 // residentNamed is -1 for a name that isn't a resident's, like the rolled
@@ -257,15 +265,17 @@ type neighbourView struct {
 	To     int    `json:"to"`
 	Fav    string `json:"fav"`
 	// Its favourite's two ingredients, once it's friendly enough to say.
-	FavA   string  `json:"fav_a,omitempty"`
-	FavB   string  `json:"fav_b,omitempty"`
-	Gave   bool    `json:"gave"`
-	Lodger bool    `json:"lodger"`
-	Firm   string  `json:"firm"`
-	Talk   string  `json:"talk"`
-	Gossip string  `json:"gossip"`
-	Bio    string  `json:"bio"`
-	Now    folkDay `json:"now"`
+	FavA   string `json:"fav_a,omitempty"`
+	FavB   string `json:"fav_b,omitempty"`
+	Gave   bool   `json:"gave"`
+	Lodger bool   `json:"lodger"`
+	Firm   string `json:"firm"`
+	Talk   string `json:"talk"`
+	Gossip string `json:"gossip"`
+	Bio    string `json:"bio"`
+	// The shop it keeps in town, for the four that keep one.
+	Shop string  `json:"shop,omitempty"`
+	Now  folkDay `json:"now"`
 }
 
 type favourView struct {
@@ -299,7 +309,7 @@ func neighboursOf(q querier, id int64, now time.Time) (neighboursView, error) {
 		l := friendLevel(f.points)
 		d := r.favDish()
 		nv := neighbourView{ID: i, Name: r.name, Seed: r.seed, Hat: hat{Shape: r.hat}, Level: l, Title: friendNames[l],
-			Points: f.points, From: friendAt[l], To: friendAt[min(l+1, len(friendAt)-1)], Fav: d.name, Gave: f.giftDay == today,
+			Points: f.points, From: friendAt[l], To: friendAt[min(l+1, len(friendAt)-1)], Fav: d.name, Shop: shopkeepers[r.name], Gave: f.giftDay == today,
 			Lodger: b.lodging(i)}
 		if l >= recipeAt {
 			nv.FavA, nv.FavB = ingredients[d.a].kind, ingredients[d.b].kind

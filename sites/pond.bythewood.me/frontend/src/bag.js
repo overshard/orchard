@@ -18,7 +18,7 @@ function useOf(t) {
   if (/^(dye|stamp|drops)_/.test(t.kind)) return USE.dye;
   if (t.sort === "hat") return "Put it on your frog.";
   if (t.sort === "trinket") return "Set it out round the pad.";
-  if (t.sort === "dish") return "A frog that eats one lays a better egg, and Brindle buys anything you cook.";
+  if (t.sort === "dish") return "A frog that eats one lays a better egg, and Big Bean buys anything you cook.";
   return USE[t.sort] || "";
 }
 
@@ -53,7 +53,7 @@ export function show(t) {
       if (same(t.hat, p.frog.hat)) r.append(button("Take it off", act("/api/hats/wear", { shape: 0, colour: 0 })));
       else r.append(button("Wear it", act("/api/hats/wear", t.hat), "primary"));
       const hv = p.hats.find((h) => same(h, t.hat));
-      if (t.free > 0 && hv) r.append(button("Sell to Wren, " + hv.wren, act("/api/hats/sell", t.hat, () => sheetSay("Wren took it for " + hv.wren + "."))));
+      if (t.free > 0 && hv) r.append(button("Sell to Little Tully, " + hv.wren, act("/api/hats/sell", t.hat, () => sheetSay("Little Tully took it for " + hv.wren + "."))));
     }
     if (t.sort === "trinket") {
       const r = row(), spots = p.trinkets.spots;
@@ -64,7 +64,7 @@ export function show(t) {
         r.append(b);
       });
       const tv = p.trinkets.all.find((x) => x.kind === t.kind);
-      if (t.free > 0 && tv) row().append(button("Sell to Old Moss, " + tv.moss, act("/api/trinkets/sell", { kind: t.kind }, () => sheetSay("Old Moss took it for " + tv.moss + "."))));
+      if (t.free > 0 && tv) row().append(button("Sell to Moth, " + tv.moss, act("/api/trinkets/sell", { kind: t.kind }, () => sheetSay("Moth took it for " + tv.moss + "."))));
     }
     if (t.kind === "geode") {
       row().append(button("Crack it", (b) => {
@@ -83,7 +83,7 @@ export function show(t) {
         hungry.forEach((f, i) => r.append(button("Feed " + titled(f.name), act("/api/frogs/feed", { frog: f.id, dish: t.kind },
           () => sheetSay(titled(f.name) + " ate it up.")), i === 0 ? "primary" : "")));
       }
-      row().append(button("Sell to Brindle, " + t.worth, act("/api/kitchen/sell", { dish: t.kind }, () => sheetSay("Brindle took it."))));
+      row().append(button("Sell to Big Bean, " + t.worth, act("/api/kitchen/sell", { dish: t.kind }, () => sheetSay("Big Bean took it."))));
     }
     if (t.free > 0) {
       const r = row();
