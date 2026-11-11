@@ -775,7 +775,7 @@ div.hattile {
   color: var(--print);
 }
 
-/* An LED pip on a key with something waiting behind it. */
+/* An LED pip on a key with something new behind it since it was opened. */
 .tabs button.wait::after,
 .places button.wait::after {
   content: "";
