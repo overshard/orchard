@@ -96,9 +96,9 @@ export function countdown(step) {
   const el = $("countdown");
   el.hidden = step < 0;
   if (step < 0) return;
-  el.querySelectorAll(".lights i").forEach((l, i) => { l.className = step >= 3 ? "go" : i < step + 1 ? "on" : ""; });
+  el.querySelectorAll(".lights i").forEach((l, i) => { l.className = i < step + 1 ? "on" : ""; });
   $("count-word").textContent = step >= 3 ? "GO!" : String(3 - step);
-  el.classList.toggle("go", step >= 3);
+  el.classList.toggle("started", step >= 3);
 }
 
 export function raceHide() {

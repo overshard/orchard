@@ -1374,9 +1374,9 @@ button.reed {
   box-shadow: 0 0 14px #e2412d;
 }
 
-.countdown .lights i.go {
-  background: #5ddc82;
-  box-shadow: 0 0 14px #5ddc82;
+/* The lights are gone once it says GO. Hidden keeps the word where it was. */
+.countdown.started .lights {
+  visibility: hidden;
 }
 
 .countdown b {
@@ -1388,7 +1388,7 @@ button.reed {
   text-shadow: 4px 4px 0 #0a1b1f;
 }
 
-.countdown.go b {
+.countdown.started b {
   color: #5ddc82;
   animation: pop 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.5);
 }
