@@ -39,11 +39,8 @@
   box-sizing: border-box;
 }
 
-/* Anything that sticks out on Firefox Android would widen the layout viewport
-   and stretch every fixed layer with it, the games and the gazette included. */
 html {
   background: var(--bg);
-  overflow-x: clip;
 }
 
 /* The panel's brushed grain, faint enough to only read up close. */
@@ -62,12 +59,15 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Clipped here and not on html, since Firefox Android hands the root's
+   overflow to the window and then loses track of the bottom keys. */
 main {
   flex: 1;
   width: 100%;
   max-width: 34rem;
   margin: 0 auto;
   padding: 0 12px 24px;
+  overflow-x: clip;
 }
 
 [hidden] {
@@ -2167,6 +2167,7 @@ h2 .count {
    waiting and a green one sits on a goal, lit once it's done. */
 .nextup {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 6px;
   margin: 10px 0 12px;
 }
@@ -2176,6 +2177,8 @@ h2 .count {
   align-items: center;
   gap: 9px;
   width: 100%;
+  /* Firefox won't shrink a row under its whole label without this. */
+  min-width: 0;
   min-height: 40px;
   margin: 0 0 3px;
   padding: 3px 8px 3px 11px;
