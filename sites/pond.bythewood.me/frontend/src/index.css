@@ -3359,9 +3359,8 @@ div.slot {
 /* Stamps at the greeting, each frog with the stamp it left at its feet. */
 .stamped {
   display: grid;
-  grid-template-columns: repeat(3, auto);
   justify-content: center;
-  gap: 6px 12px;
+  gap: 6px 10px;
 }
 
 .stamped figure {

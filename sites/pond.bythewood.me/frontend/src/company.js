@@ -65,10 +65,10 @@ function names(list) {
 export function stampsReveal(stamps) {
   const box = document.createElement("div");
   box.className = "stamped";
-  const s = stamps.length > 3 ? 2 : 3;
+  box.style.gridTemplateColumns = "repeat(" + Math.min(3, stamps.length) + ", 88px)";
   stamps.slice(0, 6).forEach((st) => {
     const fig = document.createElement("figure");
-    fig.append(st.from ? callerArt(st.from, s) : shadowArt(s), stampArt(st.stamp, s + 1));
+    fig.append(st.from ? callerArt(st.from, 2) : shadowArt(2), stampArt(st.stamp, 3));
     box.append(fig);
   });
   const who = [...new Set(stamps.filter((st) => st.from).map((st) => st.from.name))], quiet = stamps.some((st) => !st.from);
