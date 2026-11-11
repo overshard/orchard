@@ -781,6 +781,10 @@ func (s *site) apiStamp(id int64, r *http.Request, w http.ResponseWriter) (any, 
 	return st, err
 }
 
+func (s *site) apiFar(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	return s.store.buyFar(id)
+}
+
 func (s *site) apiFavour(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
 	return s.store.favour(id)
 }

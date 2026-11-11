@@ -5,6 +5,7 @@ import { slot } from "./ui.js";
 import { genome, cells, colours, draw, W, H } from "./frog.js";
 import { presentsFrom } from "./neighbours.js";
 import { paintingArt, PAINTINGS, PIECES } from "./company.js";
+import { drawFarBankOn } from "./farbank.js";
 
 const gx = $("garden").getContext("2d");
 const GW = 176, S = 3;
@@ -342,6 +343,21 @@ function renderBurrows(p) {
   $("burrow-build").textContent = build("Burrows", bw.level, bw.cost, bw.mats);
   $("burrow-build").disabled = !canBuild(p, bw);
   renderPaintings(bw);
+  renderFar(p);
+}
+
+// ---------------------------------------------------------------- the far bank
+
+function renderFar(p) {
+  const f = p.bank.far;
+  drawFarBankOn($("far-art"), f.patches);
+  $("far-n").textContent = f.patches.toLocaleString("en-US");
+  $("far-cost").textContent = f.cost ? f.cost.toLocaleString("en-US") : "—";
+  say("far-note", !f.patches ? "Bare mud for now. Each patch puts one thing on it, behind your frog."
+    : f.patches < f.drawn ? (f.drawn - f.patches) + " more things to put on it, then a sign keeps count."
+    : "Everything's out, so each patch from here goes on the sign.");
+  $("far-buy").textContent = f.cost ? "Buy a patch, " + f.cost.toLocaleString("en-US") : "The bank's all bought";
+  $("far-buy").disabled = !f.cost || p.pebbles < f.cost;
 }
 
 const SHORT = ["Dawn", "Rain", "Lantern", "Snow"];
@@ -401,6 +417,13 @@ export function initBank() {
       say("burrow-out", "Dug a burrow, and a lily pad came with it.");
       setPond(v);
     }, (e) => say("burrow-out", e.message));
+  });
+  $("far-buy").addEventListener("click", () => {
+    $("far-buy").disabled = true;
+    post("/api/far").then((v) => {
+      say("far-out", v.bank.far.patches <= v.bank.far.drawn ? "Another patch, and something new across the water." : "Another patch, and the sign goes up one.");
+      setPond(v);
+    }, (e) => { say("far-out", e.message); renderFar(state.pond); });
   });
   $("burrow-collect").addEventListener("click", () => {
     $("burrow-collect").disabled = true;

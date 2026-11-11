@@ -840,6 +840,14 @@ version of the old look and a handheld pet shell.
   the frog that clears the furniture, the trinket spots and both top
   corners. The chime and the vane move with the wind and the lantern is lit
   after dark. Reduced motion holds them still.
+- **The far bank is a strip of land along the top of the glass.** It's
+  bought a patch at a time in Works, under the burrows, with its middle in
+  a window and the count and the next price in glass, and each patch stands
+  one more small piece of scenery on it, a tree, a cottage, a windmill, a
+  deer, in 2px cells like the swimmers since it's far off. The back row is
+  hazed with the water's colour. Thirty pieces fill it from the middle out,
+  clear of the hearts and the camera key, and past that a small wooden sign
+  at the right end says how many more. Nothing on the bank does anything.
 - **Badges are enamel pins on a board**, a sunken tray on the Badges shelf.
   A pin is a pixel disc with a gold rim, a picture and enamel in the colour
   of its part of the game. One not earned is its shape in the dark with how
