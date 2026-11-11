@@ -126,7 +126,7 @@ func TestPowerAddsUp(t *testing.T) {
 		in.finds[k] = filled(ps, 0)
 	}
 	in.finds["hats"] = filled(in.finds["hats"], 5)
-	in.finds["badges"] = filled(in.finds["badges"], 47)
+	in.finds["badges"] = filled(in.finds["badges"], len(badges))
 	p := powerOf(in, 0)
 	hats, badges := p.part("hats"), p.part("badges")
 	if hats.Have != 5 || hats.All != hatsInGame || badges.Pts != badges.Of {
