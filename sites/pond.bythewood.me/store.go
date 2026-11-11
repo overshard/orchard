@@ -55,6 +55,10 @@ CREATE TABLE IF NOT EXISTS ponds (
     trinket_pity    INTEGER NOT NULL DEFAULT 0,
     want_hat        TEXT NOT NULL DEFAULT '',
     want_fill       INTEGER NOT NULL DEFAULT 0,
+    dive_plays      INTEGER NOT NULL DEFAULT 0,
+    power_seen      TEXT NOT NULL DEFAULT '',
+    rank_top        INTEGER NOT NULL DEFAULT 0,
+    rank_day        TEXT NOT NULL DEFAULT '',
     key_saved_at    INTEGER
 );
 CREATE INDEX IF NOT EXISTS ponds_created ON ponds(created_at);
@@ -258,7 +262,14 @@ CREATE TABLE IF NOT EXISTS arcade (
     started_at INTEGER NOT NULL DEFAULT 0,
     keep       TEXT NOT NULL DEFAULT '',
     kept       INTEGER NOT NULL DEFAULT 0,
+    plays      INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (pond_id, game)
+) WITHOUT ROWID;
+
+CREATE TABLE IF NOT EXISTS refs (
+    game  TEXT PRIMARY KEY,
+    best  INTEGER NOT NULL,
+    ponds INTEGER NOT NULL
 ) WITHOUT ROWID;
 
 CREATE TABLE IF NOT EXISTS sold (
@@ -382,35 +393,41 @@ var addedColumns = []struct{ table, name, def string }{
 	{"frogs", "work_at", "INTEGER NOT NULL DEFAULT 0"},
 	{"frogs", "work_n", "INTEGER NOT NULL DEFAULT 0"},
 	{"frogs", "work_tool", "INTEGER NOT NULL DEFAULT 0"},
+	{"ponds", "dive_plays", "INTEGER NOT NULL DEFAULT 0"},
+	{"arcade", "plays", "INTEGER NOT NULL DEFAULT 0"},
+	{"ponds", "power_seen", "TEXT NOT NULL DEFAULT ''"},
+	{"ponds", "rank_top", "INTEGER NOT NULL DEFAULT 0"},
+	{"ponds", "rank_day", "TEXT NOT NULL DEFAULT ''"},
 }
 
-func ensureColumns(db *sql.DB) error {
-	have := map[string]bool{}
+func ensureColumns(db *sql.DB) (map[string]bool, error) {
+	have, added := map[string]bool{}, map[string]bool{}
 	rows, err := db.Query(`SELECT m.name || '.' || c.name FROM sqlite_schema m
 		JOIN pragma_table_info(m.name) c WHERE m.type = 'table'`)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	for rows.Next() {
 		var name string
 		if err := rows.Scan(&name); err != nil {
 			rows.Close()
-			return err
+			return nil, err
 		}
 		have[name] = true
 	}
 	if err := rows.Close(); err != nil {
-		return err
+		return nil, err
 	}
 	for _, c := range addedColumns {
 		if have[c.table+"."+c.name] {
 			continue
 		}
 		if _, err := db.Exec("ALTER TABLE " + c.table + " ADD COLUMN " + c.name + " " + c.def); err != nil {
-			return err
+			return nil, err
 		}
+		added[c.table+"."+c.name] = true
 	}
-	return nil
+	return added, nil
 }
 
 var (
@@ -457,7 +474,8 @@ func openStore(path string, pepper []byte) (*store, error) {
 		w.Close()
 		return nil, err
 	}
-	if err := ensureColumns(w); err != nil {
+	added, err := ensureColumns(w)
+	if err != nil {
 		w.Close()
 		return nil, err
 	}
@@ -478,6 +496,12 @@ func openStore(path string, pepper []byte) (*store, error) {
 	if err := migrateJobs(w, time.Now()); err != nil {
 		w.Close()
 		return nil, err
+	}
+	if added["ponds.rank_top"] {
+		if err := seedRanks(w, time.Now()); err != nil {
+			w.Close()
+			return nil, err
+		}
 	}
 	r, err := sql.Open("sqlite", dsn+"&_pragma=query_only(1)")
 	if err != nil {
@@ -727,8 +751,10 @@ func (s *store) sweep() (int64, error) {
 		}
 		gone, _ = res.RowsAffected()
 		// What was bought only counts against today's stock.
-		_, err = tx.Exec(`DELETE FROM bought WHERE day < ?`, dayOf(s.now().AddDate(0, 0, -2)))
-		return err
+		if _, err = tx.Exec(`DELETE FROM bought WHERE day < ?`, dayOf(s.now().AddDate(0, 0, -2))); err != nil {
+			return err
+		}
+		return keepRefs(tx)
 	})
 	return gone, err
 }
@@ -914,8 +940,12 @@ type view struct {
 
 	held  map[string]int
 	found []hat
-	Nudge bool `json:"nudge"`
-	Dev   bool `json:"dev"`
+	// Every hat the pond has had, sold down to none or not, and every other
+	// found thing by kind.
+	hatsEver map[hat]bool
+	had      map[string]bool
+	Nudge    bool `json:"nudge"`
+	Dev      bool `json:"dev"`
 }
 
 func frogOf(p *pond, now time.Time) frogView {
@@ -973,6 +1003,10 @@ func viewOf(q querier, p pond, now time.Time, key []byte) (*view, error) {
 		return nil, err
 	}
 	var found []hat
+	v.hatsEver = map[hat]bool{}
+	for h := range held {
+		v.hatsEver[h] = true
+	}
 	for t := range hatsByTier {
 		for _, h := range hatsByTier[t] {
 			v.Hats = append(v.Hats, hatView{h, h.name(), t, held[h], wrenPays(h)})
@@ -1113,7 +1147,10 @@ func (s *store) act(id int64, fn func(tx *sql.Tx, p *pond, now time.Time) error)
 		if err := s.fill(tx, v, p, now); err != nil {
 			return err
 		}
-		return land(tx, v, p)
+		if err := land(tx, v, p); err != nil {
+			return err
+		}
+		return notePower(tx, v, p)
 	})
 	return v, err
 }
@@ -1216,7 +1253,7 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	for _, m := range v.Mementos {
 		had[m.Kind] = m.Day != ""
 	}
-	v.Share.Power = powerOf(v.Frog.Rarity, v.found, had, p.DiveBest, v.Jobs.Total, v.Bond.Hearts)
+	v.had = had
 	v.Today = dayOf(now)
 	v.Open = openOf(p, now)
 	pins, done, err := kept(q, p.ID)
@@ -1224,7 +1261,23 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 		return err
 	}
 	v.Sets = setsOf(everFound(v, had), done)
+	refs, err := gameRefs(q)
+	if err != nil {
+		return err
+	}
+	var bond, top int
+	if err := q.QueryRow(`SELECT MAX(f.bond), p.rank_top FROM frogs f JOIN ponds p ON p.id = f.pond_id WHERE f.pond_id = ?`, p.ID).Scan(&bond, &top); err != nil {
+		return err
+	}
+	// Badges read the power and count in it, so they're counted as kept
+	// for the tally and as earned for the power the page shows.
+	for _, b := range badges {
+		_, ok := pins[b.kind]
+		v.Badges = append(v.Badges, badgeView{Got: ok})
+	}
+	v.Share.Power = powerOf(powerInOf(v, refs, bond), top)
 	v.Badges = badgesOf(tallyOf(v, p), pins)
+	v.Share.Power = powerOf(powerInOf(v, refs, bond), top)
 	markBag(v)
 	v.Gazette.Notice = openingNotice(p, now)
 	if v.Gazette.Sweep, err = bugNoteOf(q, p.ID, now); err != nil {

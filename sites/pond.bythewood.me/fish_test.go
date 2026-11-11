@@ -238,10 +238,12 @@ func TestTheFishBookCountsInPower(t *testing.T) {
 	before, _ := s.view(id)
 	goFishing(t, s, clock, id, 200, map[string]int{"minnow": 1, "trout": 1, "carp": 2, "koi": 1, "wels": 1})
 	v, _ := s.view(id)
-	want := hatPower[0] + hatPower[1] + hatPower[2] + hatPower[3] + hatPower[4]
 	pw := v.Share.Power
-	if pw.Fish != want || pw.FishFound != 5 || pw.Total != before.Share.Power.Total+want {
-		t.Errorf("five fish count %d of %d found, total %d from %d", pw.Fish, pw.FishFound, pw.Total, before.Share.Power.Total)
+	if f := pw.part("fish"); f.Have != 5 || f.All != len(fishKinds) || f.Pts < 1000 || f.Pts > f.Of/2 {
+		t.Errorf("five fish, one of each tier, count %+v", f)
+	}
+	if got := pw.Total - before.Share.Power.Total; got != pw.part("fish").Pts+pw.part("game_fish").Pts+pw.part("badges").Pts-before.Share.Power.part("badges").Pts {
+		t.Errorf("the total went up %d", got)
 	}
 	var public string
 	if err := s.r.QueryRow(`SELECT public_id FROM ponds WHERE id = ?`, id).Scan(&public); err != nil {
@@ -251,18 +253,11 @@ func TestTheFishBookCountsInPower(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if sh.Power.Fish != want || sh.Power.Total != pw.Total {
-		t.Errorf("the frog's page counts %d for fish and the pond %d", sh.Power.Fish, want)
+	if sh.Power.part("fish") != pw.part("fish") || sh.Power.Total != pw.Total {
+		t.Errorf("the frog's page counts %+v for fish and the pond %+v", sh.Power.part("fish"), pw.part("fish"))
 	}
 	if len(sh.Best) == 0 || sh.Best[0].Kind != fishHad+"wels" {
 		t.Errorf("the best find = %+v", sh.Best)
-	}
-	full := 0
-	for _, f := range fishKinds {
-		full += hatPower[f.tier]
-	}
-	if got := fullPower().Fish; got != full {
-		t.Errorf("a full book counts %d, want %d", got, full)
 	}
 }
 

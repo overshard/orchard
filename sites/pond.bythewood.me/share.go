@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"math"
 	"net/http"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -19,36 +20,6 @@ import (
 	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/math/fixed"
 )
-
-// Power only ever goes up, since nothing found is lost and a best is a best.
-// A trinket counts half a hat of its tier, and so does a memento, and Dive
-// stops counting at diveCounts, so the sixty hats stay the biggest part of it.
-var (
-	hatPower     = [tierCount]int{20, 50, 120, 300, 800}
-	trinketPower = [tierCount]int{10, 25, 60, 150, 400}
-	ranks        = []struct {
-		at   int
-		name string
-	}{
-		{0, "NEW TO THE POND"}, {2000, "POND REGULAR"}, {5000, "LILY LORD"}, {9000, "MARSH BARON"},
-		{14000, "FEN DUKE"}, {21000, "BOG MONARCH"}, {30000, "SWAMP LEGEND"},
-	}
-)
-
-const (
-	divePower  = 25
-	diveCounts = 60
-	// What each heart of the frog out front's bond counts.
-	bondPower = 60
-)
-
-var mementoPower = trinketPower[mementoTier]
-
-type rankView struct {
-	At   int    `json:"at"`
-	Name string `json:"name"`
-	Got  bool   `json:"got"`
-}
 
 var tierLabels = [tierCount]string{"Common", "Uncommon", "Rare", "Epic", "Legendary"}
 
@@ -94,102 +65,6 @@ func bestFinds(held []hat, had map[string]bool, n int) []found {
 	return out[:min(n, len(out))]
 }
 
-type power struct {
-	Total int    `json:"total"`
-	Rank  string `json:"rank"`
-	// The whole ladder, how far to the next rung and how full the bar is, in
-	// a hundred, with every step the same width and the top rung filling it.
-	Ranks         []rankView `json:"ranks"`
-	Next          int        `json:"next"`
-	NextName      string     `json:"next_name"`
-	Fill          int        `json:"fill"`
-	Frog          int        `json:"frog"`
-	Hats          int        `json:"hats"`
-	HatsHeld      int        `json:"hats_held"`
-	Trinkets      int        `json:"trinkets"`
-	TrinketsFound int        `json:"trinkets_found"`
-	Rocks         int        `json:"rocks"`
-	RocksFound    int        `json:"rocks_found"`
-	Keepsakes     int        `json:"keepsakes"`
-	KeepsakesHad  int        `json:"keepsakes_found"`
-	Fish          int        `json:"fish"`
-	FishFound     int        `json:"fish_found"`
-	Mementos      int        `json:"mementos"`
-	MementosHad   int        `json:"mementos_found"`
-	Jobs          int        `json:"jobs"`
-	JobsTotal     int        `json:"jobs_total"`
-	Dive          int        `json:"dive"`
-	DiveBest      int        `json:"dive_best"`
-	Bond          int        `json:"bond"`
-	Hearts        int        `json:"hearts"`
-}
-
-// had is every trinket, rock, keepsake, memento and fish the pond has ever had,
-// jobsTotal is its best level at every job added up and hearts is the bond
-// of the frog out front.
-func powerOf(r rarity, held []hat, had map[string]bool, diveBest, jobsTotal, hearts int) power {
-	p := power{Frog: int(math.Round(120 * math.Log2(float64(r.N)))), DiveBest: diveBest, Dive: min(diveBest, diveCounts) * divePower}
-	p.Hearts = min(hearts, bondHearts)
-	p.Bond = p.Hearts * bondPower
-	p.JobsTotal = max(jobsTotal, len(jobs))
-	p.Jobs = (p.JobsTotal - len(jobs)) * 3
-	for _, h := range held {
-		p.Hats += hatPower[h.tier()]
-	}
-	p.HatsHeld = len(held)
-	for _, t := range trinkets {
-		if had[t.kind] {
-			p.Trinkets += trinketPower[t.tier]
-			p.TrinketsFound++
-		}
-	}
-	for _, k := range rocks {
-		if had[k.kind] {
-			p.Rocks += hatPower[k.tier]
-			p.RocksFound++
-		}
-	}
-	for _, k := range keepsakes {
-		if had[k.kind] {
-			p.Keepsakes += hatPower[k.tier]
-			p.KeepsakesHad++
-		}
-	}
-	for _, f := range fishKinds {
-		if had[fishHad+f.kind] {
-			p.Fish += hatPower[f.tier]
-			p.FishFound++
-		}
-	}
-	for _, m := range mementos {
-		if had[m.kind] {
-			p.Mementos += mementoPower
-			p.MementosHad++
-		}
-	}
-	p.Total = p.Frog + p.Hats + p.Trinkets + p.Rocks + p.Keepsakes + p.Fish + p.Mementos + p.Jobs + p.Dive + p.Bond
-	p.climb()
-	return p
-}
-
-// climb finds the rung a total stands on. The top one has no next.
-func (p *power) climb() {
-	for i, k := range ranks {
-		got := p.Total >= k.at
-		p.Ranks = append(p.Ranks, rankView{k.at, k.name, got})
-		if !got {
-			continue
-		}
-		p.Rank = k.name
-		p.Next, p.NextName, p.Fill = 0, "", 100
-		if i+1 < len(ranks) {
-			nx := ranks[i+1]
-			p.Next, p.NextName = nx.at-p.Total, nx.name
-			p.Fill = (100*i + 100*(p.Total-k.at)/(nx.at-k.at)) / (len(ranks) - 1)
-		}
-	}
-}
-
 func heldHats(q querier, id int64) ([]hat, error) {
 	rows, err := q.Query(`SELECT shape, colour FROM hats WHERE pond_id = ? AND count > 0`, id)
 	if err != nil {
@@ -229,19 +104,11 @@ func (s *store) shownBy(publicID string) (*shown, error) {
 	if err != nil {
 		return nil, errNoPond
 	}
+	v, err := s.view(id)
+	if err != nil {
+		return nil, err
+	}
 	p, err := loadPond(s.r, id)
-	if err != nil {
-		return nil, err
-	}
-	held, err := heldHats(s.r, id)
-	if err != nil {
-		return nil, err
-	}
-	had, err := everHad(s.r, id)
-	if err != nil {
-		return nil, err
-	}
-	xp, err := loadXP(s.r, id)
 	if err != nil {
 		return nil, err
 	}
@@ -249,19 +116,9 @@ func (s *store) shownBy(publicID string) (*shown, error) {
 	if err != nil {
 		return nil, err
 	}
-	f := frogOf(p, s.now())
-	sl := slug(f.Name, p.PublicID)
-	held = append(held, hoodsEarned(xp)...)
-	been, err := sitesSeen(s.r, id)
-	if err != nil {
-		return nil, err
-	}
-	held = append(held, been...)
-	b, err := loadBond(s.r, id)
-	if err != nil {
-		return nil, err
-	}
-	return &shown{Frog: f, Power: powerOf(f.Rarity, held, had, p.DiveBest, bestLevels(xp), b.points/bondHeart), Slug: sl, URL: baseURL + "/f/" + sl, Spots: spots, Best: bestFinds(held, had, 8)}, nil
+	held := slices.Clone(v.found)
+	sl := slug(v.Frog.Name, p.PublicID)
+	return &shown{Frog: v.Frog, Power: v.Share.Power, Slug: sl, URL: baseURL + "/f/" + sl, Spots: spots, Best: bestFinds(held, v.had, 8)}, nil
 }
 
 // publicIDOf takes the code off the end of a share slug.
@@ -473,7 +330,11 @@ func drawCard(sh *shown) *image.RGBA {
 	text(img, face(fontRegular, 18), cardDim, x, 262, strings.ToUpper(f.Stage)+", DAY "+fmt.Sprint(f.Day), 2)
 
 	text(img, face(fontRegular, 18), cardAmberLo, x, 340, "FROG POWER", 3)
-	text(img, face(fontBold, 120), cardAmber, x-6, 460, commas(sh.Power.Total), 0)
+	big := 120.0
+	for big > 72 && textWidth(face(fontBold, big), commas(sh.Power.Total), 0) > 480 {
+		big -= 4
+	}
+	text(img, face(fontBold, big), cardAmber, x-6, 460, commas(sh.Power.Total), 0)
 	text(img, face(fontBold, 22), cardText, x, 504, sh.Power.Rank, 3)
 
 	fill(img, x, 548, 480, 1, cardLine)

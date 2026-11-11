@@ -100,7 +100,7 @@ func TestAFrogWorksActions(t *testing.T) {
 	if _, err := s.collectJobs(id); !errors.Is(err, errNotYet) {
 		t.Errorf("collected twice: %v", err)
 	}
-	if v := c.Pond; v.Jobs.Total != d.Level+len(jobs)-1 || v.Share.Power.JobsTotal != v.Jobs.Total {
+	if v := c.Pond; v.Jobs.Total != d.Level+len(jobs)-1 || v.Share.Power.part("jobs").Have != v.Jobs.Total {
 		t.Errorf("total level %d, power %+v", v.Jobs.Total, v.Share.Power)
 	}
 	if w := c.Pond.Frogs[0].Work; w.Done != 0 || w.Stop != "" || w.Since != 0 {
@@ -482,7 +482,7 @@ func TestA99EarnsTheHood(t *testing.T) {
 	if _, err := s.wear(id, hood); !errors.Is(err, errNotHeld) {
 		t.Fatalf("wore a hood at level 1: %v", err)
 	}
-	before := v.Share.Power.Total
+	before := v.Share.Power
 	if err := s.write(func(tx *sql.Tx) error { return addXP(tx, id, f, "sticks", xpFor[maxLevel]) }); err != nil {
 		t.Fatal(err)
 	}
@@ -493,7 +493,7 @@ func TestA99EarnsTheHood(t *testing.T) {
 	if v.Frog.Hat != hood || !v.Hoods[2].Got || v.Hoods[0].Got {
 		t.Errorf("wearing %+v, hoods %+v", v.Frog.Hat, v.Hoods)
 	}
-	if got := v.Share.Power.Total - before; got != hatPower[tierCount-1]+(maxLevel-1)*3 {
+	if got, h := v.Share.Power.Total-before.Total, v.Share.Power.part("hoods"); h.Have != 1 || h.Pts != h.Of/len(jobs) || got < h.Pts+v.Share.Power.part("jobs").Pts-before.part("jobs").Pts {
 		t.Errorf("a 99 and its hood added %d power", got)
 	}
 	var inBag bool

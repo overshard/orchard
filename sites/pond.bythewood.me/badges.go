@@ -20,7 +20,7 @@ type tally struct {
 	hoods, pets                   int
 	hats, goldHats, trinkets      int
 	rocks, keepsakes, sets        int
-	power                         int
+	power, rank                   int
 	gravel, garden, built         int
 	dishes, lodgers, furniture    int
 	friends, mementos             int
@@ -42,7 +42,7 @@ func one(b bool) int {
 }
 
 func tallyOf(v *view, p *pond) *tally {
-	t := &tally{power: v.Share.Power.Total, hearts: v.Bond.Hearts, days: v.Visited, key: one(p.KeySavedAt.Valid)}
+	t := &tally{power: v.Share.Power.Total, rank: v.Share.Power.top, hearts: v.Bond.Hearts, days: v.Visited, key: one(p.KeySavedAt.Valid)}
 	for _, f := range v.Fishing.All {
 		t.fish += one(f.Count > 0)
 		t.bigFish += one(f.Count > 0 && f.Tier >= 3)
@@ -124,7 +124,7 @@ func upTo(n func(t *tally) int, of int) func(t *tally) (int, int) {
 }
 
 // lilyLord is the rung of the power ladder the badge of that name is for.
-var lilyLord = ranks[2].at
+var lilyLord = rungNamed("LILY LORD")
 
 // Stored by kind, so a new badge only ever goes on the end.
 var badges = []badge{
@@ -153,7 +153,12 @@ var badges = []badge{
 	{"keepsakes_5", "Days to remember", "Keep five kinds of keepsake", "collect", upTo(func(t *tally) int { return t.keepsakes }, 5)},
 	{"set_1", "A set", "Finish a set", "collect", upTo(func(t *tally) int { return t.sets }, 1)},
 	{"sets_all", "Every set", "Finish every set", "collect", func(t *tally) (int, int) { return t.sets, len(sets) }},
-	{"lily_lord", "Lily lord", "Get to 5,000 frog power", "settings", func(t *tally) (int, int) { return min(t.power, lilyLord), lilyLord }},
+	{"lily_lord", "Lily lord", "Get to Lily lord in frog power", "settings", func(t *tally) (int, int) {
+		if t.rank >= lilyLord {
+			return ranks[lilyLord].at, ranks[lilyLord].at
+		}
+		return min(t.power, ranks[lilyLord].at), ranks[lilyLord].at
+	}},
 	{"bar", "Gravel bar", "Build the gravel bar", "bank", upTo(func(t *tally) int { return t.gravel }, 1)},
 	{"garden", "A full garden", "Build the garden as far as it goes", "garden", upTo(func(t *tally) int { return t.garden }, buildLevels)},
 	{"cook_1", "First dish", "Cook a dish", "garden", upTo(func(t *tally) int { return t.dishes }, 1)},

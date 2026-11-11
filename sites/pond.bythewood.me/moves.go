@@ -403,6 +403,9 @@ func (s *store) diveFinish(id int64, run string, score, gates int) (*dived, erro
 			return nil
 		}
 		p.DiveRuns++
+		if _, err := tx.Exec(`UPDATE ponds SET dive_plays = dive_plays + 1 WHERE id = ?`, p.ID); err != nil {
+			return err
+		}
 		p.DiveForm = diveForm(p.DiveForm, gates)
 		out.Paid, out.Rested = p.payRun(divePays(score, p.DiveRuns), diveCap-p.DivePaid, now)
 		p.DivePaid += out.Paid

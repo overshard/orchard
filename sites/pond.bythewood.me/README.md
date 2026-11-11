@@ -198,7 +198,15 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   in each part of the day and what it says to you, coloured by the weather,
   the mood and whether today's gazette names it. The nightly run writes a set
   of lines for each resident in its own voice on top of the hand written ones.
-- `share.go` is a frog's public page at `/f/<name>-<code>`, its power, and the
+- `power.go` is frog power, a gauge of everything a pond has done. Every
+  part has a weight in `powerWeights` and the pond holds the share of it it
+  has found, raised or played, so the whole game comes to 100,000. A game
+  counts its best against the median best of the ponds that have played it
+  a few times, which the hourly sweep keeps in `refs`, and never against
+  less than its `refFloor`. The pond keeps the highest rung it has reached in
+  `ponds.rank_top` and what it last saw of its power in `power_seen`, so a
+  move can say what went up.
+- `share.go` is a frog's public page at `/f/<name>-<code>` and the
   PNG card a link unfurls with, drawn by `sprite.go` in the JetBrains Mono under
   `fonts/`. The code is the pond's public id and can't open the pond.
 - `frontend/src/` has one file a place, `dive.js` (with `race.js` for the
@@ -283,9 +291,10 @@ they have none, for other sites to draw.
   lower it, since the page tells the player the bar is never lost.
 - A memento's kind starts `m_` and must never reach `addItem`, since an
   item can go on the stall or to the wizard. `handMemento` is the only thing
-  that gives one, and a new collection counted in power has to be added in
-  `powerOf`, `bestFinds`, `everHad`, `store.fill`, `fullPower` in the tests,
-  the share page's rows and `collect.js`.
+  that gives one. A new collection has to be a shelf in `powerInOf` with a
+  weight in `powerWeights`, taken off another part's so the weights still
+  come to the whole, and in `shelves` in the tests, `bestFinds`, `everHad`,
+  `store.fill` and `collect.js`.
 - A set or a badge is stored by its kind, so a new one only ever goes on the
   end of its list, and each needs its scenery or its pin on the page. A test
   holds the page to the lists.
@@ -397,5 +406,14 @@ they have none, for other sites to draw.
 - A crafter's basket is worked out against what the pond holds now, so
   listing or spending its materials makes the basket smaller until more
   come in. Collecting still pays what the page showed at that moment.
+- A new game needs a `refFloor` in `power.go`, about what a decent bot
+  scores, and its runs counted in `arcade.plays`, or it counts against
+  nothing until enough ponds play it. Adding one takes a little off every
+  pond's power, since `gameWeight` comes out of the whole.
+- Power only reads the view. Badges count in it and the Lily lord badge
+  reads it, so `fill` works it out once with the badges kept and again with
+  the badges earned. A rung reached is kept, so a game's reference rising
+  can lower a pond's total but never its rank, and the page never counts a
+  fall.
 - `web/` has to stay byte identical to every other site's copy, and
   `make check` at the root fails when it isn't.
