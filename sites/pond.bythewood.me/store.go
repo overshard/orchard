@@ -123,6 +123,13 @@ CREATE TABLE IF NOT EXISTS keepsakes (
     PRIMARY KEY (pond_id, kind, day)
 ) WITHOUT ROWID;
 
+CREATE TABLE IF NOT EXISTS visits (
+    pond_id  INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
+    host     TEXT NOT NULL,
+    at       INTEGER NOT NULL,
+    PRIMARY KEY (pond_id, host)
+) WITHOUT ROWID;
+
 CREATE TABLE IF NOT EXISTS stall (
     pond_id   INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
     slot      INTEGER NOT NULL,
@@ -689,6 +696,7 @@ type view struct {
 	PadCost int        `json:"pad_cost"`
 	Hats    []hatView  `json:"hats"`
 	Hoods   []hoodView `json:"hoods"`
+	Sites   []siteView `json:"sites"`
 	Items   []itemView `json:"items"`
 	Share   struct {
 		Path  string `json:"path"`
@@ -801,6 +809,15 @@ func viewOf(q querier, p pond, now time.Time) (*view, error) {
 	for i, j := range jobs {
 		h := hoodFor(i)
 		v.Hoods = append(v.Hoods, hoodView{h, h.name(), j.key, slices.Contains(earned, h)})
+	}
+	been, err := sitesSeen(q, p.ID)
+	if err != nil {
+		return nil, err
+	}
+	found = append(found, been...)
+	for i, st := range siteHats {
+		h := siteHatFor(i)
+		v.Sites = append(v.Sites, siteView{h, st.name, st.host, slices.Contains(been, h)})
 	}
 	for _, f := range frogs {
 		if f.Front {
@@ -964,7 +981,11 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	if err != nil {
 		return err
 	}
-	v.Bag = bagOf(v.held, v.Hats, v.Hoods, listed, now)
+	worn := slices.Clone(v.Hoods)
+	for _, st := range v.Sites {
+		worn = append(worn, hoodView{hat: st.hat, Name: st.Name, Got: st.Got})
+	}
+	v.Bag = bagOf(v.held, v.Hats, worn, listed, now)
 	v.Wizard.Takes, v.Wizard.Up, v.Wizard.Same = wizardTakes, wizardOdds.up, wizardOdds.same
 	had := map[string]bool{}
 	for _, t := range v.Trinkets.All {

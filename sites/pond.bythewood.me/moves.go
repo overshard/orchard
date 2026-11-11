@@ -193,6 +193,17 @@ func (s *store) wear(id int64, h hat) (*view, error) {
 			p.Wearing = h
 			return nil
 		}
+		if _, ok := h.site(); ok {
+			been, err := sitesSeen(tx, p.ID)
+			if err != nil {
+				return err
+			}
+			if !slices.Contains(been, h) {
+				return errNotHeld
+			}
+			p.Wearing = h
+			return nil
+		}
 		var count int
 		err := tx.QueryRow(`SELECT count FROM hats WHERE pond_id = ? AND shape = ? AND colour = ?`,
 			p.ID, h.Shape, h.Colour).Scan(&count)

@@ -91,7 +91,7 @@ func (h hat) valid() bool {
 }
 
 func (h hat) tier() int {
-	if _, ok := h.hood(); ok {
+	if h.earned() {
 		return tierCount - 1
 	}
 	if h.Colour == hatGolden {
@@ -107,6 +107,9 @@ func (h hat) tier() int {
 func (h hat) name() string {
 	if j, ok := h.hood(); ok {
 		return j.name + " hood"
+	}
+	if st, ok := h.site(); ok {
+		return st.name
 	}
 	return hatColours[h.Colour] + hatNames[h.Shape]
 }
@@ -137,6 +140,90 @@ func hoodsEarned(xp jobXP) []hat {
 		}
 	}
 	return out
+}
+
+// A frog that turns up on one of the other sites finds that site's hat. It's
+// earned like a hood, worn and never held.
+const siteBase = 200
+
+type siteHat struct{ host, name string }
+
+// The place in this list is the hat's shape, so a new site goes on the end.
+var siteHats = []siteHat{
+	{"dash.bythewood.me", "Aerial"},
+	{"status.bythewood.me", "Hard hat"},
+	{"blog.bythewood.me", "Beret"},
+	{"chat.bythewood.me", "Speech bubble"},
+	{"repos.bythewood.me", "Forked twig"},
+	{"logging.bythewood.me", "Lumberjack cap"},
+	{"analytics.bythewood.me", "Bar chart hat"},
+	{"auth.bythewood.me", "Padlock"},
+	{"llm.bythewood.me", "Tinfoil hat"},
+}
+
+func siteHatFor(i int) hat { return hat{Shape: siteBase + 1 + i} }
+
+func (h hat) site() (siteHat, bool) {
+	i := h.Shape - siteBase - 1
+	if h.Colour != 0 || i < 0 || i >= len(siteHats) {
+		return siteHat{}, false
+	}
+	return siteHats[i], true
+}
+
+// siteOf is the place in siteHats of the site a request came from, or -1.
+func siteOf(origin string) int {
+	for i, st := range siteHats {
+		if origin == "https://"+st.host {
+			return i
+		}
+	}
+	return -1
+}
+
+func (h hat) earned() bool {
+	_, hood := h.hood()
+	_, site := h.site()
+	return hood || site
+}
+
+type siteView struct {
+	hat
+	Name string `json:"name"`
+	Host string `json:"host"`
+	Got  bool   `json:"got"`
+}
+
+// sitesSeen is the hat of every site a pond's frog has turned up on.
+func sitesSeen(q querier, id int64) ([]hat, error) {
+	rows, err := q.Query(`SELECT host FROM visits WHERE pond_id = ?`, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []hat
+	for rows.Next() {
+		var host string
+		if err := rows.Scan(&host); err != nil {
+			return nil, err
+		}
+		if i := siteOf("https://" + host); i >= 0 {
+			out = append(out, siteHatFor(i))
+		}
+	}
+	return out, rows.Err()
+}
+
+// visit marks a pond's frog as having turned up on a site, and says whether
+// that was the first time.
+func (s *store) visit(id int64, site int) (bool, error) {
+	res, err := s.w.Exec(`INSERT INTO visits (pond_id, host, at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING`,
+		id, siteHats[site].host, s.now().Unix())
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	return n > 0, err
 }
 
 func wrenPays(h hat) int { return hatRate[h.tier()] / 4 }

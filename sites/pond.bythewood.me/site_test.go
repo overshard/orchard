@@ -326,6 +326,43 @@ func TestPanelIsTheVisitorsOwnFrog(t *testing.T) {
 	}
 }
 
+func TestAFrogFindsASitesHatOnce(t *testing.T) {
+	b, _, _ := testSite(t)
+	var g greeting
+	b.post("/api/greet", "{}", &g)
+	ask := func(origin string) panel {
+		var p panel
+		_ = json.Unmarshal(b.do(http.MethodGet, "/api/panel", "", "Origin", origin).Body.Bytes(), &p)
+		return p
+	}
+	if p := ask("https://evil.example"); p.Found != nil {
+		t.Errorf("a site the pond doesn't know handed out a hat: %+v", p.Found)
+	}
+	p := ask("https://repos.bythewood.me")
+	if p.Found == nil || p.Found.Name != "Forked twig" || p.Found.Host != "repos.bythewood.me" {
+		t.Fatalf("first time on repos: %+v", p.Found)
+	}
+	if p := ask("https://repos.bythewood.me"); p.Found != nil {
+		t.Error("repos handed its hat out twice")
+	}
+	var v view
+	if code := b.post("/api/hats/wear", `{"shape":205,"colour":0}`, &v); code != http.StatusOK || v.Frog.Hat.Shape != 205 {
+		t.Errorf("wearing the hat repos gave: %d %+v", code, v.Frog.Hat)
+	}
+	if code := b.post("/api/hats/wear", `{"shape":201,"colour":0}`, nil); code == http.StatusOK {
+		t.Error("wore dash's hat without going there")
+	}
+	got := 0
+	for _, st := range v.Sites {
+		if st.Got {
+			got++
+		}
+	}
+	if got != 1 || len(v.Sites) != len(siteHats) {
+		t.Errorf("sites on the view: %+v", v.Sites)
+	}
+}
+
 // One pass through everything a visit can do, over HTTP.
 func TestAVisitEndToEnd(t *testing.T) {
 	b, db, clock := testSite(t)

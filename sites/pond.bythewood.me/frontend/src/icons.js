@@ -61,6 +61,7 @@ export const ICONS = {
   t_newt: [["........", ".aa.....", "abaa....", "aaaacaa.", ".aaaaaaa", ".c..c..a", "........", "........"], { a: "#e8742a", b: "#1a1a1a", c: "#f2c230" }],
   t_crayfish: [["a......a", "aa....aa", ".a.cc.a.", "..aaaa..", "..abba..", "..aaaa..", "...ab...", "..aaaa.."], { a: "#c9432d", b: "#8a2a1a", c: "#1a1a1a" }],
   t_mouse: [["........", ".aa.....", "abaa....", "acaaaa..", "aaaaaaa.", ".aaaaaad", "..b..b.d", "......d."], { a: "#a8865a", b: "#e9dcc0", c: "#1a1a1a", d: "#e3a0a0" }],
+  i_site: [["........", "..bbbb..", ".b.bb.b.", "bbbbbbbb", "b..bb..b", "bbbbbbbb", ".b.bb.b.", "..bbbb.."], { b: "#f2a23a" }],
   i_hood: [["...a....", "..aaa...", ".aaaaa..", ".aabaa..", "aaaaaaa.", "abbbbba.", "a.....a.", "........"], { a: "#6b3fa8", b: "#f2c230" }],
   sticks: [["......a.", ".....a..", "..b.a...", "...ba...", "...a.b..", "..a.....", ".a......", "a......."], { a: "#8a5a2b", b: "#3f9a4d" }],
   reeds: [["..a..a..", "..a.aa..", ".aa.a...", ".b..b.b.", ".b..b.b.", ".b.bb.b.", ".b.b..b.", "bbbbbbbb"], { a: "#8a5a2b", b: "#6b9a3f" }],

@@ -204,6 +204,11 @@ func (s *store) shownBy(publicID string) (*shown, error) {
 	f := frogOf(p, s.now())
 	sl := slug(f.Name, p.PublicID)
 	held = append(held, hoodsEarned(xp)...)
+	been, err := sitesSeen(s.r, id)
+	if err != nil {
+		return nil, err
+	}
+	held = append(held, been...)
 	return &shown{Frog: f, Power: powerOf(f.Rarity, held, had, p.DiveBest, bestLevels(xp)), Slug: sl, URL: baseURL + "/f/" + sl, Spots: spots, Best: bestFinds(held, had, 8)}, nil
 }
 

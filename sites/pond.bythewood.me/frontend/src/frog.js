@@ -96,8 +96,17 @@ function hatCell(shape, hx, hy) {
     case 13: if (ell(hx, hy, 0, 4.4, 5.2, 1.6) && !ell(hx, hy, 0, 4.4, 3.4, 0.6)) v = hy > 4.6 ? 11 : 10; break;
     case 14: if (hy > 0.4 && hy < 4.8 && ax < 5.6 && Math.abs(hy - 2.6) < ax * 0.5 + 0.3) v = 10; if (ax < 1.1 && Math.abs(hy - 2.6) < 1.1) v = 11; break;
     case 15: if (hy > 0 && hy < 1.1 && ax < 8.2) v = 10; if (hy >= 1 && ell(hx, hy, 0, 1, 4.2, 3.4)) v = hy < 2.1 ? 11 : 10; break;
+    case 201: if (hy > 0 && hy < 1.3 && ax < 3.2) v = 10; if (hy >= 1.3 && hy < 7.2 && Math.abs(ax - (hy - 1.3) * 0.55) < 0.55) v = 11; if (ell(ax, hy, 3.3, 7.4, 1, 1)) v = 10; break;
+    case 202: if (hy > 0 && hy < 1.2 && ax < 6.4) v = 10; if (hy >= 1 && ell(hx, hy, 0, 1, 4.8, 4.2)) v = ax < 0.8 ? 11 : 10; break;
+    case 203: if (hy > 0 && hy < 1 && ax < 4) v = 11; if (hy >= 0.9 && ell(hx, hy, -0.8, 2.3, 6.4, 2.4)) v = 10; if (hy >= 4.5 && hy < 5.8 && Math.abs(hx + 0.8) < 0.6) v = 11; break;
+    case 204: if (hy > 0 && hy < 2 && Math.abs(hx + 1.5) < 0.9) v = 10; if (ell(hx, hy, 0, 4.4, 5.4, 2.9)) v = Math.abs(hy - 4.4) < 0.55 && (ax < 0.55 || Math.abs(ax - 2.5) < 0.55) ? 11 : 10; break;
+    case 205: if (hy > 0 && hy < 3.2 && ax < 0.6) v = 10; if (hy >= 3 && hy < 6.4 && Math.abs(ax - (hy - 3) * 0.8) < 0.6) v = 10; if (ell(ax, hy, 2.9, 6.6, 1.1, 1.1) || ell(hx, hy, 0, 0.9, 1.1, 0.9)) v = 11; break;
+    case 206: if (hy > 0 && ell(hx, hy, 0, 0, 5.3, 5)) v = (Math.floor((hx + 12) / 2) + Math.floor((hy - 1.2) / 2)) % 2 === 0 && hy >= 1.2 ? 11 : 10; if (hy > 0 && hy < 1.2 && ax < 6.2) v = 11; break;
+    case 207: if (hy > 0 && hy < 1.1 && ax < 4.8) v = 10; if (hy >= 1.1 && ((hx >= -4 && hx < -2 && hy < 3.2) || (ax < 1 && hy < 5.2) || (hx >= 2 && hx < 4 && hy < 7.2))) v = 11; break;
+    case 208: if (hy > 3.2 && ell(hx, hy, 0, 3.4, 2.7, 3.3) && !ell(hx, hy, 0, 3.4, 1.5, 2.1)) v = 11; if (hy > 0 && hy < 3.6 && ax < 3.6) v = ell(hx, hy, 0, 2.1, 0.8, 0.8) || (ax < 0.5 && hy > 0.8 && hy < 2.1) ? 11 : 10; break;
+    case 209: if (hy > 0 && hy < 6.6 && ax < (6.9 - hy) * 0.75) v = Math.floor(hx * 1.3 + hy * 0.9 + 20) % 3 === 0 ? 11 : 10; break;
     default:
-      if (shape > HOOD) {
+      if (shape > HOOD && shape < SITE) {
         if (hy > 0 && ell(hx, hy, 0, 0.4, 6.2, 5)) v = hy < 1.2 ? 11 : 10;
         if (hy >= 4 && hy < 7.6 && ax < (7.6 - hy) * 0.7) v = 10;
         if (ell(hx, hy, 0, 3.1, 1.2, 1.2)) v = 11;
@@ -250,10 +259,14 @@ const HATC = [null, ["#1b1a22", "#b3222f"], ["#e8559a", "#ffe27a"], ["#f2c230", 
 // A hood is the hat a 99 at a job earns, one for each job in the server's order.
 const HOOD = 100;
 const HOODC = [["#4f9a4a", "#f2c230"], ["#2f6b6b", "#ffe27a"], ["#8a5a2b", "#e3c57a"], ["#8a8a3a", "#f3e4c2"], ["#5a3f24", "#e8a05a"], ["#3d5a8a", "#e9e3d6"], ["#6b3fa8", "#f2c230"]];
+// A site hat is found by turning up on one of the other sites, in the server's order.
+const SITE = 200;
+const SITEC = [["#3a3f4a", "#f2a23a"], ["#f2c230", "#fff6dc"], ["#2f4a8a", "#1b1a22"], ["#fff6dc", "#1b1a22"], ["#8a5a2b", "#4f9a4a"], ["#b3222f", "#1b1a22"], ["#3a3f4a", "#f2a23a"], ["#f2c230", "#3a3f4a"], ["#c9ccd0", "#fff6dc"]];
 const CWC = [null, ["#4f9a4a", "#cfe8a0"], ["#b03a8c", "#ffd0ea"], ["#f2c230", "#fff6dc"]];
 
 export function hatColours(hat) {
   if (!hat || !hat.shape) return null;
+  if (hat.shape > SITE) return SITEC[hat.shape - SITE - 1];
   if (hat.shape > HOOD) return HOODC[hat.shape - HOOD - 1];
   return hat.colour ? CWC[hat.colour] : HATC[hat.shape];
 }

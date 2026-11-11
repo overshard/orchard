@@ -233,8 +233,92 @@ func hatCell(shape int, hx, hy float64) uint8 {
 				v = 11
 			}
 		}
+	case siteBase + 1:
+		if hy > 0 && hy < 1.3 && ax < 3.2 {
+			v = 10
+		}
+		if hy >= 1.3 && hy < 7.2 && math.Abs(ax-(hy-1.3)*0.55) < 0.55 {
+			v = 11
+		}
+		if ell(ax, hy, 3.3, 7.4, 1, 1) {
+			v = 10
+		}
+	case siteBase + 2:
+		if hy > 0 && hy < 1.2 && ax < 6.4 {
+			v = 10
+		}
+		if hy >= 1 && ell(hx, hy, 0, 1, 4.8, 4.2) {
+			v = 10
+			if ax < 0.8 {
+				v = 11
+			}
+		}
+	case siteBase + 3:
+		if hy > 0 && hy < 1 && ax < 4 {
+			v = 11
+		}
+		if hy >= 0.9 && ell(hx, hy, -0.8, 2.3, 6.4, 2.4) {
+			v = 10
+		}
+		if hy >= 4.5 && hy < 5.8 && math.Abs(hx+0.8) < 0.6 {
+			v = 11
+		}
+	case siteBase + 4:
+		if hy > 0 && hy < 2 && math.Abs(hx+1.5) < 0.9 {
+			v = 10
+		}
+		if ell(hx, hy, 0, 4.4, 5.4, 2.9) {
+			v = 10
+			if math.Abs(hy-4.4) < 0.55 && (ax < 0.55 || math.Abs(ax-2.5) < 0.55) {
+				v = 11
+			}
+		}
+	case siteBase + 5:
+		if hy > 0 && hy < 3.2 && ax < 0.6 {
+			v = 10
+		}
+		if hy >= 3 && hy < 6.4 && math.Abs(ax-(hy-3)*0.8) < 0.6 {
+			v = 10
+		}
+		if ell(ax, hy, 2.9, 6.6, 1.1, 1.1) || ell(hx, hy, 0, 0.9, 1.1, 0.9) {
+			v = 11
+		}
+	case siteBase + 6:
+		if hy > 0 && ell(hx, hy, 0, 0, 5.3, 5) {
+			v = 10
+			if (int(math.Floor((hx+12)/2))+int(math.Floor((hy-1.2)/2)))%2 == 0 && hy >= 1.2 {
+				v = 11
+			}
+		}
+		if hy > 0 && hy < 1.2 && ax < 6.2 {
+			v = 11
+		}
+	case siteBase + 7:
+		if hy > 0 && hy < 1.1 && ax < 4.8 {
+			v = 10
+		}
+		if hy >= 1.1 && ((hx >= -4 && hx < -2 && hy < 3.2) || (ax < 1 && hy < 5.2) || (hx >= 2 && hx < 4 && hy < 7.2)) {
+			v = 11
+		}
+	case siteBase + 8:
+		if hy > 3.2 && ell(hx, hy, 0, 3.4, 2.7, 3.3) && !ell(hx, hy, 0, 3.4, 1.5, 2.1) {
+			v = 11
+		}
+		if hy > 0 && hy < 3.6 && ax < 3.6 {
+			v = 10
+			if ell(hx, hy, 0, 2.1, 0.8, 0.8) || (ax < 0.5 && hy > 0.8 && hy < 2.1) {
+				v = 11
+			}
+		}
+	case siteBase + 9:
+		if hy > 0 && hy < 6.6 && ax < (6.9-hy)*0.75 {
+			v = 10
+			if int(math.Floor(hx*1.3+hy*0.9+20))%3 == 0 {
+				v = 11
+			}
+		}
 	default:
-		if shape > hoodBase {
+		if shape > hoodBase && shape < siteBase {
 			if hy > 0 && ell(hx, hy, 0, 0.4, 6.2, 5) {
 				v = 10
 				if hy < 1.2 {
@@ -447,6 +531,7 @@ func spriteCells(g look, stage string, day int, hatShape int) []uint8 {
 
 var (
 	hatMain  = [][2]string{{}, {"#1b1a22", "#b3222f"}, {"#e8559a", "#ffe27a"}, {"#f2c230", "#d8402f"}, {"#4f9a4a", "#2f6b33"}, {"#d8402f", "#f3e4c2"}, {"#f3e4c2", "#f2c230"}, {"#8a5a2b", "#3a2412"}, {"#4b3fa8", "#ffe27a"}, {"#d8402f", "#fff6dc"}, {"#9aa0a6", "#f3e4c2"}, {"#fff6dc", "#c9ccd0"}, {"#3d8fd6", "#f2c230"}, {"#ffe27a", "#fff6dc"}, {"#e8559a", "#b3306d"}, {"#e3c57a", "#d8402f"}}
+	siteCols = [][2]string{{"#3a3f4a", "#f2a23a"}, {"#f2c230", "#fff6dc"}, {"#2f4a8a", "#1b1a22"}, {"#fff6dc", "#1b1a22"}, {"#8a5a2b", "#4f9a4a"}, {"#b3222f", "#1b1a22"}, {"#3a3f4a", "#f2a23a"}, {"#f2c230", "#3a3f4a"}, {"#c9ccd0", "#fff6dc"}}
 	hoodCols = [][2]string{{"#4f9a4a", "#f2c230"}, {"#2f6b6b", "#ffe27a"}, {"#8a5a2b", "#e3c57a"}, {"#8a8a3a", "#f3e4c2"}, {"#5a3f24", "#e8a05a"}, {"#3d5a8a", "#e9e3d6"}, {"#6b3fa8", "#f2c230"}}
 	hatWays  = [][2]string{{}, {"#4f9a4a", "#cfe8a0"}, {"#b03a8c", "#ffd0ea"}, {"#f2c230", "#fff6dc"}}
 )
@@ -502,6 +587,8 @@ func spriteColours(g look, h hat) map[uint8]color.RGBA {
 		var pair [2]string
 		if _, ok := h.hood(); ok {
 			pair = hoodCols[h.Shape-hoodBase-1]
+		} else if _, ok := h.site(); ok {
+			pair = siteCols[h.Shape-siteBase-1]
 		} else if h.Colour != 0 {
 			pair = hatWays[h.Colour]
 		} else {

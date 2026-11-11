@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/netip"
 	"reflect"
-	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -239,8 +238,7 @@ func readHat(w http.ResponseWriter, r *http.Request, bare bool) (hat, bool) {
 	if !readJSON(w, r, &h) {
 		return h, false
 	}
-	_, hood := h.hood()
-	if !h.valid() && !(bare && (h.Shape == 0 || hood)) {
+	if !h.valid() && !(bare && (h.Shape == 0 || h.earned())) {
 		writeError(w, http.StatusBadRequest, "no such hat")
 		return h, false
 	}
@@ -389,28 +387,38 @@ const houseSeed = 1207
 var houseHatched = time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
 
 type panel struct {
-	House   bool     `json:"house"`
-	Frog    frogView `json:"frog"`
-	Pebbles int      `json:"pebbles"`
-	Power   int      `json:"power"`
-	Rank    string   `json:"rank"`
-	Todo    []todo   `json:"todo"`
+	House bool `json:"house"`
+	// The hat of the site that asked, when this visit is the one that found it.
+	Found   *siteView `json:"found,omitempty"`
+	Frog    frogView  `json:"frog"`
+	Pebbles int       `json:"pebbles"`
+	Power   int       `json:"power"`
+	Rank    string    `json:"rank"`
+	Todo    []todo    `json:"todo"`
 }
 
-// panelOrigins are the sites that draw the visitor's frog. Each is same site as
-// pond, so the Lax cookie rides along once the origin is allowed credentials.
-var panelOrigins = []string{"https://dash.bythewood.me", "https://status.bythewood.me", "https://blog.bythewood.me"}
-
+// apiPanel is what the other sites draw the visitor's frog from. Each is same
+// site as pond, so the Lax cookie rides along once the origin is allowed
+// credentials. A frog's first time on a site finds that site's hat.
 func (s *site) apiPanel(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Vary", "Origin")
-	if o := r.Header.Get("Origin"); slices.Contains(panelOrigins, o) {
-		w.Header().Set("Access-Control-Allow-Origin", o)
+	from := siteOf(r.Header.Get("Origin"))
+	if from >= 0 {
+		w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 	}
 	now := s.store.now()
 	if id, _, err := s.pondOf(r); err == nil {
 		if v, err := s.store.view(id); err == nil {
-			writeJSON(w, http.StatusOK, panel{Frog: v.Frog, Pebbles: v.Pebbles, Power: v.Share.Power.Total, Rank: v.Share.Power.Rank, Todo: v.Todo})
+			out := panel{Frog: v.Frog, Pebbles: v.Pebbles, Power: v.Share.Power.Total, Rank: v.Share.Power.Rank, Todo: v.Todo}
+			if from >= 0 && !v.Sites[from].Got {
+				if first, err := s.store.visit(id, from); err == nil && first {
+					st := v.Sites[from]
+					st.Got = true
+					out.Found = &st
+				}
+			}
+			writeJSON(w, http.StatusOK, out)
 			return
 		}
 	}
