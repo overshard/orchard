@@ -126,23 +126,23 @@ func favLine(f frogRow, pondID int64, day string, now time.Time) string {
 	full := f.Fed == f.FavDish && fullUntil(f) > now.Unix()
 	wearing := hatKind(f.Hat) == f.FavHat
 	lines := []string{
-		"It's been thinking about " + dish + " all day, which is its favourite.",
-		"It says nothing on the pond beats " + dish + ", and it has tried most things.",
-		"It likes the " + hatName + " best of all its hats and thinks it suits it.",
-		"It would wear the " + hatName + " every day if it was up to the frog.",
+		"It's been thinking about " + dish + " all day, its favourite.",
+		"It says nothing on the pond beats " + dish + ".",
+		"It likes the " + hatName + " best of all its hats.",
+		"It would wear the " + hatName + " every day if it could.",
 	}
 	switch {
 	case full && wearing:
-		lines = []string{"It's full of " + dish + " with the " + hatName + " on, its favourite of both, so it's about as pleased as a frog gets."}
+		lines = []string{"It's full of " + dish + " with the " + hatName + " on, its favourite of both."}
 	case full:
 		lines = []string{
-			"It's full of " + dish + ", its favourite, and it'll stay full a good while longer for it.",
-			"It had " + dish + " and that's its favourite, so it's very pleased with you.",
+			"It's full of " + dish + ", its favourite, and will be a good while yet.",
+			"It had " + dish + ", its favourite, and it's very pleased with you.",
 		}
 	case wearing:
 		lines = []string{
-			"It has the " + hatName + " on, its favourite, and keeps looking at itself in the water.",
-			"It's wearing the " + hatName + " and that's the one it likes best.",
+			"It has the " + hatName + " on, the one it likes best.",
+			"It's wearing the " + hatName + ", its favourite, and keeps checking the water.",
 		}
 	}
 	return lines[seedPick(uint32(pondID), "which "+day, len(lines))]
