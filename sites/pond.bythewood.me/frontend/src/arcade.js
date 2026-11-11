@@ -28,8 +28,9 @@ export function arcade(game) {
     back.width = screen.clientWidth; back.height = screen.clientHeight;
   }
 
-  // A tall phone has room over and under the field, and the field's top and
-  // bottom rows are stretched into it so the scene carries on to the edges.
+  // A tall phone has room over and under the field. A game's edge is a flat
+  // colour for each, and without one the field's top and bottom rows are
+  // stretched into the room so the scene carries on to the edges.
   const screen = view.querySelector(".screen"), back = document.createElement("canvas"), bx = back.getContext("2d");
   back.className = "arcade-back";
   back.setAttribute("aria-hidden", "true");
@@ -39,6 +40,11 @@ export function arcade(game) {
     const bw = back.width, bh = back.height, w = game.W * A.scale, h = game.H * A.scale;
     const left = (bw - w) / 2, gap = Math.ceil((bh - h) / 2) + 1;
     if (gap < 2) return;
+    if (game.edge) {
+      bx.fillStyle = game.edge[0]; bx.fillRect(left, 0, w, gap);
+      bx.fillStyle = game.edge[1]; bx.fillRect(left, bh - gap, w, gap);
+      return;
+    }
     bx.imageSmoothingEnabled = false;
     bx.drawImage(cv, 0, 0, cv.width, 2, left, 0, w, gap);
     bx.drawImage(cv, 0, cv.height - 2, cv.width, 2, left, bh - gap, w, gap);

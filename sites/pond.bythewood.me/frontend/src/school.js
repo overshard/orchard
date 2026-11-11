@@ -24,6 +24,7 @@ function blocked(x, y) {
 
 export const school = {
   key: "school", W, H, title: "TADPOLES",
+  edge: ["#2f6b33", "#2f6b33"],
   help: ["SWIPE OR TAP TO TURN", "EAT FLEAS, GROW THE SCHOOL", "MISS REEDS, STONES AND TAIL", "TAP TO START"],
 
   reset(g) {
