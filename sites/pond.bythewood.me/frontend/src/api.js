@@ -95,6 +95,9 @@ export function room(view) {
   return { w: view.clientWidth, h: view.clientHeight - (hud ? hud.offsetHeight : 0) };
 }
 
+// What a buyer pays today, which is a thing's worth or what's left of his day.
+export function offer(buyer, worth) { return Math.min(worth, state.pond.room[buyer]); }
+
 export function onResize(fn) {
   let t = 0;
   const go = () => { clearTimeout(t); t = setTimeout(fn, 120); };
