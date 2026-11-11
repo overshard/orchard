@@ -37,4 +37,12 @@ func TestStarterList(t *testing.T) {
 	if _, err := s.starterClaim(id); !errors.Is(err, errNotYet) {
 		t.Errorf("claimed twice: %v", err)
 	}
+	if v, _ := s.view(id); v.Pebbles != before+starterPrize {
+		t.Errorf("the prize paid more than once: %d", v.Pebbles)
+	}
+	for _, g := range v.Goals {
+		if g.First {
+			t.Errorf("a first day step after the prize: %+v", g)
+		}
+	}
 }
