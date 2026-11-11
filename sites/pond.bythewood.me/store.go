@@ -134,6 +134,11 @@ CREATE TABLE IF NOT EXISTS stall (
     PRIMARY KEY (pond_id, slot)
 ) WITHOUT ROWID;
 
+CREATE TABLE IF NOT EXISTS stall_log (
+    kind TEXT NOT NULL,
+    at   INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS job_xp (
     pond_id  INTEGER NOT NULL REFERENCES ponds(id) ON DELETE CASCADE,
     frog_id  INTEGER NOT NULL REFERENCES frogs(id) ON DELETE CASCADE,
@@ -189,6 +194,8 @@ CREATE TABLE IF NOT EXISTS growth (
 // table that is already there alone, so these are added by hand.
 var addedColumns = []struct{ table, name, def string }{
 	{"ponds", "dive_ghosts", "TEXT NOT NULL DEFAULT ''"},
+	{"stall", "chance", "REAL NOT NULL DEFAULT 0"},
+	{"stall", "ends_at", "INTEGER NOT NULL DEFAULT 0"},
 	{"ponds", "dive_podium", "INTEGER NOT NULL DEFAULT 0"},
 	{"ponds", "pads", "INTEGER NOT NULL DEFAULT 3"},
 	{"frogs", "genome_json", "TEXT NOT NULL DEFAULT ''"},
@@ -929,7 +936,11 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	if v.Arcade, err = arcadeViews(q, p.ID, now); err != nil {
 		return err
 	}
-	v.Bag = bagOf(v.held, v.Hats, v.Hoods)
+	listed, err := stallListed(q, now)
+	if err != nil {
+		return err
+	}
+	v.Bag = bagOf(v.held, v.Hats, v.Hoods, listed, now)
 	v.Wizard.Takes, v.Wizard.Up, v.Wizard.Same = wizardTakes, wizardOdds.up, wizardOdds.same
 	had := map[string]bool{}
 	for _, t := range v.Trinkets.All {

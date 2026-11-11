@@ -2531,9 +2531,17 @@ div.slot {
   accent-color: var(--amber);
 }
 
-.pricer span {
+.pricer > span {
   color: var(--muted);
   font-size: 12px;
+}
+
+.pricer .tiles {
+  text-align: left;
+}
+
+.stallrow.over {
+  opacity: 0.7;
 }
 
 .reveal {
