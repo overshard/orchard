@@ -1261,6 +1261,9 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	}
 	if v.Day.Mood != moodSombre {
 		v.Gazette.Business = marketHeadline(v.Market.Firms, today)
+		if n := v.Market.News; n != nil {
+			v.Gazette.Business = n.Line
+		}
 	}
 	if v.Arcade, err = arcadeViews(q, p.ID, now); err != nil {
 		return err
