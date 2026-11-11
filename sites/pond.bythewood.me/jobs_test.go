@@ -827,3 +827,40 @@ func TestAToolIsBoughtOnceAndKept(t *testing.T) {
 		}
 	}
 }
+
+// A level up says what it opened, whatever kind of thing that is.
+func TestALevelUpSaysWhatItOpened(t *testing.T) {
+	s, clock, id, f := working(t, "bugs", "")
+	if err := s.write(func(tx *sql.Tx) error { return addXP(tx, id, f, "bugs", xpFor[9]) }); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.setJob(id, f, "bugs", "mayfly"); err != nil {
+		t.Fatal(err)
+	}
+	*clock = clock.Add(workHold)
+	c, err := s.collectJobs(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := c.Done[0]
+	if d.Level < 12 || d.Level >= 16 || d.Up != d.Level-9 {
+		t.Fatalf("went from 9 to %d", d.Level)
+	}
+	got := map[string]string{}
+	for _, o := range d.Opened {
+		got[o.Kind] = o.Name
+		if o.Level <= 9 || o.Level > d.Level {
+			t.Errorf("opened %+v going from 9 to %d", o, d.Level)
+		}
+	}
+	if got["tool"] != "Twig net" || got["mastery"] != "Mastery 3" || got["target"] != "Snails" || len(d.Opened) != 3 {
+		t.Errorf("9 to 12 opened %+v", d.Opened)
+	}
+	for _, j := range jobDefs() {
+		for i, o := range j.Opens {
+			if i > 0 && o.Level < j.Opens[i-1].Level || o.Level < 2 || o.Name == "" || o.Key == "" {
+				t.Errorf("%s opens %+v", j.Key, o)
+			}
+		}
+	}
+}

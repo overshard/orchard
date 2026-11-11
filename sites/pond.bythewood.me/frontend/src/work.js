@@ -109,7 +109,7 @@ function setJob(f, job, target, b) {
   if (b) b.disabled = true;
   return post("/api/jobs/set", { frog: f.id, job, target: target || "" }).then((d) => {
     setPond(d.pond);
-    if (d.done.length) awayCard(d.done, true);
+    if (d.done.length) { awayCard(d.done, true); big(d.done); }
     return d;
   }, (e) => { $("job-out").textContent = e.message; if (b) b.disabled = false; });
 }
@@ -149,9 +149,9 @@ function render(p) {
   $("job-art").setAttribute("aria-label", titled(f.name) + (t ? " " + d.verb : " by the " + d.name.toLowerCase()));
   $("job-level").textContent = l.level;
   $("job-xp").style.transform = "scaleX(" + (l.level >= 99 ? 1 : (l.xp - l.from) / Math.max(1, l.to - l.from)) + ")";
-  const next = d.targets.find((x) => x.level > l.level) || d.finds.find((x) => x.level > l.level);
-  $("job-next").textContent = l.level >= 99 ? "Level 99, every target open." : next
-    ? "Level " + next.level + " opens " + next.name.toLowerCase() + (next.key ? "" : " as a find") + "."
+  const next = d.opens.find((x) => x.level > l.level);
+  $("job-next").textContent = l.level >= 99 ? "Level 99, everything open." : next
+    ? "Level " + next.level + " opens " + opensWords(d.opens.filter((x) => x.level === next.level)) + "."
     : (l.to - l.xp).toLocaleString("en-US") + " xp to level " + (l.level + 1) + ".";
   $("job-work").hidden = !at;
   $("job-basket-box").hidden = !at;
@@ -334,10 +334,39 @@ export function greetAway(p) {
   if (rows.length && lots) awayCard(rows, false);
 }
 
-// A pet or a hood is rare enough to pop up like a prize.
+// What a level opens, said the way the reveal and the job screen say it.
+function opensWords(list) {
+  const said = list.map((o) => o.kind === "tool" ? "a " + o.name.toLowerCase() + " in town"
+    : o.kind === "find" ? o.name.toLowerCase() + " as a find"
+      : o.kind === "mastery" ? o.name.toLowerCase() : o.name.toLowerCase());
+  return said.length > 1 ? said.slice(0, -1).join(", ") + " and " + said[said.length - 1] : said[0] || "";
+}
+
+const OPEN_SUB = { target: "target", recipe: "recipe", find: "find", tool: "in town", mastery: "mastery" };
+
+// A level up shows the jump in glass and a slot for everything it opened.
+function levelArt(w) {
+  const box = el("div", "lvup"), glass = el("span", "readout");
+  glass.append(el("span", "k", "Level"), el("span", "v", (w.level - w.up) + " → " + w.level));
+  box.append(glass);
+  if (w.opened.length) {
+    const row = el("div", "slots lvup-slots");
+    w.opened.forEach((o) => row.append(slot(iconCanvas(iconOf(o.key), 4), { tier: o.tier, name: o.name, sub: OPEN_SUB[o.kind] })));
+    box.append(row);
+  }
+  return box;
+}
+
+// A level up, a pet or a hood is something to pop up like a prize.
 export function big(done) {
   const p = state.pond;
   for (const w of done) {
+    if (w.up) {
+      reveal({
+        kick: "Level up", art: levelArt(w), name: w.frog + ", " + w.job.toLowerCase(), glow: 4,
+        line: w.opened.length ? "Opens " + opensWords(w.opened) + "." : "A little quicker at every action.",
+      });
+    }
     const pet = Object.keys(w.finds || {}).map((k) => p.trinkets.all.find((t) => t.kind === k && t.pet)).find(Boolean);
     if (pet) reveal({ kick: "A pet!", art: iconCanvas(pet.kind, 8), name: pet.name, tier: pet.tier, line: w.frog + " found it at work. It's in your bag." });
     const hood = w.up && w.level === 99 && p.hoods.find((h) => h.name.startsWith(w.job));

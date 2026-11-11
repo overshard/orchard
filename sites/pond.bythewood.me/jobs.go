@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand/v2"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -688,6 +689,49 @@ type workDone struct {
 	// The target's mastery after, and how many levels of it this basket added.
 	Mastery   int `json:"mastery"`
 	MasteryUp int `json:"mastery_up"`
+	// What the levels it went up opened.
+	Opened []opening `json:"opened"`
+}
+
+// opening is something a level opens at a job. Key is what the page draws
+// it with.
+type opening struct {
+	Level int    `json:"level"`
+	Kind  string `json:"kind"`
+	Key   string `json:"key"`
+	Name  string `json:"name"`
+	Tier  int    `json:"tier"`
+}
+
+// openings is everything a job opens past level 1, in order: its targets or
+// recipes, finds, tools and each step of the mastery cap.
+func openings(j job) []opening {
+	var out []opening
+	for _, t := range j.targets {
+		kind := "target"
+		if j.key == jobCraft {
+			kind = "recipe"
+		}
+		key := t.kind
+		if key == "" {
+			key = "peb"
+		}
+		out = append(out, opening{t.level, kind, key, t.title(), tierOf(t.kind)})
+	}
+	for _, x := range j.finds {
+		out = append(out, opening{x.level, "find", x.kind, thingName(x.kind), tierOf(x.kind)})
+	}
+	for _, t := range toolsFor(j.key) {
+		out = append(out, opening{t.Level, "tool", fmt.Sprintf("tool_%s_%d", j.key, t.Tier), t.Name, t.Tier - 1})
+	}
+	for l := 2; l <= maxLevel; l++ {
+		if m := masteryCap(l); m > masteryCap(l-1) {
+			out = append(out, opening{l, "mastery", "mastery", fmt.Sprintf("Mastery %d", m), 0})
+		}
+	}
+	out = slices.DeleteFunc(out, func(o opening) bool { return o.Level <= 1 })
+	slices.SortStableFunc(out, func(a, b opening) int { return a.Level - b.Level })
+	return out
 }
 
 type workCollected struct {
@@ -738,6 +782,12 @@ func pay(tx *sql.Tx, p *pond, r *run, xp map[string]int, tools map[string]int, n
 	}
 	xp[r.f.Job] += w.XP
 	w.Level = levelOf(xp[r.f.Job])
+	w.Opened = []opening{}
+	for _, o := range openings(r.j) {
+		if o.Level > before && o.Level <= w.Level {
+			w.Opened = append(w.Opened, o)
+		}
+	}
 	if _, err := tx.Exec(`UPDATE frogs SET work_at = ?, work_n = work_n + ?, work_tool = ? WHERE id = ?`,
 		at, len(r.deals), toolFor(tools[r.j.key], w.Level), r.f.ID); err != nil {
 		return w, err
@@ -1066,6 +1116,7 @@ type jobDef struct {
 	Targets []targetView `json:"targets"`
 	Finds   []findView   `json:"finds"`
 	Tools   []tool       `json:"tools"`
+	Opens   []opening    `json:"opens"`
 }
 
 type jobsView struct {
@@ -1091,7 +1142,7 @@ func tierOf(kind string) int {
 var jobDefs = sync.OnceValue(func() []jobDef {
 	out := make([]jobDef, 0, len(jobs))
 	for _, j := range jobs {
-		d := jobDef{j.key, j.name, j.verb, j.keep, j.nature, []targetView{}, []findView{}, toolsFor(j.key)}
+		d := jobDef{j.key, j.name, j.verb, j.keep, j.nature, []targetView{}, []findView{}, toolsFor(j.key), openings(j)}
 		for _, t := range j.targets {
 			kind := t.kind
 			if kind == "" {

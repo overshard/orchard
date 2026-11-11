@@ -3156,6 +3156,33 @@ div.slot {
   image-rendering: pixelated;
 }
 
+/* A level up, the jump in glass over a slot for each thing it opened. */
+.lvup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.lvup .readout .v {
+  font-size: 22px;
+}
+
+.slots.lvup-slots {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 300px;
+}
+
+.lvup-slots .slot {
+  width: 76px;
+}
+
+.reveal-art .lvup canvas {
+  filter: none;
+}
+
 /* The bottom sheet for one thing, and the reveal for a prize. */
 .sheet,
 .reveal {
