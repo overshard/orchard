@@ -35,6 +35,9 @@ let view = "pond", fetchedAt = Date.now(), worksAt = "", waitingAt = new Set();
 // pond has loaded. A browser with nothing kept is most likely a new egg.
 let open = { works: false, market: false }, wanted = "";
 try { open = JSON.parse(localStorage.getItem("pond-open")) || open; } catch (e) { /* private window */ }
+// A game opened straight off a link has no pond yet when its card is made,
+// so the disks are drawn before any game repaints its card off them.
+watch(() => { if (view === "dive" || GAMES[view]) drawPlay(); });
 const GAMES = Object.fromEntries(SIDE.map((d) => [d.key, arcade(d.game)]));
 
 // The Works key opens the place in it that was open last, and the first time
@@ -881,8 +884,6 @@ $("dev").addEventListener("click", (e) => {
 drawIcon($("purse-icon").getContext("2d"), "peb", 0, 0, 2);
 initUI();
 watch(renderPond);
-// A game opened straight off a link has no pond yet when its card is made.
-watch(() => { if (view === "dive" || GAMES[view]) drawPlay(); });
 initDive();
 initWheel();
 initReeds();
