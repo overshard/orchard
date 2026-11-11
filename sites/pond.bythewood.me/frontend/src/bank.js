@@ -183,7 +183,7 @@ function render(p) {
   if (known) {
     const words = document.createElement("span"), name = document.createElement("b");
     name.textContent = known.name;
-    words.append("In the cookbook", name, TIERS[known.tier] + ", Brindle pays " + known.worth);
+    words.append("In the cookbook", name, TIERS[known.tier] + ", Big Bean pays " + known.worth);
     rec.append(dishCanvas(known, 3), words);
   } else if (picked.length === 2) rec.textContent = "Not in the cookbook yet. Cook it to see what it makes.";
   drawPot($("pot-art"), picked, p.day && p.day.night);
@@ -197,7 +197,7 @@ function render(p) {
     sell.addEventListener("click", () => {
       sell.disabled = true;
       post("/api/kitchen/sell", { dish: d.kind }).then((v) => {
-        say("cook-out", "Brindle took the " + d.name.toLowerCase() + " for " + d.worth + " pebbles.");
+        say("cook-out", "Big Bean took the " + d.name.toLowerCase() + " for " + d.worth + " pebbles.");
         setPond(v);
       }, (e) => { say("cook-out", e.message); sell.disabled = false; });
     });

@@ -124,7 +124,7 @@ var namedDishes = map[[2]int]struct {
 
 var dishCount = len(ingredients) * (len(ingredients) + 1) / 2
 
-// What Brindle pays for a dish, by tier.
+// What Big Bean pays for a dish, by tier.
 var dishWorth = [tierCount]int{8, 25, 70, 200, 600}
 
 type dish struct {

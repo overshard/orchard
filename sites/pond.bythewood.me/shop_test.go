@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// Buying what a dish needs from Brindle and selling him the dish never makes
+// Buying what a dish needs from Big Bean and selling him the dish never makes
 // pebbles, sale or not.
 func TestLarderCantBeFarmed(t *testing.T) {
 	for a := range ingredients {

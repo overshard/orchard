@@ -57,7 +57,7 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
 - `keepsake.go` is the keepsake shelf, one thing for each kind of real day
   (a frost, a full moon, a bad day on the market) handed over on a visit that
   day and kept in `keepsakes` with the date. They're never spent.
-- `shop.go` is Wren's hats, Brindle's larder, Old Moss's curios and Fenn's
+- `shop.go` is Little Tully's hats, Big Bean's larder, Moth's curios and Tansy's
   furniture, which the page draws on the water. Stock is
   dealt from the day so everybody sees the same shelf, and `bought` counts
   what each pond took off it.
@@ -139,7 +139,7 @@ they have none, for other sites to draw.
   plot is sown at a reading of that clock, so nothing walks every garden.
 - A dish's kind is `dish_<a>_<b>` by position in `ingredients`, so a new
   ingredient only ever goes on the end of that list.
-- Brindle's prices have to stay above what a dish sells for, sale or not, or
+- Big Bean's prices have to stay above what a dish sells for, sale or not, or
   buying and cooking mints pebbles. A test holds it, so run it after touching
   a price.
 - A new column goes in `addedColumns` in `store.go` as well as the schema,

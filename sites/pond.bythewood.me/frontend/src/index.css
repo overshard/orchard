@@ -3446,6 +3446,10 @@ button.big {
   color: #e2567a;
 }
 
+.reed .keeps {
+  color: var(--amber);
+}
+
 /* A neighbour's sheet: how friendly it is, then what's known about it. */
 .friend {
   display: grid;

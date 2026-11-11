@@ -169,7 +169,7 @@ func (s *store) place(id int64, spot int, kind string) (*view, error) {
 	})
 }
 
-// sellTrinket is Old Moss buying a spare at a quarter of the going rate.
+// sellTrinket is Moth buying a spare at a quarter of the going rate.
 func (s *store) sellTrinket(id int64, kind string) (*view, error) {
 	return s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
 		t, ok := trinketOf(kind)

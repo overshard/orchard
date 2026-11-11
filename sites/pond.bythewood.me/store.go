@@ -692,7 +692,7 @@ type view struct {
 	Keepsakes  []keepsakeView      `json:"keepsakes"`
 	Neighbours neighboursView      `json:"neighbours"`
 	Arcade     []arcadeView        `json:"arcade"`
-	// What Fenn sold this pond, drawn on the water.
+	// What Tansy sold this pond, drawn on the water.
 	Furniture []string   `json:"furniture"`
 	Bag       []bagThing `json:"bag"`
 	Stall     stallView  `json:"stall"`

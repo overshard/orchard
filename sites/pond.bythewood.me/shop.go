@@ -19,7 +19,7 @@ const (
 	shopFenn    = "fenn"
 )
 
-// Fenn's furniture is for the whole pond, sold once each and drawn on the
+// Tansy's furniture is for the whole pond, sold once each and drawn on the
 // water for good. The page draws each by its kind.
 var furniture = []struct {
 	kind, name string
@@ -33,10 +33,10 @@ var furniture = []struct {
 	{"f_teacup", "A cracked teacup", 1500},
 }
 
-// What Wren asks for a hat, by tier. Legendary hats are never on the shelf.
+// What Little Tully asks for a hat, by tier. Legendary hats are never on the shelf.
 var wrenSells = [tierCount]int{120, 350, 900, 5000, 0}
 
-// What Brindle asks for an ingredient, by its tier. A pair of anything costs
+// What Big Bean asks for an ingredient, by its tier. A pair of anything costs
 // more than the dish it makes is worth, even on a sale, and a test holds that.
 var larderPrice = []int{18, 50, 420}
 
@@ -44,7 +44,7 @@ const (
 	larderEach = 3
 	// A red close on the S&P is a sale at the larder.
 	larderSale = 0.75
-	// Moss restocks this many times a day at hours nobody can predict, plus
+	// Moth restocks this many times a day at hours nobody can predict, plus
 	// once at midnight.
 	mossRestocks = 3
 )
@@ -90,7 +90,7 @@ const (
 	stampPrice = 450
 	dropsPrice = 650
 	dyePrice   = 900
-	// Now and then Moss has a dye going cheap.
+	// Now and then Moth has a dye going cheap.
 	bargainPrice = 280
 	bargainOdds  = 4
 )
@@ -171,7 +171,7 @@ func larderStock(day string, sale bool) []shopLine {
 
 func salePrice(p int) int { return (p*int(larderSale*100) + 99) / 100 }
 
-// mossRestock is which stock Moss has out at a moment, as a key, and when
+// mossRestock is which stock Moth has out at a moment, as a key, and when
 // the next one comes in.
 func mossRestock(now time.Time) (string, time.Time) {
 	local := now.In(pondZone)
@@ -267,7 +267,7 @@ func (s *store) stockOf(shop string, now time.Time) ([]shopLine, string) {
 	return nil, ""
 }
 
-// boughtOf counts what a pond took off a stock, and for Fenn, whose stock
+// boughtOf counts what a pond took off a stock, and for Tansy, whose stock
 // never changes, what it owns.
 func boughtOf(q querier, id int64, stock string) (map[int]int, error) {
 	if stock == "" {
@@ -328,7 +328,7 @@ func (s *store) buy(id int64, shop string, slot int) (*bought, error) {
 			return errPoor
 		}
 		p.Pebbles -= line.Price
-		// Fenn's stock has no key, owning the thing is the record.
+		// Tansy's stock has no key, owning the thing is the record.
 		if stock != "" {
 			if _, err := tx.Exec(`INSERT INTO bought (pond_id, stock, slot, n, day) VALUES (?, ?, ?, 1, ?)
 				ON CONFLICT (pond_id, stock, slot) DO UPDATE SET n = n + 1`, p.ID, stock, slot, dayOf(now)); err != nil {
