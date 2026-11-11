@@ -22,7 +22,7 @@ import { initUI, openSheet, reveal, thingArt, drawBox } from "./ui.js";
 import { initBag } from "./bag.js";
 import { initCollect } from "./collect.js";
 import { initTown, enterTown, leaveTown } from "./town.js";
-import { initNeighbours, art as residentArt } from "./neighbours.js";
+import { initNeighbours, art as residentArt, presentsFrom } from "./neighbours.js";
 import { initSettings } from "./settings.js";
 import { initPostcard } from "./postcard.js";
 import { initPet, setBox, pose, over as petOver, busy as petBusy, wasRub, tapTrick, arrive, drawBond } from "./pet.js";
@@ -917,6 +917,8 @@ function greet(g) {
       });
     }, { once: true });
   }
+  // A best friend from before there were mementos hands its one over now.
+  if (g.prizes && g.prizes.length) presentsFrom(g);
   if (!reduced) greetAt = performance.now();
   else arrive(performance.now());
 }

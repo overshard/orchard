@@ -127,10 +127,14 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   full half as long again.
 - `diary.go` is the frog's diary, a line a day in `diary` written at the
   greeting about the day before and kept for good. It reads `records`,
-  `keepsakes`, `hats.first_day`, `neighbours.heart_day`, `frogs.heart_day`
+  `keepsakes`, `mementos`, `hats.first_day`, `neighbours.heart_day`, `frogs.heart_day`
   and the day's weather in `skies`, and picks a hand written line by the
   frog's nature that the last week hasn't used. `GET /api/diary` reads it.
 - `neighbours.go` is the residents, friendship by dishes and a favour a day.
+- `memento.go` is the one thing each resident gives a best friend, in the
+  order of `residents`. They're rows in `mementos` with the day and never
+  items, and count in power at half an epic hat each. A neighbour that was
+  already a best friend hands its one over at the next greeting.
 - `burrow.go` is the bank's burrows. Each level adds a pad that doesn't count
   toward the ones you buy, and a friendly neighbour can lodge in one and pay rent.
 - `market.go` is the pond market, a business for each of dash's market
@@ -239,6 +243,11 @@ they have none, for other sites to draw.
 - `want_fill` counts every spare sold to Little Tully whether or not a hat is
   asked for, and buying the hat only takes its bar off it. Nothing else may
   lower it, since the page tells the player the bar is never lost.
+- A memento's kind starts `m_` and must never reach `addItem`, since an
+  item can go on the stall or to the wizard. `handMemento` is the only thing
+  that gives one, and a new collection counted in power has to be added in
+  `powerOf`, `bestFinds`, `everHad`, `store.fill`, `fullPower` in the tests,
+  the share page's rows and `collect.js`.
 - Outside the regular session dash's market cards are futures, so the pond
   market only writes a close while dash says `regular`, apart from Glowworm
   Coin. Buying and selling both take a fee so a round trip always loses, and

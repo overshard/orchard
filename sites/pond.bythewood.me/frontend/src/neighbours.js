@@ -1,6 +1,6 @@
 import { $, post, state, setPond, watch } from "./api.js";
 import { genome, cells, colours, draw, W, H } from "./frog.js";
-import { dishCanvas } from "./icons.js";
+import { dishCanvas, iconCanvas } from "./icons.js";
 import { openSheet, closeSheet, sheetSay, button, reveal, thingArt } from "./ui.js";
 
 export function art(n, s) {
@@ -21,7 +21,9 @@ function nameOf(kind) {
 export function presents(n, zs) {
   if (!zs.length) return;
   const [z, ...rest] = zs;
-  reveal({
+  const m = z.item && state.pond.mementos.find((x) => x.kind === z.item);
+  if (m) reveal({ kick: "A memento from " + n.name, art: thingArt({ kind: m.kind }, 8), name: m.name, tier: m.tier, line: z.text, ok: "Keep it" });
+  else reveal({
     kick: "A present from " + n.name,
     art: z.hat ? thingArt({ hat: z.hat }, 8) : thingArt({ kind: z.item || "peb" }, 8),
     name: z.hat ? z.hat_name : z.pebbles ? z.pebbles + " pebbles" : z.text,
@@ -107,6 +109,8 @@ function show(n) {
       n.fav_a ? nameOf(n.fav_a) + " and " + nameOf(n.fav_b) : "It'll say how to cook it at two hearts"));
     if (n.also) facts.append(fact("Also likes", n.also, n.also_a ? dishCanvas({ a: n.also_a, b: n.also_b, name: n.also }, 4) : null,
       n.also_a ? nameOf(n.also_a) + " and " + nameOf(n.also_b) + ", from fish you've kept" : "A fish dish, and it'll say which fish at two hearts"));
+    const m = p.mementos[n.id];
+    facts.append(fact("Memento", m.day ? m.name : "Something of its own, for a best friend", m.day ? iconCanvas(m.kind, 4) : null, m.day ? "Yours since " + m.day : ""));
     if (n.shop) facts.append(fact("Keeps shop", n.shop));
     if (n.gossip) facts.append(fact("Heard", n.gossip));
     facts.append(fact("About", n.bio));
@@ -172,6 +176,11 @@ function render(p) {
       c.append(t);
     }
     c.append(art(n, 3), name, h, el("span", "fav", "Likes " + n.fav.toLowerCase()));
+    if (n.memento) {
+      const m = el("span", "keptmemento");
+      m.append(iconCanvas(n.memento, 3), p.mementos[n.id].name);
+      c.append(m);
+    }
     c.append(doing);
     if (n.shop) c.append(el("span", "keeps", "Keeps " + n.shop));
     if (n.now.paper) {

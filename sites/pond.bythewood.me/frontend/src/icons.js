@@ -112,6 +112,18 @@ export const ICONS = {
   fillet: [["........", "..aaaa..", ".abbbba.", "abbcbbba", "abbbcbba", ".abbbba.", "..aaaa..", "........"], { a: "#c9744f", b: "#f2b8a0", c: "#fff6dc" }],
   i_fish: [["........", "a....bb.", "aa.bbbbb", "aabbbbcb", "aabddddb", "aa.dddd.", "a....d..", "........"], { a: "#d2553a", b: "#c9b04a", c: "#0a0908", d: "#efe2a0" }],
   i_gear: [["...aa...", ".a.aa.a.", "..aaaa..", "aaa..aaa", "aaa..aaa", "..aaaa..", ".a.aa.a.", "...aa..."], { a: "#ffb000" }],
+  m_float: [["...a....", "...a....", "..bbb...", ".bbbbb..", ".ccccc..", "..ccc...", "...a....", "...a...."], { a: "#8a5a2b", b: "#e2412d", c: "#fff6dc" }],
+  m_notebook: [["........", ".abbbbb.", ".abcccb.", ".abbbbb.", ".abdddb.", ".abbbbb.", ".abbbbb.", "........"], { a: "#5a3f24", b: "#b8456a", c: "#fff6dc", d: "#e3a0b8" }],
+  m_gizmo: [["........", ".a...a..", "..a.a...", "...b....", "..a.a.c.", ".a...ac.", "a....dd.", ".....dd."], { a: "#8a5a2b", b: "#fff6dc", c: "#e9e3d6", d: "#9aa0a6" }],
+  m_bag: [["..aaaa..", ".a....a.", ".bbbbbb.", "bccccccb", "bbbddbbb", "bbbbbbbb", "bbbbbbbb", ".bbbbbb."], { a: "#6b4a2a", b: "#4fae5b", c: "#2f7a3f", d: "#ffe27a" }],
+  m_trowel: [["......aa", ".....aa.", "....aa..", "...bb...", "..bcb...", ".bccb...", "bccb....", "bbb....."], { a: "#8a5a2b", b: "#6d747a", c: "#d5d8dc" }],
+  m_mud: [["..aaaa..", "..aaaa..", ".b....b.", ".bccccb.", ".bcdccb.", ".bccdcb.", ".bccccb.", "..bbbb.."], { a: "#c9974f", b: "#cfe3ea", c: "#6b4a2a", d: "#8a6230" }],
+  m_spoon: [[".aaa....", "abbba...", "abbba...", ".aaa....", "...a....", "....a...", ".....a..", "......a."], { a: "#c9974f", b: "#e3c57a" }],
+  m_leaf: [["....aa..", "..aaaab.", ".aacaab.", ".acaacb.", ".aacaab.", ".aaaab..", "..abb...", ".d......"], { a: "#3f9a4d", b: "#2f7a3f", c: "#fff6dc", d: "#8a5a2b" }],
+  m_medal: [["a....b..", ".a..b...", "..ab....", "..ccc...", ".cdddc..", ".cdedc..", ".cdddc..", "..ccc..."], { a: "#e2412d", b: "#3d8fd6", c: "#9aa0a6", d: "#d5d8dc", e: "#ffffff" }],
+  m_poem: [[".aaaaaa.", "abbbbbba", ".bccccb.", ".bbbbbb.", ".bcccbb.", ".bbbbbb.", "abbbbbba", ".aaaaaa."], { a: "#c9b896", b: "#fff6dc", c: "#5a3f24" }],
+  m_lantern: [["...aa...", "..a..a..", ".aaaaaa.", ".bcccdb.", ".bccdcb.", ".bcccdb.", ".aaaaaa.", "..aaaa.."], { a: "#5b534a", b: "#6d747a", c: "#ffe27a", d: "#fff6dc" }],
+  m_shiny: [["...a....", "...a..b.", "..aca...", "aacccaa.", "..aca...", "...a....", ".b.a....", "........"], { a: "#ffe27a", b: "#b5dcff", c: "#ffffff" }],
 };
 
 // A dish is drawn as a bowl, a plate or a skewer in its two ingredients'

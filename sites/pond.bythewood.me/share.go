@@ -21,8 +21,8 @@ import (
 )
 
 // Power only ever goes up, since nothing found is lost and a best is a best.
-// A trinket counts half a hat of its tier and Dive stops counting at
-// diveCounts, so the sixty hats stay the biggest part of it.
+// A trinket counts half a hat of its tier, and so does a memento, and Dive
+// stops counting at diveCounts, so the sixty hats stay the biggest part of it.
 var (
 	hatPower     = [tierCount]int{20, 50, 120, 300, 800}
 	trinketPower = [tierCount]int{10, 25, 60, 150, 400}
@@ -41,6 +41,8 @@ const (
 	// What each heart of the frog out front's bond counts.
 	bondPower = 60
 )
+
+var mementoPower = trinketPower[mementoTier]
 
 type rankView struct {
 	At   int    `json:"at"`
@@ -77,6 +79,9 @@ func bestFinds(held []hat, had map[string]bool, n int) []found {
 	for _, k := range keepsakes {
 		add(k.kind, k.tier)
 	}
+	for _, m := range mementos {
+		add(m.kind, mementoTier)
+	}
 	for _, k := range rocks {
 		add(k.kind, k.tier)
 	}
@@ -109,6 +114,8 @@ type power struct {
 	KeepsakesHad  int        `json:"keepsakes_found"`
 	Fish          int        `json:"fish"`
 	FishFound     int        `json:"fish_found"`
+	Mementos      int        `json:"mementos"`
+	MementosHad   int        `json:"mementos_found"`
 	Jobs          int        `json:"jobs"`
 	JobsTotal     int        `json:"jobs_total"`
 	Dive          int        `json:"dive"`
@@ -117,7 +124,7 @@ type power struct {
 	Hearts        int        `json:"hearts"`
 }
 
-// had is every trinket, rock, keepsake and fish the pond has ever had,
+// had is every trinket, rock, keepsake, memento and fish the pond has ever had,
 // jobsTotal is its best level at every job added up and hearts is the bond
 // of the frog out front.
 func powerOf(r rarity, held []hat, had map[string]bool, diveBest, jobsTotal, hearts int) power {
@@ -154,7 +161,13 @@ func powerOf(r rarity, held []hat, had map[string]bool, diveBest, jobsTotal, hea
 			p.FishFound++
 		}
 	}
-	p.Total = p.Frog + p.Hats + p.Trinkets + p.Rocks + p.Keepsakes + p.Fish + p.Jobs + p.Dive + p.Bond
+	for _, m := range mementos {
+		if had[m.kind] {
+			p.Mementos += mementoPower
+			p.MementosHad++
+		}
+	}
+	p.Total = p.Frog + p.Hats + p.Trinkets + p.Rocks + p.Keepsakes + p.Fish + p.Mementos + p.Jobs + p.Dive + p.Bond
 	p.climb()
 	return p
 }

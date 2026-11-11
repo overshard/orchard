@@ -75,6 +75,8 @@ var (
 	friendNames = []string{"Stranger", "Waves hello", "Friendly", "Good friend", "Close friend", "Best friend"}
 	// At level 2 a neighbour tells you how to cook its favourite.
 	recipeAt = 2
+	// The last level, where a neighbour hands over its memento.
+	bestFriend = len(friendAt) - 1
 )
 
 const (
@@ -181,6 +183,15 @@ func befriend(tx *sql.Tx, p *pond, who, points int, giftDay string) ([]prize, er
 			return nil, err
 		}
 		out = append(out, z)
+	}
+	if friendLevel(before+points) >= bestFriend {
+		z, err := handMemento(tx, p, who)
+		if err != nil {
+			return nil, err
+		}
+		if z != nil {
+			out = append(out, *z)
+		}
 	}
 	return out, nil
 }
@@ -298,8 +309,10 @@ type neighbourView struct {
 	Gossip string `json:"gossip"`
 	Bio    string `json:"bio"`
 	// The shop it keeps in town, for the four that keep one.
-	Shop string  `json:"shop,omitempty"`
-	Now  folkDay `json:"now"`
+	Shop string `json:"shop,omitempty"`
+	// Its memento's kind, once it's handed it over.
+	Memento string  `json:"memento,omitempty"`
+	Now     folkDay `json:"now"`
 }
 
 type favourView struct {

@@ -229,6 +229,11 @@ func thingName(kind string) string {
 	if d, ok := dishOfKind(kind); ok {
 		return d.name
 	}
+	for who, m := range mementos {
+		if m.kind == kind {
+			return m.name(who)
+		}
+	}
 	if n, ok := itemNames[kind]; ok {
 		return n
 	}
