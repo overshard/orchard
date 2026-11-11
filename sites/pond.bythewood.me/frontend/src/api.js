@@ -55,6 +55,29 @@ export function heldNow(c) {
   return Math.min(c.holds, c.held + 1 + Math.floor((t - c.next_in) * c.rate / 3600));
 }
 
+// workNow carries a frog's basket on from what the server said. The count of
+// actions comes off the clock and what they brought off the ones it dealt
+// ahead, so the page never puts anything in the basket on its own.
+export function workNow(w) {
+  const t = w.since + (performance.now() - state.at) / 1000;
+  const due = w.stop || !w.act ? w.done : Math.min(w.cap, Math.floor(t / w.act));
+  const extra = Math.max(0, Math.min(due - w.done, w.ahead.length));
+  const n = w.done + extra, basket = w.basket.map((x) => ({ ...x }));
+  let misses = w.misses, xp = w.xp;
+  for (let i = 0; i < extra; i++) {
+    const a = w.ahead[i];
+    misses += a.miss ? 1 : 0;
+    xp += a.xp;
+    a.got.forEach((x) => {
+      const have = basket.find((b) => b.kind === x.kind);
+      if (have) have.n += x.n; else basket.push({ ...x });
+    });
+  }
+  const stop = w.stop || (n >= w.cap ? "full" : due > n && w.ahead_short ? "short" : "");
+  const waiting = !stop && due > n;
+  return { n, basket, misses, xp, stop, waiting, frac: stop || waiting ? 1 : Math.max(0, (t - n * w.act) / w.act), left: stop || waiting ? 0 : (n + 1) * w.act - t };
+}
+
 export function watch(fn) { watchers.push(fn); }
 let gKey = "";
 export function setPond(pond) {

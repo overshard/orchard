@@ -202,6 +202,9 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   `share.js` is a frog's public page and `key.js` and `k.js` the key pages.
   Reeds, Garden and Bank are still views of their own, lit under the Works
   key, and `scenes.js` draws the picture over them and the smaller ones.
+  `work.js` is a frog's job screen at `#job`, lit under Works too, and the
+  card that says what came in. `workNow` in `api.js` counts a basket on
+  between fetches off the actions the server dealt ahead and nothing else.
 - `frontend/src/postcard.js` is the camera key on the pond's screen. The
   card is drawn in the page off the scene canvas and opened from a blob in a
   new tab, or saved as a file when the browser won't open one.
@@ -372,5 +375,8 @@ they have none, for other sites to draw.
   level, has to pay the basket out first, the way `feed` and `setJob` call
   `settle`, and collecting starts the next basket where the action in
   progress began. Crafters share the pond's materials in frog order.
+- A crafter's basket is worked out against what the pond holds now, so
+  listing or spending its materials makes the basket smaller until more
+  come in. Collecting still pays what the page showed at that moment.
 - `web/` has to stay byte identical to every other site's copy, and
   `make check` at the root fails when it isn't.

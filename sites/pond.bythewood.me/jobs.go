@@ -457,7 +457,7 @@ func runOf(key []byte, f frogRow, xp map[string]int, left map[string]int, now ti
 	for i := done; i < min(r.cap, done+dealAhead); i++ {
 		d := r.dealAt(key, i)
 		if !r.afford(&d, spare) {
-			r.aheadShort = true
+			r.aheadShort, r.short = true, shortOf(t, spare)
 			break
 		}
 		r.ahead = append(r.ahead, d)
@@ -503,10 +503,13 @@ type workDone struct {
 	Pebbles int            `json:"pebbles"`
 	// Finds and pets, apart from what the target brings.
 	Finds map[string]int `json:"finds"`
-	XP    int            `json:"xp"`
-	Level int            `json:"level"`
-	Up    int            `json:"up"`
-	Stop  string         `json:"stop,omitempty"`
+	// Everything that came in as the basket showed it, and why a miss missed.
+	Things []thingView `json:"things"`
+	Why    string      `json:"why,omitempty"`
+	XP     int         `json:"xp"`
+	Level  int         `json:"level"`
+	Up     int         `json:"up"`
+	Stop   string      `json:"stop,omitempty"`
 }
 
 type workCollected struct {
@@ -519,7 +522,7 @@ type workCollected struct {
 func pay(tx *sql.Tx, p *pond, r *run, xp map[string]int, now time.Time) (workDone, error) {
 	before := levelOf(xp[r.f.Job])
 	w := workDone{Frog: titled(frogViewOf(r.f, now).Name), Job: r.j.name, Target: r.t.title(), Actions: len(r.deals),
-		Got: map[string]int{}, Finds: map[string]int{}, Level: before, Stop: r.stop}
+		Got: map[string]int{}, Finds: map[string]int{}, Things: basketOf(r.deals), Why: r.t.why, Level: before, Stop: r.stop}
 	for _, d := range r.deals {
 		w.XP += d.xp
 		if d.miss {
@@ -798,6 +801,7 @@ type thingView struct {
 type dealView struct {
 	Miss bool        `json:"miss"`
 	Got  []thingView `json:"got"`
+	XP   int         `json:"xp"`
 }
 
 type workView struct {
@@ -951,7 +955,7 @@ func workOf(f frogRow, xp map[string]int, r *run, now time.Time) *workView {
 		}
 	}
 	for _, d := range r.ahead {
-		w.Ahead = append(w.Ahead, dealView{d.miss, basketOf([]deal{d})})
+		w.Ahead = append(w.Ahead, dealView{d.miss, basketOf([]deal{d}), d.xp})
 	}
 	return w
 }
