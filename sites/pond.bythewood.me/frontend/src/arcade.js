@@ -22,6 +22,8 @@ export function arcade(game) {
   function fit() {
     view.classList.add("full");
     const { w, h } = room(view);
+    // A game that can use the height takes its rows from the window, between runs.
+    if (game.fit && A.state === "idle") game.fit(w, h);
     A.scale = Math.min(w / game.W, h / game.H);
     cv.width = game.W * 2; cv.height = game.H * 2;
     cv.style.width = Math.round(game.W * A.scale) + "px";
@@ -193,13 +195,19 @@ export function arcade(game) {
     if (A.state === "idle") game.reset(state.g, state.pond);
     paint(performance.now());
   });
-  onResize(() => { if (!view.hidden) { fit(); if (A.state !== "play") paint(performance.now()); } });
+  onResize(() => {
+    if (view.hidden) return;
+    fit();
+    if (A.state === "idle" && state.pond) game.reset(state.g, state.pond);
+    if (A.state !== "play") paint(performance.now());
+  });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (!view.hidden && A.state !== "play") paint(performance.now()); });
 
   return {
     enter() {
+      if (A.state !== "play") A.state = "idle";
       fit();
-      if (A.state !== "play") { A.state = "idle"; if (state.pond) game.reset(state.g, state.pond); }
+      if (A.state === "idle" && state.pond) game.reset(state.g, state.pond);
       note(); paint(performance.now());
     },
     // Leaving mid run ends it, so the points still count.
