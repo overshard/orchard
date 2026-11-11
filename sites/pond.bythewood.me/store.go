@@ -1116,6 +1116,7 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	v.Share.Power = powerOf(v.Frog.Rarity, v.found, had, p.DiveBest, v.Jobs.Total, v.Bond.Hearts)
 	v.Today = dayOf(now)
 	v.Open = openOf(p, now)
+	markBag(v)
 	v.Gazette.Notice = openingNotice(p, now)
 	v.Todo = todoOf(v)
 	if v.Starter, err = starterOf(q, p); err != nil {

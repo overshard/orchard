@@ -2740,6 +2740,64 @@ div.slot {
   letter-spacing: 0.06em;
 }
 
+/* Somebody's after it. The lamp is the mark and stays put under reduced
+   motion, and with motion on a glow round the slot breathes behind it. */
+.slot .wantlamp {
+  position: absolute;
+  top: 16px;
+  left: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 6px var(--amber);
+}
+
+.slot.wanted::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px var(--amber), 0 0 10px var(--amber-glow), inset 0 0 12px var(--amber-glow);
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .slot.wanted::after {
+    animation: wantpulse 1.8s ease-in-out infinite;
+  }
+}
+
+@keyframes wantpulse {
+  50% { opacity: 1; }
+}
+
+.wantlines {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+
+.wantlines li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.wantlines li::before {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 6px var(--amber);
+}
+
 .slot.on {
   box-shadow: 0 0 0 2px var(--void), 0 0 0 4px currentColor;
 }
