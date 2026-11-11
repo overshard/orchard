@@ -164,7 +164,10 @@ export function arcade(game) {
     game.reset(state.g, state.pond);
     A.state = "play"; A.last = performance.now();
     card.hidden = true;
-    started = net = net.then(() => post("/api/arcade/start", { game: k })).then((d) => d.run, () => null);
+    started = net = net.then(() => post("/api/arcade/start", { game: k })).then((d) => {
+      if (game.dealt) game.dealt(d);
+      return d.run;
+    }, () => null);
     requestAnimationFrame(loop);
   }
 

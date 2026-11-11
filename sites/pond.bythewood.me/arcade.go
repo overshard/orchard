@@ -113,6 +113,8 @@ func (r arcadeRow) settled(now time.Time) arcadeRow {
 
 type arcadeStarted struct {
 	Run string `json:"run"`
+	// What's biting and how often, for fishing.
+	Fish map[string]float64 `json:"fish,omitempty"`
 }
 
 func (s *store) arcadeStart(id int64, key string) (*arcadeStarted, error) {
@@ -127,6 +129,9 @@ func (s *store) arcadeStart(id int64, key string) (*arcadeStarted, error) {
 		}
 		r = r.settled(now)
 		r.run, r.startedAt = out.Run, now.Unix()
+		if key == "fish" {
+			out.Fish = s.fishTableAt(now)
+		}
 		return saveArcade(tx, p.ID, key, r)
 	})
 	return out, err

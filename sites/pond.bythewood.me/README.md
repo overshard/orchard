@@ -26,7 +26,7 @@ make clean    delete build/ and node_modules
 From the repo root `make deploy SITE=pond.bythewood.me` builds the image and
 replaces `orchard-pond`. A dev run keeps its database in `data/pond.db`, uses a
 fixed pepper, and has a dev clock on the pond page for jumping hours and days
-ahead, with made up days beside it since a dev run can't reach dash. A release build has neither the fixed pepper nor the clock.
+ahead, with made up days beside it since a dev run can't reach dash, a full moon and frogspawn season among them. A release build has neither the fixed pepper nor the clock.
 
 ## Layout
 
@@ -90,6 +90,11 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
   `squashed` draws the frog squashed, `buffer` and `take` keep an early press
   for 90ms, and the game calls `draw` where its popups belong. A game's
   `demo()` gives the ghost finger its first input.
+- `fish.go` is the fish, each with its points, its tier and the days it bites
+  on. `POST /api/arcade/start` deals fishing the day's table off the real
+  day, so the page never decides what's in the water. The fish that bite any
+  time are always in it. `frontend/src/fishes.js` has the same fish with how
+  each looks and fights, and a test holds the two lists together.
 - `bond.go` is petting. A rub of the frog out front is `POST /api/frogs/pet`,
   which adds to that frog's bond up to a day's worth and never takes any
   away. A heart is a hundred points, and each frog has a favourite spot off

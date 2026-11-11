@@ -49,6 +49,9 @@ type reading struct {
 	Markets map[string]float64 `json:"markets,omitempty"`
 	Session string             `json:"session,omitempty"`
 	Games   []string           `json:"games,omitempty"`
+	// Only a dev day sets these, since the calendar can't be asked to hurry.
+	Moon  bool `json:"moon,omitempty"`
+	Spawn bool `json:"spawn,omitempty"`
 }
 
 type tomorrow struct {
@@ -375,10 +378,10 @@ func dayOfReading(r *reading, now time.Time) dayView {
 }
 
 // season adds what the calendar brings, which needs nothing from dash.
-func season(v *dayView, now time.Time) {
+func season(v *dayView, r *reading, now time.Time) {
 	n := now.In(pondZone)
 	m, d := n.Month(), n.Day()
-	if fullMoon(now) {
+	if moonOut(r, now) {
 		v.Moon = true
 		v.Lines = append(v.Lines, [2]string{"Moon", "Full tonight, and it lays a silver path across the water."})
 	}
@@ -396,8 +399,16 @@ func season(v *dayView, now time.Time) {
 		v.Fireflies = true
 		v.Lines = append(v.Lines, [2]string{"Fireflies", "Firefly season, so after dark there are hundreds of them."})
 	}
-	if spawnSeason(now) {
+	if spawnOn(r, now) {
 		v.Spawn = true
 		v.Lines = append(v.Lines, [2]string{"Shallows", "Frogspawn season, and the shallows are full of it."})
 	}
+}
+
+func moonOut(r *reading, now time.Time) bool {
+	return fullMoon(now) || (r != nil && r.Moon)
+}
+
+func spawnOn(r *reading, now time.Time) bool {
+	return spawnSeason(now) || (r != nil && r.Spawn)
 }

@@ -999,7 +999,7 @@ func (s *store) act(id int64, fn func(tx *sql.Tx, p *pond, now time.Time) error)
 func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 	r := s.day.reading(now)
 	v.Day = dayOfReading(r, now)
-	season(&v.Day, now)
+	season(&v.Day, r, now)
 	today := dayOf(now)
 	if v.Frog.Stage != "egg" {
 		v.Day.Hobby = hobbyOf(r, v.Day.Mood, p.Seed, frogOf(p, now).genome.Nature, today)
