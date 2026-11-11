@@ -617,7 +617,8 @@ version of the old look and a handheld pet shell.
 - **Every game is a floppy disk** on Play, a 3.5 inch disk in its own colour
   with a metal shutter, a write protect tab and the game's picture on a cream
   label. A disk that still pays in full has a blinking amber LED, the rest are
-  faded, and the pay tag and best score sit under it. The wheel and the old log
+  faded, and the pay tag and best score sit under it. One disk a day is the
+  disk of the day, with an amber sticker stuck on crooked. The wheel and the old log
   stay as panels. Fishing is the flagship and its disk takes the whole first
   row, with a big amber title and a line about it beside the disk.
 - **The side games end like Dive.** Their title and results sit in a panel

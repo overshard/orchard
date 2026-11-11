@@ -25,7 +25,7 @@ func TestTodoDropsAGameOnceItsPaid(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, g := range arcadeGames {
-		if _, err := s.w.Exec(`INSERT INTO arcade (pond_id, game, day, runs, paid, best, run, started_at) VALUES (?, ?, ?, 3, 30, 30, '', 0)`, id, g.key, day); err != nil {
+		if _, err := s.w.Exec(`INSERT INTO arcade (pond_id, game, day, runs, paid, best, run, started_at) VALUES (?, ?, ?, ?, 30, 30, '', 0)`, id, g.key, day, fullRuns(g.key, *clock)); err != nil {
 			t.Fatal(err)
 		}
 	}

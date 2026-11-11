@@ -560,6 +560,13 @@ function payLine(key, a) {
   tag.textContent = left ? "Full pay · " + left + " left" : a.paid >= a.cap ? "Paid out today" : "Quarter pay";
   $("play-" + key + "-line").replaceChildren(tag, document.createTextNode("Best " + a.best + " · today " + a.paid + "/" + a.cap));
   $("play-" + key).classList.toggle("pays", left > 0);
+  // The disk of the day has a sticker stuck on it.
+  const floppy = $("play-" + key).querySelector(".floppy"), had = floppy.querySelector(".daytag");
+  if (a.day && !had) {
+    const tag = document.createElement("span");
+    tag.className = "daytag"; tag.textContent = "Disk of the day";
+    floppy.append(tag);
+  } else if (!a.day && had) had.remove();
 }
 
 function drawPlay() {
