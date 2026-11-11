@@ -207,7 +207,8 @@ they have none, for other sites to draw.
   `Open.has` first, and only `create` sets `staged`, so an older pond is open.
 - A key's pip is lit off `pond-pips` in localStorage, what was waiting behind
   each key when it was last opened. A new kind of todo that comes round daily
-  goes in `DAILY` in `index.js`, or its pip lights once and never again.
+  goes in `DAILY` in `index.js`, or its pip only lights again after the page
+  has seen it gone.
 - The page keeps what's open in localStorage as `pond-open` so the keys are
   right before the pond loads. With nothing kept it starts on four keys.
 - `web/` has to stay byte identical to every other site's copy, and

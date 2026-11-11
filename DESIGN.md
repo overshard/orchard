@@ -608,7 +608,8 @@ version of the old look and a handheld pet shell.
   pond hasn't tried, has a green one, a ring until it's done and lit after,
   with any count in readout glass at the end of the row. A new pond's goals
   are its four first day steps, and their prize is one amber key at the top.
-  Three rows show and a short `+N more` key opens the rest.
+  Three rows show, and a small `+N` key on the end of the third opens the
+  rest.
 - **A filter is a small raised key** that stays pushed in and amber while it's
   on, since a sunken one read as disabled. The places in town are a row of five
   keys with pixel art over the label like the tab bar, so they never wrap.
