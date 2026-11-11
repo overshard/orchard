@@ -1,5 +1,6 @@
 import { sfx } from "./sound.js";
 import { sideCells, colours, draw, SW, SH } from "./frog.js";
+import { feel } from "./feel.js";
 
 // Pebble skip. Drag back from anywhere and let go to throw, flat and hard
 // skips best. A tap just before the pebble meets the water keeps more of its
@@ -9,6 +10,7 @@ const W = 200, H = 300, SURF = 200, GRAV = 380, MAXA = 0.5, MINV = 55, NICE = 0.
 const L = { x: 30, y: SURF - 20 };
 
 let G = null, spr = null, col = null;
+const F = feel();
 
 function aimFrom(p0, p1) {
   const dx = p0.x - p1.x, dy = p0.y - p1.y, power = Math.min(1, Math.hypot(dx, dy) / 70);
@@ -27,7 +29,7 @@ function launch(a) {
   const v = 120 + a.power * 280;
   G.peb = { x: L.x, y: L.y, vx: v * Math.cos(a.elev), vy: -v * Math.sin(a.elev), skips: 0, spin: 0 };
   G.st = "fly"; G.tapAt = null; G.aim = null;
-  sfx("cast");
+  sfx("cast"); F.squash(0.8);
 }
 
 // Whether a throw would skip at its first touch, for colouring the aim line.
@@ -44,8 +46,7 @@ function touch() {
   const hit = G.things.find((o) => !o.used && Math.abs(o.x - p.x) < (o.duck ? 6 : 9));
   if (hit && hit.duck) {
     hit.used = true;
-    G.pops.push({ x: p.x, y: SURF - 30, s: "QUACK", c: "#e2412d", t: 0 });
-    sfx("bonk");
+    F.crash(p.x, SURF - 6, { s: "QUACK" });
   } else if (hit || (Math.atan2(p.vy, p.vx) < MAXA && p.vx > MINV)) {
     const chop = 0.97 + Math.random() * 0.06;
     p.vy = -Math.max(40, p.vy * (hit ? 0.8 : good ? 0.72 : 0.58));
@@ -54,25 +55,29 @@ function touch() {
     const pts = (good ? 2 : 1) + (hit ? 2 : 0);
     if (hit) hit.used = true;
     G.score += pts;
-    G.pops.push({ x: p.x, y: SURF - 14, s: hit ? "PAD +" + pts : good ? "NICE +2" : early ? "EARLY +1" : "+1", c: hit || good ? "#ffb000" : early ? "#bcaf99" : "#ece5d8", t: 0 });
-    sfx(good || hit ? "catch" : "hop");
+    if (hit || good) F.got(p.x, SURF - 4, hit ? "PAD +" + pts : "NICE +2", { streak: p.skips, big: !!hit });
+    else {
+      sfx("hop", p.skips);
+      F.burst(p.x, SURF - 2, "#cfe3ea", 3);
+      F.pop(p.x, SURF - 14, early ? "EARLY +1" : "+1", early ? "#bcaf99" : "#ece5d8");
+    }
     return;
   }
   const m = Math.round((p.x - L.x) / M);
   G.best = Math.max(G.best, p.skips); G.far = Math.max(G.far, m);
-  G.pops.push({ x: p.x, y: SURF - 18, s: p.skips ? p.skips + " SKIPS, " + m + "M" : "PLOP", c: "#ece5d8", t: 0 });
+  F.pop(p.x, SURF - 18, p.skips ? p.skips + " SKIPS, " + m + "M" : "PLOP", "#ece5d8");
   G.st = "sunk"; G.st_t = 0;
   sfx("plop");
 }
 
 export const skip = {
-  key: "skip", W, H, title: "PEBBLE SKIP",
+  key: "skip", W, H, title: "PEBBLE SKIP", feel: F,
   help: ["DRAG BACK AND LET GO TO THROW", "FLAT AND HARD SKIPS BEST", "TAP AS IT HITS THE WATER FOR DOUBLE", "PADS PAY 3, DUCKS STOP IT", "TAP TO START"],
 
   reset(g, p) {
     spr = sideCells(g, p.frog.stage === "egg" ? "tadpole" : p.frog.stage, false);
     col = colours(g, p.frog.hat);
-    G = { t: 0, st: "aim", st_t: 0, cam: 0, peb: null, aim: null, rings: [], pops: [], score: 0, thrown: 0, best: 0, far: 0, tapAt: null, why: "", end: false, kang: 0.2, charge: -1, things: [] };
+    G = { t: 0, st: "aim", st_t: 0, cam: 0, peb: null, aim: null, rings: [], score: 0, thrown: 0, best: 0, far: 0, tapAt: null, why: "", end: false, kang: 0.2, charge: -1, things: [] };
     deal();
   },
 
@@ -118,8 +123,6 @@ export const skip = {
     }
     G.rings.forEach((r) => { r.t += dt; });
     G.rings = G.rings.filter((r) => r.t < 1.2);
-    G.pops.forEach((q) => { q.t += dt; q.y -= dt * 18; });
-    G.pops = G.pops.filter((q) => q.t < 1);
   },
 
   over() { return G && G.end; },
@@ -156,7 +159,7 @@ export const skip = {
     x.fillStyle = "#4f9a4a"; x.fillRect(bx, SURF - 8, 46, 3);
     x.fillStyle = "#2f6b33"; x.fillRect(bx + 40, SURF - 30, 2, 24); x.fillRect(bx + 43, SURF - 24, 2, 18);
     if (!G) return;
-    draw(x, spr, SW, SH, col, bx + 6, SURF - 8 - SH + 1, 1);
+    F.squashed(x, bx + 6 + SW / 2, SURF - 7, () => draw(x, spr, SW, SH, col, bx + 6, SURF - 8 - SH + 1, 1));
     G.things.forEach((o) => {
       const sx = Math.round(o.x - cam);
       if (sx < -12 || sx > W + 12) return;
@@ -179,9 +182,7 @@ export const skip = {
         x.fillStyle = "#c9ccd0"; x.fillRect(px - 1, py - 1, 2, 1);
       }
     }
-    x.font = "700 13px 'Space Grotesk', sans-serif"; x.textAlign = "center";
-    x.lineWidth = 3; x.strokeStyle = "#0a0908";
-    G.pops.forEach((q) => { const qx = q.x - cam; x.strokeText(q.s, qx, q.y); x.fillStyle = q.c; x.fillText(q.s, qx, q.y); });
+    F.draw(x, -cam, 0);
     x.textAlign = "left"; x.fillStyle = "#ece5d8"; x.fillText(String(G.score), 6, 18);
     x.textAlign = "right"; x.font = "500 8px 'JetBrains Mono', monospace"; x.fillStyle = "#bcaf99";
     x.fillText("PEBBLE " + Math.min(THROWS, G.thrown + 1) + "/" + THROWS, W - 6, 16);
