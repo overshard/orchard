@@ -1,6 +1,8 @@
 import { $, post, state, setPond, watch, room, onResize, payWord } from "./api.js";
 import { genome, sideCells, draw as drawCells, SW, SH } from "./frog.js";
 import { raceStart, raceOut, raceOrder, raceResults, raceHide, countdown, callout } from "./race.js";
+import { feel } from "./feel.js";
+import { sfx } from "./sound.js";
 
 // Dive is played in a 320 by 200 field and drawn at twice that. The frog
 // floats up by itself, a press kicks it down, and the numbers below are the
@@ -12,6 +14,7 @@ let PW = 266, FXP = 70, GH = 200, BOT = 186;
 const BUOY = 330, RISE_MAX = 150, KICK = 138, GATE_EVERY = 118;
 const BIG = "700 22px 'Space Grotesk', sans-serif";
 
+const F = feel();
 let gc, gx, spr = null, sprKey = "", net = Promise.resolve();
 const G = { state: "idle", score: 0, fy: 100, vy: 0, kick: 0, gates: [], bub: [], dist: 0, next: 0, last: 0, overAt: 0, rank: 0, t: 0, why: "", lastC: 100, flash: 0, paid: null, best: false };
 
@@ -127,6 +130,7 @@ function drawOthers() {
 }
 
 function reset() {
+  F.reset();
   G.fy = 96; G.vy = 0; G.kick = 0; G.gates = []; G.bub = []; G.dist = 0; G.next = 150; G.score = 0; G.cleared = 0; G.place = 0; G.bonus = 0; G.hat = null; G.had = false; G.t = 0; G.lastC = GH / 2; G.flash = 0; G.paid = null; G.best = false; G.toldBest = false;
 }
 
@@ -155,6 +159,7 @@ function results(again) {
 function die(now, why) {
   G.state = "over"; G.overAt = now; G.why = why;
   const score = G.score, gates = G.cleared;
+  F.crash(FXP, G.fy);
   // The flash of the frog going out plays first, then the results come up.
   setTimeout(() => { if (G.state === "over" && G.overAt === now) results(false); }, 650);
   // Requests go one after another, so a finish always lands before the start
@@ -168,6 +173,12 @@ function die(now, why) {
     if (performance.now() - now >= 650) results(true);
     draw(performance.now());
   });
+}
+
+function kick() {
+  G.vy = KICK; G.kick = 0.16;
+  sfx("kick"); F.squash(0.4);
+  for (let i = 0; i < 3; i++) G.bub.push({ x: FXP - 10 - Math.random() * 6, y: G.fy - 2 + Math.random() * 6, a: 1 });
 }
 
 // Three lights and GO, with everybody bobbing on the line.
@@ -188,8 +199,7 @@ function press() {
     requestAnimationFrame(counting);
     return;
   }
-  G.vy = KICK; G.kick = 0.16;
-  for (let i = 0; i < 3; i++) G.bub.push({ x: FXP - 10 - Math.random() * 6, y: G.fy - 2 + Math.random() * 6, a: 1 });
+  kick();
 }
 
 function counting(now) {
@@ -220,7 +230,9 @@ function gateC(g) { return g.c + (g.bob ? Math.sin(G.t * 1.7 + g.ph) * g.bob : 0
 
 function step(now) {
   if (G.state !== "play") return;
-  const dt = Math.min(0.04, (now - G.last) / 1000); G.last = now; G.t += dt;
+  const dt = Math.min(0.04, (now - G.last) / 1000); G.last = now;
+  if (!F.tick(dt)) { draw(now); requestAnimationFrame(step); return; }
+  G.t += dt;
   const sp = speed();
   G.vy -= BUOY * dt; if (G.vy < -RISE_MAX) G.vy = -RISE_MAX;
   G.fy += G.vy * dt; G.kick -= dt; G.flash -= dt;
@@ -234,8 +246,14 @@ function step(now) {
     if (g.x + OW < -6) { G.gates.splice(i, 1); continue; }
     const c = gateC(g), topEnd = c - g.gap / 2, botStart = c + g.gap / 2;
     if (FXP + 7 > g.x && FXP - 8 < g.x + OW && (G.fy - 4 < topEnd || G.fy + 5 > botStart)) dead = G.fy - 4 < topEnd ? "TANGLED IN THE STEMS" : "BONKED A ROCK";
-    if (g.bug && Math.abs(g.x + OW / 2 - FXP) < 9 && Math.abs(c + g.bug * (g.gap / 2 - 9) - G.fy) < 9) { g.bug = 0; G.score++; G.flash = 0.25; }
-    if (!g.done && g.x + OW < FXP - 8) { g.done = true; G.score++; G.cleared++; }
+    if (g.bug && Math.abs(g.x + OW / 2 - FXP) < 9 && Math.abs(c + g.bug * (g.gap / 2 - 9) - G.fy) < 9) {
+      F.got(g.x + OW / 2, c + g.bug * (g.gap / 2 - 9), "+1", { streak: G.cleared + 1 });
+      g.bug = 0; G.score++; G.flash = 0.25;
+    }
+    if (!g.done && g.x + OW < FXP - 8) {
+      g.done = true; G.score++; G.cleared++;
+      sfx("catch", G.cleared);
+    }
     if (!G.toldBest && best() > 0 && G.score > best()) { G.toldBest = true; callout("New best", "up"); }
   }
   for (let q = G.bub.length - 1; q >= 0; q--) { const b = G.bub[q]; b.x -= sp * dt; b.y -= 26 * dt; b.a -= dt * 1.5; if (b.a <= 0) G.bub.splice(q, 1); }
@@ -249,7 +267,11 @@ function px(x, y, w, h) { gx.fillRect(Math.round(x), Math.round(y), w, h); }
 
 function draw(now) {
   if (!state.pond) return;
-  gx.setTransform(2, 0, 0, 2, 0, 0);
+  // Nothing else steps the bits and the shake once the run is over.
+  if (G.state === "over") { F.tick(Math.min(0.04, (now - (G.drawn || now)) / 1000)); }
+  G.drawn = now;
+  const [sx, sy] = F.offset();
+  gx.setTransform(2, 0, 0, 2, sx * 2, sy * 2);
   // Off, or a ghost drawn from its own small canvas comes out smeared.
   gx.imageSmoothingEnabled = false;
   const bands = ["#123a3d", "#103336", "#0e2c30", "#0c262a", "#0b2024", "#0a1b1f"];
@@ -289,7 +311,8 @@ function draw(now) {
   gx.fillStyle = "#bfeee2"; G.bub.forEach((bb) => { gx.globalAlpha = Math.max(0, bb.a) * 0.8; px(bb.x, bb.y, 2, 2); }); gx.globalAlpha = 1;
   drawOthers();
   const show = G.state !== "over" || now - G.overAt > 500 || Math.floor((now - G.overAt) / 80) % 2 === 0;
-  if (show) drawCells(gx, sprites()[G.kick > 0 ? 1 : 0], SW, SH, frogCols(state.g), Math.round(FXP - 15), Math.round(G.fy - 9), 1);
+  if (show) F.squashed(gx, FXP, G.fy + 9, () => drawCells(gx, sprites()[G.kick > 0 ? 1 : 0], SW, SH, frogCols(state.g), Math.round(FXP - 15), Math.round(G.fy - 9), 1));
+  F.draw(gx);
   gx.textAlign = "center"; gx.font = BIG;
   gx.fillStyle = "#0a1b1f"; gx.fillText(G.score, PW / 2 + 1, 48); gx.fillStyle = G.flash > 0 ? "#ffe27a" : "#fff6dc"; gx.fillText(G.score, PW / 2, 47);
   overlay();
