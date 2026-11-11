@@ -6,7 +6,7 @@ import { feel } from "./feel.js";
 // it can. Hold a finger to one side, or the arrow keys, to steer, and the
 // field wraps at the edges. Brown pads sink once used and dragonflies launch.
 const W = 220, H = 330, GRAV = 560, BOUNCE = 340, LAUNCH = 620, RUN = 190;
-const PW = 36, FOOT = 12;
+const PW = 36, FOOT = 12, TAP = 0.09;
 
 let G = null, spr = null, col = null;
 const F = feel();
@@ -37,18 +37,24 @@ export const leap = {
     const stage = ["egg", "tadpole"].includes(p.frog.stage) ? "froglet" : p.frog.stage;
     spr = cells(g, stage, { hat: p.frog.hat.shape });
     col = colours(g, p.frog.hat);
-    G = { t: 0, x: W / 2, y: H - 40, vx: 0, vy: -BOUNCE, cam: 0, top: 0, highest: H - 30, pads: [], dir: 0, want: null, keys: { left: false, right: false }, bonus: 0, why: "", fell: 0, row: 0, last: null };
+    G = { t: 0, x: W / 2, y: H - 40, vx: 0, vy: -BOUNCE, cam: 0, top: 0, highest: H - 30, pads: [], dir: 0, want: null, keys: { left: false, right: false }, bonus: 0, why: "", fell: 0, row: 0, last: null, downAt: -9, lift: 0 };
     G.pads.push({ x: W / 2 - PW / 2, y: H - 30, kind: "pad", v: 0, gone: 0 });
     fill();
   },
 
+  press() { if (G) { G.downAt = G.t; G.lift = 0; } },
   drag(x) { if (G) G.want = x; },
-  release() { if (G) G.want = null; },
+  // A tap too quick to steer by still pulls for a moment.
+  release() {
+    if (!G) return;
+    if (G.t - G.downAt < TAP) G.lift = G.downAt + TAP; else G.want = null;
+  },
   hold(dir, on) { if (G) G.keys[dir] = on; },
 
   step(dt) {
     G.t += dt;
     if (G.fell > 0) { G.fell += dt; G.vy += GRAV * dt; G.y += G.vy * dt; return; }
+    if (G.lift && G.t >= G.lift) { G.want = null; G.lift = 0; }
     let steer = (G.keys.right ? 1 : 0) - (G.keys.left ? 1 : 0);
     if (G.want !== null) steer = Math.max(-1, Math.min(1, (G.want - G.x) / 24));
     G.vx += (steer * RUN - G.vx) * Math.min(1, dt * 10);
