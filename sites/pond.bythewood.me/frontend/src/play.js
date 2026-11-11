@@ -14,6 +14,7 @@ import { sweep, sweepArt } from "./sweep.js";
 import { chorus, chorusArt } from "./chorus.js";
 import { putt, puttArt } from "./putt.js";
 import { jar, jarArt } from "./jar.js";
+import { lash, lashArt } from "./lash.js";
 
 // Every disk on Play. A disk is a key, a name, the plastic's colour, one
 // line, the picture on its label and the game the frame runs. A new game is
@@ -32,6 +33,7 @@ export const SHELVES = [
     { key: "skip", name: "Pebble skip", colour: "#5b6470", line: "Skip three pebbles across the pond.", art: skipArt, game: skip },
     { key: "drop", name: "Pebble drop", colour: "#d8cfb8", line: "Drop five pebbles through the reeds.", art: dropArt, game: drop },
     { key: "chorus", name: "Chorus", colour: "#d8642a", line: "Sing your part with the frogs on the log.", art: chorusArt, game: chorus },
+    { key: "lash", name: "Tongue lash", colour: "#e07ab0", line: "Snap bugs out of the dusk, lots to a gulp.", art: lashArt, game: lash },
   ] },
   { name: "Puzzles", disks: [
     { key: "shell", name: "Shell game", colour: "#8a5a2b", line: "Follow the tadpole under the shells.", art: shellArt, game: shell },

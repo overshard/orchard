@@ -34,7 +34,7 @@ var powerWeights = []struct {
 	{"looks", "Frog looks", "finds", 3000},
 	{"cookbook", "Cookbook", "finds", 4000},
 	{"furniture", "Furniture", "finds", 1500},
-	{"sets", "Sets", "finds", 2500},
+	{"sets", "Sets", "finds", 2700},
 	{"badges", "Badges", "finds", 4000},
 	{"frogs", "Frogs", "frogs", 3000},
 	{"rarity", "Rarest frog", "frogs", 3000},
@@ -44,7 +44,7 @@ var powerWeights = []struct {
 	{"front", "Out front", "frogs", 3000},
 }
 
-const gameWeight = 1400
+const gameWeight = 1300
 
 // A thing counts by its tier inside its part, so a legendary hat is four
 // commons and the rare end of a shelf doesn't take all of it.
@@ -415,6 +415,7 @@ var refFloor = map[string]int{
 	"chorus": 300,
 	"putt":   80,
 	"jar":    300,
+	"lash":   250,
 }
 
 // gameRefs reads the references the hourly sweep kept.

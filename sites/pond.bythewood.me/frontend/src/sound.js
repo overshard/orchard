@@ -53,6 +53,12 @@ const SFX = {
     tone("square", 660, 990, 0.07, 0.05);
     setTimeout(() => { bend = b; tone("square", 990, 1480, 0.09, 0.05); bend = 1; }, 70);
   },
+  whip: () => tone("triangle", 2600, 700, 0.05, 0.035),
+  gulp: () => {
+    const b = bend;
+    tone("sine", 360, 150, 0.1, 0.1);
+    setTimeout(() => { bend = b; tone("square", 700, 1180, 0.06, 0.04); bend = 1; }, 90);
+  },
 };
 
 // The same blip twice running is bent a little, so a row of them isn't one note.
