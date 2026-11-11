@@ -711,6 +711,18 @@ version of the old look and a handheld pet shell.
   of 2 like the frog. A swarm's reed bed glows amber and says SWARM before it
   goes up together, and a golden beetle twinkles where it'll come up. A wasp
   costs one of three lilies in the corner and ten gulps in a row grow one back.
+- **Swarm season is midsummer on one big lily pad**, seen from above in the
+  middle of dark water with its notch and veins. A drag anywhere moves the
+  frog by as much as the finger moved, so the thumb never sits on it, and the
+  tongue snaps the nearest bug in reach by itself, a pink line out and back
+  with the bug riding it home. Gnats, flies and moths are harmless and get
+  shouldered aside, a wasp or a beetle costs one of three lilies with a
+  blink of safety after, and a beetle stops and draws a dotted amber line
+  before it runs it. A wave's side of the water shows pale chevrons first.
+  Bugs drop dew drops for points. Every fifteen seconds the field dims and
+  three perk cards come up on whichever half the frog isn't on, each with a
+  pixel icon, a line and three pips, and a pick slows the pond down for a
+  moment. Taken perks sit as small icons in the bottom corner.
 - **Bug sweep is the day's puzzle.** Eight pads by ten on flat water, a
   closed pad green and an open one dark with its number in a colour of its
   own, pale blue for one up to red. A marked pad has a pink bud on it, and a

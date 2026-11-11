@@ -101,7 +101,7 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   `frontend/src/frog.js` is the same thing in JavaScript plus the drawing.
 - `arcade.go` is the side games, fishing, tongue flick, crossing, raft run,
   lily leap, tadpoles, lily stack, the shell game, pebble skip, pebble
-  drop, chorus, pad putt, the spawn jar and tongue lash, which pay into the purse like Dive with a cap a day each. A score over a game's `most`
+  drop, chorus, pad putt, the spawn jar, tongue lash and swarm season, which pay into the purse like Dive with a cap a day each. A score over a game's `most`
   pays nothing, so keep it well past what a person could reach. One game a
   day, off a hash of the date, is the disk of the day and pays in full a
   fourth time under the same cap. Eight hours after the last run of any game
