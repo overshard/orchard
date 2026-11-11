@@ -393,12 +393,12 @@ func (s *site) apiJob(id int64, r *http.Request, w http.ResponseWriter) (any, er
 	var in struct {
 		Frog   int64  `json:"frog"`
 		Job    string `json:"job"`
-		Recipe string `json:"recipe"`
+		Target string `json:"target"`
 	}
 	if !readJSON(w, r, &in) {
 		return nil, nil
 	}
-	return s.store.setJob(id, in.Frog, in.Job, in.Recipe)
+	return s.store.setJob(id, in.Frog, in.Job, in.Target)
 }
 
 func (s *site) apiBuyPad(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
