@@ -721,13 +721,16 @@ version of the old look and a handheld pet shell.
   beetles on the market, ripples quicken with the VIX, and a cold day has
   frost on the pad and the frog dozing. Each thing gets a line under Today at
   the pond saying why, so nothing on the water is a mystery.
-- **The Pond Gazette is a little newspaper** under Today at the pond, the
-  one thing printed on paper. Cream newsprint with faint lines and a fold,
-  tilted a touch, in the system serif, with a masthead between double rules,
-  a dateline with the issue and the weather, a lead story beside a grey
+- **The Pond Gazette is a little newspaper**, the one thing printed on paper.
+  On the pond it's folded, a strip of cream newsprint under what to do next
+  with the masthead, the issue and the lead on one line, a turned corner and
+  the other pages showing under it, tilted a touch. A tap opens the front
+  page in a bottom sheet, in the system serif, with a masthead between double
+  rules, a dateline with the issue and the weather, a lead story beside a grey
   photo of a neighbour, two stories in columns and a Business story. Never a
-  number past the date and issue. A dream is a row in the greeting's list on the first visit of a day,
-  and a neighbour's gossip is an italic line at the top of its sheet.
+  number past the date and issue. A dream is a row in the greeting's list on
+  the first visit of a day, and a neighbour's gossip is an italic line at the
+  top of its sheet.
 - **A neighbour's thought is a cloud over its card**, trailing two puffs down
   to it, with what it's doing under its hearts and a newsprint tag when the
   gazette names it. What it says to you is a speech bubble on its sheet.

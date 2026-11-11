@@ -18,7 +18,7 @@ import { initReeds } from "./reeds.js";
 import { initBank, enterBank, leaveBank } from "./bank.js";
 import { drawWorks } from "./scenes.js";
 import { initShops } from "./shops.js";
-import { initUI, reveal, thingArt, drawBox } from "./ui.js";
+import { initUI, openSheet, reveal, thingArt, drawBox } from "./ui.js";
 import { initBag } from "./bag.js";
 import { initCollect } from "./collect.js";
 import { initTown, enterTown, leaveTown } from "./town.js";
@@ -427,7 +427,7 @@ function renderPond(p) {
     today.append(li);
   });
   $("today-head").hidden = today.hidden = lines.length === 0;
-  renderPaper(p.gazette, p.neighbours);
+  renderPaper(p.gazette);
   renderTodo(p);
   renderWorks(p);
   renderStarter(p);
@@ -441,39 +441,51 @@ function el(tag, cls, text) {
   return e;
 }
 
-// The Pond Gazette, a little front page under Today at the pond.
-function renderPaper(g, nb) {
-  const paper = $("gazette");
-  paper.textContent = "";
-  paper.hidden = !g || !g.lines || g.lines.length === 0;
-  if (paper.hidden) return;
+// The Pond Gazette sits folded on the pond, a strip with the masthead and the
+// day's lead, and opens as a sheet.
+function renderPaper(g) {
+  const fold = $("gazette");
+  fold.hidden = !g || !g.lines || g.lines.length === 0;
+  if (fold.hidden) return;
+  $("gazette-no").textContent = "No. " + g.issue;
+  $("gazette-lead").textContent = g.lines[0];
+}
+
+function paper(g, nb) {
+  const page = el("article", "paper");
   const top = el("div", "paper-ear");
   top.append(el("span", "", "Vol. I · No. " + g.issue), el("span", "", "One pebble"));
   const date = el("div", "paper-date");
   date.append(el("span", "", g.date), el("span", "", "Weather: " + g.sky));
-  paper.append(top, el("h3", "paper-head", "The Pond Gazette"), date);
+  page.append(top, el("h3", "paper-head", "The Pond Gazette"), date);
   const [lead, ...rest] = g.lines;
   const who = nb && nb.all[g.photo];
   if (who) {
     const story = el("div", "paper-front"), fig = el("figure", "paper-photo");
     fig.append(residentArt(who, 3), el("figcaption", "", g.pictured ? who.name + ", pictured" : "File photo"));
     story.append(fig, el("p", "paper-lead", lead));
-    paper.append(story);
-  } else paper.append(el("p", "paper-lead", lead));
+    page.append(story);
+  } else page.append(el("p", "paper-lead", lead));
   const cols = el("div", "paper-cols");
   rest.forEach((h) => cols.append(el("p", "paper-story", h)));
-  paper.append(cols);
+  page.append(cols);
   if (g.business) {
     const biz = el("p", "paper-biz");
     biz.append(el("b", "", "Business"), " " + g.business);
-    paper.append(biz);
+    page.append(biz);
   }
   if (g.records && g.records.length) {
     const rec = el("p", "paper-biz");
     rec.append(el("b", "", "Records"), " " + g.records.join(" "));
-    paper.append(rec);
+    page.append(rec);
   }
+  return page;
 }
+
+$("gazette").addEventListener("click", () => {
+  const p = state.pond;
+  openSheet({ bare: true, name: "The Pond Gazette" }, "", (body) => body.append(paper(p.gazette, p.neighbours)));
+});
 
 // The server decides what's worth doing, and the gravel bar and rent count up
 // here between fetches, so a chip can appear or grow before the next one.
