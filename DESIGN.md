@@ -606,9 +606,14 @@ version of the old look and a handheld pet shell.
   filter is a small raised key that stays pushed in and amber while it's on,
   since a sunken one read as disabled. The places in town are a row of five
   keys with pixel art over the label like the tab bar, so they never wrap.
-- **Every screen gets a picture in a window.** The bank, the reeds, settings and
+- **Every screen gets a picture in a window.** Works, the reeds, settings and
   the kitchen too, with their words under the picture and never instead of it.
   A screen window has a bezel and a screw at each top corner.
+- **Works has one picture for all of it**, over its three keys. The bank side
+  of the pond from left to right, the reeds' lodge, the garden shed and its
+  beds, the gravel bar, the dye works and the burrows, each dimmed until it's
+  built. A window or a lamp is lit yellow on whatever has something ready,
+  and a tap on a building opens its place.
 - **Panel labels are printed on.** Small caps in warm grey like the lettering on
   a faceplate, with section heads in amber as below.
 - **Empty spots are hazard striped sunken trays** with a dim outline of what

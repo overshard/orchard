@@ -16,6 +16,7 @@ import { drawTop } from "./top.js";
 import { initWheel, enterWheel } from "./wheel.js";
 import { initReeds } from "./reeds.js";
 import { initBank, enterBank, leaveBank } from "./bank.js";
+import { drawWorks } from "./scenes.js";
 import { initShops } from "./shops.js";
 import { initUI, reveal, thingArt, drawBox } from "./ui.js";
 import { initBag } from "./bag.js";
@@ -428,6 +429,7 @@ function renderPond(p) {
   $("today-head").hidden = today.hidden = lines.length === 0;
   renderPaper(p.gazette, p.neighbours);
   renderTodo(p);
+  renderWorks(p);
   renderStarter(p);
   renderPlay(p);
 }
@@ -504,6 +506,20 @@ $("starter-claim").addEventListener("click", () => {
   }, () => {}).then(() => { $("starter-claim").disabled = false; });
 });
 
+// The picture over Works lights a window for each kind of thing that's ready.
+function renderWorks(p) {
+  const ready = new Set(p.todo.map((t) => t.kind));
+  if (heldNow(p.bank.gravel) >= 1) ready.add("gravel");
+  if (heldNow(p.bank.burrows) >= 1) ready.add("rent");
+  drawWorks($("works-art"), p, ready);
+}
+
+// A tap on the picture opens the place under the finger.
+$("works-art").addEventListener("click", (e) => {
+  const r = e.target.getBoundingClientRect(), k = (e.clientX - r.left) / r.width;
+  location.hash = "#" + (k < 0.2 ? "reeds" : k < 0.41 ? "garden" : "bank");
+});
+
 let allChips = false;
 
 function renderTodo(p) {
@@ -541,7 +557,11 @@ function renderTodo(p) {
     box.append(s);
   }
 }
-setInterval(() => { if (state.pond && !document.hidden) renderTodo(state.pond); }, 20000);
+setInterval(() => {
+  if (!state.pond || document.hidden) return;
+  renderTodo(state.pond);
+  renderWorks(state.pond);
+}, 20000);
 
 // ---------------------------------------------------------------- play
 
