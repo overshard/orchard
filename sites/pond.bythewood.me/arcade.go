@@ -35,6 +35,7 @@ var arcadeGames = []arcadeGame{
 	{"drop", "Pebble drop", 40, 4, dropMost, 2},
 	{"sweep", "Bug sweep", 40, 0, bugSafe, 1},
 	{"chorus", "Chorus", 40, 7, chorusMost, 15},
+	{"putt", "Pad putt", 40, 5, puttMost, 3},
 }
 
 // Every beat of chorus right on time is all a song can score, before a
@@ -156,6 +157,8 @@ type arcadeStarted struct {
 	Run string `json:"run"`
 	// What's biting and how often, for fishing.
 	Fish map[string]float64 `json:"fish,omitempty"`
+	// The day's holes, for pad putt.
+	Putt []puttHole `json:"putt,omitempty"`
 }
 
 func (s *store) arcadeStart(id int64, key string) (*arcadeStarted, error) {
@@ -172,6 +175,9 @@ func (s *store) arcadeStart(id int64, key string) (*arcadeStarted, error) {
 		r.run, r.startedAt, r.keep = out.Run, now.Unix(), ""
 		if key == "fish" {
 			out.Fish = s.fishTableAt(now)
+		}
+		if key == "putt" {
+			out.Putt = puttDeal(dayOf(now), dayOfReading(s.day.reading(now), now).Wind)
 		}
 		return saveArcade(tx, p.ID, key, r)
 	})
