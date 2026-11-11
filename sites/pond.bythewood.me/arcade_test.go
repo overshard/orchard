@@ -80,3 +80,25 @@ func TestNewSideGamesStart(t *testing.T) {
 		}
 	}
 }
+
+// A run that sat paused behind a hidden page for an hour pays like any other.
+func TestAPausedRunStillPays(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	st, err := s.arcadeStart(id, "flick")
+	if err != nil {
+		t.Fatal(err)
+	}
+	*clock = clock.Add(time.Hour)
+	if d, err := s.arcadeFinish(id, "flick", st.Run, 12); err != nil || d.Paid != 12 {
+		t.Errorf("a paused flick: %v %+v", err, d)
+	}
+	run, err := s.diveStart(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	*clock = clock.Add(time.Hour)
+	if d, err := s.diveFinish(id, run.Run, 9, 6); err != nil || d.Score != 9 || d.Paid == 0 {
+		t.Errorf("a paused dive: %v %+v", err, d)
+	}
+}
