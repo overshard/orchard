@@ -189,6 +189,9 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   already a best friend hands its one over at the next greeting.
 - `burrow.go` is the bank's burrows. Each level adds a pad that doesn't count
   toward the ones you buy, and a friendly neighbour can lodge in one and pay rent.
+  It also keeps `ponds.paint`, the pieces of four pond paintings, one for
+  each visitor and each stamp handed over at a greeting, twelve to a
+  painting. The four are drawn in `company.js`.
 - `market.go` is the pond market, in three sorts. Shares in the town's
   businesses, each moved by one line of work across every pond, goods that are
   bought into the bag and sold out of it by the lot, and Glowworm Coin. A

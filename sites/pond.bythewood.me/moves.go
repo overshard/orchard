@@ -25,7 +25,9 @@ type greeting struct {
 	Visitor *visitorView `json:"visitor,omitempty"`
 	// Stamps left on the frog's page since the last greeting.
 	Stamps []stampView `json:"stamps"`
-	Pond   *view       `json:"pond"`
+	// Painted is the painting those finished, or -1.
+	Painted int   `json:"painted"`
+	Pond    *view `json:"pond"`
 }
 
 func plural(n int, one string) string {
@@ -38,7 +40,7 @@ func plural(n int, one string) string {
 // greet is the one call a visit makes. A present is handed over when the last
 // one was long enough ago and stamped there and then, so a reload finds none.
 func (s *store) greet(id int64, first bool) (*greeting, error) {
-	g := &greeting{First: first, Missed: [][2]string{}, Prizes: []prize{}, From: []int{}, Stamps: []stampView{}}
+	g := &greeting{First: first, Missed: [][2]string{}, Prizes: []prize{}, From: []int{}, Stamps: []stampView{}, Painted: -1}
 	v, err := s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
 		gen := frogOf(p, now).genome
 		hatched := time.Unix(p.HatchedAt, 0)
@@ -149,6 +151,13 @@ func (s *store) greet(id int64, first bool) (*greeting, error) {
 		}
 		if n := len(g.Stamps); n > 0 {
 			g.Missed = append(g.Missed, [2]string{"Stamps", plural(n, "stamp") + " on your frog's page"})
+		}
+		pieces := len(g.Stamps)
+		if g.Visitor != nil {
+			pieces++
+		}
+		if g.Painted, err = addPaint(tx, p.ID, pieces); err != nil {
+			return err
 		}
 
 		if gap := now.Sub(time.Unix(p.LastGiftAt, 0)); gap >= giftGap {

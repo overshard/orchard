@@ -216,6 +216,34 @@ type burrowView struct {
 	NextIn  int64 `json:"next_in"`
 	Chatted bool  `json:"chatted"`
 	LodgeAt int   `json:"lodge_at"`
+	// Paint is the pieces of the paintings in, paintPieces to a painting.
+	Paint int `json:"paint"`
+}
+
+// Each visitor and each stamp on the frog's page leaves a piece of a pond
+// painting, and a finished one hangs in the burrows.
+const (
+	paintPieces = 12
+	paintings   = 4
+)
+
+// addPaint puts n pieces in and says which painting that finished, or -1.
+func addPaint(tx *sql.Tx, id int64, n int) (int, error) {
+	var was int
+	if err := tx.QueryRow(`SELECT paint FROM ponds WHERE id = ?`, id).Scan(&was); err != nil {
+		return -1, err
+	}
+	now := min(was+n, paintPieces*paintings)
+	if now == was {
+		return -1, nil
+	}
+	if _, err := tx.Exec(`UPDATE ponds SET paint = ? WHERE id = ?`, now, id); err != nil {
+		return -1, err
+	}
+	if now/paintPieces > was/paintPieces {
+		return now/paintPieces - 1, nil
+	}
+	return -1, nil
 }
 
 func burrowViewOf(q querier, id int64, now time.Time) (burrowView, error) {
@@ -235,5 +263,8 @@ func burrowViewOf(q querier, id int64, now time.Time) (burrowView, error) {
 		v.NextIn = at + int64(3600/v.Rate) - now.Unix()
 	}
 	v.Chatted = b.rentDay == dayOf(now)
-	return v, err
+	if err != nil {
+		return v, err
+	}
+	return v, q.QueryRow(`SELECT paint FROM ponds WHERE id = ?`, id).Scan(&v.Paint)
 }

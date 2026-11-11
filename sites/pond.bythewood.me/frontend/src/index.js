@@ -20,7 +20,7 @@ import { initSettings } from "./settings.js";
 import { initPower, seePower } from "./power.js";
 import { initPostcard } from "./postcard.js";
 import { drawScenery, drawSceneryNight } from "./scenery.js";
-import { footprint, visitorReveal, stampsReveal } from "./company.js";
+import { footprint, visitorReveal, stampsReveal, paintingReveal } from "./company.js";
 import { initPet, setBox, pose, over as petOver, busy as petBusy, wasRub, tapTrick, arrive, drawBond } from "./pet.js";
 
 buildPlay($("shelves"), $("v-dive"));
@@ -868,6 +868,7 @@ function greet(g) {
   }
   if (g.visitor) reveal(visitorReveal(g.visitor));
   if (g.stamps && g.stamps.length) reveal(stampsReveal(g.stamps));
+  if (g.painted >= 0) reveal(paintingReveal(g.painted, g.pond.bank.burrows.level > 0));
   // A best friend from before there were mementos hands its one over now.
   if (g.prizes && g.prizes.length) presentsFrom(g);
   if (!reduced) greetAt = performance.now();

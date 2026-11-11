@@ -85,3 +85,39 @@ func TestBurrowLevelsCostMaterials(t *testing.T) {
 		t.Errorf("five burrows left %d pads and the next at %d", v.Pads, v.PadCost)
 	}
 }
+
+// Twelve pieces make a painting, four paintings in all, and a visitor and
+// every stamp on the frog's page each bring one.
+func TestPaintingsFillAPieceAVisitorAndStamp(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	_, other := newPond(t, s)
+	page := publicOf(t, s, id)
+	done := []int{}
+	for day := range 60 {
+		*clock = clock.Add(24 * time.Hour)
+		if day%2 == 0 {
+			if _, err := s.stamp(other, page, "leaf"); err != nil {
+				t.Fatal(err)
+			}
+		}
+		before, _ := s.view(id)
+		g, err := s.greet(id, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := min(before.Bank.Burrows.Paint+1+len(g.Stamps), paintPieces*paintings)
+		if got := g.Pond.Bank.Burrows.Paint; got != want {
+			t.Fatalf("day %d: %d pieces, want %d", day, got, want)
+		}
+		if g.Painted >= 0 {
+			done = append(done, g.Painted)
+			if g.Pond.Bank.Burrows.Paint < (g.Painted+1)*paintPieces {
+				t.Errorf("painting %d finished at %d pieces", g.Painted, g.Pond.Bank.Burrows.Paint)
+			}
+		}
+	}
+	if len(done) != paintings || done[0] != 0 || done[3] != 3 {
+		t.Errorf("paintings finished: %v", done)
+	}
+}

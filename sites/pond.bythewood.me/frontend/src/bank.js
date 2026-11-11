@@ -4,6 +4,7 @@ import { iconCanvas, dishCanvas } from "./icons.js";
 import { slot } from "./ui.js";
 import { genome, cells, colours, draw, W, H } from "./frog.js";
 import { presentsFrom } from "./neighbours.js";
+import { paintingArt, PAINTINGS, PIECES } from "./company.js";
 
 const gx = $("garden").getContext("2d");
 const GW = 176, S = 3;
@@ -340,6 +341,27 @@ function renderBurrows(p) {
   $("burrow-collect").disabled = bw.held < 1;
   $("burrow-build").textContent = build("Burrows", bw.level, bw.cost, bw.mats);
   $("burrow-build").disabled = !canBuild(p, bw);
+  renderPaintings(bw);
+}
+
+const SHORT = ["Dawn", "Rain", "Lantern", "Snow"];
+
+// The four paintings, the one under way gilding its frame as it fills.
+function renderPaintings(bw) {
+  $("paintings").replaceChildren(...PAINTINGS.map((name, i) => {
+    const have = Math.max(0, Math.min(PIECES, bw.paint - i * PIECES)), fig = document.createElement("figure"), cap = document.createElement("figcaption");
+    const art = paintingArt(i, have, 3);
+    art.setAttribute("role", "img");
+    art.setAttribute("aria-label", name + ", " + have + " of " + PIECES + " pieces");
+    cap.textContent = have === PIECES ? SHORT[i] : have + "/" + PIECES;
+    fig.className = have ? "" : "bare";
+    fig.append(art, cap);
+    return fig;
+  }));
+  const at = Math.floor(bw.paint / PIECES);
+  let note = at >= PAINTINGS.length ? "All four are done and on the wall." : (bw.paint % PIECES) + " of " + PIECES + " pieces in " + PAINTINGS[at].toLowerCase() + ". A visitor brings one, and so does each stamp on your frog's page.";
+  if (at && !bw.level) note += " The finished ones go up once a burrow's dug.";
+  say("paint-note", note);
 }
 
 function nameOf(kind) {

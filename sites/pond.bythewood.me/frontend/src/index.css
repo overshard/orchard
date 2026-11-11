@@ -1307,6 +1307,36 @@ body:has(.tabs) main {
   user-select: all;
 }
 
+/* The burrows' paintings, four frames in a row. */
+.paintings {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0 4px;
+}
+
+.paintings figure {
+  margin: 0;
+  text-align: center;
+}
+
+.paintings canvas {
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+}
+
+.paintings figure.bare canvas {
+  opacity: 0.5;
+}
+
+.paintings figcaption {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: var(--track);
+  text-transform: uppercase;
+}
+
 /* Six stamp keys on a frog's page. The one pressed today latches down. */
 .stampkeys {
   display: grid;
