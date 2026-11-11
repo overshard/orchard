@@ -23,7 +23,7 @@ func most() *tally {
 	t := &tally{fish: len(fishKinds), records: len(fishKinds), podium: 1, won: 1, games: len(arcadeGames) + 1, played: len(arcadeGames) + 1,
 		stage: stageRank["elder"], frogs: 3, hearts: bondHearts, jobBest: maxLevel, hoods: len(jobs), pets: len(pets),
 		hats: hatsInGame, trinkets: len(trinkets), rocks: len(rocks), keepsakes: len(keepsakes), sets: len(sets),
-		power: fullPower().Total, gravel: buildLevels, garden: buildLevels, built: 4, dishes: dishCount, lodgers: 1,
+		power: powerWhole, rank: len(ranks) - 1, gravel: buildLevels, garden: buildLevels, built: 4, dishes: dishCount, lodgers: 1,
 		furniture: len(furniture), friends: len(residents), mementos: len(mementos), stall: 1, share: 1, days: 365, sites: len(siteHats), key: 1, swept: bugSafe, dropped: dropMost,
 		crickets: 100, fireflies: 1, mastered: 1}
 	for _, f := range fishKinds {

@@ -351,6 +351,7 @@ func (s *store) bugTap(id int64, run string, pad int) (*bugTapped, error) {
 			p.Pebbles += out.Paid
 			r.dayState, r.daySecs, r.dayTaps, r.dayOpen = b.state, out.Secs, out.Taps, b.opened
 		}
+		a.plays++
 		if b.opened > a.best {
 			a.best, out.Best = b.opened, true
 		}

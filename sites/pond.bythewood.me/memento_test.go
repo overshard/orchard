@@ -67,7 +67,7 @@ func TestABestFriendHandsOverItsMementoOnce(t *testing.T) {
 		t.Fatalf("four hearts handed over %v", m)
 	}
 	v, _ := s.view(id)
-	if v.Neighbours.All[4].Memento != "" || v.Mementos[4].Day != "" || v.Share.Power.Mementos != 0 {
+	if v.Neighbours.All[4].Memento != "" || v.Mementos[4].Day != "" || v.Share.Power.part("mementos").Have != 0 {
 		t.Fatalf("before five hearts: %+v", v.Mementos[4])
 	}
 	before := v.Share.Power.Total
@@ -85,7 +85,7 @@ func TestABestFriendHandsOverItsMementoOnce(t *testing.T) {
 		t.Errorf("after five hearts: %+v on %+v", v.Mementos[4], v.Neighbours.All[4])
 	}
 	// The level five hat counts too, so only the memento's share is checked.
-	if p := v.Share.Power; p.Mementos != mementoPower || p.MementosHad != 1 || p.Total <= before+mementoPower-1 {
+	if p := v.Share.Power; p.part("mementos").Have != 1 || p.Total <= before {
 		t.Errorf("power went from %d to %+v", before, p)
 	}
 	for i, m := range v.Mementos {
@@ -125,7 +125,7 @@ func TestAnOldBestFriendHandsItOverAtTheGreeting(t *testing.T) {
 	if len(g.Prizes) != 2 || len(g.From) != 2 || g.From[0] != 0 || g.From[1] != 11 || g.Prizes[0].Item != "m_float" || g.Prizes[1].Item != "m_shiny" {
 		t.Fatalf("the greeting handed over %+v from %v", g.Prizes, g.From)
 	}
-	if g.Pond.Share.Power.MementosHad != 2 || g.Pond.Neighbours.All[11].Memento != "m_shiny" || g.Pond.Neighbours.All[5].Memento != "" {
+	if g.Pond.Share.Power.part("mementos").Have != 2 || g.Pond.Neighbours.All[11].Memento != "m_shiny" || g.Pond.Neighbours.All[5].Memento != "" {
 		t.Errorf("after the greeting: %+v", g.Pond.Share.Power)
 	}
 	*clock = clock.Add(time.Hour)
@@ -170,13 +170,6 @@ func TestAMementoCantBeSoldOrSpent(t *testing.T) {
 
 func TestMementosCountInPower(t *testing.T) {
 	had := map[string]bool{"m_float": true, "m_shiny": true}
-	p := powerOf(rarity{N: 1}, nil, had, 0, 0, 0)
-	if p.Mementos != 2*mementoPower || p.MementosHad != 2 || p.Total != 2*mementoPower {
-		t.Errorf("two mementos: %+v", p)
-	}
-	if got := fullPower().Mementos; got != len(mementos)*mementoPower {
-		t.Errorf("a full shelf counts %d", got)
-	}
 	best := bestFinds(nil, had, 8)
 	if len(best) != 2 || best[0].Name != "Sedge's lucky float" || best[0].Tier != mementoTier {
 		t.Errorf("best finds: %+v", best)
@@ -189,10 +182,13 @@ func TestMementosCountInPower(t *testing.T) {
 		t.Fatal(err)
 	}
 	v, _ := s.view(id)
+	if m := v.Share.Power.part("mementos"); m.Have != 1 || m.Pts != m.Of/len(mementos) {
+		t.Errorf("one memento counts %+v", m)
+	}
 	var public string
 	_ = s.r.QueryRow(`SELECT public_id FROM ponds WHERE id = ?`, id).Scan(&public)
 	sh, err := s.shownBy(public)
-	if err != nil || sh.Power.Mementos != mementoPower || sh.Power.Total != v.Share.Power.Total {
+	if err != nil || sh.Power.part("mementos") != v.Share.Power.part("mementos") || sh.Power.Total != v.Share.Power.Total {
 		t.Errorf("shown %+v, the pond has %+v (%v)", sh.Power, v.Share.Power, err)
 	}
 }

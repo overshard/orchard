@@ -67,16 +67,11 @@ func keyCSP() string {
 }
 
 var templateFuncs = template.FuncMap{
-	"commas":          commas,
-	"pct":             func(n, of int) int { return 100 * n / max(1, of) },
-	"lower":           strings.ToLower,
-	"hatsInGame":      func() int { return hatsInGame },
-	"trinketsInGame":  func() int { return len(trinkets) },
-	"rocksInGame":     func() int { return len(rocks) },
-	"keepsakesInGame": func() int { return len(keepsakes) },
-	"fishInGame":      func() int { return len(fishKinds) },
-	"mementosInGame":  func() int { return len(mementos) },
-	"join":            strings.Join,
+	"commas": commas,
+	"pct":    func(n, of int) int { return 100 * n / max(1, of) },
+	"lower":  strings.ToLower,
+	"groups": powerGroups,
+	"join":   strings.Join,
 	// One pip for a common thing up to five for a legendary one.
 	"pips": func(tier int) []struct{} { return make([]struct{}, tier+1) },
 	"json": func(v any) (string, error) {

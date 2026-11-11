@@ -73,7 +73,7 @@ func TestTrinketsPlaceAndCook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if sh.Spots[0] != got || sh.Spots[1] != "" || sh.Power.Trinkets < trinketPower[tierCount-1] || sh.Power.Total != c.Pond.Share.Power.Total || sh.Power.Rank != c.Pond.Share.Power.Rank {
+	if sh.Spots[0] != got || sh.Spots[1] != "" || sh.Power.part("trinkets").Have < 1 || sh.Power.Total != c.Pond.Share.Power.Total || sh.Power.Rank != c.Pond.Share.Power.Rank {
 		t.Errorf("shown %v with %+v, the pond has %+v", sh.Spots, sh.Power, c.Pond.Share.Power)
 	}
 }

@@ -126,6 +126,8 @@ type arcadeRow struct {
 	day, run         string
 	runs, paid, best int
 	startedAt        int64
+	// Every run that counted, for the reference a game's power is held to.
+	plays int
 	// Fishing's last round can keep one of these kinds for the kitchen, and
 	// kept is how many it has kept today.
 	keep string
@@ -134,8 +136,8 @@ type arcadeRow struct {
 
 func loadArcade(q querier, id int64, key string) (arcadeRow, error) {
 	var r arcadeRow
-	err := q.QueryRow(`SELECT day, runs, paid, best, run, started_at, keep, kept FROM arcade WHERE pond_id = ? AND game = ?`, id, key).
-		Scan(&r.day, &r.runs, &r.paid, &r.best, &r.run, &r.startedAt, &r.keep, &r.kept)
+	err := q.QueryRow(`SELECT day, runs, paid, best, run, started_at, keep, kept, plays FROM arcade WHERE pond_id = ? AND game = ?`, id, key).
+		Scan(&r.day, &r.runs, &r.paid, &r.best, &r.run, &r.startedAt, &r.keep, &r.kept, &r.plays)
 	if errors.Is(err, sql.ErrNoRows) {
 		return r, nil
 	}
@@ -143,10 +145,10 @@ func loadArcade(q querier, id int64, key string) (arcadeRow, error) {
 }
 
 func saveArcade(tx *sql.Tx, id int64, key string, r arcadeRow) error {
-	_, err := tx.Exec(`INSERT INTO arcade (pond_id, game, day, runs, paid, best, run, started_at, keep, kept) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	_, err := tx.Exec(`INSERT INTO arcade (pond_id, game, day, runs, paid, best, run, started_at, keep, kept, plays) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (pond_id, game) DO UPDATE SET day = excluded.day, runs = excluded.runs, paid = excluded.paid,
-		best = excluded.best, run = excluded.run, started_at = excluded.started_at, keep = excluded.keep, kept = excluded.kept`,
-		id, key, r.day, r.runs, r.paid, r.best, r.run, r.startedAt, r.keep, r.kept)
+		best = excluded.best, run = excluded.run, started_at = excluded.started_at, keep = excluded.keep, kept = excluded.kept, plays = excluded.plays`,
+		id, key, r.day, r.runs, r.paid, r.best, r.run, r.startedAt, r.keep, r.kept, r.plays)
 	return err
 }
 
@@ -238,6 +240,7 @@ func (s *store) arcadeFinish(id int64, key, run string, score int, landed map[st
 			out.Score, out.Singer = score, true
 		}
 		r.runs++
+		r.plays++
 		pay := score / g.per
 		if r.runs > fullRuns(key, now) {
 			pay = score / (4 * g.per)

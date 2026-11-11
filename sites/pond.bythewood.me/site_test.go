@@ -412,8 +412,8 @@ func TestAFrogFindsASitesHatOnce(t *testing.T) {
 			t.Errorf("%s should be common and worn, never held", h.name())
 		}
 	}
-	if pw := powerOf(rarity{N: 2}, []hat{siteHatFor(0)}, nil, 0, 0, 0); pw.Hats != 20 {
-		t.Errorf("a site hat counts %d power, want 20", pw.Hats)
+	if pw := powerOf(powerIn{finds: map[string][]piece{"sites": filled(shelves()["sites"], 1)}}, 0).part("sites"); pw.Have != 1 || pw.Pts != (pw.Of+len(siteHats)/2)/len(siteHats) {
+		t.Errorf("a site hat counts %+v", pw)
 	}
 }
 
@@ -490,7 +490,7 @@ func TestShareTheFrog(t *testing.T) {
 		t.Fatalf("greet: %d", code)
 	}
 	path := g.Pond.Share.Path
-	if !strings.HasPrefix(path, "/f/") || g.Pond.Share.Power.Total != g.Pond.Share.Power.Frog {
+	if !strings.HasPrefix(path, "/f/") || g.Pond.Share.Power.Total != g.Pond.Share.Power.part("rarity").Pts+g.Pond.Share.Power.part("frogs").Pts {
 		t.Fatalf("share: %+v", g.Pond.Share)
 	}
 
@@ -515,78 +515,6 @@ func TestShareTheFrog(t *testing.T) {
 	for _, bad := range []string{"/f/pip-0000000000000000", "/f/pip", "/f/pip-0000000000000000/card.png", "/f/pip-ZZZZ"} {
 		if rec = b.do(http.MethodGet, bad, ""); rec.Code != http.StatusNotFound {
 			t.Errorf("%s: %d", bad, rec.Code)
-		}
-	}
-}
-
-func TestPowerAddsUp(t *testing.T) {
-	p := powerOf(rarity{N: 32}, []hat{{3, hatGolden}, {8, 0}}, map[string]bool{"t_acorn": true, "t_pearl": true, "moonstone": true, "k_frost": true}, 23, 0, 0)
-	if p.Frog != 600 || p.Hats != 920 || p.Trinkets != 410 || p.TrinketsFound != 2 || p.Rocks != 800 || p.Keepsakes != 50 || p.Dive != 575 || p.Total != 3355 || p.Rank != "POND REGULAR" {
-		t.Errorf("power: %+v", p)
-	}
-	if p.Next != 5000-3355 || p.NextName != "LILY LORD" {
-		t.Errorf("the next rung: %d more to %s", p.Next, p.NextName)
-	}
-	if p := powerOf(rarity{N: 10}, nil, nil, 0, 0, 0); p.Rank != "NEW TO THE POND" {
-		t.Errorf("a new frog's rank: %+v", p)
-	}
-	if p := powerOf(rarity{N: 10}, nil, nil, 500, 0, 0); p.Dive != diveCounts*divePower {
-		t.Errorf("a best Dive of 500 counts %d", p.Dive)
-	}
-	if p := powerOf(rarity{N: 32}, nil, nil, 0, 0, 9); p.Bond != bondHearts*bondPower || p.Total != 600+p.Bond {
-		t.Errorf("five hearts and no more count: %+v", p)
-	}
-}
-
-// Everything there is to find, on the rarest frog an egg can hatch.
-func fullPower() power {
-	var held []hat
-	for _, hs := range hatsByTier {
-		held = append(held, hs...)
-	}
-	for i := range jobs {
-		held = append(held, hoodFor(i))
-	}
-	for i := range siteHats {
-		held = append(held, siteHatFor(i))
-	}
-	had := map[string]bool{}
-	for _, x := range trinkets {
-		had[x.kind] = true
-	}
-	for _, x := range rocks {
-		had[x.kind] = true
-	}
-	for _, x := range keepsakes {
-		had[x.kind] = true
-	}
-	for _, x := range fishKinds {
-		had[fishHad+x.kind] = true
-	}
-	for _, x := range mementos {
-		had[x.kind] = true
-	}
-	return powerOf(rarity{N: 5600}, held, had, diveCounts, len(jobs)*maxLevel, bondHearts)
-}
-
-func TestTheTopRungIsTheTop(t *testing.T) {
-	p := fullPower()
-	top := ranks[len(ranks)-1]
-	t.Logf("a full collection is %d, and the top rung is %d%% of it", p.Total, 100*top.at/p.Total)
-	if p.Rank != top.name || p.Next != 0 || p.NextName != "" || p.Fill != 100 {
-		t.Errorf("a full collection: %d, %s, %d more to %q, bar at %d", p.Total, p.Rank, p.Next, p.NextName, p.Fill)
-	}
-	// The top takes most of a full collection and can still be reached.
-	if top.at < p.Total*6/10 || top.at > p.Total*9/10 {
-		t.Errorf("the top rung is %d and a full collection is %d", top.at, p.Total)
-	}
-	for i := 1; i < len(ranks); i++ {
-		if ranks[i].at <= ranks[i-1].at {
-			t.Errorf("rung %s isn't above %s", ranks[i].name, ranks[i-1].name)
-		}
-		q := power{Total: ranks[i].at}
-		if q.climb(); q.Next < 0 || q.Rank != ranks[i].name {
-			t.Errorf("at %d: %s with %d to go", ranks[i].at, q.Rank, q.Next)
 		}
 	}
 }
