@@ -46,11 +46,28 @@ func todoOf(v *view) []todo {
 	if b.Dye.Busy && b.Dye.ReadyIn <= 0 {
 		add("dye", "dye_blue", "Dye's ready", "bank")
 	}
-	for _, f := range v.Frogs {
-		if f.Work != nil && f.Work.Job != "" && f.Work.Hours >= float64(v.Jobs.Hold) {
-			add("shift", "sticks", "A shift is done", "reeds")
-			break
+	full, short := []string{}, []*reedView{}
+	for i, f := range v.Frogs {
+		if f.Work == nil {
+			continue
 		}
+		switch f.Work.Stop {
+		case "full":
+			if j, ok := jobOf(f.Work.Job); ok {
+				full = append(full, j.keep)
+			}
+		case "short":
+			short = append(short, &v.Frogs[i])
+		}
+	}
+	switch {
+	case len(full) == 1:
+		add("shift", "sticks", "Basket full, collect to keep "+full[0], "job")
+	case len(full) > 1:
+		add("shift", "sticks", fmt.Sprintf("%d baskets full, collect to keep them working", len(full)), "job")
+	}
+	for _, f := range short {
+		add("short", f.Work.Short, titled(f.Name)+" ran out of "+f.Work.Short, "job")
 	}
 	if v.Stall.Takings > 0 {
 		add("stall", "i_town", fmt.Sprintf("Stall sold %d", v.Stall.Takings), "town")

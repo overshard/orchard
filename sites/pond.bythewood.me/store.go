@@ -75,7 +75,10 @@ CREATE TABLE IF NOT EXISTS frogs (
     bond_today  INTEGER NOT NULL DEFAULT 0,
     heart_day   TEXT NOT NULL DEFAULT '',
     fav_dish    TEXT NOT NULL DEFAULT '',
-    fav_hat     TEXT NOT NULL DEFAULT ''
+    fav_hat     TEXT NOT NULL DEFAULT '',
+    target      TEXT NOT NULL DEFAULT '',
+    work_at     INTEGER NOT NULL DEFAULT 0,
+    work_n      INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS frogs_pond ON frogs(pond_id);
 
@@ -346,6 +349,9 @@ var addedColumns = []struct{ table, name, def string }{
 	{"ponds", "trinket_pity", "INTEGER NOT NULL DEFAULT 0"},
 	{"ponds", "want_hat", "TEXT NOT NULL DEFAULT ''"},
 	{"ponds", "want_fill", "INTEGER NOT NULL DEFAULT 0"},
+	{"frogs", "target", "TEXT NOT NULL DEFAULT ''"},
+	{"frogs", "work_at", "INTEGER NOT NULL DEFAULT 0"},
+	{"frogs", "work_n", "INTEGER NOT NULL DEFAULT 0"},
 }
 
 func ensureColumns(db *sql.DB) error {
@@ -436,6 +442,10 @@ func openStore(path string, pepper []byte) (*store, error) {
 	}
 	// A frog fed before meals ran on a clock is full from now.
 	if _, err := w.Exec(`UPDATE frogs SET fed_at = unixepoch() WHERE fed != '' AND fed_at = 0`); err != nil {
+		w.Close()
+		return nil, err
+	}
+	if err := migrateJobs(w, time.Now()); err != nil {
 		w.Close()
 		return nil, err
 	}
@@ -889,7 +899,7 @@ func frogViewOf(f frogRow, now time.Time) frogView {
 }
 
 // viewOf settles a copy, so reading a pond never writes to it.
-func viewOf(q querier, p pond, now time.Time) (*view, error) {
+func viewOf(q querier, p pond, now time.Time, key []byte) (*view, error) {
 	p.settle(now)
 	v := &view{Frog: frogOf(&p, now), Pebbles: p.Pebbles, Visited: p.DaysVisited, Rested: p.rested(now), Dev: devBuild}
 	v.Wheel.Slices = wheelSlices
@@ -952,7 +962,12 @@ func viewOf(q querier, p pond, now time.Time) (*view, error) {
 	if err != nil {
 		return nil, err
 	}
-	v.Jobs = jobsView{Defs: jobDefs(), Recipes: recipeViews(), Hold: int(workHold / time.Hour), Total: bestLevels(xp)}
+	v.Jobs = jobsView{Defs: jobDefs(), Hold: int(workHold / time.Hour), Total: bestLevels(xp)}
+	items, err := heldItems(q, p.ID)
+	if err != nil {
+		return nil, err
+	}
+	work := runs(key, frogs, xp, items, now)
 	earned := hoodsEarned(xp)
 	found = append(found, earned...)
 	for i, j := range jobs {
@@ -981,8 +996,10 @@ func viewOf(q querier, p pond, now time.Time) (*view, error) {
 			rv.Fed = &mealView{f.Fed, d.name, d.tier, mealTakes[d.tier], mealEyes[d.tier], mealBoost[d.tier], fullUntil(f) - now.Unix(), f.Fed == f.FavDish}
 		}
 		if canWork(f, now) {
-			rv.Work = workOf(f, xpOf(xp, f.ID), now)
-			v.Jobs.Waiting += rv.Work.Hours
+			rv.Work = workOf(f, xpOf(xp, f.ID), work[f.ID], now)
+			if rv.Work.Done > 0 {
+				v.Jobs.Baskets++
+			}
 		}
 		v.Frogs = append(v.Frogs, rv)
 	}
@@ -1034,7 +1051,7 @@ func (s *store) view(id int64) (*view, error) {
 		return nil, err
 	}
 	now := s.now()
-	v, err := viewOf(s.r, *p, now)
+	v, err := viewOf(s.r, *p, now, s.pepper)
 	if err != nil {
 		return nil, err
 	}
@@ -1059,7 +1076,7 @@ func (s *store) act(id int64, fn func(tx *sql.Tx, p *pond, now time.Time) error)
 		if err := savePond(tx, p); err != nil {
 			return err
 		}
-		v, err = viewOf(tx, *p, now)
+		v, err = viewOf(tx, *p, now, s.pepper)
 		if err != nil {
 			return err
 		}

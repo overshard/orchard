@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"errors"
+	"math"
 	"testing"
 	"time"
 )
@@ -16,7 +17,21 @@ func TestTheLevelTableIsRuneScapes(t *testing.T) {
 	}
 }
 
-func TestAFrogWorksAShift(t *testing.T) {
+// working hatches the pond's frog and sets it to a target.
+func working(t *testing.T, job, target string) (*store, *time.Time, int64, int64) {
+	t.Helper()
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	*clock = clock.Add(2 * 24 * time.Hour)
+	v, _ := s.view(id)
+	f := v.Frogs[0].ID
+	if _, err := s.setJob(id, f, job, target); err != nil {
+		t.Fatal(err)
+	}
+	return s, clock, id, f
+}
+
+func TestAFrogWorksActions(t *testing.T) {
 	s, clock := testStore(t)
 	_, id := newPond(t, s)
 	v, _ := s.view(id)
@@ -31,27 +46,195 @@ func TestAFrogWorksAShift(t *testing.T) {
 	if _, err := s.setJob(id, f, "sticks", ""); err != nil {
 		t.Fatal(err)
 	}
+	*clock = clock.Add(19 * time.Minute)
+	if _, err := s.collectJobs(id); !errors.Is(err, errNotYet) {
+		t.Errorf("collected before the first twig: %v", err)
+	}
+	if v, _ := s.view(id); v.Frogs[0].Work.XP != 0 || v.Frogs[0].Work.Levels[2].XP != 0 {
+		t.Errorf("xp before an action finished: %+v", v.Frogs[0].Work)
+	}
 	*clock = clock.Add(30 * time.Hour)
 	v, _ = s.view(id)
-	if w := v.Frogs[0].Work; w == nil || w.Hours != 12 || v.Jobs.Waiting != 12 {
-		t.Fatalf("a shift past the hold: %+v", v.Frogs[0].Work)
+	w := v.Frogs[0].Work
+	if w.Target != "twigs" || w.Act != 1200 || w.Done != 36 || w.Cap != 36 || w.Stop != "full" || w.FullIn != 0 || v.Jobs.Baskets != 1 {
+		t.Fatalf("a basket past the hold: %+v", w)
+	}
+	row := false
+	for _, r := range v.Todo {
+		row = row || r.Label == "Basket full, collect to keep gathering" && r.To == "job"
+	}
+	if !row {
+		t.Errorf("no row for the full basket in %+v", v.Todo)
+	}
+	*clock = clock.Add(5 * time.Hour)
+	if v2, _ := s.view(id); v2.Frogs[0].Work.Done != 36 || v2.Frogs[0].Work.Basket[0].N != w.Basket[0].N {
+		t.Errorf("a full basket kept filling: %+v", v2.Frogs[0].Work)
 	}
 	c, err := s.collectJobs(id)
 	if err != nil || len(c.Done) != 1 {
 		t.Fatalf("collect: %v %+v", err, c)
 	}
 	d := c.Done[0]
-	if n := d.Got["sticks"]; n < 30 || n > 60 {
-		t.Errorf("%d sticks for twelve hours", n)
+	if d.Actions != 36 || d.Got["sticks"] != w.Basket[0].N || d.XP != w.XP || d.Stop != "full" {
+		t.Errorf("collected %+v from a basket of %+v", d, w)
 	}
-	if d.Level != levelOf(12*xpPerHour) || d.Up != d.Level-1 {
-		t.Errorf("level after a shift: %+v", d)
+	if d.Level != levelOf(36*1650) || d.Up != d.Level-1 {
+		t.Errorf("level after a basket: %+v", d)
 	}
 	if _, err := s.collectJobs(id); !errors.Is(err, errNotYet) {
 		t.Errorf("collected twice: %v", err)
 	}
 	if v := c.Pond; v.Jobs.Total != d.Level+len(jobs)-1 || v.Share.Power.JobsTotal != v.Jobs.Total {
 		t.Errorf("total level %d, power %+v", v.Jobs.Total, v.Share.Power)
+	}
+	if w := c.Pond.Frogs[0].Work; w.Done != 0 || w.Stop != "" || w.Since != 0 {
+		t.Errorf("a stopped frog didn't start again from now: %+v", w)
+	}
+}
+
+// What the view says is in the basket is what collecting pays, item for item
+// and pebble for pebble, finds and misses too.
+func TestTheBasketIsWhatCollectingPays(t *testing.T) {
+	for _, job := range []string{"bugs", "pebbles", "garden", "mud"} {
+		s, clock, id, _ := working(t, job, "")
+		*clock = clock.Add(7*time.Hour + 13*time.Minute)
+		v, _ := s.view(id)
+		w := v.Frogs[0].Work
+		before := v.Pebbles
+		c, err := s.collectJobs(id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		d := c.Done[0]
+		got := map[string]int{}
+		for k, n := range d.Got {
+			got[k] += n
+		}
+		for k, n := range d.Finds {
+			got[k] += n
+		}
+		if d.Pebbles > 0 {
+			got["peb"] = d.Pebbles
+		}
+		shown := map[string]int{}
+		for _, x := range w.Basket {
+			shown[x.Kind] += x.N
+		}
+		if len(got) != len(shown) || d.XP != w.XP || d.Misses != w.Misses || d.Actions != w.Done {
+			t.Errorf("%s: shown %v %+v, paid %v %+v", job, shown, w, got, d)
+		}
+		for k, n := range shown {
+			if got[k] != n {
+				t.Errorf("%s: shown %d %s, paid %d", job, n, k, got[k])
+			}
+		}
+		if c.Pond.Pebbles-before != shown["peb"] {
+			t.Errorf("%s: the purse moved %d for %d shown", job, c.Pond.Pebbles-before, shown["peb"])
+		}
+	}
+}
+
+// The page plays out the actions dealt ahead, and they have to be the ones
+// the basket then holds.
+func TestTheDealsAheadComeTrue(t *testing.T) {
+	s, clock, id, _ := working(t, "bugs", "")
+	*clock = clock.Add(2 * time.Hour)
+	v, _ := s.view(id)
+	w := v.Frogs[0].Work
+	if len(w.Ahead) != dealAhead {
+		t.Fatalf("dealt %d ahead", len(w.Ahead))
+	}
+	*clock = clock.Add(time.Duration(w.Act*int64(dealAhead)) * time.Second)
+	v2, _ := s.view(id)
+	w2 := v2.Frogs[0].Work
+	if w2.Done != w.Done+dealAhead {
+		t.Fatalf("%d done after %d and %d dealt", w2.Done, w.Done, dealAhead)
+	}
+	want := map[string]int{}
+	for _, x := range w.Basket {
+		want[x.Kind] += x.N
+	}
+	misses := w.Misses
+	for _, a := range w.Ahead {
+		for _, x := range a.Got {
+			want[x.Kind] += x.N
+		}
+		if a.Miss {
+			misses++
+		}
+	}
+	for _, x := range w2.Basket {
+		want[x.Kind] -= x.N
+	}
+	for k, n := range want {
+		if n != 0 {
+			t.Errorf("%s off by %d", k, n)
+		}
+	}
+	if misses != w2.Misses {
+		t.Errorf("%d misses dealt, %d in the basket", misses, w2.Misses)
+	}
+}
+
+// XP only comes with an action that finished, and a miss pays a fifth.
+func TestXPComesOnlyFromActions(t *testing.T) {
+	j, _ := jobOf("bugs")
+	all := j.targets[0]
+	all.miss = 1
+	r := &run{f: frogRow{ID: 7, WorkAt: 1000}, j: j, t: all, level: 1, act: 1800}
+	xp, n := 0, 0
+	for i := range 40 {
+		d := r.dealAt([]byte("k"), i)
+		xp += d.xp
+		n += d.n
+	}
+	if n != 0 || xp != 40*(all.xp/missShare) {
+		t.Errorf("a frog that caught nothing got %d things and %d xp", n, xp)
+	}
+	r.t = j.targets[0]
+	hits, misses, xp := 0, 0, 0
+	for i := range 400 {
+		d := r.dealAt([]byte("k"), i)
+		xp += d.xp
+		if d.miss {
+			misses++
+		} else {
+			hits += d.n
+		}
+	}
+	if xp != hits*r.t.xp+misses*(r.t.xp/missShare) || hits == 0 || misses == 0 {
+		t.Errorf("%d crickets and %d misses paid %d xp", hits, misses, xp)
+	}
+}
+
+func TestTargetsLockByLevel(t *testing.T) {
+	s, _, id, f := working(t, "bugs", "")
+	v, _ := s.view(id)
+	if v.Frogs[0].Work.Target != "cricket" {
+		t.Errorf("a new catcher is on %q", v.Frogs[0].Work.Target)
+	}
+	if _, err := s.setJob(id, f, "bugs", "firefly"); !errors.Is(err, errLevel) {
+		t.Errorf("fireflies at level 1: %v", err)
+	}
+	if _, err := s.setJob(id, f, "bugs", "moths"); !errors.Is(err, errNotHeld) {
+		t.Errorf("a target that isn't one: %v", err)
+	}
+	if err := s.write(func(tx *sql.Tx) error { return addXP(tx, id, f, "bugs", xpFor[25]) }); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.setJob(id, f, "bugs", "firefly"); err != nil {
+		t.Errorf("fireflies at 25: %v", err)
+	}
+	if _, err := s.setJob(id, f, "bugs", ""); err != nil {
+		t.Fatal(err)
+	}
+	if v, _ := s.view(id); v.Frogs[0].Work.Target != "firefly" {
+		t.Errorf("no target gave %q at 25", v.Frogs[0].Work.Target)
+	}
+	for _, j := range jobs {
+		if len(j.targets) == 0 || j.targets[0].level != 1 {
+			t.Errorf("%s has nothing to do at level 1", j.key)
+		}
 	}
 }
 
@@ -67,6 +250,9 @@ func TestCraftingUsesWhatItHas(t *testing.T) {
 	if _, err := s.setJob(id, f, jobCraft, "nonsense"); !errors.Is(err, errNotHeld) {
 		t.Errorf("a recipe that isn't one: %v", err)
 	}
+	if _, err := s.setJob(id, f, jobCraft, ""); !errors.Is(err, errNotHeld) {
+		t.Errorf("crafting nothing: %v", err)
+	}
 	if _, err := s.setJob(id, f, jobCraft, "t_raft"); err != nil {
 		t.Fatal(err)
 	}
@@ -79,11 +265,22 @@ func TestCraftingUsesWhatItHas(t *testing.T) {
 		t.Fatal(err)
 	}
 	*clock = clock.Add(6 * time.Hour)
+	v, _ = s.view(id)
+	if w := v.Frogs[0].Work; w.Done != 2 || w.Stop != "short" || w.Short != "sticks" {
+		t.Errorf("a crafter out of sticks: %+v", w)
+	}
+	short := false
+	for _, r := range v.Todo {
+		short = short || r.Kind == "short"
+	}
+	if !short {
+		t.Errorf("no row for running short in %+v", v.Todo)
+	}
 	c, err := s.collectJobs(id)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if d := c.Done[0]; d.Got["t_raft"] != 2 || d.Short {
+	if d := c.Done[0]; d.Got["t_raft"] != 2 || d.Actions != 2 || d.XP != 2*craftXP {
 		t.Errorf("crafted %+v", d)
 	}
 	held := map[string]int{}
@@ -93,28 +290,160 @@ func TestCraftingUsesWhatItHas(t *testing.T) {
 	if held["sticks"] != 1 || held["reeds"] != 5 {
 		t.Errorf("left over %+v", held)
 	}
-	if lv := c.Pond.Frogs[0].Work.Levels; lv[len(lv)-1].XP != 2*xpPerHour {
-		t.Errorf("crafting xp %+v", lv[len(lv)-1])
-	}
 	*clock = clock.Add(3 * time.Hour)
-	c, _ = s.collectJobs(id)
-	if d := c.Done[0]; len(d.Got) != 0 || !d.Short {
-		t.Errorf("made something from nothing: %+v", d)
+	if _, err := s.collectJobs(id); !errors.Is(err, errNotYet) {
+		t.Errorf("made something from nothing: %v", err)
 	}
 }
 
-func TestAFullFrogWorksHarder(t *testing.T) {
-	f := frogRow{Job: "sticks", JobAt: 1000, Fed: dishOf(10, 10).kind(), FedAt: 1000 + 3600}
-	h, fed := worked(f, time.Unix(1000+5*3600, 0))
-	if h != 5 || fed != 4 {
-		t.Errorf("worked %v hours, %v of them full", h, fed)
+// Two crafters share what the pond holds, the first frog first, so neither
+// basket counts the same reeds.
+func TestCraftersShareTheMaterials(t *testing.T) {
+	s, clock, id, a := working(t, jobCraft, "t_boat")
+	exec(t, s, `INSERT INTO frogs (pond_id, seed, name, hatched_at, out_front) VALUES (?, 7, 'PIP', ?, 0)`, id, clock.Add(-48*time.Hour).Unix())
+	v, _ := s.view(id)
+	b := v.Frogs[1].ID
+	if _, err := s.setJob(id, b, jobCraft, "t_boat"); err != nil {
+		t.Fatal(err)
 	}
-	if b := boosted(f, h, fed); b != 7 {
-		t.Errorf("boosted to %v", b)
+	if err := s.write(func(tx *sql.Tx) error { return addItem(tx, id, "reeds", 15) }); err != nil {
+		t.Fatal(err)
 	}
-	f.FedAt = 1000 - 47*3600
-	if _, fed := worked(f, time.Unix(1000+5*3600, 0)); fed != 1 {
-		t.Errorf("a meal running out mid shift counted %v hours", fed)
+	*clock = clock.Add(10 * time.Hour)
+	v, _ = s.view(id)
+	made := v.Frogs[0].Work.Done + v.Frogs[1].Work.Done
+	if made != 5 || v.Frogs[0].Work.Done < 1 {
+		t.Errorf("two crafters made %d boats from 15 reeds", made)
+	}
+	if _, err := s.setJob(id, b, "", ""); err != nil {
+		t.Fatal(err)
+	}
+	c, err := s.collectJobs(id)
+	if err != nil || c.Done[0].Got["t_boat"] != v.Frogs[0].Work.Done {
+		t.Errorf("the first crafter's basket moved: %v %+v", err, c)
+	}
+	_ = a
+}
+
+func TestAFullFrogBringsInSeconds(t *testing.T) {
+	d := dishOf(10, 10)
+	f := frogRow{Fed: d.kind(), FedAt: 1000}
+	if mealAt(f, 999) != 0 || mealAt(f, 1000) != mealBoost[d.tier] || mealAt(f, fullUntil(f)) != 0 {
+		t.Error("the meal counts outside its hours")
+	}
+	j, _ := jobOf("sticks")
+	r := &run{f: f, j: j, t: j.targets[0], level: 1, act: 600}
+	r.f.WorkAt = 1000
+	twos := 0
+	const n = 4000
+	for i := range n {
+		if r.dealAt([]byte("k"), i%40).n == 2 {
+			twos++
+		}
+		r.f.ID = int64(i / 40)
+	}
+	if got := float64(twos) / n; math.Abs(got-mealBoost[d.tier]) > 0.03 {
+		t.Errorf("a %v meal doubled %v of the time", mealBoost[d.tier], got)
+	}
+}
+
+// A frog working by the hour when this came in keeps every level and has
+// its held hours waiting as actions.
+func TestOldWorkMovesOntoTargets(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	age(t, s, id, 3*24*time.Hour)
+	v, _ := s.view(id)
+	f := v.Frogs[0].ID
+	exec(t, s, `UPDATE frogs SET job = 'mud', job_at = ? WHERE id = ?`, clock.Add(-3*time.Hour).Unix(), f)
+	exec(t, s, `INSERT INTO job_xp (pond_id, frog_id, job, xp) VALUES (?, ?, 'mud', 60000), (?, ?, 'bugs', 900)`, id, f, id, f)
+	exec(t, s, `INSERT INTO frogs (pond_id, seed, name, hatched_at, out_front, job, recipe, job_at, carry) VALUES (?, 7, 'PIP', ?, 0, 'craft', 't_boat', ?, 0.25)`,
+		id, clock.Add(-72*time.Hour).Unix(), clock.Add(-time.Hour).Unix())
+	if err := migrateJobs(s.w, *clock); err != nil {
+		t.Fatal(err)
+	}
+	v, _ = s.view(id)
+	w := v.Frogs[0].Work
+	if w.Target != "soft" || w.Since != 3*3600 || w.Done == 0 || w.Levels[4].XP != 60000 || w.Levels[1].XP != 900 {
+		t.Errorf("an old digger: %+v", w)
+	}
+	if c := v.Frogs[1].Work; c.Target != "t_boat" || c.Since != 3600+900 {
+		t.Errorf("an old crafter: %+v", c)
+	}
+	if err := migrateJobs(s.w, clock.Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	if v2, _ := s.view(id); v2.Frogs[0].Work.Since != w.Since {
+		t.Error("the move ran twice")
+	}
+}
+
+// Bank builds cost sticks, reeds and clay, so a day of work has to bring in
+// what it did by the hour, at every target and level.
+func TestADaysMaterialsStayPut(t *testing.T) {
+	today := map[string]float64{"sticks": 3, "reeds": 3, "mud": 2, "pebbles": 1}
+	for _, j := range jobs {
+		rate, ok := today[j.key]
+		if !ok {
+			continue
+		}
+		for _, tg := range j.targets {
+			for _, level := range []int{tg.level, 50, 99} {
+				if level < tg.level {
+					continue
+				}
+				for _, suited := range []bool{false, true} {
+					act := actSecs(tg, level, suited)
+					day := 86400 / float64(act) * float64(tg.n) * (1 - tg.miss)
+					was := 24 * rate * speedAt(level)
+					if suited {
+						was *= natureSpeed
+					}
+					if math.Abs(day/was-1) > 0.03 {
+						t.Errorf("%s %s at %d: %.1f a day, was %.1f", j.key, tg.key, level, day, was)
+					}
+				}
+			}
+		}
+	}
+	j, _ := jobOf("sticks")
+	r := &run{f: frogRow{ID: 3, WorkAt: 1}, j: j, t: j.targets[1], level: 30}
+	r.act = actSecs(r.t, 30, false)
+	got := 0
+	n := int(30 * 86400 / r.act)
+	for i := range n {
+		got += r.dealAt([]byte("k"), i).n
+	}
+	if perDay := float64(got) / 30; math.Abs(perDay/(72*speedAt(30))-1) > 0.03 {
+		t.Errorf("thirty days of branches at 30 brought %.1f sticks a day", perDay)
+	}
+	t.Logf("sticks a day at level 1, 30, 60 and 99: %.0f %.0f %.0f %.0f", 72*speedAt(1), 72*speedAt(30), 72*speedAt(60), 72*speedAt(99))
+}
+
+// Finds and pets turn up at the same rate an hour whatever the target.
+func TestFindsComeByTheHour(t *testing.T) {
+	j, _ := jobOf("mud")
+	for _, tg := range j.targets {
+		r := &run{f: frogRow{ID: 11, WorkAt: 1}, j: j, t: tg, level: 99}
+		r.act = actSecs(tg, 99, false)
+		agates, found := 0, 0
+		n := int(4000 * 3600 / r.act)
+		for i := range n {
+			for _, k := range r.dealAt([]byte("k"), i).finds {
+				if k == "agate" {
+					agates++
+				}
+				if pets[k] != "" {
+					found++
+				}
+			}
+		}
+		if per := 4000 / float64(agates); per < 9 || per > 11 {
+			t.Errorf("%s: an agate every %.1f hours", tg.key, per)
+		}
+		if found < 1 || found > 6 {
+			t.Errorf("%s: %d pets in 4000 hours at 99", tg.key, found)
+		}
 	}
 }
 

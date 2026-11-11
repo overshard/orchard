@@ -35,13 +35,16 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   a visitor can do to one, and `game.go` is the rules and the odds.
 - `breed.go` is the egg bench, the reeds and pads. A frog off the bench keeps
   how it differs from its seed as JSON in `frogs.genome_json`.
-- `jobs.go` is frog jobs. Every frog past the egg works one, the work piles
-  up for twelve hours on the server's clock, and each frog has a level from 1
-  to 99 in every job in `job_xp`, on RuneScape's xp table. Crafting is a job
-  that turns sticks, reeds and clay into trinkets and stamps. A frog fed a
-  dish is full for some hours by its tier and works harder while it is. A 99
-  earns the pond that job's hood, a hat with shape 101 and up that's worn
-  but never held, and each job has a pet trinket that only work turns up.
+- `jobs.go` is frog jobs. Every frog past the egg works one target of one
+  job, a list opened by level, as a run of actions on the server's clock.
+  Each finished action puts its thing in the frog's basket and pays xp for
+  it, and a basket holds twelve hours of actions before the frog stops. Each
+  frog has a level from 1 to 99 in every job in `job_xp`, on RuneScape's xp
+  table. Crafting is a job whose targets are recipes, one thing made from
+  sticks, reeds and clay an action. A frog fed a dish is full for some hours
+  by its tier and has a chance of bringing in two while it is. A 99 earns
+  the pond that job's hood, a hat with shape 101 and up that's worn but
+  never held, and each job has a pet trinket that only work turns up.
 - `bank.go` is the bank, the gravel bar and the garden plots, and the kitchen
   that turns two things from the garden into a dish. `kitchen.go` has the
   ingredients, what grows in which month and every dish.
@@ -361,5 +364,13 @@ they have none, for other sites to draw.
 - The frog's screen is a button with `touch-action: pan-y`, so a sideways
   drag is a rub and the click after one is swallowed. Anything new on the
   screen goes beside the button in `.frogscreen`, not inside it.
+- Nothing about a basket is stored but the frog's target, when its unpaid
+  actions began (`frogs.work_at`) and how many it was paid for before
+  (`work_n`). Each action is dealt off an HMAC of the pepper, the frog, the
+  target and that count, so reading the basket and collecting it always
+  agree. Anything that changes what an unpaid action brings, a meal or a
+  level, has to pay the basket out first, the way `feed` and `setJob` call
+  `settle`, and collecting starts the next basket where the action in
+  progress began. Crafters share the pond's materials in frog order.
 - `web/` has to stay byte identical to every other site's copy, and
   `make check` at the root fails when it isn't.
