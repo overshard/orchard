@@ -254,7 +254,7 @@ func (s *store) wear(id int64, h hat) (*view, error) {
 }
 
 // sell lets Little Tully have a spare. The last copy of a hat is never a spare, so
-// nothing leaves the collection.
+// nothing leaves the collection. What he pays also counts toward a wanted hat.
 func (s *store) sell(id int64, h hat) (*view, error) {
 	return s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
 		res, err := tx.Exec(`UPDATE hats SET count = count - 1
@@ -266,6 +266,7 @@ func (s *store) sell(id int64, h hat) (*view, error) {
 			return errNotHeld
 		}
 		p.Pebbles += wrenPays(h)
+		p.WantFill += wrenPays(h)
 		return nil
 	})
 }

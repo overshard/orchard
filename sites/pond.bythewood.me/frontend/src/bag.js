@@ -22,6 +22,13 @@ function useOf(t) {
   return USE[t.sort] || "";
 }
 
+// What a spare sold to Little Tully did for the hat he's looking out for.
+function toward(p) {
+  const w = p.want;
+  if (!w.hat) return "";
+  return w.ready ? " The hat you asked for is on his shelf." : " That's " + w.fill + " of " + w.bar + " toward the hat you asked for.";
+}
+
 function same(h, w) { return h && w && h.shape === w.shape && h.colour === w.colour; }
 
 function act(path, body, done) {
@@ -30,8 +37,8 @@ function act(path, body, done) {
     post(path, body).then((d) => {
       const v = d.pond || d;
       setPond(v);
-      if (done) done(d);
       reopen();
+      if (done) done(d);
     }, (e) => { sheetSay(e.message); b.disabled = false; });
   };
 }
@@ -53,7 +60,7 @@ export function show(t) {
       if (same(t.hat, p.frog.hat)) r.append(button("Take it off", act("/api/hats/wear", { shape: 0, colour: 0 })));
       else r.append(button("Wear it", act("/api/hats/wear", t.hat), "primary"));
       const hv = p.hats.find((h) => same(h, t.hat));
-      if (t.free > 0 && hv) r.append(button("Sell to Little Tully, " + hv.wren, act("/api/hats/sell", t.hat, () => sheetSay("Little Tully took it for " + hv.wren + "."))));
+      if (t.free > 0 && hv) r.append(button("Sell to Little Tully, " + hv.wren, act("/api/hats/sell", t.hat, (d) => sheetSay("Little Tully took it for " + hv.wren + "." + toward(d.pond || d)))));
     }
     if (t.sort === "trinket") {
       const r = row(), spots = p.trinkets.spots;

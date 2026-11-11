@@ -1,8 +1,9 @@
-import { $, state, watch, TIERS } from "./api.js";
+import { $, post, state, setPond, watch, TIERS } from "./api.js";
 import { genome, bred, cells, colours, draw, W, H, MORPHS } from "./frog.js";
 import { iconCanvas, dishCanvas, furnCanvas } from "./icons.js";
 import { hatTile } from "./hats.js";
-import { slot, openSheet, shade } from "./ui.js";
+import { slot, openSheet, closeSheet, sheetSay, button, shade } from "./ui.js";
+import { enterTown } from "./town.js";
 import { fishArt, inches } from "./fishes.js";
 
 const BACKS = ["PLAIN", "SPOTS", "BANDS", "SPECKLED", "MASK", "BACK STRIPE"];
@@ -67,11 +68,71 @@ function fishBook(p) {
   });
 }
 
+function same(a, b) { return a && b && a.shape === b.shape && a.colour === b.colour; }
+
+function pebbles(n) { return n.toLocaleString("en-US"); }
+
+// A hat not found yet can be asked for, one at a time. Changing which one
+// keeps what the spares have added up to, and its sheet says so.
+function hatShelf(p) {
+  const w = p.want;
+  return p.hats.map((h) => {
+    const asked = same(w.hat, h), found = h.count > 0;
+    const takes = "It takes " + pebbles(w.bars[h.tier]) + " in spares sold to Little Tully, and then he sells it for " + pebbles(w.prices[h.tier]) + ".";
+    return {
+      art: () => hatTile(h, true), name: h.name, tier: h.tier, found, tag: asked ? "WANTED" : "",
+      what: asked ? "Little Tully is looking out for this one. " + takes
+        : "Boxes at Little Tully's, the wheel and presents. Or ask him to look out for it. " + takes
+          + (w.hat ? " He looks for one hat at a time, and the bar keeps what your spares have added up to." : ""),
+      build: found ? null : (body) => {
+        const r = document.createElement("div");
+        r.className = "row";
+        r.append(button(asked ? "Stop looking for it" : w.hat ? "Ask for this one instead" : "Ask Little Tully for it", (b) => {
+          b.disabled = true;
+          post("/api/hats/want", asked ? { shape: 0, colour: 0 } : { shape: h.shape, colour: h.colour }).then((v) => { setPond(v); closeSheet(); },
+            (e) => { sheetSay(e.message); b.disabled = false; });
+        }, asked ? "" : "primary"));
+        body.append(r);
+      },
+    };
+  });
+}
+
+// The hat being looked out for, over the hats, with how far the spares have
+// got and a key to the shop once it's on the shelf.
+function wantBox(p, show) {
+  const box = $("col-want"), w = p.want;
+  box.hidden = !show;
+  if (!show) return;
+  box.textContent = "";
+  const words = document.createElement("span"), head = document.createElement("b"), line = document.createElement("span");
+  line.className = "dim";
+  words.append(head);
+  if (!w.hat) {
+    head.textContent = "Wanted hat";
+    line.textContent = "Tap a hat you haven't found and Little Tully will look out for it."
+      + (w.fill ? " Your spares have put " + pebbles(w.fill) + " by." : "");
+    words.append(line);
+    box.append(iconCanvas("hat", 5), words);
+    return;
+  }
+  const bar = document.createElement("span"), fill = document.createElement("i");
+  bar.className = "meter";
+  fill.style.transform = "scaleX(" + Math.min(1, w.fill / w.bar) + ")";
+  bar.append(fill);
+  head.textContent = "Wanted, " + (w.hat.tier === 3 ? "an " : "a ") + TIERS[w.hat.tier].toLowerCase() + " hat";
+  line.textContent = w.ready ? "On Little Tully's shelf for " + pebbles(w.price) + "."
+    : pebbles(w.fill) + " of " + pebbles(w.bar) + " in spares sold to Little Tully.";
+  words.append(bar, line);
+  box.append(shade(hatTile(w.hat, true)), words);
+  if (w.ready) box.append(button("Shop", () => { enterTown("shops"); location.hash = "#town"; }, "primary"));
+}
+
 // Every collection, each a list of what there is, found or not.
 function cats(p) {
   const furn = (p.shops.fenn && p.shops.fenn.lines) || [];
   return [
-    { key: "hats", name: "Hats", icon: "hat", all: p.hats.map((h) => ({ art: () => hatTile(h, true), name: h.name, tier: h.tier, found: h.count > 0, what: "Boxes at Little Tully's, the wheel and presents." })) },
+    { key: "hats", name: "Hats", icon: "hat", all: hatShelf(p) },
     { key: "trinkets", name: "Trinkets", icon: "t_duck", all: p.trinkets.all.map((t) => ({ art: () => iconCanvas(t.kind, 4), name: t.name, tier: t.tier, found: t.found, what: t.pet ? "A pet. Now and then a frog brings one home from " + t.pet.toLowerCase() + "." : "Boxes at Moth's and presents." })) },
     { key: "hoods", name: "Hoods", icon: "i_hood", all: p.hoods.map((h) => ({ art: () => hatTile(h, true), name: h.name, tier: 4, found: h.got, what: "A frog that gets to 99 at " + h.name.replace(" hood", "").toLowerCase() + " earns it." })) },
     { key: "sites", name: "Site hats", icon: "i_site", all: p.sites.map((h) => ({ art: () => hatTile(h, true), name: h.name, tier: 0, found: h.got, what: "Your frog finds it the first time you open " + h.host + "." })) },
@@ -110,6 +171,7 @@ function render(p) {
 
   const c = all.find((x) => x.key === cat) || all[0];
   $("col-head").textContent = c.name;
+  wantBox(p, c.key === "hats");
   const grid = $("col-grid");
   grid.textContent = "";
   c.all.forEach((x) => {
@@ -120,7 +182,7 @@ function render(p) {
         const big = x.art(true);
         big.classList.add("big");
         openSheet({ art: x.found ? big : shade(big), name: x.found ? x.name : "???", tier: x.tier },
-          x.found ? (x.note || (x.sub ? "First kept " + x.sub + "." : "Found.")) : x.what, () => {});
+          x.found ? (x.note || (x.sub ? "First kept " + x.sub + "." : "Found.")) : x.what, x.build || (() => {}));
       },
     });
     if (x.tag) {

@@ -2784,6 +2784,43 @@ div.slot {
   text-shadow: var(--glow);
 }
 
+/* The hat Little Tully is looking out for, over the hats. */
+.wantbox {
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0 12px;
+  padding: 10px;
+  border-radius: 4px;
+  background: var(--panel);
+  box-shadow: var(--moulded), inset 0 0 0 1px var(--amber-dim);
+}
+
+.wantbox canvas {
+  width: 56px;
+  height: auto;
+  image-rendering: pixelated;
+}
+
+.wantbox > span {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.wantbox button {
+  min-width: 64px;
+}
+
+.shelf .wantedtag {
+  color: var(--amber);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
 .meter {
   display: block;
   height: 10px;

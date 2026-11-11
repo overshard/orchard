@@ -33,8 +33,9 @@ var furniture = []struct {
 	{"f_teacup", "A cracked teacup", 1500},
 }
 
-// What Little Tully asks for a hat, by tier. Legendary hats are never on the shelf.
-var wrenSells = [tierCount]int{120, 350, 900, 5000, 0}
+// What Little Tully asks for a hat, by tier. A legendary is only ever on the
+// shelf as the hat a pond asked him to look out for.
+var wrenSells = [tierCount]int{120, 350, 900, 5000, 12000}
 
 // What Big Bean asks for an ingredient, by its tier. A pair of anything costs
 // more than the dish it makes is worth, even on a sale, and a test holds that.
@@ -106,6 +107,8 @@ type shopLine struct {
 	Limit   int    `json:"limit"`
 	Bought  int    `json:"bought"`
 	Bargain bool   `json:"bargain,omitempty"`
+	// Wanted is the hat this pond asked Little Tully to look out for.
+	Wanted bool `json:"wanted,omitempty"`
 }
 
 func shopRand(key string) *rand.Rand {
@@ -307,6 +310,11 @@ type bought struct {
 func (s *store) buy(id int64, shop string, slot int) (*bought, error) {
 	out := &bought{}
 	v, err := s.act(id, func(tx *sql.Tx, p *pond, now time.Time) error {
+		if shop == shopWren && slot == wantSlot {
+			line, err := buyWanted(tx, p)
+			out.Line = line
+			return err
+		}
 		lines, stock := s.stockOf(shop, now)
 		var line *shopLine
 		for i := range lines {
@@ -341,6 +349,7 @@ func (s *store) buy(id int64, shop string, slot int) (*bought, error) {
 				return err
 			}
 			out.Spare = n > 1
+			p.found(*line.Hat)
 		} else if err := addItem(tx, p.ID, line.Kind, 1); err != nil {
 			return err
 		}
@@ -359,7 +368,7 @@ type shopView struct {
 	Sale   bool  `json:"sale,omitempty"`
 }
 
-func (s *store) shopsOf(q querier, id int64, now time.Time) (map[string]shopView, error) {
+func (s *store) shopsOf(q querier, id int64, want wantView, now time.Time) (map[string]shopView, error) {
 	out := map[string]shopView{}
 	local := now.In(pondZone)
 	tomorrow := time.Date(local.Year(), local.Month(), local.Day()+1, 0, 0, 0, 0, pondZone)
@@ -375,6 +384,9 @@ func (s *store) shopsOf(q querier, id int64, now time.Time) (map[string]shopView
 			if sv.Lines[i].Was > 0 && shop == shopBrindle {
 				sv.Sale = true
 			}
+		}
+		if shop == shopWren && want.Ready {
+			sv.Lines = append(sv.Lines, wantLine(want.Hat.hat))
 		}
 		if shop == shopMoss {
 			_, next := mossRestock(now)

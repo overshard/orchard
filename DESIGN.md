@@ -732,6 +732,12 @@ version of the old look and a handheld pet shell.
   the same lit notches as the collection's, under the odds, with one line
   saying how many boxes until a rare or better is sure. It fills a notch a
   plain box and empties on a rare, and the odds line says the rule.
+- **One hat can be wanted.** A hat not found yet has a key on its sheet to
+  ask Little Tully for it, and its slot says WANTED in amber. Over the hats
+  sits a panel like a box's, the hat in the dark, a bar of what the pond's
+  spares have sold to him for and one line under it. When the bar's full the
+  line names his price and an amber SHOP key goes there, where the hat is on
+  his shelf in its colours with WANTED under its name.
 - **A prize pops up in the middle** with slow rays behind it in its tier's
   colour, and stays until it's tapped away. A bad turn of the wizard's gets no
   rays.

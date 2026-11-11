@@ -63,6 +63,10 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   furniture, which the page draws on the water. Stock is
   dealt from the day so everybody sees the same shelf, and `bought` counts
   what each pond took off it.
+- `want.go` is the one hat a pond can ask Little Tully to look out for. What
+  he pays for spares adds up in `ponds.want_fill`, and once that covers the
+  hat's bar it's on his shelf for that pond alone, in slot 9, at its tier's
+  price. It's the only way a legendary is sold.
 - `names.go` is the list a frog's name is rolled off. Nobody types a name, so
   renaming only takes one that's on it.
 - `wizard.go` turns three of a thing into one thing of any sort, mostly a tier
@@ -229,6 +233,9 @@ they have none, for other sites to draw.
   or uncommon to a rare. Rolled among the rares, epics and legendaries it put
   a box's spares over the box's price on the stall, so `boxWorth` in the tests
   counts the meter in and has to stay under 40.
+- `want_fill` counts every spare sold to Little Tully whether or not a hat is
+  asked for, and buying the hat only takes its bar off it. Nothing else may
+  lower it, since the page tells the player the bar is never lost.
 - Outside the regular session dash's market cards are futures, so the pond
   market only writes a close while dash says `regular`, apart from Glowworm
   Coin. Buying and selling both take a fee so a round trip always loses, and

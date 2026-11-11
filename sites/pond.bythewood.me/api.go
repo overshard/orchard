@@ -66,7 +66,7 @@ func fail(w http.ResponseWriter, r *http.Request, err error) {
 		writeError(w, http.StatusTooManyRequests, err.Error())
 	case errors.Is(err, errPoor), errors.Is(err, errNotYet), errors.Is(err, errNotHeld), errors.Is(err, errBadRun), errors.Is(err, errBadName), errors.Is(err, errBadPrice), errors.Is(err, errStallFull),
 		errors.Is(err, errFullPads), errors.Is(err, errMaxed), errors.Is(err, errSoldOut), errors.Is(err, errFed), errors.Is(err, errLevel), errors.Is(err, errShort), errors.Is(err, errGiven),
-		errors.Is(err, errNoBurrow), errors.Is(err, errNotLodge), errors.Is(err, errCap), errors.Is(err, errFirm), errors.Is(err, errCount):
+		errors.Is(err, errNoBurrow), errors.Is(err, errNotLodge), errors.Is(err, errHaveIt), errors.Is(err, errCap), errors.Is(err, errFirm), errors.Is(err, errCount):
 		writeError(w, http.StatusConflict, err.Error())
 	default:
 		slog.Error("pond", slog.String("path", r.URL.Path), slog.Any("err", err))
@@ -260,6 +260,19 @@ func (s *site) apiSell(id int64, r *http.Request, w http.ResponseWriter) (any, e
 		return nil, nil
 	}
 	return s.store.sell(id, h)
+}
+
+// A hood or a site's hat is earned and never sold, so it can't be asked for.
+func (s *site) apiWant(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
+	var h hat
+	if !readJSON(w, r, &h) {
+		return nil, nil
+	}
+	if h.Shape != 0 && !h.valid() {
+		writeError(w, http.StatusBadRequest, "no such hat")
+		return nil, nil
+	}
+	return s.store.want(id, h)
 }
 
 func (s *site) apiFront(id int64, r *http.Request, w http.ResponseWriter) (any, error) {
