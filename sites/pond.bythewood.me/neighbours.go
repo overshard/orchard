@@ -158,6 +158,11 @@ func befriend(tx *sql.Tx, p *pond, who, points int, giftDay string) ([]prize, er
 		return nil, err
 	}
 	var out []prize
+	if friendLevel(before+points) > friendLevel(before) {
+		if _, err := tx.Exec(`UPDATE neighbours SET heart_day = ? WHERE pond_id = ? AND who = ?`, p.today, p.ID, who); err != nil {
+			return nil, err
+		}
+	}
 	for l := friendLevel(before) + 1; l <= friendLevel(before+points); l++ {
 		z := friendPresent(l)
 		if err := award(tx, p, &z); err != nil {

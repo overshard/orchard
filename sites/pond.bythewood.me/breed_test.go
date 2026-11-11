@@ -75,7 +75,7 @@ func TestBringingAFrogOutFront(t *testing.T) {
 		t.Fatal(err)
 	}
 	second := l.Pond.Frogs[1].ID
-	if err := s.write(func(tx *sql.Tx) error { _, err := addHat(tx, id, hat{1, 0}); return err }); err != nil {
+	if err := s.write(func(tx *sql.Tx) error { _, err := addHat(tx, id, hat{1, 0}, ""); return err }); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.wear(id, hat{1, 0}); err != nil {

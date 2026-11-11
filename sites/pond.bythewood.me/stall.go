@@ -337,7 +337,7 @@ func takeThing(tx *sql.Tx, id int64, kind string) error {
 
 func giveThing(tx *sql.Tx, id int64, kind string) error {
 	if h, ok := hatOfKind(kind); ok {
-		_, err := addHat(tx, id, h)
+		_, err := addHat(tx, id, h, "")
 		return err
 	}
 	if strings.HasPrefix(kind, "t_") {

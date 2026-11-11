@@ -65,7 +65,7 @@ func TestAFavouriteIsWhatItAteAndWoreMost(t *testing.T) {
 	putIn(t, s, id, often, 2)
 	putIn(t, s, id, once, 1)
 	worn := hat{5, 0}
-	if err := s.write(func(tx *sql.Tx) error { _, err := addHat(tx, id, worn); return err }); err != nil {
+	if err := s.write(func(tx *sql.Tx) error { _, err := addHat(tx, id, worn, ""); return err }); err != nil {
 		t.Fatal(err)
 	}
 	frog := frontFrog(t, s, id).ID

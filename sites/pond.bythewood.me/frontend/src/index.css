@@ -511,6 +511,15 @@ button.screen:active {
   color: var(--muted);
 }
 
+/* A frog's diary in settings, the day down the left and its line beside it. */
+.diary dt {
+  white-space: nowrap;
+}
+
+.diary dd {
+  color: var(--text);
+}
+
 .gift {
   box-shadow: var(--moulded), inset 3px 0 0 var(--pink);
 }

@@ -6,6 +6,33 @@ import { hatTile } from "./hats.js";
 import { slot } from "./ui.js";
 
 let which = 0, offers = [];
+// The diary on the page, whose it is and the day it was read.
+let diary = { frog: 0, day: "", lines: [], more: false };
+
+function drawDiary() {
+  const dl = $("frog-diary");
+  dl.textContent = "";
+  diary.lines.forEach((r) => {
+    const [y, m, d] = r.day.split("-").map(Number), dt = document.createElement("dt"), dd = document.createElement("dd");
+    dt.textContent = new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "short", day: "numeric", month: "short" });
+    dd.textContent = r.line;
+    dl.append(dt, dd);
+  });
+  dl.hidden = diary.lines.length === 0;
+  $("frog-diary-none").hidden = diary.lines.length > 0;
+  $("diary-more").hidden = !diary.more;
+}
+
+function readDiary(older) {
+  const frog = which, last = diary.lines[diary.lines.length - 1];
+  fetch("/api/diary?frog=" + frog + (older && last ? "&before=" + last.day : ""), { credentials: "same-origin" })
+    .then((r) => r.ok ? r.json() : null).then((d) => {
+      if (!d || frog !== which) return;
+      diary.lines = older ? diary.lines.concat(d.lines) : d.lines;
+      diary.more = d.more;
+      drawDiary();
+    });
+}
 
 function frogNow(p) {
   return p.frogs.find((f) => f.id === which) || p.frogs.find((f) => f.front);
@@ -43,6 +70,12 @@ function render(p) {
     });
     picks.append(b);
   });
+
+  if (diary.frog !== which || diary.day !== p.today) {
+    diary = { frog: which, day: p.today, lines: [], more: false };
+    drawDiary();
+    readDiary(false);
+  }
 
   const favs = $("frog-favs");
   favs.textContent = "";
@@ -86,6 +119,7 @@ export function initSettings() {
       if (soundOn(kind)) sfx(kind === "buzz" ? "bonk" : "catch");
     });
   });
+  $("diary-more").addEventListener("click", () => readDiary(true));
   $("name-roll").addEventListener("click", function () {
     this.disabled = true;
     post("/api/frogs/names").then((d) => {

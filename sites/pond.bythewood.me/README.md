@@ -99,6 +99,11 @@ ahead, with made up days beside it since a dev run can't reach dash. A release b
   once it's a frog from what it ate and wore most, counted in `tastes`, or
   off its seed. They never change after, and its favourite dish keeps it
   full half as long again.
+- `diary.go` is the frog's diary, a line a day in `diary` written at the
+  greeting about the day before and kept for good. It reads `records`,
+  `keepsakes`, `hats.first_day`, `neighbours.heart_day`, `frogs.heart_day`
+  and the day's weather in `skies`, and picks a hand written line by the
+  frog's nature that the last week hasn't used. `GET /api/diary` reads it.
 - `neighbours.go` is the residents, friendship by dishes and a favour a day.
 - `burrow.go` is the bank's burrows. Each level adds a pad that doesn't count
   toward the ones you buy, and a friendly neighbour can lodge in one and pay rent.
@@ -224,6 +229,9 @@ they have none, for other sites to draw.
   has seen it gone.
 - The page keeps what's open in localStorage as `pond-open` so the keys are
   right before the pond loads. With nothing kept it starts on four keys.
+- The diary only writes what a table holds for that day. A new kind of line
+  needs the day stored where the thing happens, the way `addHat` and
+  `befriend` do it with the pond's `today`, and a slot in the test's list.
 - The pet route is called as fast as a finger rubs. It has to stay one read
   for a frog that's had its day's worth, with no row added anywhere.
 - The frog's screen is a button with `touch-action: pan-y`, so a sideways
