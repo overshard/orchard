@@ -162,8 +162,9 @@ func (r arcadeRow) settled(now time.Time) arcadeRow {
 
 type arcadeStarted struct {
 	Run string `json:"run"`
-	// What's biting and how often, for fishing.
+	// What's biting and how often, for fishing, and the bait on the hook.
 	Fish map[string]float64 `json:"fish,omitempty"`
+	Bait string             `json:"bait,omitempty"`
 	// The day's holes, for pad putt.
 	Putt []puttHole `json:"putt,omitempty"`
 }
@@ -182,6 +183,17 @@ func (s *store) arcadeStart(id int64, key string) (*arcadeStarted, error) {
 		r.run, r.startedAt, r.keep = out.Run, now.Unix(), ""
 		if key == "fish" {
 			out.Fish = s.fishTableAt(now)
+			out.Bait = bestBait(func(k string) int {
+				var n int
+				tx.QueryRow(`SELECT count FROM items WHERE pond_id = ? AND kind = ?`, p.ID, k).Scan(&n)
+				return n
+			})
+			if out.Bait != "" {
+				if err := takeItem(tx, p.ID, out.Bait, 1); err != nil {
+					return err
+				}
+				out.Fish = baited(out.Fish, out.Bait)
+			}
 		}
 		if key == "putt" {
 			out.Putt = puttDeal(dayOf(now), dayOfReading(s.day.reading(now), now).Wind)

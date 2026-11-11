@@ -109,6 +109,8 @@ type shopLine struct {
 	Bargain bool   `json:"bargain,omitempty"`
 	// Wanted is the hat this pond asked Little Tully to look out for.
 	Wanted bool `json:"wanted,omitempty"`
+	// Held is how many of it the pond has now, for bait.
+	Held int `json:"held,omitempty"`
 }
 
 func shopRand(key string) *rand.Rand {
@@ -266,22 +268,26 @@ func (s *store) stockOf(shop string, now time.Time) ([]shopLine, string) {
 			out = append(out, shopLine{Slot: i, Kind: f.kind, Name: f.name, Price: f.price, Limit: 1})
 		}
 		return out, ""
+	case shopSedge:
+		return sedgeStock(), "sedge " + day
+	case shopMarsh:
+		return marshStock(), ""
 	}
 	return nil, ""
 }
 
-// boughtOf counts what a pond took off a stock, and for Tansy, whose stock
-// never changes, what it owns.
-func boughtOf(q querier, id int64, stock string) (map[int]int, error) {
+// boughtOf counts what a pond took off a stock, and for a shop whose stock
+// never changes, what it owns of each line.
+func boughtOf(q querier, id int64, stock string, lines []shopLine) (map[int]int, error) {
 	if stock == "" {
 		out := map[int]int{}
-		for i, f := range furniture {
+		for _, l := range lines {
 			var n int
-			err := q.QueryRow(`SELECT count FROM items WHERE pond_id = ? AND kind = ?`, id, f.kind).Scan(&n)
+			err := q.QueryRow(`SELECT count FROM items WHERE pond_id = ? AND kind = ?`, id, l.Kind).Scan(&n)
 			if err != nil && !errors.Is(err, sql.ErrNoRows) {
 				return nil, err
 			}
-			out[i] = n
+			out[l.Slot] = n
 		}
 		return out, nil
 	}
@@ -325,7 +331,7 @@ func (s *store) buy(id int64, shop string, slot int) (*bought, error) {
 		if line == nil {
 			return errNotHeld
 		}
-		had, err := boughtOf(tx, p.ID, stock)
+		had, err := boughtOf(tx, p.ID, stock, lines)
 		if err != nil {
 			return err
 		}
@@ -336,7 +342,10 @@ func (s *store) buy(id int64, shop string, slot int) (*bought, error) {
 			return errPoor
 		}
 		p.Pebbles -= line.Price
-		// Tansy's stock has no key, owning the thing is the record.
+		if err := addFlow(tx, p, "shop:"+shop, 1); err != nil {
+			return err
+		}
+		// A stock with no key is one where owning the thing is the record.
 		if stock != "" {
 			if _, err := tx.Exec(`INSERT INTO bought (pond_id, stock, slot, n, day) VALUES (?, ?, ?, 1, ?)
 				ON CONFLICT (pond_id, stock, slot) DO UPDATE SET n = n + 1`, p.ID, stock, slot, dayOf(now)); err != nil {
@@ -372,15 +381,20 @@ func (s *store) shopsOf(q querier, id int64, want wantView, now time.Time) (map[
 	out := map[string]shopView{}
 	local := now.In(pondZone)
 	tomorrow := time.Date(local.Year(), local.Month(), local.Day()+1, 0, 0, 0, 0, pondZone)
-	for _, shop := range []string{shopWren, shopBrindle, shopMoss, shopFenn} {
+	for _, shop := range []string{shopWren, shopBrindle, shopMoss, shopFenn, shopSedge, shopMarsh} {
 		lines, stock := s.stockOf(shop, now)
-		had, err := boughtOf(q, id, stock)
+		had, err := boughtOf(q, id, stock, lines)
 		if err != nil {
 			return nil, err
 		}
 		sv := shopView{Lines: lines, NextIn: int64(tomorrow.Sub(now) / time.Second)}
 		for i := range sv.Lines {
 			sv.Lines[i].Bought = had[sv.Lines[i].Slot]
+			if shop == shopSedge {
+				if err := q.QueryRow(`SELECT COALESCE(SUM(count), 0) FROM items WHERE pond_id = ? AND kind = ?`, id, sv.Lines[i].Kind).Scan(&sv.Lines[i].Held); err != nil {
+					return nil, err
+				}
+			}
 			if sv.Lines[i].Was > 0 && shop == shopBrindle {
 				sv.Sale = true
 			}

@@ -708,6 +708,10 @@ version of the old look and a handheld pet shell.
   with the job and level under its name and what it cuts, a price key, a
   dim LEVEL tag until a frog is good enough, and YOURS once the top one is
   bought. Each job has one picture, in plain wood, then iron, then brass.
+- **A frame is a whole postcard.** Once a pond has one of Marsh's frames the
+  camera key opens a sheet of small copies of the card in each frame it owns,
+  the plain one first, and a tap makes that one. A frame only changes the
+  card round the picture and the colour of the words on it.
 - **The market is a board.** A ticker of pebble prices scrolls along the top in
   readout glass, still under reduced motion, each business is a pixel
   shopfront in its own awning colour with its price in glass, and a day down

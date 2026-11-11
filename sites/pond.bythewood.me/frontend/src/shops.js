@@ -2,7 +2,7 @@ import { $, post, setPond, watch, TIERS } from "./api.js";
 import { iconCanvas, furnCanvas } from "./icons.js";
 import { hatTile } from "./hats.js";
 
-const SHOPS = ["wren", "brindle", "fenn", "moss"];
+const SHOPS = ["wren", "brindle", "fenn", "moss", "sedge", "marsh"];
 
 function hours(sec) {
   if (sec < 3600) return Math.max(1, Math.round(sec / 60)) + " min";
@@ -21,6 +21,8 @@ function thanks(shop, l, d) {
   if (shop === "wren") return d.spare ? "Little Tully wraps the " + name + ". You had one already, so it's a spare." : "Little Tully wraps the " + name + ". It's in your hats.";
   if (shop === "fenn") return "Tansy sets the " + name.replace(/^a /, "") + " down by the water. Go and have a look.";
   if (shop === "brindle") return "Big Bean hands over the " + name + ". It's in the kitchen.";
+  if (shop === "sedge") return "Sedge grumbles and hands over the " + name + ". It goes on the hook next time you fish.";
+  if (shop === "marsh") return "Marsh wraps the " + name + " very dramatically. Press the camera on the pond to use it.";
   if (l.kind.startsWith("drops_")) return "Moth holds the " + name + " up to the light. They're on the egg bench.";
   if (l.kind.startsWith("stamp_")) return "Moth blows the dust off the " + name + ". It's on the egg bench.";
   if (l.kind.startsWith("dye_")) return "Moth hands over the " + name + ". It's on the egg bench.";
@@ -34,8 +36,14 @@ function shelf(shop, sv, pebbles) {
     const li = document.createElement("li"), what = document.createElement("span"), name = document.createElement("b");
     const left = l.limit - l.bought, buy = document.createElement("button");
     name.textContent = l.name + (l.limit > 1 && left > 0 ? " x" + left : "");
+    if (shop === "sedge") {
+      const sub = document.createElement("span");
+      sub.className = "sub";
+      sub.textContent = (l.tier === 1 ? "Uncommon fish and up bite more for a round." : "Rare fish and up bite twice as often for a round.") + (l.held ? " " + l.held + " in the tackle box." : "");
+      what.append(name, sub);
+    }
     what.className = "what";
-    what.append(name);
+    if (shop !== "sedge") what.append(name);
     if (l.hat) what.append(tierChip(l.tier));
     if (l.wanted) {
       const tag = document.createElement("span");
@@ -64,14 +72,14 @@ function shelf(shop, sv, pebbles) {
       li.append(buy);
     } else {
       const sold = document.createElement("span");
-      sold.className = "soldtag"; sold.textContent = l.kind.startsWith("f_") ? "YOURS" : "SOLD";
+      sold.className = "soldtag"; sold.textContent = l.kind.startsWith("f_") || l.kind.startsWith("pc_") ? "YOURS" : "SOLD";
       li.append(sold);
     }
     ul.append(li);
   });
 }
 
-export const KEEPER = { wren: "Little Tully", brindle: "Big Bean", fenn: "Tansy", moss: "Moth" };
+export const KEEPER = { wren: "Little Tully", brindle: "Big Bean", fenn: "Tansy", moss: "Moth", sedge: "Sedge", marsh: "Marsh" };
 const CUTS = { 0.9: "a tenth", 0.8: "a fifth", 0.75: "a quarter" };
 
 export function cutWords(t) { return "Cuts " + (CUTS[t.cut] || Math.round((1 - t.cut) * 100) + "%") + " off every action"; }

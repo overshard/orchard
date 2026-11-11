@@ -46,6 +46,8 @@ var assets = []asset{
 	{"divers", "Pebble Divers", kindShare, "dives for pebbles", "", "job:pebbles", 40},
 	{"fishery", "The Fishery", kindShare, "fish landed", "", "g_fish", 40},
 	{"gardens", "The Gardeners", kindShare, "work in the beds", "", "job:garden", 40},
+	{"tackle", "Sedge's Tackle", kindShare, "bait sold at Sedge's", "", "shop:sedge", 40},
+	{"frames", "Marsh's Frames", kindShare, "frames sold at Marsh's", "", "shop:marsh", 40},
 	{"g_bugs", "Bugs", kindGood, "bugs", "cricket", "g_bugs", 75},
 	{"g_fish", "Fish", kindGood, "fish", "smallfry", "g_fish", 80},
 	{"g_crops", "Crops", kindGood, "crops", "duckweed", "g_crops", 75},

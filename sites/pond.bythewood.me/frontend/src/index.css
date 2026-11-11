@@ -4609,6 +4609,25 @@ button.big {
   font-size: 13px;
 }
 
+/* Marsh's frames to pick from, each a small copy of the card it makes. */
+.framepick {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.framepick button {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  font-size: 12px;
+}
+
+.framepick canvas {
+  width: 100%;
+  height: auto;
+}
+
 /* The market's four filters share a row, the back door included. */
 #mkt-sorts {
   display: grid;

@@ -34,12 +34,14 @@ var residents = []resident{
 	{"Moth", 9001, 2, [2]int{6, 6}},
 }
 
-// Four of the neighbours keep the shops in town.
+// Some of the neighbours keep the shops in town.
 var shopkeepers = map[string]string{
 	"Little Tully": "Little Tully's Hats",
 	"Big Bean":     "Big Bean's Larder",
 	"Tansy":        "Tansy's Pad and Reed",
 	"Moth":         "Moth's Curios",
+	"Sedge":        "Sedge's Tackle",
+	"Marsh":        "Marsh's Frames",
 }
 
 func (r resident) favDish() dish { return dishOf(r.fav[0], r.fav[1]) }
