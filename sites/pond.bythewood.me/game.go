@@ -93,6 +93,9 @@ func (h hat) valid() bool {
 }
 
 func (h hat) tier() int {
+	if _, ok := h.site(); ok {
+		return 0
+	}
 	if h.earned() {
 		return tierCount - 1
 	}
@@ -145,7 +148,7 @@ func hoodsEarned(xp jobXP) []hat {
 }
 
 // A frog that turns up on one of the other sites finds that site's hat. It's
-// earned like a hood, worn and never held.
+// worn and never held like a hood, and common, since opening a page is all it takes.
 const siteBase = 200
 
 type siteHat struct{ host, name string }
