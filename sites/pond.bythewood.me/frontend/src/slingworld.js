@@ -29,10 +29,13 @@ export const ACORN = 50, GOLD = 150, SPLASH = 10, SPARE = 100;
 export const FROGS = {
   pond: { name: "POND FROG", r: 5, d: 1.6, line: "NO TRICKS, JUST A GOOD FLING", hit: {} },
   tree: { name: "TREE FROG", r: 4.5, d: 1.5, line: "TAP TO SPLIT INTO THREE", hit: { reed: 1.6, ice: 1.4, pot: 1.4, acorn: 1.3, stone: 0.6 } },
-  dart: { name: "DART FROG", r: 4.5, d: 1.8, line: "TAP TO ZIP STRAIGHT", hit: { reed: 3, ice: 3, wood: 1.5, crate: 1.5, stone: 0.5 } },
+  dart: { name: "DART FROG", r: 4.5, d: 1.8, line: "TAP WHERE TO ZIP", hit: { reed: 3, ice: 3, wood: 1.5, crate: 1.5, stone: 0.5 } },
   bull: { name: "BULLFROG", r: 6.5, d: 1.8, line: "TAP TO DROP LIKE A STONE", hit: { stone: 2.6, mud: 2, wood: 1.4, barrel: 1.4, reed: 0.8 } },
   toad: { name: "PUFF TOAD", r: 5.5, d: 1.6, line: "TAP TO PUFF UP AND BLOW", hit: { mud: 1.3 } },
+  fire: { name: "FIREBELLY", r: 5, d: 1.6, line: "GOES OFF ON A BUMP OR A TAP", hit: { pot: 1.2 } },
 };
+// A firebelly that lands without a tap goes off this long after.
+const FUSE = 0.5;
 
 // ---------------------------------------------------------------- levels
 
@@ -54,7 +57,8 @@ const crate = (p, dx, y, n) => ({ s: "box", p, dx, y, mat: "crate", hx: 6, hy: 6
 const roller = (p, dx, y, r) => ({ s: "circle", p, dx, y, mat: "roller", r: r || 5 });
 
 // A hut is two posts h tall under a roof w across, and a tower is huts one on
-// another, with inner giving what sits on each floor.
+// another, with inner giving what sits on each floor. mat can be a list a
+// floor, since past five floors only a heavier bottom keeps a tower standing.
 function hut(p, dx, y, mat, w, h, roof) {
   return [post(p, dx - w / 2 + 2.5, y, mat, h), post(p, dx + w / 2 - 2.5, y, mat, h), slab(p, dx, y + h, roof || mat, w + 4)];
 }
@@ -62,7 +66,7 @@ function tower(p, dx, mat, w, h, n, inner, y0) {
   const out = [];
   for (let i = 0; i < n; i++) {
     const y = (y0 || 0) + i * (h + 4);
-    out.push(...hut(p, dx, y, mat, w, h));
+    out.push(...hut(p, dx, y, Array.isArray(mat) ? mat[i] : mat, w, h));
     if (inner) out.push(...[].concat(inner(i, y) || []));
   }
   return out;
@@ -92,6 +96,9 @@ export const POOL = [
   },
   {
     frogs: ["tree", "tree", "pond", "pond"], levels: [
+      { name: "TALL STACK", sky: 1, plats: [rock(132, 22, 202)], parts: [
+        ...tower(0, 0, ["wood", "wood", "reed", "reed", "reed"], 32, 14, 5, (i, y) => (i % 2 ? [pot(0, -6, y), pot(0, 6, y)] : nut(0, 0, y))), nut(0, 0, 90),
+        nut(0, -18, 0.1), nut(0, 18, 0.1)] },
       { name: "REED HUTS", sky: 1, plats: [raft(126, 46, 8)], parts: [
         ...[-30, 0, 30].flatMap((dx) => [...hut(0, dx, 0, "reed", 24, 14), nut(0, dx, 0), nut(0, dx, 18)])] },
       { name: "TWO TOWERS", sky: 1, plats: [log(98, 22, 0.5), log(156, 22, 2.2)], parts: [
@@ -114,6 +121,9 @@ export const POOL = [
   },
   {
     frogs: ["dart", "dart", "pond", "tree"], levels: [
+      { name: "HIGH REEDS", sky: 2, plats: [rock(104, 16, 202), rock(156, 16, 202)], parts: [
+        ...tower(0, 0, ["wood", "wood", "reed", "reed", "reed"], 24, 14, 5, (i, y) => (i % 2 ? pot(0, 0, y) : nut(0, 0, y))), nut(0, 0, 90),
+        ...tower(1, 0, ["wood", "wood", "wood", "reed", "reed", "reed"], 24, 14, 6, (i, y) => (i % 2 ? nut(1, 0, y) : pot(1, 0, y))), nut(1, 0, 108)] },
       { name: "LONG TABLE", sky: 2, plats: [log(126, 46, 0.3)], parts: [
         post(0, -36, 0, "wood", 18), post(0, -12, 0, "wood", 18), post(0, 12, 0, "wood", 18), post(0, 36, 0, "wood", 18),
         slab(0, 0, 18, "wood", 82), nut(0, -24, 0), nut(0, 0, 0), nut(0, 24, 0), nut(0, -24, 22), nut(0, 24, 22),
@@ -138,6 +148,9 @@ export const POOL = [
   },
   {
     frogs: ["bull", "bull", "tree", "dart"], levels: [
+      { name: "STONE KEEP", sky: 0, plats: [rock(132, 30, 202)], parts: [
+        ...tower(0, 0, ["stone", "wood", "wood", "wood", "reed", "reed"], 30, 14, 6, (i, y) => (i === 0 ? [nut(0, -6, y), nut(0, 6, y)] : i % 2 ? barrel(0, 0, y) : nut(0, 0, y))), nut(0, 0, 108),
+        nut(0, -24, 0.1), nut(0, 24, 0.1)] },
       { name: "STONE HUT", sky: 0, plats: [log(128, 44, 0.8)], parts: [
         post(0, -20, 0, "wood", 20, 6), post(0, 20, 0, "wood", 20, 6), slab(0, 0, 20, "stone", 50, 6),
         nut(0, -7, 0), nut(0, 7, 0), nut(0, 0, 26), pot(0, -14, 26), pot(0, 14, 26),
@@ -162,7 +175,13 @@ export const POOL = [
     ],
   },
   {
-    frogs: ["toad", "bull", "tree", "dart", "pond"], levels: [
+    frogs: ["toad", "fire", "bull", "tree", "dart"], levels: [
+      { name: "THE SPIRE", sky: 3, plats: [rock(134, 26, 204)], parts: [
+        ...tower(0, 0, ["stone", "wood", "wood", "wood", "reed", "reed"], 32, 14, 6, (i, y) => (i === 2 ? crate(0, 0, y, 2) : i % 2 ? [pot(0, -6, y), nut(0, 6, y)] : nut(0, 0, y))), nut(0, 0, 108),
+        pot(0, -22, 0), pot(0, 22, 0)] },
+      { name: "TWIN KEEPS", sky: 2, plats: [rock(108, 18, 202), rock(160, 18, 202)], parts: [
+        ...tower(0, 0, ["stone", "wood", "wood", "wood", "wood"], 26, 16, 5, (i, y) => (i % 2 ? barrel(0, 0, y) : nut(0, 0, y))), nut(0, 0, 100),
+        ...tower(1, 0, ["stone", "mud", "mud", "mud", "mud"], 26, 16, 5, (i, y) => (i % 2 ? nut(1, 0, y) : pot(1, 0, y))), nut(1, 0, 100)] },
       { name: "THE OLD DAM", sky: 2, plats: [rock(136, 38, 206)], parts: [
         cube(0, -24, 0, "mud", 10), cube(0, -14, 0, "mud", 10), cube(0, 14, 0, "mud", 10), cube(0, 24, 0, "mud", 10),
         nut(0, -1, 0), nut(0, 6, 0),
@@ -320,14 +339,15 @@ export function fling(w, dx, dy) {
   return true;
 }
 
-// The frog in the air uses its one trick. A tap with nothing to do is a croak.
-export function power(w) {
+// The frog in the air uses its one trick, at x, y for a tap. A tap with
+// nothing to do is a croak.
+export function power(w, tx, ty) {
   const L = w.L;
   if (!L || L.st !== "fly") return false;
   const b = L.flying.find((f) => !f.gone && !f.done && !f.used);
   if (!b) return false;
   const k = b.frog;
-  if (k === "pond" || (k !== "toad" && b.touched)) return false;
+  if (k === "pond" || (k !== "toad" && k !== "fire" && b.touched)) return false;
   b.used = true;
   const sp = Math.hypot(b.vx, b.vy) || 1;
   if (k === "tree") {
@@ -340,15 +360,28 @@ export function power(w) {
     }
     b.r = 4; setMass(b, 1.5);
   } else if (k === "dart") {
-    const s = Math.max(sp, 540);
-    b.vx = b.vx / sp * s; b.vy = b.vy / sp * s; b.zip = 0.35;
+    // Gravity is off while it zips, so it flies dead straight at the tap.
+    const s = Math.max(sp, 560);
+    let dx = b.vx, dy = b.vy;
+    if (tx !== undefined && Math.hypot(tx - b.x, ty - b.y) > 8) { dx = tx - b.x; dy = ty - b.y; }
+    const d = Math.hypot(dx, dy) || 1;
+    b.vx = dx / d * s; b.vy = dy / d * s;
+    b.zip = tx === undefined ? 0.35 : Math.min(0.6, d / s + 0.08);
   } else if (k === "bull") {
     b.vx *= 0.15; b.vy = Math.max(b.vy, 0) + 480; setMass(b, 4.5);
   } else if (k === "toad") {
     puff(w, L, b);
+  } else if (k === "fire") {
+    blowUp(w, L, b);
   }
   w.events.push({ e: "power", k, x: b.x, y: b.y });
   return true;
+}
+
+function blowUp(w, L, b) {
+  b.used = true; b.puff = 0.3;
+  burst(w, L, b.x, b.y, 42, 380, 5, b);
+  b.vx *= 0.2; b.vy = -70;
 }
 
 function puff(w, L, b) {
@@ -784,6 +817,10 @@ function frogs(w, L, h) {
     if (L.trail && !b.kid && Math.floor(b.age / STEP) % 3 === 0) L.trail.push({ x: b.x, y: b.y });
     const v = Math.hypot(b.vx, b.vy);
     b.restT = v < 12 ? b.restT + h : 0;
+    if (b.frog === "fire" && b.touched && !b.used && (b.fuse = (b.fuse || 0) + h) >= FUSE) {
+      blowUp(w, L, b);
+      w.events.push({ e: "power", k: "fire", x: b.x, y: b.y });
+    }
     if (b.restT > 0.6 || b.age > 7) {
       b.done = true; b.gone = true;
       if (!b.brushed && !b.kid) w.events.push({ e: "miss", x: b.x, y: b.y });

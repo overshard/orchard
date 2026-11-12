@@ -66,7 +66,7 @@ const whirlMost = 12000
 
 // Every acorn and every piece of the biggest level in each of cattail sling's
 // slots, the golden acorn and every spare frog come to under this.
-const slingMost = 5000
+const slingMost = 7000
 
 // A game with no rate is played out on the server a tap at a time, so it
 // never takes a score from the page. It pays once a day and is never the
