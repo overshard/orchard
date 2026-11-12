@@ -5,6 +5,8 @@
 // left to right, and the player's frog on the right sings the hook.
 export const STEPS = 8, BASS = 0, BEAT = 1, CHOP = 2, HOOK = 3;
 export const LEAD = 1;
+// Every song plays this much quicker than its bpm, which reads as the tempo it was written at.
+export const TEMPO = 1.15;
 
 // A part is a bar of steps or a list of bars taken in turn. walk is the bass
 // as chord degrees, melody is the hook as chord tones up or down from C5, and
@@ -36,7 +38,7 @@ export const SONGS = [
     hook: [".x...x..", ".x.x.x..", ".x.x.x.x"], melody: [0, 1, 2, 1],
   },
   {
-    name: "Lazy Log", bpm: 76, swing: 0.58, chords: ["C", "F"],
+    name: "Lazy Log", bpm: 82, swing: 0.58, chords: ["C", "F"],
     bass: "x....xx.", walk: ["1", "5", "1"], beat: "....x...", chop: ".x.x.x.x",
     hook: ["x.....x.", "x.x...x.", "x.x...xx"], melody: [0, -1, 0, 1],
   },
@@ -56,7 +58,7 @@ export const SONGS = [
     hook: ["x...x...", "x...xx..", "x.x.xx.."], melody: [0, 1, 2, 1],
   },
   {
-    name: "Moon Chorus", bpm: 76, swing: 0.62, chords: ["C", "Am", "Dm", "G"],
+    name: "Moon Chorus", bpm: 82, swing: 0.62, chords: ["C", "Am", "Dm", "G"],
     bass: "x...x...", walk: ["1", "5"], beat: "..x...x.", chop: ".x.x.x.x",
     hook: ["x..x....", "x..x.x..", "x..x.x.x"], melody: [2, 1, 0, 1],
   },
@@ -98,7 +100,7 @@ export const ROUNDS = 6;
 // The whole song laid out in song seconds. Swing pushes every off beat late,
 // and a note is sung and judged where it's swung to.
 export function lay(s) {
-  const step = 30 / s.bpm, late = (s.swing - 0.5) * 2 * step;
+  const step = 30 / (s.bpm * TEMPO), late = (s.swing - 0.5) * 2 * step;
   const bars = [], notes = [], targets = [];
   let t = LEAD;
   const at = (bt, st) => bt + st * step + (st % 2 ? late : 0);
