@@ -755,6 +755,26 @@ version of the old look and a handheld pet shell.
   frog down to one lily is always offered one back. Taken perks and combos
   sit as small icons in the bottom corner. A beetle about to run puts an
   amber mark over itself as well as its dotted line.
+- **Whirlpool is the pond from above with a little eddy in it**, a dark eye
+  with three pale arms going round. A drag anywhere moves it by as much as the
+  finger moved, like swarm season, and it swallows anything smaller than
+  itself and grows, duckweed and petals first, then leaves, twigs and bugs,
+  lily pads, the reeds, ducks, logs, and at the very end the moored boats, the
+  jetty and the willow island. There are eight bands of half a dozen things
+  or so, all drawn from above on a grid, a few of them rare with a twinkle on
+  them. The camera backs off as it grows so the next band comes into view, and
+  crossing a band pops its name with a little push in that reduced motion
+  doesn't get. Things go round and down the middle turning as they go and the
+  arms wind tighter after each gulp, and anything alive only goes round for a
+  spin and is flung clear with a ring of stars to paddle off. Something a
+  little too big just blocks the way, and a hard knock on something well over
+  says BUMP and spits one thing back out. The size reads in CM and then M in
+  the top corner over the band, and the last few catches tick up the bottom
+  corner with a small picture each. The last ten seconds say LAST SWIRL and
+  pull from further off, and the end backs off to the whole pond with
+  everything that went down thrown up in a spout under a rainbow. The results
+  are the haul as a box a kind with its count, biggest first and the rare ones
+  edged in amber.
 - **Bug sweep is the day's puzzle.** Eight pads by ten on flat water, a
   closed pad green and an open one dark with its number in a colour of its
   own, pale blue for one up to red. A marked pad has a pink bud on it, and a

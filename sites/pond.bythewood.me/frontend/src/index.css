@@ -4244,6 +4244,23 @@ button.big {
   color: var(--amber);
 }
 
+/* Whirlpool's collection is its own picture, so the window above it goes. */
+.whirlcard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.whirlcard p {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.arcade-card:has(.whirlcard) .arcade-win {
+  display: none;
+}
+
 /* A third row of fish takes the picture's room on a short phone. */
 .arcade-card:has(.fishrow > :nth-child(9)) .arcade-win {
   display: none;

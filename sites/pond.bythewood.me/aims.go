@@ -99,6 +99,14 @@ var aimList = []aim{
 	{"ss_clean", "swarm", "Score 600 and never get bumped", nil, []string{"bumps"}, 600},
 	{"ss_combo", "swarm", "Make a combo of two perks", map[string]int{"combos": 1}, nil, 0},
 	{"ss_level", "swarm", "Reach level twelve", map[string]int{"level": 12}, nil, 0},
+
+	{"wp_ducks", "whirl", "Grow big enough for ducks", map[string]int{"band": 5}, nil, 0},
+	{"wp_jetty", "whirl", "Swallow the jetty", map[string]int{"jetty": 1}, nil, 0},
+	{"wp_log", "whirl", "Swallow the old log", map[string]int{"log": 1}, nil, 0},
+	{"wp_rare", "whirl", "Swallow two rare things", map[string]int{"rares": 2}, nil, 0},
+	{"wp_kinds", "whirl", "Swallow thirty kinds of thing", map[string]int{"kinds": 30}, nil, 0},
+	{"wp_spin", "whirl", "Take twenty creatures for a spin", map[string]int{"swirled": 20}, nil, 0},
+	{"wp_clean", "whirl", "Reach the lily pads without a bump", map[string]int{"band": 3}, []string{"bumps"}, 0},
 }
 
 // The least score each count says a run made, so a page can't report more of
@@ -120,6 +128,7 @@ var aimWorth = map[string]map[string]int{
 	"jar":    {"kings": 60, "elders": 25, "frogs": 8, "froglets": 4},
 	"lash":   {"combo": 2, "golden": 10, "dragonflies": 3, "bugs": 1},
 	"swarm":  {"wasps": 3, "beetles": 6, "dew": 1, "bugs": 1, "combos": 60, "level": 8},
+	"whirl":  {"band": 12, "things": 1, "kinds": 1, "rares": 15, "swirled": 2, "log": 150, "jetty": 300, "isle": 350},
 }
 
 // aimsOf is a game's two goals for a day, the same in every pond.

@@ -65,6 +65,11 @@ const SFX = {
   thump: () => tone("sine", 150, 55, 0.16, 0.12),
   zap: () => tone("sawtooth", 2600, 1900, 0.03, 0.015),
   chomp: () => tone("square", 420, 180, 0.08, 0.06),
+  band: () => {
+    tone("square", 520, 520, 0.06, 0.04);
+    setTimeout(() => tone("square", 780, 780, 0.06, 0.04), 60);
+    setTimeout(() => tone("triangle", 1040, 1560, 0.16, 0.05), 120);
+  },
   perk: () => {
     tone("triangle", 660, 660, 0.07, 0.05);
     setTimeout(() => tone("triangle", 880, 880, 0.07, 0.05), 70);
@@ -83,6 +88,15 @@ export function sfx(kind, streak) {
     bend = 1;
   }
   if ((kind === "bonk" || kind === "snap") && on.buzz && navigator.vibrate) navigator.vibrate(40);
+}
+
+// slurp is a gulp pitched by the size of what went down, a squeak for a
+// speck and a low glug for a boat.
+export function slurp(s) {
+  if (!on.sound) return;
+  const f = 1500 / Math.pow(s, 0.42);
+  tone("sine", f, f * 0.4, 0.05 + Math.min(0.22, s / 300), 0.07);
+  tone("triangle", f * 1.5, f * 0.9, 0.035, 0.02);
 }
 
 // chime is a soft bell some semitones over G4, for a reed a pebble rings.
