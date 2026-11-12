@@ -109,34 +109,40 @@ function deal(clears) {
   others.forEach((o, i) => { o.clears = clears && clears[i] != null ? clears[i] : Math.floor(Math.random() * 12); });
 }
 
+// A rival that went out is carried back on the stems it hit for this long.
+const OUT_FOR = 0.9;
+
 function stepOthers(dt, sp) {
   others.forEach((o) => {
-    if (o.out) return;
+    if (o.out) {
+      if (o.fade > 0) { o.fade -= dt / OUT_FOR; o.x -= sp * dt; o.y += 10 * dt; }
+      return;
+    }
     // Each one now and then picks a new spot in the pack and swims to it
     // slowly, which is all an overtake is.
     if (G.t > o.wantAt) { o.want = -behind() + Math.random() * (behind() + ahead()); o.wantAt = G.t + 2 + Math.random() * 4; }
     o.off += Math.max(-9 * dt, Math.min(9 * dt, o.want - o.off));
     o.x = FXP + o.off;
-    const gate = G.gates.find((g) => g.x + OW > o.x - 8);
-    // One that has cleared all it's going to drifts up into the stems.
+    G.gates.forEach((g) => { if (!g.seen[o.id] && g.x + OW < o.x - 8) { g.seen[o.id] = true; o.passed++; } });
+    const gate = G.gates.find((g) => !g.seen[o.id]), done = o.passed >= o.clears;
+    // One that has cleared all it's going to swims up into the stems.
     let want = (TOP + BOT) / 2 + o.aim * 3;
     // A kick carries about 29 down, so this keeps the whole bob in the gap.
-    if (gate) want = o.passed >= o.clears ? gateC(gate) - gate.gap / 2 - 10 : gateC(gate) - gate.gap / 2 + 6 + o.aim;
+    if (gate) want = done ? gateC(gate) - gate.gap / 2 - 10 : gateC(gate) - gate.gap / 2 + 6 + o.aim;
     o.vy -= BUOY * dt; if (o.vy < -RISE_MAX) o.vy = -RISE_MAX;
     if (o.y < want && o.vy < 30) { o.vy = KICK; o.kick = 0.16; }
     o.y += o.vy * dt; o.kick -= dt;
-    if (o.y > BOT - 6) { o.y = BOT - 6; o.vy = Math.min(0, o.vy); }
+    o.y = Math.max(TOP + 6, Math.min(BOT - 6, o.y));
     if (!gate) return;
-    if (gate.x + OW < o.x - 8 && gate.seen !== undefined && !gate.seen[o.id]) { gate.seen[o.id] = true; o.passed++; }
-    // Nothing touches a ghost before its dealt gate, so the race the page
-    // shows is the one the server scores.
-    const c = gateC(gate), at = o.x + 7 > gate.x && o.x - 8 < gate.x + OW;
-    if (at && o.passed < o.clears) o.y = Math.max(c - gate.gap / 2 + 4, Math.min(c + gate.gap / 2 - 5, o.y));
-    const hit = at && o.passed >= o.clears && (o.y - 4 < c - gate.gap / 2 || o.y + 5 > c + gate.gap / 2);
-    if (hit || (o.y < TOP + 5 && o.passed >= o.clears)) {
-      o.out = true; o.fade = 0;
+    // Nothing touches a ghost before its dealt gate and it always goes out
+    // on that one, so the race the page shows is the one the server scores.
+    const c = gateC(gate), at = o.x + 7 > gate.x;
+    if (at && !done) o.y = Math.max(c - gate.gap / 2 + 4, Math.min(c + gate.gap / 2 - 5, o.y));
+    if (at && done) {
+      o.out = true; o.x = gate.x - 7;
+      o.y = o.y < c ? Math.min(o.y, c - gate.gap / 2 - 2) : Math.max(o.y, c + gate.gap / 2 + 3);
       if (G.state === "play") raceOut(o.id);
-      for (let i = 0; i < 9; i++) G.bub.push({ x: o.x - 7 + Math.random() * 14, y: o.y - 6 + Math.random() * 12, a: 1 });
+      for (let i = 0; i < 14; i++) G.bub.push({ x: o.x - 9 + Math.random() * 18, y: o.y - 8 + Math.random() * 16, a: 1 });
     }
   });
   if (G.state === "play") raceOrder(liveOrder());
@@ -190,6 +196,10 @@ function results(again) {
 function die(now, why) {
   G.state = "over"; G.overAt = now; G.why = why;
   const score = G.score, gates = G.cleared;
+  // Anyone due out at the gate you went out on is behind you on a tie, so
+  // they go out now and your place shows what the server will give.
+  others.forEach((o) => { if (!o.out && o.clears <= gates) { o.out = true; raceOut(o.id); } });
+  raceOrder(liveOrder());
   G.quick = mode === "race" ? !G.live && place() > 3 : score <= best() && place() > 3;
   F.crash(FXP, G.fy);
   // The flash of the frog going out plays first, then the results come up.
