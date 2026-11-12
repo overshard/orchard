@@ -16,6 +16,7 @@ import { putt, puttArt } from "./putt.js";
 import { jar, jarArt } from "./jar.js";
 import { lash, lashArt } from "./lash.js";
 import { swarm, swarmArt } from "./swarm.js";
+import { whirl, whirlArt } from "./whirl.js";
 
 // Every disk on Play. A disk is a key, a name, the plastic's colour, one
 // line, the picture on its label and the game the frame runs. A new game is
@@ -26,6 +27,7 @@ export const SHELVES = [
   { name: "Arcade", disks: [
     { key: "swarm", name: "Swarm season", colour: "#e8c23a", line: "Steer through the swarm and stack up perks.", art: swarmArt, game: swarm },
     { key: "lash", name: "Tongue lash", colour: "#e07ab0", line: "Snap bugs out of the dusk, lots to a gulp.", art: lashArt, game: lash },
+    { key: "whirl", name: "Whirlpool", colour: "#46c1c9", line: "Swallow the pond, duckweed first and the jetty last.", art: whirlArt, game: whirl },
     { key: "dive", name: "Dive", colour: "#2b5fa8", line: "Race nine frogs to the bottom.", art: diveArt },
     { key: "cross", name: "Crossing", colour: "#b8392b", line: "Hop the lane and the stream home.", art: crossArt, game: cross },
     { key: "raft", name: "Raft run", colour: "#d0951c", line: "Steer a leaf down the river.", art: raftArt, game: raft },
