@@ -122,6 +122,9 @@ var aimWorth = map[string]map[string]int{
 
 // aimsOf is a game's two goals for a day, the same in every pond.
 func aimsOf(day, game string) []aim {
+	if g, ok := arcadeOf(game); ok && g.cap == 0 {
+		return nil
+	}
 	var all []aim
 	for _, a := range aimList {
 		if a.game == game {

@@ -24,9 +24,10 @@ export const FLAGSHIP = { key: "fish", name: "Fishing", colour: "#1f7a7a", line:
 
 export const SHELVES = [
   { name: "Arcade", disks: [
+    { key: "swarm", name: "Swarm season", colour: "#e8c23a", line: "Steer through the swarm and stack up perks.", art: swarmArt, game: swarm },
+    { key: "lash", name: "Tongue lash", colour: "#e07ab0", line: "Snap bugs out of the dusk, lots to a gulp.", art: lashArt, game: lash },
     { key: "dive", name: "Dive", colour: "#2b5fa8", line: "Race nine frogs to the bottom.", art: diveArt },
     { key: "cross", name: "Crossing", colour: "#b8392b", line: "Hop the lane and the stream home.", art: crossArt, game: cross },
-    { key: "flick", name: "Tongue flick", colour: "#3f8a45", line: "Thirty seconds of bugs.", art: flickArt, game: flick },
     { key: "raft", name: "Raft run", colour: "#d0951c", line: "Steer a leaf down the river.", art: raftArt, game: raft },
     { key: "leap", name: "Lily leap", colour: "#7d52c0", line: "Bounce as high as the pads go.", art: leapArt, game: leap },
     { key: "school", name: "Tadpoles", colour: "#2a2a30", line: "Lead a school round the shallows.", art: schoolArt, game: school },
@@ -34,14 +35,15 @@ export const SHELVES = [
     { key: "skip", name: "Pebble skip", colour: "#5b6470", line: "Skip three pebbles across the pond.", art: skipArt, game: skip },
     { key: "drop", name: "Pebble drop", colour: "#d8cfb8", line: "Drop five pebbles through the reeds.", art: dropArt, game: drop },
     { key: "chorus", name: "Chorus", colour: "#d8642a", line: "Sing your part with the frogs on the log.", art: chorusArt, game: chorus },
-    { key: "lash", name: "Tongue lash", colour: "#e07ab0", line: "Snap bugs out of the dusk, lots to a gulp.", art: lashArt, game: lash },
-    { key: "swarm", name: "Swarm season", colour: "#e8c23a", line: "Steer through the swarm and stack up perks.", art: swarmArt, game: swarm },
   ] },
   { name: "Puzzles", disks: [
     { key: "shell", name: "Shell game", colour: "#8a5a2b", line: "Follow the tadpole under the shells.", art: shellArt, game: shell },
     { key: "sweep", name: "Bug sweep", colour: "#8fa832", line: "Clear the pads and mind the wasps.", art: sweepArt, game: sweep },
     { key: "putt", name: "Pad putt", colour: "#4fa8d8", line: "Nine holes of mini golf round the pond.", art: puttArt, game: putt },
     { key: "jar", name: "Spawn jar", colour: "#8fc9b4", line: "Grow frogspawn up to a pond king in a jar.", art: jarArt, game: jar },
+  ] },
+  { name: "Classics", disks: [
+    { key: "flick", name: "Tongue flick", colour: "#3f8a45", line: "Thirty seconds of bugs, just for fun.", art: flickArt, game: flick },
   ] },
 ];
 

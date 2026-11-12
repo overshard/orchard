@@ -159,7 +159,7 @@ func TestBugSweepPaysOnceADay(t *testing.T) {
 	_, id := newPond(t, s)
 	g, _ := arcadeOf("sweep")
 	// A game played first, so the frog isn't well rested for the prize.
-	play(t, s, clock, id, "flick", 0)
+	play(t, s, clock, id, "school", 0)
 	before, _ := s.view(id)
 	out := clearBugs(t, s, id, "", 0)
 	// The day's goals are met on the same go and pay inside the cap.
@@ -182,7 +182,7 @@ func TestBugSweepPaysOnceADay(t *testing.T) {
 	}
 	// A wasp on the next day's grid pays for the pads opened before it.
 	*clock = clock.Add(24 * time.Hour)
-	play(t, s, clock, id, "flick", 0)
+	play(t, s, clock, id, "school", 0)
 	before, _ = s.view(id)
 	out = clearBugs(t, s, id, "", 3)
 	want := bugPart * out.Pads / bugSafe

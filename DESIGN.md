@@ -635,8 +635,9 @@ version of the old look and a handheld pet shell.
   flagship and its disk takes the whole first row, with a big amber title and
   a line about it beside the disk.
 - **Play is shelves.** Under the flagship the disks sit on an Arcade shelf for
-  the quick games and a Puzzles shelf for the slower thinking ones, each under
-  a section head. The wheel and the old log stay as panels under the shelves.
+  the quick games with the deepest first, a Puzzles shelf for the slower
+  thinking ones, and a Classics shelf for retired games that still play but pay
+  nothing, each under a section head. The wheel and the old log stay as panels under the shelves.
 - **A side game fills a tall phone.** The field sits in the middle and the
   room over and under it is a flat colour the game names, or its top and
   bottom rows stretched where that carries the scene on. Crossing takes more

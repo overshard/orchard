@@ -23,7 +23,8 @@ type arcadeGame struct {
 }
 
 var arcadeGames = []arcadeGame{
-	{"flick", "Tongue flick", 50, 6, 400, 1},
+	// A classic, still played but paying nothing, its goals and records kept.
+	{"flick", "Tongue flick", 0, 6, 400, 1},
 	{"cross", "Crossing", 60, 8, 1500, 2},
 	{"raft", "Raft run", 40, 4, 600, 1},
 	{"leap", "Lily leap", 40, 20, 3000, 4},
@@ -105,7 +106,7 @@ func (p *pond) payRun(pay, room int, now time.Time) (paid, bonus int) {
 func diskOfDay(day string) string {
 	var keys []string
 	for _, g := range arcadeGames {
-		if !g.replayed() {
+		if !g.replayed() && g.cap > 0 {
 			keys = append(keys, g.key)
 		}
 	}

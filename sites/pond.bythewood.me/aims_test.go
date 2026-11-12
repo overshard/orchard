@@ -18,7 +18,12 @@ func TestEveryDiskHasTwoGoalsADay(t *testing.T) {
 	}
 	games := []string{"dive"}
 	for _, g := range arcadeGames {
-		games = append(games, g.key)
+		if g.cap > 0 {
+			games = append(games, g.key)
+		}
+	}
+	if as := aimsOf("2026-11-01", "flick"); len(as) != 0 {
+		t.Errorf("a classic has goals: %v", as)
 	}
 	day := time.Date(2026, 11, 1, 12, 0, 0, 0, pondZone)
 	for _, g := range games {
