@@ -2,7 +2,7 @@ import { colours } from "./frog.js";
 import { feel } from "./feel.js";
 import { reduced } from "./api.js";
 import { sfx } from "./sound.js";
-import { W, H, WATER, SX, SY, PULL, SHORE, BANK, LEVELS, MATS, FROGS, round, begin, step, fling, power, pulled, aimPath, counts, bar } from "./slingworld.js";
+import { W, H, WATER, SX, SY, PULL, SHORE, BANK, LEVELS, MATS, FROGS, ACORN, GOLD, round, begin, step, fling, power, pulled, aimPath, counts, bar } from "./slingworld.js";
 
 // Cattail sling. A bent cattail flings the frog at acorns stacked on logs and
 // rafts out on the pond, and every acorn knocked open or into the water
@@ -66,8 +66,13 @@ const LOOK = {
   mud: { base: "#7a5230", line: "#4a3018", hi: "#9a6a40", fleck: "#d9c070", bits: ["#7a5230", "#4a3018", "#d9c070"] },
   ice: { base: "rgba(191,230,242,0.88)", line: "#7fb8cc", hi: "#f4fcff", bits: ["#f4fcff", "#bfe6f2", "#7fb8cc"] },
   stone: { base: "#8a8f96", line: "#5b6470", hi: "#b6bac0", bits: ["#b6bac0", "#5b6470", "#8a8f96"] },
+  pot: { base: "#c0703a", line: "#7a3e1e", hi: "#e09a5a", bits: ["#c0703a", "#7a3e1e", "#e09a5a"] },
+  barrel: { base: "#8a5a2b", line: "#4a3018", hi: "#b07a42", band: "#5b6470", bits: ["#9fdcf2", "#8a5a2b", "#cfe3ea"] },
+  crate: { base: "#c0a070", line: "#6b4a2a", hi: "#e0c890", bits: ["#c0a070", "#6b4a2a", "#b0702a"] },
+  roller: { base: "#6b4a2a", line: "#4a3018", hi: "#c0a070", bits: ["#c0a070", "#6b4a2a", "#8a6a3a"] },
   acorn: { bits: ["#b0702a", "#6b4a2a", "#e0a050"] },
 };
+const NOISE = { pot: "ice", barrel: "wood", crate: "wood", roller: "wood" };
 
 function box(x, b) {
   const L = LOOK[b.mat], w2 = b.hx * 2, h2 = b.hy * 2, long = b.hx >= b.hy;
@@ -97,6 +102,22 @@ function box(x, b) {
   } else if (b.mat === "stone") {
     x.fillStyle = L.hi; x.fillRect(-b.hx, -b.hy, w2, 1.5);
     x.fillStyle = L.line; x.fillRect(-b.hx * 0.4, 0, 1, 1); x.fillRect(b.hx * 0.5, b.hy * 0.4, 1, 1); x.fillRect(-b.hx * 0.7, b.hy * 0.5, 1, 1);
+  } else if (b.mat === "pot") {
+    x.fillStyle = "#0a0908"; x.fillRect(-b.hx - 0.5, -b.hy - 0.5, 1.5, 2); x.fillRect(b.hx - 1, -b.hy - 0.5, 1.5, 2);
+    x.fillStyle = L.hi; x.fillRect(-b.hx + 1, -b.hy, w2 - 2, 1); x.fillRect(-b.hx + 1, -b.hy + 2, 1, h2 - 3);
+    x.fillStyle = L.line; x.fillRect(-b.hx + 1, b.hy - 1, w2 - 2, 1); x.fillRect(-b.hx, -b.hy + 1.5, w2, 0.5);
+  } else if (b.mat === "barrel") {
+    x.fillStyle = L.hi; for (let v = -b.hx + 1.5; v < b.hx; v += 3) x.fillRect(v, -b.hy, 0.5, h2);
+    x.fillStyle = L.band; x.fillRect(-b.hx, -b.hy + 2, w2, 1); x.fillRect(-b.hx, b.hy - 3, w2, 1);
+    x.fillStyle = "#9fdcf2"; x.fillRect(-b.hx + 1, -b.hy, w2 - 2, 1);
+  } else if (b.mat === "crate") {
+    x.fillStyle = L.line; x.fillRect(-b.hx, -b.hy + 1, w2, 1); x.fillRect(-b.hx, b.hy - 2, w2, 1);
+    x.fillRect(-b.hx + 1, -b.hy, 1, h2); x.fillRect(b.hx - 2, -b.hy, 1, h2);
+    if (b.nuts) for (let i = 0; i < Math.min(3, b.nuts); i++) {
+      const cx = -b.hx + 3.5 + i * ((w2 - 7) / Math.max(1, Math.min(3, b.nuts) - 1 || 1));
+      x.fillStyle = "#6b4a2a"; x.fillRect(cx - 1.5, -2, 3, 1.5); x.fillStyle = "#b0702a"; x.fillRect(cx - 1, -0.5, 2, 2);
+    }
+    x.fillStyle = L.line; x.fillRect(-b.hx, -0.5, w2, 0.5);
   }
   cracks(x, b, b.hx, b.hy);
   x.restore();
@@ -115,12 +136,26 @@ function cracks(x, b, hx, hy) {
 }
 
 function pebble(x, b) {
+  if (b.mat === "roller") return logEnd(x, b);
   x.save(); x.translate(b.x, b.y);
   x.fillStyle = "#0a0908"; disc(x, 0, 0, b.r + 0.5);
   x.fillStyle = LOOK.stone.base; disc(x, 0, 0, b.r);
   x.rotate(b.a);
   x.fillStyle = LOOK.stone.hi; x.fillRect(-b.r * 0.5, -b.r * 0.6, b.r * 0.6, 1);
   x.fillStyle = LOOK.stone.line; x.fillRect(b.r * 0.2, b.r * 0.2, 1, 1);
+  cracks(x, b, b.r * 0.7, b.r * 0.7);
+  x.restore();
+}
+
+// A rolling log is seen end on, its rings turning as it rolls.
+function logEnd(x, b) {
+  x.save(); x.translate(b.x, b.y);
+  x.fillStyle = "#0a0908"; disc(x, 0, 0, b.r + 0.5);
+  x.fillStyle = LOOK.roller.base; disc(x, 0, 0, b.r);
+  x.fillStyle = LOOK.roller.hi; disc(x, 0, 0, b.r - 1);
+  x.fillStyle = "#a88a5a"; disc(x, 0, 0, b.r * 0.55);
+  x.rotate(b.a);
+  x.fillStyle = LOOK.roller.line; x.fillRect(-0.5, -b.r + 1, 1, b.r - 1); x.fillRect(0, 0, 1, 1);
   cracks(x, b, b.r * 0.7, b.r * 0.7);
   x.restore();
 }
@@ -298,7 +333,7 @@ function events() {
       else if (e.k === "bull") { sfx("thump"); F.burst(e.x, e.y, "#6b7a2a", 6); }
       else if (e.k === "toad") { sfx("puff"); G.rings.push({ x: e.x, y: e.y, t: 0, r: 44 }); F.hit(0.45); F.freeze(3); }
     } else if (e.e === "knock") {
-      if (e.j > 3) noise(e.mat === "acorn" ? "kick" : e.mat, 0.07);
+      if (e.j > 3) noise(e.mat === "acorn" ? "kick" : NOISE[e.mat] || e.mat, 0.07);
       if (e.j > 8) F.hit(Math.min(0.5, e.j / 40));
       F.burst(e.x, e.y, LOOK[e.mat] && LOOK[e.mat].bits ? LOOK[e.mat].bits[1] : "#d9c9a8", 2);
     } else if (e.e === "break") {
@@ -307,6 +342,15 @@ function events() {
       splash(e);
     } else if (e.e === "hop") {
       G.hops.push({ x: e.x, y: e.y, t: 0, k: e.frog, kid: e.kid, to: Math.max(SHORE + 6, Math.min(W - 6, e.x + 12)) });
+    } else if (e.e === "burst") {
+      noise("splash", 0.05); F.hit(0.3);
+      G.rings.push({ x: e.x, y: e.y, t: 0, r: e.r, wet: true });
+      F.burst(e.x, e.y, "#9fdcf2", 10); F.burst(e.x, e.y, "#f4fcff", 6);
+    } else if (e.e === "spill") {
+      for (let i = 0; i < e.n; i++) {
+        G.caps.push({ x: e.x, y: e.y, vx: (i - (e.n - 1) / 2) * 40, vy: -110, t: 0, whole: true });
+        F.got(e.x + (i - (e.n - 1) / 2) * 10, e.y - 6 - i * 4, "+" + ACORN, { sound: "catch", c: "#ffe27a" });
+      }
     } else if (e.e === "miss") {
       F.pop(e.x, e.y - 10, "MISS", "#cfe3ea");
       noise("plop", 0.1);
@@ -334,10 +378,10 @@ function broke(e) {
   G.dust.push({ x: e.x, y: e.y, t: 0, r: 4 + size / 4, c: e.mat === "ice" ? "#f4fcff" : e.mat === "reed" ? "#e8e0b0" : "#d9c9a8" });
   if (e.kind === "acorn") {
     noise("pop", 0.03);
-    F.got(e.x, e.y, "+" + (e.gold ? 150 : 50), { sound: "catch", big: !!e.gold, c: e.gold ? "#ffb000" : "#ffe27a" });
+    F.got(e.x, e.y, "+" + (e.gold ? GOLD : ACORN), { sound: "catch", big: !!e.gold, c: e.gold ? "#ffb000" : "#ffe27a" });
     G.caps.push({ x: e.x, y: e.y - 3, vx: (Math.random() - 0.5) * 60, vy: -90, t: 0, gold: e.gold });
   } else {
-    noise(e.mat, 0.04);
+    noise(NOISE[e.mat] || e.mat, 0.04);
     F.pop(e.x, e.y - 4, "+" + MATS[e.mat].pts, "#ece5d8");
     if (e.mat === "stone") F.hit(0.35);
   }
@@ -351,9 +395,9 @@ function splash(e) {
     noise("splash", 0.05);
   }
   if (e.kind === "frog") { if (!e.off) G.swim.push({ x: e.x, t: 0, k: e.frog, kid: e.kid }); return; }
-  if (e.kind === "acorn") F.pop(e.x, WATER - 12, "+" + (e.gold ? 150 : 50), e.gold ? "#ffb000" : "#ffe27a");
+  if (e.kind === "acorn") F.pop(e.x, WATER - 12, "+" + (e.gold ? GOLD : ACORN), e.gold ? "#ffb000" : "#ffe27a");
   else F.pop(e.x, WATER - 10, "+10", "#cfe3ea");
-  if (!e.off) G.float.push({ x: e.x, y: WATER, vx: Math.max(-14, Math.min(14, e.vx * 0.1)) + 4, t: 0, mat: e.mat, kind: e.kind, hx: e.hx, hy: e.hy, r: e.r, a: e.a, gold: e.gold, sink: e.mat === "stone" || e.mat === "mud" });
+  if (!e.off) G.float.push({ x: e.x, y: WATER, vx: Math.max(-14, Math.min(14, e.vx * 0.1)) + 4, t: 0, mat: e.mat, kind: e.kind, hx: e.hx, hy: e.hy, r: e.r, a: e.a, gold: e.gold, sink: e.mat === "stone" || e.mat === "mud" || e.mat === "pot" });
 }
 
 // ---------------------------------------------------------------- the game
@@ -482,7 +526,11 @@ export const sling = {
       else if (b.s === "circle") pebble(x, b);
       else box(x, b);
     }
-    G.caps.forEach((c) => { const cx = c.x + c.vx * c.t, cy = c.y + c.vy * c.t + 160 * c.t * c.t; x.fillStyle = c.gold ? "#c07a00" : "#6b4a2a"; x.fillRect(cx - 3, cy - 1, 6, 3); });
+    G.caps.forEach((c) => {
+    const cx = c.x + c.vx * c.t, cy = c.y + c.vy * c.t + 160 * c.t * c.t;
+    if (c.whole) { x.globalAlpha = Math.max(0, 1 - c.t / 1.2); acorn(x, cx, cy, c.t * 6, false, t); x.globalAlpha = 1; return; }
+    x.fillStyle = c.gold ? "#c07a00" : "#6b4a2a"; x.fillRect(cx - 3, cy - 1, 6, 3);
+  });
     G.float.filter((f) => f.sink).forEach((f) => floater(x, f));
     surface(x, S, t);
     G.swim.forEach((s) => swimmer(x, s));
@@ -545,7 +593,7 @@ function swimmer(x, s) {
 
 function ring(x, r) {
   const k = r.t / 0.6, rr = r.r * (0.3 + k), n = Math.round(10 + rr);
-  x.fillStyle = r.flat ? "rgba(230,248,252," + (0.8 * (1 - k)).toFixed(2) + ")" : "rgba(255,246,220," + (0.7 * (1 - k)).toFixed(2) + ")";
+  x.fillStyle = r.flat || r.wet ? "rgba(230,248,252," + (0.8 * (1 - k)).toFixed(2) + ")" : "rgba(255,246,220," + (0.7 * (1 - k)).toFixed(2) + ")";
   for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; x.fillRect(r.x + Math.cos(a) * rr, r.y + Math.sin(a) * rr * (r.flat ? 0.25 : 1), 1, 1); }
 }
 
