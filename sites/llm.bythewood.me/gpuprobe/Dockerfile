@@ -1,7 +1,7 @@
 # How busy the card is, for callers that want to stay off it while the desktop
 # is using it. Debian rather than scratch, since the nvidia-smi the container
 # toolkit injects is linked against glibc.
-FROM golang:1.27-trixie@sha256:fbb7ae40b62ff8afe31662df570d39b4f5052ac32b90dae8e60d7657a20a74f4 AS build
+FROM golang:1.27-trixie@sha256:c47c3fda018d13d43a6bf5ebac3e5bba8a23a35782aa4faf531afaf47c64c39f AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 COPY gpuprobe ./gpuprobe
