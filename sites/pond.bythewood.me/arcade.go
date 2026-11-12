@@ -35,16 +35,16 @@ var arcadeGames = []arcadeGame{
 	{"skip", "Pebble skip", 40, 12, 400, 2},
 	{"drop", "Pebble drop", 40, 4, dropMost, 2},
 	{"sweep", "Bug sweep", 40, 0, bugSafe, 1},
-	{"chorus", "Chorus", 40, 7, chorusMost, 15},
+	{"chorus", "Chorus", 40, 3, chorusMost, 4},
 	{"putt", "Pad putt", 40, 5, puttMost, 3},
 	{"jar", "Spawn jar", 40, 25, jarMost, 25},
 	{"lash", "Tongue lash", 40, 12, lashMost, 8},
 	{"swarm", "Swarm season", 40, 20, swarmMost, 40},
 }
 
-// Every beat of chorus right on time is all a song can score, before a
-// singer's quarter.
-const chorusMost = 601
+// Every note of a chorus song right on time with the run at its height is all
+// a song can score, before a singer's quarter. best in songs.js works it out.
+const chorusMost = 170
 
 // Two pond kings popping clear the jar, so a run has no end of its own and
 // its rate is what holds it. This only stops a number no run could reach.

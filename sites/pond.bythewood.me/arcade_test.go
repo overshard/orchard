@@ -287,7 +287,7 @@ func TestChorusIsBounded(t *testing.T) {
 		}
 	}
 	exec(t, s, `UPDATE frogs SET seed = ? WHERE pond_id = ?`, plain, id)
-	if d := play(chorusMost+1, 200); d.Paid != 0 {
+	if d := play(chorusMost+1, 121); d.Paid != 0 {
 		t.Errorf("more than a perfect song paid: %+v", d)
 	}
 	if d := play(chorusMost, 30); d.Paid != 0 {
@@ -306,8 +306,8 @@ func TestChorusIsBounded(t *testing.T) {
 	*clock = clock.Add(24 * time.Hour)
 	play(0, 120)
 	exec(t, s, `UPDATE frogs SET seed = ? WHERE pond_id = ?`, singer, id)
-	if d := play(200, 100); d.Score != 250 || !d.Singer || d.Paid != 250/g.per {
-		t.Errorf("a singer's 200: %+v", d)
+	if d := play(100, 80); d.Score != 125 || !d.Singer || d.Paid != 125/g.per {
+		t.Errorf("a singer's 100: %+v", d)
 	}
 	if d := play(chorusMost, 30); d.Paid != 0 || d.Singer {
 		t.Errorf("a singer still has to sing in time: %+v", d)
