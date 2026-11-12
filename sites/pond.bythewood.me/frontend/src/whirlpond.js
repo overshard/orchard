@@ -16,6 +16,7 @@ export const BANDS = [
   { name: "DUCKS", line: "DUCKS" },
   { name: "LOGS", line: "THE OLD LOG" },
   { name: "THE JETTY", line: "THE JETTY" },
+  { name: "THE BANKS", line: "THE BANKS" },
 ];
 
 // s is about half the thing's longest side. act is how it gets about, and a
@@ -86,13 +87,24 @@ export const KINDS = [
   { k: "punt", name: "The punt", b: 7, s: 86, pts: 40, w: 0, act: "still", fixed: true },
   { k: "jetty", name: "The jetty", b: 7, s: 105, pts: 80, w: 0, act: "still", fixed: true },
   { k: "isle", name: "The willow island", b: 7, s: 120, pts: 100, w: 0, act: "still", fixed: true },
+
+  // The banks are the finale, and swallowing all five takes the whole pond.
+  { k: "willowtree", name: "The weeping willow", b: 8, s: 135, pts: 150, w: 0, act: "still", fixed: true, bank: true },
+  { k: "boathouse", name: "The boathouse", b: 8, s: 140, pts: 150, w: 0, act: "still", fixed: true, bank: true },
+  { k: "mill", name: "The water mill", b: 8, s: 145, pts: 160, w: 0, act: "still", fixed: true, bank: true },
+  { k: "cottage", name: "The cottage", b: 8, s: 150, pts: 170, w: 0, act: "still", fixed: true, bank: true },
+  { k: "bridge", name: "The footbridge", b: 8, s: 150, pts: 170, w: 0, act: "still", fixed: true, bank: true },
 ];
+export const BANKS = KINDS.filter((k) => k.bank).length;
+// Every second left when the last of the banks goes is worth this.
+export const LEFT = 60;
 export const KIND = Object.fromEntries(KINDS.map((k) => [k.k, k]));
 export const REACH = BANDS.map((_, b) => Math.min(...KINDS.filter((k) => k.b === b).map((k) => k.s)) / EAT);
 
 // The big things are moored in the same place every round, so the old log is a
 // wall the first time the eddy meets it and swallowed by the end.
-const MOORED = [["log", 700, 1340], ["rowboat", 930, 230], ["punt", 1080, 880], ["jetty", 650, 70], ["isle", 260, 520], ["canoe", 300, 1230], ["padisle", 1020, 1540]];
+const MOORED = [["log", 700, 1340], ["rowboat", 930, 230], ["punt", 1080, 880], ["jetty", 650, 70], ["isle", 260, 520], ["canoe", 300, 1230], ["padisle", 1020, 1540],
+  ["willowtree", 100, 980], ["boathouse", 1210, 1300], ["mill", 120, 1720], ["cottage", 1200, 560], ["bridge", 340, 100]];
 const START = { x: 640, y: 1680 };
 // How many of each band to keep near the eddy, by how far the band is off its own.
 const KEEP = { "-2": 10, "-1": 24, "0": 60, "1": 12, "2": 4 };
@@ -114,6 +126,7 @@ export function world(rand) {
     rand: rand || Math.random, t: 0, st: "play", done_t: 0, x: START.x, y: START.y, tx: START.x, ty: START.y, vx: 0, vy: 0,
     r: R0, band: 0, z: Z0, cx: START.x, cy: START.y, spin: 0, things: [], spins: [], events: [], fill: 0,
     took: {}, score: 0, pts: 0, things_n: 0, swirled: 0, rares: 0, bumps: 0, safe: 0, kick: 0, rareSeen: {},
+    banks: 0, whole: false, bonus: 0, trail: [{ x: START.x, y: START.y }], trailAt: 0,
   };
   MOORED.forEach(([k, x, y]) => thing(w, KIND[k], x, y, false));
   for (let i = 0; i < 4; i++) top(w, true);
@@ -195,6 +208,7 @@ function swallow(w, o) {
   w.pts += k.pts; w.things_n++;
   if (k.alive) w.swirled++;
   if (k.rare) w.rares++;
+  if (k.bank) w.banks++;
   const a = Math.atan2(o.y - w.y, o.x - w.x);
   w.spins.push({ kind: k, a, d: Math.hypot(o.x - w.x, o.y - w.y), t: 0, rot: o.a, out: !!k.alive, face: o.face });
   emit(w, { e: "eat", k: k.k, s: k.s, x: o.x, y: o.y, alive: !!k.alive, rare: !!k.rare });
@@ -204,6 +218,7 @@ function swallow(w, o) {
     emit(w, { e: "band", b });
     top(w, false);
   }
+  if (k.bank && w.banks === BANKS) { w.whole = true; emit(w, { e: "whole" }); end(w); }
 }
 
 // A hard knock on something too big bounces the eddy back, and that's all it does.
@@ -305,7 +320,9 @@ export function step(w, dt) {
     w.cx += (w.x - w.cx) * Math.min(1, dt * 6); w.cy += (w.y - w.cy) * Math.min(1, dt * 6);
     w.cx = v2.w >= PW + 2 * BANK ? PW / 2 : Math.max(v2.w / 2 - BANK, Math.min(PW + BANK - v2.w / 2, w.cx));
     w.cy = v2.h >= PH + 2 * BANK ? PH / 2 : Math.max(v2.h / 2 - BANK, Math.min(PH + BANK - v2.h / 2, w.cy));
-    if (w.t >= ROUND) end(w);
+    w.trailAt -= dt;
+    if (w.trailAt <= 0) { w.trailAt = 0.4; w.trail.push({ x: w.x, y: w.y }); }
+    if (w.t >= ROUND && w.st === "play") end(w);
   }
   w.things.forEach((o) => { if (!o.gone) move(w, o, dt); });
   const v = view(w), far = Math.hypot(v.w, v.h) * 1.1;
@@ -317,9 +334,12 @@ export function step(w, dt) {
 }
 
 function end(w) {
+  if (w.st === "done") return;
   w.st = "done";
   w.size = Math.round(w.r * 2);
-  w.score = w.pts + w.size;
+  w.bonus = w.whole ? Math.round(Math.max(0, ROUND - w.t) * LEFT) : 0;
+  w.score = w.pts + w.size + w.bonus;
+  w.trail.push({ x: w.x, y: w.y });
   emit(w, { e: "end" });
 }
 
@@ -329,6 +349,6 @@ export function score(w) { return w.st === "done" ? w.score : w.pts + Math.round
 export function counts(w) {
   return {
     band: w.band, things: w.things_n, kinds: Object.keys(w.took).length, rares: w.rares, swirled: w.swirled, bumps: w.bumps,
-    log: w.took.log ? 1 : 0, jetty: w.took.jetty ? 1 : 0, isle: w.took.isle ? 1 : 0,
+    log: w.took.log ? 1 : 0, jetty: w.took.jetty ? 1 : 0, isle: w.took.isle ? 1 : 0, banks: w.banks, whole: w.whole ? 1 : 0,
   };
 }

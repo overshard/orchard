@@ -107,6 +107,7 @@ var aimList = []aim{
 	{"wp_kinds", "whirl", "Swallow thirty kinds of thing", map[string]int{"kinds": 30}, nil, 0},
 	{"wp_spin", "whirl", "Take twenty creatures for a spin", map[string]int{"swirled": 20}, nil, 0},
 	{"wp_clean", "whirl", "Reach the lily pads without a bump", map[string]int{"band": 3}, []string{"bumps"}, 0},
+	{"wp_bank", "whirl", "Swallow something off the bank", map[string]int{"banks": 1}, nil, 0},
 
 	{"cs_clear", "sling", "Clear all five levels", map[string]int{"cleared": 5}, nil, 0},
 	{"cs_stars", "sling", "Earn ten stars in one round", map[string]int{"stars": 10}, nil, 0},
@@ -139,7 +140,7 @@ var aimWorth = map[string]map[string]int{
 	"jar":    {"kings": 60, "elders": 25, "frogs": 8, "froglets": 4},
 	"lash":   {"combo": 2, "golden": 10, "dragonflies": 3, "bugs": 1},
 	"swarm":  {"wasps": 3, "beetles": 6, "dew": 1, "bugs": 1, "combos": 60, "level": 8},
-	"whirl":  {"band": 12, "things": 1, "kinds": 1, "rares": 15, "swirled": 2, "log": 150, "jetty": 300, "isle": 350},
+	"whirl":  {"band": 12, "things": 1, "kinds": 1, "rares": 15, "swirled": 2, "log": 150, "jetty": 300, "isle": 350, "banks": 150, "whole": 800},
 	"sling":  {"acorns": 50, "golden": 150, "blocks": 5, "stones": 25, "pots": 20, "barrels": 30, "splashed": 10, "spare": 100, "cleared": 100, "stars": 30, "three": 300, "oneshot": 250},
 }
 

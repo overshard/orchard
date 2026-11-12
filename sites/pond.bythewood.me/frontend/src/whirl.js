@@ -2,7 +2,7 @@ import { cells, colours, draw, W as FW, H as FH } from "./frog.js";
 import { feel } from "./feel.js";
 import { reduced } from "./api.js";
 import { sfx, slurp } from "./sound.js";
-import { W, H, ROUND, LAST, PW, PH, BANDS, KIND, REACH, world, step, steer, view, score, counts } from "./whirlpond.js";
+import { W, H, ROUND, LAST, PW, PH, BANDS, BANKS, KIND, REACH, world, step, steer, view, score, counts } from "./whirlpond.js";
 
 // Whirlpool. A little eddy goes round the pond swallowing anything smaller
 // than itself and grows, and the camera backs off as it does.
@@ -73,6 +73,11 @@ const ART = {
   punt: ["..dddddddddddddddddddd..", ".dBBBBBBBBBBBBBBBBBBBBd.", "dBttttttdttttttdtttttttd", "dBtTTTTtdtTTTTtdtTTTTtBd", "dBttttttdttttttdtttttttd", ".dBBBBBBBBBBBBBBBBBBBBd.", "..dddddddddddddddddddd..", "...................s....", "..................s....."],
   jetty: ["kk.....kk", "dddtttddd", "dtttttttd", "dTTTTTTTd", "dtttttttd", "dttttttYd", "dTTTTTTTd", "dtttttttd", "dtttttttd", "dTTTTTTTd", "dtttttttd", "dtttttttd", "dTTTTTTTd", "dtttttttd", "dtttttttd", "dTTTTTTTd", "dtttttttd", "dtttttttd", "dTTTTTTTd", "ddddddddd", "d..d.d..d", "d..d.d..d"],
   isle: ["........tttttttttt........", "......tttGGGGGGGGttt......", "....tttGgggggGggggGttt....", "...ttGGgggggggGggggGGtt...", "..ttGGGlGlGlGlGGggglgGtt..", ".ttGgGlGlGlGlGlGggggggGtt.", ".ttGGGlGlGlGlGlGGggglgGtt.", ".ttGGGlGlGlGlGlGGgggggGtt.", ".tGgglGlGlGlGlGlggggglgGt.", ".ttGgGGlGlGlGlGGlgggggGtt.", ".ttGggGlGlGlGlGgggggdgGtt.", ".ttGgglGlGlGlGggglddggGtt.", "..ttGggggGGGlgggggdggGtt..", "...ttGGlgggggggggglGGtt...", "....tttGggggglggggGttt....", "......tttGGGGGGGGttt......", "........tttttttttt........"],
+  willowtree: [".......G.G.G........", "......GGlGGGl.G.....", ".....GlGGGlGlGGG....", "....lGGGlglgGGlGG...", "...GGGlglggglglGGG..", "..GGlglggglglggGlGG.", ".GlGlggglglggglGlG..", "..lGgglglggglglgGGG.", ".GGGlglgbbbblggglG..", "..lGlgggbbbbgglglGG.", ".GlGgglglggglglgGG..", "..GGlglggglglggGlGG.", ".GlGlggglglggglGlG..", "..GGGGlglggglglGG...", "...GlGlGgglglGGG....", "....GGGGlGlGGGl.....", ".....G.GlGGGlG......", "........G.G.G......."],
+  boathouse: ["........dd........", ".......dddd.......", "......dOOOOd......", ".....dOOOOOOd.....", "....dOOOOOOOOd....", "...dOOOOOOOOOOd...", "..dOOOOOOOOOOOOd..", ".dBBBBBBBBBBBBBBd.", ".BtBtBtBBBBtBtBtB.", ".BtBtBnnnnnnBtBtB.", ".BtBtnnnnnnnntBtB.", ".BtBtnnuuuunntBtB.", ".BtBtnnuuuunntBtB.", "uuuuuuuuuuuuuuuuuu"],
+  mill: [".....ddddddd..........", "....dOOOOOOOd.........", "...dOOOOOOOOOd........", "..dOOOOOOOOOOOd.......", ".dddddddddddddddkkk...", "..wwwwwwwwwwwwwkSSSk..", "..wuuwwwwwwuuwwkSkSkS.", "..wuuwwwwwwuuwkSSkSSk.", "..wwwwwbbwwwwwkSkkkSk.", "..wwwwwbbwwwwwkSSkSSk.", "..wwwwwbYwwwwwwkSkSkS.", "..wwwwwbbwwwwwwkSSSk..", "uuuuuuuuuuuuuuuukkkuuu", "uUuuuUuuuuUuuuuUuuuuUu"],
+  cottage: ["......S....S......", ".....SSrrrrSS.....", "....rrrrrrrrrr....", "...rrPrrrrrrPrr...", "..rrrrrrrrrrrrrr..", ".rrPrrrrPPrrrrPrr.", "rrrrrrrrrrrrrrrrrr", "OOOOOOOOOOOOOOOOOO", ".wwwwwwwwwwwwwwww.", ".wuuwwwwwwwwwwuuw.", ".wuuwwwbbbbwwwuuw.", ".wwwwwwbbbbwwwwww.", ".wwwwwwbYYbwwwwww.", "gpgpggwbbbbwggpgpg", "gggggggggggggggggg"],
+  bridge: ["...........bb...........", ".......bbbbbbbbbb.......", "....bbbb.b....b.bbbb....", "..bbb.b..b....b..b.bbb..", ".bb.b.b.tttttttt.b.b.bb.", "bb.b.ttttTTTTTTtttt.b.bb", "b.tttTTTt......tTTTttt.b", "ttTTt..............tTTtt", "Tt....................tT", "d......................d", "d......................d"],
 };
 const PAL = {
   g: "#4fa043", G: "#2f6a2c", l: "#8fd06a", y: "#ffe27a", Y: "#ffb000", o: "#e07a2a", O: "#a8501a", r: "#e2412d", p: "#f2a0c0", P: "#e2567a",
@@ -156,6 +161,9 @@ function events() {
       // A bounce costs nothing, so it mustn't look like the crash in the other games.
       sfx("boing"); F.hit(0.15); F.burst(sx(e.x), sy(e.y), "#cfe3ea", 5);
       if (G.real - G.bigAt > 1) { G.bigAt = G.real; F.pop(sx(e.x), sy(e.y) - 8, "TOO BIG", "#fff6dc"); }
+    } else if (e.e === "whole") {
+      F.got(W / 2, H / 2, "THE WHOLE POND", { sound: "band", big: true, c: "#ffb000" });
+      F.hit(0.6); G.flash = 1.2;
     } else if (e.e === "end") {
       G.spout = Object.keys(w.took).sort((a, b) => KIND[b].s - KIND[a].s).slice(0, 40).map((k, i) => ({ k, t: -i * 0.04, a: -Math.PI / 2 + (Math.random() - 0.5) * 2.2, v: 70 + Math.random() * 70, rot: Math.random() * 6 }));
       sfx("band");
@@ -210,7 +218,7 @@ export const whirl = {
   pause() { if (G) { G.anchor = null; G.keys = {}; } },
   over() { return w && w.st === "done" && w.done_t > 3; },
   score() { return w ? score(w) : 0; },
-  why() { return w ? "BIG ENOUGH FOR " + BANDS[w.band].line : ""; },
+  why() { return !w ? "" : w.whole ? "SWALLOWED THE WHOLE POND" : "BIG ENOUGH FOR " + BANDS[w.band].line; },
   report() { return { counts: counts(w) }; },
 
   // What went down, the biggest first, a box a kind with how many, and the
@@ -238,7 +246,7 @@ export const whirl = {
     if (!quick) {
       const top = ks.filter((k) => !KIND[k].rare)[0], p = document.createElement("p"), q = document.createElement("p");
       p.className = "dim"; q.className = "dim";
-      p.textContent = w.things_n + " things and " + across(w.r).toLowerCase() + " across";
+      p.textContent = w.things_n + " things and " + across(w.r).toLowerCase() + " across" + (w.bonus ? ", and " + w.bonus + " for the time left" : "");
       q.textContent = top ? "The biggest was " + KIND[top].name.toLowerCase() : "";
       box.append(p, q);
     }
@@ -254,7 +262,7 @@ export const whirl = {
     const shown = w.things.filter((o) => Math.abs(o.x - w.cx) < hw && Math.abs(o.y - w.cy) < hh).sort((a, b) => b.kind.s - a.kind.s);
     shown.forEach((o) => thing(x, o, z));
     spins(x, z);
-    if (w.st === "done") spout(x, z);
+    if (w.st === "done") { trail(x, z); spout(x, z); }
     F.draw(x);
     hud(x);
   },
@@ -381,6 +389,19 @@ function spins(x, z) {
 
 // At the end the pond throws up a spout of everything that went down, with a
 // rainbow in the spray.
+// The way the eddy went, drawn over the whole pond as the camera backs off.
+function trail(x, z) {
+  const n = Math.min(w.trail.length, Math.floor(w.done_t / 2.2 * w.trail.length));
+  if (n < 2) return;
+  x.save();
+  x.globalAlpha = Math.min(0.8, w.done_t);
+  x.strokeStyle = "#9fdcf2"; x.lineWidth = 1; x.setLineDash([2, 2]);
+  x.beginPath();
+  for (let i = 0; i < n; i++) { const p = w.trail[i]; if (i) x.lineTo(sx(p.x), sy(p.y)); else x.moveTo(sx(p.x), sy(p.y)); }
+  x.stroke();
+  x.restore();
+}
+
 function spout(x, z) {
   const ex = sx(w.x), ey = sy(w.y), R = Math.max(4, w.r * z), k = Math.min(1, w.done_t / 1.2);
   const cols = ["#e2412d", "#e07a2a", "#ffe27a", "#4fa043", "#7fc8e8", "#7d52c0"];
@@ -417,6 +438,11 @@ function hud(x) {
   x.font = SMALL; x.lineWidth = 2;
   const nm = BANDS[w.band].name;
   x.strokeText(nm, W - 6, 28); x.fillStyle = "#9fdcf2"; x.fillText(nm, W - 6, 28);
+  if (w.band === BANDS.length - 1 && w.st === "play") {
+    const bk = "BANKS " + w.banks + "/" + BANKS;
+    x.strokeText(bk, W - 6, 38); x.fillStyle = "#ffb000"; x.fillText(bk, W - 6, 38);
+    pointers(x);
+  }
   G.tick.forEach((t, i) => {
     const a = Math.min(1, (3 - t.t) / 0.6);
     if (a <= 0) return;
@@ -430,6 +456,22 @@ function hud(x) {
   });
   x.fillStyle = "#0a0908"; x.fillRect(0, H - 3, W, 3);
   x.fillStyle = "#ffb000"; x.fillRect(0, H - 3, Math.round(W * Math.max(0, 1 - w.t / ROUND)), 3);
+}
+
+// An arrow on the edge of the screen for each bank still standing out of sight.
+function pointers(x) {
+  const blink = reduced || Math.floor(G.real * 3) % 2;
+  for (const o of w.things) {
+    if (o.gone || !o.kind.bank) continue;
+    const ox = sx(o.x), oy = sy(o.y);
+    if (ox > 0 && ox < W && oy > 0 && oy < H) continue;
+    const a = Math.atan2(oy - H / 2, ox - W / 2), k = Math.min((W / 2 - 10) / Math.abs(Math.cos(a) || 1e-6), (H / 2 - 14) / Math.abs(Math.sin(a) || 1e-6));
+    const ex = W / 2 + Math.cos(a) * k, ey = H / 2 + Math.sin(a) * k;
+    x.save(); x.translate(ex, ey); x.rotate(a);
+    x.fillStyle = "#0a0908"; x.beginPath(); x.moveTo(7, 0); x.lineTo(-5, -6); x.lineTo(-5, 6); x.closePath(); x.fill();
+    x.fillStyle = blink ? "#ffb000" : "#ffe27a"; x.beginPath(); x.moveTo(5, 0); x.lineTo(-3, -4); x.lineTo(-3, 4); x.closePath(); x.fill();
+    x.restore();
+  }
 }
 
 // The label on the Play disk.
