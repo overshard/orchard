@@ -153,7 +153,9 @@ function events() {
       sfx("band");
       G.ring = 0;
     } else if (e.e === "bump") {
-      F.crash(sx(e.x), sy(e.y), { s: e.lost.length ? "BUMP" : "", sound: KIND[e.k].bump ? "boing" : "bonk" });
+      // A bounce costs nothing, so it mustn't look like the crash in the other games.
+      sfx("boing"); F.hit(0.15); F.burst(sx(e.x), sy(e.y), "#cfe3ea", 5);
+      if (G.real - G.bigAt > 1) { G.bigAt = G.real; F.pop(sx(e.x), sy(e.y) - 8, "TOO BIG", "#fff6dc"); }
     } else if (e.e === "end") {
       G.spout = Object.keys(w.took).sort((a, b) => KIND[b].s - KIND[a].s).slice(0, 40).map((k, i) => ({ k, t: -i * 0.04, a: -Math.PI / 2 + (Math.random() - 0.5) * 2.2, v: 70 + Math.random() * 70, rot: Math.random() * 6 }));
       sfx("band");
@@ -164,12 +166,12 @@ function events() {
 
 export const whirl = {
   key: "whirl", W, H, title: "WHIRLPOOL", feel: F, timed: true, edge: ["#2e5a30", "#2e5a30"],
-  aria: "Drag anywhere to steer a little eddy round the pond. It swallows anything smaller than itself and grows, so leaves come first and the jetty last. Bump into something bigger and a few things pop back out.",
-  help: ["DRAG ANYWHERE TO STEER THE EDDY", "IT SWALLOWS ANYTHING SMALLER", "BIG THINGS KNOCK A FEW BACK OUT", "TAP TO START"],
+  aria: "Drag anywhere to steer a little eddy round the pond. It swallows anything smaller than itself and grows, so leaves come first and the jetty last. Anything bigger just bounces it off.",
+  help: ["DRAG ANYWHERE TO STEER THE EDDY", "IT SWALLOWS ANYTHING SMALLER", "BIGGER THINGS BOUNCE YOU OFF", "TAP TO START"],
 
   reset() {
     w = world();
-    G = { real: 0, anchor: null, keys: {}, twist: 0, slurpAt: -9, popAt: -9, tick: [], spout: [], flash: 0, ring: 9, last: false };
+    G = { real: 0, anchor: null, keys: {}, twist: 0, slurpAt: -9, popAt: -9, bigAt: -9, tick: [], spout: [], flash: 0, ring: 9, last: false };
   },
 
   demo() { return { x: 100, y: 230, to: [146, 196] }; },

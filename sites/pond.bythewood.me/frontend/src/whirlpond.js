@@ -3,7 +3,7 @@
 export const W = 200, H = 300, ROUND = 75, LAST = 10;
 export const PW = 1300, PH = 1900, BANK = 70;
 const R0 = 3, EAT = 0.8, GROW = 0.13, Z0 = 2, ZP = 0.62, SPEED = 130, LEASH = 34;
-const SHED = 1, GRACE = 1.5, HARD = 0.8, NEAR = 1.25;
+const GRACE = 1.5, HARD = 0.8, NEAR = 1.25;
 
 // Each band is a row of things about the same size, and the eddy reaches a
 // band once it can take the smallest of them.
@@ -112,7 +112,7 @@ function thing(w, kind, x, y, born) {
 export function world(rand) {
   const w = {
     rand: rand || Math.random, t: 0, st: "play", done_t: 0, x: START.x, y: START.y, tx: START.x, ty: START.y, vx: 0, vy: 0,
-    r: R0, band: 0, z: Z0, cx: START.x, cy: START.y, spin: 0, things: [], spins: [], gut: [], events: [], fill: 0,
+    r: R0, band: 0, z: Z0, cx: START.x, cy: START.y, spin: 0, things: [], spins: [], events: [], fill: 0,
     took: {}, score: 0, pts: 0, things_n: 0, swirled: 0, rares: 0, bumps: 0, safe: 0, kick: 0, rareSeen: {},
   };
   MOORED.forEach(([k, x, y]) => thing(w, KIND[k], x, y, false));
@@ -194,7 +194,6 @@ function swallow(w, o) {
   w.took[k.k] = (w.took[k.k] || 0) + 1;
   w.pts += k.pts; w.things_n++;
   if (k.alive) w.swirled++;
-  else w.gut.push(k.k);
   if (k.rare) w.rares++;
   const a = Math.atan2(o.y - w.y, o.x - w.x);
   w.spins.push({ kind: k, a, d: Math.hypot(o.x - w.x, o.y - w.y), t: 0, rot: o.a, out: !!k.alive, face: o.face });
@@ -207,28 +206,13 @@ function swallow(w, o) {
   }
 }
 
-// A hard knock on something too big spits a few things back out, though
-// never enough to drop the eddy out of the band it's reached.
+// A hard knock on something too big bounces the eddy back, and that's all it does.
 function bump(w, o, nx, ny) {
   w.bumps++; w.safe = GRACE;
   const push = fast(w) * (o.kind.bump ? 0.9 : 0.6);
   w.vx = nx * push; w.vy = ny * push;
   w.tx = w.x + nx * 6 / w.z; w.ty = w.y + ny * 6 / w.z;
-  const lost = [];
-  for (let i = 0; i < SHED && w.gut.length; i++) {
-    const j = Math.floor(w.rand() * w.gut.length), k = KIND[w.gut[j]];
-    const r2 = w.r * w.r - GROW * k.s * k.s;
-    if (r2 < REACH[w.band] * REACH[w.band]) break;
-    w.gut.splice(j, 1);
-    w.r = Math.sqrt(r2);
-    w.took[k.k]--; w.pts -= k.pts; w.things_n--;
-    if (!w.took[k.k]) delete w.took[k.k];
-    const a = Math.atan2(ny, nx) + (w.rand() - 0.5) * 2.4, d = w.r + k.s + 2;
-    const t = thing(w, k, w.x + Math.cos(a) * d, w.y + Math.sin(a) * d, false);
-    t.vx = Math.cos(a) * fast(w) * 0.5; t.vy = Math.sin(a) * fast(w) * 0.5; t.hold = 1.2;
-    lost.push(k.k);
-  }
-  emit(w, { e: "bump", x: w.x - nx * w.r, y: w.y - ny * w.r, k: o.kind.k, lost });
+  emit(w, { e: "bump", x: w.x - nx * w.r, y: w.y - ny * w.r, k: o.kind.k });
 }
 
 // How a thing gets about. Creatures the eddy can take keep away from it.
@@ -310,8 +294,8 @@ export function step(w, dt) {
       if (d >= reach) continue;
       const nx = -dx / d, ny = -dy / d;
       w.x += nx * (reach - d); w.y += ny * (reach - d);
-      // Something only a little too big just blocks the way, and only a hard knock
-      // on something well over spits anything out.
+      // Something only a little too big just blocks the way, and a hard knock on
+      // something well over bounces the eddy off it.
       if (w.safe <= 0 && k.s > w.r * NEAR && sp > (k.bump ? HARD * 0.5 : HARD)) bump(w, o, nx, ny);
       else { w.tx = w.x; w.ty = w.y; }
     }
