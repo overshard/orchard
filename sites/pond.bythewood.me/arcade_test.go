@@ -9,6 +9,10 @@ import (
 
 func TestArcadePaysAndCaps(t *testing.T) {
 	s, clock := testStore(t)
+	// The disk of the day pays in full a run more, so the day mustn't be school's.
+	for diskOfDay(dayOf(*clock)) == "school" {
+		*clock = clock.Add(24 * time.Hour)
+	}
 	_, id := newPond(t, s)
 	if _, err := s.arcadeFinish(id, "school", "nope", 10, nil, nil); !errors.Is(err, errBadRun) {
 		t.Fatalf("a run never started: %v", err)
