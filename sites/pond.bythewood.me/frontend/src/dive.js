@@ -154,14 +154,26 @@ function liveOrder() {
   return others.filter((o) => !o.out).map((o) => o.id).concat(["you"]);
 }
 
+// Bright enough to follow and well under the frog, which is drawn over them.
+const RIVAL_ALPHA = 0.45;
+
 function drawOthers() {
-  gx.font = "500 6px 'JetBrains Mono', monospace"; gx.textAlign = "center"; gx.fillStyle = "#ece5d8";
+  gx.textAlign = "center";
   others.forEach((o) => {
     if (o.fade <= 0) return;
-    gx.globalAlpha = 0.14 * o.fade;
-    gx.drawImage(o.spr[o.kick > 0 ? 1 : 0], Math.round(o.x - 15), Math.round(o.y - 9));
-    // On a phone they swim too close together for ten names to be read.
-    if (PW >= 400) gx.fillText(o.name, Math.round(o.x), Math.round(o.y - 12));
+    const x = Math.round(o.x), y = Math.round(o.y);
+    gx.globalAlpha = RIVAL_ALPHA * o.fade;
+    gx.drawImage(o.spr[o.kick > 0 ? 1 : 0], x - 15, y - 9);
+    gx.globalAlpha = o.out ? Math.min(1, o.fade * 2) : RIVAL_ALPHA;
+    if (o.out) {
+      gx.font = "700 9px 'Space Grotesk', sans-serif";
+      gx.fillStyle = "#0a1b1f"; gx.fillText("OUT", x + 1, y - 11);
+      gx.fillStyle = "#e2567a"; gx.fillText("OUT", x, y - 12);
+    } else if (PW >= 400) {
+      // On a phone they swim too close together for ten names to be read.
+      gx.font = "500 6px 'JetBrains Mono', monospace"; gx.fillStyle = "#ece5d8";
+      gx.fillText(o.name, x, y - 12);
+    }
   });
   gx.globalAlpha = 1;
 }
