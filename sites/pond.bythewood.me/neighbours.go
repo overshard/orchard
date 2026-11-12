@@ -125,6 +125,15 @@ func friendPresent(level int) prize {
 	return prize{Hat: &h}
 }
 
+// heartBrings says what friendPresent hands over at a level, for the ladder.
+func heartBrings(level int) string {
+	w := [...]string{"", "30 pebbles", "60 pebbles and the recipe for its favourite", "An uncommon hat", "A rare trinket", "An epic hat and its memento"}[level]
+	if level == lodgeAt {
+		w += ", and it'll move into a burrow"
+	}
+	return w
+}
+
 func dayHash(day, salt string) uint32 {
 	h := fnv.New32a()
 	h.Write([]byte(day + salt))
@@ -199,8 +208,11 @@ func befriend(tx *sql.Tx, p *pond, who, points int, giftDay string) ([]prize, er
 }
 
 type befriended struct {
-	Line    string  `json:"line"`
-	Level   int     `json:"level"`
+	Line  string `json:"line"`
+	Level int    `json:"level"`
+	// The points this gave and where the friendship stands after.
+	Points  int     `json:"points"`
+	Total   int     `json:"total"`
 	Up      bool    `json:"up"`
 	Prizes  []prize `json:"prizes"`
 	Pebbles int     `json:"pebbles,omitempty"`
@@ -241,7 +253,8 @@ func (s *store) gift(id int64, who int, kind string) (*befriended, error) {
 			out.Line = r.name + " says thank you, and eats it on the spot."
 		}
 		out.Prizes, err = befriend(tx, p, who, pts, today)
-		out.Level = friendLevel(friends[who].points + pts)
+		out.Points, out.Total = pts, friends[who].points+pts
+		out.Level = friendLevel(out.Total)
 		out.Up = len(out.Prizes) > 0
 		return err
 	})
@@ -276,7 +289,8 @@ func (s *store) favour(id int64) (*befriended, error) {
 		out.Pebbles = favourPebbles
 		out.Line = fmt.Sprintf("%s is very grateful, and gives you %d pebbles.", residents[who].name, favourPebbles)
 		out.Prizes, err = befriend(tx, p, who, favourPoints, "")
-		out.Level = friendLevel(friends[who].points + favourPoints)
+		out.Points, out.Total = favourPoints, friends[who].points+favourPoints
+		out.Level = friendLevel(out.Total)
 		out.Up = len(out.Prizes) > 0
 		return err
 	})
@@ -297,19 +311,25 @@ type neighbourView struct {
 	From   int    `json:"from"`
 	To     int    `json:"to"`
 	Fav    string `json:"fav"`
+	// The favourite's kind and tier say what it's worth and whether one's in
+	// the bag, without giving away what goes in it.
+	FavKind string `json:"fav_kind"`
+	FavTier int    `json:"fav_tier"`
 	// Its favourite's two ingredients, once it's friendly enough to say.
 	FavA string `json:"fav_a,omitempty"`
 	FavB string `json:"fav_b,omitempty"`
 	// A fish dish it likes nearly as much, for the few that have one.
-	Also   string `json:"also,omitempty"`
-	AlsoA  string `json:"also_a,omitempty"`
-	AlsoB  string `json:"also_b,omitempty"`
-	Gave   bool   `json:"gave"`
-	Lodger bool   `json:"lodger"`
-	Firm   string `json:"firm"`
-	Talk   string `json:"talk"`
-	Gossip string `json:"gossip"`
-	Bio    string `json:"bio"`
+	Also     string `json:"also,omitempty"`
+	AlsoKind string `json:"also_kind,omitempty"`
+	AlsoTier int    `json:"also_tier,omitempty"`
+	AlsoA    string `json:"also_a,omitempty"`
+	AlsoB    string `json:"also_b,omitempty"`
+	Gave     bool   `json:"gave"`
+	Lodger   bool   `json:"lodger"`
+	Firm     string `json:"firm"`
+	Talk     string `json:"talk"`
+	Gossip   string `json:"gossip"`
+	Bio      string `json:"bio"`
 	// The shop it keeps in town, for the four that keep one.
 	Shop string `json:"shop,omitempty"`
 	// Its memento's kind, once it's handed it over.
@@ -325,11 +345,22 @@ type favourView struct {
 	N    int    `json:"n"`
 	Done bool   `json:"done"`
 	Pay  int    `json:"pay"`
+	// The points it adds toward a heart.
+	Points int `json:"points"`
+}
+
+type heartView struct {
+	Name   string `json:"name"`
+	At     int    `json:"at"`
+	Brings string `json:"brings"`
 }
 
 type neighboursView struct {
 	All    []neighbourView `json:"all"`
 	Favour favourView      `json:"favour"`
+	// Every heart from the first, and a dish's points by tier.
+	Hearts     []heartView `json:"hearts"`
+	GiftPoints []int       `json:"gift_points"`
 }
 
 func neighboursOf(q querier, id int64, now time.Time) (neighboursView, error) {
@@ -348,11 +379,11 @@ func neighboursOf(q querier, id int64, now time.Time) (neighboursView, error) {
 		l := friendLevel(f.points)
 		d := r.favDish()
 		nv := neighbourView{ID: i, Name: r.name, Seed: r.seed, Hat: hat{Shape: r.hat}, Level: l, Title: friendNames[l],
-			Points: f.points, From: friendAt[l], To: friendAt[min(l+1, len(friendAt)-1)], Fav: d.name, Shop: shopkeepers[r.name], Gave: f.giftDay == today,
-			Lodger: b.lodging(i)}
+			Points: f.points, From: friendAt[l], To: friendAt[min(l+1, len(friendAt)-1)], Fav: d.name, FavKind: d.kind(), FavTier: d.tier,
+			Shop: shopkeepers[r.name], Gave: f.giftDay == today, Lodger: b.lodging(i)}
 		also, hasAlso := r.alsoDish()
 		if hasAlso {
-			nv.Also = also.name
+			nv.Also, nv.AlsoKind, nv.AlsoTier = also.name, also.kind(), also.tier
 		}
 		if l >= recipeAt {
 			nv.FavA, nv.FavB = ingredients[d.a].kind, ingredients[d.b].kind
@@ -362,11 +393,15 @@ func neighboursOf(q querier, id int64, now time.Time) (neighboursView, error) {
 		}
 		v.All = append(v.All, nv)
 	}
+	for l := 1; l <= bestFriend; l++ {
+		v.Hearts = append(v.Hearts, heartView{friendNames[l], friendAt[l], heartBrings(l)})
+	}
+	v.GiftPoints = giftPoints[:]
 	var done string
 	if err := q.QueryRow(`SELECT favour_day FROM ponds WHERE id = ?`, id).Scan(&done); err != nil {
 		return v, err
 	}
 	who, kind, n := favourOf(today)
-	v.Favour = favourView{who, residents[who].name, kind, thingName(kind), n, done == today, favourPebbles}
+	v.Favour = favourView{who, residents[who].name, kind, thingName(kind), n, done == today, favourPebbles, favourPoints}
 	return v, nil
 }

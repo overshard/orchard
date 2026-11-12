@@ -2,6 +2,8 @@ package main
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 )
@@ -85,4 +87,54 @@ func prizePebbles(zs []prize) int {
 		n += z.Pebbles
 	}
 	return n
+}
+
+func TestGiftSaysItsPoints(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	r := residents[1]
+	fav := r.favDish()
+	plain := residents[0].favDish()
+	if plain == fav {
+		t.Fatal("pick two neighbours with different favourites")
+	}
+	if _, err := s.w.Exec(`INSERT INTO items (pond_id, kind, count) VALUES (?, ?, 1), (?, ?, 1)`, id, plain.kind(), id, fav.kind()); err != nil {
+		t.Fatal(err)
+	}
+	b, err := s.gift(id, 1, plain.kind())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.Points != giftPoints[plain.tier] || b.Total != b.Points || b.Pond.Neighbours.All[1].Points != b.Total {
+		t.Fatalf("a plain dish: %+v", b)
+	}
+	n := b.Pond.Neighbours.All[1]
+	if n.FavKind != fav.kind() || n.FavTier != fav.tier || n.FavA != "" {
+		t.Errorf("a stranger's favourite: %+v", n)
+	}
+	*clock = clock.Add(24 * time.Hour)
+	b, err = s.gift(id, 1, fav.kind())
+	if err != nil || b.Points != giftPoints[fav.tier]*3 || b.Total != giftPoints[plain.tier]+b.Points {
+		t.Fatalf("its favourite: %v %+v", err, b)
+	}
+}
+
+func TestTheHeartLadder(t *testing.T) {
+	s, _ := testStore(t)
+	_, id := newPond(t, s)
+	v, _ := s.view(id)
+	hs := v.Neighbours.Hearts
+	if len(hs) != bestFriend || len(v.Neighbours.GiftPoints) != tierCount {
+		t.Fatalf("%+v", v.Neighbours)
+	}
+	for i, h := range hs {
+		l := i + 1
+		z := friendPresent(l)
+		if h.At != friendAt[l] || h.Name != friendNames[l] || (z.Pebbles > 0 && !strings.Contains(h.Brings, fmt.Sprint(z.Pebbles))) {
+			t.Errorf("heart %d: %+v", l, h)
+		}
+		if z.Hat != nil && !strings.Contains(h.Brings, strings.ToLower(tierLabels[z.Hat.tier()])) {
+			t.Errorf("heart %d names the wrong hat: %+v", l, h)
+		}
+	}
 }
