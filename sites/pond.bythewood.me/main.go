@@ -193,6 +193,7 @@ func (s *site) handler() http.Handler {
 	mux.HandleFunc("GET /{$}", s.home)
 	mux.HandleFunc("GET /key", s.keyPage)
 	mux.HandleFunc("GET /k", s.keyLanding)
+	mux.HandleFunc("GET /hop", s.hop)
 	mux.HandleFunc("GET /f/{slug}", s.sharePage)
 	mux.HandleFunc("GET /f/{slug}/card.png", s.shareCard)
 	mux.HandleFunc("GET /robots.txt", robots)
