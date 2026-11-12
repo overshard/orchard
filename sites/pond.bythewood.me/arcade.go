@@ -41,7 +41,7 @@ var arcadeGames = []arcadeGame{
 	{"lash", "Tongue lash", 40, 12, lashMost, 8},
 	{"swarm", "Swarm season", 40, 20, swarmMost, 40},
 	{"whirl", "Whirlpool", 40, 150, whirlMost, 50},
-	{"sling", "Cattail sling", 40, 100, slingMost, 60},
+	{"sling", "Cattail sling", 40, 100, slingMost, 80},
 }
 
 // Every note of a chorus song right on time with the run at its height is all
@@ -66,7 +66,7 @@ const whirlMost = 12000
 
 // Every acorn and every piece of the biggest level in each of cattail sling's
 // slots, the golden acorn and every spare frog come to under this.
-const slingMost = 4000
+const slingMost = 5000
 
 // A game with no rate is played out on the server a tap at a time, so it
 // never takes a score from the page. It pays once a day and is never the
