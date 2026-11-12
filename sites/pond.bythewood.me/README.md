@@ -426,7 +426,7 @@ they have none, for other sites to draw.
   seed's shuffle. Moving them anywhere fixed, like the first free pad, would
   tell every player where the spare wasps went.
 - Pebble drop's bounces are the page's, so the server only holds a score to
-  `dropMost`, five pebbles in the middle pot. The day's peg rows go out on the
+  `dropMost`, ten pebbles in the middle pot. The day's peg rows go out on the
   view as that game's `deal`, and a change to the pots or the pebbles a round
   has to change `dropMost` with it.
 - Chorus keeps time off the audio clock, which runs with sound off too, and

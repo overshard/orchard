@@ -24,7 +24,7 @@ func most() *tally {
 		stage: stageRank["elder"], frogs: 3, hearts: bondHearts, jobBest: maxLevel, hoods: len(jobs), pets: len(pets),
 		hats: hatsInGame, trinkets: len(trinkets), rocks: len(rocks), keepsakes: len(keepsakes), sets: len(sets),
 		power: powerWhole, rank: len(ranks) - 1, gravel: buildLevels, garden: buildLevels, built: 4, dishes: dishCount, lodgers: 1,
-		furniture: len(furniture), friends: len(residents), mementos: len(mementos), stall: 1, share: 1, days: 365, sites: len(siteHats), key: 1, swept: bugSafe, dropped: dropMost,
+		furniture: len(furniture), friends: len(residents), mementos: len(mementos), stall: 1, share: 1, days: 365, sites: len(siteHats), key: 1, swept: bugSafe, dropped: dropBadge,
 		crickets: 100, fireflies: 1, mastered: 1, dealt: 1, steals: 1, stung: 1}
 	for _, f := range fishKinds {
 		t.bigFish += one(f.tier >= 3)

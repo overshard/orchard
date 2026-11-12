@@ -3,11 +3,11 @@ import { colours } from "./frog.js";
 import { drawTop } from "./top.js";
 import { feel } from "./feel.js";
 
-// Pebble drop. Five pebbles a round, each let go from a spot along the top
-// to bounce down through rows of reed stubs into five pots. The middle pot
-// pays most, and the day's deal nudges each row so no spot is best for good.
+// Pebble drop. Ten pebbles a round, let go from spots along the top as fast
+// as you like, to bounce down through rows of reed stubs into five pots. The
+// middle pot pays most, and the day's deal nudges each row so no spot is best for good.
 const W = 200, H = 320, TOP = 44, ROW0 = 74, ROWS = 9, GAP = 18, PITCH = 20;
-const RIM = 262, FLOOR = 312, POT = W / 5, PAYS = [1, 3, 8, 3, 1], PEBBLES = 5;
+const RIM = 262, FLOOR = 312, POT = W / 5, PAYS = [1, 3, 8, 3, 1], PEBBLES = 10, GAPS = 0.15;
 const GRAV = 420, R = 4, PEG = 3, BOUNCE = 0.4, GRIP = 0.75, STEP = 1 / 240, KICK = 70, AIM = 14;
 
 let G = null, col = null;
@@ -42,13 +42,12 @@ function bounce(p, cx, cy, rad) {
 
 function land(p) {
   const i = Math.max(0, Math.min(4, Math.floor(p.x / POT))), pay = PAYS[i], cx = i * POT + POT / 2;
-  G.pots[i]++; G.score += pay; G.peb = null;
+  G.pots[i]++; G.score += pay; p.done = true;
   if (i === 2) G.mid++;
   if (pay === 8) F.got(cx, RIM, "+8", { streak: G.mid, big: true });
   else if (pay === 3) F.got(cx, RIM, "+3", { sound: "hop" });
   else { sfx("plop"); F.burst(cx, RIM + 10, "#cfe3ea", 3); F.pop(cx, RIM - 10, "+1", "#bcaf99"); }
   if (pay === 3 && Math.abs(p.x - W / 2) < POT / 2 + 5) F.close(cx, RIM - 24);
-  G.st = "rest"; G.st_t = 0;
 }
 
 // One small step of the fall. A pebble that's out of the reeds only has the
@@ -74,21 +73,21 @@ function fall(p) {
 }
 
 function letGo() {
-  if (!G || G.st !== "aim") return;
-  G.peb = { x: G.aim, y: TOP, vx: 0, vy: 0, still: 0 };
-  G.left--; G.st = "fall"; G.ticks = 0; G.acc = 0;
+  if (!G || G.left <= 0 || G.wait > 0) return;
+  G.pebs.push({ x: G.aim, y: TOP, vx: 0, vy: 0, still: 0 });
+  G.left--; G.wait = GAPS;
   sfx("cast"); F.squash(0.6);
 }
 
 export const drop = {
   key: "drop", W, H, title: "PEBBLE DROP", feel: F, edge: ["#2a5163", "#0c2832"],
   aria: "Drag along the top and let go to drop a pebble, or use the arrow keys and space.",
-  help: ["DRAG ALONG THE TOP AND LET GO", "FIVE PEBBLES A ROUND", "THE MIDDLE POT PAYS 8", "TAP TO START"],
+  help: ["DRAG ALONG THE TOP AND LET GO", "TEN PEBBLES, DROP THEM AS FAST AS YOU LIKE", "THE MIDDLE POT PAYS 8", "TAP TO START"],
 
   reset(g, p) {
     col = colours(g, p.frog.hat);
     const a = (p.arcade || []).find((x) => x.key === "drop");
-    G = { t: 0, st: "aim", st_t: 0, aim: W / 2, armed: false, dir: 0, left: PEBBLES, peb: null, pegs: pegsOf(a && a.deal), pots: [0, 0, 0, 0, 0], score: 0, mid: 0, ticks: 0, acc: 0, end: 0 };
+    G = { t: 0, st: "aim", st_t: 0, aim: W / 2, armed: false, dir: 0, left: PEBBLES, pebs: [], wait: 0, pegs: pegsOf(a && a.deal), pots: [0, 0, 0, 0, 0], score: 0, mid: 0, ticks: 0, acc: 0, end: 0 };
   },
 
   demo() { return G && G.st === "aim" && G.left === PEBBLES ? { x: 64, y: TOP - 4, to: [112, TOP - 4] } : null; },
@@ -112,19 +111,16 @@ export const drop = {
     G.t += dt; G.st_t += dt;
     G.aim = Math.max(AIM, Math.min(W - AIM, G.aim + G.dir * 90 * dt));
     G.pegs.forEach((q) => { q.hit = Math.max(0, q.hit - dt); });
-    if (G.st === "fall") {
-      // The last pebble falls slowly, and slower still over the pots.
-      const slow = G.left > 0 ? 1 : G.peb.y > ROW0 + (ROWS - 1) * GAP ? 0.3 : 0.5;
-      G.acc += dt * slow;
-      while (G.acc >= STEP && G.peb) { G.acc -= STEP; fall(G.peb); }
-    } else if (G.st === "rest" && G.st_t > (G.left ? 0.35 : 1)) {
-      if (G.left) { G.st = "aim"; G.st_t = 0; } else G.end = 1;
-    }
+    G.wait = Math.max(0, G.wait - dt);
+    G.acc += dt;
+    while (G.acc >= STEP) { G.acc -= STEP; G.pebs.forEach((p) => { if (!p.done) fall(p); }); }
+    G.pebs = G.pebs.filter((p) => !p.done);
+    if (!G.left && !G.pebs.length) { G.st = "rest"; if (G.st_t > 0.8) G.end = 1; } else G.st_t = 0;
   },
 
   over() { return G && G.end; },
   score() { return G ? G.score : 0; },
-  why() { return !G ? "" : G.mid === PEBBLES ? "FIVE IN THE MIDDLE" : "ALL FIVE DOWN"; },
+  why() { return !G ? "" : G.mid === PEBBLES ? "TEN IN THE MIDDLE" : "ALL TEN DOWN"; },
   report() { return { counts: { mid: G.mid, pots: G.pots.filter((n) => n).length } }; },
   tally() { return G ? [G.mid + " of " + PEBBLES + " in the middle pot"] : []; },
 
@@ -133,18 +129,18 @@ export const drop = {
     if (!G) return;
     G.pegs.forEach((q) => stub(x, q.x, q.y, q.hit > 0));
     pots(x, G.pots);
-    if (G.peb) pebble(x, G.peb.x, G.peb.y);
+    G.pebs.forEach((p) => pebble(x, p.x, p.y));
     const fx = Math.round(G.aim);
     F.squashed(x, fx, 30, () => drawTop(x, col, fx - 6, 18, true));
-    if (G.st === "aim") {
-      pebble(x, fx, TOP - 6);
+    if (G.left > 0) {
+      if (!G.wait) pebble(x, fx, TOP - 6);
       x.fillStyle = "rgba(255,246,220,0.25)";
       for (let y = TOP + 2; y < ROW0 - 8; y += 5) x.fillRect(fx, y, 1, 2);
     }
     F.draw(x);
     x.font = "700 13px 'Space Grotesk', sans-serif";
     x.textAlign = "left"; x.fillStyle = "#ece5d8"; x.fillText(String(G.score), 6, 14);
-    for (let i = 0; i < G.left - (G.st === "aim" ? 1 : 0); i++) pebble(x, W - 8 - i * 9, 9);
+    for (let i = 0; i < G.left - 1; i++) pebble(x, W - 8 - (i % 5) * 9, 9 + Math.floor(i / 5) * 8);
   },
 };
 

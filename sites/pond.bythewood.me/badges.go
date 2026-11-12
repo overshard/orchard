@@ -179,7 +179,7 @@ var badges = []badge{
 	{"sites", "Out and about", "Have your frog turn up on another site", "collect", upTo(func(t *tally) int { return t.sites }, 1)},
 	{"key", "Key kept safe", "Save your pond key", "key", upTo(func(t *tally) int { return t.key }, 1)},
 	{"sweep_clear", "Clean sweep", "Clear a grid in bug sweep", "sweep", upTo(func(t *tally) int { return t.swept / bugSafe }, 1)},
-	{"drop_five", "Five in the middle", "Land all five pebbles in the middle pot", "drop", upTo(func(t *tally) int { return t.dropped / dropMost }, 1)},
+	{"drop_five", "Forty in the drop", "Score 40 in one round of pebble drop", "drop", upTo(func(t *tally) int { return t.dropped / dropBadge }, 1)},
 	{"crickets_100", "A hundred crickets", "Catch a hundred crickets at work", "job", upTo(func(t *tally) int { return t.crickets }, 100)},
 	{"first_firefly", "First firefly", "Catch a firefly at work", "job", upTo(func(t *tally) int { return t.fireflies }, 1)},
 	{"mastered", "Mastered", "Get a target to mastery 10", "job", upTo(func(t *tally) int { return t.mastered }, 1)},

@@ -33,7 +33,7 @@ export const SHELVES = [
     { key: "school", name: "Tadpoles", colour: "#2a2a30", line: "Lead a school round the shallows.", art: schoolArt, game: school },
     { key: "stack", name: "Lily stack", colour: "#c0507a", line: "Stack pads as high as they go.", art: stackArt, game: stack },
     { key: "skip", name: "Pebble skip", colour: "#5b6470", line: "Skip three pebbles across the pond.", art: skipArt, game: skip },
-    { key: "drop", name: "Pebble drop", colour: "#d8cfb8", line: "Drop five pebbles through the reeds.", art: dropArt, game: drop },
+    { key: "drop", name: "Pebble drop", colour: "#d8cfb8", line: "Drop ten pebbles through the reeds.", art: dropArt, game: drop },
     { key: "chorus", name: "Chorus", colour: "#d8642a", line: "Sing your part with the frogs on the log.", art: chorusArt, game: chorus },
   ] },
   { name: "Puzzles", disks: [
