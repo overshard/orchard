@@ -74,6 +74,8 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   furniture, which the page draws on the water. Stock is
   dealt from the day so everybody sees the same shelf, and `bought` counts
   what each pond took off it.
+- `hop.go` is `/hop`, which sends a visitor to a random frog page whose
+  pond played a game in the last week, never their own.
 - `want.go` is the one hat a pond can ask Little Tully to look out for. What
   he pays for spares adds up in `ponds.want_fill`, and once that covers the
   hat's bar it's on his shelf for that pond alone, in slot 9, at its tier's

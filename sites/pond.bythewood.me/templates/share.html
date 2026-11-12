@@ -22,6 +22,7 @@
     <p class="chips"><span class="tier t{{ .Frog.Rarity.Tier }}">{{ .Frog.Rarity.Label }}</span> <span>1 in {{ commas .Frog.Rarity.N }}</span></p>
     <p class="dim">{{ $.Describe }}</p>
   </div>
+  <div class="row"><a href="/hop?from={{ .Slug }}" class="button" rel="nofollow">Hop to another pond</a></div>
 
   <h2 data-idx="01">Stamps</h2>
   <div class="stampkeys" id="stamps" role="group" aria-label="Leave a stamp" data-page="{{ .Slug }}">
