@@ -12,17 +12,21 @@ import (
 type folk struct {
 	// bio is shown on its sheet, voice is only for the model.
 	bio, voice string
-	doing      []string
-	thinks     []string
-	says       []string
-	press      string
+	// Words the model leans on to tell its personality instead of showing it.
+	// A nightly line with a word starting with one of these is dropped.
+	tells  []string
+	doing  []string
+	thinks []string
+	says   []string
+	press  string
 }
 
 // In the same order as residents.
 var folks = []folk{
 	{
 		bio:   "Fishes off the old log and pretends not to like anybody.",
-		voice: "a grumpy old fisher frog who sits on the old log all day, grumbles about everything and is secretly very kind",
+		voice: "an old fisher frog who sits on the old log all day, short with everybody, complains about the fish, the weather and the tadpoles, but saves you the dry end of the log. Talks in short dry sentences",
+		tells: []string{"grumbl", "grump", "grouch", "fisher"},
 		doing: []string{"Fishing off the old log, not catching much.", "Grumbling at a dragonfly that won't hold still.",
 			"Mending a fishing line made of reed.", "Sitting on the log with its back to everybody."},
 		thinks: []string{"If one more tadpole splashes me I'm moving ponds.", "The fish are laughing at me, I can tell.",
@@ -112,7 +116,8 @@ var folks = []folk{
 	},
 	{
 		bio:   "Leads the frog choir and makes everything a bit dramatic.",
-		voice: "a dramatic poet frog who leads the evening frog choir and turns every small thing into a performance",
+		voice: "a poet frog who leads the evening frog choir and has huge feelings about small things, a tragic moon, a sad puddle, a song that will make the herons weep. Always wants you at choir tonight",
+		tells: []string{"drama", "perform", "audience", "spotlight", "aria", "stage"},
 		doing: []string{"Warming up for choir practice.", "Writing a very sad poem about a puddle.",
 			"Conducting the crickets in a song.", "Bowing to an audience of tadpoles."},
 		thinks: []string{"The moon has never looked so tragic.", "Tonight's song will make the herons weep.",
@@ -132,7 +137,8 @@ var folks = []folk{
 	},
 	{
 		bio:   "Up all night watching the stars and collecting shiny things.",
-		voice: "a quiet, mysterious night owl frog who watches the stars, collects shiny things and speaks softly",
+		voice: "a quiet night owl frog who sleeps all day, watches the stars all night and keeps a little hoard of shiny things it rarely shows anybody. Speaks softly and a bit strangely about the moon, the dark and what it found",
+		tells: []string{"mysterious", "soft"},
 		doing: []string{"Sleeping under a big leaf.", "Polishing something small and shiny.",
 			"Waking up as everybody else goes to bed.", "Counting stars from the top of the reeds."},
 		thinks: []string{"The stars move when nobody is looking.", "I found a shiny thing and I'm not telling anybody.",

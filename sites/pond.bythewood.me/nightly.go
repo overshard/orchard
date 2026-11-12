@@ -120,6 +120,10 @@ const (
 var folkNames = map[string]bool{"sedge": true, "tully": true, "pip": true, "bramble": true,
 	"clover": true, "tansy": true, "wren": true, "brindle": true}
 
+// Things a resident's line drifts into that a pond frog doesn't have.
+var folkBody = map[string]bool{"player": true, "players": true, "whisker": true, "whiskers": true,
+	"fur": true, "hair": true, "ears": true, "shell": true, "scarf": true}
+
 // The words a line in the first person may capitalise past its first.
 var firstPerson = map[string]bool{"I": true, "I'm": true, "I've": true, "I'll": true, "I'd": true}
 
@@ -157,6 +161,9 @@ func checkLine(l string, a taleAsk, seen map[string]bool) (string, bool) {
 	}
 	if l != "" && l[0] >= 'a' && l[0] <= 'z' {
 		l = strings.ToUpper(l[:1]) + l[1:]
+	}
+	if t := strings.TrimRight(l, ".,"); t != l && !strings.HasSuffix(l, "...") {
+		l = t + "."
 	}
 	if a.kind == "gazette" {
 		l = strings.TrimSuffix(l, ".")
@@ -224,8 +231,15 @@ func checkLine(l string, a taleAsk, seen map[string]bool) (string, bool) {
 		return "", false
 	}
 	for _, w := range words {
-		if a.kind == "folk" && folkNames[w] {
+		if a.kind == "folk" && (folkNames[w] || folkBody[w]) {
 			return "", false
+		}
+		if a.kind == "folk" && a.who >= 0 {
+			for _, t := range folks[a.who].tells {
+				if strings.HasPrefix(w, t) {
+					return "", false
+				}
+			}
 		}
 		if bannedWord[w] || a.kind == "gazette" && (w == "you" || w == "your") {
 			return "", false
@@ -331,11 +345,16 @@ var folkFields = []string{"doing", "thinks", "says", "rain", "cold", "hot", "gre
 const folkSystem = `You write short lines for one character in a cosy pixel art game about frogs living round a pond.
 Warm, gentle, a little silly, for all ages. Plain words, contractions are fine. The character's personality should come through in every line.
 Never write numbers, prices, money, the stock market, news, politics, people's names, brands, violence or anything sad about death.
+Show the personality through what it does, notices and says, never by describing it, so don't use the words from its description.
+It's a small frog, so no whiskers, fur, hair, ears, shell or scarf. Never mention the player or the game.
 Never use the character's own name. Never make up a name for anybody or anything, the only name allowed is the slot {name} for another neighbour frog, written exactly with its braces.
 Never use quotation marks, dashes, semicolons or emoji. Write in sentence case, with a capital letter only at the start and on I.`
 
 func folkPrompt(i int) string {
-	return "The character is a frog who is " + folks[i].voice + ". It has a lily pad by the pond, there's a garden, a kitchen, shops, a choir and a little newspaper called the gazette. Write these, each line under 80 characters:\n" +
+	f := folks[i]
+	return "The character is a frog who is " + f.voice + ". It has a lily pad by the pond, there's a garden, a kitchen, shops, a choir and a little newspaper called the gazette. " +
+		"Some lines already written for it, to match in voice and not to repeat: " + strings.Join(append(append([]string{}, f.thinks...), f.says...), " ") + "\n" +
+		"Write these, each line under 80 characters:\n" +
 		"doing: what it's busy doing right now, starting with a verb ending in ing, like: Sweeping leaves off the pads.\n" +
 		"thinks: a passing thought in its own head, in the first person, like: I wonder if the fish are talking about me.\n" +
 		"says: something it says to the player who just came over, in the first person, talking to you.\n" +
@@ -640,6 +659,7 @@ func (n *nightly) write(ctx context.Context, day string) (*tales, int, int, erro
 				rule, known := a, true
 				if a.kind == "folk" {
 					rule, known = folkRule(key)
+					rule.who = a.who
 				}
 				if !known {
 					continue
