@@ -67,8 +67,8 @@ var aimList = []aim{
 	{"sk_pads", "skip", "Skip off two lily pads", map[string]int{"pads": 2}, nil, 0},
 	{"sk_far", "skip", "Throw one past 50 M", map[string]int{"far": 50}, nil, 5},
 
-	{"dr_two", "drop", "Two pebbles in the middle pot", map[string]int{"mid": 2}, nil, 0},
-	{"dr_three", "drop", "Three in the middle pot", map[string]int{"mid": 3}, nil, 0},
+	{"dr_two", "drop", "Three pebbles in the middle pot", map[string]int{"mid": 3}, nil, 0},
+	{"dr_three", "drop", "Five in the middle pot", map[string]int{"mid": 5}, nil, 0},
 	{"dr_every", "drop", "A pebble in every pot", map[string]int{"pots": 5}, nil, 0},
 
 	{"ch_right", "chorus", "Sing twenty right on the beat", map[string]int{"right": 20}, nil, 0},

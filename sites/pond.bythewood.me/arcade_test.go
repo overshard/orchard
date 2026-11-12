@@ -187,7 +187,7 @@ func TestDiskOfTheDay(t *testing.T) {
 }
 
 // The page runs pebble drop's bounces, so the server only holds the score
-// to what five pebbles can make and how fast they can fall.
+// to what ten pebbles can make and how fast they can fall.
 func TestPebbleDropIsBounded(t *testing.T) {
 	s, clock := testStore(t)
 	_, id := newPond(t, s)
@@ -206,10 +206,10 @@ func TestPebbleDropIsBounded(t *testing.T) {
 		return d
 	}
 	if d := play(dropMost+1, 60); d.Score != 0 || d.Paid != 0 {
-		t.Errorf("more than five in the middle paid: %+v", d)
+		t.Errorf("more than ten in the middle paid: %+v", d)
 	}
 	if d := play(dropMost, 3); d.Score != 0 || d.Paid != 0 {
-		t.Errorf("five pebbles down in three seconds paid: %+v", d)
+		t.Errorf("ten pebbles down in three seconds paid: %+v", d)
 	}
 	start := play(0, 20).Pond.Pebbles
 	if d := play(dropMost, 20); d.Paid != dropMost/g.per {

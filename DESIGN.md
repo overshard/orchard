@@ -665,8 +665,8 @@ version of the old look and a handheld pet shell.
   raft run a whirlpool turns in the river ahead, pale rings round a dark eye,
   and drags the leaf in. Its eye is a bump and getting past inside its rings
   says SPUN for 3.
-- **The last pebble takes its time.** In pebble drop the fifth pebble falls
-  at half speed through the reeds and slower again over the pots, and the
+- **Pebble drop is a shower.** Ten pebbles go as fast as the thumb lets go,
+  a little apart, so several bounce down through the reeds at once, and the
   pegs sit a little differently each day.
 - **Chorus is four frogs on a log at night**, the player's frog on the right
   with an amber mark on the log under it, and the rain coming down harder each
