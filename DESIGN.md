@@ -955,8 +955,10 @@ version of the old look and a handheld pet shell.
 - **Dive is the whole window, on a phone and a desktop.** It covers the bar and
   the keys, the pond takes its depth and length from the window, and a strip
   under the water holds three readout tiles and `EJECT`. Ten ghost frogs swim
-  each run a little behind at 60% alpha, with their names over them where
-  the field is wide enough to read ten.
+  each run behind your frog at 45% alpha, with their names over them where
+  the field is wide enough to read ten. A ghost goes out on the stems or
+  the rock of the gate it was dealt, in a burst of bubbles under a pink
+  OUT, and is carried back with that gate as it fades.
 - **The daily race is a card under the Arcade disks**, like the wheel's,
   with a chequered flag over the water, and it opens Dive on the day's
   course with the twelve residents as the ghosts and their names on the
