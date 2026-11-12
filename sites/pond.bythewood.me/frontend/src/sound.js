@@ -111,7 +111,9 @@ export function croakAt(pitch, when, vol) {
     o.type = "sawtooth";
     o.frequency.setValueAtTime(pitch * 0.94, when);
     o.frequency.linearRampToValueAtTime(pitch * 1.04, when + len);
-    f.type = "bandpass"; f.frequency.value = pitch * 1.7; f.Q.value = 2.5;
+    // A phone speaker barely plays a low croak, so its upper harmonics carry it.
+    const low = pitch < 220;
+    f.type = "bandpass"; f.frequency.value = pitch * (low ? 3.4 : 1.7); f.Q.value = low ? 1.1 : 2.5;
     lfo.type = "square"; lfo.frequency.value = 38; lg.gain.value = 0.45; am.gain.value = 0.55;
     lfo.connect(lg); lg.connect(am.gain);
     env.gain.setValueAtTime(0, when);
