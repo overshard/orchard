@@ -63,12 +63,15 @@ function layout(list) {
   setPlace(1 + Math.max(0, live.filter((id) => !gone.includes(id)).indexOf("you")));
 }
 
+// Your place among those still in, which climbs as each of the others goes out.
 function setPlace(n) {
   const el = $("place");
   el.hidden = false;
   if (n === shown) return;
   shown = n;
   $("place-n").textContent = n; $("place-sfx").textContent = suffix(n);
+  $("place-of").textContent = "OF " + racers.length;
+  $("place-left").textContent = n === 1 ? "OUT IN FRONT" : n - 1 + " STILL IN";
   el.className = "place p" + Math.min(n, 4);
   // Restarting the pop means taking the class off and putting it back after
   // the browser has seen it gone.

@@ -967,7 +967,8 @@ version of the old look and a handheld pet shell.
   a line saying whether the run was on the board or practice.
 - **Dive is a race.** Three red lights and GO start it, a standings column
   down the left drops each frog to the bottom as it goes out, your place is a
-  big italic number in the bottom right that pops as it climbs, and who just
+  big italic number in the bottom right that pops as it climbs, with how
+  many are racing and how many are still in under it in mono, and who just
   went out is called at the top. The results are a podium in gold, silver and
   bronze, the whole finishing order with you in amber, and the winnings
   counting up, with confetti for a podium place. All of it is HTML over the
