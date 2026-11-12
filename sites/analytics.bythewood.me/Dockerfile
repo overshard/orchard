@@ -42,7 +42,7 @@ COPY --from=frontend /src/node_modules/geist/dist/fonts/geist-sans /fonts/geist-
 COPY typst/card.typ /card.typ
 RUN typst compile --format png --ppi 72 --font-path /fonts/geist-sans /card.typ /card.png
 
-FROM golang:1.27-trixie@sha256:fbb7ae40b62ff8afe31662df570d39b4f5052ac32b90dae8e60d7657a20a74f4 AS build
+FROM golang:1.27-trixie@sha256:c47c3fda018d13d43a6bf5ebac3e5bba8a23a35782aa4faf531afaf47c64c39f AS build
 WORKDIR /src
 
 # The bracket glob makes go.sum optional, since a plain COPY go.sum fails the
