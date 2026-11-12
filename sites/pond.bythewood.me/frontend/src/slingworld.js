@@ -4,21 +4,21 @@
 export const W = 200, H = 300, WATER = 232, STEP = 1 / 240, LEVELS = 5;
 export const SX = 38, SY = 181, PULL = 26, FLING = 12.7, SHORE = 54;
 const GRAV = 520, ITER = 10, PITER = 4, SLOP = 0.4, BETA = 0.25, MAXC = 3, REST = 60;
-const ROLL = 0.15, VMIN = 95, DMG = 1000, FALL = 0.45, SLEEPV = 5, SLEEPT = 0.5, FAST = 700;
+const ROLL = 0.15, VMIN = 80, DMG = 1000, FALL = 0.8, SLEEPV = 5, SLEEPT = 0.5, FAST = 700;
 
 // d is density, mu friction and hp how much knocking a piece takes. pts is
 // what breaking one scores and dent how a hit on it is felt.
 export const MATS = {
-  reed: { d: 0.45, mu: 0.7, hp: 3, pts: 5, name: "REED" },
-  wood: { d: 0.8, mu: 0.6, hp: 9, pts: 10, name: "DRIFTWOOD" },
-  mud: { d: 1.4, mu: 0.8, hp: 6, pts: 10, name: "MUD" },
-  ice: { d: 0.9, mu: 0.08, hp: 4.5, pts: 10, name: "ICE" },
-  stone: { d: 2.4, mu: 0.7, hp: 24, pts: 20, name: "STONE" },
-  acorn: { d: 0.9, mu: 0.5, hp: 2.4, pts: 50 },
+  reed: { d: 0.4, mu: 0.7, hp: 1.6, pts: 10, name: "REED" },
+  wood: { d: 0.7, mu: 0.6, hp: 5, pts: 15, name: "DRIFTWOOD" },
+  mud: { d: 1.2, mu: 0.8, hp: 4, pts: 15, name: "MUD" },
+  ice: { d: 0.9, mu: 0.08, hp: 2.6, pts: 15, name: "ICE" },
+  stone: { d: 2.2, mu: 0.7, hp: 14, pts: 25, name: "STONE" },
+  acorn: { d: 0.9, mu: 0.5, hp: 0.8, pts: 50 },
   frog: { d: 1.6, mu: 0.5, hp: 1e9, pts: 0 },
   plat: { d: 0, mu: 0.8, hp: 1e9, pts: 0 },
 };
-export const ACORN = 50, GOLD = 150, SPLASH = 5, SPARE = 100;
+export const ACORN = 50, GOLD = 150, SPLASH = 10, SPARE = 100;
 
 // Each frog has one tap mid flight. hit is how hard it knocks each material,
 // so a dart goes through reeds and a bullfrog through stone.
