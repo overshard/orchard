@@ -1599,6 +1599,24 @@ body:has(.tabs) main {
   font-size: clamp(1.3rem, 5vw, 2.2rem);
 }
 
+.place span {
+  display: block;
+  margin-top: 6px;
+  color: #fff6dc;
+  font-family: var(--mono);
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 500;
+  letter-spacing: var(--track);
+  line-height: 1;
+  text-align: right;
+  text-shadow: 2px 2px 0 #0a1b1f;
+}
+
+.place span.still {
+  color: var(--muted);
+}
+
 .place.p1 { color: #ffe27a; }
 .place.p2 { color: #dfe6ea; }
 .place.p3 { color: #e9a66a; }
