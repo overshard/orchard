@@ -85,6 +85,14 @@ export function sfx(kind, streak) {
   if ((kind === "bonk" || kind === "snap") && on.buzz && navigator.vibrate) navigator.vibrate(40);
 }
 
+// chime is a soft bell some semitones over G4, for a reed a pebble rings.
+export function chime(semis, vol) {
+  if (!on.sound) return;
+  const f = 392 * Math.pow(2, semis / 12), v = vol || 0.03;
+  tone("triangle", f, f, 0.2, v);
+  tone("sine", f * 2, f * 2, 0.09, v * 0.4);
+}
+
 // A key goes down with a click, and the main key with a clunk.
 document.addEventListener("pointerdown", (e) => {
   if (!on.sound) return;
