@@ -681,21 +681,29 @@ version of the old look and a handheld pet shell.
   beat, SING, FROM MEMORY and the grade at the end. Nothing is lost on a miss
   and the frog only ever sings or sits.
 - **Pad putt is mini golf on the mud banks**, seen from above. The greens
-  are moss walled in by logs with cut rings at the ends, and the cup is a dark
-  hole with the pink pennant on a reed. It's nine fixed holes, each with one
-  new thing, a bank, a slope, mushrooms, a waterwheel, the pond, a stream,
-  hollow logs, a reed gate and a drifting pad, and the later ones mix them.
-  Anything that pushes the ball draws which way, chevrons walking downhill on
-  a slope and streaks running down a stream. The frog sits behind the ball
-  facing the putt and flicks it with its tongue, and hops after it once it
-  stops. A drag back draws a band behind the ball going yellow, amber and
-  red with the power, a power bar in the bottom strip, and dots out to the
-  first thing the ball meets or as far as it rolls on the flat, so a bank
-  shot's second leg is the player's part. Each hole opens on a strip over
-  the tee end saying the hole, its name and its par, and the top strip has a
-  pip a stroke out of six. Water is a splash ring and a stroke, and the ball
-  goes back where it was played from. The results have a scorecard, a glass
-  box a hole with its par small over its strokes, amber under par.
+  are moss walled in by logs with cut rings at the ends, and the cup is a
+  dark hole with the pink pennant on a reed. A round is nine holes dealt
+  fresh from a pool of 23, three easy, three middling and three hard, in
+  that order. The pool has banks, slopes, mushrooms, a waterwheel, the pond
+  with a drifting pad, a stream, hollow logs, a reed gate, a drifting cup
+  pad off a ramp, mud, a turtle pacing a gap, a dozing bullfrog that flicks
+  the ball back while it's awake, reeds that fold one way, lily pads that
+  sink under a ball that stops on them, plank bridges over water and gusts
+  across a gap, and the harder holes mix them. Anything that pushes the ball
+  draws which way, chevrons walking downhill on a slope, streaks running
+  down a stream and leaves blowing across while the wind is up, with a few
+  stirring just before it comes. The bullfrog's reach is a dotted ring that
+  goes amber while it's awake, and it blinks just before it wakes. The frog
+  sits behind the ball facing the putt and flicks it with its tongue, and
+  hops after it once it stops. A drag back draws a band behind the ball
+  going yellow, amber and red with the power, a power bar in the bottom
+  strip, and dots out to the first thing the ball meets or as far as it
+  rolls on the flat, so a bank shot's second leg is the player's part. Each
+  hole opens on a thin strip under the top readout saying the hole and its
+  name, and the top strip has a pip a stroke out of six. Water is a splash
+  ring and a stroke, and the ball goes back where it was played from. The
+  results have a scorecard, a glass box a hole with its par small over its
+  strokes, amber under par.
 - **The spawn jar is a glass jar on a shelf by the pond**, the frog over it
   from above like pebble drop's, the next one in the top corner, a faint
   guide down to where it'll land, and a dashed line across the glass that
