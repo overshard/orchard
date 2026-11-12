@@ -92,7 +92,7 @@ func TestStartingFishingDealsTheTable(t *testing.T) {
 	if st.Fish["minnow"] <= 0 || st.Fish["tench"] <= 0 || st.Fish["moonkoi"] != 0 {
 		t.Errorf("a murky day dealt %v", st.Fish)
 	}
-	if st, _ := s.arcadeStart(id, "flick"); st.Fish != nil {
+	if st, _ := s.arcadeStart(id, "school"); st.Fish != nil {
 		t.Errorf("tongue flick was dealt fish, %v", st.Fish)
 	}
 }

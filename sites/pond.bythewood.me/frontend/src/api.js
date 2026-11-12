@@ -28,7 +28,7 @@ export function titled(name) {
 
 // The same words the Play cards use, short enough for a readout.
 export function payWord(a, low) {
-  return a.paid >= a.cap ? "Paid out" : a.runs < a.full ? "Full" : a.daily ? "Free" : low || "Quarter";
+  return a.cap === 0 ? "For fun" : a.paid >= a.cap ? "Paid out" : a.runs < a.full ? "Full" : a.daily ? "Free" : low || "Quarter";
 }
 
 // A disk's goals for the day, a green LED each, ringed until met and lit

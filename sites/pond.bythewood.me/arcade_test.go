@@ -10,7 +10,7 @@ import (
 func TestArcadePaysAndCaps(t *testing.T) {
 	s, clock := testStore(t)
 	_, id := newPond(t, s)
-	if _, err := s.arcadeFinish(id, "flick", "nope", 10, nil, nil); !errors.Is(err, errBadRun) {
+	if _, err := s.arcadeFinish(id, "school", "nope", 10, nil, nil); !errors.Is(err, errBadRun) {
 		t.Fatalf("a run never started: %v", err)
 	}
 	if _, err := s.arcadeStart(id, "pinball"); !errors.Is(err, errNotHeld) {
@@ -18,12 +18,12 @@ func TestArcadePaysAndCaps(t *testing.T) {
 	}
 	play := func(score int, secs time.Duration) *arcadeDone {
 		t.Helper()
-		st, err := s.arcadeStart(id, "flick")
+		st, err := s.arcadeStart(id, "school")
 		if err != nil {
 			t.Fatal(err)
 		}
 		*clock = clock.Add(secs * time.Second)
-		d, err := s.arcadeFinish(id, "flick", st.Run, score, nil, nil)
+		d, err := s.arcadeFinish(id, "school", st.Run, score, nil, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -44,12 +44,21 @@ func TestArcadePaysAndCaps(t *testing.T) {
 	for range 10 {
 		play(60, 20)
 	}
-	if v, _ := s.view(id); v.Arcade[0].Paid != v.Arcade[0].Cap {
-		t.Errorf("past the cap: %+v", v.Arcade[0])
+	school := func() arcadeView {
+		v, _ := s.view(id)
+		for _, a := range v.Arcade {
+			if a.Key == "school" {
+				return a
+			}
+		}
+		return arcadeView{}
+	}
+	if a := school(); a.Paid != a.Cap {
+		t.Errorf("past the cap: %+v", a)
 	}
 	*clock = clock.Add(24 * time.Hour)
-	if v, _ := s.view(id); v.Arcade[0].Paid != 0 || v.Arcade[0].Best != 60 {
-		t.Errorf("a new day: %+v", v.Arcade[0])
+	if a := school(); a.Paid != 0 || a.Best != 60 {
+		t.Errorf("a new day: %+v", a)
 	}
 }
 
@@ -86,12 +95,12 @@ func TestNewSideGamesStart(t *testing.T) {
 func TestAPausedRunStillPays(t *testing.T) {
 	s, clock := testStore(t)
 	_, id := newPond(t, s)
-	st, err := s.arcadeStart(id, "flick")
+	st, err := s.arcadeStart(id, "school")
 	if err != nil {
 		t.Fatal(err)
 	}
 	*clock = clock.Add(time.Hour)
-	if d, err := s.arcadeFinish(id, "flick", st.Run, 12, nil, nil); err != nil || d.Paid != 12 {
+	if d, err := s.arcadeFinish(id, "school", st.Run, 12, nil, nil); err != nil || d.Paid != 12 {
 		t.Errorf("a paused flick: %v %+v", err, d)
 	}
 	run, err := s.diveStart(id)
@@ -125,9 +134,12 @@ func TestDiskOfTheDay(t *testing.T) {
 		}
 		return d
 	}
-	plain := arcadeGames[0]
-	if plain.key == key {
-		plain = arcadeGames[1]
+	var plain arcadeGame
+	for _, g := range arcadeGames {
+		if g.key != key && g.cap > 0 && !g.replayed() {
+			plain = g
+			break
+		}
 	}
 	one := 4 * g.per
 	for i := 1; i <= 5; i++ {
@@ -168,8 +180,8 @@ func TestDiskOfTheDay(t *testing.T) {
 	for i := range 120 {
 		seen[diskOfDay(dayOf(clock.Add(time.Duration(i)*24*time.Hour)))] = true
 	}
-	// Bug sweep pays once a day, so it's never the disk.
-	if len(seen) != len(arcadeGames)-1 || seen["sweep"] {
+	// Bug sweep pays once a day and a classic pays nothing, so neither is the disk.
+	if len(seen) != len(arcadeGames)-2 || seen["sweep"] || seen["flick"] {
 		t.Errorf("%d of %d games were ever the disk of the day", len(seen), len(arcadeGames))
 	}
 }

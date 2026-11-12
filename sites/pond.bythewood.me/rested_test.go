@@ -27,7 +27,7 @@ func TestWellRestedPaysAQuarterMoreOnce(t *testing.T) {
 	}
 	*clock = clock.Add(restAfter)
 	// Tongue flick pays a pebble a point.
-	if out := play(t, s, clock, id, "flick", 20); out.Paid != 25 || out.Rested != 5 || out.Pond.Rested {
+	if out := play(t, s, clock, id, "school", 20); out.Paid != 25 || out.Rested != 5 || out.Pond.Rested {
 		t.Fatalf("the first run: %+v, still rested %v", out, out.Pond.Rested)
 	}
 	// One game uses it up for every game.
@@ -57,14 +57,14 @@ func TestWellRestedPaysAQuarterMoreOnce(t *testing.T) {
 func TestWellRestedStaysInsideTheCap(t *testing.T) {
 	s, clock := testStore(t)
 	_, id := newPond(t, s)
-	g, _ := arcadeOf("flick")
+	g, _ := arcadeOf("school")
 	total := 0
 	for range 12 {
 		*clock = clock.Add(restAfter)
 		if dayOf(*clock) != dayOf(clock.Add(-restAfter)) {
 			total = 0
 		}
-		out := play(t, s, clock, id, "flick", 48)
+		out := play(t, s, clock, id, "school", 48)
 		total += out.Paid
 		if total > g.cap || out.Rested > out.Paid || out.Rested > 12 {
 			t.Fatalf("%d paid today against a cap of %d, %d of the last for the rest", total, g.cap, out.Rested)

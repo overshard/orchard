@@ -75,6 +75,7 @@ export function arcade(game) {
   function lock() { return A.quick && !game.timed ? QUICK : LOCK; }
 
   function payWords() {
+    if (info() && info().cap === 0) return "Played for fun";
     return A.paid === null ? "Counting..." : "+" + A.paid + " pebbles" + (A.rested ? ", well rested" : "");
   }
 
