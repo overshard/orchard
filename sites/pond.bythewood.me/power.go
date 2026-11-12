@@ -418,7 +418,7 @@ var refFloor = map[string]int{
 	"lash":   250,
 	"swarm":  1300,
 	"whirl":  3000,
-	"sling":  1800,
+	"sling":  3000,
 }
 
 // gameRefs reads the references the hourly sweep kept.
