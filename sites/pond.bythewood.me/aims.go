@@ -91,11 +91,12 @@ var aimList = []aim{
 	{"tl_drag", "lash", "Snap four dragonflies", map[string]int{"dragonflies": 4}, nil, 0},
 	{"tl_clean", "lash", "Score 120 and never touch a wasp", nil, []string{"wasps"}, 120},
 
-	{"ss_wasps", "swarm", "Snap ten wasps in one season", map[string]int{"wasps": 10}, nil, 0},
-	{"ss_beetles", "swarm", "Snap three beetles", map[string]int{"beetles": 3}, nil, 0},
-	{"ss_dew", "swarm", "Gather 120 dew drops", map[string]int{"dew": 120}, nil, 0},
-	{"ss_clean", "swarm", "Score 250 and never get bumped", nil, []string{"bumps"}, 250},
-	{"ss_top", "swarm", "Take a perk to its third level", map[string]int{"maxed": 1}, nil, 0},
+	{"ss_wasps", "swarm", "Snap fifty wasps in one season", map[string]int{"wasps": 50}, nil, 0},
+	{"ss_beetles", "swarm", "Snap eight beetles", map[string]int{"beetles": 8}, nil, 0},
+	{"ss_dew", "swarm", "Gather 400 dew drops", map[string]int{"dew": 400}, nil, 0},
+	{"ss_clean", "swarm", "Score 600 and never get bumped", nil, []string{"bumps"}, 600},
+	{"ss_combo", "swarm", "Make a combo of two perks", map[string]int{"combos": 1}, nil, 0},
+	{"ss_level", "swarm", "Reach level twelve", map[string]int{"level": 12}, nil, 0},
 }
 
 // The least score each count says a run made, so a page can't report more of
@@ -116,7 +117,7 @@ var aimWorth = map[string]map[string]int{
 	"putt":   {"holes": 2, "under": 12, "beat": 1},
 	"jar":    {"kings": 60, "elders": 25, "frogs": 8, "froglets": 4},
 	"lash":   {"combo": 2, "golden": 10, "dragonflies": 3, "bugs": 1},
-	"swarm":  {"wasps": 3, "beetles": 6, "dew": 1, "bugs": 1},
+	"swarm":  {"wasps": 3, "beetles": 6, "dew": 1, "bugs": 1, "combos": 60, "level": 8},
 }
 
 // aimsOf is a game's two goals for a day, the same in every pond.
