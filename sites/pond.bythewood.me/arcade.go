@@ -33,7 +33,7 @@ var arcadeGames = []arcadeGame{
 	{"stack", "Lily stack", 40, 6, 3000, 1},
 	{"shell", "Shell game", 40, 4, 2000, 1},
 	{"skip", "Pebble skip", 40, 12, 400, 2},
-	{"drop", "Pebble drop", 40, 16, dropMost, 2},
+	{"drop", "Pebble drop", 40, 16, dropMost, 3},
 	{"sweep", "Bug sweep", 40, 0, bugSafe, 1},
 	{"chorus", "Chorus", 40, 3, chorusMost, 4},
 	{"putt", "Pad putt", 40, 5, puttMost, 3},
@@ -63,8 +63,9 @@ const swarmMost = 2500
 // disk of the day.
 func (g arcadeGame) replayed() bool { return g.rate == 0 }
 
-// Ten pebbles a round and eight for the middle pot is all pebble drop has.
-const dropMost, dropRows = 80, 9
+// Ten pebbles and three splits is thirteen landings at 8, then the run in the
+// middle pots tops out at 19 and lighting every reed pays 10.
+const dropMost, dropRows = 13*8 + 19 + 10, 9
 
 // The score a pebble drop badge asks for, five in the middle in old money.
 const dropBadge = 40
