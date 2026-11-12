@@ -667,7 +667,18 @@ version of the old look and a handheld pet shell.
   says SPUN for 3.
 - **Pebble drop is a shower.** Ten pebbles go as fast as the thumb lets go,
   a little apart, so several bounce down through the reeds at once, and the
-  pegs sit a little differently each day.
+  pegs sit a little differently each day. Each pebble climbs its own stretch
+  of a pentatonic scale a reed at a time, so a shower chimes, and a reed it
+  touches turns amber and stays lit for the round. Lighting every one pays
+  10, and once all is down the lit reeds pop out in a ripple from the middle
+  pot. The player's own frog sits on a lily pad drifting over the pots and
+  a pebble landing on it comes back with a croak, three at most before it
+  slips under. A pink bud or two on the day's board splits a pebble in two,
+  three times a round at most. The last pebble lined up on the 8 pot in the
+  bottom rows falls at 40% with a slight zoom, and a run of landings in the
+  middle three pots sends rings out over them and pays a point or two more.
+  The 8 pot wobbles when that pebble lands in it, nothing flashes, and
+  reduced motion gets no zoom or wobble.
 - **Chorus is four frogs on a log at night**, the player's frog on the right
   with an amber mark on the log under it, and the rain coming down harder each
   round. Under the log is a lane in readout glass, a column under each frog,
