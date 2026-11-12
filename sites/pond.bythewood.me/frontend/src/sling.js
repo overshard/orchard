@@ -29,11 +29,13 @@ const SPRITE = {
   dart: ["..XX..XX..", ".XEPXXPEX.", "XKXXKXXKXX", "XDXKXXKXDX", "XBDDDDDDBX", ".XBBBBBBX.", "K.K....K.K"],
   bull: ["...XX..XX...", "..XEPXXPEX..", ".XXXXXXXXXX.", "XXXXXXXXXXXX", "XDXXXXXXXXDX", "XBDDDDDDDDBX", ".XBBBBBBBBX.", "FF.F....F.FF"],
   toad: ["..XX..XX..", ".XEPXXPEX.", "XWXXWXXWXX", "XDXWXXWXDX", "XBDDDDDDBX", ".XBBWBBBX.", "F.F....F.F"],
+  fire: ["..XX..XX..", ".XEPXXPEX.", "XXDXXXXDXX", "XDXXXXXXDX", "XBKBBBBKBX", ".XBBKBBBX.", "F.F....F.F"],
 };
 const FROGPAL = {
   tree: { X: "#5fd04a", B: "#e8f0c0", D: "#2f6a2c", E: "#ff6a2a", P: "#0a0908", F: "#ff9a2a" },
   dart: { X: "#2b7fe0", B: "#ffd23a", D: "#14306a", E: "#fff6dc", P: "#0a0908", K: "#0a1a3a" },
   bull: { X: "#6b7a2a", B: "#e8d27a", D: "#3a4418", E: "#ffe27a", P: "#0a0908", F: "#4f5a1e" },
+  fire: { X: "#3f8a3a", B: "#ff5a1e", D: "#1e3a1a", E: "#ffe27a", P: "#0a0908", K: "#0a0908", F: "#ff5a1e" },
   toad: { X: "#9a6a3a", B: "#d9c09a", D: "#5a3a1e", E: "#ffb000", P: "#0a0908", W: "#6b4a2a", F: "#7a5230" },
 };
 
@@ -323,15 +325,17 @@ function events() {
   for (const e of w.events) {
     if (e.e === "level") {
       G.banner = { t: 0, name: e.name, lv: e.lv, fresh: e.fresh || e.lv === 0, frog: e.frog, nuts: w.L.acorns, frogs: w.L.frogs.length };
+      if (G.banner.fresh) G.met.add(e.frog);
       G.float = []; G.swim = []; G.hops = []; G.rings = []; G.spares = [];
     } else if (e.e === "fling") {
       G.tw = { x: SX - e.x, y: SY - e.y }; G.twang = 0;
-      sfx("twang"); G.flown = true;
+      sfx("twang"); G.flown = true; G.met.add(e.k);
     } else if (e.e === "power") {
       if (e.k === "tree") { sfx("pip"); F.burst(e.x, e.y, "#5fd04a", 8); }
       else if (e.k === "dart") { sfx("whip"); F.burst(e.x, e.y, "#2b7fe0", 6); G.zipAt = G.real; }
       else if (e.k === "bull") { sfx("thump"); F.burst(e.x, e.y, "#6b7a2a", 6); }
       else if (e.k === "toad") { sfx("puff"); G.rings.push({ x: e.x, y: e.y, t: 0, r: 44 }); F.hit(0.45); F.freeze(3); }
+      else if (e.k === "fire") { sfx("thump"); sfx("pop"); G.rings.push({ x: e.x, y: e.y, t: 0, r: 42 }); F.burst(e.x, e.y, "#ff5a1e", 12); F.burst(e.x, e.y, "#ffb000", 8); F.hit(0.6); F.freeze(4); }
     } else if (e.e === "knock") {
       if (e.j > 3) noise(e.mat === "acorn" ? "kick" : NOISE[e.mat] || e.mat, 0.07);
       if (e.j > 8) F.hit(Math.min(0.5, e.j / 40));
@@ -408,7 +412,7 @@ export const sling = {
   help: ["PULL BACK ANYWHERE AND LET GO", "THE DOTS SHOW WHERE IT WILL GO", "TAP IN THE AIR FOR THE FROG'S TRICK", "KNOCK EVERY ACORN OFF OR OPEN", "TAP TO START"],
 
   reset(g) {
-    G = { g, col: colours(g, null), real: 0, pull: null, key: null, twang: 9, tw: { x: 0, y: 0 }, banner: null, float: [], swim: [], hops: [], rings: [], dust: [], caps: [], spares: [], card: null, flown: false, zipAt: -9, blinkAt: 2 };
+    G = { g, col: colours(g, null), real: 0, pull: null, key: null, twang: 9, tw: { x: 0, y: 0 }, banner: null, float: [], swim: [], hops: [], rings: [], dust: [], caps: [], spares: [], card: null, flown: false, zipAt: -9, blinkAt: 2, met: new Set() };
     w = round();
     begin(w, 0);
     w.events = w.events.filter((e) => e.e === "level");
@@ -419,7 +423,7 @@ export const sling = {
 
   press(x, y) {
     if (!w || !w.L) return;
-    if (w.L.st === "fly") { if (!power(w)) noise("pip", 0.2); return; }
+    if (w.L.st === "fly") { if (!power(w, x, y)) noise("pip", 0.2); return; }
     if (w.L.st === "ready") { G.pull = { x0: x, y0: y, dx: 0, dy: 0, step: 0 }; G.key = null; }
   },
 
@@ -671,6 +675,12 @@ function hud(x, L) {
   text(x, String(w.score), 6, 18, FONT, "#ece5d8", "left");
   text(x, (w.lv + 1) + "/" + LEVELS, W - 6, 18, FONT, "#ece5d8", "right");
   text(x, L.def.name, W - 6, 28, SMALL, "#fff6dc", "right");
+  // A frog the banner didn't bring in gets named once it's in the sling.
+  const up = L.frogs[0];
+  if (L.st === "ready" && up && !G.met.has(up)) {
+    text(x, "NEW: " + FROGS[up].name, W / 2, 52, SMALL, "#ffe27a");
+    text(x, FROGS[up].line, W / 2, 62, SMALL, "#ece5d8");
+  }
   if (L.score) text(x, "+" + L.score, 6, 28, SMALL, "#ffe27a", "left");
   // How many acorns are still to knock off, the one goal of a level.
   const left = Math.max(0, L.acorns);
