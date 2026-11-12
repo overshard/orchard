@@ -4,16 +4,20 @@
 export const W = 180, H = 250, WATER = 220, STEP = 1 / 240, LEVELS = 5;
 export const SX = 30, SY = WATER - 51, PULL = 26, FLING = 12.7, SHORE = 44, BANK = WATER - 18;
 const GRAV = 520, ITER = 10, PITER = 4, SLOP = 0.4, BETA = 0.25, MAXC = 3, REST = 60;
-const ROLL = 0.15, VMIN = 80, DMG = 1000, FALL = 0.8, SLEEPV = 5, SLEEPT = 0.5, FAST = 700;
+const B2 = 0.3, B3 = 0.5, PUFF = 36, ROLL = 0.15, VMIN = 80, DMG = 1000, FALL = 0.8, SLEEPV = 5, SLEEPT = 0.5, FAST = 700;
 
 // d is density, mu friction and hp how much knocking a piece takes. pts is
-// what breaking one scores and dent how a hit on it is felt.
+// what breaking one scores, and roll how hard a round one is to roll.
 export const MATS = {
   reed: { d: 0.4, mu: 0.7, hp: 1.6, pts: 10, name: "REED" },
   wood: { d: 0.7, mu: 0.6, hp: 5, pts: 15, name: "DRIFTWOOD" },
   mud: { d: 1.2, mu: 0.8, hp: 4, pts: 15, name: "MUD" },
   ice: { d: 0.9, mu: 0.08, hp: 2.6, pts: 15, name: "ICE" },
   stone: { d: 2.2, mu: 0.7, hp: 14, pts: 25, name: "STONE" },
+  pot: { d: 0.6, mu: 0.6, hp: 0.9, pts: 20, name: "POT" },
+  barrel: { d: 0.9, mu: 0.6, hp: 2.2, pts: 30, name: "BARREL" },
+  crate: { d: 0.6, mu: 0.6, hp: 2.4, pts: 20, name: "CRATE" },
+  roller: { d: 0.8, mu: 0.6, hp: 7, pts: 15, roll: 0.04, name: "LOG" },
   acorn: { d: 0.9, mu: 0.5, hp: 0.8, pts: 50 },
   frog: { d: 1.6, mu: 0.5, hp: 1e9, pts: 0 },
   plat: { d: 0, mu: 0.8, hp: 1e9, pts: 0 },
@@ -24,9 +28,9 @@ export const ACORN = 50, GOLD = 150, SPLASH = 10, SPARE = 100;
 // so a dart goes through reeds and a bullfrog through stone.
 export const FROGS = {
   pond: { name: "POND FROG", r: 5, d: 1.6, line: "NO TRICKS, JUST A GOOD FLING", hit: {} },
-  tree: { name: "TREE FROG", r: 4.5, d: 1.5, line: "TAP TO SPLIT INTO THREE", hit: { reed: 1.6, ice: 1.4, acorn: 1.3, stone: 0.6 } },
-  dart: { name: "DART FROG", r: 4.5, d: 1.8, line: "TAP TO ZIP STRAIGHT", hit: { reed: 3, ice: 3, wood: 1.5, stone: 0.5 } },
-  bull: { name: "BULLFROG", r: 6.5, d: 1.8, line: "TAP TO DROP LIKE A STONE", hit: { stone: 2.6, mud: 2, wood: 1.4, reed: 0.8 } },
+  tree: { name: "TREE FROG", r: 4.5, d: 1.5, line: "TAP TO SPLIT INTO THREE", hit: { reed: 1.6, ice: 1.4, pot: 1.4, acorn: 1.3, stone: 0.6 } },
+  dart: { name: "DART FROG", r: 4.5, d: 1.8, line: "TAP TO ZIP STRAIGHT", hit: { reed: 3, ice: 3, wood: 1.5, crate: 1.5, stone: 0.5 } },
+  bull: { name: "BULLFROG", r: 6.5, d: 1.8, line: "TAP TO DROP LIKE A STONE", hit: { stone: 2.6, mud: 2, wood: 1.4, barrel: 1.4, reed: 0.8 } },
   toad: { name: "PUFF TOAD", r: 5.5, d: 1.6, line: "TAP TO PUFF UP AND BLOW", hit: { mud: 1.3 } },
 };
 
@@ -44,87 +48,145 @@ const slab = (p, dx, y, mat, len, th) => ({ s: "box", p, dx, y, mat, hx: len / 2
 const cube = (p, dx, y, mat, s) => ({ s: "box", p, dx, y, mat, hx: s / 2, hy: s / 2 });
 const ball = (p, dx, y, mat, r) => ({ s: "circle", p, dx, y, mat, r: r || 5 });
 const nut = (p, dx, y) => ({ s: "circle", p, dx, y, mat: "acorn", r: 4 });
+const pot = (p, dx, y) => ({ s: "box", p, dx, y, mat: "pot", hx: 3.5, hy: 4 });
+const barrel = (p, dx, y) => ({ s: "box", p, dx, y, mat: "barrel", hx: 4.5, hy: 6 });
+const crate = (p, dx, y, n) => ({ s: "box", p, dx, y, mat: "crate", hx: 6, hy: 6, nuts: n || 2 });
+const roller = (p, dx, y, r) => ({ s: "circle", p, dx, y, mat: "roller", r: r || 5 });
+
+// A hut is two posts h tall under a roof w across, and a tower is huts one on
+// another, with inner giving what sits on each floor.
+function hut(p, dx, y, mat, w, h, roof) {
+  return [post(p, dx - w / 2 + 2.5, y, mat, h), post(p, dx + w / 2 - 2.5, y, mat, h), slab(p, dx, y + h, roof || mat, w + 4)];
+}
+function tower(p, dx, mat, w, h, n, inner, y0) {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const y = (y0 || 0) + i * (h + 4);
+    out.push(...hut(p, dx, y, mat, w, h));
+    if (inner) out.push(...[].concat(inner(i, y) || []));
+  }
+  return out;
+}
 
 // Five slots in a round, each a few levels to deal one from, and the frogs a
 // slot hands out bring a new one in each time.
 export const POOL = [
   {
-    frogs: ["pond", "pond", "pond"], levels: [
-      { name: "THREE ON A LOG", sky: 0, plats: [log(126, 36)], parts: [
-        post(0, -24, 0, "wood", 22), post(0, 24, 0, "wood", 22), slab(0, 0, 22, "wood", 58),
-        nut(0, 0, 0), nut(0, -14, 26), nut(0, 14, 26)] },
-      { name: "REED ROW", sky: 0, plats: [log(124, 42, 1)], parts: [
-        post(0, -28, 0, "reed", 20, 6), post(0, 0, 0, "reed", 20, 6), post(0, 28, 0, "reed", 20, 6),
-        nut(0, -28, 20), nut(0, 0, 20), nut(0, 28, 20), ball(0, -14, 0, "stone", 4), ball(0, 14, 0, "stone", 4)] },
-      { name: "LITTLE CAIRN", sky: 0, plats: [rock(142, 18, 202), log(94, 22, 2)], parts: [
-        cube(0, -8, 0, "wood", 12), cube(0, 8, 0, "wood", 12), slab(0, 0, 12, "stone", 32, 5), nut(0, 0, 17),
-        ball(1, -10, 0, "stone", 4), ball(1, 10, 0, "stone", 4), nut(1, 0, 0)] },
+    frogs: ["pond", "pond", "pond", "pond"], levels: [
+      { name: "FIRST FLING", sky: 0, plats: [log(124, 32)], parts: [
+        ...tower(0, 0, "reed", 22, 14, 3, (i, y) => nut(0, 0, y)), nut(0, 0, 54),
+        pot(0, -24, 0), pot(0, 24, 0)] },
+      { name: "POT SHELF", sky: 0, plats: [log(126, 38, 1)], parts: [
+        ...hut(0, 0, 0, "reed", 56, 14), pot(0, -14, 0), nut(0, 0, 0), pot(0, 14, 0),
+        pot(0, -20, 18), nut(0, -20, 26), pot(0, 0, 18), nut(0, 0, 26), pot(0, 20, 18), nut(0, 20, 26)] },
+      { name: "TALL REEDS", sky: 1, plats: [log(98, 20, 0.5), log(152, 22, 2)], parts: [
+        ...tower(0, 0, "reed", 18, 12, 3, (i, y) => (i === 0 ? nut(0, 0, y) : null)), nut(0, 0, 48),
+        ...tower(1, 0, "reed", 18, 12, 3, (i, y) => (i === 1 ? nut(1, 0, y) : null)), nut(1, 0, 48)] },
+      { name: "CRATE RAFT", sky: 0, plats: [raft(128, 40, 6)], parts: [
+        crate(0, -22, 0, 2), pot(0, -22, 12), nut(0, -22, 20),
+        ...hut(0, 14, 0, "wood", 28, 16), nut(0, 14, 0), nut(0, 14, 20), pot(0, 34, 0)] },
+      { name: "LITTLE BRIDGE", sky: 1, plats: [rock(90, 10, 198), rock(160, 10, 198)], parts: [
+        post(0, 0, 0, "reed", 12, 6), post(1, 0, 0, "reed", 12, 6), slab(0, 35, 12, "wood", 84),
+        nut(0, 20, 16), pot(0, 28, 16), nut(0, 35, 16), pot(0, 42, 16), nut(0, 50, 16)] },
     ],
   },
   {
-    frogs: ["tree", "tree", "pond"], levels: [
-      { name: "REED HUTS", sky: 1, plats: [raft(126, 42, 10)], parts: [
-        post(0, -30, 0, "reed", 16), post(0, -12, 0, "reed", 16), slab(0, -21, 16, "reed", 26), nut(0, -21, 0), nut(0, -21, 20),
-        post(0, 12, 0, "reed", 16), post(0, 30, 0, "reed", 16), slab(0, 21, 16, "reed", 26), nut(0, 21, 0), nut(0, 21, 20)] },
-      { name: "TWO LOGS", sky: 1, plats: [log(102, 22, 0.5), log(158, 22, 2.2)], parts: [
-        post(0, 0, 0, "reed", 18, 6), slab(0, 0, 18, "reed", 28), nut(0, -10, 22), nut(0, 10, 22),
-        post(1, 0, 0, "reed", 18, 6), slab(1, 0, 18, "reed", 28), nut(1, -10, 22), nut(1, 10, 22)] },
-      { name: "SHELVES", sky: 1, plats: [log(132, 44, 1.2)], parts: [
+    frogs: ["tree", "tree", "pond", "pond"], levels: [
+      { name: "REED HUTS", sky: 1, plats: [raft(126, 46, 8)], parts: [
+        ...[-30, 0, 30].flatMap((dx) => [...hut(0, dx, 0, "reed", 24, 14), nut(0, dx, 0), nut(0, dx, 18)])] },
+      { name: "TWO TOWERS", sky: 1, plats: [log(98, 22, 0.5), log(156, 22, 2.2)], parts: [
+        ...tower(0, 0, "reed", 22, 14, 2, (i, y) => nut(0, 0, y)), nut(0, 0, 36),
+        ...tower(1, 0, "reed", 22, 14, 2, (i, y) => nut(1, 0, y)), nut(1, 0, 36)] },
+      { name: "SHELVES", sky: 1, plats: [log(130, 44, 1.2)], parts: [
         nut(0, -20, 0), nut(0, 20, 0),
         post(0, -34, 0, "reed", 14), post(0, -6, 0, "reed", 14), post(0, 6, 0, "reed", 14), post(0, 34, 0, "reed", 14),
-        slab(0, -20, 14, "reed", 34), slab(0, 20, 14, "reed", 34), nut(0, -20, 18), nut(0, 20, 18),
-        post(0, -14, 18, "reed", 12), post(0, 14, 18, "reed", 12), slab(0, 0, 30, "wood", 40), nut(0, 0, 34)] },
+        slab(0, -20, 14, "reed", 34), slab(0, 20, 14, "reed", 34), pot(0, -28, 18), nut(0, -20, 18), pot(0, 28, 18), nut(0, 20, 18),
+        post(0, -14, 18, "reed", 12), post(0, 14, 18, "reed", 12), slab(0, 0, 30, "wood", 40), nut(0, 0, 34), pot(0, -12, 34), pot(0, 12, 34)] },
+      { name: "POTTERY", sky: 0, plats: [rock(136, 32, 200)], parts: [
+        ...hut(0, 0, 0, "wood", 56, 16), pot(0, -16, 0), nut(0, -8, 0), pot(0, 0, 0), nut(0, 8, 0), pot(0, 16, 0),
+        pot(0, -24, 20), nut(0, -16, 20), pot(0, -8, 20), pot(0, 8, 20), nut(0, 16, 20), pot(0, 24, 20),
+        pot(0, -8, 28), nut(0, 0, 20), pot(0, 8, 28)] },
+      { name: "BARREL ROW", sky: 2, plats: [log(126, 44, 0.7)], parts: [
+        barrel(0, -32, 0), barrel(0, -11, 0), barrel(0, 11, 0), barrel(0, 32, 0),
+        nut(0, -21.5, 0), nut(0, 0, 0), nut(0, 21.5, 0), slab(0, 0, 12, "reed", 84),
+        nut(0, -24, 16), pot(0, -12, 16), nut(0, 0, 16), pot(0, 12, 16), nut(0, 24, 16)] },
     ],
   },
   {
-    frogs: ["dart", "pond", "dart"], levels: [
-      { name: "LONG TABLE", sky: 2, plats: [log(128, 46, 0.3)], parts: [
+    frogs: ["dart", "dart", "pond", "tree"], levels: [
+      { name: "LONG TABLE", sky: 2, plats: [log(126, 46, 0.3)], parts: [
         post(0, -36, 0, "wood", 18), post(0, -12, 0, "wood", 18), post(0, 12, 0, "wood", 18), post(0, 36, 0, "wood", 18),
         slab(0, 0, 18, "wood", 82), nut(0, -24, 0), nut(0, 0, 0), nut(0, 24, 0), nut(0, -24, 22), nut(0, 24, 22),
-        post(0, -43, 0, "reed", 26, 4)] },
-      { name: "REED TOWER", sky: 2, plats: [rock(148, 16, 200), log(98, 20, 1.7)], parts: [
-        post(0, -9, 0, "reed", 14), post(0, 9, 0, "reed", 14), slab(0, 0, 14, "reed", 26), nut(0, 0, 0),
-        post(0, -9, 18, "reed", 14), post(0, 9, 18, "reed", 14), slab(0, 0, 32, "reed", 26), nut(0, 0, 18),
-        post(0, -9, 36, "reed", 14), post(0, 9, 36, "reed", 14), slab(0, 0, 50, "reed", 26), nut(0, 0, 36), nut(0, 0, 54),
-        cube(1, 0, 0, "wood", 10), nut(1, 0, 10)] },
-      { name: "FROST SHELF", sky: 3, plats: [log(130, 42, 2.5)], parts: [
+        pot(0, -36, 22), pot(0, -12, 22), pot(0, 12, 22), pot(0, 36, 22), post(0, -43, 0, "reed", 26, 4)] },
+      { name: "REED TOWER", sky: 2, plats: [rock(148, 18, 200), log(102, 20, 1.7)], parts: [
+        ...tower(0, 0, "reed", 26, 14, 4, (i, y) => (i % 2 ? pot(0, 0, y) : nut(0, 0, y))), nut(0, 0, 72),
+        cube(1, -6, 0, "wood", 10), nut(1, -6, 10), pot(1, 8, 0)] },
+      { name: "FROST SHELF", sky: 3, plats: [log(128, 42, 2.5)], parts: [
         post(0, -28, 0, "ice", 16, 6), post(0, 28, 0, "ice", 16, 6), slab(0, 0, 16, "ice", 66, 5),
-        nut(0, -16, 21), nut(0, 0, 21), nut(0, 16, 21), cube(0, 0, 0, "ice", 10), nut(0, -14, 0), nut(0, 14, 0)] },
+        nut(0, -16, 21), nut(0, 0, 21), nut(0, 16, 21), pot(0, -8, 21), pot(0, 8, 21),
+        cube(0, 0, 0, "ice", 10), nut(0, -14, 0), nut(0, 14, 0), cube(0, 0, 10, "ice", 8)] },
+      { name: "ROLLING LOGS", sky: 0, plats: [rock(128, 46, 202)], parts: [
+        roller(0, -38, 0, 6), roller(0, -25, 0, 6), nut(0, -31.5, 9),
+        ...tower(0, 18, "ice", 24, 14, 2, (i, y) => nut(0, 18, y)), nut(0, 18, 36), pot(0, 38, 0), nut(0, 2, 0)] },
+      { name: "ICE STAIRS", sky: 3, plats: [log(128, 44, 2)], parts: [
+        cube(0, -27, 0, "ice", 10),
+        cube(0, -15, 0, "ice", 10), cube(0, -15, 10, "ice", 10),
+        cube(0, -3, 0, "ice", 10), cube(0, -3, 10, "ice", 10), cube(0, -3, 20, "ice", 10),
+        cube(0, 9, 0, "ice", 10), cube(0, 9, 10, "ice", 10), cube(0, 9, 20, "ice", 10), cube(0, 9, 30, "ice", 10),
+        nut(0, -27, 10), nut(0, -15, 20), nut(0, -3, 30), nut(0, 9, 40), crate(0, 26, 0, 2), pot(0, 26, 12)] },
     ],
   },
   {
-    frogs: ["bull", "tree", "dart"], levels: [
-      { name: "STONE HUT", sky: 0, plats: [log(130, 44, 0.8)], parts: [
+    frogs: ["bull", "bull", "tree", "dart"], levels: [
+      { name: "STONE HUT", sky: 0, plats: [log(128, 44, 0.8)], parts: [
         post(0, -20, 0, "wood", 20, 6), post(0, 20, 0, "wood", 20, 6), slab(0, 0, 20, "stone", 50, 6),
-        nut(0, -7, 0), nut(0, 7, 0), nut(0, 0, 26),
+        nut(0, -7, 0), nut(0, 7, 0), nut(0, 0, 26), pot(0, -14, 26), pot(0, 14, 26),
         cube(0, -36, 0, "stone", 10), nut(0, -36, 10), cube(0, 36, 0, "stone", 10), nut(0, 36, 10)] },
-      { name: "MUD WALL", sky: 1, plats: [bank(158, 206, 196), log(118, 26, 1.1)], parts: [
-        cube(1, -5, 0, "mud", 10), cube(1, 5, 0, "mud", 10), cube(1, -5, 10, "mud", 10), cube(1, 5, 10, "mud", 10),
-        cube(1, 0, 20, "mud", 10), nut(1, 0, 30), nut(1, -18, 0),
-        nut(0, -8, 0), nut(0, 6, 0), cube(0, 18, 0, "mud", 10)] },
-      { name: "CAIRN", sky: 2, plats: [rock(138, 24, 202)], parts: [
+      { name: "MUD WALL", sky: 1, plats: [bank(150, 196, 196), log(110, 24, 1.1)], parts: [
+        cube(0, -9, 0, "mud", 10), cube(0, 1, 0, "mud", 10), cube(0, -9, 10, "mud", 10), cube(0, 1, 10, "mud", 10),
+        cube(0, -4, 20, "mud", 10), nut(0, -4, 30), nut(0, -20, 0), barrel(0, 12, 0),
+        nut(1, -8, 0), nut(1, 6, 0), cube(1, 18, 0, "mud", 10), pot(1, 18, 10)] },
+      { name: "CAIRN", sky: 2, plats: [rock(136, 27, 202)], parts: [
         ball(0, -15, 0, "stone", 5), ball(0, -5, 0, "stone", 5), ball(0, 5, 0, "stone", 5), ball(0, 15, 0, "stone", 5),
         ball(0, -10, 8.66, "stone", 5), nut(0, 0, 9.4), ball(0, 10, 8.66, "stone", 5),
         ball(0, -5, 17.32, "stone", 5), ball(0, 5, 17.32, "stone", 5), nut(0, 0, 26.6),
         nut(0, -21, 0.1), nut(0, 21, 0.1)] },
+      { name: "THE WELL", sky: 1, plats: [rock(132, 34, 202)], parts: [
+        post(0, -26, 0, "stone", 22, 6), post(0, 26, 0, "stone", 22, 6),
+        barrel(0, -12, 0), nut(0, 0, 0), barrel(0, 12, 0), slab(0, 0, 12, "wood", 36),
+        nut(0, -8, 16), nut(0, 8, 16), slab(0, 0, 22, "wood", 60), pot(0, -16, 26), nut(0, 0, 26), pot(0, 16, 26)] },
+      { name: "STONE BRIDGE", sky: 0, plats: [rock(88, 12, 196), rock(162, 12, 196)], parts: [
+        post(0, 0, 0, "wood", 14, 6), post(1, 0, 0, "wood", 14, 6), slab(0, 37, 14, "stone", 88, 5),
+        nut(0, 20, 19), barrel(0, 30, 19), nut(0, 40, 19), barrel(0, 50, 19), nut(0, 60, 19),
+        crate(1, 0, 19, 2)] },
     ],
   },
   {
-    frogs: ["toad", "bull", "tree", "dart"], levels: [
-      { name: "THE OLD DAM", sky: 2, plats: [rock(138, 30, 206)], parts: [
+    frogs: ["toad", "bull", "tree", "dart", "pond"], levels: [
+      { name: "THE OLD DAM", sky: 2, plats: [rock(136, 38, 206)], parts: [
         cube(0, -24, 0, "mud", 10), cube(0, -14, 0, "mud", 10), cube(0, 14, 0, "mud", 10), cube(0, 24, 0, "mud", 10),
         nut(0, -1, 0), nut(0, 6, 0),
         slab(0, 0, 10, "wood", 60, 5), post(0, -20, 15, "wood", 16), post(0, 20, 15, "wood", 16), nut(0, -8, 15), nut(0, 8, 15),
-        slab(0, 0, 31, "wood", 52, 5), cube(0, -12, 36, "mud", 9), cube(0, 12, 36, "mud", 9), nut(0, 0, 36), nut(0, -12, 45), nut(0, 12, 45)] },
-      { name: "RAFT FORT", sky: 1, plats: [raft(130, 48, 14, 1)], parts: [
-        post(0, -40, 0, "wood", 22), post(0, -28, 0, "wood", 22), slab(0, -34, 22, "stone", 18, 5), nut(0, -34, 27),
-        post(0, 28, 0, "wood", 22), post(0, 40, 0, "wood", 22), slab(0, 34, 22, "stone", 18, 5), nut(0, 34, 27),
-        post(0, -10, 0, "reed", 14), post(0, 10, 0, "reed", 14), slab(0, 0, 14, "reed", 26), nut(0, 0, 0), nut(0, 0, 18),
+        slab(0, 0, 31, "wood", 52, 5), cube(0, -12, 36, "mud", 9), cube(0, 12, 36, "mud", 9), nut(0, 0, 36), nut(0, -12, 45), nut(0, 12, 45),
+        pot(0, -32, 0), pot(0, 32, 0)] },
+      { name: "RAFT FORT", sky: 1, plats: [raft(128, 48, 12, 1)], parts: [
+        post(0, -40, 0, "wood", 22), post(0, -28, 0, "wood", 22), slab(0, -34, 22, "wood", 18, 5), nut(0, -34, 27),
+        post(0, 28, 0, "wood", 22), post(0, 40, 0, "wood", 22), slab(0, 34, 22, "wood", 18, 5), nut(0, 34, 27),
+        ...hut(0, 0, 0, "reed", 24, 14), nut(0, 0, 0), nut(0, 0, 18), pot(0, -8, 18), pot(0, 8, 18),
         nut(0, -19, 0), nut(0, 19, 0)] },
-      { name: "THE OLD NEST", sky: 3, plats: [log(132, 34, 0.4)], parts: [
+      { name: "THE OLD NEST", sky: 3, plats: [log(130, 34, 0.4)], parts: [
         post(0, -14, 0, "wood", 40, 5), post(0, 14, 0, "wood", 40, 5), slab(0, 0, 40, "reed", 40, 4),
         post(0, -17, 44, "reed", 8, 6), post(0, 17, 44, "reed", 8, 6), nut(0, -6, 44), nut(0, 3, 44), nut(0, 10, 44),
-        nut(0, 0, 0), ball(0, -24, 0, "stone", 4), ball(0, 24, 0, "stone", 4)] },
+        nut(0, 0, 0), crate(0, 0, 8, 2), roller(0, -24, 0, 4), roller(0, 24, 0, 4)] },
+      { name: "BARREL YARD", sky: 2, plats: [raft(130, 46, 6, 2)], parts: [
+        barrel(0, -30, 0), barrel(0, -20, 0), barrel(0, -10, 0), barrel(0, -25, 12), barrel(0, -15, 12), nut(0, -20, 24),
+        crate(0, 6, 0, 2), crate(0, 6, 12, 2),
+        barrel(0, 22, 0), barrel(0, 32, 0), slab(0, 27, 12, "reed", 26), nut(0, 22, 16), nut(0, 32, 16), pot(0, 40, 0)] },
+      { name: "THE CASTLE", sky: 0, plats: [rock(134, 42, 204)], parts: [
+        ...tower(0, -28, "reed", 18, 14, 3, (i, y) => (i === 1 ? nut(0, -28, y) : pot(0, -28, y))), nut(0, -28, 54),
+        ...tower(0, 28, "reed", 18, 14, 3, (i, y) => (i === 1 ? nut(0, 28, y) : pot(0, 28, y))), nut(0, 28, 54),
+        post(0, -10, 0, "wood", 18, 6), post(0, 10, 0, "wood", 18, 6), slab(0, 0, 18, "stone", 30, 5), crate(0, 0, 0, 2),
+        nut(0, 0, 23), pot(0, -8, 23), pot(0, 8, 23)] },
     ],
   },
 ];
@@ -134,7 +196,7 @@ export const POOL = [
 let ids = 0;
 
 function body(o) {
-  const m = MATS[o.mat], b = { id: ++ids, s: o.s, mat: o.mat, x: o.x, y: o.y, a: o.a || 0, vx: 0, vy: 0, w: 0, hx: o.hx || 0, hy: o.hy || 0, r: o.r || 0, mu: m.mu, hp: m.hp, hp0: m.hp, kind: o.kind || (o.mat === "acorn" ? "acorn" : "block"), sleep: false, still: 0, rest: null };
+  const m = MATS[o.mat], b = { id: ++ids, s: o.s, mat: o.mat, x: o.x, y: o.y, a: o.a || 0, vx: 0, vy: 0, w: 0, hx: o.hx || 0, hy: o.hy || 0, r: o.r || 0, mu: m.mu, hp: m.hp, hp0: m.hp, kind: o.kind || (o.mat === "acorn" ? "acorn" : "block"), nuts: o.nuts || 0, sleep: false, still: 0, rest: null };
   setMass(b, o.d || m.d);
   return b;
 }
@@ -169,7 +231,7 @@ export function round(rand) {
   rand = rand || Math.random;
   const deal = POOL.map((s) => Math.floor(rand() * s.levels.length));
   const gold = Math.floor(rand() * LEVELS);
-  return { deal, gold, lv: -1, score: 0, results: [], events: [], counts: { acorns: 0, golden: 0, blocks: 0, stones: 0, splashed: 0, spare: 0, cleared: 0, stars: 0, three: 0, oneshot: 0 }, st: "next", t: 0, L: null, rand };
+  return { deal, gold, lv: -1, score: 0, results: [], events: [], counts: { acorns: 0, golden: 0, blocks: 0, stones: 0, pots: 0, barrels: 0, splashed: 0, spare: 0, cleared: 0, stars: 0, three: 0, oneshot: 0 }, st: "next", t: 0, L: null, rand };
 }
 
 // The levels a round could deal, for the sim and for working out the most.
@@ -185,13 +247,15 @@ export function begin(w, slot, pick, raw) {
   L.bodies.push(shore);
   let gi = slot === w.gold ? Math.floor(w.rand() * def.parts.filter((o) => o.mat === "acorn").length) : -1;
   for (const p of L.plats) placePlat(p, 0);
+  let nested = 0;
   for (const o of def.parts) {
     // Each piece starts where it sits on its platform as the level opens, at
     // the platform's tilt and moving with it.
     const p = L.plats[o.p], lx = o.dx, ly = -p.hy - o.y - (o.s === "circle" ? o.r : o.hy), c = Math.cos(p.a), s = Math.sin(p.a);
-    const b = body({ s: o.s, mat: o.mat, x: p.x + c * lx - s * ly, y: p.y + s * lx + c * ly, a: p.a, hx: o.hx, hy: o.hy, r: o.r });
+    const b = body({ s: o.s, mat: o.mat, x: p.x + c * lx - s * ly, y: p.y + s * lx + c * ly, a: p.a, hx: o.hx, hy: o.hy, r: o.r, nuts: o.nuts });
     b.vx = p.vx - p.w * (b.y - p.y); b.vy = p.vy + p.w * (b.x - p.x); b.w = p.w;
-    if (b.kind === "acorn") { if (L.acorns === gi) b.gold = true; L.acorns++; }
+    if (b.kind === "acorn") { if (L.acorns - nested === gi) b.gold = true; L.acorns++; }
+    if (b.nuts) { L.acorns += b.nuts; nested += b.nuts; }
     L.bodies.push(b);
   }
   // Settle out of sight so a level opens on stacks already at rest.
@@ -287,20 +351,10 @@ export function power(w) {
   return true;
 }
 
-// A toad puffing up blows everything near it away from it, harder the closer.
 function puff(w, L, b) {
-  const R = 44;
   b.puff = 0.6;
-  for (const o of L.bodies) {
-    if (o === b || o.kind === "plat" || o.kind === "frog" || o.gone) continue;
-    const dx = o.x - b.x, dy = o.y - b.y, d = Math.hypot(dx, dy);
-    if (d > R) continue;
-    const k = 1 - d / R, dv = 300 * k / Math.sqrt(o.m / 60);
-    o.vx += dx / (d || 1) * dv; o.vy += dy / (d || 1) * dv - 40 * k; o.w += (o.x > b.x ? 1 : -1) * 4 * k;
-    hurt(w, L, o, 3.5 * k * (o.mat === "reed" || o.mat === "ice" ? 1.5 : o.mat === "stone" ? 0.4 : 1), b);
-  }
+  burst(w, L, b.x, b.y, PUFF, 280, 3, b);
   b.vx *= 0.3; b.vy = Math.min(b.vy, -60);
-  wakeAll(L);
 }
 
 // ---------------------------------------------------------------- stepping
@@ -387,7 +441,7 @@ function collide(w, L) {
       p.pn = 0; p.pt = 0;
       if (old) for (const q of old.pts) if (Math.abs(q.x - p.x) + Math.abs(q.y - p.y) < 2) { p.pn = q.pn; p.pt = q.pt; break; }
     }
-    const roll = a.s === "circle" ? a.r : b.s === "circle" ? b.r : 0;
+    const rc = a.s === "circle" ? a : b.s === "circle" ? b : null, roll = rc ? rc.r * (MATS[rc.mat].roll || ROLL) : 0;
     if (a.kind === "frog" && b.kind !== "plat") a.brushed = true;
     if (b.kind === "frog" && a.kind !== "plat") b.brushed = true;
     out.push({ key, a, b, pts, mu: Math.sqrt(a.mu * b.mu), roll, lr: 0 });
@@ -526,7 +580,31 @@ function hurt(w, L, x, dmg, by) {
   L.breaks.push(L.t);
   w.events.push({ e: "break", x: x.x, y: x.y, a: x.a, mat: x.mat, kind: x.kind, hx: x.hx, hy: x.hy, r: x.r, gold: x.gold });
   if (x.kind === "acorn") clearNut(w, L, x);
-  else { add(w, L, MATS[x.mat].pts); w.counts.blocks++; if (x.mat === "stone") w.counts.stones++; }
+  else { add(w, L, MATS[x.mat].pts); w.counts.blocks++; if (x.mat === "stone" || x.mat === "pot" || x.mat === "barrel") w.counts[x.mat + "s"]++; }
+  if (x.nuts) spill(w, L, x);
+  if (x.mat === "barrel") burst(w, L, x.x, x.y, 30, 220, 2.4, x);
+}
+
+// A crate of acorns counts every one in it once it's broken open or sunk.
+function spill(w, L, x) {
+  for (let i = 0; i < x.nuts; i++) clearNut(w, L, x);
+  w.events.push({ e: "spill", x: x.x, y: x.y, n: x.nuts });
+  x.nuts = 0;
+}
+
+// A blast pushes everything near it away, harder the closer, and knocks it.
+// A barrel bursting is one, and a toad puffing up is a bigger one.
+function burst(w, L, x, y, R, push, dmg, by) {
+  for (const o of L.bodies) {
+    if (o === by || o.kind === "plat" || o.kind === "frog" || o.gone || o.broken) continue;
+    const dx = o.x - x, dy = o.y - y, d = Math.hypot(dx, dy);
+    if (d > R) continue;
+    const k = 1 - d / R, dv = push * k / Math.sqrt(o.m / 60);
+    o.vx += dx / (d || 1) * dv; o.vy += dy / (d || 1) * dv - 40 * k; o.w += (o.x > x ? 1 : -1) * 4 * k;
+    hurt(w, L, o, dmg * k * (o.mat === "reed" || o.mat === "ice" || o.mat === "pot" ? 1.5 : o.mat === "stone" ? 0.4 : 1), by);
+  }
+  if (by.kind !== "frog") w.events.push({ e: "burst", x, y, r: R });
+  wakeAll(L);
 }
 
 function clearNut(w, L, x) {
@@ -582,7 +660,7 @@ function solve(ar) {
   // An acorn or a pebble isn't a true ball, so it resists a roll like a nut
   // does and sits still on a rocking log.
   if (ar.roll) {
-    const k = a.iI + b.iI, lim = ROLL * ar.roll * ar.pts[0].pn;
+    const k = a.iI + b.iI, lim = ar.roll * ar.pts[0].pn;
     const lr = ar.lr, l = Math.max(-lim, Math.min(lim, lr - (b.w - a.w) / k)), dl = l - lr;
     ar.lr = l;
     a.w -= a.iI * dl; b.w += b.iI * dl;
@@ -610,8 +688,9 @@ function correct(ar) {
 
 // ---------------------------------------------------------------- sleeping
 
-// A heap that has sat still on one platform long enough sleeps as a piece of
-// it, so nothing at rest can creep or jitter. A touch wakes the whole heap.
+// A heap that has sat still on one platform, or on rocks that never move,
+// long enough sleeps as a piece of it, so nothing at rest can creep or
+// jitter. A touch wakes the whole heap.
 function sleep(L, arbs, h) {
   const par = new Map(), find = (b) => { while (par.get(b) !== b) { par.set(b, par.get(par.get(b))); b = par.get(b); } return b; };
   const on = new Map();
@@ -635,7 +714,7 @@ function sleep(L, arbs, h) {
   }
   for (const [r, g] of groups) {
     const ps = on.get(r);
-    let p = null, ok = !!ps && ps.size === 1;
+    let p = null, ok = !!ps && (ps.size === 1 || [...ps].every((q) => !q.plat.bob));
     if (ok) p = [...ps][0];
     for (const b of g) {
       if (b.kind === "frog") { ok = false; b.still = 0; continue; }
@@ -684,7 +763,8 @@ function sweep(w, L) {
       w.events.push({ e: "splash", x: Math.max(4, Math.min(W - 4, b.x)), kind: b.kind, mat: b.mat, a: b.a, hx: b.hx, hy: b.hy, r: b.r, gold: b.gold, off, vx: b.vx });
       if (b.kind === "acorn") clearNut(w, L, b);
       else { add(w, L, SPLASH); w.counts.splashed++; }
-    } else if (b.kind === "acorn") L.acorns--;
+      if (b.nuts) spill(w, L, b);
+    } else if (b.kind === "acorn" || b.nuts) L.acorns -= b.nuts || 1;
   }
   if (gone) {
     L.bodies = L.bodies.filter((b) => !b.gone || b.kind === "frog");
@@ -749,13 +829,13 @@ function flow(w, L, dt) {
 
 function to(L, st) { L.st = st; L.st_t = 0; }
 
-// The stars a level asks for, the acorns for one and spare frogs and a fair
-// bit broken for the rest.
+// The stars a level asks for, every acorn for one and a frog to spare and a
+// fair bit broken for the rest.
 export function bar(slot, def) {
-  const nuts = def.parts.filter((p) => p.mat === "acorn").length * ACORN;
+  const nuts = def.parts.reduce((s, p) => s + (p.mat === "acorn" ? 1 : p.nuts || 0), 0) * ACORN;
   const blocks = def.parts.reduce((s, p) => s + (p.mat === "acorn" ? 0 : MATS[p.mat].pts), 0);
-  const n = POOL[slot].frogs.length;
-  return [nuts, nuts + Math.round(blocks * 0.2 / 5) * 5 + SPARE * Math.max(1, n - 2), nuts + Math.round(blocks * 0.3 / 5) * 5 + SPARE * (n - 1)];
+  const r5 = (n) => Math.round(n / 5) * 5;
+  return [nuts, nuts + r5(blocks * B2) + SPARE, nuts + r5(blocks * B3) + SPARE * (POOL[slot].frogs.length - 2)];
 }
 
 function tally(w, L, clear) {
