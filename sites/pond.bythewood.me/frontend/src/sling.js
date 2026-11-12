@@ -2,7 +2,7 @@ import { colours } from "./frog.js";
 import { feel } from "./feel.js";
 import { reduced } from "./api.js";
 import { sfx } from "./sound.js";
-import { W, H, WATER, SX, SY, PULL, SHORE, LEVELS, MATS, FROGS, round, begin, step, fling, power, pulled, arc, counts, bar } from "./slingworld.js";
+import { W, H, WATER, SX, SY, PULL, SHORE, LEVELS, MATS, FROGS, round, begin, step, fling, power, pulled, aimPath, counts, bar } from "./slingworld.js";
 
 // Cattail sling. A bent cattail flings the frog at acorns stacked on logs and
 // rafts out on the pond, and every acorn knocked open or into the water
@@ -358,7 +358,7 @@ function splash(e) {
 export const sling = {
   key: "sling", W, H, title: "CATTAIL SLING", feel: F,
   aria: "Pull back anywhere to aim the frog in the cattail and let go to fling it at acorns stacked on logs and rafts out on the pond. Tap while it flies for its trick. Knock every acorn open or into the water. Arrow keys aim and space flings.",
-  help: ["PULL BACK ANYWHERE AND LET GO", "TAP IN THE AIR FOR THE FROG'S TRICK", "KNOCK EVERY ACORN OFF OR OPEN", "FIVE LEVELS, STARS FOR FROGS TO SPARE", "TAP TO START"],
+  help: ["PULL BACK ANYWHERE AND LET GO", "THE DOTS SHOW WHERE IT WILL GO", "TAP IN THE AIR FOR THE FROG'S TRICK", "KNOCK EVERY ACORN OFF OR OPEN", "TAP TO START"],
 
   reset(g) {
     G = { g, col: colours(g, null), real: 0, pull: null, key: null, twang: 9, tw: { x: 0, y: 0 }, banner: null, float: [], swim: [], hops: [], rings: [], dust: [], caps: [], spares: [], card: null, flown: false, zipAt: -9, blinkAt: 2 };
@@ -563,22 +563,29 @@ function hopIn(x, L) {
   frog(x, L.frogs[0], hx, hy, 1);
 }
 
-// While pulling the dots show the start of the path, and the last fling's
-// whole path stays behind faintly to aim the next one off.
+// While pulling the dots show the whole path up to the first thing it would
+// hit, and the last fling's path stays behind faintly to aim the next one off.
 function aim(x, L) {
-  x.fillStyle = "rgba(255,246,220,0.4)";
-  for (let i = 0; i < L.last.length; i += 2) x.fillRect(L.last[i].x - 0.5, L.last[i].y - 0.5, 1, 1);
+  x.fillStyle = "rgba(255,246,220,0.55)";
+  for (let i = 0; i < L.last.length; i += 3) x.fillRect(L.last[i].x - 1, L.last[i].y - 1, 1.5, 1.5);
   if (L.st !== "ready") return;
   const d = G.pull ? G.pull : G.key ? { dx: -Math.cos(G.key.a) * G.key.l, dy: Math.sin(G.key.a) * G.key.l } : null;
   if (!d) return;
   const p = pulled(d.dx, d.dy);
   if (p.l < 6) return;
-  arc(p, 0.42, 0.035).forEach((q, i) => {
-    x.globalAlpha = 1 - i / 14;
+  const path = aimPath(w, p);
+  for (let i = 2; i < path.length; i += 3) {
+    const q = path[i];
+    x.globalAlpha = Math.max(0.45, 1 - i / 90);
     x.fillStyle = "#0a0908"; x.fillRect(q.x - 1.5, q.y - 1.5, 3, 3);
     x.fillStyle = "#fff6dc"; x.fillRect(q.x - 1, q.y - 1, 2, 2);
-  });
+  }
   x.globalAlpha = 1;
+  const end = path[path.length - 1];
+  if (end && path.hit) {
+    x.fillStyle = "#0a0908"; x.fillRect(end.x - 3.5, end.y - 0.5 - 1, 7, 3); x.fillRect(end.x - 1.5, end.y - 3.5, 3, 7);
+    x.fillStyle = "#ffe27a"; x.fillRect(end.x - 3, end.y - 0.5, 6, 1); x.fillRect(end.x - 0.5, end.y - 3, 1, 6);
+  }
 }
 
 function star(x, cx, cy, r, on) {

@@ -223,6 +223,24 @@ export function arc(p, t, step) {
   return out;
 }
 
+// Where a fling would go, a point a frame, up to the first thing it would
+// touch or the water.
+export function aimPath(w, p, t) {
+  const L = w.L, r = FROGS[L.frogs[0] || "pond"].r, out = [];
+  for (const q of arc(p, t || 1.2, 1 / 60)) {
+    out.push(q);
+    if (q.y > WATER || q.x > W + 10) break;
+    if (L.bodies.some((b) => !b.gone && b.kind !== "frog" && !(b.plat && b.plat.k === "shore") && touches(b, q.x, q.y, r))) { out.hit = true; break; }
+  }
+  return out;
+}
+
+function touches(b, x, y, r) {
+  if (b.s === "circle") return Math.hypot(x - b.x, y - b.y) < b.r + r;
+  const c = Math.cos(b.a), s = Math.sin(b.a), dx = x - b.x, dy = y - b.y;
+  return Math.abs(c * dx + s * dy) < b.hx + r && Math.abs(-s * dx + c * dy) < b.hy + r;
+}
+
 export function fling(w, dx, dy) {
   const L = w.L;
   if (!L || L.st !== "ready" || !L.frogs.length) return false;
