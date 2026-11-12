@@ -287,7 +287,7 @@ function noise(kind, gap) {
 function events() {
   for (const e of w.events) {
     if (e.e === "level") {
-      G.banner = { t: 0, name: e.name, lv: e.lv, fresh: e.fresh || e.lv === 0, frog: e.frog };
+      G.banner = { t: 0, name: e.name, lv: e.lv, fresh: e.fresh || e.lv === 0, frog: e.frog, nuts: w.L.acorns, frogs: w.L.frogs.length };
       G.float = []; G.swim = []; G.hops = []; G.rings = []; G.spares = [];
     } else if (e.e === "fling") {
       G.tw = { x: SX - e.x, y: SY - e.y }; G.twang = 0;
@@ -307,6 +307,9 @@ function events() {
       splash(e);
     } else if (e.e === "hop") {
       G.hops.push({ x: e.x, y: e.y, t: 0, k: e.frog, kid: e.kid, to: Math.max(SHORE + 6, Math.min(W - 6, e.x + 12)) });
+    } else if (e.e === "miss") {
+      F.pop(e.x, e.y - 10, "MISS", "#cfe3ea");
+      noise("plop", 0.1);
     } else if (e.e === "collapse") {
       if (reduced) w.L.slow = 0;
       F.hit(0.5);
@@ -488,6 +491,7 @@ export const sling = {
     bank(x);
     queue(x, L);
     cattail(x, false);
+    marks(x, L);
     aim(x, L);
     // The frog in the sling, or each one in the air.
     if (L.st === "ready" || (L.st === "load" && L.st_t > 0.35)) {
@@ -588,6 +592,20 @@ function aim(x, L) {
   }
 }
 
+// A small arrow bobs over each acorn and crate of them while a level opens,
+// and over the last few once most are gone.
+function marks(x, L) {
+  if (!(L.st === "intro" || L.st === "ready" || L.st === "load")) return;
+  if (L.flung > 0 && L.acorns > 2) return;
+  const bob = reduced ? 0 : Math.round(Math.sin(G.real * 6) * 1.5);
+  for (const b of L.bodies) {
+    if (b.gone || b.broken || !(b.kind === "acorn" || b.nuts)) continue;
+    const top = b.y - (b.r || b.hy) - 5 + bob;
+    x.fillStyle = "#0a0908"; x.fillRect(b.x - 3.5, top - 4.5, 7, 3); x.fillRect(b.x - 2.5, top - 2, 5, 2); x.fillRect(b.x - 1.5, top, 3, 1.5);
+    x.fillStyle = "#ffe27a"; x.fillRect(b.x - 2.5, top - 4, 5, 1.5); x.fillRect(b.x - 1.5, top - 2.5, 3, 1.5); x.fillRect(b.x - 0.5, top - 1, 1, 1.5);
+  }
+}
+
 function star(x, cx, cy, r, on) {
   const pts = [];
   for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r; pts.push([cx + Math.cos(a) * rr, cy + Math.sin(a) * rr]); }
@@ -606,6 +624,10 @@ function hud(x, L) {
   text(x, (w.lv + 1) + "/" + LEVELS, W - 6, 18, FONT, "#ece5d8", "right");
   text(x, L.def.name, W - 6, 28, SMALL, "#fff6dc", "right");
   if (L.score) text(x, "+" + L.score, 6, 28, SMALL, "#ffe27a", "left");
+  // How many acorns are still to knock off, the one goal of a level.
+  const left = Math.max(0, L.acorns);
+  acorn(x, W / 2 - 9, 13, 0, false, 0);
+  text(x, left ? "x" + left : "CLEAR", W / 2 - 3, 18, FONT, left ? "#ffe27a" : "#9fdcf2", "left");
   // A pip a star over the level's score, lit once it's reached.
   const b = bar(w.lv, L.def);
   for (let i = 0; i < 3; i++) star(x, 9 + i * 10, 38, 3.5, i ? L.score >= b[i] : L.acorns <= 0);
@@ -613,26 +635,28 @@ function hud(x, L) {
   if (B && B.t < 2.4 && L.st !== "card") {
     const a = Math.min(1, B.t / 0.2, (2.4 - B.t) / 0.4);
     x.globalAlpha = a;
-    x.fillStyle = "rgba(10,9,8,0.6)"; x.fillRect(0, 68, W, B.fresh ? 78 : 36);
-    text(x, "LEVEL " + (B.lv + 1), W / 2, 84, SMALL, "#9fdcf2");
-    text(x, B.name, W / 2, 98, BIG, "#ffe27a");
+    x.fillStyle = "rgba(10,9,8,0.6)"; x.fillRect(0, 58, W, B.fresh ? 90 : 48);
+    text(x, "LEVEL " + (B.lv + 1), W / 2, 74, SMALL, "#9fdcf2");
+    text(x, B.name, W / 2, 88, BIG, "#ffe27a");
+    text(x, "KNOCK OFF " + B.nuts + " ACORNS WITH " + B.frogs + " FROGS", W / 2, 100, SMALL, "#ece5d8");
     if (B.fresh) {
       const f = FROGS[B.frog];
-      frog(x, B.frog, W / 2, 114, 1.4, false);
-      text(x, f.name, W / 2, 128, SMALL, "#ece5d8");
-      text(x, f.line, W / 2, 139, SMALL, "#9fdcf2");
+      frog(x, B.frog, W / 2, 116, 1.4, false);
+      text(x, f.name, W / 2, 130, SMALL, "#ece5d8");
+      text(x, f.line, W / 2, 141, SMALL, "#9fdcf2");
     }
     x.globalAlpha = 1;
   }
   if (L.st === "card" && G.card) {
     const C = G.card;
-    x.fillStyle = "rgba(10,9,8,0.7)"; x.fillRect(0, 96, W, 72);
-    text(x, L.def.name, W / 2, 112, FONT, "#ece5d8");
+    x.fillStyle = "rgba(10,9,8,0.7)"; x.fillRect(0, 86, W, 82);
+    text(x, L.def.name, W / 2, 102, FONT, "#ece5d8");
     for (let i = 0; i < 3; i++) {
       const on = i < C.shown, k = on && !reduced ? 1 + 0.4 * Math.max(0, 1 - (C.t - 0.2 - i * 0.3) / 0.15) : 1;
       star(x, W / 2 - 30 + i * 30, 136, 10 * k, on);
     }
     text(x, String(L.score), W / 2, 162, FONT, "#ffe27a");
+    if (L.acorns > 0) text(x, L.acorns + (L.acorns > 1 ? " ACORNS" : " ACORN") + " LEFT, NO STARS", W / 2, 115, SMALL, "#9fdcf2");
   }
 }
 

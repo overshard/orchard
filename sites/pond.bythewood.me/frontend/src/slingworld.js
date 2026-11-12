@@ -388,6 +388,8 @@ function collide(w, L) {
       if (old) for (const q of old.pts) if (Math.abs(q.x - p.x) + Math.abs(q.y - p.y) < 2) { p.pn = q.pn; p.pt = q.pt; break; }
     }
     const roll = a.s === "circle" ? a.r : b.s === "circle" ? b.r : 0;
+    if (a.kind === "frog" && b.kind !== "plat") a.brushed = true;
+    if (b.kind === "frog" && a.kind !== "plat") b.brushed = true;
     out.push({ key, a, b, pts, mu: Math.sqrt(a.mu * b.mu), roll, lr: 0 });
   }
   return out;
@@ -672,7 +674,12 @@ function sweep(w, L) {
     const wet = b.y > WATER + 2, off = b.x < -30 || b.x > W + 30;
     if (!wet && !off) continue;
     b.gone = true; gone = true;
-    if (b.kind === "frog") { b.done = true; w.events.push({ e: "splash", x: b.x, kind: "frog", frog: b.frog, kid: b.kid, off }); continue; }
+    if (b.kind === "frog") {
+      b.done = true;
+      w.events.push({ e: "splash", x: b.x, kind: "frog", frog: b.frog, kid: b.kid, off });
+      if (!b.brushed && !b.kid) w.events.push({ e: "miss", x: Math.max(10, Math.min(W - 10, b.x)), y: WATER - 8 });
+      continue;
+    }
     if (!w.quietSettle) {
       w.events.push({ e: "splash", x: Math.max(4, Math.min(W - 4, b.x)), kind: b.kind, mat: b.mat, a: b.a, hx: b.hx, hy: b.hy, r: b.r, gold: b.gold, off, vx: b.vx });
       if (b.kind === "acorn") clearNut(w, L, b);
@@ -699,6 +706,7 @@ function frogs(w, L, h) {
     b.restT = v < 12 ? b.restT + h : 0;
     if (b.restT > 0.6 || b.age > 7) {
       b.done = true; b.gone = true;
+      if (!b.brushed && !b.kid) w.events.push({ e: "miss", x: b.x, y: b.y });
       w.events.push({ e: "hop", x: b.x, y: b.y, frog: b.frog, kid: b.kid });
     }
   }
