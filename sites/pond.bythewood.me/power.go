@@ -412,7 +412,7 @@ var refFloor = map[string]int{
 	"skip":   40,
 	"drop":   26,
 	"sweep":  bugSafe,
-	"chorus": 300,
+	"chorus": 110,
 	"putt":   80,
 	"jar":    300,
 	"lash":   250,

@@ -72,7 +72,8 @@ var aimList = []aim{
 	{"dr_every", "drop", "A pebble in every pot", map[string]int{"pots": 5}, nil, 0},
 
 	{"ch_right", "chorus", "Sing twenty right on the beat", map[string]int{"right": 20}, nil, 0},
-	{"ch_row", "chorus", "Sing thirty in a row", map[string]int{"row": 30}, nil, 0},
+	{"ch_row", "chorus", "Sing twenty in a row", map[string]int{"row": 20}, nil, 0},
+	{"ch_ovation", "chorus", "Win a standing ovation", map[string]int{"ovation": 1}, nil, 0},
 
 	{"pu_nine", "putt", "Sink all nine holes", map[string]int{"holes": 9}, nil, 0},
 	{"pu_under", "putt", "Beat par on two holes", map[string]int{"under": 2}, nil, 0},
@@ -113,7 +114,7 @@ var aimWorth = map[string]map[string]int{
 	"shell":  {"won": 1},
 	"skip":   {"best": 1, "pads": 3},
 	"drop":   {"mid": 8, "pots": 1},
-	"chorus": {"right": 3, "row": 2},
+	"chorus": {"right": 2, "row": 1, "ovation": 80},
 	"putt":   {"holes": 2, "under": 12, "beat": 1},
 	"jar":    {"kings": 60, "elders": 25, "frogs": 8, "froglets": 4},
 	"lash":   {"combo": 2, "golden": 10, "dragonflies": 3, "bugs": 1},
