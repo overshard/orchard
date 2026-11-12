@@ -22,6 +22,7 @@ import { initPostcard } from "./postcard.js";
 import { drawScenery, drawSceneryNight } from "./scenery.js";
 import { drawFarBank, FAR_DEPTH } from "./farbank.js";
 import { badge } from "./badge.js";
+import { titlePlace, titleWaiting } from "./title.js";
 import { footprint, visitorReveal, stampsReveal, paintingReveal } from "./company.js";
 import { initPet, setBox, pose, over as petOver, busy as petBusy, tapTrick, arrive, drawBond } from "./pet.js";
 
@@ -98,6 +99,9 @@ function isOpen(v) {
   return v === "works" || v === "job" || WORKS.includes(v) ? open.works : true;
 }
 
+function townAt() { return document.querySelector('#town-tabs button[aria-pressed="true"]').dataset.town; }
+function bankAt() { return $("bank-market").hidden ? "bank" : "market"; }
+
 function bankTab(which) {
   document.querySelectorAll("#bank-tabs button").forEach((x) => x.setAttribute("aria-pressed", x.dataset.bank === which ? "true" : "false"));
   $("bank-works").hidden = which !== "works";
@@ -123,6 +127,7 @@ function show(next) {
   if (!isOpen(next)) { wanted = next; next = "pond"; history.replaceState(null, "", location.pathname); }
   const market = next === "market", key = TOWN.includes(next) ? next : "";
   next = placeOf(market ? "bank" : key ? "town" : next);
+  const race = next === "race";
   // The daily race is Dive on the day's course.
   if (next === "race" || next === "dive") { diveMode(next); next = "dive"; }
   if (!VIEWS.includes(next)) next = "pond";
@@ -151,6 +156,7 @@ function show(next) {
   if (next === "job") enterJob(); else leaveJob();
   if (next === "town") enterTown(key); else leaveTown();
   if (next === "pond") seePower();
+  titlePlace(race ? "race" : next === "town" ? townAt() : next === "bank" ? bankAt() : next);
   seeOpen();
   freshen();
   // A view's name is also the id of its canvas, and the browser scrolls to
@@ -710,7 +716,9 @@ function renderNext(p) {
   const todo = counts.concat(p.todo.filter((t) => !live[t.kind] && !(counts.length && t.kind === "save")));
 
   waitingAt = new Set(todo.map((t) => t.to));
-  badge(todo.filter((t) => t.kind !== "save").length);
+  const waiting = todo.filter((t) => t.kind !== "save").length;
+  badge(waiting);
+  titleWaiting(waiting);
   // The gravel bar and the rent always have a little, so they're news when full.
   const full = { gravel: p.bank.gravel, rent: p.bank.burrows };
   sortPips(p, todo.filter((t) => !full[t.kind] || heldNow(full[t.kind]) >= full[t.kind].holds));
@@ -912,9 +920,9 @@ initShops();
 initBag();
 initCollect();
 document.querySelectorAll(".places button[data-go]").forEach((b) => b.addEventListener("click", () => { location.hash = "#" + b.dataset.go; }));
-document.querySelectorAll("#bank-tabs button").forEach((b) => b.addEventListener("click", () => bankTab(b.dataset.bank)));
+document.querySelectorAll("#bank-tabs button").forEach((b) => b.addEventListener("click", () => { bankTab(b.dataset.bank); titlePlace(bankAt()); }));
 initTown();
-$("town-tabs").addEventListener("click", seeOpen);
+$("town-tabs").addEventListener("click", () => { seeOpen(); titlePlace(townAt()); });
 initNeighbours();
 initSettings();
 initPower();
