@@ -669,13 +669,17 @@ version of the old look and a handheld pet shell.
   at half speed through the reeds and slower again over the pots, and the
   pegs sit a little differently each day.
 - **Chorus is four frogs on a log at night**, the player's frog on the right
-  with an amber mark under it, and the rain coming down harder each round.
-  Under the log is a sequencer in readout glass, a row a frog with its colour
-  at the head and a column a step, with a cream playhead sweeping across.
-  The player's row is amber, dim while the bar is one to listen to and open
-  rings while it's their part, and a ring fills amber when it's sung right
-  on the beat. A miss costs one of three lilies in the corner and twelve in
-  a row grows one back. The frog only ever sings or sits.
+  with an amber mark on the log under it, and the rain coming down harder each
+  round. Under the log is a lane in readout glass, a column under each frog,
+  and every note rises up it to a cream line at the log about a bar and a half
+  ahead, so nothing is ever sprung on the player. The other frogs' notes are
+  small marks in their own colours so the groove can be seen, the player's
+  part is open amber rings while it's heard and solid amber bars while it's
+  theirs to sing, and a part sung from memory fades out on its way up. A bar
+  line is brighter than a beat line. What the log is doing sits over the
+  frogs' heads, the song's name, LISTEN, the count in as amber digits one a
+  beat, SING, FROM MEMORY and the grade at the end. Nothing is lost on a miss
+  and the frog only ever sings or sits.
 - **Pad putt is mini golf on the mud banks**, seen from above. The greens
   are moss walled in by logs with cut rings at the ends, and the cup is a dark
   hole with the pink pennant on a reed. It's nine fixed holes, each with one

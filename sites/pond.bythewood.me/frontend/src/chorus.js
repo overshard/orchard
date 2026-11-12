@@ -1,117 +1,90 @@
-import { audioClock, croakAt, rain, sfx, soundOn } from "./sound.js";
+import { audioClock, croakAt, rain, soundOn } from "./sound.js";
 import { cells, colours, draw, genome, W as FW, H as FH } from "./frog.js";
 import { feel } from "./feel.js";
+import { SONGS, ROUNDS, HOOK, CHOP, PERFECT, GOOD, LATE, lay, points, grade, ovation, hookNote } from "./songs.js";
 
-// Chorus. Four frogs on a log sing a few bars through once, then twice more
-// with the player's frog left to tap its own part. The song keeps time off the
-// audio clock, and the lamps under the log keep the same time with sound off.
-const W = 200, H = 300, STEPS = 8, ROUNDS = 10, LIVES = 5, REGROW = 8;
-const PERFECT = 0.06, GOOD = 0.15, NEAR = 0.25, LEAD = 1.2, AHEAD = 0.12;
-const LOG = 150, SEATS = [6, 54, 102, 150], ME = 3, PITCH = [131, 196, 262, 392];
-const SEEDS = [5021, 77, 31337], GX = 34, GY = 200, CW = 19, RH = 17;
-const FONT = "700 13px 'Space Grotesk', sans-serif";
+// Chorus. Four frogs on a log sing one of the songs, the player's frog hears
+// its part once and sings it back. Notes rise up the lane under each frog and
+// are sung as they meet the log, timed off the audio clock.
+const W = 200, H = 300, AHEAD = 0.12;
+const LOG = 150, SEATS = [6, 54, 102, 150], ME = HOOK, HY = 174, LB = 296;
+const SEEDS = [5021, 77, 31337];
+const FONT = "700 13px 'Space Grotesk', sans-serif", SMALL = "700 9px 'Space Grotesk', sans-serif";
 
-let G = null, ac = null, useAudio = false, frogs = [], singer = false;
+let G = null, ac = null, useAudio = false, frogs = [], singer = false, upNext = null;
 const F = feel();
 
 function now() { return useAudio ? ac.currentTime : performance.now() / 1000; }
+function col(f) { return SEATS[f] + 22; }
 
-function pick(from, n) {
-  const a = from.slice();
-  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
-  return a.slice(0, n).sort((x, y) => x - y);
-}
-
-// One bar's parts, the three on the log and then the player's. The player's
-// part starts on the beat and only finds the off beats a few rounds in.
-function bar(r) {
-  const k = Math.min(5, 2 + Math.floor(r / 2));
-  const mine = r < 2 ? pick([0, 2, 4, 6], k) : r < 5 ? pick([0, 2, 4, 6], k - 1).concat(pick([1, 3, 5, 7], 1)).sort((a, b) => a - b) : pick([0, 1, 2, 3, 4, 5, 6, 7], k);
-  return [[0, 4], [2, 6], r < 3 ? [7] : pick([1, 3, 5, 7], 2), mine];
-}
-
-// The whole song laid out in song seconds. A round is a pattern of one to
-// three bars, sung once to listen to and twice for the player to sing.
-function song() {
-  const bars = [], targets = [], notes = [];
-  let t = LEAD;
-  for (let r = 0; r < ROUNDS; r++) {
-    const step = 30 / (76 + r * 3), n = 1 + Math.floor(r / 4), parts = [];
-    for (let b = 0; b < n; b++) parts.push(bar(r));
-    ["listen", "play", "play"].forEach((phase) => parts.forEach((p, b) => {
-      bars.push({ t, step, r, phase, b, n, p });
-      p.forEach((steps, f) => steps.forEach((s) => {
-        if (f === ME && phase === "play") targets.push({ t: t + s * step, bar: bars.length - 1, s, got: 0 });
-        else notes.push({ t: t + s * step, f });
-      }));
-      t += STEPS * step;
-    }));
+// Songs come round in a shuffled order kept in this browser, so all ten are
+// heard before one comes back.
+function pickSong() {
+  let bag = [];
+  try { bag = JSON.parse(localStorage.getItem("pond-chorus") || "[]"); } catch (e) { bag = []; }
+  bag = Array.isArray(bag) ? bag.filter((i) => Number.isInteger(i) && i >= 0 && i < SONGS.length) : [];
+  if (!bag.length) {
+    bag = SONGS.map((_, i) => i);
+    for (let i = bag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [bag[i], bag[j]] = [bag[j], bag[i]]; }
   }
-  notes.sort((a, b) => a.t - b.t);
-  return { bars, targets, notes, end: t + 0.4 };
+  const i = bag.shift();
+  try { localStorage.setItem("pond-chorus", JSON.stringify(bag)); } catch (e) { /* private window */ }
+  return i;
 }
 
 function barAt(h) {
   let i = G.bi;
   while (i + 1 < G.bars.length && G.bars[i + 1].t <= h) i++;
-  return h >= G.bars[0].t ? i : -1;
+  return i;
 }
 
-function lamp(s, row) { return [GX + s * CW + CW / 2, GY + row * RH + RH / 2]; }
+// The lane runs a bar and a half ahead of the log.
+function yOf(t, h) { return HY + (t - h) * (LB - HY) / (12 * G.step); }
 
 function miss(tg) {
   tg.got = -1;
-  G.lives--; G.streak = 0;
-  F.hit(0.35);
-  const [x, y] = tg.s >= 0 ? lamp(tg.s, ME) : [172, LOG - 20];
-  F.burst(x, y, "#8a9099", 5);
-  F.pop(x, y - 8, "MISS", "#bcaf99");
-  sfx("plop");
-  if (G.lives <= 0) end("OUT OF LILIES");
+  G.run = Math.floor(G.run / 2); G.row = 0;
+  F.pop(col(ME), HY - 6, "MISS", "#8a9099");
 }
 
-function end(why) {
+function end() {
   if (G.st === "done") return;
-  G.st = "done"; G.why = why; G.done_t = 0;
+  G.st = "done"; G.done_t = 0;
+  G.why = grade(G.right, G.near, G.targets.length);
+  upNext = null;
   rain(0);
 }
 
-// A tap is timed off the clock the moment it lands, not off the frame.
+// A tap is timed off the clock the moment it lands, not off the frame, and
+// one that's near no note just croaks.
 function sing() {
   if (!G || G.st !== "song" || G.hold) return;
   const h = now() - G.t0 - G.lat;
-  if (useAudio) croakAt(PITCH[ME], ac.currentTime, 0.2);
-  G.puff[ME] = h; F.squash(0.5);
-  if (h - G.lastHit < GOOD) return;
-  let best = null, near = null;
-  for (let i = G.ti; i < G.targets.length && G.targets[i].t < h + NEAR; i++) {
-    const tg = G.targets[i], d = Math.abs(tg.t - h);
-    if (tg.got) continue;
-    if (d <= GOOD && (!best || d < Math.abs(best.t - h))) best = tg;
-    if (d <= NEAR && !near) near = tg;
+  let best = null;
+  for (let i = Math.max(0, G.ti - 2); i < G.targets.length && G.targets[i].t < h + 0.4; i++) {
+    const tg = G.targets[i], d = Math.abs(h - tg.t - LATE);
+    if (!tg.got && d <= GOOD && (!best || d < Math.abs(h - best.t - LATE))) best = tg;
   }
-  // A tap that's near nothing only counts against a bar that's the player's.
-  const bi = barAt(h);
-  if (!best && bi >= 0 && G.bars[bi].phase === "play") miss(near || { s: -1 });
+  const b = G.bars[Math.max(0, barAt(h))], near = best || G.targets[G.ti];
+  const p = near && Math.abs(near.t - h) < 0.6 ? near.p : hookNote(b.v, 0);
+  if (useAudio) croakAt(p, ac.currentTime, 0.2);
+  G.puff[ME] = h; F.squash(0.5);
   if (!best) return;
-  const err = Math.abs(best.t - h), right = err <= PERFECT;
-  G.streak++; G.hits++; G.lastHit = h;
-  G.long = Math.max(G.long, G.streak);
-  // A good run grows a lily back.
-  if (G.streak % REGROW === 0 && G.lives < LIVES) { G.lives++; F.pop(W - 14 - (G.lives - 1) * 14, 24, "+1", "#9fe08f"); }
-  if (right) G.right++;
-  const pts = (right ? 3 : 2) + (G.streak >= 8 ? 1 : 0);
+  const right = Math.abs(h - best.t - LATE) <= PERFECT;
+  G.run++; G.row++; G.hits++;
+  G.long = Math.max(G.long, G.row);
+  if (right) G.right++; else G.near++;
+  const pts = points(right, G.run);
   G.score += pts; best.got = right ? 2 : 1;
-  const [x, y] = lamp(best.s, ME);
-  F.burst(x, y, right ? "#ffb000" : "#ffe27a", right ? 6 : 4);
-  F.pop(x, y - 10, "+" + pts, right ? "#ffb000" : "#ffe27a");
+  F.burst(col(ME), HY, right ? "#ffb000" : "#ffe27a", right ? 6 : 4);
+  F.pop(col(ME), HY - 8, "+" + pts, right ? "#ffb000" : "#ffe27a");
 }
 
 export const chorus = {
   key: "chorus", W, H, title: "CHORUS", feel: F, edge: ["#14303a", "#0a1b1f"],
-  aria: "Listen to the bar, then tap or press space on each of your frog's beats as the lamps reach them.",
+  aria: "Listen to your frog's part, then tap or press space as each of its notes rises to the log.",
   get help() {
-    const l = ["LISTEN, THEN SING YOUR PART", "TAP ON EACH AMBER LAMP", "A MISS COSTS A LILY"];
+    const l = [upNext === null ? "A SONG ON THE LOG" : SONGS[upNext].name.toUpperCase(), "LISTEN, THEN SING YOUR PART", "TAP AS EACH NOTE MEETS THE LOG"];
     if (singer) l.push("A SINGER SCORES A QUARTER MORE");
     return l.concat("TAP TO START");
   },
@@ -121,7 +94,8 @@ export const chorus = {
     frogs = SEEDS.map((s) => { const n = genome(s); return { c: cells(n, "frog", {}), col: colours(n, null) }; });
     frogs.push({ c: cells(g, stage, { hat: p.frog.hat.shape }), col: colours(g, p.frog.hat) });
     singer = p.frog.nature === "SINGER";
-    G = Object.assign(song(), { st: "song", t: 0, s: 0, t0: null, last: 0, lat: 0, hold: false, bi: 0, ni: 0, vi: 0, ti: 0, sched: 0, rainAt: -1, lives: LIVES, score: 0, streak: 0, long: 0, hits: 0, right: 0, lastHit: -9, puff: [-9, -9, -9, -9], why: "", done_t: 0 });
+    if (upNext === null) upNext = pickSong();
+    G = Object.assign(lay(SONGS[upNext]), { song: SONGS[upNext], st: "song", t: 0, s: 0, t0: null, last: 0, lat: 0, hold: false, bi: 0, ni: 0, vi: 0, ti: 0, sched: 0, rainAt: -1, score: 0, run: 0, row: 0, long: 0, hits: 0, right: 0, near: 0, puff: [-9, -9, -9, -9], why: "", done_t: 0 });
     useAudio = false;
   },
 
@@ -131,7 +105,7 @@ export const chorus = {
     G.t += dt;
     if (G.st === "done") { G.done_t += dt; return; }
     if (G.t0 === null) { G.last = now(); G.t0 = G.last; }
-    if (!useAudio && G.s < LEAD / 2 && (ac = audioClock())) {
+    if (!useAudio && G.s < G.bars[0].t / 2 && (ac = audioClock())) {
       useAudio = true;
       G.lat = soundOn("sound") ? Math.min(0.2, ac.outputLatency || ac.baseLatency || 0) : 0;
       G.last = now(); G.t0 = G.last - G.s;
@@ -145,25 +119,24 @@ export const chorus = {
     if (useAudio) {
       while (G.ni < G.notes.length && G.notes[G.ni].t < G.s + AHEAD) {
         const n = G.notes[G.ni++];
-        if (n.t >= G.sched) croakAt(PITCH[n.f], G.t0 + n.t, n.f === ME ? 0.2 : 0.14);
+        if (n.t >= G.sched) croakAt(n.p, G.t0 + n.t, n.v);
       }
       G.sched = G.s + AHEAD;
     }
     while (G.vi < G.notes.length && G.notes[G.vi].t <= h) G.puff[G.notes[G.vi++].f] = h;
-    G.bi = Math.max(0, barAt(h));
+    G.bi = barAt(h);
     const r = G.bars[G.bi].r;
     if (r !== G.rainAt) { G.rainAt = r; rain(r / (ROUNDS - 1)); }
-    while (G.ti < G.targets.length && (G.targets[G.ti].got || h > G.targets[G.ti].t + GOOD)) {
+    while (G.ti < G.targets.length && (G.targets[G.ti].got || h > G.targets[G.ti].t + LATE + GOOD)) {
       const tg = G.targets[G.ti++];
       if (!tg.got) miss(tg);
-      if (G.st === "done") return;
     }
-    if (h > G.end) end("THE SONG IS DONE");
+    if (h > G.end) end();
   },
 
   pause() { if (G) { G.hold = true; rain(0); } },
 
-  demo() { return G && G.st === "song" ? { x: SEATS[ME] + 22, y: LOG - 18 } : null; },
+  demo() { return G && G.st === "song" ? { x: col(ME), y: HY } : null; },
 
   press() { sing(); },
   keys(code, down) { if (down && ["Space", "Enter", "ArrowUp", "ArrowDown", "KeyW", "KeyS"].includes(code)) sing(); },
@@ -172,11 +145,11 @@ export const chorus = {
   raw() { return G ? G.score : 0; },
   score() { const s = chorus.raw(); return singer ? s + Math.floor(s / 4) : s; },
   // The server adds the singer's quarter itself, so it's sent the plain score.
-  report() { return { score: chorus.raw(), counts: { right: G.right, row: G.long } }; },
+  report() { return { score: chorus.raw(), counts: { right: G.right, row: G.long, ovation: ovation(G.right, G.near, G.targets.length) ? 1 : 0 } }; },
   why() { return G ? G.why : ""; },
   tally() {
     if (!G) return [];
-    const l = [G.hits + " of " + G.targets.length + " beats sung", G.right + " right on the beat", "Longest run " + G.long];
+    const l = [G.song.name, G.hits + " of " + G.targets.length + " notes sung", G.right + " right on the beat", "Longest run " + G.long];
     if (singer) l.push("A singer, a quarter more");
     return l;
   },
@@ -184,6 +157,7 @@ export const chorus = {
   draw(x) {
     const t = G ? G.t : 0, h = G ? G.s - G.lat : 0, r = G ? G.bars[G.bi].r : 0;
     scene(x, t, r);
+    if (G) lane(x, h);
     frogs.forEach((f, i) => {
       const sx = SEATS[i], oy = LOG - 31, sing = G && h - G.puff[i] < 0.14;
       const body = () => {
@@ -193,66 +167,80 @@ export const chorus = {
       if (i === ME) F.squashed(x, sx + 22, LOG - 1, body);
       else body();
     });
-    x.fillStyle = "#ffb000"; x.fillRect(SEATS[ME] + 20, LOG + 14, 5, 2); x.fillRect(SEATS[ME] + 21, LOG + 16, 3, 1); x.fillRect(SEATS[ME] + 22, LOG + 17, 1, 1);
-    if (G) grid(x, h);
     F.draw(x);
     if (!G) return;
     x.font = FONT; x.textAlign = "left"; x.fillStyle = "#ece5d8"; x.fillText(String(chorus.score()), 6, 15);
-    for (let i = 0; i < LIVES; i++) lily(x, W - 14 - i * 14, 6, i < G.lives);
+    const bonus = points(false, G.run) - 1;
+    if (bonus > 0) { x.font = SMALL; x.fillStyle = "#ffb000"; x.fillText("RUN +" + bonus, 6, 27); }
+    x.font = FONT; x.textAlign = "right"; x.fillStyle = "#7d9a90";
+    x.fillText(Math.max(1, r + 1) + "/" + ROUNDS, W - 6, 15);
+    status(x, h);
   },
 };
 
-// The lamps, a row a frog and a column a step of the bar being sung. The
-// player's row is rings to hit while it's their go.
-function grid(x, h) {
-  const b = G.bars[G.bi], playing = b.phase === "play" && h >= b.t;
-  x.fillStyle = "#0b1f17"; x.fillRect(8, GY - 10, W - 16, RH * 4 + 18);
-  x.fillStyle = "#1a3a2c"; x.fillRect(8, GY - 10, W - 16, 1);
-  x.fillStyle = "#050d0a"; x.fillRect(8, GY + RH * 4 + 7, W - 16, 1);
-  const pos = h >= b.t ? (h - b.t) / b.step : -1;
-  // Past halfway, the lamps behind the playhead show the player's next bar,
-  // so a beat at the top of it is seen coming and not sprung on the flip.
-  const nb = G.bars[G.bi + 1], ahead = nb && nb.phase === "play" && pos >= STEPS / 2;
-  frogs.forEach((f, row) => {
-    const cy = GY + row * RH;
-    x.fillStyle = f.col[1]; x.fillRect(14, cy + 5, 8, 7);
-    x.fillStyle = f.col[4]; x.fillRect(15, cy + 4, 2, 2); x.fillRect(19, cy + 4, 2, 2);
-    for (let s = 0; s < STEPS; s++) {
-      const lx = GX + s * CW + 4, ly = cy + 4, on = b.p[row].includes(s), lit = on && pos >= s && pos < s + 0.7;
-      if (row === ME && ahead && pos >= s + 1) {
-        x.fillStyle = "#13281f"; x.fillRect(lx, ly, 11, 9);
-        if (nb.p[ME].includes(s)) { x.strokeStyle = "rgba(255,176,0,0.55)"; x.lineWidth = 1; x.strokeRect(lx + 0.5, ly + 0.5, 10, 8); }
-        continue;
-      }
-      if (row === ME && b.phase === "play") {
-        const tg = on && G.targets.find((q) => q.bar === G.bi && q.s === s);
-        if (!on) { x.fillStyle = "#13281f"; x.fillRect(lx, ly, 11, 9); continue; }
-        x.fillStyle = !tg || !tg.got ? "#3a2a08" : tg.got === 2 ? "#ffb000" : tg.got === 1 ? "#ffe27a" : "#5b6470";
-        x.fillRect(lx, ly, 11, 9);
-        if (!tg || !tg.got) { x.strokeStyle = "#ffb000"; x.lineWidth = 1; x.strokeRect(lx + 0.5, ly + 0.5, 10, 8); }
-        continue;
-      }
-      x.fillStyle = !on ? "#13281f" : lit ? (row === ME ? "#ffe27a" : "#cfe3ea") : row === ME ? "#7a5208" : "#2f5a48";
-      x.fillRect(lx, ly, 11, 9);
-    }
-  });
-  if (pos >= 0 && pos < STEPS) {
-    const px = Math.round(GX + pos * CW + 2);
-    x.fillStyle = "rgba(255,246,220,0.55)"; x.fillRect(px, GY - 6, 1, RH * 4 + 8);
-  }
-  x.font = FONT; x.textAlign = "left";
-  x.fillStyle = playing ? "#ffb000" : "#cfe3ea";
-  x.fillText(h < G.bars[0].t ? "READY" : playing ? "YOUR PART" : "LISTEN", 10, GY + RH * 4 + 26);
-  for (let i = 0; i < b.n; i++) { x.fillStyle = i === b.b ? "#ffe27a" : "#2f5a48"; x.fillRect(W - 16 - (b.n - 1 - i) * 9, GY + RH * 4 + 17, 6, 6); }
-  x.textAlign = "right"; x.fillStyle = "#7d9a90";
-  x.fillText((b.r + 1) + "/" + ROUNDS, W - 46, GY + RH * 4 + 26);
+// What the log is up to, over the frogs' heads.
+function status(x, h) {
+  const b = G.bars[G.bi];
+  let s = "", c = "#cfe3ea";
+  if (G.st === "done" || b.kind === "outro") { s = grade(G.right, G.near, G.targets.length); c = "#ffe27a"; }
+  else if (h < G.bars[0].t || b.kind === "intro") s = G.song.name.toUpperCase();
+  else if (b.kind === "listen") s = "LISTEN";
+  else if (b.kind === "count") { s = Math.min(4, 1 + Math.floor((h - b.t) / (2 * b.step))); c = "#ffb000"; }
+  else { s = b.hide ? "FROM MEMORY" : "SING"; c = "#ffb000"; }
+  x.font = FONT; x.textAlign = "center"; x.lineWidth = 3; x.strokeStyle = "#0a1b1f";
+  // The count is its digits so far, spaced out one a beat.
+  const words = typeof s === "number" ? Array.from({ length: s }, (_, i) => [String(i + 1), W / 2 + (i - 1.5) * 16]) : [[s, W / 2]];
+  words.forEach(([w, wx]) => { x.strokeText(w, wx, 44); x.fillStyle = c; x.fillText(w, wx, 44); });
 }
 
-function lily(x, cx, cy, on) {
-  x.fillStyle = on ? "#3f9a4d" : "#24402c"; x.fillRect(cx - 5, cy + 3, 11, 4); x.fillRect(cx - 4, cy + 2, 9, 6);
-  if (!on) return;
-  x.fillStyle = "#f59ab3"; x.fillRect(cx - 2, cy - 1, 5, 4); x.fillRect(cx - 1, cy - 2, 3, 6);
-  x.fillStyle = "#ffe27a"; x.fillRect(cx, cy + 1, 1, 1);
+// The lane is readout glass under the log, a column a frog. Every note rises
+// to the line under its frog, the player's as amber bars to sing and the
+// others as small marks so the groove can be seen.
+function lane(x, h) {
+  const top = 164, span = 12 * G.step, gone = h - 0.2;
+  x.fillStyle = "#0b1f17"; x.fillRect(4, top, W - 8, LB - top + 2);
+  x.fillStyle = "#050d0a"; x.fillRect(4, top, W - 8, 1);
+  x.fillStyle = "#1a3a2c"; x.fillRect(4, LB + 1, W - 8, 1);
+  SEATS.forEach((_, f) => {
+    const w = f === ME ? 26 : 12;
+    x.fillStyle = f === ME ? "#11291d" : "#0e241a"; x.fillRect(col(f) - w / 2, top + 1, w, LB - top);
+  });
+  x.save(); x.beginPath(); x.rect(4, top + 1, W - 8, LB - top); x.clip();
+  for (let i = Math.max(0, G.bi - 1); i < G.bars.length && G.bars[i].t < h + span; i++) {
+    const b = G.bars[i];
+    for (let k = 0; k < 4; k++) {
+      const y = Math.round(yOf(b.t + k * 2 * b.step, h));
+      x.fillStyle = k ? "#123024" : b.kind === "count" ? "#3a5a2c" : "#1f4a39";
+      x.fillRect(5, y, W - 10, 1);
+    }
+  }
+  for (let i = Math.max(0, G.vi - 16); i < G.notes.length && G.notes[i].t < h + span; i++) {
+    const n = G.notes[i];
+    if (n.t < gone) continue;
+    const y = Math.round(yOf(n.t, h)), past = n.t < h;
+    x.globalAlpha = past ? 0.35 : 1;
+    if (n.f === ME) {
+      x.strokeStyle = "#a8720c"; x.lineWidth = 1; x.strokeRect(col(ME) - 9.5, y - 2.5, 19, 5);
+    } else if (n.cue) {
+      x.fillStyle = "#fff6dc"; x.fillRect(col(CHOP) - 2, y - 2, 4, 4);
+    } else {
+      x.fillStyle = frogs[n.f].col[1]; x.fillRect(col(n.f) - 3, y - 1, 6, 3);
+    }
+  }
+  x.globalAlpha = 1;
+  for (let i = Math.max(0, G.ti - 6); i < G.targets.length && G.targets[i].t < h + span; i++) {
+    const tg = G.targets[i];
+    if (tg.got > 0 || tg.t < gone) continue;
+    const y = Math.round(yOf(tg.t, h));
+    // A part sung from memory fades out on its way up, so it's seen coming.
+    x.globalAlpha = tg.got < 0 ? 0.3 : tg.hide ? Math.max(0, Math.min(1, (y - HY - 30) / 40)) : 1;
+    x.fillStyle = tg.got < 0 ? "#5b6470" : "#ffb000"; x.fillRect(col(ME) - 10, y - 3, 20, 6);
+    x.fillStyle = tg.got < 0 ? "#3a4048" : "#7a5208"; x.fillRect(col(ME) - 8, y - 1, 16, 2);
+  }
+  x.globalAlpha = 1;
+  x.restore();
+  x.fillStyle = "rgba(255,246,220,0.6)"; x.fillRect(5, HY, W - 10, 1);
+  x.strokeStyle = "#ffb000"; x.lineWidth = 1; x.strokeRect(col(ME) - 13.5, HY - 4.5, 27, 9);
 }
 
 // Night over the pond with the rain coming on harder each round.
@@ -265,19 +253,12 @@ function scene(x, t, r) {
   x.fillStyle = "#7a5230"; x.fillRect(0, LOG - 1, W, 3);
   x.fillStyle = "#3e2814"; for (let i = 7; i < W; i += 23) x.fillRect(i, LOG + 4, 9, 1);
   x.fillStyle = "#2e1e10"; x.fillRect(0, LOG + 10, W, 2);
-  const drops = 14 + r * 10;
+  x.fillStyle = "#ffb000"; x.fillRect(SEATS[ME] + 20, LOG + 6, 5, 2); x.fillRect(SEATS[ME] + 21, LOG + 8, 3, 1);
+  const drops = 14 + r * 18;
   x.fillStyle = "rgba(207,227,234,0.45)";
   for (let i = 0; i < drops; i++) {
     const dx = (i * 71 + 13) % W, sp = 150 + (i * 37) % 60, y = ((t * sp + i * 97) % (H + 40)) - 20;
     x.fillRect((dx - Math.round(y * 0.08) + W) % W, Math.round(y), 1, 5);
-  }
-  x.fillStyle = "rgba(127,214,194,0.35)";
-  for (let i = 0; i < 3 + r; i++) {
-    const k = ((t * 0.9 + i * 0.37) % 1), cx = (i * 89 + Math.floor(t * 0.9 + i * 0.37) * 53) % (W - 20) + 10, cy = LOG + 24 + (i * 41) % 26;
-    const rw = Math.round(2 + k * 10);
-    x.globalAlpha = 1 - k;
-    x.fillRect(cx - rw, cy, rw * 2, 1);
-    x.globalAlpha = 1;
   }
 }
 
@@ -291,5 +272,8 @@ export function chorusArt(x, g) {
   draw(x, cells(g, "frog", {}), FW, FH, colours(g, null), 122, 31, 1);
   x.fillStyle = colours(g, null)[7]; x.fillRect(139, 54, 10, 4); x.fillRect(140, 53, 8, 6);
   x.fillStyle = "rgba(207,227,234,0.5)"; for (let i = 0; i < 18; i++) x.fillRect((i * 47) % 168, (i * 29) % 60, 1, 4);
-  for (let s = 0; s < 8; s++) { x.fillStyle = [0, 3, 4, 6].includes(s) ? "#ffb000" : "#2f5a48"; x.fillRect(16 + s * 18, 80, 11, 8); }
+  x.fillStyle = "#0b1f17"; x.fillRect(0, 73, 168, 23);
+  x.fillStyle = "#fff6dc"; x.fillRect(0, 76, 168, 1);
+  [0, 1, 2].forEach((i) => { x.fillStyle = "#2f5a48"; for (let k = 0; k < 3; k++) x.fillRect(21 + i * 40, 80 + k * 6 + (i % 2) * 3, 6, 2); });
+  x.fillStyle = "#ffb000"; [79, 88].forEach((y) => x.fillRect(134, y, 22, 4));
 }

@@ -436,8 +436,14 @@ they have none, for other sites to draw.
   frame leaves the song where it was. The frame calls a game's `pause` when
   the page hides, which is where chorus stops the rain. `croakAt` and `rain`
   in `sound.js` are its sounds.
-- `chorusMost` is every beat of the song right on time, so a change to the
-  rounds, the beats a bar or the points has to change it too. A singer out
+- Chorus's ten songs are in `frontend/src/songs.js`, each frog with a part
+  of the groove, the chords turning bar by bar and the croaks following them.
+  A browser goes through them all in a shuffled order before one comes back.
+  The player's part is heard, counted in and sung twice, grows one note at a
+  time to two bars, and a part sung again goes from memory. A miss halves the
+  run and nothing ends a song early, it's graded once it's done.
+- `chorusMost` is `best` in `songs.js` for the song with the most in it, so a
+  change to the songs, the rounds or the points has to change it too. A singer out
   front gets its quarter on the server, after the score is checked against
   `most` and `rate`, and the page is sent the plain score.
 - `putt.go` deals pad putt's nine holes off a hash of the date, sent on
