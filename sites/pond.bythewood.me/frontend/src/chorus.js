@@ -1,7 +1,7 @@
 import { audioClock, croakAt, rain, soundOn } from "./sound.js";
 import { cells, colours, draw, genome, W as FW, H as FH } from "./frog.js";
 import { feel } from "./feel.js";
-import { SONGS, ROUNDS, HOOK, CHOP, PERFECT, GOOD, LATE, lay, points, grade, ovation, hookNote } from "./songs.js";
+import { SONGS, ROUNDS, HOOK, CHOP, PERFECT, GOOD, LATE, HOLD, lay, points, grade, ovation, hookNote } from "./songs.js";
 
 // Chorus. Four frogs on a log sing one of the songs, the player's frog hears
 // its part once and sings it back. Notes rise up the lane under each frog and
@@ -58,7 +58,7 @@ function end() {
 // A tap is timed off the clock the moment it lands, not off the frame, and
 // one that's near no note just croaks.
 function sing() {
-  if (!G || G.st !== "song" || G.hold) return;
+  if (!G || G.st !== "song" || G.hold || G.holding) return;
   const h = now() - G.t0 - G.lat;
   let best = null;
   for (let i = Math.max(0, G.ti - 2); i < G.targets.length && G.targets[i].t < h + 0.4; i++) {
@@ -67,7 +67,8 @@ function sing() {
   }
   const b = G.bars[Math.max(0, barAt(h))], near = best || G.targets[G.ti];
   const p = near && Math.abs(near.t - h) < 0.6 ? near.p : hookNote(b.v, 0);
-  if (useAudio) croakAt(p, ac.currentTime, 0.2);
+  const held = best && best.len ? best.t + best.len - h : 0;
+  const stop = useAudio ? croakAt(p, ac.currentTime, 0.2, held > 0.13 ? held : undefined) : () => {};
   G.puff[ME] = h; F.squash(0.5);
   if (!best) return;
   const right = Math.abs(h - best.t - LATE) <= PERFECT;
@@ -76,15 +77,33 @@ function sing() {
   if (right) G.right++; else G.near++;
   const pts = points(right, G.run);
   G.score += pts; best.got = right ? 2 : 1;
+  if (held > 0.13) G.holding = { tg: best, stop };
   F.burst(col(ME), HY, right ? "#ffb000" : "#ffe27a", right ? 6 : 4);
   F.pop(col(ME), HY - 8, "+" + pts, right ? "#ffb000" : "#ffe27a");
+}
+
+// A held note pays its bonus once it's kept down to the end of its tail, and
+// letting go early only loses that.
+function letGo(h) {
+  const hd = G.holding;
+  if (!hd) return;
+  G.holding = null;
+  if (h >= hd.tg.t + hd.tg.len - GOOD) { held(); return; }
+  hd.stop();
+  F.pop(col(ME), HY - 8, "LET GO", "#8a9099");
+}
+
+function held() {
+  G.score += HOLD; G.held++;
+  F.burst(col(ME), HY, "#ffb000", 5);
+  F.pop(col(ME), HY - 8, "HELD +" + HOLD, "#ffb000");
 }
 
 export const chorus = {
   key: "chorus", W, H, title: "CHORUS", feel: F, edge: ["#14303a", "#0a1b1f"],
   aria: "Listen to your frog's part, then tap or press space as each of its notes rises to the log.",
   get help() {
-    const l = [upNext === null ? "A SONG ON THE LOG" : SONGS[upNext].name.toUpperCase(), "LISTEN, THEN SING YOUR PART", "TAP AS EACH NOTE MEETS THE LOG"];
+    const l = [upNext === null ? "A SONG ON THE LOG" : SONGS[upNext].name.toUpperCase(), "LISTEN, THEN SING YOUR PART", "TAP AS EACH NOTE MEETS THE LOG", "HOLD THE LONG ONES TO THE END"];
     if (singer) l.push("A SINGER SCORES A QUARTER MORE");
     return l.concat("TAP TO START");
   },
@@ -95,7 +114,7 @@ export const chorus = {
     frogs.push({ c: cells(g, stage, { hat: p.frog.hat.shape }), col: colours(g, p.frog.hat) });
     singer = p.frog.nature === "SINGER";
     if (upNext === null) upNext = pickSong();
-    G = Object.assign(lay(SONGS[upNext]), { song: SONGS[upNext], st: "song", t: 0, s: 0, t0: null, last: 0, lat: 0, hold: false, bi: 0, ni: 0, vi: 0, ti: 0, sched: 0, rainAt: -1, score: 0, run: 0, row: 0, long: 0, hits: 0, right: 0, near: 0, puff: [-9, -9, -9, -9], why: "", done_t: 0 });
+    G = Object.assign(lay(SONGS[upNext]), { song: SONGS[upNext], st: "song", t: 0, s: 0, t0: null, last: 0, lat: 0, hold: false, bi: 0, ni: 0, vi: 0, ti: 0, sched: 0, rainAt: -1, score: 0, run: 0, row: 0, long: 0, hits: 0, right: 0, near: 0, held: 0, holding: null, puff: [-9, -9, -9, -9], why: "", done_t: 0 });
     useAudio = false;
   },
 
@@ -127,6 +146,7 @@ export const chorus = {
     G.bi = barAt(h);
     const r = G.bars[G.bi].r;
     if (r !== G.rainAt) { G.rainAt = r; rain(r / (ROUNDS - 1)); }
+    if (G.holding && h >= G.holding.tg.t + G.holding.tg.len) { G.holding = null; held(); }
     while (G.ti < G.targets.length && (G.targets[G.ti].got || h > G.targets[G.ti].t + LATE + GOOD)) {
       const tg = G.targets[G.ti++];
       if (!tg.got) miss(tg);
@@ -134,12 +154,16 @@ export const chorus = {
     if (h > G.end) end();
   },
 
-  pause() { if (G) { G.hold = true; rain(0); } },
+  pause() { if (G) { G.hold = true; rain(0); if (G.holding) { G.holding.stop(); G.holding = null; } } },
 
   demo() { return G && G.st === "song" ? { x: col(ME), y: HY } : null; },
 
   press() { sing(); },
-  keys(code, down) { if (down && ["Space", "Enter", "ArrowUp", "ArrowDown", "KeyW", "KeyS"].includes(code)) sing(); },
+  release() { if (G && G.st === "song") letGo(G.s - G.lat); },
+  keys(code, down) {
+    if (!["Space", "Enter", "ArrowUp", "ArrowDown", "KeyW", "KeyS"].includes(code)) return;
+    if (down) sing(); else chorus.release();
+  },
 
   over() { return G && G.st === "done" && G.done_t > 0.9; },
   raw() { return G ? G.score : 0; },
@@ -150,6 +174,7 @@ export const chorus = {
   tally() {
     if (!G) return [];
     const l = [G.song.name, G.hits + " of " + G.targets.length + " notes sung", G.right + " right on the beat", "Longest run " + G.long];
+    if (G.targets.some((t) => t.len)) l.splice(3, 0, G.held + " of " + G.targets.filter((t) => t.len).length + " held to the end");
     if (singer) l.push("A singer, a quarter more");
     return l;
   },
@@ -186,7 +211,7 @@ function status(x, h) {
   else if (h < G.bars[0].t || b.kind === "intro") s = G.song.name.toUpperCase();
   else if (b.kind === "listen") s = "LISTEN";
   else if (b.kind === "count") { s = Math.min(4, 1 + Math.floor((h - b.t) / (2 * b.step))); c = "#ffb000"; }
-  else { s = b.hide ? "FROM MEMORY" : "SING"; c = "#ffb000"; }
+  else { s = "SING"; c = "#ffb000"; }
   x.font = FONT; x.textAlign = "center"; x.lineWidth = 3; x.strokeStyle = "#0a1b1f";
   // The count is its digits so far, spaced out one a beat.
   const words = typeof s === "number" ? Array.from({ length: s }, (_, i) => [String(i + 1), W / 2 + (i - 1.5) * 16]) : [[s, W / 2]];
@@ -220,6 +245,7 @@ function lane(x, h) {
     const y = Math.round(yOf(n.t, h)), past = n.t < h;
     x.globalAlpha = past ? 0.35 : 1;
     if (n.f === ME) {
+      if (n.len) { x.strokeStyle = "#a8720c"; x.strokeRect(col(ME) - 3.5, y + 2.5, 7, Math.round(yOf(n.t + n.len, h)) - y - 2); }
       x.strokeStyle = "#a8720c"; x.lineWidth = 1; x.strokeRect(col(ME) - 9.5, y - 2.5, 19, 5);
     } else if (n.cue) {
       x.fillStyle = "#fff6dc"; x.fillRect(col(CHOP) - 2, y - 2, 4, 4);
@@ -229,11 +255,17 @@ function lane(x, h) {
   }
   x.globalAlpha = 1;
   for (let i = Math.max(0, G.ti - 6); i < G.targets.length && G.targets[i].t < h + span; i++) {
-    const tg = G.targets[i];
+    const tg = G.targets[i], on = G.holding && G.holding.tg === tg;
+    // A held note's tail runs down under it, and drains into the log while it's held.
+    if (tg.len && (on || (!tg.got && tg.t + tg.len > gone) || tg.got < 0)) {
+      const y0 = on ? HY : Math.round(yOf(tg.t, h)), y1 = Math.round(yOf(tg.t + tg.len, h));
+      x.globalAlpha = tg.got < 0 ? 0.3 : 1;
+      x.fillStyle = tg.got < 0 ? "#5b6470" : on ? "#ffe27a" : "#c98a0e";
+      if (y1 > y0) x.fillRect(col(ME) - 3, y0, 6, y1 - y0);
+    }
     if (tg.got > 0 || tg.t < gone) continue;
     const y = Math.round(yOf(tg.t, h));
-    // A part sung from memory fades out on its way up, so it's seen coming.
-    x.globalAlpha = tg.got < 0 ? 0.3 : tg.hide ? Math.max(0, Math.min(1, (y - HY - 30) / 40)) : 1;
+    x.globalAlpha = tg.got < 0 ? 0.3 : 1;
     x.fillStyle = tg.got < 0 ? "#5b6470" : "#ffb000"; x.fillRect(col(ME) - 10, y - 3, 20, 6);
     x.fillStyle = tg.got < 0 ? "#3a4048" : "#7a5208"; x.fillRect(col(ME) - 8, y - 1, 16, 2);
   }

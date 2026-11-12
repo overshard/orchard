@@ -86,14 +86,27 @@ export function stepsOf(row) { return [...row].flatMap((c, s) => (c === "x" ? [s
 function partAt(p, bar) { return Array.isArray(p) ? p[bar % p.length] : p; }
 
 // A round is heard once and sung twice, or only sung again with a count in
-// when the part hasn't changed. Its second time through is from memory then.
+// when the part hasn't changed.
 function rounds(s) {
   const [a, b, c] = s.hook;
   return [
-    { part: [a], listen: true }, { part: [a], hide: true },
-    { part: [b], listen: true }, { part: [b], hide: true },
-    { part: [b, c], listen: true }, { part: [b, c], hide: true },
+    { part: [a], listen: true }, { part: [a] },
+    { part: [b], listen: true }, { part: [b] },
+    { part: [b, c], listen: true }, { part: [b, c] },
   ];
+}
+
+// How many steps each note of a row is held. The first part is all taps, the
+// second holds its first note with room after it and the third every one,
+// each to a step short of the next note.
+export function holds(row, part) {
+  const at = stepsOf(row);
+  return at.map((st, j) => {
+    const gap = (j + 1 < at.length ? at[j + 1] : STEPS) - st;
+    if (part === 0 || gap < 3) return 0;
+    if (part === 1 && at.slice(0, j).some((q, i) => (i + 1 < at.length ? at[i + 1] : STEPS) - q >= 3)) return 0;
+    return gap - 1;
+  });
 }
 export const ROUNDS = 6;
 
@@ -123,16 +136,18 @@ export function lay(s) {
     if (rd.listen) rd.part.forEach((row, k) => {
       const b = add("listen", r, { row, k, n: rd.part.length });
       band(b);
-      stepsOf(row).forEach((st, j) => notes.push({ t: at(b.t, st), f: HOOK, p: hookNote(b.v, s.melody[j % s.melody.length]), v: 0.17, shown: true }));
+      const hl = holds(row, s.hook.indexOf(row));
+      stepsOf(row).forEach((st, j) => notes.push({ t: at(b.t, st), f: HOOK, p: hookNote(b.v, s.melody[j % s.melody.length]), v: 0.17, shown: true, len: hl[j] * step }));
     });
     const count = add("count", r, { n: rd.part.length });
     band(count, true);
     let first = null;
     [0, 1].forEach((pass) => rd.part.forEach((row, k) => {
-      const b = add("play", r, { row, k, n: rd.part.length, pass, hide: rd.hide && pass === 1 });
+      const b = add("play", r, { row, k, n: rd.part.length, pass });
       band(b);
+      const hl = holds(row, s.hook.indexOf(row));
       stepsOf(row).forEach((st, j) => {
-        const tg = { t: at(b.t, st), p: hookNote(b.v, s.melody[j % s.melody.length]), bar: b.i, s: st, hide: b.hide, got: 0 };
+        const tg = { t: at(b.t, st), p: hookNote(b.v, s.melody[j % s.melody.length]), bar: b.i, s: st, got: 0, len: hl[j] * step };
         targets.push(tg);
         if (!first) first = { b, st };
       });
@@ -153,11 +168,14 @@ export function lay(s) {
 export const PERFECT = 0.07, GOOD = 0.16, LATE = 0.03;
 export function points(right, run) { return (right ? 2 : 1) + Math.min(2, Math.floor(run / 8)); }
 
-// Every note of a song right on time, run and all.
+// A held note kept down to its end adds this.
+export const HOLD = 2;
+
+// Every note of a song right on time and held, run and all.
 export function best(s) {
-  const n = lay(s).targets.length;
-  let sum = 0;
-  for (let run = 1; run <= n; run++) sum += points(true, run);
+  const tg = lay(s).targets;
+  let sum = tg.filter((t) => t.len).length * HOLD;
+  for (let run = 1; run <= tg.length; run++) sum += points(true, run);
   return sum;
 }
 
