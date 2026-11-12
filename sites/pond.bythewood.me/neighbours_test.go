@@ -105,7 +105,7 @@ func TestGiftSaysItsPoints(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if b.Points != giftPoints[plain.tier] || b.Total != b.Points || b.Pond.Neighbours.All[1].Points != b.Total {
+	if b.Points != giftPoints[plain.tier] || b.Total != b.Points || b.Prizes == nil || b.Pond.Neighbours.All[1].Points != b.Total {
 		t.Fatalf("a plain dish: %+v", b)
 	}
 	n := b.Pond.Neighbours.All[1]
