@@ -210,12 +210,20 @@ function grid(x, h) {
   x.fillStyle = "#1a3a2c"; x.fillRect(8, GY - 10, W - 16, 1);
   x.fillStyle = "#050d0a"; x.fillRect(8, GY + RH * 4 + 7, W - 16, 1);
   const pos = h >= b.t ? (h - b.t) / b.step : -1;
+  // Past halfway, the lamps behind the playhead show the player's next bar,
+  // so a beat at the top of it is seen coming and not sprung on the flip.
+  const nb = G.bars[G.bi + 1], ahead = nb && nb.phase === "play" && pos >= STEPS / 2;
   frogs.forEach((f, row) => {
     const cy = GY + row * RH;
     x.fillStyle = f.col[1]; x.fillRect(14, cy + 5, 8, 7);
     x.fillStyle = f.col[4]; x.fillRect(15, cy + 4, 2, 2); x.fillRect(19, cy + 4, 2, 2);
     for (let s = 0; s < STEPS; s++) {
       const lx = GX + s * CW + 4, ly = cy + 4, on = b.p[row].includes(s), lit = on && pos >= s && pos < s + 0.7;
+      if (row === ME && ahead && pos >= s + 1) {
+        x.fillStyle = "#13281f"; x.fillRect(lx, ly, 11, 9);
+        if (nb.p[ME].includes(s)) { x.strokeStyle = "rgba(255,176,0,0.55)"; x.lineWidth = 1; x.strokeRect(lx + 0.5, ly + 0.5, 10, 8); }
+        continue;
+      }
       if (row === ME && b.phase === "play") {
         const tg = on && G.targets.find((q) => q.bar === G.bi && q.s === s);
         if (!on) { x.fillStyle = "#13281f"; x.fillRect(lx, ly, 11, 9); continue; }
