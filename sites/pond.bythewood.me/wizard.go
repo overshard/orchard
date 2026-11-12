@@ -237,6 +237,11 @@ func thingName(kind string) string {
 	if n, ok := itemNames[kind]; ok {
 		return n
 	}
+	for _, k := range keepsakes {
+		if k.kind == kind {
+			return k.name
+		}
+	}
 	if i, ok := ingredientOf(kind); ok {
 		return ingredients[i].name
 	}

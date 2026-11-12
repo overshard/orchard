@@ -146,3 +146,24 @@ func TestTheDayKeepsakesAreOnTheEnd(t *testing.T) {
 		t.Errorf("the list moved, %s is seventeenth", keepsakes[16].kind)
 	}
 }
+
+func TestEveryBestFindHasAName(t *testing.T) {
+	had := map[string]bool{}
+	for _, k := range keepsakes {
+		had[k.kind] = true
+	}
+	for _, r := range rocks {
+		had[r.kind] = true
+	}
+	for _, tr := range trinkets {
+		had[tr.kind] = true
+	}
+	for _, m := range mementos {
+		had[m.kind] = true
+	}
+	for _, f := range bestFinds(nil, had, 1000) {
+		if f.Label == "" || f.Name == f.Kind {
+			t.Errorf("%s has no name", f.Kind)
+		}
+	}
+}
