@@ -46,7 +46,7 @@ var arcadeGames = []arcadeGame{
 
 // Every note of a chorus song right on time with the run at its height is all
 // a song can score, before a singer's quarter. best in songs.js works it out.
-const chorusMost = 170
+const chorusMost = 200
 
 // Two pond kings popping clear the jar, so a run has no end of its own and
 // its rate is what holds it. This only stops a number no run could reach.

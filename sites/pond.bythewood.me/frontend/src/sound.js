@@ -136,13 +136,15 @@ export function audioClock() {
 }
 
 // croakAt is a short croak at a set pitch, played at a time on the audio clock.
-export function croakAt(pitch, when, vol) {
-  if (!on.sound || !ac) return;
+// croakAt plays a croak at when, held for dur when it's given, and hands back
+// a stop for a held one let go early.
+export function croakAt(pitch, when, vol, dur) {
+  if (!on.sound || !ac) return () => {};
   try {
-    const len = 0.13, o = ac.createOscillator(), f = ac.createBiquadFilter(), env = ac.createGain(), lfo = ac.createOscillator(), lg = ac.createGain(), am = ac.createGain();
+    const len = dur || 0.13, o = ac.createOscillator(), f = ac.createBiquadFilter(), env = ac.createGain(), lfo = ac.createOscillator(), lg = ac.createGain(), am = ac.createGain();
     o.type = "sawtooth";
     o.frequency.setValueAtTime(pitch * 0.94, when);
-    o.frequency.linearRampToValueAtTime(pitch * 1.04, when + len);
+    o.frequency.linearRampToValueAtTime(pitch * 1.04, when + Math.min(len, 0.13));
     // A phone speaker barely plays a low croak, so its upper harmonics carry it.
     const low = pitch < 220;
     f.type = "bandpass"; f.frequency.value = pitch * (low ? 3.4 : 1.7); f.Q.value = low ? 1.1 : 2.5;
@@ -154,7 +156,12 @@ export function croakAt(pitch, when, vol) {
     env.gain.linearRampToValueAtTime(0, when + len);
     o.connect(f); f.connect(am); am.connect(env); env.connect(ac.destination);
     o.start(when); lfo.start(when); o.stop(when + len + 0.02); lfo.stop(when + len + 0.02);
-  } catch (e) { /* no audio here */ }
+    return () => {
+      const t = ac.currentTime;
+      if (t >= when + len) return;
+      env.gain.cancelScheduledValues(t); env.gain.setValueAtTime(env.gain.value, t); env.gain.linearRampToValueAtTime(0, t + 0.03);
+    };
+  } catch (e) { return () => {}; }
 }
 
 let rainSrc = null, rainGain = null;
