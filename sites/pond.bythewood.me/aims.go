@@ -107,6 +107,15 @@ var aimList = []aim{
 	{"wp_kinds", "whirl", "Swallow thirty kinds of thing", map[string]int{"kinds": 30}, nil, 0},
 	{"wp_spin", "whirl", "Take twenty creatures for a spin", map[string]int{"swirled": 20}, nil, 0},
 	{"wp_clean", "whirl", "Reach the lily pads without a bump", map[string]int{"band": 3}, []string{"bumps"}, 0},
+
+	{"cs_clear", "sling", "Clear all five levels", map[string]int{"cleared": 5}, nil, 0},
+	{"cs_stars", "sling", "Earn ten stars in one round", map[string]int{"stars": 10}, nil, 0},
+	{"cs_three", "sling", "Get three stars on a level", map[string]int{"three": 1}, nil, 0},
+	{"cs_one", "sling", "Clear a level with one frog", map[string]int{"oneshot": 1}, nil, 0},
+	{"cs_stone", "sling", "Break two stones", map[string]int{"stones": 2}, nil, 0},
+	{"cs_pond", "sling", "Knock eight pieces into the pond", map[string]int{"splashed": 8}, nil, 0},
+	{"cs_gold", "sling", "Knock the golden acorn off", map[string]int{"golden": 1}, nil, 0},
+	{"cs_spare", "sling", "Keep five frogs spare in a round", map[string]int{"spare": 5}, nil, 0},
 }
 
 // The least score each count says a run made, so a page can't report more of
@@ -129,6 +138,7 @@ var aimWorth = map[string]map[string]int{
 	"lash":   {"combo": 2, "golden": 10, "dragonflies": 3, "bugs": 1},
 	"swarm":  {"wasps": 3, "beetles": 6, "dew": 1, "bugs": 1, "combos": 60, "level": 8},
 	"whirl":  {"band": 12, "things": 1, "kinds": 1, "rares": 15, "swirled": 2, "log": 150, "jetty": 300, "isle": 350},
+	"sling":  {"acorns": 50, "golden": 150, "blocks": 5, "stones": 20, "splashed": 5, "spare": 100, "cleared": 100, "stars": 30, "three": 300, "oneshot": 250},
 }
 
 // aimsOf is a game's two goals for a day, the same in every pond.

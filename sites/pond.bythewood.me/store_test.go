@@ -533,7 +533,7 @@ func TestNinetyDaysDoNotRunAway(t *testing.T) {
 }
 
 // The side games that take their goals' counts from the page.
-var aimedGames = []string{"cross", "raft", "leap", "school", "stack", "shell", "skip", "drop", "chorus", "putt", "jar", "lash", "swarm", "whirl"}
+var aimedGames = []string{"cross", "raft", "leap", "school", "stack", "shell", "skip", "drop", "chorus", "putt", "jar", "lash", "swarm", "whirl", "sling"}
 
 // playForAims plays one run of a game that meets both its goals for the day
 // with the least score that can.
