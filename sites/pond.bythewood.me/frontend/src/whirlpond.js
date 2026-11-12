@@ -25,7 +25,7 @@ export const KINDS = [
   { k: "petal", name: "A petal", b: 0, s: 1.5, pts: 1, w: 3, act: "float" },
   { k: "bubble", name: "A bubble", b: 0, s: 1.3, pts: 1, w: 3, act: "float" },
   { k: "fluff", name: "Seed fluff", b: 0, s: 1.7, pts: 1, w: 3, act: "drift" },
-  { k: "flea", name: "A water flea", b: 0, s: 1.2, pts: 2, w: 2, act: "swim", alive: true },
+  { k: "ladybird", name: "A ladybird", b: 0, s: 1.2, pts: 2, w: 2, act: "float", alive: true },
   { k: "midge", name: "A midge", b: 0, s: 1.1, pts: 2, w: 2, act: "fly", alive: true },
 
   { k: "leaf", name: "An oak leaf", b: 1, s: 3.0, pts: 2, w: 5, act: "float" },

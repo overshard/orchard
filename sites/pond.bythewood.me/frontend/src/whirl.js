@@ -15,69 +15,69 @@ const F = feel();
 // Every thing is drawn from above on a grid, sized to its s at any zoom, and a
 // creature faces the way it's going.
 const ART = {
-  duckweed: [".gg.", "glgg", "gggl", ".gg."],
-  petal: ["..pp", ".pPp", "pPp.", "pp.."],
-  bubble: [".cc.", "cw.c", "c..c", ".cc."],
-  fluff: ["w.w.w", ".www.", "wwBww", ".www.", "w.w.w"],
-  flea: [".tt.", "tkkt", ".tt."],
-  midge: ["c.c", ".k.", "c.c"],
-  leaf: ["..oo..", ".oYoo.", "ooYYoo", ".ooYo.", "..oo..", "...b.."],
-  willow: ["......ll", "....llgl", "..llgl..", "llgl....", "l......."],
-  feather: ["......ww", "....wwc.", "..wwcw..", ".wcw....", "s......."],
-  acorn: [".dd.", "dbbd", "BttB", ".tt."],
-  skater: ["s...s", ".sks.", "..k..", ".sks.", "s...s"],
-  tadpole: ["....kk", "kkkkkk", "....kk"],
-  clover: [".l.l.", "lglgl", ".lYl.", "lglgl", ".l.l."],
-  twig: ["b...........", ".BB......B..", "...BBBBBBB..", ".........BBb", "...........B"],
-  cone: [".BBB.", "BdBdB", ".BBB.", "BdBdB", ".BBB.", "..d.."],
-  cap: [".sss.", "srrrs", "srwrs", "srrrs", ".sss."],
-  snail: [".BBB.", "BbBdB", "BdbBB", ".BBBt", "...tt"],
-  dragonfly: [".cc.cc..", "ffffffUU", ".cc.cc.."],
-  beetle: ["..kk..", ".kUUk.", "kUkkUk", "kUkkUk", ".kkkk.", "k.kk.k"],
-  minnow: ["s...ss..", ".sssssUk", "s...ss.."],
-  marble: [".uuu.", "uwumu", "uumuu", "umuuu", ".uuu."],
+  duckweed: [".ll..", "lggl.", "lgglg", ".glgg", "...g."],
+  petal: ["...pp", "..ppP", ".ppPP", "ppPP.", "pP..."],
+  bubble: [".ccc.", "cW.cc", "c...c", "c...c", ".ccc."],
+  fluff: [".w.w.", "wwcww", ".cWc.", "wwcww", ".w.w.", "..g.."],
+  ladybird: [".kkk.", "rrkrr", "krkrk", "rrkrr", ".rkr."],
+  midge: ["cc...cc", ".cc.cc.", "..kkk..", ".k.k.k."],
+  leaf: ["...o...", "..ooo..", ".ooOoo.", "oooOooo", ".ooOoo.", "..oOo..", "...b..."],
+  willow: [".......gl", ".....ggl.", "...gglg..", "..glgg...", ".gllg....", "b........"],
+  feather: ["......ww", ".....wwc", "....wwc.", "...wwc..", "..wwc...", ".wcw....", "s......."],
+  acorn: ["...d...", ".bbbbb.", "bdbdbdb", "bbbbbbb", ".aaaaa.", ".aAaaa.", "..aaa..", "...a..."],
+  skater: ["s.....s", ".s...s.", "..sks..", "...k...", "..sks..", ".s...s.", "s.....s"],
+  tadpole: [".TTT.....", "TTTTT...T", "TWTTTTTT.", "TTTTT....", ".TTT....."],
+  clover: [".gg.gg.", "gllgllg", ".ggYgg.", "gllgllg", ".gg.gg.", "....G..", ".....G."],
+  twig: ["b..........", ".bb.....gl.", "...bbbbbb..", "......bbbbb", "..........b"],
+  cone: ["...g...", "..bBb..", ".bBdBb.", ".BdBdB.", ".bBdBb.", ".BdBdB.", "..bBb..", "...b..."],
+  cap: [".s.s.s.", "srrrrrs", ".rWrrr.", "srrrrrs", ".rrrrr.", "srrrrrs", ".s.s.s."],
+  snail: ["..bbb....", ".bBBBb...", ".bBbBb.t.", ".bBBbb.tt", "..bbbtttt", "ttttttttt"],
+  dragonfly: ["...k...", "cc.f.cc", "cccfccc", ".ccfcc.", "...f...", "...f...", "...f...", "...U...", "...f..."],
+  beetle: [".k...k.", "..kkk..", ".kuUuk.", "kUUkUUk", "kUukUuk", "kUUkUUk", ".kUkUk.", "k.kkk.k"],
+  minnow: ["....ss....", "s..sssssss", "sssccccsks", "s..cccccc.", "....s....."],
+  marble: [".uuu.", "uWumu", "uumuu", "umuuu", ".uuu."],
   pad: ["..GGnGG..", ".GggnggG.", "GgggngggG", "GlggngglG", "GgllgllgG", "GgggggggG", "GggglgggG", ".GgggggG.", "..GGGGG.."],
-  lily: ["..GGGGG..", ".GgpwpgG.", "GgpwPwpgG", "GpwPyPwpG", "GwPyYyPwG", "GpwPyPwpG", "GgpwPwpgG", ".GgpwpgG.", "..GGGGG.."],
-  boat: ["....c....", "...wcw...", "..wwcww..", "wwwwwwwww", ".wcwcwcw.", "..wwwww.."],
-  ball: ["..rrr..", ".rwrrr.", "rwrrrrr", "yyyyyyy", "rrrrrrr", ".rrrrr.", "..rrr.."],
-  newt: ["....b...b..", "..bbbbbbbb.", "bbbobbobbbk", "..bbbbbbbb.", "....b...b.."],
-  goldfish: ["o....oo..", "oo.ooooo.", ".ooooooYk", "oo.ooooo.", "o....oo.."],
-  rubberduck: ["..yyy..", ".yyyyko", ".yyyyy.", "yyyyyy.", ".yyyyy.", "..yyy.."],
-  bottle: ["b..uuuuuuu.", "bSuuwwwwuuu", "bSuuwwwwuuu", "b..uuuuuuu."],
-  reeds: ["G...g...G", ".g.GgG.g.", "..gGbGg..", "gGgbBbgGg", ".GbBgBbG.", "gGgbBbgGg", "..gGbGg..", ".g.GgG.g.", "G...g...G"],
-  bucket: ["..SSSS..", ".SUUUUS.", "SUuuuuUS", "SUkkkkUS", "SUkkkkUS", "SUuuuuUS", ".SUUUUS.", "..SSSS.."],
-  welly: ["GGGG......", "GggG......", "GggG......", "GggGGGGGG.", "GgggggggGG", "dddddddddd"],
-  sailboat: ["....w....", "....ww...", "...wwwr..", "..wwwwrr.", ".wwwwwrrr", "....b....", "bbbbbbbbb", ".BBBBBBB.", "..BBBBB.."],
+  lily: ["...ppp...", "..pPWPp..", ".pPWyWPp.", ".pWyYyWp.", "GgpWyWpgG", "GggpPpggG", ".GgggggG.", "..GGGGG.."],
+  boat: ["....c....", "...wcw...", "..wwcww..", "wwwwwwwww", ".wcwwwcw.", "..wwwww.."],
+  ball: ["..rrr..", ".rWrrr.", "rWrrrrr", "yyyyyyy", "rrrrrrr", ".rrrrr.", "..rrr.."],
+  newt: ["..........bb.", "b..bbbbbbbbkb", ".bbbbbbbbbbbb", "...oooooooo..", "...b.b..b.b.."],
+  goldfish: ["o....oo...", "oo.ooooo..", ".ooooYYoko", "oo.ooooo..", "o....oo..."],
+  rubberduck: ["..eee...", ".eeeke..", ".eeeeeoo", "..eee...", "eeeeeee.", "eyyeeee.", ".eeeeee.", "..eeee.."],
+  bottle: [".vvvvvvv....", "vvwwwwwvvvvb", "vvwwwwwvvvvb", ".vvvvvvv...."],
+  reeds: ["..d....d..", "..d..d.d..", "..d..d.d..", "..g..d.g..", ".gg..g.gg.", "g.g.gg.g.g", "g.gg.gg..g", ".gGgGgGgg.", "..GGGGGG.."],
+  bucket: ["..sssss..", ".s.....s.", "s.......s", "UUUUUUUUU", "UuUUUUUUU", ".UuUUUUU.", ".UUUUUUU.", "..UUUUU.."],
+  welly: [".GGGG....", ".GggG....", ".GggG....", ".GggG....", ".GggGGGG.", ".GgggggGG", ".dddddddd"],
+  sailboat: ["....r....", "....ww...", "....www..", "....wwww.", "....wwwww", "....b....", "bbbbbbbbb", ".BBBBBBB.", "..BBBBB.."],
   beachball: ["..rrww..", ".rrrwwy.", "rrrrwyyy", "uuuuwyyy", "uuuuwggg", "uuuwgggg", ".uuwggg.", "..uwgg.."],
-  carp: ["tt.....BB....", ".tBBBBBBBBB..", "..BtBBtBBBBBk", ".tBBBBBBBBB..", "tt.....BB...."],
+  carp: [".........BB..", "t...BBBBBBBB.", "tt.BBtBBtBBkB", ".tttBBBBBBBBB", "tt..tttttttt.", "t.....BB....."],
   turtle: ["..t....t...", "...GGGGG...", "..GgGgGgG..", ".GgGGgGGgtt", ".GGgGgGgGtk", ".GgGGgGGgtt", "..GgGgGgG..", "...GGGGG...", "..t....t..."],
-  koi: ["Y....ww..", "ww.wYwww.", ".wYwwwYwk", "ww.wwYww.", "Y....ww.."],
-  duck: ["....ttttt....", "..ttBBBBBt...", "wtBBbbbBBBGG.", "wtBbbbbbBBGgY", "wtBBbbbBBBGG.", "..ttBBBBBt...", "....ttttt...."],
-  goose: ["....sssss....", "..ssSSSSSs...", "wsSSssSSSSkk.", "wsSsssssSSkwY", "wsSSssSSSSkk.", "..ssSSSSSs...", "....sssss...."],
-  swan: ["....ccccc.....", "..ccwwwwwc....", "cwwwccwwwwc...", "cwwcccwwwwwwko", "cwwwccwwwwc...", "..ccwwwwwc....", "....ccccc....."],
+  koi: [".....ww.....", "w...wwwwrr..", "ww.wrrwwwwkw", ".wwwwwwYYww.", "ww..wwwww...", "w.....w....."],
+  duck: ["........GG...", ".......GGGG..", ".......GkGGee", ".......GGGG..", "........wG...", "..d...BBBBB..", ".dBBBBbbbbBB.", "..BbbbbbbbB..", "...BBBBBBB..."],
+  goose: [".........kk..", "........kWkk.", "........kkkkS", ".........kk..", ".........kk..", "..s......kk..", ".sSSSSSSsss..", "..SsssssssS..", "...wwwwwww..."],
+  swan: ["........ww...", ".......wwwwo.", ".......ww..k.", "........ww...", ".........w...", "..w......w...", ".wwwwwwwww...", "wwcwwwwwwww..", ".wwwwwwwww..."],
   buoy: ["..rrww..", ".rrrwww.", "rr....ww", "rr....ww", "ww....rr", "ww....rr", ".wwwrrr.", "..wwrr.."],
   crate: ["BBBBBBBB", "BdBBBBdB", "BBdBBdBB", "BBBddBBB", "BBBddBBB", "BBdBBdBB", "BdBBBBdB", "BBBBBBBB"],
   driftwood: ["......tt.....", "ttttttttttt..", "..tcttttcttts", ".t....tt.....", "........t...."],
   kite: ["...r...", "..rYr..", ".rYrYr.", "rYrYrYr", ".rYrYr.", "..rYr..", "...r...", "....k..", "...k...", "....k.."],
-  heron: ["...SS.........", "..SsssS.......", ".SssssssS.....", "SsssssssscckYY", ".SssssssS.....", "..SsssS.......", "...SS........."],
-  otter: ["bb............", ".bbbbbbbbbbb..", "..bBBBBBBBBbbk", ".bbbbbbbbbbb..", "bb..b...b....."],
+  heron: [".........SS....", "........SssSkk.", ".........Ss..YY", "..........s....", "..........s....", "...SSSSssss....", "..SssssSSs.....", ".SSssssss......", "....SSSS.......", ".....s..s......", ".....s..s......", ".....s..s......"],
+  otter: ["...........bb..", "..........bbbbk", "bb.......bbtbb.", ".bbbbbbbbbbbb..", "..bbbbbbbbbb...", "..b..b....b...."],
   canoe: ["...oooooooooo...", ".ooddddddddddoo.", "oodtdtdtdtdtddoo", ".ooddddddddddoo.", "...oooooooooo..."],
   padisle: ["..GG....GG..", ".GggG..GggG.", ".GggG..GgpG.", "..GG.GG.GG..", "....GggG....", ".GG.GgyG.GG.", "GggG.GG.GggG", "GggG....GggG", ".GG..GG..GG.", "....GggG....", "....GggG....", ".....GG....."],
-  pedalo: ["..wwwwwwww..", ".wrrrrrrrrw.", "wrrSSrrSSrrw", "wrrSSrrSSrrw", ".wrrrrrrrrw.", "..wwwwwwww.."],
+  pedalo: [".....wwwwww..", ".....w....w..", ".....w....w..", ".rrrrrrrrrrrr", "rrWrrrrrrrrrr", "rrrSSrrSSrrr.", ".rrrrrrrrrr..", "..k......k..."],
   branch: ["b.........b...", ".bB......bB...", "..bBBBBBBBBBBB", ".......BB...lg", "......B....gl.", "....lg........"],
-  houseboat: ["dddddddddddddddd", "dBBBBBBBBBBBBBBd", "dBrrrrrrrrrrrrBd", "dBrkrrkrrkrrkrBd", "dBrrrrrrrrrrrrBd", "dBBBBBBBBBBBBBBd", "dddddddddddddddd"],
+  houseboat: ["....SSSSSSSS....", "...SrrrrrrrrS...", "..SrrrrrrrrrrS..", "...wwwwwwwwww...", "...wuwwuwwuww...", "...wwwwwwwwww...", "dddddddddddddddd", ".dBBBBBBBBBBBBd.", "..dddddddddddd.."],
   tyre: ["...kkkkk...", ".kkSSSSSkk.", "kkS.....Skk", "kS.......Sk", "kS.......Sk", "kS.......Sk", "kkS.....Skk", ".kkSSSSSkk.", "...kkkkk..."],
-  log: ["dbbbbbbbbbbbbbbd", "tBbBbBbGGbBbBbBt", "tbBbBbBGbBbBbBbt", "tBbBbBbBbBbGbBbt", "dbbbbbbbbbbbbbbd"],
-  chest: ["dbbbbbbd", "bBYBBYBb", "dddddddd", "bBBYYBBb", "bBBYYBBb", "dbbbbbbd"],
+  log: ["..tttt..........", "dtBBBBtbbbbbbbbd", "tBtddtBBbBbBbGBt", "tBdttdBbBbBGbBbt", "tBtddtBBbBbBbBbt", "dtBBBBtbbbbbbbbd", "..tttt.........."],
+  chest: ["..dddddddd..", ".dBBBBBBBBd.", "dBBBBBBBBBBd", "dYYYYYYYYYYd", "dBBBBYYBBBBd", "dBBBBYkBBBBd", "dBBBBBBBBBBd", "dYYYYYYYYYYd"],
   rowboat: ["....bbbbbbb....", "..bbBBBBBBBbb..", "sbBBdBBdBBdBBbs", "sbBBdBBdBBdBBbs", "..bbBBBBBBBbb..", "....bbbbbbb...."],
   punt: ["dddddddddddddddddd", "dBBBBBBBBBBBBBBBBd", "dBtBBBBBBBBBBBBtBd", "dBBBBBBBBBBBBBBBBd", "dddddddddddddddddd"],
   jetty: ["dtttttd", "dBBBBBd", "dtttttd", "dBBBBBd", "dtttttd", "dBBBBBd", "dtttttd", "dBBBBBd", "dtttttd", "dBBBBBd", "dtttttd", "dBBBBBd", "dtttttd", "dBBBBBd", "dtttttd", "d..d..d"],
-  isle: ["....tttttt....", "..ttggggggtt..", ".tgglllllllgt.", "tgglgglgglgggt", "tglgllllllglgt", "tgllgllbllgllt", "tglllgbbbllglt", "tgllgllbllgllt", "tglgllllllglgt", "tgglgglgglgggt", ".tgglllllllgt.", "..ttggggggtt..", "....tttttt...."],
+  isle: ["....tttttt....", "..ttGGGGGGtt..", ".tGGgggggGGGt.", "tGggglgglgggGt", "tGglgglgglglGt", "tGgglgllglggGt", "tGglgglggglgGt", "tGggglgllgggGt", "tGglgglgglglGt", "tGggglgglgggGt", ".tGGgggggGGGt.", "..ttGGGGGGtt..", "....tttttt...."],
 };
 const PAL = {
-  g: "#4fa043", G: "#2f6a2c", l: "#8fd06a", y: "#ffe27a", Y: "#ffb000", o: "#e07a2a", r: "#e2412d", p: "#f2a0c0", P: "#e2567a",
-  w: "#fff6dc", c: "#cfe3ea", k: "#1a1a20", b: "#6b4a2a", B: "#8a6a3a", d: "#3e2a18", s: "#8a8f96", S: "#5b6470", u: "#7fc8e8",
-  U: "#2b5fa8", t: "#d9c9a8", m: "#7d52c0", f: "#2a8a7a", n: "#1d4f5c",
+  g: "#4fa043", G: "#2f6a2c", l: "#8fd06a", y: "#ffe27a", Y: "#ffb000", o: "#e07a2a", O: "#a8501a", r: "#e2412d", p: "#f2a0c0", P: "#e2567a",
+  w: "#fff6dc", W: "#ffffff", c: "#cfe3ea", k: "#1a1a20", b: "#6b4a2a", B: "#8a6a3a", d: "#3e2a18", s: "#8a8f96", S: "#5b6470", u: "#7fc8e8",
+  U: "#2b5fa8", t: "#d9c9a8", m: "#7d52c0", f: "#2a8a7a", n: "#1d4f5c", a: "#c9974f", A: "#e3c57a", T: "#5a4630", e: "#f2c230", v: "#7fc8a8",
 };
 // The colour most of a thing is, for when it's too small to draw.
 const MAIN = Object.fromEntries(Object.entries(ART).map(([k, rows]) => {
@@ -88,19 +88,45 @@ const MAIN = Object.fromEntries(Object.entries(ART).map(([k, rows]) => {
 
 function px(v) { return Math.round(v * 2) / 2; }
 
+// Every thing gets a dark edge so it reads against the water at any size.
+const LINE = "#0b1d22";
+const EDGE = Object.fromEntries(Object.entries(ART).map(([k, rows]) => {
+  const h = rows.length, wd = rows[0].length, on = (cx, cy) => cy >= 0 && cy < h && cx >= 0 && cx < wd && rows[cy][cx] !== ".", out = [];
+  for (let cy = -1; cy <= h; cy++) for (let cx = -1; cx <= wd; cx++) {
+    if (!on(cx, cy) && (on(cx - 1, cy) || on(cx + 1, cy) || on(cx, cy - 1) || on(cx, cy + 1))) out.push([cx, cy]);
+  }
+  return [k, out];
+}));
+
+// Sprites are drawn once a size into a little canvas, since a big pond has a
+// hundred things in view and each is a couple of hundred cells.
+const cache = new Map();
+function baked(k, c, face) {
+  const key = k + " " + c + " " + face;
+  let im = cache.get(key);
+  if (im) return im;
+  if (cache.size > 600) cache.clear();
+  const rows = ART[k], h = rows.length, wd = rows[0].length, d = c * 2;
+  im = document.createElement("canvas");
+  im.width = Math.ceil((wd + 2) * d); im.height = Math.ceil((h + 2) * d);
+  const x = im.getContext("2d");
+  x.fillStyle = LINE;
+  EDGE[k].forEach(([cx, cy]) => x.fillRect((face < 0 ? wd - 1 - cx : cx) * d + d, cy * d + d, d, d));
+  for (let ry = 0; ry < h; ry++) for (let rx = 0; rx < wd; rx++) {
+    const ch = rows[ry][face < 0 ? wd - 1 - rx : rx];
+    if (ch === ".") continue;
+    x.fillStyle = PAL[ch]; x.fillRect(rx * d + d, ry * d + d, d, d);
+  }
+  cache.set(key, im);
+  return im;
+}
+
 // sprite draws a thing about 2s across at a zoom, centred on cx, cy.
 function sprite(x, k, cx, cy, s, z, face) {
-  const rows = ART[k], h = rows.length, wd = rows[0].length, cell = 2 * s / Math.max(h, wd) * z;
+  const rows = ART[k], h = rows.length, wd = rows[0].length, cell = 2.3 * s / (Math.max(h, wd) + 2) * z;
   if (cell * Math.max(h, wd) < 1.5) { x.fillStyle = MAIN[k]; x.fillRect(px(cx), px(cy), 1, 1); return; }
-  const c = Math.max(0.5, px(cell)), ox = px(cx - wd * c / 2), oy = px(cy - h * c / 2);
-  for (let ry = 0; ry < h; ry++) {
-    const row = rows[ry];
-    for (let rx = 0; rx < wd; rx++) {
-      const ch = row[face < 0 ? wd - 1 - rx : rx];
-      if (ch === ".") continue;
-      x.fillStyle = PAL[ch]; x.fillRect(ox + rx * c, oy + ry * c, c, c);
-    }
-  }
+  const c = Math.max(0.5, px(cell)), ox = px(cx - wd * c / 2), oy = px(cy - h * c / 2), im = baked(k, c, face < 0 ? -1 : 1);
+  x.drawImage(im, ox - c, oy - c, im.width / 2, im.height / 2);
 }
 
 function sx(v) { return (v - w.cx) * zoom() + W / 2; }
