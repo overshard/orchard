@@ -8,14 +8,14 @@ import { sfx } from "./sound.js";
 // up is a pick of one perk from three.
 const W = 200, H = 300, ROUND = 90, LILIES = 3, TOP = 3, SLOTS = 5;
 const PAD = { x: 100, y: 158, r: 88 }, ROAM = 72, BODY = 10, STEER = 110;
-const OUT = 0.07, BACK = 0.1, SAFE = 1.6, SLOW = 0.7, CAP = 190, GRACE = 10;
+const OUT = 0.07, BACK = 0.1, SAFE = 1.4, SLOW = 0.7, CAP = 190, GRACE = 10;
 const FONT = "700 13px 'Space Grotesk', sans-serif", NAME = "700 10px 'Space Grotesk', sans-serif";
 const SMALL = "500 8px 'JetBrains Mono', monospace";
 const KINDS = {
   gnat: { hp: 1, pts: 1, dew: 0.4, v: 16, r: 4 },
   fly: { hp: 1, pts: 1, dew: 1, v: 26, r: 6 },
   moth: { hp: 2, pts: 2, dew: 2, v: 14, r: 8 },
-  wasp: { hp: 1, pts: 3, dew: 2, v: 32, r: 7, harm: true },
+  wasp: { hp: 1, pts: 3, dew: 2, v: 34, r: 7, harm: true },
   beetle: { hp: 5, pts: 6, dew: 5, v: 12, r: 8, harm: true },
 };
 // Each line is what the next level of a perk does, so a card says what it gives.
@@ -86,7 +86,7 @@ function spawn(k, at) {
 }
 
 function trickle(p) {
-  const r = Math.random(), wasp = G.t > GRACE ? 0.03 + 0.14 * p : 0, moth = G.t > 12 ? 0.18 : 0;
+  const r = Math.random(), wasp = G.t > GRACE ? 0.04 + 0.17 * p : 0, moth = G.t > 12 ? 0.18 : 0;
   spawn(r < wasp ? "wasp" : r < wasp + moth ? "moth" : r < wasp + moth + 0.42 ? "fly" : "gnat");
 }
 
@@ -440,7 +440,7 @@ export const swarm = {
       if (G.next <= 0) { trickle(p); G.next = (1.0 - 0.75 * p) / (1 + 0.06 * G.level) + rnd(-0.1, 0.1); }
       G.waves.forEach((w) => { if (!w.warned && G.t >= w.at - 1.2) { w.warned = true; noise("warn", 0.3); } });
       G.waves = G.waves.filter((w) => { if (G.t < w.at) return true; wave(w, p); return false; });
-      if (G.t >= G.beetle) { spawn("beetle"); G.beetle += Math.max(3.5, 12 - 7 * p - 0.25 * G.level); }
+      if (G.t >= G.beetle) { spawn("beetle"); G.beetle += Math.max(3, 11 - 7 * p - 0.25 * G.level); }
       G.cool -= dt;
       if (G.cool <= 0 && snap()) G.cool = cool();
     }
