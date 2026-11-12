@@ -392,8 +392,9 @@ type firmView struct {
 	Div float64 `json:"div"`
 	// Days is each close before today, oldest first and opening on the launch
 	// price while there are few, and Ticks is today's prices as they came.
-	Days  []int `json:"days"`
-	Ticks []int `json:"ticks"`
+	Days        []int `json:"days"`
+	Ticks       []int `json:"ticks"`
+	price, prev float64
 }
 
 type marketView struct {
@@ -464,7 +465,7 @@ func marketOf(q querier, p *pond, now time.Time) (marketView, error) {
 			return v, err
 		}
 		fee := feeOf(a.Kind)
-		f := firmView{asset: a, Price: int(math.Round(price)), Prev: int(math.Round(prev)),
+		f := firmView{asset: a, Price: int(math.Round(price)), Prev: int(math.Round(prev)), price: price, prev: prev,
 			Buy: buyCost(price, 1, fee), Sell: sellPays(price, 1, fee), Days: []int{}, Ticks: []int{}}
 		if a.Kind == kindShare {
 			err := q.QueryRow(`SELECT div FROM market_days WHERE key = ? AND day < ? ORDER BY day DESC LIMIT 1`, a.Key, day).Scan(&f.Div)
