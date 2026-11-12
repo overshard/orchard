@@ -441,18 +441,18 @@ func TestSwarmSeasonIsBounded(t *testing.T) {
 	if d := play(swarmMost+1, 7200); d.Paid != 0 {
 		t.Errorf("more than a round can score paid: %+v", d)
 	}
-	if d := play(900, 20); d.Paid != 0 {
-		t.Errorf("900 in twenty seconds paid: %+v", d)
+	if d := play(1500, 20); d.Paid != 0 {
+		t.Errorf("1500 in twenty seconds paid: %+v", d)
 	}
 	start := play(0, 95).Pond.Pebbles
-	if d := play(400, 95); d.Paid != 400/g.per {
-		t.Errorf("a good round paid %d, want %d", d.Paid, 400/g.per)
+	if d := play(1100, 100); d.Paid != 1100/g.per {
+		t.Errorf("a good round paid %d, want %d", d.Paid, 1100/g.per)
 	}
-	if d := play(800, 95); d.Paid == 0 {
+	if d := play(1450, 100); d.Paid == 0 {
 		t.Errorf("a great round paid nothing: %+v", d)
 	}
 	for range 10 {
-		play(800, 95)
+		play(1450, 100)
 	}
 	if v, _ := s.view(id); v.Pebbles-start != g.cap {
 		t.Errorf("a day of rounds paid %d against a cap of %d", v.Pebbles-start, g.cap)
