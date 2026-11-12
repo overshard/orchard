@@ -336,10 +336,10 @@ function step(now) {
   const bk = G.beak;
   if (bk) {
     bk.x -= sp * dt;
-    if (bk.t < 0 && bk.x <= FXP + 28) bk.t = 0;
+    if (bk.t < 0 && bk.x <= FXP + 28) { bk.t = 0; bk.max = reach(bk.x); }
     if (bk.t >= 0) {
       bk.t += dt;
-      bk.d = depth() * Math.min(1, bk.t / 0.12, Math.max(0, (STAB - bk.t) / 0.2));
+      bk.d = bk.max * Math.min(1, bk.t / 0.12, Math.max(0, (STAB - bk.t) / 0.2));
       if (Math.abs(bk.x - FXP) < 9 && G.fy - OVER < TOP + bk.d) dead = "THE HERON GOT YOU";
       if (bk.t >= STAB) { G.beak = null; G.heronAt = G.t + HERON - 1 + Math.random() * 2; }
     }
@@ -376,7 +376,7 @@ function px(x, y, w, h) { gx.fillRect(Math.round(x), Math.round(y), w, h); }
 // The heron's neck and head over the spot, a dotted line blinking down to how
 // deep the beak goes while it waits, and the beak in the water as it stabs.
 function heron(b, now) {
-  const x = Math.round(b.x), d = depth();
+  const x = Math.round(b.x), d = b.t < 0 ? reach(b.x) : b.max;
   gx.fillStyle = "#e9e3d6"; px(x - 1, 0, 4, TOP - 10); px(x - 6, TOP - 14, 12, 7); px(x - 3, TOP - 16, 7, 2);
   gx.fillStyle = "#1c2a33"; px(x - 4, TOP - 12, 2, 2); px(x + 2, TOP - 16, 4, 1);
   gx.fillStyle = "#ffb000"; px(x - 1, TOP - 7, 3, 7 + b.d); px(x, TOP + b.d, 1, 3);
@@ -388,6 +388,17 @@ function heron(b, now) {
 }
 
 function depth() { return Math.max(DEPTH, (BOT - TOP) * 0.25); }
+
+// A stab stops short of the lowest a frog can swim through the gates either
+// side of it, at their highest bob, so there's always room to pass under.
+function reach(x) {
+  let d = depth();
+  for (const g of G.gates) {
+    if (Math.abs(g.x + OW / 2 - x) > GATE_EVERY) continue;
+    d = Math.min(d, g.c - g.bob + g.gap / 2 - TOP - UNDER - OVER - 8);
+  }
+  return Math.max(8, d);
+}
 
 function draw(now) {
   if (!state.pond) return;
