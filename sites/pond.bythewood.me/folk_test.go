@@ -21,6 +21,8 @@ func TestHandFolkLinesPassTheirOwnChecks(t *testing.T) {
 	seen := map[string]bool{}
 	check := func(field string, ls []string) {
 		rule, _ := folkRule(field)
+		// The hand lines may use a resident's tells, only the model's can't.
+		rule.who = -1
 		for _, l := range ls {
 			if _, ok := checkLine(l, rule, seen); !ok {
 				t.Errorf("%s: %q", field, l)
@@ -60,6 +62,41 @@ func TestCheckLineForFolk(t *testing.T) {
 		if _, ok := checkLine(c.line, rule, map[string]bool{}); ok != c.ok {
 			t.Errorf("%s %q: got %v", c.field, c.line, ok)
 		}
+	}
+}
+
+func TestCheckLineDropsTellsAndOddBodies(t *testing.T) {
+	sedge, marsh := -1, -1
+	for i, r := range residents {
+		switch r.name {
+		case "Sedge":
+			sedge = i
+		case "Marsh":
+			marsh = i
+		}
+	}
+	cases := []struct {
+		who  int
+		line string
+		ok   bool
+	}{
+		{sedge, "My throat feels dry from all this grumbling.", false},
+		{sedge, "I hope this does not wear the player down.", false},
+		{sedge, "My whiskers feel sticky from all this pollen.", false},
+		{sedge, "The fish are biting at everything but my line.", true},
+		{marsh, "The rain is my spotlight, and I must perform.", false},
+		{marsh, "The rain on the reeds sounds like a sad little song.", true},
+	}
+	for _, c := range cases {
+		rule, _ := folkRule("thinks")
+		rule.who = c.who
+		if _, ok := checkLine(c.line, rule, map[string]bool{}); ok != c.ok {
+			t.Errorf("%d %q: got %v", c.who, c.line, ok)
+		}
+	}
+	rule, _ := folkRule("says")
+	if l, ok := checkLine("I bet the other frogs are training hard too.,.", rule, map[string]bool{}); !ok || l != "I bet the other frogs are training hard too." {
+		t.Errorf("got %q %v", l, ok)
 	}
 }
 
