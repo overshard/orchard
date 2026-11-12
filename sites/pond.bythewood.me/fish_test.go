@@ -347,13 +347,9 @@ func TestBeatingAPondRecord(t *testing.T) {
 	}
 	*clock = clock.Add(24 * time.Hour)
 	v, _ := s.view(id)
-	want := "landed a roach of " + inches(bookOf(t, s, id)["roach"].Best)
-	found := false
-	for _, l := range v.Gazette.Records {
-		found = found || (strings.Contains(l, "took the pond record off "+residents[who].name+".") && strings.Contains(l, "a roach of "))
-	}
-	if !found {
-		t.Errorf("the paper says %v, want something like %q", v.Gazette.Records, want)
+	r := v.Gazette.Records
+	if len(r) != 1 || r[0].What != "Roach" || r[0].Took != residents[who].name || !strings.HasSuffix(r[0].Score, " in") {
+		t.Errorf("the paper says %v, want the roach record off %s", r, residents[who].name)
 	}
 }
 

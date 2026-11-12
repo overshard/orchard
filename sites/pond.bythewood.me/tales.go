@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -156,7 +155,8 @@ type gazette struct {
 	Photo    int      `json:"photo"`
 	Pictured bool     `json:"pictured"`
 	// The pond's own new bests from the day before.
-	Records []string `json:"records,omitempty"`
+	Records []recordNote `json:"records,omitempty"`
+	Board   *board       `json:"board,omitempty"`
 	// Notice is this pond's own news, a place that opened today.
 	Notice string `json:"notice,omitempty"`
 	// Sweep is how this pond stands with the day's bug sweep.
@@ -174,14 +174,21 @@ func noteRecord(tx *sql.Tx, id int64, game string, score, was int, now time.Time
 	return err
 }
 
-// recordsOf is yesterday's new bests as lines for the paper.
-func recordsOf(q querier, id int64, name string, now time.Time) ([]string, error) {
+type recordNote struct {
+	What  string `json:"what"`
+	Score string `json:"score"`
+	// Took names the neighbour a pond record was taken off.
+	Took string `json:"took,omitempty"`
+}
+
+// recordsOf is yesterday's new bests for the paper, pond records first.
+func recordsOf(q querier, id int64, now time.Time) ([]recordNote, error) {
 	rows, err := q.Query(`SELECT game, score FROM records WHERE pond_id = ? AND day = ? ORDER BY game`, id, dayOf(now.AddDate(0, 0, -1)))
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []string
+	var fish, games []recordNote
 	for rows.Next() {
 		var game string
 		var score int
@@ -191,8 +198,7 @@ func recordsOf(q querier, id int64, name string, now time.Time) ([]string, error
 		if kind, ok := strings.CutPrefix(game, recordGame); ok {
 			if f, ok := fishOf(kind); ok {
 				_, who := pondRecord(f)
-				out = append(out, fmt.Sprintf("%s landed %s of %s inches yesterday and took the pond record off %s.",
-					name, aFish(f), inches(score), residents[who].name))
+				fish = append(fish, recordNote{What: titled(f.name), Score: inches(score) + " in", Took: residents[who].name})
 			}
 			continue
 		}
@@ -200,9 +206,9 @@ func recordsOf(q querier, id int64, name string, now time.Time) ([]string, error
 		if g, ok := arcadeOf(game); ok {
 			what = g.name
 		}
-		out = append(out, fmt.Sprintf("%s set a new best at %s yesterday, %s.", name, what, commas(score)))
+		games = append(games, recordNote{What: what, Score: commas(score)})
 	}
-	return out, rows.Err()
+	return append(fish, games...), rows.Err()
 }
 
 // The first issue went out the day the gazette did.

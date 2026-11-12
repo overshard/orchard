@@ -640,12 +640,58 @@ function paper(g, nb) {
     biz.append(el("b", "", "Business"), " " + g.business);
     page.append(biz);
   }
-  if (g.records && g.records.length) {
-    const rec = el("p", "paper-biz");
-    rec.append(el("b", "", "Records"), " " + g.records.join(" "));
-    page.append(rec);
-  }
+  if (g.board && state.pond.open.market) page.append(marketPage(g.board));
+  if (g.records && g.records.length) page.append(recordsBox(g.records));
   return page;
+}
+
+function section(title) {
+  const box = el("section", "paper-sec");
+  box.append(el("h4", "paper-kicker", title));
+  return box;
+}
+
+function ledger(rows) {
+  const ul = el("ul", "paper-ledger");
+  rows.forEach(([name, value, cls]) => {
+    const li = el("li", "");
+    li.append(el("span", "", name), el("i", ""), el("b", cls || "", value));
+    ul.append(li);
+  });
+  return ul;
+}
+
+function pct(n) { return (n > 0 ? "▲ " : n < 0 ? "▼ " : "") + Math.abs(n).toFixed(1) + "%"; }
+function busy(n) { return n >= 100 ? +(1 + n / 100).toFixed(1) + "× usual" : Math.abs(n) + "% " + (n > 0 ? "busier" : "quieter"); }
+function move(n) { return n > 0 ? "up" : n < 0 ? "down" : ""; }
+
+function marketPage(b) {
+  const box = section("Markets");
+  const cols = el("div", "paper-cols paper-movers");
+  [["Climbing", b.up], ["Sliding", b.down]].forEach(([head, rows]) => {
+    const col = el("div", "");
+    col.append(el("h5", "", head));
+    col.append(rows.length ? ledger(rows.map((r) => [r.name, pct(r.pct), move(r.pct)])) : el("p", "paper-quiet", "Nothing much."));
+    cols.append(col);
+  });
+  box.append(cols);
+  if (b.goods.length) {
+    box.append(el("h5", "", "Goods, per lot"));
+    box.append(ledger(b.goods.map((r) => [r.name, r.price + " · " + pct(r.pct), move(r.pct)])));
+  }
+  if (b.flows.length) {
+    box.append(el("h5", "", "Around the pond yesterday"));
+    box.append(ledger(b.flows.map((f) => [f.what, busy(f.pct), move(f.pct)])));
+  }
+  return box;
+}
+
+function recordsBox(records) {
+  const name = titled(state.pond.frog.name), n = records.length;
+  const box = section("Records");
+  box.append(el("p", "paper-story", n === 1 ? "A new best for " + name + " yesterday" : name + " broke " + n + " records yesterday"));
+  box.append(ledger(records.map((r) => [(r.took ? "Biggest " + r.what.toLowerCase() + ", beat " + r.took : r.what), r.score, r.took ? "up" : ""])));
+  return box;
 }
 
 // The day's bug sweep is a box in the paper that opens the game, with the

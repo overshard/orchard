@@ -284,7 +284,7 @@ func TestThePaperPrintsYesterdaysBests(t *testing.T) {
 	}
 	*clock = clock.Add(24 * time.Hour)
 	v = dive(t, s, clock, id, 3).Pond
-	if len(v.Gazette.Records) != 1 || !strings.Contains(v.Gazette.Records[0], "Dive yesterday, 17.") {
+	if len(v.Gazette.Records) != 1 || v.Gazette.Records[0] != (recordNote{What: "Dive", Score: "17"}) {
 		t.Fatalf("the paper says %v", v.Gazette.Records)
 	}
 }

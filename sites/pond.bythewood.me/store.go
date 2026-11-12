@@ -1296,7 +1296,10 @@ func (s *store) fill(q querier, v *view, p *pond, now time.Time) error {
 		return err
 	}
 	v.Gazette = gazetteFor(v.Day.Mood, now)
-	if v.Gazette.Records, err = recordsOf(q, p.ID, titled(v.Frog.Name), now); err != nil {
+	if v.Gazette.Records, err = recordsOf(q, p.ID, now); err != nil {
+		return err
+	}
+	if v.Gazette.Board, err = boardOf(q, v.Market.Firms, today); err != nil {
 		return err
 	}
 	paper := inPaper(v.Gazette.Lines)

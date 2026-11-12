@@ -2657,6 +2657,100 @@ button.nrow.primary {
   text-transform: uppercase;
 }
 
+.paper-sec {
+  margin: 12px 0 0;
+  border-top: 3px double var(--ink);
+}
+
+.paper-kicker {
+  margin: 4px 0 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.paper-sec h5 {
+  margin: 8px 0 2px;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.paper-sec .paper-story {
+  padding: 4px 0 2px;
+  text-align: center;
+}
+
+.paper-movers {
+  gap: 0 12px;
+  border-top: 0;
+}
+
+.paper-movers > div + div {
+  padding-left: 12px;
+  border-left: 1px solid var(--ink);
+}
+
+/* A row is the name, a dotted leader and the figure, like a price list. */
+.paper-ledger {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.paper-ledger li {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+}
+
+.paper-ledger span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.paper-ledger i {
+  flex: 1;
+  min-width: 8px;
+  border-bottom: 1px dotted var(--ink);
+  opacity: 0.6;
+}
+
+.paper-ledger b {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.paper-ledger b.up {
+  color: #2f5d34;
+}
+
+.paper-ledger b.down {
+  color: #8a2a1e;
+}
+
+.paper-movers .paper-ledger li {
+  font-size: 12px;
+}
+
+.paper-movers .paper-ledger span {
+  white-space: normal;
+}
+
+.paper-quiet {
+  margin: 0;
+  font-size: 13px;
+  font-style: italic;
+}
+
 /* The day's puzzle is a ruled box in the paper, the grid beside a line. */
 .paper-puzzle {
   display: flex;
