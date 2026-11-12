@@ -590,7 +590,7 @@ function star(x, cx, cy, r, on) {
 }
 
 function text(x, s, cx, cy, font, c, align) {
-  x.font = font; x.textAlign = align || "center"; x.lineWidth = 3; x.lineJoin = "round"; x.strokeStyle = "#0a0908";
+  x.font = font; x.textAlign = align || "center"; x.lineWidth = 3; x.lineJoin = "round"; x.miterLimit = 2; x.strokeStyle = "#0a0908";
   x.strokeText(s, cx, cy); x.fillStyle = c; x.fillText(s, cx, cy);
 }
 
@@ -606,13 +606,14 @@ function hud(x, L) {
   if (B && B.t < 2.4 && L.st !== "card") {
     const a = Math.min(1, B.t / 0.2, (2.4 - B.t) / 0.4);
     x.globalAlpha = a;
-    x.fillStyle = "rgba(10,9,8,0.6)"; x.fillRect(0, 68, W, B.fresh ? 66 : 36);
+    x.fillStyle = "rgba(10,9,8,0.6)"; x.fillRect(0, 68, W, B.fresh ? 78 : 36);
     text(x, "LEVEL " + (B.lv + 1), W / 2, 84, SMALL, "#9fdcf2");
     text(x, B.name, W / 2, 98, BIG, "#ffe27a");
     if (B.fresh) {
       const f = FROGS[B.frog];
       frog(x, B.frog, W / 2, 114, 1.4, false);
-      text(x, f.name + "   " + f.line, W / 2, 128, SMALL, "#ece5d8");
+      text(x, f.name, W / 2, 128, SMALL, "#ece5d8");
+      text(x, f.line, W / 2, 139, SMALL, "#9fdcf2");
     }
     x.globalAlpha = 1;
   }
