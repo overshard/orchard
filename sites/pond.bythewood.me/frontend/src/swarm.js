@@ -4,31 +4,45 @@ import { reduced } from "./api.js";
 import { sfx } from "./sound.js";
 
 // Swarm season. The frog is steered round a big lily pad and its tongue snaps
-// the nearest bug by itself. Every fifteen seconds the round stops for a pick
-// of one perk from three, and the perks stack.
-const W = 200, H = 300, ROUND = 90, EVERY = 15, LILIES = 3, TOP = 3;
+// the nearest bug by itself. Bugs drop dew, and every bar of dew the frog laps
+// up is a pick of one perk from three.
+const W = 200, H = 300, ROUND = 90, LILIES = 3, TOP = 3, SLOTS = 5;
 const PAD = { x: 100, y: 158, r: 88 }, ROAM = 72, BODY = 10, STEER = 110;
-const REACH = 50, COOL = 0.55, OUT = 0.07, BACK = 0.1, SAFE = 1.4, SLOW = 0.9, CAP = 170;
+const OUT = 0.07, BACK = 0.1, SAFE = 1.6, SLOW = 0.7, CAP = 190, GRACE = 10;
 const FONT = "700 13px 'Space Grotesk', sans-serif", NAME = "700 10px 'Space Grotesk', sans-serif";
 const SMALL = "500 8px 'JetBrains Mono', monospace";
 const KINDS = {
-  gnat: { hp: 1, pts: 1, dew: 0.3, v: 16, r: 4 },
+  gnat: { hp: 1, pts: 1, dew: 0.4, v: 16, r: 4 },
   fly: { hp: 1, pts: 1, dew: 1, v: 26, r: 6 },
   moth: { hp: 2, pts: 2, dew: 2, v: 14, r: 8 },
-  wasp: { hp: 1, pts: 3, dew: 2, v: 30, r: 7, harm: true },
-  beetle: { hp: 5, pts: 6, dew: 4, v: 12, r: 8, harm: true },
+  wasp: { hp: 1, pts: 3, dew: 2, v: 32, r: 7, harm: true },
+  beetle: { hp: 5, pts: 6, dew: 5, v: 12, r: 8, harm: true },
 };
+// Each line is what the next level of a perk does, so a card says what it gives.
 const PERKS = {
-  tongue: { name: "Long tongue", line: "Snaps from further off" },
-  quick: { name: "Quick snap", line: "Snaps come faster" },
-  twin: { name: "Twin snap", line: "One more bug a snap" },
-  flop: { name: "Belly flop", line: "A thump knocks bugs back" },
-  bud: { name: "Lily bud", line: "Grows one more lily" },
-  firefly: { name: "Firefly pal", line: "Circles you and zaps bugs" },
-  dew: { name: "Dew magnet", line: "Pulls the dew drops in" },
-  gulp: { name: "Big gulp", line: "Snaps catch bugs nearby" },
+  tongue: { name: "Long tongue", lines: ["Snaps from further off", "Snaps from further still", "Snaps from across the pad"] },
+  quick: { name: "Quick snap", lines: ["Snaps come faster", "Snaps come faster again", "Snaps come in a blur"] },
+  twin: { name: "Twin snap", lines: ["Snaps two bugs at once", "Snaps three bugs at once", "Snaps four bugs at once"] },
+  flop: { name: "Belly flop", lines: ["A thump knocks bugs back", "Thumps come more often", "Thumps hit twice as hard"] },
+  bud: { name: "Lily bud", lines: ["Grows one more lily", "Grows one more lily", "Grows one more lily"] },
+  firefly: { name: "Firefly pal", lines: ["A firefly circles and zaps", "A second firefly", "A third, and harder zaps"] },
+  dew: { name: "Dew magnet", lines: ["Pulls dew from further off", "Pulls dew from further still", "Pulls dew from far off"] },
+  gulp: { name: "Big gulp", lines: ["Snaps splash bugs nearby", "Snaps hit twice as hard", "A wider splash"] },
 };
-// Each beetle stops, sights the frog along a dotted line for AIM and then runs it.
+// Two perks at their top level make a combo, offered first at the next pick.
+const COMBOS = {
+  glow: { name: "Glow lash", line: "Fireflies snap bugs too", of: ["firefly", "tongue"] },
+  quake: { name: "Gulp quake", line: "Every gulp shakes the pad", of: ["flop", "gulp"] },
+  frenzy: { name: "Frenzy", line: "Snaps everything in reach", of: ["quick", "twin"] },
+  dewfall: { name: "Morning dew", line: "All dew comes, lilies grow", of: ["dew", "bud"] },
+};
+// Picks for when the perks run short.
+const SPARE = {
+  sip: { name: "Dew sip", line: "Grows a lily back" },
+  jar: { name: "Dew jar", line: "Fifteen points straight in" },
+};
+// A strong frog meets bugs that take more snaps, one more for every so many levels.
+const TOUGH = { beetle: 3, wasp: 5, moth: 6 };
 const AIM = 0.8, CHARGE = 150;
 const CARD = { x: 8, w: 184, h: 34, gap: 6 };
 
@@ -38,10 +52,15 @@ const F = feel();
 function rnd(a, b) { return a + Math.random() * (b - a); }
 
 function lv(k) { return G.perks[k] || 0; }
-function reach() { return REACH + 16 * lv("tongue"); }
-function cool() { return COOL * Math.pow(0.74, lv("quick")); }
-function pickup() { return [12, 30, 46, 64][lv("dew")]; }
+function has(c) { return !!G.combo[c]; }
+function reach() { return [48, 66, 82, 98][lv("tongue")]; }
+function cool() { return has("frenzy") ? 0.13 : [0.5, 0.36, 0.26, 0.18][lv("quick")]; }
+function bite() { return has("frenzy") ? 8 : 1 + lv("twin"); }
+function pickup() { return has("dewfall") ? 400 : [40, 60, 80, 105][lv("dew")]; }
 function mouth() { return { x: G.x, y: G.y - 5 }; }
+// Dew to fill the bar from each level to the next, quick at first.
+function need(n) { return 2 + 4 * n + Math.floor(n * n / 4); }
+function name(k) { return (PERKS[k] || COMBOS[k] || SPARE[k]).name; }
 
 function noise(kind, gap, streak) {
   if (G.real - (G.sounds[kind] || -9) < gap) return;
@@ -60,29 +79,41 @@ function edge(side) {
 function spawn(k, at) {
   if (G.bugs.length >= CAP) return null;
   const kind = KINDS[k], p = at || edge(Math.floor(Math.random() * 4));
-  const b = { k, kind, x: p.x, y: p.y, vx: 0, vy: 0, kx: 0, ky: 0, hp: kind.hp, t: rnd(0, 6), ph: rnd(0, 6), stun: 0, zap: 0, hurt: 0, st: "walk", st_t: rnd(2, 3.5), aim: null };
+  const hp = kind.hp + (TOUGH[k] ? Math.floor(G.level / TOUGH[k]) : 0);
+  const b = { k, kind, x: p.x, y: p.y, vx: 0, vy: 0, kx: 0, ky: 0, hp, t: rnd(0, 6), ph: rnd(0, 6), stun: 0, zap: 0, hurt: 0, st: "walk", st_t: rnd(2, 3), aim: null };
   G.bugs.push(b);
   return b;
 }
 
 function trickle(p) {
-  const r = Math.random(), wasp = G.t > 8 ? 0.04 + 0.1 * p : 0, moth = G.t > 12 ? 0.18 : 0;
+  const r = Math.random(), wasp = G.t > GRACE ? 0.03 + 0.14 * p : 0, moth = G.t > 12 ? 0.18 : 0;
   spawn(r < wasp ? "wasp" : r < wasp + moth ? "moth" : r < wasp + moth + 0.42 ? "fly" : "gnat");
 }
 
-// A wave comes off one side as a cloud, with its water stirring first.
+// A wave comes off one side as a cloud, with its water stirring first. It
+// grows with the frog's level as well as the clock.
 function wave(w, p) {
-  const at = edge(w.side), n = Math.round(6 + 10 * p);
+  const at = edge(w.side), n = Math.round(6 + 10 * p + G.level);
   for (let i = 0; i < n; i++) spawn("gnat", { x: at.x + rnd(-14, 14), y: at.y + rnd(-14, 14) });
-  for (let i = 0; i < 2 + Math.round(4 * p); i++) spawn("fly", { x: at.x + rnd(-18, 18), y: at.y + rnd(-18, 18) });
-  for (let i = 0; i < Math.floor(2.6 * p); i++) spawn("wasp", { x: at.x + rnd(-20, 20), y: at.y + rnd(-20, 20) });
+  for (let i = 0; i < 2 + Math.round(4 * p + 0.3 * G.level); i++) spawn("fly", { x: at.x + rnd(-18, 18), y: at.y + rnd(-18, 18) });
+  for (let i = 0; i < Math.floor(6 * p * p + 0.25 * G.level); i++) spawn("wasp", { x: at.x + rnd(-20, 20), y: at.y + rnd(-20, 20) });
   if (p > 0.5) for (let i = 0; i < 2; i++) spawn("moth", { x: at.x + rnd(-16, 16), y: at.y + rnd(-16, 16) });
 }
 
+// A pick leads with any combo that's ready and leans on perks already taken,
+// so a build comes together. Past SLOTS perks only those come up.
 function offer() {
-  const open = Object.keys(PERKS).filter((k) => lv(k) < TOP);
-  for (let i = open.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [open[i], open[j]] = [open[j], open[i]]; }
-  return open.slice(0, 3);
+  const out = Object.keys(COMBOS).filter((c) => !has(c) && COMBOS[c].of.every((k) => lv(k) >= TOP)).slice(0, 2);
+  const taken = Object.keys(G.perks).length;
+  const open = Object.keys(PERKS).filter((k) => lv(k) < TOP && (lv(k) || taken < SLOTS))
+    .map((k) => ({ k, w: Math.random() * (lv(k) ? 1.8 : 1) }))
+    .sort((a, b) => b.w - a.w).map((o) => o.k);
+  out.push(...open.slice(0, 3 - out.length));
+  // A frog down to its last lily is always offered one back.
+  if (G.lives === 1 && G.most > 1 && !out.includes("bud")) out.splice(Math.min(2, out.length), 1, "sip");
+  if (out.length < 3 && G.lives < G.most && !out.includes("sip")) out.push("sip");
+  while (out.length < 3 && !out.includes("jar")) out.push("jar");
+  return out;
 }
 
 function hit(b, n, from) {
@@ -92,6 +123,7 @@ function hit(b, n, from) {
     const d = Math.hypot(b.x - from.x, b.y - from.y) || 1;
     b.kx += (b.x - from.x) / d * 50; b.ky += (b.y - from.y) / d * 50;
     if (b.st === "aim") { b.st = "walk"; b.st_t = 1.2; b.aim = null; }
+    if (b.st === "run") { b.st = "walk"; b.st_t = 1.5; b.aim = null; b.stun = 0.3; }
     return false;
   }
   kill(b);
@@ -124,7 +156,7 @@ function snap() {
   const m = mouth(), r = reach(), taken = new Set(G.snaps.map((s) => s.b));
   const hits = G.bugs.filter((b) => !b.dead && !taken.has(b) && Math.hypot(b.x - m.x, b.y - m.y) < r)
     .sort((a, b) => near(a, m) - near(b, m))
-    .slice(0, 1 + lv("twin"));
+    .slice(0, bite());
   if (!hits.length) return false;
   hits.forEach((b) => G.snaps.push({ b, t: 0, got: false, x: b.x, y: b.y }));
   noise("lick", 0.05);
@@ -132,7 +164,7 @@ function snap() {
 }
 
 function snaps(dt) {
-  const m = mouth(), dmg = lv("gulp") >= 2 ? 2 : 1, splash = [0, 12, 16, 22][lv("gulp")];
+  const m = mouth(), dmg = lv("gulp") >= 2 ? 2 : 1, splash = [0, 16, 22, 30][lv("gulp")];
   G.snaps.forEach((s) => {
     s.t += dt;
     if (s.t < OUT && !s.b.dead) { s.x = s.b.x; s.y = s.b.y; }
@@ -140,7 +172,8 @@ function snaps(dt) {
       s.done = true;
       if (!s.b.dead) {
         s.got = hit(s.b, dmg, m);
-        if (splash) G.bugs.forEach((o) => { if (o !== s.b && !o.dead && Math.hypot(o.x - s.x, o.y - s.y) < splash) hit(o, 1, s); });
+        if (splash) G.bugs.forEach((o) => { if (o !== s.b && !o.dead && Math.hypot(o.x - s.x, o.y - s.y) < splash) hit(o, dmg, s); });
+        if (s.got && has("quake") && G.real - G.quakeAt > 0.2) { G.quakeAt = G.real; ring(s.x, s.y, 34, 1, 90); }
       }
     }
   });
@@ -151,15 +184,13 @@ function snaps(dt) {
   });
 }
 
-function flop(dt) {
-  if (!lv("flop")) return;
-  G.flopT -= dt;
-  const r = [0, 46, 58, 70][lv("flop")];
-  if (G.flopT <= 0 && G.bugs.some((b) => !b.dead && Math.hypot(b.x - G.x, b.y - G.y) < r * 0.7)) {
-    G.flopT = [0, 6, 4.5, 3.5][lv("flop")];
-    G.rings.push({ x: G.x, y: G.y, r: 0, max: r, t: 0, hit: new Set() });
-    F.squash(1); noise("thump", 0.2);
-  }
+// A ring spreads from where it starts, knocking each bug it reaches outward
+// once and hitting it for dmg.
+function ring(x, y, max, dmg, push, c) {
+  G.rings.push({ x, y, r: 0, max, t: 0, hit: new Set(), dmg, push, c: c || "207,227,234" });
+}
+
+function rings(dt) {
   G.rings.forEach((g) => {
     g.t += dt; g.r = g.max * Math.min(1, g.t / 0.35);
     G.bugs.forEach((b) => {
@@ -167,33 +198,58 @@ function flop(dt) {
       const d = Math.hypot(b.x - g.x, b.y - g.y);
       if (d > g.r) return;
       g.hit.add(b);
-      const push = 70 + 130 * (1 - d / g.max);
+      const push = g.push * (0.6 + 1.4 * (1 - d / g.max));
       b.kx += (b.x - g.x) / (d || 1) * push; b.ky += (b.y - g.y) / (d || 1) * push;
       b.stun = 0.6;
       if (b.st !== "walk") { b.st = "walk"; b.st_t = 1.5; b.aim = null; }
-      if (lv("flop") >= 2) hit(b, 1, g);
+      if (g.dmg) hit(b, g.dmg, g);
     });
   });
   G.rings = G.rings.filter((g) => g.t < 0.6);
 }
 
+function flop(dt) {
+  const n = lv("flop");
+  if (!n) return;
+  G.flopT -= dt;
+  const r = [0, 52, 62, 74][n] + (has("quake") ? 12 : 0);
+  if (G.flopT <= 0 && G.bugs.some((b) => !b.dead && Math.hypot(b.x - G.x, b.y - G.y) < r * 0.7)) {
+    G.flopT = has("quake") ? 1.6 : [0, 4, 2.8, 2.4][n];
+    ring(G.x, G.y, r, n >= 3 ? 2 : 1, 100);
+    F.squash(1); noise("thump", 0.2);
+  }
+}
+
 function flies() {
-  const n = lv("firefly"), r = [0, 24, 26, 30][n], w = n >= 3 ? 3.6 : 3;
+  const n = lv("firefly"), r = [0, 26, 30, 34][n], w = 3.4;
   return Array.from({ length: n }, (_, i) => {
     const a = G.t * w + i * Math.PI * 2 / n;
-    return { x: G.x + Math.cos(a) * r, y: G.y + Math.sin(a) * r * 0.8 };
+    return { i, x: G.x + Math.cos(a) * r, y: G.y + Math.sin(a) * r * 0.8 };
   });
 }
 
 function zaps(dt) {
   G.sparks = G.sparks.filter((s) => (s.t -= dt) > 0);
-  flies().forEach((f) => G.bugs.forEach((b) => {
-    if (b.dead || b.zap > 0 || Math.hypot(b.x - f.x, b.y - f.y) > b.kind.r + 4) return;
-    b.zap = 0.35;
-    G.sparks.push({ a: f, b: { x: b.x, y: b.y }, t: 0.08 });
-    noise("zap", 0.06);
-    hit(b, 1, f);
-  }));
+  G.lashes = G.lashes.filter((l) => (l.t -= dt) > 0);
+  const dmg = lv("firefly") >= 3 ? 2 : 1;
+  flies().forEach((f) => {
+    G.bugs.forEach((b) => {
+      if (b.dead || b.zap > 0 || Math.hypot(b.x - f.x, b.y - f.y) > b.kind.r + 6) return;
+      b.zap = 0.35;
+      G.sparks.push({ a: f, b: { x: b.x, y: b.y }, t: 0.08 });
+      noise("zap", 0.06);
+      hit(b, dmg, f);
+    });
+    if (!has("glow")) return;
+    G.glow[f.i] = (G.glow[f.i] || 0) - dt;
+    if (G.glow[f.i] > 0) return;
+    const b = G.bugs.filter((o) => !o.dead && Math.hypot(o.x - f.x, o.y - f.y) < 46).sort((a, o) => near(a, f) - near(o, f))[0];
+    if (!b) return;
+    G.glow[f.i] = 0.4;
+    G.lashes.push({ i: f.i, x: b.x, y: b.y, t: 0.12 });
+    noise("lick", 0.05);
+    hit(b, 2, f);
+  });
 }
 
 function sting(b) {
@@ -208,7 +264,7 @@ function sting(b) {
 // steer is how each kind goes after the frog. Gnats drift, flies jink, moths
 // flutter, wasps come straight in and a beetle walks, stops to aim and runs.
 function steer(b, dt) {
-  const dx = G.x - b.x, dy = G.y - b.y, d = Math.hypot(dx, dy) || 1, fast = 1 + 0.25 * Math.min(1, G.t / ROUND);
+  const dx = G.x - b.x, dy = G.y - b.y, d = Math.hypot(dx, dy) || 1, p = Math.min(1, G.t / ROUND), fast = 1 + 0.35 * p;
   let tx = dx / d, ty = dy / d, v = b.kind.v * fast, turn = 3;
   if (G.st === "done") { tx = -tx; ty = -ty; v *= 2.5; }
   else if (b.k === "gnat") { tx += Math.cos(b.t * 1.3 + b.ph) * 0.9; ty += Math.sin(b.t * 1.7 + b.ph) * 0.9; turn = 1.5; }
@@ -217,15 +273,16 @@ function steer(b, dt) {
   else if (b.k === "wasp") { tx += -ty * Math.sin(b.t * 7 + b.ph) * 0.5; ty += tx * Math.sin(b.t * 7 + b.ph) * 0.5; turn = 4; }
   else if (b.k === "beetle" && G.st === "play") {
     b.st_t -= dt;
+    // Early beetles sight for longer and wait longer between runs.
     if (b.st === "walk" && b.st_t <= 0 && d < 150) {
-      b.st = "aim"; b.st_t = AIM; b.aim = { x: G.x, y: G.y, dx: dx / d, dy: dy / d };
+      b.st = "aim"; b.st_t = AIM + 0.5 * (1 - p); b.aim = { x: G.x, y: G.y, dx: dx / d, dy: dy / d };
       noise("warn", 0.3);
     } else if (b.st === "aim") {
       v = 0;
       if (b.st_t <= 0) { b.st = "run"; b.st_t = 0.9; }
     } else if (b.st === "run") {
-      tx = b.aim.dx; ty = b.aim.dy; v = CHARGE; turn = 30;
-      if (b.st_t <= 0) { b.st = "walk"; b.st_t = rnd(2, 3.2); b.aim = null; }
+      tx = b.aim.dx; ty = b.aim.dy; v = CHARGE * fast; turn = 30;
+      if (b.st_t <= 0) { b.st = "walk"; b.st_t = rnd(2, 3.2) + 4 * (1 - p); b.aim = null; }
     }
   }
   const tl = Math.hypot(tx, ty) || 1, k = Math.min(1, turn * dt);
@@ -267,27 +324,54 @@ function end(why) {
   G.st = "done"; G.why = why; G.anchor = null;
 }
 
+function lap() {
+  G.score++; G.dew++; G.xp++;
+  G.dewRun = G.real - G.dewAt < 0.6 ? G.dewRun + 1 : 1; G.dewAt = G.real;
+  noise("dew", 0.03, Math.min(12, G.dewRun));
+  if (has("dewfall") && G.dew - G.fallAt >= 30) {
+    G.fallAt = G.dew;
+    if (G.lives < G.most) { G.lives++; F.pop(G.x, G.y - 24, "+LILY", "#9fe08f"); }
+  }
+  if (G.xp >= need(G.level)) { G.xp -= need(G.level); G.level++; G.owed++; }
+}
+
+// A level up clears a little room round the frog before the cards come up.
+function levelUp() {
+  G.owed--;
+  G.offer = offer();
+  G.st = "pick"; G.pick_t = 0; G.hover = 0; G.anchor = null; G.keys = {};
+  ring(G.x, G.y, 60, 0, 120, "255,226,122");
+  noise("warn", 0);
+}
+
 function take(i) {
   const k = G.offer[i];
   if (!k) return;
-  G.perks[k] = lv(k) + 1;
-  if (k === "bud") { G.most++; G.lives = Math.min(G.most, G.lives + 1); }
+  if (COMBOS[k]) { G.combo[k] = true; G.combos++; }
+  else if (k === "sip") G.lives = Math.min(G.most, G.lives + 1);
+  else if (k === "jar") G.score += 15;
+  else {
+    G.perks[k] = lv(k) + 1;
+    if (k === "bud") { G.most++; G.lives = Math.min(G.most, G.lives + 1); }
+    if (k === "flop") G.flopT = 0;
+  }
   G.picks.push(k);
   G.st = "play"; G.slow = SLOW; G.safe = Math.max(G.safe, 1); G.offer = []; G.anchor = null;
-  F.pop(G.x, G.y - 24, PERKS[k].name.toUpperCase(), "#ffb000");
+  G.show = { k, t: 1.4 };
+  F.pop(G.x, G.y - 24, name(k).toUpperCase(), COMBOS[k] ? "#fff6dc" : "#ffb000");
   sfx("perk");
 }
 
 // The cards go on whichever half of the field the frog isn't on.
 function cards() {
-  const top = G.y >= 150, h = 3 * CARD.h + 2 * CARD.gap, y0 = top ? 16 : H - 16 - h;
+  const top = G.y >= 150, h = 3 * CARD.h + 2 * CARD.gap, y0 = top ? 30 : H - 16 - h;
   return G.offer.map((k, i) => ({ k, x: CARD.x, y: y0 + i * (CARD.h + CARD.gap), w: CARD.w, h: CARD.h }));
 }
 
 export const swarm = {
   key: "swarm", W, H, title: "SWARM SEASON", feel: F, timed: true, edge: ["#173a3a", "#173a3a"],
-  aria: "Drag anywhere to steer the frog round the pad and its tongue snaps the nearest bug by itself. Every fifteen seconds tap one of three perks.",
-  help: ["DRAG ANYWHERE TO STEER THE FROG", "THE TONGUE SNAPS BUGS BY ITSELF", "EVERY 15 SECONDS TAKE A PERK", "WASPS AND BEETLES COST A LILY", "TAP TO START"],
+  aria: "Drag anywhere to steer the frog round the pad and its tongue snaps the nearest bug by itself. Gather the dew bugs drop to fill the bar, and each full bar is a pick of one perk from three.",
+  help: ["DRAG ANYWHERE TO STEER THE FROG", "GATHER DEW TO PICK PERKS", "TWO FULL PERKS MAKE A COMBO", "WASPS AND BEETLES COST A LILY", "TAP TO START"],
 
   reset(g, p) {
     const stage = ["egg", "tadpole"].includes(p.frog.stage) ? "froglet" : p.frog.stage;
@@ -295,12 +379,14 @@ export const swarm = {
     col = colours(g, p.frog.hat);
     G = {
       t: 0, real: 0, st: "play", why: "", done_t: 0, x: PAD.x, y: PAD.y + 10, anchor: null, keys: {}, moved: 0,
-      bugs: [], snaps: [], drops: [], rings: [], sparks: [], sounds: {}, perks: {}, picks: [], offer: [], hover: 0,
-      pick_t: 0, nextPick: EVERY, slow: 0, safe: 0, cool: 0.6, flopT: 0, next: 0.4, beetle: 20,
-      waves: [6, 13, 20, 27, 34, 41, 48, 55, 62, 69, 76, 83].map((at) => ({ at, side: Math.floor(Math.random() * 4), warned: false })),
+      bugs: [], snaps: [], drops: [], rings: [], sparks: [], lashes: [], glow: [], sounds: {}, perks: {}, combo: {}, picks: [], offer: [], hover: 0,
+      pick_t: 0, slow: 0, safe: 0, cool: 0.4, flopT: 0, next: 0.3, beetle: 26, quakeAt: -9, show: null,
+      waves: [8, 15, 22, 29, 36, 43, 50, 57, 64, 71, 78, 84].map((at) => ({ at, side: Math.floor(Math.random() * 4), warned: false })),
       lives: LILIES, most: LILIES, score: 0, bugsN: 0, wasps: 0, beetles: 0, dew: 0, dewRun: 0, dewAt: -9, bumps: 0,
+      xp: 0, level: 0, owed: 0, combos: 0, fallAt: 0,
     };
-    for (let i = 0; i < 4; i++) spawn("gnat");
+    // A few flies are already out on the pad, so the first level comes quickly.
+    for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3 + rnd(0, 0.6); spawn("fly", { x: PAD.x + Math.cos(a) * 70, y: PAD.y + Math.sin(a) * 70 }); }
   },
 
   demo() {
@@ -345,20 +431,22 @@ export const swarm = {
     if (G.slow > 0) { k = 0.25 + 0.75 * (1 - G.slow / SLOW); G.slow -= dt; }
     dt *= k;
     G.safe = Math.max(0, G.safe - dt);
+    if (G.show && (G.show.t -= dt) <= 0) G.show = null;
     move(dt);
     if (G.st === "play") {
       G.t += dt;
       const p = Math.min(1, G.t / ROUND);
       G.next -= dt;
-      if (G.next <= 0) { trickle(p); G.next = 1.1 - 0.85 * p + rnd(-0.1, 0.1); }
+      if (G.next <= 0) { trickle(p); G.next = (1.0 - 0.75 * p) / (1 + 0.06 * G.level) + rnd(-0.1, 0.1); }
       G.waves.forEach((w) => { if (!w.warned && G.t >= w.at - 1.2) { w.warned = true; noise("warn", 0.3); } });
       G.waves = G.waves.filter((w) => { if (G.t < w.at) return true; wave(w, p); return false; });
-      if (G.t >= G.beetle) { spawn("beetle"); G.beetle += 13 - 7 * p; }
+      if (G.t >= G.beetle) { spawn("beetle"); G.beetle += Math.max(3.5, 12 - 7 * p - 0.25 * G.level); }
       G.cool -= dt;
       if (G.cool <= 0 && snap()) G.cool = cool();
     }
     snaps(dt);
     flop(dt);
+    rings(dt);
     zaps(dt);
     G.bugs.forEach((b) => {
       b.t += dt; b.zap -= dt; b.hurt -= dt;
@@ -376,7 +464,7 @@ export const swarm = {
     });
     crowd();
     G.bugs = G.bugs.filter((b) => !b.dead && !(G.st === "done" && (b.x < -20 || b.x > W + 20 || b.y < -20 || b.y > H + 20)));
-    const pull = pickup(), mag = lv("dew") > 0;
+    const pull = pickup();
     G.drops.forEach((d) => {
       d.t += dt;
       const f = Math.exp(-5 * dt);
@@ -384,19 +472,11 @@ export const swarm = {
       const px = d.x - PAD.x, py = d.y - PAD.y, pd = Math.hypot(px, py);
       if (pd > PAD.r - 6) { d.x = PAD.x + px / pd * (PAD.r - 6); d.y = PAD.y + py / pd * (PAD.r - 6); }
       const dx = G.x - d.x, dy = G.y - d.y, dd = Math.hypot(dx, dy);
-      if (mag && dd < pull && d.t > 0.3) { d.x += dx / dd * 160 * dt; d.y += dy / dd * 160 * dt; }
-      if (dd < (mag ? 10 : pull) && G.st === "play" && d.t > 0.25) {
-        d.got = true; G.score++; G.dew++;
-        G.dewRun = G.real - G.dewAt < 0.6 ? G.dewRun + 1 : 1; G.dewAt = G.real;
-        noise("dew", 0.03, Math.min(12, G.dewRun));
-      }
+      if (dd < pull && d.t > 0.3 && G.st === "play") { const v = Math.min(dd, 200 * dt); d.x += dx / dd * v; d.y += dy / dd * v; }
+      if (dd < 10 && G.st === "play" && d.t > 0.25) { d.got = true; lap(); }
     });
     G.drops = G.drops.filter((d) => !d.got && d.t < 9);
-    if (G.st === "play" && G.t >= G.nextPick && G.t < ROUND - 2) {
-      G.nextPick += EVERY;
-      G.offer = offer();
-      if (G.offer.length) { G.st = "pick"; G.pick_t = 0; G.hover = 0; G.anchor = null; G.keys = {}; noise("warn", 0); }
-    }
+    if (G.st === "play" && G.owed > 0 && G.t < ROUND - 1) levelUp();
     if (G.st === "play" && G.t >= ROUND) end("SEASON'S OVER");
   },
 
@@ -407,12 +487,13 @@ export const swarm = {
   why() { return G ? G.why : ""; },
   report() {
     const maxed = Object.values(G.perks).filter((n) => n >= TOP).length;
-    return { counts: { wasps: G.wasps, beetles: G.beetles, dew: G.dew, bumps: G.bumps, bugs: G.bugsN, maxed } };
+    return { counts: { wasps: G.wasps, beetles: G.beetles, dew: G.dew, bumps: G.bumps, bugs: G.bugsN, maxed, level: G.level, combos: G.combos } };
   },
   tally() {
     if (!G) return [];
-    const top = Object.entries(G.perks).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([k, n]) => PERKS[k].name + " " + n);
-    return [G.bugsN + " bugs snapped", G.dew + " dew drops", top.length ? top.join(", ") : "No perks"];
+    const top = Object.keys(G.combo).map((k) => COMBOS[k].name);
+    if (!top.length) Object.entries(G.perks).sort((a, b) => b[1] - a[1]).slice(0, 2).forEach(([k, n]) => top.push(PERKS[k].name + " " + n));
+    return ["Level " + G.level + ", " + G.bugsN + " bugs snapped", G.dew + " dew drops", top.length ? top.join(", ") : "No perks"];
   },
 
   draw(x) {
@@ -420,15 +501,23 @@ export const swarm = {
     if (!G) return;
     G.drops.forEach((d) => dewDrop(x, d.x, d.y, d.t));
     G.rings.forEach((g) => {
-      x.strokeStyle = "rgba(207,227,234," + (0.7 * (1 - g.t / 0.6)).toFixed(2) + ")"; x.lineWidth = 2;
+      x.strokeStyle = "rgba(" + g.c + "," + (0.7 * (1 - g.t / 0.6)).toFixed(2) + ")"; x.lineWidth = 2;
       x.beginPath(); x.ellipse(g.x, g.y, g.r, g.r * 0.8, 0, 0, Math.PI * 2); x.stroke();
     });
+    shown(x);
     warnings(x);
     const carried = new Set(G.snaps.filter((s) => s.got).map((s) => s.b));
     G.bugs.forEach((b) => { if (!carried.has(b)) bug(x, b, b.x, b.y); });
     frog(x);
     tongues(x);
-    flies().forEach((f) => firefly(x, f.x, f.y, G.real));
+    const fs = flies();
+    fs.forEach((f) => firefly(x, f.x, f.y, G.real));
+    x.lineCap = "round";
+    G.lashes.forEach((l) => {
+      const f = fs[l.i];
+      if (!f) return;
+      x.strokeStyle = "#e2567a"; x.lineWidth = 1.5; x.beginPath(); x.moveTo(f.x, f.y); x.lineTo(l.x, l.y); x.stroke();
+    });
     x.strokeStyle = "#fff6dc"; x.lineWidth = 1;
     G.sparks.forEach((s) => { x.beginPath(); x.moveTo(s.a.x, s.a.y); x.lineTo((s.a.x + s.b.x) / 2 + 2, (s.a.y + s.b.y) / 2 - 2); x.lineTo(s.b.x, s.b.y); x.stroke(); });
     F.draw(x);
@@ -436,6 +525,19 @@ export const swarm = {
     if (G.st === "pick") picker(x);
   },
 };
+
+// A perk that changes a reach shows its new ring for a moment after it's taken.
+function shown(x) {
+  if (!G.show || G.st !== "play") return;
+  const r = G.show.k === "tongue" ? reach() : G.show.k === "dew" && !has("dewfall") ? pickup() : 0;
+  if (!r) return;
+  const m = G.show.k === "tongue" ? mouth() : G, a = Math.min(1, G.show.t / 0.5);
+  x.fillStyle = G.show.k === "tongue" ? "rgba(226,86,122," + (0.8 * a).toFixed(2) + ")" : "rgba(127,200,232," + (0.8 * a).toFixed(2) + ")";
+  for (let i = 0; i < 48; i++) {
+    const t = i / 48 * Math.PI * 2;
+    x.fillRect(Math.round(m.x + Math.cos(t) * r) - 1, Math.round(m.y + Math.sin(t) * r) - 1, 2, 2);
+  }
+}
 
 function frog(x) {
   if (G.safe > 0 && G.st === "play" && Math.floor(G.safe * 12) % 2) x.globalAlpha = 0.45;
@@ -481,7 +583,10 @@ function warnings(x) {
   G.bugs.forEach((b) => {
     if (b.st !== "aim" || !b.aim) return;
     x.fillStyle = blink ? "#ffb000" : "#e2412d";
-    for (let s = 8; s < CHARGE * 0.9; s += 6) x.fillRect(Math.round(b.x + b.aim.dx * s) - 1, Math.round(b.y + b.aim.dy * s) - 1, 2, 2);
+    for (let s = 8; s < CHARGE * 0.9; s += 6) x.fillRect(Math.round(b.x + b.aim.dx * s) - 1, Math.round(b.y + b.aim.dy * s) - 1, 3, 3);
+    const bx = Math.round(b.x) - 1, by = Math.round(b.y) - 22;
+    x.fillStyle = "#0a0908"; x.fillRect(bx - 1, by - 1, 5, 14);
+    x.fillStyle = blink ? "#ffb000" : "#e2412d"; x.fillRect(bx, by, 3, 8); x.fillRect(bx, by + 10, 3, 2);
   });
 }
 
@@ -494,39 +599,47 @@ function chevron(x, cx, cy, dx, dy) {
 }
 
 function hud(x) {
+  x.fillStyle = "#0a0908"; x.fillRect(0, 0, W, 3);
+  x.fillStyle = "#7fc8e8"; x.fillRect(0, 0, Math.round(W * Math.min(1, G.xp / need(G.level))), 3);
   x.font = FONT; x.textAlign = "left"; x.lineWidth = 3; x.strokeStyle = "#0a0908";
-  x.strokeText(String(G.score), 6, 16); x.fillStyle = "#ece5d8"; x.fillText(String(G.score), 6, 16);
-  for (let i = 0; i < G.most; i++) lily(x, W - 10 - i * 13, 9, i < G.lives);
+  x.strokeText(String(G.score), 6, 18); x.fillStyle = "#ece5d8"; x.fillText(String(G.score), 6, 18);
+  const sw = x.measureText(String(G.score)).width;
+  x.font = SMALL; x.lineWidth = 2; x.strokeText("LV " + G.level, 11 + sw, 17); x.fillStyle = "#9fdcf2"; x.fillText("LV " + G.level, 11 + sw, 17);
+  for (let i = 0; i < G.most; i++) lily(x, W - 10 - i * 13, 12, i < G.lives);
   let px = 4;
+  Object.keys(COMBOS).forEach((k) => {
+    if (!has(k)) return;
+    icon(x, k, px, H - 15, 1);
+    px += 12;
+  });
   Object.keys(PERKS).forEach((k) => {
-    if (!lv(k)) return;
+    if (!lv(k) || Object.keys(G.combo).some((c) => COMBOS[c].of.includes(k))) return;
     icon(x, k, px, H - 15, 1);
     x.font = SMALL; x.textAlign = "left"; x.fillStyle = "#ffb000"; x.fillText(String(lv(k)), px + 10, H - 8);
     px += 18;
   });
   x.fillStyle = "#0a0908"; x.fillRect(0, H - 3, W, 3);
   x.fillStyle = "#ffb000"; x.fillRect(0, H - 3, Math.round(W * Math.max(0, 1 - G.t / ROUND)), 3);
-  x.fillStyle = "#0a0908";
-  for (let t = EVERY; t < ROUND; t += EVERY) x.fillRect(Math.round(W * (1 - t / ROUND)), H - 3, 1, 3);
 }
 
 function picker(x) {
   x.fillStyle = "rgba(10,9,8,0.55)"; x.fillRect(0, 0, W, H);
   frog(x);
   const cs = cards(), ready = G.pick_t >= 0.3;
-  x.font = SMALL; x.textAlign = "center"; x.fillStyle = "#ffb000";
-  x.fillText("PICK A PERK", W / 2, cs[0].y - 4);
+  x.font = SMALL; x.textAlign = "center"; x.fillStyle = "#9fdcf2";
+  x.fillText("LEVEL " + G.level + ", PICK ONE", W / 2, cs[0].y - 5);
   cs.forEach((c, i) => {
-    const n = lv(c.k), on = i === G.hover;
+    const n = lv(c.k), on = i === G.hover, combo = !!COMBOS[c.k], perk = PERKS[c.k];
     x.fillStyle = "#0a0908"; x.fillRect(c.x - 1, c.y - 1, c.w + 2, c.h + 2);
-    x.fillStyle = on ? "#2a2418" : "#1c1a16"; x.fillRect(c.x, c.y, c.w, c.h);
-    x.fillStyle = ready ? (on ? "#ffb000" : "#7a6a48") : "#3a342a";
+    x.fillStyle = combo ? (on ? "#3a2c10" : "#2a2010") : on ? "#2a2418" : "#1c1a16"; x.fillRect(c.x, c.y, c.w, c.h);
+    x.fillStyle = !ready ? "#3a342a" : combo ? "#fff6dc" : on ? "#ffb000" : "#7a6a48";
     x.fillRect(c.x, c.y, c.w, 1); x.fillRect(c.x, c.y + c.h - 1, c.w, 1); x.fillRect(c.x, c.y, 1, c.h); x.fillRect(c.x + c.w - 1, c.y, 1, c.h);
     x.fillStyle = "#0e1f1c"; x.fillRect(c.x + 5, c.y + 5, 24, 24);
     icon(x, c.k, c.x + 8, c.y + 10, 2);
-    x.textAlign = "left"; x.font = NAME; x.fillStyle = "#ece5d8"; x.fillText(PERKS[c.k].name, c.x + 35, c.y + 14);
-    x.font = SMALL; x.fillStyle = "#bcaf99"; x.fillText(PERKS[c.k].line, c.x + 35, c.y + 26);
-    for (let j = 0; j < TOP; j++) { x.fillStyle = j < n ? "#ffb000" : j === n ? "#9fe08f" : "#3a342a"; x.fillRect(c.x + c.w - 26 + j * 7, c.y + 7, 5, 5); }
+    x.textAlign = "left"; x.font = NAME; x.fillStyle = combo ? "#ffe27a" : "#ece5d8"; x.fillText(name(c.k), c.x + 35, c.y + 14);
+    x.font = SMALL; x.fillStyle = "#bcaf99"; x.fillText(perk ? perk.lines[n] : (COMBOS[c.k] || SPARE[c.k]).line, c.x + 35, c.y + 26);
+    if (combo) { x.textAlign = "right"; x.fillStyle = "#ffe27a"; x.fillText("COMBO", c.x + c.w - 6, c.y + 12); }
+    else if (perk) for (let j = 0; j < TOP; j++) { x.fillStyle = j < n ? "#ffb000" : j === n ? "#9fe08f" : "#3a342a"; x.fillRect(c.x + c.w - 26 + j * 7, c.y + 7, 5, 5); }
   });
 }
 
@@ -540,6 +653,12 @@ const ICONS = {
   firefly: ["y.......y", "...yyy...", "..yYYYy..", "...yyy...", "..k...k..", "y.......y"],
   dew: ["....b....", "...bbb...", "..bbWbb..", "..bbbbb..", "...bbb..."],
   gulp: ["ggggggggg", "g.......g", "gPPPPPPPg", "gPPPPPPPg", "ggggggggg"],
+  glow: ["y...PP..y", "..yPPPP..", ".yYyPP...", "..yy.....", "y...PP..y", "......PP."],
+  quake: ["c.ccccc.c", ".c.....c.", "c.PPPPP.c", "c.PPPPP.c", ".c.....c.", "c.ccccc.c"],
+  frenzy: ["..PP..PP.", "pPPPpPPP.", "pp.PP..PP", "ppp..PP..", "pPPPpPPP.", "..PP..PP."],
+  dewfall: ["..b...b..", ".bWb.bWb.", "..b...b..", ".ggggggg.", "gggpPgggg", ".ggggggg."],
+  sip: ["....b....", "...bWb...", "...bbb...", ".ggggggg.", "gggg.gggg", ".ggggggg."],
+  jar: [".kkkkkkk.", "..k...k..", ".kbbbbbk.", ".kbWbbbk.", ".kbbbbbk.", "..kkkkk.."],
 };
 const ICOL = { p: "#9c2a52", P: "#e2567a", y: "#ffb000", Y: "#fff6dc", c: "#cfe3ea", g: "#4fa043", b: "#7fc8e8", W: "#fff6dc", k: "#3a3f46" };
 

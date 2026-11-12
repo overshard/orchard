@@ -719,10 +719,18 @@ version of the old look and a handheld pet shell.
   shouldered aside, a wasp or a beetle costs one of three lilies with a
   blink of safety after, and a beetle stops and draws a dotted amber line
   before it runs it. A wave's side of the water shows pale chevrons first.
-  Bugs drop dew drops for points. Every fifteen seconds the field dims and
-  three perk cards come up on whichever half the frog isn't on, each with a
-  pixel icon, a line and three pips, and a pick slows the pond down for a
-  moment. Taken perks sit as small icons in the bottom corner.
+  Bugs drop dew drops, the frog laps up any within a short reach, and the dew
+  fills a pale blue bar along the top with the level beside the score. A full
+  bar pushes the bugs back in a yellow ring, dims the field and brings up
+  three perk cards on whichever half the frog isn't on, each with a pixel
+  icon, what its next level does and three pips, and a pick slows the pond
+  down for a moment. The first bar fills in a few seconds and they come
+  slower after, a dozen or so a round. A perk that changes a reach draws its
+  new ring for a moment. Two perks at their third level make a combo, a card
+  with a cream edge and COMBO on it that comes first at the next pick, and a
+  frog down to one lily is always offered one back. Taken perks and combos
+  sit as small icons in the bottom corner. A beetle about to run puts an
+  amber mark over itself as well as its dotted line.
 - **Bug sweep is the day's puzzle.** Eight pads by ten on flat water, a
   closed pad green and an open one dark with its number in a colour of its
   own, pale blue for one up to red. A marked pad has a pink bud on it, and a
