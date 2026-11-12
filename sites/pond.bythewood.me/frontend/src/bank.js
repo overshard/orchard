@@ -385,6 +385,12 @@ function nameOf(kind) {
   return it ? it.name.toLowerCase() : kind;
 }
 
+// A neighbour's Cook key opens the kitchen with its favourite's two picked.
+export function cookFor(a, b) {
+  picked = a && b ? [a, b] : [];
+  if (state.pond) render(state.pond);
+}
+
 export function enterBank() {
   on = true;
   cancelAnimationFrame(raf);

@@ -1447,21 +1447,6 @@ body:has(.tabs) main {
   vertical-align: 1px;
 }
 
-.reed .hearts {
-  color: #e2567a;
-  letter-spacing: 1px;
-}
-
-button.reed {
-  text-align: left;
-  color: inherit;
-  font: inherit;
-  text-transform: none;
-  letter-spacing: 0;
-  cursor: pointer;
-  box-shadow: var(--raised);
-}
-
 .favour canvas {
   width: 64px;
   height: 64px;
@@ -4933,30 +4918,6 @@ button#mkt-tiles:active {
   font-style: italic;
 }
 
-.reed .fav {
-  color: #e2567a;
-}
-
-.reed .keeps {
-  color: var(--amber);
-}
-
-/* The memento a best friend gave, on its card. */
-.reed .keptmemento {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--text);
-}
-
-.reed .keptmemento canvas {
-  flex: none;
-  width: 24px;
-  height: 24px;
-  background: none;
-  box-shadow: none;
-}
-
 /* A neighbour's sheet: how friendly it is, then what's known about it. */
 .friend {
   display: grid;
@@ -4990,6 +4951,7 @@ button#mkt-tiles:active {
   display: block;
   height: 100%;
   background: #e2567a;
+  transform-origin: left;
 }
 
 .facts {
@@ -5029,7 +4991,7 @@ button#mkt-tiles:active {
 }
 
 /* A neighbour's thought is a cloud over it, trailing two puffs down to it. */
-.reed .thought {
+.sheet-body > .thought {
   position: relative;
   margin-bottom: 8px;
   padding: 6px 9px;
@@ -5041,34 +5003,361 @@ button#mkt-tiles:active {
   font-style: italic;
 }
 
-.reed .thought::before,
-.reed .thought::after {
+.sheet-body > .thought::before,
+.sheet-body > .thought::after {
   content: "";
   position: absolute;
   border-radius: 50%;
   background: var(--panel-2);
 }
 
-.reed .thought::before {
+.sheet-body > .thought::before {
   bottom: -6px;
   left: 18px;
   width: 7px;
   height: 7px;
 }
 
-.reed .thought::after {
+.sheet-body > .thought::after {
   bottom: -11px;
   left: 13px;
   width: 4px;
   height: 4px;
 }
 
-.reed .press {
-  justify-self: start;
+.sheet-body > .press {
+  display: inline-block;
   padding: 1px 6px;
   border-radius: 2px;
   background: #efe4c6;
   color: #2a2418;
   font-family: Georgia, "Times New Roman", serif;
   font-size: 12px;
+}
+
+/* Neighbours are a row each, so who's fed, the favourite and whether it can
+   be made read down the list without opening anyone. */
+.nbs {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.nb {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 4px 4px;
+  border-radius: 3px;
+  background: var(--panel);
+  box-shadow: var(--moulded);
+}
+
+.nb.fed {
+  background: var(--well);
+}
+
+.nb.fed .nb-txt,
+.nb.fed canvas {
+  opacity: 0.6;
+}
+
+.nb-who {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 4px;
+  background: none;
+  box-shadow: none;
+  color: inherit;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+}
+
+.nb-who:active:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+}
+
+.nb-who canvas {
+  width: 44px;
+  height: 34px;
+  border-radius: 2px;
+  background: #0e2c30;
+  box-shadow: 0 0 0 2px var(--lip);
+  image-rendering: pixelated;
+}
+
+.nb-txt {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.nb-top,
+.nb-hearts,
+.nb-fav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.nb-top b {
+  flex: none;
+  font-family: var(--grotesk);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.nb-title {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dim);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.nb-hearts {
+  color: var(--dim);
+  font-size: 12px;
+}
+
+.nb-hearts i {
+  flex: none;
+  color: var(--pink);
+  font-style: normal;
+  letter-spacing: 1px;
+}
+
+.nb-hearts span:last-child {
+  flex: none;
+}
+
+.nb-hearts .rail,
+.nb-reply .rail {
+  position: relative;
+  flex: 1 1 0;
+  max-width: 70px;
+  height: 6px;
+  border: 1px solid #000;
+  border-radius: 2px;
+  background: var(--glass);
+  box-shadow: var(--sunk);
+  overflow: hidden;
+}
+
+.nb-hearts .rail i,
+.nb-reply .rail i {
+  position: absolute;
+  inset: 0;
+  background: var(--pink);
+  transform-origin: left;
+}
+
+.nb-fav {
+  flex-wrap: wrap;
+  row-gap: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.nb-fav .pts {
+  flex: none;
+  color: var(--digit);
+}
+
+.nb-fav .nm {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nb-tag {
+  flex: none;
+  padding: 0 5px;
+  border-radius: 2px;
+  background: var(--panel-2);
+  box-shadow: var(--sunk);
+  color: var(--dim);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.nb-tag.bag {
+  background: #3a2a08;
+  color: var(--amber);
+}
+
+.nb-tag.cook {
+  background: #1d3a26;
+  color: #5ddc82;
+}
+
+.nb .nb-key {
+  min-height: 40px;
+  padding: 6px 9px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.nb-fed {
+  padding: 0 6px;
+  color: #5ddc82;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* The reply after a gift is readout glass, with the points and the rail
+   moving from where it was. */
+.nb-reply {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0;
+  padding: 10px 12px;
+  border-radius: 4px;
+  background: var(--glass);
+  box-shadow: var(--sunk);
+}
+
+.nb-reply p {
+  margin: 0;
+}
+
+.nb-meter {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.nb-reply .rail {
+  max-width: none;
+  height: 8px;
+}
+
+.nb-reply .rail .now {
+  background: #ff9ab8;
+  transition: transform 0.7s ease-out;
+}
+
+.nb-plus {
+  color: var(--digit);
+  font-family: var(--grotesk);
+  font-size: 18px;
+  text-shadow: var(--glow);
+  white-space: nowrap;
+}
+
+.nb-reply .hint {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.nb-k {
+  margin: 14px 0 6px;
+  color: var(--amber);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: var(--track);
+  text-transform: uppercase;
+}
+
+/* Every heart and its present, the ones had ticked and the next outlined. */
+.hladder {
+  display: grid;
+  gap: 4px;
+  margin: 6px 0 4px;
+  padding: 0;
+  list-style: none;
+}
+
+.hladder li {
+  display: grid;
+  grid-template-columns: 4.6em minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 3px;
+  background: var(--well);
+  font-size: 12px;
+}
+
+.hladder .h {
+  color: var(--pink);
+  letter-spacing: 1px;
+}
+
+.hladder .got {
+  color: var(--dim);
+}
+
+.hladder .got .brings::after {
+  content: " ✓";
+  color: #5ddc82;
+}
+
+.hladder .next {
+  box-shadow: inset 0 0 0 1px var(--amber-dim);
+}
+
+.hladder .pts {
+  color: var(--digit);
+  font-variant-numeric: tabular-nums;
+}
+
+.nb-dish {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 0;
+  padding: 6px 8px;
+  border-radius: 3px;
+  background: var(--panel-2);
+  box-shadow: var(--moulded);
+}
+
+.nb-dish .what {
+  display: grid;
+  min-width: 0;
+}
+
+.nb-dish .what span {
+  color: var(--dim);
+  font-size: 12px;
+}
+
+.nb-dish button {
+  min-height: 40px;
+  margin: 0 0 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nb-reply .rail .now {
+    transition: none;
+  }
+}
+
+#neigh-sorts button {
+  padding: 4px 9px;
+  font-size: 11px;
 }

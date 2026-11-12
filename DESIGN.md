@@ -998,14 +998,35 @@ version of the old look and a handheld pet shell.
   Never a number past the date and issue. A dream is a row in the greeting's list on
   the first visit of a day, and a neighbour's gossip is an italic line at the
   top of its sheet.
-- **A neighbour's thought is a cloud over its card**, trailing two puffs down
-  to it, with what it's doing under its hearts and a newsprint tag when the
-  gazette names it. What it says to you is a speech bubble on its sheet.
+- **Neighbours are a row each**, under today's favour, so the list reads
+  without opening anyone. A row is the frog small, its name and title with
+  lodger after it, its hearts with a thin rail and how many points to go, and
+  its favourite with a tag, In bag in amber, Can cook in green, or Need and
+  the ingredient short, or Recipe at two hearts while it's a secret, then
+  what it's worth. On the right is one key, Give and the points for the best
+  dish in the bag for that neighbour, amber when it's the favourite, Cook to
+  the kitchen with the favourite's two picked when there's nothing to give,
+  or a green Fed tick once it's eaten today. The ones that can be fed come
+  first and the fed ones last, dimmed, with filter keys over the list for
+  not fed, a favourite ready, and all.
+- **A neighbour's sheet is its hearts first.** Under the name it says the
+  title and points, then a newsprint tag when the gazette names it, its
+  thought as an italic cloud and what it says as a speech bubble. Then the
+  ladder, a row for each heart with what it brings and the points it starts
+  at, a tick on the ones had and the next one outlined in amber, then every
+  dish in the bag with what it's worth to this neighbour and a Give key,
+  then the facts in boxes.
+- **A gift always answers.** A gift or a favour opens the neighbour's sheet
+  on a reply in readout glass, the line it says, the points in amber, the
+  rail filling from where it was to where it is in a lighter pink, how many
+  to the next heart and what that heart brings. A dish that isn't the
+  favourite gets a line naming the favourite and its worth. A present that
+  comes with a heart pops over it as before. Reduced motion gets the rail
+  where it ends up and no fill.
 - **A best friend gives a memento.** At five hearts a neighbour hands over
   one thing of its own, in a reveal with epic rays and what it says as the
-  line. It shows on that neighbour's card as a small icon and its name under
-  the dish it likes, as a Memento box on its sheet, and in a Mementos shelf
-  in the collection, where one not given yet is a dark shape that only says
+  line. It shows as a Memento box on its sheet and in a Mementos shelf in
+  the collection, where one not given yet is a dark shape that only says
   who it comes from.
 - **The reeds** are every frog as a card, the one out front first with an
   amber border and OUT FRONT, the rest with a key to swap. The egg bench and
