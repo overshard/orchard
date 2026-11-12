@@ -514,3 +514,43 @@ func TestWhirlpoolIsBounded(t *testing.T) {
 		t.Errorf("a day of rounds paid %d against a cap of %d", v.Pebbles-start, g.cap)
 	}
 }
+
+// Cattail sling's round is played out on the page, so the server holds it to
+// its rate and its most, and a day of it to the cap.
+func TestCattailSlingIsBounded(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	g, _ := arcadeOf("sling")
+	play := func(score int, secs time.Duration) *arcadeDone {
+		t.Helper()
+		st, err := s.arcadeStart(id, "sling")
+		if err != nil {
+			t.Fatal(err)
+		}
+		*clock = clock.Add(secs * time.Second)
+		d, err := s.arcadeFinish(id, "sling", st.Run, score, nil, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return d
+	}
+	if d := play(slingMost+1, 7200); d.Paid != 0 {
+		t.Errorf("more than a round can score paid: %+v", d)
+	}
+	if d := play(2000, 10); d.Paid != 0 {
+		t.Errorf("2000 in ten seconds paid: %+v", d)
+	}
+	start := play(0, 90).Pond.Pebbles
+	if d := play(1000, 90); d.Paid != 1000/g.per {
+		t.Errorf("a good round paid %d, want %d", d.Paid, 1000/g.per)
+	}
+	if d := play(2400, 120); d.Paid == 0 {
+		t.Errorf("a great round paid nothing: %+v", d)
+	}
+	for range 10 {
+		play(2400, 120)
+	}
+	if v, _ := s.view(id); v.Pebbles-start != g.cap {
+		t.Errorf("a day of rounds paid %d against a cap of %d", v.Pebbles-start, g.cap)
+	}
+}

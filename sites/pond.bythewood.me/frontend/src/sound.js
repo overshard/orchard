@@ -70,6 +70,16 @@ const SFX = {
     setTimeout(() => tone("square", 780, 780, 0.06, 0.04), 60);
     setTimeout(() => tone("triangle", 1040, 1560, 0.16, 0.05), 120);
   },
+  twang: () => { tone("square", 190, 95, 0.16, 0.05); tone("triangle", 720, 340, 0.09, 0.04); },
+  creak: () => tone("triangle", 260, 300, 0.03, 0.025),
+  reed: () => tone("sawtooth", 1500, 520, 0.05, 0.03),
+  wood: () => { tone("square", 320, 130, 0.08, 0.05); tone("triangle", 900, 600, 0.03, 0.03); },
+  mud: () => tone("sine", 210, 70, 0.12, 0.1),
+  ice: () => { tone("triangle", 2600, 3400, 0.05, 0.035); setTimeout(() => tone("triangle", 3100, 2500, 0.06, 0.025), 40); },
+  stone: () => { tone("triangle", 1000, 760, 0.04, 0.05); tone("sine", 150, 60, 0.12, 0.1); },
+  splash: () => { tone("sine", 900, 180, 0.14, 0.06); tone("triangle", 1500, 500, 0.08, 0.025); },
+  puff: () => { tone("sine", 110, 320, 0.22, 0.1); tone("triangle", 600, 220, 0.18, 0.03); },
+  pop: () => tone("square", 700, 1300, 0.05, 0.05),
   perk: () => {
     tone("triangle", 660, 660, 0.07, 0.05);
     setTimeout(() => tone("triangle", 880, 880, 0.07, 0.05), 70);

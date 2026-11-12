@@ -101,7 +101,7 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   `frontend/src/frog.js` is the same thing in JavaScript plus the drawing.
 - `arcade.go` is the side games, fishing, tongue flick, crossing, raft run,
   lily leap, tadpoles, lily stack, the shell game, pebble skip, pebble
-  drop, chorus, pad putt, the spawn jar, tongue lash, swarm season and whirlpool, which pay into the purse like Dive with a cap a day each. A score over a game's `most`
+  drop, chorus, pad putt, the spawn jar, tongue lash, swarm season, whirlpool and cattail sling, which pay into the purse like Dive with a cap a day each. A score over a game's `most`
   pays nothing, so keep it well past what a person could reach. One game a
   day, off a hash of the date, is the disk of the day and pays in full a
   fourth time under the same cap. Eight hours after the last run of any game
@@ -114,7 +114,9 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   The server only bounds its score, so a change to how a hole pays needs
   `puttMost` in `putt.go` kept over the best a round can make. Whirlpool's
   pond and everything in it is `frontend/src/whirlpond.js` the same way, so a
-  whole round plays with bun.
+  whole round plays with bun. Cattail sling's physics and its levels are
+  `frontend/src/slingworld.js`, so `slingMost` in `arcade.go` is kept over
+  the most the biggest level in each slot can score.
   `frontend/src/play.js` is the shelves on Play. A disk is one line on its
   shelf there with its colour, its label art and its game, and the page makes
   the disk, the game's view and its place in the tabs from that line.

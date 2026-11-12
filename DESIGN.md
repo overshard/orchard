@@ -775,6 +775,25 @@ version of the old look and a handheld pet shell.
   everything that went down thrown up in a spout under a rainbow. The results
   are the haul as a box a kind with its count, biggest first and the rare ones
   edged in amber.
+- **Cattail sling is the pond side on, a bent cattail on the near bank** and
+  acorns stacked on logs, rafts and rocks out on the water under a sky that
+  changes each level, morning, noon, dusk or a frosty one. A pull anywhere
+  draws the frog back into the cattail's band, the two stalks bend toward it
+  and the band goes amber at full stretch, with cream dots over the first
+  part of the path, and the last fling's whole path stays behind faintly.
+  Letting go twangs the stalks. Reeds, driftwood, mud, ice and stone are each
+  drawn and break in their own colours with their own sound, crack before they
+  go, and anything in the pond is cleared with a splash ring, acorns and wood
+  bobbing off and stone sinking. A log bobs and rocks and a raft drifts too,
+  and what's on them rides along and sleeps once still, so a stack never
+  creeps. The player's own frog comes first and a new one most levels, a tree
+  frog that splits in three, a dart frog that zips straight, a bullfrog that
+  drops like a stone and a puff toad that blows things off, each with its name
+  and trick on the level's banner. A flung frog that stops hops into the pond
+  and swims back to the bank. Three pieces breaking at once says TIMBER and
+  goes slow a moment, which reduced motion doesn't get. A level ends on three
+  stars popping in one at a time with frogs to spare hopping off for 100
+  each, and the results are a row a level with its stars and score.
 - **Bug sweep is the day's puzzle.** Eight pads by ten on flat water, a
   closed pad green and an open one dark with its number in a colour of its
   own, pale blue for one up to red. A marked pad has a pink bud on it, and a

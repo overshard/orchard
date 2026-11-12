@@ -4261,6 +4261,23 @@ button.big {
   display: none;
 }
 
+/* Cattail sling's levels are their own picture, so the window above goes. */
+.slingcard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.slingcard p {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.arcade-card:has(.slingcard) .arcade-win {
+  display: none;
+}
+
 /* A third row of fish takes the picture's room on a short phone. */
 .arcade-card:has(.fishrow > :nth-child(9)) .arcade-win {
   display: none;
