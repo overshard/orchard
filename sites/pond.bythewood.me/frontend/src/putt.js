@@ -18,7 +18,7 @@ function hole() { return HOLES[G.hi]; }
 function startHole() {
   const h = hole();
   G.ball = newBall(h, 0); G.hs = { open: false }; G.ht = 0; G.acc = 0;
-  G.st = "intro"; G.st_t = 0; G.strokes = 0; G.trail = []; G.rings = []; G.flash = {};
+  G.st = "aim"; G.st_t = 0; G.named = 1.8; G.strokes = 0; G.trail = []; G.rings = []; G.flash = {};
   G.armed = false; G.keyed = false; G.hop = 0;
   G.ka = toCup(); G.kk = 0.5;
   G.frog = spot(G.ka);
@@ -102,13 +102,12 @@ export const putt = {
   },
 
   demo() {
-    if (!G || G.hi || G.strokes || (G.st !== "aim" && G.st !== "intro")) return null;
+    if (!G || G.hi || G.strokes || G.st !== "aim") return null;
     return { x: G.ball.x + 14, y: G.ball.y - 30, to: [G.ball.x + 14, G.ball.y + 4] };
   },
 
   press(x, y) {
     if (!G) return;
-    if (G.st === "intro") { G.st = "aim"; G.st_t = 0; }
     if (G.st === "aim") { G.armed = true; G.from = [x, y]; G.to = [x, y]; G.keyed = false; }
   },
   drag(x, y) { if (G && G.armed) G.to = [x, y]; },
@@ -124,7 +123,7 @@ export const putt = {
     const turn = { ArrowLeft: -1, KeyA: -1, ArrowRight: 1, KeyD: 1 }[code], push = { ArrowUp: 1, KeyW: 1, ArrowDown: -1, KeyS: -1 }[code];
     if (turn) G.turn = down ? turn : G.turn === turn ? 0 : G.turn;
     if (push) G.push = down ? push : G.push === push ? 0 : G.push;
-    if ((turn || push) && down) { G.keyed = true; if (G.st === "intro") G.st = "aim"; }
+    if ((turn || push) && down) G.keyed = true;
     if (down && (code === "Space" || code === "Enter")) stroke(aim());
   },
 
@@ -151,13 +150,13 @@ export const putt = {
       G.trail.push([G.ball.x, G.ball.y, G.ball.air > 0]);
       if (G.trail.length > TRAIL) G.trail.shift();
     }
-    if (G.st === "intro" && G.st_t > 1.1) { G.st = "aim"; G.st_t = 0; }
+    G.named = Math.max(0, (G.named || 0) - dt);
     if (G.st === "splash" && G.st_t > 0.8) {
       putBack(h, G.ball, G.ht); G.trail = [];
       if (G.strokes >= CAP) { G.st = "out"; G.st_t = 0; } else { G.st = "aim"; G.st_t = 0; G.frog = spot(toCup()); }
     }
     if (G.st === "out" && G.st_t > 1) { G.card[G.hi] = 0; next(); }
-    if (G.st === "sink" && G.st_t > 1.3) next();
+    if (G.st === "sink" && G.st_t > 0.8) next();
   },
 
   over() { return G && G.st === "done" && G.st_t > 0.5; },
@@ -210,8 +209,8 @@ export const putt = {
     }
     F.draw(x);
     hud(x, h, a);
-    if (G.st === "intro") banner(x, "HOLE " + (G.hi + 1), h.name + "   PAR " + h.par);
-    if (G.st === "out") banner(x, "SIX STROKES", "ON TO THE NEXT HOLE");
+    if (G.named > 0) banner(x, "HOLE " + (G.hi + 1) + "  " + h.name.toUpperCase(), Math.min(1, G.named / 0.4));
+    if (G.st === "out") banner(x, "SIX STROKES, ON TO THE NEXT", 1);
   },
 };
 
@@ -241,7 +240,7 @@ function guide(x, h, a, t) {
 
 function frogAt(x, a) {
   let f = G.frog, up = 0;
-  if (G.st === "aim" || G.st === "intro") {
+  if (G.st === "aim") {
     const want = spot(a ? a.a : G.ka);
     if (G.hop > 0) {
       const k = 1 - G.hop / 0.24;
@@ -287,12 +286,15 @@ function hud(x, h, a) {
 }
 
 // The strip sits over the tee end, so the hole's new thing shows while it's up.
-function banner(x, a, b) {
-  const y = H - 60;
-  x.fillStyle = "rgba(10,27,31,0.88)"; x.fillRect(0, y, W, 42);
-  x.fillStyle = "#ffb000"; x.fillRect(0, y, W, 1); x.fillRect(0, y + 41, W, 1);
-  x.textAlign = "center"; x.font = "700 18px 'Space Grotesk', sans-serif"; x.fillStyle = "#fff6dc"; x.fillText(a, W / 2, y + 22);
-  x.font = FONT; x.fillStyle = "#cfe3ea"; x.fillText(b, W / 2, y + 37);
+// A thin strip under the top readout, so the tee and the ball stay clear and
+// a putt can start while it's still showing.
+function banner(x, text, alpha) {
+  const y = 20;
+  x.globalAlpha = alpha;
+  x.fillStyle = "rgba(10,27,31,0.82)"; x.fillRect(0, y, W, 16);
+  x.fillStyle = "#ffb000"; x.fillRect(0, y + 15, W, 1);
+  x.textAlign = "center"; x.font = FONT; x.fillStyle = "#fff6dc"; x.fillText(text, W / 2, y + 12);
+  x.globalAlpha = 1;
 }
 
 // Open water seen from above, with ripples drifting by.
