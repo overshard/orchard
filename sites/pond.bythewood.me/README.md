@@ -108,8 +108,9 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   the pond is well rested and the next run pays a quarter more, still under
   that game's cap, with `ponds.played_at` keeping when.
   `frontend/src/arcade.js` is the frame round them, one file per game beside it.
-  Pad putt's nine holes and its roll are in `frontend/src/course.js`, which
-  never touches the page, so a script can play every hole through with bun.
+  Pad putt's pool of holes, the deal of nine a round and its roll are in
+  `frontend/src/course.js`, which never touches the page, so a script can
+  play every hole through with bun.
   The server only bounds its score, so a change to how a hole pays needs
   `puttMost` in `putt.go` kept over the best a round can make.
   `frontend/src/play.js` is the shelves on Play. A disk is one line on its
@@ -446,13 +447,10 @@ they have none, for other sites to draw.
   change to the songs, the rounds or the points has to change it too. A singer out
   front gets its quarter on the server, after the score is checked against
   `most` and `rate`, and the page is sent the plain score.
-- `putt.go` deals pad putt's nine holes off a hash of the date, sent on
-  `POST /api/arcade/start` as `putt` with the wind as it is when the run
-  starts. Every hole is built so its flag can be reached by hops short enough
-  that the windiest gust can't carry them off a pad, and par is the fewest
-  hops at the longest reach less that hole's wind, so a frog that reads the
-  wind well can now and then beat it. `puttMost` is twelve a hole, the most
-  a hole under par pays, and the hops and splashes are the page's.
+- `putt.go` only bounds pad putt's score. The page deals each round from
+  `HOLES` in `course.js` off a fresh seed, three holes from each tier, and
+  `puttAce` is what an ace on the pool's longest par pays, so a par five in
+  the pool needs it raised.
 - The spawn jar's physics are in `frontend/src/jarworld.js`, which never
   touches the page, so a script can drop a whole run through it with bun.
   Each small step solves every touch for its push and friction a few times

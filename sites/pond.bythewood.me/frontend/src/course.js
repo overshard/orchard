@@ -1,49 +1,128 @@
-// Pad putt's nine holes and how the ball rolls on them. Nothing in here
+// Pad putt's holes and how the ball rolls on them. Nothing in here
 // touches the page, so a script can play every hole through without one.
 export const R = 3, CUP = 5, CAP = 6, VMAX = 420, PULL = 56, DT = 1 / 240;
-const K = 0.9, C = 30, STOP = 6, WALL = 0.7, LOG = 3, SINK = 170, PULLIN = 380;
+const K = 0.9, C = 30, STOP = 6, WALL = 0.7, LOG = 3, SINK = 170, PULLIN = 380, MUD = 4;
 
 function box(x0, y0, x1, y1) { return [[x0, y0, x1, y0], [x1, y0, x1, y1], [x1, y1, x0, y1], [x0, y1, x0, y0]]; }
 
-// Each hole adds one thing, and the last few mix them. Walls are logs from
-// end to end, zones are [x0, y0, x1, y1] and a push is pixels a second squared.
+// The pool a round is dealt from, easiest first. Walls are logs from end to
+// end, zones are [x0, y0, x1, y1] and a push is pixels a second squared.
 export const HOLES = [
-  { name: "BANK SHOT", par: 2, tee: [60, 282], cup: [60, 68], ground: [[30, 30, 170, 300]],
+  { name: "BANK SHOT", tier: 1, par: 2, tee: [60, 282], cup: [60, 68], ground: [[30, 30, 170, 300]],
     walls: [...box(30, 30, 170, 300), [30, 150, 124, 150]] },
-  { name: "MOSS SLOPE", par: 2, tee: [100, 284], cup: [70, 62], ground: [[40, 30, 160, 300]],
+  { name: "MOSS SLOPE", tier: 1, par: 2, tee: [100, 284], cup: [70, 62], ground: [[40, 30, 160, 300]],
     walls: [...box(40, 30, 160, 300), [118, 96, 160, 96]],
     slopes: [{ at: [40, 116, 160, 226], push: [80, 0] }] },
-  { name: "MUSHROOMS", par: 2, tee: [100, 284], cup: [100, 60], ground: [[25, 30, 175, 300]],
+  { name: "MUSHROOMS", tier: 1, par: 2, tee: [100, 284], cup: [100, 60], ground: [[25, 30, 175, 300]],
     walls: [...box(25, 30, 175, 300), [25, 250, 50, 276], [175, 250, 150, 276]],
     bumpers: [[100, 172, 9], [64, 136, 8], [136, 136, 8], [100, 104, 8]] },
-  { name: "WATERWHEEL", par: 2, tee: [100, 284], cup: [100, 66], ground: [[30, 30, 170, 300]],
+  { name: "MUD FLAT", tier: 1, par: 2, tee: [100, 284], cup: [70, 64], ground: [[30, 30, 170, 300]],
+    walls: [...box(30, 30, 170, 300), [30, 112, 96, 112]],
+    mud: [[30, 140, 136, 200]],
+    bumpers: [[154, 120, 8]] },
+  { name: "WATERWHEEL", tier: 1, par: 2, tee: [100, 284], cup: [100, 66], ground: [[30, 30, 170, 300]],
     walls: [...box(30, 30, 170, 300), [30, 166, 86, 166], [114, 166, 170, 166]],
     wheel: { x: 100, y: 166, half: 14, n: 3, turn: 3.2 } },
-  { name: "THE POND", par: 3, tee: [50, 282], cup: [146, 60], ground: [[25, 30, 175, 300]],
-    walls: [...box(25, 30, 175, 300), [150, 210, 175, 240]],
-    water: [[25, 30, 115, 160]],
-    drift: { x: 70, y: 160, r: 11, dx: 34, dy: 0, period: 7 } },
-  { name: "THE STREAM", par: 2, tee: [80, 284], cup: [122, 60], ground: [[30, 30, 170, 300]],
+  { name: "TWO WAYS", tier: 1, par: 2, tee: [100, 284], cup: [100, 62], ground: [[25, 30, 175, 300]],
+    walls: [...box(25, 30, 175, 300), [100, 120, 100, 246]],
+    mud: [[25, 160, 96, 206]],
+    bumpers: [[140, 184, 8]] },
+  { name: "DOGLEG", tier: 1, par: 3, tee: [60, 282], cup: [146, 70], ground: [[30, 40, 170, 120], [30, 120, 90, 300]],
+    walls: [[30, 40, 170, 40], [170, 40, 170, 120], [170, 120, 90, 120], [90, 120, 90, 300], [90, 300, 30, 300], [30, 300, 30, 40]],
+    slopes: [{ at: [90, 40, 170, 120], push: [-30, 0] }] },
+  { name: "THE STREAM", tier: 2, par: 2, tee: [80, 284], cup: [122, 60], ground: [[30, 30, 170, 300]],
     walls: [...box(30, 30, 170, 300)],
     streams: [{ at: [30, 140, 170, 182], push: [230, 0] }],
     water: [[148, 140, 170, 182]],
     bumpers: [[70, 96, 8]] },
-  { name: "HOLLOW LOGS", par: 2, tee: [100, 284], cup: [70, 62], ground: [[30, 30, 170, 168], [30, 202, 170, 300]],
+  { name: "HOLLOW LOGS", tier: 2, par: 2, tee: [100, 284], cup: [70, 62], ground: [[30, 30, 170, 168], [30, 202, 170, 300]],
     walls: [...box(30, 30, 170, 168), ...box(30, 202, 170, 300)],
     slopes: [{ at: [30, 84, 170, 126], push: [-50, 0] }],
     warp: { from: [150, 208, 8], to: [56, 160], dir: [0, -1] } },
-  { name: "REED GATE", par: 3, tee: [100, 284], cup: [100, 62], ground: [[25, 30, 175, 300]],
+  { name: "LOG BRIDGE", tier: 2, par: 2, tee: [128, 284], cup: [66, 64], ground: [[30, 30, 170, 300]],
+    walls: [...box(30, 30, 170, 300)],
+    water: [[30, 130, 170, 200]],
+    bridges: [[118, 130, 138, 200]] },
+  { name: "THE TURTLE", tier: 2, par: 2, tee: [100, 284], cup: [100, 64], ground: [[30, 30, 170, 300]],
+    walls: [...box(30, 30, 170, 300), [30, 160, 70, 160], [130, 160, 170, 160]],
+    turtle: { x: 100, y: 160, r: 10, dx: 24, period: 5 } },
+  { name: "ONE WAY REEDS", tier: 2, par: 2, tee: [100, 284], cup: [100, 62], ground: [[25, 30, 175, 300]],
+    walls: [...box(25, 30, 175, 300), [62, 30, 62, 110], [138, 30, 138, 110], [62, 110, 82, 110], [118, 110, 138, 110]],
+    oneway: [[82, 110, 118, 110, 0, -1]],
+    bumpers: [[100, 186, 9]] },
+  { name: "THE POND", tier: 2, par: 3, tee: [50, 282], cup: [146, 60], ground: [[25, 30, 175, 300]],
+    walls: [...box(25, 30, 175, 300), [150, 210, 175, 240]],
+    water: [[25, 30, 115, 160]],
+    drift: { x: 70, y: 160, r: 11, dx: 34, dy: 0, period: 7 } },
+  { name: "LILY CROSSING", tier: 2, par: 2, tee: [100, 284], cup: [128, 62], ground: [[30, 30, 170, 300]],
+    walls: [...box(30, 30, 170, 300)],
+    water: [[30, 136, 170, 204]],
+    lilies: [[110, 200, 16], [112, 180, 16], [115, 160, 16], [118, 140, 16],
+      [60, 200, 14], [57, 180, 14], [60, 160, 14], [64, 140, 14]] },
+  { name: "THE GUARD", tier: 2, par: 2, tee: [100, 284], cup: [100, 62], ground: [[30, 30, 170, 300]],
+    walls: [...box(30, 30, 170, 300), [30, 150, 82, 150], [118, 150, 170, 150]],
+    guard: { x: 136, y: 136, reach: 30, wake: 1.6, period: 4, back: [0, 1] } },
+  { name: "REED GATE", tier: 2, par: 3, tee: [100, 284], cup: [100, 62], ground: [[25, 30, 175, 300]],
     walls: [...box(25, 30, 175, 300), [25, 106, 82, 106], [118, 106, 175, 106]],
     gate: [82, 106, 118, 106], button: [152, 152, 7],
     bumpers: [[58, 196, 8]] },
-  { name: "DRIFTING PAD", par: 3, tee: [100, 284], cup: [0, -6], ground: [[30, 190, 170, 300]],
+  { name: "TIGHT SQUEEZE", tier: 3, par: 3, tee: [80, 284], cup: [100, 52], ground: [[60, 30, 140, 300]],
+    walls: [...box(60, 30, 140, 300), [60, 226, 110, 226], [90, 160, 140, 160]],
+    turtle: { x: 100, y: 104, r: 9, dx: 24, period: 4.4 } },
+  { name: "GUSTY GAP", tier: 3, par: 3, tee: [100, 284], cup: [100, 64], ground: [[30, 30, 170, 130], [30, 200, 170, 300]],
+    walls: [[30, 30, 170, 30], [30, 30, 30, 300], [170, 30, 170, 300], [30, 300, 170, 300], [30, 130, 170, 130], [30, 200, 80, 200], [120, 200, 170, 200]],
+    water: [[30, 130, 170, 200]],
+    slopes: [{ at: [80, 200, 120, 236], push: [0, 60] }],
+    ramp: { x0: 80, x1: 120, y: 200, reach: [60, 0.25], at: [80, 200, 120, 236] },
+    gust: { at: [30, 130, 170, 200], push: [170, 0], on: 1.6, period: 4 } },
+  { name: "WINDY BRIDGE", tier: 3, par: 3, tee: [100, 284], cup: [60, 60], ground: [[30, 30, 170, 300]],
+    walls: [...box(30, 30, 170, 300)],
+    water: [[30, 100, 170, 220]],
+    bridges: [[52, 100, 72, 220], [128, 100, 148, 220]],
+    gust: { at: [30, 100, 100, 220], push: [150, 0], on: 1.4, period: 3.6 },
+    mud: [[30, 30, 170, 70]] },
+  { name: "ISLAND GREEN", tier: 3, par: 3, tee: [100, 284], cup: [100, 74], ground: [[30, 236, 170, 300], [66, 44, 134, 116]],
+    walls: [[30, 300, 170, 300], [30, 236, 30, 300], [170, 236, 170, 300], [30, 236, 90, 236], [110, 236, 170, 236],
+      [66, 44, 134, 44], [66, 44, 66, 116], [134, 44, 134, 116]],
+    water: [[0, 116, 90, 236], [110, 116, 200, 236], [0, 0, 66, 116], [134, 0, 200, 116], [66, 0, 134, 44]],
+    bridges: [[90, 116, 110, 236]],
+    mud: [[66, 44, 134, 62]],
+    drift: { x: 160, y: 150, r: 11, dx: 0, dy: 40, period: 8 } },
+  { name: "THE LONG ONE", tier: 3, par: 4, tee: [60, 284], cup: [146, 56], ground: [[30, 30, 170, 300]],
+    walls: [...box(30, 30, 170, 300), [30, 216, 132, 216], [68, 132, 170, 132]],
+    mud: [[30, 240, 100, 300]],
+    slopes: [{ at: [68, 140, 170, 210], push: [-60, 0] }],
+    bumpers: [[100, 82, 8], [130, 104, 7]] },
+  { name: "FROG AND GATE", tier: 3, par: 3, tee: [100, 284], cup: [100, 62], ground: [[25, 30, 175, 300]],
+    walls: [...box(25, 30, 175, 300), [25, 106, 82, 106], [118, 106, 175, 106]],
+    gate: [82, 106, 118, 106], button: [52, 160, 7],
+    guard: { x: 40, y: 196, reach: 26, wake: 1.5, period: 4.2, back: [0.7, 0.7] } },
+  { name: "DRIFTING PAD", tier: 3, par: 3, tee: [100, 284], cup: [0, -6], ground: [[30, 190, 170, 300]],
     walls: [[30, 300, 170, 300], [30, 190, 30, 300], [170, 190, 170, 300], [30, 190, 85, 190], [115, 190, 170, 190]],
     water: [[30, 30, 170, 190]],
     slopes: [{ at: [85, 190, 115, 226], push: [0, 60] }],
-    ramp: { x0: 85, x1: 115, y: 190, reach: [48, 0.2] },
+    ramp: { x0: 85, x1: 115, y: 190, reach: [48, 0.2], at: [85, 190, 115, 226] },
     bumpers: [[58, 244, 8]],
     pad: { x: 100, y: 104, r: 28, dx: 40, period: 12 } },
 ];
+
+// Three holes from each tier, kept in pool order, so a round still starts
+// gentle. The same seed always deals the same nine.
+export function deal(seed) {
+  let n = seed >>> 0;
+  const rnd = () => {
+    n = (n + 0x6d2b79f5) >>> 0;
+    let z = Math.imul(n ^ (n >>> 15), n | 1);
+    z ^= z + Math.imul(z ^ (z >>> 7), z | 61);
+    return ((z ^ (z >>> 14)) >>> 0) / 4294967296;
+  };
+  const out = [];
+  for (const tier of [1, 2, 3]) {
+    const left = HOLES.filter((h) => h.tier === tier);
+    for (let i = 0; i < 3; i++) out.push(left.splice(Math.floor(rnd() * left.length), 1)[0]);
+  }
+  return out.sort((a, b) => HOLES.indexOf(a) - HOLES.indexOf(b));
+}
 
 const PI2 = Math.PI * 2;
 
@@ -66,6 +145,12 @@ export function paddles(w, t) {
   return out;
 }
 export function wheelShut(w, t) { return paddles(w, t).some((a) => Math.abs(a - Math.PI) < 0.42); }
+
+export function gustOn(g, t) { return t % g.period < g.on; }
+export function awake(g, t) { return t % g.period < g.wake; }
+
+// Reeds that fold one way, so they only stop a ball going against them.
+const against = (w, b) => b.vx * w[4] + b.vy * w[5] < 0;
 
 // Every wall the ball can meet right now, the gate and the wheel among them.
 export function wallsAt(h, s, t) {
@@ -110,7 +195,7 @@ function round(b, cx, cy, r, e, mvx, mvy) {
 }
 
 export function newBall(h, t) {
-  const b = { x: h.tee[0], y: h.tee[1], vx: 0, vy: 0, air: 0, onPad: false, lip: false, warped: 0, moving: false, rolled: 0 };
+  const b = { x: h.tee[0], y: h.tee[1], vx: 0, vy: 0, air: 0, onPad: false, lip: false, warped: 0, flicked: 0, moving: false, rolled: 0 };
   b.from = { x: b.x, y: b.y, onPad: false };
   return b;
 }
@@ -126,13 +211,17 @@ export function roll(h, s, b, t, ev) {
   const dt = DT;
   b.rolled += dt;
   b.warped = Math.max(0, b.warped - dt);
+  b.flicked = Math.max(0, b.flicked - dt);
   if (h.pad && b.onPad) { const p = driftAt(h.pad, t); b.x += p.vx * dt; b.y += p.vy * dt; }
   if (!b.moving) return;
+  const gust = h.gust && gustOn(h.gust, t) && inside(h.gust.at, b.x, b.y);
   if (b.air > 0) {
+    if (gust) { b.vx += h.gust.push[0] * dt; b.vy += h.gust.push[1] * dt; }
     b.x += b.vx * dt; b.y += b.vy * dt; b.air -= dt;
     if (b.air <= 0) {
       const p = h.pad && driftAt(h.pad, t);
       if (p && Math.hypot(b.x - p.x, b.y - p.y) < p.r - R) { b.onPad = true; b.vx *= 0.35; b.vy *= 0.35; ev.push(["land", b.x, b.y]); }
+      else { b.vx *= 0.5; b.vy *= 0.5; ev.push(["thud", b.x, b.y]); }
     }
     return;
   }
@@ -140,18 +229,21 @@ export function roll(h, s, b, t, ev) {
   const flow = (h.streams || []).find((z) => inside(z.at, b.x, b.y));
   if (flow) { b.vx += flow.push[0] * dt; b.vy += flow.push[1] * dt; }
   if (sp > STOP) (h.slopes || []).forEach((z) => { if (inside(z.at, b.x, b.y)) { b.vx += z.push[0] * dt; b.vy += z.push[1] * dt; } });
+  if (sp > STOP && gust) { b.vx += h.gust.push[0] * dt; b.vy += h.gust.push[1] * dt; }
   const cup = cupAt(h, t), cd = Math.hypot(cup.x - b.x, cup.y - b.y);
   if (cd < CUP + 4 && cd > 0.01 && sp < SINK * 1.3) {
     const f = PULLIN * (1 - cd / (CUP + 4)) * dt;
     b.vx += (cup.x - b.x) / cd * f; b.vy += (cup.y - b.y) / cd * f;
   }
   sp = Math.hypot(b.vx, b.vy);
-  const slow = Math.max(0, sp - (K * sp + C) * dt);
+  const mud = (h.mud || []).some((z) => inside(z, b.x, b.y));
+  const slow = Math.max(0, sp - (K * sp + C) * (mud ? MUD : 1) * dt);
   if (sp > 0) { b.vx *= slow / sp; b.vy *= slow / sp; }
   const py = b.y;
   b.x += b.vx * dt; b.y += b.vy * dt;
 
   wallsAt(h, s, t).forEach((w) => { const n = seg(b, w, w === h.gate ? 0.4 : WALL); if (n > 20) ev.push(["wall", b.x, b.y, n]); });
+  (h.oneway || []).forEach((w) => { if (!against(w, b)) return; const n = seg(b, w, 0.4); if (n > 20) ev.push(["wall", b.x, b.y, n]); });
   (h.bumpers || []).forEach(([cx, cy, r]) => {
     const n = round(b, cx, cy, r, 1, 0, 0);
     if (!n) return;
@@ -162,6 +254,16 @@ export function roll(h, s, b, t, ev) {
   if (h.drift) {
     const d = driftAt(h.drift, t), n = round(b, d.x, d.y, d.r, 0.8, d.vx, d.vy);
     if (n > 20) ev.push(["pad", b.x, b.y, n]);
+  }
+  if (h.turtle) {
+    const d = driftAt(h.turtle, t), n = round(b, d.x, d.y, d.r, 0.6, d.vx, d.vy);
+    if (n > 20) ev.push(["shell", b.x, b.y, n]);
+  }
+  const g = h.guard;
+  if (g && !b.flicked && awake(g, t) && Math.hypot(b.x - g.x, b.y - g.y) < g.reach) {
+    const v = Math.max(150, Math.hypot(b.vx, b.vy) * 0.8), m = Math.hypot(g.back[0], g.back[1]);
+    b.vx = g.back[0] / m * v; b.vy = g.back[1] / m * v; b.flicked = 0.6;
+    ev.push(["flick", b.x, b.y]);
   }
   if (h.pad && b.onPad) {
     const p = driftAt(h.pad, t), dx = b.x - p.x, dy = b.y - p.y, d = Math.hypot(dx, dy), m = p.r - R - 1;
@@ -198,10 +300,13 @@ export function roll(h, s, b, t, ev) {
     }
   } else if (cd2 > CUP + 2) b.lip = false;
 
-  const wet = !b.onPad && (h.water || []).some((z) => inside(z, b.x, b.y));
-  if (wet || b.x < 0 || b.x > 200 || b.y < 0 || b.y > 320) { b.moving = false; b.vx = b.vy = 0; ev.push(["water", b.x, b.y]); return; }
+  const over = !b.onPad && (h.water || []).some((z) => inside(z, b.x, b.y)) && !(h.bridges || []).some((z) => inside(z, b.x, b.y));
+  const pad = over ? (h.lilies || []).findIndex(([x, y, r]) => Math.hypot(b.x - x, b.y - y) < r) : -1;
+  if ((over && pad < 0) || b.x < 0 || b.x > 200 || b.y < 0 || b.y > 320) { b.moving = false; b.vx = b.vy = 0; ev.push(["water", b.x, b.y]); return; }
+  // A lily holds a rolling ball up but sinks under one that stops on it.
+  if (pad >= 0 && sp < STOP) { s.sunk = [pad, t]; b.moving = false; b.vx = b.vy = 0; ev.push(["water", b.x, b.y]); return; }
   if (sp < STOP && !flow) { b.vx = b.vy = 0; b.moving = false; ev.push(["rest", b.x, b.y]); return; }
-  if (b.rolled > 12) { b.vx = b.vy = 0; b.moving = false; ev.push(["rest", b.x, b.y]); }
+  if (b.rolled > 12) { b.vx = b.vy = 0; b.moving = false; ev.push(pad >= 0 ? ["water", b.x, b.y] : ["rest", b.x, b.y]); }
 }
 
 // Back to where the stroke was played from, after a splash.
@@ -213,7 +318,8 @@ export function putBack(h, b, t) {
 
 // Where a straight line from the ball meets something first, for the aim.
 export function firstHit(h, s, b, a, most, t) {
-  const walls = wallsAt(h, s, t), dx = Math.cos(a), dy = Math.sin(a), d = h.drift && driftAt(h.drift, t);
+  const dx = Math.cos(a), dy = Math.sin(a), d = h.drift && driftAt(h.drift, t), tu = h.turtle && driftAt(h.turtle, t);
+  const walls = wallsAt(h, s, t).concat((h.oneway || []).filter((w) => against(w, { vx: dx, vy: dy })));
   for (let l = 2; l < most; l += 2) {
     const x = b.x + dx * l, y = b.y + dy * l;
     for (const w of walls) {
@@ -223,6 +329,7 @@ export function firstHit(h, s, b, a, most, t) {
     }
     for (const [cx, cy, r] of h.bumpers || []) if (Math.hypot(x - cx, y - cy) < r + R) return l;
     if (d && Math.hypot(x - d.x, y - d.y) < d.r + R) return l;
+    if (tu && Math.hypot(x - tu.x, y - tu.y) < tu.r + R) return l;
     if (h.pad && b.onPad) { const p = driftAt(h.pad, t); if (Math.hypot(x - p.x, y - p.y) > p.r - R - 1) return l; }
   }
   return most;
