@@ -3088,7 +3088,13 @@ div.slot {
   font-size: 12px;
   line-height: 1.25;
   text-align: center;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+/* Only ever a dish and a hat, so each gets half the row and a whole word fits. */
+#frog-favs {
+  grid-template-columns: repeat(2, 1fr);
 }
 
 .slot .sub {
