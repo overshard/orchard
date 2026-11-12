@@ -69,10 +69,10 @@ const ART = {
   tyre: ["...kkkkk...", ".kkSSSSSkk.", "kkS.....Skk", "kS.......Sk", "kS.......Sk", "kS.......Sk", "kkS.....Skk", ".kkSSSSSkk.", "...kkkkk..."],
   log: ["..tttt..........", "dtBBBBtbbbbbbbbd", "tBtddtBBbBbBbGBt", "tBdttdBbBbBGbBbt", "tBtddtBBbBbBbBbt", "dtBBBBtbbbbbbbbd", "..tttt.........."],
   chest: ["..dddddddd..", ".dBBBBBBBBd.", "dBBBBBBBBBBd", "dYYYYYYYYYYd", "dBBBBYYBBBBd", "dBBBBYkBBBBd", "dBBBBBBBBBBd", "dYYYYYYYYYYd"],
-  rowboat: ["....bbbbbbb....", "..bbBBBBBBBbb..", "sbBBdBBdBBdBBbs", "sbBBdBBdBBdBBbs", "..bbBBBBBBBbb..", "....bbbbbbb...."],
-  punt: ["dddddddddddddddddd", "dBBBBBBBBBBBBBBBBd", "dBtBBBBBBBBBBBBtBd", "dBBBBBBBBBBBBBBBBd", "dddddddddddddddddd"],
-  jetty: ["dtttttd", "dBBBBBd", "dtttttd", "dBBBBBd", "dtttttd", "dBBBBBd", "dtttttd", "dBBBBBd", "dtttttd", "dBBBBBd", "dtttttd", "dBBBBBd", "dtttttd", "dBBBBBd", "dtttttd", "d..d..d"],
-  isle: ["....tttttt....", "..ttGGGGGGtt..", ".tGGgggggGGGt.", "tGggglgglgggGt", "tGglgglgglglGt", "tGgglgllglggGt", "tGglgglggglgGt", "tGggglgllgggGt", "tGglgglgglglGt", "tGggglgglgggGt", ".tGGgggggGGGt.", "..ttGGGGGGtt..", "....tttttt...."],
+  rowboat: ["......s........s......", ".....dddddddddddd.....", "...ddbbbbbbbbbbbbdd...", ".ddbBBBBBBBBBBBBBBbdd.", "dbBtBBtBBBBBBBBtBBtBbd", "dbBtBBtBBBBBBBBtBBtBbd", "dbBtBBtBBBBBBBBtBBtBbd", ".ddbBBBBBBBBBBBBBBbdd.", "...ddbbbbbbbbbbbbdd...", ".....dddddddddddd.....", "......s........s......"],
+  punt: ["..dddddddddddddddddddd..", ".dBBBBBBBBBBBBBBBBBBBBd.", "dBttttttdttttttdtttttttd", "dBtTTTTtdtTTTTtdtTTTTtBd", "dBttttttdttttttdtttttttd", ".dBBBBBBBBBBBBBBBBBBBBd.", "..dddddddddddddddddddd..", "...................s....", "..................s....."],
+  jetty: ["kk.....kk", "dddtttddd", "dtttttttd", "dTTTTTTTd", "dtttttttd", "dttttttYd", "dTTTTTTTd", "dtttttttd", "dtttttttd", "dTTTTTTTd", "dtttttttd", "dtttttttd", "dTTTTTTTd", "dtttttttd", "dtttttttd", "dTTTTTTTd", "dtttttttd", "dtttttttd", "dTTTTTTTd", "ddddddddd", "d..d.d..d", "d..d.d..d"],
+  isle: ["........tttttttttt........", "......tttGGGGGGGGttt......", "....tttGgggggGggggGttt....", "...ttGGgggggggGggggGGtt...", "..ttGGGlGlGlGlGGggglgGtt..", ".ttGgGlGlGlGlGlGggggggGtt.", ".ttGGGlGlGlGlGlGGggglgGtt.", ".ttGGGlGlGlGlGlGGgggggGtt.", ".tGgglGlGlGlGlGlggggglgGt.", ".ttGgGGlGlGlGlGGlgggggGtt.", ".ttGggGlGlGlGlGgggggdgGtt.", ".ttGgglGlGlGlGggglddggGtt.", "..ttGggggGGGlgggggdggGtt..", "...ttGGlgggggggggglGGtt...", "....tttGggggglggggGttt....", "......tttGGGGGGGGttt......", "........tttttttttt........"],
 };
 const PAL = {
   g: "#4fa043", G: "#2f6a2c", l: "#8fd06a", y: "#ffe27a", Y: "#ffb000", o: "#e07a2a", O: "#a8501a", r: "#e2412d", p: "#f2a0c0", P: "#e2567a",
