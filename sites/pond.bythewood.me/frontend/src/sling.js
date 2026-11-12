@@ -349,7 +349,7 @@ function splash(e) {
   }
   if (e.kind === "frog") { if (!e.off) G.swim.push({ x: e.x, t: 0, k: e.frog, kid: e.kid }); return; }
   if (e.kind === "acorn") F.pop(e.x, WATER - 12, "+" + (e.gold ? 150 : 50), e.gold ? "#ffb000" : "#ffe27a");
-  else F.pop(e.x, WATER - 10, "+5", "#cfe3ea");
+  else F.pop(e.x, WATER - 10, "+10", "#cfe3ea");
   if (!e.off) G.float.push({ x: e.x, y: WATER, vx: Math.max(-14, Math.min(14, e.vx * 0.1)) + 4, t: 0, mat: e.mat, kind: e.kind, hx: e.hx, hy: e.hy, r: e.r, a: e.a, gold: e.gold, sink: e.mat === "stone" || e.mat === "mud" });
 }
 
