@@ -2,7 +2,7 @@ import { colours } from "./frog.js";
 import { feel } from "./feel.js";
 import { reduced } from "./api.js";
 import { sfx } from "./sound.js";
-import { W, H, WATER, SX, SY, PULL, SHORE, LEVELS, MATS, FROGS, round, begin, step, fling, power, pulled, aimPath, counts, bar } from "./slingworld.js";
+import { W, H, WATER, SX, SY, PULL, SHORE, BANK, LEVELS, MATS, FROGS, round, begin, step, fling, power, pulled, aimPath, counts, bar } from "./slingworld.js";
 
 // Cattail sling. A bent cattail flings the frog at acorns stacked on logs and
 // rafts out on the pond, and every acorn knocked open or into the water
@@ -198,16 +198,16 @@ function sky(x, S, t) {
     x.fillStyle = mix(S.top, S.low, i / (bands - 1));
     x.fillRect(0, Math.floor(i * WATER / bands), W, Math.ceil(WATER / bands) + 1);
   }
-  x.fillStyle = S.sun; disc(x, 160, 46, 10);
-  x.globalAlpha = 0.25; disc(x, 160, 46, 14); x.globalAlpha = 1;
+  x.fillStyle = S.sun; disc(x, 146, 34, 10);
+  x.globalAlpha = 0.25; disc(x, 146, 34, 14); x.globalAlpha = 1;
   x.fillStyle = "rgba(255,255,255,0.75)";
   for (let i = 0; i < 3; i++) {
-    const cx = ((i * 83 + t * (reduced ? 0 : 3 + i)) % (W + 60)) - 30, cy = 30 + i * 22;
+    const cx = ((i * 83 + t * (reduced ? 0 : 3 + i)) % (W + 60)) - 30, cy = 24 + i * 20;
     x.fillRect(cx, cy, 22, 4); x.fillRect(cx + 4, cy - 3, 12, 3); x.fillRect(cx + 14, cy - 1, 10, 3);
   }
   // The far bank, a line of willows and bushes over the water.
   x.fillStyle = S.far;
-  for (let i = 0; i < 12; i++) { const bx = i * 19 - 6, bh = 10 + ((i * 37) % 9); x.fillRect(bx, WATER - 14 - bh, 22, bh + 14); x.fillRect(bx + 4, WATER - 18 - bh, 14, 4); }
+  for (let i = 0; i < 11; i++) { const bx = i * 19 - 6, bh = 10 + ((i * 37) % 9); x.fillRect(bx, WATER - 14 - bh, 22, bh + 14); x.fillRect(bx + 4, WATER - 18 - bh, 14, 4); }
   x.fillStyle = S.bank; x.fillRect(0, WATER - 10, W, 10);
   for (let i = 0; i < W; i += 4) x.fillRect(i, WATER - 10 - ((i * 7) % 5), 1, 4);
 }
@@ -236,11 +236,11 @@ function surface(x, S, t) {
 }
 
 function bank(x) {
-  x.fillStyle = "#0a0908"; x.fillRect(-1, 213, SHORE + 2, H);
-  x.fillStyle = "#5a3e24"; x.fillRect(0, 214, SHORE, H);
-  x.fillStyle = "#4a3018"; x.fillRect(0, 226, SHORE, 2); x.fillRect(4, 238, SHORE - 6, 1);
-  x.fillStyle = "#4fa043"; x.fillRect(0, 214, SHORE, 3);
-  x.fillStyle = "#3f8a38"; for (let i = 1; i < SHORE; i += 3) x.fillRect(i, 211 + (i * 5) % 3, 1, 3);
+  x.fillStyle = "#0a0908"; x.fillRect(-1, BANK - 1, SHORE + 2, H);
+  x.fillStyle = "#5a3e24"; x.fillRect(0, BANK, SHORE, H);
+  x.fillStyle = "#4a3018"; x.fillRect(0, BANK + 12, SHORE, 2); x.fillRect(4, BANK + 24, SHORE - 6, 1);
+  x.fillStyle = "#4fa043"; x.fillRect(0, BANK, SHORE, 3);
+  x.fillStyle = "#3f8a38"; for (let i = 1; i < SHORE; i += 3) x.fillRect(i, BANK - 3 + (i * 5) % 3, 1, 3);
 }
 
 // The cattail is two stalks with brown heads, bent toward the pull and
@@ -253,7 +253,7 @@ function tips() {
 }
 
 function cattail(x, front) {
-  const T = tips(), bases = [{ x: SX - 6, y: 214 }, { x: SX + 6, y: 214 }];
+  const T = tips(), bases = [{ x: SX - 6, y: BANK }, { x: SX + 6, y: BANK }];
   [0, 1].forEach((i) => {
     if ((i === 1) !== front) return;
     const b = bases[i], t = T[i];
@@ -371,7 +371,7 @@ export const sling = {
     events();
   },
 
-  demo() { return w && w.L && !G.flown ? { x: 90, y: 190, to: [66, 206] } : null; },
+  demo() { return w && w.L && !G.flown ? { x: 80, y: 176, to: [56, 192] } : null; },
 
   press(x, y) {
     if (!w || !w.L) return;
@@ -427,7 +427,7 @@ export const sling = {
     G.rings = G.rings.filter((r) => r.t < 0.6);
     G.dust = G.dust.filter((d) => d.t < 0.5);
     G.caps = G.caps.filter((c) => c.t < 1.2);
-    G.spares.forEach((s) => { if (s.t >= 0 && !s.paid) { s.paid = true; F.pop(24, 196, "+100", "#ffe27a"); sfx("hop"); } });
+    G.spares.forEach((s) => { if (s.t >= 0 && !s.paid) { s.paid = true; F.pop(22, BANK - 18, "+100", "#ffe27a"); sfx("hop"); } });
     if (G.card) {
       const n = Math.min(G.card.stars, Math.floor((G.card.t - 0.2) / 0.3) + 1);
       if (G.card.t > 0.2 && n > G.card.shown) { G.card.shown = n; sfx("perk"); F.burst(W / 2 - 30 + (n - 1) * 30, 136, "#ffb000", 10); }
@@ -553,17 +553,17 @@ function ring(x, r) {
 // cattail once the last is back in the pond.
 function queue(x, L) {
   const wait = L.st === "ready" || (L.st === "load" && L.st_t > 0.35) ? L.frogs.slice(1) : L.frogs.slice(L.st === "load" || L.st === "intro" ? 1 : 0);
-  wait.forEach((k, i) => frog(x, k, 24 - i * 11, 210 - (k === "bull" ? 1 : 0), 1, (G.real + i) % 4.1 < 0.12));
+  wait.forEach((k, i) => frog(x, k, 18 - i * 8, BANK - 4 - (k === "bull" ? 1 : 0) - (i % 2) * 3, 1, (G.real + i) % 4.1 < 0.12));
   G.spares.forEach((s) => {
     if (s.t < 0) return;
-    const k = Math.min(1, s.t / 0.5), hx = 24 + k * 40, hy = 210 + k * (WATER - 210) - Math.sin(k * Math.PI) * 16;
+    const k = Math.min(1, s.t / 0.5), hx = 18 + k * 40, hy = BANK - 4 + k * (WATER - BANK + 4) - Math.sin(k * Math.PI) * 16;
     if (k < 1) frog(x, s.k, hx, hy, 1);
   });
 }
 
 function hopIn(x, L) {
   if (!L.frogs[0]) return;
-  const k = L.st === "intro" ? 0 : Math.min(1, L.st_t / 0.35), hx = 24 + (SX - 24) * k, hy = 210 + (SY - 210) * k - Math.sin(k * Math.PI) * 18;
+  const k = L.st === "intro" ? 0 : Math.min(1, L.st_t / 0.35), hx = 18 + (SX - 18) * k, hy = BANK - 4 + (SY - BANK + 4) * k - Math.sin(k * Math.PI) * 18;
   frog(x, L.frogs[0], hx, hy, 1);
 }
 

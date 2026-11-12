@@ -1,8 +1,8 @@
 // Cattail sling's pond, every block and acorn floating on it and how they
 // knock about. Nothing in here touches the page, so a script can play a whole
 // round through with bun.
-export const W = 200, H = 300, WATER = 232, STEP = 1 / 240, LEVELS = 5;
-export const SX = 38, SY = 181, PULL = 26, FLING = 12.7, SHORE = 54;
+export const W = 180, H = 250, WATER = 220, STEP = 1 / 240, LEVELS = 5;
+export const SX = 30, SY = WATER - 51, PULL = 26, FLING = 12.7, SHORE = 44, BANK = WATER - 18;
 const GRAV = 520, ITER = 10, PITER = 4, SLOP = 0.4, BETA = 0.25, MAXC = 3, REST = 60;
 const ROLL = 0.15, VMIN = 80, DMG = 1000, FALL = 0.8, SLEEPV = 5, SLEEPT = 0.5, FAST = 700;
 
@@ -50,26 +50,26 @@ const nut = (p, dx, y) => ({ s: "circle", p, dx, y, mat: "acorn", r: 4 });
 export const POOL = [
   {
     frogs: ["pond", "pond", "pond"], levels: [
-      { name: "THREE ON A LOG", sky: 0, plats: [log(140, 36)], parts: [
+      { name: "THREE ON A LOG", sky: 0, plats: [log(126, 36)], parts: [
         post(0, -24, 0, "wood", 22), post(0, 24, 0, "wood", 22), slab(0, 0, 22, "wood", 58),
         nut(0, 0, 0), nut(0, -14, 26), nut(0, 14, 26)] },
-      { name: "REED ROW", sky: 0, plats: [log(138, 42, 1)], parts: [
+      { name: "REED ROW", sky: 0, plats: [log(124, 42, 1)], parts: [
         post(0, -28, 0, "reed", 20, 6), post(0, 0, 0, "reed", 20, 6), post(0, 28, 0, "reed", 20, 6),
         nut(0, -28, 20), nut(0, 0, 20), nut(0, 28, 20), ball(0, -14, 0, "stone", 4), ball(0, 14, 0, "stone", 4)] },
-      { name: "LITTLE CAIRN", sky: 0, plats: [rock(156, 18, 214), log(108, 22, 2)], parts: [
+      { name: "LITTLE CAIRN", sky: 0, plats: [rock(142, 18, 202), log(94, 22, 2)], parts: [
         cube(0, -8, 0, "wood", 12), cube(0, 8, 0, "wood", 12), slab(0, 0, 12, "stone", 32, 5), nut(0, 0, 17),
         ball(1, -10, 0, "stone", 4), ball(1, 10, 0, "stone", 4), nut(1, 0, 0)] },
     ],
   },
   {
     frogs: ["tree", "tree", "pond"], levels: [
-      { name: "REED HUTS", sky: 1, plats: [raft(140, 42, 10)], parts: [
+      { name: "REED HUTS", sky: 1, plats: [raft(126, 42, 10)], parts: [
         post(0, -30, 0, "reed", 16), post(0, -12, 0, "reed", 16), slab(0, -21, 16, "reed", 26), nut(0, -21, 0), nut(0, -21, 20),
         post(0, 12, 0, "reed", 16), post(0, 30, 0, "reed", 16), slab(0, 21, 16, "reed", 26), nut(0, 21, 0), nut(0, 21, 20)] },
-      { name: "TWO LOGS", sky: 1, plats: [log(116, 22, 0.5), log(172, 22, 2.2)], parts: [
+      { name: "TWO LOGS", sky: 1, plats: [log(102, 22, 0.5), log(158, 22, 2.2)], parts: [
         post(0, 0, 0, "reed", 18, 6), slab(0, 0, 18, "reed", 28), nut(0, -10, 22), nut(0, 10, 22),
         post(1, 0, 0, "reed", 18, 6), slab(1, 0, 18, "reed", 28), nut(1, -10, 22), nut(1, 10, 22)] },
-      { name: "SHELVES", sky: 1, plats: [log(146, 44, 1.2)], parts: [
+      { name: "SHELVES", sky: 1, plats: [log(132, 44, 1.2)], parts: [
         nut(0, -20, 0), nut(0, 20, 0),
         post(0, -34, 0, "reed", 14), post(0, -6, 0, "reed", 14), post(0, 6, 0, "reed", 14), post(0, 34, 0, "reed", 14),
         slab(0, -20, 14, "reed", 34), slab(0, 20, 14, "reed", 34), nut(0, -20, 18), nut(0, 20, 18),
@@ -78,31 +78,31 @@ export const POOL = [
   },
   {
     frogs: ["dart", "pond", "dart"], levels: [
-      { name: "LONG TABLE", sky: 2, plats: [log(142, 46, 0.3)], parts: [
+      { name: "LONG TABLE", sky: 2, plats: [log(128, 46, 0.3)], parts: [
         post(0, -36, 0, "wood", 18), post(0, -12, 0, "wood", 18), post(0, 12, 0, "wood", 18), post(0, 36, 0, "wood", 18),
         slab(0, 0, 18, "wood", 82), nut(0, -24, 0), nut(0, 0, 0), nut(0, 24, 0), nut(0, -24, 22), nut(0, 24, 22),
         post(0, -43, 0, "reed", 26, 4)] },
-      { name: "REED TOWER", sky: 2, plats: [rock(162, 16, 212), log(112, 20, 1.7)], parts: [
+      { name: "REED TOWER", sky: 2, plats: [rock(148, 16, 200), log(98, 20, 1.7)], parts: [
         post(0, -9, 0, "reed", 14), post(0, 9, 0, "reed", 14), slab(0, 0, 14, "reed", 26), nut(0, 0, 0),
         post(0, -9, 18, "reed", 14), post(0, 9, 18, "reed", 14), slab(0, 0, 32, "reed", 26), nut(0, 0, 18),
         post(0, -9, 36, "reed", 14), post(0, 9, 36, "reed", 14), slab(0, 0, 50, "reed", 26), nut(0, 0, 36), nut(0, 0, 54),
         cube(1, 0, 0, "wood", 10), nut(1, 0, 10)] },
-      { name: "FROST SHELF", sky: 3, plats: [log(144, 42, 2.5)], parts: [
+      { name: "FROST SHELF", sky: 3, plats: [log(130, 42, 2.5)], parts: [
         post(0, -28, 0, "ice", 16, 6), post(0, 28, 0, "ice", 16, 6), slab(0, 0, 16, "ice", 66, 5),
         nut(0, -16, 21), nut(0, 0, 21), nut(0, 16, 21), cube(0, 0, 0, "ice", 10), nut(0, -14, 0), nut(0, 14, 0)] },
     ],
   },
   {
     frogs: ["bull", "tree", "dart"], levels: [
-      { name: "STONE HUT", sky: 0, plats: [log(144, 44, 0.8)], parts: [
+      { name: "STONE HUT", sky: 0, plats: [log(130, 44, 0.8)], parts: [
         post(0, -20, 0, "wood", 20, 6), post(0, 20, 0, "wood", 20, 6), slab(0, 0, 20, "stone", 50, 6),
         nut(0, -7, 0), nut(0, 7, 0), nut(0, 0, 26),
         cube(0, -36, 0, "stone", 10), nut(0, -36, 10), cube(0, 36, 0, "stone", 10), nut(0, 36, 10)] },
-      { name: "MUD WALL", sky: 1, plats: [bank(172, 220, 208), log(132, 26, 1.1)], parts: [
+      { name: "MUD WALL", sky: 1, plats: [bank(158, 206, 196), log(118, 26, 1.1)], parts: [
         cube(1, -5, 0, "mud", 10), cube(1, 5, 0, "mud", 10), cube(1, -5, 10, "mud", 10), cube(1, 5, 10, "mud", 10),
         cube(1, 0, 20, "mud", 10), nut(1, 0, 30), nut(1, -18, 0),
         nut(0, -8, 0), nut(0, 6, 0), cube(0, 18, 0, "mud", 10)] },
-      { name: "CAIRN", sky: 2, plats: [rock(152, 24, 214)], parts: [
+      { name: "CAIRN", sky: 2, plats: [rock(138, 24, 202)], parts: [
         ball(0, -15, 0, "stone", 5), ball(0, -5, 0, "stone", 5), ball(0, 5, 0, "stone", 5), ball(0, 15, 0, "stone", 5),
         ball(0, -10, 8.66, "stone", 5), nut(0, 0, 9.4), ball(0, 10, 8.66, "stone", 5),
         ball(0, -5, 17.32, "stone", 5), ball(0, 5, 17.32, "stone", 5), nut(0, 0, 26.6),
@@ -111,17 +111,17 @@ export const POOL = [
   },
   {
     frogs: ["toad", "bull", "tree", "dart"], levels: [
-      { name: "THE OLD DAM", sky: 2, plats: [rock(152, 30, 218)], parts: [
+      { name: "THE OLD DAM", sky: 2, plats: [rock(138, 30, 206)], parts: [
         cube(0, -24, 0, "mud", 10), cube(0, -14, 0, "mud", 10), cube(0, 14, 0, "mud", 10), cube(0, 24, 0, "mud", 10),
         nut(0, -1, 0), nut(0, 6, 0),
         slab(0, 0, 10, "wood", 60, 5), post(0, -20, 15, "wood", 16), post(0, 20, 15, "wood", 16), nut(0, -8, 15), nut(0, 8, 15),
         slab(0, 0, 31, "wood", 52, 5), cube(0, -12, 36, "mud", 9), cube(0, 12, 36, "mud", 9), nut(0, 0, 36), nut(0, -12, 45), nut(0, 12, 45)] },
-      { name: "RAFT FORT", sky: 1, plats: [raft(144, 48, 14, 1)], parts: [
+      { name: "RAFT FORT", sky: 1, plats: [raft(130, 48, 14, 1)], parts: [
         post(0, -40, 0, "wood", 22), post(0, -28, 0, "wood", 22), slab(0, -34, 22, "stone", 18, 5), nut(0, -34, 27),
         post(0, 28, 0, "wood", 22), post(0, 40, 0, "wood", 22), slab(0, 34, 22, "stone", 18, 5), nut(0, 34, 27),
         post(0, -10, 0, "reed", 14), post(0, 10, 0, "reed", 14), slab(0, 0, 14, "reed", 26), nut(0, 0, 0), nut(0, 0, 18),
         nut(0, -19, 0), nut(0, 19, 0)] },
-      { name: "THE OLD NEST", sky: 3, plats: [log(146, 34, 0.4)], parts: [
+      { name: "THE OLD NEST", sky: 3, plats: [log(132, 34, 0.4)], parts: [
         post(0, -14, 0, "wood", 40, 5), post(0, 14, 0, "wood", 40, 5), slab(0, 0, 40, "reed", 40, 4),
         post(0, -17, 44, "reed", 8, 6), post(0, 17, 44, "reed", 8, 6), nut(0, -6, 44), nut(0, 3, 44), nut(0, 10, 44),
         nut(0, 0, 0), ball(0, -24, 0, "stone", 4), ball(0, 24, 0, "stone", 4)] },
@@ -180,7 +180,7 @@ export function begin(w, slot, pick, raw) {
   const def = POOL[slot].levels[pick === undefined ? w.deal[slot] : pick];
   const L = { def, t: 0, bodies: [], plats: [], arbs: new Map(), frogs: POOL[slot].frogs.slice(), flying: [], st: "settle", st_t: 0, score: 0, acorns: 0, flung: 0, trail: [], last: [], stars: 0, slow: 0, breaks: [], isl: 0 };
   def.plats.forEach((p) => { const b = platBody(p); L.plats.push(b); L.bodies.push(b); });
-  const shore = platBody(bank(-30, SHORE, 214));
+  const shore = platBody(bank(-30, SHORE, BANK));
   shore.plat.k = "shore";
   L.bodies.push(shore);
   let gi = slot === w.gold ? Math.floor(w.rand() * def.parts.filter((o) => o.mat === "acorn").length) : -1;
