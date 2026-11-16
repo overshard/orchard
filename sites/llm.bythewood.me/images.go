@@ -26,6 +26,10 @@ type imageReq struct {
 // off the card to make room. The prompt is logged and the picture isn't, since
 // megabytes of base64 a row would bury the log. An edit arrives as a form.
 func (s *site) images(w http.ResponseWriter, r *http.Request, k Key) {
+	if s.claude != nil {
+		writeOAError(w, http.StatusNotImplemented, "unsupported", "pictures are off while the gateway runs on Claude")
+		return
+	}
 	started := time.Now()
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxRequestBytes))
 	if err != nil {

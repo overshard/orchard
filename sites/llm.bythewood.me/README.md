@@ -1,16 +1,20 @@
 # llm.bythewood.me
 
-The model gateway. One graphics card, Ornith for chat and FLUX.2 klein for
-pictures taking turns on it behind llama-swap, and every service that wants a
-model asks here with an API key. Every prompt and completion is logged for 90
+The model gateway. Every service that wants a model asks here with an API key.
+With `ANTHROPIC_API_KEY` in `.env` the answers come from Claude Haiku 5.5 with
+web search, translated from the OpenAI shape the callers speak, and pictures are
+off. Without one it runs one graphics card, Ornith for chat and FLUX.2 klein for
+pictures taking turns on it behind llama-swap. Every prompt and completion is logged for 90
 days unless the caller sends `X-Incognito: 1`, and the keys and the log are
 behind auth.bythewood.me.
 
 ## Requirements
 
-Go. The model server needs an NVIDIA card, the NVIDIA container toolkit, and
-the weights in the `orchard-llm-models` volume at the paths in
-`modelserver/config.yaml`. No `.env`, since this is what mints keys.
+Go, and a `.env` from `.env.example`. Claude needs only the API key, and
+everything sent to it leaves this machine. The local model server needs
+`COMPOSE_PROFILES=local`, an NVIDIA card, the NVIDIA container toolkit, and the
+weights in the `orchard-llm-models` volume at the paths in
+`modelserver/config.yaml`.
 
 ## Running it
 
@@ -24,7 +28,8 @@ make clean    delete that binary
 
 ## Layout
 
-`proxy.go` checks the key and forwards OpenAI style calls upstream, `db.go`
+`proxy.go` checks the key and forwards OpenAI style calls upstream,
+`anthropic.go` translates them to the Messages API and back, `db.go`
 holds the keys and the log, `images.go` the picture calls and `gpu.go` asks the
 probe whether the desktop is using the card and turns away calls marked
 `X-Background: 1` while it is. `modelserver/` builds llama.cpp,
@@ -32,6 +37,12 @@ stable-diffusion.cpp and llama-swap, and `gpuprobe/` is the `nvidia-smi`
 sidecar. Templates and `static/` are written by hand, with no Vite.
 
 ## Things that will bite you
+
+- Haiku 5.5 refuses sampling parameters, so temperature and the rest are
+  dropped, and structured outputs refuse length and count limits, so those are
+  stripped from a schema and the prompt has to carry them.
+- Web search is offered only on calls that offer tools and don't stream.
+- A safety refusal comes back as a 422, never an empty answer.
 
 - The model server and the probe sit on a private network with no auth of
   their own, and only the gateway joins the edge.

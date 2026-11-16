@@ -146,6 +146,10 @@ func (s *site) read(ctx context.Context, now time.Time) (gpuReading, bool, error
 // the CPU after a driver update answers, just ten times slower.
 func (s *site) healthz(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
+	if s.claude != nil {
+		fmt.Fprintln(w, "ok")
+		return
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s.gpuProbe+"/healthz", nil)
@@ -167,6 +171,11 @@ func (s *site) healthz(w http.ResponseWriter, r *http.Request) {
 // gpu tells a background caller whether loading a model now would land on top
 // of whatever the desktop is doing. It loads nothing and isn't logged.
 func (s *site) gpu(w http.ResponseWriter, r *http.Request, _ Key) {
+	// With no card behind the gateway nobody's game is in the way.
+	if s.claude != nil {
+		writeJSON(w, gpuAnswer{Reason: "no card, calls go to " + s.claude.model})
+		return
+	}
 	out, err := s.cardState(r.Context(), time.Now())
 	if err != nil {
 		slog.Error("reading the card", "err", err)

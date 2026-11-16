@@ -53,6 +53,8 @@ type site struct {
 	model    string
 	retain   time.Duration
 	card     cardGate
+	// Set when ANTHROPIC_API_KEY is, and then every completion goes to Claude.
+	claude *claude
 }
 
 func env(k, def string) string {
@@ -126,6 +128,10 @@ func realMain() error {
 		client: &http.Client{},
 	}
 	s.card.started = time.Now()
+	if key := os.Getenv("ANTHROPIC_API_KEY"); key != "" {
+		s.claude = newClaude(key, env("LLM_CLAUDE_MODEL", defaultClaudeModel))
+		s.upstream = "the Anthropic API as " + s.claude.model
+	}
 	if err := s.loadTemplates(); err != nil {
 		return fmt.Errorf("templates: %w", err)
 	}

@@ -68,7 +68,7 @@ func (s *site) requireKey(next func(http.ResponseWriter, *http.Request, Key)) ht
 func (s *site) completions(w http.ResponseWriter, r *http.Request, k Key) {
 	started := time.Now()
 	background := r.Header.Get(backgroundHeader) == "1"
-	if background && s.refuseBackground(w, r, k) {
+	if background && s.claude == nil && s.refuseBackground(w, r, k) {
 		return
 	}
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxRequestBytes))
@@ -98,6 +98,11 @@ func (s *site) completions(w http.ResponseWriter, r *http.Request, k Key) {
 		call.MS = time.Since(started).Milliseconds()
 		s.store.LogCall(call)
 	}()
+
+	if s.claude != nil {
+		s.viaClaude(w, r, body, &call)
+		return
+	}
 
 	up, err := http.NewRequestWithContext(r.Context(), http.MethodPost, s.upstream+r.URL.Path, bytes.NewReader(body))
 	if err != nil {
@@ -300,6 +305,10 @@ type swapModel struct {
 // card, so a dashboard that wants to show the GPU as free or busy asks this
 // instead of guessing from the last call it made.
 func (s *site) running(w http.ResponseWriter, r *http.Request, _ Key) {
+	if s.claude != nil {
+		writeJSON(w, map[string]any{"loaded": false, "models": []swapModel{}})
+		return
+	}
 	var body struct {
 		Running []swapModel `json:"running"`
 	}
@@ -331,6 +340,10 @@ func (s *site) running(w http.ResponseWriter, r *http.Request, _ Key) {
 // ttl, since the machine is a desktop too. It answers once the process is gone,
 // not once the request was sent, so the answer means the card is free.
 func (s *site) unload(w http.ResponseWriter, r *http.Request, k Key) {
+	if s.claude != nil {
+		writeJSON(w, map[string]any{"loaded": false})
+		return
+	}
 	if err := s.swap(r.Context(), swapUnload, nil); err != nil {
 		slog.Error("unloading the model", "err", err, "caller", k.Name)
 		http.Error(w, "the model server is not answering", http.StatusBadGateway)
@@ -368,6 +381,15 @@ func (s *site) swap(ctx context.Context, path string, into any) error {
 // list. They aren't logged, since there's no prompt in them and a health check
 // every thirty seconds would bury the log that matters.
 func (s *site) passthrough(w http.ResponseWriter, r *http.Request, _ Key) {
+	if s.claude != nil {
+		if r.URL.Path != "/v1/models" {
+			writeOAError(w, http.StatusNotFound, "invalid_request_error", "only chat completions are served while the gateway runs on Claude")
+			return
+		}
+		writeJSON(w, map[string]any{"object": "list", "data": []map[string]string{
+			{"id": s.model, "object": "model", "owned_by": "anthropic"}}})
+		return
+	}
 	up, err := http.NewRequestWithContext(r.Context(), r.Method, s.upstream+r.URL.Path, r.Body)
 	if err != nil {
 		http.Error(w, "bad gateway", http.StatusBadGateway)
@@ -413,4 +435,10 @@ func upstreamReason(body []byte) string {
 		return e.Error.Message
 	}
 	return strings.TrimSpace(string(body))
+}
+
+func writeJSON(w http.ResponseWriter, v any) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	_ = json.NewEncoder(w).Encode(v)
 }
