@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"llm.bythewood.me/ntfy"
 	"llm.bythewood.me/web"
 )
 
@@ -55,6 +56,7 @@ type site struct {
 	card     cardGate
 	// Set when ANTHROPIC_API_KEY is, and then every completion goes to Claude.
 	claude *claude
+	budget float64
 }
 
 func env(k, def string) string {
@@ -132,6 +134,7 @@ func realMain() error {
 		s.claude = newClaude(key, env("LLM_CLAUDE_MODEL", defaultClaudeModel))
 		s.upstream = "the Anthropic API as " + s.claude.model
 	}
+	s.budget, _ = strconv.ParseFloat(env("LLM_BUDGET", "100"), 64)
 	if err := s.loadTemplates(); err != nil {
 		return fmt.Errorf("templates: %w", err)
 	}
@@ -141,6 +144,9 @@ func realMain() error {
 	defer pruning.Wait()
 	defer stopPruning()
 	pruning.Go(func() { s.prune(pruneCtx) })
+	if n := ntfy.New("status", os.Getenv("NTFY_TOKEN")); s.claude != nil && n.Configured() {
+		pruning.Go(func() { s.watchSpend(pruneCtx, n) })
+	}
 
 	mux := http.NewServeMux()
 
@@ -277,6 +283,7 @@ func (s *site) overview(w http.ResponseWriter, r *http.Request) {
 	}
 	usage, _ := s.store.Usage(time.Now().Add(-24 * time.Hour))
 	recent, _ := s.store.Calls("", 12)
+	month, _ := s.month(time.Now())
 	nKeys, nCalls := s.store.Counts()
 
 	// A key is shown once, on the redirect straight after it's made, because
@@ -293,7 +300,7 @@ func (s *site) overview(w http.ResponseWriter, r *http.Request) {
 	s.render(w, "overview.html", map[string]any{
 		"Keys": keys, "Usage": usage, "Recent": recent,
 		"Fresh": fresh, "NKeys": nKeys, "NCalls": nCalls, "Title": "Overview",
-		"Upstream": s.upstream, "Retain": s.retain,
+		"Upstream": s.upstream, "Retain": s.retain, "Month": month, "Claude": s.claude != nil,
 	})
 }
 

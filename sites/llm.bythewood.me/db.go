@@ -66,7 +66,7 @@ func OpenStore(path string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err := db.Exec(schema); err != nil {
+	if _, err := db.Exec(schema + spendSchema); err != nil {
 		return nil, err
 	}
 	// SQLite's advice for a long lived connection. A failure only costs the
@@ -213,6 +213,8 @@ type Call struct {
 	Status     int       `json:"status"`
 	Err        string    `json:"err,omitempty"`
 	At         time.Time `json:"at"`
+	// Millionths of a dollar, written to the spend ledger and not this row.
+	Cost int64 `json:"-"`
 }
 
 func (s *Store) LogCall(c Call) {

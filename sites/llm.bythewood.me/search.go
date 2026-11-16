@@ -54,6 +54,7 @@ func (s *site) search(w http.ResponseWriter, r *http.Request, k Key) {
 		call.Messages = string(mustJSON([]map[string]string{{"role": "user", "content": "search: " + req.Query}}))
 	}
 	defer func() {
+		s.store.LogSpend(call.KeyID, call.Cost)
 		if !keep {
 			return
 		}
@@ -80,6 +81,7 @@ func (s *site) search(w http.ResponseWriter, r *http.Request, k Key) {
 		blocks = append(blocks, resp.Content...)
 		call.PromptTok = promptTokens(resp.Usage)
 		call.OutputTok += int(resp.Usage.OutputTokens)
+		call.Cost += costMicros(resp.Usage)
 		if resp.StopReason != anthropic.StopReasonPauseTurn {
 			break
 		}

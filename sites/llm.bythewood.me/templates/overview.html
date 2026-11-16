@@ -12,6 +12,8 @@
   <div class="stat"><span class="num">{{.NKeys}}</span><span class="label">Live keys</span></div>
   <div class="stat"><span class="num">{{comma .NCalls}}</span><span class="label">Calls logged</span></div>
   <div class="stat"><span class="num">{{.Retain}}</span><span class="label">Retention</span></div>
+  {{if .Claude}}<div class="stat"><span class="num">${{printf "%.2f" .Month.Spent}}</span><span class="label">Spent this month of ${{printf "%.0f" .Month.Budget}}</span></div>
+  <div class="stat"><span class="num">${{printf "%.2f" .Month.Projected}}</span><span class="label">On pace for</span></div>{{end}}
 </section>
 
 <h2>Last 24 hours</h2>

@@ -92,6 +92,7 @@ func (s *site) completions(w http.ResponseWriter, r *http.Request, k Key) {
 		}
 	}
 	defer func() {
+		s.store.LogSpend(call.KeyID, call.Cost)
 		if !keep {
 			return
 		}

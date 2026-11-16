@@ -20,6 +20,10 @@ services:
       LLM_MODEL: local
       LLM_DB: /data/llm.db
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # The month's Claude budget in dollars, and the ntfy token for spend
+      # alerts, the same one status and logging hold.
+      LLM_BUDGET: ${LLM_BUDGET:-100}
+      NTFY_TOKEN: ${NTFY_TOKEN:-}
     volumes:
       - data:/data
     depends_on:

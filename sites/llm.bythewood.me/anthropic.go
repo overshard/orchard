@@ -360,6 +360,7 @@ type answer struct {
 	promptTok int
 	outTok    int
 	searches  int
+	cost      int64
 }
 
 // complete runs one turn, sending it back while a web search has it paused.
@@ -375,6 +376,7 @@ func (c *claude) complete(ctx context.Context, p anthropic.MessageNewParams) (an
 		a.promptTok = promptTokens(resp.Usage)
 		a.outTok += int(resp.Usage.OutputTokens)
 		a.searches += int(resp.Usage.ServerToolUse.WebSearchRequests)
+		a.cost += costMicros(resp.Usage)
 		a.stop = resp.StopReason
 		if resp.StopReason == anthropic.StopReasonRefusal {
 			a.refusal = string(resp.StopDetails.Category)
@@ -442,7 +444,7 @@ func (s *site) viaClaude(w http.ResponseWriter, r *http.Request, body []byte, ca
 		s.claudeFailed(w, err, call)
 		return
 	}
-	call.PromptTok, call.OutputTok = a.promptTok, a.outTok
+	call.PromptTok, call.OutputTok, call.Cost = a.promptTok, a.outTok, a.cost
 	call.Completion = a.text
 	if call.Completion == "" && len(a.calls) > 0 {
 		call.Completion = "[tool calls: " + string(mustJSON(a.calls)) + "]"
@@ -550,6 +552,7 @@ func (s *site) claudeStream(w http.ResponseWriter, r *http.Request, p anthropic.
 	}
 
 	call.PromptTok, call.OutputTok = promptTokens(msg.Usage), int(msg.Usage.OutputTokens)
+	call.Cost = costMicros(msg.Usage)
 	if !first.IsZero() && call.OutputTok > 0 {
 		if secs := time.Since(first).Seconds(); secs > 0 {
 			call.DecodeTPS = float64(call.OutputTok) / secs

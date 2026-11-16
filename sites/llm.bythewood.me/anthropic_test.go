@@ -53,6 +53,18 @@ func call(t *testing.T, s *site, secret, body string) *httptest.ResponseRecorder
 	return rec
 }
 
+func httptestCall(t *testing.T, s *site, secret, body string, incognito bool) int {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/v1/chat/completions", strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+secret)
+	if incognito {
+		req.Header.Set(incognitoHeader, "1")
+	}
+	s.requireKey(s.completions)(rec, req)
+	return rec.Code
+}
+
 const usage = `"usage":{"input_tokens":10,"cache_read_input_tokens":90,"cache_creation_input_tokens":0,"output_tokens":5}`
 
 func TestAToolRoundIsTranslatedBothWays(t *testing.T) {
