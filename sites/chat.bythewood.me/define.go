@@ -10,7 +10,7 @@ import (
 )
 
 // A word to define is looked up in the dictionary before the model decides
-// anything, the same way a subject is looked up in the snapshot.
+// anything.
 var (
 	defineAsk   = regexp.MustCompile(`(?i)^\s*(?:please\s+)?(?:define|definition of|meaning of|what(?:'s| is) the (?:meaning|definition) of)\s+(.+?)\s*[?.!]*\s*$`)
 	meaningAsk  = regexp.MustCompile(`(?i)^\s*what\s+does\s+(.+?)\s+mean\s*[?.!]*\s*$`)
@@ -57,9 +57,8 @@ func (e *Engine) definitionOpening(ctx context.Context, turn *tools.Turn, questi
 	return res, msg, true
 }
 
-// A bare web address is a site, and a site can launch or change hands after
-// the snapshot was taken. "what is america.gov" got the State Department's
-// article through a redirect the day after a new site launched there.
+// A bare web address is a site, and a site can launch or change hands any day,
+// so it's searched for before the model answers from memory.
 var siteName = regexp.MustCompile(`(?i)^[a-z0-9-]+(\.[a-z0-9-]+)*\.(com|org|net|gov|mil|edu|io|dev|ai|app|co|us|uk|me|tv|xyz|info)$`)
 
 func (e *Engine) siteOpening(ctx context.Context, turn *tools.Turn, question string) (tools.Result, Message, bool) {

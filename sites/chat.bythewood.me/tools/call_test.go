@@ -38,10 +38,10 @@ func TestCallRefusesArgumentsThatDoNotParse(t *testing.T) {
 func TestOnlyKeepsEveryNamedTool(t *testing.T) {
 	all := Default().Schemas()
 	var names []string
-	for _, s := range Only(all, Remember.Name, WebSearch.Name, Wikipedia.Name) {
+	for _, s := range Only(all, Remember.Name, WebSearch.Name, Calc.Name) {
 		names = append(names, s["function"].(map[string]any)["name"].(string))
 	}
-	if got := strings.Join(names, " "); got != "remember web_search wikipedia" {
+	if got := strings.Join(names, " "); got != "calc remember web_search" {
 		t.Errorf("got %q", got)
 	}
 	if got := Only(all, "no_such_tool"); len(got) != 0 {

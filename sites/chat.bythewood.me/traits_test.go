@@ -20,7 +20,7 @@ var traitTools = map[tools.Trait][]string{
 	tools.Once:    {"news"},
 	tools.Rundown: {"news"},
 	tools.Notes:   {"remember"},
-	tools.Lookup:  {"wikipedia", "web_search"},
+	tools.Lookup:  {"web_search"},
 	tools.Draws:   {"image"},
 	tools.Tickers: {"markets"},
 	tools.Sums:    {"calc"},

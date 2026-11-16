@@ -15,7 +15,7 @@ func offered(schemas []map[string]any) string {
 
 func TestAnOfferNarrowsByTrait(t *testing.T) {
 	all := Default().Schemas()
-	if got := offered(OnlyAny(all, Notes|Lookup)); got != "remember web_search wikipedia" {
+	if got := offered(OnlyAny(all, Notes|Lookup)); got != "remember web_search" {
 		t.Errorf("notes and lookups offered %q", got)
 	}
 	kept := WithoutAny(all, Private)

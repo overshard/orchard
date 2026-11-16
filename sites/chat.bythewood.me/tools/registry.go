@@ -16,7 +16,7 @@ func Default() *Registry {
 	r := &Registry{}
 	for _, t := range []Tool{
 		WebSearch, WebFetch, News, Remember, Weather, Markets, SportsScores, Odds, MusicLookup, Convert, Calc, Now,
-		Wikipedia, Dictionary,
+		Dictionary,
 		OrchardLogs, OrchardStatus, OrchardAnalytics, OrchardRepos, OrchardCode, OrchardDash,
 		ChatHistory, XSearch,
 		PropertyTool, Mortgage,

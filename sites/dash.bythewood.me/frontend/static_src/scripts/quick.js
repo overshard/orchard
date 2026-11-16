@@ -118,7 +118,6 @@ function reel() {
 const KIND = {
   prompt: "PROMPT",
   memory: "MEMORY",
-  wikipedia: "WIKI",
   model: "MODEL",
   gate: "GATE",
   compact: "COMPACT",
@@ -322,7 +321,7 @@ function deck() {
         return;
       default: {
         const li = line(s.kind, KIND[s.kind] || s.kind.toUpperCase(), s.label, metaText(s.kind, s.meta));
-        if (s.kind === "memory" || s.kind === "wikipedia") detail(li, s.out);
+        if (s.kind === "memory") detail(li, s.out);
       }
     }
   }

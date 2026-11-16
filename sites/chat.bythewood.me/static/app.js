@@ -141,10 +141,10 @@
 
   // The record of what a turn did. It is open while the turn runs, so the work
   // is visible as it happens, and collapses to one line once the answer lands.
-  // Nothing here is decoration: an answer off a local snapshot and one off the
-  // model's memory look identical without it.
+  // Nothing here is decoration: an answer off a tool and one off the model's
+  // memory look identical without it.
   const STEP_KINDS = {
-    prompt: "prompt", memory: "memory", wikipedia: "wikipedia", model: "model",
+    prompt: "prompt", memory: "memory", model: "model",
     tool: "tool", gate: "gate", answer: "answer", title: "title", compact: "compact",
   };
 

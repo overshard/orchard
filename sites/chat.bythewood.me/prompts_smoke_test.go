@@ -7,18 +7,13 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"chat.bythewood.me/tools"
 )
 
-// Drives real turns against the real model and the real snapshot, so it runs
-// only when told to. Set PROMPT_SMOKE=1, LLM_KEY, and optionally WIKI_URL.
+// Drives real turns against the real model, so it runs only when told to. Set
+// PROMPT_SMOKE=1 and LLM_KEY.
 func TestPromptsSmoke(t *testing.T) {
 	if os.Getenv("PROMPT_SMOKE") == "" {
 		t.Skip("set PROMPT_SMOKE=1 to drive the real model")
-	}
-	if base := os.Getenv("WIKI_URL"); base != "" {
-		tools.WikiBase = base
 	}
 	llm := NewLLM(env("LLM_URL", "http://orchard-llm:8000"), env("LLM_MODEL", "local"), os.Getenv("LLM_KEY"))
 	eng := NewEngine(llm, env("LLM_NAME", "Ornith 1.5 9B"))

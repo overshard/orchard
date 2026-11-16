@@ -2968,7 +2968,6 @@ main {
   &[data-kind="gate"][data-verdict="back"] .w-text { color: var(--amber); }
   &[data-kind="gate"][data-verdict="through"] .w-text { color: var(--up); }
   &[data-kind="memory"] .w-glyph::before { content: "◎"; }
-  &[data-kind="wikipedia"] .w-glyph::before { content: "▤"; }
 }
 
 .work-sum {

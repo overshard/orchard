@@ -146,7 +146,7 @@ func TestACallCutOffAtTheTokenLimitIsDropped(t *testing.T) {
 	if s.refused > 0 {
 		t.Errorf("the model was sent the broken call %d times", s.refused)
 	}
-	if s.offered[0] != "remember web_search wikipedia" || s.choice[0] != "required" {
+	if s.offered[0] != "remember web_search" || s.choice[0] != "required" {
 		t.Errorf("round one offered %q with choice %q, want remember and the lookups, forced",
 			s.offered[0], s.choice[0])
 	}

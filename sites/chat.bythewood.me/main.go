@@ -110,7 +110,6 @@ func realMain() error {
 		imgName  = flag.String("image-name", env("IMAGE_NAME", "FLUX.2 klein 9B"), "readable name of the picture model")
 		dbPath   = flag.String("db", env("CHAT_DB", "data/chat.db"), "conversation database")
 		propCfg  = flag.String("property-config", env("PROPERTY_CONFIG", "data/property.json"), "house hunting config: the work address, the drives and the money")
-		wikiURL  = flag.String("wiki", env("WIKI_URL", "http://orchard-wiki:8000"), "offline wikipedia base url")
 		ctxSize  = flag.Int("ctx", envInt("LLM_CTX", 32768), "model context window in tokens")
 		health   = flag.Bool("healthcheck", false, "probe the local server and exit")
 	)
@@ -137,8 +136,6 @@ func realMain() error {
 
 	stopping, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-
-	tools.WikiBase = *wikiURL
 
 	llm := NewLLM(*llmURL, *model, *llmKey)
 	// The verifier can only be moved in a development build. Reloaded is false

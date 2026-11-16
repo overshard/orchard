@@ -1,8 +1,8 @@
 # chat.bythewood.me
 
 A conversation with the local model behind llm.bythewood.me, with tools for
-what it can't know (the web, news, weather, markets, an offline Wikipedia, the
-other orchard sites and house lookups out of public records), attachments,
+what it can't know (the web, news, weather, markets, the other orchard sites
+and house lookups out of public records), attachments,
 pictures, history in SQLite and an incognito mode that writes nothing down.
 It's behind auth.bythewood.me.
 
@@ -12,8 +12,7 @@ Go, and poppler's `pdftotext` to read encrypted PDFs. The `.env` carries
 `LLM_KEY`, which `make chat-key` at the root mints and compose won't start
 without, and `FBI_API_KEY` from api.data.gov, without which house reports have
 no crime figures. `data/property.json` is the personal side of the house
-lookups, gitignored and shaped like `property.example.json`, and `make wiki`
-downloads the 12.5GB snapshot `orchard-wiki` serves.
+lookups, gitignored and shaped like `property.example.json`.
 
 ## Running it
 

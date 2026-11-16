@@ -14,13 +14,13 @@ func TestAStepIsSentAsItHappens(t *testing.T) {
 	var sent []Event
 	tr := NewTrace(func(e Event) { sent = append(sent, e) })
 
-	tr.Add(Step{Kind: "tool", Label: "wikipedia"})
+	tr.Add(Step{Kind: "tool", Label: "web_search"})
 	tr.Add(Step{Kind: "answer", Label: "wrote the reply"})
 
 	if len(sent) != 2 {
 		t.Fatalf("%d events sent, want 2", len(sent))
 	}
-	if sent[0].Kind != "step" || sent[0].Step == nil || sent[0].Step.Label != "wikipedia" {
+	if sent[0].Kind != "step" || sent[0].Step == nil || sent[0].Step.Label != "web_search" {
 		t.Errorf("first event is not the step: %+v", sent[0])
 	}
 	if len(tr.Steps()) != 2 {
@@ -79,7 +79,7 @@ func TestStepsSurviveAStoreRoundTrip(t *testing.T) {
 		t.Fatalf("new conversation: %v", err)
 	}
 	want := []Step{
-		{Kind: "wikipedia", Label: "looked the subject up", In: "north korea", Out: "a country", MS: 18},
+		{Kind: "tool", Label: "web_search", In: "north korea", Out: "a country", MS: 18},
 		{Kind: "gate", Label: "checked the draft", Bad: true},
 	}
 	if err := appendStored(store, id, Stored{Role: RoleAssistant, Content: "hi", Steps: want}); err != nil {

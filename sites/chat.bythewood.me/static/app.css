@@ -1456,14 +1456,13 @@ kbd {
   margin-left: -0.42rem; transform: translateX(-50%);
   background: var(--green-bright);
 }
-.step[data-kind="wikipedia"] .dot { background: var(--amber); }
 .step[data-kind="gate"] .dot { background: var(--amber); }
 .step.bad .dot { background: var(--terracotta); }
 .step .k {
   flex: none; color: var(--green-bright);
   letter-spacing: 0.12em; text-transform: uppercase; font-size: 0.7rem;
 }
-.step[data-kind="wikipedia"] .k, .step[data-kind="gate"] .k { color: var(--amber); }
+.step[data-kind="gate"] .k { color: var(--amber); }
 .step.bad .k { color: var(--terracotta); }
 /* Both the label and the detail give way on a narrow screen rather than
    pushing the time off the edge, and the detail goes first because the label

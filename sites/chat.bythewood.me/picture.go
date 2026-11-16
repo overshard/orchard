@@ -7,12 +7,11 @@ import (
 	"strings"
 	"unicode"
 
-	"chat.bythewood.me/internal/memory"
 	"chat.bythewood.me/tools"
 )
 
 // A message that asks for a picture outright. Left with every tool, a small
-// model reads "draw me a fox" as a question about foxes and goes to Wikipedia.
+// model reads "draw me a fox" as a question about foxes and goes to look them up.
 var pictureAsk = regexp.MustCompile(`(?i)^\s*(ok(ay)?|so|hey|now)?[\s,]*(please\s+)?(can you\s+|could you\s+|would you\s+)?` +
 	`(draw|paint|sketch|illustrate|render|generate|create|make|design|give me|show me)\b.{0,40}?` +
 	`\b(picture|image|drawing|painting|sketch|illustration|photo|photograph|logo|icon|wallpaper|portrait|render|art|artwork|poster|banner|scene)s?\b`)
@@ -223,70 +222,4 @@ func pictureTitle(reply string) string {
 	r := []rune(trimLine(p, 48))
 	r[0] = unicode.ToUpper(r[0])
 	return string(r)
-}
-
-// What a picture ask is of, once the asking and the style are taken off.
-var (
-	pictureOf    = regexp.MustCompile(`(?i)^.*?\b(?:picture|image|drawing|painting|sketch|illustration|photo|photograph|render|art|artwork|poster)s?\s+(?:of\s+)?`)
-	pictureStyle = regexp.MustCompile(`(?i)(,|;|\s--?\s|\s(?:try|make it|in the style|photo ?realistic|realistic|at dusk|at night|at sunset|on a|with)\s).*$`)
-	titleWord    = regexp.MustCompile(`[A-Za-z0-9]+`)
-)
-
-// referenceWindows are the runs of words in a picture ask worth trying as an
-// article title, longest first. Three words or more, or two with a capital,
-// since "living room" has an article and is not what anybody wants looked up.
-func referenceWindows(message string) []string {
-	s := pictureOf.ReplaceAllString(strings.TrimSpace(message), "")
-	s = pictureStyle.ReplaceAllString(s, "")
-	words := strings.Fields(regexp.MustCompile(`(?i)^(a|an|the)\s+`).ReplaceAllString(s, ""))
-	if len(words) > 8 {
-		words = words[:8]
-	}
-	var out []string
-	for n := len(words); n >= 2; n-- {
-		for i := 0; i+n <= len(words); i++ {
-			run := words[i : i+n]
-			if n == 2 && !capitalised(run) {
-				continue
-			}
-			out = append(out, strings.Join(run, " "))
-			if len(out) == maxReferenceTries {
-				return out
-			}
-		}
-	}
-	return out
-}
-
-// Each try is a call on the bridge to a container on this machine, so ten is
-// well under a second and still reaches a five word title inside eight words.
-const maxReferenceTries = 10
-
-func capitalised(words []string) bool {
-	for _, w := range words {
-		if r := []rune(w); len(r) > 0 && unicode.IsUpper(r[0]) {
-			return true
-		}
-	}
-	return false
-}
-
-// namesTitle is true when every word of an article's title is in what he asked,
-// so a search that wandered off to something near it is not taken.
-func namesTitle(title, message string) bool {
-	have := memory.Terms(message)
-	n := 0
-	for _, w := range titleWord.FindAllString(title, -1) {
-		t := memory.Terms(w)
-		if len(t) == 0 {
-			continue
-		}
-		for k := range t {
-			if !have[k] {
-				return false
-			}
-		}
-		n++
-	}
-	return n >= 2
 }

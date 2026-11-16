@@ -17,8 +17,8 @@ const stepMax = 1200
 const stepsMax = 60
 
 type Step struct {
-	// One of: prompt, memory, wikipedia, model, tool, gate, answer, title,
-	// compact. The page styles by this and shows the label as written.
+	// One of: prompt, memory, model, tool, gate, answer, title, compact. The
+	// page styles by this and shows the label as written.
 	Kind  string `json:"kind"`
 	Label string `json:"label"`
 	In    string `json:"in,omitempty"`

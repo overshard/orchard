@@ -65,7 +65,7 @@ COMPOSE_DOWN = $(DOCKER) compose
 .DEFAULT_GOAL := help
 .PHONY: help install up up-one deploy edge doctor down down-one run build check shared-check frog frog-check template-check new fmt fmt-check vet vuln deps test \
 	env password tunnel tunnel-login tunnel-status ntfy ntfy-token ntfy-status ntfy-passwd \
-	auth-init auth-recovery chat-key dash-key pond-key llm-key wiki util require-site require-env require-tunnel
+	auth-init auth-recovery chat-key dash-key pond-key llm-key util require-site require-env require-tunnel
 
 help:
 	@echo "running system"
@@ -95,7 +95,6 @@ help:
 	@echo "  make dash-key              the same for dash, which writes the daily briefs with it"
 	@echo "  make pond-key              the same for pond, which writes its nightly lines with it"
 	@echo "  make llm-key NAME=chat     mint an api key for the model gateway, printed once"
-	@echo "  make wiki                  download the offline wikipedia into its volume, 12.5GB"
 	@echo "  make auth-recovery         replace the recovery codes when locked out"
 	@echo ""
 	@echo "  make password              print a suggested password, writing nothing"
@@ -232,11 +231,7 @@ doctor: util
 	echo "sites"; \
 	for s in $(SITES); do \
 		for c in $$(awk '/^ *container_name:/{print $$2}' sites/$$s/docker-compose.yml); do \
-			if [ "$$c" = "orchard-wiki" ]; then \
-				probe "$$c" "-> make wiki, then make deploy SITE=$$s"; \
-			else \
-				probe "$$c" "-> make deploy SITE=$$s"; \
-			fi; \
+			probe "$$c" "-> make deploy SITE=$$s"; \
 		done; \
 	done; \
 	echo ""; \
@@ -284,8 +279,6 @@ doctor: util
 			if $(DOCKER) volume inspect $$vol >/dev/null 2>&1; then \
 				size=$$(echo "$$sizes" | sed -n "s/^$$vol=//p"); \
 				printf '  %-22s %s\n' "$$vol" "ok, $${size:-size unknown}"; \
-			elif [ "$$vol" = "orchard-wiki-data" ]; then \
-				printf '  %-22s %-22s %s\n' "$$vol" "MISSING" "-> make wiki"; \
 			else \
 				printf '  %-22s %-22s %s\n' "$$vol" "MISSING" "-> make deploy SITE=$$s"; \
 			fi; \
@@ -373,42 +366,11 @@ ntfy-status:
 ntfy-passwd:
 	@SUDO="$(SUDO)" sh edge/setup-ntfy.sh passwd
 # The one throwaway container this Makefile runs: curl into another container's
-# namespace for the health checks, and fetch the Wikipedia snapshot. Built on
-# demand rather than pulled, so nothing here reaches for a foreign base image.
+# namespace for the health checks. Built on demand rather than pulled, so
+# nothing here reaches for a foreign base image.
 util:
 	@$(DOCKER) image inspect $(UTIL) >/dev/null 2>&1 || \
 		$(DOCKER) build --quiet --tag $(UTIL) edge/util
-
-
-# The snapshot behind chat's wikipedia tool. Too big for git and too big for an
-# image, so it is downloaded into the volume once and left there.
-#
-# The checksum is checked here rather than found at startup, because kiwix
-# refuses a damaged file with "Unable to add the ZIM file", which reads like a
-# path or a permissions problem and is not. A resumed download is what produced
-# one, so this writes a .part and only moves it into place once it matches.
-WIKI_ZIM = wikipedia_en_all_mini_2026-06.zim
-WIKI_SHA = 1d0f8178709481c831272d95f95dccc030e9193e38e732b86b1938ae2606226e
-
-wiki: util
-	@$(SUDO) docker volume create orchard-wiki-data >/dev/null
-	@$(SUDO) docker run --rm -v orchard-wiki-data:/data $(UTIL) sh -c '\
-		if [ -f /data/wikipedia.zim ] && \
-		   echo "$(WIKI_SHA)  /data/wikipedia.zim" | sha256sum -c - >/dev/null 2>&1; then \
-			echo "the snapshot is already there and matches"; \
-			exit 0; \
-		fi; \
-		echo "downloading $(WIKI_ZIM), 12.5GB, this takes a while"; \
-		rm -f /data/wikipedia.zim.part; \
-		curl -fL -o /data/wikipedia.zim.part "https://download.kiwix.org/zim/wikipedia/$(WIKI_ZIM)" && \
-		echo "$(WIKI_SHA)  /data/wikipedia.zim.part" | sha256sum -c - && \
-		mv /data/wikipedia.zim.part /data/wikipedia.zim && \
-		echo "in place" || { \
-			rm -f /data/wikipedia.zim.part; \
-			echo "the download failed or did not match its checksum, nothing was replaced"; \
-			exit 1; \
-		}'
-	@echo "now: make deploy SITE=chat.bythewood.me"
 
 # The login account, and the recovery codes that are what the first sign in
 # uses. It needs orchard-auth running, so it comes after `make up`, and it is

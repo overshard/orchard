@@ -1,21 +1,13 @@
 package main
 
 import (
-	"context"
-	"encoding/json"
 	"regexp"
 	"strings"
-
-	"chat.bythewood.me/tools"
 )
 
-// The gate checks a draft against tool results, so a draft written from memory
-// has nothing to check. When the turn fetched nothing, the question's subject is
-// looked up in the offline snapshot and handed to the gate as background.
-
-// The shapes a question opens with, stripped since the wikipedia tool refuses a
-// question. "how much" and "how many" go ahead of the bare question words or
-// "how" strips alone and leaves "much is a keystone crickett" behind.
+// The shapes a question opens with, stripped so what's left is the name of the
+// thing asked about. "how much" and "how many" go ahead of the bare question
+// words or "how" strips alone and leaves "much is a keystone crickett" behind.
 var questionHead = regexp.MustCompile(`(?i)^\s*how\s+(much|many)\s+(is|are|was|were|do|does|did|would|will)?\s*|^\s*(what|who|which|where|when|why|how)('?s| is| are| was| were| do| does| did)?\s+|^\s*(tell me about|explain|describe|define)\s+`)
 
 // Trailing filler left behind once the head is gone, as in "kubernetes for".
@@ -30,8 +22,7 @@ var timeTail = regexp.MustCompile(`(?i)\s+(right\s+now|now|today|tonight|yesterd
 // them" is one question about one thing.
 var clauseBreak = regexp.MustCompile(`(?i)\s+(and|but|or|so|because|since|which|that|vs\.?|versus)\s+`)
 
-// Past this it's a sentence and not the name of something, and looking it up
-// returns whatever happened to rank.
+// Past this it's a sentence and not the name of something.
 const subjectMaxWords = 5
 
 // A short clause still isn't a subject, "That's a crazy high number" is four
@@ -108,9 +99,8 @@ func subjectOf(question string) string {
 	return s
 }
 
-// Things the snapshot has an article about and can never answer a question
-// about, since what is being asked is today's value. "what's the weather like"
-// reduces to "weather" and would spend a lookup on the meteorology article.
+// Things a question names that are never its subject, since what is being
+// asked is today's value. "what's the weather like" reduces to "weather".
 var liveSubject = map[string]bool{
 	"weather": true, "forecast": true, "temperature": true, "time": true, "date": true,
 	"news": true, "score": true, "scores": true, "price": true, "prices": true,
@@ -123,124 +113,7 @@ var notASubject = map[string]bool{
 	"why": true, "how": true, "what": true, "who": true, "when": true, "where": true,
 	"which": true, "it": true, "that": true, "this": true, "them": true, "they": true,
 	// A message telling the assistant to do something is not a message about a
-	// thing. "remember that i want to watch this" reduced to "remember" and
-	// fetched the Wikipedia article on memory.
+	// thing. "remember that i want to watch this" reduces to "remember".
 	"remember": true, "forget": true, "note": true, "save": true, "keep": true,
 	"add": true, "update": true, "delete": true, "ignore": true,
-}
-
-// pictureReference finds the article on a real thing a picture is asked of, so
-// the prompt can describe the Monsanto House of the Future instead of a kitchen
-// the model imagines.
-func (e *Engine) pictureReference(ctx context.Context, message string) (tools.Result, Message, bool) {
-	for _, q := range referenceWindows(message) {
-		args, err := json.Marshal(map[string]string{"query": q})
-		if err != nil {
-			break
-		}
-		res := e.reg.Call(ctx, &tools.Turn{Deps: e.deps}, tools.Wikipedia.Name, args)
-		m, ok := res.Content.(map[string]any)
-		if res.Err != "" || !ok {
-			continue
-		}
-		title, _ := m["title"].(string)
-		summary, _ := m["summary"].(string)
-		if found, _ := m["found"].(bool); !found || isDisambiguation(m) || strings.TrimSpace(summary) == "" || !namesTitle(title, message) {
-			continue
-		}
-		msg := Message{Role: RoleUser, Content: "He named a real thing, so here is the opening of the " + title +
-			" article from the offline Wikipedia. Use what it says about how it looks, when it was built or made " +
-			"and what it is made of in the prompt, and draw what he asked for.\n\n" + trimLine(summary, 1500)}
-		return res, msg, true
-	}
-	return tools.Result{}, Message{}, false
-}
-
-// isDisambiguation is a lookup that landed on a list of things sharing a name,
-// which is no background for anything.
-func isDisambiguation(m map[string]any) bool {
-	d, _ := m["disambiguation"].(bool)
-	return d
-}
-
-// background looks the question's subject up in the offline snapshot and returns
-// a line for the gate, or empty when there is nothing to add. Anything that goes
-// wrong returns empty, since a failure here must not change a verdict.
-func (e *Engine) background(ctx context.Context, question string) string {
-	subject := subjectOf(question)
-	if subject == "" {
-		return ""
-	}
-	args, err := json.Marshal(map[string]string{"query": subject})
-	if err != nil {
-		return ""
-	}
-	res := e.reg.Call(ctx, &tools.Turn{Deps: e.deps}, tools.Wikipedia.Name, args)
-	if res.Err != "" {
-		return ""
-	}
-	m, ok := res.Content.(map[string]any)
-	if !ok {
-		return ""
-	}
-	if found, _ := m["found"].(bool); !found || isDisambiguation(m) {
-		return ""
-	}
-	title, _ := m["title"].(string)
-	summary, _ := m["summary"].(string)
-	if strings.TrimSpace(summary) == "" {
-		return ""
-	}
-	date, _ := m["snapshot_date"].(string)
-	if date == "" {
-		date = "an unknown date"
-	}
-	// The age has to travel with the text. Without it a draft that is right
-	// about something recent looks wrong against an older article, and the gate
-	// sends a correct answer back to be broken.
-	return "wikipedia on " + title + ", from an offline snapshot taken " + date +
-		", looked up here rather than by the model: " + trimLine(summary, 1500)
-}
-
-// opening looks the question's subject up in the local snapshot before the model
-// decides anything. It costs no web request and is newer than the weights, and
-// it returns false when there is nothing worth adding.
-func (e *Engine) opening(ctx context.Context, question string) (tools.Result, Message, bool) {
-	subject := subjectOf(question)
-	if subject == "" {
-		return tools.Result{}, Message{}, false
-	}
-	args, err := json.Marshal(map[string]string{"query": subject})
-	if err != nil {
-		return tools.Result{}, Message{}, false
-	}
-	res := e.reg.Call(ctx, &tools.Turn{Deps: e.deps}, tools.Wikipedia.Name, args)
-	if res.Err != "" {
-		return tools.Result{}, Message{}, false
-	}
-	m, ok := res.Content.(map[string]any)
-	if !ok {
-		return tools.Result{}, Message{}, false
-	}
-	if found, _ := m["found"].(bool); !found || isDisambiguation(m) {
-		return tools.Result{}, Message{}, false
-	}
-	title, _ := m["title"].(string)
-	summary, _ := m["summary"].(string)
-	date, _ := m["snapshot_date"].(string)
-	if strings.TrimSpace(summary) == "" {
-		return tools.Result{}, Message{}, false
-	}
-	if date == "" {
-		date = "an unknown date"
-	}
-	msg := Message{Role: RoleUser, Content: "Before you answer, here is the opening section of the " +
-		title + " article from the offline Wikipedia on this machine, looked up for you. It was taken " +
-		date + ", so it is newer than your training and still older than today.\n\n" +
-		summary +
-		"\n\nUse it where it answers the question, and say what it says rather than what you remember, " +
-		"since your memory of a name, a date or who currently holds an office is the part most likely to " +
-		"be out of date. Answer about the subject and never mention the article or its opening section. Call another tool if the question needs more than this covers, and use " +
-		"web_search for anything that could have changed since " + date + "."}
-	return res, msg, true
 }

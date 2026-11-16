@@ -20,13 +20,13 @@ func (a *dictionaryArgs) params() []param {
 	}
 }
 
-// Dictionary reads Wiktionary since a word isn't an article, and asking
-// wikipedia to define "program" lands on a disambiguation page.
+// Dictionary reads Wiktionary since a word isn't an article, and a search for
+// "program" lands on everything called that.
 var Dictionary = Define(Tool{
 	Name:   "dictionary",
 	Traits: Outbound,
 	Description: "What a word or a short phrase means, from Wiktionary, with its part of speech and an example. " +
-		"Use it to define a word or say what a term means, and use wikipedia for a person, place, thing or event.",
+		"Use it to define a word or say what a term means, and use web_search for a person, place, thing or event.",
 }, func(ctx context.Context, d *Turn, a dictionaryArgs) (any, error) {
 	word := strings.Trim(a.Word, "\"'“”‘’?.!")
 	if word == "" {
@@ -65,7 +65,7 @@ var Dictionary = Define(Tool{
 	}
 	if len(senses) == 0 {
 		return map[string]any{"word": word, "found": false,
-			"note": "Wiktionary has no English entry for that. If it is the name of something, try wikipedia."}, nil
+			"note": "Wiktionary has no English entry for that. If it is the name of something, try web_search."}, nil
 	}
 	return map[string]any{"word": word, "found": true, "source": "Wiktionary", "senses": senses}, nil
 })

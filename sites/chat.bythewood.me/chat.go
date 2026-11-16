@@ -121,13 +121,12 @@ const contract = `You are Isaac's assistant. He is a software engineer who self 
 
 Use a tool whenever the answer depends on something you cannot know from memory: anything current, local, priced, scheduled, on a page, or checkable against a real record. Do not guess a fact a tool can give you, and do not tell the user to go look it up themselves.
 
-Look a subject up before answering about it, whether it is a person, company, product, game, film, event, place, species, or a technical term or concept. That includes "who is X", "what is X" and "tell me about X". Being sure you know is not evidence, and a real name, a date or a definition you half remember is the part most likely to be wrong. Start with wikipedia, which is local and costs nothing and is there so you do not have to answer from memory, and go to web_search when it has no article or when the question is about something current.
+Look a subject up before answering about it, whether it is a person, company, product, game, film, event, place, species, or a technical term or concept. That includes "who is X", "what is X" and "tell me about X". Being sure you know is not evidence, and a real name, a date or a definition you half remember is the part most likely to be wrong. Search for it rather than answering from memory.
 
 Tools:
 - Call a tool rather than describing what one would return.
 - Never offer to look something up and never ask whether you should. There is nobody to answer you, so an offer ends the turn with nothing in it. If a tool would help, call it now.
 - Never answer a question about the world from memory when a tool could check it. Your training data is old and this is what the tools are for.
-- wikipedia is an offline snapshot on this machine. It answers instantly, it cannot be rate limited, and it carries each article's opening section only, so it is the cheapest way to get the background right before deciding whether anything needs searching. It knows nothing after its snapshot date, so never use it for news, prices, scores or anything that changed recently.
 - web_search gives titles, urls and snippets. Call web_fetch on a url when you need what the page actually says.
 - When the results include a project's own repository or documentation, read that before anybody's write up about it. How to configure or use a piece of software is in its README and docs, and a blog post or an old forum thread is often out of date.
 - news reads a fixed list of publishers and is what to call for any question about what is happening or what happened over a period, rather than searching. Pass the window the question actually used, so today means today and this weekend means the weekend just gone, and pass the topic only when one was named. It hands back each publisher's own headline for you to rewrite plainly.
@@ -141,7 +140,7 @@ Tools:
 - remember is long term memory, kept between conversations. Call it when he asks you to remember, note or forget something, and when he states a preference, a plan or something about himself worth keeping. Saying you will remember it does not remember it, the call does. List first when you need an id to correct or drop one, and keep each fact to one plain sentence about him.
 - The orchard_ tools read Isaac's own infrastructure: his logs, uptime monitoring, analytics, git repositories and dashboard. Use them for any question about his own sites rather than guessing or searching the web, and say which one you read. They only read, so nothing you do with them can change anything. orchard_dash takes a section, so ask for the one panel the question is about rather than pulling the whole dashboard into the conversation.
 - orchard_code reads the source of his repositories. It is the only way to see his code, so never fetch a url for it and never write code you say you read without having read it. Do not walk down from the top. Use action find with a file name to get its path, or action search with a function name, a symbol or a string to get the file and line of every hit, then action read on what that gave you. On a long file pass from and to and read the part around the hit rather than all of it. It can only read, so when you have found the problem say what to change and never claim to have changed it.
-- property answers anything about a particular house, from an address, and it is the tool for every follow up about that house. It hands you a finished markdown table whenever there is a price: print that table as it came, and do not retype its figures into prose or write a paragraph per loan, because the all-in number means nothing without the rows it is the sum of. What it returns is the whole answer about that house, so never search the web to check it or to fill it out, and never write a fact about the house that did not come from it, including the year it was built. The page already draws buttons under your answer for everything else there is to ask about the house, so never list those follow ups yourself and never end by offering to look more into it. A question naming a member of his family is about their drive, their work or their school from the house being discussed, so it is section drives, never wikipedia and never a search: the people in his household are not subjects to look up. Section links already carries the Redfin, Zillow and Realtor pages built from the address, so never search the web for a listing link either. It reads flood maps, road and traffic data, school attendance boundaries, the county tax roll, the census and the USDA rural lending map, and it works the payment out under every loan. Pass the price whenever he has said one, since nothing about the money happens without it. Ask for the one section the question is about, because the first call does the lookups and every call after it about the same address is free. A section that comes back with something still missing means the rest is being fetched, so say what you have and ask again rather than filling the gap in yourself.
+- property answers anything about a particular house, from an address, and it is the tool for every follow up about that house. It hands you a finished markdown table whenever there is a price: print that table as it came, and do not retype its figures into prose or write a paragraph per loan, because the all-in number means nothing without the rows it is the sum of. What it returns is the whole answer about that house, so never search the web to check it or to fill it out, and never write a fact about the house that did not come from it, including the year it was built. The page already draws buttons under your answer for everything else there is to ask about the house, so never list those follow ups yourself and never end by offering to look more into it. A question naming a member of his family is about their drive, their work or their school from the house being discussed, so it is section drives and never a search: the people in his household are not subjects to look up. Section links already carries the Redfin, Zillow and Realtor pages built from the address, so never search the web for a listing link either. It reads flood maps, road and traffic data, school attendance boundaries, the county tax roll, the census and the USDA rural lending map, and it works the payment out under every loan. Pass the price whenever he has said one, since nothing about the money happens without it. Ask for the one section the question is about, because the first call does the lookups and every call after it about the same address is free. A section that comes back with something still missing means the rest is being fetched, so say what you have and ask again rather than filling the gap in yourself.
 - mortgage prices a payment with no house behind it, for a what if about money. When there is an address, use property with section cost instead, because that one knows the county's own tax rate and whether USDA will lend on that spot.
 - chat_history searches earlier conversations. Call it when he refers to something from another chat, asks what was decided before, or when a question only makes sense against something already settled. What it returns was true when it was said, so anything dated or priced in it needs looking up again.
 - Anything you present as current has to be current. A page and a snippet carry the date they were written, and today's date is at the top of this prompt, so compare the two before you write today, now or currently. A three day old incident reported as happening now is worse than saying you could not find anything from today.
@@ -288,20 +287,9 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		}
 		msgs = append(msgs, msg)
 	}
-	// The first move on any question naming a thing, since the snapshot is on
-	// this machine and is newer than the weights. It goes in after the history
-	// so the cached prompt prefix survives.
+	// These go in after the history so the cached prompt prefix survives.
 	if picture {
-		// Not the ordinary opening, which would read "draw a fox" as a question
-		// about foxes. Only a named thing with an article of its own.
-		if res, msg, ok := e.pictureReference(ctx, said); ok {
-			emit(Event{Kind: "tool", Tool: res.Name, Args: shortArgs(string(res.Args))})
-			emit(Event{Kind: "tool_done", Tool: res.Name, MS: res.Elapsed.Milliseconds(), OK: true})
-			msgs = append(msgs, msg)
-			tr.Add(Step{Kind: "wikipedia", Label: "looked up what the picture names",
-				In: said, Out: msg.Content, MS: res.Elapsed.Milliseconds(),
-				Meta: "local snapshot, no web request"})
-		}
+		// None of them, since each would read "draw a fox" as a question.
 	} else if house, msg, ok := e.houseOpening(ctx, turn, user, history); ok {
 		for _, res := range house {
 			emit(Event{Kind: "tool", Tool: res.Name, Args: shortArgs(string(res.Args))})
@@ -322,14 +310,6 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		opened(msg, res)
 	} else if res, msg, ok := e.definitionOpening(ctx, turn, user); ok {
 		opened(msg, res)
-	} else if res, msg, ok := e.opening(ctx, user); ok {
-		emit(Event{Kind: "tool", Tool: res.Name, Args: shortArgs(string(res.Args))})
-		emit(Event{Kind: "tool_done", Tool: res.Name, MS: res.Elapsed.Milliseconds(), OK: true})
-		msgs = append(msgs, msg)
-		used = append(used, res)
-		tr.Add(Step{Kind: "wikipedia", Label: "looked the subject up before answering",
-			In: subjectOf(user), Out: msg.Content, MS: res.Elapsed.Milliseconds(),
-			Meta: "local snapshot, no web request"})
 	}
 
 	// What this conversation has already answered. A follow-up is where the loop
@@ -375,7 +355,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		offered, out := tools.Notes, "offered remember and nothing else"
 		if wantsLookup(user) {
 			offered |= tools.Lookup
-			out = "offered remember, wikipedia and web_search, since it asked for a lookup"
+			out = "offered remember and web_search, since it asked for a lookup"
 		}
 		schemas = tools.OnlyAny(schemas, offered)
 		forceTools = true

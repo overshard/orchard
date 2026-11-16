@@ -26,7 +26,7 @@ tunnel rather than a rented server.
 | `sites/repos.bythewood.me/` | Self hosted git remote. Push to it over HTTPS with a token, and it mirrors the GitHub account as a backup. Everything git is a subprocess |
 | `sites/dash.bythewood.me/` | Dashboard. Markets off Yahoo, a markets line and a news summary the local model writes four times a day, Hacker News and Lobsters, the weather, and whether the other sites are answering. One poller, server sent events out, no database |
 | `sites/auth.bythewood.me/` | The front door. One account, a six digit code pushed over ntfy, and an opaque session every other site checks against it |
-| `sites/chat.bythewood.me/` | A conversation with a local model, with tools, attachments, pictures, history in SQLite and an incognito mode that writes nothing. It also answers a house out of public records. Beside it an offline Wikipedia, served by kiwix off a 12.5GB ZIM |
+| `sites/chat.bythewood.me/` | A conversation with a local model, with tools, attachments, pictures, history in SQLite and an incognito mode that writes nothing. It also answers a house out of public records |
 | `sites/llm.bythewood.me/` | The model gateway. One card behind an API key, Ornith for chat and FLUX.2 klein for pictures taking turns on it, with every prompt and completion logged unless the caller marks the call incognito |
 | `sites/pond.bythewood.me/` | A virtual pet game where every visitor gets a frog of their own. No accounts, a frog is kept by six words in a host only cookie and stored as an HMAC under a pepper in `.env`. SQLite, with every rule and every clock on the server |
 | `edge/` | The shared `cloudflared` tunnel, the Caddy that reverse proxies to each site, and the ntfy every alert is published to |
@@ -78,7 +78,6 @@ make install                         once per machine: tunnel, secrets, containe
 make up                              edge, then every site, idempotent and the repair command
 make deploy SITE=blog.bythewood.me   rebuild one site and replace it
 make doctor                          tunnel, network, containers, and the data volumes
-make wiki                            download the offline wikipedia into its volume, 12.5GB
 make down                            stop everything
 
 make run SITE=blog.bythewood.me      vite watch + go run
@@ -136,10 +135,9 @@ and probes every other site at `http://orchard-<label>:8000/healthz`,
 so renaming a container means rebuilding Caddy, the portfolio and every site,
 not just editing a compose file. No SQLite database refers to a container name.
 
-**`orchard-llm` and `orchard-wiki` are the exceptions.** chat and dash reach the
-gateway through `LLM_URL` and chat reaches the wiki through `WIKI_URL`, which
-compose sets and which fall back to those names, so they're the only ones a dev
-run can point somewhere else without a rebuild.
+**`orchard-llm` is the exception.** chat and dash reach the gateway through
+`LLM_URL`, which compose sets and which falls back to that name, so it's the
+only one a dev run can point somewhere else without a rebuild.
 
 **Alerts leave through ntfy in the edge, and reading them is authenticated.**
 status publishes to the `status` topic, logging to `logging` and auth to `auth`,
@@ -211,9 +209,9 @@ is `debian:trixie-slim`, `golang:1.27-trixie` or `oven/bun:1-debian`, pinned by
 digest, and a site with nothing to exec ends at `FROM scratch` instead. Nothing
 pulls Alpine, `curlimages/curl` or any other base, including the throwaway
 containers the Makefile runs, which use `orchard-util` out of `edge/util`.
-Vendor software goes the same way. `caddy`, `ntfy`, `cloudflared` and
-`kiwix-serve` are static binaries, so their Dockerfiles `COPY --from` the pinned
-upstream image into `debian:trixie-slim` and nothing runs on Alpine or distroless.
+Vendor software goes the same way. `caddy`, `ntfy` and `cloudflared` are
+static binaries, so their Dockerfiles `COPY --from` the pinned upstream image
+into `debian:trixie-slim` and nothing runs on Alpine or distroless.
 Reach for a new base image and the answer is no: add the package to `edge/util`
 or to the runtime stage.
 
