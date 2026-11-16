@@ -172,6 +172,7 @@ func realMain() error {
 		return fmt.Errorf("pictures: %w", err)
 	}
 	s.engine.Deps().Images = s.painter
+	s.engine.Deps().Search = llm
 	// The house lookups own their tables in the same database. A missing config
 	// isn't fatal, the engine runs on placeholders and every report says which
 	// config it used.

@@ -50,12 +50,19 @@ var XSearch = Define(Tool{
 		scope = "(site:x.com/" + acct + " OR site:twitter.com/" + acct + ")"
 	}
 
-	body, err := get(ctx, d.Deps, "https://html.duckduckgo.com/html/?q="+
-		url.QueryEscape(scope+" "+q), "text/html")
-	if err != nil {
-		return nil, err
+	ask := q
+	if acct := strings.TrimSpace(strings.TrimPrefix(a.Account, "@")); acct != "" {
+		ask = "@" + acct + " " + q
 	}
-	hits := parseDDG(string(body), 0)
+	hits, err := preferred(ctx, d, ask, []string{"x.com", "twitter.com"}, 12)
+	if err != nil {
+		body, err := get(ctx, d.Deps, "https://html.duckduckgo.com/html/?q="+
+			url.QueryEscape(scope+" "+q), "text/html")
+		if err != nil {
+			return nil, err
+		}
+		hits = parseDDG(string(body), 0)
+	}
 
 	posts := make([]SearchHit, 0, n)
 	for _, h := range hits {

@@ -213,6 +213,10 @@ func (e *Engine) SaveSpend(save func(host string, at []time.Time)) {
 // SearchDown reports whether the search endpoint is in the penalty box and for
 // how much longer, so the page can say so before a turn discovers it.
 func (e *Engine) SearchDown() (time.Duration, bool) {
+	// DuckDuckGo is only the fallback then, so its box doesn't stop a search.
+	if e.deps.Search != nil {
+		return 0, false
+	}
 	left, ok := e.deps.Guard.Down()[tools.SearchHost]
 	return left, ok
 }

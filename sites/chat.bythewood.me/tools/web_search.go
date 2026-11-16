@@ -43,6 +43,9 @@ var WebSearch = Define(Tool{
 	if n < 1 || n > 12 {
 		n = 6
 	}
+	if hits, err := preferred(ctx, d, q, nil, n); err == nil {
+		return map[string]any{"query": q, "results": hits}, nil
+	}
 	body, err := get(ctx, d.Deps, "https://html.duckduckgo.com/html/?q="+url.QueryEscape(q), "text/html")
 	if err != nil {
 		return nil, err
@@ -53,6 +56,19 @@ var WebSearch = Define(Tool{
 	}
 	return map[string]any{"query": q, "results": hits}, nil
 })
+
+// preferred asks the gateway's search, which doesn't share DuckDuckGo's habit
+// of refusing this address.
+func preferred(ctx context.Context, d *Turn, q string, domains []string, n int) ([]SearchHit, error) {
+	if d.Search == nil {
+		return nil, fmt.Errorf("no search behind the gateway")
+	}
+	hits, err := d.Search.Search(ctx, q, domains, n)
+	if err == nil && len(hits) == 0 {
+		err = fmt.Errorf("the search found nothing")
+	}
+	return hits, err
+}
 
 // parseDDG pulls the results out of a DuckDuckGo HTML page. A limit of zero
 // means every one, for a caller filtering them itself.

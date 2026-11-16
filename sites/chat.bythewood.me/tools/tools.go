@@ -56,6 +56,13 @@ type Deps struct {
 	// tables in the site's database.
 	Property Property
 	Images   Images
+	// Search goes through the gateway to Anthropic's web search, and an error
+	// from it falls back to DuckDuckGo.
+	Search Searcher
+}
+
+type Searcher interface {
+	Search(ctx context.Context, query string, domains []string, n int) ([]SearchHit, error)
 }
 
 // Turn is what a tool is handed, the shared Deps and what belongs to one turn,

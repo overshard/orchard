@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"chat.bythewood.me/internal/incognito"
+	"chat.bythewood.me/tools"
 )
 
 type Role string
@@ -555,4 +556,34 @@ func trim(s string, n int) string {
 		return s
 	}
 	return strings.TrimSpace(s[:n-1]) + "…"
+}
+
+// Search asks the gateway for web results, which it gets from Anthropic's
+// search. A gateway on the local model answers 501 and the tool falls back.
+func (l *LLM) Search(ctx context.Context, query string, domains []string, n int) ([]tools.SearchHit, error) {
+	body, err := json.Marshal(map[string]any{"query": query, "domains": domains, "n": n})
+	if err != nil {
+		return nil, err
+	}
+	hr, err := http.NewRequestWithContext(ctx, "POST", l.BaseURL+"/v1/search", bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	hr.Header.Set("Content-Type", "application/json")
+	l.sign(hr)
+	resp, err := l.http.Do(hr)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return nil, modelError(resp.StatusCode, resp.Body)
+	}
+	var out struct {
+		Results []tools.SearchHit `json:"results"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&out); err != nil {
+		return nil, err
+	}
+	return out.Results, nil
 }
