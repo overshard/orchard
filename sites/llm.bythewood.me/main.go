@@ -161,6 +161,8 @@ func realMain() error {
 	mux.HandleFunc("POST /v1/completions", s.requireKey(s.completions))
 	mux.HandleFunc("GET /v1/models", s.requireKey(s.passthrough))
 	mux.HandleFunc("POST /v1/embeddings", s.requireKey(s.passthrough))
+	// Web search for a caller that wants the hits, not an answer.
+	mux.HandleFunc("POST /v1/search", s.requireKey(s.search))
 	mux.HandleFunc("POST /v1/images/generations", s.requireKey(s.images))
 	mux.HandleFunc("POST /v1/images/edits", s.requireKey(s.images))
 	// What's on the card, and a way to take it off before the idle ttl runs out.

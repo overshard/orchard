@@ -260,3 +260,30 @@ func TestTheCardEndpointsAnswerWithoutACard(t *testing.T) {
 		}
 	}
 }
+
+func TestASearchHandsBackHitsWithTheQuotedPassages(t *testing.T) {
+	s, secret, sent := fakeClaude(t, "application/json", `{"id":"m","type":"message","role":"assistant","model":"x",
+		"stop_reason":"end_turn","content":[
+		{"type":"server_tool_use","id":"srvtoolu_1","name":"web_search","input":{"query":"q"}},
+		{"type":"web_search_tool_result","tool_use_id":"srvtoolu_1","content":[
+			{"type":"web_search_result","url":"https://a.example","title":"A","encrypted_content":"x","page_age":"2 days ago"},
+			{"type":"web_search_result","url":"https://b.example","title":"B","encrypted_content":"x"}]},
+		{"type":"text","text":"A says so.","citations":[{"type":"web_search_result_location",
+			"url":"https://a.example","title":"A","cited_text":"the passage","encrypted_index":"e"}]}],`+usage+`}`)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/v1/search", strings.NewReader(`{"query":"q","domains":["x.com"]}`))
+	req.Header.Set("Authorization", "Bearer "+secret)
+	s.requireKey(s.search)(rec, req)
+	if rec.Code != 200 {
+		t.Fatalf("status = %d: %s", rec.Code, rec.Body)
+	}
+	var out struct{ Results []searchHit }
+	_ = json.Unmarshal(rec.Body.Bytes(), &out)
+	if len(out.Results) != 2 || out.Results[0].Snippet != "the passage" || out.Results[1].Title != "B" {
+		t.Errorf("results = %+v", out.Results)
+	}
+	tool := (*sent)[0]["tools"].([]any)[0].(map[string]any)
+	if d := tool["allowed_domains"].([]any); len(d) != 1 || d[0] != "x.com" {
+		t.Errorf("domains = %v", d)
+	}
+}
