@@ -17,6 +17,7 @@ func TestPromptsSmoke(t *testing.T) {
 	}
 	llm := NewLLM(env("LLM_URL", "http://orchard-llm:8000"), env("LLM_MODEL", "local"), os.Getenv("LLM_KEY"))
 	eng := NewEngine(llm, env("LLM_NAME", "Ornith 1.5 9B"))
+	eng.Deps().Search = llm
 	// main wires the markdown renderer, and the streaming path calls it.
 	eng.Render = func(md string) string { return md }
 
