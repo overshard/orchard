@@ -93,6 +93,12 @@ type Engine struct {
 	mu       sync.Mutex
 	inflight map[string]chan struct{}
 
+	// Assessments outlive the turn that asked, so Close ends them and waits
+	// before the database they write to goes away.
+	closing context.Context
+	stop    context.CancelFunc
+	running sync.WaitGroup
+
 	// Held across the read and the write of the cold ceiling, so two new
 	// addresses at once can't both see the last slot.
 	spendMu sync.Mutex
@@ -105,7 +111,9 @@ func NewEngine(db *sql.DB, cfg Config) (*Engine, error) {
 	roads := NewRoads(db, cfg.Thresholds.RoadClasses, cfg.Thresholds.CornerFeet)
 	parcels := NewParcels(db)
 	geo := NewGeocoder(db)
+	closing, stop := context.WithCancel(context.Background())
 	return &Engine{
+		closing: closing, stop: stop,
 		db: db, cfg: cfg,
 		geo:   geo,
 		flood: NewFlood(db, cfg.Thresholds.FloodZones),
@@ -129,6 +137,12 @@ func NewEngine(db *sql.DB, cfg Config) (*Engine, error) {
 }
 
 func (e *Engine) Config() Config { return e.cfg }
+
+// Close stops the assessments still running and waits for them to return.
+func (e *Engine) Close() {
+	e.stop()
+	e.running.Wait()
+}
 
 // Full is what the geocoder needs and what anything quoting a report back has to
 // use.
@@ -251,11 +265,12 @@ func (e *Engine) start(ctx context.Context, key, address, matched string, lat, l
 	ch := make(chan struct{})
 	e.inflight[key] = ch
 
-	go func() {
+	e.running.Go(func() {
 		// It outlives the turn that asked. Twenty minutes is the worst case with
 		// every guard resting.
 		bg, cancel := context.WithTimeout(context.WithoutCancel(ctx), 20*time.Minute)
 		defer cancel()
+		defer context.AfterFunc(e.closing, cancel)()
 		defer func() {
 			e.mu.Lock()
 			delete(e.inflight, key)
@@ -264,10 +279,15 @@ func (e *Engine) start(ctx context.Context, key, address, matched string, lat, l
 		}()
 
 		r := e.assess(bg, address, matched, lat, lon, opt)
+		// One cut short by shutdown is mostly missing pieces, and caching it
+		// would serve those gaps until it ages out.
+		if e.closing.Err() != nil {
+			return
+		}
 		if err := e.save(bg, key, r); err != nil {
 			slog.Error("could not cache a property report", "address", address, "err", err)
 		}
-	}()
+	})
 	return ch
 }
 

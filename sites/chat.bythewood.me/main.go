@@ -176,6 +176,7 @@ func realMain() error {
 	} else if pe, err := property.NewEngine(store.DB(), pcfg); err != nil {
 		return fmt.Errorf("property engine: %w", err)
 	} else {
+		defer pe.Close()
 		s.engine.Deps().Property = pe
 		slog.Info("property lookups ready", "config", pcfg.Label)
 	}
@@ -665,7 +666,12 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 			if len(stored) == 0 {
 				seed := titleSeed(req.Message, parts)
 				titleStart := time.Now()
-				if t := s.comp.Title(context.WithoutCancel(ctx), seed, reply.Content); t != "" {
+				// Survives the stop button, since the answer is already saved,
+				// but not shutdown.
+				tctx, cancel := s.detach(ctx, time.Minute)
+				t := s.comp.Title(tctx, seed, reply.Content)
+				cancel()
+				if t != "" {
 					title = t
 					_ = s.store.SetTitle(convID, t)
 					tr.Add(Step{Kind: "title", Label: "named the conversation",
