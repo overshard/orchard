@@ -238,8 +238,7 @@ func realMain() error {
 			"stale-while-revalidate=600, stale-if-error=86400"),
 	)
 
-	slog.Info(fmt.Sprintf("repos.bythewood.me serving %s (mirror=%t)",
-		baseURL, cfg.MirrorEnabled))
+	slog.Info("repos.bythewood.me serving", slog.String("base_url", baseURL), slog.Bool("mirror", cfg.MirrorEnabled))
 	return web.Serve(listenAddr, handler)
 }
 
