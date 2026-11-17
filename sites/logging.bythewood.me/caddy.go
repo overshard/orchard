@@ -90,10 +90,11 @@ func (s *site) readCaddyLog(conn net.Conn) {
 		if len(rows) == 0 {
 			return
 		}
-		s.writer.enqueue(rows)
-		// After the enqueue, like ingest, since a refused batch isn't evidence
-		// the source is healthy.
-		s.watchdog.Observe(caddySource, recs)
+		// Only on an accepted batch, like ingest, since a refused batch isn't
+		// evidence the source is healthy.
+		if s.writer.enqueue(rows) {
+			s.watchdog.Observe(caddySource, recs)
+		}
 		rows, recs = rows[:0], recs[:0]
 	}
 

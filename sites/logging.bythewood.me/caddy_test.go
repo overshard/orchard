@@ -324,3 +324,40 @@ func TestHostSource(t *testing.T) {
 		}
 	}
 }
+
+// A batch the full queue refused is lost, so it can't count as Caddy being
+// heard from or the watchdog stays quiet while every line is dropped.
+func TestCaddyRefusedBatchIsNotObserved(t *testing.T) {
+	db := testDB(t)
+	w := &Writer{db: db, ch: make(chan row), quit: make(chan struct{}), done: make(chan struct{})}
+	s := &site{db: db, writer: w, watchdog: NewWatchdog(db, nil)}
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- s.serveCaddyLogs(ctx, ln) }()
+
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Fprintln(conn, caddyLine)
+	conn.Close()
+
+	deadline := time.Now().Add(5 * time.Second)
+	for w.Stats().Rejected == 0 && time.Now().Before(deadline) {
+		time.Sleep(20 * time.Millisecond)
+	}
+	if w.Stats().Rejected == 0 {
+		t.Fatal("the batch never reached the full queue")
+	}
+	if s.watchdog.Shipping(caddySource) {
+		t.Error("a refused batch counted as Caddy shipping")
+	}
+	cancel()
+	<-done
+}
