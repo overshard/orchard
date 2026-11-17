@@ -1,7 +1,7 @@
 # orchard
 
 Every site I host, in one repo, along with the Cloudflare Tunnel and Caddy that
-front them. All of it runs on a desktop at home and nothing listens on an
+front them. All of it runs on a small VPS and nothing listens on a public
 inbound port.
 
 | Directory | Site |
@@ -14,8 +14,8 @@ inbound port.
 | `sites/repos.bythewood.me/` | Git remote you push to over HTTPS. Also mirrors GitHub |
 | `sites/dash.bythewood.me/` | Dashboard. Markets, news, weather and the health of the rest, live over SSE |
 | `sites/auth.bythewood.me/` | The front door. One account, a code pushed to a phone, one session for every site |
-| `sites/chat.bythewood.me/` | Chat with the local model, with tools that read the rest of this repo, house lookups and pictures |
-| `sites/llm.bythewood.me/` | The model gateway. One card behind an API key, a chat model and a picture model taking turns on it |
+| `sites/chat.bythewood.me/` | Chat with Claude Haiku, with tools that read the rest of this repo and house lookups |
+| `sites/llm.bythewood.me/` | The model gateway. Claude Haiku behind an API key, with a monthly budget and every call logged |
 | `sites/pond.bythewood.me/` | A virtual pet game. Every visitor gets a frog of their own, kept by six words in a cookie |
 | `edge/` | The shared cloudflared tunnel, the Caddy behind it, and ntfy for alerts |
 

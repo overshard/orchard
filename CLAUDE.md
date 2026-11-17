@@ -13,8 +13,8 @@ alike is something a person keeps true by following that file.
 ## What this is
 
 One repo for every site Isaac Bythewood runs, plus the shared Cloudflare Tunnel
-and Caddy that front them. Every site is Go, and all of them are served from a desktop behind a
-tunnel rather than a rented server.
+and Caddy that front them. Every site is Go, and all of them are served from a small VPS behind a
+tunnel with no public ports.
 
 | Directory | What it serves |
 |---|---|
@@ -24,10 +24,10 @@ tunnel rather than a rented server.
 | `sites/status.bythewood.me/` | Self hosted uptime monitoring. SQLite, Lighthouse audits, crawler |
 | `sites/logging.bythewood.me/` | Self hosted log aggregation. Every other site ships its slog records here. SQLite, retention and rollups, Typst PDF reports |
 | `sites/repos.bythewood.me/` | Self hosted git remote. Push to it over HTTPS with a token, and it mirrors the GitHub account as a backup. Everything git is a subprocess |
-| `sites/dash.bythewood.me/` | Dashboard. Markets off Yahoo, a markets line and a news summary the local model writes four times a day, Hacker News and Lobsters, the weather, and whether the other sites are answering. One poller, server sent events out, no database |
+| `sites/dash.bythewood.me/` | Dashboard. Markets off Yahoo, a markets line and a news summary Claude Haiku writes four times a day, Hacker News and Lobsters, the weather, and whether the other sites are answering. One poller, server sent events out, no database |
 | `sites/auth.bythewood.me/` | The front door. One account, a six digit code pushed over ntfy, and an opaque session every other site checks against it |
-| `sites/chat.bythewood.me/` | A conversation with a local model, with tools, attachments, pictures, history in SQLite and an incognito mode that writes nothing. It also answers a house out of public records |
-| `sites/llm.bythewood.me/` | The model gateway. One card behind an API key, Ornith for chat and FLUX.2 klein for pictures taking turns on it, with every prompt and completion logged unless the caller marks the call incognito |
+| `sites/chat.bythewood.me/` | A conversation with Claude Haiku, with tools, attachments, history in SQLite and an incognito mode that writes nothing. It also answers a house out of public records |
+| `sites/llm.bythewood.me/` | The model gateway. Claude Haiku behind an API key, with a monthly budget it enforces and every prompt and completion logged unless the caller marks the call incognito |
 | `sites/pond.bythewood.me/` | A virtual pet game where every visitor gets a frog of their own. No accounts, a frog is kept by six words in a host only cookie and stored as an HMAC under a pepper in `.env`. SQLite, with every rule and every clock on the server |
 | `edge/` | The shared `cloudflared` tunnel, the Caddy that reverse proxies to each site, and the ntfy every alert is published to |
 
@@ -426,9 +426,9 @@ and Discord all refuse `image/svg+xml`.
 **Do not put `s-maxage` in a cache policy here.** Per RFC 9111 it carries
 `proxy-revalidate` semantics, so Cloudflare treats it as never serve stale
 without asking first and it disables both `stale-while-revalidate` and
-`stale-if-error`. The origin is a desktop at the end of a tunnel, so
+`stale-if-error`. The origin is one small VPS at the end of a tunnel, so
 `stale-if-error` is what keeps the edge serving the last good copy instead of a
-530 when the house goes dark. Use plain `max-age` with both stale directives,
+530 when it goes dark. Use plain `max-age` with both stale directives,
 and keep Cloudflare's Always Online off, since it makes `stale-if-error`
 ignored.
 
