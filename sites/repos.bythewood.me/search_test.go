@@ -188,3 +188,32 @@ func TestLineRangeClampsRatherThanFailing(t *testing.T) {
 		t.Errorf("text = %q", out["text"])
 	}
 }
+
+// A page that holds every match isn't cut short, and one that stops early is.
+func TestFindSaysTruncatedOnlyWhenThereIsMore(t *testing.T) {
+	s := searchFixture(t)
+	_, exact := callJSON(t, s.apiFind, "GET /api/repos/{name}/find/{rev}",
+		"/api/repos/orchard/find/HEAD?max=3")
+	if exact["truncated"] != false || exact["count"] != float64(3) {
+		t.Errorf("all three paths at max=3 came back %v truncated %v", exact["count"], exact["truncated"])
+	}
+	_, short := callJSON(t, s.apiFind, "GET /api/repos/{name}/find/{rev}",
+		"/api/repos/orchard/find/HEAD?max=2")
+	if short["truncated"] != true || short["count"] != float64(2) {
+		t.Errorf("two of three paths came back %v truncated %v", short["count"], short["truncated"])
+	}
+}
+
+func TestGrepSaysTruncatedOnlyWhenThereIsMore(t *testing.T) {
+	s := searchFixture(t)
+	_, exact := callJSON(t, s.apiGrep, "GET /api/repos/{name}/grep/{rev}",
+		"/api/repos/orchard/grep/HEAD?q=earningsShown&max=2")
+	if exact["truncated"] != false || exact["count"] != float64(2) {
+		t.Errorf("both hits at max=2 came back %v truncated %v", exact["count"], exact["truncated"])
+	}
+	_, short := callJSON(t, s.apiGrep, "GET /api/repos/{name}/grep/{rev}",
+		"/api/repos/orchard/grep/HEAD?q=earningsShown&max=1")
+	if short["truncated"] != true || short["count"] != float64(1) {
+		t.Errorf("one of two hits came back %v truncated %v", short["count"], short["truncated"])
+	}
+}

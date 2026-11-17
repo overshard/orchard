@@ -97,12 +97,12 @@ func (s *Store) Grep(ctx context.Context, repo Repo, rev, query, pathspec string
 		if len(text) > grepMaxLineLen {
 			text = text[:grepMaxLineLen] + "..."
 		}
-		hits = append(hits, GrepHit{Path: path, Line: n, Text: text})
+		// One past the limit proves there was more, so a page of exactly
+		// limit hits isn't reported as cut short.
 		if len(hits) == limit {
-			// A full page says it was cut short, so a caller doesn't read it as
-			// the whole answer.
 			return hits, true, nil
 		}
+		hits = append(hits, GrepHit{Path: path, Line: n, Text: text})
 	}
 	return hits, false, nil
 }
@@ -130,10 +130,10 @@ func (s *Store) FindPaths(ctx context.Context, repo Repo, rev, query string, lim
 		if needle != "" && !strings.Contains(strings.ToLower(path), needle) {
 			continue
 		}
-		found = append(found, path)
 		if len(found) == limit {
 			return found, true, nil
 		}
+		found = append(found, path)
 	}
 	return found, false, nil
 }
