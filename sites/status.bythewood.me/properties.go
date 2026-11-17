@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -14,7 +13,7 @@ func (s *site) properties(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := listProperties(r.Context(), s.db, query)
 	if err != nil {
-		slog.Info(fmt.Sprintf("properties list: %v", err))
+		slog.Info("properties list", slog.Any("err", err))
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -26,7 +25,7 @@ func (s *site) properties(w http.ResponseWriter, r *http.Request) {
 		view, err := s.buildPropertyView(r.Context(), p)
 		if err != nil {
 			// One property failing to summarise must not blank the list.
-			slog.Info(fmt.Sprintf("properties list: building view for %s: %v", p.URL, err))
+			slog.Info("properties list: building view", slog.Any("url", p.URL), slog.Any("err", err))
 			continue
 		}
 		data.Properties = append(data.Properties, view)
@@ -57,7 +56,7 @@ func (s *site) propertyCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err := createProperty(r.Context(), s.db, raw); err != nil {
-		slog.Info(fmt.Sprintf("property create %s: %v", raw, err))
+		slog.Info("property create", slog.Any("url", raw), slog.Any("err", err))
 	}
 	http.Redirect(w, r, "/properties", http.StatusSeeOther)
 }
@@ -69,7 +68,7 @@ func (s *site) propertyDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := deleteProperty(r.Context(), s.db, id); err != nil {
-		slog.Info(fmt.Sprintf("property delete %s: %v", id, err))
+		slog.Info("property delete", slog.Any("id", id), slog.Any("err", err))
 	}
 	http.Redirect(w, r, "/properties", http.StatusSeeOther)
 }
@@ -86,7 +85,7 @@ func (s *site) propertyPublic(w http.ResponseWriter, r *http.Request) {
 	isPublic, found, err := togglePublic(r.Context(), s.db, id)
 	switch {
 	case err != nil:
-		slog.Info(fmt.Sprintf("property public toggle %s: %v", id, err))
+		slog.Info("property public toggle", slog.Any("id", id), slog.Any("err", err))
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"success": false})
 	case !found:
 		// A 404 instead of a success carrying a made-up value.

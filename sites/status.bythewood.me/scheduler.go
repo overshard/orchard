@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"sync"
 	"time"
@@ -98,19 +97,19 @@ func (s *Scheduler) cycle(ctx context.Context, lastCleanup *time.Time) {
 	// Each step logs and continues instead of returning, so a failure
 	// enqueuing Lighthouse doesn't also skip the uptime checks.
 	if err := s.enqueueChecks(ctx); err != nil {
-		slog.Info(fmt.Sprintf("enqueue checks: %v", err), slog.String("component", "scheduler"))
+		slog.Info("enqueue checks", slog.Any("err", err), slog.String("component", "scheduler"))
 	}
 	if err := s.enqueueLighthouse(ctx); err != nil {
-		slog.Info(fmt.Sprintf("enqueue lighthouse: %v", err), slog.String("component", "scheduler"))
+		slog.Info("enqueue lighthouse", slog.Any("err", err), slog.String("component", "scheduler"))
 	}
 	if err := s.enqueueCrawls(ctx); err != nil {
-		slog.Info(fmt.Sprintf("enqueue crawls: %v", err), slog.String("component", "scheduler"))
+		slog.Info("enqueue crawls", slog.Any("err", err), slog.String("component", "scheduler"))
 	}
 	if err := s.resetWedged(ctx); err != nil {
-		slog.Info(fmt.Sprintf("reset wedged: %v", err), slog.String("component", "scheduler"))
+		slog.Info("reset wedged", slog.Any("err", err), slog.String("component", "scheduler"))
 	}
 	if err := s.maybeCleanup(ctx, lastCleanup); err != nil {
-		slog.Info(fmt.Sprintf("cleanup: %v", err), slog.String("component", "scheduler"))
+		slog.Info("cleanup", slog.Any("err", err), slog.String("component", "scheduler"))
 	}
 }
 
@@ -148,7 +147,7 @@ func (s *Scheduler) enqueueChecks(ctx context.Context) error {
 		if _, err := s.db.ExecContext(ctx,
 			"UPDATE properties SET next_run_at = ?, last_run_at = ?, updated_at = ? WHERE id = ?",
 			next3MinBoundary(), now, now, p.ID[:]); err != nil {
-			slog.Info(fmt.Sprintf("claim check for %s: %v", p.URL, err), slog.String("component", "scheduler"))
+			slog.Info("claim check", slog.Any("url", p.URL), slog.Any("err", err), slog.String("component", "scheduler"))
 			continue
 		}
 
@@ -160,7 +159,7 @@ func (s *Scheduler) enqueueChecks(ctx context.Context) error {
 				return
 			}
 			if err := processCheck(ctx, s.db, s.notifier, p); err != nil && !errors.Is(err, context.Canceled) {
-				slog.Error(fmt.Sprintf("check failed for %s: %v", p.URL, err), slog.String("component", "scheduler"))
+				slog.Error("check failed", slog.Any("url", p.URL), slog.Any("err", err), slog.String("component", "scheduler"))
 			}
 		})
 	}
@@ -183,7 +182,7 @@ func (s *Scheduler) enqueueLighthouse(ctx context.Context) error {
 			`UPDATE properties SET next_lighthouse_run_at = ?, last_lighthouse_run_at = ?,
 			  lighthouse_state = 'queued', updated_at = ? WHERE id = ?`,
 			next, now, now, p.ID[:]); err != nil {
-			slog.Info(fmt.Sprintf("claim lighthouse for %s: %v", p.URL, err), slog.String("component", "scheduler"))
+			slog.Info("claim lighthouse", slog.Any("url", p.URL), slog.Any("err", err), slog.String("component", "scheduler"))
 			continue
 		}
 
@@ -201,23 +200,23 @@ func (s *Scheduler) enqueueLighthouse(ctx context.Context) error {
 }
 
 func (s *Scheduler) runLighthouseFor(ctx context.Context, p *Property) {
-	slog.Info(fmt.Sprintf("lighthouse %s", p.URL), slog.String("component", "scheduler"))
+	slog.Info("lighthouse", slog.Any("url", p.URL), slog.String("component", "scheduler"))
 	started := time.Now()
 
 	now := nowMS()
 	if _, err := s.db.ExecContext(ctx,
 		`UPDATE properties SET lighthouse_state = 'running', lighthouse_started_at = ?,
 		  updated_at = ? WHERE id = ?`, now, now, p.ID[:]); err != nil {
-		slog.Info(fmt.Sprintf("mark lighthouse running for %s: %v", p.URL, err), slog.String("component", "scheduler"))
+		slog.Info("mark lighthouse running", slog.Any("url", p.URL), slog.Any("err", err), slog.String("component", "scheduler"))
 	}
 
 	fail := func(err error) {
-		slog.Error(fmt.Sprintf("lighthouse failed for %s: %v", p.URL, err), slog.String("component", "scheduler"))
+		slog.Error("lighthouse failed", slog.Any("url", p.URL), slog.Any("err", err), slog.String("component", "scheduler"))
 		if _, dbErr := s.db.ExecContext(ctx,
 			`UPDATE properties SET lighthouse_state = 'idle', last_lighthouse_error = ?,
 			  last_lighthouse_duration_ms = ?, updated_at = ? WHERE id = ?`,
 			err.Error(), elapsedMS(started), nowMS(), p.ID[:]); dbErr != nil {
-			slog.Error(fmt.Sprintf("record lighthouse error for %s: %v", p.URL, dbErr), slog.String("component", "scheduler"))
+			slog.Error("record lighthouse error", slog.Any("url", p.URL), slog.Any("err", dbErr), slog.String("component", "scheduler"))
 		}
 	}
 
@@ -252,7 +251,7 @@ func (s *Scheduler) runLighthouseFor(ctx context.Context, p *Property) {
 		  last_lighthouse_duration_ms = ?, lighthouse_state = 'idle', updated_at = ?
 		 WHERE id = ?`,
 		string(scoresJSON), string(detailsJSON), nowMS(), elapsedMS(started), nowMS(), p.ID[:]); err != nil {
-		slog.Info(fmt.Sprintf("store lighthouse for %s: %v", p.URL, err), slog.String("component", "scheduler"))
+		slog.Info("store lighthouse", slog.Any("url", p.URL), slog.Any("err", err), slog.String("component", "scheduler"))
 	}
 }
 
@@ -272,7 +271,7 @@ func (s *Scheduler) enqueueCrawls(ctx context.Context) error {
 			`UPDATE properties SET next_run_at_crawler = ?, last_run_at_crawler = ?,
 			  crawl_state = 'queued', updated_at = ? WHERE id = ?`,
 			next, now, now, p.ID[:]); err != nil {
-			slog.Info(fmt.Sprintf("claim crawl for %s: %v", p.URL, err), slog.String("component", "scheduler"))
+			slog.Info("claim crawl", slog.Any("url", p.URL), slog.Any("err", err), slog.String("component", "scheduler"))
 			continue
 		}
 
@@ -290,7 +289,7 @@ func (s *Scheduler) enqueueCrawls(ctx context.Context) error {
 }
 
 func (s *Scheduler) runCrawlFor(ctx context.Context, p *Property) {
-	slog.Info(fmt.Sprintf("crawling %s", p.URL), slog.String("component", "scheduler"))
+	slog.Info("crawling", slog.Any("url", p.URL), slog.String("component", "scheduler"))
 	started := time.Now()
 
 	now := nowMS()
@@ -298,7 +297,7 @@ func (s *Scheduler) runCrawlFor(ctx context.Context, p *Property) {
 		`UPDATE properties SET crawl_state = 'running', crawl_started_at = ?,
 		  last_crawl_pages_count = 0, updated_at = ? WHERE id = ?`,
 		now, now, p.ID[:]); err != nil {
-		slog.Info(fmt.Sprintf("mark crawl running for %s: %v", p.URL, err), slog.String("component", "scheduler"))
+		slog.Info("mark crawl running", slog.Any("url", p.URL), slog.Any("err", err), slog.String("component", "scheduler"))
 	}
 
 	// Synchronous instead of a goroutine per update, which would leave detached
@@ -307,25 +306,25 @@ func (s *Scheduler) runCrawlFor(ctx context.Context, p *Property) {
 		if _, err := s.db.ExecContext(ctx,
 			"UPDATE properties SET last_crawl_pages_count = ? WHERE id = ?",
 			int64(pages), p.ID[:]); err != nil {
-			slog.Info(fmt.Sprintf("crawl progress for %s: %v", p.URL, err), slog.String("component", "scheduler"))
+			slog.Info("crawl progress", slog.Any("url", p.URL), slog.Any("err", err), slog.String("component", "scheduler"))
 		}
 	}
 
 	insights, err := RunSEOSpider(ctx, p.URL, progress)
 	if err != nil {
-		slog.Error(fmt.Sprintf("crawl failed for %s: %v", p.URL, err), slog.String("component", "scheduler"))
+		slog.Error("crawl failed", slog.Any("url", p.URL), slog.Any("err", err), slog.String("component", "scheduler"))
 		if _, dbErr := s.db.ExecContext(ctx,
 			`UPDATE properties SET crawl_state = 'idle', last_crawl_error = ?,
 			  last_crawl_duration_ms = ?, updated_at = ? WHERE id = ?`,
 			err.Error(), elapsedMS(started), nowMS(), p.ID[:]); dbErr != nil {
-			slog.Error(fmt.Sprintf("record crawl error for %s: %v", p.URL, dbErr), slog.String("component", "scheduler"))
+			slog.Error("record crawl error", slog.Any("url", p.URL), slog.Any("err", dbErr), slog.String("component", "scheduler"))
 		}
 		return
 	}
 
 	encoded, err := json.Marshal(insights)
 	if err != nil {
-		slog.Info(fmt.Sprintf("encode insights for %s: %v", p.URL, err), slog.String("component", "scheduler"))
+		slog.Info("encode insights", slog.Any("url", p.URL), slog.Any("err", err), slog.String("component", "scheduler"))
 		encoded = []byte("[]")
 	}
 
@@ -334,7 +333,7 @@ func (s *Scheduler) runCrawlFor(ctx context.Context, p *Property) {
 		  last_crawl_success_at = ?, last_crawl_error = NULL,
 		  last_crawl_duration_ms = ?, updated_at = ? WHERE id = ?`,
 		string(encoded), nowMS(), elapsedMS(started), nowMS(), p.ID[:]); err != nil {
-		slog.Info(fmt.Sprintf("store insights for %s: %v", p.URL, err), slog.String("component", "scheduler"))
+		slog.Info("store insights", slog.Any("url", p.URL), slog.Any("err", err), slog.String("component", "scheduler"))
 	}
 }
 
@@ -375,7 +374,7 @@ func (s *Scheduler) maybeCleanup(ctx context.Context, last *time.Time) error {
 	*last = time.Now()
 
 	if n, err := result.RowsAffected(); err == nil && n > 0 {
-		slog.Info(fmt.Sprintf("deleted %d checks older than %s", n, checkRetention), slog.String("component", "scheduler"))
+		slog.Info("deleted old checks", slog.Any("count", n), slog.Any("older_than", checkRetention), slog.String("component", "scheduler"))
 	}
 	return nil
 }

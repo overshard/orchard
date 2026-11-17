@@ -530,7 +530,7 @@ func advanceAlertState(ctx context.Context, db *sql.DB, notifier *Notifier, p *P
 
 	avg, err := recentAvgResponseMS(ctx, db, p.ID)
 	if err != nil {
-		slog.Info(fmt.Sprintf("alert: average response time for %s: %v", p.URL, err))
+		slog.Info("alert: average response time", slog.Any("url", p.URL), slog.Any("err", err))
 	}
 
 	// Sent in the background, so a slow notifier does not hold up the tick.

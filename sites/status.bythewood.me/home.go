@@ -69,7 +69,7 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 		Scan(&data.TotalChecks, &data.TotalProperties, &firstCheck)
 	if err != nil {
 		// These numbers are decoration, so an error renders zeros instead of a 500.
-		slog.Info(fmt.Sprintf("home totals: %v", err))
+		slog.Info("home totals", slog.Any("err", err))
 	}
 	if firstCheck.Valid {
 		data.FirstCheckAt = time.UnixMilli(firstCheck.Int64).UTC().Format("Jan 2, 2006")

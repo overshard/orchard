@@ -236,7 +236,7 @@ func realMain() error {
 		web.SameOrigin(),
 	)
 
-	slog.Info(fmt.Sprintf("status serving %s", baseURL))
+	slog.Info("status serving", slog.Any("base_url", baseURL))
 	return web.Serve(listenAddr, handler)
 }
 

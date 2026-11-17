@@ -88,14 +88,14 @@ func (n *Notifier) Wait() { n.sending.Wait() }
 func (n *Notifier) Fire(kind string, ctx AlertContext) {
 	body, ok := renderAlert(kind, ctx)
 	if !ok {
-		slog.Info(fmt.Sprintf("alert: unknown kind %q for %s", kind, ctx.URL))
+		slog.Info("alert: unknown kind", slog.Any("kind", kind), slog.Any("url", ctx.URL))
 		return
 	}
 	if err := n.client.Publish(context.Background(), body); err != nil {
-		slog.Error(fmt.Sprintf("alert: publishing %s for %s failed: %v", kind, ctx.URL, err))
+		slog.Error("alert: publishing failed", slog.Any("kind", kind), slog.Any("url", ctx.URL), slog.Any("err", err))
 		return
 	}
-	slog.Info(fmt.Sprintf("alert: published %s for %s", kind, ctx.URL))
+	slog.Info("alert: published", slog.Any("kind", kind), slog.Any("url", ctx.URL))
 }
 
 // previewAlert prints what would be published, for checking the wording.

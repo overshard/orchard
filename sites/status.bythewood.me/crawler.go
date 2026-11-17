@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -60,7 +59,7 @@ func normalizeURL(raw string) string {
 // is called with the running page count after each batch.
 func RunSEOSpider(ctx context.Context, startURL string, progress func(pages int)) ([]Insight, error) {
 	started := time.Now()
-	slog.Info(fmt.Sprintf("starting %s", startURL), slog.String("component", "crawler"))
+	slog.Info("starting", slog.Any("url", startURL), slog.String("component", "crawler"))
 
 	result, err := crawl(ctx, startURL, progress)
 	if err != nil {
@@ -68,8 +67,9 @@ func RunSEOSpider(ctx context.Context, startURL string, progress func(pages int)
 	}
 	insights := runChecks(result)
 
-	slog.Info(fmt.Sprintf("done %s: %d pages, %d insights, %.1fs",
-		startURL, len(result.Pages), len(insights), time.Since(started).Seconds()), slog.String("component", "crawler"))
+	slog.Info("done", slog.String("url", startURL), slog.Int("pages", len(result.Pages)),
+		slog.Int("insights", len(insights)), slog.Duration("took", time.Since(started).Round(100*time.Millisecond)),
+		slog.String("component", "crawler"))
 	return insights, nil
 }
 
@@ -175,7 +175,7 @@ func crawl(ctx context.Context, startURL string, progress func(pages int)) (*Cra
 			if page.IsHTML {
 				parsed, err := parseHTML(r.Body, r.URL)
 				if err != nil {
-					slog.Error(fmt.Sprintf("parse failed for %s: %v", r.URL, err), slog.String("component", "crawler"))
+					slog.Error("parse failed", slog.Any("url", r.URL), slog.Any("err", err), slog.String("component", "crawler"))
 					page.IsHTML = false
 				} else {
 					page.HTML = parsed
@@ -195,7 +195,7 @@ func crawl(ctx context.Context, startURL string, progress func(pages int)) (*Cra
 	}
 
 	if hitDeadline || ctx.Err() != nil {
-		slog.Info(fmt.Sprintf("hit deadline for %s after %d pages", startURL, len(pages)), slog.String("component", "crawler"))
+		slog.Info("hit deadline", slog.Any("url", startURL), slog.Any("pages", len(pages)), slog.String("component", "crawler"))
 	}
 
 	return &CrawlResult{
@@ -236,8 +236,8 @@ func probeExternalLinks(ctx context.Context, client *http.Client, pages []*Page,
 	}
 	sort.Strings(urls)
 	if len(urls) > ExternalLinkCap {
-		slog.Info(fmt.Sprintf("capping external link probes at %d of %d for %s",
-			ExternalLinkCap, len(urls), startURL), slog.String("component", "crawler"))
+		slog.Info("capping external link probes", slog.Int("cap", ExternalLinkCap), slog.Int("found", len(urls)),
+			slog.String("url", startURL), slog.String("component", "crawler"))
 		urls = urls[:ExternalLinkCap]
 	}
 
@@ -246,7 +246,7 @@ func probeExternalLinks(ctx context.Context, client *http.Client, pages []*Page,
 		// Without this a slow tail of probes runs past the crawl budget and the
 		// watchdog records a finished crawl as an interruption.
 		if ctx.Err() != nil {
-			slog.Info(fmt.Sprintf("hit deadline during external link probes for %s", startURL), slog.String("component", "crawler"))
+			slog.Info("hit deadline during external link probes", slog.Any("url", startURL), slog.String("component", "crawler"))
 			break
 		}
 

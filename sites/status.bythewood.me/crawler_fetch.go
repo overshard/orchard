@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -113,7 +112,7 @@ func fetchPage(ctx context.Context, client *http.Client, rawURL string) FetchRes
 			result.Err = err.Error()
 		}
 		if len(body) == MaxBodyBytes {
-			slog.Info(fmt.Sprintf("body cap %d hit for %s", MaxBodyBytes, rawURL), slog.String("component", "crawler"))
+			slog.Info("body cap hit", slog.Any("cap", MaxBodyBytes), slog.Any("url", rawURL), slog.String("component", "crawler"))
 		}
 		result.Body = body
 	} else {
@@ -243,7 +242,7 @@ func loadRobots(ctx context.Context, client *http.Client, origin string) (*Robot
 
 	data, err := robotstxt.FromBytes(result.Body)
 	if err != nil {
-		slog.Info(fmt.Sprintf("robots.txt at %s did not parse, allowing everything: %v", robotsURL, err), slog.String("component", "crawler"))
+		slog.Info("robots.txt did not parse, allowing everything", slog.Any("url", robotsURL), slog.Any("err", err), slog.String("component", "crawler"))
 		return &Robots{}, out
 	}
 	return &Robots{group: data.FindGroup("*")}, out
