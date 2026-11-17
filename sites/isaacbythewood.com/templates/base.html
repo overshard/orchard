@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-build="{{ .Script }}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -7,29 +7,7 @@
     <!-- Blocking and inline, since whether the curtain plays has to be settled
          before the first paint. Keyed on the build hash, which is what says
          whether this browser still has this build's bytes in its cache. -->
-    <script>
-      (function () {
-        // Set before first paint, so CSS can scope anything that only makes
-        // sense once JS runs. Rules that start an element at opacity 0 and rely
-        // on a script to reveal it must be gated on this, or a throw anywhere in
-        // the module leaves that content permanently invisible.
-        document.documentElement.dataset.js = "true";
-        var build = "{{ .Script }}";
-        var week = 7 * 24 * 60 * 60 * 1000;
-        try {
-          var seen = JSON.parse(localStorage.getItem("ib.build") || "null");
-          if (seen && seen.b === build && Date.now() - seen.t < week) {
-            document.documentElement.dataset.returning = "true";
-          }
-          // Stamped on every load, so the window is "a week since you were
-          // last here" rather than "a week since you first arrived".
-          localStorage.setItem(
-            "ib.build",
-            JSON.stringify({ b: build, t: Date.now() }),
-          );
-        } catch (e) {}
-      })();
-    </script>
+    <script>{{ earlyScript }}</script>
 
     <title>{{ .Title }}</title>
     <meta name="description" content="{{ .Description }}" />
@@ -65,18 +43,7 @@
     <link rel="stylesheet" href="{{ . }}" />
     {{- end }}
     <script type="module" src="{{ .Script }}"></script>
-    <script>
-      (function (m, e, t, r, i, c, s) {
-        m.collectorQueue = m.collectorQueue || r;
-        m.collectorServer = c;
-        m.collectorId = s;
-        m.collectorScript = e.createElement(t);
-        m.collectorScript.src = c + i;
-        e.head.appendChild(m.collectorScript);
-      })(window, document, "script", [], "/static/collector.js",
-         "https://analytics.bythewood.me",
-         "30e69c06-9beb-4283-8919-8c7a686ab013");
-    </script>
+    <script src="https://analytics.bythewood.me/static/collector.js" data-collector-id="30e69c06-9beb-4283-8919-8c7a686ab013" async></script>
   </head>
 
   <body data-page="{{ .Page }}">
