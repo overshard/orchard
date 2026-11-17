@@ -69,12 +69,6 @@ func (s *site) loginSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 	next := r.PostFormValue("next")
 
-	if !loginBucket.take() {
-		audit(s.db, r, evRateLimited, "login")
-		s.loginError(w, r, next, "Too many attempts just now. Wait a moment and try again.", http.StatusTooManyRequests)
-		return
-	}
-
 	user, err := loadUser(s.db)
 	if err != nil {
 		s.uninitialized(w, r)
@@ -138,12 +132,6 @@ func (s *site) codeSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 	next := r.PostFormValue("next")
 
-	if !codeBucket.take() {
-		audit(s.db, r, evRateLimited, "code")
-		s.codePage(w, r, next, "Too many attempts just now.", http.StatusTooManyRequests)
-		return
-	}
-
 	code := strings.TrimSpace(r.PostFormValue("code"))
 	err := finishLogin(s.db, r, code)
 	switch {
@@ -189,12 +177,6 @@ func (s *site) recoverySubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	next := r.PostFormValue("next")
-
-	if !loginBucket.take() {
-		audit(s.db, r, evRateLimited, "recovery")
-		s.recoveryError(w, r, next, "Too many attempts just now.", http.StatusTooManyRequests)
-		return
-	}
 
 	remaining, err := useRecoveryCode(s.db, r.PostFormValue("code"))
 	if errors.Is(err, errBadRecovery) {

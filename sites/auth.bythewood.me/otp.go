@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"net/http"
-	"sync"
 	"time"
 )
 
@@ -33,39 +32,6 @@ const (
 	dailyFailures = 10
 	failureWindow = 24 * time.Hour
 )
-
-// One global bucket instead of per-IP state, which grows with every prober,
-// and there's only one legitimate user.
-var (
-	loginBucket = &tokenBucket{tokens: 5, burst: 5, refill: 2 * time.Second, last: time.Now()}
-	codeBucket  = &tokenBucket{tokens: 10, burst: 10, refill: time.Second, last: time.Now()}
-)
-
-type tokenBucket struct {
-	mu     sync.Mutex
-	tokens float64
-	burst  float64
-	refill time.Duration
-	last   time.Time
-}
-
-func (b *tokenBucket) take() bool {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	now := time.Now()
-	b.tokens += now.Sub(b.last).Seconds() / b.refill.Seconds()
-	if b.tokens > b.burst {
-		b.tokens = b.burst
-	}
-	b.last = now
-
-	if b.tokens < 1 {
-		return false
-	}
-	b.tokens--
-	return true
-}
 
 var (
 	errCeiling     = errors.New("too many codes have been sent recently")

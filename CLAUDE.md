@@ -209,9 +209,11 @@ is `debian:trixie-slim`, `golang:1.27-trixie` or `oven/bun:1-debian`, pinned by
 digest, and a site with nothing to exec ends at `FROM scratch` instead. Nothing
 pulls Alpine, `curlimages/curl` or any other base, including the throwaway
 containers the Makefile runs, which use `orchard-util` out of `edge/util`.
-Vendor software goes the same way. `caddy`, `ntfy` and `cloudflared` are
+Vendor software goes the same way. `ntfy` and `cloudflared` are
 static binaries, so their Dockerfiles `COPY --from` the pinned upstream image
-into `debian:trixie-slim` and nothing runs on Alpine or distroless.
+into `debian:trixie-slim` and nothing runs on Alpine or distroless. `caddy` is
+built with xcaddy on `golang:1.27-trixie` for its rate limit module, with every
+version pinned in its Dockerfile.
 Reach for a new base image and the answer is no: add the package to `edge/util`
 or to the runtime stage.
 
@@ -335,7 +337,10 @@ it.
 in this public repository, so anyone can post it to `/login`. One code is
 outstanding at a time and a repeat request publishes nothing, and at most five
 notifications go out per hour whatever address they are asked from. A per IP
-limit is bypassed by sending one request from each of a thousand proxies. Codes
+limit is bypassed by sending one request from each of a thousand proxies, so on
+its own it bounds nothing. Caddy still caps each address at ten sign in POSTs a
+minute, and auth keeps no shared request limit, because one that any prober can
+spend locks the real user out with it. Codes
 publish at ntfy priority `low` so a flood is silent, and only a session that
 actually opened is `high`.
 

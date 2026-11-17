@@ -281,7 +281,6 @@ func TestSendCeilingIgnoresTheSourceAddress(t *testing.T) {
 		s.handler().ServeHTTP(rec, req)
 
 		_, _ = s.db.Exec(`UPDATE pending_logins SET consumed = 1`)
-		loginBucket.tokens = loginBucket.burst
 	}
 
 	if len(stub.titles) > sendCeiling {
@@ -310,7 +309,6 @@ func TestWrongCodesAreBurnedAfterFiveTries(t *testing.T) {
 		req.AddCookie(pending)
 		rec = httptest.NewRecorder()
 		s.handler().ServeHTTP(rec, req)
-		codeBucket.tokens = codeBucket.burst
 	}
 
 	// The real code must be dead too, or five guesses buys a sixth.
@@ -539,7 +537,6 @@ func TestTooManyWrongCodesLockCodesForADay(t *testing.T) {
 	}
 	sent := len(stub.titles)
 
-	loginBucket.tokens = loginBucket.burst
 	rec := httptest.NewRecorder()
 	s.handler().ServeHTTP(rec, postForm("/login", url.Values{"username": {seedUsername}}))
 	if rec.Code != http.StatusTooManyRequests {
@@ -553,7 +550,6 @@ func TestTooManyWrongCodesLockCodesForADay(t *testing.T) {
 	if _, err := s.db.Exec(`UPDATE failures SET ts = ?`, time.Now().Add(-failureWindow-time.Minute).Unix()); err != nil {
 		t.Fatal(err)
 	}
-	loginBucket.tokens = loginBucket.burst
 	rec = httptest.NewRecorder()
 	s.handler().ServeHTTP(rec, postForm("/login", url.Values{"username": {seedUsername}}))
 	if rec.Code != http.StatusOK {
