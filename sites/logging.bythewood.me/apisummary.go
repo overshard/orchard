@@ -122,6 +122,9 @@ func (s *site) apiSources(ctx context.Context, since int64) []apiSource {
 		}
 		out = append(out, a)
 	}
+	if err := rows.Err(); err != nil {
+		queryFailed("api sources", err)
+	}
 	return out
 }
 
@@ -190,6 +193,9 @@ func (s *site) apiRecentErrors(ctx context.Context, since int64, limit int, sour
 		}
 		out = append(out, e)
 	}
+	if err := rows.Err(); err != nil {
+		queryFailed("api recent errors", err)
+	}
 	return out
 }
 
@@ -223,6 +229,9 @@ func (s *site) apiBusiestPaths(ctx context.Context, since int64, limit int) []ap
 			break
 		}
 		out = append(out, p)
+	}
+	if err := rows.Err(); err != nil {
+		queryFailed("api busiest paths", err)
 	}
 	return out
 }
@@ -281,6 +290,9 @@ func (s *site) apiRefusedSummary(ctx context.Context, since int64, limit int) ap
 			break
 		}
 		out.TopPaths = append(out.TopPaths, p)
+	}
+	if err := rows.Err(); err != nil {
+		queryFailed("api refused paths", err)
 	}
 	return out
 }
