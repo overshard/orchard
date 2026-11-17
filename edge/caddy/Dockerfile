@@ -21,4 +21,5 @@ COPY --from=build /caddy /usr/bin/caddy
 COPY Caddyfile /etc/caddy/Caddyfile
 
 ENV XDG_CONFIG_HOME=/config XDG_DATA_HOME=/data
+USER 65532:65532
 CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]

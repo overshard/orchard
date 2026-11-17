@@ -13,9 +13,11 @@ services:
     security_opt:
       - no-new-privileges:true
     read_only: true
-    # The caddy binary carries this file capability and won't exec without it.
     cap_drop: [ALL]
-    cap_add: [NET_BIND_SERVICE]
+    # Lets the non-root user bind port 80 without any capability, and only
+    # inside this container's network namespace.
+    sysctls:
+      net.ipv4.ip_unprivileged_port_start: 0
     # Nothing Caddy writes is worth keeping, since Cloudflare holds the certificates.
     tmpfs: [/data, /config, /tmp]
     deploy:
