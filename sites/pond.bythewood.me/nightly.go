@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -13,14 +12,14 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
-	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
 )
 
-// Once a night the local model writes extra lines for tomorrow, every mood
+// Once a night the model writes extra lines for tomorrow, every mood
 // and every kind. It only ever sees mood names and slot names, never a reading,
 // and every line it writes is checked here before a frog can say it.
 
@@ -129,9 +128,6 @@ var firstPerson = map[string]bool{"I": true, "I'm": true, "I've": true, "I'll": 
 
 var slotRe = regexp.MustCompile(`\{[a-z]+\}`)
 
-// The model sometimes heads a resident's line with what it's for, like Thinks:
-var folkLabel = regexp.MustCompile(`^(?i)(thinks|says|press|read|doing|rain|cold|hot|grey|pollen)\s*:\s*`)
-
 // A word starting with one of bannedPrefix, or equal to one of bannedWord,
 // drops the line. The market and money words keep the real day's numbers off
 // the pond too.
@@ -155,31 +151,17 @@ var bannedWord = map[string]bool{
 func checkLine(l string, a taleAsk, seen map[string]bool) (string, bool) {
 	allowed, must := a.allowed, a.must
 	l = strings.TrimSpace(l)
-	l = strings.TrimSpace(strings.Trim(l, `"'`))
-	if a.kind == "folk" {
-		l = strings.TrimSpace(folkLabel.ReplaceAllString(l, ""))
-	}
-	if l != "" && l[0] >= 'a' && l[0] <= 'z' {
-		l = strings.ToUpper(l[:1]) + l[1:]
-	}
-	if t := strings.TrimRight(l, ".,"); t != l && !strings.HasSuffix(l, "...") {
-		l = t + "."
-	}
 	if a.kind == "gazette" {
 		l = strings.TrimSuffix(l, ".")
-	} else if l != "" && !strings.ContainsAny(l[len(l)-1:], ".!?") {
-		l += "."
 	}
-	// Asked for a slot in braces the model leaves it out, so it writes the
-	// plain words and the slot goes in here.
-	if a.stand != "" && !strings.Contains(l, a.must) && strings.Count(l, a.stand) == 1 {
-		l = strings.Replace(l, a.stand, a.must, 1)
+	if l != "" && l[0] >= 'a' && l[0] <= 'z' {
+		return "", false
 	}
 	max := lineMax
 	if a.short {
 		max = thoughtMax
 	}
-	if l == "" || len(l) > max || strings.ContainsAny(l, "0123456789%$#*_<>\n\\|;—–") {
+	if l == "" || len(l) > max || strings.ContainsAny(l, "0123456789%$#*_<>\n\\|;—–\"") {
 		return "", false
 	}
 	for _, s := range slotRe.FindAllString(l, -1) {
@@ -277,13 +259,13 @@ var moodWords = map[string]string{
 	moodSombre:  "a quiet, sombre day. Keep it gentle and calm, no jokes at all",
 }
 
-const taleSystem = `You write short lines for a cosy pixel art game about pet frogs living in a pond.
-Every line is one plain sentence about the frog, in the third person, starting with It or It's and calling the frog "it", never by a name or its nature. Speak of the owner as "you".
-Warm, gentle, a little silly, for all ages. Plain words, contractions are fine.
-Never write numbers, prices, money, the stock market, news, politics, people's names, brands, violence or anything sad about death.
-Never use quotation marks, dashes, semicolons or emoji. Each line under 100 characters.
-Never make up a name for anybody or anything. Write in sentence case, with a capital letter only at the start.
-Use a slot like {show} only when asked to, written exactly with its braces and in lower case.`
+const taleSystem = `You write lines for a cosy pixel art game about pet frogs living in a pond. Each visitor keeps one frog, and the game picks one of your lines at random to show them.
+Every line is one plain sentence about the frog in the third person, calling it "it" and never by a name or by its nature, and speaking to its owner as "you".
+Warm, gentle and a little silly, for all ages. Plain words, contractions are fine.
+Never write a digit, prices, money, the stock market, news, politics, brands, people, violence or anything sad about death.
+Never use quotation marks, dashes, semicolons or emoji. Each line is under 100 characters, in sentence case with a capital letter only at the start.
+Never make up a name for anybody or anything. Where a line needs a name or a title the game fills it in from a slot like {show}, written exactly with its braces and only when the ask offers it.
+Every line should be new, so don't repeat or lightly reword the examples you're given.`
 
 type taleAsk struct {
 	kind, key, prompt string
@@ -293,14 +275,28 @@ type taleAsk struct {
 	starts []string
 	// A line can't open with one of these words.
 	avoidStart []string
-	// The plain words the model writes where must goes.
-	stand string
-	n     int
+	n          int
 	// When set the answer is an object of lines by nature.
 	natured bool
 	// A resident's ask, whose answer is an object of lines by folkFields.
 	who                        int
 	firstPerson, gerund, short bool
+}
+
+// examples lists the hand written lines a prompt shows for voice, leaving out
+// any with a slot the ask doesn't allow so the model doesn't copy one.
+func examples(hand, allowed []string) string {
+	var b strings.Builder
+	for _, l := range hand {
+		ok := true
+		for _, s := range slotRe.FindAllString(l, -1) {
+			ok = ok && slices.Contains(allowed, s)
+		}
+		if ok {
+			b.WriteString("\n" + l)
+		}
+	}
+	return " Lines already in the game, to match in voice and not to repeat:" + b.String()
 }
 
 func taleAsks() []taleAsk {
@@ -310,28 +306,29 @@ func taleAsks() []taleAsk {
 		moods = append(moods, m)
 	}
 	sort.Strings(moods)
-	natures := "BOLD (brave, loud), SHY (timid, sweet), NIGHT OWL (sleepy by day, lively at night), GLUTTON (always thinking about food), SINGER (always humming or croaking a tune), DRIFTER (dreamy, floats about)"
+	natures := "Write separate lines for each frog nature, BOLD (brave, loud), SHY (timid, sweet), NIGHT OWL (sleepy by day, lively at night), GLUTTON (always thinking about food), SINGER (always humming or croaking a tune) and DRIFTER (dreamy, floats about). The nature only changes how a line sounds and is never named."
 	for _, m := range moods {
 		asks = append(asks, taleAsk{kind: "greeting", key: m, natured: true, n: 3, starts: []string{"It", "It's"},
-			prompt: "Today is " + moodWords[m] + ". Write lines saying what the frog has been up to today or how it feels, as said to its owner who just arrived. " +
-				"Write separate lines for each frog nature: " + natures + ". The nature only changes how it sounds, never name it."})
+			prompt: "Today is " + moodWords[m] + ". Write lines saying what the frog has been up to today or how it feels, said to its owner who just came over. " +
+				natures + examples(moodLines[m], nil)})
 	}
 	asks = append(asks,
 		taleAsk{kind: "watching", natured: true, n: 2, starts: []string{"It", "It's"}, allowed: []string{"{show}"}, must: "{show}",
-			stand:  "the show",
-			prompt: "Write lines about the frog watching a TV show, calling it exactly the show, like: It's halfway through the show and won't say what happens. Write separate lines for each frog nature: " + natures + "."},
+			prompt: "Write lines about the frog watching a TV show, with {show} exactly once where the title goes. " + natures + examples(hobbyLines["tv"], []string{"{show}"})},
 		taleAsk{kind: "playing", natured: true, n: 2, starts: []string{"It", "It's"}, allowed: []string{"{game}"}, must: "{game}",
-			stand:  "the game",
-			prompt: "Write lines about the frog playing a video game, calling it exactly the game, like: It keeps saying one more go of the game. Write separate lines for each frog nature: " + natures + "."},
+			prompt: "Write lines about the frog playing a video game, with {game} exactly once where the title goes. " + natures + examples(hobbyLines["game"], []string{"{game}"})},
 		taleAsk{kind: "dream", n: 20, starts: []string{"It"}, allowed: []string{"{resident}"},
-			prompt: "Write lines about what the frog dreamt last night, each starting with \"It dreamt\". Dreams can be weird and surreal. Some can mention a neighbour frog, written as {resident}."},
+			prompt: "Write lines about what the frog dreamt last night, each starting with It dreamt. Dreams can be weird and surreal. A few can mention a neighbour frog as {resident}." + examples(dreamPool, []string{"{resident}"})},
 		taleAsk{kind: "gossip", n: 20, starts: []string{"Heard", "Says", "Thinks", "Swears"}, allowed: []string{"{name}"}, must: "{name}",
-			prompt: "A neighbour frog is passing on a harmless, silly rumour about another frog, written as {name}. Start each with Heard, Says or Thinks, with no subject before it, and say what {name} did, like: Heard {name} has been practising a new croak. Or: Says {name} ate two dinners and denied the second one."},
+			prompt: "A neighbour frog is passing on a harmless, silly rumour about another frog, written as {name} exactly once. Start each line with Heard, Says, Thinks or Swears with nothing before it, and say what {name} did. These lines are about {name} and not the owner's frog, so they don't follow the It rule." + examples(gossipPool, []string{"{name}"})},
 	)
 	for _, tone := range []string{"fair", "grey", "quiet"} {
 		feel := map[string]string{"fair": "a good, ordinary day", "grey": "a grey, slow day where everybody stays close", "quiet": "a quiet, sombre day, gentle with no jokes"}[tone]
-		asks = append(asks, taleAsk{kind: "gazette", key: tone, n: 10, avoidStart: []string{"It", "It's"}, allowed: []string{"{resident}", "{other}"},
-			prompt: "Write newspaper headlines for the Pond Gazette about goings on around the pond, on " + feel + ". Sentence case with no full stop, like: Choir practice runs late again, nobody complains. The only names allowed are {resident} and {other} for one or two neighbour frogs. Keep it about frogs, the water, the reeds, food and the shops."})
+		slots := []string{"{resident}", "{other}"}
+		asks = append(asks, taleAsk{kind: "gazette", key: tone, n: 10, avoidStart: []string{"It", "It's"}, allowed: slots,
+			prompt: "Write headlines for the Pond Gazette, the pond's little newspaper, about goings on around the pond on " + feel + ". " +
+				"These are headlines and not lines about the owner's frog, so they don't follow the It rule. Sentence case with no full stop, and never addressed to you. " +
+				"The only names allowed are {resident} and {other} for one or two neighbour frogs. Keep it to frogs, the water, the reeds, food and the shops." + examples(gazettePool[tone], slots)})
 	}
 	for i := range residents {
 		asks = append(asks, taleAsk{kind: "folk", who: i, n: 3, prompt: folkPrompt(i)})
@@ -342,24 +339,24 @@ func taleAsks() []taleAsk {
 // What the model writes for each resident, read by folkOf.
 var folkFields = []string{"doing", "thinks", "says", "rain", "cold", "hot", "grey", "pollen", "press", "read"}
 
-const folkSystem = `You write short lines for one character in a cosy pixel art game about frogs living round a pond.
-Warm, gentle, a little silly, for all ages. Plain words, contractions are fine. The character's personality should come through in every line.
-Never write numbers, prices, money, the stock market, news, politics, people's names, brands, violence or anything sad about death.
-Show the personality through what it does, notices and says, never by describing it, so don't use the words from its description.
-It's a small frog, so no whiskers, fur, hair, ears, shell or scarf. Never mention the player or the game.
-Never use the character's own name. Never make up a name for anybody or anything, the only name allowed is the slot {name} for another neighbour frog, written exactly with its braces.
-Never use quotation marks, dashes, semicolons or emoji. Write in sentence case, with a capital letter only at the start and on I.`
+const folkSystem = `You write lines for one character in a cosy pixel art game about frogs living round a pond. The game picks one of your lines at random to show a visitor.
+Warm, gentle and a little silly, for all ages. Plain words, contractions are fine. The character's personality comes through in every line.
+Show the personality through what it does, notices and says, and never describe it, so don't use the words from its description.
+Never write a digit, prices, money, the stock market, news, politics, brands, people, violence or anything sad about death.
+It's a small frog, so no whiskers, fur, hair, ears, shell or scarf. Never mention players or that this is a game.
+Never use the character's own name or make up a name for anybody or anything. The only name allowed is the slot {name} for another neighbour frog, written exactly with its braces, which the game fills in.
+Never use quotation marks, dashes, semicolons or emoji. Sentence case, with a capital letter only at the start and on I. Every line should be new, so don't repeat or lightly reword the examples.`
 
 func folkPrompt(i int) string {
 	f := folks[i]
-	return "The character is a frog who is " + f.voice + ". It has a lily pad by the pond, there's a garden, a kitchen, shops, a choir and a little newspaper called the gazette. " +
-		"Some lines already written for it, to match in voice and not to repeat: " + strings.Join(append(append([]string{}, f.thinks...), f.says...), " ") + "\n" +
-		"Write these, each line under 80 characters:\n" +
-		"doing: what it's busy doing right now, starting with a verb ending in ing, like: Sweeping leaves off the pads.\n" +
-		"thinks: a passing thought in its own head, in the first person, like: I wonder if the fish are talking about me.\n" +
-		"says: something it says to the player who just came over, in the first person, talking to you.\n" +
+	return "The character is a frog who is " + f.voice + ". It has a lily pad by the pond, and round it there's a garden, a kitchen, shops, a choir and a little newspaper called the gazette." +
+		examples(append(append([]string{}, f.thinks...), f.says...), nil) + "\n\n" +
+		"Write lines for each of these, every one under 80 characters.\n" +
+		"doing: what it's busy doing right now, opening with a verb ending in ing and no subject, like Sweeping leaves off the pads.\n" +
+		"thinks: a passing thought in its own head, in the first person.\n" +
+		"says: something it says to you, the visitor who just came over, in the first person.\n" +
 		"rain, cold, hot, grey, pollen: a thought in the first person on a rainy day, a frosty day, a hot day, a grey gloomy day, and a day with pollen all over the water.\n" +
-		"press: what it says to you about being in today's gazette, in the first person.\n" +
+		"press: what it says to you about being in today's gazette itself, in the first person.\n" +
 		"read: what it says to you about {name} being in today's gazette, in the first person, with {name} exactly once."
 }
 
@@ -391,18 +388,23 @@ func newModel(url, key string) *model {
 	if key == "" {
 		return nil
 	}
-	return &model{url: strings.TrimRight(url, "/"), key: key, http: &http.Client{Timeout: 5 * time.Minute}}
+	return &model{url: strings.TrimRight(url, "/"), key: key, http: &http.Client{Timeout: 2 * time.Minute}}
 }
 
-var errCardBusy = errors.New("the card is in use")
+// errHeldBack is the gateway's rate limit or monthly budget, which ends the
+// night and tries again later instead of failing every kind after it.
+var errHeldBack = errors.New("the gateway is holding calls back")
 
 func (m *model) lines(ctx context.Context, a taleAsk) (any, error) {
-	arr := map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "minItems": a.n, "maxItems": a.n}
+	arr := map[string]any{"type": "array", "items": map[string]any{"type": "string"}}
 	keys, system := []string{"lines"}, taleSystem
+	ask := fmt.Sprintf("\n\nWrite exactly %d lines.", a.n)
 	if a.natured {
 		keys = taleNatures
+		ask = fmt.Sprintf("\n\nWrite exactly %d lines for each nature.", a.n)
 	} else if a.kind == "folk" {
 		keys, system = folkFields, folkSystem
+		ask = fmt.Sprintf("\n\nWrite exactly %d lines for each field.", a.n)
 	}
 	props := map[string]any{}
 	for _, k := range keys {
@@ -410,13 +412,10 @@ func (m *model) lines(ctx context.Context, a taleAsk) (any, error) {
 	}
 	schema := map[string]any{"type": "object", "properties": props, "required": keys, "additionalProperties": false}
 	body, err := json.Marshal(map[string]any{
-		"model": "local",
+		"model": "claude-haiku-5-5",
 		"messages": []map[string]string{{"role": "system", "content": system},
-			{"role": "user", "content": a.prompt + fmt.Sprintf(" Write %d lines.", a.n)}},
-		"temperature":          0.9,
-		"top_p":                0.95,
-		"max_tokens":           3500,
-		"chat_template_kwargs": map[string]any{"enable_thinking": false},
+			{"role": "user", "content": a.prompt + ask}},
+		"max_tokens": 2048,
 		"response_format": map[string]any{"type": "json_schema",
 			"json_schema": map[string]any{"name": "lines", "strict": true, "schema": schema}},
 	})
@@ -429,14 +428,13 @@ func (m *model) lines(ctx context.Context, a taleAsk) (any, error) {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+m.key)
-	req.Header.Set("X-Background", "1")
 	resp, err := m.http.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusServiceUnavailable {
-		return nil, errCardBusy
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return nil, errHeldBack
 	}
 	if resp.StatusCode != http.StatusOK {
 		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
@@ -455,59 +453,25 @@ func (m *model) lines(ctx context.Context, a taleAsk) (any, error) {
 	if len(r.Choices) == 0 {
 		return nil, errors.New("model: no choices")
 	}
-	text := r.Choices[0].Message.Content
-	if i := strings.Index(text, "{"); i > 0 {
-		text = text[i:]
-	}
+	text := []byte(r.Choices[0].Message.Content)
 	if a.natured || a.kind == "folk" {
 		var out map[string][]string
-		return out, json.Unmarshal([]byte(text), &out)
+		return out, json.Unmarshal(text, &out)
 	}
 	var out struct {
 		Lines []string `json:"lines"`
 	}
-	err = json.Unmarshal([]byte(text), &out)
+	err = json.Unmarshal(text, &out)
 	return out.Lines, err
-}
-
-type gpuState struct {
-	Busy    bool   `json:"busy"`
-	Reason  string `json:"reason"`
-	Loaded  bool   `json:"loaded"`
-	RetryAt int64  `json:"retry_at"`
-}
-
-func (m *model) call(ctx context.Context, method, path string, into any) error {
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, method, m.url+path, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Authorization", "Bearer "+m.key)
-	resp, err := m.http.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("model: %s %s: http %d", method, path, resp.StatusCode)
-	}
-	if into == nil {
-		return nil
-	}
-	return json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(into)
 }
 
 // ---------------------------------------------------------------- the night
 
-// The run starts after dash's last brief and can catch up until morning. The
-// lines are for the pond day that starts after it.
+// The lines are written the night before the pond day they're for, which
+// starts at six.
 const (
-	nightFrom = 22*60 + 30
-	nightTo   = 6 * 60
-	// The desktop is also where he games, so a run waits for this much free.
-	nightMem   = 3 << 30
+	nightFrom  = 22*60 + 30
+	nightTo    = 6 * 60
 	nightRetry = 30 * time.Minute
 	seenDays   = 21
 )
@@ -516,8 +480,6 @@ type nightly struct {
 	m    *model
 	dir  string
 	next time.Time
-	// memAvailable unless a test sets it.
-	free func() (int64, bool)
 }
 
 func taleDayFor(now time.Time) string { return dayOf(now.Add(6 * time.Hour)) }
@@ -572,35 +534,6 @@ func (n *nightly) tick(ctx context.Context, now time.Time) {
 	if _, err := os.Stat(n.path(day)); err == nil {
 		return
 	}
-	if n.free == nil {
-		n.free = memAvailable
-	}
-	if free, ok := n.free(); ok && free < nightMem {
-		n.next = now.Add(nightRetry)
-		slog.Info("nightly lines waiting on memory", slog.Int64("free_mib", free>>20))
-		return
-	}
-	var gpu gpuState
-	if err := n.m.call(ctx, http.MethodGet, "/v1/gpu", &gpu); err != nil {
-		n.next = now.Add(nightRetry)
-		slog.Warn("nightly lines could not ask about the card", slog.Any("err", err))
-		return
-	}
-	if gpu.Busy {
-		n.next = now.Add(nightRetry)
-		if gpu.RetryAt > 0 {
-			n.next = time.Unix(gpu.RetryAt, 0)
-		}
-		slog.Info("nightly lines deferred", slog.String("reason", gpu.Reason), slog.Time("next", n.next))
-		return
-	}
-	if !gpu.Loaded {
-		defer func() {
-			if err := n.m.call(context.WithoutCancel(ctx), http.MethodPost, "/v1/unload", nil); err != nil {
-				slog.Warn("nightly lines could not unload", slog.Any("err", err))
-			}
-		}()
-	}
 	started := time.Now()
 	t, kept, dropped, err := n.write(ctx, day)
 	if err != nil {
@@ -644,8 +577,11 @@ func (n *nightly) write(ctx context.Context, day string) (*tales, int, int, erro
 	}
 	for _, a := range taleAsks() {
 		got, err := n.m.lines(ctx, a)
-		if errors.Is(err, errCardBusy) || ctx.Err() != nil {
-			return nil, 0, 0, errCardBusy
+		if ctx.Err() != nil {
+			return nil, 0, 0, ctx.Err()
+		}
+		if errors.Is(err, errHeldBack) {
+			return nil, 0, 0, err
 		}
 		if err != nil {
 			failed++
@@ -760,22 +696,4 @@ func (n *nightly) prune(day string) {
 			os.Remove(f)
 		}
 	}
-}
-
-// memAvailable reads the VM's free memory, which a container sees whole.
-func memAvailable() (int64, bool) {
-	f, err := os.Open("/proc/meminfo")
-	if err != nil {
-		return 0, false
-	}
-	defer f.Close()
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		fs := strings.Fields(sc.Text())
-		if len(fs) >= 2 && fs[0] == "MemAvailable:" {
-			kb, err := strconv.ParseInt(fs[1], 10, 64)
-			return kb << 10, err == nil
-		}
-	}
-	return 0, false
 }

@@ -85,12 +85,13 @@ func TestCheckLine(t *testing.T) {
 		ok         bool
 	}{
 		{"It sat on the pad and watched the clouds go by.", "", nil, true},
-		{"it sat on the pad and watched the stars come out", "", nil, true},
+		{"it sat on the pad and watched the stars come out.", "", nil, false},
 		{"It counted 12 flies before lunch.", "", nil, false},
 		{"It thinks the stock board looks funny today.", "", nil, false},
 		{"It's watching {show} under a blanket.", "{show}", []string{"{show}"}, true},
 		{"It's watching a cartoon under a blanket.", "{show}", []string{"{show}"}, false},
-		{"It's watching the show under a blanket again.", "{show}", []string{"{show}"}, true},
+		{"It's watching the show under a blanket again.", "{show}", []string{"{show}"}, false},
+		{"It said \"ribbit\" at the clouds all afternoon.", "", nil, false},
 		{"It's watching {show} with {name} tonight.", "{show}", []string{"{show}"}, false},
 		{"It heard the dead leaves rustle all night.", "", nil, false},
 		{"It ate a dieffenbachia leaf by mistake, oops.", "", nil, true},
@@ -100,11 +101,7 @@ func TestCheckLine(t *testing.T) {
 		{strings.Repeat("It hopped about a lot ", 6) + ".", "", nil, false},
 	}
 	for _, c := range cases {
-		stand := ""
-		if c.must == "{show}" {
-			stand = "the show"
-		}
-		if _, ok := checkLine(c.line, taleAsk{allowed: c.allowed, must: c.must, stand: stand}, seen); ok != c.ok {
+		if _, ok := checkLine(c.line, taleAsk{allowed: c.allowed, must: c.must}, seen); ok != c.ok {
 			t.Errorf("%q: got %v", c.line, ok)
 		}
 	}
@@ -135,61 +132,50 @@ func TestBookMergesOnlyRecentNights(t *testing.T) {
 // night lands on disk with the bad ones dropped.
 func TestNightlyWritesAndChecks(t *testing.T) {
 	defer book.cur.Store(nil)
-	var calls, unloads atomic.Int32
+	var calls atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/v1/gpu":
-			json.NewEncoder(w).Encode(gpuState{})
-			return
-		case "/v1/unload":
-			unloads.Add(1)
-			return
-		}
 		calls.Add(1)
 		var req struct {
 			Messages []struct{ Content string } `json:"messages"`
+			Format   struct {
+				Schema struct {
+					Schema struct {
+						Properties map[string]any `json:"properties"`
+					} `json:"schema"`
+				} `json:"json_schema"`
+			} `json:"response_format"`
 		}
 		json.NewDecoder(r.Body).Decode(&req)
 		ask := req.Messages[1].Content
 		line := "It had a lovely quiet time by the water today."
 		switch {
-		case strings.Contains(ask, "the show"):
-			line = "It watched the show with its feet up."
-		case strings.Contains(ask, "the game"):
-			line = "It played the game until the fireflies came out."
-		case strings.Contains(ask, "{name}"):
+		case strings.Contains(ask, "TV show"):
+			line = "It watched {show} with its feet up."
+		case strings.Contains(ask, "video game"):
+			line = "It played {game} until the fireflies came out."
+		case strings.Contains(ask, "rumour"):
 			line = "Heard {name} has been humming in the reeds."
 		}
-		lines := []string{line + "", "It made 100 friends today."}
-		var content any = map[string]any{"lines": lines}
-		if strings.Contains(ask, "nature") {
-			by := map[string][]string{}
-			for _, n := range taleNatures {
-				by[n] = []string{strings.Replace(line, "It", "It ("+strings.ToLower(n)+")", 1), line}
-			}
-			content = by
+		by := map[string][]string{}
+		for k := range req.Format.Schema.Schema.Properties {
+			by[k] = []string{line, "It made 100 friends today."}
 		}
 		if strings.Contains(ask, "The character is a frog") {
-			by := map[string][]string{}
 			for _, f := range folkFields {
 				by[f] = []string{"I wonder if the fish think about " + f + " too."}
 			}
 			by["doing"] = []string{"Sweeping leaves off the pads.", "It sweeps the pads."}
 			by["read"] = []string{"Did you see {name} in the gazette today?"}
-			content = by
 		}
-		raw, _ := json.Marshal(content)
+		raw, _ := json.Marshal(by)
 		json.NewEncoder(w).Encode(map[string]any{"choices": []map[string]any{{"message": map[string]string{"content": string(raw)}}}})
 	}))
 	defer srv.Close()
 
 	dir := t.TempDir()
-	n := &nightly{m: newModel(srv.URL, "k"), dir: dir, free: plenty}
+	n := &nightly{m: newModel(srv.URL, "k"), dir: dir}
 	night := time.Date(2026, 11, 10, 23, 0, 0, 0, pondZone)
 	n.tick(context.Background(), night)
-	if unloads.Load() != 1 {
-		t.Errorf("weights this run loaded should come off, got %d unloads", unloads.Load())
-	}
 	raw, err := os.ReadFile(filepath.Join(dir, "tales-2026-11-11.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -219,32 +205,27 @@ func TestNightlyWritesAndChecks(t *testing.T) {
 	}
 }
 
-func TestNightlyWaitsForABusyCard(t *testing.T) {
+// A rate limit or a spent budget stops the night at the first ask and tries
+// again later.
+func TestNightlyStopsWhenHeldBack(t *testing.T) {
 	var calls atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/v1/gpu" {
-			json.NewEncoder(w).Encode(gpuState{Busy: true, Reason: "a game is running"})
-			return
-		}
 		calls.Add(1)
+		w.WriteHeader(http.StatusTooManyRequests)
 	}))
 	defer srv.Close()
-	n := &nightly{m: newModel(srv.URL, "k"), dir: t.TempDir(), free: plenty}
-	n.tick(context.Background(), time.Date(2026, 11, 10, 23, 0, 0, 0, pondZone))
-	if calls.Load() != 0 {
-		t.Error("asked the model while the card was busy")
+	dir := t.TempDir()
+	n := &nightly{m: newModel(srv.URL, "k"), dir: dir}
+	night := time.Date(2026, 11, 10, 23, 0, 0, 0, pondZone)
+	n.tick(context.Background(), night)
+	if calls.Load() != 1 {
+		t.Errorf("asked %d times after a 429", calls.Load())
 	}
-}
-
-func plenty() (int64, bool) { return 8 << 30, true }
-
-func TestNightlyWaitsForMemory(t *testing.T) {
-	var calls atomic.Int32
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls.Add(1) }))
-	defer srv.Close()
-	n := &nightly{m: newModel(srv.URL, "k"), dir: t.TempDir(), free: func() (int64, bool) { return 1 << 30, true }}
-	n.tick(context.Background(), time.Date(2026, 11, 10, 23, 0, 0, 0, pondZone))
-	if calls.Load() != 0 {
-		t.Error("asked the gateway with too little memory free")
+	if _, err := os.Stat(filepath.Join(dir, "tales-2026-11-11.json")); err == nil {
+		t.Error("wrote a night that never ran")
+	}
+	n.tick(context.Background(), night.Add(10*time.Minute))
+	if calls.Load() != 1 {
+		t.Error("tried again before the retry")
 	}
 }

@@ -94,10 +94,6 @@ func TestCheckLineDropsTellsAndOddBodies(t *testing.T) {
 			t.Errorf("%d %q: got %v", c.who, c.line, ok)
 		}
 	}
-	rule, _ := folkRule("says")
-	if l, ok := checkLine("I bet the other frogs are training hard too.,.", rule, map[string]bool{}); !ok || l != "I bet the other frogs are training hard too." {
-		t.Errorf("got %q %v", l, ok)
-	}
 }
 
 func TestFolkOfFillsAndReacts(t *testing.T) {

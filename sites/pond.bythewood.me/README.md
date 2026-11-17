@@ -250,9 +250,10 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   ever reaches one of those lines, and a test holds it.
 - `tales.go` is the frog's dream on the first visit of a day, each
   neighbour's gossip and the Pond Gazette's headlines, all off hand written
-  pools. `nightly.go` asks the model gateway once a night for more lines for
-  every mood and kind, checks each one in Go and keeps the night in
-  `tales-<day>.json` beside the database. The hand written lines are always
+  pools. `nightly.go` asks the model gateway, which is Claude Haiku, once a
+  night for more lines for every mood and kind, about thirty calls one after
+  another with structured output, checks each line in Go and keeps the night
+  in `tales-<day>.json` beside the database. The hand written lines are always
   in the pool, so with no `LLM_KEY` or a failed night nothing is missing.
 - `folk.go` gives each resident a personality, what it's doing and thinking
   in each part of the day and what it says to you, coloured by the weather,
@@ -397,10 +398,14 @@ they have none, for other sites to draw.
   reading them under what it paid, so run it after touching `dealOdds`.
 - A new thing ponds do that should move a business needs `addFlow` where it
   happens, inside the move so it's counted on the pond's day.
-- The nightly run only goes between 22:30 and 6:00 pond time, skips while the
-  gateway says the card is busy or under 3GB is free, and never runs off a
-  visitor. A model line with a digit, a banned word or a slot it wasn't given
-  is dropped, so add a slot to `taleAsk.allowed` before a pool can use it.
+- The nightly run only goes between 22:30 and 6:00 pond time and never runs
+  off a visitor. A 429 from the gateway, its rate limit or the month's budget,
+  ends the night and it tries again half an hour later, and any other failed
+  call just leaves that kind to its hand written pool. A model line with a
+  digit, a banned word, a lower case start or a slot it wasn't given is
+  dropped and never patched up, so add a slot to `taleAsk.allowed` before a
+  pool can use it. Each prompt shows the model the hand written pool for that
+  kind, minus any line with a slot it isn't allowed, so the pools set the voice.
 - There's no service worker, so an installed pond needs the network like the
   page does. On an iPhone it also keeps its own cookies apart from Safari's,
   so it opens on a new egg until the pond key is brought over.

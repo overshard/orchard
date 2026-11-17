@@ -3,23 +3,25 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"net/http"
 	"os"
 	"testing"
 )
 
 // TestTalesLive writes one night against the real gateway and prints it. Run
-// it in a container on orchard-edge with TALES_LIVE=1 and LLM_KEY set, and
-// TALES_DAY and TALES_DIR to keep a night for a given day.
+// it with TALES_LIVE=1 and LLM_KEY set, LLM_URL when the gateway isn't
+// orchard-llm, and TALES_DAY and TALES_DIR to keep a night for a given day.
 func TestTalesLive(t *testing.T) {
 	if os.Getenv("TALES_LIVE") == "" {
 		t.Skip("set TALES_LIVE=1 to call the model")
 	}
-	m := newModel("http://orchard-llm:8000", os.Getenv("LLM_KEY"))
+	url := os.Getenv("LLM_URL")
+	if url == "" {
+		url = "http://orchard-llm:8000"
+	}
+	m := newModel(url, os.Getenv("LLM_KEY"))
 	if m == nil {
 		t.Fatal("no LLM_KEY")
 	}
-	defer m.call(context.Background(), http.MethodPost, "/v1/unload", nil)
 	day, dir := os.Getenv("TALES_DAY"), os.Getenv("TALES_DIR")
 	if day == "" {
 		day = "2026-11-11"
