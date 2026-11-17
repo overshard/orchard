@@ -58,7 +58,7 @@ var budgets = map[string]budget{
 	"forsyth":    {perHour: 60, pace: 2 * time.Second},
 	"steam":      {perHour: 240, pace: time.Second},
 	"justwatch":  {perHour: 60, pace: 2 * time.Second},
-	"youtube":    {perHour: 90, pace: 2 * time.Second},
+	"kick":       {perHour: 90, pace: 2 * time.Second},
 	"twitch":     {perHour: 90, pace: 2 * time.Second},
 	// The same Twitch endpoint as above, on its own key so the hourly archive
 	// read cannot spend or trip what the live banner needs.
@@ -346,8 +346,8 @@ var feedOrder = []struct{ key, label string }{
 	{"forsyth", "POLLEN"},
 	{"steam", "STEAM"},
 	{"justwatch", "JUSTWATCH"},
-	{"youtube", "YOUTUBE"},
 	{"twitch", "TWITCH"},
+	{"kick", "KICK"},
 	{"twitchvods", "TWITCH VODS"},
 	{"logging", "LOGGING"},
 }

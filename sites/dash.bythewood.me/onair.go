@@ -2,25 +2,19 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"html"
-	"io"
 	"log/slog"
-	"net/http"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 )
 
-// Whether TheBurntPeanut is streaming. He simulcasts, so YouTube is asked first
-// and Twitch only when YouTube has nothing, which also keeps the banner working
-// the day YouTube changes the page this reads.
+// Whether TheBurntPeanut is streaming. He simulcasts, so Twitch is asked first
+// and Kick only when Twitch has nothing. YouTube answers a server's IP with a
+// bot check, and its Data API needs a key.
 const (
 	streamerName = "TheBurntPeanut"
-	youtubeLive  = "https://www.youtube.com/@theburntpeanut/live"
 	twitchLogin  = "theburntpeanut"
 	twitchURL    = "https://www.twitch.tv/" + twitchLogin
 
@@ -28,6 +22,9 @@ const (
 	// app and a token, and this has answered without either for years.
 	twitchGQL      = "https://gql.twitch.tv/gql"
 	twitchClientID = "kimne78kx3ncx6brgo4mv6wki5h1ko" // gitleaks:allow
+
+	kickChannel = "https://kick.com/api/v2/channels/" + twitchLogin
+	kickURL     = "https://kick.com/" + twitchLogin
 
 	onAirEvery = 10 * time.Minute
 
@@ -97,104 +94,6 @@ func carryOnAir(fresh, prev OnAir, now time.Time) OnAir {
 	return fresh
 }
 
-var (
-	ytWatch     = regexp.MustCompile(`<link rel="canonical" href="https://www\.youtube\.com/watch\?v=([\w-]+)"`)
-	ytChannel   = regexp.MustCompile(`<link rel="canonical" href="https://www\.youtube\.com/channel/`)
-	ytBroadcast = regexp.MustCompile(`"liveBroadcastDetails":(\{[^{}]*\})`)
-	ytTitle     = regexp.MustCompile(`<meta property="og:title" content="([^"]*)"`)
-	ytViewers   = regexp.MustCompile(`"originalViewCount":"(\d+)"`)
-)
-
-// parseYouTube reads the channel's /live page. Live, it is the watch page of
-// the stream. Offline, its canonical link is the channel, and a page that is
-// neither is YouTube having changed something, so it fails where UPLINK shows it.
-func parseYouTube(page []byte, now time.Time) (OnAir, error) {
-	m := ytWatch.FindSubmatch(page)
-	if m == nil {
-		if ytChannel.Match(page) {
-			return OnAir{}, nil
-		}
-		return OnAir{}, errors.New("youtube: no canonical link on the live page")
-	}
-
-	// The /live page of a scheduled stream is its watch page too, so the
-	// canonical link alone does not mean it has started.
-	b := ytBroadcast.FindSubmatch(page)
-	if b == nil {
-		return OnAir{}, nil
-	}
-	var details struct {
-		IsLiveNow      bool      `json:"isLiveNow"`
-		StartTimestamp time.Time `json:"startTimestamp"`
-	}
-	if err := json.Unmarshal(b[1], &details); err != nil {
-		return OnAir{}, fmt.Errorf("youtube: %w", err)
-	}
-	if !details.IsLiveNow {
-		return OnAir{}, nil
-	}
-
-	o := OnAir{
-		Live:     true,
-		Name:     streamerName,
-		Platform: "YouTube",
-		URL:      "https://www.youtube.com/watch?v=" + string(m[1]),
-		Since:    onAirSince(details.StartTimestamp, now),
-		id:       string(m[1]),
-		started:  details.StartTimestamp,
-	}
-	if t := ytTitle.FindSubmatch(page); t != nil {
-		o.Title = streamTitle(html.UnescapeString(string(t[1])))
-	}
-	if v := ytViewers.FindSubmatch(page); v != nil {
-		if n, err := strconv.Atoi(string(v[1])); err == nil {
-			o.Viewers = compactCount(n)
-		}
-	}
-	return o, nil
-}
-
-func fetchYouTube(ctx context.Context, g *Guard) (OnAir, error) {
-	const endpoint = "youtube"
-	if err := g.Reserve(ctx, endpoint); err != nil {
-		return OnAir{}, err
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, youtubeLive, nil)
-	if err != nil {
-		return OnAir{}, err
-	}
-	req.Header.Set("User-Agent", userAgent)
-	req.Header.Set("Accept", "text/html")
-	req.Header.Set("Accept-Language", "en-US,en")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		g.Fail(endpoint, 0, 0)
-		return OnAir{}, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		g.Fail(endpoint, resp.StatusCode, parseRetryAfter(resp.Header.Get("Retry-After")))
-		return OnAir{}, fmt.Errorf("%s: http %d", endpoint, resp.StatusCode)
-	}
-
-	page, err := io.ReadAll(io.LimitReader(resp.Body, maxBody))
-	if err != nil {
-		g.Fail(endpoint, resp.StatusCode, 0)
-		return OnAir{}, fmt.Errorf("%s: %w", endpoint, err)
-	}
-	o, err := parseYouTube(page, time.Now())
-	if err != nil {
-		g.Fail(endpoint, resp.StatusCode, 0)
-		return OnAir{}, err
-	}
-
-	g.Succeed(endpoint)
-	return o, nil
-}
-
 const twitchQuery = `query Live($login: String!) {
   user(login: $login) {
     stream { id title viewersCount createdAt game { name } }
@@ -256,6 +155,51 @@ func parseTwitch(p twitchPayload, now time.Time) (OnAir, error) {
 	}
 	if s.Game != nil {
 		o.Game = strings.ToUpper(s.Game.Name)
+	}
+	return o, nil
+}
+
+type kickPayload struct {
+	Livestream *struct {
+		ID           int64  `json:"id"`
+		SessionTitle string `json:"session_title"`
+		IsLive       bool   `json:"is_live"`
+		StartTime    string `json:"start_time"`
+		ViewerCount  int    `json:"viewer_count"`
+		Categories   []struct {
+			Name string `json:"name"`
+		} `json:"categories"`
+	} `json:"livestream"`
+}
+
+func fetchKick(ctx context.Context, g *Guard) (OnAir, error) {
+	var p kickPayload
+	if err := getJSONHeaders(ctx, g, "kick", kickChannel, nil, &p); err != nil {
+		return OnAir{}, err
+	}
+	return parseKick(p, time.Now())
+}
+
+func parseKick(p kickPayload, now time.Time) (OnAir, error) {
+	s := p.Livestream
+	if s == nil || !s.IsLive {
+		return OnAir{}, nil
+	}
+	// start_time is UTC with no zone on it.
+	started, _ := time.Parse(time.DateTime, s.StartTime)
+	o := OnAir{
+		Live:     true,
+		Name:     streamerName,
+		Platform: "Kick",
+		Title:    streamTitle(s.SessionTitle),
+		URL:      kickURL,
+		Viewers:  compactCount(s.ViewerCount),
+		Since:    onAirSince(started, now),
+		id:       fmt.Sprint(s.ID),
+		started:  started,
+	}
+	if len(s.Categories) > 0 {
+		o.Game = strings.ToUpper(s.Categories[0].Name)
 	}
 	return o, nil
 }

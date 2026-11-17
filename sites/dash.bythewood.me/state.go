@@ -369,8 +369,8 @@ func (s *Store) refreshAlerts(ctx context.Context, g *Guard) {
 func (s *Store) refreshOnAir(ctx context.Context, g *Guard) {
 	now := time.Now()
 	fresh, err := pickOnAir(
-		func() (OnAir, error) { return fetchYouTube(ctx, g) },
 		func() (OnAir, error) { return fetchTwitch(ctx, g) },
+		func() (OnAir, error) { return fetchKick(ctx, g) },
 	)
 	if err != nil {
 		pollFailed(ctx, "on air", "onair", err)

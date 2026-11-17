@@ -7,50 +7,6 @@ import (
 	"time"
 )
 
-const ytLivePage = `<html><head>
-<link rel="canonical" href="https://www.youtube.com/watch?v=RIh_OzkyUtw">
-<meta property="og:title" content="🔴LIVE | MONDAY FUNDAY | CS2 &amp; PARTY GAMES">
-</head><body><script>var ytInitialPlayerResponse = {"microformat":{"playerMicroformatRenderer":{
-"liveBroadcastDetails":{"isLiveNow":true,"startTimestamp":"2026-09-28T23:19:08+00:00"}}}};
-{"originalViewCount":"47324"}</script></body></html>`
-
-func TestParseYouTubeLive(t *testing.T) {
-	now := at(t, "2026-09-28 21:30")
-	o, err := parseYouTube([]byte(ytLivePage), now)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !o.Live || o.id != "RIh_OzkyUtw" || o.URL != "https://www.youtube.com/watch?v=RIh_OzkyUtw" {
-		t.Fatalf("got %+v", o)
-	}
-	if o.Title != "MONDAY FUNDAY | CS2 & PARTY GAMES" {
-		t.Errorf("title = %q", o.Title)
-	}
-	if o.Viewers != "47K" || o.Since != "7:19PM" {
-		t.Errorf("viewers %q since %q", o.Viewers, o.Since)
-	}
-}
-
-func TestParseYouTubeNotLive(t *testing.T) {
-	offline := `<link rel="canonical" href="https://www.youtube.com/channel/UCMNEVbszv8ZyvSXoTn3yhpQ">`
-	upcoming := `<link rel="canonical" href="https://www.youtube.com/watch?v=abc">` +
-		`"liveBroadcastDetails":{"isLiveNow":false,"startTimestamp":"2026-09-29T23:00:00+00:00"}`
-	vod := `<link rel="canonical" href="https://www.youtube.com/watch?v=abc">`
-
-	for name, page := range map[string]string{"offline": offline, "upcoming": upcoming, "vod": vod} {
-		o, err := parseYouTube([]byte(page), time.Now())
-		if err != nil || o.Live {
-			t.Errorf("%s: live %v err %v", name, o.Live, err)
-		}
-	}
-
-	// A consent wall or a redesign is neither page, and saying offline would
-	// hide that YouTube stopped being read.
-	if _, err := parseYouTube([]byte(`<html>Before you continue to YouTube</html>`), time.Now()); err == nil {
-		t.Error("a page with no canonical link should be an error")
-	}
-}
-
 func TestParseTwitch(t *testing.T) {
 	var live twitchPayload
 	body := `{"data":{"user":{"stream":{"id":"320567189600","title":"MONDAY FUNDAY | CS2","viewersCount":36542,"createdAt":"2026-09-28T23:19:03Z","game":{"name":"Counter-Strike"}}}}}`
@@ -166,5 +122,29 @@ func TestOnAirNotices(t *testing.T) {
 	ns := onAirNotices(o)
 	if len(ns) != 1 || ns[0].ID != "live:youtube:aaa" || ns[0].Kind != "live" || ns[0].Title != "TheBurntPeanut is live on YouTube" || ns[0].URL != o.URL {
 		t.Errorf("got %+v", ns)
+	}
+}
+
+func TestParseKick(t *testing.T) {
+	var live kickPayload
+	body := `{"livestream":{"id":138278377,"session_title":"🔴LIVE | AOE 2 | GETTING DRUNK ON MONDAY","is_live":true,"start_time":"2026-11-17 00:15:19","viewer_count":1486,"categories":[{"name":"Age of Empires II"}]}}`
+	if err := json.Unmarshal([]byte(body), &live); err != nil {
+		t.Fatal(err)
+	}
+	o, err := parseKick(live, at(t, "2026-11-16 21:00"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !o.Live || o.id != "138278377" || o.Title != "AOE 2 | GETTING DRUNK ON MONDAY" || o.Viewers != "1.5K" || o.Game != "AGE OF EMPIRES II" || o.URL != kickURL {
+		t.Errorf("got %+v", o)
+	}
+	if o.Since != "7:15PM" {
+		t.Errorf("since %q", o.Since)
+	}
+
+	var offline kickPayload
+	json.Unmarshal([]byte(`{"slug":"theburntpeanut","livestream":null}`), &offline)
+	if o, err := parseKick(offline, time.Now()); err != nil || o.Live {
+		t.Errorf("offline: live %v err %v", o.Live, err)
 	}
 }

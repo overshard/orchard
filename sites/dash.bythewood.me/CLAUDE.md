@@ -244,16 +244,16 @@ budget. A forced brief's `slot` is the time it ran, so the slot it beat isn't
 owed again, and its lean is just the latest call on that session, which is the
 one `record()` counts. Before 7am it's framed as a morning.
 
-**The on air banner reads YouTube first and Twitch only when YouTube has
-nothing.** YouTube is a scrape of `@theburntpeanut/live`, which is the watch page
-of the stream when he's live and carries `"isLiveNow":true`, and canonicals to
-the channel when he isn't. A page that is neither counts as a failure, so a
-consent wall or a redesign shows up on the UPLINK row instead of quietly hiding
-the banner. Twitch is its GraphQL endpoint with the web player's public
-Client-ID, since Helix wants a registered app. Offline only needs one of the two
-to have answered, or a dead source would hold the banner up forever. A stream
-that drops and comes back inside half an hour keeps its notice id, whichever
-platform it comes back on, so a reconnect doesn't notify twice.
+**The on air banner reads Twitch first and Kick only when Twitch has nothing.**
+YouTube answers the VPS with its "confirm you're not a bot" page and its Data
+API needs a key, so it isn't read. Twitch is its GraphQL endpoint with the web
+player's public Client-ID, since Helix wants a registered app. Kick is its
+public `api/v2/channels/theburntpeanut`, whose `livestream` is null when he's
+offline, and it sits behind Cloudflare so it may get blocked some day. Offline
+only needs one of the two to have answered, or a dead source would hold the
+banner up forever. A stream that drops and comes back inside half an hour keeps
+its notice id, whichever platform it comes back on, so a reconnect doesn't
+notify twice.
 
 **Every feed row carries its top comments and a read of them.** The news poll
 fetches the top three top level comments for each HN and Lobsters row into a
