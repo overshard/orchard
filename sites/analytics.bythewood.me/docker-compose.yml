@@ -25,6 +25,7 @@ services:
         limits:
           cpus: "1.00"
           memory: 512M
+          pids: 128
     # The binary probes itself, since the scratch images here have no shell for a
     # check to call, and `restart` only catches a process that has exited.
     healthcheck:
@@ -35,6 +36,9 @@ services:
       start_period: 10s
     security_opt:
       - no-new-privileges:true
+    read_only: true
+    cap_drop: [ALL]
+    tmpfs: [/tmp]
     # Otherwise container logs grow unbounded on a workstation.
     logging:
       driver: json-file
