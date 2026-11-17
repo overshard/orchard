@@ -57,6 +57,7 @@ type site struct {
 	// Set when ANTHROPIC_API_KEY is, and then every completion goes to Claude.
 	claude *claude
 	budget float64
+	limits keyLimiter
 }
 
 func env(k, def string) string {

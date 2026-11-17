@@ -24,6 +24,10 @@ const defaultClaudeModel = "claude-haiku-5-5"
 // still needs one since the Messages API has no default.
 const defaultMaxTokens = 4096
 
+// A caller's max_tokens is clamped to this, so a leaked key can't ask for the
+// most expensive answer the model will give on every call.
+const maxTokensCeiling = 16384
+
 // A web search turn can pause partway and has to be sent back to carry on.
 const maxPauses = 4
 
@@ -101,6 +105,7 @@ func (c *claude) params(req oaReq) (anthropic.MessageNewParams, error) {
 	} else if req.MaxCompletionTokens > 0 {
 		p.MaxTokens = req.MaxCompletionTokens
 	}
+	p.MaxTokens = min(p.MaxTokens, maxTokensCeiling)
 
 	system, msgs := translateMessages(req.Messages)
 	if len(msgs) == 0 {

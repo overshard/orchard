@@ -43,6 +43,11 @@ sidecar. Templates and `static/` are written by hand, with no Vite.
   stripped from a schema and the prompt has to carry them.
 - Web search is offered only on calls that offer tools and don't stream.
 - A safety refusal comes back as a 422, never an empty answer.
+- `LLM_BUDGET` is a hard stop as well as the ntfy alerts, so once the month's
+  spend reaches it every Claude call and search gets a 429 until the 1st, or
+  until the budget is raised in `.env` and the site redeployed. Each key also
+  gets a burst of 10 calls and 1 a second after that, and `max_tokens` is
+  clamped to 16384.
 
 - The model server and the probe sit on a private network with no auth of
   their own, and only the gateway joins the edge.

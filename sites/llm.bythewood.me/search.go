@@ -38,6 +38,9 @@ func (s *site) search(w http.ResponseWriter, r *http.Request, k Key) {
 		writeOAError(w, http.StatusNotImplemented, "unsupported", "search needs the gateway on Claude")
 		return
 	}
+	if !s.claudeAllowed(w, k) {
+		return
+	}
 	started := time.Now()
 	var req searchReq
 	if err := json.NewDecoder(io.LimitReader(r.Body, 64<<10)).Decode(&req); err != nil || strings.TrimSpace(req.Query) == "" {

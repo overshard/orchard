@@ -71,6 +71,9 @@ func (s *site) completions(w http.ResponseWriter, r *http.Request, k Key) {
 	if background && s.claude == nil && s.refuseBackground(w, r, k) {
 		return
 	}
+	if s.claude != nil && !s.claudeAllowed(w, k) {
+		return
+	}
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxRequestBytes))
 	if err != nil {
 		http.Error(w, "request too large", http.StatusRequestEntityTooLarge)
