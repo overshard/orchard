@@ -330,7 +330,7 @@ func TestGuardBudgetIsPinned(t *testing.T) {
 		"pin-half <nil>",
 		"pin-half pin-half: HTTP 429, backing off 10m0s",
 		"pin-half pin-half guarded: budget spent, 2 in this 1h0m0s",
-		"row failures=5 open=true until=past count=2 trips=1 windowed=true err=HTTP 429",
+		"row failures=5 open=true until=- count=2 trips=1 windowed=true err=HTTP 429",
 	})
 }
 

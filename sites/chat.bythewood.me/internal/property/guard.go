@@ -390,9 +390,11 @@ func guardStatuses(db *sql.DB) ([]GuardStatus, error) {
 		if err := rows.Scan(&s.Endpoint, &s.Failures, &opened, &s.Used, &trips, &s.LastError); err != nil {
 			return nil, err
 		}
-		if opened > 0 {
+		// opened_at is only cleared by the next request, so a rest that ran out
+		// stays in the table until something asks again.
+		if until := time.Unix(opened, 0).Add(backoffFor(trips)); opened > 0 && time.Now().Before(until) {
 			s.Open = true
-			s.OpenUntil = time.Unix(opened, 0).Add(backoffFor(trips))
+			s.OpenUntil = until
 		}
 		out = append(out, s)
 	}
