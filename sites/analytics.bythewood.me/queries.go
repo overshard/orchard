@@ -265,6 +265,7 @@ func customEventCards(ctx context.Context, db *sql.DB, propertyID uuid.UUID, car
 				names = append(names, n)
 			}
 		}
+		logQuery("custom_event_names", rows.Err())
 		rows.Close()
 	}
 
@@ -322,6 +323,7 @@ func customEventCards(ctx context.Context, db *sql.DB, propertyID uuid.UUID, car
 				out[name] = c
 			}
 		}
+		logQuery("custom_event_counts", r.Err())
 		return out
 	}
 
@@ -364,6 +366,7 @@ func eventsGraph(ctx context.Context, db *sql.DB, propertyID uuid.UUID, startMS,
 				byDay[time.UnixMilli(hour*3600000).In(eastern).Format("2006-01-02")] += c
 			}
 		}
+		logQuery("events_graph", rows.Err())
 		rows.Close()
 	}
 
@@ -465,6 +468,7 @@ func scanLabelCounts(ctx context.Context, db *sql.DB, what, query string, args .
 			out = append(out, lc)
 		}
 	}
+	logQuery(what, rows.Err())
 	return out
 }
 
@@ -501,6 +505,7 @@ func eventsByScreenSize(ctx context.Context, db *sql.DB, propertyID uuid.UUID, s
 			})
 		}
 	}
+	logQuery("events_by_screen_size", rows.Err())
 	return out
 }
 
@@ -583,6 +588,7 @@ func sessionStartsByCountry(ctx context.Context, db *sql.DB, propertyID uuid.UUI
 			out[country] = c
 		}
 	}
+	logQuery("session_starts_by_country", rows.Err())
 	return out
 }
 
@@ -614,6 +620,7 @@ func sessionStartsByCountryRegion(ctx context.Context, db *sql.DB, propertyID uu
 		}
 		out[country][region] = c
 	}
+	logQuery("session_starts_by_country_region", rows.Err())
 	return out
 }
 

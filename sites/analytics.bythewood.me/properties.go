@@ -65,6 +65,11 @@ func (s *site) properties(w http.ResponseWriter, r *http.Request) {
 		}
 		props = append(props, p)
 	}
+	if err := rows.Err(); err != nil {
+		slog.Info(fmt.Sprintf("properties list: %v", err))
+		http.Error(w, "database error", http.StatusInternalServerError)
+		return
+	}
 
 	listed := make([]PropertyRow, 0, len(props))
 	var totals PropertyTotals
