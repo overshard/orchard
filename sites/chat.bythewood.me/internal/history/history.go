@@ -106,6 +106,7 @@ func migrate(db *sql.DB) {
 		`ALTER TABLE messages ADD COLUMN widgets TEXT NOT NULL DEFAULT '[]'`,
 		`ALTER TABLE messages ADD COLUMN steps TEXT NOT NULL DEFAULT '[]'`,
 		`ALTER TABLE conversations ADD COLUMN flag TEXT NOT NULL DEFAULT ''`,
+		`DROP TABLE IF EXISTS spend`,
 	} {
 		if _, err := db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column") {
 			slog.Warn("migrate", "stmt", stmt, "err", err)
