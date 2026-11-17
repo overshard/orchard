@@ -455,6 +455,14 @@ http://bythewood.me, http://www.bythewood.me {
 	}
 }
 
+# The container's own healthcheck. Only reachable from inside it, since no ingress
+# rule sends 127.0.0.1, and it doesn't touch an upstream so a site being down
+# can't mark Caddy unhealthy.
+http://127.0.0.1 {
+	log_skip
+	respond 200
+}
+
 # No matching Host means it did not come through an ingress rule. Say so rather
 # than serving a site by accident.
 #

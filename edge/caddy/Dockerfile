@@ -17,6 +17,11 @@ RUN go install github.com/caddyserver/xcaddy/cmd/xcaddy@${XCADDY_VERSION} && \
 
 FROM debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad
 
+# curl is for the compose health check and nothing else.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/*
+
 COPY --from=build /caddy /usr/bin/caddy
 COPY Caddyfile /etc/caddy/Caddyfile
 

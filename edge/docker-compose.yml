@@ -25,6 +25,12 @@ services:
         limits:
           memory: 256M
           pids: 256
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     # Caddy access-logs every request for every hostname, so without this the
     # container log is the one unbounded thing in the system.
     logging:
@@ -76,6 +82,13 @@ services:
       - cloudflared:/etc/cloudflared:ro
     networks: [edge]
     depends_on: [caddy]
+    # Passes only while the tunnel holds a live connection to Cloudflare's edge.
+    healthcheck:
+      test: ["CMD", "cloudflared", "tunnel", "--metrics", "127.0.0.1:2000", "ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     security_opt:
       - no-new-privileges:true
     read_only: true
