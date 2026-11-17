@@ -211,6 +211,24 @@ func TestHeldLineWantsTheSamePricesAndSession(t *testing.T) {
 	}
 }
 
+func TestCarriedLineStandsInForTheSameSession(t *testing.T) {
+	et := easternTime()
+	midday := Brief{Slot: time.Date(2026, 11, 16, 16, 0, 0, 0, et).Unix(), Basis: "6,700.00",
+		Points: []Point{{Label: "TOMORROW", Lean: "lower", Text: "Futures are lower and the VIX is up."}}}
+	closing := Brief{Slot: time.Date(2026, 11, 16, 16, 5, 0, 0, et).Unix(), Basis: "6,650.00"}
+
+	if _, ok := heldLine(midday, closing, "TOMORROW"); ok {
+		t.Error("held a line after the price moved")
+	}
+	if pt, ok := carriedLine(midday, closing, "TOMORROW"); !ok || pt.Lean != "lower" {
+		t.Errorf("same session should carry, got %+v %v", pt, ok)
+	}
+	nextDay := Brief{Slot: time.Date(2026, 11, 17, 7, 0, 0, 0, et).Unix()}
+	if _, ok := carriedLine(midday, nextDay, "TOMORROW"); ok {
+		t.Error("carried yesterday's TOMORROW into a brief about another session")
+	}
+}
+
 func TestClosedLineTellsTheModelTheDirection(t *testing.T) {
 	if l := closedLine("LAST WEEK", 101, 100, "the reasons"); !strings.HasSuffix(l.ask, "was up 1.00%") {
 		t.Errorf("ask %q", l.ask)

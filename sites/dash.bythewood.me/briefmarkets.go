@@ -183,7 +183,13 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 		}
 		ans.Sources = ans.Sources[:min(len(ans.Sources), 3)]
 		ans.Text = stripParties(ans.Text, source+eventText(picks(events, ans.Sources)...))
-		if pt, ok := marketPoint(l, ans, events); ok {
+		pt, ok := marketPoint(l, ans, events)
+		if !ok && l.forward {
+			if pt, ok = carriedLine(st.Briefs.Markets, brief, l.label); ok {
+				slog.Info("brief markets line carried", slog.String("component", "brief"), slog.String("label", l.label))
+			}
+		}
+		if ok {
 			if closed, ok := closeLine(b.archive.since("markets", l.through.AddDate(0, 0, -1)), l); ok && pt.Text == "" {
 				pt = closed
 			}
@@ -303,7 +309,16 @@ func heldWeek(prev Brief, at time.Time) (Point, bool) {
 // has traded since it was written, so a lean only changes when the market has
 // given it a reason to.
 func heldLine(prev, b Brief, label string) (Point, bool) {
-	if b.Basis == "" || prev.Basis != b.Basis || prev.Slot == 0 {
+	if b.Basis == "" || prev.Basis != b.Basis {
+		return Point{}, false
+	}
+	return carriedLine(prev, b, label)
+}
+
+// carriedLine is the last brief's line for the same session or week, which also
+// stands in for a forward line the model got wrong twice.
+func carriedLine(prev, b Brief, label string) (Point, bool) {
+	if prev.Slot == 0 {
 		return Point{}, false
 	}
 	day, from := leanDay(label, time.Unix(b.Slot, 0))
