@@ -369,6 +369,9 @@ func (d *DB) VerifyToken(token string) (string, error) {
 			return label, nil
 		}
 	}
+	if err := rows.Err(); err != nil {
+		return "", err
+	}
 	return "", errNoToken
 }
 

@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -237,6 +238,10 @@ func (wr *wire) authenticate(r *http.Request) (string, bool) {
 		return "", false
 	}
 	label, err := wr.db.VerifyToken(password)
+	if err != nil && !errors.Is(err, errNoToken) {
+		slog.Error("checking a push token failed", slog.Any("err", err))
+		return "", false
+	}
 	if err != nil {
 		// Never log the credential that failed.
 		slog.Info("push authentication failed",
