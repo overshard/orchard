@@ -24,8 +24,7 @@ const (
 const sourceURL = "https://github.com/" + githubUser + "/orchard/tree/main/sites/dash.bythewood.me"
 
 // Weather is for where Isaac is, so the coordinates are a constant. Yadkin
-// Valley, North Carolina, rounded to two places since open-meteo snaps to its
-// own grid.
+// Valley, North Carolina, rounded to one place so they only name the county.
 const (
 	weatherLat   = 36.1
 	weatherLon   = -80.6
