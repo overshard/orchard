@@ -43,25 +43,15 @@ var XSearch = Define(Tool{
 		n = 6
 	}
 
-	// Both hostnames, since old posts are indexed under twitter.com and new
-	// ones under x.com, and a search for one alone misses half of them.
-	scope := "(site:x.com OR site:twitter.com)"
-	if acct := strings.TrimSpace(strings.TrimPrefix(a.Account, "@")); acct != "" {
-		scope = "(site:x.com/" + acct + " OR site:twitter.com/" + acct + ")"
-	}
-
 	ask := q
 	if acct := strings.TrimSpace(strings.TrimPrefix(a.Account, "@")); acct != "" {
 		ask = "@" + acct + " " + q
 	}
-	hits, err := preferred(ctx, d, ask, []string{"x.com", "twitter.com"}, 12)
+	// Both hostnames, since old posts are indexed under twitter.com and new
+	// ones under x.com, and a search for one alone misses half of them.
+	hits, err := search(ctx, d, ask, []string{"x.com", "twitter.com"}, 12)
 	if err != nil {
-		body, err := get(ctx, d.Deps, "https://html.duckduckgo.com/html/?q="+
-			url.QueryEscape(scope+" "+q), "text/html")
-		if err != nil {
-			return nil, err
-		}
-		hits = parseDDG(string(body), 0)
+		return nil, err
 	}
 
 	posts := make([]SearchHit, 0, n)

@@ -682,8 +682,6 @@
         busy(false);
         sizeSpacer();
       }
-      // A turn is when search finds out it has been rate limited, so the bar
-      // learns about it here rather than on the next reload.
       refreshStatus();
     }
   }
@@ -1285,40 +1283,13 @@
     if (m) openConversation(m[1]); else $("new-chat").click();
   });
 
-  // Can anything be looked up? It runs again after every turn, since a turn is
-  // when search discovers it has been rate limited.
-  const searchDown = $("search-down");
   async function refreshStatus() {
     try {
       const s = await (await fetch("/api/status")).json();
       if (s.ctx) { ctxSize = s.ctx; meterCap.textContent = kfmt(s.ctx); }
-      const left = s.search_left || {};
-      // Down means a host refused us. Spent means we stopped ourselves. They
-      // read the same to a reader mid conversation, so the flag covers both and
-      // the tooltip says which.
-      const spent = left.day <= 0 || left.hour <= 0 || left.minute <= 0;
-      searchDown.hidden = !(s.search_down || spent);
-      if (s.search_down) {
-        searchDown.textContent = "NO SEARCH";
-        searchDown.title = "Search refused this address and is being left alone for another " +
-          (s.search_back_in || "while") + ". Nothing can be looked up until then.";
-      } else if (spent) {
-        searchDown.textContent = "SEARCH PAUSED";
-        searchDown.title = "The search budget is spent for now, so searching is paused " +
-          "rather than pushed. It frees up on its own.";
-      } else if (left.day !== undefined) {
-        // Not a warning until it is low, just something the bar can answer.
-        searchDown.title = "Searches left today: " + left.day;
-      }
     } catch { /* leave the bar as it was */ }
   }
   refreshStatus();
-
-  // A search pause lifts on its own, so the flag is asked about again now and
-  // then, and only while the tab is in front.
-  setInterval(() => { if (!document.hidden) refreshStatus(); }, 60000);
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshStatus(); });
-
 
   // ---------------------------------------------------------------- viewport
   //

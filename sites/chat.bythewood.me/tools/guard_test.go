@@ -60,17 +60,17 @@ func TestGuardSurvivesARestart(t *testing.T) {
 	store := &fakeStore{}
 	g := NewGuard(10 * time.Minute)
 	g.Restore(store, nil)
-	g.Trip(SearchHost)
-	if store.saved[SearchHost] != 1 {
+	g.Trip("cdn.espn.com")
+	if store.saved["cdn.espn.com"] != 1 {
 		t.Fatalf("the trip was not persisted: %v", store.saved)
 	}
 
 	// A new process, handed what the last one wrote.
 	fresh := NewGuard(10 * time.Minute)
 	fresh.Restore(store, map[string][2]int64{
-		SearchHost: {time.Now().Add(30 * time.Minute).UnixMilli(), 3},
+		"cdn.espn.com": {time.Now().Add(30 * time.Minute).UnixMilli(), 3},
 	})
-	blocked, left := fresh.Blocked(SearchHost)
+	blocked, left := fresh.Blocked("cdn.espn.com")
 	if !blocked {
 		t.Fatal("a restart cleared the penalty box")
 	}
@@ -79,12 +79,12 @@ func TestGuardSurvivesARestart(t *testing.T) {
 	}
 }
 
-// The page reads Down to say search is unavailable.
+// Down lists the hosts still in the box.
 func TestGuardDownListsOnlyLiveBoxes(t *testing.T) {
 	g := NewGuard(10 * time.Minute)
-	g.Trip(SearchHost)
+	g.Trip("cdn.espn.com")
 	down := g.Down()
-	if _, ok := down[SearchHost]; !ok {
+	if _, ok := down["cdn.espn.com"]; !ok {
 		t.Errorf("a tripped host is not reported down: %v", down)
 	}
 	if _, ok := down["never-called.example"]; ok {
@@ -93,7 +93,7 @@ func TestGuardDownListsOnlyLiveBoxes(t *testing.T) {
 }
 
 // A slow page is not a ban. Without the split, one timeout puts a host in the
-// same six hour box DuckDuckGo gets, which takes an ordinary documentation site
+// same six hour box a refusal gets, which takes an ordinary documentation site
 // out of reach for the afternoon.
 func TestAStumbleIsBoxedBrieflyAndARefusalIsNot(t *testing.T) {
 	g := NewGuard(time.Minute)
@@ -106,8 +106,8 @@ func TestAStumbleIsBoxedBrieflyAndARefusalIsNot(t *testing.T) {
 		t.Errorf("a timeout was boxed for %s, want no more than %s", left, stumbleCool)
 	}
 
-	g.Trip("html.duckduckgo.com")
-	_, banned := g.Blocked("html.duckduckgo.com")
+	g.Trip("cdn.espn.com")
+	_, banned := g.Blocked("cdn.espn.com")
 	if banned <= stumbleCool {
 		t.Errorf("an outright refusal was boxed for %s, want the full %s", banned, refusalCool)
 	}
@@ -117,10 +117,10 @@ func TestAStumbleIsBoxedBrieflyAndARefusalIsNot(t *testing.T) {
 // smaller deadline shorten its box.
 func TestAStumbleDoesNotCutShortARefusal(t *testing.T) {
 	g := NewGuard(time.Minute)
-	g.Trip("html.duckduckgo.com")
-	_, before := g.Blocked("html.duckduckgo.com")
-	g.Stumble("html.duckduckgo.com")
-	_, after := g.Blocked("html.duckduckgo.com")
+	g.Trip("cdn.espn.com")
+	_, before := g.Blocked("cdn.espn.com")
+	g.Stumble("cdn.espn.com")
+	_, after := g.Blocked("cdn.espn.com")
 	if after < before-time.Minute {
 		t.Errorf("a stumble cut the refusal from %s to %s", before, after)
 	}

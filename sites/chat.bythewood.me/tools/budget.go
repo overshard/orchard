@@ -7,7 +7,7 @@ import (
 )
 
 // budget is a spend limit for hosts that ban an address for asking too often. A
-// gap only bounds the rate and DuckDuckGo blocked us with every gap honoured, so a
+// gap only bounds the rate and a host can block us with every gap honoured, so a
 // spent ceiling stops the calls and lets the host's limit expire instead of renewing it.
 type budget struct {
 	gap    time.Duration
@@ -17,9 +17,6 @@ type budget struct {
 }
 
 var budgets = map[string]budget{
-	// Well under the two second gap and thirty a minute the duckduckgo_search
-	// library suggests, since DuckDuckGo publishes nothing official.
-	SearchHost:                 {gap: 6 * time.Second, minute: 8, hour: 30, day: 200},
 	"cdn.espn.com":             {gap: 3 * time.Second, minute: 15, hour: 120, day: 900},
 	"query1.finance.yahoo.com": {gap: 3 * time.Second, minute: 15, hour: 120, day: 900},
 	"api.coingecko.com":        {gap: 2 * time.Second, minute: 20, hour: 200, day: 1500},

@@ -74,7 +74,7 @@ func getWith(ctx context.Context, d *Deps, url string, accept string, extra map[
 	if err != nil {
 		return nil, err
 	}
-	// 202 is how both DuckDuckGo and ESPN say no, and it reads as an empty result
+	// 202 is how ESPN says no, and it reads as an empty result
 	// unless it's turned into an error here. This and a 429 get the long box.
 	if resp.StatusCode == http.StatusAccepted || resp.StatusCode == http.StatusTooManyRequests {
 		d.Guard.Trip(host)

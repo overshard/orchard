@@ -160,37 +160,6 @@ func (e *Engine) RestoreGuard(store tools.PenaltyStore, saved map[string][2]int6
 	e.deps.Guard.Restore(store, saved)
 }
 
-// RestoreSpend puts back what the last process spent, so a deploy is not a
-// fresh day's allowance.
-func (e *Engine) RestoreSpend(at []time.Time) {
-	e.deps.Budgets.Restore(tools.SearchHost, at)
-}
-
-// SearchSpend is what the page shows, so the pool draining is visible before it
-// is gone.
-func (e *Engine) SearchSpend() (minute, hour, day int) {
-	m, h, d, _ := e.deps.Budgets.Left(tools.SearchHost)
-	return m, h, d
-}
-
-// SaveSpend hands the current counts back to the caller's store. It runs after
-// a turn instead of per request, since a write on the request path costs more
-// than losing one turn's counts to a hard kill.
-func (e *Engine) SaveSpend(save func(host string, at []time.Time)) {
-	save(tools.SearchHost, e.deps.Budgets.Spent(tools.SearchHost))
-}
-
-// SearchDown reports whether the search endpoint is in the penalty box and for
-// how much longer, so the page can say so before a turn discovers it.
-func (e *Engine) SearchDown() (time.Duration, bool) {
-	// DuckDuckGo is only the fallback then, so its box doesn't stop a search.
-	if e.deps.Search != nil {
-		return 0, false
-	}
-	left, ok := e.deps.Guard.Down()[tools.SearchHost]
-	return left, ok
-}
-
 // Run drives one user turn and emits events as it goes. The session is the
 // caller's own, forwarded to the orchard tools so each site checks it instead
 // of this one holding a credential.

@@ -2,47 +2,39 @@ package tools
 
 import (
 	"context"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 )
 
-const ddgXPage = `
-<a rel="nofollow" class="result__a" href="https://x.com/someone/status/1234">A post about Go</a>
-<a class="result__snippet" href="#">the snippet of the post</a>
-<a rel="nofollow" class="result__a" href="https://twitter.com/someone/status/5678">An older post</a>
-<a class="result__snippet" href="#">indexed under the old hostname</a>
-<a rel="nofollow" class="result__a" href="https://x.com/someone">The profile page</a>
-<a class="result__snippet" href="#">not a post</a>
-<a rel="nofollow" class="result__a" href="https://example.com/blog/x-thoughts">Someone's blog</a>
-<a class="result__snippet" href="#">not x at all</a>
-`
+type fakeSearch struct {
+	hits    []SearchHit
+	domains []string
+}
+
+func (f *fakeSearch) Search(_ context.Context, _ string, domains []string, _ int) ([]SearchHit, error) {
+	f.domains = domains
+	return f.hits, nil
+}
 
 // xcancel and Nitter are both closed, and the paid API needs a key, so a site
 // search is the way in. It has to keep the posts and drop everything else a
 // site search also returns.
 func TestXSearchKeepsPostsAndNormalisesTheHost(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.Contains(r.URL.RawQuery, "site%3Ax.com") {
-			t.Errorf("the search was not scoped to x.com: %s", r.URL.RawQuery)
-		}
-		_, _ = w.Write([]byte(ddgXPage))
-	}))
-	defer srv.Close()
-
-	hits := parseDDG(ddgXPage, 0)
-	if len(hits) != 4 {
-		t.Fatalf("parsed %d results, want 4", len(hits))
+	f := &fakeSearch{hits: []SearchHit{
+		{Title: "A post about Go", URL: "https://x.com/someone/status/1234"},
+		{Title: "An older post", URL: "https://twitter.com/someone/status/5678"},
+		{Title: "The profile page", URL: "https://x.com/someone"},
+		{Title: "Someone's blog", URL: "https://example.com/blog/x-thoughts"},
+	}}
+	d := &Turn{Deps: &Deps{Search: f}}
+	out, err := XSearch.Run(context.Background(), d, map[string]any{"query": "go"})
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	var posts []SearchHit
-	for _, h := range hits {
-		if isXPost(h.URL) {
-			h.URL = asXCom(h.URL)
-			posts = append(posts, h)
-		}
+	if strings.Join(f.domains, ",") != "x.com,twitter.com" {
+		t.Errorf("the search was not scoped to x.com: %v", f.domains)
 	}
+	posts := out.(map[string]any)["posts"].([]SearchHit)
 	if len(posts) != 2 {
 		t.Fatalf("kept %d posts, want the two status pages: %#v", len(posts), posts)
 	}
@@ -52,7 +44,6 @@ func TestXSearchKeepsPostsAndNormalisesTheHost(t *testing.T) {
 			t.Errorf("a link was left on the old hostname: %s", p.URL)
 		}
 	}
-	_ = context.Background()
 }
 
 func TestIsXPost(t *testing.T) {

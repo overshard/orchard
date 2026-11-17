@@ -256,15 +256,6 @@ body {
   letter-spacing: var(--track); border: 1px solid rgba(212, 180, 90, 0.5);
   padding: 0.1rem 0.4rem; border-radius: 2px;
 }
-/* Amber is the warning here, per DESIGN.md, and this is the one tool failure
-   the bar reports: a turn without search answers from memory and otherwise
-   reads exactly like an answer that looked something up. */
-.warn-flag {
-  color: var(--terracotta); font-size: 0.64rem; font-weight: 600;
-  letter-spacing: var(--track); border: 1px solid rgba(196, 112, 85, 0.55);
-  padding: 0.1rem 0.4rem; border-radius: 2px; white-space: nowrap;
-}
-.warn-flag[hidden] { display: none; }
 
 /* The model chip. It names the model and pulses while a turn is running. */
 .model {
@@ -1332,7 +1323,7 @@ kbd {
      goes and the dot and the eject stay. The title gets the width back. */
   .model-name { display: none; }
   .model { min-width: 2.25rem; justify-content: center; }
-  /* Incognito, no search, the meter and the tokens a second all showing at once
+  /* Incognito, the meter and the tokens a second all showing at once
      ran this row 83px past a 360px screen and pushed the model off the edge.
      Speed is the one reading here nobody acts on, so it is what goes. */
   .tps { display: none; }

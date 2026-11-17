@@ -156,7 +156,3 @@ func (g *Guard) Down() map[string]time.Duration {
 	})
 	return out
 }
-
-// SearchHost is the one whose loss the page reports, since a turn without it
-// cannot look anything up and every other tool is narrower.
-const SearchHost = "html.duckduckgo.com"

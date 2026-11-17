@@ -55,8 +55,7 @@ type Deps struct {
 	// Property is the house lookup engine, wired the same way since it owns
 	// tables in the site's database.
 	Property Property
-	// Search goes through the gateway to Anthropic's web search, and an error
-	// from it falls back to DuckDuckGo.
+	// Search goes through the gateway to Anthropic's web search.
 	Search Searcher
 }
 

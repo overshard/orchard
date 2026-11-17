@@ -338,7 +338,7 @@ func trim(s string, n int) string {
 }
 
 // Search asks the gateway for web results, which it gets from Anthropic's
-// search. An error here falls back to DuckDuckGo in the tool.
+// search.
 func (l *LLM) Search(ctx context.Context, query string, domains []string, n int) ([]tools.SearchHit, error) {
 	body, err := json.Marshal(map[string]any{"query": query, "domains": domains, "n": n})
 	if err != nil {

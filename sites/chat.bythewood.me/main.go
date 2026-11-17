@@ -182,7 +182,6 @@ func realMain() error {
 	// The rate limit boxes survive a restart, or every deploy asks a host that's
 	// already refusing and a ban gets renewed instead of expiring.
 	s.engine.RestoreGuard(store, store.Penalties())
-	s.engine.RestoreSpend(store.Spend(tools.SearchHost))
 	// Finished runs are kept a while so a tab coming back can still read one,
 	// and swept after that instead of held until the process restarts.
 	go func() {
@@ -622,9 +621,6 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 		run = s.flagTurn(req.ConvID)
 	}
 	reply, used, srcs, widgets, stats, err := run(ctx, history, prompt, session, memory.Block(recalled), tr, emit)
-	// Whether the turn worked or not, whatever it spent has been spent, and a
-	// failed turn is exactly when the counts matter most.
-	s.engine.SaveSpend(s.store.SaveSpend)
 	if err != nil {
 		slog.Warn("a turn failed", "err", trimLine(err.Error(), 300))
 		emit(Event{Kind: "error", Text: err.Error()})
@@ -860,15 +856,6 @@ func (s *site) status(w http.ResponseWriter, r *http.Request) {
 		"model": s.label, "ctx": s.ctxSize,
 		"tools": tools.Default().Names(), "conversations": nConv, "messages": nMsg,
 	}
-	// Search being unavailable is the one tool failure worth saying out loud,
-	// because a turn without it answers from memory and reads like an ordinary
-	// answer. Everything else is narrow enough to report itself in the turn.
-	if left, down := s.engine.SearchDown(); down {
-		out["search_down"] = true
-		out["search_back_in"] = left.String()
-	}
-	minute, hour, day := s.engine.SearchSpend()
-	out["search_left"] = map[string]int{"minute": minute, "hour": hour, "day": day}
 	writeJSON(w, out)
 }
 

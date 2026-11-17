@@ -293,7 +293,6 @@ func TestGuardPaceIsPinned(t *testing.T) {
 // this test too.
 func TestGuardGapsArePinned(t *testing.T) {
 	want := map[string]time.Duration{
-		SearchHost:                       6 * time.Second,
 		"cdn.espn.com":                   3 * time.Second,
 		"query1.finance.yahoo.com":       3 * time.Second,
 		"api.coingecko.com":              2 * time.Second,
