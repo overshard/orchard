@@ -161,6 +161,7 @@ func realMain() error {
 
 	shipper := web.ShipLogs(selfSource, web.HTTPSink())
 	defer shipper.Close()
+	defer s.notifier.Wait()
 
 	// Waited on after the cancel, so the db is not closed under a sweep.
 	sweepCtx, stopSweeping := context.WithCancel(context.Background())

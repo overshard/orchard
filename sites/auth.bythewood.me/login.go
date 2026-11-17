@@ -149,7 +149,7 @@ func (s *site) codeSubmit(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(failedDelay)
 		audit(s.db, r, evCodeFailed, "")
 		if n, _ := failuresInWindow(s.db); n == dailyFailures {
-			go s.notifier.notify(lockoutMessage(requestContext(r)))
+			s.notifier.background(lockoutMessage(requestContext(r)))
 		}
 		s.codePage(w, r, next, "That code is not right.", http.StatusUnauthorized)
 		return
@@ -193,7 +193,7 @@ func (s *site) recoverySubmit(w http.ResponseWriter, r *http.Request) {
 	audit(s.db, r, evRecoveryUsed, "")
 	// Queues on ntfy and lands when it comes back, which is the case a recovery
 	// code is for.
-	go s.notifier.notify(recoveryMessage(requestContext(r), remaining))
+	s.notifier.background(recoveryMessage(requestContext(r), remaining))
 
 	s.openSession(w, r, next, "a recovery code")
 }
@@ -208,7 +208,7 @@ func (s *site) openSession(w http.ResponseWriter, r *http.Request, next, how str
 	}
 	writeSessionCookie(w, value)
 	audit(s.db, r, evLogin, how)
-	go s.notifier.notify(sessionMessage(requestContext(r), how))
+	s.notifier.background(sessionMessage(requestContext(r), how))
 
 	http.Redirect(w, r, safeNext(next), http.StatusSeeOther)
 }

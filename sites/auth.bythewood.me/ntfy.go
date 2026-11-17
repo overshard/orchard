@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"sync"
 
 	"auth.bythewood.me/ntfy"
 )
@@ -15,6 +16,9 @@ const ntfyTopic = "auth"
 
 type Notifier struct {
 	client *ntfy.Client
+	// Alerts sent from a request finish on their own, and shutdown waits for
+	// them so a session alert isn't lost to a deploy.
+	sending sync.WaitGroup
 }
 
 func NewNotifier() *Notifier {
@@ -88,6 +92,14 @@ func (n *Notifier) notify(m ntfy.Message) {
 			slog.Any("err", err))
 	}
 }
+
+// background sends an alert without holding up the request that raised it.
+func (n *Notifier) background(m ntfy.Message) {
+	n.sending.Go(func() { n.notify(m) })
+}
+
+// Wait returns once every background alert has gone out or failed.
+func (n *Notifier) Wait() { n.sending.Wait() }
 
 // ntfyPublicURL is what a phone points at, as opposed to ntfy.URL, which is the
 // bridge address this process publishes to.
