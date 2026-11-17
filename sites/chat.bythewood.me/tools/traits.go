@@ -14,32 +14,20 @@ const (
 	// Private reads Isaac's own data, and strangers write some of it through
 	// request paths and /collect, so nothing Outbound is offered after one answers.
 	Private
-	// Estate reads one of his own sites, which are the record of themselves,
-	// so the gate never sends its answer off to be checked on the web.
+	// Estate reads one of his own sites, so strangers' text out of one of them
+	// still leaves the others open.
 	Estate
 	// OpenWeb searches or fetches whatever the web turns up.
 	OpenWeb
 	// Settles answers in full out of the public record, so the open web comes
-	// off after it and the gate takes its answer as it stands.
+	// off after it.
 	Settles
 	// Once is called one time a turn, since a second call repeats the first.
 	Once
-	// Rundown is a finished list of many pages, each one worth a link, and the
-	// gate never sends it back for more.
+	// Rundown is a finished list of many pages, each one worth a link.
 	Rundown
-	// Notes writes down what he asked to be kept.
-	Notes
-	// Lookup is a first place to look something up, offered beside Notes when
-	// a note asks for one.
-	Lookup
-	// Draws makes a picture, and a picture ends the turn.
-	Draws
 	// Tickers takes ticker symbols, so the ones he typed go into the call.
 	Tickers
-	// Sums does arithmetic, and a total worked out in prose is sent back to it.
-	Sums
-	// Clock reads the time, and a countdown in a draft is checked against it.
-	Clock
 	// Outbound puts what the model wrote into a request to somebody else's server.
 	Outbound
 )
@@ -75,17 +63,6 @@ func WithoutFunc(schemas []map[string]any, drop func(Tool) bool) []map[string]an
 	return slices.DeleteFunc(slices.Clone(schemas), func(s map[string]any) bool {
 		return drop(Of(schemaName(s)))
 	})
-}
-
-// OnlyAny narrows an offer to the tools with any of the traits.
-func OnlyAny(schemas []map[string]any, tr Trait) []map[string]any {
-	var out []map[string]any
-	for _, s := range schemas {
-		if Of(schemaName(s)).Is(tr) {
-			out = append(out, s)
-		}
-	}
-	return out
 }
 
 func schemaName(s map[string]any) string {

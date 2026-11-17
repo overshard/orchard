@@ -40,6 +40,10 @@ var houseSections = []struct {
 	{"cost", regexp.MustCompile(`(?i)\b(cost|loans?|mortgage|payments?|monthly|fha|usda|closing|down payment)\b`)},
 }
 
+// A house number, a street name and a street type, as every chip and every
+// listing carries.
+var streetAddress = regexp.MustCompile(`(?i)\b\d{1,6}\s+(?:[a-z0-9.'-]+\s+){1,4}(?:rd|road|st|street|dr|drive|ln|lane|ave|avenue|blvd|boulevard|ct|court|hwy|highway|way|pl|place|cir|circle|trl|trail|pkwy|parkway|loop|ter|terrace|run|pike)\b`)
+
 // houseAddress is the address a message names, running through its zip code.
 func houseAddress(text string) string {
 	// "$269,900 88 Example St" reads to the street pattern as house number 900.
@@ -137,8 +141,8 @@ func (e *Engine) houseOpening(ctx context.Context, turn *tools.Turn, question st
 			break
 		}
 		body, _ := json.Marshal(res.Content)
-		if len(body) > 14000 {
-			body = body[:14000]
+		if len(body) > resultBytes {
+			body = body[:resultBytes]
 		}
 		b.WriteString("\n\n[" + s + "]\n")
 		b.Write(body)

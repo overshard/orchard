@@ -6,7 +6,7 @@
      rather than sit on top of it, which is what keeps the composer visible. -->
 <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
 <title>chat</title>
-<meta name="description" content="A conversation with a small model running on hardware you own.">
+<meta name="description" content="A conversation with tools for a self hoster.">
 <link rel="stylesheet" href="{{asset "static/app.css"}}">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%230e0d0a'/><rect x='3' y='7' width='7' height='2' fill='%236b9e78'/></svg>">
   <!-- Analytics, first party and on this estate. The id is identity rather than
@@ -92,22 +92,18 @@
           <span class="meter-cap" id="meter-cap">{{.Ctx}}</span>
         </span>
         <span class="tps" id="tps" title="Generation speed of the last turn" hidden></span>
-        <!-- The model chip is the indicator and the control both, so the bar
-             gains a button without gaining a slot. The eject glyph only shows
-             when there is something on the card to eject. -->
-        <button type="button" class="model" id="model-btn" title="The model answering">
-          <i class="dot" id="model-dot"></i>
+        <span class="model" title="The model answering">
+          <i class="dot on" id="model-dot"></i>
           <span class="model-name">{{.Model}}</span>
-          <span class="model-eject" aria-hidden="true">&#9167;</span>
-        </button>
+        </span>
       </div>
     </header>
 
     <div class="thread" id="thread">
       <section class="welcome" id="welcome">
-        <div class="eyebrow"><i class="dot on"></i> on this machine <span class="sep">/</span> self-hosted <span class="sep">/</span> no telemetry</div>
-        <h1>A conversation with a model on <span class="hl">hardware you own</span>.</h1>
-        <p>It searches the web, reads pages, checks the weather and the markets, looks up scores and odds, and verifies a song exists before it names one. Nothing leaves this machine except the pages it fetches for you.</p>
+        <div class="eyebrow"><i class="dot on"></i> {{.Model}} <span class="sep">/</span> self-hosted <span class="sep">/</span> no telemetry</div>
+        <h1>A conversation with <span class="hl">tools that look it up</span>.</h1>
+        <p>It searches the web, reads pages, checks the weather and the markets, looks up scores and odds, and reads your own sites. The history stays on this server, and the conversation goes to the model through the gateway.</p>
         <p class="welcome-hint">Press <kbd>Ctrl</kbd><kbd>/</kbd> for keyboard shortcuts.</p>
         <div class="chips">
           <button class="chip" data-ask="What is the weather looking like this weekend, and how should I pack for camping in it?">Weather this weekend</button>
@@ -184,7 +180,6 @@
       <dt><kbd>Enter</kbd></dt><dd>Send</dd>
       <dt><kbd>Shift</kbd><kbd>Enter</kbd></dt><dd>New line</dd>
       <dt><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>M</kbd></dt><dd>What it remembers</dd>
-      <dt><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>U</kbd></dt><dd>Unload the model off the card</dd>
       <dt><kbd>Ctrl</kbd><kbd>/</kbd></dt><dd>This list</dd>
     </dl>
     <p class="keys-note">On a Mac use <kbd>&#8984;</kbd> in place of <kbd>Ctrl</kbd>. Chrome keeps <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>I</kbd> for its developer tools, so incognito is also on <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>P</kbd>.</p>

@@ -1,6 +1,6 @@
-// A small model degrades on a long conversation, so old turns become a summary.
-// llama.cpp caches the prompt prefix and rewriting the history throws it away,
-// so it runs at a threshold, not every turn, and the summary stays at the front.
+// Every round of a turn sends the whole history again, so a long conversation's
+// older turns become a summary. Rewriting the history costs a call, so it runs at
+// a threshold and not every turn, and the summary stays at the front.
 package main
 
 import (
@@ -18,10 +18,10 @@ const (
 	// to compact and cheaper than asking the server to count.
 	charsPerToken = 4
 
-	// Compact when the conversation would fill more than this share of the
-	// window. Well below full, because the answer still needs room to be
-	// generated into.
-	compactAtFraction = 0.55
+	// Compact past this many tokens of history. The window holds far more, but
+	// a turn resends it every round and past 100K tokens a call bills at five
+	// times the rate, so this leaves room for the turn's own reading.
+	compactAtTokens = 40000
 
 	// Never summarise the last few exchanges. A follow-up like "why?" refers
 	// to them and a summary cannot carry that.
@@ -29,20 +29,12 @@ const (
 )
 
 type Compactor struct {
-	llm       *LLM
-	ctxTokens int
+	llm *LLM
 }
 
-func NewCompactor(llm *LLM, ctxTokens int) *Compactor {
-	if ctxTokens <= 0 {
-		ctxTokens = 32768
-	}
-	return &Compactor{llm: llm, ctxTokens: ctxTokens}
-}
+func NewCompactor(llm *LLM) *Compactor { return &Compactor{llm: llm} }
 
-func (c *Compactor) budgetChars() int {
-	return int(float64(c.ctxTokens) * compactAtFraction * charsPerToken)
-}
+func (c *Compactor) budgetChars() int { return compactAtTokens * charsPerToken }
 
 // Window turns a stored conversation into what the model is handed. It returns
 // the messages plus whether it compacted, so the caller can persist a new
@@ -99,27 +91,23 @@ func (c *Compactor) summarise(ctx context.Context, prev string, older []Stored) 
 		if m.Role == RoleAssistant {
 			who = "Assistant"
 		}
-		body := m.Content
-		if len(body) > 3000 {
-			body = body[:3000] + " ..."
-		}
-		fmt.Fprintf(&b, "%s: %s\n\n", who, body)
+		fmt.Fprintf(&b, "%s: %s\n\n", who, m.Content)
 	}
 
 	msgs := []Message{
-		{Role: RoleSystem, Content: "You compress a conversation so it can continue in a smaller window. " +
-			"Write one replacement summary covering everything given, not a summary of the summary. Keep: what the user " +
-			"is trying to do, decisions made, facts and numbers established, names and urls that were settled on, their " +
-			"stated preferences, and anything they asked for that is still outstanding. Drop pleasantries and anything " +
-			"superseded later. Write plain sentences under bold labels, no more than 200 words, and never invent detail " +
-			"that is not in the text."},
+		{Role: RoleSystem, Content: "You compress the older part of a conversation so it can carry on from the summary. " +
+			"Write one replacement summary covering everything given, folding any existing summary in rather than " +
+			"summarising it. Keep what the user is trying to do, decisions made, facts, figures, names and urls that " +
+			"were settled on, their stated preferences, and anything they asked for that is still outstanding. Drop " +
+			"pleasantries and anything superseded later. Write plain sentences under bold labels, as long as it needs " +
+			"to be and no longer, and never add detail that isn't in the text."},
 		{Role: RoleUser, Content: b.String()},
 	}
-	out, err := c.llm.Complete(ctx, msgs, nil, 600)
+	out, err := c.llm.Complete(ctx, msgs, 2048)
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(out.Content), nil
+	return strings.TrimSpace(out), nil
 }
 
 // Title asks for a short name for a conversation, once, off the first exchange.
@@ -127,39 +115,38 @@ func (c *Compactor) summarise(ctx context.Context, prev string, older []Stored) 
 // short to name on its own.
 func (c *Compactor) Title(ctx context.Context, first, answer string) string {
 	var b strings.Builder
-	b.WriteString("Name the conversation below. Do not answer it.\n\nMessage:\n<<<\n")
-	b.WriteString(trim(first, 500))
+	b.WriteString("Message:\n<<<\n")
+	b.WriteString(trim(first, 1000))
 	b.WriteString("\n>>>")
 	if a := strings.TrimSpace(answer); a != "" {
-		b.WriteString("\n\nThe reply it got, which is what the message turned out to be about:\n<<<\n")
-		b.WriteString(trim(a, 700))
+		b.WriteString("\n\nThe reply it got:\n<<<\n")
+		b.WriteString(trim(a, 1500))
 		b.WriteString("\n>>>")
 	}
 	msgs := []Message{
-		{Role: RoleSystem, Content: "You name conversations. You never answer the message you are given. " +
-			"Reply with a noun phrase of three to six words naming the subject, no quotes, no trailing " +
-			"period, and none of the words chat, conversation, question or help. " +
-			"Where the message is short or is an abbreviation, a ticker or a name, take what it refers to " +
-			"from the reply rather than guessing at it."},
+		{Role: RoleSystem, Content: "You name conversations for a sidebar and never answer them. Give a noun phrase " +
+			"of three to six words naming the subject, with no quotes and no trailing full stop, and leave out the " +
+			"words chat, conversation, question and help. When the message is short, an abbreviation, a ticker or a " +
+			"name, take what it refers to from the reply."},
 		{Role: RoleUser, Content: b.String()},
 	}
-	out, err := c.llm.Complete(ctx, msgs, nil, 30)
-	if err != nil {
+	var out struct {
+		Title string `json:"title"`
+	}
+	if _, err := c.llm.Structured(ctx, msgs, 64, titleSchema, &out); err != nil {
 		return ""
 	}
-	// A model that answers with a sentence and then explains itself still gave
-	// a usable name on its first line, so take that instead of falling back to
-	// the raw question.
-	t := strings.TrimSpace(out.Content)
-	if i := strings.IndexByte(t, '\n'); i >= 0 {
-		t = t[:i]
-	}
-	// A model asked for a title sometimes answers with a markdown heading.
-	t = strings.Trim(strings.TrimSpace(t), "\"'.:*#- ")
+	t := strings.Trim(strings.TrimSpace(out.Title), "\"'.:*#- ")
 	if t == "" {
 		return ""
 	}
 	return trim(sentenceCase(titleWords(t)), 48)
+}
+
+var titleSchema = map[string]any{
+	"type":       "object",
+	"properties": map[string]any{"title": map[string]any{"type": "string"}},
+	"required":   []string{"title"},
 }
 
 // sentenceCase lifts the first letter and leaves every other one alone, since
@@ -183,9 +170,7 @@ func sentenceCase(t string) string {
 	return t
 }
 
-// titleWords caps a title at six words. A model that answered the question
-// instead of naming it still opens on the subject, so the first six words are a
-// usable name where the whole sentence is not.
+// titleWords caps a title at six words, since the sidebar has room for no more.
 func titleWords(t string) string {
 	f := strings.Fields(t)
 	if len(f) <= 6 {

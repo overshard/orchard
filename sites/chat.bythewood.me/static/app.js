@@ -7,7 +7,6 @@
   const send = $("send"), stop = $("stop"), welcome = $("welcome");
   const incognito = $("incognito"), incogFlag = $("incog-flag");
   const barTitle = $("bar-title"), modelDot = $("model-dot"), footState = $("foot-state");
-  const modelBtn = $("model-btn");
   const side = $("side"), convs = $("convs"), scrim = $("scrim");
 
   // A revoked or expired session answers every call with 401, and most callers
@@ -29,9 +28,8 @@
   // Declared up here because refreshConversations paints from it and runs
   // before the live stream is wired.
   const unread = new Set();
-  // Every turn still going, from the meta stream and the list, by conversation:
-  // 0 is on the card and a number is its place in line.
-  const live = new Map();
+  // Every conversation with a turn still going, from the meta stream and the list.
+  const live = new Set();
 
   // The width the stylesheet switches the sidebar to an overlay at. Kept in one
   // place because the two have to agree: a sidebar that is an overlay in CSS and
@@ -283,8 +281,7 @@
     if (st.decode_tps) {
       tps.hidden = false;
       tps.innerHTML = `<b>${st.decode_tps}</b> tok/s`;
-      tps.title = `Generated at ${st.decode_tps} tokens a second`
-        + (st.prefill_tps ? `, prompt read at ${st.prefill_tps} a second` : "");
+      tps.title = `Generated at ${st.decode_tps} tokens a second`;
     }
   }
 
@@ -328,44 +325,15 @@
     toBottom(true);
   }
 
-  // Three facts land on the model chip from three places, so one painter owns it
-  // and they cannot disagree. Loaded is the weights being on the card, which is
-  // what the eject is offered against.
-  const card = { up: true, loaded: false, busy: false, onCard: "" };
-  const modelName = modelBtn.querySelector(".model-name");
-  const chatModel = modelName.textContent;
-  function paintModel() {
-    const { up, loaded, busy } = card;
-    const name = (loaded || busy) && card.onCard ? card.onCard : chatModel;
-    modelName.textContent = name;
-    modelDot.classList.toggle("busy", busy);
-    modelDot.classList.toggle("on", !busy && loaded);
-    modelDot.classList.toggle("down", !up);
-    // A turn holds the card, so the button is an indicator until it finishes.
-    const canEject = up && loaded && !busy;
-    modelBtn.classList.toggle("loaded", canEject);
-    modelBtn.setAttribute("aria-disabled", canEject ? "false" : "true");
-    modelBtn.title = !up ? "The model server is not answering"
-      : busy ? name + " is working, so the card is in use"
-      : loaded ? name + " is on the card. Press to unload it and free the GPU."
-      : "Nothing is on the card. " + chatModel + " loads itself on the next question.";
-    modelBtn.setAttribute("aria-label", modelBtn.title);
-  }
-  paintModel();
-
-  // The composer follows the conversation on screen, and the chip follows the
-  // card, which another conversation can be holding while this one is idle.
+  // The dot pulses while a turn is running here or in any other tab.
   let viewBusy = false;
   function paintCard() {
-    card.busy = viewBusy || [...live.values()].some((pos) => pos === 0);
-    paintModel();
+    modelDot.classList.toggle("busy", viewBusy || live.size > 0);
   }
 
   function busy(on) {
     send.hidden = on; stop.hidden = !on; input.disabled = on;
     viewBusy = on;
-    // Every turn starts on the chat model, whatever the last one left there.
-    if (on) { card.loaded = true; card.onCard = ""; }
     paintCard();
     if (!on) refocus();
   }
@@ -601,7 +569,6 @@
   // The stream is read the same way whether it came from starting a turn or
   // from attaching to one already running, so both go through here.
   async function consume(resp, ui) {
-    window.Widgets.clock(resp);
     const reader = resp.body.getReader();
     const dec = new TextDecoder();
     let buf = "";
@@ -752,24 +719,6 @@
         if (ev.widget) window.Widgets.add(ui.widgets, ev.widget);
         keepPinned();
         break;
-      case "image":
-        window.Widgets.progress(ui.widgets, ev.image);
-        if (ev.image) {
-          const st = ev.image.stage;
-          if (st === "prompt") {
-            statusLine("writing the prompt");
-          } else if (st === "loading" || st === "drawing") {
-            statusLine(st === "loading" ? "loading " + ev.image.model : "drawing");
-            // The chip follows the card, so it names the picture model while
-            // that is the one on it.
-            card.onCard = ev.image.model;
-            paintModel();
-          } else {
-            clearStatus();
-          }
-        }
-        keepPinned();
-        break;
       case "block":
         clearStatus();
         // Append rather than replace, so nothing already on screen moves.
@@ -782,17 +731,20 @@
         ui.tail.textContent = ev.text || "";
         keepPinned();
         break;
+      case "reset":
+        // What a round wrote before it went on to call a tool.
+        ui.blocks.replaceChildren();
+        ui.tail.textContent = "";
+        break;
       case "step":
         addStep(ui.work, ev.step);
         break;
       case "error":
         clearStatus();
-        window.Widgets.settle(ui.widgets);
         errorLine(ev.text);
         break;
       case "done":
         clearStatus();
-        window.Widgets.settle(ui.widgets);
         showStats(ev.stats);
         // Every other turn is announced by the meta stream, which never hears
         // about an incognito one.
@@ -873,7 +825,7 @@
         }
       }
       live.clear();
-      for (const c of d.conversations || []) if (c.running) live.set(c.id, c.waiting || 0);
+      for (const c of d.conversations || []) if (c.running) live.add(c.id);
       paintLive();
       if (!filter.hidden) applyFilter();
       paintUnread();
@@ -1173,7 +1125,6 @@
     if (!e.shiftKey && key === "k") { e.preventDefault(); toggleFilter(); return; }
     if (!e.shiftKey && key === "/") { e.preventDefault(); toggleSheet(); return; }
     if (e.shiftKey && key === "m") { e.preventDefault(); memToggle(); return; }
-    if (e.shiftKey && key === "u") { e.preventDefault(); unloadModel(); return; }
   });
 
   $("keys-open").addEventListener("click", () => toggleSheet(true));
@@ -1274,25 +1225,20 @@
     $("side-open").classList.toggle("dot-on", n > 0);
   }
 
-  // A row says what its turn is doing in place of when it last changed, so the
-  // list reads as the queue while anything is in it.
+  // A row says its turn is working in place of when it last changed.
   function paintLive() {
     document.querySelectorAll(".conv").forEach((el) => {
-      const pos = live.get(el.dataset.id);
+      const on = live.has(el.dataset.id);
       const w = el.querySelector(".conv-when");
-      el.classList.toggle("working", pos === 0);
-      el.classList.toggle("waiting", pos > 0);
+      el.classList.toggle("working", on);
       if (!w) return;
-      if (pos === undefined) {
+      if (!on) {
         if (el.dataset.when) w.textContent = el.dataset.when;
         if (el.dataset.flag) el.title = "Flagged: " + el.dataset.flag;
         else el.removeAttribute("title");
-      } else if (pos === 0) {
+      } else {
         w.textContent = "working";
         el.title = "Answering now";
-      } else {
-        w.textContent = pos === 1 ? "next up" : "queued #" + pos;
-        el.title = pos === 1 ? "Next in line for the model" : (pos - 1) + " ahead of it in line, plus the one answering now";
       }
     });
     paintCard();
@@ -1305,13 +1251,8 @@
       try { ev = JSON.parse(m.data); } catch { return; }
       if (ev.kind === "changed") { refreshConversations().then(paintUnread); return; }
 
-      if (ev.kind === "waiting" || ev.kind === "working") {
-        live.set(ev.conversation_id, ev.kind === "waiting" ? ev.position : 0);
-        paintLive();
-        return;
-      }
       if (ev.kind === "started") {
-        live.set(ev.conversation_id, ev.position || 0);
+        live.add(ev.conversation_id);
         // Another tab, or another device, asked this conversation something.
         // Follow it if it is the one on screen and nothing here is streaming.
         if (ev.conversation_id === convID && !inflight) follow(convID);
@@ -1344,18 +1285,13 @@
     if (m) openConversation(m[1]); else $("new-chat").click();
   });
 
-  // Is the model server up, and can anything be looked up? Asking /api/status
-  // never wakes the weights. It runs again after every turn, since a turn is
+  // Can anything be looked up? It runs again after every turn, since a turn is
   // when search discovers it has been rate limited.
   const searchDown = $("search-down");
   async function refreshStatus() {
     try {
       const s = await (await fetch("/api/status")).json();
       if (s.ctx) { ctxSize = s.ctx; meterCap.textContent = kfmt(s.ctx); }
-      card.up = !!s.up;
-      card.loaded = !!s.loaded;
-      card.onCard = s.on_card || "";
-      paintModel();
       const left = s.search_left || {};
       // Down means a host refused us. Spent means we stopped ourselves. They
       // read the same to a reader mid conversation, so the flag covers both and
@@ -1378,30 +1314,11 @@
   }
   refreshStatus();
 
-  // The card empties on its own after llama-swap's idle ttl, so the chip has to
-  // keep asking or it sits on a green dot for a GPU that is already free. Only
-  // while the tab is in front, since nobody is reading a bar they cannot see.
-  setInterval(() => { if (!document.hidden) refreshStatus(); }, 15000);
+  // A search pause lifts on its own, so the flag is asked about again now and
+  // then, and only while the tab is in front.
+  setInterval(() => { if (!document.hidden) refreshStatus(); }, 60000);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshStatus(); });
 
-  async function unloadModel() {
-    if (modelBtn.getAttribute("aria-disabled") === "true") {
-      footNote(card.up ? "Nothing is on the card." : "The model server is not answering.");
-      return;
-    }
-    card.loaded = false;
-    paintModel();
-    try {
-      const resp = await fetch("/api/unload", { method: "POST" });
-      const out = await resp.json().catch(() => ({}));
-      if (!resp.ok) throw new Error(out.error || "could not unload the model");
-      footNote("Unloaded. The GPU is free until the next question.");
-    } catch (e) {
-      footNote(e.message || String(e));
-    }
-    refreshStatus();
-  }
-  modelBtn.addEventListener("click", unloadModel);
 
   // ---------------------------------------------------------------- viewport
   //

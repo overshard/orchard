@@ -1,6 +1,6 @@
 // Package incognito marks a turn that writes nothing down. The mark rides the
 // context instead of a client, since the clients are shared by every turn, and
-// this way the gate, the compaction pass, the tools and the painter all inherit it.
+// this way the compaction pass and the tools inherit it.
 package incognito
 
 import "context"

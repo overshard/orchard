@@ -15,11 +15,8 @@ func offered(schemas []map[string]any) string {
 
 func TestAnOfferNarrowsByTrait(t *testing.T) {
 	all := Default().Schemas()
-	if got := offered(OnlyAny(all, Notes|Lookup)); got != "remember web_search" {
-		t.Errorf("notes and lookups offered %q", got)
-	}
 	kept := WithoutAny(all, Private)
-	if len(kept)+len(OnlyAny(all, Private)) != len(all) || len(kept) == len(all) {
+	if len(kept) == len(all) || offered(kept) == "" {
 		t.Errorf("dropping private tools left %d of %d", len(kept), len(all))
 	}
 	for _, s := range kept {

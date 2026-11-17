@@ -107,24 +107,27 @@ func collectSources(used []tools.Result) []Source {
 	return out
 }
 
-// sourcePrompt is the numbered list the final turn is handed. Titles are trimmed
-// hard because a page title runs to a headline and a sentence of standfirst, and
-// the model only needs enough to tell one source from another.
+// sourcePrompt is the numbered list the model cites by, sent again whenever the
+// turn reads more. Titles are trimmed hard since the model only needs enough to
+// tell one source from another.
 func sourcePrompt(srcs []Source) string {
 	if len(srcs) == 0 {
 		return ""
 	}
 	var b strings.Builder
-	b.WriteString("\n\nSources, by number:\n")
+	b.WriteString("Sources so far, by number, replacing any earlier list:\n")
 	for _, s := range srcs {
 		fmt.Fprintf(&b, "[%d] %s, %s\n", s.N, s.Site, trimLine(s.Title, 90))
 	}
 	b.WriteString("\nEnd a sentence that came from one of these with its number, like [2]. " +
-		"Write the number and never the address, and do not list the sources at the end, since they are shown under your answer.")
+		"Write the number and never the address, and don't list the sources at the end, since they're shown under your answer.")
 	return b.String()
 }
 
 var citeMark = regexp.MustCompile(`\[(\d{1,3})\]`)
+
+// A citation marker is a number to a regex and is not one to a reader.
+var citeNum = regexp.MustCompile(`\[\d{1,3}\]`)
 
 // A marker the model put after the full stop belongs to the sentence in front
 // of it, so it moves inside before anything is split.

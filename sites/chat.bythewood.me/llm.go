@@ -1,17 +1,15 @@
-// The model client. llama.cpp behind llama-swap speaks the OpenAI chat
-// completions shape, so this is that shape and nothing more.
+// The model client. The gateway speaks the OpenAI chat completions shape and
+// turns it into a Claude call, so this is that shape and nothing more.
 package main
 
 import (
 	"bufio"
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"net/http"
 	"strings"
 	"time"
@@ -56,33 +54,25 @@ type LLM struct {
 }
 
 func NewLLM(base, model, key string) *LLM {
-	if model == "" {
-		model = "local"
-	}
 	return &LLM{
 		BaseURL: strings.TrimRight(base, "/"),
 		Model:   model,
 		Key:     key,
-		// Generation is slow and a long answer is normal, so this is generous.
-		// The context deadline on the request is the real limit.
+		// The context deadline on the request is the real limit, this only
+		// catches a connection that never answers at all.
 		http: &http.Client{Timeout: 10 * time.Minute},
 	}
 }
 
+// Sampling fields are left out since Haiku 5.5 refuses anything but its
+// defaults, and the gateway turns thinking off by itself.
 type chatReq struct {
-	Model           string           `json:"model"`
-	Messages        []Message        `json:"messages"`
-	Tools           []map[string]any `json:"tools,omitempty"`
-	ToolChoice      string           `json:"tool_choice,omitempty"`
-	Temperature     float64          `json:"temperature"`
-	TopP            float64          `json:"top_p"`
-	TopK            int              `json:"top_k"`
-	MaxTokens       int              `json:"max_tokens"`
-	Stream          bool             `json:"stream,omitempty"`
-	StreamOptions   map[string]any   `json:"stream_options,omitempty"`
-	TimingsPerToken bool             `json:"timings_per_token,omitempty"`
-	Kwargs          map[string]any   `json:"chat_template_kwargs,omitempty"`
-	ResponseFormat  *responseFormat  `json:"response_format,omitempty"`
+	Model          string           `json:"model"`
+	Messages       []Message        `json:"messages"`
+	Tools          []map[string]any `json:"tools,omitempty"`
+	MaxTokens      int              `json:"max_tokens"`
+	Stream         bool             `json:"stream,omitempty"`
+	ResponseFormat *responseFormat  `json:"response_format,omitempty"`
 }
 
 type responseFormat struct {
@@ -96,33 +86,35 @@ type schemaWrapper struct {
 	Schema json.RawMessage `json:"schema"`
 }
 
+// callDelta is a piece of a tool call on a stream. The first piece for an index
+// carries the id and the name and the rest carry more of the arguments.
+type callDelta struct {
+	Index    int    `json:"index"`
+	ID       string `json:"id"`
+	Function struct {
+		Name      string `json:"name"`
+		Arguments string `json:"arguments"`
+	} `json:"function"`
+}
+
 type chatResp struct {
 	Choices []struct {
 		FinishReason string `json:"finish_reason"`
 		Message      struct {
-			Content   string     `json:"content"`
-			Reasoning string     `json:"reasoning_content"`
-			ToolCalls []ToolCall `json:"tool_calls"`
+			Content string `json:"content"`
 		} `json:"message"`
 		Delta struct {
-			Content   string     `json:"content"`
-			Reasoning string     `json:"reasoning_content"`
-			ToolCalls []ToolCall `json:"tool_calls"`
+			Content   string      `json:"content"`
+			ToolCalls []callDelta `json:"tool_calls"`
 		} `json:"delta"`
 	} `json:"choices"`
 	Usage struct {
 		PromptTokens     int `json:"prompt_tokens"`
 		CompletionTokens int `json:"completion_tokens"`
 	} `json:"usage"`
-	// llama.cpp reports its own timings, which leave out this client, the tools
-	// and the network.
 	Timings struct {
-		PromptN         int     `json:"prompt_n"`
-		PromptPerSecond float64 `json:"prompt_per_second"`
-		PredictedN      int     `json:"predicted_n"`
 		PredictedPerSec float64 `json:"predicted_per_second"`
 	} `json:"timings"`
-	Error any `json:"error"`
 }
 
 // Stats is what one turn cost, for the meter in the bar. Prompt is the whole
@@ -132,9 +124,7 @@ type Stats struct {
 	Prompt     int     `json:"prompt_tokens"`
 	Completion int     `json:"completion_tokens"`
 	Decode     float64 `json:"decode_tps"`
-	Prefill    float64 `json:"prefill_tps"`
-	// The reply stopped at max_tokens, so a tool call can arrive with its
-	// arguments half written. It belongs to one call and is never merged.
+	// The reply stopped at max_tokens. It belongs to one call and is never merged.
 	Truncated bool `json:"-"`
 }
 
@@ -146,76 +136,39 @@ func (s *Stats) merge(o Stats) {
 	if o.Decode > 0 {
 		s.Decode = o.Decode
 	}
-	if o.Prefill > 0 {
-		s.Prefill = o.Prefill
-	}
 }
 
-// base samples with Qwen's published non-thinking recipe, close enough for the
-// other models here. Thinking is off since llama.cpp puts the chain of thought in
-// reasoning_content and leaves content empty, a 200 with nothing to show.
-func (l *LLM) base(msgs []Message, maxTok int) chatReq {
-	return chatReq{
-		Model: l.Model, Messages: msgs, Temperature: 0.7, TopP: 0.8, TopK: 20,
-		MaxTokens: maxTok, Kwargs: map[string]any{"enable_thinking": false},
-	}
+func statsOf(r chatResp) Stats {
+	return Stats{Prompt: r.Usage.PromptTokens, Completion: r.Usage.CompletionTokens, Decode: r.Timings.PredictedPerSec}
 }
 
-// Complete asks for one turn, with tools offered. It does not stream, because a
-// turn that is going to call a tool has nothing to show yet.
-func (l *LLM) Complete(ctx context.Context, msgs []Message, schemas []map[string]any, maxTok int) (Message, error) {
-	m, _, err := l.CompleteStats(ctx, msgs, schemas, maxTok)
-	return m, err
-}
+// errDeclined is the model turning a question down, which the gateway sends as
+// a 422 on a plain call and as a content_filter finish on a stream.
+var errDeclined = errors.New("the model declined to answer that")
 
-// CompleteStats is Complete plus what the call cost.
-func (l *LLM) CompleteStats(ctx context.Context, msgs []Message, schemas []map[string]any, maxTok int) (Message, Stats, error) {
-	return l.complete(ctx, msgs, schemas, "auto", maxTok)
-}
-
-// CompleteRequiringTool is the same call with the model given no say in whether
-// it calls something. A model that has written a deferral will write another
-// one, so asking a third time spends the turn instead of answering it.
-func (l *LLM) CompleteRequiringTool(ctx context.Context, msgs []Message, schemas []map[string]any, maxTok int) (Message, Stats, error) {
-	return l.complete(ctx, msgs, schemas, "required", maxTok)
-}
-
-func (l *LLM) complete(ctx context.Context, msgs []Message, schemas []map[string]any, choice string, maxTok int) (Message, Stats, error) {
-	req := l.base(msgs, maxTok)
-	if len(schemas) > 0 {
-		req.Tools, req.ToolChoice = schemas, choice
-	}
+// Complete asks one thing with no tools and no stream, for the small jobs
+// around a turn.
+func (l *LLM) Complete(ctx context.Context, msgs []Message, maxTok int) (string, error) {
 	var out chatResp
-	if err := l.post(ctx, req, &out); err != nil {
-		return Message{}, Stats{}, err
+	if err := l.post(ctx, chatReq{Model: l.Model, Messages: msgs, MaxTokens: maxTok}, &out); err != nil {
+		return "", err
 	}
 	if len(out.Choices) == 0 {
-		return Message{}, Stats{}, fmt.Errorf("the model returned no choices")
+		return "", fmt.Errorf("the model returned no choices")
 	}
-	st := statsOf(out)
-	st.Truncated = out.Choices[0].FinishReason == "length"
-	c := out.Choices[0].Message
-	// Empty content beside a full chain of thought means enable_thinking didn't
-	// take, and that's an error instead of a blank bubble.
-	if strings.TrimSpace(c.Content) == "" && len(c.ToolCalls) == 0 && strings.TrimSpace(c.Reasoning) != "" {
-		return Message{}, st, fmt.Errorf("the model returned only reasoning and no answer")
-	}
-	return Message{Role: RoleAssistant, Content: c.Content, ToolCalls: c.ToolCalls}, st, nil
+	return out.Choices[0].Message.Content, nil
 }
 
-// Structured constrains an answer to a JSON schema, which llama.cpp compiles to
-// a GBNF grammar and samples against, so a field declared as an enum cannot come
-// back as anything else. Temperature is low since these steps are decisions.
+// Structured constrains an answer to a JSON schema, which the gateway hands to
+// Claude as structured outputs, so the reply parses or the call fails.
 func (l *LLM) Structured(ctx context.Context, msgs []Message, maxTok int, schema, out any) (Stats, error) {
 	raw, err := json.Marshal(schema)
 	if err != nil {
 		return Stats{}, err
 	}
-	req := l.base(msgs, maxTok)
-	req.Temperature = 0.2
-	req.ResponseFormat = &responseFormat{Type: "json_schema",
-		JSONSchema: &schemaWrapper{Name: "response", Strict: true, Schema: raw}}
-
+	req := chatReq{Model: l.Model, Messages: msgs, MaxTokens: maxTok,
+		ResponseFormat: &responseFormat{Type: "json_schema",
+			JSONSchema: &schemaWrapper{Name: "response", Strict: true, Schema: raw}}}
 	var resp chatResp
 	if err := l.post(ctx, req, &resp); err != nil {
 		return Stats{}, err
@@ -223,56 +176,36 @@ func (l *LLM) Structured(ctx context.Context, msgs []Message, maxTok int, schema
 	if len(resp.Choices) == 0 {
 		return Stats{}, fmt.Errorf("the model returned no choices")
 	}
-	st := statsOf(resp)
-	text := strings.TrimSpace(resp.Choices[0].Message.Content)
-	// A model that opens with a word before the object is still constrained to
-	// emit one, so find it instead of failing the whole step.
-	if i := strings.Index(text, "{"); i > 0 {
-		text = text[i:]
-	}
-	return st, json.Unmarshal([]byte(text), out)
+	return statsOf(resp), json.Unmarshal([]byte(resp.Choices[0].Message.Content), out)
 }
 
-func statsOf(r chatResp) Stats {
-	s := Stats{Prompt: r.Usage.PromptTokens, Completion: r.Usage.CompletionTokens,
-		Decode: r.Timings.PredictedPerSec, Prefill: r.Timings.PromptPerSecond}
-	if s.Prompt == 0 {
-		s.Prompt = r.Timings.PromptN
-	}
-	if s.Completion == 0 {
-		s.Completion = r.Timings.PredictedN
-	}
-	return s
-}
-
-// Stream asks for the final answer and calls onDelta as text arrives. Tools are
-// not offered here, since by this point the turn is answering.
-func (l *LLM) Stream(ctx context.Context, msgs []Message, maxTok int, onDelta func(string)) (string, Stats, error) {
-	req := l.base(msgs, maxTok)
-	req.Stream = true
-	// llama.cpp only reports its timings on a stream when asked.
-	req.StreamOptions = map[string]any{"include_usage": true}
-	req.TimingsPerToken = true
-	body, err := json.Marshal(req)
+// Turn streams one round of a conversation with the tools on offer, calling
+// onText as prose arrives, and hands back whatever calls the round made.
+func (l *LLM) Turn(ctx context.Context, msgs []Message, schemas []map[string]any, maxTok int, onText func(string)) (Message, Stats, error) {
+	reply := Message{Role: RoleAssistant}
+	body, err := json.Marshal(chatReq{Model: l.Model, Messages: msgs, Tools: schemas, MaxTokens: maxTok, Stream: true})
 	if err != nil {
-		return "", Stats{}, err
+		return reply, Stats{}, err
 	}
 	hr, err := http.NewRequestWithContext(ctx, "POST", l.BaseURL+"/v1/chat/completions", bytes.NewReader(body))
 	if err != nil {
-		return "", Stats{}, err
+		return reply, Stats{}, err
 	}
 	hr.Header.Set("Content-Type", "application/json")
 	l.sign(hr)
 	resp, err := l.http.Do(hr)
 	if err != nil {
-		return "", Stats{}, err
+		return reply, Stats{}, fmt.Errorf("the model is not answering: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		return "", Stats{}, modelError(resp.StatusCode, resp.Body)
+		return reply, Stats{}, modelError(resp.StatusCode, resp.Body)
 	}
+
 	var st Stats
-	var sb strings.Builder
+	var text strings.Builder
+	var calls []ToolCall
+	finish := ""
 	sc := bufio.NewScanner(resp.Body)
 	sc.Buffer(make([]byte, 0, 64<<10), 4<<20)
 	for sc.Scan() {
@@ -288,32 +221,50 @@ func (l *LLM) Stream(ctx context.Context, msgs []Message, maxTok int, onDelta fu
 		if json.Unmarshal([]byte(data), &ev) != nil {
 			continue
 		}
-		// The last chunk carries the usage and timings and no choices, so this
-		// is read before the choices check. With timings_per_token every chunk
-		// carries running totals, so the largest is the count.
-		if got := statsOf(ev); got.Prompt > 0 || got.Decode > 0 || got.Completion > 0 {
-			done := max(st.Completion, got.Completion)
-			got.Completion = 0
-			st.merge(got)
-			st.Completion = done
+		// The usage comes on a chunk of its own with no choices.
+		if got := statsOf(ev); got.Prompt > 0 || got.Completion > 0 {
+			st = got
 		}
 		if len(ev.Choices) == 0 {
 			continue
 		}
-		if d := ev.Choices[0].Delta.Content; d != "" {
-			sb.WriteString(d)
-			onDelta(d)
+		c := ev.Choices[0]
+		if c.FinishReason != "" {
+			finish = c.FinishReason
+		}
+		if d := c.Delta.Content; d != "" {
+			text.WriteString(d)
+			if onText != nil {
+				onText(d)
+			}
+		}
+		for _, d := range c.Delta.ToolCalls {
+			for len(calls) <= d.Index {
+				calls = append(calls, ToolCall{Type: "function"})
+			}
+			tc := &calls[d.Index]
+			if d.ID != "" {
+				tc.ID = d.ID
+			}
+			if d.Function.Name != "" {
+				tc.Function.Name = d.Function.Name
+			}
+			tc.Function.Arguments += d.Function.Arguments
 		}
 	}
+	reply.Content, reply.ToolCalls = text.String(), calls
+	st.Truncated = finish == "length"
 	if err := sc.Err(); err != nil {
-		return sb.String(), st, err
+		return reply, st, err
 	}
-	return sb.String(), st, nil
+	if finish == "content_filter" {
+		return reply, st, errDeclined
+	}
+	return reply, st, nil
 }
 
 // sign puts the gateway key on a request, and the incognito header when the
-// turn is one. An empty key is a bare development run talking straight to
-// llama-swap with no gateway in front.
+// turn is one.
 func (l *LLM) sign(r *http.Request) {
 	if l.Key != "" {
 		r.Header.Set("Authorization", "Bearer "+l.Key)
@@ -349,184 +300,12 @@ func (l *LLM) post(ctx context.Context, req chatReq, out *chatResp) error {
 	return json.NewDecoder(resp.Body).Decode(out)
 }
 
-// Warm fires a one token completion so llama-swap loads the weights while the
-// user is still typing. Asking /v1/models would not do it, since that answers
-// from config and loads nothing.
-func (l *LLM) Warm(ctx context.Context) {
-	ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
-	defer cancel()
-	var out chatResp
-	_ = l.post(ctx, chatReq{Model: l.Model, MaxTokens: 1,
-		Messages: []Message{{Role: RoleUser, Content: "hi"}},
-		Kwargs:   map[string]any{"enable_thinking": false}}, &out)
-}
-
-// Resident is one model llama-swap has a process for, as the gateway reports it.
-type Resident struct {
-	Model string `json:"model"`
-	Name  string `json:"name"`
-	State string `json:"state"`
-}
-
-// Running reads llama-swap's process table through the gateway. It starts
-// nothing, so polling it is free. Never point this at /health, which would
-// load the model and defeat the idle unload.
-func (l *LLM) Running(ctx context.Context) (models []Resident, up bool) {
-	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, "GET", l.BaseURL+"/v1/running", nil)
-	if err != nil {
-		return nil, false
-	}
-	l.sign(req)
-	resp, err := l.http.Do(req)
-	if err != nil {
-		return nil, false
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		return nil, false
-	}
-	var out struct {
-		Models []Resident `json:"models"`
-	}
-	if json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&out) != nil {
-		return nil, true
-	}
-	return out.Models, true
-}
-
-// Ready reports whether the named model is loaded and drawing, off the same
-// process table, which is the only way to tell loading from drawing.
-func (l *LLM) Ready(ctx context.Context, model string) bool {
-	models, _ := l.Running(ctx)
-	for _, m := range models {
-		if m.Model == model && m.State == "ready" {
-			return true
-		}
-	}
-	return false
-}
-
-// Loaded says which model is on the card, if any, and whether the gateway
-// answered at all. A model on its way off is not counted.
-func (l *LLM) Loaded(ctx context.Context) (name string, loaded, up bool) {
-	models, up := l.Running(ctx)
-	for _, m := range models {
-		if m.State != "stopping" {
-			return m.Name, true, up
-		}
-	}
-	return "", false, up
-}
-
-// Image asks for one picture. The model name is what llama-swap swaps on, so
-// asking for it takes the chat model off the card.
-func (l *LLM) Image(ctx context.Context, model, prompt string, w, h int) ([]byte, error) {
-	body, err := json.Marshal(map[string]any{"model": model, "prompt": prompt,
-		"size": fmt.Sprintf("%dx%d", w, h), "n": 1, "output_format": "png"})
-	if err != nil {
-		return nil, err
-	}
-	req, err := http.NewRequestWithContext(ctx, "POST", l.BaseURL+"/v1/images/generations", bytes.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	return l.picture(req)
-}
-
-func (l *LLM) picture(req *http.Request) ([]byte, error) {
-	l.sign(req)
-	resp, err := l.http.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("the model server is not answering: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		err := modelError(resp.StatusCode, resp.Body)
-		return nil, errors.New(strings.TrimPrefix(err.Error(), "the model refused this turn: "))
-	}
-	var out struct {
-		Data []struct {
-			B64 string `json:"b64_json"`
-		} `json:"data"`
-	}
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 64<<20)).Decode(&out); err != nil {
-		return nil, fmt.Errorf("the picture came back unreadable: %w", err)
-	}
-	if len(out.Data) == 0 || out.Data[0].B64 == "" {
-		return nil, errors.New("the image model answered with no picture")
-	}
-	png, err := base64.StdEncoding.DecodeString(out.Data[0].B64)
-	if err != nil {
-		return nil, fmt.Errorf("the picture came back unreadable: %w", err)
-	}
-	if !bytes.HasPrefix(png, pngMagic) {
-		return nil, errors.New("the image model sent something that is not a png")
-	}
-	return png, nil
-}
-
-// Edit is Image starting from pictures. The edits call is a form instead of
-// JSON, since that's the shape the OpenAI images api gives it.
-func (l *LLM) Edit(ctx context.Context, model, prompt string, w, h int, pictures [][]byte) ([]byte, error) {
-	var body bytes.Buffer
-	mw := multipart.NewWriter(&body)
-	_ = mw.WriteField("model", model)
-	_ = mw.WriteField("prompt", prompt)
-	_ = mw.WriteField("size", fmt.Sprintf("%dx%d", w, h))
-	_ = mw.WriteField("n", "1")
-	_ = mw.WriteField("output_format", "png")
-	for i, pic := range pictures {
-		fw, err := mw.CreateFormFile("image[]", fmt.Sprintf("start%d.png", i+1))
-		if err != nil {
-			return nil, err
-		}
-		if _, err := fw.Write(pic); err != nil {
-			return nil, err
-		}
-	}
-	if err := mw.Close(); err != nil {
-		return nil, err
-	}
-	req, err := http.NewRequestWithContext(ctx, "POST", l.BaseURL+"/v1/images/edits", &body)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", mw.FormDataContentType())
-	return l.picture(req)
-}
-
-var pngMagic = []byte("\x89PNG\r\n\x1a\n")
-
-// Unload hands the card back instead of waiting out the idle ttl. The gateway
-// waits for the model process to be gone before it answers, so returning here
-// means the VRAM is actually free and not merely asked for.
-func (l *LLM) Unload(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, "POST", l.BaseURL+"/v1/unload", nil)
-	if err != nil {
-		return err
-	}
-	l.sign(req)
-	resp, err := l.http.Do(req)
-	if err != nil {
-		return fmt.Errorf("the model server is not answering: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return modelError(resp.StatusCode, resp.Body)
-	}
-	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64<<10))
-	return nil
-}
-
-// modelError carries the reason back instead of the bare status, since the body
-// says whether it was the context, the template or the request. It's trimmed
-// since llama.cpp quotes the input it choked on, and the page shows this.
+// modelError carries the reason back instead of the bare status, since the page
+// shows it and "400" tells nobody anything.
 func modelError(status int, body io.Reader) error {
+	if status == http.StatusUnprocessableEntity {
+		return errDeclined
+	}
 	raw, _ := io.ReadAll(io.LimitReader(body, 32<<10))
 	var e struct {
 		Error struct {
@@ -559,7 +338,7 @@ func trim(s string, n int) string {
 }
 
 // Search asks the gateway for web results, which it gets from Anthropic's
-// search. A gateway on the local model answers 501 and the tool falls back.
+// search. An error here falls back to DuckDuckGo in the tool.
 func (l *LLM) Search(ctx context.Context, query string, domains []string, n int) ([]tools.SearchHit, error) {
 	body, err := json.Marshal(map[string]any{"query": query, "domains": domains, "n": n})
 	if err != nil {

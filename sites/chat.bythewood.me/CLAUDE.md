@@ -2,6 +2,48 @@
 
 Working detail for this site. The repo-wide rules are in `CLAUDE.md` at the root, and the look is in `DESIGN.md`.
 
+## The model
+
+**It's Claude Haiku 5.5 and nothing else.** chat posts OpenAI chat completions
+to the gateway at `LLM_URL` and the gateway turns each one into a Messages API
+call. Sampling parameters aren't sent since Haiku 5.5 refuses them, thinking is
+off at the gateway, and a refusal comes back as a 422 on a plain call and as a
+`content_filter` finish on a stream, both of which read as "the model declined
+to answer that". There is no GPU, no queue and no picture model, so a turn runs
+the moment it's sent and as many run at once as there are tabs asking.
+
+**A round that calls nothing is the answer.** Every round streams with the
+tools on offer, so prose reaches the page as it's written. When a round ends on
+tool calls instead, whatever it wrote first was "let me look", and a `reset`
+event takes it back off the page. The last round of the budget goes without
+tools and is told what never worked.
+
+**Sources are numbered as they're read.** After a round that read pages the
+whole numbered list goes in again as a user message, since the numbering can
+shift as more is read, and the answer cites by the newest one. `cite.go` repairs
+the numbers afterwards and links them.
+
+**The system prompt is the cache breakpoint, so it changes once a day.** The
+date is in it, and the time and the recalled memory go at the front of the
+newest user message instead, since anything that changes within a day would
+miss the cache on every turn.
+
+**Structured output, never parsed prose.** The memory pass and the titler ask
+for a JSON schema through `response_format`, which the gateway hands to Claude
+as structured outputs, so the reply either parses or the call fails. The
+gateway drops `min`, `max`, `pattern` and the rest of what structured outputs
+won't take, so a schema says the shape and the prompt says the limits.
+
+**A prompt past 100K tokens bills the whole call at five times the rate.** The
+window is 200K, but history compacts at 40K tokens, one tool result is capped
+at 40KB and a turn's results together at 120KB, which with the attachment
+ceiling keeps a round well under it.
+
+**What's left of pictures is a store.** Attached pictures are kept in the
+`images` table and shown on the message, and pictures drawn back when there was
+a card still show in the conversations that have them. The model can't see
+either, because the gateway passes text parts only.
+
 ## The house lookups
 
 `internal/property/` answers what a house at an address would be like to live in and what
@@ -137,8 +179,8 @@ all, so there is no score for them to move, and the published figures are on the
 asked us to slow down and until when, because "no schools found nearby" and "the
 schools server is refusing us this hour" are not the same fact.
 
-**A model decides when to call this.** A turn here gets six tool rounds and a
-nudge to keep going, so one question can become six addresses, and a model that
+**A model decides when to call this.** A turn here gets six tool rounds, so
+one question can become six addresses, and a model that
 misreads a street name will spell it six ways. One cold address costs about forty
 requests, measured: ten routes, five and four to the two county GIS boxes, four
 census layers, and one or two of everything else. So `spend.go` caps cold lookups

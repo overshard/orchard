@@ -55,7 +55,6 @@ type Deps struct {
 	// Property is the house lookup engine, wired the same way since it owns
 	// tables in the site's database.
 	Property Property
-	Images   Images
 	// Search goes through the gateway to Anthropic's web search, and an error
 	// from it falls back to DuckDuckGo.
 	Search Searcher
@@ -78,15 +77,6 @@ type Turn struct {
 	// A tool that reaches a service with a model behind it has to pass this
 	// along.
 	Incognito bool
-
-	// OnImage is where the turn wants to hear how a picture is getting on, and
-	// Picture is the one the turn already showed as expected.
-	OnImage func(ImageProgress)
-	Picture *ImageProgress
-	// Start is what this turn's picture starts from whatever the model says,
-	// and LastPicture is what change_last means.
-	Start       []string
-	LastPicture string
 }
 
 // Turn starts one turn on the shared Deps, carrying its session and a widget

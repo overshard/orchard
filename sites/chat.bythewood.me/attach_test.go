@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"mime/multipart"
 	"strings"
 	"testing"
@@ -70,9 +69,9 @@ func TestReadsAnUnknownExtension(t *testing.T) {
 	}
 }
 
-// A picture has no text for the chat model, so it is kept as a picture for
-// the image model to start from, in a shape sd-server can open.
-func TestTakesAPictureToStartFrom(t *testing.T) {
+// A picture has no text for the model, so it is kept to show on the message
+// and the model is told it can't see it.
+func TestKeepsAPictureToShow(t *testing.T) {
 	parts := readFiles(headers(t, map[string][]byte{"shot.png": solidPNG(t, 40, 20)}))
 	p := parts[0]
 	if p.Err != "" {
@@ -81,11 +80,8 @@ func TestTakesAPictureToStartFrom(t *testing.T) {
 	if p.Kind != "png" || p.Image == "" || p.Width != 40 || p.Height != 20 || len(p.Picture) == 0 {
 		t.Errorf("got %+v", p.Attachment)
 	}
-	if got := composeTurn("put it in a room", parts); !strings.Contains(got, "cannot see this") {
+	if got := composeTurn("what is this", parts); !strings.Contains(got, "never describe what is in it") {
 		t.Errorf("the model was not told it cannot see the picture:\n%s", got)
-	}
-	if ids := attachedPictures(parts); len(ids) != 1 || ids[0] != p.Image {
-		t.Errorf("pictures = %v", ids)
 	}
 }
 
@@ -205,27 +201,6 @@ func TestHumanSize(t *testing.T) {
 	}{{512, "512 B"}, {2048, "2.0 KB"}, {5 << 20, "5.0 MB"}} {
 		if got := humanSize(c.in); got != c.want {
 			t.Errorf("humanSize(%d) = %q, want %q", c.in, got, c.want)
-		}
-	}
-}
-
-// A tool call cut off by the token budget arrives as unparseable JSON and
-// llama.cpp refuses the request outright, which lost a whole turn.
-func TestATruncatedToolCallIsRecognised(t *testing.T) {
-	real := fmt.Errorf("the model refused this turn: server_error: Failed to parse tool call arguments as JSON: " +
-		"[json.exception.parse_error.101] parse error at line 1, column 868: syntax error while parsing value - " +
-		"invalid string: missing closing quote")
-	if !isTruncatedToolCall(real) {
-		t.Error("the real refusal was not recognised")
-	}
-	for _, other := range []error{
-		nil,
-		fmt.Errorf("the model is not answering: connection refused"),
-		fmt.Errorf("the model answered 503 with no reason"),
-		fmt.Errorf("failed to parse the response body"),
-	} {
-		if isTruncatedToolCall(other) {
-			t.Errorf("wrongly matched: %v", other)
 		}
 	}
 }

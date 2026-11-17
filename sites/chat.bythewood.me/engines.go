@@ -10,18 +10,16 @@ import (
 	"chat.bythewood.me/tools"
 )
 
-// asker hands the model to an engine that asks it one thing at a time.
+// asker hands the model to an engine that asks it one thing at a time and
+// wants the answer in a fixed shape.
 type asker struct{ llm *LLM }
 
-func (a asker) Ask(ctx context.Context, system, user string, maxTokens int) (string, error) {
-	out, err := a.llm.Complete(ctx, []Message{
+func (a asker) Ask(ctx context.Context, system, user string, maxTokens int, schema, out any) error {
+	_, err := a.llm.Structured(ctx, []Message{
 		{Role: RoleSystem, Content: system},
 		{Role: RoleUser, Content: user},
-	}, nil, maxTokens)
-	if err != nil {
-		return "", err
-	}
-	return out.Content, nil
+	}, maxTokens, schema, out)
+	return err
 }
 
 // memoryStore hands the fact store to the remember tool. The names differ

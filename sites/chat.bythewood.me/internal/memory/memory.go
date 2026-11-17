@@ -6,7 +6,6 @@ package memory
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"regexp"
@@ -48,9 +47,9 @@ type Fact struct {
 }
 
 // Model is what a proposed change is asked of, one system prompt and one
-// message in and the reply out.
+// message in and a reply held to the schema decoded into out.
 type Model interface {
-	Ask(ctx context.Context, system, user string, maxTokens int) (string, error)
+	Ask(ctx context.Context, system, user string, maxTokens int, schema, out any) error
 }
 
 // Store keeps the facts in a table of the site's own database.
@@ -360,31 +359,37 @@ func cutFact(s string) string {
 }
 
 // factRules is the whole contract for writing here, shared by the pass after a
-// turn and the memory panel so the two can't disagree. A small model reads a list
-// of what not to keep as permission to propose nothing, so the framing is positive.
-const factRules = `You pull durable facts about Isaac out of a conversation and keep them for later.
+// turn and the memory panel so the two can't disagree.
+const factRules = `You keep a small set of durable facts about Isaac, written down from his conversations so later ones can use them.
 
-Your job is to notice what was revealed about him. Read the exchange and write down each thing that will still be true in six months.
+Read what you're given and decide what, if anything, it revealed about him that will still be true in six months. Most exchanges reveal nothing, and an empty list of changes is the right answer then.
 
-Worth keeping:
-- who he is, his people, his home, his work
-- his machines, his tools, what he runs and how
-- his money: what he banks with, what he spends on, what he pays for regularly
-- his preferences and habits, stated or clearly implied
+Worth keeping: who he is, his people, his home and his work. His machines, his tools, and what he runs and how. His money, meaning who he banks with, what he spends on and what he pays for regularly. His preferences and habits, stated or clearly implied.
 
-Not worth keeping:
-- what the weather is, what a page said, a price, a score, anything a tool looks up
-- what he is doing this minute, today or this week, including a trip he is planning or a particular listing he is looking at
-- advice, suggestions or packing lists the assistant gave him, which are not facts about him unless he said he does them
-- passwords, keys, tokens, account numbers, anything secret
-- facts about the world rather than about him
+Not worth keeping: anything a tool looks up, like the weather, a price, a score or what a page said. What he's doing this week, including a trip he's planning or a listing he's looking at. Advice the assistant gave him, unless he said he does it. Facts about the world rather than about him. Anything secret, like a password, a key, a token or an account number.
 
-Each fact is one short sentence in the third person, starting with Isaac or with the thing it is about, specific enough to act on. "Isaac likes coffee" is too vague. "Isaac drinks his coffee black" is right. Carry the number when there is one: "Isaac spends about $40 a month on coffee" beats "Isaac spends money on coffee".
+Each fact is one short sentence in the third person, starting with Isaac or the thing it's about, and specific enough to act on. "Isaac drinks his coffee black" and not "Isaac likes coffee", and carry the number when there is one.
 
-If a new fact contradicts one you already have, replace that one rather than adding a second.
+When something new contradicts a fact you already have, replace that fact by its id instead of adding a second one. Delete a fact by its id only when he's said it's wrong or asked for it gone. For an add, id is 0. For a delete, fact is empty.`
 
-Reply with JSON and nothing else:
-{"changes":[{"op":"add","fact":"..."},{"op":"replace","id":3,"fact":"..."},{"op":"delete","id":7}]}`
+var changesSchema = map[string]any{
+	"type": "object",
+	"properties": map[string]any{
+		"changes": map[string]any{
+			"type": "array",
+			"items": map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"op":   map[string]any{"type": "string", "enum": []string{"add", "replace", "delete"}},
+					"id":   map[string]any{"type": "integer"},
+					"fact": map[string]any{"type": "string"},
+				},
+				"required": []string{"op", "id", "fact"},
+			},
+		},
+	},
+	"required": []string{"changes"},
+}
 
 // Change is one proposed edit. Delete and replace carry the id of the fact
 // they act on, so the existing facts are numbered in the prompt.
@@ -392,7 +397,6 @@ type Change struct {
 	Op   string `json:"op"`
 	ID   int64  `json:"id,omitempty"`
 	Fact string `json:"fact,omitempty"`
-	Why  string `json:"why,omitempty"`
 }
 
 // Remember runs the extraction pass over one exchange after the answer is sent,
@@ -432,32 +436,20 @@ func (s *Store) Propose(ctx context.Context, existing []Fact, situation, ask str
 
 	user := fmt.Sprintf("Facts you already have:\n%s\n\n%s\n\n%s", known.String(), situation, ask)
 
-	out, err := s.model.Ask(ctx, factRules, user, 600)
-	if err != nil {
-		return nil, err
-	}
-	return parseChanges(out), nil
-}
-
-// parseChanges is forgiving about the wrapping and strict about the contents. A
-// small model puts JSON in a fence or writes a sentence before it, and neither
-// is a reason to lose the edit.
-func parseChanges(raw string) []Change {
-	raw = strings.TrimSpace(raw)
-	if i := strings.Index(raw, "{"); i > 0 {
-		raw = raw[i:]
-	}
-	if j := strings.LastIndex(raw, "}"); j >= 0 {
-		raw = raw[:j+1]
-	}
-	var body struct {
+	var out struct {
 		Changes []Change `json:"changes"`
 	}
-	if json.Unmarshal([]byte(raw), &body) != nil {
-		return nil
+	if err := s.model.Ask(ctx, factRules, user, 2048, changesSchema, &out); err != nil {
+		return nil, err
 	}
-	out := make([]Change, 0, len(body.Changes))
-	for _, c := range body.Changes {
+	return validChanges(out.Changes), nil
+}
+
+// validChanges tidies each change and drops one that can't be acted on, since
+// the schema holds the shape and not whether an id was given.
+func validChanges(changes []Change) []Change {
+	out := make([]Change, 0, len(changes))
+	for _, c := range changes {
 		c.Op = strings.ToLower(strings.TrimSpace(c.Op))
 		c.Fact = tidyFact(c.Fact)
 		switch c.Op {
@@ -560,7 +552,7 @@ func Block(facts []Fact) string {
 		return ""
 	}
 	var sb strings.Builder
-	sb.WriteString("\n\nWhat you remember about Isaac, which may or may not bear on this question:\n")
+	sb.WriteString("\n\nWhat you remember about Isaac, which may or may not bear on the message below:\n")
 	for _, f := range facts {
 		fmt.Fprintf(&sb, "- %s (id %d)\n", f.Text, f.ID)
 	}

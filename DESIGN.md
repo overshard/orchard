@@ -398,10 +398,9 @@ the meter and the speed all showing at once ran the row 83px past a 360px
 screen and pushed the model off the edge entirely.
 
 **A reading that is also a control says so by growing an affordance, not a
-slot.** `chat`'s model chip names the model, fills its dot when the weights are
-on the card, and unloads them when pressed, and the amber eject glyph only
-appears when there is something to eject. Adding a separate unload button
-beside it would have cost the title another 40px on every phone.
+slot.** A separate button beside a reading costs the title another 40px on
+every phone, so the control goes on the reading and shows itself only when
+there is something to do.
 
 **Nothing says where it runs.** A landing page footer once named the
 repository, the machine and the tunnel in one sentence, which is three facts a
@@ -493,7 +492,7 @@ columns outweighed every figure on the page.
 
 **dash's model written text always says it was.** The markets line under the
 strip and the TODAY panel each end on a dim caps line naming the slot, when it
-was compiled, how many stories went in and that a local model wrote it. Sources
+was compiled, how many stories went in and which model wrote it. Sources
 are short amber tags after the text, the way the wire's were, and TODAY takes
 the wider column of the news band since it is prose and HN and Lobsters are
 headlines. TODAY is numbered like the feeds, but by impact. The markets lines
@@ -1167,7 +1166,7 @@ version of the old look and a handheld pet shell.
 | `logging` | green | Bootstrap. Dashboards run full width inside the container |
 | `auth` | green | Bootstrap. Carries the starfield on `/login`, which the grid sits under |
 | `repos` | green | Hand written CSS, no Bootstrap, since it is dense text. Newsreader on repository names |
-| `chat` | green | Hand written CSS, no Bootstrap. A conversation, so it reads at the longest length on the estate. Citation pills and a source row under each answer, and widget panels above one when a ticker or a forecast was looked up. A picture draws behind a panel listing its stages, each with a count and a guess from the last few, and replaces it once it has loaded. An unread dot on a conversation that finished a turn off screen, and the place in line of every turn still waiting |
+| `chat` | green | Hand written CSS, no Bootstrap. A conversation, so it reads at the longest length on the estate. Citation pills and a source row under each answer, and widget panels above one when a ticker or a forecast was looked up. A picture from an older conversation shows in a panel with its size and a link to the full one. An unread dot on a conversation that finished a turn off screen, and working on every turn still going |
 | `llm` | green | Hand written CSS, no Bootstrap. Behind the landing is a dashboard of keys, usage and the call log |
 | `dash` | amber | Hand written CSS. Scanlines, vignette, JetBrains Mono and Space Grotesk. Panel 00 and panel 16 for chrome, a spine past 1900px. A `NOTIFY` switch in panel 00, and a `CHAT` readout beside it that only appears signed in |
 | `pond` | amber | Hand written CSS. A game in the Deck direction, 80s hardware with keycaps, readout glass and colour pixel art in its screen windows. Dive is full screen on a phone |

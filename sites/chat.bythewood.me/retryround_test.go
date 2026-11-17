@@ -11,9 +11,8 @@ import (
 	"testing"
 )
 
-// stubModel answers every decide call with the same failing calc call, so the
-// round loop is driven without a model anywhere near it. The last reply has no
-// tool calls, like the answer step.
+// stubModel answers every round that offers tools with the same failing calc
+// call, and the round with none on offer in prose.
 type stubModel struct {
 	mu     sync.Mutex
 	rounds int
@@ -28,33 +27,22 @@ func (s *stubModel) server(t *testing.T) *httptest.Server {
 				Role    string `json:"role"`
 				Content string `json:"content"`
 			} `json:"messages"`
-			Tools  []json.RawMessage `json:"tools"`
-			Stream bool              `json:"stream"`
+			Tools []json.RawMessage `json:"tools"`
 		}
 		_ = json.NewDecoder(r.Body).Decode(&req)
 
 		s.mu.Lock()
 		defer s.mu.Unlock()
-		// The answer step is the call that arrives with no tools offered.
 		if len(req.Tools) == 0 {
 			if n := len(req.Messages); n > 0 {
 				s.notes = append(s.notes, req.Messages[n-1].Content)
 			}
-			if !req.Stream {
-				w.Header().Set("Content-Type", "application/json")
-				fmt.Fprint(w, `{"choices":[{"message":{"role":"assistant","content":"done"}}]}`)
-				return
-			}
-			w.Header().Set("Content-Type", "text/event-stream")
-			fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{\"content\":\"done\"}}]}\n\n")
-			fmt.Fprint(w, "data: [DONE]\n\n")
+			streamReply(w, Message{Content: "done"})
 			return
 		}
 		s.rounds++
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, `{"choices":[{"message":{"role":"assistant","content":"",
-			"tool_calls":[{"id":"c%d","type":"function","function":
-			{"name":"calc","arguments":"{\"expression\":\"r%d = 1 $ 2\"}"}}]}}]}`, s.rounds, s.rounds)
+		streamReply(w, Message{ToolCalls: []ToolCall{call(fmt.Sprint("c", s.rounds), "calc",
+			fmt.Sprintf(`{"expression":"r%d = 1 $ 2"}`, s.rounds))}})
 	}))
 }
 
@@ -87,19 +75,19 @@ func TestAFailedRoundBuysOneRetryAndOnlyOne(t *testing.T) {
 	}
 }
 
-// The answer step has to be told what never worked, or it writes an estimate in
+// The last round has to be told what never worked, or it writes an estimate in
 // the same voice as a checked figure.
-func TestTheAnswerStepIsToldTheCallsFailed(t *testing.T) {
+func TestTheLastRoundIsToldTheCallsFailed(t *testing.T) {
 	s := &stubModel{}
 	s.drive(t)
 	if len(s.notes) == 0 {
-		t.Fatal("the answer step was never reached")
+		t.Fatal("the last round was never reached")
 	}
 	note := s.notes[len(s.notes)-1]
 	if !strings.Contains(note, "calc") {
-		t.Errorf("the answer step was not told calc failed: %q", note)
+		t.Errorf("the last round was not told calc failed: %q", note)
 	}
 	if !strings.Contains(note, "Do not write down a number you could not work out") {
-		t.Errorf("the answer step was not told to stop guessing: %q", note)
+		t.Errorf("the last round was not told to stop guessing: %q", note)
 	}
 }

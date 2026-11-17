@@ -1,6 +1,6 @@
 // A file is read into text and its bytes dropped, so there's no upload directory
 // to age out, incognito stays true to its name and a follow up finds the text in
-// the conversation. A picture is kept, since the image model needs the picture.
+// the conversation. A picture is kept so the message can still show it.
 package main
 
 import (
@@ -70,7 +70,7 @@ func readFiles(headers []*multipart.FileHeader) []filePart {
 			}
 			if kind, ok := imageKind(raw); ok {
 				p.Kind = kind
-				pic, w, h, err := pictures.AsReference(raw)
+				pic, w, h, err := pictures.AsPNG(raw)
 				if err != nil {
 					p.Err = err.Error()
 					break
@@ -276,8 +276,7 @@ func normalise(s string) string {
 }
 
 // composeTurn builds what the model is handed. Files come first and the message
-// last, since the question is what the answer has to follow and the end of the
-// prompt is where a small model reads most carefully.
+// last, since the question is what the answer has to follow.
 func composeTurn(message string, parts []filePart) string {
 	if len(parts) == 0 {
 		return message
@@ -295,7 +294,7 @@ func composeTurn(message string, parts []filePart) string {
 			continue
 		}
 		if p.Image != "" {
-			fmt.Fprintf(&sb, "--- %s (a %dx%d picture) ---\nYou cannot see this, so never describe what is in it. The image tool starts from it, so pass what he wants done to it, in his words.\n--- end of %s ---\n\n", p.Name, p.Width, p.Height, p.Name)
+			fmt.Fprintf(&sb, "--- %s (a %dx%d picture) ---\nOnly its name and size reach you, so never describe what is in it, and say so if he asks about it.\n--- end of %s ---\n\n", p.Name, p.Width, p.Height, p.Name)
 			continue
 		}
 		fmt.Fprintf(&sb, "--- %s (%s, %s) ---\n%s\n--- end of %s ---\n\n", p.Name, p.Kind, humanSize(p.Size), p.Text, p.Name)
@@ -307,17 +306,6 @@ func composeTurn(message string, parts []filePart) string {
 		sb.WriteString(message)
 	}
 	return sb.String()
-}
-
-// attachedPictures is the ids of the pictures among a turn's files.
-func attachedPictures(parts []filePart) []string {
-	var ids []string
-	for _, p := range parts {
-		if p.Image != "" {
-			ids = append(ids, p.Image)
-		}
-	}
-	return ids
 }
 
 func attachments(parts []filePart) []Attachment {

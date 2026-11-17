@@ -1,12 +1,11 @@
-// Command chat serves chat.bythewood.me: a conversation with a small model
-// running on Isaac's own card, with tools for anything it cannot know, history
-// in SQLite, and an incognito mode that writes nothing down.
+// Command chat serves chat.bythewood.me: a conversation with Claude through the
+// llm gateway, with tools for anything it cannot know, history in SQLite, and
+// an incognito mode that writes nothing down.
 package main
 
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"html/template"
@@ -57,21 +56,20 @@ func csp() string {
 }
 
 type site struct {
-	auth    *web.Authenticator
-	llm     *LLM
-	engine  *Engine
-	store   *history.Store
-	memory  *memory.Store
-	runs    *Runs
-	queue   *Queue
-	hub     *Hub
-	comp    *Compactor
-	painter *pictures.Painter
-	tpl     *template.Template
-	md      goldmark.Markdown
-	label   string
-	ctxSize int
-	dev     bool
+	auth     *web.Authenticator
+	llm      *LLM
+	engine   *Engine
+	store    *history.Store
+	memory   *memory.Store
+	runs     *Runs
+	hub      *Hub
+	comp     *Compactor
+	pictures *pictures.Store
+	tpl      *template.Template
+	md       goldmark.Markdown
+	label    string
+	ctxSize  int
+	dev      bool
 
 	// stopping ends at SIGTERM, and turns and memory passes are counted in
 	// detached so shutdown can wait for their writes before the store closes.
@@ -100,18 +98,16 @@ func main() {
 // shipper's flush run on every path out.
 func realMain() error {
 	var (
-		addr     = flag.String("addr", env("CHAT_ADDR", listenAddr), "listen address")
-		llmURL   = flag.String("llm", env("LLM_URL", "http://orchard-llm:8000"), "model gateway base url")
-		llmKey   = flag.String("llm-key", os.Getenv("LLM_KEY"), "api key for the model gateway")
-		verify   = flag.String("verify", "", "development only: check sessions against this url instead of auth")
-		model    = flag.String("model", env("LLM_MODEL", "local"), "model name the server answers to")
-		label    = flag.String("model-name", env("LLM_NAME", "Ornith 1.5 9B"), "readable model name, shown in the UI and told to the model")
-		imgModel = flag.String("image-model", env("IMAGE_MODEL", "image"), "model name the server draws pictures with")
-		imgName  = flag.String("image-name", env("IMAGE_NAME", "FLUX.2 klein 9B"), "readable name of the picture model")
-		dbPath   = flag.String("db", env("CHAT_DB", "data/chat.db"), "conversation database")
-		propCfg  = flag.String("property-config", env("PROPERTY_CONFIG", "data/property.json"), "house hunting config: the work address, the drives and the money")
-		ctxSize  = flag.Int("ctx", envInt("LLM_CTX", 32768), "model context window in tokens")
-		health   = flag.Bool("healthcheck", false, "probe the local server and exit")
+		addr    = flag.String("addr", env("CHAT_ADDR", listenAddr), "listen address")
+		llmURL  = flag.String("llm", env("LLM_URL", "http://orchard-llm:8000"), "model gateway base url")
+		llmKey  = flag.String("llm-key", os.Getenv("LLM_KEY"), "api key for the model gateway")
+		verify  = flag.String("verify", "", "development only: check sessions against this url instead of auth")
+		model   = flag.String("model", env("LLM_MODEL", "claude-haiku-5-5"), "model name sent to the gateway")
+		label   = flag.String("model-name", env("LLM_NAME", "Claude Haiku 5.5"), "readable model name, shown in the UI and told to the model")
+		dbPath  = flag.String("db", env("CHAT_DB", "data/chat.db"), "conversation database")
+		propCfg = flag.String("property-config", env("PROPERTY_CONFIG", "data/property.json"), "house hunting config: the work address, the drives and the money")
+		ctxSize = flag.Int("ctx", envInt("LLM_CTX", 200000), "model context window in tokens")
+		health  = flag.Bool("healthcheck", false, "probe the local server and exit")
 	)
 	flag.Parse()
 	web.SetupLogging()
@@ -150,8 +146,8 @@ func realMain() error {
 	s := &site{
 		auth: auth,
 		llm:  llm, engine: NewEngine(llm, *label), store: store, label: *label,
-		comp: NewCompactor(llm, *ctxSize), ctxSize: *ctxSize, dev: Reloaded,
-		runs: NewRuns(), queue: NewQueue(), hub: NewHub(),
+		comp: NewCompactor(llm), ctxSize: *ctxSize, dev: Reloaded,
+		runs: NewRuns(), hub: NewHub(),
 		md: goldmark.New(goldmark.WithExtensions(extension.GFM),
 			goldmark.WithRendererOptions()),
 		stopping: stopping,
@@ -168,10 +164,9 @@ func realMain() error {
 	}
 	s.engine.Deps().Memory = memoryStore{s.memory}
 	s.engine.Deps().History = historyStore{store}
-	if s.painter, err = pictures.New(llm, *imgModel, *imgName, store.DB()); err != nil {
+	if s.pictures, err = pictures.New(store.DB()); err != nil {
 		return fmt.Errorf("pictures: %w", err)
 	}
-	s.engine.Deps().Images = s.painter
 	s.engine.Deps().Search = llm
 	// The house lookups own their tables in the same database. A missing config
 	// isn't fatal, the engine runs on placeholders and every report says which
@@ -244,7 +239,6 @@ func realMain() error {
 	mux.HandleFunc("DELETE /api/conversation/{id}/flag", s.auth.RequireAuthJSON(s.unflag))
 	mux.HandleFunc("DELETE /api/conversations", s.auth.RequireAuthJSON(s.deleteAll))
 	mux.HandleFunc("GET /api/status", s.auth.RequireAuthJSON(s.status))
-	mux.HandleFunc("POST /api/unload", s.auth.RequireAuthJSON(s.unload))
 	mux.HandleFunc("GET /api/events", s.auth.RequireAuthJSON(s.events))
 	// The readings behind a chart. Gated like everything else here, and read
 	// only: both go out to a public source and neither touches this estate.
@@ -448,12 +442,7 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 			q = parts[0].Name
 		}
 		rn.setQuestion(q)
-		// Counted before the turn joins the queue, so a tab that reads the list
-		// on hearing this sees it waiting instead of working for a second.
-		if waiting, running := s.queue.Depth(); running {
-			rn.setWaiting(waiting + 1)
-		}
-		s.hub.Publish(HubEvent{Kind: "started", ConvID: key, Position: rn.Waiting()})
+		s.hub.Publish(HubEvent{Kind: "started", ConvID: key})
 	}
 	// This runs detached, since r.Context() dies with the tab and a turn that has
 	// spent two minutes fetching should not be thrown away because a phone
@@ -587,29 +576,13 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 	emit := func(e Event) { rn.Emit(e) }
 	tr := NewTrace(emit)
 
-	// One turn at a time, since llama.cpp runs the one card with a single slot.
-	// The waiting is shown since a tab sat on "thinking" looks broken.
-	release, ok := s.queue.Enter(ctx, func(q QueueState) {
-		emit(Event{Kind: "status", Text: waitingLabel(q)})
-		if q.Position > 0 && rn.setWaiting(q.Position) && !req.Incognito {
-			s.hub.Publish(HubEvent{Kind: "waiting", ConvID: key, Position: q.Position})
-		}
-	})
-	if !ok {
-		emit(Event{Kind: "error", Text: "that turn was stopped before it started"})
-		return key, "", false
-	}
-	defer release()
-	if rn.setWaiting(0) && !req.Incognito {
-		s.hub.Publish(HubEvent{Kind: "working", ConvID: key})
-	}
 	// Every model call this turn makes hangs off this context, the tools' too,
 	// so marking it here keeps the gateway from writing down what the local
 	// database isn't writing down either.
 	if req.Incognito {
 		ctx = incognito.With(ctx)
 	}
-	holdPictures(s.painter, parts)
+	holdPictures(s.pictures, parts)
 
 	// Load the conversation and build the window before anything else, since
 	// compaction may need a model call of its own.
@@ -631,25 +604,12 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 		}
 	}
 
-	origin, originSaid := lastAttached(stored)
-	ctx = withReferences(ctx, references{Attached: attachedPictures(parts), Last: lastPicture(stored), Message: req.Message,
-		Origin: origin, OriginSaid: originSaid})
-
 	flagging := !req.Incognito && req.ConvID != "" && len(stored) > 0 && len(parts) == 0 && flagAsk.MatchString(req.Message)
 
-	// Warm the weights while the window is being built instead of after. A
-	// change to a picture never asks the chat model anything, and warming it
-	// would only put it on the card for klein to take straight back off.
-	refs := referencesOf(ctx)
-	if !flagging && len(refs.Attached) == 0 && !(refs.Last != "" && isPictureChange(req.Message, history)) {
-		go s.llm.Warm(context.WithoutCancel(ctx))
-	}
-
 	// Retrieval is against what he typed and not the composed prompt, since an
-	// attachment's text would swamp the scoring. A picture says nothing about him,
-	// and a fact about liking well worn interiors got a sofa drawn threadbare.
+	// attachment's text would swamp the scoring.
 	var recalled []memory.Fact
-	if !flagging && !isPictureAsk(req.Message, history) && len(refs.Attached) == 0 && !(refs.Last != "" && isPictureChange(req.Message, history)) {
+	if !flagging {
 		recalled = s.memory.Relevant(req.Message, memory.PerTurn, !req.Incognito)
 	}
 	if len(recalled) > 0 {
@@ -670,10 +630,6 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 		emit(Event{Kind: "error", Text: err.Error()})
 		return key, "", false
 	}
-
-	// Whatever the model wrote, the stored copy has no leaked markup in it.
-	reply.Content, _ = salvageCalls(reply.Content, func(string) bool { return false })
-	drew := hasPicture(widgets)
 
 	summaries := make([]ToolSummary, 0, len(used))
 	for _, u := range used {
@@ -709,13 +665,8 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 			_ = appendStored(s.store, convID, user)
 			_ = appendStored(s.store, convID, Stored{Role: RoleAssistant, Content: reply.Content,
 				Tools: summaries, Sources: srcs, Widgets: widgets, Steps: tr.Steps()})
-			s.painter.Keep(convID, pictureIDs(widgets, user.Files))
-			if len(stored) == 0 && drew {
-				// Naming it with the model would put the chat model back on
-				// the card for four words, and the picture's own prompt names it.
-				title = pictureTitle(reply.Content)
-				_ = s.store.SetTitle(convID, title)
-			} else if len(stored) == 0 {
+			s.pictures.Keep(convID, pictureIDs(user.Files))
+			if len(stored) == 0 {
 				seed := titleSeed(req.Message, parts)
 				titleStart := time.Now()
 				if t := s.comp.Title(context.WithoutCancel(ctx), seed, reply.Content); t != "" {
@@ -730,9 +681,8 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 	}
 
 	// After the answer is on its way, never in front of it. Not for incognito,
-	// which can't teach it something to write down later, and not for a picture,
-	// which says nothing about him and would swap the chat model straight back on.
-	if !req.Incognito && !drew && !flagging && learnsFrom(used) {
+	// which can't teach it something to write down later.
+	if !req.Incognito && !flagging && learnsFrom(used) {
 		s.detached.Go(func() {
 			// Recovered here and not by the middleware, which only wraps the
 			// handler. A panic on this goroutine would take the process down
@@ -755,8 +705,8 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 		"files":   attachments(parts),
 		"stats": map[string]any{
 			"prompt_tokens": stats.Prompt, "completion_tokens": stats.Completion,
-			"decode_tps": round1(stats.Decode), "prefill_tps": round1(stats.Prefill),
-			"ctx": s.ctxSize,
+			"decode_tps": round1(stats.Decode),
+			"ctx":        s.ctxSize,
 		}}
 	rn.Emit(done)
 	if convID == "" {
@@ -784,16 +734,6 @@ func (s *site) attach(w http.ResponseWriter, r *http.Request) {
 // stop the work, so this is the only thing that is.
 func (s *site) stop(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"stopped": s.runs.Cancel(r.PathValue("id"))})
-}
-
-// waitingLabel says where in the queue a turn is, in words instead of a
-// number on its own, since "2" beside a spinner reads as an error code. The
-// turn on the card counts as one ahead, so this agrees with the list's number.
-func waitingLabel(q QueueState) string {
-	if q.Position <= 1 {
-		return "next in line"
-	}
-	return "waiting, " + itoa(q.Position) + " turns ahead"
 }
 
 // render turns the model's markdown into HTML on the server, so the browser
@@ -824,7 +764,6 @@ func (s *site) listConversations(w http.ResponseWriter, r *http.Request) {
 	type row struct {
 		history.Conversation
 		Running bool `json:"running,omitempty"`
-		Waiting int  `json:"waiting,omitempty"`
 	}
 	asking := s.runs.Asking()
 	out := make([]row, 0, len(convs)+len(asking))
@@ -835,12 +774,12 @@ func (s *site) listConversations(w http.ResponseWriter, r *http.Request) {
 	for key, q := range asking {
 		if !listed[key] {
 			out = append(out, row{Conversation: history.Conversation{ID: key, Title: trimLine(q, 60), Updated: time.Now()},
-				Running: true, Waiting: s.runs.WaitingFor(key)})
+				Running: true})
 		}
 	}
 	for _, c := range convs {
 		_, running := asking[c.ID]
-		out = append(out, row{Conversation: c, Running: running, Waiting: s.runs.WaitingFor(c.ID)})
+		out = append(out, row{Conversation: c, Running: running})
 	}
 	writeJSON(w, map[string]any{"conversations": out})
 }
@@ -917,9 +856,8 @@ func (s *site) deleteAll(w http.ResponseWriter, r *http.Request) {
 
 func (s *site) status(w http.ResponseWriter, r *http.Request) {
 	nConv, nMsg := s.store.Count()
-	onCard, loaded, up := s.llm.Loaded(r.Context())
 	out := map[string]any{
-		"model": s.label, "up": up, "loaded": loaded, "on_card": onCard, "ctx": s.ctxSize,
+		"model": s.label, "ctx": s.ctxSize,
 		"tools": tools.Default().Names(), "conversations": nConv, "messages": nMsg,
 	}
 	// Search being unavailable is the one tool failure worth saying out loud,
@@ -932,22 +870,6 @@ func (s *site) status(w http.ResponseWriter, r *http.Request) {
 	minute, hour, day := s.engine.SearchSpend()
 	out["search_left"] = map[string]int{"minute": minute, "hour": hour, "day": day}
 	writeJSON(w, out)
-}
-
-// unload takes the weights off the card now instead of three minutes from now,
-// since the card this runs on is the one the desktop draws with.
-func (s *site) unload(w http.ResponseWriter, r *http.Request) {
-	// Pulling the model out from under a turn in flight kills that turn with
-	// an error nobody would connect to the button they pressed.
-	if _, running := s.queue.Depth(); running {
-		jsonErr(w, http.StatusConflict, errors.New("a turn is running, so the card is still in use"))
-		return
-	}
-	if err := s.llm.Unload(r.Context()); err != nil {
-		jsonErr(w, http.StatusBadGateway, err)
-		return
-	}
-	writeJSON(w, map[string]any{"loaded": false})
 }
 
 // jsonErr answers with the reason instead of a bare status, since the caller

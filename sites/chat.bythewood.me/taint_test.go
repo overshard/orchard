@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -26,19 +25,13 @@ func (s *scriptStub) server(t *testing.T) *httptest.Server {
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
-			Tools  []map[string]any `json:"tools"`
-			Stream bool             `json:"stream"`
+			Tools []map[string]any `json:"tools"`
 		}
 		_ = json.NewDecoder(r.Body).Decode(&req)
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		if len(req.Tools) == 0 {
-			if req.Stream {
-				w.Header().Set("Content-Type", "text/event-stream")
-				fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{\"content\":\"done\"}}]}\n\ndata: [DONE]\n\n")
-				return
-			}
-			fmt.Fprint(w, `{"choices":[{"finish_reason":"stop","message":{"role":"assistant","content":"done"}}]}`)
+			streamReply(w, Message{Content: "done"})
 			return
 		}
 		var names []string
@@ -51,9 +44,7 @@ func (s *scriptStub) server(t *testing.T) *httptest.Server {
 			msg = Message{Role: RoleAssistant, ToolCalls: s.script[s.rounds]}
 		}
 		s.rounds++
-		_ = json.NewEncoder(w).Encode(map[string]any{"choices": []map[string]any{
-			{"finish_reason": "stop", "message": msg},
-		}})
+		streamReply(w, msg)
 	}))
 }
 

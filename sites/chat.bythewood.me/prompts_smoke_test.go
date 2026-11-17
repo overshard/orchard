@@ -15,8 +15,8 @@ func TestPromptsSmoke(t *testing.T) {
 	if os.Getenv("PROMPT_SMOKE") == "" {
 		t.Skip("set PROMPT_SMOKE=1 to drive the real model")
 	}
-	llm := NewLLM(env("LLM_URL", "http://orchard-llm:8000"), env("LLM_MODEL", "local"), os.Getenv("LLM_KEY"))
-	eng := NewEngine(llm, env("LLM_NAME", "Ornith 1.5 9B"))
+	llm := NewLLM(env("LLM_URL", "http://orchard-llm:8000"), env("LLM_MODEL", "claude-haiku-5-5"), os.Getenv("LLM_KEY"))
+	eng := NewEngine(llm, env("LLM_NAME", "Claude Haiku 5.5"))
 	eng.Deps().Search = llm
 	// main wires the markdown renderer, and the streaming path calls it.
 	eng.Render = func(md string) string { return md }

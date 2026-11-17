@@ -44,7 +44,7 @@ func (a *rememberArgs) params() []param {
 
 var Remember = Define(Tool{
 	Name:   "remember",
-	Traits: Private | Notes,
+	Traits: Private,
 	Description: "Write to or read what is remembered about Isaac between conversations. " +
 		"Call it whenever he says to remember, note, forget or correct something, " +
 		"and whenever he states a preference, a plan or a fact about himself that should outlast this chat. " +

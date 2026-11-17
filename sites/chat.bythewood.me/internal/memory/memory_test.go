@@ -202,28 +202,11 @@ func TestApplyChangesReplacesRatherThanDuplicating(t *testing.T) {
 	}
 }
 
-// A small model wraps JSON in a fence or writes a sentence in front of it, and
-// neither is a reason to lose the edit.
-func TestParseChangesSurvivesTheUsualWrapping(t *testing.T) {
-	raw := "Sure, here is what should change:\n```json\n" +
-		`{"changes":[{"op":"add","fact":"Isaac drinks his coffee black"},{"op":"delete","id":4}]}` +
-		"\n```"
-	got := parseChanges(raw)
-	if len(got) != 2 {
-		t.Fatalf("got %d changes: %+v", len(got), got)
-	}
-	if got[0].Op != "add" || got[0].Fact != "Isaac drinks his coffee black" {
-		t.Errorf("first = %+v", got[0])
-	}
-	if got[1].Op != "delete" || got[1].ID != 4 {
-		t.Errorf("second = %+v", got[1])
-	}
-}
-
-func TestParseChangesDropsTheMalformed(t *testing.T) {
-	got := parseChanges(`{"changes":[{"op":"add"},{"op":"replace","fact":"no id"},{"op":"burn","id":1},{"op":"delete","id":0}]}`)
-	if len(got) != 0 {
-		t.Errorf("kept malformed changes: %+v", got)
+func TestValidChangesDropsTheMalformed(t *testing.T) {
+	got := validChanges([]Change{{Op: "add"}, {Op: "replace", Fact: "no id"}, {Op: "burn", ID: 1}, {Op: "delete"},
+		{Op: "ADD", Fact: "  Isaac drinks his coffee black "}})
+	if len(got) != 1 || got[0].Op != "add" || got[0].Fact != "Isaac drinks his coffee black" {
+		t.Errorf("kept %+v, want only the tidied add", got)
 	}
 }
 

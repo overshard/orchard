@@ -20,12 +20,7 @@ var traitTools = map[tools.Trait][]string{
 	tools.Settles: {"property"},
 	tools.Once:    {"news"},
 	tools.Rundown: {"news"},
-	tools.Notes:   {"remember"},
-	tools.Lookup:  {"web_search"},
-	tools.Draws:   {"image"},
 	tools.Tickers: {"markets"},
-	tools.Sums:    {"calc"},
-	tools.Clock:   {"now"},
 	tools.Outbound: {"web_search", "web_fetch", "x_search", "markets", "property",
 		"dictionary", "music_lookup", "odds", "weather"},
 }
