@@ -18,7 +18,7 @@ func Default() *Registry {
 		WebSearch, WebFetch, News, Remember, Weather, Markets, SportsScores, Odds, MusicLookup, Convert, Calc, Now,
 		Dictionary,
 		OrchardLogs, OrchardStatus, OrchardAnalytics, OrchardRepos, OrchardCode, OrchardDash,
-		ChatHistory, XSearch,
+		ChatHistory,
 		PropertyTool, Mortgage,
 	} {
 		r.Add(t)

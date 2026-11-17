@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 type SearchHit struct {
@@ -13,12 +14,14 @@ type SearchHit struct {
 
 type webSearchArgs struct {
 	Query string
+	Site  string
 	N     int
 }
 
 func (a *webSearchArgs) params() []param {
 	return []param{
 		strArg(&a.Query, "query", "what to search for, as a person would type it").required(),
+		strArg(&a.Site, "site", "one domain to search within, like x.com for posts on X, optional"),
 		intArg(&a.N, "n", "how many results to return, default 6").otherwise(6),
 	}
 }
@@ -38,7 +41,11 @@ var WebSearch = Define(Tool{
 	if n < 1 || n > 12 {
 		n = 6
 	}
-	hits, err := search(ctx, d, q, nil, n)
+	var domains []string
+	if site := strings.TrimSpace(a.Site); site != "" {
+		domains = []string{site}
+	}
+	hits, err := search(ctx, d, q, domains, n)
 	if err != nil {
 		return nil, err
 	}

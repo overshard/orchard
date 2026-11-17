@@ -10,7 +10,7 @@ import (
 // Each trait is a set of tools the turn treats alike, pinned here so a trait
 // given to the wrong tool, or left off the right one, fails by name.
 var traitTools = map[tools.Trait][]string{
-	tools.Untrusted: {"web_search", "web_fetch", "x_search", "news", "dictionary",
+	tools.Untrusted: {"web_search", "web_fetch", "news", "dictionary",
 		"orchard_logs", "orchard_analytics", "orchard_dash"},
 	tools.Private: {"chat_history", "remember", "orchard_logs", "orchard_status",
 		"orchard_analytics", "orchard_repos", "orchard_code", "orchard_dash"},
@@ -21,7 +21,7 @@ var traitTools = map[tools.Trait][]string{
 	tools.Once:    {"news"},
 	tools.Rundown: {"news"},
 	tools.Tickers: {"markets"},
-	tools.Outbound: {"web_search", "web_fetch", "x_search", "markets", "property",
+	tools.Outbound: {"web_search", "web_fetch", "markets", "property",
 		"dictionary", "music_lookup", "odds", "weather"},
 }
 
