@@ -29,6 +29,7 @@ services:
         limits:
           cpus: "0.50"
           memory: 128M
+          pids: 128
     healthcheck:
       test: ["CMD", "/app", "-healthcheck"]
       interval: 30s
@@ -37,6 +38,9 @@ services:
       start_period: 10s
     security_opt:
       - no-new-privileges:true
+    read_only: true
+    cap_drop: [ALL]
+    tmpfs: [/tmp]
     logging:
       driver: json-file
       options:
