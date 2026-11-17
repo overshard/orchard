@@ -92,7 +92,7 @@
         </div>
         <div class="pr-actions">
           {{ if not .IsProtected }}
-          <form method="POST" action="/properties/{{ .ID }}/delete" class="d-inline" onsubmit="return confirm('Delete {{ .URL }} and all its checks?');">
+          <form method="POST" action="/properties/{{ .ID }}/delete" class="d-inline" data-confirm="Delete {{ .URL }} and all its checks?">
             <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
           </form>
           {{ end }}
