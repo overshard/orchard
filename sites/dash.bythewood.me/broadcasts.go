@@ -15,6 +15,8 @@ import (
 const (
 	broadcastsKey   = "twitchvods"
 	broadcastsEvery = time.Hour
+	broadcastsTries = 3
+	broadcastsRetry = 30 * time.Second
 
 	// A broadcast belongs to the evening it started on, so a stream day turns
 	// over at 6am and one that starts at 1am counts toward the night before.

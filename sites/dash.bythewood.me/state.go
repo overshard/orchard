@@ -394,7 +394,17 @@ func (s *Store) refreshOnAir(ctx context.Context, g *Guard) {
 // refreshBroadcasts keeps the last good archive when Twitch fails, and the
 // banner goes on without it.
 func (s *Store) refreshBroadcasts(ctx context.Context, g *Guard) {
+	// Twitch answers this query with a passing "service error" now and then,
+	// and the next hourly poll is a long time for the panel to sit empty.
 	past, err := fetchBroadcasts(ctx, g, twitchGQL)
+	for try := 1; err != nil && try < broadcastsTries; try++ {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(broadcastsRetry):
+		}
+		past, err = fetchBroadcasts(ctx, g, twitchGQL)
+	}
 	if err != nil {
 		pollFailed(ctx, "broadcasts", "onair", err)
 		return
