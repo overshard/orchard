@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"math/rand/v2"
 	"slices"
@@ -39,9 +40,7 @@ const (
 var materials = map[string]string{"sticks": "Sticks", "reeds": "Reeds", "clay": "Clay"}
 
 func init() {
-	for k, n := range materials {
-		itemNames[k] = n
-	}
+	maps.Copy(itemNames, materials)
 	for i := range jobs {
 		if jobs[i].key == jobCraft {
 			jobs[i].targets = craftTargets()
@@ -595,9 +594,7 @@ func runOf(key []byte, f frogRow, xp map[string]int, mast map[string]mastered, l
 		return r, true
 	}
 	spare := map[string]int{}
-	for k, n := range left {
-		spare[k] = n
-	}
+	maps.Copy(spare, left)
 	for i := done; i < min(r.cap, done+dealAhead); i++ {
 		d := r.dealAt(key, i)
 		if !r.afford(&d, spare) {

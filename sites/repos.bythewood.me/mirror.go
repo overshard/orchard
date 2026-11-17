@@ -398,7 +398,7 @@ func refMap(ctx context.Context, repo Repo, prefixes ...string) (map[string]stri
 		return nil, err
 	}
 	refs := make(map[string]string)
-	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(string(out)), "\n") {
 		if line == "" {
 			continue
 		}

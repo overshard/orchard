@@ -17,7 +17,7 @@ func TestWidelyCarriedKeepsSinglesOnAQuietDay(t *testing.T) {
 	}
 
 	var busy []cluster
-	for i := 0; i < 24; i++ {
+	for range 24 {
 		busy = append(busy, two)
 	}
 	busy = append(busy, one)

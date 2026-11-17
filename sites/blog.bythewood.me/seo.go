@@ -16,7 +16,7 @@ import (
 func wrapTitle(title string, maxChars, maxLines int) []string {
 	var lines []string
 	current := ""
-	for _, word := range strings.Fields(title) {
+	for word := range strings.FieldsSeq(title) {
 		switch {
 		case current == "":
 			current = word

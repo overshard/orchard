@@ -69,7 +69,7 @@ func pathYs(t *testing.T, d string) []float64 {
 	t.Helper()
 
 	var ys []float64
-	for _, seg := range strings.Split(strings.NewReplacer("M", " ", "L", " ").Replace(d), " ") {
+	for seg := range strings.SplitSeq(strings.NewReplacer("M", " ", "L", " ").Replace(d), " ") {
 		_, y, ok := strings.Cut(seg, ",")
 		if !ok {
 			continue

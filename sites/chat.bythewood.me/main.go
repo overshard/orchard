@@ -774,7 +774,7 @@ func (s *site) listConversations(w http.ResponseWriter, r *http.Request) {
 	}
 	for key, q := range asking {
 		if !listed[key] {
-			out = append(out, row{Conversation: history.Conversation{ID: key, Title: trimLine(q, 60), Updated: time.Now()},
+			out = append(out, row{ID: key, Title: trimLine(q, 60), Updated: time.Now(),
 				Running: true})
 		}
 	}

@@ -88,8 +88,8 @@ func (t *Terrain) Lookup(ctx context.Context, lat, lon float64) (TerrainResult, 
 	dLon := step / feetPerDegLon(lat)
 
 	var points []string
-	for row := 0; row < terrainGrid; row++ {
-		for col := 0; col < terrainGrid; col++ {
+	for row := range terrainGrid {
+		for col := range terrainGrid {
 			y := lat - half/feetPerDegLat + float64(row)*dLat
 			x := lon - half/feetPerDegLon(lat) + float64(col)*dLon
 			points = append(points, fmt.Sprintf("[%.7f,%.7f]", x, y))
@@ -170,8 +170,8 @@ func computeTerrain(grid []float64, step float64) TerrainResult {
 	// can run along the contour and read a uniform hillside as mostly flat.
 	var sum float64
 	var pairs, flat, cells int
-	for row := 0; row < terrainGrid-1; row++ {
-		for col := 0; col < terrainGrid-1; col++ {
+	for row := range terrainGrid - 1 {
+		for col := range terrainGrid - 1 {
 			here := grid[row*terrainGrid+col]
 			right := grid[row*terrainGrid+col+1]
 			below := grid[(row+1)*terrainGrid+col]

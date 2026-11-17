@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -27,9 +28,9 @@ func asksAboutTraffic(q string) bool { return ownSite.MatchString(q) && trafficW
 // question before it.
 func trafficQuestion(question string, history []Message) (property string, days int, ok bool) {
 	var earlier string
-	for i := len(history) - 1; i >= 0; i-- {
-		if history[i].Role == RoleUser {
-			earlier = history[i].Content
+	for _, h := range slices.Backward(history) {
+		if h.Role == RoleUser {
+			earlier = h.Content
 			break
 		}
 	}

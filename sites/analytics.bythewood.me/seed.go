@@ -249,7 +249,7 @@ func generateSeed(ctx context.Context, db *sql.DB, id uuid.UUID, sessions, days 
 	windowMS := int64(days) * 24 * 60 * 60 * 1000
 	var total int64
 
-	for i := 0; i < sessions; i++ {
+	for range sessions {
 		agent := weightedPick(seedAgents, func(a seedAgent) int { return a.Weight })
 		geo := weightedPick(seedGeos, func(g seedGeo) int { return g.Weight })
 		referrer := weightedPick(seedReferrers, func(r weightedString) int { return r.Weight }).Value
@@ -315,7 +315,7 @@ func generateSeed(ctx context.Context, db *sql.DB, id uuid.UUID, sessions, days 
 
 		t := sessionStart
 		pageCount := 1 + rand.IntN(8)
-		for page := 0; page < pageCount; page++ {
+		for page := range pageCount {
 			timeOnPage := 2_000 + rand.Int64N(118_000)
 
 			// Only the first page view of a session carries the referrer.

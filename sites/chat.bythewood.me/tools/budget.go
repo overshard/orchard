@@ -2,6 +2,7 @@ package tools
 
 import (
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 )
@@ -64,8 +65,8 @@ func (s *spend) trim(now time.Time) {
 func (s *spend) since(now time.Time, d time.Duration) int {
 	cut := now.Add(-d)
 	n := 0
-	for i := len(s.at) - 1; i >= 0; i-- {
-		if s.at[i].Before(cut) {
+	for _, v := range slices.Backward(s.at) {
+		if v.Before(cut) {
 			break
 		}
 		n++

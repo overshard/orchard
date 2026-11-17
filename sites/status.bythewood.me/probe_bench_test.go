@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"sort"
+	"slices"
 	"testing"
 	"time"
 )
@@ -25,7 +25,7 @@ func TestProbeTiming(t *testing.T) {
 
 	n := 15
 	var dns, tcp, tls, ttfb, total []int64
-	for i := 0; i < n; i++ {
+	for i := range n {
 		hop, err := phasedHop(context.Background(), u)
 		if err != nil {
 			t.Fatalf("probe %d: %v", i, err)
@@ -40,7 +40,7 @@ func TestProbeTiming(t *testing.T) {
 
 	med := func(v []int64) int64 {
 		s := append([]int64(nil), v...)
-		sort.Slice(s, func(i, j int) bool { return s[i] < s[j] })
+		slices.Sort(s)
 		return s[len(s)/2]
 	}
 	fmt.Printf("phasedHop against %s, %d samples\n", target, n)

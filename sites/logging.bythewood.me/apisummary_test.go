@@ -38,7 +38,7 @@ func TestAPIErrorsGroupByKind(t *testing.T) {
 	db := testDB(t)
 	now := time.Now()
 	var rows []row
-	for i := 0; i < 12; i++ {
+	for i := range 12 {
 		rows = append(rows, row{
 			source: "repos", ts: now.Add(-time.Duration(i) * time.Minute).UnixMilli(),
 			level: "ERROR", msg: "git subprocess failed", path: "/orchard.git/info/refs",
@@ -151,7 +151,7 @@ func TestAPIRefusedSeesScannersWithNoErrors(t *testing.T) {
 	db := testDB(t)
 	now := time.Now()
 	var rows []row
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		rows = append(rows, row{
 			source: "blog", ts: now.Add(-time.Duration(i) * time.Minute).UnixMilli(),
 			level: "INFO", msg: "request", component: "http", method: "GET",

@@ -184,8 +184,7 @@ func hit(ctx context.Context, g *Guard, url string, public, anyStatus bool) (sta
 
 	resp, err := probeClient.Do(req)
 	if err != nil {
-		var dns *net.DNSError
-		if errors.As(err, &dns) {
+		if _, ok := errors.AsType[*net.DNSError](err); ok {
 			return "", probeNoRoute
 		}
 		g.Fail("uptime", 0, 0)
@@ -250,11 +249,9 @@ func buildSystems(ctx context.Context, g *Guard, now time.Time) Systems {
 
 	var wg sync.WaitGroup
 	for i, m := range monitored {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			rows[i] = probe(ctx, g, m)
-		}()
+		})
 	}
 	wg.Wait()
 

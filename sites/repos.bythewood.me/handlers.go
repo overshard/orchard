@@ -738,7 +738,7 @@ func (s *site) editRepo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var topics []string
-	for _, t := range strings.Split(r.FormValue("topics"), ",") {
+	for t := range strings.SplitSeq(r.FormValue("topics"), ",") {
 		if t = strings.TrimSpace(t); t != "" {
 			topics = append(topics, t)
 		}

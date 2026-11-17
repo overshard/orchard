@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 )
@@ -509,11 +510,8 @@ func bestSchoolMatch(points []schoolPoint, zone string) (lat, lon float64, ok bo
 		have := nameTokens(p.Name)
 		var hits int
 		for _, w := range want {
-			for _, h := range have {
-				if w == h {
-					hits++
-					break
-				}
+			if slices.Contains(have, w) {
+				hits++
 			}
 		}
 		if hits == 0 {
@@ -538,7 +536,7 @@ var nameNoise = map[string]bool{
 
 func nameTokens(s string) []string {
 	var out []string
-	for _, f := range strings.Fields(strings.ToLower(s)) {
+	for f := range strings.FieldsSeq(strings.ToLower(s)) {
 		f = nonAlnum.ReplaceAllString(f, "")
 		if f == "" || nameNoise[f] || num(f) != 0 {
 			continue

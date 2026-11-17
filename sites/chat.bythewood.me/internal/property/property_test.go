@@ -294,7 +294,7 @@ func TestUSDALookupCaches(t *testing.T) {
 	defer func() { usdaLayer = old }()
 
 	u := NewUSDA(testDB(t))
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		if _, err := u.Lookup(context.Background(), 35.92, -81.17); err != nil {
 			t.Fatal(err)
 		}
@@ -484,7 +484,7 @@ func TestColdLookupsAreCapped(t *testing.T) {
 	}
 	ctx := context.Background()
 
-	for i := 0; i < coldPerHour; i++ {
+	for i := range coldPerHour {
 		if err := e.spend(ctx, fmt.Sprintf("house-%d", i)); err != nil {
 			t.Fatalf("address %d should be allowed: %v", i, err)
 		}
@@ -511,7 +511,7 @@ func TestTheHourlyCeilingRollsOff(t *testing.T) {
 	}
 	ctx := context.Background()
 
-	for i := 0; i < coldPerHour; i++ {
+	for i := range coldPerHour {
 		if err := e.spend(ctx, fmt.Sprintf("house-%d", i)); err != nil {
 			t.Fatal(err)
 		}
@@ -534,7 +534,7 @@ func TestTheDailyCeilingHoldsWhenTheHoursRollOff(t *testing.T) {
 	ctx := context.Background()
 
 	// Spread over the day so the hourly window never bites.
-	for i := 0; i < coldPerDay; i++ {
+	for i := range coldPerDay {
 		if _, err := db.Exec(`INSERT INTO assessments (key, started_at) VALUES (?,?)`,
 			fmt.Sprintf("h%d", i), time.Now().Add(-time.Duration(i+2)*time.Minute*50).Unix()); err != nil {
 			t.Fatal(err)
@@ -555,7 +555,7 @@ func TestACachedAddressCostsNothingAgainstTheCeiling(t *testing.T) {
 		t.Fatal(err)
 	}
 	ctx := context.Background()
-	for i := 0; i < coldPerHour; i++ {
+	for i := range coldPerHour {
 		if err := e.spend(ctx, fmt.Sprintf("house-%d", i)); err != nil {
 			t.Fatal(err)
 		}
@@ -581,7 +581,7 @@ func TestTheCeilingSurvivesARestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	ctx := context.Background()
-	for i := 0; i < coldPerHour; i++ {
+	for i := range coldPerHour {
 		if err := e.spend(ctx, fmt.Sprintf("house-%d", i)); err != nil {
 			t.Fatal(err)
 		}
@@ -844,7 +844,7 @@ func TestCostTableAddsUp(t *testing.T) {
 			want++
 		}
 	}
-	for _, line := range strings.Split(strings.TrimSpace(table), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(table), "\n") {
 		if line == "" {
 			continue
 		}

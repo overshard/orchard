@@ -14,7 +14,7 @@ import (
 func TestArchiveLimitStopsAMirror(t *testing.T) {
 	th := newThrottle(archiveLimit)
 	now := time.Now()
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		if ok, _ := th.allow("1.2.3.4", now); !ok {
 			t.Fatalf("archive %d was refused inside the burst", i+1)
 		}
@@ -28,7 +28,7 @@ func TestArchiveLimitStopsAMirror(t *testing.T) {
 	}
 
 	// An hour later the allowance is back, and not more than the burst.
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		if ok, _ := th.allow("1.2.3.4", now.Add(time.Hour)); !ok {
 			t.Fatalf("archive %d after an hour was refused", i+1)
 		}
@@ -42,7 +42,7 @@ func TestArchiveLimitStopsAMirror(t *testing.T) {
 func TestThrottleIsPerAddress(t *testing.T) {
 	th := newThrottle(archiveLimit)
 	now := time.Now()
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		th.allow("185.213.175.37", now)
 	}
 	if ok, _ := th.allow("203.0.113.7", now); !ok {
@@ -55,7 +55,7 @@ func TestThrottleIsPerAddress(t *testing.T) {
 func TestPageLimitLeavesAReaderAlone(t *testing.T) {
 	th := newThrottle(pageLimit)
 	now := time.Now()
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		if ok, _ := th.allow("1.2.3.4", now.Add(time.Duration(i)*3*time.Second)); !ok {
 			t.Fatalf("a reader was refused on click %d", i+1)
 		}
@@ -65,7 +65,7 @@ func TestPageLimitLeavesAReaderAlone(t *testing.T) {
 	fast := newThrottle(pageLimit)
 	start := time.Now()
 	allowed := 0
-	for i := 0; i < 200; i++ {
+	for range 200 {
 		if ok, _ := fast.allow("9.9.9.9", start); ok {
 			allowed++
 		}
@@ -86,7 +86,7 @@ func TestSignedInSkipsTheLimit(t *testing.T) {
 	hit := 0
 	h := s.limited(th, func(w http.ResponseWriter, r *http.Request) { hit++ })
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		r := httptest.NewRequest(http.MethodGet, "/orchard/archive/main.tar.gz", nil)
 		r.AddCookie(&http.Cookie{Name: web.SessionCookie, Value: "a-live-session"})
 		w := httptest.NewRecorder()
@@ -111,7 +111,7 @@ func TestAMadeUpSessionStillCounts(t *testing.T) {
 	h := s.limited(th, func(w http.ResponseWriter, r *http.Request) {})
 
 	var last *httptest.ResponseRecorder
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		r := httptest.NewRequest(http.MethodGet, "/orchard/archive/main.tar.gz", nil)
 		r.AddCookie(&http.Cookie{Name: web.SessionCookie, Value: "x"})
 		last = httptest.NewRecorder()
@@ -130,7 +130,7 @@ func TestRefusalIsUncacheableAndSaysWhen(t *testing.T) {
 	h := s.limited(th, func(w http.ResponseWriter, r *http.Request) {})
 
 	var last *httptest.ResponseRecorder
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		r := httptest.NewRequest(http.MethodGet, "/orchard/archive/main.tar.gz", nil)
 		r.Header.Set("CF-Connecting-IP", "185.213.175.37")
 		last = httptest.NewRecorder()

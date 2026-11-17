@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -532,13 +533,7 @@ func checkNofollowInternalLinks(ctx *checkCtx) []Insight {
 			if !sameSite(link.URL, ctx.host) {
 				continue
 			}
-			nofollow := false
-			for _, rel := range link.Rel {
-				if rel == "nofollow" {
-					nofollow = true
-					break
-				}
-			}
+			nofollow := slices.Contains(link.Rel, "nofollow")
 			if !nofollow {
 				continue
 			}

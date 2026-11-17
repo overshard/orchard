@@ -138,7 +138,7 @@ func TestTruncatesAtTheFileCeiling(t *testing.T) {
 // carefully, and a file after the question got answered as if it were one.
 func TestComposeEndsOnTheMessage(t *testing.T) {
 	got := composeTurn("what is wrong with this", []filePart{
-		{Attachment: Attachment{Name: "a.go", Kind: "go", Size: 12}, Text: "package main"},
+		{Name: "a.go", Kind: "go", Size: 12, Text: "package main"},
 	})
 	if !strings.HasSuffix(got, "what is wrong with this") {
 		t.Errorf("does not end on the message:\n%s", got)
@@ -155,7 +155,7 @@ func TestComposeEndsOnTheMessage(t *testing.T) {
 // model is handed a wall of text and no question.
 func TestComposeSuppliesAMessageWhenThereIsNone(t *testing.T) {
 	got := composeTurn("", []filePart{
-		{Attachment: Attachment{Name: "a.txt", Kind: "txt", Size: 3}, Text: "abc"},
+		{Name: "a.txt", Kind: "txt", Size: 3, Text: "abc"},
 	})
 	if !strings.Contains(got, "say what they are") {
 		t.Errorf("no default instruction:\n%s", got)
@@ -164,7 +164,7 @@ func TestComposeSuppliesAMessageWhenThereIsNone(t *testing.T) {
 
 func TestComposeNamesAFileItCouldNotRead(t *testing.T) {
 	got := composeTurn("read this", []filePart{
-		{Attachment: Attachment{Name: "shot.png", Kind: "png", Size: 900, Err: "reads text only"}},
+		{Name: "shot.png", Kind: "png", Size: 900, Err: "reads text only"},
 	})
 	if !strings.Contains(got, "shot.png") || !strings.Contains(got, "not readable") {
 		t.Errorf("the unreadable file was not reported:\n%s", got)
@@ -181,7 +181,7 @@ func TestComposeLeavesAPlainTurnAlone(t *testing.T) {
 // conversation ends up named after line one of a csv.
 func TestTitleSeedFallsBackToTheNames(t *testing.T) {
 	seed := titleSeed("", []filePart{
-		{Attachment: Attachment{Name: "budget.csv"}, Text: "date,amount\n2026-01-01,12"},
+		{Name: "budget.csv", Text: "date,amount\n2026-01-01,12"},
 	})
 	if !strings.Contains(seed, "budget.csv") {
 		t.Errorf("seed = %q", seed)

@@ -28,10 +28,7 @@ func GeneratePDFs(lib *Library, root, fontPath, outDir string) error {
 
 	posts := lib.All()
 	// Typst is single threaded per compile, and these are independent.
-	workers := runtime.NumCPU()
-	if workers > len(posts) {
-		workers = len(posts)
-	}
+	workers := min(runtime.NumCPU(), len(posts))
 
 	var (
 		wg    sync.WaitGroup
@@ -41,9 +38,7 @@ func GeneratePDFs(lib *Library, root, fontPath, outDir string) error {
 	)
 
 	for i := 0; i < workers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for post := range queue {
 				out := filepath.Join(outDir, post.Slug+".pdf")
 				if err := compilePDF(typstSource(post), root, fontPath, out); err != nil {
@@ -54,7 +49,7 @@ func GeneratePDFs(lib *Library, root, fontPath, outDir string) error {
 				}
 				slog.Info("pdf", slog.Any("slug", post.Slug))
 			}
-		}()
+		})
 	}
 	for _, post := range posts {
 		queue <- post

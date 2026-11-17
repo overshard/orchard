@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -336,7 +337,7 @@ func tokenSet(s string) map[string]bool {
 // which page it came from.
 func distinctive(sentence string) map[string]bool {
 	out := map[string]bool{}
-	for _, f := range strings.Fields(strings.ReplaceAll(sentence, ",", "")) {
+	for f := range strings.FieldsSeq(strings.ReplaceAll(sentence, ",", "")) {
 		clean := strings.Trim(f, `.,;:!?"'()[]*_`)
 		low := strings.ToLower(strings.Join(wordRun.FindAllString(strings.ToLower(clean), -1), ""))
 		if low == "" || stopword[low] {
@@ -534,8 +535,8 @@ var (
 func dropSourceList(text string) string {
 	lines := strings.Split(text, "\n")
 	plain, any := len(lines), len(lines)
-	for i := len(lines) - 1; i >= 0; i-- {
-		t := strings.TrimSpace(lines[i])
+	for i, line := range slices.Backward(lines) {
+		t := strings.TrimSpace(line)
 		if t == "" {
 			continue
 		}

@@ -70,7 +70,7 @@ func TestSearchHistoryStems(t *testing.T) {
 func TestSearchHistoryReturnsOneHitPerConversation(t *testing.T) {
 	s := searchStore(t)
 	id, _ := s.NewConversation("Rifles again")
-	for i := 0; i < 6; i++ {
+	for range 6 {
 		_ = s.Append(id, Message{Role: "user", Content: "more about rifles and rifles"})
 		_ = s.Append(id, Message{Role: "assistant", Content: "still about rifles"})
 	}

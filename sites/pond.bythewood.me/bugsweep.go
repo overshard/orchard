@@ -188,7 +188,7 @@ func (r bugRow) settled(now time.Time) bugRow {
 
 func (r bugRow) pads() []int {
 	var out []int
-	for _, t := range strings.Fields(r.taps) {
+	for t := range strings.FieldsSeq(r.taps) {
 		if n, err := strconv.Atoi(t); err == nil {
 			out = append(out, n)
 		}

@@ -143,7 +143,7 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 	// dropped.
 	var out map[string]marketAnswer
 	ask := user
-	for try := 0; try < 2; try++ {
+	for try := range 2 {
 		out = nil
 		if err := b.model.Structured(ctx, system, ask, marketSchema(lines), 1500, &out); err != nil {
 			return Brief{}, err

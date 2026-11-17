@@ -35,7 +35,7 @@ func TestHubDoesNotBlockOnATabThatStoppedReading(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		for i := 0; i < hubBuffer*4; i++ {
+		for range hubBuffer * 4 {
 			h.Publish(HubEvent{Kind: "finished", ConvID: "c1"})
 		}
 		close(done)

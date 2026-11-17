@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"maps"
 	"slices"
 	"time"
 )
@@ -249,9 +250,7 @@ func aimViews(had []string, day, game string) []aimView {
 // off the page's word.
 func fishCounts(counts map[string]int, catch []caught) map[string]int {
 	out := map[string]int{}
-	for k, n := range counts {
-		out[k] = n
-	}
+	maps.Copy(out, counts)
 	out["landed"], out["kinds"] = 0, len(catch)
 	for _, c := range catch {
 		out["landed"] += c.N

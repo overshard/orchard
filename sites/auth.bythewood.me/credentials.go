@@ -63,11 +63,11 @@ const (
 // newRecoveryCode returns something like "k7pq-hm3n-wxbf".
 func newRecoveryCode() (string, error) {
 	var b strings.Builder
-	for g := 0; g < recoveryGroups; g++ {
+	for g := range recoveryGroups {
 		if g > 0 {
 			b.WriteByte('-')
 		}
-		for i := 0; i < recoveryPerRun; i++ {
+		for range recoveryPerRun {
 			n, err := rand.Int(rand.Reader, big.NewInt(int64(len(recoveryAlphabet))))
 			if err != nil {
 				return "", err
@@ -83,7 +83,7 @@ func newRecoveryCode() (string, error) {
 // applied set would leave the account with no break-glass at all.
 func regenerateRecoveryCodes(db *sql.DB) ([]string, error) {
 	codes := make([]string, 0, recoveryCount)
-	for i := 0; i < recoveryCount; i++ {
+	for range recoveryCount {
 		code, err := newRecoveryCode()
 		if err != nil {
 			return nil, err

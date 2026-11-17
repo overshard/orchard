@@ -255,7 +255,7 @@ func TestOnlyOneCodeIsOutstandingAtATime(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		rec := httptest.NewRecorder()
 		s.handler().ServeHTTP(rec, postForm("/login", url.Values{"username": {seedUsername}}))
 	}
@@ -272,7 +272,7 @@ func TestSendCeilingIgnoresTheSourceAddress(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for i := 0; i < sendCeiling+3; i++ {
+	for i := range sendCeiling + 3 {
 		// A fresh address every time, and each code consumed so the
 		// one-outstanding rule is not what stops it.
 		req := postForm("/login", url.Values{"username": {seedUsername}})
@@ -304,7 +304,7 @@ func TestWrongCodesAreBurnedAfterFiveTries(t *testing.T) {
 	if real == wrong {
 		wrong = "111111"
 	}
-	for i := 0; i < maxAttempts; i++ {
+	for range maxAttempts {
 		req := postForm("/code", url.Values{"code": {wrong}})
 		req.AddCookie(pending)
 		rec = httptest.NewRecorder()
@@ -506,10 +506,8 @@ func TestConcurrentGuessesCannotExceedTheAttemptLimit(t *testing.T) {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	checked := 0
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 10 {
+		wg.Go(func() {
 			req := postForm("/code", url.Values{"code": {wrong}})
 			req.AddCookie(pending)
 			if errors.Is(finishLogin(s.db, req, wrong), errBadCode) {
@@ -517,7 +515,7 @@ func TestConcurrentGuessesCannotExceedTheAttemptLimit(t *testing.T) {
 				checked++
 				mu.Unlock()
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	if checked > maxAttempts {
@@ -530,7 +528,7 @@ func TestTooManyWrongCodesLockCodesForADay(t *testing.T) {
 	if err := runInit(s.db); err != nil {
 		t.Fatal(err)
 	}
-	for i := 0; i < dailyFailures; i++ {
+	for range dailyFailures {
 		if _, err := s.db.Exec(`INSERT INTO failures (ts) VALUES (?)`, time.Now().Unix()); err != nil {
 			t.Fatal(err)
 		}

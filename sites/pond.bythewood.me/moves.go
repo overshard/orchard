@@ -420,7 +420,7 @@ func (s *store) diveFinish(id int64, run string, score, gates int) (*dived, erro
 		}
 		took := now.Sub(time.Unix(p.DiveStart, 0))
 		var ghosts []int
-		for _, f := range strings.Split(p.DiveGhosts, ",") {
+		for f := range strings.SplitSeq(p.DiveGhosts, ",") {
 			if c, err := strconv.Atoi(f); err == nil {
 				ghosts = append(ghosts, c)
 			}

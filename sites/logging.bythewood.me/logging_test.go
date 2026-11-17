@@ -327,7 +327,7 @@ func TestHealthChecksAreRollupOnly(t *testing.T) {
 	base := time.Now().UTC().Add(-time.Minute).UnixMilli()
 
 	probes := make([]row, 0, 20)
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		probes = append(probes, toRow("blog", web.Record{
 			Time: base, Level: "INFO", Msg: "request",
 			Attrs: map[string]any{
@@ -742,9 +742,9 @@ func TestSweepReclaimsDiskSpace(t *testing.T) {
 
 	old := time.Now().Add(-rawRetention - 48*time.Hour).UnixMilli()
 	w := &Writer{db: db}
-	for b := 0; b < 40; b++ {
+	for range 40 {
 		batch := make([]row, 0, writeBatch)
-		for i := 0; i < writeBatch; i++ {
+		for range writeBatch {
 			batch = append(batch, row{
 				source: "blog", ts: old, level: "INFO", msg: "request",
 				path: "/some/reasonably/long/path/for/bulk", status: 200,
@@ -888,7 +888,7 @@ func TestMarkdownReportEscapesLogText(t *testing.T) {
 	db := testDB(t)
 	base := time.Now().UTC().Add(-time.Minute).UnixMilli()
 	rows := make([]row, 0, minPathSamples)
-	for i := 0; i < minPathSamples; i++ {
+	for range minPathSamples {
 		rows = append(rows, row{
 			source: "blog", ts: base, level: "ERROR", msg: "request",
 			path: payload, status: 500, durationMS: 9,
@@ -915,7 +915,7 @@ func TestMarkdownReportEscapesLogText(t *testing.T) {
 
 	// A newline plus a pipe invents a table row carrying numbers the operator
 	// will read as real, so no rendered line may begin a cell the payload wrote.
-	for _, line := range strings.Split(body, "\n") {
+	for line := range strings.SplitSeq(body, "\n") {
 		if strings.HasPrefix(strings.TrimSpace(line), "| INJECTED") {
 			t.Errorf("the payload forged a table row:\n%s", line)
 		}

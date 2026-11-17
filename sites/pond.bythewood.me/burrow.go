@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -42,7 +43,7 @@ func loadBurrows(q querier, id int64) (burrows, error) {
 	var list string
 	err := q.QueryRow(`SELECT burrow_level, burrow_at, lodgers, rent_day FROM ponds WHERE id = ?`, id).
 		Scan(&b.level, &b.at, &list, &b.rentDay)
-	for _, s := range strings.Split(list, ",") {
+	for s := range strings.SplitSeq(list, ",") {
 		if n, e := strconv.Atoi(s); e == nil && n >= 0 && n < len(residents) {
 			b.lodgers = append(b.lodgers, n)
 		}
@@ -61,12 +62,7 @@ func (b burrows) save(tx *sql.Tx, id int64) error {
 }
 
 func (b burrows) lodging(who int) bool {
-	for _, n := range b.lodgers {
-		if n == who {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(b.lodgers, who)
 }
 
 // held is the rent waiting and when the clock was last emptied, like the

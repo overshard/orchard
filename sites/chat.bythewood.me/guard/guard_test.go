@@ -36,7 +36,7 @@ func TestTakePacesWithoutCounting(t *testing.T) {
 func TestJitterStaysInsideAFifth(t *testing.T) {
 	p := Policy{Gap: 100 * time.Millisecond, Jitter: true}
 	s := State{LastCall: t0}
-	for i := 0; i < 200; i++ {
+	for range 200 {
 		if w := pace(p, s, t0); w < p.Gap || w > p.Gap+p.Gap/5 {
 			t.Fatalf("paced %s, want 100ms to 120ms", w)
 		}
@@ -66,7 +66,7 @@ func TestUnknownKeyIsRefused(t *testing.T) {
 
 func TestFailuresTripAfterTheStreak(t *testing.T) {
 	g, _ := one(Policy{TripAfter: 3, OpenFor: time.Minute, MaxOpen: time.Hour})
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		if d := g.Fail("k", t0, Failure{Kind: Failed}); d != 0 {
 			t.Fatalf("failure %d opened the breaker for %s", i+1, d)
 		}
@@ -83,7 +83,7 @@ func TestFailuresTripAfterTheStreak(t *testing.T) {
 
 func TestNotedNeverTripsByItself(t *testing.T) {
 	g, m := one(Policy{TripAfter: 2, OpenFor: time.Minute})
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		if d := g.Fail("k", t0, Failure{Kind: Noted, Why: "HTTP 404"}); d != 0 {
 			t.Fatalf("a noted failure opened the breaker")
 		}
@@ -99,7 +99,7 @@ func TestNotedNeverTripsByItself(t *testing.T) {
 func TestRefusalsDoubleUpToTheCeiling(t *testing.T) {
 	g, _ := one(Policy{OpenFor: time.Minute, MaxOpen: 5 * time.Minute})
 	var got []time.Duration
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		got = append(got, g.Fail("k", t0, Failure{Kind: Refused}))
 	}
 	want := []time.Duration{time.Minute, 2 * time.Minute, 4 * time.Minute, 5 * time.Minute, 5 * time.Minute}
@@ -116,7 +116,7 @@ func TestRefusalsDoubleUpToTheCeiling(t *testing.T) {
 
 func TestAZeroCeilingIsFlat(t *testing.T) {
 	g, _ := one(Policy{OpenFor: 6 * time.Hour, FailOpenFor: 5 * time.Minute, TripAfter: 1})
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		if d := g.Fail("k", t0, Failure{Kind: Refused}); d != 6*time.Hour {
 			t.Errorf("refusal %d opened for %s, want 6h", i+1, d)
 		}

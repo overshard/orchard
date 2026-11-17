@@ -1,6 +1,7 @@
 package main
 
 import (
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -97,7 +98,7 @@ func TestCheckLineDropsTellsAndOddBodies(t *testing.T) {
 }
 
 func TestFolkOfFillsAndReacts(t *testing.T) {
-	for d := 0; d < 30; d++ {
+	for d := range 30 {
 		now := time.Date(2026, 11, 1, 9, 0, 0, 0, pondZone).AddDate(0, 0, d).Add(time.Duration(d) * 3 * time.Hour)
 		for i := range residents {
 			for _, mood := range []string{moodPlain, moodRain, moodGloom2} {
@@ -130,10 +131,5 @@ func TestInPaper(t *testing.T) {
 }
 
 func contains(ls []string, s string) bool {
-	for _, l := range ls {
-		if l == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(ls, s)
 }

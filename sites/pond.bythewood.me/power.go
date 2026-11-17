@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"slices"
 	"sort"
@@ -424,9 +425,7 @@ var refFloor = map[string]int{
 // gameRefs reads the references the hourly sweep kept.
 func gameRefs(q querier) (map[string]int, error) {
 	out := map[string]int{}
-	for k, f := range refFloor {
-		out[k] = f
-	}
+	maps.Copy(out, refFloor)
 	rows, err := q.Query(`SELECT game, best, ponds FROM refs`)
 	if err != nil {
 		return nil, err

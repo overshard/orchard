@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"math"
+	"strings"
 	"sync"
 	"time"
 )
@@ -68,7 +69,7 @@ func (r *Router) Route(ctx context.Context, pts ...point) (Leg, error) {
 		return Leg{}, fmt.Errorf("a route needs two points")
 	}
 
-	key := ""
+	var key strings.Builder
 	coords := ""
 	for i, p := range pts {
 		if p.lat == 0 && p.lon == 0 {
@@ -76,17 +77,17 @@ func (r *Router) Route(ctx context.Context, pts ...point) (Leg, error) {
 		}
 		if i > 0 {
 			coords += ";"
-			key += ";"
+			key.WriteString(";")
 		}
 		coords += fmt.Sprintf("%.6f,%.6f", p.lon, p.lat)
-		key += fmt.Sprintf("%.5f,%.5f", p.lat, p.lon)
+		key.WriteString(fmt.Sprintf("%.5f,%.5f", p.lat, p.lon))
 	}
 
 	var leg Leg
 	var seconds, meters float64
 	var geom sql.NullString
 	err := r.db.QueryRowContext(ctx,
-		`SELECT seconds, meters, geometry FROM routes WHERE key = ?`, key).Scan(&seconds, &meters, &geom)
+		`SELECT seconds, meters, geometry FROM routes WHERE key = ?`, key.String()).Scan(&seconds, &meters, &geom)
 	if err == nil {
 		return Leg{Minutes: seconds / 60, Miles: meters / 1609.344, Geometry: geom.String}, nil
 	}
@@ -106,7 +107,7 @@ func (r *Router) Route(ctx context.Context, pts ...point) (Leg, error) {
 	route := res.Routes[0]
 	if _, err := keep(ctx, r.db,
 		`INSERT OR REPLACE INTO routes (key, seconds, meters, geometry, fetched_at) VALUES (?,?,?,?,?)`,
-		key, route.Duration, route.Distance, route.Geometry, time.Now().Unix()); err != nil {
+		key.String(), route.Duration, route.Distance, route.Geometry, time.Now().Unix()); err != nil {
 		return leg, err
 	}
 
@@ -146,31 +147,23 @@ func (r *Router) Morning(ctx context.Context, home, work point, elem, middle, hi
 	var base, withElem, withMiddle, withHigh Leg
 	var baseErr, elemErr, middleErr error
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		base, baseErr = r.Route(ctx, home, work)
-	}()
+	})
 	if elem.lat != 0 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			withElem, elemErr = r.Route(ctx, home, elem, work)
-		}()
+		})
 	}
 	if middle.lat != 0 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			withMiddle, middleErr = r.Route(ctx, home, middle, work)
-		}()
+		})
 	}
 	if high.lat != 0 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			withHigh, _ = r.Route(ctx, home, high, work)
-		}()
+		})
 	}
 	wg.Wait()
 

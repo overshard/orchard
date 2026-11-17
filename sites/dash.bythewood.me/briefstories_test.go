@@ -147,7 +147,7 @@ func TestClusterIgnoresTheDaysCommonWords(t *testing.T) {
 		st("HILL", "C", "Watchdog: Trump administration illegally withheld federal research funds", 30),
 		st("FOX", "R", "DNC lawsuit accuses Trump administration of diverting $20M in federal funds for propaganda ads", 20),
 	}
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		all = append(all, st("AP", "C", fmt.Sprintf("Trump administration federal funds story number %d", i), 40+i))
 	}
 	for _, c := range clusterStories(all, 100) {

@@ -521,7 +521,7 @@ func looksSecret(s string) bool {
 	}
 	// A long unbroken run of key shaped characters is a credential whatever it
 	// is called, and no real sentence about a person contains one.
-	for _, field := range strings.Fields(s) {
+	for field := range strings.FieldsSeq(s) {
 		if len(field) >= 24 && !strings.ContainsAny(field, " .,;:!?") && looksRandom(field) {
 			return true
 		}

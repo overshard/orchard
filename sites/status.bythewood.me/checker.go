@@ -79,8 +79,6 @@ func atLeast1ms(d time.Duration) int64 {
 	return ms
 }
 
-func ptr(v int64) *int64 { return &v }
-
 // parseHTTPURL parses a URL and insists it is absolute and http(s). url.Parse
 // reads "example.com" as a relative path with no host and returns no error.
 func parseHTTPURL(raw string) (*url.URL, error) {
@@ -100,12 +98,10 @@ func parseHTTPURL(raw string) (*url.URL, error) {
 // looksLikeTLSError picks between 526 for a certificate problem and 408 for a
 // generic timeout. The text match catches what doesn't unwrap to a tls type.
 func looksLikeTLSError(err error) bool {
-	var certErr *tls.CertificateVerificationError
-	if errors.As(err, &certErr) {
+	if _, ok := errors.AsType[*tls.CertificateVerificationError](err); ok {
 		return true
 	}
-	var recordErr tls.RecordHeaderError
-	if errors.As(err, &recordErr) {
+	if _, ok := errors.AsType[tls.RecordHeaderError](err); ok {
 		return true
 	}
 	// A handshake that ran out of time is wrapped as "tls handshake: ...", so
@@ -392,10 +388,10 @@ func phasedHop(ctx context.Context, u *url.URL) (*hopResult, error) {
 		headers:     headers,
 		headersJSON: headersJSON,
 		timings: PhaseTimings{
-			DNSMS:   ptr(dnsMS),
-			TCPMS:   ptr(tcpMS),
-			TLSMS:   ptr(tlsMS),
-			TTFBMS:  ptr(ttfbMS),
+			DNSMS:   new(dnsMS),
+			TCPMS:   new(tcpMS),
+			TLSMS:   new(tlsMS),
+			TTFBMS:  new(ttfbMS),
 			TotalMS: time.Since(totalStart).Milliseconds(),
 		},
 	}, nil

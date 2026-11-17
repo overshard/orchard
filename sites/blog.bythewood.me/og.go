@@ -84,10 +84,7 @@ func GenerateOGCards(lib *Library, root, fontPath, outDir string) error {
 		jobs = append(jobs, job{name: post.Slug, source: ogTypstSource(post.Title, post.Tags)})
 	}
 
-	workers := runtime.NumCPU()
-	if workers > len(jobs) {
-		workers = len(jobs)
-	}
+	workers := min(runtime.NumCPU(), len(jobs))
 
 	var (
 		wg    sync.WaitGroup
@@ -97,9 +94,7 @@ func GenerateOGCards(lib *Library, root, fontPath, outDir string) error {
 	)
 
 	for i := 0; i < workers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for j := range queue {
 				out := filepath.Join(outDir, j.name+".png")
 				if err := compilePNG(j.source, root, fontPath, out); err != nil {
@@ -110,7 +105,7 @@ func GenerateOGCards(lib *Library, root, fontPath, outDir string) error {
 				}
 				slog.Info("og", slog.Any("name", j.name))
 			}
-		}()
+		})
 	}
 	for _, j := range jobs {
 		queue <- j

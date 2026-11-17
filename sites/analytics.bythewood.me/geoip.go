@@ -141,7 +141,7 @@ func EnsureGeoIPDB(dest string) (bool, error) {
 
 	now := time.Now().UTC()
 	var lastErr error
-	for offset := 0; offset < 3; offset++ {
+	for offset := range 3 {
 		target := now.AddDate(0, -offset, 0)
 		url := fmt.Sprintf("https://download.db-ip.com/free/dbip-city-lite-%d-%02d.mmdb.gz",
 			target.Year(), int(target.Month()))

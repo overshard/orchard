@@ -193,8 +193,7 @@ func TestCaddyLogSkipsOversizedLine(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	go s.serveCaddyLogs(ctx, ln)
 
 	conn, err := net.Dial("tcp", ln.Addr().String())
@@ -278,8 +277,7 @@ func TestCaddyCopyOfAShippingSiteIsRollupOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	go s.serveCaddyLogs(ctx, ln)
 
 	conn, err := net.Dial("tcp", ln.Addr().String())

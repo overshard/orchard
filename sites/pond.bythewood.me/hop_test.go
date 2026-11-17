@@ -18,7 +18,7 @@ func TestHopOnlyGoesToActivePonds(t *testing.T) {
 	s.w.Exec(`UPDATE ponds SET created_at = ?, played_at = ? WHERE id = ?`, now-30*86400, now-8*86400, stale)
 	*clock = clock.Add(2 * 3600e9)
 
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		code, err := s.hopTo(pub(mine), "")
 		if err != nil || code != pub(active) {
 			t.Fatalf("hopped to %q, %v, want only the active pond", code, err)

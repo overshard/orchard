@@ -74,7 +74,7 @@ func (s *Store) Grep(ctx context.Context, repo Repo, rev, query, pathspec string
 
 	prefix := rev + ":"
 	var hits []GrepHit
-	for _, line := range strings.Split(string(out), "\n") {
+	for line := range strings.SplitSeq(string(out), "\n") {
 		if line == "" {
 			continue
 		}
@@ -123,7 +123,7 @@ func (s *Store) FindPaths(ctx context.Context, repo Repo, rev, query string, lim
 
 	needle := strings.ToLower(strings.TrimSpace(query))
 	var found []string
-	for _, path := range strings.Split(string(out), "\x00") {
+	for path := range strings.SplitSeq(string(out), "\x00") {
 		if path == "" {
 			continue
 		}

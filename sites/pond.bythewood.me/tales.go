@@ -242,7 +242,7 @@ func gazetteWithPhoto(mood, day string) ([]string, int, bool) {
 	used := map[string]bool{}
 	add := func(pool []string, salt string) {
 		h := dayHash(day, salt)
-		for k := 0; k < len(pool); k++ {
+		for k := range pool {
 			l := pool[(h+uint32(k))%uint32(len(pool))]
 			if !used[l] {
 				used[l] = true

@@ -375,7 +375,7 @@ func eventsGraph(ctx context.Context, db *sql.DB, propertyID uuid.UUID, startMS,
 	// newest one ends on endDate instead of running past it into days to come.
 	bucketSum := func(end time.Time, days int) int64 {
 		var sum int64
-		for j := 0; j < days; j++ {
+		for j := range days {
 			sum += byDay[key(end.AddDate(0, 0, -j))]
 		}
 		return sum
@@ -389,19 +389,19 @@ func eventsGraph(ctx context.Context, db *sql.DB, propertyID uuid.UUID, startMS,
 
 	switch {
 	case rangeDays <= 28:
-		for i := int64(0); i < rangeDays; i++ {
+		for i := range rangeDays {
 			d := endDate.AddDate(0, 0, -int(i))
 			points = append(points, point{d, byDay[key(d)]})
 		}
 	case rangeDays <= 6*28:
 		weeks := rangeDays / 7
-		for w := int64(0); w < weeks; w++ {
+		for w := range weeks {
 			d := endDate.AddDate(0, 0, -int(7*w))
 			points = append(points, point{d, bucketSum(d, 7)})
 		}
 	default:
 		months := rangeDays / 28
-		for m := int64(0); m < months; m++ {
+		for m := range months {
 			d := endDate.AddDate(0, 0, -int(28*m))
 			points = append(points, point{d, bucketSum(d, 28)})
 		}

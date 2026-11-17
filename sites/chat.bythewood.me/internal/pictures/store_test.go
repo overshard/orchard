@@ -64,7 +64,7 @@ func TestAPictureIsKeptWithItsConversationAndDeletedWithIt(t *testing.T) {
 
 func TestTheShelfIsBounded(t *testing.T) {
 	s := newShelf()
-	for i := 0; i < shelfSize+5; i++ {
+	for i := range shelfSize + 5 {
 		s.Put(fmt.Sprint(i), onePixel, 1, 1)
 	}
 	if len(s.items) != shelfSize {

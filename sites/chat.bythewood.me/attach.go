@@ -58,7 +58,7 @@ func readFiles(headers []*multipart.FileHeader) []filePart {
 	out := make([]filePart, 0, len(headers))
 	budget := maxTotalChars
 	for _, h := range headers {
-		p := filePart{Attachment: Attachment{Name: filepath.Base(h.Filename), Size: h.Size}}
+		p := filePart{Name: filepath.Base(h.Filename), Size: h.Size}
 		switch {
 		case h.Size > maxFileBytes:
 			p.Kind, p.Err = "skipped", fmt.Sprintf("larger than %s", humanSize(maxFileBytes))
@@ -172,8 +172,7 @@ func popplerText(raw []byte) (string, error) {
 		}
 		// poppler's exit codes are specific and its stderr wording is not, so
 		// the code decides and the text only ever adds detail.
-		var ee *exec.ExitError
-		if errors.As(err, &ee) {
+		if ee, ok := errors.AsType[*exec.ExitError](err); ok {
 			switch ee.ExitCode() {
 			case 1:
 				return "", fmt.Errorf("this pdf could not be opened, it may be damaged")
@@ -343,8 +342,8 @@ func titleSeed(message string, parts []filePart) string {
 }
 
 func firstLine(s string) string {
-	if i := strings.IndexByte(s, '\n'); i >= 0 {
-		return s[:i]
+	if before, _, ok := strings.Cut(s, "\n"); ok {
+		return before
 	}
 	return s
 }

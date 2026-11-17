@@ -85,8 +85,8 @@ func unsupported(line, source string) []string {
 func capitalised(line string) []string {
 	var out []string
 	start := true
-	for _, f := range strings.Fields(line) {
-		for _, part := range strings.Split(f, "-") {
+	for f := range strings.FieldsSeq(line) {
+		for part := range strings.SplitSeq(f, "-") {
 			w := strings.TrimFunc(part, func(r rune) bool { return !unicode.IsLetter(r) && r != '.' })
 			w = strings.TrimSuffix(strings.TrimSuffix(w, "'s"), "’s")
 			w = strings.TrimSuffix(w, ".")

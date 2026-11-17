@@ -69,15 +69,15 @@ func splitStatements(s string) []string {
 // assignment splits `name = expression`. A bare expression comes back with no
 // name, and its value is still available as the answer if it is the last one.
 func assignment(st string) (name, expr string) {
-	i := strings.Index(st, "=")
-	if i < 0 {
+	before, after, ok := strings.Cut(st, "=")
+	if !ok {
 		return "", st
 	}
-	n := strings.TrimSpace(st[:i])
+	n := strings.TrimSpace(before)
 	if n == "" || !isName(n) {
 		return "", st
 	}
-	return n, strings.TrimSpace(st[i+1:])
+	return n, strings.TrimSpace(after)
 }
 
 func isName(s string) bool {

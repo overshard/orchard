@@ -233,7 +233,7 @@ func loadRobots(ctx context.Context, client *http.Client, origin string) (*Robot
 
 	out.Exists = true
 	out.Raw = string(result.Body)
-	for _, line := range strings.Split(out.Raw, "\n") {
+	for line := range strings.SplitSeq(out.Raw, "\n") {
 		if strings.HasPrefix(strings.ToLower(strings.TrimSpace(line)), "sitemap:") {
 			out.ReferencesSitemap = true
 			break
@@ -282,7 +282,7 @@ var locPattern = regexp.MustCompile(`(?is)<loc>\s*([^<]+?)\s*</loc>`)
 // follows index documents too, capped at twenty against a self-referring one.
 func loadSitemap(ctx context.Context, client *http.Client, origin, robotsText string) []string {
 	var queue []string
-	for _, line := range strings.Split(robotsText, "\n") {
+	for line := range strings.SplitSeq(robotsText, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if len(trimmed) < 8 || !strings.EqualFold(trimmed[:8], "sitemap:") {
 			continue

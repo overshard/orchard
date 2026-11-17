@@ -31,7 +31,7 @@ func TestHandLinesCarryNoNumbers(t *testing.T) {
 }
 
 func TestGossipIsNeverAboutItself(t *testing.T) {
-	for d := 0; d < 60; d++ {
+	for d := range 60 {
 		day := time.Date(2026, 11, 1, 12, 0, 0, 0, pondZone).AddDate(0, 0, d).Format("2006-01-02")
 		for i, r := range residents {
 			g := gossipOf(i, day)
@@ -47,7 +47,7 @@ func TestGossipIsNeverAboutItself(t *testing.T) {
 
 func TestGazetteHasThreeDifferentHeadlines(t *testing.T) {
 	for _, mood := range []string{moodPlain, moodRain, moodGloom2, moodSombre, moodFrost} {
-		for d := 0; d < 30; d++ {
+		for d := range 30 {
 			day := time.Date(2026, 11, 1, 12, 0, 0, 0, pondZone).AddDate(0, 0, d).Format("2006-01-02")
 			g := gazetteOf(mood, day)
 			if len(g) != 3 || g[0] == g[1] || g[1] == g[2] || g[0] == g[2] {
@@ -63,13 +63,13 @@ func TestGazetteHasThreeDifferentHeadlines(t *testing.T) {
 }
 
 func TestMarketHeadline(t *testing.T) {
-	quiet := marketHeadline([]firmView{{asset: asset{Name: "Ribbit Labs"}, Price: 100, Prev: 100}}, "2026-11-10")
+	quiet := marketHeadline([]firmView{{Name: "Ribbit Labs", Price: 100, Prev: 100}}, "2026-11-10")
 	if !strings.Contains(quiet, "quiet") {
 		t.Errorf("flat board: %q", quiet)
 	}
 	firms := []firmView{
-		{asset: asset{Name: "Ribbit Labs"}, Price: 101, Prev: 100},
-		{asset: asset{Name: "Bog Oil & Peat"}, Price: 90, Prev: 100},
+		{Name: "Ribbit Labs", Price: 101, Prev: 100},
+		{Name: "Bog Oil & Peat", Price: 90, Prev: 100},
 	}
 	h := marketHeadline(firms, "2026-11-10")
 	if !strings.Contains(h, "Bog Oil & Peat") || strings.ContainsAny(h, "0123456789%") {

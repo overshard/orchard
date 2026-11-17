@@ -496,8 +496,8 @@ func (n *nightly) path(day string) string { return filepath.Join(n.dir, "tales-"
 func loadTales(dir string) {
 	files, _ := filepath.Glob(filepath.Join(dir, "tales-2*.json"))
 	sort.Strings(files)
-	for i := len(files) - 1; i >= 0; i-- {
-		raw, err := os.ReadFile(files[i])
+	for _, file := range slices.Backward(files) {
+		raw, err := os.ReadFile(file)
 		if err != nil {
 			continue
 		}

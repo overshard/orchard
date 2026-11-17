@@ -1010,10 +1010,10 @@ func TestNaturalTime(t *testing.T) {
 		want string
 	}{
 		{nil, "never"},
-		{ptrTime(now.Add(-30 * time.Second)), "just now"},
-		{ptrTime(now.Add(-2 * time.Minute)), "2 minutes ago"},
-		{ptrTime(now.Add(-1 * time.Hour)), "1 hour ago"},
-		{ptrTime(now.Add(48 * time.Hour)), "2 days from now"},
+		{new(now.Add(-30 * time.Second)), "just now"},
+		{new(now.Add(-2 * time.Minute)), "2 minutes ago"},
+		{new(now.Add(-1 * time.Hour)), "1 hour ago"},
+		{new(now.Add(48 * time.Hour)), "2 days from now"},
 	}
 	for _, c := range cases {
 		if got := naturalTime(c.in); got != c.want {
@@ -1021,8 +1021,6 @@ func TestNaturalTime(t *testing.T) {
 		}
 	}
 }
-
-func ptrTime(t time.Time) *time.Time { return &t }
 
 func TestIntcomma(t *testing.T) {
 	cases := map[int64]string{

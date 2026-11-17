@@ -7,6 +7,7 @@ import (
 	"math"
 	"net/http"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -176,8 +177,8 @@ func (s *site) buildPropertyView(ctx context.Context, p *Property) (*PropertyVie
 
 	// Oldest first, so the bar reads left to right like the charts above it.
 	ticks := make([]string, 0, len(recent))
-	for i := len(recent) - 1; i >= 0; i-- {
-		if recent[i].StatusCode == 200 {
+	for _, r := range slices.Backward(recent) {
+		if r.StatusCode == 200 {
 			ticks = append(ticks, "up")
 		} else {
 			ticks = append(ticks, "down")
@@ -370,8 +371,8 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 		slog.Info("dashboard charts", slog.Any("id", id), slog.Any("err", err))
 	}
 	// Oldest first, so the time axis reads left to right.
-	for i := len(recent) - 1; i >= 0; i-- {
-		c := recent[i]
+	for _, c := range slices.Backward(recent) {
+
 		data.ResponseTimes = append(data.ResponseTimes, ResponseTimePoint{
 			Label: time.UnixMilli(c.CreatedAt).UTC().Format(time.RFC3339),
 			Total: c.ResponseMS,

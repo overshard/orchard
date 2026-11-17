@@ -223,7 +223,7 @@ func TestEnqueueDropsRatherThanBlocking(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		for i := 0; i < 100; i++ {
+		for range 100 {
 			s.enqueue(Record{Msg: "x"})
 		}
 		close(done)
@@ -252,7 +252,7 @@ func TestLoggingAfterCloseDoesNotPanic(t *testing.T) {
 	slog.Info("logged during shutdown")
 	// And a queue's worth more, to reach the point a closed channel would
 	// have been written to instead of just selected on.
-	for i := 0; i < shipQueue+10; i++ {
+	for range shipQueue + 10 {
 		slog.Info("more")
 	}
 }
@@ -268,7 +268,7 @@ func TestCloseIsBoundedWhenTheSinkHangs(t *testing.T) {
 	}
 	_, shipper := withShipper(t, "blog", wedged)
 
-	for i := 0; i < shipBatch*3; i++ {
+	for range shipBatch * 3 {
 		slog.Info("burst")
 	}
 
@@ -287,7 +287,7 @@ func TestCloseFlushesPendingRecords(t *testing.T) {
 	c := &collector{}
 	_, shipper := withShipper(t, "blog", c.sink)
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		slog.Info("pending")
 	}
 	shipper.Close()
@@ -303,7 +303,7 @@ func TestFlushesAtBatchSize(t *testing.T) {
 	c := &collector{}
 	_, shipper := withShipper(t, "blog", c.sink)
 
-	for i := 0; i < shipBatch+5; i++ {
+	for range shipBatch + 5 {
 		slog.Info("burst")
 	}
 	shipper.Close()

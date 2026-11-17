@@ -70,7 +70,7 @@ func ParseUntil(s string, now time.Time) (time.Time, bool) {
 		}
 	}
 	if !dated {
-		for i := 0; i < 7; i++ {
+		for i := range 7 {
 			wd := time.Weekday(i)
 			name := strings.ToLower(wd.String())
 			if strings.Contains(s, name) || strings.Contains(s, name[:3]+" ") || strings.HasSuffix(s, name[:3]) {

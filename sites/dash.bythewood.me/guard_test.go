@@ -14,7 +14,7 @@ func TestGuardSpendsItsBudgetAndThenRefuses(t *testing.T) {
 
 	// yahoo is paced, so the pace has to be stepped over to reach the budget.
 	budget := budgets["uptime"].perHour
-	for i := 0; i < budget; i++ {
+	for i := range budget {
 		if err := g.Allow("uptime"); err != nil {
 			t.Fatalf("refused at call %d of %d: %v", i+1, budget, err)
 		}

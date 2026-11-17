@@ -80,7 +80,7 @@ func runSeed(ctx context.Context, db *sql.DB, count, days int) error {
 	batch := make([]row, 0, writeBatch)
 	written := 0
 
-	for i := 0; i < count; i++ {
+	for range count {
 		src := seedSources[0]
 		pick := rng.Intn(totalWeight)
 		for _, s := range seedSources {

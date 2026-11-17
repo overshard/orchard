@@ -25,7 +25,7 @@ func memStore(t *testing.T) *Store {
 
 func TestAFactIsStoredOnceHoweverOftenProposed(t *testing.T) {
 	s := memStore(t)
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		if _, err := s.Add("Isaac drinks his coffee black"); err != nil {
 			t.Fatal(err)
 		}

@@ -46,7 +46,7 @@ func TestALongFieldIsClippedAndSaysSo(t *testing.T) {
 // A turn that goes wrong must not write a megabyte of steps.
 func TestTheStepCountIsCapped(t *testing.T) {
 	tr := NewTrace(nil)
-	for i := 0; i < stepsMax+25; i++ {
+	for range stepsMax + 25 {
 		tr.Add(Step{Kind: "model", Label: "round"})
 	}
 	if n := len(tr.Steps()); n != stepsMax {

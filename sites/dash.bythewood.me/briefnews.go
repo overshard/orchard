@@ -189,7 +189,7 @@ func (b *Briefer) compileNews(ctx context.Context, slot briefSlot, at time.Time)
 	var out modelPoints
 	var bad map[int]string
 	ask := user
-	for try := 0; try < 2; try++ {
+	for try := range 2 {
 		out = modelPoints{}
 		if err := b.model.Structured(ctx, system, ask, newsSchema(), 2000, &out); err != nil {
 			return Brief{}, err

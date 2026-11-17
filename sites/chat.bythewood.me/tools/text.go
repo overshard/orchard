@@ -46,7 +46,7 @@ func Text(h string) string {
 	h = html.UnescapeString(h)
 	h = spaces.ReplaceAllString(h, " ")
 	var keep []string
-	for _, line := range strings.Split(h, "\n") {
+	for line := range strings.SplitSeq(h, "\n") {
 		if l := strings.TrimSpace(line); l != "" {
 			keep = append(keep, l)
 		}

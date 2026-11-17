@@ -185,7 +185,7 @@ func TestGuardSequenceIsPinned(t *testing.T) {
 
 	call(srv.URL)
 	row()
-	for i := 0; i < 6; i++ {
+	for range 6 {
 		pinRewind(t, g, 2*time.Second)
 		call(srv.URL)
 	}
@@ -213,7 +213,7 @@ func TestGuardSequenceIsPinned(t *testing.T) {
 	call(srv.URL)
 	row()
 	resting()
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		pinRewind(t, g, 2*time.Second)
 		call(dead)
 	}
@@ -299,7 +299,7 @@ func TestGuardBudgetIsPinned(t *testing.T) {
 		err := g.Get(t.Context(), srv.URL, nil)
 		got = append(got, pinNormal(fmt.Sprintf("%s %v", g.name, err)))
 	}
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		call(g)
 		pinRewind(t, g, 2*time.Second)
 	}
@@ -339,12 +339,12 @@ func TestGuardBudgetIsPinned(t *testing.T) {
 func TestGuardPaceIsPinned(t *testing.T) {
 	db := testDB(t)
 	var replies []pinReply
-	for i := 0; i < 6; i++ {
+	for range 6 {
 		replies = append(replies, pinReply{status: 200, body: "{}"})
 	}
 	srv, hits := pinUpstream(t, replies...)
 	g := NewGuard(db, "pin-pace", GuardOpts{MinInterval: 100 * time.Millisecond})
-	for i := 0; i < 6; i++ {
+	for range 6 {
 		if err := g.Get(t.Context(), srv.URL, nil); err != nil {
 			t.Fatal(err)
 		}

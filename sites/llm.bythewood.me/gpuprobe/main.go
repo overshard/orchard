@@ -59,7 +59,7 @@ func sample(ctx context.Context) (util, used, total int, err error) {
 func probe(ctx context.Context) (reading, error) {
 	var r reading
 	sum := 0
-	for i := 0; i < samples; i++ {
+	for i := range samples {
 		if i > 0 {
 			time.Sleep(gap)
 		}

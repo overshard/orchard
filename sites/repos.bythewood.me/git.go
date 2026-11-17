@@ -190,7 +190,7 @@ func (s *Store) refs(ctx context.Context, repo Repo, pattern string) ([]Ref, err
 	}
 
 	var refs []Ref
-	for _, line := range strings.Split(string(out), "\n") {
+	for line := range strings.SplitSeq(string(out), "\n") {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
@@ -374,17 +374,17 @@ func (s *Store) Tree(ctx context.Context, repo Repo, rev, path string) ([]TreeEn
 	}
 
 	var entries []TreeEntry
-	for _, rec := range strings.Split(string(out), "\x00") {
+	for rec := range strings.SplitSeq(string(out), "\x00") {
 		if rec == "" {
 			continue
 		}
 		// "<mode> SP <type> SP <sha> SP* <size> TAB <name>": the size is space
 		// padded and "-" for a tree, so split on the tab first, Fields second.
-		tab := strings.IndexByte(rec, '\t')
-		if tab < 0 {
+		before, after, ok := strings.Cut(rec, "\t")
+		if !ok {
 			continue
 		}
-		meta, name := strings.Fields(rec[:tab]), rec[tab+1:]
+		meta, name := strings.Fields(before), after
 		if len(meta) < 4 {
 			continue
 		}
@@ -479,7 +479,7 @@ func (s *Store) Size(ctx context.Context, repo Repo) int64 {
 		return 0
 	}
 	var total int64
-	for _, line := range strings.Split(string(out), "\n") {
+	for line := range strings.SplitSeq(string(out), "\n") {
 		k, v, ok := strings.Cut(line, ": ")
 		if !ok {
 			continue
@@ -556,7 +556,7 @@ func (s *Store) readOverview(ctx context.Context, repo Repo) Overview {
 	out, _ := run(ctx, repo, "for-each-ref",
 		"--format="+overviewFormat, "refs/heads/", "refs/tags/")
 
-	for _, line := range strings.Split(string(out), "\n") {
+	for line := range strings.SplitSeq(string(out), "\n") {
 		name, date, ok := strings.Cut(line, "\x00")
 		if !ok {
 			continue

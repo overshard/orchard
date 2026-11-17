@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/http"
 	"regexp"
 	"strings"
@@ -506,9 +507,7 @@ func (s *site) claudeStream(w http.ResponseWriter, r *http.Request, p anthropic.
 		if delta != nil {
 			chunk["choices"] = []map[string]any{{"index": 0, "delta": delta, "finish_reason": finish}}
 		}
-		for k, v := range extra {
-			chunk[k] = v
-		}
+		maps.Copy(chunk, extra)
 		fmt.Fprintf(w, "data: %s\n\n", mustJSON(chunk))
 		_ = rc.Flush()
 	}
@@ -594,8 +593,7 @@ func (s *site) claudeStream(w http.ResponseWriter, r *http.Request, p anthropic.
 // callers already read.
 func (s *site) claudeFailed(w http.ResponseWriter, err error, call *Call) {
 	status, msg := http.StatusBadGateway, err.Error()
-	var apiErr *anthropic.Error
-	if errors.As(err, &apiErr) {
+	if apiErr, ok := errors.AsType[*anthropic.Error](err); ok {
 		status = apiErr.StatusCode
 		var body struct {
 			Error struct {

@@ -81,7 +81,7 @@ func (s *Sweeper) sweep(ctx context.Context) {
 	// It's paced since a bare incremental_vacuum frees the whole freelist under
 	// the write lock, and the count is formatted in since a PRAGMA takes no parameter.
 	reclaimed := "reclaimed"
-	for i := 0; i < vacuumMaxSteps; i++ {
+	for range vacuumMaxSteps {
 		if _, err := s.db.ExecContext(ctx,
 			fmt.Sprintf("PRAGMA incremental_vacuum(%d)", vacuumPages)); err != nil {
 			reclaimed = fmt.Sprintf("incremental_vacuum failed: %v", err)
@@ -117,7 +117,7 @@ func (s *Sweeper) sweep(ctx context.Context) {
 // every build.
 func (s *Sweeper) deleteOlderThan(ctx context.Context, cutoff int64) (int64, error) {
 	var total int64
-	for i := 0; i < sweepMaxChunks; i++ {
+	for range sweepMaxChunks {
 		res, err := s.db.ExecContext(ctx, `
 			DELETE FROM records
 			WHERE id IN (SELECT id FROM records WHERE ts < ? ORDER BY id LIMIT ?)`,

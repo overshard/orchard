@@ -26,7 +26,7 @@ func clearBugs(t *testing.T, s *store, id int64, seed string, sting int) *bugTap
 	b := bugDeal(seed, 0)
 	open := map[int]bool{}
 	taps := 0
-	for i := 0; i < bugPads; i++ {
+	for i := range bugPads {
 		pad := i
 		if b.wasp[i] || open[i] {
 			continue

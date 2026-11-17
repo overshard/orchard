@@ -150,13 +150,14 @@ func (r *Report) Full() string {
 	if r.Address == "" {
 		return ""
 	}
-	out := r.Address
+	var out strings.Builder
+	out.WriteString(r.Address)
 	for _, part := range []string{r.City, r.State, r.Zip} {
 		if strings.TrimSpace(part) != "" {
-			out += ", " + part
+			out.WriteString(", " + part)
 		}
 	}
-	return out
+	return out.String()
 }
 
 // Nothing in a report moves faster than a month except the rate and the price,
@@ -319,11 +320,9 @@ func (e *Engine) assess(ctx context.Context, address, matched string, lat, lon f
 
 	var wg sync.WaitGroup
 	run := func(what string, f func() error) {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			note(what, f())
-		}()
+		})
 	}
 
 	run("flood zone and water", func() error {

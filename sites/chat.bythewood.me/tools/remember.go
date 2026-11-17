@@ -163,7 +163,7 @@ func appendItems(fact, items string) string {
 		base = base[:i] + ", " + base[i+5:]
 	}
 	var list []string
-	for _, part := range strings.Split(strings.ReplaceAll(items, " and ", ", "), ",") {
+	for part := range strings.SplitSeq(strings.ReplaceAll(items, " and ", ", "), ",") {
 		if p := strings.TrimSpace(part); p != "" {
 			list = append(list, p)
 		}

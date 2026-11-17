@@ -179,7 +179,7 @@ func TestAggregateBaselineExcludesTheWindow(t *testing.T) {
 		})
 	}
 	// A busy day inside it.
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		rows = append(rows, row{
 			source: "blog", ts: now.Add(-time.Hour).UnixMilli(),
 			level: "INFO", msg: "request", component: "http", status: 200,

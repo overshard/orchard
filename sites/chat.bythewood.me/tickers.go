@@ -51,7 +51,7 @@ func withTickers(args json.RawMessage, said string) json.RawMessage {
 	}
 	raw, _ := m["symbols"].(string)
 	var asked []string
-	for _, s := range strings.Split(raw, ",") {
+	for s := range strings.SplitSeq(raw, ",") {
 		if s = strings.TrimSpace(s); s != "" {
 			asked = append(asked, s)
 		}

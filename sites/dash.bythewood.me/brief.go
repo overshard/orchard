@@ -209,11 +209,11 @@ func latestSlot(now time.Time) (briefSlot, time.Time) {
 // deskSlot is the most recent slot a desk owes at or before now.
 func deskSlot(desk string, now time.Time) (briefSlot, time.Time) {
 	now = now.In(easternTime())
-	for back := 0; back < 3; back++ {
+	for back := range 3 {
 		day := now.AddDate(0, 0, -back)
 		slots := slotsOn(desk, day)
-		for i := len(slots) - 1; i >= 0; i-- {
-			s := slots[i]
+		for _, s := range slices.Backward(slots) {
+
 			at := time.Date(day.Year(), day.Month(), day.Day(), s.hour, s.minute, 0, 0, day.Location())
 			if !at.After(now) {
 				return s, at
@@ -579,7 +579,7 @@ func tidy(s string) string {
 func nextSlot(now time.Time) time.Time {
 	now = now.In(easternTime())
 	next := now
-	for day := 0; day < 2; day++ {
+	for day := range 2 {
 		d := now.AddDate(0, 0, day)
 		for _, s := range append(slotsOn("", d), hourlySlots...) {
 			at := time.Date(d.Year(), d.Month(), d.Day(), s.hour, s.minute, 0, 0, d.Location())

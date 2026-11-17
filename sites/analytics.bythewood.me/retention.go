@@ -100,7 +100,7 @@ func (s *Sweeper) deleteOlderThan(ctx context.Context, table string, cutoff int6
 		table, table)
 
 	var total int64
-	for i := 0; i < sweepMaxChunks; i++ {
+	for range sweepMaxChunks {
 		res, err := s.db.ExecContext(ctx, stmt, cutoff, sweepChunk)
 		if err != nil {
 			return total, err
@@ -136,7 +136,7 @@ func (s *Sweeper) reclaim(ctx context.Context) string {
 		return "not enabled"
 	}
 
-	for i := 0; i < vacuumMaxSteps; i++ {
+	for range vacuumMaxSteps {
 		// The page count is formatted in because SQLite takes no PRAGMA
 		// parameter, and a bare incremental_vacuum would free the whole freelist
 		// under one write lock.

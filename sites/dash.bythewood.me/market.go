@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"maps"
 	"math"
 	"net/url"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -167,9 +169,7 @@ func fetchQuotes(ctx context.Context, g *Guard, symbols []string, rng string) (m
 			}
 			continue
 		}
-		for k, v := range batch {
-			out[k] = v
-		}
+		maps.Copy(out, batch)
 	}
 
 	if len(out) == 0 {
@@ -203,9 +203,7 @@ func fetchStrip(ctx context.Context, g *Guard) (map[string]Quote, error) {
 	if err != nil && firstErr == nil {
 		firstErr = err
 	}
-	for k, v := range rest {
-		out[k] = v
-	}
+	maps.Copy(out, rest)
 
 	if len(out) == 0 {
 		return nil, firstErr
@@ -412,9 +410,9 @@ func indexRow(in Instrument, quotes map[string]Quote, useFutures bool, now time.
 	// Past 8pm the card holds the day's last print, as the line does, and says
 	// so, since the future itself is still trading.
 	if now.Unix() >= axis.end {
-		for i := len(fut.Times) - 1; i >= 0; i-- {
-			if fut.Times[i] <= axis.end && fut.Times[i] >= axis.start && i < len(fut.Closes) {
-				fut.Price, fut.AsOf = fut.Closes[i], time.Unix(fut.Times[i], 0)
+		for i, v := range slices.Backward(fut.Times) {
+			if v <= axis.end && v >= axis.start && i < len(fut.Closes) {
+				fut.Price, fut.AsOf = fut.Closes[i], time.Unix(v, 0)
 				r.note = in.FutureLabel + ", 8pm"
 				break
 			}

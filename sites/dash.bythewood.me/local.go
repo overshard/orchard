@@ -104,7 +104,7 @@ func alertHeadline(event, headline string) string {
 func alertArea(desc string) string {
 	seen := make(map[string]bool)
 	names := make([]string, 0, 8)
-	for _, part := range strings.Split(desc, ";") {
+	for part := range strings.SplitSeq(desc, ";") {
 		n := strings.TrimSpace(part)
 		if i := strings.LastIndex(n, ","); i > 0 {
 			n = strings.TrimSpace(n[:i])

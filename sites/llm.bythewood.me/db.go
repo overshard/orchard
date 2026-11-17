@@ -95,7 +95,7 @@ type Key struct {
 	Name    string    `json:"name"`
 	Prefix  string    `json:"prefix"`
 	Created time.Time `json:"created"`
-	Used    time.Time `json:"used,omitempty"`
+	Used    time.Time `json:"used"`
 	Revoked bool      `json:"revoked"`
 }
 

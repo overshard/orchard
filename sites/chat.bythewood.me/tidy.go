@@ -6,6 +6,7 @@ package main
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -61,8 +62,8 @@ func dropClosingOffer(text string) string {
 func withoutOffer(line string) string {
 	parts := sentences(line)
 	cut := len(parts)
-	for i := len(parts) - 1; i >= 0; i-- {
-		s := strings.TrimSpace(stripEmphasis(parts[i]))
+	for i, part := range slices.Backward(parts) {
+		s := strings.TrimSpace(stripEmphasis(part))
 		matched := false
 		for _, re := range closingOffers {
 			if re.MatchString(s) {

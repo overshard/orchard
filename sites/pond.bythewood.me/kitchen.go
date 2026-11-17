@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"math/rand/v2"
+	"slices"
 	"strings"
 	"time"
 )
@@ -55,12 +56,7 @@ func ingredientOf(kind string) (int, bool) {
 func seasonWeights(now time.Time, rain bool) []int {
 	m := now.In(pondZone).Month()
 	in := func(ms ...time.Month) bool {
-		for _, x := range ms {
-			if m == x {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(ms, m)
 	}
 	w := make([]int, len(ingredients))
 	copy(w, []int{30, 8, 5, 0, 0, 2, 0, 1})

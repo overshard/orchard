@@ -255,7 +255,7 @@ func parseHunkHeader(line string) Hunk {
 		body = line[2 : 2+i]
 	}
 
-	for _, f := range strings.Fields(body) {
+	for f := range strings.FieldsSeq(body) {
 		switch {
 		case strings.HasPrefix(f, "-"):
 			h.OldStart, h.OldLines = parseRange(f[1:])

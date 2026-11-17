@@ -1,5 +1,7 @@
 package main
 
+import "slices"
+
 import "strings"
 
 // Two more of the neighbours keep a small shop each. Sedge sells bait off
@@ -80,9 +82,9 @@ func baited(table map[string]float64, kind string) map[string]float64 {
 
 // bestBait is the best bait the pond holds, or nothing.
 func bestBait(held func(string) int) string {
-	for i := len(baits) - 1; i >= 0; i-- {
-		if held(baits[i].kind) > 0 {
-			return baits[i].kind
+	for _, bait := range slices.Backward(baits) {
+		if held(bait.kind) > 0 {
+			return bait.kind
 		}
 	}
 	return ""

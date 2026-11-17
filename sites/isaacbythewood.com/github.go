@@ -107,9 +107,7 @@ func (c *CommitCache) refresh(ctx context.Context, targets []CommitTarget) {
 	}, len(targets))
 
 	for i, target := range targets {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			commit, err := c.fetch(ctx, target)
 			if err != nil {
 				slog.Info("github", slog.Any("target", target.Key), slog.Any("err", err))
@@ -118,7 +116,7 @@ func (c *CommitCache) refresh(ctx context.Context, targets []CommitTarget) {
 			results[i].key = target.Key
 			results[i].commit = commit
 			results[i].ok = true
-		}()
+		})
 	}
 	wg.Wait()
 

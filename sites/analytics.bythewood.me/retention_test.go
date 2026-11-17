@@ -114,7 +114,7 @@ func TestFreshDatabaseCanReclaim(t *testing.T) {
 func TestAWeeklyGraphCountsEveryWeekInFull(t *testing.T) {
 	db, id := retentionTestDB(t)
 	end := time.Date(2026, 9, 30, 0, 0, 0, 0, time.UTC)
-	for i := 0; i < 90; i++ {
+	for i := range 90 {
 		seedEvent(t, db, "events", id, end.AddDate(0, 0, -i).Add(12*time.Hour).UnixMilli())
 	}
 	start := end.AddDate(0, 0, -89)

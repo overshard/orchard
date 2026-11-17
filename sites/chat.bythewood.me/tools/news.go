@@ -700,10 +700,7 @@ func sameStory(a, b map[string]bool) bool {
 	if shared < 3 {
 		return false
 	}
-	small := len(a)
-	if len(b) < small {
-		small = len(b)
-	}
+	small := min(len(b), len(a))
 	return float64(shared)/float64(small) >= 0.75
 }
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"math"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -54,8 +55,8 @@ func boardOf(q querier, firms []firmView, day string) (*board, error) {
 			b.Up = append(b.Up, r)
 		}
 	}
-	for i := len(moved) - 1; i >= 0; i-- {
-		if r := moved[i]; r.Pct < 0 && len(b.Down) < 3 {
+	for _, r := range slices.Backward(moved) {
+		if r.Pct < 0 && len(b.Down) < 3 {
 			b.Down = append(b.Down, r)
 		}
 	}

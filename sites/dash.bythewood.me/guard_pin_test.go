@@ -291,7 +291,7 @@ func TestGuardPaceAndBudgetSequenceIsPinned(t *testing.T) {
 	allow("yahoo")
 	pinRewind(g, "yahoo", 500*time.Millisecond)
 	allow("yahoo")
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		allow("bls")
 		pinRewind(g, "bls", 2*time.Second)
 	}

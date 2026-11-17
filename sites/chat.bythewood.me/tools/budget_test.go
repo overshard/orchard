@@ -21,7 +21,7 @@ func TestBudgetStopsAtTheMinutePool(t *testing.T) {
 	atTime(b, &now)
 	want := budgetFor(espnHost).minute
 
-	for i := 0; i < want; i++ {
+	for i := range want {
 		if err := b.Take(espnHost); err != nil {
 			t.Fatalf("call %d of %d refused early: %v", i+1, want, err)
 		}
@@ -75,7 +75,7 @@ func TestBudgetSurvivesARestart(t *testing.T) {
 	now := time.Now()
 	b := NewBudgets()
 	atTime(b, &now)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		_ = b.Take(espnHost)
 	}
 	spent := b.Spent(espnHost)
@@ -98,7 +98,7 @@ func TestBudgetForgetsYesterday(t *testing.T) {
 	now := time.Now()
 	b := NewBudgets()
 	atTime(b, &now)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		_ = b.Take(espnHost)
 	}
 	now = now.Add(25 * time.Hour)

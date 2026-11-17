@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"io/fs"
 	"path"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -123,7 +124,7 @@ func parsePost(filename, text string) *Post {
 	if post.PublishDate == "" {
 		post.PublishDate = post.Date
 	}
-	for _, tag := range strings.Split(meta["tags"], ",") {
+	for tag := range strings.SplitSeq(meta["tags"], ",") {
 		if tag = strings.TrimSpace(tag); tag != "" {
 			post.Tags = append(post.Tags, tag)
 		}
@@ -134,10 +135,7 @@ func parsePost(filename, text string) *Post {
 
 	// 200 words a minute, rounded up, never zero.
 	words := len(strings.Fields(body))
-	post.ReadTime = (words + 199) / 200
-	if post.ReadTime < 1 {
-		post.ReadTime = 1
-	}
+	post.ReadTime = max((words+199)/200, 1)
 
 	return post
 }
@@ -158,7 +156,7 @@ func parseFrontmatter(text string) (map[string]string, string) {
 	block := rest[:end+1]
 	body := strings.TrimLeft(rest[end+4:], "\r\n \t")
 
-	for _, line := range strings.Split(strings.TrimSpace(block), "\n") {
+	for line := range strings.SplitSeq(strings.TrimSpace(block), "\n") {
 		key, value, ok := strings.Cut(line, ": ")
 		if !ok {
 			continue
@@ -269,12 +267,7 @@ func byYear(posts []*Post, year string) (matched, others []*Post) {
 }
 
 func containsFold(haystack []string, needle string) bool {
-	for _, s := range haystack {
-		if s == needle {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(haystack, needle)
 }
 
 // related picks posts sharing the most tags, topped up with recent ones.

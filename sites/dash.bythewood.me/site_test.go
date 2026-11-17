@@ -260,7 +260,7 @@ func TestHubDropsRatherThanBlocking(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		for i := 0; i < 100; i++ {
+		for range 100 {
 			h.Broadcast([]byte("frame"))
 		}
 		close(done)
@@ -339,7 +339,7 @@ func TestHubWakeDoesNotBlockAConnectingClient(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		for i := 0; i < 50; i++ {
+		for range 50 {
 			_, unsubscribe, _ := h.Subscribe()
 			unsubscribe()
 		}
@@ -363,7 +363,7 @@ func TestGuardFeedsAreStableAndComplete(t *testing.T) {
 	if len(first) != len(feedOrder) {
 		t.Fatalf("%d feeds, want %d", len(first), len(feedOrder))
 	}
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		next := g.Feeds(now)
 		for j := range next {
 			if next[j].Name != first[j].Name {
@@ -1125,7 +1125,7 @@ func TestWalkSkipsADayThatFails(t *testing.T) {
 
 func TestEventsRefusesPastTheWatcherCap(t *testing.T) {
 	h := NewHub()
-	for i := 0; i < maxWatchers; i++ {
+	for i := range maxWatchers {
 		_, unsubscribe, ok := h.Subscribe()
 		if !ok {
 			t.Fatalf("subscriber %d was refused under the cap", i+1)

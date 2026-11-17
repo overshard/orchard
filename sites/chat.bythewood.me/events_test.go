@@ -53,8 +53,8 @@ func TestEventsStreamsAndCleansUp(t *testing.T) {
 		if err != nil {
 			t.Fatalf("reading the stream: %v", err)
 		}
-		if strings.HasPrefix(line, "data: ") {
-			got = strings.TrimSpace(strings.TrimPrefix(line, "data: "))
+		if after, ok := strings.CutPrefix(line, "data: "); ok {
+			got = strings.TrimSpace(after)
 			break
 		}
 	}

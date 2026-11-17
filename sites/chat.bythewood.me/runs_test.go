@@ -166,7 +166,7 @@ func TestASlowReaderDoesNotBlockTheTurn(t *testing.T) {
 	}
 	done := make(chan struct{})
 	go func() {
-		for i := 0; i < 5000; i++ {
+		for range 5000 {
 			rn.Emit(Event{Kind: "tail", Text: "x"})
 		}
 		close(done)
