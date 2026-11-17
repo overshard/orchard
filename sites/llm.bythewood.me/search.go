@@ -85,6 +85,7 @@ func (s *site) search(w http.ResponseWriter, r *http.Request, k Key) {
 		call.PromptTok = promptTokens(resp.Usage)
 		call.OutputTok += int(resp.Usage.OutputTokens)
 		call.Cost += costMicros(resp.Usage)
+		logUsage(resp.Usage)
 		if resp.StopReason != anthropic.StopReasonPauseTurn {
 			break
 		}

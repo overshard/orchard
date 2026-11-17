@@ -350,6 +350,13 @@ func finishReason(r anthropic.StopReason) string {
 	return "stop"
 }
 
+// logUsage keeps the cache split per call, since the cost alone can't show
+// whether the prompt cache is hitting.
+func logUsage(u anthropic.Usage) {
+	slog.Info("claude usage", "input", u.InputTokens, "cache_write", u.CacheCreationInputTokens,
+		"cache_read", u.CacheReadInputTokens, "output", u.OutputTokens)
+}
+
 // promptTokens is the whole window the model read, cached or not, which is what
 // the callers' meters mean by prompt.
 func promptTokens(u anthropic.Usage) int {
@@ -382,6 +389,7 @@ func (c *claude) complete(ctx context.Context, p anthropic.MessageNewParams) (an
 		a.outTok += int(resp.Usage.OutputTokens)
 		a.searches += int(resp.Usage.ServerToolUse.WebSearchRequests)
 		a.cost += costMicros(resp.Usage)
+		logUsage(resp.Usage)
 		a.stop = resp.StopReason
 		if resp.StopReason == anthropic.StopReasonRefusal {
 			a.refusal = string(resp.StopDetails.Category)
@@ -558,6 +566,7 @@ func (s *site) claudeStream(w http.ResponseWriter, r *http.Request, p anthropic.
 
 	call.PromptTok, call.OutputTok = promptTokens(msg.Usage), int(msg.Usage.OutputTokens)
 	call.Cost = costMicros(msg.Usage)
+	logUsage(msg.Usage)
 	if !first.IsZero() && call.OutputTok > 0 {
 		if secs := time.Since(first).Seconds(); secs > 0 {
 			call.DecodeTPS = float64(call.OutputTok) / secs
