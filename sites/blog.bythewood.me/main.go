@@ -105,7 +105,7 @@ func realMain() error {
 	if err != nil {
 		return fmt.Errorf("load posts: %w", err)
 	}
-	slog.Info(fmt.Sprintf("loaded %d posts", len(lib.All())))
+	slog.Info("loaded posts", slog.Int("count", len(lib.All())))
 
 	if *pdfsOut != "" || *ogOut != "" {
 		if *pdfsOut != "" {
@@ -228,7 +228,7 @@ func realMain() error {
 			"stale-while-revalidate=86400, stale-if-error=604800"),
 	)
 
-	slog.Info(fmt.Sprintf("blog.bythewood.me serving %s", baseURL))
+	slog.Info("blog.bythewood.me serving", slog.Any("base_url", baseURL))
 	return web.Serve(listenAddr, handler)
 }
 

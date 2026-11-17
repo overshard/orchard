@@ -108,7 +108,7 @@ func GenerateOGCards(lib *Library, root, fontPath, outDir string) error {
 					mu.Unlock()
 					continue
 				}
-				slog.Info(fmt.Sprintf("og %s", j.name))
+				slog.Info("og", slog.Any("name", j.name))
 			}
 		}()
 	}

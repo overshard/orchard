@@ -52,7 +52,7 @@ func GeneratePDFs(lib *Library, root, fontPath, outDir string) error {
 					mu.Unlock()
 					continue
 				}
-				slog.Info(fmt.Sprintf("pdf %s", post.Slug))
+				slog.Info("pdf", slog.Any("slug", post.Slug))
 			}
 		}()
 	}
