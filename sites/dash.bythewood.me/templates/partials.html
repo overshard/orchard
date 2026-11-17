@@ -40,6 +40,7 @@
 {{define "spark"}}
 <svg class="spark" viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true" focusable="false">
   {{if .Line}}
+  {{if .Session}}<rect class="spark-session" x="{{.Open}}" width="{{sub .Bell .Open}}" y="0" height="32"></rect>{{end}}
   <path class="spark-area" d="{{path .Area}}"></path>
   {{if .HasBase}}<line class="spark-base" x1="0" x2="100" y1="{{.Baseline}}" y2="{{.Baseline}}"></line>{{end}}
   <path class="spark-line" d="{{path .Line}}"></path>

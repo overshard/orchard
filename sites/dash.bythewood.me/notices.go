@@ -149,15 +149,10 @@ func marketNotices(cards []Card, session string) []Notice {
 }
 
 // movedFrom is the weekday of the close a card's move is measured from, and so
-// which move it is. Evening futures still carry the day just gone, and Sunday
-// night's carry Friday's.
+// which move it is. The day rolls at 4am, so evening futures still carry the
+// day just gone, and Sunday night's carry Friday's.
 func movedFrom(asOf time.Time) time.Time {
-	t := asOf.In(easternTime())
-	from := lastBell(time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location()))
-	for weekend(from) {
-		from = from.AddDate(0, 0, -1)
-	}
-	return from
+	return weekdayBell(dayStart(asOf))
 }
 
 func cardName(c Card) string {

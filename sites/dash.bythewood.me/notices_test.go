@@ -78,7 +78,7 @@ func TestMarketNoticesAtTheActBar(t *testing.T) {
 }
 
 // Evening futures still carry the day, so they're the same move as the cash
-// index that closed down, and after midnight they're measured from that close.
+// index that closed down, and the day doesn't roll until 4am.
 func TestMarketNoticesForFutures(t *testing.T) {
 	card := func(asOf string, pct string) []Card {
 		return []Card{{Key: "sp500", Label: "S&P 500", Symbol: "ES=F", Percent: pct, asOf: at(t, asOf)}}
@@ -91,7 +91,7 @@ func TestMarketNoticesForFutures(t *testing.T) {
 	if evening[0].Title != "S&P 500 futures down 2.6% since Monday's close" {
 		t.Errorf("title = %q", evening[0].Title)
 	}
-	if late := marketNotices(card("2026-09-30 01:00", "-2.10%"), "closed"); len(late) != 1 || late[0].ID != "market:stocks:2026-09-29:down" {
+	if late := marketNotices(card("2026-09-30 01:00", "-2.10%"), "closed"); len(late) != 1 || late[0].ID != "market:stocks:2026-09-28:down" {
 		t.Errorf("an overnight fall gave %v", noticeIDs(late))
 	}
 	if sunday := marketNotices(card("2026-10-04 19:00", "+2.20%"), "closed"); len(sunday) != 1 || sunday[0].ID != "market:stocks:2026-10-02:up" {

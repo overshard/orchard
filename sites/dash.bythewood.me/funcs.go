@@ -16,6 +16,7 @@ var templateFuncs = template.FuncMap{
 
 	// range gives a zero based index and the feed ranks read from one.
 	"inc": func(i int) int { return i + 1 },
+	"sub": func(a, b float64) float64 { return a - b },
 
 	// The news band always draws storiesShown rows a panel, blank ones filling
 	// out a short list, so the panels stay level.

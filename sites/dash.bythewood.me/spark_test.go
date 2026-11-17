@@ -138,193 +138,165 @@ func TestDirection(t *testing.T) {
 // The whole session is the axis, so a line drawn an hour into a six and a half
 // hour day covers about a sixth of the card, and an hour in doesn't look like a
 // finished day.
-func TestBuildSparkDrawsAgainstTheWholeSession(t *testing.T) {
+func TestBuildSparkDrawsAgainstTheWholeDay(t *testing.T) {
 	et := easternTime()
-	open := time.Date(2026, 8, 31, 9, 30, 0, 0, et)
+	start := time.Date(2026, 8, 31, 4, 0, 0, 0, et)
 
 	var closes []float64
 	var times []int64
-	for i := range 13 {
+	for i := range 49 {
 		closes = append(closes, float64(100+i))
-		times = append(times, open.Add(time.Duration(i)*5*time.Minute).Unix())
+		times = append(times, start.Add(time.Duration(i)*5*time.Minute).Unix())
 	}
 
-	s := buildSpark(closes, times, 100, sessionAxis(times))
+	s := buildSpark(closes, times, 100, barAxis(times))
 	if !s.Partial {
-		t.Error("an hour into the session is a partial day")
+		t.Error("four hours into the day is a partial day")
 	}
-	// One hour of a 390 minute session, so a bit over 15%.
-	if s.Span < 14 || s.Span > 17 {
-		t.Errorf("span = %v, want about 15 across the card", s.Span)
+	// Four hours of a sixteen hour day.
+	if s.Span < 24 || s.Span > 26 {
+		t.Errorf("span = %v, want about 25 across the card", s.Span)
+	}
+	// 9:30 and 4pm on a 4am to 8pm day.
+	if !s.Session || s.Open < 34 || s.Open > 35 || s.Bell != 75 {
+		t.Errorf("session band %v to %v, want about 34.4 to 75", s.Open, s.Bell)
 	}
 }
 
-func TestBuildSparkFillsTheCardOnAFinishedSession(t *testing.T) {
+func TestBuildSparkFillsTheCardOnAFinishedDay(t *testing.T) {
 	et := easternTime()
-	open := time.Date(2026, 8, 31, 9, 30, 0, 0, et)
+	start := time.Date(2026, 8, 31, 4, 0, 0, 0, et)
 
 	var closes []float64
 	var times []int64
-	for i := range 79 {
+	for i := range 193 {
 		closes = append(closes, float64(100+i%7))
-		times = append(times, open.Add(time.Duration(i)*5*time.Minute).Unix())
+		times = append(times, start.Add(time.Duration(i)*5*time.Minute).Unix())
 	}
 
-	s := buildSpark(closes, times, 100, sessionAxis(times))
+	s := buildSpark(closes, times, 100, barAxis(times))
 	if s.Partial {
-		t.Errorf("a full session should fill the card, span = %v", s.Span)
+		t.Errorf("a full day should fill the card, span = %v", s.Span)
 	}
 }
 
-// Every card is on the New York trading day, so a future and bitcoin lay their
-// bars over the same 9:30 to 16:00 window a cash index does, or an hour of
-// bitcoin looks like a whole day beside an hour of the S&P.
-func TestSessionAxisIsTheSameForEveryInstrument(t *testing.T) {
+func TestDayAxisRunsFourToEight(t *testing.T) {
 	et := easternTime()
-	open := time.Date(2026, 8, 31, 9, 30, 0, 0, et)
+	axis := dayAxis(time.Date(2026, 8, 31, 4, 0, 0, 0, et))
 
-	var times []int64
-	for i := range 13 {
-		times = append(times, open.Add(time.Duration(i)*5*time.Minute).Unix())
-	}
-
-	axis := sessionAxis(times)
-	if !axis.ok {
-		t.Fatal("a morning of bars should have a session to draw against")
-	}
-	if got := time.Unix(axis.start, 0).In(et); !got.Equal(open) {
-		t.Errorf("axis opens at %v, want %v", got, open)
-	}
-	if got := time.Unix(axis.end, 0).In(et); !got.Equal(open.Add(regularHours)) {
-		t.Errorf("axis shuts at %v, want 16:00", got)
+	for _, c := range []struct {
+		name string
+		got  int64
+		want time.Time
+	}{
+		{"start", axis.start, time.Date(2026, 8, 31, 4, 0, 0, 0, et)},
+		{"open", axis.open, time.Date(2026, 8, 31, 9, 30, 0, 0, et)},
+		{"bell", axis.bell, time.Date(2026, 8, 31, 16, 0, 0, 0, et)},
+		{"end", axis.end, time.Date(2026, 8, 31, 20, 0, 0, 0, et)},
+	} {
+		if c.got != c.want.Unix() {
+			t.Errorf("%s at %v, want %v", c.name, time.Unix(c.got, 0).In(et), c.want)
+		}
 	}
 }
 
-// The trading day rolls at the open and not at midnight, so a bar printed at 2am
-// belongs to the session that started the morning before.
-func TestSessionStartRollsAtTheOpen(t *testing.T) {
+// The day rolls at 4am and not at midnight, so a bar printed at 2am belongs to
+// the evening before.
+func TestDayStartRollsAtFour(t *testing.T) {
 	et := easternTime()
 	cases := []struct{ at, want string }{
-		{"2026-08-31 09:29", "2026-08-30 09:30"},
-		{"2026-08-31 09:30", "2026-08-31 09:30"},
-		{"2026-08-31 23:59", "2026-08-31 09:30"},
-		{"2026-09-01 02:00", "2026-08-31 09:30"},
+		{"2026-08-31 03:59", "2026-08-30 04:00"},
+		{"2026-08-31 04:00", "2026-08-31 04:00"},
+		{"2026-08-31 23:59", "2026-08-31 04:00"},
+		{"2026-09-01 02:00", "2026-08-31 04:00"},
 	}
 	for _, c := range cases {
 		in, err := time.ParseInLocation("2006-01-02 15:04", c.at, et)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got := sessionStart(in).Format("2006-01-02 15:04"); got != c.want {
-			t.Errorf("%s belongs to session %s, want %s", c.at, got, c.want)
+		if got := dayStart(in).Format("2006-01-02 15:04"); got != c.want {
+			t.Errorf("%s belongs to %s, want %s", c.at, got, c.want)
 		}
 	}
 }
 
-// The VIX prints from 3:15am, and clamping those bars onto x=0 draws a vertical
-// smear up the left of the card instead of a line.
-func TestSessionBarsDropsAnythingBeforeTheOpen(t *testing.T) {
+// The index cards hold the last weekday through the weekend, so Saturday and
+// Sunday night both show Friday until Monday's pre-market.
+func TestEquityDayHoldsFridayOverTheWeekend(t *testing.T) {
 	et := easternTime()
-	open := time.Date(2026, 8, 31, 9, 30, 0, 0, et)
+	// 2026-08-28 is a Friday.
+	friday := time.Date(2026, 8, 28, 4, 0, 0, 0, et)
+	for _, at := range []time.Time{
+		time.Date(2026, 8, 28, 21, 0, 0, 0, et),
+		time.Date(2026, 8, 29, 12, 0, 0, 0, et),
+		time.Date(2026, 8, 30, 19, 0, 0, 0, et),
+		time.Date(2026, 8, 31, 3, 59, 0, 0, et),
+	} {
+		if got := equityDay(at); !got.Equal(friday) {
+			t.Errorf("%v shows %v, want Friday", at, got.In(et))
+		}
+	}
+	if got := equityDay(time.Date(2026, 8, 31, 4, 0, 0, 0, et)); got.Weekday() != time.Monday {
+		t.Errorf("4am Monday shows %v, want Monday", got.In(et))
+	}
+}
+
+// Clamping yesterday's bars onto x=0 draws a vertical smear up the left of the
+// card instead of a line.
+func TestDayBarsDropsAnythingBeforeTheDay(t *testing.T) {
+	et := easternTime()
+	start := time.Date(2026, 8, 31, 4, 0, 0, 0, et)
 
 	var closes []float64
 	var times []int64
 	for i := range 10 {
 		closes = append(closes, float64(i))
-		times = append(times, open.Add(time.Duration(i-5)*30*time.Minute).Unix())
+		times = append(times, start.Add(time.Duration(i-5)*30*time.Minute).Unix())
 	}
 
-	kept, kepts, axis := sessionBars(closes, times, sessionAxis(times))
+	kept, kepts, axis := dayBars(closes, times, barAxis(times))
 	if !axis.ok {
-		t.Fatal("bars inside the session should keep the window")
+		t.Fatal("bars inside the day should keep the window")
 	}
 	if len(kept) != 5 || len(kepts) != 5 {
-		t.Fatalf("kept %d bars, want the 5 from the open on", len(kept))
+		t.Fatalf("kept %d bars, want the 5 from 4am on", len(kept))
 	}
-	if kepts[0] != open.Unix() {
-		t.Errorf("first kept bar is %v, want the open", time.Unix(kepts[0], 0).In(et))
-	}
-}
-
-// Futures reopen at 6pm Sunday, hours before the Monday open their session
-// belongs to, so there is nothing to lay over Sunday's window and they take the
-// full width instead.
-func TestSessionBarsFallsBackWhenNothingPrintedInTheSession(t *testing.T) {
-	et := easternTime()
-	// 2026-08-30 is a Sunday.
-	reopen := time.Date(2026, 8, 30, 18, 0, 0, 0, et)
-
-	var closes []float64
-	var times []int64
-	for i := range 12 {
-		closes = append(closes, float64(i))
-		times = append(times, reopen.Add(time.Duration(i)*5*time.Minute).Unix())
-	}
-
-	if _, _, axis := sessionBars(closes, times, sessionAxis(times)); axis.ok {
-		t.Error("an evening reopen has no session box, so it should draw full width")
+	if kepts[0] != start.Unix() {
+		t.Errorf("first kept bar is %v, want 4am", time.Unix(kepts[0], 0).In(et))
 	}
 }
 
 // Yahoo dates bitcoin's day by UTC and a future's by its contract, so the close
 // each card measures from has to come off the bars instead.
-func TestPreviousSessionCloseIsFourPMTheDayBefore(t *testing.T) {
+func TestPreviousSessionCloseIsTheLastPrintAtTheCut(t *testing.T) {
 	et := easternTime()
-	open := time.Date(2026, 8, 31, 9, 30, 0, 0, et)
 	prevClose := time.Date(2026, 8, 30, 16, 0, 0, 0, et)
 
 	var closes []float64
 	var times []int64
-	// Every half hour across the previous day and into the session.
-	for at := prevClose.Add(-3 * time.Hour); at.Before(open.Add(time.Hour)); at = at.Add(30 * time.Minute) {
+	for at := prevClose.Add(-3 * time.Hour); at.Before(prevClose.Add(20 * time.Hour)); at = at.Add(30 * time.Minute) {
 		closes = append(closes, float64(at.Unix()))
 		times = append(times, at.Unix())
 	}
 
-	got, found := previousSessionClose(closes, times, open)
+	got, found := previousSessionClose(closes, times, lastBell(time.Date(2026, 8, 31, 4, 0, 0, 0, et)))
 	if !found {
 		t.Fatal("a full previous day should have a close in it")
 	}
 	if int64(got) != prevClose.Unix() {
-		t.Errorf("previous close taken from %v, want %v",
-			time.Unix(int64(got), 0).In(et), prevClose)
+		t.Errorf("previous close taken from %v, want %v", time.Unix(int64(got), 0).In(et), prevClose)
 	}
 }
 
-// The close rolls at midnight, so the evening still measures from the day before
-// and a bar from the small hours measures from last night's 4pm.
-func TestPreviousSessionCloseOvernightIsLastNightsBell(t *testing.T) {
+// A future trades until 5pm Friday, so Monday measures from Friday's 4pm and
+// not from whatever printed last before Sunday's.
+func TestWeekdayBellSkipsTheWeekend(t *testing.T) {
 	et := easternTime()
-
-	var closes []float64
-	var times []int64
-	for at := time.Date(2026, 9, 16, 9, 30, 0, 0, et); at.Before(time.Date(2026, 9, 18, 9, 30, 0, 0, et)); at = at.Add(30 * time.Minute) {
-		closes = append(closes, float64(at.Unix()))
-		times = append(times, at.Unix())
-	}
-
-	for _, c := range []struct {
-		name string
-		last time.Time
-		want time.Time
-	}{
-		{"mid session", time.Date(2026, 9, 17, 11, 0, 0, 0, et), time.Date(2026, 9, 16, 16, 0, 0, 0, et)},
-		{"after the bell", time.Date(2026, 9, 17, 18, 0, 0, 0, et), time.Date(2026, 9, 16, 16, 0, 0, 0, et)},
-		{"just before midnight", time.Date(2026, 9, 17, 23, 59, 0, 0, et), time.Date(2026, 9, 16, 16, 0, 0, 0, et)},
-		{"just after midnight", time.Date(2026, 9, 18, 0, 0, 0, 0, et), time.Date(2026, 9, 17, 16, 0, 0, 0, et)},
-		{"small hours", time.Date(2026, 9, 18, 2, 0, 0, 0, et), time.Date(2026, 9, 17, 16, 0, 0, 0, et)},
-		{"pre-market", time.Date(2026, 9, 18, 7, 0, 0, 0, et), time.Date(2026, 9, 17, 16, 0, 0, 0, et)},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			got, found := previousSessionClose(closes, times, c.last)
-			if !found {
-				t.Fatal("two full days of bars should have a close in them")
-			}
-			if int64(got) != c.want.Unix() {
-				t.Errorf("measured from %v, want %v",
-					time.Unix(int64(got), 0).In(et), c.want)
-			}
-		})
+	got := weekdayBell(time.Date(2026, 8, 31, 4, 0, 0, 0, et))
+	want := time.Date(2026, 8, 28, 16, 0, 0, 0, et)
+	if !got.Equal(want) {
+		t.Errorf("Monday measures from %v, want Friday 4pm", got.In(et))
 	}
 }
 
@@ -345,7 +317,7 @@ func TestPreviousSessionCloseMissingIsReported(t *testing.T) {
 	open := time.Date(2026, 8, 31, 9, 30, 0, 0, et)
 	times := []int64{open.Unix(), open.Add(time.Hour).Unix()}
 
-	if _, found := previousSessionClose([]float64{1, 2}, times, open); found {
-		t.Error("bars that all fall inside the session carry no previous close")
+	if _, found := previousSessionClose([]float64{1, 2}, times, lastBell(open)); found {
+		t.Error("bars that all fall after the cut carry no previous close")
 	}
 }

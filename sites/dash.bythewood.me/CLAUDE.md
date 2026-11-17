@@ -21,8 +21,14 @@ hands back 500 bare story ids and charges one request per story to resolve each
 one. `hn.algolia.com/api/v1/search?tags=front_page` returns all thirty with
 titles, scores and comment counts in a single response.
 
-**Futures replace the cash indexes outside the session**, driven by a New York
-clock in `market.go` rather than by a holiday calendar. There is no calendar,
+**The index cards draw one day from 4am to 8pm New York time**, the future
+before 9:30 and after 4pm and the cash index between, with the regular session
+shaded. Each part is a percent off its own 4pm close on a base of 100, since the
+future trades at a premium to the index and raw prices would step at the swap.
+After 8pm the line and the figure hold the day's last print until the next 4am,
+and over a weekend that's Friday's. The figure is the cash index during the
+session and the future outside it, driven by a New York clock in `market.go`
+rather than by a holiday calendar. There is no calendar,
 and the case it would catch is caught instead by the age of the S&P's own
 quote: a cash index that has not printed in half an hour during what the clock
 calls regular hours means the clock is wrong.

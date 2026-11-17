@@ -38,6 +38,12 @@ type Spark struct {
 	// the VIX at the bell, so its rule at the last print says closed instead of
 	// now.
 	Closed bool `json:"closed"`
+
+	// Where 9:30 and 4pm fall across the card, so the regular session can be
+	// shaded and the pre-market and after hours either side of it read as such.
+	Open    float64 `json:"open"`
+	Bell    float64 `json:"bell"`
+	Session bool    `json:"session"`
 }
 
 // buildSpark scales closes into the viewBox, with previous in the range so the
@@ -101,6 +107,12 @@ func buildSpark(closes []float64, times []int64, previous float64, axis tradingA
 		// A hair short of the end still counts as finished, since the last bar
 		// of a session prints at its start and never at its close.
 		Partial: last < sparkWidth-1,
+	}
+	if span := axis.end - axis.start; axis.ok && span > 0 && axis.bell > axis.open {
+		at := func(t int64) float64 {
+			return round2(math.Min(sparkWidth, math.Max(0, float64(t-axis.start)/float64(span)*sparkWidth)))
+		}
+		s.Open, s.Bell, s.Session = at(axis.open), at(axis.bell), true
 	}
 	if hasBase {
 		s.Baseline = round2(scaleY(previous))

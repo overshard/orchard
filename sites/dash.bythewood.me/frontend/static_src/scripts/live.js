@@ -87,6 +87,16 @@ function svg(tag, attrs) {
   return node;
 }
 
+function sessionNode(spark) {
+  return svg("rect", {
+    class: "spark-session",
+    x: spark.open,
+    width: spark.bell - spark.open,
+    y: 0,
+    height: 32,
+  });
+}
+
 function sparkNode(spark) {
   const root = svg("svg", {
     class: "spark",
@@ -97,6 +107,7 @@ function sparkNode(spark) {
   });
   if (!spark || !spark.line) return root;
 
+  if (spark.session) root.append(sessionNode(spark));
   root.append(svg("path", { class: "spark-area", d: spark.area }));
   if (spark.has_base) {
     root.append(
@@ -187,12 +198,18 @@ function patchCard(card, data) {
   if (!svgRoot) return;
   if (
     Boolean(spark.line) !== Boolean(svgRoot.querySelector(".spark-line")) ||
-    Boolean(spark.line && spark.has_base) !== Boolean(svgRoot.querySelector(".spark-base"))
+    Boolean(spark.line && spark.has_base) !== Boolean(svgRoot.querySelector(".spark-base")) ||
+    Boolean(spark.line && spark.session) !== Boolean(svgRoot.querySelector(".spark-session"))
   ) {
     svgRoot.replaceWith(sparkNode(spark));
     return;
   }
 
+  const band = card.querySelector(".spark-session");
+  if (band && spark.session) {
+    setAttr(band, "x", spark.open);
+    setAttr(band, "width", spark.bell - spark.open);
+  }
   setAttr(card.querySelector(".spark-area"), "d", spark.area);
   setAttr(card.querySelector(".spark-line"), "d", spark.line);
 

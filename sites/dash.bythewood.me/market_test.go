@@ -148,14 +148,14 @@ func TestCarrySparksHoldsTheLastGoodShape(t *testing.T) {
 	day := at(t, "2026-08-27 14:00")
 
 	full := buildMarket(map[string]Quote{
-		"^GSPC": {Price: 100, Previous: 99, AsOf: day, Closes: []float64{99, 100, 101, 102, 103, 104}},
+		"^GSPC": {Price: 100, Previous: 99, AsOf: day, Closes: []float64{99, 100, 101, 102, 103, 104}, Times: ending(day, 6)},
 	}, day)
 	if full.Cards[0].Spark.Points != 6 {
 		t.Fatalf("fixture drew %d points, want 6", full.Cards[0].Spark.Points)
 	}
 
 	degraded := buildMarket(map[string]Quote{
-		"^GSPC": {Price: 105, Previous: 99, AsOf: day.Add(time.Minute), Closes: []float64{104, 105}},
+		"^GSPC": {Price: 105, Previous: 99, AsOf: day.Add(time.Minute), Closes: []float64{104, 105}, Times: ending(day, 2)},
 	}, day)
 
 	got := carrySparks(degraded, full)
@@ -172,10 +172,10 @@ func TestCarrySparksTakesAHealthyPoll(t *testing.T) {
 	day := at(t, "2026-08-27 14:00")
 
 	prev := buildMarket(map[string]Quote{
-		"^GSPC": {Price: 100, Previous: 99, AsOf: day, Closes: []float64{99, 100}},
+		"^GSPC": {Price: 100, Previous: 99, AsOf: day, Closes: []float64{99, 100}, Times: ending(day, 2)},
 	}, day)
 	next := buildMarket(map[string]Quote{
-		"^GSPC": {Price: 101, Previous: 99, AsOf: day.Add(time.Minute), Closes: []float64{99, 100, 101, 102, 103}},
+		"^GSPC": {Price: 101, Previous: 99, AsOf: day.Add(time.Minute), Closes: []float64{99, 100, 101, 102, 103}, Times: ending(day, 5)},
 	}, day)
 
 	if got := carrySparks(next, prev).Cards[0].Spark.Points; got != 5 {
@@ -190,10 +190,10 @@ func TestCarrySparksStopsAtADayBoundary(t *testing.T) {
 	today := at(t, "2026-08-27 09:35")
 
 	prev := buildMarket(map[string]Quote{
-		"^GSPC": {Price: 100, Previous: 99, AsOf: yesterday, Closes: []float64{99, 100, 101, 102, 103, 104}},
+		"^GSPC": {Price: 100, Previous: 99, AsOf: yesterday, Closes: []float64{99, 100, 101, 102, 103, 104}, Times: ending(yesterday, 6)},
 	}, yesterday)
 	next := buildMarket(map[string]Quote{
-		"^GSPC": {Price: 101, Previous: 100, AsOf: today, Closes: []float64{100, 101}},
+		"^GSPC": {Price: 101, Previous: 100, AsOf: today, Closes: []float64{100, 101}, Times: ending(today, 2)},
 	}, today)
 
 	if got := carrySparks(next, prev).Cards[0].Spark.Points; got != 2 {
@@ -208,17 +208,18 @@ func TestCarrySparksStopsAtASymbolChange(t *testing.T) {
 	after := at(t, "2026-08-27 16:05")
 
 	prev := buildMarket(map[string]Quote{
-		"^GSPC": {Price: 100, Previous: 99, AsOf: day, Closes: []float64{99, 100, 101, 102, 103, 104}},
+		"^GSPC": {Price: 100, Previous: 99, AsOf: day, Closes: []float64{99, 100, 101, 102, 103, 104}, Times: ending(day, 6)},
 	}, day)
 	next := buildMarket(map[string]Quote{
-		"ES=F": {Price: 101, Previous: 99, AsOf: after, Closes: []float64{100, 101}},
+		"ES=F": {Price: 101, AsOf: after, Closes: []float64{99, 100, 101},
+			Times: append(ending(at(t, "2026-08-26 15:55"), 1), ending(after, 2)...)},
 	}, after)
 
 	if prev.Cards[0].Symbol == next.Cards[0].Symbol {
 		t.Fatalf("fixture did not swap: both cards are %s", prev.Cards[0].Symbol)
 	}
 	if got := carrySparks(next, prev).Cards[0].Spark.Points; got != 2 {
-		t.Errorf("kept %d points, want the futures card's own 2", got)
+		t.Errorf("kept %d points, want the futures card's own 2 since 4pm", got)
 	}
 }
 
@@ -494,7 +495,7 @@ func TestStripAxisSharesOneWindowAndLeavesAFrozenCardShort(t *testing.T) {
 		return closes, times
 	}
 
-	vixCloses, vixTimes := series(open.Add(regularHours))
+	vixCloses, vixTimes := series(time.Date(2026, 8, 31, 16, 0, 0, 0, et))
 	btcCloses, btcTimes := series(now)
 
 	quotes := map[string]Quote{
@@ -510,8 +511,9 @@ func TestStripAxisSharesOneWindowAndLeavesAFrozenCardShort(t *testing.T) {
 	if got := cards["bitcoin"].Spark.Span; got < 99 {
 		t.Errorf("bitcoin is still printing and spans %v, want the full card", got)
 	}
-	if got := cards["vix"].Spark.Span; got < 55 || got > 65 {
-		t.Errorf("the VIX stopped at 4pm of an 11 hour window and spans %v, want about 59", got)
+	// 4am to 8:30pm is 16.5 hours and the VIX stopped 12 hours in.
+	if got := cards["vix"].Spark.Span; got < 70 || got > 75 {
+		t.Errorf("the VIX stopped at 4pm and spans %v, want about 73", got)
 	}
 	if !cards["vix"].Spark.Closed {
 		t.Error("the VIX shut at the bell and its dead stretch has to be marked")
@@ -546,14 +548,11 @@ func TestShutByIgnoresTheNormalSpreadBetweenSymbols(t *testing.T) {
 // window, or a VIX frozen on Friday would be stretched across the weekend.
 func TestStripAxisLeavesAStaleCardOnItsOwnSession(t *testing.T) {
 	et := easternTime()
-	friday := time.Date(2026, 8, 28, 9, 30, 0, 0, et)
-	monday := time.Date(2026, 8, 31, 9, 30, 0, 0, et)
-
-	stale := tradingAxis{start: friday.Unix(), end: friday.Add(regularHours).Unix(), ok: true}
-	live := tradingAxis{start: monday.Unix(), end: monday.Add(8 * time.Hour).Unix(), ok: true}
+	stale := dayAxis(time.Date(2026, 8, 28, 4, 0, 0, 0, et))
+	live := dayAxis(time.Date(2026, 8, 31, 4, 0, 0, 0, et))
 
 	strip := stripAxis([]stripRow{{axis: stale}, {axis: live}})
-	if strip.start != live.start || strip.end != live.end {
+	if strip != live {
 		t.Fatalf("strip window is %v, want Monday's", strip)
 	}
 	if got := (stripRow{axis: stale}).axisOr(strip); got != stale {
@@ -562,4 +561,91 @@ func TestStripAxisLeavesAStaleCardOnItsOwnSession(t *testing.T) {
 	if got := (stripRow{axis: live}).axisOr(strip); got != strip {
 		t.Errorf("a card on the current session should take the shared window")
 	}
+}
+
+// bars is a price every five minutes from from until to, stepping by step.
+func bars(from, to time.Time, price, step float64) ([]float64, []int64) {
+	var closes []float64
+	var times []int64
+	for at := from; at.Before(to); at = at.Add(5 * time.Minute) {
+		closes = append(closes, price)
+		times = append(times, at.Unix())
+		price += step
+	}
+	return closes, times
+}
+
+// The future trades at a premium to the index, so the line is drawn in percent
+// off each one's own 4pm close and doesn't step at the open.
+func TestIndexCardStitchesTheFutureAndCashWithoutAStep(t *testing.T) {
+	et := easternTime()
+	day := func(h, m int) time.Time { return time.Date(2026, 8, 31, h, m, 0, 0, et) }
+	now := day(11, 0)
+
+	// Friday ends at 100 for the index and 101 for the future, and Monday
+	// opens both 1% up.
+	futCloses, futTimes := bars(time.Date(2026, 8, 28, 15, 0, 0, 0, et), time.Date(2026, 8, 28, 16, 5, 0, 0, et), 101, 0)
+	monCloses, monTimes := bars(day(4, 0), now, 102.01, 0)
+	cashCloses, cashTimes := bars(day(9, 30), now, 101, 0)
+
+	quotes := map[string]Quote{
+		"^GSPC": {Symbol: "^GSPC", Price: 101, Previous: 100, AsOf: now, Closes: cashCloses, Times: cashTimes},
+		"ES=F": {Symbol: "ES=F", Price: 102.01, AsOf: now,
+			Closes: append(futCloses, monCloses...), Times: append(futTimes, monTimes...)},
+	}
+
+	rows := resolveRows(quotes, false, now)
+	r := rows[0]
+	if r.symbol != "^GSPC" {
+		t.Fatalf("the session card is %q, want the cash index", r.symbol)
+	}
+	for i, c := range r.closes {
+		if c < 100.99 || c > 101.01 {
+			t.Fatalf("bar at %v is %v, want 101 all day with no step at 9:30",
+				time.Unix(r.times[i], 0).In(et), c)
+		}
+	}
+	if first := time.Unix(r.times[0], 0).In(et); !first.Equal(day(4, 0)) {
+		t.Errorf("line starts at %v, want 4am", first)
+	}
+}
+
+// After 8pm the index cards hold the day's last print, line and figure both,
+// until the next pre-market.
+func TestIndexCardHoldsAtEightOvernight(t *testing.T) {
+	et := easternTime()
+	day := func(h, m int) time.Time { return time.Date(2026, 8, 31, h, m, 0, 0, et) }
+	now := day(22, 0)
+
+	prevCloses, prevTimes := bars(time.Date(2026, 8, 28, 15, 0, 0, 0, et), time.Date(2026, 8, 28, 16, 5, 0, 0, et), 100, 0)
+	monCloses, monTimes := bars(day(4, 0), now, 100, 0.01)
+
+	quotes := map[string]Quote{
+		"ES=F": {Symbol: "ES=F", Price: 999, AsOf: now,
+			Closes: append(prevCloses, monCloses...), Times: append(prevTimes, monTimes...)},
+	}
+
+	m := buildMarket(quotes, now)
+	c := m.Cards[0]
+	if c.Symbol != "ES=F" {
+		t.Fatalf("overnight the card is %q, want the future", c.Symbol)
+	}
+	if c.Price == "999.00" {
+		t.Error("the card took the live price, want the 8pm print")
+	}
+	if c.Note != "S&P 500 futures, 8pm" {
+		t.Errorf("note %q, want it to say the figure is from 8pm", c.Note)
+	}
+	if c.Spark.Partial {
+		t.Errorf("the held day should fill the card, span %v", c.Spark.Span)
+	}
+}
+
+// ending is n bar times five minutes apart, the last at end.
+func ending(end time.Time, n int) []int64 {
+	out := make([]int64, n)
+	for i := range n {
+		out[i] = end.Add(-time.Duration(n-1-i) * 5 * time.Minute).Unix()
+	}
+	return out
 }

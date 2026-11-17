@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
@@ -315,6 +316,7 @@ type stripRow struct {
 	symbol  string
 	note    string
 	quote   Quote
+	base    float64
 	closes  []float64
 	times   []int64
 	axis    tradingAxis
@@ -335,18 +337,19 @@ func (r stripRow) axisOr(strip tradingAxis) tradingAxis {
 	return r.axis
 }
 
-// resolveRows picks each card's symbol and puts its bars on the New York
-// trading day, so every card starts at 9:30 and measures from 4pm. The previous
-// close is read before trimming, since it's the print before the open.
-func resolveRows(quotes map[string]Quote, useFutures bool) []stripRow {
+// resolveRows picks each card's symbol and puts its bars on the New York day,
+// 4am to 8pm. The previous close is read before trimming, since it's the print
+// before the day.
+func resolveRows(quotes map[string]Quote, useFutures bool, now time.Time) []stripRow {
 	rows := make([]stripRow, 0, len(instruments))
 
 	for _, in := range instruments {
-		r := stripRow{in: in, symbol: in.Cash}
-		if useFutures && in.Future != "" {
-			r.symbol, r.note = in.Future, in.FutureLabel
+		if in.Future != "" {
+			rows = append(rows, indexRow(in, quotes, useFutures, now))
+			continue
 		}
 
+		r := stripRow{in: in, symbol: in.Cash}
 		q, ok := quotes[r.symbol]
 		if !ok || q.Price == 0 {
 			r.missing = true
@@ -356,26 +359,71 @@ func resolveRows(quotes map[string]Quote, useFutures bool) []stripRow {
 
 		// Anything with no overnight form freezes at the close, so the card
 		// says when its number is from instead of passing it off as live.
-		if useFutures && in.Future == "" && in.Key == "vix" {
+		if useFutures && in.Key == "vix" {
 			r.note = "as of " + q.AsOf.In(easternTime()).Format("Mon 3:04pm")
 		}
 
-		axis := sessionAxis(q.Times)
-		if n := len(q.Times); n > 0 && roundClock(r.symbol) {
+		axis := barAxis(q.Times)
+		if len(q.Times) > 0 && roundClock(r.symbol) {
 			// Yahoo's own previous close on this batch is relative to the five
 			// day range, so a card with no 4pm in its bars says it has no
 			// baseline instead of measuring from last week.
 			q.Previous, r.nobase = 0, true
-			if prev, found := previousSessionClose(q.Closes, q.Times, time.Unix(q.Times[n-1], 0)); found {
+			if prev, found := previousSessionClose(q.Closes, q.Times, lastBell(time.Unix(axis.start, 0))); found {
 				q.Previous, r.nobase = prev, false
 			}
 		}
 
-		r.quote = q
-		r.closes, r.times, r.axis = sessionBars(q.Closes, q.Times, axis)
+		r.quote, r.base = q, q.Previous
+		r.closes, r.times, r.axis = dayBars(q.Closes, q.Times, axis)
 		rows = append(rows, r)
 	}
 	return rows
+}
+
+// indexRow is a card with a future behind it. Its line is the stitched day and
+// its figure is the cash index during the session and the future outside it,
+// held at 8pm through the night.
+func indexRow(in Instrument, quotes map[string]Quote, useFutures bool, now time.Time) stripRow {
+	r := stripRow{in: in, symbol: in.Cash}
+	cash, fut := quotes[in.Cash], quotes[in.Future]
+	axis := dayAxis(equityDay(now))
+
+	futBase, futFound := previousSessionClose(fut.Closes, fut.Times, weekdayBell(time.Unix(axis.start, 0)))
+	if !futFound {
+		futBase = 0
+	}
+	r.closes, r.times = stitchDay(cash, fut, cash.Previous, futBase, axis)
+	if len(r.times) > 0 {
+		r.axis, r.base = axis, 100
+	}
+
+	if !useFutures && cash.Price > 0 {
+		r.quote = cash
+		return r
+	}
+
+	r.symbol, r.note = in.Future, in.FutureLabel
+	if fut.Price == 0 {
+		r.missing = true
+		return r
+	}
+
+	// Past 8pm the card holds the day's last print, as the line does, and says
+	// so, since the future itself is still trading.
+	if now.Unix() >= axis.end {
+		for i := len(fut.Times) - 1; i >= 0; i-- {
+			if fut.Times[i] <= axis.end && fut.Times[i] >= axis.start && i < len(fut.Closes) {
+				fut.Price, fut.AsOf = fut.Closes[i], time.Unix(fut.Times[i], 0)
+				r.note = in.FutureLabel + ", 8pm"
+				break
+			}
+		}
+	}
+
+	fut.Previous, r.nobase = futBase, !futFound
+	r.quote = fut
+	return r
 }
 
 // stripAxis is the one window the strip is read across, the latest open any
@@ -385,7 +433,7 @@ func stripAxis(rows []stripRow) tradingAxis {
 	var strip tradingAxis
 	for _, r := range rows {
 		if r.axis.ok && r.axis.start > strip.start {
-			strip = tradingAxis{start: r.axis.start, ok: true}
+			strip = tradingAxis{start: r.axis.start, open: r.axis.open, bell: r.axis.bell, ok: true}
 		}
 	}
 	if !strip.ok {
@@ -443,7 +491,7 @@ func buildMarket(quotes map[string]Quote, now time.Time) Market {
 
 	useFutures := session != "regular"
 
-	rows := resolveRows(quotes, useFutures)
+	rows := resolveRows(quotes, useFutures, now)
 	axis := stripAxis(rows)
 	live := stripLive(rows)
 
@@ -457,7 +505,7 @@ func buildMarket(quotes map[string]Quote, now time.Time) Market {
 		}
 
 		q := r.quote
-		spark := buildSpark(r.closes, r.times, q.Previous, r.axisOr(axis))
+		spark := buildSpark(r.closes, r.times, r.base, r.axisOr(axis))
 		spark.Closed = r.shutBy(live) && spark.Span < sparkWidth
 
 		change, pct := q.change(), q.percent()
@@ -526,13 +574,13 @@ func carrySparks(next, prev Market) Market {
 	return next
 }
 
-// The day here is the trading day and not the calendar one, or every card would
-// look like it had rolled over at midnight while the session ran on until 9:30.
+// The day here rolls at 4am and not at midnight, or every card would look like
+// it had rolled over while the evening it shows was still on the card.
 func sameTradingDay(a, b time.Time) bool {
 	if a.IsZero() || b.IsZero() {
 		return false
 	}
-	return sessionStart(a).Equal(sessionStart(b))
+	return dayStart(a).Equal(dayStart(b))
 }
 
 func direction(change float64) string {
@@ -603,103 +651,126 @@ func until(from, to int) string {
 	return fmt.Sprintf("in %dm", d)
 }
 
-// tradingAxis is the session a sparkline is drawn against, in unix seconds.
+// tradingAxis is the day a sparkline is drawn against, in unix seconds, with
+// the regular session inside it so the card can shade it.
 type tradingAxis struct {
 	start, end int64
+	open, bell int64
 	ok         bool
 }
 
-// The New York trading day every card on the strip is drawn against. A symbol
-// that trades through the night keeps printing past the close.
+// The day every card is drawn against runs from the 4am pre-market to the 8pm
+// end of after hours, New York time, the window Yahoo draws a stock's day in.
 const (
+	dayStartHour    = 4
+	dayEndHour      = 20
 	sessionOpenHour = 9
 	sessionOpenMin  = 30
-	regularHours    = 6*time.Hour + 30*time.Minute
+	sessionBellHour = 16
 )
 
-// sessionStart is the 9:30 New York morning t belongs to, so the trading day
-// runs open to open. Weekends get an open too, since gold and bitcoin trade on
-// Saturday and every card resets at the same hour.
-func sessionStart(t time.Time) time.Time {
+// dayStart is the 4am New York morning t belongs to, so the small hours still
+// belong to the evening before. Weekends get one too, since gold and bitcoin
+// trade on Saturday.
+func dayStart(t time.Time) time.Time {
 	et := easternTime()
 	y, m, d := t.In(et).Date()
-	open := time.Date(y, m, d, sessionOpenHour, sessionOpenMin, 0, 0, et)
-	if t.Before(open) {
-		open = open.AddDate(0, 0, -1)
+	start := time.Date(y, m, d, dayStartHour, 0, 0, 0, et)
+	if t.Before(start) {
+		start = start.AddDate(0, 0, -1)
 	}
-	return open
+	return start
 }
 
-// sessionAxis is the window a series is drawn against, its open through the
-// close, stretched to hold whatever printed after the bell. It's anchored on
-// the last bar so the VIX at midnight shows the session it traded.
-func sessionAxis(times []int64) tradingAxis {
+// equityDay is the weekday the index cards show at t, which overnight and over
+// a weekend is still the last one, so they hold its 8pm until the next 4am.
+func equityDay(t time.Time) time.Time {
+	start := dayStart(t)
+	for weekend(start) {
+		start = start.AddDate(0, 0, -1)
+	}
+	return start
+}
+
+// dayAxis builds every boundary off the date in Eastern instead of adding hours,
+// so each lands on its wall clock time across a daylight saving change.
+func dayAxis(start time.Time) tradingAxis {
+	et := easternTime()
+	y, m, d := start.In(et).Date()
+	at := func(h, min int) int64 { return time.Date(y, m, d, h, min, 0, 0, et).Unix() }
+	return tradingAxis{
+		start: at(dayStartHour, 0),
+		open:  at(sessionOpenHour, sessionOpenMin),
+		bell:  at(sessionBellHour, 0),
+		end:   at(dayEndHour, 0),
+		ok:    true,
+	}
+}
+
+// barAxis is the day a series is drawn against, anchored on its last bar so
+// the VIX at 6am shows the session it traded, and stretched past 8pm for
+// whatever is still printing.
+func barAxis(times []int64) tradingAxis {
 	if len(times) == 0 {
 		return tradingAxis{}
 	}
-
 	last := times[len(times)-1]
-	open := sessionStart(time.Unix(last, 0))
-	axis := tradingAxis{start: open.Unix(), end: open.Add(regularHours).Unix(), ok: true}
+	axis := dayAxis(dayStart(time.Unix(last, 0)))
 	if last > axis.end {
 		axis.end = last
 	}
 	return axis
 }
 
-// sessionBars drops what printed before the open instead of clamping it, which
-// would smear the VIX's overnight prints up the left edge. Bars after the close
-// and none inside are futures reopened Sunday evening, given the full width.
-func sessionBars(closes []float64, times []int64, axis tradingAxis) ([]float64, []int64, tradingAxis) {
+// dayBars drops what printed before the day instead of clamping it, which
+// would smear yesterday up the left edge of the card.
+func dayBars(closes []float64, times []int64, axis tradingAxis) ([]float64, []int64, tradingAxis) {
 	if !axis.ok || len(times) != len(closes) {
 		return closes, times, tradingAxis{}
 	}
-
-	regularEnd := time.Unix(axis.start, 0).Add(regularHours).Unix()
 	var keptCloses []float64
 	var keptTimes []int64
-	var inRegular int
 	for i, t := range times {
-		if t < axis.start {
-			continue
+		if t >= axis.start {
+			keptCloses = append(keptCloses, closes[i])
+			keptTimes = append(keptTimes, t)
 		}
-		if t <= regularEnd {
-			inRegular++
-		}
-		keptCloses = append(keptCloses, closes[i])
-		keptTimes = append(keptTimes, t)
 	}
-
-	if inRegular == 0 {
+	if len(keptTimes) == 0 {
 		return closes, times, tradingAxis{}
 	}
 	return keptCloses, keptTimes, axis
 }
 
-// lastBell is the most recent 4pm New York strictly before t. It's built from
-// the open instead of a 16 so the two stay in step, and in Eastern so it lands
-// on 4pm across a daylight saving change.
+// lastBell is the most recent 4pm New York strictly before t, built in Eastern
+// so it lands on 4pm across a daylight saving change.
 func lastBell(t time.Time) time.Time {
 	et := easternTime()
 	y, m, d := t.In(et).Date()
-	bell := time.Date(y, m, d, sessionOpenHour, sessionOpenMin, 0, 0, et).Add(regularHours)
+	bell := time.Date(y, m, d, sessionBellHour, 0, 0, 0, et)
 	if !t.After(bell) {
 		bell = bell.AddDate(0, 0, -1)
 	}
 	return bell
 }
 
-// previousSessionClose is the last print at or before the latest 4pm, since
-// Yahoo dates bitcoin's day by UTC and a future's by contract. The cut is the
-// 4pm before the newest bar's day, so the evening futures keep the day's move.
-func previousSessionClose(closes []float64, times []int64, last time.Time) (float64, bool) {
-	y, m, d := last.In(easternTime()).Date()
-	cut := lastBell(time.Date(y, m, d, 0, 0, 0, 0, easternTime())).Unix()
+// weekdayBell is lastBell skipping the weekend, since a future trades until 5pm
+// Friday and its Sunday 4pm print would be Friday's 4:55.
+func weekdayBell(t time.Time) time.Time {
+	bell := lastBell(t)
+	for weekend(bell) {
+		bell = bell.AddDate(0, 0, -1)
+	}
+	return bell
+}
 
+// previousSessionClose is the last print at or before cut, read off the bars
+// since Yahoo dates bitcoin's day by UTC and a future's by its contract.
+func previousSessionClose(closes []float64, times []int64, cut time.Time) (float64, bool) {
 	var prev float64
 	var found bool
 	for i, t := range times {
-		if t > cut {
+		if t > cut.Unix() {
 			break
 		}
 		if i < len(closes) {
@@ -707,6 +778,55 @@ func previousSessionClose(closes []float64, times []int64, last time.Time) (floa
 		}
 	}
 	return prev, found
+}
+
+// stitchDay is an index card's day as one line, the future before the open and
+// after the bell and the cash index between. Each is a percent off its own 4pm
+// close drawn on a base of 100, since the future trades at a premium to the
+// index and raw prices would step at 9:30 and 4pm. Without cash bars in the
+// session, on a holiday or before the open, the future fills it.
+func stitchDay(cash, fut Quote, cashBase, futBase float64, axis tradingAxis) ([]float64, []int64) {
+	useCash := false
+	if cashBase > 0 {
+		for _, t := range cash.Times {
+			if t >= axis.open && t < axis.bell {
+				useCash = true
+				break
+			}
+		}
+	}
+
+	type bar struct {
+		t int64
+		v float64
+	}
+	var bars []bar
+	if futBase > 0 {
+		for i, t := range fut.Times {
+			if t < axis.start || t > axis.end || i >= len(fut.Closes) {
+				continue
+			}
+			if useCash && t >= axis.open && t < axis.bell {
+				continue
+			}
+			bars = append(bars, bar{t, fut.Closes[i] / futBase * 100})
+		}
+	}
+	if useCash {
+		for i, t := range cash.Times {
+			if t >= axis.open && t < axis.bell && i < len(cash.Closes) {
+				bars = append(bars, bar{t, cash.Closes[i] / cashBase * 100})
+			}
+		}
+	}
+	sort.Slice(bars, func(i, j int) bool { return bars[i].t < bars[j].t })
+
+	closes := make([]float64, len(bars))
+	times := make([]int64, len(bars))
+	for i, b := range bars {
+		closes[i], times[i] = b.v, b.t
+	}
+	return closes, times
 }
 
 // tabTicker picks the figure the browser tab leads with. Labels are short

@@ -695,6 +695,13 @@ main {
 
   .spark-area { stroke: none; }
 
+  // The regular session, so the pre-market and after hours either side of it
+  // read as the thinner trading they are.
+  .spark-session {
+    fill: var(--text);
+    opacity: 0.04;
+  }
+
   // The live end of a session that has not finished. The card is the whole
   // trading day, so this is where the day has got to and everything right of
   // it has not happened yet.
