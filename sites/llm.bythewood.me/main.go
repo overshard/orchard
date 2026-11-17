@@ -58,6 +58,8 @@ type site struct {
 	claude *claude
 	budget float64
 	limits keyLimiter
+	// Keyed requests log their call on the way out, so the store waits for them.
+	calls sync.WaitGroup
 }
 
 func env(k, def string) string {
@@ -139,6 +141,7 @@ func realMain() error {
 	if err := s.loadTemplates(); err != nil {
 		return fmt.Errorf("templates: %w", err)
 	}
+	defer s.calls.Wait()
 	// Waited on after the cancel so the store isn't closed under a prune.
 	pruneCtx, stopPruning := context.WithCancel(context.Background())
 	var pruning sync.WaitGroup

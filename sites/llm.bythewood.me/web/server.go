@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -32,9 +33,14 @@ func SetupLogging() {
 // Serve runs h on addr until SIGINT or SIGTERM, then drains in-flight requests
 // before returning.
 func Serve(addr string, h http.Handler) error {
+	// A generation can run past the drain deadline, and ending its request when
+	// Serve returns lets the handler finish and log it before the store closes.
+	base, endRequests := context.WithCancel(context.Background())
+	defer endRequests()
 	srv := &http.Server{
 		Addr:              addr,
 		Handler:           h,
+		BaseContext:       func(net.Listener) context.Context { return base },
 		ReadHeaderTimeout: 10 * time.Second,
 		// No write bound, since Go's WriteTimeout covers the whole response and
 		// any value at all cuts an event stream off mid-session.

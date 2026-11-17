@@ -57,6 +57,8 @@ func (s *site) requireKey(next func(http.ResponseWriter, *http.Request, Key)) ht
 			_, _ = w.Write([]byte(`{"error":{"message":"a valid api key is required","type":"invalid_request_error"}}`))
 			return
 		}
+		s.calls.Add(1)
+		defer s.calls.Done()
 		s.store.TouchKey(k.ID)
 		next(w, r, k)
 	}
