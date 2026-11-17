@@ -38,8 +38,12 @@ services:
         limits:
           cpus: "1.00"
           memory: 512M
+          pids: 128
     security_opt:
       - no-new-privileges:true
+    read_only: true
+    cap_drop: [ALL]
+    tmpfs: [/tmp]
     logging:
       driver: json-file
       options:
