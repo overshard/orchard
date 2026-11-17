@@ -163,6 +163,10 @@ func migrateIDs(db *sql.DB) {
 		}
 	}
 	ids.Close()
+	// A partial list would rebuild the tables without the conversations it missed.
+	if fail("reading the conversations", ids.Err()) {
+		return
+	}
 
 	for _, stmt := range []string{
 		`CREATE TABLE conversations_new (
@@ -448,6 +452,9 @@ func (s *Store) Penalties() map[string][2]int64 {
 			return out
 		}
 		out[host] = [2]int64{till, trips}
+	}
+	if err := rows.Err(); err != nil {
+		slog.Warn("reading the rate limit penalties", "err", err)
 	}
 	return out
 }
