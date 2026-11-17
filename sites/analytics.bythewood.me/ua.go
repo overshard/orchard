@@ -110,11 +110,12 @@ func looksLikeBot(ua string) bool {
 
 // classifyDevice collapses uap-core's device families into the three buckets the
 // dashboard charts. Tablet is tested first since an iPad's User-Agent carries
-// "Mobile" and an Android tablet's carries "android".
+// "Mobile", and Android browsers send "Mobile" on a phone and leave it off a tablet.
 func classifyDevice(ua, family string) string {
 	lower := strings.ToLower(ua)
+	androidTablet := strings.Contains(lower, "android") && !strings.Contains(lower, "mobile")
 
-	if family == "iPad" || family == "Tablet" ||
+	if family == "iPad" || family == "Tablet" || androidTablet ||
 		strings.Contains(lower, "tablet") || strings.Contains(lower, "ipad") {
 		return "Tablet"
 	}

@@ -162,8 +162,8 @@ func TestBotClassification(t *testing.T) {
 	}
 }
 
-// Tablet is tested before mobile since an iPad's User-Agent carries "Mobile"
-// and an Android tablet's carries "android".
+// Tablet is tested before mobile since an iPad's User-Agent carries "Mobile",
+// and an Android tablet is told apart from a phone by "Mobile" being missing.
 func TestClassifyDevice(t *testing.T) {
 	tests := []struct{ ua, family, want string }{
 		{"Mozilla/5.0 (iPad; CPU OS 17_4 like Mac OS X)", "iPad", "Tablet"},
@@ -171,6 +171,9 @@ func TestClassifyDevice(t *testing.T) {
 		{"Mozilla/5.0 (iPhone; CPU iPhone OS 17_4)", "iPhone", "Mobile"},
 		{"Mozilla/5.0 (Linux; Android 14; Pixel 8) Mobile Safari", "", "Mobile"},
 		{"Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/131", "", "Desktop"},
+		{"Mozilla/5.0 (Linux; Android 14; SM-X710) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36", "Samsung SM-X710", "Tablet"},
+		{"Mozilla/5.0 (Android 14; Tablet; rv:133.0) Gecko/133.0 Firefox/133.0", "Generic Tablet", "Tablet"},
+		{"Mozilla/5.0 (Android 14; Mobile; rv:133.0) Gecko/133.0 Firefox/133.0", "Generic Smartphone", "Mobile"},
 	}
 	for _, tt := range tests {
 		if got := classifyDevice(tt.ua, tt.family); got != tt.want {
