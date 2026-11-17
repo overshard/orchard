@@ -35,8 +35,12 @@ services:
           # A cold property report fires eight lookups at once and some of the
           # payloads are megabytes, which 512M did not leave room for.
           memory: 768M
+          pids: 256
     security_opt:
       - no-new-privileges:true
+    read_only: true
+    cap_drop: [ALL]
+    tmpfs: [/tmp]
     logging:
       driver: json-file
       options:
