@@ -96,9 +96,9 @@ type SchoolZones struct {
 	ElemMiles   float64
 	MiddleMiles float64
 	HighMiles   float64
-	// A coordinate came from the nearest school of that level, so the drive may
-	// not be to the zoned one.
-	Borrowed bool
+	// A coordinate came from the nearest school of that level, so the miles and
+	// the drive may not be to the zoned one.
+	ElemBorrowed, MiddleBorrowed, HighBorrowed bool
 
 	// Never cached, or a one minute outage would cost the address its schools.
 	Partial bool
@@ -337,18 +337,20 @@ func (s *Schools) queryCounty(ctx context.Context, ck string, src countyZones, l
 	// stays and only the position is borrowed from the nearest of that level.
 	if z.ElementaryLat == 0 || z.MiddleLat == 0 || z.HighLat == 0 {
 		if near, err := s.nearestSchools(ctx, lat, lon); err == nil {
-			z.Borrowed = true
-			if z.ElementaryLat == 0 {
+			if z.ElementaryLat == 0 && near.ElementaryLat != 0 {
 				z.ElementaryLat, z.ElementaryLon = near.ElementaryLat, near.ElementaryLon
 				z.ElemMiles = near.ElemMiles
+				z.ElemBorrowed = true
 			}
-			if z.MiddleLat == 0 {
+			if z.MiddleLat == 0 && near.MiddleLat != 0 {
 				z.MiddleLat, z.MiddleLon = near.MiddleLat, near.MiddleLon
 				z.MiddleMiles = near.MiddleMiles
+				z.MiddleBorrowed = true
 			}
-			if z.HighLat == 0 {
+			if z.HighLat == 0 && near.HighLat != 0 {
 				z.HighLat, z.HighLon = near.HighLat, near.HighLon
 				z.HighMiles = near.HighMiles
+				z.HighBorrowed = true
 			}
 		}
 	}

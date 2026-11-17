@@ -326,9 +326,9 @@ func (r *Report) SchoolsPart() map[string]any {
 		m["schools"] = "nothing found, the school layers could not be reached"
 		return m
 	}
-	m["elementary"] = schoolLine(z.Elementary, z.ElemMiles, r.Morning.DetourMin)
-	m["middle"] = schoolLine(z.Middle, z.MiddleMiles, r.Morning.MiddleDetourMin)
-	m["high"] = schoolLine(z.High, z.HighMiles, r.Morning.HighDetourMin)
+	m["elementary"] = schoolLine(z.Elementary, "elementary", z.ElemMiles, r.Morning.DetourMin, z.ElemBorrowed)
+	m["middle"] = schoolLine(z.Middle, "middle school", z.MiddleMiles, r.Morning.MiddleDetourMin, z.MiddleBorrowed)
+	m["high"] = schoolLine(z.High, "high school", z.HighMiles, r.Morning.HighDetourMin, z.HighBorrowed)
 	m["zoned_or_nearest"] = zoningNote(z)
 	// Not "source", which the model counted as a fourth school.
 	m["boundaries_from"] = z.Source
@@ -354,7 +354,7 @@ func zoningNote(z SchoolZones) string {
 	return "zoning unverified"
 }
 
-func schoolLine(name string, miles, detour float64) string {
+func schoolLine(name, level string, miles, detour float64, borrowed bool) string {
 	if name == "" {
 		return "not found"
 	}
@@ -364,6 +364,9 @@ func schoolLine(name string, miles, detour float64) string {
 	}
 	if detour > 0 {
 		out += ", " + minutes(detour) + " on top of the commute to drop off on the way"
+	}
+	if borrowed && (miles > 0 || detour > 0) {
+		out += ", though the county doesn't publish where " + name + " is, so the distance is to the nearest " + level + " and may not be to this one"
 	}
 	return out
 }
