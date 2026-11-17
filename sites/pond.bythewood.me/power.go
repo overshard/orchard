@@ -468,7 +468,7 @@ func keepRefs(tx *sql.Tx) error {
 			}
 			bests = append(bests, b)
 		}
-		if err := rows.Close(); err != nil {
+		if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 			return err
 		}
 		mid := 0
@@ -628,7 +628,7 @@ func seedRanks(db *sql.DB, now time.Time) error {
 		}
 		all = append(all, id)
 	}
-	if err := ids.Close(); err != nil {
+	if err := errors.Join(ids.Err(), ids.Close()); err != nil {
 		return err
 	}
 	for _, id := range all {

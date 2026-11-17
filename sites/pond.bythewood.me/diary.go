@@ -348,7 +348,7 @@ func diaryFacts(tx *sql.Tx, p *pond, f frogRow, day string, from, to time.Time) 
 		}
 		out = append(out, fact)
 	}
-	if err := rows.Close(); err != nil {
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 		return nil, err
 	}
 	first, err := tx.Query(`SELECT kind FROM fish WHERE pond_id = ? AND first_day = ?`, p.ID, day)
@@ -366,7 +366,7 @@ func diaryFacts(tx *sql.Tx, p *pond, f frogRow, day string, from, to time.Time) 
 			rarest = &f
 		}
 	}
-	if err := first.Close(); err != nil {
+	if err := errors.Join(first.Err(), first.Close()); err != nil {
 		return nil, err
 	}
 	if rarest != nil {
@@ -411,7 +411,7 @@ func diaryFacts(tx *sql.Tx, p *pond, f frogRow, day string, from, to time.Time) 
 			best = &h
 		}
 	}
-	if err := rows.Close(); err != nil {
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 		return nil, err
 	}
 	if best != nil {
@@ -469,7 +469,7 @@ func diaryFacts(tx *sql.Tx, p *pond, f frogRow, day string, from, to time.Time) 
 		}
 		had[k] = true
 	}
-	if err := kept.Close(); err != nil {
+	if err := errors.Join(kept.Err(), kept.Close()); err != nil {
 		return nil, err
 	}
 	var top *keepsake
@@ -556,7 +556,7 @@ func writeDiary(tx *sql.Tx, p *pond, f frogRow, now time.Time) error {
 		}
 		recent[l] = true
 	}
-	if err := rows.Close(); err != nil {
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 		return err
 	}
 	facts, err := diaryFacts(tx, p, f, day, from, to)

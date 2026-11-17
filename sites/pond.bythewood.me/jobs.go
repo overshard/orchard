@@ -1002,7 +1002,7 @@ func migrateJobs(db *sql.DB, now time.Time) error {
 		}
 		todo = append(todo, o)
 	}
-	if err := rows.Close(); err != nil {
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 		return err
 	}
 	for _, o := range todo {

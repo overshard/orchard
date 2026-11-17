@@ -147,7 +147,7 @@ func stampsIn(tx *sql.Tx, p *pond, now time.Time) ([]stampView, error) {
 		}
 		got = append(got, r)
 	}
-	if err := rows.Close(); err != nil {
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 		return nil, err
 	}
 	out := []stampView{}

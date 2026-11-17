@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"math"
@@ -385,7 +386,7 @@ func (s *store) stallList(id int64, kind string, price int) (*view, error) {
 			}
 			used[n] = true
 		}
-		if err := rows.Close(); err != nil {
+		if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 			return err
 		}
 		slot := -1
@@ -489,7 +490,7 @@ func (s *store) stallCollect(id int64) (*paidOut, error) {
 			}
 			sales = append(sales, x)
 		}
-		if err := rows.Close(); err != nil {
+		if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 			return err
 		}
 		if len(sales) == 0 {

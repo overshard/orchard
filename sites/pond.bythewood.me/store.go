@@ -481,7 +481,7 @@ func ensureColumns(db *sql.DB) (map[string]bool, error) {
 		}
 		have[name] = true
 	}
-	if err := rows.Close(); err != nil {
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 		return nil, err
 	}
 	for _, c := range addedColumns {
@@ -1088,7 +1088,7 @@ func viewOf(q querier, p pond, now time.Time, key []byte) (*view, error) {
 		}
 		held[h] = n
 	}
-	if err := rows.Close(); err != nil {
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 		return nil, err
 	}
 	var found []hat
