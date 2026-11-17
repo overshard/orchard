@@ -173,7 +173,7 @@ func realMain() error {
 		fresh, err := EnsureGeoIPDB(geoipPath)
 		switch {
 		case err != nil:
-			slog.Info(fmt.Sprintf("geoip refresh skipped: %v", err))
+			slog.Info("geoip refresh skipped", slog.Any("err", err))
 		case fresh:
 			s.geoip.Reload()
 		}
@@ -261,7 +261,7 @@ func realMain() error {
 		web.SameOrigin("/collect", "/collect/"),
 	)
 
-	slog.Info(fmt.Sprintf("analytics serving %s (property=%s)", baseURL, analyticsID))
+	slog.Info("analytics serving", slog.Any("base_url", baseURL), slog.Any("property", analyticsID))
 	return web.Serve(listenAddr, handler)
 }
 

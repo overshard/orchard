@@ -60,9 +60,9 @@ func LoadGeoIP(path string) *GeoIP {
 	g := &GeoIP{path: path}
 	if r, err := maxminddb.Open(path); err == nil {
 		g.reader = r
-		slog.Info(fmt.Sprintf("geoip loaded from %s", path))
+		slog.Info("geoip loaded", slog.Any("path", path))
 	} else {
-		slog.Info(fmt.Sprintf("geoip unavailable at %s (%v); country enrichment is off until a refresh lands", path, err))
+		slog.Info("geoip unavailable; country enrichment is off until a refresh lands", slog.Any("path", path), slog.Any("err", err))
 	}
 	return g
 }
@@ -72,7 +72,7 @@ func LoadGeoIP(path string) *GeoIP {
 func (g *GeoIP) Reload() bool {
 	r, err := maxminddb.Open(g.path)
 	if err != nil {
-		slog.Info(fmt.Sprintf("geoip reload: %v", err))
+		slog.Info("geoip reload", slog.Any("err", err))
 		return false
 	}
 	g.mu.Lock()
@@ -82,7 +82,7 @@ func (g *GeoIP) Reload() bool {
 	if old != nil {
 		_ = old.Close()
 	}
-	slog.Info(fmt.Sprintf("geoip reloaded from %s", g.path))
+	slog.Info("geoip reloaded", slog.Any("path", g.path))
 	return true
 }
 
@@ -146,11 +146,11 @@ func EnsureGeoIPDB(dest string) (bool, error) {
 		url := fmt.Sprintf("https://download.db-ip.com/free/dbip-city-lite-%d-%02d.mmdb.gz",
 			target.Year(), int(target.Month()))
 		if err := downloadGeoIP(url, dest); err != nil {
-			slog.Info(fmt.Sprintf("geoip download %d-%02d: %v", target.Year(), int(target.Month()), err))
+			slog.Info("geoip download", slog.String("month", target.Format("2006-01")), slog.Any("err", err))
 			lastErr = err
 			continue
 		}
-		slog.Info(fmt.Sprintf("geoip downloaded from %s", url))
+		slog.Info("geoip downloaded", slog.Any("url", url))
 		return true, nil
 	}
 	if lastErr == nil {

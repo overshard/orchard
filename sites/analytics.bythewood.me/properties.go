@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -50,7 +49,7 @@ func (s *site) properties(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		slog.Info(fmt.Sprintf("properties list: %v", err))
+		slog.Info("properties list", slog.Any("err", err))
 		http.Error(w, "database error", http.StatusInternalServerError)
 		return
 	}
@@ -60,13 +59,13 @@ func (s *site) properties(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		p, err := scanProperty(rows.Scan)
 		if err != nil {
-			slog.Info(fmt.Sprintf("properties scan: %v", err))
+			slog.Info("properties scan", slog.Any("err", err))
 			continue
 		}
 		props = append(props, p)
 	}
 	if err := rows.Err(); err != nil {
-		slog.Info(fmt.Sprintf("properties list: %v", err))
+		slog.Info("properties list", slog.Any("err", err))
 		http.Error(w, "database error", http.StatusInternalServerError)
 		return
 	}
@@ -86,7 +85,7 @@ func (s *site) properties(w http.ResponseWriter, r *http.Request) {
 		    (SELECT COUNT(*) FROM events WHERE property_id = ?1 AND created_at >= ?2)`,
 			p.ID[:], activeSince).Scan(&total, &pv, &ss, &active)
 		if err != nil {
-			slog.Info(fmt.Sprintf("properties counts for %s: %v", p.ID, err))
+			slog.Info("properties counts", slog.Any("id", p.ID), slog.Any("err", err))
 		}
 
 		totals.Events += total
@@ -130,7 +129,7 @@ func (s *site) propertyCreate(w http.ResponseWriter, r *http.Request) {
 		`INSERT INTO properties (id, name, custom_cards, is_protected, is_public, created_at, updated_at)
 		 VALUES (?, ?, '[]', 0, 0, ?, ?)`,
 		id[:], name, now, now); err != nil {
-		slog.Info(fmt.Sprintf("property create: %v", err))
+		slog.Info("property create", slog.Any("err", err))
 		http.Error(w, "database error", http.StatusInternalServerError)
 		return
 	}
@@ -148,7 +147,7 @@ func (s *site) propertyDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, err := s.db.ExecContext(r.Context(),
 		"DELETE FROM properties WHERE id = ? AND is_protected = 0", id[:]); err != nil {
-		slog.Info(fmt.Sprintf("property delete: %v", err))
+		slog.Info("property delete", slog.Any("err", err))
 	}
 	http.Redirect(w, r, "/properties", http.StatusSeeOther)
 }
@@ -174,7 +173,7 @@ func (s *site) propertyCards(w http.ResponseWriter, r *http.Request) {
 	if _, err := s.db.ExecContext(r.Context(),
 		"UPDATE properties SET custom_cards = ?, updated_at = ? WHERE id = ?",
 		string(encoded), time.Now().UnixMilli(), id[:]); err != nil {
-		slog.Info(fmt.Sprintf("property cards: %v", err))
+		slog.Info("property cards", slog.Any("err", err))
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"success": false})
 		return
 	}
@@ -191,7 +190,7 @@ func (s *site) propertyPublic(w http.ResponseWriter, r *http.Request) {
 	if _, err := s.db.ExecContext(r.Context(),
 		"UPDATE properties SET is_public = 1 - is_public, updated_at = ? WHERE id = ?",
 		time.Now().UnixMilli(), id[:]); err != nil {
-		slog.Info(fmt.Sprintf("property public toggle: %v", err))
+		slog.Info("property public toggle", slog.Any("err", err))
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"success": false})
 		return
 	}

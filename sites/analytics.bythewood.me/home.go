@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -23,7 +22,7 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 	    (SELECT MIN(created_at) FROM events)`).Scan(&properties, &events, &first)
 	if err != nil {
 		// Missing totals still render a usable page, so this is not fatal.
-		slog.Info(fmt.Sprintf("home totals: %v", err))
+		slog.Info("home totals", slog.Any("err", err))
 	}
 
 	data := s.page(r, "Self-hosted analytics",

@@ -193,8 +193,8 @@ func runSeed(ctx context.Context, db *sql.DB, sessions, days int) error {
 		return err
 	}
 
-	slog.Info(fmt.Sprintf("seeded %d sessions (%d events) into %q (%s)", sessions, total, seedPropertyName, id))
-	slog.Info(fmt.Sprintf("dashboard: http://localhost:8000/%s", id))
+	slog.Info("seeded", slog.Int("sessions", sessions), slog.Int64("events", total),
+		slog.String("property", seedPropertyName), slog.String("dashboard", "http://localhost:8000/"+id.String()))
 	return nil
 }
 

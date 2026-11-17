@@ -132,7 +132,7 @@ func (s *site) dashboard(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
 
 	p, err := lookupProperty(ctx, s.db, id)
 	if err != nil {
-		slog.Info(fmt.Sprintf("dashboard lookup: %v", err))
+		slog.Info("dashboard lookup", slog.Any("err", err))
 		http.Error(w, "database error", http.StatusInternalServerError)
 		return
 	}
@@ -390,7 +390,7 @@ func min64(a, b int64) int64 {
 func jsonBlock(v any) template.JS {
 	b, err := json.Marshal(v)
 	if err != nil {
-		slog.Info(fmt.Sprintf("json block: %v", err))
+		slog.Info("json block", slog.Any("err", err))
 		return template.JS("null")
 	}
 	return template.JS(b)

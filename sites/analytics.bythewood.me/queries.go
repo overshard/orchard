@@ -97,7 +97,7 @@ func placeholders(n int) string {
 
 func logQuery(what string, err error) {
 	if err != nil && err != sql.ErrNoRows {
-		slog.Info(fmt.Sprintf("query %s: %v", what, err))
+		slog.Info("query", slog.Any("query", what), slog.Any("err", err))
 	}
 }
 

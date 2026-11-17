@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -83,7 +82,7 @@ func (s *site) collect(w http.ResponseWriter, r *http.Request) {
 		corsStatus(w, r, http.StatusNotFound)
 		return
 	case err != nil:
-		slog.Info(fmt.Sprintf("collect: property lookup: %v", err))
+		slog.Info("collect: property lookup", slog.Any("err", err))
 		corsStatus(w, r, http.StatusInternalServerError)
 		return
 	}
@@ -211,7 +210,7 @@ func (s *site) insertEvent(ctx context.Context, propertyID uuid.UUID, event, use
 		country, region, city, lat, lon, utmSource, utmMedium, utmCampaign, utmTerm,
 		utmContent, timeOnPage, encodeExtra(data))
 	if err != nil {
-		slog.Info(fmt.Sprintf("collect: insert event: %v", err))
+		slog.Info("collect: insert event", slog.Any("err", err))
 	}
 }
 
@@ -225,7 +224,7 @@ func (s *site) insertBotEvent(ctx context.Context, propertyID uuid.UUID, event, 
 		nullString(clampRunes(stringField(data, "url"), maxFieldLen)), nullString(userAgent),
 		nullString(stringField(data, "country")), encodeExtra(data))
 	if err != nil {
-		slog.Info(fmt.Sprintf("collect: insert bot event: %v", err))
+		slog.Info("collect: insert bot event", slog.Any("err", err))
 	}
 }
 
@@ -374,7 +373,7 @@ func (s *site) collectorScript(w http.ResponseWriter, r *http.Request) {
 
 	f, err := s.dist.Open(strings.TrimPrefix(name, "/static/"))
 	if err != nil {
-		slog.Info(fmt.Sprintf("collector open %s: %v", name, err))
+		slog.Info("collector open", slog.Any("name", name), slog.Any("err", err))
 		http.Error(w, "collector unavailable", http.StatusServiceUnavailable)
 		return
 	}
@@ -385,7 +384,7 @@ func (s *site) collectorScript(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(f)
 	if err != nil {
-		slog.Info(fmt.Sprintf("collector read %s: %v", name, err))
+		slog.Info("collector read", slog.Any("name", name), slog.Any("err", err))
 		http.Error(w, "collector unavailable", http.StatusServiceUnavailable)
 		return
 	}
