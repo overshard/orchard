@@ -732,7 +732,7 @@ func (s *site) turn(ctx context.Context, rn *turnRun, key string, req sendReq, p
 	// After the answer is on its way, never in front of it. Not for incognito,
 	// which can't teach it something to write down later, and not for a picture,
 	// which says nothing about him and would swap the chat model straight back on.
-	if !req.Incognito && !drew && !flagging {
+	if !req.Incognito && !drew && !flagging && learnsFrom(used) {
 		s.detached.Go(func() {
 			// Recovered here and not by the middleware, which only wraps the
 			// handler. A panic on this goroutine would take the process down

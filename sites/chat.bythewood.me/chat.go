@@ -333,7 +333,7 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 	// nobody checked. Asked about one house it searched anyway and came back with
 	// a build year in no tool result, and a prompt can't stop that.
 	settled := calledWith(used, tools.Settles)
-	untrusted := readUntrusted(used)
+	outside, own := readUntrusted(used)
 	exposed := readPrivate(used)
 	var stats Stats
 	schemas := e.reg.Schemas()
@@ -395,11 +395,8 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 		}
 		// Taken at the top of the round, since calls made side by side in one
 		// reply were all decided before any of them answered.
-		closed, sealed := untrusted, exposed
-		offer := schemas
-		if closed {
-			offer = tools.WithoutAny(offer, tools.Private)
-		}
+		shutOutside, shutOwn, sealed := outside, own, exposed
+		offer := tools.WithoutFunc(schemas, func(t tools.Tool) bool { return shut(t, shutOutside, shutOwn) })
 		if sealed {
 			offer = tools.WithoutAny(offer, tools.Outbound)
 		}
@@ -572,14 +569,14 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 					Content: `{"note":"` + tc.Function.Name + ` was already read in this turn and one call is the whole rundown. Use what it returned."}`})
 				continue
 			}
-			if closed && tool.Is(tools.Private) {
+			if shut(tool, shutOutside, shutOwn) {
 				id := tc.ID
 				if id == "" {
 					id = tc.Function.Name
 				}
 				msgs = append(msgs, Message{Role: RoleTool, ToolCallID: id, Name: tc.Function.Name,
-					Content: `{"note":"that tool is off for the rest of this turn because web content was read. Answer with what you have."}`})
-				tr.Add(Step{Kind: "tool", Label: tc.Function.Name + " refused after web content", In: tc.Function.Arguments, Bad: true})
+					Content: `{"note":"that tool is off for the rest of this turn because text strangers wrote was read. Answer with what you have."}`})
+				tr.Add(Step{Kind: "tool", Label: tc.Function.Name + " refused after untrusted text", In: tc.Function.Arguments, Bad: true})
 				continue
 			}
 			if sealed && tool.Is(tools.Outbound) {
@@ -593,8 +590,10 @@ func (e *Engine) Run(ctx context.Context, history []Message, user, session, memo
 				continue
 			}
 			emit(Event{Kind: "tool", Tool: tc.Function.Name, Args: shortArgs(tc.Function.Arguments)})
-			if tool.Is(tools.Untrusted) {
-				untrusted = true
+			if tool.Is(tools.Untrusted) && tool.Is(tools.Estate) {
+				own = true
+			} else if tool.Is(tools.Untrusted) {
+				outside = true
 			}
 			if tool.Is(tools.Private) {
 				exposed = true

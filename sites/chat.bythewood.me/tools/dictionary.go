@@ -24,7 +24,7 @@ func (a *dictionaryArgs) params() []param {
 // "program" lands on everything called that.
 var Dictionary = Define(Tool{
 	Name:   "dictionary",
-	Traits: Outbound,
+	Traits: Untrusted | Outbound,
 	Description: "What a word or a short phrase means, from Wiktionary, with its part of speech and an example. " +
 		"Use it to define a word or say what a term means, and use web_search for a person, place, thing or event.",
 }, func(ctx context.Context, d *Turn, a dictionaryArgs) (any, error) {

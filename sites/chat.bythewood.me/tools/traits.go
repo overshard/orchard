@@ -8,7 +8,8 @@ type Trait uint
 
 const (
 	// Untrusted reads text a stranger wrote, which can tell the model to leak
-	// whatever it reads next, so nothing Private is offered after one answers.
+	// whatever it reads next, so nothing Private is offered after one answers
+	// and the turn is not mined for memories.
 	Untrusted Trait = 1 << iota
 	// Private reads Isaac's own data, and strangers write some of it through
 	// request paths and /collect, so nothing Outbound is offered after one answers.
@@ -66,8 +67,13 @@ func Of(name string) Tool {
 
 // WithoutAny drops every tool with any of the traits from an offer.
 func WithoutAny(schemas []map[string]any, tr Trait) []map[string]any {
+	return WithoutFunc(schemas, func(t Tool) bool { return t.Is(tr) })
+}
+
+// WithoutFunc drops every tool drop is true for from an offer.
+func WithoutFunc(schemas []map[string]any, drop func(Tool) bool) []map[string]any {
 	return slices.DeleteFunc(slices.Clone(schemas), func(s map[string]any) bool {
-		return Of(schemaName(s)).Is(tr)
+		return drop(Of(schemaName(s)))
 	})
 }
 

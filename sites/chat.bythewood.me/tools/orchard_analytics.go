@@ -21,7 +21,7 @@ func (a *orchardAnalyticsArgs) params() []param {
 
 var OrchardAnalytics = Define(Tool{
 	Name:   "orchard_analytics",
-	Traits: Private | Estate,
+	Traits: Untrusted | Private | Estate,
 	Description: "Read Isaac's own analytics at analytics.bythewood.me: sessions, page views, live " +
 		"users, and the top pages, referrers, countries, browsers and devices for each property. Use " +
 		"it for anything about his traffic or where his visitors come from. Read only.",
