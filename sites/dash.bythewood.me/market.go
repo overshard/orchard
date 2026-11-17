@@ -780,11 +780,9 @@ func previousSessionClose(closes []float64, times []int64, cut time.Time) (float
 	return prev, found
 }
 
-// stitchDay is an index card's day as one line, the future before the open and
-// after the bell and the cash index between. Each is a percent off its own 4pm
-// close drawn on a base of 100, since the future trades at a premium to the
-// index and raw prices would step at 9:30 and 4pm. Without cash bars in the
-// session, on a holiday or before the open, the future fills it.
+// stitchDay is an index card's day as one line, the future outside the session
+// and the cash index in it, each a percent off its own 4pm close so the swap
+// doesn't step. With no cash bars in the session the future fills it.
 func stitchDay(cash, fut Quote, cashBase, futBase float64, axis tradingAxis) ([]float64, []int64) {
 	useCash := false
 	if cashBase > 0 {

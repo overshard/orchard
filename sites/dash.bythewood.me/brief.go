@@ -15,10 +15,8 @@ import (
 	"time"
 )
 
-// Claude Haiku writes a brief for each desk, markets at the named slots and news
-// and feeds every hour. Headlines are
-// written to be clicked, so the news is told to restate what happened instead
-// of how an outlet framed it.
+// Headlines are written to be clicked, so the news is told to restate what
+// happened instead of how an outlet framed it.
 
 // briefSlot is one run. The close is a few minutes after the bell so the 4pm
 // print has landed on Yahoo before the strip is read.
@@ -59,10 +57,9 @@ var hourlySlots = func() []briefSlot {
 // futuresSlot is Sunday's markets brief, once futures have opened on the week.
 var futuresSlot = briefSlot{kind: "futures", hour: 18, minute: 15, reach: 24 * time.Hour}
 
-// slotsOn is the slots a desk runs on day. An empty desk gets every named slot,
-// and any other name the named slots without Sunday's futures.
-// Over a weekend markets only runs Saturday morning and once futures open
-// Sunday, since nothing trades between them to change the lines.
+// slotsOn is the slots a desk runs on day. Over a weekend markets only runs
+// Saturday morning and once futures open Sunday, since nothing trades between
+// them, and an empty desk gets every named slot.
 func slotsOn(desk string, day time.Time) []briefSlot {
 	if desk == "news" || desk == "feeds" {
 		return hourlySlots
