@@ -63,6 +63,8 @@ new site from, and isn't a site itself.
   because the daemon resolves the path on the host. Use named volumes.
 - `.env` is gitignored by bare name and this repo is public, so check it with
   `git check-ignore -v sites/<site>/.env` rather than trusting it.
+- The gitleaks pre-commit hook is off in a fresh clone. Turn it on with
+  `git config core.hooksPath .githooks`, which needs `apt install gitleaks`.
 
 `CLAUDE.md` has the rest, the conventions and the mistakes already made once.
 

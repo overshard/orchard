@@ -1,0 +1,8 @@
+#!/bin/sh
+# Turned on per clone with: git config core.hooksPath .githooks
+# A false positive gets a gitleaks:allow comment on its line.
+if ! command -v gitleaks >/dev/null; then
+    echo "pre-commit: gitleaks is missing, apt install gitleaks or commit with --no-verify" >&2
+    exit 1
+fi
+exec gitleaks protect --staged --redact --no-banner

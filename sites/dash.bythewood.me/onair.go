@@ -27,7 +27,7 @@ const (
 	// The Client-ID Twitch's own web player sends. Helix wants a registered
 	// app and a token, and this has answered without either for years.
 	twitchGQL      = "https://gql.twitch.tv/gql"
-	twitchClientID = "kimne78kx3ncx6brgo4mv6wki5h1ko"
+	twitchClientID = "kimne78kx3ncx6brgo4mv6wki5h1ko" // gitleaks:allow
 
 	onAirEvery = 10 * time.Minute
 
