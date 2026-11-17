@@ -189,11 +189,15 @@ down-one: require-site
 # `ps -a` rather than `ps`, so a container that exited reads as stopped rather
 # than vanishing from the report.
 #
-# Volume and container names are both read out of the compose files rather than
-# listed here, so a site that gains state, or a second service, is picked up
-# without editing this. chat and llm have two containers each for that reason.
+# Volume and container names come from compose config, so a site that gains
+# state is picked up without editing this and a profile left off isn't flagged.
+# The file is read raw when config fails, so a broken site still shows up.
 doctor: util
-	@probe() { \
+	@active() { \
+		cfg=$$(cd sites/$$1 && $(DOCKER) compose config --format json 2>/dev/null) && \
+			echo "$$cfg" | jq -r "$$2" || awk "$$3" sites/$$1/docker-compose.yml; \
+	}; \
+	probe() { \
 		st=$$($(DOCKER) ps -a --filter "name=^$$1$$" --format '{{.Status}}' 2>/dev/null | head -1); \
 		case "$$st" in \
 		"")          printf '  %-22s %-22s %s\n' "$$1" "not created" "$$2" ;; \
@@ -230,7 +234,7 @@ doctor: util
 	echo ""; \
 	echo "sites"; \
 	for s in $(SITES); do \
-		for c in $$(awk '/^ *container_name:/{print $$2}' sites/$$s/docker-compose.yml); do \
+		for c in $$(active $$s '.services[].container_name' '/^ *container_name:/{print $$2}'); do \
 			probe "$$c" "-> make deploy SITE=$$s"; \
 		done; \
 	done; \
@@ -275,7 +279,7 @@ doctor: util
 	echo "state"; \
 	sizes=$$($(DOCKER) system df -v 2>/dev/null | awk '/^VOLUME NAME/{v=1;next} v && NF==3{print $$1"="$$3}'); \
 	for s in $(SITES); do \
-		for vol in $$(awk '/^volumes:/{v=1;next} /^[a-z]/{v=0} v && /name:/{print $$2}' sites/$$s/docker-compose.yml); do \
+		for vol in $$(active $$s '(.volumes // {})[].name' '/^volumes:/{v=1;next} /^[a-z]/{v=0} v && /name:/{print $$2}'); do \
 			if $(DOCKER) volume inspect $$vol >/dev/null 2>&1; then \
 				size=$$(echo "$$sizes" | sed -n "s/^$$vol=//p"); \
 				printf '  %-22s %s\n' "$$vol" "ok, $${size:-size unknown}"; \
