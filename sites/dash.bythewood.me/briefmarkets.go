@@ -187,7 +187,13 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 		pt, ok := marketPoint(l, ans, events)
 		if !ok && l.forward {
 			if pt, ok = carriedLine(st.Briefs.Markets, brief, l.label); ok {
-				slog.Info("brief markets line carried", slog.String("component", "brief"), slog.String("label", l.label))
+				// Figures in the old line go stale as the market moves.
+				if miss := unsupported(pt.Text, source+l.sayable(at)); len(miss) > 0 {
+					ok = false
+					slog.Info("brief markets carry dropped", slog.String("component", "brief"), slog.String("label", l.label), slog.String("stale", strings.Join(miss, ", ")))
+				} else {
+					slog.Info("brief markets line carried", slog.String("component", "brief"), slog.String("label", l.label))
+				}
 			}
 		}
 		if ok {
