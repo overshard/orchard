@@ -72,7 +72,7 @@
 {{$c := .Ctx}}
 <div class="clonebox">
   <h3>Clone</h3>
-  <input type="text" readonly value="git clone {{$c.CloneURL}}" onclick="this.select()">
+  <input type="text" readonly value="git clone {{$c.CloneURL}}" data-select>
 
   {{if not $c.SignedIn}}
     <p class="hint">
@@ -96,7 +96,7 @@
     */}}
     <h3>Push</h3>
     <p class="hint">Username is ignored; the password is a push token.</p>
-    <input type="text" readonly value="git push {{$c.CloneURL}} main" onclick="this.select()">
+    <input type="text" readonly value="git push {{$c.CloneURL}} main" data-select>
 
     {{/*
       The meter is shown for every repository rather than only oversized ones,

@@ -5,7 +5,7 @@
 {{if $d.NewToken}}
 <div class="notice tokennew">
   <strong>New push token. This is the only time it is shown.</strong>
-  <input type="text" readonly value="{{$d.NewToken}}" onclick="this.select()">
+  <input type="text" readonly value="{{$d.NewToken}}" data-select>
   <p>Use it as the password. The username is ignored, so type anything:</p>
   <pre class="cmd">git remote add origin {{$d.CloneURL}}/&lt;name&gt;.git
 git push -u origin main</pre>
