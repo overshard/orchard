@@ -42,13 +42,7 @@
 
 {{ define "collector" }}
 {{ if .CollectorID }}
-<script>
-  (function(m,e,t,r,i,c,s){m.collectorQueue = m.collectorQueue || r;
-  m.collectorServer = c; m.collectorId = s; var script = e.createElement(t);
-  script.src = c + i; e.head.appendChild(script);
-  })(window,document,'script',[],'/static/collector.js',
-  '{{ .CollectorServer }}','{{ .CollectorID }}');
-</script>
+<script src="{{ .CollectorServer }}/static/collector.js" data-collector-id="{{ .CollectorID }}" async></script>
 {{ end }}
 {{ end }}
 

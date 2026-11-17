@@ -36,13 +36,12 @@ func dir(env, fallback string) string {
 	return fallback
 }
 
-// script-src needs 'unsafe-inline' for the inline self-tracking snippet, and
-// style-src for Bootstrap's style attributes. Neither can drop it without a
-// markup change.
+// style-src keeps 'unsafe-inline' for Bootstrap's style attributes. script-src
+// doesn't need it, so keep inline script and on* handlers out of templates.
 func csp() string {
 	return strings.Join([]string{
 		"default-src 'self'",
-		"script-src 'self' 'unsafe-inline'",
+		"script-src 'self'",
 		"style-src 'self' 'unsafe-inline'",
 		"img-src 'self' data:",
 		"font-src 'self'",

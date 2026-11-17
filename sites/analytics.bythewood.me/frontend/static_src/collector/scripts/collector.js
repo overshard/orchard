@@ -3,6 +3,15 @@
 // window.collectorQueue as an {event, data} pair.
 
 (function() {
+  // A plain tag carrying data-collector-id needs no inline loader, so a page
+  // can keep 'unsafe-inline' out of its CSP. currentScript is only set here.
+  var tag = document.currentScript;
+  if (tag && tag.dataset.collectorId) {
+    window.collectorId = tag.dataset.collectorId;
+    window.collectorServer = new URL(tag.src).origin;
+  }
+  window.collectorQueue = window.collectorQueue || [];
+
   function set_cookie(name, value, expires) {
     var d = new Date();
     d.setTime(d.getTime() + (expires * 24 * 60 * 60 * 1000));
@@ -123,6 +132,11 @@
         text: (event.target.textContent || "").slice(0, 200),
       },
     });
+    // data-track names a custom event without an inline onclick.
+    var tracked = event.target.closest && event.target.closest("[data-track]");
+    if (tracked) {
+      window.collectorQueue.push({ event: tracked.dataset.track });
+    }
   });
 
   var last_scroll_event = 0;

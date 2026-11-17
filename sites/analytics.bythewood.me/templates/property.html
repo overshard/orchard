@@ -252,13 +252,8 @@
       </div>
       <div class="modal-body">
         <p class="text-muted small mb-3">Drop this into the <code class="text-amber">&lt;head&gt;</code> of your site. The collector ID below is scoped to <strong class="text-white">{{ $p.Name }}</strong>.</p>
-        <textarea class="codebox" rows="7" readonly>&lt;script&gt;
-(function(m,e,t,r,i,c,s){m.collectorQueue = m.collectorQueue || r;
-m.collectorServer = c; m.collectorId = s; var script = e.createElement(t);
-script.src = c + i; e.head.appendChild(script);
-})(window,document,'script',[],'/static/collector.js',
-'{{ $baseURL }}','{{ $p.ID }}');
-&lt;/script&gt;</textarea>
+        <textarea class="codebox" rows="3" readonly>&lt;script src="{{ $baseURL }}/static/collector.js" data-collector-id="{{ $p.ID }}" async&gt;&lt;/script&gt;</textarea>
+        <p class="text-muted small mt-3 mb-0">With a Content-Security-Policy, add <code class="text-amber">{{ $baseURL }}</code> to <code class="text-amber">script-src</code> and <code class="text-amber">connect-src</code>.</p>
       </div>
     </div>
   </div>

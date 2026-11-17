@@ -25,7 +25,7 @@
           </span>
           <input type="text" class="form-control search-input" name="q" id="id_search" placeholder="grep properties..." value="{{ .Query }}" />
         </form>
-        <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePropertyAdd" aria-expanded="false" aria-controls="collapsePropertyAdd" onclick="window.collectorQueue && collectorQueue.push({event: 'add_property_toggle'})">
+        <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePropertyAdd" aria-expanded="false" aria-controls="collapsePropertyAdd" data-track="add_property_toggle">
           + new
         </button>
       </div>
@@ -76,7 +76,7 @@
     <div class="pr-main">
       <div class="pr-title">
         <span class="status-dot {{ if .IsActive }}is-up{{ else }}is-idle{{ end }}" aria-hidden="true"></span>
-        <a href="/{{ .ID }}" class="text-truncate" onclick="window.collectorQueue && collectorQueue.push({event: 'view_property'})">{{ .Name }}</a>
+        <a href="/{{ .ID }}" class="text-truncate" data-track="view_property">{{ .Name }}</a>
       </div>
       <div class="pr-id"><span class="pr-id-k">id</span>{{ .ID }}</div>
     </div>

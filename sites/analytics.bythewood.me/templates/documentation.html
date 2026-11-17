@@ -35,9 +35,9 @@
           </h2>
           <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#docsAccordion">
             <div class="accordion-body">
-              <p>Attach a handler to any interactive element. The event name is
-                whatever you want to measure later.</p>
-              <textarea class="codebox" rows="3" readonly>onclick="collectorQueue.push({event: 'signup_cta_click'})"</textarea>
+              <p>Put <code>data-track</code> on any element. A click on it, or on
+                anything inside it, sends an event under that name.</p>
+              <textarea class="codebox" rows="3" readonly>&lt;button data-track="signup_cta_click"&gt;Sign up&lt;/button&gt;</textarea>
             </div>
           </div>
         </div>
@@ -53,7 +53,7 @@
               <p>Use this for SPA route changes, funnel checkpoints
                 ("invoice paid"), or any meaningful page-level moment. Push
                 once per visit:</p>
-              <textarea class="codebox" rows="3" readonly><script>collectorQueue.push({event: 'checkout_success'});</script></textarea>
+              <textarea class="codebox" rows="3" readonly>(window.collectorQueue = window.collectorQueue || []).push({event: 'checkout_success'});</textarea>
             </div>
           </div>
         </div>
@@ -70,7 +70,7 @@
                 column. Add whatever keys you need, no migration required,
                 query with SQLite JSON1
                 <code>json_extract(extra, '$.user_segment')</code> later.</p>
-              <textarea class="codebox" rows="3" readonly><script>collectorQueue.push({event: 'admin_page_view', data: {user_segment: 'admins'}});</script></textarea>
+              <textarea class="codebox" rows="3" readonly>(window.collectorQueue = window.collectorQueue || []).push({event: 'admin_page_view', data: {user_segment: 'admins'}});</textarea>
             </div>
           </div>
         </div>
