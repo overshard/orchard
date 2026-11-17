@@ -12,9 +12,10 @@ RUN apt-get update && \
 
 COPY --from=ntfy /usr/bin/ntfy /usr/bin/ntfy
 
-# The named volume mounts over this. Created in the image so a first run against
-# an empty volume has a directory to write into.
-RUN mkdir -p /var/lib/ntfy
+# The named volume mounts over this and takes its ownership from it, so a first
+# run against an empty volume has a directory the app user can write into.
+RUN mkdir -p /var/lib/ntfy && chown 65532:65532 /var/lib/ntfy
 
 COPY server.yml /etc/ntfy/server.yml
+USER 65532:65532
 ENTRYPOINT ["ntfy"]
