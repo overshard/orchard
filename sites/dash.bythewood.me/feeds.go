@@ -224,10 +224,6 @@ func threadList(ts []thread) string {
 	return b.String()
 }
 
-// Room past the asked 22 words so the model finishes the sentence on its own
-// instead of running into the cap mid clause. The panel shows three lines.
-const feedReadMax = 190
-
 func (b *Briefer) compileFeeds(ctx context.Context, slot briefSlot, at time.Time) (Brief, error) {
 	now := time.Now()
 	brief := Brief{Kind: slot.kind, Title: slot.title(), Slot: at.Unix(),
@@ -290,8 +286,8 @@ func (b *Briefer) feedRead(ctx context.Context, name string, ts []thread) (Point
 	schema := map[string]any{
 		"type": "object",
 		"properties": map[string]any{
-			"read":    map[string]any{"type": "string", "maxLength": feedReadMax},
-			"sources": map[string]any{"type": "array", "minItems": 1, "maxItems": 3, "items": map[string]any{"type": "integer"}},
+			"read":    map[string]any{"type": "string"},
+			"sources": map[string]any{"type": "array", "items": map[string]any{"type": "integer"}},
 		},
 		"required":             []string{"read", "sources"},
 		"additionalProperties": false,
@@ -300,22 +296,11 @@ func (b *Briefer) feedRead(ctx context.Context, name string, ts []thread) (Point
 		Read    string `json:"read"`
 		Sources []int  `json:"sources"`
 	}
-	// One retry, since the 9B now and then writes a single sentence straight
-	// into the maxLength with no comma late enough for whole to keep.
-	var read string
-	ask := user
-	for try := 0; try < 2 && read == ""; try++ {
-		if err := b.model.Structured(ctx, system, ask, schema, 300, &out); err != nil {
-			return Point{}, err
-		}
-		read = whole(out.Read, feedReadMax)
-		if out.Read != "" && read == "" {
-			slog.Info("brief line cut", slog.String("component", "brief"), slog.String("feed", name), slog.Int("try", try+1), slog.String("raw", out.Read))
-			ask = user + "\n\nYour last read ran past the length limit and was cut off mid sentence. Write two short sentences, at most 22 words in all."
-		}
+	if err := b.model.Structured(ctx, system, user, schema, 400, &out); err != nil {
+		return Point{}, err
 	}
-	pt := Point{Text: read}
-	for _, n := range out.Sources {
+	pt := Point{Text: sentence(out.Read)}
+	for _, n := range out.Sources[:min(len(out.Sources), 3)] {
 		if n < 1 || n > len(ts) || slices.ContainsFunc(pt.Links, func(l Link) bool { return l.URL == ts[n-1].discuss }) {
 			continue
 		}
@@ -345,9 +330,6 @@ func carriedRead(was ThreadRead, t thread) ThreadRead {
 	return was
 }
 
-// Room past the asked 25 words, for the same reason as feedReadMax.
-const threadReadMax = 200
-
 // threadRead is what one thread's commenters make of it, for the card its row
 // opens. A thread with too little said to read gets nothing, and so does one
 // the model fails on, since the card still has its top comments.
@@ -368,29 +350,18 @@ func (b *Briefer) threadRead(ctx context.Context, name string, t thread) string 
 	for _, s := range t.said {
 		c.WriteString("- " + s + "\n")
 	}
-	user := c.String()
 	schema := map[string]any{
 		"type":                 "object",
-		"properties":           map[string]any{"read": map[string]any{"type": "string", "maxLength": threadReadMax}},
+		"properties":           map[string]any{"read": map[string]any{"type": "string"}},
 		"required":             []string{"read"},
 		"additionalProperties": false,
 	}
 	var out struct {
 		Read string `json:"read"`
 	}
-	// A read that stops without a full stop was cut at the cap, and whole can
-	// only guess where its last clause ended, so it gets one more try first.
-	ask := user
-	for try := 0; try < 2; try++ {
-		if err := b.model.Structured(ctx, system, ask, schema, 200, &out); err != nil {
-			slog.Warn("brief thread read failed", slog.String("component", "brief"), slog.String("feed", name), slog.Any("err", err))
-			return ""
-		}
-		if read := tidy(out.Read); read == "" || strings.ContainsAny(read[len(read)-1:], ".!?") {
-			return read
-		}
-		slog.Info("brief line cut", slog.String("component", "brief"), slog.String("feed", name), slog.Int("try", try+1), slog.String("raw", out.Read))
-		ask = user + "\n\nYour last read ran past the length limit and was cut off mid sentence. Write two short sentences, at most 25 words in all."
+	if err := b.model.Structured(ctx, system, c.String(), schema, 300, &out); err != nil {
+		slog.Warn("brief thread read failed", slog.String("component", "brief"), slog.String("feed", name), slog.Any("err", err))
+		return ""
 	}
-	return whole(out.Read, threadReadMax)
+	return sentence(out.Read)
 }

@@ -96,9 +96,9 @@
   {{range .Points}}<li><span class="tag">{{.Label}}</span><span class="txt">{{if .Move}}<span class="lean" data-lean="{{.Lean}}">{{upper .Lean}} {{.Move}}</span> {{else if .Lean}}<span class="lean" data-lean="{{.Lean}}">LEANS {{upper .Lean}}</span> {{end}}{{if .Range}}<span class="range">VIX {{.Range}}</span> {{end}}{{if .Calendar}}<span class="cal">{{.Calendar}}</span> {{end}}{{.Text}}</span><span class="srcs">{{template "brief-links" .Links}}</span></li>
   {{end}}
 </ul>
-<p class="brief-meta">{{.Title}} BRIEF / COMPILED {{.Compiled}} / {{.Stories}} STORIES / LOCAL MODEL, MAY MISSTATE SOURCES / A LEAN IS A READ, NOT A FORECAST{{if .Record}} / {{.Record}}{{end}}{{if .Waiting}} / {{.Waiting}}{{end}}</p>
+<p class="brief-meta">{{.Title}} BRIEF / COMPILED {{.Compiled}} / {{.Stories}} STORIES / CLAUDE HAIKU, MAY MISSTATE SOURCES / A LEAN IS A READ, NOT A FORECAST{{if .Record}} / {{.Record}}{{end}}</p>
 {{- else if eq .Status "off"}}<p class="empty">BRIEF OFF, NO MODEL KEY</p>
-{{- else}}<p class="empty">{{if .Waiting}}{{.Waiting}}{{else}}AWAITING BRIEF{{end}}</p>{{end}}
+{{- else}}<p class="empty">AWAITING BRIEF</p>{{end}}
 {{end}}
 
 {{define "news-brief"}}
@@ -109,7 +109,7 @@
   <p class="txt" data-card role="button" tabindex="0" aria-controls="tip" aria-expanded="false">{{.Text}}</p>
   <div class="meta">{{template "brief-links" .Links}}</div>
 </div>{{else}}<div class="lede">
-  <p class="head"><span class="lvl">{{if .Waiting}}{{.Waiting}}{{else}}AWAITING BRIEF{{end}}</span></p>
+  <p class="head"><span class="lvl">AWAITING BRIEF</span></p>
   <p class="txt none">AWAITING READ</p>
   <div class="meta"></div>
 </div>{{end}}
@@ -126,7 +126,7 @@
   {{end}}{{end}}
   {{template "blank-rows" (len .Points)}}
 </ol>
-<p class="footnote">{{if .Waiting}}{{.Waiting}}. {{end}}LOCAL MODEL, MAY MISSTATE SOURCES. {{.Stories}} STORIES, MOST IMPACT FIRST. L C R IS WHO CARRIED IT BY ALLSIDES LEAN.</p>
+<p class="footnote">CLAUDE HAIKU, MAY MISSTATE SOURCES. {{.Stories}} STORIES, MOST IMPACT FIRST. L C R IS WHO CARRIED IT BY ALLSIDES LEAN.</p>
 {{- end}}
 {{end}}
 

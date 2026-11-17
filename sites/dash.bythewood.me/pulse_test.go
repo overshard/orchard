@@ -57,27 +57,6 @@ func (m *scriptedModel) Structured(_ context.Context, _, user string, _ map[stri
 	m.answers = m.answers[1:]
 	return json.Unmarshal([]byte(a), out)
 }
-func (m *scriptedModel) GPU(context.Context) (GPUState, error) { return GPUState{}, nil }
-func (m *scriptedModel) Unload(context.Context) error          { return nil }
-
-// A read run into the cap as one sentence with its only comma too early to cut
-// at, which would leave the panel with no read at all.
-func TestFeedReadRetriesACutRead(t *testing.T) {
-	cut := "The Hacker News front page is a mix of niche software projects, infrastructure incidents, and a science study, with commenters debating the practical limits of code-as-math tools and warning about the hidden costs of self-hosting on free AI"
-	m := &scriptedModel{answers: []string{
-		`{"read": "` + cut + `", "sources": [1]}`,
-		`{"read": "On self-hosting, commenters warn about hidden costs.", "sources": [1]}`,
-	}}
-	b := &Briefer{model: m}
-	ts := []thread{{title: "Self-hosting on free AI", discuss: "https://news.ycombinator.com/item?id=1"}}
-	pt, err := b.feedRead(context.Background(), "Hacker News", ts)
-	if err != nil || pt.Text != "On self-hosting, commenters warn about hidden costs." || len(m.asks) != 2 {
-		t.Fatalf("%+v %v asks=%d", pt, err, len(m.asks))
-	}
-	if !strings.Contains(m.asks[1], "cut off") {
-		t.Errorf("retry didn't name the problem: %q", m.asks[1])
-	}
-}
 
 func TestCommentText(t *testing.T) {
 	if got := commentText("I doubt it.<p>The &quot;benchmark&quot; is <i>cherry</i> picked."); got != "I doubt it. The \"benchmark\" is cherry picked." {

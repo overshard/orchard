@@ -675,7 +675,7 @@ function briefLinks(links) {
 
 function briefEmpty(brief) {
   if (brief && brief.status === "off") return el("p", "empty", "BRIEF OFF, NO MODEL KEY");
-  return el("p", "empty", (brief && brief.waiting) || "AWAITING BRIEF");
+  return el("p", "empty", "AWAITING BRIEF");
 }
 
 function renderMarketBrief(brief) {
@@ -703,7 +703,7 @@ function renderMarketBrief(brief) {
     li.append(srcs);
     ul.append(li);
   }
-  const meta = el("p", "brief-meta", `${brief.title} BRIEF / COMPILED ${brief.compiled} / ${brief.stories} STORIES / LOCAL MODEL, MAY MISSTATE SOURCES / A LEAN IS A READ, NOT A FORECAST${brief.record ? ` / ${brief.record}` : ""}${brief.waiting ? ` / ${brief.waiting}` : ""}`);
+  const meta = el("p", "brief-meta", `${brief.title} BRIEF / COMPILED ${brief.compiled} / ${brief.stories} STORIES / CLAUDE HAIKU, MAY MISSTATE SOURCES / A LEAN IS A READ, NOT A FORECAST${brief.record ? ` / ${brief.record}` : ""}`);
   host.replaceChildren(ul, meta);
 }
 
@@ -720,7 +720,7 @@ function renderNewsBrief(brief) {
   const read = points.length && brief.read;
   const top = read
     ? lede(read.level, [el("span", "lvl", read.label), el("span", "spread", read.spread), ...intensityStrip(brief.intensity)], read.text, read.links)
-    : lede("", [el("span", "lvl", (brief && brief.waiting) || "AWAITING BRIEF")], "", []);
+    : lede("", [el("span", "lvl", "AWAITING BRIEF")], "", []);
   const ol = el("ol", "rows brief");
   points.forEach((p, i) => {
     const li = el("li");
@@ -748,7 +748,7 @@ function renderNewsBrief(brief) {
     ol.append(li);
   });
   ol.append(...blankRows(points.length));
-  const foot = el("p", "footnote", `${brief && brief.waiting ? `${brief.waiting}. ` : ""}LOCAL MODEL, MAY MISSTATE SOURCES. ${(brief && brief.stories) || 0} STORIES, MOST IMPACT FIRST. L C R IS WHO CARRIED IT BY ALLSIDES LEAN.`);
+  const foot = el("p", "footnote", `CLAUDE HAIKU, MAY MISSTATE SOURCES. ${(brief && brief.stories) || 0} STORIES, MOST IMPACT FIRST. L C R IS WHO CARRIED IT BY ALLSIDES LEAN.`);
   host.replaceChildren(top, ol, foot);
 }
 

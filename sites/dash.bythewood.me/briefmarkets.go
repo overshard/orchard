@@ -35,22 +35,17 @@ func marketSchema(lines []marketLine) map[string]any {
 			leans = []string{"higher", "lower", "mixed"}
 		}
 		key := fmt.Sprintf("line%d", i+1)
-		sources := map[string]any{"type": "array", "maxItems": 3, "items": map[string]any{"type": "integer"}}
-		if !l.forward {
-			// Told which session a story is for, it still explained yesterday
-			// with today's news more often than not, so the grammar only lets
-			// a closed line cite its own session's stories.
-			if len(l.cites) == 0 {
-				sources["maxItems"] = 0
-			} else {
-				sources["items"] = map[string]any{"type": "integer", "enum": l.cites}
-			}
+		sources := map[string]any{"type": "array", "items": map[string]any{"type": "integer"}}
+		// A closed line may only cite its own session's stories, so a day is
+		// never explained by the next day's news.
+		if !l.forward && len(l.cites) > 0 {
+			sources["items"] = map[string]any{"type": "integer", "enum": l.cites}
 		}
 		props[key] = map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"verdict": map[string]any{"type": "string", "enum": leans},
-				"text":    map[string]any{"type": "string", "maxLength": 300},
+				"text":    map[string]any{"type": "string"},
 				"sources": sources,
 			},
 			"required":             []string{"verdict", "text", "sources"},
@@ -144,13 +139,13 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 		facts, calendar.String(), clusterList(events, now))
 	source := facts + calendar.String()
 
-	// One retry with the problem named, since the 9B now and then copies one
-	// line into the next or writes the week ahead about a single company.
+	// One retry with the problem named, and a line that still has one is
+	// dropped.
 	var out map[string]marketAnswer
 	ask := user
 	for try := 0; try < 2; try++ {
 		out = nil
-		if err := b.model.Structured(ctx, system, ask, marketSchema(lines), 900, &out); err != nil {
+		if err := b.model.Structured(ctx, system, ask, marketSchema(lines), 1500, &out); err != nil {
 			return Brief{}, err
 		}
 		bad := marketProblems(lines, out, events, source, at)
@@ -183,6 +178,10 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 			continue
 		}
 		ans := out[fmt.Sprintf("line%d", i+1)]
+		if !l.forward {
+			ans.Sources = slices.DeleteFunc(ans.Sources, func(n int) bool { return !slices.Contains(l.cites, n) })
+		}
+		ans.Sources = ans.Sources[:min(len(ans.Sources), 3)]
 		ans.Text = stripParties(ans.Text, source+eventText(picks(events, ans.Sources)...))
 		if pt, ok := marketPoint(l, ans, events); ok {
 			if closed, ok := closeLine(b.archive.since("markets", l.through.AddDate(0, 0, -1)), l); ok && pt.Text == "" {
@@ -207,8 +206,7 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 }
 
 // marketPoint is one line as the page shows it. A closed line that cites no
-// story is the move alone, since the 9B's uncited reasons for a past session
-// have come from the wrong day.
+// story is the move alone, since a reason with no story behind it is a guess.
 func marketPoint(l marketLine, p marketAnswer, events []cluster) (Point, bool) {
 	pt := cite(events, p.Sources)
 	pt.Text = tidy(p.Text)
@@ -254,7 +252,7 @@ func closeLine(past []Brief, l marketLine) (Point, bool) {
 }
 
 // weekLine is the week's biggest session as the brief after it explained it,
-// for when the 9B's own look back fails its checks.
+// for when the model's own look back fails its checks.
 func weekLine(past []Brief, l marketLine) (Point, bool) {
 	var best Point
 	var bestDay time.Time
@@ -302,8 +300,8 @@ func heldWeek(prev Brief, at time.Time) (Point, bool) {
 }
 
 // heldLine is the last brief's line for the same session or week when nothing
-// has traded since it was written, since asked again with the same prices the
-// 9B often flips its lean.
+// has traded since it was written, so a lean only changes when the market has
+// given it a reason to.
 func heldLine(prev, b Brief, label string) (Point, bool) {
 	if b.Basis == "" || prev.Basis != b.Basis || prev.Slot == 0 {
 		return Point{}, false
@@ -667,8 +665,8 @@ var (
 )
 
 // explainsClose is an event that can say why US stocks closed where they did,
-// one about them or the Fed, since otherwise the 9B picks the most carried
-// story of the day, and not an after hours report on the session it followed.
+// one about them or the Fed and not the day's most carried story whatever it
+// was, and not an after hours report on the session it followed.
 func explainsClose(c cluster) bool {
 	for _, s := range c.stories {
 		text := s.title + " " + s.desc

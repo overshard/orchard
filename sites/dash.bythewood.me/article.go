@@ -17,7 +17,7 @@ import (
 // paragraph on the page, with the page's furniture cut out first.
 
 const (
-	articleRunes = 6000
+	articleRunes = 12000
 	// Under this the page is a paywall, a consent wall or a link list, and
 	// the meta description is all there is.
 	articleFloor = 400
@@ -119,33 +119,22 @@ func articleText(page string) string {
 	return strings.TrimSpace(text)
 }
 
-// tldrMax leaves room past the asked words, like the other caps here.
-const tldrMax = 420
-
-// tldr asks for two or three sentences out of what system and user set up,
-// with one retry for a cut answer like threadRead's.
+// tldr asks for two or three sentences out of what system and user set up.
 func (b *Briefer) tldr(ctx context.Context, system, user string) string {
 	schema := map[string]any{
 		"type":                 "object",
-		"properties":           map[string]any{"tldr": map[string]any{"type": "string", "maxLength": tldrMax}},
+		"properties":           map[string]any{"tldr": map[string]any{"type": "string"}},
 		"required":             []string{"tldr"},
 		"additionalProperties": false,
 	}
 	var out struct {
 		TLDR string `json:"tldr"`
 	}
-	ask := user
-	for try := 0; try < 2; try++ {
-		if err := b.model.Structured(ctx, system, ask, schema, 300, &out); err != nil {
-			slog.Warn("brief tldr failed", slog.String("component", "brief"), slog.Any("err", err))
-			return ""
-		}
-		if s := tidy(out.TLDR); s == "" || strings.ContainsAny(s[len(s)-1:], ".!?") {
-			return s
-		}
-		ask = user + "\n\nYour last TL;DR ran past the length limit and was cut off mid sentence. Write it again shorter, at most 50 words."
+	if err := b.model.Structured(ctx, system, user, schema, 400, &out); err != nil {
+		slog.Warn("brief tldr failed", slog.String("component", "brief"), slog.Any("err", err))
+		return ""
 	}
-	return whole(out.TLDR, tldrMax)
+	return sentence(out.TLDR)
 }
 
 const articleSystem = `You write a TL;DR of one article for one reader, from the text of its page.
@@ -160,9 +149,8 @@ func (b *Briefer) articleTLDR(ctx context.Context, title, text string) string {
 	return b.tldr(ctx, articleSystem, fmt.Sprintf("Title: %s\n\nText:\n%s", title, text))
 }
 
-// eventRunes is each outlet's share of an event TL;DR's input, so four long
-// articles still fit the model's context with room to spare.
-const eventRunes = 2500
+// eventRunes is each outlet's share of an event TL;DR's input.
+const eventRunes = 6000
 
 const eventSystem = "You write a TL;DR of one news event for one reader in the United States, from how several outlets reported it.\n" + neutralRules + `
 - "tldr" is two or three sentences, at most 60 words in all. Say what happened, who it involves, and what comes next if the reports say.

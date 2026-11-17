@@ -75,9 +75,8 @@ func env(k, fallback string) string {
 	return fallback
 }
 
-// TestBriefTickLive is the scheduled path end to end: ask about the card, write
-// every desk's brief on one load, and unload. Afterwards the card should be
-// empty.
+// TestBriefTickLive is the scheduled path end to end, every owed desk written
+// by one tick.
 func TestBriefTickLive(t *testing.T) {
 	if os.Getenv("BRIEF_LIVE") == "" {
 		t.Skip("set BRIEF_LIVE=1 to call the feeds and the model")
@@ -106,29 +105,11 @@ func TestBriefTickLive(t *testing.T) {
 	// the briefs already written.
 	b := NewBriefer(store, g, m, env("BRIEF_DATA", t.TempDir()))
 
-	before, err := m.GPU(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("before: %+v", before)
-
 	started := time.Now()
 	b.tick(ctx, time.Now())
 	t.Logf("tick took %s", time.Since(started).Round(time.Second))
 
-	after, err := m.GPU(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("after: %+v", after)
-	if !before.Busy && after.Loaded {
-		t.Errorf("the model is still on the card after the tick")
-	}
 	br := store.Snapshot().Briefs
-	if before.Busy {
-		t.Logf("card was busy, waiting: %q", br.News.Waiting)
-		return
-	}
 	for _, desk := range []Brief{br.Markets, br.News} {
 		if len(desk.Points) == 0 {
 			t.Errorf("a desk wrote nothing")

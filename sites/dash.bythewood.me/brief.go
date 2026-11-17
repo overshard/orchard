@@ -13,10 +13,9 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"unicode"
 )
 
-// Four times a day the local model writes a brief for each desk. Headlines are
+// Four times a day Claude Haiku writes a brief for each desk. Headlines are
 // written to be clicked, so the news is told to restate what happened instead
 // of how an outlet framed it.
 
@@ -87,9 +86,6 @@ type Brief struct {
 
 	// "off" when there is no model key, so the panel can say why it is empty.
 	Status string `json:"status,omitempty"`
-
-	// Why a slot that is due has not run yet, like the card being in use.
-	Waiting string `json:"waiting,omitempty"`
 
 	// The slot this answered, in unix seconds, which is how a restart knows
 	// whether it is owed a run.
@@ -215,17 +211,11 @@ func weekend(t time.Time) bool {
 	return d == time.Saturday || d == time.Sunday
 }
 
-// briefModel is the part of the gateway the briefs use, so the schedule can
-// be tested without a card.
+// briefModel is the part of the gateway the briefs use, so the desks can be
+// tested against scripted answers.
 type briefModel interface {
 	Structured(ctx context.Context, system, user string, schema map[string]any, maxTok int, out any) error
-	GPU(ctx context.Context) (GPUState, error)
-	Unload(ctx context.Context) error
 }
-
-// A card the desktop is using is asked again in an hour, so a weekend of games
-// costs one probe an hour and never a model load.
-const briefDefer = time.Hour
 
 // Briefer owns the schedule and the file the latest briefs are kept in, so a
 // deploy at 10am still shows the 9am one instead of nothing until 11.
@@ -237,7 +227,7 @@ type Briefer struct {
 	leans   *leanBook
 	archive briefArchive
 
-	// Nothing is tried before this, whether the card was busy or a run failed.
+	// Nothing is tried before this after a run failed.
 	next time.Time
 
 	compile func(ctx context.Context, desk string, slot briefSlot, at time.Time) (Brief, error)
@@ -289,7 +279,6 @@ func NewBriefer(store *Store, g *Guard, m *Model, dataDir string) *Briefer {
 			slog.Warn("briefs file unreadable", slog.String("component", "brief"), slog.Any("err", err))
 		}
 	}
-	saved.Markets.Waiting, saved.News.Waiting, saved.Feeds.Waiting, saved.Forecast.Waiting = "", "", "", ""
 	if m == nil {
 		saved.Markets.Status, saved.News.Status, saved.Forecast.Status = "off", "off", "off"
 	}
@@ -385,13 +374,6 @@ func (b *Briefer) begin(now time.Time, forced bool) bool {
 	return true
 }
 
-// idle ends a scheduled run that never got as far as the model.
-func (b *Briefer) idle() {
-	b.mu.Lock()
-	b.running = false
-	b.mu.Unlock()
-}
-
 func (b *Briefer) end(forced bool, failed []string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -401,20 +383,14 @@ func (b *Briefer) end(forced bool, failed []string) {
 	}
 }
 
-// rebuild runs every desk because somebody asked. A busy card is used anyway,
-// since he's the one using it, and weights this put on still come off.
+// rebuild runs every desk because somebody asked.
 func (b *Briefer) rebuild(ctx context.Context, now time.Time) {
 	b.begin(now, true)
-	gpu, err := b.model.GPU(ctx)
-	if err != nil {
-		slog.Warn("brief could not ask about the card", slog.String("component", "brief"), slog.Any("err", err))
-	}
 	var runs []deskRun
 	for _, desk := range briefDesks {
 		runs = append(runs, deskRun{desk, forcedSlot(now), now})
 	}
-	failed := b.runDesks(ctx, runs, err == nil && !gpu.Loaded, true)
-	b.end(true, failed)
+	b.end(true, b.runDesks(ctx, runs, true))
 }
 
 // forcedSlot is the slot a run asked for at now is framed as. Before the first
@@ -427,8 +403,7 @@ func forcedSlot(now time.Time) briefSlot {
 	return slot
 }
 
-// tick runs every desk back to back on one model load when a slot is owed,
-// after asking whether the desktop is using the card.
+// tick runs every owed desk back to back when a slot comes due.
 func (b *Briefer) tick(ctx context.Context, now time.Time) {
 	b.store.mu.RLock()
 	h := b.store.history
@@ -454,67 +429,22 @@ func (b *Briefer) tick(ctx context.Context, now time.Time) {
 	if !b.begin(now, false) {
 		return
 	}
-
-	gpu, err := b.model.GPU(ctx)
-	if err != nil {
-		b.next = now.Add(briefRetry)
-		slog.Warn("brief could not ask about the card", slog.String("component", "brief"), slog.Any("err", err))
-		b.idle()
-		return
-	}
-	if gpu.Busy {
-		until := now.Add(briefDefer)
-		if gpu.RetryAt > 0 {
-			until = time.Unix(gpu.RetryAt, 0)
-		}
-		b.deferSlot(due[0].slot, until, gpu.Reason)
-		b.idle()
-		return
-	}
-	runCtx, gate := scheduledRun(ctx)
-	defer gate.stop()
-	failed := b.runDesks(runCtx, due, !gpu.Loaded, false)
-	if busy := gate.Busy(); busy != nil {
-		b.deferSlot(due[0].slot, busy.Until, busy.Reason)
-		b.end(false, nil)
-		return
-	}
+	failed := b.runDesks(ctx, due, false)
 	if len(failed) > 0 {
 		b.next = now.Add(briefRetry)
 	}
 	b.end(false, failed)
 }
 
-// deferSlot leaves an owed slot until the card is free and says so on every panel.
-func (b *Briefer) deferSlot(slot briefSlot, until time.Time, reason string) {
-	b.next = until
-	slog.Info("brief deferred", slog.String("component", "brief"), slog.String("slot", slot.kind),
-		slog.String("reason", reason), slog.Time("next", b.next))
-	b.waiting(fmt.Sprintf("CARD IN USE, NEXT TRY %s", b.next.In(easternTime()).Format("15:04")))
-}
-
-// runDesks writes each desk in turn on one model load and returns the ones
-// that failed.
-func (b *Briefer) runDesks(ctx context.Context, runs []deskRun, unload, forced bool) []string {
-	// Only weights this run put on the card come off it. A model already there
-	// is somebody's conversation, and its own idle timer is theirs.
-	if unload {
-		defer func() {
-			if err := b.model.Unload(context.WithoutCancel(ctx)); err != nil {
-				slog.Warn("brief could not unload", slog.String("component", "brief"), slog.Any("err", err))
-			}
-		}()
-	}
-
+// runDesks writes each desk in turn and returns the ones that failed. They
+// run one after another, which keeps the calls well under the gateway's
+// per key rate.
+func (b *Briefer) runDesks(ctx context.Context, runs []deskRun, forced bool) []string {
 	var failed []string
 	for _, run := range runs {
 		desk, slot := run.desk, run.slot
 		started := time.Now()
 		brief, err := b.compile(ctx, desk, slot, run.at)
-		// The desktop took the card partway through, so this desk came back short.
-		if g := gateOf(ctx); g != nil && g.Busy() != nil {
-			break
-		}
 		if err != nil {
 			failed = append(failed, desk)
 			slog.Warn("brief failed", slog.String("component", "brief"), slog.String("desk", desk),
@@ -535,7 +465,6 @@ func (b *Briefer) runDesks(ctx context.Context, runs []deskRun, unload, forced b
 
 		b.store.update(func(st *State) { st.setBrief(desk, brief) })
 	}
-	b.waiting("")
 	b.save()
 	return failed
 }
@@ -565,13 +494,6 @@ func (b *Briefer) compileDesk(ctx context.Context, desk string, slot briefSlot, 
 		return b.compileForecast(ctx, slot, at)
 	}
 	return b.compileNews(ctx, slot, at)
-}
-
-// waiting says on every brief panel why the last brief is still up.
-func (b *Briefer) waiting(why string) {
-	b.store.update(func(st *State) {
-		st.Briefs.Markets.Waiting, st.Briefs.News.Waiting, st.Briefs.Feeds.Waiting, st.Briefs.Forecast.Waiting = why, why, why, why
-	})
 }
 
 func (b *Briefer) save() {
@@ -618,59 +540,16 @@ const neutralRules = `Rules:
 - Include a story whichever party or side it reflects well or badly on.
 - Do not put story numbers or outlet names in the text. The page shows the sources beside each point.`
 
-// whole keeps what a maxLength cut left whole, the first finished sentence,
-// else up to the last comma past halfway, else nothing. The cut lands just
-// short of the limit, so a long line is judged by how it ends.
-func whole(raw string, limit int) string {
+// sentence is a model's line tidied and ending on a full stop.
+func sentence(raw string) string {
 	s := tidy(raw)
-	// A cut that lands right after a comma is a whole clause already.
-	if t := strings.TrimSuffix(s, ","); t != s {
-		s = strings.TrimSuffix(strings.TrimSuffix(t, " and"), " while") + "."
-	}
-	if s == "" || s == "." {
+	if s == "" {
 		return ""
-	}
-	if len([]rune(s)) >= limit*85/100 && !endsSentence(s) {
-		i := strings.Index(s, ". ")
-		for i > 0 && !endsSentence(s[:i+1]) {
-			j := strings.Index(s[i+2:], ". ")
-			if j < 0 {
-				i = -1
-				break
-			}
-			i += 2 + j
-		}
-		switch c := strings.LastIndex(s, ", "); {
-		case i > 0:
-			s = s[:i+1]
-		case c > len(s)/2:
-			s = strings.TrimSuffix(strings.TrimSuffix(s[:c], " and"), " while")
-		default:
-			return ""
-		}
 	}
 	if !strings.ContainsAny(s[len(s)-1:], ".!?\"'\u201d") {
 		s += "."
 	}
 	return s
-}
-
-// endsSentence is a full stop after an ordinary word, since one after U.S. or
-// a number doesn't end anything and half a word has none.
-func endsSentence(s string) bool {
-	if !strings.HasSuffix(s, ".") {
-		return false
-	}
-	last := strings.TrimSuffix(s[strings.LastIndex(s, " ")+1:], ".")
-	if len(last) < 3 {
-		return false
-	}
-	for _, r := range last {
-		if !unicode.IsLower(r) {
-			return false
-		}
-	}
-	return true
 }
 
 var citeMarks = regexp.MustCompile(`\s*[\[(]\d+(?:\s*,\s*\d+)*[\])]`)

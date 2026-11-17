@@ -110,7 +110,7 @@ func TestPulse(t *testing.T) {
 func TestArchiveKeepsEachSlotOnce(t *testing.T) {
 	dir := t.TempDir()
 	a := openArchive(dir)
-	b := Brief{Slot: 100, Points: []Point{{Text: "x"}}, Waiting: "CARD IN USE"}
+	b := Brief{Slot: 100, Points: []Point{{Text: "x"}}}
 	if a.has("news", 100) {
 		t.Fatal("empty archive has a slot")
 	}
@@ -128,9 +128,6 @@ func TestArchiveKeepsEachSlotOnce(t *testing.T) {
 	if n := strings.Count(string(raw), "\n"); n != 1 {
 		t.Errorf("%d lines, want 1", n)
 	}
-	if strings.Contains(string(raw), "CARD IN USE") {
-		t.Error("archived the waiting note")
-	}
 }
 
 func TestMostImpactKeepsAMarketStoryFiledAsAnIncident(t *testing.T) {
@@ -142,20 +139,16 @@ func TestMostImpactKeepsAMarketStoryFiledAsAnIncident(t *testing.T) {
 	}
 }
 
-func TestWhole(t *testing.T) {
-	pad := strings.Repeat("word ", 17)
-	for _, c := range []struct{ in, want string }{
-		{"Fed held rates.", "Fed held rates."},
-		{"Fed held rates", "Fed held rates."},
-		{pad + "and the U.S.", ""},
-		{"short, " + pad + "and some residents fled as wi", ""},
-		{pad + "now quitting,", pad + "now quitting."},
-		{pad + "rather than uploads, while others compare it to minimal", pad + "rather than uploads."},
-		{"U.S. prosecutors charged him. " + pad + "and", "U.S. prosecutors charged him."},
-		{pad + "and it rained.", pad + "and it rained."},
+func TestSentence(t *testing.T) {
+	for in, want := range map[string]string{
+		"Fed held rates.":           "Fed held rates.",
+		"Fed held rates":            "Fed held rates.",
+		"Talks resumed with Iran.":  "Talks resumed with Iran.",
+		" Stocks fell [2] — again ": "Stocks fell, again.",
+		"":                          "",
 	} {
-		if got := whole(c.in, readMax); got != c.want {
-			t.Errorf("whole(%q) = %q, want %q", c.in, got, c.want)
+		if got := sentence(in); got != want {
+			t.Errorf("sentence(%q) = %q, want %q", in, got, want)
 		}
 	}
 }

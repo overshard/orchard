@@ -2,7 +2,9 @@ package main
 
 import (
 	"slices"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestWidelyCarriedKeepsSinglesOnAQuietDay(t *testing.T) {
@@ -83,5 +85,16 @@ func TestCopiesTitle(t *testing.T) {
 		if copiesTitle(line, c) {
 			t.Errorf("%q is not a copy", line)
 		}
+	}
+}
+
+// The writer sees every outlet's telling under its event, numbered as the
+// event and not as the one clusterList was handed.
+func TestEventDetailListsEveryOutlet(t *testing.T) {
+	now := time.Now()
+	a := cluster{newest: now, stories: []story{{source: "AP", title: "Senate passes budget", url: "a"}, {source: "FOX", title: "Budget clears Senate", url: "b", desc: "The vote was 51-49."}}}
+	got := eventDetail([]cluster{a, a}, now)
+	if !strings.Contains(got, "[2] 2 outlets") || strings.Count(got, "51-49") != 2 || strings.Count(got, "\n") != 4 {
+		t.Errorf("%s", got)
 	}
 }

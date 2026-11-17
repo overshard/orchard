@@ -70,17 +70,3 @@ func TestThreadListOnlyBusy(t *testing.T) {
 		t.Errorf("%s", got)
 	}
 }
-
-// A read cut at a comma with its last clause left as two words, which whole
-// would keep as a sentence.
-func TestThreadReadRetriesACutRead(t *testing.T) {
-	m := &scriptedModel{answers: []string{
-		`{"read": "Most think passkeys are a mess, but some say the issue is attestation being extended to restrict devices, while others,"}`,
-		`{"read": "Most think passkeys are a mess. Some blame attestation for locking devices down."}`,
-	}}
-	b := &Briefer{model: m}
-	th := thread{title: "Passkeys are not a trap", said: []string{"a", "b", "c"}}
-	if got := b.threadRead(context.Background(), "Hacker News", th); got != "Most think passkeys are a mess. Some blame attestation for locking devices down." || len(m.asks) != 2 {
-		t.Errorf("%q asks=%d", got, len(m.asks))
-	}
-}

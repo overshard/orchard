@@ -139,25 +139,25 @@ and 16:05 New York time `briefnews.go` and `briefmarkets.go` read eighteen news 
 and seven market feeds, `briefstories.go` groups the same event across outlets
 and ranks the groups by how many outlets carried them, and the two desks ask
 llm.bythewood.me for a markets line and a TODAY summary under a JSON schema,
-on the one model load `brief.go` schedules. The model cites events by number and Go turns those into
+one desk after another as `brief.go` schedules them. The model cites events by number and Go turns those into
 links, so it cannot make up a URL, and a news point it could not cite is dropped.
 Each feed carries its AllSides lean, which is counted per point (`L1 C3 R1`) and
 never shown to the model, and a story only one side's outlets ran is marked as
 that rather than left out. Common words of the day are dropped before grouping,
 or two stories about the administration share four words and become one. The
-model rates every event in its own calls first, twenty at a time with each
-rating carrying the event's number, since a single list of sixty drifted a place
-partway down. A rating is a topic and an impact from 1 to 5 on an ordinary
+model rates every event in one call first, each rating carrying the event's
+number so a skipped one can't shift the rest. A rating is a topic and an impact from 1 to 5 on an ordinary
 American's money and life. Crime, trials, one-off incidents, human interest,
 sport, celebrity and local stories are dropped in Go unless seven or more
-outlets ran them, because told to skip a trial in the summary prompt it writes
-one up anyway and calls it politics, and so is anything rated 1. A minor label
+outlets ran them, so what TODAY leaves out is decided off the labels and not
+by the writer, and so is anything rated 1. A minor label
 rated 4 or 5 is kept anyway, since the rater files futures falling after an
 attack under incident. An event only one outlet ran needs a 3, and its 3s
 rank after everything else, since dropping them all left TODAY three points long
 and letting them rank freely made half the panel one outlet's picks. Go keeps the
 ten highest rated and the writer only rewrites them as headlines, so the
-order on the page is the impact order. The markets line is always the last
+order on the page is the impact order. The writer sees every outlet's title and
+summary for each of its events, not just the lead's. The markets line is always the last
 session, today and the next, and on a weekend it's the week just gone and a lean
 on the week ahead, scored against that week's move. A session that already happened gets its up or down
 from the daily closes in Go, and when its line cites no story it carries what
@@ -175,11 +175,8 @@ release calendars and two documented patterns, the turn of the month and the
 drift into a Fed decision. Above TODAY's headlines sits a read of the day, its
 level counted in Go from the share of outlets on the top story (seven in ten is
 major, four in ten or under is quiet) and one headline per most carried story
-from the model, each its own schema field with a `maxLength`, because a word
-limit in a prompt is ignored and handed a longer list it skipped the second
-most carried story for whatever read best. The model's cut lands a few
-characters short of a `maxLength`, so `whole` judges a long line by whether it
-ends on a full stop after an ordinary word, and drops it if not. Hacker News and
+from the model, each its own schema field so a headline stays tied to the event
+it's about, and the model only sees the events the read covers. Hacker News and
 Lobsters each get a pulse level computed in `pulse.go` on every poll, since a
 thread takes off inside an hour. Blowing up means fresh and already high, a huge
 thread from yesterday is only a big thread, and Lobsters runs on about a tenth of
@@ -187,9 +184,7 @@ Hacker News' numbers. Under it sits a third desk, `feeds.go`, which at each slot
 reads both front pages plus the top three comments on the five busiest threads
 (Firebase for HN, since it lists replies in the site's rank order and Algolia
 doesn't) and writes a read of about twenty words on
-what the page as a whole is about and what the commenters make of it. The model
-writes right up to whatever `maxLength` it gets, so the cap sits well past the
-asked length and `whole` keeps a cut line up to its last whole clause. BLS answers 403 to any User-Agent without a contact
+what the page as a whole is about and what the commenters make of it. BLS answers 403 to any User-Agent without a contact
 address in it, browsers included. The latest brief per desk lives
 in `briefs.json` on the volume, so a deploy shows them rather than nothing, and
 a missed slot runs on start. Every brief is also appended to `briefs.jsonl`, and
@@ -197,29 +192,26 @@ every forward lean to `leans.json`, where it's scored against the S&P's close
 the day after its session and logged as `brief lean scored` with the running
 record, so how often the leans are right is a query and not a guess. Every
 slot before a session makes a call on it and only the last one counts, and a
-forward line is kept as it was while the S&P's price hasn't moved, since asked
-again over a weekend with the same prices the model flips its lean. The 9:00 slot
+forward line is kept as it was while the S&P's price hasn't moved, so a lean
+only changes when the market has given it a reason to. The 9:00 slot
 is there because CPI, PPI and the other 8:30 releases are out by then and it
 still lands before the open, so its TODAY is a lean like 7:00's and the calendar
 tells it which releases already came out. `LLM_KEY` in `.env` from `make dash-key`, and
 without it the panels say the briefs are off.
 
-**A line has to be in its sources before it ships.** The 9B writes names,
-parties and days from memory, so `checks.go` holds every number and capitalised
-name in a line to the text it was written from, the events it cites for a TODAY
-point, its own event for a read field and the numbers, calendar and cited
-stories for a market line. A line that fails, or a read field or point that
-isn't about the event it cites, gets one retry naming the problem and is
-dropped after. A party tag the source doesn't carry is cut, and links follow
-only the cited events a point is about. Every point and read field that passes
-then gets a yes or no from the model against the reports it came from, in the
-same load, and a no only drops it when the phrases the model calls unbacked are
-in the line, since the 9B faults detail the reports have and the line never
-said. A market line may name its own sessions' weekdays and its own move, and a
-forward one the week so far, without a story having them. A forward market line never names a day ahead, since the model got
-the Fed's wrong for days running, so Go writes each one's calendar beside it (`FED 2PM
-· GDP 8:30AM`) and the move the VIX prices for it, VIX over the root of 252 for
-a session and 52 for a week.
+**A line has to be in its sources before it ships.** A model's own idea of who
+holds an office, which party they're in or what day the Fed meets can be out of
+date, so `checks.go` holds every number and capitalised name in a line to the
+text it was written from, the events it cites for a TODAY point, its own event
+for a read field and the numbers, calendar and cited stories for a market line.
+A line that fails, or a read field or point that isn't about the event it
+cites, gets one retry naming the problem and is dropped after. A party tag the
+source doesn't carry is cut, and links follow only the cited events a point is
+about. A market line may name its own sessions' weekdays and its own move, and
+a forward one the week so far, without a story having them. A forward market
+line never names a day ahead, so Go writes each one's calendar beside it (`FED
+2PM · GDP 8:30AM`) and the move the VIX prices for it, VIX over the root of 252
+for a session and 52 for a week.
 
 **Over a weekend the markets desk runs twice.** Saturday at 7:00 looks back on
 the week off the archive's closed lines, since the feeds have dropped most of the
@@ -239,27 +231,20 @@ messages and the discussion sections, and puts them in two or three plain
 sentences, clamped to two lines under the days with the rest on a tap. It's
 only rewritten when the office puts out a new one.
 
-**A brief never loads a model onto a card the desktop is using.** Each slot asks
-the gateway's `GET /v1/gpu` first, which reads `nvidia-smi` through the
-`orchard-llm-gpu` sidecar, and a busy card defers the slot an hour and says so on
-the panels. Busy is 55% or 3000MiB with none of our models on it, or with one on
-it a card within 512MiB of full or busy while none of our calls run. The 15
-minutes after the gateway starts are busy too and say when they end, so the slot
-is tried then instead. A slot run
-marks every call `X-Background: 1` through `scheduledRun`, so a game started
-partway through gets the next call turned away with a 503, the run stops, the
-desk it was on isn't written, and the gateway unloads what the run loaded.
-Weekends run too, pointed at the week ahead. Every desk shares one load, and the
-weights come off with `/v1/unload` straight after, unless a model was already
-resident, which is somebody's chat and is left to its own idle timer. The sidecar
-exists because the gateway is a scratch image and the injected `nvidia-smi`
-needs glibc.
+**Every model call is Claude Haiku 5.5 through the gateway.** `model.go` posts an
+OpenAI chat completion with a `json_schema` response format, and the gateway
+turns it into a structured output, so the answer always parses. It drops
+sampling fields and strips `maxLength`, `maxItems`, `minimum` and the like, so
+a prompt says how long a line is and Go holds every count, like the three
+sources a market line may cite. A refusal comes back as a 422 and fails that
+desk, which is tried again in a quarter hour like any other failure. The desks
+run one after another and so do the calls inside them, which keeps a run well
+under the gateway's per key rate. Most of a run's input is the article text
+the TL;DRs read, and a full run costs a few cents at most.
 
 **BRIEFS in the rail reruns every desk now, signed in only.** The POST queues a
 run for the briefer's own loop, so it never overlaps a slot, and a slot that
-comes due while one is queued leaves it to that run. It skips the GPU gate,
-since the person asking is the one at the desktop, but still unloads what it
-loaded. It's refused while any run is going and for ten minutes after the last
+comes due while one is queued leaves it to that run. It's refused while any run is going and for ten minutes after the last
 forced one finished, since a run spends most of an hour's article and comment
 budget. A forced brief's `slot` is the time it ran, so the slot it beat isn't
 owed again, and its lean is just the latest call on that session, which is the
@@ -287,8 +272,7 @@ keeps that read until it has half again the comments it was read from, and its
 article's TL;DR for good, since most of the front page is still there a slot
 later and the model calls are most of the desk's time. A thread that turned up after
 the last slot has comments and no read, and its card says the next brief will
-write it. A read that doesn't end on a full stop
-was cut at the cap and gets one retry, since `whole` would keep "while others."
+write it.
 
 **The cards' TL;DRs come off the article pages, read at each slot.** The feeds
 desk fetches each row's link and the news desk every outlet a TODAY point links

@@ -2,9 +2,9 @@
 
 A public dashboard. Markets off Yahoo, Hacker News and Lobsters, the weather,
 earnings, whether the other sites are answering, and a markets line and news
-summary the local model writes four times a day. One poller per source pushes
-the whole state to every open browser over server sent events, so ten tabs cost
-the upstreams the same as one.
+summary Claude Haiku writes four times a day through llm.bythewood.me. One
+poller per source pushes the whole state to every open browser over server sent
+events, so ten tabs cost the upstreams the same as one.
 
 ## Requirements
 
@@ -39,6 +39,8 @@ has the rest.
 - The health strip asks each site by container name first, and a row built
   from the public hostname says `cached`, since Cloudflare will answer
   `/healthz` long after the site behind it stopped.
+- The gateway strips `maxLength` and `maxItems` from a schema before Haiku
+  sees it, so a length goes in the prompt and a count is held in Go.
 - `web/server.go` here is a variant of its own, with no write bound and open
   streams ended on shutdown.
 - A new site shows on the strip once it's in `monitored` in `systems.go`.

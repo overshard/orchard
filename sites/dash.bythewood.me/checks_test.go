@@ -214,7 +214,7 @@ func TestWeekReviewAndHeldWeek(t *testing.T) {
 	}
 }
 
-// LAST WEEK falls back to the week's biggest session when the 9B's own line
+// LAST WEEK falls back to the week's biggest session when the model's own line
 // fails its checks, and a line with only the move isn't held over.
 func TestWeekLineAndEmptyHeld(t *testing.T) {
 	link := []Link{{Source: "WSJ", URL: "https://wsj.test/1", Title: "Stocks fall"}}
@@ -244,8 +244,7 @@ func TestWeekLineAndEmptyHeld(t *testing.T) {
 func TestReadDropsAFieldAboutAnotherEvent(t *testing.T) {
 	events := []cluster{event("Lula wins fourth term in Brazil", "Lula wins Brazil runoff", "Brazil reelects Lula"), event("Comey indicted on new charges", "Comey faces charges")}
 	swapped := `{"event1": "Lula won a fourth term.", "event2": "Lula won the runoff."}`
-	m := &scriptedModel{answers: []string{swapped, swapped,
-		`{"reason": "The reports say so.", "verdict": "supported"}`}}
+	m := &scriptedModel{answers: []string{swapped, swapped}}
 	b := &Briefer{model: m}
 	rated := map[string]eventRating{events[0].lead().url: {Impact: 3}, events[1].lead().url: {Impact: 3}}
 	r, covered, err := b.read(context.Background(), briefSlots[2], inNY(t, "2026-10-26 11:00"), events, rated, 3, inNY(t, "2026-10-26 11:00"))
@@ -254,26 +253,5 @@ func TestReadDropsAFieldAboutAnotherEvent(t *testing.T) {
 	}
 	if !strings.HasSuffix(r.Text, " Lula won a fourth term.") || len(r.Links) != 1 || len(covered) != 1 || !strings.Contains(m.asks[1], "isn't about event 2") {
 		t.Errorf("%+v %d asks %v", r, len(covered), m.asks)
-	}
-}
-
-// The 9B calls a line unsupported for detail the reports have and the line
-// never claimed, so only a phrase it can point to in the line drops it.
-func TestGroundedNeedsAPhraseInTheLine(t *testing.T) {
-	line := "A judge blocked the Medicaid work requirement rule."
-	m := &scriptedModel{answers: []string{
-		`{"reason": "The reports don't mention the lawsuit or the 25 states.", "unbacked": ["the lawsuit", "25 states"], "verdict": "unsupported"}`,
-		`{"reason": "No report says a ship burned.", "unbacked": ["A ship burned"], "verdict": "unsupported"}`,
-		`{"reason": "Fine.", "unbacked": [], "verdict": "supported"}`,
-	}}
-	b := &Briefer{model: m}
-	if !b.grounded(context.Background(), line, "reports") {
-		t.Error("dropped over detail the line never claimed")
-	}
-	if b.grounded(context.Background(), "A ship burned after Iran said tankers hit mines.", "reports") {
-		t.Error("kept a line with an unbacked phrase in it")
-	}
-	if !b.grounded(context.Background(), line, "reports") {
-		t.Error("dropped a supported line")
 	}
 }

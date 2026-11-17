@@ -158,31 +158,22 @@ func TestRebuildRefusesWhileRunningAndCoolingDown(t *testing.T) {
 	}
 }
 
-// He's asking for it, so a busy card doesn't stop it, and the weights it put
-// on still come off.
-func TestForcedRunSkipsTheGateAndUnloads(t *testing.T) {
-	f := &fakeGateway{gpu: GPUState{Busy: true, Reason: "card at 95%"}}
+// A forced run writes every desk framed as the latest slot, and that slot
+// isn't owed again after it.
+func TestForcedRunAnswersTheLatestSlot(t *testing.T) {
+	f := &fakeGateway{}
 	b := testBriefer(t, f, false)
 	now := inNY(t, "2026-10-10 14:20")
 	b.rebuild(context.Background(), now)
-	if strings.Join(f.compiled, ",") != "markets,news,feeds,forecast" || f.unloads != 1 {
-		t.Fatalf("compiled %v, unloaded %d", f.compiled, f.unloads)
+	if strings.Join(f.compiled, ",") != "markets,news,feeds,forecast" {
+		t.Fatalf("compiled %v", f.compiled)
 	}
 	if st := b.store.Snapshot().Briefs; st.News.Slot != now.Unix() || st.News.Title != "MIDDAY" {
 		t.Errorf("news slot %d title %q", st.News.Slot, st.News.Title)
 	}
-
-	// Every desk now answers a moment after the 11am slot, so it isn't owed.
 	b.tick(context.Background(), now.Add(time.Minute))
-	if f.asked != 1 || len(f.compiled) != len(briefDesks) {
-		t.Errorf("a tick after a forced run asked %d and compiled %v", f.asked, f.compiled)
-	}
-
-	f2 := &fakeGateway{gpu: GPUState{Loaded: true}}
-	b2 := testBriefer(t, f2, false)
-	b2.rebuild(context.Background(), now)
-	if f2.unloads != 0 {
-		t.Error("a forced run pulled somebody's model off the card")
+	if len(f.compiled) != len(briefDesks) {
+		t.Errorf("a tick after a forced run compiled %v", f.compiled)
 	}
 }
 
@@ -194,8 +185,8 @@ func TestTickGivesWayToAQueuedRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	b.tick(context.Background(), inNY(t, "2026-10-07 11:00"))
-	if f.asked != 0 || len(f.compiled) != 0 || !queued(b) {
-		t.Errorf("asked %d, compiled %v", f.asked, f.compiled)
+	if len(f.compiled) != 0 || !queued(b) {
+		t.Errorf("compiled %v", f.compiled)
 	}
 }
 

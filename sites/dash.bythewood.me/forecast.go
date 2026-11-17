@@ -17,10 +17,9 @@ const (
 	afdListURL     = "https://api.weather.gov/products/types/AFD/locations/" + forecastOffice
 	afdPageURL     = "https://forecast.weather.gov/product.php?site=" + forecastOffice + "&issuedby=" + forecastOffice + "&product=AFD"
 
-	// The sections worth reading are a few thousand characters, and the
-	// aviation and fire weather ones after them aren't for this reader.
-	afdRunes    = 5000
-	forecastMax = 420
+	// A ceiling on a long winter discussion. The aviation and fire weather
+	// sections are already cut by afdKeep.
+	afdRunes = 12000
 )
 
 // afdKeep is the sections of a discussion about the weather people will have,
@@ -112,7 +111,7 @@ func (b *Briefer) compileForecast(ctx context.Context, slot briefSlot, at time.T
 
 	schema := map[string]any{
 		"type":                 "object",
-		"properties":           map[string]any{"read": map[string]any{"type": "string", "maxLength": forecastMax}},
+		"properties":           map[string]any{"read": map[string]any{"type": "string"}},
 		"required":             []string{"read"},
 		"additionalProperties": false,
 	}
@@ -123,10 +122,10 @@ func (b *Briefer) compileForecast(ctx context.Context, slot briefSlot, at time.T
 		var out struct {
 			Read string `json:"read"`
 		}
-		if err := b.model.Structured(ctx, forecastSystem, ask, schema, 250, &out); err != nil {
+		if err := b.model.Structured(ctx, forecastSystem, ask, schema, 400, &out); err != nil {
 			return Brief{}, err
 		}
-		read = whole(out.Read, forecastMax)
+		read = sentence(out.Read)
 		if miss := unsupported(read, text+"\nYadkin Valley, North Carolina"); len(miss) > 0 {
 			slog.Info("brief forecast retried", slog.String("component", "brief"), slog.String("missing", strings.Join(miss, ", ")))
 			ask = user + "\n\nYour last read had " + strings.Join(miss, ", ") + ", which the discussion doesn't say. Use only what it says."

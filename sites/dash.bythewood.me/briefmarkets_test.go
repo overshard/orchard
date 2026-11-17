@@ -193,8 +193,8 @@ func TestUncitedClosedLineIsTheMove(t *testing.T) {
 	}
 }
 
-// A closed line can name its own session and quote its own move, since the 9B
-// does both whatever the prompt says and the page shows the same figures.
+// A closed line can name its own session and quote its own move, since the
+// page shows the same figures beside it.
 func TestMarketLinesNameTheirOwnDays(t *testing.T) {
 	yesterday := closedLine("YESTERDAY", 100.28, 100, "why").between(inNY(t, "2026-10-27 09:30"), inNY(t, "2026-10-28 09:30"))
 	today := closedLine("TODAY", 99.7, 100, "why").between(inNY(t, "2026-10-28 09:30"), inNY(t, "2026-10-29 16:05"))

@@ -49,7 +49,7 @@ func (a briefArchive) add(desk string, b Brief) {
 	if len(b.Points) == 0 {
 		return
 	}
-	b.Waiting, b.Status = "", ""
+	b.Status = ""
 	raw, err := json.Marshal(archived{desk, b})
 	if err != nil {
 		return

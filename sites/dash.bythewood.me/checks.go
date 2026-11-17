@@ -1,9 +1,6 @@
 package main
 
 import (
-	"context"
-	"fmt"
-	"log/slog"
 	"regexp"
 	"slices"
 	"strconv"
@@ -11,9 +8,9 @@ import (
 	"unicode"
 )
 
-// Checks a line has to pass before it goes on the page. The 9B writes names,
-// parties and weekdays from memory even when told not to, so whatever a line
-// says has to be in the text it was written from.
+// Checks a line has to pass before it goes on the page. A model's own memory of
+// who holds what office or which party they're in can be out of date, so
+// whatever a line says has to be in the text it was written from.
 
 var (
 	numberPat = regexp.MustCompile(`\d[\d,]*(?:\.\d+)?`)
@@ -31,8 +28,8 @@ var weekdays = []string{"monday", "tuesday", "wednesday", "thursday", "friday", 
 
 var smallNumbers = []string{"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"}
 
-// stripParties takes out a party tag the source doesn't carry, since the 9B
-// fills one in from memory and gets it wrong.
+// stripParties takes out a party tag the source doesn't carry, since one filled
+// in from memory can be wrong.
 func stripParties(line, source string) string {
 	return partyPat.ReplaceAllStringFunc(line, func(tag string) string {
 		if strings.Contains(source, strings.TrimSpace(tag)) {
@@ -84,7 +81,7 @@ func unsupported(line, source string) []string {
 
 // capitalised is the words in line that start with a capital and don't start a
 // sentence, with a possessive and punctuation cut off. A name opening a
-// sentence is left to the grounding check, since prose opens on any word.
+// sentence is let through, since prose opens on any word.
 func capitalised(line string) []string {
 	var out []string
 	start := true
@@ -121,8 +118,8 @@ func namesWeekday(line string) string {
 }
 
 // relates is whether a line is about the event at all, by sharing a word of
-// substance with how any outlet told it, since the model writes one event's
-// line into the next one's field.
+// substance with how any outlet told it, so a cited number the line isn't
+// about doesn't get its links.
 func relates(line string, c cluster) bool {
 	words := significant(line)
 	for _, s := range c.stories {
@@ -148,63 +145,4 @@ func eventText(cs ...cluster) string {
 		}
 	}
 	return b.String()
-}
-
-// groundSystem is a yes or no on one line against the reports it came from,
-// with the reason first since keys go out sorted and the model writes in order.
-const groundSystem = `You check one news headline against the reports it was written from.
-- "reason" is one short sentence on whether every fact in the headline is in the reports.
-- "unbacked" is each phrase of the headline the reports don't back, copied word for word from the headline, and empty when they back all of it.
-- "verdict" is "supported" when the reports say what the headline says, and "unsupported" when the headline adds a fact, a name, a number or an outcome the reports don't give, or says something the reports contradict.
-- The reports are several outlets on one story. A fact any one report gives is backed, even when the others leave it out or tell a different part.
-- Wording doesn't matter, only facts. A headline that leaves things out is still supported.`
-
-// grounded asks the model whether the reports back line. A failed call keeps
-// it since the Go checks passed it, and so does a verdict whose unbacked
-// phrases aren't in the line, since the 9B faults detail the line never claimed.
-func (b *Briefer) grounded(ctx context.Context, line, reports string) bool {
-	if reports == "" {
-		return true
-	}
-	schema := map[string]any{
-		"type": "object",
-		"properties": map[string]any{
-			"reason":   map[string]any{"type": "string", "maxLength": 200},
-			"unbacked": map[string]any{"type": "array", "maxItems": 4, "items": map[string]any{"type": "string", "maxLength": 80}},
-			"verdict":  map[string]any{"type": "string", "enum": []string{"supported", "unsupported"}},
-		},
-		"required":             []string{"reason", "unbacked", "verdict"},
-		"additionalProperties": false,
-	}
-	var out struct {
-		Reason   string   `json:"reason"`
-		Unbacked []string `json:"unbacked"`
-		Verdict  string   `json:"verdict"`
-	}
-	user := fmt.Sprintf("Headline: %s\n\nReports:\n%s", line, reports)
-	if err := b.model.Structured(ctx, groundSystem, user, schema, 120, &out); err != nil {
-		slog.Warn("brief ground check failed", slog.String("component", "brief"), slog.Any("err", err))
-		return true
-	}
-	if out.Verdict != "unsupported" {
-		return true
-	}
-	if !slices.ContainsFunc(out.Unbacked, func(p string) bool { return inLine(p, line) }) {
-		slog.Info("brief line unsupported overruled", slog.String("component", "brief"), slog.String("text", line),
-			slog.String("reason", out.Reason), slog.Any("unbacked", out.Unbacked))
-		return true
-	}
-	slog.Info("brief line unsupported", slog.String("component", "brief"), slog.String("text", line),
-		slog.String("reason", out.Reason), slog.Any("unbacked", out.Unbacked))
-	return false
-}
-
-// inLine is whether every word of phrase is in line, so a phrase copied with
-// its punctuation or case changed still counts.
-func inLine(phrase, line string) bool {
-	split := func(s string) []string {
-		return strings.FieldsFunc(strings.ToLower(s), func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
-	}
-	words, have := split(phrase), split(line)
-	return len(words) > 0 && !slices.ContainsFunc(words, func(w string) bool { return !slices.Contains(have, w) })
 }

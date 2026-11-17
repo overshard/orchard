@@ -33,8 +33,8 @@ var newsFeeds = []briefFeed{
 }
 
 // widelyCarried drops the events only one outlet ran once there are enough
-// that two or more did. A story nobody else picked up is rarely the one that
-// matters, and a 9B model handed fifty will reach for some of them.
+// that two or more did, since a story nobody else picked up is rarely the one
+// that matters.
 func widelyCarried(cs []cluster) []cluster {
 	var shared []cluster
 	for _, c := range cs {
@@ -50,9 +50,8 @@ func widelyCarried(cs []cluster) []cluster {
 	return shared
 }
 
-// A small model told to skip trials will still write one up, and asked to label
-// the point it wrote calls a trial politics. Labelling the list on its own first
-// is an easier job, so the skipping happens in Go before the summary.
+// Every event is labelled before anything is written, so what TODAY leaves out
+// is decided in Go from the labels and never left to the writer's judgement.
 var newsCategories = []string{"us_politics", "world", "economy", "markets", "technology", "disaster",
 	"security", "culture", "crime_or_court", "incident", "human_interest", "sport", "celebrity", "local"}
 
@@ -62,25 +61,21 @@ var minor = []string{"crime_or_court", "incident", "human_interest", "sport", "c
 // as mainstream culture anyway, the way the Lindsay Clancy trial was.
 const mainstream = 7
 
-// newsMax is a headline's maxLength, well past twelve words, since a line that
-// hits it is cut mid word and dropped.
-const newsMax = 160
-
 // newsPoints is the most a brief holds, and so the most events the writer sees.
 // It matches the feeds so the panels in the band line up row for row.
 const newsPoints = storiesShown
 
-func newsSchema(events int) map[string]any {
+func newsSchema() map[string]any {
 	return map[string]any{
 		"type": "object",
 		"properties": map[string]any{
 			"points": map[string]any{
-				"type": "array", "minItems": min(3, events), "maxItems": events,
+				"type": "array",
 				"items": map[string]any{
 					"type": "object",
 					"properties": map[string]any{
-						"text":    map[string]any{"type": "string", "maxLength": newsMax},
-						"sources": map[string]any{"type": "array", "minItems": 1, "maxItems": 4, "items": map[string]any{"type": "integer"}},
+						"text":    map[string]any{"type": "string"},
+						"sources": map[string]any{"type": "array", "items": map[string]any{"type": "integer"}},
 					},
 					"required":             []string{"text", "sources"},
 					"additionalProperties": false,
@@ -182,11 +177,12 @@ func (b *Briefer) compileNews(ctx context.Context, slot briefSlot, at time.Time)
 	}[slot.kind]
 
 	system := "You write a short executive news summary for one reader in the United States.\n" + neutralRules + `
+- Each event is its lead story, with how the other outlets told it indented under it.
 - Write one point for each event, in the order given. If two events are the same story, write one point for them and cite both.
 - Each point is one neutral headline about exactly one event, at most 12 words, in past tense. No second sentence, no detail beyond what makes the event clear.
-- Each point cites the numbers of the events it draws on in "sources".`
+- Each point cites the numbers of the events it draws on in "sources", at most four.`
 
-	user := fmt.Sprintf("It is %s Eastern. %s\n\nEvents:\n%s", at.In(easternTime()).Format("15:04 on Monday, January 2 2006"), task, clusterList(events, now))
+	user := fmt.Sprintf("It is %s Eastern. %s\n\nEvents:\n%s", at.In(easternTime()).Format("15:04 on Monday, January 2 2006"), task, eventDetail(events, now))
 
 	// One retry with the problems named, then a point that still has one is
 	// dropped.
@@ -195,7 +191,7 @@ func (b *Briefer) compileNews(ctx context.Context, slot briefSlot, at time.Time)
 	ask := user
 	for try := 0; try < 2; try++ {
 		out = modelPoints{}
-		if err := b.model.Structured(ctx, system, ask, newsSchema(len(events)), 1300, &out); err != nil {
+		if err := b.model.Structured(ctx, system, ask, newsSchema(), 2000, &out); err != nil {
 			return Brief{}, err
 		}
 		if bad = pointProblems(events, out); len(bad) == 0 {
@@ -218,8 +214,9 @@ func (b *Briefer) compileNews(ctx context.Context, slot briefSlot, at time.Time)
 	}
 	var written []modelPoint
 	for i, p := range out.Points {
-		if _, ok := bad[i]; !ok {
+		if _, ok := bad[i]; !ok && i < len(events) {
 			p.Sources = related(p.Text, events, p.Sources)
+			p.Sources = p.Sources[:min(len(p.Sources), 4)]
 			written = append(written, p)
 		}
 	}
@@ -231,16 +228,12 @@ func (b *Briefer) compileNews(ctx context.Context, slot briefSlot, at time.Time)
 	for _, p := range written {
 		pt := cite(events, p.Sources)
 		source := eventText(picks(events, p.Sources)...)
-		pt.Text = stripParties(whole(p.Text, newsMax), source)
+		pt.Text = stripParties(sentence(p.Text), source)
 		// A point the model could not tie to a story is one it may have made up.
 		if pt.Text == "" || len(pt.Links) == 0 {
 			continue
 		}
-		reports, fetched := b.eventReports(ctx, events, p.Sources, pt.Links)
-		if !b.grounded(ctx, pt.Text, reports) {
-			continue
-		}
-		if fetched {
+		if reports, fetched := b.eventReports(ctx, events, p.Sources, pt.Links); fetched {
 			pt.Gist = stripParties(b.eventTLDR(ctx, reports), reports)
 		}
 		pt.Mark = mark(prev, pt, picks(events, p.Sources))
@@ -254,10 +247,6 @@ func (b *Briefer) compileNews(ctx context.Context, slot briefSlot, at time.Time)
 	brief.Read = read
 	return brief, nil
 }
-
-// readMax is a read headline's maxLength. The model writes about twelve words
-// when asked for nine, and a tighter cap drops the top story.
-const readMax = 100
 
 // readPicks is the most carried events that change something, by the same
 // ratings the headlines use, so a prize or a profile that five outlets ran
@@ -274,6 +263,27 @@ func readPicks(all []cluster, rated map[string]eventRating, n int) []cluster {
 		}
 	}
 	return out
+}
+
+// eventDetail is clusterList with every outlet's telling under each event,
+// which is the text the checks hold a line to.
+func eventDetail(cs []cluster, now time.Time) string {
+	var b strings.Builder
+	for i, c := range cs {
+		b.WriteString(strings.Replace(clusterList([]cluster{c}, now), "[1]", fmt.Sprintf("[%d]", i+1), 1))
+		lead := c.lead().url
+		for _, s := range c.stories {
+			if s.url == lead {
+				continue
+			}
+			fmt.Fprintf(&b, "  %s: %s", s.source, s.title)
+			if s.desc != "" {
+				b.WriteString(" | " + s.desc)
+			}
+			b.WriteString("\n")
+		}
+	}
+	return b.String()
 }
 
 // heard is how many outlets answered this run, the count a story's spread is
@@ -319,15 +329,12 @@ func (b *Briefer) read(ctx context.Context, slot briefSlot, at time.Time, all []
 		return nil, nil, fmt.Errorf("nothing carried widely that matters")
 	}
 
+	// A field per event keeps each headline tied to the event it's about.
 	props := map[string]any{}
 	var required []string
 	for i := range events {
-		limit := readMax
-		if i == 0 && level == "major" {
-			limit = 2 * readMax
-		}
 		key := fmt.Sprintf("event%d", i+1)
-		props[key] = map[string]any{"type": "string", "maxLength": limit}
+		props[key] = map[string]any{"type": "string"}
 		required = append(required, key)
 	}
 	schema := map[string]any{"type": "object", "properties": props, "required": required, "additionalProperties": false}
@@ -341,12 +348,13 @@ func (b *Briefer) read(ctx context.Context, slot briefSlot, at time.Time, all []
 - A headline is at most 9 words, in past tense, with no second clause and no detail like wind speeds, ages, places or who criticised whom.
 - Rewrite each in your own plain words. Never hand back the event's own title or quote its words.
 - Use only what the event lines say. Never add a name, title or fact from memory, since yours may be out of date.
-- Never say how many or which outlets carried it.`
+- Never say how many or which outlets carried it.
+- Each event is its lead story, with how the other outlets told it indented under it.`
 
 	when := map[string]string{"morning": "yesterday and overnight", "preopen": "yesterday, overnight and this morning",
 		"midday": "so far today", "close": "today"}[slot.kind]
 	user := fmt.Sprintf("It is %s Eastern. The most widely carried news %s.\n\nEvents:\n%s",
-		at.In(easternTime()).Format("15:04 on Monday, January 2 2006"), when, clusterList(events, now))
+		at.In(easternTime()).Format("15:04 on Monday, January 2 2006"), when, eventDetail(events, now))
 
 	// A copied title, a field about another event, or a name or number the
 	// event doesn't have gets one retry naming it, and is dropped if it comes back.
@@ -358,7 +366,7 @@ func (b *Briefer) read(ctx context.Context, slot briefSlot, at time.Time, all []
 			ask += "\n\nYour last answer had problems, fix them:\n- " + strings.Join(slices.Collect(maps.Values(bad)), "\n- ")
 		}
 		out = nil
-		if err := b.model.Structured(ctx, system, ask, schema, 300, &out); err != nil {
+		if err := b.model.Structured(ctx, system, ask, schema, 600, &out); err != nil {
 			return nil, nil, err
 		}
 		bad = readProblems(events, out)
@@ -373,13 +381,8 @@ func (b *Briefer) read(ctx context.Context, slot briefSlot, at time.Time, all []
 	}
 	var cited []int
 	for i := range events {
-		limit := readMax
-		if i == 0 && level == "major" {
-			limit = 2 * readMax
-		}
-		source := eventText(events[i])
-		t := stripParties(whole(out[fmt.Sprintf("event%d", i+1)], limit), source)
-		if _, ok := bad[i+1]; ok || t == "" || !b.grounded(ctx, t, source) {
+		t := stripParties(sentence(out[fmt.Sprintf("event%d", i+1)]), eventText(events[i]))
+		if _, ok := bad[i+1]; ok || t == "" {
 			continue
 		}
 		parts = append(parts, t)
@@ -467,20 +470,16 @@ func plainWords(s string) string {
 	return strings.Join(strings.Fields(b.String()), " ")
 }
 
-// eventRating is the model's read of one event. Each carries its number back,
-// since a small model labelling a long list in order drifts a place partway
-// down.
+// eventRating is the model's read of one event, carrying the event's number
+// back so a skipped or reordered rating can't land on the wrong event.
 type eventRating struct {
 	N      int    `json:"n"`
 	Label  string `json:"label"`
 	Impact int    `json:"impact"`
 }
 
-// rateBatch keeps each call short enough that the numbering holds.
-const rateBatch = 20
-
 func (b *Briefer) rate(ctx context.Context, events []cluster, now time.Time) ([]eventRating, error) {
-	system := `You rate news events, one rating per event, each carrying the event's number as "n".
+	system := `You rate news events, one rating for every event listed, each carrying the event's number as "n".
 
 "label" is the topic:
 - us_politics: Congress, the White House, federal agencies and policy, elections, parties.
@@ -500,39 +499,36 @@ The rest mean what they say.
 2: worth knowing, with little effect on an American's money or life.
 1: no effect on them at all.`
 
-	ratings := make([]eventRating, len(events))
-	for start := 0; start < len(events); start += rateBatch {
-		batch := events[start:min(start+rateBatch, len(events))]
-		schema := map[string]any{
-			"type": "object",
-			"properties": map[string]any{
-				"ratings": map[string]any{
-					"type": "array", "minItems": len(batch), "maxItems": len(batch),
-					"items": map[string]any{
-						"type": "object",
-						"properties": map[string]any{
-							"n":      map[string]any{"type": "integer", "minimum": 1, "maximum": len(batch)},
-							"label":  map[string]any{"type": "string", "enum": newsCategories},
-							"impact": map[string]any{"type": "integer", "minimum": 1, "maximum": 5},
-						},
-						"required":             []string{"n", "label", "impact"},
-						"additionalProperties": false,
+	schema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"ratings": map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"n":      map[string]any{"type": "integer"},
+						"label":  map[string]any{"type": "string", "enum": newsCategories},
+						"impact": map[string]any{"type": "integer", "enum": []int{1, 2, 3, 4, 5}},
 					},
+					"required":             []string{"n", "label", "impact"},
+					"additionalProperties": false,
 				},
 			},
-			"required":             []string{"ratings"},
-			"additionalProperties": false,
-		}
-		var out struct {
-			Ratings []eventRating `json:"ratings"`
-		}
-		if err := b.model.Structured(ctx, system, "Events:\n"+clusterList(batch, now), schema, 30*len(batch)+100, &out); err != nil {
-			return nil, err
-		}
-		for _, r := range out.Ratings {
-			if r.N >= 1 && r.N <= len(batch) {
-				ratings[start+r.N-1] = r
-			}
+		},
+		"required":             []string{"ratings"},
+		"additionalProperties": false,
+	}
+	var out struct {
+		Ratings []eventRating `json:"ratings"`
+	}
+	if err := b.model.Structured(ctx, system, "Events:\n"+clusterList(events, now), schema, 40*len(events)+200, &out); err != nil {
+		return nil, err
+	}
+	ratings := make([]eventRating, len(events))
+	for _, r := range out.Ratings {
+		if r.N >= 1 && r.N <= len(events) {
+			ratings[r.N-1] = r
 		}
 	}
 	return ratings, nil
