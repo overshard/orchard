@@ -15,19 +15,16 @@ const outingsSearchFeet = 40 * 5280
 
 // In the order a child would rank them. The water ones matter since the Catawba
 // and the Yadkin are what people in these counties do in July.
-var outingKinds = []struct {
-	filter string
-	label  string
-}{
-	{`["tourism"="museum"]`, "museum or science centre"},
-	{`["amenity"="cinema"]`, "cinema"},
-	{`["leisure"="water_park"]`, "water park"},
-	{`["leisure"="slipway"]`, "river or lake access"},
-	{`["sport"="canoe"]`, "tubing or paddling"},
-	{`["leisure"="nature_reserve"]["name"]`, "nature reserve"},
-	{`["tourism"="zoo"]`, "zoo or farm park"},
-	{`["leisure"="sports_centre"]`, "sports centre"},
-	{`["leisure"="park"]["name"]["leisure"!="garden"]`, "park"},
+var outingKinds = []string{
+	"museum or science centre",
+	"cinema",
+	"water park",
+	"river or lake access",
+	"tubing or paddling",
+	"nature reserve",
+	"zoo or farm park",
+	"sports centre",
+	"park",
 }
 
 type Outing struct {
@@ -140,7 +137,7 @@ func (o *Outings) Lookup(ctx context.Context, lat, lon float64) (OutingsResult, 
 
 	out := OutingsResult{}
 	for _, k := range outingKinds {
-		if o, ok := best[k.label]; ok {
+		if o, ok := best[k]; ok {
 			out.Nearest = append(out.Nearest, o)
 		}
 	}
