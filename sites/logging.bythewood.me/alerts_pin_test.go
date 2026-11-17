@@ -124,10 +124,10 @@ func TestAlertRequestsArePinned(t *testing.T) {
 		}
 	}
 
-	wantLog := `level=INFO msg="alert: published silence for blog" component=alerts
-level=INFO msg="alert: published resumed for blog" component=alerts
-level=INFO msg="alert: published restart for blog" component=alerts
-level=INFO msg="alert: unknown kind \"catastrophe\" for blog" component=alerts
+	wantLog := `level=INFO msg="alert: published" kind=silence source=blog component=alerts
+level=INFO msg="alert: published" kind=resumed source=blog component=alerts
+level=INFO msg="alert: published" kind=restart source=blog component=alerts
+level=INFO msg="alert: unknown kind" kind=catastrophe source=blog component=alerts
 `
 	if logs.String() != wantLog {
 		t.Errorf("log is\n%s\nwant\n%s", logs.String(), wantLog)
@@ -146,7 +146,7 @@ func TestAlertFailureAndMissingTokenArePinned(t *testing.T) {
 		t.Errorf("a missing token should still publish, unauthenticated: %v", got())
 	}
 	wantLog := `level=WARN msg="NTFY_TOKEN is unset; alerts will be rendered and refused, not delivered" component=alerts
-level=ERROR msg="alert: publishing silence for blog failed: ntfy returned 403" component=alerts
+level=ERROR msg="alert: publishing failed" kind=silence source=blog err="ntfy returned 403" component=alerts
 `
 	if s := pinPort.ReplaceAllString(logs.String(), "HOST"); s != wantLog {
 		t.Errorf("log is\n%s\nwant\n%s", s, wantLog)

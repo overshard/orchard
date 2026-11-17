@@ -119,16 +119,16 @@ func humanDuration(d time.Duration) string {
 func (n *Notifier) Fire(kind string, ctx AlertContext) {
 	body, ok := renderAlert(kind, ctx)
 	if !ok {
-		slog.Info(fmt.Sprintf("alert: unknown kind %q for %s", kind, ctx.Source),
+		slog.Info("alert: unknown kind", slog.Any("kind", kind), slog.Any("source", ctx.Source),
 			slog.String("component", "alerts"))
 		return
 	}
 	if err := n.client.Publish(context.Background(), body); err != nil {
-		slog.Error(fmt.Sprintf("alert: publishing %s for %s failed: %v", kind, ctx.Source, err),
+		slog.Error("alert: publishing failed", slog.Any("kind", kind), slog.Any("source", ctx.Source), slog.Any("err", err),
 			slog.String("component", "alerts"))
 		return
 	}
-	slog.Info(fmt.Sprintf("alert: published %s for %s", kind, ctx.Source),
+	slog.Info("alert: published", slog.Any("kind", kind), slog.Any("source", ctx.Source),
 		slog.String("component", "alerts"))
 }
 

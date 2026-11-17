@@ -61,7 +61,7 @@ func (s *site) renderReport(w http.ResponseWriter, r *http.Request, format, subj
 
 	var buf bytes.Buffer
 	if err := reportTemplates.ExecuteTemplate(&buf, name, data); err != nil {
-		slog.Info(fmt.Sprintf("render %s: %v", name, err))
+		slog.Info("render", slog.Any("name", name), slog.Any("err", err))
 		http.Error(w, "report error", http.StatusInternalServerError)
 		return
 	}
@@ -79,11 +79,11 @@ func (s *site) renderReport(w http.ResponseWriter, r *http.Request, format, subj
 	if err != nil {
 		// A missing binary is the normal state of a dev checkout.
 		if err == ErrTypstMissing {
-			slog.Info(fmt.Sprintf("pdf report: %v (install typst, or use ?report=md)", err))
+			slog.Info("pdf report failed, install typst or use ?report=md", slog.Any("err", err))
 			http.Error(w, "pdf export unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		slog.Info(fmt.Sprintf("pdf report: %v", err))
+		slog.Info("pdf report", slog.Any("err", err))
 		http.Error(w, "report error", http.StatusInternalServerError)
 		return
 	}

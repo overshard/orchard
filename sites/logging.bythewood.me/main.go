@@ -269,8 +269,8 @@ func realMain() error {
 		web.SameOrigin(),
 	)
 
-	slog.Info(fmt.Sprintf("logging serving %s (retention=%dd)",
-		baseURL, int(rawRetention/(24*time.Hour))))
+	slog.Info("logging serving", slog.String("base_url", baseURL),
+		slog.Int("retention_days", int(rawRetention/(24*time.Hour))))
 	return web.Serve(listenAddr, handler)
 }
 

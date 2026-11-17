@@ -426,7 +426,7 @@ func (s *site) search(w http.ResponseWriter, r *http.Request) {
 func jsonBlock(v any) template.JS {
 	b, err := json.Marshal(v)
 	if err != nil {
-		slog.Info(fmt.Sprintf("json block: %v", err))
+		slog.Info("json block", slog.Any("err", err))
 		return template.JS("null")
 	}
 	return template.JS(b)
