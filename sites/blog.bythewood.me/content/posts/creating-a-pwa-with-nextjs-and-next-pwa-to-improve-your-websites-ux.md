@@ -8,9 +8,11 @@ description: Turning your website into a PWA, especially if your website doesn't
 cover_image: lighthouse-pwa-check.webp
 ---
 
+**NOTE:** I don't work on Timelite anymore and it's no longer online. I don't need time tracking at my current job so it became a pretty useless tool for me and I've moved on.
+
 If you have a particularly large single page web app then a PWA can dramatically increase return conversions by reducing the need to redownload assets on repeat visits and provide a native app like experience on users' devices.
 
-Timelite is currently one of my apps that I needed to make into a PWA, you can check it out at <https://timelite.bythewood.me/>.
+Timelite was one of my apps that I needed to make into a PWA.
 
 ![Timelite PWA screenshot](images/timelite-pwa-screenshot.webp)
 
