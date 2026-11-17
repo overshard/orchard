@@ -123,6 +123,7 @@ func (b *Briefer) compileMarkets(ctx context.Context, slot briefSlot, at time.Ti
 - Quote figures exactly as given in the numbers. Never compute or invent a figure.
 - A reason for a move has to come from a story, and is cited. If no story gives one, say what moved and leave the reason out.
 - Each story says how long ago it ran and which session it was news for. Explain a session only with stories marked for it, so a story about today's trading is never the reason for yesterday's close.
+- Each earnings report in the numbers says which session it is news for, and a line about a session names only the reports marked for it.
 - No advice, nothing like "investors should".
 - A line asking which way things lean is about the whole market, never single companies. Its reasons come from market-wide drivers: futures, Treasury yields and the Fed, the calendar and patterns listed for that day, oil, the VIX and the recent trend, and geopolitical news. A scheduled Fed decision or big release always gets named. The patterns are mild tilts, so they settle a close call and never outweigh the news. Mention a company only if it is one of the very largest in the S&P 500. It sets "verdict" to higher, lower or mixed, for which way the reasons in its text point on balance, and names each reason and which way it pushes, like "Futures are flat, but yields at multi-decade highs and a rising VIX weigh on stocks."
 - Do not write the lean itself into the text, the page shows it beside the line. The text is only the reasons.
@@ -392,21 +393,39 @@ func marketFacts(st State, h *history, at time.Time) string {
 	}
 	for _, e := range st.Earnings.Reported {
 		if e.Verdict == earningsOut {
-			fmt.Fprintf(&b, "%s (%s) reported %s %s, figures not out yet against an EPS estimate of %s, stock %s\n",
-				e.Name, e.Symbol, strings.ToLower(e.Day), session(e.When), e.Est, e.Move)
+			fmt.Fprintf(&b, "%s (%s) reported %s %s%s, figures not out yet against an EPS estimate of %s, stock %s\n",
+				e.Name, e.Symbol, strings.ToLower(e.Day), session(e.When), newsFor(e, at), e.Est, e.Move)
 			continue
 		}
 		verdict := strings.ToLower(e.Verdict)
 		if e.Verdict == earningsPrelim {
 			verdict = "early figure that may still be revised"
 		}
-		fmt.Fprintf(&b, "%s (%s) reported %s %s: EPS %s against %s forecast, %s, stock %s\n",
-			e.Name, e.Symbol, strings.ToLower(e.Day), session(e.When), e.Actual, e.Forecast, verdict, e.Move)
+		fmt.Fprintf(&b, "%s (%s) reported %s %s%s: EPS %s against %s forecast, %s, stock %s\n",
+			e.Name, e.Symbol, strings.ToLower(e.Day), session(e.When), newsFor(e, at), e.Actual, e.Forecast, verdict, e.Move)
 	}
 	for _, e := range st.Earnings.Upcoming {
-		fmt.Fprintf(&b, "%s (%s) reports %s %s, EPS estimate %s\n", e.Name, e.Symbol, strings.ToLower(e.Day), session(e.When), e.Est)
+		fmt.Fprintf(&b, "%s (%s) reports %s %s%s, EPS estimate %s\n", e.Name, e.Symbol, strings.ToLower(e.Day), session(e.When), newsFor(e, at), e.Est)
 	}
 	return b.String()
+}
+
+// newsFor is the session an earnings report moves, its own day before the open
+// and the next trading day after the close.
+func newsFor(e Earning, at time.Time) string {
+	today := at.In(easternTime())
+	date := reportDate(e.Day, today)
+	if date == "" {
+		return ""
+	}
+	day, err := time.ParseInLocation("2006-01-02", date, easternTime())
+	if err != nil {
+		return ""
+	}
+	if e.When == "POST" {
+		day = nextWeekday(day)
+	}
+	return ", news for " + day.Format("Monday") + "'s session"
 }
 
 func session(when string) string {

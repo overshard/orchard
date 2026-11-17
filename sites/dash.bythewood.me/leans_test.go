@@ -237,3 +237,24 @@ func TestClosedLineTellsTheModelTheDirection(t *testing.T) {
 		t.Errorf("scoring line got an ask %q", l.ask)
 	}
 }
+
+func TestNewsForPutsAfterCloseReportsOnTheNextSession(t *testing.T) {
+	tue := time.Date(2026, 11, 17, 7, 0, 0, 0, easternTime())
+	fri := time.Date(2026, 11, 20, 7, 0, 0, 0, easternTime())
+	for _, c := range []struct {
+		e    Earning
+		at   time.Time
+		want string
+	}{
+		{Earning{Day: "TODAY", When: "PRE"}, tue, ", news for Tuesday's session"},
+		{Earning{Day: "TODAY", When: "POST"}, tue, ", news for Wednesday's session"},
+		{Earning{Day: "TODAY", When: "POST"}, fri, ", news for Monday's session"},
+		{Earning{Day: "YESTERDAY", When: "POST"}, tue, ", news for Tuesday's session"},
+		{Earning{Day: "TOMORROW"}, tue, ", news for Wednesday's session"},
+		{Earning{Day: "gibberish"}, tue, ""},
+	} {
+		if got := newsFor(c.e, c.at); got != c.want {
+			t.Errorf("%s %s on %s: got %q, want %q", c.e.Day, c.e.When, c.at.Format("Mon"), got, c.want)
+		}
+	}
+}
