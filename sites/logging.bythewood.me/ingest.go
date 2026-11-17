@@ -550,7 +550,7 @@ func (s *site) LocalSink(source string, records []web.Record) {
 	if len(rows) == 0 {
 		return
 	}
-	s.writer.enqueue(rows)
-
-	s.watchdog.Observe(selfSource, records)
+	if s.writer.enqueue(rows) {
+		s.watchdog.Observe(selfSource, records)
+	}
 }

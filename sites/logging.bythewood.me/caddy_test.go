@@ -361,3 +361,17 @@ func TestCaddyRefusedBatchIsNotObserved(t *testing.T) {
 	cancel()
 	<-done
 }
+
+func TestLocalRefusedBatchIsNotObserved(t *testing.T) {
+	db := testDB(t)
+	w := &Writer{db: db, ch: make(chan row), quit: make(chan struct{}), done: make(chan struct{})}
+	s := &site{db: db, writer: w, watchdog: NewWatchdog(db, nil)}
+
+	s.LocalSink(selfSource, []web.Record{{Msg: "hello", Level: "INFO", Time: time.Now().UnixMilli()}})
+	if w.Stats().Rejected == 0 {
+		t.Fatal("the batch never reached the full queue")
+	}
+	if s.watchdog.Shipping(selfSource) {
+		t.Error("a refused batch counted as this site shipping")
+	}
+}
