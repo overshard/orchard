@@ -7,7 +7,6 @@ import (
 	"embed"
 	"encoding/json"
 	"flag"
-	"fmt"
 	"html/template"
 	"io/fs"
 	"log/slog"
@@ -100,7 +99,7 @@ func main() {
 
 	if *healthcheck {
 		if err := web.HealthCheck("http://127.0.0.1:8000/healthz", 3*time.Second); err != nil {
-			slog.Info(fmt.Sprintf("healthcheck: %v", err))
+			slog.Info("healthcheck", slog.Any("err", err))
 			os.Exit(1)
 		}
 		return
@@ -151,7 +150,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	slog.Info(fmt.Sprintf("%s serving %s", selfSource, baseURL))
+	slog.Info("serving", slog.String("site", selfSource), slog.String("base_url", baseURL))
 	if err := web.Serve(listenAddr, s.handler()); err != nil {
 		slog.Error("startup failed", slog.Any("err", err))
 	}
@@ -162,7 +161,7 @@ func sweepHourly(db *store) {
 		if n, err := db.sweep(); err != nil {
 			slog.Error("sweep", slog.Any("err", err))
 		} else if n > 0 {
-			slog.Info(fmt.Sprintf("swept %d eggs nobody came back to", n))
+			slog.Info("swept eggs nobody came back to", slog.Any("count", n))
 		}
 		time.Sleep(time.Hour)
 	}

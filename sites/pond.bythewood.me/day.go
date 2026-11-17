@@ -226,7 +226,7 @@ func (a *almanac) poll(ctx context.Context) {
 	for {
 		if !a.pinned.Load() {
 			if err := a.fetch(ctx, client); err != nil {
-				slog.Info(fmt.Sprintf("the real day: %v", err))
+				slog.Info("the real day", slog.Any("err", err))
 			}
 		}
 		select {
