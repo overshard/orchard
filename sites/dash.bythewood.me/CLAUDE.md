@@ -225,12 +225,6 @@ what TODAY said about it on up to four earlier days in the last five, and the
 head line carries thirty days of the top story's share of outlets. The first two
 match stories by a shared link or three words of substance.
 
-**OUT carries the forecast discussion,** a fourth desk that reads the
-Blacksburg office's Area Forecast Discussion off api.weather.gov, keeps the key
-messages and the discussion sections, and puts them in two or three plain
-sentences, clamped to two lines under the days with the rest on a tap. It's
-only rewritten when the office puts out a new one.
-
 **Every model call is Claude Haiku 5.5 through the gateway.** `model.go` posts an
 OpenAI chat completion with a `json_schema` response format, and the gateway
 turns it into a structured output, so the answer always parses. It drops

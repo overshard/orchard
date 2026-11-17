@@ -91,8 +91,7 @@ type Brief struct {
 	// whether it is owed a run.
 	Slot int64 `json:"slot"`
 
-	// The S&P price a markets brief was written against, and the product id of
-	// the forecast discussion a forecast brief was written from.
+	// The S&P price a markets brief was written against.
 	Basis string `json:"basis,omitempty"`
 
 	// How big the news was each of the last thirty days, for TODAY.
@@ -163,10 +162,9 @@ type Link struct {
 }
 
 type Briefs struct {
-	Markets  Brief `json:"markets"`
-	News     Brief `json:"news"`
-	Feeds    Brief `json:"feeds"`
-	Forecast Brief `json:"forecast"`
+	Markets Brief `json:"markets"`
+	News    Brief `json:"news"`
+	Feeds   Brief `json:"feeds"`
 }
 
 func (s briefSlot) title() string {
@@ -256,7 +254,7 @@ var (
 )
 
 // briefDesks is every desk in the order they run.
-var briefDesks = []string{"markets", "news", "feeds", "forecast"}
+var briefDesks = []string{"markets", "news", "feeds"}
 
 // deskRun is one desk owed one slot.
 type deskRun struct {
@@ -280,14 +278,14 @@ func NewBriefer(store *Store, g *Guard, m *Model, dataDir string) *Briefer {
 		}
 	}
 	if m == nil {
-		saved.Markets.Status, saved.News.Status, saved.Forecast.Status = "off", "off", "off"
+		saved.Markets.Status, saved.News.Status = "off", "off"
 	}
 	saved.Markets.Record = b.leans.record().String()
 	store.update(func(st *State) { st.Briefs = saved })
 	if b.leans.add(saved.Markets) {
 		b.leans.save()
 	}
-	for desk, br := range map[string]Brief{"markets": saved.Markets, "news": saved.News, "feeds": saved.Feeds, "forecast": saved.Forecast} {
+	for desk, br := range map[string]Brief{"markets": saved.Markets, "news": saved.News, "feeds": saved.Feeds} {
 		if len(br.Points) > 0 && br.Slot > 0 && !b.archive.has(desk, br.Slot) {
 			b.archive.add(desk, br)
 		}
@@ -415,7 +413,7 @@ func (b *Briefer) tick(ctx context.Context, now time.Time) {
 	}
 
 	cur := b.store.Snapshot().Briefs
-	slots := map[string]int64{"markets": cur.Markets.Slot, "news": cur.News.Slot, "feeds": cur.Feeds.Slot, "forecast": cur.Forecast.Slot}
+	slots := map[string]int64{"markets": cur.Markets.Slot, "news": cur.News.Slot, "feeds": cur.Feeds.Slot}
 	var due []deskRun
 	for _, desk := range briefDesks {
 		if slot, at := deskSlot(desk, now); slots[desk] < at.Unix() {
@@ -476,8 +474,6 @@ func (st *State) setBrief(desk string, brief Brief) {
 	case "feeds":
 		st.Briefs.Feeds = brief
 		st.attachFeedReads()
-	case "forecast":
-		st.Briefs.Forecast = brief
 	default:
 		st.Briefs.News = brief
 		st.setNotices("news", briefNotices(brief))
@@ -490,8 +486,6 @@ func (b *Briefer) compileDesk(ctx context.Context, desk string, slot briefSlot, 
 		return b.compileMarkets(ctx, slot, at)
 	case "feeds":
 		return b.compileFeeds(ctx, slot, at)
-	case "forecast":
-		return b.compileForecast(ctx, slot, at)
 	}
 	return b.compileNews(ctx, slot, at)
 }

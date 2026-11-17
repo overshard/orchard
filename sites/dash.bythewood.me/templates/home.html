@@ -224,7 +224,6 @@
       <ul class="outlook" data-outlook>
         {{range .State.Outlook.Days}}{{template "outlook" .}}{{else}}<li class="empty">AWAITING FORECAST</li>{{end}}
       </ul>
-      <div class="afd-host" data-forecast>{{template "forecast" .State.Briefs.Forecast}}</div>
     </section>
 
 

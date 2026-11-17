@@ -768,23 +768,6 @@ function intensityStrip(days) {
   return [strip];
 }
 
-function renderForecast(brief) {
-  const host = document.querySelector("[data-forecast]");
-  if (!host) return;
-  const p = brief && brief.points && brief.points[0];
-  if (!p) {
-    host.replaceChildren();
-    return;
-  }
-  const box = el("div", "afd");
-  const head = el("p", "afd-head");
-  head.append(el("span", "k", "FORECAST DISCUSSION"), ...briefLinks(p.links));
-  const txt = cardLine("afd-txt", p.text);
-  txt.dataset.tipLabel = "FORECAST DISCUSSION";
-  box.append(head, txt);
-  host.replaceChildren(box);
-}
-
 function renderConditions(signal) {
   if (!signal) return;
 
@@ -1277,7 +1260,6 @@ function render(state) {
   if (changed("steam", state.steam)) renderSteam(state.steam);
   if (changed("brief-markets", state.briefs && state.briefs.markets)) renderMarketBrief(state.briefs && state.briefs.markets);
   if (changed("brief-news", state.briefs && state.briefs.news)) renderNewsBrief(state.briefs && state.briefs.news);
-  if (changed("brief-forecast", state.briefs && state.briefs.forecast)) renderForecast(state.briefs && state.briefs.forecast);
   if (changed("feeds", state.feeds)) renderFeeds(state.feeds);
   if (changed("hn", state.hn)) renderStories("[data-hn]", state.hn);
   if (changed("lobsters", state.lobsters)) renderStories("[data-lobsters]", state.lobsters);

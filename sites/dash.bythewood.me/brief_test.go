@@ -76,7 +76,7 @@ func TestBriefRunsEveryDeskOncePerSlot(t *testing.T) {
 	b := testBriefer(t, f, false)
 	now := inNY(t, "2026-10-07 07:00")
 	b.tick(context.Background(), now)
-	if strings.Join(f.compiled, ",") != "markets,news,feeds,forecast" {
+	if strings.Join(f.compiled, ",") != "markets,news,feeds" {
 		t.Fatalf("compiled %v", f.compiled)
 	}
 	b.tick(context.Background(), now.Add(119*time.Minute))

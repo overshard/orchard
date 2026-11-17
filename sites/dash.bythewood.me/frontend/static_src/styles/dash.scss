@@ -1156,37 +1156,6 @@ main {
   &[data-warm="0"] .hv { color: var(--dim); }
 }
 
-// The forecaster's discussion in plain words, under the days it talks about.
-// Two lines keep OUT from setting the band's height, and a tap opens the rest.
-.afd {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--line);
-
-  .afd-head {
-    display: flex;
-    gap: 9px;
-    margin: 0;
-    font-size: 9px;
-    letter-spacing: var(--track);
-    color: var(--dim);
-    white-space: nowrap;
-    overflow: hidden;
-  }
-  .afd-txt {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    overflow: hidden;
-    margin: 5px 0 0;
-    color: var(--text);
-    font-size: 12px;
-    line-height: 1.45;
-  }
-  .afd-txt[data-card] { cursor: pointer; user-select: none; }
-  .afd-txt[data-card]:hover, .afd-txt[aria-expanded="true"] { color: var(--amber); }
-}
-
 .daylight {
   display: flex;
   align-items: center;

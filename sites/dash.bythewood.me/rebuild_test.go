@@ -165,7 +165,7 @@ func TestForcedRunAnswersTheLatestSlot(t *testing.T) {
 	b := testBriefer(t, f, false)
 	now := inNY(t, "2026-10-10 14:20")
 	b.rebuild(context.Background(), now)
-	if strings.Join(f.compiled, ",") != "markets,news,feeds,forecast" {
+	if strings.Join(f.compiled, ",") != "markets,news,feeds" {
 		t.Fatalf("compiled %v", f.compiled)
 	}
 	if st := b.store.Snapshot().Briefs; st.News.Slot != now.Unix() || st.News.Title != "MIDDAY" {
