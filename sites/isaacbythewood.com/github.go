@@ -112,7 +112,7 @@ func (c *CommitCache) refresh(ctx context.Context, targets []CommitTarget) {
 			defer wg.Done()
 			commit, err := c.fetch(ctx, target)
 			if err != nil {
-				slog.Info(fmt.Sprintf("github: %s: %v", target.Key, err))
+				slog.Info("github", slog.Any("target", target.Key), slog.Any("err", err))
 				return
 			}
 			results[i].key = target.Key

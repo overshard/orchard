@@ -77,7 +77,7 @@ func (c *LatestCache) refresh(ctx context.Context) {
 		if err == nil {
 			break
 		}
-		slog.Info(fmt.Sprintf("latest post: %s: %v", src, err))
+		slog.Info("latest post", slog.Any("source", src), slog.Any("err", err))
 	}
 	if err != nil {
 		// Keep whatever was there so a failure doesn't blank the card.

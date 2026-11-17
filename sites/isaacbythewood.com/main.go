@@ -165,7 +165,7 @@ func realMain() error {
 			"stale-while-revalidate=86400, stale-if-error=604800"),
 	)
 
-	slog.Info(fmt.Sprintf("isaacbythewood.com serving %s", baseURL))
+	slog.Info("isaacbythewood.com serving", slog.Any("base_url", baseURL))
 	return web.Serve(listenAddr, handler)
 }
 

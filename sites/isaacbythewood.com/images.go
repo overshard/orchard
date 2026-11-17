@@ -35,7 +35,7 @@ var images = loadImageSpec()
 func loadImageSpec() imageSpec {
 	var s imageSpec
 	if err := json.Unmarshal(imagesJSON, &s); err != nil {
-		slog.Error(fmt.Sprintf("parse images.json: %v", err))
+		slog.Error("parse images.json", slog.Any("err", err))
 		os.Exit(1)
 	}
 	if s.Format == "" || len(s.CardWidths) == 0 {
@@ -46,7 +46,7 @@ func loadImageSpec() imageSpec {
 	// generator reads the same map and would skip it silently.
 	for _, w := range append(append([]int{}, s.CardWidths...), s.LightboxWidth, s.HeroWidth) {
 		if _, ok := s.Quality[strconv.Itoa(w)]; !ok {
-			slog.Error(fmt.Sprintf("images.json: no quality for width %d", w))
+			slog.Error("images.json: no quality for width", slog.Any("width", w))
 			os.Exit(1)
 		}
 	}
