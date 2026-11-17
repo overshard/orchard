@@ -952,7 +952,7 @@ func TestAnalyticsSnippetIsRendered(t *testing.T) {
 	s.home(rr, httptest.NewRequest(http.MethodGet, "/", nil))
 	body := rr.Body.String()
 
-	if !strings.Contains(body, "collectorId") {
+	if !strings.Contains(body, "data-collector-id") {
 		t.Error("no collector snippet on the public home page")
 	}
 	if !strings.Contains(body, analyticsID) {

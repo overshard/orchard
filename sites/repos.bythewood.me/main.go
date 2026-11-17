@@ -24,13 +24,12 @@ var templateFS embed.FS
 
 const listenAddr = ":8000"
 
-// csp allows 'unsafe-inline' in style-src because chroma emits inline style
-// attributes, https: in img-src for README badges, and analytics.bythewood.me
-// plus inline script for the collector loader in base.html.
+// style-src keeps 'unsafe-inline' since chroma emits style attributes, and
+// img-src allows https: for README badges.
 func csp() string {
 	return strings.Join([]string{
 		"default-src 'self'",
-		"script-src 'self' 'unsafe-inline' https://analytics.bythewood.me/static/collector.js",
+		"script-src 'self' https://analytics.bythewood.me/static/collector.js",
 		"style-src 'self' 'unsafe-inline'",
 		"img-src 'self' data: https:",
 		"font-src 'self'",

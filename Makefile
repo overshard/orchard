@@ -601,6 +601,15 @@ voice:
 	full { gsub(/"[^"]*"|`[^`]*`/, "", c); if (c ~ /[A-Za-z0-9)]; |;$$/) say(FNR, "semicolon") } \
 	END { flush(); exit bad }'
 
+# No script-src here allows 'unsafe-inline', so an inline script or on* handler
+# in a template only shows up as a CSP error in a browser. The portfolio's early
+# script is the one inline block, and its CSP carries the hash.
+check: inline-check
+inline-check:
+	@bad=$$(grep -rnE '<script( [^>]*)?>|[[:space:]]on[a-z]+="' sites/*/templates template/templates 2>/dev/null | \
+		grep -vE '<script [^>]*src=|application/(ld\+)?json|<script>\{\{ earlyScript \}\}</script>'); \
+	if [ -n "$$bad" ]; then echo "inline script or handler, which the CSP blocks:" >&2; echo "$$bad" >&2; exit 1; fi
+
 vet:
 	for s in $(SITES); do echo "vet $$s"; (cd sites/$$s && go vet ./...) || exit 1; done
 

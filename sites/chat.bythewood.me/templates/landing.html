@@ -8,17 +8,7 @@
 <link rel="stylesheet" href="{{asset "static/app.css"}}">
   <!-- Analytics, first party and on this estate. The id is identity rather than
        a credential, so it is a constant here like every other site's. -->
-  <script>
-    (function (m, e, t, r, i, c, s) {
-      m.collectorQueue = m.collectorQueue || r;
-      m.collectorServer = c;
-      m.collectorId = s;
-      m.collectorScript = e.createElement(t);
-      m.collectorScript.src = c + i;
-      e.head.appendChild(m.collectorScript);
-    })(window, document, "script", [], "/static/collector.js",
-       "https://analytics.bythewood.me", "73f89553-a3fa-4c4a-b567-9a9a0550240b");
-  </script>
+  <script src="https://analytics.bythewood.me/static/collector.js" data-collector-id="73f89553-a3fa-4c4a-b567-9a9a0550240b" async></script>
 </head>
 <body class="landing-body">
 <header class="topbar">

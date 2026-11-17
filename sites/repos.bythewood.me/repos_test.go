@@ -1023,7 +1023,7 @@ func TestAnalyticsWiring(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, need := range []string{"collectorId", ".AnalyticsID",
+	for _, need := range []string{"data-collector-id", ".AnalyticsID",
 		"https://analytics.bythewood.me"} {
 		if !strings.Contains(string(base), need) {
 			t.Errorf("base.html is missing %q, so nothing is collected", need)
@@ -1031,7 +1031,7 @@ func TestAnalyticsWiring(t *testing.T) {
 	}
 
 	policy := csp()
-	for _, need := range []string{"'unsafe-inline'", "https://analytics.bythewood.me/static/collector.js"} {
+	for _, need := range []string{"https://analytics.bythewood.me/static/collector.js"} {
 		if !strings.Contains(policy, need) {
 			t.Errorf("CSP is missing %s, so the collector would be blocked: %s",
 				need, policy)

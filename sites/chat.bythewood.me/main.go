@@ -38,13 +38,12 @@ const (
 	author     = "Isaac Bythewood"
 )
 
-// csp matches every other site here. 'unsafe-inline' is for the analytics
-// collector snippet, which is an inline script, and for the inline style
-// attributes the templates set.
+// style-src keeps 'unsafe-inline' for the style attributes the templates set.
+// script-src doesn't, so keep inline script and on* handlers out of templates.
 func csp() string {
 	return strings.Join([]string{
 		"default-src 'self'",
-		"script-src 'self' 'unsafe-inline' https://analytics.bythewood.me/static/collector.js",
+		"script-src 'self' https://analytics.bythewood.me/static/collector.js",
 		"style-src 'self' 'unsafe-inline'",
 		"img-src 'self' data:",
 		"font-src 'self'",

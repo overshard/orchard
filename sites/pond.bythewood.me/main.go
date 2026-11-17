@@ -35,12 +35,12 @@ var (
 	pageTemplates   = []string{"index.html", "key.html", "k.html", "share.html", "notfound.html"}
 )
 
-// 'unsafe-inline' in script-src is for the analytics collector snippet, which
-// is an inline script.
+// script-src has no 'unsafe-inline', so keep inline script and on* handlers out
+// of templates.
 func csp() string {
 	return strings.Join([]string{
 		"default-src 'self'",
-		"script-src 'self' 'unsafe-inline' https://analytics.bythewood.me/static/collector.js",
+		"script-src 'self' https://analytics.bythewood.me/static/collector.js",
 		"style-src 'self' 'unsafe-inline'",
 		"img-src 'self' data:",
 		"font-src 'self'",

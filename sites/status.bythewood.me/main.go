@@ -37,13 +37,12 @@ func dir(env, fallback string) string {
 	return fallback
 }
 
-// script-src needs 'unsafe-inline' because the dashboard ships its chart data as
-// inline <script type="application/json"> blocks, and style-src carries it for
-// Bootstrap's inline style attributes.
+// style-src keeps 'unsafe-inline' for Bootstrap's style attributes. script-src
+// doesn't, since the chart data blocks are JSON and never run.
 func csp() string {
 	return strings.Join([]string{
 		"default-src 'self'",
-		"script-src 'self' 'unsafe-inline' https://analytics.bythewood.me/static/collector.js",
+		"script-src 'self' https://analytics.bythewood.me/static/collector.js",
 		"style-src 'self' 'unsafe-inline'",
 		"img-src 'self' data:",
 		"font-src 'self'",

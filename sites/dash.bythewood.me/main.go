@@ -51,13 +51,12 @@ func dir(env, fallback string) string {
 	return fallback
 }
 
-// csp allows 'unsafe-inline' for the analytics snippet and the sparkline paths,
-// which are computed per quote and written as style attributes instead of a
-// stylesheet that would need a nonce per render.
+// style-src keeps 'unsafe-inline' for the sparkline paths, which are computed
+// per quote and written as style attributes. script-src doesn't need it.
 func csp() string {
 	return strings.Join([]string{
 		"default-src 'self'",
-		"script-src 'self' 'unsafe-inline' https://analytics.bythewood.me/static/collector.js",
+		"script-src 'self' https://analytics.bythewood.me/static/collector.js",
 		"style-src 'self' 'unsafe-inline'",
 		"img-src 'self' data:",
 		"font-src 'self'",
