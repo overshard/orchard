@@ -27,6 +27,9 @@ const (
 	// The clamp on every stored string field, these columns are indexed and
 	// rendered into breakdown tables.
 	maxFieldLen = 2048
+	// Whatever a site sends of its own lands in extra and is kept for a year, so
+	// past this it is dropped whole, since truncated JSON can't be read back.
+	maxExtraLen = 1024
 )
 
 // collectRequest is the wire format the embed script sends.
@@ -39,7 +42,8 @@ type collectRequest struct {
 // collect records one event, answering 204 with no body. It never says whether
 // the event was filed as a bot, which would give a bot something to tune against.
 func (s *site) collect(w http.ResponseWriter, r *http.Request) {
-	if !s.collects.allow(web.ClientIP(r), time.Now()) {
+	now := time.Now()
+	if !s.collects.allow(clientKey(web.ClientIP(r)), now) {
 		corsStatus(w, r, http.StatusTooManyRequests)
 		return
 	}
@@ -83,6 +87,10 @@ func (s *site) collect(w http.ResponseWriter, r *http.Request) {
 		corsStatus(w, r, http.StatusInternalServerError)
 		return
 	}
+	if !s.propCollects.allow(propertyID.String(), now) {
+		corsStatus(w, r, http.StatusTooManyRequests)
+		return
+	}
 
 	data := map[string]any{}
 	if len(req.Data) > 0 {
@@ -104,6 +112,7 @@ func (s *site) collect(w http.ResponseWriter, r *http.Request) {
 	if uaString == "" {
 		uaString = r.Header.Get("User-Agent")
 	}
+	uaString = clampRunes(uaString, maxFieldLen)
 
 	if uaString != "" {
 		parsed := s.ua.Parse(uaString)
@@ -213,7 +222,7 @@ func (s *site) insertBotEvent(ctx context.Context, propertyID uuid.UUID, event, 
 	    property_id, event, created_at, bot_name, url, user_agent, country, extra
 	  ) VALUES (?,?,?,?,?,?,?,?)`,
 		propertyID[:], event, time.Now().UnixMilli(), nullString(botName),
-		nullString(stringField(data, "url")), nullString(userAgent),
+		nullString(clampRunes(stringField(data, "url"), maxFieldLen)), nullString(userAgent),
 		nullString(stringField(data, "country")), encodeExtra(data))
 	if err != nil {
 		slog.Info(fmt.Sprintf("collect: insert bot event: %v", err))
@@ -232,7 +241,11 @@ func encodeExtra(data map[string]any) string {
 	if err := enc.Encode(data); err != nil {
 		return "{}"
 	}
-	return strings.TrimRight(sb.String(), "\n")
+	out := strings.TrimRight(sb.String(), "\n")
+	if len(out) > maxExtraLen {
+		return "{}"
+	}
+	return out
 }
 
 // takeString removes a key and returns it as a NULL-able clamped string. A

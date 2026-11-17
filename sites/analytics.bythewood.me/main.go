@@ -62,14 +62,15 @@ type site struct {
 	ua       *UAParser
 	typst    *Typst
 
-	auth        *web.Authenticator
-	collects    ipLimiter
-	baseScript  string
-	baseStyles  []string
-	pagesScript string
-	pagesStyles []string
-	propsScript string
-	propsStyles []string
+	auth         *web.Authenticator
+	collects     *limiter
+	propCollects *limiter
+	baseScript   string
+	baseStyles   []string
+	pagesScript  string
+	pagesStyles  []string
+	propsScript  string
+	propsStyles  []string
 }
 
 // Shared with the tests, which parse them for real, since a page listed here
@@ -149,20 +150,22 @@ func realMain() error {
 
 	geoipPath := dataDir + "/db.mmdb"
 	s := &site{
-		renderer:    renderer,
-		db:          db,
-		dist:        dist,
-		assets:      assets,
-		geoip:       LoadGeoIP(geoipPath),
-		ua:          NewUAParser(),
-		typst:       NewTypst(),
-		auth:        web.NewAuthenticator(),
-		baseScript:  assets.Script("static_src/base/index.js"),
-		baseStyles:  assets.Styles("static_src/base/index.js"),
-		pagesScript: assets.Script("static_src/pages/index.js"),
-		pagesStyles: assets.Styles("static_src/pages/index.js"),
-		propsScript: assets.Script("static_src/properties/index.js"),
-		propsStyles: assets.Styles("static_src/properties/index.js"),
+		renderer:     renderer,
+		db:           db,
+		dist:         dist,
+		assets:       assets,
+		geoip:        LoadGeoIP(geoipPath),
+		ua:           NewUAParser(),
+		typst:        NewTypst(),
+		auth:         web.NewAuthenticator(),
+		collects:     newClientLimiter(),
+		propCollects: newPropertyLimiter(),
+		baseScript:   assets.Script("static_src/base/index.js"),
+		baseStyles:   assets.Styles("static_src/base/index.js"),
+		pagesScript:  assets.Script("static_src/pages/index.js"),
+		pagesStyles:  assets.Styles("static_src/pages/index.js"),
+		propsScript:  assets.Script("static_src/properties/index.js"),
+		propsStyles:  assets.Styles("static_src/properties/index.js"),
 	}
 
 	// Best effort in the background, since the download is large and failing

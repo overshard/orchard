@@ -213,6 +213,13 @@ func TestEncodeExtra(t *testing.T) {
 	}
 }
 
+func TestEncodeExtraDropsOversize(t *testing.T) {
+	got := encodeExtra(map[string]any{"blob": strings.Repeat("a", maxExtraLen)})
+	if got != "{}" {
+		t.Errorf("oversize extra stored %d bytes, want {}", len(got))
+	}
+}
+
 func TestParseDateToMS(t *testing.T) {
 	start, ok := parseDateToMS("2026-05-09", false)
 	if !ok {
