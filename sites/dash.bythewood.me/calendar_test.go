@@ -77,13 +77,13 @@ func TestAhead(t *testing.T) {
 
 func TestNextBrief(t *testing.T) {
 	et := easternTime()
-	if got := nextBrief(time.Date(2026, 10, 8, 7, 30, 0, 0, et)); got != "09:00 IN 1H 30M" {
+	if got := nextBrief(time.Date(2026, 10, 8, 7, 30, 0, 0, et)); got != "08:00 IN 30M" {
 		t.Errorf("early: %s", got)
 	}
-	if got := nextBrief(time.Date(2026, 10, 8, 9, 20, 0, 0, et)); got != "11:00 IN 1H 40M" {
+	if got := nextBrief(time.Date(2026, 10, 8, 9, 20, 0, 0, et)); got != "10:00 IN 40M" {
 		t.Errorf("morning: %s", got)
 	}
-	if got := nextBrief(time.Date(2026, 10, 8, 22, 0, 0, 0, et)); got != "07:00 IN 9H 0M" {
+	if got := nextBrief(time.Date(2026, 10, 8, 22, 0, 0, 0, et)); got != "23:00 IN 1H 0M" {
 		t.Errorf("night: %s", got)
 	}
 }

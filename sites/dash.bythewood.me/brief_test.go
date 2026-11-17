@@ -69,8 +69,8 @@ func testBriefer(t *testing.T, f *fakeGateway, fail bool) *Briefer {
 	return b
 }
 
-// A slot that comes due runs every desk once, and nothing runs again until the
-// next one.
+// A slot that comes due runs every desk it owes once. News and feeds run every
+// hour and markets only at the named slots.
 func TestBriefRunsEveryDeskOncePerSlot(t *testing.T) {
 	f := &fakeGateway{}
 	b := testBriefer(t, f, false)
@@ -79,13 +79,17 @@ func TestBriefRunsEveryDeskOncePerSlot(t *testing.T) {
 	if strings.Join(f.compiled, ",") != "markets,news,feeds" {
 		t.Fatalf("compiled %v", f.compiled)
 	}
-	b.tick(context.Background(), now.Add(119*time.Minute))
-	if len(f.compiled) != len(briefDesks) {
+	b.tick(context.Background(), now.Add(59*time.Minute))
+	if len(f.compiled) != 3 {
 		t.Errorf("ran again with nothing owed: %v", f.compiled)
 	}
+	b.tick(context.Background(), now.Add(time.Hour))
+	if strings.Join(f.compiled[3:], ",") != "news,feeds" {
+		t.Errorf("the 8:00 hour ran %v, want news and feeds", f.compiled[3:])
+	}
 	b.tick(context.Background(), now.Add(2*time.Hour))
-	if len(f.compiled) != 2*len(briefDesks) {
-		t.Errorf("the 9:00 slot didn't run: %v", f.compiled)
+	if strings.Join(f.compiled[5:], ",") != "markets,news,feeds" {
+		t.Errorf("the 9:00 slot ran %v, want every desk", f.compiled[5:])
 	}
 }
 

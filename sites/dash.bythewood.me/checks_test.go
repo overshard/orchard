@@ -125,7 +125,7 @@ func TestMarketsWeekendSlots(t *testing.T) {
 		{"2026-10-25 17:00", "markets", "morning", "2026-10-24 07:00"},
 		{"2026-10-25 18:20", "markets", "futures", "2026-10-25 18:15"},
 		{"2026-10-26 06:00", "markets", "futures", "2026-10-25 18:15"},
-		{"2026-10-25 17:00", "news", "close", "2026-10-25 16:05"},
+		{"2026-10-25 17:00", "news", "close", "2026-10-25 17:00"},
 		{"2026-10-24 06:00", "markets", "close", "2026-10-23 16:05"},
 	}
 	for _, c := range cases {
@@ -134,7 +134,7 @@ func TestMarketsWeekendSlots(t *testing.T) {
 			t.Errorf("%s %s: got %s at %s", c.desk, c.now, slot.kind, at)
 		}
 	}
-	if got := nextSlot(inNY(t, "2026-10-25 17:00")); !got.Equal(inNY(t, "2026-10-25 18:15")) {
+	if got := nextSlot(inNY(t, "2026-10-25 18:05")); !got.Equal(inNY(t, "2026-10-25 18:15")) {
 		t.Errorf("next after sunday's close: %s", got)
 	}
 }

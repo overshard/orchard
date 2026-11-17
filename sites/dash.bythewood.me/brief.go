@@ -15,7 +15,8 @@ import (
 	"time"
 )
 
-// Four times a day Claude Haiku writes a brief for each desk. Headlines are
+// Claude Haiku writes a brief for each desk, markets at the named slots and news
+// and feeds every hour. Headlines are
 // written to be clicked, so the news is told to restate what happened instead
 // of how an outlet framed it.
 
@@ -38,13 +39,34 @@ var briefSlots = []briefSlot{
 	{kind: "close", hour: 16, minute: 5, reach: 11 * time.Hour},
 }
 
+// hourlySlots is what news and feeds run on, since a Haiku run costs about a
+// cent. Each hour reads like the named slot it falls in, and before 7 it's the morning.
+var hourlySlots = func() []briefSlot {
+	out := make([]briefSlot, 0, 24)
+	for h := range 24 {
+		s := briefSlots[0]
+		for _, named := range briefSlots {
+			if named.hour <= h {
+				s = named
+			}
+		}
+		s.hour, s.minute = h, 0
+		out = append(out, s)
+	}
+	return out
+}()
+
 // futuresSlot is Sunday's markets brief, once futures have opened on the week.
 var futuresSlot = briefSlot{kind: "futures", hour: 18, minute: 15, reach: 24 * time.Hour}
 
-// slotsOn is the slots a desk runs on day, and every slot for an empty desk.
+// slotsOn is the slots a desk runs on day. An empty desk gets every named slot,
+// and any other name the named slots without Sunday's futures.
 // Over a weekend markets only runs Saturday morning and once futures open
 // Sunday, since nothing trades between them to change the lines.
 func slotsOn(desk string, day time.Time) []briefSlot {
+	if desk == "news" || desk == "feeds" {
+		return hourlySlots
+	}
 	switch wd := day.Weekday(); {
 	case desk == "markets" && wd == time.Saturday:
 		return briefSlots[:1]
@@ -184,7 +206,7 @@ func (s briefSlot) title() string {
 // latestSlot is the most recent slot at or before now. Weekends run too,
 // since a Sunday read of the week is a read of what Monday has coming.
 func latestSlot(now time.Time) (briefSlot, time.Time) {
-	return deskSlot("news", now)
+	return deskSlot("named", now)
 }
 
 // deskSlot is the most recent slot a desk owes at or before now.
@@ -559,16 +581,20 @@ func tidy(s string) string {
 // nextSlot is when the next brief is due, weekends included.
 func nextSlot(now time.Time) time.Time {
 	now = now.In(easternTime())
+	next := now
 	for day := 0; day < 2; day++ {
 		d := now.AddDate(0, 0, day)
-		for _, s := range slotsOn("", d) {
+		for _, s := range append(slotsOn("", d), hourlySlots...) {
 			at := time.Date(d.Year(), d.Month(), d.Day(), s.hour, s.minute, 0, 0, d.Location())
-			if at.After(now) {
-				return at
+			if at.After(now) && (next.Equal(now) || at.Before(next)) {
+				next = at
 			}
 		}
+		if !next.Equal(now) {
+			return next
+		}
 	}
-	return now
+	return next
 }
 
 // nextBrief is the footer's NEXT BRIEF segment.
