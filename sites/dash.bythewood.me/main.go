@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -140,6 +141,7 @@ func realMain() error {
 	hub := NewHub()
 	guard := NewGuard(dataDir)
 	store := NewStore(hub)
+	store.LoadAdvisories(filepath.Join(dataDir, "advisories.json"))
 
 	s := &site{
 		renderer: renderer,

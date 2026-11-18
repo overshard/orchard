@@ -196,3 +196,16 @@ func TestHostRows(t *testing.T) {
 		t.Errorf("a newer kernel on disk should ask for a reboot, got %+v", r)
 	}
 }
+
+func TestAdvisoriesSurviveARestart(t *testing.T) {
+	path := t.TempDir() + "/advisories.json"
+	now := time.Date(2026, 11, 18, 15, 0, 0, 0, time.UTC)
+	saveAdvisories(path, Advisories{At: now, Checked: "10:00", Rows: []Advisory{{ID: "A", Tag: "EXPLOITED", State: "check", Added: "2026-11-18"}}})
+	a, ok := loadAdvisories(path, now.Add(time.Hour))
+	if !ok || len(a.Rows) != 1 || !a.Rows[0].Banner || a.Checked != "10:00" {
+		t.Errorf("loaded %+v", a)
+	}
+	if _, ok := loadAdvisories(t.TempDir()+"/none.json", now); ok {
+		t.Error("a missing file should load nothing")
+	}
+}

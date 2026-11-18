@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"html"
+	"log/slog"
+	"os"
 	"regexp"
 	"slices"
 	"strings"
@@ -166,11 +169,12 @@ type Advisories struct {
 	// How many rows want doing something, and how many KEV entries the window
 	// held against how many were on the watchlist, so a quiet panel reads as
 	// quiet instead of broken.
-	Act       int    `json:"act"`
-	KEVAdded  int    `json:"kev_added"`
-	KEVKept   int    `json:"kev_kept"`
-	Checked   string `json:"checked"`
-	NextPatch string `json:"next_patch"`
+	Act       int       `json:"act"`
+	KEVAdded  int       `json:"kev_added"`
+	KEVKept   int       `json:"kev_kept"`
+	Checked   string    `json:"checked"`
+	NextPatch string    `json:"next_patch"`
+	At        time.Time `json:"at"`
 }
 
 type kevCatalog struct {
@@ -189,7 +193,7 @@ type kevCatalog struct {
 // empty the panel for three hours.
 func fetchAdvisories(ctx context.Context, g *Guard, prev Advisories, now time.Time) Advisories {
 	host := readHostVersions()
-	out := Advisories{Checked: now.In(easternTime()).Format("15:04"), NextPatch: nextPatchTuesday(now)}
+	out := Advisories{Checked: now.In(easternTime()).Format("15:04"), NextPatch: nextPatchTuesday(now), At: now}
 
 	var rows []Advisory
 	kev, added, kept, err := kevAdvisories(ctx, g, host, now)
@@ -773,4 +777,34 @@ func advisoryNotices(a Advisories) []Notice {
 		})
 	}
 	return out
+}
+
+// The panel is saved after every run, so a deploy shows the last check and
+// only asks the upstreams again once it's due, instead of on every restart.
+func loadAdvisories(path string, now time.Time) (Advisories, bool) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return Advisories{}, false
+	}
+	var a Advisories
+	if json.Unmarshal(raw, &a) != nil || a.At.IsZero() {
+		return Advisories{}, false
+	}
+	a.Rows = finishRows(a.Rows, now)
+	a.NextPatch = nextPatchTuesday(now)
+	return a, true
+}
+
+func saveAdvisories(path string, a Advisories) {
+	raw, err := json.Marshal(a)
+	if err != nil {
+		return
+	}
+	tmp := path + ".tmp"
+	if err = os.WriteFile(tmp, raw, 0o644); err == nil {
+		err = os.Rename(tmp, path)
+	}
+	if err != nil {
+		slog.Warn("advisories not saved", slog.String("component", "security"), slog.Any("err", err))
+	}
 }

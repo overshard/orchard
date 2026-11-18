@@ -333,3 +333,6 @@ advisories and Mozilla's file listing are about a dozen a run every three hours.
 The Mozilla YAML files never change, so each is fetched once per process.
 `ADVISORIES_LIVE=1 go test -run AdvisoriesLive -v .` prints what the panel would
 show against the real upstreams.
+The panel is saved to `advisories.json` on the volume after every run and loaded
+on boot, and a run within three hours of the saved one is skipped, so a run of
+deploys doesn't spend GitHub's hour of unauthenticated calls.

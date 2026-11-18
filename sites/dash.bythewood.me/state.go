@@ -67,6 +67,9 @@ type Store struct {
 	// The top comments on each feed row, nil in tests.
 	comments *commentBook
 
+	// Where the security panel is saved, empty in tests.
+	advisoriesPath string
+
 	hub *Hub
 }
 
@@ -527,8 +530,28 @@ func (s *Store) refreshSystems(ctx context.Context, g *Guard) {
 	})
 }
 
+// LoadAdvisories puts the last saved check on the page before the first poll.
+func (s *Store) LoadAdvisories(path string) {
+	s.advisoriesPath = path
+	a, ok := loadAdvisories(path, time.Now())
+	if !ok {
+		return
+	}
+	s.update(func(st *State) {
+		st.Advisories = a
+		st.setNotices("security", advisoryNotices(a))
+	})
+}
+
 func (s *Store) refreshAdvisories(ctx context.Context, g *Guard) {
-	a := fetchAdvisories(ctx, g, s.Snapshot().Advisories, time.Now())
+	prev := s.Snapshot().Advisories
+	if !prev.At.IsZero() && time.Since(prev.At) < advisoriesEvery-time.Minute {
+		return
+	}
+	a := fetchAdvisories(ctx, g, prev, time.Now())
+	if s.advisoriesPath != "" {
+		saveAdvisories(s.advisoriesPath, a)
+	}
 	s.update(func(st *State) {
 		st.Advisories = a
 		st.setNotices("security", append(advisoryNotices(a), incidentNotices(st.Incidents)...))
