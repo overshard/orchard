@@ -32,7 +32,7 @@ type provider struct {
 var providers = []provider{
 	{"OVH VINT HILL", []string{"https://public-cloud.status-ovhcloud.com", "https://network.status-ovhcloud.com"}, regexp.MustCompile(`(?i)US-EAST-VA|vint hill|\bVIN\d?\b|\bVPS\b`), true, regexp.MustCompile(`\[US\]`)},
 	{"CLOUDFLARE", []string{"https://www.cloudflarestatus.com"}, regexp.MustCompile(`(?i)tunnel|\bdns\b|cloudflared|zero trust|\baccess\b|ashburn|\bIAD\b`), false, nil},
-	{"ANTHROPIC", []string{"https://status.claude.com"}, regexp.MustCompile(`(?i)\bapi\b|claude code|claude\.ai|remote control|console|opus|sonnet|haiku|fable`), false, nil},
+	{"ANTHROPIC", []string{"https://status.claude.com"}, regexp.MustCompile(`(?i)\bapi\b|claude code|console|opus|sonnet|haiku|fable`), false, nil},
 	{"GITHUB", []string{"https://www.githubstatus.com"}, regexp.MustCompile(`(?i)git operations|\bapi\b|packages|actions|advisor`), false, nil},
 }
 
