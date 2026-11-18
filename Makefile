@@ -91,7 +91,7 @@ help:
 	@echo "  make ntfy                  create the three ntfy accounts"
 	@echo "  make ntfy-token            mint the publishers' tokens into the .env files"
 	@echo "  make auth-init             create the login account, printing its recovery codes"
-	@echo "  make chat-key              mint chat's gateway key into its .env, if it has none"
+	@echo "  make chat-key              mint chat's gateway key into its .env, or give llm back the one it has"
 	@echo "  make dash-key              the same for dash, which writes the daily briefs with it"
 	@echo "  make pond-key              the same for pond, which writes its nightly lines with it"
 	@echo "  make llm-key NAME=chat     mint an api key for the model gateway, printed once"
@@ -397,10 +397,16 @@ auth-init:
 # llm.bythewood.me's own UI is behind auth, which is reached over the tunnel this
 # gateway feeds, so there has to be a way in that does not need any of that
 # working yet. The plaintext is printed once and nothing keeps it.
-# A site's gateway key, minted and written into its .env when it has none.
+# A site's gateway key, minted and written into its .env when it has none. One it
+# already has is handed back to llm, so a gateway restored without its volume
+# learns it again and the site needs no new key or redeploy.
 define mint-key
 	@f=sites/$(1)/.env; \
-	if grep -q '^LLM_KEY=.' "$$f"; then echo "$(2) has a gateway key already, left alone"; exit 0; fi; \
+	if grep -q '^LLM_KEY=.' "$$f"; then \
+		got=$$(sed -n 's/^LLM_KEY=//p' "$$f" | $(DOCKER) exec -i orchard-llm /app -addkey $(2)) || { echo "could not hand $(2)'s key to llm, is orchard-llm up?" >&2; exit 1; }; \
+		case "$$got" in added) echo "$(2)'s gateway key was missing from llm and is added back" ;; *) echo "$(2)'s gateway key is already known to llm" ;; esac; \
+		exit 0; \
+	fi; \
 	key=$$($(DOCKER) exec orchard-llm /app -newkey $(2)); \
 	case "$$key" in orch-*) ;; *) echo "could not mint a key, is orchard-llm up?" >&2; exit 1 ;; esac; \
 	sed -i "s|^LLM_KEY=.*|LLM_KEY=$$key|" "$$f"; \
