@@ -47,7 +47,7 @@ var sources = []Source{
 	{Name: "streaming", Every: streamingEvery, Run: (*Store).refreshStreaming},
 	{Name: "weather", Every: weatherEvery, Run: (*Store).refreshWeather},
 	{Name: "systems", Every: probeEvery, Run: (*Store).refreshSystems},
-	{Name: "advisories", Every: advisoriesEvery, Run: (*Store).refreshAdvisories},
+	{Name: "advisories", Every: advisoriesPoll, Run: (*Store).refreshAdvisories},
 	{Name: "incidents", Every: incidentsEvery, Run: (*Store).refreshIncidents},
 	{Name: "calendar", Every: calendarEvery, Run: (*Store).refreshCalendar},
 }

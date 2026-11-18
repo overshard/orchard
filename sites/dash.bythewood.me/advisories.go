@@ -19,7 +19,11 @@ import (
 // projects that publish their own. Everything here is public and keyless.
 const (
 	advisoriesEvery = 3 * time.Hour
-	advisoryWindow  = 30 * 24 * time.Hour
+
+	// The loop wakes this often and only runs once advisoriesEvery has passed,
+	// or sooner when the last run was partial.
+	advisoriesPoll = 30 * time.Minute
+	advisoryWindow = 30 * 24 * time.Hour
 
 	// Long enough to see over a weekend, short enough that a banner doesn't
 	// become furniture.
@@ -175,6 +179,10 @@ type Advisories struct {
 	Checked   string    `json:"checked"`
 	NextPatch string    `json:"next_patch"`
 	At        time.Time `json:"at"`
+
+	// Partial means a source failed and kept its old rows, so the next poll
+	// runs instead of waiting out the full interval.
+	Partial bool `json:"partial"`
 }
 
 type kevCatalog struct {
@@ -199,6 +207,7 @@ func fetchAdvisories(ctx context.Context, g *Guard, prev Advisories, now time.Ti
 	kev, added, kept, err := kevAdvisories(ctx, g, host, now)
 	if err != nil {
 		pollFailed(ctx, "kev", "security", err)
+		out.Partial = true
 		rows = append(rows, keepSource(prev.Rows, "KEV")...)
 		out.KEVAdded, out.KEVKept = prev.KEVAdded, prev.KEVKept
 	} else {
@@ -209,6 +218,7 @@ func fetchAdvisories(ctx context.Context, g *Guard, prev Advisories, now time.Ti
 	osv, err := osvAdvisories(ctx, g, host, now)
 	if err != nil {
 		pollFailed(ctx, "osv", "security", err)
+		out.Partial = true
 		rows = append(rows, keepSource(prev.Rows, "OSV")...)
 	} else {
 		rows = append(rows, osv...)
@@ -217,6 +227,7 @@ func fetchAdvisories(ctx context.Context, g *Guard, prev Advisories, now time.Ti
 	repo, err := repoAdvisories(ctx, g, now)
 	if err != nil {
 		pollFailed(ctx, "repo advisories", "security", err)
+		out.Partial = true
 		rows = append(rows, keepSource(prev.Rows, "GHSA")...)
 	} else {
 		rows = append(rows, repo...)
@@ -225,6 +236,7 @@ func fetchAdvisories(ctx context.Context, g *Guard, prev Advisories, now time.Ti
 	mfsa, err := mozillaAdvisories(ctx, g, now)
 	if err != nil {
 		pollFailed(ctx, "mfsa", "security", err)
+		out.Partial = true
 		rows = append(rows, keepSource(prev.Rows, "MFSA")...)
 	} else {
 		rows = append(rows, mfsa...)

@@ -545,7 +545,7 @@ func (s *Store) LoadAdvisories(path string) {
 
 func (s *Store) refreshAdvisories(ctx context.Context, g *Guard) {
 	prev := s.Snapshot().Advisories
-	if !prev.At.IsZero() && time.Since(prev.At) < advisoriesEvery-time.Minute {
+	if !prev.At.IsZero() && !prev.Partial && time.Since(prev.At) < advisoriesEvery-time.Minute {
 		return
 	}
 	a := fetchAdvisories(ctx, g, prev, time.Now())
