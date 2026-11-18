@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"html/template"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -88,6 +89,7 @@ func realMain() error {
 		retain   = flag.Duration("retain", 90*24*time.Hour, "how long a logged call is kept")
 		check    = flag.Bool("healthcheck", false, "probe this process and exit")
 		newKey   = flag.String("newkey", "", "mint an api key with this name, print it, and exit")
+		addKey   = flag.String("addkey", "", "register the key on stdin under this name, and exit")
 	)
 	flag.Parse()
 
@@ -117,6 +119,24 @@ func realMain() error {
 			return err
 		}
 		fmt.Println(secret)
+		store.Checkpoint()
+		return nil
+	}
+	// The secret comes on stdin so it never shows up in the host's process list.
+	if *addKey != "" {
+		secret, err := io.ReadAll(io.LimitReader(os.Stdin, 256))
+		if err != nil {
+			return err
+		}
+		added, err := store.AddKey(*addKey, string(secret))
+		if err != nil {
+			return err
+		}
+		if added {
+			fmt.Println("added")
+		} else {
+			fmt.Println("known")
+		}
 		store.Checkpoint()
 		return nil
 	}

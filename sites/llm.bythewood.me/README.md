@@ -25,6 +25,9 @@ make clean    delete that binary
 ```
 
 `make llm-key NAME=<service>` at the root mints a key and prints it once.
+`make chat-key dash-key pond-key` mints those sites' keys into their `.env`
+files, or hands llm back the ones already there, which is all it takes after
+llm's volume is lost.
 
 ## Layout
 

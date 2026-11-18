@@ -126,6 +126,27 @@ func (s *Store) NewKey(name string) (string, Key, error) {
 	return secret, Key{ID: id, Name: name, Prefix: secret[:len(keyPrefix)+6], Created: time.Unix(now, 0)}, nil
 }
 
+// AddKey registers a key minted by an earlier store, which is how a gateway
+// restored without its volume learns the keys still sitting in chat's, dash's
+// and pond's .env files. A key it already has, revoked or not, is left as it is.
+func (s *Store) AddKey(name, secret string) (bool, error) {
+	name, secret = strings.TrimSpace(name), strings.TrimSpace(secret)
+	if name == "" {
+		return false, errors.New("a key needs a name saying what will use it")
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(strings.TrimPrefix(secret, keyPrefix))
+	if !strings.HasPrefix(secret, keyPrefix) || err != nil || len(raw) != 32 {
+		return false, errors.New("that isn't a key this service issued")
+	}
+	r, err := s.db.Exec(`INSERT OR IGNORE INTO keys(name, hash, prefix, created_at) VALUES(?,?,?,?)`,
+		name, hashKey(secret), secret[:len(keyPrefix)+6], time.Now().Unix())
+	if err != nil {
+		return false, err
+	}
+	n, _ := r.RowsAffected()
+	return n == 1, nil
+}
+
 func hashKey(secret string) string {
 	sum := sha256.Sum256([]byte(secret))
 	return hex.EncodeToString(sum[:])

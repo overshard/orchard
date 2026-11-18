@@ -79,6 +79,50 @@ func TestRevokingStopsAKeyImmediately(t *testing.T) {
 	}
 }
 
+func TestAKeyFromAnotherStoreCanBeAddedBack(t *testing.T) {
+	secret, _, _ := testStore(t).NewKey("dash")
+	s := testStore(t)
+	if _, ok := s.Authenticate(secret); ok {
+		t.Fatal("a fresh store knew the key already")
+	}
+	added, err := s.AddKey("dash", secret+"\n")
+	if err != nil || !added {
+		t.Fatalf("added = %v, err = %v", added, err)
+	}
+	if k, ok := s.Authenticate(secret); !ok || k.Name != "dash" {
+		t.Fatalf("resolved to %+v, %v", k, ok)
+	}
+	if added, err := s.AddKey("dash", secret); err != nil || added {
+		t.Errorf("adding it twice: added = %v, err = %v", added, err)
+	}
+}
+
+func TestAddingARevokedKeyLeavesItRevoked(t *testing.T) {
+	s := testStore(t)
+	secret, k, _ := s.NewKey("pond")
+	if err := s.Revoke(k.ID); err != nil {
+		t.Fatal(err)
+	}
+	if added, err := s.AddKey("pond", secret); err != nil || added {
+		t.Fatalf("added = %v, err = %v", added, err)
+	}
+	if _, ok := s.Authenticate(secret); ok {
+		t.Error("adding a revoked key brought it back")
+	}
+}
+
+func TestOnlyKeysThisServiceIssuesCanBeAdded(t *testing.T) {
+	s := testStore(t)
+	for _, bad := range []string{"", "sk-ant-abc", "orch-short", "orch-" + strings.Repeat("A", 44)} {
+		if _, err := s.AddKey("chat", bad); err == nil {
+			t.Errorf("%q was accepted", bad)
+		}
+	}
+	if _, err := s.AddKey(" ", "orch-"+strings.Repeat("A", 43)); err == nil {
+		t.Error("a key with no name was accepted")
+	}
+}
+
 func TestAKeyNeedsAName(t *testing.T) {
 	s := testStore(t)
 	if _, _, err := s.NewKey("   "); err == nil {
