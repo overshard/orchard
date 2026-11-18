@@ -23,13 +23,17 @@ type provider struct {
 	// OVH tags a global incident with every region's component, so only its
 	// name says where it is.
 	nameOnly bool
+
+	// broad matches an incident across a whole country's network, which only
+	// counts when the provider rates it major or worse.
+	broad *regexp.Regexp
 }
 
 var providers = []provider{
-	{"OVH VINT HILL", []string{"https://public-cloud.status-ovhcloud.com", "https://network.status-ovhcloud.com"}, regexp.MustCompile(`(?i)US-EAST-VA|\[US\]|vint hill|\bVIN\d?\b|\bVPS\b`), true},
-	{"CLOUDFLARE", []string{"https://www.cloudflarestatus.com"}, regexp.MustCompile(`(?i)tunnel|\bdns\b|cloudflared|zero trust|\baccess\b|ashburn|\bIAD\b`), false},
-	{"ANTHROPIC", []string{"https://status.claude.com"}, regexp.MustCompile(`(?i)\bapi\b|haiku|claude code|console`), false},
-	{"GITHUB", []string{"https://www.githubstatus.com"}, regexp.MustCompile(`(?i)git operations|\bapi\b|packages|actions|advisor`), false},
+	{"OVH VINT HILL", []string{"https://public-cloud.status-ovhcloud.com", "https://network.status-ovhcloud.com"}, regexp.MustCompile(`(?i)US-EAST-VA|vint hill|\bVIN\d?\b|\bVPS\b`), true, regexp.MustCompile(`\[US\]`)},
+	{"CLOUDFLARE", []string{"https://www.cloudflarestatus.com"}, regexp.MustCompile(`(?i)tunnel|\bdns\b|cloudflared|zero trust|\baccess\b|ashburn|\bIAD\b`), false, nil},
+	{"ANTHROPIC", []string{"https://status.claude.com"}, regexp.MustCompile(`(?i)\bapi\b|haiku|claude code|console`), false, nil},
+	{"GITHUB", []string{"https://www.githubstatus.com"}, regexp.MustCompile(`(?i)git operations|\bapi\b|packages|actions|advisor`), false, nil},
 }
 
 // Incident is one provider's row. State is ok, elsewhere (open incidents that
@@ -88,7 +92,8 @@ func providerIncidents(ctx context.Context, g *Guard, p provider) (Incident, err
 					text += " " + c.Name
 				}
 			}
-			if row.State != "hit" && p.relevant.MatchString(text) {
+			severe := inc.Impact == "major" || inc.Impact == "critical"
+			if row.State != "hit" && (p.relevant.MatchString(text) || (severe && p.broad != nil && p.broad.MatchString(text))) {
 				row.State, row.Text, row.URL, row.id, row.impact = "hit", strings.ToUpper(inc.Name), inc.Shortlink, inc.ID, inc.Impact
 			}
 		}

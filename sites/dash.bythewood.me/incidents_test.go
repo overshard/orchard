@@ -7,7 +7,8 @@ func TestProviderRelevance(t *testing.T) {
 		provider, text string
 		want           bool
 	}{
-		{"OVH VINT HILL", "[US][Backbone] - Backbone Incident Notification Infrastructure || Backbone", true},
+		{"OVH VINT HILL", "[US][Backbone] - Backbone Incident Notification", false},
+		{"OVH VINT HILL", "[US-EAST-VA] Network degradation", true},
 		{"OVH VINT HILL", "[GRA] Object storage degraded", false},
 		{"CLOUDFLARE", "R2 Downloads Stalling in Japan", false},
 		{"CLOUDFLARE", "Cloudflare Tunnel connectivity issues", true},
