@@ -370,11 +370,7 @@
     <ul class="rows" data-incidents>
       {{range .State.Incidents}}{{template "incident" .}}{{else}}<li class="empty">AWAITING STATUS PAGES</li>{{end}}
     </ul>
-    <div class="sub"><span>THIS VPS</span><span class="rule"></span></div>
-    <ul class="rows" data-host>
-      {{range .State.Host}}{{template "host-row" .}}{{else}}<li class="empty">AWAITING THE HOST</li>{{end}}
-    </ul>
-    <p class="footnote">A PROVIDER LIGHTS WHEN AN INCIDENT TOUCHES VINT HILL, THE TUNNEL, CLAUDE OR GIT. THE VPS ROWS ARE ITS OWN PACKAGE LIST AND RUNNING KERNEL.</p>
+    <p class="footnote">LAST 14 DAYS UNDER EACH. AMBER IS A DAY AN INCIDENT TOUCHED VINT HILL, THE TUNNEL, CLAUDE OR GIT.</p>
   </section>
 </div>
 <div class="band uplink-band">

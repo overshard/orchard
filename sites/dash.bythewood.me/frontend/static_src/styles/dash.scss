@@ -1394,7 +1394,21 @@ main {
 }
 
 .incidents {
-  .rows li { align-items: baseline; padding: 6px 0; font-size: 12px; }
+  .rows li { align-items: baseline; flex-wrap: wrap; padding: 8px 0; font-size: 12px; row-gap: 7px; }
+
+  // Two weeks under each provider, a cell a day, so a quiet row still says
+  // something and a bad week shows as a run of amber.
+  .days {
+    flex-basis: 100%;
+    display: grid;
+    grid-template-columns: repeat(14, 1fr);
+    gap: 3px;
+    padding-left: 14px;
+
+    i { height: 8px; background: var(--panel-2); border: 1px solid var(--line); }
+    i[data-d="1"] { background: var(--line-hot); }
+    i[data-d="2"] { background: var(--warn); border-color: var(--warn); }
+  }
   .rows li.empty { color: var(--dim); font-size: 11px; letter-spacing: var(--track); }
   .rows .pip { align-self: center; }
   .rows .name { color: var(--muted); letter-spacing: 0.08em; white-space: nowrap; }
@@ -1411,25 +1425,6 @@ main {
   li[data-state="ok"] .pip { background: var(--up); }
   li[data-state="elsewhere"] .pip, li[data-state="unknown"] .pip { background: var(--faint); }
   li[data-state="hit"] { .pip { background: var(--warn); } .name, .v { color: var(--warn); } }
-  li[data-state="warn"] { .pip { background: var(--warn); } .v { color: var(--warn); } }
-
-  // The VPS rows under the providers, headed like a second readout on the
-  // same panel instead of a panel of their own.
-  .sub {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin: 14px 0 4px;
-    font-size: 9px;
-    letter-spacing: var(--track);
-    color: var(--amber-dim);
-
-    .rule {
-      flex: 1;
-      height: 1px;
-      background: repeating-linear-gradient(90deg, var(--line-hot) 0 2px, transparent 2px 4px);
-    }
-  }
 
   .footnote {
     margin: auto 0 0;

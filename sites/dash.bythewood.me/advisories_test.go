@@ -173,30 +173,6 @@ func TestGoRowCollapses(t *testing.T) {
 	}
 }
 
-func TestHostRows(t *testing.T) {
-	h := hostVersions{
-		kernel:    "6.12.117-1",
-		goVersion: "1.27.4",
-		packages: map[string]string{
-			"base-files": "13.2", "openssh-server": "1:10.0p1-7+deb13u4",
-			"docker-ce": "5:29.10.0-1~debian.13~trixie", "containerd.io": "2.4.2-4~debian.13~trixie",
-			"linux-image-6.12.117+deb13-amd64": "6.12.117-1", "linux-image-6.12.86+deb13-amd64": "6.12.86-1",
-		},
-	}
-	var got []string
-	for _, r := range hostRows(h) {
-		got = append(got, r.Name+" "+r.Value+" "+r.State)
-	}
-	want := "KERNEL 6.12.117-1 ok|DEBIAN TRIXIE 13.2 ok|OPENSSH 10.0P1 ok|DOCKER 29.10.0 ok|CONTAINERD 2.4.2 ok|GO 1.27.4 ok"
-	if strings.Join(got, "|") != want {
-		t.Errorf("host rows\n got %s\nwant %s", strings.Join(got, "|"), want)
-	}
-	h.packages["linux-image-6.12.120+deb13-amd64"] = "6.12.120-1"
-	if r := hostRows(h)[0]; r.State != "warn" || r.Value != "REBOOT FOR 6.12.120-1" {
-		t.Errorf("a newer kernel on disk should ask for a reboot, got %+v", r)
-	}
-}
-
 func TestAdvisoriesSurviveARestart(t *testing.T) {
 	path := t.TempDir() + "/advisories.json"
 	now := time.Date(2026, 11, 18, 15, 0, 0, 0, time.UTC)
@@ -204,6 +180,10 @@ func TestAdvisoriesSurviveARestart(t *testing.T) {
 	a, ok := loadAdvisories(path, now.Add(time.Hour))
 	if !ok || len(a.Rows) != 1 || !a.Rows[0].Banner || a.Checked != "10:00" {
 		t.Errorf("loaded %+v", a)
+	}
+	saveAdvisories(path, Advisories{At: now, Rows: []Advisory{{ID: "B", State: "patched", Note: "HOST 6.12.117-1"}}})
+	if _, ok := loadAdvisories(path, now); ok {
+		t.Error("a public row with a host verdict should not load")
 	}
 	if _, ok := loadAdvisories(t.TempDir()+"/none.json", now); ok {
 		t.Error("a missing file should load nothing")

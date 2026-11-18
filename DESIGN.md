@@ -549,7 +549,10 @@ UPLINK**, the advisories wide since their titles run long and the incidents a
 rows list like UPLINK. An advisory row is a pip, the product, the title over a
 meta line (tag, id, source, age) and the status on the right, which is the part
 that says whether to do anything. Amber is to do, green patched, faint not
-affected, and dim a fix that's out where dash can't see the version. A fresh
+affected, and dim a fix that's out where dash can't see the version. Patched
+and the host's own versions only show signed in. Each provider under
+INCIDENTS has a strip of fourteen day cells under it, amber for a day an
+incident touched this setup. A fresh
 exploited one that wants doing also gets a banner in the NWS alert style above
 ON AIR for 72 hours. On a phone the title wraps under the product instead of
 cutting off.

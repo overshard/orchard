@@ -211,6 +211,33 @@ func TestHomeRendersAdvisories(t *testing.T) {
 	}
 }
 
+// The panel's public half says what's exploited and what Debian fixed it in.
+// What the VPS runs only goes to a signed in browser.
+func TestHostCheckStaysOffThePublicState(t *testing.T) {
+	s := newTestSite(t)
+	s.store.update(func(st *State) {
+		st.Advisories = Advisories{Checked: "09:00", Rows: []Advisory{{ID: "CVE-2026-2", Product: "LINUX KERNEL", State: "check", Status: "CHECK"}},
+			Host: HostCheck{Verdicts: map[string]Verdict{"CVE-2026-2": {State: "patched", Status: "PATCHED", Note: "HOST 6.12.117-1"}},
+				Extra: []Advisory{{ID: "GO-2026-1", Product: "GO", Note: "GO1.27.4"}}}}
+	})
+
+	for _, h := range []http.HandlerFunc{s.state, s.home} {
+		rec := httptest.NewRecorder()
+		h(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+		for _, leak := range []string{"6.12.117", "1.27.4", "verdicts", "GO-2026-1"} {
+			if strings.Contains(rec.Body.String(), leak) {
+				t.Errorf("a public response carries %q", leak)
+			}
+		}
+	}
+
+	rec := httptest.NewRecorder()
+	s.hostCheck(rec, httptest.NewRequest(http.MethodGet, "/api/host", nil))
+	if rec.Code != http.StatusUnauthorized || strings.Contains(rec.Body.String(), "6.12.117") {
+		t.Errorf("signed out /api/host answered %d %q", rec.Code, rec.Body.String())
+	}
+}
+
 func TestNotFoundRenders(t *testing.T) {
 	s := newTestSite(t)
 

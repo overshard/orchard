@@ -185,6 +185,7 @@ func realMain() error {
 	mux.HandleFunc("GET /events", s.events)
 	mux.HandleFunc("GET /api/state", s.state)
 	mux.HandleFunc("GET /api/quick", s.quick)
+	mux.HandleFunc("GET /api/host", s.hostCheck)
 	mux.HandleFunc("POST /api/quick/send", s.quickSend)
 	mux.HandleFunc("GET /api/rebuild", s.rebuildState)
 	mux.HandleFunc("POST /api/rebuild", s.rebuildStart)

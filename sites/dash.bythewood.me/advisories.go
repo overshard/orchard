@@ -183,6 +183,23 @@ type Advisories struct {
 	// Partial means a source failed and kept its old rows, so the next poll
 	// runs instead of waiting out the full interval.
 	Partial bool `json:"partial"`
+
+	// What the VPS itself has, which the page is public and mustn't carry, so it
+	// only goes to a signed in browser through /api/host.
+	Host HostCheck `json:"-"`
+}
+
+// HostCheck is the signed in overlay on the panel: a verdict per row the host's
+// own versions decide, and rows only the host's versions make, like Go's.
+type HostCheck struct {
+	Verdicts map[string]Verdict `json:"verdicts"`
+	Extra    []Advisory         `json:"extra"`
+}
+
+type Verdict struct {
+	State  string `json:"state"`
+	Status string `json:"status"`
+	Note   string `json:"note"`
 }
 
 type kevCatalog struct {
@@ -201,27 +218,33 @@ type kevCatalog struct {
 // empty the panel for three hours.
 func fetchAdvisories(ctx context.Context, g *Guard, prev Advisories, now time.Time) Advisories {
 	host := readHostVersions()
-	out := Advisories{Checked: now.In(easternTime()).Format("15:04"), NextPatch: nextPatchTuesday(now), At: now}
+	out := Advisories{Checked: now.In(easternTime()).Format("15:04"), NextPatch: nextPatchTuesday(now), At: now,
+		Host: HostCheck{Verdicts: map[string]Verdict{}}}
 
 	var rows []Advisory
-	kev, added, kept, err := kevAdvisories(ctx, g, host, now)
+	kev, added, kept, err := kevAdvisories(ctx, g, host, out.Host.Verdicts, now)
 	if err != nil {
 		pollFailed(ctx, "kev", "security", err)
 		out.Partial = true
 		rows = append(rows, keepSource(prev.Rows, "KEV")...)
 		out.KEVAdded, out.KEVKept = prev.KEVAdded, prev.KEVKept
+		for id, v := range prev.Host.Verdicts {
+			out.Host.Verdicts[id] = v
+		}
 	} else {
 		rows = append(rows, kev...)
 		out.KEVAdded, out.KEVKept = added, kept
 	}
 
-	osv, err := osvAdvisories(ctx, g, host, now)
+	osv, extra, err := osvAdvisories(ctx, g, host, now)
 	if err != nil {
 		pollFailed(ctx, "osv", "security", err)
 		out.Partial = true
 		rows = append(rows, keepSource(prev.Rows, "OSV")...)
+		out.Host.Extra = prev.Host.Extra
 	} else {
 		rows = append(rows, osv...)
+		out.Host.Extra = finishRows(extra, now)
 	}
 
 	repo, err := repoAdvisories(ctx, g, now)
@@ -298,7 +321,7 @@ func dayAge(d time.Duration) string {
 	return fmt.Sprintf("%dD AGO", days)
 }
 
-func kevAdvisories(ctx context.Context, g *Guard, host hostVersions, now time.Time) ([]Advisory, int, int, error) {
+func kevAdvisories(ctx context.Context, g *Guard, host hostVersions, verdicts map[string]Verdict, now time.Time) ([]Advisory, int, int, error) {
 	var cat kevCatalog
 	if err := getJSONHeaders(ctx, g, "kev", kevURL, politeAgent, &cat); err != nil {
 		return nil, 0, 0, err
@@ -327,7 +350,9 @@ func kevAdvisories(ctx context.Context, g *Guard, host hostVersions, now time.Ti
 			at:      at,
 		}
 		if w.debian != "" {
-			debianStatus(ctx, g, &r, w.debian, host)
+			if v, ok := debianStatus(ctx, g, &r, w.debian, host); ok {
+				verdicts[r.ID] = v
+			}
 		} else {
 			r.State, r.Status = "check", "CHECK"
 			r.Note = cmpOr(checkHint[w.label], w.where)
@@ -424,10 +449,10 @@ var trackerCache = struct {
 	m map[string]steamLookup[trackerFix]
 }{m: map[string]steamLookup[trackerFix]{}}
 
-// debianStatus fills in a row from the tracker and the host's own version. A
-// tracker page changes when a DSA lands, so each one is reread every poll, but
-// a failed read keeps the last answer.
-func debianStatus(ctx context.Context, g *Guard, r *Advisory, pkg string, host hostVersions) {
+// debianStatus fills in a row from the tracker, which is public, and returns
+// the host's own verdict, which isn't. A tracker page changes when a DSA lands,
+// so each one is reread every poll, but a failed read keeps the last answer.
+func debianStatus(ctx context.Context, g *Guard, r *Advisory, pkg string, host hostVersions) (Verdict, bool) {
 	key := r.ID + "/" + pkg
 	page, err := getPage(ctx, g, "debian", trackerURL+r.ID)
 	var f trackerFix
@@ -443,29 +468,31 @@ func debianStatus(ctx context.Context, g *Guard, r *Advisory, pkg string, host h
 		trackerCache.Unlock()
 	}
 
-	have, where := host.version(pkg)
+	if f.urgency == "unimportant" {
+		r.Detail = "DEBIAN UNIMPORTANT"
+	}
 	switch {
 	case !f.known:
 		r.State, r.Status, r.Note = "check", "CHECK", "NOT IN TRACKER"
-	case f.notAffected:
+		return Verdict{}, false
+	case f.notAffected, f.urgency == "unimportant":
 		r.State, r.Status, r.Note = "clear", "NOT AFFECTED", strings.ToUpper(debianRelease)
-	case f.urgency == "unimportant":
-		r.State, r.Status, r.Note = "clear", "NOT AFFECTED", strings.ToUpper(debianRelease)
+		return Verdict{}, false
 	case f.fixed == "":
-		r.State, r.Status, r.Note = "open", "NO FIX YET", strings.ToUpper(debianRelease)
-	default:
-		r.Detail = strings.ToUpper(debianRelease) + " FIXED " + f.fixed
-		switch {
-		case have == "":
-			r.State, r.Status, r.Note = "check", "CHECK", "VERSION UNKNOWN"
-		case compareDebian(have, f.fixed) >= 0:
-			r.State, r.Status, r.Note = "patched", "PATCHED", where+" "+have
-		default:
-			r.State, r.Status, r.Note = "open", "UPDATE", where+" "+have
-		}
+		r.State, r.Status, r.Note = "check", "NO FIX YET", strings.ToUpper(debianRelease)
+		return Verdict{}, false
 	}
-	if f.urgency == "unimportant" && r.Detail == "" {
-		r.Detail = "DEBIAN UNIMPORTANT"
+
+	r.Detail = strings.ToUpper(debianRelease) + " FIXED " + f.fixed
+	r.State, r.Status, r.Note = "check", "CHECK", "DEBIAN UPDATE"
+	have, where := host.version(pkg)
+	switch {
+	case have == "":
+		return Verdict{}, false
+	case compareDebian(have, f.fixed) >= 0:
+		return Verdict{State: "patched", Status: "PATCHED", Note: where + " " + have}, true
+	default:
+		return Verdict{State: "open", Status: "UPDATE", Note: where + " " + have}, true
 	}
 }
 
@@ -516,8 +543,10 @@ func (v osvVuln) cve() string {
 	return ""
 }
 
-func osvAdvisories(ctx context.Context, g *Guard, host hostVersions, now time.Time) ([]Advisory, error) {
-	var rows []Advisory
+// osvAdvisories returns the public rows, and separately the rows that only
+// exist because of a version the host runs.
+func osvAdvisories(ctx context.Context, g *Guard, host hostVersions, now time.Time) ([]Advisory, []Advisory, error) {
+	var rows, extra []Advisory
 	var firstErr error
 	for _, w := range osvWatchlist {
 		var q osvQuery
@@ -534,7 +563,7 @@ func osvAdvisories(ctx context.Context, g *Guard, host hostVersions, now time.Ti
 		}
 		if w.versioned {
 			if r, ok := goRow(resp.Vulns, host.goVersion, now); ok {
-				rows = append(rows, r)
+				extra = append(extra, r)
 			}
 			continue
 		}
@@ -546,7 +575,7 @@ func osvAdvisories(ctx context.Context, g *Guard, host hostVersions, now time.Ti
 			rows = append(rows, fixedRow(w.label, cmpOr(v.cve(), v.ID), v.ID, v.Summary, v.Database.Severity, v.fixedIn(), "OSV", "https://osv.dev/vulnerability/"+v.ID, at))
 		}
 	}
-	return rows, firstErr
+	return rows, extra, firstErr
 }
 
 func cmpErr(a, b error) error {
@@ -798,17 +827,33 @@ func loadAdvisories(path string, now time.Time) (Advisories, bool) {
 	if err != nil {
 		return Advisories{}, false
 	}
-	var a Advisories
-	if json.Unmarshal(raw, &a) != nil || a.At.IsZero() {
+	var saved savedAdvisories
+	if json.Unmarshal(raw, &saved) != nil || saved.At.IsZero() {
 		return Advisories{}, false
+	}
+	a := saved.Advisories
+	a.Host = saved.Host
+	// Patched and open are the host's verdicts, so a public row holding one is
+	// from a file written before they moved behind a sign in.
+	for _, r := range a.Rows {
+		if r.State == "patched" || r.State == "open" {
+			return Advisories{}, false
+		}
 	}
 	a.Rows = finishRows(a.Rows, now)
 	a.NextPatch = nextPatchTuesday(now)
 	return a, true
 }
 
+// savedAdvisories is the file on the volume, which keeps the host's half that
+// the page's JSON leaves out.
+type savedAdvisories struct {
+	Advisories
+	Host HostCheck `json:"host"`
+}
+
 func saveAdvisories(path string, a Advisories) {
-	raw, err := json.Marshal(a)
+	raw, err := json.Marshal(savedAdvisories{Advisories: a, Host: a.Host})
 	if err != nil {
 		return
 	}

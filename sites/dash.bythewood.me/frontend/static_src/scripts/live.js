@@ -953,7 +953,7 @@ function renderAlerts(alerts, advisories) {
   const host = document.querySelector("[data-alerts]");
   if (!host) return;
 
-  const exploited = ((advisories && advisories.rows) || []).filter((a) => a.banner).map(advisoryBanner);
+  const exploited = ((advisories && advisories.rows) || []).filter(hostBanner).map(advisoryBanner);
   if ((!alerts || alerts.length === 0) && !exploited.length) {
     host.replaceChildren();
     return;
@@ -1301,9 +1301,42 @@ function advisoryBanner(a) {
   return div;
 }
 
+// What the VPS itself has comes from /api/host and only for a signed in
+// browser, laid over the public rows, since the page is public and cached.
+let hostCheck = null;
+let lastAdvisories = null;
+let lastState = null;
+
+function withHost(rows) {
+  if (!hostCheck) return rows;
+  const verdicts = hostCheck.verdicts || {};
+  return [...(hostCheck.extra || []), ...rows.map((r) => (verdicts[r.id] ? { ...r, ...verdicts[r.id] } : r))];
+}
+
+function hostBanner(a) {
+  return a.banner && !(hostCheck && hostCheck.verdicts && hostCheck.verdicts[a.id]?.state === "patched");
+}
+
+async function loadHostCheck() {
+  try {
+    const res = await fetch("/api/host", { credentials: "same-origin", cache: "no-store" });
+    if (!res.ok) return;
+    hostCheck = await res.json();
+    if (lastState) {
+      rendered.delete("alerts");
+      rendered.delete("advisories");
+      render(lastState);
+    }
+  } catch {
+    // Signed out or offline, and the public rows already say everything else.
+  }
+}
+
 function renderAdvisories(adv) {
   if (!adv) return;
-  const rows = adv.rows || [];
+  if (lastAdvisories?.checked !== adv.checked && lastAdvisories) loadHostCheck();
+  lastAdvisories = adv;
+  const rows = withHost(adv.rows || []);
   const host = document.querySelector("[data-advisories]");
   if (host) {
     host.replaceChildren(
@@ -1313,7 +1346,8 @@ function renderAdvisories(adv) {
     );
   }
   if (adv.checked) {
-    setText(document.querySelector("[data-advisories-meta]"), `${adv.act ? `${adv.act} TO DO` : "NOTHING TO DO"} / LAST 30D`);
+    const act = rows.filter((r) => r.state === "open" || r.state === "check").length;
+    setText(document.querySelector("[data-advisories-meta]"), `${act ? `${act} TO DO` : "NOTHING TO DO"} / LAST 30D`);
     const note = document.querySelector("[data-advisories-note]");
     if (note) {
       note.replaceChildren(
@@ -1338,28 +1372,23 @@ function renderIncidents(rows) {
       li.append(el("span", "name", r.name));
       li.append(el("span", "bar"));
       li.append(r.url ? link(r.url, "v", r.text) : el("span", "v", r.text));
-      return li;
-    }),
-  );
-}
-
-function renderHost(rows) {
-  const host = document.querySelector("[data-host]");
-  if (!host || !rows) return;
-  host.replaceChildren(
-    ...rows.map((r) => {
-      const li = el("li");
-      li.dataset.state = r.state;
-      li.append(el("span", "pip"));
-      li.append(el("span", "name", r.name));
-      li.append(el("span", "bar"));
-      li.append(el("span", "v", r.value));
+      if (r.days && r.days.length) {
+        const days = el("span", "days");
+        days.setAttribute("aria-label", `Last ${r.days.length} days`);
+        for (const d of r.days) {
+          const i = el("i");
+          i.dataset.d = d;
+          days.append(i);
+        }
+        li.append(days);
+      }
       return li;
     }),
   );
 }
 
 function render(state) {
+  lastState = state;
   // First, so a panel that throws on a frame cannot swallow a warning.
   notices(state.notices);
   if (changed("market", state.market)) renderMarket(state.market);
@@ -1379,7 +1408,6 @@ function render(state) {
   if (changed("feeds", state.feeds)) renderFeeds(state.feeds);
   if (changed("advisories", state.advisories)) renderAdvisories(state.advisories);
   if (changed("incidents", state.incidents)) renderIncidents(state.incidents);
-  if (changed("host", state.host)) renderHost(state.host);
   if (changed("hn", state.hn)) renderStories("[data-hn]", state.hn);
   if (changed("lobsters", state.lobsters)) renderStories("[data-lobsters]", state.lobsters);
   if (changed("hn_pulse", state.hn_pulse)) renderPulse("[data-hn-pulse]", state.hn_pulse);
@@ -1396,6 +1424,8 @@ function render(state) {
 // EventSource reconnects on its own, but only for a clean disconnect. An error
 // that closes the stream is ours to retry, so the backoff doubles up to a
 // minute rather than hammering a server that may be mid-deploy.
+loadHostCheck();
+
 let backoff = 1000;
 const maxBackoff = 60000;
 

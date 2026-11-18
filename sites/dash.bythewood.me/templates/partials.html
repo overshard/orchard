@@ -312,7 +312,7 @@
 
 {{define "advisory"}}<li data-state="{{.State}}"><span class="pip"></span><span class="prod">{{.Product}}</span><span class="what"><a class="t" href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{.Title}}</a><span class="m"><span class="tag" data-k="{{lower .Tag}}">{{.Tag}}</span><span>{{.ID}}</span><span>{{.Source}}</span>{{if .Age}}<span>{{.Age}}</span>{{end}}{{if .Detail}}<span>{{.Detail}}</span>{{end}}</span></span><span class="st">{{.Status}}{{if .Note}}<small>{{.Note}}</small>{{end}}</span></li>{{end}}
 
-{{define "incident"}}<li data-state="{{.State}}"><span class="pip"></span><span class="name">{{.Name}}</span><span class="bar"></span>{{if .URL}}<a class="v" href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{.Text}}</a>{{else}}<span class="v">{{.Text}}</span>{{end}}</li>{{end}}
+{{define "incident"}}<li data-state="{{.State}}"><span class="pip"></span><span class="name">{{.Name}}</span><span class="bar"></span>{{if .URL}}<a class="v" href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{.Text}}</a>{{else}}<span class="v">{{.Text}}</span>{{end}}{{if .Days}}<span class="days" aria-label="Last {{len .Days}} days">{{range .Days}}<i data-d="{{.}}"></i>{{end}}</span>{{end}}</li>{{end}}
 
 {{define "advisory-banner"}}<div class="alert advisory" data-severity="severe">
   <div class="alert-head"><span class="pip"></span><span class="ev">EXPLOITED: {{.Product}}</span><span class="sev">{{.Source}}</span></div>
@@ -328,4 +328,3 @@
 
 {{define "advisories-note"}}{{if .Checked}}EXPLOITED, CRITICAL OR HIGH ON THE WATCHLIST. {{.KEVAdded}} KEV ADDS IN 30D, {{.KEVKept}} ON THE WATCHLIST. KEV / DEBIAN / OSV / GHSA / MOZILLA, CHECKED {{.Checked}}.{{if .NextPatch}} <span class="next">NEXT PATCH TUESDAY {{.NextPatch}}</span>{{end}}{{end}}{{end}}
 
-{{define "host-row"}}<li data-state="{{.State}}"><span class="pip"></span><span class="name">{{.Name}}</span><span class="bar"></span><span class="v">{{.Value}}</span></li>{{end}}

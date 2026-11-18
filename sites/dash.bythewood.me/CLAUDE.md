@@ -312,7 +312,11 @@ Mozilla's advisory repo, all in `advisories.go`. Everything else stays off it,
 including Chromium, since the only Chrome here is Playwright's. KEV already
 carries every Windows zero day on Patch Tuesday, so MSRC isn't read.
 
-**PATCHED is checked against the host.** Compose mounts the host's
+**PATCHED is checked against the host, and only a signed in browser sees it.**
+A public page saying which version runs or that a fix is missing would be a
+map for an attacker, so `/api/state` and the page carry only what's exploited
+and what Debian fixed it in, and `Advisories.Host` goes out on `/api/host`,
+no-store and session checked, which `live.js` lays over the rows. Compose mounts the host's
 `/var/lib/dpkg/status` read only at `/host/dpkg/status`, and `/proc/version` in
 the container is the host's running kernel, which is what counts until a reboot.
 An exploited CVE in a Debian package goes to the tracker page for that CVE, and
@@ -326,7 +330,9 @@ Anthropic and GitHub. OVH has a Statuspage per product line, public cloud and
 network cover the VPS, and it tags a global incident with every region's
 component, so its rows match on the incident name alone. A row only lights when
 an incident touches Vint Hill, the tunnel, Claude Code or a model, or git, and only a major or
-critical one sends a notification.
+critical one sends a notification. Under each is 14 days of its history from
+`incidents.json`, a few hundred kilobytes a page, so it's read hourly on its
+own budget. Cloudflare's last fifty incidents only reach back about that far.
 
 **GitHub allows 60 unauthenticated API calls an hour per address,** and the repo
 advisories and Mozilla's file listing are about a dozen a run every three hours.
