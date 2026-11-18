@@ -1308,6 +1308,7 @@ main {
 // beside them as a short list like UPLINK's.
 .advisory-band {
   grid-template-columns: minmax(0, 1fr) minmax(300px, 0.42fr);
+  > .panel { min-width: 0; }
 }
 
 .advisories {
@@ -3358,7 +3359,8 @@ main {
 
   // The title drops under the product and status instead of cutting off.
   .advisories .adv li { grid-template-columns: 6px minmax(0, 1fr) auto; }
-  .advisories .adv .what { grid-column: 2 / 4; }
+  .advisories .adv .st { grid-column: 3; grid-row: 1; }
+  .advisories .adv .what { grid-column: 2 / 4; grid-row: 2; }
   .advisories .what .t { white-space: normal; }
   .heat { grid-template-columns: repeat(3, 1fr); }
 
