@@ -14,6 +14,16 @@ type Source struct {
 	Idle   time.Duration
 	Primed bool
 	Run    func(s *Store, ctx context.Context, g *Guard)
+
+	// Shut, when set, is a slower watched interval for the hours Calm says
+	// nothing much moves.
+	Shut time.Duration
+	Calm func(now time.Time) bool
+}
+
+func marketShutNow(now time.Time) bool {
+	session, _ := equitySession(now)
+	return session == "closed"
 }
 
 // sources is every poller Run starts. The hub has one wake channel, so only
@@ -21,7 +31,7 @@ type Source struct {
 var sources = []Source{
 	// An empty page slows markets to a keep-warm poll instead of stopping it, so
 	// the first visitor after a quiet night opens onto real numbers.
-	{Name: "market", Every: marketWatched, Idle: marketIdle, Primed: true, Run: (*Store).refreshMarket},
+	{Name: "market", Every: marketWatched, Idle: marketIdle, Primed: true, Run: (*Store).refreshMarket, Shut: marketShut, Calm: marketShutNow},
 	{Name: "onair", Every: onAirEvery, Run: (*Store).refreshOnAir},
 	{Name: "broadcasts", Every: broadcastsEvery, Run: (*Store).refreshBroadcasts},
 	{Name: "news", Every: newsEvery, Run: (*Store).refreshNews},
@@ -43,6 +53,9 @@ var sources = []Source{
 func (src Source) interval(watching bool) time.Duration {
 	if src.Idle > 0 && !watching {
 		return src.Idle
+	}
+	if src.Calm != nil && src.Calm(time.Now()) {
+		return src.Shut
 	}
 	return src.Every
 }

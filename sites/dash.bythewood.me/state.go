@@ -184,7 +184,12 @@ const (
 	// Thirty is comfortably past that and still live enough to watch.
 
 	marketIdle = 5 * time.Minute
-	newsEvery  = 5 * time.Minute
+
+	// Overnight and over a weekend only futures, gold, oil and bitcoin move, and
+	// none of them so fast that an open tab needs Yahoo every thirty seconds.
+	marketShut = 2 * time.Minute
+
+	newsEvery = 5 * time.Minute
 
 	// Both calendars are set months ahead, so twice a day only catches a
 	// rescheduled release.
