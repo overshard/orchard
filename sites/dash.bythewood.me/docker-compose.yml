@@ -21,6 +21,9 @@ services:
       LLM_KEY: ${LLM_KEY:-}
     volumes:
       - data:/data
+      # The host's package list, read only, so the security panel can say
+      # whether the VPS already has a fix.
+      - /var/lib/dpkg/status:/host/dpkg/status:ro
     # A ceiling to fail against rather than a target. This process holds one
     # state snapshot and a handful of open SSE connections, so it is the
     # lightest site here.

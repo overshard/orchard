@@ -16,6 +16,7 @@ const GROUP = {
   weather: "Severe weather",
   news: "Major news",
   live: "TheBurntPeanut",
+  security: "Security",
 };
 
 // Chrome on Android has the API but throws on the constructor, since it only

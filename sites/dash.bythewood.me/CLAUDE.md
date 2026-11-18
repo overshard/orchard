@@ -304,3 +304,32 @@ straight line across the card, which is why bitcoin is in the `5d` batch.
 points and the last one had more, within one symbol and one trading day so a card
 never shows yesterday's chart or the other instrument's. Only the shape is held
 back, the price and the percent are always fresh.
+
+**ADVISORIES only shows the big things.** A row is a CISA KEV entry from the
+last 30 days whose vendor and product are on `kevWatchlist`, or a high or
+critical advisory from OSV, a project's own GitHub repository advisories or
+Mozilla's advisory repo, all in `advisories.go`. Everything else stays off it,
+including Chromium, since the only Chrome here is Playwright's. KEV already
+carries every Windows zero day on Patch Tuesday, so MSRC isn't read.
+
+**PATCHED is checked against the host.** Compose mounts the host's
+`/var/lib/dpkg/status` read only at `/host/dpkg/status`, and `/proc/version` in
+the container is the host's running kernel, which is what counts until a reboot.
+An exploited CVE in a Debian package goes to the tracker page for that CVE, and
+the trixie fixed version is compared to the installed one with dpkg's ordering.
+Debian marking it `unimportant` reads NOT AFFECTED, which is how the musl only
+OpenSSH bypass shows. Anything dash can't see the version of reads CHECK when
+exploited and FIXED when it's only high or critical.
+
+**INCIDENTS reads Statuspage's unresolved endpoint** for OVH, Cloudflare,
+Anthropic and GitHub. OVH has a Statuspage per product line, public cloud and
+network cover the VPS, and it tags a global incident with every region's
+component, so its rows match on the incident name alone. A row only lights when
+an incident touches Vint Hill, the tunnel, the API or git, and only a major or
+critical one sends a notification.
+
+**GitHub allows 60 unauthenticated API calls an hour per address,** and the repo
+advisories and Mozilla's file listing are about a dozen a run every three hours.
+The Mozilla YAML files never change, so each is fetched once per process.
+`ADVISORIES_LIVE=1 go test -run AdvisoriesLive -v .` prints what the panel would
+show against the real upstreams.

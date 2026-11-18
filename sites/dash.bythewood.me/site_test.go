@@ -187,6 +187,30 @@ func TestHomeRendersAFullState(t *testing.T) {
 	}
 }
 
+func TestHomeRendersAdvisories(t *testing.T) {
+	s := newTestSite(t)
+	s.store.update(func(st *State) {
+		st.Advisories = Advisories{Checked: "09:00", KEVAdded: 34, KEVKept: 2, Act: 1, NextPatch: "TUE DEC 8", Rows: []Advisory{
+			{ID: "CVE-2026-1", Product: "WINDOWS", Title: "Command Injection", Tag: "EXPLOITED", Source: "KEV", URL: "https://nvd.test/1", Age: "TODAY", State: "check", Status: "CHECK", Note: "WINDOWS UPDATE", Banner: true, Added: "2026-11-18"},
+			{ID: "CVE-2026-2", Product: "LINUX KERNEL", Title: "Missing Initialization", Tag: "EXPLOITED", Source: "KEV", URL: "https://nvd.test/2", State: "patched", Status: "PATCHED", Note: "HOST 6.12.117-1", Detail: "TRIXIE FIXED 6.12.90-1"},
+		}}
+		st.Incidents = []Incident{{Name: "OVH VINT HILL", State: "ok", Text: "CLEAR"}, {Name: "CLOUDFLARE", State: "elsewhere", Text: "2 OPEN, NOT TUNNEL OR DNS"}}
+	})
+
+	rec := httptest.NewRecorder()
+	s.home(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+	body := rec.Body.String()
+	for _, want := range []string{"ADVISORIES", "EXPLOITED: WINDOWS", "CHECK / WINDOWS UPDATE", `data-state="patched"`, "TRIXIE FIXED 6.12.90-1",
+		"1 TO DO / LAST 30D", "34 KEV ADDS IN 30D, 2 ON THE WATCHLIST", "NEXT PATCH TUESDAY TUE DEC 8", "2 OPEN, NOT TUNNEL OR DNS", `data-k="exploited"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the rendered page is missing %q", want)
+		}
+	}
+	if n := strings.Count(body, "EXPLOITED: "); n != 1 {
+		t.Errorf("%d banners, want only the fresh one that wants doing", n)
+	}
+}
+
 func TestNotFoundRenders(t *testing.T) {
 	s := newTestSite(t)
 

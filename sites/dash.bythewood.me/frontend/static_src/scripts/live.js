@@ -949,17 +949,18 @@ function tickAlerts() {
 
 // Absent entirely when nothing is active, because a permanent "all clear" row
 // trains you to stop seeing the space it sits in.
-function renderAlerts(alerts) {
+function renderAlerts(alerts, advisories) {
   const host = document.querySelector("[data-alerts]");
   if (!host) return;
 
-  if (!alerts || alerts.length === 0) {
+  const exploited = ((advisories && advisories.rows) || []).filter((a) => a.banner).map(advisoryBanner);
+  if ((!alerts || alerts.length === 0) && !exploited.length) {
     host.replaceChildren();
     return;
   }
 
   host.replaceChildren(
-    ...alerts.map((a) => {
+    ...(alerts || []).map((a) => {
       const div = el("div", "alert");
       div.dataset.severity = a.severity || "";
       div.dataset.urgency = a.urgency || "";
@@ -988,6 +989,7 @@ function renderAlerts(alerts) {
 
       return div;
     }),
+    ...exploited,
   );
 
   tickAlerts();
@@ -1260,6 +1262,85 @@ function renderStreaming(titles) {
 // listings too, and a panel that is rebuilt collapses to no height for a moment
 // before it refills. Each renderer is handed only its own slice, so comparing
 // that slice is enough to know whether the panel can be left alone.
+function advisoryNode(a) {
+  const li = el("li");
+  li.dataset.state = a.state;
+  li.append(el("span", "pip"));
+  li.append(el("span", "prod", a.product));
+  const what = el("span", "what");
+  what.append(link(a.url, "t", a.title));
+  const meta = el("span", "m");
+  const tag = el("span", "tag", a.tag);
+  tag.dataset.k = (a.tag || "").toLowerCase();
+  meta.append(tag);
+  for (const v of [a.id, a.source, a.age, a.detail]) if (v) meta.append(el("span", "", v));
+  what.append(meta);
+  li.append(what);
+  const st = el("span", "st", a.status);
+  if (a.note) st.append(el("small", "", a.note));
+  li.append(st);
+  return li;
+}
+
+function advisoryBanner(a) {
+  const div = el("div", "alert advisory");
+  div.dataset.severity = "severe";
+  const head = el("div", "alert-head");
+  head.append(el("span", "pip"));
+  head.append(el("span", "ev", `EXPLOITED: ${a.product}`));
+  head.append(el("span", "sev", a.source));
+  div.append(head);
+  const hl = el("p", "hl");
+  hl.append(link(a.url, "", a.title));
+  div.append(hl);
+  const meta = el("div", "alert-meta");
+  meta.append(alertMeta("ID", a.id));
+  meta.append(alertMeta("ADDED", a.added));
+  meta.append(alertMeta("DO", a.note ? `${a.status} / ${a.note}` : a.status));
+  div.append(meta);
+  return div;
+}
+
+function renderAdvisories(adv) {
+  if (!adv) return;
+  const rows = adv.rows || [];
+  const host = document.querySelector("[data-advisories]");
+  if (host) {
+    host.replaceChildren(
+      ...(rows.length ? rows.map(advisoryNode) : [el("li", "empty", "NOTHING EXPLOITED OR CRITICAL IN 30 DAYS")]),
+    );
+  }
+  if (adv.checked) {
+    setText(document.querySelector("[data-advisories-meta]"), `${adv.act ? `${adv.act} TO DO` : "NOTHING TO DO"} / LAST 30D`);
+    const note = document.querySelector("[data-advisories-note]");
+    if (note) {
+      note.replaceChildren(
+        `EXPLOITED, CRITICAL OR HIGH ON THE WATCHLIST. ${adv.kev_added} KEV ADDS IN 30D, ${adv.kev_kept} ON THE WATCHLIST. KEV / DEBIAN / OSV / GHSA / MOZILLA, CHECKED ${adv.checked}.`,
+      );
+      if (adv.next_patch) {
+        note.append(" ");
+        note.append(el("span", "next", `NEXT PATCH TUESDAY ${adv.next_patch}`));
+      }
+    }
+  }
+}
+
+function renderIncidents(rows) {
+  const host = document.querySelector("[data-incidents]");
+  if (!host || !rows) return;
+  host.replaceChildren(
+    ...rows.map((r) => {
+      const li = el("li");
+      li.dataset.state = r.state;
+      li.append(el("span", "pip"));
+      li.append(el("span", "name", r.name));
+      li.append(el("span", "bar"));
+      li.append(r.url ? link(r.url, "v", r.text) : el("span", "v", r.text));
+      return li;
+    }),
+  );
+}
+
 function render(state) {
   // First, so a panel that throws on a frame cannot swallow a warning.
   notices(state.notices);
@@ -1268,7 +1349,7 @@ function render(state) {
   if (changed("rates", state.rates)) renderRates(state.rates);
   if (changed("sectors", state.sectors)) renderSectors(state.sectors);
   if (changed("earnings", state.earnings)) renderEarnings(state.earnings);
-  if (changed("alerts", state.alerts)) renderAlerts(state.alerts);
+  if (changed("alerts", [state.alerts, state.advisories])) renderAlerts(state.alerts, state.advisories);
   if (changed("onair", state.onair)) {
     renderOnAir(state.onair);
     renderBroadcasts(state.onair);
@@ -1278,6 +1359,8 @@ function render(state) {
   if (changed("brief-markets", state.briefs && state.briefs.markets)) renderMarketBrief(state.briefs && state.briefs.markets);
   if (changed("brief-news", state.briefs && state.briefs.news)) renderNewsBrief(state.briefs && state.briefs.news);
   if (changed("feeds", state.feeds)) renderFeeds(state.feeds);
+  if (changed("advisories", state.advisories)) renderAdvisories(state.advisories);
+  if (changed("incidents", state.incidents)) renderIncidents(state.incidents);
   if (changed("hn", state.hn)) renderStories("[data-hn]", state.hn);
   if (changed("lobsters", state.lobsters)) renderStories("[data-lobsters]", state.lobsters);
   if (changed("hn_pulse", state.hn_pulse)) renderPulse("[data-hn-pulse]", state.hn_pulse);

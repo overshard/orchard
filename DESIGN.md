@@ -453,7 +453,7 @@ dashboard pages go full width inside it. dash broke the same rule until
 2026-10-09 with a rail and a status line running edge to edge past a capped
 `main`.
 
-**dash's chrome is panel 00 and panel 16.** The header is a panel like any other,
+**dash's chrome is panel 00 and panel 19.** The header is a panel like any other,
 DASH large with a boxed `MODEL BW-07 / SERIES ORCHARD` plate under it and the
 readouts as tiles on the market cards' hairline grid, the two blocks exactly the
 same height so their edges line up. The footer is a rating plate, the sticker on
@@ -544,16 +544,26 @@ brackets and the leader sit just outside it. `data-full` text
 elsewhere opens only when it's actually cut, and a source tag's `data-tip`
 shows its headline on hover and focus and is just a link on a phone.
 
+**ADVISORIES and INCIDENTS are a band of their own between the news band and
+UPLINK**, the advisories wide since their titles run long and the incidents a
+rows list like UPLINK. An advisory row is a pip, the product, the title over a
+meta line (tag, id, source, age) and the status on the right, which is the part
+that says whether to do anything. Amber is to do, green patched, faint not
+affected, and dim a fix that's out where dash can't see the version. A fresh
+exploited one that wants doing also gets a banner in the NWS alert style above
+ON AIR for 72 hours. On a phone the title wraps under the product instead of
+cutting off.
+
 **UPLINK goes at the bottom, full width.** It grew to more rows than any
 readout beside it and stretched the whole local band to match, so it moved under
 the news band on its own and runs its rows as many across as fit. That leaves the
 local band six panels, six wide from 1900px where `main` widens, then three and
-then two, so no width leaves a hole. Panel 16 under it doesn't list the sources again, since
+then two, so no width leaves a hole. Panel 19 under it doesn't list the sources again, since
 UPLINK names them all. It says when the next brief is due and the next four
 market moving dates, CPI, PPI, jobs, JOLTS, GDP, PCE and the Fed, with the label
 in amber.
 
-**POND, panel 16, sits beside UPLINK** in a column of its own, since adding a
+**POND, panel 18, sits beside UPLINK** in a column of its own, since adding a
 seventh to the local band would leave a hole at every width. It's the visitor's
 frog from pond, or the house frog when they have none, drawn from a copy of
 pond's `frog.js` at 3px a cell in amber with dim amber for the belly and legs,

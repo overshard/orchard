@@ -1302,6 +1302,128 @@ main {
   }
 }
 
+// Security ------------------------------------------------------------------
+
+// The advisories run long titles, so they take the width and the providers sit
+// beside them as a short list like UPLINK's.
+.advisory-band {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.42fr);
+}
+
+.advisories {
+  .adv { list-style: none; margin: 0; padding: 0; }
+
+  .adv li {
+    display: grid;
+    grid-template-columns: 6px 118px minmax(0, 1fr) auto;
+    gap: 4px 12px;
+    align-items: baseline;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--line);
+    &:last-child { border-bottom: 0; }
+  }
+  .adv li.empty { display: block; color: var(--dim); font-size: 11px; letter-spacing: var(--track); }
+
+  .pip { align-self: center; }
+
+  .prod {
+    font-family: var(--grotesk);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .what { min-width: 0; }
+  .what .t {
+    display: block;
+    font-size: 13px;
+    line-height: 18px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .what a.t:hover, .what a.t:focus-visible { color: var(--amber); }
+  .what .m {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 12px;
+    margin-top: 3px;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--dim);
+  }
+
+  .tag {
+    padding: 1px 5px;
+    font-size: 9px;
+    letter-spacing: var(--track);
+    border: 1px solid var(--line-hot);
+    color: var(--muted);
+  }
+  .tag[data-k="exploited"], .tag[data-k="critical"] { color: var(--down); border-color: rgba(255, 95, 77, 0.45); }
+  .tag[data-k="high"] { color: var(--warn); border-color: rgba(255, 176, 0, 0.4); }
+
+  .st { text-align: right; font-size: 11px; letter-spacing: 0.06em; white-space: nowrap; color: var(--muted); }
+  .st small { display: block; margin-top: 3px; font-size: 9px; letter-spacing: var(--track); color: var(--faint); }
+
+  li[data-state="open"] { .pip { background: var(--down); } .st { color: var(--down); } }
+  li[data-state="check"] { .pip { background: var(--warn); } .st { color: var(--warn); } }
+  li[data-state="fixed"] .pip { background: var(--amber-dim); }
+  li[data-state="patched"] { .pip { background: var(--up); } .st { color: var(--up); } }
+  li[data-state="clear"] {
+    .pip { background: var(--faint); }
+    .st { color: var(--dim); }
+    .prod, .what .t { color: var(--muted); }
+  }
+
+  .footnote {
+    margin: auto 0 0;
+    padding-top: 10px;
+    font-size: 9px;
+    line-height: 1.5;
+    letter-spacing: var(--track);
+    color: var(--dim);
+  }
+  .footnote .next { color: var(--amber); }
+}
+
+.incidents {
+  .rows li { align-items: baseline; padding: 6px 0; font-size: 12px; }
+  .rows li.empty { color: var(--dim); font-size: 11px; letter-spacing: var(--track); }
+  .rows .pip { align-self: center; }
+  .rows .name { color: var(--muted); letter-spacing: 0.08em; white-space: nowrap; }
+  .rows .bar {
+    flex: 1;
+    height: 1px;
+    min-width: 8px;
+    align-self: center;
+    background: repeating-linear-gradient(90deg, var(--line-hot) 0 1px, transparent 1px 4px);
+  }
+  .rows .v { font-size: 11px; letter-spacing: 0.06em; color: var(--dim); text-align: right; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rows a.v:hover { color: var(--amber); }
+
+  li[data-state="ok"] .pip { background: var(--up); }
+  li[data-state="elsewhere"] .pip, li[data-state="unknown"] .pip { background: var(--faint); }
+  li[data-state="hit"] { .pip { background: var(--warn); } .name, .v { color: var(--warn); } }
+
+  .footnote {
+    margin: auto 0 0;
+    padding-top: 10px;
+    font-size: 9px;
+    line-height: 1.5;
+    letter-spacing: var(--track);
+    color: var(--dim);
+  }
+}
+
+.alert.advisory .hl a { color: var(--text); }
+.alert.advisory .hl a:hover { color: var(--amber); }
+
 // UPLINK keeps the width and POND takes a narrow column beside it.
 .uplink-band {
   grid-template-columns: minmax(0, 1fr) minmax(280px, 0.28fr);
@@ -3233,6 +3355,11 @@ main {
 // Tablet.
 @media (max-width: 1024px) {
   .band:not(.news-band) { grid-template-columns: 1fr; }
+
+  // The title drops under the product and status instead of cutting off.
+  .advisories .adv li { grid-template-columns: 6px minmax(0, 1fr) auto; }
+  .advisories .adv .what { grid-column: 2 / 4; }
+  .advisories .what .t { white-space: normal; }
   .heat { grid-template-columns: repeat(3, 1fr); }
 
   .sys-row { flex-direction: column; gap: 12px; }

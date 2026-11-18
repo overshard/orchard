@@ -30,6 +30,8 @@ func TestSourceSchedule(t *testing.T) {
 		{"streaming", 3 * time.Hour, 0, false},
 		{"weather", 15 * time.Minute, 0, false},
 		{"systems", time.Minute, 0, false},
+		{"advisories", 3 * time.Hour, 0, false},
+		{"incidents", 10 * time.Minute, 0, false},
 		{"calendar", 12 * time.Hour, 0, false},
 	}
 	if len(sources) != len(want) {

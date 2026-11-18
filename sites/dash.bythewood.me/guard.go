@@ -63,6 +63,14 @@ var budgets = map[string]budget{
 	// The same Twitch endpoint as above, on its own key so the hourly archive
 	// read cannot spend or trip what the live banner needs.
 	"twitchvods": {perHour: 30, pace: 2 * time.Second},
+	// The security panel. KEV is one file and the tracker one page per
+	// exploited CVE. GitHub allows 60 calls an hour per address without a token.
+	"kev":        {perHour: 10, pace: 2 * time.Second},
+	"debian":     {perHour: 60, pace: time.Second},
+	"osv":        {perHour: 60, pace: time.Second},
+	"github":     {perHour: 40, pace: time.Second},
+	"githubraw":  {perHour: 30, pace: time.Second},
+	"statuspage": {perHour: 60, pace: time.Second},
 	// No pacing on these. They go to Isaac's own machine and the strip fires
 	// every probe at once, so a pause between them would only refuse all but
 	// the first.
@@ -349,6 +357,12 @@ var feedOrder = []struct{ key, label string }{
 	{"twitch", "TWITCH"},
 	{"kick", "KICK"},
 	{"twitchvods", "TWITCH VODS"},
+	{"kev", "CISA KEV"},
+	{"debian", "DEBIAN"},
+	{"osv", "OSV"},
+	{"github", "GITHUB"},
+	{"githubraw", "MOZILLA"},
+	{"statuspage", "STATUS PAGES"},
 	{"logging", "LOGGING"},
 }
 

@@ -17,6 +17,7 @@
     </div>
   </div>
   {{- end -}}
+  {{- range .State.Advisories.Rows}}{{if .Banner}}{{template "advisory-banner" .}}{{end}}{{end -}}
 </div>
 
 <div class="onair-host" data-onair>
@@ -342,12 +343,42 @@
 
 </div>
 
+<div class="band advisory-band">
+  <section class="panel advisories" data-panel="advisories" id="advisories">
+    <div class="bracket tl"></div><div class="bracket tr"></div>
+    <div class="bracket bl"></div><div class="bracket br"></div>
+    <header class="panel-head">
+      <span class="idx">15</span>
+      <h2>ADVISORIES</h2>
+      <span class="rule"></span>
+      <span class="panel-meta" data-advisories-meta>{{template "advisories-meta" .State.Advisories}}</span>
+    </header>
+    <ul class="adv" data-advisories>
+      {{range .State.Advisories.Rows}}{{template "advisory" .}}{{else}}<li class="empty">NOTHING EXPLOITED OR CRITICAL IN 30 DAYS</li>{{end}}
+    </ul>
+    <p class="footnote" data-advisories-note>{{template "advisories-note" .State.Advisories}}</p>
+  </section>
+  <section class="panel incidents" data-panel="incidents">
+    <div class="bracket tl"></div><div class="bracket tr"></div>
+    <div class="bracket bl"></div><div class="bracket br"></div>
+    <header class="panel-head">
+      <span class="idx">16</span>
+      <h2>INCIDENTS</h2>
+      <span class="rule"></span>
+      <span class="panel-meta">PROVIDERS</span>
+    </header>
+    <ul class="rows" data-incidents>
+      {{range .State.Incidents}}{{template "incident" .}}{{else}}<li class="empty">AWAITING STATUS PAGES</li>{{end}}
+    </ul>
+    <p class="footnote">OPEN INCIDENTS. A ROW LIGHTS WHEN ONE TOUCHES VINT HILL, THE TUNNEL, THE API OR GIT.</p>
+  </section>
+</div>
 <div class="band uplink-band">
   <section class="panel uplink" data-panel="uplink">
     <div class="bracket tl"></div><div class="bracket tr"></div>
     <div class="bracket bl"></div><div class="bracket br"></div>
     <header class="panel-head">
-      <span class="idx">15</span>
+      <span class="idx">17</span>
       <h2>UPLINK</h2>
       <span class="rule"></span>
       <span class="panel-meta">UPSTREAM</span>
@@ -371,7 +402,7 @@
     <div class="bracket tl"></div><div class="bracket tr"></div>
     <div class="bracket bl"></div><div class="bracket br"></div>
     <header class="panel-head">
-      <span class="idx">16</span>
+      <span class="idx">18</span>
       <h2>POND</h2>
       <span class="rule"></span>
       <a class="panel-meta" href="https://pond.bythewood.me/" rel="noopener" target="_blank" data-pond-go>VISIT &#8599;</a>

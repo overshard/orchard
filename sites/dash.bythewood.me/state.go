@@ -32,6 +32,8 @@ type State struct {
 	Streaming     []Title    `json:"streaming"`
 	Systems       Systems    `json:"systems"`
 	Feeds         []Feed     `json:"feeds"`
+	Advisories    Advisories `json:"advisories"`
+	Incidents     []Incident `json:"incidents"`
 	Updated       string     `json:"updated"`
 	Guarded       []string   `json:"guarded"`
 	Ahead         []Upcoming `json:"ahead"`
@@ -521,6 +523,22 @@ func (s *Store) refreshSystems(ctx context.Context, g *Guard) {
 		st.Systems = sys
 		st.Feeds = g.Feeds(time.Now())
 		st.Guarded = g.Status()
+	})
+}
+
+func (s *Store) refreshAdvisories(ctx context.Context, g *Guard) {
+	a := fetchAdvisories(ctx, g, s.Snapshot().Advisories, time.Now())
+	s.update(func(st *State) {
+		st.Advisories = a
+		st.setNotices("security", append(advisoryNotices(a), incidentNotices(st.Incidents)...))
+	})
+}
+
+func (s *Store) refreshIncidents(ctx context.Context, g *Guard) {
+	rows := fetchIncidents(ctx, g, s.Snapshot().Incidents)
+	s.update(func(st *State) {
+		st.Incidents = rows
+		st.setNotices("security", append(advisoryNotices(st.Advisories), incidentNotices(rows)...))
 	})
 }
 
