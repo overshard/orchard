@@ -34,6 +34,7 @@ type State struct {
 	Feeds         []Feed     `json:"feeds"`
 	Advisories    Advisories `json:"advisories"`
 	Incidents     []Incident `json:"incidents"`
+	Host          []HostRow  `json:"host"`
 	Updated       string     `json:"updated"`
 	Guarded       []string   `json:"guarded"`
 	Ahead         []Upcoming `json:"ahead"`
@@ -536,8 +537,10 @@ func (s *Store) refreshAdvisories(ctx context.Context, g *Guard) {
 
 func (s *Store) refreshIncidents(ctx context.Context, g *Guard) {
 	rows := fetchIncidents(ctx, g, s.Snapshot().Incidents)
+	host := hostRows(readHostVersions())
 	s.update(func(st *State) {
 		st.Incidents = rows
+		st.Host = host
 		st.setNotices("security", append(advisoryNotices(st.Advisories), incidentNotices(rows)...))
 	})
 }

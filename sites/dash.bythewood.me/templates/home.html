@@ -370,7 +370,11 @@
     <ul class="rows" data-incidents>
       {{range .State.Incidents}}{{template "incident" .}}{{else}}<li class="empty">AWAITING STATUS PAGES</li>{{end}}
     </ul>
-    <p class="footnote">OPEN INCIDENTS. A ROW LIGHTS WHEN ONE TOUCHES VINT HILL, THE TUNNEL, THE API OR GIT.</p>
+    <div class="sub"><span>THIS VPS</span><span class="rule"></span></div>
+    <ul class="rows" data-host>
+      {{range .State.Host}}{{template "host-row" .}}{{else}}<li class="empty">AWAITING THE HOST</li>{{end}}
+    </ul>
+    <p class="footnote">A PROVIDER LIGHTS WHEN AN INCIDENT TOUCHES VINT HILL, THE TUNNEL, THE API OR GIT. THE VPS ROWS ARE ITS OWN PACKAGE LIST AND RUNNING KERNEL.</p>
   </section>
 </div>
 <div class="band uplink-band">

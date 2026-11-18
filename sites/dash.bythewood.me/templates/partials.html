@@ -327,3 +327,5 @@
 {{define "advisories-meta"}}{{if .Checked}}{{if .Act}}{{.Act}} TO DO{{else}}NOTHING TO DO{{end}} / LAST 30D{{end}}{{end}}
 
 {{define "advisories-note"}}{{if .Checked}}EXPLOITED, CRITICAL OR HIGH ON THE WATCHLIST. {{.KEVAdded}} KEV ADDS IN 30D, {{.KEVKept}} ON THE WATCHLIST. KEV / DEBIAN / OSV / GHSA / MOZILLA, CHECKED {{.Checked}}.{{if .NextPatch}} <span class="next">NEXT PATCH TUESDAY {{.NextPatch}}</span>{{end}}{{end}}{{end}}
+
+{{define "host-row"}}<li data-state="{{.State}}"><span class="pip"></span><span class="name">{{.Name}}</span><span class="bar"></span><span class="v">{{.Value}}</span></li>{{end}}

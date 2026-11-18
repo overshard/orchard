@@ -50,7 +50,10 @@ Package: xz-utils
 Status: install ok installed
 Version: 5.8.1-1
 `
-	got := parseDpkgStatus(bufio.NewScanner(strings.NewReader(status)))
+	got, bins := parseDpkgStatus(bufio.NewScanner(strings.NewReader(status)))
+	if bins["openssh-server"] != "1:10.0p1-7+deb13u4" || bins["sudo"] != "" {
+		t.Errorf("binary packages = %v", bins)
+	}
 	want := map[string]string{"openssh": "1:10.0p1-7+deb13u4", "openssl": "3.5.7-1~deb13u1", "xz-utils": "5.8.1-1"}
 	if len(got) != len(want) {
 		t.Fatalf("got %v, want %v", got, want)
@@ -167,5 +170,29 @@ func TestGoRowCollapses(t *testing.T) {
 	}
 	if _, ok := goRow(nil, "1.27.4", now); ok {
 		t.Error("no advisories should be no row")
+	}
+}
+
+func TestHostRows(t *testing.T) {
+	h := hostVersions{
+		kernel:    "6.12.117-1",
+		goVersion: "1.27.4",
+		packages: map[string]string{
+			"base-files": "13.2", "openssh-server": "1:10.0p1-7+deb13u4",
+			"docker-ce": "5:29.10.0-1~debian.13~trixie", "containerd.io": "2.4.2-4~debian.13~trixie",
+			"linux-image-6.12.117+deb13-amd64": "6.12.117-1", "linux-image-6.12.86+deb13-amd64": "6.12.86-1",
+		},
+	}
+	var got []string
+	for _, r := range hostRows(h) {
+		got = append(got, r.Name+" "+r.Value+" "+r.State)
+	}
+	want := "KERNEL 6.12.117-1 ok|DEBIAN TRIXIE 13.2 ok|OPENSSH 10.0P1 ok|DOCKER 29.10.0 ok|CONTAINERD 2.4.2 ok|GO 1.27.4 ok"
+	if strings.Join(got, "|") != want {
+		t.Errorf("host rows\n got %s\nwant %s", strings.Join(got, "|"), want)
+	}
+	h.packages["linux-image-6.12.120+deb13-amd64"] = "6.12.120-1"
+	if r := hostRows(h)[0]; r.State != "warn" || r.Value != "REBOOT FOR 6.12.120-1" {
+		t.Errorf("a newer kernel on disk should ask for a reboot, got %+v", r)
 	}
 }

@@ -18,8 +18,9 @@ const (
 
 // hostVersions is what the VPS runs, as far as this container can see it.
 type hostVersions struct {
-	// Installed version per Debian source package.
-	debian map[string]string
+	// Installed version per Debian source package, and per binary package.
+	debian   map[string]string
+	packages map[string]string
 
 	// The running kernel's Debian version, which is what counts until a reboot.
 	kernel string
@@ -33,7 +34,7 @@ func readHostVersions() hostVersions {
 		goVersion: strings.TrimPrefix(runtime.Version(), "go"),
 	}
 	if f, err := os.Open(hostDpkgStatus); err == nil {
-		h.debian = parseDpkgStatus(bufio.NewScanner(f))
+		h.debian, h.packages = parseDpkgStatus(bufio.NewScanner(f))
 		f.Close()
 	}
 	if b, err := os.ReadFile(procVersion); err == nil {
@@ -67,15 +68,16 @@ func kernelVersion(proc string) string {
 	return ""
 }
 
-// parseDpkgStatus maps each installed source package to its version. A
-// binary package names its source when the two differ, with the source's own
-// version in brackets when that differs too.
-func parseDpkgStatus(sc *bufio.Scanner) map[string]string {
+// parseDpkgStatus maps each installed source package and each installed
+// binary package to its version. A binary package names its source when the two
+// differ, with the source's own version in brackets when that differs too.
+func parseDpkgStatus(sc *bufio.Scanner) (map[string]string, map[string]string) {
 	sc.Buffer(make([]byte, 64<<10), 1<<20)
-	out := map[string]string{}
+	out, bins := map[string]string{}, map[string]string{}
 	var pkg, source, version, status string
 	flush := func() {
 		if pkg != "" && version != "" && strings.HasSuffix(status, " installed") {
+			bins[pkg] = version
 			src, ver := pkg, version
 			if source != "" {
 				f := strings.Fields(source)
@@ -112,7 +114,65 @@ func parseDpkgStatus(sc *bufio.Scanner) map[string]string {
 		}
 	}
 	flush()
-	return out
+	return out, bins
+}
+
+// HostRow is one line of what the VPS runs, under the incidents.
+type HostRow struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+	State string `json:"state"`
+}
+
+// upstreamVersion drops the epoch and the Debian revision, since the panel
+// names what the project calls the release.
+func upstreamVersion(v string) string {
+	_, up, _ := splitDebian(v)
+	if i := strings.Index(up, "~"); i > 0 {
+		up = up[:i]
+	}
+	return up
+}
+
+func hostRows(h hostVersions) []HostRow {
+	var rows []HostRow
+	if h.kernel != "" {
+		row := HostRow{Name: "KERNEL", Value: h.kernel, State: "ok"}
+		if newest := newestKernel(h.packages); newest != "" && compareDebian(newest, h.kernel) > 0 {
+			row.Value, row.State = "REBOOT FOR "+newest, "warn"
+		}
+		rows = append(rows, row)
+	}
+	if v, ok := h.packages["base-files"]; ok {
+		rows = append(rows, HostRow{Name: "DEBIAN", Value: strings.ToUpper(debianRelease) + " " + upstreamVersion(v), State: "ok"})
+	}
+	for _, p := range []struct{ name, pkg string }{
+		{"OPENSSH", "openssh-server"},
+		{"DOCKER", "docker-ce"},
+		{"CONTAINERD", "containerd.io"},
+	} {
+		if v, ok := h.packages[p.pkg]; ok {
+			rows = append(rows, HostRow{Name: p.name, Value: strings.ToUpper(upstreamVersion(v)), State: "ok"})
+		}
+	}
+	if h.goVersion != "" {
+		rows = append(rows, HostRow{Name: "GO", Value: h.goVersion, State: "ok"})
+	}
+	return rows
+}
+
+// newestKernel is the newest linux-image package installed, which unattended
+// upgrades puts in place and only a reboot runs.
+func newestKernel(packages map[string]string) string {
+	newest := ""
+	for name, v := range packages {
+		if strings.HasPrefix(name, "linux-image-") && name != "linux-image-amd64" && name != "linux-image-cloud-amd64" {
+			if newest == "" || compareDebian(v, newest) > 0 {
+				newest = v
+			}
+		}
+	}
+	return newest
 }
 
 // compareDebian orders two Debian versions the way dpkg does, epoch, then

@@ -1343,6 +1343,22 @@ function renderIncidents(rows) {
   );
 }
 
+function renderHost(rows) {
+  const host = document.querySelector("[data-host]");
+  if (!host || !rows) return;
+  host.replaceChildren(
+    ...rows.map((r) => {
+      const li = el("li");
+      li.dataset.state = r.state;
+      li.append(el("span", "pip"));
+      li.append(el("span", "name", r.name));
+      li.append(el("span", "bar"));
+      li.append(el("span", "v", r.value));
+      return li;
+    }),
+  );
+}
+
 function render(state) {
   // First, so a panel that throws on a frame cannot swallow a warning.
   notices(state.notices);
@@ -1363,6 +1379,7 @@ function render(state) {
   if (changed("feeds", state.feeds)) renderFeeds(state.feeds);
   if (changed("advisories", state.advisories)) renderAdvisories(state.advisories);
   if (changed("incidents", state.incidents)) renderIncidents(state.incidents);
+  if (changed("host", state.host)) renderHost(state.host);
   if (changed("hn", state.hn)) renderStories("[data-hn]", state.hn);
   if (changed("lobsters", state.lobsters)) renderStories("[data-lobsters]", state.lobsters);
   if (changed("hn_pulse", state.hn_pulse)) renderPulse("[data-hn-pulse]", state.hn_pulse);
