@@ -17,3 +17,21 @@ func TestCarriedRead(t *testing.T) {
 		t.Errorf("a new thread has nothing to carry, got %+v", got)
 	}
 }
+
+func TestCarryFeedKeepsOnlyThatFeed(t *testing.T) {
+	was := Brief{
+		Points: []Point{{Label: "HN", Text: "old hn"}, {Label: "LOBSTERS", Text: "old lobsters"}},
+		Threads: []ThreadRead{
+			{URL: "https://news.ycombinator.com/item?id=1", Read: "hn thread"},
+			{URL: "https://lobste.rs/s/abc", Read: "lobsters thread"},
+		},
+	}
+	var b Brief
+	carryFeed(&b, was, "HN", "https://news.ycombinator.com/")
+	if len(b.Points) != 1 || b.Points[0].Text != "old hn" {
+		t.Fatalf("points = %+v", b.Points)
+	}
+	if len(b.Threads) != 1 || b.Threads[0].Read != "hn thread" {
+		t.Fatalf("threads = %+v", b.Threads)
+	}
+}

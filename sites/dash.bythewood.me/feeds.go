@@ -37,7 +37,7 @@ type thread struct {
 
 func hnThreads(ctx context.Context, g *Guard, now time.Time) ([]thread, error) {
 	var payload algoliaPayload
-	if err := getJSON(ctx, g, "algolia", hackerNewsURL, &payload); err != nil {
+	if err := frontPage(ctx, g, &payload); err != nil {
 		return nil, err
 	}
 	type hit struct {
@@ -74,6 +74,29 @@ func hnThreads(ctx context.Context, g *Guard, now time.Time) ([]thread, error) {
 		out[i] = h.t
 	}
 	return out, nil
+}
+
+// Algolia often misses the 12 second timeout in the first minutes of the hour,
+// which is when every brief runs, and the next try usually answers.
+const frontPageTries = 3
+
+var frontPagePause = 5 * time.Second
+
+func frontPage(ctx context.Context, g *Guard, out *algoliaPayload) error {
+	var err error
+	for try := range frontPageTries {
+		if try > 0 {
+			select {
+			case <-ctx.Done():
+				return err
+			case <-time.After(frontPagePause):
+			}
+		}
+		if err = getJSON(ctx, g, "algolia", hackerNewsURL, out); err == nil {
+			return nil
+		}
+	}
+	return err
 }
 
 // hnComments is a story's top level comments in the order the site ranks them.
@@ -228,16 +251,18 @@ func (b *Briefer) compileFeeds(ctx context.Context, slot briefSlot, at time.Time
 	now := time.Now()
 	brief := Brief{Kind: slot.kind, Title: slot.title(), Slot: at.Unix(),
 		Compiled: time.Now().In(easternTime()).Format("15:04 MST")}
+	was := b.store.Snapshot().Briefs.Feeds
+	fresh := 0
 	prev := map[string]ThreadRead{}
-	for _, t := range b.store.Snapshot().Briefs.Feeds.Threads {
+	for _, t := range was.Threads {
 		prev[t.URL] = t
 	}
 	for _, site := range []struct {
-		label, name string
-		fetch       func(context.Context, *Guard, time.Time) ([]thread, error)
+		label, name, discuss string
+		fetch                func(context.Context, *Guard, time.Time) ([]thread, error)
 	}{
-		{"HN", "Hacker News", hnThreads},
-		{"LOBSTERS", "Lobsters", lobstersThreads},
+		{"HN", "Hacker News", "https://news.ycombinator.com/", hnThreads},
+		{"LOBSTERS", "Lobsters", "https://lobste.rs/", lobstersThreads},
 	} {
 		ts, err := site.fetch(ctx, b.guard, now)
 		if err == nil && len(ts) < 5 {
@@ -250,6 +275,7 @@ func (b *Briefer) compileFeeds(ctx context.Context, slot briefSlot, at time.Time
 			if err == nil {
 				brief.Points = append(brief.Points, pt)
 				brief.Stories += len(ts)
+				fresh++
 			}
 			for _, t := range ts[:min(len(ts), storiesShown)] {
 				tr := carriedRead(prev[t.discuss], t)
@@ -267,12 +293,28 @@ func (b *Briefer) compileFeeds(ctx context.Context, slot briefSlot, at time.Time
 		}
 		if err != nil {
 			slog.Warn("brief feed read failed", slog.String("component", "brief"), slog.String("feed", site.label), slog.Any("err", err))
+			carryFeed(&brief, was, site.label, site.discuss)
 		}
 	}
-	if len(brief.Points) == 0 {
+	if fresh == 0 {
 		return Brief{}, fmt.Errorf("no feed reads")
 	}
 	return brief, nil
+}
+
+// carryFeed keeps the last slot's read for a feed that failed this slot, so its
+// card shows an hour old read instead of AWAITING READ until the next one.
+func carryFeed(brief *Brief, was Brief, label, discuss string) {
+	for _, pt := range was.Points {
+		if pt.Label == label {
+			brief.Points = append(brief.Points, pt)
+		}
+	}
+	for _, t := range was.Threads {
+		if strings.HasPrefix(t.URL, discuss) {
+			brief.Threads = append(brief.Threads, t)
+		}
+	}
 }
 
 func (b *Briefer) feedRead(ctx context.Context, name string, ts []thread) (Point, error) {
