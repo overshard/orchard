@@ -1307,7 +1307,9 @@ function renderAdvisories(adv) {
   const host = document.querySelector("[data-advisories]");
   if (host) {
     host.replaceChildren(
-      ...(rows.length ? rows.map(advisoryNode) : [el("li", "empty", "NOTHING EXPLOITED OR CRITICAL IN 30 DAYS")]),
+      ...(rows.length
+        ? rows.map(advisoryNode)
+        : [el("li", "empty", adv.checked ? "NOTHING EXPLOITED OR CRITICAL IN 30 DAYS" : "AWAITING FIRST CHECK")]),
     );
   }
   if (adv.checked) {

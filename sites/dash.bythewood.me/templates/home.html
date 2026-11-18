@@ -354,7 +354,7 @@
       <span class="panel-meta" data-advisories-meta>{{template "advisories-meta" .State.Advisories}}</span>
     </header>
     <ul class="adv" data-advisories>
-      {{range .State.Advisories.Rows}}{{template "advisory" .}}{{else}}<li class="empty">NOTHING EXPLOITED OR CRITICAL IN 30 DAYS</li>{{end}}
+      {{range .State.Advisories.Rows}}{{template "advisory" .}}{{else}}<li class="empty">{{if .State.Advisories.Checked}}NOTHING EXPLOITED OR CRITICAL IN 30 DAYS{{else}}AWAITING FIRST CHECK{{end}}</li>{{end}}
     </ul>
     <p class="footnote" data-advisories-note>{{template "advisories-note" .State.Advisories}}</p>
   </section>
