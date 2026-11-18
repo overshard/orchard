@@ -71,6 +71,8 @@ var budgets = map[string]budget{
 	"github":     {perHour: 40, pace: time.Second},
 	"githubraw":  {perHour: 30, pace: time.Second},
 	"statuspage": {perHour: 60, pace: time.Second},
+	// Incident history, hourly, one page per provider and two for OVH.
+	"statushistory": {perHour: 12, pace: time.Second},
 	// No pacing on these. They go to Isaac's own machine and the strip fires
 	// every probe at once, so a pause between them would only refuse all but
 	// the first.
@@ -363,6 +365,7 @@ var feedOrder = []struct{ key, label string }{
 	{"github", "GITHUB"},
 	{"githubraw", "MOZILLA"},
 	{"statuspage", "STATUS PAGES"},
+	{"statushistory", "STATUS HISTORY"},
 	{"logging", "LOGGING"},
 }
 

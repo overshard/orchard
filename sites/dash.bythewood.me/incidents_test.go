@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestProviderRelevance(t *testing.T) {
 	cases := []struct {
@@ -26,6 +29,27 @@ func TestProviderRelevance(t *testing.T) {
 					t.Errorf("%s %q = %v, want %v", c.provider, c.text, got, c.want)
 				}
 			}
+		}
+	}
+}
+
+func TestHistoryDays(t *testing.T) {
+	now := time.Date(2026, 11, 18, 15, 0, 0, 0, time.UTC)
+	ovh := providers[0]
+	resolved := time.Date(2026, 11, 16, 20, 0, 0, 0, time.UTC)
+	days := historyDaysFor(ovh, []statuspageIncident{
+		{Name: "[US-EAST-VA] Network degradation", CreatedAt: time.Date(2026, 11, 15, 14, 0, 0, 0, time.UTC), ResolvedAt: &resolved},
+		{Name: "[GRA] Object storage", CreatedAt: time.Date(2026, 11, 18, 13, 0, 0, 0, time.UTC)},
+		{Name: "[US-EAST-VA] Old", CreatedAt: time.Date(2026, 10, 1, 13, 0, 0, 0, time.UTC), ResolvedAt: &resolved},
+	}, now)
+	if len(days) != historyDays {
+		t.Fatalf("%d days", len(days))
+	}
+	want := []int{2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 1}
+	for i := range want {
+		if days[i] != want[i] {
+			t.Errorf("days = %v, want %v", days, want)
+			break
 		}
 	}
 }

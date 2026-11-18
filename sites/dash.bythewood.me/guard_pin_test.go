@@ -349,7 +349,7 @@ func TestGuardConfigurationIsPinned(t *testing.T) {
 		"steam": "240/1s", "justwatch": "60/2s", "twitch": "90/2s", "kick": "90/2s",
 		"twitchvods": "30/2s", "uptime": "900/0s", "logging": "900/0s",
 		"kev": "10/2s", "debian": "60/1s", "osv": "60/1s", "github": "40/1s",
-		"githubraw": "30/1s", "statuspage": "60/1s",
+		"githubraw": "30/1s", "statuspage": "60/1s", "statushistory": "12/1s",
 	}
 	if len(budgets) != len(want) {
 		t.Errorf("%d budgets, want %d", len(budgets), len(want))
