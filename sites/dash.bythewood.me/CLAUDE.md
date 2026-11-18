@@ -325,7 +325,7 @@ exploited and FIXED when it's only high or critical.
 Anthropic and GitHub. OVH has a Statuspage per product line, public cloud and
 network cover the VPS, and it tags a global incident with every region's
 component, so its rows match on the incident name alone. A row only lights when
-an incident touches Vint Hill, the tunnel, the API or git, and only a major or
+an incident touches Vint Hill, the tunnel, Claude Code or a model, or git, and only a major or
 critical one sends a notification.
 
 **GitHub allows 60 unauthenticated API calls an hour per address,** and the repo

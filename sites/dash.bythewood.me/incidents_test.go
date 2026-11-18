@@ -14,6 +14,9 @@ func TestProviderRelevance(t *testing.T) {
 		{"CLOUDFLARE", "Cloudflare Tunnel connectivity issues", true},
 		{"ANTHROPIC", "Claude unable to join meetings", false},
 		{"ANTHROPIC", "Elevated errors on Claude Haiku", true},
+		{"ANTHROPIC", "Claude Code sessions failing to start", true},
+		{"ANTHROPIC", "Opus 5.5 degraded performance", true},
+		{"ANTHROPIC", "Elevated errors on claude.ai", true},
 	}
 	for _, c := range cases {
 		for _, p := range providers {
