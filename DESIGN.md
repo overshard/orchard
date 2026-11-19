@@ -519,7 +519,7 @@ below live as tokens at the top of `frontend/src/index.css`.
   empty spot you can fill, like a stall spot, is a key with a dashed edge and a
   plus.
 - **What's coming.** The frogs in the scenes get a warm rim on the side the
-  nearest lantern is on. After that come selling, a stamp book, the
+  nearest lantern is on. After that come the
   games as jars on a shelf in place of the disks, and the market as a night
   market board.
 - **Colour lives in the pictures, the icons and rarity.** The frog, the water,
@@ -1060,7 +1060,8 @@ below live as tokens at the top of `frontend/src/index.css`.
   painting, twelve to a painting and four in all, the pond at dawn, in the
   rain, by lantern light and in the snow, each a small pixel scene in a
   wooden frame. Under the burrows the four sit in a row, a piece showing as
-  a square of the picture over bare canvas and the frame gilding round from
+  a square of the picture, the one under way with a dark hole for each piece
+  still to come and the others bare canvas, and the frame gilding round from
   the top left as it fills. A finished one pops up as a reveal and hangs on
   the burrow mound in the Make scene as a small gold frame.
 - **A frog's page has six stamps** under its name, a heart, a fly, a wave, a
@@ -1069,6 +1070,16 @@ below live as tokens at the top of `frontend/src/index.css`.
   latches down, and the line under the row says what a visitor can do. The
   owner's next greeting pops up the stamps as a reveal, each stamper's frog
   with its stamp at its feet, and a frog kept home stamps as a dark shape.
+  Each stamp is a 12 by 12 icon like the rest.
+- **The stamp book is under Frogs**, a row at the foot of the roster. Its
+  scene is the book open on a desk under a hanging lamp, its pages holding
+  the faces of the latest stamps, with an ink pad and a rubber stamp. Under
+  it is the painting under way, big, with its holes, beside a Share page key,
+  then the frogs who stamped the page as perforated cream stamps in three
+  crooked columns, each the frog on a coloured ground with the stamp over its
+  corner and its name and the day under it. Spots still empty are blank
+  stamps with a faint frog shape and "not yet", and the last row is a link
+  to a random pond's page with the stamps left to give today.
 - The card a share link unfurls with is a 1200 by 630 PNG drawn on the server,
   the screen on the left and the name, rarity and power on the right in
   JetBrains Mono, since that's the face the server has a TrueType file of.
