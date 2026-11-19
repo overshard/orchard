@@ -69,11 +69,11 @@ func init() {
 	for _, f := range furniture {
 		itemNames[f.kind] = f.name
 	}
-	itemNames["stamp_spots"] = "Spots stamp"
-	itemNames["stamp_bands"] = "Bands stamp"
-	itemNames["stamp_speckled"] = "Speckled stamp"
-	itemNames["stamp_mask"] = "Mask stamp"
-	itemNames["stamp_stripe"] = "Back stripe stamp"
+	itemNames["stamp_spots"] = "Spots pattern"
+	itemNames["stamp_bands"] = "Bands pattern"
+	itemNames["stamp_speckled"] = "Speckled pattern"
+	itemNames["stamp_mask"] = "Mask pattern"
+	itemNames["stamp_stripe"] = "Back stripe pattern"
 	itemNames["drops_red"] = "Red eye drops"
 	itemNames["drops_pale"] = "Pale eye drops"
 }
@@ -202,7 +202,7 @@ func mossRestock(now time.Time) (string, time.Time) {
 	return fmt.Sprintf("%s#%d", day, n), next
 }
 
-// mossStock is a rock and a stamp, eye drops or a dye, and sometimes a dye
+// mossStock is a rock and a pattern, eye drops or a dye, and sometimes a dye
 // going cheap.
 func mossStock(key string) []shopLine {
 	r := shopRand("moss " + key)

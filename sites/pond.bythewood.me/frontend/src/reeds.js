@@ -111,7 +111,7 @@ function render(p) {
     const m = front.fed;
     if (!m) line += " Feed it a dish from your bag first and the egg comes out better.";
     else {
-      line += " It's full of " + m.name.toLowerCase() + " for " + hours(m.left / 3600) + ", so dyes, stamps and drops take " + (m.takes >= 1 ? "every time" : Math.round(m.takes * 100) + "% of the time");
+      line += " It's full of " + m.name.toLowerCase() + " for " + hours(m.left / 3600) + ", so dyes, patterns and drops take " + (m.takes >= 1 ? "every time" : Math.round(m.takes * 100) + "% of the time");
       line += m.eyes ? " and about 1 egg in " + Math.round(1 / m.eyes) + " gets odd eyes." : ".";
     }
   }
@@ -135,7 +135,7 @@ function render(p) {
   if (stamp && !stamps.some((d) => d.kind === stamp)) stamp = "";
   const sseg = $("bench-stamps");
   sseg.textContent = "";
-  [{ kind: "", name: "No stamp", count: 0 }].concat(stamps).forEach((d) => {
+  [{ kind: "", name: "No pattern", count: 0 }].concat(stamps).forEach((d) => {
     const b = document.createElement("button");
     b.type = "button"; b.dataset.stamp = d.kind;
     b.textContent = d.name + (d.count > 1 ? " x" + d.count : "");
@@ -192,8 +192,8 @@ export function initReeds() {
       let msg = "An egg, and it's on a pad in the reeds. It'll be " + titled(d.frog.name) + ".";
       if (took.includes("dye")) msg += " The dye took.";
       else if (dye) msg += " The dye didn't take this time.";
-      if (took.includes("stamp")) msg += " The stamp took.";
-      else if (stamp) msg += " The stamp didn't take this time.";
+      if (took.includes("stamp")) msg += " The pattern took.";
+      else if (stamp) msg += " The pattern didn't take this time.";
       if (took.includes("drops")) msg += " The drops took.";
       else if (drop) msg += " The drops didn't take this time.";
       if (took.includes("meal")) msg += " It has odd eyes from the meal.";
