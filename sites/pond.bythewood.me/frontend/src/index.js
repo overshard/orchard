@@ -200,9 +200,11 @@ let greetAt = 0, croakUntil = 0, lastTick = 0;
 function grown(stage) { return stage === "froglet" || stage === "frog" || stage === "elder"; }
 
 // The pond is drawn in its own units, 352 by 272 with the frog 8 to a cell,
-// at a whole number of device pixels to the unit, centred on the bottom of a
-// wider canvas with the sky and the sides painted round it.
-const stage = { cw: 0, ch: 0, r: 0, W: 0, H: 0, k: 1, ox: 0, oy: 0, L: 0, T: 0, R: 352, back: null, key: "" };
+// with EXT more under it for the near side of the pad and SHORE of water
+// over it up to the far bank. A cell is a whole even
+// number of device pixels, about 5 CSS pixels, and the sky and water go on round it.
+const EXT = 72, SHORE = 64;
+const stage = { cw: 0, ch: 0, r: 0, W: 0, H: 0, k: 1, ox: 0, oy: 0, L: 0, T: 0, R: 352, B: 272, lamp: 338, back: null, key: "" };
 
 function fitStage() {
   const r = window.devicePixelRatio || 1, cw = scene.clientWidth, ch = scene.clientHeight;
@@ -210,9 +212,12 @@ function fitStage() {
   if (cw === stage.cw && ch === stage.ch && r === stage.r) return true;
   const W = Math.round(cw * r), H = Math.round(ch * r);
   scene.width = W; scene.height = H;
-  const k = Math.max(0.5, Math.floor(Math.min(W / 360, (H - 64 * r) / 272) * 2) / 2);
-  Object.assign(stage, { cw, ch, r, W, H, k, ox: Math.round((W - 352 * k) / 2), oy: H - 272 * k, key: "" });
-  stage.L = -stage.ox / k; stage.T = -stage.oy / k; stage.R = (W - stage.ox) / k;
+  let n = Math.max(2, 2 * Math.round((cw >= 520 ? 6 : 5) * r / 2));
+  while (n > 2 && ((SHORE + 272 + EXT) * n / 8 > H - 64 * r || 352 * n / 8 > W)) n -= 2;
+  const k = n / 8;
+  Object.assign(stage, { cw, ch, r, W, H, k, ox: Math.round((W - 352 * k) / 2), oy: Math.round(H - (272 + EXT) * k), key: "" });
+  stage.L = -stage.ox / k; stage.T = -stage.oy / k; stage.R = (W - stage.ox) / k; stage.B = (H - stage.oy) / k;
+  stage.lamp = Math.round(Math.min(stage.R - 28, 440));
   return true;
 }
 
@@ -220,10 +225,15 @@ scene.toPond = (e) => {
   const r = scene.getBoundingClientRect(), f = scene.width / r.width;
   return [((e.clientX - r.left) * f - stage.ox) / stage.k, ((e.clientY - r.top) * f - stage.oy) / stage.k];
 };
-scene.pondBox = () => [stage.ox, stage.oy, 352 * stage.k, 272 * stage.k];
+// The postcard is the frog on its pad with a little water round it, in the
+// pond's own shape.
+scene.pondBox = () => {
+  const w = Math.min(424, stage.R - stage.L), h = w * 272 / 352, x = 176 - w / 2, y = 272 + EXT - h;
+  return [stage.ox + x * stage.k, stage.oy + y * stage.k, w * stage.k, h * stage.k].map(Math.round);
+};
 
 // Where the moon hangs and the lantern stands, in pond units.
-const MOON_X = 250, LAMP_X = 338;
+const MOON_X = 250;
 const WATERS = { clear: [["#2a4a62", "#203c52"], ["#0d2438", "#0a1c2e"]], murky: [["#3a3a30", "#2e2e26"], ["#1a2218", "#141a12"]] };
 
 // The sky, the far trees and the water, painted at two units a pixel and
@@ -231,27 +241,27 @@ const WATERS = { clear: [["#2a4a62", "#203c52"], ["#0d2438", "#0a1c2e"]], murky:
 function backdropOf(day) {
   const key = [stage.W, stage.H, stage.k, !!day.night, !!day.rain, !!day.moon, day.water || ""].join();
   if (stage.key === key) return stage.back;
-  const n = 2 * stage.k, bw = Math.ceil(stage.W / n), bh = Math.ceil(stage.H / n), hor = bh - 136;
+  const n = Math.max(1, Math.round(2 * stage.k)), bw = Math.ceil(stage.W / n), bh = Math.ceil(stage.H / n), hor = Math.round((stage.oy - SHORE * stage.k) / n);
   const cv = stage.back || document.createElement("canvas"), at = (x) => Math.round((stage.ox + x * stage.k) / n);
   cv.width = bw; cv.height = bh;
   const g = cv.getContext("2d"), L = look(day);
   const r = backdrop(g, bw, bh, 7, { horizon: hor, moon: [at(MOON_X), hor - 15, 6] }, day);
   if (WATERS[day.water]) { const [a, b] = WATERS[day.water][L.dark ? 1 : 0]; water(g, bw, hor, bh - hor, a, b, r, L.line, L.line2); }
-  const lx = at(LAMP_X);
+  const lx = at(stage.lamp);
   for (let y = hor + 18, i = 0; y < hor + 64; y += 2, i++) {
     const l = 2 + Math.floor(r() * 6);
     g.globalAlpha = 0.5 - i * 0.02; px(g, "#ffcf6a", lx - l / 2 + Math.round((r() - 0.5) * 4), y, l, 1);
   }
   g.globalAlpha = 1;
   lantern(g, lx, hor + 4, 80, L.dark ? 0.45 : 0.3);
-  reeds(g, 0, at(16), hor + 34, r); reeds(g, at(340), bw, hor + 40, r);
-  cattail(g, at(-4), hor + 60, hor + 8, 1); cattail(g, at(356), hor + 64, hor + 14, -1);
+  reeds(g, 0, at(-60), bh - 8, r); reeds(g, at(410), bw, bh - 4, r);
+  cattail(g, at(-90), bh, hor + 30, 1); cattail(g, at(-76), bh, hor + 40, -1); cattail(g, at(430), bh, hor + 36, -1);
   stage.back = cv; stage.key = key;
   return cv;
 }
 
 // A wash over everything on the canvas, the sky and the sides as well.
-function wash(c) { sx.fillStyle = c; sx.fillRect(stage.L, stage.T, stage.R - stage.L, 272 - stage.T); }
+function wash(c) { sx.fillStyle = c; sx.fillRect(stage.L, stage.T, stage.R - stage.L, stage.B - stage.T); }
 
 // A fixed scatter, so a thing on the water keeps its place from frame to frame.
 function scatter(i, salt) {
@@ -264,12 +274,15 @@ function block(x, y, c, n) {
   sx.fillRect(Math.round(x / 4) * 4, Math.round(y / 4) * 4, (n || 1) * 4, (n || 1) * 4);
 }
 
+// The pad is drawn in the frog's own cells, wider than the frog and coming
+// forward of its feet, with the notch on the far right.
 function drawPad(day) {
-  for (let y = 222; y < 268; y += 4) for (let x = 20; x < 332; x += 4) {
-    const a = (x + 2 - 176) / 150, b = (y + 2 - 246) / 20, d = a * a + b * b;
-    if (d > 1 || (x > 286 && Math.abs(y - 240) < (x - 286) * 0.3)) continue;
-    sx.fillStyle = d > 0.82 ? (day.cold && scatter(x, y) < 0.6 ? "#cfe3ea" : y < 246 ? "#5fa860" : "#163a22") : (y < 236 ? "#3f8a4a" : "#2d6a38");
-    sx.fillRect(x, y, 4, 4);
+  const cx = 176, cy = 272, rx = 200, ry = 48;
+  for (let y = cy - ry; y < cy + ry; y += 8) for (let x = cx - rx; x < cx + rx; x += 8) {
+    const a = (x + 4 - cx) / rx, b = (y + 4 - cy) / ry, d = a * a + b * b;
+    if (d > 1 || (a > 0.3 && b < 0 && -b < a * 0.5)) continue;
+    sx.fillStyle = d > 0.8 ? (day.cold && scatter(x, y) < 0.6 ? "#cfe3ea" : b < 0 ? "#5fa860" : "#163a22") : (b < -0.3 ? "#3f8a4a" : "#2d6a38");
+    sx.fillRect(x, y, 8, 8);
   }
 }
 
@@ -279,7 +292,7 @@ const SPAWN = [[8, 152], [300, 132], [36, 64]];
 function drawBehind(day, t) {
   if (day.night && !day.rain) for (let i = 0; i < 10; i++) {
     const w = (day.moon ? 26 : 14) - i + Math.round(Math.sin((reduced ? 0 : t) * 1.3 + i) * 3);
-    sx.fillStyle = "rgba(232,220,176," + (0.42 - i * 0.035) + ")"; sx.fillRect(Math.round(MOON_X - w / 2), 4 + i * 10, w, 2);
+    sx.fillStyle = "rgba(232,220,176," + (0.42 - i * 0.035) + ")"; sx.fillRect(Math.round(MOON_X - w / 2), 4 - SHORE + i * 12, w, 2);
   }
   if (day.spawn) SPAWN.forEach(([x, y], n) => {
     for (let i = 0; i < 9; i++) {
@@ -308,9 +321,9 @@ function drawBehind(day, t) {
 function drawAmbient(day, t) {
   const sway = Math.round(Math.sin(t * 0.8) * 1);
   const L = look(day), stem = L.dark ? ["#16301e", "#2a4a26"] : ["#2a4a26", "#3f6a36"];
-  [[4, 6], [16, 9], [26, 5], [318, 7], [330, 10], [342, 6]].forEach(([x, h], i) => {
+  [[-56, 6], [-44, 9], [-34, 5], [386, 7], [398, 10], [410, 6]].forEach(([x, h], i) => {
     const top = 272 - h * 12, lean = i % 2 ? sway : -sway;
-    sx.fillStyle = stem[0]; sx.fillRect(x, top, 4, h * 12);
+    sx.fillStyle = stem[0]; sx.fillRect(x, top, 4, stage.B - top);
     sx.fillStyle = stem[1]; sx.fillRect(x + lean * 4, top - 4, 4, 8);
     if (h > 8) { sx.fillStyle = "#5a3a1e"; sx.fillRect(x + lean * 4, top - 16, 4, 12); sx.fillStyle = "#7a5230"; sx.fillRect(x + lean * 4, top - 16, 2, 10); }
   });
@@ -387,7 +400,7 @@ function drawOver(day, t) {
   const warm = !day.night && tint();
   if (warm) wash(warm);
   if (MOOD_TINT[day.mood]) wash(MOOD_TINT[day.mood]);
-  const span = 272 - stage.T, ft = reduced ? 0 : t;
+  const span = stage.B - stage.T, ft = reduced ? 0 : t;
   if (day.rain) for (let i = 0; i < 34; i++) {
     const rx = stage.L + scatter(i, 7) * (stage.R - stage.L), ry = stage.T + (scatter(i, 8) * span + ft * 160) % span;
     sx.fillStyle = "rgba(200,230,240,0.45)"; sx.fillRect(Math.round(rx), Math.round(ry), 2, 8);
@@ -397,7 +410,7 @@ function drawOver(day, t) {
   const flick = (Math.sin(ft * 6.1) + Math.sin(ft * 2.7)) / 2;
   if (flick > 0) {
     sx.fillStyle = "rgba(255,207,106," + (0.08 * flick) + ")";
-    sx.beginPath(); sx.arc(LAMP_X, 20, 30, 0, 7); sx.fill();
+    sx.beginPath(); sx.arc(stage.lamp, 20, 30, 0, 7); sx.fill();
   }
   if (day.night && !day.cold && !day.rain) for (let i = 0; i < (day.fireflies ? 22 : 9); i++) {
     if (Math.sin(ft * 2 + i * 1.9) < 0.2) continue;
@@ -431,8 +444,8 @@ function drawFurnBack(has, day, t) {
 
 // On the pad beside the frog, once there's a pad.
 function drawFurnPad(has, day, t) {
-  if (has.f_toadstool) sprite("f_toadstool", 304, 196, false);
-  if (has.f_lantern) sprite("f_lantern", 8, 208, false);
+  if (has.f_toadstool) sprite("f_toadstool", 344, 236, false);
+  if (has.f_lantern) sprite("f_lantern", -40, 220, false);
 }
 
 // After dark the lantern is lit over the night, and it brings fireflies
@@ -443,13 +456,13 @@ function drawFurnNight(has, day, t, onPad) {
     const flick = Math.sin(t * 9) > 0.6 ? 0.03 : 0;
     [[40, 0.1], [28, 0.12], [18, 0.16]].forEach(([r, a]) => {
       sx.fillStyle = "rgba(255,226,122," + (a + flick) + ")";
-      sx.fillRect(20 - r, 224 - r, r * 2, r * 2);
+      sx.fillRect(-28 - r, 236 - r, r * 2, r * 2);
     });
-    sprite("f_lantern", 8, 208, true);
+    sprite("f_lantern", -40, 220, true);
   }
   for (let i = 0; i < 4; i++) {
     if (Math.sin(t * 2.4 + i * 2.1) < 0) continue;
-    const fx = 24 + Math.sin(t * 0.7 + i * 1.6) * 20, fy = 176 + Math.cos(t * 0.9 + i) * 18;
+    const fx = -24 + Math.sin(t * 0.7 + i * 1.6) * 20, fy = 188 + Math.cos(t * 0.9 + i) * 18;
     block(fx, fy, "#ffe27a");
   }
 }
@@ -481,8 +494,8 @@ function drawSwimmers(p, day, t) {
   p.frogs.filter((f) => !f.front && f.stage !== "egg").slice(0, 7).forEach((f, i) => {
     const period = 30 + scatter(i, 11) * 20, u = reduced ? 0.25 + i * 0.07 : ((t + scatter(i, 12) * period) % period) / period;
     if (u > 0.7) return;
-    const dir = i % 2 ? -1 : 1, k = u / 0.7, x = dir > 0 ? -60 + k * 472 : 412 - k * 472;
-    const y = 8 + (p.bank.far.patches ? FAR_DEPTH : 0) + ((i * 17) % 44) + Math.round(Math.sin(t * 1.3 + i) * 2) * 2;
+    const dir = i % 2 ? -1 : 1, k = u / 0.7, span = stage.R - stage.L + 120, x = dir > 0 ? stage.L - 60 + k * span : stage.R + 60 - k * span;
+    const y = 8 - SHORE + (p.bank.far.patches ? FAR_DEPTH : 0) + ((i * 17) % 40) + Math.round(Math.sin(t * 1.3 + i) * 2) * 2;
     const spr = swimmer(f)[Math.floor(t * 2 + i) % 3 === 0 ? 1 : 0];
     sx.save();
     sx.translate(Math.round(x / 2) * 2, y);
@@ -531,10 +544,10 @@ function drawScene(now) {
   const p = state.pond, g = state.g;
   if (!p || !g || !fitStage()) return;
   const f = p.frog, day = p.day || {}, t = now / 1000, k = greetAt ? Math.min(1, (now - greetAt) / 2100) : 1, moving = k < 1;
-  const back = backdropOf(day), n = 2 * stage.k;
+  const back = backdropOf(day), n = Math.max(1, Math.round(2 * stage.k));
   sx.setTransform(1, 0, 0, 1, 0, 0);
   sx.imageSmoothingEnabled = false;
-  sx.drawImage(back, 0, stage.H - back.height * n, back.width * n, back.height * n);
+  sx.drawImage(back, 0, 0, back.width * n, back.height * n);
   sx.setTransform(stage.k, 0, 0, stage.k, stage.ox, stage.oy);
   sx.imageSmoothingEnabled = false;
   const ripples = [6, 10, 14][day.wind || 0], drift = [5, 14, 28][day.wind || 0], span = stage.R - stage.L + 40;
@@ -543,7 +556,9 @@ function drawScene(now) {
     const x = Math.round(stage.L + ((i * 67 + t * drift) % span) - 20), y = 14 + (i * 97) % 240;
     sx.fillRect(x, y, 20, 2); sx.fillRect(x + 20, y + 2, 12, 2);
   }
+  sx.translate(0, -SHORE);
   drawFarBank(sx, p.bank.far.patches, stage.L, stage.R);
+  sx.translate(0, SHORE);
   drawBehind(day, t);
   drawAmbient(day, t);
   drawSwimmers(p, day, t);
@@ -589,9 +604,9 @@ function drawScene(now) {
   // Trinkets sit in front of the frog at the pad's edge.
   if (grown(f.stage) && !day.shelter) {
     if (day.hobby) drawHobby(day.hobby, t);
-    if (p.visitor) footprint(sx, 88, 252);
-    if (out[0]) drawIcon(sx, out[0], 32, 220, 4);
-    if (out[1]) drawIcon(sx, out[1], 272, 220, 4);
+    if (p.visitor) footprint(sx, 100, 292);
+    if (out[0]) drawIcon(sx, out[0], 4, 260, 4);
+    if (out[1]) drawIcon(sx, out[1], 300, 260, 4);
   }
   const dozing = grown(f.stage) && day.cold && !moving && now >= croakUntil;
   if (dozing) drawZs(t, 1);
