@@ -1,33 +1,81 @@
 {{template "head" .}}
 
-<div class="actions">
-  <a class="button" href="/jobs/new">New reminder</a>
-  <a class="button ghost" href="/jobs/new?kind=prompt">New check</a>
+<div class="o-ph">
+  <div>
+    <span class="o-lab">cron &middot; jobs</span>
+    <h1>{{.Headline}}</h1>
+  </div>
+  <div class="o-acts">
+    <a class="o-btn o-btn-sm" href="/jobs/new?kind=prompt">New check</a>
+    <a class="o-btn o-btn-p o-btn-sm" href="/jobs/new">New reminder</a>
+  </div>
 </div>
 
-<h2>Jobs</h2>
-{{if .Jobs}}
-<table class="jobs">
-  <thead><tr><th>Next</th><th>Name</th><th>Schedule</th><th></th></tr></thead>
-  <tbody>
-  {{range .Jobs}}
-    <tr {{if not .Enabled}}class="off"{{end}}>
-      <td class="when">{{if .Enabled}}{{eastern .NextRun}} <span class="faint">{{until .NextRun}}</span>{{else}}<span class="tag">paused</span>{{end}}</td>
-      <td><a href="/jobs/{{.ID}}">{{.Name}}</a>{{if eq .Kind "prompt"}} <span class="tag">check</span>{{end}}{{if .LastErr}} <span class="tag bad" title="{{.LastErr}}">failing</span>{{end}}</td>
-      <td><code>{{describe .}}</code></td>
-      <td class="act">
-        <form method="post" action="/jobs/{{.ID}}/toggle"><button type="submit" class="ghost">{{if .Enabled}}Pause{{else}}Resume{{end}}</button></form>
-      </td>
-    </tr>
+<div class="o-tiles">
+  <a class="o-tile" href="/runs">
+    <small>pushes &middot; 7d</small>
+    <b>{{.Act.PushedWeek}}</b>
+    <span class="o-delta">{{.Act.PushDelta}}</span>
+    {{spark "ok" .Act.Pushed}}
+  </a>
+  <a class="o-tile" href="/runs">
+    <small>failed &middot; 7d</small>
+    <b {{if .Act.FailedWeek}}class="bad"{{end}}>{{.Act.FailedWeek}}</b>
+    <span class="o-delta {{if .Act.FailedWeek}}o-bad{{end}}">{{if .Act.FailedWeek}}of {{.Act.RunsWeek}} runs{{else}}{{plural .Act.RunsWeek "run" "runs"}}, none failed{{end}}</span>
+    {{spark (or (and .Act.FailedWeek "bad") "flat") .Act.Failed}}
+  </a>
+  {{with .Sum.Next}}
+  <a class="o-tile" href="/jobs/{{.ID}}">
+    <small>next to fire</small>
+    <b>{{clock .NextRun}}</b>
+    <span class="o-delta">{{until .NextRun}} &middot; {{.Name}}</span>
+    <span class="o-nospark"></span>
+  </a>
+  {{else}}
+  <div class="o-tile"><small>next to fire</small><b>none</b><span class="o-delta">nothing scheduled</span><span class="o-nospark"></span></div>
   {{end}}
-  </tbody>
-</table>
-{{else}}
-<p class="empty">Nothing scheduled.</p>
-{{end}}
+  <div class="o-tile">
+    <small>runs &middot; 14d</small>
+    <b>{{.Act.Total}}</b>
+    <span class="o-delta">{{plural .Sum.Active "job" "jobs"}} on{{if .Sum.Paused}}, {{.Sum.Paused}} paused{{end}}</span>
+    {{spark "flat" .Act.RunsSeries}}
+  </div>
+</div>
 
-<h2>Recent runs</h2>
-{{template "runs" .Runs}}
-<p class="more"><a href="/runs">Every run</a></p>
+<section class="o-panel flush">
+  <div class="o-ph2"><h2>Jobs</h2><span class="o-lab">{{if .Sum.Failing}}failing first{{else}}soonest first{{end}}</span></div>
+  {{if .Jobs}}
+  <div class="o-scroll">
+  <table class="o-tbl jobs stack">
+    <thead><tr><th>Job</th><th>Kind</th><th>When</th><th>Next</th><th>Last run</th><th></th></tr></thead>
+    <tbody>
+    {{range .Jobs}}
+      <tr data-href="/jobs/{{.ID}}" class="{{if not .Enabled}}off{{else if .LastErr}}hot{{end}}">
+        <td class="lead">
+          <span class="o-dot {{if not .Enabled}}mute{{else if .LastErr}}bad{{end}}"></span><a class="name" href="/jobs/{{.ID}}">{{.Name}}</a>
+          {{if .LastErr}}<span class="sub bad" title="{{.LastErr}}">{{clip .LastErr 90}}</span>{{end}}
+        </td>
+        <td>{{template "kind" .Kind}}</td>
+        <td class="nw hide" {{if .Cron}}title="{{.Cron}}"{{end}}>{{describe .}}</td>
+        <td class="n">{{if .Enabled}}{{eastern .NextRun}} <span class="o-muted">{{until .NextRun}}</span>{{else}}<span class="o-chip">paused</span>{{end}}</td>
+        <td class="n">{{if .LastRun.IsZero}}<span class="o-muted">never</span>{{else}}{{if .LastErr}}<span class="o-chip bad">failed</span>{{else}}<span class="o-chip ok">ok</span>{{end}} <span class="o-muted">{{ago .LastRun}}</span>{{end}}</td>
+        <td class="act">
+          <form method="post" action="/jobs/{{.ID}}/toggle"><button type="submit" class="o-btn o-btn-sm">{{if .Enabled}}Pause{{else}}Resume{{end}}</button></form>
+        </td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+  </div>
+  {{else}}
+  <p class="o-empty"><b>Nothing scheduled.</b>A reminder pushes fixed text at a time, and a check asks the model to look something up and only pushes when it matters.</p>
+  {{end}}
+</section>
+
+<section class="o-panel flush">
+  <div class="o-ph2"><h2>Recent runs</h2><span class="o-lab">newest first</span></div>
+  {{template "runs" .Runs}}
+  {{if .Runs}}<div class="o-more"><a href="/runs">Every run &rarr;</a></div>{{end}}
+</section>
 
 {{template "foot" .}}

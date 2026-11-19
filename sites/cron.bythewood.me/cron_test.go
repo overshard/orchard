@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"cron.bythewood.me/ntfy"
+	"cron.bythewood.me/suite"
 	"cron.bythewood.me/web"
 )
 
@@ -299,19 +300,23 @@ func TestPagesRender(t *testing.T) {
 	s, _ := newTestSite(t)
 	j, _ := s.create(Input{Name: str("n"), Cron: str("0 9 * * *"), Message: str("m")}, "t")
 	s.runNow(context.Background(), j)
+	bad, _ := s.create(Input{Name: str("b"), Cron: str("0 9 * * *"), Message: str("m")}, "t")
+	_ = s.store.Reschedule(bad.ID, bad.NextRun, 1, time.Now(), "model timeout")
 	for _, c := range []struct {
 		name string
-		data map[string]any
+		h    http.HandlerFunc
+		path string
+		want string
 	}{
-		{"landing.html", map[string]any{"Jobs": 1, "Runs": 2, "Pushed": 3}},
-		{"home.html", map[string]any{"Title": "Jobs", "Jobs": []Job{j}, "Runs": mustRuns(s)}},
-		{"runs.html", map[string]any{"Title": "Runs", "Runs": mustRuns(s)}},
-		{"keys.html", map[string]any{"Title": "Keys", "Keys": []Key{{Name: "k"}}, "Fresh": "cron-x"}},
+		{"home", s.home, "/", "one failing"},
+		{"runs", s.runsPage, "/runs", "run"},
+		{"keys", s.keysPage, "/keys", "one per caller"},
+		{"new", s.newJobPage, "/jobs/new?kind=prompt", "What to look up"},
 	} {
 		w := httptest.NewRecorder()
-		s.render(w, 200, c.name, c.data)
-		if !strings.Contains(w.Body.String(), "</html>") {
-			t.Errorf("%s didn't finish rendering", c.name)
+		c.h(w, httptest.NewRequest("GET", c.path, nil))
+		if body := w.Body.String(); !strings.Contains(body, "</html>") || !strings.Contains(body, c.want) {
+			t.Errorf("%s didn't render, or is missing %q", c.name, c.want)
 		}
 	}
 	w := httptest.NewRecorder()
@@ -321,8 +326,13 @@ func TestPagesRender(t *testing.T) {
 	}
 	w = httptest.NewRecorder()
 	s.routes().ServeHTTP(w, httptest.NewRequest("GET", "/", nil))
-	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "own reminders") {
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "reach your phone") {
 		t.Errorf("signed out root %d", w.Code)
+	}
+	w = httptest.NewRecorder()
+	s.routes().ServeHTTP(w, httptest.NewRequest("GET", suite.URL("suite.css"), nil))
+	if w.Code != http.StatusOK || !strings.Contains(w.Header().Get("Cache-Control"), "immutable") {
+		t.Errorf("suite.css %d %q", w.Code, w.Header().Get("Cache-Control"))
 	}
 }
 
@@ -344,5 +354,22 @@ func TestParseAnswer(t *testing.T) {
 	}
 	if _, err := parseAnswer([]byte(`{"choices":[]}`)); err == nil {
 		t.Error("an empty answer parsed")
+	}
+}
+
+func TestHumanCron(t *testing.T) {
+	for in, want := range map[string]string{
+		"0 8 * * *":   "every day 8:00am",
+		"30 19 * * 2": "Tue 7:30pm",
+		"0 9 * * 1-5": "weekdays 9:00am",
+		"0 9 * * 1,4": "Mon, Thu 9:00am",
+		"0 10 1 * *":  "monthly on the 1st 10:00am",
+		"0 9 3 3 *":   "every Mar 3 9:00am",
+		"*/5 * * * *": "*/5 * * * *",
+		"0 9 1-7 * 1": "0 9 1-7 * 1",
+	} {
+		if got := humanCron(in); got != want {
+			t.Errorf("%q read as %q, want %q", in, got, want)
+		}
 	}
 }

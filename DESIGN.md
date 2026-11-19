@@ -3,11 +3,53 @@
 What every site here looks like and why. Read this before changing anything
 visual, and update it when a decision changes.
 
-There is no shared stylesheet and there is not going to be one. Every site owns
-its own copy of its CSS the same way it owns its own copy of `web/`, so keeping
-these sites looking alike is something a person keeps true by following this
-file rather than something a build step enforces. A change to the palette is a
-change in every one of them.
+The tool sites share one look through `suite/`, a Go package every one of them
+carries a byte identical copy of the same way it carries `web/`, and `make
+check` fails when a copy drifts. It holds `suite.css`, the Geist fonts, the
+header and status line templates, `suite.js` for the home page pins and
+clickable rows, and the spark drawing, all served by the site itself under
+`/suite/`. A change to it is made in one copy and copied to the rest. The
+sections below that still talk about green and Monaspace describe the sites that
+haven't moved to the suite yet, and they go as each one does.
+
+## The suite
+
+This is where the tool sites are headed, and cron is on it.
+
+- **Dark only, on cool charcoal.** Ground `#111315`, top bar `#0c0e10`, sunken
+  `#090a0c`, panels `#171a1d` and `#1f2327`, lines `#262a2f`, `#1c1f23` and
+  `#363b42`, text `#e9ebee`, muted `#979ca4`. Warm greys went muddy beside sage.
+- **One meaning per colour.** Brass `#d9b45a` is an action, the primary button,
+  the active tab, the `//` label and the soft tint behind a title's key word.
+  Sage `#9fcbb0` means ok and nothing else, orange `#f0904b` warn and red
+  `#f06b5b` bad. A colour that meant both click me and fine made the chrome read
+  as state.
+- **Geist for words, Geist Mono for anything that's code, a label or a
+  number.** Headings are Geist 600 at `-0.035em`. Mono goes on caps labels,
+  tile and table numbers, chips, code, times, the status line and the STAGED tag.
+- **Square corners and subtle solid hairlines.** No radius on anything inside
+  the page and no dashed borders.
+- **Two rows of header.** The first is the orchard mark and every tool as a tab,
+  this one in `[brackets]` in brass, with the account on the right. The second
+  is this tool's own pages and a mono line of what matters right now.
+- **No sidebar.** The page runs the width of the content column.
+- **A status line along the bottom,** vim style, a brass block with the tool's
+  name, then its state, then facts like the time zone on the right.
+- **A page opens on a label and a title that says the state,** like `Four
+  jobs, one failing.`, with the key words in italic over a soft tint, red for
+  bad. Actions sit on the right and the primary one is brass.
+- **Tiles carry dash's sparks,** drawn by `suite.Spark` the way dash draws them,
+  a 1.25px line, a soft fill and a dotted rule at the median, bled to the tile's
+  edges.
+- **A table marked `stack` becomes a list on a phone,** its `lead` cell on a
+  line of its own. A row with `data-href` opens anywhere it's clicked.
+- **The home page** is the same header signed out, a hero with the copy on the
+  left and a staged window of the real page on the right with numbered pins in
+  the margin, then three ways in, a few feature rows each with a staged crop,
+  run your own, the four column footer and the status line. No stat strip,
+  since the counts aren't for advertising.
+- **Copy says what is true now.** The agent card on a home page describes what
+  works today, and nothing promises a connector that isn't built.
 
 ## Two phosphors
 
@@ -1115,7 +1157,7 @@ version of the old look and a handheld pet shell.
 | `auth` | green | Bootstrap. Carries the starfield on `/login`, which the grid sits under |
 | `repos` | green | Hand written CSS, no Bootstrap, since it is dense text. Newsreader on repository names |
 | `llm` | green | Hand written CSS, no Bootstrap. Behind the landing is a dashboard of keys, usage and the call log |
-| `cron` | green | llm's stylesheet and landing, with a job form and run history behind it |
+| `cron` | suite | On the suite. Jobs, runs, a job form and keys, with `app.css` holding only what is cron's own |
 | `dash` | amber | Hand written CSS. Scanlines, vignette, JetBrains Mono and Space Grotesk. Panel 00 and panel 16 for chrome, a spine past 1900px. A `NOTIFY` switch in panel 00, and a `BRIEFS` rerun beside it that only appears signed in |
 | `pond` | amber | Hand written CSS. A game in the Deck direction, 80s hardware with keycaps, readout glass and colour pixel art in its screen windows. Dive is full screen on a phone |
 | `blog`, `isaacbythewood.com` | neither | Separate identities. Nothing here applies to them |

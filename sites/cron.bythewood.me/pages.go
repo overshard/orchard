@@ -5,10 +5,12 @@ import (
 	"html/template"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
+	"cron.bythewood.me/suite"
 	"cron.bythewood.me/web"
 )
 
@@ -16,16 +18,24 @@ func (s *site) loadTemplates() error {
 	if Reloaded {
 		resetAssetVersions()
 	}
-	t, err := template.New("").Funcs(template.FuncMap{
+	t, err := template.New("").Funcs(suite.Funcs()).Funcs(template.FuncMap{
 		"eastern":  s.eastern,
+		"clock":    s.clock,
 		"ago":      ago,
 		"until":    until,
 		"describe": s.describe,
 		"local":    s.local,
 		"asset":    assetURL,
 		"comma":    comma,
+		"kindName": kindName,
+		"plural":   plural,
+		"clip":     clip,
+		"ms":       ms,
 	}).ParseFS(assets(), "templates/*.html")
 	if err != nil {
+		return err
+	}
+	if t, err = suite.Parse(t); err != nil {
 		return err
 	}
 	s.tpl = t
@@ -82,6 +92,21 @@ func (s *site) eastern(t time.Time) string {
 	return t.Format("Mon Jan 2 ") + clock
 }
 
+// clock is the time of day alone, for a tile with the day beside it.
+func (s *site) clock(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return strings.ToLower(t.In(s.loc).Format("3:04PM"))
+}
+
+func ms(n int64) string {
+	if n < 1000 {
+		return fmt.Sprintf("%dms", n)
+	}
+	return fmt.Sprintf("%.1fs", float64(n)/1000)
+}
+
 func sameDay(a, b time.Time) bool {
 	return a.Year() == b.Year() && a.YearDay() == b.YearDay()
 }
@@ -94,11 +119,20 @@ func (s *site) local(t time.Time) string {
 	return t.In(s.loc).Format("2006-01-02T15:04")
 }
 
-func (s *site) describe(j Job) string {
+// schedule is the API's view of when a job fires, the raw cron line, which
+// callers parse.
+func (s *site) schedule(j Job) string {
 	if j.Once() {
 		return "once"
 	}
 	return j.Cron
+}
+
+func (s *site) describe(j Job) string {
+	if j.Once() {
+		return "once"
+	}
+	return humanCron(j.Cron)
 }
 
 func ago(t time.Time) string {
@@ -150,8 +184,23 @@ func (s *site) root(w http.ResponseWriter, r *http.Request) {
 		s.home(w, r)
 		return
 	}
-	jobs, runs, pushed := s.store.Counts()
-	s.render(w, 200, "landing.html", map[string]any{"Jobs": jobs, "Runs": runs, "Pushed": pushed})
+	s.render(w, 200, "landing.html", map[string]any{
+		"Suite": suite.Page{Tool: "cron", Tabs: []suite.Tab{{Name: "home", Href: "/", On: true},
+			{Name: "source", Href: sourceURL}}, Meta: "self-hosted · BSD 2-Clause",
+			Right: []suite.Seg{{Text: "sign in at auth.bythewood.me"}}},
+		"Ways": suite.Ways{
+			Host:     "cron.bythewood.me",
+			APITitle: "A small JSON API", APIText: "Add, change, run and remove jobs with a key from the Keys page, one key per caller.",
+			API: `<span class="a">curl</span> -H <span class="g">"Authorization: Bearer cron-…"</span> \
+  cron.bythewood.me/api/jobs -d <span class="w">'{"name":…, "cron":…}'</span>`,
+			AgentTitle: "Ask in plain words", AgentText: "Give an agent its own key and it sets reminders mid conversation and says back the Eastern time it stored.",
+			Agent: `<span class="c">&gt;</span> <span class="w">remind me Saturday at 8am to water the plants</span>
+<span class="g">set for Sat Nov 21 8:00am Eastern</span>`,
+			RunText: "subscribe your phone to the topic.",
+		},
+		"Footer": suite.Footer{Tool: "cron", About: "Holds my reminders and scheduled checks and pushes them to my phone, with a snooze on every one.",
+			Source: sourceURL, Author: author, Year: time.Now().Year(), Pages: []suite.Tab{{Name: "Home", Href: "/"}}},
+	})
 }
 
 func (s *site) home(w http.ResponseWriter, r *http.Request) {
@@ -160,8 +209,43 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	runs, _ := s.store.Runs(0, 15)
-	s.render(w, 200, "home.html", map[string]any{"Title": "Jobs", "Jobs": jobs, "Runs": runs})
+	sortForAttention(jobs)
+	runs, _ := s.store.Runs(0, 12)
+	recent, _ := s.store.RunsSince(time.Now().AddDate(0, 0, -15))
+	sum := summarize(jobs)
+	head := template.HTML(template.HTMLEscapeString(spellNumber(sum.Active)) + " " + map[bool]string{true: "job", false: "jobs"}[sum.Active == 1])
+	switch {
+	case sum.Failing == 1:
+		head += `, <em class="bad">one failing</em>.`
+	case sum.Failing > 1:
+		head += template.HTML(`, <em class="bad">` + strings.ToLower(spellNumber(sum.Failing)) + ` failing</em>.`)
+	case !sum.Next.IsZero():
+		head += template.HTML(`, next <em>` + template.HTMLEscapeString(until(sum.Next.NextRun)) + `</em>.`)
+	default:
+		head += "."
+	}
+	s.render(w, 200, "home.html", map[string]any{"Title": "Jobs", "Jobs": jobs, "Runs": runs, "Headline": head,
+		"Sum": sum, "Act": s.activity(recent), "Suite": s.chrome("jobs", jobs)})
+}
+
+// sortForAttention puts a failing job first and a paused one last, and keeps
+// the soonest to fire first within each.
+func sortForAttention(jobs []Job) {
+	rank := func(j Job) int {
+		switch {
+		case !j.Enabled:
+			return 2
+		case j.LastErr != "":
+			return 0
+		}
+		return 1
+	}
+	slices.SortStableFunc(jobs, func(a, b Job) int {
+		if d := rank(a) - rank(b); d != 0 {
+			return d
+		}
+		return a.NextRun.Compare(b.NextRun)
+	})
 }
 
 func (s *site) runsPage(w http.ResponseWriter, r *http.Request) {
@@ -170,7 +254,20 @@ func (s *site) runsPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	s.render(w, 200, "runs.html", map[string]any{"Title": "Runs", "Runs": runs})
+	jobs, _ := s.store.Jobs()
+	failed := 0
+	for _, r := range runs {
+		if r.Err != "" {
+			failed++
+		}
+	}
+	head := template.HTML(template.HTMLEscapeString(plural(len(runs), "run", "runs")))
+	if failed > 0 {
+		head += template.HTML(`, <em class="bad">` + template.HTMLEscapeString(plural(failed, "failure", "failures")) + `</em>.`)
+	} else if len(runs) > 0 {
+		head += ", none failed."
+	}
+	s.render(w, 200, "runs.html", map[string]any{"Title": "Runs", "Runs": runs, "Headline": head, "Suite": s.chrome("runs", jobs)})
 }
 
 // form reads the job form into an Input. The schedule radio decides which of
@@ -201,9 +298,14 @@ func (s *site) jobForm(w http.ResponseWriter, code int, j Job, errText string) {
 	if j.ID > 0 {
 		title = j.Name
 	}
+	jobs, _ := s.store.Jobs()
+	on := "jobs"
+	if j.ID == 0 {
+		on = "new"
+	}
 	s.render(w, code, "job.html", map[string]any{
 		"Title": title, "Job": j, "Runs": runs, "Error": errText, "Priorities": priorities,
-		"Repeat": j.Cron != "", "Kind": j.Kind,
+		"Repeat": j.Cron != "", "Kind": j.Kind, "Suite": s.chrome(on, jobs),
 	})
 }
 
@@ -296,7 +398,9 @@ func (s *site) keysPage(w http.ResponseWriter, r *http.Request) {
 		http.SetCookie(w, &http.Cookie{Name: newKeyCookie, Path: "/keys", Secure: true, HttpOnly: true,
 			SameSite: http.SameSiteStrictMode, MaxAge: -1})
 	}
-	s.render(w, 200, "keys.html", map[string]any{"Title": "Keys", "Keys": keys, "Fresh": fresh})
+	jobs, _ := s.store.Jobs()
+	head := template.HTML(template.HTMLEscapeString(spellNumber(len(keys))) + map[bool]string{true: " key", false: " keys"}[len(keys) == 1] + ", <em>one per caller</em>.")
+	s.render(w, 200, "keys.html", map[string]any{"Title": "Keys", "Keys": keys, "Fresh": fresh, "Headline": head, "Suite": s.chrome("keys", jobs)})
 }
 
 func (s *site) keyCreate(w http.ResponseWriter, r *http.Request) {

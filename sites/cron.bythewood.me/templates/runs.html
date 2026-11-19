@@ -1,4 +1,12 @@
 {{template "head" .}}
-<h2>Runs</h2>
-{{template "runs" .Runs}}
+<div class="o-ph">
+  <div>
+    <span class="o-lab">cron &middot; runs</span>
+    <h1>{{.Headline}}</h1>
+    <p>The last {{len .Runs}} runs, newest first. Each one is kept for a year.</p>
+  </div>
+</div>
+<section class="o-panel flush">
+  {{template "runs" .Runs}}
+</section>
 {{template "foot" .}}

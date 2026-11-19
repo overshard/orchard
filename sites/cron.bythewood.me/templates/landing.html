@@ -1,150 +1,108 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex, nofollow">
-<title>cron &middot; reminders and checks, pushed to the phone</title>
-<link rel="stylesheet" href="{{asset "static/app.css"}}">
+{{template "suite-head"}}
+<title>cron &middot; reminders and checks that reach your phone</title>
+<meta name="description" content="Reminders and scheduled checks, pushed to your phone through your own ntfy, with a snooze on every one.">
 </head>
-<body class="landing-body">
-<header class="topbar">
-  <div class="container">
-    <a class="brand" href="/"><span class="key">C</span><span class="brand-name">cron</span></a>
-    <a class="btn btn-ghost btn-sm" href="/login">Sign in</a>
-  </div>
-</header>
+<body class="o-body">
+{{template "suite-top" .Suite}}
 
 <main>
-<section class="hero">
-  <div class="container hero-grid">
+<div class="o-cw">
+  <section class="o-wrap o-hero">
     <div>
-      <span class="hero-eyebrow">
-        <span class="eyebrow-dot" aria-hidden="true"></span>
-        ntfy &middot; self-hosted
-      </span>
-      <h1 class="hero-title">
-        A scheduler for operators who host their <span class="accent">own reminders</span>.
-      </h1>
-      <p class="hero-sub">
-        One-off reminders, birthdays on a cron line, and checks a model runs and
-        only pushes when there is something to say, all managed from a page or an
-        API. Your data never leaves your infrastructure.
-      </p>
-      <div class="hero-ctas">
-        <a href="/login" class="btn btn-primary">Access dashboard &rarr;</a>
-        <a href="{{.Source}}" target="_blank" rel="noopener" class="btn btn-ghost">View source</a>
+      <span class="o-lab">cron &middot; ntfy &middot; self-hosted</span>
+      <h1>Reminders and checks that <em>reach your phone</em>.</h1>
+      <p class="o-lede">A job is a time or a cron line in Eastern and something to send. Reminders push fixed text. Checks ask a model to look something up and only push when the answer matters. Every push has a snooze button.</p>
+      <div class="o-ctas">
+        <a class="o-btn o-btn-p" href="/login">Access dashboard &rarr;</a>
+        <a class="o-btn" href="{{.Source}}" target="_blank" rel="noopener">Source</a>
       </div>
     </div>
-    <div class="terminal-block">
-      <span class="t-line"><span class="t-comment"># a check firing on its cron line</span></span>
-      <span class="t-line"><span class="t-prompt">cron$</span><span class="t-out">0 9 * * 1 reviews</span></span>
-      <span class="t-line"><span class="t-key">kind</span>=<span class="t-val">prompt</span> <span class="t-key">search</span>=<span class="t-val">yes</span></span>
-      <span class="t-line"><span class="t-key">notify</span>=<span class="t-val">true</span> <span class="t-key">topic</span>=<span class="t-val">reminders</span></span>
-      <span class="t-line"><span class="t-key">pushed</span>=<span class="t-val">1.2s</span> <span class="t-key">snooze</span>=<span class="t-val">1h</span></span>
-      <span class="t-line"><span class="t-prompt">cron$</span> <span class="t-cursor"></span></span>
+    <div class="o-win" aria-label="A staged picture of the jobs page">
+      <div class="o-win-bar"><i></i><i></i><i></i><span class="u">cron.bythewood.me</span><span class="o-staged">STAGED</span></div>
+      <div class="o-win-body">
+        <span class="o-lab">jobs</span>
+        <div class="t" data-co>Four jobs, <em class="bad">one check failing</em>.</div>
+        <div>
+          <div class="o-rw" data-co><span class="o-dot bad"></span><span class="n">Price check, 27in monitor</span><span class="o-chip brass">check</span><span class="m">tomorrow 8:00am</span></div>
+          <div class="o-rw"><span class="o-dot"></span><span class="n">Take the recycling out</span><span class="o-chip">reminder</span><span class="m">Tue 7:00pm</span></div>
+          <div class="o-rw"><span class="o-dot"></span><span class="n">Renew the domain</span><span class="o-chip">reminder</span><span class="m">Mar 2 9:00am</span></div>
+          <div class="o-rw"><span class="o-dot"></span><span class="n">Go release notes</span><span class="o-chip brass">check</span><span class="m">Mon 9:00am</span></div>
+        </div>
+        <div class="o-push" data-co><div class="h"><span>ntfy &middot; reminders</span><span>Tue 7:00pm</span></div><b>Take the recycling out</b><div class="acts"><span>Snooze 1h</span></div></div>
+      </div>
+    </div>
+  </section>
+  <div class="o-wrap o-legend">
+    <div><span class="o-pin">1</span><span>The title counts what needs you, so a failed check is the first thing you see.</span></div>
+    <div><span class="o-pin">2</span><span>A check that errors says why, and pushes "Check failed" so silence never means it broke.</span></div>
+    <div><span class="o-pin">3</span><span>Every push carries Snooze 1h, and it works from the lock screen.</span></div>
+  </div>
+  <div class="o-ov"></div>
+</div>
+
+<div class="o-wrap">
+{{template "suite-ways" .Ways}}
+
+<section class="o-hsec">
+  <div class="o-frow">
+    <div class="o-ftxt">
+      <span class="o-lab">checks</span>
+      <h3>A question on a schedule</h3>
+      <p>Write what to look up and when to push. The model searches the web and only sends something when the answer clears the bar you wrote down.</p>
+      <ul><li>Pushes "Check failed" on any error</li><li>Every run is kept with its answer</li></ul>
+    </div>
+    <div class="o-crop">
+      <span class="o-staged">STAGED</span>
+      <dl class="o-kv">
+        <dt>job</dt><dd>Go release notes</dd>
+        <dt>asks</dt><dd>Has the next Go release shipped? Push only if there is a release or a date.</dd>
+        <dt>ran</dt><dd class="o-mono">Mon 9:00am &middot; 6.2s</dd>
+        <dt>answer</dt><dd class="o-muted">No release yet, the freeze is still on. Not pushed.</dd>
+      </dl>
+    </div>
+  </div>
+  <div class="o-frow flip">
+    <div class="o-ftxt">
+      <span class="o-lab">times</span>
+      <h3>Plain times, checked before saving</h3>
+      <p>Pick a time or type a cron line, read on the Eastern clock so a 9am job stays at 9am across the clock change. The form shows the next times it fires before you save.</p>
+    </div>
+    <div class="o-crop">
+      <span class="o-staged">STAGED</span>
+      <div class="o-field">
+        <span>Cron line <span class="hint">Eastern</span></span>
+        <span class="o-in mono">0 19 * * 2</span>
+        <span class="hint mono">Fires Tue Nov 24 7:00pm, then Tue Dec 1 7:00pm, then Tue Dec 8 7:00pm</span>
+      </div>
+    </div>
+  </div>
+  <div class="o-frow">
+    <div class="o-ftxt">
+      <span class="o-lab">snooze</span>
+      <h3>One button on the push</h3>
+      <p>Every notification can send itself again in an hour, straight from the lock screen, and a one off reminder removes itself once it lands.</p>
+    </div>
+    <div class="o-crop">
+      <span class="o-staged">STAGED</span>
+      <div class="o-phone">
+        <div class="clk">7:00</div>
+        <div class="dt">Tuesday, November 24</div>
+        <div class="o-push"><div class="h"><span>ntfy &middot; reminders</span><span>now</span></div><b>Take the recycling out</b><div class="acts"><span>Snooze 1h</span></div></div>
+        <div class="o-push" style="opacity:.55"><div class="h"><span>ntfy &middot; reminders</span><span>8:00am</span></div><b>Check failed</b><span class="o-muted">Price check, 27in monitor</span></div>
+      </div>
     </div>
   </div>
 </section>
 
-<section class="stat-strip">
-  <div class="container stat-row three">
-    <div class="stat">
-      <div class="stat-label">jobs scheduled</div>
-      <div class="stat-value">{{comma .Jobs}}</div>
-    </div>
-    <div class="stat">
-      <div class="stat-label">runs</div>
-      <div class="stat-value">{{comma .Runs}}</div>
-    </div>
-    <div class="stat">
-      <div class="stat-label">pushes sent</div>
-      <div class="stat-value">{{comma .Pushed}}</div>
-    </div>
-  </div>
-</section>
-
-<section class="container features">
-  <div class="feature">
-    <div class="feature-label">once</div>
-    <div class="feature-title">A reminder at a time</div>
-    <p class="feature-desc">Fires once and removes itself. A push that doesn't land is tried again for half an hour before it gives up.</p>
-  </div>
-  <div class="feature">
-    <div class="feature-label">repeat</div>
-    <div class="feature-title">Plain cron lines</div>
-    <p class="feature-desc">Five fields read on the local clock, so a 9am job stays at 9am across the clock change. The form previews the next three times.</p>
-  </div>
-  <div class="feature">
-    <div class="feature-label">checks</div>
-    <div class="feature-title">A model does the looking</div>
-    <p class="feature-desc">A check is a prompt with web search behind it. It decides whether the answer is worth a push and stays quiet when it isn't.</p>
-  </div>
-  <div class="feature">
-    <div class="feature-label">snooze</div>
-    <div class="feature-title">One button on the push</div>
-    <p class="feature-desc">Every notification carries a snooze that sends it again in an hour, straight from the lock screen.</p>
-  </div>
-  <div class="feature">
-    <div class="feature-label">api</div>
-    <div class="feature-title">Made to be scripted</div>
-    <p class="feature-desc">A key per caller and a small JSON API to add, change, run and remove jobs, so an assistant can set one up mid conversation.</p>
-  </div>
-  <div class="feature">
-    <div class="feature-label">history</div>
-    <div class="feature-title">Every run written down</div>
-    <p class="feature-desc">What fired, what went out and what failed is kept for a year, so a reminder that never arrived can be traced.</p>
-  </div>
-</section>
+{{template "suite-run" .Ways}}
+</div>
 </main>
 
-<footer class="footer">
-  <div class="container cols">
-    <div class="about">
-      <div class="h5">// cron</div>
-      <p>Reminders and scheduled checks for <a href="https://isaacbythewood.com/">{{.Author}}</a>,
-        pushed to a phone when they come due.</p>
-    </div>
-    <div>
-      <div class="h5">// Elsewhere</div>
-      <ul>
-        <li><a href="https://isaacbythewood.com/">Portfolio</a></li>
-        <li><a href="https://blog.bythewood.me/">Blog</a></li>
-        <li><a href="https://github.com/overshard" target="_blank" rel="noopener">GitHub</a></li>
-      </ul>
-    </div>
-    <div>
-      <div class="h5">// Pages</div>
-      <ul>
-        <li><a href="/">Home</a></li>
-        <li><a href="{{.Source}}" target="_blank" rel="noopener">Source</a></li>
-      </ul>
-    </div>
-    <div>
-      <div class="h5">// Operator</div>
-      <ul>
-        <li><a href="/login">Sign in</a></li>
-      </ul>
-    </div>
-  </div>
-</footer>
-
-<div class="footer-bar">
-  <div class="container">
-    <small>&copy; {{.Year}} {{.Author}} &middot; Some rights reserved</small>
-    <span class="footer-bar-end">
-      <span class="pond-guest" data-pond-foot>
-        <small data-pond-line>A frog from the pond</small>
-        <a href="https://pond.bythewood.me/" aria-label="The pond"><canvas width="44" height="34" aria-hidden="true"></canvas></a>
-      </span>
-      <a href="{{.Source}}" target="_blank" rel="noopener" class="footer-bar-link" aria-label="GitHub">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
-          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
-        </svg>
-      </a>
-      </span>
-  </div>
-</div>
+{{template "suite-footer" .Footer}}
+{{template "suite-status" .Suite}}
 <script type="module" src="{{asset "static/guest.js"}}"></script>
 </body>
 </html>

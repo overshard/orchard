@@ -34,6 +34,22 @@ if (form) {
   show();
 }
 
+// The kind decides what the message box is for, so its label and the hint
+// under the kind follow the choice.
+if (form) {
+  const hint = form.querySelector("[data-kind-hint]");
+  const label = form.elements.message?.closest("label")?.querySelector("span");
+  const words = {
+    notify: ["Sends the message as written.", "Message"],
+    prompt: ["The model looks it up with web search and only pushes when the answer is worth it.", "What to look up"],
+    quote: ["Pushes the first trade of the ticker, then the change at most every five minutes.", "Ticker"],
+  };
+  form.addEventListener("change", (e) => {
+    if (e.target.name !== "kind" || !words[e.target.value]) return;
+    [hint.textContent, label.textContent] = words[e.target.value];
+  });
+}
+
 for (const f of document.querySelectorAll("form[data-confirm]")) {
   f.addEventListener("submit", (e) => {
     if (!confirm(f.dataset.confirm)) e.preventDefault();

@@ -1,40 +1,63 @@
 {{template "head" .}}
 
+<div class="o-ph">
+  <div>
+    <span class="o-lab">cron &middot; keys</span>
+    <h1>{{.Headline}}</h1>
+    <p>A key lets a script or an agent add, change and run jobs over the API.</p>
+  </div>
+</div>
+
 {{if .Fresh}}
-<section class="fresh">
-  <p class="label">Copy this now</p>
-  <code class="secret">{{.Fresh}}</code>
-  <p class="note">Only a hash of it is kept, so nothing here can show it again.</p>
+<div class="o-note brass" role="status">
+  <span class="o-lab">copy this now</span>
+  <pre class="o-code"><span class="w">{{.Fresh}}</span></pre>
+  <p class="o-muted" style="margin:8px 0 0">Only a hash of it is kept, so nothing here can show it again.</p>
+</div>
+{{end}}
+
+<div class="o-cols side">
+  <section class="o-panel">
+    <div class="o-ph2"><h2>New key</h2></div>
+    <form method="post" action="/keys" class="o-form" style="grid-template-columns:1fr">
+      <label class="o-field">
+        <span>What will use it</span>
+        <input type="text" name="name" placeholder="claude" required maxlength="60" autocomplete="off">
+      </label>
+      <div class="o-formbar"><button type="submit" class="o-btn o-btn-p o-btn-sm">Make key</button></div>
+    </form>
+  </section>
+
+  <section class="o-panel flush">
+    <div class="o-ph2"><h2>Keys</h2></div>
+    {{if .Keys}}
+    <div class="o-scroll">
+    <table class="o-tbl">
+      <thead><tr><th>Name</th><th>Key</th><th>Made</th><th>Last used</th><th></th></tr></thead>
+      <tbody>
+      {{range .Keys}}
+        <tr>
+          <td>{{.Name}}</td>
+          <td class="n o-muted">{{.Prefix}}&hellip;</td>
+          <td class="n o-muted">{{ago .Created}}</td>
+          <td class="n o-muted">{{ago .Used}}</td>
+          <td class="act"><form method="post" action="/keys/{{.ID}}/delete" data-confirm="Revoke {{.Name}}? Anything using it stops working."><button type="submit" class="o-btn o-btn-sm o-btn-bad">Revoke</button></form></td>
+        </tr>
+      {{end}}
+      </tbody>
+    </table>
+    </div>
+    {{else}}
+    <p class="o-empty"><b>No keys yet.</b>Make one for each thing that should reach the API, so one can be revoked without the rest.</p>
+    {{end}}
+  </section>
+</div>
+
+<section class="o-panel">
+  <div class="o-ph2"><h2>Using it</h2><span class="o-lab">api</span></div>
+  <p class="o-muted" style="margin:0 0 10px">Send the key as a bearer token to <code>/api/jobs</code>. A job is a name, a kind of <code>notify</code>, <code>prompt</code> or <code>quote</code>, an <code>at</code> or a <code>cron</code>, and a message. A time with no offset is Eastern.</p>
+  <pre class="o-code"><span class="a">curl</span> -H <span class="g">"Authorization: Bearer $CRON_KEY"</span> https://cron.bythewood.me/api/jobs \
+  -d <span class="w">'{"name": "Recycling", "cron": "0 19 * * 2", "message": "Take the recycling out"}'</span></pre>
 </section>
-{{end}}
-
-<h2>API keys</h2>
-<form class="newkey" method="post" action="/keys">
-  <input type="text" name="name" placeholder="What will use it, like claude" required maxlength="60">
-  <button type="submit">Create key</button>
-</form>
-{{if .Keys}}
-<table>
-  <thead><tr><th>Name</th><th>Key</th><th>Created</th><th>Last used</th><th></th></tr></thead>
-  <tbody>
-  {{range .Keys}}
-    <tr>
-      <td>{{.Name}}</td>
-      <td><code>{{.Prefix}}&hellip;</code></td>
-      <td class="faint">{{ago .Created}}</td>
-      <td class="faint">{{ago .Used}}</td>
-      <td class="act"><form method="post" action="/keys/{{.ID}}/delete"><button type="submit" class="danger">Delete</button></form></td>
-    </tr>
-  {{end}}
-  </tbody>
-</table>
-{{else}}
-<p class="empty">No keys yet.</p>
-{{end}}
-
-<h2>Using it</h2>
-<p class="how">Send the key as <code>Authorization: Bearer cron-&hellip;</code> to <code>https://cron.bythewood.me/api/jobs</code>. A job is <code>{"name", "kind", "at" or "cron", "message"}</code>, kind is <code>notify</code> or <code>prompt</code>, and a time with no offset is Eastern.</p>
-<pre class="example">curl -H "Authorization: Bearer $CRON_KEY" https://cron.bythewood.me/api/jobs \
-  -d '{"name": "Switch 2", "at": "2026-11-22T08:00", "message": "Bundle is $499.99 today"}'</pre>
 
 {{template "foot" .}}

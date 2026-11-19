@@ -285,6 +285,27 @@ func (s *Store) Runs(job int64, limit int) ([]Run, error) {
 	return out, rows.Err()
 }
 
+// RunsSince is every run from t on, for the activity tiles.
+func (s *Store) RunsSince(t time.Time) ([]Run, error) {
+	rows, err := s.db.Query(`SELECT at, ok, pushed, err FROM runs WHERE at>=? ORDER BY at`, t.Unix())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []Run{}
+	for rows.Next() {
+		var r Run
+		var at int64
+		var ok, pushed int
+		if err := rows.Scan(&at, &ok, &pushed, &r.Err); err != nil {
+			return nil, err
+		}
+		r.At, r.OK, r.Pushed = time.Unix(at, 0), ok == 1, pushed == 1
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) Counts() (jobs, runs, pushed int) {
 	_ = s.db.QueryRow(`SELECT COUNT(*) FROM jobs WHERE enabled=1`).Scan(&jobs)
 	_ = s.db.QueryRow(`SELECT COUNT(*), COALESCE(SUM(pushed),0) FROM runs`).Scan(&runs, &pushed)

@@ -210,7 +210,7 @@ func (s *site) rfc(t time.Time) string {
 
 func (s *site) toJSON(j Job) jobJSON {
 	out := jobJSON{
-		ID: j.ID, Name: j.Name, Kind: j.Kind, Cron: j.Cron, At: s.rfc(j.At), Schedule: s.describe(j),
+		ID: j.ID, Name: j.Name, Kind: j.Kind, Cron: j.Cron, At: s.rfc(j.At), Schedule: s.schedule(j),
 		NextRun: s.rfc(j.NextRun), Title: j.Title, Message: j.Message, Priority: j.Priority, Link: j.Link,
 		Enabled: j.Enabled, LastRun: s.rfc(j.LastRun), LastErr: j.LastErr, Failures: j.Failures, CreatedBy: j.CreatedBy,
 	}

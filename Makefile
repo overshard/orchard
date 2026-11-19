@@ -507,12 +507,13 @@ check: fmt-check shared-check frog-check template-check vet vuln
 # Every copy of a shared package has to match every other copy, so a fix made
 # in one site and forgotten in the rest fails here. web/server.go comes in a few
 # variants, one per kind of server, and web/README.md is written for its own site.
-SHARED = web guard ntfy
+# suite is the look the tool sites share, with its stylesheet and fonts in files.
+SHARED = web guard ntfy suite suite/files
 
 shared-check:
 	@fail=0; \
 	for d in $(SHARED); do \
-		for f in $$(for p in sites/*/$$d/*; do [ -e "$$p" ] && basename "$$p"; done | sort -u); do \
+		for f in $$(for p in sites/*/$$d/*; do [ -f "$$p" ] && basename "$$p"; done | sort -u); do \
 			case "$$d/$$f" in web/server.go|web/README.md) continue ;; esac; \
 			n=$$(for p in sites/*/$$d/$$f; do [ -e "$$p" ] && cksum < "$$p"; done | sort -u | wc -l); \
 			[ "$$n" -le 1 ] && continue; \

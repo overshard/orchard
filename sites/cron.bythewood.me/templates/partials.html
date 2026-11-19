@@ -1,59 +1,48 @@
 {{define "head"}}<!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+{{template "suite-head"}}
 <meta name="robots" content="noindex, nofollow">
 <title>{{.Title}} &middot; cron</title>
 <link rel="stylesheet" href="{{asset "static/app.css"}}">
 </head>
-<body>
-<header class="bar">
-  <a class="brand" href="/"><span class="key">C</span><span class="brand-name">cron</span></a>
-  <nav class="nav">
-    <a href="/" {{if eq .Title "Jobs"}}class="on"{{end}}>Jobs</a>
-    <a href="/runs" {{if eq .Title "Runs"}}class="on"{{end}}>Runs</a>
-    <a href="/keys" {{if eq .Title "Keys"}}class="on"{{end}}>Keys</a>
-  </nav>
-  <span class="model" title="Every time here is Eastern">eastern</span>
-</header>
-<main class="wrap">
+<body class="o-body">
+{{template "suite-top" .Suite}}
+<main class="o-wrap o-main">
 {{end}}
 
 {{define "foot"}}
 </main>
-<footer class="foot">
-  <span>Reminders and checks, pushed to the phone.</span>
-  <span class="footer-bar-end">
-    <span class="pond-guest" data-pond-foot>
-      <small data-pond-line>A frog from the pond</small>
-      <a href="https://pond.bythewood.me/" aria-label="The pond"><canvas width="44" height="34" aria-hidden="true"></canvas></a>
-    </span>
-    <a href="{{.Source}}" target="_blank" rel="noopener">View source</a>
-  </span>
-</footer>
+{{template "suite-foot" .Suite}}
 <script type="module" src="{{asset "static/guest.js"}}"></script>
 <script type="module" src="{{asset "static/app.js"}}"></script>
 </body>
 </html>
 {{end}}
 
+{{define "kind"}}<span class="o-chip {{if eq . "prompt"}}brass{{end}}">{{kindName .}}</span>{{end}}
+
+{{define "runchip"}}{{if .Err}}<span class="o-chip bad">failed</span>{{else if .Pushed}}<span class="o-chip ok">pushed</span>{{else}}<span class="o-chip">quiet</span>{{end}}{{end}}
+
 {{define "runs"}}
 {{if .}}
-<table class="runs">
-  <thead><tr><th>When</th><th>Job</th><th>What went out</th><th class="n">ms</th></tr></thead>
+<div class="o-scroll">
+<table class="o-tbl runs stack">
+  <thead><tr><th>When</th><th>Job</th><th>Result</th><th>What went out</th><th class="r">Took</th></tr></thead>
   <tbody>
   {{range .}}
-    <tr>
-      <td class="faint" title="{{eastern .At}}">{{ago .At}}</td>
-      <td><a href="/jobs/{{.JobID}}">{{.Name}}</a></td>
-      <td class="msg {{if .Err}}bad{{end}}">{{if .Err}}{{.Err}}{{else if .Pushed}}{{.Title}}: {{.Body}}{{else}}<span class="tag">quiet</span> {{.Body}}{{end}}</td>
-      <td class="n">{{.MS}}</td>
+    <tr data-href="/jobs/{{.JobID}}" {{if .Err}}class="hot"{{end}}>
+      <td class="n" title="{{eastern .At}}">{{ago .At}}</td>
+      <td class="nw lead"><a href="/jobs/{{.JobID}}">{{.Name}}</a></td>
+      <td>{{template "runchip" .}}</td>
+      <td class="clip full {{if .Err}}o-bad{{else}}o-muted{{end}}" title="{{if .Err}}{{.Err}}{{else}}{{.Title}}: {{.Body}}{{end}}">{{if .Err}}{{.Err}}{{else if .Pushed}}{{.Title}} &middot; {{.Body}}{{else}}{{.Body}}{{end}}</td>
+      <td class="r n">{{ms .MS}}</td>
     </tr>
   {{end}}
   </tbody>
 </table>
+</div>
 {{else}}
-<p class="empty">Nothing has run yet.</p>
+<p class="o-empty"><b>Nothing has run yet.</b>Runs show here as jobs fire, with what went out and how long it took.</p>
 {{end}}
 {{end}}

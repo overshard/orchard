@@ -7,8 +7,8 @@ repository. Start with `README.md`, this file is the working detail behind it.
 palette, the type, the grid, the home page skeleton and its word budget, and the
 rules that are easy to get wrong all live there. Read it before touching a
 template or a stylesheet, and update it in the same commit when a design
-decision changes. There is no shared stylesheet here, so the sites looking
-alike is something a person keeps true by following that file.
+decision changes. The tool sites share their look through `suite/`, a package
+copied into each the way `web/` is.
 
 ## What this is
 
@@ -59,6 +59,10 @@ and `make check` fails naming the file and the sites when one drifts. The two
 exceptions are `server.go`, which comes in four variants (the common one, the
 one with no write bound that llm uses for its streams, and dash's
 and repos' own), and `README.md`, which is written for its site.
+
+`suite/` is the look the tool sites share, a stylesheet, the Geist fonts, the
+header and status line templates and the spark drawing, served by each site
+under `/suite/`. It is byte identical wherever it is, and so is `suite/files/`.
 
 Two smaller packages are shared the same way. `guard/`, in dash, paces
 the calls to somebody else's server, keeps a budget per window and opens a

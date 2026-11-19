@@ -1,70 +1,104 @@
 {{template "head" .}}
 
-<h2>{{if .Job.ID}}Edit job{{else}}New {{if eq .Kind "prompt"}}check{{else}}reminder{{end}}{{end}}</h2>
+<div class="o-ph">
+  <div>
+    <span class="o-lab">cron &middot; {{if .Job.ID}}jobs &middot; {{kindName .Kind}}{{else}}new {{kindName .Kind}}{{end}}</span>
+    <h1>{{if .Job.ID}}{{.Job.Name}}{{else}}A new <em>{{kindName .Kind}}</em>.{{end}}</h1>
+    {{if .Job.ID}}<p>Made by {{if .Job.CreatedBy}}{{.Job.CreatedBy}}{{else}}hand{{end}} {{ago .Job.Created}}.
+      {{if .Job.Enabled}}Next fires {{eastern .Job.NextRun}}, {{until .Job.NextRun}}.{{else}}Paused.{{end}}
+      {{if .Job.LastRun.IsZero}}It hasn't run yet.{{else}}Last ran {{ago .Job.LastRun}}.{{end}}</p>{{end}}
+  </div>
+  {{if .Job.ID}}<div class="o-acts">
+    <form method="post" action="/jobs/{{.Job.ID}}/run"><button type="submit" class="o-btn o-btn-sm">Run now</button></form>
+    <form method="post" action="/jobs/{{.Job.ID}}/toggle"><button type="submit" class="o-btn o-btn-sm">{{if .Job.Enabled}}Pause{{else}}Resume{{end}}</button></form>
+  </div>{{end}}
+</div>
 
-{{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+{{if .Job.LastErr}}<div class="o-note bad"><span class="o-lab plain o-bad">last run failed</span>{{.Job.LastErr}}</div>{{end}}
+{{if .Error}}<div class="o-note bad" role="alert"><span class="o-lab plain o-bad">not saved</span>{{.Error}}</div>{{end}}
 
-<form class="job" method="post" action="{{if .Job.ID}}/jobs/{{.Job.ID}}{{else}}/jobs{{end}}">
-  <label>Name
-    <input type="text" name="name" value="{{.Job.Name}}" required maxlength="120" placeholder="Switch 2 bundle">
-  </label>
+<form class="o-panel job o-narrow" method="post" action="{{if .Job.ID}}/jobs/{{.Job.ID}}{{else}}/jobs{{end}}">
+  <div class="o-form">
+    <fieldset class="o-field full">
+      <legend>Kind</legend>
+      <div class="o-seg">
+        <label><input type="radio" name="kind" value="notify" {{if eq .Kind "notify"}}checked{{end}}><span>reminder</span></label>
+        <label><input type="radio" name="kind" value="prompt" {{if eq .Kind "prompt"}}checked{{end}}><span>check</span></label>
+        {{if eq .Kind "quote"}}<label><input type="radio" name="kind" value="quote" checked><span>quote</span></label>{{end}}
+      </div>
+      <span class="hint" data-kind-hint>{{if eq .Kind "prompt"}}The model looks it up with web search and only pushes when the answer is worth it.{{else if eq .Kind "quote"}}Pushes the first trade of the ticker, then the change at most every five minutes.{{else}}Sends the message as written.{{end}}</span>
+    </fieldset>
 
-  <fieldset class="kind">
-    <legend>Kind</legend>
-    <label class="inline"><input type="radio" name="kind" value="notify" {{if ne .Kind "prompt"}}checked{{end}}> Reminder, sends the message as written</label>
-    <label class="inline"><input type="radio" name="kind" value="prompt" {{if eq .Kind "prompt"}}checked{{end}}> Check, the model does the message and pushes what it finds</label>
-  </fieldset>
-
-  <fieldset class="schedule">
-    <legend>When</legend>
-    <label class="inline"><input type="radio" name="schedule" value="once" {{if not .Repeat}}checked{{end}}> Once</label>
-    <label class="inline"><input type="radio" name="schedule" value="repeat" {{if .Repeat}}checked{{end}}> Repeat</label>
-    <label data-for="once">At, Eastern
-      <input type="datetime-local" name="at" value="{{local .Job.At}}">
+    <label class="o-field full">
+      <span>Name</span>
+      <input type="text" name="name" value="{{.Job.Name}}" required maxlength="120" placeholder="{{if eq .Kind "prompt"}}Price check, 27in monitor{{else}}Take the recycling out{{end}}">
     </label>
-    <label data-for="repeat">Cron line, Eastern
-      <input type="text" name="cron" value="{{.Job.Cron}}" placeholder="0 9 * * 1-5" spellcheck="false" autocomplete="off">
-      <span class="hint">minute hour day month weekday, so <code>0 9 3 3 *</code> is 9am every March 3rd</span>
+
+    <fieldset class="o-field">
+      <legend>When</legend>
+      <div class="o-seg">
+        <label><input type="radio" name="schedule" value="once" {{if not .Repeat}}checked{{end}}><span>once</span></label>
+        <label><input type="radio" name="schedule" value="repeat" {{if .Repeat}}checked{{end}}><span>repeat</span></label>
+      </div>
+    </fieldset>
+
+    <div class="o-field">
+      <label class="o-field" data-for="once">
+        <span>At <span class="hint">Eastern</span></span>
+        <input type="datetime-local" name="at" value="{{local .Job.At}}">
+      </label>
+      <label class="o-field" data-for="repeat">
+        <span>Cron line <span class="hint">Eastern</span></span>
+        <input class="mono" type="text" name="cron" value="{{.Job.Cron}}" placeholder="0 9 * * 1-5" spellcheck="false" autocomplete="off">
+        <span class="hint">minute hour day month weekday, so <code>0 9 3 3 *</code> is 9am every March 3rd</span>
+      </label>
+    </div>
+
+    <p class="o-field full hint mono preview" data-preview aria-live="polite"></p>
+
+    <label class="o-field full">
+      <span>{{if eq .Kind "quote"}}Ticker{{else if eq .Kind "prompt"}}What to look up{{else}}Message{{end}}</span>
+      <textarea name="message" rows="5" required placeholder="{{if eq .Kind "prompt"}}Look at the big US retailers for a 27 inch monitor under $600. Push only if one is in stock at that price.{{else}}What the push says{{end}}">{{.Job.Message}}</textarea>
     </label>
-    <p class="preview" data-preview aria-live="polite"></p>
-  </fieldset>
 
-  <label>Message
-    <textarea name="message" rows="5" required placeholder="{{if eq .Kind "prompt"}}Check Metacritic's user score and r/GTA6 for GTA 6 player reviews, no critics{{else}}What the push says{{end}}">{{.Job.Message}}</textarea>
-  </label>
-
-  <div class="row">
-    <label>Title <span class="hint">defaults to the name</span>
+    <label class="o-field">
+      <span>Title <span class="hint">defaults to the name</span></span>
       <input type="text" name="title" value="{{.Job.Title}}" maxlength="120">
     </label>
-    <label>Priority
+
+    <label class="o-field">
+      <span>Priority</span>
       <select name="priority">
         {{range .Priorities}}<option value="{{.}}" {{if eq . $.Job.Priority}}selected{{end}}>{{.}}</option>{{end}}
       </select>
     </label>
-  </div>
 
-  <label>Link <span class="hint">a button on the push</span>
-    <input type="text" name="link" value="{{.Job.Link}}" placeholder="https://" inputmode="url">
-  </label>
+    <label class="o-field full">
+      <span>Link <span class="hint">a button on the push</span></span>
+      <input type="url" name="link" value="{{.Job.Link}}" placeholder="https://" inputmode="url">
+    </label>
 
-  <label class="inline"><input type="checkbox" name="enabled" {{if .Job.Enabled}}checked{{end}}> Enabled</label>
-
-  <div class="actions">
-    <button type="submit">Save</button>
-    <a class="button ghost" href="/">Cancel</a>
+    <div class="o-formbar full">
+      <label class="o-check"><input type="checkbox" name="enabled" {{if .Job.Enabled}}checked{{end}}> Enabled</label>
+      <span class="o-sp"></span>
+      <a class="o-btn o-btn-sm" href="/">Cancel</a>
+      <button type="submit" class="o-btn o-btn-p">{{if .Job.ID}}Save changes{{else}}Save job{{end}}</button>
+    </div>
   </div>
 </form>
 
 {{if .Job.ID}}
-<div class="actions after">
-  <form method="post" action="/jobs/{{.Job.ID}}/run"><button type="submit" class="ghost">Run now</button></form>
-  <form method="post" action="/jobs/{{.Job.ID}}/delete" data-confirm="Delete {{.Job.Name}}?"><button type="submit" class="danger">Delete</button></form>
-</div>
-<p class="meta faint">Made by {{if .Job.CreatedBy}}{{.Job.CreatedBy}}{{else}}hand{{end}} {{ago .Job.Created}}. Last ran {{ago .Job.LastRun}}.{{if .Job.LastErr}} <span class="bad">{{.Job.LastErr}}</span>{{end}}</p>
+<section class="o-panel flush one-job">
+  <div class="o-ph2"><h2>Runs</h2><span class="o-lab">this job &middot; newest first</span></div>
+  {{template "runs" .Runs}}
+</section>
 
-<h2>Runs</h2>
-{{template "runs" .Runs}}
+<div class="o-note">
+  <span class="o-lab plain o-bad">delete</span>
+  <div class="o-formbar"><span class="o-muted">Removes the job and its schedule. Its runs stay in the history.</span><span class="o-sp"></span>
+    <form method="post" action="/jobs/{{.Job.ID}}/delete" data-confirm="Delete {{.Job.Name}}?"><button type="submit" class="o-btn o-btn-sm o-btn-bad">Delete job</button></form>
+  </div>
+</div>
 {{end}}
 
 {{template "foot" .}}
