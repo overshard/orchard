@@ -540,3 +540,31 @@ export function drawBag(cv, p) {
     return { off: o, lamps: [[160, 20 + h - 96, 24]] };
   });
 }
+
+// ---------------------------------------------------------------- the stamp book
+
+// The stamp book open on a desk under a lamp, its pages holding the faces of
+// the latest stamps, with the ink pad and a rubber stamp beside it.
+export function drawStampDesk(cv, p, stamps) {
+  vista(cv).draw((g, w, h) => {
+    const o = mid(w, SW), L = look(p.day);
+    sky(g, w, h, L.dark ? ["#1d1a2a", "#241f33", "#2a2438"] : ["#2a2238", "#3a2c42", "#4a344a"]);
+    px(g, "#3a2414", 0, h - 36, w, 36); px(g, "#5a3a22", 0, h - 36, w, 2);
+    g.translate(o, h - 96);
+    glow(g, 136, 30, 44, LAMP, 0.3);
+    px(g, "#2a2018", 136, -40, 1, 52); hanging(g, 136, 12);
+    px(g, "#1a120a", 26, 64, 78, 2);
+    px(g, "#f3ead2", 28, 16, 74, 48); px(g, "#d8ccb0", 64, 16, 2, 48); px(g, "#e6dcc0", 28, 62, 74, 2);
+    const faces = (stamps || []).map((st) => st.stamp);
+    [[31, 20], [47, 20], [31, 40], [47, 40], [68, 20], [84, 20], [68, 40], [84, 40]].forEach(([x, y], i) => {
+      if (!faces[i]) { px(g, "#e6dcc0", x, y, 15, 15); return; }
+      px(g, "#cfc2a2", x, y, 15, 15); px(g, "#123a3d", x + 1, y + 1, 13, 13);
+      drawIcon(g, "st_" + faces[i], x + 1, y + 1, 1);
+    });
+    px(g, "#3a3a4a", 116, 52, 34, 12); px(g, "#5a5a6a", 116, 52, 34, 2); px(g, "#b04a5a", 119, 54, 28, 7); px(g, "#e2687a", 121, 55, 24, 2);
+    px(g, "#2a1a10", 160, 54, 16, 6); px(g, "#e2687a", 161, 59, 14, 2); px(g, "#8a5a32", 165, 38, 6, 16); px(g, "#c48a4a", 165, 38, 2, 16);
+    g.fillStyle = "#a8743a"; g.beginPath(); g.arc(168, 36, 5, 0, 7); g.fill(); px(g, "#c48a4a", 165, 33, 3, 2);
+    for (let i = 0; i < 4; i++) px(g, "rgba(226,104,122,.45)", 118 + i * 18, 72 + (i % 2) * 7, 10, 8);
+    return { off: o, lamps: [[136, h - 81, 16]] };
+  });
+}
