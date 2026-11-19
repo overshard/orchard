@@ -87,7 +87,7 @@ func main() {
 }
 
 func newSite(store *Store, auth *web.Authenticator) (*site, error) {
-	tpl, err := template.New("").Funcs(suite.FuncsWith(template.FuncMap{"ago": ago})).ParseFS(templateFS, "templates/*.html")
+	tpl, err := template.New("").Funcs(suite.FuncsWith(template.FuncMap{"ago": ago, "secs": secs, "comma": comma, "asset": assetURL, "filterURL": filterURL, "dict": dict, "pct": pct})).ParseFS(templateFS, "templates/*.html")
 	if err != nil {
 		return nil, err
 	}
@@ -105,6 +105,10 @@ func newSite(store *Store, auth *web.Authenticator) (*site, error) {
 func (s *site) handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", s.home)
+	mux.HandleFunc("GET /calls", s.auth.RequireAuth(s.callsPage))
+	mux.HandleFunc("GET /docs", s.docs)
+	mux.Handle("GET /static/", static())
+	mux.Handle("GET /suite/state", suite.StateHandler(s.auth.Authenticated, s.suiteState))
 	mux.HandleFunc("POST /mcp", s.serveMCP)
 	mux.HandleFunc("GET /mcp", methodNotAllowed)
 	mux.HandleFunc("DELETE /mcp", methodNotAllowed)
@@ -137,34 +141,10 @@ func methodNotAllowed(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "POST JSON-RPC here", http.StatusMethodNotAllowed)
 }
 
-func (s *site) chrome(r *http.Request) (suite.Page, bool) {
-	in := s.auth.Authenticated(r)
-	return suite.Page{Tool: "mcp", SignedIn: in, Source: sourceURL, Author: author, Year: time.Now().Year(),
-		Tabs: []suite.Tab{{Name: "connector", Href: "/", On: r.URL.Path == "/"}, {Name: "source", Href: sourceURL}},
-		Meta: "read only · " + resourceURL, Right: []suite.Seg{{Text: "times are UTC"}}}, in
-}
-
-func (s *site) home(w http.ResponseWriter, r *http.Request) {
-	page, in := s.chrome(r)
-	var grants []Grant
-	if in {
-		grants, _ = s.store.Grants()
-	}
-	page.Status = []suite.Seg{{Text: fmt.Sprintf("%d tools", len(tools))}}
-	if in {
-		page.Status = append(page.Status, suite.Seg{Text: fmt.Sprintf("● %d connected", len(grants)), Kind: "ok"})
-	}
-	s.render(w, 200, "home.html", map[string]any{"Suite": page, "SignedIn": in, "Grants": grants, "Tools": tools, "Resource": resourceURL})
-}
-
-func (s *site) notFound(w http.ResponseWriter, r *http.Request) {
-	page, _ := s.chrome(r)
-	w.Header().Set("Cache-Control", "no-store")
-	s.render(w, http.StatusNotFound, "notfound.html", map[string]any{"Suite": page})
-}
-
-func (s *site) render(w http.ResponseWriter, code int, name string, data any) {
+func (s *site) render(w http.ResponseWriter, code int, name string, data map[string]any) {
+	data["Source"], data["Author"], data["Year"] = sourceURL, author, time.Now().Year()
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(code)
 	if err := s.tpl.ExecuteTemplate(w, name, data); err != nil {
 		slog.Error("render", slog.String("page", name), slog.Any("err", err))
@@ -192,4 +172,19 @@ func robots(w http.ResponseWriter, r *http.Request) {
 func healthz(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	_, _ = w.Write([]byte("ok\n"))
+}
+
+func dict(kv ...any) map[string]any {
+	m := map[string]any{}
+	for i := 0; i+1 < len(kv); i += 2 {
+		m[kv[i].(string)] = kv[i+1]
+	}
+	return m
+}
+
+func pct(n, top int) int {
+	if top <= 0 {
+		return 0
+	}
+	return max(8, 100*n/top)
 }

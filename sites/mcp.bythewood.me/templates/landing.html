@@ -1,0 +1,103 @@
+{{define "landing.html"}}<!doctype html>
+<html lang="en">
+<head>
+{{template "suite-head"}}
+<title>mcp &middot; every orchard tool, for an agent</title>
+<meta name="description" content="Every orchard tool, read only, as one MCP connector for Claude, signed in with the same phone code.">
+<link rel="stylesheet" href="{{asset "static/app.css"}}">
+</head>
+<body class="o-body">
+{{template "suite-top" .Suite}}
+
+<main>
+<div class="o-cw">
+  <section class="o-wrap o-hero">
+    <div>
+      <span class="o-lab">mcp &middot; connector &middot; self-hosted</span>
+      <h1>Every tool, <em>for an agent</em>.</h1>
+      <p class="o-lede">One MCP connector in front of status, logging, analytics, cron and repos. Claude signs in through auth with the phone code, reads what it needs, and can't change a thing. Every call it makes is kept here.</p>
+      <div class="o-ctas">
+        <a class="o-btn o-btn-p" href="/login">Access dashboard &rarr;</a>
+        <a class="o-btn" href="/docs">Docs</a>
+        <a class="o-btn" href="{{.Source}}" target="_blank" rel="noopener">Source</a>
+      </div>
+    </div>
+    <div class="o-win" aria-label="A staged picture of the overview">
+      <div class="o-win-bar"><i></i><i></i><i></i><span class="u">mcp.bythewood.me</span><span class="o-staged">STAGED</span></div>
+      <div class="o-win-body">
+        <span class="o-lab">overview &middot; 24h</span>
+        <div class="t" data-co>41 calls today, <em class="bad">1 failed</em>.</div>
+        <div data-co>
+          <div class="o-rw"><span class="o-dot"></span><span class="n o-mono">orchard_brief</span><span class="m">claude.ai &middot; 2m ago</span><span class="o-chip ok">answered</span></div>
+          <div class="o-rw"><span class="o-dot"></span><span class="n o-mono">logs_search</span><span class="m">{"query":"timeout","source":"shop"}</span><span class="o-chip ok">answered</span></div>
+          <div class="o-rw"><span class="o-dot bad"></span><span class="n o-mono">status_report</span><span class="m">{"property":"docs"}</span><span class="o-chip bad">failed</span></div>
+        </div>
+        <div data-co>
+          <div class="o-rw"><span class="o-dot"></span><span class="n">Claude</span><span class="m">connector &middot; allowed 3d ago</span><span class="o-chip">38 calls</span></div>
+          <div class="o-rw"><span class="o-dot"></span><span class="n">Claude Code</span><span class="m">connector &middot; allowed 1h ago</span><span class="o-chip">3 calls</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <div class="o-wrap o-legend">
+    <div><span class="o-pin">1</span><span>The title counts today's calls and says when one failed.</span></div>
+    <div><span class="o-pin">2</span><span>Every call is kept with what it asked, what came back and how long it took.</span></div>
+    <div><span class="o-pin">3</span><span>Each connector you allowed, with its own session you can revoke on auth.</span></div>
+  </div>
+  <div class="o-ov"></div>
+</div>
+
+<div class="o-wrap">
+{{template "suite-ways" .Ways}}
+
+<section class="o-hsec">
+  <div class="o-frow">
+    <div class="o-ftxt">
+      <span class="o-lab">sign in</span>
+      <h3>The same phone code, then a yes</h3>
+      <p>Adding the connector opens auth in a browser. It asks for a fresh code, then whether to let the agent read orchard. Allowing makes a session just for it, listed beside your browsers.</p>
+      <ul><li>Revoking it on auth ends it on the next call</li><li>Only Claude's own clients can start a sign in</li></ul>
+    </div>
+    <div class="o-crop">
+      <span class="o-staged">STAGED</span>
+      <span class="o-lab">auth &middot; connect</span>
+      <div class="crop-t">Let <em>Claude</em> read orchard?</div>
+      <ul class="crop-list"><li>Every tool's state and reports</li><li>Log search, cron jobs and runs</li><li>Nothing that changes anything</li></ul>
+      <div class="crop-btns"><span class="o-btn o-btn-p o-btn-sm">Allow read access</span><span class="o-btn o-btn-sm">Don't allow</span></div>
+    </div>
+  </div>
+  <div class="o-frow flip">
+    <div class="o-ftxt">
+      <span class="o-lab">tools</span>
+      <h3>{{len .Tools}} tools, all read only</h3>
+      <p>Each one reads a report or a list a tool already makes, so an agent sees what you'd see. Log lines and referrers are written by strangers, and nothing an agent reads here can act on them.</p>
+    </div>
+    <div class="o-crop">
+      <span class="o-staged">STAGED</span>
+      {{range .Tools}}<div class="o-hbar"><span class="k o-mono">{{.Name}}</span><span class="o-sp"></span><span class="v wide">{{.Title}}</span></div>{{end}}
+    </div>
+  </div>
+  <div class="o-frow">
+    <div class="o-ftxt">
+      <span class="o-lab">calls</span>
+      <h3>Every call, kept and shipped</h3>
+      <p>What the agent asked, a preview of what came back, how long it took and whether it failed, for ninety days here and in logging beside every other site's lines.</p>
+    </div>
+    <div class="o-crop">
+      <span class="o-staged">STAGED</span>
+      <div class="o-rw"><span class="o-dot"></span><span class="n o-mono">analytics_report</span><span class="m">{"property":"shop","days":"7"}</span><span class="o-chip">1.2s</span></div>
+      <div class="o-rw"><span class="o-dot"></span><span class="n o-mono">cron_runs</span><span class="m">{"limit":10}</span><span class="o-chip">84ms</span></div>
+      <div class="o-rw"><span class="o-dot bad"></span><span class="n o-mono">repo_readme</span><span class="m">{"repo":"notes"}</span><span class="o-chip bad">no README</span></div>
+    </div>
+  </div>
+</section>
+
+{{template "suite-run" .Ways}}
+</div>
+</main>
+
+{{template "suite-footer" .Footer}}
+{{template "suite-status" .Suite}}
+<script type="module" src="{{asset "static/guest.js"}}"></script>
+</body>
+</html>{{end}}

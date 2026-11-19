@@ -180,6 +180,7 @@ func (o *oauth) authorize(w http.ResponseWriter, r *http.Request) {
 	doc, err := o.clientDoc(clientID)
 	if err != nil {
 		slog.Info("authorize refused", slog.String("client", clientID), slog.Any("err", err))
+		o.store.AddEvent("refused", clientID, err.Error())
 		http.Error(w, "unknown client: "+err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -250,6 +251,7 @@ func (o *oauth) back(w http.ResponseWriter, r *http.Request) {
 		v.Set("state", p.State)
 	}
 	if q.Get("denied") != "" {
+		o.store.AddEvent("denied", p.ClientName, "you said no on auth")
 		v.Set("error", "access_denied")
 		http.Redirect(w, r, withQuery(p.RedirectURI, v), http.StatusFound)
 		return
@@ -273,6 +275,7 @@ func (o *oauth) back(w http.ResponseWriter, r *http.Request) {
 	o.codes[code] = authCode{Grant: grant, ClientID: p.ClientID, RedirectURI: p.RedirectURI, Challenge: p.Challenge, expires: time.Now().Add(authCodeTTL)}
 	o.mu.Unlock()
 	slog.Info("connector allowed", slog.String("client", p.ClientName), slog.Int64("grant", grant))
+	o.store.AddEvent("allowed", p.ClientName, p.ClientID)
 	v.Set("code", code)
 	http.Redirect(w, r, withQuery(p.RedirectURI, v), http.StatusFound)
 }
@@ -331,6 +334,7 @@ func (o *oauth) token(w http.ResponseWriter, r *http.Request) {
 		rt := r.PostForm.Get("refresh_token")
 		g, err := o.store.Lookup(rt, "refresh")
 		if err != nil || g.ClientID != r.PostForm.Get("client_id") {
+			o.store.AddEvent("refresh refused", r.PostForm.Get("client_id"), "spent, expired or revoked")
 			tokenError(w, "invalid_grant", "that refresh token is spent, expired or revoked")
 			return
 		}

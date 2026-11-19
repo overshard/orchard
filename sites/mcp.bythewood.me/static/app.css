@@ -1,0 +1,46 @@
+/* mcp's own pieces. Everything else comes from /suite/suite.css. */
+
+.small { font-size: 0.8rem; }
+.side { display: grid; gap: 14px; align-content: start; min-width: 0; }
+
+.o-filters { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.o-filters .o-chip { font-size: 0.72rem; padding: 3px 9px; }
+.o-filters .o-sep { width: 1px; height: 16px; background: var(--o-line-strong); margin: 0 4px; }
+
+.calls td.clip { max-width: 26rem; }
+.calls td.mono, .args { font-family: var(--o-mono); font-size: 0.74rem; }
+
+.calllist { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 40rem), 1fr)); align-items: start; }
+.calllist > *, .call > * { min-width: 0; }
+.call { display: grid; gap: 6px; scroll-margin-top: 16px; }
+.call:target { border-color: var(--o-brass); }
+.call.bad { border-color: rgba(240, 107, 91, 0.45); }
+.call header { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-size: 0.8rem; }
+.call header .o-dot { margin-right: 0; }
+.call .args { display: block; padding: 6px 8px; background: var(--o-sunk); border: 1px solid var(--o-line); color: var(--o-muted); overflow-wrap: anywhere; }
+.call .callerr { margin: 0; font-size: 0.76rem; }
+.call summary { cursor: pointer; font: 500 0.66rem var(--o-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--o-muted); padding: 4px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.call summary span { text-transform: none; letter-spacing: 0; font-family: var(--o-sans); font-size: 0.76rem; margin-left: 8px; }
+.call details[open] summary span { display: none; }
+.call pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 26rem; overflow: auto; margin-top: 4px; }
+
+.grant, .ev { padding: 8px 14px; border-top: 1px solid var(--o-line-soft); }
+.grant:first-of-type, .ev:first-of-type { border-top: 0; }
+.ev .n { flex: none; font-size: 0.82rem; }
+.ev .m { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ev .w { color: var(--o-muted); font-size: 0.7rem; white-space: nowrap; }
+
+.o-hbar .v.wide { width: auto; color: var(--o-muted); font-family: var(--o-sans); }
+
+.crop-t { font-size: 1.15rem; font-weight: 600; letter-spacing: -0.03em; margin: 6px 0 10px; }
+.crop-t em { background: rgba(217, 180, 90, 0.16); padding: 0 4px; }
+.crop-list { margin: 0 0 12px; padding-left: 18px; display: grid; gap: 4px; font-size: 0.82rem; color: var(--o-muted); }
+.crop-btns { display: flex; gap: 8px; }
+
+h3.sub { font-size: 0.86rem; margin: 10px 0 4px; }
+h3.sub:first-of-type { margin-top: 0; }
+.steps { margin: 0 0 10px; padding-left: 20px; display: grid; gap: 8px; font-size: 0.86rem; }
+.tooltbl td.lead { min-width: 11rem; vertical-align: top; }
+.tooltbl td { vertical-align: top; }
+.tooltbl .arg { margin-bottom: 4px; font-size: 0.8rem; }
+.tooltbl .arg code { font-size: 0.74rem; color: var(--o-brass); }

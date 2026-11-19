@@ -1,14 +1,3 @@
-{{define "notfound.html"}}<!doctype html>
-<html lang="en">
-<head>
-{{template "suite-head"}}
-<title>Not found &middot; mcp</title>
-</head>
-<body class="o-body">
-{{template "suite-top" .Suite}}
-<main class="o-wrap o-main">
-  <div class="o-ph"><div><span class="o-lab">mcp &middot; 404</span><h1>Nothing here.</h1><p>The connector lives at <span class="o-mono">/mcp</span>, and this page is <a href="/">the front</a>.</p></div></div>
-</main>
-{{template "suite-foot" .Suite}}
-</body>
-</html>{{end}}
+{{define "notfound.html"}}{{template "head" (dict "Title" "Not found" "Suite" .Suite)}}
+<div class="o-ph"><div><span class="o-lab">mcp &middot; 404</span><h1>Nothing here.</h1><p>The connector is at <span class="o-mono">/mcp</span>, and there's <a href="/">the front</a> and <a href="/docs">the docs</a>.</p></div></div>
+{{template "foot" .}}{{end}}

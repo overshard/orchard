@@ -1,0 +1,66 @@
+{{define "overview.html"}}{{template "head" (dict "Title" "Overview" "Suite" .Suite)}}
+<div class="o-ph">
+  <div>
+    <span class="o-lab">mcp &middot; overview &middot; 24h</span>
+    <h1>{{.Headline}}</h1>
+    <p>Every tool, read only, at <span class="o-mono">{{.Resource}}</span>.</p>
+  </div>
+  <div class="o-acts">
+    <a class="o-btn o-btn-sm" href="/calls?failed=1">Failed calls</a>
+    <a class="o-btn o-btn-sm" href="https://auth.bythewood.me/sessions">Sessions on auth</a>
+  </div>
+</div>
+
+<div class="o-tiles">
+  <a class="o-tile" href="/calls">
+    <small>tool calls &middot; 24h</small>
+    <b>{{comma .Day.Calls}}</b>
+    <span class="o-delta">by the hour</span>
+    {{spark "ok" .Day.ByHour}}
+  </a>
+  <a class="o-tile" href="/calls?failed=1">
+    <small>failed &middot; 24h</small>
+    <b {{if .Day.Failed}}class="bad"{{end}}>{{.Day.Failed}}</b>
+    <span class="o-delta {{if .Day.Failed}}o-bad{{end}}">{{if .Day.Failed}}see which{{else}}every call answered{{end}}</span>
+    {{spark (or (and .Day.Failed "bad") "flat") .Day.FailedByHour}}
+  </a>
+  <div class="o-tile">
+    <small>connectors</small>
+    <b>{{len .Grants}}</b>
+    <span class="o-delta">calls in the last week each</span>
+    <span class="o-ticks" aria-hidden="true">{{$top := .Top}}{{range .Grants}}<i style="height: {{pct .Week $top}}%" title="{{.ClientName}} &middot; {{.Week}} calls"></i>{{else}}<i class="none" style="height: 8%"></i>{{end}}</span>
+  </div>
+  <div class="o-tile">
+    <small>median time &middot; 24h</small>
+    <b>{{secs .Day.P50}}</b>
+    <span class="o-delta">average by the hour</span>
+    {{spark "flat" .Day.MSByHour}}
+  </div>
+</div>
+
+<div class="o-cols">
+  <section class="o-panel flush">
+    <div class="o-ph2"><h2>Recent calls</h2><span class="o-lab">last week &middot; newest first</span></div>
+    {{if .Recent}}{{template "callrows" .Recent}}<div class="o-more"><a href="/calls">Every call &rarr;</a></div>
+    {{else}}<p class="o-empty"><b>No calls yet.</b>Add the connector to Claude and ask it something, it starts with orchard_brief.</p>{{end}}
+  </section>
+  <div class="side">
+    <section class="o-panel">
+      <div class="o-ph2"><h2>By tool</h2><span class="o-lab">last week</span></div>
+      {{range .Tools}}<div class="o-hbar"><span class="k o-mono"><a href="/calls?tool={{.Tool}}">{{.Tool}}</a></span><span class="bar"><i style="width: {{printf "%.0f" .Share}}%"></i></span><span class="v {{if .Failed}}o-bad{{end}}">{{.Calls}}</span></div>{{end}}
+    </section>
+    <section class="o-panel flush">
+      <div class="o-ph2"><h2>Connectors</h2><span class="o-lab">revoke on auth</span></div>
+      {{if .Grants}}
+      {{range .Grants}}<div class="o-rw grant"><span class="o-dot"></span><a class="n" href="/calls?client={{.ClientName}}">{{.ClientName}}</a><span class="m">allowed {{ago .Created}} &middot; {{if .LastUsed.IsZero}}never used{{else}}used {{ago .LastUsed}}{{end}}</span><span class="o-chip">{{.Week}} this week</span></div>{{end}}
+      {{else}}<p class="o-empty"><b>Nothing connected.</b>The <a href="/docs">docs</a> say how to add it.</p>{{end}}
+    </section>
+    <section class="o-panel flush">
+      <div class="o-ph2"><h2>Sign ins</h2><span class="o-lab">allowed, refused, ended</span></div>
+      {{if .Events}}
+      {{range .Events}}<div class="o-rw ev"><span class="o-dot {{if or (eq .Kind "refused") (eq .Kind "ended") (eq .Kind "refresh refused")}}warn{{else if eq .Kind "denied"}}mute{{end}}"></span><span class="n">{{.Kind}}</span><span class="m">{{.Client}}{{with .Detail}} &middot; {{.}}{{end}}</span><span class="w o-mono">{{ago .At}}</span></div>{{end}}
+      {{else}}<p class="o-empty"><b>Nothing yet.</b>Each connector you allow or refuse shows here.</p>{{end}}
+    </section>
+  </div>
+</div>
+{{template "foot" .}}{{end}}

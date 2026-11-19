@@ -1,0 +1,43 @@
+{{define "head"}}<!doctype html>
+<html lang="en">
+<head>
+{{template "suite-head"}}
+<meta name="robots" content="noindex, nofollow">
+<title>{{.Title}} &middot; mcp</title>
+<link rel="stylesheet" href="{{asset "static/app.css"}}">
+</head>
+<body class="o-body">
+{{template "suite-top" .Suite}}
+<main class="o-wrap o-main">
+{{end}}
+
+{{define "foot"}}
+</main>
+{{template "suite-foot" .Suite}}
+<script type="module" src="{{asset "static/guest.js"}}"></script>
+</body>
+</html>
+{{end}}
+
+{{define "callchip"}}{{if .OK}}<span class="o-chip ok">answered</span>{{else}}<span class="o-chip bad">failed</span>{{end}}{{end}}
+
+{{define "callrows"}}
+<div class="o-scroll">
+<table class="o-tbl stack calls">
+  <thead><tr><th>When</th><th>Connector</th><th>Tool</th><th>Asked</th><th>Result</th><th class="r">Size</th><th class="r">Took</th></tr></thead>
+  <tbody>
+  {{range .}}
+    <tr data-href="/calls#call-{{.ID}}" {{if not .OK}}class="hot"{{end}}>
+      <td class="n" title="{{.At.UTC.Format "2006-01-02 15:04:05 UTC"}}">{{ago .At}}</td>
+      <td class="nw o-muted">{{.Client}}</td>
+      <td class="lead n"><a href="/calls#call-{{.ID}}">{{if .Tool}}{{.Tool}}{{else}}<span class="o-muted">{{.Method}}</span>{{end}}</a></td>
+      <td class="clip full o-muted mono" title="{{.Args}}">{{if .Args}}{{.Args}}{{else}}&middot;{{end}}</td>
+      <td>{{template "callchip" .}}</td>
+      <td class="r n o-muted" data-l="size">{{if .Chars}}{{comma .Chars}}{{else}}&middot;{{end}}</td>
+      <td class="r n" data-l="took">{{secs .MS}}</td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+{{end}}

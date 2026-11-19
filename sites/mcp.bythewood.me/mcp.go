@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"time"
 )
 
 const (
@@ -129,6 +130,14 @@ func (s *site) serveMCP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.store.Touch(g.ID)
+	start := time.Now()
+	call := Call{At: start, Grant: g.ID, Client: g.ClientName, Method: req.Method, OK: true}
+	defer func() {
+		call.MS = time.Since(start).Milliseconds()
+		s.store.AddCall(call)
+		slog.Info("mcp "+req.Method, slog.String("component", "mcp"), slog.String("client", call.Client),
+			slog.String("tool", call.Tool), slog.Int64("ms", call.MS), slog.Bool("ok", call.OK), slog.Int("chars", call.Chars))
+	}()
 
 	switch req.Method {
 	case "initialize":
@@ -157,8 +166,10 @@ func (s *site) serveMCP(w http.ResponseWriter, r *http.Request) {
 	case "tools/list":
 		reply(w, 200, req.ID, map[string]any{"resultType": "complete", "tools": toolList(), "ttlMs": 3600000, "cacheScope": "private"}, nil)
 	case "tools/call":
+		call.Tool, call.Args = p.Name, compactArgs(p.Arguments)
 		t, ok := toolNamed(p.Name)
 		if !ok {
+			call.OK, call.Err = false, "no such tool"
 			reply(w, 200, req.ID, nil, &rpcError{Code: -32602, Message: "no tool named " + p.Name})
 			return
 		}
@@ -166,20 +177,50 @@ func (s *site) serveMCP(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, errSessionGone) {
 			// The session was revoked on auth's sessions page, so this grant is over.
 			s.store.Revoke(g.ID)
+			s.store.AddEvent("ended", g.ClientName, "auth no longer honours its session")
+			call.OK, call.Err = false, "session revoked"
 			challenge(w)
 			return
 		}
 		isErr := err != nil
 		if isErr {
-			slog.Info("tool failed", slog.String("tool", p.Name), slog.Any("err", err))
 			text = err.Error()
+			call.OK, call.Err = false, text
 		}
+		call.Chars, call.Preview = len(text), preview(text)
 		reply(w, 200, req.ID, map[string]any{"resultType": "complete", "content": []map[string]string{{"type": "text", "text": text}}, "isError": isErr}, nil)
 	default:
+		call.OK, call.Err = false, "no such method"
 		status := 200
 		if modern {
 			status = http.StatusNotFound
 		}
 		reply(w, status, req.ID, nil, &rpcError{Code: -32601, Message: "no method " + req.Method})
 	}
+}
+
+// compactArgs keeps a call's arguments short enough to list.
+func compactArgs(raw json.RawMessage) string {
+	var v any
+	if json.Unmarshal(raw, &v) != nil {
+		return ""
+	}
+	if m, ok := v.(map[string]any); ok && len(m) == 0 {
+		return ""
+	}
+	b, _ := json.Marshal(v)
+	if len(b) > 2000 {
+		b = b[:2000]
+	}
+	return string(b)
+}
+
+// preview is the start of an answer, enough to recognise it, without the
+// warning about strangers every report opens with.
+func preview(text string) string {
+	text = strings.TrimPrefix(text, strangers)
+	if r := []rune(text); len(r) > 600 {
+		return string(r[:600]) + "…"
+	}
+	return text
 }

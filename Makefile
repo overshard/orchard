@@ -539,7 +539,7 @@ shared-check:
 
 # The other sites draw frogs with a copy of pond's sprite code, so a change to
 # how a frog looks has to land in every copy. `make frog` copies pond's over
-# them all. cron and llm have no bundler, so theirs is the two files in one.
+# them all. cron, llm and mcp have no bundler, so theirs is the two files in one.
 FROG = sites/pond.bythewood.me/frontend/src/frog.js
 GUEST = sites/pond.bythewood.me/frontend/src/guest.js
 GUEST_DIRS = sites/analytics.bythewood.me/frontend/static_src/base/scripts \
@@ -552,7 +552,7 @@ FROG_COPIES = sites/dash.bythewood.me/frontend/static_src/scripts/frog.js \
 	sites/isaacbythewood.com/frontend/static_src/js/frog.js \
 	$(addsuffix /frog.js,$(GUEST_DIRS))
 GUEST_COPIES = $(addsuffix /guest.js,$(GUEST_DIRS))
-GUEST_BUNDLES = sites/cron.bythewood.me/static/guest.js sites/llm.bythewood.me/static/guest.js
+GUEST_BUNDLES = sites/cron.bythewood.me/static/guest.js sites/llm.bythewood.me/static/guest.js sites/mcp.bythewood.me/static/guest.js
 GUEST_BUNDLE = { cat $(FROG); grep -v '^import .* from "./frog.js";$$' $(GUEST); }
 
 frog:

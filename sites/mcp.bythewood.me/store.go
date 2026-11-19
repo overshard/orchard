@@ -34,7 +34,33 @@ CREATE TABLE IF NOT EXISTS tokens (
     expires  INTEGER NOT NULL
 ) WITHOUT ROWID;
 CREATE INDEX IF NOT EXISTS tokens_grant ON tokens(grant_id);
+CREATE TABLE IF NOT EXISTS calls (
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    at       INTEGER NOT NULL,
+    grant_id INTEGER NOT NULL,
+    client   TEXT    NOT NULL,
+    method   TEXT    NOT NULL,
+    tool     TEXT    NOT NULL DEFAULT '',
+    args     TEXT    NOT NULL DEFAULT '',
+    ms       INTEGER NOT NULL,
+    ok       INTEGER NOT NULL,
+    err      TEXT    NOT NULL DEFAULT '',
+    chars    INTEGER NOT NULL DEFAULT 0,
+    preview  TEXT    NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS calls_at ON calls(at);
+CREATE TABLE IF NOT EXISTS events (
+    id     INTEGER PRIMARY KEY AUTOINCREMENT,
+    at     INTEGER NOT NULL,
+    kind   TEXT    NOT NULL,
+    client TEXT    NOT NULL DEFAULT '',
+    detail TEXT    NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS events_at ON events(at);
 `
+
+// keepFor is how long calls and events stay, the same as llm keeps its calls.
+const keepFor = 90 * 24 * time.Hour
 
 const (
 	accessTTL  = time.Hour
@@ -122,7 +148,7 @@ func (s *Store) Lookup(token, kind string) (Grant, error) {
 	if errors.Is(err, sql.ErrNoRows) {
 		return g, errNoToken
 	}
-	g.Created, g.LastUsed = time.Unix(created, 0), time.Unix(used, 0)
+	g.Created, g.LastUsed = time.Unix(created, 0), unixOrZero(used)
 	return g, err
 }
 
@@ -155,9 +181,139 @@ func (s *Store) Grants() ([]Grant, error) {
 		var g Grant
 		var created, used int64
 		if rows.Scan(&g.ID, &g.ClientID, &g.ClientName, &g.Resource, &created, &used) == nil {
-			g.Created, g.LastUsed = time.Unix(created, 0), time.Unix(used, 0)
+			g.Created, g.LastUsed = time.Unix(created, 0), unixOrZero(used)
 			out = append(out, g)
 		}
 	}
 	return out, rows.Err()
+}
+
+// Call is one request an agent made, kept with what it asked and a short
+// preview of the answer so a strange result can be checked later.
+type Call struct {
+	ID      int64
+	At      time.Time
+	Grant   int64
+	Client  string
+	Method  string
+	Tool    string
+	Args    string
+	MS      int64
+	OK      bool
+	Err     string
+	Chars   int
+	Preview string
+}
+
+func (s *Store) AddCall(c Call) {
+	_, _ = s.db.Exec(`INSERT INTO calls (at, grant_id, client, method, tool, args, ms, ok, err, chars, preview) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		c.At.UnixMilli(), c.Grant, c.Client, c.Method, c.Tool, c.Args, c.MS, c.OK, c.Err, c.Chars, c.Preview)
+}
+
+type CallFilter struct {
+	Tool, Client string
+	Failed       bool
+	Since        time.Time
+	Limit        int
+}
+
+func (s *Store) Calls(f CallFilter) ([]Call, error) {
+	q := `SELECT id, at, grant_id, client, method, tool, args, ms, ok, err, chars, preview FROM calls WHERE at >= ?`
+	args := []any{f.Since.UnixMilli()}
+	if f.Tool != "" {
+		q += ` AND tool = ?`
+		args = append(args, f.Tool)
+	}
+	if f.Client != "" {
+		q += ` AND client = ?`
+		args = append(args, f.Client)
+	}
+	if f.Failed {
+		q += ` AND ok = 0`
+	}
+	if f.Limit <= 0 {
+		f.Limit = 200
+	}
+	q += ` ORDER BY id DESC LIMIT ?`
+	args = append(args, f.Limit)
+	rows, err := s.db.Query(q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Call
+	for rows.Next() {
+		var c Call
+		var at int64
+		if rows.Scan(&c.ID, &at, &c.Grant, &c.Client, &c.Method, &c.Tool, &c.Args, &c.MS, &c.OK, &c.Err, &c.Chars, &c.Preview) == nil {
+			c.At = time.UnixMilli(at)
+			out = append(out, c)
+		}
+	}
+	return out, rows.Err()
+}
+
+// Event is something that happened to a connector rather than a call it
+// made: allowed, refused, refreshed, ended.
+type Event struct {
+	At     time.Time
+	Kind   string
+	Client string
+	Detail string
+}
+
+func (s *Store) AddEvent(kind, client, detail string) {
+	_, _ = s.db.Exec(`INSERT INTO events (at, kind, client, detail) VALUES (?, ?, ?, ?)`, time.Now().UnixMilli(), kind, client, detail)
+}
+
+func (s *Store) Events(limit int) ([]Event, error) {
+	rows, err := s.db.Query(`SELECT at, kind, client, detail FROM events ORDER BY id DESC LIMIT ?`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Event
+	for rows.Next() {
+		var e Event
+		var at int64
+		if rows.Scan(&at, &e.Kind, &e.Client, &e.Detail) == nil {
+			e.At = time.UnixMilli(at)
+			out = append(out, e)
+		}
+	}
+	return out, rows.Err()
+}
+
+// Sweep drops calls and events past keepFor and the tokens that ran out.
+func (s *Store) Sweep(now time.Time) {
+	cut := now.Add(-keepFor).UnixMilli()
+	_, _ = s.db.Exec(`DELETE FROM calls WHERE at < ?`, cut)
+	_, _ = s.db.Exec(`DELETE FROM events WHERE at < ?`, cut)
+	_, _ = s.db.Exec(`DELETE FROM tokens WHERE expires < ?`, now.Unix())
+}
+
+// GrantUse is how much each live grant has been used in the last week.
+func (s *Store) GrantUse(since time.Time) map[int64]int {
+	out := map[int64]int{}
+	rows, err := s.db.Query(`SELECT grant_id, COUNT(*) FROM calls WHERE at >= ? AND tool != '' GROUP BY grant_id`, since.UnixMilli())
+	if err != nil {
+		return out
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var g int64
+		var n int
+		if rows.Scan(&g, &n) == nil {
+			out[g] = n
+		}
+	}
+	return out
+}
+
+// unixOrZero keeps a never as a zero time, which time.Unix(0, 0) isn't.
+func unixOrZero(sec int64) time.Time {
+	if sec == 0 {
+		return time.Time{}
+	}
+	return time.Unix(sec, 0)
 }

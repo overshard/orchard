@@ -1,0 +1,59 @@
+{{define "docs.html"}}{{template "head" (dict "Title" "Docs" "Suite" .Suite)}}
+<div class="o-ph">
+  <div>
+    <span class="o-lab">mcp &middot; docs</span>
+    <h1>One url, <em>{{len .Tools}} tools</em>.</h1>
+    <p>Add <span class="o-mono">{{.Resource}}</span> to Claude, sign in through auth, and ask.</p>
+  </div>
+</div>
+
+<div class="o-cols even">
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Add it</h2><span class="o-lab">claude.ai or Claude Code</span></div>
+    <h3 class="sub">claude.ai</h3>
+    <p class="o-muted small">Settings, Connectors, Add custom connector, and paste</p>
+    <pre class="o-code">{{.Resource}}</pre>
+    <h3 class="sub">Claude Code</h3>
+    <pre class="o-code"><span class="a">claude</span> mcp add --transport http orchard {{.Resource}}</pre>
+    <p class="o-muted small">then <code>/mcp</code> in a session to sign in.</p>
+  </section>
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Signing in</h2><span class="o-lab">oauth through auth</span></div>
+    <ol class="steps">
+      <li>Claude opens a browser on auth.bythewood.me, which asks for a fresh six digit code from your phone.</li>
+      <li>auth asks whether to let the connector read orchard. Allowing makes a session just for it, good for 90 days.</li>
+      <li>Claude gets a token for an hour at a time and swaps it for a new one quietly. It reads every tool as that session.</li>
+    </ol>
+    <p class="o-muted small">Revoke the connector's session on <a href="https://auth.bythewood.me/sessions">auth's sessions page</a> and its next call is refused. Only Claude's own clients, claude.ai and Claude Code, can start a sign in.</p>
+  </section>
+</div>
+
+<section class="o-panel flush">
+  <div class="o-ph2"><h2>Tools</h2><span class="o-lab">all read only</span></div>
+  <div class="o-scroll">
+  <table class="o-tbl stack tooltbl">
+    <thead><tr><th>Tool</th><th>What it reads</th><th>Arguments</th></tr></thead>
+    <tbody>
+    {{range .Tools}}
+      <tr>
+        <td class="lead n">{{.Name}}</td>
+        <td class="full">{{.Description}}</td>
+        <td class="full">{{range $k, $v := .Schema.properties}}<div class="arg"><code>{{$k}}</code> <span class="o-muted">{{index $v "description"}}</span></div>{{else}}<span class="o-muted">none</span>{{end}}</td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<div class="o-cols even">
+  <section class="o-panel">
+    <div class="o-ph2"><h2>What's kept</h2><span class="o-lab">{{.Keep}} days</span></div>
+    <p class="o-muted small">Every request with the connector that made it, the tool and its arguments, how long it took, whether it failed and the first 600 characters of the answer. The same line goes to logging.bythewood.me as source <code>mcp</code>. Tokens are kept hashed, and the session auth handed over is the one secret stored as it is, since it has to be sent on to each tool.</p>
+  </section>
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Strangers' text</h2><span class="o-lab">read, never obeyed</span></div>
+    <p class="o-muted small">Log lines, referrers, page titles and crawl results are written by whoever visits a site. A report carries them as they are, so every one opens with a line telling the agent it's data. Nothing here can change anything, which is the real fence.</p>
+  </section>
+</div>
+{{template "foot" .}}{{end}}
