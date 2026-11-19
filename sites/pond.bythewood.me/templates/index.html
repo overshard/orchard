@@ -39,12 +39,19 @@
   <section class="view" id="v-play" hidden>
     <canvas class="vista top" id="play-art" aria-hidden="true"></canvas>
     <div id="shelves"></div>
-    <a class="game" href="#wheel" id="play-wheel">
-      <canvas id="play-wheel-art" width="168" height="96" aria-hidden="true"></canvas>
-      <span class="gtext"><b>Lily wheel</b><span id="play-wheel-line"></span></span>
+    <h2>Every day</h2>
+    <a class="prow" href="#race" id="play-race">
+      <canvas data-icon="g_race" width="24" height="24" aria-hidden="true"></canvas>
+      <span class="gtext"><b>Today's race</b><span id="play-race-line"></span></span>
+      <span class="cta">Race</span>
+    </a>
+    <a class="prow" href="#wheel" id="play-wheel">
+      <canvas data-icon="spin" width="24" height="24" aria-hidden="true"></canvas>
+      <span class="gtext"><b>The wheel</b><span id="play-wheel-line"></span></span>
       <span class="cta">Spin</span>
     </a>
-    <div class="game log">
+    <div class="prow log" id="play-log">
+      <canvas data-icon="log" width="24" height="24" aria-hidden="true"></canvas>
       <span class="gtext"><b>The old log</b><span id="log-out">Pick one. Once a day.</span></span>
       <div class="logs" id="logs">
         <button type="button" data-pick="0" aria-label="Log 1"><canvas width="64" height="40"></canvas></button>

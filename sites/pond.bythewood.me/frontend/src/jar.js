@@ -229,7 +229,7 @@ function glass(x) {
   x.fillStyle = "#8a9099"; x.fillRect(JL - 6, LINE - 28, 9, 5); x.fillRect(JR - 3, LINE - 28, 9, 5);
 }
 
-// The label on the Play disk.
+// The picture on the title card.
 export function jarArt(x, g) {
   col = colours(g, null);
   x.fillStyle = "#2a5163"; x.fillRect(0, 0, 168, 96);

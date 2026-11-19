@@ -1,4 +1,5 @@
 import { $, post, state, setPond, watch, room, onResize, payWord, aimList } from "./api.js";
+import { label } from "./play.js";
 import { genome, sideCells, draw as drawCells, SW, SH } from "./frog.js";
 import { raceStart, raceOut, raceOrder, raceResults, raceHide, countdown, callout, suffix } from "./race.js";
 import { feel, finger, unseen, sawIt } from "./feel.js";
@@ -482,11 +483,11 @@ function overlay(now) {
   }
   if (again) return;
   const aims = state.pond.dive.aims || [], rc = state.pond.dive.race, shows = want + mode + rc.place + aims.map((a) => a.done ? 1 : 0).join("");
-  if (card.dataset.shows === shows) { card.querySelector("canvas").getContext("2d").drawImage($(mode === "race" ? "play-race-art" : "play-dive-art"), 0, 0); return; }
+  if (card.dataset.shows === shows) { card.querySelector("canvas").getContext("2d").drawImage(label(mode === "race" ? "race" : "dive"), 0, 0); return; }
   card.dataset.shows = shows;
   const win = document.createElement("div"), art = document.createElement("canvas");
   win.className = "arcade-win"; art.width = 168; art.height = 96;
-  art.getContext("2d").drawImage($(mode === "race" ? "play-race-art" : "play-dive-art"), 0, 0);
+  art.getContext("2d").drawImage(label(mode === "race" ? "race" : "dive"), 0, 0);
   win.append(art);
   const line = (tag, cls, text) => { const e = document.createElement(tag); e.className = cls; e.textContent = text; return e; };
   if (want === "paused") card.replaceChildren(win, line("b", "", "PAUSED"), line("p", "again", "Tap to carry on"));

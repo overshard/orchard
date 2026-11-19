@@ -261,7 +261,7 @@ export const drop = {
   },
 };
 
-// The label on the Play disk.
+// The picture on the title card.
 export function dropArt(x, g) {
   x.fillStyle = "#143c4a"; x.fillRect(0, 0, 168, 96);
   x.fillStyle = "#2a5163"; x.fillRect(0, 0, 168, 14);

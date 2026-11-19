@@ -120,9 +120,9 @@ export function chime(semis, vol) {
 // A key goes down with a click, and the main key with a clunk.
 document.addEventListener("pointerdown", (e) => {
   if (!on.sound) return;
-  const k = e.target.closest("button, .chip, .disk, a.game, .tabs button");
+  const k = e.target.closest("button, .chip, .jar, .feature, a.prow, .tabs button");
   if (!k || k.disabled) return;
-  sfx(k.classList.contains("primary") || k.classList.contains("disk") ? "clunk" : "click");
+  sfx(k.classList.contains("primary") || k.classList.contains("jar") ? "clunk" : "click");
 });
 
 // The audio clock runs whether sound is on or not, so a game that keeps time

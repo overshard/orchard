@@ -4,7 +4,7 @@ import { draw } from "./lit.js";
 import { drawIcon, iconCanvas, drawFurn } from "./icons.js";
 import { initDive, enterDive, leaveDive, diveMode } from "./dive.js";
 import { arcade } from "./arcade.js";
-import { buildPlay, drawDisks, DISKS, raceLine } from "./play.js";
+import { buildPlay, drawLabels, JARS, raceLine, showJar } from "./play.js";
 import { initWheel, enterWheel } from "./wheel.js";
 import { initReeds } from "./reeds.js";
 import { initFrogPage, enterFrog, enterLay, leaveFrog } from "./frogpage.js";
@@ -31,7 +31,8 @@ import { footprint, visitorReveal, stampsReveal, paintingReveal } from "./compan
 import { initPet, setBox, pose, over as petOver, busy as petBusy, tapTrick, arrive, drawBond } from "./pet.js";
 
 buildPlay($("shelves"), $("v-dive"));
-const SIDE = DISKS.filter((d) => d.game);
+document.querySelectorAll("#v-play canvas[data-icon]").forEach((cv) => drawIcon(cv.getContext("2d"), cv.dataset.icon, 0, 0, 2));
+const SIDE = JARS.filter((d) => d.game);
 const VIEWS = ["pond", "play", "dive", ...SIDE.map((d) => d.key), "wheel", "bag", "collect", "reeds", "frog", "lay", "stamps", "job", "garden", "bank", "wizard", "town", "settings"];
 // The places behind a key inside Make and inside Town.
 const MAKE = ["garden", "bank", "wizard"];
@@ -49,7 +50,7 @@ let view = "pond", fetchedAt = Date.now(), makeAt = "", waitingAt = new Set();
 let open = { works: false, market: false }, wanted = "";
 try { open = JSON.parse(localStorage.getItem("pond-open")) || open; } catch (e) { /* private window */ }
 // A game opened straight off a link has no pond yet when its card is made,
-// so the disks are drawn before any game repaints its card off them.
+// so the pictures are drawn before any game repaints its card off them.
 watch(() => { if (view === "dive" || GAMES[view]) drawPlay(); });
 const GAMES = Object.fromEntries(SIDE.map((d) => [d.key, arcade(d.game)]));
 
@@ -154,7 +155,7 @@ function show(next) {
   });
   $("bagpill").classList.toggle("lit", lit === "bag");
   $("gear").classList.toggle("lit", next === "settings");
-  // A title card copies its art off the Play disks, so they're drawn first.
+  // A title card copies its picture off Play's, so they're drawn first.
   if (next === "dive" || GAMES[next]) drawPlay();
   if (next === "dive") enterDive();
   if (GAMES[next]) GAMES[next].enter();
@@ -926,10 +927,11 @@ setInterval(() => {
 // ---------------------------------------------------------------- play
 
 function renderPlay(p) {
-  payLine("dive", p.dive);
   raceLine(p.dive.race);
   const w = p.wheel;
-  $("play-wheel-line").textContent = w.free > 0 ? w.free + " free spin" + (w.free > 1 ? "s" : "") + " waiting" : "Next free spin soon";
+  $("play-wheel-line").textContent = w.free > 0 ? w.free + " free spin" + (w.free > 1 ? "s" : "") + " waiting" : "A free spin in " + hm(w.next_in);
+  $("play-wheel").classList.toggle("pays", w.free > 0);
+  $("play-log").classList.toggle("pays", p.log.ready && !logTurned);
   if (!logTurned) {
     document.querySelectorAll("#logs button").forEach((b) => { b.disabled = !p.log.ready; });
     if (!p.log.ready) $("log-out").textContent = "Turned over for today. Back tomorrow.";
@@ -948,44 +950,12 @@ function drawLog(cv, open) {
   if (open) { x.fillStyle = "#2f2820"; x.fillRect(8, 28, 48, 10); }
 }
 
-// Each game card says whether a run still pays in full today, and lights up
-// when it does, so the ones worth playing stand out.
-function payLine(key, a) {
-  const left = a.paid >= a.cap ? 0 : Math.max(0, a.full - a.runs);
-  const tag = document.createElement("span");
-  tag.className = "pay " + (left ? "full" : a.paid >= a.cap || a.daily ? "done" : "less");
-  tag.textContent = left ? (a.daily ? "Today's grid" : "Full pay · " + left + " left") : a.paid >= a.cap ? "Paid out today" : a.daily ? "Free play" : "Quarter pay";
-  $("play-" + key + "-line").replaceChildren(tag, document.createTextNode("Best " + a.best + (a.daily ? " pads" : "") + " · today " + a.paid + "/" + a.cap));
-  $("play-" + key).classList.toggle("pays", left > 0);
-  // The disk of the day has a sticker stuck on it.
-  const floppy = $("play-" + key).querySelector(".floppy"), had = floppy.querySelector(".daytag");
-  let ticks = floppy.querySelector(".aimticks");
-  if (!ticks) { ticks = document.createElement("span"); ticks.className = "aimticks"; floppy.append(ticks); }
-  ticks.replaceChildren(...(a.aims || []).map((m) => { const i = document.createElement("i"); if (m.done) i.className = "done"; return i; }));
-  ticks.title = (a.aims || []).map((m) => (m.done ? "Done: " : "") + m.line).join("\n");
-  if (a.day && !had) {
-    const tag = document.createElement("span");
-    tag.className = "daytag"; tag.textContent = "Disk of the day";
-    floppy.append(tag);
-  } else if (!a.day && had) had.remove();
-}
-
 function drawPlay() {
   const p = state.pond, g = state.g;
   if (!p || !g) return;
-  drawDisks(g, p);
-  (p.arcade || []).forEach((a) => payLine(a.key, a));
-  const w = $("play-wheel-art").getContext("2d");
-  w.fillStyle = "#0e2c30"; w.fillRect(0, 0, 168, 96);
-  for (let y = 0; y < 96; y += 4) for (let x = 0; x < 168; x += 4) {
-    const dx = (x + 2 - 84) / 44, dy = (y + 2 - 48) / 44, r = dx * dx + dy * dy;
-    if (r > 1) continue;
-    const a = Math.atan2(dy, dx), sl = Math.floor(((a + Math.PI) / (Math.PI * 2)) * 16);
-    w.fillStyle = r > 0.86 ? "#1f5a2c" : r < 0.06 ? "#ffe27a" : sl % 2 ? "#3f9a4d" : "#56b45f";
-    if (sl === 3 && r > 0.06 && r <= 0.86) w.fillStyle = "#d8659a";
-    if (sl === 11 && r > 0.06 && r <= 0.86) w.fillStyle = "#e3b23a";
-    w.fillRect(x, y, 4, 4);
-  }
+  drawLabels(g, p);
+  showJar("dive", p.dive);
+  (p.arcade || []).forEach((a) => showJar(a.key, a));
   document.querySelectorAll("#logs canvas").forEach((cv, i) => drawLog(cv, logTurned && logPick === i));
 }
 

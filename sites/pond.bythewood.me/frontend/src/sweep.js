@@ -241,7 +241,7 @@ function sweepCard(n) {
   return cv;
 }
 
-// The label on the Play disk.
+// The picture on the title card.
 export function sweepArt(x) {
   x.fillStyle = "#17475a"; x.fillRect(0, 0, 168, 96);
   const open = { 9: 1, 10: 1, 11: 2, 16: 0, 17: 0, 18: 1, 23: 0, 24: 0, 25: 2, 2: 1, 3: 1, 4: 1 };

@@ -475,7 +475,7 @@ function pointers(x) {
   }
 }
 
-// The label on the Play disk.
+// The picture on the title card.
 export function whirlArt(x, g) {
   x.fillStyle = "#1d4f5c"; x.fillRect(0, 0, 168, 96);
   x.fillStyle = "rgba(207,240,246,0.13)"; for (let i = 0; i < 14; i++) x.fillRect((i * 53) % 168, (i * 37) % 96, 6, 1);

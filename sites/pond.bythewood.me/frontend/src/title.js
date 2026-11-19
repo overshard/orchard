@@ -1,5 +1,5 @@
 import { state, titled } from "./api.js";
-import { DISKS } from "./play.js";
+import { JARS } from "./play.js";
 
 // The tab says where your frog is, with the count of things waiting in front
 // like a mail tab, and calls after you when the tab is left.
@@ -25,7 +25,7 @@ const AT = {
 };
 const POND = { egg: "is still an egg", tadpole: "swimming laps", froglet: "on the pad", frog: "on the pad", elder: "dozing on the pad" };
 const CALL = { tadpole: "Blub?", froglet: "Ribbit?", frog: "Ribbit?", elder: "Ribbit?" };
-DISKS.forEach((d) => { if (d.game) AT[d.key] = "playing " + d.name; });
+JARS.forEach((d) => { if (d.game) AT[d.key] = "playing " + d.name; });
 
 let place = "pond", waiting = 0;
 

@@ -295,7 +295,7 @@ function scene(x, t, r) {
   }
 }
 
-// The label on the Play disk.
+// The picture on the title card.
 export function chorusArt(x, g) {
   x.fillStyle = "#163640"; x.fillRect(0, 0, 168, 96);
   x.fillStyle = "#0f2a24"; for (let i = 0; i < 168; i += 2) { const hgt = 6 + ((i * 7919) % 9) + Math.round(4 * Math.sin(i / 9)); x.fillRect(i, 50 - hgt, 2, hgt); }

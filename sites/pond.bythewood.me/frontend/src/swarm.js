@@ -772,7 +772,7 @@ function pad(c, cx, cy, r, rim, face) {
   }
 }
 
-// The label on the Play disk.
+// The picture on the title card.
 export function swarmArt(x, g) {
   x.fillStyle = "#173a3a"; x.fillRect(0, 0, 168, 96);
   x.fillStyle = "#1c4442"; for (let i = 0; i < 14; i++) x.fillRect((i * 53) % 168, (i * 37) % 96, 6, 1);

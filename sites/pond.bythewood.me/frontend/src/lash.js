@@ -411,7 +411,7 @@ function scene(x, t) {
   });
 }
 
-// The label on the Play disk.
+// The picture on the title card.
 export function lashArt(x, g) {
   ["#2e2640", "#3a2e4a", "#4a3650", "#5e4256"].forEach((c, i) => { x.fillStyle = c; x.fillRect(0, i * 14, 168, 14); });
   x.fillStyle = "#e38a4a"; x.fillRect(122, 44, 18, 10);

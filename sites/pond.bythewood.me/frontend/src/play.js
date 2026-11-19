@@ -1,6 +1,10 @@
 import { cells, sideCells, colours, W, H, SW, SH } from "./frog.js";
 import { draw } from "./lit.js";
 import { drawTop } from "./top.js";
+import { fullLeft } from "./api.js";
+import { jar as paintJar } from "./scenes.js";
+import { drawIcon } from "./icons.js";
+import { rng, px, water } from "./paint.js";
 import { flick } from "./flick.js";
 import { cross } from "./cross.js";
 import { raft } from "./raft.js";
@@ -20,39 +24,46 @@ import { swarm, swarmArt } from "./swarm.js";
 import { whirl, whirlArt } from "./whirl.js";
 import { sling, slingArt } from "./sling.js";
 
-// Every disk on Play. A disk is a key, a name, the plastic's colour, one
-// line, the picture on its label and the game the frame runs. A new game is
-// one line on its shelf, and Dive has no game here since it has its own view.
-export const FLAGSHIP = { key: "fish", name: "Fishing", colour: "#1f7a7a", line: "A minute off the jetty. Cast, strike and reel in what you can.", art: fishArt, game: fish };
+// Every game on Play. A game is a key, a name, one line, the picture on its
+// title card and the game the frame runs. A new game is one line on its
+// shelf, and Dive has no game here since it has its own view.
+export const FLAGSHIP = { key: "fish", name: "Fishing", line: "A minute off the jetty. Cast, strike and reel in what you can.", art: fishArt, game: fish };
 
 export const SHELVES = [
-  { name: "Arcade", disks: [
-    { key: "swarm", name: "Swarm season", colour: "#e8c23a", line: "Steer through the swarm and stack up perks.", art: swarmArt, game: swarm },
-    { key: "lash", name: "Tongue lash", colour: "#e07ab0", line: "Snap bugs out of the dusk, lots to a gulp.", art: lashArt, game: lash },
-    { key: "whirl", name: "Whirlpool", colour: "#46c1c9", line: "Swallow the pond, duckweed first and the jetty last.", art: whirlArt, game: whirl },
-    { key: "sling", name: "Cattail sling", colour: "#6a7f2e", line: "Fling frogs at acorns stacked out on the pond.", art: slingArt, game: sling },
-    { key: "dive", name: "Dive", colour: "#2b5fa8", line: "Race nine frogs to the bottom.", art: diveArt },
-    { key: "cross", name: "Crossing", colour: "#b8392b", line: "Hop the lane and the stream home.", art: crossArt, game: cross },
-    { key: "raft", name: "Raft run", colour: "#d0951c", line: "Steer a leaf down the river.", art: raftArt, game: raft },
-    { key: "leap", name: "Lily leap", colour: "#7d52c0", line: "Bounce as high as the pads go.", art: leapArt, game: leap },
-    { key: "school", name: "Tadpoles", colour: "#2a2a30", line: "Lead a school round the shallows.", art: schoolArt, game: school },
-    { key: "stack", name: "Lily stack", colour: "#c0507a", line: "Stack pads as high as they go.", art: stackArt, game: stack },
-    { key: "skip", name: "Pebble skip", colour: "#5b6470", line: "Skip three pebbles across the pond.", art: skipArt, game: skip },
-    { key: "drop", name: "Pebble drop", colour: "#d8cfb8", line: "Drop ten pebbles through the reeds.", art: dropArt, game: drop },
-    { key: "chorus", name: "Chorus", colour: "#d8642a", line: "Sing your part with the frogs on the log.", art: chorusArt, game: chorus },
+  { name: "Arcade", note: "lit ones still pay in full", jars: [
+    { key: "swarm", name: "Swarm season", line: "Steer through the swarm and stack up perks.", art: swarmArt, game: swarm },
+    { key: "lash", name: "Tongue lash", line: "Snap bugs out of the dusk, lots to a gulp.", art: lashArt, game: lash },
+    { key: "whirl", name: "Whirlpool", line: "Swallow the pond, duckweed first and the jetty last.", art: whirlArt, game: whirl },
+    { key: "sling", name: "Cattail sling", line: "Fling frogs at acorns stacked out on the pond.", art: slingArt, game: sling },
+    { key: "dive", name: "Dive", line: "Race nine frogs to the bottom.", art: diveArt },
+    { key: "cross", name: "Crossing", line: "Hop the lane and the stream home.", art: crossArt, game: cross },
+    { key: "raft", name: "Raft run", line: "Steer a leaf down the river.", art: raftArt, game: raft },
+    { key: "leap", name: "Lily leap", line: "Bounce as high as the pads go.", art: leapArt, game: leap },
+    { key: "school", name: "Tadpoles", line: "Lead a school round the shallows.", art: schoolArt, game: school },
+    { key: "stack", name: "Lily stack", line: "Stack pads as high as they go.", art: stackArt, game: stack },
+    { key: "skip", name: "Pebble skip", line: "Skip three pebbles across the pond.", art: skipArt, game: skip },
+    { key: "drop", name: "Pebble drop", line: "Drop ten pebbles through the reeds.", art: dropArt, game: drop },
+    { key: "chorus", name: "Chorus", line: "Sing your part with the frogs on the log.", art: chorusArt, game: chorus },
   ] },
-  { name: "Puzzles", disks: [
-    { key: "shell", name: "Shell game", colour: "#8a5a2b", line: "Follow the tadpole under the shells.", art: shellArt, game: shell },
-    { key: "sweep", name: "Bug sweep", colour: "#8fa832", line: "Clear the pads and mind the wasps.", art: sweepArt, game: sweep },
-    { key: "putt", name: "Pad putt", colour: "#4fa8d8", line: "Nine holes of mini golf round the pond.", art: puttArt, game: putt },
-    { key: "jar", name: "Spawn jar", colour: "#8fc9b4", line: "Grow frogspawn up to a pond king in a jar.", art: jarArt, game: jar },
+  { name: "Puzzles", jars: [
+    { key: "shell", name: "Shell game", line: "Follow the tadpole under the shells.", art: shellArt, game: shell },
+    { key: "sweep", name: "Bug sweep", line: "Clear the pads and mind the wasps.", art: sweepArt, game: sweep },
+    { key: "putt", name: "Pad putt", line: "Nine holes of mini golf round the pond.", art: puttArt, game: putt },
+    { key: "jar", name: "Spawn jar", line: "Grow frogspawn up to a pond king in a jar.", art: jarArt, game: jar },
   ] },
-  { name: "Classics", disks: [
-    { key: "flick", name: "Tongue flick", colour: "#3f8a45", line: "Thirty seconds of bugs, just for fun.", art: flickArt, game: flick },
+  { name: "Classics", note: "for fun", jars: [
+    { key: "flick", name: "Tongue flick", line: "Thirty seconds of bugs, just for fun.", art: flickArt, game: flick },
   ] },
 ];
 
-export const DISKS = [FLAGSHIP, ...SHELVES.flatMap((s) => s.disks)];
+export const JARS = [FLAGSHIP, ...SHELVES.flatMap((s) => s.jars)];
+
+// Each game's title card picture, and the race's, kept off the page.
+const LABELS = {};
+export function label(key) {
+  if (!LABELS[key]) { LABELS[key] = el("canvas"); LABELS[key].width = 168; LABELS[key].height = 96; }
+  return LABELS[key];
+}
 
 function el(tag, cls, text) {
   const e = document.createElement(tag);
@@ -61,24 +72,22 @@ function el(tag, cls, text) {
   return e;
 }
 
-function disk(d, flag) {
-  const a = el("a", flag ? "disk flag" : "disk"), floppy = el("span", "floppy"), sticker = el("span", "sticker"), art = el("canvas");
+function jarCard(d) {
+  const a = el("a", "jar"), cv = el("canvas");
   a.href = "#" + d.key; a.id = "play-" + d.key;
-  a.style.setProperty("--disk", d.colour);
-  art.id = "play-" + d.key + "-art"; art.width = 168; art.height = 96;
-  art.setAttribute("aria-hidden", "true");
-  sticker.append(art, el("b", "", d.name));
-  floppy.append(sticker);
-  const line = el("span", "dline");
-  if (flag) {
-    const pay = el("span");
-    pay.id = "play-" + d.key + "-line";
-    line.append(el("b", "dhead", d.name), el("span", "dsub", d.line), pay);
-  } else {
-    line.id = "play-" + d.key + "-line";
-    line.textContent = d.line;
-  }
-  a.append(floppy, line);
+  cv.setAttribute("aria-hidden", "true");
+  a.append(cv, el("b", "", d.name), el("span", "jline"), el("span", "aimleds"));
+  return a;
+}
+
+// Fishing gets a card of its own over the jars.
+function featureCard(d) {
+  const a = el("a", "feature"), cv = el("canvas"), text = el("span", "ftext"), pay = el("span", "fpay");
+  a.href = "#" + d.key; a.id = "play-" + d.key;
+  cv.id = "play-" + d.key + "-art"; cv.width = 60; cv.height = 44;
+  cv.setAttribute("aria-hidden", "true");
+  text.append(el("b", "", d.name), el("span", "", d.line), pay, el("span", "aimleds"));
+  a.append(cv, text, el("span", "cta", "Cast"));
   return a;
 }
 
@@ -101,32 +110,50 @@ function gameView(d) {
   return v;
 }
 
-// buildPlay puts the disks on their shelves and makes each game's view, and
-// has to run before a game's frame goes looking for its canvas.
+// buildPlay puts fishing on top and the jars on their shelves, and makes each
+// game's view, and has to run before a game's frame goes looking for its canvas.
 export function buildPlay(shelves, after) {
-  const first = el("div", "disks");
-  first.append(disk(FLAGSHIP, true));
-  shelves.append(first);
+  shelves.append(featureCard(FLAGSHIP));
   SHELVES.forEach((s) => {
-    const row = el("div", "disks");
-    s.disks.forEach((d) => row.append(disk(d)));
-    shelves.append(el("h2", "", s.name), row);
-    if (s.name === "Arcade") shelves.append(raceCard());
+    const head = el("h2", "", s.name), row = el("div", "jars");
+    if (s.note) head.append(el("span", "m", s.note));
+    s.jars.forEach((d) => row.append(jarCard(d)));
+    shelves.append(head, row);
   });
-  after.after(...DISKS.filter((d) => d.game).map(gameView));
+  after.after(...JARS.filter((d) => d.game).map(gameView));
 }
 
-// The daily race opens Dive on the day's course, from a card under the
-// Arcade disks like the wheel's.
-function raceCard() {
-  const a = el("a", "game pays"), art = el("canvas"), text = el("span", "gtext"), line = el("span");
-  a.href = "#race"; a.id = "play-race";
-  art.id = "play-race-art"; art.width = 168; art.height = 96;
-  art.setAttribute("aria-hidden", "true");
-  line.id = "play-race-line";
-  text.append(el("b", "", "Daily race"), line);
-  a.append(art, text, el("span", "cta", "Race"));
-  return a;
+// showJar lights a game's jar while a run still pays in full, puts the TODAY
+// sticker on the day's game and an LED on it for each of its two goals.
+export function showJar(key, a) {
+  const card = $("play-" + key), left = fullLeft(a), lit = left > 0;
+  const word = a.cap === 0 ? "For fun" : a.daily ? (left ? "Today's grid" : "Free play") : left ? left + " left" : a.paid >= a.cap ? "Paid out" : "Quarter pay";
+  card.classList.toggle("lit", lit);
+  card.classList.toggle("day", !!a.day);
+  const leds = card.querySelector(".aimleds");
+  leds.replaceChildren(...(a.aims || []).map((m) => { const i = el("i"); if (m.done) i.className = "done"; return i; }));
+  const aims = (a.aims || []).map((m) => (m.done ? "done: " : "") + m.line);
+  let stk = card.querySelector(".stk");
+  if (a.day && !stk) { stk = el("i", "stk", "Today"); card.append(stk); } else if (!a.day && stk) stk.remove();
+  const d = JARS.find((x) => x.key === key), best = "Best " + a.best + (a.daily ? " pads" : "");
+  card.setAttribute("aria-label", [d.name, a.day ? "today's game" : "", word, best, ...aims].filter(Boolean).join(". "));
+  card.title = d.line;
+  if (key === FLAGSHIP.key) {
+    const tag = el("span", "pay " + (lit ? "full" : a.paid >= a.cap ? "done" : "less"), lit ? "Full pay · " + left + " left" : a.paid >= a.cap ? "Paid out today" : "Quarter pay");
+    card.querySelector(".fpay").replaceChildren(tag, document.createTextNode(best + " · today " + a.paid + "/" + a.cap));
+    card.querySelector(".cta").classList.toggle("ghost", !lit);
+    return;
+  }
+  card.querySelector(".jline").textContent = word;
+  const cv = card.querySelector("canvas"), k = Math.max(2, Math.round(2 * (window.devicePixelRatio || 1))), was = cv.dataset.lit;
+  if (was === String(lit) && cv.width === 28 * k) return;
+  cv.dataset.lit = String(lit);
+  cv.width = 28 * k; cv.height = 32 * k;
+  const g = cv.getContext("2d");
+  g.scale(k, k);
+  let seed = 0;
+  for (const c of key) seed = seed * 31 + c.charCodeAt(0);
+  paintJar(g, key, 0, 0, rng(seed), lit);
 }
 
 // raceLine says where the pond is on today's board, or who's out front.
@@ -150,10 +177,14 @@ export function raceArt(r, g, p) {
   draw(r, side(g, p, true), SW, SH, colours(g, null), 96, 44, 1);
 }
 
-// drawDisks paints every label, which a game's title card copies its art off.
-export function drawDisks(g, p) {
-  DISKS.forEach((d) => d.art(document.getElementById("play-" + d.key + "-art").getContext("2d"), g, p));
-  raceArt(document.getElementById("play-race-art").getContext("2d"), g, p);
+// drawLabels paints every title card picture and fishing's on Play.
+export function drawLabels(g, p) {
+  JARS.forEach((d) => d.art(label(d.key).getContext("2d"), g, p));
+  raceArt(label("race").getContext("2d"), g, p);
+  const f = $("play-fish-art").getContext("2d");
+  water(f, 60, 0, 44, "#0d2a44", "#0a1e34", rng(3));
+  drawIcon(f, "g_fish", 18, 12, 2);
+  px(f, "#d8ccb0", 4, 0, 1, 14); px(f, "#ff8a7a", 3, 14, 3, 2);
 }
 
 function grown(p) { return ["egg", "tadpole"].includes(p.frog.stage) ? "froglet" : p.frog.stage; }

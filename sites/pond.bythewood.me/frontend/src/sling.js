@@ -718,7 +718,7 @@ function hud(x, L) {
   }
 }
 
-// The label on the Play disk.
+// The picture on the title card.
 export function slingArt(x, g) {
   const S = SKIES[0], was = w, wasG = G;
   G = { real: 0, col: colours(g, null) };

@@ -1,4 +1,5 @@
 import { $, post, state, setPond, watch, room, onResize, payWord, aimList } from "./api.js";
+import { label } from "./play.js";
 import { finger, unseen, sawIt } from "./feel.js";
 
 // The frame round a side game. A game is a fixed field W by H, drawn at twice
@@ -92,8 +93,7 @@ export function arcade(game) {
     }
     const win = el("div", "arcade-win"), art = el("canvas");
     art.width = 168; art.height = 96;
-    const from = $("play-" + k + "-art");
-    if (from) art.getContext("2d").drawImage(from, 0, 0);
+    art.getContext("2d").drawImage(label(k), 0, 0);
     win.append(art);
     const kids = [win];
     if (A.state === "paused") {

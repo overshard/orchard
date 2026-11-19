@@ -584,7 +584,7 @@ function course(x, h, s, t, now, flash) {
   cup(x, cupAt(h, t), now);
 }
 
-// The label on the Play disk.
+// The picture on the title card.
 export function puttArt(x, g) {
   x.fillStyle = "#123a3d"; x.fillRect(0, 0, 168, 96);
   bank(x, [10, 8, 158, 88]); moss(x, [10, 8, 158, 88]);
