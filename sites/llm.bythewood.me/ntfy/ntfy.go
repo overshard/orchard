@@ -29,14 +29,18 @@ type Message struct {
 	// notification only opens ntfy. No link, no button.
 	Link  string
 	Label string
+
+	// Buttons are more actions in ntfy's short form, after the link's.
+	Buttons []string
 }
 
-// Action is the Actions header, empty when there is no link.
+// Action is the Actions header, empty when there is no link or button.
 func (m Message) Action() string {
-	if m.Link == "" {
-		return ""
+	var out []string
+	if m.Link != "" {
+		out = append(out, "view, "+m.Label+", "+m.Link)
 	}
-	return "view, " + m.Label + ", " + m.Link
+	return strings.Join(append(out, m.Buttons...), "; ")
 }
 
 // Client publishes to one topic.
