@@ -48,9 +48,9 @@
           <td class="act">
             {{if .Revoked}}
               <span class="o-chip">revoked</span>
-              <form method="post" action="/keys/{{.ID}}/delete"><button type="submit" class="o-btn o-btn-sm o-btn-bad">Delete</button></form>
+              <form method="post" action="/keys/{{.ID}}/delete" data-confirm="Delete {{.Name}} for good?"><button type="submit" class="o-btn o-btn-sm o-btn-bad">Delete</button></form>
             {{else}}
-              <form method="post" action="/keys/{{.ID}}/revoke"><button type="submit" class="o-btn o-btn-sm o-btn-bad">Revoke</button></form>
+              <form method="post" action="/keys/{{.ID}}/revoke" data-confirm="Revoke {{.Name}}? It stops working on its next request."><button type="submit" class="o-btn o-btn-sm o-btn-bad">Revoke</button></form>
             {{end}}
           </td>
         </tr>
