@@ -257,7 +257,23 @@ func (s *Scheduler) ask(ctx context.Context, j Job) (Answer, error) {
 	if s.model == nil {
 		return Answer{}, errors.New("no LLM_KEY, so prompt jobs can't run")
 	}
-	return s.model.Ask(ctx, j.Message, s.now().In(s.loc))
+	return s.model.Ask(ctx, j.Message+s.lastPush(j.ID), s.now().In(s.loc))
+}
+
+// lastPush gives a check its previous push, so one can report a change since
+// then or stay quiet when it already told him.
+func (s *Scheduler) lastPush(job int64) string {
+	runs, err := s.store.Runs(job, 50)
+	if err != nil {
+		return ""
+	}
+	for _, r := range runs {
+		if r.Pushed {
+			return fmt.Sprintf("\n\nYour last push for this check was at %s Eastern, titled %q: %s",
+				r.At.In(s.loc).Format("Jan 2 3:04pm"), r.Title, r.Body)
+		}
+	}
+	return "\n\nThis check hasn't pushed anything yet."
 }
 
 // Snoozed turns a pressed snooze button into a one-shot an hour out.
