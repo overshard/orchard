@@ -10,7 +10,7 @@ import (
 	"logging.bythewood.me/ntfy"
 )
 
-const ntfyTopic = "logging"
+const ntfyTopic = "alerts"
 
 // AlertContext is the snapshot as of the moment the alert fired.
 type AlertContext struct {

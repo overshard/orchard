@@ -10,7 +10,7 @@ import (
 	"status.bythewood.me/ntfy"
 )
 
-const ntfyTopic = "status"
+const ntfyTopic = "alerts"
 
 // AlertContext is the property snapshot as of the moment the alert fired, so the
 // numbers in the notification are the ones that triggered it.

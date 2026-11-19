@@ -32,7 +32,7 @@ the DNS routes for the second zone fail the first time through. Run
 and the rest are created.
 
 Then point the ntfy Android client at `https://ntfy.bythewood.me` with the
-reading account it printed, and subscribe to `status`, `logging` and `auth`.
+reading account it printed, and subscribe to `alerts`, `reminders` and `auth`.
 
 Each step is a target of its own, for a run that stopped halfway:
 

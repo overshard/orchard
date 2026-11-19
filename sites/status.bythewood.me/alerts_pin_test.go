@@ -85,7 +85,7 @@ func TestAlertRequestsArePinned(t *testing.T) {
 	n.Fire("sideways", ctx)
 
 	want := []string{
-		"POST /status\n" +
+		"POST /alerts\n" +
 			"Accept-Encoding: gzip\n" +
 			"Actions: view, Open status, https://status.bythewood.me/0b1c\n" +
 			"Authorization: Bearer tk_pin\n" +
@@ -95,7 +95,7 @@ func TestAlertRequestsArePinned(t *testing.T) {
 			"Title: example.com is down\n" +
 			"User-Agent: Go-http-client/1.1\n\n" +
 			"https://example.com\nTwo consecutive checks failed. Latest status: 503.\nRolling average response: 184 ms.",
-		"POST /status\n" +
+		"POST /alerts\n" +
 			"Accept-Encoding: gzip\n" +
 			"Actions: view, Open status, https://status.bythewood.me/0b1c\n" +
 			"Authorization: Bearer tk_pin\n" +

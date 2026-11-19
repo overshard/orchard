@@ -84,7 +84,7 @@ func TestAlertRequestsArePinned(t *testing.T) {
 	n.Fire("catastrophe", AlertContext{Source: "blog"})
 
 	want := []string{
-		"POST /logging\n" +
+		"POST /alerts\n" +
 			"Accept-Encoding: gzip\n" +
 			"Actions: view, Open logs, https://logging.bythewood.me/sources/blog\n" +
 			"Authorization: Bearer tk_pin\n" +
@@ -94,7 +94,7 @@ func TestAlertRequestsArePinned(t *testing.T) {
 			"Title: blog has stopped logging\n" +
 			"User-Agent: Go-http-client/1.1\n\n" +
 			"No records for 7 minutes.\nThe container may be down, wedged, or unable to reach ingest. Its own stdout is still the source of truth: docker logs orchard-blog",
-		"POST /logging\n" +
+		"POST /alerts\n" +
 			"Accept-Encoding: gzip\n" +
 			"Actions: view, Open logs, https://logging.bythewood.me/sources/blog\n" +
 			"Authorization: Bearer tk_pin\n" +
@@ -104,7 +104,7 @@ func TestAlertRequestsArePinned(t *testing.T) {
 			"Title: blog is logging again\n" +
 			"User-Agent: Go-http-client/1.1\n\n" +
 			"Records are arriving after 1h30m of silence.",
-		"POST /logging\n" +
+		"POST /alerts\n" +
 			"Accept-Encoding: gzip\n" +
 			"Actions: view, Open logs, https://logging.bythewood.me/sources/blog\n" +
 			"Authorization: Bearer tk_pin\n" +

@@ -168,7 +168,7 @@ func realMain() error {
 	defer pruning.Wait()
 	defer stopPruning()
 	pruning.Go(func() { s.prune(pruneCtx) })
-	if n := ntfy.New("status", os.Getenv("NTFY_TOKEN")); s.claude != nil && n.Configured() {
+	if n := ntfy.New("alerts", os.Getenv("NTFY_TOKEN")); s.claude != nil && n.Configured() {
 		pruning.Go(func() { s.watchSpend(pruneCtx, n) })
 	}
 
