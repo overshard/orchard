@@ -13,12 +13,14 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"llm.bythewood.me/ntfy"
+	"llm.bythewood.me/suite"
 	"llm.bythewood.me/web"
 )
 
@@ -179,6 +181,8 @@ func realMain() error {
 	mux.HandleFunc("GET /{$}", s.root)
 	mux.HandleFunc("GET /calls", s.auth.RequireAuth(s.callsPage))
 	mux.Handle("GET /static/", s.static())
+	mux.Handle("GET /suite/", suite.Handler())
+	mux.HandleFunc("GET /keys", s.auth.RequireAuth(s.keysPage))
 	mux.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, web.LoginURL(r), http.StatusSeeOther)
 	})
@@ -245,14 +249,20 @@ func (s *site) loadTemplates() error {
 	if Reloaded {
 		resetAssetVersions()
 	}
-	t, err := template.New("").Funcs(template.FuncMap{
+	t, err := template.New("").Funcs(suite.Funcs()).Funcs(template.FuncMap{
 		"when":  fmtWhen,
 		"short": short,
 		"comma": comma,
 		"num":   num,
 		"asset": assetURL,
+		"secs":  secs,
+		"count": count,
+		"pct":   func(a, b float64) float64 { return 100 * a / b },
 	}).ParseFS(assets(), "templates/*.html")
 	if err != nil {
+		return err
+	}
+	if t, err = suite.Parse(t); err != nil {
 		return err
 	}
 	s.tpl = t
@@ -292,24 +302,44 @@ func (s *site) root(w http.ResponseWriter, r *http.Request) {
 		s.overview(w, r)
 		return
 	}
-	nKeys, nCalls := s.store.Counts()
+	api := `<span class="a">curl</span> llm.bythewood.me/v1/chat/completions \
+  -H <span class="g">"Authorization: Bearer orch-…"</span> -d <span class="w">'{"messages": […]}'</span>`
 	s.render(w, "landing.html", map[string]any{
-		"Title": "Overview", "Keys": nKeys, "Calls": nCalls,
-		"RetainDays": int(s.retain.Hours() / 24), "Author": author, "Year": time.Now().Year(),
+		"Title": "llm", "Claude": s.claude != nil, "RetainDays": int(s.retain.Hours() / 24),
+		"Suite": suite.Page{Tool: "llm", Tabs: []suite.Tab{{Name: "home", Href: "/", On: true}, {Name: "source", Href: sourceURL}},
+			Meta: "openai compatible · self-hosted", Right: []suite.Seg{{Text: "sign in at auth.bythewood.me"}}},
+		"Ways": suite.Ways{Host: "llm.bythewood.me",
+			APITitle: "The OpenAI shape", APIText: "Anything that already speaks chat completions needs a base url and a key, not a rewrite.",
+			API:        template.HTML(api),
+			AgentTitle: "Agents call it too", AgentText: "Every service with a key is an agent here, and each call it makes is kept with the key that made it.",
+			Agent: `<span class="c">caller</span> <span class="w">cron</span>  <span class="c">tokens</span> <span class="w">1.9k → 212</span>
+<span class="c">searches</span> <span class="w">2</span>  <span class="g">logged</span>`,
+			RunText: "give each service its own key."},
+		"Footer": suite.Footer{Tool: "llm", About: "Sits in front of every model call my services make, with a key for each, a budget and a record of every call.",
+			Source: sourceURL, Author: author, Year: time.Now().Year(), Pages: []suite.Tab{{Name: "Home", Href: "/"}}},
 	})
 }
 
 func (s *site) overview(w http.ResponseWriter, r *http.Request) {
+	now := time.Now()
+	usage, _ := s.store.Usage(now.Add(-24 * time.Hour))
+	recent, _ := s.store.Calls("", 8)
+	month, _ := s.month(now)
+	day := s.dayStats(now)
+	spendDays := s.spendByDay(month, now)
+	s.render(w, "overview.html", map[string]any{
+		"Title": "Overview", "Usage": usage, "Recent": recent, "Month": month, "Claude": s.claude != nil,
+		"Day": day, "SpendDays": spendDays, "ByCaller": s.spendByCaller(month), "Headline": s.headline(day, month),
+		"Upstream": s.upstream, "Suite": s.chrome("overview", day, month),
+	})
+}
+
+func (s *site) keysPage(w http.ResponseWriter, r *http.Request) {
 	keys, err := s.store.Keys()
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	usage, _ := s.store.Usage(time.Now().Add(-24 * time.Hour))
-	recent, _ := s.store.Calls("", 12)
-	month, _ := s.month(time.Now())
-	nKeys, nCalls := s.store.Counts()
-
 	// A key is shown once, on the redirect straight after it's made, because
 	// nothing here can produce it again.
 	fresh := ""
@@ -320,18 +350,23 @@ func (s *site) overview(w http.ResponseWriter, r *http.Request) {
 			Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode, MaxAge: -1,
 		})
 	}
-
-	s.render(w, "overview.html", map[string]any{
-		"Keys": keys, "Usage": usage, "Recent": recent,
-		"Fresh": fresh, "NKeys": nKeys, "NCalls": nCalls, "Title": "Overview",
-		"Upstream": s.upstream, "Retain": s.retain, "Month": month, "Claude": s.claude != nil,
-	})
+	live := 0
+	for _, k := range keys {
+		if !k.Revoked {
+			live++
+		}
+	}
+	month, _ := s.month(time.Now())
+	head := template.HTML(template.HTMLEscapeString(count(live, "live key", "live keys")) + ", <em>one per caller</em>.")
+	s.render(w, "keys.html", map[string]any{"Title": "Keys", "Keys": keys, "Fresh": fresh, "Headline": head,
+		"Suite": s.chrome("keys", s.dayStats(time.Now()), month)})
 }
 
 func (s *site) callsPage(w http.ResponseWriter, r *http.Request) {
-	caller := r.URL.Query().Get("caller")
+	q := r.URL.Query()
+	caller, failed := q.Get("caller"), q.Get("failed") == "1"
 	limit := 100
-	if n, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && n > 0 && n <= 500 {
+	if n, err := strconv.Atoi(q.Get("limit")); err == nil && n > 0 && n <= 500 {
 		limit = n
 	}
 	calls, err := s.store.Calls(caller, limit)
@@ -339,7 +374,20 @@ func (s *site) callsPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	s.render(w, "calls.html", map[string]any{"Calls": calls, "Caller": caller, "Limit": limit, "Title": "Calls"})
+	if failed {
+		calls = slices.DeleteFunc(calls, func(c Call) bool { return c.Status < 400 && c.Err == "" })
+	}
+	usage, _ := s.store.Usage(time.Now().Add(-30 * 24 * time.Hour))
+	day := s.dayStats(time.Now())
+	month, _ := s.month(time.Now())
+	head := template.HTML(template.HTMLEscapeString(count(day.Calls, "call", "calls")) + " today")
+	if day.Errors > 0 {
+		head += template.HTML(`, <em class="bad">` + count(day.Errors, "failed", "failed") + `</em>.`)
+	} else {
+		head += "."
+	}
+	s.render(w, "calls.html", map[string]any{"Calls": calls, "Caller": caller, "Failed": failed, "Limit": limit,
+		"Title": "Calls", "Callers": usage, "Headline": head, "Suite": s.chrome("calls", day, month)})
 }
 
 func (s *site) keyCreate(w http.ResponseWriter, r *http.Request) {
@@ -354,7 +402,7 @@ func (s *site) keyCreate(w http.ResponseWriter, r *http.Request) {
 		Name: newKeyCookie, Value: secret, Path: "/",
 		Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode, MaxAge: 60,
 	})
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	http.Redirect(w, r, "/keys", http.StatusSeeOther)
 }
 
 // newKeyCookie carries a freshly minted key from the POST to the page that
@@ -367,7 +415,7 @@ func (s *site) keyRevoke(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	http.Redirect(w, r, "/keys", http.StatusSeeOther)
 }
 
 func (s *site) keyDelete(w http.ResponseWriter, r *http.Request) {
@@ -376,7 +424,7 @@ func (s *site) keyDelete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	http.Redirect(w, r, "/keys", http.StatusSeeOther)
 }
 
 func fmtWhen(t time.Time) string {

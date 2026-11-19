@@ -14,7 +14,7 @@ haven't moved to the suite yet, and they go as each one does.
 
 ## The suite
 
-This is where the tool sites are headed, and cron is on it.
+This is where the tool sites are headed, and cron and llm are on it.
 
 - **Dark only, on cool charcoal.** Ground `#111315`, top bar `#0c0e10`, sunken
   `#090a0c`, panels `#171a1d` and `#1f2327`, lines `#262a2f`, `#1c1f23` and
@@ -175,11 +175,6 @@ is a working repository list and an advert would be in the way every visit.
 Repositories archived upstream sit below the rest under their own Archived
 heading at 0.6 opacity, each card back to full on hover, so old code reads as old.
 
-llm and cron have no Bootstrap and no Vite, so their landing pages write
-the skeleton out by hand in a `.landing-body` block in `static/app.css`.
-That block is byte identical between them and carries the shared palette
-rather than the app's own, so a change to it is made in each, and checked
-against a Bootstrap site's computed styles rather than by eye.
 
 ## Dashboards
 
@@ -1156,7 +1151,7 @@ version of the old look and a handheld pet shell.
 | `logging` | green | Bootstrap. Dashboards run full width inside the container |
 | `auth` | green | Bootstrap. Carries the starfield on `/login`, which the grid sits under |
 | `repos` | green | Hand written CSS, no Bootstrap, since it is dense text. Newsreader on repository names |
-| `llm` | green | Hand written CSS, no Bootstrap. Behind the landing is a dashboard of keys, usage and the call log |
+| `llm` | suite | On the suite. Overview, calls and keys, and the home page says whether Claude or the card is answering |
 | `cron` | suite | On the suite. Jobs, runs, a job form and keys, with `app.css` holding only what is cron's own |
 | `dash` | amber | Hand written CSS. Scanlines, vignette, JetBrains Mono and Space Grotesk. Panel 00 and panel 16 for chrome, a spine past 1900px. A `NOTIFY` switch in panel 00, and a `BRIEFS` rerun beside it that only appears signed in |
 | `pond` | amber | Hand written CSS. A game in the Deck direction, 80s hardware with keycaps, readout glass and colour pixel art in its screen windows. Dive is full screen on a phone |

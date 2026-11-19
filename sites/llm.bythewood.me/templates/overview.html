@@ -1,96 +1,87 @@
 {{template "head" .}}
 
-{{if .Fresh}}
-<section class="fresh">
-  <p class="label">Copy this now</p>
-  <code class="secret">{{.Fresh}}</code>
-  <p class="note">Nothing here can show it again. It is stored as a SHA-256 and the plaintext was never written down.</p>
+<div class="o-ph">
+  <div>
+    <span class="o-lab">llm &middot; overview{{if .Claude}} &middot; {{.Month.Start.Format "January"}}{{end}}</span>
+    <h1>{{.Headline}}</h1>
+  </div>
+  <div class="o-acts">
+    <a class="o-btn o-btn-sm" href="/calls?failed=1">Failed calls</a>
+    <a class="o-btn o-btn-sm" href="/keys">Keys</a>
+  </div>
+</div>
+
+<div class="o-tiles">
+  {{if .Claude}}
+  <div class="o-tile">
+    <small>spent &middot; this month</small>
+    <b>${{printf "%.2f" .Month.Spent}}</b>
+    <span class="o-delta">{{if gt .Month.Budget 0.0}}{{printf "%.0f" (pct .Month.Spent .Month.Budget)}}% of ${{printf "%.0f" .Month.Budget}}{{end}}</span>
+    {{spark (or (and (gt .Month.Projected .Month.Budget) "warn") "flat") .SpendDays}}
+  </div>
+  {{end}}
+  <a class="o-tile" href="/calls">
+    <small>calls &middot; 24h</small>
+    <b>{{comma .Day.Calls}}</b>
+    <span class="o-delta">by the hour</span>
+    {{spark "flat" .Day.CallsByHour}}
+  </a>
+  <a class="o-tile" href="/calls?failed=1">
+    <small>failed &middot; 24h</small>
+    <b {{if .Day.Errors}}class="bad"{{end}}>{{.Day.Errors}}</b>
+    <span class="o-delta {{if .Day.Errors}}o-bad{{end}}">{{if .Day.Errors}}see which{{else}}none failed{{end}}</span>
+    {{spark (or (and .Day.Errors "bad") "flat") .Day.ErrorsByHour}}
+  </a>
+  <div class="o-tile">
+    <small>median time &middot; 24h</small>
+    <b>{{secs .Day.P50}}</b>
+    <span class="o-delta">average by the hour</span>
+    {{spark "flat" .Day.MSByHour}}
+  </div>
+</div>
+
+<div class="o-cols">
+  <section class="o-panel flush">
+    <div class="o-ph2"><h2>By caller</h2><span class="o-lab">last 24 hours</span></div>
+    {{if .Usage}}
+    <div class="o-scroll">
+    <table class="o-tbl stack">
+      <thead><tr><th>Caller</th><th class="r">Calls</th><th class="r">In</th><th class="r">Out</th><th class="r">Failed</th></tr></thead>
+      <tbody>
+      {{range .Usage}}
+        <tr data-href="/calls?caller={{.Caller}}" {{if .Errors}}class="hot"{{end}}>
+          <td class="lead n"><span class="o-dot {{if .Errors}}bad{{end}}"></span><a href="/calls?caller={{.Caller}}">{{if .Caller}}{{.Caller}}{{else}}unknown{{end}}</a></td>
+          <td class="r n">{{comma .Calls}}</td>
+          <td class="r n o-muted">{{comma .PromptTok}}</td>
+          <td class="r n o-muted">{{comma .OutputTok}}</td>
+          <td class="r n {{if .Errors}}o-bad{{else}}o-muted{{end}}">{{.Errors}}</td>
+        </tr>
+      {{end}}
+      </tbody>
+    </table>
+    </div>
+    {{else}}
+    <p class="o-empty"><b>Nothing has called through today.</b>Calls show here by the key that made them.</p>
+    {{end}}
+  </section>
+
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Spend by caller</h2><span class="o-lab">this month</span></div>
+    {{if .ByCaller}}
+      {{range .ByCaller}}
+      <div class="o-hbar"><span class="k o-mono">{{if .Caller}}{{.Caller}}{{else}}unknown{{end}}</span><span class="bar"><i style="width:{{printf "%.0f" .Share}}%;background:var(--o-brass)"></i></span><span class="v">${{printf "%.2f" .Spent}}</span></div>
+      {{end}}
+      {{if .Claude}}<p class="o-muted" style="font-size:.76rem;margin:10px 0 0">An estimate from usage, not the bill. On pace for ${{printf "%.2f" .Month.Projected}} by the end of the month.</p>{{end}}
+    {{else}}
+    <p class="o-empty"><b>Nothing spent this month.</b>Each call is priced as it comes back.</p>
+    {{end}}
+  </section>
+</div>
+
+<section class="o-panel flush">
+  <div class="o-ph2"><h2>Recent calls</h2><span class="o-lab">newest first</span></div>
+  {{if .Recent}}{{template "callrows" .Recent}}<div class="o-more"><a href="/calls">Every call &rarr;</a></div>
+  {{else}}<p class="o-empty"><b>No calls yet.</b>Make a key and point a client at the gateway.</p>{{end}}
 </section>
-{{end}}
-
-<section class="stats">
-  <div class="stat"><span class="num">{{.NKeys}}</span><span class="label">Live keys</span></div>
-  <div class="stat"><span class="num">{{comma .NCalls}}</span><span class="label">Calls logged</span></div>
-  <div class="stat"><span class="num">{{.Retain}}</span><span class="label">Retention</span></div>
-  {{if .Claude}}<div class="stat"><span class="num">${{printf "%.2f" .Month.Spent}}</span><span class="label">Spent this month of ${{printf "%.0f" .Month.Budget}}</span></div>
-  <div class="stat"><span class="num">${{printf "%.2f" .Month.Projected}}</span><span class="label">On pace for</span></div>{{end}}
-</section>
-
-<h2>Last 24 hours</h2>
-{{if .Usage}}
-<table>
-  <thead><tr><th>Caller</th><th class="n">Calls</th><th class="n">Prompt</th><th class="n">Output</th><th class="n">Errors</th><th class="n">tok/s</th></tr></thead>
-  <tbody>
-  {{range .Usage}}
-    <tr>
-      <td><a href="/calls?caller={{.Caller}}">{{if .Caller}}{{.Caller}}{{else}}unknown{{end}}</a></td>
-      <td class="n">{{comma .Calls}}</td>
-      <td class="n">{{comma .PromptTok}}</td>
-      <td class="n">{{comma .OutputTok}}</td>
-      <td class="n {{if .Errors}}bad{{end}}">{{.Errors}}</td>
-      <td class="n">{{printf "%.1f" .AvgTPS}}</td>
-    </tr>
-  {{end}}
-  </tbody>
-</table>
-{{else}}
-<p class="empty">Nothing has called through yet.</p>
-{{end}}
-
-<h2>API keys</h2>
-<form class="newkey" method="post" action="/keys">
-  <input type="text" name="name" placeholder="What will use it, like cron or aiagent" required maxlength="60">
-  <button type="submit">Create key</button>
-</form>
-
-{{if .Keys}}
-<table>
-  <thead><tr><th>Name</th><th>Key</th><th>Created</th><th>Last used</th><th></th></tr></thead>
-  <tbody>
-  {{range .Keys}}
-    <tr {{if .Revoked}}class="off"{{end}}>
-      <td>{{.Name}}</td>
-      <td><code>{{.Prefix}}&hellip;</code></td>
-      <td class="faint">{{when .Created}}</td>
-      <td class="faint">{{when .Used}}</td>
-      <td class="act">
-        {{if .Revoked}}
-          <span class="tag">revoked</span>
-          <form method="post" action="/keys/{{.ID}}/delete"><button type="submit" class="danger">Delete</button></form>
-        {{else}}
-          <form method="post" action="/keys/{{.ID}}/revoke"><button type="submit">Revoke</button></form>
-        {{end}}
-      </td>
-    </tr>
-  {{end}}
-  </tbody>
-</table>
-{{else}}
-<p class="empty">No keys yet. Nothing can call the gateway until there is one.</p>
-{{end}}
-
-<h2>Recent calls</h2>
-{{if .Recent}}
-<table>
-  <thead><tr><th>When</th><th>Caller</th><th>Prompt</th><th class="n">Tokens</th><th class="n">ms</th></tr></thead>
-  <tbody>
-  {{range .Recent}}
-    <tr>
-      <td class="faint">{{when .At}}</td>
-      <td>{{.Caller}}</td>
-      <td class="msg">{{short .Messages 90}}</td>
-      <td class="n">{{comma .OutputTok}}</td>
-      <td class="n {{if .Err}}bad{{end}}">{{.MS}}</td>
-    </tr>
-  {{end}}
-  </tbody>
-</table>
-<p class="more"><a href="/calls">Every call</a></p>
-{{else}}
-<p class="empty">No calls yet.</p>
-{{end}}
-
-<h2>Using it</h2>
-<p class="how">Point any OpenAI shaped client at <code>http://orchard-llm:8000/v1</code> on the bridge, or <code>https://llm.bythewood.me/v1</code> from anywhere else, and send the key as <code>Authorization: Bearer orch-&hellip;</code>. Ask for the model named <code>{{.Model}}</code>. Upstream is <code>{{.Upstream}}</code>.</p>
 
 {{template "foot" .}}

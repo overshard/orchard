@@ -1,8 +1,7 @@
 {{define "head"}}<!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+{{template "suite-head"}}
 <meta name="robots" content="noindex, nofollow">
 <title>{{.Title}} &middot; llm</title>
 <link rel="stylesheet" href="{{asset "static/app.css"}}">
@@ -10,31 +9,35 @@
        a credential, so it is a constant here like every other site's. -->
   <script src="https://analytics.bythewood.me/static/collector.js" data-collector-id="e432c02b-1537-4703-bc5a-6aa2e8573613" async></script>
 </head>
-<body>
-<header class="bar">
-  <a class="brand" href="/"><span class="key">L</span><span class="brand-name">llm</span></a>
-  <nav class="nav">
-    <a href="/" {{if eq .Title "Overview"}}class="on"{{end}}>Overview</a>
-    <a href="/calls" {{if eq .Title "Calls"}}class="on"{{end}}>Calls</a>
-  </nav>
-  <span class="model" title="The model this gateway serves">{{.Model}}</span>
-</header>
-<main class="wrap">
+<body class="o-body">
+{{template "suite-top" .Suite}}
+<main class="o-wrap o-main">
 {{end}}
 
 {{define "foot"}}
 </main>
-<footer class="foot">
-  <span>One model, one card, every service.</span>
-  <span class="footer-bar-end">
-    <span class="pond-guest" data-pond-foot>
-      <small data-pond-line>A frog from the pond</small>
-      <a href="https://pond.bythewood.me/" aria-label="The pond"><canvas width="44" height="34" aria-hidden="true"></canvas></a>
-    </span>
-    <a href="{{.Source}}" target="_blank" rel="noopener">View source</a>
-  </span>
-</footer>
+{{template "suite-foot" .Suite}}
 <script type="module" src="{{asset "static/guest.js"}}"></script>
 </body>
 </html>
+{{end}}
+
+{{define "callrows"}}
+<div class="o-scroll">
+<table class="o-tbl calls stack">
+  <thead><tr><th>When</th><th>Caller</th><th>Asked</th><th class="r">Tokens</th><th class="r">Took</th><th></th></tr></thead>
+  <tbody>
+  {{range .}}
+    <tr data-href="/calls?caller={{.Caller}}#call-{{.ID}}" {{if or .Err (ge .Status 400)}}class="hot"{{end}}>
+      <td class="n">{{when .At}}</td>
+      <td class="lead n"><a href="/calls?caller={{.Caller}}#call-{{.ID}}">{{if .Caller}}{{.Caller}}{{else}}unknown{{end}}</a></td>
+      <td class="clip full o-muted">{{short .Messages 110}}</td>
+      <td class="r n">{{comma .PromptTok}} &rarr; {{comma .OutputTok}}</td>
+      <td class="r n">{{secs .MS}}</td>
+      <td>{{if .Err}}<span class="o-chip bad" title="{{.Err}}">failed</span>{{else if ge .Status 400}}<span class="o-chip bad">{{.Status}}</span>{{else if .Tools}}<span class="o-chip">tools</span>{{end}}</td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
 {{end}}

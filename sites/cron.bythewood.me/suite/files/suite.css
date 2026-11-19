@@ -326,6 +326,7 @@ a.o-tile:hover { border-color: var(--o-line-strong); }
 .o-win-bar .u { flex: 1; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .o-staged { font: 500 0.58rem var(--o-mono); letter-spacing: 0.1em; color: var(--o-muted); border: 1px solid var(--o-line-strong); padding: 0 5px; }
 .o-win-body { display: grid; gap: 10px; padding: 14px; }
+.o-cw .o-win-body { padding-right: 28px; }
 .o-win-body .t { font-size: 1.2rem; font-weight: 600; letter-spacing: -0.035em; }
 .o-rw { display: flex; align-items: center; gap: 8px; padding: 7px 2px; border-top: 1px solid var(--o-line-soft); font-size: 0.78rem; min-width: 0; }
 .o-rw .n { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

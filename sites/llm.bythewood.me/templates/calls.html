@@ -1,35 +1,49 @@
 {{template "head" .}}
 
-<h2>
-  Calls
-  {{if .Caller}}<span class="filter">from {{.Caller}} <a href="/calls">clear</a></span>{{end}}
-</h2>
+<div class="o-ph">
+  <div>
+    <span class="o-lab">llm &middot; calls{{if .Caller}} &middot; {{.Caller}}{{end}}{{if .Failed}} &middot; failed{{end}}</span>
+    <h1>{{.Headline}}</h1>
+    <p>The newest {{len .Calls}} of the last {{.Limit}}, with every prompt and completion in full.</p>
+  </div>
+</div>
+
+<nav class="o-filters" aria-label="Filter calls">
+  <a class="o-chip {{if and (not .Caller) (not .Failed)}}brass{{end}}" href="/calls">all</a>
+  <a class="o-chip {{if .Failed}}bad{{end}}" href="/calls?failed=1{{if .Caller}}&amp;caller={{.Caller}}{{end}}">failed only</a>
+  <span class="o-sep"></span>
+  {{range .Callers}}<a class="o-chip {{if eq .Caller $.Caller}}brass{{end}}" href="/calls?caller={{.Caller}}{{if $.Failed}}&amp;failed=1{{end}}">{{if .Caller}}{{.Caller}}{{else}}unknown{{end}}</a>{{end}}
+</nav>
 
 {{if .Calls}}
-<p class="note">Newest {{len .Calls}} of the last {{.Limit}} asked for. Every prompt and every completion is here in full.</p>
+<div class="calllist">
 {{range .Calls}}
-<article class="call {{if .Err}}bad{{end}}">
+<article class="o-panel call {{if or .Err (ge .Status 400)}}bad{{end}}" id="call-{{.ID}}">
   <header>
-    <span class="who">{{if .Caller}}{{.Caller}}{{else}}unknown{{end}}</span>
-    <span class="faint">{{when .At}}</span>
-    <span class="faint">{{comma .PromptTok}} in, {{comma .OutputTok}} out</span>
-    {{if .DecodeTPS}}<span class="faint">{{printf "%.1f" .DecodeTPS}} tok/s</span>{{end}}
-    <span class="faint">{{.MS}} ms</span>
-    {{if .Tools}}<span class="tag">{{.Tools}}</span>{{end}}
-    {{if .Err}}<span class="tag bad">{{.Err}}</span>{{end}}
+    <span class="o-dot {{if or .Err (ge .Status 400)}}bad{{end}}"></span>
+    <b class="o-mono">{{if .Caller}}{{.Caller}}{{else}}unknown{{end}}</b>
+    <span class="o-mono o-muted">{{when .At}}</span>
+    <span class="o-sp"></span>
+    <span class="o-mono o-muted">{{comma .PromptTok}} &rarr; {{comma .OutputTok}} tokens</span>
+    {{if .DecodeTPS}}<span class="o-mono o-muted">{{printf "%.1f" .DecodeTPS}} tok/s</span>{{end}}
+    <span class="o-mono">{{secs .MS}}</span>
+    {{if .Tools}}<span class="o-chip">{{.Tools}}</span>{{end}}
+    {{if .Err}}<span class="o-chip bad">failed</span>{{else if ge .Status 400}}<span class="o-chip bad">{{.Status}}</span>{{end}}
   </header>
+  {{if .Err}}<p class="o-bad o-mono callerr">{{.Err}}</p>{{end}}
   <details>
-    <summary>Prompt</summary>
-    <pre>{{.Messages}}</pre>
+    <summary>Prompt <span class="o-muted">{{short .Messages 80}}</span></summary>
+    <pre class="o-code">{{.Messages}}</pre>
   </details>
-  <details open>
-    <summary>Completion</summary>
-    <pre>{{.Completion}}</pre>
+  <details>
+    <summary>Completion <span class="o-muted">{{if .Completion}}{{short .Completion 90}}{{else}}nothing came back{{end}}</span></summary>
+    <pre class="o-code">{{if .Completion}}{{.Completion}}{{else}}nothing came back{{end}}</pre>
   </details>
 </article>
 {{end}}
+</div>
 {{else}}
-<p class="empty">Nothing logged{{if .Caller}} from {{.Caller}}{{end}} yet.</p>
+<p class="o-empty"><b>Nothing logged{{if .Caller}} from {{.Caller}}{{end}}{{if .Failed}} that failed{{end}}.</b>{{if or .Caller .Failed}}<a href="/calls">Show every call</a>{{else}}A call marked incognito writes no row, so it never shows here.{{end}}</p>
 {{end}}
 
 {{template "foot" .}}

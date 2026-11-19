@@ -1,0 +1,71 @@
+{{template "head" .}}
+
+<div class="o-ph">
+  <div>
+    <span class="o-lab">llm &middot; keys</span>
+    <h1>{{.Headline}}</h1>
+    <p>Every call is kept with the key that made it, and revoking one stops it on the next request.</p>
+  </div>
+</div>
+
+{{if .Fresh}}
+<div class="o-note brass" role="status">
+  <span class="o-lab">copy this now</span>
+  <pre class="o-code"><span class="w">{{.Fresh}}</span></pre>
+  <p class="o-muted" style="margin:8px 0 0">It's stored as a SHA-256 and the plaintext was never written down, so nothing here can show it again.</p>
+</div>
+{{end}}
+
+<div class="o-cols side">
+  <section class="o-panel">
+    <div class="o-ph2"><h2>New key</h2></div>
+    <form method="post" action="/keys" class="o-form" style="grid-template-columns:1fr">
+      <label class="o-field">
+        <span>What will use it</span>
+        <input type="text" name="name" placeholder="cron" required maxlength="60" autocomplete="off">
+      </label>
+      <div class="o-formbar"><button type="submit" class="o-btn o-btn-p o-btn-sm">Make key</button></div>
+    </form>
+  </section>
+
+  <section class="o-panel flush">
+    <div class="o-ph2"><h2>Keys</h2></div>
+    {{if .Keys}}
+    <div class="o-scroll">
+    <table class="o-tbl stack">
+      <thead><tr><th>Name</th><th>Key</th><th>Made</th><th>Last used</th><th></th></tr></thead>
+      <tbody>
+      {{range .Keys}}
+        <tr {{if .Revoked}}class="off"{{end}}>
+          <td class="lead"><span class="o-dot {{if .Revoked}}mute{{end}}"></span><a href="/calls?caller={{.Name}}">{{.Name}}</a></td>
+          <td class="n o-muted">{{.Prefix}}&hellip;</td>
+          <td class="n o-muted">{{when .Created}}</td>
+          <td class="n o-muted">{{when .Used}}</td>
+          <td class="act">
+            {{if .Revoked}}
+              <span class="o-chip">revoked</span>
+              <form method="post" action="/keys/{{.ID}}/delete"><button type="submit" class="o-btn o-btn-sm o-btn-bad">Delete</button></form>
+            {{else}}
+              <form method="post" action="/keys/{{.ID}}/revoke"><button type="submit" class="o-btn o-btn-sm o-btn-bad">Revoke</button></form>
+            {{end}}
+          </td>
+        </tr>
+      {{end}}
+      </tbody>
+    </table>
+    </div>
+    {{else}}
+    <p class="o-empty"><b>No keys yet.</b>Nothing can call the gateway until there is one.</p>
+    {{end}}
+  </section>
+</div>
+
+<section class="o-panel">
+  <div class="o-ph2"><h2>Using it</h2><span class="o-lab">api</span></div>
+  <p class="o-muted" style="margin:0 0 10px">Point any OpenAI shaped client at <code>http://orchard-llm:8000/v1</code> on the bridge, or <code>https://llm.bythewood.me/v1</code> from anywhere else, and send the key as a bearer token.</p>
+  <pre class="o-code"><span class="a">curl</span> https://llm.bythewood.me/v1/chat/completions \
+  -H <span class="g">"Authorization: Bearer $LLM_KEY"</span> \
+  -d <span class="w">'{"messages": [{"role": "user", "content": "hello"}]}'</span></pre>
+</section>
+
+{{template "foot" .}}

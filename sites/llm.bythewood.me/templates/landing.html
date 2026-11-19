@@ -1,154 +1,106 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex, nofollow">
-<title>llm &middot; one model, one card, every service</title>
-<link rel="stylesheet" href="{{asset "static/app.css"}}">
+{{template "suite-head"}}
+<title>llm &middot; one gateway for every model call</title>
+<meta name="description" content="A model gateway with a key per caller, a monthly budget and a record of every call.">
   <!-- Analytics, first party and on this estate. The id is identity rather than
        a credential, so it is a constant here like every other site's. -->
   <script src="https://analytics.bythewood.me/static/collector.js" data-collector-id="e432c02b-1537-4703-bc5a-6aa2e8573613" async></script>
 </head>
-<body class="landing-body">
-<header class="topbar">
-  <div class="container">
-    <a class="brand" href="/"><span class="key">L</span><span class="brand-name">llm</span></a>
-    <a class="btn btn-ghost btn-sm" href="/login">Sign in</a>
-  </div>
-</header>
+<body class="o-body">
+{{template "suite-top" .Suite}}
 
 <main>
-<section class="hero">
-  <div class="container hero-grid">
+<div class="o-cw">
+  <section class="o-wrap o-hero">
     <div>
-      <span class="hero-eyebrow">
-        <span class="eyebrow-dot" aria-hidden="true"></span>
-        openai compatible &middot; self-hosted
-      </span>
-      <h1 class="hero-title">
-        A model gateway for operators who host their <span class="accent">own weights</span>.
-      </h1>
-      <p class="hero-sub">
-        Chat completions and pictures from one card, a key per caller, every
-        prompt and completion logged unless the caller says otherwise, and the
-        weights unloaded when nobody is asking. Your data never leaves your
-        infrastructure.
-      </p>
-      <div class="hero-ctas">
-        <a href="/login" class="btn btn-primary">Access dashboard &rarr;</a>
-        <a href="{{.Source}}" target="_blank" rel="noopener" class="btn btn-ghost">View source</a>
+      <span class="o-lab">llm &middot; openai compatible &middot; self-hosted</span>
+      <h1>One gateway for every model call, <em>written down</em>.</h1>
+      <p class="o-lede">Each service talks the OpenAI shape to one endpoint with its own key. {{if .Claude}}It answers from Claude, prices every call against a monthly budget{{else}}It answers from one card, loads the weights when asked and unloads them when nobody is{{end}}, and keeps every prompt and completion unless the caller says not to.</p>
+      <div class="o-ctas">
+        <a class="o-btn o-btn-p" href="/login">Access dashboard &rarr;</a>
+        <a class="o-btn" href="{{.Source}}" target="_blank" rel="noopener">Source</a>
       </div>
     </div>
-    <div class="terminal-block">
-      <span class="t-line"><span class="t-comment"># one call through the gateway</span></span>
-      <span class="t-line"><span class="t-prompt">dash$</span><span class="t-out">POST /v1/chat/completions</span></span>
-      <span class="t-line"><span class="t-key">key</span>=<span class="t-val">dash</span> <span class="t-key">model</span>=<span class="t-val">{{.Model}}</span> <span class="t-key">stream</span>=<span class="t-val">true</span></span>
-      <span class="t-line"><span class="t-key">prompt</span>=<span class="t-val">1,204</span> <span class="t-key">output</span>=<span class="t-val">212</span> <span class="t-key">tok/s</span>=<span class="t-val">48.6</span></span>
-      <span class="t-line"><span class="t-key">logged</span>=<span class="t-val">yes</span> <span class="t-key">keep</span>=<span class="t-val">{{.RetainDays}}d</span></span>
-      <span class="t-line"><span class="t-prompt">dash$</span> <span class="t-cursor"></span></span>
+    <div class="o-win" aria-label="A staged picture of the overview">
+      <div class="o-win-bar"><i></i><i></i><i></i><span class="u">llm.bythewood.me</span><span class="o-staged">STAGED</span></div>
+      <div class="o-win-body">
+        <span class="o-lab">overview &middot; november</span>
+        <div class="t" data-co>On pace for <em>$64</em> of $100.</div>
+        <div data-co>
+          <div class="o-hbar"><span class="k o-mono">chat</span><span class="bar"><i style="width:70%;background:var(--o-brass)"></i></span><span class="v">$14.20</span></div>
+          <div class="o-hbar"><span class="k o-mono">dash</span><span class="bar"><i style="width:48%;background:var(--o-brass)"></i></span><span class="v">$9.80</span></div>
+          <div class="o-hbar"><span class="k o-mono">cron</span><span class="bar"><i style="width:20%;background:var(--o-brass)"></i></span><span class="v">$4.10</span></div>
+        </div>
+        <div class="o-rw" data-co><span class="o-dot bad"></span><span class="n o-mono">cron &middot; upstream timeout after 30s</span><span class="m">8:00am</span></div>
+      </div>
+    </div>
+  </section>
+  <div class="o-wrap o-legend">
+    <div><span class="o-pin">1</span><span>The title is the month against the budget, worked out from usage.</span></div>
+    <div><span class="o-pin">2</span><span>Spend by caller, so you know which service costs what.</span></div>
+    <div><span class="o-pin">3</span><span>A failed call shows with the caller that made it and why.</span></div>
+  </div>
+  <div class="o-ov"></div>
+</div>
+
+<div class="o-wrap">
+{{template "suite-ways" .Ways}}
+
+<section class="o-hsec">
+  <div class="o-frow">
+    <div class="o-ftxt">
+      <span class="o-lab">the log</span>
+      <h3>Every call, with what was asked</h3>
+      <p>Each call keeps its messages, the answer, tokens, searches and time, so a strange answer can be traced back. Calls age out after {{.RetainDays}} days, and one marked incognito writes no row at all.</p>
+    </div>
+    <div class="o-crop">
+      <span class="o-staged">STAGED</span>
+      <div class="o-ev"><span class="t">system</span><span class="x">You check retailer stock. Answer in one line.</span></div>
+      <div class="o-ev"><span class="t">user</span><span class="x">Is a 27 inch monitor under $600 in stock at a big US retailer?</span></div>
+      <div class="o-ev"><span class="t">answer</span><span class="x">Not under $600 today, the lowest is $649.<span>2 searches &middot; 6.4s &middot; 1.9k &rarr; 212 tokens</span></span></div>
+    </div>
+  </div>
+  {{if .Claude}}
+  <div class="o-frow flip">
+    <div class="o-ftxt">
+      <span class="o-lab">budget</span>
+      <h3>A monthly budget with warnings</h3>
+      <p>A push goes out at half the budget, at eighty percent and over it, and once if the pace says the month will run past it.</p>
+      <ul><li>Estimated from usage, not the bill</li><li>Incognito calls still count</li></ul>
+    </div>
+    <div class="o-crop">
+      <span class="o-staged">STAGED</span>
+      <div class="o-phone">
+        <div class="clk">9:02</div>
+        <div class="dt">Monday, November 16</div>
+        <div class="o-push"><div class="h"><span>ntfy &middot; alerts</span><span>now</span></div><b>llm spend is on track</b><span class="o-muted">$21.70 of $100 spent this month, on pace for $64.</span></div>
+      </div>
+    </div>
+  </div>
+  {{end}}
+  <div class="o-frow">
+    <div class="o-ftxt">
+      <span class="o-lab">keys</span>
+      <h3>A key per caller</h3>
+      <p>Every call is kept with the key that made it, so revoking one stops that service on its next request and leaves the rest alone.</p>
+    </div>
+    <div class="o-crop">
+      <span class="o-staged">STAGED</span>
+      <div class="o-rw"><span class="o-dot"></span><span class="n o-mono">chat</span><span class="m">orch-…9a10 &middot; 2m ago</span></div>
+      <div class="o-rw"><span class="o-dot"></span><span class="n o-mono">dash</span><span class="m">orch-…c771 &middot; 11m ago</span></div>
+      <div class="o-rw"><span class="o-dot mute"></span><span class="n o-mono o-muted">old-bot</span><span class="o-chip">revoked</span></div>
     </div>
   </div>
 </section>
 
-<section class="stat-strip">
-  <div class="container stat-row three">
-    <div class="stat">
-      <div class="stat-label">live keys</div>
-      <div class="stat-value">{{num .Keys}}</div>
-    </div>
-    <div class="stat">
-      <div class="stat-label">calls logged</div>
-      <div class="stat-value">{{num .Calls}}</div>
-    </div>
-    <div class="stat">
-      <div class="stat-label">retention</div>
-      <div class="stat-value">{{.RetainDays}}d</div>
-    </div>
-  </div>
-</section>
-
-<section class="container features">
-  <div class="feature">
-    <div class="feature-label">proxy</div>
-    <div class="feature-title">A proxy, not a library</div>
-    <p class="feature-desc">Anything that already speaks chat completions needs a base url and a header, not a rewrite. Streams and tool calls pass straight through.</p>
-  </div>
-  <div class="feature">
-    <div class="feature-label">keys</div>
-    <div class="feature-title">A key per caller</div>
-    <p class="feature-desc">Every call is attributed to the key that made it. Revoking one stops it on the next request.</p>
-  </div>
-  <div class="feature">
-    <div class="feature-label">log</div>
-    <div class="feature-title">Every call written down</div>
-    <p class="feature-desc">Prompt, completion, tokens and throughput are kept in full and aged out on a retention window. A call marked incognito writes no row at all.</p>
-  </div>
-  <div class="feature">
-    <div class="feature-label">card</div>
-    <div class="feature-title">Loaded on demand</div>
-    <p class="feature-desc">The weights load on the first call and come off after three idle minutes. A desktop that is also a workstation gets its card back.</p>
-  </div>
-  <div class="feature">
-    <div class="feature-label">pictures</div>
-    <div class="feature-title">Chat and pictures take turns</div>
-    <p class="feature-desc">A chat model and an image model share the one card, and whichever is asked for swaps in. The prompt is logged and the picture is not.</p>
-  </div>
-  <div class="feature">
-    <div class="feature-label">manners</div>
-    <div class="feature-title">Knows when the card is busy</div>
-    <p class="feature-desc">A caller can ask how loaded the card is before it asks for anything. A background job uses that to wait rather than take it from somebody.</p>
-  </div>
-</section>
+{{template "suite-run" .Ways}}
+</div>
 </main>
 
-<footer class="footer">
-  <div class="container cols">
-    <div class="about">
-      <div class="h5">// llm</div>
-      <p>The model behind the other sites here, by <a href="https://isaacbythewood.com/">{{.Author}}</a>.
-        One endpoint they all call, a key each, and a record of what was asked and what came back.</p>
-    </div>
-    <div>
-      <div class="h5">// Elsewhere</div>
-      <ul>
-        <li><a href="https://isaacbythewood.com/">Portfolio</a></li>
-        <li><a href="https://blog.bythewood.me/">Blog</a></li>
-        <li><a href="https://github.com/overshard" target="_blank" rel="noopener">GitHub</a></li>
-      </ul>
-    </div>
-    <div>
-      <div class="h5">// Pages</div>
-      <ul>
-        <li><a href="/">Home</a></li>
-        <li><a href="{{.Source}}" target="_blank" rel="noopener">Source</a></li>
-      </ul>
-    </div>
-    <div>
-      <div class="h5">// Operator</div>
-      <ul>
-        <li><a href="/login">Sign in</a></li>
-      </ul>
-    </div>
-  </div>
-</footer>
-
-<div class="footer-bar">
-  <div class="container">
-    <small>&copy; {{.Year}} {{.Author}} &middot; Some rights reserved</small>
-    <span class="footer-bar-end">
-      <span class="pond-guest" data-pond-foot>
-        <small data-pond-line>A frog from the pond</small>
-        <a href="https://pond.bythewood.me/" aria-label="The pond"><canvas width="44" height="34" aria-hidden="true"></canvas></a>
-      </span>
-      <a href="{{.Source}}" target="_blank" rel="noopener" class="footer-bar-link" aria-label="GitHub">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
-          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
-        </svg>
-      </a>
-      </span>
-  </div>
-</div>
+{{template "suite-footer" .Footer}}
+{{template "suite-status" .Suite}}
 <script type="module" src="{{asset "static/guest.js"}}"></script>
 </body>
 </html>

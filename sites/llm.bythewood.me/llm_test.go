@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"llm.bythewood.me/web"
 )
 
 func testStore(t *testing.T) *Store {
@@ -672,8 +674,8 @@ func TestANewKeyNeverLandsInAURL(t *testing.T) {
 	rec := httptest.NewRecorder()
 	s.keyCreate(rec, req)
 
-	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/" {
-		t.Fatalf("got %d to %q, want 303 to /", rec.Code, rec.Header().Get("Location"))
+	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/keys" {
+		t.Fatalf("got %d to %q, want 303 to /keys", rec.Code, rec.Header().Get("Location"))
 	}
 	var secret string
 	for _, c := range rec.Result().Cookies() {
@@ -683,5 +685,34 @@ func TestANewKeyNeverLandsInAURL(t *testing.T) {
 	}
 	if !strings.HasPrefix(secret, "orch-") {
 		t.Fatalf("the key should ride a one-shot cookie, got %q", secret)
+	}
+}
+
+func TestPagesRender(t *testing.T) {
+	s := &site{store: testStore(t), auth: web.NewAuthenticatorAt("http://127.0.0.1:1/verify"),
+		retain: 90 * 24 * time.Hour, model: "local", budget: 100}
+	if err := s.loadTemplates(); err != nil {
+		t.Fatal(err)
+	}
+	_, k, _ := s.store.NewKey("cron")
+	s.store.LogCall(Call{KeyID: k.ID, Caller: "cron", Messages: `[{"role":"user","content":"hi"}]`, Completion: "hello", MS: 1200})
+	s.store.LogCall(Call{KeyID: k.ID, Caller: "cron", Messages: `[]`, Status: 502, Err: "upstream timeout", MS: 30000})
+	s.store.LogSpend(k.ID, 41000)
+	for _, c := range []struct {
+		name string
+		h    http.HandlerFunc
+		path string
+		want string
+	}{
+		{"overview", s.overview, "/", "1 failed"},
+		{"calls", s.callsPage, "/calls?failed=1", "upstream timeout"},
+		{"keys", s.keysPage, "/keys", "1 live key"},
+		{"landing", s.root, "/", "written down"},
+	} {
+		rec := httptest.NewRecorder()
+		c.h(rec, httptest.NewRequest("GET", c.path, nil))
+		if body := rec.Body.String(); !strings.Contains(body, "</html>") || !strings.Contains(body, c.want) {
+			t.Errorf("%s didn't render, or is missing %q", c.name, c.want)
+		}
 	}
 }
