@@ -376,7 +376,7 @@ const SHORT = ["Dawn", "Rain", "Lantern", "Snow"];
 function renderPaintings(bw) {
   $("paintings").replaceChildren(...PAINTINGS.map((name, i) => {
     const have = Math.max(0, Math.min(PIECES, bw.paint - i * PIECES)), fig = document.createElement("figure"), cap = document.createElement("figcaption");
-    const art = paintingArt(i, have, 3);
+    const art = paintingArt(i, have, 3, have > 0);
     art.setAttribute("role", "img");
     art.setAttribute("aria-label", name + ", " + have + " of " + PIECES + " pieces");
     cap.textContent = have === PIECES ? SHORT[i] : have + "/" + PIECES;

@@ -1,6 +1,6 @@
 import { genome, bred, cells, colours, W, H } from "./frog.js";
 import { draw } from "./lit.js";
-import { drawIcon } from "./icons.js";
+import { drawIcon, iconCanvas } from "./icons.js";
 
 // Another frog, as the server tells it: a look and a name and nothing else.
 export function callerArt(c, s, thing) {
@@ -30,31 +30,34 @@ export function visitorReveal(v) {
   return { kick: "A visitor in the night", art: callerArt(v, 3, v.gift.item), name: v.name, line: FROM[v.from] + " It left " + v.gift.text + " and a muddy footprint.", ok: "Wave" };
 }
 
-// The six stamps a frog's page can be pressed with.
-export const STAMPS = {
-  heart: [["........", ".aa.aa..", "abaaaaa.", "abaaaaa.", ".aaaaa..", "..aaa...", "...a....", "........"], { a: "#e2567a", b: "#ffd0ea" }],
-  fly: [["........", ".bb.bb..", "bbbbbbb.", ".bbabb..", "..aaa...", ".aaaaa..", "..aaa...", "........"], { a: "#2a2a30", b: "#cfe3ea" }],
-  wave: [["........", ".aa..aa.", "a..aa..a", "........", ".bb..bb.", "b..bb..b", "........", "........"], { a: "#7fd6c2", b: "#3d8fd6" }],
-  star: [["...a....", "...a....", "..aba...", "aaabaaa.", ".aabaa..", "..aaa...", ".aa.aa..", ".a...a.."], { a: "#ffe27a", b: "#fff6dc" }],
-  leaf: [["......a.", "....aaa.", "..aaaba.", ".aaabaa.", ".aabaaa.", ".abaaa..", "b.aa....", "........"], { a: "#56b45f", b: "#1f5a2c" }],
-  pebble: [["........", "..aab...", ".aaaab..", ".aaabbc.", ".abbbcc.", "..bccc..", "........", "........"], { a: "#d5d8dc", b: "#9aa0a6", c: "#6d747a" }],
-};
-
+// A stamp's face is its 12 by 12 icon, st_ and the stamp.
 export function stampArt(kind, s) {
-  const cv = document.createElement("canvas"), ctx = cv.getContext("2d"), [rows, col] = STAMPS[kind];
-  cv.width = cv.height = 8 * s;
-  rows.forEach((row, r) => [...row].forEach((ch, c) => {
-    if (ch === ".") return;
-    ctx.fillStyle = col[ch]; ctx.fillRect(c * s, r * s, s, s);
-  }));
-  return cv;
+  return iconCanvas("st_" + kind, s);
 }
 
 // A frog kept home stamps as a dim shape with no name.
-function shadowArt(s) {
+function shadowArt(s, fill = "#2a241d") {
   const cv = callerArt({ seed: 1, mods: null, stage: "frog", day: 20, hat: { shape: 0, colour: 0 } }, s), ctx = cv.getContext("2d");
   ctx.globalCompositeOperation = "source-atop";
-  ctx.fillStyle = "#2a241d"; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.fillStyle = fill; ctx.fillRect(0, 0, cv.width, cv.height);
+  return cv;
+}
+
+const INKS = ["#123a3d", "#2a2040", "#1f2a48", "#3a2a1c"];
+
+// A frog on a perforated stamp for the stamp book, with the stamp it pressed
+// over the corner. A frog kept home is its dim shape, and an empty spot in the
+// book is a blank stamp with that shape faint on it.
+export function stampCard(st, s) {
+  const pd = 3 * s, cv = document.createElement("canvas"), ctx = cv.getContext("2d");
+  cv.width = (W + 6) * s; cv.height = (H + 6) * s;
+  ctx.fillStyle = st ? "#f3ead2" : "#2c3b60"; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.fillStyle = st ? INKS[((st.from && st.from.seed) || 0) % INKS.length] : "#121c33"; ctx.fillRect(pd, pd, W * s, H * s);
+  ctx.drawImage(!st ? shadowArt(s, "#22304f") : st.from ? callerArt(st.from, s) : shadowArt(s, "#05070e"), pd, pd);
+  if (st) drawIcon(ctx, "st_" + st.stamp, cv.width - pd - 13 * s, cv.height - pd - 13 * s, s);
+  ctx.globalCompositeOperation = "destination-out";
+  for (let x = pd / 2; x < cv.width; x += pd) { ctx.beginPath(); ctx.arc(x, 0, s * 1.1, 0, 7); ctx.arc(x, cv.height, s * 1.1, 0, 7); ctx.fill(); }
+  for (let y = pd / 2; y < cv.height; y += pd) { ctx.beginPath(); ctx.arc(0, y, s * 1.1, 0, 7); ctx.arc(cv.width, y, s * 1.1, 0, 7); ctx.fill(); }
   return cv;
 }
 
@@ -70,7 +73,7 @@ export function stampsReveal(stamps) {
   box.style.gridTemplateColumns = "repeat(" + Math.min(3, stamps.length) + ", 88px)";
   stamps.slice(0, 6).forEach((st) => {
     const fig = document.createElement("figure");
-    fig.append(st.from ? callerArt(st.from, 2) : shadowArt(2), stampArt(st.stamp, 3));
+    fig.append(st.from ? callerArt(st.from, 2) : shadowArt(2), stampArt(st.stamp, 2));
     box.append(fig);
   });
   const who = [...new Set(stamps.filter((st) => st.from).map((st) => st.from.name))], quiet = stamps.some((st) => !st.from);
@@ -135,11 +138,13 @@ const SCENES = [
 ];
 
 // A painting in its frame, have of its twelve pieces in. A square not in yet
-// is bare canvas, and the frame gilds round from the top left as it fills.
-export function paintingArt(i, have, s) {
+// is bare canvas, or a dark gap with gaps set, and the frame gilds round from
+// the top left as it fills.
+export function paintingArt(i, have, s, gaps) {
   const cv = document.createElement("canvas"), ctx = cv.getContext("2d");
   cv.width = (PW + 4) * s; cv.height = (PH + 4) * s;
   ctx.setTransform(s, 0, 0, s, 0, 0);
+  ctx.imageSmoothingEnabled = false;
   ctx.fillStyle = "#4a3318"; ctx.fillRect(0, 0, PW + 4, PH + 4);
   ctx.fillStyle = "#6b4a2a"; ctx.fillRect(1, 1, PW + 2, PH + 2);
   const edge = [];
@@ -156,11 +161,18 @@ export function paintingArt(i, have, s) {
   ctx.fillStyle = "#e9e1cc"; ctx.fillRect(2, 2, PW, PH);
   ctx.fillStyle = "#d6ccb2";
   for (let y = 4; y < PH + 2; y += 3) ctx.fillRect(3, y, PW - 2, 1);
-  ORDER.slice(0, Math.min(have, PIECES)).forEach((n) => {
+  ORDER.forEach((n, k) => {
     const x = (n % 4) * 6, y = Math.floor(n / 4) * 6;
-    ctx.drawImage(pic, x, y, 6, 6, 2 + x, 2 + y, 6, 6);
+    if (k < have) ctx.drawImage(pic, x, y, 6, 6, 2 + x, 2 + y, 6, 6);
+    else if (gaps) gap(ctx, 2 + x, 2 + y);
   });
   return cv;
+}
+
+// A piece still to come, a hole in the canvas with a dark edge round it.
+function gap(ctx, x, y) {
+  ctx.fillStyle = "#0a1020"; ctx.fillRect(x, y, 6, 6);
+  ctx.fillStyle = "#18243f"; ctx.fillRect(x + 1, y + 1, 4, 4);
 }
 
 export function paintingReveal(i, dug) {
