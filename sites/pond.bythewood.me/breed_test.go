@@ -269,6 +269,62 @@ func TestAMealLeansTheEgg(t *testing.T) {
 	}
 }
 
+func TestAFrogInTheReedsLays(t *testing.T) {
+	s, clock := testStore(t)
+	_, id := newPond(t, s)
+	v, _ := s.view(id)
+	first := v.Frogs[0].ID
+	*clock = clock.Add(12 * 24 * time.Hour)
+	l, err := s.lay(id, first, "", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	second := l.Pond.Frogs[1].ID
+	*clock = clock.Add(13 * 24 * time.Hour)
+	pie := dishOf(10, 10).kind()
+	if err := s.write(func(tx *sql.Tx) error {
+		if _, err := tx.Exec(`UPDATE ponds SET pebbles = 1000 WHERE id = ?`, id); err != nil {
+			return err
+		}
+		if err := addItem(tx, id, pie, 2); err != nil {
+			return err
+		}
+		return addItem(tx, id, "dye_blue", 1)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.buyPad(id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.feed(id, second, pie); err != nil {
+		t.Fatal(err)
+	}
+
+	// The frog in the reeds lays off its own meal, and the one out front
+	// keeps its turn.
+	l, err = s.lay(id, second, "dye_blue", "", "")
+	if err != nil || l.Frog.Mods.Morph != "BLUE" {
+		t.Fatalf("lay from the reeds: %v %+v", err, l.Frog.Mods)
+	}
+	for _, f := range l.Pond.Frogs {
+		if f.ID == second && (f.Fed != nil || f.LayIn <= 0) {
+			t.Errorf("the parent kept its meal or its turn: %+v", f)
+		}
+		if f.ID == first && (f.LayIn != 0 || !f.Front) {
+			t.Errorf("the frog out front lost its turn: %+v", f)
+		}
+	}
+	if _, err := s.lay(id, second, "", "", ""); !errors.Is(err, errNotYet) {
+		t.Errorf("laid twice in a week from the reeds: %v", err)
+	}
+	if _, err := s.lay(id, first, "", "", ""); err != nil {
+		t.Errorf("the frog out front couldn't lay after: %v", err)
+	}
+	if _, err := s.lay(id, l.Pond.Frogs[2].ID, "", "", ""); !errors.Is(err, errFullPads) && !errors.Is(err, errNotYet) {
+		t.Errorf("an egg laid an egg: %v", err)
+	}
+}
+
 func TestTheOddsAreTheBench(t *testing.T) {
 	parent := lookOf(1207)
 	for _, c := range []struct {
