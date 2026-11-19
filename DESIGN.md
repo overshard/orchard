@@ -36,8 +36,12 @@ blog and the portfolio are separate identities and nothing here applies to them.
   this one in `[brackets]` in brass, with the account on the right. The second
   is this tool's own pages and a mono line of what matters right now. Inside a
   repository on repos the second row is that repository's pages.
-- **No sidebar.** The page runs the width of the content column, 1320px, and
-  the header rows line up with it.
+- **No sidebar.** A working page runs as wide as dash, 1760px, and a home page
+  keeps the narrower 1320px measure. The header rows line up with either, and
+  the switch is any page with an `o-main` and no hero.
+- **Use the space.** At every width the grids fill their rows, with tiles spread
+  so the last row isn't short, lists packed in columns instead of a grid with
+  holes, and a side column beside a form instead of empty page.
 - **A status line along the bottom,** vim style, a brass block with the tool's
   name, then its state, then facts like the time zone on the right. Only facts
   that are true and nothing that pretends to be a key binding.
@@ -46,11 +50,15 @@ blog and the portfolio are separate identities and nothing here applies to them.
   bad. Actions sit on the right and the primary one is brass.
 - **Tiles carry dash's sparks,** drawn by `suite.Spark` the way dash draws them,
   a 1.25px line, a soft fill and a dotted rule at the median, bled to the tile's
-  edges. A tile with no series keeps the space so a row of tiles lines up.
+  edges. A count that isn't a trend gets `o-ticks` instead, a row of ticks, one
+  per check or site or hour, red or amber where it went wrong and as tall as its
+  value when it has one. Nearly every tile has one or the other, and one with
+  neither keeps the space so a row of tiles lines up.
 - **Trouble sorts first.** A down property, a failing job or a source with
   errors is the top row and tinted red, so nobody has to read the list to find it.
 - **A table marked `stack` becomes a list on a phone,** its `lead` cell on a
-  line of its own. A row with `data-href` opens anywhere it's clicked, and the
+  line of its own and every number labelled by its cell's `data-l`, since the
+  header that said what it was is gone. A row with `data-href` opens anywhere it's clicked, and the
   link inside it stays the real target for keyboards.
 - **An empty state says what will show and how to get the first one,** never
   just nothing.
