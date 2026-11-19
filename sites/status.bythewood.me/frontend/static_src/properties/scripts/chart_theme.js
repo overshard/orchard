@@ -34,21 +34,20 @@ export const status = {
 };
 
 export const ink = {
-  ticks: "#9a9188",
-  grid: "rgba(107, 158, 120, 0.14)",
-  border: "rgba(107, 158, 120, 0.3)",
-  legend: "#b3aba2",
-  title: "#ede8e0",
-  body: "#ddd7cd",
-  surface: "rgba(9, 8, 6, 0.96)",
+  ticks: "#979ca4",
+  grid: "#1c1f23",
+  border: "#262a2f",
+  legend: "#979ca4",
+  title: "#e9ebee",
+  body: "#e9ebee",
+  surface: "rgba(23, 26, 29, 0.97)",
 };
 
-export const fontStack =
-  "'Monaspace Argon', ui-monospace, 'Cascadia Code', Consolas, 'SF Mono', Menlo, monospace";
+export const fontStack = "'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace";
 
 export const tooltipStyle = {
   backgroundColor: ink.surface,
-  borderColor: "rgba(107, 158, 120, 0.5)",
+  borderColor: "#363b42",
   borderWidth: 1,
   titleColor: ink.title,
   bodyColor: ink.body,
