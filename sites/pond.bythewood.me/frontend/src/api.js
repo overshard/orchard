@@ -26,12 +26,22 @@ export function titled(name) {
   return name.toLowerCase().replace(/(^| )[a-z]/g, (c) => c.toUpperCase());
 }
 
-// The same words the Play cards use, short enough for a readout.
+// How many more runs of a game pay in full today, which is what lights its jar.
+export function fullLeft(a) {
+  return !a || a.paid >= a.cap ? 0 : Math.max(0, a.full - a.runs);
+}
+
+// A game's numbers off the pond, where Dive's are kept apart from the rest.
+export function playOf(p, key) {
+  return key === "dive" ? p.dive : (p.arcade || []).find((a) => a.key === key);
+}
+
+// The same words the Play jars use, short enough for a readout.
 export function payWord(a, low) {
   return a.cap === 0 ? "For fun" : a.paid >= a.cap ? "Paid out" : a.runs < a.full ? "Full" : a.daily ? "Free" : low || "Quarter";
 }
 
-// A disk's goals for the day, a green LED each, ringed until met and lit
+// A game's goals for the day, a green LED each, ringed until met and lit
 // after, with met naming the ones this run just ticked.
 export function aimList(aims, met) {
   const ul = document.createElement("ul");

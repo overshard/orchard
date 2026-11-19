@@ -1,6 +1,7 @@
 import { genome, bred, cells, colours, W, H } from "./frog.js";
 import { draw } from "./lit.js";
 import { drawIcon } from "./icons.js";
+import { fullLeft, playOf } from "./api.js";
 import { vista, rng, px, mid, look, sky, stars, glow, water, pad, cattail, reeds, hills, lantern, hanging, string, backdrop, LAMP } from "./paint.js";
 
 // The thing each job brings, for an icon.
@@ -489,15 +490,17 @@ export function drawMarket(cv, p) {
 
 // ---------------------------------------------------------------- play
 
-const JARS = ["g_fish", "g_dive", "g_swarm", "g_lash", "g_whirl", "g_sling", "g_sweep", "g_putt"];
+const JARS = ["fish", "dive", "swarm", "lash", "whirl", "sling", "sweep", "putt"];
 
-function jar(g, icon, x, y, r) {
-  glow(g, x + 14, y + 18, 14, "#fff2a0", 0.45);
+// A firefly jar with a game's icon in it, lit while the game still pays in
+// full and dark once it's spent.
+export function jar(g, game, x, y, r, lit = true) {
+  if (lit) glow(g, x + 14, y + 18, 14, "#fff2a0", 0.45);
   px(g, "#8a5a32", x + 9, y + 2, 10, 3); px(g, "#c48a4a", x + 9, y + 2, 10, 1);
   px(g, "#b9c3cf", x + 8, y + 5, 12, 1); px(g, "#b9c3cf", x + 6, y + 6, 2, 22); px(g, "#b9c3cf", x + 20, y + 6, 2, 22); px(g, "#b9c3cf", x + 7, y + 28, 14, 2);
   px(g, "rgba(185,195,207,0.15)", x + 8, y + 6, 12, 22); px(g, "#ffffff", x + 8, y + 8, 1, 8);
-  drawIcon(g, icon, x + 8, y + 11, 1);
-  for (let i = 0; i < 3; i++) px(g, "#fffbd0", x + 9 + r() * 10, y + 8 + r() * 18);
+  drawIcon(g, "g_" + game, x + 8, y + 11, 1);
+  if (lit) for (let i = 0; i < 3; i++) px(g, "#fffbd0", x + 9 + r() * 10, y + 8 + r() * 18);
 }
 
 // A jetty with a row of firefly jars under a string of lights.
@@ -508,7 +511,7 @@ export function drawPlayArt(cv, p) {
     px(g, "#3a2414", 0, jy, w, 4); px(g, "#5a3a22", 0, jy, w, 1);
     g.translate(o, 0);
     for (let x = 6 - o - ((6 - o) % 22 + 22) % 22; x < w - o; x += 22) px(g, "#2a1a0e", x, jy + 4, 3, 30);
-    JARS.forEach((ic, i) => jar(g, ic, 4 + i * 24, jy - 32, r));
+    JARS.forEach((k, i) => jar(g, k, 4 + i * 24, jy - 32, r, !p || fullLeft(playOf(p, k)) > 0));
     const lamps = string(g, -o, w - o, h - 96, 10, 8 + Math.round((w - SW) / 24));
     return moving(day, o, [8, 10, 185, h - 80, h - 40], 19, lamps);
   });
