@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -37,6 +38,7 @@ type Scheduler struct {
 	store *Store
 	push  Publisher
 	model *Model
+	http  *http.Client
 	loc   *time.Location
 	// Where a snooze button posts, the public hostname since the phone
 	// presses it.
@@ -55,6 +57,7 @@ type Scheduler struct {
 func NewScheduler(store *Store, push Publisher, model *Model, loc *time.Location) *Scheduler {
 	return &Scheduler{
 		store: store, push: push, model: model, loc: loc, base: baseURL, now: time.Now,
+		http:  &http.Client{Timeout: 20 * time.Second},
 		waits: []time.Duration{2 * time.Second, 8 * time.Second},
 		wake:  make(chan struct{}, 1), sem: make(chan struct{}, parallel),
 	}
@@ -201,6 +204,14 @@ func (s *Scheduler) Execute(ctx context.Context, j Job, late time.Duration) Run 
 			title = ans.Title
 		}
 	}
+	if j.Kind == "quote" {
+		t, b, ok, err := s.quote(ctx, j)
+		if err != nil {
+			run.Err = err.Error()
+			return s.record(run, start)
+		}
+		title, body, send = t, b, ok
+	}
 	if late > lateAfter {
 		body += fmt.Sprintf("\n\n(late by %s)", roundLate(late))
 	}
@@ -263,17 +274,12 @@ func (s *Scheduler) ask(ctx context.Context, j Job) (Answer, error) {
 // lastPush gives a check its previous push, so one can report a change since
 // then or stay quiet when it already told him.
 func (s *Scheduler) lastPush(job int64) string {
-	runs, err := s.store.Runs(job, 50)
-	if err != nil {
-		return ""
+	r, ok := s.lastPushRun(job)
+	if !ok {
+		return "\n\nThis check hasn't pushed anything yet."
 	}
-	for _, r := range runs {
-		if r.Pushed {
-			return fmt.Sprintf("\n\nYour last push for this check was at %s Eastern, titled %q: %s",
-				r.At.In(s.loc).Format("Jan 2 3:04pm"), r.Title, r.Body)
-		}
-	}
-	return "\n\nThis check hasn't pushed anything yet."
+	return fmt.Sprintf("\n\nYour last push for this check was at %s Eastern, titled %q: %s",
+		r.At.In(s.loc).Format("Jan 2 3:04pm"), r.Title, r.Body)
 }
 
 // Snoozed turns a pressed snooze button into a one-shot an hour out.

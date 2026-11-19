@@ -83,8 +83,10 @@ func (s *site) apply(j *Job, in Input) error {
 		return errors.New("a job needs a name")
 	case len(j.Name) > 120:
 		return errors.New("keep the name under 120 characters")
-	case j.Kind != "notify" && j.Kind != "prompt":
-		return errors.New("kind is notify or prompt")
+	case j.Kind != "notify" && j.Kind != "prompt" && j.Kind != "quote":
+		return errors.New("kind is notify, prompt or quote")
+	case j.Message == "" && j.Kind == "quote":
+		return errors.New("a quote job needs a ticker as its message")
 	case j.Message == "" && j.Kind == "prompt":
 		return errors.New("a prompt job needs a prompt")
 	case j.Message == "":
