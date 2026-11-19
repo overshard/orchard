@@ -29,8 +29,8 @@ type Quote struct {
 }
 
 // fetchQuote reads Yahoo's spark, the same keyless endpoint dash uses. Before
-// an IPO's opening cross Yahoo shows the offer price with no minute bars, so
-// traded is false until the first bar with a close shows up.
+// an IPO's opening cross Yahoo shows the offer price, even as a minute bar,
+// with no volume, so traded waits for volume.
 func fetchQuote(ctx context.Context, c *http.Client, symbol string) (q Quote, traded bool, err error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, sparkURL+url.QueryEscape(symbol), nil)
 	if err != nil {
@@ -54,13 +54,9 @@ func fetchQuote(ctx context.Context, c *http.Client, symbol string) (q Quote, tr
 					Meta struct {
 						Price  float64 `json:"regularMarketPrice"`
 						Change float64 `json:"regularMarketChangePercent"`
+						Volume int64   `json:"regularMarketVolume"`
+						Time   int64   `json:"regularMarketTime"`
 					} `json:"meta"`
-					Timestamp  []int64 `json:"timestamp"`
-					Indicators struct {
-						Quote []struct {
-							Close []*float64 `json:"close"`
-						} `json:"quote"`
-					} `json:"indicators"`
 				} `json:"response"`
 			} `json:"result"`
 		} `json:"spark"`
@@ -72,18 +68,9 @@ func fetchQuote(ctx context.Context, c *http.Client, symbol string) (q Quote, tr
 		return q, false, fmt.Errorf("yahoo has no quote for %s", symbol)
 	}
 	resp0 := r.Spark.Result[0].Response[0]
-	q.Price, q.Change = resp0.Meta.Price, resp0.Meta.Change
-	if len(resp0.Indicators.Quote) == 0 {
-		return q, false, nil
-	}
-	closes := resp0.Indicators.Quote[0].Close
-	for i, ts := range resp0.Timestamp {
-		if i < len(closes) && closes[i] != nil {
-			q.First = time.Unix(ts, 0)
-			return q, q.Price > 0, nil
-		}
-	}
-	return q, false, nil
+	m := resp0.Meta
+	q.Price, q.Change, q.First = m.Price, m.Change, time.Unix(m.Time, 0)
+	return q, m.Volume > 0 && m.Price > 0, nil
 }
 
 func (s *Scheduler) quote(ctx context.Context, j Job) (title, body string, send bool, err error) {
@@ -94,7 +81,7 @@ func (s *Scheduler) quote(ctx context.Context, j Job) (title, body string, send 
 	}
 	last, ok := s.lastPushRun(j.ID)
 	if !ok {
-		return symbol + " is trading", fmt.Sprintf("%s $%.2f, first trade at %s, %+.2f%% on the day", symbol, q.Price, q.First.In(s.loc).Format("3:04pm"), q.Change), true, nil
+		return symbol + " is trading", fmt.Sprintf("%s $%.2f, trading as of %s, %+.2f%% on the day", symbol, q.Price, q.First.In(s.loc).Format("3:04pm"), q.Change), true, nil
 	}
 	// A few seconds of slack so a run that fires early in its minute still counts.
 	if s.now().Sub(last.At) < quoteEvery-15*time.Second {
