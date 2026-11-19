@@ -7,8 +7,8 @@ The tool sites, analytics, auth, cron, llm, logging, repos and status, share one
 look through `suite/`, a Go package each of them carries a byte identical copy
 of the same way it carries `web/`, and `make check` fails when a copy drifts. It
 holds `suite.css`, the Geist fonts, the header, status line and home page
-templates, `suite.js` for the home page pins and clickable rows, and the spark
-drawing, all served by the site itself under `/suite/`. A change to it is made
+templates, `suite.js` for the home page pins, clickable and keyboard rows, the
+crosshair, tooltips, toasts and the jump palette, and the spark drawing, all served by the site itself under `/suite/`. A change to it is made
 in one copy and copied to the rest. Each site keeps a small stylesheet of its
 own for what only it has, a diff, a log line or a code entry.
 
@@ -53,7 +53,12 @@ blog and the portfolio are separate identities and nothing here applies to them.
   edges. A count that isn't a trend gets `o-ticks` instead, a row of ticks, one
   per check or site or hour, red or amber where it went wrong and as tall as its
   value when it has one. Nearly every tile has one or the other, and one with
-  neither keeps the space so a row of tiles lines up.
+  neither keeps the space so a row of tiles lines up. A spark drawn with
+  `suite.SparkT` carries its values and a label per point, and in a strip where
+  every series is the same length, hovering one moves a rule and a dot across
+  all of them and each tile's number reads at that point, written the way the
+  tile wrote it or the way its `<b data-f>` sample says. The label goes in a
+  `data-xs-when` element beside the strip, or each tile's delta line without one.
 - **Trouble sorts first.** A down property, a failing job or a source with
   errors is the top row and tinted red, so nobody has to read the list to find it.
 - **A table marked `stack` becomes a list on a phone,** its `lead` cell on a
@@ -62,8 +67,27 @@ blog and the portfolio are separate identities and nothing here applies to them.
   link inside it stays the real target for keyboards.
 - **An empty state says what will show and how to get the first one,** never
   just nothing.
-- **Anything that ends something asks first** with `data-confirm`, in words that
-  say what it ends.
+- **Undo instead of are you sure.** A form with `data-undo="Revoked Chrome"`
+  strikes its row through and shows a toast with Undo for five seconds, and only
+  posts once that runs out. Leaving the page inside the window still sends it,
+  with a beacon. Only what can't be put back or ends your own session asks first
+  with `data-confirm`, in words that say what it ends, and that one is still
+  handled by each site's own script.
+- **Toasts** come from an element marked `data-toast` on the page, say after a
+  redirect, or from a site's own script dispatching an `o-toast` event on
+  `document` with `{text, kind, ms}` in its detail.
+- **Anything with `data-tip`** shows its text in the suite tooltip on hover or
+  focus, which is how a tick or a day says what happened on it.
+- **A table with `data-keys`** moves with j and k, opens a row with enter, which
+  is its `data-href` or the `tr.o-drawer` under it, and picks a row's checkbox
+  with x. `?` lists the keys and esc clears. `data-bulk="<form id>"` names a form
+  that gets a hidden `id` input per picked row (`data-name` on the form changes
+  the name) and shows as a bar with the count while anything is picked.
+- **Jump or ask** opens on what needs you, then the tools. A leading `>` lists
+  only actions, which are any button on the page marked `data-act`, a few built
+  in ones and index items of kind `action`. An action item with `post` is posted
+  when the palette is on that tool, and opens its `href` from anywhere else.
+  Matching is in order letters as well as words, with the matched ones in brass.
 - **The home page** is the same header signed out, a hero with the copy on the
   left and a staged window of the real page on the right with numbered pins in
   the margin and a legend under it, then feature rows each with a staged crop,
@@ -80,10 +104,26 @@ scanned rather than read, so the craft moves from typography to information
 design: the summary comes before the detail, and state is encoded in shape as
 well as in number.
 
-**The pieces, in the order a page uses them.** The page head, then `o-tiles`,
-then `o-panel`s, each opening on an `o-ph2` with a title and a label. `o-hbar`
-is a ranked row with a bar sized against the largest value, `o-chip` a state,
+**The pieces, in the order a page uses them.** The page head, then `o-tiles` or
+an `o-strip`, then `o-panel`s, each opening on an `o-ph2` with a title and a
+label. `o-hbar` is a ranked row with a bar sized against the largest value, `o-chip` a state,
 and `o-tbl` a table. Findings use a chip with a word in it, never colour alone.
+
+**As dense as dash.** A working page runs at 13px with tighter tables, hbars and
+panel heads, and a home page keeps 14px. The pieces that carry it:
+
+- `o-strip` is six (`six`) or eight tiles on one 1px hairline grid, so the row
+  reads as one instrument, four across on a tablet and two on a phone.
+- `o-pm` goes in a panel head, mono key and value pairs like `30d 4 · down 2h`,
+  so a panel says its summary before its rows. A `b` in it can be `ok`, `warn`
+  or `bad`.
+- `o-band` with `b2`, `b2r`, `b3`, `b3e`, `b4`, `b5` or `b6` is a weighted grid
+  of panels in place of one wide table and a side column, one column under 900px.
+- `o-ds` is fourteen days in a cell, a tick each, `w` or `b` on a bad day and
+  `n` on none, so a quiet row still shows its fortnight.
+- `o-foot` closes a panel with one caps line, like `5 of 31 countries`.
+- `o-hbar` takes a trailing `.d` for its change, `ok`, `warn` or `bad` on the
+  bar's `i`, and a `u` inside the bar as a marker at a target or last period.
 
 ### Charts
 
