@@ -1,5 +1,6 @@
 import { $, post, state, setPond, watch, TIERS } from "./api.js";
-import { genome, bred, cells, colours, draw, W, H, MORPHS } from "./frog.js";
+import { genome, bred, cells, colours, W, H, MORPHS } from "./frog.js";
+import { draw } from "./lit.js";
 import { iconCanvas, dishCanvas, furnCanvas } from "./icons.js";
 import { hatTile } from "./hats.js";
 import { slot, openSheet, closeSheet, sheetSay, button, shade, reveal } from "./ui.js";

@@ -1,6 +1,7 @@
 import { drawReeds } from "./scenes.js";
 import { $, post, state, setPond, watch, titled, workNow, TIERS } from "./api.js";
-import { genome, bred, cells, colours, draw, W, H } from "./frog.js";
+import { genome, bred, cells, colours, W, H } from "./frog.js";
+import { draw } from "./lit.js";
 import { openJob, jobSheet, collect } from "./work.js";
 
 let dye = "", stamp = "", drop = "", frontID = 0;

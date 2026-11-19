@@ -3,7 +3,8 @@ import { iconCanvas } from "./icons.js";
 import { openSheet, closeSheet, slot, shade, reveal } from "./ui.js";
 import { drawJob, JOB_THING } from "./scenes.js";
 import { hatTile } from "./hats.js";
-import { genome, bred, cells, colours, draw, W, H } from "./frog.js";
+import { genome, bred, cells, colours, W, H } from "./frog.js";
+import { draw } from "./lit.js";
 import { KEEPER, cutWords } from "./shops.js";
 
 // A frog's job as its own screen: the frog at it in a window, the action

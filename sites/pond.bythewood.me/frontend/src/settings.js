@@ -1,5 +1,6 @@
 import { $, post, state, setPond, watch, titled } from "./api.js";
-import { genome, bred, cells, colours, draw, W, H } from "./frog.js";
+import { genome, bred, cells, colours, W, H } from "./frog.js";
+import { draw } from "./lit.js";
 import { soundOn, setSound, sfx } from "./sound.js";
 import { dishCanvas } from "./icons.js";
 import { hatTile } from "./hats.js";

@@ -1,5 +1,6 @@
 import { $, post, state, setPond, watch, reduced, titled, heldNow, TIERS } from "./api.js";
-import { genome, bred, cells, sideCells, colours, draw, croak, W, H, SW, SH } from "./frog.js";
+import { genome, bred, cells, sideCells, colours, croak, W, H, SW, SH } from "./frog.js";
+import { draw } from "./lit.js";
 import { drawIcon, iconCanvas, drawFurn } from "./icons.js";
 import { initDive, enterDive, leaveDive, diveMode } from "./dive.js";
 import { arcade } from "./arcade.js";

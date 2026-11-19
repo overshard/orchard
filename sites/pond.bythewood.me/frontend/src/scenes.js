@@ -1,4 +1,5 @@
-import { genome, bred, cells, colours, draw, W, H } from "./frog.js";
+import { genome, bred, cells, colours, W, H } from "./frog.js";
+import { draw } from "./lit.js";
 import { drawIcon } from "./icons.js";
 
 // The thing each job brings, for an icon.

@@ -1,5 +1,6 @@
 import { sfx } from "./sound.js";
-import { cells, colours, draw, W as FW, H as FH } from "./frog.js";
+import { cells, colours, W as FW, H as FH } from "./frog.js";
+import { draw } from "./lit.js";
 import { feel } from "./feel.js";
 
 // Lily leap. The frog bounces off every pad it lands on and climbs as high as

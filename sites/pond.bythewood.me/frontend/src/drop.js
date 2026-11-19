@@ -1,5 +1,6 @@
 import { sfx, chime, soundOn } from "./sound.js";
-import { cells, colours, draw as drawFrog, croak, W as FW, H as FH } from "./frog.js";
+import { cells, colours, croak, W as FW, H as FH } from "./frog.js";
+import { draw as drawFrog } from "./lit.js";
 import { drawTop } from "./top.js";
 import { feel } from "./feel.js";
 import { reduced } from "./api.js";

@@ -1,5 +1,6 @@
 import { $, post, setPond, reduced, TIERS } from "./api.js";
-import { genome, cells, colours, draw, W, H } from "./frog.js";
+import { genome, cells, colours, W, H } from "./frog.js";
+import { draw } from "./lit.js";
 import { thingArt, reveal, button } from "./ui.js";
 
 // The hooded frog is any frog with its head and back covered, its eyes and

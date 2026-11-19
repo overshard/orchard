@@ -1,6 +1,7 @@
 import { post, setPond, state } from "./api.js";
 import { sfx } from "./sound.js";
-import { cells, colours, draw, W as FW, H as FH } from "./frog.js";
+import { cells, colours, W as FW, H as FH } from "./frog.js";
+import { draw } from "./lit.js";
 import { feel } from "./feel.js";
 import { KINDS, drawFish, fishArt, inches } from "./fishes.js";
 import { slot } from "./ui.js";

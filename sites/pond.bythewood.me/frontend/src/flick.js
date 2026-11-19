@@ -1,4 +1,5 @@
-import { cells, colours, draw, W as FW, H as FH } from "./frog.js";
+import { cells, colours, W as FW, H as FH } from "./frog.js";
+import { draw } from "./lit.js";
 import { feel } from "./feel.js";
 import { sfx } from "./sound.js";
 

@@ -101,6 +101,9 @@ ahead, with made up days beside it since a dev run can't reach dash, a full moon
   the last hat or trinket back for the collection.
 - `genome.go` turns a seed into a frog's name, look and rarity, and
   `frontend/src/frog.js` is the same thing in JavaScript plus the drawing.
+  The pond's pages draw a frog through `frontend/src/lit.js`, the same draw
+  lit from the top left with a shine in each eye, and `frog.js` and
+  `guest.js` stay plain since other sites copy them.
 - `frontend/src/icons.js` is every icon, rows of letters on a 12 by 12 grid
   off one palette, with the dark edge and the lit top added in code. A thing
   in the bag is drawn by its kind, so a new kind needs a row there or it shows

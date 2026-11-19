@@ -1,4 +1,5 @@
-import { cells, sideCells, colours, draw, W, H, SW, SH } from "./frog.js";
+import { cells, sideCells, colours, W, H, SW, SH } from "./frog.js";
+import { draw } from "./lit.js";
 import { drawTop } from "./top.js";
 import { flick } from "./flick.js";
 import { cross } from "./cross.js";

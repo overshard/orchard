@@ -1,5 +1,6 @@
 import qrcode from "qrcode-generator";
-import { genome, bred, cells, colours, draw, croak, W, H } from "./frog.js";
+import { genome, bred, cells, colours, croak, W, H } from "./frog.js";
+import { draw } from "./lit.js";
 import { drawIcon } from "./icons.js";
 import { hatTile } from "./hats.js";
 import { fishArt } from "./fishes.js";

@@ -1,5 +1,6 @@
 import { $, post, state, setPond, watch, reduced, TIERS } from "./api.js";
-import { genome, cells, colours, draw, W, H } from "./frog.js";
+import { genome, cells, colours, W, H } from "./frog.js";
+import { draw } from "./lit.js";
 import { drawIcon } from "./icons.js";
 import { presentsFrom } from "./neighbours.js";
 import { initMarket } from "./market.js";

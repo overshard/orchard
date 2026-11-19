@@ -1,5 +1,6 @@
 import { $, post, state, setPond, watch, reduced, TIERS } from "./api.js";
-import { cells, colours, draw as drawCells, hatCells, hatColours, W, H } from "./frog.js";
+import { cells, colours, hatCells, hatColours, W, H } from "./frog.js";
+import { draw as drawCells } from "./lit.js";
 import { iconCells, SLICE_ICON, SLICE_NAME, drawIcon } from "./icons.js";
 
 // The wheel is a lily pad the frog points at with its tongue. The server

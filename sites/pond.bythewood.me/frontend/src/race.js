@@ -2,7 +2,8 @@
 // out, the count in, and the results at the end. It's HTML over the canvas so
 // the words stay sharp at any size, and it never takes a tap.
 import { $, titled } from "./api.js";
-import { cells, colours, draw, W, H } from "./frog.js";
+import { cells, colours, W, H } from "./frog.js";
+import { draw } from "./lit.js";
 
 const ORD = { 1: "ST", 2: "ND", 3: "RD" };
 export function suffix(n) { return n % 100 > 10 && n % 100 < 14 ? "TH" : ORD[n % 10] || "TH"; }

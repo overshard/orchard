@@ -1,5 +1,6 @@
 import { audioClock, croakAt, rain, soundOn } from "./sound.js";
-import { cells, colours, draw, genome, W as FW, H as FH } from "./frog.js";
+import { cells, colours, genome, W as FW, H as FH } from "./frog.js";
+import { draw } from "./lit.js";
 import { feel } from "./feel.js";
 import { SONGS, ROUNDS, HOOK, CHOP, PERFECT, GOOD, LATE, HOLD, lay, points, grade, ovation, hookNote } from "./songs.js";
 

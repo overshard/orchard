@@ -1,5 +1,6 @@
 import { $, post, state, setPond, watch, reduced, TIERS } from "./api.js";
-import { genome, cells, colours, draw, W, H } from "./frog.js";
+import { genome, cells, colours, W, H } from "./frog.js";
+import { draw } from "./lit.js";
 import { dishCanvas, iconCanvas } from "./icons.js";
 import { openSheet, sheetSay, button, reveal, thingArt } from "./ui.js";
 import { cookFor } from "./bank.js";
