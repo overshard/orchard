@@ -26,5 +26,8 @@ func TestHandler(t *testing.T) {
 		if w.Code != want {
 			t.Errorf("%s answered %d", path, w.Code)
 		}
+		if want == 404 && w.Header().Get("Cache-Control") != "no-store" {
+			t.Errorf("%s 404 can be cached", path)
+		}
 	}
 }

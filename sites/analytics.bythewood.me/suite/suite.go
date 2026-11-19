@@ -49,6 +49,8 @@ func Handler() http.Handler {
 		name := strings.TrimPrefix(r.URL.Path, "/suite/")
 		sum, ok := sums[name]
 		if !ok {
+			// Without this the edge stamps its own TTL on the 404 and holds it.
+			w.Header().Set("Cache-Control", "no-store")
 			http.NotFound(w, r)
 			return
 		}

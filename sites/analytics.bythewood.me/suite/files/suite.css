@@ -38,6 +38,8 @@
   color: var(--o-text);
   font: 400 14px/1.55 var(--o-sans);
   -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   text-rendering: optimizeLegibility;
 }
 .o-body [hidden] { display: none !important; }
