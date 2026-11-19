@@ -323,6 +323,15 @@ http://cron.bythewood.me {
 	}
 }
 
+# mcp, every tool read only for an agent. OAuth lives here too, signing in
+# through auth, and its two .well-known routes are the only ones any site serves.
+http://mcp.bythewood.me {
+	import site
+	reverse_proxy orchard-mcp:8000 {
+		import hold
+	}
+}
+
 http://llm.bythewood.me {
 	import scanners
 	import headers
