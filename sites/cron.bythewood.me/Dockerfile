@@ -11,6 +11,7 @@ RUN mkdir -p /seed-data
 
 FROM scratch
 COPY --from=build /app /app
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 EXPOSE 8000
 
 # A fresh volume copies this directory's owner, so the database is writable
