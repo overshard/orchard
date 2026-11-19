@@ -18,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"logging.bythewood.me/suite"
 	"logging.bythewood.me/web"
 )
 
@@ -76,7 +77,7 @@ type site struct {
 // Shared with the tests, which parse them for real, since a page listed here
 // with no file behind it builds fine and only fails at boot.
 var (
-	layoutTemplates = []string{"base.html", "partials.html"}
+	layoutTemplates = []string{"base.html", "partials.html", "suite.html"}
 	pageTemplates   = []string{
 		"home.html", "documentation.html",
 		"overview.html", "source.html", "search.html", "notfound.html",
@@ -144,7 +145,7 @@ func realMain() error {
 		return err
 	}
 
-	renderer, err := web.NewRenderer(templates, templateFuncs, layoutTemplates, pageTemplates)
+	renderer, err := web.NewRenderer(suite.With(templates), suite.FuncsWith(templateFuncs), layoutTemplates, pageTemplates)
 	if err != nil {
 		return err
 	}
@@ -305,6 +306,7 @@ func (s *site) page(r *http.Request, title, description string) PageData {
 		JSONLD:        pageGraph(title, description, baseURL+r.URL.Path),
 		Script:        s.baseScript,
 		Styles:        s.baseStyles,
+		Suite:         s.chrome(r),
 
 		AnalyticsID: analyticsID,
 	}

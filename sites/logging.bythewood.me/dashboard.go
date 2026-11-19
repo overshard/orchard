@@ -1,6 +1,8 @@
 package main
 
 import (
+	"logging.bythewood.me/suite"
+
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -51,6 +53,9 @@ type PageData struct {
 	Search *SearchView
 
 	ReportedAt string
+
+	Suite  suite.Page
+	Footer suite.Footer
 }
 
 // Dashboard is one window of the log stream, optionally narrowed to one source.
@@ -250,6 +255,7 @@ func (s *site) renderDashboard(w http.ResponseWriter, r *http.Request, source st
 	data.PageStyles = s.dashStyles
 	data.Dash = d
 	data.ReportedAt = time.Now().UTC().Format("2006-01-02 15:04 MST")
+	data.Suite.Status = dashStatus(d)
 
 	if format, ok := reportFormat(q); ok {
 		s.renderReport(w, r, format, title, data)

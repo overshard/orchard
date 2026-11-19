@@ -7,18 +7,6 @@
 {{ define "extra_head" }}{{ end }}
 {{ define "extra_css" }}{{ end }}
 {{ define "extra_js" }}{{ end }}
-{{ define "breadcrumbs" }}{{ end }}
-
-{{/* The bar itself is a block, not just its contents, so the home page can drop
-     it entirely. Rendering an empty bar would leave a stray rule under the
-     navbar with nothing in it. */}}
-{{ define "breadcrumb_bar" }}
-<div class="breadcrumb-bar py-2 overflow-auto d-print-none">
-  <div class="container">
-    {{ template "breadcrumbs" . }}
-  </div>
-</div>
-{{ end }}
 
 {{ define "social" }}
 <meta property="og:type" content="website">
@@ -38,161 +26,36 @@
 <meta name="twitter:image" content="{{ .OGImage }}">
 {{ end }}
 
-{{/* Four stacked lines of unequal length: a log, read top to bottom, with the
-     odd one out in amber. Kept identical to faviconSVG in home.go, which is why
-     neither is a file. */}}
-{{ define "logo" }}
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect x="8" y="10" width="48" height="7" rx="1.5" fill="#6b9e78"/>
-  <rect x="8" y="24" width="34" height="7" rx="1.5" fill="#6b9e78"/>
-  <rect x="8" y="38" width="44" height="7" rx="1.5" fill="#c9a84c"/>
-  <rect x="8" y="52" width="26" height="7" rx="1.5" fill="#6b9e78"/>
-</svg>
-{{ end }}
-
-{{ define "nav" }}
-<nav class="navbar navbar-dark navbar-expand-md d-print-none">
-  <div class="container">
-    <a class="navbar-brand" href="/">
-      <span class="logo" aria-hidden="true">{{ template "logo" . }}</span>
-      <span class="brand-text">{{ .SiteName }}</span>
-      <span class="brand-dot" aria-hidden="true"></span>
-    </a>
-    <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navMain" aria-controls="navMain" aria-expanded="false" aria-label="Toggle navigation">
-      <span class="navbar-toggler-icon"></span>
-    </button>
-    <div class="collapse navbar-collapse" id="navMain">
-      <ul class="navbar-nav ms-3">
-        {{ if .Authenticated }}
-        <li class="nav-item"><a class="nav-link {{ if eq .Path "/overview" }}active{{ end }}" href="/overview">Overview</a></li>
-        <li class="nav-item"><a class="nav-link {{ if eq .Path "/search" }}active{{ end }}" href="/search">Search</a></li>
-        <li class="nav-item"><a class="nav-link {{ if eq .Path "/documentation" }}active{{ end }}" href="/documentation">Docs</a></li>
-        {{ else }}
-        <li class="nav-item"><a class="nav-link {{ if eq .Path "/" }}active{{ end }}" href="/">Home</a></li>
-        <li class="nav-item"><a class="nav-link {{ if eq .Path "/documentation" }}active{{ end }}" href="/documentation">Docs</a></li>
-        {{ end }}
-      </ul>
-      <ul class="navbar-nav ms-auto">
-        {{ if .Authenticated }}
-        <li class="nav-item d-flex align-items-center">
-          {{/* Signing out ends the session for every site at once, which is the
-               only sensible meaning of it when one cookie covers all of them. */}}
-          <a href="https://auth.bythewood.me/" class="btn btn-sm btn-outline-light">Account</a>
-        </li>
-        {{ else }}
-        <li class="nav-item d-flex align-items-center">
-          <a href="/login" class="btn btn-sm btn-outline-light">Sign in</a>
-        </li>
-        {{ end }}
-      </ul>
-    </div>
-  </div>
-</nav>
-{{ end }}
-
-{{ define "footer" }}
-<footer class="d-print-none">
-  <div class="container">
-    <div class="row links">
-      <div class="col-12 col-lg-6 mb-4 mb-lg-0">
-        <div class="h5 mb-3">// {{ .SiteName }}</div>
-        <p>Self-hosted log aggregation by <a href="https://isaacbythewood.com/">{{ .AuthorName }}</a>.
-          Every site here ships its own records over the internal bridge. They
-          land in SQLite, age out on a schedule, and leave counters behind.</p>
-      </div>
-      <div class="col-6 col-lg-2">
-        <div class="h5 mb-3">// Elsewhere</div>
-        <ul class="list-unstyled">
-          <li class="mb-2"><a href="https://isaacbythewood.com/" class="link-footer">Portfolio</a></li>
-          <li class="mb-2"><a href="https://blog.bythewood.me/" class="link-footer">Blog</a></li>
-          <li class="mb-2"><a href="https://github.com/overshard" class="link-footer" target="_blank" rel="noopener">GitHub</a></li>
-        </ul>
-      </div>
-      <div class="col-6 col-lg-2">
-        <div class="h5 mb-3">// Pages</div>
-        <ul class="list-unstyled">
-          <li class="mb-2"><a href="/" class="link-footer">Home</a></li>
-          <li class="mb-2"><a href="/documentation" class="link-footer">Documentation</a></li>
-          <li class="mb-2"><a href="{{ .SourceURL }}" class="link-footer" target="_blank" rel="noopener">Source</a></li>
-        </ul>
-      </div>
-      <div class="col-6 col-lg-2">
-        <div class="h5 mb-3">// Operator</div>
-        <ul class="list-unstyled">
-          {{ if .Authenticated }}
-          <li class="mb-2"><a href="/overview" class="link-footer">Overview</a></li>
-          <li class="mb-2"><a href="/search" class="link-footer">Search</a></li>
-          <li class="mb-2"><a href="https://auth.bythewood.me/" class="link-footer">Account</a></li>
-          {{ else }}
-          <li class="mb-2"><a href="/login" class="link-footer">Sign in</a></li>
-          {{ end }}
-        </ul>
-      </div>
-    </div>
-  </div>
-</footer>
-
-<div class="footer-bar d-print-none">
-  <div class="container">
-    <div class="row align-items-center">
-      <div class="col-sm-6 d-flex align-items-center justify-content-center justify-content-sm-start order-1 order-sm-0">
-        <small>&copy; {{ .Year }} {{ .AuthorName }} · Some rights reserved · All times UTC</small>
-      </div>
-      <div class="col-sm-6 d-flex align-items-center justify-content-center justify-content-sm-end py-3 py-sm-0">
-        <span class="pond-guest" data-pond-foot>
-          <small data-pond-line>A frog from the pond</small>
-          <a href="https://pond.bythewood.me/" aria-label="The pond"><canvas width="44" height="34" aria-hidden="true"></canvas></a>
-        </span>
-        <a href="{{ .SourceURL }}" target="_blank" rel="noopener" class="footer-bar-link" aria-label="GitHub">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
-            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
-          </svg>
-        </a>
-      </div>
-    </div>
-  </div>
-</div>
-{{ end }}
+{{ define "footer" }}{{ template "suite-foot" .Suite }}{{ end }}
 
 {{/* The window picker, shared by every page that has one. It is a row of links
      rather than a select plus a submit, because every other control on these
      pages is already in the query string and a form would have to carry them
      all as hidden fields to avoid dropping them. */}}
 {{ define "rangePicker" }}
-<div class="range-picker" role="group" aria-label="Time window">
+<nav class="range" aria-label="Time window">
   {{ $current := .current }}
   {{ $base := .base }}
-  {{ range .options }}
-  <a class="range-opt {{ if eq .Key $current }}is-active{{ end }}" href="{{ $base }}{{ query "range" .Key }}">{{ .Name }}</a>
-  {{ end }}
-</div>
+  {{- range .options }}<a class="{{ if eq .Key $current }}on{{ end }}" href="{{ $base }}{{ query "range" .Key }}"{{ if eq .Key $current }} aria-current="true"{{ end }}>{{ .Key }}</a>{{ end -}}
+</nav>
 {{ end }}
 
 {{/* One rank list panel: a title, a column heading, and the rows. Bars are sized
      against the largest value in the list rather than the sum, so a list where
      one entry dominates still shows the shape of the rest. */}}
 {{ define "rankList" }}
-<div class="rank-list">
-  <div class="rank-list-header"><span class="rank-list-title">{{ .title }}</span><span class="rank-list-col">{{ .col }}</span></div>
-  <div class="rank-list-body">
-    {{ $top := .top }}
-    {{ $link := .link }}
-    {{ range .items }}
-    <div class="rank-list-row">
-      <span class="rank-bar" style="width: {{ pct .Count $top }}%" aria-hidden="true"></span>
-      {{/* title as well as the visible text, because these ellipsis at any
-           width and neither panel links anywhere, so a truncated label was
-           otherwise unrecoverable. */}}
-      <span class="rank-label" title="{{ .Label }}">
-        {{ if $link }}<a href="{{ $link }}{{ .Label }}">{{ .Label }}</a>{{ else }}{{ .Label }}{{ end }}
-      </span>
-      <span class="rank-count">{{ num .Count }}</span>
-    </div>
-    {{ else }}
-    <div class="rank-list-empty">nothing in this window</div>
-    {{ end }}
-  </div>
-</div>
+<section class="o-panel">
+  <div class="o-ph2"><h2>{{ .title }}</h2><span class="o-lab">{{ .col }}</span></div>
+  {{ $top := .top }}
+  {{ $link := .link }}
+  {{ range .items }}
+  {{/* title as well as the visible text, because these ellipsis at any width
+       and a truncated label is otherwise unrecoverable. */}}
+  <div class="o-hbar"><span class="k o-mono" title="{{ .Label }}">{{ if $link }}<a href="{{ $link }}{{ .Label }}">{{ .Label }}</a>{{ else }}{{ .Label }}{{ end }}</span><span class="bar"><i style="width: {{ pct .Count $top }}%"></i></span><span class="v">{{ num .Count }}</span></div>
+  {{ else }}
+  <p class="o-empty">Nothing in this window.</p>
+  {{ end }}
+</section>
 {{ end }}
 
 {{/* One log line, as a row. Used by both the error feed and the search results,
@@ -223,86 +86,117 @@
 </div>
 {{ end }}
 
-{{/* The metric tile. accent picks the colour, sub is the small line under the
-     number and may be empty. */}}
-{{/* accent is the colour when the number is worth noticing. A tile whose value
-     is zero uses the neutral one instead, because "error records 0" painted
-     terracotta made the healthy state the loudest thing in the row. Pass
-     "alarm" true to keep the accent regardless. */}}
+{{/* The metric tile. bad marks the number as trouble, so a zero error count
+     stays quiet and the healthy state is never the loudest thing in the row. */}}
 {{ define "tile" }}
-<div class="metric-tile metric-accent-{{ if or .alarm (not .quiet) }}{{ .accent }}{{ else }}slate{{ end }}">
-  <div class="metric-label">{{ .label }}</div>
-  <div class="metric-value">{{ .value }}</div>
-  {{ with .sub }}<div class="metric-sub">{{ . }}</div>{{ end }}
+<div class="o-tile">
+  <small>{{ .label }}</small>
+  <b class="{{ if .bad }}bad{{ else if .warn }}warn{{ end }}">{{ .value }}</b>
+  <span class="o-delta">{{ .sub }}</span>
+  {{ if .spark }}{{ spark .kind .spark }}{{ else }}<span class="o-nospark"></span>{{ end }}
 </div>
 {{ end }}
 
-{{/* Everything below the fold is identical on the overview and on a single
-     source's page, so it is defined once. Both pages pass the same *Dashboard,
-     and the only difference is that Source is set on one of them. */}}
-{{ define "dashPanels" }}
-<div class="row g-3 mb-4">
-  <div class="col-12 col-lg-6">
-    <div class="panel">
-      <div class="panel-header">
-        <span class="panel-title">slowest paths</span>
-        <span class="panel-note">by p95, at least 5 samples</span>
-      </div>
-      <div class="table-scroll">
-        <table class="table table-sm data-table mb-0">
-          <thead><tr><th>path</th><th class="num">hits</th><th class="num">p95</th><th class="num">max</th><th class="num">5xx</th></tr></thead>
-          <tbody>
-            {{ range .Slowest }}
-            <tr>
-              {{/* title as well, for the same reason rank-label has one: the
-                   cell ellipsis at 26rem and the path is not a link. */}}
-              <td class="path-cell" title="{{ .Path }}">{{ .Path }}</td>
-              <td class="num">{{ num .Count }}</td>
-              <td class="num text-amber">{{ ms .P95 }}</td>
-              <td class="num">{{ ms .Max }}</td>
-              <td class="num {{ if .Errors }}text-terracotta{{ end }}">{{ num .Errors }}</td>
-            </tr>
-            {{ else }}
-            <tr><td colspan="5" class="text-center text-muted py-4">no requests with a measured duration in this window</td></tr>
-            {{ end }}
-          </tbody>
-        </table>
-      </div>
-    </div>
+{{ define "dashTop" }}
+<div class="o-ph">
+  <div>
+    <span class="o-lab">logging &middot; {{ if .Source }}sources &middot; {{ .Source }}{{ else }}overview{{ end }} &middot; {{ .RangeKey }}</span>
+    <h1>{{ headline . }}</h1>
+    <p class="o-mono small">{{ .DateStart }} to {{ .DateEnd }} UTC</p>
   </div>
-  <div class="col-12 col-md-6 col-lg-3">
-    {{ template "rankList" dict "title" "busiest paths" "col" "hits" "items" .TopPaths "top" (topCount .TopPaths) }}
-  </div>
-  <div class="col-12 col-md-6 col-lg-3">
-    {{ template "rankList" dict "title" "components" "col" "records" "items" .ByComponent "top" (topCount .ByComponent) }}
-  </div>
-</div>
-
-<div class="panel">
-  <div class="panel-header">
-    <span class="panel-title">latest problems</span>
-    <span class="panel-note">warnings, errors and 5xx, newest first</span>
-  </div>
-  <div class="log-body">
-    {{ range .Errors }}{{ template "recordRow" . }}{{ else }}
-    <div class="rank-list-empty">nothing went wrong in this window</div>
+  <div class="o-acts d-print-none">
+    {{ if .Source }}
+    {{ template "rangePicker" dict "options" .RangeOptions "current" .RangeKey "base" (printf "/sources/%s" .Source) }}
+    <a href="/search{{ query "source" .Source "range" .RangeKey }}" class="o-btn o-btn-sm">Search {{ .Source }}</a>
+    <a href="/sources/{{ .Source }}{{ query "range" .RangeKey "report" "md" }}" target="_blank" class="o-btn o-btn-sm">Markdown</a>
+    <a href="/sources/{{ .Source }}{{ query "range" .RangeKey "report" "pdf" }}" target="_blank" class="o-btn o-btn-sm">PDF report</a>
+    {{ else }}
+    {{ template "rangePicker" dict "options" .RangeOptions "current" .RangeKey "base" "/overview" }}
+    <a href="/overview{{ query "range" .RangeKey "report" "md" }}" target="_blank" class="o-btn o-btn-sm">Markdown</a>
+    <a href="/overview{{ query "range" .RangeKey "report" "pdf" }}" target="_blank" class="o-btn o-btn-sm">PDF report</a>
     {{ end }}
   </div>
 </div>
 
-{{/* The ingest counters. A logging site that cannot say whether it is dropping
-     records is asking to be trusted on the one thing it should be able to
-     prove, so the numbers are on the page rather than in a log nobody reads. */}}
-<div class="ingest-strip mt-4">
-  {{/* These counters are process-lifetime and cover every source, unlike every
-       other panel on a source page, which is scoped to that source. Saying so
-       is the difference between a reader reconciling "records 67" against
-       "311 written" and giving up on the page. */}}
-  <span class="section-label">ingest · all sources, since restart</span>
+{{/* Records and errors are counts over the window, and the rates are the
+     numbers worth an alert rule. An ERROR record is a program complaining and
+     a 5xx is a visitor being told no, so they stay apart. */}}
+<div class="o-tiles six">
+  {{ template "tile" dict "label" "records" "value" (num .Totals.Records) "sub" (printf "%s requests" (num .Totals.Requests)) "kind" "flat" "spark" (volume .Graph) }}
+  {{ template "tile" dict "label" "error records" "bad" (gt .Totals.Errors 0) "value" (num .Totals.Errors) "sub" (printf "%s warnings" (num .Totals.Warnings)) "kind" (or (and (gt .Totals.Errors 0) "bad") "flat") "spark" (errorSeries .Graph) }}
+  {{ template "tile" dict "label" "5xx rate" "bad" (gt .Totals.Server5xx 0) "value" (printf "%.2f%%" .Totals.ErrorRate) "sub" (printf "%s of %s requests" (num .Totals.Server5xx) (num .Totals.Requests)) }}
+  {{ template "tile" dict "label" "p95 latency" "value" (ms .Latency.P95) "sub" (printf "p50 %s · p99 %s" (ms .Latency.P50) (ms .Latency.P99)) }}
+  {{ template "tile" dict "label" "4xx" "warn" (gt .Totals.Client4xx 0) "value" (num .Totals.Client4xx) "sub" "not found, refused, limited" }}
+  {{/* cf_ray is absent exactly when a request did not cross the tunnel. */}}
+  {{ template "tile" dict "label" "direct hits" "warn" (gt .Totals.DirectHits 0) "value" (num .Totals.DirectHits) "sub" "external, no CF-Ray" }}
+</div>
+
+<div class="o-cols charts">
+  <section class="o-panel">
+    <div class="o-ph2"><h2>Volume</h2><span class="o-lab">records per bucket, errors in red</span></div>
+    <div class="chartbox tall"><canvas id="volume-chart" role="img" aria-label="Records per bucket over the selected window, with errors shown as a band"></canvas></div>
+  </section>
+  <div class="charts-side">
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Levels</h2></div>
+      <div class="chartbox"><canvas id="levels-chart" role="img" aria-label="Record count by log level"></canvas></div>
+    </section>
+    <section class="o-panel">
+      <div class="o-ph2"><h2>Status</h2></div>
+      <div class="chartbox"><canvas id="status-chart" role="img" aria-label="Request count by HTTP status class"></canvas></div>
+    </section>
+  </div>
+</div>
+{{ end }}
+
+{{/* Everything below the fold is the same on the overview and on a source's
+     page, and both pass the same *Dashboard. */}}
+{{ define "dashPanels" }}
+<section class="o-panel flush">
+  <div class="o-ph2"><h2>Latest problems</h2><span class="o-lab">warnings, errors and 5xx, newest first</span></div>
+  <div class="log-body">
+    {{ range .Errors }}{{ template "recordRow" . }}{{ else }}
+    <p class="o-empty"><b>Nothing went wrong in this window.</b></p>
+    {{ end }}
+  </div>
+</section>
+
+<div class="o-cols lower">
+  <section class="o-panel flush">
+    <div class="o-ph2"><h2>Slowest paths</h2><span class="o-lab">by p95, 5 samples or more</span></div>
+    <div class="o-scroll">
+      <table class="o-tbl stack">
+        <thead><tr><th>Path</th><th class="r">Hits</th><th class="r">p95</th><th class="r">Max</th><th class="r">5xx</th></tr></thead>
+        <tbody>
+          {{ range .Slowest }}
+          <tr>
+            <td class="lead clip n" title="{{ .Path }}">{{ .Path }}</td>
+            <td class="r n">{{ num .Count }}</td>
+            <td class="r n o-warn">{{ ms .P95 }}</td>
+            <td class="r n">{{ ms .Max }}</td>
+            <td class="r n {{ if .Errors }}o-bad{{ else }}o-muted{{ end }}">{{ num .Errors }}</td>
+          </tr>
+          {{ else }}
+          <tr><td colspan="5" class="o-empty">No requests with a measured time in this window.</td></tr>
+          {{ end }}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <div class="charts-side">
+    {{ template "rankList" dict "title" "Busiest paths" "col" "hits" "items" .TopPaths "top" (topCount .TopPaths) }}
+    {{ template "rankList" dict "title" "Components" "col" "records" "items" .ByComponent "top" (topCount .ByComponent) }}
+  </div>
+</div>
+
+{{/* The ingest counters. A logging site that can't say whether it's dropping
+     records is asking to be trusted on the one thing it should prove. These
+     are since the last restart and cover every source, so they say so. */}}
+<div class="ingest o-mono">
+  <span class="o-lab">ingest &middot; every source, since restart</span>
   <span><b>{{ num .Ingest.Written }}</b> written</span>
-  <span class="{{ if .Ingest.Rejected }}text-amber{{ end }}"><b>{{ num .Ingest.Rejected }}</b> rejected</span>
-  <span class="{{ if .Ingest.Failed }}text-terracotta{{ end }}"><b>{{ num .Ingest.Failed }}</b> failed</span>
-  <span><b>{{ .Ingest.Queued }}</b> / {{ .Ingest.Capacity }} records queued</span>
-  <span class="text-muted">raw lines kept {{ .Retained }} days · hourly rollups kept forever</span>
+  <span class="{{ if .Ingest.Rejected }}o-warn{{ end }}"><b>{{ num .Ingest.Rejected }}</b> rejected</span>
+  <span class="{{ if .Ingest.Failed }}o-bad{{ end }}"><b>{{ num .Ingest.Failed }}</b> failed</span>
+  <span><b>{{ .Ingest.Queued }}</b> of {{ .Ingest.Capacity }} queued</span>
 </div>
 {{ end }}

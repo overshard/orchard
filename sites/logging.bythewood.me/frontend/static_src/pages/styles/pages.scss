@@ -1,163 +1,42 @@
-@use "../../base/styles/variables" as *;
-
-.hero {
-  position: relative;
-  background: #090806;
-  border-bottom: 1px solid rgba(107, 158, 120, 0.3);
-  padding: 4rem 0 4rem;
-
-  .hero-eyebrow {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.55rem;
-    font-family: $font-family-monospace;
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: $amber;
-    background: $amber-dim;
-    border: 1px solid $amber-border;
-    padding: 0.35rem 0.75rem;
-    border-radius: 999px;
-
-    .eyebrow-dot {
-      width: 6px; height: 6px; border-radius: 50%;
-      background: $green;
-    }
-  }
-
-  .hero-title {
-    font-size: clamp(2rem, 5vw, 3.2rem);
-    font-weight: 700;
-    line-height: 1.1;
-    color: $white;
-    letter-spacing: -0.01em;
-    margin-top: 1.5rem;
-
-    .accent { color: $green-bright; }
-  }
-
-  .hero-sub {
-    color: $gray-300;
-    font-size: 1rem;
-    line-height: 1.7;
-    margin-top: 1.25rem;
-    max-width: 620px;
-  }
-
-  .hero-ctas {
-    display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-    margin-top: 1.75rem;
-
-    .btn {
-      font-size: 0.82rem;
-      letter-spacing: 0.04em;
-      padding: 0.6rem 1.1rem;
-    }
-  }
-}
-
-.feature {
-  background: $card-bg;
-  border: 1px solid $card-border-color;
-  border-radius: $border-radius;
-  padding: 1.5rem;
-  height: 100%;
-  transition: border-color 250ms ease;
-
-  &:hover { border-color: rgba(107, 158, 120, 0.62); }
-
-  .feature-label {
-    font-family: $font-family-monospace;
-    font-size: 0.68rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: $amber;
-  }
-
-  .feature-title {
-    color: $white;
-    font-size: 1.05rem;
-    font-weight: 600;
-    margin-top: 0.5rem;
-  }
-
-  .feature-desc {
-    color: $gray-300;
-    font-size: 0.88rem;
-    line-height: 1.65;
-    margin-top: 0.6rem;
-    margin-bottom: 0;
-  }
-}
-
-.stat-strip {
-  // Transparent rather than the ground colour, so the page grid runs through
-  // the strip instead of stopping at it.
-  background: transparent;
-  border-top: 1px solid rgba(107, 158, 120, 0.3);
-  border-bottom: 1px solid rgba(107, 158, 120, 0.3);
-  padding: 1.5rem 0;
-
-  .stat { text-align: center; padding: 0 1rem; }
-
-  .stat-label {
-    font-family: $font-family-monospace;
-    font-size: 0.66rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: $gray-500;
-  }
-
-  .stat-value {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: $green-bright;
-    letter-spacing: -0.01em;
-    line-height: 1.2;
-    margin-top: 0.2rem;
-  }
-}
-
+// The home page and the docs. Everything else is in base and /suite/suite.css.
 
 .doc {
   max-width: 52rem;
 
   h2 {
-    font-size: 1.05rem;
-    color: $white;
-    margin-top: 2.25rem;
-    margin-bottom: 0.75rem;
-    padding-bottom: 0.35rem;
-    border-bottom: 1px solid rgba(107, 158, 120, 0.12);
+    font-size: 1.15rem;
+    margin: 28px 0 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--o-line);
   }
 
-  p { color: $gray-300; }
-
-  code {
-    color: $green-bright;
-    background: rgba(107, 158, 120, 0.07);
-    padding: 0.1rem 0.3rem;
-    border-radius: 2px;
-  }
+  p { color: var(--o-muted); margin: 0 0 12px; line-height: 1.7; }
+  ul, ol { color: var(--o-muted); line-height: 1.7; }
 
   pre {
-    background: #090806;
-    border: 1px solid $card-border-color;
-    border-radius: $border-radius;
-    padding: 0.9rem 1rem;
+    margin: 0 0 14px;
+    padding: 12px 14px;
     overflow-x: auto;
+    background: var(--o-sunk);
+    border: 1px solid var(--o-line);
 
-    code {
-      background: none;
-      padding: 0;
-      color: $gray-100;
-      font-size: 0.8rem;
-    }
+    code { background: none; border: 0; padding: 0; color: var(--o-text); font-size: 0.8rem; }
   }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.84rem; margin-bottom: 14px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--o-line-soft); }
+  th { font: 500 0.62rem var(--o-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--o-muted); }
 }
+
+// Staged volume bars on the home page, errors stacked on top in red.
+.stagedbars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 64px;
+
+  i { flex: 1; display: flex; flex-direction: column; justify-content: flex-start; background: rgba(151, 156, 164, 0.4); }
+  b { display: block; background: var(--o-bad); }
+}
+
+.stagedbars.tall { height: 110px; margin-bottom: 8px; }

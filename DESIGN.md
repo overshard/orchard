@@ -14,7 +14,7 @@ haven't moved to the suite yet, and they go as each one does.
 
 ## The suite
 
-This is where the tool sites are headed, and cron, llm, auth and status are on it.
+This is where the tool sites are headed, and cron, llm, auth, status and logging are on it.
 
 - **Dark only, on cool charcoal.** Ground `#111315`, top bar `#0c0e10`, sunken
   `#090a0c`, panels `#171a1d` and `#1f2327`, lines `#262a2f`, `#1c1f23` and
@@ -58,7 +58,7 @@ that is the split the estate runs on.
 
 - **dash is amber.** It is the only public page with no login, it is glanced at
   rather than read, and it is the one site allowed to be a costume. pond is a
-  game and wears the same one.
+  game and has a night look of its own, in its own section below.
 - **analytics, auth, cron, llm, logging, repos and status are green.** They are
   tools you read for minutes at a time. Green is the primary, and amber is
   chrome only, so caps labels, the hero eyebrow, and warnings. Amber is never
@@ -70,9 +70,8 @@ grid drawn in CSS, and no bitmap textures anywhere.
 
 ## The palette
 
-`analytics` and `logging` keep this in
-`frontend/static_src/base/styles/_variables.scss`, and those files are
-**byte identical**. `repos` has no Sass variables file, so it carries the same
+`analytics` keeps this in
+`frontend/static_src/base/styles/_variables.scss`. `repos` has no Sass variables file, so it carries the same
 values as custom properties at the top of its `base.scss` and has to be edited
 alongside them.
 
@@ -564,59 +563,107 @@ A reader only ever has the repo.
 
 ## pond
 
-pond is a game, and it's cassette futurism taken further than dash takes it,
-pond as a piece of 80s kit, a tape deck crossed with a field instrument. It
-keeps dash's warm near black, the amber, JetBrains Mono for everything read and
-Space Grotesk for anything large, with dash's names and values for the ground,
-the lines, the text and the amber, so a change to those on dash is made here
-too. The direction is called Deck and was picked on 2026-11-10 over a tidier
-version of the old look and a handheld pet shell.
+pond is a game, and it's a night pond lit by lanterns, pixel art scenes over
+dark navy cards, with Pixelify Sans for anything shouted and Inter for anything
+read. The direction is called Lantern and was picked on 2026-11-19 over the
+Deck look, a tape deck crossed with a field instrument, which had moulded
+plastic, keycaps, readout glass, screws and hazard stripes. It doesn't share
+dash's palette any more, so a change on dash isn't carried over. The values
+below live as tokens at the top of `frontend/src/index.css`.
 
-- **Three surfaces and no others.** Dark moulded plastic for panels, with a
-  very fine brushed grain, sunken glass windows for screens and readouts, and
-  keycaps that stand proud of the panel. Every texture has a job, and
-  scanlines go on screens only, never on a control.
-- **Corners are 3px on plastic and keys and 4px on a window.** Round is for
-  LEDs, the `?` key and nothing else.
-- **A key is a cap with a top highlight and a dark lip** that travels 3px down
-  when pressed. The one main key on a screen is amber plastic, the rest are
-  dark. A shop price is a key, amber lettered when you can afford it and
-  sunken and dim when you can't.
-- **A number lives in readout glass**, a sunken window of very dark green with
-  amber digits that glow a little. Pebbles, levels, rates and counts all sit
-  in one, so a number never looks like a key. That green is the one colour
-  Deck adds.
-- **The Next strip is what to do, a key a row**, under the bubble on the
+- **The palette.** The page is night navy `#0b1222`, a card is `#121c33`, a
+  card inside a card or a sheet row is `#18243f`, and the 1px line round a
+  card is `#22304f`. Text is `#eef0e6` and muted text `#9aa6c2`.
+- **Lamp yellow is for what to press.** `#ffcf6a` is the main key on a screen
+  and the lit tab or place, on a lip of `#c98a2a`, and a lit key's text. A
+  number is plain text and never lamp yellow, so the eye goes to the key.
+- **Green means ready or new.** `#6fd08c` is the edge on a row that's ready,
+  the LEDs, a pip on a tab, a meter's fill and anything that went up. Pink
+  `#f29bb8` is hearts and bond, and `#ff8a7a` is a bad turn or a price down.
+- **Two faces.** Pixelify Sans is the wordmark, headings, section labels,
+  numbers, keys and anything on a canvas, and Inter is everything you read in a
+  sentence. Both are installed from `@fontsource` and served from the site.
+  Canvas text in Pixelify at the game's own pixel size reads like part of the
+  art.
+- **A card is 10 to 12px round with a 1px line**, and a small tag or a rarity
+  box is 4px. Round is for pills, LEDs, the gear and the `?` key.
+- **The main key is lamp yellow on a 3px darker lip** and travels down onto it
+  when pressed. Every other key is a ghost, see through with a line round it.
+  A shop price is a ghost key lettered in lamp yellow, and a key that can't be
+  pressed loses its colour.
+- **A pill** is a fully round chip with an icon and a number, and a filter is a
+  pill that's lit lamp yellow on a dark amber while it's on.
+- **A section label** is Pixelify caps, small, letterspaced and muted, with its
+  count or a `?` key on the right. There's no rule out to the edge.
+- **A row that's ready has a green left edge**, 3px inside its card. A goal
+  has a green LED, a ring until it's done and lit after.
+- **LEDs glow.** A round dot with a soft glow of its own colour, green for new
+  and ready. Only the new pip and a disk that still pays use one.
+- **What the frog says is a cream speech bubble** with a dark outline and a
+  tail pointing up at it, `#f4ecd0` on `#1d1a14`, the one light thing on the
+  pond page apart from the gazette.
+- **The top bar** is the `pond` wordmark in Pixelify on the left, and on the
+  right a Bag pill with how many things are in the bag, the pebbles pill and a
+  small round gear key for settings (the name, the pond key, frog power, sound).
+  The bag opens from its pill and the pill lights while it's open. On the
+  share and key pages the bar is the wordmark and the gear.
+- **The dock is five places by verb** along the bottom where a thumb is, each
+  a pixel icon over a word. Pond is the frog and what to do next. Frogs is the
+  reeds, every frog's card, and a frog's job screen. Play is the games. Make
+  is the garden and kitchen, the Bank (the gravel bar, the dye works, the
+  burrows with the paintings, and the far bank) and the wizard, behind a row
+  of three keys with the picture of the bank side of the pond under them.
+  Town is the neighbours, the shops, the stall under the word Sell and the
+  market, behind a row of four keys. The lit tab is lamp yellow on a card.
+  Old links like `#reeds`, `#works`, `#bank`, `#market` and `#stall` still
+  land on the right tab. The content column stops at `34rem` on a desktop.
+- **An LED pip means new, never just waiting.** It's a green dot that glows
+  on a dock key, a key inside Make or Town, or the Bag pill. It lights when a
+  thing turned up since that key was last opened and goes out on opening it.
+  A daily thing is new once a day, the stall each time it sells more, and the
+  gravel bar and the rent only once they're full. What was seen is kept in
+  the browser. The lit windows in the Make picture are the other half, lit for
+  anything ready.
+- **A new pond opens up over its first days.** It starts with Pond, Play,
+  Make and Town, and Make has only the wizard. Frogs and the garden and the
+  Bank under Make come when the egg hatches a day in, and the Market key in
+  town three days after that. The gazette says so that day, as an Opening
+  today notice over the lead and as the line on the folded strip. A link to a
+  place that isn't open lands on the pond, and a pond made before this has
+  everything.
+- **The Next strip is what to do, a card a row**, under the bubble on the
   pond. Each row is an icon and a line and goes straight to its place. A thing
-  that's waiting has a blinking amber LED, and a goal, a part of the game the
-  pond hasn't tried, has a green one, a ring until it's done and lit after,
-  with any count in readout glass at the end of the row. The set and the badge
-  nearest to done get a green row each and no more, over the rest when one is
-  a step from done and under them otherwise. A new pond's goals are its four
-  first day steps, and their prize is one amber key at the top. Three rows
-  show, and a small `+N` key on the end of the third opens the rest.
-- **A filter is a small raised key** that stays pushed in and amber while it's
-  on, since a sunken one read as disabled. The places in town are a row of five
-  keys with pixel art over the label like the tab bar, so they never wrap.
-- **Every screen gets a picture in a window.** Works, the reeds, settings and
-  the kitchen too, with their words under the picture and never instead of it.
-  A screen window has a bezel and a screw at each top corner.
-- **Works has one picture for all of it**, over its three keys. The bank side
-  of the pond from left to right, the reeds' lodge, the garden shed and its
-  beds, the gravel bar, the dye works and the burrows, each dimmed until it's
-  built. A window or a lamp is lit yellow on whatever has something ready,
-  and a tap on a building opens its place.
-- **Panel labels are printed on.** Small caps in warm grey like the lettering on
-  a faceplate, with section heads in amber as below.
-- **Empty spots are hazard striped sunken trays** with a dim outline of what
-  goes there. Stripes mean empty or locked and nothing else. An empty spot you
-  can fill, like a stall spot, is a key with a dashed edge and a plus instead.
+  that's waiting has the green edge, and a goal, a part of the game the pond
+  hasn't tried, has its LED, with any count in a small box at the end of the
+  row. The set and the badge nearest to done get a row each and no more, over
+  the rest when one is a step from done and under them otherwise. A new
+  pond's goals are its four first day steps, and their prize is one lamp key
+  at the top. Three rows show, and a small `+N` key on the end of the third
+  opens the rest.
+- **Every screen gets a picture.** The reeds, the garden, settings and the
+  kitchen too, in a dark frame with their words under the picture and never
+  instead of it.
+- **Empty spots have a dashed edge** with a dim outline of what goes there. An
+  empty spot you can fill, like a stall spot, is a key with a dashed edge and a
+  plus.
+- **What's coming.** The pictures are the old ones in a dark frame for now.
+  Later each tab gets a painted night scene across the top of the page under
+  the top bar, with the lanterns, the moon and fireflies, and the icons are
+  redrawn for the dock, the pills and the rows. The frogs in those scenes are
+  lit, a warm rim on the side the nearest lantern is on. After that come a
+  page a frog, laying an egg as its own screen, selling, a stamp book, the
+  games as jars on a shelf in place of the disks, and the market as a night
+  market board.
+- **Colour lives in the pictures, the icons and rarity.** The frog, the water,
+  the wheel, Dive, the stall and the wizard are colour pixel art. Past that
+  the colour is the 8 by 8 pixel icons, a thing's tier, lamp yellow on keys,
+  green for ready and pink for hearts.
 - **Every game is a floppy disk** on Play, a 3.5 inch disk in its own colour
   with a metal shutter, a write protect tab and the game's picture on a cream
-  label. A disk that still pays in full has a blinking amber LED, the rest are
+  label. A disk that still pays in full has a blinking green LED, the rest are
   faded, and the pay tag and best score sit under it. One disk a day is the
   disk of the day, with an amber sticker stuck on crooked. Fishing is the
-  flagship and its disk takes the whole first row, with a big amber title and
+  flagship and its disk takes the whole first row, with a big title and
   a line about it beside the disk.
 - **Play is shelves.** Under the flagship the disks sit on an Arcade shelf for
   the quick games with the deepest first, a Puzzles shelf for the slower
@@ -629,11 +676,11 @@ version of the old look and a handheld pet shell.
   panel says PAUSED until it's tapped.
 - **Every disk has two goals a day**, the same for every pond. They're two
   small green LEDs on the disk's plastic by the shutter, ringed until met and
-  lit after, and lines in readout glass on its title card with the same LED
+  lit after, and lines in a box on its title card with the same LED
   each. A run that meets one gets the whole results, with that line lit green.
-- **The side games end like Dive.** Their title and results sit in a panel
-  with a screen window, and the strip under every game is readout glass and an
-  EJECT key.
+- **The side games end like Dive.** Their title and results sit on a card
+  over the field, and the strip under every game is its numbers in boxes and an
+  Eject key.
 - **A catch and a crash are felt.** A catch stops the game for two or three
   frames with a burst of square bits and the points popping up over it, and a
   crash stops it for six and shakes the field a few pixels. The frog squashes
@@ -791,8 +838,8 @@ version of the old look and a handheld pet shell.
 - **A fish is a shadow until it's landed.** In the water and on the line it's
   one dark shape, so its size is all there is to go on, and it comes up in
   its own colours with its name over it as it's landed.
-- **A run that beat nothing ends on a short card**, the score in readout glass
-  over an amber AGAIN key, sat a third of the way down so the crash still
+- **A run that beat nothing ends on a short card**, the score over a lamp
+  Again key, sat a third of the way down so the crash still
   shows under it, and one tap is the next run. A new best or a place on Dive's
   podium gets the whole results.
 - **A round of fishing ends on its catch**, a slot a kind with the biggest
@@ -813,21 +860,21 @@ version of the old look and a handheld pet shell.
   camera key opens a sheet of small copies of the card in each frame it owns,
   the plain one first, and a tap makes that one. A frame only changes the
   card round the picture and the colour of the words on it.
-- **The market is a board.** A ticker scrolls along the top in readout glass,
+- **The market is a board.** A ticker scrolls along the top in a dark strip,
   still under reduced motion, with the day's story from the paper first and
   then the six biggest movers either way, green up and pink down. The
   readouts under it are one key that opens the holdings, every share and coin
   held with what it's made, the dividends ever paid and the best of them. A
   business in the paper wears an IN THE PAPER tag on its card, and a holding
   that has a big day pops a reveal once that day. Each business is a pixel
-  shopfront in its own awning colour with its price in glass, and a day down
+  shopfront in its own awning colour with its price in a box, and a day down
   turns that price pink. The chart in a business's sheet is a stepped pixel
-  line in glass, amber over thirty days that ended up and pink when down.
+  line, amber over thirty days that ended up and pink when down.
   Four filter keys pick Shares, Goods, Coin or the back door. A good is its bag icon with
   what's in the bag under its name and its price a lot, and Glowworm Coin is
   a pixel gold coin over a taller chart. Dividends waiting are a row under the
-  tiles like a Next strip row, with what the shares pay a day in glass and an
-  amber COLLECT key, dark while there's nothing to take.
+  tiles like a Next strip row, with what the shares pay a day and a
+  lamp Collect key, dark while there's nothing to take.
 - **The back door is an alley.** A fourth filter key on the market opens a
   screen of brick wall and a hanging lantern. While it's open a frog in a
   black hood stands behind a crate under the lit lantern, its eyes and belly
@@ -841,52 +888,21 @@ version of the old look and a handheld pet shell.
 - **The day has a mood.** A faint wash over the water per mood, grey on a down
   market, pale on a frost, warm on a bright one, and the frog has a tiny TV
   or handheld on the pad on a day it's watching or playing something.
-- **A press is felt.** Keys travel, LEDs blink, and with sound on there's a soft
-  clunk and click made in code like the croak. Sound is off until turned on, and so is a buzz on a bonk, both as keys in settings that stay in that browser.
-  Tap to reel is a third key beside them, for anybody who'd sooner not hold a
-  finger down. With it on a tap starts the fishing reel and another stops it,
-  and the reel says REELING or STOPPED under the strain meter. Badge is the
-  fourth, off too, which puts the count of waiting rows on an installed
-  pond's home screen icon, with a line under the keys saying so, and it's
-  hidden where the browser can't do it. There's never a push.
-- **Colour lives on the screens, the icons and rarity.** The frog, the water,
-  the wheel, Dive, the stall and the wizard are colour pixel art inside a
-  window. Past that the only colour is the 8 by 8 pixel icons, a thing's tier,
-  the readout green and the green LED on a goal, and everything else is amber,
-  off white and black.
+- **A press is felt.** The main key travels onto its lip, LEDs glow, and with
+  sound on there's a soft clunk and click made in code like the croak. Sound
+  is off until turned on, and so is a buzz on a bonk, both as keys in settings
+  that stay in that browser. Tap to reel is a third key beside them, for
+  anybody who'd sooner not hold a finger down. With it on a tap starts the
+  fishing reel and another stops it, and the reel says REELING or STOPPED
+  under the strain meter. Badge is the fourth, off too, which puts the count of
+  waiting rows on an installed pond's home screen icon, with a line under the
+  keys saying so, and it's hidden where the browser can't do it. There's never
+  a push.
 - **It plays like a game and reads like one.** Words are kept to a line, and
   anything that explains a place sits behind the `?` key on its head. Things
   are pictures in slots, not rows of text.
 - The water palette is for canvases: `#123a3d` down to `#0a1b1f`, a `#7fd6c2`
   surface, `#fff6dc` cream, `#ffe27a` yellow and `#e2567a` pink.
-- **Panel 00 is the faceplate**, POND in Space Grotesk, a `MODEL FR-01 / SERIES
-  ORCHARD` plate that drops out on a narrow phone, and the readouts as tiles on
-  a hairline grid, `PEBBLES` and a square key with a pixel gear and no word, which opens the
-  settings (the name, the pond key, frog power).
-- A section head is an amber index chip, a caps title and a rule out to the
-  edge, the same as a dash panel head.
-- **Five places are transport keys along the bottom**, each a pixel icon over
-  a word, where a thumb is: Pond, Play, Bag, Works and Town. The lit one stays
-  pushed in like a tape deck's PLAY, and a key with something new behind it
-  has a small amber LED. Dive and the wheel open from Play and light it.
-  The content column stops at `34rem` on a desktop.
-- **A new pond opens up over its first days.** It starts with four keys,
-  Pond, Play, Bag and Town, and every disk, the wheel and the log are in Play
-  from the start. Works gets its key when the egg hatches a day in, and the
-  bank's Market key shows three days after that. The gazette says so that day,
-  as an Opening today notice over the lead and as the line on the folded
-  strip. A link to a place that isn't open lands on the pond, and a pond made
-  before this has everything.
-- **Works is the reeds, the garden and the bank** behind a row of three keys
-  like the places in town, and it opens on the one that was open last. A key
-  with something new has the same LED as a tab, and the market stays
-  behind the bank's own pair of keys.
-- **An LED pip means new, never just waiting.** It lights when a thing turned
-  up since that key was last opened and goes out on opening it, on the tabs
-  and on the keys inside Works and Town alike. A daily thing is new once a
-  day, the stall each time it sells more, and the gravel bar and the rent
-  only once they're full. What was seen is kept in the browser. The lit
-  windows in the Works picture are the other half, lit for anything ready.
 - **A slot is how a thing is drawn**, a rounded square with its picture, a
   count in the corner and its tier as the border colour and as one to five
   small diamonds in the other corner, so tier isn't colour alone. One not found yet is
@@ -898,18 +914,18 @@ version of the old look and a handheld pet shell.
   biggest one's length under its name. One not landed yet is its dark shape,
   and its sheet says when it bites, so the book gives away the day to try and
   never the fish. Each fish has a pond record a neighbour holds, mostly
-  Sedge, and a slot says RECORD in amber once the pond has beaten it. The
+  Sedge, and a slot says RECORD in green once the pond has beaten it. The
   round that does it gets a line from Sedge under the catch, in his own
   words and not in caps, and a line in the paper's Records the day after.
-- **A box has a meter.** The hat box and the trinket box each have a bar of
-  the same lit notches as the collection's, under the odds, with one line
+- **A box has a meter.** The hat box and the trinket box each have a green bar
+  like the collection's, under the odds, with one line
   saying how many boxes until a rare or better is sure. It fills a notch a
   plain box and empties on a rare, and the odds line says the rule.
 - **One hat can be wanted.** A hat not found yet has a key on its sheet to
-  ask Little Tully for it, and its slot says WANTED in amber. Over the hats
+  ask Little Tully for it, and its slot says WANTED in lamp yellow. Over the hats
   sits a panel like a box's, the hat in the dark, a bar of what the pond's
   spares have sold to him for and one line under it. When the bar's full the
-  line names his price and an amber SHOP key goes there, where the hat is on
+  line names his price and a lamp Shop key goes there, where the hat is on
   his shelf in its colours with WANTED under its name.
 - **A wanted thing has a lamp.** A slot in the bag that somebody is after, a
   neighbour, today's favour or the one named dish it could cook next, has a
@@ -922,24 +938,24 @@ version of the old look and a handheld pet shell.
   rays. One that comes while another is up waits its turn.
 - **A set is a panel on the Sets shelf.** What it puts on the water is on
   the head, dim until the set is finished, with its name, one line and how
-  many are found in readout glass, and its four members are slots under it.
+  many are found in a box, and its four members are slots under it.
   One not found is a shadow like any other, and its sheet says where it
   comes from and which set is waiting on it, here and on its own shelf.
 - **A finished set is on the water for good.** A mushroom ring, a second
   lantern on a post, a little bridge, a scarecrow, a weathervane and a wind
-  chime hung from the top of the glass, each in a place of its own behind
+  chime hung from the top of the picture, each in a place of its own behind
   the frog that clears the furniture, the trinket spots and both top
   corners. The chime and the vane move with the wind and the lantern is lit
   after dark. Reduced motion holds them still.
-- **The far bank is a strip of land along the top of the glass.** It's
-  bought a patch at a time in Works, under the burrows, with its middle in
-  a window and the count and the next price in glass, and each patch stands
+- **The far bank is a strip of land along the top of the picture.** It's
+  bought a patch at a time on the Bank under Make, under the burrows, with its
+  middle in a picture and the count and the next price in boxes, and each patch stands
   one more small piece of scenery on it, a tree, a cottage, a windmill, a
   deer, in 2px cells like the swimmers since it's far off. The back row is
   hazed with the water's colour. Thirty pieces fill it from the middle out,
   clear of the hearts and the camera key, and past that a small wooden sign
   at the right end says how many more. Nothing on the bank does anything.
-- **Badges are enamel pins on a board**, a sunken tray on the Badges shelf.
+- **Badges are enamel pins on a board**, a card on the Badges shelf.
   A pin is a pixel disc with a gold rim, a picture and enamel in the colour
   of its part of the game. One not earned is its shape in the dark with how
   far along it is under it, and a tap says what earns it.
@@ -947,10 +963,8 @@ version of the old look and a handheld pet shell.
   set with amber ones. More than two at once share one card with a row of
   small pins, so a pond that had earned a lot already isn't walked through
   them one at a time.
-- What the frog says is a speech bubble pointing up at it, with the Next strip
-  under it.
-- **Days at the pond are a count and never a streak.** It's in settings in
-  readout glass with a line saying when the next keepsake comes, and nothing
+- **Days at the pond are a count and never a streak.** It's in settings in a
+  box with a line saying when the next keepsake comes, and nothing
   anywhere says how many days were in a row or that one was missed.
 - **Well rested is a row and a sparkle.** After eight hours with no game
   played the Next strip gets a waiting row saying the next game pays a quarter
@@ -971,17 +985,17 @@ version of the old look and a handheld pet shell.
   the frog's own words about the day before, the day in printed caps down the
   left and the line beside it, newest first with a key for older days. It
   only says what happened and a day nobody came by reads as a quiet day.
-- **A camera key makes a postcard.** A small dark key with an amber pixel
-  camera sits over the top right corner of the glass. It draws the screen as
-  it stands at twice the size on a cream card, with the frog's name in Space
-  Grotesk, the pond's date and the gazette's weather word in JetBrains Mono
-  and a pebble postmark, and opens it as a picture in a new tab. The hearts
-  and the key aren't on the card.
+- **A camera key makes a postcard.** A small dark key with a pixel camera
+  sits over the top right corner of the frog's picture. It draws the screen as
+  it stands at twice the size on a cream card, with the frog's name in
+  Pixelify, the pond's date and the gazette's weather word in Inter and a
+  pebble postmark, and opens it as a picture in a new tab. The hearts and the
+  key aren't on the card.
 - **The frog can be rubbed.** A drag back and forth over it shuts its eyes and
   throws pink pixel hearts, more of them on its favourite spot, and an egg
   only wobbles. Its bond is five small hearts over the top left corner of the
-  glass, the one being worked on filled from the left. Nothing else is drawn
-  in that corner or the top right one, and the bottom middle is the power plate's.
+  picture, the one being worked on filled from the left. Nothing else is drawn
+  in that corner or the top right one, and the bottom middle is the power pill's.
 - **It does a thing for each heart.** It waves when the pond opens at one, and
   a tap croaks as ever and then does the newest thing it knows, a hop at two,
   a spin at three and at four something that suits its nature, a song, a big
@@ -989,14 +1003,14 @@ version of the old look and a handheld pet shell.
   it comes after a finger held on the water. All of it is the scene moving
   the same sprite, so `frog.js` stays as it is. Reduced motion gets the shut
   eyes and whatever is drawn over the frog, with no hop, tip or spin.
-- **The pond fits a phone with no scroll.** The frog's screen with its power
-  plate, its name with
-  the rarity beside it, the bubble and the Next strip all sit above the keys
-  at 412 by 915. Under 780 tall the screen narrows to `19rem` and the rows
-  drop from 40px to 34px to keep them there. The folded gazette, Today at the pond and anything longer go below.
+- **The pond fits a phone with no scroll.** The frog's picture with its power
+  pill, its name with the rarity beside it, the bubble and the Next strip all
+  sit above the dock at 412 by 915. Under 780 tall the picture narrows to
+  `19rem` and the rows drop from 40px to 34px to keep them there. The folded
+  gazette, Today at the pond and anything longer go below.
 - **Dive is the whole window, on a phone and a desktop.** It covers the bar and
-  the keys, the pond takes its depth and length from the window, and a strip
-  under the water holds three readout tiles and `EJECT`. Ten ghost frogs swim
+  the dock, the pond takes its depth and length from the window, and a strip
+  under the water holds three number boxes and Eject. Ten ghost frogs swim
   each run behind your frog at 45% alpha, with their names over them where
   the field is wide enough to read ten. A ghost goes out on the stems or
   the rock of the gate it was dealt, in a burst of bubbles under a pink
@@ -1010,7 +1024,7 @@ version of the old look and a handheld pet shell.
 - **Dive is a race.** Three red lights and GO start it, a standings column
   down the left drops each frog to the bottom as it goes out, your place is a
   big italic number in the bottom right that pops as it climbs, with how
-  many are racing and how many are still in under it in mono, and who just
+  many are racing and how many are still in under it in Pixelify, and who just
   went out is called at the top. The results are a podium in gold, silver and
   bronze, the whole finishing order with you in amber, and the winnings
   counting up, with confetti for a podium place. All of it is HTML over the
@@ -1019,11 +1033,11 @@ version of the old look and a handheld pet shell.
   key page.
 - Every sprite is drawn per pixel from a seed in `frontend/src/frog.js`. There
   are no image files, and a canvas is always `image-rendering: pixelated`.
-- No pixel font. A bitmap face at body size was hard to read, so words on a
-  canvas are the same two faces as the page.
-- **Anything read is 14px or more.** 10px is for the labels on readout glass,
-  the tab keys and a tier's box, and 12px for a key's legend and the caption
-  under a picture in a slot or a disk, which would wrap at 14.
+- **Pixelify on a canvas.** Words a game draws are Pixelify Sans at the
+  canvas's own pixel size, so they sit in the art like the sprites do.
+- **Anything read is 14px or more.** 11 and 12px are for section labels, the
+  rarity box, a key's legend under an icon and the caption under a picture in
+  a slot or a disk, all in Pixelify caps, which would wrap at 14.
 - Rarity is a word in a box as well as a colour: common grey, uncommon green,
   rare blue, epic purple, legendary amber.
 - **The real day is on the pond's screen.** Night darkens it with fireflies,
@@ -1046,10 +1060,10 @@ version of the old look and a handheld pet shell.
 - **Neighbours are a row each**, under today's favour, so the list reads
   without opening anyone. A row is the frog small, its name and title with
   lodger after it, its hearts with a thin rail and how many points to go, and
-  its favourite with a tag, In bag in amber, Can cook in green, or Need and
+  its favourite with a tag, In bag in lamp yellow, Can cook in green, or Need and
   the ingredient short, or Recipe at two hearts while it's a secret, then
   what it's worth. On the right is one key, Give and the points for the best
-  dish in the bag for that neighbour, amber when it's the favourite, Cook to
+  dish in the bag for that neighbour, lamp yellow when it's the favourite, Cook to
   the kitchen with the favourite's two picked when there's nothing to give,
   or a green Fed tick once it's eaten today. The ones that can be fed come
   first and the fed ones last, dimmed, with filter keys over the list for
@@ -1058,11 +1072,11 @@ version of the old look and a handheld pet shell.
   title and points, then a newsprint tag when the gazette names it, its
   thought as an italic cloud and what it says as a speech bubble. Then the
   ladder, a row for each heart with what it brings and the points it starts
-  at, a tick on the ones had and the next one outlined in amber, then every
+  at, a tick on the ones had and the next one outlined in lamp yellow, then every
   dish in the bag with what it's worth to this neighbour and a Give key,
   then the facts in boxes.
 - **A gift always answers.** A gift or a favour opens the neighbour's sheet
-  on a reply in readout glass, the line it says, the points in amber, the
+  on a reply in a box of its own, the line it says, the points in green, the
   rail filling from where it was to where it is in a lighter pink, how many
   to the next heart and what that heart brings. A dish that isn't the
   favourite gets a line naming the favourite and its worth. A present that
@@ -1073,65 +1087,64 @@ version of the old look and a handheld pet shell.
   line. It shows as a Memento box on its sheet and in a Mementos shelf in
   the collection, where one not given yet is a dark shape that only says
   who it comes from.
-- **The reeds** are every frog as a card, the one out front first with an
-  amber border and OUT FRONT, the rest with a key to swap. The egg bench and
-  the pads sit under them. The register of looks is in the bag's collection.
+- **Frogs is the reeds**, every frog as a card, the one out front first with
+  a lamp edge and a green OUT FRONT, the rest with a key to swap. The egg bench
+  and the pads sit under them. The register of looks is in the bag's
+  collection.
 - **A job is its own screen**, opened off a frog's card in the reeds. The frog
-  works in a window drawn for the job, a net and bugs, a sickle in the reeds,
+  works in a picture drawn for the job, a net and bugs, a sickle in the reeds,
   a spade in the mud, a watering can in the beds, a dive for pebbles, a
   hammer at the craft bench, and it squashes as each action lands while the
-  thing it got hops into a basket in the corner. Under the window is the
-  action bar in readout glass with the time to the next one, then the basket
-  as slots with counts and an amber key to take it, the level with a bar to
+  thing it got hops into a basket in the corner. Under the picture is the
+  action bar with the time to the next one, then the basket
+  as slots with counts and a lamp key to take it, the level with a bar to
   the next and what that level opens, and the targets as keys with their
   time, xp, yield and misses. Each open target has a thin mastery bar under
-  its numbers with its mastery in glass beside it, the bar dimmed while the
+  its numbers with its mastery beside it, the bar dimmed while the
   frog's level holds it at the cap. Under the level sits the tool the frog
   works with, its picture, name and what it cuts, with a Shop key while
   there's a better one to buy, and a shaded one with who sells it before the
-  pond has any. A locked target is its dark shape on hazard
-  stripes with the level that opens it. The bar only fills and the basket
+  pond has any. A locked target is its dark shape behind a dashed
+  edge with the level that opens it. The bar only fills and the basket
   only gains what the server dealt, and a full basket stops the bar and says
-  so in amber and as a Next strip row.
+  so in green and as a Next strip row.
 - **Coming back is one card.** Taking baskets, and the greeting when one is
   full or half way there, opens a card in the bare sheet with a block a frog,
-  how many actions and misses, what came in as slots, and the xp in readout
-  glass beside the level. A level up pops a reveal after it with amber rays,
-  the jump in readout glass over a slot for everything it opened, a target,
+  how many actions and misses, what came in as slots, and the xp beside the
+  level. A level up pops a reveal after it with amber rays,
+  the jump over a slot for everything it opened, a target,
   a recipe, a find, a tool in town or the next step of mastery, each with
   what it is under its name. A pet or a 99 still pops its reveal after.
 - **A working frog shows it.** In the reeds strip a frog at a job has its
-  tool beside it, and in the Works picture the frog by the lodge holds its
-  tool with the job's thing at its feet.
-- **Frog power is a plate on the pond's screen.** A small glass plate sits
-  on the bottom bezel of the frog's screen, half over the glass, with the
-  rank in printed caps, the number in amber and a hairline of lit glass
-  along its foot for how far to the next rung. It takes no height of its
-  own. A tap opens the breakdown in the bare sheet, the number big in glass
-  with the rank, a rail to the next rung, and every part as a row under
-  Finds, Frogs and work and Games, its name, a line like 12 of 60 or best 40
-  of 80, its points in amber and a bar along its foot for how much of that
-  part is had.
-- **Power only counts up.** When it rises the plate counts up to the new
-  number once the pond is in view and no prize is over it, with a glass
-  line over the plate saying what from, like +120, a new hat, that fades
-  after a moment. A fall, like a game's reference rising, just shows the new
-  number. A new rung is a reveal with amber rays, the rung's name and the
-  number in a glass readout, after the count. Reduced motion gets the new
-  number and the line with no count.
-- **A frog's public page** is the frog in its screen, its power as one big
-  amber Space Grotesk number with the rank beside it, the parts that make it
-  up in the same three groups as the sheet, and a QR code for the link. The
-  ranks are a ladder of nine under the number, the top rung first and amber
-  up to where the frog stands, the same in settings. It ends on getting a
-  frog of your own.
+  tool beside it, and in the Make picture the frog by the lodge holds its tool
+  with the job's thing at its feet.
+- **Frog power is a pill on the pond's picture.** It sits on the bottom edge
+  of the frog's picture, half over it, with the rank in Pixelify caps, the
+  number, and a green hairline along its foot for how far to the next rung.
+  It takes no height of its own. A tap opens the breakdown in the bare sheet,
+  the number big in a box with the rank, a rail to the next rung, and every
+  part as a row under Finds, Frogs and work and Games, its name, a line like 12
+  of 60 or best 40 of 80, its points and a bar along its foot for how much of
+  that part is had.
+- **Power only counts up.** When it rises the pill counts up to the new number
+  once the pond is in view and no prize is over it, with a small green line
+  over it saying what from, like +120, a new hat, that fades after a moment. A
+  fall, like a game's reference rising, just shows the new number. A new rung
+  is a reveal with amber rays, the rung's name and the number in a box, after
+  the count. Reduced motion gets the new number and the line with no count.
+- **A frog's public page** is the frog in its picture, its power as one big
+  Pixelify number in a box with the rank beside it, the parts that make it up
+  in the same three groups as the sheet, and a QR code for the link. The
+  ranks are a ladder of nine under the number, the top rung first and green up
+  to where the frog stands, the same in settings. It ends on getting a frog of
+  your own.
 - **Visitors and stamps paint pictures.** Each one is a piece of a pond
   painting, twelve to a painting and four in all, the pond at dawn, in the
   rain, by lantern light and in the snow, each a small pixel scene in a
   wooden frame. Under the burrows the four sit in a row, a piece showing as
   a square of the picture over bare canvas and the frame gilding round from
   the top left as it fills. A finished one pops up as a reveal and hangs on
-  the burrow wall in the Works picture as a small gold frame.
+  the burrow wall in the Make picture as a small gold frame.
 - **A frog's page has six stamps** under its name, a heart, a fly, a wave, a
   star, a leaf and a pebble, as a row of square keys with the stamp's pixel
   art on each. A visitor with a pond of its own presses one a day and it
@@ -1148,12 +1161,12 @@ version of the old look and a handheld pet shell.
 |---|---|---|
 | `analytics` | green | Bootstrap. Home, docs, dashboards. Four stat tiles |
 | `status` | suite | On the suite, no Bootstrap. Properties down first, a property page that doubles as the public status page |
-| `logging` | green | Bootstrap. Dashboards run full width inside the container |
+| `logging` | suite | On the suite, no Bootstrap. The overview, a page per source and search share one set of panels |
 | `auth` | suite | On the suite, with no Bootstrap left. The home page signs you in from the hero, and the starfield is gone |
 | `repos` | green | Hand written CSS, no Bootstrap, since it is dense text. Newsreader on repository names |
 | `llm` | suite | On the suite. Overview, calls and keys, and the home page says whether Claude or the card is answering |
 | `cron` | suite | On the suite. Jobs, runs, a job form and keys, with `app.css` holding only what is cron's own |
 | `dash` | amber | Hand written CSS. Scanlines, vignette, JetBrains Mono and Space Grotesk. Panel 00 and panel 16 for chrome, a spine past 1900px. A `NOTIFY` switch in panel 00, and a `BRIEFS` rerun beside it that only appears signed in |
-| `pond` | amber | Hand written CSS. A game in the Deck direction, 80s hardware with keycaps, readout glass and colour pixel art in its screen windows. Dive is full screen on a phone |
+| `pond` | none | Hand written CSS. A game in the Lantern direction, a night pond with lamp yellow keys, Pixelify Sans and Inter, and colour pixel art in its pictures. Dive is full screen on a phone |
 | `blog`, `isaacbythewood.com` | neither | Separate identities. Nothing here applies to them |
 

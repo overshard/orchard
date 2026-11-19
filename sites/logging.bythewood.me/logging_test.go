@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"logging.bythewood.me/suite"
 	"logging.bythewood.me/web"
 )
 
@@ -898,8 +899,8 @@ func TestMarkdownReportEscapesLogText(t *testing.T) {
 
 	s := testSite(t, db)
 	var err error
-	s.renderer, err = web.NewRenderer(mustTemplates(t), templateFuncs,
-		[]string{"base.html", "partials.html"},
+	s.renderer, err = web.NewRenderer(suite.With(mustTemplates(t)), suite.FuncsWith(templateFuncs),
+		[]string{"base.html", "partials.html", "suite.html"},
 		[]string{"home.html", "documentation.html",
 			"overview.html", "source.html", "search.html", "notfound.html"})
 	if err != nil {
@@ -940,8 +941,8 @@ func TestAnalyticsSnippetIsRendered(t *testing.T) {
 	db := testDB(t)
 	s := testSite(t, db)
 	var err error
-	s.renderer, err = web.NewRenderer(mustTemplates(t), templateFuncs,
-		[]string{"base.html", "partials.html"},
+	s.renderer, err = web.NewRenderer(suite.With(mustTemplates(t)), suite.FuncsWith(templateFuncs),
+		[]string{"base.html", "partials.html", "suite.html"},
 		[]string{"home.html", "documentation.html",
 			"overview.html", "source.html", "search.html", "notfound.html"})
 	if err != nil {
@@ -1007,8 +1008,8 @@ func TestPagesRender(t *testing.T) {
 	s := testSite(t, db)
 	var err error
 	s.renderer, err = web.NewRenderer(
-		mustTemplates(t), templateFuncs,
-		[]string{"base.html", "partials.html"},
+		suite.With(mustTemplates(t)), suite.FuncsWith(templateFuncs),
+		[]string{"base.html", "partials.html", "suite.html"},
 		[]string{"home.html", "documentation.html",
 			"overview.html", "source.html", "search.html", "notfound.html"},
 	)
@@ -1527,7 +1528,7 @@ func TestEveryListedTemplateParses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := web.NewRenderer(templates, templateFuncs, layoutTemplates, pageTemplates); err != nil {
+	if _, err := web.NewRenderer(suite.With(templates), suite.FuncsWith(templateFuncs), layoutTemplates, pageTemplates); err != nil {
 		t.Fatalf("the template set does not parse: %v", err)
 	}
 }

@@ -3,10 +3,12 @@ package main
 import (
 	"net/http"
 	"time"
+
+	"logging.bythewood.me/suite"
 )
 
 // home is the public front page, and a redirect once you're logged in. It shows
-// counts only, since log lines carry request paths and IP addresses.
+// nothing real, since log lines carry request paths and IP addresses.
 func (s *site) home(w http.ResponseWriter, r *http.Request) {
 	if s.auth.Authenticated(r) {
 		http.Redirect(w, r, "/overview", http.StatusSeeOther)
@@ -17,7 +19,8 @@ func (s *site) home(w http.ResponseWriter, r *http.Request) {
 		"Structured logs from every site, shipped in process, kept in SQLite, read as graphs.")
 	data.PageScript = s.pagesScript
 	data.PageStyles = s.pagesStyles
-	data.Stats = siteStats(r.Context(), s.db)
+	data.Footer = suite.Footer{Tool: "logging", About: "Collects what my servers record, keeps thirty days of it searchable and tells my phone when a site goes quiet.",
+		Source: sourceURL, Author: authorName, Year: data.Year, Pages: []suite.Tab{{Name: "Home", Href: "/"}, {Name: "Docs", Href: "/documentation"}}}
 
 	s.renderer.Render(w, http.StatusOK, "home.html", data)
 }

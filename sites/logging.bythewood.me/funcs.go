@@ -21,6 +21,17 @@ var templateFuncs = template.FuncMap{
 	"query":       queryString,
 	"topCount":    topCount,
 	"isLoopback":  isLoopback,
+	"headline":    func(d *Dashboard) template.HTML { return template.HTML(headline(d)) },
+	"volume":      volumeSeries,
+	"errorSeries": errorSeries,
+	"seq":         func(n int) []struct{} { return make([]struct{}, n) },
+	"stagedBar":   func(i int) int { return 40 + (i*37)%45 },
+	"stagedErr": func(i int) int {
+		if i%11 == 5 {
+			return 32
+		}
+		return 4
+	},
 }
 
 // topCount is the largest value instead of the sum, so a dominant entry doesn't

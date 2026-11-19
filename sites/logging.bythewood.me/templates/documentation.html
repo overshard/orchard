@@ -1,19 +1,9 @@
 {{ define "extra_head" }}{{ template "social" . }}{{ end }}
 {{ define "extra_css" }}{{ range .PageStyles }}<link href="{{ . }}" rel="stylesheet">{{ end }}{{ end }}
 
-{{ define "breadcrumbs" }}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb mb-0">
-    <li class="breadcrumb-item"><a href="/">Home</a></li>
-    <li class="breadcrumb-item active" aria-current="page">{{ .Title }}</li>
-  </ol>
-</nav>
-{{ end }}
-
 {{ define "main" }}
-<div class="container my-4 doc">
-  <div class="section-label mb-2">operating</div>
-  <h1 class="fw-bolder text-white mb-4" style="letter-spacing: -0.01em;">Documentation</h1>
+<main class="o-wrap o-main doc">
+  <div class="o-ph"><div><span class="o-lab">logging &middot; docs</span><h1>How a site ships its logs here.</h1></div></div>
 
   <h2>Shipping from a site</h2>
   <p>
@@ -212,5 +202,5 @@ cd sites/logging.bythewood.me && make seed</code></pre>
     visible here, though Cloudflare emails on every tunnel state change, so it
     was never invisible, only invisible to this site.
   </p>
-</div>
+</main>
 {{ end }}

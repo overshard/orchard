@@ -1,142 +1,104 @@
 {{ define "extra_head" }}{{ template "social" . }}{{ end }}
 {{ define "extra_css" }}{{ range .PageStyles }}<link href="{{ . }}" rel="stylesheet">{{ end }}{{ end }}
-{{ define "breadcrumb_bar" }}{{ end }}
+
 {{ define "main" }}
-<section class="hero">
-  <div class="container">
-    <div class="row">
-      <div class="col-12 col-lg-7">
-        <span class="hero-eyebrow">
-          <span class="eyebrow-dot" aria-hidden="true"></span>
-          v0.1.0 · alpha · self-hosted
-        </span>
-        <h1 class="hero-title">
-          Log aggregation for operators who host their <span class="accent">own machines</span>.
-        </h1>
-        <p class="hero-sub">
-          Every site here ships its own structured records over the internal
-          bridge. Latency percentiles, status distributions, error rates, and
-          full text search. Your data never leaves your infrastructure.
-        </p>
-        <div class="hero-ctas">
-          <a href="/login" class="btn btn-primary">Access dashboard →</a>
-          <a href="/documentation" class="btn btn-outline-light">Docs</a>
-          <a href="{{ .SourceURL }}" target="_blank" rel="noopener" class="btn btn-outline-light">View source</a>
+<main>
+<div class="o-cw">
+  <section class="o-wrap o-hero">
+    <div>
+      <span class="o-lab">logging &middot; self-hosted</span>
+      <h1>What every server <em>actually did</em>.</h1>
+      <p class="o-lede">Each site ships its structured logs here, Caddy its access log too, all into SQLite with a search over every line. It pages you when errors climb or a site goes quiet.</p>
+      <div class="o-ctas">
+        <a href="/login" class="o-btn o-btn-p">Access dashboard &rarr;</a>
+        <a href="/documentation" class="o-btn">Docs</a>
+        <a href="{{ .SourceURL }}" target="_blank" rel="noopener" class="o-btn">Source</a>
+      </div>
+    </div>
+    <div class="o-win" aria-label="A staged picture of the overview">
+      <div class="o-win-bar"><i></i><i></i><i></i><span class="u">logging.bythewood.me/overview</span><span class="o-staged">STAGED</span></div>
+      <div class="o-win-body">
+        <span class="o-lab">overview &middot; 24h</span>
+        <div class="t" data-co>Every source, <em class="bad">52 errors</em>.</div>
+        <div class="stagedbars" data-co aria-hidden="true">{{ range $i, $x := seq 36 }}<i style="height: {{ stagedBar $i }}%"><b style="height: {{ stagedErr $i }}%"></b></i>{{ end }}</div>
+        <div>
+          <div class="o-rw" data-co><span class="o-dot bad"></span><span class="n o-mono">shop</span><span class="m">412 records</span><span class="o-chip bad">38 errors 1h</span></div>
+          <div class="o-rw"><span class="o-dot"></span><span class="n o-mono">caddy</span><span class="m">18.2k records</span><span class="o-chip ok">ok</span></div>
+          <div class="o-rw"><span class="o-dot warn"></span><span class="n o-mono">cron</span><span class="m">620 records</span><span class="o-chip warn">quiet</span></div>
         </div>
       </div>
-      <div class="col-12 col-lg-5 mt-5 mt-lg-0 d-flex align-items-center">
-        <div class="terminal-block w-100">
-          <span class="t-line"><span class="t-comment"># one flush, five seconds of records</span></span>
-          <span class="t-line"><span class="t-prompt">blog$</span><span class="t-out">POST orchard-logging:8000/ingest</span></span>
-          <span class="t-line"><span class="t-key">source</span>=<span class="t-val">blog</span> <span class="t-key">records</span>=<span class="t-val">37</span></span>
-          <span class="t-line"><span class="t-key">msg</span>=<span class="t-val">request</span> <span class="t-key">status</span>=<span class="t-val">200</span> <span class="t-key">ms</span>=<span class="t-val">0.412</span></span>
-          <span class="t-line"><span class="t-key">cf_ray</span>=<span class="t-val">9a1f2c88e410-IAD</span></span>
-          <span class="t-line"><span class="t-prompt">blog$</span> <span class="t-cursor"></span></span>
-        </div>
+    </div>
+  </section>
+  <div class="o-wrap o-legend">
+    <div><span class="o-pin">1</span><span>The title says what stands out in the window you're looking at.</span></div>
+    <div><span class="o-pin">2</span><span>Errors stack on the volume, so a spike shows its share.</span></div>
+    <div><span class="o-pin">3</span><span>Every source has its counts, and a quiet one is called out.</span></div>
+  </div>
+  <div class="o-ov"></div>
+</div>
+
+<div class="o-wrap">
+<section class="o-hsec">
+  <div class="o-frow">
+    <div class="o-ftxt">
+      <span class="o-lab">search</span>
+      <h3>Every line for thirty days</h3>
+      <p>Search the message, the path and every attribute at once, then narrow by source, level, status and window. A search is a URL, so it can go in a note about an incident.</p>
+      <ul><li>Overview and source pages export as markdown or PDF</li><li>Requests that skipped the tunnel are flagged</li></ul>
+    </div>
+    <div class="o-crop">
+      <span class="o-staged">STAGED</span>
+      <div class="log-body">
+        <div class="log-row lv-error"><span class="log-time">06:12:04</span><span class="log-level lv-error">ERROR</span><span class="log-source">shop</span><span class="log-msg"><span class="log-text">upstream timeout after 1.0s</span></span><span class="log-attrs">{"path":"/api/feed","status":503}</span></div>
+        <div class="log-row lv-error"><span class="log-time">06:12:01</span><span class="log-level lv-error">ERROR</span><span class="log-source">shop</span><span class="log-msg"><span class="log-text">upstream timeout after 1.0s</span></span></div>
+        <div class="log-row lv-warn"><span class="log-time">06:11:52</span><span class="log-level lv-warn">WARN</span><span class="log-source">shop</span><span class="log-msg"><span class="log-text">database busy, retrying</span></span></div>
       </div>
+    </div>
+  </div>
+  <div class="o-frow flip">
+    <div class="o-ftxt">
+      <span class="o-lab">silence</span>
+      <h3>A site that goes quiet pages you</h3>
+      <p>Every site logs its own health check every thirty seconds, so five minutes without a line from one means something's wrong with it, whoever visited.</p>
+    </div>
+    <div class="o-crop">
+      <span class="o-staged">STAGED</span>
+      <div class="o-phone">
+        <div class="clk">6:17</div>
+        <div class="dt">Thursday, November 19</div>
+        <div class="o-push"><div class="h"><span>ntfy &middot; alerts</span><span>now</span></div><b>shop is erroring</b><span class="o-muted">38 errors in five minutes</span></div>
+        <div class="o-push" style="opacity:.55"><div class="h"><span>ntfy &middot; alerts</span><span>Tuesday</span></div><b>cron went quiet</b><span class="o-muted">No lines for five minutes, back at 14:02</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="o-frow">
+    <div class="o-ftxt">
+      <span class="o-lab">rollups</span>
+      <h3>Counts that outlive the lines</h3>
+      <p>Raw lines age out after thirty days, but the hourly counts stay, so a chart over a year is still right.</p>
+    </div>
+    <div class="o-crop">
+      <span class="o-staged">STAGED</span>
+      <div class="stagedbars tall" aria-hidden="true">{{ range $i, $x := seq 52 }}<i style="height: {{ stagedBar (add $i 7) }}%"><b style="height: {{ stagedErr (add $i 3) }}%"></b></i>{{ end }}</div>
+      <div class="o-mono o-muted small">52 weeks, from the hourly counts</div>
     </div>
   </div>
 </section>
 
-<section class="stat-strip">
-  <div class="container">
-    <div class="row g-4">
-      <div class="col-6 col-md-3">
-        <div class="stat">
-          <div class="stat-label">records ingested</div>
-          <div class="stat-value">{{ num .Stats.Records }}</div>
-        </div>
-      </div>
-      <div class="col-6 col-md-3">
-        <div class="stat">
-          <div class="stat-label">sources</div>
-          <div class="stat-value">{{ .Stats.Sources }}</div>
-        </div>
-      </div>
-      <div class="col-6 col-md-3">
-        <div class="stat">
-          <div class="stat-label">raw retention</div>
-          <div class="stat-value">{{ .Stats.RawDays }}d</div>
-        </div>
-      </div>
-      <div class="col-6 col-md-3">
-        <div class="stat">
-          <div class="stat-label">counting since</div>
-          <div class="stat-value" style="font-size: 1.05rem;">
-            {{ if .Stats.FirstSeen }}{{ .Stats.FirstSeen }}{{ else }}—{{ end }}
-          </div>
-        </div>
-      </div>
-    </div>
+<section class="o-hsec">
+  <div class="o-run">
+    <div class="o-hh"><span class="o-lab">run your own</span><h2 class="o-big">One Go binary and one SQLite file</h2><p>Part of orchard, BSD 2-Clause. Each site turns its shipping on with two lines, and the docs show how.</p></div>
+    <pre class="o-code"><span class="a">git</span> clone https://github.com/overshard/orchard
+<span class="a">cd</span> orchard
+<span class="a">make</span> run SITE=logging.bythewood.me
+<span class="c"># listening on :8000</span></pre>
   </div>
 </section>
+</div>
+</main>
+{{ end }}
 
-<section class="container my-5 py-4">
-  <div class="row g-4">
-    <div class="col-12 col-md-6 col-lg-4">
-      <div class="feature">
-        <div class="feature-label">shipping</div>
-        <div class="feature-title">Shipped by a slog handler</div>
-        <p class="feature-desc">
-          Each site tees its slog records onto a bounded queue a goroutine
-          flushes. Nothing blocks the caller and stdout stays the source of
-          truth.
-        </p>
-      </div>
-    </div>
-    <div class="col-12 col-md-6 col-lg-4">
-      <div class="feature">
-        <div class="feature-label">addressing</div>
-        <div class="feature-title">Reachable only from inside</div>
-        <p class="feature-desc">
-          Sites post to a container name on the internal bridge, and the public
-          hostname refuses <code>/ingest</code> outright. No shared secret to
-          rotate.
-        </p>
-      </div>
-    </div>
-    <div class="col-12 col-md-6 col-lg-4">
-      <div class="feature">
-        <div class="feature-label">storage</div>
-        <div class="feature-title">Raw lines and hourly counters</div>
-        <p class="feature-desc">
-          Records batch into one writer with the rollup in the same
-          transaction, so the graphs cannot disagree with the search. Raw lines
-          expire on a schedule and the counters do not.
-        </p>
-      </div>
-    </div>
-    <div class="col-12 col-md-6 col-lg-4">
-      <div class="feature">
-        <div class="feature-label">reading</div>
-        <div class="feature-title">p50, p95 and p99</div>
-        <p class="feature-desc">
-          Percentiles come from the actual distribution rather than an
-          interpolation, and paths rank by p95 rather than mean.
-        </p>
-      </div>
-    </div>
-    <div class="col-12 col-md-6 col-lg-4">
-      <div class="feature">
-        <div class="feature-label">signals</div>
-        <div class="feature-title">Requests that skipped the tunnel</div>
-        <p class="feature-desc">
-          Anything crossing the tunnel carries a <code>CF-Ray</code>, so a
-          request logged without one reached the origin directly. It is a tile
-          on the dashboard.
-        </p>
-      </div>
-    </div>
-    <div class="col-12 col-md-6 col-lg-4">
-      <div class="feature">
-        <div class="feature-label">stack</div>
-        <div class="feature-title">One Go binary and a file</div>
-        <p class="feature-desc">
-          Go, <code>html/template</code>, and SQLite through a pure-Go driver,
-          with the Vite bundle compiled in. Typst renders the PDF report.
-        </p>
-      </div>
-    </div>
-  </div>
-</section>
+{{ define "footer" }}
+{{ template "suite-footer" .Footer }}
+{{ template "suite-status" .Suite }}
 {{ end }}

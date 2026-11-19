@@ -1,0 +1,118 @@
+// logging's own pieces. Everything else comes from /suite/suite.css.
+
+.small { font-size: 0.8rem; }
+.d-none { display: none !important; }
+
+.o-tiles.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+@media (max-width: 1200px) { .o-tiles.six { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 700px) { .o-tiles.six { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.charts { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+.lower { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+@media (max-width: 1000px) { .charts, .lower { grid-template-columns: minmax(0, 1fr); } }
+.charts-side { display: grid; gap: 14px; align-content: start; min-width: 0; }
+
+.chartbox { position: relative; height: 150px; }
+.chartbox.tall { height: 336px; }
+
+// The window, one link each, overflow scrolling so a phone reaches a year.
+.range {
+  display: inline-flex;
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--o-line-strong);
+
+  a {
+    padding: 4px 9px;
+    font: 500 0.72rem var(--o-mono);
+    white-space: nowrap;
+    border-right: 1px solid var(--o-line-strong);
+  }
+
+  a:last-child { border-right: 0; }
+  a.on { background: var(--o-panel2); box-shadow: inset 0 -2px 0 var(--o-brass); }
+}
+
+.o-body .range a { color: var(--o-muted); }
+.o-body .range a:hover, .o-body .range a.on { color: var(--o-text); }
+
+.sources td.lead .o-chip { margin-left: 6px; }
+
+.searchform {
+  display: grid;
+  grid-template-columns: minmax(12rem, 2fr) repeat(4, minmax(8rem, 1fr)) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+@media (max-width: 1100px) {
+  .searchform { grid-template-columns: 1fr 1fr; }
+  .searchform .q { grid-column: 1 / -1; }
+}
+
+.pager { display: flex; justify-content: space-between; align-items: center; }
+
+.ingest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+  padding: 10px 14px;
+  background: var(--o-sunk);
+  border: 1px solid var(--o-line);
+  font-size: 0.74rem;
+  color: var(--o-muted);
+
+  b { color: var(--o-text); font-weight: 600; }
+}
+
+// One log line. The level is a stripe on the left as well as a word.
+.log-body { max-height: 40rem; overflow-y: auto; }
+
+.log-row {
+  display: grid;
+  grid-template-columns: auto 3.2rem 6.5rem minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+  padding: 6px 12px;
+  border-top: 1px solid var(--o-line-soft);
+  font: 0.76rem/1.5 var(--o-mono);
+
+  &:first-child { border-top: 0; }
+  &:hover { background: rgba(233, 235, 238, 0.025); }
+  &.lv-error { box-shadow: inset 2px 0 0 var(--o-bad); }
+  &.lv-warn { box-shadow: inset 2px 0 0 var(--o-warn); }
+
+  .log-time { color: var(--o-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .log-level { font-weight: 600; }
+  .log-level.lv-error { color: var(--o-bad); }
+  .log-level.lv-warn { color: var(--o-warn); }
+  .log-level.lv-info { color: var(--o-muted); }
+  .log-level.lv-debug { color: var(--o-line-strong); }
+  .log-source { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .log-msg { min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; font-family: var(--o-sans); font-size: 0.8rem; }
+  .log-status { font: 600 0.74rem var(--o-mono); }
+  .log-status.st-2xx { color: var(--o-ok); }
+  .log-status.st-4xx { color: var(--o-warn); }
+  .log-status.st-5xx { color: var(--o-bad); }
+  .log-method, .log-dur { color: var(--o-muted); font-family: var(--o-mono); font-size: 0.74rem; }
+  .log-path { overflow-wrap: anywhere; font-family: var(--o-mono); font-size: 0.76rem; }
+  .log-component { color: var(--o-brass); font-family: var(--o-mono); font-size: 0.74rem; }
+  .log-component::before { content: "["; }
+  .log-component::after { content: "]"; }
+  .log-flag { border: 1px solid var(--o-line-strong); color: var(--o-muted); padding: 0 5px; font: 500 0.62rem var(--o-mono); letter-spacing: 0.06em; text-transform: uppercase; }
+  .log-attrs { grid-column: 4; color: var(--o-muted); font-size: 0.7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+.o-body .log-row .log-source { color: var(--o-text); }
+.o-body .log-row .log-source:hover { color: var(--o-brass); }
+
+// Three fixed columns fill a phone, so the message gets its own line there.
+@media (max-width: 760px) {
+  .log-row { grid-template-columns: auto auto minmax(0, 1fr); row-gap: 2px; }
+  .log-row .log-msg, .log-row .log-attrs { grid-column: 1 / -1; }
+}
+
+.notfound { justify-items: start; padding-top: 48px; padding-bottom: 64px; }
+.notfound h1 { font-size: 2rem; }
+.pond-lost { width: 216px; height: 180px; image-rendering: pixelated; }
